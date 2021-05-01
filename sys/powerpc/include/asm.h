@@ -108,12 +108,13 @@
 	.globl	name; \
 	.section ".opd","aw"; \
 	.p2align 3; \
-	name: \
+name: \
 	.quad	DOT_LABEL(name),.TOC.@tocbase,0; \
 	.previous; \
 	.p2align 4; \
 	TYPE_ENTRY(name) \
-DOT_LABEL(name):
+DOT_LABEL(name): \
+	.cfi_startproc
 #define	_NAKED_ENTRY(name)	_ENTRY(name)
 #else
 #define	_ENTRY(name) \
@@ -122,6 +123,7 @@ DOT_LABEL(name):
 	.globl	name; \
 	.type	name,@function; \
 name: \
+	.cfi_startproc; \
 	addis	%r2, %r12, (.TOC.-name)@ha; \
 	addi	%r2, %r2, (.TOC.-name)@l; \
 	.localentry name, .-name;
@@ -133,10 +135,12 @@ name: \
 	.globl	name; \
 	.type	name,@function; \
 name: \
+	.cfi_startproc; \
 	.localentry name, .-name;
 #endif
 
 #define	_END(name) \
+	.cfi_endproc; \
 	.long	0; \
 	.byte	0,0,0,0,0,0,0,0; \
 	END_SIZE(name)
@@ -153,8 +157,11 @@ name: \
 	.p2align 4; \
 	.globl	name; \
 	.type	name,@function; \
-	name:
-#define	_END(name)
+name: \
+	.cfi_startproc
+#define	_END(name) \
+	.cfi_endproc; \
+	.size	name, . - name
 
 #define _NAKED_ENTRY(name)	_ENTRY(name)
 
@@ -186,6 +193,7 @@ name: \
 # define	_PROF_PROLOGUE
 #endif
 
+#define	ASEND(y)	_END(ASMNAME(y))
 #define	ASENTRY(y)	_ENTRY(ASMNAME(y)); _PROF_PROLOGUE
 #define	END(y)		_END(CNAME(y))
 #define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE

@@ -164,6 +164,30 @@ equal_body()
         grep '^failed: \${x} != \${y} (a != b)$' resfile
 }
 
+atf_test_case not_equal
+not_equal_head()
+{
+    atf_set "descr" "Verifies that atf_check_not_equal works"
+}
+not_equal_body()
+{
+    h="$(atf_get_srcdir)/misc_helpers -s $(atf_get_srcdir)"
+
+    atf_check -s eq:0 -o ignore -e ignore -x "${h} atf_check_not_equal_ok"
+
+    atf_check -s eq:1 -o ignore -e ignore -x \
+        "${h} -r resfile atf_check_not_equal_fail"
+    atf_check -s eq:0 -o ignore -e empty grep '^failed: a == b (a == b)$' \
+        resfile
+
+    atf_check -s eq:0 -o ignore -e ignore -x "${h} atf_check_not_equal_eval_ok"
+
+    atf_check -s eq:1 -o ignore -e ignore -x \
+        "${h} -r resfile atf_check_not_equal_eval_fail"
+    atf_check -s eq:0 -o ignore -e empty \
+        grep '^failed: \${x} == \${y} (a == b)$' resfile
+}
+
 atf_test_case flush_stdout_on_death
 flush_stdout_on_death_body()
 {

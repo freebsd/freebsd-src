@@ -163,7 +163,9 @@ struct ostatfs {
 	 */
 	long	f_spare[2];		/* unused spare */
 };
+#endif	/* _KERNEL */
 
+#if defined(_WANT_MOUNT) || defined(_KERNEL)
 TAILQ_HEAD(vnodelst, vnode);
 
 /* Mount options list */
@@ -177,6 +179,16 @@ struct vfsopt {
 	int	seen;
 };
 
+struct mount_pcpu {
+	int		mntp_thread_in_ops;
+	int		mntp_ref;
+	int		mntp_lockref;
+	int		mntp_writeopcount;
+};
+
+_Static_assert(sizeof(struct mount_pcpu) == 16,
+    "the struct is allocated from pcpu 16 zone");
+
 /*
  * Structure per mounted filesystem.  Each mounted filesystem has an
  * array of operations and an instance record.  The filesystems are
@@ -186,26 +198,30 @@ struct vfsopt {
  * 	l - mnt_listmtx
  *	m - mountlist_mtx
  *	i - interlock
+ *	i* - interlock of uppers' list head
  *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
  */
 struct mount {
-	struct mtx	mnt_mtx;		/* mount structure interlock */
+	int 		mnt_vfs_ops;		/* (i) pending vfs ops */
+	int		mnt_kern_flag;		/* (i) kernel only flags */
+	uint64_t	mnt_flag;		/* (i) flags shared with user */
+	struct mount_pcpu *mnt_pcpu;		/* per-CPU data */
+	struct vnode	*mnt_rootvnode;
+	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
+	struct vfsops	*mnt_op;		/* operations on fs */
+	struct vfsconf	*mnt_vfc;		/* configuration info */
+	struct mtx __aligned(CACHE_LINE_SIZE)	mnt_mtx; /* mount structure interlock */
 	int		mnt_gen;		/* struct mount generation */
 #define	mnt_startzero	mnt_list
 	TAILQ_ENTRY(mount) mnt_list;		/* (m) mount list */
-	struct vfsops	*mnt_op;		/* operations on fs */
-	struct vfsconf	*mnt_vfc;		/* configuration info */
-	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
 	struct vnode	*mnt_syncer;		/* syncer vnode */
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
-	int		mnt_kern_flag;		/* (i) kernel only flags */
-	uint64_t	mnt_flag;		/* (i) flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
@@ -227,16 +243,12 @@ struct mount {
 	struct vnodelst	mnt_lazyvnodelist;	/* (l) list of lazy vnodes */
 	int		mnt_lazyvnodelistsize;	/* (l) # of lazy vnodes */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
-	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
-	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
-	int __aligned(CACHE_LINE_SIZE)	mnt_vfs_ops;/* (i) pending vfs ops */
-	int		*mnt_thread_in_ops_pcpu;
-	int		*mnt_ref_pcpu;
-	int		*mnt_lockref_pcpu;
-	int		*mnt_writeopcount_pcpu;
-	struct vnode	*mnt_rootvnode;
+	TAILQ_ENTRY(mount) mnt_upper_link;	/* (i*) we in the all uppers */
+	TAILQ_HEAD(, mount) mnt_uppers;		/* (i) upper mounts over us */
 };
+#endif	/* _WANT_MOUNT || _KERNEL */
 
+#ifdef _KERNEL
 /*
  * Definitions for MNT_VNODE_FOREACH_ALL.
  */
@@ -463,6 +475,7 @@ struct mntoptnames {
 #define	MNTK_VMSETSIZE_BUG	0x00010000
 #define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
 #define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */
+#define	MNTK_SUSPEND_ALL	0x00080000 /* Suspended by all-fs suspension */
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
@@ -989,6 +1002,7 @@ void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
 void	vfs_notify_upper(struct vnode *, int);
+struct mount *vfs_ref_from_vp(struct vnode *);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
@@ -997,7 +1011,7 @@ int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *);
 void	vfs_unmountall(void);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
-extern	struct mtx mountlist_mtx;
+extern	struct mtx_padalign mountlist_mtx;
 extern	struct nfs_public nfs_pub;
 extern	struct sx vfsconf_sx;
 #define	vfsconf_lock()		sx_xlock(&vfsconf_sx)
@@ -1048,9 +1062,12 @@ void	vfs_dump_mount_counters(struct mount *);
 enum mount_counter { MNT_COUNT_REF, MNT_COUNT_LOCKREF, MNT_COUNT_WRITEOPCOUNT };
 int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
 
+void suspend_all_fs(void);
+void resume_all_fs(void);
+
 /*
  * Code transitioning mnt_vfs_ops to > 0 issues IPIs until it observes
- * all CPUs not executing code enclosed by mnt_thread_in_ops_pcpu.
+ * all CPUs not executing code enclosed by thread_in_ops_pcpu variable.
  *
  * This provides an invariant that by the time the last CPU is observed not
  * executing, everyone else entering will see the counter > 0 and exit.
@@ -1060,52 +1077,58 @@ int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
  * before making any changes or only make changes safe while the section is
  * executed.
  */
+#define	vfs_mount_pcpu(mp)		zpcpu_get(mp->mnt_pcpu)
+#define	vfs_mount_pcpu_remote(mp, cpu)	zpcpu_get_cpu(mp->mnt_pcpu, cpu)
+
 #define vfs_op_thread_entered(mp) ({				\
 	MPASS(curthread->td_critnest > 0);			\
-	*zpcpu_get(mp->mnt_thread_in_ops_pcpu) == 1;		\
+	struct mount_pcpu *_mpcpu = vfs_mount_pcpu(mp);		\
+	_mpcpu->mntp_thread_in_ops == 1;			\
 })
 
-#define vfs_op_thread_enter_crit(mp) ({				\
+#define vfs_op_thread_enter_crit(mp, _mpcpu) ({			\
 	bool _retval_crit = true;				\
 	MPASS(curthread->td_critnest > 0);			\
-	MPASS(!vfs_op_thread_entered(mp));			\
-	zpcpu_set_protected(mp->mnt_thread_in_ops_pcpu, 1);	\
-	__compiler_membar();					\
+	_mpcpu = vfs_mount_pcpu(mp);				\
+	MPASS(mpcpu->mntp_thread_in_ops == 0);			\
+	_mpcpu->mntp_thread_in_ops = 1;				\
+	atomic_interrupt_fence();					\
 	if (__predict_false(mp->mnt_vfs_ops > 0)) {		\
-		vfs_op_thread_exit_crit(mp);			\
+		vfs_op_thread_exit_crit(mp, _mpcpu);		\
 		_retval_crit = false;				\
 	}							\
 	_retval_crit;						\
 })
 
-#define vfs_op_thread_enter(mp) ({				\
+#define vfs_op_thread_enter(mp, _mpcpu) ({			\
 	bool _retval;						\
 	critical_enter();					\
-	_retval = vfs_op_thread_enter_crit(mp);			\
+	_retval = vfs_op_thread_enter_crit(mp, _mpcpu);		\
 	if (__predict_false(!_retval))				\
 		critical_exit();				\
 	_retval;						\
 })
 
-#define vfs_op_thread_exit_crit(mp) do {			\
-	MPASS(vfs_op_thread_entered(mp));			\
-	__compiler_membar();					\
-	zpcpu_set_protected(mp->mnt_thread_in_ops_pcpu, 0);	\
+#define vfs_op_thread_exit_crit(mp, _mpcpu) do {		\
+	MPASS(_mpcpu == vfs_mount_pcpu(mp));			\
+	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
+	atomic_interrupt_fence();					\
+	_mpcpu->mntp_thread_in_ops = 0;				\
 } while (0)
 
-#define vfs_op_thread_exit(mp) do {				\
-	vfs_op_thread_exit_crit(mp);				\
+#define vfs_op_thread_exit(mp, _mpcpu) do {			\
+	vfs_op_thread_exit_crit(mp, _mpcpu);			\
 	critical_exit();					\
 } while (0)
 
-#define vfs_mp_count_add_pcpu(mp, count, val) do {		\
-	MPASS(vfs_op_thread_entered(mp));			\
-	zpcpu_add_protected(mp->mnt_##count##_pcpu, val);	\
+#define vfs_mp_count_add_pcpu(_mpcpu, count, val) do {		\
+	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
+	_mpcpu->mntp_##count += val;				\
 } while (0)
 
-#define vfs_mp_count_sub_pcpu(mp, count, val) do {		\
-	MPASS(vfs_op_thread_entered(mp));			\
-	zpcpu_sub_protected(mp->mnt_##count##_pcpu, val);	\
+#define vfs_mp_count_sub_pcpu(_mpcpu, count, val) do {		\
+	MPASS(_mpcpu->mntp_thread_in_ops == 1);			\
+	_mpcpu->mntp_##count -= val;				\
 } while (0)
 
 #else /* !_KERNEL */

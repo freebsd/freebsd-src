@@ -117,3 +117,7 @@ device  	diu
 device  	videomode
 device  	vt
 device  	fbd
+
+# HID support
+options 	HID_DEBUG	# enable debug msgs
+device		hid		# Generic HID support

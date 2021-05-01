@@ -235,6 +235,7 @@ snps_dwc3_configure_phy(struct snps_dwc3_softc *sc)
 			DWC3_GUSB2PHYCFG0_USBTRDTIM(DWC3_GUSB2PHYCFG0_USBTRDTIM_8BITS);
 	}
 	DWC3_WRITE(sc, DWC3_GUSB2PHYCFG0, reg);
+	OF_prop_free(phy_type);
 }
 
 static void

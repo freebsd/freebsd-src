@@ -404,8 +404,8 @@ targenable(struct targ_softc *softc, struct cam_path *path, int grp6_len,
 	}
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
-	else if (cpi.maxio > MAXPHYS)
-		softc->maxio = MAXPHYS;		/* for safety */
+	else if (cpi.maxio > maxphys)
+		softc->maxio = maxphys;		/* for safety */
 	else
 		softc->maxio = cpi.maxio;	/* real value */
 

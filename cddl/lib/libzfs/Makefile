@@ -67,7 +67,6 @@ KERNEL_C = \
         zfs_fletcher_superscalar4.c \
         zfs_namecheck.c \
         zfs_prop.c \
-        zfs_uio.c \
         zpool_prop.c \
         zprop_common.c
 
@@ -104,6 +103,8 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS+= -DSYSCONFDIR=\"/etc\"
+CFLAGS+= -DPKGDATADIR=\"/usr/share/zfs\"
 
 
 .include <bsd.lib.mk>

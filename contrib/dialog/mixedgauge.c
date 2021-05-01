@@ -1,9 +1,9 @@
 /*
- *  $Id: mixedgauge.c,v 1.34 2018/06/18 22:09:31 tom Exp $
+ *  $Id: mixedgauge.c,v 1.37 2021/01/16 17:19:15 tom Exp $
  *
  *  mixedgauge.c -- implements the mixedgauge dialog
  *
- *  Copyright 2007-2012,2018	Thomas E. Dickey
+ *  Copyright 2007-2020,2021	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -110,7 +110,6 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
     int limit_y = dlg->height;
     int limit_x = dlg->width;
 
-    int y = MARGIN;
     int item;
     int cells = dlg->len_text - 2;
     int lm = limit_x - dlg->len_text - 1;
@@ -118,21 +117,23 @@ myprint_status(DIALOG_MIXEDGAUGE * dlg)
     int last_y = 0, last_x = 0;
     int j, xxx;
     float percent;
-    const char *status = "";
     char *freeMe = 0;
 
     bm -= (2 * MARGIN);
     getyx(win, last_y, last_x);
     for (item = 0; item < dlg->item_no; ++item) {
+	const char *status = "";
 	chtype attr = A_NORMAL;
+	int y = item + MARGIN + 1;
 
-	y = item + MARGIN + 1;
 	if (y > bm)
 	    break;
 
 	status = status_string(dlg->list[item].text, &freeMe);
-	if (status == 0 || *status == 0)
+	if (status == 0 || *status == 0) {
+	    free(freeMe);
 	    continue;
+	}
 
 	(void) wmove(win, y, 2 * MARGIN);
 	dlg_attrset(win, dialog_attr);
@@ -266,9 +267,11 @@ dlg_begin_mixedgauge(DIALOG_MIXEDGAUGE * dlg,
 		     int aItemNo,
 		     char **items)
 {
-    int n, y, x;
+    int y, x;
 
     if (!*began) {
+	int n;
+
 	curs_set(0);
 
 	memset(dlg, 0, sizeof(*dlg));
@@ -367,6 +370,8 @@ dlg_finish_mixedgauge(DIALOG_MIXEDGAUGE * dlg, int status)
 #endif
     curs_set(1);
     dlg_del_window(dlg->dialog);
+    free(dlg->prompt);
+    free(dlg->list);
     return status;
 }
 

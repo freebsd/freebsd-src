@@ -45,5 +45,5 @@ __FBSDID("$FreeBSD$");
 u_long
 random(void)
 {
-	return (prng32());
+	return (prng32() & 0x7fffffff);
 }

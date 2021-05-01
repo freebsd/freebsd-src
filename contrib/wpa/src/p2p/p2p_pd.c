@@ -595,14 +595,12 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			goto out;
 		}
 
+		dev = p2p_get_device(p2p, sa);
 		if (!dev) {
-			dev = p2p_get_device(p2p, sa);
-			if (!dev) {
-				p2p_dbg(p2p,
-					"Provision Discovery device not found "
-					MACSTR, MAC2STR(sa));
-				goto out;
-			}
+			p2p_dbg(p2p,
+				"Provision Discovery device not found "
+				MACSTR, MAC2STR(sa));
+			goto out;
 		}
 	} else if (msg.wfd_subelems) {
 		wpabuf_free(dev->info.wfd_subelems);

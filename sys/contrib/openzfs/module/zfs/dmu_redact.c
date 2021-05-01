@@ -858,7 +858,7 @@ hold_next_object(objset_t *os, struct redact_record *rec, void *tag,
 {
 	int err = 0;
 	if (*dn != NULL)
-		dnode_rele(*dn, FTAG);
+		dnode_rele(*dn, tag);
 	*dn = NULL;
 	if (*object < rec->start_object) {
 		*object = rec->start_object - 1;
@@ -1062,9 +1062,9 @@ dmu_redact_snap(const char *snapname, nvlist_t *redactnvl,
 
 		}
 	}
-	VERIFY3P(nvlist_next_nvpair(redactnvl, pair), ==, NULL);
 	if (err != 0)
 		goto out;
+	VERIFY3P(nvlist_next_nvpair(redactnvl, pair), ==, NULL);
 
 	boolean_t resuming = B_FALSE;
 	zfs_bookmark_phys_t bookmark;

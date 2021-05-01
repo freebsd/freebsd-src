@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#include "opt_iommu.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -785,3 +786,21 @@ bus_dma_template_fill(bus_dma_template_t *t, bus_dma_param_t *kv, u_int count)
 	return;
 }
 
+#ifndef IOMMU
+bool bus_dma_iommu_set_buswide(device_t dev);
+int bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t start, vm_size_t length, int flags);
+
+bool
+bus_dma_iommu_set_buswide(device_t dev)
+{
+	return (false);
+}
+
+int
+bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t start, vm_size_t length, int flags)
+{
+	return (0);
+}
+#endif

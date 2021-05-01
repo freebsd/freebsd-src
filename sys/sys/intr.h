@@ -94,6 +94,8 @@ struct intr_irqsrc {
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
 #endif
+	/* Used by MSI interrupts to store the iommu details */
+	void *			isrc_iommu;
 };
 
 /* Intr interface for PIC. */
@@ -113,6 +115,7 @@ int intr_pic_deregister(device_t, intptr_t);
 int intr_pic_claim_root(device_t, intptr_t, intr_irq_filter_t *, void *, u_int);
 struct intr_pic *intr_pic_add_handler(device_t, struct intr_pic *,
     intr_child_irq_filter_t *, void *, uintptr_t, uintptr_t);
+bool intr_is_per_cpu(struct resource *);
 
 extern device_t intr_irq_root_dev;
 
@@ -161,4 +164,7 @@ intr_ipi_increment_count(u_long *counter, u_int cpu)
 u_long * intr_ipi_setup_counters(const char *name);
 
 #endif
+
+extern int	intr_nirq;	/* number of IRQs on intrng platforms */
+
 #endif	/* _SYS_INTR_H */

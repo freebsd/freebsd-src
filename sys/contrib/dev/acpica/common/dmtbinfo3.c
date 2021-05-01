@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -378,6 +378,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat5[] =
     {ACPI_DMT_BUF16,    ACPI_SRAT5_OFFSET (DeviceHandle),           "Device Handle", 0},
     {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
     {ACPI_DMT_FLAG0,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Enabled", 0},
+    {ACPI_DMT_FLAG1,    ACPI_SRAT5_FLAG_OFFSET (Flags,0),           "Architectural Transactions", 0},
     {ACPI_DMT_UINT32,   ACPI_SRAT5_OFFSET (Reserved1),              "Reserved2", 0},
     ACPI_DMT_TERMINATOR
 };
@@ -528,21 +529,71 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoUefi[] =
 
 /*******************************************************************************
  *
- * VRTC - Virtual Real Time Clock Table
+ * VIOT - Virtual I/O Translation Table
  *
  ******************************************************************************/
 
-ACPI_DMTABLE_INFO           AcpiDmTableInfoVrtc[] =
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViot[] =
 {
+    {ACPI_DMT_UINT16,   ACPI_VIOT_OFFSET (NodeCount),               "Node count", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT_OFFSET (NodeOffset),              "Node offset", 0},
+    {ACPI_DMT_UINT64,   ACPI_VIOT_OFFSET (Reserved),                "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 
-/* VRTC Subtables - VRTC Entry */
+/* Common VIOT subtable header */
 
-ACPI_DMTABLE_INFO           AcpiDmTableInfoVrtc0[] =
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViotHeader[] =
 {
-    {ACPI_DMT_GAS,      ACPI_VRTC0_OFFSET (PhysicalAddress),        "PhysicalAddress", 0},
-    {ACPI_DMT_UINT32,   ACPI_VRTC0_OFFSET (Irq),                    "IRQ", 0},
+    {ACPI_DMT_VIOT,     ACPI_VIOTH_OFFSET (Type),                   "Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_VIOTH_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOTH_OFFSET (Length),                 "Length", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
+/* VIOT Subtables */
+
+/* 0x01: PCI Range Node */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViot1[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_VIOT1_OFFSET (EndpointStart),          "Endpoint start", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT1_OFFSET (SegmentStart),           "PCI Segment start", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT1_OFFSET (SegmentEnd),             "PCI Segment end", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT1_OFFSET (BdfStart),               "PCI BDF start", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT1_OFFSET (BdfEnd),                 "PCI BDF end", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT1_OFFSET (OutputNode),             "Output node", 0},
+    {ACPI_DMT_UINT48,   ACPI_VIOT1_OFFSET (Reserved),               "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0x02: MMIO Endpoint Node */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViot2[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_VIOT2_OFFSET (Endpoint),               "Endpoint", 0},
+    {ACPI_DMT_UINT64,   ACPI_VIOT2_OFFSET (BaseAddress),            "Base address", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT2_OFFSET (OutputNode),             "Output node", 0},
+    {ACPI_DMT_UINT48,   ACPI_VIOT2_OFFSET (Reserved),               "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0x03: PCI Virtio-IOMMU Node */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViot3[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_VIOT3_OFFSET (Segment),                "PCI Segment", 0},
+    {ACPI_DMT_UINT16,   ACPI_VIOT3_OFFSET (Bdf),                    "PCI BDF number", 0},
+    {ACPI_DMT_UINT64,   ACPI_VIOT3_OFFSET (Reserved),               "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0x04: MMIO Virtio-IOMMU Node */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoViot4[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_VIOT4_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_VIOT4_OFFSET (BaseAddress),            "Base address", 0},
     ACPI_DMT_TERMINATOR
 };
 

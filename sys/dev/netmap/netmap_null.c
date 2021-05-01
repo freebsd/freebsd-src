@@ -151,6 +151,7 @@ netmap_get_null_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	nna->up.num_rx_rings = req->nr_rx_rings;
 	nna->up.num_tx_desc = req->nr_tx_slots;
 	nna->up.num_rx_desc = req->nr_rx_slots;
+	nna->up.na_flags = NAF_OFFSETS;
 	error = netmap_attach_common(&nna->up);
 	if (error)
 		goto free_nna;

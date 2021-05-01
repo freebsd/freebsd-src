@@ -305,22 +305,22 @@ init_secondary(void)
 	pc->pc_common_tss.tss_rsp0 = 0;
 
 	/* The doublefault stack runs on IST1. */
-	np = ((struct nmi_pcpu *)&doublefault_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&doublefault_stack[DBLFAULT_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist1 = (long)np;
 
 	/* The NMI stack runs on IST2. */
-	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&nmi_stack[NMI_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist2 = (long)np;
 
 	/* The MC# stack runs on IST3. */
-	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&mce_stack[MCE_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist3 = (long)np;
 
 	/* The DB# stack runs on IST4. */
-	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&dbg_stack[DBG_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist4 = (long)np;
 
@@ -380,7 +380,7 @@ mp_realloc_pcpu(int cpuid, int domain)
 	vm_offset_t oa, na;
 
 	oa = (vm_offset_t)&__pcpu[cpuid];
-	if (_vm_phys_domain(pmap_kextract(oa)) == domain)
+	if (vm_phys_domain(pmap_kextract(oa)) == domain)
 		return;
 	m = vm_page_alloc_domain(NULL, 0, domain,
 	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
@@ -481,13 +481,14 @@ native_start_all_aps(void)
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
-		    M_ZERO);
-		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(DBLFAULT_STACK_SIZE,
+		    M_WAITOK | M_ZERO);
+		mce_stack = (char *)kmem_malloc(MCE_STACK_SIZE,
+		    M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		    DOMAINSET_PREF(domain), NMI_STACK_SIZE, M_WAITOK | M_ZERO);
 		dbg_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		    DOMAINSET_PREF(domain), DBG_STACK_SIZE, M_WAITOK | M_ZERO);
 		dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
 		    DPCPU_SIZE, M_WAITOK | M_ZERO);
 
@@ -634,11 +635,11 @@ invl_scoreboard_slot(u_int cpu)
 }
 
 /*
- * Used by pmap to request cache or TLB invalidation on local and
- * remote processors.  Mask provides the set of remote CPUs which are
+ * Used by the pmap to request cache or TLB invalidation on local and
+ * remote processors.  Mask provides the set of remote CPUs that are
  * to be signalled with the invalidation IPI.  As an optimization, the
- * curcpu_cb callback is invoked on the calling CPU while waiting for
- * remote CPUs to complete the operation.
+ * curcpu_cb callback is invoked on the calling CPU in a critical
+ * section while waiting for the remote CPUs to complete the operation.
  *
  * The callback function is called unconditionally on the caller's
  * underlying processor, even when this processor is not set in the
@@ -648,6 +649,9 @@ invl_scoreboard_slot(u_int cpu)
  * Interrupts must be enabled when calling the function with smp
  * started, to avoid deadlock with other IPIs that are protected with
  * smp_ipi_mtx spinlock at the initiator side.
+ *
+ * Function must be called with the thread pinned, and it unpins on
+ * completion.
  */
 static void
 smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
@@ -656,29 +660,24 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	cpuset_t other_cpus, mask1;
 	uint32_t generation, *p_cpudone;
 	int cpu;
+	bool is_all;
 
 	/*
 	 * It is not necessary to signal other CPUs while booting or
 	 * when in the debugger.
 	 */
-	if (kdb_active || KERNEL_PANICKED() || !smp_started) {
-		curcpu_cb(pmap, addr1, addr2);
-		return;
-	}
+	if (kdb_active || KERNEL_PANICKED() || !smp_started)
+		goto local_cb;
 
-	sched_pin();
+	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
-	if (CPU_ISFULLSET(&mask)) {
-		if (mp_ncpus <= 1)
-			goto nospinexit;
-	} else {
-		CPU_CLR(PCPU_GET(cpuid), &mask);
-		if (CPU_EMPTY(&mask))
-			goto nospinexit;
-	}
+	is_all = !CPU_CMP(&mask, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	if (CPU_EMPTY(&mask))
+		goto local_cb;
 
 	/*
 	 * Initiator must have interrupts enabled, which prevents
@@ -717,7 +716,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	 * (zeroing slot) and reading from it below (wait for
 	 * acknowledgment).
 	 */
-	if (CPU_ISFULLSET(&mask)) {
+	if (is_all) {
 		ipi_all_but_self(IPI_INVLOP);
 		other_cpus = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
@@ -733,13 +732,22 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 		while (atomic_load_int(p_cpudone) != generation)
 			ia32_pause();
 	}
-	critical_exit();
+
+	/*
+	 * Unpin before leaving critical section.  If the thread owes
+	 * preemption, this allows scheduler to select thread on any
+	 * CPU from its cpuset.
+	 */
 	sched_unpin();
+	critical_exit();
+
 	return;
 
-nospinexit:
+local_cb:
+	critical_enter();
 	curcpu_cb(pmap, addr1, addr2);
 	sched_unpin();
+	critical_exit();
 }
 
 void
@@ -843,7 +851,8 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 		invpcid(&d, INVPCID_CTXGLOB);
 	} else {
 		invpcid(&d, INVPCID_CTX);
-		if (smp_tlb_pmap == PCPU_GET(curpmap))
+		if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+		    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3)
 			PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 	}
 }
@@ -1094,7 +1103,7 @@ invlop_handler(void)
 	for (;;) {
 		for (initiator_cpu_id = 0; initiator_cpu_id <= mp_maxid;
 		    initiator_cpu_id++) {
-			if (scoreboard[initiator_cpu_id] == 0)
+			if (atomic_load_int(&scoreboard[initiator_cpu_id]) == 0)
 				break;
 		}
 		if (initiator_cpu_id > mp_maxid)

@@ -482,7 +482,7 @@ devfs_purge(struct devfs_mount *dm, struct devfs_dirent *dd)
 static void
 devfs_metoo(struct cdev_priv *cdp, struct devfs_mount *dm)
 {
-	struct devfs_dirent **dep;
+	struct devfs_dirent **dep, **olddep;
 	int siz;
 
 	siz = (dm->dm_idx + 1) * sizeof *dep;
@@ -495,8 +495,7 @@ devfs_metoo(struct cdev_priv *cdp, struct devfs_mount *dm)
 		return;
 	} 
 	memcpy(dep, cdp->cdp_dirents, (cdp->cdp_maxdirent + 1) * sizeof *dep);
-	if (cdp->cdp_maxdirent > 0)
-		free(cdp->cdp_dirents, M_DEVFS2);
+	olddep = cdp->cdp_maxdirent > 0 ? cdp->cdp_dirents : NULL;
 	cdp->cdp_dirents = dep;
 	/*
 	 * XXX: if malloc told us how much we actually got this could
@@ -504,6 +503,7 @@ devfs_metoo(struct cdev_priv *cdp, struct devfs_mount *dm)
 	 */
 	cdp->cdp_maxdirent = dm->dm_idx;
 	dev_unlock();
+	free(olddep, M_DEVFS2);
 }
 
 /*

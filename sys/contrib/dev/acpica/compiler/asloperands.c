@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1090,7 +1090,7 @@ OpnDoDefinitionBlock (
          * Use the definition block file parameter instead of the input
          * filename. Since all files were opened previously, remove the
          * existing file and open a new file with the name of this
-         * definiton block parameter. Since AML code generation has yet
+         * definition block parameter. Since AML code generation has yet
          * to happen, the previous file can be removed without any impacts.
          */
         FlCloseFile (ASL_FILE_AML_OUTPUT);

@@ -121,6 +121,7 @@ struct protosw {
 #define	PR_RIGHTS	0x10		/* passes capabilities */
 #define PR_IMPLOPCL	0x20		/* implied open/close */
 #define	PR_LASTHDR	0x40		/* enforce ipsec policy; last header */
+#define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 
 /*
  * In earlier BSD network stacks, a single pr_usrreq() function pointer was
@@ -183,7 +184,6 @@ struct uio;
  * should eventually be merged back into struct protosw.
  *
  * Some fields initialized to defaults if they are NULL.
- * See uipc_domain.c:net_init_domain()
  */
 struct pr_usrreqs {
 	void	(*pru_abort)(struct socket *so);

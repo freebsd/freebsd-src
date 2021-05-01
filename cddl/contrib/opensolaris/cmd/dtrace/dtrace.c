@@ -51,6 +51,7 @@
 #include <libproc.h>
 #endif
 #ifdef __FreeBSD__
+#include <locale.h>
 #include <spawn.h>
 #endif
 
@@ -1315,6 +1316,14 @@ main(int argc, char *argv[])
 	char *p, **v;
 	struct ps_prochandle *P;
 	pid_t pid;
+
+#ifdef __FreeBSD__
+	/* For %'d and the like. */
+	(void) setlocale(LC_NUMERIC, "");
+
+	/* For %T. */
+	(void) setlocale(LC_TIME, "");
+#endif
 
 	g_pname = basename(argv[0]);
 

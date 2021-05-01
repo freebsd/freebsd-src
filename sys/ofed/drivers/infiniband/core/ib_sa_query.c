@@ -622,6 +622,8 @@ void ib_sa_cancel_query(int id, struct ib_sa_query *query)
 	agent = query->port->agent;
 	mad_buf = query->mad_buf;
 	spin_unlock_irqrestore(&idr_lock, flags);
+
+	ib_cancel_mad(agent, mad_buf);
 }
 EXPORT_SYMBOL(ib_sa_cancel_query);
 

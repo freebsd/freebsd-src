@@ -22,7 +22,9 @@ SRCS=	autoload.c \
 	framebuffer.c \
 	main.c \
 	self_reloc.c \
-	vers.c
+	vers.c \
+	gfx_fb.c \
+	8x16.c
 
 CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
@@ -32,6 +34,15 @@ CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes
 .endif
+
+CFLAGS.bootinfo.c += -I$(SRCTOP)/sys/teken
+CFLAGS.bootinfo.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.framebuffer.c += -I$(SRCTOP)/sys/teken
+CFLAGS.framebuffer.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
+CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
+CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.gfx_fb.c += -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 
 # We implement a slightly non-standard %S in that it always takes a
 # CHAR16 that's common in UEFI-land instead of a wchar_t. This only
@@ -73,6 +84,11 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
+
+CLEANFILES+=	8x16.c
+
+8x16.c:		${SRCTOP}/contrib/terminus/ter-u16b.bdf
+	vtfontcvt -f compressed-source -o ${.TARGET} ${.ALLSRC}
 
 FILES+=	${LOADER}.efi
 FILESMODE_${LOADER}.efi=	${BINMODE}

@@ -329,10 +329,9 @@ editentry_set(char *name, char *newvalue, int editonly)
 
 	case 'c':		/* Character array. */
 	case 'z':		/* Null-padded string. */
-		if ((cval = malloc(dest->size + 1)) == NULL)
+		if ((cval = calloc(1, dest->size + 1)) == NULL)
 			err(EX_OSERR, NULL);
-		bzero(cval, dest->size + 1);
-		strncpy(cval, newvalue, dest->size);
+		strlcpy(cval, newvalue, dest->size + 1);
 		if (dest->type == 'z') {
 			/* Convert trailing spaces to nulls. */
 			char *convertend2;

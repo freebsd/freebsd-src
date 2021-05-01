@@ -554,13 +554,53 @@ class_remove_file(struct class *class, const struct class_attribute *attr)
 		sysfs_remove_file(&class->kobj, &attr->attr);
 }
 
-static inline int
-dev_to_node(struct device *dev)
-{
-	return -1;
-}
+#define	dev_to_node(dev) linux_dev_to_node(dev)
+#define	of_node_to_nid(node) -1
+int linux_dev_to_node(struct device *);
 
 char *kvasprintf(gfp_t, const char *, va_list);
 char *kasprintf(gfp_t, const char *, ...);
+char *lkpi_devm_kasprintf(struct device *, gfp_t, const char *, ...);
+
+#define	devm_kasprintf(_dev, _gfp, _fmt, ...)			\
+    lkpi_devm_kasprintf(_dev, _gfp, _fmt, ##__VA_ARGS__)
+
+void *lkpi_devres_alloc(void(*release)(struct device *, void *), size_t, gfp_t);
+void lkpi_devres_add(struct device *, void *);
+void lkpi_devres_free(void *);
+void *lkpi_devres_find(struct device *, void(*release)(struct device *, void *),
+    int (*match)(struct device *, void *, void *), void *);
+int lkpi_devres_destroy(struct device *, void(*release)(struct device *, void *),
+    int (*match)(struct device *, void *, void *), void *);
+#define	devres_alloc(_r, _s, _g)	lkpi_devres_alloc(_r, _s, _g)
+#define	devres_add(_d, _p)		lkpi_devres_add(_d, _p)
+#define	devres_free(_p)			lkpi_devres_free(_p)
+#define	devres_find(_d, _rfn, _mfn, _mp) \
+					lkpi_devres_find(_d, _rfn, _mfn, _mp)
+#define	devres_destroy(_d, _rfn, _mfn, _mp) \
+					lkpi_devres_destroy(_d, _rfn, _mfn, _mp)
+
+/* LinuxKPI internal functions. */
+void lkpi_devres_release_free_list(struct device *);
+void lkpi_devres_unlink(struct device *, void *);
+void lkpi_devm_kmalloc_release(struct device *, void *);
+
+static __inline void *
+devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+	void *p;
+
+	p = lkpi_devres_alloc(lkpi_devm_kmalloc_release, size, gfp);
+	if (p != NULL)
+		lkpi_devres_add(dev, p);
+
+	return (p);
+}
+
+#define	devm_kzalloc(_dev, _size, _gfp)				\
+    devm_kmalloc((_dev), (_size), (_gfp) | __GFP_ZERO)
+
+#define	devm_kcalloc(_dev, _sizen, _size, _gfp)			\
+    devm_kmalloc((_dev), ((_sizen) * (_size)), (_gfp) | __GFP_ZERO)
 
 #endif	/* _LINUX_DEVICE_H_ */

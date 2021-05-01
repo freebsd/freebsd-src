@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2020
+.Dd November 23, 2020
 .Dt CAM 3
 .Os
 .Sh NAME
@@ -285,9 +285,9 @@ This function should be called when the
 structure was allocated by the caller, rather than the CAM library.
 .Pp
 .Fn cam_getccb
-allocates a CCB
+allocates a prezeroed CCB
 using
-.Xr malloc 3
+.Xr calloc 3
 and sets fields in the CCB header using values from the
 .Va cam_device
 structure.

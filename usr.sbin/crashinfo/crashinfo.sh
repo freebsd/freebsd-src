@@ -177,6 +177,7 @@ fi
 find_gdb
 if [ -z "$GDB" ]; then
 	echo "Unable to find a kernel debugger."
+	echo "Please install the devel/gdb port or gdb package."
 	exit 1
 fi
 

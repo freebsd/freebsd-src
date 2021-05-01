@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -57,6 +57,11 @@ if [ ! -f "$timeconst" ]; then
 	exit 0
 fi
 
+unset BC_ENV_ARGS
+unset BC_LINE_LENGTH
+unset DC_ENV_ARGS
+unset DC_LINE_LENGTH
+
 printf 'Running %s...' "$base"
 
 nums=$(printf 'for (i = 0; i <= 1000; ++i) { i }\n' | bc)
@@ -88,4 +93,4 @@ done
 rm -f "$out1"
 rm -f "$out2"
 
-printf 'pass\n'
+exec printf 'pass\n'

@@ -321,7 +321,9 @@
 #define H_SET_MODE		0x31C
 /* Reserved ... */
 #define H_GET_DMA_XLATES_L	0x324
-#define MAX_HCALL_OPCODE	H_GET_DMA_XLATES_L
+/* Reserved ... */
+#define H_REGISTER_PROC_TBL	0x37c
+#define MAX_HCALL_OPCODE	H_REGISTER_PROC_TBL
 
 int64_t phyp_hcall(uint64_t opcode, ...);
 int64_t phyp_pft_hcall(uint64_t opcode, uint64_t flags, uint64_t pteidx,

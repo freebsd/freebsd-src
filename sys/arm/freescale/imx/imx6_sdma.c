@@ -75,6 +75,12 @@ static struct resource_spec sdma_spec[] = {
 	{ -1, 0 }
 };
 
+/*
+ * This will get set to true if we can't load firmware while attaching, to
+ * prevent multiple attempts to re-attach the device on each bus pass.
+ */
+static bool firmware_unavailable;
+
 static void
 sdma_intr(void *arg)
 {
@@ -117,7 +123,7 @@ static int
 sdma_probe(device_t dev)
 {
 
-	if (!ofw_bus_status_okay(dev))
+	if (!ofw_bus_status_okay(dev) || firmware_unavailable)
 		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "fsl,imx6q-sdma"))
@@ -352,7 +358,7 @@ load_firmware(struct sdma_softc *sc)
 	const struct sdma_firmware_header *header;
 	const struct firmware *fp;
 
-	fp = firmware_get("sdma_fw");
+	fp = firmware_get("sdma-imx6q");
 	if (fp == NULL) {
 		device_printf(sc->dev, "Can't get firmware.\n");
 		return (-1);
@@ -468,6 +474,11 @@ sdma_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	if (load_firmware(sc) == -1) {
+		firmware_unavailable = true;
+		return (ENXIO);
+	}
+
 	if (bus_alloc_resources(dev, sdma_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
@@ -486,9 +497,6 @@ sdma_attach(device_t dev)
 		device_printf(dev, "Unable to alloc interrupt resource.\n");
 		return (ENXIO);
 	}
-
-	if (load_firmware(sc) == -1)
-		return (ENXIO);
 
 	if (boot_firmware(sc) == -1)
 		return (ENXIO);
@@ -511,5 +519,6 @@ static driver_t sdma_driver = {
 
 static devclass_t sdma_devclass;
 
+/* We want to attach after all interrupt controllers, before anything else. */
 EARLY_DRIVER_MODULE(sdma, simplebus, sdma_driver, sdma_devclass, 0, 0,
-    BUS_PASS_RESOURCE);
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);

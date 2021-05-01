@@ -81,8 +81,6 @@ typedef std::pair<uint64_t, uint32_t> sampleid;
 typedef std::pair<uint64_t, std::string> samplename;
 typedef unordered_map <uint32_t, std::vector<samplename>> eventcountmap;
 
-#define	P_KPROC		0x00004	/* Kernel process. */
-
 static void __dead2
 usage(void)
 {

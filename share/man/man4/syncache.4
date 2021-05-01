@@ -12,7 +12,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2008
+.Dd April 12, 2021
 .Dt SYNCACHE 4
 .Os
 .Sh NAME
@@ -39,6 +39,8 @@ MIBs for controlling TCP SYN caching
 .Nm sysctl Cm net.inet.tcp.syncache.rexmtlimit
 .It
 .Nm sysctl Cm net.inet.tcp.syncache.count
+.It
+.Nm sysctl Cm net.inet.tcp.syncache.see_other
 .El
 .Sh DESCRIPTION
 The
@@ -150,6 +152,25 @@ Tunable via
 Number of entries present in the
 .Nm
 (read-only).
+.It Va see_other
+If set to true value, all
+.Nm
+entries will be visible via
+.Va net.inet.tcp.pcblist
+sysctl, or via
+.Xr netstat 1 ,
+ignoring all of
+.Xr security 7
+UID/GID,
+.Xr jail 2
+and
+.Xr mac 4
+checks.
+If turned off, the visibility checks are enforced.
+However, extra
+.Xr ucred 9
+referencing is required on every incoming SYN packet processed.
+The default is off.
 .El
 .Pp
 Statistics on the performance of the
@@ -192,9 +213,13 @@ Connections created from segment containing ACK.
 .El
 .Sh SEE ALSO
 .Xr netstat 1 ,
+.Xr jail 2 ,
+.Xr mac 4 ,
 .Xr tcp 4 ,
+.Xr security 7 ,
 .Xr loader 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr ucred 9
 .Sh HISTORY
 The existing
 .Nm

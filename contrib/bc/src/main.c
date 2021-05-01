@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -38,27 +38,27 @@
 #include <string.h>
 
 #include <locale.h>
+
+#ifndef _WIN32
 #include <libgen.h>
+#endif // _WIN32
 
 #include <setjmp.h>
 
+#include <version.h>
 #include <status.h>
 #include <vm.h>
 #include <bc.h>
 #include <dc.h>
 
-char output_bufs[BC_VM_BUF_SIZE];
-BcVm vm;
-
 int main(int argc, char *argv[]) {
 
-	int s;
 	char *name;
 	size_t len = strlen(BC_EXECPREFIX);
 
 	vm.locale = setlocale(LC_ALL, "");
 
-	name = strrchr(argv[0], '/');
+	name = strrchr(argv[0], BC_FILE_SEP);
 	vm.name = (name == NULL) ? argv[0] : name + 1;
 
 	if (strlen(vm.name) > len) vm.name += len;
@@ -81,13 +81,5 @@ int main(int argc, char *argv[]) {
 exit:
 	BC_SIG_MAYLOCK;
 
-	s = !BC_STATUS_IS_ERROR(vm.status) ? BC_STATUS_SUCCESS : (int) vm.status;
-
-	bc_vm_shutdown();
-
-#ifndef NDEBUG
-	bc_vec_free(&vm.jmp_bufs);
-#endif // NDEBUG
-
-	return s;
+	return bc_vm_atexit((int) vm.status);
 }

@@ -17,7 +17,8 @@ SUBDIR=	drti \
 	${_libzfs} \
 	${_libzfsbootenv} \
 	${_libzpool} \
-	${_libzutil}
+	${_libzutil} \
+	${_pam_zfs_key}
 
 SUBDIR.${MK_TESTS}+= tests
 
@@ -28,9 +29,10 @@ _libicp_rescue=	libicp_rescue
 _libzfs=	libzfs
 _libzutil=	libzutil
 _libzfsbootenv=	libzfsbootenv
-.if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 _libtpool=	libtpool
+.if ${MK_OPENSSL} != "no"
+_pam_zfs_key=	pam_zfs_key
 .endif
 .endif
 
@@ -43,6 +45,7 @@ SUBDIR_DEPEND_libzfs=	libavl libnvpair libumem libuutil libzfs_core libzutil
 SUBDIR_DEPEND_libzpool=	libavl libnvpair libumem libicp
 SUBDIR_DEPEND_libzutil=	libavl libtpool
 SUBDIR_DEPEND_libzfsbootenv= libzfs libnvpair
+SUBDIR_DEPEND_pam_zfs_key= libnvpair libuutil libzfs libzfs_core
 
 SUBDIR_PARALLEL=
 

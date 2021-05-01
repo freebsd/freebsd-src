@@ -269,7 +269,7 @@ static struct nvme_status_string command_specific_status[] = {
 	{ NVME_SC_NS_NOT_ATTACHED, "NS NOT ATTACHED" },
 	{ NVME_SC_THIN_PROV_NOT_SUPPORTED, "THIN PROVISIONING NOT SUPPORTED" },
 	{ NVME_SC_CTRLR_LIST_INVALID, "CONTROLLER LIST INVALID" },
-	{ NVME_SC_SELT_TEST_IN_PROGRESS, "DEVICE SELT-TEST IN PROGRESS" },
+	{ NVME_SC_SELF_TEST_IN_PROGRESS, "DEVICE SELF-TEST IN PROGRESS" },
 	{ NVME_SC_BOOT_PART_WRITE_PROHIB, "BOOT PARTITION WRITE PROHIBITED" },
 	{ NVME_SC_INVALID_CTRLR_ID, "INVALID CONTROLLER IDENTIFIER" },
 	{ NVME_SC_INVALID_SEC_CTRLR_STATE, "INVALID SECONDARY CONTROLLER STATE" },
@@ -547,6 +547,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	if (!qpair->is_enabled)
 		return (false);
 
+	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	/*
 	 * A panic can stop the CPU this routine is running on at any point.  If
 	 * we're called during a panic, complete the sq_head wrap protocol for
@@ -580,8 +582,6 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		}
 	}
 
-	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	while (1) {
 		cpl = qpair->cpl[qpair->cq_head];
 
@@ -687,8 +687,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	/* Note: NVMe PRP format is restricted to 4-byte alignment. */
 	err = bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    4, PAGE_SIZE, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
-	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR, NULL, NULL, ctrlr->max_xfer_size,
+	    btoc(ctrlr->max_xfer_size) + 1, PAGE_SIZE, 0,
 	    NULL, NULL, &qpair->dma_tag_payload);
 	if (err != 0) {
 		nvme_printf(ctrlr, "payload tag create failed %d\n", err);
@@ -703,7 +703,12 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	cmdsz = roundup2(cmdsz, PAGE_SIZE);
 	cplsz = qpair->num_entries * sizeof(struct nvme_completion);
 	cplsz = roundup2(cplsz, PAGE_SIZE);
-	prpsz = sizeof(uint64_t) * NVME_MAX_PRP_LIST_ENTRIES;
+	/*
+	 * For commands requiring more than 2 PRP entries, one PRP will be
+	 * embedded in the command (prp1), and the rest of the PRP entries
+	 * will be in a list pointed to by the command (prp2).
+	 */
+	prpsz = sizeof(uint64_t) * btoc(ctrlr->max_xfer_size);
 	prpmemsz = qpair->num_trackers * prpsz;
 	allocsz = cmdsz + cplsz + prpmemsz;
 
@@ -717,7 +722,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	bus_dma_tag_set_domain(qpair->dma_tag, qpair->domain);
 
 	if (bus_dmamem_alloc(qpair->dma_tag, (void **)&queuemem,
-	    BUS_DMA_NOWAIT, &qpair->queuemem_map)) {
+	     BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &qpair->queuemem_map)) {
 		nvme_printf(ctrlr, "failed to alloc qpair memory\n");
 		goto out;
 	}
@@ -940,7 +945,7 @@ nvme_timeout(void *arg)
 		    nvme_abort_complete, tr);
 	} else {
 		nvme_printf(ctrlr, "Resetting controller due to a timeout%s.\n",
-		    (csts == 0xffffffff) ? " and possible hot unplug" :
+		    (csts == NVME_GONE) ? " and possible hot unplug" :
 		    (cfs ? " and fatal error status" : ""));
 		nvme_ctrlr_reset(ctrlr);
 	}
@@ -977,14 +982,6 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-#ifndef __powerpc__
-	/*
-	 * powerpc's bus_dmamap_sync() already includes a heavyweight sync, but
-	 * no other archs do.
-	 */
-	wmb();
-#endif
-
 	bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
 	    qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;

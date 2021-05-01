@@ -72,7 +72,7 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
 		mlx5_core_warn(mdev,
-		    "Failed to find vendor-specific capability, error %d\n",
+		    "Unable to find vendor-specific capability, error %d\n",
 		    error);
 		return;
 	}
@@ -115,11 +115,15 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		mlx5_core_warn(mdev, "no output from scan space\n");
 		goto unlock_vsc;
 	}
-	mdev->dump_rege = malloc(sz * sizeof(struct mlx5_crspace_regmap),
+
+	/*
+	 * We add a sentinel element at the end of the array to
+	 * terminate the read loop in mlx5_fwdump(), so allocate sz + 1.
+	 */
+	mdev->dump_rege = malloc((sz + 1) * sizeof(struct mlx5_crspace_regmap),
 	    M_MLX5_DUMP, M_WAITOK | M_ZERO);
 
 	for (i = 0, addr = 0;;) {
-		MPASS(i < sz);
 		mdev->dump_rege[i].cnt++;
 		MLX5_VSC_SET(vsc_addr, &in, address, addr);
 		pci_write_config(dev, vsc_addr + MLX5_VSC_ADDR_OFFSET, in, 4);
@@ -137,13 +141,21 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		next_addr = MLX5_VSC_GET(vsc_addr, &out, address);
 		if (next_addr == 0 || next_addr == addr)
 			break;
-		if (next_addr != addr + 4)
-			mdev->dump_rege[++i].addr = next_addr;
+		if (next_addr != addr + 4) {
+			if (++i == sz) {
+				mlx5_core_err(mdev,
+		    "Inconsistent hw crspace reads (1): sz %u i %u addr %#lx",
+				    sz, i, (unsigned long)addr);
+				break;
+			}
+			mdev->dump_rege[i].addr = next_addr;
+		}
 		addr = next_addr;
 	}
-	if (i + 1 != sz) {
+	/* i == sz case already reported by loop above */
+	if (i + 1 != sz && i != sz) {
 		mlx5_core_err(mdev,
-		    "Inconsistent hw crspace reads: sz %u i %u addr %#lx",
+		    "Inconsistent hw crspace reads (2): sz %u i %u addr %#lx",
 		    sz, i, (unsigned long)addr);
 	}
 

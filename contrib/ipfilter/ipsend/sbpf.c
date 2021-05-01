@@ -12,10 +12,7 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#if BSD < 199103
-#include <sys/fcntlcom.h>
-#endif
-#if (__FreeBSD_version >= 300000)
+#ifdef __FreeBSD__
 # include <sys/dirent.h>
 #else
 # include <sys/dir.h>

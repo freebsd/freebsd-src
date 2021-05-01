@@ -1,11 +1,11 @@
 /******************************************************************************
  * arch-x86/mca.h
- * 
+ *
  * Contributed by Advanced Micro Devices, Inc.
  * Author: Christoph Egger <Christoph.Egger@amd.com>
  *
  * Guest OS machine check interface to x86 Xen.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -88,6 +88,9 @@
 #define XEN_MC_NOTDELIVERED 0x10
 /* Note, XEN_MC_CANNOTHANDLE and XEN_MC_NOTDELIVERED are mutually exclusive. */
 
+/* Applicable to all mc_vcpuid fields below. */
+#define XEN_MC_VCPUID_INVALID 0xffff
+
 #ifndef __ASSEMBLY__
 
 #define VIRQ_MCA VIRQ_ARCH_0 /* G. (DOM0) Machine Check Architecture */
@@ -109,6 +112,7 @@ struct mcinfo_common {
     uint16_t type;      /* structure type */
     uint16_t size;      /* size of this struct in bytes */
 };
+
 
 #define MC_FLAG_CORRECTABLE     (1 << 0)
 #define MC_FLAG_UNCORRECTABLE   (1 << 1)
@@ -147,13 +151,14 @@ struct mcinfo_bank {
     uint64_t mc_tsc;
 };
 
+
 struct mcinfo_msr {
     uint64_t reg;   /* MSR */
     uint64_t value; /* MSR value */
 };
 
 /* contains mc information from other
- * or additional mc MSRs */ 
+ * or additional mc MSRs */
 struct mcinfo_extended {
     struct mcinfo_common common;
 
@@ -165,9 +170,9 @@ struct mcinfo_extended {
     /*
      * Currently Intel extended MSR (32/64) include all gp registers
      * and E(R)FLAGS, E(R)IP, E(R)MISC, up to 11/19 of them might be
-     * useful at present. So expand this array to 16/32 to leave room.
+     * useful at present. So expand this array to 32 to leave room.
      */
-    struct mcinfo_msr mc_msr[sizeof(void *) * 4];
+    struct mcinfo_msr mc_msr[32];
 };
 
 /* Recovery Action flags. Giving recovery result information to DOM0 */
@@ -190,10 +195,10 @@ struct mcinfo_extended {
 /* L3 cache disable Action */
 #define MC_ACTION_CACHE_SHRINK (0x1 << 2)
 
-/* Below interface used between XEN/DOM0 for passing XEN's recovery action 
- * information to DOM0. 
+/* Below interface used between XEN/DOM0 for passing XEN's recovery action
+ * information to DOM0.
  * usage Senario: After offlining broken page, XEN might pass its page offline
- * recovery action result to DOM0. DOM0 will save the information in 
+ * recovery action result to DOM0. DOM0 will save the information in
  * non-volatile memory for further proactive actions, such as offlining the
  * easy broken page earlier when doing next reboot.
 */
@@ -226,6 +231,7 @@ struct mcinfo_recovery
     } action_info;
 };
 
+
 #define MCINFO_HYPERCALLSIZE	1024
 #define MCINFO_MAXSIZE		768
 
@@ -240,7 +246,9 @@ typedef struct mc_info mc_info_t;
 DEFINE_XEN_GUEST_HANDLE(mc_info_t);
 
 #define __MC_MSR_ARRAYSIZE 8
+#if __XEN_INTERFACE_VERSION__ <= 0x00040d00
 #define __MC_NMSRS 1
+#endif
 #define MC_NCAPS	7	/* 7 CPU feature flag words */
 #define MC_CAPS_STD_EDX	0	/* cpuid level 0x00000001 (%edx) */
 #define MC_CAPS_AMD_EDX	1	/* cpuid level 0x80000001 (%edx) */
@@ -251,8 +259,8 @@ DEFINE_XEN_GUEST_HANDLE(mc_info_t);
 #define MC_CAPS_AMD_ECX	6	/* cpuid level 0x80000001 (%ecx) */
 
 struct mcinfo_logical_cpu {
-    uint32_t mc_cpunr;          
-    uint32_t mc_chipid; 
+    uint32_t mc_cpunr;
+    uint32_t mc_chipid;
     uint16_t mc_coreid;
     uint16_t mc_threadid;
     uint32_t mc_apicid;
@@ -276,7 +284,8 @@ struct mcinfo_logical_cpu {
 typedef struct mcinfo_logical_cpu xen_mc_logical_cpu_t;
 DEFINE_XEN_GUEST_HANDLE(xen_mc_logical_cpu_t);
 
-/* 
+
+/*
  * OS's should use these instead of writing their own lookup function
  * each with its own bugs and drawbacks.
  * We use macros instead of static inline functions to allow guests
@@ -307,8 +316,8 @@ DEFINE_XEN_GUEST_HANDLE(xen_mc_logical_cpu_t);
         struct mcinfo_common *_mic;                             \
                                                                 \
         found = 0;                                              \
-	(_ret) = NULL;						\
-	if (_mi == NULL) break;					\
+        (_ret) = NULL;                                          \
+        if (_mi == NULL) break;                                 \
         _mic = x86_mcinfo_first(_mi);                           \
         for (i = 0; i < x86_mcinfo_nentries(_mi); i++) {        \
             if (_mic->type == (_type)) {                        \
@@ -319,6 +328,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_mc_logical_cpu_t);
         }                                                       \
         (_ret) = found ? _mic : NULL;                           \
     } while (0)
+
 
 /* Usecase 1
  * Register machine check trap callback handler
@@ -339,8 +349,8 @@ struct xen_mc_fetch {
     /* IN/OUT variables. */
     uint32_t flags;	/* IN: XEN_MC_NONURGENT, XEN_MC_URGENT,
                            XEN_MC_ACK if ack'ing an earlier fetch */
-			/* OUT: XEN_MC_OK, XEN_MC_FETCHFAILED,
-			   XEN_MC_NODATA, XEN_MC_NOMATCH */
+                       /* OUT: XEN_MC_OK, XEN_MC_FETCHFAILED,
+                          XEN_MC_NODATA, XEN_MC_NOMATCH */
     uint32_t _pad0;
     uint64_t fetch_id;	/* OUT: id for ack, IN: id we are ack'ing */
 
@@ -349,6 +359,7 @@ struct xen_mc_fetch {
 };
 typedef struct xen_mc_fetch xen_mc_fetch_t;
 DEFINE_XEN_GUEST_HANDLE(xen_mc_fetch_t);
+
 
 /* Usecase 4
  * This tells the hypervisor to notify a DomU about the machine check error
@@ -371,30 +382,33 @@ DEFINE_XEN_GUEST_HANDLE(xen_mc_notifydomain_t);
 
 #define XEN_MC_physcpuinfo 3
 struct xen_mc_physcpuinfo {
-	/* IN/OUT */
-	uint32_t ncpus;
-	uint32_t _pad0;
-	/* OUT */
-	XEN_GUEST_HANDLE(xen_mc_logical_cpu_t) info;
+    /* IN/OUT */
+    uint32_t ncpus;
+    uint32_t _pad0;
+    /* OUT */
+    XEN_GUEST_HANDLE(xen_mc_logical_cpu_t) info;
 };
 
 #define XEN_MC_msrinject    4
 #define MC_MSRINJ_MAXMSRS       8
 struct xen_mc_msrinject {
-       /* IN */
-	uint32_t mcinj_cpunr;           /* target processor id */
-	uint32_t mcinj_flags;           /* see MC_MSRINJ_F_* below */
-	uint32_t mcinj_count;           /* 0 .. count-1 in array are valid */
-	uint32_t _pad0;
-	struct mcinfo_msr mcinj_msr[MC_MSRINJ_MAXMSRS];
+    /* IN */
+    uint32_t mcinj_cpunr;           /* target processor id */
+    uint32_t mcinj_flags;           /* see MC_MSRINJ_F_* below */
+    uint32_t mcinj_count;           /* 0 .. count-1 in array are valid */
+    domid_t  mcinj_domid;           /* valid only if MC_MSRINJ_F_GPADDR is
+                                       present in mcinj_flags */
+    uint16_t _pad0;
+    struct mcinfo_msr mcinj_msr[MC_MSRINJ_MAXMSRS];
 };
 
 /* Flags for mcinj_flags above; bits 16-31 are reserved */
 #define MC_MSRINJ_F_INTERPOSE   0x1
+#define MC_MSRINJ_F_GPADDR      0x2
 
 #define XEN_MC_mceinject    5
 struct xen_mc_mceinject {
-	unsigned int mceinj_cpunr;      /* target processor id */
+    unsigned int mceinj_cpunr;      /* target processor id */
 };
 
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
@@ -402,12 +416,13 @@ struct xen_mc_mceinject {
 #define XEN_MC_INJECT_TYPE_MASK     0x7
 #define XEN_MC_INJECT_TYPE_MCE      0x0
 #define XEN_MC_INJECT_TYPE_CMCI     0x1
+#define XEN_MC_INJECT_TYPE_LMCE     0x2
 
 #define XEN_MC_INJECT_CPU_BROADCAST 0x8
 
 struct xen_mc_inject_v2 {
-	uint32_t flags;
-	struct xenctl_bitmap cpumap;
+    uint32_t flags;
+    struct xenctl_bitmap cpumap;
 };
 #endif
 

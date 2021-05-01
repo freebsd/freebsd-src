@@ -30,7 +30,7 @@
 # Install a boot environment using the current FreeBSD source tree.
 # Requires a fully built world & kernel.
 #
-# Non-base tools required: beadm, pkg
+# Non-base tools required: pkg
 #
 # In a sandbox for the new boot environment, this script also runs etcupdate
 # and pkg upgrade automatically in the sandbox.  Upon successful completion,
@@ -42,6 +42,8 @@
 # beinstall [optional world/kernel flags e.g. KERNCONF]
 #
 ## User modifiable variables - set these in the environment if desired.
+# Utility to manage ZFS boot environments.
+BE_UTILITY="${BE_UTILITY:-"bectl"}"
 # If not empty, 'pkg upgrade' will be skipped.
 NO_PKG_UPGRADE="${NO_PKG_UPGRADE:-""}"
 # Config updater - 'etcupdate' and 'mergemaster' are supported.  Set to an
@@ -96,7 +98,7 @@ cleanup_be() {
 	if [ -n "${created_be_dirs}" ]; then
 		chroot ${BE_MNTPT} /bin/rm -rf ${created_be_dirs}
 	fi
-	beadm destroy -F ${BENAME}
+	${BE_UTILITY} destroy -F ${BENAME}
 }
 
 create_be_dirs() {
@@ -150,8 +152,8 @@ postmortem() {
 	unmount_be
 	rmdir_be
 	echo "Post-mortem cleanup complete."
-	echo "To destroy the BE (recommended), run: beadm destroy ${BENAME}"
-	echo "To instead continue with the BE, run: beadm activate ${BENAME}"
+	echo "To destroy the BE (recommended), run: ${BE_UTILITY} destroy ${BENAME}"
+	echo "To instead continue with the BE, run: ${BE_UTILITY} activate ${BENAME}"
 }
 
 if [ -n "$BEINSTALL_CMD" ]; then
@@ -159,6 +161,9 @@ if [ -n "$BEINSTALL_CMD" ]; then
 	exit $?
 fi
 
+if [ "$(basename -- "${BE_UTILITY}")" = "bectl" ]; then
+	${BE_UTILITY} check || errx "${BE_UTILITY} sanity check failed"
+fi
 
 cleanup_commands=""
 trap 'errx "Interrupt caught"' HUP INT TERM
@@ -205,10 +210,10 @@ BE_MNTPT=${BE_TMP}/mnt
 BE_MM_ROOT=${BE_TMP}/mergemaster # mergemaster will create
 mkdir -p ${BE_MNTPT}
 
-beadm create ${BENAME} >/dev/null || errx "Unable to create BE ${BENAME}"
+${BE_UTILITY} create ${BENAME} >/dev/null || errx "Unable to create BE ${BENAME}"
 [ -z "$NO_CLEANUP_BE" ] && cleanup_commands="cleanup_be ${cleanup_commands}"
 
-beadm mount ${BENAME} ${BE_TMP}/mnt || errx "Unable to mount BE ${BENAME}."
+${BE_UTILITY} mount ${BENAME} ${BE_TMP}/mnt || errx "Unable to mount BE ${BENAME}."
 
 echo "Mounted ${BENAME} to ${BE_MNTPT}, performing install/update ..."
 make "$@" DESTDIR=${BE_MNTPT} installkernel || errx "Installkernel failed!"
@@ -223,6 +228,7 @@ fi
 create_be_dirs "${srcdir}" "${objdir}" || errx "Unable to create BE dirs"
 mount -t nullfs "${srcdir}" "${BE_MNTPT}${srcdir}" || errx "Unable to mount src"
 mount -t nullfs "${objdir}" "${BE_MNTPT}${objdir}" || errx "Unable to mount obj"
+mount -t devfs devfs "${BE_MNTPT}/dev" || errx "Unable to mount devfs"
 
 chroot ${BE_MNTPT} make "$@" -C ${srcdir} installworld || \
 	errx "Installworld failed!"
@@ -251,8 +257,8 @@ fi
 
 unmount_be || errx "Unable to unmount BE"
 rmdir_be || errx "Unable to cleanup BE"
-beadm activate ${BENAME} || errx "Unable to activate BE"
+${BE_UTILITY} activate ${BENAME} || errx "Unable to activate BE"
 echo
-beadm list
+${BE_UTILITY} list
 echo
 echo "Boot environment ${BENAME} setup complete; reboot to use it."

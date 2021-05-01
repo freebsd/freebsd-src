@@ -15,7 +15,6 @@ the actual statements in the files are controlling.
 * The following source files are also subject in whole or in part to
   a 3-clause UC Regents copyright; please read the individual source
   files for details:
-   libarchive/archive_entry.c
    libarchive/archive_read_support_filter_compress.c
    libarchive/archive_write_add_filter_compress.c
    libarchive/mtree.5

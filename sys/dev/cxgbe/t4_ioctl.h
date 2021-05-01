@@ -63,6 +63,7 @@ enum {
 	T4_LOAD_BOOT,			/* flash boot rom */
 	T4_LOAD_BOOTCFG,		/* flash bootcfg */
 	T4_CUDBG_DUMP,			/* debug dump of chip state */
+	T4_SET_FILTER_MASK,		/* set filter mask (hashfilter mode) */
 };
 
 struct t4_reg {
@@ -110,7 +111,7 @@ struct t4_i2c_data {
 #define T4_FILTER_IP_DPORT	0x20	/* Destination IP port */
 #define T4_FILTER_FCoE		0x40	/* Fibre Channel over Ethernet packet */
 #define T4_FILTER_PORT		0x80	/* Physical ingress port */
-#define T4_FILTER_VNIC		0x100	/* VNIC id or outer VLAN */
+#define T4_FILTER_VNIC		0x100	/* See the IC_* bits towards the end */
 #define T4_FILTER_VLAN		0x200	/* VLAN ID */
 #define T4_FILTER_IP_TOS	0x400	/* IPv4 TOS/IPv6 Traffic Class */
 #define T4_FILTER_IP_PROTO	0x800	/* IP protocol */
@@ -118,12 +119,12 @@ struct t4_i2c_data {
 #define T4_FILTER_MAC_IDX	0x2000	/* MPS MAC address match index */
 #define T4_FILTER_MPS_HIT_TYPE	0x4000	/* MPS match type */
 #define T4_FILTER_IP_FRAGMENT	0x8000	/* IP fragment */
-
-#define T4_FILTER_IC_VNIC	0x80000000	/* TP Ingress Config's F_VNIC
-						   bit.  It indicates whether
-						   T4_FILTER_VNIC bit means VNIC
-						   id (PF/VF) or outer VLAN.
-						   0 = oVLAN, 1 = VNIC */
+/*
+ * T4_FILTER_VNIC's real meaning depends on the ingress config.
+ */
+#define T4_FILTER_IC_OVLAN	0		/* outer VLAN */
+#define T4_FILTER_IC_VNIC	0x80000000	/* VNIC id (PF/VF) */
+#define T4_FILTER_IC_ENCAP	0x40000000
 
 /* Filter action */
 enum {
@@ -429,4 +430,5 @@ struct t4_offload_policy {
 #define CHELSIO_T4_LOAD_BOOTCFG	_IOW('f', T4_LOAD_BOOTCFG, struct t4_data)
 #define CHELSIO_T4_CUDBG_DUMP	_IOWR('f', T4_CUDBG_DUMP, struct t4_cudbg_dump)
 #define CHELSIO_T4_SET_OFLD_POLICY _IOW('f', T4_SET_OFLD_POLICY, struct t4_offload_policy)
+#define CHELSIO_T4_SET_FILTER_MASK _IOW('f', T4_SET_FILTER_MASK, uint32_t)
 #endif

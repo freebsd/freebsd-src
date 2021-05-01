@@ -1,4 +1,4 @@
-# $Id: sys.mk,v 1.51 2020/08/19 17:51:53 sjg Exp $
+# $Id: sys.mk,v 1.52 2020/12/22 20:44:24 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -118,8 +118,8 @@ ROOT_GROUP != sed -n /:0:/s/:.*//p /etc/group
 unix ?= We run ${_HOST_OSNAME}.
 
 # We need a Bourne/POSIX shell
-MAKE_SHELL ?= sh
-SHELL ?= ${MAKE_SHELL}
+MAKE_SHELL ?= ${.SHELL:Ush}
+SHELL := ${MAKE_SHELL}
 
 # A race condition in mkdir, means that it can bail if another
 # process made a dir that mkdir expected to.

@@ -27,9 +27,9 @@
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019 Datto Inc.
+ * Portions Copyright 2010 Robert Milkowski
+ * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  */
-
-/* Portions Copyright 2010 Robert Milkowski */
 
 #ifndef	_SYS_FS_ZFS_H
 #define	_SYS_FS_ZFS_H
@@ -246,10 +246,11 @@ typedef enum {
 	ZPOOL_PROP_CHECKPOINT,
 	ZPOOL_PROP_LOAD_GUID,
 	ZPOOL_PROP_AUTOTRIM,
+	ZPOOL_PROP_COMPATIBILITY,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
-/* Small enough to not hog a whole line of printout in zpool(1M). */
+/* Small enough to not hog a whole line of printout in zpool(8). */
 #define	ZPROP_MAX_COMMENT	32
 
 #define	ZPROP_VALUE		"value"
@@ -617,6 +618,7 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_PREV_INDIRECT_VDEV	"com.delphix:prev_indirect_vdev"
 #define	ZPOOL_CONFIG_PATH		"path"
 #define	ZPOOL_CONFIG_DEVID		"devid"
+#define	ZPOOL_CONFIG_SPARE_ID		"spareid"
 #define	ZPOOL_CONFIG_METASLAB_ARRAY	"metaslab_array"
 #define	ZPOOL_CONFIG_METASLAB_SHIFT	"metaslab_shift"
 #define	ZPOOL_CONFIG_ASHIFT		"ashift"
@@ -732,6 +734,7 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_ALLOCATION_BIAS	"alloc_bias"	/* not stored on disk */
 #define	ZPOOL_CONFIG_EXPANSION_TIME	"expansion_time"	/* not stored */
 #define	ZPOOL_CONFIG_REBUILD_STATS	"org.openzfs:rebuild_stats"
+#define	ZPOOL_CONFIG_COMPATIBILITY	"compatibility"
 
 /*
  * The persistent vdev state is stored as separate values rather than a single
@@ -757,10 +760,17 @@ typedef struct zpool_load_policy {
 #define	ZPOOL_CONFIG_LOAD_DATA_ERRORS	"verify_data_errors"
 #define	ZPOOL_CONFIG_REWIND_TIME	"seconds_of_rewind"
 
+/* dRAID configuration */
+#define	ZPOOL_CONFIG_DRAID_NDATA	"draid_ndata"
+#define	ZPOOL_CONFIG_DRAID_NSPARES	"draid_nspares"
+#define	ZPOOL_CONFIG_DRAID_NGROUPS	"draid_ngroups"
+
 #define	VDEV_TYPE_ROOT			"root"
 #define	VDEV_TYPE_MIRROR		"mirror"
 #define	VDEV_TYPE_REPLACING		"replacing"
 #define	VDEV_TYPE_RAIDZ			"raidz"
+#define	VDEV_TYPE_DRAID			"draid"
+#define	VDEV_TYPE_DRAID_SPARE		"dspare"
 #define	VDEV_TYPE_DISK			"disk"
 #define	VDEV_TYPE_FILE			"file"
 #define	VDEV_TYPE_MISSING		"missing"
@@ -769,6 +779,12 @@ typedef struct zpool_load_policy {
 #define	VDEV_TYPE_LOG			"log"
 #define	VDEV_TYPE_L2CACHE		"l2cache"
 #define	VDEV_TYPE_INDIRECT		"indirect"
+
+#define	VDEV_RAIDZ_MAXPARITY		3
+
+#define	VDEV_DRAID_MAXPARITY		3
+#define	VDEV_DRAID_MIN_CHILDREN		2
+#define	VDEV_DRAID_MAX_CHILDREN		UINT8_MAX
 
 /* VDEV_TOP_ZAP_* are used in top-level vdev ZAP objects. */
 #define	VDEV_TOP_ZAP_INDIRECT_OBSOLETE_SM \
@@ -831,6 +847,19 @@ typedef struct zpool_load_policy {
  */
 #define	ZPOOL_CACHE_BOOT	"/boot/zfs/zpool.cache"
 #define	ZPOOL_CACHE		"/etc/zfs/zpool.cache"
+/*
+ * Settings for zpool compatibility features files
+ */
+#define	ZPOOL_SYSCONF_COMPAT_D	SYSCONFDIR "/zfs/compatibility.d"
+#define	ZPOOL_DATA_COMPAT_D	PKGDATADIR "/compatibility.d"
+#define	ZPOOL_COMPAT_MAXSIZE	16384
+
+/*
+ * Hard-wired compatibility settings
+ */
+#define	ZPOOL_COMPAT_LEGACY	"legacy"
+#define	ZPOOL_COMPAT_OFF	"off"
+
 /*
  * vdev states are ordered from least to most healthy.
  * A vdev that's CANT_OPEN or below is considered unusable.
@@ -1438,9 +1467,11 @@ typedef enum {
 #define	ZPOOL_HIST_IOCTL	"ioctl"
 #define	ZPOOL_HIST_INPUT_NVL	"in_nvl"
 #define	ZPOOL_HIST_OUTPUT_NVL	"out_nvl"
+#define	ZPOOL_HIST_OUTPUT_SIZE	"out_size"
 #define	ZPOOL_HIST_DSNAME	"dsname"
 #define	ZPOOL_HIST_DSID		"dsid"
 #define	ZPOOL_HIST_ERRNO	"errno"
+#define	ZPOOL_HIST_ELAPSED_NS	"elapsed_ns"
 
 /*
  * Special nvlist name that will not have its args recorded in the pool's

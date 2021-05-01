@@ -69,6 +69,23 @@ ar9300_get_next_tbtt(struct ath_hal *ah)
 	return (OS_REG_READ(ah, AR_NEXT_TBTT_TIMER));
 }
 
+static u_int
+ar9300_get_nav(struct ath_hal *ah)
+{
+	uint32_t reg;
+
+	reg = OS_REG_READ(ah, AR_NAV);
+	if (reg == 0xdeadbeef)
+		return 0;
+	return reg;
+}
+
+static void
+ar9300_set_nav(struct ath_hal *ah, u_int nav)
+{
+
+	OS_REG_WRITE(ah, AR_NAV, nav);
+}
 
 /*
  * TODO: implement the antenna diversity control for AR9485 and
@@ -484,6 +501,8 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* ah_get11nExtBusy */
 	ah->ah_set11nMac2040 = ar9300_set_11n_mac2040;
 	ah->ah_setChainMasks = ar9300SetChainMasks;
+	ah->ah_getNav  = ar9300_get_nav;
+	ah->ah_setNav  = ar9300_set_nav;
 	/* ah_get11nRxClear */
 	/* ah_set11nRxClear */
 

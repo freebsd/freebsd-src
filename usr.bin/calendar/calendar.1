@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2020
+.Dd November 5, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -198,18 +198,35 @@ file is preprocessed by a limited subset of
 .Xr cpp 1
 internally, allowing the inclusion of shared files such as
 lists of company holidays or meetings.
-This limited subset consists of \fB#include #ifndef #endif\fR and \fB#define\fR.
+This limited subset consists of \fB#include\fR, \fB#define\fR,
+\fB#undef\fR, \fB#ifdef\fR, \fB#ifndef\fR, \fB#else\fR, \fB#warning\fR,
+and \fB#error\fR.
+.Pp
+Conditions can be nested and the consistency of opening and closing
+instructions is checked.
+Only the first word after #define is used as the name of the
+condition variable being defined.
+More than word following #ifdef, #ifndef, or #undef is considered a syntax
+error, since names cannot include white-space.
+Included files are parsed in a global scope with regard to the condition
+variables being defined or tested therein.
+All conditional blocks are implicitly closed at the end of a file,
+and missing #endif instructions are assumed to be present on implied
+succeeding lines.
+.Pp
 If the shared file is not referenced by a full pathname,
 .Nm
 searches in the current (or home) directory first, and then in the
 directory
 .Pa /usr/share/calendar .
-Empty lines and lines protected by the C commenting syntax
+Empty lines and text protected by the C commenting syntax
 .Pq Li /* ... */
+or
+.Pq Li //
 are ignored.
 .Pp
 Some possible calendar entries (<tab> characters highlighted by
-\fB\et\fR sequence)
+\fB\et\fR sequence):
 .Bd -unfilled -offset indent
 LANG=C
 Easter=Ostern
@@ -245,10 +262,18 @@ A chdir is done into this directory if it exists.
 calendar file to use if no calendar file exists in the current directory.
 .It Pa ~/.calendar/nomail
 do not send mail if this file exists.
+.It Pa /usr/share/calendar
+system wide location of calendar files provided as part of the base system.
+.It Pa /usr/local/share/calendar
+system wide location for calendar files provided by a port or package.
 .El
 .Pp
-The following default calendar files are provided in
-.Pa /usr/share/calendar :
+The order of precedence in searches for a calendar file is:
+current directory, ~/.calendar, /usr/local/share/calendar, /usr/share/calendar.
+Files of similar names are ignored in lower precedence locations.
+.Pp
+The following default calendar files are provided by the
+deskutils/calendar-data port.
 .Pp
 .Bl -tag -width calendar.southafrica -compact
 .It Pa calendar.all
@@ -283,8 +308,8 @@ Other holidays, including the not-well-known, obscure, and
 obscure.
 .It Pa calendar.judaic
 Jewish holidays.
-The entries for this calendar have been obtained from the port
-deskutils/hebcal.
+The entries for this calendar have been obtained from the
+deskutils/hebcal port.
 .It Pa calendar.music
 Musical events, births, and deaths.
 Strongly oriented toward rock 'n' roll.
@@ -338,11 +363,12 @@ double-check the start and end time of solar and lunar events.
 .Sh BUGS
 The
 .Nm
-internal cpp does not correctly do #ifndef and will discard the rest
-of the file if a #ifndef is triggered.
-It also has a maximum of 50 include file and/or 100 #defines
-and only recognises #include, #define and
-#ifndef.
+does only recognise the cpp directives #include, #define, #ifdef,
+#ifndef and #else.
+It supports nested conditions, but does not perform any validation
+on the correct use and nesting of conditions.
+#endif without prior #ifdef or #define is ignored and #else outside
+a conditional section skips input lines up to the next #endif.
 .Pp
 There is no possibility to properly specify the local position
 needed for solar and lunar calculations.

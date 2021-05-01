@@ -1,0 +1,208 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 Greg V <greg@unrelenting.technology>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 8, 2020
+.Dt EVENTFD 2
+.Os
+.Sh NAME
+.Nm eventfd
+.Nd create a file descriptor for event notification
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/eventfd.h
+.Ft int
+.Fn eventfd "unsigned int initval" "int flags"
+.Ft int
+.Fn eventfd_read "int fd" "eventfd_t *value"
+.Ft int
+.Fn eventfd_write "int fd" "eventfd_t value"
+.Sh DESCRIPTION
+.Fn eventfd
+creates a special file descriptor with event counter or semaphore semantics,
+designed for interprocess communication.
+The returned file descriptor refers to a kernel object containing an
+unsigned 64-bit integer counter, which is initialized with the value of the
+.Fa initval
+argument.
+.Pp
+The
+.Fa flags
+argument may contain the result of
+.Em or Ns 'ing
+the following values:
+.Pp
+.Bl -tag -width "EFD_SEMAPHORE" -compact
+.It Dv EFD_CLOEXEC
+set FD_CLOEXEC on the file descriptor
+.It Dv EFD_NONBLOCK
+do not block on read/write operations
+.It Dv EFD_SEMAPHORE
+use semaphore semantics
+.El
+.Pp
+File operations have the following semantics:
+.Bl -tag -width EFD_SEMAPHORE
+.It Xr read 2
+If the counter is zero, the call blocks until the counter becomes non-zero, unless
+.Dv EFD_NONBLOCK
+was set, in which case it would fail with
+.Dv EAGAIN
+instead.
+.Pp
+If the counter is non-zero:
+.Bl -bullet
+.It
+If
+.Dv EFD_SEMAPHORE
+is not set, the current value of the counter is returned,
+and the value is reset to zero.
+.It
+If
+.Dv EFD_SEMAPHORE
+is set, the constant 1 is returned, and the value is decremented by 1.
+.El
+.Pp
+The numeric value is encoded as 64-bit (8 bytes) in host byte order.
+The
+.Xr read 2
+call fails with
+.Dv EINVAL
+if there is less than 8 bytes available in the supplied buffer.
+.It Xr write 2
+Adds the given value to the counter.
+The maximum value that can be stored in the counter is the
+maximum unsigned 64-bit integer value minus one (0xfffffffffffffffe).
+.Pp
+If the resulting value exceeds the maximum, the call would block
+until the value is reduced by
+.Xr read 2 ,
+unless
+.Dv EFD_NONBLOCK
+was set, in which case it would fail with
+.Dv EAGAIN
+instead.
+.Pp
+The numeric value is encoded as 64-bit (8 bytes) in host byte order.
+The
+.Xr write 2
+call fails with
+.Dv EINVAL
+if there is less than 8 bytes available in the supplied buffer,
+or if the value 0xffffffffffffffff is given.
+.It Xr poll 2
+When receiving notifications via
+.Xr poll 2 /
+.Xr ppoll 2 /
+.Xr select 2 /
+.Xr pselect 2 /
+.Xr kqueue 2 ,
+the following semantics apply:
+.Bl -bullet
+.It
+The file descriptor is readable when the counter is greater than zero.
+.It
+The file descriptor is writable when the counter is less than the maximum value.
+.El
+.El
+.Pp
+File descriptors created by
+.Fn eventfd
+are passable to other processes via
+.Xr sendmsg 2
+and are preserved across
+.Xr fork 2 ;
+in both cases the descriptors refer to the same counter from both processes.
+Unless
+.Dv O_CLOEXEC
+flag was specified,
+the created file descriptor will remain open across
+.Xr execve 2
+system calls; see
+.Xr close 2 ,
+.Xr fcntl 2
+and
+.Dv O_CLOEXEC
+description.
+.Pp
+.Fn eventfd_read
+and
+.Fn eventfd_write
+are thin wrappers around
+.Xr read 2
+and
+.Xr write 2
+system calls,
+provided for compatibility with glibc.
+.Sh RETURN VALUES
+If successful,
+.Fn eventfd
+returns a non-negative integer, termed a file descriptor.
+It returns \-1 on failure, and sets
+.Va errno
+to indicate the error.
+.Pp
+The
+.Fn eventfd_read
+and
+.Fn eventfd_write
+functions return 0 if the operation succeeded, -1 otherwise.
+.Sh ERRORS
+.Fn eventfd
+may fail with:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument given to
+.Fn eventfd
+has unknown bits set.
+.It Bq Er EMFILE
+The process has already reached its limit for open
+file descriptors.
+.It Bq Er ENFILE
+The system file table is full.
+.It Bq Er ENOMEM
+No memory was available to create the kernel object.
+.El
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
+.Xr read 2 ,
+.Xr select 2 ,
+.Xr write 2
+.Sh STANDARDS
+The
+.Fn eventfd
+system call is non-standard.
+It is present in Linux.
+.Sh HISTORY
+The
+.Fn eventfd
+system call first appeared in
+.Fx 13.0 .

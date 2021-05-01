@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -676,7 +676,7 @@ OpcDoUnicode (
  *                      Bits 4-0    - 3rd character of mfg code
  *              Byte 2: Bits 7-4    - 1st hex digit of product number
  *                      Bits 3-0    - 2nd hex digit of product number
- *              Byte 3: Bits 7-4    - 3st hex digit of product number
+ *              Byte 3: Bits 7-4    - 3rd hex digit of product number
  *                      Bits 3-0    - Hex digit of the revision number
  *
  ******************************************************************************/
@@ -798,7 +798,13 @@ OpcDoUuId (
     }
     else
     {
+        /* Convert UUID string to a buffer, check for a known UUID */
+
         AcpiUtConvertStringToUuid (InString, Buffer);
+        if (!AcpiAhMatchUuid (Buffer))
+        {
+            AslError (ASL_REMARK, ASL_MSG_UUID_NOT_FOUND, Op, NULL);
+        }
     }
 
     /* Change Op to a Buffer */

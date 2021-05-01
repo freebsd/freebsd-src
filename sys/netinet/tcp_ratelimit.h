@@ -99,22 +99,30 @@ CK_LIST_HEAD(head_tcp_rate_set, tcp_rate_set);
 					 * shows up in your sysctl tree
 					 * this can be big.
 					 */
+uint64_t inline
+tcp_hw_highest_rate(const struct tcp_hwrate_limit_table *rle)
+{
+	return (rle->ptbl->rs_rlt[rle->ptbl->rs_highest_valid].rate);
+}
+
+uint64_t
+tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp);
 
 const struct tcp_hwrate_limit_table *
 tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error);
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate);
 
 const struct tcp_hwrate_limit_table *
 tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error);
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate);
 void
 tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp);
 #else
 static inline const struct tcp_hwrate_limit_table *
 tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error)
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
 	if (error)
 		*error = EOPNOTSUPP;
@@ -124,7 +132,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 static inline const struct tcp_hwrate_limit_table *
 tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error)
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
 	if (error)
 		*error = EOPNOTSUPP;
@@ -147,8 +155,12 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
  * delayed ack).
  */
 uint32_t
-tcp_get_pacing_burst_size(uint64_t bw, uint32_t segsiz, int can_use_1mss,
+tcp_get_pacing_burst_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
    const struct tcp_hwrate_limit_table *te, int *err);
+
+
+void
+tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte);
 
 #endif
 #endif

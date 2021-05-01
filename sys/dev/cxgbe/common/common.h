@@ -189,6 +189,13 @@ struct tp_usm_stats {
 	u64 octets;
 };
 
+struct tp_tid_stats {
+	u32 del;
+	u32 inv;
+	u32 act;
+	u32 pas;
+};
+
 struct tp_fcoe_stats {
 	u32 frames_ddp;
 	u32 frames_drop;
@@ -206,6 +213,11 @@ struct tp_err_stats {
 	u32 tcp6_in_errs[MAX_NCHAN];
 	u32 ofld_no_neigh;
 	u32 ofld_cong_defer;
+};
+
+struct tp_tnl_stats {
+	u32 out_pkt[MAX_NCHAN];
+	u32 in_pkt[MAX_NCHAN];
 };
 
 struct tp_proxy_stats {
@@ -244,11 +256,11 @@ struct tp_params {
 	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq[MAX_NCHAN];  /* channel to modulation queue map */
 
-	uint32_t vlan_pri_map;
-	uint32_t ingress_config;
+	uint16_t filter_mode;
+	uint16_t filter_mask;	/* Used by TOE and hashfilters */
+	int vnic_mode;
 	uint32_t max_rx_pdu;
 	uint32_t max_tx_pdu;
-	uint64_t hash_filter_mask;
 	bool rx_pkt_encap;
 
 	int8_t fcoe_shift;
@@ -297,6 +309,7 @@ struct chip_params {
 	u8 cng_ch_bits_log;		/* congestion channel map bits width */
 	u8 nsched_cls;
 	u8 cim_num_obq;
+	u8 filter_opt_len;
 	u16 mps_rplc_size;
 	u16 vfcount;
 	u32 sge_fl_db;
@@ -486,6 +499,11 @@ static inline int is_hashfilter(const struct adapter *adap)
 	return adap->params.hash_filter;
 }
 
+static inline int is_ktls(const struct adapter *adap)
+{
+	return adap->cryptocaps & FW_CAPS_CONFIG_TLS_HW;
+}
+
 static inline int chip_id(struct adapter *adap)
 {
 	return adap->params.chipid;
@@ -631,7 +649,7 @@ int t4_prep_adapter(struct adapter *adapter, u32 *buf);
 int t4_shutdown_adapter(struct adapter *adapter);
 int t4_init_devlog_params(struct adapter *adapter, int fw_attach);
 int t4_init_sge_params(struct adapter *adapter);
-int t4_init_tp_params(struct adapter *adap, bool sleep_ok);
+int t4_init_tp_params(struct adapter *adap);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id);
 void t4_fatal_err(struct adapter *adapter, bool fw_error);
@@ -691,6 +709,8 @@ void t4_idma_monitor_init(struct adapter *adapter,
 void t4_idma_monitor(struct adapter *adapter,
 		     struct sge_idma_monitor_state *idma,
 		     int hz, int ticks);
+int t4_set_vf_mac(struct adapter *adapter, unsigned int pf, unsigned int vf,
+		  unsigned int naddr, u8 *addr);
 
 unsigned int t4_get_regs_len(struct adapter *adapter);
 void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size);
@@ -713,6 +733,8 @@ void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
 			 bool sleep_ok);
+void t4_tp_get_tnl_stats(struct adapter *adap, struct tp_tnl_stats *st,
+			 bool sleep_ok);
 void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st,
     			   bool sleep_ok);
 void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
@@ -720,6 +742,8 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
 void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
 			  bool sleep_ok);
 void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok);
+void t4_tp_get_tid_stats(struct adapter *adap, struct tp_tid_stats *st,
 		      bool sleep_ok);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6, bool sleep_ok);
@@ -735,8 +759,7 @@ int t4_set_sched_ipg(struct adapter *adap, int sched, unsigned int ipg);
 int t4_set_pace_tbl(struct adapter *adap, const unsigned int *pace_vals,
 		    unsigned int start, unsigned int n);
 void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate);
-int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map,
-    bool sleep_ok);
+int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode);
 void t4_mk_filtdelwr(unsigned int ftid, struct fw_filter_wr *wr, int qid);
 
 void t4_wol_magic_enable(struct adapter *adap, unsigned int port, const u8 *addr);
@@ -838,6 +861,8 @@ int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
 	       unsigned int fl0id, unsigned int fl1id);
+int t4_eth_eq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+                   unsigned int vf, unsigned int eqid);
 int t4_eth_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		   unsigned int vf, unsigned int eqid);
 int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
@@ -912,6 +937,8 @@ int t4vf_get_sge_params(struct adapter *adapter);
 int t4vf_get_rss_glb_config(struct adapter *adapter);
 int t4vf_get_vfres(struct adapter *adapter);
 int t4vf_prep_adapter(struct adapter *adapter);
+int t4vf_get_vf_mac(struct adapter *adapter, unsigned int port,
+		    unsigned int *naddr, u8 *addr);
 int t4_bar2_sge_qregs(struct adapter *adapter, unsigned int qid,
 		enum t4_bar2_qtype qtype, int user, u64 *pbar2_qoffset,
 		unsigned int *pbar2_qid);

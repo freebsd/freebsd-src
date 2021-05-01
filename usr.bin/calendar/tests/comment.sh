@@ -1,0 +1,14 @@
+# $FreeBSD$
+
+CALENDAR_FILE="-f ${SRCDIR}/calendar.comment"
+CALENDAR_BIN="calendar"
+
+CALENDAR="${CALENDAR_BIN} ${CALENDAR_FILE}"
+
+REGRESSION_START($1)
+
+echo 1..1
+
+REGRESSION_TEST(`comment',`$CALENDAR -t 01.01.2020 -A 30')
+
+REGRESSION_END()

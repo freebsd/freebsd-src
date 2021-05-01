@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -39,12 +39,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
 #include <unistd.h>
+#endif // _WIN32
 
-#include <status.h>
 #include <vector.h>
 #include <read.h>
-#include <vm.h>
 #include <args.h>
 #include <opt.h>
 
@@ -55,6 +55,7 @@ static const BcOptLong bc_args_lopt[] = {
 	{ "help", BC_OPT_NONE, 'h' },
 	{ "interactive", BC_OPT_NONE, 'i' },
 	{ "no-prompt", BC_OPT_NONE, 'P' },
+	{ "no-read-prompt", BC_OPT_NONE, 'R' },
 #if BC_ENABLED
 	{ "global-stacks", BC_OPT_BC_ONLY, 'g' },
 	{ "mathlib", BC_OPT_BC_ONLY, 'l' },
@@ -91,7 +92,7 @@ static void bc_args_file(const char *file) {
 	free(buf);
 }
 
-void bc_args(int argc, char *argv[]) {
+void bc_args(int argc, char *argv[], bool exit_exprs) {
 
 	int c;
 	size_t i;
@@ -109,8 +110,9 @@ void bc_args(int argc, char *argv[]) {
 			case 'e':
 			{
 				if (vm.no_exit_exprs)
-					bc_vm_verr(BC_ERROR_FATAL_OPTION, "-e (--expression)");
+					bc_vm_verr(BC_ERR_FATAL_OPTION, "-e (--expression)");
 				bc_args_exprs(opts.optarg);
+				vm.exit_exprs = (exit_exprs || vm.exit_exprs);
 				break;
 			}
 
@@ -119,8 +121,9 @@ void bc_args(int argc, char *argv[]) {
 				if (!strcmp(opts.optarg, "-")) vm.no_exit_exprs = true;
 				else {
 					if (vm.no_exit_exprs)
-						bc_vm_verr(BC_ERROR_FATAL_OPTION, "-f (--file)");
+						bc_vm_verr(BC_ERR_FATAL_OPTION, "-f (--file)");
 					bc_args_file(opts.optarg);
+					vm.exit_exprs = (exit_exprs || vm.exit_exprs);
 				}
 				break;
 			}
@@ -141,6 +144,12 @@ void bc_args(int argc, char *argv[]) {
 			case 'P':
 			{
 				vm.flags |= BC_FLAG_P;
+				break;
+			}
+
+			case 'R':
+			{
+				vm.flags |= BC_FLAG_R;
 				break;
 			}
 

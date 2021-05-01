@@ -413,12 +413,13 @@ out_with_ref:
  */
 static int
 sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
-    off_t len, int npages, int rhpages, int flags)
+    off_t len, int rhpages, int flags)
 {
 	vm_page_t *pa;
-	int a, count, count1, grabbed, i, j, rv;
+	int a, count, count1, grabbed, i, j, npages, rv;
 
 	pa = sfio->pa;
+	npages = sfio->npages;
 	*nios = 0;
 	flags = (flags & SF_NODISKIO) ? VM_ALLOC_NOWAIT : 0;
 	sfio->pindex0 = OFF_TO_IDX(off);
@@ -539,6 +540,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 				    ("%s: page %p[%d] I/O recovery failure",
 				    __func__, pa, j));
 				vm_page_unwire(pa[j], PQ_INACTIVE);
+				pa[j] = NULL;
 			}
 			return (EIO);
 		}
@@ -569,6 +571,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 	struct shmfd *shmfd;
 	int error;
 
+	error = 0;
 	vp = *vp_res = NULL;
 	obj = NULL;
 	shmfd = *shmfd_res = NULL;
@@ -586,28 +589,39 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 			goto out;
 		}
 		*bsize = vp->v_mount->mnt_stat.f_iosize;
-		error = VOP_GETATTR(vp, &va, td->td_ucred);
-		if (error != 0)
-			goto out;
-		*obj_size = va.va_size;
 		obj = vp->v_object;
 		if (obj == NULL) {
 			error = EINVAL;
 			goto out;
 		}
+
+		/*
+		 * Use the pager size when available to simplify synchronization
+		 * with filesystems, which otherwise must atomically update both
+		 * the vnode pager size and file size.
+		 */
+		if (obj->type == OBJT_VNODE) {
+			VM_OBJECT_RLOCK(obj);
+			*obj_size = obj->un_pager.vnp.vnp_size;
+		} else {
+			error = VOP_GETATTR(vp, &va, td->td_ucred);
+			if (error != 0)
+				goto out;
+			*obj_size = va.va_size;
+			VM_OBJECT_RLOCK(obj);
+		}
 	} else if (fp->f_type == DTYPE_SHM) {
-		error = 0;
 		shmfd = fp->f_data;
 		obj = shmfd->shm_object;
+		VM_OBJECT_RLOCK(obj);
 		*obj_size = shmfd->shm_size;
 	} else {
 		error = EINVAL;
 		goto out;
 	}
 
-	VM_OBJECT_WLOCK(obj);
 	if ((obj->flags & OBJ_DEAD) != 0) {
-		VM_OBJECT_WUNLOCK(obj);
+		VM_OBJECT_RUNLOCK(obj);
 		error = EBADF;
 		goto out;
 	}
@@ -618,7 +632,7 @@ sendfile_getobj(struct thread *td, struct file *fp, vm_object_t *obj_res,
 	 * immediately destroy it.
 	 */
 	vm_object_reference_locked(obj);
-	VM_OBJECT_WUNLOCK(obj);
+	VM_OBJECT_RUNLOCK(obj);
 	*obj_res = obj;
 	*vp_res = vp;
 	*shmfd_res = shmfd;
@@ -677,7 +691,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct sendfile_sync *sfs;
 	struct vattr va;
-	off_t off, sbytes, rem, obj_size;
+	off_t off, sbytes, rem, obj_size, nobj_size;
 	int bsize, error, ext_pgs_idx, hdrlen, max_pgs, softerr;
 #ifdef KERN_TLS
 	int tls_enq_cnt;
@@ -850,15 +864,30 @@ retry_space:
 			error = vn_lock(vp, LK_SHARED);
 			if (error != 0)
 				goto done;
-			error = VOP_GETATTR(vp, &va, td->td_ucred);
-			if (error != 0 || off >= va.va_size) {
+
+			/*
+			 * Check to see if the file size has changed.
+			 */
+			if (obj->type == OBJT_VNODE) {
+				VM_OBJECT_RLOCK(obj);
+				nobj_size = obj->un_pager.vnp.vnp_size;
+				VM_OBJECT_RUNLOCK(obj);
+			} else {
+				error = VOP_GETATTR(vp, &va, td->td_ucred);
+				if (error != 0) {
+					VOP_UNLOCK(vp);
+					goto done;
+				}
+				nobj_size = va.va_size;
+			}
+			if (off >= nobj_size) {
 				VOP_UNLOCK(vp);
 				goto done;
 			}
-			if (va.va_size != obj_size) {
-				obj_size = va.va_size;
-				rem = nbytes ?
-				    omin(nbytes + offset, obj_size) : obj_size;
+			if (nobj_size != obj_size) {
+				obj_size = nobj_size;
+				rem = nbytes ? omin(nbytes + offset, obj_size) :
+				    obj_size;
 				rem -= off;
 			}
 		}
@@ -885,7 +914,7 @@ retry_space:
 		 * do any heuristics and use exactly the value supplied by
 		 * application.  Otherwise, we allow readahead up to "rem".
 		 * If application wants more, let it be, but there is no
-		 * reason to go above MAXPHYS.  Also check against "obj_size",
+		 * reason to go above maxphys.  Also check against "obj_size",
 		 * since vm_pager_has_page() can hint beyond EOF.
 		 */
 		if (flags & SF_USER_READAHEAD) {
@@ -895,7 +924,7 @@ retry_space:
 			    npages;
 			rhpages += SF_READAHEAD(flags);
 		}
-		rhpages = min(howmany(MAXPHYS, PAGE_SIZE), rhpages);
+		rhpages = min(howmany(maxphys, PAGE_SIZE), rhpages);
 		rhpages = min(howmany(obj_size - trunc_page(off), PAGE_SIZE) -
 		    npages, rhpages);
 
@@ -905,6 +934,7 @@ retry_space:
 		sfio->obj = obj;
 		sfio->error = 0;
 		sfio->m = NULL;
+		sfio->npages = npages;
 #ifdef KERN_TLS
 		/*
 		 * This doesn't use ktls_hold() because sfio->m will
@@ -914,8 +944,8 @@ retry_space:
 		sfio->tls = tls;
 #endif
 		vm_object_pip_add(obj, 1);
-		error = sendfile_swapin(obj, sfio, &nios, off, space, npages,
-		    rhpages, flags);
+		error = sendfile_swapin(obj, sfio, &nios, off, space, rhpages,
+		    flags);
 		if (error != 0) {
 			if (vp != NULL)
 				VOP_UNLOCK(vp);
@@ -963,7 +993,7 @@ retry_space:
 			if (pa[i] == NULL) {
 				SFSTAT_INC(sf_busy);
 				fixspace(npages, i, off, &space);
-				npages = i;
+				sfio->npages = i;
 				softerr = EBUSY;
 				break;
 			}
@@ -1042,12 +1072,14 @@ retry_space:
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				sendfile_iowait(sfio, "sfnosf");
-				for (int j = i; j < npages; j++)
+				for (int j = i; j < npages; j++) {
 					vm_page_unwire(pa[j], PQ_INACTIVE);
+					pa[j] = NULL;
+				}
 				if (m == NULL)
 					softerr = ENOBUFS;
 				fixspace(npages, i, off, &space);
-				npages = i;
+				sfio->npages = i;
 				break;
 			}
 
@@ -1152,7 +1184,6 @@ prepend_header:
 		} else {
 			sfio->so = so;
 			sfio->m = m0;
-			sfio->npages = npages;
 			soref(so);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);

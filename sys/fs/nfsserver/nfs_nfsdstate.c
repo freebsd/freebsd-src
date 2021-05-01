@@ -166,7 +166,8 @@ static int nfsrv_docallback(struct nfsclient *clp, int procnum,
     nfsv4stateid_t *stateidp, int trunc, fhandle_t *fhp,
     struct nfsvattr *nap, nfsattrbit_t *attrbitp, int laytype, NFSPROC_T *p);
 static int nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
-    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp);
+    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp,
+    int *slotposp);
 static u_int32_t nfsrv_nextclientindex(void);
 static u_int32_t nfsrv_nextstateindex(struct nfsclient *clp);
 static void nfsrv_markstable(struct nfsclient *clp);
@@ -201,7 +202,7 @@ static void nfsrv_unlocklf(struct nfslockfile *lfp);
 static struct nfsdsession *nfsrv_findsession(uint8_t *sessionid);
 static int nfsrv_freesession(struct nfsdsession *sep, uint8_t *sessionid);
 static int nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
-    int dont_replycache, struct nfsdsession **sepp);
+    int dont_replycache, struct nfsdsession **sepp, int *slotposp);
 static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
 static int nfsrv_addlayout(struct nfsrv_descript *nd, struct nfslayout **lypp,
     nfsv4stateid_t *stateidp, char *layp, int *layoutlenp, NFSPROC_T *p);
@@ -3070,6 +3071,7 @@ tryagain:
 		new_deleg->ls_clp = clp;
 		new_deleg->ls_filerev = filerev;
 		new_deleg->ls_compref = nd->nd_compref;
+		new_deleg->ls_lastrecall = 0;
 		LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 		LIST_INSERT_HEAD(NFSSTATEHASH(clp,
 		    new_deleg->ls_stateid), new_deleg, ls_hash);
@@ -3191,6 +3193,7 @@ tryagain:
 			new_deleg->ls_clp = clp;
 			new_deleg->ls_filerev = filerev;
 			new_deleg->ls_compref = nd->nd_compref;
+			new_deleg->ls_lastrecall = 0;
 			nfsrv_writedelegcnt++;
 			LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 			LIST_INSERT_HEAD(NFSSTATEHASH(clp,
@@ -3261,6 +3264,7 @@ tryagain:
 			new_deleg->ls_clp = clp;
 			new_deleg->ls_filerev = filerev;
 			new_deleg->ls_compref = nd->nd_compref;
+			new_deleg->ls_lastrecall = 0;
 			LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg, ls_file);
 			LIST_INSERT_HEAD(NFSSTATEHASH(clp,
 			    new_deleg->ls_stateid), new_deleg, ls_hash);
@@ -3339,6 +3343,7 @@ tryagain:
 				new_deleg->ls_clp = clp;
 				new_deleg->ls_filerev = filerev;
 				new_deleg->ls_compref = nd->nd_compref;
+				new_deleg->ls_lastrecall = 0;
 				LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg,
 				    ls_file);
 				LIST_INSERT_HEAD(NFSSTATEHASH(clp,
@@ -4016,6 +4021,11 @@ nfsrv_checkseqid(struct nfsrv_descript *nd, u_int32_t seqid,
 		printf("refcnt=%d\n", stp->ls_op->rc_refcnt);
 		panic("nfsrvstate op refcnt");
 	}
+
+	/* If ND_ERELOOKUP is set, the seqid has already been handled. */
+	if ((nd->nd_flag & ND_ERELOOKUP) != 0)
+		goto out;
+
 	if ((stp->ls_seq + 1) == seqid) {
 		if (stp->ls_op)
 			nfsrvd_derefcache(stp->ls_op);
@@ -4425,7 +4435,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	u_int32_t *tl;
 	struct nfsrv_descript *nd;
 	struct ucred *cred;
-	int error = 0;
+	int error = 0, slotpos;
 	u_int32_t callback;
 	struct nfsdsession *sep = NULL;
 	uint64_t tval;
@@ -4483,7 +4493,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	if (procnum == NFSV4OP_CBGETATTR) {
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback, NFSV4OP_CBGETATTR,
-		    "CB Getattr", &sep);
+		    "CB Getattr", &sep, &slotpos);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
 			goto errout;
@@ -4493,7 +4503,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	} else if (procnum == NFSV4OP_CBRECALL) {
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback, NFSV4OP_CBRECALL,
-		    "CB Recall", &sep);
+		    "CB Recall", &sep, &slotpos);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
 			goto errout;
@@ -4512,7 +4522,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 		NFSD_DEBUG(4, "docallback layout recall\n");
 		nd->nd_procnum = NFSV4PROC_CBCOMPOUND;
 		error = nfsrv_cbcallargs(nd, clp, callback,
-		    NFSV4OP_CBLAYOUTRECALL, "CB Reclayout", &sep);
+		    NFSV4OP_CBLAYOUTRECALL, "CB Reclayout", &sep, &slotpos);
 		NFSD_DEBUG(4, "aft cbcallargs=%d\n", error);
 		if (error != 0) {
 			m_freem(nd->nd_mreq);
@@ -4561,6 +4571,9 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	if (clp->lc_req.nr_client == NULL) {
 		if ((clp->lc_flags & LCL_NFSV41) != 0) {
 			error = ECONNREFUSED;
+			if (procnum != NFSV4PROC_CBNULL)
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
+				    true);
 			nfsrv_freesession(sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
@@ -4592,6 +4605,24 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 				error = ECONNREFUSED;
 			}
 			NFSD_DEBUG(4, "aft newnfs_request=%d\n", error);
+			if (error != 0 && procnum != NFSV4PROC_CBNULL) {
+				/*
+				 * It is likely that the callback was never
+				 * processed by the client and, as such,
+				 * the sequence# for the session slot needs
+				 * to be backed up by one to avoid a
+				 * NFSERR_SEQMISORDERED error reply.
+				 * For the unlikely case where the callback
+				 * was processed by the client, this will
+				 * make the next callback on the slot
+				 * appear to be a retry.
+				 * Since callbacks never specify that the
+				 * reply be cached, this "apparent retry"
+				 * should not be a problem.
+				 */
+				nfsv4_freeslot(&sep->sess_cbsess, slotpos,
+				    true);
+			}
 			nfsrv_freesession(sep, NULL);
 		} else
 			error = newnfs_request(nd, NULL, clp, &clp->lc_req,
@@ -4654,7 +4685,8 @@ errout:
  */
 static int
 nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
-    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp)
+    uint32_t callback, int op, const char *optag, struct nfsdsession **sepp,
+    int *slotposp)
 {
 	uint32_t *tl;
 	int error, len;
@@ -4670,7 +4702,7 @@ nfsrv_cbcallargs(struct nfsrv_descript *nd, struct nfsclient *clp,
 		*tl++ = txdr_unsigned(callback);
 		*tl++ = txdr_unsigned(2);
 		*tl = txdr_unsigned(NFSV4OP_CBSEQUENCE);
-		error = nfsv4_setcbsequence(nd, clp, 1, sepp);
+		error = nfsv4_setcbsequence(nd, clp, 1, sepp, slotposp);
 		if (error != 0)
 			return (error);
 		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -5260,7 +5292,8 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 * - check to see if the delegation has expired
 	 *   - if so, get the v4root lock and then expire it
 	 */
-	if (!(stp->ls_flags & NFSLCK_DELEGRECALL)) {
+	if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0 || stp->ls_lastrecall <
+	    time_uptime) {
 		/*
 		 * - do a recall callback, since not yet done
 		 * For now, never allow truncate to be set. To use
@@ -5275,11 +5308,14 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		 * will be extended when ops are done on the delegation
 		 * stateid, up to the timelimit.)
 		 */
-		stp->ls_delegtime = NFSD_MONOSEC + (2 * nfsrv_lease) +
-		    NFSRV_LEASEDELTA;
-		stp->ls_delegtimelimit = NFSD_MONOSEC + (6 * nfsrv_lease) +
-		    NFSRV_LEASEDELTA;
-		stp->ls_flags |= NFSLCK_DELEGRECALL;
+		if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0) {
+			stp->ls_delegtime = NFSD_MONOSEC + (2 * nfsrv_lease) +
+			    NFSRV_LEASEDELTA;
+			stp->ls_delegtimelimit = NFSD_MONOSEC + (6 *
+			    nfsrv_lease) + NFSRV_LEASEDELTA;
+			stp->ls_flags |= NFSLCK_DELEGRECALL;
+		}
+		stp->ls_lastrecall = time_uptime + 1;
 
 		/*
 		 * Loop NFSRV_CBRETRYCNT times while the CBRecall replies
@@ -6204,7 +6240,6 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
 	int error;
-	SVCXPRT *savxprt;
 
 	shp = NFSSESSIONHASH(nd->nd_sessionid);
 	NFSLOCKSESSION(shp);
@@ -6230,36 +6265,11 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 	nd->nd_maxreq = sep->sess_maxreq;
 	nd->nd_maxresp = sep->sess_maxresp;
 
-	/*
-	 * If this session handles the backchannel, save the nd_xprt for this
-	 * RPC, since this is the one being used.
-	 * RFC-5661 specifies that the fore channel will be implicitly
-	 * bound by a Sequence operation.  However, since some NFSv4.1 clients
-	 * erroneously assumed that the back channel would be implicitly
-	 * bound as well, do the implicit binding unless a
-	 * BindConnectiontoSession has already been done on the session.
-	 */
-	savxprt = NULL;
-	if (sep->sess_clp->lc_req.nr_client != NULL &&
-	    sep->sess_cbsess.nfsess_xprt != nd->nd_xprt &&
-	    (sep->sess_crflags & NFSV4CRSESS_CONNBACKCHAN) != 0 &&
-	    (sep->sess_clp->lc_flags & LCL_DONEBINDCONN) == 0) {
-		NFSD_DEBUG(2,
-		    "nfsrv_checksequence: implicit back channel bind\n");
-		savxprt = sep->sess_cbsess.nfsess_xprt;
-		SVC_ACQUIRE(nd->nd_xprt);
-		nd->nd_xprt->xp_p2 =
-		    sep->sess_clp->lc_req.nr_client->cl_private;
-		nd->nd_xprt->xp_idletimeout = 0;	/* Disable timeout. */
-		sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
-	}
-
 	*sflagsp = 0;
-	if (sep->sess_clp->lc_req.nr_client == NULL)
+	if (sep->sess_clp->lc_req.nr_client == NULL ||
+	    (sep->sess_clp->lc_flags & LCL_CBDOWN) != 0)
 		*sflagsp |= NFSV4SEQ_CBPATHDOWN;
 	NFSUNLOCKSESSION(shp);
-	if (savxprt != NULL)
-		SVC_RELEASE(savxprt);
 	if (error == NFSERR_EXPIRED) {
 		*sflagsp |= NFSV4SEQ_EXPIREDALLSTATEREVOKED;
 		error = 0;
@@ -6459,7 +6469,9 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 				nd->nd_xprt->xp_idletimeout = 0;
 				sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
 				sep->sess_crflags |= NFSV4CRSESS_CONNBACKCHAN;
-				clp->lc_flags |= LCL_DONEBINDCONN;
+				clp->lc_flags |= LCL_DONEBINDCONN |
+				    LCL_NEEDSCBNULL;
+				clp->lc_flags &= ~LCL_CBDOWN;
 				if (*foreaftp == NFSCDFS4_BACK)
 					*foreaftp = NFSCDFS4_BACK;
 				else
@@ -6610,11 +6622,11 @@ nfsrv_teststateid(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp,
  */
 static int
 nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
-    int dont_replycache, struct nfsdsession **sepp)
+    int dont_replycache, struct nfsdsession **sepp, int *slotposp)
 {
 	struct nfsdsession *sep;
 	uint32_t *tl, slotseq = 0;
-	int maxslot, slotpos;
+	int maxslot;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	int error;
 
@@ -6622,7 +6634,7 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	if (error != 0)
 		return (error);
 	sep = *sepp;
-	(void)nfsv4_sequencelookup(NULL, &sep->sess_cbsess, &slotpos, &maxslot,
+	(void)nfsv4_sequencelookup(NULL, &sep->sess_cbsess, slotposp, &maxslot,
 	    &slotseq, sessionid);
 	KASSERT(maxslot >= 0, ("nfsv4_setcbsequence neg maxslot"));
 
@@ -6632,7 +6644,7 @@ nfsv4_setcbsequence(struct nfsrv_descript *nd, struct nfsclient *clp,
 	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 	nd->nd_slotseq = tl;
 	*tl++ = txdr_unsigned(slotseq);
-	*tl++ = txdr_unsigned(slotpos);
+	*tl++ = txdr_unsigned(*slotposp);
 	*tl++ = txdr_unsigned(maxslot);
 	if (dont_replycache == 0)
 		*tl++ = newnfs_true;
@@ -6884,14 +6896,8 @@ nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
 	NFSBCOPY(devid, tl, NFSX_V4DEVICEID);		/* Device ID. */
 	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 
-	/*
-	 * Make the stripe size as many 64K blocks as will fit in the stripe
-	 * mask. Since there is only one stripe, the stripe size doesn't really
-	 * matter, except that the Linux client will only handle an exact
-	 * multiple of their PAGE_SIZE (usually 4K).  I chose 64K as a value
-	 * that should cover most/all arches w.r.t. PAGE_SIZE.
-	 */
-	*tl++ = txdr_unsigned(NFSFLAYUTIL_STRIPE_MASK & ~0xffff);
+	/* Set the stripe size to the maximum I/O size. */
+	*tl++ = txdr_unsigned(NFS_SRVMAXIO & NFSFLAYUTIL_STRIPE_MASK);
 	*tl++ = 0;					/* 1st stripe index. */
 	pattern_offset = 0;
 	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */

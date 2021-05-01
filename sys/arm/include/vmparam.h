@@ -53,10 +53,10 @@
 #define	MAXDSIZ		(512UL*1024*1024)	/* max data size */
 #endif
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(2UL*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(4UL*1024*1024)		/* initial stack size limit */
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(8UL*1024*1024)		/* max stack size */
+#define	MAXSSIZ		(64UL*1024*1024)	/* max stack size */
 #endif
 #ifndef	SGROWSIZ
 #define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */

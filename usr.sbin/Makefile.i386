@@ -15,12 +15,8 @@ SUBDIR+=	cpucontrol
 .if ${MK_HYPERV} != "no"
 SUBDIR+=	hyperv
 .endif
-SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
 SUBDIR+=	mptable
-.if ${MK_NDIS} != "no"
-SUBDIR+=	ndiscvt
-.endif
 SUBDIR+=	pnpinfo
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz

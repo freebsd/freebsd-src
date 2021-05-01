@@ -67,7 +67,6 @@ SUBDIR=	alias \
 	ktrace \
 	ktrdump \
 	lam \
-	lastcomm \
 	ldd \
 	leave \
 	less \
@@ -98,6 +97,7 @@ SUBDIR=	alias \
 	mkuzip \
 	mt \
 	ncal \
+	ncurses \
 	netstat \
 	newgrp \
 	nfsstat \
@@ -147,7 +147,6 @@ SUBDIR=	alias \
 	strings \
 	su \
 	systat \
-	tabs \
 	tail \
 	tar \
 	tcopy \
@@ -157,11 +156,9 @@ SUBDIR=	alias \
 	tip \
 	top \
 	touch \
-	tput \
 	tr \
 	true \
 	truncate \
-	tset \
 	tsort \
 	tty \
 	uname \
@@ -192,6 +189,7 @@ SUBDIR=	alias \
 
 # NB: keep these sorted by MK_* knobs
 
+SUBDIR.${MK_ACCT}+=	lastcomm
 SUBDIR.${MK_AT}+=	at
 SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
@@ -212,9 +210,7 @@ SUBDIR.${MK_GAMES}+=	number
 SUBDIR.${MK_GAMES}+=	pom
 SUBDIR.${MK_GAMES}+=	primes
 SUBDIR.${MK_GAMES}+=	random
-.if ${COMPILER_FEATURES:Mc++11}
-SUBDIR+=	dtc
-.endif
+SUBDIR.${MK_CXX}+=	dtc
 .if ${MK_GH_BC} == "yes"
 SUBDIR+=		gh-bc
 .else
@@ -260,7 +256,9 @@ SUBDIR.${MK_TOOLCHAIN}+=	ar
 SUBDIR.${MK_TOOLCHAIN}+=	c89
 SUBDIR.${MK_TOOLCHAIN}+=	c99
 SUBDIR.${MK_TOOLCHAIN}+=	ctags
+.if ${MK_LLVM_CXXFILT} == "no"
 SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
+.endif
 SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
 SUBDIR.${MK_TOOLCHAIN}+=	gprof

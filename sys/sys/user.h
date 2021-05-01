@@ -88,7 +88,7 @@
  */
 #define	KI_NSPARE_INT	2
 #define	KI_NSPARE_LONG	12
-#define	KI_NSPARE_PTR	6
+#define	KI_NSPARE_PTR	5
 
 #ifndef _KERNEL
 #ifndef KINFO_PROC_SIZE
@@ -213,6 +213,7 @@ struct kinfo_proc {
 	 * front of ki_spareptrs, and longs from the end of ki_sparelongs.
 	 * That way the spare room from both arrays will remain contiguous.
 	 */
+	struct	pwddesc *ki_pd;	/* pointer to process paths info */
 	void	*ki_spareptrs[KI_NSPARE_PTR];	/* spare room for growth */
 	long	ki_sparelongs[KI_NSPARE_LONG];	/* spare room for growth */
 	long	ki_sflag;		/* PS_* flags */
@@ -256,13 +257,14 @@ struct user {
 #define	KF_TYPE_PIPE	3
 #define	KF_TYPE_FIFO	4
 #define	KF_TYPE_KQUEUE	5
-#define	KF_TYPE_CRYPTO	6
+/* was	KF_TYPE_CRYPTO	6 */
 #define	KF_TYPE_MQUEUE	7
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
 #define	KF_TYPE_PROCDESC	11
 #define	KF_TYPE_DEV	12
+#define	KF_TYPE_EVENTFD	13
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -435,6 +437,10 @@ struct kinfo_file {
 				uint64_t	kf_spareint64[32];
 				pid_t		kf_pid;
 			} kf_proc;
+			struct {
+				uint64_t	kf_eventfd_value;
+				uint32_t	kf_eventfd_flags;
+			} kf_eventfd;
 		} kf_un;
 	};
 	uint16_t	kf_status;		/* Status flags. */
@@ -459,6 +465,7 @@ struct kinfo_file {
 #define	KVME_TYPE_DEAD		6
 #define	KVME_TYPE_SG		7
 #define	KVME_TYPE_MGTDEVICE	8
+#define	KVME_TYPE_GUARD		9
 #define	KVME_TYPE_UNKNOWN	255
 
 #define	KVME_PROT_READ		0x00000001
@@ -522,12 +529,17 @@ struct kinfo_vmentry {
 	uint32_t kve_vn_rdev_freebsd11;		/* Device id if device. */
 	uint16_t kve_vn_mode;			/* File mode. */
 	uint16_t kve_status;			/* Status flags. */
-	uint64_t kve_vn_fsid;			/* dev_t of vnode location */
+	union {
+		uint64_t _kve_vn_fsid;		/* dev_t of vnode location */
+		uint64_t _kve_obj;		/* handle of anon obj */
+	} kve_type_spec;
 	uint64_t kve_vn_rdev;			/* Device id if device. */
 	int	 _kve_ispare[8];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };
+#define	kve_vn_fsid	kve_type_spec._kve_vn_fsid
+#define	kve_obj		kve_type_spec._kve_obj
 
 /*
  * The "vm.objects" sysctl provides a list of all VM objects in the system
@@ -545,11 +557,18 @@ struct kinfo_vmobject {
 	uint64_t kvo_resident;			/* Number of resident pages. */
 	uint64_t kvo_active;			/* Number of active pages. */
 	uint64_t kvo_inactive;			/* Number of inactive pages. */
-	uint64_t kvo_vn_fsid;
-	uint64_t _kvo_qspare[7];
-	uint32_t _kvo_ispare[8];
+	union {
+		uint64_t _kvo_vn_fsid;
+		uint64_t _kvo_backing_obj;	/* Handle for the backing obj */
+	} kvo_type_spec;			/* Type-specific union */
+	uint64_t kvo_me;			/* Uniq handle for anon obj */
+	uint64_t _kvo_qspare[6];
+	uint32_t kvo_swapped;			/* Number of swapped pages */
+	uint32_t _kvo_ispare[7];
 	char	kvo_path[PATH_MAX];		/* Pathname, if any. */
 };
+#define	kvo_vn_fsid	kvo_type_spec._kvo_vn_fsid
+#define	kvo_backing_obj	kvo_type_spec._kvo_backing_obj
 
 /*
  * The KERN_PROC_KSTACK sysctl allows a process to dump the kernel stacks of

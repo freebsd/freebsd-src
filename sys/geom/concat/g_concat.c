@@ -718,9 +718,11 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access = g_concat_access;
 	gp->orphan = g_concat_orphan;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = g_concat_read_metadata(cp, &md);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = g_concat_read_metadata(cp, &md);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	if (error != 0)

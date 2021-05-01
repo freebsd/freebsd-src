@@ -265,7 +265,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	return (pmap_methods_ptr->pm_sysctl_kmaps(oidp, arg1, arg2, req));
 }
 SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
     NULL, 0, sysctl_kmaps, "A",
     "Dump kernel address layout");
 

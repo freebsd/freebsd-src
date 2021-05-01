@@ -3781,7 +3781,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	} else {
 		device_set_desc(pdev->dev.bsddev, mlx4_description);
-		pci_save_state(pdev->dev.bsddev);
+		pci_save_state(pdev);
 	}
 
 	snprintf(dev->fw_str, sizeof(dev->fw_str), "%d.%d.%d",

@@ -2862,7 +2862,7 @@ struct ulptx_sgl {
 	__be32 len0;
 	__be64 addr0;
 #if !(defined C99_NOT_SUPPORTED)
-	struct ulptx_sge_pair sge[0];
+	struct ulptx_sge_pair sge[];
 #endif
 };
 
@@ -2876,7 +2876,7 @@ struct ulptx_isgl {
 	__be32 cmd_nisge;
 	__be32 rsvd;
 #if !(defined C99_NOT_SUPPORTED)
-	struct ulptx_isge sge[0];
+	struct ulptx_isge sge[];
 #endif
 };
 

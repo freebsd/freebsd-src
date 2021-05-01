@@ -96,11 +96,6 @@ static int worker_thread_count;
 static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
-/* XXXNP some header instead. */
-struct icl_pdu *icl_cxgbei_new_pdu(int);
-void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
-void icl_cxgbei_conn_pdu_free(struct icl_conn *, struct icl_pdu *);
-
 static void
 free_ci_counters(struct cxgbei_data *ci)
 {
@@ -412,12 +407,14 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
+		CURVNET_SET(so->so_vnet);
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
 		tp = tcp_drop(tp, ECONNRESET);
 		if (tp)
 			INP_WUNLOCK(inp);
 		NET_EPOCH_EXIT(et);
+		CURVNET_RESTORE();
 
 		icl_cxgbei_conn_pdu_free(NULL, ip);
 #ifdef INVARIANTS

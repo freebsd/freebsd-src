@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 /* Compatible devices. */
 static struct ofw_compat_data compat_data[] = {
 	{"nvidia,tegra124-sdhci",	1},
+	{"nvidia,tegra210-sdhci",	1},
 	{NULL,				0},
 };
 
@@ -242,15 +243,12 @@ tegra_sdhci_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "nvidia,tegra124-sdhci")) {
-		device_set_desc(dev, "Tegra SDHCI controller");
-	} else
-		return (ENXIO);
 	cd = ofw_bus_search_compatible(dev, compat_data);
 	if (cd->ocd_data == 0)
 		return (ENXIO);
 
 	node = ofw_bus_get_node(dev);
+	device_set_desc(dev, "Tegra SDHCI controller");
 
 	/* Allow dts to patch quirks, slots, and max-frequency. */
 	if ((OF_getencprop(node, "quirks", &cid, sizeof(cid))) > 0)
@@ -291,25 +289,27 @@ tegra_sdhci_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, tegra_sdhci_intr, sc, &sc->intr_cookie)) {
-		device_printf(dev, "cannot setup interrupt handler\n");
-		rv = ENXIO;
-		goto fail;
-	}
-
 	rv = hwreset_get_by_ofw_name(sc->dev, 0, "sdhci", &sc->reset);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'sdhci' reset\n");
 		goto fail;
 	}
-	rv = hwreset_deassert(sc->reset);
+	rv = hwreset_assert(sc->reset);
 	if (rv != 0) {
-		device_printf(dev, "Cannot unreset 'sdhci' reset\n");
+		device_printf(dev, "Cannot reset 'sdhci' reset\n");
 		goto fail;
 	}
 
-	gpio_pin_get_by_ofw_property(sc->dev, node, "power-gpios", &sc->gpio_power);
+	gpio_pin_get_by_ofw_property(sc->dev, node, "power-gpios",
+	    &sc->gpio_power);
+
+	if (OF_hasprop(node, "assigned-clocks")) {
+		rv = clk_set_assigned(sc->dev, node);
+		if (rv != 0) {
+			device_printf(dev, "Cannot set assigned clocks\n");
+			goto fail;
+		}
+	}
 
 	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
@@ -330,8 +330,14 @@ tegra_sdhci_attach(device_t dev)
 		device_printf(dev, "Cannot get clock frequency\n");
 		goto fail;
 	}
+	DELAY(4000);
+	rv = hwreset_deassert(sc->reset);
+	if (rv != 0) {
+		device_printf(dev, "Cannot unreset 'sdhci' reset\n");
+		goto fail;
+	}
 	if (bootverbose)
-		device_printf(dev, " Base MMC clock: %lld\n", freq);
+		device_printf(dev, " Base MMC clock: %jd\n", (uintmax_t)freq);
 
 	/* Fill slot information. */
 	sc->max_clk = (int)freq;
@@ -369,6 +375,12 @@ tegra_sdhci_attach(device_t dev)
 	sc->slot.max_clk = sc->max_clk;
 	sc->slot.caps = sc->caps;
 
+	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+	    NULL, tegra_sdhci_intr, sc, &sc->intr_cookie)) {
+		device_printf(dev, "cannot setup interrupt handler\n");
+		rv = ENXIO;
+		goto fail;
+	}
 	rv = sdhci_init_slot(dev, &sc->slot, 0);
 	if (rv != 0) {
 		goto fail;

@@ -31,6 +31,12 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+/*
+ * Note: this routine was written with kernel use in mind (read: no simd),
+ * it is only present in userspace as a temporary measure until something
+ * better gets imported.
+ */
+
 #define ALIGN_TEXT      .p2align 4,0x90 /* 16-byte alignment, nop filled */
 
 .macro MEMSET erms
@@ -46,6 +52,7 @@ __FBSDID("$FreeBSD$");
 	cmpq	$256,%rcx
 	ja	1256f
 
+	ALIGN_TEXT
 103200:
 	movq	%r10,(%rdi)
 	movq	%r10,8(%rdi)

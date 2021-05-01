@@ -299,10 +299,9 @@ int
 smbfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct thread *a_td;
 	} */ *ap;
 {
-	struct thread *td = ap->a_td;
+	struct thread *td = curthread;
 	struct ucred *cred = td->td_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);

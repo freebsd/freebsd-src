@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_arg.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_arg.c,v 1.18 2020/12/11 22:05:24 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -61,7 +61,7 @@ MODULE_ID("$Id: fld_arg.c,v 1.16 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK           - success
 |                    E_BAD_ARGUMENT - invalid argument
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 set_fieldtype_arg(FIELDTYPE *typ,
 		  void *(*const make_arg)(va_list *),
 		  void *(*const copy_arg)(const void *),
@@ -90,11 +90,11 @@ set_fieldtype_arg(FIELDTYPE *typ,
 |   Facility      :  libnform
 |   Function      :  void *field_arg(const FIELD *field)
 |
-|   Description   :  Retrieve pointer to the fields argument structure.
+|   Description   :  Retrieve pointer to the field's argument structure.
 |
 |   Return Values :  Pointer to structure or NULL if none is defined.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(void *)
+FORM_EXPORT(void *)
 field_arg(const FIELD *field)
 {
   T((T_CALLED("field_arg(%p)"), (const void *)field));

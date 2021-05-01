@@ -85,10 +85,8 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	=
-#if __ARM_ARCH >= 6
 			  SV_ASLR | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER |
-#endif
-			  SV_ABI_FREEBSD | SV_ILP32 | SV_ASLR,
+			  SV_ABI_FREEBSD | SV_ILP32,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
@@ -305,14 +303,8 @@ elf_cpu_load_file(linker_file_t lf)
 	 */
 	if (lf->id == 1)
 		return (0);
-#if __ARM_ARCH >= 6
 	dcache_wb_pou((vm_offset_t)lf->address, (vm_size_t)lf->size);
 	icache_inv_all();
-#else
-	cpu_dcache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
-	cpu_l2cache_wb_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
-	cpu_icache_sync_range((vm_offset_t)lf->address, (vm_size_t)lf->size);
-#endif
 
 #if defined(DDB) || defined(KDTRACE_HOOKS) || defined(STACK)
 	/*

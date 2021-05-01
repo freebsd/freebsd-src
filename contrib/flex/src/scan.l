@@ -705,7 +705,7 @@ M4QEND      "]""]"
  			 }
 nmstr[yyleng - 2 - end_is_ws] = '\0';  /* chop trailing brace */
 
-			if ( (nmdefptr = ndlookup( nmstr )) == 0 )
+			if ( (nmdefptr = ndlookup( nmstr )) == NULL )
 				format_synerr(
 					_( "undefined definition {%s}" ),
 						nmstr );

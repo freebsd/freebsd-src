@@ -30,7 +30,7 @@ atf_test_case zfs_mount_001_pos cleanup
 zfs_mount_001_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd <filesystem>' succeeds as root."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_001_pos_body()
 {
@@ -60,7 +60,7 @@ atf_test_case zfs_mount_002_pos cleanup
 zfs_mount_002_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd' with a filesystemwhose name is not in 'zfs list' will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_002_pos_body()
 {
@@ -86,7 +86,7 @@ atf_test_case zfs_mount_003_pos cleanup
 zfs_mount_003_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd' with a filesystemwhose mountpoint property is 'legacy' or 'none'  \will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_003_pos_body()
 {
@@ -112,7 +112,7 @@ atf_test_case zfs_mount_004_pos cleanup
 zfs_mount_004_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd <filesystem>'with a mounted filesystem will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_004_pos_body()
 {
@@ -138,7 +138,7 @@ atf_test_case zfs_mount_005_pos cleanup
 zfs_mount_005_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd' with a filesystemwhose mountpoint is currently in use will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_005_pos_body()
 {
@@ -165,7 +165,7 @@ atf_test_case zfs_mount_006_pos cleanup
 zfs_mount_006_pos_head()
 {
 	atf_set "descr" "Verify that '$ZFS $mountcmd <filesystem>'which mountpoint be the identical or the top of an existing one  \will fail with return code 1."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_006_pos_body()
 {
@@ -192,7 +192,7 @@ atf_test_case zfs_mount_007_pos cleanup
 zfs_mount_007_pos_head()
 {
 	atf_set "descr" "Verify '-o' will set filesystem property temporarily,without affecting the property that is stored on disk."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_007_pos_body()
 {
@@ -219,7 +219,7 @@ atf_test_case zfs_mount_008_pos cleanup
 zfs_mount_008_pos_head()
 {
 	atf_set "descr" "Verify 'zfs mount -O' will override existing mount point."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_008_pos_body()
 {
@@ -245,7 +245,7 @@ atf_test_case zfs_mount_009_neg cleanup
 zfs_mount_009_neg_head()
 {
 	atf_set "descr" "Badly-formed 'zfs $mountcmd' with inapplicable scenariosshould return an error."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_009_neg_body()
 {
@@ -275,7 +275,7 @@ atf_test_case zfs_mount_010_neg cleanup
 zfs_mount_010_neg_head()
 {
 	atf_set "descr" "zfs mount fails with mounted filesystem or busy mountpoint"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_010_neg_body()
 {
@@ -302,7 +302,7 @@ atf_test_case zfs_mount_011_neg cleanup
 zfs_mount_011_neg_head()
 {
 	atf_set "descr" "zfs mount fails with bad parameters"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_011_neg_body()
 {
@@ -328,7 +328,7 @@ atf_test_case zfs_mount_all_001_pos cleanup
 zfs_mount_all_001_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs $mountall' succeeds as root,and all available ZFS filesystems are mounted."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_mount_all_001_pos_body()
 {

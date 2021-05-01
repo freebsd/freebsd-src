@@ -1,7 +1,7 @@
 
 Printing dollar from literals and variables
 
-To survive the parser, a dollar character must be doubled.
+To survive the parser, a dollar sign must be doubled.
        1 dollar literal => <single-quote-var-value>
    1 dollar literal eol => <>
        2 dollar literal => <$>

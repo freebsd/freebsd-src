@@ -69,6 +69,14 @@ is specified, warnings will not be printed when
 fails.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show the physical path of the
+.Pa /dev/log
+directory silencing warnings if any:
+.Bd -literal -offset indent
+$ realpath -q /dev/log
+/var/run/log
+.Ed
 .Sh SEE ALSO
 .Xr realpath 3
 .Sh HISTORY

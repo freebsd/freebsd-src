@@ -308,7 +308,7 @@ static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
-static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
+static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *, int);
 static void	unp_process_defers(void * __unused, int);
 
 static void
@@ -382,7 +382,7 @@ unp_pcb_lock_peer(struct unpcb *unp)
 
 	UNP_PCB_LOCK_ASSERT(unp);
 	unp2 = unp->unp_conn;
-	if (__predict_false(unp2 == NULL))
+	if (unp2 == NULL)
 		return (NULL);
 	if (__predict_false(unp == unp2))
 		return (unp);
@@ -428,14 +428,15 @@ static struct protosw localsw[] = {
 {
 	.pr_type =		SOCK_STREAM,
 	.pr_domain =		&localdomain,
-	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
+	.pr_flags =		PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS|
+				    PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_stream
 },
 {
 	.pr_type =		SOCK_DGRAM,
 	.pr_domain =		&localdomain,
-	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_dgram
 },
@@ -448,8 +449,8 @@ static struct protosw localsw[] = {
 	 * due to our use of sbappendaddr.  A new sbappend variants is needed
 	 * that supports both atomic record writes and control data.
 	 */
-	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|PR_WANTRCVD|
-				    PR_RIGHTS,
+	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|
+				    PR_WANTRCVD|PR_RIGHTS|PR_CAPATTACH,
 	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_seqpacket,
 },
@@ -636,7 +637,8 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 
 restart:
 	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME | NOCACHE,
-	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_BINDAT), td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_BINDAT),
+	    td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
@@ -660,7 +662,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
+	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_pd->pd_cmask);
 #ifdef MAC
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -668,9 +670,11 @@ restart:
 	if (error == 0)
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
 	if (error) {
+		VOP_VPUT_PAIR(nd.ni_dvp, NULL, true);
 		vn_finished_write(mp);
+		if (error == ERELOOKUP)
+			goto restart;
 		goto error;
 	}
 	vp = nd.ni_vp;
@@ -683,7 +687,8 @@ restart:
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
-	VOP_UNLOCK(vp);
+	vref(vp);
+	VOP_VPUT_PAIR(nd.ni_dvp, &vp, true);
 	vn_finished_write(mp);
 	free(buf, M_TEMP);
 	return (0);
@@ -1040,8 +1045,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			break;
 		}
 
-		if (unp2->unp_flags & UNP_WANTCRED)
-			control = unp_addsockcred(td, control);
+		if (unp2->unp_flags & UNP_WANTCRED_MASK)
+			control = unp_addsockcred(td, control,
+			    unp2->unp_flags);
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
 		else
@@ -1094,13 +1100,14 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			break;
 		}
 		SOCKBUF_LOCK(&so2->so_rcv);
-		if (unp2->unp_flags & UNP_WANTCRED) {
+		if (unp2->unp_flags & UNP_WANTCRED_MASK) {
 			/*
-			 * Credentials are passed only once on SOCK_STREAM
-			 * and SOCK_SEQPACKET.
+			 * Credentials are passed only once on SOCK_STREAM and
+			 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
+			 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
 			 */
-			unp2->unp_flags &= ~UNP_WANTCRED;
-			control = unp_addsockcred(td, control);
+			control = unp_addsockcred(td, control, unp2->unp_flags);
+			unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
 		}
 
 		/*
@@ -1405,7 +1412,13 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case LOCAL_CREDS:
 			/* Unlocked read. */
-			optval = unp->unp_flags & UNP_WANTCRED ? 1 : 0;
+			optval = unp->unp_flags & UNP_WANTCRED_ONESHOT ? 1 : 0;
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+
+		case LOCAL_CREDS_PERSISTENT:
+			/* Unlocked read. */
+			optval = unp->unp_flags & UNP_WANTCRED_ALWAYS ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 
@@ -1424,28 +1437,38 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 		case LOCAL_CREDS:
+		case LOCAL_CREDS_PERSISTENT:
 		case LOCAL_CONNWAIT:
 			error = sooptcopyin(sopt, &optval, sizeof(optval),
 					    sizeof(optval));
 			if (error)
 				break;
 
-#define	OPTSET(bit) do {						\
+#define	OPTSET(bit, exclusive) do {					\
 	UNP_PCB_LOCK(unp);						\
-	if (optval)							\
-		unp->unp_flags |= bit;					\
-	else								\
-		unp->unp_flags &= ~bit;					\
+	if (optval) {							\
+		if ((unp->unp_flags & (exclusive)) != 0) {		\
+			UNP_PCB_UNLOCK(unp);				\
+			error = EINVAL;					\
+			break;						\
+		}							\
+		unp->unp_flags |= (bit);				\
+	} else								\
+		unp->unp_flags &= ~(bit);				\
 	UNP_PCB_UNLOCK(unp);						\
 } while (0)
 
 			switch (sopt->sopt_name) {
 			case LOCAL_CREDS:
-				OPTSET(UNP_WANTCRED);
+				OPTSET(UNP_WANTCRED_ONESHOT, UNP_WANTCRED_ALWAYS);
+				break;
+
+			case LOCAL_CREDS_PERSISTENT:
+				OPTSET(UNP_WANTCRED_ALWAYS, UNP_WANTCRED_ONESHOT);
 				break;
 
 			case LOCAL_CONNWAIT:
-				OPTSET(UNP_CONNWAIT);
+				OPTSET(UNP_CONNWAIT, 0);
 				break;
 
 			default:
@@ -1539,14 +1562,15 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	else
 		sa = NULL;
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_CONNECTAT), td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_CONNECTAT),
+	    td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
 	else
 		vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_NOTHING(&nd);
 	if (error)
 		goto bad;
 
@@ -1651,8 +1675,7 @@ unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
 	memcpy(&server_unp->unp_peercred, &listen_unp->unp_peercred,
 	    sizeof(server_unp->unp_peercred));
 	server_unp->unp_flags |= UNP_HAVEPC;
-	if (listen_unp->unp_flags & UNP_WANTCRED)
-		client_unp->unp_flags |= UNP_WANTCRED;
+	client_unp->unp_flags |= (listen_unp->unp_flags & UNP_WANTCRED_MASK);
 }
 
 static int
@@ -2045,7 +2068,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 			}
 			for (i = 0; i < newfds; i++, fdp++) {
 				_finstall(fdesc, fdep[i]->fde_file, *fdp,
-				    (flags & MSG_CMSG_CLOEXEC) != 0 ? UF_EXCLOSE : 0,
+				    (flags & MSG_CMSG_CLOEXEC) != 0 ? O_CLOEXEC : 0,
 				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fdep[i]->fde_file);
 			}
@@ -2365,34 +2388,58 @@ out:
 }
 
 static struct mbuf *
-unp_addsockcred(struct thread *td, struct mbuf *control)
+unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 {
 	struct mbuf *m, *n, *n_prev;
-	struct sockcred *sc;
 	const struct cmsghdr *cm;
-	int ngroups;
-	int i;
+	int ngroups, i, cmsgtype;
+	size_t ctrlsz;
 
 	ngroups = MIN(td->td_ucred->cr_ngroups, CMGROUP_MAX);
-	m = sbcreatecontrol(NULL, SOCKCREDSIZE(ngroups), SCM_CREDS, SOL_SOCKET);
+	if (mode & UNP_WANTCRED_ALWAYS) {
+		ctrlsz = SOCKCRED2SIZE(ngroups);
+		cmsgtype = SCM_CREDS2;
+	} else {
+		ctrlsz = SOCKCREDSIZE(ngroups);
+		cmsgtype = SCM_CREDS;
+	}
+
+	m = sbcreatecontrol(NULL, ctrlsz, cmsgtype, SOL_SOCKET);
 	if (m == NULL)
 		return (control);
 
-	sc = (struct sockcred *) CMSG_DATA(mtod(m, struct cmsghdr *));
-	sc->sc_uid = td->td_ucred->cr_ruid;
-	sc->sc_euid = td->td_ucred->cr_uid;
-	sc->sc_gid = td->td_ucred->cr_rgid;
-	sc->sc_egid = td->td_ucred->cr_gid;
-	sc->sc_ngroups = ngroups;
-	for (i = 0; i < sc->sc_ngroups; i++)
-		sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	if (mode & UNP_WANTCRED_ALWAYS) {
+		struct sockcred2 *sc;
+
+		sc = (void *)CMSG_DATA(mtod(m, struct cmsghdr *));
+		sc->sc_version = 0;
+		sc->sc_pid = td->td_proc->p_pid;
+		sc->sc_uid = td->td_ucred->cr_ruid;
+		sc->sc_euid = td->td_ucred->cr_uid;
+		sc->sc_gid = td->td_ucred->cr_rgid;
+		sc->sc_egid = td->td_ucred->cr_gid;
+		sc->sc_ngroups = ngroups;
+		for (i = 0; i < sc->sc_ngroups; i++)
+			sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	} else {
+		struct sockcred *sc;
+
+		sc = (void *)CMSG_DATA(mtod(m, struct cmsghdr *));
+		sc->sc_uid = td->td_ucred->cr_ruid;
+		sc->sc_euid = td->td_ucred->cr_uid;
+		sc->sc_gid = td->td_ucred->cr_rgid;
+		sc->sc_egid = td->td_ucred->cr_gid;
+		sc->sc_ngroups = ngroups;
+		for (i = 0; i < sc->sc_ngroups; i++)
+			sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	}
 
 	/*
 	 * Unlink SCM_CREDS control messages (struct cmsgcred), since just
 	 * created SCM_CREDS control message (struct sockcred) has another
 	 * format.
 	 */
-	if (control != NULL)
+	if (control != NULL && cmsgtype == SCM_CREDS)
 		for (n = control, n_prev = NULL; n != NULL;) {
 			cm = mtod(n, struct cmsghdr *);
     			if (cm->cmsg_level == SOL_SOCKET &&
@@ -2441,7 +2488,7 @@ unp_discard(struct file *fp)
 		atomic_add_int(&unp_defers_count, 1);
 		taskqueue_enqueue(taskqueue_thread, &unp_defer_task);
 	} else
-		(void) closef(fp, (struct thread *)NULL);
+		closef_nothread(fp);
 }
 
 static void
@@ -2463,7 +2510,7 @@ unp_process_defers(void *arg __unused, int pending)
 		count = 0;
 		while ((dr = SLIST_FIRST(&drl)) != NULL) {
 			SLIST_REMOVE_HEAD(&drl, ud_link);
-			closef(dr->ud_fp, NULL);
+			closef_nothread(dr->ud_fp);
 			free(dr, M_TEMP);
 			count++;
 		}
@@ -2635,7 +2682,7 @@ unp_gc(__unused void *arg, int pending)
 			 * NULL.
 			 */
 			if (f != NULL && unp->unp_msgcount != 0 &&
-			    f->f_count == unp->unp_msgcount) {
+			    refcount_load(&f->f_count) == unp->unp_msgcount) {
 				LIST_INSERT_HEAD(&unp_deadhead, unp, unp_dead);
 				unp->unp_gcflag |= UNPGC_DEAD;
 				unp->unp_gcrefs = unp->unp_msgcount;
@@ -2698,7 +2745,7 @@ unp_gc(__unused void *arg, int pending)
 		unp->unp_gcflag &= ~UNPGC_DEAD;
 		f = unp->unp_file;
 		if (unp->unp_msgcount == 0 || f == NULL ||
-		    f->f_count != unp->unp_msgcount ||
+		    refcount_load(&f->f_count) != unp->unp_msgcount ||
 		    !fhold(f))
 			continue;
 		unref[total++] = f;
@@ -2853,8 +2900,12 @@ db_print_unpflags(int unp_flags)
 		db_printf("%sUNP_HAVEPC", comma ? ", " : "");
 		comma = 1;
 	}
-	if (unp_flags & UNP_WANTCRED) {
-		db_printf("%sUNP_WANTCRED", comma ? ", " : "");
+	if (unp_flags & UNP_WANTCRED_ALWAYS) {
+		db_printf("%sUNP_WANTCRED_ALWAYS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_WANTCRED_ONESHOT) {
+		db_printf("%sUNP_WANTCRED_ONESHOT", comma ? ", " : "");
 		comma = 1;
 	}
 	if (unp_flags & UNP_CONNWAIT) {

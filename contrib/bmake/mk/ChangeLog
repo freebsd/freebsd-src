@@ -1,3 +1,86 @@
+2021-01-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210130
+
+	* dirdeps.mk: expr 2 - 1 - 1 exits with a bad status
+	  we need to  guard against this in DIRDEP_LOADAVG_REPORT.
+
+	* dirdeps.mk: restore respect for TARGET_MACHINE
+
+2021-01-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210101
+
+	* dirdeps.mk: first time we are read, just use TARGET_SPEC for
+	_DEP_TARGET_SPEC
+
+2020-12-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.mk (MAKE_SHELL): use ${.SHELL:Ush}
+	and use := when setting SHELL
+
+2020-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201221
+
+	* dirdeps-options.mk: latest bmake allows only one arg to .undef
+
+2020-12-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: allow for "." in DIRDEPS_TARGETS_DIRS
+	so that any directory can be treated as a target.
+
+2020-11-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201126
+
+	* own.mk: use .MAKE.{UID,GID} if available.
+
+	* init.mk: suppress _SKIP_BUILD warning if doing -V
+
+2020-11-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201120
+
+	* init.mk: rename LEVEL0_TARGETS to DIRDEPS_BUILD_LEVEL0_TARGETS
+
+	* dirdeps-targets.mk: fix typo in comment
+
+2020-11-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201106
+
+	* meta.autodep.mk: use OBJ_EXTENSIONS rather than hardcode sed
+	args to tweak extensions for local deps.
+
+2020-11-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201101
+
+	* dirdeps.mk: most leaf makefiles are not suitable for building
+	dirdeps.cache so if RELDIR is not "." use dirdeps.mk
+
+2020-10-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201028
+
+	* dirdeps.mk: if we don't have :range use equivalent of M_RANGE
+	when building dirdeps.cache for leaf directory use -f dirdeps.mk
+
+	* sys.vars.mk: add M_JOT and M_RANGE
+
+2020-10-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201001
+
+	* meta2deps.{py,sh}: throw an error if we don't see filemon version
+
+2020-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200909
+
+	* dirdeps-cache-update.mk: use cache_update_dirdep as guard target
+
 2020-08-26  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* dirdeps.mk: ensure we cannot confuse a static cache for dynamic

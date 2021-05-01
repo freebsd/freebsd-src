@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.52 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: map.c,v 1.53 2020/03/30 06:54:37 ryo Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: map.c,v 1.52 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: map.c,v 1.53 2020/03/30 06:54:37 ryo Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -906,11 +906,11 @@ map_init(EditLine *el)
          */
 #ifdef MAP_DEBUG
 	if (sizeof(el_map_emacs) != N_KEYS * sizeof(el_action_t))
-		EL_ABORT((el->errfile, "Emacs map incorrect\n"));
+		EL_ABORT((el->el_errfile, "Emacs map incorrect\n"));
 	if (sizeof(el_map_vi_command) != N_KEYS * sizeof(el_action_t))
-		EL_ABORT((el->errfile, "Vi command map incorrect\n"));
+		EL_ABORT((el->el_errfile, "Vi command map incorrect\n"));
 	if (sizeof(el_map_vi_insert) != N_KEYS * sizeof(el_action_t))
-		EL_ABORT((el->errfile, "Vi insert map incorrect\n"));
+		EL_ABORT((el->el_errfile, "Vi insert map incorrect\n"));
 #endif
 
 	el->el_map.alt = el_calloc(N_KEYS, sizeof(*el->el_map.alt));

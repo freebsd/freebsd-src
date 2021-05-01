@@ -101,6 +101,23 @@ atf_check_equal()
 }
 
 #
+# atf_check_not_equal expected_expression actual_expression
+#
+#   Checks that expected_expression's value does not match actual_expression's
+#   and, if it does, raises an error.  Ideally expected_expression and
+#   actual_expression should be provided quoted (not expanded) so that
+#   the error message is helpful; otherwise it will only show the values,
+#   not the expressions themselves.
+#
+atf_check_not_equal()
+{
+    eval _val1=\"${1}\"
+    eval _val2=\"${2}\"
+    test "${_val1}" != "${_val2}" || \
+        atf_fail "${1} == ${2} (${_val1} == ${_val2})"
+}
+
+#
 # atf_config_get varname [defvalue]
 #
 #   Prints the value of a configuration variable.  If it is not
@@ -536,7 +553,18 @@ _atf_list_tcs()
 #
 _atf_normalize()
 {
-    echo ${1} | tr .- __
+    # Check if the string contains any of the forbidden characters using
+    # POSIX parameter expansion (the ${var//} string substitution is
+    # unfortunately not supported in POSIX sh) and only use tr(1) then.
+    # tr(1) is generally not a builtin, so doing the substring check first
+    # avoids unnecessary fork()+execve() calls. As this function is called
+    # many times in each test script startup, those overheads add up
+    # (especially when running on emulated platforms such as QEMU).
+    if [ "${1#*[.-]}" != "$1" ]; then
+        echo "$1" | tr .- __
+    else
+        echo "$1"
+    fi
 }
 
 #
@@ -734,7 +762,7 @@ main()
             ;;
         esac
     done
-    shift `expr ${OPTIND} - 1`
+    shift $((OPTIND - 1))
 
     case ${Source_Dir} in
         /*)

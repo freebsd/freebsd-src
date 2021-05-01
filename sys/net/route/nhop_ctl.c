@@ -84,7 +84,7 @@ static int get_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_priv **pnh_priv);
 static int finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
     struct nhop_priv *nh_priv);
-static struct ifnet *get_aifp(const struct nhop_object *nh, int reference);
+static struct ifnet *get_aifp(const struct nhop_object *nh);
 static void fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet *ifp);
 
 static void destroy_nhop_epoch(epoch_context_t ctx);
@@ -120,12 +120,10 @@ nhops_init(void)
  * this interface ifp instead of loopback. This is needed to support
  * link-local IPv6 loopback communications.
  *
- * If @reference is non-zero, found ifp is referenced.
- *
  * Returns found ifp.
  */
 static struct ifnet *
-get_aifp(const struct nhop_object *nh, int reference)
+get_aifp(const struct nhop_object *nh)
 {
 	struct ifnet *aifp = NULL;
 
@@ -138,21 +136,15 @@ get_aifp(const struct nhop_object *nh, int reference)
 	 */
 	if ((nh->nh_ifp->if_flags & IFF_LOOPBACK) &&
 			nh->gw_sa.sa_family == AF_LINK) {
-		if (reference)
-			aifp = ifnet_byindex_ref(nh->gwl_sa.sdl_index);
-		else
-			aifp = ifnet_byindex(nh->gwl_sa.sdl_index);
+		aifp = ifnet_byindex(nh->gwl_sa.sdl_index);
 		if (aifp == NULL) {
 			DPRINTF("unable to get aifp for %s index %d",
 				if_name(nh->nh_ifp), nh->gwl_sa.sdl_index);
 		}
 	}
 
-	if (aifp == NULL) {
+	if (aifp == NULL)
 		aifp = nh->nh_ifp;
-		if (reference)
-			if_ref(aifp);
-	}
 
 	return (aifp);
 }
@@ -219,42 +211,44 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 	gw = info->rti_info[RTAX_GATEWAY];
 	KASSERT(gw != NULL, ("gw is NULL"));
 
-	if (info->rti_flags & RTF_GATEWAY) {
+	if ((gw->sa_family == AF_LINK) && !(info->rti_flags & RTF_GATEWAY)) {
+
+		/*
+		 * Interface route with interface specified by the interface
+		 * index in sockadd_dl structure. It is used in the IPv6 loopback
+		 * output code, where we need to preserve the original interface
+		 * to maintain proper scoping.
+		 * Despite the fact that nexthop code stores original interface
+		 * in the separate field (nh_aifp, see below), write AF_LINK
+		 * compatible sa with shorter total length.
+		 */
+		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
+		struct ifnet *ifp = ifnet_byindex(sdl->sdl_index);
+		if (ifp == NULL) {
+			DPRINTF("invalid ifindex %d", sdl->sdl_index);
+			return (EINVAL);
+		}
+		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
+	} else {
+
+		/*
+		 * Multiple options here:
+		 *
+		 * 1) RTF_GATEWAY with IPv4/IPv6 gateway data
+		 * 2) Interface route with IPv4/IPv6 address of the
+		 *   matching interface. Some routing daemons do that
+		 *   instead of specifying ifindex in AF_LINK.
+		 *
+		 * In both cases, save the original nexthop to make the callers
+		 *   happy.
+		 */
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
 			DPRINTF("nhop SA size too big: AF %d len %u",
 			    gw->sa_family, gw->sa_len);
 			return (ENOMEM);
 		}
 		memcpy(&nh->gw_sa, gw, gw->sa_len);
-	} else {
-
-		/*
-		 * Interface route. Currently the route.c code adds
-		 * sa of type AF_LINK, which is 56 bytes long. The only
-		 * meaningful data there is the interface index. It is used
-		 * used is the IPv6 loopback output, where we need to preserve
-		 * the original interface to maintain proper scoping.
-		 * Despite the fact that nexthop code stores original interface
-		 * in the separate field (nh_aifp, see below), write AF_LINK
-		 * compatible sa with shorter total length.
-		 */
-		struct sockaddr_dl *sdl;
-		struct ifnet *ifp;
-
-		/* Fetch and validate interface index */
-		sdl = (struct sockaddr_dl *)gw;
-		if (sdl->sdl_family != AF_LINK) {
-			DPRINTF("unsupported AF: %d", sdl->sdl_family);
-			return (ENOTSUP);
-		}
-		ifp = ifnet_byindex(sdl->sdl_index);
-		if (ifp == NULL) {
-			DPRINTF("invalid ifindex %d", sdl->sdl_index);
-			return (EINVAL);
-		}
-		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
 	}
-
 	return (0);
 }
 
@@ -295,7 +289,7 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 	nh->nh_ifp = info->rti_ifa->ifa_ifp;
 	nh->nh_ifa = info->rti_ifa;
 	/* depends on the gateway */
-	nh->nh_aifp = get_aifp(nh, 0);
+	nh->nh_aifp = get_aifp(nh);
 
 	/*
 	 * Note some of the remaining data is set by the
@@ -436,7 +430,7 @@ alter_nhop_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		nh->nh_ifa = info->rti_ifa;
 	if (info->rti_ifp != NULL)
 		nh->nh_ifp = info->rti_ifp;
-	nh->nh_aifp = get_aifp(nh, 0);
+	nh->nh_aifp = get_aifp(nh);
 
 	return (0);
 }
@@ -510,6 +504,26 @@ alloc_nhop_structure()
 	return (nh_priv);
 }
 
+static bool
+reference_nhop_deps(struct nhop_object *nh)
+{
+	if (!ifa_try_ref(nh->nh_ifa))
+		return (false);
+	nh->nh_aifp = get_aifp(nh);
+	if (!if_try_ref(nh->nh_aifp)) {
+		ifa_free(nh->nh_ifa);
+		return (false);
+	}
+	DPRINTF("AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
+	if (!if_try_ref(nh->nh_ifp)) {
+		ifa_free(nh->nh_ifa);
+		if_rele(nh->nh_aifp);
+		return (false);
+	}
+
+	return (true);
+}
+
 /*
  * Alocates/references the remaining bits of nexthop data and links
  *  it to the hash table.
@@ -520,9 +534,7 @@ static int
 finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
     struct nhop_priv *nh_priv)
 {
-	struct nhop_object *nh;
-
-	nh = nh_priv->nh;
+	struct nhop_object *nh = nh_priv->nh;
 
 	/* Allocate per-cpu packet counter */
 	nh->nh_pksent = counter_u64_alloc(M_NOWAIT);
@@ -533,14 +545,16 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		return (ENOMEM);
 	}
 
+	if (!reference_nhop_deps(nh)) {
+		counter_u64_free(nh->nh_pksent);
+		uma_zfree(nhops_zone, nh);
+		RTSTAT_INC(rts_nh_alloc_failure);
+		DPRINTF("nh_alloc_finalize failed - reference failure");
+		return (EAGAIN);
+	}
+
 	/* Save vnet to ease destruction */
 	nh_priv->nh_vnet = curvnet;
-
-	/* Reference external objects and calculate (referenced) ifa */
-	if_ref(nh->nh_ifp);
-	ifa_ref(nh->nh_ifa);
-	nh->nh_aifp = get_aifp(nh, 1);
-	DPRINTF("AIFP: %p nh_ifp %p", nh->nh_aifp, nh->nh_ifp);
 
 	refcount_init(&nh_priv->nh_refcnt, 1);
 
@@ -691,6 +705,19 @@ nhop_free(struct nhop_object *nh)
 }
 
 void
+nhop_ref_any(struct nhop_object *nh)
+{
+#ifdef ROUTE_MPATH
+	if (!NH_IS_NHGRP(nh))
+		nhop_ref_object(nh);
+	else
+		nhgrp_ref_object((struct nhgrp_object *)nh);
+#else
+	nhop_ref_object(nh);
+#endif
+}
+
+void
 nhop_free_any(struct nhop_object *nh)
 {
 
@@ -746,6 +773,13 @@ nhop_get_vnet(const struct nhop_object *nh)
 {
 
 	return (nh->nh_priv->nh_vnet);
+}
+
+struct nhop_object *
+nhop_select_func(struct nhop_object *nh, uint32_t flowid)
+{
+
+	return (nhop_select(nh, flowid));
 }
 
 void
@@ -850,6 +884,21 @@ dump_nhop_entry(struct rib_head *rh, struct nhop_object *nh, struct sysctl_req *
 		error = SYSCTL_OUT(w, src_sa, src_sa->sa_len);
 
 	return (error);
+}
+
+uint32_t
+nhops_get_count(struct rib_head *rh)
+{
+	struct nh_control *ctl;
+	uint32_t count;
+
+	ctl = rh->nh_control;
+
+	NHOPS_RLOCK(ctl);
+	count = ctl->nh_head.items_count;
+	NHOPS_RUNLOCK(ctl);
+
+	return (count);
 }
 
 int

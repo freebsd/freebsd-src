@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -90,10 +89,14 @@ CTASSERT(sizeof(struct iscsi_bhs) == ISCSI_BHS_SIZE);
 #define	BHSSC_FLAGS_ATTR_HOQ		3
 #define	BHSSC_FLAGS_ATTR_ACA		4
 
+#define	BHSSC_PRI_MASK		0xf0
+#define	BHSSC_PRI_SHIFT		4
+
 struct iscsi_bhs_scsi_command {
 	uint8_t		bhssc_opcode;
 	uint8_t		bhssc_flags;
-	uint8_t		bhssc_reserved[2];
+	uint8_t		bhssc_pri;
+	uint8_t		bhssc_reserved;
 	uint8_t		bhssc_total_ahs_len;
 	uint8_t		bhssc_data_segment_len[3];
 	uint64_t	bhssc_lun;

@@ -37,9 +37,6 @@
 #define	true	1
 
 #define	bool	_Bool
-#if __STDC_VERSION__ < 199901L && __GNUC__ < 3 && !defined(__INTEL_COMPILER)
-typedef	int	_Bool;
-#endif
 
 #endif /* !__cplusplus */
 #endif /* __bool_true_false_are_defined */

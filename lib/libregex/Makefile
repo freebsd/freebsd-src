@@ -14,7 +14,7 @@ WARNS?=	2
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
-#HAS_TESTS=
+HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
 .include "../Makefile.inc"

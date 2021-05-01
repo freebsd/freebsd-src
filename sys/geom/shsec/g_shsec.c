@@ -73,11 +73,12 @@ struct g_class g_shsec_class = {
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, shsec, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_SHSEC stuff");
-static u_int g_shsec_debug = 0;
+static u_int g_shsec_debug;
 SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, debug, CTLFLAG_RWTUN, &g_shsec_debug, 0,
     "Debug level");
-static u_int g_shsec_maxmem = MAXPHYS * 100;
-SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, maxmem, CTLFLAG_RDTUN, &g_shsec_maxmem,
+static u_long g_shsec_maxmem;
+SYSCTL_ULONG(_kern_geom_shsec, OID_AUTO, maxmem,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &g_shsec_maxmem,
     0, "Maximum memory that can be allocated for I/O (in bytes)");
 static u_int g_shsec_alloc_failed = 0;
 SYSCTL_UINT(_kern_geom_shsec, OID_AUTO, alloc_failed, CTLFLAG_RD,
@@ -113,10 +114,12 @@ static void
 g_shsec_init(struct g_class *mp __unused)
 {
 
-	g_shsec_zone = uma_zcreate("g_shsec_zone", MAXPHYS, NULL, NULL, NULL,
+	g_shsec_maxmem = maxphys * 100;
+	TUNABLE_ULONG_FETCH("kern.geom.shsec.maxmem,", &g_shsec_maxmem);
+	g_shsec_zone = uma_zcreate("g_shsec_zone", maxphys, NULL, NULL, NULL,
 	    NULL, 0, 0);
-	g_shsec_maxmem -= g_shsec_maxmem % MAXPHYS;
-	uma_zone_set_max(g_shsec_zone, g_shsec_maxmem / MAXPHYS);
+	g_shsec_maxmem -= g_shsec_maxmem % maxphys;
+	uma_zone_set_max(g_shsec_zone, g_shsec_maxmem / maxphys);
 }
 
 static void
@@ -646,9 +649,11 @@ g_shsec_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access = g_shsec_access;
 	gp->orphan = g_shsec_orphan;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = g_shsec_read_metadata(cp, &md);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = g_shsec_read_metadata(cp, &md);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	if (error != 0)

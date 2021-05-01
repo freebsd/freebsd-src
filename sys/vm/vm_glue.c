@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/domainset.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
+#include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -85,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmem.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/unistd.h>
@@ -350,6 +351,7 @@ vm_thread_stack_dispose(vm_offset_t ks, int pages)
 		vm_page_free(m);
 	}
 	VM_OBJECT_WUNLOCK(kstack_object);
+	kasan_mark((void *)ks, ptoa(pages), ptoa(pages), 0);
 	kva_free(ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
 	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 }
@@ -384,6 +386,7 @@ vm_thread_new(struct thread *td, int pages)
 		return (0);
 	td->td_kstack = ks;
 	td->td_kstack_pages = pages;
+	kasan_mark((void *)ks, ptoa(pages), ptoa(pages), 0);
 	return (1);
 }
 
@@ -400,6 +403,7 @@ vm_thread_dispose(struct thread *td)
 	ks = td->td_kstack;
 	td->td_kstack = 0;
 	td->td_kstack_pages = 0;
+	kasan_mark((void *)ks, 0, ptoa(pages), KASAN_KSTACK_FREED);
 	if (pages == kstack_pages)
 		uma_zfree(kstack_cache, (void *)ks);
 	else
@@ -549,7 +553,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		 * COW locally.
 		 */
 		if ((flags & RFMEM) == 0) {
-			if (p1->p_vmspace->vm_refcnt > 1) {
+			if (refcount_load(&p1->p_vmspace->vm_refcnt) > 1) {
 				error = vmspace_unshare(p1);
 				if (error)
 					return (error);
@@ -561,7 +565,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
-		atomic_add_int(&p1->p_vmspace->vm_refcnt, 1);
+		refcount_acquire(&p1->p_vmspace->vm_refcnt);
 	}
 	dset = td2->td_domain.dr_policy;
 	while (vm_page_count_severe_set(&dset->ds_mask)) {

@@ -53,6 +53,7 @@ pass3(void)
 	struct inoinfo *inp;
 	int loopcnt, inpindex, state;
 	ino_t orphan;
+	struct inode ip;
 	struct inodesc idesc;
 	char namebuf[UFS_MAXNAMLEN+1];
 
@@ -114,15 +115,17 @@ pass3(void)
 		idesc.id_parent = orphan;
 		idesc.id_func = findname;
 		idesc.id_name = namebuf;
-		if ((ckinode(ginode(inp->i_parent), &idesc) & FOUND) == 0)
+		ginode(inp->i_parent, &ip);
+		if ((ckinode(ip.i_dp, &idesc) & FOUND) == 0)
 			pfatal("COULD NOT FIND NAME IN PARENT DIRECTORY");
 		if (linkup(orphan, inp->i_parent, namebuf)) {
 			idesc.id_func = clearentry;
-			if (ckinode(ginode(inp->i_parent), &idesc) & FOUND)
+			if (ckinode(ip.i_dp, &idesc) & FOUND)
 				inoinfo(orphan)->ino_linkcnt++;
 			inp->i_parent = inp->i_dotdot = lfdir;
 			inoinfo(lfdir)->ino_linkcnt--;
 		}
+		irelse(&ip);
 		inoinfo(orphan)->ino_state = DFOUND;
 		propagate();
 	}

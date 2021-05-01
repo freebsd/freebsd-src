@@ -116,14 +116,28 @@ fi
 
 # Unpack distributions
 bsdinstall checksum
-for set in $DISTRIBUTIONS; do
-	f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
-	# XXX: this will fail if any mountpoints are FAT, due to inability to
-	# set ctime/mtime on the root of FAT partitions. tar has no option to
-	# ignore this. We probably need to switch back to distextract here
-	# to properly support EFI.
-	tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT
-done
+if [ -t 0 ]; then
+	# If install is a tty, use distextract as normal
+	bsdinstall distextract
+else
+	# Otherwise, we need to use tar (see https://reviews.freebsd.org/D10736)
+	for set in $DISTRIBUTIONS; do
+		f_dprintf "Extracting $BSDINSTALL_DISTDIR/$set"
+		# XXX: The below fails if any mountpoints are FAT, due to
+		# inability to set ctime/mtime on the root of FAT partitions,
+		# which is needed to support e.g. EFI system partitions. tar has
+		# no option to ignore this (distextract ignores them internally
+		# through a hack), and returns 1 on any warning or error,
+		# effectively turning all warnings into fatal errors.
+		# 
+		# Work around this in an extremely lame way for the specific
+		# case of EFI system partitions only. This *ONLY WORKS* if
+		# /boot/efi is empty and does not handle analagous problems on
+		# other systems (ARM, PPC64).
+		tar -xf "$BSDINSTALL_DISTDIR/$set" -C $BSDINSTALL_CHROOT --exclude boot/efi
+		mkdir -p $BSDINSTALL_CHROOT/boot/efi
+	done
+fi
 
 # Configure bootloader if needed
 bsdinstall bootconfig

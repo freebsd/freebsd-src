@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build HTML docs.
+Do not build HTML docs.

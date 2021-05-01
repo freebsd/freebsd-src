@@ -4,17 +4,9 @@
 
 .include <src.opts.mk>
 
-.if ${MK_BSD_GREP} == "yes" || defined(BOOTSTRAPPING)
 PROG=	grep
 MAN1=	grep.1 zgrep.1
-.else
-PROG=	bsdgrep
-CLEANFILES+= bsdgrep.1
-MAN1=	bsdgrep.1 zgrep.1
 
-bsdgrep.1: grep.1
-	${CP} ${.ALLSRC} ${.TARGET}
-.endif
 SRCS=	file.c grep.c queue.c util.c
 
 SCRIPTS=	zgrep.sh
@@ -31,7 +23,11 @@ LINKS=		${BINDIR}/zgrep ${BINDIR}/zfgrep \
 		${BINDIR}/zgrep ${BINDIR}/xzfgrep \
 		${BINDIR}/zgrep ${BINDIR}/zstdgrep \
 		${BINDIR}/zgrep ${BINDIR}/zstdegrep \
-		${BINDIR}/zgrep ${BINDIR}/zstdegrep
+		${BINDIR}/zgrep ${BINDIR}/zstdfgrep
+
+LINKS+=		${BINDIR}/grep ${BINDIR}/egrep \
+		${BINDIR}/grep ${BINDIR}/fgrep \
+		${BINDIR}/grep ${BINDIR}/rgrep \
 
 MLINKS=		zgrep.1 zfgrep.1 \
 		zgrep.1 zegrep.1 \
@@ -48,20 +44,13 @@ MLINKS=		zgrep.1 zfgrep.1 \
 		zgrep.1 zstdegrep.1 \
 		zgrep.1 zstdfgrep.1
 
+MLINKS+=	grep.1 egrep.1 \
+		grep.1 fgrep.1 \
+		grep.1 rgrep.1
+
 CFLAGS.gcc+= --param max-inline-insns-single=500
 
-.if ${MK_BSD_GREP} == "yes" || defined(BOOTSTRAPPING)
-LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
-	${BINDIR}/grep ${BINDIR}/fgrep \
-	${BINDIR}/grep ${BINDIR}/rgrep \
-
-MLINKS+= grep.1 egrep.1 \
-	grep.1 fgrep.1 \
-	grep.1 rgrep.1
-.endif
-
-.if ${MK_GNU_GREP_COMPAT} != "no"
-CFLAGS+=	-DWITH_GNU_COMPAT
+.if !defined(BOOTSTRAPPING)
 LIBADD+=	regex
 .endif
 

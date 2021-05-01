@@ -41,8 +41,8 @@
 The
 .Nm snmp_wlan
 module implements a private BEGEMOT-WIRELESS-MIB, which allows
-management of virtual wireless interfaces. The MIB defines objects similar to the
-state data and configuration capabilities of
+management of virtual wireless interfaces.
+The MIB defines objects similar to the state data and configuration capabilities of
 .Xr ifconfig 8
 for configuring virtual wireless interfaces.
 Therefore one should consider adding write communities or loading the
@@ -52,15 +52,15 @@ module on systems where security is crucial.
 A short description of the Tables and interesting objects in the MIB follows.
 .Bl -tag -width "XXXXXXXXX"
 .It Va wlanInterfaceTable
-The table is used for creation and deletion of virtual wireless interfaces. To
-add a new interface, a SET should be executed on the
+The table is used for creation and deletion of virtual wireless interfaces.
+To add a new interface, a SET should be executed on the
 .Va wlanIfaceName
 column with
-value the desired name of the interface. Next the parent interface must be set
-via
+value the desired name of the interface.
+Next the parent interface must be set via
 .Va wlanParentIfName
-column. Any optional parameters may be set
-via the
+column.
+Any optional parameters may be set via the
 .Va wlanIfaceOperatingMode ,
 .Va wlanIfaceFlags ,
 .Va wlanIfaceBssid
@@ -78,9 +78,9 @@ The table contains information about the hardware capabilities of the parent of
 a wireless interface.
 .It Va wlanIfaceConfigTable
 The table is used to get or set various configuration parameters for a virtual
-wireless interface. Depending on the operating mode of the interface and the
-hardware capabilities of the underlying hardware interface, not all parameters
-and values may be supported.
+wireless interface.
+Depending on the operating mode of the interface and the hardware capabilities
+of the underlying hardware interface, not all parameters and values may be supported.
 .It Va wlanIfacePeerTable
 The table contains information about the associated stations for interfaces
 operating as access points, or the stations identified as neighbors in the IBSS
@@ -106,8 +106,9 @@ Access Control configuration for wireless interfaces operating as access points.
 The table with Access Control MAC entries for which the configured Access
 Control Policy on wireless interfaces operating in Host AP mode is applied.
 .Va wlanMACAccessControlMACStatus
-column is used to add or delete MAC ACL entries. A set with value createAndGo(4)
-will add new entry, while with value destroy(6) will delete an existing one.
+column is used to add or delete MAC ACL entries.
+A set with value createAndGo(4) will add new entry, while with value destroy(6)
+will delete an existing one.
 .It Va wlanMeshRoutingConfig
 The subtree contains system configuration related to Wireless Mesh Routing.
 .It Va wlanMeshInterfaceTable
@@ -121,8 +122,9 @@ The mesh routing table for interfaces operating as mesh points, used for
 forwarding packets on a mesh network.
 .Va wlanMeshRouteStatus
 column is used to add or delete entries in the mesh routing table for an
-interface. A set with value createAndGo(4) will add new entry, while with value
-destroy(6) will delete an existing one.
+interface.
+A set with value createAndGo(4) will add new entry, while with value destroy(6)
+will delete an existing one.
 .It Va wlanMeshStatsTable
 Summary statistics for each virtual wireless interface operating as mesh point.
 .It Va wlanMeshHWMPConfig

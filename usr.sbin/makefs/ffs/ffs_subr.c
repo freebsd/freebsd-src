@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
  * of some frags.
  */
 void
-ffs_fragacct_swap(struct fs *fs, int fragmap, int32_t fraglist[], int cnt, int needswap)
+ffs_fragacct_swap(struct fs *fs, int fragmap, uint32_t fraglist[], int cnt, int needswap)
 {
 	int inblk;
 	int field, subfield;

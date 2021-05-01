@@ -415,7 +415,7 @@ cfcs_datamove(union ctl_io *io)
 		xpt_done(ccb);
 	}
 
-	io->scsiio.be_move_done(io);
+	ctl_datamove_done(io, true);
 }
 
 static void
@@ -539,6 +539,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		io->io_hdr.nexus.targ_port = softc->port.targ_port;
 		io->io_hdr.nexus.targ_lun = ctl_decode_lun(
 		    CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
+		io->scsiio.priority = csio->priority;
 		/*
 		 * This tag scheme isn't the best, since we could in theory
 		 * have a very long-lived I/O and tag collision, especially

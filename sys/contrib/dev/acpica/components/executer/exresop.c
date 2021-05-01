@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -358,7 +358,7 @@ AcpiExResolveOperands (
 
                     TargetOp = AML_DEBUG_OP;
 
-                    /*lint -fallthrough */
+                    ACPI_FALLTHROUGH;
 
                 case ACPI_REFCLASS_ARG:
                 case ACPI_REFCLASS_LOCAL:
@@ -422,7 +422,7 @@ AcpiExResolveOperands (
              * Else not a string - fall through to the normal Reference
              * case below
              */
-            /*lint -fallthrough */
+            ACPI_FALLTHROUGH;
 
         case ARGI_REFERENCE:            /* References: */
         case ARGI_INTEGER_REF:

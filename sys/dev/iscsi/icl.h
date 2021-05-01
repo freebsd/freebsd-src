@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -89,8 +88,6 @@ struct icl_pdu {
 #define ICL_CONN_STATE_HEADER_DIGEST	3
 #define ICL_CONN_STATE_DATA		4
 #define ICL_CONN_STATE_DATA_DIGEST	5
-
-#define	ICL_MAX_DATA_SEGMENT_LENGTH	(128 * 1024)
 
 #define	ICL_NOCOPY			(1 << 30)
 

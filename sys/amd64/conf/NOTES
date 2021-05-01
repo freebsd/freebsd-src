@@ -8,10 +8,6 @@
 #
 
 #
-# We want LINT to cover profiling as well.
-profile         2
-
-#
 # Enable the kernel DTrace hooks which are required to load the DTrace
 # kernel modules.
 #
@@ -255,6 +251,7 @@ options 	VGA_DEBUG
 # vt(4) drivers.
 device		vt_vga		# VGA
 device		vt_efifb	# EFI framebuffer
+device		vt_vbefb	# VBE framebuffer
 
 # Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
 device		s3pci
@@ -308,6 +305,8 @@ device		cpufreq
 # vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
+# axp: AMD EPYC integrated NIC
+#   Requires the miibus module
 
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 options 	ED_3C503
@@ -471,6 +470,10 @@ device		vmd_bus		# bus for VMD children
 device		pmspcv
 
 #
+# Intel QuickAssist
+device		qat
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #
@@ -510,7 +513,7 @@ device 		xenpci		# Xen HVM Hypervisor services driver
 #
 # ipmi: Intelligent Platform Management Interface
 # pbio: Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
-# smbios: DMI/SMBIOS entry point
+# smbios: DMI/SMBIOS entry point (requires EFIRT option)
 # vpd: Vital Product Data kernel interface
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card
@@ -533,6 +536,7 @@ device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
 device		aesni		# AES-NI OpenCrypto module
+device		ossl		# OpenSSL OpenCrypto module
 device		ioat		# Intel I/OAT DMA engine
 
 #
@@ -601,7 +605,13 @@ options 	NKPT=31
 # EFI Runtime Services support
 options 	EFIRT
 
-
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
+
 #####################################################################
 # ABI Emulation
 
@@ -671,11 +681,6 @@ options 	TIMER_FREQ=((14318182+6)/12)
 options 	VM_KMEM_SIZE
 options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
-
-# Enable NDIS binary driver support
-options 	NDISAPI
-device		ndis
-
 
 # GCOV (code coverage) support
 

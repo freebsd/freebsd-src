@@ -8,4 +8,5 @@ SUBDIR=	intel_ipw \
 
 SUBDIR_PARALLEL=
 
+.include <bsd.arch.inc.mk>
 .include <bsd.subdir.mk>

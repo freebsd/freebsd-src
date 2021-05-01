@@ -315,6 +315,9 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 
+		/* need to have consumed blanks when checking options below */
+		Skip_Blanks(ch, file)
+		unget_char(ch, file);
 #ifdef LOGIN_CAP
 		if ((s = strrchr(username, '/')) != NULL) {
 			*s = '\0';

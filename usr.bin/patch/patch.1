@@ -164,7 +164,7 @@ ask any questions.
 It assumes the following:
 skip patches for which a file to patch cannot be found;
 patch files even though they have the wrong version for the
-.Qq Prereq:
+.Qq Prereq :
 line in the patch;
 and assume that patches are not reversed even if they look like they are.
 This option does not suppress commentary; use
@@ -288,7 +288,7 @@ in that it suppresses questions, but makes some different assumptions:
 skip patches for which a file to patch cannot be found (the same as
 .Fl f ) ;
 skip patches for which the file has the wrong version for the
-.Qq Prereq:
+.Qq Prereq :
 line in the patch;
 and assume that patches are reversed if they look like they are.
 .It Fl u , Fl Fl unified
@@ -393,7 +393,7 @@ line of context.
 If that fails, and the maximum fuzz factor is set to 2 or more,
 the first two and last two lines of context are ignored,
 and another scan is made.
-.Pq The default maximum fuzz factor is 2.
+.Pq The default maximum fuzz factor is 2 .
 .Pp
 If
 .Nm
@@ -450,7 +450,7 @@ and the
 file is specified in the line beginning with
 .Qq +++ .
 If there is an
-.Qq Index:
+.Qq Index :
 line in the leading garbage (regardless of the diff type),
 .Nm
 will use the file name from that line as the
@@ -544,13 +544,13 @@ First, you can save people a lot of grief by keeping a
 file which is patched to increment the patch level as the first diff in the
 patch file you send out.
 If you put a
-.Qq Prereq:
+.Qq Prereq :
 line in with the patch, it will not let them apply
 patches out of order without some warning.
 .Pp
 Second, make sure you have specified the file names right, either in a
 context diff header, or with an
-.Qq Index:
+.Qq Index :
 line.
 If you are patching something in a subdirectory, be sure to tell the patch
 user to specify a

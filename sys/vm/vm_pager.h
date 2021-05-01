@@ -112,6 +112,12 @@ extern struct pagerops mgtdevicepagerops;
 extern struct pagerops *pagertab[];
 extern struct mtx_padalign pbuf_mtx;
 
+/*
+ * Number of pages that pbuf buffer can store in b_pages.
+ * It is +1 to allow for unaligned data buffer of maxphys size.
+ */
+#define	PBUF_PAGES	(atop(maxphys) + 1)
+
 vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 void vm_pager_bufferinit(void);

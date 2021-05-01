@@ -239,8 +239,10 @@ ncl_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np;
+	struct thread *td;
 	boolean_t retv;
 
+	td = curthread;
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
 		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
@@ -256,14 +258,14 @@ ncl_inactive(struct vop_inactive_args *ap)
 		} else
 			retv = TRUE;
 		if (retv == TRUE) {
-			(void)ncl_flush(vp, MNT_WAIT, ap->a_td, 1, 0);
-			(void)nfsrpc_close(vp, 1, ap->a_td);
+			(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
+			(void)nfsrpc_close(vp, 1, td);
 		}
 	}
 
 	np = VTONFS(vp);
 	NFSLOCKNODE(np);
-	ncl_releasesillyrename(vp, ap->a_td);
+	ncl_releasesillyrename(vp, td);
 
 	/*
 	 * NMODIFIED means that there might be dirty/stale buffers
@@ -287,8 +289,10 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
 	struct thread *td;
+	struct mount *mp;
 
 	td = curthread;
+	mp = vp->v_mount;
 
 	/*
 	 * If the NLM is running, give it a chance to abort pending
@@ -301,7 +305,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	ncl_releasesillyrename(vp, td);
 	NFSUNLOCKNODE(np);
 
-	if (NFS_ISV4(vp) && vp->v_type == VREG)
+	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
 		 * We can now safely close any remaining NFSv4 Opens for
 		 * this file. Most opens will have already been closed by
@@ -309,6 +313,19 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		 * called, so we need to do it again here.
 		 */
 		(void) nfsrpc_close(vp, 1, td);
+		/*
+		 * It it unlikely a delegation will still exist, but
+		 * if one does, it must be returned before calling
+		 * vfs_hash_remove(), since it cannot be recalled once the
+		 * nfs node is no longer available.
+		 */
+		MNT_ILOCK(mp);
+		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0) {
+			MNT_IUNLOCK(mp);
+			nfscl_delegreturnvp(vp, td);
+		} else
+			MNT_IUNLOCK(mp);
+	}
 
 	vfs_hash_remove(vp);
 

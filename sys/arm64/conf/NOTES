@@ -31,8 +31,6 @@ options 	VFP			# Floating-point support
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	INTRNG
 
-nooptions 	GDB			# Support remote GDB -- not supported
-
 # SoC support
 options 	SOC_ALLWINNER_A64
 options 	SOC_ALLWINNER_H5
@@ -67,6 +65,10 @@ device		vtnet
 
 # CPU frequency control
 device		cpufreq
+
+# Accelerated software crypto
+device		armv8crypto		# ARMv8 OpenCrypto module
+device		ossl			# OpenSSL OpenCrypto module
 
 # Bus drivers
 device		al_pci		# Annapurna Alpine PCI-E
@@ -239,3 +241,10 @@ options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 # ZFS support
 
 options		ZFS
+
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support

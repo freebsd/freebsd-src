@@ -662,11 +662,11 @@ sysdecode_mmap_prot(FILE *fp, int prot, int *rem)
 
 	printed = false;
 	protm = PROT_MAX_EXTRACT(prot);
+	prot &= ~PROT_MAX(protm);
 	if (protm != 0) {
 		fputs("PROT_MAX(", fp);
 		printed = print_mask_int(fp, mmapprot, protm, rem);
 		fputs(")|", fp);
-		prot = protm;
 	}
 	return (print_mask_int(fp, mmapprot, prot, rem) || printed);
 }
@@ -939,6 +939,20 @@ sysdecode_umtx_op(int op)
 {
 
 	return (lookup_value(umtxop, op));
+}
+
+bool
+sysdecode_umtx_op_flags(FILE *fp, int op, int *rem)
+{
+	uintmax_t val;
+	bool printed;
+
+	printed = false;
+	val = (unsigned)op;
+	print_mask_part(fp, umtxopflags, &val, &printed);
+	if (rem != NULL)
+		*rem = val;
+	return (printed);
 }
 
 const char *

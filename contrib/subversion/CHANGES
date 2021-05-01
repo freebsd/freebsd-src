@@ -4,8 +4,51 @@
 # To view an issue listed as (issue #XXXX), visit:
 #   https://subversion.apache.org/issue-XXXX
 
+Version 1.14.1
+(10 Feb 2021, from /branches/1.14.x)
+ User-visible changes:
+  - Client-side improvements and bugfixes:
+    * Fix non-deterministic generation of mergeinfo (issue #4862)
+    * Fix merge removing a folder with non-inheritable mergeinfo (issue #4859)
+    * Do not suggest --help -v for commands which do not support -v (r1882157)
+    * Fix invalid SQL quoting in working copy upgrade system (r1879198)
+    * Fix problems in human-readable file size formatting (r1878909, -18, -50)
+    * Improve an error message from svnmucc (r1877072)
+    * Fix 'svn info --xml' gives wrong 'source-right' of conflict (issue #4869)
+    * Fix filename encoding/quoting when invoking editor on Windows (r1885953)
+    * Convert filename for editor from UTF-8 to the locale's encoding (r1882234)
+
+  - Server-side improvements and bugfixes:
+    * Fix authz doesn't combine global and repository rules (issue #4762)
+    * Make the hot-backup.py script work with Python 3 (r1878855, r1878859)
+    * Fix an uninitialized read in FSFS (r1880374)
+    * Make mailer.py work properly with Python 3 (r1884427 et al)
+    * Fix a potential NULL dereference in the config file parser (r1886019)
+
+ Developer-visible changes:
+  - General:
+    * Restore support for building with APR 1.4 (r1881958, r1882128)
+    * Rewrite internal test data to avoid literal trailing spaces (r1875675)
+    * Remove use of os.dup2() from tests for Python 3.6 on Windows (r1883337)
+    * Note in INSTALL that non-release mode is required for Python 2 (r1877960)
+    * Make gen-make.py --debug work with Python 3 (r1876906)
+    * Make test suite run correctly with Python 3 on Windows (r1876707 et al)
+    * Fix compilation errors with Visual Studio 2008 (r1877259)
+    * Use Doxygen comment leader for comments with doxygen syntax (r1877794)
+  - Bindings:
+    * Fix win-tests.py to load Python 3 bindings with debug config (r1884642)
+    * Fix C4204 errors building swig-py with Python 3.9 on Windows (r1883570)
+    * Fix unable to load *.pyd files with Python 3.8.x on Windows (r1883335)
+    * Add SWIG4 support for SWIG Python binding on Windows (r1877338)
+    * Fix incorrect cache in JavaHL SVNBase::createCppBoundObject (r1882115)
+    * Fix crash in JavaHL JNI wrapper caused by object lifetimes (r1880886)
+    * autogen.sh: Remove .swig_*_checked files from release tarballs (r1878413)
+    * Avoid version check for Python if --without-swig is used (r1876662)
+    * siwg-py: Fix a syntax error for Python 3.6 and later (r1885112)
+    * Fix several crashes and JNI warnings in javahl TunnelAgent (r1886029)
+
 Version 1.14.0
-(6 May 2020, from /branches/1.14.x)
+(27 May 2020, from /branches/1.14.x)
 https://svn.apache.org/repos/asf/subversion/tags/1.14.0
 
  User-visible changes:
@@ -221,6 +264,29 @@ http://svn.apache.org/repos/asf/subversion/tags/1.11.0
     * Enable building against Java 10 (r1841180 et al)
     * Fix a potential crash in JavaHL (issue #4764)
 
+
+Version 1.10.7
+(10 Feb 2021, from /branches/1.10.x)
+ User-visible changes:
+  - Client-side bugfixes:
+    * Fix 'svn patch' setting mode 0600 on patched files with props (r1864440)
+    * Fix invalid SQL quoting in working copy upgrade system (r1879198)
+    * Fix non-deterministic generation of mergeinfo (issue #4862)
+    * Fix a crash seen when using git-svn with kwallet (r1875680)
+    * Fix merge removing a folder with non-inheritable mergeinfo (issue #4859)
+    * Fix 'svn info --xml' gives wrong 'source-right' of conflict (issue #4869)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: install cleanup handler for FS warning logging (r1865266)
+    * mod_dav_svn: Fix missing Last-Modified header on 'external' GET requests (r1866425)
+    * Fix formatting type size mismatches in FSFS (r1865987, -8)
+    * Fix an undefined behavior problem in FSFS caching code (r1876054)
+    * Fix a potential NULL dereference in the config file parser (r1886019)
+
+ Developer-visible changes:
+    * Fix Requires(.private) fields in pkg-config files (r1863987, -90)
+    * Fix crash in JavaHL JNI wrapper caused by object lifetimes (r1880886)
+    * Fix an EOL issue in tests on Windows (r1881985 et al)
 
 Version 1.10.6
 (24 Jul 2019, from /branches/1.10.x)

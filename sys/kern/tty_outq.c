@@ -81,7 +81,7 @@ static uma_zone_t ttyoutq_zone;
 		uma_zfree(ttyoutq_zone, tob);				\
 	else								\
 		TTYOUTQ_INSERT_TAIL(to, tob);				\
-} while(0)
+} while (0)
 
 void
 ttyoutq_flush(struct ttyoutq *to)

@@ -150,7 +150,7 @@ hfsc_pfattach(struct pf_altq *a)
 		return (EINVAL);
 	s = splnet();
 	error = altq_attach(&ifp->if_snd, ALTQT_HFSC, a->altq_disc,
-	    hfsc_enqueue, hfsc_dequeue, hfsc_request, NULL, NULL);
+	    hfsc_enqueue, hfsc_dequeue, hfsc_request);
 	splx(s);
 	return (error);
 }

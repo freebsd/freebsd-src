@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2020
+.Dd October 8, 2020
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -38,7 +38,14 @@
 .Ft int
 .Fn kqueue "void"
 .Ft int
-.Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
+.Fo kevent
+.Fa "int kq"
+.Fa "const struct kevent *changelist"
+.Fa "int nchanges"
+.Fa "struct kevent *eventlist"
+.Fa "int nevents"
+.Fa "const struct timespec *timeout"
+.Fc
 .Fn EV_SET "kev" ident filter flags fflags data udata
 .Sh DESCRIPTION
 The
@@ -334,6 +341,11 @@ when the BPF has
 enabled and there is any data to read;
 .Va data
 contains the number of bytes available.
+.It Eventfds
+Returns when the counter is greater than 0;
+.Va data
+contains the counter value, which must be cast to
+.Vt uint64_t .
 .El
 .It Dv EVFILT_WRITE
 Takes a descriptor as the identifier, and returns whenever
@@ -352,6 +364,11 @@ For sockets, the low water mark and socket error handling is
 identical to the
 .Dv EVFILT_READ
 case.
+.Pp
+For eventfds,
+.Va data
+will contain the maximum value that can be added to the counter
+without blocking.
 .It Dv EVFILT_EMPTY
 Takes a descriptor as the identifier, and returns whenever
 there is no remaining data in the write buffer.

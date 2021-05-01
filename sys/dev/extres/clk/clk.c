@@ -544,7 +544,7 @@ clknode_create(struct clkdom * clkdom, clknode_class_t clknode_class,
 	CLK_TOPO_SLOCK();
 	clknode = clknode_find_by_name(def->name);
 	CLK_TOPO_UNLOCK();
-		if (clknode !=  NULL) {
+	if (clknode !=  NULL) {
 		if (!(clknode->flags & CLK_NODE_LINKED) &&
 		    def->flags & CLK_NODE_LINKED) {
 			/*

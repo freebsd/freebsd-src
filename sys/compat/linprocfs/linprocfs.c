@@ -403,24 +403,85 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 }
 #endif /* __i386__ || __amd64__ */
 
+static const char *path_slash_sys = "/sys";
+static const char *fstype_sysfs = "sysfs";
+
+static int
+_mtab_helper(const struct pfs_node *pn, const struct statfs *sp,
+    const char **mntfrom, const char **mntto, const char **fstype)
+{
+	/* determine device name */
+	*mntfrom = sp->f_mntfromname;
+
+	/* determine mount point */
+	*mntto = sp->f_mntonname;
+
+	/* determine fs type */
+	*fstype = sp->f_fstypename;
+	if (strcmp(*fstype, pn->pn_info->pi_name) == 0)
+		*mntfrom = *fstype = "proc";
+	else if (strcmp(*fstype, "procfs") == 0)
+		return (ECANCELED);
+
+	if (strcmp(*fstype, "autofs") == 0) {
+		/*
+		 * FreeBSD uses eg "map -hosts", whereas Linux
+		 * expects just "-hosts".
+		 */
+		if (strncmp(*mntfrom, "map ", 4) == 0)
+			*mntfrom += 4;
+	}
+
+	if (strcmp(*fstype, "linsysfs") == 0) {
+		*mntfrom = path_slash_sys;
+		*fstype = fstype_sysfs;
+	} else {
+		/* For Linux msdosfs is called vfat */
+		if (strcmp(*fstype, "msdosfs") == 0)
+			*fstype = "vfat";
+	}
+	return (0);
+}
+
+static void
+_sbuf_mntoptions_helper(struct sbuf *sb, uint64_t f_flags)
+{
+	sbuf_cat(sb, (f_flags & MNT_RDONLY) ? "ro" : "rw");
+#define ADD_OPTION(opt, name) \
+	if (f_flags & (opt)) sbuf_cat(sb, "," name);
+	ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
+	ADD_OPTION(MNT_NOEXEC,		"noexec");
+	ADD_OPTION(MNT_NOSUID,		"nosuid");
+	ADD_OPTION(MNT_UNION,		"union");
+	ADD_OPTION(MNT_ASYNC,		"async");
+	ADD_OPTION(MNT_SUIDDIR,		"suiddir");
+	ADD_OPTION(MNT_NOSYMFOLLOW,	"nosymfollow");
+	ADD_OPTION(MNT_NOATIME,		"noatime");
+#undef ADD_OPTION
+}
+
 /*
- * Filler function for proc/mtab
+ * Filler function for proc/mtab and proc/<pid>/mounts.
  *
- * This file doesn't exist in Linux' procfs, but is included here so
+ * /proc/mtab doesn't exist in Linux' procfs, but is included here so
  * users can symlink /compat/linux/etc/mtab to /proc/mtab
  */
 static int
 linprocfs_domtab(PFS_FILL_ARGS)
 {
 	struct nameidata nd;
-	const char *lep;
-	char *dlep, *flep, *mntto, *mntfrom, *fstype;
+	const char *lep, *mntto, *mntfrom, *fstype;
+	char *dlep, *flep;
 	size_t lep_len;
 	int error;
 	struct statfs *buf, *sp;
 	size_t count;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
+	/*
+	 * Ideally, this would use the current chroot rather than some
+	 * hardcoded path.
+	 */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
 	error = namei(&nd);
@@ -442,55 +503,112 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	}
 
 	for (sp = buf; count > 0; sp++, count--) {
-		/* determine device name */
-		mntfrom = sp->f_mntfromname;
+		error = _mtab_helper(pn, sp, &mntfrom, &mntto, &fstype);
+		if (error != 0) {
+			MPASS(error == ECANCELED);
+			continue;
+		}
 
 		/* determine mount point */
-		mntto = sp->f_mntonname;
 		if (strncmp(mntto, lep, lep_len) == 0 && mntto[lep_len] == '/')
 			mntto += lep_len;
 
-		/* determine fs type */
-		fstype = sp->f_fstypename;
-		if (strcmp(fstype, pn->pn_info->pi_name) == 0)
-			mntfrom = fstype = "proc";
-		else if (strcmp(fstype, "procfs") == 0)
-			continue;
-
-		if (strcmp(fstype, "autofs") == 0) {
-			/*
-			 * FreeBSD uses eg "map -hosts", whereas Linux
-			 * expects just "-hosts".
-			 */
-			if (strncmp(mntfrom, "map ", 4) == 0)
-				mntfrom += 4;
-		}
-
-		if (strcmp(fstype, "linsysfs") == 0) {
-			sbuf_printf(sb, "/sys %s sysfs %s", mntto,
-			    sp->f_flags & MNT_RDONLY ? "ro" : "rw");
-		} else {
-			/* For Linux msdosfs is called vfat */
-			if (strcmp(fstype, "msdosfs") == 0)
-				fstype = "vfat";
-			sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
-			    sp->f_flags & MNT_RDONLY ? "ro" : "rw");
-		}
-#define ADD_OPTION(opt, name) \
-	if (sp->f_flags & (opt)) sbuf_printf(sb, "," name);
-		ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
-		ADD_OPTION(MNT_NOEXEC,		"noexec");
-		ADD_OPTION(MNT_NOSUID,		"nosuid");
-		ADD_OPTION(MNT_UNION,		"union");
-		ADD_OPTION(MNT_ASYNC,		"async");
-		ADD_OPTION(MNT_SUIDDIR,		"suiddir");
-		ADD_OPTION(MNT_NOSYMFOLLOW,	"nosymfollow");
-		ADD_OPTION(MNT_NOATIME,		"noatime");
-#undef ADD_OPTION
+		sbuf_printf(sb, "%s %s %s ", mntfrom, mntto, fstype);
+		_sbuf_mntoptions_helper(sb, sp->f_flags);
 		/* a real Linux mtab will also show NFS options */
 		sbuf_printf(sb, " 0 0\n");
 	}
 
+	free(buf, M_TEMP);
+	free(flep, M_TEMP);
+	return (error);
+}
+
+static int
+linprocfs_doprocmountinfo(PFS_FILL_ARGS)
+{
+	struct nameidata nd;
+	const char *mntfrom, *mntto, *fstype;
+	const char *lep;
+	char *dlep, *flep;
+	struct statfs *buf, *sp;
+	size_t count, lep_len;
+	int error;
+
+	/*
+	 * Ideally, this would use the current chroot rather than some
+	 * hardcoded path.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
+	flep = NULL;
+	error = namei(&nd);
+	lep = linux_emul_path;
+	if (error == 0) {
+		if (vn_fullpath(nd.ni_vp, &dlep, &flep) == 0)
+			lep = dlep;
+		vrele(nd.ni_vp);
+	}
+	lep_len = strlen(lep);
+
+	buf = NULL;
+	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
+	    UIO_SYSSPACE, MNT_WAIT);
+	if (error != 0)
+		goto out;
+
+	for (sp = buf; count > 0; sp++, count--) {
+		error = _mtab_helper(pn, sp, &mntfrom, &mntto, &fstype);
+		if (error != 0) {
+			MPASS(error == ECANCELED);
+			continue;
+		}
+
+		if (strncmp(mntto, lep, lep_len) == 0 && mntto[lep_len] == '/')
+			mntto += lep_len;
+#if 0
+		/*
+		 * If the prefix is a chroot, and this mountpoint is not under
+		 * the prefix, we should skip it.  Leave it for now for
+		 * consistency with procmtab above.
+		 */
+		else
+			continue;
+#endif
+
+		/*
+		 * (1) mount id
+		 *
+		 * (2) parent mount id -- we don't have this cheaply, so
+		 * provide a dummy value
+		 *
+		 * (3) major:minor -- ditto
+		 *
+		 * (4) root filesystem mount -- probably a namespaces thing
+		 *
+		 * (5) mountto path
+		 */
+		sbuf_printf(sb, "%u 0 0:0 / %s ",
+		    sp->f_fsid.val[0] ^ sp->f_fsid.val[1], mntto);
+		/* (6) mount options */
+		_sbuf_mntoptions_helper(sb, sp->f_flags);
+		/*
+		 * (7) zero or more optional fields -- again, namespace related
+		 *
+		 * (8) End of variable length fields separator ("-")
+		 *
+		 * (9) fstype
+		 *
+		 * (10) mount from
+		 *
+		 * (11) "superblock" options -- like (6), but different
+		 * semantics in Linux
+		 */
+		sbuf_printf(sb, " - %s %s %s\n", fstype, mntfrom,
+		    (sp->f_flags & MNT_RDONLY) ? "ro" : "rw");
+	}
+
+	error = 0;
+out:
 	free(buf, M_TEMP);
 	free(flep, M_TEMP);
 	return (error);
@@ -936,7 +1054,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 				state = "X (exiting)";
 				break;
 			}
-			switch(td2->td_state) {
+			switch(TD_GET_STATE(td2)) {
 			case TDS_INHIBITED:
 				state = "S (sleeping)";
 				break;
@@ -1249,7 +1367,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    0,
 		    0,
 		    (u_long)ino,
-		    *name ? "     " : "",
+		    *name ? "     " : " ",
 		    name
 		    );
 		if (freename)
@@ -1271,6 +1389,27 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	}
 	vm_map_unlock_read(map);
 	vmspace_free(vm);
+
+	return (error);
+}
+
+/*
+ * Filler function for proc/pid/mem
+ */
+static int
+linprocfs_doprocmem(PFS_FILL_ARGS)
+{
+	ssize_t resid;
+	int error;
+
+	resid = uio->uio_resid;
+	error = procfs_doprocmem(PFS_FILL_ARGNAMES);
+
+	if (uio->uio_rw == UIO_READ && resid != uio->uio_resid)
+		return (0);
+
+	if (error == EFAULT)
+		error = EIO;
 
 	return (error);
 }
@@ -1428,6 +1567,19 @@ linprocfs_domsgmnb(PFS_FILL_ARGS)
 {
 
 	sbuf_printf(sb, "%d\n", msginfo.msgmnb);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/ngroups_max
+ *
+ * Note that in Linux it defaults to 65536, not 1023.
+ */
+static int
+linprocfs_dongroups_max(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", ngroups_max);
 	return (0);
 }
 
@@ -1776,8 +1928,8 @@ linprocfs_doauxv(PFS_FILL_ARGS)
 		buflen = resid;
 	if (buflen > IOSIZE_MAX)
 		return (EINVAL);
-	if (buflen > MAXPHYS)
-		buflen = MAXPHYS;
+	if (buflen > maxphys)
+		buflen = maxphys;
 	if (resid <= 0)
 		return (0);
 
@@ -1852,9 +2004,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
 	    NULL, &procfs_notsystem, NULL, 0);
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
-	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "mem", &procfs_doprocmem,
+	    NULL, NULL, NULL, PFS_RD | PFS_AUTODRAIN);
+	pfs_create_file(dir, "mem", &linprocfs_doprocmem,
 	    procfs_attr_rw, &procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
+	pfs_create_file(dir, "mountinfo", &linprocfs_doprocmountinfo,
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "mounts", &linprocfs_domtab,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "root", &linprocfs_doprocroot,
@@ -1900,6 +2054,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "msgmni", &linprocfs_domsgmni,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "msgmnb", &linprocfs_domsgmnb,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "ngroups_max", &linprocfs_dongroups_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);

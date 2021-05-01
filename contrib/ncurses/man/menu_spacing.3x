@@ -28,23 +28,23 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_spacing.3x,v 1.16 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_spacing.3x,v 1.17 2020/10/17 23:48:53 tom Exp $
 .TH menu_spacing 3X ""
 .SH NAME
 \fBset_menu_spacing\fP,
 \fBmenu_spacing\fR \- set and get spacing between menu items.
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_spacing(MENU *\fP\fImenu\fP\fB,\fP
+                     \fBint \fP\fIspc_description\fP\fB,\fP
+                     \fBint \fP\fIspc_rows\fP\fB,\fP
+                     \fBint \fP\fIspc_columns\fP\fB);\fP
 .br
-int set_menu_spacing(MENU *menu,
-                     int spc_description,
-                     int spc_rows,
-                     int spc_columns);
-.br
-int menu_spacing(const MENU *menu,
-                 int* spc_description,
-                 int* spc_rows,
-                 int* spc_columns);
+\fBint menu_spacing(const MENU *\fP\fImenu\fP\fB,\fP
+                 \fBint* \fP\fIspc_description\fP\fB,\fP
+                 \fBint* \fP\fIspc_rows\fP\fB,\fP
+                 \fBint* \fP\fIspc_columns\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_menu_spacing\fR sets the spacing information for the menu.

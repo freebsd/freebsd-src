@@ -163,9 +163,9 @@ enum {
 	ADAP_ERR	= (1 << 5),
 	BUF_PACKING_OK	= (1 << 6),
 	IS_VF		= (1 << 7),
-	KERN_TLS_OK	= (1 << 8),
-
+	KERN_TLS_ON	= (1 << 8),	/* HW is configured for KERN_TLS */
 	CXGBE_BUSY	= (1 << 9),
+	HW_OFF_LIMITS	= (1 << 10),	/* off limits to all except reset_thread */
 
 	/* port flags */
 	HAS_TRACEQ	= (1 << 3),
@@ -176,6 +176,7 @@ enum {
 	VI_INIT_DONE	= (1 << 1),
 	VI_SYSCTL_CTX	= (1 << 2),
 	TX_USES_VM_WR 	= (1 << 3),
+	VI_SKIP_STATS 	= (1 << 4),
 
 	/* adapter debug_flags */
 	DF_DUMP_MBOX		= (1 << 0),	/* Log all mbox cmd/rpl. */
@@ -238,9 +239,16 @@ struct vi_info {
 
 	struct timeval last_refreshed;
 	struct fw_vi_stats_vf stats;
-
+	struct mtx tick_mtx;
 	struct callout tick;
-	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
+
+	struct sysctl_ctx_list ctx;
+	struct sysctl_oid *rxq_oid;
+	struct sysctl_oid *txq_oid;
+	struct sysctl_oid *nm_rxq_oid;
+	struct sysctl_oid *nm_txq_oid;
+	struct sysctl_oid *ofld_rxq_oid;
+	struct sysctl_oid *ofld_txq_oid;
 
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
@@ -306,22 +314,16 @@ struct port_info {
 	uint8_t  tx_chan;
 	uint8_t  mps_bg_map;	/* rx MPS buffer group bitmap */
 	uint8_t  rx_e_chan_map;	/* rx TP e-channel bitmap */
+	uint8_t  rx_c_chan;	/* rx TP c-channel */
 
 	struct link_config link_cfg;
 	struct ifmedia media;
 
-	struct timeval last_refreshed;
  	struct port_stats stats;
 	u_int tnl_cong_drops;
 	u_int tx_parse_error;
 	int fcs_reg;
 	uint64_t fcs_base;
-	u_long	tx_toe_tls_records;
-	u_long	tx_toe_tls_octets;
-	u_long	rx_toe_tls_records;
-	u_long	rx_toe_tls_octets;
-
-	struct callout tick;
 };
 
 #define	IS_MAIN_VI(vi)		((vi) == &((vi)->pi->vi[0]))
@@ -360,11 +362,12 @@ CTASSERT(sizeof(struct iq_desc) == IQ_ESIZE);
 
 enum {
 	/* iq flags */
-	IQ_ALLOCATED	= (1 << 0),	/* firmware resources allocated */
+	IQ_SW_ALLOCATED	= (1 << 0),	/* sw resources allocated */
 	IQ_HAS_FL	= (1 << 1),	/* iq associated with a freelist */
 	IQ_RX_TIMESTAMP	= (1 << 2),	/* provide the SGE rx timestamp */
 	IQ_LRO_ENABLED	= (1 << 3),	/* iq is an eth rxq with LRO enabled */
 	IQ_ADJ_CREDIT	= (1 << 4),	/* hw is off by 1 credit for this iq */
+	IQ_HW_ALLOCATED	= (1 << 5),	/* fw/hw resources allocated */
 
 	/* iq state */
 	IQS_DISABLED	= 0,
@@ -408,12 +411,13 @@ struct sge_iq {
 	int8_t   intr_pktc_idx;	/* packet count threshold index */
 	uint8_t  gen;		/* generation bit */
 	uint8_t  intr_params;	/* interrupt holdoff parameters */
-	uint8_t  intr_next;	/* XXX: holdoff for next interrupt */
+	int8_t   cong;		/* congestion settings */
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t sidx;		/* index of the entry with the status page */
 	uint16_t cidx;		/* consumer index */
 	uint16_t cntxt_id;	/* SGE context id for the iq */
 	uint16_t abs_id;	/* absolute SGE id for the iq */
+	int16_t intr_idx;	/* interrupt used by the queue */
 
 	STAILQ_ENTRY(sge_iq) link;
 
@@ -423,13 +427,14 @@ struct sge_iq {
 };
 
 enum {
+	/* eq type */
 	EQ_CTRL		= 1,
 	EQ_ETH		= 2,
 	EQ_OFLD		= 3,
 
 	/* eq flags */
-	EQ_TYPEMASK	= 0x3,		/* 2 lsbits hold the type (see above) */
-	EQ_ALLOCATED	= (1 << 2),	/* firmware resources allocated */
+	EQ_SW_ALLOCATED	= (1 << 0),	/* sw resources allocated */
+	EQ_HW_ALLOCATED	= (1 << 1),	/* hw/fw resources allocated */
 	EQ_ENABLED	= (1 << 3),	/* open for business */
 	EQ_QFLUSH	= (1 << 4),	/* if_qflush in progress */
 };
@@ -447,10 +452,12 @@ struct sge_eq {
 	unsigned int flags;	/* MUST be first */
 	unsigned int cntxt_id;	/* SGE context id for the eq */
 	unsigned int abs_id;	/* absolute SGE id for the eq */
+	uint8_t type;		/* EQ_CTRL/EQ_ETH/EQ_OFLD */
+	uint8_t doorbells;
+	uint8_t tx_chan;	/* tx channel used by the eq */
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
-	uint8_t doorbells;
 	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
 	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t sidx;		/* index of the entry with the status page */
@@ -458,9 +465,9 @@ struct sge_eq {
 	uint16_t pidx;		/* producer idx (desc idx) */
 	uint16_t equeqidx;	/* EQUEQ last requested at this pidx */
 	uint16_t dbidx;		/* pidx of the most recent doorbell */
-	uint16_t iqid;		/* iq that gets egr_update for the eq */
-	uint8_t tx_chan;	/* tx channel used by the eq */
+	uint16_t iqid;		/* cached iq->cntxt_id (see iq below) */
 	volatile u_int equiq;	/* EQUIQ outstanding */
+	struct sge_iq *iq;	/* iq that receives egr_update for the eq */
 
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
@@ -561,7 +568,7 @@ struct txpkts {
 	uint8_t wr_type;	/* type 0 or type 1 */
 	uint8_t npkt;		/* # of packets in this work request */
 	uint8_t len16;		/* # of 16B pieces used by this work request */
-	uint8_t score;		/* 1-10. coalescing attempted if score > 3 */
+	uint8_t score;
 	uint8_t max_npkt;	/* maximum number of packets allowed */
 	uint16_t plen;		/* total payload (sum of all packets) */
 
@@ -584,6 +591,7 @@ struct sge_txq {
 	struct sglist *gl;
 	__be32 cpl_ctrl0;	/* for convenience */
 	int tc_idx;		/* traffic class */
+	uint64_t last_tx;	/* cycle count when eth_tx was last called */
 	struct txpkts txp;
 
 	struct task tx_reclaim_task;
@@ -599,6 +607,7 @@ struct sge_txq {
 	uint64_t txpkts1_wrs;	/* # of type1 coalesced tx work requests */
 	uint64_t txpkts0_pkts;	/* # of frames in type0 coalesced tx WRs */
 	uint64_t txpkts1_pkts;	/* # of frames in type1 coalesced tx WRs */
+	uint64_t txpkts_flush;	/* # of times txp had to be sent by tx_update */
 	uint64_t raw_wrs;	/* # of raw work requests (alloc_wr_mbuf) */
 	uint64_t vxlan_tso_wrs;	/* # of VXLAN TSO work requests */
 	uint64_t vxlan_txcsum;
@@ -652,6 +661,8 @@ iq_to_rxq(struct sge_iq *iq)
 struct sge_ofld_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;	/* MUST follow iq */
+	u_long	rx_toe_tls_records;
+	u_long	rx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
 
 static inline struct sge_ofld_rxq *
@@ -675,8 +686,8 @@ struct wrq_cookie {
 };
 
 /*
- * wrq: SGE egress queue that is given prebuilt work requests.  Both the control
- * and offload tx queues are of this type.
+ * wrq: SGE egress queue that is given prebuilt work requests.  Control queues
+ * are of this type.
  */
 struct sge_wrq {
 	struct sge_eq eq;	/* MUST be first */
@@ -708,6 +719,15 @@ struct sge_wrq {
 	uint16_t ss_len;
 	uint8_t ss[SGE_MAX_WR_LEN];
 
+} __aligned(CACHE_LINE_SIZE);
+
+/* ofld_txq: SGE egress queue + miscellaneous items */
+struct sge_ofld_txq {
+	struct sge_wrq wrq;
+	counter_u64_t tx_iscsi_pdus;
+	counter_u64_t tx_iscsi_octets;
+	counter_u64_t tx_toe_tls_records;
+	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);
 
 #define INVALID_NM_RXQ_CNTXT_ID ((uint16_t)(-1))
@@ -790,7 +810,7 @@ struct sge {
 	struct sge_wrq *ctrlq;	/* Control queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
-	struct sge_wrq *ofld_txq;	/* TOE tx queues */
+	struct sge_ofld_txq *ofld_txq;	/* TOE tx queues */
 	struct sge_ofld_rxq *ofld_rxq;	/* TOE rx queues */
 	struct sge_nm_txq *nm_txq;	/* netmap tx queues */
 	struct sge_nm_rxq *nm_rxq;	/* netmap rx queues */
@@ -799,6 +819,8 @@ struct sge {
 	uint16_t iq_base;	/* first abs_id */
 	int eq_start;		/* first cntxt_id */
 	int eq_base;		/* first abs_id */
+	int iqmap_sz;
+	int eqmap_sz;
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
@@ -922,7 +944,9 @@ struct adapter {
 	uint16_t iscsicaps;
 	uint16_t fcoecaps;
 
-	struct sysctl_ctx_list ctx; /* from adapter_full_init to full_uninit */
+	struct sysctl_ctx_list ctx;
+	struct sysctl_oid *ctrlq_oid;
+	struct sysctl_oid *fwq_oid;
 
 	struct mtx sc_lock;
 	char lockname[16];
@@ -932,12 +956,25 @@ struct adapter {
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
 
-	struct mtx reg_lock;	/* for indirect register access */
+	/*
+	 * Driver code that can run when the adapter is suspended must use this
+	 * lock or a synchronized_op and check for HW_OFF_LIMITS before
+	 * accessing hardware.
+	 *
+	 * XXX: could be changed to rwlock.  wlock in suspend/resume and for
+	 * indirect register access, rlock everywhere else.
+	 */
+	struct mtx reg_lock;
 
 	struct memwin memwin[NUM_MEMWIN];	/* memory windows */
 
 	struct mtx tc_lock;
 	struct task tc_task;
+
+	struct task reset_task;
+	const void *reset_thread;
+	int num_resets;
+	int incarnation;
 
 	const char *last_op;
 	const void *last_op_thr;
@@ -1028,24 +1065,34 @@ forwarding_intr_to_fwq(struct adapter *sc)
 	return (sc->intr_count == 1);
 }
 
+/* Works reliably inside a sync_op or with reg_lock held. */
+static inline bool
+hw_off_limits(struct adapter *sc)
+{
+	return (__predict_false(sc->flags & HW_OFF_LIMITS));
+}
+
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	return bus_space_read_4(sc->bt, sc->bh, reg);
 }
 
 static inline void
 t4_write_reg(struct adapter *sc, uint32_t reg, uint32_t val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	bus_space_write_4(sc->bt, sc->bh, reg, val);
 }
 
 static inline uint64_t
 t4_read_reg64(struct adapter *sc, uint32_t reg)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 #ifdef __LP64__
 	return bus_space_read_8(sc->bt, sc->bh, reg);
 #else
@@ -1058,7 +1105,8 @@ t4_read_reg64(struct adapter *sc, uint32_t reg)
 static inline void
 t4_write_reg64(struct adapter *sc, uint32_t reg, uint64_t val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 #ifdef __LP64__
 	bus_space_write_8(sc->bt, sc->bh, reg, val);
 #else
@@ -1070,14 +1118,16 @@ t4_write_reg64(struct adapter *sc, uint32_t reg, uint64_t val)
 static inline void
 t4_os_pci_read_cfg1(struct adapter *sc, int reg, uint8_t *val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	*val = pci_read_config(sc->dev, reg, 1);
 }
 
 static inline void
 t4_os_pci_write_cfg1(struct adapter *sc, int reg, uint8_t val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	pci_write_config(sc->dev, reg, val, 1);
 }
 
@@ -1085,27 +1135,32 @@ static inline void
 t4_os_pci_read_cfg2(struct adapter *sc, int reg, uint16_t *val)
 {
 
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	*val = pci_read_config(sc->dev, reg, 2);
 }
 
 static inline void
 t4_os_pci_write_cfg2(struct adapter *sc, int reg, uint16_t val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	pci_write_config(sc->dev, reg, val, 2);
 }
 
 static inline void
 t4_os_pci_read_cfg4(struct adapter *sc, int reg, uint32_t *val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	*val = pci_read_config(sc->dev, reg, 4);
 }
 
 static inline void
 t4_os_pci_write_cfg4(struct adapter *sc, int reg, uint32_t val)
 {
-
+	if (hw_off_limits(sc))
+		MPASS(curthread == sc->reset_thread);
 	pci_write_config(sc->dev, reg, val, 4);
 }
 
@@ -1201,13 +1256,9 @@ int begin_synchronized_op(struct adapter *, struct vi_info *, int, char *);
 void doom_vi(struct adapter *, struct vi_info *);
 void end_synchronized_op(struct adapter *, int);
 int update_mac_settings(struct ifnet *, int);
-int adapter_full_init(struct adapter *);
-int adapter_full_uninit(struct adapter *);
-uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
-int vi_full_init(struct vi_info *);
-int vi_full_uninit(struct vi_info *);
+int adapter_init(struct adapter *);
+int vi_init(struct vi_info *);
 void vi_sysctls(struct vi_info *);
-void vi_tick(void *);
 int rw_via_memwin(struct adapter *, int, uint32_t, uint32_t *, int, int);
 int alloc_atid(struct adapter *, void *);
 void *lookup_atid(struct adapter *, int);
@@ -1245,6 +1296,10 @@ struct sge_nm_rxq;
 void cxgbe_nm_attach(struct vi_info *);
 void cxgbe_nm_detach(struct vi_info *);
 void service_nm_rxq(struct sge_nm_rxq *);
+int alloc_nm_rxq(struct vi_info *, struct sge_nm_rxq *, int, int);
+int free_nm_rxq(struct vi_info *, struct sge_nm_rxq *);
+int alloc_nm_txq(struct vi_info *, struct sge_nm_txq *, int, int);
+int free_nm_txq(struct vi_info *, struct sge_nm_txq *);
 #endif
 
 /* t4_sge.c */
@@ -1252,11 +1307,17 @@ void t4_sge_modload(void);
 void t4_sge_modunload(void);
 uint64_t t4_sge_extfree_refs(void);
 void t4_tweak_chip_settings(struct adapter *);
-int t4_read_chip_settings(struct adapter *);
+int t4_verify_chip_settings(struct adapter *);
+void t4_init_rx_buf_info(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
+int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
+    bus_addr_t *, void **);
+int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
+    void *);
+void free_fl_buffers(struct adapter *, struct sge_fl *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_vi_queues(struct vi_info *);
@@ -1321,6 +1382,7 @@ void cxgbe_ratelimit_query(struct ifnet *, struct if_ratelimit_query_results *);
 /* t4_filter.c */
 int get_filter_mode(struct adapter *, uint32_t *);
 int set_filter_mode(struct adapter *, uint32_t);
+int set_filter_mask(struct adapter *, uint32_t);
 int get_filter(struct adapter *, struct t4_filter *);
 int set_filter(struct adapter *, struct t4_filter *);
 int del_filter(struct adapter *, struct t4_filter *);

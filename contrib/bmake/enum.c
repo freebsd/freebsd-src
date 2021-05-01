@@ -1,4 +1,4 @@
-/*	$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $	*/
+/*	$NetBSD: enum.c,v 1.15 2021/02/02 17:56:31 rillig Exp $	*/
 
 /*
  Copyright (c) 2020 Roland Illig <rillig@NetBSD.org>
@@ -27,26 +27,17 @@
  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $";
-#else
-#include <sys/cdefs.h>
-#ifndef lint
-__RCSID("$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $");
-#endif
-#endif
+#include "make.h"
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+MAKE_RCSID("$NetBSD: enum.c,v 1.15 2021/02/02 17:56:31 rillig Exp $");
 
-#include "enum.h"
-
-/* Convert a bitset into a string representation, showing the names of the
+/*
+ * Convert a bitset into a string representation, showing the names of the
  * individual bits.
  *
  * Optionally, shortcuts for groups of bits can be added.  To have an effect,
- * they need to be listed before their individual bits. */
+ * they need to be listed before their individual bits.
+ */
 const char *
 Enum_FlagsToString(char *buf, size_t buf_size,
 		   int value, const EnumToStringSpec *spec)
@@ -59,7 +50,7 @@ Enum_FlagsToString(char *buf, size_t buf_size,
 		size_t name_len;
 
 		if ((value & spec->es_value) != spec->es_value)
-			    continue;
+			continue;
 		value &= ~spec->es_value;
 
 		assert(buf_size >= sep_len + 1);
@@ -86,15 +77,4 @@ Enum_FlagsToString(char *buf, size_t buf_size,
 	assert(buf_size >= 1);
 	buf[0] = '\0';
 	return buf_start;
-}
-
-/* Convert a fixed-value enum into a string representation. */
-const char *
-Enum_ValueToString(int value, const EnumToStringSpec *spec)
-{
-	for (; spec->es_name[0] != '\0'; spec++) {
-	    if (value == spec->es_value)
-	        return spec->es_name;
-	}
-	abort(/* unknown enum value */);
 }

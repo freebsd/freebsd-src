@@ -148,8 +148,8 @@ RB_PROTOTYPE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 #define	PVO_MANAGED		0x020UL		/* PVO entry is managed */
 #define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
 						   bootstrap */
-#define PVO_DEAD		0x100UL		/* waiting to be deleted */
-#define PVO_LARGE		0x200UL		/* large page */
+#define	PVO_DEAD		0x100UL		/* waiting to be deleted */
+#define	PVO_LARGE		0x200UL		/* large page */
 #define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
 #define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
 #define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
@@ -336,6 +336,7 @@ extern	vm_offset_t msgbuf_phys;
 
 extern	int pmap_bootstrapped;
 extern	int radix_mmu;
+extern	int superpages_enabled;
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 void pmap_early_io_unmap(vm_offset_t va, vm_size_t size);

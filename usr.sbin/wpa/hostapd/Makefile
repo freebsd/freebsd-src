@@ -163,6 +163,10 @@ SRCS+=	eap_server_gtc.c \
 	eapol_auth_sm.c
 TLS_FUNCS=y
 
+# For WPS, EAP modes, etc
+NEED_DH_GROUPS=y
+NEED_DH_GROUPS_ALL=y
+
 .if !empty(CFLAGS:M*-DCONFIG_WPS)
 NEED_SIM_COMMON=y
 .endif

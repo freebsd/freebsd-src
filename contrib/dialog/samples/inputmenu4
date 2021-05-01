@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: inputmenu4,v 1.9 2012/07/01 01:00:34 tom Exp $
+# $Id: inputmenu4,v 1.12 2020/11/26 00:28:24 tom Exp $
 #
 # "inputmenu1" with a different label for the extra-button
 
@@ -18,7 +18,7 @@ returncode=0
 while test $returncode != 1 && test $returncode != 250
 do
 exec 3>&1
-value=`$DIALOG --clear --ok-label "Create" \
+returntext=`$DIALOG --clear --ok-label "Create" \
 	--extra-label "Edit" \
 	  --backtitle "$backtitle" "$@" \
 	  --inputmenu "Originally I designed --inputmenu for a \
@@ -58,8 +58,8 @@ exec 3>&-
 			$user" 10 40
 		;;
 	$DIALOG_EXTRA)
-		tag=`echo "$value" |sed -e 's/^RENAMED //' -e 's/:.*//'`
-		item=`echo "$value" |sed -e 's/^[^:]*:[ ]*//' -e 's/[ ]*$//'`
+		tag=`echo "$returntext" |sed -e 's/^RENAMED //' -e 's/:.*//'`
+		item=`echo "$returntext" |sed -e 's/^[^:]*:[ ]*//' -e 's/[ ]*$//'`
 
 		case "$tag" in
 		Username)
@@ -77,8 +77,8 @@ exec 3>&-
 		esac
 		;;
 
-	$DIALOG_ESC)
-		echo "ESC pressed."
+	*)
+		. ./report-button
 		break
 		;;
 

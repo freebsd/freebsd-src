@@ -22,36 +22,36 @@
 #define	DOALL(x)	for (fr = frc; fr != NULL; fr = fr->fr_next) { x }
 #define	DOREM(x)	for (; fr != NULL; fr = fr->fr_next) { x }
 
-extern	void	yyerror __P((char *));
-extern	int	yyparse __P((void));
-extern	int	yylex __P((void));
+extern	void	yyerror(char *);
+extern	int	yyparse(void);
+extern	int	yylex(void);
 extern	int	yydebug;
 extern	FILE	*yyin;
 extern	int	yylineNum;
 
-static	int	addname __P((frentry_t **, char *));
-static	frentry_t *addrule __P((void));
-static frentry_t *allocfr __P((void));
-static	void	build_dstaddr_af __P((frentry_t *, void *));
-static	void	build_srcaddr_af __P((frentry_t *, void *));
-static	void	dobpf __P((int, char *));
-static	void	doipfexpr __P((char *));
-static	void	do_tuneint __P((char *, int));
-static	void	do_tunestr __P((char *, char *));
-static	void	fillgroup __P((frentry_t *));
-static	int	lookuphost __P((char *, i6addr_t *));
-static	u_int	makehash __P((struct alist_s *));
-static	int	makepool __P((struct alist_s *));
-static	struct	alist_s	*newalist __P((struct alist_s *));
-static	void	newrule __P((void));
-static	void	resetaddr __P((void));
-static	void	setgroup __P((frentry_t **, char *));
-static	void	setgrhead __P((frentry_t **, char *));
-static	void	seticmphead __P((frentry_t **, char *));
-static	void	setifname __P((frentry_t **, int, char *));
-static	void	setipftype __P((void));
-static	void	setsyslog __P((void));
-static	void	unsetsyslog __P((void));
+static	int	addname(frentry_t **, char *);
+static	frentry_t *addrule(void);
+static frentry_t *allocfr(void);
+static	void	build_dstaddr_af(frentry_t *, void *);
+static	void	build_srcaddr_af(frentry_t *, void *);
+static	void	dobpf(int, char *);
+static	void	doipfexpr(char *);
+static	void	do_tuneint(char *, int);
+static	void	do_tunestr(char *, char *);
+static	void	fillgroup(frentry_t *);
+static	int	lookuphost(char *, i6addr_t *);
+static	u_int	makehash(struct alist_s *);
+static	int	makepool(struct alist_s *);
+static	struct	alist_s	*newalist(struct alist_s *);
+static	void	newrule(void);
+static	void	resetaddr(void);
+static	void	setgroup(frentry_t **, char *);
+static	void	setgrhead(frentry_t **, char *);
+static	void	seticmphead(frentry_t **, char *);
+static	void	setifname(frentry_t **, int, char *);
+static	void	setipftype(void);
+static	void	setsyslog(void);
+static	void	unsetsyslog(void);
 
 frentry_t	*fr = NULL, *frc = NULL, *frtop = NULL, *frold = NULL;
 

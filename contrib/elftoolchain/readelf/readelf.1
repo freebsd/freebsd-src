@@ -24,7 +24,7 @@
 .\"
 .\" $Id: readelf.1 3753 2019-06-28 01:13:13Z emaste $
 .\"
-.Dd June 27, 2019
+.Dd October 31, 2020
 .Dt READELF 1
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Fl -debug-dump Ns Op Ns = Ns Ar long-option-name , Ns ...
 .Oc
 .Op Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
+.Op Fl z | Fl -decompress
 .Op Fl A | Fl -arch-specific
 .Op Fl D | Fl -use-dynamic
 .Op Fl H | Fl -help
@@ -157,6 +158,13 @@ Display the contents of the specified section in hexadecimal.
 The argument
 .Ar section
 should be the name of a section or a numeric section index.
+.It Fl z | Fl -decompress
+Decompress contents of sections specified by
+.Fl x
+or
+.Fl p
+before displaying.
+If the specified section is not compressed, it is displayed as is.
 .It Fl A | Fl -arch-specific
 This option is accepted but is currently unimplemented.
 .It Fl D | Fl -use-dynamic

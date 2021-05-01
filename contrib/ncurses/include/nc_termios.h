@@ -31,7 +31,7 @@
  *  Author: Thomas E. Dickey                        2011                    *
  ****************************************************************************/
 
-/* $Id: nc_termios.h,v 1.7 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: nc_termios.h,v 1.8 2020/08/29 20:53:19 tom Exp $ */
 
 #ifndef NC_TERMIOS_included
 #define NC_TERMIOS_included 1
@@ -70,9 +70,13 @@
 #define tcflush(fd, arg) ioctl(fd, TCFLSH, arg)
 #endif
 
+#if defined(EXP_WIN32_DRIVER)
+#undef TERMIOS
+#endif
+
 #else /* !HAVE_TERMIO_H */
 
-#if _WIN32
+#if defined(_WIN32) && !defined(EXP_WIN32_DRIVER)
 
 /* lflag bits */
 #define ISIG	0x0001

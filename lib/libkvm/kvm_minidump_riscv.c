@@ -128,8 +128,7 @@ _riscv_minidump_initvtop(kvm_t *kd)
 	sparse_off = off + riscv_round_page(vmst->hdr.bitmapsize) +
 	    riscv_round_page(vmst->hdr.pmapsize);
 	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
-	    vmst->hdr.bitmapsize, off, sparse_off, RISCV_PAGE_SIZE,
-	    sizeof(uint64_t)) == -1) {
+	    vmst->hdr.bitmapsize, off, sparse_off, RISCV_PAGE_SIZE) == -1) {
 		return (-1);
 	}
 	off += riscv_round_page(vmst->hdr.bitmapsize);

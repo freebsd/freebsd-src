@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2020 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2020, 2021 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -36,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 #include <sys/sglist.h>
 #include <sys/sysctl.h>
 
@@ -53,8 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include "safexcel_reg.h"
 #include "safexcel_var.h"
-
-static MALLOC_DEFINE(M_SAFEXCEL, "safexcel_req", "safexcel request buffers");
 
 /*
  * We only support the EIP97 for now.
@@ -91,6 +91,17 @@ const struct safexcel_reg_offsets eip197_regs_offset = {
 	.pe		= SAFEXCEL_EIP197_PE_BASE,
 };
 
+static struct safexcel_request *
+safexcel_next_request(struct safexcel_ring *ring)
+{
+	int i;
+
+	i = ring->cdr.read;
+	KASSERT(i >= 0 && i < SAFEXCEL_RING_SIZE,
+	    ("%s: out of bounds request index %d", __func__, i));
+	return (&ring->requests[i]);
+}
+
 static struct safexcel_cmd_descr *
 safexcel_cmd_descr_next(struct safexcel_cmd_descr_ring *ring)
 {
@@ -118,13 +129,14 @@ safexcel_res_descr_next(struct safexcel_res_descr_ring *ring)
 static struct safexcel_request *
 safexcel_alloc_request(struct safexcel_softc *sc, struct safexcel_ring *ring)
 {
-	struct safexcel_request *req;
+	int i;
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
-	if ((req = STAILQ_FIRST(&ring->free_requests)) != NULL)
-		STAILQ_REMOVE_HEAD(&ring->free_requests, link);
-	return (req);
+	i = ring->cdr.write;
+	if ((i + 1) % SAFEXCEL_RING_SIZE == ring->cdr.read)
+		return (NULL);
+	return (&ring->requests[i]);
 }
 
 static void
@@ -141,30 +153,22 @@ safexcel_free_request(struct safexcel_ring *ring, struct safexcel_request *req)
 	ctx = (struct safexcel_context_record *)req->ctx.vaddr;
 	explicit_bzero(ctx->data, sizeof(ctx->data));
 	explicit_bzero(req->iv, sizeof(req->iv));
-	STAILQ_INSERT_TAIL(&ring->free_requests, req, link);
-}
-
-static void
-safexcel_enqueue_request(struct safexcel_softc *sc, struct safexcel_ring *ring,
-    struct safexcel_request *req)
-{
-	mtx_assert(&ring->mtx, MA_OWNED);
-
-	STAILQ_INSERT_TAIL(&ring->ready_requests, req, link);
 }
 
 static void
 safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 {
+	TAILQ_HEAD(, cryptop) cq;
+	struct cryptop *crp, *tmp;
 	struct safexcel_cmd_descr *cdesc;
 	struct safexcel_res_descr *rdesc;
 	struct safexcel_request *req;
 	struct safexcel_ring *ring;
-	uint32_t error, i, ncdescs, nrdescs, nreqs;
+	uint32_t blocked, error, i, ncdescs, nrdescs, nreqs;
 
+	blocked = 0;
 	ring = &sc->sc_ring[ringidx];
 
-	mtx_lock(&ring->mtx);
 	nreqs = SAFEXCEL_READ(sc,
 	    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PROC_COUNT);
 	nreqs >>= SAFEXCEL_xDR_PROC_xD_PKT_OFFSET;
@@ -172,8 +176,11 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 	if (nreqs == 0) {
 		SAFEXCEL_DPRINTF(sc, 1,
 		    "zero pending requests on ring %d\n", ringidx);
+		mtx_lock(&ring->mtx);
 		goto out;
 	}
+
+	TAILQ_INIT(&cq);
 
 	ring = &sc->sc_ring[ringidx];
 	bus_dmamap_sync(ring->rdr.dma.tag, ring->rdr.dma.map,
@@ -185,11 +192,7 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 
 	ncdescs = nrdescs = 0;
 	for (i = 0; i < nreqs; i++) {
-		req = STAILQ_FIRST(&ring->queued_requests);
-		KASSERT(req != NULL, ("%s: expected %d pending requests",
-		    __func__, nreqs));
-                STAILQ_REMOVE_HEAD(&ring->queued_requests, link);
-		mtx_unlock(&ring->mtx);
+		req = safexcel_next_request(ring);
 
 		bus_dmamap_sync(req->ctx.tag, req->ctx.map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -221,24 +224,36 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 			}
 		}
 
-		crypto_done(req->crp);
-		mtx_lock(&ring->mtx);
-		safexcel_free_request(ring, req);
+		TAILQ_INSERT_TAIL(&cq, req->crp, crp_next);
 	}
 
+	mtx_lock(&ring->mtx);
 	if (nreqs != 0) {
+		KASSERT(ring->queued >= nreqs,
+		    ("%s: request count underflow, %d queued %d completed",
+		    __func__, ring->queued, nreqs));
+		ring->queued -= nreqs;
+
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PROC_COUNT,
 		    SAFEXCEL_xDR_PROC_xD_PKT(nreqs) |
 		    (sc->sc_config.rd_offset * nrdescs * sizeof(uint32_t)));
+		blocked = ring->blocked;
+		ring->blocked = 0;
 	}
 out:
-	if (!STAILQ_EMPTY(&ring->queued_requests)) {
+	if (ring->queued != 0) {
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_THRESH,
-		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | 1);
+		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | imin(ring->queued, 16));
 	}
 	mtx_unlock(&ring->mtx);
+
+	if (blocked)
+		crypto_unblock(sc->sc_cid, blocked);
+
+	TAILQ_FOREACH_SAFE(crp, &cq, crp_next, tmp)
+		crypto_done(crp);
 }
 
 static void
@@ -248,7 +263,7 @@ safexcel_ring_intr(void *arg)
 	struct safexcel_intr_handle *ih;
 	uint32_t status, stat;
 	int ring;
-	bool blocked, rdrpending;
+	bool rdrpending;
 
 	ih = arg;
 	sc = ih->sc;
@@ -281,14 +296,6 @@ safexcel_ring_intr(void *arg)
 
 	if (rdrpending)
 		safexcel_rdr_intr(sc, ring);
-
-	mtx_lock(&sc->sc_mtx);
-	blocked = sc->sc_blocked;
-	sc->sc_blocked = 0;
-	mtx_unlock(&sc->sc_mtx);
-
-	if (blocked)
-		crypto_unblock(sc->sc_cid, blocked);
 }
 
 static int
@@ -742,40 +749,40 @@ safexcel_enable_pe_engine(struct safexcel_softc *sc, int pe)
 
 static void
 safexcel_execute(struct safexcel_softc *sc, struct safexcel_ring *ring,
-    struct safexcel_request *req)
+    struct safexcel_request *req, int hint)
 {
-	uint32_t ncdescs, nrdescs, nreqs;
-	int ringidx;
+	int ringidx, ncdesc, nrdesc;
 	bool busy;
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
-	ringidx = req->sess->ringidx;
-	if (STAILQ_EMPTY(&ring->ready_requests))
+	if ((hint & CRYPTO_HINT_MORE) != 0) {
+		ring->pending++;
+		ring->pending_cdesc += req->cdescs;
+		ring->pending_rdesc += req->rdescs;
 		return;
-	busy = !STAILQ_EMPTY(&ring->queued_requests);
-	ncdescs = nrdescs = nreqs = 0;
-	while ((req = STAILQ_FIRST(&ring->ready_requests)) != NULL &&
-	    req->cdescs + ncdescs <= SAFEXCEL_MAX_BATCH_SIZE &&
-	    req->rdescs + nrdescs <= SAFEXCEL_MAX_BATCH_SIZE) {
-		STAILQ_REMOVE_HEAD(&ring->ready_requests, link);
-		STAILQ_INSERT_TAIL(&ring->queued_requests, req, link);
-		ncdescs += req->cdescs;
-		nrdescs += req->rdescs;
-		nreqs++;
 	}
+
+	ringidx = req->ringidx;
+
+	busy = ring->queued != 0;
+	ncdesc = ring->pending_cdesc + req->cdescs;
+	nrdesc = ring->pending_rdesc + req->rdescs;
+	ring->queued += ring->pending + 1;
 
 	if (!busy) {
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_THRESH,
-		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | nreqs);
+		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | ring->queued);
 	}
 	SAFEXCEL_WRITE(sc,
 	    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PREP_COUNT,
-	    nrdescs * sc->sc_config.rd_offset * sizeof(uint32_t));
+	    nrdesc * sc->sc_config.rd_offset * sizeof(uint32_t));
 	SAFEXCEL_WRITE(sc,
 	    SAFEXCEL_HIA_CDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PREP_COUNT,
-	    ncdescs * sc->sc_config.cd_offset * sizeof(uint32_t));
+	    ncdesc * sc->sc_config.cd_offset * sizeof(uint32_t));
+
+	ring->pending = ring->pending_cdesc = ring->pending_rdesc = 0;
 }
 
 static void
@@ -783,19 +790,18 @@ safexcel_init_rings(struct safexcel_softc *sc)
 {
 	struct safexcel_cmd_descr *cdesc;
 	struct safexcel_ring *ring;
-	char buf[32];
 	uint64_t atok;
 	int i, j;
 
 	for (i = 0; i < sc->sc_config.rings; i++) {
 		ring = &sc->sc_ring[i];
 
-		snprintf(buf, sizeof(buf), "safexcel_ring%d", i);
-		mtx_init(&ring->mtx, buf, NULL, MTX_DEF);
-		STAILQ_INIT(&ring->free_requests);
-		STAILQ_INIT(&ring->ready_requests);
-		STAILQ_INIT(&ring->queued_requests);
+		snprintf(ring->lockname, sizeof(ring->lockname),
+		    "safexcel_ring%d", i);
+		mtx_init(&ring->mtx, ring->lockname, NULL, MTX_DEF);
 
+		ring->pending = ring->pending_cdesc = ring->pending_rdesc = 0;
+		ring->queued = 0;
 		ring->cdr.read = ring->cdr.write = 0;
 		ring->rdr.read = ring->rdr.write = 0;
 		for (j = 0; j < SAFEXCEL_RING_SIZE; j++) {
@@ -1026,7 +1032,7 @@ safexcel_init_hw(struct safexcel_softc *sc)
 static int
 safexcel_setup_dev_interrupts(struct safexcel_softc *sc)
 {
-	int i, j;
+	int error, i, j;
 
 	for (i = 0; i < SAFEXCEL_MAX_RINGS && sc->sc_intr[i] != NULL; i++) {
 		sc->sc_ih[i].sc = sc;
@@ -1039,6 +1045,11 @@ safexcel_setup_dev_interrupts(struct safexcel_softc *sc)
 			    "couldn't setup interrupt %d\n", i);
 			goto err;
 		}
+
+		error = bus_bind_intr(sc->sc_dev, sc->sc_intr[i], i % mp_ncpus);
+		if (error != 0)
+			device_printf(sc->sc_dev,
+			    "failed to bind ring %d\n", error);
 	}
 
 	return (0);
@@ -1100,8 +1111,6 @@ safexcel_alloc_dev_resources(struct safexcel_softc *sc)
 		goto out;
 	}
 
-	mtx_init(&sc->sc_mtx, "safexcel softc", NULL, MTX_DEF);
-
 	return (0);
 
 out:
@@ -1117,8 +1126,6 @@ static void
 safexcel_free_dev_resources(struct safexcel_softc *sc)
 {
 	int i;
-
-	mtx_destroy(&sc->sc_mtx);
 
 	for (i = 0; i < SAFEXCEL_MAX_RINGS && sc->sc_intr[i] != NULL; i++)
 		bus_release_resource(sc->sc_dev, SYS_RES_IRQ,
@@ -1149,7 +1156,9 @@ safexcel_probe(device_t dev)
 static int
 safexcel_attach(device_t dev)
 {
-	struct sysctl_ctx_list *sctx;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children;
 	struct safexcel_softc *sc;
 	struct safexcel_request *req;
 	struct safexcel_ring *ring;
@@ -1157,7 +1166,6 @@ safexcel_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_blocked = 0;
 	sc->sc_cid = -1;
 
 	if (safexcel_alloc_dev_resources(sc))
@@ -1175,13 +1183,10 @@ safexcel_attach(device_t dev)
 		ring->cmd_data = sglist_alloc(SAFEXCEL_MAX_FRAGMENTS, M_WAITOK);
 		ring->res_data = sglist_alloc(SAFEXCEL_MAX_FRAGMENTS, M_WAITOK);
 
-		ring->requests = mallocarray(SAFEXCEL_REQUESTS_PER_RING,
-		    sizeof(struct safexcel_request), M_SAFEXCEL,
-		    M_WAITOK | M_ZERO);
-
-		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
+		for (i = 0; i < SAFEXCEL_RING_SIZE; i++) {
 			req = &ring->requests[i];
 			req->sc = sc;
+			req->ringidx = ringidx;
 			if (bus_dmamap_create(ring->data_dtag,
 			    BUS_DMA_COHERENT, &req->dmap) != 0) {
 				for (j = 0; j < i; j++)
@@ -1199,14 +1204,32 @@ safexcel_attach(device_t dev)
 				}
 				goto err2;
 			}
-			STAILQ_INSERT_TAIL(&ring->free_requests, req, link);
 		}
 	}
 
-	sctx = device_get_sysctl_ctx(dev);
-	SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	ctx = device_get_sysctl_ctx(dev);
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->sc_debug, 0,
 	    "Debug message verbosity");
+
+	oid = device_get_sysctl_tree(sc->sc_dev);
+	children = SYSCTL_CHILDREN(oid);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	sc->sc_req_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "req_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_req_alloc_failures,
+	    "Number of request allocation failures");
+	sc->sc_cdesc_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "cdesc_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_cdesc_alloc_failures,
+	    "Number of command descriptor ring overflows");
+	sc->sc_rdesc_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "rdesc_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_rdesc_alloc_failures,
+	    "Number of result descriptor ring overflows");
 
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct safexcel_session),
 	    CRYPTOCAP_F_HARDWARE);
@@ -1234,14 +1257,18 @@ safexcel_detach(device_t dev)
 
 	if (sc->sc_cid >= 0)
 		crypto_unregister_all(sc->sc_cid);
+
+	counter_u64_free(sc->sc_req_alloc_failures);
+	counter_u64_free(sc->sc_cdesc_alloc_failures);
+	counter_u64_free(sc->sc_rdesc_alloc_failures);
+
 	for (ringidx = 0; ringidx < sc->sc_config.rings; ringidx++) {
 		ring = &sc->sc_ring[ringidx];
-		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
+		for (i = 0; i < SAFEXCEL_RING_SIZE; i++) {
 			bus_dmamap_destroy(ring->data_dtag,
 			    ring->requests[i].dmap);
 			safexcel_dma_free_mem(&ring->requests[i].ctx);
 		}
-		free(ring->requests, M_SAFEXCEL);
 		sglist_free(ring->cmd_data);
 		sglist_free(ring->res_data);
 	}
@@ -1253,59 +1280,153 @@ safexcel_detach(device_t dev)
 }
 
 /*
- * Populate the request's context record with pre-computed key material.
+ * Pre-compute the hash key used in GHASH, which is a block of zeroes encrypted
+ * using the cipher key.
+ */
+static void
+safexcel_setkey_ghash(const uint8_t *key, int klen, uint32_t *hashkey)
+{
+	uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
+	uint8_t zeros[AES_BLOCK_LEN];
+	int i, rounds;
+
+	memset(zeros, 0, sizeof(zeros));
+
+	rounds = rijndaelKeySetupEnc(ks, key, klen * NBBY);
+	rijndaelEncrypt(ks, rounds, zeros, (uint8_t *)hashkey);
+	for (i = 0; i < GMAC_BLOCK_LEN / sizeof(uint32_t); i++)
+		hashkey[i] = htobe32(hashkey[i]);
+
+	explicit_bzero(ks, sizeof(ks));
+}
+
+/*
+ * Pre-compute the combined CBC-MAC key, which consists of three keys K1, K2, K3
+ * in the hardware implementation.  K1 is the cipher key and comes last in the
+ * buffer since K2 and K3 have a fixed size of AES_BLOCK_LEN.  For now XCBC-MAC
+ * is not implemented so K2 and K3 are fixed.
+ */
+static void
+safexcel_setkey_xcbcmac(const uint8_t *key, int klen, uint32_t *hashkey)
+{
+	int i, off;
+
+	memset(hashkey, 0, 2 * AES_BLOCK_LEN);
+	off = 2 * AES_BLOCK_LEN / sizeof(uint32_t);
+	for (i = 0; i < klen / sizeof(uint32_t); i++, key += 4)
+		hashkey[i + off] = htobe32(le32dec(key));
+}
+
+static void
+safexcel_setkey_hmac_digest(struct auth_hash *ahash, union authctx *ctx,
+    char *buf)
+{
+	int hashwords, i;
+
+	switch (ahash->type) {
+	case CRYPTO_SHA1_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha1ctx.h.b32[i]);
+		break;
+	case CRYPTO_SHA2_224_HMAC:
+		hashwords = auth_hash_hmac_sha2_256.hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha224ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha256ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_384_HMAC:
+		hashwords = auth_hash_hmac_sha2_512.hashsize / sizeof(uint64_t);
+		for (i = 0; i < hashwords; i++)
+			((uint64_t *)buf)[i] = htobe64(ctx->sha384ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_512_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint64_t);
+		for (i = 0; i < hashwords; i++)
+			((uint64_t *)buf)[i] = htobe64(ctx->sha512ctx.state[i]);
+		break;
+	}
+}
+
+/*
+ * Pre-compute the inner and outer digests used in the HMAC algorithm.
+ */
+static void
+safexcel_setkey_hmac(const struct crypto_session_params *csp,
+    const uint8_t *key, int klen, uint8_t *ipad, uint8_t *opad)
+{
+	union authctx ctx;
+	struct auth_hash *ahash;
+
+	ahash = crypto_auth_hash(csp);
+	hmac_init_ipad(ahash, key, klen, &ctx);
+	safexcel_setkey_hmac_digest(ahash, &ctx, ipad);
+	hmac_init_opad(ahash, key, klen, &ctx);
+	safexcel_setkey_hmac_digest(ahash, &ctx, opad);
+	explicit_bzero(&ctx, ahash->ctxsize);
+}
+
+static void
+safexcel_setkey_xts(const uint8_t *key, int klen, uint8_t *tweakkey)
+{
+	memcpy(tweakkey, key + klen, klen);
+}
+
+/*
+ * Populate a context record with paramters from a session.  Some consumers
+ * specify per-request keys, in which case the context must be re-initialized
+ * for each request.
  */
 static int
-safexcel_set_context(struct safexcel_request *req)
+safexcel_set_context(struct safexcel_context_record *ctx, int op,
+    const uint8_t *ckey, const uint8_t *akey, struct safexcel_session *sess)
 {
 	const struct crypto_session_params *csp;
-	struct cryptop *crp;
-	struct safexcel_context_record *ctx;
-	struct safexcel_session *sess;
 	uint8_t *data;
-	int off;
+	uint32_t ctrl0, ctrl1;
+	int aklen, alg, cklen, off;
 
-	crp = req->crp;
-	csp = crypto_get_params(crp->crp_session);
-	sess = req->sess;
+	csp = crypto_get_params(sess->cses);
+	aklen = csp->csp_auth_klen;
+	cklen = csp->csp_cipher_klen;
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		cklen /= 2;
 
-	ctx = (struct safexcel_context_record *)req->ctx.vaddr;
+	ctrl0 = sess->alg | sess->digest | sess->hash;
+	ctrl1 = sess->mode;
+
 	data = (uint8_t *)ctx->data;
 	if (csp->csp_cipher_alg != 0) {
-		if (crp->crp_cipher_key != NULL)
-			memcpy(data, crp->crp_cipher_key, sess->klen);
-		else
-			memcpy(data, csp->csp_cipher_key, sess->klen);
-		off = sess->klen;
+		memcpy(data, ckey, cklen);
+		off = cklen;
 	} else if (csp->csp_auth_alg == CRYPTO_AES_NIST_GMAC) {
-		if (crp->crp_auth_key != NULL)
-			memcpy(data, crp->crp_auth_key, sess->klen);
-		else
-			memcpy(data, csp->csp_auth_key, sess->klen);
-		off = sess->klen;
+		memcpy(data, akey, aklen);
+		off = aklen;
 	} else {
 		off = 0;
 	}
 
 	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_NIST_GCM_16:
-		memcpy(data + off, sess->ghash_key, GMAC_BLOCK_LEN);
+		safexcel_setkey_ghash(ckey, cklen, (uint32_t *)(data + off));
 		off += GMAC_BLOCK_LEN;
 		break;
 	case CRYPTO_AES_CCM_16:
-		memcpy(data + off, sess->xcbc_key,
-		    AES_BLOCK_LEN * 2 + sess->klen);
-		off += AES_BLOCK_LEN * 2 + sess->klen;
+		safexcel_setkey_xcbcmac(ckey, cklen, (uint32_t *)(data + off));
+		off += AES_BLOCK_LEN * 2 + cklen;
 		break;
 	case CRYPTO_AES_XTS:
-		memcpy(data + off, sess->tweak_key, sess->klen);
-		off += sess->klen;
+		safexcel_setkey_xts(ckey, cklen, data + off);
+		off += cklen;
 		break;
 	}
-
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_AES_NIST_GMAC:
-		memcpy(data + off, sess->ghash_key, GMAC_BLOCK_LEN);
+		safexcel_setkey_ghash(akey, aklen, (uint32_t *)(data + off));
 		off += GMAC_BLOCK_LEN;
 		break;
 	case CRYPTO_SHA1_HMAC:
@@ -1313,41 +1434,12 @@ safexcel_set_context(struct safexcel_request *req)
 	case CRYPTO_SHA2_256_HMAC:
 	case CRYPTO_SHA2_384_HMAC:
 	case CRYPTO_SHA2_512_HMAC:
-		memcpy(data + off, sess->hmac_ipad, sess->statelen);
-		off += sess->statelen;
-		memcpy(data + off, sess->hmac_opad, sess->statelen);
-		off += sess->statelen;
+		safexcel_setkey_hmac(csp, akey, aklen,
+		    data + off, data + off + sess->statelen);
+		off += sess->statelen * 2;
 		break;
 	}
-
-	return (off);
-}
-
-/*
- * Populate fields in the first command descriptor of the chain used to encode
- * the specified request.  These fields indicate the algorithms used, the size
- * of the key material stored in the associated context record, the primitive
- * operations to be performed on input data, and the location of the IV if any.
- */
-static void
-safexcel_set_command(struct safexcel_request *req,
-    struct safexcel_cmd_descr *cdesc)
-{
-	const struct crypto_session_params *csp;
-	struct cryptop *crp;
-	struct safexcel_session *sess;
-	uint32_t ctrl0, ctrl1, ctxr_len;
-	int alg;
-
-	crp = req->crp;
-	csp = crypto_get_params(crp->crp_session);
-	sess = req->sess;
-
-	ctrl0 = sess->alg | sess->digest | sess->hash;
-	ctrl1 = sess->mode;
-
-	ctxr_len = safexcel_set_context(req) / sizeof(uint32_t);
-	ctrl0 |= SAFEXCEL_CONTROL0_SIZE(ctxr_len);
+	ctrl0 |= SAFEXCEL_CONTROL0_SIZE(off / sizeof(uint32_t));
 
 	alg = csp->csp_cipher_alg;
 	if (alg == 0)
@@ -1355,7 +1447,7 @@ safexcel_set_command(struct safexcel_request *req,
 
 	switch (alg) {
 	case CRYPTO_AES_CCM_16:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		if (CRYPTO_OP_IS_ENCRYPT(op)) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_HASH_ENCRYPT_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN;
 		} else {
@@ -1368,7 +1460,7 @@ safexcel_set_command(struct safexcel_request *req,
 	case CRYPTO_AES_CBC:
 	case CRYPTO_AES_ICM:
 	case CRYPTO_AES_XTS:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		if (CRYPTO_OP_IS_ENCRYPT(op)) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_CRYPTO_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN;
 			if (csp->csp_auth_alg != 0)
@@ -1383,8 +1475,7 @@ safexcel_set_command(struct safexcel_request *req,
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 	case CRYPTO_AES_NIST_GMAC:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op) ||
-		    csp->csp_auth_alg != 0) {
+		if (CRYPTO_OP_IS_ENCRYPT(op) || csp->csp_auth_alg != 0) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_CRYPTO_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN |
 			    SAFEXCEL_CONTROL0_TYPE_HASH_OUT;
@@ -1415,8 +1506,10 @@ safexcel_set_command(struct safexcel_request *req,
 		break;
 	}
 
-	cdesc->control_data.control0 = ctrl0;
-	cdesc->control_data.control1 = ctrl1;
+	ctx->control0 = ctrl0;
+	ctx->control1 = ctrl1;
+
+	return (off);
 }
 
 /*
@@ -1782,17 +1875,48 @@ static void
 safexcel_set_token(struct safexcel_request *req)
 {
 	const struct crypto_session_params *csp;
+	struct cryptop *crp;
 	struct safexcel_cmd_descr *cdesc;
+	struct safexcel_context_record *ctx;
+	struct safexcel_context_template *ctxtmp;
 	struct safexcel_instr *instr;
 	struct safexcel_softc *sc;
+	const uint8_t *akey, *ckey;
 	int ringidx;
 
-	csp = crypto_get_params(req->crp->crp_session);
+	crp = req->crp;
+	csp = crypto_get_params(crp->crp_session);
 	cdesc = req->cdesc;
 	sc = req->sc;
-	ringidx = req->sess->ringidx;
+	ringidx = req->ringidx;
 
-	safexcel_set_command(req, cdesc);
+	akey = crp->crp_auth_key;
+	ckey = crp->crp_cipher_key;
+	if (akey != NULL || ckey != NULL) {
+		/*
+		 * If we have a per-request key we have to generate the context
+		 * record on the fly.
+		 */
+		if (akey == NULL)
+			akey = csp->csp_auth_key;
+		if (ckey == NULL)
+			ckey = csp->csp_cipher_key;
+		ctx = (struct safexcel_context_record *)req->ctx.vaddr;
+		(void)safexcel_set_context(ctx, crp->crp_op, ckey, akey,
+		    req->sess);
+	} else {
+		/*
+		 * Use the context record template computed at session
+		 * initialization time.
+		 */
+		ctxtmp = CRYPTO_OP_IS_ENCRYPT(crp->crp_op) ?
+		    &req->sess->encctx : &req->sess->decctx;
+		ctx = &ctxtmp->ctx;
+		memcpy(req->ctx.vaddr + 2 * sizeof(uint32_t), ctx->data,
+		    ctxtmp->len);
+	}
+	cdesc->control_data.control0 = ctx->control0;
+	cdesc->control_data.control1 = ctx->control1;
 
 	/*
 	 * For keyless hash operations, the token instructions can be embedded
@@ -2006,7 +2130,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 	crp = req->crp;
 	csp = crypto_get_params(crp->crp_session);
 	sess = req->sess;
-	ring = &req->sc->sc_ring[sess->ringidx];
+	ring = &req->sc->sc_ring[req->ringidx];
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
@@ -2050,7 +2174,8 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		 * length zero.  The EIP97 apparently does not handle
 		 * zero-length packets properly since subsequent requests return
 		 * bogus errors, so provide a dummy segment using the context
-		 * descriptor.
+		 * descriptor.  Also, we must allocate at least one command ring
+		 * entry per request to keep the request shadow ring in sync.
 		 */
 		(void)sglist_append_phys(sg, req->ctx.paddr, 1);
 	}
@@ -2065,7 +2190,8 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		    (uint32_t)inlen, req->ctx.paddr);
 		if (cdesc == NULL) {
 			safexcel_cmd_descr_rollback(ring, i);
-			req->error = EAGAIN;
+			counter_u64_add(req->sc->sc_cdesc_alloc_failures, 1);
+			req->error = ERESTART;
 			return;
 		}
 		if (i == 0)
@@ -2092,7 +2218,8 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 			safexcel_cmd_descr_rollback(ring,
 			    ring->cmd_data->sg_nseg);
 			safexcel_res_descr_rollback(ring, i);
-			req->error = EAGAIN;
+			counter_u64_add(req->sc->sc_rdesc_alloc_failures, 1);
+			req->error = ERESTART;
 			return;
 		}
 	}
@@ -2145,6 +2272,9 @@ safexcel_probe_cipher(const struct crypto_session_params *csp)
 static int
 safexcel_probesession(device_t dev, const struct crypto_session_params *csp)
 {
+	if (csp->csp_flags != 0)
+		return (EINVAL);
+
 	switch (csp->csp_mode) {
 	case CSP_MODE_CIPHER:
 		if (!safexcel_probe_cipher(csp))
@@ -2211,153 +2341,6 @@ safexcel_probesession(device_t dev, const struct crypto_session_params *csp)
 	}
 
 	return (CRYPTODEV_PROBE_HARDWARE);
-}
-
-/*
- * Pre-compute the hash key used in GHASH, which is a block of zeroes encrypted
- * using the cipher key.
- */
-static void
-safexcel_setkey_ghash(struct safexcel_session *sess, const uint8_t *key,
-    int klen)
-{
-	uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
-	uint8_t zeros[AES_BLOCK_LEN];
-	int i, rounds;
-
-	memset(zeros, 0, sizeof(zeros));
-
-	rounds = rijndaelKeySetupEnc(ks, key, klen * NBBY);
-	rijndaelEncrypt(ks, rounds, zeros, (uint8_t *)sess->ghash_key);
-	for (i = 0; i < GMAC_BLOCK_LEN / sizeof(uint32_t); i++)
-		sess->ghash_key[i] = htobe32(sess->ghash_key[i]);
-
-	explicit_bzero(ks, sizeof(ks));
-}
-
-/*
- * Pre-compute the combined CBC-MAC key, which consists of three keys K1, K2, K3
- * in the hardware implementation.  K1 is the cipher key and comes last in the
- * buffer since K2 and K3 have a fixed size of AES_BLOCK_LEN.  For now XCBC-MAC
- * is not implemented so K2 and K3 are fixed.
- */
-static void
-safexcel_setkey_xcbcmac(struct safexcel_session *sess, const uint8_t *key,
-    int klen)
-{
-	int i, off;
-
-	memset(sess->xcbc_key, 0, sizeof(sess->xcbc_key));
-	off = 2 * AES_BLOCK_LEN / sizeof(uint32_t);
-	for (i = 0; i < klen / sizeof(uint32_t); i++, key += 4)
-		sess->xcbc_key[i + off] = htobe32(le32dec(key));
-}
-
-static void
-safexcel_setkey_hmac_digest(struct auth_hash *ahash, union authctx *ctx,
-    char *buf)
-{
-	int hashwords, i;
-
-	switch (ahash->type) {
-	case CRYPTO_SHA1_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha1ctx.h.b32[i]);
-		break;
-	case CRYPTO_SHA2_224_HMAC:
-		hashwords = auth_hash_hmac_sha2_256.hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha224ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_256_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha256ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_384_HMAC:
-		hashwords = auth_hash_hmac_sha2_512.hashsize / sizeof(uint64_t);
-		for (i = 0; i < hashwords; i++)
-			((uint64_t *)buf)[i] = htobe64(ctx->sha384ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_512_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint64_t);
-		for (i = 0; i < hashwords; i++)
-			((uint64_t *)buf)[i] = htobe64(ctx->sha512ctx.state[i]);
-		break;
-	}
-}
-
-/*
- * Pre-compute the inner and outer digests used in the HMAC algorithm.
- */
-static void
-safexcel_setkey_hmac(const struct crypto_session_params *csp,
-    struct safexcel_session *sess, const uint8_t *key, int klen)
-{
-	union authctx ctx;
-	struct auth_hash *ahash;
-
-	ahash = crypto_auth_hash(csp);
-	hmac_init_ipad(ahash, key, klen, &ctx);
-	safexcel_setkey_hmac_digest(ahash, &ctx, sess->hmac_ipad);
-	hmac_init_opad(ahash, key, klen, &ctx);
-	safexcel_setkey_hmac_digest(ahash, &ctx, sess->hmac_opad);
-	explicit_bzero(&ctx, ahash->ctxsize);
-}
-
-static void
-safexcel_setkey_xts(struct safexcel_session *sess, const uint8_t *key, int klen)
-{
-	memcpy(sess->tweak_key, key + klen / 2, klen / 2);
-}
-
-static void
-safexcel_setkey(struct safexcel_session *sess,
-    const struct crypto_session_params *csp, struct cryptop *crp)
-{
-	const uint8_t *akey, *ckey;
-	int aklen, cklen;
-
-	aklen = csp->csp_auth_klen;
-	cklen = csp->csp_cipher_klen;
-	akey = ckey = NULL;
-	if (crp != NULL) {
-		akey = crp->crp_auth_key;
-		ckey = crp->crp_cipher_key;
-	}
-	if (akey == NULL)
-		akey = csp->csp_auth_key;
-	if (ckey == NULL)
-		ckey = csp->csp_cipher_key;
-
-	sess->klen = cklen;
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_AES_NIST_GCM_16:
-		safexcel_setkey_ghash(sess, ckey, cklen);
-		break;
-	case CRYPTO_AES_CCM_16:
-		safexcel_setkey_xcbcmac(sess, ckey, cklen);
-		break;
-	case CRYPTO_AES_XTS:
-		safexcel_setkey_xts(sess, ckey, cklen);
-		sess->klen /= 2;
-		break;
-	}
-
-	switch (csp->csp_auth_alg) {
-	case CRYPTO_SHA1_HMAC:
-	case CRYPTO_SHA2_224_HMAC:
-	case CRYPTO_SHA2_256_HMAC:
-	case CRYPTO_SHA2_384_HMAC:
-	case CRYPTO_SHA2_512_HMAC:
-		safexcel_setkey_hmac(csp, sess, akey, aklen);
-		break;
-	case CRYPTO_AES_NIST_GMAC:
-		sess->klen = aklen;
-		safexcel_setkey_ghash(sess, akey, aklen);
-		break;
-	}
 }
 
 static uint32_t
@@ -2469,6 +2452,7 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 
 	sc = device_get_softc(dev);
 	sess = crypto_get_driver_session(cses);
+	sess->cses = cses;
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1:
@@ -2532,11 +2516,15 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 	if (csp->csp_auth_mlen != 0)
 		sess->digestlen = csp->csp_auth_mlen;
 
-	safexcel_setkey(sess, csp, NULL);
-
-	/* Bind each session to a fixed ring to minimize lock contention. */
-	sess->ringidx = atomic_fetchadd_int(&sc->sc_ringidx, 1);
-	sess->ringidx %= sc->sc_config.rings;
+	if ((csp->csp_cipher_alg == 0 || csp->csp_cipher_key != NULL) &&
+	    (csp->csp_auth_alg == 0 || csp->csp_auth_key != NULL)) {
+		sess->encctx.len = safexcel_set_context(&sess->encctx.ctx,
+		    CRYPTO_OP_ENCRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+		    sess);
+		sess->decctx.len = safexcel_set_context(&sess->decctx.ctx,
+		    CRYPTO_OP_DECRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+		    sess);
+	}
 
 	return (0);
 }
@@ -2562,17 +2550,13 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 		return (0);
 	}
 
-	if (crp->crp_cipher_key != NULL || crp->crp_auth_key != NULL)
-		safexcel_setkey(sess, csp, crp);
-
-	ring = &sc->sc_ring[sess->ringidx];
+	ring = &sc->sc_ring[curcpu % sc->sc_config.rings];
 	mtx_lock(&ring->mtx);
 	req = safexcel_alloc_request(sc, ring);
-        if (__predict_false(req == NULL)) {
-		mtx_lock(&sc->sc_mtx);
+	if (__predict_false(req == NULL)) {
+		ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
-		sc->sc_blocked = CRYPTO_SYMQ;
-		mtx_unlock(&sc->sc_mtx);
+		counter_u64_add(sc->sc_req_alloc_failures, 1);
 		return (ERESTART);
 	}
 
@@ -2584,10 +2568,16 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	error = safexcel_create_chain(ring, req);
 	if (__predict_false(error != 0)) {
 		safexcel_free_request(ring, req);
+		if (error == ERESTART)
+			ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
-		crp->crp_etype = error;
-		crypto_done(crp);
-		return (0);
+		if (error != ERESTART) {
+			crp->crp_etype = error;
+			crypto_done(crp);
+			return (0);
+		} else {
+			return (ERESTART);
+		}
 	}
 
 	safexcel_set_token(req);
@@ -2603,10 +2593,8 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	bus_dmamap_sync(ring->rdr.dma.tag, ring->rdr.dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	safexcel_enqueue_request(sc, ring, req);
+	safexcel_execute(sc, ring, req, hint);
 
-	if ((hint & CRYPTO_HINT_MORE) == 0)
-		safexcel_execute(sc, ring, req);
 	mtx_unlock(&ring->mtx);
 
 	return (0);

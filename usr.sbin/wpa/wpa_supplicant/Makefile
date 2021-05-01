@@ -14,8 +14,8 @@ PROG=	wpa_supplicant
 SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
 	config.c config_file.c \
 	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
-	dh_groups.c driver_bsd.c driver_common.c \
-	driver_ndis.c driver_wired.c driver_wired_common.c drivers.c \
+	driver_bsd.c driver_common.c \
+	driver_wired.c driver_wired_common.c drivers.c \
 	eap_register.c eloop.c \
 	events.c gas.c gas_query.c \
 	http_client.c http_server.c \
@@ -24,8 +24,7 @@ SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
 	notify.c offchannel.c op_classes.c os_unix.c pmksa_cache.c preauth.c \
 	rrm.c scan.c upnp_xml.c \
 	wmm_ac.c wpa.c wpa_common.c wpa_ctrl.c \
-	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c \
-	Packet32.c
+	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
@@ -38,7 +37,6 @@ FILES=	wpa_supplicant.conf
 CFLAGS+=-DCONFIG_BACKEND_FILE \
 	-DCONFIG_DEBUG_SYSLOG \
 	-DCONFIG_DRIVER_BSD \
-	-DCONFIG_DRIVER_NDIS \
 	-DCONFIG_DRIVER_WIRED \
 	-DCONFIG_GAS \
 	-DCONFIG_IEEE80211R \

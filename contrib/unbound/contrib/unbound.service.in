@@ -42,9 +42,9 @@
 [Unit]
 Description=Validating, recursive, and caching DNS resolver
 Documentation=man:unbound(8)
-After=network.target
-Before=network-online.target nss-lookup.target
-Wants=nss-lookup.target
+After=network-online.target
+Before=nss-lookup.target
+Wants=network-online.target nss-lookup.target
 
 [Install]
 WantedBy=multi-user.target
@@ -66,7 +66,7 @@ ProtectSystem=strict
 RuntimeDirectory=unbound
 ConfigurationDirectory=unbound
 StateDirectory=unbound
-RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
 RestrictRealtime=true
 SystemCallArchitectures=native
 SystemCallFilter=~@clock @cpu-emulation @debug @keyring @module mount @obsolete @resources

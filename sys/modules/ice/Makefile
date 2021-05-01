@@ -10,6 +10,6 @@ SRCS    += ice_iflib_recovery_txrx.c ice_iflib_txrx.c if_ice_iflib.c
 
 # Shared source
 SRCS    += ice_common.c ice_controlq.c ice_dcb.c ice_flex_pipe.c ice_flow.c
-SRCS    += ice_nvm.c ice_sched.c ice_sriov.c ice_switch.c
+SRCS    += ice_nvm.c ice_sched.c ice_sriov.c ice_switch.c ice_vlan_mode.c
 
 .include <bsd.kmod.mk>

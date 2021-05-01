@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <backend/fs.h>
 
 #include "bhyverun.h"
+#include "config.h"
+#include "debug.h"
 #include "pci_emul.h"
 #include "virtio.h"
 
@@ -195,85 +197,90 @@ pci_vt9p_notify(void *vsc, struct vqueue_info *vq)
 	struct iovec iov[VT9P_MAX_IOV];
 	struct pci_vt9p_softc *sc;
 	struct pci_vt9p_request *preq;
-	uint16_t idx, n, i;
-	uint16_t flags[VT9P_MAX_IOV];
+	struct vi_req req;
+	uint16_t n;
 
 	sc = vsc;
 
 	while (vq_has_descs(vq)) {
-		n = vq_getchain(vq, &idx, iov, VT9P_MAX_IOV, flags);
+		n = vq_getchain(vq, iov, VT9P_MAX_IOV, &req);
 		preq = calloc(1, sizeof(struct pci_vt9p_request));
 		preq->vsr_sc = sc;
-		preq->vsr_idx = idx;
+		preq->vsr_idx = req.idx;
 		preq->vsr_iov = iov;
 		preq->vsr_niov = n;
-		preq->vsr_respidx = 0;
-
-		/* Count readable descriptors */
-		for (i = 0; i < n; i++) {
-			if (flags[i] & VRING_DESC_F_WRITE)
-				break;
-
-			preq->vsr_respidx++;
-		}
+		preq->vsr_respidx = req.readable;
 
 		for (int i = 0; i < n; i++) {
 			DPRINTF(("vt9p: vt9p_notify(): desc%d base=%p, "
-			    "len=%zu, flags=0x%04x\r\n", i, iov[i].iov_base,
-			    iov[i].iov_len, flags[i]));
+			    "len=%zu\r\n", i, iov[i].iov_base,
+			    iov[i].iov_len));
 		}
 
 		l9p_connection_recv(sc->vsc_conn, iov, preq->vsr_respidx, preq);
 	}
 }
 
-
 static int
-pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_vt9p_legacy_config(nvlist_t *nvl, const char *opts)
 {
-	struct pci_vt9p_softc *sc;
-	char *opt;
-	char *sharename = NULL;
-	char *rootpath = NULL;
-	int rootfd;
-	bool ro = false;
-	cap_rights_t rootcap;
+	char *sharename = NULL, *tofree, *token, *tokens;
 
-	if (opts == NULL) {
-		printf("virtio-9p: share name and path required\n");
-		return (1);
-	}
+	if (opts == NULL)
+		return (0);
 
-	while ((opt = strsep(&opts, ",")) != NULL) {
-		if (strchr(opt, '=') != NULL) {
+	tokens = tofree = strdup(opts);
+	while ((token = strsep(&tokens, ",")) != NULL) {
+		if (strchr(token, '=') != NULL) {
 			if (sharename != NULL) {
-				printf("virtio-9p: more than one share name given\n");
-				return (1);
+				EPRINTLN(
+			    "virtio-9p: more than one share name given");
+				return (-1);
 			}
 
-			sharename = strsep(&opt, "=");
-			rootpath = opt;
-			continue;
-		}
+			sharename = strsep(&token, "=");
+			set_config_value_node(nvl, "sharename", sharename);
+			set_config_value_node(nvl, "path", token);
+		} else
+			set_config_bool_node(nvl, token, true);
+	}
+	free(tofree);
+	return (0);
+}
 
-		if (strcmp(opt, "ro") == 0) {
-			DPRINTF(("read-only mount requested\r\n"));
-			ro = true;
-			continue;
-		}
+static int
+pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
+{
+	struct pci_vt9p_softc *sc;
+	const char *value;
+	const char *sharename;
+	int rootfd;
+	bool ro;
+	cap_rights_t rootcap;
 
-		printf("virtio-9p: invalid option '%s'\n", opt);
+	ro = get_config_bool_node_default(nvl, "ro", false);
+
+	value = get_config_value_node(nvl, "path");
+	if (value == NULL) {
+		EPRINTLN("virtio-9p: path required");
 		return (1);
 	}
-
-	if (strlen(sharename) > VT9P_MAXTAGSZ) {
-		printf("virtio-9p: share name too long\n");
-		return (1);
-	}
-
-	rootfd = open(rootpath, O_DIRECTORY);
-	if (rootfd < 0)
+	rootfd = open(value, O_DIRECTORY);
+	if (rootfd < 0) {
+		EPRINTLN("virtio-9p: failed to open '%s': %s", value,
+		    strerror(errno));
 		return (-1);
+	}
+
+	sharename = get_config_value_node(nvl, "sharename");
+	if (sharename == NULL) {
+		EPRINTLN("virtio-9p: share name required");
+		return (1);
+	}
+	if (strlen(sharename) > VT9P_MAXTAGSZ) {
+		EPRINTLN("virtio-9p: share name too long");
+		return (1);
+	}
 
 	sc = calloc(1, sizeof(struct pci_vt9p_softc));
 	sc->vsc_config = calloc(1, sizeof(struct pci_vt9p_config) +
@@ -325,7 +332,7 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_9P);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
-	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_9P);
+	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_ID_9P);
 	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
 	if (vi_intr_init(&sc->vsc_vs, 1, fbsdrun_virtio_msix()))
@@ -337,6 +344,7 @@ pci_vt9p_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 struct pci_devemu pci_de_v9p = {
 	.pe_emu =	"virtio-9p",
+	.pe_legacy_config = pci_vt9p_legacy_config,
 	.pe_init =	pci_vt9p_init,
 	.pe_barwrite =	vi_pci_write,
 	.pe_barread =	vi_pci_read

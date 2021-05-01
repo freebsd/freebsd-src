@@ -30,8 +30,6 @@ __FBSDID("$FreeBSD$");
 
 static uint64_t zfs_crc64_table[256];
 
-#define	ECKSUM	666
-
 #define	ASSERT3S(x, y, z)	((void)0)
 #define	ASSERT3U(x, y, z)	((void)0)
 #define	ASSERT3P(x, y, z)	((void)0)
@@ -107,6 +105,11 @@ typedef struct zio_checksum_info {
 #include "sha256.c"
 #include "skein_zfs.c"
 
+#ifdef HAS_ZSTD_ZFS
+extern int zfs_zstd_decompress(void *s_start, void *d_start, size_t s_len,
+    size_t d_len, int n);
+#endif
+
 static zio_checksum_info_t zio_checksum_table[ZIO_CHECKSUM_FUNCTIONS] = {
 	{{NULL, NULL}, NULL, NULL, 0, "inherit"},
 	{{NULL, NULL}, NULL, NULL, 0, "on"},
@@ -181,6 +184,9 @@ static zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
 	{NULL,			NULL,			9,	"gzip-9"},
 	{NULL,			zle_decompress,		64,	"zle"},
 	{NULL,			lz4_decompress,		0,	"lz4"},
+#ifdef HAS_ZSTD_ZFS
+	{NULL,			zfs_zstd_decompress, ZIO_ZSTD_LEVEL_DEFAULT, "zstd"}
+#endif
 };
 
 static void

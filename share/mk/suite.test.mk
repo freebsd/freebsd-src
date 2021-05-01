@@ -77,7 +77,7 @@ Kyuafile: Makefile
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
-KYUA= ${LOCALBASE}/bin/kyua
+KYUA?=	kyua
 
 # Definition of the "make check" target and supporting variables.
 #
@@ -90,13 +90,13 @@ KYUA= ${LOCALBASE}/bin/kyua
 # report bogus results unless the new binaries are put in place.
 
 realcheck: .PHONY
-	@if [ ! -x ${KYUA} ]; then \
+	@if ! which -s "${KYUA}"; then \
 		echo; \
 		echo "kyua binary not installed at expected location (${.TARGET})"; \
 		echo; \
 		echo "Please install via pkg install, or specify the path to the kyua"; \
-		echo "package via the \$${LOCALBASE} variable, e.g. "; \
-		echo "LOCALBASE=\"${LOCALBASE}\""; \
+		echo "binary via the \$${KYUA} variable, e.g., "; \
+		echo "KYUA=\"${LOCALBASE}/bin/kyua\""; \
 		false; \
 	fi
 	@env ${TESTS_ENV:Q} ${KYUA} test -k ${DESTDIR}${TESTSDIR}/Kyuafile

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2017
+.Dd October 11, 2020
 .Dt NTB_HW_INTEL 4
 .Os
 .Sh NAME
@@ -50,16 +50,18 @@ The
 driver provides support for the Non-Transparent Bridge (NTB) hardware in
 Intel Xeon E3/E5 and S1200 processor families, which allow one of their PCIe
 ports to be switched from transparent to non-transparent bridge mode.
-In this mode bridge looks not as a PCI bridge, but as PCI endpoint device.
+In this mode the bridge looks not like a PCI bridge, but like a PCI endpoint
+device.
 The driver hides hardware details, exposing memory windows, scratchpads
-and doorbells of the other side via hardware independent KPI to
+and doorbells of the other side via a hardware independent KPI to the
 .Xr ntb 4
 subsystem.
 .Pp
 The hardware provides 2 or 3 memory windows to the other system's memory,
-16 scratchpad registers and 14 or 34 doorbells to interrupt the other system.
-On Xeon processors one of memory windows is typically consumed by the driver
-itself to workaround multiple hardware erratas.
+16 scratchpad registers and 14, 31 or 34 doorbells to interrupt the other
+system, depending on the platform.
+On Xeon processors one of the memory windows is typically consumed by the driver
+itself to work around multiple hardware errata.
 .Sh CONFIGURATION
 The NTB configuration should be set by BIOS.
 It includes enabling NTB, choosing between NTB-to-NTB (back-to-back) or
@@ -67,9 +69,10 @@ NTB-to-Root Port mode,
 enabling split BAR mode (one of two 64-bit BARs can be split into two 32-bit
 ones) and configuring BAR sizes in bits (from 12 to 29/39) for both NTB sides.
 .Pp
-The recommended configuration is NTB-to-NTB mode, split bar is enabled and
-all BAR sizes are set to 20 (1 MiB).
+The recommended configuration is NTB-to-NTB mode, split bar enabled and
+all BAR sizes set to 20 (1 MiB).
 This needs to be done on both systems.
+Note, on Xeon SkyLake and newer platforms, split bar mode is not available.
 .Sh SEE ALSO
 .Xr if_ntb 4 ,
 .Xr ntb_transport 4 ,

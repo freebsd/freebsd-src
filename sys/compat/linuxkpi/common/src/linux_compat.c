@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/time.h>
 #include <sys/user.h>
 
 #include <vm/vm.h>
@@ -98,6 +99,12 @@ SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 int linuxkpi_debug;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug, 0, "Set to enable pr_debug() prints. Clear to disable.");
+
+static struct timeval lkpi_net_lastlog;
+static int lkpi_net_curpps;
+static int lkpi_net_maxpps = 99;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, net_ratelimit, CTLFLAG_RWTUN,
+    &lkpi_net_maxpps, 0, "Limit number of LinuxKPI net messages per second.");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -422,22 +429,15 @@ linux_kq_unlock(void *arg)
 }
 
 static void
-linux_kq_lock_owned(void *arg)
+linux_kq_assert_lock(void *arg, int what)
 {
 #ifdef INVARIANTS
 	spinlock_t *s = arg;
 
-	mtx_assert(&s->m, MA_OWNED);
-#endif
-}
-
-static void
-linux_kq_lock_unowned(void *arg)
-{
-#ifdef INVARIANTS
-	spinlock_t *s = arg;
-
-	mtx_assert(&s->m, MA_NOTOWNED);
+	if (what == LA_LOCKED)
+		mtx_assert(&s->m, MA_OWNED);
+	else
+		mtx_assert(&s->m, MA_NOTOWNED);
 #endif
 }
 
@@ -457,8 +457,7 @@ linux_file_alloc(void)
 	/* setup fields needed by kqueue support */
 	spin_lock_init(&filp->f_kqlock);
 	knlist_init(&filp->f_selinfo.si_note, &filp->f_kqlock,
-	    linux_kq_lock, linux_kq_unlock,
-	    linux_kq_lock_owned, linux_kq_lock_unowned);
+	    linux_kq_lock, linux_kq_unlock, linux_kq_assert_lock);
 
 	return (filp);
 }
@@ -718,15 +717,19 @@ linux_get_fop(struct linux_file *filp, const struct file_operations **fop,
 	ldev = filp->f_cdev;
 	*fop = filp->f_op;
 	if (ldev != NULL) {
-		for (siref = ldev->siref;;) {
-			if ((siref & LDEV_SI_DTR) != 0) {
-				ldev = &dummy_ldev;
-				siref = ldev->siref;
-				*fop = ldev->ops;
-				MPASS((ldev->siref & LDEV_SI_DTR) == 0);
-			} else if (atomic_fcmpset_int(&ldev->siref, &siref,
-			    siref + LDEV_SI_REF)) {
-				break;
+		if (ldev->kobj.ktype == &linux_cdev_static_ktype) {
+			refcount_acquire(&ldev->refs);
+		} else {
+			for (siref = ldev->siref;;) {
+				if ((siref & LDEV_SI_DTR) != 0) {
+					ldev = &dummy_ldev;
+					*fop = ldev->ops;
+					siref = ldev->siref;
+					MPASS((ldev->siref & LDEV_SI_DTR) == 0);
+				} else if (atomic_fcmpset_int(&ldev->siref,
+				    &siref, siref + LDEV_SI_REF)) {
+					break;
+				}
 			}
 		}
 	}
@@ -739,8 +742,13 @@ linux_drop_fop(struct linux_cdev *ldev)
 
 	if (ldev == NULL)
 		return;
-	MPASS((ldev->siref & ~LDEV_SI_DTR) != 0);
-	atomic_subtract_int(&ldev->siref, LDEV_SI_REF);
+	if (ldev->kobj.ktype == &linux_cdev_static_ktype) {
+		linux_cdev_deref(ldev);
+	} else {
+		MPASS(ldev->kobj.ktype == &linux_cdev_ktype);
+		MPASS((ldev->siref & ~LDEV_SI_DTR) != 0);
+		atomic_subtract_int(&ldev->siref, LDEV_SI_REF);
+	}
 }
 
 #define	OPW(fp,td,code) ({			\
@@ -1521,8 +1529,9 @@ linux_file_close(struct file *file, struct thread *td)
 	if (filp->f_vnode != NULL)
 		vdrop(filp->f_vnode);
 	linux_drop_fop(ldev);
-	if (filp->f_cdev != NULL)
-		linux_cdev_deref(filp->f_cdev);
+	ldev = filp->f_cdev;
+	if (ldev != NULL)
+		linux_cdev_deref(ldev);
 	kfree(filp);
 
 	return (error);
@@ -1862,8 +1871,8 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
-char *
-kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+static char *
+devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap)
 {
 	unsigned int len;
 	char *p;
@@ -1873,9 +1882,32 @@ kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
 	len = vsnprintf(NULL, 0, fmt, aq);
 	va_end(aq);
 
-	p = kmalloc(len + 1, gfp);
+	if (dev != NULL)
+		p = devm_kmalloc(dev, len + 1, gfp);
+	else
+		p = kmalloc(len + 1, gfp);
 	if (p != NULL)
 		vsnprintf(p, len + 1, fmt, ap);
+
+	return (p);
+}
+
+char *
+kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+{
+
+	return (devm_kvasprintf(NULL, gfp, fmt, ap));
+}
+
+char *
+lkpi_devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = devm_kvasprintf(dev, gfp, fmt, ap);
+	va_end(ap);
 
 	return (p);
 }
@@ -1898,9 +1930,15 @@ linux_timer_callback_wrapper(void *context)
 {
 	struct timer_list *timer;
 
-	linux_set_current(curthread);
-
 	timer = context;
+
+	if (linux_set_current_flags(curthread, M_NOWAIT)) {
+		/* try again later */
+		callout_reset(&timer->callout, 1,
+		    &linux_timer_callback_wrapper, timer);
+		return;
+	}
+
 	timer->function(timer->data);
 }
 
@@ -2170,8 +2208,8 @@ linux_completion_done(struct completion *c)
 static void
 linux_cdev_deref(struct linux_cdev *ldev)
 {
-
-	if (refcount_release(&ldev->refs))
+	if (refcount_release(&ldev->refs) &&
+	    ldev->kobj.ktype == &linux_cdev_ktype)
 		kfree(ldev);
 }
 
@@ -2191,13 +2229,16 @@ linux_cdev_release(struct kobject *kobj)
 static void
 linux_cdev_static_release(struct kobject *kobj)
 {
-	struct linux_cdev *cdev;
-	struct kobject *parent;
+	struct cdev *cdev;
+	struct linux_cdev *ldev;
 
-	cdev = container_of(kobj, struct linux_cdev, kobj);
-	parent = kobj->parent;
-	linux_destroy_dev(cdev);
-	kobject_put(parent);
+	ldev = container_of(kobj, struct linux_cdev, kobj);
+	cdev = ldev->cdev;
+	if (cdev != NULL) {
+		destroy_dev(cdev);
+		ldev->cdev = NULL;
+	}
+	kobject_put(kobj->parent);
 }
 
 void
@@ -2208,6 +2249,8 @@ linux_destroy_dev(struct linux_cdev *ldev)
 		return;
 
 	MPASS((ldev->siref & LDEV_SI_DTR) == 0);
+	MPASS(ldev->kobj.ktype == &linux_cdev_ktype);
+
 	atomic_set_int(&ldev->siref, LDEV_SI_DTR);
 	while ((atomic_load_int(&ldev->siref) & ~LDEV_SI_DTR) != 0)
 		pause("ldevdtr", hz / 4);
@@ -2228,48 +2271,58 @@ static void
 linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.dev = (struct net_device *)ifp;
 	if (linkstate == LINK_STATE_UP)
-		nb->notifier_call(nb, NETDEV_UP, ifp);
+		nb->notifier_call(nb, NETDEV_UP, &ni);
 	else
-		nb->notifier_call(nb, NETDEV_DOWN, ifp);
+		nb->notifier_call(nb, NETDEV_DOWN, &ni);
 }
 
 static void
 linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_REGISTER, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_REGISTER, &ni);
 }
 
 static void
 linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_UNREGISTER, &ni);
 }
 
 static void
 linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_CHANGEADDR, &ni);
 }
 
 static void
 linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
 {
 	struct notifier_block *nb;
+	struct netdev_notifier_info ni;
 
 	nb = arg;
-	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
+	ni.dev = (struct net_device *)ifp;
+	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, &ni);
 }
 
 int
@@ -2369,7 +2422,8 @@ linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
-	linux_set_current(curthread);
+	if (linux_set_current_flags(curthread, M_NOWAIT))
+		return;
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
@@ -2487,6 +2541,14 @@ linux_dump_stack(void)
 	stack_save(&st);
 	stack_print(&st);
 #endif
+}
+
+int
+linuxkpi_net_ratelimit(void)
+{
+
+	return (ppsratecheck(&lkpi_net_lastlog, &lkpi_net_curpps,
+	   lkpi_net_maxpps));
 }
 
 #if defined(__i386__) || defined(__amd64__)

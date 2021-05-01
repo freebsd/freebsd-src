@@ -1,1 +1,2 @@
+: depsrc-exec.mk: This is always executed.
 exit status 0

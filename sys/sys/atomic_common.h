@@ -58,7 +58,7 @@
 #define	atomic_store_long(p, v)		\
     (*(volatile u_long *)(p) = (u_long)(v))
 #define	atomic_store_ptr(p, v)		\
-    (*(volatile uintptr_t *)(p) = (uintptr_t)(v))
+    (*(volatile __typeof(*p) *)(p) = (v))
 #define	atomic_store_8(p, v)		\
     (*(volatile uint8_t *)(p) = (uint8_t)(v))
 #define	atomic_store_16(p, v)		\
@@ -69,5 +69,15 @@
 #define	atomic_store_64(p, v)		\
     (*(volatile uint64_t *)(p) = (uint64_t)(v))
 #endif
+
+/*
+ * Currently all architectures provide acquire and release fences on their own,
+ * but they don't provide consume. Kludge below allows relevant code to stop
+ * openly resorting to the stronger acquire fence, to be sorted out.
+ */
+#define	atomic_load_consume_ptr(p)	\
+    ((__typeof(*p)) atomic_load_acq_ptr((uintptr_t *)p))
+
+#define	atomic_interrupt_fence()	__compiler_membar()
 
 #endif

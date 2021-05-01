@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
  * arguments.
  */
 
+#include <sys/aio.h>
 #include <sys/capsicum.h>
 #include <sys/types.h>
 #define	_WANT_FREEBSD11_KEVENT
@@ -46,8 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/poll.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
+#include <sys/sched.h>
 #include <sys/socket.h>
 #define _WANT_FREEBSD11_STAT
 #include <sys/stat.h>
@@ -65,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #define _WANT_KERNEL_ERRNO
 #include <errno.h>
 #include <fcntl.h>
-#include <poll.h>
-#include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -84,8 +85,13 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This should probably be in its own file, sorted alphabetically.
+ *
+ * Note: We only scan this table on the initial syscall number to calling
+ * convention lookup, i.e. once each time a new syscall is encountered. This
+ * is unlikely to be a performance issue, but if it is we could sort this array
+ * and use a binary search instead.
  */
-static struct syscall decoded_syscalls[] = {
+static const struct syscall_decode decoded_syscalls[] = {
 	/* Native ABI */
 	{ .name = "__acl_aclcheck_fd", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Acltype, 1 }, { Ptr, 2 } } },
@@ -125,6 +131,24 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ .name = "access", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Accessmode, 1 } } },
+	{ .name = "aio_cancel", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Aiocb, 1 } } },
+	{ .name = "aio_error", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_fsync", .ret_type = 1, .nargs = 2,
+	  .args = { { AiofsyncOp, 0 }, { Aiocb, 1 } } },
+	{ .name = "aio_mlock", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_read", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_return", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_suspend", .ret_type = 1, .nargs = 3,
+	  .args = { { AiocbArray, 0 }, { Int, 1 }, { Timespec, 2 } } },
+	{ .name = "aio_waitcomplete", .ret_type = 1, .nargs = 2,
+	  .args = { { AiocbPointer | OUT, 0 }, { Timespec, 1 } } },
+	{ .name = "aio_write", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
 	{ .name = "bind", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Socklent, 2 } } },
 	{ .name = "bindat", .ret_type = 1, .nargs = 4,
@@ -324,6 +348,9 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "linkat", .ret_type = 1, .nargs = 5,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 },
 		    { Atflags, 4 } } },
+	{ .name = "lio_listio", .ret_type = 1, .nargs = 4,
+	  .args = { { LioMode, 0 }, { AiocbArray, 1 }, { Int, 2 },
+		    { Sigevent, 3 } } },
 	{ .name = "listen", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Int, 1 } } },
  	{ .name = "lseek", .ret_type = 2, .nargs = 3,
@@ -456,6 +483,10 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Iovec | IN, 1 }, { Int, 2 },
 	            { Sockaddr | IN, 3 }, { Socklent, 4 },
 	            { Sctpsndrcvinfo | IN, 5 }, { Msgflags, 6 } } },
+	{ .name = "sendfile", .ret_type = 1, .nargs = 7,
+	  .args = { { Int, 0 }, { Int, 1 }, { QuadHex, 2 }, { Sizet, 3 },
+		    { Sendfilehdtr, 4 }, { QuadHex | OUT, 5 },
+		    { Sendfileflags, 6 } } },
 	{ .name = "select", .ret_type = 1, .nargs = 5,
 	  .args = { { Int, 0 }, { Fd_set, 1 }, { Fd_set, 2 }, { Fd_set, 3 },
 		    { Timeval, 4 } } },
@@ -680,10 +711,8 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "cloudabi_sys_thread_exit", .ret_type = 1, .nargs = 2,
 	  .args = { { Ptr, 0 }, { CloudABIMFlags, 1 } } },
 	{ .name = "cloudabi_sys_thread_yield", .ret_type = 1, .nargs = 0 },
-
-	{ .name = 0 },
 };
-static STAILQ_HEAD(, syscall) syscalls;
+static STAILQ_HEAD(, syscall) seen_syscalls;
 
 /* Xlat idea taken from strace */
 struct xlat {
@@ -697,7 +726,7 @@ struct xlat {
 static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
-	X(POLLWRBAND) X(POLLINIGNEOF) XEND
+	X(POLLWRBAND) X(POLLINIGNEOF) X(POLLRDHUP) XEND
 };
 
 static struct xlat sigaction_flags[] = {
@@ -711,6 +740,21 @@ static struct xlat linux_socketcall_ops[] = {
 	X(LINUX_SOCKETPAIR) X(LINUX_SEND) X(LINUX_RECV) X(LINUX_SENDTO)
 	X(LINUX_RECVFROM) X(LINUX_SHUTDOWN) X(LINUX_SETSOCKOPT)
 	X(LINUX_GETSOCKOPT) X(LINUX_SENDMSG) X(LINUX_RECVMSG)
+	XEND
+};
+
+static struct xlat lio_modes[] = {
+	X(LIO_WAIT) X(LIO_NOWAIT)
+	XEND
+};
+
+static struct xlat lio_opcodes[] = {
+	X(LIO_WRITE) X(LIO_READ) X(LIO_NOP)
+	XEND
+};
+
+static struct xlat aio_fsync_ops[] = {
+	X(O_SYNC)
 	XEND
 };
 
@@ -888,12 +932,20 @@ print_integer_arg(const char *(*decoder)(int), FILE *fp, int value)
 		fprintf(fp, "%d", value);
 }
 
+static bool
+print_mask_arg_part(bool (*decoder)(FILE *, int, int *), FILE *fp, int value,
+    int *rem)
+{
+
+	return (decoder(fp, value, rem));
+}
+
 static void
 print_mask_arg(bool (*decoder)(FILE *, int, int *), FILE *fp, int value)
 {
 	int rem;
 
-	if (!decoder(fp, value, &rem))
+	if (!print_mask_arg_part(decoder, fp, value, &rem))
 		fprintf(fp, "0x%x", rem);
 	else if (rem != 0)
 		fprintf(fp, "|0x%x", rem);
@@ -911,7 +963,6 @@ print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), FILE *fp,
 		fprintf(fp, "|0x%x", rem);
 }
 
-#ifndef __LP64__
 /*
  * Add argument padding to subsequent system calls after Quad
  * syscall arguments as needed.  This used to be done by hand in the
@@ -920,7 +971,7 @@ print_mask_arg32(bool (*decoder)(FILE *, uint32_t, uint32_t *), FILE *fp,
  * decoding arguments.
  */
 static void
-quad_fixup(struct syscall *sc)
+quad_fixup(struct syscall_decode *sc)
 {
 	int offset, prev;
 	u_int i;
@@ -956,21 +1007,6 @@ quad_fixup(struct syscall *sc)
 		}
 	}
 }
-#endif
-
-void
-init_syscalls(void)
-{
-	struct syscall *sc;
-
-	STAILQ_INIT(&syscalls);
-	for (sc = decoded_syscalls; sc->name != NULL; sc++) {
-#ifndef __LP64__
-		quad_fixup(sc);
-#endif
-		STAILQ_INSERT_HEAD(&syscalls, sc, entries);
-	}
-}
 
 static struct syscall *
 find_syscall(struct procabi *abi, u_int number)
@@ -991,6 +1027,14 @@ add_syscall(struct procabi *abi, u_int number, struct syscall *sc)
 {
 	struct extra_syscall *es;
 
+	/*
+	 * quad_fixup() is currently needed for all 32-bit ABIs.
+	 * TODO: This should probably be a function pointer inside struct
+	 *  procabi instead.
+	 */
+	if (abi->pointer_size == 4)
+		quad_fixup(&sc->decode);
+
 	if (number < nitems(abi->syscalls)) {
 		assert(abi->syscalls[number] == NULL);
 		abi->syscalls[number] = sc;
@@ -1000,6 +1044,8 @@ add_syscall(struct procabi *abi, u_int number, struct syscall *sc)
 		es->number = number;
 		STAILQ_INSERT_TAIL(&abi->extra_syscalls, es, entries);
 	}
+
+	STAILQ_INSERT_HEAD(&seen_syscalls, sc, entries);
 }
 
 /*
@@ -1010,24 +1056,37 @@ struct syscall *
 get_syscall(struct threadinfo *t, u_int number, u_int nargs)
 {
 	struct syscall *sc;
+	struct procabi *procabi;
+	const char *sysdecode_name;
+	const char *lookup_name;
 	const char *name;
-	char *new_name;
 	u_int i;
 
-	sc = find_syscall(t->proc->abi, number);
+	procabi = t->proc->abi;
+	sc = find_syscall(procabi, number);
 	if (sc != NULL)
 		return (sc);
 
-	name = sysdecode_syscallname(t->proc->abi->abi, number);
-	if (name == NULL) {
-		asprintf(&new_name, "#%d", number);
-		name = new_name;
-	} else
-		new_name = NULL;
-	STAILQ_FOREACH(sc, &syscalls, entries) {
-		if (strcmp(name, sc->name) == 0) {
+	/* Memory is not explicitly deallocated, it's released on exit(). */
+	sysdecode_name = sysdecode_syscallname(procabi->abi, number);
+	if (sysdecode_name == NULL)
+		asprintf(__DECONST(char **, &name), "#%d", number);
+	else
+		name = sysdecode_name;
+
+	sc = calloc(1, sizeof(*sc));
+	sc->name = name;
+
+	/* Also decode compat syscalls arguments by stripping the prefix. */
+	lookup_name = name;
+	if (procabi->compat_prefix != NULL && strncmp(procabi->compat_prefix,
+	    name, strlen(procabi->compat_prefix)) == 0)
+		lookup_name += strlen(procabi->compat_prefix);
+
+	for (i = 0; i < nitems(decoded_syscalls); i++) {
+		if (strcmp(lookup_name, decoded_syscalls[i].name) == 0) {
+			sc->decode = decoded_syscalls[i];
 			add_syscall(t->proc->abi, number, sc);
-			free(new_name);
 			return (sc);
 		}
 	}
@@ -1037,21 +1096,15 @@ get_syscall(struct threadinfo *t, u_int number, u_int nargs)
 	fprintf(stderr, "unknown syscall %s -- setting args to %d\n", name,
 	    nargs);
 #endif
-
-	sc = calloc(1, sizeof(struct syscall));
-	sc->name = name;
-	if (new_name != NULL)
-		sc->unknown = true;
-	sc->ret_type = 1;
-	sc->nargs = nargs;
+	sc->unknown = sysdecode_name == NULL;
+	sc->decode.ret_type = 1; /* Assume 1 return value. */
+	sc->decode.nargs = nargs;
 	for (i = 0; i < nargs; i++) {
-		sc->args[i].offset = i;
+		sc->decode.args[i].offset = i;
 		/* Treat all unknown arguments as LongHex. */
-		sc->args[i].type = LongHex;
+		sc->decode.args[i].type = LongHex;
 	}
-	STAILQ_INSERT_HEAD(&syscalls, sc, entries);
 	add_syscall(t->proc->abi, number, sc);
-
 	return (sc);
 }
 
@@ -1322,6 +1375,59 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, uintptr_t arg, int iovcnt)
 		fprintf(fp, ",%zu}", iov[i].iov_len);
 	}
 	fprintf(fp, "%s%s", iov_truncated ? ",..." : "", "]");
+}
+
+static void
+print_sigval(FILE *fp, union sigval *sv)
+{
+	fprintf(fp, "{ %d, %p }", sv->sival_int, sv->sival_ptr);
+}
+
+static void
+print_sigevent(FILE *fp, struct sigevent *se)
+{
+	fputs("{ sigev_notify=", fp);
+	switch (se->sigev_notify) {
+	case SIGEV_NONE:
+		fputs("SIGEV_NONE", fp);
+		break;
+	case SIGEV_SIGNAL:
+		fprintf(fp, "SIGEV_SIGNAL, sigev_signo=%s, sigev_value=",
+				strsig2(se->sigev_signo));
+		print_sigval(fp, &se->sigev_value);
+		break;
+	case SIGEV_THREAD:
+		fputs("SIGEV_THREAD, sigev_value=", fp);
+		print_sigval(fp, &se->sigev_value);
+		break;
+	case SIGEV_KEVENT:
+		fprintf(fp, "SIGEV_KEVENT, sigev_notify_kqueue=%d, sigev_notify_kevent_flags=",
+				se->sigev_notify_kqueue);
+		print_mask_arg(sysdecode_kevent_flags, fp, se->sigev_notify_kevent_flags);
+		break;
+	case SIGEV_THREAD_ID:
+		fprintf(fp, "SIGEV_THREAD_ID, sigev_notify_thread_id=%d, sigev_signo=%s, sigev_value=",
+				se->sigev_notify_thread_id, strsig2(se->sigev_signo));
+		print_sigval(fp, &se->sigev_value);
+		break;
+	default:
+		fprintf(fp, "%d", se->sigev_notify);
+		break;
+	}
+	fputs(" }", fp);
+}
+
+static void
+print_aiocb(FILE *fp, struct aiocb *cb)
+{
+	fprintf(fp, "{ %d,%jd,%p,%zu,%s,",
+			cb->aio_fildes,
+			cb->aio_offset,
+			cb->aio_buf,
+			cb->aio_nbytes,
+			xlookup(lio_opcodes, cb->aio_lio_opcode));
+	print_sigevent(fp, &cb->aio_sigevent);
+	fputs(" }", fp);
 }
 
 static void
@@ -1615,7 +1721,7 @@ print_sysctl(FILE *fp, int *oid, size_t len)
  * an array of all of the system call arguments.
  */
 char *
-print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
+print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
     struct trussinfo *trussinfo)
 {
 	FILE *fp;
@@ -1721,12 +1827,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 	case StringArray: {
 		uintptr_t addr;
 		union {
-			char *strarray[0];
+			int32_t strarray32[PAGE_SIZE / sizeof(int32_t)];
+			int64_t strarray64[PAGE_SIZE / sizeof(int64_t)];
 			char buf[PAGE_SIZE];
 		} u;
 		char *string;
 		size_t len;
 		u_int first, i;
+		size_t pointer_size =
+		    trussinfo->curthread->proc->abi->pointer_size;
 
 		/*
 		 * Only parse argv[] and environment arrays from exec calls
@@ -1746,7 +1855,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		 * a partial page.
 		 */
 		addr = args[sc->offset];
-		if (addr % sizeof(char *) != 0) {
+		if (addr % pointer_size != 0) {
 			print_pointer(fp, args[sc->offset]);
 			break;
 		}
@@ -1756,22 +1865,36 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 			print_pointer(fp, args[sc->offset]);
 			break;
 		}
+		assert(len > 0);
 
 		fputc('[', fp);
 		first = 1;
 		i = 0;
-		while (u.strarray[i] != NULL) {
-			string = get_string(pid, (uintptr_t)u.strarray[i], 0);
+		for (;;) {
+			uintptr_t straddr;
+			if (pointer_size == 4) {
+				if (u.strarray32[i] == 0)
+					break;
+				/* sign-extend 32-bit pointers */
+				straddr = (intptr_t)u.strarray32[i];
+			} else if (pointer_size == 8) {
+				if (u.strarray64[i] == 0)
+					break;
+				straddr = (intptr_t)u.strarray64[i];
+			} else {
+				errx(1, "Unsupported pointer size: %zu",
+				    pointer_size);
+			}
+			string = get_string(pid, straddr, 0);
 			fprintf(fp, "%s \"%s\"", first ? "" : ",", string);
 			free(string);
 			first = 0;
 
 			i++;
-			if (i == len / sizeof(char *)) {
+			if (i == len / pointer_size) {
 				addr += len;
 				len = PAGE_SIZE;
-				if (get_struct(pid, addr, u.buf, len) ==
-				    -1) {
+				if (get_struct(pid, addr, u.buf, len) == -1) {
 					fprintf(fp, ", <inval>");
 					break;
 				}
@@ -2107,6 +2230,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 			print_pointer(fp, args[sc->offset]);
 		break;
 	}
+	case Sigevent: {
+		struct sigevent se;
+
+		if (get_struct(pid, args[sc->offset], &se, sizeof(se)) != -1)
+			print_sigevent(fp, &se);
+		else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
 	case Kevent: {
 		/*
 		 * XXX XXX: The size of the array is determined by either the
@@ -2303,9 +2435,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 	case Procctl:
 		print_integer_arg(sysdecode_procctl_cmd, fp, args[sc->offset]);
 		break;
-	case Umtxop:
-		print_integer_arg(sysdecode_umtx_op, fp, args[sc->offset]);
+	case Umtxop: {
+		int rem;
+
+		if (print_mask_arg_part(sysdecode_umtx_op_flags, fp,
+		    args[sc->offset], &rem))
+			fprintf(fp, "|");
+		print_integer_arg(sysdecode_umtx_op, fp, rem);
 		break;
+	}
 	case Atfd:
 		print_integer_arg(sysdecode_atfd, fp, args[sc->offset]);
 		break;
@@ -2467,6 +2605,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		print_integer_arg(sysdecode_kldunload_flags, fp,
 		    args[sc->offset]);
 		break;
+	case AiofsyncOp:
+		fputs(xlookup(aio_fsync_ops, args[sc->offset]), fp);
+		break;
+	case LioMode:
+		fputs(xlookup(lio_modes, args[sc->offset]), fp);
+		break;
 	case Madvice:
 		print_integer_arg(sysdecode_madvice, fp, args[sc->offset]);
 		break;
@@ -2551,6 +2695,24 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		print_integer_arg(sysdecode_ptrace_request, fp,
 		    args[sc->offset]);
 		break;
+	case Sendfileflags:
+		print_mask_arg(sysdecode_sendfile_flags, fp, args[sc->offset]);
+		break;
+	case Sendfilehdtr: {
+		struct sf_hdtr hdtr;
+
+		if (get_struct(pid, args[sc->offset], &hdtr, sizeof(hdtr)) !=
+		    -1) {
+			fprintf(fp, "{");
+			print_iovec(fp, trussinfo, (uintptr_t)hdtr.headers,
+			    hdtr.hdr_cnt);
+			print_iovec(fp, trussinfo, (uintptr_t)hdtr.trailers,
+			    hdtr.trl_cnt);
+			fprintf(fp, "}");
+		} else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
 	case Quotactlcmd:
 		if (!sysdecode_quotactl_cmd(fp, args[sc->offset]))
 			fprintf(fp, "%#x", (int)args[sc->offset]);
@@ -2604,6 +2766,67 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		print_iovec(fp, trussinfo, args[sc->offset],
 		    (int)args[sc->offset + 1]);
 		break;
+	case Aiocb: {
+		struct aiocb cb;
+
+		if (get_struct(pid, args[sc->offset], &cb, sizeof(cb)) != -1)
+			print_aiocb(fp, &cb);
+		else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
+	case AiocbArray: {
+		/*
+		 * Print argment as an array of pointers to struct aiocb, where
+		 * the next syscall argument is the number of elements.
+		 */
+		uintptr_t cbs[16];
+		unsigned int nent;
+		bool truncated;
+
+		nent = args[sc->offset + 1];
+		truncated = false;
+		if (nent > nitems(cbs)) {
+			nent = nitems(cbs);
+			truncated = true;
+		}
+
+		if (get_struct(pid, args[sc->offset], cbs, sizeof(uintptr_t) * nent) != -1) {
+			unsigned int i;
+			fputs("[", fp);
+			for (i = 0; i < nent; ++i) {
+				struct aiocb cb;
+				if (i > 0)
+					fputc(',', fp);
+				if (get_struct(pid, cbs[i], &cb, sizeof(cb)) != -1)
+					print_aiocb(fp, &cb);
+				else
+					print_pointer(fp, cbs[i]);
+			}
+			if (truncated)
+				fputs(",...", fp);
+			fputs("]", fp);
+		} else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
+	case AiocbPointer: {
+		/*
+		 * aio_waitcomplete(2) assigns a pointer to a pointer to struct
+		 * aiocb, so we need to handle the extra layer of indirection.
+		 */
+		uintptr_t cbp;
+		struct aiocb cb;
+
+		if (get_struct(pid, args[sc->offset], &cbp, sizeof(cbp)) != -1) {
+			if (get_struct(pid, cbp, &cb, sizeof(cb)) != -1)
+				print_aiocb(fp, &cb);
+			else
+				print_pointer(fp, cbp);
+		} else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
 	case Sctpsndrcvinfo: {
 		struct sctp_sndrcvinfo info;
 
@@ -2790,7 +3013,7 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 		    strerror(error));
 	}
 #ifndef __LP64__
-	else if (sc->ret_type == 2) {
+	else if (sc->decode.ret_type == 2) {
 		off_t off;
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
@@ -2817,7 +3040,7 @@ print_summary(struct trussinfo *trussinfo)
 	fprintf(trussinfo->outfile, "%-20s%15s%8s%8s\n",
 	    "syscall", "seconds", "calls", "errors");
 	ncall = nerror = 0;
-	STAILQ_FOREACH(sc, &syscalls, entries)
+	STAILQ_FOREACH(sc, &seen_syscalls, entries) {
 		if (sc->ncalls) {
 			fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",
 			    sc->name, (intmax_t)sc->time.tv_sec,
@@ -2826,6 +3049,7 @@ print_summary(struct trussinfo *trussinfo)
 			ncall += sc->ncalls;
 			nerror += sc->nerror;
 		}
+	}
 	fprintf(trussinfo->outfile, "%20s%15s%8s%8s\n",
 	    "", "-------------", "-------", "-------");
 	fprintf(trussinfo->outfile, "%-20s%5jd.%09ld%8d%8d\n",

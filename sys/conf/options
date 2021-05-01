@@ -180,7 +180,6 @@ NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
-NO_EVENTTIMERS		opt_timer.h
 NO_OBSOLETE_CODE	opt_global.h
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_param.h
@@ -230,6 +229,7 @@ ZSTDIO		opt_zstdio.h
 
 # Sanitizers
 COVERAGE	opt_global.h
+KASAN		opt_global.h
 KCOV
 KCSAN		opt_global.h
 KUBSAN		opt_global.h
@@ -453,9 +453,9 @@ MROUTING		opt_mrouting.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
 PF_DEFAULT_TO_DROP	opt_pf.h
-RADIX_MPATH		opt_mpath.h
 ROUTE_MPATH		opt_route.h
 ROUTETABLES		opt_route.h
+FIB_ALGO		opt_route.h
 RSS			opt_rss.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
@@ -571,7 +571,6 @@ TI_JUMBO_HDRSPLIT	opt_ti.h
 # Misc debug flags.  Most of these should probably be replaced with
 # 'DEBUG', and then let people recompile just the interesting modules
 # with 'make CC="cc -DDEBUG"'.
-CLUSTERDEBUG		opt_debug_cluster.h
 DEBUG_1284		opt_ppb_1284.h
 LPT_DEBUG		opt_lpt.h
 PLIP_DEBUG		opt_plip.h
@@ -603,7 +602,7 @@ INVARIANTS		opt_global.h
 KASSERT_PANIC_OPTIONAL	opt_global.h
 MAXCPU			opt_global.h
 MAXMEMDOM		opt_global.h
-MAXPHYS			opt_global.h
+MAXPHYS			opt_maxphys.h
 MCLSHIFT		opt_global.h
 MUTEX_NOINLINE		opt_global.h
 LOCK_PROFILING		opt_global.h
@@ -706,6 +705,7 @@ ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 DEV_ACPI		opt_acpi.h
+ACPI_EARLY_EPYC_WAR	opt_acpi.h
 
 # options for IOMMU support
 IOMMU			opt_iommu.h
@@ -1014,3 +1014,10 @@ AMDSBWD_DEBUG	opt_amdsbwd.h
 # gcov support
 GCOV		opt_global.h
 LINDEBUGFS
+
+# options for HID support
+HID_DEBUG	opt_hid.h
+IICHID_DEBUG	opt_hid.h
+IICHID_SAMPLING	opt_hid.h
+HKBD_DFLT_KEYMAP	opt_hkbd.h
+HIDRAW_MAKE_UHID_ALIAS	opt_hid.h

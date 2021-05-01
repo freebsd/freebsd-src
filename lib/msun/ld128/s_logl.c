@@ -697,14 +697,15 @@ invln10_hi =  4.3429448176175356e-1,		/*  0x1bcb7b15000000.0p-54 */
 invln2_hi =  1.4426950402557850e0;		/*  0x17154765000000.0p-52 */
 static const long double
 invln10_lo =  1.41498268538580090791605082294397000e-10L,	/*  0x137287195355baaafad33dc323ee3.0p-145L */
-invln2_lo =  6.33178418956604368501892137426645911e-10L;	/*  0x15c17f0bbbe87fed0691d3e88eb57.0p-143L */
+invln2_lo =  6.33178418956604368501892137426645911e-10L,	/*  0x15c17f0bbbe87fed0691d3e88eb57.0p-143L */
+invln10_lo_plus_hi = invln10_lo + invln10_hi,
+invln2_lo_plus_hi = invln2_lo + invln2_hi;
 
 long double
 log10l(long double x)
 {
 	struct ld r;
-	long double lo;
-	float hi;
+	long double hi, lo;
 
 	ENTERI();
 	DOPRINT_START(&x);
@@ -712,18 +713,17 @@ log10l(long double x)
 	if (!r.lo_set)
 		RETURNPI(r.hi);
 	_2sumF(r.hi, r.lo);
-	hi = r.hi;
+	hi = (float)r.hi;
 	lo = r.lo + (r.hi - hi);
 	RETURN2PI(invln10_hi * hi,
-	    (invln10_lo + invln10_hi) * lo + invln10_lo * hi);
+	    invln10_lo_plus_hi * lo + invln10_lo * hi);
 }
 
 long double
 log2l(long double x)
 {
 	struct ld r;
-	long double lo;
-	float hi;
+	long double hi, lo;
 
 	ENTERI();
 	DOPRINT_START(&x);
@@ -731,10 +731,10 @@ log2l(long double x)
 	if (!r.lo_set)
 		RETURNPI(r.hi);
 	_2sumF(r.hi, r.lo);
-	hi = r.hi;
+	hi = (float)r.hi;
 	lo = r.lo + (r.hi - hi);
 	RETURN2PI(invln2_hi * hi,
-	    (invln2_lo + invln2_hi) * lo + invln2_lo * hi);
+	    invln2_lo_plus_hi * lo + invln2_lo * hi);
 }
 
 #endif /* STRUCT_RETURN */

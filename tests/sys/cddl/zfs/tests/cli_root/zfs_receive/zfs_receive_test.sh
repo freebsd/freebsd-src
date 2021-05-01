@@ -30,7 +30,7 @@ atf_test_case zfs_receive_001_pos cleanup
 zfs_receive_001_pos_head()
 {
 	atf_set "descr" "Verifying 'zfs receive [<filesystem|snapshot>] -d <filesystem>' works."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_001_pos_body()
 {
@@ -54,7 +54,7 @@ atf_test_case zfs_receive_002_pos cleanup
 zfs_receive_002_pos_head()
 {
 	atf_set "descr" "Verifying 'zfs receive <volume>' works."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_002_pos_body()
 {
@@ -78,7 +78,7 @@ atf_test_case zfs_receive_003_pos cleanup
 zfs_receive_003_pos_head()
 {
 	atf_set "descr" "'zfs recv -F' to force rollback."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_003_pos_body()
 {
@@ -102,7 +102,7 @@ atf_test_case zfs_receive_004_neg cleanup
 zfs_receive_004_neg_head()
 {
 	atf_set "descr" "Verify that invalid parameters to 'zfs receive' are caught."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_004_neg_body()
 {
@@ -126,7 +126,7 @@ atf_test_case zfs_receive_005_neg cleanup
 zfs_receive_005_neg_head()
 {
 	atf_set "descr" "Verify 'zfs receive' fails with unsupported scenarios."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_005_neg_body()
 {
@@ -150,7 +150,7 @@ atf_test_case zfs_receive_006_pos cleanup
 zfs_receive_006_pos_head()
 {
 	atf_set "descr" "'zfs recv -d <fs>' should succeed no matter ancestor filesystemexists."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_006_pos_body()
 {
@@ -174,7 +174,7 @@ atf_test_case zfs_receive_007_neg cleanup
 zfs_receive_007_neg_head()
 {
 	atf_set "descr" "'zfs recv -F' should fail if the incremental stream does not match"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_007_neg_body()
 {
@@ -198,7 +198,7 @@ atf_test_case zfs_receive_008_pos cleanup
 zfs_receive_008_pos_head()
 {
 	atf_set "descr" "Verifying 'zfs receive -vn [<filesystem|snapshot>]and zfs receive -vn -d <filesystem>'"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_008_pos_body()
 {
@@ -222,7 +222,7 @@ atf_test_case zfs_receive_009_neg cleanup
 zfs_receive_009_neg_head()
 {
 	atf_set "descr" "Verify 'zfs receive' fails with bad option, missing or too many arguments"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zfs_receive_009_neg_body()
 {

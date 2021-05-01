@@ -1,0 +1,5 @@
+define i(x){
+
+i(10)
+ibase
+o(10)`0000

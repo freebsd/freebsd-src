@@ -39,19 +39,24 @@
 ENTRY(futex_xchgl)
 	brk #0
 	ret
+END(futex_xchgl)
 
 ENTRY(futex_addl)
 	brk #0
 	ret
+END(futex_addl)
 
 ENTRY(futex_orl)
 	brk #0
 	ret
+END(futex_orl)
 
 ENTRY(futex_andl)
 	brk #0
 	ret
+END(futex_andl)
 
 ENTRY(futex_xorl)
 	brk #0
 	ret
+END(futex_xorl)

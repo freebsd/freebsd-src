@@ -21,7 +21,7 @@ STAGE_TARGETS?=		iso-images-stage
 .endif
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
-. if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
+. if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != "" || ${TARGET:Mriscv*} != ""
 EMBEDDED=		1
 . endif
 .endif
@@ -33,7 +33,7 @@ TLD?=			${FTPDIR}/snapshots
 .if !defined(BUILDDATE) || empty(BUILDDATE)
 BUILDDATE!=		date +%Y%m%d
 .endif
-_SNAP_SUFFIX:=		${BUILDDATE}-${GITREV}
+_SNAP_SUFFIX:=		${BUILDDATE}-${GITREV}-${GITCOUNT}
 .else
 # release
 SNAPSHOT=
@@ -41,7 +41,7 @@ TLD?=			${FTPDIR}/releases
 .endif
 
 .if defined(EMBEDDED) && !empty(EMBEDDED)
-. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marm*} != "" || ${TARGET_ARCH} == "aarch64")
+. if ${TARGET:Marm*} != "" && (${TARGET_ARCH:Marm*} != "" || ${TARGET_ARCH} == "aarch64") || ${TARGET:Mriscv*} != ""
 .  if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
 SNAPSHOT=		1
 .  endif

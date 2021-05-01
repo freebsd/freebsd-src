@@ -33,9 +33,6 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 #if 0
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
@@ -78,7 +75,11 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
+
+ifconfig_handle_t *lifh;
 
 /*
  * Since "struct ifreq" is composed of various union members, callers
@@ -198,7 +199,18 @@ usage(void)
 	exit(1);
 }
 
-#define ORDERS_SIZE(x) sizeof(x) / sizeof(x[0])
+void
+ioctl_ifcreate(int s, struct ifreq *ifr)
+{
+	if (ioctl(s, SIOCIFCREATE2, ifr) < 0) {
+		switch (errno) {
+		case EEXIST:
+			errx(1, "interface %s already exists", ifr->ifr_name);
+		default:
+			err(1, "SIOCIFCREATE2");
+		}
+	}
+}
 
 static int
 calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
@@ -229,7 +241,7 @@ calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 		if (ifa->ifa_addr) {
 			af = ifa->ifa_addr->sa_family;
 
-			if (af < ORDERS_SIZE(cur->af_orders) &&
+			if (af < nitems(cur->af_orders) &&
 			    cur->af_orders[af] == 0)
 				cur->af_orders[af] = ++ord;
 		}
@@ -280,8 +292,7 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 		af1 = a->ifa_addr->sa_family;
 		af2 = b->ifa_addr->sa_family;
 
-		if (af1 < ORDERS_SIZE(e1->af_orders) &&
-		    af2 < ORDERS_SIZE(e1->af_orders))
+		if (af1 < nitems(e1->af_orders) && af2 < nitems(e1->af_orders))
 			return (e1->af_orders[af1] - e1->af_orders[af2]);
 	}
 
@@ -329,8 +340,6 @@ static void setformat(char *input)
 	}
 	free(formatstr);
 }
-
-#undef ORDERS_SIZE
 
 static struct ifaddrs *
 sortifaddrs(struct ifaddrs *list,
@@ -413,6 +422,10 @@ main(int argc, char *argv[])
 	all = downonly = uponly = namesonly = noload = verbose = 0;
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
 	matchgroup = nogroup = NULL;
+
+	lifh = ifconfig_open();
+	if (lifh == NULL)
+		err(EXIT_FAILURE, "ifconfig_open");
 
 	envformat = getenv("IFCONFIG_FORMAT");
 	if (envformat != NULL)
@@ -686,6 +699,7 @@ main(int argc, char *argv[])
 
 done:
 	freeformat();
+	ifconfig_close(lifh);
 	exit(exit_code);
 }
 
@@ -1345,7 +1359,7 @@ unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
 "\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC" \
 "\17TOE4\20TOE6\21VLAN_HWFILTER\23VLAN_HWTSO\24LINKSTATE\25NETMAP" \
 "\26RXCSUM_IPV6\27TXCSUM_IPV6\31TXRTLMT\32HWRXTSTMP\33NOMAP\34TXTLS4\35TXTLS6" \
-"\36VXLAN_HWCSUM\37VXLAN_HWTSO"
+"\36VXLAN_HWCSUM\37VXLAN_HWTSO\40TXTLS_RTLMT"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -1501,7 +1515,7 @@ printb(const char *s, unsigned v, const char *bits)
 		bits++;
 		putchar('<');
 		while ((i = *bits++) != '\0') {
-			if (v & (1 << (i-1))) {
+			if (v & (1u << (i-1))) {
 				if (any)
 					putchar(',');
 				any = 1;
@@ -1645,8 +1659,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-link2",	-IFF_LINK2,	setifflags),
 	DEF_CMD("monitor",	IFF_MONITOR,	setifflags),
 	DEF_CMD("-monitor",	-IFF_MONITOR,	setifflags),
-	DEF_CMD("nomap",	IFCAP_NOMAP,	setifcap),
-	DEF_CMD("-nomap",	-IFCAP_NOMAP,	setifcap),
+	DEF_CMD("mextpg",	IFCAP_MEXTPG,	setifcap),
+	DEF_CMD("-mextpg",	-IFCAP_MEXTPG,	setifcap),
 	DEF_CMD("staticarp",	IFF_STATICARP,	setifflags),
 	DEF_CMD("-staticarp",	-IFF_STATICARP,	setifflags),
 	DEF_CMD("rxcsum6",	IFCAP_RXCSUM_IPV6,	setifcap),
@@ -1685,6 +1699,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-wol_magic",	-IFCAP_WOL_MAGIC,	setifcap),
 	DEF_CMD("txrtlmt",	IFCAP_TXRTLMT,	setifcap),
 	DEF_CMD("-txrtlmt",	-IFCAP_TXRTLMT,	setifcap),
+	DEF_CMD("txtlsrtlmt",	IFCAP_TXTLS_RTLMT,	setifcap),
+	DEF_CMD("-txtlsrtlmt",	-IFCAP_TXTLS_RTLMT,	setifcap),
 	DEF_CMD("hwrxtstmp",	IFCAP_HWRXTSTMP,	setifcap),
 	DEF_CMD("-hwrxtstmp",	-IFCAP_HWRXTSTMP,	setifcap),
 	DEF_CMD("normal",	-IFF_LINK0,	setifflags),

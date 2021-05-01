@@ -13,19 +13,19 @@ typedef struct ipf_tftp_softc_s {
 	ipftuneable_t	*ipf_p_tftp_tune;
 } ipf_tftp_softc_t;
 
-int ipf_p_tftp_backchannel __P((fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_tftp_client __P((ipf_tftp_softc_t *, fr_info_t *, ap_session_t *,
-			   nat_t *));
-int ipf_p_tftp_in __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_tftp_main_load __P((void));
-void ipf_p_tftp_main_unload __P((void));
-int ipf_p_tftp_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_tftp_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_tftp_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_tftp_server __P((ipf_tftp_softc_t *, fr_info_t *, ap_session_t *,
-			   nat_t *));
-void *ipf_p_tftp_soft_create __P((ipf_main_softc_t *));
-void ipf_p_tftp_soft_destroy __P((ipf_main_softc_t *, void *));
+int ipf_p_tftp_backchannel(fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_tftp_client(ipf_tftp_softc_t *, fr_info_t *, ap_session_t *,
+			   nat_t *);
+int ipf_p_tftp_in(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_tftp_main_load(void);
+void ipf_p_tftp_main_unload(void);
+int ipf_p_tftp_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_tftp_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_tftp_out(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_tftp_server(ipf_tftp_softc_t *, fr_info_t *, ap_session_t *,
+			   nat_t *);
+void *ipf_p_tftp_soft_create(ipf_main_softc_t *);
+void ipf_p_tftp_soft_destroy(ipf_main_softc_t *, void *);
 
 static	frentry_t	tftpfr;
 static	int		tftp_proxy_init = 0;

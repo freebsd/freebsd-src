@@ -107,6 +107,7 @@ static const uint64_t kMIPS64_ShadowOffset64 = 1ULL << 37;
 static const uint64_t kAArch64_ShadowOffset64 = 1ULL << 36;
 static const uint64_t kFreeBSD_ShadowOffset32 = 1ULL << 30;
 static const uint64_t kFreeBSD_ShadowOffset64 = 1ULL << 46;
+static const uint64_t kFreeBSDKasan_ShadowOffset64 = 0xdffff7c000000000;
 static const uint64_t kNetBSD_ShadowOffset32 = 1ULL << 30;
 static const uint64_t kNetBSD_ShadowOffset64 = 1ULL << 46;
 static const uint64_t kNetBSDKasan_ShadowOffset64 = 0xdfff900000000000;
@@ -489,9 +490,12 @@ static ShadowMapping getShadowMapping(Triple &TargetTriple, int LongSize,
       Mapping.Offset = kPPC64_ShadowOffset64;
     else if (IsSystemZ)
       Mapping.Offset = kSystemZ_ShadowOffset64;
-    else if (IsFreeBSD && !IsMIPS64)
-      Mapping.Offset = kFreeBSD_ShadowOffset64;
-    else if (IsNetBSD) {
+    else if (IsFreeBSD && !IsMIPS64) {
+      if (IsKasan)
+        Mapping.Offset = kFreeBSDKasan_ShadowOffset64;
+      else
+        Mapping.Offset = kFreeBSD_ShadowOffset64;
+    } else if (IsNetBSD) {
       if (IsKasan)
         Mapping.Offset = kNetBSDKasan_ShadowOffset64;
       else
@@ -792,7 +796,7 @@ private:
                                   StringRef InternalSuffix);
   Instruction *CreateAsanModuleDtor(Module &M);
 
-  bool canInstrumentAliasedGlobal(const GlobalAlias &GA) const;
+  const GlobalVariable *getExcludedAliasedGlobal(const GlobalAlias &GA) const;
   bool shouldInstrumentGlobal(GlobalVariable *G) const;
   bool ShouldUseMachOGlobalsSection() const;
   StringRef getGlobalMetadataSection() const;
@@ -1784,20 +1788,22 @@ void ModuleAddressSanitizer::createInitializerPoisonCalls(
   }
 }
 
-bool ModuleAddressSanitizer::canInstrumentAliasedGlobal(
-    const GlobalAlias &GA) const {
+const GlobalVariable *
+ModuleAddressSanitizer::getExcludedAliasedGlobal(const GlobalAlias &GA) const {
   // In case this function should be expanded to include rules that do not just
   // apply when CompileKernel is true, either guard all existing rules with an
   // 'if (CompileKernel) { ... }' or be absolutely sure that all these rules
   // should also apply to user space.
   assert(CompileKernel && "Only expecting to be called when compiling kernel");
 
+  const Constant *C = GA.getAliasee();
+
   // When compiling the kernel, globals that are aliased by symbols prefixed
   // by "__" are special and cannot be padded with a redzone.
   if (GA.getName().startswith("__"))
-    return false;
+    return dyn_cast<GlobalVariable>(C->stripPointerCastsAndAliases());
 
-  return true;
+  return nullptr;
 }
 
 bool ModuleAddressSanitizer::shouldInstrumentGlobal(GlobalVariable *G) const {
@@ -2256,14 +2262,12 @@ bool ModuleAddressSanitizer::InstrumentGlobals(IRBuilder<> &IRB, Module &M,
   *CtorComdat = false;
 
   // Build set of globals that are aliased by some GA, where
-  // canInstrumentAliasedGlobal(GA) returns false.
+  // getExcludedAliasedGlobal(GA) returns the relevant GlobalVariable.
   SmallPtrSet<const GlobalVariable *, 16> AliasedGlobalExclusions;
   if (CompileKernel) {
     for (auto &GA : M.aliases()) {
-      if (const auto *GV = dyn_cast<GlobalVariable>(GA.getAliasee())) {
-        if (!canInstrumentAliasedGlobal(GA))
-          AliasedGlobalExclusions.insert(GV);
-      }
+      if (const GlobalVariable *GV = getExcludedAliasedGlobal(GA))
+        AliasedGlobalExclusions.insert(GV);
     }
   }
 

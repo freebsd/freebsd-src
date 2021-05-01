@@ -4443,6 +4443,10 @@ out:
 		/* Clear net */
 		asoc->last_control_chunk_from = NULL;
 	}
+	if (net == asoc->last_net_cmt_send_started) {
+		/* Clear net */
+		asoc->last_net_cmt_send_started = NULL;
+	}
 	if (net == stcb->asoc.alternate) {
 		sctp_free_remote_addr(stcb->asoc.alternate);
 		stcb->asoc.alternate = NULL;
@@ -5674,7 +5678,7 @@ sctp_startup_mcore_threads(void)
 		(void)kproc_create(sctp_mcore_thread,
 		    (void *)&sctp_mcore_workers[cpu],
 		    &sctp_mcore_workers[cpu].thread_proc,
-		    RFPROC,
+		    0,
 		    SCTP_KTHREAD_PAGES,
 		    SCTP_MCORE_NAME);
 	}

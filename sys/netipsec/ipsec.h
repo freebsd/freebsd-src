@@ -325,7 +325,7 @@ int udp_ipsec_output(struct mbuf *, struct secasvar *);
 int udp_ipsec_input(struct mbuf *, int, int);
 int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 
-int ipsec_chkreplay(uint32_t, struct secasvar *);
+int ipsec_chkreplay(uint32_t, uint32_t *, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
 int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
 int ipsec_initialized(void);

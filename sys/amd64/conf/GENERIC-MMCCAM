@@ -12,9 +12,6 @@ options         GEOM_LABEL
 # UART -- for bhyve console
 device          uart
 
-# kgdb stub
-device          bvmdebug
-
 # VirtIO support, needed for bhyve
 device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device

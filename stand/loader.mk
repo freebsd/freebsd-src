@@ -6,28 +6,43 @@ CFLAGS+=-I${LDRSRC}
 
 SRCS+=	boot.c commands.c console.c devopen.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
-SRCS+=	module.c nvstore.c
+SRCS+=	module.c nvstore.c pnglite.c
+
+CFLAGS.module.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
+
+.PATH: ${SRCTOP}/contrib/pnglite
+CFLAGS.pnglite.c+= -I${SRCTOP}/contrib/pnglite
+CFLAGS.pnglite.c+= -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 
 .if ${MACHINE} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
+CFLAGS.load_elf32.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=	load_elf64.c reloc_elf64.c
+CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE_CPUARCH} == "arm"
 SRCS+=	load_elf32.c reloc_elf32.c
+CFLAGS.load_elf32.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	load_elf32.c reloc_elf32.c
 SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	metadata.c
+CFLAGS.load_elf32.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE_ARCH:Mmips64*} != ""
 SRCS+= load_elf64.c reloc_elf64.c
 SRCS+=	metadata.c
+CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE} == "mips"
 SRCS+=	load_elf32.c reloc_elf32.c
 SRCS+=	metadata.c
+CFLAGS.load_elf32.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .elif ${MACHINE_CPUARCH} == "riscv"
 SRCS+=	load_elf64.c reloc_elf64.c
 SRCS+=	metadata.c
+CFLAGS.load_elf64.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 .endif
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"

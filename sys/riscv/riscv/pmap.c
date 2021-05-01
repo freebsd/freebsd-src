@@ -152,6 +152,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
 #include <machine/machdep.h>
@@ -341,6 +342,8 @@ pagezero(void *p)
 
 #define	PTE_TO_PHYS(pte) \
     ((((pte) & ~PTE_HI_MASK) >> PTE_PPN0_S) * PAGE_SIZE)
+#define	L2PTE_TO_PHYS(l2) \
+    ((((l2) & ~PTE_HI_MASK) >> PTE_PPN1_S) << L2_SHIFT)
 
 static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
@@ -476,7 +479,7 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 		("Invalid bootstrap L2 table"));
 
 	/* L2 is superpages */
-	ret = (l2[l2_slot] >> PTE_PPN1_S) << L2_SHIFT;
+	ret = L2PTE_TO_PHYS(l2[l2_slot]);
 	ret += (va & L2_OFFSET);
 
 	return (ret);
@@ -570,7 +573,12 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 	rw_init(&pvh_global_lock, "pmap pv global");
 
-	CPU_FILL(&kernel_pmap->pm_active);
+	/*
+	 * Set the current CPU as active in the kernel pmap. Secondary cores
+	 * will add themselves later in init_secondary(). The SBI firmware
+	 * may rely on this mask being precise, so CPU_FILL() is not used.
+	 */
+	CPU_SET(PCPU_GET(hart), &kernel_pmap->pm_active);
 
 	/* Assume the address we were loaded to is a valid physical address. */
 	min_pa = max_pa = kernstart;
@@ -824,7 +832,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 			}
 		} else {
 			/* L2 is superpages */
-			pa = (l2 >> PTE_PPN1_S) << L2_SHIFT;
+			pa = L2PTE_TO_PHYS(l2);
 			pa |= (va & L2_OFFSET);
 		}
 	}
@@ -876,7 +884,7 @@ pmap_kextract(vm_offset_t va)
 			panic("pmap_kextract: No l2");
 		if ((pmap_load(l2) & PTE_RX) != 0) {
 			/* superpages */
-			pa = (pmap_load(l2) >> PTE_PPN1_S) << L2_SHIFT;
+			pa = L2PTE_TO_PHYS(pmap_load(l2));
 			pa |= (va & L2_OFFSET);
 			return (pa);
 		}
@@ -3095,7 +3103,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pd_entry_t *l2;
 	pt_entry_t *l3, newl3;
 
-	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
+	KASSERT(!VA_IS_CLEANMAP(va) ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
 	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	rw_assert(&pvh_global_lock, RA_LOCKED);
@@ -3490,7 +3498,10 @@ restart:
 				goto restart;
 			}
 		}
-		l3 = pmap_l3(pmap, pv->pv_va);
+		l2 = pmap_l2(pmap, pv->pv_va);
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
+		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & PTE_SW_WIRED) != 0)
 			count++;
 		PMAP_UNLOCK(pmap);
@@ -3737,7 +3748,10 @@ restart:
 				goto restart;
 			}
 		}
-		l3 = pmap_l3(pmap, pv->pv_va);
+		l2 = pmap_l2(pmap, pv->pv_va);
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
+		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		rv = (pmap_load(l3) & mask) == mask;
 		PMAP_UNLOCK(pmap);
 		if (rv)
@@ -3893,7 +3907,10 @@ retry_pv_loop:
 				goto retry_pv_loop;
 			}
 		}
-		l3 = pmap_l3(pmap, pv->pv_va);
+		l2 = pmap_l2(pmap, pv->pv_va);
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
+		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		oldl3 = pmap_load(l3);
 retry:
 		if ((oldl3 & PTE_W) != 0) {
@@ -4164,8 +4181,7 @@ restart:
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
 		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
-		    ("pmap_clear_modify: found a 2mpage in page %p's pv list",
-		    m));
+		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
 			pmap_clear_bits(l3, PTE_D | PTE_W);
@@ -4630,6 +4646,6 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_SKIP,
     NULL, 0, sysctl_kmaps, "A",
     "Dump kernel address layout");

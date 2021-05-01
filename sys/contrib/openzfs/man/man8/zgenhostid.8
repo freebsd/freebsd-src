@@ -21,7 +21,7 @@
 .\"
 .\" Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
 .\"
-.Dd September 13, 2020
+.Dd March 18, 2021
 .Dt ZGENHOSTID 8 SMM
 .Os
 .Sh NAME
@@ -50,11 +50,12 @@ Force file overwrite.
 Write to
 .Pa filename
 instead of default
-.Pa /etc/hostd
+.Pa /etc/hostid
 .It Ar hostid
 Specifies the value to be placed in
 .Pa /etc/hostid .
-It must be a number with a value between 1 and 2^32-1.
+It should be a number with a value between 1 and 2^32-1.
+If it is 0, zgenhostid will generate a random hostid.
 This value
 .Sy must
 be unique among your systems.

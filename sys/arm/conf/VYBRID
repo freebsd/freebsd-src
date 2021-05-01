@@ -103,5 +103,8 @@ device		vt
 device		kbdmux
 device		ukbd
 
+# HID support
+device		hid			# Generic HID support
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

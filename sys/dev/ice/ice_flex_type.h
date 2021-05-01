@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -142,6 +142,7 @@ struct ice_buf_hdr {
 	(ent_sz))
 
 /* ice package section IDs */
+#define ICE_SID_METADATA		1
 #define ICE_SID_XLT0_SW			10
 #define ICE_SID_XLT_KEY_BUILDER_SW	11
 #define ICE_SID_XLT1_SW			12
@@ -308,6 +309,13 @@ enum ice_sect {
 #define ICE_PTYPE_IPV6_SCTP_PAY		93
 #define ICE_PTYPE_IPV6_ICMP_PAY		94
 
+struct ice_meta_sect {
+	struct ice_pkg_ver ver;
+#define ICE_META_SECT_NAME_SIZE	28
+	char name[ICE_META_SECT_NAME_SIZE];
+	__le32 track_id;
+};
+
 /* Packet Type Groups (PTG) - Inner Most fields (IM) */
 #define ICE_PTG_IM_IPV4_TCP		16
 #define ICE_PTG_IM_IPV4_UDP		17
@@ -473,6 +481,7 @@ struct ice_pkg_enum {
 enum ice_tunnel_type {
 	TNL_VXLAN = 0,
 	TNL_GENEVE,
+	TNL_GTP,
 	TNL_LAST = 0xFF,
 	TNL_ALL = 0xFF,
 };

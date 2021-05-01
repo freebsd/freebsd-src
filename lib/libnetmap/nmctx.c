@@ -47,6 +47,7 @@
 static void
 nmctx_default_error(struct nmctx *ctx, const char *errmsg)
 {
+	(void)ctx;
 	fprintf(stderr, "%s\n", errmsg);
 }
 

@@ -1623,8 +1623,8 @@ int agtiapi_alloc_requests( struct agtiapi_softc *pmcsc )
 
   nsegs = AGTIAPI_NSEGS;
   rsize = AGTIAPI_MAX_DMA_SEGS;   // 128
-  AGTIAPI_PRINTK( "agtiapi_alloc_requests: MAXPHYS 0x%x PAGE_SIZE 0x%x \n",
-                  MAXPHYS, PAGE_SIZE );
+  AGTIAPI_PRINTK( "agtiapi_alloc_requests: maxphys 0x%lx PAGE_SIZE 0x%x \n",
+                  maxphys, PAGE_SIZE );
   AGTIAPI_PRINTK( "agtiapi_alloc_requests: nsegs %d rsize %d \n",
                   nsegs, rsize ); // 32, 128
   // This is for csio->data_ptr
@@ -1833,7 +1833,8 @@ static void agtiapi_cam_action( struct cam_sim *sim, union ccb * ccb )
     cpi->hba_eng_cnt = 0;
     cpi->max_target = maxTargets - 1;
     cpi->max_lun = AGTIAPI_MAX_LUN;
-    cpi->maxio = 1024 *1024; /* Max supported I/O size, in bytes. */
+    /* Max supported I/O size, in bytes. */
+    cpi->maxio = ctob(AGTIAPI_NSEGS - 1);
     cpi->initiator_id = 255;
     strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
     strlcpy(cpi->hba_vid, "PMC", HBA_IDLEN);
@@ -2628,9 +2629,11 @@ static void agtiapi_PrepareSGListCB( void *arg,
     {
       AGTIAPI_PRINTK("agtiapi_PrepareSGListCB: error status 0x%x\n", error);
       bus_dmamap_unload(pmcsc->buffer_dmat, pccb->CCB_dmamap);
-      bus_dmamap_destroy(pmcsc->buffer_dmat, pccb->CCB_dmamap);
       agtiapi_FreeCCB(pmcsc, pccb);
-      ccb->ccb_h.status = CAM_REQ_CMP;
+      if (error == EFBIG)
+        ccb->ccb_h.status = CAM_REQ_TOO_BIG;
+      else
+        ccb->ccb_h.status = CAM_REQ_CMP_ERR;
       xpt_done(ccb);
       return;
     }
@@ -2642,9 +2645,8 @@ static void agtiapi_PrepareSGListCB( void *arg,
                     " AGTIAPI_MAX_DMA_SEGS %d\n", 
                     nsegs, AGTIAPI_MAX_DMA_SEGS );
     bus_dmamap_unload(pmcsc->buffer_dmat, pccb->CCB_dmamap);
-    bus_dmamap_destroy(pmcsc->buffer_dmat, pccb->CCB_dmamap);
     agtiapi_FreeCCB(pmcsc, pccb);
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_TOO_BIG;
     xpt_done(ccb);   
     return;
   }
@@ -3688,9 +3690,11 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
       AGTIAPI_PRINTK( "agtiapi_PrepareSMPSGListCB: error status 0x%x\n",
                       error );
       bus_dmamap_unload( pmcsc->buffer_dmat, pccb->CCB_dmamap );
-      bus_dmamap_destroy( pmcsc->buffer_dmat, pccb->CCB_dmamap );
       agtiapi_FreeCCB( pmcsc, pccb );
-      ccb->ccb_h.status = CAM_REQ_CMP;
+      if (error == EFBIG)
+        ccb->ccb_h.status = CAM_REQ_TOO_BIG;
+      else
+        ccb->ccb_h.status = CAM_REQ_CMP_ERR;
       xpt_done( ccb );
       return;
     }
@@ -3702,9 +3706,8 @@ static void agtiapi_PrepareSMPSGListCB( void *arg,
                     "AGTIAPI_MAX_DMA_SEGS %d\n",
                     nsegs, AGTIAPI_MAX_DMA_SEGS );
     bus_dmamap_unload( pmcsc->buffer_dmat, pccb->CCB_dmamap );
-    bus_dmamap_destroy( pmcsc->buffer_dmat, pccb->CCB_dmamap );
     agtiapi_FreeCCB( pmcsc, pccb );
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_TOO_BIG;
     xpt_done( ccb );
     return;
   }
@@ -4409,7 +4412,7 @@ static int agtiapi_QueueSMP(struct agtiapi_softc *pmcsc, union ccb * ccb)
   if ((pccb = agtiapi_GetCCB(pmcsc)) == NULL)
   {
     AGTIAPI_PRINTK("agtiapi_QueueSMP: GetCCB ERROR\n");
-    ccb->ccb_h.status = CAM_REQ_CMP;
+    ccb->ccb_h.status = CAM_REQ_CMP_ERR;
     xpt_done(ccb);
     return tiBusy;
   }

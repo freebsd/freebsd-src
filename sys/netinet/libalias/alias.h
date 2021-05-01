@@ -86,6 +86,7 @@ struct alias_link;
 /* Initialization and control functions. */
 struct libalias *LibAliasInit(struct libalias *);
 void		LibAliasSetAddress(struct libalias *, struct in_addr _addr);
+void		LibAliasSetAliasPortRange(struct libalias *la, u_short port_low, u_short port_hi);
 void		LibAliasSetFWBase(struct libalias *, unsigned int _base, unsigned int _num);
 void		LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
 unsigned int
@@ -93,10 +94,10 @@ unsigned int
 void		LibAliasUninit(struct libalias *);
 
 /* Packet Handling functions. */
-int		LibAliasIn (struct libalias *, char *_ptr, int _maxpacketsize);
-int		LibAliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
-int		LibAliasOutTry(struct libalias *, char *_ptr, int _maxpacketsize, int _create);
-int		LibAliasUnaliasOut(struct libalias *, char *_ptr, int _maxpacketsize);
+int		LibAliasIn (struct libalias *, void *_ptr, int _maxpacketsize);
+int		LibAliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
+int		LibAliasOutTry(struct libalias *, void *_ptr, int _maxpacketsize, int _create);
+int		LibAliasUnaliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
 
 /* Port and address redirection functions. */
 
@@ -119,9 +120,9 @@ LibAliasRedirectProto(struct libalias *, struct in_addr _src_addr,
     unsigned char _proto);
 
 /* Fragment Handling functions. */
-void		LibAliasFragmentIn(struct libalias *, char *_ptr, char *_ptr_fragment);
-char           *LibAliasGetFragment(struct libalias *, char *_ptr);
-int		LibAliasSaveFragment(struct libalias *, char *_ptr);
+void		LibAliasFragmentIn(struct libalias *, void *_ptr, void *_ptr_fragment);
+void           *LibAliasGetFragment(struct libalias *, void *_ptr);
+int		LibAliasSaveFragment(struct libalias *, void *_ptr);
 
 /* Miscellaneous functions. */
 int		LibAliasCheckNewLink(struct libalias *);

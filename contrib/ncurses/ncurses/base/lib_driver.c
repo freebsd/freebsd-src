@@ -34,8 +34,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_driver.c,v 1.8 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_driver.c,v 1.9 2020/08/29 19:53:35 tom Exp $")
 
+#ifndef EXP_WIN32_DRIVER
 typedef struct DriverEntry {
     const char *name;
     TERM_DRIVER *driver;
@@ -77,6 +78,7 @@ _nc_get_driver(TERMINAL_CONTROL_BLOCK * TCB, const char *name, int *errret)
     }
     returnCode(code);
 }
+#endif /* !EXP_WIN32_DRIVER */
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(has_key) (SCREEN *sp, int keycode)

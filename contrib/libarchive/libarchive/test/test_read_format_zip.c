@@ -966,3 +966,35 @@ DEFINE_TEST(test_read_format_zip_lzma_stream_end_blockread)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_zip_7z_lzma)
+{
+	const char *refname = "test_read_format_zip_7z_lzma.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
+			skipping("lzma reading not fully supported on this platform");
+			assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+			return;
+	}
+	extract_reference_file(refname);
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+		archive_read_open_filename(a, refname, 10240));
+	//read directories
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	//read symlink
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
+	assertEqualString("../samples/abc_measurement_analysis_sample"
+		"/src/abc_measurement_analysis_sample.py",
+		archive_entry_symlink(ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+}

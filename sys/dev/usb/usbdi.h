@@ -88,7 +88,7 @@ typedef enum {	/* keep in sync with usb_errstr_table */
 #define	USB_NO_TIMEOUT 0
 #define	USB_DEFAULT_TIMEOUT 5000	/* 5000 ms = 5 seconds */
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(_STANDALONE)
 /* typedefs */
 
 typedef void (usb_callback_t)(struct usb_xfer *, usb_error_t);
@@ -174,6 +174,9 @@ struct usb_endpoint {
 struct usb_interface {
 	struct usb_interface_descriptor *idesc;
 	device_t subdev;
+	/* Total number of alternate settings, from 1 to 256 */
+	uint16_t num_altsetting;
+	/* Current alternate interface index, from 0 to 255 */
 	uint8_t	alt_index;
 	uint8_t	parent_iface_index;
 
@@ -183,7 +186,6 @@ struct usb_interface {
 	struct usb_device *linux_udev;
 	void   *bsd_priv_sc;		/* device specific information */
 	char   *pnpinfo;		/* additional PnP-info for this interface */
-	uint8_t	num_altsetting;		/* number of alternate settings */
 	uint8_t	bsd_iface_index;
 };
 
@@ -709,5 +711,5 @@ void	*usb_fifo_softc(struct usb_fifo *fifo);
 void	usb_fifo_set_close_zlp(struct usb_fifo *, uint8_t);
 void	usb_fifo_set_write_defrag(struct usb_fifo *, uint8_t);
 void	usb_fifo_free(struct usb_fifo *f);
-#endif /* _KERNEL */
-#endif /* _USB_USBDI_H_ */
+#endif	/* _KERNEL || _STANDALONE */
+#endif	/* _USB_USBDI_H_ */

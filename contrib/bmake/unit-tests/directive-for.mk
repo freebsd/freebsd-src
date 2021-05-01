@@ -1,6 +1,13 @@
-# $NetBSD: directive-for.mk,v 1.2 2020/09/02 22:58:59 rillig Exp $
+# $NetBSD: directive-for.mk,v 1.10 2020/12/27 09:58:35 rillig Exp $
 #
 # Tests for the .for directive.
+#
+# TODO: Describe naming conventions for the loop variables.
+#	.for f in values
+#	.for file in values
+#	.for _FILE_ in values
+#	.for .FILE. in values
+#	.for _f_ in values
 
 # Using the .for loop, lists of values can be produced.
 # In simple cases, the :@var@${var}@ variable modifier can be used to
@@ -15,6 +22,7 @@ NUMBERS+=	${num}
 .endif
 
 # The .for loop also works for multiple iteration variables.
+# This is something that the variable modifier :@ cannot do.
 .for name value in VARNAME value NAME2 value2
 ${name}=	${value}
 .endfor
@@ -26,7 +34,7 @@ ${name}=	${value}
 # just like the :M or :S variable modifiers.
 #
 # Until 2012-06-03, it had split the items exactly at whitespace, without
-# taking the quotes into account.
+# taking the quotes into account.  This had resulted in 10 words.
 #
 .undef WORDS
 .for var in one t\ w\ o "three three" 'four four' `five six`
@@ -81,8 +89,8 @@ var2=	value before
 # Since that date, the .for loop expands to:
 #	EXPANSION${:U+}= value
 #
-EXPANSION=	before
-EXPANSION+ =	before
+EXPANSION=		before
+EXPANSION+ =		before
 .for plus in +
 EXPANSION${plus}=	value
 .endfor
@@ -92,6 +100,60 @@ EXPANSION${plus}=	value
 .if ${EXPANSION+} != "value"
 .  error This must be a make from before 2009.
 .endif
+
+# When the outer .for loop is expanded, it sees the expression ${i} and
+# expands it.  The inner loop then has nothing more to expand.
+.for i in outer
+.  for i in inner
+.    info ${i}
+.  endfor
+.endfor
+
+# From https://gnats.netbsd.org/29985.
+#
+# Until 2008-12-21, the .for loop was expanded by replacing the variable
+# value literally in the body.  This could lead to situations where the
+# characters from the variable value were interpreted as markup rather than
+# plain text.
+#
+# Until 2012-06-03, the .for loop had split the words at whitespace, without
+# taking quotes into account.  This made it possible to have variable values
+# like "a:\ a:\file.txt" that ended in a single backslash.  Since then, the
+# variable values have been replaced with expressions of the form ${:U...},
+# which are not interpreted as code anymore.
+#
+# As of 2020-09-22, a comment in for.c says that it may be possible to
+# produce an "unwanted substitution", but there is no demonstration code yet.
+#
+# The above changes prevent a backslash at the end of a word from being
+# interpreted as part of the code.  Because of this, the trailingBackslash
+# hack in Var_Subst is no longer needed and as of 2020-09-22, has been
+# removed.
+.for path in a:\ a:\file.txt d:\\ d:\\file.txt
+.  info ${path}
+.endfor
+
+# Ensure that braces and parentheses are properly escaped by the .for loop.
+# Each line must print the same word 3 times.
+# See GetEscapes.
+.for v in ( [ { ) ] } (()) [[]] {{}} )( ][ }{
+.  info $v ${v} $(v)
+.endfor
+
+# As of 2020-10-25, the variable names may contain arbitrary characters,
+# except for whitespace.  This allows for creative side effects. Hopefully
+# nobody is misusing this "feature".
+var=	outer
+.for var:Q in value "quoted"
+.  info ${var} ${var:Q} ${var:Q:Q}
+.endfor
+
+
+# XXX: A parse error or evaluation error in the items of the .for loop
+# should skip the whole loop.  As of 2020-12-27, the loop is expanded twice.
+.for var in word1 ${:Uword2:Z} word3
+.  info XXX: Not reached ${var}
+.endfor
 
 all:
 	@:;

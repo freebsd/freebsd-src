@@ -29,7 +29,7 @@
 .\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2020
+.Dd February 23, 2021
 .Dt GETFH 2
 .Os
 .Sh NAME
@@ -76,9 +76,7 @@ and
 .Fn lgetfh
 except when the
 .Fa path
-specifies a relative path, or the
-.Dv AT_BENEATH
-flag is provided.
+specifies a relative path.
 For
 .Fn getfhat
 and relative
@@ -87,13 +85,6 @@ the status is retrieved from a file relative to
 the directory associated with the file descriptor
 .Fa fd
 instead of the current working directory.
-For
-.Dv AT_BENEATH
-and absolute
-.Fa path ,
-the status is retrieved from a file specified by the
-.Fa path ,
-but additional permission checks are performed, see below.
 .Pp
 The values for the
 .Fa flag
@@ -105,15 +96,10 @@ defined in
 If
 .Fa path
 names a symbolic link, the status of the symbolic link is returned.
-.It Dv AT_BENEATH
-Only stat files and directories below the topping directory.
-See the description of the
-.Dv O_BENEATH
-flag in the
-.Xr open 2
-manual page.
 .It Dv AT_RESOLVE_BENEATH
-Only walks paths below the topping directory.
+Only walk paths below the directory specified by the
+.Ar fd
+descriptor.
 See the description of the
 .Dv O_RESOLVE_BENEATH
 flag in the
@@ -140,19 +126,10 @@ bit is set in
 When
 .Fn getfhat
 is called with an absolute
-.Fa path
-without the
-.Dv AT_BENEATH
-flag, it ignores the
+.Fa path ,
+it ignores the
 .Fa fd
 argument.
-When
-.Dv AT_BENEATH
-is specified with an absolute
-.Fa path ,
-a directory passed by the
-.Fa fd
-argument is used as the topping point for the resolution.
 These system calls are restricted to the superuser.
 .Sh RETURN VALUES
 .Rv -std

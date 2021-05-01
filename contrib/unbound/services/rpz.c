@@ -440,6 +440,8 @@ err:
 			respip_set_delete(r->respip_set);
 		if(r->taglist)
 			free(r->taglist);
+		if(r->region)
+			regional_destroy(r->region);
 		free(r);
 	}
 	return NULL;
@@ -597,8 +599,18 @@ rpz_insert_rr(struct rpz* r, uint8_t* azname, size_t aznamelen, uint8_t* dname,
 	uint8_t* policydname;
 
 	if(!dname_subdomain_c(dname, azname)) {
-		log_err("RPZ: name of record to insert into RPZ is not a "
-			"subdomain of the configured name of the RPZ zone");
+		char* dname_str = sldns_wire2str_dname(dname, dnamelen);
+		char* azname_str = sldns_wire2str_dname(azname, aznamelen);
+		if(dname_str && azname_str) {
+			log_err("RPZ: name of record (%s) to insert into RPZ is not a "
+				"subdomain of the configured name of the RPZ zone (%s)",
+				dname_str, azname_str);
+		} else {
+			log_err("RPZ: name of record to insert into RPZ is not a "
+				"subdomain of the configured name of the RPZ zone");
+		}
+		free(dname_str);
+		free(azname_str);
 		return 0;
 	}
 
@@ -656,7 +668,8 @@ rpz_find_zone(struct rpz* r, uint8_t* qname, size_t qname_len, uint16_t qclass,
 	int only_exact, int wr, int zones_keep_lock)
 {
 	uint8_t* ce;
-	size_t ce_len, ce_labs;
+	size_t ce_len;
+	int ce_labs;
 	uint8_t wc[LDNS_MAX_DOMAINLEN+1];
 	int exact;
 	struct local_zone* z = NULL;
@@ -951,8 +964,8 @@ rpz_apply_qname_trigger(struct auth_zones* az, struct module_env* env,
 	for(a = az->rpz_first; a; a = a->rpz_az_next) {
 		lock_rw_rdlock(&a->lock);
 		r = a->rpz;
-		if(!r->taglist || taglist_intersect(r->taglist, 
-			r->taglistlen, taglist, taglen)) {
+		if(!r->disabled && (!r->taglist || taglist_intersect(r->taglist,
+			r->taglistlen, taglist, taglen))) {
 			z = rpz_find_zone(r, qinfo->qname, qinfo->qname_len,
 				qinfo->qclass, 0, 0, 0);
 			if(z && r->action_override == RPZ_DISABLED_ACTION) {
@@ -1031,4 +1044,18 @@ rpz_apply_qname_trigger(struct auth_zones* az, struct module_env* env,
 	lock_rw_unlock(&a->lock);
 
 	return ret;
+}
+
+void rpz_enable(struct rpz* r)
+{
+    if(!r)
+        return;
+    r->disabled = 0;
+}
+
+void rpz_disable(struct rpz* r)
+{
+    if(!r)
+        return;
+    r->disabled = 1;
 }

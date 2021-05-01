@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_opts.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_opts.3x,v 1.17 2020/10/18 00:03:49 tom Exp $
 .TH form_opts 3X ""
 .SH NAME
 \fBset_form_opts\fP,
@@ -37,14 +37,14 @@
 \fBform_opts\fR \- set and get form options
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_form_opts(FORM *\fP\fIform\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
-int set_form_opts(FORM *form, Field_Options opts);
+\fBField_Options form_opts(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint form_opts_on(FORM *\fP\fIform\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
-int form_opts_on(FORM *form, Field_Options opts);
-.br
-int form_opts_off(FORM *form, Field_Options opts);
-.br
-Field_Options form_opts(const FORM *form);
+\fBint form_opts_off(FORM *\fP\fIform\fP\fB, Field_Options \fP\fIopts\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_form_opts\fR sets all the given form's option bits (form

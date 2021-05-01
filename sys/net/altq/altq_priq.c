@@ -87,7 +87,7 @@ priq_pfattach(struct pf_altq *a)
 		return (EINVAL);
 	s = splnet();
 	error = altq_attach(&ifp->if_snd, ALTQT_PRIQ, a->altq_disc,
-	    priq_enqueue, priq_dequeue, priq_request, NULL, NULL);
+	    priq_enqueue, priq_dequeue, priq_request);
 	splx(s);
 	return (error);
 }

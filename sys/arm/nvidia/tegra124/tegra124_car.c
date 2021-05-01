@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <gnu/dts/include/dt-bindings/clock/tegra124-car.h>
+#include <dt-bindings/clock/tegra124-car.h>
 
 #include "clkdev_if.h"
 #include "hwreset_if.h"

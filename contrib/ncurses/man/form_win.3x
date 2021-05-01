@@ -28,22 +28,22 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_win.3x,v 1.16 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_win.3x,v 1.18 2020/10/18 00:00:32 tom Exp $
 .TH form_win 3X ""
 .SH NAME
 \fBform_win\fR \- make and break form window and subwindow associations
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_form_win(FORM *\fP\fIform\fP\fB, WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-int set_form_win(FORM *form, WINDOW *win);
+\fBWINDOW *form_win(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint set_form_sub(FORM *\fP\fIform\fP\fB, WINDOW *\fP\fIsub\fP\fB);\fP
 .br
-WINDOW *form_win(const FORM *form);
-.br
-int set_form_sub(FORM *form, WINDOW *sub);
-.br
-WINDOW *form_sub(const FORM *form);
-.br
-int scale_form(const FORM *form, int *rows, int *columns);
+\fBWINDOW *form_sub(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint scale_form(const FORM *\fP\fIform\fP\fB, int *\fP\fIrows\fP\fB, int *\fP\fIcolumns\fP\fB);\fP
 .br
 .SH DESCRIPTION
 Every form has an associated pair of \fBcurses\fR windows.

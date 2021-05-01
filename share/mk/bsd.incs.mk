@@ -8,13 +8,6 @@
 
 INCSGROUPS?=	INCS
 
-.if defined(NO_ROOT)
-.if !defined(TAGS) || ! ${TAGS:Mpackage=*}
-TAGS+=		package=${PACKAGE:Uutilities}
-.endif
-TAG_ARGS=	-T ${TAGS:[*]:S/ /,/g}
-.endif
-
 .if !target(buildincludes)
 .for group in ${INCSGROUPS}
 buildincludes: ${${group}}
@@ -36,6 +29,17 @@ ${group}DIR?=	${INCLUDEDIR}${PRIVATELIB:D/private/${LIB}}
 STAGE_SETS+=	${group:C,[/*],_,g}
 STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
 STAGE_SYMLINKS_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}
+
+.if defined(NO_ROOT)
+.if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
+.if defined(${group}PACKAGE)
+${group}TAGS+=		package=${${group}PACKAGE:Uutilities},dev
+.else
+${group}TAGS+=		package=${PACKAGE:Uutilities},dev
+.endif
+.endif
+${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
+.endif
 
 _${group}INCS=
 .for header in ${${group}}
@@ -67,7 +71,7 @@ _${group}INS_${header:T}: ${header}
 .else
 _${group}INCS+= ${header}
 .endif
-.endfor
+.endfor # header in ${${group}}
 .if !empty(_${group}INCS)
 stage_files.${group}: ${_${group}INCS}
 stage_includes: stage_files.${group}
@@ -75,16 +79,16 @@ stage_includes: stage_files.${group}
 installincludes: _${group}INS
 _${group}INS: ${_${group}INCS}
 .if defined(${group}NAME)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${${group}TAG_ARGS} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
+	${INSTALL} ${${group}TAG_ARGS} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
-.endif
+.endif # !empty(_${group}INCS)
 
 .endif # defined(${group}) && !empty(${group})
-.endfor
+.endfor # group in ${INCSGROUPS}
 
 .if defined(INCSLINKS) && !empty(INCSLINKS)
 installincludes:

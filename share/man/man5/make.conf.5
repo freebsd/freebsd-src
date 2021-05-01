@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2018
+.Dd December 20, 2020
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -444,6 +444,16 @@ statically linked, this can be bad.
 If set, every utility that uses
 .Pa bsd.prog.mk
 will be linked statically.
+.It Va PKG_REPO_SIGNING_KEY
+.Pq Vt str
+Path to rsa private key passed to
+.Xr pkg-repo 8
+to sign packages created when building the
+.Ar packages
+target, i.e.: pkgbase.
+The variable is named the same in
+.Xr poudriere 8
+so it will automatically be picked up when building pkgbase with poudriere.
 .It Va PPP_NO_NAT
 .Pq Vt bool
 Build

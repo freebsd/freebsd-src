@@ -441,12 +441,10 @@ sleepq_check_ast_sc_locked(struct thread *td, struct sleepqueue_chain *sc)
 
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 
-	ret = 0;
 	if ((td->td_pflags & TDP_WAKEUP) != 0) {
 		td->td_pflags &= ~TDP_WAKEUP;
-		ret = EINTR;
 		thread_lock(td);
-		return (0);
+		return (EINTR);
 	}
 
 	/*
@@ -462,7 +460,7 @@ sleepq_check_ast_sc_locked(struct thread *td, struct sleepqueue_chain *sc)
 
 	p = td->td_proc;
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
-		(void *)td, (long)p->p_pid, td->td_name);
+	    (void *)td, (long)p->p_pid, td->td_name);
 	PROC_LOCK(p);
 
 	/*

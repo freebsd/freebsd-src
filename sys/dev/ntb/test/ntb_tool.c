@@ -384,7 +384,7 @@ get_ubuf(struct sysctl_req *req, char *ubuf)
 static int
 read_out(struct sysctl_req *req, uint64_t val)
 {
-	char ubuf[16];
+	char ubuf[19];
 
 	memset((void *)ubuf, 0, sizeof(ubuf));
 	snprintf(ubuf, sizeof(ubuf), "0x%jx", val);

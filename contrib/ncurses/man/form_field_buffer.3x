@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.25 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_buffer.3x,v 1.27 2020/10/24 09:27:17 tom Exp $
 .TH form_field_buffer 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -43,15 +43,15 @@
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .sp
-int set_field_buffer(FIELD *field, int buf, const char *value);
+\fBint set_field_buffer(FIELD *\fP\fIfield\fP\fB, int \fP\fIbuf\fP\fB, const char *\fP\fIvalue\fP\fB);\fP
 .br
-char *field_buffer(const FIELD *field, int buffer);
+\fBchar *field_buffer(const FIELD *\fP\fIfield\fP\fB, int \fP\fIbuffer\fP\fB);\fP
+.sp
+\fBint set_field_status(FIELD *\fP\fIfield\fP\fB, bool \fP\fIstatus\fP\fB);\fP
 .br
-int set_field_status(FIELD *field, bool status);
-.br
-bool field_status(const FIELD *field);
-.br
-int set_max_field(FIELD *field, int max);
+\fBbool field_status(const FIELD *\fP\fIfield\fP\fB);\fP
+.sp
+\fBint set_max_field(FIELD *\fP\fIfield\fP\fB, int \fP\fImax\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_field_buffer\fR sets the numbered buffer of the given field
@@ -99,7 +99,7 @@ The function \fBset_max_field\fR sets the maximum size for a dynamic field.
 An argument of 0 turns off any maximum size threshold for that field.
 .SH RETURN VALUE
 The \fBfield_buffer\fR function returns NULL on error.
-It sets errno according to their success:
+It sets \fBerrno\fP according to their success:
 .TP 5
 .B E_OK
 The routine succeeded.

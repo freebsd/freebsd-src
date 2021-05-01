@@ -677,7 +677,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	mps_dprint(sc, MPS_USER, "%s: req %p %d  rpl %p %d\n", __func__,
 	    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len);
 
-	if (cmd->req_len > (int)sc->reqframesz) {
+	if (cmd->req_len > sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
@@ -750,9 +750,10 @@ RetFree:
 static int
 mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 {
-	MPI2_REQUEST_HEADER	*hdr, tmphdr;	
+	MPI2_REQUEST_HEADER	*hdr, *tmphdr;
 	MPI2_DEFAULT_REPLY	*rpl = NULL;
 	struct mps_command	*cm = NULL;
+	void			*req = NULL;
 	int			err = 0, dir = 0, sz;
 	uint8_t			function = 0;
 	u_int			sense_len;
@@ -804,22 +805,21 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	    data->ReplySize, data->PtrData, data->DataSize,
 	    data->PtrDataOut, data->DataOutSize, data->DataDirection);
 
-	/*
-	 * copy in the header so we know what we're dealing with before we
-	 * commit to allocating a command for it.
-	 */
-	err = copyin(PTRIN(data->PtrRequest), &tmphdr, data->RequestSize);
-	if (err != 0)
-		goto RetFreeUnlocked;
-
-	if (data->RequestSize > (int)sc->reqframesz) {
+	if (data->RequestSize > sc->reqframesz) {
 		err = EINVAL;
 		goto RetFreeUnlocked;
 	}
 
-	function = tmphdr.Function;
+	req = malloc(data->RequestSize, M_MPSUSER, M_WAITOK | M_ZERO);
+	tmphdr = (MPI2_REQUEST_HEADER *)req;
+
+	err = copyin(PTRIN(data->PtrRequest), req, data->RequestSize);
+	if (err != 0)
+		goto RetFreeUnlocked;
+
+	function = tmphdr->Function;
 	mps_dprint(sc, MPS_USER, "%s: Function %02X MsgFlags %02X\n", __func__,
-	    function, tmphdr.MsgFlags);
+	    function, tmphdr->MsgFlags);
 
 	/*
 	 * Handle a passthru TM request.
@@ -836,7 +836,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 
 		/* Copy the header in.  Only a small fixup is needed. */
 		task = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
-		bcopy(&tmphdr, task, data->RequestSize);
+		memcpy(task, req, data->RequestSize);
 		task->TaskMID = cm->cm_desc.Default.SMID;
 
 		cm->cm_data = NULL;
@@ -883,7 +883,6 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 
 	mps_lock(sc);
 	cm = mps_alloc_command(sc);
-
 	if (cm == NULL) {
 		mps_printf(sc, "%s: no mps requests\n", __func__);
 		err = ENOMEM;
@@ -892,7 +891,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	mps_unlock(sc);
 
 	hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;
-	bcopy(&tmphdr, hdr, data->RequestSize);
+	memcpy(hdr, req, data->RequestSize);
 
 	/*
 	 * Do some checking to make sure the IOCTL request contains a valid
@@ -1059,6 +1058,7 @@ RetFreeUnlocked:
 Ret:
 	sc->mps_flags &= ~MPS_FLAGS_BUSY;
 	mps_unlock(sc);
+	free(req, M_MPSUSER);
 
 	return (err);
 }
@@ -2128,7 +2128,7 @@ mps_user_btdh(struct mps_softc *sc, mps_btdh_mapping_t *data)
 		if (bus != 0)
 			return (EINVAL);
 
-		if (target > sc->max_devices) {
+		if (target >= sc->max_devices) {
 			mps_dprint(sc, MPS_FAULT, "Target ID is out of range "
 			   "for Bus/Target to DevHandle mapping.");
 			return (EINVAL);

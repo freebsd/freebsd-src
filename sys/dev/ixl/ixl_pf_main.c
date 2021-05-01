@@ -62,6 +62,7 @@ static int	ixl_sysctl_pf_tx_itr(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_pf_rx_itr(SYSCTL_HANDLER_ARGS);
 
 static int	ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_set_link_active(SYSCTL_HANDLER_ARGS);
 
 /* Debug Sysctls */
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
@@ -69,6 +70,7 @@ static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_switch_vlans(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hkey(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hena(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hlut(SYSCTL_HANDLER_ARGS);
@@ -325,7 +327,7 @@ ixl_get_hw_capabilities(struct ixl_pf *pf)
 	len = 40 * sizeof(struct i40e_aqc_list_capabilities_element_resp);
 retry:
 	if (!(buf = (struct i40e_aqc_list_capabilities_element_resp *)
-	    malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO))) {
+	    malloc(len, M_IXL, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate cap memory\n");
                 return (ENOMEM);
 	}
@@ -333,7 +335,7 @@ retry:
 	/* This populates the hw struct */
         status = i40e_aq_discover_capabilities(hw, buf, len,
 	    &needed, i40e_aqc_opc_list_func_capabilities, NULL);
-	free(buf, M_DEVBUF);
+	free(buf, M_IXL);
 	if ((pf->hw.aq.asq_last_status == I40E_AQ_RC_ENOMEM) &&
 	    (again == TRUE)) {
 		/* retry once with a larger buffer */
@@ -383,6 +385,9 @@ retry:
 		device_printf(dev, "Error setting I2C access functions\n");
 		break;
 	}
+
+	/* Keep link active by default */
+	atomic_set_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
 
 	/* Print a subset of the capability information. */
 	device_printf(dev,
@@ -451,12 +456,67 @@ err_out:
 	return (status);
 }
 
+/*
+** Creates new filter with given MAC address and VLAN ID
+*/
+static struct ixl_mac_filter *
+ixl_new_filter(struct ixl_ftl_head *headp, const u8 *macaddr, s16 vlan)
+{
+	struct ixl_mac_filter  *f;
+
+	/* create a new empty filter */
+	f = malloc(sizeof(struct ixl_mac_filter),
+	    M_IXL, M_NOWAIT | M_ZERO);
+	if (f) {
+		LIST_INSERT_HEAD(headp, f, ftle);
+		bcopy(macaddr, f->macaddr, ETHER_ADDR_LEN);
+		f->vlan = vlan;
+	}
+
+	return (f);
+}
+
+/**
+ * ixl_free_filters - Free all filters in given list
+ * headp - pointer to list head
+ *
+ * Frees memory used by each entry in the list.
+ * Does not remove filters from HW.
+ */
+void
+ixl_free_filters(struct ixl_ftl_head *headp)
+{
+	struct ixl_mac_filter *f, *nf;
+
+	f = LIST_FIRST(headp);
+	while (f != NULL) {
+		nf = LIST_NEXT(f, ftle);
+		free(f, M_IXL);
+		f = nf;
+	}
+
+	LIST_INIT(headp);
+}
+
 static u_int
 ixl_add_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
-	struct ixl_vsi *vsi = arg;
+	struct ixl_add_maddr_arg *ama = arg;
+	struct ixl_vsi *vsi = ama->vsi;
+	const u8 *macaddr = (u8*)LLADDR(sdl);
+	struct ixl_mac_filter *f;
 
-	ixl_add_mc_filter(vsi, (u8*)LLADDR(sdl));
+	/* Does one already exist */
+	f = ixl_find_filter(&vsi->ftl, macaddr, IXL_VLAN_ANY);
+	if (f != NULL)
+		return (0);
+
+	f = ixl_new_filter(&ama->to_add, macaddr, IXL_VLAN_ANY);
+	if (f == NULL) {
+		device_printf(vsi->dev, "WARNING: no filter available!!\n");
+		return (0);
+	}
+	f->flags |= IXL_FILTER_MC;
 
 	return (1);
 }
@@ -472,28 +532,26 @@ ixl_add_multi(struct ixl_vsi *vsi)
 {
 	struct ifnet		*ifp = vsi->ifp;
 	struct i40e_hw		*hw = vsi->hw;
-	int			mcnt = 0, flags;
+	int			mcnt = 0;
+	struct ixl_add_maddr_arg cb_arg;
 
 	IOCTL_DEBUGOUT("ixl_add_multi: begin");
 
-	/*
-	** First just get a count, to decide if we
-	** we simply use multicast promiscuous.
-	*/
 	mcnt = if_llmaddr_count(ifp);
 	if (__predict_false(mcnt >= MAX_MULTICAST_ADDR)) {
-		/* delete existing MC filters */
-		ixl_del_hw_filters(vsi, mcnt);
 		i40e_aq_set_vsi_multicast_promiscuous(hw,
 		    vsi->seid, TRUE, NULL);
+		/* delete all existing MC filters */
+		ixl_del_multi(vsi, true);
 		return;
 	}
 
-	mcnt = if_foreach_llmaddr(ifp, ixl_add_maddr, vsi);
-	if (mcnt > 0) {
-		flags = (IXL_FILTER_ADD | IXL_FILTER_USED | IXL_FILTER_MC);
-		ixl_add_hw_filters(vsi, flags, mcnt);
-	}
+	cb_arg.vsi = vsi;
+	LIST_INIT(&cb_arg.to_add);
+
+	mcnt = if_foreach_llmaddr(ifp, ixl_add_maddr, &cb_arg);
+	if (mcnt > 0)
+		ixl_add_hw_filters(vsi, &cb_arg.to_add, mcnt);
 
 	IOCTL_DEBUGOUT("ixl_add_multi: end");
 }
@@ -503,34 +561,36 @@ ixl_match_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 {
 	struct ixl_mac_filter *f = arg;
 
-	if (cmp_etheraddr(f->macaddr, (u8 *)LLADDR(sdl)))
+	if (ixl_ether_is_equal(f->macaddr, (u8 *)LLADDR(sdl)))
 		return (1);
 	else
 		return (0);
 }
 
-int
-ixl_del_multi(struct ixl_vsi *vsi)
+void
+ixl_del_multi(struct ixl_vsi *vsi, bool all)
 {
+	struct ixl_ftl_head	to_del;
 	struct ifnet		*ifp = vsi->ifp;
-	struct ixl_mac_filter	*f;
+	struct ixl_mac_filter	*f, *fn;
 	int			mcnt = 0;
 
 	IOCTL_DEBUGOUT("ixl_del_multi: begin");
 
+	LIST_INIT(&to_del);
 	/* Search for removed multicast addresses */
-	SLIST_FOREACH(f, &vsi->ftl, next)
-		if ((f->flags & IXL_FILTER_USED) &&
-		    (f->flags & IXL_FILTER_MC) &&
-		    (if_foreach_llmaddr(ifp, ixl_match_maddr, f) == 0)) {
-			f->flags |= IXL_FILTER_DEL;
-			mcnt++;
-		}
+	LIST_FOREACH_SAFE(f, &vsi->ftl, ftle, fn) {
+		if ((f->flags & IXL_FILTER_MC) == 0 ||
+		    (!all && (if_foreach_llmaddr(ifp, ixl_match_maddr, f) == 0)))
+			continue;
+
+		LIST_REMOVE(f, ftle);
+		LIST_INSERT_HEAD(&to_del, f, ftle);
+		mcnt++;
+	}
 
 	if (mcnt > 0)
-		ixl_del_hw_filters(vsi, mcnt);
-
-	return (mcnt);
+		ixl_del_hw_filters(vsi, &to_del, mcnt);
 }
 
 void
@@ -738,20 +798,6 @@ ixl_switch_config(struct ixl_pf *pf)
 }
 
 void
-ixl_free_mac_filters(struct ixl_vsi *vsi)
-{
-	struct ixl_mac_filter *f;
-
-	while (!SLIST_EMPTY(&vsi->ftl)) {
-		f = SLIST_FIRST(&vsi->ftl);
-		SLIST_REMOVE_HEAD(&vsi->ftl, next);
-		free(f, M_DEVBUF);
-	}
-
-	vsi->num_hw_filters = 0;
-}
-
-void
 ixl_vsi_add_sysctls(struct ixl_vsi * vsi, const char * sysctl_name, bool queues_sysctls)
 {
 	struct sysctl_oid *tree;
@@ -765,6 +811,11 @@ ixl_vsi_add_sysctls(struct ixl_vsi * vsi, const char * sysctl_name, bool queues_
 
 	vsi_list = SYSCTL_CHILDREN(vsi->vsi_node);
 	ixl_add_sysctls_eth_stats(&vsi->sysctl_ctx, vsi_list, &vsi->eth_stats);
+
+	/* Copy of netstat RX errors counter for validation purposes */
+	SYSCTL_ADD_UQUAD(&vsi->sysctl_ctx, vsi_list, OID_AUTO, "rx_errors",
+			CTLFLAG_RD, &vsi->ierrors,
+			"RX packet errors");
 
 	if (queues_sysctls)
 		ixl_vsi_add_queues_stats(vsi, &vsi->sysctl_ctx);
@@ -1018,7 +1069,7 @@ ixl_init_filters(struct ixl_vsi *vsi)
 	ixl_dbg_filter(pf, "%s: start\n", __func__);
 
 	/* Initialize mac filter list for VSI */
-	SLIST_INIT(&vsi->ftl);
+	LIST_INIT(&vsi->ftl);
 	vsi->num_hw_filters = 0;
 
 	/* Receive broadcast Ethernet frames */
@@ -1044,30 +1095,35 @@ ixl_init_filters(struct ixl_vsi *vsi)
 #endif
 }
 
-/*
-** This routine adds mulicast filters
-*/
-void
-ixl_add_mc_filter(struct ixl_vsi *vsi, u8 *macaddr)
-{
-	struct ixl_mac_filter *f;
-
-	/* Does one already exist */
-	f = ixl_find_filter(vsi, macaddr, IXL_VLAN_ANY);
-	if (f != NULL)
-		return;
-
-	f = ixl_new_filter(vsi, macaddr, IXL_VLAN_ANY);
-	if (f != NULL)
-		f->flags |= IXL_FILTER_MC;
-	else
-		printf("WARNING: no filter available!!\n");
-}
-
 void
 ixl_reconfigure_filters(struct ixl_vsi *vsi)
 {
-	ixl_add_hw_filters(vsi, IXL_FILTER_USED, vsi->num_macs);
+	struct i40e_hw *hw = vsi->hw;
+	struct ixl_ftl_head tmp;
+	int cnt;
+
+	/*
+	 * The ixl_add_hw_filters function adds filters configured
+	 * in HW to a list in VSI. Move all filters to a temporary
+	 * list to avoid corrupting it by concatenating to itself.
+	 */
+	LIST_INIT(&tmp);
+	LIST_CONCAT(&tmp, &vsi->ftl, ixl_mac_filter, ftle);
+	cnt = vsi->num_hw_filters;
+	vsi->num_hw_filters = 0;
+
+	ixl_add_hw_filters(vsi, &tmp, cnt);
+
+	/* Filter could be removed if MAC address was changed */
+	ixl_add_filter(vsi, hw->mac.addr, IXL_VLAN_ANY);
+
+	if ((if_getcapenable(vsi->ifp) & IFCAP_VLAN_HWFILTER) == 0)
+		return;
+	/*
+	 * VLAN HW filtering is enabled, make sure that filters
+	 * for all registered VLAN tags are configured
+	 */
+	ixl_add_vlan_filters(vsi, hw->mac.addr);
 }
 
 /*
@@ -1081,31 +1137,23 @@ ixl_add_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 	struct ixl_mac_filter	*f, *tmp;
 	struct ixl_pf		*pf;
 	device_t		dev;
+	struct ixl_ftl_head	to_add;
+	int			to_add_cnt;
 
 	pf = vsi->back;
 	dev = pf->dev;
+	to_add_cnt = 1;
 
 	ixl_dbg_filter(pf, "ixl_add_filter: " MAC_FORMAT ", vlan %4d\n",
 	    MAC_FORMAT_ARGS(macaddr), vlan);
 
 	/* Does one already exist */
-	f = ixl_find_filter(vsi, macaddr, vlan);
+	f = ixl_find_filter(&vsi->ftl, macaddr, vlan);
 	if (f != NULL)
 		return;
-	/*
-	** Is this the first vlan being registered, if so we
-	** need to remove the ANY filter that indicates we are
-	** not in a vlan, and replace that with a 0 filter.
-	*/
-	if ((vlan != IXL_VLAN_ANY) && (vsi->num_vlans == 1)) {
-		tmp = ixl_find_filter(vsi, macaddr, IXL_VLAN_ANY);
-		if (tmp != NULL) {
-			ixl_del_filter(vsi, macaddr, IXL_VLAN_ANY);
-			ixl_add_filter(vsi, macaddr, 0);
-		}
-	}
 
-	f = ixl_new_filter(vsi, macaddr, vlan);
+	LIST_INIT(&to_add);
+	f = ixl_new_filter(&to_add, macaddr, vlan);
 	if (f == NULL) {
 		device_printf(dev, "WARNING: no filter available!!\n");
 		return;
@@ -1115,48 +1163,179 @@ ixl_add_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 	else
 		vsi->num_macs++;
 
-	f->flags |= IXL_FILTER_USED;
-	ixl_add_hw_filters(vsi, f->flags, 1);
+	/*
+	** Is this the first vlan being registered, if so we
+	** need to remove the ANY filter that indicates we are
+	** not in a vlan, and replace that with a 0 filter.
+	*/
+	if ((vlan != IXL_VLAN_ANY) && (vsi->num_vlans == 1)) {
+		tmp = ixl_find_filter(&vsi->ftl, macaddr, IXL_VLAN_ANY);
+		if (tmp != NULL) {
+			struct ixl_ftl_head to_del;
+
+			/* Prepare new filter first to avoid removing
+			 * VLAN_ANY filter if allocation fails */
+			f = ixl_new_filter(&to_add, macaddr, 0);
+			if (f == NULL) {
+				device_printf(dev, "WARNING: no filter available!!\n");
+				free(LIST_FIRST(&to_add), M_IXL);
+				return;
+			}
+			to_add_cnt++;
+
+			LIST_REMOVE(tmp, ftle);
+			LIST_INIT(&to_del);
+			LIST_INSERT_HEAD(&to_del, tmp, ftle);
+			ixl_del_hw_filters(vsi, &to_del, 1);
+		}
+	}
+
+	ixl_add_hw_filters(vsi, &to_add, to_add_cnt);
+}
+
+/**
+ * ixl_add_vlan_filters - Add MAC/VLAN filters for all registered VLANs
+ * @vsi: pointer to VSI
+ * @macaddr: MAC address
+ *
+ * Adds MAC/VLAN filter for each VLAN configured on the interface
+ * if there is enough HW filters. Otherwise adds a single filter
+ * for all tagged and untagged frames to allow all configured VLANs
+ * to recieve traffic.
+ */
+void
+ixl_add_vlan_filters(struct ixl_vsi *vsi, const u8 *macaddr)
+{
+	struct ixl_ftl_head to_add;
+	struct ixl_mac_filter *f;
+	int to_add_cnt = 0;
+	int i, vlan = 0;
+
+	if (vsi->num_vlans == 0 || vsi->num_vlans > IXL_MAX_VLAN_FILTERS) {
+		ixl_add_filter(vsi, macaddr, IXL_VLAN_ANY);
+		return;
+	}
+	LIST_INIT(&to_add);
+
+	/* Add filter for untagged frames if it does not exist yet */
+	f = ixl_find_filter(&vsi->ftl, macaddr, 0);
+	if (f == NULL) {
+		f = ixl_new_filter(&to_add, macaddr, 0);
+		if (f == NULL) {
+			device_printf(vsi->dev, "WARNING: no filter available!!\n");
+			return;
+		}
+		to_add_cnt++;
+	}
+
+	for (i = 1; i < EVL_VLID_MASK; i = vlan + 1) {
+		bit_ffs_at(vsi->vlans_map, i, IXL_VLANS_MAP_LEN, &vlan);
+		if (vlan == -1)
+			break;
+
+		/* Does one already exist */
+		f = ixl_find_filter(&vsi->ftl, macaddr, vlan);
+		if (f != NULL)
+			continue;
+
+		f = ixl_new_filter(&to_add, macaddr, vlan);
+		if (f == NULL) {
+			device_printf(vsi->dev, "WARNING: no filter available!!\n");
+			ixl_free_filters(&to_add);
+			return;
+		}
+		to_add_cnt++;
+	}
+
+	ixl_add_hw_filters(vsi, &to_add, to_add_cnt);
 }
 
 void
 ixl_del_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 {
-	struct ixl_mac_filter *f;
+	struct ixl_mac_filter *f, *tmp;
+	struct ixl_ftl_head ftl_head;
+	int to_del_cnt = 1;
 
 	ixl_dbg_filter((struct ixl_pf *)vsi->back,
 	    "ixl_del_filter: " MAC_FORMAT ", vlan %4d\n",
 	    MAC_FORMAT_ARGS(macaddr), vlan);
 
-	f = ixl_find_filter(vsi, macaddr, vlan);
+	f = ixl_find_filter(&vsi->ftl, macaddr, vlan);
 	if (f == NULL)
 		return;
 
-	f->flags |= IXL_FILTER_DEL;
-	ixl_del_hw_filters(vsi, 1);
+	LIST_REMOVE(f, ftle);
+	LIST_INIT(&ftl_head);
+	LIST_INSERT_HEAD(&ftl_head, f, ftle);
 	if (f->vlan == IXL_VLAN_ANY && (f->flags & IXL_FILTER_VLAN) != 0)
 		vsi->num_macs--;
 
-	/* Check if this is the last vlan removal */
-	if (vlan != IXL_VLAN_ANY && vsi->num_vlans == 0) {
-		/* Switch back to a non-vlan filter */
-		ixl_del_filter(vsi, macaddr, 0);
-		ixl_add_filter(vsi, macaddr, IXL_VLAN_ANY);
+	/* If this is not the last vlan just remove the filter */
+	if (vlan == IXL_VLAN_ANY || vsi->num_vlans > 0) {
+		ixl_del_hw_filters(vsi, &ftl_head, to_del_cnt);
+		return;
 	}
-	return;
+
+	/* It's the last vlan, we need to switch back to a non-vlan filter */
+	tmp = ixl_find_filter(&vsi->ftl, macaddr, 0);
+	if (tmp != NULL) {
+		LIST_REMOVE(tmp, ftle);
+		LIST_INSERT_AFTER(f, tmp, ftle);
+		to_del_cnt++;
+	}
+	ixl_del_hw_filters(vsi, &ftl_head, to_del_cnt);
+
+	ixl_add_filter(vsi, macaddr, IXL_VLAN_ANY);
+}
+
+/**
+ * ixl_del_all_vlan_filters - Delete all VLAN filters with given MAC
+ * @vsi: VSI which filters need to be removed
+ * @macaddr: MAC address
+ *
+ * Remove all MAC/VLAN filters with a given MAC address. For multicast
+ * addresses there is always single filter for all VLANs used (IXL_VLAN_ANY)
+ * so skip them to speed up processing. Those filters should be removed
+ * using ixl_del_filter function.
+ */
+void
+ixl_del_all_vlan_filters(struct ixl_vsi *vsi, const u8 *macaddr)
+{
+	struct ixl_mac_filter *f, *tmp;
+	struct ixl_ftl_head to_del;
+	int to_del_cnt = 0;
+
+	LIST_INIT(&to_del);
+
+	LIST_FOREACH_SAFE(f, &vsi->ftl, ftle, tmp) {
+		if ((f->flags & IXL_FILTER_MC) != 0 ||
+		    !ixl_ether_is_equal(f->macaddr, macaddr))
+			continue;
+
+		LIST_REMOVE(f, ftle);
+		LIST_INSERT_HEAD(&to_del, f, ftle);
+		to_del_cnt++;
+	}
+
+	ixl_dbg_filter((struct ixl_pf *)vsi->back,
+	    "%s: " MAC_FORMAT ", to_del_cnt: %d\n",
+	    __func__, MAC_FORMAT_ARGS(macaddr), to_del_cnt);
+	if (to_del_cnt > 0)
+		ixl_del_hw_filters(vsi, &to_del, to_del_cnt);
 }
 
 /*
 ** Find the filter with both matching mac addr and vlan id
 */
 struct ixl_mac_filter *
-ixl_find_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
+ixl_find_filter(struct ixl_ftl_head *headp, const u8 *macaddr, s16 vlan)
 {
 	struct ixl_mac_filter	*f;
 
-	SLIST_FOREACH(f, &vsi->ftl, next) {
-		if ((cmp_etheraddr(f->macaddr, macaddr) != 0)
-		    && (f->vlan == vlan)) {
+	LIST_FOREACH(f, headp, ftle) {
+		if (ixl_ether_is_equal(f->macaddr, macaddr) &&
+		    (f->vlan == vlan)) {
 			return (f);
 		}
 	}
@@ -1170,10 +1349,10 @@ ixl_find_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 ** the filters in the hardware.
 */
 void
-ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
+ixl_add_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_add, int cnt)
 {
 	struct i40e_aqc_add_macvlan_element_data *a, *b;
-	struct ixl_mac_filter	*f;
+	struct ixl_mac_filter	*f, *fn;
 	struct ixl_pf		*pf;
 	struct i40e_hw		*hw;
 	device_t		dev;
@@ -1184,8 +1363,7 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	dev = vsi->dev;
 	hw = &pf->hw;
 
-	ixl_dbg_filter(pf,
-	    "ixl_add_hw_filters: flags: %d cnt: %d\n", flags, cnt);
+	ixl_dbg_filter(pf, "ixl_add_hw_filters: cnt: %d\n", cnt);
 
 	if (cnt < 1) {
 		ixl_dbg_info(pf, "ixl_add_hw_filters: cnt == 0\n");
@@ -1193,51 +1371,71 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 	}
 
 	a = malloc(sizeof(struct i40e_aqc_add_macvlan_element_data) * cnt,
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	    M_IXL, M_NOWAIT | M_ZERO);
 	if (a == NULL) {
 		device_printf(dev, "add_hw_filters failed to get memory\n");
 		return;
 	}
 
-	/*
-	** Scan the filter list, each time we find one
-	** we add it to the admin queue array and turn off
-	** the add bit.
-	*/
-	SLIST_FOREACH(f, &vsi->ftl, next) {
-		if ((f->flags & flags) == flags) {
-			b = &a[j]; // a pox on fvl long names :)
-			bcopy(f->macaddr, b->mac_addr, ETHER_ADDR_LEN);
-			if (f->vlan == IXL_VLAN_ANY) {
-				b->vlan_tag = 0;
-				b->flags = CPU_TO_LE16(
-				    I40E_AQC_MACVLAN_ADD_IGNORE_VLAN);
-			} else {
-				b->vlan_tag = CPU_TO_LE16(f->vlan);
-				b->flags = 0;
-			}
-			b->flags |= CPU_TO_LE16(
-			    I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
-			f->flags &= ~IXL_FILTER_ADD;
-			j++;
-
-			ixl_dbg_filter(pf, "ADD: " MAC_FORMAT "\n",
-			    MAC_FORMAT_ARGS(f->macaddr));
+	LIST_FOREACH(f, to_add, ftle) {
+		b = &a[j]; // a pox on fvl long names :)
+		bcopy(f->macaddr, b->mac_addr, ETHER_ADDR_LEN);
+		if (f->vlan == IXL_VLAN_ANY) {
+			b->vlan_tag = 0;
+			b->flags = I40E_AQC_MACVLAN_ADD_IGNORE_VLAN;
+		} else {
+			b->vlan_tag = f->vlan;
+			b->flags = 0;
 		}
-		if (j == cnt)
+		b->flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
+		ixl_dbg_filter(pf, "ADD: " MAC_FORMAT "\n",
+		    MAC_FORMAT_ARGS(f->macaddr));
+
+		if (++j == cnt)
 			break;
 	}
-	if (j > 0) {
-		status = i40e_aq_add_macvlan(hw, vsi->seid, a, j, NULL);
-		if (status)
-			device_printf(dev, "i40e_aq_add_macvlan status %s, "
-			    "error %s\n", i40e_stat_str(hw, status),
-			    i40e_aq_str(hw, hw->aq.asq_last_status));
-		else
-			vsi->num_hw_filters += j;
+	if (j != cnt) {
+		/* Something went wrong */
+		device_printf(dev,
+		    "%s ERROR: list of filters to short expected: %d, found: %d\n",
+		    __func__, cnt, j);
+		ixl_free_filters(to_add);
+		goto out_free;
 	}
-	free(a, M_DEVBUF);
-	return;
+
+	status = i40e_aq_add_macvlan(hw, vsi->seid, a, j, NULL);
+	if (status == I40E_SUCCESS) {
+		LIST_CONCAT(&vsi->ftl, to_add, ixl_mac_filter, ftle);
+		vsi->num_hw_filters += j;
+		goto out_free;
+	}
+
+	device_printf(dev,
+	    "i40e_aq_add_macvlan status %s, error %s\n",
+	    i40e_stat_str(hw, status),
+	    i40e_aq_str(hw, hw->aq.asq_last_status));
+	j = 0;
+
+	/* Verify which filters were actually configured in HW
+	 * and add them to the list */
+	LIST_FOREACH_SAFE(f, to_add, ftle, fn) {
+		LIST_REMOVE(f, ftle);
+		if (a[j].match_method == I40E_AQC_MM_ERR_NO_RES) {
+			ixl_dbg_filter(pf,
+			    "%s filter " MAC_FORMAT " VTAG: %d not added\n",
+			    __func__,
+			    MAC_FORMAT_ARGS(f->macaddr),
+			    f->vlan);
+			free(f, M_IXL);
+		} else {
+			LIST_INSERT_HEAD(&vsi->ftl, f, ftle);
+			vsi->num_hw_filters++;
+		}
+		j++;
+	}
+
+out_free:
+	free(a, M_IXL);
 }
 
 /*
@@ -1246,7 +1444,7 @@ ixl_add_hw_filters(struct ixl_vsi *vsi, int flags, int cnt)
 ** the filters in the hardware.
 */
 void
-ixl_del_hw_filters(struct ixl_vsi *vsi, int cnt)
+ixl_del_hw_filters(struct ixl_vsi *vsi, struct ixl_ftl_head *to_del, int cnt)
 {
 	struct i40e_aqc_remove_macvlan_element_data *d, *e;
 	struct ixl_pf		*pf;
@@ -1263,52 +1461,62 @@ ixl_del_hw_filters(struct ixl_vsi *vsi, int cnt)
 	ixl_dbg_filter(pf, "%s: start, cnt: %d\n", __func__, cnt);
 
 	d = malloc(sizeof(struct i40e_aqc_remove_macvlan_element_data) * cnt,
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	    M_IXL, M_NOWAIT | M_ZERO);
 	if (d == NULL) {
 		device_printf(dev, "%s: failed to get memory\n", __func__);
 		return;
 	}
 
-	SLIST_FOREACH_SAFE(f, &vsi->ftl, next, f_temp) {
-		if (f->flags & IXL_FILTER_DEL) {
-			e = &d[j]; // a pox on fvl long names :)
-			bcopy(f->macaddr, e->mac_addr, ETHER_ADDR_LEN);
-			e->flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
-			if (f->vlan == IXL_VLAN_ANY) {
-				e->vlan_tag = 0;
-				e->flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
-			} else {
-				e->vlan_tag = f->vlan;
-			}
-
-			ixl_dbg_filter(pf, "DEL: " MAC_FORMAT "\n",
-			    MAC_FORMAT_ARGS(f->macaddr));
-
-			/* delete entry from vsi list */
-			SLIST_REMOVE(&vsi->ftl, f, ixl_mac_filter, next);
-			free(f, M_DEVBUF);
-			j++;
+	LIST_FOREACH_SAFE(f, to_del, ftle, f_temp) {
+		e = &d[j]; // a pox on fvl long names :)
+		bcopy(f->macaddr, e->mac_addr, ETHER_ADDR_LEN);
+		e->flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+		if (f->vlan == IXL_VLAN_ANY) {
+			e->vlan_tag = 0;
+			e->flags |= I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+		} else {
+			e->vlan_tag = f->vlan;
 		}
-		if (j == cnt)
+
+		ixl_dbg_filter(pf, "DEL: " MAC_FORMAT "\n",
+		    MAC_FORMAT_ARGS(f->macaddr));
+
+		/* delete entry from the list */
+		LIST_REMOVE(f, ftle);
+		free(f, M_IXL);
+		if (++j == cnt)
 			break;
 	}
-	if (j > 0) {
-		status = i40e_aq_remove_macvlan(hw, vsi->seid, d, j, NULL);
-		if (status) {
-			int sc = 0;
-			for (int i = 0; i < j; i++)
-				sc += (!d[i].error_code);
-			vsi->num_hw_filters -= sc;
-			device_printf(dev,
-			    "Failed to remove %d/%d filters, error %s\n",
-			    j - sc, j, i40e_aq_str(hw, hw->aq.asq_last_status));
-		} else
-			vsi->num_hw_filters -= j;
+	if (j != cnt || !LIST_EMPTY(to_del)) {
+		/* Something went wrong */
+		device_printf(dev,
+		    "%s ERROR: wrong size of list of filters, expected: %d, found: %d\n",
+		    __func__, cnt, j);
+		ixl_free_filters(to_del);
+		goto out_free;
 	}
-	free(d, M_DEVBUF);
+	status = i40e_aq_remove_macvlan(hw, vsi->seid, d, j, NULL);
+	if (status) {
+		device_printf(dev,
+		    "%s: i40e_aq_remove_macvlan status %s, error %s\n",
+		    __func__, i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		for (int i = 0; i < j; i++) {
+			if (d[i].error_code == 0)
+				continue;
+			device_printf(dev,
+			    "%s Filter does not exist " MAC_FORMAT " VTAG: %d\n",
+			    __func__, MAC_FORMAT_ARGS(d[i].mac_addr),
+			    d[i].vlan_tag);
+		}
+	}
+
+	vsi->num_hw_filters -= j;
+
+out_free:
+	free(d, M_IXL);
 
 	ixl_dbg_filter(pf, "%s: end\n", __func__);
-	return;
 }
 
 int
@@ -1725,7 +1933,7 @@ ixl_handle_empr_reset(struct ixl_pf *pf)
 
 	ixl_rebuild_hw_structs_after_reset(pf, is_up);
 
-	atomic_clear_32(&pf->state, IXL_PF_STATE_ADAPTER_RESETTING);
+	atomic_clear_32(&pf->state, IXL_PF_STATE_RESETTING);
 }
 
 void
@@ -1984,7 +2192,7 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	struct ixl_pf		*pf;
 	struct ifnet		*ifp;
 	struct i40e_eth_stats	*es;
-	u64			tx_discards;
+	u64			tx_discards, csum_errs;
 
 	struct i40e_hw_port_stats *nsd;
 
@@ -1996,6 +2204,11 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	ixl_update_eth_stats(vsi);
 
 	tx_discards = es->tx_discards + nsd->tx_dropped_link_down;
+
+	csum_errs = 0;
+	for (int i = 0; i < vsi->num_rx_queues; i++)
+		csum_errs += vsi->rx_queues[i].rxr.csum_errs;
+	nsd->checksum_error = csum_errs;
 
 	/* Update ifnet stats */
 	IXL_SET_IPACKETS(vsi, es->rx_unicast +
@@ -2010,7 +2223,8 @@ ixl_update_vsi_stats(struct ixl_vsi *vsi)
 	IXL_SET_OMCASTS(vsi, es->tx_multicast);
 
 	IXL_SET_IERRORS(vsi, nsd->crc_errors + nsd->illegal_bytes +
-	    nsd->rx_undersize + nsd->rx_oversize + nsd->rx_fragments +
+	    nsd->checksum_error + nsd->rx_length_errors +
+	    nsd->rx_undersize + nsd->rx_fragments + nsd->rx_oversize +
 	    nsd->rx_jabber);
 	IXL_SET_OERRORS(vsi, es->tx_errors);
 	IXL_SET_IQDROPS(vsi, es->rx_discards + nsd->eth.rx_discards);
@@ -2289,6 +2503,12 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, &pf->stats.rx_lpi_count,
 	    "RX LPI count");
 
+	SYSCTL_ADD_PROC(ctx, ctx_list, OID_AUTO,
+	    "link_active_on_if_down",
+	    CTLTYPE_INT | CTLFLAG_RWTUN,
+	    pf, 0, ixl_sysctl_set_link_active, "I",
+	    IXL_SYSCTL_HELP_SET_LINK_ACTIVE);
+
 	/* Add sysctls meant to print debug information, but don't list them
 	 * in "sysctl -a" output. */
 	debug_node = SYSCTL_ADD_NODE(ctx, ctx_list,
@@ -2310,6 +2530,11 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    pf, 0, ixl_sysctl_link_status, "A", IXL_SYSCTL_HELP_LINK_STATUS);
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "phy_abilities_init",
+	    CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 1, ixl_sysctl_phy_abilities, "A", "Initial PHY Abilities");
+
+	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "phy_abilities",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_phy_abilities, "A", "PHY Abilities");
@@ -2328,6 +2553,11 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    OID_AUTO, "switch_config",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_switch_config, "A", "HW Switch Configuration");
+
+	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "switch_vlans",
+	    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT,
+	    pf, 0, ixl_sysctl_switch_vlans, "I", "HW Switch VLAN Configuration");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "rss_key",
@@ -2799,16 +3029,16 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 	if (pf->dbg_mask & IXL_DBG_NVMUPD)
 		ixl_print_nvm_cmd(dev, nvma);
 
-	if (pf->state & IXL_PF_STATE_ADAPTER_RESETTING) {
+	if (IXL_PF_IS_RESETTING(pf)) {
 		int count = 0;
 		while (count++ < 100) {
 			i40e_msec_delay(100);
-			if (!(pf->state & IXL_PF_STATE_ADAPTER_RESETTING))
+			if (!(IXL_PF_IS_RESETTING(pf)))
 				break;
 		}
 	}
 
-	if (pf->state & IXL_PF_STATE_ADAPTER_RESETTING) {
+	if (IXL_PF_IS_RESETTING(pf)) {
 		device_printf(dev,
 		    "%s: timeout waiting for EMP reset to finish\n",
 		    __func__);
@@ -2890,6 +3120,96 @@ ixl_find_i2c_interface(struct ixl_pf *pf)
 	}
 
 	return (-1);
+}
+
+void
+ixl_set_link(struct ixl_pf *pf, bool enable)
+{
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	enum i40e_status_code aq_error = 0;
+	u32 phy_type, phy_type_ext;
+
+	/* Get initial capability information */
+	aq_error = i40e_aq_get_phy_capabilities(hw,
+	    FALSE, TRUE, &abilities, NULL);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error getting phy capabilities %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return;
+	}
+
+	phy_type = abilities.phy_type;
+	phy_type_ext = abilities.phy_type_ext;
+
+	/* Get current capability information */
+	aq_error = i40e_aq_get_phy_capabilities(hw,
+	    FALSE, FALSE, &abilities, NULL);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error getting phy capabilities %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return;
+	}
+
+	/* Prepare new config */
+	memset(&config, 0, sizeof(config));
+	config.link_speed = abilities.link_speed;
+	config.abilities = abilities.abilities;
+	config.eee_capability = abilities.eee_capability;
+	config.eeer = abilities.eeer_val;
+	config.low_power_ctrl = abilities.d3_lpan;
+	config.fec_config = abilities.fec_cfg_curr_mod_ext_info
+	    & I40E_AQ_PHY_FEC_CONFIG_MASK;
+	config.phy_type = 0;
+	config.phy_type_ext = 0;
+
+	config.abilities &= ~(I40E_AQ_PHY_FLAG_PAUSE_TX |
+			I40E_AQ_PHY_FLAG_PAUSE_RX);
+
+	switch (pf->fc) {
+	case I40E_FC_FULL:
+		config.abilities |= I40E_AQ_PHY_FLAG_PAUSE_TX |
+			I40E_AQ_PHY_FLAG_PAUSE_RX;
+		break;
+	case I40E_FC_RX_PAUSE:
+		config.abilities |= I40E_AQ_PHY_FLAG_PAUSE_RX;
+		break;
+	case I40E_FC_TX_PAUSE:
+		config.abilities |= I40E_AQ_PHY_FLAG_PAUSE_TX;
+		break;
+	default:
+		break;
+	}
+
+	if (enable) {
+		config.phy_type = phy_type;
+		config.phy_type_ext = phy_type_ext;
+
+	}
+
+	aq_error = i40e_aq_set_phy_config(hw, &config, NULL);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error setting new phy config %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return;
+	}
+
+	aq_error = i40e_aq_set_link_restart_an(hw, enable, NULL);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error set link config %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return;
+	}
 }
 
 static char *
@@ -3050,7 +3370,7 @@ ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS)
 	}
 
 	status = i40e_aq_get_phy_capabilities(hw,
-	    FALSE, FALSE, &abilities, NULL);
+	    FALSE, arg2 != 0, &abilities, NULL);
 	if (status) {
 		device_printf(dev,
 		    "%s: i40e_aq_get_phy_capabilities() status %s, aq error %s\n",
@@ -3145,13 +3465,13 @@ ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 
 	/* Print MAC filters */
 	sbuf_printf(buf, "PF Filters:\n");
-	SLIST_FOREACH(f, &vsi->ftl, next)
+	LIST_FOREACH(f, &vsi->ftl, ftle)
 		ftl_len++;
 
 	if (ftl_len < 1)
 		sbuf_printf(buf, "(none)\n");
 	else {
-		SLIST_FOREACH(f, &vsi->ftl, next) {
+		LIST_FOREACH(f, &vsi->ftl, ftle) {
 			sbuf_printf(buf,
 			    MAC_FORMAT ", vlan %4d, flags %#06x",
 			    MAC_FORMAT_ARGS(f->macaddr), f->vlan, f->flags);
@@ -3174,13 +3494,13 @@ ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 			vsi = &vf->vsi;
 			ftl_len = 0, ftl_counter = 0;
 			sbuf_printf(buf, "VF-%d Filters:\n", vf->vf_num);
-			SLIST_FOREACH(f, &vsi->ftl, next)
+			LIST_FOREACH(f, &vsi->ftl, ftle)
 				ftl_len++;
 
 			if (ftl_len < 1)
 				sbuf_printf(buf, "(none)\n");
 			else {
-				SLIST_FOREACH(f, &vsi->ftl, next) {
+				LIST_FOREACH(f, &vsi->ftl, ftle) {
 					sbuf_printf(buf,
 					    MAC_FORMAT ", vlan %4d, flags %#06x\n",
 					    MAC_FORMAT_ARGS(f->macaddr), f->vlan, f->flags);
@@ -3479,6 +3799,40 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(buf);
 
 	return (error);
+}
+
+static int
+ixl_sysctl_switch_vlans(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	int requested_vlan = -1;
+	enum i40e_status_code status = 0;
+	int error = 0;
+
+	error = sysctl_handle_int(oidp, &requested_vlan, 0, req);
+	if ((error) || (req->newptr == NULL))
+	    return (error);
+
+	if ((hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) == 0) {
+		device_printf(dev, "Flags disallow setting of vlans\n");
+		return (ENODEV);
+	}
+
+	hw->switch_tag = requested_vlan;
+	device_printf(dev,
+	    "Setting switch config to switch_tag=%04x, first_tag=%04x, second_tag=%04x\n",
+	    hw->switch_tag, hw->first_tag, hw->second_tag);
+	status = i40e_aq_set_switch_config(hw, 0, 0, 0, NULL);
+	if (status) {
+		device_printf(dev,
+		    "%s: aq_set_switch_config() error %s, aq error %s\n",
+		    __func__, i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return (status);
+	}
+	return (0);
 }
 
 static int
@@ -3997,7 +4351,7 @@ ixl_sysctl_dump_debug_data(SYSCTL_HANDLER_ARGS)
 	u8 *final_buff;
 	/* This amount is only necessary if reading the entire cluster into memory */
 #define IXL_FINAL_BUFF_SIZE	(1280 * 1024)
-	final_buff = malloc(IXL_FINAL_BUFF_SIZE, M_DEVBUF, M_NOWAIT);
+	final_buff = malloc(IXL_FINAL_BUFF_SIZE, M_IXL, M_NOWAIT);
 	if (final_buff == NULL) {
 		device_printf(dev, "Could not allocate memory for output.\n");
 		goto out;
@@ -4059,7 +4413,7 @@ ixl_sysctl_dump_debug_data(SYSCTL_HANDLER_ARGS)
 	}
 
 free_out:
-	free(final_buff, M_DEVBUF);
+	free(final_buff, M_IXL);
 out:
 	error = sbuf_finish(buf);
 	if (error)
@@ -4133,9 +4487,6 @@ ixl_stop_fw_lldp(struct ixl_pf *pf)
 		device_printf(dev, "FW LLDP agent is already stopped\n");
 	}
 
-#ifndef EXTERNAL_RELEASE
-	/* Let the FW set default DCB configuration on link UP as described in DCR 307.1 */
-#endif
 	i40e_aq_set_dcb_parameters(hw, true, NULL);
 	atomic_set_32(&pf->state, IXL_PF_STATE_FW_LLDP_DISABLED);
 	return (0);
@@ -4201,6 +4552,28 @@ ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+ixl_sysctl_set_link_active(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	int error, state;
+
+	state = !!(atomic_load_acq_32(&pf->state) &
+	    IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+
+	error = sysctl_handle_int(oidp, &state, 0, req);
+	if ((error) || (req->newptr == NULL))
+		return (error);
+
+	if (state == 0)
+		atomic_clear_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+	else
+		atomic_set_32(&pf->state, IXL_PF_STATE_LINK_ACTIVE_ON_DOWN);
+
+	return (0);
+}
+
+
 int
 ixl_attach_get_link_status(struct ixl_pf *pf)
 {
@@ -4222,6 +4595,11 @@ ixl_attach_get_link_status(struct ixl_pf *pf)
 	/* Determine link state */
 	hw->phy.get_link_info = TRUE;
 	i40e_get_link_status(hw, &pf->link_up);
+
+	/* Flow Control mode not set by user, read current FW settings */
+	if (pf->fc == -1)
+		pf->fc = hw->fc.current_mode;
+
 	return (0);
 }
 

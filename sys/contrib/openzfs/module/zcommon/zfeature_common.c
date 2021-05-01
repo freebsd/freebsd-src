@@ -100,6 +100,8 @@ zfeature_is_supported(const char *guid)
 
 	for (spa_feature_t i = 0; i < SPA_FEATURES; i++) {
 		zfeature_info_t *feature = &spa_feature_table[i];
+		if (!feature->fi_zfs_mod_supported)
+			continue;
 		if (strcmp(guid, feature->fi_guid) == 0)
 			return (B_TRUE);
 	}
@@ -222,9 +224,15 @@ zfs_mod_supported_feature(const char *name)
 	 * features are supported.
 	 *
 	 * The equivalent _can_ be done on FreeBSD by way of the sysctl
-	 * tree, but this has not been done yet.
+	 * tree, but this has not been done yet.  Therefore, we return
+	 * that all features except edonr are supported.
 	 */
-#if defined(_KERNEL) || defined(LIB_ZPOOL_BUILD) || defined(__FreeBSD__)
+#if defined(__FreeBSD__)
+	if (strcmp(name, "org.illumos:edonr") == 0)
+		return (B_FALSE);
+	else
+		return (B_TRUE);
+#elif defined(_KERNEL) || defined(LIB_ZPOOL_BUILD)
 	return (B_TRUE);
 #else
 	return (zfs_mod_supported(ZFS_SYSFS_POOL_FEATURES, name));
@@ -440,8 +448,6 @@ zpool_feature_init(void)
 	    skein_deps);
 	}
 
-#if !defined(__FreeBSD__)
-
 	{
 	static const spa_feature_t edonr_deps[] = {
 		SPA_FEATURE_EXTENSIBLE_DATASET,
@@ -453,7 +459,6 @@ zpool_feature_init(void)
 	    ZFEATURE_FLAG_PER_DATASET, ZFEATURE_TYPE_BOOLEAN,
 	    edonr_deps);
 	}
-#endif
 
 	{
 	static const spa_feature_t redact_books_deps[] = {
@@ -576,7 +581,7 @@ zpool_feature_init(void)
 
 	zfeature_register(SPA_FEATURE_DEVICE_REBUILD,
 	    "org.openzfs:device_rebuild", "device_rebuild",
-	    "Support for sequential device rebuilds",
+	    "Support for sequential mirror/dRAID device rebuilds",
 	    ZFEATURE_FLAG_READONLY_COMPAT, ZFEATURE_TYPE_BOOLEAN, NULL);
 
 	{
@@ -589,6 +594,10 @@ zpool_feature_init(void)
 	    "zstd compression algorithm support.",
 	    ZFEATURE_FLAG_PER_DATASET, ZFEATURE_TYPE_BOOLEAN, zstd_deps);
 	}
+
+	zfeature_register(SPA_FEATURE_DRAID,
+	    "org.openzfs:draid", "draid", "Support for distributed spare RAID",
+	    ZFEATURE_FLAG_MOS, ZFEATURE_TYPE_BOOLEAN, NULL);
 }
 
 #if defined(_KERNEL)

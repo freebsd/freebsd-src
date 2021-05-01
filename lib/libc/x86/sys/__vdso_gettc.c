@@ -53,55 +53,146 @@ __FBSDID("$FreeBSD$");
 #include <x86/ifunc.h>
 #include "libc_private.h"
 
-static void
-rdtsc_mb_lfence(void)
-{
-
-	lfence();
-}
-
-static void
-rdtsc_mb_mfence(void)
-{
-
-	mfence();
-}
-
-static void
-rdtsc_mb_none(void)
-{
-}
-
-DEFINE_UIFUNC(static, void, rdtsc_mb, (void))
-{
-	u_int p[4];
-	/* Not a typo, string matches our do_cpuid() registers use. */
-	static const char intel_id[] = "GenuntelineI";
-
-	if ((cpu_feature & CPUID_SSE2) == 0)
-		return (rdtsc_mb_none);
-	do_cpuid(0, p);
-	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
-	    rdtsc_mb_lfence : rdtsc_mb_mfence);
-}
-
-static u_int
-__vdso_gettc_rdtsc_low(const struct vdso_timehands *th)
+static inline u_int
+rdtsc_low(const struct vdso_timehands *th)
 {
 	u_int rv;
 
-	rdtsc_mb();
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
 	return (rv);
 }
 
-static u_int
-__vdso_rdtsc32(void)
+static inline u_int
+rdtscp_low(const struct vdso_timehands *th)
 {
+	u_int rv;
 
-	rdtsc_mb();
+	__asm __volatile("rdtscp; movl %%edi,%%ecx; shrd %%cl, %%edx, %0"
+	    : "=a" (rv) : "D" (th->th_x86_shift) : "ecx", "edx");
+	return (rv);
+}
+
+static u_int
+rdtsc_low_mb_lfence(const struct vdso_timehands *th)
+{
+	lfence();
+	return (rdtsc_low(th));
+}
+
+static u_int
+rdtsc_low_mb_mfence(const struct vdso_timehands *th)
+{
+	mfence();
+	return (rdtsc_low(th));
+}
+
+static u_int
+rdtsc_low_mb_none(const struct vdso_timehands *th)
+{
+	return (rdtsc_low(th));
+}
+
+static u_int
+rdtsc32_mb_lfence(void)
+{
+	lfence();
 	return (rdtsc32());
+}
+
+static u_int
+rdtsc32_mb_mfence(void)
+{
+	mfence();
+	return (rdtsc32());
+}
+
+static u_int
+rdtsc32_mb_none(void)
+{
+	return (rdtsc32());
+}
+
+static u_int
+rdtscp32_(void)
+{
+	return (rdtscp32());
+}
+
+struct tsc_selector_tag {
+	u_int (*ts_rdtsc32)(void);
+	u_int (*ts_rdtsc_low)(const struct vdso_timehands *);
+};
+
+static const struct tsc_selector_tag tsc_selector[] = {
+	[0] = {				/* Intel, LFENCE */
+		.ts_rdtsc32 =	rdtsc32_mb_lfence,
+		.ts_rdtsc_low =	rdtsc_low_mb_lfence,
+	},
+	[1] = {				/* AMD, MFENCE */
+		.ts_rdtsc32 =	rdtsc32_mb_mfence,
+		.ts_rdtsc_low =	rdtsc_low_mb_mfence,
+	},
+	[2] = {				/* No SSE2 */
+		.ts_rdtsc32 = rdtsc32_mb_none,
+		.ts_rdtsc_low = rdtsc_low_mb_none,
+	},
+	[3] = {				/* RDTSCP */
+		.ts_rdtsc32 =	rdtscp32_,
+		.ts_rdtsc_low =	rdtscp_low,
+	},
+};
+
+static int
+tsc_selector_idx(u_int cpu_feature)
+{
+	u_int amd_feature, cpu_exthigh, cpu_id, p[4], v[3];
+	static const char amd_id[] = "AuthenticAMD";
+	static const char hygon_id[] = "HygonGenuine";
+	bool amd_cpu;
+
+	if (cpu_feature == 0)
+		return (2);	/* should not happen due to RDTSC */
+
+	do_cpuid(0, p);
+	v[0] = p[1];
+	v[1] = p[3];
+	v[2] = p[2];
+	amd_cpu = memcmp(v, amd_id, sizeof(amd_id) - 1) == 0 ||
+	    memcmp(v, hygon_id, sizeof(hygon_id) - 1) == 0;
+
+	do_cpuid(1, p);
+	cpu_id = p[0];
+
+	if (cpu_feature != 0) {
+		do_cpuid(0x80000000, p);
+		cpu_exthigh = p[0];
+	} else {
+		cpu_exthigh = 0;
+	}
+	if (cpu_exthigh >= 0x80000001) {
+		do_cpuid(0x80000001, p);
+		amd_feature = p[3];
+	} else {
+		amd_feature = 0;
+	}
+
+	if ((amd_feature & AMDID_RDTSCP) != 0)
+		return (3);
+	if ((cpu_feature & CPUID_SSE2) == 0)
+		return (2);
+	return (amd_cpu ? 1 : 0);
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc_low,
+    (const struct vdso_timehands *th))
+{
+	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc_low);
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc32, (void))
+{
+	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc32);
 }
 
 #define	HPET_DEV_MAP_MAX	10
@@ -199,7 +290,7 @@ __vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
 		scale = tsc_ref->tsc_scale;
 		ofs = tsc_ref->tsc_ofs;
 
-		rdtsc_mb();
+		mfence();	/* XXXKIB */
 		tsc = rdtsc();
 
 		/* ret = ((tsc * scale) >> 64) + ofs */
@@ -231,7 +322,7 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 	switch (th->th_algo) {
 	case VDSO_TH_ALGO_X86_TSC:
 		*tc = th->th_x86_shift > 0 ? __vdso_gettc_rdtsc_low(th) :
-		    __vdso_rdtsc32();
+		    __vdso_gettc_rdtsc32();
 		return (0);
 	case VDSO_TH_ALGO_X86_HPET:
 		idx = th->th_x86_hpet_idx;

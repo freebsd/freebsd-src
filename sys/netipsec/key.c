@@ -101,6 +101,7 @@
 #define FULLMASK	0xff
 #define	_BITS(bytes)	((bytes) << 3)
 
+#define	UINT32_80PCT	0xcccccccc
 /*
  * Note on SA reference counting:
  * - SAs that are not in DEAD state will have (total external reference + 1)
@@ -4536,7 +4537,11 @@ key_flush_sad(time_t now)
 			    (sav->lft_s->usetime != 0 && sav->firstused &&
 			    now - sav->firstused > sav->lft_s->usetime) ||
 			    (sav->lft_s->bytes != 0 && counter_u64_fetch(
-				sav->lft_c_bytes) > sav->lft_s->bytes))) {
+				sav->lft_c_bytes) > sav->lft_s->bytes) ||
+			    (!(sav->flags & SADB_X_SAFLAGS_ESN) &&
+			    (sav->replay != NULL) && (
+			    (sav->replay->count > UINT32_80PCT) ||
+			    (sav->replay->last > UINT32_80PCT))))) {
 				SECASVAR_UNLOCK(sav);
 				SAV_ADDREF(sav);
 				LIST_INSERT_HEAD(&sexpireq, sav, drainq);

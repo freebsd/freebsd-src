@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2021 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  * Copyright 2013 Saso Kiselkov. All rights reserved.
@@ -405,6 +405,12 @@ typedef struct blkptr {
 /*
  * Macros to get and set fields in a bp or DVA.
  */
+
+/*
+ * Note, for gang blocks, DVA_GET_ASIZE() is the total space allocated for
+ * this gang DVA including its children BP's.  The space allocated at this
+ * DVA's vdev/offset is vdev_gang_header_asize(vdev).
+ */
 #define	DVA_GET_ASIZE(dva)	\
 	BF64_GET_SB((dva)->dva_word[0], 0, SPA_ASIZEBITS, SPA_MINBLOCKSHIFT, 0)
 #define	DVA_SET_ASIZE(dva, x)	\
@@ -768,12 +774,12 @@ extern int spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 extern int spa_import(char *pool, nvlist_t *config, nvlist_t *props,
     uint64_t flags);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
-extern int spa_destroy(char *pool);
+extern int spa_destroy(const char *pool);
 extern int spa_checkpoint(const char *pool);
 extern int spa_checkpoint_discard(const char *pool);
-extern int spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+extern int spa_export(const char *pool, nvlist_t **oldconfig, boolean_t force,
     boolean_t hardforce);
-extern int spa_reset(char *pool);
+extern int spa_reset(const char *pool);
 extern void spa_async_request(spa_t *spa, int flag);
 extern void spa_async_unrequest(spa_t *spa, int flag);
 extern void spa_async_suspend(spa_t *spa);
@@ -1047,6 +1053,7 @@ extern uint64_t spa_version(spa_t *spa);
 extern boolean_t spa_deflate(spa_t *spa);
 extern metaslab_class_t *spa_normal_class(spa_t *spa);
 extern metaslab_class_t *spa_log_class(spa_t *spa);
+extern metaslab_class_t *spa_embedded_log_class(spa_t *spa);
 extern metaslab_class_t *spa_special_class(spa_t *spa);
 extern metaslab_class_t *spa_dedup_class(spa_t *spa);
 extern metaslab_class_t *spa_preferred_class(spa_t *spa, uint64_t size,
@@ -1149,6 +1156,7 @@ extern int zfs_ereport_post(const char *clazz, spa_t *spa, vdev_t *vd,
 extern boolean_t zfs_ereport_is_valid(const char *clazz, spa_t *spa, vdev_t *vd,
     zio_t *zio);
 extern void zfs_ereport_taskq_fini(void);
+extern void zfs_ereport_clear(spa_t *spa, vdev_t *vd);
 extern nvlist_t *zfs_event_create(spa_t *spa, vdev_t *vd, const char *type,
     const char *name, nvlist_t *aux);
 extern void zfs_post_remove(spa_t *spa, vdev_t *vd);

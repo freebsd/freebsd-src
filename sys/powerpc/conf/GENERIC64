@@ -42,6 +42,7 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		ROUTE_MPATH		# Multipath routing support
 options 	TCP_OFFLOAD		# TCP offload
 options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_HHOOK		# hhook(9) framework for TCP
@@ -143,8 +144,10 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		mpt		# LSI-Logic MPT-Fusion
 device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI SAS3008 MPT-Fusion SAS-3
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
@@ -269,3 +272,6 @@ device          virtio_blk              # VirtIO Block device
 device          virtio_scsi             # VirtIO SCSI device
 device          virtio_balloon          # VirtIO Memory Balloon device
 
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support

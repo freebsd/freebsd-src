@@ -48,6 +48,8 @@
 #define HN_NVS_VERSION_2		0x30002
 #define HN_NVS_VERSION_4		0x40000
 #define HN_NVS_VERSION_5		0x50000
+#define HN_NVS_VERSION_6		0x60000
+#define HN_NVS_VERSION_61		0x60001
 
 #define HN_NVS_RXBUF_SIG		0xcafe
 #define HN_NVS_CHIM_SIG			0xface
@@ -101,6 +103,7 @@ struct hn_nvs_init {
 	uint32_t	nvs_ver_min;
 	uint32_t	nvs_ver_max;
 	uint8_t		nvs_rsvd[20];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_init) >= HN_NVS_REQSIZE_MIN);
 
@@ -118,11 +121,13 @@ struct hn_nvs_ndis_conf {
 	uint32_t	nvs_rsvd;
 	uint64_t	nvs_caps;	/* HN_NVS_NDIS_CONF_ */
 	uint8_t		nvs_rsvd1[12];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_ndis_conf) >= HN_NVS_REQSIZE_MIN);
 
 #define HN_NVS_NDIS_CONF_SRIOV		0x0004
 #define HN_NVS_NDIS_CONF_VLAN		0x0008
+#define HN_NVS_NDIS_CONF_RSC		0x0080
 
 /* No response */
 struct hn_nvs_ndis_init {
@@ -130,6 +135,7 @@ struct hn_nvs_ndis_init {
 	uint32_t	nvs_ndis_major;	/* NDIS_VERSION_MAJOR_ */
 	uint32_t	nvs_ndis_minor;	/* NDIS_VERSION_MINOR_ */
 	uint8_t		nvs_rsvd[20];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_ndis_init) >= HN_NVS_REQSIZE_MIN);
 
@@ -141,6 +147,7 @@ struct hn_nvs_datapath {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_SET_DATAPATH */
 	uint32_t	nvs_active_path;/* HN_NVS_DATAPATH_* */
 	uint32_t	nvs_rsvd[6];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_datapath) >= HN_NVS_REQSIZE_MIN);
 
@@ -149,6 +156,7 @@ struct hn_nvs_rxbuf_conn {
 	uint32_t	nvs_gpadl;	/* RXBUF vmbus GPADL */
 	uint16_t	nvs_sig;	/* HN_NVS_RXBUF_SIG */
 	uint8_t		nvs_rsvd[22];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rxbuf_conn) >= HN_NVS_REQSIZE_MIN);
 
@@ -171,6 +179,7 @@ struct hn_nvs_rxbuf_disconn {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_RXBUF_DISCONN */
 	uint16_t	nvs_sig;	/* HN_NVS_RXBUF_SIG */
 	uint8_t		nvs_rsvd[26];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rxbuf_disconn) >= HN_NVS_REQSIZE_MIN);
 
@@ -179,6 +188,7 @@ struct hn_nvs_chim_conn {
 	uint32_t	nvs_gpadl;	/* chimney buf vmbus GPADL */
 	uint16_t	nvs_sig;	/* NDIS_NVS_CHIM_SIG */
 	uint8_t		nvs_rsvd[22];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_chim_conn) >= HN_NVS_REQSIZE_MIN);
 
@@ -193,6 +203,7 @@ struct hn_nvs_chim_disconn {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_CHIM_DISCONN */
 	uint16_t	nvs_sig;	/* HN_NVS_CHIM_SIG */
 	uint8_t		nvs_rsvd[26];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_chim_disconn) >= HN_NVS_REQSIZE_MIN);
 
@@ -203,6 +214,7 @@ struct hn_nvs_subch_req {
 	uint32_t	nvs_op;		/* HN_NVS_SUBCH_OP_ */
 	uint32_t	nvs_nsubch;
 	uint8_t		nvs_rsvd[20];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_subch_req) >= HN_NVS_REQSIZE_MIN);
 
@@ -226,6 +238,7 @@ struct hn_nvs_rndis {
 	uint32_t	nvs_chim_idx;
 	uint32_t	nvs_chim_sz;
 	uint8_t		nvs_rsvd[16];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rndis) >= HN_NVS_REQSIZE_MIN);
 
@@ -233,6 +246,7 @@ struct hn_nvs_rndis_ack {
 	uint32_t	nvs_type;	/* HN_NVS_TYPE_RNDIS_ACK */
 	uint32_t	nvs_status;	/* HN_NVS_STATUS_ */
 	uint8_t		nvs_rsvd[24];
+	uint8_t		nvs_msg_pad[8];
 } __packed;
 CTASSERT(sizeof(struct hn_nvs_rndis_ack) >= HN_NVS_REQSIZE_MIN);
 

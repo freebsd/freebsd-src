@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2020 Rubicon Communications, LLC (netgate.com)
+# Copyright (c) 2020-2021 Rubicon Communications, LLC (netgate.com)
 # Copyright (c) 2013-2019 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
@@ -34,8 +34,6 @@
 #  totally clean, fresh trees.
 # Based on release/generate-release.sh written by Nathan Whitehorn
 #
-# $FreeBSD$
-#
 
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 
@@ -67,6 +65,17 @@ env_setup() {
 		[ ! -z "${VCSCMD}" ] && break 2
 	done
 
+	# Find the Subversion binary to use.  This is a workaround to use
+	# the source of truth for the ports tree, as the conversion to Git
+	# is targeted to occur slightly after the currently-scheduled 13.0
+	# release.
+	for _dir in /usr/bin /usr/local/bin; do
+		for _svn in svn svnlite; do
+			[ -x "${_dir}/${_svn}" ] && SVNCMD="${_dir}/${_svn}"
+			[ ! -z "${SVNCMD}" ] && break 2
+		done
+	done
+
 	if [ -z "${VCSCMD}" -a -z "${NOGIT}" ]; then
 		echo "*** The devel/git port/package is required."
 		exit 1
@@ -75,13 +84,11 @@ env_setup() {
 
 	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
-	GITROOT="https://cgit-beta.FreeBSD.org/"
+	GITROOT="https://git.FreeBSD.org/"
 	SRCBRANCH="main"
-	DOCBRANCH="main"
-	PORTBRANCH="main"
+	PORTBRANCH="head"
 	GITSRC="src.git"
 	GITPORTS="ports.git"
-	GITDOC="doc.git"
 
 	# Set for embedded device builds.
 	EMBEDDEDBUILD=
@@ -103,8 +110,6 @@ env_setup() {
 	KERNEL="GENERIC"
 
 	# Set to non-empty value to disable checkout of doc/ and/or ports/.
-	# Disabling ports/ checkout also forces NODOC to be set.
-	NODOC=
 	NOPORTS=
 
 	# Set to non-empty value to disable distributing source tree.
@@ -136,15 +141,14 @@ env_check() {
 
 	# Prefix the branches with the GITROOT for the full checkout URL.
 	SRC="${GITROOT}${GITSRC}"
-	DOC="${GITROOT}${GITDOC}"
-	PORT="${GITROOT}${GITPORTS}"
+	#PORT="${GITROOT}${GITPORTS}"
+	PORT="svn://svn.freebsd.org/ports/"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
 		WITH_COMPRESSED_IMAGES=
-		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
-			arm:arm*|arm64:aarch64)
+			arm:arm*|arm64:aarch64|riscv:riscv64*)
 				chroot_build_release_cmd="chroot_arm_build_release"
 				;;
 			*)
@@ -152,32 +156,22 @@ env_check() {
 		esac
 	fi
 
-	# If PORTS is set and NODOC is unset, force NODOC=yes because the ports
-	# tree is required to build the documentation set.
-	if [ -n "${NOPORTS}" ] && [ -z "${NODOC}" ]; then
-		echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
-		echo "            and NOPORTS is set."
-		NODOC=yes
-	fi
-
-	# If NOSRC, NOPORTS and/or NODOC are unset, they must not pass to make
+	# If NOSRC and/or NOPORTS are unset, they must not pass to make
 	# as variables.  The release makefile verifies definedness of the
-	# NOPORTS/NODOC variables instead of their values.
-	SRCDOCPORTS=
+	# NOPORTS variable instead of its value.
+	SRCPORTS=
 	if [ -n "${NOPORTS}" ]; then
-		SRCDOCPORTS="NOPORTS=yes"
-	fi
-	if [ -n "${NODOC}" ]; then
-		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NODOC=yes"
+		SRCPORTS="NOPORTS=yes"
 	fi
 	if [ -n "${NOSRC}" ]; then
-		SRCDOCPORTS="${SRCDOCPORTS}${SRCDOCPORTS:+ }NOSRC=yes"
+		SRCPORTS="${SRCPORTS}${SRCPORTS:+ }NOSRC=yes"
 	fi
 
 	# The aggregated build-time flags based upon variables defined within
 	# this file, unless overridden by release.conf.  In most cases, these
 	# will not need to be changed.
 	CONF_FILES="__MAKE_CONF=${MAKE_CONF} SRCCONF=${SRC_CONF}"
+	NOCONF_FILES="__MAKE_CONF=/dev/null SRCCONF=/dev/null"
 	if [ -n "${TARGET}" ] && [ -n "${TARGET_ARCH}" ]; then
 		ARCH_FLAGS="TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}"
 	else
@@ -201,15 +195,15 @@ env_check() {
 
 	CHROOT_MAKEENV="${CHROOT_MAKEENV} \
 		MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
-	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
-	CHROOT_IMAKEFLAGS="${WORLD_FLAGS} ${CONF_FILES}"
-	CHROOT_DMAKEFLAGS="${WORLD_FLAGS} ${CONF_FILES}"
+	CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${NOCONF_FILES}"
+	CHROOT_IMAKEFLAGS="${WORLD_FLAGS} ${NOCONF_FILES}"
+	CHROOT_DMAKEFLAGS="${WORLD_FLAGS} ${NOCONF_FILES}"
 	RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} \
 		${CONF_FILES}"
 	RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} \
-		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCDOCPORTS} \
+		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
 		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
 
@@ -228,18 +222,17 @@ chroot_setup() {
 			${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
 		fi
 	fi
-	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/doc/.git" ]; then
-			git -C ${CHROOTDIR}/usr/doc pull -q
-		else
-			${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
-		fi
-	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
-			git -C ${CHROOTDIR}/usr/ports pull -q
+		# if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
+			# git -C ${CHROOTDIR}/usr/ports pull -q
+		# XXX: Workaround for the overlap in the Git conversion timeframe.
+		if [ -d "${CHROOTDIR}/usr/ports/.svn" ]; then
+			${SVNCMD} update ${CHROOTDIR}/usr/ports
 		else
-			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+			#${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+			# XXX: Workaround for the overlap in the Git
+			# conversion timeframe.
+			${SVNCMD} co ${PORT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
 	fi
 
@@ -292,7 +285,13 @@ extra_chroot_setup() {
 			GITUNSETOPTS="${GITUNSETOPTS} ICONV NLS P4 PERL"
 			GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
 			GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
+			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
+			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
+			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
 			eval chroot ${CHROOTDIR} env OPTIONS_UNSET=\"${GITUNSETOPTS}\" \
+				${PBUILD_FLAGS} \
 				make -C /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
 				WRKDIRPREFIX=/tmp/ports \
 				DISTDIR=/tmp/distfiles \
@@ -304,31 +303,12 @@ extra_chroot_setup() {
 				pkg clean -y
 		fi
 	fi
-	if [ -d ${CHROOTDIR}/usr/ports ]; then
-		# Trick the ports 'run-autotools-fixup' target to do the right
-		# thing.
-		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
-		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
-		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
-		UNAME_r=${REVISION}-${BRANCH}
-		if [ -d ${CHROOTDIR}/usr/doc ] && [ -z "${NODOC}" ]; then
-			PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-			PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
-			PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
-			PBUILD_FLAGS="${PBUILD_FLAGS} WRKDIRPREFIX=/tmp/ports"
-			PBUILD_FLAGS="${PBUILD_FLAGS} DISTDIR=/tmp/distfiles"
-			chroot ${CHROOTDIR} env ${PBUILD_FLAGS} \
-				OPTIONS_UNSET="AVAHI FOP IGOR" make -C \
-				/usr/ports/textproc/docproj \
-				FORCE_PKG_REGISTER=1 \
-				install clean distclean
-		fi
-	fi
 
 	if [ ! -z "${EMBEDDEDPORTS}" ]; then
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
 		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+		UNAME_r=${REVISION}-${BRANCH}
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
@@ -400,6 +380,9 @@ efi_boot_name()
 		amd64)
 			echo "bootx64.efi"
 			;;
+		riscv)
+			echo "bootriscv64.efi"
+			;;
 	esac
 }
 
@@ -407,7 +390,7 @@ efi_boot_name()
 chroot_arm_build_release() {
 	load_target_env
 	case ${EMBEDDED_TARGET} in
-		arm|arm64)
+		arm|arm64|riscv)
 			if [ -e "${RELENGDIR}/tools/arm.subr" ]; then
 				. "${RELENGDIR}/tools/arm.subr"
 			fi

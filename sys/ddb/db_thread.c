@@ -90,8 +90,11 @@ db_show_threads(db_expr_t addr, bool hasaddr, db_expr_t cnt, char *mod)
 		    (void *)thr->td_kstack);
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
-			if (db_trace_thread(thr, 1) != 0)
-				db_printf("***\n");
+			if (thr->td_proc->p_flag & P_INMEM) {
+				if (db_trace_thread(thr, 1) != 0)
+					db_printf("***\n");
+			} else
+				db_printf("*** swapped out\n");
 		}
 		kdb_jmpbuf(prev_jb);
 		thr = kdb_thr_next(thr);
@@ -111,7 +114,6 @@ db_lookup_thread(db_expr_t addr, bool check_pid)
 {
 	struct thread *td;
 	db_expr_t decaddr;
-	struct proc *p;
 
 	/*
 	 * If the parsed address was not a valid decimal expression,
@@ -125,10 +127,9 @@ db_lookup_thread(db_expr_t addr, bool check_pid)
 	if (td != NULL)
 		return (td);
 	if (check_pid) {
-		LIST_FOREACH(p, PIDHASH(decaddr), p_hash) {
-			if (p->p_pid == decaddr)
-				return (FIRST_THREAD_IN_PROC(p));
-		}
+		td = kdb_thr_from_pid(decaddr);
+		if (td != NULL)
+			return (td);
 	}
 	return ((struct thread *)addr);
 }

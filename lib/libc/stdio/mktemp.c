@@ -121,9 +121,9 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 	char *start, *trv, *suffp, *carryp;
 	char *pad;
 	struct stat sbuf;
-	int rval;
 	uint32_t rand;
 	char carrybuf[MAXPATHLEN];
+	int saved;
 
 	if ((doopen != NULL && domkdir) || slen < 0 ||
 	    (oflags & ~(O_APPEND | O_DIRECT | O_SHLOCK | O_EXLOCK | O_SYNC |
@@ -132,8 +132,7 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 		return (0);
 	}
 
-	for (trv = path; *trv != '\0'; ++trv)
-		;
+	trv = path + strlen(path);
 	if (trv - path >= MAXPATHLEN) {
 		errno = ENAMETOOLONG;
 		return (0);
@@ -153,29 +152,7 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 	}
 	start = trv + 1;
 
-	/* save first combination of random characters */
-	memcpy(carrybuf, start, suffp - start);
-
-	/*
-	 * check the target directory.
-	 */
-	if (doopen != NULL || domkdir) {
-		for (; trv > path; --trv) {
-			if (*trv == '/') {
-				*trv = '\0';
-				rval = fstatat(dfd, path, &sbuf, 0);
-				*trv = '/';
-				if (rval != 0)
-					return (0);
-				if (!S_ISDIR(sbuf.st_mode)) {
-					errno = ENOTDIR;
-					return (0);
-				}
-				break;
-			}
-		}
-	}
-
+	saved = 0;
 	oflags |= O_CREAT | O_EXCL | O_RDWR;
 	for (;;) {
 		if (doopen) {
@@ -191,6 +168,12 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 				return (0);
 		} else if (lstat(path, &sbuf))
 			return (errno == ENOENT);
+
+		/* save first combination of random characters */
+		if (!saved) {
+			memcpy(carrybuf, start, suffp - start);
+			saved = 1;
+		}
 
 		/* If we have a collision, cycle through the space of filenames */
 		for (trv = start, carryp = carrybuf;;) {

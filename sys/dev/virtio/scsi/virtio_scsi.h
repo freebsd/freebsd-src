@@ -31,13 +31,7 @@
 #ifndef _VIRTIO_SCSI_H
 #define _VIRTIO_SCSI_H
 
-/* Feature bits */
-#define VIRTIO_SCSI_F_INOUT	0x0001	/* Single request can contain both
-					 * read and write buffers */
-#define VIRTIO_SCSI_F_HOTPLUG	0x0002	/* Host should enable hot plug/unplug
-					 * of new LUNs and targets.
-					 */
-
+/* Default values of the CDB and sense data size configuration fields */
 #define VIRTIO_SCSI_CDB_SIZE	32
 #define VIRTIO_SCSI_SENSE_SIZE	96
 
@@ -46,8 +40,20 @@ struct virtio_scsi_cmd_req {
 	uint8_t lun[8];		/* Logical Unit Number */
 	uint64_t tag;		/* Command identifier */
 	uint8_t task_attr;	/* Task attribute */
-	uint8_t prio;
+	uint8_t prio;		/* SAM command priority field */
 	uint8_t crn;
+	uint8_t cdb[VIRTIO_SCSI_CDB_SIZE];
+} __packed;
+
+/* SCSI command request, followed by protection information */
+struct virtio_scsi_cmd_req_pi {
+	uint8_t lun[8];		/* Logical Unit Number */
+	uint64_t tag;		/* Command identifier */
+	uint8_t task_attr;	/* Task attribute */
+	uint8_t prio;		/* SAM command priority field */
+	uint8_t crn;
+	uint32_t pi_bytesout;	/* DataOUT PI Number of bytes */
+	uint32_t pi_bytesin;	/* DataIN PI Number of bytes */
 	uint8_t cdb[VIRTIO_SCSI_CDB_SIZE];
 } __packed;
 
@@ -104,6 +110,22 @@ struct virtio_scsi_config {
 	uint32_t max_lun;
 } __packed;
 
+/* Feature bits */
+#define VIRTIO_SCSI_F_INOUT	0x0001	/* Single request can contain both
+					 * read and write buffers.
+					 */
+#define VIRTIO_SCSI_F_HOTPLUG	0x0002	/* Host should enable hot plug/unplug
+					 * of new LUNs and targets.
+					 */
+#define VIRTIO_SCSI_F_CHANGE	0x0004	/* Host will report changes to LUN
+					 * parameters via a
+					 * VIRTIO_SCSI_T_PARAM_CHANGE event.
+					 */
+#define VIRTIO_SCSI_F_T10_PI 	0x0008	/* Extended fields for T10 protection
+					 * information (DIF/DIX) are included
+					 * in the SCSI request header.
+					 */
+
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
 #define VIRTIO_SCSI_S_FUNCTION_COMPLETE        0
@@ -140,6 +162,7 @@ struct virtio_scsi_config {
 #define VIRTIO_SCSI_T_NO_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+#define VIRTIO_SCSI_T_PARAM_CHANGE             3
 
 /* Reasons of transport reset event */
 #define VIRTIO_SCSI_EVT_RESET_HARD             0

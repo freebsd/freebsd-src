@@ -102,6 +102,7 @@ enum tpmif_state {
  * to use atomic operations.
  */
 
+
 /* The shared page for vTPM request/response packets looks like:
  *
  *  Offset               Contents

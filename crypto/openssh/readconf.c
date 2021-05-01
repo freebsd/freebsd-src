@@ -16,9 +16,6 @@
 __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
-#ifdef VMWARE_GUEST_WORKAROUND
-#include <sys/sysctl.h>
-#endif
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -336,7 +333,7 @@ void
 add_local_forward(Options *options, const struct Forward *newfwd)
 {
 	struct Forward *fwd;
-	int i, ipport_reserved;
+	int i;
 
 	/* Don't add duplicates */
 	for (i = 0; i < options->num_local_forwards; i++) {
@@ -1983,15 +1980,6 @@ fill_default_options(Options * options)
 {
 	char *all_cipher, *all_mac, *all_kex, *all_key, *all_sig;
 	int r;
-#ifdef VMWARE_GUEST_WORKAROUND
-	char scval[7];	/* "vmware\0" */
-	size_t scsiz = sizeof(scval);
-	int vmwguest = 0;
-
-	if (sysctlbyname("kern.vm_guest", scval, &scsiz, NULL, 0) == 0 &&
-	    strcmp(scval, "vmware") == 0)
-		vmwguest = 1;
-#endif
 
 	if (options->forward_agent == -1)
 		options->forward_agent = 0;
@@ -2126,18 +2114,8 @@ fill_default_options(Options * options)
 	if (options->visual_host_key == -1)
 		options->visual_host_key = 0;
 	if (options->ip_qos_interactive == -1)
-#ifdef VMWARE_GUEST_WORKAROUND
-		if (vmwguest)
-			options->ip_qos_interactive = IPTOS_LOWDELAY;
-		else
-#endif
 		options->ip_qos_interactive = IPTOS_DSCP_AF21;
 	if (options->ip_qos_bulk == -1)
-#ifdef VMWARE_GUEST_WORKAROUND
-		if (vmwguest)
-			options->ip_qos_bulk = IPTOS_THROUGHPUT;
-		else
-#endif
 		options->ip_qos_bulk = IPTOS_DSCP_CS1;
 	if (options->request_tty == -1)
 		options->request_tty = REQUEST_TTY_AUTO;

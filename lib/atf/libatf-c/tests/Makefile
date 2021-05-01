@@ -35,4 +35,5 @@ SRCS.${_T}=	${_T}.c test_helpers.c
 TEST_METADATA.${_T}+=	required_programs="cc"
 .endfor
 
+.include "Makefile.inc"
 .include <bsd.test.mk>

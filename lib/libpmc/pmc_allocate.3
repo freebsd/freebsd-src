@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2008
+.Dd April 21, 2021
 .Dt PMC_ALLOCATE 3
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Fa "uint32_t flags"
 .Fa "int cpu"
 .Fa "pmc_id_t *pmcid"
+.Fa "uint64_t count"
 .Fc
 .Ft int
 .Fn pmc_release "pmc_id_t pmc"
@@ -110,6 +111,20 @@ that the PMC is to be allocated on.
 Process scope PMC allocations should specify the constant
 .Dv PMC_CPU_ANY
 for this argument.
+.Pp
+The
+.Fa count
+argument behaves identically to the
+.Xr pmc_set 3
+function's
+.Fa value
+argument.
+For counting PMCs,
+.Fa count
+specifies the initial value of the allocated PMC.
+For sampling PMCs,
+.Fa count
+specifies the reload count.
 .Pp
 Function
 .Fn pmc_release

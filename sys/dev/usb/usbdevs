@@ -184,7 +184,7 @@ vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing
 vendor LSI		0x04d4	LSI
 vendor MENTORGRAPHICS	0x04d6	Mentor Graphics
-vendor ITUNERNET	0x04d8	I-Tuner Networks
+vendor MICROCHIP	0x04d8	Microchip Technology, Inc.
 vendor HOLTEK		0x04d9	Holtek Semiconductor, Inc.
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor HUANHSIN		0x04dc	Huan Hsin
@@ -1275,6 +1275,7 @@ product ATEN UC1284		0x2001	Parallel printer
 product ATEN UC10T		0x2002	10Mbps Ethernet
 product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
+product ATEN UC232B		0x2022  Serial
 product ATEN UC210T		0x2009	UC-210T Ethernet
 product ATEN DSB650C		0x4000	DSB-650C
 
@@ -1414,6 +1415,10 @@ product BILLIONTON USBLP100	0x0987	USB100LP
 product BILLIONTON USBEL100	0x0988	USB100EL
 product BILLIONTON USBE100	0x8511	USBE100
 product BILLIONTON USB2AR	0x90ff	USB2AR Ethernet
+
+/* Brainboxes Limited products */
+product BRAINBOXES US257	0x5001	US-257 USB2Serial 2xRS232
+product BRAINBOXES US25701	0x5002	US-25701 USB2Serial 2xRS232
 
 /* Broadcom products */
 product BROADCOM BCM2033	0x2033	BCM2033 Bluetooth USB dongle
@@ -1880,6 +1885,7 @@ product ELV USBI2C		0xe00f	USB-I2C interface
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
 /* Emtec products */
+product EMTEC DANEELEC4GB	0x1e20 USB DISK Pro PMAP
 product EMTEC RUF2PS 		0x2240 Flash Drive
 
 /* Encore products */
@@ -2211,6 +2217,7 @@ product FTDI SIGNALYZER_SH2	0xbca2	FTDI compatible adapter
 product FTDI SIGNALYZER_SH4	0xbca4	FTDI compatible adapter
 product FTDI SIGNALYZER_SLITE	0xbca1	FTDI compatible adapter
 product FTDI SIGNALYZER_ST	0xbca0	FTDI compatible adapter
+product FTDI SITOP_UPS500S	0xe0e4	Siemens UPS500S standby power
 product FTDI SPECIAL_1		0xfc70	FTDI compatible adapter
 product FTDI SPECIAL_3		0xfc72	FTDI compatible adapter
 product FTDI SPECIAL_4		0xfc73	FTDI compatible adapter
@@ -2248,8 +2255,12 @@ product FUJITSU AH_F401U	0x105b	AH-F401U Air H device
 product FUJITSUSIEMENS SCR	0x0009	Fujitsu-Siemens SCR USB Reader
 
 /* Garmin products */
-product GARMIN FORERUNNER230	0x086d	ForeRunner 230
 product GARMIN IQUE_3600	0x0004	iQue 3600
+product GARMIN FORERUNNER230	0x086d	ForeRunner 230
+product GARMIN INSTINCTSOLAR	0x0d8a	Instinct Solar
+product GARMIN DAKOTA20		0x23c0	Dakota 20
+product GARMIN GPSMAP62S	0x2459	GPSMAP 62s
+product GARMIN EDGETOURINGPLUS	0x26c8	Edge Touring+
 
 /* Gemalto products */
 product GEMALTO PROXPU		0x5501	Prox-PU/CU RFID Card Reader
@@ -2639,9 +2650,9 @@ product ISSC ISSCBTA		0x1001	Bluetooth USB Adapter
 product ITEGNO WM1080A		0x1080	WM1080A GSM/GPRS modem
 product ITEGNO WM2080A		0x2080	WM2080A CDMA modem
 
-/* Ituner networks products */
-product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
-product ITUNERNET USBLCD4X20	0xc001	USB-LCD 4x20
+/* Microchip Technology, Inc. products */
+product MICROCHIP PICOLCD20X2	0x0002	Mini-Box picoLCD 20x2
+product MICROCHIP PICOLCD4X20	0xc001	Mini-Box picoLCD 4x20
 
 /* Jablotron products */
 product JABLOTRON PC60B		0x0001	PC-60B
@@ -2716,6 +2727,7 @@ product KEYSPAN UIA11		0x0202	UIA-11 remote control
 product KINGSTON XX1		0x0008	Ethernet
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
 product KINGSTON HYPERX3_0	0x162b	DT HyperX 3.0
+product KINGSTON DATATRAVELER3_0 0x1666 DataTraveler 3.0
 
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB Ethernet
@@ -2793,6 +2805,8 @@ product LENOVO RTL8153		0x7205	USB 3.0 Ethernet
 product LENOVO ONELINK		0x720a	USB 3.0 Ethernet
 product LENOVO TBT3LAN		0x3069	LAN port in Thinkpad TB3 dock
 product LENOVO USBCLAN		0x3062	LAN port in Thinkpad USB-C dock
+product LENOVO TBT3LANGEN2	0x3082  LAN port in Thinkpad TB3 dock gen2 
+product LENOVO USBCLANGEN2	0xa387  LAN port in Thinkpad UBS-C dock gen2
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
@@ -3785,6 +3799,12 @@ product PROLIFIC MICROMAX_610U	0x0612	Micromax 610U
 product PROLIFIC DCU11		0x1234	DCU-11 Phone Cable
 product PROLIFIC UIC_MSR206	0x206a	UIC MSR206 Card Reader
 product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
+product PROLIFIC PL2303GC	0x23a3	PL2303HXN Serial, type GC
+product PROLIFIC PL2303GB	0x23b3	PL2303HXN Serial, type GB
+product PROLIFIC PL2303GT	0x23c3	PL2303HXN Serial, type GT
+product PROLIFIC PL2303GL	0x23d3	PL2303HXN Serial, type GL
+product PROLIFIC PL2303GE	0x23e3	PL2303HXN Serial, type GE
+product PROLIFIC PL2303GS	0x23f3	PL2303HXN Serial, type GS
 product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface

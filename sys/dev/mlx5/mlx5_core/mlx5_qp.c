@@ -349,19 +349,18 @@ EXPORT_SYMBOL_GPL(mlx5_core_xrcd_dealloc);
 
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *dct,
-			 u32 *in)
+			 u32 *in, int inlen,
+			 u32 *out, int outlen)
 {
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
-	u32 out[MLX5_ST_SZ_DW(create_dct_out)]	 = {0};
 	u32 dout[MLX5_ST_SZ_DW(destroy_dct_out)] = {0};
 	u32 din[MLX5_ST_SZ_DW(destroy_dct_in)]	 = {0};
-	int inlen = MLX5_ST_SZ_BYTES(create_dct_in);
 	int err;
 
 	init_completion(&dct->drained);
 	MLX5_SET(create_dct_in, in, opcode, MLX5_CMD_OP_CREATE_DCT);
 
-	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err) {
 		mlx5_core_warn(dev, "create DCT failed, ret %d", err);
 		return err;
@@ -387,7 +386,7 @@ int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 err_cmd:
 	MLX5_SET(destroy_dct_in, din, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, din, dctn, dct->dctn);
-	mlx5_cmd_exec(dev, &din, sizeof(din), &out, sizeof(dout));
+	mlx5_cmd_exec(dev, &din, sizeof(din), dout, sizeof(dout));
 
 	return err;
 }

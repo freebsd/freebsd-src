@@ -7,6 +7,7 @@ INTERNALLIB=
 
 SRCDIR=		llvm/lib
 SRCS+=		Demangle/ItaniumDemangle.cpp
+SRCS+=		Support/ABIBreak.cpp
 SRCS+=		Support/APFloat.cpp
 SRCS+=		Support/APInt.cpp
 SRCS+=		Support/ARMTargetParser.cpp

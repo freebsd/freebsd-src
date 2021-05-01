@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build LUA bindings for the boot loader.
+Build LUA bindings for the boot loader.

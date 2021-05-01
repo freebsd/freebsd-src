@@ -227,10 +227,10 @@ uart_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/*
-	 * Use MSI in preference to legacy IRQ if available.
-	 * Whilst some PCIe UARTs support >1 MSI vector, use only the first.
+	 * Use MSI in preference to legacy IRQ if available. However, experience
+	 * suggests this is only reliable when one MSI vector is advertised.
 	 */
-	if (pci_msi_count(dev) > 0) {
+	if (pci_msi_count(dev) == 1) {
 		count = 1;
 		if (pci_alloc_msi(dev, &count) == 0) {
 			sc->sc_irid = 1;

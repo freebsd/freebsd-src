@@ -29,6 +29,7 @@
  */
  typedef enum
 {
+	_URC_NO_REASON = 0,
 	_URC_OK = 0,                /* operation completed successfully */
 	_URC_FOREIGN_EXCEPTION_CAUGHT = 1,
 	_URC_END_OF_STACK = 5,

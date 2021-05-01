@@ -1,4 +1,4 @@
-/* $NetBSD: t_libm.h,v 1.6 2014/03/25 17:30:14 joerg Exp $ */
+/* $NetBSD: t_libm.h,v 1.7 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*
  * Check result of fn(arg) is correct within the bounds.
@@ -11,8 +11,8 @@
 	long double epsilon = epsilon_; \
 	long double expect = expect_; \
 	long double r = fn(arg); \
-	long double e = fabsl(r - expect); \
-	if (r != expect && e > epsilon) \
+	long double e = fabsl((r - expect)/expect); \
+	if (!(r == expect || e <= epsilon)) \
 		atf_tc_fail_nonfatal( \
 		    "subtest %u: " #fn "(%g) is %Lg (%.14La) " \
 		    "not %Lg (%.13La), error %Lg (%.6La) > %Lg", \

@@ -148,8 +148,8 @@ g_virstor_init(struct g_class *mp __unused)
 {
 
 	/* Catch map struct size mismatch at compile time; Map entries must
-	 * fit into MAXPHYS exactly, with no wasted space. */
-	CTASSERT(VIRSTOR_MAP_BLOCK_ENTRIES*VIRSTOR_MAP_ENTRY_SIZE == MAXPHYS);
+	 * fit into maxphys exactly, with no wasted space. */
+	MPASS(VIRSTOR_MAP_BLOCK_ENTRIES * VIRSTOR_MAP_ENTRY_SIZE == maxphys);
 
 	/* Init UMA zones, TAILQ's, other global vars */
 }
@@ -780,9 +780,11 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
 
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = read_metadata(cp, &md);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = read_metadata(cp, &md);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 
@@ -1243,7 +1245,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		struct g_virstor_map_entry *mapbuf;
 		size_t bs;
 
-		bs = MIN(MAXPHYS, sc->map_size - count);
+		bs = MIN(maxphys, sc->map_size - count);
 		if (bs % sc->sectorsize != 0) {
 			/* Check for alignment errors */
 			bs = rounddown(bs, sc->sectorsize);

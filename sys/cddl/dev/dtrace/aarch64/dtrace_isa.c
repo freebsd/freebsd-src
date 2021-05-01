@@ -70,7 +70,6 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 {
 	struct unwind_state state;
 	int scp_offset;
-	register_t sp, fp;
 	int depth;
 
 	depth = 0;
@@ -81,22 +80,14 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 	aframes++;
 
-	__asm __volatile("mov %0, sp" : "=&r" (sp));
-
-	state.fp = (uint64_t)__builtin_frame_address(0);
-	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getpcstack;
+	state.fp = (uintptr_t)__builtin_frame_address(0);
+	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
-		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
+		if (!unwind_frame(curthread, &state))
 			break;
-
-		fp = state.fp;
-		state.sp = fp + 0x10;
-		/* FP to previous frame (X29) */
-		state.fp = *(register_t *)(fp);
-		/* LR (X30) */
-		state.pc = *(register_t *)(fp + 8) - 4;
+		if (!INKERNEL(state.pc))
+			break;
 
 		/*
 		 * NB: Unlike some other architectures, we don't need to
@@ -184,7 +175,7 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 {
 	proc_t *p = curproc;
 	struct trapframe *tf;
-	uintptr_t pc, sp, fp;
+	uintptr_t pc, fp;
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 	int n;
@@ -208,7 +199,6 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 		return;
 
 	pc = tf->tf_elr;
-	sp = tf->tf_sp;
 	fp = tf->tf_x[29];
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
@@ -272,21 +262,17 @@ dtrace_getstackdepth(int aframes)
 {
 	struct unwind_state state;
 	int scp_offset;
-	register_t sp;
 	int depth;
-	int done;
+	bool done;
 
 	depth = 1;
-	done = 0;
+	done = false;
 
-	__asm __volatile("mov %0, sp" : "=&r" (sp));
-
-	state.fp = (uint64_t)__builtin_frame_address(0);
-	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getstackdepth;
+	state.fp = (uintptr_t)__builtin_frame_address(0);
+	state.pc = (uintptr_t)dtrace_getstackdepth;
 
 	do {
-		done = unwind_frame(&state);
+		done = !unwind_frame(curthread, &state);
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
 			break;
 		depth++;

@@ -73,8 +73,6 @@ int0x80_syscall_common:
 	pushfq
 	andq	$~(PSL_D | PSL_AC),(%rsp)
 	popfq
-	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	ia32_syscall
-	MEXITCOUNT
 	jmp	doreti

@@ -20,6 +20,7 @@
 #include <xen/interface/sched.h>
 #include <xen/interface/callback.h>
 #include <xen/interface/memory.h>
+#include <xen/interface/hvm/dm_op.h>
 #include <machine/xen/hypercall.h>
 
 extern uint64_t get_system_time(int ticks);

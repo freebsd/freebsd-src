@@ -3,14 +3,13 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	1.1.1h
-OPENSSL_DATE=	2020-09-22
+OPENSSL_VER=	1.1.1k
+OPENSSL_DATE=	2021-03-25
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 LCRYPTO_DOC=	${LCRYPTO_SRC}/doc
 
 CFLAGS+=	-I${LCRYPTO_SRC}
-CFLAGS+=	-I${LCRYPTO_SRC}/crypto/include
 CFLAGS+=	-I${LCRYPTO_SRC}/include
 
 .include <bsd.endian.mk>

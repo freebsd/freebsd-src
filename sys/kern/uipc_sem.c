@@ -465,7 +465,7 @@ static int
 ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
     unsigned int value, int flags, int compat32)
 {
-	struct filedesc *fdp;
+	struct pwddesc *pdp;
 	struct ksem *ks;
 	struct file *fp;
 	char *path;
@@ -481,8 +481,8 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	if (value > SEM_VALUE_MAX)
 		return (EINVAL);
 
-	fdp = td->td_proc->p_fd;
-	mode = (mode & ~fdp->fd_cmask) & ACCESSPERMS;
+	pdp = td->td_proc->p_pd;
+	mode = (mode & ~pdp->pd_cmask) & ACCESSPERMS;
 	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error) {
 		if (name == NULL)
@@ -725,7 +725,7 @@ sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 
 	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
-	    cap_rights_init(&rights, CAP_SEM_POST), &fp);
+	    cap_rights_init_one(&rights, CAP_SEM_POST), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -817,7 +817,8 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
 	AUDIT_ARG_FD(id);
-	error = ksem_get(td, id, cap_rights_init(&rights, CAP_SEM_WAIT), &fp);
+	error = ksem_get(td, id, cap_rights_init_one(&rights, CAP_SEM_WAIT),
+	    &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -886,7 +887,7 @@ sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 
 	AUDIT_ARG_FD(uap->id);
 	error = ksem_get(td, uap->id,
-	    cap_rights_init(&rights, CAP_SEM_GETVALUE), &fp);
+	    cap_rights_init_one(&rights, CAP_SEM_GETVALUE), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;

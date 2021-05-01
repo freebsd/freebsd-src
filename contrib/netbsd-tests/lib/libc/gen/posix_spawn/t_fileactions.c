@@ -301,26 +301,34 @@ ATF_TC_BODY(t_spawn_fileactions, tc)
 {
 	int fd1, fd2, fd3, status, err;
 	pid_t pid;
-	char * const args[2] = { __UNCONST("h_fileactions"), NULL };
+	char *args[3] = { __UNCONST("h_fileactions"), NULL, NULL };
+	int lowfd;
+	char lowfdstr[32];
 	char helper[FILENAME_MAX];
 	posix_spawn_file_actions_t fa;
 
 	posix_spawn_file_actions_init(&fa);
 
-	closefrom(fileno(stderr)+1);
+	/* Note: this assumes no gaps in the fd table */
+	lowfd = open("/", O_RDONLY);
+	ATF_REQUIRE(lowfd > 0);
+	ATF_REQUIRE_EQ(0, close(lowfd));
+	snprintf(lowfdstr, sizeof(lowfdstr), "%d", lowfd);
+	args[1] = lowfdstr;
 
 	fd1 = open("/dev/null", O_RDONLY);
-	ATF_REQUIRE(fd1 == 3);
+	ATF_REQUIRE_EQ(fd1, lowfd);
 
 	fd2 = open("/dev/null", O_WRONLY, O_CLOEXEC);
-	ATF_REQUIRE(fd2 == 4);
+	ATF_REQUIRE_EQ(fd2, lowfd + 1);
 
 	fd3 = open("/dev/null", O_WRONLY);
-	ATF_REQUIRE(fd3 == 5);
+	ATF_REQUIRE_EQ(fd3, lowfd + 2);
 
 	posix_spawn_file_actions_addclose(&fa, fd1);
-	posix_spawn_file_actions_addopen(&fa, 6, "/dev/null", O_RDWR, 0);
-	posix_spawn_file_actions_adddup2(&fa, 1, 7); 
+	posix_spawn_file_actions_addopen(&fa, lowfd + 3, "/dev/null", O_RDWR,
+	    0);
+	posix_spawn_file_actions_adddup2(&fa, 1, lowfd + 4);
 
 	snprintf(helper, sizeof helper, "%s/h_fileactions",
 	    atf_tc_get_config_var(tc, "srcdir"));

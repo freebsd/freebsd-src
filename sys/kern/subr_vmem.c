@@ -266,8 +266,8 @@ bt_isfree(bt_t *bt)
  * allocation will not fail once bt_fill() passes.  To do so we cache
  * at least the maximum possible tag allocations in the arena.
  */
-static int
-bt_fill(vmem_t *vm, int flags)
+static __noinline int
+_bt_fill(vmem_t *vm, int flags)
 {
 	bt_t *bt;
 
@@ -305,6 +305,14 @@ bt_fill(vmem_t *vm, int flags)
 		return ENOMEM;
 
 	return 0;
+}
+
+static inline int
+bt_fill(vmem_t *vm, int flags)
+{
+	if (vm->vm_nfreetags >= BT_MAXALLOC)
+		return (0);
+	return (_bt_fill(vm, flags));
 }
 
 /*
@@ -357,6 +365,24 @@ bt_free(vmem_t *vm, bt_t *bt)
 	MPASS(LIST_FIRST(&vm->vm_freetags) != bt);
 	LIST_INSERT_HEAD(&vm->vm_freetags, bt, bt_freelist);
 	vm->vm_nfreetags++;
+}
+
+/*
+ * Hide MAXALLOC tags before dropping the arena lock to ensure that a
+ * concurrent allocation attempt does not grab them.
+ */
+static void
+bt_save(vmem_t *vm)
+{
+	KASSERT(vm->vm_nfreetags >= BT_MAXALLOC,
+	    ("%s: insufficient free tags %d", __func__, vm->vm_nfreetags));
+	vm->vm_nfreetags -= BT_MAXALLOC;
+}
+
+static void
+bt_restore(vmem_t *vm)
+{
+	vm->vm_nfreetags += BT_MAXALLOC;
 }
 
 /*
@@ -495,7 +521,7 @@ bt_insseg_tail(vmem_t *vm, bt_t *bt)
 }
 
 static void
-bt_remfree(vmem_t *vm, bt_t *bt)
+bt_remfree(vmem_t *vm __unused, bt_t *bt)
 {
 
 	MPASS(bt->bt_type == BT_TYPE_FREE);
@@ -680,14 +706,10 @@ vmem_startup(void)
 	vmem_zone = uma_zcreate("vmem",
 	    sizeof(struct vmem), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-#ifdef UMA_MD_SMALL_ALLOC
 	vmem_bt_zone = uma_zcreate("vmem btag",
 	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_VM);
-#else
-	vmem_bt_zone = uma_zcreate("vmem btag",
-	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+#ifndef UMA_MD_SMALL_ALLOC
 	mtx_init(&vmem_bt_lock, "btag lock", NULL, MTX_DEF);
 	uma_prealloc(vmem_bt_zone, BT_MAXALLOC);
 	/*
@@ -708,10 +730,9 @@ static int
 vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 {
 	bt_t *bt;
-	int i;
 	struct vmem_hashlist *newhashlist;
 	struct vmem_hashlist *oldhashlist;
-	vmem_size_t oldhashsize;
+	vmem_size_t i, oldhashsize;
 
 	MPASS(newhashsize > 0);
 
@@ -740,9 +761,8 @@ vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 	}
 	VMEM_UNLOCK(vm);
 
-	if (oldhashlist != vm->vm_hash0) {
+	if (oldhashlist != vm->vm_hash0)
 		free(oldhashlist, M_VMEM);
-	}
 
 	return 0;
 }
@@ -903,16 +923,11 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
 		return (ENOMEM);
 
-	/*
-	 * Hide MAXALLOC tags so we're guaranteed to be able to add this
-	 * span and the tag we want to allocate from it.
-	 */
-	MPASS(vm->vm_nfreetags >= BT_MAXALLOC);
-	vm->vm_nfreetags -= BT_MAXALLOC;
+	bt_save(vm);
 	VMEM_UNLOCK(vm);
 	error = (vm->vm_importfn)(vm->vm_arg, size, flags, &addr);
 	VMEM_LOCK(vm);
-	vm->vm_nfreetags += BT_MAXALLOC;
+	bt_restore(vm);
 	if (error)
 		return (ENOMEM);
 
@@ -1040,19 +1055,23 @@ vmem_try_fetch(vmem_t *vm, const vmem_size_t size, vmem_size_t align, int flags)
 	 */
 	if (vm->vm_qcache_max != 0 || vm->vm_reclaimfn != NULL) {
 		avail = vm->vm_size - vm->vm_inuse;
+		bt_save(vm);
 		VMEM_UNLOCK(vm);
 		if (vm->vm_qcache_max != 0)
 			qc_drain(vm);
 		if (vm->vm_reclaimfn != NULL)
 			vm->vm_reclaimfn(vm, flags);
 		VMEM_LOCK(vm);
+		bt_restore(vm);
 		/* If we were successful retry even NOWAIT. */
 		if (vm->vm_size - vm->vm_inuse > avail)
 			return (1);
 	}
 	if ((flags & M_NOWAIT) != 0)
 		return (0);
+	bt_save(vm);
 	VMEM_CONDVAR_WAIT(vm);
+	bt_restore(vm);
 	return (1);
 }
 
@@ -1100,13 +1119,14 @@ vmem_xalloc_nextfit(vmem_t *vm, const vmem_size_t size, vmem_size_t align,
 
 	error = ENOMEM;
 	VMEM_LOCK(vm);
-retry:
+
 	/*
 	 * Make sure we have enough tags to complete the operation.
 	 */
-	if (vm->vm_nfreetags < BT_MAXALLOC && bt_fill(vm, flags) != 0)
+	if (bt_fill(vm, flags) != 0)
 		goto out;
 
+retry:
 	/*
 	 * Find the next free tag meeting our constraints.  If one is found,
 	 * perform the allocation.
@@ -1216,7 +1236,7 @@ vmem_t *
 vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
     vmem_size_t quantum, vmem_size_t qcache_max, int flags)
 {
-	int i;
+	vmem_size_t i;
 
 	MPASS(quantum > 0);
 	MPASS((quantum & (quantum - 1)) == 0);
@@ -1382,17 +1402,14 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 	 */
 	first = bt_freehead_toalloc(vm, size, strat);
 	VMEM_LOCK(vm);
-	for (;;) {
-		/*
-		 * Make sure we have enough tags to complete the
-		 * operation.
-		 */
-		if (vm->vm_nfreetags < BT_MAXALLOC &&
-		    bt_fill(vm, flags) != 0) {
-			error = ENOMEM;
-			break;
-		}
 
+	/*
+	 * Make sure we have enough tags to complete the operation.
+	 */
+	error = bt_fill(vm, flags);
+	if (error != 0)
+		goto out;
+	for (;;) {
 		/*
 	 	 * Scan freelists looking for a tag that satisfies the
 		 * allocation.  If we're doing BESTFIT we may encounter
@@ -1460,7 +1477,7 @@ vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size)
 }
 
 void
-vmem_xfree(vmem_t *vm, vmem_addr_t addr, vmem_size_t size)
+vmem_xfree(vmem_t *vm, vmem_addr_t addr, vmem_size_t size __unused)
 {
 	bt_t *bt;
 	bt_t *t;
@@ -1510,13 +1527,12 @@ vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int flags)
 {
 	int error;
 
-	error = 0;
 	flags &= VMEM_FLAGS;
+
 	VMEM_LOCK(vm);
-	if (vm->vm_nfreetags >= BT_MAXALLOC || bt_fill(vm, flags) == 0)
+	error = bt_fill(vm, flags);
+	if (error == 0)
 		vmem_add1(vm, addr, size, BT_TYPE_SPAN_STATIC);
-	else
-		error = ENOMEM;
 	VMEM_UNLOCK(vm);
 
 	return (error);

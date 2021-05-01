@@ -50,9 +50,39 @@ struct ioctl_privcmd_mmapbatch {
 	int *err; /* array of error codes */
 };
 
+struct ioctl_privcmd_mmapresource {
+	domid_t dom; /* target domain */
+	unsigned int type; /* type of resource to map */
+	unsigned int id; /* type-specific resource identifier */
+	unsigned int idx; /* the index of the initial frame to be mapped */
+	unsigned long num; /* number of frames of the resource to be mapped */
+	unsigned long addr; /* physical address to map into */
+	/*
+	 * Note: issuing an ioctl with num = addr = 0 will return the size of
+	 * the resource.
+	 */
+};
+
+struct privcmd_dmop_buf {
+	void *uptr; /* pointer to memory (in calling process) */
+	size_t size; /* size of the buffer */
+};
+
+struct ioctl_privcmd_dmop {
+	domid_t dom; /* target domain */
+	unsigned int num; /* num of buffers */
+	const struct privcmd_dmop_buf *ubufs; /* array of buffers */
+};
+
 #define IOCTL_PRIVCMD_HYPERCALL					\
 	_IOWR('E', 0, struct ioctl_privcmd_hypercall)
 #define IOCTL_PRIVCMD_MMAPBATCH					\
 	_IOWR('E', 1, struct ioctl_privcmd_mmapbatch)
+#define IOCTL_PRIVCMD_MMAP_RESOURCE				\
+	_IOW('E', 2, struct ioctl_privcmd_mmapresource)
+#define IOCTL_PRIVCMD_DM_OP					\
+	_IOW('E', 3, struct ioctl_privcmd_dmop)
+#define IOCTL_PRIVCMD_RESTRICT					\
+	_IOW('E', 4, domid_t)
 
 #endif /* !__XEN_PRIVCMD_H__ */

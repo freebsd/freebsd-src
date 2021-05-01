@@ -30,6 +30,7 @@
 #define	_DEV_EVDEV_EVDEV_H
 
 #include <sys/types.h>
+#include <sys/epoch.h>
 #include <sys/kbio.h>
 #include <dev/evdev/input.h>
 #include <dev/kbd/kbdreg.h>
@@ -87,6 +88,8 @@ extern int evdev_sysmouse_t_axis;
 					 * for MT protocol type B reports */
 #define	EVDEV_FLAG_MT_AUTOREL	0x02	/* Autorelease MT-slots not listed in
 					 * current MT protocol type B report */
+#define	EVDEV_FLAG_EXT_EPOCH	0x03	/* evdev_push_* is allways called with
+					 * input (global) epoch entered */
 #define	EVDEV_FLAG_MAX		0x1F
 #define	EVDEV_FLAG_CNT		(EVDEV_FLAG_MAX + 1)
 
@@ -117,7 +120,7 @@ void evdev_support_event(struct evdev_dev *, uint16_t);
 void evdev_support_key(struct evdev_dev *, uint16_t);
 void evdev_support_rel(struct evdev_dev *, uint16_t);
 void evdev_support_abs(struct evdev_dev *, uint16_t, int32_t, int32_t, int32_t,
-   int32_t, int32_t, int32_t);
+   int32_t, int32_t);
 void evdev_support_msc(struct evdev_dev *, uint16_t);
 void evdev_support_led(struct evdev_dev *, uint16_t);
 void evdev_support_snd(struct evdev_dev *, uint16_t);

@@ -27,14 +27,18 @@
 #ifndef _BSD_KERNEL_H_
 #define	_BSD_KERNEL_H_
 
-#define	_KERNEL
+#if !defined(_STANDALONE)
+#error "_STANDALONE is not defined!"
+#endif
+
 #undef __FreeBSD_version
-#define	__FreeBSD_version 1100000
+#define	__FreeBSD_version 1400000
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/errno.h>
 
+#define	offsetof(type, field) __builtin_offsetof(type, field)
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
@@ -74,6 +78,7 @@ struct sysctl_req {
 #define	EVENTHANDLER_DECLARE(...)
 #define	EVENTHANDLER_INVOKE(...)
 #define	KASSERT(...)
+#define	CTASSERT(x) _Static_assert(x, "compile-time assertion failed")
 #define	SCHEDULER_STOPPED(x) (0)
 #define	PI_SWI(...) (0)
 #define	UNIQ_NAME(x) x
@@ -116,6 +121,8 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	hz 1000
 #undef PAGE_SIZE
 #define	PAGE_SIZE 4096
+#undef PAGE_SHIFT
+#define	PAGE_SHIFT 12
 #undef MIN
 #define	MIN(a,b) (((a) < (b)) ? (a) : (b))
 #undef MAX
@@ -205,9 +212,17 @@ typedef unsigned int uint32_t;
 #define	_INT32_T_DECLARED
 typedef signed int int32_t;
 #define	_UINT64_T_DECLARED
+#ifndef __LP64__
 typedef unsigned long long uint64_t;
-#define	_INT16_T_DECLARED
+#else
+typedef unsigned long uint64_t;
+#endif
+#define	_INT64_T_DECLARED
+#ifndef __LP64__
 typedef signed long long int64_t;
+#else
+typedef signed long int64_t;
+#endif
 
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
@@ -216,10 +231,23 @@ typedef uint16_t mode_t;
 typedef uint8_t *caddr_t;
 #define	_UINTPTR_T_DECLARED
 typedef unsigned long uintptr_t;
+#define	_UINTMAX_T_DECLARED
+typedef unsigned long uintmax_t;
+typedef unsigned long vm_paddr_t;
 
 #define	_SIZE_T_DECLARED
 typedef unsigned long size_t;
-typedef unsigned long u_long;
+#define	_SSIZE_T_DECLARED
+typedef signed long ssize_t;
+#define	_OFF_T_DECLARED
+typedef unsigned long off_t;
+
+typedef int64_t sbintime_t;
+
+typedef unsigned char   u_char;
+typedef unsigned short  u_short;
+typedef unsigned int    u_int;
+typedef unsigned long   u_long;
 #endif
 
 typedef unsigned long bus_addr_t;
@@ -248,7 +276,12 @@ typedef uint8_t *bus_space_handle_t;
 typedef int bus_dma_filter_t(void *, bus_addr_t);
 typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
 
-typedef uint32_t bool;
+#ifndef __bool_true_false_are_defined
+#define	__bool_true_false_are_defined
+typedef _Bool bool;
+#define	true 1
+#define	false 0
+#endif
 
 /* SYSINIT API */
 
@@ -480,6 +513,7 @@ void	module_register(void *);
 
 void   *memset(void *, int, size_t len);
 void   *memcpy(void *, const void *, size_t len);
+int	memcmp(const void *, const void *, size_t len);
 int	printf(const char *,...) __printflike(1, 2);
 int	snprintf(char *restrict str, size_t size, const char *restrict format,...) __printflike(3, 4);
 size_t	strlen(const char *s);
@@ -642,6 +676,11 @@ extern int delay(unsigned int);
 #define	BUS_DMA_BUS3		0x40
 #define	BUS_DMA_BUS4		0x80
 
+#define	BUS_DMASYNC_PREREAD	0x01
+#define	BUS_DMASYNC_POSTREAD	0x02
+#define	BUS_DMASYNC_PREWRITE	0x04
+#define	BUS_DMASYNC_POSTWRITE	0x08
+
 typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 
 int
@@ -652,9 +691,14 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		   void *lockfuncarg, bus_dma_tag_t *dmat);
 
-int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-    bus_dmamap_t *mapp);
-void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
-int bus_dma_tag_destroy(bus_dma_tag_t dmat);
+int bus_dmamem_alloc(bus_dma_tag_t, void** vaddr, int flags, bus_dmamap_t *);
+void bus_dmamem_free(bus_dma_tag_t, void *vaddr, bus_dmamap_t);
+int bus_dma_tag_destroy(bus_dma_tag_t);
+
+int bus_dmamap_load(bus_dma_tag_t, bus_dmamap_t, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *,
+    void *callback_arg, int flags);
+void bus_dmamap_unload(bus_dma_tag_t, bus_dmamap_t);
+void bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int flags);
 
 #endif					/* _BSD_KERNEL_H_ */

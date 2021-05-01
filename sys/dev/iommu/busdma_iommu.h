@@ -35,6 +35,7 @@
 #define __X86_IOMMU_BUSDMA_DMAR_H
 
 #include <dev/iommu/iommu.h>
+#include <dev/iommu/iommu_gas.h>
 
 struct bus_dma_tag_iommu {
 	struct bus_dma_tag_common common;

@@ -1,6 +1,6 @@
-/*	$NetBSD: filemon_ktrace.c,v 1.2 2020/01/19 20:22:57 riastradh Exp $	*/
+/*	$NetBSD: filemon_ktrace.c,v 1.14 2021/02/01 21:34:41 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define	_KERNTYPES		/* register_t */
+#define _KERNTYPES		/* register_t */
 
 #include "filemon.h"
 
@@ -90,9 +90,9 @@ static filemon_syscall_t *const filemon_syscalls[] = {
 };
 
 struct filemon {
-	int			ktrfd; /* kernel writes ktrace events here */
-	FILE			*in;   /* we read ktrace events from here */
-	FILE			*out;  /* we write filemon events to here */
+	int			ktrfd;	/* kernel writes ktrace events here */
+	FILE			*in;	/* we read ktrace events from here */
+	FILE			*out;	/* we write filemon events to here */
 	rb_tree_t		active;
 	pid_t			child;
 
@@ -130,6 +130,7 @@ struct filemon_state {
 	char		*path[/*npath*/];
 };
 
+/*ARGSUSED*/
 static int
 compare_filemon_states(void *cookie, const void *na, const void *nb)
 {
@@ -147,6 +148,7 @@ compare_filemon_states(void *cookie, const void *na, const void *nb)
 	return 0;
 }
 
+/*ARGSUSED*/
 static int
 compare_filemon_key(void *cookie, const void *n, const void *k)
 {
@@ -198,7 +200,7 @@ filemon_open(void)
 	int error;
 
 	/* Allocate and zero a struct filemon object.  */
-	F = calloc(1, sizeof(*F));
+	F = calloc(1, sizeof *F);
 	if (F == NULL)
 		return NULL;
 
@@ -225,7 +227,6 @@ filemon_open(void)
 	/* Success!  */
 	return F;
 
-fail2: __unused
 	(void)fclose(F->in);
 fail1:	(void)close(ktrpipe[0]);
 	(void)close(ktrpipe[1]);
@@ -262,7 +263,7 @@ filemon_closefd(struct filemon *F)
 	F->out = NULL;
 
 	/* Set errno and return -1 if anything went wrong.  */
-	if (error) {
+	if (error != 0) {
 		errno = error;
 		return -1;
 	}
@@ -373,7 +374,7 @@ filemon_close(struct filemon *F)
 	free(F);
 
 	/* Set errno and return -1 if anything went wrong.  */
-	if (error) {
+	if (error != 0) {
 		errno = error;
 		return -1;
 	}
@@ -478,7 +479,7 @@ filemon_dispatch(struct filemon *F)
 		 */
 		/* XXX What to do if syscall code doesn't match?  */
 		if (S->i == S->npath && S->syscode == ret->ktr_code)
-			(*S->show)(F, S, ret);
+			S->show(F, S, ret);
 
 		/* Free the state now that it is no longer active.  */
 		for (i = 0; i < S->i; i++)
@@ -518,12 +519,12 @@ top:	/* If the child has exited, nothing to do.  */
 		return 0;
 
 	/* If we're waiting for input, read some.  */
-	if (F->resid) {
+	if (F->resid > 0) {
 		nread = fread(F->p, 1, F->resid, F->in);
 		if (nread == 0) {
-			if (feof(F->in))
+			if (feof(F->in) != 0)
 				return 0;
-			assert(ferror(F->in));
+			assert(ferror(F->in) != 0);
 			/*
 			 * If interrupted or would block, there may be
 			 * more events.  Otherwise fail.
@@ -538,7 +539,7 @@ top:	/* If the child has exited, nothing to do.  */
 		assert(nread <= F->resid);
 		F->p += nread;
 		F->resid -= nread;
-		if (F->resid)	/* may be more events */
+		if (F->resid > 0)	/* may be more events */
 			return 1;
 	}
 
@@ -582,7 +583,7 @@ top:	/* If the child has exited, nothing to do.  */
 }
 
 static struct filemon_state *
-syscall_enter(struct filemon *F,
+syscall_enter(
     const struct filemon_key *key, const struct ktr_syscall *call,
     unsigned npath,
     void (*show)(struct filemon *, const struct filemon_state *,
@@ -618,7 +619,7 @@ show_paths(struct filemon *F, const struct filemon_state *S,
 	 * Ignore it if it failed or yielded EJUSTRETURN (-2), or if
 	 * we're not producing output.
 	 */
-	if (ret->ktr_error && ret->ktr_error != -2)
+	if (ret->ktr_error != 0 && ret->ktr_error != -2)
 		return;
 	if (F->out == NULL)
 		return;
@@ -644,7 +645,7 @@ show_retval(struct filemon *F, const struct filemon_state *S,
 	 * Ignore it if it failed or yielded EJUSTRETURN (-2), or if
 	 * we're not producing output.
 	 */
-	if (ret->ktr_error && ret->ktr_error != -2)
+	if (ret->ktr_error != 0 && ret->ktr_error != -2)
 		return;
 	if (F->out == NULL)
 		return;
@@ -664,7 +665,7 @@ static void
 show_execve(struct filemon *F, const struct filemon_state *S,
     const struct ktr_sysret *ret)
 {
-	return show_paths(F, S, ret, "E");
+	show_paths(F, S, ret, "E");
 }
 
 static void
@@ -752,18 +753,22 @@ show_rename(struct filemon *F, const struct filemon_state *S,
 	show_paths(F, S, ret, "M");
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_chdir(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 1, &show_chdir);
+	return syscall_enter(key, call, 1, &show_chdir);
 }
 
+/* TODO: monitor fchdir as well */
+
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_execve(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 1, &show_execve);
+	return syscall_enter(key, call, 1, &show_execve);
 }
 
 static struct filemon_state *
@@ -771,9 +776,9 @@ filemon_sys_exit(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
 	const register_t *args = (const void *)&call[1];
-	int status = args[0];
+	int status = (int)args[0];
 
-	if (F->out) {
+	if (F->out != NULL) {
 		fprintf(F->out, "X %jd %d\n", (intmax_t)key->pid, status);
 		if (key->pid == F->child) {
 			fprintf(F->out, "# Bye bye\n");
@@ -783,20 +788,23 @@ filemon_sys_exit(struct filemon *F, const struct filemon_key *key,
 	return NULL;
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_fork(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 0, &show_fork);
+	return syscall_enter(key, call, 0, &show_fork);
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_link(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 2, &show_link);
+	return syscall_enter(key, call, 2, &show_link);
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_open(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
@@ -806,18 +814,19 @@ filemon_sys_open(struct filemon *F, const struct filemon_key *key,
 
 	if (call->ktr_argsize < 2)
 		return NULL;
-	flags = args[1];
+	flags = (int)args[1];
 
 	if ((flags & O_RDWR) == O_RDWR)
-		return syscall_enter(F, key, call, 1, &show_open_readwrite);
+		return syscall_enter(key, call, 1, &show_open_readwrite);
 	else if ((flags & O_WRONLY) == O_WRONLY)
-		return syscall_enter(F, key, call, 1, &show_open_write);
+		return syscall_enter(key, call, 1, &show_open_write);
 	else if ((flags & O_RDONLY) == O_RDONLY)
-		return syscall_enter(F, key, call, 1, &show_open_read);
+		return syscall_enter(key, call, 1, &show_open_read);
 	else
 		return NULL;	/* XXX Do we care if no read or write?  */
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_openat(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
@@ -825,54 +834,61 @@ filemon_sys_openat(struct filemon *F, const struct filemon_key *key,
 	const register_t *args = (const void *)&call[1];
 	int flags, fd;
 
+	/*
+	 * XXX: In the .meta log, the base directory is missing, which makes
+	 * all references to relative pathnames useless.
+	 */
+
 	if (call->ktr_argsize < 3)
 		return NULL;
-	fd = args[0];
-	flags = args[2];
+	fd = (int)args[0];
+	flags = (int)args[2];
 
 	if (fd == AT_CWD) {
 		if ((flags & O_RDWR) == O_RDWR)
-			return syscall_enter(F, key, call, 1,
+			return syscall_enter(key, call, 1,
 			    &show_open_readwrite);
 		else if ((flags & O_WRONLY) == O_WRONLY)
-			return syscall_enter(F, key, call, 1,
-			    &show_open_write);
+			return syscall_enter(key, call, 1, &show_open_write);
 		else if ((flags & O_RDONLY) == O_RDONLY)
-			return syscall_enter(F, key, call, 1, &show_open_read);
+			return syscall_enter(key, call, 1, &show_open_read);
 		else
 			return NULL;
 	} else {
 		if ((flags & O_RDWR) == O_RDWR)
-			return syscall_enter(F, key, call, 1,
+			return syscall_enter(key, call, 1,
 			    &show_openat_readwrite);
 		else if ((flags & O_WRONLY) == O_WRONLY)
-			return syscall_enter(F, key, call, 1,
-			    &show_openat_write);
+			return syscall_enter(key, call, 1, &show_openat_write);
 		else if ((flags & O_RDONLY) == O_RDONLY)
-			return syscall_enter(F, key, call, 1,
-			    &show_openat_read);
+			return syscall_enter(key, call, 1, &show_openat_read);
 		else
 			return NULL;
 	}
 }
 
+/* TODO: monitor the other *at syscalls as well, not only openat. */
+
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_symlink(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 2, &show_symlink);
+	return syscall_enter(key, call, 2, &show_symlink);
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_unlink(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 1, &show_unlink);
+	return syscall_enter(key, call, 1, &show_unlink);
 }
 
+/*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_rename(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
-	return syscall_enter(F, key, call, 2, &show_rename);
+	return syscall_enter(key, call, 2, &show_rename);
 }

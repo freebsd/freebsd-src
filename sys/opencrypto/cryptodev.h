@@ -124,6 +124,7 @@
 #define	AES_CCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
+#define	CHACHA20_POLY1305_IV_LEN	12
 
 /* Min and Max Encryption Key Sizes */
 #define	NULL_MIN_KEY		0
@@ -136,6 +137,7 @@
 #define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
 #define	CAMELLIA_MIN_KEY	16
 #define	CAMELLIA_MAX_KEY	32
+#define	CHACHA20_POLY1305_KEY	32
 
 /* Maximum hash algorithm result length */
 #define	AALG_MAX_RESULT_LEN	64 /* Keep this updated */
@@ -184,15 +186,11 @@
 #define	CRYPTO_POLY1305		38
 #define	CRYPTO_AES_CCM_CBC_MAC	39	/* auth side */
 #define	CRYPTO_AES_CCM_16	40	/* cipher side */
-#define	CRYPTO_ALGORITHM_MAX	40	/* Keep updated - see below */
+#define	CRYPTO_CHACHA20_POLY1305 41	/* combined AEAD cipher per RFC 8439 */
+#define	CRYPTO_ALGORITHM_MAX	41	/* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
-
-/* Algorithm flags */
-#define	CRYPTO_ALG_FLAG_SUPPORTED	0x01 /* Algorithm is supported */
-#define	CRYPTO_ALG_FLAG_RNG_ENABLE	0x02 /* Has HW RNG for DH/DSA */
-#define	CRYPTO_ALG_FLAG_DSA_SHA		0x04 /* Can do SHA on msg */
 
 /*
  * Crypto driver/device flags.  They can set in the crid
@@ -216,15 +214,15 @@
 
 /* NB: deprecated */
 struct session_op {
-	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
-	u_int32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
+	uint32_t	cipher;		/* ie. CRYPTO_AES_CBC */
+	uint32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
 
-	u_int32_t	keylen;		/* cipher key */
-	c_caddr_t	key;
+	uint32_t	keylen;		/* cipher key */
+	const void	*key;
 	int		mackeylen;	/* mac key */
-	c_caddr_t	mackey;
+	const void	*mackey;
 
-  	u_int32_t	ses;		/* returns: session # */ 
+  	uint32_t	ses;		/* returns: session # */ 
 };
 
 /*
@@ -233,47 +231,47 @@ struct session_op {
  * "cryptop" (no underscore).
  */
 struct session2_op {
-	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
-	u_int32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
+	uint32_t	cipher;		/* ie. CRYPTO_AES_CBC */
+	uint32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
 
-	u_int32_t	keylen;		/* cipher key */
-	c_caddr_t	key;
+	uint32_t	keylen;		/* cipher key */
+	const void	*key;
 	int		mackeylen;	/* mac key */
-	c_caddr_t	mackey;
+	const void	*mackey;
 
-  	u_int32_t	ses;		/* returns: session # */ 
+  	uint32_t	ses;		/* returns: session # */ 
 	int		crid;		/* driver id + flags (rw) */
 	int		pad[4];		/* for future expansion */
 };
 
 struct crypt_op {
-	u_int32_t	ses;
-	u_int16_t	op;		/* i.e. COP_ENCRYPT */
+	uint32_t	ses;
+	uint16_t	op;		/* i.e. COP_ENCRYPT */
 #define COP_ENCRYPT	1
 #define COP_DECRYPT	2
-	u_int16_t	flags;
+	uint16_t	flags;
 #define	COP_F_CIPHER_FIRST	0x0001	/* Cipher before MAC. */
 #define	COP_F_BATCH		0x0008	/* Batch op if possible */
 	u_int		len;
-	c_caddr_t	src;		/* become iov[] inside kernel */
-	caddr_t		dst;
-	caddr_t		mac;		/* must be big enough for chosen MAC */
-	c_caddr_t	iv;
+	const void	*src;		/* become iov[] inside kernel */
+	void		*dst;
+	void		*mac;		/* must be big enough for chosen MAC */
+	const void	*iv;
 };
 
 /* op and flags the same as crypt_op */
 struct crypt_aead {
-	u_int32_t	ses;
-	u_int16_t	op;		/* i.e. COP_ENCRYPT */
-	u_int16_t	flags;
+	uint32_t	ses;
+	uint16_t	op;		/* i.e. COP_ENCRYPT */
+	uint16_t	flags;
 	u_int		len;
 	u_int		aadlen;
 	u_int		ivlen;
-	c_caddr_t	src;		/* become iov[] inside kernel */
-	caddr_t		dst;
-	c_caddr_t	aad;		/* additional authenticated data */
-	caddr_t		tag;		/* must fit for chosen TAG length */
-	c_caddr_t	iv;
+	const void	*src;		/* become iov[] inside kernel */
+	void		*dst;
+	const void	*aad;		/* additional authenticated data */
+	void		*tag;		/* must fit for chosen TAG length */
+	const void	*iv;
 };
 
 /*
@@ -286,52 +284,10 @@ struct crypt_find_op {
 	char		name[32];	/* device/driver name */
 };
 
-/* bignum parameter, in packed bytes, ... */
-struct crparam {
-	caddr_t		crp_p;
-	u_int		crp_nbits;
-};
-
-#define CRK_MAXPARAM	8
-
-struct crypt_kop {
-	u_int		crk_op;		/* ie. CRK_MOD_EXP or other */
-	u_int		crk_status;	/* return status */
-	u_short		crk_iparams;	/* # of input parameters */
-	u_short		crk_oparams;	/* # of output parameters */
-	u_int		crk_crid;	/* NB: only used by CIOCKEY2 (rw) */
-	struct crparam	crk_param[CRK_MAXPARAM];
-};
-#define	CRK_ALGORITM_MIN	0
-#define CRK_MOD_EXP		0
-#define CRK_MOD_EXP_CRT		1
-#define CRK_DSA_SIGN		2
-#define CRK_DSA_VERIFY		3
-#define CRK_DH_COMPUTE_KEY	4
-#define CRK_ALGORITHM_MAX	4 /* Keep updated - see below */
-
-#define CRF_MOD_EXP		(1 << CRK_MOD_EXP)
-#define CRF_MOD_EXP_CRT		(1 << CRK_MOD_EXP_CRT)
-#define CRF_DSA_SIGN		(1 << CRK_DSA_SIGN)
-#define CRF_DSA_VERIFY		(1 << CRK_DSA_VERIFY)
-#define CRF_DH_COMPUTE_KEY	(1 << CRK_DH_COMPUTE_KEY)
-
-/*
- * done against open of /dev/crypto, to get a cloned descriptor.
- * Please use F_SETFD against the cloned descriptor.
- */
-#define	CRIOGET		_IOWR('c', 100, u_int32_t)
-#define	CRIOASYMFEAT	CIOCASYMFEAT
-#define	CRIOFINDDEV	CIOCFINDDEV
-
-/* the following are done against the cloned descriptor */
 #define	CIOCGSESSION	_IOWR('c', 101, struct session_op)
-#define	CIOCFSESSION	_IOW('c', 102, u_int32_t)
+#define	CIOCFSESSION	_IOW('c', 102, uint32_t)
 #define CIOCCRYPT	_IOWR('c', 103, struct crypt_op)
-#define CIOCKEY		_IOWR('c', 104, struct crypt_kop)
-#define CIOCASYMFEAT	_IOR('c', 105, u_int32_t)
 #define	CIOCGSESSION2	_IOWR('c', 106, struct session2_op)
-#define	CIOCKEY2	_IOWR('c', 107, struct crypt_kop)
 #define	CIOCFINDDEV	_IOWR('c', 108, struct crypt_find_op)
 #define	CIOCCRYPTAEAD	_IOWR('c', 109, struct crypt_aead)
 
@@ -377,6 +333,7 @@ struct crypto_session_params {
 
 #define	CSP_F_SEPARATE_OUTPUT	0x0001	/* Requests can use separate output */
 #define	CSP_F_SEPARATE_AAD	0x0002	/* Requests can use separate AAD */
+#define CSP_F_ESN		0x0004  /* Requests can use seperate ESN field */ 
 
 	int		csp_ivlen;	/* IV length in bytes. */
 
@@ -463,18 +420,10 @@ struct cryptop {
 					 */
 	int		crp_flags;
 
-#define	CRYPTO_F_BATCH		0x0008	/* Batch op if possible */
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
-#define	CRYPTO_F_ASYNC		0x0080	/* Dispatch crypto jobs on several threads
-					 * if op is synchronous
-					 */
-#define	CRYPTO_F_ASYNC_KEEPORDER	0x0100	/*
-					 * Dispatch the crypto jobs in the same
-					 * order there are submitted. Applied only
-					 * if CRYPTO_F_ASYNC flags is set
-					 */
+#define	CRYPTO_F_ASYNC_ORDERED	0x0100	/* Completions must happen in order */
 #define	CRYPTO_F_IV_SEPARATE	0x0200	/* Use crp_iv[] as IV. */
 
 	int		crp_op;
@@ -485,6 +434,8 @@ struct cryptop {
 	void		*crp_aad;	/* AAD buffer. */
 	int		crp_aad_start;	/* Location of AAD. */
 	int		crp_aad_length;	/* 0 => no AAD. */
+	uint8_t		crp_esn[4];	/* high-order ESN */
+
 	int		crp_iv_start;	/* Location of IV.  IV length is from
 					 * the session.
 					 */
@@ -511,6 +462,8 @@ struct cryptop {
 					 *  used for ordered dispatch
 					 */
 };
+
+TAILQ_HEAD(cryptopq, cryptop);
 
 static __inline void
 _crypto_use_buf(struct crypto_buffer *cb, void *buf, int len)
@@ -593,12 +546,6 @@ crypto_use_output_uio(struct cryptop *crp, struct uio *uio)
 	_crypto_use_uio(&crp->crp_obuf, uio);
 }
 
-#define	CRYPTOP_ASYNC(crp)			\
-	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
-	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
-#define	CRYPTOP_ASYNC_KEEPORDER(crp) \
-	(CRYPTOP_ASYNC(crp) && \
-	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
 #define	CRYPTO_HAS_OUTPUT_BUFFER(crp)					\
 	((crp)->crp_obuf.cb_type != CRYPTO_BUF_NONE)
 
@@ -617,20 +564,6 @@ crypto_use_output_uio(struct cryptop *crp, struct uio *uio)
  */
 #define	CRYPTO_HINT_MORE	0x1	/* more ops coming shortly */
 
-struct cryptkop {
-	TAILQ_ENTRY(cryptkop) krp_next;
-
-	u_int		krp_op;		/* ie. CRK_MOD_EXP or other */
-	u_int		krp_status;	/* return status */
-	u_short		krp_iparams;	/* # of input parameters */
-	u_short		krp_oparams;	/* # of output parameters */
-	u_int		krp_crid;	/* desired device, etc. */
-	uint32_t	krp_hid;	/* device used */
-	struct crparam	krp_param[CRK_MAXPARAM];	/* kvm */
-	void		(*krp_callback)(struct cryptkop *);
-	struct cryptocap *krp_cap;
-};
-
 uint32_t crypto_ses2hid(crypto_session_t crypto_session);
 uint32_t crypto_ses2caps(crypto_session_t crypto_session);
 void *crypto_get_driver_session(crypto_session_t crypto_session);
@@ -648,21 +581,21 @@ extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
 #define	CRYPTOCAP_F_ACCEL_SOFTWARE 0x08000000
+#define	CRYPTO_SESS_SYNC(sess)	\
+	((crypto_ses2caps(sess) & CRYPTOCAP_F_SYNC) != 0)
 extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
     int flags);
 extern	int crypto_find_driver(const char *);
 extern	device_t crypto_find_device_byhid(int hid);
 extern	int crypto_getcaps(int hid);
-extern	int crypto_kregister(u_int32_t, int, u_int32_t);
-extern	int crypto_unregister_all(u_int32_t driverid);
+extern	int crypto_unregister_all(uint32_t driverid);
 extern	int crypto_dispatch(struct cryptop *crp);
-extern	int crypto_kdispatch(struct cryptkop *);
+#define	CRYPTO_ASYNC_ORDERED	0x1	/* complete in order dispatched */
+extern	int crypto_dispatch_async(struct cryptop *crp, int flags);
+extern	void crypto_dispatch_batch(struct cryptopq *crpq, int flags);
 #define	CRYPTO_SYMQ	0x1
-#define	CRYPTO_ASYMQ	0x2
-extern	int crypto_unblock(u_int32_t, int);
+extern	int crypto_unblock(uint32_t, int);
 extern	void crypto_done(struct cryptop *crp);
-extern	void crypto_kdone(struct cryptkop *);
-extern	int crypto_getfeat(int *);
 
 extern	void crypto_destroyreq(struct cryptop *crp);
 extern	void crypto_initreq(struct cryptop *crp, crypto_session_t cses);
@@ -670,7 +603,6 @@ extern	void crypto_freereq(struct cryptop *crp);
 extern	struct cryptop *crypto_getreq(crypto_session_t cses, int how);
 
 extern	int crypto_usercrypto;		/* userland may do crypto requests */
-extern	int crypto_userasymcrypto;	/* userland may do asym crypto reqs */
 extern	int crypto_devallowsoft;	/* only use hardware crypto */
 
 #ifdef SYSCTL_DECL
@@ -680,9 +612,9 @@ SYSCTL_DECL(_kern_crypto);
 /* Helper routines for drivers to initialize auth contexts for HMAC. */
 struct auth_hash;
 
-void	hmac_init_ipad(struct auth_hash *axf, const char *key, int klen,
+void	hmac_init_ipad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx);
-void	hmac_init_opad(struct auth_hash *axf, const char *key, int klen,
+void	hmac_init_opad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx);
 
 /*

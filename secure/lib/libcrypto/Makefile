@@ -4,6 +4,7 @@ SHLIBDIR?=	/lib
 SUBDIR=		engines
 
 .include <bsd.own.mk>
+.include <src.opts.mk>
 
 PACKAGE=	runtime
 LIB=		crypto
@@ -429,6 +430,17 @@ SRCS+=	buildinf.h
 CLEANDIRS=	openssl
 CLEANFILES=	buildinf.h opensslconf.h opensslconf.h.tmp
 
+.if defined(ASM_${MACHINE_CPUARCH})
+_cmd1=/%%NO_ASM%%/d
+.else
+_cmd1=s/%%NO_ASM%%//
+.endif
+.if ${MK_OPENSSL_KTLS} != "no"
+_cmd2=/%%NO_KTLS%%/d
+.else
+_cmd2=s/%%NO_KTLS%%//
+.endif
+
 buildinf.h: Makefile
 	( echo "/*"; \
 	echo " * WARNING: do not edit!"; \
@@ -447,11 +459,7 @@ openssl_opensslconf.h: opensslconf.h
 	ln -fs ${.OBJDIR}/${.ALLSRC} openssl/${.ALLSRC}
 
 opensslconf.h: opensslconf.h.in
-.if defined(ASM_${MACHINE_CPUARCH})
-	sed 's/%%ASM%%//; /%%NO_ASM%%/d' ${.ALLSRC} > ${.TARGET}.tmp
-.else
-	sed '/%%ASM%%/d; s/%%NO_ASM%%//' ${.ALLSRC} > ${.TARGET}.tmp
-.endif
+	sed '${_cmd1}; ${_cmd2}' ${.ALLSRC} > ${.TARGET}.tmp
 	mv -f ${.TARGET}.tmp ${.TARGET}
 
 .include <bsd.lib.mk>
@@ -459,7 +467,7 @@ opensslconf.h: opensslconf.h.in
 PICFLAG+=	-DOPENSSL_PIC
 
 .if defined(ASM_${MACHINE_CPUARCH})
-.PATH:	${.CURDIR}/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)
 .PATH:	${LCRYPTO_SRC}/crypto/bn/asm
 .endif

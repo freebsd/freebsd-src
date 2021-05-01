@@ -234,7 +234,7 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 #if !defined(_WIN32) || defined(__CYGWIN__)
-  /* restore stderr and verify results */
+  /* restore stderr */
   if (fp != NULL) {
     fflush(stderr);
     dup2(fd, fileno(stderr));
@@ -242,6 +242,5 @@ DEFINE_TEST(test_read_append_filter_wrong_program)
     (void)fsetpos(stderr, &pos);
   }
   close(fd);
-  assertTextFileContents("bunzip2: (stdin) is not a bzip2 file.\n", "stderr1");
 #endif
 }

@@ -81,13 +81,12 @@ int
 iflib_pseudo_detach(device_t dev)
 {
 	if_ctx_t ctx;
-	uint32_t ifc_flags;
 
 	ctx = device_get_softc(dev);
-	ifc_flags = iflib_get_flags(ctx);
-	if ((ifc_flags & IFC_INIT_DONE) == 0)
-		return (0);
-	return (IFDI_DETACH(ctx));
+	if ((iflib_get_flags(ctx) & (IFC_INIT_DONE | IFC_IN_DETACH)) ==
+	    IFC_INIT_DONE)
+		return (EBUSY);
+	return (0);
 }
 
 static device_t iflib_pseudodev;
@@ -269,7 +268,6 @@ iflib_clone_register(if_shared_ctx_t sctx)
 		printf("clone_simple failed -- cloned %s  devices will not be available\n", sctx->isc_name);
 		goto fail_clone;
 	}
-	ifc_flags_set(ip->ip_ifc, IFC_NOGROUP);
 	ip->ip_lladdr_tag = EVENTHANDLER_REGISTER(iflladdr_event,
 											 iflib_iflladdr, NULL, EVENTHANDLER_PRI_ANY);
 	if (ip->ip_lladdr_tag == NULL)

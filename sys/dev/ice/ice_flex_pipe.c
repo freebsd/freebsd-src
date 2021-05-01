@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -1057,6 +1057,13 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 			break;
 	}
 
+	if (!status) {
+		status = ice_set_vlan_mode(hw);
+		if (status)
+			ice_debug(hw, ICE_DBG_PKG, "Failed to set VLAN mode: err %d\n",
+				  status);
+	}
+
 	ice_release_global_cfg_lock(hw);
 
 	return status;
@@ -1126,34 +1133,40 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 static enum ice_status
 ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 {
-	struct ice_global_metadata_seg *meta_seg;
 	struct ice_generic_seg_hdr *seg_hdr;
 
 	ice_debug(hw, ICE_DBG_TRACE, "%s\n", __func__);
 	if (!pkg_hdr)
 		return ICE_ERR_PARAM;
 
-	meta_seg = (struct ice_global_metadata_seg *)
-		   ice_find_seg_in_pkg(hw, SEGMENT_TYPE_METADATA, pkg_hdr);
-	if (meta_seg) {
-		hw->pkg_ver = meta_seg->pkg_ver;
-		ice_memcpy(hw->pkg_name, meta_seg->pkg_name,
-			   sizeof(hw->pkg_name), ICE_NONDMA_TO_NONDMA);
+	seg_hdr = (struct ice_generic_seg_hdr *)
+		ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
+	if (seg_hdr) {
+		struct ice_meta_sect *meta;
+		struct ice_pkg_enum state;
+
+		ice_memset(&state, 0, sizeof(state), ICE_NONDMA_MEM);
+
+		/* Get package information from the Metadata Section */
+		meta = (struct ice_meta_sect *)
+			ice_pkg_enum_section((struct ice_seg *)seg_hdr, &state,
+					     ICE_SID_METADATA);
+		if (!meta) {
+			ice_debug(hw, ICE_DBG_INIT, "Did not find ice metadata section in package\n");
+			return ICE_ERR_CFG;
+		}
+
+		hw->pkg_ver = meta->ver;
+		ice_memcpy(hw->pkg_name, meta->name, sizeof(meta->name),
+			   ICE_NONDMA_TO_NONDMA);
 
 		ice_debug(hw, ICE_DBG_PKG, "Pkg: %d.%d.%d.%d, %s\n",
-			  meta_seg->pkg_ver.major, meta_seg->pkg_ver.minor,
-			  meta_seg->pkg_ver.update, meta_seg->pkg_ver.draft,
-			  meta_seg->pkg_name);
-	} else {
-		ice_debug(hw, ICE_DBG_INIT, "Did not find metadata segment in driver package\n");
-		return ICE_ERR_CFG;
-	}
+			  meta->ver.major, meta->ver.minor, meta->ver.update,
+			  meta->ver.draft, meta->name);
 
-	seg_hdr = ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
-	if (seg_hdr) {
-		hw->ice_pkg_ver = seg_hdr->seg_format_ver;
-		ice_memcpy(hw->ice_pkg_name, seg_hdr->seg_id,
-			   sizeof(hw->ice_pkg_name), ICE_NONDMA_TO_NONDMA);
+		hw->ice_seg_fmt_ver = seg_hdr->seg_format_ver;
+		ice_memcpy(hw->ice_seg_id, seg_hdr->seg_id,
+			   sizeof(hw->ice_seg_id), ICE_NONDMA_TO_NONDMA);
 
 		ice_debug(hw, ICE_DBG_PKG, "Ice Seg: %d.%d.%d.%d, %s\n",
 			  seg_hdr->seg_format_ver.major,
@@ -1909,7 +1922,7 @@ ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count)
 	bld->reserved_section_table_entries += count;
 
 	data_end = LE16_TO_CPU(buf->data_end) +
-		   (count * sizeof(buf->section_entry[0]));
+		FLEX_ARRAY_SIZE(buf, section_entry, count);
 	buf->data_end = CPU_TO_LE16(data_end);
 
 	return ICE_SUCCESS;
@@ -2041,7 +2054,7 @@ ice_pkg_buf_unreserve_section(struct ice_buf_build *bld, u16 count)
 	bld->reserved_section_table_entries -= count;
 
 	data_end = LE16_TO_CPU(buf->data_end) -
-		   (count * sizeof(buf->section_entry[0]));
+		FLEX_ARRAY_SIZE(buf, section_entry, count);
 	buf->data_end = CPU_TO_LE16(data_end);
 
 	return ICE_SUCCESS;

@@ -1,8 +1,10 @@
-# $NetBSD: opt-no-action.mk,v 1.3 2020/08/19 05:25:26 rillig Exp $
+# $NetBSD: opt-no-action.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
 #
 # Tests for the -n command line option, which runs almost no commands.
 # It just outputs them, to be inspected by human readers.
 # Only commands that are in a .MAKE target or prefixed by '+' are run.
+
+.MAKEFLAGS: -n
 
 # This command cannot be prevented from being run since it is used at parse
 # time, and any later variable assignments may depend on its result.

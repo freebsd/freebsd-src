@@ -1191,6 +1191,9 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x04, 0x24, SS_FATAL | EBUSY,
 	    "Depopulation in progress") },
+	/* D              */
+	{ SST(0x04, 0x25, SS_FATAL | EBUSY,
+	    "Depopulation restoration in progress") },
 	/* DTL WROMAEBKVF */
 	{ SST(0x05, 0x00, SS_RDEF,
 	    "Logical unit does not respond to selection") },
@@ -2072,6 +2075,12 @@ static struct asc_table_entry asc_table[] = {
 	/* D         B    */
 	{ SST(0x31, 0x03, SS_FATAL | EIO,
 	    "SANITIZE command failed") },
+	/* D              */
+	{ SST(0x31, 0x04, SS_FATAL | EIO,
+	    "Depopulation failed") },
+	/* D              */
+	{ SST(0x31, 0x05, SS_FATAL | EIO,
+	    "Depopulation restoration failed") },
 	/* D   W O   BK   */
 	{ SST(0x32, 0x00, SS_RDEF,
 	    "No defect spare location available") },
@@ -3486,7 +3495,12 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 
 	/* ENOMEM just means that the fixed buffer is full, OK to ignore */
 	error = sbuf_finish(&sb);
-	if (error != 0 && error != ENOMEM)
+	if (error != 0 &&
+#ifdef _KERNEL
+	    error != ENOMEM)
+#else
+	    errno != ENOMEM)
+#endif
 		return ("");
 
 	return(sbuf_data(&sb));

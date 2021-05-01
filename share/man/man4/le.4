@@ -36,7 +36,7 @@
 .\"	from: @(#)le.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2017
+.Dd December 26, 2020
 .Dt LE 4
 .Os
 .Sh NAME
@@ -87,11 +87,6 @@ as well as the
 family of chips, which are single-chip implementations of a
 .Tn LANCE
 chip and a DMA engine.
-This includes a superset of the
-.Tn PCI
-bus Ethernet chips supported by the
-.Xr pcn 4
-driver.
 The
 .Nm
 driver treats all of these
@@ -101,9 +96,6 @@ bus Ethernet chips as an
 and does not support the additional features like the MII bus and burst mode of
 .Tn AMD Am79C971 PCnet-FAST
 and greater chips.
-Thus the
-.Xr pcn 4
-driver should be preferred for the latter.
 .Pp
 Generally, the
 .Nm
@@ -239,9 +231,7 @@ The following media option is supported with these media types:
 Select full duplex operation.
 .El
 .Pp
-Note that unlike the
-.Xr pcn 4
-driver, the
+Note that the
 .Nm
 driver does not support selecting 100Mbps (Fast Ethernet) media types.
 .Sh DIAGNOSTICS
@@ -312,7 +302,6 @@ was turned off due to an error.
 .Xr arp 4 ,
 .Xr intro 4 ,
 .Xr netintro 4 ,
-.Xr pcn 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY

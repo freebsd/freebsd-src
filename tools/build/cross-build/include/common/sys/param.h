@@ -12,6 +12,9 @@
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
+ * This work was supported by Innovate UK project 105694, "Digital Security by
+ * Design (DSbD) Technology Platform Prototype".
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -62,4 +65,27 @@
 
 #ifndef __PAST_END
 #define __PAST_END(array, offset) (((__typeof__(*(array)) *)(array))[offset])
+#endif
+
+#ifndef nitems
+// https://stackoverflow.com/questions/1598773/is-there-a-standard-function-in-c-that-would-return-the-length-of-an-array/1598827#1598827
+#define nitems(x) \
+	((sizeof(x) / sizeof(0 [x])) / ((size_t)(!(sizeof(x) % sizeof(0 [x])))))
+#endif
+
+#ifndef rounddown
+#define rounddown(x, y) (((x) / (y)) * (y))
+#endif
+#ifndef rounddown2
+#define rounddown2(x, y) ((x) & (~((y)-1))) /* if y is power of two */
+#endif
+#ifndef roundup
+#define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y)) /* to any y */
+#endif
+#ifndef roundup2
+#define roundup2(x, y) \
+	(((x) + ((y)-1)) & (~((y)-1))) /* if y is powers of two */
+#endif
+#ifndef powerof2
+#define powerof2(x) ((((x)-1) & (x)) == 0)
 #endif

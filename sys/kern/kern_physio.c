@@ -30,11 +30,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
+#include <sys/rwlock.h>
 #include <sys/uio.h>
 #include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
@@ -45,7 +48,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	struct buf *pbuf;
 	struct bio *bp;
 	struct vm_page **pages;
-	caddr_t sa;
+	char *base, *sa;
 	u_int iolen, poff;
 	int error, i, npages, maxpages;
 	vm_prot_t prot;
@@ -58,7 +61,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		return (ENXIO);
 
 	/* XXX: sanity check */
-	if(dev->si_iosize_max < PAGE_SIZE) {
+	if (dev->si_iosize_max < PAGE_SIZE) {
 		printf("WARNING: %s si_iosize_max=%d, using DFLTPHYS.\n",
 		    devtoname(dev), dev->si_iosize_max);
 		dev->si_iosize_max = DFLTPHYS;
@@ -69,7 +72,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	 * need to reject any requests that will not fit into one buffer.
 	 */
 	if (dev->si_flags & SI_NOSPLIT &&
-	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > MAXPHYS ||
+	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > maxphys ||
 	    uio->uio_iovcnt > 1)) {
 		/*
 		 * Tell the user why his I/O was rejected.
@@ -78,10 +81,10 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			uprintf("%s: request size=%zd > si_iosize_max=%d; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_resid, dev->si_iosize_max);
-		if (uio->uio_resid > MAXPHYS)
-			uprintf("%s: request size=%zd > MAXPHYS=%d; "
+		if (uio->uio_resid > maxphys)
+			uprintf("%s: request size=%zd > maxphys=%lu; "
 			    "cannot split request\n", devtoname(dev),
-			    uio->uio_resid, MAXPHYS);
+			    uio->uio_resid, maxphys);
 		if (uio->uio_iovcnt > 1)
 			uprintf("%s: request vectors=%d > 1; "
 			    "cannot split request\n", devtoname(dev),
@@ -101,12 +104,13 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		pages = NULL;
 	} else if ((dev->si_flags & SI_UNMAPPED) && unmapped_buf_allowed) {
 		pbuf = NULL;
-		maxpages = btoc(MIN(uio->uio_resid, MAXPHYS)) + 1;
+		maxpages = btoc(MIN(uio->uio_resid, maxphys)) + 1;
 		pages = malloc(sizeof(*pages) * maxpages, M_DEVBUF, M_WAITOK);
 	} else {
 		pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
+		MPASS((pbuf->b_flags & B_MAXPHYS) != 0);
 		sa = pbuf->b_data;
-		maxpages = btoc(MAXPHYS);
+		maxpages = PBUF_PAGES;
 		pages = pbuf->b_pages;
 	}
 	prot = VM_PROT_READ;
@@ -140,45 +144,24 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				curthread->td_ru.ru_oublock++;
 			}
 			bp->bio_offset = uio->uio_offset;
-			bp->bio_data = uio->uio_iov[i].iov_base;
+			base = uio->uio_iov[i].iov_base;
 			bp->bio_length = uio->uio_iov[i].iov_len;
 			if (bp->bio_length > dev->si_iosize_max)
 				bp->bio_length = dev->si_iosize_max;
-			if (bp->bio_length > MAXPHYS)
-				bp->bio_length = MAXPHYS;
-
-			/*
-			 * Make sure the pbuf can map the request.
-			 * The pbuf has kvasize = MAXPHYS, so a request
-			 * larger than MAXPHYS - PAGE_SIZE must be
-			 * page aligned or it will be fragmented.
-			 */
-			poff = (vm_offset_t)bp->bio_data & PAGE_MASK;
-			if (pbuf && bp->bio_length + poff > pbuf->b_kvasize) {
-				if (dev->si_flags & SI_NOSPLIT) {
-					uprintf("%s: request ptr %p is not "
-					    "on a page boundary; cannot split "
-					    "request\n", devtoname(dev),
-					    bp->bio_data);
-					error = EFBIG;
-					goto doerror;
-				}
-				bp->bio_length = pbuf->b_kvasize;
-				if (poff != 0)
-					bp->bio_length -= PAGE_SIZE;
-			}
-
+			if (bp->bio_length > maxphys)
+				bp->bio_length = maxphys;
 			bp->bio_bcount = bp->bio_length;
 			bp->bio_dev = dev;
 
 			if (pages) {
 				if ((npages = vm_fault_quick_hold_pages(
 				    &curproc->p_vmspace->vm_map,
-				    (vm_offset_t)bp->bio_data, bp->bio_length,
+				    (vm_offset_t)base, bp->bio_length,
 				    prot, pages, maxpages)) < 0) {
 					error = EFAULT;
 					goto doerror;
 				}
+				poff = (vm_offset_t)base & PAGE_MASK;
 				if (pbuf && sa) {
 					pmap_qenter((vm_offset_t)sa,
 					    pages, npages);
@@ -190,7 +173,8 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 					bp->bio_data = unmapped_buf;
 					bp->bio_flags |= BIO_UNMAPPED;
 				}
-			}
+			} else
+				bp->bio_data = base;
 
 			csw->d_strategy(bp);
 			if (uio->uio_rw == UIO_READ)

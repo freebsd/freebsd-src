@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,8 +43,8 @@
 #include <vector.h>
 #include <lang.h>
 
-#define bc_lex_err(l, e) (bc_vm_error((e), (l)->line))
-#define bc_lex_verr(l, e, ...) (bc_vm_error((e), (l)->line, __VA_ARGS__))
+#define bc_lex_err(l, e) (bc_vm_handleError((e), (l)->line))
+#define bc_lex_verr(l, e, ...) (bc_vm_handleError((e), (l)->line, __VA_ARGS__))
 
 #if BC_ENABLED
 

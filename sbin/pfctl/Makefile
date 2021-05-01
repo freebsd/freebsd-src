@@ -2,9 +2,6 @@
 
 .include <src.opts.mk>
 
-# pf_ruleset.c is shared between kernel and pfctl
-.PATH: ${SRCTOP}/sys/netpfil/pf
-
 PACKAGE=pf
 CONFS=	pf.os
 PROG=	pfctl
@@ -19,6 +16,7 @@ WARNS?=	2
 CFLAGS+= -Wall -Wmissing-prototypes -Wno-uninitialized
 CFLAGS+= -Wstrict-prototypes
 CFLAGS+= -DENABLE_ALTQ -I${.CURDIR}
+CFLAGS+= -I${SRCTOP}/lib/libpfctl -I${OBJTOP}/lib/libpfctl
 
 # Need to use "WITH_" prefix to not conflict with the l/y INET/INET6 keywords
 .if ${MK_INET6_SUPPORT} != "no"
@@ -30,7 +28,7 @@ CFLAGS+= -DWITH_INET
 
 YFLAGS=
 
-LIBADD=	m md
+LIBADD=	m md pfctl
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

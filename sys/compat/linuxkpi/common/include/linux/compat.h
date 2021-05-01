@@ -35,11 +35,13 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
+struct domainset;
 struct thread;
 struct task_struct;
 
 extern int linux_alloc_current(struct thread *, int flags);
 extern void linux_free_current(struct task_struct *);
+extern struct domainset *linux_get_vm_domain_set(int node);
 
 static inline void
 linux_set_current(struct thread *td)

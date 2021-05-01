@@ -670,6 +670,28 @@ SYSCTL_PROC(_net_link_bridge, OID_AUTO, ipfw,
     &VNET_NAME(pfil_ipfw), 0, &sysctl_pfil_ipfw, "I",
     "Layer2 filter with IPFW");
 
+#ifdef VIMAGE
+static void
+bridge_reassign(struct ifnet *ifp, struct vnet *newvnet, char *arg)
+{
+	struct bridge_softc *sc = ifp->if_softc;
+	struct bridge_iflist *bif;
+
+	BRIDGE_LOCK(sc);
+
+	while ((bif = CK_LIST_FIRST(&sc->sc_iflist)) != NULL)
+		bridge_delete_member(sc, bif, 0);
+
+	while ((bif = CK_LIST_FIRST(&sc->sc_spanlist)) != NULL) {
+		bridge_delete_span(sc, bif);
+	}
+
+	BRIDGE_UNLOCK(sc);
+
+	ether_reassign(ifp, newvnet, arg);
+}
+#endif
+
 /*
  * bridge_clone_create:
  *
@@ -716,6 +738,9 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
+#ifdef VIMAGE
+	ifp->if_reassign = bridge_reassign;
+#endif
 
 	BRIDGE_LIST_LOCK();
 	LIST_INSERT_HEAD(&V_bridge_list, sc, sc_list);
@@ -1326,6 +1351,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 static int
 bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 {
+	struct epoch_tracker et;
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
 	struct bstp_port *bp;
@@ -1340,11 +1366,15 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 		/* SPAN is readonly */
 		return (EINVAL);
 
+	NET_EPOCH_ENTER(et);
+
 	if (req->ifbr_ifsflags & IFBIF_STP) {
 		if ((bif->bif_flags & IFBIF_STP) == 0) {
 			error = bstp_enable(&bif->bif_stp);
-			if (error)
+			if (error) {
+				NET_EPOCH_EXIT(et);
 				return (error);
+			}
 		}
 	} else {
 		if ((bif->bif_flags & IFBIF_STP) != 0)
@@ -1359,6 +1389,8 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 
 	/* Save the bits relating to the bridge */
 	bif->bif_flags = req->ifbr_ifsflags & IFBIFMASK;
+
+	NET_EPOCH_EXIT(et);
 
 	return (0);
 }

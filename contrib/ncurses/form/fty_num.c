@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.32 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.36 2020/12/12 01:15:37 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -83,8 +83,8 @@ thisPARM;
 static void *
 Generic_This_Type(void *arg)
 {
-  thisARG *argn = (thisARG *) 0;
-  thisPARM *args = (thisPARM *) arg;
+  thisARG *argn = (thisARG *)0;
+  thisPARM *args = (thisPARM *)arg;
 
   if (args)
     {
@@ -139,11 +139,12 @@ static void *
 Copy_This_Type(const void *argp)
 {
   const thisARG *ap = (const thisARG *)argp;
-  thisARG *result = (thisARG *) 0;
+  thisARG *result = (thisARG *)0;
 
   if (argp)
     {
       result = typeMalloc(thisARG, 1);
+
       if (result)
 	{
 	  T((T_CREATE("thisARG %p"), (void *)result));
@@ -324,14 +325,14 @@ static FIELDTYPE typeTHIS =
 #endif
 };
 
-NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_NUMERIC = &typeTHIS;
+FORM_EXPORT_VAR(FIELDTYPE *) TYPE_NUMERIC = &typeTHIS;
 
 #if NCURSES_INTEROP_FUNCS
 /* The next routines are to simplify the use of ncurses from
-   programming languages with restictions on interop with C level
+   programming languages with restrictions on interop with C level
    constructs (e.g. variable access or va_list + ellipsis constructs)
 */
-NCURSES_EXPORT(FIELDTYPE *)
+FORM_EXPORT(FIELDTYPE *)
 _nc_TYPE_NUMERIC(void)
 {
   return TYPE_NUMERIC;

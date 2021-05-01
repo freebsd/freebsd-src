@@ -30,6 +30,25 @@
 
 #ifndef _NTB_REGS_H_
 #define _NTB_REGS_H_
+#include <sys/types.h>
+#include <sys/stdint.h>
+
+/*---------------------------------------------------------------------------
+ *   Macro: M*_M : Create a mask to isolate a bit field of a data word.
+ *          M*_F : Extract value from a bit field of a data word.
+ *          M*_I : Insert value into a bit field of a data word.
+ *
+ * Purpose: Bit field manipulation macros for mask, insert and extract for
+ *          8-bit, 16-bit, 32-bit and 64-bit data words.
+ *
+ *  Params: [in] P = Bit position of start of the bit field (lsb is 0).
+ *          [in] N = Size of the bit field in bits.
+ *          [in] X = Value to insert or remove from the bit field.
+ *---------------------------------------------------------------------------
+ */
+#define M8_M(P, N)      ((UINT8_MAX >> (8 - (N))) << (P))
+#define M8_F(X, P, N)   (((uint8_t)(X) & M8_M(P, N)) >> (P))
+#define M8_I(X, P, N)   (((uint8_t)(X) << (P)) & M8_M(P, N))
 
 #define NTB_LINK_STATUS_ACTIVE	0x2000
 #define NTB_LINK_SPEED_MASK	0x000f
@@ -164,5 +183,73 @@
 
 /* The peer ntb secondary config space is 32KB fixed size */
 #define XEON_B2B_MIN_SIZE		0x8000
+#define XEON_GEN3_MW_COUNT		2
+#define XEON_GEN3_SPLIT_MW_COUNT	3
+#define XEON_GEN3_SPAD_COUNT		16
+#define XEON_GEN3_DB_COUNT		32
+#define XEON_GEN3_DB_LINK		32
+#define XEON_GEN3_DB_LINK_BIT		(1ULL << XEON_GEN3_DB_LINK)
+#define XEON_GEN3_DB_MSIX_VECTOR_COUNT	33
+#define XEON_GEN3_DB_MSIX_VECTOR_SHIFT	1
+
+#define XEON_GEN3_LINK_VECTOR_INDEX	31
+
+/* Xeon Skylake NTB register definitions */
+
+/*
+ * Internal EndPoint Configuration Registers
+ */
+#define XEON_GEN3_INT_REG_BAR0BASE	0x10
+#define XEON_GEN3_INT_REG_BAR1BASE	0x18
+#define XEON_GEN3_INT_REG_BAR2BASE	0x20
+#define XEON_GEN3_INT_REG_IMBAR1SZ	0xd0
+#define XEON_GEN3_INT_REG_IMBAR2SZ	0xd1
+#define XEON_GEN3_INT_REG_EMBAR1SZ	0xd2
+#define XEON_GEN3_INT_REG_EMBAR2SZ	0xd3
+#define XEON_GEN3_INT_REG_PPD		0xd4
+#define XEON_GEN3_INT_LNK_STS_OFFSET	0x01a2
+
+/*
+ * External EndPoint Configuration Registers
+ * These are located within BAR0 of the internal endpoint.
+ */
+#define XEON_GEN3_EXT_REG_PCI_CMD	0x4504
+#define XEON_GEN3_EXT_REG_BAR0BASE	0x4510
+#define XEON_GEN3_EXT_REG_BAR1BASE	0x4518
+#define XEON_GEN3_EXT_REG_BAR2BASE	0x4520
+
+/*
+ * Internal Endpoint Memory Mapped Registers
+ */
+#define XEON_GEN3_REG_IMNTB_CTRL	0x0000
+#define XEON_GEN3_REG_IMBAR1XBASE	0x0010
+#define XEON_GEN3_REG_IMBAR1XLIMIT	0x0018
+#define XEON_GEN3_REG_IMBAR2XBASE	0x0020
+#define XEON_GEN3_REG_IMBAR2XLIMIT	0x0028
+#define XEON_GEN3_REG_IMINT_STATUS	0x0040
+#define XEON_GEN3_REG_IMINT_DISABLE	0x0048
+#define XEON_GEN3_REG_IMSPAD		0x0080
+#define XEON_GEN3_REG_IMINTVEC00	0x00d0
+#define XEON_GEN3_REG_IMDOORBELL	0x0100
+#define XEON_GEN3_REG_IMB2B_SSPAD	0x0180	/* Pseudo SP registers */
+
+/*
+ * External Endpoint Memory Mapped Registers
+ */
+#define XEON_GEN3_REG_EMBAR0XBASE	0x4008
+#define XEON_GEN3_REG_EMBAR1XBASE	0x4010
+#define XEON_GEN3_REG_EMBAR1XLIMIT	0x4018
+#define XEON_GEN3_REG_EMBAR2XBASE	0x4020
+#define XEON_GEN3_REG_EMBAR2XLIMIT	0x4028
+#define XEON_GEN3_REG_EMINT_STATUS	0x4040
+#define XEON_GEN3_REG_EMINT_DISABLE	0x4048
+#define XEON_GEN3_REG_EMSPAD		0x4080
+#define XEON_GEN3_REG_EMDOORBELL	0x4100
+
+/* XEON_GEN3_INT_REG_PPD: PPD register */
+#define XEON_GEN3_REG_PPD_PORT_DEF_F(X)		M8_F(X, 0, 2)
+#define XEON_GEN3_REG_PPD_CONF_STS_F(X)		M8_F(X, 4, 1)
+#define XEON_GEN3_REG_PPD_ONE_MSIX_F(X)		M8_F(X, 5, 1)
+#define XEON_GEN3_REG_PPD_BAR45_SPL_F(X)	M8_F(X, 6, 1)
 
 #endif /* _NTB_REGS_H_ */

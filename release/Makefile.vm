@@ -7,8 +7,8 @@
 
 VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	4096M
-SWAPSIZE?=	1G
+VMSIZE?=	4096m
+SWAPSIZE?=	1g
 VMBASE?=	vm
 
 VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
@@ -16,13 +16,17 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-CLOUDWARE?=	EC2 \
+CLOUDWARE?=	BASIC-CI \
+		EC2 \
 		GCE \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
 AZURE_DESC=	Microsoft Azure platform image
 AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
+BASIC-CI_FORMAT=	raw
+BASIC-CI_DESC=		Image for CI
+BASIC-CI_DISK=	${OSRELEASE}.${BASIC-CI_FORMAT}
 EC2_FORMAT=	raw
 EC2_DESC=	Amazon EC2 image
 EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
@@ -50,7 +54,7 @@ emulator-portinstall:
 .if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 .if !exists(/usr/local/bin/qemu-${TARGET_ARCH}-static)
 .if exists(${PORTSDIR}/emulators/qemu-user-static/Makefile)
-	env - PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
+	env - UNAME_r=${UNAME_r} PATH=$$PATH make -C ${PORTSDIR}/emulators/qemu-user-static BATCH=1 all install clean
 .else
 .if !exists(/usr/local/sbin/pkg-static)
 	env ASSUME_ALWAYS_YES=yes pkg bootstrap -y
@@ -174,3 +178,4 @@ cloudware-release:
 .include "${.CURDIR}/Makefile.azure"
 .include "${.CURDIR}/Makefile.gce"
 .include "${.CURDIR}/Makefile.vagrant"
+.include "${.CURDIR}/Makefile.inc1"

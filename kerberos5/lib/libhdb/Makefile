@@ -7,6 +7,8 @@ LIBADD=	asn1 com_err krb5 roken sqlite3
 LDADD=	${LDAPLDADD}
 DPADD=	${LDAPDPADD}
 
+WARNS?=	0
+
 MAN=	HDB.3 hdb_entry_ex.3
 
 MLINKS=	HDB.3 hdb__del.3 \

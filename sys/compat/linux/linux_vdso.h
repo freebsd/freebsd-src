@@ -39,7 +39,7 @@ struct linux_vdso_sym {
 };
 
 vm_object_t __elfN(linux_shared_page_init)(char **);
-void	__elfN(linux_shared_page_fini)(vm_object_t);
+void	__elfN(linux_shared_page_fini)(vm_object_t, void *);
 void	__elfN(linux_vdso_fixup)(struct sysentvec *);
 void	__elfN(linux_vdso_reloc)(struct sysentvec *);
 void	__elfN(linux_vdso_sym_init)(struct linux_vdso_sym *);

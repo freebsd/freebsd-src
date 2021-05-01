@@ -876,8 +876,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	bo->bo_ops = g_vfs_bufops;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
-	if (mp->mnt_iosize_max > MAXPHYS)
-		mp->mnt_iosize_max = MAXPHYS;
+	if (mp->mnt_iosize_max > maxphys)
+		mp->mnt_iosize_max = maxphys;
 
 	bp = NULL;
 	ump = NULL;
@@ -922,7 +922,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * in ext2fs doesn't have these variables, so we can calculate
 	 * them here.
 	 */
-	e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
+	e2fs_maxcontig = MAX(1, maxphys / ump->um_e2fs->e2fs_bsize);
 	ump->um_e2fs->e2fs_contigsumsize = MIN(e2fs_maxcontig, EXT2_MAXCONTIG);
 	if (ump->um_e2fs->e2fs_contigsumsize > 0) {
 		size = ump->um_e2fs->e2fs_gcount * sizeof(int32_t);
@@ -1229,6 +1229,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_ump = ump;
 	ip->i_number = ino;
+	cluster_init_vn(&ip->i_clusterw);
 
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);

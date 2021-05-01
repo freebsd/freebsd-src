@@ -80,16 +80,37 @@ regional_init(struct regional* r)
 	r->total_large = 0;
 }
 
-struct regional* 
-regional_create_custom(size_t size)
+/**
+ * Create a new region, with custom first block and large-object sizes.
+ * @param size: length of first block.
+ * @param large_object_size: outside of chunk allocation threshold.
+ * @return: newly allocated regional.
+ */
+static struct regional*
+regional_create_custom_large_object(size_t size, size_t large_object_size)
 {
-	struct regional* r = (struct regional*)malloc(size);
+	struct regional* r;
 	size = ALIGN_UP(size, ALIGNMENT);
+	r = (struct regional*)malloc(size);
 	log_assert(sizeof(struct regional) <= size);
 	if(!r) return NULL;
 	r->first_size = size;
+	r->large_object_size = large_object_size;
 	regional_init(r);
 	return r;
+}
+
+struct regional*
+regional_create_custom(size_t size)
+{
+	return regional_create_custom_large_object(size,
+		REGIONAL_LARGE_OBJECT_SIZE);
+}
+
+struct regional*
+regional_create_nochunk(size_t size)
+{
+	return regional_create_custom_large_object(size, 0);
 }
 
 void 
@@ -134,7 +155,7 @@ regional_alloc(struct regional *r, size_t size)
 			malloc and ALIGN_UP */
 	a = ALIGN_UP(size, ALIGNMENT);
 	/* large objects */
-	if(a > REGIONAL_LARGE_OBJECT_SIZE) {
+	if(a > r->large_object_size) {
 		s = malloc(ALIGNMENT + size);
 		if(!s) return NULL;
 		r->total_large += ALIGNMENT+size;
@@ -219,7 +240,7 @@ regional_log_stats(struct regional *r)
 	/* some basic assertions put here (non time critical code) */
 	log_assert(ALIGNMENT >= sizeof(char*));
 	log_assert(REGIONAL_CHUNK_SIZE > ALIGNMENT);
-	log_assert(REGIONAL_CHUNK_SIZE-ALIGNMENT > REGIONAL_LARGE_OBJECT_SIZE);
+	log_assert(REGIONAL_CHUNK_SIZE-ALIGNMENT > r->large_object_size);
 	log_assert(REGIONAL_CHUNK_SIZE >= sizeof(struct regional));
 	/* debug print */
 	log_info("regional %u chunks, %u large",

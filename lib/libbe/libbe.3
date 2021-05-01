@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2020
+.Dd August 18, 2020
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -57,6 +57,9 @@
 .Pp
 .Ft const char * Ns
 .Fn be_root_path "libbe_handle_t *hdl"
+.Pp
+.Ft int Ns
+.Fn be_snapshot "libbe_handle_t *hdl" "const char *be_name" "const char *snap_name" "bool recursive" "char *result"
 .Pp
 .Ft bool Ns
 .Fn be_is_auto_snapshot_name "libbe_handle_t *hdl" "const char *snap"
@@ -94,13 +97,13 @@
 .\"	BE_MNT_DEEP		= 1 << 1,
 .\" } be_mount_opt_t
 .Ft int
-.Fn be_mount "libbe_handle_t *hdl" "char *be_name" "char *mntpoint" "int flags" "char *result"
+.Fn be_mount "libbe_handle_t *hdl" "const char *be_name" "const char *mntpoint" "int flags" "char *result"
 .Pp
 .Ft int
 .Fn be_mounted_at "libbe_handle_t *hdl" "const char *path" "nvlist_t *details"
 .Pp
 .Ft int
-.Fn be_unmount "libbe_handle_t *hdl" "char *be_name" "int flags"
+.Fn be_unmount "libbe_handle_t *hdl" "const char *be_name" "int flags"
 .Pp
 .Ft int
 .Fn libbe_errno "libbe_handle_t *hdl"
@@ -121,7 +124,7 @@
 .Fn be_validate_snap "libbe_handle_t *hdl" "const char *snap"
 .Pp
 .Ft int
-.Fn be_exists "libbe_handle_t *hdl" "char *be_name"
+.Fn be_exists "libbe_handle_t *hdl" "const char *be_name"
 .Pp
 .Ft int
 .Fn be_export "libbe_handle_t *hdl" "const char *be_name" "int fd"
@@ -218,6 +221,30 @@ active on reboot.
 The
 .Fn be_root_path
 function returns the boot environment root path.
+.Pp
+The
+.Fn be_snapshot
+function creates a snapshot of
+.Fa be_name
+named
+.Fa snap_name .
+A
+.Dv NULL
+.Fa snap_name
+may be used, indicating that
+.Fn be_snaphot
+should derive the snapshot name from the current date and time.
+If
+.Fa recursive
+is set, then
+.Fn be_snapshot
+will recursively snapshot the dataset.
+If
+.Fa result
+is not
+.Dv NULL ,
+then it will be populated with the final
+.Dq Fa be_name Ns @ Ns Fa snap_name .
 .Pp
 The
 .Fn be_is_auto_snapshot_name

@@ -13,6 +13,8 @@ pkgconfig_DATA = libzfs.pc
 
 lib_LTLIBRARIES = libzfs.la
 
+include $(top_srcdir)/config/Abigail.am
+
 USER_C = \
 	libzfs_changelist.c \
 	libzfs_config.c \
@@ -58,7 +60,6 @@ KERNEL_C = \
 	zfs_fletcher_superscalar4.c \
 	zfs_namecheck.c \
 	zfs_prop.c \
-	zfs_uio.c \
 	zpool_prop.c \
 	zprop_common.c
 
@@ -84,10 +85,14 @@ endif
 
 if BUILD_FREEBSD
 libzfs_la_LIBADD += -lutil -lgeom
-libzfs_la_LDFLAGS += -version-info 4:0:0
-else
-libzfs_la_LDFLAGS += -version-info 2:0:0
 endif
 
+libzfs_la_LDFLAGS += -version-info 4:0:0
+
+include $(top_srcdir)/config/CppCheck.am
+
+# Library ABI
+EXTRA_DIST = libzfs.abi libzfs.suppr
+
 # Licensing data
-EXTRA_DIST = THIRDPARTYLICENSE.openssl THIRDPARTYLICENSE.openssl.descrip
+EXTRA_DIST += THIRDPARTYLICENSE.openssl THIRDPARTYLICENSE.openssl.descrip

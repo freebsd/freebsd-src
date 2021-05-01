@@ -51,7 +51,7 @@
 #define TRACE_NUM(n)		/* nothing */
 #endif
 
-MODULE_ID("$Id: write_entry.c,v 1.115 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: write_entry.c,v 1.116 2020/08/29 16:22:03 juergen Exp $")
 
 static int total_written;
 static int total_parts;
@@ -192,7 +192,7 @@ make_db_root(const char *path)
 
 	if ((rc = stat(path, &statbuf)) < 0) {
 	    rc = mkdir(path
-#if !defined(_WIN32)
+#ifndef _NC_WINDOWS
 		       ,0777
 #endif
 		);

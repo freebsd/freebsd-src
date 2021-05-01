@@ -246,13 +246,13 @@ ft5406ts_init(void *arg)
 	evdev_support_event(sc->sc_evdev, EV_SYN);
 	evdev_support_event(sc->sc_evdev, EV_ABS);
 
-	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT, 0, 0,
+	evdev_support_abs(sc->sc_evdev, ABS_MT_SLOT, 0,
 	    MAX_TOUCH_ID, 0, 0, 0);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID, 0, -1,
+	evdev_support_abs(sc->sc_evdev, ABS_MT_TRACKING_ID, -1,
 	    MAX_TOUCH_ID, 0, 0, 0);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_X, 0, 0,
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_X, 0,
 	    SCREEN_WIDTH, 0, 0, SCREEN_RES_X);
-	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_Y, 0, 0,
+	evdev_support_abs(sc->sc_evdev, ABS_MT_POSITION_Y, 0,
 	    SCREEN_HEIGHT, 0, 0, SCREEN_RES_Y);
 
 	err = evdev_register_mtx(sc->sc_evdev, &sc->sc_mtx);

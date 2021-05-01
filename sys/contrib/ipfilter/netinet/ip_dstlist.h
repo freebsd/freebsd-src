@@ -62,7 +62,7 @@ typedef	struct dstlist_stat_s {
 
 extern ipf_lookup_t ipf_dstlist_backend;
 
-extern int ipf_dstlist_select_node __P((fr_info_t *, void *, u_32_t *,
-					frdest_t *));
+extern int ipf_dstlist_select_node(fr_info_t *, void *, u_32_t *,
+					frdest_t *);
 
 #endif /* __IP_DSTLIST_H__ */

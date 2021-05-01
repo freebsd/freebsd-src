@@ -45,6 +45,7 @@
 #include "util/config_file.h"
 #include "util/data/packed_rrset.h"
 #include "util/data/msgreply.h"
+#include "util/data/msgparse.h"
 #include "util/regional.h"
 #include "util/alloc.h"
 #include "util/net_help.h"
@@ -396,6 +397,7 @@ rrset_update_sec_status(struct rrset_cache* r,
 			cachedata->ttl = updata->ttl + now;
 			for(i=0; i<cachedata->count+cachedata->rrsig_count; i++)
 				cachedata->rr_ttl[i] = updata->rr_ttl[i]+now;
+			cachedata->ttl_add = now;
 		}
 	}
 	lock_rw_unlock(&e->lock);

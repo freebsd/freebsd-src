@@ -64,9 +64,9 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\"
-.Dd May 8, 2019
+.Dd Noverber 18, 2020
 .Dt TCSH 1
-.Os Astron 6.21.00
+.Os Astron 6.22.02
 .Sh NAME
 .Nm tcsh
 .Nd C shell with file name completion and command line editing
@@ -1494,6 +1494,11 @@ in the
 .Va prompt
 shell variable.
 .Pp
+By default history entries are displayed by printing each parsed token
+separated by space; thus the redirection operator
+.Sq >\&&\&!
+will be displayed as
+.Sq >\0\&&\0\&! .
 The shell actually saves history in expanded and literal (unexpanded) forms.
 If the
 .Va histlit
@@ -1849,6 +1854,16 @@ substituted, not patterns that contain any substitution result.
 Print the new command line but do not execute it.
 .It Ar q
 Quote the substituted words, preventing further substitutions.
+.It Ar Q
+Same as
+.Ar q
+but in addition preserve empty variables as a string containing a NUL.
+This is useful to preserve positional arguments for example:
+.Bd -literal -offset indent -compact
+> set args=('arg 1' '' 'arg 3')
+> tcsh -f -c 'echo ${#argv}' $args:gQ
+3
+.Ed
 .It Ar x
 Like 
 .Ar q ,
@@ -3358,17 +3373,15 @@ by an unambiguous prefix of the string typed in to start it:
 .Sq %ex
 would
 normally restart a suspended
-.Va ex
-(1) job, if there were only one suspended
+.Xr ex 1
+job, if there were only one suspended
 job whose name began with the string
-.Sq ex
+.Sq ex .
 It is also possible to say
-`%?
-.Va string
-' to specify a job whose text contains
-.Va string
-, if there
-is only one such job.
+.Va %?string
+to specify a job whose text contains
+.Va string ,
+if there is only one such job.
 .Pp
 The shell maintains a notion of the current and previous jobs.
 In output
@@ -3855,7 +3868,7 @@ are optional.
 Components of
 .Va expr
 must be separated by spaces.
-.It Ar alias[name[wordlist]]
+.It Ar alias [name [wordlist]]
 Without arguments, prints all aliases.
 With
 .Va name
@@ -3884,26 +3897,21 @@ memory.
 With an argument shows the number of free and used blocks in each size
 category.
 The categories start at size 8 and double at each step.
-This
-command's output may vary across system types, because systems other than the VAX
-may use a different memory allocator.
-.TP 8
-.It Ar bg[%job...]
+This command's output may vary across system types, because systems other
+than the VAX may use a different memory allocator.
+.It Ar bg [%job...]
 Puts the specified jobs (or, without arguments, the current job)
 into the background, continuing each if it is stopped.
 .Va job
 may be a number, a string,
-.Sq
-,
-.Sq %
-,
-.Sq +
+.Sq \&, ,
+.Sq % ,
+.Sq + ,
 or
-.Sq \-
+.Sq \&-
 as described
 under
-.Va Jobs
-.Pp
+.Va Jobs .
 .It Ar bindkey Oo Fl l Ns | Ns Fl d Ns | Ns Fl e Ns | Ns Fl v Ns | Ns Fl u Oc (+)
 .It Ar bindkey Oo Fl a Oc Oo Fl b Oc Oo Fl k Oc Oo Fl r Oc Oo Fl Fl Oc Ar key (+)
 .It Ar bindkey Oo Fl a Oc Oo Fl b Oc Oo Fl k Oc Oo Fl c Ns | Ns Fl s Oc Oo Fl Fl Oc Ar key command (+)
@@ -6810,6 +6818,10 @@ environment variable is set),
 the tty is a pseudo-tty (pty) or the shell was not so compiled (see the
 .Va version
 shell variable).
+Unset
+.Va autologout or set it to 
+.Dv 0
+to disable automatic logout.
 See also the
 .Va afsuser
 and
@@ -9518,7 +9530,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .Sh VERSION
-This manual documents tcsh 6.21.00 (Astron) 2019-05-08.
+This manual documents tcsh 6.22.03 (Astron) 2020-11-18.
 .Sh AUTHORS
 .PD 0
 .TP 2

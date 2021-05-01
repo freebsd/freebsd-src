@@ -264,6 +264,8 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 #if defined(__i386__) || defined(__amd64__)
 		case SHT_X86_64_UNWIND:
 #endif
+		case SHT_INIT_ARRAY:
+		case SHT_FINI_ARRAY:
 			if ((shdr[i].sh_flags & SHF_ALLOC) == 0)
 				break;
 			lastaddr = roundup(lastaddr, shdr[i].sh_addralign);

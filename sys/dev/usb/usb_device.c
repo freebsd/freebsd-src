@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2020 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -897,6 +897,9 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 				/* initialise interface */
 				do_init = 1;
 			}
+			/* update number of alternate settings, if any */
+			if (iface_index == USB_IFACE_INDEX_ANY)
+				iface->num_altsetting = ips.iface_index_alt + 1;
 		} else
 			do_init = 0;
 
@@ -905,6 +908,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			/* update current number of endpoints */
 			ep_curr = ep_max;
 		}
+
 		/* check for init */
 		if (do_init) {
 			/* setup the USB interface structure */

@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -772,8 +772,7 @@ AcpiDsExecEndOp (
                     break;
                 }
 
-                /* Fall through */
-                /*lint -fallthrough */
+                ACPI_FALLTHROUGH;
 
             case AML_INT_EVAL_SUBTREE_OP:
 

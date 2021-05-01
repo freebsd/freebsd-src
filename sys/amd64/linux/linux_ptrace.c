@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2017 Edward Tomasz Napierala <trasz@FreeBSD.org>
- * All rights reserved.
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
@@ -71,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_GETSIGINFO		0x4202
 #define	LINUX_PTRACE_GETREGSET		0x4204
 #define	LINUX_PTRACE_SEIZE		0x4206
+#define	LINUX_PTRACE_GET_SYSCALL_INFO	0x420e
 
 #define	LINUX_PTRACE_EVENT_EXIT		6
 
@@ -313,6 +313,8 @@ linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
 	error = kern_ptrace(td, PT_READ_I, pid, addr, 0);
 	if (error == 0)
 		error = copyout(td->td_retval, data, sizeof(l_int));
+	else if (error == ENOMEM)
+		error = EIO;
 	td->td_retval[0] = error;
 
 	return (error);
@@ -557,6 +559,14 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	return (EINVAL);
 }
 
+static int
+linux_ptrace_get_syscall_info(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
+{
+
+	linux_msg(td, "PTRACE_GET_SYSCALL_INFO not implemented; returning EINVAL");
+	return (EINVAL);
+}
+
 int
 linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 {
@@ -575,7 +585,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	case LINUX_PTRACE_PEEKDATA:
 		error = linux_ptrace_peek(td, pid, addr, (void *)uap->data);
 		if (error != 0)
-			return (error);
+			goto out;
 		/*
 		 * Linux expects this syscall to read 64 bits, not 32.
 		 */
@@ -586,10 +596,15 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = linux_ptrace_peekuser(td, pid, addr, (void *)uap->data);
 		break;
 	case LINUX_PTRACE_POKETEXT:
-		error = kern_ptrace(td, PT_WRITE_I, pid, addr, uap->data);
-		break;
 	case LINUX_PTRACE_POKEDATA:
 		error = kern_ptrace(td, PT_WRITE_D, pid, addr, uap->data);
+		if (error != 0)
+			goto out;
+		/*
+		 * Linux expects this syscall to write 64 bits, not 32.
+		 */
+		error = kern_ptrace(td, PT_WRITE_D, pid,
+		    (void *)(uap->addr + 4), uap->data >> 32);
 		break;
 	case LINUX_PTRACE_POKEUSER:
 		error = linux_ptrace_pokeuser(td, pid, addr, (void *)uap->data);
@@ -642,12 +657,19 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	case LINUX_PTRACE_SEIZE:
 		error = linux_ptrace_seize(td, pid, uap->addr, uap->data);
 		break;
+	case LINUX_PTRACE_GET_SYSCALL_INFO:
+		error = linux_ptrace_get_syscall_info(td, pid, uap->addr, uap->data);
+		break;
 	default:
 		linux_msg(td, "ptrace(%ld, ...) not implemented; "
 		    "returning EINVAL", uap->req);
 		error = EINVAL;
 		break;
 	}
+
+out:
+	if (error == EBUSY)
+		error = ESRCH;
 
 	return (error);
 }

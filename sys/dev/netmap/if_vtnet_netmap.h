@@ -50,7 +50,7 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	    : VTNET_INIT_NETMAP_EXIT);
 	VTNET_CORE_UNLOCK(sc);
 
-	return 0;
+	return (0);
 }
 
 
@@ -84,12 +84,13 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		for (; nm_i != head; nm_i = nm_next(nm_i, lim)) {
 			/* we use an empty header here */
 			struct netmap_slot *slot = &ring->slot[nm_i];
+			uint64_t offset = nm_get_offset(kring, slot);
 			u_int len = slot->len;
 			uint64_t paddr;
-			void *addr = PNMB(na, slot, &paddr);
 			int err;
 
-			NM_CHECK_ADDR_LEN(na, addr, len);
+			(void)PNMB(na, slot, &paddr);
+			NM_CHECK_ADDR_LEN_OFF(na, len, offset);
 
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
 			/* Initialize the scatterlist, expose it to the hypervisor,
@@ -97,7 +98,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 			 */
 			sglist_reset(sg); // cheap
 			err = sglist_append(sg, &txq->vtntx_shrhdr, sc->vtnet_hdr_size);
-			err |= sglist_append_phys(sg, paddr, len);
+			err |= sglist_append_phys(sg, paddr + offset, len);
 			KASSERT(err == 0, ("%s: cannot append to sglist %d",
 						__func__, err));
 			err = virtqueue_enqueue(vq, /*cookie=*/txq, sg,
@@ -114,7 +115,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		virtqueue_notify(vq);
 
 		/* Update hwcur depending on where we stopped. */
-		kring->nr_hwcur = nm_i; /* note we migth break early */
+		kring->nr_hwcur = nm_i; /* note we might break early */
 	}
 
 	/* Free used slots. We only consider our own used buffers, recognized
@@ -171,19 +172,21 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 	for (nm_i = rxq->vtnrx_nm_refill; num > 0;
 	    nm_i = nm_next(nm_i, lim), num--) {
 		struct netmap_slot *slot = &ring->slot[nm_i];
+		uint64_t offset = nm_get_offset(kring, slot);
 		uint64_t paddr;
 		void *addr = PNMB(na, slot, &paddr);
 		int err;
 
 		if (addr == NETMAP_BUF_BASE(na)) { /* bad buf */
-			if (netmap_ring_reinit(kring))
-				return EFAULT;
+			netmap_ring_reinit(kring);
+			return EFAULT;
 		}
 
 		slot->flags &= ~NS_BUF_CHANGED;
 		sglist_reset(&sg);
 		err = sglist_append(&sg, &rxq->vtnrx_shrhdr, sc->vtnet_hdr_size);
-		err |= sglist_append_phys(&sg, paddr, NETMAP_BUF_SIZE(na));
+		err |= sglist_append_phys(&sg, paddr + offset,
+		    NETMAP_BUF_SIZE(na) - offset);
 		KASSERT(err == 0, ("%s: cannot append to sglist %d",
 					__func__, err));
 		/* writable for the host */
@@ -213,20 +216,25 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 	struct netmap_kring *kring;
 	struct netmap_slot *slot;
 	int error;
+	int num;
 
 	slot = netmap_reset(na, NR_RX, rxq->vtnrx_id, 0);
 	if (slot == NULL)
 		return -1;
 	kring = na->rx_rings[rxq->vtnrx_id];
 
-	/* Expose all the RX netmap buffers we can. In case of no indirect
+	/*
+	 * Expose all the RX netmap buffers we can. In case of no indirect
 	 * buffers, the number of netmap slots in the RX ring matches the
 	 * maximum number of 2-elements sglist that the RX virtqueue can
-	 * accommodate. We need to start from kring->nr_hwcur, which is 0
-	 * on netmap register and may be different from 0 if a virtio
-	 * re-init happens while the device is in use by netmap. */
-	rxq->vtnrx_nm_refill = kring->nr_hwcur;
-	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc - 1);
+	 * accommodate. We need to start from kring->nr_hwtail, which is 0
+	 * on the first netmap register and may be different from 0 if a
+	 * virtio re-init (caused by a netma register or i.e., ifconfig)
+	 * happens while the device is in use by netmap.
+	 */
+	rxq->vtnrx_nm_refill = kring->nr_hwtail;
+	num = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+	error = vtnet_netmap_kring_refill(kring, num);
 	virtqueue_notify(rxq->vtnrx_vq);
 
 	return error;
@@ -256,7 +264,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * First part: import newly received packets.
 	 * Only accept our own buffers (matching the token). We should only get
 	 * matching buffers. The hwtail should never overrun hwcur, because
-	 * we publish only N-1 receive buffers (and non N).
+	 * we publish only N-1 receive buffers (and not N).
 	 * In any case we must not leave this routine with the interrupts
 	 * disabled, pending packets in the VQ and hwtail == (hwcur - 1),
 	 * otherwise the pending packets could stall.
@@ -427,7 +435,7 @@ vtnet_netmap_attach(struct vtnet_softc *sc)
 	bzero(&na, sizeof(na));
 
 	na.ifp = sc->vtnet_ifp;
-	na.na_flags = 0;
+	na.na_flags = NAF_OFFSETS;
 	na.num_tx_desc = vtnet_netmap_tx_slots(sc);
 	na.num_rx_desc = vtnet_netmap_rx_slots(sc);
 	na.num_tx_rings = na.num_rx_rings = sc->vtnet_max_vq_pairs;

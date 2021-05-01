@@ -30,7 +30,7 @@ static const char rcsid[] = "@(#)$Id$";
 
 extern	int	opts;
 
-void	dumppacket __P((ip_t *));
+void	dumppacket(ip_t *);
 
 
 void dumppacket(ip)

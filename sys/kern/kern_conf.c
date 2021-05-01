@@ -667,7 +667,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 
 	if (devsw->d_flags & D_NEEDGIANT) {
 		printf("WARNING: Device \"%s\" is Giant locked and may be "
-		    "deleted before FreeBSD 13.0.\n",
+		    "deleted before FreeBSD 14.0.\n",
 		    devsw->d_name == NULL ? "???" : devsw->d_name);
 		if (devsw->d_gianttrick == NULL) {
 			memcpy(dsw2, devsw, sizeof *dsw2);
@@ -1172,7 +1172,6 @@ destroy_devl(struct cdev *dev)
 
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
-	bzero(&dev->__si_u, sizeof(dev->__si_u));
 
 	if (!(dev->si_flags & SI_ALIAS)) {
 		/* Remove from cdevsw list */
@@ -1256,7 +1255,7 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 	int u, i;
 
 	i = strlen(stem);
-	if (bcmp(stem, name, i) != 0)
+	if (strncmp(stem, name, i) != 0)
 		return (0);
 	if (!isdigit(name[i]))
 		return (0);

@@ -355,7 +355,7 @@ block in proto tcp from any port >= 1024 to any port < 1024
 pass in proto tcp from 10.1.0.0/24 to any port = 22
 block out proto udp from any to 10.1.1.1 port = 135
 pass in proto udp from 1.1.1.1 port = 123 to 10.1.1.1 port = 123
-pass in proto tcp from 127.0.0.0/8 to any port = 6000:6009
+pass in proto tcp from 127.0.0.0/8 to any port 6000:6009
 .fi
 .PP
 If there is no desire to mention any specific source or destintion

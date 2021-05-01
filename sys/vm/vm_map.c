@@ -175,29 +175,106 @@ static void vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
 			start = end;			\
 		}
 
+#ifndef UMA_MD_SMALL_ALLOC
+
+/*
+ * Allocate a new slab for kernel map entries.  The kernel map may be locked or
+ * unlocked, depending on whether the request is coming from the kernel map or a
+ * submap.  This function allocates a virtual address range directly from the
+ * kernel map instead of the kmem_* layer to avoid recursion on the kernel map
+ * lock and also to avoid triggering allocator recursion in the vmem boundary
+ * tag allocator.
+ */
+static void *
+kmapent_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
+    int wait)
+{
+	vm_offset_t addr;
+	int error, locked;
+
+	*pflag = UMA_SLAB_PRIV;
+
+	if (!(locked = vm_map_locked(kernel_map)))
+		vm_map_lock(kernel_map);
+	addr = vm_map_findspace(kernel_map, vm_map_min(kernel_map), bytes);
+	if (addr + bytes < addr || addr + bytes > vm_map_max(kernel_map))
+		panic("%s: kernel map is exhausted", __func__);
+	error = vm_map_insert(kernel_map, NULL, 0, addr, addr + bytes,
+	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+	if (error != KERN_SUCCESS)
+		panic("%s: vm_map_insert() failed: %d", __func__, error);
+	if (!locked)
+		vm_map_unlock(kernel_map);
+	error = kmem_back_domain(domain, kernel_object, addr, bytes, M_NOWAIT |
+	    M_USE_RESERVE | (wait & M_ZERO));
+	if (error == KERN_SUCCESS) {
+		return ((void *)addr);
+	} else {
+		if (!locked)
+			vm_map_lock(kernel_map);
+		vm_map_delete(kernel_map, addr, bytes);
+		if (!locked)
+			vm_map_unlock(kernel_map);
+		return (NULL);
+	}
+}
+
+static void
+kmapent_free(void *item, vm_size_t size, uint8_t pflag)
+{
+	vm_offset_t addr;
+	int error;
+
+	if ((pflag & UMA_SLAB_PRIV) == 0)
+		/* XXX leaked */
+		return;
+
+	addr = (vm_offset_t)item;
+	kmem_unback(kernel_object, addr, size);
+	error = vm_map_remove(kernel_map, addr, addr + size);
+	KASSERT(error == KERN_SUCCESS,
+	    ("%s: vm_map_remove failed: %d", __func__, error));
+}
+
+/*
+ * The worst-case upper bound on the number of kernel map entries that may be
+ * created before the zone must be replenished in _vm_map_unlock().
+ */
+#define	KMAPENT_RESERVE		1
+
+#endif /* !UMD_MD_SMALL_ALLOC */
+
 /*
  *	vm_map_startup:
  *
- *	Initialize the vm_map module.  Must be called before
- *	any other vm_map routines.
+ *	Initialize the vm_map module.  Must be called before any other vm_map
+ *	routines.
  *
- *	Map and entry structures are allocated from the general
- *	purpose memory pool with some exceptions:
- *
- *	- The kernel map and kmem submap are allocated statically.
- *	- Kernel map entries are allocated out of a static pool.
- *
- *	These restrictions are necessary since malloc() uses the
- *	maps and requires map entries.
+ *	User map and entry structures are allocated from the general purpose
+ *	memory pool.  Kernel maps are statically defined.  Kernel map entries
+ *	require special handling to avoid recursion; see the comments above
+ *	kmapent_alloc() and in vm_map_entry_create().
  */
-
 void
 vm_map_startup(void)
 {
 	mtx_init(&map_sleep_mtx, "vm map sleep mutex", NULL, MTX_DEF);
+
+	/*
+	 * Disable the use of per-CPU buckets: map entry allocation is
+	 * serialized by the kernel map lock.
+	 */
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_MTXCLASS | UMA_ZONE_VM);
+	    UMA_ZONE_VM | UMA_ZONE_NOBUCKET);
+#ifndef UMA_MD_SMALL_ALLOC
+	/* Reserve an extra map entry for use when replenishing the reserve. */
+	uma_zone_reserve(kmapentzone, KMAPENT_RESERVE + 1);
+	uma_prealloc(kmapentzone, KMAPENT_RESERVE + 1);
+	uma_zone_set_allocf(kmapentzone, kmapent_alloc);
+	uma_zone_set_freef(kmapentzone, kmapent_free);
+#endif
+
 	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
@@ -257,7 +334,7 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	}
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
-	vm->vm_refcnt = 1;
+	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
 	vm->vm_tsize = 0;
@@ -316,10 +393,7 @@ vmspace_free(struct vmspace *vm)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "vmspace_free() called");
 
-	if (vm->vm_refcnt == 0)
-		panic("vmspace_free: attempt to free already freed vmspace");
-
-	if (atomic_fetchadd_int(&vm->vm_refcnt, -1) == 1)
+	if (refcount_release(&vm->vm_refcnt))
 		vmspace_dofree(vm);
 }
 
@@ -339,45 +413,42 @@ vmspace_exitfree(struct proc *p)
 void
 vmspace_exit(struct thread *td)
 {
-	int refcnt;
 	struct vmspace *vm;
 	struct proc *p;
-
-	/*
-	 * Release user portion of address space.
-	 * This releases references to vnodes,
-	 * which could cause I/O if the file has been unlinked.
-	 * Need to do this early enough that we can still sleep.
-	 *
-	 * The last exiting process to reach this point releases as
-	 * much of the environment as it can. vmspace_dofree() is the
-	 * slower fallback in case another process had a temporary
-	 * reference to the vmspace.
-	 */
+	bool released;
 
 	p = td->td_proc;
 	vm = p->p_vmspace;
-	atomic_add_int(&vmspace0.vm_refcnt, 1);
-	refcnt = vm->vm_refcnt;
-	do {
-		if (refcnt > 1 && p->p_vmspace != &vmspace0) {
-			/* Switch now since other proc might free vmspace */
+
+	/*
+	 * Prepare to release the vmspace reference.  The thread that releases
+	 * the last reference is responsible for tearing down the vmspace.
+	 * However, threads not releasing the final reference must switch to the
+	 * kernel's vmspace0 before the decrement so that the subsequent pmap
+	 * deactivation does not modify a freed vmspace.
+	 */
+	refcount_acquire(&vmspace0.vm_refcnt);
+	if (!(released = refcount_release_if_last(&vm->vm_refcnt))) {
+		if (p->p_vmspace != &vmspace0) {
 			PROC_VMSPACE_LOCK(p);
 			p->p_vmspace = &vmspace0;
 			PROC_VMSPACE_UNLOCK(p);
 			pmap_activate(td);
 		}
-	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt - 1));
-	if (refcnt == 1) {
+		released = refcount_release(&vm->vm_refcnt);
+	}
+	if (released) {
+		/*
+		 * pmap_remove_pages() expects the pmap to be active, so switch
+		 * back first if necessary.
+		 */
 		if (p->p_vmspace != vm) {
-			/* vmspace not yet freed, switch back */
 			PROC_VMSPACE_LOCK(p);
 			p->p_vmspace = vm;
 			PROC_VMSPACE_UNLOCK(p);
 			pmap_activate(td);
 		}
 		pmap_remove_pages(vmspace_pmap(vm));
-		/* Switch now since this proc will free vmspace */
 		PROC_VMSPACE_LOCK(p);
 		p->p_vmspace = &vmspace0;
 		PROC_VMSPACE_UNLOCK(p);
@@ -396,21 +467,13 @@ struct vmspace *
 vmspace_acquire_ref(struct proc *p)
 {
 	struct vmspace *vm;
-	int refcnt;
 
 	PROC_VMSPACE_LOCK(p);
 	vm = p->p_vmspace;
-	if (vm == NULL) {
+	if (vm == NULL || !refcount_acquire_if_not_zero(&vm->vm_refcnt)) {
 		PROC_VMSPACE_UNLOCK(p);
 		return (NULL);
 	}
-	refcnt = vm->vm_refcnt;
-	do {
-		if (refcnt <= 0) { 	/* Avoid 0->1 transition */
-			PROC_VMSPACE_UNLOCK(p);
-			return (NULL);
-		}
-	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt + 1));
 	if (vm != p->p_vmspace) {
 		PROC_VMSPACE_UNLOCK(p);
 		vmspace_free(vm);
@@ -442,7 +505,7 @@ vmspace_switch_aio(struct vmspace *newvm)
 
 	/* XXX: Need some way to assert that this is an aio daemon. */
 
-	KASSERT(newvm->vm_refcnt > 0,
+	KASSERT(refcount_load(&newvm->vm_refcnt) > 0,
 	    ("vmspace_switch_aio: newvm unreferenced"));
 
 	oldvm = curproc->p_vmspace;
@@ -453,7 +516,7 @@ vmspace_switch_aio(struct vmspace *newvm)
 	 * Point to the new address space and refer to it.
 	 */
 	curproc->p_vmspace = newvm;
-	atomic_add_int(&newvm->vm_refcnt, 1);
+	refcount_acquire(&newvm->vm_refcnt);
 
 	/* Activate the new mapping. */
 	pmap_activate(curthread);
@@ -630,9 +693,15 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
 	VM_MAP_UNLOCK_CONSISTENT(map);
-	if (map->system_map)
+	if (map->system_map) {
+#ifndef UMA_MD_SMALL_ALLOC
+		if (map == kernel_map && (map->flags & MAP_REPLENISH) != 0) {
+			uma_prealloc(kmapentzone, 1);
+			map->flags &= ~MAP_REPLENISH;
+		}
+#endif
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else {
+	} else {
 		sx_xunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
@@ -652,9 +721,11 @@ void
 _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 
-	if (map->system_map)
+	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else {
+	} else {
 		sx_sunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
@@ -726,6 +797,8 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else {
 		VM_MAP_UNLOCK_CONSISTENT(map);
@@ -769,10 +842,13 @@ _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 
 	VM_MAP_UNLOCK_CONSISTENT(map);
 	mtx_lock(&map_sleep_mtx);
-	if (map->system_map)
+	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else
+	} else {
 		sx_xunlock_(&map->lock, file, line);
+	}
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
 	    timo));
 }
@@ -895,12 +971,33 @@ vm_map_entry_create(vm_map_t map)
 {
 	vm_map_entry_t new_entry;
 
-	if (map->system_map)
+#ifndef UMA_MD_SMALL_ALLOC
+	if (map == kernel_map) {
+		VM_MAP_ASSERT_LOCKED(map);
+
+		/*
+		 * A new slab of kernel map entries cannot be allocated at this
+		 * point because the kernel map has not yet been updated to
+		 * reflect the caller's request.  Therefore, we allocate a new
+		 * map entry, dipping into the reserve if necessary, and set a
+		 * flag indicating that the reserve must be replenished before
+		 * the map is unlocked.
+		 */
+		new_entry = uma_zalloc(kmapentzone, M_NOWAIT | M_NOVM);
+		if (new_entry == NULL) {
+			new_entry = uma_zalloc(kmapentzone,
+			    M_NOWAIT | M_NOVM | M_USE_RESERVE);
+			kernel_map->flags |= MAP_REPLENISH;
+		}
+	} else
+#endif
+	if (map->system_map) {
 		new_entry = uma_zalloc(kmapentzone, M_NOWAIT);
-	else
+	} else {
 		new_entry = uma_zalloc(mapentzone, M_WAITOK);
-	if (new_entry == NULL)
-		panic("vm_map_entry_create: kernel resources exhausted");
+	}
+	KASSERT(new_entry != NULL,
+	    ("vm_map_entry_create: kernel resources exhausted"));
 	return (new_entry);
 }
 
@@ -1574,6 +1671,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (start == end || !vm_map_range_valid(map, start, end))
 		return (KERN_INVALID_ADDRESS);
 
+	if ((map->flags & MAP_WXORX) != 0 && (prot & (VM_PROT_WRITE |
+	    VM_PROT_EXECUTE)) == (VM_PROT_WRITE | VM_PROT_EXECUTE))
+		return (KERN_PROTECTION_FAILURE);
+
 	/*
 	 * Find the entry prior to the proposed starting address; if it's part
 	 * of an existing entry, this range is bogus.
@@ -1785,6 +1886,8 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 	vm_map_entry_t header, llist, rlist, root, y;
 	vm_size_t left_length, max_free_left, max_free_right;
 	vm_offset_t gap_end;
+
+	VM_MAP_ASSERT_LOCKED(map);
 
 	/*
 	 * Request must fit within min/max VM address and must avoid
@@ -2630,14 +2733,12 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 /*
  *	vm_map_protect:
  *
- *	Sets the protection of the specified address
- *	region in the target map.  If "set_max" is
- *	specified, the maximum protection is to be set;
- *	otherwise, only the current protection is affected.
+ *	Sets the protection and/or the maximum protection of the
+ *	specified address region in the target map.
  */
 int
 vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
-	       vm_prot_t new_prot, boolean_t set_max)
+    vm_prot_t new_prot, vm_prot_t new_maxprot, int flags)
 {
 	vm_map_entry_t entry, first_entry, in_tran, prev_entry;
 	vm_object_t obj;
@@ -2648,9 +2749,22 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	if (start == end)
 		return (KERN_SUCCESS);
 
+	if ((flags & (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT)) ==
+	    (VM_MAP_PROTECT_SET_PROT | VM_MAP_PROTECT_SET_MAXPROT) &&
+	    (new_prot & new_maxprot) != new_prot)
+		return (KERN_OUT_OF_BOUNDS);
+
 again:
 	in_tran = NULL;
 	vm_map_lock(map);
+
+	if ((map->flags & MAP_WXORX) != 0 &&
+	    (flags & VM_MAP_PROTECT_SET_PROT) != 0 &&
+	    (new_prot & (VM_PROT_WRITE | VM_PROT_EXECUTE)) == (VM_PROT_WRITE |
+	    VM_PROT_EXECUTE)) {
+		vm_map_unlock(map);
+		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * Ensure that we are not concurrently wiring pages.  vm_map_wire() may
@@ -2676,7 +2790,12 @@ again:
 			vm_map_unlock(map);
 			return (KERN_INVALID_ARGUMENT);
 		}
-		if ((new_prot & entry->max_protection) != new_prot) {
+		if ((flags & VM_MAP_PROTECT_SET_PROT) == 0)
+			new_prot = entry->protection;
+		if ((flags & VM_MAP_PROTECT_SET_MAXPROT) == 0)
+			new_maxprot = entry->max_protection;
+		if ((new_prot & entry->max_protection) != new_prot ||
+		    (new_maxprot & entry->max_protection) != new_maxprot) {
 			vm_map_unlock(map);
 			return (KERN_PROTECTION_FAILURE);
 		}
@@ -2717,12 +2836,11 @@ again:
 			return (rv);
 		}
 
-		if (set_max ||
+		if ((flags & VM_MAP_PROTECT_SET_PROT) == 0 ||
 		    ((new_prot & ~entry->protection) & VM_PROT_WRITE) == 0 ||
 		    ENTRY_CHARGED(entry) ||
-		    (entry->eflags & MAP_ENTRY_GUARD) != 0) {
+		    (entry->eflags & MAP_ENTRY_GUARD) != 0)
 			continue;
-		}
 
 		cred = curthread->td_ucred;
 		obj = entry->object.vm_object;
@@ -2783,11 +2901,11 @@ again:
 
 		old_prot = entry->protection;
 
-		if (set_max)
-			entry->protection =
-			    (entry->max_protection = new_prot) &
-			    old_prot;
-		else
+		if ((flags & VM_MAP_PROTECT_SET_MAXPROT) != 0) {
+			entry->max_protection = new_maxprot;
+			entry->protection = new_maxprot & old_prot;
+		}
+		if ((flags & VM_MAP_PROTECT_SET_PROT) != 0)
 			entry->protection = new_prot;
 
 		/*
@@ -4193,7 +4311,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 	}
 
 	new_map->anon_loc = old_map->anon_loc;
-	new_map->flags |= old_map->flags & (MAP_ASLR | MAP_ASLR_IGNSTART);
+	new_map->flags |= old_map->flags & (MAP_ASLR | MAP_ASLR_IGNSTART |
+	    MAP_WXORX);
 
 	VM_MAP_ENTRY_FOREACH(old_entry, old_map) {
 		if ((old_entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
@@ -4777,7 +4896,7 @@ vmspace_unshare(struct proc *p)
 	struct vmspace *newvmspace;
 	vm_ooffset_t fork_charge;
 
-	if (oldvmspace->vm_refcnt == 1)
+	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
 	newvmspace = vmspace_fork(oldvmspace, &fork_charge);

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread_np.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "pci_emul.h"
 #include "mevent.h"
@@ -110,6 +111,8 @@ struct pci_vtnet_softc {
 	pthread_mutex_t vsc_mtx;
 
 	net_backend_t	*vsc_be;
+
+	bool    features_negotiated;	/* protected by rx_mtx */
 
 	int		resetting;	/* protected by tx_mtx */
 
@@ -176,6 +179,7 @@ pci_vtnet_reset(void *vsc)
 	 * Receive operation will be enabled again once the guest adds
 	 * the first receive buffers and kicks us.
 	 */
+	sc->features_negotiated = false;
 	netbe_rx_disable(sc->vsc_be);
 
 	/* Set sc->resetting and give a chance to the TX thread to stop. */
@@ -244,8 +248,15 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 	struct virtio_mrg_rxbuf_info info[VTNET_MAXSEGS];
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct vqueue_info *vq;
+	struct vi_req req;
 
 	vq = &sc->vsc_queues[VTNET_RXQ];
+
+	/* Features must be negotiated */
+	if (!sc->features_negotiated) {
+		return;
+	}
+
 	for (;;) {
 		struct virtio_net_rxhdr *hdr;
 		uint32_t riov_bytes;
@@ -278,8 +289,9 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 		riov = iov;
 		n_chains = 0;
 		do {
-			int n = vq_getchain(vq, &info[n_chains].idx, riov,
-			    VTNET_MAXSEGS - riov_len, NULL);
+			int n = vq_getchain(vq, riov, VTNET_MAXSEGS - riov_len,
+			    &req);
+			info[n_chains].idx = req.idx;
 
 			if (n == 0) {
 				/*
@@ -406,8 +418,14 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 
 	/*
 	 * A qnotify means that the rx process can now begin.
+	 * Enable RX only if features are negotiated.
 	 */
 	pthread_mutex_lock(&sc->rx_mtx);
+	if (!sc->features_negotiated) {
+		pthread_mutex_unlock(&sc->rx_mtx);
+		return;
+	}
+
 	vq_kick_disable(vq);
 	netbe_rx_enable(sc->vsc_be);
 	pthread_mutex_unlock(&sc->rx_mtx);
@@ -419,7 +437,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 {
 	struct iovec iov[VTNET_MAXSEGS + 1];
 	struct iovec *siov = iov;
-	uint16_t idx;
+	struct vi_req req;
 	ssize_t len;
 	int n;
 
@@ -427,7 +445,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	 * Obtain chain of descriptors. The first descriptor also
 	 * contains the virtio-net header.
 	 */
-	n = vq_getchain(vq, &idx, iov, VTNET_MAXSEGS, NULL);
+	n = vq_getchain(vq, iov, VTNET_MAXSEGS, &req);
 	assert(n >= 1 && n <= VTNET_MAXSEGS);
 
 	if (sc->vhdrlen != sc->be_vhdrlen) {
@@ -457,7 +475,7 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vqueue_info *vq)
 	 * Return the processed chain to the guest, reporting
 	 * the number of bytes that we read.
 	 */
-	vq_relchain(vq, idx, len);
+	vq_relchain(vq, req.idx, len);
 }
 
 /* Called on TX kick. */
@@ -543,13 +561,13 @@ pci_vtnet_ping_ctlq(void *vsc, struct vqueue_info *vq)
 #endif
 
 static int
-pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtnet_softc *sc;
+	const char *value;
 	char tname[MAXCOMLEN + 1];
-	int mac_provided;
-	int mtu_provided;
 	unsigned long mtu = ETHERMTU;
+	int err;
 
 	/*
 	 * Allocate data structures for further virtio initializations.
@@ -569,81 +587,46 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vsc_queues[VTNET_CTLQ].vq_qsize = VTNET_RINGSZ;
         sc->vsc_queues[VTNET_CTLQ].vq_notify = pci_vtnet_ping_ctlq;
 #endif
- 
-	/*
-	 * Attempt to open the backend device and read the MAC address
-	 * if specified.
-	 */
-	mac_provided = 0;
-	mtu_provided = 0;
-	if (opts != NULL) {
-		char *optscopy;
-		char *vtopts;
-		int err = 0;
 
-		/* Get the device name. */
-		optscopy = vtopts = strdup(opts);
-		(void) strsep(&vtopts, ",");
-
-		/*
-		 * Parse the list of options in the form
-		 *     key1=value1,...,keyN=valueN.
-		 */
-		while (vtopts != NULL) {
-			char *value = vtopts;
-			char *key;
-
-			key = strsep(&value, "=");
-			if (value == NULL)
-				break;
-			vtopts = value;
-			(void) strsep(&vtopts, ",");
-
-			if (strcmp(key, "mac") == 0) {
-				err = net_parsemac(value, sc->vsc_config.mac);
-				if (err)
-					break;
-				mac_provided = 1;
-			} else if (strcmp(key, "mtu") == 0) {
-				err = net_parsemtu(value, &mtu);
-				if (err)
-					break;
-
-				if (mtu < VTNET_MIN_MTU || mtu > VTNET_MAX_MTU) {
-					err = EINVAL;
-					errno = EINVAL;
-					break;
-				}
-				mtu_provided = 1;
-			}
-		}
-
-		free(optscopy);
-
+	value = get_config_value_node(nvl, "mac");
+	if (value != NULL) {
+		err = net_parsemac(value, sc->vsc_config.mac);
 		if (err) {
 			free(sc);
 			return (err);
 		}
-
-		err = netbe_init(&sc->vsc_be, opts, pci_vtnet_rx_callback,
-		          sc);
-
-		if (err) {
-			free(sc);
-			return (err);
-		}
-		sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MRG_RXBUF |
-		    netbe_get_cap(sc->vsc_be);
-	}
-
-	if (!mac_provided) {
+	} else
 		net_genmac(pi, sc->vsc_config.mac);
-	}
 
-	sc->vsc_config.mtu = mtu;
-	if (mtu_provided) {
+	value = get_config_value_node(nvl, "mtu");
+	if (value != NULL) {
+		err = net_parsemtu(value, &mtu);
+		if (err) {
+			free(sc);
+			return (err);
+		}
+
+		if (mtu < VTNET_MIN_MTU || mtu > VTNET_MAX_MTU) {
+			err = EINVAL;
+			errno = EINVAL;
+			free(sc);
+			return (err);
+		}
 		sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MTU;
 	}
+	sc->vsc_config.mtu = mtu;
+
+	/* Permit interfaces without a configured backend. */
+	if (get_config_value_node(nvl, "backend") != NULL) {
+		err = netbe_init(&sc->vsc_be, nvl, pci_vtnet_rx_callback, sc);
+		if (err) {
+			free(sc);
+			return (err);
+		}
+	}
+
+	sc->vsc_consts.vc_hv_caps |= VIRTIO_NET_F_MRG_RXBUF |
+	    netbe_get_cap(sc->vsc_be);
 
 	/* 
 	 * Since we do not actually support multiqueue,
@@ -655,11 +638,11 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_NET);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
-	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
+	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_ID_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
-	/* Link is up if we managed to open backend device. */
-	sc->vsc_config.status = (opts == NULL || sc->vsc_be);
+	/* Link is always up. */
+	sc->vsc_config.status = 1;
 	
 	vi_softc_linkup(&sc->vsc_vs, &sc->vsc_consts, sc, pi, sc->vsc_queues);
 	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
@@ -750,6 +733,10 @@ pci_vtnet_neg_features(void *vsc, uint64_t negotiated_features)
 	netbe_set_cap(sc->vsc_be, negotiated_features, sc->vhdrlen);
 	sc->be_vhdrlen = netbe_get_vnet_hdr_len(sc->vsc_be);
 	assert(sc->be_vhdrlen == 0 || sc->be_vhdrlen == sc->vhdrlen);
+
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->features_negotiated = true;
+	pthread_mutex_unlock(&sc->rx_mtx);
 }
 
 #ifdef BHYVE_SNAPSHOT
@@ -820,6 +807,7 @@ done:
 static struct pci_devemu pci_de_vnet = {
 	.pe_emu = 	"virtio-net",
 	.pe_init =	pci_vtnet_init,
+	.pe_legacy_config = netbe_legacy_config,
 	.pe_barwrite =	vi_pci_write,
 	.pe_barread =	vi_pci_read,
 #ifdef BHYVE_SNAPSHOT

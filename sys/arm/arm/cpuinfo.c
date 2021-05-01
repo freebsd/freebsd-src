@@ -40,12 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
-#if __ARM_ARCH >= 6
 void reinit_mmu(uint32_t ttb, uint32_t aux_clr, uint32_t aux_set);
 
 int disable_bp_hardening;
 int spectre_v2_safe = 1;
-#endif
 
 struct cpuinfo cpuinfo =
 {
@@ -83,9 +81,7 @@ SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
 void
 cpuinfo_init(void)
 {
-#if __ARM_ARCH >= 6
 	uint32_t tmp;
-#endif
 
 	/*
 	 * Prematurely fetch CPU quirks. Standard fetch for tunable
@@ -130,16 +126,13 @@ cpuinfo_init(void)
 	/* CP15 c0,c0 regs 0-7 exist on all CPUs (although aliased with MIDR) */
 	cpuinfo.ctr = cp15_ctr_get();
 	cpuinfo.tcmtr = cp15_tcmtr_get();
-#if __ARM_ARCH >= 6
 	cpuinfo.tlbtr = cp15_tlbtr_get();
 	cpuinfo.mpidr = cp15_mpidr_get();
 	cpuinfo.revidr = cp15_revidr_get();
-#endif
 
 	/* if CPU is not v7 cpu id scheme */
 	if (cpuinfo.architecture != 0xF)
 		return;
-#if __ARM_ARCH >= 6
 	cpuinfo.id_pfr0 = cp15_id_pfr0_get();
 	cpuinfo.id_pfr1 = cp15_id_pfr1_get();
 	cpuinfo.id_dfr0 = cp15_id_dfr0_get();
@@ -240,10 +233,8 @@ cpuinfo_init(void)
 	tmp = (cpuinfo.id_isar5 >> 16) & 0xF;	/* CRC32 */
 	if (tmp >= 1)
 		elf_hwcap2 |= HWCAP2_CRC32;
-#endif
 }
 
-#if __ARM_ARCH >= 6
 /*
  * Get bits that must be set or cleared in ACLR register.
  * Note: Bits in ACLR register are IMPLEMENTATION DEFINED.
@@ -535,5 +526,3 @@ SYSCTL_PROC(_machdep, OID_AUTO, disable_bp_hardening,
 
 SYSCTL_INT(_machdep, OID_AUTO, spectre_v2_safe, CTLFLAG_RD,
     &spectre_v2_safe, 0, "System is safe to Spectre Version 2 attacks");
-
-#endif /* __ARM_ARCH >= 6 */

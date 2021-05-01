@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2020
+.Dd March 30, 2021
 .Dt VXLAN 4
 .Os
 .Sh NAME
@@ -175,13 +175,24 @@ The
 .Nm
 specification recommends the physical network MTU be configured
 to use jumbo frames to accommodate the encapsulated frame size.
+.Pp
+By default, the
+.Nm
+driver sets its MTU to usual ethernet MTU of 1500 bytes, reduced by
+the size of vxlan headers prepended to the encapsulated packets.
+.Pp
 Alternatively, the
 .Xr ifconfig 8
 .Cm mtu
-command may be used to reduce the MTU size on the
+command may be used to set the fixed MTU size on the
 .Nm
 interface to allow the encapsulated frame to fit in the
 current MTU of the physical network.
+If the
+.Cm mtu
+command was used, system no longer adjust the
+.Nm
+interface MTU on routing or address changes.
 .Sh HARDWARE
 The
 .Nm

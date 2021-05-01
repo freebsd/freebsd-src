@@ -186,7 +186,7 @@ fegetenv(fenv_t *__envp)
 }
 
 __fenv_static inline int
-feholdexcept(fenv_t *__envp)
+feholdexcept(fenv_t *__envp __unused)
 {
 
 	/* No exception traps. */
@@ -226,16 +226,16 @@ int fedisableexcept(int __mask);
 int fegetexcept(void);
 #else
 static inline int
-feenableexcept(int __mask)
+feenableexcept(int __mask __unused)
 {
 
 	/* No exception traps. */
 
-	return (-1);
+	return (0);
 }
 
 static inline int
-fedisableexcept(int __mask)
+fedisableexcept(int __mask __unused)
 {
 
 	/* No exception traps. */

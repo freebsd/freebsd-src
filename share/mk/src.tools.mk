@@ -20,6 +20,7 @@ MTREE_CMD?=	mtree
 PWD_MKDB_CMD?=	pwd_mkdb
 SERVICES_MKDB_CMD?=	services_mkdb
 CAP_MKDB_CMD?=	cap_mkdb
+TIC_CMD?=	tic
 
 __<src.tools.mk>__:
 .endif  # !target(__<tools>__)

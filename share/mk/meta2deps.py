@@ -25,7 +25,7 @@ We only pay attention to a subset of the information in the
 
 'W'	files opened for write or read-write,
 	for filemon V3 and earlier.
-        
+
 'E'	files executed.
 
 'L'	files linked
@@ -38,19 +38,20 @@ We only pay attention to a subset of the information in the
 """
 RCSid:
 	$FreeBSD$
-	$Id: meta2deps.py,v 1.27 2017/05/24 00:04:04 sjg Exp $
+	$Id: meta2deps.py,v 1.34 2020/10/02 03:11:17 sjg Exp $
 
-	Copyright (c) 2011-2013, Juniper Networks, Inc.
+	Copyright (c) 2011-2020, Simon J. Gerraty
+	Copyright (c) 2011-2017, Juniper Networks, Inc.
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
-	modification, are permitted provided that the following conditions 
-	are met: 
+	modification, are permitted provided that the following conditions
+	are met:
 	1. Redistributions of source code must retain the above copyright
-	   notice, this list of conditions and the following disclaimer. 
+	   notice, this list of conditions and the following disclaimer.
 	2. Redistributions in binary form must reproduce the above copyright
 	   notice, this list of conditions and the following disclaimer in the
-	   documentation and/or other materials provided with the distribution.  
+	   documentation and/or other materials provided with the distribution.
 
 	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -62,8 +63,8 @@ RCSid:
 	DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
- 
+	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 """
 
 import os, re, sys
@@ -81,7 +82,11 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     if path.endswith('/.'):
         path = path[0:-2]
     if len(path) > 0 and path[0] == '/':
-        return path
+        if os.path.exists(path):
+            return path
+        if debug > 2:
+            print("skipping non-existent:", path, file=debug_out)
+        return None
     if path == '.':
         return cwd
     if path.startswith('./'):
@@ -139,6 +144,8 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     rpath = resolve(path, cwd, last_dir, debug, debug_out)
     if rpath:
         path = rpath
+    elif len(path) > 0 and path[0] == '/':
+        return None
     if (path.find('/') < 0 or
         path.find('./') > 0 or
         path.endswith('/..')):
@@ -158,7 +165,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
 
 def add_trims(x):
     return ['/' + x + '/',
-            '/' + x, 
+            '/' + x,
             x + '/',
             x]
 
@@ -175,7 +182,7 @@ class MetaFile:
     obj_deps = []
     src_deps = []
     file_deps = []
-    
+
     def __init__(self, name, conf={}):
         """if name is set we will parse it now.
         conf can have the follwing keys:
@@ -192,7 +199,7 @@ class MetaFile:
 
         TARGET_SPEC
                 Sometimes MACHINE isn't enough.
-                
+
         HOST_TARGET
                 when we build for the pseudo machine 'host'
                 the object tree uses HOST_TARGET rather than MACHINE.
@@ -216,7 +223,7 @@ class MetaFile:
         debug_out open file to send debug output to (sys.stderr)
 
         """
-        
+
         self.name = name
         self.debug = getv(conf, 'debug', 0)
         self.debug_out = getv(conf, 'debug_out', sys.stderr)
@@ -304,11 +311,11 @@ class MetaFile:
         self.obj_deps = []
         self.src_deps = []
         self.file_deps = []
-          
+
     def dirdeps(self, sep='\n'):
         """return DIRDEPS"""
         return sep.strip() + sep.join(self.obj_deps)
-    
+
     def src_dirdeps(self, sep='\n'):
         """return SRC_DIRDEPS"""
         return sep.strip() + sep.join(self.src_deps)
@@ -327,7 +334,7 @@ class MetaFile:
     def seenit(self, dir):
         """rememer that we have seen dir."""
         self.seen[dir] = 1
-          
+
     def add(self, list, data, clue=''):
         """add data to list if it isn't already there."""
         if data not in list:
@@ -386,10 +393,10 @@ class MetaFile:
             # give a useful clue
             print('{}:{}: '.format(self.name, self.line), end=' ', file=sys.stderr)
             raise
-        
+
     def parse(self, name=None, file=None):
         """A meta file looks like:
-        
+
         # Meta data file "path"
         CMD "command-line"
         CWD "cwd"
@@ -475,6 +482,10 @@ class MetaFile:
                 continue
             elif w[0] == 'C':
                 cwd = abspath(w[2], cwd, None, self.debug, self.debug_out)
+                if not cwd:
+                    cwd = w[2]
+                    if self.debug > 1:
+                        print("missing cwd=", cwd, file=self.debug_out)
                 if cwd.endswith('/.'):
                     cwd = cwd[0:-2]
                 self.last_dir = pid_last_dir[pid] = cwd
@@ -491,13 +502,16 @@ class MetaFile:
             if w[0] in 'ML':
                 # these are special, tread src as read and
                 # target as write
-                self.parse_path(w[1].strip("'"), cwd, 'R', w)
-                self.parse_path(w[2].strip("'"), cwd, 'W', w)
+                self.parse_path(w[2].strip("'"), cwd, 'R', w)
+                self.parse_path(w[3].strip("'"), cwd, 'W', w)
                 continue
             elif w[0] in 'ERWS':
                 path = w[2]
+                if path == '.':
+                    continue
                 self.parse_path(path, cwd, w[0], w)
 
+        assert(version > 0)
         if not file:
             f.close()
 
@@ -563,7 +577,7 @@ class MetaFile:
                     print("ldir=", self.last_dir, file=self.debug_out)
                 return
 
-        if op in 'ERW':
+        if op in 'ER':
             # finally, we get down to it
             if dir == self.cwd or dir == self.curdir:
                 return
@@ -591,13 +605,13 @@ class MetaFile:
                 self.seenit(w[2])
                 self.seenit(dir)
 
-                            
+
 def main(argv, klass=MetaFile, xopts='', xoptf=None):
     """Simple driver for class MetaFile.
 
     Usage:
         script [options] [key=value ...] "meta" ...
-        
+
     Options and key=value pairs contribute to the
     dictionary passed to MetaFile.
 
@@ -605,7 +619,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
                 add "SRCTOP" to the "SRCTOPS" list.
 
     -C "CURDIR"
-    
+
     -O "OBJROOT"
                 add "OBJROOT" to the "OBJROOTS" list.
 
@@ -616,7 +630,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     -H "HOST_TARGET"
 
     -D "DPDEPS"
-    
+
     -d  bumps debug level
 
     """
@@ -656,7 +670,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
 
     debug = 0
     output = True
-    
+
     opts, args = getopt.getopt(argv[1:], 'a:dS:C:O:R:m:D:H:qT:X:' + xopts)
     for o, a in opts:
         if o == '-a':

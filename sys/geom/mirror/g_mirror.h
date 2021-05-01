@@ -207,6 +207,7 @@ struct g_mirror_softc {
 
 	TAILQ_HEAD(, g_mirror_event) sc_events;
 	struct mtx	sc_events_mtx;
+	struct g_mirror_event *sc_timeout_event;
 
 	struct callout	sc_callout;
 

@@ -48,7 +48,7 @@ Summary:        Kernel module(s)
 
 Group:          System Environment/Kernel
 License:        @ZFS_META_LICENSE@
-URL:            https://zfsonlinux.org/
+URL:            https://github.com/openzfs/zfs
 Source0:        %{module}-%{version}.tar.gz
 Source10:       kmodtool
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id} -u -n)
@@ -86,10 +86,6 @@ BuildRequires:  %{_bindir}/kmodtool
 # LDFLAGS are not sanitized by arch/*/Makefile for these architectures.
 %ifarch ppc ppc64 ppc64le aarch64
 %global __global_ldflags %{nil}
-%endif
-
-%if 0%{?fedora} >= 17
-%define prefix  /usr
 %endif
 
 # Kmodtool does its magic here.  A patched version of kmodtool is shipped

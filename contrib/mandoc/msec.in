@@ -25,6 +25,7 @@
 LINE("1",		"FreeBSD General Commands Manual")
 LINE("2",		"FreeBSD System Calls Manual")
 LINE("3",		"FreeBSD Library Functions Manual")
+LINE("3lua",		"Lua Library Functions Manual")
 LINE("3p",		"Perl Library Functions Manual")
 LINE("4",		"FreeBSD Kernel Interfaces Manual")
 LINE("5",		"FreeBSD File Formats Manual")

@@ -40,6 +40,7 @@ extern "C" {
 typedef enum
   {
     _URC_NO_REASON = 0,
+    _URC_OK = 0,
     _URC_FOREIGN_EXCEPTION_CAUGHT = 1,
     _URC_FATAL_PHASE2_ERROR = 2,
     _URC_FATAL_PHASE1_ERROR = 3,

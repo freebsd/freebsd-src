@@ -1,0 +1,7 @@
+: Making all out of nothing.
+false
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped in unit-tests
+exit status 1

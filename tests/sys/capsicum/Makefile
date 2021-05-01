@@ -35,7 +35,7 @@ SRCS.capsicum-test+=	\
 	overhead.cc \
 	rename.cc
 
-LIBADD.capsicum-test+=	gtest pthread
+LIBADD.capsicum-test+=	gtest pthread procstat
 TEST_METADATA.capsicum-test=	required_user="unprivileged"
 
 .for p in mini-me mini-me.noexec mini-me.setuid

@@ -11,7 +11,7 @@ mod-assign-nested: else2e2
 mod-assign-nested: then3t3
 mod-assign-nested: else4e4
 make: Bad modifier `:' for 
-value}
+mod-assign-empty: value}
 make: Bad modifier `:' for 
 mod-assign-empty: overwritten}
 mod-assign-empty: VAR=overwritten

@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2020
+.Dd April 8, 2021
 .Dt SED 1
 .Os
 .Sh NAME
@@ -629,6 +629,15 @@ sed -i '' -e 's/foo/bar/g' test.txt
 .Xr grep 1 ,
 .Xr regex 3 ,
 .Xr re_format 7
+.Rs
+.\" 4.4BSD USD:15
+.%A Lee E. McMahon
+.%I AT&T Bell Laboratories
+.%T SED \(em A Non-interactive Text Editor
+.%R Computing Science Technical Report
+.%N 77
+.%D January 1979
+.Re
 .Sh STANDARDS
 The
 .Nm

@@ -28,7 +28,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2020
+.Dd November 9, 2020
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -201,7 +201,7 @@ which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv LOCAL_CONNWAIT"
+.Bl -tag -width ".Dv LOCAL_CREDS_PERSISTENT"
 .It Dv LOCAL_CREDS
 This option may be enabled on
 .Dv SOCK_DGRAM ,
@@ -287,6 +287,54 @@ such as error messages.
 Therefore, a message accompanied by a particular
 .Fa sc_euid
 value should not be trusted as being from that user.
+.It Dv LOCAL_CREDS_PERSISTENT
+This option is similar to
+.Dv LOCAL_CREDS ,
+except that socket credentials are passed on every read from a
+.Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET
+socket, instead of just the first read.
+Additionally, the
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by a variable length
+.Vt sockcred2
+structure, defined in
+.In sys/socket.h
+as follows:
+.Bd -literal
+struct sockcred2 {
+  int	sc_version;	/* version of this structure */
+  pid_t	sc_pid;		/* PID of sending process */
+  uid_t	sc_uid;		/* real user id */
+  uid_t	sc_euid;	/* effective user id */
+  gid_t	sc_gid;		/* real group id */
+  gid_t	sc_egid;	/* effective group id */
+  int	sc_ngroups;	/* number of supplemental groups */
+  gid_t	sc_groups[1];	/* variable length */
+};
+.Ed
+.Pp
+The current version is zero.
+.Pp
+The
+.Vt cmsghdr
+fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(SOCKCRED2SIZE(ngroups))
+cmsg_level = SOL_SOCKET
+cmsg_type = SCM_CREDS2
+.Ed
+.Pp
+The
+.Dv LOCAL_CREDS
+and
+.Dv LOCAL_CREDS_PERSISTENT
+options are mutually exclusive.
 .It Dv LOCAL_CONNWAIT
 Used with
 .Dv SOCK_STREAM

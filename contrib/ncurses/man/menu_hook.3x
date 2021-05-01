@@ -28,28 +28,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_hook.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_hook.3x,v 1.15 2020/10/17 23:44:57 tom Exp $
 .TH menu_hook 3X ""
 .SH NAME
 \fBmenu_hook\fR \- set hooks for automatic invocation by applications
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_item_init(MENU *\fP\fImenu\fP\fB, Menu_Hook \fP\fIfunc);\fP
 .br
-int set_item_init(MENU *menu, Menu_Hook func);
+\fBMenu_Hook item_init(const MENU *\fP\fImenu);\fP
+.sp
+\fBint set_item_term(MENU *\fP\fImenu\fP\fB, Menu_Hook \fP\fIfunc);\fP
 .br
-Menu_Hook item_init(const MENU *menu);
+\fBMenu_Hook item_term(const MENU *\fP\fImenu);\fP
+.sp
+\fBint set_menu_init(MENU *\fP\fImenu\fP\fB, Menu_Hook \fP\fIfunc);\fP
 .br
-int set_item_term(MENU *menu, Menu_Hook func);
+\fBMenu_Hook menu_init(const MENU *\fP\fImenu);\fP
+.sp
+\fBint set_menu_term(MENU *\fP\fImenu\fP\fB, Menu_Hook \fP\fIfunc);\fP
 .br
-Menu_Hook item_term(const MENU *menu);
-.br
-int set_menu_init(MENU *menu, Menu_Hook func);
-.br
-Menu_Hook menu_init(const MENU *menu);
-.br
-int set_menu_term(MENU *menu, Menu_Hook func);
-.br
-Menu_Hook menu_term(const MENU *menu);
+\fBMenu_Hook menu_term(const MENU *\fP\fImenu);\fP
 .br
 .SH DESCRIPTION
 These functions make it possible to set hook functions to be called at various

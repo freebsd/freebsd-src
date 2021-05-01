@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sglist.h>
-#include <sys/callout.h>
 #include <sys/random.h>
 #include <sys/stdatomic.h>
 
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/virtio/virtqueue.h>
 
 struct vtrnd_softc {
+	device_t		 vtrnd_dev;
 	uint64_t		 vtrnd_features;
 	struct virtqueue	*vtrnd_vq;
 };
@@ -60,8 +60,9 @@ static int	vtrnd_probe(device_t);
 static int	vtrnd_attach(device_t);
 static int	vtrnd_detach(device_t);
 
-static void	vtrnd_negotiate_features(device_t);
-static int	vtrnd_alloc_virtqueue(device_t);
+static int	vtrnd_negotiate_features(struct vtrnd_softc *);
+static int	vtrnd_setup_features(struct vtrnd_softc *);
+static int	vtrnd_alloc_virtqueue(struct vtrnd_softc *);
 static int	vtrnd_harvest(struct vtrnd_softc *, void *, size_t *);
 static unsigned	vtrnd_read(void *, unsigned);
 
@@ -96,18 +97,14 @@ static driver_t vtrnd_driver = {
 };
 static devclass_t vtrnd_devclass;
 
-DRIVER_MODULE(virtio_random, virtio_mmio, vtrnd_driver, vtrnd_devclass,
-    vtrnd_modevent, 0);
-DRIVER_MODULE(virtio_random, virtio_pci, vtrnd_driver, vtrnd_devclass,
+VIRTIO_DRIVER_MODULE(virtio_random, vtrnd_driver, vtrnd_devclass,
     vtrnd_modevent, 0);
 MODULE_VERSION(virtio_random, 1);
 MODULE_DEPEND(virtio_random, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_random, random_device, 1, 1, 1);
 
-VIRTIO_SIMPLE_PNPTABLE(virtio_random, VIRTIO_ID_ENTROPY,
+VIRTIO_SIMPLE_PNPINFO(virtio_random, VIRTIO_ID_ENTROPY,
     "VirtIO Entropy Adapter");
-VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_random);
-VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_random);
 
 static int
 vtrnd_modevent(module_t mod, int type, void *unused)
@@ -142,11 +139,16 @@ vtrnd_attach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-
+	sc->vtrnd_dev = dev;
 	virtio_set_feature_desc(dev, vtrnd_feature_desc);
-	vtrnd_negotiate_features(dev);
 
-	error = vtrnd_alloc_virtqueue(dev);
+	error = vtrnd_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
+
+	error = vtrnd_alloc_virtqueue(sc);
 	if (error) {
 		device_printf(dev, "cannot allocate virtqueue\n");
 		goto fail;
@@ -182,22 +184,38 @@ vtrnd_detach(device_t dev)
 	return (0);
 }
 
-static void
-vtrnd_negotiate_features(device_t dev)
+static int
+vtrnd_negotiate_features(struct vtrnd_softc *sc)
 {
-	struct vtrnd_softc *sc;
+	device_t dev;
+	uint64_t features;
 
-	sc = device_get_softc(dev);
-	sc->vtrnd_features = virtio_negotiate_features(dev, VTRND_FEATURES);
+	dev = sc->vtrnd_dev;
+	features = VTRND_FEATURES;
+
+	sc->vtrnd_features = virtio_negotiate_features(dev, features);
+	return (virtio_finalize_features(dev));
 }
 
 static int
-vtrnd_alloc_virtqueue(device_t dev)
+vtrnd_setup_features(struct vtrnd_softc *sc)
 {
-	struct vtrnd_softc *sc;
+	int error;
+
+	error = vtrnd_negotiate_features(sc);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static int
+vtrnd_alloc_virtqueue(struct vtrnd_softc *sc)
+{
+	device_t dev;
 	struct vq_alloc_info vq_info;
 
-	sc = device_get_softc(dev);
+	dev = sc->vtrnd_dev;
 
 	VQ_ALLOC_INFO_INIT(&vq_info, 0, NULL, sc, &sc->vtrnd_vq,
 	    "%s request", device_get_nameunit(dev));

@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2012,2020 by Delphix. All rights reserved.
+ * Copyright (c) 2012,2021 by Delphix. All rights reserved.
  */
 
 #include <sys/spa.h>
@@ -245,6 +245,44 @@ zfs_ereport_schedule_cleaner(void)
 	recent_events_cleaner_tqid = taskq_dispatch_delay(
 	    system_delay_taskq, zfs_ereport_cleaner, NULL, TQ_SLEEP,
 	    ddi_get_lbolt() + NSEC_TO_TICK(timeout));
+}
+
+/*
+ * Clear entries for a given vdev or all vdevs in a pool when vdev == NULL
+ */
+void
+zfs_ereport_clear(spa_t *spa, vdev_t *vd)
+{
+	uint64_t vdev_guid, pool_guid;
+	int cnt = 0;
+
+	ASSERT(vd != NULL || spa != NULL);
+	if (vd == NULL) {
+		vdev_guid = 0;
+		pool_guid = spa_guid(spa);
+	} else {
+		vdev_guid = vd->vdev_guid;
+		pool_guid = 0;
+	}
+
+	mutex_enter(&recent_events_lock);
+
+	recent_events_node_t *next = list_head(&recent_events_list);
+	while (next != NULL) {
+		recent_events_node_t *entry = next;
+
+		next = list_next(&recent_events_list, next);
+
+		if (entry->re_vdev_guid == vdev_guid ||
+		    entry->re_pool_guid == pool_guid) {
+			avl_remove(&recent_events_tree, entry);
+			list_remove(&recent_events_list, entry);
+			kmem_free(entry, sizeof (*entry));
+			cnt++;
+		}
+	}
+
+	mutex_exit(&recent_events_lock);
 }
 
 /*
@@ -951,6 +989,12 @@ annotate_ecksum(nvlist_t *ereport, zio_bad_cksum_t *info,
 	}
 	return (eip);
 }
+#else
+/*ARGSUSED*/
+void
+zfs_ereport_clear(spa_t *spa, vdev_t *vd)
+{
+}
 #endif
 
 /*
@@ -1081,8 +1125,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd,
  */
 int
 zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
-    struct zio *zio, uint64_t offset, uint64_t length, void *arg,
-    zio_bad_cksum_t *info)
+    struct zio *zio, uint64_t offset, uint64_t length, zio_bad_cksum_t *info)
 {
 	zio_cksum_report_t *report;
 
@@ -1100,10 +1143,7 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 
 	report = kmem_zalloc(sizeof (*report), KM_SLEEP);
 
-	if (zio->io_vsd != NULL)
-		zio->io_vsd_ops->vsd_cksum_report(zio, report, arg);
-	else
-		zio_vsd_default_cksum_report(zio, report, arg);
+	zio_vsd_default_cksum_report(zio, report);
 
 	/* copy the checksum failure information if it was provided */
 	if (info != NULL) {
@@ -1111,7 +1151,9 @@ zfs_ereport_start_checksum(spa_t *spa, vdev_t *vd, const zbookmark_phys_t *zb,
 		bcopy(info, report->zcr_ckinfo, sizeof (*info));
 	}
 
-	report->zcr_align = 1ULL << vd->vdev_top->vdev_ashift;
+	report->zcr_sector = 1ULL << vd->vdev_top->vdev_ashift;
+	report->zcr_align =
+	    vdev_psize_to_asize(vd->vdev_top, report->zcr_sector);
 	report->zcr_length = length;
 
 #ifdef _KERNEL

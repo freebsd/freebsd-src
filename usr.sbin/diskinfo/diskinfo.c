@@ -644,6 +644,9 @@ iopsbench(int fd, off_t mediasize, u_int sectorsize)
 	printf("\t128 kbytes:  ");
 	iops(fd, mediasize, 128 * 1024);
 
+	printf("\t1024 kbytes: ");
+	iops(fd, mediasize, 1024 * 1024);
+	
 	printf("\n");
 }
 

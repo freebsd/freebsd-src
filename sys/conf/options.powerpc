@@ -15,10 +15,6 @@ FPU_EMU
 
 COMPAT_FREEBSD32	opt_global.h
 
-GFB_DEBUG		opt_gfb.h
-GFB_NO_FONT_LOADING	opt_gfb.h
-GFB_NO_MODE_CHANGE	opt_gfb.h
-
 MOEA64_STATS		opt_pmap.h
 AMIGAONE		opt_platform.h
 MIKROTIK		opt_platform.h

@@ -77,7 +77,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "8 May 2019" "Astron 6.21.00"
+.TH TCSH 1 "11 Nov 2020" "Astron 6.22.03"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -928,6 +928,10 @@ Saved commands are numbered sequentially from 1 and stamped with the time.
 It is not usually necessary to use event numbers, but the current event number
 can be made part of the prompt by placing an `!' in the \fBprompt\fR shell variable.
 .PP
+By default history entries are displayed by printing each parsed token
+separated by space; thus the redirection operator `>&!' will be displayed as
+`> & !'.
+.PP
 The shell actually saves history in expanded and literal (unexpanded) forms.
 If the \fBhistlit\fR shell variable is set, commands that display and store
 history use the literal form.
@@ -1132,6 +1136,18 @@ Print the new command line but do not execute it.
 .TP 8
 q
 Quote the substituted words, preventing further substitutions.
+.TP 8
+Q
+Same as q
+but in addition preserve empty variables as a string containing a NUL.
+This is useful to preserve positional arguments for example:
+.IP "" 12
+> set args=('arg 1' '' 'arg 3')
+.br
+> tcsh -f -c 'echo ${#argv}' $args:gQ
+.br
+3
+.br
 .TP 8
 x
 Like q, but break into words at blanks, tabs and newlines.
@@ -3754,6 +3770,7 @@ in login and superuser shells, but not if the shell thinks it is running
 under a window system (i.e., the \fBDISPLAY\fR environment variable is set),
 the tty is a pseudo-tty (pty) or the shell was not so compiled (see the
 \fBversion\fR shell variable).
+Unset or set to `0' to disable automatic logout.
 See also the \fBafsuser\fR and \fBlogout\fR shell variables.
 .TP 8
 .B autorehash \fR(+)
@@ -5338,7 +5355,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.21.00 (Astron) 2019-05-08.
+This manual documents tcsh 6.22.03 (Astron) 2020-11-18.
 .SH AUTHORS
 .PD 0
 .TP 2

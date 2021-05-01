@@ -8,7 +8,6 @@ COUNT_XINVLTLB_HITS	opt_smp.h
 COUNT_IPIS		opt_smp.h
 DISABLE_PG_G		opt_pmap.h
 DISABLE_PSE		opt_pmap.h
-I586_PMC_GUPROF		opt_i586_guprof.h
 MAXMEM
 MPTABLE_FORCE_HTT
 MP_WATCHDOG
@@ -25,7 +24,6 @@ COMPAT_AOUT		opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
-NDISAPI			opt_dontuse.h
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
@@ -67,13 +65,6 @@ NO_MEMORY_HOLE			opt_cpu.h
 I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
-
-# options for serial support
-COM_ESP			opt_sio.h
-COM_MULTIPORT		opt_sio.h
-CONSPEED		opt_sio.h
-GDBSPEED		opt_sio.h
-COM_NO_ACPI		opt_sio.h
 
 VGA_ALT_SEQACCESS	opt_vga.h
 VGA_DEBUG		opt_vga.h

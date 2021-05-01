@@ -293,7 +293,7 @@ db_cmd_match(char *name, struct command *cmd, struct command **cmdp,
 			*resultp = CMD_AMBIGUOUS;
 			/* but keep looking for a full match -
 			   this lets us match single letters */
-		} else {
+		} else if (*resultp == CMD_NONE) {
 			*cmdp = cmd;
 			*resultp = CMD_FOUND;
 		}
@@ -838,38 +838,40 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 	else
 		pid = -1;
 	db_printf("Tracing pid %d tid %ld td %p\n", pid, (long)td->td_tid, td);
-	db_trace_thread(td, count);
+	if (td->td_proc != NULL && (td->td_proc->p_flag & P_INMEM) == 0)
+		db_printf("--- swapped out\n");
+	else
+		db_trace_thread(td, count);
 }
 
 static void
 _db_stack_trace_all(bool active_only)
 {
-	struct proc *p;
 	struct thread *td;
 	jmp_buf jb;
 	void *prev_jb;
 
-	FOREACH_PROC_IN_SYSTEM(p) {
+	for (td = kdb_thr_first(); td != NULL; td = kdb_thr_next(td)) {
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
-			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state == TDS_RUNNING)
-					db_printf("\nTracing command %s pid %d"
-					    " tid %ld td %p (CPU %d)\n",
-					    p->p_comm, p->p_pid,
-					    (long)td->td_tid, td,
-					    td->td_oncpu);
-				else if (active_only)
-					continue;
-				else
-					db_printf("\nTracing command %s pid %d"
-					    " tid %ld td %p\n", p->p_comm,
-					    p->p_pid, (long)td->td_tid, td);
+			if (TD_IS_RUNNING(td))
+				db_printf("\nTracing command %s pid %d"
+				    " tid %ld td %p (CPU %d)\n",
+				    td->td_proc->p_comm, td->td_proc->p_pid,
+				    (long)td->td_tid, td, td->td_oncpu);
+			else if (active_only)
+				continue;
+			else
+				db_printf("\nTracing command %s pid %d"
+				    " tid %ld td %p\n", td->td_proc->p_comm,
+				    td->td_proc->p_pid, (long)td->td_tid, td);
+			if (td->td_proc->p_flag & P_INMEM)
 				db_trace_thread(td, -1);
-				if (db_pager_quit) {
-					kdb_jmpbuf(prev_jb);
-					return;
-				}
+			else
+				db_printf("--- swapped out\n");
+			if (db_pager_quit) {
+				kdb_jmpbuf(prev_jb);
+				return;
 			}
 		}
 		kdb_jmpbuf(prev_jb);

@@ -102,7 +102,6 @@ device		ds13rtc			# RTC on XLP boards
 device		crypto
 device		cryptodev
 device		nlmsec
-device		nlmrsa
 
 # Options that use crypto
 options 	IPSEC

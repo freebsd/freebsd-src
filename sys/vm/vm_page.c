@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
@@ -881,7 +882,7 @@ vm_page_busy_acquire(vm_page_t m, int allocflags)
 	 * It is assumed that a reference to the object is already
 	 * held by the callers.
 	 */
-	obj = m->object;
+	obj = atomic_load_ptr(&m->object);
 	for (;;) {
 		if (vm_page_tryacquire(m, allocflags))
 			return (true);
@@ -2891,7 +2892,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 unlock:
 			VM_OBJECT_WUNLOCK(object);
 		} else {
-			MPASS(vm_phys_domain(m) == domain);
+			MPASS(vm_page_domain(m) == domain);
 			vmd = VM_DOMAIN(domain);
 			vm_domain_free_lock(vmd);
 			order = m->order;
@@ -2922,7 +2923,7 @@ unlock:
 		cnt = 0;
 		vm_domain_free_lock(vmd);
 		do {
-			MPASS(vm_phys_domain(m) == domain);
+			MPASS(vm_page_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 			vm_phys_free_pages(m, 0);
 			cnt++;
@@ -2971,17 +2972,29 @@ vm_page_reclaim_contig_domain(int domain, int req, u_long npages,
 	struct vm_domain *vmd;
 	vm_paddr_t curr_low;
 	vm_page_t m_run, m_runs[NRUNS];
-	u_long count, reclaimed;
+	u_long count, minalign, reclaimed;
 	int error, i, options, req_class;
 
 	KASSERT(npages > 0, ("npages is 0"));
 	KASSERT(powerof2(alignment), ("alignment is not a power of 2"));
 	KASSERT(powerof2(boundary), ("boundary is not a power of 2"));
-	req_class = req & VM_ALLOC_CLASS_MASK;
+
+	/*
+	 * The caller will attempt an allocation after some runs have been
+	 * reclaimed and added to the vm_phys buddy lists.  Due to limitations
+	 * of vm_phys_alloc_contig(), round up the requested length to the next
+	 * power of two or maximum chunk size, and ensure that each run is
+	 * suitably aligned.
+	 */
+	minalign = 1ul << imin(flsl(npages - 1), VM_NFREEORDER - 1);
+	npages = roundup2(npages, minalign);
+	if (alignment < ptoa(minalign))
+		alignment = ptoa(minalign);
 
 	/*
 	 * The page daemon is allowed to dig deeper into the free page list.
 	 */
+	req_class = req & VM_ALLOC_CLASS_MASK;
 	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
 		req_class = VM_ALLOC_SYSTEM;
 
@@ -3544,8 +3557,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 			counter_u64_add(queue_nops, 1);
 			break;
 		}
-		KASSERT(old.queue != PQ_NONE || (old.flags & PGA_QUEUE_STATE_MASK) == 0,
-		    ("%s: page %p has unexpected queue state", __func__, m));
+		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+		    ("%s: page %p is unmanaged", __func__, m));
 
 		new = old;
 		if ((old.flags & PGA_DEQUEUE) != 0) {
@@ -3592,13 +3605,9 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 	struct vm_pagequeue *pq;
 	int domain;
 
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("page %p is unmanaged", m));
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
-	domain = vm_phys_domain(m);
-	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
-
+	domain = vm_page_domain(m);
 	critical_enter();
 	bq = DPCPU_PTR(pqbatch[domain][queue]);
 	if (vm_batchqueue_insert(bq, m)) {
@@ -3606,6 +3615,8 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 		return;
 	}
 	critical_exit();
+
+	pq = &VM_DOMAIN(domain)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	critical_enter();
 	bq = DPCPU_PTR(pqbatch[domain][queue]);
@@ -3987,7 +3998,7 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 			 * (i.e., the VPRC_OBJREF bit is clear), we only need to
 			 * clear leftover queue state.
 			 */
-			vm_page_release_toq(m, nqueue, false);
+			vm_page_release_toq(m, nqueue, noreuse);
 		} else if (old == 1) {
 			vm_page_aflag_clear(m, PGA_DEQUEUE);
 		}
@@ -4384,8 +4395,8 @@ vm_page_grab_sleep(vm_object_t object, vm_page_t m, vm_pindex_t pindex,
 	if (locked && (allocflags & VM_ALLOC_NOCREAT) == 0)
 		vm_page_reference(m);
 
-	if (_vm_page_busy_sleep(object, m, m->pindex, wmesg, allocflags,
-	    locked) && locked)
+	if (_vm_page_busy_sleep(object, m, pindex, wmesg, allocflags, locked) &&
+	    locked)
 		VM_OBJECT_WLOCK(object);
 	if ((allocflags & VM_ALLOC_WAITFAIL) != 0)
 		return (false);
@@ -4778,7 +4789,7 @@ retrylookup:
 	for (; i < count; i++) {
 		if (m != NULL) {
 			if (!vm_page_tryacquire(m, allocflags)) {
-				if (vm_page_grab_sleep(object, m, pindex,
+				if (vm_page_grab_sleep(object, m, pindex + i,
 				    "grbmaw", allocflags, true))
 					goto retrylookup;
 				break;

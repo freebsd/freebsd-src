@@ -262,7 +262,7 @@ nexus_acpi_probe(device_t dev)
 	error = acpi_identify();
 	if (error)
 		return (error);
-
+	device_quiet(dev);
 	return (BUS_PROBE_DEFAULT);
 }
 

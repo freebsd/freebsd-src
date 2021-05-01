@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -165,12 +166,10 @@ static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
 		    int flags);
 static void	so_rdknl_lock(void *);
 static void	so_rdknl_unlock(void *);
-static void	so_rdknl_assert_locked(void *);
-static void	so_rdknl_assert_unlocked(void *);
+static void	so_rdknl_assert_lock(void *, int);
 static void	so_wrknl_lock(void *);
 static void	so_wrknl_unlock(void *);
-static void	so_wrknl_assert_locked(void *);
-static void	so_wrknl_assert_unlocked(void *);
+static void	so_wrknl_assert_lock(void *, int);
 
 static void	filt_sordetach(struct knote *kn);
 static int	filt_soread(struct knote *kn, long hint);
@@ -528,6 +527,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
 		return (EPROTONOSUPPORT);
 
+	if (IN_CAPABILITY_MODE(td) && (prp->pr_flags & PR_CAPATTACH) == 0)
+		return (ECAPMODE);
+
 	if (prison_check_af(cred, prp->pr_domain->dom_family) != 0)
 		return (EPROTONOSUPPORT);
 
@@ -550,9 +552,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	mac_socket_create(cred, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	/*
 	 * Auto-sizing of socket buffers is managed by the protocols and
 	 * the appropriate flags must be set in the pru_attach function.
@@ -720,6 +722,7 @@ sonewconn(struct socket *head, int connstatus)
 	}
 	so->so_listen = head;
 	so->so_type = head->so_type;
+	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_fibnum = head->so_fibnum;
@@ -729,9 +732,9 @@ sonewconn(struct socket *head, int connstatus)
 	mac_socket_newconn(head, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	VNET_SO_ASSERT(head);
 	if (soreserve(so, head->sol_sbsnd_hiwat, head->sol_sbrcv_hiwat)) {
 		sodealloc(so);
@@ -756,7 +759,6 @@ sonewconn(struct socket *head, int connstatus)
 	if (head->sol_accept_filter != NULL)
 		connstatus = 0;
 	so->so_state |= connstatus;
-	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	soref(head); /* A socket on (in)complete queue refs head. */
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->sol_comp, so, so_list);
@@ -823,9 +825,9 @@ sopeeloff(struct socket *head)
 	mac_socket_newconn(head, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	VNET_SO_ASSERT(head);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat)) {
 		sodealloc(so);
@@ -1194,7 +1196,8 @@ soclose(struct socket *so)
 				goto drop;
 			}
 		}
-		if (so->so_options & SO_LINGER) {
+
+		if ((so->so_options & SO_LINGER) != 0 && so->so_linger != 0) {
 			if ((so->so_state & SS_ISDISCONNECTING) &&
 			    (so->so_state & SS_NBIO))
 				goto drop;
@@ -3568,9 +3571,11 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 					revents |= POLLHUP;
 			}
 		}
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
+			revents |= events & POLLRDHUP;
 		if (revents == 0) {
 			if (events &
-			    (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
+			    (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND | POLLRDHUP)) {
 				selrecord(td, &so->so_rdsel);
 				so->so_rcv.sb_flags |= SB_SEL;
 			}
@@ -4189,25 +4194,21 @@ so_rdknl_unlock(void *arg)
 }
 
 static void
-so_rdknl_assert_locked(void *arg)
+so_rdknl_assert_lock(void *arg, int what)
 {
 	struct socket *so = arg;
 
-	if (SOLISTENING(so))
-		SOCK_LOCK_ASSERT(so);
-	else
-		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-}
-
-static void
-so_rdknl_assert_unlocked(void *arg)
-{
-	struct socket *so = arg;
-
-	if (SOLISTENING(so))
-		SOCK_UNLOCK_ASSERT(so);
-	else
-		SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
+	if (what == LA_LOCKED) {
+		if (SOLISTENING(so))
+			SOCK_LOCK_ASSERT(so);
+		else
+			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+	} else {
+		if (SOLISTENING(so))
+			SOCK_UNLOCK_ASSERT(so);
+		else
+			SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
+	}
 }
 
 static void
@@ -4233,25 +4234,21 @@ so_wrknl_unlock(void *arg)
 }
 
 static void
-so_wrknl_assert_locked(void *arg)
+so_wrknl_assert_lock(void *arg, int what)
 {
 	struct socket *so = arg;
 
-	if (SOLISTENING(so))
-		SOCK_LOCK_ASSERT(so);
-	else
-		SOCKBUF_LOCK_ASSERT(&so->so_snd);
-}
-
-static void
-so_wrknl_assert_unlocked(void *arg)
-{
-	struct socket *so = arg;
-
-	if (SOLISTENING(so))
-		SOCK_UNLOCK_ASSERT(so);
-	else
-		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+	if (what == LA_LOCKED) {
+		if (SOLISTENING(so))
+			SOCK_LOCK_ASSERT(so);
+		else
+			SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	} else {
+		if (SOLISTENING(so))
+			SOCK_UNLOCK_ASSERT(so);
+		else
+			SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+	}
 }
 
 /*

@@ -9,28 +9,39 @@ mod-subst-delimiter:
 1 two 3 horizontal tabulator
 1 two 3 space
 1 two 3 exclamation mark
-1 two 3 double quotes
-1 two 3 hash
-1 two 3 dollar
-1 two 3 percent
+1 two 3 quotation mark
+1 two 3 number sign
+1 two 3 dollar sign
+1 two 3 percent sign
+1 two 3 ampersand
 1 two 3 apostrophe
-1 two 3 opening parenthesis
-1 two 3 closing parenthesis
+1 two 3 left parenthesis
+1 two 3 right parenthesis
+1 two 3 asterisk
+1 two 3 plus sign
+1 two 3 comma
+1 two 3 hyphen-minus
+1 two 3 full stop
+1 two 3 solidus
 1 two 3 digit
 1 two 3 colon
-1 two 3 less than sign
-1 two 3 equal sign
-1 two 3 greater than sign
+1 two 3 semicolon
+1 two 3 less-than sign
+1 two 3 equals sign
+1 two 3 greater-than sign
 1 two 3 question mark
-1 two 3 at
-1 two 3 letter
-1 two 3 opening bracket
-1 two 3 backslash
-1 two 3 closing bracket
-1 two 3 caret
-1 two 3 opening brace
+1 two 3 commercial at
+1 two 3 capital letter
+1 two 3 left square bracket
+1 two 3 reverse solidus
+1 two 3 right square bracket
+1 two 3 circumflex accent
+1 two 3 low line
+1 two 3 grave accent
+1 two 3 small letter
+1 two 3 left curly bracket
 1 two 3 vertical line
-1 two 3 closing brace
+1 two 3 right curly bracket
 1 two 3 tilde
 mod-subst-chain:
 A B c.

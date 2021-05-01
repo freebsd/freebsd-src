@@ -281,7 +281,7 @@ nlm_xlpsec_msgring_handler(int vc, int size, int code, int src_id,
 		atomic_add_int(&creditleft, sc->sec_msgsz);
 		if (creditleft >= (NLM_CRYPTO_LEFT_REQS)) {
 			crypto_unblock(sc->sc_cid, sc->sc_needwakeup);
-			sc->sc_needwakeup &= (~(CRYPTO_SYMQ | CRYPTO_ASYMQ));
+			sc->sc_needwakeup &= ~CRYPTO_SYMQ;
 		}
 	}
 	if (cmd->hash_dst_len != 0) {

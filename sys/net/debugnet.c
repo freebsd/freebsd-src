@@ -91,6 +91,10 @@ int debugnet_nretries = 10;
 SYSCTL_INT(_net_debugnet, OID_AUTO, nretries, CTLFLAG_RWTUN,
     &debugnet_nretries, 0,
     "Number of retransmit attempts before giving up");
+int debugnet_fib = RT_DEFAULT_FIB;
+SYSCTL_INT(_net_debugnet, OID_AUTO, fib, CTLFLAG_RWTUN,
+    &debugnet_fib, 0,
+    "Fib to use when sending dump");
 
 static bool g_debugnet_pcb_inuse;
 static struct debugnet_pcb g_dnet_pcb;
@@ -658,7 +662,7 @@ debugnet_connect(const struct debugnet_conn_params *dcp,
 		};
 
 		CURVNET_SET(vnet0);
-		nh = fib4_lookup_debugnet(RT_DEFAULT_FIB, dest_sin.sin_addr, 0,
+		nh = fib4_lookup_debugnet(debugnet_fib, dest_sin.sin_addr, 0,
 		    NHR_NONE);
 		CURVNET_RESTORE();
 

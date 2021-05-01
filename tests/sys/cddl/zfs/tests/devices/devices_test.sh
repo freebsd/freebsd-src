@@ -30,7 +30,7 @@ atf_test_case devices_001_pos cleanup
 devices_001_pos_head()
 {
 	atf_set "descr" "Setting devices=on on file system, the devices files in this filesystem can be used."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 devices_001_pos_body()
 {
@@ -57,7 +57,7 @@ atf_test_case devices_002_neg cleanup
 devices_002_neg_head()
 {
 	atf_set "descr" "Setting devices=off on file system, the devices files in this filesystem can not be used."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 devices_002_neg_body()
 {

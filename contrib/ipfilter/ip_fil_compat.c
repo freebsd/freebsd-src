@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#if defined(__FreeBSD_version) && defined(_KERNEL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
 # include <sys/fcntl.h>
 # include <sys/filio.h>
 #else
@@ -73,7 +73,7 @@ typedef struct tcpinfo4 {
 	tcpdata_t	ts_data[2];
 } tcpinfo4_t;
 
-static void ipf_v5tcpinfoto4 __P((tcpinfo_t *, tcpinfo4_t *));
+static void ipf_v5tcpinfoto4(tcpinfo_t *, tcpinfo4_t *);
 
 static void
 ipf_v5tcpinfoto4(v5, v4)
@@ -333,7 +333,7 @@ typedef	struct	fr_info_4_1_32 {
 	ip_t	*ofin_ip;
 	mb_t	**fin_mp;		/* pointer to pointer to mbuf */
 	mb_t	*fin_m;			/* pointer to mbuf */
-#ifdef	MENTAT
+#if SOLARIS
 	mb_t	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qpi;
 	char	fin_ifname[LIFNAMSIZ];
@@ -371,7 +371,7 @@ typedef struct  fr_info_4_1_24 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -408,7 +408,7 @@ typedef struct  fr_info_4_1_23 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -444,7 +444,7 @@ typedef struct  fr_info_4_1_11 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -933,7 +933,7 @@ typedef struct  frauth_4_1_32 {
 	fr_info_4_1_32_t	fra_info;
 	char	*fra_buf;
 	u_32_t	fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -947,7 +947,7 @@ typedef struct  frauth_4_1_29 {
 	fr_info_4_1_24_t	fra_info;
 	char	*fra_buf;
 	u_32_t	fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -960,7 +960,7 @@ typedef struct  frauth_4_1_24 {
 	u_32_t	fra_pass;
 	fr_info_4_1_24_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -973,7 +973,7 @@ typedef struct  frauth_4_1_23 {
 	u_32_t	fra_pass;
 	fr_info_4_1_23_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -986,7 +986,7 @@ typedef struct  frauth_4_1_11 {
 	u_32_t	fra_pass;
 	fr_info_4_1_11_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -1190,66 +1190,66 @@ typedef	struct	ipfrstat_4_1_1 {
 } ipfrstat_4_1_1_t;
 
 /* ------------------------------------------------------------------------ */
-static int ipf_addfrstr __P((char *, int, char *, int));
-static void ipf_v4iptov5 __P((frip4_t *, fr_ip_t *));
-static void ipf_v5iptov4 __P((fr_ip_t *, frip4_t *));
-static void ipfv4tuctov5 __P((frtuc4_t *, frtuc_t *));
-static void ipfv5tuctov4 __P((frtuc_t *, frtuc4_t *));
-static int ipf_v4fripftov5 __P((fripf4_t *, char *));
-static void ipf_v5fripftov4 __P((fripf_t *, fripf4_t *));
-static int fr_frflags4to5 __P((u_32_t));
-static int fr_frflags5to4 __P((u_32_t));
+static int ipf_addfrstr(char *, int, char *, int);
+static void ipf_v4iptov5(frip4_t *, fr_ip_t *);
+static void ipf_v5iptov4(fr_ip_t *, frip4_t *);
+static void ipfv4tuctov5(frtuc4_t *, frtuc_t *);
+static void ipfv5tuctov4(frtuc_t *, frtuc4_t *);
+static int ipf_v4fripftov5(fripf4_t *, char *);
+static void ipf_v5fripftov4(fripf_t *, fripf4_t *);
+static int fr_frflags4to5(u_32_t);
+static int fr_frflags5to4(u_32_t);
 
-static void friostat_current_to_4_1_0 __P((void *, friostat_4_1_0_t *, int));
-static void friostat_current_to_4_1_33 __P((void *, friostat_4_1_33_t *, int));
-static void ipstate_current_to_4_1_0 __P((void *, ipstate_4_1_0_t *));
-static void ipstate_current_to_4_1_16 __P((void *, ipstate_4_1_16_t *));
-static void ipnat_current_to_4_1_0 __P((void *, ipnat_4_1_0_t *));
-static void ipnat_current_to_4_1_14 __P((void *, ipnat_4_1_14_t *));
-static void frauth_current_to_4_1_11 __P((void *, frauth_4_1_11_t *));
-static void frauth_current_to_4_1_23 __P((void *, frauth_4_1_23_t *));
-static void frauth_current_to_4_1_24 __P((void *, frauth_4_1_24_t *));
-static void frauth_current_to_4_1_29 __P((void *, frauth_4_1_29_t *));
-static void frentry_current_to_4_1_0 __P((void *, frentry_4_1_0_t *));
-static void frentry_current_to_4_1_16 __P((void *, frentry_4_1_16_t *));
-static void frentry_current_to_4_1_34 __P((void *, frentry_4_1_34_t *));
-static void fr_info_current_to_4_1_11 __P((void *, fr_info_4_1_11_t *));
-static void fr_info_current_to_4_1_23 __P((void *, fr_info_4_1_23_t *));
-static void fr_info_current_to_4_1_24 __P((void *, fr_info_4_1_24_t *));
-static void nat_save_current_to_4_1_3 __P((void *, nat_save_4_1_3_t *));
-static void nat_save_current_to_4_1_14 __P((void *, nat_save_4_1_14_t *));
-static void nat_save_current_to_4_1_16 __P((void *, nat_save_4_1_16_t *));
-static void ipstate_save_current_to_4_1_0 __P((void *, ipstate_save_4_1_0_t *));
-static void ipstate_save_current_to_4_1_16 __P((void *, ipstate_save_4_1_16_t *));
-static void ips_stat_current_to_4_1_0 __P((void *, ips_stat_4_1_0_t *));
-static void ips_stat_current_to_4_1_21 __P((void *, ips_stat_4_1_21_t *));
-static void natstat_current_to_4_1_0 __P((void *, natstat_4_1_0_t *));
-static void natstat_current_to_4_1_16 __P((void *, natstat_4_1_16_t *));
-static void natstat_current_to_4_1_27 __P((void *, natstat_4_1_27_t *));
-static void natstat_current_to_4_1_32 __P((void *, natstat_4_1_32_t *));
-static void nat_current_to_4_1_3 __P((void *, nat_4_1_3_t *));
-static void nat_current_to_4_1_14 __P((void *, nat_4_1_14_t *));
-static void nat_current_to_4_1_25 __P((void *, nat_4_1_25_t *));
+static void friostat_current_to_4_1_0(void *, friostat_4_1_0_t *, int);
+static void friostat_current_to_4_1_33(void *, friostat_4_1_33_t *, int);
+static void ipstate_current_to_4_1_0(void *, ipstate_4_1_0_t *);
+static void ipstate_current_to_4_1_16(void *, ipstate_4_1_16_t *);
+static void ipnat_current_to_4_1_0(void *, ipnat_4_1_0_t *);
+static void ipnat_current_to_4_1_14(void *, ipnat_4_1_14_t *);
+static void frauth_current_to_4_1_11(void *, frauth_4_1_11_t *);
+static void frauth_current_to_4_1_23(void *, frauth_4_1_23_t *);
+static void frauth_current_to_4_1_24(void *, frauth_4_1_24_t *);
+static void frauth_current_to_4_1_29(void *, frauth_4_1_29_t *);
+static void frentry_current_to_4_1_0(void *, frentry_4_1_0_t *);
+static void frentry_current_to_4_1_16(void *, frentry_4_1_16_t *);
+static void frentry_current_to_4_1_34(void *, frentry_4_1_34_t *);
+static void fr_info_current_to_4_1_11(void *, fr_info_4_1_11_t *);
+static void fr_info_current_to_4_1_23(void *, fr_info_4_1_23_t *);
+static void fr_info_current_to_4_1_24(void *, fr_info_4_1_24_t *);
+static void nat_save_current_to_4_1_3(void *, nat_save_4_1_3_t *);
+static void nat_save_current_to_4_1_14(void *, nat_save_4_1_14_t *);
+static void nat_save_current_to_4_1_16(void *, nat_save_4_1_16_t *);
+static void ipstate_save_current_to_4_1_0(void *, ipstate_save_4_1_0_t *);
+static void ipstate_save_current_to_4_1_16(void *, ipstate_save_4_1_16_t *);
+static void ips_stat_current_to_4_1_0(void *, ips_stat_4_1_0_t *);
+static void ips_stat_current_to_4_1_21(void *, ips_stat_4_1_21_t *);
+static void natstat_current_to_4_1_0(void *, natstat_4_1_0_t *);
+static void natstat_current_to_4_1_16(void *, natstat_4_1_16_t *);
+static void natstat_current_to_4_1_27(void *, natstat_4_1_27_t *);
+static void natstat_current_to_4_1_32(void *, natstat_4_1_32_t *);
+static void nat_current_to_4_1_3(void *, nat_4_1_3_t *);
+static void nat_current_to_4_1_14(void *, nat_4_1_14_t *);
+static void nat_current_to_4_1_25(void *, nat_4_1_25_t *);
 
-static void friostat_4_1_0_to_current __P((friostat_4_1_0_t *, void *));
-static void friostat_4_1_33_to_current __P((friostat_4_1_33_t *, void *));
-static void ipnat_4_1_0_to_current __P((ipnat_4_1_0_t *, void *, int));
-static void ipnat_4_1_14_to_current __P((ipnat_4_1_14_t *, void *, int));
-static void frauth_4_1_11_to_current __P((frauth_4_1_11_t *, void *));
-static void frauth_4_1_23_to_current __P((frauth_4_1_23_t *, void *));
-static void frauth_4_1_24_to_current __P((frauth_4_1_24_t *, void *));
-static void frauth_4_1_29_to_current __P((frauth_4_1_29_t *, void *));
-static void frauth_4_1_32_to_current __P((frauth_4_1_32_t *, void *));
-static void frentry_4_1_0_to_current __P((ipf_main_softc_t *, frentry_4_1_0_t *, void *, int));
-static void frentry_4_1_16_to_current __P((ipf_main_softc_t *, frentry_4_1_16_t *, void *, int));
-static void frentry_4_1_34_to_current __P((ipf_main_softc_t *, frentry_4_1_34_t *, void *, int));
-static void fr_info_4_1_11_to_current __P((fr_info_4_1_11_t *, void *));
-static void fr_info_4_1_23_to_current __P((fr_info_4_1_23_t *, void *));
-static void fr_info_4_1_24_to_current __P((fr_info_4_1_24_t *, void *));
-static void fr_info_4_1_32_to_current __P((fr_info_4_1_32_t *, void *));
-static void nat_save_4_1_3_to_current __P((ipf_main_softc_t *, nat_save_4_1_3_t *, void *));
-static void nat_save_4_1_14_to_current __P((ipf_main_softc_t *, nat_save_4_1_14_t *, void *));
-static void nat_save_4_1_16_to_current __P((ipf_main_softc_t *, nat_save_4_1_16_t *, void *));
+static void friostat_4_1_0_to_current(friostat_4_1_0_t *, void *);
+static void friostat_4_1_33_to_current(friostat_4_1_33_t *, void *);
+static void ipnat_4_1_0_to_current(ipnat_4_1_0_t *, void *, int);
+static void ipnat_4_1_14_to_current(ipnat_4_1_14_t *, void *, int);
+static void frauth_4_1_11_to_current(frauth_4_1_11_t *, void *);
+static void frauth_4_1_23_to_current(frauth_4_1_23_t *, void *);
+static void frauth_4_1_24_to_current(frauth_4_1_24_t *, void *);
+static void frauth_4_1_29_to_current(frauth_4_1_29_t *, void *);
+static void frauth_4_1_32_to_current(frauth_4_1_32_t *, void *);
+static void frentry_4_1_0_to_current(ipf_main_softc_t *, frentry_4_1_0_t *, void *, int);
+static void frentry_4_1_16_to_current(ipf_main_softc_t *, frentry_4_1_16_t *, void *, int);
+static void frentry_4_1_34_to_current(ipf_main_softc_t *, frentry_4_1_34_t *, void *, int);
+static void fr_info_4_1_11_to_current(fr_info_4_1_11_t *, void *);
+static void fr_info_4_1_23_to_current(fr_info_4_1_23_t *, void *);
+static void fr_info_4_1_24_to_current(fr_info_4_1_24_t *, void *);
+static void fr_info_4_1_32_to_current(fr_info_4_1_32_t *, void *);
+static void nat_save_4_1_3_to_current(ipf_main_softc_t *, nat_save_4_1_3_t *, void *);
+static void nat_save_4_1_14_to_current(ipf_main_softc_t *, nat_save_4_1_14_t *, void *);
+static void nat_save_4_1_16_to_current(ipf_main_softc_t *, nat_save_4_1_16_t *, void *);
 
 /* ------------------------------------------------------------------------ */
 /* In this section is a series of short routines that deal with translating */
@@ -2533,7 +2533,7 @@ frauth_4_1_32_to_current(old, current)
 	fr_info_4_1_32_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
 	fra->fra_flx = old->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2554,7 +2554,7 @@ frauth_4_1_29_to_current(old, current)
 	fr_info_4_1_24_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
 	fra->fra_flx = old->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2574,7 +2574,7 @@ frauth_4_1_24_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_24_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2594,7 +2594,7 @@ frauth_4_1_23_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_23_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2614,7 +2614,7 @@ frauth_4_1_11_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_11_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2652,7 +2652,7 @@ fr_info_4_1_32_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2690,7 +2690,7 @@ fr_info_4_1_24_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2727,7 +2727,7 @@ fr_info_4_1_23_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2764,7 +2764,7 @@ fr_info_4_1_11_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -4039,7 +4039,7 @@ fr_info_current_to_4_1_24(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4079,7 +4079,7 @@ fr_info_current_to_4_1_23(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4119,7 +4119,7 @@ fr_info_current_to_4_1_11(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4141,7 +4141,7 @@ frauth_current_to_4_1_29(current, old)
 	fr_info_current_to_4_1_24(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
 	old->fra_flx = fra->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4161,7 +4161,7 @@ frauth_current_to_4_1_24(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_24(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4181,7 +4181,7 @@ frauth_current_to_4_1_23(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_23(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4201,7 +4201,7 @@ frauth_current_to_4_1_11(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_11(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif

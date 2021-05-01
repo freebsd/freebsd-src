@@ -188,7 +188,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BIO_SET_DEV], [
 		struct block_device *bdev = NULL;
 		struct bio *bio = NULL;
 		bio_set_dev(bio, bdev);
-	], [], [$ZFS_META_LICENSE])
+	], [], [ZFS_META_LICENSE])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BIO_SET_DEV], [
@@ -344,10 +344,10 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BLKG_TRYGET], [
 		#include <linux/bio.h>
 		#include <linux/fs.h>
 	],[
-		struct blkcg_gq blkg __attribute__ ((unused));
+		struct blkcg_gq blkg __attribute__ ((unused)) = {};
 		bool rc __attribute__ ((unused));
 		rc = blkg_tryget(&blkg);
-	], [], [$ZFS_META_LICENSE])
+	], [], [ZFS_META_LICENSE])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BLKG_TRYGET], [
@@ -369,6 +369,33 @@ AC_DEFUN([ZFS_AC_KERNEL_BLKG_TRYGET], [
 	])
 ])
 
+dnl #
+dnl # Linux 5.12 API,
+dnl #
+dnl # The Linux 5.12 kernel updated struct bio to create a new bi_bdev member
+dnl # and bio->bi_disk was moved to bio->bi_bdev->bd_disk
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_SRC_BIO_BDEV_DISK], [
+	ZFS_LINUX_TEST_SRC([bio_bdev_disk], [
+		#include <linux/blk_types.h>
+		#include <linux/blkdev.h>
+	],[
+		struct bio *b = NULL;
+		struct gendisk *d = b->bi_bdev->bd_disk;
+		blk_register_queue(d);
+	])
+])
+
+AC_DEFUN([ZFS_AC_KERNEL_BIO_BDEV_DISK], [
+	AC_MSG_CHECKING([whether bio->bi_bdev->bd_disk exists])
+	ZFS_LINUX_TEST_RESULT([bio_bdev_disk], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_BIO_BDEV_DISK, 1, [bio->bi_bdev->bd_disk exists])
+	],[
+		AC_MSG_RESULT(no)
+	])
+])
+
 AC_DEFUN([ZFS_AC_KERNEL_SRC_BIO], [
 	ZFS_AC_KERNEL_SRC_REQ
 	ZFS_AC_KERNEL_SRC_BIO_OPS
@@ -379,6 +406,7 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_BIO], [
 	ZFS_AC_KERNEL_SRC_BIO_SUBMIT_BIO
 	ZFS_AC_KERNEL_SRC_BIO_CURRENT_BIO_LIST
 	ZFS_AC_KERNEL_SRC_BLKG_TRYGET
+	ZFS_AC_KERNEL_SRC_BIO_BDEV_DISK
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_BIO], [
@@ -400,4 +428,5 @@ AC_DEFUN([ZFS_AC_KERNEL_BIO], [
 	ZFS_AC_KERNEL_BIO_SUBMIT_BIO
 	ZFS_AC_KERNEL_BIO_CURRENT_BIO_LIST
 	ZFS_AC_KERNEL_BLKG_TRYGET
+	ZFS_AC_KERNEL_BIO_BDEV_DISK
 ])

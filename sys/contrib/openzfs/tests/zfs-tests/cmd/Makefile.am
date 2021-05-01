@@ -6,6 +6,7 @@ SUBDIRS = \
 	chg_usr_exec \
 	devname2devid \
 	dir_rd_update \
+	draid \
 	file_check \
 	file_trunc \
 	file_write \
@@ -24,6 +25,7 @@ SUBDIRS = \
 	readmmap \
 	rename_dir \
 	rm_lnkcnt_zero_file \
+	send_doall \
 	stride_dd \
 	threadsappend
 

@@ -143,3 +143,29 @@ svn_iter__break(void)
 {
   return &internal_break_error;
 }
+
+#if !APR_VERSION_AT_LEAST(1, 5, 0)
+const void *apr_hash_this_key(apr_hash_index_t *hi)
+{
+  const void *key;
+
+  apr_hash_this((apr_hash_index_t *)hi, &key, NULL, NULL);
+  return key;
+}
+
+apr_ssize_t apr_hash_this_key_len(apr_hash_index_t *hi)
+{
+  apr_ssize_t klen;
+
+  apr_hash_this((apr_hash_index_t *)hi, NULL, &klen, NULL);
+  return klen;
+}
+
+void *apr_hash_this_val(apr_hash_index_t *hi)
+{
+  void *val;
+
+  apr_hash_this((apr_hash_index_t *)hi, NULL, NULL, &val);
+  return val;
+}
+#endif

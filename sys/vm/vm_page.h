@@ -69,9 +69,8 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
-#include <sys/_bitset.h>
-#include <sys/bitset.h>
 #include <vm/pmap.h>
+#include <vm/_vm_phys.h>
 
 /*
  *	Management of resident (logical) pages.
@@ -542,6 +541,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_WAITFAIL	0x0010	/* (acf) Sleep and return error */
 #define	VM_ALLOC_WIRED		0x0020	/* (acfgp) Allocate a wired page */
 #define	VM_ALLOC_ZERO		0x0040	/* (acfgp) Allocate a prezeroed page */
+#define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
 #define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
 #define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
@@ -571,6 +571,8 @@ malloc2vm_flags(int malloc_flags)
 		pflags |= VM_ALLOC_NOWAIT;
 	if ((malloc_flags & M_WAITOK))
 		pflags |= VM_ALLOC_WAITOK;
+	if ((malloc_flags & M_NORECLAIM))
+		pflags |= VM_ALLOC_NORECLAIM;
 	return (pflags);
 }
 #endif
@@ -586,69 +588,6 @@ malloc2vm_flags(int malloc_flags)
 #define	PS_ALL_DIRTY	0x1
 #define	PS_ALL_VALID	0x2
 #define	PS_NONE_BUSY	0x4
-
-extern struct bitset *vm_page_dump;
-extern long vm_page_dump_pages;
-extern vm_paddr_t dump_avail[];
-
-static inline void
-dump_add_page(vm_paddr_t pa)
-{
-	vm_pindex_t adj;
-	int i;
-
-	adj = 0;
-	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
-			BIT_SET_ATOMIC(vm_page_dump_pages,
-			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, vm_page_dump);
-			return;
-		}
-		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
-	}
-}
-
-static inline void
-dump_drop_page(vm_paddr_t pa)
-{
-	vm_pindex_t adj;
-	int i;
-
-	adj = 0;
-	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1]) {
-			BIT_CLR_ATOMIC(vm_page_dump_pages,
-			    (pa >> PAGE_SHIFT) - (dump_avail[i] >> PAGE_SHIFT) +
-			    adj, vm_page_dump);
-			return;
-		}
-		adj += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
-	}
-}
-
-static inline vm_paddr_t
-vm_page_dump_index_to_pa(int bit)
-{
-	int i, tot;
-
-	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		tot = howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
-		if (bit < tot)
-			return ((vm_paddr_t)bit * PAGE_SIZE +
-			    (dump_avail[i] & ~PAGE_MASK));
-		bit -= tot;
-	}
-	return ((vm_paddr_t)NULL);
-}
-
-#define VM_PAGE_DUMP_FOREACH(pa)						\
-	for (vm_pindex_t __b = BIT_FFS(vm_page_dump_pages, vm_page_dump);	\
-	    (pa) = vm_page_dump_index_to_pa(__b - 1), __b != 0;			\
-	    __b = BIT_FFS_AT(vm_page_dump_pages, vm_page_dump, __b))
 
 bool vm_page_busy_acquire(vm_page_t m, int allocflags);
 void vm_page_busy_downgrade(vm_page_t m);
@@ -1058,6 +997,22 @@ vm_page_none_valid(vm_page_t m)
 {
 
 	return (m->valid == 0);
+}
+
+static inline int
+vm_page_domain(vm_page_t m)
+{
+#ifdef NUMA
+	int domn, segind;
+
+	segind = m->segind;
+	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
+	domn = vm_phys_segs[segind].domain;
+	KASSERT(domn >= 0 && domn < vm_ndomains, ("domain %d m %p", domn, m));
+	return (domn);
+#else
+	return (0);
+#endif
 }
 
 #endif				/* _KERNEL */

@@ -64,6 +64,14 @@
 #define	SLBE_ESID_MASK	0xfffffffff0000000UL /* Effective segment ID mask */
 #define	SLBE_ESID_SHIFT	28
 
+/*
+ * SLB page sizes encoding, as present in property ibm,segment-page-sizes
+ * of CPU device tree node.
+ *
+ * See LoPAPR: CPU Node Properties, section C.6.1.4.
+ */
+#define	SLB_PGSZ_4K_4K	0
+
 /* Virtual real-mode VSID in LPARs */
 #define VSID_VRMA	0x1ffffff
 

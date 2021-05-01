@@ -1,2 +1,6 @@
+make: Malformed variable expression at "$)"
 def2
+a-def2-b
+1-2-NDIRECT_2-2-1
+)
 exit status 0

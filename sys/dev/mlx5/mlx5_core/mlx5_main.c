@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2019, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -455,6 +455,12 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	/* disable cmdif checksum */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, cmdif_checksum, 0);
 
+	/* Enable 4K UAR only when HCA supports it and page size is bigger
+	 * than 4K.
+	 */
+	if (MLX5_CAP_GEN_MAX(dev, uar_4k) && PAGE_SIZE > 4096)
+		MLX5_SET(cmd_hca_cap, set_hca_cap, uar_4k, 1);
+
 	/* enable drain sigerr */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, drain_sigerr, 1);
 
@@ -650,8 +656,7 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
 
 		err = mlx5_create_map_eq(dev, eq,
-					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 &dev->priv.uuari.uars[0]);
+					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0);
 		if (err) {
 			kfree(eq);
 			goto clean;
@@ -668,22 +673,6 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 clean:
 	free_comp_eqs(dev);
 	return err;
-}
-
-static int map_bf_area(struct mlx5_core_dev *dev)
-{
-	resource_size_t bf_start = pci_resource_start(dev->pdev, 0);
-	resource_size_t bf_len = pci_resource_len(dev->pdev, 0);
-
-	dev->priv.bf_mapping = io_mapping_create_wc(bf_start, bf_len);
-
-	return dev->priv.bf_mapping ? 0 : -ENOMEM;
-}
-
-static void unmap_bf_area(struct mlx5_core_dev *dev)
-{
-	if (dev->priv.bf_mapping)
-		io_mapping_free(dev->priv.bf_mapping);
 }
 
 static inline int fw_initializing(struct mlx5_core_dev *dev)
@@ -708,7 +697,7 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 		if (warn_time_mili && time_after(jiffies, warn)) {
 			mlx5_core_warn(dev,
 			    "Waiting for FW initialization, timeout abort in %u s\n",
-			    (unsigned int)(jiffies_to_msecs(end - warn) / 1000));
+			    (unsigned)(jiffies_to_msecs(end - warn) / 1000));
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(FW_INIT_WAIT_MS);
@@ -937,7 +926,7 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	err = mlx5_vsc_find_cap(dev);
 	if (err)
-		mlx5_core_err(dev, "Unable to find vendor specific capabilities\n");
+		mlx5_core_warn(dev, "Unable to find vendor specific capabilities\n");
 
 	err = mlx5_query_hca_caps(dev);
 	if (err) {
@@ -1117,22 +1106,23 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_stop_poll;
 	}
 
-	err = mlx5_enable_msix(dev);
-	if (err) {
-		mlx5_core_err(dev, "enable msix failed\n");
+	dev->priv.uar = mlx5_get_uars_page(dev);
+	if (IS_ERR(dev->priv.uar)) {
+		mlx5_core_err(dev, "Failed allocating uar, aborting\n");
+		err = PTR_ERR(dev->priv.uar);
 		goto err_cleanup_once;
 	}
 
-	err = mlx5_alloc_uuars(dev, &priv->uuari);
+	err = mlx5_enable_msix(dev);
 	if (err) {
-		mlx5_core_err(dev, "Failed allocating uar, aborting\n");
-		goto err_disable_msix;
+		mlx5_core_err(dev, "enable msix failed\n");
+		goto err_cleanup_uar;
 	}
 
 	err = mlx5_start_eqs(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to start pages and async EQs\n");
-		goto err_free_uar;
+		goto err_disable_msix;
 	}
 
 	err = alloc_comp_eqs(dev);
@@ -1140,9 +1130,6 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		mlx5_core_err(dev, "Failed to alloc completion EQs\n");
 		goto err_stop_eqs;
 	}
-
-	if (map_bf_area(dev))
-		mlx5_core_err(dev, "Failed to map blue flame area\n");
 
 	err = mlx5_init_fs(dev);
 	if (err) {
@@ -1185,16 +1172,15 @@ err_fs:
 
 err_free_comp_eqs:
 	free_comp_eqs(dev);
-	unmap_bf_area(dev);
 
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
 
-err_free_uar:
-	mlx5_free_uuars(dev, &priv->uuari);
-
 err_disable_msix:
 	mlx5_disable_msix(dev);
+
+err_cleanup_uar:
+	mlx5_put_uars_page(dev, dev->priv.uar);
 
 err_cleanup_once:
 	if (boot)
@@ -1248,12 +1234,11 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_fpga_device_stop(dev);
 	mlx5_mpfs_destroy(dev);
 	mlx5_cleanup_fs(dev);
-	unmap_bf_area(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
-	mlx5_free_uuars(dev, &priv->uuari);
 	mlx5_disable_msix(dev);
+	mlx5_put_uars_page(dev, dev->priv.uar);
         if (cleanup)
                 mlx5_cleanup_once(dev);
 	mlx5_stop_health_poll(dev, cleanup);
@@ -1586,6 +1571,12 @@ static int init_one(struct pci_dev *pdev,
 	spin_lock_init(&priv->ctx_lock);
 	mutex_init(&dev->pci_status_mutex);
 	mutex_init(&dev->intf_state_mutex);
+
+	mutex_init(&priv->bfregs.reg_head.lock);
+	mutex_init(&priv->bfregs.wc_head.lock);
+	INIT_LIST_HEAD(&priv->bfregs.reg_head.list);
+	INIT_LIST_HEAD(&priv->bfregs.wc_head.list);
+
 	mtx_init(&dev->dump_lock, "mlx5dmp", NULL, MTX_DEF | MTX_NEW);
 	err = mlx5_pci_init(dev, priv);
 	if (err) {
@@ -1643,7 +1634,7 @@ static int init_one(struct pci_dev *pdev,
 	}
 #endif
 
-	pci_save_state(bsddev);
+	pci_save_state(pdev);
 	return 0;
 
 clean_health:
@@ -1663,6 +1654,11 @@ static void remove_one(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
+
+#ifdef PCI_IOV
+	pci_iov_detach(pdev->dev.bsddev);
+	mlx5_eswitch_disable_sriov(priv->eswitch);
+#endif
 
 	if (mlx5_unload_one(dev, priv, true)) {
 		mlx5_core_err(dev, "mlx5_unload_one() failed, leaked %lld bytes\n",
@@ -1713,8 +1709,8 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 	pci_set_powerstate(pdev->dev.bsddev, PCI_POWERSTATE_D0);
-	pci_restore_state(pdev->dev.bsddev);
-	pci_save_state(pdev->dev.bsddev);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
@@ -1975,15 +1971,15 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4116) }, /* ConnectX-4 VF */
 	{ PCI_VDEVICE(MELLANOX, 4117) }, /* ConnectX-4LX */
 	{ PCI_VDEVICE(MELLANOX, 4118) }, /* ConnectX-4LX VF */
-	{ PCI_VDEVICE(MELLANOX, 4119) }, /* ConnectX-5 */
+	{ PCI_VDEVICE(MELLANOX, 4119) }, /* ConnectX-5, PCIe 3.0 */
 	{ PCI_VDEVICE(MELLANOX, 4120) }, /* ConnectX-5 VF */
-	{ PCI_VDEVICE(MELLANOX, 4121) },
-	{ PCI_VDEVICE(MELLANOX, 4122) },
-	{ PCI_VDEVICE(MELLANOX, 4123) },
-	{ PCI_VDEVICE(MELLANOX, 4124) },
-	{ PCI_VDEVICE(MELLANOX, 4125) },
-	{ PCI_VDEVICE(MELLANOX, 4126) },
-	{ PCI_VDEVICE(MELLANOX, 4127) },
+	{ PCI_VDEVICE(MELLANOX, 4121) }, /* ConnectX-5 Ex */
+	{ PCI_VDEVICE(MELLANOX, 4122) }, /* ConnectX-5 Ex VF */
+	{ PCI_VDEVICE(MELLANOX, 4123) }, /* ConnectX-6 */
+	{ PCI_VDEVICE(MELLANOX, 4124) }, /* ConnectX-6 VF */
+	{ PCI_VDEVICE(MELLANOX, 4125) }, /* ConnectX-6 Dx */
+	{ PCI_VDEVICE(MELLANOX, 4126) }, /* ConnectX Family mlx5Gen Virtual Function */
+	{ PCI_VDEVICE(MELLANOX, 4127) }, /* ConnectX-6 LX */
 	{ PCI_VDEVICE(MELLANOX, 4128) },
 	{ PCI_VDEVICE(MELLANOX, 4129) },
 	{ PCI_VDEVICE(MELLANOX, 4130) },
@@ -2001,7 +1997,10 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4142) },
 	{ PCI_VDEVICE(MELLANOX, 4143) },
 	{ PCI_VDEVICE(MELLANOX, 4144) },
-	{ 0, }
+	{ PCI_VDEVICE(MELLANOX, 0xa2d2) }, /* BlueField integrated ConnectX-5 network controller */
+	{ PCI_VDEVICE(MELLANOX, 0xa2d3) }, /* BlueField integrated ConnectX-5 network controller VF */
+	{ PCI_VDEVICE(MELLANOX, 0xa2d6) }, /* BlueField-2 integrated ConnectX-6 Dx network controller */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);

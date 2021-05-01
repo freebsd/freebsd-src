@@ -51,16 +51,17 @@
 /*
  * Define YY_INPUT for flex since input() can't be re-defined.
  */
-#define YY_INPUT(buf,result,max_size) \
-	if (yypcb->pcb_fileptr != NULL) { \
-		if (((result = fread(buf, 1, max_size, yypcb->pcb_fileptr)) == 0) \
-		    && ferror(yypcb->pcb_fileptr)) \
+#define YY_INPUT(buf, result, max_size)			\
+	if (yypcb->pcb_fileptr != NULL) {		\
+		if (((result = fread(buf, 1, max_size, yypcb->pcb_fileptr)) == \
+		    0) && ferror(yypcb->pcb_fileptr))	\
 			longjmp(yypcb->pcb_jmpbuf, EDT_FIO); \
-	} else { \
-		int n; \
-		for (n = 0; n < max_size && \
-		    yypcb->pcb_strptr < yypcb->pcb_string + yypcb->pcb_strlen; n++) \
-			buf[n] = *yypcb->pcb_strptr++; \
+	} else {					\
+		int n;					\
+		for (n = 0; n < max_size &&		\
+		    yypcb->pcb_strptr < yypcb->pcb_string + yypcb->pcb_strlen; \
+		    n++)				\
+			buf[n] = *yypcb->pcb_strptr++;	\
 		result = n; \
 	}
 /*

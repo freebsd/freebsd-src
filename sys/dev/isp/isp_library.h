@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- *  Copyright (c) 2009-2017 Alexander Motin <mav@FreeBSD.org>
+ *  Copyright (c) 2009-2020 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
@@ -38,8 +38,7 @@
  * This used to be platform specific, but basically once you get the segment
  * stuff figured out, you can make all the code in one spot.
  */
-typedef enum { ISP_TO_DEVICE, ISP_FROM_DEVICE, ISP_NOXFR} isp_ddir_t;
-int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, ispds64_t *);
+int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t);
 
 /*
  * Handle management functions.
@@ -54,7 +53,23 @@ void isp_destroy_handle(ispsoftc_t *, uint32_t);
 /*
  * Request Queue allocation
  */
-void *isp_getrqentry(ispsoftc_t *);
+static inline int
+isp_rqentry_avail(ispsoftc_t *isp, uint32_t num)
+{
+	if (ISP_QAVAIL(isp) >= num)
+		return (1);
+	/* We don't have enough in cached.  Reread the hardware. */
+	isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
+	return (ISP_QAVAIL(isp) >= num);
+}
+
+static inline void *
+isp_getrqentry(ispsoftc_t *isp)
+{
+	if (!isp_rqentry_avail(isp, 1))
+		return (NULL);
+	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
+}
 
 /*
  * Queue Entry debug functions
@@ -87,26 +102,14 @@ void isp_clear_commands(ispsoftc_t *);
 void isp_put_hdr(ispsoftc_t *, isphdr_t *, isphdr_t *);
 void isp_get_hdr(ispsoftc_t *, isphdr_t *, isphdr_t *);
 int isp_get_response_type(ispsoftc_t *, isphdr_t *);
-void isp_put_request(ispsoftc_t *, ispreq_t *, ispreq_t *);
-void isp_put_marker(ispsoftc_t *, isp_marker_t *, isp_marker_t *);
 void isp_put_marker_24xx(ispsoftc_t *, isp_marker_24xx_t *, isp_marker_24xx_t *);
-void isp_put_request_t2(ispsoftc_t *, ispreqt2_t *, ispreqt2_t *);
-void isp_put_request_t2e(ispsoftc_t *, ispreqt2e_t *, ispreqt2e_t *);
-void isp_put_request_t3(ispsoftc_t *, ispreqt3_t *, ispreqt3_t *);
-void isp_put_request_t3e(ispsoftc_t *, ispreqt3e_t *, ispreqt3e_t *);
-void isp_put_extended_request(ispsoftc_t *, ispextreq_t *, ispextreq_t *);
 void isp_put_request_t7(ispsoftc_t *, ispreqt7_t *, ispreqt7_t *);
 void isp_put_24xx_tmf(ispsoftc_t *, isp24xx_tmf_t *, isp24xx_tmf_t *);
 void isp_put_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
-void isp_put_cont_req(ispsoftc_t *, ispcontreq_t *, ispcontreq_t *);
 void isp_put_cont64_req(ispsoftc_t *, ispcontreq64_t *, ispcontreq64_t *);
-void isp_get_response(ispsoftc_t *, ispstatusreq_t *, ispstatusreq_t *);
 void isp_get_cont_response(ispsoftc_t *, ispstatus_cont_t *, ispstatus_cont_t *);
 void isp_get_24xx_response(ispsoftc_t *, isp24xx_statusreq_t *, isp24xx_statusreq_t *);
 void isp_get_24xx_abrt(ispsoftc_t *, isp24xx_abrt_t *, isp24xx_abrt_t *);
-void isp_get_rio1(ispsoftc_t *, isp_rio1_t *, isp_rio1_t *);
-void isp_get_rio2(ispsoftc_t *, isp_rio2_t *, isp_rio2_t *);
-void isp_put_icb(ispsoftc_t *, isp_icb_t *, isp_icb_t *);
 void isp_put_icb_2400(ispsoftc_t *, isp_icb_2400_t *, isp_icb_2400_t *);
 void isp_put_icb_2400_vpinfo(ispsoftc_t *, isp_icb_2400_vpinfo_t *, isp_icb_2400_vpinfo_t *);
 void isp_put_vp_port_info(ispsoftc_t *, vp_port_info_t *, vp_port_info_t *);
@@ -115,30 +118,19 @@ void isp_put_vp_ctrl_info(ispsoftc_t *, vp_ctrl_info_t *, vp_ctrl_info_t *);
 void isp_get_vp_ctrl_info(ispsoftc_t *, vp_ctrl_info_t *, vp_ctrl_info_t *);
 void isp_put_vp_modify(ispsoftc_t *, vp_modify_t *, vp_modify_t *);
 void isp_get_vp_modify(ispsoftc_t *, vp_modify_t *, vp_modify_t *);
-void isp_get_pdb_21xx(ispsoftc_t *, isp_pdb_21xx_t *, isp_pdb_21xx_t *);
 void isp_get_pdb_24xx(ispsoftc_t *, isp_pdb_24xx_t *, isp_pdb_24xx_t *);
-void isp_get_pnhle_21xx(ispsoftc_t *, isp_pnhle_21xx_t *, isp_pnhle_21xx_t *);
-void isp_get_pnhle_23xx(ispsoftc_t *, isp_pnhle_23xx_t *, isp_pnhle_23xx_t *);
 void isp_get_pnhle_24xx(ispsoftc_t *, isp_pnhle_24xx_t *, isp_pnhle_24xx_t *);
-void isp_get_pnnle(ispsoftc_t *, isp_pnnle_t *, isp_pnnle_t *);
 void isp_get_ridacq(ispsoftc_t *, isp_ridacq_t *, isp_ridacq_t *);
 void isp_get_plogx(ispsoftc_t *, isp_plogx_t *, isp_plogx_t *);
 void isp_put_plogx(ispsoftc_t *, isp_plogx_t *, isp_plogx_t *);
 void isp_get_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *, isp_ct_pt_t *);
-void isp_get_ms(ispsoftc_t *isp, isp_ms_t *, isp_ms_t *);
 void isp_put_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *, isp_ct_pt_t *);
-void isp_put_ms(ispsoftc_t *isp, isp_ms_t *, isp_ms_t *);
-void isp_put_sns_request(ispsoftc_t *, sns_screq_t *, sns_screq_t *);
 void isp_put_gid_ft_request(ispsoftc_t *, sns_gid_ft_req_t *, sns_gid_ft_req_t *);
-void isp_put_gid_pt_request(ispsoftc_t *, sns_gid_pt_req_t *, sns_gid_pt_req_t *);
-void isp_put_gxx_id_request(ispsoftc_t *, sns_gxx_id_req_t *, sns_gxx_id_req_t *);
 void isp_get_gid_xx_response(ispsoftc_t *, sns_gid_xx_rsp_t *, sns_gid_xx_rsp_t *, int);
 void isp_get_gxn_id_response(ispsoftc_t *, sns_gxn_id_rsp_t *, sns_gxn_id_rsp_t *);
 void isp_get_gft_id_response(ispsoftc_t *, sns_gft_id_rsp_t *, sns_gft_id_rsp_t *);
 void isp_get_gff_id_response(ispsoftc_t *, sns_gff_id_rsp_t *, sns_gff_id_rsp_t *);
 void isp_get_ga_nxt_response(ispsoftc_t *, sns_ga_nxt_rsp_t *, sns_ga_nxt_rsp_t *);
-void isp_get_els(ispsoftc_t *, els_t *, els_t *);
-void isp_put_els(ispsoftc_t *, els_t *, els_t *);
 void isp_get_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_put_fc_hdr(ispsoftc_t *, fc_hdr_t *, fc_hdr_t *);
 void isp_get_fcp_cmnd_iu(ispsoftc_t *, fcp_cmnd_iu_t *, fcp_cmnd_iu_t *);
@@ -149,6 +141,22 @@ void isp_put_rsnn_nn(ispsoftc_t *, rsnn_nn_t *, rsnn_nn_t *);
 void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
+void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
+void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
+void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
+void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
+void isp_get_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
+void isp_put_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
+void isp_get_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
+void isp_get_abts(ispsoftc_t *, abts_t *, abts_t *);
+void isp_put_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
+void isp_get_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
+
+void isp_put_entry(ispsoftc_t *, void *, void *);
+void isp_get_entry(ispsoftc_t *, void *, void *);
+int isp_send_entry(ispsoftc_t *, void *);
+int isp_exec_entry_mbox(ispsoftc_t *, void *, void *, int);
+int isp_exec_entry_queue(ispsoftc_t *, void *, void *, int);
 
 #define ISP_HANDLE_MASK  0x7fff
 
@@ -170,35 +178,5 @@ int isp_find_pdb_by_portid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint64_t, uint16_t, uint32_t, uint16_t);
 void isp_del_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
-void isp_del_all_wwn_entries(ispsoftc_t *, int);
-void isp_del_wwn_entries(ispsoftc_t *, isp_notify_t *);
-
-void isp_put_atio2(ispsoftc_t *, at2_entry_t *, at2_entry_t *);
-void isp_put_atio2e(ispsoftc_t *, at2e_entry_t *, at2e_entry_t *);
-void isp_get_atio2(ispsoftc_t *, at2_entry_t *, at2_entry_t *);
-void isp_get_atio2e(ispsoftc_t *, at2e_entry_t *, at2e_entry_t *);
-void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
-void isp_put_ctio2(ispsoftc_t *, ct2_entry_t *, ct2_entry_t *);
-void isp_put_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
-void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_get_ctio2(ispsoftc_t *, ct2_entry_t *, ct2_entry_t *);
-void isp_get_ctio2e(ispsoftc_t *, ct2e_entry_t *, ct2e_entry_t *);
-void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_put_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
-void isp_put_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
-void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
-void isp_get_notify_fc(ispsoftc_t *, in_fcentry_t *, in_fcentry_t *);
-void isp_get_notify_fc_e(ispsoftc_t *, in_fcentry_e_t *, in_fcentry_e_t *);
-void isp_get_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
-void isp_put_notify_24xx_ack(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
-void isp_put_notify_ack_fc(ispsoftc_t *, na_fcentry_t *, na_fcentry_t *);
-void isp_put_notify_ack_fc_e(ispsoftc_t *, na_fcentry_e_t *, na_fcentry_e_t *);
-void isp_put_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
-void isp_get_notify_ack_fc(ispsoftc_t *, na_fcentry_t *, na_fcentry_t *);
-void isp_get_notify_ack_fc_e(ispsoftc_t *, na_fcentry_e_t *, na_fcentry_e_t *);
-void isp_get_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
-void isp_get_abts(ispsoftc_t *, abts_t *, abts_t *);
-void isp_put_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
-void isp_get_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
 #endif /* ISP_TARGET_MODE */
 #endif /* _ISP_LIBRARY_H */

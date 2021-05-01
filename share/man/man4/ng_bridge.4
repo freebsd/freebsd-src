@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2019
+.Dd February 6, 2021
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -79,27 +79,60 @@ mechanism on a per-link basis is not yet implemented.
 This node type supports an unlimited number of hooks.
 Each connected hook represents a bridged link.
 The hooks are named
-.Dv link0 ,
-.Dv link1 ,
+.Ar link0 ,
+.Ar link1 ,
 etc.
 Typically these hooks are connected to the
-.Dv lower
+.Ar lower
 hooks of one or more
 .Xr ng_ether 4
 nodes.
 To connect the host machine to a bridged network, simply connect the
-.Dv upper
+.Ar upper
 hook of an
 .Xr ng_ether 4
 node to the bridge node.
+.Pp
+Instead of naming a hook
+.Ar linkX
+the hook might be also named
+.Ar uplinkX .
+The node does not learn MAC addresses on uplink hooks, which keeps
+the internal address table small.
+This way it is desirable to connect the
+.Ar lower
+hook of an
+.Xr ng_ether 4
+node to an
+.Ar uplink
+hook of the bridge, and ignore the complexity of the outside world.
+Frames with unknown MACs are always sent out to
+.Ar uplink
+hooks, so no functionality is lost.
+.Pp
+Frames with unknown destination MAC addresses are replicated to any
+available hook, unless the first connected hook is an
+.Ar uplink
+hook.
+In this case the node assumes, that all unknown MAC addresses are
+located soley on the
+.Ar uplink
+hooks and only those hooks will be used to send out frames with
+unknown destination MACs.
+If the first connected hook is an
+.Ar link
+hook, the node will replicate such frames to all types of hooks,
+even if
+.Ar uplink
+hooks are connected later.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the
 following:
 .Bl -tag -width foo
-.It Dv NGM_BRIDGE_SET_CONFIG Pq Ic setconfig
+.It Dv NGM_BRIDGE_SET_CONFIG Pq Ar setconfig
 Set the node configuration.
 This command takes a
-.Dv "struct ng_bridge_config"
+.Vt "struct ng_bridge_config"
 as an argument:
 .Bd -literal -offset 0n
 /* Node configuration structure */
@@ -112,37 +145,38 @@ struct ng_bridge_config {
 .Ed
 .Pp
 The
-.Dv debugLevel
+.Va debugLevel
 field sets the debug level on the node.
 At level of 2 or greater, detected loops are logged.
 The default level is 1.
 .Pp
 The
-.Dv loopTimeout
+.Va loopTimeout
 determines how long (in seconds) a looped link is muted.
 The default is 60 seconds.
 The
-.Dv maxStaleness
+.Va maxStaleness
 parameter determines how long a period of inactivity before
 a host's entry is forgotten.
 The default is 15 minutes.
 The
-.Dv minStableAge
+.Va minStableAge
 determines how quickly a host must jump from one link to another
 before we declare a loopback condition.
 The default is one second.
-.It Dv NGM_BRIDGE_GET_CONFIG Pq Ic getconfig
+.It Dv NGM_BRIDGE_GET_CONFIG Pq Ar getconfig
 Returns the current configuration as a
-.Dv "struct ng_bridge_config" .
-.It Dv NGM_BRIDGE_RESET Pq Ic reset
+.Vt "struct ng_bridge_config" .
+.It Dv NGM_BRIDGE_RESET Pq Ar reset
 Causes the node to forget all hosts and unmute all links.
 The node configuration is not changed.
-.It Dv NGM_BRIDGE_GET_STATS Pq Ic getstats
+.It Dv NGM_BRIDGE_GET_STATS Pq Ar getstats
 This command takes a four byte link number as an argument and
 returns a
-.Dv "struct ng_bridge_link_stats"
-containing statistics for the corresponding link, which must be
-currently connected:
+.Vt "struct ng_bridge_link_stats"
+containing statistics for the corresponding
+.Ar link ,
+which must be currently connected:
 .Bd -literal -offset 0n
 /* Statistics structure (one for each link) */
 struct ng_bridge_link_stats {
@@ -162,17 +196,23 @@ struct ng_bridge_link_stats {
   uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
 };
 .Ed
-.It Dv NGM_BRIDGE_CLR_STATS Pq Ic clrstats
+.Pp
+Negative numbers refer to the
+.Ar uplink
+hooks.
+So querying for -7 will get the statistics for hook
+.Ar uplink7 .
+.It Dv NGM_BRIDGE_CLR_STATS Pq Ar clrstats
 This command takes a four byte link number as an argument and
 clears the statistics for that link.
-.It Dv NGM_BRIDGE_GETCLR_STATS Pq Ic getclrstats
+.It Dv NGM_BRIDGE_GETCLR_STATS Pq Ar getclrstats
 Same as
 .Dv NGM_BRIDGE_GET_STATS ,
 but also atomically clears the statistics as well.
-.It Dv NGM_BRIDGE_GET_TABLE Pq Ic gettable
+.It Dv NGM_BRIDGE_GET_TABLE Pq Ar gettable
 Returns the current host mapping table used to direct packets, in a
-.Dv "struct ng_bridge_host_ary" .
-.It Dv NGM_BRIDGE_SET_PERSISTENT Pq Ic setpersistent
+.Vt "struct ng_bridge_host_ary" .
+.It Dv NGM_BRIDGE_SET_PERSISTENT Pq Ar setpersistent
 This command sets the persistent flag on the node, and takes no arguments.
 .El
 .Sh SHUTDOWN

@@ -30,3 +30,4 @@
 
 int	luaopen_loader(lua_State *);
 int	luaopen_io(lua_State *);
+int	luaopen_pager(lua_State *);

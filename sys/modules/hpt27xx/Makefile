@@ -6,9 +6,6 @@ KMOD=	hpt27xx
 SRCS=	bus_if.h device_if.h pci_if.h
 SRCS+=	opt_cam.h opt_scsi.h
 SRCS+=	os_bsd.h hpt27xx_os_bsd.c hpt27xx_osm_bsd.c hpt27xx_config.c
-OBJS+=	hpt27xx_lib.o
-
-hpt27xx_lib.o:
-	uudecode -p < ${HPT27XX}/$(MACHINE_ARCH)-elf.hpt27xx_lib.o.uu > ${.TARGET}
+OBJS+=	${HPT27XX}/$(MACHINE_ARCH)-elf.hpt27xx_lib.o
 
 .include <bsd.kmod.mk>

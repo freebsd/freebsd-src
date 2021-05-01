@@ -1,4 +1,4 @@
-# $Id: dirdeps-cache-update.mk,v 1.21 2020/08/19 17:51:53 sjg Exp $
+# $Id: dirdeps-cache-update.mk,v 1.22 2020/09/10 00:14:38 sjg Exp $
 #
 #	@(#) Copyright (c) 2020, Simon J. Gerraty
 #
@@ -86,7 +86,7 @@ _debug_cache = 0
 .endif
 
 .if ${MK_STATIC_DIRDEPS_CACHE} == "yes" && defined(STATIC_DIRDEPS_CACHE) && exists(${STATIC_DIRDEPS_CACHE})
-.if !make(dirdeps)
+.if !make(dirdeps) && !target(cache_update_dirdep)
 # We are using static cache and this is the only look we will get.
 # We want to generate an updated cache while we build
 # so need to hook cache-update to dirdeps now.
@@ -99,12 +99,10 @@ _debug_cache = 0
 cache_update_dirdep ?= $d.${TARGET_SPEC}
 .endif
 .endfor
-.if !target(${cache_update_dirdep})
-dirdeps: ${cache_update_dirdep}
+dirdeps cache_update_dirdep: ${cache_update_dirdep}
 ${cache_update_dirdep}: _DIRDEP_USE
 DYNAMIC_DIRDEPS_CACHE := ${OBJTOP}/dirdeps.cache.${STATIC_DIRDEPS_CACHE:H:T}-update
 .export DYNAMIC_DIRDEPS_CACHE STATIC_DIRDEPS_CACHE
-.endif
 .endif	# make(dirdeps)
 .endif	# MK_*
 

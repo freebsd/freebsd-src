@@ -5471,6 +5471,11 @@ private:
 
   Address EmitVAArg(CodeGenFunction &CGF, Address VAListAddr,
                     QualType Ty) const override {
+    llvm::Type *BaseTy = CGF.ConvertType(Ty);
+    if (isa<llvm::ScalableVectorType>(BaseTy))
+      llvm::report_fatal_error("Passing SVE types to variadic functions is "
+                               "currently not supported");
+
     return Kind == Win64 ? EmitMSVAArg(CGF, VAListAddr, Ty)
                          : isDarwinPCS() ? EmitDarwinVAArg(VAListAddr, Ty, CGF)
                                          : EmitAAPCSVAArg(VAListAddr, Ty, CGF);
@@ -10390,7 +10395,6 @@ bool RISCVABIInfo::detectFPCCEligibleStructHelper(QualType Ty, CharUnits CurOff,
       return false;
     Field1Ty = CGT.ConvertType(EltTy);
     Field1Off = CurOff;
-    assert(CurOff.isZero() && "Unexpected offset for first field");
     Field2Ty = Field1Ty;
     Field2Off = Field1Off + getContext().getTypeSizeInChars(EltTy);
     return true;
@@ -10485,7 +10489,7 @@ bool RISCVABIInfo::detectFPCCEligibleStruct(QualType Ty, llvm::Type *&Field1Ty,
     NeededArgFPRs++;
   else if (Field2Ty)
     NeededArgGPRs++;
-  return IsCandidate;
+  return true;
 }
 
 // Call getCoerceAndExpand for the two-element flattened struct described by
@@ -10511,15 +10515,15 @@ ABIArgInfo RISCVABIInfo::coerceAndExpandFPCCEligibleStruct(
 
   CharUnits Field2Align =
       CharUnits::fromQuantity(getDataLayout().getABITypeAlignment(Field2Ty));
-  CharUnits Field1Size =
+  CharUnits Field1End = Field1Off +
       CharUnits::fromQuantity(getDataLayout().getTypeStoreSize(Field1Ty));
-  CharUnits Field2OffNoPadNoPack = Field1Size.alignTo(Field2Align);
+  CharUnits Field2OffNoPadNoPack = Field1End.alignTo(Field2Align);
 
   CharUnits Padding = CharUnits::Zero();
   if (Field2Off > Field2OffNoPadNoPack)
     Padding = Field2Off - Field2OffNoPadNoPack;
-  else if (Field2Off != Field2Align && Field2Off > Field1Size)
-    Padding = Field2Off - Field1Size;
+  else if (Field2Off != Field2Align && Field2Off > Field1End)
+    Padding = Field2Off - Field1End;
 
   bool IsPacked = !Field2Off.isMultipleOf(Field2Align);
 

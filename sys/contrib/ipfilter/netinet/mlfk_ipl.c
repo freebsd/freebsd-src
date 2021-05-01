@@ -22,7 +22,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/select.h>
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/selinfo.h>
 # include <sys/jail.h>
 # ifdef _KERNEL
@@ -52,7 +52,7 @@
 VNET_DECLARE(ipf_main_softc_t, ipfmain);
 #define	V_ipfmain		VNET(ipfmain)
 
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 static struct cdev *ipf_devs[IPL_LOGSIZE];
 #else
 static dev_t ipf_devs[IPL_LOGSIZE];
@@ -68,18 +68,23 @@ static int ipf_modunload(void);
 static int ipf_fbsd_sysctl_create(void);
 static int ipf_fbsd_sysctl_destroy(void);
 
-#ifdef __FreeBSD_version
-static	int	ipfopen __P((struct cdev*, int, int, struct thread *));
-static	int	ipfclose __P((struct cdev*, int, int, struct thread *));
-static	int	ipfread __P((struct cdev*, struct uio *, int));
-static	int	ipfwrite __P((struct cdev*, struct uio *, int));
+#ifdef __FreeBSD__
+static	int	ipfopen(struct cdev*, int, int, struct thread *);
+static	int	ipfclose(struct cdev*, int, int, struct thread *);
+static	int	ipfread(struct cdev*, struct uio *, int);
+static	int	ipfwrite(struct cdev*, struct uio *, int);
 #else
-static	int	ipfopen __P((dev_t, int, int, struct proc *));
-static	int	ipfclose __P((dev_t, int, int, struct proc *));
-static	int	ipfread __P((dev_t, struct uio *, int));
-static	int	ipfwrite __P((dev_t, struct uio *, int));
+static	int	ipfopen(dev_t, int, int, struct proc *);
+static	int	ipfclose(dev_t, int, int, struct proc *);
+static	int	ipfread(dev_t, struct uio *, int);
+static	int	ipfwrite(dev_t, struct uio *, int);
 #endif
 
+#ifdef LARGE_NAT
+#define IPF_LARGE_NAT	1
+#else
+#define IPF_LARGE_NAT	0
+#endif
 
 SYSCTL_DECL(_net_inet);
 #define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
@@ -132,10 +137,11 @@ SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
 	   &VNET_NAME(ipfmain.ipf_running), 0, "IPF is running");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_chksrc), 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &VNET_NAME(ipfmain.ipf_minttl), 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, large_nat, CTLFLAG_RD, &VNET_NAME(ipfmain.ipf_large_nat), 0, "large_nat");
 
 #define CDEV_MAJOR 79
 #include <sys/poll.h>
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/select.h>
 static int ipfpoll(struct cdev *dev, int events, struct thread *td);
 
@@ -367,83 +373,57 @@ sysctl_error:
 }
 
 /*
- * In the VIMAGE case kern_sysctl.c already adds the vnet base address given
- * we set CTLFLAG_VNET to get proper access checks.  Have to undo this.
- * Then we add the given offset to the specific malloced struct hanging off
- * virtualized ipmain struct.
+ * arg2 holds the offset of the relevant member in the virtualized
+ * ipfmain structure.
  */
 static int
 sysctl_ipf_int_nat ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_nat_softc_t *nat_softc;
 
-	if (arg1) {
-		ipf_nat_softc_t *nat_softc;
+	nat_softc = V_ipfmain.ipf_nat_soft;
+	arg1 = (void *)((uintptr_t)nat_softc + arg2);
 
-		nat_softc = V_ipfmain.ipf_nat_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)nat_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_state ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_state_softc_t *state_softc;
 
-	if (arg1) {
-		ipf_state_softc_t *state_softc;
+	state_softc = V_ipfmain.ipf_state_soft;
+	arg1 = (void *)((uintptr_t)state_softc + arg2);
 
-		state_softc = V_ipfmain.ipf_state_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)state_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_auth ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_auth_softc_t *auth_softc;
 
-	if (arg1) {
-		ipf_auth_softc_t *auth_softc;
+	auth_softc = V_ipfmain.ipf_auth_soft;
+	arg1 = (void *)((uintptr_t)auth_softc + arg2);
 
-		auth_softc = V_ipfmain.ipf_auth_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)auth_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_frag_softc_t *frag_softc;
 
-	if (arg1) {
-		ipf_frag_softc_t *frag_softc;
+	frag_softc = V_ipfmain.ipf_frag_soft;
+	arg1 = (void *)((uintptr_t)frag_softc + arg2);
 
-		frag_softc = V_ipfmain.ipf_frag_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)frag_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 #endif
 
 
 static int
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 ipfpoll(struct cdev *dev, int events, struct thread *td)
 #else
 ipfpoll(dev_t dev, int events, struct proc *td)
@@ -496,7 +476,7 @@ ipfpoll(dev_t dev, int events, struct proc *td)
  * routines below for saving IP headers to buffer
  */
 static int ipfopen(dev, flags
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 , devtype, p)
 	int devtype;
 	struct thread *p;
@@ -536,7 +516,7 @@ static int ipfopen(dev, flags
 
 
 static int ipfclose(dev, flags
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 , devtype, p)
 	int devtype;
 	struct thread *p;
@@ -562,13 +542,9 @@ static int ipfclose(dev, flags
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
-#if (BSD >= 199306)
 static int ipfread(dev, uio, ioflag)
 	int ioflag;
-#else
-static int ipfread(dev, uio)
-#endif
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 	struct cdev *dev;
 #else
 	dev_t dev;
@@ -609,13 +585,9 @@ static int ipfread(dev, uio)
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
-#if (BSD >= 199306)
 static int ipfwrite(dev, uio, ioflag)
 	int ioflag;
-#else
-static int ipfwrite(dev, uio)
-#endif
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 	struct cdev *dev;
 #else
 	dev_t dev;
@@ -645,29 +617,29 @@ ipf_fbsd_sysctl_create(void)
 	sysctl_ctx_init(&ipf_clist);
 
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "fr_defnatage", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_defage), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_defage), "");
 	SYSCTL_DYN_IPF_STATE(_net_inet_ipf, OID_AUTO, "fr_statesize", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_state_softc_t, ipf_state_size), 0, "");
+	    NULL, offsetof(ipf_state_softc_t, ipf_state_size), "");
 	SYSCTL_DYN_IPF_STATE(_net_inet_ipf, OID_AUTO, "fr_statemax", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_state_softc_t, ipf_state_max), 0, "");
+	    NULL, offsetof(ipf_state_softc_t, ipf_state_max), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_nattable_max", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_table_max), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_table_max), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_nattable_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_table_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_table_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_natrules_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_maprules_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_maprules_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_rdrrules_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_rdrrules_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_rdrrules_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_hostmap_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_hostmap_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_hostmap_sz), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_authsize", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_size), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_size), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_authused", CTLFLAG_RD,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_used), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_used), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_defaultauthage", CTLFLAG_RW,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_defaultage), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_defaultage), "");
 	SYSCTL_DYN_IPF_FRAG(_net_inet_ipf, OID_AUTO, "fr_ipfrttl", CTLFLAG_RW,
-	    (void *)offsetof(ipf_frag_softc_t, ipfr_ttl), 0, "");
+	    NULL, offsetof(ipf_frag_softc_t, ipfr_ttl), "");
 	return 0;
 }
 
@@ -680,4 +652,3 @@ ipf_fbsd_sysctl_destroy(void)
 	}
 	return 0;
 }
-

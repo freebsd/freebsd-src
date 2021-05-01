@@ -59,11 +59,11 @@ char ixv_driver_version[] = "2.0.1-k";
  ************************************************************************/
 static pci_vendor_info_t ixv_vendor_info_array[] =
 {
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF, "Intel(R) PRO/10GbE Virtual Function Network Driver"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF, "Intel(R) PRO/10GbE Virtual Function Network Driver"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF, "Intel(R) PRO/10GbE Virtual Function Network Driver"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF, "Intel(R) PRO/10GbE Virtual Function Network Driver"),
-	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF, "Intel(R) PRO/10GbE Virtual Function Network Driver"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_VF, "Intel(R) X520 82599 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_VF, "Intel(R) X540 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550_VF, "Intel(R) X550 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_VF, "Intel(R) X552 Virtual Function"),
+	PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_VF, "Intel(R) X553 Virtual Function"),
 	/* required last entry */
 PVID_END
 };
@@ -233,12 +233,10 @@ static struct if_shared_ctx ixv_sctx_init = {
 	.isc_ntxd_default = {DEFAULT_TXD},
 };
 
-if_shared_ctx_t ixv_sctx = &ixv_sctx_init;
-
 static void *
 ixv_register(device_t dev)
 {
-	return (ixv_sctx);
+	return (&ixv_sctx_init);
 }
 
 /************************************************************************
@@ -1030,7 +1028,7 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RX, ixv_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RXTX, ixv_msix_que, rx_que, rx_que->rxr.me, buf);
 
 		if (error) {
 			device_printf(iflib_get_dev(ctx),

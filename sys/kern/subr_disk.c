@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <geom/geom_disk.h>
 
-static int bioq_batchsize = 0;
+static int bioq_batchsize = 128;
 SYSCTL_INT(_debug, OID_AUTO, bioq_batchsize, CTLFLAG_RW,
     &bioq_batchsize, 0, "BIOQ batch size");
 
@@ -172,6 +172,8 @@ bioq_remove(struct bio_queue_head *head, struct bio *bp)
 		head->insert_point = NULL;
 
 	TAILQ_REMOVE(&head->queue, bp, bio_queue);
+	if (TAILQ_EMPTY(&head->queue))
+		head->batched = 0;
 	head->total--;
 }
 

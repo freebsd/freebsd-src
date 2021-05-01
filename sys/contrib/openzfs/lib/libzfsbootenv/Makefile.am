@@ -4,6 +4,8 @@ pkgconfig_DATA = libzfsbootenv.pc
 
 lib_LTLIBRARIES = libzfsbootenv.la
 
+include $(top_srcdir)/config/Abigail.am
+
 if BUILD_FREEBSD
 DEFAULT_INCLUDES += -I$(top_srcdir)/include/os/freebsd/zfs
 endif
@@ -30,3 +32,8 @@ libzfsbootenv_la_LDFLAGS += -Wl,-z,defs
 endif
 
 libzfsbootenv_la_LDFLAGS += -version-info 1:0:0
+
+include $(top_srcdir)/config/CppCheck.am
+
+# Library ABI
+EXTRA_DIST = libzfsbootenv.abi libzfsbootenv.suppr

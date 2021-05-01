@@ -423,7 +423,10 @@ static const STRUCT_USB_HOST_ID ubt_ignore_devs[] =
 	{ USB_VPI(0x0489, 0xe03c, 0), USB_DEV_BCD_LTEQ(1) },
 	{ USB_VPI(0x0489, 0xe036, 0), USB_DEV_BCD_LTEQ(1) },
 
-	/* Intel Wireless 8260 and successors are handled in ng_ubt_intel.c */
+	/* Intel Wireless controllers are handled in ng_ubt_intel.c */
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x07dc, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2a, 0) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aa7, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0a2b, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0aaa, 0) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, 0) },
@@ -825,8 +828,6 @@ ubt_probe_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
         case USB_ST_SETUP:
 submit_next:
-		/* Try clear stall first */
-		usbd_xfer_set_stall(xfer);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
@@ -835,6 +836,8 @@ submit_next:
 		if (error != USB_ERR_CANCELLED) {
 			printf("ng_ubt: interrupt transfer failed: %s\n",
 				usbd_errstr(error));
+			/* Try clear stall first */
+			usbd_xfer_set_stall(xfer);
 			goto submit_next;
 		}
 		break;

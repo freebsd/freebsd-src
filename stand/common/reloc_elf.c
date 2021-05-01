@@ -52,7 +52,8 @@ int
 __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
     int reltype, Elf_Addr relbase, Elf_Addr dataaddr, void *data, size_t len)
 {
-#if (defined(__i386__) || defined(__amd64__)) && __ELF_WORD_SIZE == 64
+#if (defined(__aarch64__) || defined(__amd64__) || defined(__i386__)) && \
+    __ELF_WORD_SIZE == 64
 	Elf64_Addr *where, val;
 	Elf_Addr addend, addr;
 	Elf_Size rtype, symidx;
@@ -87,12 +88,29 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	if (reltype == ELF_RELOC_REL)
 		addend = *where;
 
+#if defined(__aarch64__)
+#define	RELOC_RELATIVE		R_AARCH64_RELATIVE
+#define	RELOC_IRELATIVE		R_AARCH64_IRELATIVE
+#elif defined(__amd64__) || defined(__i386__)
 /* XXX, definitions not available on i386. */
 #define	R_X86_64_64		1
 #define	R_X86_64_RELATIVE	8
 #define	R_X86_64_IRELATIVE	37
 
+#define	RELOC_RELATIVE		R_X86_64_RELATIVE
+#define	RELOC_IRELATIVE		R_X86_64_IRELATIVE
+#endif
+
 	switch (rtype) {
+	case RELOC_RELATIVE:
+		addr = (Elf_Addr)addend + relbase;
+		val = addr;
+		memcpy(where, &val, sizeof(val));
+		break;
+	case RELOC_IRELATIVE:
+		/* leave it to kernel */
+		break;
+#if defined(__amd64__) || defined(__i386__)
 	case R_X86_64_64:		/* S + A */
 		addr = symaddr(ef, symidx);
 		if (addr == 0)
@@ -100,14 +118,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 		val = addr + addend;
 		*where = val;
 		break;
-	case R_X86_64_RELATIVE:
-		addr = (Elf_Addr)addend + relbase;
-		val = addr;
-		*where = val;
-		break;
-	case R_X86_64_IRELATIVE:
-		/* leave it to kernel */
-		break;
+#endif
 	default:
 		printf("\nunhandled relocation type %u\n", (u_int)rtype);
 		return (EFTYPE);
@@ -175,8 +186,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	}
 
 	return (0);
-#elif defined(__aarch64__) || defined(__arm__) || defined(__powerpc__) || \
-    defined(__riscv)
+#elif defined(__powerpc__) || defined(__riscv)
 	Elf_Size w;
 	const Elf_Rela *rela;
 
@@ -186,11 +196,7 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 		if (relbase + rela->r_offset >= dataaddr &&
 		    relbase + rela->r_offset < dataaddr + len) {
 			switch (ELF_R_TYPE(rela->r_info)) {
-#if defined(__aarch64__)
-			case R_AARCH64_RELATIVE:
-#elif defined(__arm__)
-			case R_ARM_RELATIVE:
-#elif defined(__powerpc__)
+#if defined(__powerpc__)
 			case R_PPC_RELATIVE:
 #elif defined(__riscv)
 			case R_RISCV_RELATIVE:

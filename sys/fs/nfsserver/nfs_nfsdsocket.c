@@ -534,9 +534,21 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 {
 	int error = 0, lktype;
 	vnode_t vp;
-	mount_t mp = NULL;
+	mount_t mp;
 	struct nfsrvfh fh;
 	struct nfsexstuff nes;
+	struct mbuf *md;
+	char *dpos;
+
+	/*
+	 * Save the current position in the request mbuf list so
+	 * that a rollback to this location can be done upon an
+	 * ERELOOKUP error return from an RPC function.
+	 */
+	md = nd->nd_md;
+	dpos = nd->nd_dpos;
+tryagain:
+	mp = NULL;
 
 	/*
 	 * Get a locked vnode for the first file handle
@@ -600,8 +612,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 		nfsrvd_statstart(nfsv3to4op[nd->nd_procnum], /*now*/ NULL);
 		nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
 		   /*now*/ NULL, /*then*/ NULL);
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
 		goto out;
 	}
 
@@ -631,8 +642,22 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 			error = (*(nfsrv3_procs0[nd->nd_procnum]))(nd, isdgram,
 			    vp, &nes);
 		}
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
+
+		if (error == 0 && nd->nd_repstat == ERELOOKUP) {
+			/*
+			 * Roll back to the beginning of the RPC request
+			 * arguments.
+			 */
+			nd->nd_md = md;
+			nd->nd_dpos = dpos;
+
+			/* Free the junk RPC reply and redo the RPC. */
+			m_freem(nd->nd_mreq);
+			nd->nd_mreq = nd->nd_mb = NULL;
+			nd->nd_repstat = 0;
+			goto tryagain;
+		}
 
 		nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
 		    /*now*/ NULL, /*then*/ &start_time);
@@ -691,6 +716,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	static u_int64_t compref = 0;
 	struct bintime start_time;
 	struct thread *p;
+	struct mbuf *mb, *md;
+	char *bpos, *dpos;
+	int bextpg, bextpgsiz;
 
 	p = curthread;
 
@@ -1045,6 +1073,20 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				break;
 			}
 		    }
+
+		    /*
+		     * Save the current positions in the mbuf lists so
+		     * that a rollback to this location can be done upon a
+		     * redo due to a ERELOOKUP return for a operation.
+		     */
+		    mb = nd->nd_mb;
+		    bpos = nd->nd_bpos;
+		    bextpg = nd->nd_bextpg;
+		    bextpgsiz = nd->nd_bextpgsiz;
+		    md = nd->nd_md;
+		    dpos = nd->nd_dpos;
+tryagain:
+
 		    if (nfsv4_opflag[op].retfh == 1) {
 			if (!vp) {
 				nd->nd_repstat = NFSERR_NOFILEHANDLE;
@@ -1153,6 +1195,25 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			}
 			error = 0;
 		}
+
+		if (nd->nd_repstat == ERELOOKUP) {
+			/*
+			 * Roll back to the beginning of the operation
+			 * arguments.
+			 */
+			nd->nd_md = md;
+			nd->nd_dpos = dpos;
+
+			/*
+			 * Trim off the bogus reply for this operation
+			 * and redo the operation.
+			 */
+			nfsm_trimtrailing(nd, mb, bpos, bextpg, bextpgsiz);
+			nd->nd_repstat = 0;
+			nd->nd_flag |= ND_ERELOOKUP;
+			goto tryagain;
+		}
+		nd->nd_flag &= ~ND_ERELOOKUP;
 
 		if (statsinprog != 0) {
 			nfsrvd_statend(op, /*bytes*/ 0, /*now*/ NULL,

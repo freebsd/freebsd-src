@@ -1562,7 +1562,8 @@ static const char *nfit_types[] = {
     [ACPI_NFIT_TYPE_SMBIOS] = "SMBIOS",
     [ACPI_NFIT_TYPE_CONTROL_REGION] = "Control Region",
     [ACPI_NFIT_TYPE_DATA_REGION] = "Data Region",
-    [ACPI_NFIT_TYPE_FLUSH_ADDRESS] = "Flush Address"
+    [ACPI_NFIT_TYPE_FLUSH_ADDRESS] = "Flush Address",
+    [ACPI_NFIT_TYPE_CAPABILITIES] = "Platform Capabilities"
 };
 
 
@@ -1579,6 +1580,7 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 	ACPI_NFIT_CONTROL_REGION *ctlreg;
 	ACPI_NFIT_DATA_REGION *datareg;
 	ACPI_NFIT_FLUSH_ADDRESS *fladdr;
+	ACPI_NFIT_CAPABILITIES *caps;
 
 	if (nfit->Type < nitems(nfit_types))
 		printf("\tType=%s\n", nfit_types[nfit->Type]);
@@ -1613,8 +1615,8 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		break;
 	case ACPI_NFIT_TYPE_MEMORY_MAP:
 		mmap = (ACPI_NFIT_MEMORY_MAP *)nfit;
-		printf("\tDeviceHandle=%u\n", (u_int)mmap->DeviceHandle);
-		printf("\tPhysicalId=%u\n", (u_int)mmap->PhysicalId);
+		printf("\tDeviceHandle=0x%x\n", (u_int)mmap->DeviceHandle);
+		printf("\tPhysicalId=0x%04x\n", (u_int)mmap->PhysicalId);
 		printf("\tRegionId=%u\n", (u_int)mmap->RegionId);
 		printf("\tRangeIndex=%u\n", (u_int)mmap->RangeIndex);
 		printf("\tRegionIndex=%u\n", (u_int)mmap->RegionIndex);
@@ -1657,20 +1659,20 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		printf("\tRegionIndex=%u\n", (u_int)ctlreg->RegionIndex);
 		printf("\tVendorId=0x%04x\n", (u_int)ctlreg->VendorId);
 		printf("\tDeviceId=0x%04x\n", (u_int)ctlreg->DeviceId);
-		printf("\tRevisionId=%u\n", (u_int)ctlreg->RevisionId);
+		printf("\tRevisionId=0x%02x\n", (u_int)ctlreg->RevisionId);
 		printf("\tSubsystemVendorId=0x%04x\n",
 		    (u_int)ctlreg->SubsystemVendorId);
 		printf("\tSubsystemDeviceId=0x%04x\n",
 		    (u_int)ctlreg->SubsystemDeviceId);
-		printf("\tSubsystemRevisionId=%u\n",
+		printf("\tSubsystemRevisionId=0x%02x\n",
 		    (u_int)ctlreg->SubsystemRevisionId);
 		printf("\tValidFields=0x%02x\n", (u_int)ctlreg->ValidFields);
-		printf("\tManufacturingLocation=%u\n",
+		printf("\tManufacturingLocation=0x%02x\n",
 		    (u_int)ctlreg->ManufacturingLocation);
-		printf("\tManufacturingDate=%u\n",
-		    (u_int)ctlreg->ManufacturingDate);
-		printf("\tSerialNumber=%u\n",
-		    (u_int)ctlreg->SerialNumber);
+		printf("\tManufacturingDate=%04x\n",
+		    (u_int)be16toh(ctlreg->ManufacturingDate));
+		printf("\tSerialNumber=%08X\n",
+		    (u_int)be32toh(ctlreg->SerialNumber));
 		printf("\tCode=0x%04x\n", (u_int)ctlreg->Code);
 		printf("\tWindows=%u\n", (u_int)ctlreg->Windows);
 		printf("\tWindowSize=0x%016jx\n",
@@ -1708,6 +1710,20 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		printf("\tDeviceHandle=%u\n", (u_int)fladdr->DeviceHandle);
 		printf("\tHintCount=%u\n", (u_int)fladdr->HintCount);
 		/* XXX fladdr->HintAddress[i] output is not supported */
+		break;
+	case ACPI_NFIT_TYPE_CAPABILITIES:
+		caps = (ACPI_NFIT_CAPABILITIES *)nfit;
+		printf("\tHighestCapability=%u\n", (u_int)caps->HighestCapability);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_NFIT_CAPABILITY_## flag, #flag)
+
+		printf("\tCapabilities=");
+		PRINTFLAG(caps->Capabilities, CACHE_FLUSH);
+		PRINTFLAG(caps->Capabilities, MEM_FLUSH);
+		PRINTFLAG(caps->Capabilities, MEM_MIRRORING);
+		PRINTFLAG_END();
+
+#undef PRINTFLAG
 		break;
 	}
 }

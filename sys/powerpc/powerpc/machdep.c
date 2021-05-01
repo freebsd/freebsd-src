@@ -263,8 +263,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	char		*env;
 	void		*kmdp = NULL;
         bool		ofw_bootargs = false;
-	bool		symbols_provided = false;
 #ifdef DDB
+	bool		symbols_provided = false;
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
 	vm_offset_t ksym_sz;

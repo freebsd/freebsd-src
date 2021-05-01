@@ -75,28 +75,4 @@
 
 #define BUS_DMA_TAG_VALID(t)    ((t) != (bus_dma_tag_t)0)
 
-#if defined(_ARM32_BUS_DMA_PRIVATE) && __ARM_ARCH < 6
-/*
- *	arm32_dma_range
- *
- *	This structure describes a valid DMA range.
- */
-struct arm32_dma_range {
-	bus_addr_t	dr_sysbase;	/* system base address */
-	bus_addr_t	dr_busbase;	/* appears here on bus */
-	bus_size_t	dr_len;		/* length of range */
-};
-
-/* _dm_buftype */
-#define	ARM32_BUFTYPE_INVALID		0
-#define	ARM32_BUFTYPE_LINEAR		1
-#define	ARM32_BUFTYPE_MBUF		2
-#define	ARM32_BUFTYPE_UIO		3
-#define	ARM32_BUFTYPE_RAW		4
-
-struct arm32_dma_range	*bus_dma_get_range(void);
-int	bus_dma_get_range_nb(void);
-
-#endif /* _ARM32_BUS_DMA_PRIVATE */
-
 #endif /* _ARM_BUS_DMA_H */

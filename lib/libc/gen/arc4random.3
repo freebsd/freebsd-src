@@ -62,7 +62,7 @@ consumption because the other interfaces are deficient in either
 quality, portability, standardization, or availability.
 These functions can be called in almost all coding environments,
 including
-.Xr pthreads 3
+.Xr pthread 3
 and
 .Xr chroot 2 .
 .Pp
@@ -74,7 +74,7 @@ under program flow can act as additional stirring.
 The subsystem is re-seeded from the kernel
 .Xr random 4
 subsystem using
-.Xr getentropy 2
+.Xr getentropy 3
 on a regular basis, and also upon
 .Xr fork 2 .
 .Pp

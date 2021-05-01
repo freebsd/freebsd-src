@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -559,6 +559,9 @@ AcValidateTableHeader (
 
     if (Actual < sizeof (ACPI_TABLE_HEADER))
     {
+        fprintf (stderr,
+            "Could not read entire table header: Actual %u, Requested %u\n",
+            (UINT32) Actual, (UINT32) sizeof (ACPI_TABLE_HEADER));
         return (AE_ERROR);
     }
 

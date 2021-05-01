@@ -72,11 +72,21 @@ onehost(const char *host, const char *transp)
 	 */
 	tv.tv_sec = 0;
 	tv.tv_usec = 500000;
+#ifdef __FreeBSD__
+	/*
+	 * FreeBSD does not allow setting the timeout using __rpc_control,
+	 * but does have clnt_create_timed() that allows passing a timeout.
+	 */
+	if ((clnt = clnt_create_timed(host, RPCBPROG, RPCBVERS, transp,
+	     &tv)) == NULL)
+		SKIPX(, "clnt_create (%s)", clnt_spcreateerror(""));
+#else
 #define CLCR_SET_RPCB_TIMEOUT   2
 	__rpc_control(CLCR_SET_RPCB_TIMEOUT, &tv);
 
 	if ((clnt = clnt_create(host, RPCBPROG, RPCBVERS, transp)) == NULL)
 		SKIPX(, "clnt_create (%s)", clnt_spcreateerror(""));
+#endif
 
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;

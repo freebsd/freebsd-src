@@ -208,6 +208,7 @@ extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
     unsigned long data);
 extern void tasklet_enable(struct tasklet_struct *);
 extern void tasklet_disable(struct tasklet_struct *);
+extern void tasklet_disable_nosync(struct tasklet_struct *);
 extern int tasklet_trylock(struct tasklet_struct *);
 extern void tasklet_unlock(struct tasklet_struct *);
 extern void tasklet_unlock_wait(struct tasklet_struct *ts);

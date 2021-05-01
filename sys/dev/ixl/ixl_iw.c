@@ -238,7 +238,7 @@ ixl_iw_pf_attach(struct ixl_pf *pf)
 		}
 
 	pf_entry = malloc(sizeof(struct ixl_iw_pf_entry),
-			M_DEVBUF, M_NOWAIT | M_ZERO);
+			M_IXL, M_NOWAIT | M_ZERO);
 	if (pf_entry == NULL) {
 		device_printf(pf->dev,
 		    "%s: failed to allocate memory to attach new PF\n",
@@ -289,7 +289,7 @@ ixl_iw_pf_detach(struct ixl_pf *pf)
 		goto out;
 	}
 	LIST_REMOVE(pf_entry, node);
-	free(pf_entry, M_DEVBUF);
+	free(pf_entry, M_IXL);
 	ixl_iw_ref_cnt--;
 
 out:
@@ -414,7 +414,7 @@ ixl_iw_register(struct ixl_iw_ops *ops)
 	taskqueue_start_threads(&ixl_iw.tq, 1, PI_NET, "ixl iw");
 
 	ixl_iw.ops = malloc(sizeof(struct ixl_iw_ops),
-			M_DEVBUF, M_NOWAIT | M_ZERO);
+			M_IXL, M_NOWAIT | M_ZERO);
 	if (ixl_iw.ops == NULL) {
 		printf("%s: failed to allocate memory\n", __func__);
 		taskqueue_free(ixl_iw.tq);
@@ -481,7 +481,7 @@ ixl_iw_unregister(void)
 		taskqueue_drain(ixl_iw.tq, &pf_entry->iw_task);
 	taskqueue_free(ixl_iw.tq);
 	ixl_iw.tq = NULL;
-	free(ixl_iw.ops, M_DEVBUF);
+	free(ixl_iw.ops, M_IXL);
 	ixl_iw.ops = NULL;
 
 	return (0);

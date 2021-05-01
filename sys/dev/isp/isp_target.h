@@ -46,13 +46,9 @@ typedef enum {
 	NT_CLEAR_TASK_SET,
 	NT_LUN_RESET,
 	NT_TARGET_RESET,
-	NT_BUS_RESET,
 	NT_LIP_RESET,
 	NT_LINK_UP,
 	NT_LINK_DOWN,
-	NT_LOGOUT,
-	NT_GLOBAL_LOGOUT,
-	NT_CHANGED,
 	NT_HBA_RESET,
 	NT_QUERY_TASK_SET,
 	NT_QUERY_ASYNC_EVENT,
@@ -73,13 +69,6 @@ typedef struct isp_notify {
 	uint8_t		nt_need_ack;	/* this notify needs an ACK */
 	isp_ncode_t	nt_ncode;	/* action */
 } isp_notify_t;
-
-/*
- * Debug macros
- */
-
-#define	ISP_TDQE(isp, msg, idx, arg)	\
-    if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
 /*
  * Special Constatns

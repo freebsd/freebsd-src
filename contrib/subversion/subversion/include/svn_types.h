@@ -249,6 +249,35 @@ typedef struct svn_version_t svn_version_t;
 
 
 
+/** @defgroup apr_hash_utilities APR Hash Table Helpers
+ * These functions enable the caller to dereference an APR hash table index
+ * without type casts or temporary variables.
+ *
+ * These functions are provided by APR itself from version 1.5.
+ * Definitions are provided here for when using older versions of APR.
+ * @{
+ */
+
+#if !APR_VERSION_AT_LEAST(1, 5, 0)
+
+/** Return the key of the hash table entry indexed by @a hi. */
+const void *
+apr_hash_this_key(apr_hash_index_t *hi);
+
+/** Return the key length of the hash table entry indexed by @a hi. */
+apr_ssize_t
+apr_hash_this_key_len(apr_hash_index_t *hi);
+
+/** Return the value of the hash table entry indexed by @a hi. */
+void *
+apr_hash_this_val(apr_hash_index_t *hi);
+
+#endif
+
+/** @} */
+
+
+
 /** On Windows, APR_STATUS_IS_ENOTDIR includes several kinds of
  * invalid-pathname error but not ERROR_INVALID_NAME, so we include it.
  * We also include ERROR_DIRECTORY as that was not included in apr versions

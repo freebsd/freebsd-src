@@ -580,6 +580,7 @@ struct ieee80211_mimo_info {
 #define	IEEE80211_RX_FW_20MHZ		1
 #define	IEEE80211_RX_FW_40MHZ		2
 #define	IEEE80211_RX_FW_80MHZ		3
+#define	IEEE80211_RX_FW_160MHZ		4
 
 /* PHY type */
 #define	IEEE80211_RX_FP_11B		1

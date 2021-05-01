@@ -2313,7 +2313,8 @@ ext2_write(struct vop_write_args *ap)
 		} else if (xfersize + blkoffset == fs->e2fs_fsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
-				cluster_write(vp, bp, ip->i_size, seqcount, 0);
+				cluster_write(vp, &ip->i_clusterw, bp,
+				    ip->i_size, seqcount, 0);
 			} else {
 				bawrite(bp);
 			}

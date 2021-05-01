@@ -41,7 +41,6 @@
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/completion.h>
-#include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -365,7 +364,7 @@ struct qlnxr_dev {
 	struct ecore_dev	*cdev;
 
 	/* Added to extend Applications Support */
-        struct pci_dev          *pdev;
+        struct pci_dev          pdev;
 	uint32_t		dp_module;
 	uint8_t			dp_level;
 

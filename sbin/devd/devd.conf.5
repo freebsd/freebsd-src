@@ -40,7 +40,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd August 18, 2020
+.Dd October 12, 2020
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -416,7 +416,7 @@ node is destroyed.
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ETHERNET Ta Ar inet Ta IFATTACH Ta
 Notification when the default VNET instance of the
-.Ar inet
+.Em inet
 interface is attached.
 .El
 .Pp
@@ -454,18 +454,18 @@ provider size has changed.
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li IFNET
-.It Li IFNET Ta Ar inet Ta Ta
+.It Li IFNET Ta Em inet Ta Ta
 The
 .Dq subsystem
 is the actual name of the network interface on which the event
 took place.
-.It Li IFNET Ta Ar inet Ta Li LINK_UP Ta
+.It Li IFNET Ta Em inet Ta Li LINK_UP Ta
 Carrier status changed to UP.
-.It Li IFNET Ta Ar inet Ta Li LINK_DOWN Ta
+.It Li IFNET Ta Em inet Ta Li LINK_DOWN Ta
 Carrier status changed to DOWN.
-.It Li IFNET Ta Ar inet Ta Li ATTACH Ta
+.It Li IFNET Ta Em inet Ta Li ATTACH Ta
 The network interface is attached to the system.
-.It Li IFNET Ta Ar inet Ta Li DETACH Ta
+.It Li IFNET Ta Em inet Ta Li DETACH Ta
 The network interface is detached from the system.
 .El
 .Pp
@@ -662,6 +662,59 @@ For example:
 // is a new comment, even though it is logically
 // part of the previous comment.
 .Ed
+.Ss Notes on Variable Expansion
+To prevent issues with special shell characters, the following happens for each
+variable
+.Ic $foo .
+.Bl -enum
+.It
+The characters
+.Dq $'
+are inserted.
+.It
+The string
+.Dq $foo
+is removed.
+.It
+The value of the
+.Ic foo
+variable is inserted into the buffer with all single quote characters
+prefixed by a backslash.
+.El
+.Pp
+See
+.Xr sh 1
+for what this construct means.
+It is safe in all context, except one: inside single quotes.
+If foo=meta and bar=var, then a rule like the following:
+.Bd -literal -offset indent -compact
+action "echo '$foo $bar'";
+.Ed
+will be presented to the shell via
+.Xr system 3
+as
+.Bd -literal -offset indent -compact
+echo '$'meta' $'var''
+.Ed
+which produces the following output:
+.Bd -literal -offset indent -compact
+$meta $var
+.Ed
+as its output.
+This is an unanticipated result.
+A future version of this software will change this behavior.
+Users are discouraged from using single quotes inside
+.Ic action
+value without due care.
+.Pp
+The above should be written as
+.Bd -literal -offset indent -compact
+action "echo $foo' '$bar"
+.Ed
+to produce a single argument to echo.
+Given the above expansion, juxtaposing bare variables with
+single quote expressions will produce the right output,
+regardless of the value of the variable.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/devd.conf" -compact
 .It Pa /etc/devd.conf
@@ -739,3 +792,6 @@ has many additional examples.
 .Xr devfs 5 ,
 .Xr re_format 7 ,
 .Xr devd 8
+.Sh BUGS
+The variable expansion's interaction with single quotes is
+suboptimal and surprising.

@@ -120,3 +120,7 @@ device  	fbd
 options 	KBD_INSTALL_CDEV
 device  	ukbd
 device  	ums
+
+# HID support
+options 	HID_DEBUG	# enable debug msgs
+device		hid		# Generic HID support

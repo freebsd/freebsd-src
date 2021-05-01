@@ -46,8 +46,8 @@ int	linux_get_oss_version(struct thread *td);
 
 int	linux_kernver(struct thread *td);
 
-#define	LINUX_KVERSION		3
-#define	LINUX_KPATCHLEVEL	10
+#define	LINUX_KVERSION		4
+#define	LINUX_KPATCHLEVEL	4
 #define	LINUX_KSUBLEVEL		0
 
 #define	LINUX_KERNVER(a,b,c)	(((a) << 16) + ((b) << 8) + (c))
@@ -64,6 +64,8 @@ int	linux_kernver(struct thread *td);
 
 extern int linux_debug;
 extern int linux_default_openfiles;
+extern int linux_default_stacksize;
+extern int linux_dummy_rlimits;
 extern int linux_ignore_ip_recverr;
 extern int linux_preserve_vstatus;
 extern bool linux_map_sched_prio;

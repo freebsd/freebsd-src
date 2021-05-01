@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,12 +37,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <status.h>
 #include <vector.h>
 #include <lang.h>
 #include <vm.h>
 
-static void bc_vec_grow(BcVec *restrict v, size_t n) {
+void bc_vec_grow(BcVec *restrict v, size_t n) {
 
 	size_t len, cap = v->cap;
 	sig_atomic_t lock;
@@ -204,7 +203,7 @@ void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
 
 	BC_SIG_TRYLOCK(lock);
 
-	bc_vec_npop(v, v->len);
+	bc_vec_popAll(v);
 	bc_vec_expand(v, bc_vm_growSize(len, 1));
 	memcpy(v->v, str, len);
 	v->len = len;
@@ -241,7 +240,7 @@ void bc_vec_empty(BcVec *restrict v) {
 
 	BC_SIG_TRYLOCK(lock);
 
-	bc_vec_npop(v, v->len);
+	bc_vec_popAll(v);
 	bc_vec_pushByte(v, '\0');
 
 	BC_SIG_TRYUNLOCK(lock);
@@ -284,7 +283,7 @@ inline void bc_vec_clear(BcVec *restrict v) {
 void bc_vec_free(void *vec) {
 	BcVec *v = (BcVec*) vec;
 	BC_SIG_ASSERT_LOCKED;
-	bc_vec_npop(v, v->len);
+	bc_vec_popAll(v);
 	free(v->v);
 }
 

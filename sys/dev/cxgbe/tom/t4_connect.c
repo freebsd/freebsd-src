@@ -105,9 +105,6 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 	inp->inp_flowtype = M_HASHTYPE_OPAQUE;
 	inp->inp_flowid = tid;
 
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		tls_establish(toep);
-
 done:
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
@@ -259,7 +256,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct nhop_object *nh,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOSYS); /* XXX: implement lagg+TOE */
 	else
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
-	if (sc->flags & KERN_TLS_OK)
+	if (sc->flags & KERN_TLS_ON)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
 	rw_rlock(&sc->policy_lock);

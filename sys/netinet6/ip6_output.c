@@ -225,7 +225,7 @@ ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	    (csum_flags & CSUM_SCTP_IPV6) ||
 #endif
-	    (!frag && (ifp->if_capenable & IFCAP_NOMAP) == 0)) {
+	    (!frag && (ifp->if_capenable & IFCAP_MEXTPG) == 0)) {
 		m = mb_unmapped_to_ext(m);
 		if (m == NULL) {
 			if (frag)
@@ -418,9 +418,6 @@ done:
  * is uint32_t.  So we use u_long to hold largest one, which is rt_mtu.
  *
  * ifpp - XXX: just for statistics
- */
-/*
- * XXX TODO: no flowid is assigned for outbound flows?
  */
 int
 ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
@@ -659,9 +656,9 @@ again:
 	if (opt && opt->ip6po_tclass >= 0) {
 		int mask = 0;
 
-		if ((ip6->ip6_flow & htonl(0xfc << 20)) == 0)
+		if (IPV6_DSCP(ip6) == 0)
 			mask |= 0xfc;
-		if ((ip6->ip6_flow & htonl(0x03 << 20)) == 0)
+		if (IPV6_ECN(ip6) == 0)
 			mask |= 0x03;
 		if (mask != 0)
 			ip6->ip6_flow |= htonl((opt->ip6po_tclass & mask) << 20);
@@ -775,7 +772,8 @@ again:
 			}
 		}
 
-		nh = fib6_lookup(fibnum, &kdst, scopeid, NHR_NONE, 0);
+		nh = fib6_lookup(fibnum, &kdst, scopeid, NHR_NONE,
+		    m->m_pkthdr.flowid);
 		if (nh == NULL) {
 			IP6STAT_INC(ip6s_noroute);
 			/* No ifp in6_ifstat_inc(ifp, ifs6_out_discard); */
@@ -1179,7 +1177,6 @@ passout:
 			counter_u64_add(ia6->ia_ifa.ifa_opackets, 1);
 			counter_u64_add(ia6->ia_ifa.ifa_obytes,
 			    m->m_pkthdr.len);
-			ifa_free(&ia6->ia_ifa);
 		}
 		error = ip6_output_send(inp, ifp, origifp, m, dst, ro,
 		    (flags & IP_NO_SND_TAG_RL) ? false : true);

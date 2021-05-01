@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,6 +63,7 @@ enum expect_type {
 struct context {
     const atf_tc_t *tc;
     const char *resfile;
+    int resfilefd;
     size_t fail_count;
 
     enum expect_type expect;
@@ -73,12 +75,14 @@ struct context {
 };
 
 static void context_init(struct context *, const atf_tc_t *, const char *);
+static void context_set_resfile(struct context *, const char *);
+static void context_close_resfile(struct context *);
 static void check_fatal_error(atf_error_t);
 static void report_fatal_error(const char *, ...)
     ATF_DEFS_ATTRIBUTE_NORETURN;
 static atf_error_t write_resfile(const int, const char *, const int,
                                  const atf_dynstr_t *);
-static void create_resfile(const char *, const char *, const int,
+static void create_resfile(struct context *, const char *, const int,
                            atf_dynstr_t *);
 static void error_in_expect(struct context *, const char *, ...)
     ATF_DEFS_ATTRIBUTE_NORETURN;
@@ -102,11 +106,16 @@ static void errno_test(struct context *, const char *, const size_t,
 static atf_error_t check_prog_in_dir(const char *, void *);
 static atf_error_t check_prog(struct context *, const char *);
 
+/* No prototype in header for this one, it's a little sketchy (internal). */
+void atf_tc_set_resultsfile(const char *);
+
 static void
 context_init(struct context *ctx, const atf_tc_t *tc, const char *resfile)
 {
+
     ctx->tc = tc;
-    ctx->resfile = resfile;
+    ctx->resfilefd = -1;
+    context_set_resfile(ctx, resfile);
     ctx->fail_count = 0;
     ctx->expect = EXPECT_PASS;
     check_fatal_error(atf_dynstr_init(&ctx->expect_reason));
@@ -114,6 +123,41 @@ context_init(struct context *ctx, const atf_tc_t *tc, const char *resfile)
     ctx->expect_fail_count = 0;
     ctx->expect_exitcode = 0;
     ctx->expect_signo = 0;
+}
+
+static void
+context_set_resfile(struct context *ctx, const char *resfile)
+{
+    atf_error_t err;
+
+    context_close_resfile(ctx);
+    ctx->resfile = resfile;
+    if (strcmp(resfile, "/dev/stdout") == 0)
+        ctx->resfilefd = STDOUT_FILENO;
+    else if (strcmp(resfile, "/dev/stderr") == 0)
+        ctx->resfilefd = STDERR_FILENO;
+    else
+        ctx->resfilefd = open(resfile, O_WRONLY | O_CREAT | O_TRUNC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (ctx->resfilefd == -1) {
+            err = atf_libc_error(errno,
+                "Cannot create results file '%s'", resfile);
+            check_fatal_error(err);
+    }
+
+    ctx->resfile = resfile;
+}
+
+static void
+context_close_resfile(struct context *ctx)
+{
+
+    if (ctx->resfilefd == -1)
+        return;
+    if (ctx->resfilefd != STDOUT_FILENO && ctx->resfilefd != STDERR_FILENO)
+        close(ctx->resfilefd);
+    ctx->resfilefd = -1;
+    ctx->resfile = NULL;
 }
 
 static void
@@ -162,7 +206,7 @@ write_resfile(const int fd, const char *result, const int arg,
 
     INV(arg == -1 || reason != NULL);
 
-#define UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
     iov[count].iov_base = UNCONST(result);
     iov[count++].iov_len = strlen(result);
 
@@ -202,26 +246,23 @@ write_resfile(const int fd, const char *result, const int arg,
  * not return any error code.
  */
 static void
-create_resfile(const char *resfile, const char *result, const int arg,
+create_resfile(struct context *ctx, const char *result, const int arg,
                atf_dynstr_t *reason)
 {
     atf_error_t err;
 
-    if (strcmp("/dev/stdout", resfile) == 0) {
-        err = write_resfile(STDOUT_FILENO, result, arg, reason);
-    } else if (strcmp("/dev/stderr", resfile) == 0) {
-        err = write_resfile(STDERR_FILENO, result, arg, reason);
-    } else {
-        const int fd = open(resfile, O_WRONLY | O_CREAT | O_TRUNC,
-            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-        if (fd == -1) {
-            err = atf_libc_error(errno, "Cannot create results file '%s'",
-                                 resfile);
-        } else {
-            err = write_resfile(fd, result, arg, reason);
-            close(fd);
-        }
-    }
+    /*
+     * We'll attempt to truncate the results file, but only if it's not pointed
+     * at stdout/stderr.  We could just blindly ftruncate() here, but it may
+     * be that stdout/stderr have been redirected to a file that we want to
+     * validate expectations on, for example.  Kyua will want the truncation,
+     * but it will also redirect the results directly to some file and we'll
+     * have no issue here.
+     */
+    if (ctx->resfilefd != STDOUT_FILENO && ctx->resfilefd != STDERR_FILENO &&
+        ftruncate(ctx->resfilefd, 0) != -1)
+        lseek(ctx->resfilefd, 0, SEEK_SET);
+    err = write_resfile(ctx->resfilefd, result, arg, reason);
 
     if (reason != NULL)
         atf_dynstr_fini(reason);
@@ -280,7 +321,8 @@ expected_failure(struct context *ctx, atf_dynstr_t *reason)
 {
     check_fatal_error(atf_dynstr_prepend_fmt(reason, "%s: ",
         atf_dynstr_cstring(&ctx->expect_reason)));
-    create_resfile(ctx->resfile, "expected_failure", -1, reason);
+    create_resfile(ctx, "expected_failure", -1, reason);
+    context_close_resfile(ctx);
     exit(EXIT_SUCCESS);
 }
 
@@ -290,7 +332,8 @@ fail_requirement(struct context *ctx, atf_dynstr_t *reason)
     if (ctx->expect == EXPECT_FAIL) {
         expected_failure(ctx, reason);
     } else if (ctx->expect == EXPECT_PASS) {
-        create_resfile(ctx->resfile, "failed", -1, reason);
+        create_resfile(ctx, "failed", -1, reason);
+        context_close_resfile(ctx);
         exit(EXIT_FAILURE);
     } else {
         error_in_expect(ctx, "Test case raised a failure but was not "
@@ -325,7 +368,8 @@ pass(struct context *ctx)
         error_in_expect(ctx, "Test case was expecting a failure but got "
             "a pass instead");
     } else if (ctx->expect == EXPECT_PASS) {
-        create_resfile(ctx->resfile, "passed", -1, NULL);
+        create_resfile(ctx, "passed", -1, NULL);
+        context_close_resfile(ctx);
         exit(EXIT_SUCCESS);
     } else {
         error_in_expect(ctx, "Test case asked to explicitly pass but was "
@@ -338,7 +382,8 @@ static void
 skip(struct context *ctx, atf_dynstr_t *reason)
 {
     if (ctx->expect == EXPECT_PASS) {
-        create_resfile(ctx->resfile, "skipped", -1, reason);
+        create_resfile(ctx, "skipped", -1, reason);
+        context_close_resfile(ctx);
         exit(EXIT_SUCCESS);
     } else {
         error_in_expect(ctx, "Can only skip a test case when running in "
@@ -942,7 +987,7 @@ _atf_tc_expect_exit(struct context *ctx, const int exitcode, const char *reason,
     check_fatal_error(atf_dynstr_init_ap(&formatted, reason, ap2));
     va_end(ap2);
 
-    create_resfile(ctx->resfile, "expected_exit", exitcode, &formatted);
+    create_resfile(ctx, "expected_exit", exitcode, &formatted);
 }
 
 static void
@@ -959,7 +1004,7 @@ _atf_tc_expect_signal(struct context *ctx, const int signo, const char *reason,
     check_fatal_error(atf_dynstr_init_ap(&formatted, reason, ap2));
     va_end(ap2);
 
-    create_resfile(ctx->resfile, "expected_signal", signo, &formatted);
+    create_resfile(ctx, "expected_signal", signo, &formatted);
 }
 
 static void
@@ -975,7 +1020,7 @@ _atf_tc_expect_death(struct context *ctx, const char *reason, va_list ap)
     check_fatal_error(atf_dynstr_init_ap(&formatted, reason, ap2));
     va_end(ap2);
 
-    create_resfile(ctx->resfile, "expected_death", -1, &formatted);
+    create_resfile(ctx, "expected_death", -1, &formatted);
 }
 
 static void
@@ -991,7 +1036,14 @@ _atf_tc_expect_timeout(struct context *ctx, const char *reason, va_list ap)
     check_fatal_error(atf_dynstr_init_ap(&formatted, reason, ap2));
     va_end(ap2);
 
-    create_resfile(ctx->resfile, "expected_timeout", -1, &formatted);
+    create_resfile(ctx, "expected_timeout", -1, &formatted);
+}
+
+static void
+_atf_tc_set_resultsfile(struct context *ctx, const char *file)
+{
+
+    context_set_resfile(ctx, file);
 }
 
 /* ---------------------------------------------------------------------
@@ -1214,4 +1266,14 @@ atf_tc_expect_timeout(const char *reason, ...)
     va_start(ap, reason);
     _atf_tc_expect_timeout(&Current, reason, ap);
     va_end(ap);
+}
+
+/* Internal! */
+void
+atf_tc_set_resultsfile(const char *file)
+{
+
+    PRE(Current.tc != NULL);
+
+    _atf_tc_set_resultsfile(&Current, file);
 }

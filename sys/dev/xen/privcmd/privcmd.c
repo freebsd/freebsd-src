@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PRIVCMD, "privcmd_dev", "Xen privcmd user-space device");
 
+#define MAX_DMOP_BUFFERS 16
+
 struct privcmd_map {
 	vm_object_t mem;
 	vm_size_t size;
@@ -76,12 +78,14 @@ struct privcmd_map {
 };
 
 static d_ioctl_t     privcmd_ioctl;
+static d_open_t      privcmd_open;
 static d_mmap_single_t	privcmd_mmap_single;
 
 static struct cdevsw privcmd_devsw = {
 	.d_version = D_VERSION,
 	.d_ioctl = privcmd_ioctl,
 	.d_mmap_single = privcmd_mmap_single,
+	.d_open = privcmd_open,
 	.d_name = "privcmd",
 };
 
@@ -95,6 +99,10 @@ static struct cdev_pager_ops privcmd_pg_ops = {
 	.cdev_pg_fault = privcmd_pg_fault,
 	.cdev_pg_ctor =	privcmd_pg_ctor,
 	.cdev_pg_dtor =	privcmd_pg_dtor,
+};
+
+struct per_user_data {
+	domid_t dom;
 };
 
 static device_t privcmd_dev = NULL;
@@ -217,17 +225,70 @@ privcmd_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size,
 	return (0);
 }
 
+static struct privcmd_map *
+setup_virtual_area(struct thread *td, unsigned long addr, unsigned long num)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t mem;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	boolean_t wired;
+	struct privcmd_map *umap;
+	int error;
+
+	if ((num == 0) || ((addr & PAGE_MASK) != 0))
+		return NULL;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	error = vm_map_lookup(&map, addr, VM_PROT_NONE, &entry, &mem, &pindex,
+	    &prot, &wired);
+	if (error != KERN_SUCCESS || (entry->start != addr) ||
+	    (entry->end != addr + (num * PAGE_SIZE)))
+		return NULL;
+
+	vm_map_lookup_done(map, entry);
+	if ((mem->type != OBJT_MGTDEVICE) ||
+	    (mem->un_pager.devp.ops != &privcmd_pg_ops))
+		return NULL;
+
+	umap = mem->handle;
+	/* Allocate a bitset to store broken page mappings. */
+	umap->err = BITSET_ALLOC(num, M_PRIVCMD, M_WAITOK | M_ZERO);
+
+	return umap;
+}
+
 static int
 privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	      int mode, struct thread *td)
 {
-	int error, i;
+	int error;
+	unsigned int i;
+	void *data;
+	const struct per_user_data *u;
+
+	error = devfs_get_cdevpriv(&data);
+	if (error != 0)
+		return (EINVAL);
+	/*
+	 * Constify user-data to prevent unintended changes to the restriction
+	 * limits.
+	 */
+	u = data;
 
 	switch (cmd) {
 	case IOCTL_PRIVCMD_HYPERCALL: {
 		struct ioctl_privcmd_hypercall *hcall;
 
 		hcall = (struct ioctl_privcmd_hypercall *)arg;
+
+		/* Forbid hypercalls if restricted. */
+		if (u->dom != DOMID_INVALID) {
+			error = EPERM;
+			break;
+		}
+
 #ifdef __amd64__
 		/*
 		 * The hypervisor page table walker will refuse to access
@@ -254,47 +315,26 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	}
 	case IOCTL_PRIVCMD_MMAPBATCH: {
 		struct ioctl_privcmd_mmapbatch *mmap;
-		vm_map_t map;
-		vm_map_entry_t entry;
-		vm_object_t mem;
-		vm_pindex_t pindex;
-		vm_prot_t prot;
-		boolean_t wired;
 		struct xen_add_to_physmap_range add;
 		xen_ulong_t *idxs;
 		xen_pfn_t *gpfns;
-		int *errs, index;
+		int *errs;
+		unsigned int index;
 		struct privcmd_map *umap;
 		uint16_t num;
 
 		mmap = (struct ioctl_privcmd_mmapbatch *)arg;
 
-		if ((mmap->num == 0) ||
-		    ((mmap->addr & PAGE_MASK) != 0)) {
-			error = EINVAL;
+		if (u->dom != DOMID_INVALID && u->dom != mmap->dom) {
+			error = EPERM;
 			break;
 		}
 
-		map = &td->td_proc->p_vmspace->vm_map;
-		error = vm_map_lookup(&map, mmap->addr, VM_PROT_NONE, &entry,
-		    &mem, &pindex, &prot, &wired);
-		if (error != KERN_SUCCESS) {
+		umap = setup_virtual_area(td, mmap->addr, mmap->num);
+		if (umap == NULL) {
 			error = EINVAL;
 			break;
 		}
-		if ((entry->start != mmap->addr) ||
-		    (entry->end != mmap->addr + (mmap->num * PAGE_SIZE))) {
-			vm_map_lookup_done(map, entry);
-			error = EINVAL;
-			break;
-		}
-		vm_map_lookup_done(map, entry);
-		if ((mem->type != OBJT_MGTDEVICE) ||
-		    (mem->un_pager.devp.ops != &privcmd_pg_ops)) {
-			error = EINVAL;
-			break;
-		}
-		umap = mem->handle;
 
 		add.domid = DOMID_SELF;
 		add.space = XENMAPSPACE_gmfn_foreign;
@@ -313,10 +353,6 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		set_xen_guest_handle(add.idxs, idxs);
 		set_xen_guest_handle(add.gpfns, gpfns);
 		set_xen_guest_handle(add.errs, errs);
-
-		/* Allocate a bitset to store broken page mappings. */
-		umap->err = BITSET_ALLOC(mmap->num, M_PRIVCMD,
-		    M_WAITOK | M_ZERO);
 
 		for (index = 0; index < mmap->num; index += num) {
 			num = MIN(mmap->num - index, UINT16_MAX);
@@ -367,10 +403,162 @@ mmap_out:
 
 		break;
 	}
+	case IOCTL_PRIVCMD_MMAP_RESOURCE: {
+		struct ioctl_privcmd_mmapresource *mmap;
+		struct xen_mem_acquire_resource adq;
+		xen_pfn_t *gpfns;
+		struct privcmd_map *umap;
 
+		mmap = (struct ioctl_privcmd_mmapresource *)arg;
+
+		if (u->dom != DOMID_INVALID && u->dom != mmap->dom) {
+			error = EPERM;
+			break;
+		}
+
+		bzero(&adq, sizeof(adq));
+
+		adq.domid = mmap->dom;
+		adq.type = mmap->type;
+		adq.id = mmap->id;
+
+		/* Shortcut for getting the resource size. */
+		if (mmap->addr == 0 && mmap->num == 0) {
+			error = HYPERVISOR_memory_op(XENMEM_acquire_resource,
+			    &adq);
+			if (error != 0) {
+				error = xen_translate_error(error);
+				break;
+			}
+			error = copyout(&adq.nr_frames, &mmap->num,
+			    sizeof(mmap->num));
+			break;
+		}
+
+		umap = setup_virtual_area(td, mmap->addr, mmap->num);
+		if (umap == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		adq.nr_frames = mmap->num;
+		adq.frame = mmap->idx;
+
+		gpfns = malloc(sizeof(*gpfns) * mmap->num, M_PRIVCMD, M_WAITOK);
+		for (i = 0; i < mmap->num; i++)
+			gpfns[i] = atop(umap->phys_base_addr) + i;
+		set_xen_guest_handle(adq.frame_list, gpfns);
+
+		error = HYPERVISOR_memory_op(XENMEM_acquire_resource, &adq);
+		if (error != 0)
+			error = xen_translate_error(error);
+		else
+			umap->mapped = true;
+
+		free(gpfns, M_PRIVCMD);
+		if (!umap->mapped)
+			free(umap->err, M_PRIVCMD);
+
+		break;
+	}
+	case IOCTL_PRIVCMD_DM_OP: {
+		const struct ioctl_privcmd_dmop *dmop;
+		struct privcmd_dmop_buf *bufs;
+		struct xen_dm_op_buf *hbufs;
+
+		dmop = (struct ioctl_privcmd_dmop *)arg;
+
+		if (u->dom != DOMID_INVALID && u->dom != dmop->dom) {
+			error = EPERM;
+			break;
+		}
+
+		if (dmop->num == 0)
+			break;
+
+		if (dmop->num > MAX_DMOP_BUFFERS) {
+			error = E2BIG;
+			break;
+		}
+
+		bufs = malloc(sizeof(*bufs) * dmop->num, M_PRIVCMD, M_WAITOK);
+
+		error = copyin(dmop->ubufs, bufs, sizeof(*bufs) * dmop->num);
+		if (error != 0) {
+			free(bufs, M_PRIVCMD);
+			break;
+		}
+
+		hbufs = malloc(sizeof(*hbufs) * dmop->num, M_PRIVCMD, M_WAITOK);
+		for (i = 0; i < dmop->num; i++) {
+			set_xen_guest_handle(hbufs[i].h, bufs[i].uptr);
+			hbufs[i].size = bufs[i].size;
+		}
+
+#ifdef __amd64__
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			stac();
+#endif
+		error = HYPERVISOR_dm_op(dmop->dom, dmop->num, hbufs);
+#ifdef __amd64__
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			clac();
+#endif
+		if (error != 0)
+			error = xen_translate_error(error);
+
+		free(bufs, M_PRIVCMD);
+		free(hbufs, M_PRIVCMD);
+
+
+		break;
+	}
+	case IOCTL_PRIVCMD_RESTRICT: {
+		struct per_user_data *u;
+		domid_t dom;
+
+		dom = *(domid_t *)arg;
+
+		error = devfs_get_cdevpriv((void **)&u);
+		if (error != 0)
+			break;
+
+		if (u->dom != DOMID_INVALID && u->dom != dom) {
+			error = -EINVAL;
+			break;
+		}
+		u->dom = dom;
+
+		break;
+	}
 	default:
 		error = ENOSYS;
 		break;
+	}
+
+	return (error);
+}
+
+static void
+user_release(void *arg)
+{
+
+	free(arg, M_PRIVCMD);
+}
+
+static int
+privcmd_open(struct cdev *dev, int flag, int otyp, struct thread *td)
+{
+	struct per_user_data *u;
+	int error;
+
+	u = malloc(sizeof(*u), M_PRIVCMD, M_WAITOK);
+	u->dom = DOMID_INVALID;
+
+	/* Assign the allocated per_user_data to this open instance. */
+	error = devfs_set_cdevpriv(u, user_release);
+	if (error != 0) {
+		free(u, M_PRIVCMD);
 	}
 
 	return (error);

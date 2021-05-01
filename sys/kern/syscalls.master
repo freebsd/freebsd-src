@@ -4,6 +4,8 @@
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
 
+; New FreeBSD system calls should be added to the bottom of this file.
+
 ; Columns: number audit type name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
 ;	audit	the audit event associated with the system call
@@ -11,7 +13,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
+;	type	one of STD, OBSOL, RESERVED, UNIMPL, COMPAT, COMPAT4, COMPAT6,
 ;		COMPAT7, COMPAT11, COMPAT12, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
@@ -32,6 +34,7 @@
 ;	COMPAT11 included on COMPAT_FREEBSD11 #ifdef (FreeBSD 11 compat)
 ;	COMPAT12 included on COMPAT_FREEBSD12 #ifdef (FreeBSD 12 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
+;	RESERVED reserved for local or vendor use (not for FreeBSD)
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
 ;		compiled in; sysent entry will be filled with lkmressys
@@ -78,12 +81,6 @@
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-
-; Reserved/unimplemented system calls in the range 0-150 inclusive
-; are reserved for use in future Berkeley releases.
-; Additional system calls implemented in vendor and other
-; redistributions should be placed in the reserved range at the end
-; of the current calls.
 
 0	AUE_NULL	STD {
 		int nosys(void);
@@ -587,7 +584,7 @@
 		    u_int to
 		);
 	}
-91	AUE_NULL	UNIMPL	getdopt
+91	AUE_NULL	RESERVED
 92	AUE_FCNTL	STD {
 		int fcntl(
 		    int fd,
@@ -606,7 +603,7 @@
 		    _In_opt_ struct timeval *tv
 		);
 	}
-94	AUE_NULL	UNIMPL	setdopt
+94	AUE_NULL	RESERVED
 95	AUE_FSYNC	STD {
 		int fsync(
 		    int fd
@@ -756,7 +753,7 @@
 		    _Inout_  int *avalsize
 		);
 	}
-119	AUE_NULL	UNIMPL	resuba (BSD/OS 2.x)
+119	AUE_NULL	RESERVED
 120	AUE_READV	STD {
 		int readv(
 		    int fd,
@@ -945,13 +942,7 @@
 		);
 	} getsockname getsockname_args int
 
-; Syscalls 151-180 inclusive are reserved for vendor-specific
-; system calls.  (This includes various calls added for compatibity
-; with other Unix variants.)
-; Some of these calls are now supported by BSD.
-151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
-152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
-153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
+151-153	AUE_NULL	RESERVED
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD {
 		int nlm_syscall(
@@ -988,7 +979,7 @@
 		    _Out_ struct ostatfs *buf
 		);
 	}
-159	AUE_NULL	UNIMPL	nosys
+159	AUE_NULL	RESERVED
 160	AUE_LGETFH	STD {
 		int lgetfh(
 		    _In_z_ const char *fname,
@@ -1031,8 +1022,7 @@
 		    _Inout_ struct rtprio *rtp
 		);
 	}
-167	AUE_NULL	UNIMPL	nosys
-168	AUE_NULL	UNIMPL	nosys
+167-168	AUE_NULL	RESERVED
 169	AUE_SEMSYS	NOSTD {
 		int semsys(
 		    int which,
@@ -1063,7 +1053,7 @@
 		);
 	}
 ; XXX should be { int shmsys(int which, ...); }
-172	AUE_NULL	UNIMPL	nosys
+172	AUE_NULL	RESERVED
 173	AUE_PREAD	COMPAT6 {
 		ssize_t pread(
 		    int fd,
@@ -1092,12 +1082,7 @@
 		    _Inout_ struct timex *tp
 		);
 	}
-177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
-178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
-179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
-180	AUE_NULL	UNIMPL	nosys
-
-; Syscalls 181-199 are used by/reserved for BSD
+177-180	AUE_NULL	RESERVED
 181	AUE_SETGID	STD {
 		int setgid(
 		    gid_t gid
@@ -1147,7 +1132,7 @@
 		    int name
 		);
 	}
-193	AUE_NULL	UNIMPL	nosys
+193	AUE_NULL	RESERVED
 194	AUE_GETRLIMIT	STD {
 		int getrlimit(
 		    u_int which,
@@ -1242,7 +1227,7 @@
 		    pid_t pid
 		);
 	}
-208	AUE_NULL	UNIMPL	nosys
+208	AUE_NULL	RESERVED
 209	AUE_POLL	STD {
 		int poll(
 		    _Inout_updates_(nfds) struct pollfd *fds,
@@ -1421,7 +1406,7 @@
 		    _Out_opt_ struct timespec *rmtp
 		);
 	}
-245-246	AUE_NULL	UNIMPL	nosys
+245-246	AUE_NULL	RESERVED
 247	AUE_NULL	STD {
 		int clock_getcpuclockid2(
 		    id_t id,
@@ -1434,8 +1419,7 @@
 		    _Out_ struct ntptimeval *ntvp
 		);
 	}
-249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
+249	AUE_NULL	RESERVED
 250	AUE_MINHERIT	STD {
 		int minherit(
 		    _In_ void *addr,
@@ -1477,7 +1461,7 @@
 		    _In_opt_ struct sigevent *sig
 		);
 	}
-258-271	AUE_NULL	UNIMPL	nosys
+258-271	AUE_NULL	RESERVED
 272	AUE_O_GETDENTS	COMPAT11 {
 		int getdents(
 		    int fd,
@@ -1485,7 +1469,7 @@
 		    size_t count
 		);
 	}
-273	AUE_NULL	UNIMPL	nosys
+273	AUE_NULL	RESERVED
 274	AUE_LCHMOD	STD {
 		int lchmod(
 		    _In_z_ const char *path,
@@ -1518,7 +1502,7 @@
 		    _Out_ struct nstat *ub
 		);
 	}
-281-288	AUE_NULL	UNIMPL	nosys
+281-288	AUE_NULL	RESERVED
 289	AUE_PREADV	STD {
 		ssize_t preadv(
 		    int fd,
@@ -1535,7 +1519,7 @@
 		    off_t offset
 		);
 	}
-291-296	AUE_NULL	UNIMPL	nosys
+291-296	AUE_NULL	RESERVED
 297	AUE_FHSTATFS	COMPAT4 {
 		int fhstatfs(
 		    _In_ const struct fhandle *u_fhp,
@@ -1935,7 +1919,7 @@
 367	AUE_NULL	OBSOL	__cap_get_file
 368	AUE_NULL	OBSOL	__cap_set_fd
 369	AUE_NULL	OBSOL	__cap_set_file
-370	AUE_NULL	UNIMPL	nosys
+370	AUE_NULL	RESERVED
 371	AUE_EXTATTR_SET_FD	STD {
 		ssize_t extattr_set_fd(
 		    int fd,
@@ -2093,7 +2077,7 @@
 		    _Out_ struct freebsd11_statfs *buf
 		);
 	}
-399	AUE_NULL	UNIMPL	nosys
+399	AUE_NULL	RESERVED
 400	AUE_SEMCLOSE	NOSTD {
 		int ksem_close(
 		    semid_t id
@@ -2208,9 +2192,7 @@
 		    _In_ const struct __ucontext *sigcntxp
 		);
 	}
-418	AUE_NULL	UNIMPL	__xstat
-419	AUE_NULL	UNIMPL	__xfstat
-420	AUE_NULL	UNIMPL	__xlstat
+418-420	AUE_NULL	RESERVED
 421	AUE_NULL	STD {
 		int getcontext(
 		    _Out_ struct __ucontext *ucp
@@ -2288,7 +2270,7 @@
 		    int sig
 		);
 	}
-434-435	AUE_NULL	UNIMPL	nosys
+434-435	AUE_NULL	RESERVED
 436	AUE_JAIL_ATTACH	STD {
 		int jail_attach(
 		    int jid
@@ -2485,9 +2467,7 @@
 		    _Inout_ struct rtprio *rtp
 		);
 	}
-467-468	AUE_NULL	UNIMPL	nosys
-469	AUE_NULL	UNIMPL	__getpath_fromfd
-470	AUE_NULL	UNIMPL	__getpath_fromaddr
+467-470	AUE_NULL	RESERVED
 471	AUE_SCTP_PEELOFF	NOSTD {
 		int sctp_peeloff(
 		    int sd,
@@ -2843,7 +2823,7 @@
 		    _Out_ pid_t *pidp
 		);
 	}
-521	AUE_PDWAIT	UNIMPL	pdwait4
+521	AUE_NULL	RESERVED
 522	AUE_SELECT	STD {
 		int pselect(
 		    int nd,
@@ -3239,6 +3219,23 @@
 		int rpctls_syscall(
 		    int op,
 		    _In_z_ const char *path
+		);
+	}
+577	AUE_SPECIALFD	STD {
+		int __specialfd(
+		    int type,
+		    _In_reads_bytes_(len) const void *req,
+		    size_t len
+		);
+	}
+578	AUE_AIO_WRITEV	STD {
+		int aio_writev(
+		    _Inout_ struct aiocb *aiocbp
+		);
+	}
+579	AUE_AIO_READV	STD {
+		int aio_readv(
+		    _Inout_ struct aiocb *aiocbp
 		);
 	}
 

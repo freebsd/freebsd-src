@@ -220,6 +220,7 @@ size_t	_libelf_fsize(Elf_Type _t, int _elfclass, unsigned int _version,
     size_t count);
 _libelf_translator_function *_libelf_get_translator(Elf_Type _t,
     int _direction, int _elfclass, int _elfmachine);
+void	*_libelf_getchdr(Elf_Scn *_e, int _elfclass);
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);

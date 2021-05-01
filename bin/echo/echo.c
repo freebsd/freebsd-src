@@ -71,7 +71,7 @@ errexit(const char *prog, const char *reason)
 	write(STDERR_FILENO, "\n", 1);
 	exit(1);
 }
-	
+
 int
 main(int argc, char *argv[])
 {
@@ -100,13 +100,12 @@ main(int argc, char *argv[])
 
 	while (argv[0] != NULL) {
 		size_t len;
-		
+
 		len = strlen(argv[0]);
 
 		/*
-		 * If the next argument is NULL then this is this
-		 * the last argument, therefore we need to check
-		 * for a trailing \c.
+		 * If the next argument is NULL then this is the last argument,
+		 * therefore we need to check for a trailing \c.
 		 */
 		if (argv[1] == NULL) {
 			/* is there room for a '\c' and is there one? */

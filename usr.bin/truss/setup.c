@@ -74,59 +74,72 @@ static void	new_proc(struct trussinfo *, pid_t, lwpid_t);
 
 
 static struct procabi cloudabi32 = {
-	"CloudABI32",
-	SYSDECODE_ABI_CLOUDABI32,
-	STAILQ_HEAD_INITIALIZER(cloudabi32.extra_syscalls),
-	{ NULL }
+	.type = "CloudABI32",
+	.abi = SYSDECODE_ABI_CLOUDABI32,
+	.pointer_size = sizeof(uint32_t),
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(cloudabi32.extra_syscalls),
+	.syscalls = { NULL }
 };
 
 static struct procabi cloudabi64 = {
-	"CloudABI64",
-	SYSDECODE_ABI_CLOUDABI64,
-	STAILQ_HEAD_INITIALIZER(cloudabi64.extra_syscalls),
-	{ NULL }
+	.type = "CloudABI64",
+	.abi = SYSDECODE_ABI_CLOUDABI64,
+	.pointer_size = sizeof(uint64_t),
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(cloudabi64.extra_syscalls),
+	.syscalls = { NULL }
 };
 
 static struct procabi freebsd = {
-	"FreeBSD",
-	SYSDECODE_ABI_FREEBSD,
-	STAILQ_HEAD_INITIALIZER(freebsd.extra_syscalls),
-	{ NULL }
+	.type = "FreeBSD",
+	.abi = SYSDECODE_ABI_FREEBSD,
+	.pointer_size = sizeof(void *),
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(freebsd.extra_syscalls),
+	.syscalls = { NULL }
 };
 
-#ifdef __LP64__
+#if !defined(__SIZEOF_POINTER__)
+#error "Use a modern compiler."
+#endif
+
+#if __SIZEOF_POINTER__ > 4
 static struct procabi freebsd32 = {
-	"FreeBSD32",
-	SYSDECODE_ABI_FREEBSD32,
-	STAILQ_HEAD_INITIALIZER(freebsd32.extra_syscalls),
-	{ NULL }
+	.type = "FreeBSD32",
+	.abi = SYSDECODE_ABI_FREEBSD32,
+	.pointer_size = sizeof(uint32_t),
+	.compat_prefix = "freebsd32",
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(freebsd32.extra_syscalls),
+	.syscalls = { NULL }
 };
 #endif
 
 static struct procabi linux = {
-	"Linux",
-	SYSDECODE_ABI_LINUX,
-	STAILQ_HEAD_INITIALIZER(linux.extra_syscalls),
-	{ NULL }
+	.type = "Linux",
+	.abi = SYSDECODE_ABI_LINUX,
+	.pointer_size = sizeof(void *),
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(linux.extra_syscalls),
+	.syscalls = { NULL }
 };
 
-#ifdef __LP64__
+#if __SIZEOF_POINTER__ > 4
 static struct procabi linux32 = {
-	"Linux32",
-	SYSDECODE_ABI_LINUX32,
-	STAILQ_HEAD_INITIALIZER(linux32.extra_syscalls),
-	{ NULL }
+	.type = "Linux32",
+	.abi = SYSDECODE_ABI_LINUX32,
+	.pointer_size = sizeof(uint32_t),
+	.extra_syscalls = STAILQ_HEAD_INITIALIZER(linux32.extra_syscalls),
+	.syscalls = { NULL }
 };
 #endif
 
 static struct procabi_table abis[] = {
 	{ "CloudABI ELF32", &cloudabi32 },
 	{ "CloudABI ELF64", &cloudabi64 },
-#ifdef __LP64__
+#if __SIZEOF_POINTER__ == 4
+	{ "FreeBSD ELF32", &freebsd },
+#elif __SIZEOF_POINTER__ == 8
 	{ "FreeBSD ELF64", &freebsd },
 	{ "FreeBSD ELF32", &freebsd32 },
 #else
-	{ "FreeBSD ELF32", &freebsd },
+#error "Unsupported pointer size"
 #endif
 #if defined(__powerpc64__)
 	{ "FreeBSD ELF64 V2", &freebsd },
@@ -137,11 +150,11 @@ static struct procabi_table abis[] = {
 #if defined(__i386__)
 	{ "FreeBSD a.out", &freebsd },
 #endif
-#ifdef __LP64__
+#if __SIZEOF_POINTER__ >= 8
 	{ "Linux ELF64", &linux },
 	{ "Linux ELF32", &linux32 },
 #else
-	{ "Linux ELF", &linux },
+	{ "Linux ELF32", &linux },
 #endif
 };
 
@@ -463,8 +476,8 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 		fprintf(info->outfile, "-- UNKNOWN %s SYSCALL %d --\n",
 		    t->proc->abi->type, t->cs.number);
 
-	t->cs.nargs = sc->nargs;
-	assert(sc->nargs <= nitems(t->cs.s_args));
+	t->cs.nargs = sc->decode.nargs;
+	assert(sc->decode.nargs <= nitems(t->cs.s_args));
 
 	t->cs.sc = sc;
 
@@ -480,11 +493,12 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 #endif
 	for (i = 0; i < t->cs.nargs; i++) {
 #if DEBUG
-		fprintf(stderr, "0x%lx%s", t->cs.args[sc->args[i].offset],
+		fprintf(stderr, "0x%lx%s",
+		    t->cs.args[sc->decode.args[i].offset],
 		    i < (t->cs.nargs - 1) ? "," : "");
 #endif
-		if (!(sc->args[i].type & OUT)) {
-			t->cs.s_args[i] = print_arg(&sc->args[i],
+		if (!(sc->decode.args[i].type & OUT)) {
+			t->cs.s_args[i] = print_arg(&sc->decode.args[i],
 			    t->cs.args, NULL, info);
 		}
 	}
@@ -542,19 +556,19 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 	 * Here, we only look for arguments that have OUT masked in --
 	 * otherwise, they were handled in enter_syscall().
 	 */
-	for (i = 0; i < sc->nargs; i++) {
+	for (i = 0; i < sc->decode.nargs; i++) {
 		char *temp;
 
-		if (sc->args[i].type & OUT) {
+		if (sc->decode.args[i].type & OUT) {
 			/*
 			 * If an error occurred, then don't bother
 			 * getting the data; it may not be valid.
 			 */
 			if (psr.sr_error != 0) {
 				asprintf(&temp, "0x%lx",
-				    t->cs.args[sc->args[i].offset]);
+				    t->cs.args[sc->decode.args[i].offset]);
 			} else {
-				temp = print_arg(&sc->args[i],
+				temp = print_arg(&sc->decode.args[i],
 				    t->cs.args, psr.sr_retval, info);
 			}
 			t->cs.s_args[i] = temp;

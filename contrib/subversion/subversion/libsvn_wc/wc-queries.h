@@ -2443,7 +2443,7 @@
   "CREATE UNIQUE INDEX IF NOT EXISTS I_NODES_MOVED " \
   "ON NODES (wc_id, moved_to, op_depth); " \
   "CREATE INDEX IF NOT EXISTS I_PRISTINE_MD5 ON PRISTINE (md5_checksum); " \
-  "UPDATE nodes SET presence = \"server-excluded\" WHERE presence = \"absent\"; " \
+  "UPDATE nodes SET presence = 'server-excluded' WHERE presence = 'absent'; " \
   "UPDATE nodes SET file_external=1 WHERE file_external IS NOT NULL; " \
   ""
 

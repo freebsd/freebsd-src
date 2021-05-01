@@ -43,10 +43,8 @@
 	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
 	 (sizeof (struct scatterlist)))
 
-enum {
-	MLX4_ICM_PAGE_SHIFT	= 12,
-	MLX4_ICM_PAGE_SIZE	= 1 << MLX4_ICM_PAGE_SHIFT,
-};
+#define MLX4_ICM_PAGE_SHIFT	12
+#define MLX4_ICM_PAGE_SIZE	(1 << MLX4_ICM_PAGE_SHIFT)
 
 struct mlx4_icm_chunk {
 	struct list_head	list;

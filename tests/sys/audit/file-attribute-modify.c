@@ -33,6 +33,7 @@
 #include <sys/time.h>
 
 #include <atf-c.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -92,7 +93,7 @@ ATF_TC_BODY(flock_failure, tc)
 {
 	const char *regex = "flock.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(-1, flock(-1, LOCK_SH));
+	ATF_REQUIRE_ERRNO(EBADF, flock(-1, LOCK_SH) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -141,7 +142,7 @@ ATF_TC_BODY(fcntl_failure, tc)
 {
 	const char *regex = "fcntl.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(-1, fcntl(-1, F_GETFL, 0));
+	ATF_REQUIRE_ERRNO(EBADF, fcntl(-1, F_GETFL, 0) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -189,7 +190,7 @@ ATF_TC_BODY(fsync_failure, tc)
 	const char *regex = "fsync.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, fsync(-1));
+	ATF_REQUIRE_ERRNO(EBADF, fsync(-1) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -233,7 +234,7 @@ ATF_TC_BODY(chmod_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, chmod(errpath, mode));
+	ATF_REQUIRE_ERRNO(ENOENT, chmod(errpath, mode) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -281,7 +282,7 @@ ATF_TC_BODY(fchmod_failure, tc)
 	const char *regex = "fchmod.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, fchmod(-1, mode));
+	ATF_REQUIRE_ERRNO(EBADF, fchmod(-1, mode) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -324,7 +325,7 @@ ATF_TC_BODY(lchmod_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, lchmod(errpath, mode));
+	ATF_REQUIRE_ERRNO(ENOENT, lchmod(errpath, mode) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -368,7 +369,7 @@ ATF_TC_BODY(fchmodat_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, fchmodat(AT_FDCWD, errpath, mode, 0));
+	ATF_REQUIRE_ERRNO(ENOENT, fchmodat(AT_FDCWD, errpath, mode, 0) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -412,7 +413,7 @@ ATF_TC_BODY(chown_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, chown(errpath, uid, gid));
+	ATF_REQUIRE_ERRNO(ENOENT, chown(errpath, uid, gid) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -460,7 +461,7 @@ ATF_TC_BODY(fchown_failure, tc)
 	const char *regex = "fchown.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, fchown(-1, uid, gid));
+	ATF_REQUIRE_ERRNO(EBADF, fchown(-1, uid, gid) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -503,7 +504,7 @@ ATF_TC_BODY(lchown_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Symbolic link does not exist */
-	ATF_REQUIRE_EQ(-1, lchown(errpath, uid, gid));
+	ATF_REQUIRE_ERRNO(ENOENT, lchown(errpath, uid, gid) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -547,7 +548,8 @@ ATF_TC_BODY(fchownat_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, fchownat(AT_FDCWD, errpath, uid, gid, 0));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    fchownat(AT_FDCWD, errpath, uid, gid, 0) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -591,7 +593,7 @@ ATF_TC_BODY(chflags_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, chflags(errpath, UF_OFFLINE));
+	ATF_REQUIRE_ERRNO(ENOENT, chflags(errpath, UF_OFFLINE) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -639,7 +641,7 @@ ATF_TC_BODY(fchflags_failure, tc)
 	const char *regex = "fchflags.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, fchflags(-1, UF_OFFLINE));
+	ATF_REQUIRE_ERRNO(EBADF, fchflags(-1, UF_OFFLINE) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -682,7 +684,7 @@ ATF_TC_BODY(lchflags_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Symbolic link does not exist */
-	ATF_REQUIRE_EQ(-1, lchflags(errpath, UF_OFFLINE));
+	ATF_REQUIRE_ERRNO(ENOENT, lchflags(errpath, UF_OFFLINE) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -726,7 +728,8 @@ ATF_TC_BODY(chflagsat_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, chflagsat(AT_FDCWD, errpath, UF_OFFLINE, 0));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    chflagsat(AT_FDCWD, errpath, UF_OFFLINE, 0) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -770,7 +773,7 @@ ATF_TC_BODY(utimes_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, utimes(errpath, NULL));
+	ATF_REQUIRE_ERRNO(ENOENT, utimes(errpath, NULL) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -818,7 +821,7 @@ ATF_TC_BODY(futimes_failure, tc)
 	const char *regex = "futimes.*return,failure : Bad file descriptor";
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, futimes(-1, NULL));
+	ATF_REQUIRE_ERRNO(EBADF, futimes(-1, NULL) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -861,7 +864,7 @@ ATF_TC_BODY(lutimes_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: symbolic link does not exist */
-	ATF_REQUIRE_EQ(-1, lutimes(errpath, NULL));
+	ATF_REQUIRE_ERRNO(ENOENT, lutimes(errpath, NULL) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -905,7 +908,7 @@ ATF_TC_BODY(futimesat_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, futimesat(AT_FDCWD, errpath, NULL));
+	ATF_REQUIRE_ERRNO(ENOENT, futimesat(AT_FDCWD, errpath, NULL) == -1);
 	check_audit(fds, failurereg, pipefd);
 }
 
@@ -949,7 +952,8 @@ ATF_TC_BODY(mprotect_failure, tc)
 {
 	const char *regex = "mprotect.*return,failure : Invalid argument";
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(-1, mprotect((void *)SIZE_MAX, -1, PROT_NONE));
+	ATF_REQUIRE_ERRNO(EINVAL,
+	    mprotect((void *)SIZE_MAX, -1, PROT_NONE) == -1);
 	check_audit(fds, regex, pipefd);
 }
 
@@ -977,7 +981,7 @@ ATF_TC_BODY(undelete_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: File does not exist */
-	ATF_REQUIRE_EQ(-1, undelete(errpath));
+	ATF_REQUIRE_ERRNO(ENOENT, undelete(errpath) == -1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -998,12 +1002,14 @@ ATF_TC_BODY(extattr_set_file_success, tc)
 {
 	/* File needs to exist to call extattr_set_file(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	skip_if_extattr_not_supported(path);
+
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 		"extattr_set_file.*%s.*%s.*return,success", path, name);
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_file(path,
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_file(path,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 	check_audit(fds, extregex, pipefd);
 	close(filedesc);
@@ -1030,8 +1036,9 @@ ATF_TC_BODY(extattr_set_file_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, extattr_set_file(path,
-		EXTATTR_NAMESPACE_USER, name, NULL, 0));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    extattr_set_file(path, EXTATTR_NAMESPACE_USER, name, NULL, 0) ==
+		-1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -1052,13 +1059,14 @@ ATF_TC_BODY(extattr_set_fd_success, tc)
 {
 	/* File needs to exist to call extattr_set_fd(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
+	skip_if_extattr_not_supported(path);
 
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 		"extattr_set_fd.*%s.*return,success", name);
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_fd(filedesc,
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_fd(filedesc,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 	check_audit(fds, extregex, pipefd);
 	close(filedesc);
@@ -1085,8 +1093,8 @@ ATF_TC_BODY(extattr_set_fd_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, extattr_set_fd(-1,
-		EXTATTR_NAMESPACE_USER, name, NULL, 0));
+	ATF_REQUIRE_ERRNO(EBADF,
+	    extattr_set_fd(-1, EXTATTR_NAMESPACE_USER, name, NULL, 0) == -1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -1107,12 +1115,14 @@ ATF_TC_BODY(extattr_set_link_success, tc)
 {
 	/* Symbolic link needs to exist to call extattr_set_link(2) */
 	ATF_REQUIRE_EQ(0, symlink("symlink", path));
+	skip_if_extattr_not_supported(".");
+
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 		"extattr_set_link.*%s.*%s.*return,success", path, name);
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_link(path,
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_link(path,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 
 	check_audit(fds, extregex, pipefd);
@@ -1138,8 +1148,9 @@ ATF_TC_BODY(extattr_set_link_failure, tc)
 		"extattr_set_link.*%s.*%s.*failure", path, name);
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: symbolic link does not exist */
-	ATF_REQUIRE_EQ(-1, extattr_set_link(path,
-		EXTATTR_NAMESPACE_USER, name, NULL, 0));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    extattr_set_link(path, EXTATTR_NAMESPACE_USER, name, NULL, 0) ==
+		-1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -1160,12 +1171,14 @@ ATF_TC_BODY(extattr_delete_file_success, tc)
 {
 	/* File needs to exist to call extattr_delete_file(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_file(path,
+	skip_if_extattr_not_supported(path);
+
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_file(path,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE((retval = extattr_delete_file(path,
-		EXTATTR_NAMESPACE_USER, name)) != -1);
+	retval = REQUIRE_EXTATTR_SUCCESS(
+	    extattr_delete_file(path, EXTATTR_NAMESPACE_USER, name));
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 	"extattr_delete_file.*%s.*return,success,%d", path, retval);
@@ -1194,8 +1207,8 @@ ATF_TC_BODY(extattr_delete_file_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, extattr_delete_file(path,
-		EXTATTR_NAMESPACE_USER, name));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    extattr_delete_file(path, EXTATTR_NAMESPACE_USER, name) == -1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -1216,12 +1229,14 @@ ATF_TC_BODY(extattr_delete_fd_success, tc)
 {
 	/* File needs to exist to call extattr_delete_fd(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_file(path,
+	skip_if_extattr_not_supported(path);
+
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_file(path,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE((retval = extattr_delete_fd(filedesc,
-		EXTATTR_NAMESPACE_USER, name)) != -1);
+	retval = REQUIRE_EXTATTR_SUCCESS(extattr_delete_fd(filedesc,
+		EXTATTR_NAMESPACE_USER, name));
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 		"extattr_delete_fd.*return,success,%d", retval);
@@ -1250,7 +1265,8 @@ ATF_TC_BODY(extattr_delete_fd_failure, tc)
 
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: Invalid file descriptor */
-	ATF_REQUIRE_EQ(-1, extattr_delete_fd(-1, EXTATTR_NAMESPACE_USER, name));
+	ATF_REQUIRE_ERRNO(EBADF,
+	    extattr_delete_fd(-1, EXTATTR_NAMESPACE_USER, name) == -1);
 	check_audit(fds, extregex, pipefd);
 }
 
@@ -1271,12 +1287,14 @@ ATF_TC_BODY(extattr_delete_link_success, tc)
 {
 	/* Symbolic link needs to exist to call extattr_delete_link(2) */
 	ATF_REQUIRE_EQ(0, symlink("symlink", path));
-	ATF_REQUIRE_EQ(sizeof(buff), extattr_set_link(path,
+	skip_if_extattr_not_supported(".");
+
+	REQUIRE_EXTATTR_RESULT(sizeof(buff), extattr_set_link(path,
 		EXTATTR_NAMESPACE_USER, name, buff, sizeof(buff)));
 
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE((retval = extattr_delete_link(path,
-		EXTATTR_NAMESPACE_USER, name)) != -1);
+	retval = REQUIRE_EXTATTR_SUCCESS(extattr_delete_link(path,
+		EXTATTR_NAMESPACE_USER, name));
 	/* Prepare the regex to be checked in the audit record */
 	snprintf(extregex, sizeof(extregex),
 	"extattr_delete_link.*%s.*return,success,%d", path, retval);
@@ -1303,8 +1321,8 @@ ATF_TC_BODY(extattr_delete_link_failure, tc)
 		"extattr_delete_link.*%s.*failure", path);
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: symbolic link does not exist */
-	ATF_REQUIRE_EQ(-1, extattr_delete_link(path,
-		EXTATTR_NAMESPACE_USER, name));
+	ATF_REQUIRE_ERRNO(ENOENT,
+	    extattr_delete_link(path, EXTATTR_NAMESPACE_USER, name) == -1);
 	check_audit(fds, extregex, pipefd);
 }
 

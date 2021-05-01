@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* original parser id follows */
 /* yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93" */
 /* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
@@ -6,7 +5,7 @@
 #define YYBYACC 1
 #define YYMAJOR 1
 #define YYMINOR 9
-#define YYPATCH 20170430
+#define YYPATCH 20200330
 
 #define YYEMPTY        (-1)
 #define yyclearin      (yychar = YYEMPTY)
@@ -19,8 +18,6 @@
 #define YYPURE 0
 
 #line 35 "parse.y"
-/* SPDX-License-Identifier: BSD-2-Clause */
-
 /*  Copyright (c) 1990 The Regents of the University of California. */
 /*  All rights reserved. */
 
@@ -128,6 +125,10 @@ typedef int YYSTYPE;
 #else
 # define YYLEX_DECL() yylex(void)
 # define YYLEX yylex()
+#endif
+
+#if !(defined(yylex) || defined(YYSTATE))
+int YYLEX_DECL();
 #endif
 
 /* Parameters sent to yyerror. */
@@ -488,13 +489,15 @@ static const char *const yyrule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -655,7 +658,7 @@ void yyerror( const char *msg )
 	{
 		(void)msg;
 	}
-#line 656 "parse.c"
+#line 662 "parse.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */
@@ -1781,7 +1784,7 @@ case 96:
 #line 946 "parse.y"
 	{ yyval = mkstate( SYM_EPSILON ); }
 break;
-#line 1782 "parse.c"
+#line 1788 "parse.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

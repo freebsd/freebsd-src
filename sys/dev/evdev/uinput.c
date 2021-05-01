@@ -145,17 +145,13 @@ uinput_knlunlock(void *arg)
 }
 
 static void
-uinput_knl_assert_locked(void *arg)
+uinput_knl_assert_lock(void *arg, int what)
 {
 
-	sx_assert((struct sx*)arg, SA_XLOCKED);
-}
-
-static void
-uinput_knl_assert_unlocked(void *arg)
-{
-
-	sx_assert((struct sx*)arg, SA_UNLOCKED);
+	if (what == LA_LOCKED)
+		sx_assert((struct sx*)arg, SA_XLOCKED);
+	else
+		sx_assert((struct sx*)arg, SA_UNLOCKED);
 }
 
 static void
@@ -212,8 +208,7 @@ uinput_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	sx_init(&state->ucs_lock, "uinput");
 	knlist_init(&state->ucs_selp.si_note, &state->ucs_lock, uinput_knllock,
-	    uinput_knlunlock, uinput_knl_assert_locked,
-	    uinput_knl_assert_unlocked);
+	    uinput_knlunlock, uinput_knl_assert_lock);
 
 	devfs_set_cdevpriv(state, uinput_dtor);
 	return (0);
@@ -530,10 +525,9 @@ uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 		if (uabs->code > ABS_MAX)
 			return (EINVAL);
 
-		evdev_support_abs(state->ucs_evdev, uabs->code,
-		    uabs->absinfo.value, uabs->absinfo.minimum,
-		    uabs->absinfo.maximum, uabs->absinfo.fuzz,
-		    uabs->absinfo.flat, uabs->absinfo.resolution);
+		evdev_set_abs_bit(state->ucs_evdev, uabs->code);
+		evdev_set_absinfo(state->ucs_evdev, uabs->code,
+		    &uabs->absinfo);
 		return (0);
 
 	case UI_SET_EVBIT:

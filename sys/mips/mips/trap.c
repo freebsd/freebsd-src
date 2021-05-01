@@ -349,9 +349,9 @@ cpu_fetch_syscall_args(struct thread *td)
 	bzero(sa->args, sizeof(sa->args));
 
 	/* compute next PC after syscall instruction */
-	td->td_pcb->pcb_tpc = sa->trapframe->pc; /* Remember if restart */
-	if (DELAYBRANCH(sa->trapframe->cause))	 /* Check BD bit */
-		locr0->pc = MipsEmulateBranch(locr0, sa->trapframe->pc, 0, 0);
+	td->td_pcb->pcb_tpc = locr0->pc; /* Remember if restart */
+	if (DELAYBRANCH(locr0->cause))	 /* Check BD bit */
+		locr0->pc = MipsEmulateBranch(locr0, locr0->pc, 0, 0);
 	else
 		locr0->pc += sizeof(int);
 	sa->code = locr0->v0;
@@ -524,6 +524,9 @@ trap(struct trapframe *trapframe)
 	register_t pc;
 	int cop, error;
 	register_t *frame_regs;
+#ifdef KDB
+	bool handled;
+#endif
 
 	trapdebug_enter(trapframe, 0);
 #ifdef KDB
@@ -781,7 +784,6 @@ dofault:
 
 	case T_SYSCALL + T_USER:
 		{
-			td->td_sa.trapframe = trapframe;
 			syscallenter(td);
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
@@ -1092,8 +1094,10 @@ err:
 #ifdef KDB
 		if (debugger_on_trap) {
 			kdb_why = KDB_WHY_TRAP;
-			kdb_trap(type, 0, trapframe);
+			handled = kdb_trap(type, 0, trapframe);
 			kdb_why = KDB_WHY_UNSET;
+			if (handled)
+				return (trapframe->pc);
 		}
 #endif
 		panic("trap");

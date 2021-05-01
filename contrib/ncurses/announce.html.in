@@ -1,5 +1,5 @@
 <!--
-  $Id: announce.html.in,v 1.96 2020/02/09 21:50:48 tom Exp $
+  $Id: announce.html.in,v 1.99 2020/10/19 08:18:12 tom Exp $
   ****************************************************************************
   * Copyright 2018-2019,2020 Thomas E. Dickey                                *
   *                                                                          *
@@ -344,7 +344,7 @@
 
     <li>
       <p>marked <a href=
-      "@HOMEPAGE@/man/curs_printw.3x.html#h3-PORTABILITY"><tt>vwprintw</tt></a>
+      "@HOMEPAGE@/man/curs_printw.3x.html#h2-PORTABILITY"><tt>vwprintw</tt></a>
       and <tt>vwscanw</tt> as deprecated; recommend using <a href=
       "@HOMEPAGE@/man/curs_printw.3x.html"><tt>vw_printw</tt></a>
       and <tt>vw_scanw</tt>, respectively.</p>
@@ -504,7 +504,7 @@
   <h3><a name="h3-programs" id="h3-programs">Program
   improvements</a></h3>
 
-  <p>Several improvements were made to the utility programs:</p>
+  <p id="h4-utilities">Several improvements were made to the utility programs:</p>
 
   <dl>
     <dt><span class="part-name">clear</span>
@@ -1051,7 +1051,7 @@
         for decompiling descriptions. That came later, with SVr3,
         with a different developer.</li>
 
-        <li><a href="@HOMEPAGE@/man/tabs.1">tabs.1</a> tells more
+        <li><a href="@HOMEPAGE@/man/tabs.1.html">tabs.1</a> tells more
         than you wanted to know about the tool.</li>
 
         <li><a href="@HOMEPAGE@/man/tic.1m.html">tic.1</a> explains
@@ -1092,7 +1092,7 @@
         characters.</li>
 
         <li><a href=
-        "@HOMEPAGE@/man/curs_color.3x.html#h3-RETURN-VALUE">curs_color.3x</a>
+        "@HOMEPAGE@/man/curs_color.3x.html#h2-RETURN-VALUE">curs_color.3x</a>
         improves discussion of error returns and extensions.</li>
 
         <li><a href=

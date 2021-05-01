@@ -35,8 +35,12 @@
 struct rk_clk_fract_def {
 	struct clknode_init_def clkdef;
 	uint32_t		offset;
+	uint32_t		gate_offset;
+	uint32_t		gate_shift;
 	uint32_t		flags;
 };
+
+#define	RK_CLK_FRACT_HAVE_GATE	0x0001
 
 int rk_clk_fract_register(struct clkdom *clkdom,
     struct rk_clk_fract_def *clkdef);

@@ -156,6 +156,3 @@ static struct bus_space arm_base_bus_space __aligned(CACHE_LINE_SIZE) = {
 bus_space_tag_t fdtbus_bs_tag = &arm_base_bus_space;
 #endif
 
-#if __ARM_ARCH < 6
-bus_space_tag_t arm_base_bs_tag = &arm_base_bus_space;
-#endif

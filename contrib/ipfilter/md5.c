@@ -55,7 +55,7 @@
  */
 
 /* forward declaration */
-static void Transform __P((UINT4 *, UINT4 *));
+static void Transform(UINT4 *, UINT4 *);
 
 static unsigned char PADDING[64] = {
   0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -100,11 +100,7 @@ static unsigned char PADDING[64] = {
    (a) += (b); \
   }
 
-#ifdef __STDC__
 #define UL(x)	x##U
-#else
-#define UL(x)	x
-#endif
 
 /* The routine MD5Init initializes the message-digest context
    mdContext. All fields are set to zero.

@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 
+#include <dev/hid/hid.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -86,6 +88,7 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, debug, CTLFLAG_RWTUN,
 static struct wsp_tuning {
 	int	scale_factor;
 	int	z_factor;
+	int	z_invert;
 	int	pressure_touch_threshold;
 	int	pressure_untouch_threshold;
 	int	pressure_tap_threshold;
@@ -96,6 +99,7 @@ static struct wsp_tuning {
 {
 	.scale_factor = 12,
 	.z_factor = 5,
+	.z_invert = 0,
 	.pressure_touch_threshold = 50,
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
@@ -108,6 +112,7 @@ wsp_runing_rangecheck(struct wsp_tuning *ptun)
 {
 	WSP_CLAMP(ptun->scale_factor, 1, 63);
 	WSP_CLAMP(ptun->z_factor, 1, 63);
+	WSP_CLAMP(ptun->z_invert, 0, 1);
 	WSP_CLAMP(ptun->pressure_touch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_untouch_threshold, 1, 255);
 	WSP_CLAMP(ptun->pressure_tap_threshold, 1, 255);
@@ -119,6 +124,8 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scale_factor, CTLFLAG_RWTUN,
     &wsp_tuning.scale_factor, 0, "movement scale factor");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, z_factor, CTLFLAG_RWTUN,
     &wsp_tuning.z_factor, 0, "Z-axis scale factor");
+SYSCTL_INT(_hw_usb_wsp, OID_AUTO, z_invert, CTLFLAG_RWTUN,
+    &wsp_tuning.z_invert, 0, "enable Z-axis inversion");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_touch_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_touch_threshold, 0, "touch pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_untouch_threshold, CTLFLAG_RWTUN,
@@ -733,7 +740,8 @@ wsp_attach(device_t dev)
 
 	if (err == USB_ERR_NORMAL_COMPLETION) {
 		/* Get HID report descriptor length */
-		sc->tp_datalen = hid_report_size(d_ptr, d_len, hid_input, NULL);
+		sc->tp_datalen = hid_report_size_max(d_ptr, d_len, hid_input,
+		    NULL);
 		free(d_ptr, M_TEMP);
 
 		if (sc->tp_datalen <= 0 || sc->tp_datalen > WSP_BUFFER_MAX) {
@@ -1123,7 +1131,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				dx = dy = 0;
 				if (sc->dz_count == 0)
-					dz = sc->dz_sum / tun.z_factor;
+					dz = (sc->dz_sum / tun.z_factor) * (tun.z_invert ? -1 : 1);
 				if (sc->scr_mode == WSP_SCR_HOR || 
 				    abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
 				    abs(sc->pos_y[0] - sc->pos_y[1]) > MAX_DISTANCE)
@@ -1403,5 +1411,6 @@ static devclass_t wsp_devclass;
 
 DRIVER_MODULE(wsp, uhub, wsp_driver, wsp_devclass, NULL, 0);
 MODULE_DEPEND(wsp, usb, 1, 1, 1);
+MODULE_DEPEND(wsp, hid, 1, 1, 1);
 MODULE_VERSION(wsp, 1);
 USB_PNP_HOST_INFO(wsp_devs);

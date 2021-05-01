@@ -13,7 +13,6 @@ dev/xilinx/axi_quad_spi.c	optional	xilinx_spi
 dev/xilinx/axidma.c		optional	axidma xdma
 dev/xilinx/if_xae.c		optional	xae
 dev/xilinx/xlnx_pcib.c		optional	pci fdt xlnx_pcib
-kern/kern_clocksource.c		standard
 kern/msi_if.m			standard
 kern/pic_if.m			standard
 kern/subr_devmap.c		standard
@@ -30,6 +29,7 @@ libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/memcmp.c		standard
 libkern/memset.c		standard
+libkern/strlen.c		standard
 riscv/riscv/autoconf.c		standard
 riscv/riscv/bus_machdep.c	standard
 riscv/riscv/bus_space_asm.S	standard
@@ -59,7 +59,6 @@ riscv/riscv/pmap.c		standard
 riscv/riscv/riscv_console.c	optional	rcons
 riscv/riscv/riscv_syscon.c	optional	ext_resources syscon riscv_syscon fdt
 riscv/riscv/sbi.c		standard
-riscv/riscv/soc.c		standard
 riscv/riscv/stack_machdep.c	optional	ddb | stack
 riscv/riscv/support.S		standard
 riscv/riscv/swtch.S		standard

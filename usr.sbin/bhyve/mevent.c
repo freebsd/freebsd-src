@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #define	MEVENT_MAX	64
 
-extern const char *vmname;
-
 static pthread_t mevent_tid;
 static int mevent_timid = 43;
 static int mevent_pipefd[2];

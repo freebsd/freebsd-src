@@ -65,10 +65,10 @@ cpu_module=
 
 case ${cpu_type} in
 aarch64)
-	cpu_module=nexus/armv8crypto
+	cpu_module="nexus/armv8crypto nexus/ossl"
 	;;
 amd64|i386)
-	cpu_module=nexus/aesni
+	cpu_module="nexus/aesni nexus/ossl"
 	;;
 esac
 
@@ -83,7 +83,7 @@ for required_module in $cpu_module cryptodev; do
 	fi
 done
 
-cdas_sysctl=kern.cryptodevallowsoft
+cdas_sysctl=kern.crypto.allow_soft
 if ! oldcdas=$(sysctl -e $cdas_sysctl); then
 	echo "1..0 # SKIP: could not resolve sysctl: $cdas_sysctl"
 	exit 0

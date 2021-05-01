@@ -1,6 +1,6 @@
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -126,10 +126,9 @@ FORK_TEST_F(Fexecve, ExecutePermissionCheck) {
   }
 }
 
-FORK_TEST_F(Fexecve, SetuidIgnored) {
+FORK_TEST_F(Fexecve, SetuidIgnoredIfNonRoot) {
   if (geteuid() == 0) {
-    TEST_SKIPPED("requires non-root");
-    return;
+    GTEST_SKIP() << "requires non-root";
   }
   int fd = open(exec_prog_setuid_.c_str(), O_RDONLY);
   EXPECT_OK(fd);
@@ -173,7 +172,7 @@ class Execveat : public Execve {
 };
 
 TEST_F(Execveat, NoUpwardTraversal) {
-  char *abspath = realpath(exec_prog_, NULL);
+  char *abspath = realpath(exec_prog_.c_str(), NULL);
   char cwd[1024];
   getcwd(cwd, sizeof(cwd));
 
@@ -193,7 +192,7 @@ TEST_F(Execveat, NoUpwardTraversal) {
     char buffer[1024] = "../";
     strcat(buffer, ++p);
     strcat(buffer, "/");
-    strcat(buffer, exec_prog_);
+    strcat(buffer, exec_prog_.c_str());
     EXPECT_SYSCALL_FAIL(E_NO_TRAVERSE_CAPABILITY,
                         execveat(dfd, buffer, argv_pass_, null_envp, 0));
     exit(HasFailure() ? 99 : 123);

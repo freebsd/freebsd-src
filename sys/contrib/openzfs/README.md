@@ -16,8 +16,8 @@ This repository contains the code for running OpenZFS on Linux and FreeBSD.
 
 # Installation
 
-Full documentation for installing OpenZFS on your favorite Linux distribution can
-be found at the [ZoL Site](https://zfsonlinux.org/).
+Full documentation for installing OpenZFS on your favorite operating system can
+be found at the [Getting Started Page](https://openzfs.github.io/openzfs-docs/Getting%20Started/index.html).
 
 # Contribute & Develop
 
@@ -32,4 +32,4 @@ For more details see the NOTICE, LICENSE and COPYRIGHT files; `UCRL-CODE-235197`
 
 # Supported Kernels
   * The `META` file contains the officially recognized supported Linux kernel versions.
-  * Supported FreeBSD versions are 12-STABLE and 13-CURRENT.
+  * Supported FreeBSD versions are any supported branches and releases starting from 12.2-RELEASE.

@@ -715,7 +715,6 @@ per-core management registers.
 When BHND hardware is used as a host-connected peripheral (e.g., in a PCI Wi-Fi
 card), the on-chip peripheral controller core is configured to operate as
 an endpoint device, bridging access to the SoC hardware:
-.Pp
 .Bl -dash -offset indent
 .It
 Host access to SoC address space is provided via a set of register windows
@@ -925,7 +924,6 @@ A pointer to the bus
 If true, the resource requires bus window remapping before it is MMIO
 accessible.
 .El
-.Pp
 .\"
 .Ss "Bus Space Functions"
 The bhnd_bus_space functions wrap their equivalent
@@ -1116,7 +1114,6 @@ bus of device
 The returned
 .Vt bhnd_chipid
 struct contains the following fields:
-.Pp
 .Bl -tag -width "enum_addr" -offset indent
 .It Fa chip_id
 The chip identifier.
@@ -1320,7 +1317,6 @@ on success.
 The
 .Vt bhnd_board_info
 structure contains the following fields:
-.Pp
 .Bl -tag -width "board_srom_rev" -offset indent
 .It Fa board_vendor
 Vendor ID of the board manufacturer (PCI-SIG assigned).
@@ -1362,7 +1358,6 @@ fields will be populated from device NVRAM.
 .Pp
 Symbolic constants for common board flags are defined in
 .In dev/bhnd/bhnd_ids.h .
-.Pp
 .Ss "Device Matching Functions"
 The bhnd device matching functions are used to match against core, chip, and
 board-level device attributes.
@@ -1481,7 +1476,6 @@ is returned.
 A
 .Vt bhnd_board_match
 match descriptor may be initialized using one or more of the following macros:
-.Pp
 .Bl -tag -width "Fn BHND_MATCH_BOARD_VENDOR vendor" -offset indent
 .It Fn BHND_MATCH_BOARD_VENDOR "vendor"
 Match on boards with a vendor equal to
@@ -1518,7 +1512,6 @@ struct bhnd_board_match board_desc = {
 A
 .Vt bhnd_chip_match
 match descriptor may be initialized using one or more of the following macros:
-.Pp
 .Bl -tag -width "Fn BHND_MATCH_CHIP_IPR id pkg hwrev" -offset indent
 .It Fn BHND_MATCH_CHIP_ID "id"
 Match on chips with an ID equal to
@@ -1565,7 +1558,6 @@ struct bhnd_chip_match chip_desc = {
 A
 .Vt bhnd_core_match
 match descriptor may be initialized using one or more of the following macros:
-.Pp
 .Bl -tag -width "Fn BHND_MATCH_CORE_VENDOR vendor" -offset indent
 .It Fn BHND_MATCH_CORE_VENDOR "vendor"
 Match on cores with a vendor ID equal to
@@ -1711,7 +1703,6 @@ bridged backplane.
 A
 .Vt bhnd_device
 table entry may be initialized using one of the following macros:
-.Pp
 .Bl -ohang -offset indent
 .It Fn BHND_DEVICE "vendor" "device" "desc" "quirks" "flags"
 Match on devices with a vendor ID equal to
@@ -2242,7 +2233,6 @@ will be discarded.
 .Pp
 The following clocks are supported, and may be combined using bitwise OR to
 request multiple clocks:
-.Pp
 .Bl -tag -width ".Dv BHND_CLOCK_DYN" -offset indent
 .It BHND_CLOCK_DYN
 Dynamically select an appropriate clock source based on all outstanding clock
@@ -2454,7 +2444,7 @@ device identification of
 overriding the core name with the specified
 .Fa dev_name ,
 to populate the device's verbose description using
-.Xr device_set_desc .
+.Xr device_set_desc 9 .
 .Pp
 The
 .Fn bhnd_set_default_core_desc
@@ -2463,7 +2453,7 @@ function uses the
 device identification of
 .Fa dev
 to populate the device's verbose description using
-.Xr device_set_desc .
+.Xr device_set_desc 9 .
 .Pp
 The
 .Fn bhnd_vendor_name
@@ -2491,7 +2481,6 @@ functions return a pointer to
 on success, a null pointer otherwise.
 .\"
 .Ss "Device Configuration Functions"
-.Pp
 The
 .Fn bhnd_read_config
 and
@@ -2521,7 +2510,6 @@ and
 functions return 0 on success, otherwise an appropriate error code is returned.
 .\"
 .Ss "Device Information Functions"
-.Pp
 The
 .Fn bhnd_read_board_info
 function returns 0 on success, otherwise an appropriate error code is returned.
@@ -2542,7 +2530,6 @@ If fetching the requested DMA address translation otherwise fails, an
 appropriate error code will be returned.
 .\"
 .Ss "Interrupt Functions"
-.Pp
 The
 .Fn bhnd_get_intr_ivec
 function returns
@@ -2641,7 +2628,6 @@ The
 and
 .Fn bhnd_release_ext_rsrc
 functions return 0 on success, otherwise an appropriate error code is returned.
-.Pp
 .\"
 .Ss "Service Provider Functions"
 The
@@ -2664,14 +2650,13 @@ function returns a pointer to
 on success, a null pointer if the requested provider is not registered.
 .\"
 .Ss "Utility Functions"
-.Pp
 The
 .Fn bhnd_format_chip_id
 function returns the total number of bytes written on success, or a negative
 integer on failure.
 .\"
 .Sh SEE ALSO
-.Xr bhnd 4
+.Xr bhnd 4 ,
 .Xr bhnd_erom 9
 .Sh AUTHORS
 .An -nosplit

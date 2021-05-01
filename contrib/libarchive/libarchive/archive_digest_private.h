@@ -30,6 +30,10 @@
 #ifndef __LIBARCHIVE_BUILD
 #error This header is only to be used internally to libarchive.
 #endif
+#ifndef __LIBARCHIVE_CONFIG_H_INCLUDED
+#error "Should have include config.h first!"
+#endif
+
 /*
  * Crypto support in various Operating Systems:
  *

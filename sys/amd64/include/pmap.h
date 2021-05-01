@@ -196,6 +196,12 @@
 #define NKPML4E		4
 
 /*
+ * Number of PML4 slots for the KASAN shadow map.  It requires 1 byte of memory
+ * for every 8 bytes of the kernel address space.
+ */
+#define	NKASANPML4E	((NKPML4E + 7) / 8)
+
+/*
  * We use the same numbering of the page table pages for 5-level and
  * 4-level paging structures.
  */
@@ -243,9 +249,11 @@
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
+#define	KASANPML4I	(DMPML4I - NKASANPML4E) /* Below the direct map */
+
 /* Large map: index of the first and max last pml4 entry */
 #define	LMSPML4I	(PML4PML4I + 1)
-#define	LMEPML4I	(DMPML4I - 1)
+#define	LMEPML4I	(KASANPML4I - 1)
 
 /*
  * XXX doesn't really belong here I guess...
@@ -259,8 +267,8 @@
 #define	PMAP_PCID_OVERMAX_KERN	0x800
 #define	PMAP_PCID_USER_PT	0x800
 
-#define	PMAP_NO_CR3		(~0UL)
-#define	PMAP_UCR3_NOMASK	(~0UL)
+#define	PMAP_NO_CR3		0xffffffffffffffff
+#define	PMAP_UCR3_NOMASK	0xffffffffffffffff
 
 #ifndef LOCORE
 
@@ -270,6 +278,7 @@
 #include <sys/_mutex.h>
 #include <sys/_pctrie.h>
 #include <sys/_rangeset.h>
+#include <sys/_smr.h>
 
 #include <vm/_vm_radix.h>
 
@@ -302,7 +311,6 @@ typedef u_int64_t pml5_entry_t;
 #define	P5Dmap		((pd_entry_t *)(addr_P5Dmap))
 
 extern int nkpt;		/* Initial number of kernel page tables */
-extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 extern u_int64_t KPML5phys;	/* physical address of kernel level 5 */
 
@@ -371,6 +379,7 @@ struct pmap {
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
 	long			pm_eptgen;	/* EPT pmap generation id */
+	smr_t			pm_eptsmr;
 	int			pm_flags;
 	struct pmap_pcids	pm_pcids[MAXCPU];
 	struct rangeset		pm_pkru;
@@ -500,6 +509,11 @@ int	pmap_pkru_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 void	pmap_thread_init_invl_gen(struct thread *td);
 int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
+
+#ifdef KASAN
+void	pmap_kasan_enter(vm_offset_t);
+#endif
+
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */

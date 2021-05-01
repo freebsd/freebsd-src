@@ -32,6 +32,7 @@
 
 #include "opt_acpi.h"
 #include "opt_platform.h"
+#include "opt_iommu.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <sys/domainset.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -47,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
@@ -56,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -71,6 +76,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+
+#ifdef IOMMU
+#include <dev/iommu/iommu.h>
+#include <dev/iommu/iommu_gas.h>
+#endif
 
 #include "pcib_if.h"
 #include "pic_if.h"
@@ -237,6 +247,7 @@ struct gicv3_its_softc {
 	struct resource *sc_its_res;
 
 	cpuset_t	sc_cpus;
+	struct domainset *sc_ds;
 	u_int		gic_irq_cpu;
 
 	struct its_ptable sc_its_ptab[GITS_BASER_NUM];
@@ -269,6 +280,7 @@ struct gicv3_its_softc {
 #define	ITS_FLAGS_ERRATA_CAVIUM_22375	0x00000004
 	u_int sc_its_flags;
 	bool	trace_enable;
+	vm_page_t ma; /* fake msi page */
 };
 
 static void *conf_base;
@@ -321,6 +333,10 @@ static msi_release_msi_t gicv3_its_release_msi;
 static msi_alloc_msix_t gicv3_its_alloc_msix;
 static msi_release_msix_t gicv3_its_release_msix;
 static msi_map_msi_t gicv3_its_map_msi;
+#ifdef IOMMU
+static msi_iommu_init_t gicv3_iommu_init;
+static msi_iommu_deinit_t gicv3_iommu_deinit;
+#endif
 
 static void its_cmd_movi(device_t, struct gicv3_its_irqsrc *);
 static void its_cmd_mapc(device_t, struct its_col *, uint8_t);
@@ -352,6 +368,10 @@ static device_method_t gicv3_its_methods[] = {
 	DEVMETHOD(msi_alloc_msix,	gicv3_its_alloc_msix),
 	DEVMETHOD(msi_release_msix,	gicv3_its_release_msix),
 	DEVMETHOD(msi_map_msi,		gicv3_its_map_msi),
+#ifdef IOMMU
+	DEVMETHOD(msi_iommu_init,	gicv3_iommu_init),
+	DEVMETHOD(msi_iommu_deinit,	gicv3_iommu_deinit),
+#endif
 
 	/* End */
 	DEVMETHOD_END
@@ -367,8 +387,9 @@ gicv3_its_cmdq_init(struct gicv3_its_softc *sc)
 	uint64_t reg, tmp;
 
 	/* Set up the command circular buffer */
-	sc->sc_its_cmd_base = contigmalloc(ITS_CMDQ_SIZE, M_GICV3_ITS,
-	    M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, ITS_CMDQ_ALIGN, 0);
+	sc->sc_its_cmd_base = contigmalloc_domainset(ITS_CMDQ_SIZE, M_GICV3_ITS,
+	    sc->sc_ds, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1, ITS_CMDQ_ALIGN,
+	    0);
 	sc->sc_its_cmd_next_idx = 0;
 
 	cmd_paddr = vtophys(sc->sc_its_cmd_base);
@@ -468,9 +489,9 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		npages = howmany(its_tbl_size, PAGE_SIZE);
 
 		/* Allocate the table */
-		table = (vm_offset_t)contigmalloc(npages * PAGE_SIZE,
-		    M_GICV3_ITS, M_WAITOK | M_ZERO, 0, (1ul << 48) - 1,
-		    PAGE_SIZE_64K, 0);
+		table = (vm_offset_t)contigmalloc_domainset(npages * PAGE_SIZE,
+		    M_GICV3_ITS, sc->sc_ds, M_WAITOK | M_ZERO, 0,
+		    (1ul << 48) - 1, PAGE_SIZE_64K, 0);
 
 		sc->sc_its_ptab[i].ptab_vaddr = table;
 		sc->sc_its_ptab[i].ptab_size = npages * PAGE_SIZE;
@@ -495,7 +516,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			    (nitspages - 1);
 
 			switch (page_size) {
-			case PAGE_SIZE:		/* 4KB */
+			case PAGE_SIZE_4K:	/* 4KB */
 				reg |=
 				    GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
 				break;
@@ -526,7 +547,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			    (reg & GITS_BASER_PSZ_MASK)) {
 				switch (page_size) {
 				case PAGE_SIZE_16K:
-					page_size = PAGE_SIZE;
+					page_size = PAGE_SIZE_4K;
 					continue;
 				case PAGE_SIZE_64K:
 					page_size = PAGE_SIZE_16K;
@@ -803,8 +824,9 @@ static int
 gicv3_its_attach(device_t dev)
 {
 	struct gicv3_its_softc *sc;
-	uint32_t iidr;
 	int domain, err, i, rid;
+	uint64_t phys;
+	uint32_t iidr;
 
 	sc = device_get_softc(dev);
 
@@ -820,6 +842,12 @@ gicv3_its_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	phys = rounddown2(vtophys(rman_get_virtual(sc->sc_its_res)) +
+	    GITS_TRANSLATER, PAGE_SIZE);
+	sc->ma = malloc(sizeof(struct vm_page), M_DEVBUF, M_WAITOK | M_ZERO);
+	vm_page_initfake(sc->ma, phys, VM_MEMATTR_DEFAULT);
+
+	CPU_COPY(&all_cpus, &sc->sc_cpus);
 	iidr = gic_its_read_4(sc, GITS_IIDR);
 	for (i = 0; i < nitems(its_quirks); i++) {
 		if ((iidr & its_quirks[i].iidr_mask) == its_quirks[i].iidr) {
@@ -830,6 +858,12 @@ gicv3_its_attach(device_t dev)
 			its_quirks[i].func(dev);
 			break;
 		}
+	}
+
+	if (bus_get_domain(dev, &domain) == 0 && domain < MAXMEMDOM) {
+		sc->sc_ds = DOMAINSET_PREF(domain);
+	} else {
+		sc->sc_ds = DOMAINSET_RR();
 	}
 
 	/* Allocate the private tables */
@@ -843,22 +877,15 @@ gicv3_its_attach(device_t dev)
 	/* Protects access to the ITS command circular buffer. */
 	mtx_init(&sc->sc_its_cmd_lock, "ITS cmd lock", NULL, MTX_SPIN);
 
-	CPU_ZERO(&sc->sc_cpus);
-	if (bus_get_domain(dev, &domain) == 0) {
-		if (domain < MAXMEMDOM)
-			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
-	} else {
-		CPU_COPY(&all_cpus, &sc->sc_cpus);
-	}
-
 	/* Allocate the command circular buffer */
 	gicv3_its_cmdq_init(sc);
 
 	/* Allocate the per-CPU collections */
 	for (int cpu = 0; cpu <= mp_maxid; cpu++)
 		if (CPU_ISSET(cpu, &sc->sc_cpus) != 0)
-			sc->sc_its_cols[cpu] = malloc(
+			sc->sc_its_cols[cpu] = malloc_domainset(
 			    sizeof(*sc->sc_its_cols[0]), M_GICV3_ITS,
+			    DOMAINSET_PREF(pcpu_find(cpu)->pc_domain),
 			    M_WAITOK | M_ZERO);
 		else
 			sc->sc_its_cols[cpu] = NULL;
@@ -910,9 +937,23 @@ static void
 its_quirk_cavium_22375(device_t dev)
 {
 	struct gicv3_its_softc *sc;
+	int domain;
 
 	sc = device_get_softc(dev);
 	sc->sc_its_flags |= ITS_FLAGS_ERRATA_CAVIUM_22375;
+
+	/*
+	 * We need to limit which CPUs we send these interrupts to on
+	 * the original dual socket ThunderX as it is unable to
+	 * forward them between the two sockets.
+	 */
+	if (bus_get_domain(dev, &domain) == 0) {
+		if (domain < MAXMEMDOM) {
+			CPU_COPY(&cpuset_domain[domain], &sc->sc_cpus);
+		} else {
+			CPU_ZERO(&sc->sc_cpus);
+		}
+	}
 }
 
 static void
@@ -989,7 +1030,6 @@ gicv3_its_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	gicv3_its_disable_intr(dev, isrc);
 	gic_icc_write(EOIR1, girq->gi_lpi + GIC_FIRST_LPI);
 }
 
@@ -997,7 +1037,6 @@ static void
 gicv3_its_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
 
-	gicv3_its_enable_intr(dev, isrc);
 }
 
 static void
@@ -1149,9 +1188,9 @@ its_device_get(device_t dev, device_t child, u_int nvecs)
 	 * PA has to be 256 B aligned. At least two entries for device.
 	 */
 	its_dev->itt_size = roundup2(MAX(nvecs, 2) * esize, 256);
-	its_dev->itt = (vm_offset_t)contigmalloc(its_dev->itt_size,
-	    M_GICV3_ITS, M_NOWAIT | M_ZERO, 0, LPI_INT_TRANS_TAB_MAX_ADDR,
-	    LPI_INT_TRANS_TAB_ALIGN, 0);
+	its_dev->itt = (vm_offset_t)contigmalloc_domainset(its_dev->itt_size,
+	    M_GICV3_ITS, sc->sc_ds, M_NOWAIT | M_ZERO, 0,
+	    LPI_INT_TRANS_TAB_MAX_ADDR, LPI_INT_TRANS_TAB_ALIGN, 0);
 	if (its_dev->itt == 0) {
 		vmem_free(sc->sc_irq_alloc, its_dev->lpis.lpi_base, nvecs);
 		free(its_dev, M_GICV3_ITS);
@@ -1394,7 +1433,9 @@ gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
+	mtx_lock_spin(&sc->sc_its_dev_lock);
 	gicv3_its_release_irqsrc(sc, girq);
+	mtx_unlock_spin(&sc->sc_its_dev_lock);
 	its_dev->lpis.lpi_busy--;
 
 	if (its_dev->lpis.lpi_busy == 0)
@@ -1418,6 +1459,33 @@ gicv3_its_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 
 	return (0);
 }
+
+#ifdef IOMMU
+static int
+gicv3_iommu_init(device_t dev, device_t child, struct iommu_domain **domain)
+{
+	struct gicv3_its_softc *sc;
+	struct iommu_ctx *ctx;
+	int error;
+
+	sc = device_get_softc(dev);
+	ctx = iommu_get_dev_ctx(child);
+	error = iommu_map_msi(ctx, PAGE_SIZE, GITS_TRANSLATER,
+	    IOMMU_MAP_ENTRY_WRITE, IOMMU_MF_CANWAIT, &sc->ma);
+	*domain = iommu_get_ctx_domain(ctx);
+
+	return (error);
+}
+
+static void
+gicv3_iommu_deinit(device_t dev, device_t child)
+{
+	struct iommu_ctx *ctx;
+
+	ctx = iommu_get_dev_ctx(child);
+	iommu_unmap_msi(ctx);
+}
+#endif
 
 /*
  * Commands handling.

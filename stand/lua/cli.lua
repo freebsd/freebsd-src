@@ -32,6 +32,18 @@ local core = require("core")
 
 local cli = {}
 
+if not pager then
+	-- shim for the pager module that just doesn't do it.
+	-- XXX Remove after 12.2 goes EoL.
+	pager = {
+		open = function() end,
+		close = function() end,
+		output = function(str)
+			printc(str)
+		end,
+	}
+end
+
 -- Internal function
 -- Parses arguments to boot and returns two values: kernel_name, argstr
 -- Defaults to nil and "" respectively.
@@ -62,6 +74,14 @@ local function parseBootArgs(argv, with_kernel)
 		return kernel_name, argstr
 	else
 		return argstr
+	end
+end
+
+local function setModule(module, loading)
+	if loading and config.enableModule(module) then
+		print(module .. " will be loaded")
+	elseif not loading and config.disableModule(module) then
+		print(module .. " will not be loaded")
 	end
 end
 
@@ -132,6 +152,92 @@ end
 
 cli['reload-conf'] = function()
 	config.reload()
+end
+
+cli["enable-module"] = function(...)
+	local _, argv = cli.arguments(...)
+	if #argv == 0 then
+		print("usage error: enable-module module")
+		return
+	end
+
+	setModule(argv[1], true)
+end
+
+cli["disable-module"] = function(...)
+	local _, argv = cli.arguments(...)
+	if #argv == 0 then
+		print("usage error: disable-module module")
+		return
+	end
+
+	setModule(argv[1], false)
+end
+
+cli["toggle-module"] = function(...)
+	local _, argv = cli.arguments(...)
+	if #argv == 0 then
+		print("usage error: toggle-module module")
+		return
+	end
+
+	local module = argv[1]
+	setModule(module, not config.isModuleEnabled(module))
+end
+
+cli["show-module-options"] = function()
+	local module_info = config.getModuleInfo()
+	local modules = module_info['modules']
+	local blacklist = module_info['blacklist']
+	local lines = {}
+
+	for module, info in pairs(modules) do
+		if #lines > 0 then
+			lines[#lines + 1] = ""
+		end
+
+		lines[#lines + 1] = "Name:        " .. module
+		if info.name then
+			lines[#lines + 1] = "Path:        " .. info.name
+		end
+
+		if info.type then
+			lines[#lines + 1] = "Type:        " .. info.type
+		end
+
+		if info.flags then
+			lines[#lines + 1] = "Flags:       " .. info.flags
+		end
+
+		if info.before then
+			lines[#lines + 1] = "Before load: " .. info.before
+		end
+
+		if info.after then
+			lines[#lines + 1] = "After load:  " .. info.after
+		end
+
+		if info.error then
+			lines[#lines + 1] = "Error:       " .. info.error
+		end
+
+		local status
+		if blacklist[module] and not info.force then
+			status = "Blacklisted"
+		elseif info.load == "YES" then
+			status = "Load"
+		else
+			status = "Don't load"
+		end
+
+		lines[#lines + 1] = "Status:      " .. status
+	end
+
+	pager.open()
+	for _, v in ipairs(lines) do
+		pager.output(v .. "\n")
+	end
+	pager.close()
 end
 
 -- Used for splitting cli varargs into cmd_name and the rest of argv

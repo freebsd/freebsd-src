@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.52 2020/07/18 05:57:57 sjg Exp $
+# $Id: meta.autodep.mk,v 1.53 2020/11/08 05:47:56 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -178,7 +178,8 @@ DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
 	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
 	*.po.*) mv $@.${.MAKE.PID} $@;; \
 	*) { cat $@.${.MAKE.PID}; \
-	sed 's,\${PICO}:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
+	sed ${OBJ_EXTENSIONS:N.o:N.po:@o@-e 's,\$o:,.o:,'@} \
+		-e 's,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
 	rm -f $@.${.MAKE.PID};; \
 	esac
 .else

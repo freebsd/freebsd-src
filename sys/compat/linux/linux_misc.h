@@ -50,12 +50,24 @@
 					 * Second arg is a ptr to return the
 					 * signal.
 					 */
+#define	LINUX_PR_GET_DUMPABLE	3
+#define	LINUX_PR_SET_DUMPABLE	4
 #define	LINUX_PR_GET_KEEPCAPS	7	/* Get drop capabilities on setuid */
 #define	LINUX_PR_SET_KEEPCAPS	8	/* Set drop capabilities on setuid */
 #define	LINUX_PR_SET_NAME	15	/* Set process name. */
 #define	LINUX_PR_GET_NAME	16	/* Get process name. */
+#define	LINUX_PR_GET_SECCOMP	21
+#define	LINUX_PR_SET_SECCOMP	22
+#define	LINUX_PR_CAPBSET_READ	23
+#define	LINUX_PR_SET_NO_NEW_PRIVS	38
+#define	LINUX_PR_SET_PTRACER	1499557217
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
+
+/* For GET/SET DUMPABLE */
+#define	LINUX_SUID_DUMP_DISABLE	0	/* Don't coredump setuid processes. */
+#define	LINUX_SUID_DUMP_USER	1	/* Dump as user of process. */
+#define	LINUX_SUID_DUMP_ROOT	2	/* Dump as root. */
 
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
@@ -76,6 +88,7 @@ extern const char *linux_kplatform;
 					 * differ from AT_PLATFORM.
 					 */
 #define	LINUX_AT_RANDOM		25	/* address of random bytes */
+#define	LINUX_AT_HWCAP2		26	/* CPU capabilities, second part */
 #define	LINUX_AT_EXECFN		31	/* filename of program */
 #define	LINUX_AT_SYSINFO	32	/* vsyscall */
 #define	LINUX_AT_SYSINFO_EHDR	33	/* vdso header */
@@ -92,13 +105,25 @@ extern const char *linux_kplatform;
 #define	LINUX_CLONE_FILES		0x00000400
 #define	LINUX_CLONE_SIGHAND		0x00000800
 #define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
+#define	LINUX_CLONE_PTRACE		0x00002000
 #define	LINUX_CLONE_VFORK		0x00004000
 #define	LINUX_CLONE_PARENT		0x00008000
 #define	LINUX_CLONE_THREAD		0x00010000
+#define	LINUX_CLONE_NEWNS		0x00020000	/* New mount NS */
+#define	LINUX_CLONE_SYSVSEM		0x00040000
 #define	LINUX_CLONE_SETTLS		0x00080000
 #define	LINUX_CLONE_PARENT_SETTID	0x00100000
 #define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
+#define	LINUX_CLONE_DETACHED		0x00400000	/* Unused */
+#define	LINUX_CLONE_UNTRACED		0x00800000
 #define	LINUX_CLONE_CHILD_SETTID	0x01000000
+#define	LINUX_CLONE_NEWCGROUP		0x02000000	/* New cgroup NS */
+#define	LINUX_CLONE_NEWUTS		0x04000000
+#define	LINUX_CLONE_NEWIPC		0x08000000
+#define	LINUX_CLONE_NEWUSER		0x10000000
+#define	LINUX_CLONE_NEWPID		0x20000000
+#define	LINUX_CLONE_NEWNET		0x40000000
+#define	LINUX_CLONE_IO			0x80000000
 
 /* Scheduling policies */
 #define	LINUX_SCHED_OTHER	0
@@ -137,12 +162,12 @@ extern int stclohz;
 #define	LINUX_P_PID		1
 #define	LINUX_P_PGID		2
 
-#define	LINUX_RLIMIT_LOCKS	RLIM_NLIMITS + 1
-#define	LINUX_RLIMIT_SIGPENDING	RLIM_NLIMITS + 2
-#define	LINUX_RLIMIT_MSGQUEUE	RLIM_NLIMITS + 3
-#define	LINUX_RLIMIT_NICE	RLIM_NLIMITS + 4
-#define	LINUX_RLIMIT_RTPRIO	RLIM_NLIMITS + 5
-#define	LINUX_RLIMIT_RTTIME	RLIM_NLIMITS + 6
+#define	LINUX_RLIMIT_LOCKS	10
+#define	LINUX_RLIMIT_SIGPENDING	11
+#define	LINUX_RLIMIT_MSGQUEUE	12
+#define	LINUX_RLIMIT_NICE	13
+#define	LINUX_RLIMIT_RTPRIO	14
+#define	LINUX_RLIMIT_RTTIME	15
 
 #define	LINUX_RLIM_INFINITY	(~0UL)
 
@@ -157,7 +182,7 @@ extern int stclohz;
 int linux_ptrace_status(struct thread *td, int pid, int status);
 #endif
 void linux_to_bsd_waitopts(int options, int *bsdopts);
-int linux_set_upcall_kse(struct thread *td, register_t stack);
+int linux_set_upcall(struct thread *td, register_t stack);
 int linux_set_cloned_tls(struct thread *td, void *desc);
 struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
 

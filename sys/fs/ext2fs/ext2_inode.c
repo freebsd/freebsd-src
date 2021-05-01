@@ -581,6 +581,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 		error = ext2_ext_truncate(vp, length, flags, cred, td);
 	else
 		error = ext2_ind_truncate(vp, length, flags, cred, td);
+	cluster_init_vn(&ip->i_clusterw);
 
 	return (error);
 }
@@ -593,7 +594,7 @@ ext2_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct thread *td = ap->a_td;
+	struct thread *td = curthread;
 	int mode, error = 0;
 
 	/*

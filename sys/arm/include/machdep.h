@@ -5,16 +5,9 @@
 #define _MACHDEP_BOOT_MACHDEP_H_
 
 /* Structs that need to be initialised by initarm */
-#if __ARM_ARCH >= 6
 extern vm_offset_t irqstack;
 extern vm_offset_t undstack;
 extern vm_offset_t abtstack;
-#else
-struct pv_addr;
-extern struct pv_addr irqstack;
-extern struct pv_addr undstack;
-extern struct pv_addr abtstack;
-#endif
 
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1
@@ -23,7 +16,6 @@ extern struct pv_addr abtstack;
 
 /* misc prototypes used by the many arm machdeps */
 struct trapframe;
-void arm_lock_cache_line(vm_offset_t);
 void init_proc0(vm_offset_t kstack);
 void halt(void);
 void abort_handler(struct trapframe *, int );
@@ -39,7 +31,6 @@ vm_offset_t parse_boot_param(struct arm_boot_params *abp);
 void arm_parse_fdt_bootargs(void);
 void arm_print_kenv(void);
 
-void arm_generic_initclocks(void);
 int arm_get_vfpstate(struct thread *td, void *args);
 
 /* Board-specific attributes */

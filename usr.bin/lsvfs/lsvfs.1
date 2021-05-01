@@ -2,7 +2,7 @@
 .\" Garrett A. Wollman, September 1994
 .\" This file is in the public domain.
 .\"
-.Dd June 9, 2013
+.Dd December 28, 2020
 .Dt LSVFS 1
 .Os
 .Sh NAME
@@ -44,6 +44,22 @@ mounted file systems of this type
 .It Flags
 flag bits.
 .El
+.Sh EXAMPLES
+Show information about the
+.Ql ufs
+and
+.Xr devfs 5
+filesystems and check the number of mounts for the former:
+.Bd -literal -offset indent
+$ lsvfs ufs devfs
+Filesystem                              Num  Refs  Flags
+-------------------------------- ---------- -----  ---------------
+ufs                              0x00000035     2
+devfs                            0x00000071     1  synthetic, jail
+
+$ mount -t ufs | wc -l
+       2
+.Ed
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr getvfsbyname 3 ,

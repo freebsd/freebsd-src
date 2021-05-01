@@ -3881,6 +3881,11 @@ archive_mstring_get_utf8(struct archive *a, struct archive_mstring *aes,
 	}
 
 	*p = NULL;
+	/* Try converting WCS to MBS first if MBS does not exist yet. */
+	if ((aes->aes_set & AES_SET_MBS) == 0) {
+		const char *pm; /* unused */
+		archive_mstring_get_mbs(a, aes, &pm); /* ignore errors, we'll handle it later */
+	}
 	if (aes->aes_set & AES_SET_MBS) {
 		sc = archive_string_conversion_to_charset(a, "UTF-8", 1);
 		if (sc == NULL)
@@ -3903,9 +3908,9 @@ int
 archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes,
     const char **p)
 {
+	struct archive_string_conv *sc;
 	int r, ret = 0;
 
-	(void)a; /* UNUSED */
 	/* If we already have an MBS form, return that immediately. */
 	if (aes->aes_set & AES_SET_MBS) {
 		*p = aes->aes_mbs.s;
@@ -3926,10 +3931,23 @@ archive_mstring_get_mbs(struct archive *a, struct archive_mstring *aes,
 			ret = -1;
 	}
 
-	/*
-	 * Only a UTF-8 form cannot avail because its conversion already
-	 * failed at archive_mstring_update_utf8().
-	 */
+	/* If there's a UTF-8 form, try converting with the native locale. */
+	if (aes->aes_set & AES_SET_UTF8) {
+		archive_string_empty(&(aes->aes_mbs));
+		sc = archive_string_conversion_from_charset(a, "UTF-8", 1);
+		if (sc == NULL)
+			return (-1);/* Couldn't allocate memory for sc. */
+		r = archive_strncpy_l(&(aes->aes_mbs),
+			aes->aes_utf8.s, aes->aes_utf8.length, sc);
+		if (a == NULL)
+			free_sconv_object(sc);
+		*p = aes->aes_mbs.s;
+		if (r == 0) {
+			aes->aes_set |= AES_SET_MBS;
+			ret = 0;/* success; overwrite previous error. */
+		} else
+			ret = -1;/* failure. */
+	}
 	return (ret);
 }
 
@@ -3947,6 +3965,11 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 	}
 
 	*wp = NULL;
+	/* Try converting UTF8 to MBS first if MBS does not exist yet. */
+	if ((aes->aes_set & AES_SET_MBS) == 0) {
+		const char *p; /* unused */
+		archive_mstring_get_mbs(a, aes, &p); /* ignore errors, we'll handle it later */
+	}
 	/* Try converting MBS to WCS using native locale. */
 	if (aes->aes_set & AES_SET_MBS) {
 		archive_wstring_empty(&(aes->aes_wcs));
@@ -3962,11 +3985,12 @@ archive_mstring_get_wcs(struct archive *a, struct archive_mstring *aes,
 }
 
 int
-archive_mstring_get_mbs_l(struct archive_mstring *aes,
+archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
     const char **p, size_t *length, struct archive_string_conv *sc)
 {
 	int r, ret = 0;
 
+	(void)r; /* UNUSED */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/*
 	 * Internationalization programming on Windows must use Wide
@@ -3989,20 +4013,12 @@ archive_mstring_get_mbs_l(struct archive_mstring *aes,
 	}
 #endif
 
-	/* If there is not an MBS form but is a WCS form, try converting
+	/* If there is not an MBS form but there is a WCS or UTF8 form, try converting
 	 * with the native locale to be used for translating it to specified
 	 * character-set. */
-	if ((aes->aes_set & AES_SET_MBS) == 0 &&
-	    (aes->aes_set & AES_SET_WCS) != 0) {
-		archive_string_empty(&(aes->aes_mbs));
-		r = archive_string_append_from_wcs(&(aes->aes_mbs),
-		    aes->aes_wcs.s, aes->aes_wcs.length);
-		if (r == 0)
-			aes->aes_set |= AES_SET_MBS;
-		else if (errno == ENOMEM)
-			return (-1);
-		else
-			ret = -1;
+	if ((aes->aes_set & AES_SET_MBS) == 0) {
+		const char *pm; /* unused */
+		archive_mstring_get_mbs(a, aes, &pm); /* ignore errors, we'll handle it later */
 	}
 	/* If we already have an MBS form, use it to be translated to
 	 * specified character-set. */

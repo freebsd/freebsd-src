@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -816,9 +816,9 @@ AcpiRsGetListLength (
         *SizeNeeded += BufferSize;
 
         ACPI_DEBUG_PRINT ((ACPI_DB_RESOURCES,
-            "Type %.2X, AmlLength %.2X InternalLength %.2X\n",
+            "Type %.2X, AmlLength %.2X InternalLength %.2X%8X\n",
             AcpiUtGetResourceType (AmlBuffer),
-            AcpiUtGetDescriptorLength (AmlBuffer), BufferSize));
+            AcpiUtGetDescriptorLength (AmlBuffer), ACPI_FORMAT_UINT64(*SizeNeeded)));
 
         /*
          * Point to the next resource within the AML stream using the length

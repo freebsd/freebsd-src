@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: yesno4,v 1.1 2010/01/14 10:26:40 tom Exp $
+# $Id: yesno4,v 1.2 2020/11/26 00:05:52 tom Exp $
 
 . ./setup-vars
 
@@ -13,6 +13,6 @@ also control line breaking explicitly by inserting \
 auto wrap around will be disabled and you will have to \
 control line breaking yourself." 6 30
 
-retval=$?
+returncode=$?
 
 . ./report-yesno

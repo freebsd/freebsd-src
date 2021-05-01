@@ -1,13 +1,11 @@
 src/tests: The FreeBSD test suite
 =================================
 
-To run the FreeBSD test suite:
-(1)  Make sure that kyua is installed:
-       pkg install kyua
-(2)  To run the tests:
+Usage of the FreeBSD test suite:
+(1)  Run the tests:
        kyua test -k /usr/tests/Kyuafile
-(3)  To see the test results:
-       kyua report  
+(2)  See the test results:
+       kyua report
 
 For further information on using the test suite, read tests(7):
        man tests

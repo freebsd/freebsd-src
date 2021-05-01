@@ -54,7 +54,7 @@ errmsg(const char *m)
 	ssize_t written;
 
 	while (s > 0) {
-		written = write(2, m, strlen(m));
+		written = write(2, m, s);
 		if (written <= 0)
 			return;
 		m += written;

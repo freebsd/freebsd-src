@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2017
+.Dd November 23, 2020
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -1101,6 +1101,15 @@ The arguments to the request are:
 .It Fa obj
 Pointer to the semaphore (of type
 .Vt struct _usem2 ) .
+.It Fa uaddr
+Size of the memory passed in via the
+.Fa uaddr2
+argument.
+.It Fa uaddr2
+Optional pointer to a structure of type
+.Vt struct _umtx_time ,
+which may be followed by a structure of type
+.Vt struct timespec .
 .El
 .Pp
 Put the requesting thread onto a sleep queue if the semaphore counter
@@ -1124,6 +1133,18 @@ An unblocked signal delivered during such wait results in sleep
 interruption and
 .Er EINTR
 error.
+.Pp
+If
+.Dv UMTX_ABSTIME
+was not set, and the operation was interrupted and the caller passed in a
+.Fa uaddr2
+large enough to hold a
+.Vt struct timespec
+following the initial
+.Vt struct _umtx_time ,
+then the
+.Vt struct timespec
+is updated to contain the unslept amount.
 .It Dv UMTX_OP_SEM2_WAKE
 Wake up waiters on semaphore lock.
 The arguments to the request are:
@@ -1159,7 +1180,7 @@ request:
 .It Dv UMTX_SHM_CREAT
 Creates the anonymous shared memory object, which can be looked up
 with the specified key
-.Fa uaddr.
+.Fa uaddr .
 If the object associated with the
 .Fa uaddr
 key already exists, it is returned instead of creating a new object.
@@ -1177,7 +1198,7 @@ the specified key
 an error is returned, and no new object is created.
 .It Dv UMTX_SHM_DESTROY
 De-associate the shared object with the specified key
-.Fa uaddr.
+.Fa uaddr .
 The object is destroyed after the last open file descriptor is closed
 and the last mapping for it is destroyed.
 .It Dv UMTX_SHM_ALIVE
@@ -1251,6 +1272,79 @@ See
 .Sx ROBUST UMUTEXES
 subsection for details.
 .El
+.Pp
+The
+.Fa op
+argument may be a bitwise OR of a single command from above with one or more of
+the following flags:
+.Bl -tag -width indent
+.It Dv UMTX_OP__I386
+Request i386 ABI compatibility from the native
+.Nm
+system call.
+Specifically, this implies that:
+.Bl -hang -offset indent
+.It
+.Fa obj
+arguments that point to a word, point to a 32-bit integer.
+.It
+The
+.Dv UMTX_OP_NWAKE_PRIVATE
+.Fa obj
+argument is a pointer to an array of 32-bit pointers.
+.It
+The
+.Dv m_rb_lnk
+member of
+.Vt struct umutex
+is a 32-bit pointer.
+.It
+.Vt struct timespec
+uses a 32-bit time_t.
+.El
+.Pp
+.Dv UMTX_OP__32BIT
+has no effect if this flag is set.
+This flag is valid for all architectures, but it is ignored on i386.
+.It Dv UMTX_OP__32BIT
+Request non-i386, 32-bit ABI compatibility from the native
+.Nm
+system call.
+Specifically, this implies that:
+.Bl -hang -offset indent
+.It
+.Fa obj
+arguments that point to a word, point to a 32-bit integer.
+.It
+The
+.Dv UMTX_OP_NWAKE_PRIVATE
+.Fa obj
+argument is a pointer to an array of 32-bit pointers.
+.It
+The
+.Dv m_rb_lnk
+member of
+.Vt struct umutex
+is a 32-bit pointer.
+.It
+.Vt struct timespec
+uses a 64-bit time_t.
+.El
+.Pp
+This flag has no effect if
+.Dv UMTX_OP__I386
+is set.
+This flag is valid for all architectures.
+.El
+.Pp
+Note that if any 32-bit ABI compatibility is being requested, then care must be
+taken with robust lists.
+A single thread may not mix 32-bit compatible robust lists with native
+robust lists.
+The first
+.Dv UMTX_OP_ROBUST_LISTS
+call in a given thread determines which ABI that thread will use for robust
+lists going forward.
 .Sh RETURN VALUES
 If successful,
 all requests, except

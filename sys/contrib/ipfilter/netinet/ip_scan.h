@@ -25,15 +25,9 @@ struct ip;
 struct ipstate;
 
 
-#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCADSCA	_IOWR('r', 60, struct ipscan *)
 # define	SIOCRMSCA	_IOWR('r', 61, struct ipscan *)
 # define	SIOCGSCST	_IOWR('r', 62, struct ipscan *)
-#else
-# define	SIOCADSCA	_IOWR(r, 60, struct ipscan *)
-# define	SIOCRMSCA	_IOWR(r, 61, struct ipscan *)
-# define	SIOCGSCST	_IOWR(r, 62, struct ipscan *)
-#endif
 
 struct	action	{
 	int		act_val;	/* what to do */
@@ -94,13 +88,13 @@ typedef	struct	ipscanstat	{
 } ipscanstat_t;
 
 
-extern	int ipf_scan_ioctl __P((ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, int, void *));
-extern	int ipf_scan_init __P((void));
-extern	int ipf_scan_attachis __P((struct ipstate *));
-extern	int ipf_scan_attachfr __P((struct frentry *));
-extern	int ipf_scan_detachis __P((struct ipstate *));
-extern	int ipf_scan_detachfr __P((struct frentry *));
-extern	int ipf_scan_packet __P((struct fr_info *, struct ipstate *));
-extern	void ipf_scan_unload __P((ipf_main_softc_t *));
+extern	int ipf_scan_ioctl(ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, int, void *);
+extern	int ipf_scan_init(void);
+extern	int ipf_scan_attachis(struct ipstate *);
+extern	int ipf_scan_attachfr(struct frentry *);
+extern	int ipf_scan_detachis(struct ipstate *);
+extern	int ipf_scan_detachfr(struct frentry *);
+extern	int ipf_scan_packet(struct fr_info *, struct ipstate *);
+extern	void ipf_scan_unload(ipf_main_softc_t *);
 
 #endif /* __IP_SCAN_H__ */

@@ -7,4 +7,5 @@ extension of 'a.a' is 'a'
 extension of '.gitignore' is 'gitignore'
 extension of 'a' is ''
 extension of 'a.a' is 'a'
+extension of 'trailing/' is ''
 exit status 0

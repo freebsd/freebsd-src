@@ -111,6 +111,8 @@ void	*vm_create_devmem(struct vmctx *ctx, int segid, const char *name,
 int	vm_mmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, int segid,
 	    vm_ooffset_t segoff, size_t len, int prot);
 
+int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
+
 int	vm_create(const char *name);
 int	vm_get_device_fd(struct vmctx *ctx);
 struct vmctx *vm_open(const char *name);
@@ -176,11 +178,14 @@ int	vm_assign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_unassign_pptdev(struct vmctx *ctx, int bus, int slot, int func);
 int	vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 			   vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
+int	vm_unmap_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
+			     vm_paddr_t gpa, size_t len);
 int	vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot,
 	    int func, uint64_t addr, uint64_t msg, int numvec);
 int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
 	    int func, int idx, uint64_t addr, uint64_t msg,
 	    uint32_t vector_control);
+int	vm_disable_pptdev_msix(struct vmctx *ctx, int bus, int slot, int func);
 
 int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
 int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);
@@ -254,19 +259,6 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 /*
  * Save and restore
  */
-
-#define MAX_SNAPSHOT_VMNAME 100
-
-enum checkpoint_opcodes {
-	START_CHECKPOINT = 0,
-	START_SUSPEND = 1,
-};
-
-struct checkpoint_op {
-	unsigned int op;
-	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
-};
-
 int	vm_snapshot_req(struct vm_snapshot_meta *meta);
 int	vm_restore_time(struct vmctx *ctx);
 

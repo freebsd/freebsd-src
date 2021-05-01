@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to not build Casper program and related libraries.
+Do not build Casper program and related libraries.

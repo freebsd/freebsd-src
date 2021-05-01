@@ -43,14 +43,14 @@ struct ufs_args {
 	struct	oexport_args export;	/* network export information */
 };
 
-#ifdef _KERNEL
-
 #include <sys/_task.h>
 
+#ifdef _KERNEL
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_UFSMNT);
 MALLOC_DECLARE(M_TRIM);
 #endif
+#endif	/* _KERNEL */
 
 struct buf;
 struct inode;
@@ -71,6 +71,9 @@ struct fsfail_task {
 	struct task task;
 	fsid_t fsid;
 };
+
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 /*
  * This structure describes the UFS specific mount structure data.
@@ -190,6 +193,5 @@ struct ufsmount {
 #define	MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
-#endif /* _KERNEL */
 
 #endif

@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_pattern.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_pattern.c,v 1.19 2020/12/12 00:38:14 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -51,8 +51,8 @@ MODULE_ID("$Id: m_pattern.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
 |                                    pattern is stored
 |                    PatternString - as expected
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(char *)
-menu_pattern(const MENU * menu)
+MENU_EXPORT(char *)
+menu_pattern(const MENU *menu)
 {
   static char empty[] = "";
 
@@ -73,8 +73,8 @@ menu_pattern(const MENU * menu)
 |                    E_NOT_CONNECTED   - no items connected to menu
 |                    E_NO_MATCH        - no item matches pattern
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_menu_pattern(MENU * menu, const char *p)
+MENU_EXPORT(int)
+set_menu_pattern(MENU *menu, const char *p)
 {
   ITEM *matchitem;
   int matchpos;

@@ -199,8 +199,8 @@ static devclass_t ppt_devclass;
 DEFINE_CLASS_0(ppt, ppt_driver, ppt_methods, sizeof(struct pptdev));
 DRIVER_MODULE(ppt, pci, ppt_driver, ppt_devclass, NULL, NULL);
 
-static struct pptdev *
-ppt_find(int bus, int slot, int func)
+static int
+ppt_find(struct vm *vm, int bus, int slot, int func, struct pptdev **pptp)
 {
 	device_t dev;
 	struct pptdev *ppt;
@@ -212,13 +212,19 @@ ppt_find(int bus, int slot, int func)
 		s = pci_get_slot(dev);
 		f = pci_get_function(dev);
 		if (bus == b && slot == s && func == f)
-			return (ppt);
+			break;
 	}
-	return (NULL);
+
+	if (ppt == NULL)
+		return (ENOENT);
+	if (ppt->vm != vm)		/* Make sure we own this device */
+		return (EBUSY);
+	*pptp = ppt;
+	return (0);
 }
 
 static void
-ppt_unmap_mmio(struct vm *vm, struct pptdev *ppt)
+ppt_unmap_all_mmio(struct vm *vm, struct pptdev *ppt)
 {
 	int i;
 	struct pptseg *seg;
@@ -378,50 +384,40 @@ int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
+	int error;
 
-	ppt = ppt_find(bus, slot, func);
-	if (ppt != NULL) {
-		/*
-		 * If this device is owned by a different VM then we
-		 * cannot change its owner.
-		 */
-		if (ppt->vm != NULL && ppt->vm != vm)
-			return (EBUSY);
+	/* Passing NULL requires the device to be unowned. */
+	error = ppt_find(NULL, bus, slot, func, &ppt);
+	if (error)
+		return (error);
 
-		pci_save_state(ppt->dev);
-		ppt_pci_reset(ppt->dev);
-		pci_restore_state(ppt->dev);
-		ppt->vm = vm;
-		iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
-		return (0);
-	}
-	return (ENOENT);
+	pci_save_state(ppt->dev);
+	ppt_pci_reset(ppt->dev);
+	pci_restore_state(ppt->dev);
+	ppt->vm = vm;
+	iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
+	return (0);
 }
 
 int
 ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
+	int error;
 
-	ppt = ppt_find(bus, slot, func);
-	if (ppt != NULL) {
-		/*
-		 * If this device is not owned by this 'vm' then bail out.
-		 */
-		if (ppt->vm != vm)
-			return (EBUSY);
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
 
-		pci_save_state(ppt->dev);
-		ppt_pci_reset(ppt->dev);
-		pci_restore_state(ppt->dev);
-		ppt_unmap_mmio(vm, ppt);
-		ppt_teardown_msi(ppt);
-		ppt_teardown_msix(ppt);
-		iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
-		ppt->vm = NULL;
-		return (0);
-	}
-	return (ENOENT);
+	pci_save_state(ppt->dev);
+	ppt_pci_reset(ppt->dev);
+	pci_restore_state(ppt->dev);
+	ppt_unmap_all_mmio(vm, ppt);
+	ppt_teardown_msi(ppt);
+	ppt_teardown_msix(ppt);
+	iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
+	ppt->vm = NULL;
+	return (0);
 }
 
 int
@@ -452,23 +448,46 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 	struct pptseg *seg;
 	struct pptdev *ppt;
 
-	ppt = ppt_find(bus, slot, func);
-	if (ppt != NULL) {
-		if (ppt->vm != vm)
-			return (EBUSY);
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
 
-		for (i = 0; i < MAX_MMIOSEGS; i++) {
-			seg = &ppt->mmio[i];
-			if (seg->len == 0) {
-				error = vm_map_mmio(vm, gpa, len, hpa);
-				if (error == 0) {
-					seg->gpa = gpa;
-					seg->len = len;
-				}
-				return (error);
+	for (i = 0; i < MAX_MMIOSEGS; i++) {
+		seg = &ppt->mmio[i];
+		if (seg->len == 0) {
+			error = vm_map_mmio(vm, gpa, len, hpa);
+			if (error == 0) {
+				seg->gpa = gpa;
+				seg->len = len;
 			}
+			return (error);
 		}
-		return (ENOSPC);
+	}
+	return (ENOSPC);
+}
+
+int
+ppt_unmap_mmio(struct vm *vm, int bus, int slot, int func,
+	       vm_paddr_t gpa, size_t len)
+{
+	int i, error;
+	struct pptseg *seg;
+	struct pptdev *ppt;
+
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
+
+	for (i = 0; i < MAX_MMIOSEGS; i++) {
+		seg = &ppt->mmio[i];
+		if (seg->gpa == gpa && seg->len == len) {
+			error = vm_unmap_mmio(vm, seg->gpa, seg->len);
+			if (error == 0) {
+				seg->gpa = 0;
+				seg->len = 0;
+			}
+			return (error);
+		}
 	}
 	return (ENOENT);
 }
@@ -512,10 +531,12 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 	if (numvec < 0 || numvec > MAX_MSIMSGS)
 		return (EINVAL);
 
-	ppt = ppt_find(bus, slot, func);
-	if (ppt == NULL)
-		return (ENOENT);
-	if (ppt->vm != vm)		/* Make sure we own this device */
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
+
+	/* Reject attempts to enable MSI while MSI-X is active. */
+	if (ppt->msix.num_msgs != 0 && numvec != 0)
 		return (EBUSY);
 
 	/* Free any allocated resources */
@@ -601,10 +622,12 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 	int numvec, alloced, rid, error;
 	size_t res_size, cookie_size, arg_size;
 
-	ppt = ppt_find(bus, slot, func);
-	if (ppt == NULL)
-		return (ENOENT);
-	if (ppt->vm != vm)		/* Make sure we own this device */
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
+
+	/* Reject attempts to enable MSI-X while MSI is active. */
+	if (ppt->msi.num_msgs != 0)
 		return (EBUSY);
 
 	dinfo = device_get_ivars(ppt->dev);
@@ -698,5 +721,19 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 		ppt_teardown_msix_intr(ppt, idx);
 	}
 
+	return (0);
+}
+
+int
+ppt_disable_msix(struct vm *vm, int bus, int slot, int func)
+{
+	struct pptdev *ppt;
+	int error;
+
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error)
+		return (error);
+
+	ppt_teardown_msix(ppt);
 	return (0);
 }

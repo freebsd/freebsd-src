@@ -91,6 +91,9 @@ struct xlocale_refcounted {
 	/** Function used to destroy this component, if one is required*/
 	void(*destructor)(void*);
 };
+
+#define XLOCALE_DEF_VERSION_LEN 12
+
 /**
  * Header for a locale component.  All locale components must begin with this
  * header.
@@ -99,6 +102,8 @@ struct xlocale_component {
 	struct xlocale_refcounted header;
 	/** Name of the locale used for this component. */
 	char locale[ENCODING_LEN+1];
+	/** Version of the definition for this component. */
+	char version[XLOCALE_DEF_VERSION_LEN];
 };
 
 /**
@@ -180,7 +185,7 @@ void __set_thread_rune_locale(locale_t loc);
  * locale has ever been set, then we always use the global locale.
  */
 extern int __has_thread_locale;
-#ifndef __NO_TLS
+
 /**
  * The per-thread locale.  Avoids the need to use pthread lookup functions when
  * getting the per-thread locale.
@@ -201,9 +206,6 @@ static inline locale_t __get_locale(void)
 	}
 	return (__thread_locale ? __thread_locale : &__xlocale_global_locale);
 }
-#else
-locale_t __get_locale(void);
-#endif
 
 /**
  * Two magic values are allowed for locale_t objects.  NULL and -1.  This

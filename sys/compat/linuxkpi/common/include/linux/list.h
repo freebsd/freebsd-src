@@ -31,8 +31,9 @@
 #ifndef _LINUX_LIST_H_
 #define _LINUX_LIST_H_
 
+#ifndef _STANDALONE
 /*
- * Since LIST_HEAD conflicts with the linux definition we must include any
+ * Since LIST_HEAD conflicts with the Linux definition we must include any
  * FreeBSD header which requires it here so it is resolved with the correct
  * definition prior to the undef.
  */
@@ -52,6 +53,7 @@
 #include <sys/mbuf.h>
 
 #include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
@@ -66,13 +68,19 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_node.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
+#endif
 
 #ifndef prefetch
 #define	prefetch(x)
 #endif
+
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
 #define LINUX_LIST_HEAD(name) \

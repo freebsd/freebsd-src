@@ -31,15 +31,12 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define	PMC_MDEP_CLASS_INDEX_XSCALE	1
 #define	PMC_MDEP_CLASS_INDEX_ARMV7	1
 /*
  * On the ARM platform we support the following PMCs.
  *
- * XSCALE	Intel XScale processors
  * ARMV7	ARM Cortex-A processors
  */
-#include <dev/hwpmc/hwpmc_xscale.h>
 #include <dev/hwpmc/hwpmc_armv7.h>
 
 union pmc_md_op_pmcallocate {
@@ -52,7 +49,6 @@ union pmc_md_op_pmcallocate {
 
 #ifdef	_KERNEL
 union pmc_md_pmc {
-	struct pmc_md_xscale_pmc	pm_xscale;
 	struct pmc_md_armv7_pmc		pm_armv7;
 };
 
@@ -80,8 +76,6 @@ union pmc_md_pmc {
 /*
  * Prototypes
  */
-struct pmc_mdep *pmc_xscale_initialize(void);
-void		pmc_xscale_finalize(struct pmc_mdep *_md);
 struct pmc_mdep *pmc_armv7_initialize(void);
 void		pmc_armv7_finalize(struct pmc_mdep *_md);
 #endif /* _KERNEL */

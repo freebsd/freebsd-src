@@ -48,17 +48,9 @@ __FBSDID("$FreeBSD$");
 	.text
 	.align	2
 
-#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
-#else
-.Lpcb:
-	.word	_C_LABEL(__pcpu) + PC_CURPCB
-
-#define GET_PCB(tmp) \
-	ldr	tmp, .Lpcb
-#endif
 
 #define SAVE_REGS	stmfd	sp!, {r4-r6}
 #define RESTORE_REGS	ldmfd	sp!, {r4-r6}

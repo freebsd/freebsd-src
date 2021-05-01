@@ -170,6 +170,7 @@ enum usb_spec_version {
 
 #define USBIF_MAX_SEGMENTS_PER_REQUEST (16)
 #define USBIF_MAX_PORTNR	31
+#define USBIF_RING_SIZE	4096
 
 /*
  * RING for transferring urbs.
@@ -187,6 +188,7 @@ struct usbif_urb_request {
 	/* basic urb parameter */
 	uint32_t pipe;
 	uint16_t transfer_flags;
+#define USBIF_SHORT_NOT_OK	0x0001
 	uint16_t buffer_length;
 	union {
 		uint8_t ctrl[8]; /* setup_packet (Ctrl) */
@@ -225,7 +227,7 @@ struct usbif_urb_response {
 typedef struct usbif_urb_response usbif_urb_response_t;
 
 DEFINE_RING_TYPES(usbif_urb, struct usbif_urb_request, struct usbif_urb_response);
-#define USB_URB_RING_SIZE __CONST_RING_SIZE(usbif_urb, PAGE_SIZE)
+#define USB_URB_RING_SIZE __CONST_RING_SIZE(usbif_urb, USBIF_RING_SIZE)
 
 /*
  * RING for notifying connect/disconnect events to frontend
@@ -247,6 +249,6 @@ struct usbif_conn_response {
 typedef struct usbif_conn_response usbif_conn_response_t;
 
 DEFINE_RING_TYPES(usbif_conn, struct usbif_conn_request, struct usbif_conn_response);
-#define USB_CONN_RING_SIZE __CONST_RING_SIZE(usbif_conn, PAGE_SIZE)
+#define USB_CONN_RING_SIZE __CONST_RING_SIZE(usbif_conn, USBIF_RING_SIZE)
 
 #endif /* __XEN_PUBLIC_IO_USBIF_H__ */

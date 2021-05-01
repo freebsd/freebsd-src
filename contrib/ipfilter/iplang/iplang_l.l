@@ -21,11 +21,7 @@
 #include "ipf.h"
 
 #ifndef	__P
-# ifdef __STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
 #endif
 
 extern int opts;
@@ -33,14 +29,14 @@ extern int opts;
 int lineNum = 0, ipproto = 0, oldipproto = 0, next = -1, laststate = 0;
 int *prstack = NULL, numpr = 0, state = 0, token = 0;
 
-void    yyerror __P((char *));
-void	push_proto __P((void));
-void	pop_proto __P((void));
-int	next_state __P((int, int));
-int	next_item __P((int));
-int	save_token __P((void));
-void	swallow __P((void));
-int	yylex __P((void));
+void    yyerror(char *);
+void	push_proto(void);
+void	pop_proto(void);
+int	next_state(int, int);
+int	next_item(int);
+int	save_token(void);
+void	swallow(void);
+int	yylex(void);
 
 struct	lwordtab	{
 	char	*word;

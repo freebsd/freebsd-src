@@ -1,7 +1,7 @@
-# $Id: makefile.in,v 1.97 2018/06/09 01:05:18 tom Exp $
+# $Id: makefile.in,v 1.103 2021/01/11 09:03:36 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
-# Copyright (c) 1999-2017,2018 Thomas E. Dickey                              #
+# Copyright (c) 1999-2020,2021 Thomas E. Dickey                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -102,6 +102,7 @@ LINT_OPTS	= @LINT_OPTS@
 CTAGS		= @CTAGS@
 ETAGS		= @ETAGS@
 
+RPATH_LIST	= @RPATH_LIST@
 LIBTOOL		= @LIBTOOL@ @ECHO_LT@
 LIBTOOL_OPTS	= @LIBTOOL_OPTS@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
@@ -141,7 +142,7 @@ PROG		= @PACKAGE@$x
 	@ECHO_CC@$(LIBTOOL_COMPILE) $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CPPFLAGS) -c $<
 
 @NROFF_NOTE@.1.txt :
-@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -Tascii -man | col -bx" >$@
+@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -rHY=0 -Tascii -man | col -bx" >$@
 
 @MAN2HTML_NOTE@.1.html :
 @MAN2HTML_NOTE@	./@MAN2HTML_TEMP@ $* 1 man >$@
@@ -203,7 +204,7 @@ all	:: $(ALL)
 dialog$o \
 $(OBJECTS) : $(srcdir)/dialog.h $(srcdir)/dlg_keys.h dlg_config.h VERSION
 
-$(PROG)$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
+$(PROG) : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
 	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 clean	\
@@ -231,6 +232,10 @@ distclean :: clean
 	$(RM) headers-sh
 	$(RM) man2html.*
 	$(RM) dialog-config
+
+check :
+	@echo "Verify that create-rc works"
+	$(SHELL) -c "DIALOG=./$(PROG) ./run_test.sh $(srcdir)/samples"
 
 install :: install-bin install-man
 	@echo "made $@"

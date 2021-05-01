@@ -95,11 +95,15 @@ struct nameidata {
 	 */
 	u_int	ni_resflags;
 	/*
+	 * Debug for validating API use by the callers.
+	 */
+	u_short	ni_debugflags;
+	/*
 	 * Shared between namei and lookup/commit routines.
 	 */
+	u_short	ni_loopcnt;		/* count of symlinks encountered */
 	size_t	ni_pathlen;		/* remaining chars in path */
 	char	*ni_next;		/* next location in pathname */
-	u_int	ni_loopcnt;		/* count of symlinks encountered */
 	/*
 	 * Lookup parameters: this structure describes the subset of
 	 * information from the nameidata structure that is passed
@@ -107,13 +111,12 @@ struct nameidata {
 	 */
 	struct componentname ni_cnd;
 	struct nameicap_tracker_head ni_cap_tracker;
-	struct vnode *ni_beneath_latch;
 };
 
 #ifdef _KERNEL
 
-enum cache_fpl_status { CACHE_FPL_STATUS_ABORTED, CACHE_FPL_STATUS_PARTIAL,
-    CACHE_FPL_STATUS_HANDLED, CACHE_FPL_STATUS_UNSET };
+enum cache_fpl_status { CACHE_FPL_STATUS_DESTROYED, CACHE_FPL_STATUS_ABORTED,
+    CACHE_FPL_STATUS_PARTIAL, CACHE_FPL_STATUS_HANDLED, CACHE_FPL_STATUS_UNSET };
 int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
     struct pwd **pwdp);
 
@@ -122,19 +125,31 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  *
  * If modifying the list make sure to check whether NDVALIDATE needs updating.
  */
+
+/*
+ * Debug.
+ */
+#define	NAMEI_DBG_INITED	0x0001
+#define	NAMEI_DBG_CALLED	0x0002
+#define	NAMEI_DBG_HADSTARTDIR	0x0004
+
 /*
  * namei operational modifier flags, stored in ni_cnd.flags
  */
+#define	NC_NOMAKEENTRY	0x0001	/* name must not be added to cache */
+#define	NC_KEEPPOSENTRY	0x0002	/* don't evict a positive entry */
+#define	NOCACHE		NC_NOMAKEENTRY	/* for compatibility with older code */
 #define	LOCKLEAF	0x0004	/* lock vnode on return */
 #define	LOCKPARENT	0x0008	/* want parent vnode returned locked */
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
-#define	NOCACHE		0x0020	/* name must not be left in cache */
+#define	FAILIFEXISTS	0x0020	/* return EEXIST if found */
 #define	FOLLOW		0x0040	/* follow symbolic links */
-#define	BENEATH		0x0080	/* No escape from the start dir */
+#define	EMPTYPATH	0x0080	/* Allow empty path for *at */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
-#define	MODMASK		0xf000001fcULL	/* mask of operational modifiers */
+#define	MODMASK		0xf000001ffULL	/* mask of operational modifiers */
+
 /*
  * Namei parameter descriptors.
  *
@@ -185,15 +200,13 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #define	NIRES_ABS	0x00000001 /* Path was absolute */
 #define	NIRES_STRICTREL	0x00000002 /* Restricted lookup result */
+#define	NIRES_EMPTYPATH	0x00000004 /* EMPTYPATH used */
 
 /*
  * Flags in ni_lcf, valid for the duration of the namei call.
  */
 #define	NI_LCF_STRICTRELATIVE	0x0001	/* relative lookup only */
 #define	NI_LCF_CAP_DOTDOT	0x0002	/* ".." in strictrelative case */
-#define	NI_LCF_BENEATH_ABS	0x0004	/* BENEATH with absolute path */
-#define	NI_LCF_BENEATH_LATCHED	0x0008	/* BENEATH_ABS traversed starting dir */
-#define	NI_LCF_LATCH		0x0010	/* ni_beneath_latch valid */
 
 /*
  * Initialization of a nameidata structure.
@@ -212,8 +225,18 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  */
 #ifdef INVARIANTS
 #define NDINIT_PREFILL(arg)	memset(arg, 0xff, sizeof(*arg))
+#define NDINIT_DBG(arg)		{ (arg)->ni_debugflags = NAMEI_DBG_INITED; }
+#define NDREINIT_DBG(arg)	{						\
+	if (((arg)->ni_debugflags & NAMEI_DBG_INITED) == 0)			\
+		panic("namei data not inited");					\
+	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
+		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
+	(arg)->ni_debugflags = NAMEI_DBG_INITED;				\
+}
 #else
 #define NDINIT_PREFILL(arg)	do { } while (0)
+#define NDINIT_DBG(arg)		do { } while (0)
+#define NDREINIT_DBG(arg)	do { } while (0)
 #endif
 
 #define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp, td)	\
@@ -222,6 +245,7 @@ do {										\
 	cap_rights_t *_rightsp = (rightsp);					\
 	MPASS(_rightsp != NULL);						\
 	NDINIT_PREFILL(_ndp);							\
+	NDINIT_DBG(_ndp);							\
 	_ndp->ni_cnd.cn_nameiop = op;						\
 	_ndp->ni_cnd.cn_flags = flags;						\
 	_ndp->ni_segflg = segflg;						\
@@ -232,6 +256,13 @@ do {										\
 	filecaps_init(&_ndp->ni_filecaps);					\
 	_ndp->ni_cnd.cn_thread = td;						\
 	_ndp->ni_rightsneeded = _rightsp;					\
+} while (0)
+
+#define NDREINIT(ndp)	do {							\
+	struct nameidata *_ndp = (ndp);						\
+	NDREINIT_DBG(_ndp);							\
+	_ndp->ni_resflags = 0;							\
+	_ndp->ni_startdir = NULL;						\
 } while (0)
 
 #define NDF_NO_DVP_RELE		0x00000001
@@ -255,8 +286,10 @@ void NDFREE(struct nameidata *, const u_int);
 } while (0)
 
 #ifdef INVARIANTS
+void NDFREE_NOTHING(struct nameidata *);
 void NDVALIDATE(struct nameidata *);
 #else
+#define NDFREE_NOTHING(ndp)	do { } while (0)
 #define NDVALIDATE(ndp)	do { } while (0)
 #endif
 

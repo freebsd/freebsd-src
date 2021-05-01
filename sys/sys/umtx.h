@@ -101,6 +101,13 @@
 #define	UMTX_OP_SHM		25
 #define	UMTX_OP_ROBUST_LISTS	26
 
+/*
+ * Flags for ops; the double-underbar convention must be maintained for future
+ * additions for the sake of libsysdecode.
+ */
+#define	UMTX_OP__I386		0x40000000
+#define	UMTX_OP__32BIT		0x80000000
+
 /* Flags for UMTX_OP_CV_WAIT */
 #define	CVWAIT_CHECK_UNPARKING	0x01
 #define	CVWAIT_ABSTIME		0x02
@@ -188,6 +195,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 }
 
 int umtx_copyin_timeout(const void *, struct timespec *);
+void umtx_exec(struct proc *p);
 int umtx_key_get(const void *, int, int, struct umtx_key *);
 void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);
@@ -198,5 +206,6 @@ void umtx_thread_init(struct thread *);
 void umtx_thread_fini(struct thread *);
 void umtx_thread_alloc(struct thread *);
 void umtx_thread_exit(struct thread *);
+
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */

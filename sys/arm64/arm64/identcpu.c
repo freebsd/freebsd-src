@@ -350,7 +350,7 @@ static struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
 	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
 	    id_aa64dfr0_ctx_cmps),
-	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_EXACT, id_aa64dfr0_wrps),
+	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, id_aa64dfr0_wrps),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, id_aa64dfr0_brps),
 	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
 	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,
@@ -690,6 +690,50 @@ static struct mrs_field id_aa64mmfr1_fields[] = {
 
 
 /* ID_AA64MMFR2_EL1 */
+static struct mrs_field_value id_aa64mmfr2_e0pd[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, E0PD, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_evt[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR2_EVT_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_EVT_8_2, "EVT-8.2"),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_EVT_8_5, "EVT-8.5"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_bbm[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR2_BBM_LEVEL0, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_BBM_LEVEL1, "BBM level 1"),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_BBM_LEVEL2, "BBM level 2"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_ttl[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, TTL, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_fwb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, FWB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_ids[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, IDS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_at[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, AT, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr2_st[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, ST, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64mmfr2_nv[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, NV, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -728,6 +772,14 @@ static struct mrs_field_value id_aa64mmfr2_cnp[] = {
 };
 
 static struct mrs_field id_aa64mmfr2_fields[] = {
+	MRS_FIELD(ID_AA64MMFR2, E0PD, false, MRS_EXACT, id_aa64mmfr2_e0pd),
+	MRS_FIELD(ID_AA64MMFR2, EVT, false, MRS_EXACT, id_aa64mmfr2_evt),
+	MRS_FIELD(ID_AA64MMFR2, BBM, false, MRS_EXACT, id_aa64mmfr2_bbm),
+	MRS_FIELD(ID_AA64MMFR2, TTL, false, MRS_EXACT, id_aa64mmfr2_ttl),
+	MRS_FIELD(ID_AA64MMFR2, FWB, false, MRS_EXACT, id_aa64mmfr2_fwb),
+	MRS_FIELD(ID_AA64MMFR2, IDS, false, MRS_EXACT, id_aa64mmfr2_ids),
+	MRS_FIELD(ID_AA64MMFR2, AT, false, MRS_LOWER, id_aa64mmfr2_at),
+	MRS_FIELD(ID_AA64MMFR2, ST, false, MRS_EXACT, id_aa64mmfr2_st),
 	MRS_FIELD(ID_AA64MMFR2, NV, false, MRS_EXACT, id_aa64mmfr2_nv),
 	MRS_FIELD(ID_AA64MMFR2, CCIDX, false, MRS_EXACT, id_aa64mmfr2_ccidx),
 	MRS_FIELD(ID_AA64MMFR2, VARange, false, MRS_EXACT,
@@ -831,7 +883,7 @@ static struct mrs_field_value id_aa64pfr0_el0[] = {
 static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_EXACT, id_aa64pfr0_csv3),
 	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_EXACT, id_aa64pfr0_csv2),
-	MRS_FIELD(ID_AA64PFR0, DIT, false, MRS_EXACT, id_aa64pfr0_dit),
+	MRS_FIELD(ID_AA64PFR0, DIT, false, MRS_LOWER, id_aa64pfr0_dit),
 	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_EXACT, id_aa64pfr0_amu),
 	MRS_FIELD(ID_AA64PFR0, MPAM, false, MRS_EXACT, id_aa64pfr0_mpam),
 	MRS_FIELD(ID_AA64PFR0, SEL2, false, MRS_EXACT, id_aa64pfr0_sel2),
@@ -1205,6 +1257,10 @@ parse_cpu_features_hwcap(void)
 		break;
 	}
 
+	if (ID_AA64ISAR0_FHM_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_FHM_IMPL)
+		hwcap |= HWCAP_ASIMDFHM;
+
 	if (ID_AA64ISAR0_DP_VAL(user_cpu_desc.id_aa64isar0) ==
 	    ID_AA64ISAR0_DP_IMPL)
 		hwcap |= HWCAP_ASIMDDP;
@@ -1285,6 +1341,14 @@ parse_cpu_features_hwcap(void)
 	if (ID_AA64ISAR1_DPB_VAL(user_cpu_desc.id_aa64isar1) ==
 	    ID_AA64ISAR1_DPB_DCCVAP)
 		hwcap |= HWCAP_DCPOP;
+
+	if (ID_AA64MMFR2_AT_VAL(user_cpu_desc.id_aa64mmfr2) ==
+	    ID_AA64MMFR2_AT_IMPL)
+		hwcap |= HWCAP_USCAT;
+
+	if (ID_AA64PFR0_DIT_VAL(user_cpu_desc.id_aa64pfr0) ==
+	    ID_AA64PFR0_DIT_PSTATE)
+		hwcap |= HWCAP_DIT;
 
 	if (ID_AA64PFR0_SVE_VAL(user_cpu_desc.id_aa64pfr0) ==
 	    ID_AA64PFR0_SVE_IMPL)

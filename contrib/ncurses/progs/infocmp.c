@@ -43,7 +43,7 @@
 
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.144 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.145 2020/07/07 20:28:47 tom Exp $")
 
 #define MAX_STRING	1024	/* maximum formatted string */
 
@@ -1194,8 +1194,9 @@ usage(void)
 	DATA("Options:")
     };
 #undef DATA
+    /* length is given here so the compiler can make everything readonly */
 #define DATA(s) s
-    static const char options[][45] =
+    static const char options[][46] =
     {
 	"  -0    print single-row"
 	,"  -1    print single-column"
@@ -1835,8 +1836,8 @@ main(int argc, char *argv[])
 				   tname[termcount]);
 
 		status = _nc_read_entry2(tname[termcount],
-					tfile[termcount],
-					&entries[termcount].tterm);
+					 tfile[termcount],
+					 &entries[termcount].tterm);
 	    }
 
 	    if (status <= 0) {

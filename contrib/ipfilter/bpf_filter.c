@@ -71,8 +71,8 @@ static const char rcsid[] =
 #define int32 bpf_int32
 #define u_int32 bpf_u_int32
 
-static int m_xword __P((mb_t *, int, int *));
-static int m_xhalf __P((mb_t *, int, int *));
+static int m_xword(mb_t *, int, int *);
+static int m_xhalf(mb_t *, int, int *);
 
 #ifndef LBL_ALIGN
 /*

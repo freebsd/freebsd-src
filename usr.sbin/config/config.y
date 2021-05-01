@@ -18,7 +18,6 @@
 %token	HINTS
 %token	IDENT
 %token	MAXUSERS
-%token	PROFILE
 %token	OPTIONS
 %token	NOOPTION
 %token	MAKEOPTIONS
@@ -192,7 +191,6 @@ Config_spec:
 	System_spec
 		|
 	MAXUSERS NUMBER { maxusers = $2; } |
-	PROFILE NUMBER { profiling = $2; } |
 	ENV ID { newenvvar($2, true); } |
 	ENVVAR ENVLINE { newenvvar($2, false); } |
 	HINTS ID {

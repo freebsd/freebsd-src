@@ -2,8 +2,8 @@
 # $FreeBSD$
 #
 
-acct_COMMENT= 		Accounting Utilties
-acct_DESC= 		Accounting Utilties
+acct_COMMENT= 		System Accounting Utilities
+acct_DESC= 		System Accounting Utilities
 acpi_COMMENT= 		ACPI Utilities
 acpi_DESC= 		ACPI Utilities
 amd_COMMENT= 		AMD Utilities

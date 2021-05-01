@@ -473,7 +473,19 @@ zvol_replay_truncate(void *arg1, void *arg2, boolean_t byteswap)
 	offset = lr->lr_offset;
 	length = lr->lr_length;
 
-	return (dmu_free_long_range(zv->zv_objset, ZVOL_OBJ, offset, length));
+	dmu_tx_t *tx = dmu_tx_create(zv->zv_objset);
+	dmu_tx_mark_netfree(tx);
+	int error = dmu_tx_assign(tx, TXG_WAIT);
+	if (error != 0) {
+		dmu_tx_abort(tx);
+	} else {
+		zil_replaying(zv->zv_zilog, tx);
+		dmu_tx_commit(tx);
+		error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ, offset,
+		    length);
+	}
+
+	return (error);
 }
 
 /*
@@ -513,6 +525,7 @@ zvol_replay_write(void *arg1, void *arg2, boolean_t byteswap)
 		dmu_tx_abort(tx);
 	} else {
 		dmu_write(os, ZVOL_OBJ, offset, length, data, tx);
+		zil_replaying(zv->zv_zilog, tx);
 		dmu_tx_commit(tx);
 	}
 
@@ -660,7 +673,8 @@ zvol_get_done(zgd_t *zgd, int error)
  * Get data to generate a TX_WRITE intent log record.
  */
 int
-zvol_get_data(void *arg, lr_write_t *lr, char *buf, struct lwb *lwb, zio_t *zio)
+zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
+    struct lwb *lwb, zio_t *zio)
 {
 	zvol_state_t *zv = arg;
 	uint64_t offset = lr->lr_offset;
@@ -772,7 +786,7 @@ zvol_setup_zv(zvol_state_t *zv)
 	if (error)
 		return (SET_ERROR(error));
 
-	error = dnode_hold(os, ZVOL_OBJ, FTAG, &zv->zv_dn);
+	error = dnode_hold(os, ZVOL_OBJ, zv, &zv->zv_dn);
 	if (error)
 		return (SET_ERROR(error));
 
@@ -807,7 +821,7 @@ zvol_shutdown_zv(zvol_state_t *zv)
 
 	zv->zv_zilog = NULL;
 
-	dnode_rele(zv->zv_dn, FTAG);
+	dnode_rele(zv->zv_dn, zv);
 	zv->zv_dn = NULL;
 
 	/*
@@ -1376,7 +1390,9 @@ typedef struct zvol_volmode_cb_arg {
 static void
 zvol_set_volmode_impl(char *name, uint64_t volmode)
 {
-	fstrans_cookie_t cookie = spl_fstrans_mark();
+	fstrans_cookie_t cookie;
+	uint64_t old_volmode;
+	zvol_state_t *zv;
 
 	if (strchr(name, '@') != NULL)
 		return;
@@ -1386,9 +1402,18 @@ zvol_set_volmode_impl(char *name, uint64_t volmode)
 	 * this is necessary because our backing gendisk (zvol_state->zv_disk)
 	 * could be different when we set, for instance, volmode from "geom"
 	 * to "dev" (or vice versa).
-	 * A possible optimization is to modify our consumers so we don't get
-	 * called when "volmode" does not change.
 	 */
+	zv = zvol_find_by_name(name, RW_NONE);
+	if (zv == NULL && volmode == ZFS_VOLMODE_NONE)
+			return;
+	if (zv != NULL) {
+		old_volmode = zv->zv_volmode;
+		mutex_exit(&zv->zv_state_lock);
+		if (old_volmode == volmode)
+			return;
+		zvol_wait_close(zv);
+	}
+	cookie = spl_fstrans_mark();
 	switch (volmode) {
 		case ZFS_VOLMODE_NONE:
 			(void) zvol_remove_minor_impl(name);
@@ -1406,7 +1431,6 @@ zvol_set_volmode_impl(char *name, uint64_t volmode)
 				(void) ops->zv_create_minor(name);
 			break;
 	}
-
 	spl_fstrans_unmark(cookie);
 }
 

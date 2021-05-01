@@ -390,10 +390,8 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	ask.local_alias = NULL;
 	log_query_info(VERB_ALGO, "generate request", &ask);
 	/* enable valrec flag to avoid recursion to the same validation
-	 * routine, this lookup is simply a lookup. DLVs need validation */
-	if(qtype == LDNS_RR_TYPE_DLV)
-		valrec = 0;
-	else valrec = 1;
+	 * routine, this lookup is simply a lookup. */
+	valrec = 1;
 
 	fptr_ok(fptr_whitelist_modenv_detect_cycle(qstate->env->detect_cycle));
 	if((*qstate->env->detect_cycle)(qstate, &ask,
@@ -1585,7 +1583,7 @@ processInit(struct module_qstate* qstate, struct val_qstate* vq,
 	vq->key_entry = key_cache_obtain(ve->kcache, lookup_name, lookup_len,
 		vq->qchase.qclass, qstate->region, *qstate->env->now);
 
-	/* there is no key(from DLV) and no trust anchor */
+	/* there is no key and no trust anchor */
 	if(vq->key_entry == NULL && anchor == NULL) {
 		/*response isn't under a trust anchor, so we cannot validate.*/
 		vq->chase_reply->security = sec_status_indeterminate;
@@ -1603,7 +1601,6 @@ processInit(struct module_qstate* qstate, struct val_qstate* vq,
 			val_mark_insecure(vq->chase_reply, anchor->name, 
 				qstate->env->rrset_cache, qstate->env);
 			lock_basic_unlock(&anchor->lock);
-			vq->dlv_checked=1; /* skip DLV check */
 			/* go to finished state to cache this result */
 			vq->state = VAL_FINISHED_STATE;
 			return 1;
@@ -1679,9 +1676,8 @@ processFindKey(struct module_qstate* qstate, struct val_qstate* vq, int id)
 	/* We know that state.key_entry is not 0 or bad key -- if it were,
 	 * then previous processing should have directed this event to 
 	 * a different state. 
-	 * It could be an isnull key, which signals that a DLV was just
-	 * done and the DNSKEY after the DLV failed with dnssec-retry state
-	 * and the DNSKEY has to be performed again. */
+	 * It could be an isnull key, which signals the DNSKEY failed
+	 * with retry and has to be looked up again. */
 	log_assert(vq->key_entry && !key_entry_isbad(vq->key_entry));
 	if(key_entry_isnull(vq->key_entry)) {
 		if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
@@ -1986,148 +1982,6 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 }
 
 /**
- * Init DLV check.
- * DLV is going to be decommissioned, but the code is still here for some time.
- *
- * Called when a query is determined by other trust anchors to be insecure
- * (or indeterminate).  Then we look if there is a key in the DLV.
- * Performs aggressive negative cache check to see if there is no key.
- * Otherwise, spawns a DLV query, and changes to the DLV wait state.
- *
- * @param qstate: query state.
- * @param vq: validator query state.
- * @param ve: validator shared global environment.
- * @param id: module id.
- * @return  true if there is no DLV.
- * 	false: processing is finished for the validator operate().
- * 	This function may exit in three ways:
- *         o	no DLV (aggressive cache), so insecure. (true)
- *         o	error - stop processing (false)
- *         o	DLV lookup was started, stop processing (false)
- */
-static int
-val_dlv_init(struct module_qstate* qstate, struct val_qstate* vq, 
-	struct val_env* ve, int id)
-{
-	uint8_t* nm;
-	size_t nm_len;
-	struct module_qstate* newq = NULL;
-	/* there must be a DLV configured */
-	log_assert(qstate->env->anchors->dlv_anchor);
-	/* this bool is true to avoid looping in the DLV checks */
-	log_assert(vq->dlv_checked);
-
-	/* init the DLV lookup variables */
-	vq->dlv_lookup_name = NULL;
-	vq->dlv_lookup_name_len = 0;
-	vq->dlv_insecure_at = NULL;
-	vq->dlv_insecure_at_len = 0;
-
-	/* Determine the name for which we want to lookup DLV.
-	 * This name is for the current message, or 
-	 * for the current RRset for CNAME, referral subtypes.
-	 * If there is a signer, use that, otherwise the domain name */
-	if(vq->signer_name) {
-		nm = vq->signer_name;
-		nm_len = vq->signer_len;
-	} else {
-		/* use qchase */
-		nm = vq->qchase.qname;
-		nm_len = vq->qchase.qname_len;
-		if(vq->qchase.qtype == LDNS_RR_TYPE_DS)
-			dname_remove_label(&nm, &nm_len);
-	}
-	log_nametypeclass(VERB_ALGO, "DLV init look", nm, LDNS_RR_TYPE_DS,
-		vq->qchase.qclass);
-	log_assert(nm && nm_len);
-	/* sanity check: no DLV lookups below the DLV anchor itself.
-	 * Like, an securely insecure delegation there makes no sense. */
-	if(dname_subdomain_c(nm, qstate->env->anchors->dlv_anchor->name)) {
-		verbose(VERB_ALGO, "DLV lookup within DLV repository denied");
-		return 1;
-	}
-	/* concat name (minus root label) + dlv name */
-	vq->dlv_lookup_name_len = nm_len - 1 + 
-		qstate->env->anchors->dlv_anchor->namelen;
-	vq->dlv_lookup_name = regional_alloc(qstate->region, 
-		vq->dlv_lookup_name_len);
-	if(!vq->dlv_lookup_name) {
-		log_err("Out of memory preparing DLV lookup");
-		return val_error(qstate, id);
-	}
-	memmove(vq->dlv_lookup_name, nm, nm_len-1);
-	memmove(vq->dlv_lookup_name+nm_len-1, 
-		qstate->env->anchors->dlv_anchor->name, 
-		qstate->env->anchors->dlv_anchor->namelen);
-	log_nametypeclass(VERB_ALGO, "DLV name", vq->dlv_lookup_name, 
-		LDNS_RR_TYPE_DLV, vq->qchase.qclass);
-
-	/* determine where the insecure point was determined, the DLV must 
-	 * be equal or below that to continue building the trust chain 
-	 * down. May be NULL if no trust chain was built yet */
-	nm = NULL;
-	if(vq->key_entry && key_entry_isnull(vq->key_entry)) {
-		nm = vq->key_entry->name;
-		nm_len = vq->key_entry->namelen;
-	}
-	if(nm) {
-		vq->dlv_insecure_at_len = nm_len - 1 +
-			qstate->env->anchors->dlv_anchor->namelen;
-		vq->dlv_insecure_at = regional_alloc(qstate->region,
-			vq->dlv_insecure_at_len);
-		if(!vq->dlv_insecure_at) {
-			log_err("Out of memory preparing DLV lookup");
-			return val_error(qstate, id);
-		}
-		memmove(vq->dlv_insecure_at, nm, nm_len-1);
-		memmove(vq->dlv_insecure_at+nm_len-1, 
-			qstate->env->anchors->dlv_anchor->name, 
-			qstate->env->anchors->dlv_anchor->namelen);
-		log_nametypeclass(VERB_ALGO, "insecure_at", 
-			vq->dlv_insecure_at, 0, vq->qchase.qclass);
-	}
-
-	/* If we can find the name in the aggressive negative cache,
-	 * give up; insecure is the answer */
-	while(val_neg_dlvlookup(ve->neg_cache, vq->dlv_lookup_name,
-		vq->dlv_lookup_name_len, vq->qchase.qclass,
-		qstate->env->rrset_cache, *qstate->env->now)) {
-		/* go up */
-		dname_remove_label(&vq->dlv_lookup_name, 
-			&vq->dlv_lookup_name_len);
-		/* too high? */
-		if(!dname_subdomain_c(vq->dlv_lookup_name,
-			qstate->env->anchors->dlv_anchor->name)) {
-			verbose(VERB_ALGO, "ask above dlv repo");
-			return 1; /* Above the repo is insecure */
-		}
-		/* above chain of trust? */
-		if(vq->dlv_insecure_at && !dname_subdomain_c(
-			vq->dlv_lookup_name, vq->dlv_insecure_at)) {
-			verbose(VERB_ALGO, "ask above insecure endpoint");
-			return 1;
-		}
-	}
-
-	/* perform a lookup for the DLV; with validation */
-	vq->state = VAL_DLVLOOKUP_STATE;
-	if(!generate_request(qstate, id, vq->dlv_lookup_name, 
-		vq->dlv_lookup_name_len, LDNS_RR_TYPE_DLV,
-		vq->qchase.qclass, 0, &newq, 0)) {
-		return val_error(qstate, id);
-	}
-
-	/* Find the closest encloser DLV from the repository.
-	 * then that is used to build another chain of trust 
-	 * This may first require a query 'too low' that has NSECs in
-	 * the answer, from which we determine the closest encloser DLV. 
-	 * When determine the closest encloser, skip empty nonterminals,
-	 * since we want a nonempty node in the DLV repository. */
-
-	return 0;
-}
-
-/**
  * The Finished state. The validation status (good or bad) has been determined.
  *
  * @param qstate: query state.
@@ -2144,16 +1998,6 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	enum val_classification subtype = val_classify_response(
 		qstate->query_flags, &qstate->qinfo, &vq->qchase, 
 		vq->orig_msg->rep, vq->rrset_skip);
-
-	/* if the result is insecure or indeterminate and we have not 
-	 * checked the DLV yet, check the DLV */
-	if((vq->chase_reply->security == sec_status_insecure ||
-		vq->chase_reply->security == sec_status_indeterminate) &&
-		qstate->env->anchors->dlv_anchor && !vq->dlv_checked) {
-		vq->dlv_checked = 1;
-		if(!val_dlv_init(qstate, vq, ve, id))
-			return 0;
-	}
 
 	/* store overall validation result in orig_msg */
 	if(vq->rrset_skip == 0)
@@ -2177,7 +2021,6 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			/* and restart for this rrset */
 			verbose(VERB_ALGO, "validator: go to next rrset");
 			vq->chase_reply->security = sec_status_unchecked;
-			vq->dlv_checked = 0; /* can do DLV for this RR */
 			vq->state = VAL_INIT_STATE;
 			return 1;
 		}
@@ -2195,7 +2038,6 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			log_query_info(VERB_ALGO, "validator: chased to",
 				&vq->qchase);
 			vq->chase_reply->security = sec_status_unchecked;
-			vq->dlv_checked = 0; /* can do DLV for this RR */
 			vq->state = VAL_INIT_STATE;
 			return 1;
 		}
@@ -2321,119 +2163,6 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	return 0;
 }
 
-/**
- * The DLVLookup state. Process DLV lookups.
- *
- * @param qstate: query state.
- * @param vq: validator query state.
- * @param ve: validator shared global environment.
- * @param id: module id.
- * @return true if the event should be processed further on return, false if
- *         not.
- */
-static int
-processDLVLookup(struct module_qstate* qstate, struct val_qstate* vq, 
-	struct val_env* ve, int id)
-{
-	struct module_qstate* newq = NULL;
-	/* see if this we are ready to continue normal resolution */
-	/* we may need more DLV lookups */
-	if(vq->dlv_status==dlv_error)
-		verbose(VERB_ALGO, "DLV woke up with status dlv_error");
-	else if(vq->dlv_status==dlv_success)
-		verbose(VERB_ALGO, "DLV woke up with status dlv_success");
-	else if(vq->dlv_status==dlv_ask_higher)
-		verbose(VERB_ALGO, "DLV woke up with status dlv_ask_higher");
-	else if(vq->dlv_status==dlv_there_is_no_dlv)
-		verbose(VERB_ALGO, "DLV woke up with status dlv_there_is_no_dlv");
-	else 	verbose(VERB_ALGO, "DLV woke up with status unknown");
-
-	if(vq->dlv_status == dlv_error) {
-		verbose(VERB_QUERY, "failed DLV lookup");
-		errinf(qstate, "failed DLV lookup");
-		return val_error(qstate, id);
-	} else if(vq->dlv_status == dlv_success) {
-		uint8_t* nm;
-		size_t nmlen;
-		/* chain continues with DNSKEY, continue in FINDKEY */
-		vq->state = VAL_FINDKEY_STATE;
-
-		/* strip off the DLV suffix from the name; could result in . */
-		log_assert(dname_subdomain_c(vq->ds_rrset->rk.dname,
-			qstate->env->anchors->dlv_anchor->name));
-		nmlen = vq->ds_rrset->rk.dname_len -
-			qstate->env->anchors->dlv_anchor->namelen + 1;
-		nm = regional_alloc_init(qstate->region, 
-			vq->ds_rrset->rk.dname, nmlen);
-		if(!nm) {
-			log_err("Out of memory in DLVLook");
-			return val_error(qstate, id);
-		}
-		nm[nmlen-1] = 0;
-
-		vq->ds_rrset->rk.dname = nm;
-		vq->ds_rrset->rk.dname_len = nmlen;
-
-		/* create a nullentry for the key so the dnskey lookup
-		 * can be retried after a validation failure for it */
-		vq->key_entry = key_entry_create_null(qstate->region,
-			nm, nmlen, vq->qchase.qclass, 0, 0);
-		if(!vq->key_entry) {
-			log_err("Out of memory in DLVLook");
-			return val_error(qstate, id);
-		}
-
-		if(!generate_request(qstate, id, vq->ds_rrset->rk.dname, 
-			vq->ds_rrset->rk.dname_len, LDNS_RR_TYPE_DNSKEY, 
-			vq->qchase.qclass, BIT_CD, &newq, 0)) {
-			verbose(VERB_ALGO, "error generating DNSKEY request");
-			return val_error(qstate, id);
-		}
-		return 0;
-	} else if(vq->dlv_status == dlv_there_is_no_dlv) {
-		/* continue with the insecure result we got */
-		vq->state = VAL_FINISHED_STATE;
-		return 1;
-	} 
-	log_assert(vq->dlv_status == dlv_ask_higher);
-
-	/* ask higher, make sure we stay in DLV repo, below dlv_at */
-	if(!dname_subdomain_c(vq->dlv_lookup_name,
-		qstate->env->anchors->dlv_anchor->name)) {
-		/* just like, there is no DLV */
-		verbose(VERB_ALGO, "ask above dlv repo");
-		vq->state = VAL_FINISHED_STATE;
-		return 1;
-	}
-	if(vq->dlv_insecure_at && !dname_subdomain_c(vq->dlv_lookup_name,
-		vq->dlv_insecure_at)) {
-		/* already checked a chain lower than dlv_lookup_name */
-		verbose(VERB_ALGO, "ask above insecure endpoint");
-		log_nametypeclass(VERB_ALGO, "enpt", vq->dlv_insecure_at, 0, 0);
-		vq->state = VAL_FINISHED_STATE;
-		return 1;
-	}
-
-	/* check negative cache before making new request */
-	if(val_neg_dlvlookup(ve->neg_cache, vq->dlv_lookup_name,
-		vq->dlv_lookup_name_len, vq->qchase.qclass,
-		qstate->env->rrset_cache, *qstate->env->now)) {
-		/* does not exist, go up one (go higher). */
-		dname_remove_label(&vq->dlv_lookup_name, 
-			&vq->dlv_lookup_name_len);
-		/* limit number of labels, limited number of recursion */
-		return processDLVLookup(qstate, vq, ve, id);
-	}
-
-	if(!generate_request(qstate, id, vq->dlv_lookup_name,
-		vq->dlv_lookup_name_len, LDNS_RR_TYPE_DLV, 
-		vq->qchase.qclass, 0, &newq, 0)) {
-		return val_error(qstate, id);
-	}
-
-	return 0;
-}
-
 /** 
  * Handle validator state.
  * If a method returns true, the next state is started. If false, then
@@ -2463,9 +2192,6 @@ val_handle(struct module_qstate* qstate, struct val_qstate* vq,
 				break;
 			case VAL_FINISHED_STATE: 
 				cont = processFinished(qstate, vq, ve, id);
-				break;
-			case VAL_DLVLOOKUP_STATE: 
-				cont = processDLVLookup(qstate, vq, ve, id);
 				break;
 			default:
 				log_warn("validator: invalid state %d",
@@ -3105,99 +2831,6 @@ process_prime_response(struct module_qstate* qstate, struct val_qstate* vq,
 	/* the qstate will be reactivated after inform_super is done */
 }
 
-/**
- * Process DLV response. Called from inform_supers.
- * Because it is in inform_supers, the mesh itself is busy doing callbacks
- * for a state that is to be deleted soon; don't touch the mesh; instead
- * set a state in the super, as the super will be reactivated soon.
- * Perform processing to determine what state to set in the super.
- *
- * @param qstate: query state that is validating and asked for a DLV.
- * @param vq: validator query state
- * @param id: module id.
- * @param rcode: rcode result value.
- * @param msg: result message (if rcode is OK).
- * @param qinfo: from the sub query state, query info.
- */
-static void
-process_dlv_response(struct module_qstate* qstate, struct val_qstate* vq,
-	int id, int rcode, struct dns_msg* msg, struct query_info* qinfo)
-{
-	struct val_env* ve = (struct val_env*)qstate->env->modinfo[id];
-
-	verbose(VERB_ALGO, "process dlv response to super");
-	if(rcode != LDNS_RCODE_NOERROR) {
-		/* lookup failed, set in vq to give up */
-		vq->dlv_status = dlv_error;
-		verbose(VERB_ALGO, "response is error");
-		return;
-	}
-	if(msg->rep->security != sec_status_secure) {
-		vq->dlv_status = dlv_error;
-		verbose(VERB_ALGO, "response is not secure, %s",
-			sec_status_to_string(msg->rep->security));
-		return;
-	}
-	/* was the lookup a success? validated DLV? */
-	if(FLAGS_GET_RCODE(msg->rep->flags) == LDNS_RCODE_NOERROR &&
-		msg->rep->an_numrrsets == 1 &&
-		msg->rep->security == sec_status_secure &&
-		ntohs(msg->rep->rrsets[0]->rk.type) == LDNS_RR_TYPE_DLV &&
-		ntohs(msg->rep->rrsets[0]->rk.rrset_class) == qinfo->qclass &&
-		query_dname_compare(msg->rep->rrsets[0]->rk.dname, 
-			vq->dlv_lookup_name) == 0) {
-		/* yay! it is just like a DS */
-		vq->ds_rrset = (struct ub_packed_rrset_key*)
-			regional_alloc_init(qstate->region,
-			msg->rep->rrsets[0], sizeof(*vq->ds_rrset));
-		if(!vq->ds_rrset) {
-			log_err("out of memory in process_dlv");
-			return;
-		}
-		vq->ds_rrset->entry.key = vq->ds_rrset;
-		vq->ds_rrset->rk.dname = (uint8_t*)regional_alloc_init(
-			qstate->region, vq->ds_rrset->rk.dname, 
-			vq->ds_rrset->rk.dname_len);
-		if(!vq->ds_rrset->rk.dname) {
-			log_err("out of memory in process_dlv");
-			vq->dlv_status = dlv_error;
-			return;
-		}
-		vq->ds_rrset->entry.data = regional_alloc_init(qstate->region,
-			vq->ds_rrset->entry.data, 
-			packed_rrset_sizeof(vq->ds_rrset->entry.data));
-		if(!vq->ds_rrset->entry.data) {
-			log_err("out of memory in process_dlv");
-			vq->dlv_status = dlv_error;
-			return;
-		}
-		packed_rrset_ptr_fixup(vq->ds_rrset->entry.data);
-		/* make vq do a DNSKEY query next up */
-		vq->dlv_status = dlv_success;
-		return;
-	}
-	/* store NSECs into negative cache */
-	val_neg_addreply(ve->neg_cache, msg->rep);
-
-	/* was the lookup a failure? 
-	 *   if we have to go up into the DLV for a higher DLV anchor
-	 *   then set this in the vq, so it can make queries when activated.
-	 * See if the NSECs indicate that we should look for higher DLV
-	 * or, that there is no DLV securely */
-	if(!val_nsec_check_dlv(qinfo, msg->rep, &vq->dlv_lookup_name, 
-		&vq->dlv_lookup_name_len)) {
-		vq->dlv_status = dlv_error;
-		verbose(VERB_ALGO, "nsec error");
-		return;
-	}
-	if(!dname_subdomain_c(vq->dlv_lookup_name, 
-		qstate->env->anchors->dlv_anchor->name)) {
-		vq->dlv_status = dlv_there_is_no_dlv;
-		return;
-	}
-	vq->dlv_status = dlv_ask_higher;
-}
-
 /* 
  * inform validator super.
  * 
@@ -3232,10 +2865,6 @@ val_inform_super(struct module_qstate* qstate, int id,
 		process_dnskey_response(super, vq, id, qstate->return_rcode,
 			qstate->return_msg, &qstate->qinfo,
 			qstate->reply_origin);
-		return;
-	} else if(qstate->qinfo.qtype == LDNS_RR_TYPE_DLV) {
-		process_dlv_response(super, vq, id, qstate->return_rcode,
-			qstate->return_msg, &qstate->qinfo);
 		return;
 	}
 	log_err("internal error in validator: no inform_supers possible");
@@ -3284,7 +2913,6 @@ val_state_to_string(enum val_state state)
 		case VAL_FINDKEY_STATE: return "VAL_FINDKEY_STATE";
 		case VAL_VALIDATE_STATE: return "VAL_VALIDATE_STATE";
 		case VAL_FINISHED_STATE: return "VAL_FINISHED_STATE";
-		case VAL_DLVLOOKUP_STATE: return "VAL_DLVLOOKUP_STATE";
 	}
 	return "UNKNOWN VALIDATOR STATE";
 }

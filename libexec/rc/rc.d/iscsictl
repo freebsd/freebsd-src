@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: iscsictl
-# REQUIRE: NETWORK iscsid
+# REQUIRE: NETWORKING iscsid
 # BEFORE:  DAEMON
 # KEYWORD: nojail
 

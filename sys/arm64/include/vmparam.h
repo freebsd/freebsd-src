@@ -201,14 +201,7 @@
  * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(3)
-#endif
-
-/*
- * Optional floor (in bytes) on the size of the kmem arena.
- */
-#ifndef VM_KMEM_SIZE_MIN
-#define	VM_KMEM_SIZE_MIN	(16 * 1024 * 1024)
+#define	VM_KMEM_SIZE_SCALE	(1)
 #endif
 
 /*

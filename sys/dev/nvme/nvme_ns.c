@@ -473,7 +473,7 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 	case BIO_DELETE:
 		dsm_range =
 		    malloc(sizeof(struct nvme_dsm_range), M_NVME,
-		    M_ZERO | M_WAITOK);
+		    M_ZERO | M_NOWAIT);
 		if (!dsm_range) {
 			err = ENOMEM;
 			break;

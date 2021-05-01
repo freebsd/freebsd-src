@@ -299,6 +299,7 @@ accept_filt_setopt(struct socket *so, struct sockopt *sopt)
 	so->sol_accept_filter = afp;
 	so->sol_accept_filter_arg = accept_filter_arg;
 	so->sol_accept_filter_str = accept_filter_str;
+	accept_filter_str = NULL;
 	so->so_options |= SO_ACCEPTFILTER;
 out:
 	SOCK_UNLOCK(so);

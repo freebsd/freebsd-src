@@ -76,6 +76,7 @@ struct	nfsmount {
 	/* Newnfs additions */
 	TAILQ_HEAD(, nfsclds) nm_sess;	/* Session(s) for NFSv4.1. */
 	struct	nfsclclient *nm_clp;
+	char	*nm_tlscertname;	/* TLS certificate file name */
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
 	u_int64_t nm_fsid[2];		/* NFSv4 fsid */

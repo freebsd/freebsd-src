@@ -80,6 +80,8 @@ struct vtballoon_softc {
 static struct virtio_feature_desc vtballoon_feature_desc[] = {
 	{ VIRTIO_BALLOON_F_MUST_TELL_HOST,	"MustTellHost"	},
 	{ VIRTIO_BALLOON_F_STATS_VQ,		"StatsVq"	},
+	{ VIRTIO_BALLOON_F_DEFLATE_ON_OOM,	"DeflateOnOOM"	},
+
 	{ 0, NULL }
 };
 
@@ -88,7 +90,8 @@ static int	vtballoon_attach(device_t);
 static int	vtballoon_detach(device_t);
 static int	vtballoon_config_change(device_t);
 
-static void	vtballoon_negotiate_features(struct vtballoon_softc *);
+static int	vtballoon_negotiate_features(struct vtballoon_softc *);
+static int	vtballoon_setup_features(struct vtballoon_softc *);
 static int	vtballoon_alloc_virtqueues(struct vtballoon_softc *);
 
 static void	vtballoon_vq_intr(void *);
@@ -108,10 +111,13 @@ static void	vtballoon_free_page(struct vtballoon_softc *, vm_page_t);
 
 static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
-static void	vtballoon_add_sysctl(struct vtballoon_softc *);
+static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
+
+#define vtballoon_modern(_sc) \
+    (((_sc)->vtballoon_features & VIRTIO_F_VERSION_1) != 0)
 
 /* Features desired/implemented by this driver. */
-#define VTBALLOON_FEATURES		0
+#define VTBALLOON_FEATURES		VIRTIO_BALLOON_F_MUST_TELL_HOST
 
 /* Timeout between retries when the balloon needs inflating. */
 #define VTBALLOON_LOWMEM_TIMEOUT	hz
@@ -152,17 +158,13 @@ static driver_t vtballoon_driver = {
 };
 static devclass_t vtballoon_devclass;
 
-DRIVER_MODULE(virtio_balloon, virtio_mmio, vtballoon_driver,
-    vtballoon_devclass, 0, 0);
-DRIVER_MODULE(virtio_balloon, virtio_pci, vtballoon_driver,
+VIRTIO_DRIVER_MODULE(virtio_balloon, vtballoon_driver,
     vtballoon_devclass, 0, 0);
 MODULE_VERSION(virtio_balloon, 1);
 MODULE_DEPEND(virtio_balloon, virtio, 1, 1, 1);
 
-VIRTIO_SIMPLE_PNPTABLE(virtio_balloon, VIRTIO_ID_BALLOON,
+VIRTIO_SIMPLE_PNPINFO(virtio_balloon, VIRTIO_ID_BALLOON,
     "VirtIO Balloon Adapter");
-VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_balloon);
-VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_balloon);
 
 static int
 vtballoon_probe(device_t dev)
@@ -178,14 +180,18 @@ vtballoon_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtballoon_dev = dev;
+	virtio_set_feature_desc(dev, vtballoon_feature_desc);
 
 	VTBALLOON_LOCK_INIT(sc, device_get_nameunit(dev));
 	TAILQ_INIT(&sc->vtballoon_pages);
 
-	vtballoon_add_sysctl(sc);
+	vtballoon_setup_sysctl(sc);
 
-	virtio_set_feature_desc(dev, vtballoon_feature_desc);
-	vtballoon_negotiate_features(sc);
+	error = vtballoon_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	sc->vtballoon_page_frames = malloc(VTBALLOON_PAGES_PER_REQUEST *
 	    sizeof(uint32_t), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -271,15 +277,29 @@ vtballoon_config_change(device_t dev)
 	return (1);
 }
 
-static void
+static int
 vtballoon_negotiate_features(struct vtballoon_softc *sc)
 {
 	device_t dev;
 	uint64_t features;
 
 	dev = sc->vtballoon_dev;
-	features = virtio_negotiate_features(dev, VTBALLOON_FEATURES);
-	sc->vtballoon_features = features;
+	features = VTBALLOON_FEATURES;
+
+	sc->vtballoon_features = virtio_negotiate_features(dev, features);
+	return (virtio_finalize_features(dev));
+}
+
+static int
+vtballoon_setup_features(struct vtballoon_softc *sc)
+{
+	int error;
+
+	error = vtballoon_negotiate_features(sc);
+	if (error)
+		return (error);
+
+	return (0);
 }
 
 static int
@@ -440,7 +460,8 @@ vtballoon_alloc_page(struct vtballoon_softc *sc)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc(NULL, 0,
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP);
 	if (m != NULL)
 		sc->vtballoon_current_npages++;
 
@@ -463,16 +484,23 @@ vtballoon_desired_size(struct vtballoon_softc *sc)
 	desired = virtio_read_dev_config_4(sc->vtballoon_dev,
 	    offsetof(struct virtio_balloon_config, num_pages));
 
-	return (le32toh(desired));
+	if (vtballoon_modern(sc))
+		return (desired);
+	else
+		return (le32toh(desired));
 }
 
 static void
 vtballoon_update_size(struct vtballoon_softc *sc)
 {
+	uint32_t npages;
+
+	npages = sc->vtballoon_current_npages;
+	if (!vtballoon_modern(sc))
+		npages = htole32(npages);
 
 	virtio_write_dev_config_4(sc->vtballoon_dev,
-	    offsetof(struct virtio_balloon_config, actual),
-	    htole32(sc->vtballoon_current_npages));
+	    offsetof(struct virtio_balloon_config, actual), npages);
 }
 
 static int
@@ -544,7 +572,7 @@ vtballoon_thread(void *xsc)
 }
 
 static void
-vtballoon_add_sysctl(struct vtballoon_softc *sc)
+vtballoon_setup_sysctl(struct vtballoon_softc *sc)
 {
 	device_t dev;
 	struct sysctl_ctx_list *ctx;

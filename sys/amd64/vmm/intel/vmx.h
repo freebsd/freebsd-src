@@ -142,7 +142,6 @@ CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
 #define	VMX_VMLAUNCH_ERROR	2
-#define	VMX_INVEPT_ERROR	3
 int	vmx_enter_guest(struct vmxctx *ctx, struct vmx *vmx, int launched);
 void	vmx_call_isr(uintptr_t entry);
 
@@ -161,8 +160,8 @@ vmx_have_msr_tsc_aux(struct vmx *vmx)
 
 	/*
 	 * Since the values of these bits are uniform across all vCPUs
-	 * (see discussion in vmx_init() and initialization of these bits
-	 * in vmx_vminit()), just always use vCPU-zero's capability set and
+	 * (see discussion in vmx_modinit() and initialization of these bits
+	 * in vmx_init()), just always use vCPU-zero's capability set and
 	 * remove the need to require a vcpuid argument.
 	 */
 	return ((vmx->cap[0].set & rdpid_rdtscp_bits) != 0);

@@ -60,7 +60,7 @@
  *
  *      A string specifying the backend device: either a 4-tuple "h:c:t:l"
  *      (host, controller, target, lun, all integers), or a WWN (e.g.
- *      "naa.60014054ac780582").
+ *      "naa.60014054ac780582:0").
  *
  * v-dev
  *      Values:         string
@@ -102,6 +102,75 @@
  *
  *      The machine ABI rules governing the format of all ring request and
  *      response structures.
+ */
+
+/*
+ * Xenstore format in practice
+ * ===========================
+ *
+ * The backend driver uses a single_host:many_devices notation to manage domU
+ * devices. Everything is stored in /local/domain/<backend_domid>/backend/vscsi/.
+ * The xenstore layout looks like this (dom0 is assumed to be the backend_domid):
+ *
+ *     <domid>/<vhost>/feature-host = "0"
+ *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
+ *     <domid>/<vhost>/frontend-id = "<domid>"
+ *     <domid>/<vhost>/online = "1"
+ *     <domid>/<vhost>/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1" or "naa.wwn:lun"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "4"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
+ *
+ * The frontend driver maintains its state in
+ * /local/domain/<domid>/device/vscsi/.
+ *
+ *     <vhost>/backend = "/local/domain/0/backend/vscsi/<domid>/<vhost>"
+ *     <vhost>/backend-id = "0"
+ *     <vhost>/event-channel = "20"
+ *     <vhost>/ring-ref = "43"
+ *     <vhost>/state = "4"
+ *     <vhost>/vscsi-devs/dev-0/state = "4"
+ *     <vhost>/vscsi-devs/dev-1/state = "4"
+ *
+ * In addition to the entries for backend and frontend these flags are stored
+ * for the toolstack:
+ *
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-devname = "/dev/$device"
+ *     <domid>/<vhost>/libxl_ctrl_index = "0"
+ *
+ *
+ * Backend/frontend protocol
+ * =========================
+ *
+ * To create a vhost along with a device:
+ *     <domid>/<vhost>/feature-host = "0"
+ *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
+ *     <domid>/<vhost>/frontend-id = "<domid>"
+ *     <domid>/<vhost>/online = "1"
+ *     <domid>/<vhost>/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
+ * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-0/state become 4
+ *
+ * To add another device to a vhost:
+ *     <domid>/<vhost>/state = "7"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "1"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
+ * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-1/state become 4
+ *
+ * To remove a device from a vhost:
+ *     <domid>/<vhost>/state = "7"
+ *     <domid>/<vhost>/vscsi-devs/dev-1/state = "5"
+ * Wait for <domid>/<vhost>/state to become 4
+ * Wait for <domid>/<vhost>/vscsi-devs/dev-1/state become 6
+ * Remove <domid>/<vhost>/vscsi-devs/dev-1/{state,p-dev,v-dev,p-devname}
+ * Remove <domid>/<vhost>/vscsi-devs/dev-1/
+ *
  */
 
 /* Requests from the frontend to the backend */
@@ -179,6 +248,7 @@
  */
 #define VSCSIIF_MAX_COMMAND_SIZE         16
 #define VSCSIIF_SENSE_BUFFERSIZE         96
+#define VSCSIIF_PAGE_SIZE              4096
 
 struct scsiif_request_segment {
     grant_ref_t gref;
@@ -187,7 +257,7 @@ struct scsiif_request_segment {
 };
 typedef struct scsiif_request_segment vscsiif_segment_t;
 
-#define VSCSIIF_SG_PER_PAGE (PAGE_SIZE / sizeof(struct scsiif_request_segment))
+#define VSCSIIF_SG_PER_PAGE (VSCSIIF_PAGE_SIZE / sizeof(struct scsiif_request_segment))
 
 /* Size of one request is 252 bytes */
 struct vscsiif_request {
@@ -239,13 +309,14 @@ struct vscsiif_response {
     uint8_t sense_len;
     uint8_t sense_buffer[VSCSIIF_SENSE_BUFFERSIZE];
     int32_t rslt;
-    uint32_t residual_len;     /* request bufflen - 
+    uint32_t residual_len;     /* request bufflen -
                                   return the value from physical device */
     uint32_t reserved[36];
 };
 typedef struct vscsiif_response vscsiif_response_t;
 
 DEFINE_RING_TYPES(vscsiif, struct vscsiif_request, struct vscsiif_response);
+
 
 #endif  /*__XEN__PUBLIC_IO_SCSI_H__*/
 /*

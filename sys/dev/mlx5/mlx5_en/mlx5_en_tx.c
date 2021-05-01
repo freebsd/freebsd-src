@@ -104,7 +104,7 @@ top:
 		sq = container_of(mb_tag,
 		    struct mlx5e_rl_channel, tag)->sq;
 		break;
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		mb_tag = container_of(mb_tag, struct mlx5e_tls_tag, tag)->rl_tag;
 		goto top;
@@ -820,7 +820,7 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 
 	/* Check if we need to write the doorbell */
 	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
 		sq->doorbell.d64 = 0;
 	}
 
@@ -871,7 +871,7 @@ select_queue:
 }
 
 void
-mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq)
+mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 {
 	struct mlx5e_sq *sq = container_of(mcq, struct mlx5e_sq, cq.mcq);
 

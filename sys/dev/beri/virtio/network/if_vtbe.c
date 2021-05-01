@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
+#include <netinet/in.h>
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
+
 #include <machine/bus.h>
 #include <machine/fdt.h>
 #include <machine/cpu.h>

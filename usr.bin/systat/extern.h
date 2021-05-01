@@ -168,6 +168,7 @@ char	*sysctl_dynread(const char *, size_t *);
 void	 sysputpage(WINDOW* , int, int, int, uint64_t, int);
 void	 sysputspaces(WINDOW* , int, int, int);
 void	 sysputstrs(WINDOW* , int, int, int);
+void	 sysputXs(WINDOW* , int, int, int);
 void	 sysputuint64(WINDOW* , int, int, int, uint64_t, int);
 void	 sysputwuint64(WINDOW* , int, int, int, uint64_t, int);
 

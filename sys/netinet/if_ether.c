@@ -114,7 +114,7 @@ VNET_PCPUSTAT_SYSINIT(arpstat);
 VNET_PCPUSTAT_SYSUNINIT(arpstat);
 #endif /* VIMAGE */
 
-VNET_DEFINE_STATIC(int, arp_maxhold) = 1;
+VNET_DEFINE_STATIC(int, arp_maxhold) = 16;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)
@@ -1479,6 +1479,10 @@ arp_handle_ifllchange(struct ifnet *ifp)
 static void
 arp_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
+	/* if_bridge can update its lladdr during if_vmove(), after we've done
+	 * if_detach_internal()/dom_ifdetach(). */
+	if (ifp->if_afdata[AF_INET] == NULL)
+		return;
 
 	lltable_update_ifaddr(LLTABLE(ifp));
 

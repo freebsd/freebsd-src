@@ -67,25 +67,145 @@ __FBSDID("$FreeBSD$");
  * RIB helper functions.
  */
 
+void
+rib_walk_ext_locked(struct rib_head *rnh, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_PRE, arg);
+	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_POST, arg);
+}
+
 /*
  * Calls @wa_f with @arg for each entry in the table specified by
  * @af and @fibnum.
  *
- * Table is traversed under read lock.
+ * @ss_t callback is called before and after the tree traversal
+ *  while holding table lock.
+ *
+ * Table is traversed under read lock unless @wlock is set.
  */
 void
-rib_walk(int af, u_int fibnum, rt_walktree_f_t *wa_f, void *arg)
+rib_walk_ext_internal(struct rib_head *rnh, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
 {
 	RIB_RLOCK_TRACKER;
+
+	if (wlock)
+		RIB_WLOCK(rnh);
+	else
+		RIB_RLOCK(rnh);
+	rib_walk_ext_locked(rnh, wa_f, hook_f, arg);
+	if (wlock)
+		RIB_WUNLOCK(rnh);
+	else
+		RIB_RUNLOCK(rnh);
+}
+
+void
+rib_walk_ext(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
 	struct rib_head *rnh;
 
-	if ((rnh = rt_tables_get_rnh(fibnum, af)) == NULL)
+	if ((rnh = rt_tables_get_rnh(fibnum, family)) != NULL)
+		rib_walk_ext_internal(rnh, wlock, wa_f, hook_f, arg);
+}
+
+/*
+ * Calls @wa_f with @arg for each entry in the table specified by
+ * @af and @fibnum.
+ *
+ * Table is traversed under read lock unless @wlock is set.
+ */
+void
+rib_walk(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+    void *arg)
+{
+
+	rib_walk_ext(fibnum, family, wlock, wa_f, NULL, arg);
+}
+
+/*
+ * Calls @wa_f with @arg for each entry in the table matching @prefix/@mask.
+ *
+ * The following flags are supported:
+ *  RIB_FLAG_WLOCK: acquire exclusive lock
+ *  RIB_FLAG_LOCKED: Assumes the table is already locked & skip locking
+ *
+ * By default, table is traversed under read lock.
+ */
+void
+rib_walk_from(uint32_t fibnum, int family, uint32_t flags, struct sockaddr *prefix,
+    struct sockaddr *mask, rib_walktree_f_t *wa_f, void *arg)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rnh = rt_tables_get_rnh(fibnum, family);
+
+	if (rnh == NULL)
 		return;
 
-	RIB_RLOCK(rnh);
-	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
-	RIB_RUNLOCK(rnh);
+	if (flags & RIB_FLAG_WLOCK)
+		RIB_WLOCK(rnh);
+	else if (!(flags & RIB_FLAG_LOCKED))
+		RIB_RLOCK(rnh);
+
+	rnh->rnh_walktree_from(&rnh->head, prefix, mask, (walktree_f_t *)wa_f, arg);
+
+	if (flags & RIB_FLAG_WLOCK)
+		RIB_WUNLOCK(rnh);
+	else if (!(flags & RIB_FLAG_LOCKED))
+		RIB_RUNLOCK(rnh);
 }
+
+/*
+ * Iterates over all existing fibs in system calling
+ *  @hook_f function before/after traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
+
+	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (family != AF_UNSPEC) {
+			rib_walk_ext(fibnum, family, wlock, wa_f, hook_f, arg); 
+			continue;
+		}
+
+		for (int i = 1; i <= AF_MAX; i++)
+			rib_walk_ext(fibnum, i, wlock, wa_f, hook_f, arg);
+	}
+}
+
+/*
+ * Iterates over all existing fibs in system and deletes each element
+ *  for which @filter_f function returns non-zero value.
+ * If @family is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
+{
+
+	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (family != AF_UNSPEC) {
+			rib_walk_del(fibnum, family, filter_f, arg, 0);
+			continue;
+		}
+
+		for (int i = 1; i <= AF_MAX; i++)
+			rib_walk_del(fibnum, i, filter_f, arg, 0);
+	}
+}
+
 
 /*
  * Wrapper for the control plane functions for performing af-agnostic

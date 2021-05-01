@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form.3x,v 1.34 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form.3x,v 1.36 2020/12/12 16:34:33 tom Exp $
 .TH form 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -79,6 +79,8 @@ rendering of fields already created.
 .
 The following table lists each \fBform\fR routine and the name of
 the manual page on which it is described.
+Routines flagged with \*(``*\*(''
+are ncurses-specific, not present in SVr4.
 .
 .TS
 l l
@@ -115,8 +117,8 @@ form_opts	\fBform_opts\fR(3X)
 form_opts_off	\fBform_opts\fR(3X)
 form_opts_on	\fBform_opts\fR(3X)
 form_page	\fBform_page\fR(3X)
-form_request_by_name	\fBform_requestname\fR(3X)
-form_request_name	\fBform_requestname\fR(3X)
+form_request_by_name	\fBform_requestname\fR(3X)*
+form_request_name	\fBform_requestname\fR(3X)*
 form_sub	\fBform_win\fR(3X)
 form_term	\fBform_hook\fR(3X)
 form_userptr	\fBform_userptr\fR(3X)
@@ -158,12 +160,12 @@ set_form_userptr	\fBform_userptr\fR(3X)
 set_form_win	\fBform_win\fR(3X)
 set_max_field	\fBform_field_buffer\fR(3X)
 set_new_page	\fBform_new_page\fR(3X)
-unfocus_current_field	\fBform_page\fR(3X)
+unfocus_current_field	\fBform_page\fR(3X)*
 unpost_form	\fBform_post\fR(3X)
 .TE
 .SH RETURN VALUE
 Routines that return pointers return \fBNULL\fR on error,
-and set errno to the corresponding error-code returned by functions
+and set \fBerrno\fP to the corresponding error-code returned by functions
 returning an integer.
 Routines that return
 an integer return one of the following error codes:

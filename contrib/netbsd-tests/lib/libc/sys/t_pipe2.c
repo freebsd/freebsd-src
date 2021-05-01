@@ -53,17 +53,19 @@ run(int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
-#ifdef __FreeBSD__
-	closefrom(3);
-#else
+#ifdef __NetBSD__
+	/* This check is harmful since it closes atf's output file */
 	ATF_REQUIRE_MSG(closefrom(3) != -1, "closefrom failed: %s",
 	    strerror(errno));
 #endif
 
 	ATF_REQUIRE(pipe2(fd, flags) == 0);
 
+#ifdef __NetBSD__
+	/* This check is harmful since it requires closing atf's output file */
 	ATF_REQUIRE(fd[0] == 3);
 	ATF_REQUIRE(fd[1] == 4);
+#endif
 
 	if (flags & O_CLOEXEC) {
 		ATF_REQUIRE((fcntl(fd[0], F_GETFD) & FD_CLOEXEC) != 0);

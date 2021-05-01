@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2014 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -368,6 +367,7 @@ autofs_readdir_one(struct uio *uio, const char *name, int fileno,
 		return (EINVAL);
 
 	dirent.d_fileno = fileno;
+	dirent.d_off = uio->uio_offset + reclen;
 	dirent.d_reclen = reclen;
 	dirent.d_type = DT_DIR;
 	dirent.d_namlen = namlen;

@@ -41,7 +41,6 @@
 } while (0);
 
 
-struct vnode;
 struct denode;
 struct fsnode;
 struct msdosfsmount;
@@ -51,11 +50,21 @@ struct componentname {
 	size_t cn_namelen;
 };
 
+struct m_vnode;
+struct m_buf;
+
 int msdosfs_fsiflush(struct msdosfsmount *);
-struct msdosfsmount *msdosfs_mount(struct vnode *);
-int msdosfs_root(struct msdosfsmount *, struct vnode *);
+struct msdosfsmount *msdosfs_mount(struct m_vnode *);
+int msdosfs_root(struct msdosfsmount *, struct m_vnode *);
 
 struct denode *msdosfs_mkfile(const char *, struct denode *, fsnode *);
 struct denode *msdosfs_mkdire(const char *, struct denode *, fsnode *);
 
+int m_readde(struct denode *dep, struct m_buf **bpp, struct direntry **epp);
+int m_readep(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
+    struct m_buf **bpp, struct direntry **epp);
+int m_extendfile(struct denode *dep, u_long count, struct m_buf **bpp,
+    u_long *ncp, int flags);
+
+struct msdosfsmount *m_msdosfs_mount(struct m_vnode *devvp);
 #endif

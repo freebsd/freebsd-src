@@ -374,7 +374,7 @@ pmcstat_show_usage(void)
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
-	    "\t -U \t\n merged user kernel stack capture\n"
+	    "\t -U \t\t merged user kernel stack capture\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
 	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
@@ -675,7 +675,7 @@ main(int argc, char **argv)
 			if (option == 'S' || option == 'P')
 				ev->ev_count = current_sampling_count ? current_sampling_count : pmc_pmu_sample_rate_get(ev->ev_spec);
 			else
-				ev->ev_count = -1;
+				ev->ev_count = 0;
 
 			if (option == 'S' || option == 's')
 				ev->ev_cpu = CPU_FFS(&cpumask) - 1;
@@ -898,7 +898,8 @@ main(int argc, char **argv)
 		pmcstat_show_usage();
 
 	/* check for -t pid without a process PMC spec */
-	if ((args.pa_required & FLAG_HAS_TARGET) &&
+	if ((args.pa_flags & FLAG_HAS_TARGET) &&
+	    (args.pa_required & FLAG_HAS_PROCESS_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_PROCESS_PMCS) == 0)
 		errx(EX_USAGE,
 "ERROR: option -t requires a process mode PMC to be specified."

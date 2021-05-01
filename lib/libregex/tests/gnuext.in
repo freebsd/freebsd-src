@@ -17,16 +17,18 @@ a\|b\|c	b	abc	a
 \s\+	b	aSNTb	SNT
 # Word boundaries (\b, \B, \<, \>, \`, \')
 # (is/not boundary, start/end word, start/end subject string)
-# Most of these are disabled for the moment, and will be re-enabled as
-# we become feature complete.
-#\babc\b	&	<abc>	abc
+\babc\b	&	<abc>	abc
 \<abc\> &	<abc>	abc
-#\Babc\B	&	abc
-#\B[abc]\B	&	<abc>	b
-#\B[abc]+	-	<abc>	bc
-#\B[abc]\+	b	<abc>	bc
-#\`abc\'	&	abc	abc
-#\`.+\'	-	abNc	abNc
-#\`.\+\'	b	abNc	abNc
-#(\`a)	-	Na
-#(a\')	-	aN
+\Babc\B	&	abc
+\B[abc]\B	&	<abc>	b
+\B[abc]+	-	<abc>	bc
+\B[abc]\+	b	<abc>	bc
+\`abc	&	abc	abc
+abc\'	&	abc	abc
+\`abc\'	&	abc	abc
+\`.+\'	-	abNc	abNc
+\`.\+\'	b	abNc	abNc
+(\`a)	-	Na
+(a\`)	-	aN
+(a\')	-	aN
+(\'a)	-	Na

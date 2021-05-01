@@ -20,20 +20,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <getopt.h>
-#include <stdlib.h>
-
 #include "ucl.h"
-
-static struct option opts[] = {
-    {"help", no_argument, NULL, 'h'},
-    {"in", required_argument, NULL, 'i' },
-    {"out", required_argument, NULL, 'o' },
-    {"schema", required_argument, NULL, 's'},
-    {"format", required_argument, NULL, 'f'},
-    {0, 0, 0, 0}
-};
 
 void usage(const char *name, FILE *out) {
   fprintf(out, "Usage: %s [--help] [-i|--in file] [-o|--out file]\n", name);
@@ -49,64 +36,75 @@ void usage(const char *name, FILE *out) {
 }
 
 int main(int argc, char **argv) {
+  int i;
   char ch;
   FILE *in = stdin, *out = stdout;
-  const char *schema = NULL;
+  const char *schema = NULL, *parm, *val;
   unsigned char *buf = NULL;
   size_t size = 0, r = 0;
   struct ucl_parser *parser = NULL;
   ucl_object_t *obj = NULL;
   ucl_emitter_t emitter = UCL_EMIT_CONFIG;
 
-  while((ch = getopt_long(argc, argv, "hi:o:s:f:", opts, NULL)) != -1) {
-    switch (ch) {
-    case 'i':
-      in = fopen(optarg, "r");
+  for (i = 1; i < argc; ++i) {
+    parm = argv[i];
+    val = ((i + 1) < argc) ? argv[++i] : NULL;
+
+    if ((strcmp(parm, "--help") == 0) || (strcmp(parm, "-h") == 0)) {
+      usage(argv[0], stdout);
+      exit(0);
+
+    } else if ((strcmp(parm, "--in") == 0) || (strcmp(parm, "-i") == 0)) {
+      if (!val)
+        goto err_val;
+
+      in = fopen(val, "r");
       if (in == NULL) {
         perror("fopen on input file");
         exit(EXIT_FAILURE);
       }
-      break;
-    case 'o':
-      out = fopen(optarg, "w");
+    } else if ((strcmp(parm, "--out") == 0) || (strcmp(parm, "-o") == 0)) {
+      if (!val)
+        goto err_val;
+
+      out = fopen(val, "w");
       if (out == NULL) {
         perror("fopen on output file");
         exit(EXIT_FAILURE);
       }
-      break;
-    case 's':
-      schema = optarg;
-      break;
-    case 'f':
-      if (strcmp(optarg, "ucl") == 0) {
-        emitter = UCL_EMIT_CONFIG;
-      } else if (strcmp(optarg, "json") == 0) {
-        emitter = UCL_EMIT_JSON;
-      } else if (strcmp(optarg, "yaml") == 0) {
-        emitter = UCL_EMIT_YAML;
-      } else if (strcmp(optarg, "compact_json") == 0) {
-        emitter = UCL_EMIT_JSON_COMPACT;
-      } else if (strcmp(optarg, "msgpack") == 0) {
-        emitter = UCL_EMIT_MSGPACK;
-      } else {
-        fprintf(stderr, "Unknown output format: %s\n", optarg);
-        exit(EXIT_FAILURE);
-      }
-      break;
-    case 'h':
-      usage(argv[0], stdout);
-      exit(0);
-    default:
+    } else if ((strcmp(parm, "--schema") == 0) || (strcmp(parm, "-s") == 0)) {
+      if (!val)
+        goto err_val;
+      schema = val;
+
+    } else if ((strcmp(parm, "--format") == 0) || (strcmp(parm, "-f") == 0)) {
+        if (!val)
+          goto err_val;
+
+        if (strcmp(val, "ucl") == 0) {
+          emitter = UCL_EMIT_CONFIG;
+        } else if (strcmp(val, "json") == 0) {
+          emitter = UCL_EMIT_JSON;
+        } else if (strcmp(val, "yaml") == 0) {
+          emitter = UCL_EMIT_YAML;
+        } else if (strcmp(val, "compact_json") == 0) {
+          emitter = UCL_EMIT_JSON_COMPACT;
+        } else if (strcmp(val, "msgpack") == 0) {
+          emitter = UCL_EMIT_MSGPACK;
+        } else {
+          fprintf(stderr, "Unknown output format: %s\n", val);
+          exit(EXIT_FAILURE);
+        }
+    } else {
       usage(argv[0], stderr);
       exit(EXIT_FAILURE);
-      break;
     }
   }
 
   parser = ucl_parser_new(0);
   buf = malloc(BUFSIZ);
   size = BUFSIZ;
-  while(!feof(in) && !ferror(in)) {
+  while (!feof(in) && !ferror(in)) {
     if (r == size) {
       buf = realloc(buf, size*2);
       size *= 2;
@@ -155,8 +153,7 @@ int main(int argc, char **argv) {
 
   if (emitter != UCL_EMIT_MSGPACK) {
     fprintf(out, "%s\n", ucl_object_emit(obj, emitter));
-  }
-  else {
+  } else {
     size_t len;
     unsigned char *res;
 
@@ -165,4 +162,9 @@ int main(int argc, char **argv) {
   }
 
   return 0;
+
+err_val:
+    fprintf(stderr, "Parameter %s is missing mandatory value\n", parm);
+    usage(argv[0], stderr);
+    exit(EXIT_FAILURE);
 }

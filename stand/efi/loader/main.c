@@ -40,10 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/zfs_bootenv.h>
 #endif
 #include <paths.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
 #include <stdint.h>
 #include <string.h>
 #include <setjmp.h>
 #include <disk.h>
+#include <dev_net.h>
+#include <net.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -292,6 +296,21 @@ probe_zfs_currdev(uint64_t guid)
 }
 #endif
 
+#ifdef MD_IMAGE_SIZE
+static bool
+probe_md_currdev(void)
+{
+	extern struct devsw md_dev;
+	bool rv;
+
+	set_currdev_devsw(&md_dev, 0);
+	rv = sanity_check_currdev();
+	if (!rv)
+		printf("MD not present\n");
+	return (rv);
+}
+#endif
+
 static bool
 try_as_currdev(pdinfo_t *hd, pdinfo_t *pp)
 {
@@ -352,9 +371,9 @@ match_boot_info(char *boot_info, size_t bisz)
 	CHAR16 *text;
 
 	/*
-	 * FreeBSD encodes it's boot loading path into the boot loader
+	 * FreeBSD encodes its boot loading path into the boot loader
 	 * BootXXXX variable. We look for the last one in the path
-	 * and use that to load the kernel. However, if we only fine
+	 * and use that to load the kernel. However, if we only find
 	 * one DEVICE_PATH, then there's nothing specific and we should
 	 * fall back.
 	 *
@@ -365,8 +384,8 @@ match_boot_info(char *boot_info, size_t bisz)
 	 * boot loader to get to the next boot loader. However, that
 	 * doesn't work. We rarely have the path to the image booted
 	 * (just the device) so we can't count on that. So, we do the
-	 * enxt best thing, we look through the device path(s) passed
-	 * in the BootXXXX varaible. If there's only one, we return
+	 * next best thing: we look through the device path(s) passed
+	 * in the BootXXXX variable. If there's only one, we return
 	 * NOT_SPECIFIC. Otherwise, we look at the last one and try to
 	 * load that. If we can, we return BOOT_INFO_OK. Otherwise we
 	 * return BAD_CHOICE for the caller to sort out.
@@ -565,6 +584,15 @@ find_currdev(bool do_bootmgr, bool is_last,
 	}
 #endif /* EFI_ZFS_BOOT */
 
+#ifdef MD_IMAGE_SIZE
+	/*
+	 * If there is an embedded MD, try to use that.
+	 */
+	printf("Trying MD\n");
+	if (probe_md_currdev())
+		return (0);
+#endif /* MD_IMAGE_SIZE */
+
 	/*
 	 * Try to find the block device by its handle based on the
 	 * image we're booting. If we can't find a sane partition,
@@ -731,6 +759,8 @@ parse_uefi_con_out(void)
 	how = 0;
 	sz = sizeof(buf);
 	rv = efi_global_getenv("ConOut", buf, &sz);
+	if (rv != EFI_SUCCESS)
+		rv = efi_global_getenv("ConOutDev", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/* If we don't have any ConOut default to serial */
 		how = RB_SERIAL;
@@ -1151,6 +1181,7 @@ main(int argc, CHAR16 *argv[])
 		    !interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
 
+	autoload_font(false);	/* Set up the font list for console. */
 	efi_init_environment();
 
 #if !defined(__arm__)
@@ -1350,7 +1381,7 @@ command_mode(int argc, char *argv[])
 			printf("couldn't set mode %d\n", mode);
 			return (CMD_ERROR);
 		}
-		(void) efi_cons_update_mode();
+		(void) cons_update_mode(true);
 		return (CMD_OK);
 	}
 
@@ -1594,3 +1625,34 @@ command_chain(int argc, char *argv[])
 }
 
 COMMAND_SET(chain, "chain", "chain load file", command_chain);
+
+extern struct in_addr servip;
+static int
+command_netserver(int argc, char *argv[])
+{
+	char *proto;
+	n_long rootaddr;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+	if (argc < 2) {
+		proto = netproto == NET_TFTP ? "tftp://" : "nfs://";
+		printf("Netserver URI: %s%s%s\n", proto, intoa(rootip.s_addr),
+		    rootpath);
+		return (CMD_OK);
+	}
+	if (argc == 2) {
+		strncpy(rootpath, argv[1], sizeof(rootpath));
+		rootpath[sizeof(rootpath) -1] = '\0';
+		if ((rootaddr = net_parse_rootpath()) != INADDR_NONE)
+			servip.s_addr = rootip.s_addr = rootaddr;
+		return (CMD_OK);
+	}
+	return (CMD_ERROR);	/* not reached */
+
+}
+
+COMMAND_SET(netserver, "netserver", "change or display netserver URI",
+    command_netserver);

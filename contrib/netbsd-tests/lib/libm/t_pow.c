@@ -637,6 +637,27 @@ ATF_TC_BODY(powf_zero_y, tc)
 	}
 }
 
+ATF_TC(powf_near_one_x_huge_y);
+ATF_TC_HEAD(powf_near_one_x_huge_y, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test powf(->1, huge) != inf");
+}
+
+ATF_TC_BODY(powf_near_one_x_huge_y, tc)
+{
+	const float x =  0x1.ffffeep-1f;   /*  9.999995e-01f */
+	const float y = -0x1.000002p+27f;  /* -1.342177e+08f */
+	const float e =  0x1.d53532p+103f; /*  1.858724e+31f */
+	const float ulp = __FLT_EPSILON__;
+	float z;
+
+	z = powf(x, y);
+
+	ATF_CHECK(isinf(z) == 0);
+	ATF_CHECK(fabsf(z - e) <= 2 * ulp);
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -661,6 +682,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, powf_one_pos_x);
 	ATF_TP_ADD_TC(tp, powf_zero_x);
 	ATF_TP_ADD_TC(tp, powf_zero_y);
+	ATF_TP_ADD_TC(tp, powf_near_one_x_huge_y);
 
 	return atf_no_error();
 }

@@ -87,7 +87,7 @@ compute_weight(struct dns_srvinfo **d, int first, int last)
 	int *chosen;
 
 	totalweight = 0;
-	
+
 	for (i = 0; i <= last; i++)
 		totalweight += d[i]->weight;
 
@@ -98,7 +98,8 @@ compute_weight(struct dns_srvinfo **d, int first, int last)
 
 	for (i = 0; i <= last; i++) {
 		for (;;) {
-			chosen[i] = random() % (d[i]->weight * 100 / totalweight);
+			chosen[i] = arc4random_uniform(d[i]->weight * 100 /
+			    totalweight);
 			for (j = 0; j < i; j++) {
 				if (chosen[i] == chosen[j])
 					break;

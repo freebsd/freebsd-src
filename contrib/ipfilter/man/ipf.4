@@ -60,7 +60,7 @@ typedef struct  frentry {
         struct  frentry *fr_grp;
         int     fr_ref;         /* reference count - for grouping */
         void    *fr_ifa;
-#if BSD >= 199306
+#ifdef BSD
         void    *fr_oifa;
 #endif
         /*
@@ -90,10 +90,10 @@ typedef struct  frentry {
         u_32_t  fr_flags;       /* per-rule flags && options (see below) */
         u_short fr_skip;        /* # of rules to skip */
         u_short fr_loglevel;    /* syslog log facility + priority */
-        int     (*fr_func) __P((int, ip_t *, fr_info_t *));
+        int     (*fr_func)(int, ip_t *, fr_info_t *));
         char    fr_icode;       /* return ICMP code */
         char    fr_ifname[IFNAMSIZ];
-#if BSD > 199306
+#ifdef BSD
         char    fr_oifname[IFNAMSIZ];
 #endif
         struct  frdest  fr_tif; /* "to" interface */

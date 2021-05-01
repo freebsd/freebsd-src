@@ -332,16 +332,22 @@ fork_norfproc(struct thread *td, int flags)
 	 */
 	if (flags & RFCFDG) {
 		struct filedesc *fdtmp;
+		struct pwddesc *pdtmp;
+		pdtmp = pdinit(td->td_proc->p_pd, false);
 		fdtmp = fdinit(td->td_proc->p_fd, false, NULL);
+		pdescfree(td);
 		fdescfree(td);
 		p1->p_fd = fdtmp;
+		p1->p_pd = pdtmp;
 	}
 
 	/*
 	 * Unshare file descriptors (from parent).
 	 */
-	if (flags & RFFDG)
+	if (flags & RFFDG) {
 		fdunshare(td);
+		pdunshare(td);
+	}
 
 fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
@@ -360,6 +366,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	struct proc *p1, *pptr;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
+	struct pwddesc *pd;
 	struct sigacts *newsigacts;
 
 	p1 = td->td_proc;
@@ -403,12 +410,21 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * Copy filedesc.
 	 */
 	if (fr->fr_flags & RFCFDG) {
+		pd = pdinit(p1->p_pd, false);
 		fd = fdinit(p1->p_fd, false, NULL);
 		fdtol = NULL;
 	} else if (fr->fr_flags & RFFDG) {
+		if (fr->fr_flags2 & FR2_SHARE_PATHS)
+			pd = pdshare(p1->p_pd);
+		else
+			pd = pdcopy(p1->p_pd);
 		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
 	} else {
+		if (fr->fr_flags2 & FR2_SHARE_PATHS)
+			pd = pdcopy(p1->p_pd);
+		else
+			pd = pdshare(p1->p_pd);
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
 			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,
@@ -481,9 +497,12 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	} else {
 		sigacts_copy(newsigacts, p1->p_sigacts);
 		p2->p_sigacts = newsigacts;
-		if ((fr->fr_flags2 & FR2_DROPSIG_CAUGHT) != 0) {
+		if ((fr->fr_flags2 & (FR2_DROPSIG_CAUGHT | FR2_KPROC)) != 0) {
 			mtx_lock(&p2->p_sigacts->ps_mtx);
-			sig_drop_caught(p2);
+			if ((fr->fr_flags2 & FR2_DROPSIG_CAUGHT) != 0)
+				sig_drop_caught(p2);
+			if ((fr->fr_flags2 & FR2_KPROC) != 0)
+				p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
 			mtx_unlock(&p2->p_sigacts->ps_mtx);
 		}
 	}
@@ -495,9 +514,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	else
 	        p2->p_sigparent = SIGCHLD;
 
+	if ((fr->fr_flags2 & FR2_KPROC) != 0) {
+		p2->p_flag |= P_SYSTEM | P_KPROC;
+		td2->td_pflags |= TDP_KTHREAD;
+	}
+
 	p2->p_textvp = p1->p_textvp;
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
+	p2->p_pd = pd;
 
 	if (p1->p_flag2 & P2_INHERIT_PROTECTED) {
 		p2->p_flag |= P_PROTECTED;
@@ -581,6 +606,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	LIST_INIT(&p2->p_orphans);
 
 	callout_init_mtx(&p2->p_itcallout, &p2->p_mtx, 0);
+	TAILQ_INIT(&p2->p_kqtim_stop);
 
 	/*
 	 * This begins the section where we must prevent the parent
@@ -1108,6 +1134,12 @@ fork_return(struct thread *td, struct trapframe *frame)
 		td->td_dbgflags &= ~(TDB_SCX | TDB_BORN);
 		PROC_UNLOCK(p);
 	}
+
+	/*
+	 * If the prison was killed mid-fork, die along with it.
+	 */
+	if (!prison_isalive(td->td_ucred->cr_prison))
+		exit1(td, 0, SIGKILL);
 
 	userret(td, frame);
 

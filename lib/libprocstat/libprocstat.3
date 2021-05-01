@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2017
+.Dd November 26, 2020
 .Dt LIBPROCSTAT 3
 .Os
 .Sh NAME
@@ -345,7 +345,7 @@ structure from one of the
 functions, a pointer to
 .Vt kinfo_proc
 structure from the array obtained from the
-.Fn kvm_getprocs
+.Fn procstat_getprocs
 function, and returns a null-terminated argument vector that corresponds to
 the command line arguments passed to the process.
 The
@@ -402,7 +402,7 @@ structure initialized with one of the
 functions, a pointer to
 .Vt kinfo_proc
 structure from the array obtained from the
-.Fn kvm_getprocs
+.Fn procstat_getprocs
 function, and returns a dynamically allocated linked list of filled in
 .Vt filestat_list
 structures using the STAILQ macros defined in

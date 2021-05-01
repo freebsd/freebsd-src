@@ -70,6 +70,15 @@ struct xs_watch
 
 	/* Callback client data untouched by the XenStore watch mechanism. */
 	uintptr_t callback_data;
+
+	/* Maximum number of pending watch events to be delivered. */
+	unsigned int max_pending;
+
+	/*
+	 * Private counter used by xenstore to keep track of the pending
+	 * watches. Protected by xs.watch_events_lock.
+	 */
+	unsigned int pending;
 };
 LIST_HEAD(xs_watch_list, xs_watch);
 

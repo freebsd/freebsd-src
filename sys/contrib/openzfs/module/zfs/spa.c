@@ -32,6 +32,7 @@
  * Copyright (c) 2017, 2019, Datto Inc. All rights reserved.
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
+ * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  */
 
 /*
@@ -60,6 +61,7 @@
 #include <sys/vdev_rebuild.h>
 #include <sys/vdev_trim.h>
 #include <sys/vdev_disk.h>
+#include <sys/vdev_draid.h>
 #include <sys/metaslab.h>
 #include <sys/metaslab_impl.h>
 #include <sys/mmp.h>
@@ -302,10 +304,12 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 		alloc = metaslab_class_get_alloc(mc);
 		alloc += metaslab_class_get_alloc(spa_special_class(spa));
 		alloc += metaslab_class_get_alloc(spa_dedup_class(spa));
+		alloc += metaslab_class_get_alloc(spa_embedded_log_class(spa));
 
 		size = metaslab_class_get_space(mc);
 		size += metaslab_class_get_space(spa_special_class(spa));
 		size += metaslab_class_get_space(spa_dedup_class(spa));
+		size += metaslab_class_get_space(spa_embedded_log_class(spa));
 
 		spa_prop_add_list(*nvp, ZPOOL_PROP_NAME, spa_name(spa), 0, src);
 		spa_prop_add_list(*nvp, ZPOOL_PROP_SIZE, NULL, size, src);
@@ -372,6 +376,11 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 	if (spa->spa_comment != NULL) {
 		spa_prop_add_list(*nvp, ZPOOL_PROP_COMMENT, spa->spa_comment,
 		    0, ZPROP_SRC_LOCAL);
+	}
+
+	if (spa->spa_compatibility != NULL) {
+		spa_prop_add_list(*nvp, ZPOOL_PROP_COMPATIBILITY,
+		    spa->spa_compatibility, 0, ZPROP_SRC_LOCAL);
 	}
 
 	if (spa->spa_root != NULL)
@@ -1195,6 +1204,8 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 
 	spa->spa_normal_class = metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_log_class = metaslab_class_create(spa, zfs_metaslab_ops);
+	spa->spa_embedded_log_class =
+	    metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_special_class = metaslab_class_create(spa, zfs_metaslab_ops);
 	spa->spa_dedup_class = metaslab_class_create(spa, zfs_metaslab_ops);
 
@@ -1260,7 +1271,7 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	/*
 	 * This taskq is used to perform zvol-minor-related tasks
 	 * asynchronously. This has several advantages, including easy
-	 * resolution of various deadlocks (zfsonlinux bug #3681).
+	 * resolution of various deadlocks.
 	 *
 	 * The taskq must be single threaded to ensure tasks are always
 	 * processed in the order in which they were dispatched.
@@ -1280,15 +1291,15 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	 * pool traverse code from monopolizing the global (and limited)
 	 * system_taskq by inappropriately scheduling long running tasks on it.
 	 */
-	spa->spa_prefetch_taskq = taskq_create("z_prefetch", boot_ncpus,
-	    defclsyspri, 1, INT_MAX, TASKQ_DYNAMIC);
+	spa->spa_prefetch_taskq = taskq_create("z_prefetch", 100,
+	    defclsyspri, 1, INT_MAX, TASKQ_DYNAMIC | TASKQ_THREADS_CPU_PCT);
 
 	/*
 	 * The taskq to upgrade datasets in this pool. Currently used by
 	 * feature SPA_FEATURE_USEROBJ_ACCOUNTING/SPA_FEATURE_PROJECT_QUOTA.
 	 */
-	spa->spa_upgrade_taskq = taskq_create("z_upgrade", boot_ncpus,
-	    defclsyspri, 1, INT_MAX, TASKQ_DYNAMIC);
+	spa->spa_upgrade_taskq = taskq_create("z_upgrade", 100,
+	    defclsyspri, 1, INT_MAX, TASKQ_DYNAMIC | TASKQ_THREADS_CPU_PCT);
 }
 
 /*
@@ -1345,6 +1356,9 @@ spa_deactivate(spa_t *spa)
 
 	metaslab_class_destroy(spa->spa_log_class);
 	spa->spa_log_class = NULL;
+
+	metaslab_class_destroy(spa->spa_embedded_log_class);
+	spa->spa_embedded_log_class = NULL;
 
 	metaslab_class_destroy(spa->spa_special_class);
 	spa->spa_special_class = NULL;
@@ -1660,6 +1674,10 @@ spa_unload(spa_t *spa)
 	if (spa->spa_comment != NULL) {
 		spa_strfree(spa->spa_comment);
 		spa->spa_comment = NULL;
+	}
+	if (spa->spa_compatibility != NULL) {
+		spa_strfree(spa->spa_compatibility);
+		spa->spa_compatibility = NULL;
 	}
 
 	spa_config_exit(spa, SCL_ALL, spa);
@@ -2102,6 +2120,9 @@ spa_check_logs(spa_t *spa)
 	return (rv);
 }
 
+/*
+ * Passivate any log vdevs (note, does not apply to embedded log metaslabs).
+ */
 static boolean_t
 spa_passivate_log(spa_t *spa)
 {
@@ -2110,15 +2131,12 @@ spa_passivate_log(spa_t *spa)
 
 	ASSERT(spa_config_held(spa, SCL_ALLOC, RW_WRITER));
 
-	if (!spa_has_slogs(spa))
-		return (B_FALSE);
-
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
-		metaslab_group_t *mg = tvd->vdev_mg;
 
 		if (tvd->vdev_islog) {
-			metaslab_group_passivate(mg);
+			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			metaslab_group_passivate(tvd->vdev_mg);
 			slog_found = B_TRUE;
 		}
 	}
@@ -2126,6 +2144,9 @@ spa_passivate_log(spa_t *spa)
 	return (slog_found);
 }
 
+/*
+ * Activate any log vdevs (note, does not apply to embedded log metaslabs).
+ */
 static void
 spa_activate_log(spa_t *spa)
 {
@@ -2135,10 +2156,11 @@ spa_activate_log(spa_t *spa)
 
 	for (int c = 0; c < rvd->vdev_children; c++) {
 		vdev_t *tvd = rvd->vdev_child[c];
-		metaslab_group_t *mg = tvd->vdev_mg;
 
-		if (tvd->vdev_islog)
-			metaslab_group_activate(mg);
+		if (tvd->vdev_islog) {
+			ASSERT3P(tvd->vdev_log_mg, ==, NULL);
+			metaslab_group_activate(tvd->vdev_mg);
+		}
 	}
 }
 
@@ -3237,6 +3259,7 @@ spa_ld_parse_config(spa_t *spa, spa_import_type_t type)
 	vdev_t *rvd;
 	uint64_t pool_guid;
 	char *comment;
+	char *compatibility;
 
 	/*
 	 * Versioning wasn't explicitly added to the label until later, so if
@@ -3284,6 +3307,11 @@ spa_ld_parse_config(spa_t *spa, spa_import_type_t type)
 	ASSERT(spa->spa_comment == NULL);
 	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMMENT, &comment) == 0)
 		spa->spa_comment = spa_strdup(comment);
+
+	ASSERT(spa->spa_compatibility == NULL);
+	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMPATIBILITY,
+	    &compatibility) == 0)
+		spa->spa_compatibility = spa_strdup(compatibility);
 
 	(void) nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG,
 	    &spa->spa_config_txg);
@@ -3681,7 +3709,14 @@ spa_ld_trusted_config(spa_t *spa, spa_import_type_t type,
 	/*
 	 * Build a new vdev tree from the trusted config
 	 */
-	VERIFY(spa_config_parse(spa, &mrvd, nv, NULL, 0, VDEV_ALLOC_LOAD) == 0);
+	error = spa_config_parse(spa, &mrvd, nv, NULL, 0, VDEV_ALLOC_LOAD);
+	if (error != 0) {
+		nvlist_free(mos_config);
+		spa_config_exit(spa, SCL_ALL, FTAG);
+		spa_load_failed(spa, "spa_config_parse failed [error=%d]",
+		    error);
+		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, error));
+	}
 
 	/*
 	 * Vdev paths in the MOS may be obsolete. If the untrusted config was
@@ -5631,7 +5666,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	uint64_t txg = TXG_INITIAL;
 	nvlist_t **spares, **l2cache;
 	uint_t nspares, nl2cache;
-	uint64_t version, obj;
+	uint64_t version, obj, ndraid = 0;
 	boolean_t has_features;
 	boolean_t has_encryption;
 	boolean_t has_allocclass;
@@ -5753,8 +5788,8 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 
 	if (error == 0 &&
 	    (error = vdev_create(rvd, txg, B_FALSE)) == 0 &&
-	    (error = spa_validate_aux(spa, nvroot, txg,
-	    VDEV_ALLOC_ADD)) == 0) {
+	    (error = vdev_draid_spare_create(nvroot, rvd, &ndraid, 0)) == 0 &&
+	    (error = spa_validate_aux(spa, nvroot, txg, VDEV_ALLOC_ADD)) == 0) {
 		/*
 		 * instantiate the metaslab groups (this will dirty the vdevs)
 		 * we can no longer error exit past this point
@@ -5894,6 +5929,9 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 		spa_configfile_set(spa, props, B_FALSE);
 		spa_sync_props(props, tx);
 	}
+
+	for (int i = 0; i < ndraid; i++)
+		spa_feature_incr(spa, SPA_FEATURE_DRAID, tx);
 
 	dmu_tx_commit(tx);
 
@@ -6225,9 +6263,10 @@ spa_tryimport(nvlist_t *tryconfig)
  * we don't sync the labels or remove the configuration cache.
  */
 static int
-spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
+spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
     boolean_t force, boolean_t hardforce)
 {
+	int error;
 	spa_t *spa;
 
 	if (oldconfig)
@@ -6280,13 +6319,9 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 	 * references.  If we are resetting a pool, allow references by
 	 * fault injection handlers.
 	 */
-	if (!spa_refcount_zero(spa) ||
-	    (spa->spa_inject_ref != 0 &&
-	    new_state != POOL_STATE_UNINITIALIZED)) {
-		spa_async_resume(spa);
-		spa->spa_is_exporting = B_FALSE;
-		mutex_exit(&spa_namespace_lock);
-		return (SET_ERROR(EBUSY));
+	if (!spa_refcount_zero(spa) || (spa->spa_inject_ref != 0)) {
+		error = SET_ERROR(EBUSY);
+		goto fail;
 	}
 
 	if (spa->spa_sync_on) {
@@ -6298,10 +6333,8 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 		 */
 		if (!force && new_state == POOL_STATE_EXPORTED &&
 		    spa_has_active_shared_spare(spa)) {
-			spa_async_resume(spa);
-			spa->spa_is_exporting = B_FALSE;
-			mutex_exit(&spa_namespace_lock);
-			return (SET_ERROR(EXDEV));
+			error = SET_ERROR(EXDEV);
+			goto fail;
 		}
 
 		/*
@@ -6363,13 +6396,19 @@ export_spa:
 
 	mutex_exit(&spa_namespace_lock);
 	return (0);
+
+fail:
+	spa->spa_is_exporting = B_FALSE;
+	spa_async_resume(spa);
+	mutex_exit(&spa_namespace_lock);
+	return (error);
 }
 
 /*
  * Destroy a storage pool.
  */
 int
-spa_destroy(char *pool)
+spa_destroy(const char *pool)
 {
 	return (spa_export_common(pool, POOL_STATE_DESTROYED, NULL,
 	    B_FALSE, B_FALSE));
@@ -6379,7 +6418,7 @@ spa_destroy(char *pool)
  * Export a storage pool.
  */
 int
-spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
+spa_export(const char *pool, nvlist_t **oldconfig, boolean_t force,
     boolean_t hardforce)
 {
 	return (spa_export_common(pool, POOL_STATE_EXPORTED, oldconfig,
@@ -6391,7 +6430,7 @@ spa_export(char *pool, nvlist_t **oldconfig, boolean_t force,
  * from the namespace in any way.
  */
 int
-spa_reset(char *pool)
+spa_reset(const char *pool)
 {
 	return (spa_export_common(pool, POOL_STATE_UNINITIALIZED, NULL,
 	    B_FALSE, B_FALSE));
@@ -6404,12 +6443,25 @@ spa_reset(char *pool)
  */
 
 /*
+ * This is called as a synctask to increment the draid feature flag
+ */
+static void
+spa_draid_feature_incr(void *arg, dmu_tx_t *tx)
+{
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
+	int draid = (int)(uintptr_t)arg;
+
+	for (int c = 0; c < draid; c++)
+		spa_feature_incr(spa, SPA_FEATURE_DRAID, tx);
+}
+
+/*
  * Add a device to a storage pool.
  */
 int
 spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 {
-	uint64_t txg;
+	uint64_t txg, ndraid = 0;
 	int error;
 	vdev_t *rvd = spa->spa_root_vdev;
 	vdev_t *vd, *tvd;
@@ -6438,8 +6490,23 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 		return (spa_vdev_exit(spa, vd, txg, EINVAL));
 
 	if (vd->vdev_children != 0 &&
-	    (error = vdev_create(vd, txg, B_FALSE)) != 0)
+	    (error = vdev_create(vd, txg, B_FALSE)) != 0) {
 		return (spa_vdev_exit(spa, vd, txg, error));
+	}
+
+	/*
+	 * The virtual dRAID spares must be added after vdev tree is created
+	 * and the vdev guids are generated.  The guid of their assoicated
+	 * dRAID is stored in the config and used when opening the spare.
+	 */
+	if ((error = vdev_draid_spare_create(nvroot, vd, &ndraid,
+	    rvd->vdev_children)) == 0) {
+		if (ndraid > 0 && nvlist_lookup_nvlist_array(nvroot,
+		    ZPOOL_CONFIG_SPARES, &spares, &nspares) != 0)
+			nspares = 0;
+	} else {
+		return (spa_vdev_exit(spa, vd, txg, error));
+	}
 
 	/*
 	 * We must validate the spares and l2cache devices after checking the
@@ -6452,7 +6519,7 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 	 * If we are in the middle of a device removal, we can only add
 	 * devices which match the existing devices in the pool.
 	 * If we are in the middle of a removal, or have some indirect
-	 * vdevs, we can not add raidz toplevels.
+	 * vdevs, we can not add raidz or dRAID top levels.
 	 */
 	if (spa->spa_vdev_removal != NULL ||
 	    spa->spa_removing_phys.sr_prev_indirect_vdev != -1) {
@@ -6462,10 +6529,10 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 			    tvd->vdev_ashift != spa->spa_max_ashift) {
 				return (spa_vdev_exit(spa, vd, txg, EINVAL));
 			}
-			/* Fail if top level vdev is raidz */
-			if (tvd->vdev_ops == &vdev_raidz_ops) {
+			/* Fail if top level vdev is raidz or a dRAID */
+			if (vdev_get_nparity(tvd) != 0)
 				return (spa_vdev_exit(spa, vd, txg, EINVAL));
-			}
+
 			/*
 			 * Need the top level mirror to be
 			 * a mirror of leaf vdevs only
@@ -6503,6 +6570,19 @@ spa_vdev_add(spa_t *spa, nvlist_t *nvroot)
 		    ZPOOL_CONFIG_L2CACHE);
 		spa_load_l2cache(spa);
 		spa->spa_l2cache.sav_sync = B_TRUE;
+	}
+
+	/*
+	 * We can't increment a feature while holding spa_vdev so we
+	 * have to do it in a synctask.
+	 */
+	if (ndraid != 0) {
+		dmu_tx_t *tx;
+
+		tx = dmu_tx_create_assigned(spa->spa_dsl_pool, txg);
+		dsl_sync_task_nowait(spa->spa_dsl_pool, spa_draid_feature_incr,
+		    (void *)(uintptr_t)ndraid, tx);
+		dmu_tx_commit(tx);
 	}
 
 	/*
@@ -6615,14 +6695,27 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	if (oldvd->vdev_top->vdev_islog && newvd->vdev_isspare)
 		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 
+	/*
+	 * A dRAID spare can only replace a child of its parent dRAID vdev.
+	 */
+	if (newvd->vdev_ops == &vdev_draid_spare_ops &&
+	    oldvd->vdev_top != vdev_draid_spare_get_parent(newvd)) {
+		return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
+	}
+
 	if (rebuild) {
 		/*
-		 * For rebuilds, the parent vdev must support reconstruction
+		 * For rebuilds, the top vdev must support reconstruction
 		 * using only space maps.  This means the only allowable
-		 * parents are the root vdev or a mirror vdev.
+		 * vdevs types are the root vdev, a mirror, or dRAID.
 		 */
-		if (pvd->vdev_ops != &vdev_mirror_ops &&
-		    pvd->vdev_ops != &vdev_root_ops) {
+		tvd = pvd;
+		if (pvd->vdev_top != NULL)
+			tvd = pvd->vdev_top;
+
+		if (tvd->vdev_ops != &vdev_mirror_ops &&
+		    tvd->vdev_ops != &vdev_root_ops &&
+		    tvd->vdev_ops != &vdev_draid_ops) {
 			return (spa_vdev_exit(spa, newrootvd, txg, ENOTSUP));
 		}
 	}
@@ -6915,14 +7008,20 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 	}
 
 	/*
-	 * If we are detaching the original disk from a spare, then it implies
-	 * that the spare should become a real disk, and be removed from the
-	 * active spare list for the pool.
+	 * If we are detaching the original disk from a normal spare, then it
+	 * implies that the spare should become a real disk, and be removed
+	 * from the active spare list for the pool.  dRAID spares on the
+	 * other hand are coupled to the pool and thus should never be removed
+	 * from the spares list.
 	 */
-	if (pvd->vdev_ops == &vdev_spare_ops &&
-	    vd->vdev_id == 0 &&
-	    pvd->vdev_child[pvd->vdev_children - 1]->vdev_isspare)
-		unspare = B_TRUE;
+	if (pvd->vdev_ops == &vdev_spare_ops && vd->vdev_id == 0) {
+		vdev_t *last_cvd = pvd->vdev_child[pvd->vdev_children - 1];
+
+		if (last_cvd->vdev_isspare &&
+		    last_cvd->vdev_ops != &vdev_draid_spare_ops) {
+			unspare = B_TRUE;
+		}
+	}
 
 	/*
 	 * Erase the disk labels so the disk can be used for other things.
@@ -7903,6 +8002,9 @@ spa_async_remove(spa_t *spa, vdev_t *vd)
 		vd->vdev_stat.vs_checksum_errors = 0;
 
 		vdev_state_dirty(vd->vdev_top);
+
+		/* Tell userspace that the vdev is gone. */
+		zfs_post_remove(spa, vd);
 	}
 
 	for (int c = 0; c < vd->vdev_children; c++)
@@ -7962,12 +8064,16 @@ spa_async_thread(void *arg)
 		old_space = metaslab_class_get_space(spa_normal_class(spa));
 		old_space += metaslab_class_get_space(spa_special_class(spa));
 		old_space += metaslab_class_get_space(spa_dedup_class(spa));
+		old_space += metaslab_class_get_space(
+		    spa_embedded_log_class(spa));
 
 		spa_config_update(spa, SPA_CONFIG_UPDATE_POOL);
 
 		new_space = metaslab_class_get_space(spa_normal_class(spa));
 		new_space += metaslab_class_get_space(spa_special_class(spa));
 		new_space += metaslab_class_get_space(spa_dedup_class(spa));
+		new_space += metaslab_class_get_space(
+		    spa_embedded_log_class(spa));
 		mutex_exit(&spa_namespace_lock);
 
 		/*
@@ -8013,18 +8119,9 @@ spa_async_thread(void *arg)
 	/*
 	 * If any devices are done replacing, detach them.
 	 */
-	if (tasks & SPA_ASYNC_RESILVER_DONE)
+	if (tasks & SPA_ASYNC_RESILVER_DONE ||
+	    tasks & SPA_ASYNC_REBUILD_DONE) {
 		spa_vdev_resilver_done(spa);
-
-	/*
-	 * If any devices are done replacing, detach them.  Then if no
-	 * top-level vdevs are rebuilding attempt to kick off a scrub.
-	 */
-	if (tasks & SPA_ASYNC_REBUILD_DONE) {
-		spa_vdev_resilver_done(spa);
-
-		if (!vdev_rebuild_active(spa->spa_root_vdev))
-			(void) dsl_scan(spa->spa_dsl_pool, POOL_SCAN_SCRUB);
 	}
 
 	/*
@@ -8587,6 +8684,20 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 			spa_history_log_internal(spa, "set", tx,
 			    "%s=%s", nvpair_name(elem), strval);
 			break;
+		case ZPOOL_PROP_COMPATIBILITY:
+			strval = fnvpair_value_string(elem);
+			if (spa->spa_compatibility != NULL)
+				spa_strfree(spa->spa_compatibility);
+			spa->spa_compatibility = spa_strdup(strval);
+			/*
+			 * Dirty the configuration on vdevs as above.
+			 */
+			if (tx->tx_txg != TXG_INITIAL)
+				vdev_config_dirty(spa->spa_root_vdev);
+			spa_history_log_internal(spa, "set", tx,
+			    "%s=%s", nvpair_name(elem), strval);
+			break;
+
 		default:
 			/*
 			 * Set pool property values in the poolprops mos object.
@@ -8818,12 +8929,18 @@ spa_sync_adjust_vdev_max_queue_depth(spa_t *spa)
 	}
 
 	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		ASSERT0(zfs_refcount_count(&normal->mc_alloc_slots[i]));
-		ASSERT0(zfs_refcount_count(&special->mc_alloc_slots[i]));
-		ASSERT0(zfs_refcount_count(&dedup->mc_alloc_slots[i]));
-		normal->mc_alloc_max_slots[i] = slots_per_allocator;
-		special->mc_alloc_max_slots[i] = slots_per_allocator;
-		dedup->mc_alloc_max_slots[i] = slots_per_allocator;
+		ASSERT0(zfs_refcount_count(&normal->mc_allocator[i].
+		    mca_alloc_slots));
+		ASSERT0(zfs_refcount_count(&special->mc_allocator[i].
+		    mca_alloc_slots));
+		ASSERT0(zfs_refcount_count(&dedup->mc_allocator[i].
+		    mca_alloc_slots));
+		normal->mc_allocator[i].mca_alloc_max_slots =
+		    slots_per_allocator;
+		special->mc_allocator[i].mca_alloc_max_slots =
+		    slots_per_allocator;
+		dedup->mc_allocator[i].mca_alloc_max_slots =
+		    slots_per_allocator;
 	}
 	normal->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
 	special->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;

@@ -123,6 +123,27 @@ __FBSDID("$FreeBSD$");
 #define DIR_METATABLE "directory iterator metatable"
 
 static int
+lua_dir_iter_pushtype(lua_State *L __unused, const struct dirent *ent __unused)
+{
+
+	/*
+	 * This is a non-standard extension to luafilesystem for loader's
+	 * benefit.  The extra stat() calls to determine the entry type can
+	 * be quite expensive on some systems, so this speeds up enumeration of
+	 * /boot greatly by providing the type up front.
+	 *
+	 * This extension is compatible enough with luafilesystem, in that we're
+	 * just using an extra return value for the iterator.
+	 */
+#ifdef _STANDALONE
+	lua_pushinteger(L, ent->d_type);
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+static int
 lua_dir_iter_next(lua_State *L)
 {
 	struct dirent *entry;
@@ -144,7 +165,7 @@ lua_dir_iter_next(lua_State *L)
 	}
 
 	lua_pushstring(L, entry->d_name);
-	return 1;
+	return 1 + lua_dir_iter_pushtype(L, entry);
 }
 
 static int
@@ -420,5 +441,10 @@ luaopen_lfs(lua_State *L)
 {
 	register_metatable(L);
 	luaL_newlib(L, fslib);
+#ifdef _STANDALONE
+	/* Non-standard extension for loader, used with lfs.dir(). */
+	lua_pushinteger(L, DT_DIR);
+	lua_setfield(L, -2, "DT_DIR");
+#endif
 	return 1;
 }

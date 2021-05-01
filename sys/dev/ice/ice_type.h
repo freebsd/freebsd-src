@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,8 @@
 #define ice_struct_size(ptr, field, num) \
 	(sizeof(*(ptr)) + sizeof(*(ptr)->field) * (num))
 
+#define FLEX_ARRAY_SIZE(_ptr, _mem, cnt) ((cnt) * sizeof(_ptr->_mem[0]))
+
 #include "ice_status.h"
 #include "ice_hw_autogen.h"
 #include "ice_devids.h"
@@ -75,6 +77,7 @@
 #include "ice_lan_tx_rx.h"
 #include "ice_flex_type.h"
 #include "ice_protocol_type.h"
+#include "ice_vlan_mode.h"
 
 static inline bool ice_is_tc_ena(ice_bitmap_t bitmap, u8 tc)
 {
@@ -380,7 +383,11 @@ struct ice_hw_common_caps {
 	u8 apm_wol_support;
 	u8 acpi_prog_mthd;
 	u8 proxy_support;
+	bool sec_rev_disabled;
+	bool update_disabled;
 	bool nvm_unified_update;
+#define ICE_NVM_MGMT_SEC_REV_DISABLED		BIT(0)
+#define ICE_NVM_MGMT_UPDATE_DISABLED		BIT(1)
 #define ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT	BIT(3)
 };
 
@@ -474,16 +481,74 @@ struct ice_orom_info {
 	u8 major;			/* Major version of OROM */
 	u8 patch;			/* Patch version of OROM */
 	u16 build;			/* Build version of OROM */
+	u32 srev;			/* Security revision */
 };
 
-/* NVM Information */
+/* NVM version information */
 struct ice_nvm_info {
+	u32 eetrack;
+	u32 srev;
+	u8 major;
+	u8 minor;
+};
+
+/* Minimum Security Revision information */
+struct ice_minsrev_info {
+	u32 nvm;
+	u32 orom;
+	u8 nvm_valid : 1;
+	u8 orom_valid : 1;
+};
+
+/* netlist version information */
+struct ice_netlist_info {
+	u32 major;			/* major high/low */
+	u32 minor;			/* minor high/low */
+	u32 type;			/* type high/low */
+	u32 rev;			/* revision high/low */
+	u32 hash;			/* SHA-1 hash word */
+	u16 cust_ver;			/* customer version */
+};
+
+/* Enumeration of possible flash banks for the NVM, OROM, and Netlist modules
+ * of the flash image.
+ */
+enum ice_flash_bank {
+	ICE_INVALID_FLASH_BANK,
+	ICE_1ST_FLASH_BANK,
+	ICE_2ND_FLASH_BANK,
+};
+
+/* Enumeration of which flash bank is desired to read from, either the active
+ * bank or the inactive bank. Used to abstract 1st and 2nd bank notion from
+ * code which just wants to read the active or inactive flash bank.
+ */
+enum ice_bank_select {
+	ICE_ACTIVE_FLASH_BANK,
+	ICE_INACTIVE_FLASH_BANK,
+};
+
+/* information for accessing NVM, OROM, and Netlist flash banks */
+struct ice_bank_info {
+	u32 nvm_ptr;				/* Pointer to 1st NVM bank */
+	u32 nvm_size;				/* Size of NVM bank */
+	u32 orom_ptr;				/* Pointer to 1st OROM bank */
+	u32 orom_size;				/* Size of OROM bank */
+	u32 netlist_ptr;			/* Pointer to 1st Netlist bank */
+	u32 netlist_size;			/* Size of Netlist bank */
+	enum ice_flash_bank nvm_bank;		/* Active NVM bank */
+	enum ice_flash_bank orom_bank;		/* Active OROM bank */
+	enum ice_flash_bank netlist_bank;	/* Active Netlist bank */
+};
+
+/* Flash Chip Information */
+struct ice_flash_info {
 	struct ice_orom_info orom;	/* Option ROM version info */
-	u32 eetrack;			/* NVM data version */
+	struct ice_nvm_info nvm;	/* NVM version information */
+	struct ice_netlist_info netlist;/* Netlist version info */
+	struct ice_bank_info banks;	/* Flash Bank information */
 	u16 sr_words;			/* Shadow RAM size in words */
 	u32 flash_size;			/* Size of available flash in bytes */
-	u8 major_ver;			/* major version of dev starter */
-	u8 minor_ver;			/* minor version of dev starter */
 	u8 blank_nvm_mode;		/* is NVM empty (no FW present) */
 };
 
@@ -510,16 +575,6 @@ struct ice_link_default_override_tlv {
 };
 
 #define ICE_NVM_VER_LEN	32
-
-/* netlist version information */
-struct ice_netlist_ver_info {
-	u32 major;			/* major high/low */
-	u32 minor;			/* minor high/low */
-	u32 type;			/* type high/low */
-	u32 rev;			/* revision high/low */
-	u32 hash;			/* SHA-1 hash word */
-	u16 cust_ver;			/* customer version */
-};
 
 /* Max number of port to queue branches w.r.t topology */
 #define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS
@@ -700,19 +755,20 @@ struct ice_dcb_app_priority_table {
 	u8 selector;
 };
 
-#define ICE_MAX_USER_PRIORITY	8
-#define ICE_DCBX_MAX_APPS	32
-#define ICE_LLDPDU_SIZE		1500
-#define ICE_TLV_STATUS_OPER	0x1
-#define ICE_TLV_STATUS_SYNC	0x2
-#define ICE_TLV_STATUS_ERR	0x4
-#define ICE_APP_PROT_ID_FCOE	0x8906
-#define ICE_APP_PROT_ID_ISCSI	0x0cbc
-#define ICE_APP_PROT_ID_FIP	0x8914
-#define ICE_APP_SEL_ETHTYPE	0x1
-#define ICE_APP_SEL_TCPIP	0x2
-#define ICE_CEE_APP_SEL_ETHTYPE	0x0
-#define ICE_CEE_APP_SEL_TCPIP	0x1
+#define ICE_MAX_USER_PRIORITY		8
+#define ICE_DCBX_MAX_APPS		32
+#define ICE_LLDPDU_SIZE			1500
+#define ICE_TLV_STATUS_OPER		0x1
+#define ICE_TLV_STATUS_SYNC		0x2
+#define ICE_TLV_STATUS_ERR		0x4
+#define ICE_APP_PROT_ID_FCOE		0x8906
+#define ICE_APP_PROT_ID_ISCSI		0x0cbc
+#define ICE_APP_PROT_ID_ISCSI_860	0x035c
+#define ICE_APP_PROT_ID_FIP		0x8914
+#define ICE_APP_SEL_ETHTYPE		0x1
+#define ICE_APP_SEL_TCPIP		0x2
+#define ICE_CEE_APP_SEL_ETHTYPE		0x0
+#define ICE_CEE_APP_SEL_TCPIP		0x1
 
 struct ice_dcbx_cfg {
 	u32 numapps;
@@ -757,8 +813,6 @@ struct ice_port_info {
 	struct ice_lock sched_lock;	/* protect access to TXSched tree */
 	struct ice_sched_node *
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
-	/* List contain profile ID(s) and other params per layer */
-	struct LIST_HEAD_TYPE rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_bw_type_info root_node_bw_t_info;
 	struct ice_bw_type_info tc_node_bw_t_info[ICE_MAX_TRAFFIC_CLASS];
 	struct ice_qos_cfg qos_cfg;
@@ -772,6 +826,80 @@ struct ice_switch_info {
 	u16 max_used_prof_index;
 
 	ice_declare_bitmap(prof_res_bm[ICE_MAX_NUM_PROFILES], ICE_MAX_FV_WORDS);
+};
+
+/* Enum defining the different states of the mailbox snapshot in the
+ * PF-VF mailbox overflow detection algorithm. The snapshot can be in
+ * states:
+ * 1. ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT - generate a new static snapshot
+ * within the mailbox buffer.
+ * 2. ICE_MAL_VF_DETECT_STATE_TRAVERSE - iterate through the mailbox snaphot
+ * 3. ICE_MAL_VF_DETECT_STATE_DETECT - track the messages sent per VF via the
+ * mailbox and mark any VFs sending more messages than the threshold limit set.
+ * 4. ICE_MAL_VF_DETECT_STATE_INVALID - Invalid mailbox state set to 0xFFFFFFFF.
+ */
+enum ice_mbx_snapshot_state {
+	ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT = 0,
+	ICE_MAL_VF_DETECT_STATE_TRAVERSE,
+	ICE_MAL_VF_DETECT_STATE_DETECT,
+	ICE_MAL_VF_DETECT_STATE_INVALID = 0xFFFFFFFF,
+};
+
+/* Structure to hold information of the static snapshot and the mailbox
+ * buffer data used to generate and track the snapshot.
+ * 1. state: the state of the mailbox snapshot in the malicious VF
+ * detection state handler ice_mbx_vf_state_handler()
+ * 2. head : head of the mailbox snapshot in a circular mailbox buffer
+ * 3. tail : tail of the mailbox snapshot in a circular mailbox buffer
+ * 4. num_iterations: number of messages traversed in circular mailbox buffer
+ * 5. num_msg_proc: number of messages processed in mailbox
+ * 6. num_pending_arq: number of pending asynchronous messages
+ * 7. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ */
+struct ice_mbx_snap_buffer_data {
+	enum ice_mbx_snapshot_state state;
+	u32 head;
+	u32 tail;
+	u32 num_iterations;
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+};
+
+/* Structure to track messages sent by VFs on mailbox:
+ * 1. vf_cntr : a counter array of VFs to track the number of
+ * asynchronous messages sent by each VF
+ * 2. vfcntr_len : number of entries in VF counter array
+ */
+struct ice_mbx_vf_counter {
+	u32 *vf_cntr;
+	u32 vfcntr_len;
+};
+
+/* Structure to hold data relevant to the captured static snapshot
+ * of the PF-VF mailbox.
+ */
+struct ice_mbx_snapshot {
+	struct ice_mbx_snap_buffer_data mbx_buf;
+	struct ice_mbx_vf_counter mbx_vf;
+};
+
+/* Structure to hold data to be used for capturing or updating a
+ * static snapshot.
+ * 1. num_msg_proc: number of messages processed in mailbox
+ * 2. num_pending_arq: number of pending asynchronous messages
+ * 3. max_num_msgs_mbx: maximum messages in mailbox for currently
+ * serviced work item or interrupt.
+ * 4. async_watermark_val: An upper threshold set by caller to determine
+ * if the pending arq count is large enough to assume that there is
+ * the possibility of a mailicious VF.
+ */
+struct ice_mbx_data {
+	u16 num_msg_proc;
+	u16 num_pending_arq;
+	u16 max_num_msgs_mbx;
+	u16 async_watermark_val;
 };
 
 /* Port hardware description */
@@ -808,21 +936,21 @@ struct ice_hw {
 	u8 sw_entry_point_layer;
 	u16 max_children[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct LIST_HEAD_TYPE agg_list;	/* lists all aggregator */
+	/* List contain profile ID(s) and other params per layer */
+	struct LIST_HEAD_TYPE rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	struct ice_vsi_ctx *vsi_ctx[ICE_MAX_VSI];
 	u8 evb_veb;		/* true for VEB, false for VEPA */
 	u8 reset_ongoing;	/* true if HW is in reset, false otherwise */
 	struct ice_bus_info bus;
-	struct ice_nvm_info nvm;
+	struct ice_flash_info flash;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
 	struct ice_hw_func_caps func_caps;	/* function capabilities */
-	struct ice_netlist_ver_info netlist_ver; /* netlist version info */
 
 	struct ice_switch_info *switch_info;	/* switch filter lists */
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
 	struct ice_ctl_q_info mailboxq;
-
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
 	u8 api_min_ver;		/* API minor version */
@@ -870,13 +998,13 @@ struct ice_hw {
 
 	enum ice_aq_err pkg_dwnld_status;
 
-	/* Driver's package ver - (from the Metadata seg) */
+	/* Driver's package ver - (from the Ice Metadata section) */
 	struct ice_pkg_ver pkg_ver;
 	u8 pkg_name[ICE_PKG_NAME_SIZE];
 
-	/* Driver's Ice package version (from the Ice seg) */
-	struct ice_pkg_ver ice_pkg_ver;
-	u8 ice_pkg_name[ICE_PKG_NAME_SIZE];
+	/* Driver's Ice segment format version and id (from the Ice seg) */
+	struct ice_pkg_ver ice_seg_fmt_ver;
+	u8 ice_seg_id[ICE_SEG_ID_SIZE];
 
 	/* Pointer to the ice segment */
 	struct ice_seg *seg;
@@ -895,6 +1023,8 @@ struct ice_hw {
 	struct LIST_HEAD_TYPE fl_profs[ICE_BLK_COUNT];
 	struct ice_lock rss_locks;	/* protect RSS configuration */
 	struct LIST_HEAD_TYPE rss_list_head;
+	struct ice_mbx_snapshot mbx_snapshot;
+	struct ice_vlan_mode_ops vlan_mode_ops;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -981,6 +1111,14 @@ enum ice_sw_fwd_act_type {
 	ICE_INVAL_ACT
 };
 
+struct ice_aq_get_set_rss_lut_params {
+	u16 vsi_handle;		/* software VSI handle */
+	u16 lut_size;		/* size of the LUT buffer */
+	u8 lut_type;		/* type of the LUT (i.e. VSI, PF, Global) */
+	u8 *lut;		/* input RSS LUT for set and output RSS LUT for get */
+	u8 global_lut_id;	/* only valid when lut_type is global */
+};
+
 /* Checksum and Shadow RAM pointers */
 #define ICE_SR_NVM_CTRL_WORD			0x00
 #define ICE_SR_PHY_ANALOG_PTR			0x04
@@ -1044,11 +1182,65 @@ enum ice_sw_fwd_act_type {
 #define ICE_SR_LINK_DEFAULT_OVERRIDE_PTR	0x134
 #define ICE_SR_POR_REGISTERS_AUTOLOAD_PTR	0x118
 
+/* CSS Header words */
+#define ICE_NVM_CSS_SREV_L			0x14
+#define ICE_NVM_CSS_SREV_H			0x15
+
+/* Length of CSS header section in words */
+#define ICE_CSS_HEADER_LENGTH			330
+
+/* Offset of Shadow RAM copy in the NVM bank area. */
+#define ICE_NVM_SR_COPY_WORD_OFFSET		ROUND_UP(ICE_CSS_HEADER_LENGTH, 32)
+
+/* Size in bytes of Option ROM trailer */
+#define ICE_NVM_OROM_TRAILER_LENGTH		(2 * ICE_CSS_HEADER_LENGTH)
+
+/* The Link Topology Netlist section is stored as a series of words. It is
+ * stored in the NVM as a TLV, with the first two words containing the type
+ * and length.
+ */
+#define ICE_NETLIST_LINK_TOPO_MOD_ID		0x011B
+#define ICE_NETLIST_TYPE_OFFSET			0x0000
+#define ICE_NETLIST_LEN_OFFSET			0x0001
+
+/* The Link Topology section follows the TLV header. When reading the netlist
+ * using ice_read_netlist_module, we need to account for the 2-word TLV
+ * header.
+ */
+#define ICE_NETLIST_LINK_TOPO_OFFSET(n)		((n) + 2)
+
+#define ICE_LINK_TOPO_MODULE_LEN		ICE_NETLIST_LINK_TOPO_OFFSET(0x0000)
+#define ICE_LINK_TOPO_NODE_COUNT		ICE_NETLIST_LINK_TOPO_OFFSET(0x0001)
+
+#define ICE_LINK_TOPO_NODE_COUNT_M		MAKEMASK(0x3FF, 0)
+
+/* The Netlist ID Block is located after all of the Link Topology nodes. */
+#define ICE_NETLIST_ID_BLK_SIZE			0x30
+#define ICE_NETLIST_ID_BLK_OFFSET(n)		ICE_NETLIST_LINK_TOPO_OFFSET(0x0004 + 2 * (n))
+
+/* netlist ID block field offsets (word offsets) */
+#define ICE_NETLIST_ID_BLK_MAJOR_VER_LOW	0x02
+#define ICE_NETLIST_ID_BLK_MAJOR_VER_HIGH	0x03
+#define ICE_NETLIST_ID_BLK_MINOR_VER_LOW	0x04
+#define ICE_NETLIST_ID_BLK_MINOR_VER_HIGH	0x05
+#define ICE_NETLIST_ID_BLK_TYPE_LOW		0x06
+#define ICE_NETLIST_ID_BLK_TYPE_HIGH		0x07
+#define ICE_NETLIST_ID_BLK_REV_LOW		0x08
+#define ICE_NETLIST_ID_BLK_REV_HIGH		0x09
+#define ICE_NETLIST_ID_BLK_SHA_HASH_WORD(n)	(0x0A + (n))
+#define ICE_NETLIST_ID_BLK_CUST_VER		0x2F
+
 /* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
 #define ICE_SR_VPD_SIZE_WORDS		512
 #define ICE_SR_PCIE_ALT_SIZE_WORDS	512
 #define ICE_SR_CTRL_WORD_1_S		0x06
 #define ICE_SR_CTRL_WORD_1_M		(0x03 << ICE_SR_CTRL_WORD_1_S)
+#define ICE_SR_CTRL_WORD_VALID		0x1
+#define ICE_SR_CTRL_WORD_OROM_BANK	BIT(3)
+#define ICE_SR_CTRL_WORD_NETLIST_BANK	BIT(4)
+#define ICE_SR_CTRL_WORD_NVM_BANK	BIT(5)
+
+#define ICE_SR_NVM_PTR_4KB_UNITS	BIT(15)
 
 /* Shadow RAM related */
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800

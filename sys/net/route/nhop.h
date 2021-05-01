@@ -157,9 +157,6 @@ struct nhop_object {
 #define	NH_IS_VALID(_nh)	RT_LINK_IS_UP((_nh)->nh_ifp)
 #define	NH_IS_NHGRP(_nh)	((_nh)->nh_flags & NHF_MULTIPATH)
 
-#define	RT_GATEWAY(_rt)		((struct sockaddr *)&(_rt)->rt_nhop->gw4_sa)
-#define	RT_GATEWAY_CONST(_rt)	((const struct sockaddr *)&(_rt)->rt_nhop->gw4_sa)
-
 #define	NH_FREE(_nh) do {					\
 	nhop_free(_nh);	\
 	/* guard against invalid refs */			\
@@ -181,6 +178,7 @@ uint32_t nhop_get_idx(const struct nhop_object *nh);
 enum nhop_type nhop_get_type(const struct nhop_object *nh);
 int nhop_get_rtflags(const struct nhop_object *nh);
 struct vnet *nhop_get_vnet(const struct nhop_object *nh);
+struct nhop_object *nhop_select_func(struct nhop_object *nh, uint32_t flowid);
 
 #endif /* _KERNEL */
 

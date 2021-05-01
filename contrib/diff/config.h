@@ -86,7 +86,7 @@
 
 /* Define to 1 if you have the declaration of `fflush_unlocked', and to 0 if
    you don't. */
-#define HAVE_DECL_FFLUSH_UNLOCKED 0
+#define HAVE_DECL_FFLUSH_UNLOCKED 1
 
 /* Define to 1 if you have the declaration of `fgets_unlocked', and to 0 if
    you don't. */
@@ -94,19 +94,19 @@
 
 /* Define to 1 if you have the declaration of `fputc_unlocked', and to 0 if
    you don't. */
-#define HAVE_DECL_FPUTC_UNLOCKED 0
+#define HAVE_DECL_FPUTC_UNLOCKED 1
 
 /* Define to 1 if you have the declaration of `fputs_unlocked', and to 0 if
    you don't. */
-#define HAVE_DECL_FPUTS_UNLOCKED 0
+#define HAVE_DECL_FPUTS_UNLOCKED 1
 
 /* Define to 1 if you have the declaration of `fread_unlocked', and to 0 if
    you don't. */
-#define HAVE_DECL_FREAD_UNLOCKED 0
+#define HAVE_DECL_FREAD_UNLOCKED 1
 
 /* Define to 1 if you have the declaration of `fwrite_unlocked', and to 0 if
    you don't. */
-#define HAVE_DECL_FWRITE_UNLOCKED 0
+#define HAVE_DECL_FWRITE_UNLOCKED 1
 
 /* Define to 1 if you have the declaration of `getchar_unlocked', and to 0 if
    you don't. */

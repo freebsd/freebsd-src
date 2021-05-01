@@ -321,8 +321,8 @@ int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
 	struct debug_monitor_state *monitor;
-	int count, i;
-	uint8_t debug_ver, nbkpts;
+	int i;
+	uint8_t debug_ver, nbkpts, nwtpts;
 
 	memset(regs, 0, sizeof(*regs));
 
@@ -330,23 +330,30 @@ fill_dbregs(struct thread *td, struct dbreg *regs)
 	    &debug_ver);
 	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_BRPs_SHIFT,
 	    &nbkpts);
+	extract_user_id_field(ID_AA64DFR0_EL1, ID_AA64DFR0_WRPs_SHIFT,
+	    &nwtpts);
 
 	/*
 	 * The BRPs field contains the number of breakpoints - 1. Armv8-A
 	 * allows the hardware to provide 2-16 breakpoints so this won't
-	 * overflow an 8 bit value.
+	 * overflow an 8 bit value. The same applies to the WRPs field.
 	 */
-	count = nbkpts + 1;
+	nbkpts++;
+	nwtpts++;
 
-	regs->db_info = debug_ver;
-	regs->db_info <<= 8;
-	regs->db_info |= count;
+	regs->db_debug_ver = debug_ver;
+	regs->db_nbkpts = nbkpts;
+	regs->db_nwtpts = nwtpts;
 
 	monitor = &td->td_pcb->pcb_dbg_regs;
 	if ((monitor->dbg_flags & DBGMON_ENABLED) != 0) {
-		for (i = 0; i < count; i++) {
-			regs->db_regs[i].dbr_addr = monitor->dbg_bvr[i];
-			regs->db_regs[i].dbr_ctrl = monitor->dbg_bcr[i];
+		for (i = 0; i < nbkpts; i++) {
+			regs->db_breakregs[i].dbr_addr = monitor->dbg_bvr[i];
+			regs->db_breakregs[i].dbr_ctrl = monitor->dbg_bcr[i];
+		}
+		for (i = 0; i < nwtpts; i++) {
+			regs->db_watchregs[i].dbw_addr = monitor->dbg_wvr[i];
+			regs->db_watchregs[i].dbw_ctrl = monitor->dbg_wcr[i];
 		}
 	}
 
@@ -357,19 +364,88 @@ int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 	struct debug_monitor_state *monitor;
+	uint64_t addr;
+	uint32_t ctrl;
 	int count;
 	int i;
 
 	monitor = &td->td_pcb->pcb_dbg_regs;
 	count = 0;
 	monitor->dbg_enable_count = 0;
+
 	for (i = 0; i < DBG_BRP_MAX; i++) {
-		/* TODO: Check these values */
-		monitor->dbg_bvr[i] = regs->db_regs[i].dbr_addr;
-		monitor->dbg_bcr[i] = regs->db_regs[i].dbr_ctrl;
-		if ((monitor->dbg_bcr[i] & 1) != 0)
+		addr = regs->db_breakregs[i].dbr_addr;
+		ctrl = regs->db_breakregs[i].dbr_ctrl;
+
+		/* Don't let the user set a breakpoint on a kernel address. */
+		if (addr >= VM_MAXUSER_ADDRESS)
+			return (EINVAL);
+
+		/*
+		 * The lowest 2 bits are ignored, so record the effective
+		 * address.
+		 */
+		addr = rounddown2(addr, 4);
+
+		/*
+		 * Some control fields are ignored, and other bits reserved.
+		 * Only unlinked, address-matching breakpoints are supported.
+		 *
+		 * XXX: fields that appear unvalidated, such as BAS, have
+		 * constrained undefined behaviour. If the user mis-programs
+		 * these, there is no risk to the system.
+		 */
+		ctrl &= DBG_BCR_EN | DBG_BCR_PMC | DBG_BCR_BAS;
+		if ((ctrl & DBG_BCR_EN) != 0) {
+			/* Only target EL0. */
+			if ((ctrl & DBG_BCR_PMC) != DBG_BCR_PMC_EL0)
+				return (EINVAL);
+
 			monitor->dbg_enable_count++;
+		}
+
+		monitor->dbg_bvr[i] = addr;
+		monitor->dbg_bcr[i] = ctrl;
 	}
+
+	for (i = 0; i < DBG_WRP_MAX; i++) {
+		addr = regs->db_watchregs[i].dbw_addr;
+		ctrl = regs->db_watchregs[i].dbw_ctrl;
+
+		/* Don't let the user set a watchpoint on a kernel address. */
+		if (addr >= VM_MAXUSER_ADDRESS)
+			return (EINVAL);
+
+		/*
+		 * Some control fields are ignored, and other bits reserved.
+		 * Only unlinked watchpoints are supported.
+		 */
+		ctrl &= DBG_WCR_EN | DBG_WCR_PAC | DBG_WCR_LSC | DBG_WCR_BAS |
+		    DBG_WCR_MASK;
+
+		if ((ctrl & DBG_WCR_EN) != 0) {
+			/* Only target EL0. */
+			if ((ctrl & DBG_WCR_PAC) != DBG_WCR_PAC_EL0)
+				return (EINVAL);
+
+			/* Must set at least one of the load/store bits. */
+			if ((ctrl & DBG_WCR_LSC) == 0)
+				return (EINVAL);
+
+			/*
+			 * When specifying the address range with BAS, the MASK
+			 * field must be zero.
+			 */
+			if ((ctrl & DBG_WCR_BAS) != DBG_WCR_BAS_MASK &&
+			    (ctrl & DBG_WCR_MASK) != 0)
+				return (EINVAL);
+
+			monitor->dbg_enable_count++;
+		}
+		monitor->dbg_wvr[i] = addr;
+		monitor->dbg_wcr[i] = ctrl;
+	}
+
 	if (monitor->dbg_enable_count > 0)
 		monitor->dbg_flags |= DBGMON_ENABLED;
 
@@ -413,36 +489,35 @@ set_regs32(struct thread *td, struct reg32 *regs)
 	return (0);
 }
 
+/* XXX fill/set dbregs/fpregs are stubbed on 32-bit arm. */
 int
 fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 
-	printf("ARM64TODO: fill_fpregs32");
-	return (EDOOFUS);
+	memset(regs, 0, sizeof(*regs));
+	return (0);
 }
 
 int
 set_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 
-	printf("ARM64TODO: set_fpregs32");
-	return (EDOOFUS);
+	return (0);
 }
 
 int
 fill_dbregs32(struct thread *td, struct dbreg32 *regs)
 {
 
-	printf("ARM64TODO: fill_dbregs32");
-	return (EDOOFUS);
+	memset(regs, 0, sizeof(*regs));
+	return (0);
 }
 
 int
 set_dbregs32(struct thread *td, struct dbreg32 *regs)
 {
 
-	printf("ARM64TODO: set_dbregs32");
-	return (EDOOFUS);
+	return (0);
 }
 #endif
 
@@ -476,6 +551,7 @@ void
 exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *tf = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
 
 	memset(tf, 0, sizeof(struct trapframe));
 
@@ -483,6 +559,20 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	tf->tf_sp = STACKALIGN(stack);
 	tf->tf_lr = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
+
+	td->td_pcb->pcb_tpidr_el0 = 0;
+	td->td_pcb->pcb_tpidrro_el0 = 0;
+	WRITE_SPECIALREG(tpidrro_el0, 0);
+	WRITE_SPECIALREG(tpidr_el0, 0);
+
+#ifdef VFP
+	vfp_reset_state(td, pcb);
+#endif
+
+	/*
+	 * Clear debug register state. It is not applicable to the new process.
+	 */
+	bzero(&pcb->pcb_dbg_regs, sizeof(pcb->pcb_dbg_regs));
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and fro */
@@ -661,6 +751,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
 	pcpu->pc_acpi_id = 0xffffffff;
+	pcpu->pc_mpidr = 0xffffffff;
 }
 
 void
@@ -731,11 +822,11 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 {
 	int i;
 
-	for (i = 0; i < PCB_LR; i++)
+	for (i = 0; i < nitems(pcb->pcb_x); i++)
 		pcb->pcb_x[i] = tf->tf_x[i];
 
-	pcb->pcb_x[PCB_LR] = tf->tf_lr;
-	pcb->pcb_pc = tf->tf_elr;
+	/* NB: pcb_lr is the PC, see PC_REGS() in db_machdep.h */
+	pcb->pcb_lr = tf->tf_elr;
 	pcb->pcb_sp = tf->tf_sp;
 }
 
@@ -1036,7 +1127,7 @@ bus_probe(void)
 	has_fdt = (OF_peer(0) != 0);
 #endif
 #ifdef DEV_ACPI
-	has_acpi = (acpi_find_table(ACPI_SIG_SPCR) != 0);
+	has_acpi = (AcpiOsGetRootPointer() != 0);
 #endif
 
 	env = kern_getenv("kern.cfg.order");
@@ -1153,6 +1244,8 @@ initarm(struct arm64_bootparams *abp)
 #ifdef FDT
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	int mem_regions_sz;
+	phandle_t root;
+	char dts_version[255];
 #endif
 	vm_offset_t lastaddr;
 	caddr_t kmdp;
@@ -1247,8 +1340,7 @@ initarm(struct arm64_bootparams *abp)
 	 * output is required. If it's grossly incorrect the kernel will never
 	 * make it this far.
 	 */
-	if ((boothowto & RB_VERBOSE) &&
-	    getenv_is_true("debug.dump_modinfo_at_boot"))
+	if (getenv_is_true("debug.dump_modinfo_at_boot"))
 		preload_dump();
 
 	init_proc0(abp->kern_stack);
@@ -1265,6 +1357,22 @@ initarm(struct arm64_bootparams *abp)
 	env = kern_getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
+
+#ifdef FDT
+	if (arm64_bus_method == ARM64_BUS_FDT) {
+		root = OF_finddevice("/");
+		if (OF_getprop(root, "freebsd,dts-version", dts_version, sizeof(dts_version)) > 0) {
+			if (strcmp(LINUX_DTS_VERSION, dts_version) != 0)
+				printf("WARNING: DTB version is %s while kernel expects %s, "
+				    "please update the DTB in the ESP\n",
+				    dts_version,
+				    LINUX_DTS_VERSION);
+		} else {
+			printf("WARNING: Cannot find freebsd,dts-version property, "
+			    "cannot check DTB compliance\n");
+		}
+	}
+#endif
 
 	if (boothowto & RB_VERBOSE) {
 		if (efihdr != NULL)

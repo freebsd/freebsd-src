@@ -63,7 +63,6 @@ int
 cd9660_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;

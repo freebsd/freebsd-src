@@ -85,7 +85,7 @@ codel_pfattach(struct pf_altq *a)
 		return (EINVAL);
 
 	return (altq_attach(&ifp->if_snd, ALTQT_CODEL, a->altq_disc,
-	    codel_enqueue, codel_dequeue, codel_request, NULL, NULL));
+	    codel_enqueue, codel_dequeue, codel_request));
 }
 
 int

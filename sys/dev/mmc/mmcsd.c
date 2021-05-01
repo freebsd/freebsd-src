@@ -1440,6 +1440,7 @@ mmcsd_task(void *arg)
 	mmcbus = sc->mmcbus;
 
 	while (1) {
+		bio_error = 0;
 		MMCSD_DISK_LOCK(part);
 		do {
 			if (part->running == 0)
@@ -1481,21 +1482,18 @@ mmcsd_task(void *arg)
 			if (block < part->eend && end > part->eblock)
 				part->eblock = part->eend = 0;
 			block = mmcsd_rw(part, bp);
-		} else if (bp->bio_cmd == BIO_DELETE) {
+		} else if (bp->bio_cmd == BIO_DELETE)
 			block = mmcsd_delete(part, bp);
-		} else {
+		else
 			bio_error = EOPNOTSUPP;
-			goto release;
-		}
 release:
 		MMCBUS_RELEASE_BUS(mmcbus, dev);
 		if (block < end) {
 			bp->bio_error = (bio_error == 0) ? EIO : bio_error;
 			bp->bio_resid = (end - block) * sz;
 			bp->bio_flags |= BIO_ERROR;
-		} else {
+		} else
 			bp->bio_resid = 0;
-		}
 		biodone(bp);
 	}
 out:

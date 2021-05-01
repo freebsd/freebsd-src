@@ -41,9 +41,17 @@
 /* Ensure that unistd.h pulls in getopt */
 #define __USE_POSIX2
 #endif
+/*
+ * Before version 2.25, glibc's unistd.h would define the POSIX subset of
+ * getopt.h by defining __need_getopt,  including getopt.h (which would
+ * disable the header guard) and then undefining it so later including
+ * getopt.h explicitly would define the extensions. However, we wrap getopt,
+ * and so the wrapper's #pragma once breaks that. Thus getopt.h must be
+ * included before the real unistd.h to ensure we get all the extensions.
+ */
+#include <getopt.h>
 #include_next <unistd.h>
 #include <fcntl.h>
-#include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
@@ -62,26 +70,8 @@ issetugid(void)
 }
 #endif
 
-static inline char *
-fflagstostr(u_long flags)
-{
-	return strdup("");
-}
-
-static inline int
-strtofflags(char **stringp, u_long *setp, u_long *clrp)
-{
-	/* On linux just ignore the file flags for now */
-	/*
-	 * XXXAR: this will prevent makefs from setting noschg on libc, etc
-	 * so we should really build the version from libc
-	 */
-	if (setp)
-		*setp = 0;
-	if (clrp)
-		*clrp = 0;
-	return (0); /* success */
-}
+char	*fflagstostr(unsigned long flags);
+int	strtofflags(char **stringp, u_long *setp, u_long *clrp);
 
 /*
  * getentropy() was added in glibc 2.25. Declare it for !glibc and older

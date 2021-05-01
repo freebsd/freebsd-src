@@ -83,9 +83,6 @@ __FBSDID("$FreeBSD$");
 #define	MV_GPIO_MAX_NIRQS	4
 #define	MV_GPIO_MAX_NPINS	32
 
-#define	RD4(sc, reg)		SYSCON_READ_4((sc)->syscon, (reg))
-#define	WR4(sc, reg, val)	SYSCON_WRITE_4((sc)->syscon, (reg), (val))
-
 struct mvebu_gpio_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
@@ -127,14 +124,11 @@ static inline void
 gpio_write(struct mvebu_gpio_softc *sc, bus_size_t reg,
     struct gpio_pin *pin, uint32_t val)
 {
-	uint32_t tmp;
 	int bit;
 
 	bit = GPIO_BIT(pin->gp_pin);
-	tmp = 0x100 << bit;		/* mask */
-	tmp |= (val & 1) << bit;	/* value */
 	SYSCON_WRITE_4(sc->syscon, sc->offset + GPIO_REGNUM(pin->gp_pin) + reg,
-	    tmp);
+	    (val & 1) << bit);
 }
 
 static inline uint32_t
@@ -146,7 +140,19 @@ gpio_read(struct mvebu_gpio_softc *sc, bus_size_t reg, struct gpio_pin *pin)
 	bit = GPIO_BIT(pin->gp_pin);
 	val = SYSCON_READ_4(sc->syscon,
 	    sc->offset + GPIO_REGNUM(pin->gp_pin) + reg);
+
 	return (val >> bit) & 1;
+}
+
+static inline void
+gpio_modify(struct mvebu_gpio_softc *sc, bus_size_t reg,
+    struct gpio_pin *pin, uint32_t val)
+{
+	int bit;
+
+	bit = GPIO_BIT(pin->gp_pin);
+	SYSCON_MODIFY_4(sc->syscon, sc->offset + GPIO_REGNUM(pin->gp_pin) + reg,
+	    1 << bit, (val & 1) << bit);
 }
 
 static void
@@ -161,10 +167,10 @@ mvebu_gpio_pin_configure(struct mvebu_gpio_softc *sc, struct gpio_pin *pin,
 	pin->gp_flags &= ~(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT);
 	if (flags & GPIO_PIN_OUTPUT) {
 		pin->gp_flags |= GPIO_PIN_OUTPUT;
-		gpio_write(sc, GPIO_CONTROL_SET, pin, 1);
+		gpio_write(sc, GPIO_CONTROL_CLR, pin, 1);
 	} else {
 		pin->gp_flags |= GPIO_PIN_INPUT;
-		gpio_write(sc, GPIO_CONTROL_CLR, pin, 1);
+		gpio_write(sc, GPIO_CONTROL_SET, pin, 1);
 	}
 }
 
@@ -305,15 +311,14 @@ mvebu_gpio_pin_toggle(device_t dev, uint32_t pin)
  */
 static inline void
 intr_modify(struct mvebu_gpio_softc *sc, bus_addr_t reg,
-    struct mvebu_gpio_irqsrc *mgi, uint32_t val, uint32_t mask)
+    struct mvebu_gpio_irqsrc *mgi, uint32_t val)
 {
 	int bit;
 
 	bit = GPIO_BIT(mgi->irq);
-	GPIO_LOCK(sc);
-	val = SYSCON_MODIFY_4(sc->syscon,
-	    sc->offset + GPIO_REGNUM(mgi->irq) + reg, val, mask);
-	GPIO_UNLOCK(sc);
+	SYSCON_MODIFY_4(sc->syscon,
+	    sc->offset + GPIO_REGNUM(mgi->irq) + reg, 1 << bit,
+	    (val & 1) << bit);
 }
 
 static inline void
@@ -322,18 +327,23 @@ mvebu_gpio_isrc_mask(struct mvebu_gpio_softc *sc,
 {
 
 	if (mgi->is_level)
-		intr_modify(sc, GPIO_INT_LEVEL_MASK, mgi, val, 1);
+		intr_modify(sc, GPIO_INT_LEVEL_MASK, mgi, val);
 	else
-		intr_modify(sc, GPIO_INT_MASK, mgi, val, 1);
+		intr_modify(sc, GPIO_INT_MASK, mgi, val);
 }
 
 static inline void
 mvebu_gpio_isrc_eoi(struct mvebu_gpio_softc *sc,
      struct mvebu_gpio_irqsrc *mgi)
 {
+	int bit;
 
-	if (!mgi->is_level)
-		intr_modify(sc, GPIO_INT_CAUSE, mgi, 1, 1);
+	if (!mgi->is_level) {
+		bit = GPIO_BIT(mgi->irq);
+		SYSCON_WRITE_4(sc->syscon,
+		    sc->offset + GPIO_REGNUM(mgi->irq) + GPIO_INT_CAUSE,
+		    ~(1 << bit));
+	}
 }
 
 static int
@@ -596,8 +606,11 @@ mvebu_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	mgi->is_level = level;
 	mgi->is_inverted = inverted;
-	intr_modify(sc, GPIO_DATA_IN_POL, mgi, inverted ? 1 : 0, 1);
+
+	GPIO_LOCK(sc);
+	intr_modify(sc, GPIO_DATA_IN_POL, mgi, inverted ? 1 : 0);
 	mvebu_gpio_pic_enable_intr(dev, isrc);
+	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -641,12 +654,13 @@ mvebu_gpio_intr(void *arg)
 		lvl &= gpio_read(sc, GPIO_INT_LEVEL_MASK, &sc->gpio_pins[i]);
 		edge = gpio_read(sc, GPIO_DATA_IN, &sc->gpio_pins[i]);
 		edge &= gpio_read(sc, GPIO_INT_LEVEL_MASK, &sc->gpio_pins[i]);
-		if (edge == 0  || lvl == 0)
+		if (edge == 0  && lvl == 0)
 			continue;
 
 		mgi = &sc->isrcs[i];
 		if (!mgi->is_level)
 			mvebu_gpio_isrc_eoi(sc, mgi);
+
 		if (intr_isrc_dispatch(&mgi->isrc, tf) != 0) {
 			mvebu_gpio_isrc_mask(sc, mgi, 0);
 			if (mgi->is_level)
@@ -771,16 +785,16 @@ mvebu_gpio_attach(device_t dev)
 		else
 			pin->gp_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT;
 		pin->gp_flags =
-		    gpio_read(sc, GPIO_CONTROL, &sc->gpio_pins[i]) != 0 ?
+		    gpio_read(sc, GPIO_CONTROL, &sc->gpio_pins[i]) == 0 ?
 		    GPIO_PIN_OUTPUT : GPIO_PIN_INPUT;
 		snprintf(pin->gp_name, GPIOMAXNAME, "gpio%d", i);
 
 		/* Init HW */
-		gpio_write(sc, GPIO_INT_MASK, pin, 0);
-		gpio_write(sc, GPIO_INT_LEVEL_MASK, pin, 0);
-		gpio_write(sc, GPIO_INT_CAUSE, pin, 1);
-		gpio_write(sc, GPIO_DATA_IN_POL, pin, 1);
-		gpio_write(sc, GPIO_BLINK_ENA, pin, 0);
+		gpio_modify(sc, GPIO_INT_MASK, pin, 0);
+		gpio_modify(sc, GPIO_INT_LEVEL_MASK, pin, 0);
+		gpio_modify(sc, GPIO_INT_CAUSE, pin, 0);
+		gpio_modify(sc, GPIO_DATA_IN_POL, pin, 0);
+		gpio_modify(sc, GPIO_BLINK_ENA, pin, 0);
 	}
 
 	if (sc->irq_res[0] != NULL) {

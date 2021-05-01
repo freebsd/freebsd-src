@@ -55,8 +55,17 @@ __FBSDID("$FreeBSD$");
 #define	DEVICE_UNLOCK(_clk)						\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
+#if 0
+#define	dprintf(format, arg...)						\
+	printf("%s:(%s)" format, __func__, clknode_get_name(clk), arg)
+#else
+#define	dprintf(format, arg...)
+#endif
+
 static int rk_clk_mux_init(struct clknode *clk, device_t dev);
 static int rk_clk_mux_set_mux(struct clknode *clk, int idx);
+static int rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent,
+    uint64_t *fout, int flags, int *stop);
 
 struct rk_clk_mux_sc {
 	uint32_t	offset;
@@ -69,6 +78,7 @@ static clknode_method_t rk_clk_mux_methods[] = {
 	/* Device interface */
 	CLKNODEMETHOD(clknode_init, 	rk_clk_mux_init),
 	CLKNODEMETHOD(clknode_set_mux, 	rk_clk_mux_set_mux),
+	CLKNODEMETHOD(clknode_set_freq,	rk_clk_mux_set_freq),
 	CLKNODEMETHOD_END
 };
 DEFINE_CLASS_1(rk_clk_mux, rk_clk_mux_class, rk_clk_mux_methods,
@@ -114,6 +124,59 @@ rk_clk_mux_set_mux(struct clknode *clk, int idx)
 	DEVICE_UNLOCK(clk);
 
 	return(0);
+}
+
+static int
+rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
+    int flags, int *stop)
+{
+	struct rk_clk_mux_sc *sc;
+	struct clknode *p_clk, *p_best_clk;
+	const char **p_names;
+	int p_idx, best_parent;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+
+	if ((sc->mux_flags & RK_CLK_MUX_REPARENT) == 0) {
+		*stop = 0;
+		return (0);
+	}
+
+	dprintf("Finding best parent for target freq of %ju\n", *fout);
+	p_names = clknode_get_parent_names(clk);
+	for (p_idx = 0; p_idx != clknode_get_parents_num(clk); p_idx++) {
+		p_clk = clknode_find_by_name(p_names[p_idx]);
+		dprintf("Testing with parent %s (%d)\n",
+		    clknode_get_name(p_clk), p_idx);
+
+		rv = clknode_set_freq(p_clk, *fout, flags | CLK_SET_DRYRUN, 0);
+		dprintf("Testing with parent %s (%d) rv=%d\n",
+		    clknode_get_name(p_clk), p_idx, rv);
+		if (rv == 0) {
+			best_parent = p_idx;
+			p_best_clk = p_clk;
+			*stop = 1;
+		}
+	}
+
+	if (!*stop)
+		return (0);
+
+	if ((flags & CLK_SET_DRYRUN) != 0)
+		return (0);
+
+	p_idx = clknode_get_parent_idx(clk);
+	if (p_idx != best_parent) {
+		dprintf("Switching parent index from %d to %d\n", p_idx,
+		    best_parent);
+		clknode_set_parent_by_idx(clk, best_parent);
+	}
+
+	clknode_set_freq(p_best_clk, *fout, flags, 0);
+	clknode_get_freq(p_best_clk, fout);
+
+	return (0);
 }
 
 int

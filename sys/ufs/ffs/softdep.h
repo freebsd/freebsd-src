@@ -1086,6 +1086,8 @@ struct mount_softdeps {
 #define FLUSH_CLEANUP	0x0002	/* need to clear out softdep structures */
 #define	FLUSH_STARTING	0x0004	/* flush thread not yet started */
 #define	FLUSH_RC_ACTIVE	0x0008	/* a thread is flushing the mount point */
+#define	FLUSH_DI_ACTIVE	0x0010	/* a thread is processing delayed
+				   inactivations */
 
 /*
  * Keep the old names from when these were in the ufsmount structure.

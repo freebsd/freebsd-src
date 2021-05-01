@@ -503,12 +503,6 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 }
 
 void
-pre_init(void)
-{
-
-}
-
-void
 allocate_initial_tls(Obj_Entry *objs)
 {
     void* tls;
@@ -525,23 +519,23 @@ allocate_initial_tls(Obj_Entry *objs)
 
 /* GNU ABI */
 __attribute__((__regparm__(1)))
-void *___tls_get_addr(tls_index *ti)
+void *
+___tls_get_addr(tls_index *ti)
 {
-    Elf_Addr** segbase;
+	Elf_Addr **dtvp;
 
-    __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
-
-    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
+	dtvp = _get_tp();
+	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }
 
 /* Sun ABI */
-void *__tls_get_addr(tls_index *ti)
+void *
+__tls_get_addr(tls_index *ti)
 {
-    Elf_Addr** segbase;
+	Elf_Addr **dtvp;
 
-    __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
-
-    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
+	dtvp = _get_tp();
+	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }
 
 size_t

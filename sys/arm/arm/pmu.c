@@ -36,7 +36,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
-#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,45 +49,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 
-#ifdef FDT
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-#endif
-
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#ifdef notyet
-#define	MAX_RLEN	8
-#else
-#define	MAX_RLEN	1
-#endif
-
-struct pmu_softc {
-	struct resource		*res[MAX_RLEN];
-	device_t		dev;
-	void			*ih[MAX_RLEN];
-};
-
-static struct resource_spec pmu_spec[] = {
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
-	/* We don't currently handle pmu events, other than on cpu 0 */
-#ifdef notyet
-	{ SYS_RES_IRQ,		1,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		2,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		4,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		5,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		6,	RF_ACTIVE | RF_OPTIONAL },
-	{ SYS_RES_IRQ,		7,	RF_ACTIVE | RF_OPTIONAL },
-#endif
-	{ -1, 0 }
-};
+#include "pmu.h"
 
 /* CCNT */
-#if __ARM_ARCH > 6
+#if defined(__arm__) && (__ARM_ARCH > 6)
 int pmu_attched = 0;
 uint32_t ccnt_hi[MAXCPU];
 #endif
@@ -130,34 +98,37 @@ pmu_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-static int
+int
 pmu_attach(device_t dev)
 {
 	struct pmu_softc *sc;
 #if defined(__arm__) && (__ARM_ARCH > 6)
 	uint32_t iesr;
 #endif
-	int err;
-	int i;
+	int err, i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	if (bus_alloc_resources(dev, pmu_spec, sc->res)) {
-		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
-	}
-
-	/* Setup interrupt handler */
 	for (i = 0; i < MAX_RLEN; i++) {
-		if (sc->res[i] == NULL)
+		if (sc->irq[i].res == NULL)
 			break;
-
-		err = bus_setup_intr(dev, sc->res[i], INTR_MPSAFE | INTR_TYPE_MISC,
-		    pmu_intr, NULL, NULL, &sc->ih[i]);
-		if (err) {
-			device_printf(dev, "Unable to setup interrupt handler.\n");
-			return (ENXIO);
+		err = bus_setup_intr(dev, sc->irq[i].res,
+		    INTR_MPSAFE | INTR_TYPE_MISC, pmu_intr, NULL, NULL,
+		    &sc->irq[i].ih);
+		if (err != 0) {
+			device_printf(dev,
+			    "Unable to setup interrupt handler.\n");
+			goto fail;
+		}
+		if (sc->irq[i].cpuid != -1) {
+			err = bus_bind_intr(dev, sc->irq[i].res,
+			    sc->irq[i].cpuid);
+			if (err != 0) {
+				device_printf(sc->dev,
+				    "Unable to bind interrupt.\n");
+				goto fail;
+			}
 		}
 	}
 
@@ -176,53 +147,15 @@ pmu_attach(device_t dev)
 #endif
 
 	return (0);
-}
 
-#ifdef FDT
-static struct ofw_compat_data compat_data[] = {
-	{"arm,armv8-pmuv3",	1},
-	{"arm,cortex-a17-pmu",	1},
-	{"arm,cortex-a15-pmu",	1},
-	{"arm,cortex-a12-pmu",	1},
-	{"arm,cortex-a9-pmu",	1},
-	{"arm,cortex-a8-pmu",	1},
-	{"arm,cortex-a7-pmu",	1},
-	{"arm,cortex-a5-pmu",	1},
-	{"arm,arm11mpcore-pmu",	1},
-	{"arm,arm1176-pmu",	1},
-	{"arm,arm1136-pmu",	1},
-	{"qcom,krait-pmu",	1},
-	{NULL,			0}
-};
-
-static int
-pmu_fdt_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
-		device_set_desc(dev, "Performance Monitoring Unit");
-		return (BUS_PROBE_DEFAULT);
+fail:
+	for (i = 1; i < MAX_RLEN; i++) {
+		if (sc->irq[i].ih != NULL)
+			bus_teardown_intr(dev, sc->irq[i].res, sc->irq[i].ih);
+		if (sc->irq[i].res != NULL)
+			bus_release_resource(dev, SYS_RES_IRQ, i,
+			    sc->irq[i].res);
 	}
-
-	return (ENXIO);
+	return(err);
 }
 
-static device_method_t pmu_fdt_methods[] = {
-	DEVMETHOD(device_probe,		pmu_fdt_probe),
-	DEVMETHOD(device_attach,	pmu_attach),
-	{ 0, 0 }
-};
-
-static driver_t pmu_fdt_driver = {
-	"pmu",
-	pmu_fdt_methods,
-	sizeof(struct pmu_softc),
-};
-
-static devclass_t pmu_fdt_devclass;
-
-DRIVER_MODULE(pmu, simplebus, pmu_fdt_driver, pmu_fdt_devclass, 0, 0);
-#endif

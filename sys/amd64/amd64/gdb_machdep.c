@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/endian.h>
 
 #include <gdb/gdb.h>
+#include <gdb/gdb_int.h>
 
 void *
 gdb_cpu_getreg(int regnum, size_t *regsz)
@@ -60,31 +61,31 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	if (kdb_thread  == curthread) {
 		switch (regnum) {
-		case 0:	return (&kdb_frame->tf_rax);
-		case 2:	return (&kdb_frame->tf_rcx);
-		case 3:	return (&kdb_frame->tf_rdx);
-		case 4:	return (&kdb_frame->tf_rsi);
-		case 5:	return (&kdb_frame->tf_rdi);
-		case 8: return (&kdb_frame->tf_r8);
-		case 9: return (&kdb_frame->tf_r9);
-		case 10: return (&kdb_frame->tf_r10);
-		case 11: return (&kdb_frame->tf_r11);
-		case 17: return (&kdb_frame->tf_rflags);
-		case 18: return (&kdb_frame->tf_cs);
-		case 19: return (&kdb_frame->tf_ss);
+		case GDB_REG_RAX: return (&kdb_frame->tf_rax);
+		case GDB_REG_RCX: return (&kdb_frame->tf_rcx);
+		case GDB_REG_RDX: return (&kdb_frame->tf_rdx);
+		case GDB_REG_RSI: return (&kdb_frame->tf_rsi);
+		case GDB_REG_RDI: return (&kdb_frame->tf_rdi);
+		case GDB_REG_R8:  return (&kdb_frame->tf_r8);
+		case GDB_REG_R9:  return (&kdb_frame->tf_r9);
+		case GDB_REG_R10: return (&kdb_frame->tf_r10);
+		case GDB_REG_R11: return (&kdb_frame->tf_r11);
+		case GDB_REG_RFLAGS: return (&kdb_frame->tf_rflags);
+		case GDB_REG_CS:  return (&kdb_frame->tf_cs);
+		case GDB_REG_SS:  return (&kdb_frame->tf_ss);
 		}
 	}
 	switch (regnum) {
-	case 1:  return (&kdb_thrctx->pcb_rbx);
-	case 6:  return (&kdb_thrctx->pcb_rbp);
-	case 7:  return (&kdb_thrctx->pcb_rsp);
-	case 12: return (&kdb_thrctx->pcb_r12);
-	case 13: return (&kdb_thrctx->pcb_r13);
-	case 14: return (&kdb_thrctx->pcb_r14);
-	case 15: return (&kdb_thrctx->pcb_r15);
-	case 16: return (&kdb_thrctx->pcb_rip);
-	case 18: return (&_kcodesel);
-	case 19: return (&_kdatasel);
+	case GDB_REG_RBX: return (&kdb_thrctx->pcb_rbx);
+	case GDB_REG_RBP: return (&kdb_thrctx->pcb_rbp);
+	case GDB_REG_RSP: return (&kdb_thrctx->pcb_rsp);
+	case GDB_REG_R12: return (&kdb_thrctx->pcb_r12);
+	case GDB_REG_R13: return (&kdb_thrctx->pcb_r13);
+	case GDB_REG_R14: return (&kdb_thrctx->pcb_r14);
+	case GDB_REG_R15: return (&kdb_thrctx->pcb_r15);
+	case GDB_REG_PC:  return (&kdb_thrctx->pcb_rip);
+	case GDB_REG_CS:  return (&_kcodesel);
+	case GDB_REG_SS:  return (&_kdatasel);
 	}
 	return (NULL);
 }
@@ -92,12 +93,42 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 void
 gdb_cpu_setreg(int regnum, void *val)
 {
+	register_t regval = *(register_t *)val;
 
+	/*
+	 * Write registers to the trapframe and pcb, if applicable.
+	 * Some scratch registers are not tracked by the pcb.
+	 */
+	if (kdb_thread == curthread) {
+		switch (regnum) {
+		case GDB_REG_RAX: kdb_frame->tf_rax = regval; break;
+		case GDB_REG_RBX: kdb_frame->tf_rbx = regval; break;
+		case GDB_REG_RCX: kdb_frame->tf_rcx = regval; break;
+		case GDB_REG_RDX: kdb_frame->tf_rdx = regval; break;
+		case GDB_REG_RSI: kdb_frame->tf_rsi = regval; break;
+		case GDB_REG_RDI: kdb_frame->tf_rdi = regval; break;
+		case GDB_REG_RBP: kdb_frame->tf_rbp = regval; break;
+		case GDB_REG_RSP: kdb_frame->tf_rsp = regval; break;
+		case GDB_REG_R8:  kdb_frame->tf_r8  = regval; break;
+		case GDB_REG_R9:  kdb_frame->tf_r9  = regval; break;
+		case GDB_REG_R10: kdb_frame->tf_r10 = regval; break;
+		case GDB_REG_R11: kdb_frame->tf_r11 = regval; break;
+		case GDB_REG_R12: kdb_frame->tf_r12 = regval; break;
+		case GDB_REG_R13: kdb_frame->tf_r13 = regval; break;
+		case GDB_REG_R14: kdb_frame->tf_r14 = regval; break;
+		case GDB_REG_R15: kdb_frame->tf_r15 = regval; break;
+		case GDB_REG_PC:  kdb_frame->tf_rip = regval; break;
+		}
+	}
 	switch (regnum) {
-	case GDB_REG_PC:
-		kdb_thrctx->pcb_rip = *(register_t *)val;
-		if (kdb_thread  == curthread)
-			kdb_frame->tf_rip = *(register_t *)val;
+	case GDB_REG_RBX: kdb_thrctx->pcb_rbx = regval; break;
+	case GDB_REG_RBP: kdb_thrctx->pcb_rbp = regval; break;
+	case GDB_REG_RSP: kdb_thrctx->pcb_rsp = regval; break;
+	case GDB_REG_R12: kdb_thrctx->pcb_r12 = regval; break;
+	case GDB_REG_R13: kdb_thrctx->pcb_r13 = regval; break;
+	case GDB_REG_R14: kdb_thrctx->pcb_r14 = regval; break;
+	case GDB_REG_R15: kdb_thrctx->pcb_r15 = regval; break;
+	case GDB_REG_PC:  kdb_thrctx->pcb_rip = regval; break;
 	}
 }
 
@@ -106,23 +137,54 @@ gdb_cpu_signal(int type, int code)
 {
 
 	switch (type & ~T_USER) {
-	case 0: return (SIGFPE);	/* Divide by zero. */
-	case 1: return (SIGTRAP);	/* Debug exception. */
-	case 3: return (SIGTRAP);	/* Breakpoint. */
-	case 4: return (SIGSEGV);	/* into instr. (overflow). */
-	case 5: return (SIGURG);	/* bound instruction. */
-	case 6: return (SIGILL);	/* Invalid opcode. */
-	case 7: return (SIGFPE);	/* Coprocessor not present. */
-	case 8: return (SIGEMT);	/* Double fault. */
-	case 9: return (SIGSEGV);	/* Coprocessor segment overrun. */
-	case 10: return (SIGTRAP);	/* Invalid TSS (also single-step). */
-	case 11: return (SIGSEGV);	/* Segment not present. */
-	case 12: return (SIGSEGV);	/* Stack exception. */
-	case 13: return (SIGSEGV);	/* General protection. */
-	case 14: return (SIGSEGV);	/* Page fault. */
-	case 16: return (SIGEMT);	/* Coprocessor error. */
+	case T_BPTFLT: return (SIGTRAP);
+	case T_ARITHTRAP: return (SIGFPE);
+	case T_PROTFLT: return (SIGSEGV);
+	case T_TRCTRAP: return (SIGTRAP);
+	case T_PAGEFLT: return (SIGSEGV);
+	case T_DIVIDE: return (SIGFPE);
+	case T_NMI: return (SIGTRAP);
+	case T_FPOPFLT: return (SIGILL);
+	case T_TSSFLT: return (SIGSEGV);
+	case T_SEGNPFLT: return (SIGSEGV);
+	case T_STKFLT: return (SIGSEGV);
+	case T_XMMFLT: return (SIGFPE);
 	}
 	return (SIGEMT);
+}
+
+void
+gdb_cpu_stop_reason(int type, int code)
+{
+	uintmax_t val;
+
+	val = 0;
+	if (type == T_TRCTRAP) {
+		/* NB: 'code' contains the value of dr6 at the trap. */
+		if ((code & DBREG_DR6_B(0)) != 0) {
+			val = rdr0();
+		}
+		if ((code & DBREG_DR6_B(1)) != 0) {
+			val = rdr1();
+		}
+		if ((code & DBREG_DR6_B(2)) != 0) {
+			val = rdr2();
+		}
+		if ((code & DBREG_DR6_B(3)) != 0) {
+			val = rdr3();
+		}
+
+		/*
+		 * TODO: validate the bits in DR7 to differentiate between a
+		 * watchpoint trap and a hardware breakpoint trap (currently
+		 * unsupported).
+		 */
+		if (val != 0) {
+			gdb_tx_str("watch:");
+			gdb_tx_varhex(val);
+			gdb_tx_char(';');
+		}
+	}
 }
 
 void *

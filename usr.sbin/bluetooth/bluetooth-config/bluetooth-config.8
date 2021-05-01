@@ -45,7 +45,8 @@ The following options are available:
 .It Fl d
 Scan for a specific bluetooth device address.
 .It Fl n
-Limit scan to a specific host controller. Hint: List all netgraph nodes with
+Limit scan to a specific host controller.
+Hint: List all netgraph nodes with
 .Ql /usr/sbin/ngctl list .
 .El
 .Pp
@@ -62,11 +63,6 @@ keyboards, configure and restart
 .Nm
 can bring up any interface and daemon necessary for operation and, if a node is provided on
 command line, will do so automatically for that interface.
-.Sh CAVEATS
-.Nm
-can not parse entries in
-.Xr hcsecd 8
-config file and thus will ask the user to manually modify existing pairing PIN entries.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
 .It Pa /etc/bluetooth/hosts
@@ -79,7 +75,8 @@ scan -n ubt0 -a 00:26:bb:7a:58:95
 .Bd -ragged -offset indent
 This will scan the bluetooth controller ubt0hci for a bluetooth device with the address
 00:26:bb:7a:58:95, set up ubt0 if necessary and enter an interactive dialog to pair the
-new device. Since in this example a mouse is paired,
+new device.
+Since in this example a mouse is paired,
 .Nm
 will interact with
 .Xr bthidd 8 ,
@@ -93,9 +90,9 @@ This will scan all bluetooth controllers on the systems for bluetooth devices, p
 to bring up controllers or daemons along the way.
 .Ed
 .Sh SEE ALSO
+.Xr bthost 1 ,
 .Xr bthidcontrol 8 ,
 .Xr bthidd 8 ,
-.Xr bthost 1 ,
 .Xr hccontrol 8 ,
 .Xr hcsecd 8 ,
 .Xr sdpcontrol 8 ,
@@ -107,5 +104,10 @@ utility first appeared in
 .Fx 12.1 .
 .Sh AUTHORS
 .An Dirk Engling Aq Mt erdgeist@erdgeist.org
+.Sh CAVEATS
+.Nm
+can not parse entries in
+.Xr hcsecd 8
+config file and thus will ask the user to manually modify existing pairing PIN entries.
 .Sh THANKS TO
 Lars Engels and Warren Block for suggestions, help, and testing.

@@ -233,6 +233,10 @@ rk_cru_attach(device_t dev)
 		switch (sc->clks[i].type) {
 		case RK_CLK_UNDEFINED:
 			break;
+		case RK3066_CLK_PLL:
+			rk3066_clk_pll_register(sc->clkdom,
+			    sc->clks[i].clk.pll);
+			break;
 		case RK3328_CLK_PLL:
 			rk3328_clk_pll_register(sc->clkdom,
 			    sc->clks[i].clk.pll);

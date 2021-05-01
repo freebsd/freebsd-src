@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd June 9, 2020
 .Dt ARCHIVE_READ_FILTER 3
 .Os
 .Sh NAME
@@ -49,6 +49,8 @@ Streaming Archive Library (libarchive, -larchive)
 .In archive.h
 .Ft int
 .Fn archive_read_support_filter_all "struct archive *"
+.Ft int
+.Fn archive_read_support_filter_by_code "struct archive *" "int"
 .Ft int
 .Fn archive_read_support_filter_bzip2 "struct archive *"
 .Ft int
@@ -116,6 +118,14 @@ Note that
 is always enabled by default.
 .It Fn archive_read_support_filter_all
 Enables all available decompression filters.
+.It Fn archive_read_support_filter_by_code
+Enables a single filter specified by the filter code.
+This function does not work with
+.Cm ARCHIVE_FILTER_PROGRAM .
+Note: In statically-linked executables, this will cause
+your program to include support for every filter.
+If executable size is a concern, you may wish to avoid
+using this function.
 .It Fn archive_read_support_filter_program
 Data is fed through the specified external program before being dearchived.
 Note that this disables automatic detection of the compression format,

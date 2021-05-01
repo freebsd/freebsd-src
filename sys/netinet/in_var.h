@@ -450,8 +450,6 @@ int	inm_record_source(struct in_multi *inm, const in_addr_t);
 void	inm_release_deferred(struct in_multi *);
 void	inm_release_list_deferred(struct in_multi_head *);
 void	inm_release_wait(void *);
-struct	in_multi *
-in_addmulti(struct in_addr *, struct ifnet *);
 int	in_joingroup(struct ifnet *, const struct in_addr *,
 	    /*const*/ struct in_mfilter *, struct in_multi **);
 int	in_joingroup_locked(struct ifnet *, const struct in_addr *,
@@ -461,9 +459,10 @@ int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
-int	in_addprefix(struct in_ifaddr *, int);
+int	in_addprefix(struct in_ifaddr *);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	in_ifscrub_all(void);
+int	in_handle_ifaddr_route(int, struct in_ifaddr *);
 void	ip_input(struct mbuf *);
 void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);

@@ -1928,7 +1928,7 @@ rack_log_type_hrdwtso(struct tcpcb *tp, struct tcp_rack *rack, int len, int mod,
 		TCP_LOG_EVENTP(tp, NULL,
 		    &tp->t_inpcb->inp_socket->so_rcv,
 		    &tp->t_inpcb->inp_socket->so_snd,
-		    TCP_HDWR_TLS, 0,
+		    TCP_HDWR_PACE_SIZE, 0,
 		    0, &log, false, &tv);
 	}
 }
@@ -8344,8 +8344,8 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 */
 		ourfinisacked = 1;
 	}
-	/* NB: sowwakeup_locked() does an implicit unlock. */
-	sowwakeup_locked(so);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	tp->t_flags |= TF_WAKESOW;
 	m_freem(mfree);
 	if (rack->r_ctl.rc_early_recovery == 0) {
 		if (IN_RECOVERY(tp->t_flags)) {
@@ -8665,8 +8665,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				appended =
 #endif
 					sbappendstream_locked(&so->so_rcv, m, 0);
-			/* NB: sorwakeup_locked() does an implicit unlock. */
-			sorwakeup_locked(so);
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 			if (so->so_rcv.sb_shlim && appended != mcnt)
 				counter_fo_release(so->so_rcv.sb_shlim,
@@ -8683,7 +8683,9 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			thflags = tcp_reass(tp, th, &temp, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-                if ((tp->t_flags & TF_SACK_PERMIT) && (save_tlen > 0)) {
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    (save_tlen > 0) &&
+		    TCPS_HAVEESTABLISHED(tp->t_state)) {
                         if ((tlen == 0) && (SEQ_LT(save_start, save_rnxt))) {
                                 /*
                                  * DSACK actually handled in the fastpath
@@ -8731,6 +8733,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_FIN) {
 		if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 			socantrcvmore(so);
+			/* The socket upcall is handled by socantrcvmore. */
+			tp->t_flags &= ~TF_WAKESOR;
 			/*
 			 * If connection is half-synchronized (ie NEEDSYN
 			 * flag on) then delay ACK, so it may be piggybacked
@@ -8922,8 +8926,8 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			sbappendstream_locked(&so->so_rcv, m, 0);
 		ctf_calc_rwin(so, tp);
 	}
-	/* NB: sorwakeup_locked() does an implicit unlock. */
-	sorwakeup_locked(so);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 	if (so->so_rcv.sb_shlim && mcnt != appended)
 		counter_fo_release(so->so_rcv.sb_shlim, mcnt - appended);
@@ -9140,7 +9144,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		rack_timer_cancel(tp, rack, rack->r_ctl.rc_rcvtime, __LINE__);
 	}
 	/* Wake up the socket if we have room to write more */
-	sowwakeup(so);
+	tp->t_flags |= TF_WAKESOW;
 	if (sbavail(&so->so_snd)) {
 		rack->r_wanted_output = 1;
 	}
@@ -10287,7 +10291,7 @@ rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line)
 			segsiz = min(ctf_fixed_maxseg(tp),
 				     rack->r_ctl.rc_pace_min_segs);
 			rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(
-				                           bw_est, segsiz, 0,
+				                           tp, bw_est, segsiz, 0,
 							   rack->r_ctl.crte, NULL);
 		}
 	} else if (rack->rc_always_pace) {
@@ -10523,7 +10527,7 @@ rack_handoff_ok(struct tcpcb *tp)
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED)) {
 		/*
-		 * We really don't know if you support sack, 
+		 * We really don't know if you support sack,
 		 * you have to get to ESTAB or beyond to tell.
 		 */
 		return (EAGAIN);
@@ -10866,6 +10870,28 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return(1);
 	}
+
+	/*
+	 * Parse options on any incoming segment.
+	 */
+	tcp_dooptions(&to, (u_char *)(th + 1),
+	    (th->th_off << 2) - sizeof(struct tcphdr),
+	    (thflags & TH_SYN) ? TO_SYN : 0);
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK and a
+	 * segment without a timestamp is received, silently drop
+	 * the segment, unless it is a RST segment or missing timestamps are
+	 * tolerated.
+	 * See section 3.2 of RFC 7323.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS) &&
+	    ((thflags & TH_RST) == 0) && (V_tcp_tolerate_missing_ts == 0)) {
+		way_out = 5;
+		retval = 0;
+		goto done_with_input;
+	}
+
 	/*
 	 * Segment received on connection. Reset idle time and keep-alive
 	 * timer. XXX: This should be done after segment validation to
@@ -10918,12 +10944,6 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rack_cong_signal(tp, th, CC_ECN);
 		}
 	}
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
 
 	/*
 	 * If echoed timestamp is later than the current time, fall back to
@@ -11188,8 +11208,10 @@ rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcp_get_usecs(&tv);
 	}
 	if(rack_do_segment_nounlock(m, th, so, tp,
-				    drop_hdrlen, tlen, iptos, 0, &tv) == 0)
+				    drop_hdrlen, tlen, iptos, 0, &tv) == 0) {
+		tcp_handle_wakeup(tp, so);
 		INP_WUNLOCK(tp->t_inpcb);
+	}
 }
 
 struct rack_sendmap *
@@ -11328,7 +11350,7 @@ rack_get_pacing_len(struct tcp_rack *rack, uint64_t bw, uint32_t mss)
 		/* Use the user mss since we are not exactly matched */
 		return (user_max);
 	}
-	new_tso = tcp_get_pacing_burst_size(bw, mss, rack_pace_one_seg, rack->r_ctl.crte, NULL);
+	new_tso = tcp_get_pacing_burst_size(rack->rc_tp, bw, mss, rack_pace_one_seg, rack->r_ctl.crte, NULL);
 	if (new_tso > user_max)
 		new_tso = user_max;
 	return(new_tso);
@@ -11555,10 +11577,10 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 								       rack->rc_inp->inp_route.ro_nh->nh_ifp,
 								       rate_wanted,
 								       RS_PACING_GEQ,
-								       &err);
+								       &err, NULL);
 				if (rack->r_ctl.crte) {
 					rack->rack_hdrw_pacing = 1;
-					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rate_wanted, segsiz,
+					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rack->rc_tp, rate_wanted, segsiz,
 												 0, rack->r_ctl.crte,
 												 NULL);
 					rack_log_hdwr_pacing(rack, rack->rc_inp->inp_route.ro_nh->nh_ifp,
@@ -11575,14 +11597,14 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 							   rack->rc_inp->inp_route.ro_nh->nh_ifp,
 							   rate_wanted,
 							   RS_PACING_GEQ,
-							   &err);
+							   &err, NULL);
 				if (nrte == NULL) {
 					/* Lost the rate */
 					rack->rack_hdrw_pacing = 0;
 					rack_set_pace_segments(rack->rc_tp, rack, __LINE__);
 				} else if (nrte != rack->r_ctl.crte) {
 					rack->r_ctl.crte = nrte;
-					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rate_wanted,
+					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rack->rc_tp, rate_wanted,
 												 segsiz, 0,
 												 rack->r_ctl.crte,
 												 NULL);
@@ -12277,7 +12299,8 @@ again:
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
 	 * in which case len is already set.
 	 */
-	if ((sack_rxmit == 0) && TCPS_HAVEESTABLISHED(tp->t_state)) {
+	if ((sack_rxmit == 0) &&
+	    (TCPS_HAVEESTABLISHED(tp->t_state) || IS_FASTOPEN(tp->t_flags))) {
 		uint32_t avail;
 
 		avail = sbavail(sb);
@@ -12285,7 +12308,7 @@ again:
 			sb_offset = tp->snd_nxt - tp->snd_una;
 		else
 			sb_offset = 0;
-		if ((IN_RECOVERY(tp->t_flags) == 0) || rack->rack_no_prr) {
+		if ((IN_FASTRECOVERY(tp->t_flags) == 0) || rack->rack_no_prr) {
 			if (rack->r_ctl.rc_tlp_new_data) {
 				/* TLP is forcing out new data */
 				if (rack->r_ctl.rc_tlp_new_data > (uint32_t) (avail - sb_offset)) {
@@ -12299,7 +12322,7 @@ again:
 				new_data_tlp = doing_tlp = 1;
 			}  else
 				len = rack_what_can_we_send(tp, rack, cwnd_to_use, avail, sb_offset);
-			if (IN_RECOVERY(tp->t_flags) && (len > segsiz)) {
+			if (IN_FASTRECOVERY(tp->t_flags) && (len > segsiz)) {
 				/*
 				 * For prr=off, we need to send only 1 MSS
 				 * at a time. We do this because another sack could
@@ -12985,10 +13008,8 @@ send:
 		if (flags & TH_SYN) {
 			tp->snd_nxt = tp->iss;
 			to.to_mss = tcp_mssopt(&inp->inp_inc);
-#ifdef NETFLIX_TCPOUDP
 			if (tp->t_port)
 				to.to_mss -= V_tcp_udp_tunneling_overhead;
-#endif
 			to.to_flags |= TOF_MSS;
 
 			/*
@@ -13065,7 +13086,6 @@ send:
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
 	}
-#ifdef NETFLIX_TCPOUDP
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
@@ -13074,7 +13094,6 @@ send:
 		}
 		hdrlen += sizeof(struct udphdr);
 	}
-#endif
 #ifdef INET6
 	if (isipv6)
 		ipoptlen = ip6_optlen(tp->t_inpcb);
@@ -13349,7 +13368,6 @@ send:
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip6 + ipoptlen + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13357,14 +13375,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip6_hdr);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip6 + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip6, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip6, th);
 	} else
 #endif				/* INET6 */
 	{
@@ -13372,7 +13386,6 @@ send:
 #ifdef TCPDEBUG
 		ipov = (struct ipovly *)ip;
 #endif
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip + ipoptlen + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13380,14 +13393,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip, th);
 	}
 	/*
 	 * Fill in fields, remembering maximum advertised window for use in
@@ -13415,7 +13424,7 @@ send:
 		flags |= TH_ECE;
 		tp->t_flags2 &= ~TF2_ECN_SND_ECE;
 	}
-	if (tp->t_state == TCPS_ESTABLISHED &&
+	if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
 		/*
 		 * If the peer has ECN, mark data packets with ECN capable
@@ -14037,7 +14046,7 @@ enobufs:
 	} else if ((slot == 0) && (sendalot == 0) && tot_len_this_send) {
 		/*
 		 * Get our pacing rate, if an error
-		 * occured in sending (ENOBUF) we would
+		 * occurred in sending (ENOBUF) we would
 		 * hit the else if with slot preset. Other
 		 * errors return.
 		 */

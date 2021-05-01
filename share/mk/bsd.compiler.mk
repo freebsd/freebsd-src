@@ -24,6 +24,13 @@
 # - c++11:     supports full (or nearly full) C++11 programming environment.
 # - retpoline: supports the retpoline speculative execution vulnerability
 #              mitigation.
+# - init-all:  supports stack variable initialization.
+#
+# When bootstrapping on macOS, 'apple-clang' will be set in COMPILER_FEATURES
+# to differentiate Apple's version of Clang. Apple Clang uses a different
+# versioning scheme and may not support the same -W/-Wno warning flags. For a
+# mapping of Apple Clang versions to upstream clang versions see
+# https://en.wikipedia.org/wiki/Xcode#Xcode_7.0_-_12.x_(since_Free_On-Device_Development)
 #
 # These variables with an X_ prefix will also be provided if XCC is set.
 #
@@ -186,11 +193,24 @@ ${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:Mclang} || ${_v:M(clang-*.*.*)}
 ${X_}COMPILER_TYPE:=	clang
 . else
+# With GCC, cc --version prints "cc $VERSION ($PKGVERSION)", so if a
+# distribution overrides the default GCC PKGVERSION it is not identified.
+# However, its -v output always says "gcc version" in it, so fall back on that.
+_gcc_version!=	${${cc}:N${CCACHE_BIN}} -v 2>&1 | grep "gcc version"
+.  if !empty(_gcc_version)
+${X_}COMPILER_TYPE:=	gcc
+.  else
 .error Unable to determine compiler type for ${cc}=${${cc}}.  Consider setting ${X_}COMPILER_TYPE.
+.  endif
+.undef _gcc_version
 . endif
 .endif
 .if !defined(${X_}COMPILER_VERSION)
 ${X_}COMPILER_VERSION!=echo "${_v:M[1-9]*.[0-9]*}" | awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
+.endif
+# Detect apple clang when bootstrapping to select appropriate warning flags.
+.if !defined(${X_}COMPILER_FEATURES) && ${_v:[*]:M*Apple clang version*}
+${X_}COMPILER_FEATURES=	apple-clang
 .endif
 .undef _v
 .endif
@@ -208,13 +228,17 @@ ${X_}COMPILER_FREEBSD_VERSION=	unknown
 ${X_}COMPILER_RESOURCE_DIR!=	${${cc}:N${CCACHE_BIN}} -print-resource-dir 2>/dev/null || echo unknown
 .endif
 
-${X_}COMPILER_FEATURES=		c++11 c++14
+${X_}COMPILER_FEATURES+=		c++11 c++14
 .if ${${X_}COMPILER_TYPE} == "clang" || \
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 70000)
 ${X_}COMPILER_FEATURES+=	c++17
 .endif
 .if ${${X_}COMPILER_TYPE} == "clang"
-${X_}COMPILER_FEATURES+=	retpoline
+${X_}COMPILER_FEATURES+=	retpoline init-all
+.endif
+.if ${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 100000 || \
+	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 80100)
+${X_}COMPILER_FEATURES+=	fileprefixmap
 .endif
 
 .else

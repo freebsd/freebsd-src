@@ -108,7 +108,7 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -202,7 +202,8 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		    fw_flowc_mnemval);
 		flowclen16 = howmany(flowclen, 16);
 		if (toep->tx_credits < flowclen16 || toep->txsd_avail == 0 ||
-		    (wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq)) == NULL) {
+		    (wr = alloc_wrqe(roundup2(flowclen, 16),
+		    &toep->ofld_txq->wrq)) == NULL) {
 			if (tc_idx >= 0)
 				t4_release_cl_rl(sc, port_id, tc_idx);
 			return (ENOMEM);
@@ -266,7 +267,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %d.", __func__, tid));
 
-	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
+	wr = alloc_wrqe(sizeof(*req), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -392,6 +393,9 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	send_flowc_wr(toep, tp);
 
 	soisconnected(so);
+
+	if (ulp_mode(toep) == ULP_MODE_TLS)
+		tls_establish(toep);
 }
 
 int
@@ -446,16 +450,6 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-	if (ulp_mode(toep) == ULP_MODE_TLS) {
-		if (toep->tls.rcv_over >= rx_credits) {
-			toep->tls.rcv_over -= rx_credits;
-			rx_credits = 0;
-		} else {
-			rx_credits -= toep->tls.rcv_over;
-			toep->tls.rcv_over = 0;
-		}
-	}
-
 	if (rx_credits > 0 &&
 	    (tp->rcv_wnd <= 32 * 1024 || rx_credits >= 64 * 1024 ||
 	    (rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||
@@ -498,7 +492,7 @@ t4_close_conn(struct adapter *sc, struct toepcb *toep)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, tid));
 
-	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
+	wr = alloc_wrqe(sizeof(*req), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -731,6 +725,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		for (m = sndptr; m != NULL; m = m->m_next) {
 			int n;
 
+			if ((m->m_flags & M_NOTAVAIL) != 0)
+				break;
 			if (m->m_flags & M_EXTPG) {
 #ifdef KERN_TLS
 				if (m->m_epg_tls != NULL) {
@@ -813,8 +809,9 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 		/* nothing to send */
 		if (plen == 0) {
-			KASSERT(m == NULL,
-			    ("%s: nothing to send, but m != NULL", __func__));
+			KASSERT(m == NULL || (m->m_flags & M_NOTAVAIL) != 0,
+			    ("%s: nothing to send, but m != NULL is ready",
+			    __func__));
 			break;
 		}
 
@@ -827,7 +824,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			/* Immediate data tx */
 
 			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					toep->ofld_txq);
+					&toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -845,7 +842,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16),
+			    &toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -902,7 +900,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 		toep->txsd_avail--;
 
 		t4_l2t_send(sc, wr, toep->l2te);
-	} while (m != NULL);
+	} while (m != NULL && (m->m_flags & M_NOTAVAIL) == 0);
 
 	/* Send a FIN if requested, but only if there's no more data to send */
 	if (m == NULL && toep->flags & TPF_SEND_FIN)
@@ -1022,7 +1020,7 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			/* Immediate data tx */
 
 			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					toep->ofld_txq);
+					&toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -1040,7 +1038,8 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			/* DSGL tx */
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16),
+			    &toep->ofld_txq->wrq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -1092,6 +1091,9 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			txsd = &toep->txsd[0];
 		}
 		toep->txsd_avail--;
+
+		counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, 1);
+		counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
 
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
@@ -1261,6 +1263,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		break;
 
 	case TCPS_FIN_WAIT_2:
+		restore_so_proto(so, inp->inp_vflag & INP_IPV6);
 		tcp_twstart(tp);
 		INP_UNLOCK_ASSERT(inp);	 /* safe, we have a ref on the inp */
 		NET_EPOCH_EXIT(et);
@@ -1321,6 +1324,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 
 	switch (tp->t_state) {
 	case TCPS_CLOSING:	/* see TCPS_FIN_WAIT_2 in do_peer_close too */
+		restore_so_proto(so, inp->inp_vflag & INP_IPV6);
 		tcp_twstart(tp);
 release:
 		INP_UNLOCK_ASSERT(inp);	/* safe, we have a ref on the  inp */
@@ -1355,13 +1359,13 @@ done:
 }
 
 void
-send_abort_rpl(struct adapter *sc, struct sge_wrq *ofld_txq, int tid,
+send_abort_rpl(struct adapter *sc, struct sge_ofld_txq *ofld_txq, int tid,
     int rst_status)
 {
 	struct wrqe *wr;
 	struct cpl_abort_rpl *cpl;
 
-	wr = alloc_wrqe(sizeof(*cpl), ofld_txq);
+	wr = alloc_wrqe(sizeof(*cpl), &ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -1401,7 +1405,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	const struct cpl_abort_req_rss *cpl = (const void *)(rss + 1);
 	unsigned int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
-	struct sge_wrq *ofld_txq = toep->ofld_txq;
+	struct sge_ofld_txq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct epoch_tracker et;
@@ -1546,6 +1550,15 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	tp = intotcpcb(inp);
+
+	if (__predict_false(ulp_mode(toep) == ULP_MODE_TLS &&
+	   toep->flags & TPF_TLS_RECEIVE)) {
+		/* Received "raw" data on a TLS socket. */
+		CTR3(KTR_CXGBE, "%s: tid %u, raw TLS data (%d bytes)",
+		    __func__, tid, len);
+		do_rx_data_tls(cpl, toep, m);
+		return (0);
+	}
 
 	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq)))
 		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
@@ -1836,7 +1849,7 @@ t4_set_tcb_field(struct adapter *sc, struct sge_wrq *wrq, struct toepcb *toep,
 	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(cookie));
 	req->mask = htobe64(mask);
 	req->val = htobe64(val);
-	if ((wrq->eq.flags & EQ_TYPEMASK) == EQ_OFLD) {
+	if (wrq->eq.type == EQ_OFLD) {
 		txsd = &toep->txsd[toep->txsd_pidx];
 		txsd->tx_credits = howmany(sizeof(*req), 16);
 		txsd->plen = 0;
@@ -2191,8 +2204,7 @@ out:
 		job->aio_error = (void *)(intptr_t)error;
 		aiotx_free_job(job);
 	}
-	if (m != NULL)
-		m_free(m);
+	m_freem(m);
 	SOCKBUF_LOCK(sb);
 }
 

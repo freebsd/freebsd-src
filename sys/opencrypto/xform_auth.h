@@ -52,15 +52,15 @@
 struct auth_hash {
 	int type;
 	char *name;
-	u_int16_t keysize;
-	u_int16_t hashsize; 
-	u_int16_t ctxsize;
-	u_int16_t blocksize;
+	uint16_t keysize;
+	uint16_t hashsize; 
+	uint16_t ctxsize;
+	uint16_t blocksize;
 	void (*Init) (void *);
 	void (*Setkey) (void *, const uint8_t *, u_int);
 	void (*Reinit) (void *, const uint8_t *, u_int);
 	int  (*Update) (void *, const void *, u_int);
-	void (*Final) (u_int8_t *, void *);
+	void (*Final) (uint8_t *, void *);
 };
 
 extern struct auth_hash auth_hash_null;
@@ -84,6 +84,7 @@ extern struct auth_hash auth_hash_poly1305;
 extern struct auth_hash auth_hash_ccm_cbc_mac_128;
 extern struct auth_hash auth_hash_ccm_cbc_mac_192;
 extern struct auth_hash auth_hash_ccm_cbc_mac_256;
+extern struct auth_hash auth_hash_chacha20_poly1305;
 
 union authctx {
 	SHA1_CTX sha1ctx;

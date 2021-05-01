@@ -105,20 +105,14 @@ ENTRY(memset)
 #ifndef _BZERO
 	orr	r3, r3, r3, lsl #8	/* Extend value to 16-bits */
 #endif
-#ifdef _ARM_ARCH_5E
 	tst	ip, #0x04		/* Quad-align for armv5e */
-#else
-	cmp	r1, #0x10
-#endif
 #ifndef _BZERO
 	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
 #endif
-#ifdef _ARM_ARCH_5E
 	itt	ne
 	subne	r1, r1, #0x04		/* Quad-align if necessary */
 	strne	r3, [ip], #0x04
 	cmp	r1, #0x10
-#endif
 	blt	.Lmemset_loop4		/* If less than 16 then use words */
 	mov	r2, r3			/* Duplicate data */
 	cmp	r1, #0x80		/* If < 128 then skip the big loop */
@@ -127,7 +121,6 @@ ENTRY(memset)
 	/* Do 128 bytes at a time */
 .Lmemset_loop128:
 	subs	r1, r1, #0x80
-#ifdef _ARM_ARCH_5E
 	itttt	ge
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
@@ -148,24 +141,6 @@ ENTRY(memset)
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	bgt	.Lmemset_loop128
 	it	eq
 	RETeq			/* Zero length so just exit */
@@ -176,17 +151,10 @@ ENTRY(memset)
 .Lmemset_loop32:
 	subs	r1, r1, #0x20
 	itttt	ge
-#ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	bgt	.Lmemset_loop32
 	it	eq
 	RETeq			/* Zero length so just exit */
@@ -195,13 +163,8 @@ ENTRY(memset)
 
 	/* Deal with 16 bytes or more */
 	itt	ge
-#ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	it	eq
 	RETeq			/* Zero length so just exit */
 
@@ -217,15 +180,11 @@ ENTRY(memset)
 	it	eq
 	RETeq			/* Zero length so just exit */
 
-#ifdef _ARM_ARCH_5E
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
 	it	eq
 	RETeq
 	cmp	r1, #2
-#else
-	cmp	r1, #-2
-#endif
 
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	it	ge

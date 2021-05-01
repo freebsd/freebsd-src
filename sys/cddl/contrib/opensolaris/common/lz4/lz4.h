@@ -43,6 +43,11 @@ extern "C" {
 extern size_t lz4_compress(void *, void *, size_t, size_t, int);
 extern int lz4_decompress(void *, void *, size_t, size_t, int);
 
+#if defined(_KERNEL) || defined(_FAKE_KERNEL)
+extern void lz4_init(void);
+extern void lz4_fini(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

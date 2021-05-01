@@ -49,10 +49,20 @@ extern "C" {
 
 #ifndef _ASM
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stdint.h>
 #ifdef _KERNEL
 #include <sys/endian.h>
 #endif
+#if !defined(IN_BASE) && !defined(_KERNEL)
+/* Compatibility types to allow including the CTF API */
+typedef unsigned int zoneid_t;
+typedef unsigned char uchar_t;
+typedef unsigned short ushort_t;
+typedef unsigned int uint_t;
+typedef unsigned long ulong_t;
+typedef int processorid_t;
+#else
 #include <sys/modctl.h>
 #include <sys/processor.h>
 #include <sys/cpuvar.h>
@@ -63,9 +73,9 @@ extern "C" {
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/ucred.h>
+#endif
 typedef int model_t;
 #include <sys/ctf_api.h>
-#include <sys/stdint.h>
 
 /*
  * DTrace Universal Constants and Typedefs
@@ -2456,7 +2466,17 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	B_DATA_MASK	0x00ffffff
 #define	B_INSTR		0x14000000
 
+#define	NOP_INSTR	0xd503201f
+
 #define	RET_INSTR	0xd65f03c0
+
+#define	SUB_MASK	0xffc00000
+#define	SUB_INSTR	0xd1000000
+#define	SUB_RD_SHIFT	0
+#define	SUB_RN_SHIFT	5
+#define	SUB_R_MASK	0x1f
+#define	SUB_IMM_SHIFT	10
+#define	SUB_IMM_MASK	0xfff
 
 #define	LDP_STP_MASK	0xffc00000
 #define	STP_32		0x29800000
@@ -2469,13 +2489,16 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	ARG1_MASK	0x1f
 #define	ARG2_SHIFT	10
 #define	ARG2_MASK	0x1f
+#define	ADDR_SHIFT	5
+#define	ADDR_MASK	0x1f
 #define	OFFSET_SHIFT	15
 #define	OFFSET_SIZE	7
 #define	OFFSET_MASK	((1 << OFFSET_SIZE) - 1)
 
-#define	DTRACE_INVOP_PUSHM	1
+#define	DTRACE_INVOP_STP	1
 #define	DTRACE_INVOP_RET	2
 #define	DTRACE_INVOP_B		3
+#define	DTRACE_INVOP_SUB	4
 
 #elif defined(__mips__)
 

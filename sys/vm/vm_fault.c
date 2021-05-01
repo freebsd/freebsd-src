@@ -115,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #define PFFOR 4
 
 #define	VM_FAULT_READ_DEFAULT	(1 + VM_FAULT_READ_AHEAD_INIT)
-#define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
 
 #define	VM_FAULT_DONTNEED_MIN	1048576
 
@@ -507,6 +506,8 @@ vm_fault_populate(struct faultstate *fs)
 		    PMAP_ENTER_LARGEPAGE, bdry_idx);
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_page_xunbusy(m);
+		if (rv != KERN_SUCCESS)
+			goto out;
 		if ((fs->fault_flags & VM_FAULT_WIRE) != 0) {
 			for (i = 0; i < atop(pagesizes[bdry_idx]); i++)
 				vm_page_wire(m + i);
@@ -541,16 +542,13 @@ vm_fault_populate(struct faultstate *fs)
 	    pidx <= pager_last;
 	    pidx += npages, m = vm_page_next(&m[npages - 1])) {
 		vaddr = fs->entry->start + IDX_TO_OFF(pidx) - fs->entry->offset;
-#if defined(__aarch64__) || defined(__amd64__) || (defined(__arm__) && \
-    __ARM_ARCH >= 6) || defined(__i386__) || defined(__riscv)
+
 		psind = m->psind;
 		if (psind > 0 && ((vaddr & (pagesizes[psind] - 1)) != 0 ||
 		    pidx + OFF_TO_IDX(pagesizes[psind]) - 1 > pager_last ||
 		    !pmap_ps_enabled(fs->map->pmap) || fs->wired))
 			psind = 0;
-#else
-		psind = 0;
-#endif		
+
 		npages = atop(pagesizes[psind]);
 		for (i = 0; i < npages; i++) {
 			vm_fault_populate_check_page(&m[i]);
@@ -559,8 +557,18 @@ vm_fault_populate(struct faultstate *fs)
 		VM_OBJECT_WUNLOCK(fs->first_object);
 		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot, fs->fault_type |
 		    (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
-#if defined(__amd64__)
-		if (psind > 0 && rv == KERN_FAILURE) {
+
+		/*
+		 * pmap_enter() may fail for a superpage mapping if additional
+		 * protection policies prevent the full mapping.
+		 * For example, this will happen on amd64 if the entire
+		 * address range does not share the same userspace protection
+		 * key.  Revert to single-page mappings if this happens.
+		 */
+		MPASS(rv == KERN_SUCCESS ||
+		    (psind > 0 && rv == KERN_PROTECTION_FAILURE));
+		if (__predict_false(psind > 0 &&
+		    rv == KERN_PROTECTION_FAILURE)) {
 			for (i = 0; i < npages; i++) {
 				rv = pmap_enter(fs->map->pmap, vaddr + ptoa(i),
 				    &m[i], fs->prot, fs->fault_type |
@@ -568,9 +576,7 @@ vm_fault_populate(struct faultstate *fs)
 				MPASS(rv == KERN_SUCCESS);
 			}
 		}
-#else
-		MPASS(rv == KERN_SUCCESS);
-#endif
+
 		VM_OBJECT_WLOCK(fs->first_object);
 		for (i = 0; i < npages; i++) {
 			if ((fs->fault_flags & VM_FAULT_WIRE) != 0)
@@ -586,7 +592,7 @@ vm_fault_populate(struct faultstate *fs)
 	}
 out:
 	curthread->td_ru.ru_majflt++;
-	return (KERN_SUCCESS);
+	return (rv);
 }
 
 static int prot_fault_translation;
@@ -894,6 +900,9 @@ vm_fault_cow(struct faultstate *fs)
 {
 	bool is_first_object_locked;
 
+	KASSERT(fs->object != fs->first_object,
+	    ("source and target COW objects are identical"));
+
 	/*
 	 * This allows pages to be virtually copied from a backing_object
 	 * into the first_object, where the backing object has no other
@@ -957,11 +966,29 @@ vm_fault_cow(struct faultstate *fs)
 		 */
 		fs->m_cow = fs->m;
 		fs->m = NULL;
+
+		/*
+		 * Typically, the shadow object is either private to this
+		 * address space (OBJ_ONEMAPPING) or its pages are read only.
+		 * In the highly unusual case where the pages of a shadow object
+		 * are read/write shared between this and other address spaces,
+		 * we need to ensure that any pmap-level mappings to the
+		 * original, copy-on-write page from the backing object are
+		 * removed from those other address spaces.
+		 *
+		 * The flag check is racy, but this is tolerable: if
+		 * OBJ_ONEMAPPING is cleared after the check, the busy state
+		 * ensures that new mappings of m_cow can't be created.
+		 * pmap_enter() will replace an existing mapping in the current
+		 * address space.  If OBJ_ONEMAPPING is set after the check,
+		 * removing mappings will at worse trigger some unnecessary page
+		 * faults.
+		 */
+		vm_page_assert_xbusied(fs->m_cow);
+		if ((fs->first_object->flags & OBJ_ONEMAPPING) == 0)
+			pmap_remove_all(fs->m_cow);
 	}
-	/*
-	 * fs->object != fs->first_object due to above 
-	 * conditional
-	 */
+
 	vm_object_pip_wakeup(fs->object);
 
 	/*
@@ -1073,6 +1100,7 @@ vm_fault_allocate(struct faultstate *fs)
 		switch (rv) {
 		case KERN_SUCCESS:
 		case KERN_FAILURE:
+		case KERN_PROTECTION_FAILURE:
 		case KERN_RESTART:
 			return (rv);
 		case KERN_NOT_RECEIVER:
@@ -1343,6 +1371,7 @@ RetryFault:
 			goto RetryFault;
 		case KERN_SUCCESS:
 		case KERN_FAILURE:
+		case KERN_PROTECTION_FAILURE:
 		case KERN_OUT_OF_BOUNDS:
 			unlock_and_deallocate(&fs);
 			return (rv);
@@ -1410,6 +1439,7 @@ RetryFault:
 				goto RetryFault;
 			case KERN_SUCCESS:
 			case KERN_FAILURE:
+			case KERN_PROTECTION_FAILURE:
 			case KERN_OUT_OF_BOUNDS:
 				unlock_and_deallocate(&fs);
 				return (rv);

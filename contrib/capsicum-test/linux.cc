@@ -104,10 +104,9 @@ TEST(Linux, TimerFD) {
   close(fd);
 }
 
-FORK_TEST(Linux, SignalFD) {
+FORK_TEST(Linux, SignalFDIfSingleThreaded) {
   if (force_mt) {
-    TEST_SKIPPED("multi-threaded run clashes with signals");
-    return;
+    GTEST_SKIP() << "multi-threaded run clashes with signals";
   }
   pid_t me = getpid();
   sigset_t mask;
@@ -372,8 +371,8 @@ TEST(Linux, fstatat) {
 
 // fanotify support may not be available at compile-time
 #ifdef __NR_fanotify_init
-TEST(Linux, fanotify) {
-  REQUIRE_ROOT();
+TEST(Linux, FanotifyIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   int fa_fd = fanotify_init(FAN_CLASS_NOTIF, O_RDWR);
   EXPECT_OK(fa_fd);
   if (fa_fd < 0) return;  // May not be enabled
@@ -577,7 +576,7 @@ TEST(Linux, inotify) {
   unlink(TmpFile("cap_inotify"));
 }
 
-TEST(Linux, ArchChange) {
+TEST(Linux, ArchChangeIfAvailable) {
   const char* prog_candidates[] = {"./mini-me.32", "./mini-me.x32", "./mini-me.64"};
   const char* progs[] = {NULL, NULL, NULL};
   char* argv_pass[] = {(char*)"to-come", (char*)"--capmode", NULL};
@@ -593,8 +592,7 @@ TEST(Linux, ArchChange) {
     }
   }
   if (count == 0) {
-    TEST_SKIPPED("no different-architecture programs available");
-    return;
+    GTEST_SKIP() << "no different-architecture programs available";
   }
 
   for (int ii = 0; ii < count; ii++) {
@@ -617,8 +615,8 @@ TEST(Linux, ArchChange) {
   }
 }
 
-FORK_TEST(Linux, Namespace) {
-  REQUIRE_ROOT();
+FORK_TEST(Linux, NamespaceIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   pid_t me = getpid_();
 
   // Create a new UTS namespace.
@@ -758,9 +756,9 @@ static int ChildFunc(void *arg) {
 #define STACK_SIZE (1024 * 1024)
 static char child_stack[STACK_SIZE];
 
-// TODO(drysdale): fork into a user namespace first so REQUIRE_ROOT can be removed.
-TEST(Linux, PidNamespacePdFork) {
-  REQUIRE_ROOT();
+// TODO(drysdale): fork into a user namespace first so GTEST_SKIP_IF_NOT_ROOT can be removed.
+TEST(Linux, PidNamespacePdForkIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
   // Pass process descriptors in both directions across a PID namespace boundary.
   // pdfork() off a child before we start, holding its process descriptor in a global
   // variable that's accessible to children.
@@ -871,8 +869,8 @@ int NSInit(void *data) {
   return 0;
 }
 
-TEST(Linux, DeadNSInit) {
-  REQUIRE_ROOT();
+TEST(Linux, DeadNSInitIfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
 
   // Prepare sockets to communicate with child process.
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, shared_sock_fds));
@@ -916,8 +914,8 @@ TEST(Linux, DeadNSInit) {
   }
 }
 
-TEST(Linux, DeadNSInit2) {
-  REQUIRE_ROOT();
+TEST(Linux, DeadNSInit2IfRoot) {
+  GTEST_SKIP_IF_NOT_ROOT();
 
   // Prepare sockets to communicate with child process.
   EXPECT_OK(socketpair(AF_UNIX, SOCK_STREAM, 0, shared_sock_fds));
@@ -1188,7 +1186,7 @@ TEST(Linux, AIO) {
 #ifndef KCMP_FILE
 #define KCMP_FILE 0
 #endif
-TEST(Linux, Kcmp) {
+TEST(Linux, KcmpIfAvailable) {
   // This requires CONFIG_CHECKPOINT_RESTORE in kernel config.
   int fd = open("/etc/passwd", O_RDONLY);
   EXPECT_OK(fd);
@@ -1197,8 +1195,7 @@ TEST(Linux, Kcmp) {
   errno = 0;
   int rc = syscall(__NR_kcmp, parent, parent, KCMP_FILE, fd, fd);
   if (rc == -1 && errno == ENOSYS) {
-    TEST_SKIPPED("kcmp(2) gives -ENOSYS");
-    return;
+    GTEST_SKIP() << "kcmp(2) gives -ENOSYS";
   }
 
   pid_t child = fork();
@@ -1362,8 +1359,8 @@ TEST(Linux, InvalidRightsSyscall) {
   unlink(TmpFile("cap_invalid_rights"));
 }
 
-FORK_TEST_ON(Linux, OpenByHandleAt, TmpFile("cap_openbyhandle_testfile")) {
-  REQUIRE_ROOT();
+FORK_TEST_ON(Linux, OpenByHandleAtIfRoot, TmpFile("cap_openbyhandle_testfile")) {
+  GTEST_SKIP_IF_NOT_ROOT();
   int dir = open(tmpdir.c_str(), O_RDONLY);
   EXPECT_OK(dir);
   int fd = openat(dir, "cap_openbyhandle_testfile", O_RDWR|O_CREAT, 0644);
@@ -1380,8 +1377,9 @@ FORK_TEST_ON(Linux, OpenByHandleAt, TmpFile("cap_openbyhandle_testfile")) {
   fd = open_by_handle_at(dir, fhandle, O_RDONLY);
   EXPECT_OK(fd);
   char buffer[200];
-  EXPECT_OK(read(fd, buffer, 199));
-  EXPECT_EQ(std::string(message), std::string(buffer));
+  ssize_t len = read(fd, buffer, 199);
+  EXPECT_OK(len);
+  EXPECT_EQ(std::string(message), std::string(buffer, len));
   close(fd);
 
   // Cannot issue open_by_handle_at after entering capability mode.
@@ -1423,11 +1421,10 @@ int memfd_create_(const char *name, unsigned int flags) {
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 #include <linux/memfd.h>  // Requires 3.17 kernel
-TEST(Linux, MemFDDeathTest) {
+TEST(Linux, MemFDDeathTestIfAvailable) {
   int memfd = memfd_create_("capsicum-test", MFD_ALLOW_SEALING);
   if (memfd == -1 && errno == ENOSYS) {
-    TEST_SKIPPED("memfd_create(2) gives -ENOSYS");
-    return;
+    GTEST_SKIP() << "memfd_create(2) gives -ENOSYS";
   }
   const int LEN = 16;
   EXPECT_OK(ftruncate(memfd, LEN));

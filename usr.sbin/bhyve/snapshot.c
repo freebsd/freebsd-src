@@ -79,8 +79,8 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "acpi.h"
 #include "atkbdc.h"
+#include "debug.h"
 #include "inout.h"
-#include "dbgport.h"
 #include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"
@@ -116,11 +116,7 @@ static sig_t old_winch_handler;
 #define	SNAPSHOT_CHUNK	(4 * MB)
 #define	PROG_BUF_SZ	(8192)
 
-#define	BHYVE_RUN_DIR "/var/run/bhyve"
-#define	CHECKPOINT_RUN_DIR BHYVE_RUN_DIR "/checkpoint"
 #define	MAX_VMNAME 100
-
-#define	MAX_MSG_SIZE 1024
 
 #define	SNAPSHOT_BUFFER_SIZE (20 * MB)
 
@@ -147,13 +143,14 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "atkbdc",	atkbdc_snapshot,	NULL,		NULL		},
 	{ "virtio-net",	pci_snapshot,		pci_pause,	pci_resume	},
 	{ "virtio-blk",	pci_snapshot,		pci_pause,	pci_resume	},
+	{ "virtio-rnd",	pci_snapshot,		NULL,		NULL		},
 	{ "lpc",	pci_snapshot,		NULL,		NULL		},
 	{ "fbuf",	pci_snapshot,		NULL,		NULL		},
 	{ "xhci",	pci_snapshot,		NULL,		NULL		},
 	{ "e1000",	pci_snapshot,		NULL,		NULL		},
 	{ "ahci",	pci_snapshot,		pci_pause,	pci_resume	},
 	{ "ahci-hd",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "ahci-cd",	pci_snapshot,		NULL,		NULL		},
+	{ "ahci-cd",	pci_snapshot,		pci_pause,	pci_resume	},
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
@@ -1444,24 +1441,10 @@ done:
 }
 
 int
-get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
+handle_message(struct checkpoint_op *checkpoint_op, struct vmctx *ctx)
 {
-	unsigned char buf[MAX_MSG_SIZE];
-	struct checkpoint_op *checkpoint_op;
-	int len, recv_len, total_recv = 0;
-	int err = 0;
+	int err;
 
-	len = sizeof(struct checkpoint_op); /* expected length */
-	while ((recv_len = recv(conn_fd, buf + total_recv, len - total_recv, 0)) > 0) {
-		total_recv += recv_len;
-	}
-	if (recv_len < 0) {
-		perror("Error while receiving data from bhyvectl");
-		err = -1;
-		goto done;
-	}
-
-	checkpoint_op = (struct checkpoint_op *)buf;
 	switch (checkpoint_op->op) {
 		case START_CHECKPOINT:
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, false);
@@ -1470,12 +1453,13 @@ get_checkpoint_msg(int conn_fd, struct vmctx *ctx)
 			err = vm_checkpoint(ctx, checkpoint_op->snapshot_filename, true);
 			break;
 		default:
-			fprintf(stderr, "Unrecognized checkpoint operation.\n");
+			EPRINTLN("Unrecognized checkpoint operation\n");
 			err = -1;
 	}
 
-done:
-	close(conn_fd);
+	if (err != 0)
+		EPRINTLN("Unable to perform the requested operation\n");
+
 	return (err);
 }
 
@@ -1485,44 +1469,28 @@ done:
 void *
 checkpoint_thread(void *param)
 {
+	struct checkpoint_op op;
 	struct checkpoint_thread_info *thread_info;
-	int conn_fd, ret;
+	ssize_t n;
 
 	pthread_set_name_np(pthread_self(), "checkpoint thread");
 	thread_info = (struct checkpoint_thread_info *)param;
 
-	while ((conn_fd = accept(thread_info->socket_fd, NULL, NULL)) > -1) {
-		ret = get_checkpoint_msg(conn_fd, thread_info->ctx);
-		if (ret != 0) {
-			fprintf(stderr, "Failed to read message on checkpoint "
-					"socket. Retrying.\n");
-		}
-	}
-	if (conn_fd < -1) {
-		perror("Failed to accept connection");
+	for (;;) {
+		n = recvfrom(thread_info->socket_fd, &op, sizeof(op), 0, NULL, 0);
+
+		/*
+		 * slight sanity check: see if there's enough data to at
+		 * least determine the type of message.
+		 */
+		if (n >= sizeof(op.op))
+			handle_message(&op, thread_info->ctx);
+		else
+			EPRINTLN("Failed to receive message: %s\n",
+			    n == -1 ? strerror(errno) : "unknown error");
 	}
 
 	return (NULL);
-}
-
-/*
- * Create directory tree to store runtime specific information:
- * i.e. UNIX sockets for IPC with bhyvectl.
- */
-static int
-make_checkpoint_dir(void)
-{
-	int err;
-
-	err = mkdir(BHYVE_RUN_DIR, 0755);
-	if (err < 0 && errno != EEXIST)
-		return (err);
-
-	err = mkdir(CHECKPOINT_RUN_DIR, 0755);
-	if (err < 0 && errno != EEXIST)
-		return (err);
-
-	return 0;
 }
 
 /*
@@ -1549,16 +1517,10 @@ init_checkpoint_thread(struct vmctx *ctx)
 	if (err != 0)
 		errc(1, err, "checkpoint cv init");
 
-	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
-		perror("Socket creation failed (IPC with bhyvectl");
+		EPRINTLN("Socket creation failed: %s", strerror(errno));
 		err = -1;
-		goto fail;
-	}
-
-	err = make_checkpoint_dir();
-	if (err < 0) {
-		perror("Failed to create checkpoint runtime directory");
 		goto fail;
 	}
 
@@ -1570,19 +1532,14 @@ init_checkpoint_thread(struct vmctx *ctx)
 		goto fail;
 	}
 
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/%s",
-		 CHECKPOINT_RUN_DIR, vmname_buf);
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s",
+		 BHYVE_RUN_DIR, vmname_buf);
 	addr.sun_len = SUN_LEN(&addr);
 	unlink(addr.sun_path);
 
 	if (bind(socket_fd, (struct sockaddr *)&addr, addr.sun_len) != 0) {
-		perror("Failed to bind socket (IPC with bhyvectl)");
-		err = -1;
-		goto fail;
-	}
-
-	if (listen(socket_fd, 10) < 0) {
-		perror("Failed to listen on socket (IPC with bhyvectl)");
+		EPRINTLN("Failed to bind socket \"%s\": %s\n",
+		    addr.sun_path, strerror(errno));
 		err = -1;
 		goto fail;
 	}

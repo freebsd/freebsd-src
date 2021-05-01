@@ -113,10 +113,12 @@ struct atkbdc_quirks {
 };
 
 static struct atkbdc_quirks quirks[] = {
+    {"coreboot", "System76", NULL, 0},
     {"coreboot", NULL, NULL,
 	KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |
 	KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT},
-    {NULL, NULL, NULL, 0}
+    /* KBDC hangs on Lenovo X120e and X121e after disabling AUX MUX */
+    {NULL, "LENOVO", NULL, KBDC_QUIRK_DISABLE_MUX_PROBE},
 };
 
 #define QUIRK_STR_MATCH(s1, s2) (s1 == NULL || \
@@ -130,7 +132,7 @@ atkbdc_getquirks(void)
     char* maker = kern_getenv("smbios.system.maker");
     char* product = kern_getenv("smbios.system.product");
 
-    for (i=0; quirks[i].quirk != 0; ++i)
+    for (i = 0; i < nitems(quirks); i++)
 	if (QUIRK_STR_MATCH(quirks[i].bios_vendor, bios_vendor) &&
 	    QUIRK_STR_MATCH(quirks[i].maker, maker) &&
 	    QUIRK_STR_MATCH(quirks[i].product, product))

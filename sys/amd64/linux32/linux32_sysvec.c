@@ -199,10 +199,11 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    M_WAITOK | M_ZERO);
 
 	issetugid = imgp->proc->p_flag & P_SUGID ? 1 : 0;
+	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
-	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO, linux32_vsyscall);
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 
 	/*
 	 * Do not export AT_CLKTCK when emulating Linux kernel prior to 2.4.0,
@@ -217,21 +218,21 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
-	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
+	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
-	AUXARGS_ENTRY(pos, AT_BASE, args->base);
-	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
 	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_ucred->cr_ruid);
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_ucred->cr_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
-	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
+	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
 	AUXARGS_ENTRY(pos, LINUX_AT_RANDOM, PTROUT(imgp->canary));
+	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP2, 0);
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, LINUX_AT_EXECFN, PTROUT(imgp->execpathp));
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -678,7 +679,7 @@ linux32_set_syscall_retval(struct thread *td, int error)
 
 	if (__predict_false(error != 0)) {
 		if (error != ERESTART && error != EJUSTRETURN)
-			frame->tf_rax = linux_to_bsd_errno(error);
+			frame->tf_rax = bsd_to_linux_errno(error);
 	}
 }
 
@@ -721,6 +722,8 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = (register_t)imgp->ps_strings;
+
+	x86_clear_dbregs(pcb);
 
 	fpstate_drop(td);
 
@@ -925,6 +928,9 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
 	.sv_trap	= NULL,
+	.sv_onexec	= linux_on_exec,
+	.sv_onexit	= linux_on_exit,
+	.sv_ontdexit	= linux_thread_dtor,
 };
 
 static void
@@ -958,7 +964,8 @@ static void
 linux_vdso_deinstall(void *param)
 {
 
-	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
+	__elfN(linux_shared_page_fini)(linux_shared_page_obj,
+	    linux_shared_page_mapping);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_deinstall, NULL);

@@ -95,9 +95,9 @@
  *  Max number of scatter/gather entries for an I/O.
  *  Each entry costs 8 bytes in the internal CCB data structure.
  *  We use at most 33 segments but also no more than required for handling
- *  MAXPHYS.
+ *  legacy MAXPHYS == 128 * 1024.
  */
-#define	SYM_CONF_MAX_SG		(MIN(33, (MAXPHYS / PAGE_SIZE) + 1))
+#define	SYM_CONF_MAX_SG		(MIN(33, (128 * 1024 / PAGE_SIZE) + 1))
 
 /*
  *  Max number of targets.
@@ -272,32 +272,6 @@
  */
 #ifndef SYM_SETUP_MAX_LUN
 #define SYM_SETUP_MAX_LUN	(8)
-#endif
-
-/*
- *  Low priority probe map.
- * 
- *  This option is used as a bitmap to tell the driver 
- *  about chips that are to be claimed with a low priority 
- *  (-2000) by the probe method. This allows any other driver 
- *  that may return some higher priority value for the same 
- *  chips to take precedence over this driver (sym).
- *  This option may be used when both the ncr driver and this 
- *  driver are configured.
- *
- *  Bits are to be coded as follows:
- *    0x01  ->  810a, 860
- *    0x02  ->  825a, 875, 885, 895
- *    0x04  ->  895a, 896, 1510d
- *    0x08  ->  1010
- *    0x40  ->  810, 815, 825
- *
- *  For example, value 5 tells the driver to claim support 
- *  for 810a, 860, 895a, 896 and 1510d with low priority, 
- *  allowing the ncr driver to take precedence if configured.
- */
-#ifndef SYM_SETUP_LP_PROBE_MAP
-#define SYM_SETUP_LP_PROBE_MAP 0
 #endif
 
 #endif /* SYM_CONF_H */

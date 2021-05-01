@@ -1173,6 +1173,66 @@ ipsec_hdrsiz_inpcb(struct inpcb *inp)
 	return (sz);
 }
 
+
+#define IPSEC_BITMAP_INDEX_MASK(w)	(w - 1)
+#define IPSEC_REDUNDANT_BIT_SHIFTS	5
+#define IPSEC_REDUNDANT_BITS		(1 << IPSEC_REDUNDANT_BIT_SHIFTS)
+#define IPSEC_BITMAP_LOC_MASK		(IPSEC_REDUNDANT_BITS - 1)
+
+/*
+ * Functions below are responsible for checking and updating bitmap.
+ * These are used to separate ipsec_chkreplay() and ipsec_updatereplay()
+ * from window implementation
+ *
+ * Based on RFC 6479. Blocks are 32 bits unsigned integers
+ */
+
+static inline int
+check_window(const struct secreplay *replay, uint64_t seq)
+{
+	int index, bit_location;
+
+	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
+	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
+		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
+
+	/* This packet already seen? */
+	return ((replay->bitmap)[index] & (1 << bit_location));
+}
+
+static inline void
+advance_window(const struct secreplay *replay, uint64_t seq)
+{
+	int i;
+	uint64_t index, index_cur, diff;
+
+	index_cur = replay->last >> IPSEC_REDUNDANT_BIT_SHIFTS;
+	index = seq >> IPSEC_REDUNDANT_BIT_SHIFTS;
+	diff = index - index_cur;
+
+	if (diff > replay->bitmap_size) {
+		/* something unusual in this case */
+		diff = replay->bitmap_size;
+	}
+
+	for (i = 0; i < diff; i++) {
+		replay->bitmap[(i + index_cur + 1)
+		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size)] = 0;
+	}
+}
+
+static inline void
+set_window(const struct secreplay *replay, uint64_t seq)
+{
+	int index, bit_location;
+
+	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
+	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
+		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
+
+	replay->bitmap[index] |= (1 << bit_location);
+}
+
 /*
  * Check the variable replay window.
  * ipsec_chkreplay() performs replay check before ICV verification.
@@ -1181,20 +1241,17 @@ ipsec_hdrsiz_inpcb(struct inpcb *inp)
  * beforehand).
  * 0 (zero) is returned if packet disallowed, 1 if packet permitted.
  *
- * Based on RFC 6479. Blocks are 32 bits unsigned integers
+ * Based on RFC 4303
  */
 
-#define IPSEC_BITMAP_INDEX_MASK(w)	(w - 1)
-#define IPSEC_REDUNDANT_BIT_SHIFTS	5
-#define IPSEC_REDUNDANT_BITS		(1 << IPSEC_REDUNDANT_BIT_SHIFTS)
-#define IPSEC_BITMAP_LOC_MASK		(IPSEC_REDUNDANT_BITS - 1)
-
 int
-ipsec_chkreplay(uint32_t seq, struct secasvar *sav)
+ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 {
-	const struct secreplay *replay;
-	uint32_t wsizeb;		/* Constant: window size. */
-	int index, bit_location;
+	char buf[128];
+	struct secreplay *replay;
+	uint32_t window;
+	uint32_t tl, th, bl;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));
@@ -1205,36 +1262,96 @@ ipsec_chkreplay(uint32_t seq, struct secasvar *sav)
 	if (replay->wsize == 0)
 		return (1);
 
-	/* Constant. */
-	wsizeb = replay->wsize << 3;
-
-	/* Sequence number of 0 is invalid. */
-	if (seq == 0)
+	/* Zero sequence number is not allowed. */
+	if (seq == 0 && replay->last == 0)
 		return (0);
 
-	/* First time is always okay. */
-	if (replay->count == 0)
-		return (1);
+	window = replay->wsize << 3;		/* Size of window */
+	tl = (uint32_t)replay->last;		/* Top of window, lower part */
+	th = (uint32_t)(replay->last >> 32);	/* Top of window, high part */
+	bl = tl - window + 1;			/* Bottom of window, lower part */
 
-	/* Larger sequences are okay. */
-	if (seq > replay->lastseq)
-		return (1);
-
-	/* Over range to check, i.e. too old or wrapped. */
-	if (replay->lastseq - seq >= wsizeb)
-		return (0);
-
-	/* The sequence is inside the sliding window
-	 * now check the bit in the bitmap
-	 * bit location only depends on the sequence number
+	/*
+	 * We keep the high part intact when:
+	 * 1) the seq is within [bl, 0xffffffff] and the whole window is
+	 *    within one subspace;
+	 * 2) the seq is within [0, bl) and window spans two subspaces.
 	 */
-	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
-	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS)
-		& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
+	if ((tl >= window - 1 && seq >= bl) ||
+	    (tl < window - 1 && seq < bl)) {
+		*seqhigh = th;
+		if (seq <= tl) {
+			/* Sequence number inside window - check against replay */
+			if (check_window(replay, seq))
+				return (0);
+		}
 
-	/* This packet already seen? */
-	if ((replay->bitmap)[index] & (1 << bit_location))
-		return (0);
+		/* Sequence number above top of window or not found in bitmap */
+		return (1);
+	}
+
+	/*
+	 * If ESN is not enabled and packet with highest sequence number
+	 * was received we should report overflow
+	 */
+	if (tl == 0xffffffff && !(sav->flags & SADB_X_SAFLAGS_ESN)) {
+		/* Set overflow flag. */
+		replay->overflow++;
+
+		if ((sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
+			if (sav->sah->saidx.proto == IPPROTO_ESP)
+				ESPSTAT_INC(esps_wrap);
+			else if (sav->sah->saidx.proto == IPPROTO_AH)
+				AHSTAT_INC(ahs_wrap);
+			return (0);
+		}
+
+		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
+		    __func__, replay->overflow,
+		    ipsec_sa2str(sav, buf, sizeof(buf))));
+	}
+
+	/*
+	 * Seq is within [bl, 0xffffffff] and bl is within
+	 * [0xffffffff-window, 0xffffffff].  This means we got a seq
+	 * which is within our replay window, but in the previous
+	 * subspace.
+	 */
+	if (tl < window - 1 && seq >= bl) {
+		if (th == 0)
+			return (0);
+		*seqhigh = th - 1;
+		seqh = th - 1;
+		if (check_window(replay, seq))
+			return (0);
+		return (1);
+	}
+
+	/*
+	 * Seq is within [0, bl) but the whole window is within one subspace.
+	 * This means that seq has wrapped and is in next subspace
+	 */
+	*seqhigh = th + 1;
+	seqh = th + 1;
+
+	/* Don't let high part wrap. */
+	if (seqh == 0) {
+		/* Set overflow flag. */
+		replay->overflow++;
+
+		if ((sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
+			if (sav->sah->saidx.proto == IPPROTO_ESP)
+				ESPSTAT_INC(esps_wrap);
+			else if (sav->sah->saidx.proto == IPPROTO_AH)
+				AHSTAT_INC(ahs_wrap);
+			return (0);
+		}
+
+		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
+		    __func__, replay->overflow,
+		    ipsec_sa2str(sav, buf, sizeof(buf))));
+	}
+
 	return (1);
 }
 
@@ -1246,84 +1363,90 @@ ipsec_chkreplay(uint32_t seq, struct secasvar *sav)
 int
 ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 {
-	char buf[128];
 	struct secreplay *replay;
-	uint32_t wsizeb;		/* Constant: window size. */
-	int diff, index, bit_location;
+	uint32_t window;
+	uint32_t tl, th, bl;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("Null SA"));
 	IPSEC_ASSERT(sav->replay != NULL, ("Null replay state"));
 
 	replay = sav->replay;
 
+	/* No need to check replay if disabled. */
 	if (replay->wsize == 0)
-		goto ok;	/* No need to check replay. */
+		return (0);
 
-	/* Constant. */
-	wsizeb = replay->wsize << 3;
-
-	/* Sequence number of 0 is invalid. */
-	if (seq == 0)
+	/* Zero sequence number is not allowed. */
+	if (seq == 0 && replay->last == 0)
 		return (1);
 
-	/* The packet is too old, no need to update */
-	if (wsizeb + seq < replay->lastseq)
-		goto ok;
+	window = replay->wsize << 3;		/* Size of window */
+	tl = (uint32_t)replay->last;		/* Top of window, lower part */
+	th = (uint32_t)(replay->last >> 32);	/* Top of window, high part */
+	bl = tl - window + 1;			/* Bottom of window, lower part */
 
-	/* Now update the bit */
-	index = (seq >> IPSEC_REDUNDANT_BIT_SHIFTS);
-
-	/* First check if the sequence number is in the range */
-	if (seq > replay->lastseq) {
-		int id;
-		int index_cur = replay->lastseq >> IPSEC_REDUNDANT_BIT_SHIFTS;
-
-		diff = index - index_cur;
-		if (diff > replay->bitmap_size) {
-			/* something unusual in this case */
-			diff = replay->bitmap_size;
+	/*
+	 * We keep the high part intact when:
+	 * 1) the seq is within [bl, 0xffffffff] and the whole window is
+	 *    within one subspace;
+	 * 2) the seq is within [0, bl) and window spans two subspaces.
+	 */
+	if ((tl >= window - 1 && seq >= bl) ||
+	    (tl < window - 1 && seq < bl)) {
+		seqh = th;
+		if (seq <= tl) {
+			/* Sequence number inside window - check against replay */
+			if (check_window(replay, seq))
+				return (1);
+			set_window(replay, seq);
+		} else {
+			advance_window(replay, ((uint64_t)seqh << 32) | seq);
+			set_window(replay, seq);
+			replay->last = ((uint64_t)seqh << 32) | seq;
 		}
 
-		for (id = 0; id < diff; ++id) {
-			replay->bitmap[(id + index_cur + 1)
-			& IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size)] = 0;
-		}
-
-		replay->lastseq = seq;
+		/* Sequence number above top of window or not found in bitmap */
+		replay->count++;
+		return (0);
 	}
 
-	index &= IPSEC_BITMAP_INDEX_MASK(replay->bitmap_size);
-	bit_location = seq & IPSEC_BITMAP_LOC_MASK;
-
-	/* this packet has already been received */
-	if (replay->bitmap[index] & (1 << bit_location))
+	if (!(sav->flags & SADB_X_SAFLAGS_ESN))
 		return (1);
 
-	replay->bitmap[index] |= (1 << bit_location);
-
-ok:
-	if (replay->count == ~0) {
-		/* Set overflow flag. */
-		replay->overflow++;
-
-		/* Don't increment, no more packets accepted. */
-		if ((sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
-			if (sav->sah->saidx.proto == IPPROTO_AH)
-				AHSTAT_INC(ahs_wrap);
-			else if (sav->sah->saidx.proto == IPPROTO_ESP)
-				ESPSTAT_INC(esps_wrap);
+	/*
+	 * Seq is within [bl, 0xffffffff] and bl is within
+	 * [0xffffffff-window, 0xffffffff].  This means we got a seq
+	 * which is within our replay window, but in the previous
+	 * subspace.
+	 */
+	if (tl < window - 1 && seq >= bl) {
+		if (th == 0)
 			return (1);
-		}
+		if (check_window(replay, seq))
+			return (1);
 
-		ipseclog((LOG_WARNING, "%s: replay counter made %d cycle. %s\n",
-		    __func__, replay->overflow,
-		    ipsec_sa2str(sav, buf, sizeof(buf))));
+		set_window(replay, seq);
+		replay->count++;
+		return (0);
 	}
 
+	/*
+	 * Seq is within [0, bl) but the whole window is within one subspace.
+	 * This means that seq has wrapped and is in next subspace
+	 */
+	seqh = th + 1;
+
+	/* Don't let high part wrap. */
+	if (seqh == 0)
+		return (1);
+
+	advance_window(replay, ((uint64_t)seqh << 32) | seq);
+	set_window(replay, seq);
+	replay->last = ((uint64_t)seqh << 32) | seq;
 	replay->count++;
 	return (0);
 }
-
 int
 ipsec_updateid(struct secasvar *sav, crypto_session_t *new,
     crypto_session_t *old)

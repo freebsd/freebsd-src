@@ -11,18 +11,18 @@ static u_char sysuptime[] = { 6, 8, 0x2b, 6, 1, 2, 1, 1, 3, 0 };
 static u_char ipf_trap0_1[] = { 6, 10, 0x2b, 6, 1, 4, 1, 0xcd, 0x4c, 1, 1, 1 };
 static u_char ipf_trap0_2[] = { 6, 10, 0x2b, 6, 1, 4, 1, 0xcd, 0x4c, 1, 1, 2 };
 
-static int writeint __P((u_char *, int));
-static int writelength __P((u_char *, u_int));
-static int maketrap_v2 __P((char *, u_char *, int, u_char *, int));
-static void snmpv2_destroy __P((void *));
-static void *snmpv2_dup __P((void *));
-static int snmpv2_match __P((void *, void *));
-static void *snmpv2_parse __P((char **));
-static void snmpv2_print __P((void *));
-static int snmpv2_send __P((void *, ipmon_msg_t *));
+static int writeint(u_char *, int);
+static int writelength(u_char *, u_int);
+static int maketrap_v2(char *, u_char *, int, u_char *, int);
+static void snmpv2_destroy(void *);
+static void *snmpv2_dup(void *);
+static int snmpv2_match(void *, void *);
+static void *snmpv2_parse(char **);
+static void snmpv2_print(void *);
+static int snmpv2_send(void *, ipmon_msg_t *);
 
 
-int sendtrap_v2_0 __P((int, char *, char *, int));
+int sendtrap_v2_0(int, char *, char *, int);
 
 static char def_community[] = "public";	/* ublic */
 

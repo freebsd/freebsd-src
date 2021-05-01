@@ -40,9 +40,9 @@
 struct lock {
 	struct lock_object	lock_object;
 	volatile uintptr_t	lk_lock;
-	u_int			lk_exslpfail;
+	u_short			lk_exslpfail;
+	u_short			lk_pri;
 	int			lk_timo;
-	int			lk_pri;
 #ifdef DEBUG_LOCKS
 	struct stack		lk_stack;
 #endif

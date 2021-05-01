@@ -10,10 +10,14 @@
 
 #include <stdio.h>
 #include "ssl_local.h"
+#include "record/record_local.h"
+#include "internal/ktls.h"
+#include "internal/cryptlib.h"
 #include <openssl/comp.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 #include <openssl/rand.h>
+#include <openssl/obj_mac.h>
 
 /* seed1 through seed5 are concatenated */
 static int tls1_PRF(SSL *s,
@@ -78,6 +82,41 @@ static int tls1_generate_key_block(SSL *s, unsigned char *km, size_t num)
     return ret;
 }
 
+#ifndef OPENSSL_NO_KTLS
+ /*
+  * Count the number of records that were not processed yet from record boundary.
+  *
+  * This function assumes that there are only fully formed records read in the
+  * record layer. If read_ahead is enabled, then this might be false and this
+  * function will fail.
+  */
+# ifndef OPENSSL_NO_KTLS_RX
+static int count_unprocessed_records(SSL *s)
+{
+    SSL3_BUFFER *rbuf = RECORD_LAYER_get_rbuf(&s->rlayer);
+    PACKET pkt, subpkt;
+    int count = 0;
+
+    if (!PACKET_buf_init(&pkt, rbuf->buf + rbuf->offset, rbuf->left))
+        return -1;
+
+    while (PACKET_remaining(&pkt) > 0) {
+        /* Skip record type and version */
+        if (!PACKET_forward(&pkt, 3))
+            return -1;
+
+        /* Read until next record */
+        if (PACKET_get_length_prefixed_2(&pkt, &subpkt))
+            return -1;
+
+        count += 1;
+    }
+
+    return count;
+}
+# endif
+#endif
+
 int tls1_change_cipher_state(SSL *s, int which)
 {
     unsigned char *p, *mac_secret;
@@ -94,6 +133,16 @@ int tls1_change_cipher_state(SSL *s, int which)
     EVP_PKEY *mac_key;
     size_t n, i, j, k, cl;
     int reuse_dd = 0;
+#ifndef OPENSSL_NO_KTLS
+    ktls_crypto_info_t crypto_info;
+    unsigned char *rec_seq;
+    void *rl_sequence;
+# ifndef OPENSSL_NO_KTLS_RX
+    int count_unprocessed;
+    int bit;
+# endif
+    BIO *bio;
+#endif
 
     c = s->s3->tmp.new_sym_enc;
     m = s->s3->tmp.new_hash;
@@ -312,6 +361,85 @@ int tls1_change_cipher_state(SSL *s, int which)
                  ERR_R_INTERNAL_ERROR);
         goto err;
     }
+#ifndef OPENSSL_NO_KTLS
+    if (s->compress)
+        goto skip_ktls;
+
+    if (((which & SSL3_CC_READ) && (s->mode & SSL_MODE_NO_KTLS_RX))
+        || ((which & SSL3_CC_WRITE) && (s->mode & SSL_MODE_NO_KTLS_TX)))
+        goto skip_ktls;
+
+    /* ktls supports only the maximum fragment size */
+    if (ssl_get_max_send_fragment(s) != SSL3_RT_MAX_PLAIN_LENGTH)
+        goto skip_ktls;
+
+    /* check that cipher is supported */
+    if (!ktls_check_supported_cipher(s, c, dd))
+        goto skip_ktls;
+
+    if (which & SSL3_CC_WRITE)
+        bio = s->wbio;
+    else
+        bio = s->rbio;
+
+    if (!ossl_assert(bio != NULL)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS1_CHANGE_CIPHER_STATE,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    /* All future data will get encrypted by ktls. Flush the BIO or skip ktls */
+    if (which & SSL3_CC_WRITE) {
+       if (BIO_flush(bio) <= 0)
+           goto skip_ktls;
+    }
+
+    /* ktls doesn't support renegotiation */
+    if ((BIO_get_ktls_send(s->wbio) && (which & SSL3_CC_WRITE)) ||
+        (BIO_get_ktls_recv(s->rbio) && (which & SSL3_CC_READ))) {
+        SSLfatal(s, SSL_AD_NO_RENEGOTIATION, SSL_F_TLS1_CHANGE_CIPHER_STATE,
+                 ERR_R_INTERNAL_ERROR);
+        goto err;
+    }
+
+    if (which & SSL3_CC_WRITE)
+        rl_sequence = RECORD_LAYER_get_write_sequence(&s->rlayer);
+    else
+        rl_sequence = RECORD_LAYER_get_read_sequence(&s->rlayer);
+
+    if (!ktls_configure_crypto(s, c, dd, rl_sequence, &crypto_info, &rec_seq,
+                               iv, key, ms, *mac_secret_size))
+        goto skip_ktls;
+
+    if (which & SSL3_CC_READ) {
+# ifndef OPENSSL_NO_KTLS_RX
+        count_unprocessed = count_unprocessed_records(s);
+        if (count_unprocessed < 0)
+            goto skip_ktls;
+
+        /* increment the crypto_info record sequence */
+        while (count_unprocessed) {
+            for (bit = 7; bit >= 0; bit--) { /* increment */
+                ++rec_seq[bit];
+                if (rec_seq[bit] != 0)
+                    break;
+            }
+            count_unprocessed--;
+        }
+# else
+        goto skip_ktls;
+# endif
+    }
+
+    /* ktls works with user provided buffers directly */
+    if (BIO_set_ktls(bio, &crypto_info, which & SSL3_CC_WRITE)) {
+        if (which & SSL3_CC_WRITE)
+            ssl3_release_write_buffer(s);
+        SSL_set_options(s, SSL_OP_NO_RENEGOTIATION);
+    }
+
+ skip_ktls:
+#endif                          /* OPENSSL_NO_KTLS */
     s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
 
 #ifdef SSL_DEBUG

@@ -144,7 +144,7 @@ static void
 ofw_dump_properties(int fd, phandle_t n, int level, int raw, int str)
 {
 	int nlen;
-	char prop[32];
+	char prop[OFIOCSUGGPROPNAMELEN];
 
 	for (nlen = ofw_firstprop(fd, n, prop, sizeof(prop)); nlen != 0;
 	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop)))

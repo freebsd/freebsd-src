@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -676,6 +676,13 @@ AcpiEvInstallSpaceHandler (
     }
 
     /* Init handler obj */
+
+    Status = AcpiOsCreateMutex (&HandlerObj->AddressSpace.ContextMutex);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiUtRemoveReference (HandlerObj);
+        goto UnlockAndExit;
+    }
 
     HandlerObj->AddressSpace.SpaceId = (UINT8) SpaceId;
     HandlerObj->AddressSpace.HandlerFlags = Flags;

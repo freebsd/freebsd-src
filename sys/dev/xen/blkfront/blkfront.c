@@ -1306,8 +1306,8 @@ xbd_connect(struct xbd_softc *sc)
 		sc->xbd_max_request_segments = 0;
 	if (sc->xbd_max_request_segments > XBD_MAX_INDIRECT_SEGMENTS)
 		sc->xbd_max_request_segments = XBD_MAX_INDIRECT_SEGMENTS;
-	if (sc->xbd_max_request_segments > XBD_SIZE_TO_SEGS(MAXPHYS))
-		sc->xbd_max_request_segments = XBD_SIZE_TO_SEGS(MAXPHYS);
+	if (sc->xbd_max_request_segments > XBD_SIZE_TO_SEGS(maxphys))
+		sc->xbd_max_request_segments = XBD_SIZE_TO_SEGS(maxphys);
 	sc->xbd_max_request_indirectpages =
 	    XBD_INDIRECT_SEGS_TO_PAGES(sc->xbd_max_request_segments);
 	if (sc->xbd_max_request_segments < BLKIF_MAX_SEGMENTS_PER_REQUEST)

@@ -157,8 +157,8 @@ static int	 vtcon_attach(device_t);
 static int	 vtcon_detach(device_t);
 static int	 vtcon_config_change(device_t);
 
-static void	 vtcon_setup_features(struct vtcon_softc *);
-static void	 vtcon_negotiate_features(struct vtcon_softc *);
+static int	 vtcon_setup_features(struct vtcon_softc *);
+static int	 vtcon_negotiate_features(struct vtcon_softc *);
 static int	 vtcon_alloc_scports(struct vtcon_softc *);
 static int	 vtcon_alloc_virtqueues(struct vtcon_softc *);
 static void	 vtcon_read_config(struct vtcon_softc *,
@@ -226,6 +226,14 @@ static void	 vtcon_get_console_size(struct vtcon_softc *, uint16_t *,
 static void	 vtcon_enable_interrupts(struct vtcon_softc *);
 static void	 vtcon_disable_interrupts(struct vtcon_softc *);
 
+#define vtcon_modern(_sc) (((_sc)->vtcon_features & VIRTIO_F_VERSION_1) != 0)
+#define vtcon_htog16(_sc, _val)	virtio_htog16(vtcon_modern(_sc), _val)
+#define vtcon_htog32(_sc, _val)	virtio_htog32(vtcon_modern(_sc), _val)
+#define vtcon_htog64(_sc, _val)	virtio_htog64(vtcon_modern(_sc), _val)
+#define vtcon_gtoh16(_sc, _val)	virtio_gtoh16(vtcon_modern(_sc), _val)
+#define vtcon_gtoh32(_sc, _val)	virtio_gtoh32(vtcon_modern(_sc), _val)
+#define vtcon_gtoh64(_sc, _val)	virtio_gtoh64(vtcon_modern(_sc), _val)
+
 static int	 vtcon_pending_free;
 
 static struct ttydevsw vtcon_tty_class = {
@@ -255,17 +263,13 @@ static driver_t vtcon_driver = {
 };
 static devclass_t vtcon_devclass;
 
-DRIVER_MODULE(virtio_console, virtio_mmio, vtcon_driver, vtcon_devclass,
-    vtcon_modevent, 0);
-DRIVER_MODULE(virtio_console, virtio_pci, vtcon_driver, vtcon_devclass,
+VIRTIO_DRIVER_MODULE(virtio_console, vtcon_driver, vtcon_devclass,
     vtcon_modevent, 0);
 MODULE_VERSION(virtio_console, 1);
 MODULE_DEPEND(virtio_console, virtio, 1, 1, 1);
 
-VIRTIO_SIMPLE_PNPTABLE(virtio_console, VIRTIO_ID_CONSOLE,
+VIRTIO_SIMPLE_PNPINFO(virtio_console, VIRTIO_ID_CONSOLE,
     "VirtIO Console Adapter");
-VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_console);
-VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_console);
 
 static int
 vtcon_modevent(module_t mod, int type, void *unused)
@@ -323,12 +327,16 @@ vtcon_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtcon_dev = dev;
+	virtio_set_feature_desc(dev, vtcon_feature_desc);
 
 	mtx_init(&sc->vtcon_mtx, "vtconmtx", NULL, MTX_DEF);
 	mtx_init(&sc->vtcon_ctrl_tx_mtx, "vtconctrlmtx", NULL, MTX_DEF);
 
-	virtio_set_feature_desc(dev, vtcon_feature_desc);
-	vtcon_setup_features(sc);
+	error = vtcon_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	vtcon_read_config(sc, &concfg);
 	vtcon_determine_max_ports(sc, &concfg);
@@ -420,7 +428,7 @@ vtcon_config_change(device_t dev)
 	return (0);
 }
 
-static void
+static int
 vtcon_negotiate_features(struct vtcon_softc *sc)
 {
 	device_t dev;
@@ -430,21 +438,27 @@ vtcon_negotiate_features(struct vtcon_softc *sc)
 	features = VTCON_FEATURES;
 
 	sc->vtcon_features = virtio_negotiate_features(dev, features);
+	return (virtio_finalize_features(dev));
 }
 
-static void
+static int
 vtcon_setup_features(struct vtcon_softc *sc)
 {
 	device_t dev;
+	int error;
 
 	dev = sc->vtcon_dev;
 
-	vtcon_negotiate_features(sc);
+	error = vtcon_negotiate_features(sc);
+	if (error)
+		return (error);
 
 	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_SIZE))
 		sc->vtcon_flags |= VTCON_FLAG_SIZE;
 	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_MULTIPORT))
 		sc->vtcon_flags |= VTCON_FLAG_MULTIPORT;
+
+	return (0);
 }
 
 #define VTCON_GET_CONFIG(_dev, _feature, _field, _cfg)			\
@@ -846,17 +860,20 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
     struct virtio_console_control *control, void *data, size_t data_len)
 {
 	device_t dev;
-	int id;
+	uint32_t id;
+	uint16_t event;
 
 	dev = sc->vtcon_dev;
-	id = control->id;
+	id = vtcon_htog32(sc, control->id);
+	event = vtcon_htog16(sc, control->event);
 
-	if (id < 0 || id >= sc->vtcon_max_ports) {
-		device_printf(dev, "%s: invalid port ID %d\n", __func__, id);
+	if (id >= sc->vtcon_max_ports) {
+		device_printf(dev, "%s: event %d invalid port ID %d\n",
+		    __func__, event, id);
 		return;
 	}
 
-	switch (control->event) {
+	switch (event) {
 	case VIRTIO_CONSOLE_PORT_ADD:
 		vtcon_ctrl_port_add_event(sc, id);
 		break;
@@ -984,9 +1001,9 @@ vtcon_ctrl_send_control(struct vtcon_softc *sc, uint32_t portid,
 	if ((sc->vtcon_flags & VTCON_FLAG_MULTIPORT) == 0)
 		return;
 
-	control.id = portid;
-	control.event = event;
-	control.value = value;
+	control.id = vtcon_gtoh32(sc, portid);
+	control.event = vtcon_gtoh16(sc, event);
+	control.value = vtcon_gtoh16(sc, value);
 
 	vtcon_ctrl_poll(sc, &control);
 }

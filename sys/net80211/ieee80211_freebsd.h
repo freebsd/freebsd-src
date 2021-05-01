@@ -43,6 +43,19 @@
 #include <net/debugnet.h>
 
 /*
+ * priv(9) NET80211 checks.
+ */
+struct ieee80211vap;
+int ieee80211_priv_check_vap_getkey(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_vap_manage(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_vap_setmac(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_create_vap(u_long, struct ieee80211vap *,
+    struct ifnet *);
+
+/*
  * Common state locking definitions.
  */
 typedef struct {
@@ -346,7 +359,7 @@ struct ieee80211com;
 int	ieee80211_parent_xmitpkt(struct ieee80211com *, struct mbuf *);
 int	ieee80211_vap_xmitpkt(struct ieee80211vap *, struct mbuf *);
 
-void	get_random_bytes(void *, size_t);
+void	net80211_get_random_bytes(void *, size_t);
 
 void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);

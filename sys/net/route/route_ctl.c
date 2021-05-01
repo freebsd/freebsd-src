@@ -53,10 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <net/route/nhop_var.h>
 #include <netinet/in.h>
-
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
+#include <netinet6/scope6_var.h>
 
 #include <vm/uma.h>
 
@@ -70,6 +67,7 @@ struct rib_subscription {
 	CK_STAILQ_ENTRY(rib_subscription)	next;
 	rib_subscription_cb_t			*func;
 	void					*arg;
+	struct rib_head				*rnh;
 	enum rib_subscription_type		type;
 	struct epoch_context			epoch_ctx;
 };
@@ -103,7 +101,7 @@ SYSCTL_DECL(_net_route);
 #else
 #define _MP_FLAGS	CTLFLAG_RD
 #endif
-VNET_DEFINE(u_int, rib_route_multipath) = 0;
+VNET_DEFINE(u_int, rib_route_multipath) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
 #undef _MP_FLAGS
@@ -132,13 +130,24 @@ vnet_rtzone_destroy()
 static void
 destroy_rtentry(struct rtentry *rt)
 {
+#ifdef VIMAGE
+	struct nhop_object *nh = rt->rt_nhop;
 
 	/*
 	 * At this moment rnh, nh_control may be already freed.
 	 * nhop interface may have been migrated to a different vnet.
 	 * Use vnet stored in the nexthop to delete the entry.
 	 */
-	CURVNET_SET(nhop_get_vnet(rt->rt_nhop));
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh)) {
+		struct weightened_nhop *wn;
+		uint32_t num_nhops;
+		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
+		nh = wn[0].nh;
+	}
+#endif
+	CURVNET_SET(nhop_get_vnet(nh));
+#endif
 
 	/* Unreference nexthop */
 	nhop_free_any(rt->rt_nhop);
@@ -238,6 +247,142 @@ get_info_weight(const struct rt_addrinfo *info, uint32_t default_weight)
 
 	return (weight);
 }
+
+bool
+rt_is_host(const struct rtentry *rt)
+{
+
+	return (rt->rte_flags & RTF_HOST);
+}
+
+sa_family_t
+rt_get_family(const struct rtentry *rt)
+{
+	const struct sockaddr *dst;
+
+	dst = (const struct sockaddr *)rt_key_const(rt);
+
+	return (dst->sa_family);
+}
+
+/*
+ * Returns pointer to nexthop or nexthop group
+ * associated with @rt
+ */
+struct nhop_object *
+rt_get_raw_nhop(const struct rtentry *rt)
+{
+
+	return (rt->rt_nhop);
+}
+
+#ifdef INET
+/*
+ * Stores IPv4 address and prefix length of @rt inside
+ *  @paddr and @plen.
+ * @pscopeid is currently always set to 0.
+ */
+void
+rt_get_inet_prefix_plen(const struct rtentry *rt, struct in_addr *paddr,
+    int *plen, uint32_t *pscopeid)
+{
+	const struct sockaddr_in *dst;
+
+	dst = (const struct sockaddr_in *)rt_key_const(rt);
+	KASSERT((dst->sin_family == AF_INET),
+	    ("rt family is %d, not inet", dst->sin_family));
+	*paddr = dst->sin_addr;
+	dst = (const struct sockaddr_in *)rt_mask_const(rt);
+	if (dst == NULL)
+		*plen = 32;
+	else
+		*plen = bitcount32(dst->sin_addr.s_addr);
+	*pscopeid = 0;
+}
+
+/*
+ * Stores IPv4 address and prefix mask of @rt inside
+ *  @paddr and @pmask. Sets mask to INADDR_ANY for host routes.
+ * @pscopeid is currently always set to 0.
+ */
+void
+rt_get_inet_prefix_pmask(const struct rtentry *rt, struct in_addr *paddr,
+    struct in_addr *pmask, uint32_t *pscopeid)
+{
+	const struct sockaddr_in *dst;
+
+	dst = (const struct sockaddr_in *)rt_key_const(rt);
+	KASSERT((dst->sin_family == AF_INET),
+	    ("rt family is %d, not inet", dst->sin_family));
+	*paddr = dst->sin_addr;
+	dst = (const struct sockaddr_in *)rt_mask_const(rt);
+	if (dst == NULL)
+		pmask->s_addr = INADDR_BROADCAST;
+	else
+		*pmask = dst->sin_addr;
+	*pscopeid = 0;
+}
+#endif
+
+#ifdef INET6
+static int
+inet6_get_plen(const struct in6_addr *addr)
+{
+
+	return (bitcount32(addr->s6_addr32[0]) + bitcount32(addr->s6_addr32[1]) +
+	    bitcount32(addr->s6_addr32[2]) + bitcount32(addr->s6_addr32[3]));
+}
+
+/*
+ * Stores IPv6 address and prefix length of @rt inside
+ *  @paddr and @plen. Addresses are returned in de-embedded form.
+ * Scopeid is set to 0 for non-LL addresses.
+ */
+void
+rt_get_inet6_prefix_plen(const struct rtentry *rt, struct in6_addr *paddr,
+    int *plen, uint32_t *pscopeid)
+{
+	const struct sockaddr_in6 *dst;
+
+	dst = (const struct sockaddr_in6 *)rt_key_const(rt);
+	KASSERT((dst->sin6_family == AF_INET6),
+	    ("rt family is %d, not inet6", dst->sin6_family));
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
+		in6_splitscope(&dst->sin6_addr, paddr, pscopeid);
+	else
+		*paddr = dst->sin6_addr;
+	dst = (const struct sockaddr_in6 *)rt_mask_const(rt);
+	if (dst == NULL)
+		*plen = 128;
+	else
+		*plen = inet6_get_plen(&dst->sin6_addr);
+}
+
+/*
+ * Stores IPv6 address and prefix mask of @rt inside
+ *  @paddr and @pmask. Addresses are returned in de-embedded form.
+ * Scopeid is set to 0 for non-LL addresses.
+ */
+void
+rt_get_inet6_prefix_pmask(const struct rtentry *rt, struct in6_addr *paddr,
+    struct in6_addr *pmask, uint32_t *pscopeid)
+{
+	const struct sockaddr_in6 *dst;
+
+	dst = (const struct sockaddr_in6 *)rt_key_const(rt);
+	KASSERT((dst->sin6_family == AF_INET6),
+	    ("rt family is %d, not inet", dst->sin6_family));
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
+		in6_splitscope(&dst->sin6_addr, paddr, pscopeid);
+	else
+		*paddr = dst->sin6_addr;
+	dst = (const struct sockaddr_in6 *)rt_mask_const(rt);
+	if (dst == NULL)
+		memset(pmask, 0xFF, sizeof(struct in6_addr));
+	else
+		*pmask = dst->sin6_addr;
+}
+#endif
 
 static void
 rt_set_expire_info(struct rtentry *rt, const struct rt_addrinfo *info)
@@ -455,19 +600,14 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
 		if (error)
 			return (error);
-	} else {
-		ifa_ref(info->rti_ifa);
 	}
 
 	error = nhop_create_from_info(rnh, info, &nh);
-	if (error != 0) {
-		ifa_free(info->rti_ifa);
+	if (error != 0)
 		return (error);
-	}
 
 	rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 	if (rt == NULL) {
-		ifa_free(info->rti_ifa);
 		nhop_free(nh);
 		return (ENOBUFS);
 	}
@@ -668,7 +808,9 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	rt->rte_flags &= ~RTF_UP;
 
 	/* Finalize notification */
-	rnh->rnh_gen++;
+	rib_bump_gen(rnh);
+	rnh->rnh_prefixes--;
+
 	rc->rc_cmd = RTM_DELETE;
 	rc->rc_rt = rt;
 	rc->rc_nh_old = rt->rt_nhop;
@@ -778,7 +920,6 @@ static int
 change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
     struct nhop_object *nh_orig, struct nhop_object **nh_new)
 {
-	int free_ifa = 0;
 	int error;
 
 	/*
@@ -792,24 +933,15 @@ change_nhop(struct rib_head *rnh, struct rt_addrinfo *info,
 	    (info->rti_info[RTAX_IFA] != NULL &&
 	     !sa_equal(info->rti_info[RTAX_IFA], nh_orig->nh_ifa->ifa_addr))) {
 		error = rt_getifa_fib(info, rnh->rib_fibnum);
-		if (info->rti_ifa != NULL)
-			free_ifa = 1;
 
 		if (error != 0) {
-			if (free_ifa) {
-				ifa_free(info->rti_ifa);
-				info->rti_ifa = NULL;
-			}
-
+			info->rti_ifa = NULL;
 			return (error);
 		}
 	}
 
 	error = nhop_create_from_nhop(rnh, nh_orig, info, nh_new);
-	if (free_ifa) {
-		ifa_free(info->rti_ifa);
-		info->rti_ifa = NULL;
-	}
+	info->rti_ifa = NULL;
 
 	return (error);
 }
@@ -928,7 +1060,8 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 			tmproutes_update(rnh, rt);
 
 		/* Finalize notification */
-		rnh->rnh_gen++;
+		rib_bump_gen(rnh);
+		rnh->rnh_prefixes++;
 
 		rc->rc_cmd = RTM_ADD;
 		rc->rc_rt = rt;
@@ -983,7 +1116,9 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 	}
 
 	/* Finalize notification */
-	rnh->rnh_gen++;
+	rib_bump_gen(rnh);
+	if (rnd->rnd_nhop == NULL)
+		rnh->rnh_prefixes--;
 
 	rc->rc_cmd = (rnd->rnd_nhop != NULL) ? RTM_CHANGE : RTM_DELETE;
 	rc->rc_rt = rt;
@@ -1106,7 +1241,6 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 	struct rt_delinfo *di;
 	struct rt_addrinfo *info;
 	struct rtentry *rt;
-	int error;
 
 	di = (struct rt_delinfo *)arg;
 	rt = (struct rtentry *)rn;
@@ -1115,7 +1249,8 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 	info->rti_info[RTAX_DST] = rt_key(rt);
 	info->rti_info[RTAX_NETMASK] = rt_mask(rt);
 
-	error = rt_unlinkrte(di->rnh, info, &di->rc);
+	if (rt_unlinkrte(di->rnh, info, &di->rc) != 0)
+		return (0);
 
 	/*
 	 * Add deleted rtentries to the list to GC them
@@ -1124,10 +1259,18 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 	 * XXX: Delayed notifications not implemented
 	 *  for nexthop updates.
 	 */
-	if ((error == 0) && (di->rc.rc_cmd == RTM_DELETE)) {
+	if (di->rc.rc_cmd == RTM_DELETE) {
 		/* Add to the list and return */
 		rt->rt_chain = di->head;
 		di->head = rt;
+#ifdef ROUTE_MPATH
+	} else {
+		/*
+		 * RTM_CHANGE to a diferent nexthop or nexthop group.
+		 * Free old multipath group.
+		 */
+		nhop_free_any(di->rc.rc_nh_old);
+#endif
 	}
 
 	return (0);
@@ -1143,7 +1286,7 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
  * @report: true if rtsock notification is needed.
  */
 void
-rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool report)
+rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool report)
 {
 	struct rib_head *rnh;
 	struct rt_delinfo di;
@@ -1193,16 +1336,51 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 				nhg = (struct nhgrp_object *)nh;
 				wn = nhgrp_get_nhops(nhg, &num_nhops);
 				for (int i = 0; i < num_nhops; i++)
-					rt_routemsg(RTM_DELETE, rt,
-					    wn[i].nh->nh_ifp, 0, fibnum);
+					rt_routemsg(RTM_DELETE, rt, wn[i].nh, fibnum);
 			} else
 #endif
-			rt_routemsg(RTM_DELETE, rt, nh->nh_ifp, 0, fibnum);
+			rt_routemsg(RTM_DELETE, rt, nh, fibnum);
 		}
 		rtfree(rt);
 	}
 
 	NET_EPOCH_EXIT(et);
+}
+
+static int
+rt_delete_unconditional(struct radix_node *rn, void *arg)
+{
+	struct rtentry *rt = RNTORT(rn);
+	struct rib_head *rnh = (struct rib_head *)arg;
+
+	rn = rnh->rnh_deladdr(rt_key(rt), rt_mask(rt), &rnh->head);
+	if (RNTORT(rn) == rt)
+		rtfree(rt);
+
+	return (0);
+}
+
+/*
+ * Removes all routes from the routing table without executing notifications.
+ * rtentres will be removed after the end of a current epoch.
+ */
+static void
+rib_flush_routes(struct rib_head *rnh)
+{
+	RIB_WLOCK(rnh);
+	rnh->rnh_walktree(&rnh->head, rt_delete_unconditional, rnh);
+	RIB_WUNLOCK(rnh);
+}
+
+void
+rib_flush_routes_family(int family)
+{
+	struct rib_head *rnh;
+
+	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		if ((rnh = rt_tables_get_rnh(fibnum, family)) != NULL)
+			rib_flush_routes(rnh);
+	}
 }
 
 static void
@@ -1222,7 +1400,7 @@ allocate_subscription(rib_subscription_cb_t *f, void *arg,
     enum rib_subscription_type type, bool waitok)
 {
 	struct rib_subscription *rs;
-	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
+	int flags = M_ZERO | (waitok ? M_WAITOK : M_NOWAIT);
 
 	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
 	if (rs == NULL)
@@ -1246,22 +1424,14 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
     enum rib_subscription_type type, bool waitok)
 {
 	struct rib_head *rnh;
-	struct rib_subscription *rs;
 	struct epoch_tracker et;
-
-	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
-		return (NULL);
 
 	NET_EPOCH_ENTER(et);
 	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
 	rnh = rt_tables_get_rnh(fibnum, family);
-
-	RIB_WLOCK(rnh);
-	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
-	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
 
-	return (rs);
+	return (rib_subscribe_internal(rnh, f, arg, type, waitok));
 }
 
 struct rib_subscription *
@@ -1273,34 +1443,45 @@ rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg
 
 	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
 		return (NULL);
+	rs->rnh = rnh;
 
 	NET_EPOCH_ENTER(et);
 	RIB_WLOCK(rnh);
-	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
+	CK_STAILQ_INSERT_HEAD(&rnh->rnh_subscribers, rs, next);
 	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
 
 	return (rs);
 }
 
-/*
- * Remove rtable subscription @rs from the table specified by @fibnum
- *  and @family.
- * Needs to be run in network epoch.
- *
- * Returns 0 on success.
- */
-int
-rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
+struct rib_subscription *
+rib_subscribe_locked(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg,
+    enum rib_subscription_type type)
 {
-	struct rib_head *rnh;
+	struct rib_subscription *rs;
 
 	NET_EPOCH_ASSERT();
-	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
-	rnh = rt_tables_get_rnh(fibnum, family);
+	RIB_WLOCK_ASSERT(rnh);
 
-	if (rnh == NULL)
-		return (ENOENT);
+	if ((rs = allocate_subscription(f, arg, type, false)) == NULL)
+		return (NULL);
+	rs->rnh = rnh;
+
+	CK_STAILQ_INSERT_HEAD(&rnh->rnh_subscribers, rs, next);
+
+	return (rs);
+}
+
+/*
+ * Remove rtable subscription @rs from the routing table.
+ * Needs to be run in network epoch.
+ */
+void
+rib_unsibscribe(struct rib_subscription *rs)
+{
+	struct rib_head *rnh = rs->rnh;
+
+	NET_EPOCH_ASSERT();
 
 	RIB_WLOCK(rnh);
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
@@ -1308,8 +1489,20 @@ rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
 
 	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
 	    &rs->epoch_ctx);
+}
 
-	return (0);
+void
+rib_unsibscribe_locked(struct rib_subscription *rs)
+{
+	struct rib_head *rnh = rs->rnh;
+
+	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(rnh);
+
+	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
+
+	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
+	    &rs->epoch_ctx);
 }
 
 /*

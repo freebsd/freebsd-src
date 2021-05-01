@@ -24,9 +24,9 @@
 
 
 struct	ipread	{
-	int	(*r_open) __P((char *));
-	int	(*r_close) __P((void));
-	int	(*r_readip) __P((mb_t *, char **, int *));
+	int	(*r_open)(char *);
+	int	(*r_close)(void);
+	int	(*r_readip)(mb_t *, char **, int *);
 	int	r_flags;
 };
 

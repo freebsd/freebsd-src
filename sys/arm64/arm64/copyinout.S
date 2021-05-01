@@ -37,6 +37,14 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.inc"
 
+.macro check_user_access user_arg, size_arg, bad_access_func
+	adds	x6, x\user_arg, x\size_arg
+	b.cs	\bad_access_func
+	ldr	x7, =VM_MAXUSER_ADDRESS
+	cmp	x6, x7
+	b.hi	\bad_access_func
+.endm
+
 /*
  * Fault handler for the copy{in,out} functions below.
  */
@@ -55,11 +63,7 @@ END(copyio_fault)
  */
 ENTRY(copyout)
 	cbz	x2, 1f
-	adds	x3, x1, x2
-	b.cs 	copyio_fault_nopcb
-	ldr	x4, =VM_MAXUSER_ADDRESS
-	cmp	x3, x4
-	b.hi	copyio_fault_nopcb
+	check_user_access 1, 2, copyio_fault_nopcb
 
 	b	copycommon
 
@@ -75,11 +79,7 @@ END(copyout)
  */
 ENTRY(copyin)
 	cbz	x2, 1f
-	adds	x3, x0, x2
-	b.cs    copyio_fault_nopcb
-	ldr	x4, =VM_MAXUSER_ADDRESS
-	cmp	x3, x4
-	b.hi	copyio_fault_nopcb
+	check_user_access 0, 2, copyio_fault_nopcb
 
 	b	copycommon
 
@@ -100,7 +100,6 @@ ENTRY(copyinstr)
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
-	ENTER_USER_ACCESS(w6, x7)
 
 	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
@@ -113,8 +112,7 @@ ENTRY(copyinstr)
 	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
 
-2:	EXIT_USER_ACCESS(w6)
-	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+2:	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
 
 
 3:	cbz	x3, 4f		/* Check if done != NULL */

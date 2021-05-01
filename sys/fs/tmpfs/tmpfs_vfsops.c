@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
  */
 #define TMPFS_DEFAULT_ROOT_MODE	(S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
-MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
+static MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
 MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 
 static int	tmpfs_mount(struct mount *);
@@ -544,8 +544,9 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 void
 tmpfs_free_tmp(struct tmpfs_mount *tmp)
 {
-
+	TMPFS_MP_ASSERT_LOCKED(tmp);
 	MPASS(tmp->tm_refcount > 0);
+
 	tmp->tm_refcount--;
 	if (tmp->tm_refcount > 0) {
 		TMPFS_UNLOCK(tmp);

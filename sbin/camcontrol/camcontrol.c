@@ -66,52 +66,52 @@ __FBSDID("$FreeBSD$");
 #endif
 
 typedef enum {
-	CAM_CMD_NONE		= 0x00000000,
-	CAM_CMD_DEVLIST		= 0x00000001,
-	CAM_CMD_TUR		= 0x00000002,
-	CAM_CMD_INQUIRY		= 0x00000003,
-	CAM_CMD_STARTSTOP	= 0x00000004,
-	CAM_CMD_RESCAN		= 0x00000005,
-	CAM_CMD_READ_DEFECTS	= 0x00000006,
-	CAM_CMD_MODE_PAGE	= 0x00000007,
-	CAM_CMD_SCSI_CMD	= 0x00000008,
-	CAM_CMD_DEVTREE		= 0x00000009,
-	CAM_CMD_USAGE		= 0x0000000a,
-	CAM_CMD_DEBUG		= 0x0000000b,
-	CAM_CMD_RESET		= 0x0000000c,
-	CAM_CMD_FORMAT		= 0x0000000d,
-	CAM_CMD_TAG		= 0x0000000e,
-	CAM_CMD_RATE		= 0x0000000f,
-	CAM_CMD_DETACH		= 0x00000010,
-	CAM_CMD_REPORTLUNS	= 0x00000011,
-	CAM_CMD_READCAP		= 0x00000012,
-	CAM_CMD_IDENTIFY	= 0x00000013,
-	CAM_CMD_IDLE		= 0x00000014,
-	CAM_CMD_STANDBY		= 0x00000015,
-	CAM_CMD_SLEEP		= 0x00000016,
-	CAM_CMD_SMP_CMD		= 0x00000017,
-	CAM_CMD_SMP_RG		= 0x00000018,
-	CAM_CMD_SMP_PC		= 0x00000019,
-	CAM_CMD_SMP_PHYLIST	= 0x0000001a,
-	CAM_CMD_SMP_MANINFO	= 0x0000001b,
-	CAM_CMD_DOWNLOAD_FW	= 0x0000001c,
-	CAM_CMD_SECURITY	= 0x0000001d,
-	CAM_CMD_HPA		= 0x0000001e,
-	CAM_CMD_SANITIZE	= 0x0000001f,
-	CAM_CMD_PERSIST		= 0x00000020,
-	CAM_CMD_APM		= 0x00000021,
-	CAM_CMD_AAM		= 0x00000022,
-	CAM_CMD_ATTRIB		= 0x00000023,
-	CAM_CMD_OPCODES		= 0x00000024,
-	CAM_CMD_REPROBE		= 0x00000025,
-	CAM_CMD_ZONE		= 0x00000026,
-	CAM_CMD_EPC		= 0x00000027,
-	CAM_CMD_TIMESTAMP	= 0x00000028,
-	CAM_CMD_MMCSD_CMD	= 0x00000029,
-	CAM_CMD_POWER_MODE	= 0x0000002a,
-	CAM_CMD_DEVTYPE		= 0x0000002b,
-	CAM_CMD_AMA	= 0x0000002c,
-} cam_cmdmask;
+	CAM_CMD_NONE,
+	CAM_CMD_DEVLIST,
+	CAM_CMD_TUR,
+	CAM_CMD_INQUIRY,
+	CAM_CMD_STARTSTOP,
+	CAM_CMD_RESCAN,
+	CAM_CMD_READ_DEFECTS,
+	CAM_CMD_MODE_PAGE,
+	CAM_CMD_SCSI_CMD,
+	CAM_CMD_DEVTREE,
+	CAM_CMD_USAGE,
+	CAM_CMD_DEBUG,
+	CAM_CMD_RESET,
+	CAM_CMD_FORMAT,
+	CAM_CMD_TAG,
+	CAM_CMD_RATE,
+	CAM_CMD_DETACH,
+	CAM_CMD_REPORTLUNS,
+	CAM_CMD_READCAP,
+	CAM_CMD_IDENTIFY,
+	CAM_CMD_IDLE,
+	CAM_CMD_STANDBY,
+	CAM_CMD_SLEEP,
+	CAM_CMD_SMP_CMD,
+	CAM_CMD_SMP_RG,
+	CAM_CMD_SMP_PC,
+	CAM_CMD_SMP_PHYLIST,
+	CAM_CMD_SMP_MANINFO,
+	CAM_CMD_DOWNLOAD_FW,
+	CAM_CMD_SECURITY,
+	CAM_CMD_HPA,
+	CAM_CMD_SANITIZE,
+	CAM_CMD_PERSIST,
+	CAM_CMD_APM,
+	CAM_CMD_AAM,
+	CAM_CMD_ATTRIB,
+	CAM_CMD_OPCODES,
+	CAM_CMD_REPROBE,
+	CAM_CMD_ZONE,
+	CAM_CMD_EPC,
+	CAM_CMD_TIMESTAMP,
+	CAM_CMD_MMCSD_CMD,
+	CAM_CMD_POWER_MODE,
+	CAM_CMD_DEVTYPE,
+	CAM_CMD_AMA,
+} cam_cmd;
 
 typedef enum {
 	CAM_ARG_NONE		= 0x00000000,
@@ -248,7 +248,6 @@ struct cam_devlist {
 	path_id_t path_id;
 };
 
-static cam_cmdmask cmdlist;
 static cam_argmask arglist;
 
 static const char *devtype_names[] = {
@@ -1022,9 +1021,6 @@ scsiinquiry(struct cam_device *device, int task_attr, int retry_count,
 		return (1);
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	inq_buf = (struct scsi_inquiry_data *)malloc(
 		sizeof(struct scsi_inquiry_data));
 
@@ -1132,9 +1128,6 @@ scsiserial(struct cam_device *device, int task_attr, int retry_count,
 		return (1);
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	serial_buf = (struct scsi_vpd_unit_serial_number *)
 		malloc(sizeof(*serial_buf));
 
@@ -1218,8 +1211,6 @@ camxferrate(struct cam_device *device)
 		warnx("couldn't allocate CCB");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
@@ -2458,11 +2449,10 @@ atasecurity_notify(u_int8_t command, struct ata_security_password *pwd)
 	printf("Issuing %s", ata_op_string(&cmd));
 
 	if (pwd != NULL) {
+		/* pwd->password may not be null terminated */
 		char pass[sizeof(pwd->password)+1];
 
-		/* pwd->password may not be null terminated */
-		pass[sizeof(pwd->password)] = '\0';
-		strncpy(pass, pwd->password, sizeof(pwd->password));
+		strlcpy(pass, pwd->password, sizeof(pass));
 		printf(" password='%s', user='%s'",
 			pass,
 			(pwd->ctrl & ATA_SECURITY_PASSWORD_MASTER) ?
@@ -4482,8 +4472,6 @@ mode_select(struct cam_device *device, int cdb_len, int save_pages,
 	if (ccb == NULL)
 		errx(1, "mode_select: couldn't allocate CCB");
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	scsi_mode_select_len(&ccb->csio,
 			 /* retries */ retry_count,
 			 /* cbfcnp */ NULL,
@@ -4621,8 +4609,6 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		warnx("scsicmd: error allocating ccb");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -5108,7 +5094,6 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 	cam_path_string(device, pathstr, sizeof(pathstr));
 
 	if (numtags >= 0) {
-		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->crs);
 		ccb->ccb_h.func_code = XPT_REL_SIMQ;
 		ccb->ccb_h.flags = CAM_DEV_QFREEZE;
 		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
@@ -5352,7 +5337,6 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 		warnx("get_cpi: couldn't allocate CCB");
 		return (1);
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cpi);
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
@@ -5387,7 +5371,6 @@ get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
 		warnx("get_cgd: couldn't allocate CCB");
 		return (1);
 	}
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cgd);
 	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cgd: error sending Get type information CCB");
@@ -5427,9 +5410,6 @@ dev_has_vpd_page(struct cam_device *dev, uint8_t page_id, int retry_count,
 		retval = -1;
 		goto bailout;
 	}
-
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	bzero(&sup_pages, sizeof(sup_pages));
 
@@ -5521,9 +5501,14 @@ get_device_type(struct cam_device *dev, int retry_count, int timeout,
 		 * For a retry count of -1, used only the cached data to avoid
 		 * I/O to the drive. Sending the identify command to the drive
 		 * can cause issues for SATL attachaed drives since identify is
-		 * not an NCQ command.
+		 * not an NCQ command. We check for the strings that windows
+		 * displays since those will not be NULs (they are supposed
+		 * to be space padded). We could check other bits, but anything
+		 * non-zero implies SATL.
 		 */
-		if (cgd.ident_data.config != 0)
+		if (cgd.ident_data.serial[0] != 0 ||
+		    cgd.ident_data.revision[0] != 0 ||
+		    cgd.ident_data.model[0] != 0)
 			*devtype = CC_DT_SATL;
 		else
 			*devtype = CC_DT_SCSI;
@@ -5960,8 +5945,6 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
-
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 
 	if (user_settings == 0)
@@ -6104,7 +6087,6 @@ ratecontrol(struct cam_device *device, int task_attr, int retry_count,
 	 */
 	if ((retval = get_cpi(device, &cpi)) != 0)
 		goto ratecontrol_bailout;
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
 	if (quiet == 0) {
 		fprintf(stdout, "%s parameters:\n",
 		    user_settings ? "User" : "Current");
@@ -6352,8 +6334,6 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 		warnx("scsiformat: error allocating ccb");
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
@@ -6848,8 +6828,6 @@ sanitize(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
 		case 'a':
@@ -7206,8 +7184,6 @@ scsireportluns(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	countonly = 0;
 	lunsonly = 0;
 
@@ -7450,8 +7426,6 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'b':
@@ -7650,8 +7624,6 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		warnx("%s: error allocating CCB", __func__);
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -8200,8 +8172,6 @@ smpreportgeneral(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'l':
@@ -8343,8 +8313,6 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 		warnx("%s: error allocating CCB", __func__);
 		return (1);
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
@@ -8601,8 +8569,6 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
-
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch (c) {
 		case 'l':
@@ -8694,8 +8660,6 @@ getdevid(struct cam_devitem *item)
 		retval = 1;
 		goto bailout;
 	}
-
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cdai);
 
 	/*
 	 * On the first try, we just probe for the size of the data, and
@@ -8980,7 +8944,6 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->smpio);
 	STAILQ_INIT(&devlist.dev_queue);
 
 	rgrequest = malloc(sizeof(*rgrequest));
@@ -9445,9 +9408,6 @@ scsigetopcodes(struct cam_device *device, int opcode_set, int opcode,
 		goto bailout;
 	}
 
-	/* cam_getccb cleans up the header, caller has to zero the payload */
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	if (opcode_set != 0) {
 		options |= RSO_OPTIONS_OC;
 		num_opcodes = 1;
@@ -9885,8 +9845,6 @@ reprobe(struct cam_device *device)
 		return (1);
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
-
 	ccb->ccb_h.func_code = XPT_REPROBE_LUN;
 
 	if (cam_send_ccb(device, ccb) < 0) {
@@ -9988,6 +9946,13 @@ usage(int printlong)
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
 "        camcontrol devtype    [dev_id]\n"
+"        camcontrol mmcsdcmd   [dev_id] [[-c mmc_opcode] [-a mmc_arg]\n"
+"                                  [-f mmc_flags] [-l data_len]\n"
+"                                  [-W [-b data_byte]]] |\n"
+"                              [-F frequency] |\n"
+"                              [-I]\n"
+"                              [-1 | -4]\n"
+"                              [-S high|normal]\n"
 "                              \n"
 "        camcontrol help\n");
 	if (!printlong)
@@ -10034,6 +9999,7 @@ usage(int printlong)
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
 "devtype     report the type of device\n"
+"mmcsdcmd    send the given MMC command, needs -c and -a as well\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -10242,6 +10208,18 @@ usage(int printlong)
 "-f format         the format of the time string passed into strptime(3)\n"
 "-T time           the time value passed into strptime(3)\n"
 "-U                set the timestamp of the device to UTC time\n"
+"mmcsdcmd arguments:\n"
+"-c mmc_cmd        MMC command to send to the card\n"
+"-a mmc_arg        Argument for the MMC command\n"
+"-f mmc_flag       Flags to set for the MMC command\n"
+"-l data_len       Expect data_len bytes of data in reply and display them\n"
+"-W                Fill the data buffer before invoking the MMC command\n"
+"-b data_byte      One byte of data to fill the data buffer with\n"
+"-F frequency      Operating frequency to set on the controller\n"
+"-4                Set bus width to 4 bit\n"
+"-1                Set bus width to 8 bit\n"
+"-S high | std     Set high-speed or standard timing\n"
+"-I                Display various card and host controller information\n"
 );
 }
 
@@ -10261,6 +10239,7 @@ main(int argc, char **argv)
 	int error = 0, optstart = 2;
 	int task_attr = MSG_SIMPLE_Q_TAG;
 	int devopen = 1;
+	cam_cmd cmdlist;
 	path_id_t bus;
 	target_id_t target;
 	lun_id_t lun;

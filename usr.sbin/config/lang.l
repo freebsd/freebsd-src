@@ -79,7 +79,6 @@ struct kt {
 	{ "nomakeoption", NOMAKEOPTION },
 	{ "nomakeoptions", NOMAKEOPTION },
 	{ "maxusers",	MAXUSERS },
-	{ "profile",	PROFILE },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
 	{ "nooption",	NOOPTION },

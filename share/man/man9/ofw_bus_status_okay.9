@@ -32,8 +32,8 @@
 .Dt ofw_bus_status_okay 9
 .Os
 .Sh NAME
-.Nm ofw_bus_get_status
-.Nm ofw_bus_status_okay
+.Nm ofw_bus_get_status ,
+.Nm ofw_bus_status_okay ,
 .Nm ofw_bus_node_status_okay
 .Nd check status of the device tree node
 .Sh SYNOPSIS
@@ -47,7 +47,6 @@
 .Ft int
 .Fn ofw_bus_node_status_okay "phandle_t node"
 .Sh DESCRIPTION
-.Pp
 The "status" property of the device tree node indicates whether the device is
 enabled or not.
 Multiple hardware versions might be built using the same base System-on-Chip

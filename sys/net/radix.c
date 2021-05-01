@@ -428,7 +428,7 @@ rn_insert(void *v_arg, struct radix_head *head, int *dupentry,
 	int head_off = top->rn_offset, vlen = LEN(v);
 	struct radix_node *t = rn_search(v_arg, top);
 	caddr_t cp = v + head_off;
-	int b;
+	unsigned b;
 	struct radix_node *p, *tt, *x;
     	/*
 	 * Find first bit at which v and t->rn_key differ
@@ -483,7 +483,7 @@ on1:
 	return (tt);
 }
 
-struct radix_node *
+static struct radix_node *
 rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 {
 	unsigned char *netmask = n_arg;
@@ -624,21 +624,6 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	saved_tt = tt = rn_insert(v, head, &keyduplicated, treenodes);
 	if (keyduplicated) {
 		for (t = tt; tt; t = tt, tt = tt->rn_dupedkey) {
-#ifdef RADIX_MPATH
-			/* permit multipath, if enabled for the family */
-			if (rn_mpath_capable(head) && netmask == tt->rn_mask) {
-				/*
-				 * go down to the end of multipaths, so that
-				 * new entry goes into the end of rn_dupedkey
-				 * chain.
-				 */
-				do {
-					t = tt;
-					tt = tt->rn_dupedkey;
-				} while (tt && t->rn_mask == tt->rn_mask);
-				break;
-			}
-#endif
 			if (tt->rn_mask == netmask)
 				return (0);
 			if (netmask == 0 ||
@@ -744,10 +729,8 @@ on2:
 		if (m->rm_flags & RNF_NORMAL) {
 			mmask = m->rm_leaf->rn_mask;
 			if (tt->rn_flags & RNF_NORMAL) {
-#if !defined(RADIX_MPATH)
 			    log(LOG_ERR,
 			        "Non-unique normal route, mask not entered\n");
-#endif
 				return (tt);
 			}
 		} else

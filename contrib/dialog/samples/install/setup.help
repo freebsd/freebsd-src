@@ -30,7 +30,7 @@ your local harddisk or via network (NFS).
 setup will install a very basic system.
 At the end, you can install lilo, the Linux Loader.
 Rebooting your computer with this little linux system
-and then runing the setup-program on it, will give
+and then running the setup-program on it, will give
 the possibility to install more packages.
 
 Creating a Linux-partition:

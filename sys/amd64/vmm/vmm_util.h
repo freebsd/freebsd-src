@@ -33,6 +33,7 @@
 
 struct trapframe;
 
+bool		vmm_is_hw_supported(void);
 bool		vmm_is_intel(void);
 bool		vmm_is_svm(void);
 bool		vmm_supports_1G_pages(void);

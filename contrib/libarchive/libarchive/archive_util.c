@@ -433,6 +433,11 @@ __archive_mktemp(const char *tmpdir)
 		if (temp_name.s[temp_name.length-1] != '/')
 			archive_strappend_char(&temp_name, '/');
 	}
+#ifdef O_TMPFILE
+	fd = open(temp_name.s, O_RDWR|O_CLOEXEC|O_TMPFILE|O_EXCL, 0600); 
+	if(fd >= 0)
+		goto exit_tmpfile;
+#endif
 	archive_strcat(&temp_name, "libarchive_XXXXXX");
 	fd = mkstemp(temp_name.s);
 	if (fd < 0)

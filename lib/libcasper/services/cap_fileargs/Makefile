@@ -21,6 +21,9 @@ LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 MAN+=	cap_fileargs.3
 
 MLINKS+=cap_fileargs.3 libcap_fileargs.3
@@ -32,5 +35,6 @@ MLINKS+=cap_fileargs.3 fileargs_init.3
 MLINKS+=cap_fileargs.3 fileargs_initnv.3
 MLINKS+=cap_fileargs.3 fileargs_lstat.3
 MLINKS+=cap_fileargs.3 fileargs_open.3
+MLINKS+=cap_fileargs.3 fileargs_realpath.3
 
 .include <bsd.lib.mk>

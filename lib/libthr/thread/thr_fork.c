@@ -132,10 +132,19 @@ __pthread_cxa_finalize(struct dl_phdr_info *phdr_info)
 	_thr_sigact_unload(phdr_info);
 }
 
-__weak_reference(__thr_fork, _fork);
+enum thr_fork_mode {
+	MODE_FORK,
+	MODE_PDFORK,
+};
 
-pid_t
-__thr_fork(void)
+struct thr_fork_args {
+	enum thr_fork_mode mode;
+	void *fdp;
+	int flags;
+};
+
+static pid_t
+thr_fork_impl(const struct thr_fork_args *a)
 {
 	struct pthread *curthread;
 	struct pthread_atfork *af;
@@ -144,8 +153,17 @@ __thr_fork(void)
 	int was_threaded;
 	int rtld_locks[MAX_RTLD_LOCKS];
 
-	if (!_thr_is_inited())
-		return (__sys_fork());
+	if (!_thr_is_inited()) {
+		switch (a->mode) {
+		case MODE_FORK:
+			return (__sys_fork());
+		case MODE_PDFORK:
+			return (__sys_pdfork(a->fdp, a->flags));
+		default:
+			errno = EDOOFUS;
+			return (-1);
+		}
+	}
 
 	curthread = _get_curthread();
 	cancelsave = curthread->no_cancel;
@@ -186,7 +204,19 @@ __thr_fork(void)
 	 * indirection, the syscall symbol is resolved in
 	 * _thr_rtld_init() with side-effect free call.
 	 */
-	ret = syscall(SYS_fork);
+	switch (a->mode) {
+	case MODE_FORK:
+		ret = syscall(SYS_fork);
+		break;
+	case MODE_PDFORK:
+		ret = syscall(SYS_pdfork, a->fdp, a->flags);
+		break;
+	default:
+		ret = -1;
+		errno = EDOOFUS;
+		break;
+	}
+
 	if (ret == 0) {
 		/* Child process */
 		errsave = errno;
@@ -271,4 +301,26 @@ __thr_fork(void)
 	errno = errsave;
 
 	return (ret);
+}
+
+__weak_reference(__thr_fork, _fork);
+
+pid_t
+__thr_fork(void)
+{
+	struct thr_fork_args a;
+
+	a.mode = MODE_FORK;
+	return (thr_fork_impl(&a));
+}
+
+pid_t
+__thr_pdfork(int *fdp, int flags)
+{
+	struct thr_fork_args a;
+
+	a.mode = MODE_PDFORK;
+	a.fdp = fdp;
+	a.flags = flags;
+	return (thr_fork_impl(&a));
 }

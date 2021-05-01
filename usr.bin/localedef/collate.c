@@ -1119,7 +1119,8 @@ dump_collate(void)
 	collelem_t		*ce;
 	collchar_t		*cc;
 	subst_t			*sb;
-	char			vers[COLLATE_STR_LEN];
+	char			fmt_version[COLLATE_FMT_VERSION_LEN];
+	char			def_version[XLOCALE_DEF_VERSION_LEN];
 	collate_char_t		chars[UCHAR_MAX + 1];
 	collate_large_t		*large;
 	collate_subst_t		*subst[COLL_WEIGHTS_MAX];
@@ -1160,8 +1161,11 @@ dump_collate(void)
 	}
 
 	(void) memset(&chars, 0, sizeof (chars));
-	(void) memset(vers, 0, COLLATE_STR_LEN);
-	(void) strlcpy(vers, COLLATE_VERSION, sizeof (vers));
+	(void) memset(fmt_version, 0, COLLATE_FMT_VERSION_LEN);
+	(void) strlcpy(fmt_version, COLLATE_FMT_VERSION, sizeof (fmt_version));
+	(void) memset(def_version, 0, XLOCALE_DEF_VERSION_LEN);
+	if (version)
+		(void) strlcpy(def_version, version, sizeof (def_version));
 
 	/*
 	 * We need to make sure we arrange for the UNDEFINED field
@@ -1301,7 +1305,8 @@ dump_collate(void)
 	collinfo.chain_count = htote(chain_count);
 	collinfo.large_count = htote(large_count);
 
-	if ((wr_category(vers, COLLATE_STR_LEN, f) < 0) ||
+	if ((wr_category(fmt_version, COLLATE_FMT_VERSION_LEN, f) < 0) ||
+	    (wr_category(def_version, XLOCALE_DEF_VERSION_LEN, f) < 0) ||
 	    (wr_category(&collinfo, sizeof (collinfo), f) < 0) ||
 	    (wr_category(&chars, sizeof (chars), f) < 0)) {
 		return;

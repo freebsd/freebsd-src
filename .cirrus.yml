@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 freebsd_instance:
-  image: freebsd-12-1-release-amd64
+  # Image list available via
+  # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
+  image: freebsd-13-0-release-amd64
   cpu: 8
   memory: 24G
 
@@ -9,17 +11,17 @@ env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
-  only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
   install_script:
-  - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
-  setup_user_script:
+  - pkg install -y llvm11
+  setup_script:
+  - uname -a
+  - df -m
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
-  package_script:
-  - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
-  test_script:
-  - sh tools/boot/ci-qemu-test.sh
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  post_script:
+  - df -m
+  - du -m -s /usr/obj

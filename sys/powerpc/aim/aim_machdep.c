@@ -563,7 +563,8 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 		/* SLB multi-hit is recoverable. */
 		if ((frame->cpu.aim.dsisr & DSISR_MC_SLB_MULTIHIT) != 0)
 			return (0);
-		if ((frame->cpu.aim.dsisr & DSISR_MC_DERAT_MULTIHIT) != 0) {
+		if ((frame->cpu.aim.dsisr &
+		    (DSISR_MC_DERAT_MULTIHIT | DSISR_MC_TLB_MULTIHIT)) != 0) {
 			pmap_tlbie_all();
 			return (0);
 		}
@@ -720,8 +721,9 @@ flush_disable_caches(void)
 	mtmsr(msr);
 }
 
+#ifndef __powerpc64__
 void
-cpu_sleep()
+mpc745x_sleep()
 {
 	static u_quad_t timebase = 0;
 	static register_t sprgs[4];
@@ -766,7 +768,8 @@ cpu_sleep()
 		while (1)
 			mtmsr(msr);
 	}
-	platform_smp_timebase_sync(timebase, 0);
+	/* XXX: The mttb() means this *only* works on single-CPU systems. */
+	mttb(timebase);
 	PCPU_SET(curthread, curthread);
 	PCPU_SET(curpcb, curthread->td_pcb);
 	pmap_activate(curthread);
@@ -784,3 +787,4 @@ cpu_sleep()
 		enable_vec(curthread);
 	powerpc_sync();
 }
+#endif

@@ -10,7 +10,7 @@ READELFDIR=	${ELFTCDIR}/readelf
 PROG=	readelf
 SRCS=	readelf.c
 
-LIBADD=	dwarf elftc elf
+LIBADD=	dwarf elftc elf z
 
 .if ${MK_CASPER} != "no"
 LIBADD+=	casper

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2005 Nuno Antunes <nuno.antunes@gmail.com>
  * Copyright (c) 2007 Alexander Motin <mav@freebsd.org>
+ * Copyright (c) 2019 Lutz Donnerhacke <lutz@donnerhacke.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +35,9 @@
  *
  * TODO:
  *	- Sanitize input config values (impose some limits)
- *	- Implement internal packet painting (possibly using mbuf tags)
- *	- Implement color-aware mode
  *	- Implement DSCP marking for IPv4
+ *	- Decouple functionality into a simple classifier (g/y/r)
+ *	  and various action nodes (i.e. shape, dcsp, pcp)
  */
 
 #include <sys/param.h>
@@ -49,6 +50,8 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_car.h>
+
+#include "qos.h"
 
 #define NG_CAR_QUEUE_SIZE	100	/* Maximum queue size for SHAPE mode */
 #define NG_CAR_QUEUE_MIN_TH	8	/* Minimum RED threshold for SHAPE mode */
@@ -261,6 +264,8 @@ ng_car_rcvdata(hook_p hook, item_p item )
 {
 	struct hookinfo *const hinfo = NG_HOOK_PRIVATE(hook);
 	struct mbuf *m;
+	struct m_qos_color *colp;
+	enum qos_color col;
 	int error = 0;
 	u_int len;
 
@@ -272,15 +277,22 @@ ng_car_rcvdata(hook_p hook, item_p item )
 
 	m = NGI_M(item);
 
-#define NG_CAR_PERFORM_MATCH_ACTION(a)			\
+#define NG_CAR_PERFORM_MATCH_ACTION(a,col)			\
 	do {						\
 		switch (a) {				\
 		case NG_CAR_ACTION_FORWARD:		\
 			/* Do nothing. */		\
 			break;				\
 		case NG_CAR_ACTION_MARK:		\
-			/* XXX find a way to mark packets (mbuf tag?) */ \
-			++hinfo->stats.errors;		\
+			if (colp == NULL) {		\
+				colp = (void *)m_tag_alloc(		\
+				    M_QOS_COOKIE, M_QOS_COLOR,		\
+				    MTAG_SIZE(m_qos_color), M_NOWAIT);	\
+				if (colp != NULL)			\
+				    m_tag_prepend(m, &colp->tag);	\
+			}				\
+			if (colp != NULL)		\
+			    colp->color = col;		\
 			break;				\
 		case NG_CAR_ACTION_DROP:		\
 		default:				\
@@ -298,22 +310,33 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		len = m->m_pkthdr.len;
 	}
 
+	/* Determine current color of the packet (default green) */
+	colp = (void *)m_tag_locate(m, M_QOS_COOKIE, M_QOS_COLOR, NULL);
+	if ((hinfo->conf.opt & NG_CAR_COLOR_AWARE) && (colp != NULL))
+	    col = colp->color;
+	else
+	    col = QOS_COLOR_GREEN;
+
 	/* Check committed token bucket. */
-	if (hinfo->tc - len >= 0) {
+	if (hinfo->tc - len >= 0 && col <= QOS_COLOR_GREEN) {
 		/* This packet is green. */
 		++hinfo->stats.green_pkts;
 		hinfo->tc -= len;
-		NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.green_action);
+		NG_CAR_PERFORM_MATCH_ACTION(
+		    hinfo->conf.green_action,
+		    QOS_COLOR_GREEN);
 	} else {
 		/* Refill only if not green without it. */
 		ng_car_refillhook(hinfo);
 
 		 /* Check committed token bucket again after refill. */
-		if (hinfo->tc - len >= 0) {
+		if (hinfo->tc - len >= 0 && col <= QOS_COLOR_GREEN) {
 			/* This packet is green */
 			++hinfo->stats.green_pkts;
 			hinfo->tc -= len;
-			NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.green_action);
+			NG_CAR_PERFORM_MATCH_ACTION(
+			    hinfo->conf.green_action,
+			    QOS_COLOR_GREEN);
 
 		/* If not green and mode is SHAPE, enqueue packet. */
 		} else if (hinfo->conf.mode == NG_CAR_SHAPE) {
@@ -323,40 +346,51 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		/* If not green and mode is RED, calculate probability. */
 		} else if (hinfo->conf.mode == NG_CAR_RED) {
 			/* Is packet is bigger then extended burst? */
-			if (len - (hinfo->tc - len) > hinfo->conf.ebs) {
+			if (len - (hinfo->tc - len) > hinfo->conf.ebs ||
+			    col >= QOS_COLOR_RED) {
 				/* This packet is definitely red. */
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
-				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.red_action);
+				NG_CAR_PERFORM_MATCH_ACTION(
+					hinfo->conf.red_action,
+					QOS_COLOR_RED);
 
 			/* Use token bucket to simulate RED-like drop
 			   probability. */
-			} else if (hinfo->te + (len - hinfo->tc) <
-			    hinfo->conf.ebs) {
+			} else if (hinfo->te + (len - hinfo->tc) < hinfo->conf.ebs &&
+				   col <= QOS_COLOR_YELLOW) {
 				/* This packet is yellow */
 				++hinfo->stats.yellow_pkts;
 				hinfo->te += len - hinfo->tc;
 				/* Go to negative tokens. */
 				hinfo->tc -= len;
-				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.yellow_action);
+				NG_CAR_PERFORM_MATCH_ACTION(
+				    hinfo->conf.yellow_action,
+				    QOS_COLOR_YELLOW);
 			} else {
 				/* This packet is probably red. */
 				++hinfo->stats.red_pkts;
 				hinfo->te = 0;
-				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.red_action);
+				NG_CAR_PERFORM_MATCH_ACTION(
+				    hinfo->conf.red_action,
+				    QOS_COLOR_RED);
 			}
 		/* If not green and mode is SINGLE/DOUBLE RATE. */
 		} else {
 			/* Check extended token bucket. */
-			if (hinfo->te - len >= 0) {
+			if (hinfo->te - len >= 0 && col <= QOS_COLOR_YELLOW) {
 				/* This packet is yellow */
 				++hinfo->stats.yellow_pkts;
 				hinfo->te -= len;
-				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.yellow_action);
+				NG_CAR_PERFORM_MATCH_ACTION(
+				    hinfo->conf.yellow_action,
+				    QOS_COLOR_YELLOW);
 			} else {
 				/* This packet is red */
 				++hinfo->stats.red_pkts;
-				NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.red_action);
+				NG_CAR_PERFORM_MATCH_ACTION(
+				    hinfo->conf.red_action,
+				    QOS_COLOR_RED);
 			}
 		}
 	}
@@ -709,11 +743,20 @@ ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 static void
 ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 {
-	struct mbuf 	*m;
-	int		len;
+	struct mbuf 	   *m;
+	int		   len;
+	struct m_qos_color *colp;
+	enum qos_color	   col;
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
+
+	/* Determine current color of the packet (default green) */
+	colp = (void *)m_tag_locate(m, M_QOS_COOKIE, M_QOS_COLOR, NULL);
+	if ((hinfo->conf.opt & NG_CAR_COLOR_AWARE) && (colp != NULL))
+	    col = colp->color;
+	else
+	    col = QOS_COLOR_GREEN;
 
 	/* Lock queue mutex. */
 	mtx_lock(&hinfo->q_mtx);
@@ -725,7 +768,8 @@ ng_car_enqueue(struct hookinfo *hinfo, item_p item)
 
 	/* If queue is overflowed or we have no RED tokens. */
 	if ((len >= (NG_CAR_QUEUE_SIZE - 1)) ||
-	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE)) {
+	    (hinfo->te + len >= NG_CAR_QUEUE_SIZE) ||
+	    (col >= QOS_COLOR_RED)) {
 		/* Drop packet. */
 		++hinfo->stats.red_pkts;
 		++hinfo->stats.dropped_pkts;

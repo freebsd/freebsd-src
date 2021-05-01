@@ -140,7 +140,7 @@ int	 timingsafe_bcmp(const void *, const void *, size_t);
 int	 timingsafe_memcmp(const void *, const void *, size_t);
 #endif /* __BSD_VISIBLE */
 
-#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#if __POSIX_VISIBLE >= 200112 || defined(_XLOCALE_H_)
 #include <xlocale/_string.h>
 #endif
 

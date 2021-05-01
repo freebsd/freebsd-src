@@ -69,6 +69,13 @@ static bus_setup_intr_t nexus_setup_intr;
 static bus_teardown_intr_t nexus_teardown_intr;
 static bus_activate_resource_t nexus_activate_resource;
 static bus_deactivate_resource_t nexus_deactivate_resource;
+static  int nexus_map_resource(device_t bus, device_t child, int type,
+			       struct resource *r,
+			       struct resource_map_request *argsp,
+			       struct resource_map *map);
+static  int nexus_unmap_resource(device_t bus, device_t child, int type,
+			       struct resource *r, struct resource_map *map);
+
 static bus_space_tag_t nexus_get_bus_tag(device_t, device_t);
 static int nexus_get_cpus(device_t, device_t, enum cpu_sets, size_t,
     cpuset_t *);
@@ -87,6 +94,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_map_resource,	nexus_map_resource),
+	DEVMETHOD(bus_unmap_resource,   nexus_unmap_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 #ifdef SMP
@@ -267,4 +276,90 @@ nexus_deactivate_resource(device_t bus __unused, device_t child __unused,
 	}
 
 	return (rman_deactivate_resource(r));
+}
+
+
+static int
+nexus_map_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map_request *argsp, struct resource_map *map)
+{
+
+	struct resource_map_request args;
+	rman_res_t end, length, start;
+
+	/* Resources must be active to be mapped. */
+	if (!(rman_get_flags(r) & RF_ACTIVE))
+		return (ENXIO);
+
+	/* Mappings are only supported on I/O and memory resources. */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	resource_init_map_request(&args);
+	if (argsp != NULL)
+		bcopy(argsp, &args, imin(argsp->size, args.size));
+
+	start = rman_get_start(r) + args.offset;
+	if (args.length == 0)
+		length = rman_get_size(r);
+	else
+		length = args.length;
+
+	end = start + length - 1;
+	if (start > rman_get_end(r) || start < rman_get_start(r))
+		return (EINVAL);
+
+	if (end > rman_get_end(r) || end < start)
+		return (EINVAL);
+
+	/*
+	 * If this is a memory resource, map it into the kernel.
+	 */
+	switch (type) {
+	case SYS_RES_IOPORT:
+		panic("%s:%d SYS_RES_IOPORT handling not implemented", __func__, __LINE__);
+		/*   XXX: untested
+		map->r_bushandle = start;
+		map->r_bustag = nexus_get_bus_tag(NULL, NULL);
+		map->r_size = length;
+		map->r_vaddr = NULL;
+		*/
+		break;
+	case SYS_RES_MEMORY:
+		map->r_vaddr = pmap_mapdev_attr(start, length, args.memattr);
+		map->r_bustag = nexus_get_bus_tag(NULL, NULL);
+		map->r_size = length;
+		map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
+		break;
+	}
+
+	return (0);
+
+}
+
+static int
+nexus_unmap_resource(device_t bus, device_t child, int type, struct resource *r,
+    struct resource_map *map)
+{
+
+	/*
+	 * If this is a memory resource, unmap it.
+	 */
+	switch (type) {
+	case SYS_RES_MEMORY:
+		pmap_unmapdev((vm_offset_t)map->r_vaddr, map->r_size);
+		/* FALLTHROUGH */
+	case SYS_RES_IOPORT:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+
 }

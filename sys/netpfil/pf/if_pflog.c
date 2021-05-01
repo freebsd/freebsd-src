@@ -201,9 +201,9 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static int
-pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
-    u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
-    struct pf_ruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
+pflog_packet(struct pfi_kkif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
+    u_int8_t reason, struct pf_krule *rm, struct pf_krule *am,
+    struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
 	struct ifnet *ifn;
 	struct pfloghdr hdr;

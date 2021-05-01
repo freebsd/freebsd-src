@@ -320,7 +320,7 @@ AVSRCS= BUILDING Fixes MAKEDIFFS MAKESHAR NewThings README.md FAQ \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
 	complete.tcsh vmsreadme.txt termcap.vms snames.h host.defs \
 	gethost.c tcsh.man2html configure.ac configure config.h.in \
-	aclocal.m4
+	aclocal.m4 dot.login dot.tcshrc
 
 VHSRCS=${PVSRCS} ${AVSRCS}
 

@@ -76,4 +76,18 @@ struct ofiocdesc {
 /* Maximum accepted value length (maximum of nvramrc property). */
 #define	OFIOCMAXVALUE	8192
 
+/*
+ * While IEEE 1275-1994 states in 3.2.2.1.1 that property names are 1-31
+ * printable characters, in practice, this limit has been ignored.
+ * Noncompliant properties have been codified in standards such as LoPAPR.
+ *
+ * This is a suggested buffer length that should be large enough to hold
+ * any property name currently seen in device trees, without being overly
+ * wasteful of memory.
+ *
+ * If a future version of the Devicetree specification updates the property
+ * names length requirement, this value will be updated to match.
+ */
+#define	OFIOCSUGGPROPNAMELEN	64
+
 #endif /* _DEV_OFW_OPENFIRMIO_H_ */

@@ -27,16 +27,16 @@ typedef struct ipf_dns_softc_s {
 	u_long			ipf_p_dns_nospace;
 } ipf_dns_softc_t;
 
-int ipf_p_dns_allow_query __P((ipf_dns_softc_t *, dnsinfo_t *));
-int ipf_p_dns_ctl __P((ipf_main_softc_t *, void *, ap_ctl_t *));
-void ipf_p_dns_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_dns_get_name __P((ipf_dns_softc_t *, char *, int, char *, int));
-int ipf_p_dns_inout __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_dns_match __P((fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_dns_match_names __P((ipf_dns_filter_t *, char *, int));
-int ipf_p_dns_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void *ipf_p_dns_soft_create __P((ipf_main_softc_t *));
-void ipf_p_dns_soft_destroy __P((ipf_main_softc_t *, void *));
+int ipf_p_dns_allow_query(ipf_dns_softc_t *, dnsinfo_t *);
+int ipf_p_dns_ctl(ipf_main_softc_t *, void *, ap_ctl_t *);
+void ipf_p_dns_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_dns_get_name(ipf_dns_softc_t *, char *, int, char *, int);
+int ipf_p_dns_inout(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_dns_match(fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_dns_match_names(ipf_dns_filter_t *, char *, int);
+int ipf_p_dns_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void *ipf_p_dns_soft_create(ipf_main_softc_t *);
+void ipf_p_dns_soft_destroy(ipf_main_softc_t *, void *);
 
 typedef struct {
 	u_char		dns_id[2];

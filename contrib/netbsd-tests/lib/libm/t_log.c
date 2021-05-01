@@ -1,4 +1,4 @@
-/* $NetBSD: t_log.c,v 1.13 2015/02/09 19:39:48 martin Exp $ */
+/* $NetBSD: t_log.c,v 1.14 2018/11/07 03:59:36 riastradh Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,10 +29,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_log.c,v 1.13 2015/02/09 19:39:48 martin Exp $");
+__RCSID("$NetBSD: t_log.c,v 1.14 2018/11/07 03:59:36 riastradh Exp $");
 
 #include <atf-c.h>
 
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -614,10 +615,10 @@ ATF_TC_HEAD(log_base, tc)
 
 ATF_TC_BODY(log_base, tc)
 {
-	const double eps = 1.0e-38;
+	const double eps = DBL_EPSILON;
 
-	if (fabs(log(M_E) - 1.0) > eps)
-		atf_tc_fail_nonfatal("log(e) != 1");
+	if (!(fabs(log(M_E) - 1.0) <= eps))
+		atf_tc_fail_nonfatal("log(e) = %.17g != 1", log(M_E));
 }
 
 ATF_TC(log_nan);
@@ -714,10 +715,11 @@ ATF_TC_HEAD(logf_base, tc)
 
 ATF_TC_BODY(logf_base, tc)
 {
-	const float eps = 1.0e-7;
+	const float eps = FLT_EPSILON;
 
-	if (fabsf(logf(M_E) - 1.0f) > eps)
-		atf_tc_fail_nonfatal("logf(e) != 1");
+	if (!(fabsf(logf(M_E) - 1.0f) <= eps))
+		atf_tc_fail_nonfatal("logf(e) = %.17g != 1",
+		    (double)logf(M_E));
 }
 
 ATF_TC(logf_nan);

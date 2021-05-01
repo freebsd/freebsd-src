@@ -38,20 +38,9 @@
 #include <sys/signal.h>
 #include <fcntl.h>
 
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
-#else
-__RCSID("$Revision: 2.27 $");
-#ident "$Revision: 2.27 $"
-#endif
 
 
-#ifdef sgi
-/* use *stat64 for files on large file systems */
-#define stat	stat64
-#endif
 
 int	tracelevel, new_tracelevel;
 FILE	*ftrace;			/* output trace file */
@@ -150,12 +139,8 @@ ts(time_t secs) {
 	static char s[20];
 
 	secs += epoch.tv_sec;
-#ifdef sgi
-	(void)cftime(s, "%T", &secs);
-#else
 	memcpy(s, ctime(&secs)+11, 8);
 	s[8] = '\0';
-#endif
 	return s;
 }
 

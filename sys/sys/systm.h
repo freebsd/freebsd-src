@@ -74,6 +74,8 @@ extern int maxusers;		/* system tune hint */
 extern int ngroups_max;		/* max # of supplemental groups */
 extern int vm_guest;		/* Running as virtual machine guest? */
 
+extern u_long maxphys;		/* max raw I/O transfer size */
+
 /*
  * Detected virtual machine guest types. The intention is to expand
  * and/or add to the VM_GUEST_VM type if specific VM functionality is
@@ -191,7 +193,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  * Assert that a thread is in critical(9) section.
  */
 #define	CRITICAL_ASSERT(td)						\
-	KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+	KASSERT((td)->td_critnest >= 1, ("Not in critical section"))
 
 /*
  * If we have already panic'd and this is the thread that called
@@ -282,7 +284,7 @@ critical_enter(void)
 
 	td = (struct thread_lite *)curthread;
 	td->td_critnest++;
-	__compiler_membar();
+	atomic_interrupt_fence();
 }
 
 static __inline void
@@ -293,9 +295,9 @@ critical_exit(void)
 	td = (struct thread_lite *)curthread;
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
-	__compiler_membar();
+	atomic_interrupt_fence();
 	td->td_critnest--;
-	__compiler_membar();
+	atomic_interrupt_fence();
 	if (__predict_false(td->td_owepreempt))
 		critical_exit_preempt();
 
@@ -349,18 +351,28 @@ void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
 void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 int	memcmp(const void *b1, const void *b2, size_t len);
 
-#ifdef KCSAN
-void	*kcsan_memset(void *, int, size_t);
-void	*kcsan_memcpy(void *, const void *, size_t);
-void	*kcsan_memmove(void *, const void *, size_t);
-int	kcsan_memcmp(const void *, const void *, size_t);
-#define bcopy(from, to, len) kcsan_memmove((to), (from), (len))
-#define bzero(buf, len) kcsan_memset((buf), 0, (len))
-#define bcmp(b1, b2, len) kcsan_memcmp((b1), (b2), (len))
-#define memset(buf, c, len) kcsan_memset((buf), (c), (len))
-#define memcpy(to, from, len) kcsan_memcpy((to), (from), (len))
-#define memmove(dest, src, n) kcsan_memmove((dest), (src), (n))
-#define memcmp(b1, b2, len) kcsan_memcmp((b1), (b2), (len))
+#if defined(KASAN)
+#define	SAN_PREFIX	kasan_
+#elif defined(KCSAN)
+#define	SAN_PREFIX	kcsan_
+#endif
+
+#ifdef SAN_PREFIX
+#define	SAN_INTERCEPTOR(func)	__CONCAT(SAN_PREFIX, func)
+
+void	*SAN_INTERCEPTOR(memset)(void *, int, size_t);
+void	*SAN_INTERCEPTOR(memcpy)(void *, const void *, size_t);
+void	*SAN_INTERCEPTOR(memmove)(void *, const void *, size_t);
+int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
+#ifndef SAN_RUNTIME
+#define bcopy(from, to, len)	SAN_INTERCEPTOR(memmove)((to), (from), (len))
+#define bzero(buf, len)		SAN_INTERCEPTOR(memset)((buf), 0, (len))
+#define bcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
+#define memset(buf, c, len)	SAN_INTERCEPTOR(memset)((buf), (c), (len))
+#define memcpy(to, from, len)	SAN_INTERCEPTOR(memcpy)((to), (from), (len))
+#define memmove(dest, src, n)	SAN_INTERCEPTOR(memmove)((dest), (src), (n))
+#define memcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
+#endif /* !SAN_RUNTIME */
 #else
 #define bcopy(from, to, len) __builtin_memmove((to), (from), (len))
 #define bzero(buf, len) __builtin_memset((buf), 0, (len))
@@ -369,7 +381,7 @@ int	kcsan_memcmp(const void *, const void *, size_t);
 #define memcpy(to, from, len) __builtin_memcpy((to), (from), (len))
 #define memmove(dest, src, n) __builtin_memmove((dest), (src), (n))
 #define memcmp(b1, b2, len) __builtin_memcmp((b1), (b2), (len))
-#endif
+#endif /* !SAN_PREFIX */
 
 void	*memset_early(void * _Nonnull buf, int c, size_t len);
 #define bzero_early(buf, len) memset_early((buf), 0, (len))
@@ -400,14 +412,16 @@ int	copyout(const void * _Nonnull __restrict kaddr,
 int	copyout_nofault(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
 
-#ifdef KCSAN
-int	kcsan_copyin(const void *, void *, size_t);
-int	kcsan_copyinstr(const void *, void *, size_t, size_t *);
-int	kcsan_copyout(const void *, void *, size_t);
-#define	copyin(u, k, l) kcsan_copyin((u), (k), (l))
-#define	copyinstr(u, k, l, lc) kcsan_copyinstr((u), (k), (l), (lc))
-#define	copyout(k, u, l) kcsan_copyout((k), (u), (l))
-#endif
+#ifdef SAN_PREFIX
+int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
+int	SAN_INTERCEPTOR(copyinstr)(const void *, void *, size_t, size_t *);
+int	SAN_INTERCEPTOR(copyout)(const void *, void *, size_t);
+#ifndef SAN_RUNTIME
+#define	copyin(u, k, l)		SAN_INTERCEPTOR(copyin)((u), (k), (l))
+#define	copyinstr(u, k, l, lc)	SAN_INTERCEPTOR(copyinstr)((u), (k), (l), (lc))
+#define	copyout(k, u, l)	SAN_INTERCEPTOR(copyout)((k), (u), (l))
+#endif /* !SAN_RUNTIME */
+#endif /* SAN_PREFIX */
 
 int	fubyte(volatile const void *base);
 long	fuword(volatile const void *base);
@@ -481,11 +495,6 @@ void set_cputicker(cpu_tick_f *func, uint64_t freq, unsigned var);
 extern cpu_tick_f *cpu_ticks;
 uint64_t cpu_tickrate(void);
 uint64_t cputick2usec(uint64_t tick);
-
-#ifdef APM_FIXUP_CALLTODO
-struct timeval;
-void	adjust_timeout_calltodo(struct timeval *time_change);
-#endif /* APM_FIXUP_CALLTODO */
 
 #include <sys/libkern.h>
 
@@ -617,9 +626,8 @@ void counted_warning(unsigned *counter, const char *msg);
 /*
  * APIs to manage deprecation and obsolescence.
  */
-struct device;
 void _gone_in(int major, const char *msg);
-void _gone_in_dev(struct device *dev, int major, const char *msg);
+void _gone_in_dev(device_t dev, int major, const char *msg);
 #ifdef NO_OBSOLETE_CODE
 #define __gone_ok(m, msg)					 \
 	_Static_assert(m < P_OSREL_MAJOR(__FreeBSD_version)),	 \
@@ -632,5 +640,4 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 #endif /* _KERNEL */
 
 __NULLABILITY_PRAGMA_POP
-
 #endif /* !_SYS_SYSTM_H_ */

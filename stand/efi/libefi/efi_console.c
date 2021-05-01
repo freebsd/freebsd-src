@@ -27,17 +27,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <efi.h>
 #include <efilib.h>
 #include <teken.h>
 #include <sys/reboot.h>
-
+#include <machine/metadata.h>
+#include <gfx_fb.h>
+#include <framebuffer.h>
 #include "bootstrap.h"
 
+extern EFI_GUID gop_guid;
 static EFI_GUID simple_input_ex_guid = EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL_GUID;
 static SIMPLE_TEXT_OUTPUT_INTERFACE	*conout;
 static SIMPLE_INPUT_INTERFACE		*conin;
 static EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *coninex;
+static bool efi_started;
 
 static int mode;		/* Does ConOut have serial console? */
 
@@ -59,6 +64,9 @@ void HO(void);
 void end_term(void);
 #endif
 
+#define	TEXT_ROWS	24
+#define	TEXT_COLS	80
+
 static tf_bell_t	efi_cons_bell;
 static tf_cursor_t	efi_text_cursor;
 static tf_putchar_t	efi_text_putchar;
@@ -77,15 +85,15 @@ static teken_funcs_t tf = {
 	.tf_respond	= efi_cons_respond,
 };
 
-teken_t teken;
-teken_pos_t tp;
-
-struct text_pixel {
-	teken_char_t c;
-	teken_attr_t a;
+static teken_funcs_t tfx = {
+	.tf_bell	= efi_cons_bell,
+	.tf_cursor	= gfx_fb_cursor,
+	.tf_putchar	= gfx_fb_putchar,
+	.tf_fill	= gfx_fb_fill,
+	.tf_copy	= gfx_fb_copy,
+	.tf_param	= gfx_fb_param,
+	.tf_respond	= efi_cons_respond,
 };
-
-static struct text_pixel *buffer;
 
 #define	KEYBUFSZ 10
 static unsigned keybuf[KEYBUFSZ];	/* keybuf for extended codes */
@@ -116,6 +124,7 @@ void efi_cons_putchar(int);
 int efi_cons_getchar(void);
 void efi_cons_efiputchar(int);
 int efi_cons_poll(void);
+static void cons_draw_frame(teken_attr_t *);
 
 struct console efi_console = {
 	"efi",
@@ -129,6 +138,31 @@ struct console efi_console = {
 };
 
 /*
+ * This function is used to mark a rectangular image area so the scrolling
+ * will know we need to copy the data from there.
+ */
+void
+term_image_display(teken_gfx_t *state, const teken_rect_t *r)
+{
+	teken_pos_t p;
+	int idx;
+
+	if (screen_buffer == NULL)
+		return;
+
+	for (p.tp_row = r->tr_begin.tp_row;
+	    p.tp_row < r->tr_end.tp_row; p.tp_row++) {
+		for (p.tp_col = r->tr_begin.tp_col;
+		    p.tp_col < r->tr_end.tp_col; p.tp_col++) {
+			idx = p.tp_col + p.tp_row * state->tg_tp.tp_col;
+			if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
+				return;
+			screen_buffer[idx].a.ta_format |= TF_IMAGE;
+		}
+	}
+}
+
+/*
  * Not implemented.
  */
 static void
@@ -137,33 +171,30 @@ efi_cons_bell(void *s __unused)
 }
 
 static void
-efi_text_cursor(void *s __unused, const teken_pos_t *p)
+efi_text_cursor(void *arg, const teken_pos_t *p)
 {
-	UINTN row, col;
+	teken_gfx_t *state = arg;
+	UINTN col, row;
 
-	(void) conout->QueryMode(conout, conout->Mode->Mode, &col, &row);
+	row = p->tp_row;
+	if (p->tp_row >= state->tg_tp.tp_row)
+		row = state->tg_tp.tp_row - 1;
 
-	if (p->tp_col == col)
-		col = p->tp_col - 1;
-	else
-		col = p->tp_col;
-
-	if (p->tp_row == row)
-		row = p->tp_row - 1;
-	else
-		row = p->tp_row;
+	col = p->tp_col;
+	if (p->tp_col >= state->tg_tp.tp_col)
+		col = state->tg_tp.tp_col - 1;
 
 	conout->SetCursorPosition(conout, col, row);
 }
 
 static void
-efi_text_printchar(const teken_pos_t *p, bool autoscroll)
+efi_text_printchar(teken_gfx_t *state, const teken_pos_t *p, bool autoscroll)
 {
 	UINTN a, attr;
 	struct text_pixel *px;
 	teken_color_t fg, bg, tmp;
 
-	px = buffer + p->tp_col + p->tp_row * tp.tp_col;
+	px = screen_buffer + p->tp_col + p->tp_row * state->tg_tp.tp_col;
 	a = conout->Mode->Attribute;
 
 	fg = teken_256to16(px->a.ta_fgcolor);
@@ -184,10 +215,10 @@ efi_text_printchar(const teken_pos_t *p, bool autoscroll)
 
 	conout->SetCursorPosition(conout, p->tp_col, p->tp_row);
 
-	/* to prvent autoscroll, skip print of lower right char */
+	/* to prevent autoscroll, skip print of lower right char */
 	if (!autoscroll &&
-	    p->tp_row == tp.tp_row - 1 &&
-	    p->tp_col == tp.tp_col - 1)
+	    p->tp_row == state->tg_tp.tp_row - 1 &&
+	    p->tp_col == state->tg_tp.tp_col - 1)
 		return;
 
 	(void) conout->SetAttribute(conout, attr);
@@ -196,58 +227,80 @@ efi_text_printchar(const teken_pos_t *p, bool autoscroll)
 }
 
 static void
-efi_text_putchar(void *s __unused, const teken_pos_t *p, teken_char_t c,
+efi_text_putchar(void *s, const teken_pos_t *p, teken_char_t c,
     const teken_attr_t *a)
 {
+	teken_gfx_t *state = s;
 	EFI_STATUS status;
 	int idx;
 
-	idx = p->tp_col + p->tp_row * tp.tp_col;
-	buffer[idx].c = c;
-	buffer[idx].a = *a;
-	efi_text_printchar(p, false);
+	idx = p->tp_col + p->tp_row * state->tg_tp.tp_col;
+	if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
+		return;
+
+	screen_buffer[idx].c = c;
+	screen_buffer[idx].a = *a;
+
+	efi_text_printchar(s, p, false);
 }
 
 static void
-efi_text_fill(void *s, const teken_rect_t *r, teken_char_t c,
+efi_text_fill(void *arg, const teken_rect_t *r, teken_char_t c,
     const teken_attr_t *a)
 {
+	teken_gfx_t *state = arg;
 	teken_pos_t p;
-	UINTN row, col;
 
-	(void) conout->QueryMode(conout, conout->Mode->Mode, &col, &row);
-
-	conout->EnableCursor(conout, FALSE);
+	if (state->tg_cursor_visible)
+		conout->EnableCursor(conout, FALSE);
 	for (p.tp_row = r->tr_begin.tp_row; p.tp_row < r->tr_end.tp_row;
 	    p.tp_row++)
 		for (p.tp_col = r->tr_begin.tp_col;
 		    p.tp_col < r->tr_end.tp_col; p.tp_col++)
-			efi_text_putchar(s, &p, c, a);
-	conout->EnableCursor(conout, TRUE);
-}
-
-static bool
-efi_same_pixel(struct text_pixel *px1, struct text_pixel *px2)
-{
-	if (px1->c != px2->c)
-		return (false);
-
-	if (px1->a.ta_format != px2->a.ta_format)
-		return (false);
-	if (px1->a.ta_fgcolor != px2->a.ta_fgcolor)
-		return (false);
-	if (px1->a.ta_bgcolor != px2->a.ta_bgcolor)
-		return (false);
-
-	return (true);
+			efi_text_putchar(state, &p, c, a);
+	if (state->tg_cursor_visible)
+		conout->EnableCursor(conout, TRUE);
 }
 
 static void
-efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
+efi_text_copy_line(teken_gfx_t *state, int ncol, teken_pos_t *s,
+    teken_pos_t *d, bool scroll)
 {
-	int srow, drow;
-	int nrow, ncol, x, y; /* Has to be signed - >= 0 comparison */
+	unsigned soffset, doffset;
+	teken_pos_t sp, dp;
+	int x;
+
+	soffset = s->tp_col + s->tp_row * state->tg_tp.tp_col;
+	doffset = d->tp_col + d->tp_row * state->tg_tp.tp_col;
+
+	sp = *s;
+	dp = *d;
+	for (x = 0; x < ncol; x++) {
+		sp.tp_col = s->tp_col + x;
+		dp.tp_col = d->tp_col + x;
+		if (!is_same_pixel(&screen_buffer[soffset + x],
+		    &screen_buffer[doffset + x])) {
+			screen_buffer[doffset + x] =
+			    screen_buffer[soffset + x];
+			if (!scroll)
+				efi_text_printchar(state, &dp, false);
+		} else if (scroll) {
+			/* Draw last char and trigger scroll. */
+			if (dp.tp_col + 1 == state->tg_tp.tp_col &&
+			    dp.tp_row + 1 == state->tg_tp.tp_row) {
+				efi_text_printchar(state, &dp, true);
+			}
+		}
+	}
+}
+
+static void
+efi_text_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
+{
+	teken_gfx_t *state = arg;
+	unsigned doffset, soffset;
 	teken_pos_t d, s;
+	int nrow, ncol, x, y; /* Has to be signed - >= 0 comparison */
 	bool scroll = false;
 
 	/*
@@ -262,90 +315,47 @@ efi_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 	 * Check if we do copy whole screen.
 	 */
 	if (p->tp_row == 0 && p->tp_col == 0 &&
-	    nrow == tp.tp_row - 2 && ncol == tp.tp_col - 2)
+	    nrow == state->tg_tp.tp_row - 2 && ncol == state->tg_tp.tp_col - 2)
 		scroll = true;
 
-	conout->EnableCursor(conout, FALSE);
-	if (p->tp_row < r->tr_begin.tp_row) {
-		/* Copy from bottom to top. */
-		for (y = 0; y < nrow; y++) {
-			d.tp_row = p->tp_row + y;
-			s.tp_row = r->tr_begin.tp_row + y;
-			drow = d.tp_row * tp.tp_col;
-			srow = s.tp_row * tp.tp_col;
-			for (x = 0; x < ncol; x++) {
-				d.tp_col = p->tp_col + x;
-				s.tp_col = r->tr_begin.tp_col + x;
+	soffset = r->tr_begin.tp_col + r->tr_begin.tp_row * state->tg_tp.tp_col;
+	doffset = p->tp_col + p->tp_row * state->tg_tp.tp_col;
 
-				if (!efi_same_pixel(
-				    &buffer[d.tp_col + drow],
-				    &buffer[s.tp_col + srow])) {
-					buffer[d.tp_col + drow] =
-					    buffer[s.tp_col + srow];
-					if (!scroll)
-						efi_text_printchar(&d, false);
-				} else if (scroll) {
-					/*
-					 * Draw last char and trigger
-					 * scroll.
-					 */
-					if (y == nrow - 1 &&
-					    x == ncol - 1) {
-						efi_text_printchar(&d, true);
-					}
-				}
-			}
+	/* remove the cursor */
+	if (state->tg_cursor_visible)
+		conout->EnableCursor(conout, FALSE);
+
+	/*
+	 * Copy line by line.
+	 */
+	if (doffset <= soffset) {
+		s = r->tr_begin;
+		d = *p;
+		for (y = 0; y < nrow; y++) {
+			s.tp_row = r->tr_begin.tp_row + y;
+			d.tp_row = p->tp_row + y;
+
+			efi_text_copy_line(state, ncol, &s, &d, scroll);
 		}
 	} else {
-		/* Copy from top to bottom. */
-		if (p->tp_col < r->tr_begin.tp_col) {
-			/* Copy from right to left. */
-			for (y = nrow - 1; y >= 0; y--) {
-				d.tp_row = p->tp_row + y;
-				s.tp_row = r->tr_begin.tp_row + y;
-				drow = d.tp_row * tp.tp_col;
-				srow = s.tp_row * tp.tp_col;
-				for (x = 0; x < ncol; x++) {
-					d.tp_col = p->tp_col + x;
-					s.tp_col = r->tr_begin.tp_col + x;
+		for (y = nrow - 1; y >= 0; y--) {
+			s.tp_row = r->tr_begin.tp_row + y;
+			d.tp_row = p->tp_row + y;
 
-					if (!efi_same_pixel(
-					    &buffer[d.tp_col + drow],
-					    &buffer[s.tp_col + srow])) {
-						buffer[d.tp_col + drow] =
-						    buffer[s.tp_col + srow];
-						efi_text_printchar(&d, false);
-					}
-				}
-			}
-		} else {
-			/* Copy from left to right. */
-			for (y = nrow - 1; y >= 0; y--) {
-				d.tp_row = p->tp_row + y;
-				s.tp_row = r->tr_begin.tp_row + y;
-				drow = d.tp_row * tp.tp_col;
-				srow = s.tp_row * tp.tp_col;
-				for (x = ncol - 1; x >= 0; x--) {
-					d.tp_col = p->tp_col + x;
-					s.tp_col = r->tr_begin.tp_col + x;
-
-					if (!efi_same_pixel(
-					    &buffer[d.tp_col + drow],
-					    &buffer[s.tp_col + srow])) {
-						buffer[d.tp_col + drow] =
-						    buffer[s.tp_col + srow];
-						efi_text_printchar(&d, false);
-					}
-				}
-			}
+			efi_text_copy_line(state, ncol, &s, &d, false);
 		}
 	}
-	conout->EnableCursor(conout, TRUE);
+
+	/* display the cursor */
+	if (state->tg_cursor_visible)
+		conout->EnableCursor(conout, TRUE);
 }
 
 static void
-efi_text_param(void *s __unused, int cmd, unsigned int value)
+efi_text_param(void *arg, int cmd, unsigned int value)
 {
+	teken_gfx_t *state = arg;
+
 	switch (cmd) {
 	case TP_SETLOCALCURSOR:
 		/*
@@ -357,10 +367,13 @@ efi_text_param(void *s __unused, int cmd, unsigned int value)
 		value = (value == 1) ? 0 : 1;
 		/* FALLTHROUGH */
 	case TP_SHOWCURSOR:
-		if (value == 1)
+		if (value != 0) {
 			conout->EnableCursor(conout, TRUE);
-		else
+			state->tg_cursor_visible = true;
+		} else {
 			conout->EnableCursor(conout, FALSE);
+			state->tg_cursor_visible = false;
+		}
 		break;
 	default:
 		/* Not yet implemented */
@@ -470,7 +483,7 @@ efi_set_colors(struct env_var *ev, int flags, const void *value)
 		evalue = value;
 	}
 
-	ap = teken_get_defattr(&teken);
+	ap = teken_get_defattr(&gfx_state.tg_teken);
 	a = *ap;
 	if (strcmp(ev->ev_name, "teken.fg_color") == 0) {
 		/* is it already set? */
@@ -484,8 +497,15 @@ efi_set_colors(struct env_var *ev, int flags, const void *value)
 			return (CMD_OK);
 		a.ta_bgcolor = val;
 	}
+
+	/* Improve visibility */
+	if (a.ta_bgcolor == TC_WHITE)
+		a.ta_bgcolor |= TC_LIGHT;
+
+	teken_set_defattr(&gfx_state.tg_teken, &a);
+	cons_draw_frame(&a);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, evalue, NULL, NULL);
-	teken_set_defattr(&teken, &a);
+	teken_input(&gfx_state.tg_teken, "\e[2J", 4);
 	return (CMD_OK);
 }
 
@@ -823,19 +843,80 @@ efi_term_emu(int c)
 #endif
 }
 
+static int
+env_screen_nounset(struct env_var *ev __unused)
+{
+	if (gfx_state.tg_fb_type == FB_TEXT)
+		return (0);
+	return (EPERM);
+}
+
+static void
+cons_draw_frame(teken_attr_t *a)
+{
+	teken_attr_t attr = *a;
+	teken_color_t fg = a->ta_fgcolor;
+
+	attr.ta_fgcolor = attr.ta_bgcolor;
+	teken_set_defattr(&gfx_state.tg_teken, &attr);
+
+	gfx_fb_drawrect(0, 0, gfx_state.tg_fb.fb_width,
+	    gfx_state.tg_origin.tp_row, 1);
+	gfx_fb_drawrect(0,
+	    gfx_state.tg_fb.fb_height - gfx_state.tg_origin.tp_row - 1,
+	    gfx_state.tg_fb.fb_width, gfx_state.tg_fb.fb_height, 1);
+	gfx_fb_drawrect(0, gfx_state.tg_origin.tp_row,
+	    gfx_state.tg_origin.tp_col,
+	    gfx_state.tg_fb.fb_height - gfx_state.tg_origin.tp_row - 1, 1);
+	gfx_fb_drawrect(
+	    gfx_state.tg_fb.fb_width - gfx_state.tg_origin.tp_col - 1,
+	    gfx_state.tg_origin.tp_row, gfx_state.tg_fb.fb_width,
+	    gfx_state.tg_fb.fb_height, 1);
+
+	attr.ta_fgcolor = fg;
+	teken_set_defattr(&gfx_state.tg_teken, &attr);
+}
+
 bool
-efi_cons_update_mode(void)
+cons_update_mode(bool use_gfx_mode)
 {
 	UINTN cols, rows;
 	const teken_attr_t *a;
 	teken_attr_t attr;
 	EFI_STATUS status;
-	char env[8], *ptr;
+	char env[10], *ptr;
+
+	if (!efi_started)
+		return (false);
+
+	/*
+	 * Despite the use_gfx_mode, we want to make sure we call
+	 * efi_find_framebuffer(). This will populate the fb data,
+	 * which will be passed to kernel.
+	 */
+	if (efi_find_framebuffer(&gfx_state) == 0 && use_gfx_mode) {
+		int roff, goff, boff;
+
+		roff = ffs(gfx_state.tg_fb.fb_mask_red) - 1;
+		goff = ffs(gfx_state.tg_fb.fb_mask_green) - 1;
+		boff = ffs(gfx_state.tg_fb.fb_mask_blue) - 1;
+
+		(void) generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		    gfx_state.tg_fb.fb_mask_red >> roff, roff,
+		    gfx_state.tg_fb.fb_mask_green >> goff, goff,
+		    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
+	} else {
+		/*
+		 * Either text mode was asked by user or we failed to
+		 * find frame buffer.
+		 */
+		gfx_state.tg_fb_type = FB_TEXT;
+	}
 
 	status = conout->QueryMode(conout, conout->Mode->Mode, &cols, &rows);
 	if (EFI_ERROR(status) || cols * rows == 0) {
-		cols = 80;
-		rows = 24;
+		cols = TEXT_COLS;
+		rows = TEXT_ROWS;
 	}
 
 	/*
@@ -853,20 +934,85 @@ efi_cons_update_mode(void)
 	 */
 	mode = parse_uefi_con_out();
 	if ((mode & (RB_SERIAL | RB_MULTIPLE)) == 0) {
-		if (buffer != NULL) {
-			if (tp.tp_row == rows && tp.tp_col == cols)
-				return (true);
-			free(buffer);
+		conout->EnableCursor(conout, FALSE);
+		gfx_state.tg_cursor_visible = false;
+
+		if (gfx_state.tg_fb_type == FB_TEXT) {
+
+			gfx_state.tg_functions = &tf;
+			/* ensure the following are not set for text mode */
+			unsetenv("screen.height");
+			unsetenv("screen.width");
+			unsetenv("screen.depth");
 		} else {
-			teken_init(&teken, &tf, NULL);
+			uint32_t fb_height, fb_width;
+
+			fb_height = gfx_state.tg_fb.fb_height;
+			fb_width = gfx_state.tg_fb.fb_width;
+
+			/*
+			 * setup_font() can adjust terminal size.
+			 * We can see two kind of bad happening.
+			 * We either can get too small console font - requested
+			 * terminal size is large, display resolution is
+			 * large, and we get very small font.
+			 * Or, we can get too large font - requested
+			 * terminal size is small and this will cause large
+			 * font to be selected.
+			 * Now, the setup_font() is updated to consider
+			 * display density and this should give us mostly
+			 * acceptable font. However, the catch is, not all
+			 * display devices will give us display density.
+			 * Still, we do hope, external monitors do - this is
+			 * where the display size will matter the most.
+			 * And for laptop screens, we should still get good
+			 * results by requesting 80x25 terminal.
+			 */
+			gfx_state.tg_tp.tp_row = 25;
+			gfx_state.tg_tp.tp_col = 80;
+			setup_font(&gfx_state, fb_height, fb_width);
+			rows = gfx_state.tg_tp.tp_row;
+			cols = gfx_state.tg_tp.tp_col;
+			/* Point of origin in pixels. */
+			gfx_state.tg_origin.tp_row = (fb_height -
+			    (rows * gfx_state.tg_font.vf_height)) / 2;
+			gfx_state.tg_origin.tp_col = (fb_width -
+			    (cols * gfx_state.tg_font.vf_width)) / 2;
+
+			/* UEFI gop has depth 32. */
+			gfx_state.tg_glyph_size = gfx_state.tg_font.vf_height *
+			    gfx_state.tg_font.vf_width * 4;
+			free(gfx_state.tg_glyph);
+			gfx_state.tg_glyph = malloc(gfx_state.tg_glyph_size);
+			if (gfx_state.tg_glyph == NULL)
+				return (false);
+
+			gfx_state.tg_functions = &tfx;
+			snprintf(env, sizeof (env), "%d", fb_height);
+			env_setenv("screen.height", EV_VOLATILE | EV_NOHOOK,
+			    env, env_noset, env_screen_nounset);
+			snprintf(env, sizeof (env), "%d", fb_width);
+			env_setenv("screen.width", EV_VOLATILE | EV_NOHOOK,
+			    env, env_noset, env_screen_nounset);
+			snprintf(env, sizeof (env), "%d",
+			    gfx_state.tg_fb.fb_bpp);
+			env_setenv("screen.depth", EV_VOLATILE | EV_NOHOOK,
+			    env, env_noset, env_screen_nounset);
 		}
 
-		tp.tp_row = rows;
-		tp.tp_col = cols;
-		buffer = malloc(rows * cols * sizeof(*buffer));
-		if (buffer != NULL) {
-			teken_set_winsize(&teken, &tp);
-			a = teken_get_defattr(&teken);
+		/* Record our terminal screen size. */
+		gfx_state.tg_tp.tp_row = rows;
+		gfx_state.tg_tp.tp_col = cols;
+
+		teken_init(&gfx_state.tg_teken, gfx_state.tg_functions,
+		    &gfx_state);
+
+		free(screen_buffer);
+		screen_buffer = malloc(rows * cols * sizeof(*screen_buffer));
+		if (screen_buffer != NULL) {
+			teken_set_winsize(&gfx_state.tg_teken,
+			    &gfx_state.tg_tp);
+			a = teken_get_defattr(&gfx_state.tg_teken);
 			attr = *a;
 
 			/*
@@ -880,7 +1026,7 @@ efi_cons_update_mode(void)
 				ptr = getenv("teken.bg_color");
 				attr.ta_bgcolor = strtol(ptr, NULL, 10);
 
-				teken_set_defattr(&teken, &attr);
+				teken_set_defattr(&gfx_state.tg_teken, &attr);
 			} else {
 				snprintf(env, sizeof(env), "%d",
 				    attr.ta_fgcolor);
@@ -891,18 +1037,12 @@ efi_cons_update_mode(void)
 				env_setenv("teken.bg_color", EV_VOLATILE, env,
 				    efi_set_colors, env_nounset);
 			}
-
-			for (int row = 0; row < rows; row++) {
-				for (int col = 0; col < cols; col++) {
-					buffer[col + row * tp.tp_col].c = ' ';
-					buffer[col + row * tp.tp_col].a = attr;
-				}
-			}
 		}
 	}
 
+	if (screen_buffer == NULL) {
+		conout->EnableCursor(conout, TRUE);
 #ifdef TERM_EMU
-	if (buffer == NULL) {
 		conout->SetAttribute(conout, EFI_TEXT_ATTR(DEFAULT_FGCOLOR,
 		    DEFAULT_BGCOLOR));
 		end_term();
@@ -910,8 +1050,23 @@ efi_cons_update_mode(void)
 		curs_move(&curx, &cury, curx, cury);
 		fg_c = DEFAULT_FGCOLOR;
 		bg_c = DEFAULT_BGCOLOR;
-	}
 #endif
+	} else {
+		/* Improve visibility */
+		if (attr.ta_bgcolor == TC_WHITE)
+			attr.ta_bgcolor |= TC_LIGHT;
+		teken_set_defattr(&gfx_state.tg_teken, &attr);
+
+		/* Draw frame around terminal area. */
+		cons_draw_frame(&attr);
+		/*
+		 * Erase display, this will also fill our screen
+		 * buffer.
+		 */
+		teken_input(&gfx_state.tg_teken, "\e[2J", 4);
+		gfx_state.tg_functions->tf_param(&gfx_state,
+		    TP_SHOWCURSOR, 1);
+	}
 
 	snprintf(env, sizeof (env), "%u", (unsigned)rows);
 	setenv("LINES", env, 1);
@@ -926,8 +1081,13 @@ efi_cons_init(int arg)
 {
 	EFI_STATUS status;
 
-	conout->EnableCursor(conout, TRUE);
-	if (efi_cons_update_mode())
+	if (efi_started)
+		return (0);
+
+	efi_started = true;
+
+	gfx_framework_init();
+	if (cons_update_mode(gfx_state.tg_fb_type != FB_TEXT))
 		return (0);
 
 	return (1);
@@ -1035,12 +1195,12 @@ efi_cons_putchar(int c)
 	 * Don't use Teken when we're doing pure serial, or a multiple console
 	 * with video "primary" because that's also serial.
 	 */
-	if ((mode & (RB_SERIAL | RB_MULTIPLE)) != 0 || buffer == NULL) {
+	if ((mode & (RB_SERIAL | RB_MULTIPLE)) != 0 || screen_buffer == NULL) {
 		input_byte(ch);
 		return;
 	}
 
-	teken_input(&teken, &ch, sizeof (ch));
+	teken_input(&gfx_state.tg_teken, &ch, sizeof (ch));
 }
 
 static int

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -414,7 +414,7 @@ TrCreateValuedLeafOp (
 
         for (i = 0; i < ACPI_NAMESEG_SIZE; i++)
         {
-            if (islower (Op->Asl.Value.Name[i]))
+            if (islower ((int) Op->Asl.Value.Name[i]))
             {
                 AcpiUtStrupr (&Op->Asl.Value.Name[i]);
                 AslError (ASL_REMARK, ASL_MSG_LOWER_CASE_NAMESEG, Op, Op->Asl.Value.Name);
@@ -431,7 +431,7 @@ TrCreateValuedLeafOp (
         StringPtr = Op->Asl.Value.Name;
         for (i = 0; *StringPtr; i++)
         {
-            if (islower (*StringPtr))
+            if (islower ((int) *StringPtr))
             {
                 AcpiUtStrupr (&Op->Asl.Value.Name[i]);
                 AslError (ASL_REMARK, ASL_MSG_LOWER_CASE_NAMEPATH, Op, Op->Asl.Value.Name);

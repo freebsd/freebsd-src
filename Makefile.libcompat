@@ -45,7 +45,7 @@ _LC_LIBDIRS.${MK_KERBEROS:tl}+=	kerberos5/lib
 
 _LC_INCDIRS=	\
 		include \
-		lib/ncurses/ncursesw \
+		lib/ncurses/ncurses \
 		${_LC_LIBDIRS.yes}
 
 .if ${MK_FILE} != "no"
@@ -94,7 +94,7 @@ build${libcompat}: .PHONY
 	    DIRPRFX=${_dir}/ ${_t}
 .endfor
 .endfor
-.for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw ${_libmagic} ${_jevents}
+.for _dir in lib/ncurses/ncurses ${_libmagic} ${_jevents}
 .for _t in ${_obj} build-tools
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
@@ -104,7 +104,7 @@ build${libcompat}: .PHONY
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS \
-	    MK_CTF=no MK_RETPOLINE=no MK_WARNS=no \
+	    MK_CTF=no MK_RETPOLINE=no MK_WERROR=no \
 	    ${_t}
 .endfor
 .endfor

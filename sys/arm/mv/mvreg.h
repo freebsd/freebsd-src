@@ -310,10 +310,6 @@
 #define MV_GPIO_OUT_OPEN_DRAIN		0x2
 #define MV_GPIO_OUT_OPEN_SRC		0x4
 
-#define IS_GPIO_IRQ(irq)	((irq) >= NIRQ && (irq) < NIRQ + MV_GPIO_MAX_NPINS)
-#define GPIO2IRQ(gpio)		((gpio) + NIRQ)
-#define IRQ2GPIO(irq)		((irq) - NIRQ)
-
 #if defined(SOC_MV_ORION)
 #define SAMPLE_AT_RESET		0x10
 #elif defined(SOC_MV_KIRKWOOD)

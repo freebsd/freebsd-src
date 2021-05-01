@@ -185,7 +185,7 @@ const char *freebsd32_syscallnames[] = {
 	"compat6.freebsd32_pread",		/* 173 = freebsd6 freebsd32_pread */
 	"compat6.freebsd32_pwrite",		/* 174 = freebsd6 freebsd32_pwrite */
 	"#175",			/* 175 = nosys */
-	"ntp_adjtime",			/* 176 = ntp_adjtime */
+	"freebsd32_ntp_adjtime",			/* 176 = freebsd32_ntp_adjtime */
 	"#177",			/* 177 = sfork */
 	"#178",			/* 178 = getdescriptor */
 	"#179",			/* 179 = setdescriptor */
@@ -613,4 +613,7 @@ const char *freebsd32_syscallnames[] = {
 	"__realpathat",			/* 574 = __realpathat */
 	"close_range",			/* 575 = close_range */
 	"rpctls_syscall",			/* 576 = rpctls_syscall */
+	"__specialfd",			/* 577 = __specialfd */
+	"freebsd32_aio_writev",			/* 578 = freebsd32_aio_writev */
+	"freebsd32_aio_readv",			/* 579 = freebsd32_aio_readv */
 };

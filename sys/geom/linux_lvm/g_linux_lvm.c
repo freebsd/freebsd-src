@@ -543,11 +543,13 @@ g_llvm_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/* This orphan function should be never called. */
 	gp->orphan = g_llvm_taste_orphan;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = g_llvm_read_label(cp, &ll);
-	if (!error)
-		error = g_llvm_read_md(cp, &md, &ll);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = g_llvm_read_label(cp, &ll);
+		if (error == 0)
+			error = g_llvm_read_md(cp, &md, &ll);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	if (error != 0)

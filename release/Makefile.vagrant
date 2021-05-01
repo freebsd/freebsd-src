@@ -58,7 +58,7 @@ vagrant-check-depends:
 .  endif
 	env ASSUME_ALWAYS_YES=yes pkg install -y curl
 . else
-	make -C ${PORTSDIR}/ftp/curl BATCH=1 all install clean
+	env UNAME_r=${UNAME_r} make -C ${PORTSDIR}/ftp/curl BATCH=1 all install clean
 . endif
 .endif
 
@@ -101,37 +101,7 @@ vagrant-create-virtualbox-metadata: virtualbox/box.ovf
 virtualbox/box.ovf: ${.CURDIR}/scripts/box.ovf
 	cp ${.ALLSRC} virtualbox/
 
-vmware/vagrant.vmx:
-	@(cd vmware && echo '.encoding = "UTF-8"' > vagrant.vmx)
-	@(cd vmware && echo 'bios.bootorder = "hdd,CDROM"' >> vagrant.vmx)
-	@(cd vmware && echo 'checkpoint.vmstate = ""' >> vagrant.vmx)
-	@(cd vmware && echo 'cleanshutdown = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'config.version = "8"' >> vagrant.vmx)
-	@(cd vmware && echo 'displayname = "${VAGRANT_TARGET}"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.addresstype = "generated"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.bsdname = "en0"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.connectiontype = "nat"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.displayname = "Ethernet"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.linkstatepropagation.enable = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.pcislotnumber = "33"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.present = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.virtualdev = "e1000"' >> vagrant.vmx)
-	@(cd vmware && echo 'ethernet0.wakeonpcktrcv = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'floppy0.present = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'guestos = "freebsd-64"' >> vagrant.vmx)
-	@(cd vmware && echo 'gui.fullscreenatpoweron = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'gui.viewmodeatpoweron = "windowed"' >> vagrant.vmx)
-	@(cd vmware && echo 'memsize = "512"' >> vagrant.vmx)
-	@(cd vmware && echo 'sound.startconnected = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'softpoweroff = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'scsi0.pcislotnumber = "16"' >> vagrant.vmx)
-	@(cd vmware && echo 'scsi0.present = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'scsi0.virtualdev = "lsilogic"' >> vagrant.vmx)
-	@(cd vmware && echo 'scsi0:0.filename = "vagrant.vmdk"' >> vagrant.vmx)
-	@(cd vmware && echo 'scsi0:0.present = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'tools.synctime = "TRUE"' >> vagrant.vmx)
-	@(cd vmware && echo 'usb.present = "FALSE"' >> vagrant.vmx)
-	@(cd vmware && echo 'virtualhw.productcompatibility = "hosted"' >> vagrant.vmx)
-	@(cd vmware && echo 'virtualhw.version = "9"' >> vagrant.vmx)
+vmware/vagrant.vmx: ${.CURDIR}/scripts/vagrant.vmx
+	cp ${.ALLSRC} vmware/
 
 vagrant-create-vmware-metadata: vmware/vagrant.vmx

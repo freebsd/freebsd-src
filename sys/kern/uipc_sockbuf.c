@@ -212,7 +212,7 @@ sbready(struct sockbuf *sb, struct mbuf *m0, int count)
 	while (count > 0) {
 		KASSERT(m->m_flags & M_NOTREADY,
 		    ("%s: m %p !M_NOTREADY", __func__, m));
-		if ((m->m_flags & M_EXTPG) != 0) {
+		if ((m->m_flags & M_EXTPG) != 0 && m->m_epg_npgs != 0) {
 			if (count < m->m_epg_nrdy) {
 				m->m_epg_nrdy -= count;
 				count = 0;

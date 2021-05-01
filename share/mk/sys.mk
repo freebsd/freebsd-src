@@ -166,11 +166,7 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
-.if ${MACHINE_CPUARCH} == "mips"
-CFLAGS		?=	-O -pipe
-.else
 CFLAGS		?=	-O2 -pipe
-.endif
 .if defined(NO_STRICT_ALIASING)
 CFLAGS		+=	-fno-strict-aliasing
 .endif
@@ -244,7 +240,7 @@ LFLAGS		?=
 # compiler driver flags (e.g. -mabi=*) that conflict with flags to LD.
 LD		?=	ld
 LDFLAGS		?=
-_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*:N-fuse-ld=*}
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g:N-mabi=*:N-fuse-ld=*:N--ld-path=*}
 
 MAKE		?=	make
 

@@ -2414,80 +2414,76 @@ ieee80211_add_qos(uint8_t *frm, const struct ieee80211_node *ni)
 }
 
 /*
- * Send a probe request frame with the specified ssid
- * and any optional information element data.
+ * ieee80211_send_probereq(): send a probe request frame with the specified ssid
+ * and any optional information element data;  some helper functions as FW based
+ * HW scans need some of that information passed too.
  */
-int
-ieee80211_send_probereq(struct ieee80211_node *ni,
-	const uint8_t sa[IEEE80211_ADDR_LEN],
-	const uint8_t da[IEEE80211_ADDR_LEN],
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t *ssid, size_t ssidlen)
+static uint32_t
+ieee80211_probereq_ie_len(struct ieee80211vap *vap, struct ieee80211com *ic)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_node *bss;
-	const struct ieee80211_txparam *tp;
-	struct ieee80211_bpf_params params;
 	const struct ieee80211_rateset *rs;
-	struct mbuf *m;
-	uint8_t *frm;
-	int ret;
 
-	bss = ieee80211_ref_node(vap->iv_bss);
-
-	if (vap->iv_state == IEEE80211_S_CAC) {
-		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
-		    "block %s frame in CAC state", "probe request");
-		vap->iv_stats.is_tx_badstate++;
-		ieee80211_free_node(bss);
-		return EIO;		/* XXX */
-	}
-
-	/*
-	 * Hold a reference on the node so it doesn't go away until after
-	 * the xmit is complete all the way in the driver.  On error we
-	 * will remove our reference.
-	 */
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
-		"ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
-		__func__, __LINE__,
-		ni, ether_sprintf(ni->ni_macaddr),
-		ieee80211_node_refcnt(ni)+1);
-	ieee80211_ref_node(ni);
+	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 
 	/*
 	 * prreq frame format
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 *	[tlv] RSN (optional)
-	 *	[tlv] extended supported rates
+	 *	[tlv] extended supported rates (if needed)
 	 *	[tlv] HT cap (optional)
 	 *	[tlv] VHT cap (optional)
 	 *	[tlv] WPA (optional)
 	 *	[tlv] user-specified ie's
 	 */
-	m = ieee80211_getmgtframe(&frm,
-		 ic->ic_headroom + sizeof(struct ieee80211_frame),
-	       	 2 + IEEE80211_NWID_LEN
+	return ( 2 + IEEE80211_NWID_LEN
 	       + 2 + IEEE80211_RATE_SIZE
-	       + sizeof(struct ieee80211_ie_htcap)
-	       + sizeof(struct ieee80211_ie_vhtcap)
+	       + ((vap->iv_flags & IEEE80211_F_WPA2 && vap->iv_rsn_ie != NULL) ?
+	           vap->iv_rsn_ie[1] : 0)
+	       + ((rs->rs_nrates > IEEE80211_RATE_SIZE) ?
+	           2 + (rs->rs_nrates - IEEE80211_RATE_SIZE) : 0)
+	       + (((vap->iv_opmode == IEEE80211_M_IBSS) &&
+		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) ?
+	                sizeof(struct ieee80211_ie_htcap) : 0)
+#ifdef notyet
 	       + sizeof(struct ieee80211_ie_htinfo)	/* XXX not needed? */
-	       + sizeof(struct ieee80211_ie_wpa)
-	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
-	       + sizeof(struct ieee80211_ie_wpa)
+	       + sizeof(struct ieee80211_ie_vhtcap)
+#endif
+	       + ((vap->iv_flags & IEEE80211_F_WPA1 && vap->iv_wpa_ie != NULL) ?
+	           vap->iv_wpa_ie[1] : 0)
 	       + (vap->iv_appie_probereq != NULL ?
 		   vap->iv_appie_probereq->ie_len : 0)
 	);
-	if (m == NULL) {
-		vap->iv_stats.is_tx_nobuf++;
-		ieee80211_free_node(ni);
-		ieee80211_free_node(bss);
-		return ENOMEM;
-	}
+}
 
-	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
+int
+ieee80211_probereq_ie(struct ieee80211vap *vap, struct ieee80211com *ic,
+    uint8_t **frmp, uint32_t *frmlen, const uint8_t *ssid, size_t ssidlen,
+    bool alloc)
+{
+	const struct ieee80211_rateset *rs;
+	uint8_t	*frm;
+	uint32_t len;
+
+	if (!alloc && (frmp == NULL || frmlen == NULL))
+		return (EINVAL);
+
+	len = ieee80211_probereq_ie_len(vap, ic);
+	if (!alloc && len > *frmlen)
+		return (ENOBUFS);
+
+	if (alloc) {
+		frm = malloc(len, M_80211_VAP, M_WAITOK | M_ZERO);
+		*frmp = frm;
+		*frmlen = len;
+	} else
+		frm = *frmp;
+
+	/* For HW scans we usually do not pass in the SSID as IE. */
+	if (ssidlen == -1)
+		len -= (2 + IEEE80211_NWID_LEN);
+	else
+		frm = ieee80211_add_ssid(frm, ssid, ssidlen);
 	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, rs);
 	frm = ieee80211_add_rsn(frm, vap);
@@ -2517,8 +2513,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	 * XXX TODO: need to figure out what/how to update the
 	 * VHT channel.
 	 */
-#if 0
-	(vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
+#ifdef notyet
+	if (vap->iv_flags_vht & IEEE80211_FVHT_VHT) {
 		struct ieee80211_channel *c;
 
 		c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
@@ -2531,8 +2527,71 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_appie_probereq != NULL)
 		frm = add_appie(frm, vap->iv_appie_probereq);
-	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
+	if (!alloc) {
+		*frmp = frm;
+		*frmlen = len;
+	}
+
+	return (0);
+}
+
+int
+ieee80211_send_probereq(struct ieee80211_node *ni,
+	const uint8_t sa[IEEE80211_ADDR_LEN],
+	const uint8_t da[IEEE80211_ADDR_LEN],
+	const uint8_t bssid[IEEE80211_ADDR_LEN],
+	const uint8_t *ssid, size_t ssidlen)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_node *bss;
+	const struct ieee80211_txparam *tp;
+	struct ieee80211_bpf_params params;
+	struct mbuf *m;
+	uint8_t *frm;
+	uint32_t frmlen;
+	int ret;
+
+	bss = ieee80211_ref_node(vap->iv_bss);
+
+	if (vap->iv_state == IEEE80211_S_CAC) {
+		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT, ni,
+		    "block %s frame in CAC state", "probe request");
+		vap->iv_stats.is_tx_badstate++;
+		ieee80211_free_node(bss);
+		return EIO;		/* XXX */
+	}
+
+	/*
+	 * Hold a reference on the node so it doesn't go away until after
+	 * the xmit is complete all the way in the driver.  On error we
+	 * will remove our reference.
+	 */
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+		"ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
+		__func__, __LINE__,
+		ni, ether_sprintf(ni->ni_macaddr),
+		ieee80211_node_refcnt(ni)+1);
+	ieee80211_ref_node(ni);
+
+	/* See comments above for entire frame format. */
+	frmlen = ieee80211_probereq_ie_len(vap, ic);
+	m = ieee80211_getmgtframe(&frm,
+	    ic->ic_headroom + sizeof(struct ieee80211_frame), frmlen);
+	if (m == NULL) {
+		vap->iv_stats.is_tx_nobuf++;
+		ieee80211_free_node(ni);
+		ieee80211_free_node(bss);
+		return ENOMEM;
+	}
+
+	ret = ieee80211_probereq_ie(vap, ic, &frm, &frmlen, ssid, ssidlen,
+	    false);
+	KASSERT(ret == 0,
+	    ("%s: ieee80211_probereq_ie railed: %d\n", __func__, ret));
+
+	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 	KASSERT(M_LEADINGSPACE(m) >= sizeof(struct ieee80211_frame),
 	    ("leading space %zd", M_LEADINGSPACE(m)));
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);

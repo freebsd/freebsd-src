@@ -213,8 +213,17 @@ max6690_fill_sensor_prop(device_t dev)
 	for (j = 0; j < i; j++) {
 		sc->sc_sensors[j].dev = dev;
 
-		sc->sc_sensors[j].therm.target_temp = 400 + ZERO_C_TO_K;
-		sc->sc_sensors[j].therm.max_temp = 800 + ZERO_C_TO_K;
+		/*
+		 * Target value for "KODIAK DIODE" (= northbridge die) should
+		 * be 64C (value from Linux). It operates fine at that
+		 * temperature and has limited responsivity to the fan aimed at
+		 * it, so no point in trying to cool it to 40C.
+		 */
+		if (strcmp(sc->sc_sensors[j].therm.name, "KODIAK DIODE") == 0)
+			sc->sc_sensors[j].therm.target_temp = 640 + ZERO_C_TO_K;
+		else
+			sc->sc_sensors[j].therm.target_temp = 400 + ZERO_C_TO_K;
+		sc->sc_sensors[j].therm.max_temp = 850 + ZERO_C_TO_K;
 
 		sc->sc_sensors[j].therm.read =
 		    (int (*)(struct pmac_therm *))(max6690_sensor_read);

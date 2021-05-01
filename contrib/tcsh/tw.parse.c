@@ -2350,7 +2350,7 @@ choose_scroll_tab(struct Strbuf *exp_name, int cnt)
     ptr = xmalloc(sizeof(Char *) * cnt);
     cleanup_push(ptr, xfree);
 
-    for(loop = scroll_tab; loop && (tmp >= 0); loop = loop->next)
+    for (loop = scroll_tab; loop && (tmp >= 0); loop = loop->next)
 	ptr[--tmp] = loop->element;
 
     qsort(ptr, cnt, sizeof(Char *), fcompare);
@@ -2366,7 +2366,7 @@ free_scroll_tab(void)
 {
     struct scroll_tab_list *loop;
 
-    while(scroll_tab) {
+    while (scroll_tab) {
 	loop = scroll_tab;
 	scroll_tab = scroll_tab->next;
 	xfree(loop->element);

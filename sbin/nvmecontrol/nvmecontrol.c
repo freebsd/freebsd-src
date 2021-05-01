@@ -38,12 +38,14 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -96,7 +98,7 @@ print_hex(void *data, uint32_t length)
 		print_bytes(data, length);
 }
 
-void
+int
 read_controller_data(int fd, struct nvme_controller_data *cdata)
 {
 	struct nvme_pt_command	pt;
@@ -109,16 +111,17 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "identify request failed");
+		return (errno);
 
 	/* Convert data to host endian */
 	nvme_controller_data_swapbytes(cdata);
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "identify request returned error");
+		return (EIO);
+	return (0);
 }
 
-void
+int
 read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 {
 	struct nvme_pt_command	pt;
@@ -132,13 +135,14 @@ read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsdata)
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "identify request failed");
+		return (errno);
 
 	/* Convert data to host endian */
 	nvme_namespace_data_swapbytes(nsdata);
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "identify request returned error");
+		return (EIO);
+	return (0);
 }
 
 int
@@ -150,7 +154,7 @@ open_dev(const char *str, int *fd, int write, int exit_on_error)
 	*fd = open(full_path, write ? O_RDWR : O_RDONLY);
 	if (*fd < 0) {
 		if (exit_on_error) {
-			err(1, "could not open %s%s", full_path,
+			err(EX_OSFILE, "could not open %s%s", full_path,
 			    write ? " for write" : "");
 		} else
 			return (errno);
@@ -165,7 +169,7 @@ get_nsid(int fd, char **ctrlr_str, uint32_t *nsid)
 	struct nvme_get_nsid gnsid;
 
 	if (ioctl(fd, NVME_GET_NSID, &gnsid) < 0)
-		err(1, "NVME_GET_NSID ioctl failed");
+		err(EX_OSERR, "NVME_GET_NSID ioctl failed");
 	if (ctrlr_str != NULL)
 		*ctrlr_str = strndup(gnsid.cdev, sizeof(gnsid.cdev));
 	if (nsid != NULL)
@@ -175,11 +179,13 @@ get_nsid(int fd, char **ctrlr_str, uint32_t *nsid)
 int
 main(int argc, char *argv[])
 {
+	static char dir[MAXPATHLEN];
 
 	cmd_init();
 
 	cmd_load_dir("/lib/nvmecontrol", NULL, NULL);
-	cmd_load_dir("/usr/local/lib/nvmecontrol", NULL, NULL);
+	snprintf(dir, MAXPATHLEN, "%s/lib/nvmecontrol", getlocalbase());
+	cmd_load_dir(dir, NULL, NULL);
 
 	cmd_dispatch(argc, argv, NULL);
 

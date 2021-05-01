@@ -777,7 +777,7 @@ atomic_fcmpset_char(volatile u_char *p, u_char *cmpval, u_char newval)
 		"b 2f\n\t"			/* we've succeeded */
 		"1:\n\t"
 		"stbcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
-		"stwx %0, 0, %7\n\t"
+		"stbx %0, 0, %7\n\t"
 		"li %0, 0\n\t"			/* failure - retval = 0 */
 		"2:\n\t"
 		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)
@@ -802,7 +802,7 @@ atomic_fcmpset_short(volatile u_short *p, u_short *cmpval, u_short newval)
 		"b 2f\n\t"			/* we've succeeded */
 		"1:\n\t"
 		"sthcx. %0, 0, %3\n\t"       	/* clear reservation (74xx) */
-		"stwx %0, 0, %7\n\t"
+		"sthx %0, 0, %7\n\t"
 		"li %0, 0\n\t"			/* failure - retval = 0 */
 		"2:\n\t"
 		: "=&r" (ret), "=m" (*p), "=m" (*cmpval)

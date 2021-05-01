@@ -55,14 +55,12 @@ X\()\vec_name:
 	SET_KERNEL_SREGS
 	cld
 	KENTER
-	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
 	pushl	$\irq_num 	/* pass the IRQ */
 	movl	$atpic_handle_intr, %eax
 	call	*%eax
 	addl	$8, %esp	/* discard the parameters */
 
-	MEXITCOUNT
 	jmp	doreti
 	.endm
 

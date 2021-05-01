@@ -47,7 +47,7 @@ archive_read_support_format_empty(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    NULL,
-	    NULL,
+	    "empty",
 	    archive_read_format_empty_bid,
 	    NULL,
 	    archive_read_format_empty_read_header,

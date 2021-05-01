@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -64,13 +63,13 @@ struct auth {
 struct auth_name {
 	TAILQ_ENTRY(auth_name)		an_next;
 	struct auth_group		*an_auth_group;
-	char				*an_initator_name;
+	char				*an_initiator_name;
 };
 
 struct auth_portal {
 	TAILQ_ENTRY(auth_portal)	ap_next;
 	struct auth_group		*ap_auth_group;
-	char				*ap_initator_portal;
+	char				*ap_initiator_portal;
 	struct sockaddr_storage		ap_sa;
 	int				ap_mask;
 };
@@ -128,6 +127,7 @@ struct portal_group {
 	char				*pg_offload;
 	char				*pg_redirection;
 	int				pg_dscp;
+	int				pg_pcp;
 
 	uint16_t			pg_tag;
 };

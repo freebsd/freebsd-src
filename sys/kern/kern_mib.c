@@ -146,8 +146,29 @@ char kernelname[MAXPATHLEN] = PATH_KERNEL;	/* XXX bloat */
 SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW | CTLFLAG_MPSAFE,
     kernelname, sizeof kernelname, "Name of kernel file booted");
 
-SYSCTL_INT(_kern, KERN_MAXPHYS, maxphys, CTLFLAG_RD | CTLFLAG_CAPRD,
-    SYSCTL_NULL_INT_PTR, MAXPHYS, "Maximum block I/O access size");
+#ifdef COMPAT_FREEBSD12
+static int
+sysctl_maxphys(SYSCTL_HANDLER_ARGS)
+{
+	u_long lvalue;
+	int ivalue;
+
+	lvalue = maxphys;
+	if (sizeof(int) == sizeof(u_long) || req->oldlen >= sizeof(u_long))
+		return (sysctl_handle_long(oidp, &lvalue, 0, req));
+	if (lvalue > INT_MAX)
+		return (sysctl_handle_long(oidp, &lvalue, 0, req));
+	ivalue = lvalue;
+	return (sysctl_handle_int(oidp, &ivalue, 0, req));
+}
+SYSCTL_PROC(_kern, KERN_MAXPHYS, maxphys, CTLTYPE_LONG | CTLFLAG_RDTUN |
+    CTLFLAG_NOFETCH | CTLFLAG_CAPRD | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_maxphys, "UL", "Maximum block I/O access size");
+#else
+SYSCTL_ULONG(_kern, KERN_MAXPHYS, maxphys,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH | CTLFLAG_CAPRD,
+    &maxphys, 0, "Maximum block I/O access size");
+#endif
 
 SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD|CTLFLAG_CAPRD,
     &mp_ncpus, 0, "Number of active CPUs");
@@ -325,25 +346,27 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 	KASSERT(len <= sizeof(tmpname),
 	    ("length %d too long for %s", len, __func__));
 
-	pr = req->td->td_ucred->cr_prison;
-	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
-		return (EPERM);
 	/*
 	 * Make a local copy of hostname to get/set so we don't have to hold
 	 * the jail mutex during the sysctl copyin/copyout activities.
 	 */
+	pr = req->td->td_ucred->cr_prison;
 	mtx_lock(&pr->pr_mtx);
 	bcopy((char *)pr + pr_offset, tmpname, len);
 	mtx_unlock(&pr->pr_mtx);
 
 	error = sysctl_handle_string(oidp, tmpname, len, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
 
-	if (req->newptr != NULL && error == 0) {
-		/*
-		 * Copy the locally set hostname to all jails that share
-		 * this host info.
-		 */
-		sx_slock(&allprison_lock);
+	/*
+	 * Copy the locally set hostname to all jails that share
+	 * this host info.
+	 */
+	sx_slock(&allprison_lock);
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME))
+		error = EPERM;
+	else {
 		while (!(pr->pr_flags & PR_HOST))
 			pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
@@ -354,8 +377,8 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 			else
 				bcopy(tmpname, (char *)cpr + pr_offset, len);
 		mtx_unlock(&pr->pr_mtx);
-		sx_sunlock(&allprison_lock);
 	}
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 
@@ -444,13 +467,18 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 	 * instead of a string, and is used only for hostid.
 	 */
 	pr = req->td->td_ucred->cr_prison;
-	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
-		return (EPERM);
+	mtx_lock(&pr->pr_mtx);
 	tmpid = pr->pr_hostid;
-	error = sysctl_handle_long(oidp, &tmpid, 0, req);
+	mtx_unlock(&pr->pr_mtx);
 
-	if (req->newptr != NULL && error == 0) {
-		sx_slock(&allprison_lock);
+	error = sysctl_handle_long(oidp, &tmpid, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	sx_slock(&allprison_lock);
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME))
+		error = EPERM;
+	else {
 		while (!(pr->pr_flags & PR_HOST))
 			pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
@@ -461,8 +489,8 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 			else
 				cpr->pr_hostid = tmpid;
 		mtx_unlock(&pr->pr_mtx);
-		sx_sunlock(&allprison_lock);
 	}
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 
@@ -652,6 +680,11 @@ SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 0, "Min Maximum number of streams a process may have open at one time");
 SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 0, "Min Maximum number of types supported for timezone names");
+
+static char localbase[MAXPATHLEN] = "";
+
+SYSCTL_STRING(_user, USER_LOCALBASE, localbase, CTLFLAG_RWTUN,
+    localbase, sizeof(localbase), "Prefix used to install and locate add-on packages");
 
 #include <sys/vnode.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD,

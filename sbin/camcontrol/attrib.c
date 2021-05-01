@@ -138,8 +138,6 @@ scsiattrib(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto bailout;
 	}
 
-	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
-
 	STAILQ_INIT(&write_attr_list);
 
 	/*

@@ -79,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/poll.h>
 
+#include <dev/hid/hid.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -2204,7 +2206,7 @@ atp_attach(device_t dev)
 		return (ENXIO);
 
 	/* Get HID report descriptor length */
-	sc->sc_expected_sensor_data_len = hid_report_size(descriptor_ptr,
+	sc->sc_expected_sensor_data_len = hid_report_size_max(descriptor_ptr,
 	    descriptor_len, hid_input, NULL);
 	free(descriptor_ptr, M_TEMP);
 
@@ -2633,6 +2635,7 @@ static driver_t atp_driver = {
 
 DRIVER_MODULE(atp, uhub, atp_driver, atp_devclass, NULL, 0);
 MODULE_DEPEND(atp, usb, 1, 1, 1);
+MODULE_DEPEND(atp, hid, 1, 1, 1);
 MODULE_VERSION(atp, 1);
 USB_PNP_HOST_INFO(fg_devs);
 USB_PNP_HOST_INFO(wsp_devs);

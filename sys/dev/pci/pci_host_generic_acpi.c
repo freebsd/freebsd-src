@@ -201,7 +201,8 @@ pci_host_acpi_get_ecam_resource(device_t dev)
 				mcfg_entry++;
 		}
 		if (found) {
-			sc->base.bus_end = mcfg_entry->EndBusNumber;
+			if (mcfg_entry->EndBusNumber < sc->base.bus_end)
+				sc->base.bus_end = mcfg_entry->EndBusNumber;
 			base = mcfg_entry->Address;
 		} else {
 			device_printf(dev, "MCFG exists, but does not have bus %d-%d\n",
@@ -210,10 +211,9 @@ pci_host_acpi_get_ecam_resource(device_t dev)
 		}
 	} else {
 		status = acpi_GetInteger(handle, "_CBA", &val);
-		if (ACPI_SUCCESS(status)) {
+		if (ACPI_SUCCESS(status))
 			base = val;
-			sc->base.bus_end = 255;
-		} else
+		else
 			return (ENXIO);
 	}
 
@@ -246,6 +246,7 @@ pci_host_generic_acpi_init(device_t dev)
 		device_printf(dev, "No _BBN, using start bus 0\n");
 		sc->base.bus_start = 0;
 	}
+	sc->base.bus_end = 255;
 
 	/* Get PCI Segment (domain) needed for MCFG lookup */
 	status = acpi_GetInteger(handle, "_SEG", &sc->base.ecam);

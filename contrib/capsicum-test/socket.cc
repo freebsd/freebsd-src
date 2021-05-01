@@ -20,10 +20,13 @@ TEST(Socket, UnixDomain) {
   cap_rights_t r_all;
   cap_rights_init(&r_all, CAP_READ, CAP_WRITE, CAP_SOCK_CLIENT, CAP_SOCK_SERVER);
 
+  int pipefds[2];
+  EXPECT_EQ(0, pipe(pipefds));
   pid_t child = fork();
   if (child == 0) {
     // Child process: wait for server setup
-    sleep(1);
+    close(pipefds[0]);
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_CHILD_SHOULD_RUN);
 
     // Create sockets
     int sock = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -94,7 +97,9 @@ TEST(Socket, UnixDomain) {
   len = sizeof(value);
   EXPECT_OK(getsockopt(cap_sock_all, SOL_SOCKET, SO_DEBUG, &value, &len));
 
-  // Accept the incoming connection
+  // Tell the child process that we are ready and accept the incoming connection.
+  EXPECT_OK(close(pipefds[1]));
+  SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_CHILD_SHOULD_RUN);
   len = sizeof(un);
   memset(&un, 0, sizeof(un));
   EXPECT_NOTCAPABLE(accept(cap_sock_rw, (struct sockaddr *)&un, &len));
@@ -153,11 +158,14 @@ TEST(Socket, TCP) {
   getsockname(cap_sock_all, (struct sockaddr *)&addr, &len);
   int port = ntohs(addr.sin_port);
 
+  int pipefds[2];
+  EXPECT_EQ(0, pipe(pipefds));
   // Now we know the port involved, fork off a child.
   pid_t child = fork();
   if (child == 0) {
     // Child process: wait for server setup
-    sleep(1);
+    close(pipefds[0]);
+    AWAIT_INT_MESSAGE(pipefds[1], MSG_PARENT_CHILD_SHOULD_RUN);
 
     // Create sockets
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -206,7 +214,9 @@ TEST(Socket, TCP) {
   len = sizeof(value);
   EXPECT_OK(getsockopt(cap_sock_all, SOL_SOCKET, SO_REUSEPORT, &value, &len));
 
-  // Accept the incoming connection
+  // Tell the child process that we are ready and accept the incoming connection.
+  EXPECT_OK(close(pipefds[1]));
+  SEND_INT_MESSAGE(pipefds[0], MSG_PARENT_CHILD_SHOULD_RUN);
   len = sizeof(addr);
   memset(&addr, 0, sizeof(addr));
   EXPECT_NOTCAPABLE(accept(cap_sock_rw, (struct sockaddr *)&addr, &len));

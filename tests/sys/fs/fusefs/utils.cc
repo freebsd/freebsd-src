@@ -59,13 +59,6 @@ using namespace testing;
  */
 const uint32_t libfuse_max_write = 32 * getpagesize() + 0x1000 - 4096;
 
-/* 
- * Set the default max_write to a distinct value from MAXPHYS to catch bugs
- * that confuse the two.
- */
-const uint32_t default_max_write = MIN(libfuse_max_write, MAXPHYS / 2);
-
-
 /* Check that fusefs(4) is accessible and the current user can mount(2) */
 void check_environment()
 {
@@ -156,6 +149,12 @@ void FuseTest::SetUp() {
 	ASSERT_EQ(0, sysctlbyname(maxphys_node, &val, &size, NULL, 0))
 		<< strerror(errno);
 	m_maxphys = val;
+	/*
+	 * Set the default max_write to a distinct value from MAXPHYS to catch
+	 * bugs that confuse the two.
+	 */
+	if (m_maxwrite == 0)
+		m_maxwrite = MIN(libfuse_max_write, (uint32_t)m_maxphys / 2);
 
 	try {
 		m_mock = new MockFS(m_maxreadahead, m_allow_other,
@@ -377,10 +376,10 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 				in.body.read.fh == FH &&
 				in.body.read.offset == offset &&
 				in.body.read.size == isize &&
-				flags == -1 ?
+				(flags == -1 ?
 					(in.body.read.flags == O_RDONLY ||
 					 in.body.read.flags == O_RDWR)
-				: in.body.read.flags == (uint32_t)flags);
+				: in.body.read.flags == (uint32_t)flags));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {

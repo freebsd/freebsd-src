@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2010 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -600,6 +599,11 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 		case RCTL_ACTION_THROTTLE:
 			if (p->p_state != PRS_NORMAL)
 				continue;
+
+			if (rule->rr_amount == 0) {
+				racct_proc_throttle(p, rctl_throttle_max);
+				continue;
+			}
 
 			/*
 			 * Make the process sleep for a fraction of second

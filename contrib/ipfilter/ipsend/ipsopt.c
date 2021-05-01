@@ -27,11 +27,7 @@ static const char rcsid[] = "@(#)$Id$";
 
 
 #ifndef	__P
-# ifdef	__STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
 #endif
 
 

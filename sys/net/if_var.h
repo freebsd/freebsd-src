@@ -191,7 +191,8 @@ struct m_snd_tag;
 #define	IF_SND_TAG_TYPE_RATE_LIMIT 0
 #define	IF_SND_TAG_TYPE_UNLIMITED 1
 #define	IF_SND_TAG_TYPE_TLS 2
-#define	IF_SND_TAG_TYPE_MAX 3
+#define	IF_SND_TAG_TYPE_TLS_RATE_LIMIT 3
+#define	IF_SND_TAG_TYPE_MAX 4
 
 struct if_snd_tag_alloc_header {
 	uint32_t type;		/* send tag type, see IF_SND_TAG_XXX */
@@ -213,6 +214,13 @@ struct if_snd_tag_alloc_tls {
 	const struct ktls_session *tls;
 };
 
+struct if_snd_tag_alloc_tls_rate_limit {
+	struct if_snd_tag_alloc_header hdr;
+	struct inpcb *inp;
+	const struct ktls_session *tls;
+	uint64_t max_rate;	/* in bytes/s */
+};
+
 struct if_snd_tag_rate_limit_params {
 	uint64_t max_rate;	/* in bytes/s */
 	uint32_t queue_level;	/* 0 (empty) .. 65535 (full) */
@@ -226,16 +234,19 @@ union if_snd_tag_alloc_params {
 	struct if_snd_tag_alloc_rate_limit rate_limit;
 	struct if_snd_tag_alloc_rate_limit unlimited;
 	struct if_snd_tag_alloc_tls tls;
+	struct if_snd_tag_alloc_tls_rate_limit tls_rate_limit;
 };
 
 union if_snd_tag_modify_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
 	struct if_snd_tag_rate_limit_params unlimited;
+	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
 union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
 	struct if_snd_tag_rate_limit_params unlimited;
+	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
 /* Query return flags */
@@ -267,6 +278,7 @@ typedef int (if_snd_tag_alloc_t)(struct ifnet *, union if_snd_tag_alloc_params *
 typedef int (if_snd_tag_modify_t)(struct m_snd_tag *, union if_snd_tag_modify_params *);
 typedef int (if_snd_tag_query_t)(struct m_snd_tag *, union if_snd_tag_query_params *);
 typedef void (if_snd_tag_free_t)(struct m_snd_tag *);
+typedef struct m_snd_tag *(if_next_send_tag_t)(struct m_snd_tag *);
 typedef void (if_ratelimit_query_t)(struct ifnet *,
     struct if_ratelimit_query_results *);
 typedef int (if_ratelimit_setup_t)(struct ifnet *, uint64_t, uint32_t);
@@ -411,6 +423,7 @@ struct ifnet {
 	if_snd_tag_modify_t *if_snd_tag_modify;
 	if_snd_tag_query_t *if_snd_tag_query;
 	if_snd_tag_free_t *if_snd_tag_free;
+	if_next_send_tag_t *if_next_snd_tag;
 	if_ratelimit_query_t *if_ratelimit_query;
 	if_ratelimit_setup_t *if_ratelimit_setup;
 
@@ -564,6 +577,7 @@ struct ifaddr {
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
 void	ifa_ref(struct ifaddr *ifa);
+int __result_use_check ifa_try_ref(struct ifaddr *ifa);
 
 /*
  * Multicast address structure.  This is analogous to the ifaddr
@@ -582,29 +596,12 @@ struct ifmultiaddr {
 	struct	epoch_context	ifma_epoch_ctx;
 };
 
-extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
 
-#define	IFNET_WLOCK() do {						\
-	sx_xlock(&ifnet_sxlock);					\
-	rw_wlock(&ifnet_rwlock);					\
-} while (0)
-
-#define	IFNET_WUNLOCK() do {						\
-	rw_wunlock(&ifnet_rwlock);					\
-	sx_xunlock(&ifnet_sxlock);					\
-} while (0)
-
-/*
- * To assert the ifnet lock, you must know not only whether it's for read or
- * write, but also whether it was acquired with sleep support or not.
- */
-#define	IFNET_RLOCK_ASSERT()		sx_assert(&ifnet_sxlock, SA_SLOCKED)
-#define	IFNET_WLOCK_ASSERT() do {					\
-	sx_assert(&ifnet_sxlock, SA_XLOCKED);				\
-	rw_assert(&ifnet_rwlock, RA_WLOCKED);				\
-} while (0)
-
+#define	IFNET_WLOCK()		sx_xlock(&ifnet_sxlock)
+#define	IFNET_WUNLOCK()		sx_xunlock(&ifnet_sxlock)
+#define	IFNET_RLOCK_ASSERT()	sx_assert(&ifnet_sxlock, SA_SLOCKED)
+#define	IFNET_WLOCK_ASSERT()	sx_assert(&ifnet_sxlock, SA_XLOCKED)
 #define	IFNET_RLOCK()		sx_slock(&ifnet_sxlock)
 #define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
 
@@ -662,8 +659,10 @@ void	if_free(struct ifnet *);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
+int	if_log(struct ifnet *, int, const char *, ...) __printflike(3, 4);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
+bool	__result_use_check if_try_ref(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 int	if_tunnel_check_nesting(struct ifnet *, struct mbuf *, uint32_t, int);
 void	if_up(struct ifnet *);

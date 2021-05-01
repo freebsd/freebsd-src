@@ -291,6 +291,8 @@ extern	uint32_t ar5211Get11nExtBusy(struct ath_hal *);
 extern	HAL_BOOL ar5211GetMibCycleCounts(struct ath_hal *,
 		HAL_SURVEY_SAMPLE *);
 extern	void ar5211SetChainMasks(struct ath_hal *ah, uint32_t, uint32_t);
+extern	void ar5211SetNav(struct ath_hal *ah, u_int);
+extern	u_int ar5211GetNav(struct ath_hal *ah);
 
 extern	void ar5211EnableDfs(struct ath_hal *, HAL_PHYERR_PARAM *);
 extern	void ar5211GetDfsThresh(struct ath_hal *, HAL_PHYERR_PARAM *);

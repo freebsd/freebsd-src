@@ -1322,7 +1322,6 @@ ATF_TC_BODY(largepage_mlock, tc)
 	error = sysctlbyname("vm.max_user_wired", &max_wired, &sz, NULL, 0);
 	ATF_REQUIRE_MSG(error == 0,
 	    "sysctlbyname(vm.max_user_wired) failed; error=%d", errno);
-	ATF_REQUIRE(max_wired >= 0);
 
 	sz = sizeof(wired);
 	error = sysctlbyname("vm.stats.vm.v_user_wire_count", &wired, &sz, NULL,
@@ -1330,7 +1329,6 @@ ATF_TC_BODY(largepage_mlock, tc)
 	ATF_REQUIRE_MSG(error == 0,
 	    "sysctlbyname(vm.stats.vm.v_user_wire_count) failed; error=%d",
 	    errno);
-	ATF_REQUIRE(wired >= 0);
 
 	pscnt = pagesizes(ps);
 	for (int i = 1; i < pscnt; i++) {

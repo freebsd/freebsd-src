@@ -119,6 +119,18 @@ static const struct ig4_hw ig4iic_hw[] = {
 		.ic_clock_rate = 216,
 		.sda_hold_time = 230,
 	},
+	[IG4_TIGERLAKE] = {
+		.ic_clock_rate = 133,
+		.sda_fall_time = 171,
+		.scl_fall_time = 208,
+		.sda_hold_time = 42,
+	},
+	[IG4_GEMINILAKE] = {
+		.ic_clock_rate = 133,
+		.sda_fall_time = 171,
+		.scl_fall_time = 290,
+		.sda_hold_time = 313,
+	},
 };
 
 static int ig4iic_set_config(ig4iic_softc_t *sc, bool reset);
@@ -261,7 +273,7 @@ wait_intr(ig4iic_softc_t *sc, uint32_t intr)
 	int error;
 	int txlvl = -1;
 	u_int count_us = 0;
-	u_int limit_us = 25000; /* 25ms */
+	u_int limit_us = 1000000; /* 1sec */
 
 	for (;;) {
 		/*

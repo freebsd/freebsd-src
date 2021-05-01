@@ -126,6 +126,8 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
 
 #include <netipsec/ipsec_support.h>
 
@@ -255,6 +257,11 @@ VNET_DEFINE(int, tcp_do_rfc1323) = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc1323), 0,
     "Enable rfc1323 (high performance TCP) extensions");
+
+VNET_DEFINE(int, tcp_tolerate_missing_ts) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tolerate_missing_ts, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(tcp_tolerate_missing_ts), 0,
+    "Tolerate missing TCP timestamps");
 
 VNET_DEFINE(int, tcp_ts_offset_per_conn) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, ts_offset_per_conn, CTLFLAG_VNET | CTLFLAG_RW,
@@ -496,6 +503,80 @@ tcp_switch_back_to_default(struct tcpcb *tp)
 	}
 }
 
+static void
+tcp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
+    const struct sockaddr *sa, void *ctx)
+{
+	struct ip *iph;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+#endif
+	struct udphdr *uh;
+	struct tcphdr *th;
+	int thlen;
+	uint16_t port;
+
+	TCPSTAT_INC(tcps_tunneled_pkts);
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		/* Can't handle one that is not a pkt hdr */
+		TCPSTAT_INC(tcps_tunneled_errs);
+		goto out;
+	}
+	thlen = sizeof(struct tcphdr);
+	if (m->m_len < off + sizeof(struct udphdr) + thlen &&
+	    (m =  m_pullup(m, off + sizeof(struct udphdr) + thlen)) == NULL) {
+		TCPSTAT_INC(tcps_tunneled_errs);
+		goto out;
+	}
+	iph = mtod(m, struct ip *);
+	uh = (struct udphdr *)((caddr_t)iph + off);
+	th = (struct tcphdr *)(uh + 1);
+	thlen = th->th_off << 2;
+	if (m->m_len < off + sizeof(struct udphdr) + thlen) {
+		m =  m_pullup(m, off + sizeof(struct udphdr) + thlen);
+		if (m == NULL) {
+			TCPSTAT_INC(tcps_tunneled_errs);
+			goto out;
+		} else {
+			iph = mtod(m, struct ip *);
+			uh = (struct udphdr *)((caddr_t)iph + off);
+			th = (struct tcphdr *)(uh + 1);
+		}
+	}
+	m->m_pkthdr.tcp_tun_port = port = uh->uh_sport;
+	bcopy(th, uh, m->m_len - off);
+	m->m_len -= sizeof(struct udphdr);
+	m->m_pkthdr.len -= sizeof(struct udphdr);
+	/*
+	 * We use the same algorithm for
+	 * both UDP and TCP for c-sum. So
+	 * the code in tcp_input will skip
+	 * the checksum. So we do nothing
+	 * with the flag (m->m_pkthdr.csum_flags).
+	 */
+	switch (iph->ip_v) {
+#ifdef INET
+	case IPVERSION:
+		iph->ip_len = htons(ntohs(iph->ip_len) - sizeof(struct udphdr));
+		tcp_input_with_port(&m, &off, IPPROTO_TCP, port);
+		break;
+#endif
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+		ip6 = mtod(m, struct ip6_hdr *);
+		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - sizeof(struct udphdr));
+		tcp6_input_with_port(&m, &off, IPPROTO_TCP, port);
+		break;
+#endif
+	default:
+		goto out;
+		break;
+	}
+	return;
+out:
+	m_freem(m);
+}
+
 static int
 sysctl_net_inet_default_tcp_functions(SYSCTL_HANDLER_ARGS)
 {
@@ -592,6 +673,183 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
     NULL, 0, sysctl_net_inet_list_available, "A",
     "list available TCP Function sets");
+
+VNET_DEFINE(int, tcp_udp_tunneling_port) = TCP_TUNNELING_PORT_DEFAULT;
+
+#ifdef INET
+VNET_DEFINE(struct socket *, udp4_tun_socket) = NULL;
+#define	V_udp4_tun_socket	VNET(udp4_tun_socket)
+#endif
+#ifdef INET6
+VNET_DEFINE(struct socket *, udp6_tun_socket) = NULL;
+#define	V_udp6_tun_socket	VNET(udp6_tun_socket)
+#endif
+
+static void
+tcp_over_udp_stop(void)
+{
+	/*
+	 * This function assumes sysctl caller holds inp_rinfo_lock()
+	 * for writting!
+	 */
+#ifdef INET
+	if (V_udp4_tun_socket != NULL) {
+		soclose(V_udp4_tun_socket);
+		V_udp4_tun_socket = NULL;
+	}
+#endif
+#ifdef INET6
+	if (V_udp6_tun_socket != NULL) {
+		soclose(V_udp6_tun_socket);
+		V_udp6_tun_socket = NULL;
+	}
+#endif
+}
+
+static int
+tcp_over_udp_start(void)
+{
+	uint16_t port;
+	int ret;
+#ifdef INET
+	struct sockaddr_in sin;
+#endif
+#ifdef INET6
+	struct sockaddr_in6 sin6;
+#endif
+	/*
+	 * This function assumes sysctl caller holds inp_info_rlock()
+	 * for writting!
+	 */
+	port = V_tcp_udp_tunneling_port;
+	if (ntohs(port) == 0) {
+		/* Must have a port set */
+		return (EINVAL);
+	}
+#ifdef INET
+	if (V_udp4_tun_socket != NULL) {
+		/* Already running -- must stop first */
+		return (EALREADY);
+	}
+#endif
+#ifdef INET6
+	if (V_udp6_tun_socket != NULL) {
+		/* Already running -- must stop first */
+		return (EALREADY);
+	}
+#endif
+#ifdef INET
+	if ((ret = socreate(PF_INET, &V_udp4_tun_socket,
+	    SOCK_DGRAM, IPPROTO_UDP,
+	    curthread->td_ucred, curthread))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+	/* Call the special UDP hook. */
+	if ((ret = udp_set_kernel_tunneling(V_udp4_tun_socket,
+	    tcp_recv_udp_tunneled_packet,
+	    tcp_ctlinput_viaudp,
+	    NULL))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+	/* Ok, we have a socket, bind it to the port. */
+	memset(&sin, 0, sizeof(struct sockaddr_in));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	if ((ret = sobind(V_udp4_tun_socket,
+	    (struct sockaddr *)&sin, curthread))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+#endif
+#ifdef INET6
+	if ((ret = socreate(PF_INET6, &V_udp6_tun_socket,
+	    SOCK_DGRAM, IPPROTO_UDP,
+	    curthread->td_ucred, curthread))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+	/* Call the special UDP hook. */
+	if ((ret = udp_set_kernel_tunneling(V_udp6_tun_socket,
+	    tcp_recv_udp_tunneled_packet,
+	    tcp6_ctlinput_viaudp,
+	    NULL))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+	/* Ok, we have a socket, bind it to the port. */
+	memset(&sin6, 0, sizeof(struct sockaddr_in6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port = htons(port);
+	if ((ret = sobind(V_udp6_tun_socket,
+	    (struct sockaddr *)&sin6, curthread))) {
+		tcp_over_udp_stop();
+		return (ret);
+	}
+#endif
+	return (0);
+}
+
+static int
+sysctl_net_inet_tcp_udp_tunneling_port_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t old, new;
+
+	old = V_tcp_udp_tunneling_port;
+	new = old;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) &&
+	    (req->newptr != NULL)) {
+		if ((new < TCP_TUNNELING_PORT_MIN) ||
+		    (new > TCP_TUNNELING_PORT_MAX)) {
+			error = EINVAL;
+		} else {
+			V_tcp_udp_tunneling_port = new;
+			if (old != 0) {
+				tcp_over_udp_stop();
+			}
+			if (new != 0) {
+				error = tcp_over_udp_start();
+			}
+		}
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, udp_tunneling_port,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(tcp_udp_tunneling_port),
+    0, &sysctl_net_inet_tcp_udp_tunneling_port_check, "IU",
+    "Tunneling port for tcp over udp");
+
+VNET_DEFINE(int, tcp_udp_tunneling_overhead) = TCP_TUNNELING_OVERHEAD_DEFAULT;
+
+static int
+sysctl_net_inet_tcp_udp_tunneling_overhead_check(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = V_tcp_udp_tunneling_overhead;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if ((new < TCP_TUNNELING_OVERHEAD_MIN) ||
+		    (new > TCP_TUNNELING_OVERHEAD_MAX))
+			error = EINVAL;
+		else
+			V_tcp_udp_tunneling_overhead = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, udp_tunneling_overhead,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(tcp_udp_tunneling_overhead),
+    0, &sysctl_net_inet_tcp_udp_tunneling_overhead_check, "IU",
+    "MSS reduction when using tcp over udp");
 
 /*
  * Exports one (struct tcp_function_info) for each alias/name.
@@ -736,6 +994,16 @@ tcp_default_fb_init(struct tcpcb *tp)
 		tcp_timer_activate(tp, TT_KEEP,
 		    TCPS_HAVEESTABLISHED(tp->t_state) ? TP_KEEPIDLE(tp) :
 		    TP_KEEPINIT(tp));
+
+	/*
+	 * Make sure critical variables are initialized
+	 * if transitioning while in Recovery.
+	 */
+	if IN_FASTRECOVERY(tp->t_flags) {
+		if (tp->sackhint.recover_fs == 0)
+			tp->sackhint.recover_fs = max(1,
+			    tp->snd_nxt - tp->snd_una);
+	}
 
 	return (0);
 }
@@ -1218,9 +1486,11 @@ tcp_init(void)
 	tcp_inp_lro_direct_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_wokeup_queue = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_compressed = counter_u64_alloc(M_WAITOK);
-	tcp_inp_lro_single_push = counter_u64_alloc(M_WAITOK);
 	tcp_inp_lro_locks_taken = counter_u64_alloc(M_WAITOK);
-	tcp_inp_lro_sack_wake = counter_u64_alloc(M_WAITOK);
+	tcp_extra_mbuf = counter_u64_alloc(M_WAITOK);
+	tcp_would_have_but = counter_u64_alloc(M_WAITOK);
+	tcp_comp_total = counter_u64_alloc(M_WAITOK);
+	tcp_uncomp_total = counter_u64_alloc(M_WAITOK);
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
@@ -1292,7 +1562,7 @@ tcp_fini(void *xtp)
  * of the tcpcb each time to conserve mbufs.
  */
 void
-tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
+tcpip_fillheaders(struct inpcb *inp, uint16_t port, void *ip_ptr, void *tcp_ptr)
 {
 	struct tcphdr *th = (struct tcphdr *)tcp_ptr;
 
@@ -1307,7 +1577,10 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 			(inp->inp_flow & IPV6_FLOWINFO_MASK);
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 			(IPV6_VERSION & IPV6_VERSION_MASK);
-		ip6->ip6_nxt = IPPROTO_TCP;
+		if (port == 0)
+			ip6->ip6_nxt = IPPROTO_TCP;
+		else
+			ip6->ip6_nxt = IPPROTO_UDP;
 		ip6->ip6_plen = htons(sizeof(struct tcphdr));
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
@@ -1329,7 +1602,10 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 		ip->ip_off = 0;
 		ip->ip_ttl = inp->inp_ip_ttl;
 		ip->ip_sum = 0;
-		ip->ip_p = IPPROTO_TCP;
+		if (port == 0)
+			ip->ip_p = IPPROTO_TCP;
+		else
+			ip->ip_p = IPPROTO_UDP;
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst = inp->inp_faddr;
 	}
@@ -1359,7 +1635,7 @@ tcpip_maketemplate(struct inpcb *inp)
 	t = malloc(sizeof(*t), M_TEMP, M_NOWAIT);
 	if (t == NULL)
 		return (NULL);
-	tcpip_fillheaders(inp, (void *)&t->tt_ipgen, (void *)&t->tt_t);
+	tcpip_fillheaders(inp, 0, (void *)&t->tt_ipgen, (void *)&t->tt_t);
 	return (t);
 }
 
@@ -1385,14 +1661,16 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	struct inpcb *inp;
 	struct ip *ip;
 	struct mbuf *optm;
+	struct udphdr *uh = NULL;
 	struct tcphdr *nth;
 	u_char *optp;
 #ifdef INET6
 	struct ip6_hdr *ip6;
 	int isipv6;
 #endif /* INET6 */
-	int optlen, tlen, win;
+	int optlen, tlen, win, ulen;
 	bool incl_opts;
+	uint16_t port;
 
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 	NET_EPOCH_ASSERT();
@@ -1406,9 +1684,22 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp != NULL) {
 		inp = tp->t_inpcb;
 		KASSERT(inp != NULL, ("tcp control block w/o inpcb"));
-		INP_WLOCK_ASSERT(inp);
+		INP_LOCK_ASSERT(inp);
 	} else
 		inp = NULL;
+
+	if (m != NULL) {
+#ifdef INET6
+		if (isipv6 && ip6 && (ip6->ip6_nxt == IPPROTO_UDP))
+			port = m->m_pkthdr.tcp_tun_port;
+		else
+#endif
+		if (ip && (ip->ip_p == IPPROTO_UDP))
+			port = m->m_pkthdr.tcp_tun_port;
+		else
+			port = 0;
+	} else
+		port = tp->t_port;
 
 	incl_opts = false;
 	win = 0;
@@ -1432,16 +1723,30 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			      sizeof(struct ip6_hdr));
 			ip6 = mtod(m, struct ip6_hdr *);
 			nth = (struct tcphdr *)(ip6 + 1);
+			if (port) {
+				/* Insert a UDP header */
+				uh = (struct udphdr *)nth;
+				uh->uh_sport = htons(V_tcp_udp_tunneling_port);
+				uh->uh_dport = port;
+				nth = (struct tcphdr *)(uh + 1);
+			}
 		} else
 #endif /* INET6 */
 		{
 			bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
 			ip = mtod(m, struct ip *);
 			nth = (struct tcphdr *)(ip + 1);
+			if (port) {
+				/* Insert a UDP header */
+				uh = (struct udphdr *)nth;
+				uh->uh_sport = htons(V_tcp_udp_tunneling_port);
+				uh->uh_dport = port;
+				nth = (struct tcphdr *)(uh + 1);
+			}
 		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
-	} else if (!M_WRITABLE(m)) {
+	} else if ((!M_WRITABLE(m)) || (port != 0)) {
 		struct mbuf *n;
 
 		/* Can't reuse 'm', allocate a new mbuf. */
@@ -1467,6 +1772,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ip6 = mtod(n, struct ip6_hdr *);
 			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
 			nth = (struct tcphdr *)(ip6 + 1);
+			if (port) {
+				/* Insert a UDP header */
+				uh = (struct udphdr *)nth;
+				uh->uh_sport = htons(V_tcp_udp_tunneling_port);
+				uh->uh_dport = port;
+				nth = (struct tcphdr *)(uh + 1);
+			}
 		} else
 #endif /* INET6 */
 		{
@@ -1474,6 +1786,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			ip = mtod(n, struct ip *);
 			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
 			nth = (struct tcphdr *)(ip + 1);
+			if (port) {
+				/* Insert a UDP header */
+				uh = (struct udphdr *)nth;
+				uh->uh_sport = htons(V_tcp_udp_tunneling_port);
+				uh->uh_dport = port;
+				nth = (struct tcphdr *)(uh + 1);
+			}
 		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		xchg(nth->th_dport, nth->th_sport, uint16_t);
@@ -1522,6 +1841,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #ifdef INET
 		tlen = sizeof (struct tcpiphdr);
 #endif
+	if (port)
+		tlen += sizeof (struct udphdr);
 #ifdef INVARIANTS
 	m->m_len = 0;
 	KASSERT(M_TRAILINGSPACE(m) >= tlen,
@@ -1565,9 +1886,16 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		optlen = 0;
 #ifdef INET6
 	if (isipv6) {
+		if (uh) {
+			ulen = tlen - sizeof(struct ip6_hdr);
+			uh->uh_ulen = htons(ulen);
+		}
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
-		ip6->ip6_nxt = IPPROTO_TCP;
+		if (port)
+			ip6->ip6_nxt = IPPROTO_UDP;
+		else
+			ip6->ip6_nxt = IPPROTO_TCP;
 		ip6->ip6_plen = htons(tlen - sizeof(*ip6));
 	}
 #endif
@@ -1576,8 +1904,17 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 #ifdef INET
 	{
+		if (uh) {
+			ulen = tlen - sizeof(struct ip);
+			uh->uh_ulen = htons(ulen);
+		}
 		ip->ip_len = htons(tlen);
 		ip->ip_ttl = V_ip_defttl;
+		if (port) {
+			ip->ip_p = IPPROTO_UDP;
+		} else {
+			ip->ip_p = IPPROTO_TCP;
+		}
 		if (V_path_mtu_discovery)
 			ip->ip_off |= htons(IP_DF);
 	}
@@ -1590,7 +1927,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		 * Packet is associated with a socket, so allow the
 		 * label of the response to reflect the socket label.
 		 */
-		INP_WLOCK_ASSERT(inp);
+		INP_LOCK_ASSERT(inp);
 		mac_inpcb_create_mbuf(inp, m);
 	} else {
 		/*
@@ -1621,12 +1958,19 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	}
 #endif
 
-	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 #ifdef INET6
 	if (isipv6) {
-		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
-		nth->th_sum = in6_cksum_pseudo(ip6,
-		    tlen - sizeof(struct ip6_hdr), IPPROTO_TCP, 0);
+		if (port) {
+			m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
+			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
+			uh->uh_sum = in6_cksum_pseudo(ip6, ulen, IPPROTO_UDP, 0);
+			nth->th_sum = 0;
+		} else {
+			m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
+			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+			nth->th_sum = in6_cksum_pseudo(ip6,
+			    tlen - sizeof(struct ip6_hdr), IPPROTO_TCP, 0);
+		}
 		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
 		    NULL, NULL);
 	}
@@ -1636,9 +1980,18 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #endif
 #ifdef INET
 	{
-		m->m_pkthdr.csum_flags = CSUM_TCP;
-		nth->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-		    htons((u_short)(tlen - sizeof(struct ip) + ip->ip_p)));
+		if (port) {
+			uh->uh_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			    htons(ulen + IPPROTO_UDP));
+			m->m_pkthdr.csum_flags = CSUM_UDP;
+			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
+			nth->th_sum = 0;
+		} else {
+			m->m_pkthdr.csum_flags = CSUM_TCP;
+			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
+			nth->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			    htons((u_short)(tlen - sizeof(struct ip) + ip->ip_p)));
+		}
 	}
 #endif /* INET */
 #ifdef TCPDEBUG
@@ -1783,6 +2136,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	/* Initialize the per-TCPCB log data. */
 	tcp_log_tcpcbinit(tp);
 #endif
+	tp->t_pacing_rate = -1;
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		if ((*tp->t_fb->tfb_tcp_fb_init)(tp)) {
 			refcount_release(&tp->t_fb->tfb_refcnt);
@@ -2437,8 +2791,23 @@ SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
 #endif /* INET6 */
 
 #ifdef INET
-void
-tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+/* Path MTU to try next when a fragmentation-needed message is received. */
+static inline int
+tcp_next_pmtu(const struct icmp *icp, const struct ip *ip)
+{
+	int mtu = ntohs(icp->icmp_nextmtu);
+
+	/* If no alternative MTU was proposed, try the next smaller one. */
+	if (!mtu)
+		mtu = ip_next_mtu(ntohs(ip->ip_len), 1);
+	if (mtu < V_tcp_minmss + sizeof(struct tcpiphdr))
+		mtu = V_tcp_minmss + sizeof(struct tcpiphdr);
+
+	return (mtu);
+}
+
+static void
+tcp_ctlinput_with_port(int cmd, struct sockaddr *sa, void *vip, uint16_t port)
 {
 	struct ip *ip = vip;
 	struct tcphdr *th;
@@ -2492,28 +2861,29 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
+#ifdef TCP_OFFLOAD
+			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+				/*
+				 * MTU discovery for offloaded connections.  Let
+				 * the TOE driver verify seq# and process it.
+				 */
+				mtu = tcp_next_pmtu(icp, ip);
+				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+				goto out;
+			}
+#endif
+			if (tp->t_port != port) {
+				goto out;
+			}
 			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
 			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
 					/*
-					 * MTU discovery:
-					 * If we got a needfrag set the MTU
-					 * in the route to the suggested new
-					 * value (if given) and then notify.
+					 * MTU discovery: we got a needfrag and
+					 * will potentially try a lower MTU.
 					 */
-					mtu = ntohs(icp->icmp_nextmtu);
-					/*
-					 * If no alternative MTU was
-					 * proposed, try the next smaller
-					 * one.
-					 */
-					if (!mtu)
-						mtu = ip_next_mtu(
-						    ntohs(ip->ip_len), 1);
-					if (mtu < V_tcp_minmss +
-					    sizeof(struct tcpiphdr))
-						mtu = V_tcp_minmss +
-						    sizeof(struct tcpiphdr);
+					mtu = tcp_next_pmtu(icp, ip);
+
 					/*
 					 * Only process the offered MTU if it
 					 * is smaller than the current one.
@@ -2538,17 +2908,75 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		inc.inc_lport = th->th_sport;
 		inc.inc_faddr = faddr;
 		inc.inc_laddr = ip->ip_src;
-		syncache_unreach(&inc, icmp_tcp_seq);
+		syncache_unreach(&inc, icmp_tcp_seq, port);
 	}
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
 }
+
+void
+tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+{
+	tcp_ctlinput_with_port(cmd, sa, vip, htons(0));
+}
+
+void
+tcp_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *vip, void *unused)
+{
+	/* Its a tunneled TCP over UDP icmp */
+	struct ip *outer_ip, *inner_ip;
+	struct icmp *icmp;
+	struct udphdr *udp;
+	struct tcphdr *th, ttemp;
+	int i_hlen, o_len;
+	uint16_t port;
+
+	inner_ip = (struct ip *)vip;
+	icmp = (struct icmp *)((caddr_t)inner_ip -
+	    (sizeof(struct icmp) - sizeof(struct ip)));
+	outer_ip = (struct ip *)((caddr_t)icmp - sizeof(struct ip));
+	i_hlen = inner_ip->ip_hl << 2;
+	o_len = ntohs(outer_ip->ip_len);
+	if (o_len <
+	    (sizeof(struct ip) + 8 + i_hlen + sizeof(struct udphdr) + offsetof(struct tcphdr, th_ack))) {
+		/* Not enough data present */
+		return;
+	}
+	/* Ok lets strip out the inner udphdr header by copying up on top of it the tcp hdr */
+	udp = (struct udphdr *)(((caddr_t)inner_ip) + i_hlen);
+	if (ntohs(udp->uh_sport) != V_tcp_udp_tunneling_port) {
+		return;
+	}
+	port = udp->uh_dport;
+	th = (struct tcphdr *)(udp + 1);
+	memcpy(&ttemp, th, sizeof(struct tcphdr));
+	memcpy(udp, &ttemp, sizeof(struct tcphdr));
+	/* Now adjust down the size of the outer IP header */
+	o_len -= sizeof(struct udphdr);
+	outer_ip->ip_len = htons(o_len);
+	/* Now call in to the normal handling code */
+	tcp_ctlinput_with_port(cmd, sa, vip, port);
+}
 #endif /* INET */
 
 #ifdef INET6
-void
-tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+static inline int
+tcp6_next_pmtu(const struct icmp6_hdr *icmp6)
+{
+	int mtu = ntohl(icmp6->icmp6_mtu);
+
+	/*
+	 * If no alternative MTU was proposed, or the proposed MTU was too
+	 * small, set to the min.
+	 */
+	if (mtu < IPV6_MMTU)
+		mtu = IPV6_MMTU - 8;	/* XXXNP: what is the adjustment for? */
+	return (mtu);
+}
+
+static void
+tcp6_ctlinput_with_port(int cmd, struct sockaddr *sa, void *d, uint16_t port)
 {
 	struct in6_addr *dst;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
@@ -2638,6 +3066,17 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		    !(inp->inp_flags & INP_DROPPED) &&
 		    !(inp->inp_socket == NULL)) {
 			tp = intotcpcb(inp);
+#ifdef TCP_OFFLOAD
+			if (tp->t_flags & TF_TOE && cmd == PRC_MSGSIZE) {
+				/* MTU discovery for offloaded connections. */
+				mtu = tcp6_next_pmtu(icmp6);
+				tcp_offload_pmtu_update(tp, icmp_tcp_seq, mtu);
+				goto out;
+			}
+#endif
+			if (tp->t_port != port) {
+				goto out;
+			}
 			if (SEQ_GEQ(ntohl(icmp_tcp_seq), tp->snd_una) &&
 			    SEQ_LT(ntohl(icmp_tcp_seq), tp->snd_max)) {
 				if (cmd == PRC_MSGSIZE) {
@@ -2647,15 +3086,8 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 					 * in the route to the suggested new
 					 * value (if given) and then notify.
 					 */
-					mtu = ntohl(icmp6->icmp6_mtu);
-					/*
-					 * If no alternative MTU was
-					 * proposed, or the proposed
-					 * MTU was too small, set to
-					 * the min.
-					 */
-					if (mtu < IPV6_MMTU)
-						mtu = IPV6_MMTU - 8;
+					mtu = tcp6_next_pmtu(icmp6);
+
 					bzero(&inc, sizeof(inc));
 					inc.inc_fibnum = M_GETFIB(m);
 					inc.inc_flags |= INC_ISIPV6;
@@ -2687,12 +3119,45 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		inc.inc_lport = t_ports.th_sport;
 		inc.inc6_faddr = *dst;
 		inc.inc6_laddr = ip6->ip6_src;
-		syncache_unreach(&inc, icmp_tcp_seq);
+		syncache_unreach(&inc, icmp_tcp_seq, port);
 	}
 out:
 	if (inp != NULL)
 		INP_WUNLOCK(inp);
 }
+
+void
+tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
+{
+	tcp6_ctlinput_with_port(cmd, sa, d, htons(0));
+}
+
+void
+tcp6_ctlinput_viaudp(int cmd, struct sockaddr *sa, void *d, void *unused)
+{
+	struct ip6ctlparam *ip6cp;
+	struct mbuf *m;
+	struct udphdr *udp;
+	uint16_t port;
+
+	ip6cp = (struct ip6ctlparam *)d;
+	m = m_pulldown(ip6cp->ip6c_m, ip6cp->ip6c_off, sizeof(struct udphdr), NULL);
+	if (m == NULL) {
+		return;
+	}
+	udp = mtod(m, struct udphdr *);
+	if (ntohs(udp->uh_sport) != V_tcp_udp_tunneling_port) {
+		return;
+	}
+	port = udp->uh_dport;
+	m_adj(m, sizeof(struct udphdr));
+	if ((m->m_flags & M_PKTHDR) == 0) {
+		ip6cp->ip6c_m->m_pkthdr.len -= sizeof(struct udphdr);
+	}
+	/* Now call in to the normal handling code */
+	tcp6_ctlinput_with_port(cmd, sa, d, port);
+}
+
 #endif /* INET6 */
 
 static uint32_t
@@ -3425,11 +3890,13 @@ void
 tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 {
 	struct tcpcb *tp = intotcpcb(inp);
+	struct tcptw *tw = intotw(inp);
 	sbintime_t now;
 
 	bzero(xt, sizeof(*xt));
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		xt->t_state = TCPS_TIME_WAIT;
+		xt->xt_encaps_port = tw->t_port;
 	} else {
 		xt->t_state = tp->t_state;
 		xt->t_logstate = tp->t_logstate;
@@ -3461,6 +3928,7 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 #undef COPYTIMER
 		xt->t_rcvtime = 1000 * (ticks - tp->t_rcvtime) / hz;
 
+		xt->xt_encaps_port = tp->t_port;
 		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
 		    TCP_FUNCTION_NAME_LEN_MAX);
 		bcopy(CC_ALGO(tp)->name, xt->xt_cc,

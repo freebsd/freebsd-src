@@ -1,4 +1,4 @@
- Updating Information for FreeBSD current users.
+Updating Information for FreeBSD current users.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -9,10 +9,11 @@ handbook:
     https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
-/usr/ports/UPDATING.  Please read that file before running portupgrade.
+/usr/ports/UPDATING.  Please read that file before updating system packages
+and/or ports.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
-	FreeBSD 13.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
+	FreeBSD 14.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -25,6 +26,95 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20210426:
+	Commit 875977314881 changed the internal KAPI between
+	the nfsd and nfscommon modules.  As such these modules
+	need to be rebuilt from sources.
+	Without this patch in your NFSv4.1/4.2 server, enabling
+	delegations by setting vfs.nfsd.issue_delegations non-zero
+	is not recommended.
+
+20210411:
+	Commit 7763814fc9c2 changed the internal KAPI between
+	the krpc and NFS.  As such, the krpc, nfscommon and
+	nfscl modules must all be rebuilt from sources.
+	Without this patch, NFSv4.1/4.2 mounts should not
+	be done with the nfscbd(8) daemon running, to avoid
+	needing a working back channel for server->client RPCs.
+
+20210330:
+	Commit 01ae8969a9ee fixed the NFSv4.1/4.2 server so that it
+	handles binding of the back channel as required by RFC5661.
+	Until this patch is in your server, avoid use of the "nconnects"
+	mount option for Linux NFSv4.1/4.2 mounts.
+
+20210225:
+	For 64-bit architectures the base system is now built with Position
+	Independent Executable (PIE) support enabled by default.  It may be
+	disabled using the WITHOUT_PIE knob.  A clean build is required.
+
+20210128:
+	Various LinuxKPI functionality was added which conflicts with DRM.
+	Please update your drm-kmod port to after the __FreeBSD_verison 1400003
+	update.
+
+20210108:
+	PC Card attachments for all devices have been removed. In the case of
+	wi and cmx, the entire drivers were removed because they were only
+	PC Card devices. FreeBSD_version 1300134 should be used for this
+	since it was bumped so recently.
+
+20210107:
+	Transport-independent parts of HID support have been split off the USB
+	code in to separate subsystem.  Kernel configs which include one of
+	ums, ukbd, uhid, atp, wsp, wmt, uaudio, ugold or ucycom drivers should
+	be updated with adding of "device hid" line.
+
+20210105:
+	ncurses installation has been modified to only keep the widechar
+	enabled version.  Incremental build is broken for that change, so it
+	requires a clean build.
+
+20201223:
+	The FreeBSD project has migrated from Subversion to Git. Temporary
+	instructions can be found at
+	https://github.com/bsdimp/freebsd-git-docs/blob/main/src-cvt.md
+	and other documents in that repo.
+
+20201216:
+	The services database has been updated to cover more of the basic
+	services expected in a modern system. The database is big enough
+	that it will cause issues in mergemaster in Releases previous to
+	12.2 and 11.3, or in very old current systems from before r358154.
+
+20201215:
+	Obsolete in-tree GDB 6.1.1 has been removed.  GDB (including kgdb)
+	may be installed from ports or packages.
+
+20201124:
+	ping6 has been merged into ping.  It can now be called as "ping -6".
+	See ping(8) for details.
+
+20201108:
+	Default value of net.add_addr_allfibs has been changed to 0.
+	If you have multi-fib configuration and rely on existence of all
+	interface routes in every fib, you need to set the above sysctl to 1.
+
+20201030:
+	The internal pre-processor in the calendar(1) program has been
+	extended to support more C pre-processor commands (e.g. #ifdef, #else,
+	and #undef) and to detect unbalanced conditional statements.
+	Error messages have been extended to include the filename and line
+	number if processing stops to help fixing malformed data files.
+
+20201026:
+	All the data files for the calendar(1) program, except calendar.freebsd,
+	have been moved to the deskutils/calendar-data port, much like the
+	jewish calendar entries were moved to deskutils/hebcal years ago. After
+	make delete-old-files, you need to install it to retain full
+	functionality. calendar(1) will issue a reminder for files it can't
+	find.
 
 20200923:
 	LINT files are no longer generated. We now include the relevant NOTES
@@ -2195,9 +2285,11 @@ COMMON ITEMS:
 
 	2.) update the ZFS boot block on your boot drive
 
-	The following example updates the ZFS boot block on the first
-	partition (freebsd-boot) of a GPT partitioned drive ada0:
-	"gpart bootcode -p /boot/gptzfsboot -i 1 ada0"
+	The following example updates the ZFS boot block on the
+	freebsd-boot partition of a GPT partitioned drive ada0:
+	"gpart bootcode -p /boot/gptzfsboot -i $N ada0"
+	The value $N will typically be 1 (if booting from BIOS) or 2 (if
+	booting from EFI).
 
 	Non-boot pools do not need these updates.
 
@@ -2286,9 +2378,16 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	[1] If you have third party modules, such as vmware, you
-	should disable them at this point so they don't crash your
-	system on reboot.
+	[1] If you have third party modules, such as vmware, you should disable
+	them at this point so they don't crash your system on
+	reboot. Alternatively, you should rebuild all the modules you have in
+	your system and install them as well.  If you are running -current, you
+	should seriously consider placing all sources to all the modules for
+	your system (or symlinks to them) in /usr/local/sys/modules so this
+	happens automatically. If all your modules come from ports, then adding
+	the port origin directories to PORTS_MODULES instead is also automatic
+	and effective, eg:
+	     PORTS_MODULES+=x11/nvidia-driver
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
@@ -2297,8 +2396,8 @@ COMMON ITEMS:
 		sh /etc/rc.d/zfs start	# mount zfs filesystem, if needed
 		cd src			# full path to source
 		adjkerntz -i		# if CMOS is wall time
-	Also, when doing a major release upgrade, it is required that
-	you boot into single user mode to do the installworld.
+	Also, when doing a major release upgrade, it is required that you boot
+	into single user mode to do the installworld.
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the

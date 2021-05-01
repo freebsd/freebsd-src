@@ -42,12 +42,19 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "common/common.h"
+#include "common/t4_regs.h"
 #include "t4_if.h"
 
 struct t4iov_softc {
 	device_t sc_dev;
 	device_t sc_main;
 	bool sc_attached;
+
+	int pf;
+	int regs_rid;
+	struct resource *regs_res;
+	bus_space_handle_t bh;
+	bus_space_tag_t bt;
 };
 
 struct {
@@ -112,6 +119,13 @@ struct {
 	{0x6086, "Chelsio T6225-SO-CR 86"},
 	{0x6087, "Chelsio T6225-CR 87"},
 };
+
+static inline uint32_t
+t4iov_read_reg(struct t4iov_softc *sc, uint32_t reg)
+{
+
+	return bus_space_read_4(sc->bt, sc->bh, reg);
+}
 
 static int	t4iov_attach_child(device_t dev);
 
@@ -179,9 +193,27 @@ static int
 t4iov_attach(device_t dev)
 {
 	struct t4iov_softc *sc;
+	uint32_t pl_rev, whoami;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
+
+	sc->regs_rid = PCIR_BAR(0);
+	sc->regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->regs_rid, RF_ACTIVE);
+	if (sc->regs_res == NULL) {
+		device_printf(dev, "cannot map registers.\n");
+		return (ENXIO);
+	}
+	sc->bt = rman_get_bustag(sc->regs_res);
+	sc->bh = rman_get_bushandle(sc->regs_res);
+
+	pl_rev = t4iov_read_reg(sc, A_PL_REV);
+	whoami = t4iov_read_reg(sc, A_PL_WHOAMI);
+	if (G_CHIPID(pl_rev) <= CHELSIO_T5)
+		sc->pf = G_SOURCEPF(whoami);
+	else
+		sc->pf = G_T6_SOURCEPF(whoami);
 
 	sc->sc_main = pci_find_dbsf(pci_get_domain(dev), pci_get_bus(dev),
 	    pci_get_slot(dev), 4);
@@ -218,6 +250,7 @@ t4iov_attach_child(device_t dev)
 #ifdef PCI_IOV
 	pf_schema = pci_iov_schema_alloc_node();
 	vf_schema = pci_iov_schema_alloc_node();
+	pci_iov_schema_add_unicast_mac(vf_schema, "mac-addr", 0, NULL);
 	error = pci_iov_attach_name(dev, pf_schema, vf_schema, "%s",
 	    device_get_nameunit(pdev));
 	if (error) {
@@ -266,6 +299,10 @@ t4iov_detach(device_t dev)
 		if (error)
 			return (error);
 	}
+	if (sc->regs_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->regs_rid,
+		    sc->regs_res);
+	}
 	return (0);
 }
 
@@ -286,6 +323,34 @@ t4iov_iov_uninit(device_t dev)
 static int
 t4iov_add_vf(device_t dev, uint16_t vfnum, const struct nvlist *config)
 {
+	const void *mac;
+	struct t4iov_softc *sc;
+	struct adapter *adap;
+	uint8_t ma[ETHER_ADDR_LEN];
+	size_t size;
+	int rc;
+
+	if (nvlist_exists_binary(config, "mac-addr")) {
+		mac = nvlist_get_binary(config, "mac-addr", &size);
+		bcopy(mac, ma, ETHER_ADDR_LEN);
+
+		sc = device_get_softc(dev);
+		MPASS(sc->sc_attached);
+		MPASS(sc->sc_main != NULL);
+		adap = device_get_softc(sc->sc_main);
+		if (begin_synchronized_op(adap, NULL, SLEEP_OK | INTR_OK,
+		    "t4vfma") != 0)
+			return (ENXIO);
+		rc = -t4_set_vf_mac(adap, sc->pf, vfnum + 1, 1, ma);
+		end_synchronized_op(adap, 0);
+		if (rc != 0) {
+			device_printf(dev,
+			    "Failed to set VF%d MAC address to "
+			    "%02x:%02x:%02x:%02x:%02x:%02x, rc = %d\n", vfnum,
+			    ma[0], ma[1], ma[2], ma[3], ma[4], ma[5], rc);
+			return (rc);
+		}
+	}
 
 	return (0);
 }

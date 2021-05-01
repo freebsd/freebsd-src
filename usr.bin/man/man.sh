@@ -1012,7 +1012,7 @@ STTY=/bin/stty
 SYSCTL=/sbin/sysctl
 
 debug=0
-man_default_sections='1:8:2:3:n:4:5:6:7:9:l'
+man_default_sections='1:8:2:3:3lua:n:4:5:6:7:9:l'
 man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/share/man:/usr/local/man'
 cattool='/usr/bin/zcat -f'
 

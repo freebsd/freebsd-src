@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "bhyverun.h"
+#include "config.h"
 #include "debug.h"
 #include "smbiostbl.h"
 
@@ -51,11 +52,16 @@ __FBSDID("$FreeBSD$");
 
 #define SMBIOS_BASE		0xF1000
 
+#define	FIRMWARE_VERSION	"13.0"
+/* The SMBIOS specification defines the date format to be mm/dd/yyyy */
+#define	FIRMWARE_RELEASE_DATE	"11/10/2020"
+
 /* BHYVE_ACPI_BASE - SMBIOS_BASE) */
 #define	SMBIOS_MAX_LENGTH	(0xF2400 - 0xF1000)
 
 #define	SMBIOS_TYPE_BIOS	0
 #define	SMBIOS_TYPE_SYSTEM	1
+#define	SMBIOS_TYPE_BOARD	2
 #define	SMBIOS_TYPE_CHASSIS	3
 #define	SMBIOS_TYPE_PROCESSOR	4
 #define	SMBIOS_TYPE_MEMARRAY	16
@@ -153,9 +159,30 @@ struct smbios_table_type1 {
 } __packed;
 
 /*
+ * Baseboard (or Module) Information
+ */
+#define SMBIOS_BRF_HOSTING	0x1
+#define SMBIOS_BRT_MOTHERBOARD	0xa
+
+struct smbios_table_type2 {
+	struct smbios_structure	header;
+	uint8_t			manufacturer;	/* manufacturer string */
+	uint8_t			product;	/* product name string */
+	uint8_t			version;	/* version string */
+	uint8_t			serial;		/* serial number string */
+	uint8_t			asset;		/* asset tag string */
+	uint8_t			fflags;		/* feature flags */
+	uint8_t			location;	/* location in chassis */
+	uint16_t		chandle;	/* chassis handle */
+	uint8_t			type;		/* board type */
+	uint8_t			n_objs;		/* number of contained object handles */
+} __packed;
+
+/*
  * System Enclosure or Chassis
  */
 #define	SMBIOS_CHT_UNKNOWN	0x02	/* unknown */
+#define	SMBIOS_CHT_DESKTOP	0x03	/* desktop */
 
 #define	SMBIOS_CHST_SAFE	0x03	/* safe */
 
@@ -323,9 +350,9 @@ struct smbios_table_type0 smbios_type0_template = {
 };
 
 const char *smbios_type0_strings[] = {
-	"BHYVE",	/* vendor string */
-	"1.00",		/* bios version string */
-	"03/14/2014",	/* bios release date string */
+	"BHYVE",		/* vendor string */
+	FIRMWARE_VERSION,	/* bios version string */
+	FIRMWARE_RELEASE_DATE,	/* bios release date string */
 	NULL
 };
 
@@ -346,12 +373,36 @@ static int smbios_type1_initializer(struct smbios_structure *template_entry,
     uint16_t *n, uint16_t *size);
 
 const char *smbios_type1_strings[] = {
-	" ",		/* manufacturer string */
-	"BHYVE",	/* product name string */
-	"1.0",		/* version string */
-	"None",		/* serial number string */
-	"None",		/* sku string */
-	" ",		/* family name string */
+	"FreeBSD",		/* manufacturer string */
+	"BHYVE",		/* product name string */
+	"1.0",			/* version string */
+	"None",			/* serial number string */
+	"None",			/* sku string */
+	"Virtual Machine",	/* family name string */
+	NULL
+};
+
+struct smbios_table_type2 smbios_type2_template = {
+	{ SMBIOS_TYPE_BOARD, sizeof (struct smbios_table_type2), 0 },
+	1,			/* manufacturer string */
+	2,			/* product string */
+	3,			/* version string */
+	4,			/* serial number string */
+	5,			/* asset tag string */
+	SMBIOS_BRF_HOSTING,	/* feature flags */
+	6,			/* location string */
+	SMBIOS_CHT_DESKTOP,	/* chassis handle */
+	SMBIOS_BRT_MOTHERBOARD,	/* board type */
+	0
+};
+
+const char *smbios_type2_strings[] = {
+	"FreeBSD",		/* manufacturer string */
+	"BHYVE",		/* product name string */
+	"1.0",			/* version string */
+	"None",			/* serial number string */
+	"None",			/* asset tag string */
+	"None",			/* location string */
 	NULL
 };
 
@@ -374,7 +425,7 @@ struct smbios_table_type3 smbios_type3_template = {
 };
 
 const char *smbios_type3_strings[] = {
-	" ",		/* manufacturer string */
+	"FreeBSD",	/* manufacturer string */
 	"1.0",		/* version string */
 	"None",		/* serial number string */
 	"None",		/* asset tag string */
@@ -513,6 +564,9 @@ static struct smbios_template_entry smbios_template[] = {
 	{ (struct smbios_structure *)&smbios_type1_template,
 	  smbios_type1_strings,
 	  smbios_type1_initializer },
+	{ (struct smbios_structure *)&smbios_type2_template,
+	  smbios_type2_strings,
+	  smbios_generic_initializer },
 	{ (struct smbios_structure *)&smbios_type3_template,
 	  smbios_type3_strings,
 	  smbios_generic_initializer },
@@ -584,11 +638,13 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
     uint16_t *n, uint16_t *size)
 {
 	struct smbios_table_type1 *type1;
+	const char *guest_uuid_str;
 
 	smbios_generic_initializer(template_entry, template_strings,
 	    curaddr, endaddr, n, size);
 	type1 = (struct smbios_table_type1 *)curaddr;
 
+	guest_uuid_str = get_config_value("uuid");
 	if (guest_uuid_str != NULL) {
 		uuid_t		uuid;
 		uint32_t	status;
@@ -602,6 +658,7 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
 		MD5_CTX		mdctx;
 		u_char		digest[16];
 		char		hostname[MAXHOSTNAMELEN];
+		const char	*vmname;
 
 		/*
 		 * Universally unique and yet reproducible are an
@@ -612,6 +669,7 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
 			return (-1);
 
 		MD5Init(&mdctx);
+		vmname = get_config_value("name");
 		MD5Update(&mdctx, vmname, strlen(vmname));
 		MD5Update(&mdctx, hostname, sizeof(hostname));
 		MD5Final(digest, &mdctx);
@@ -754,7 +812,7 @@ smbios_type19_initializer(struct smbios_structure *template_entry,
 		type19 = (struct smbios_table_type19 *)curaddr;
 		type19->arrayhand = type16_handle;
 		type19->xsaddr = 4*GB;
-		type19->xeaddr = guest_himem;
+		type19->xeaddr = type19->xsaddr + guest_himem;
 	}
 
 	return (0);

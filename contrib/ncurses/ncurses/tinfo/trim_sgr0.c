@@ -37,7 +37,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: trim_sgr0.c,v 1.18 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: trim_sgr0.c,v 1.20 2020/05/27 23:54:31 tom Exp $")
 
 #undef CUR
 #define CUR tp->
@@ -52,7 +52,7 @@ set_attribute_9(TERMTYPE2 *tp, int flag)
     const char *value;
     char *result;
 
-    value = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag);
+    value = TIPARM_9(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag);
     if (PRESENT(value))
 	result = strdup(value);
     else

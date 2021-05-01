@@ -115,7 +115,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	phandle_t node;
 	int len, ok, error;
 	char *name, *value;
-	char newname[32];
+	char newname[OFIOCSUGGPROPNAMELEN];
 
 	if ((flags & FREAD) == 0)
 		return (EBADF);
@@ -222,8 +222,19 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			break;
 		}
 		len = strlen(newname) + 1;
-		if (len > of->of_buflen)
+		if (len > of->of_buflen) {
+			/*
+			 * Passed buffer was insufficient.
+			 *
+			 * Instead of returning an error here, truncate the
+			 * property name to fit the buffer.
+			 *
+			 * This allows us to retain compatibility with old
+			 * tools which always pass a 32 character buffer.
+			 */
 			len = of->of_buflen;
+			newname[len - 1] = '\0';
+		}
 		else
 			of->of_buflen = len;
 		error = copyout(newname, of->of_buf, len);

@@ -3385,7 +3385,7 @@ bbr_get_bw_delay_prod(uint64_t rtt, uint64_t bw) {
 	/*
 	 * Calculate the bytes in flight needed given the bw (in bytes per
 	 * second) and the specifyed rtt in useconds. We need to put out the
-	 * returned value per RTT to match that rate. Gain will normaly
+	 * returned value per RTT to match that rate. Gain will normally
 	 * raise it up from there.
 	 *
 	 * This should not overflow as long as the bandwidth is below 1
@@ -5551,7 +5551,7 @@ lost_rate:
 				   bbr->rc_inp->inp_route.ro_nh->nh_ifp,
 				   rate,
 				   (RS_PACING_GEQ|RS_PACING_SUB_OK),
-				   &error);
+				   &error, NULL);
 	if (nrte == NULL) {
 		goto lost_rate;
 	}
@@ -7876,8 +7876,8 @@ bbr_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	acked_amount = min(acked, (int)sbavail(&so->so_snd));
 	tp->snd_wnd -= acked_amount;
 	mfree = sbcut_locked(&so->so_snd, acked_amount);
-	/* NB: sowwakeup_locked() does an implicit unlock. */
-	sowwakeup_locked(so);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	tp->t_flags |= TF_WAKESOW;
 	m_freem(mfree);
 	if (SEQ_GT(th->th_ack, tp->snd_una)) {
 		bbr_collapse_rtt(tp, bbr, TCP_REXMTVAL(tp));
@@ -8353,8 +8353,8 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				appended =
 #endif
 					sbappendstream_locked(&so->so_rcv, m, 0);
-			/* NB: sorwakeup_locked() does an implicit unlock. */
-			sorwakeup_locked(so);
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 			if (so->so_rcv.sb_shlim && appended != mcnt)
 				counter_fo_release(so->so_rcv.sb_shlim,
@@ -8371,7 +8371,9 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			thflags = tcp_reass(tp, th, &temp, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-		if ((tp->t_flags & TF_SACK_PERMIT) && (save_tlen > 0)) {
+		if ((tp->t_flags & TF_SACK_PERMIT) &&
+		    (save_tlen > 0) &&
+		    TCPS_HAVEESTABLISHED(tp->t_state)) {
 			if ((tlen == 0) && (SEQ_LT(save_start, save_rnxt))) {
 				/*
 				 * DSACK actually handled in the fastpath
@@ -8414,6 +8416,8 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_FIN) {
 		if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
 			socantrcvmore(so);
+			/* The socket upcall is handled by socantrcvmore. */
+			tp->t_flags &= ~TF_WAKESOR;
 			/*
 			 * If connection is half-synchronized (ie NEEDSYN
 			 * flag on) then delay ACK, so it may be piggybacked
@@ -8604,8 +8608,8 @@ bbr_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			sbappendstream_locked(&so->so_rcv, m, 0);
 		ctf_calc_rwin(so, tp);
 	}
-	/* NB: sorwakeup_locked() does an implicit unlock. */
-	sorwakeup_locked(so);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 	if (so->so_rcv.sb_shlim && mcnt != appended)
 		counter_fo_release(so->so_rcv.sb_shlim, mcnt - appended);
@@ -8796,7 +8800,7 @@ bbr_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		    &tcp_savetcp, 0);
 #endif
 	/* Wake up the socket if we have room to write more */
-	sowwakeup(so);
+	tp->t_flags |= TF_WAKESOW;
 	if (tp->snd_una == tp->snd_max) {
 		/* Nothing left outstanding */
 		bbr_log_progress_event(bbr, tp, ticks, PROGRESS_CLEAR, __LINE__);
@@ -10665,7 +10669,7 @@ bbr_set_probebw_gains(struct tcp_bbr *bbr, uint32_t cts, uint32_t losses)
 		}
 		/**
 		 * We fall through and return always one of two things has
-		 * occured.
+		 * occurred.
 		 * 1) We are still not at target
 		 *    <or>
 		 * 2) We reached the target and set rc_bbr_state_atflight
@@ -11155,7 +11159,7 @@ static void
 bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_epoch, uint32_t losses)
 {
 	/*
-	 * A tick occured in the rtt epoch do we need to do anything?
+	 * A tick occurred in the rtt epoch do we need to do anything?
 	 */
 #ifdef BBR_INVARIANTS
 	if ((bbr->rc_bbr_state != BBR_STATE_STARTUP) &&
@@ -11303,7 +11307,7 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 					bbr->r_ctl.rc_bbr_enters_probertt = 1;
 				if (bbr->rc_use_google == 0) {
 					/*
-					 * Restore any lowering that as occured to
+					 * Restore any lowering that as occurred to
 					 * reach here
 					 */
 					if (bbr->r_ctl.bbr_rttprobe_gain_val)
@@ -11428,12 +11432,6 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #ifdef STATS
 	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_FRWIN, tiwin);
 #endif
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
 
 	if (m->m_flags & M_TSTMP) {
 		/* Prefer the hardware timestamp if present */
@@ -11456,6 +11454,25 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * Ok just get the current time.
 		 */
 		bbr->r_ctl.rc_rcvtime = lcts = cts = tcp_get_usecs(&bbr->rc_tv);
+	}
+	/*
+	 * Parse options on any incoming segment.
+	 */
+	tcp_dooptions(&to, (u_char *)(th + 1),
+	    (th->th_off << 2) - sizeof(struct tcphdr),
+	    (thflags & TH_SYN) ? TO_SYN : 0);
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK and a
+	 * segment without a timestamp is received, silently drop
+	 * the segment, unless it is a RST segment or missing timestamps are
+	 * tolerated.
+	 * See section 3.2 of RFC 7323.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS) &&
+	    ((thflags & TH_RST) == 0) && (V_tcp_tolerate_missing_ts == 0)) {
+		retval = 0;
+		goto done_with_input;
 	}
 	/*
 	 * If echoed timestamp is later than the current time, fall back to
@@ -11740,8 +11757,10 @@ bbr_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	retval = bbr_do_segment_nounlock(m, th, so, tp,
 					 drop_hdrlen, tlen, iptos, 0, &tv);
-	if (retval == 0)
+	if (retval == 0) {
+		tcp_handle_wakeup(tp, so);
 		INP_WUNLOCK(tp->t_inpcb);
+	}
 }
 
 /*
@@ -11950,14 +11969,10 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 #endif
 	struct tcp_bbr *bbr;
 	struct tcphdr *th;
-#ifdef NETFLIX_TCPOUDP
 	struct udphdr *udp = NULL;
-#endif
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
-#ifdef NETFLIX_TCPOUDP
 	unsigned ulen;
-#endif
 	uint32_t bbr_seq;
 	uint32_t delay_calc=0;
 	uint8_t doing_tlp = 0;
@@ -12972,10 +12987,8 @@ send:
 		/* Maximum segment size. */
 		if (flags & TH_SYN) {
 			to.to_mss = tcp_mssopt(&inp->inp_inc);
-#ifdef NETFLIX_TCPOUDP
 			if (tp->t_port)
 				to.to_mss -= V_tcp_udp_tunneling_overhead;
-#endif
 			to.to_flags |= TOF_MSS;
 			/*
 			 * On SYN or SYN|ACK transmits on TFO connections,
@@ -13044,7 +13057,6 @@ send:
 		    !(to.to_flags & TOF_FASTOPEN))
 			len = 0;
 	}
-#ifdef NETFLIX_TCPOUDP
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
@@ -13053,7 +13065,6 @@ send:
 		}
 		hdrlen += sizeof(struct udphdr);
 	}
-#endif
 #ifdef INET6
 	if (isipv6)
 		ipoptlen = ip6_optlen(tp->t_inpcb);
@@ -13389,7 +13400,6 @@ send:
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip6 + ipoptlen + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13398,17 +13408,9 @@ send:
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
 		} else {
-#endif
 			th = (struct tcphdr *)(ip6 + 1);
-
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip6, th);
+		tcpip_fillheaders(inp, tp->t_port, ip6, th);
 	} else
 #endif				/* INET6 */
 	{
@@ -13416,7 +13418,6 @@ send:
 #ifdef TCPDEBUG
 		ipov = (struct ipovly *)ip;
 #endif
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			udp = (struct udphdr *)((caddr_t)ip + ipoptlen + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
@@ -13424,14 +13425,10 @@ send:
 			ulen = hdrlen + len - sizeof(struct ip);
 			udp->uh_ulen = htons(ulen);
 			th = (struct tcphdr *)(udp + 1);
-		} else
-#endif
+		} else {
 			th = (struct tcphdr *)(ip + 1);
-		tcpip_fillheaders(inp,
-#ifdef NETFLIX_TCPOUDP
-				  tp->t_port,
-#endif
-				  ip, th);
+		}
+		tcpip_fillheaders(inp, tp->t_port, ip, th);
 	}
 	/*
 	 * If we are doing retransmissions, then snd_nxt will not reflect
@@ -13581,7 +13578,6 @@ send:
 		 * ip6_plen is not need to be filled now, and will be filled
 		 * in ip6_output.
 		 */
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			m->m_pkthdr.csum_flags = CSUM_UDP_IPV6;
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
@@ -13589,14 +13585,11 @@ send:
 			th->th_sum = htons(0);
 			UDPSTAT_INC(udps_opackets);
 		} else {
-#endif
 			csum_flags = m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 			th->th_sum = in6_cksum_pseudo(ip6, sizeof(struct tcphdr) +
 			    optlen + len, IPPROTO_TCP, 0);
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
 	}
 #endif
 #if defined(INET6) && defined(INET)
@@ -13604,7 +13597,6 @@ send:
 #endif
 #ifdef INET
 	{
-#ifdef NETFLIX_TCPOUDP
 		if (tp->t_port) {
 			m->m_pkthdr.csum_flags = CSUM_UDP;
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
@@ -13613,15 +13605,12 @@ send:
 			th->th_sum = htons(0);
 			UDPSTAT_INC(udps_opackets);
 		} else {
-#endif
 			csum_flags = m->m_pkthdr.csum_flags = CSUM_TCP;
 			m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(sizeof(struct tcphdr) +
 			    IPPROTO_TCP + len + optlen));
-#ifdef NETFLIX_TCPOUDP
 		}
-#endif
 		/* IP version must be set here for ipv4/ipv6 checking later */
 		KASSERT(ip->ip_v == IPVERSION,
 		    ("%s: IP version incorrect: %d", __func__, ip->ip_v));
@@ -14064,7 +14053,7 @@ nomore:
 						      inp->inp_route.ro_nh->nh_ifp,
 						      rate_wanted,
 						      (RS_PACING_GEQ|RS_PACING_SUB_OK),
-						      &err);
+						      &err, NULL);
 		if (bbr->r_ctl.crte) {
 			bbr_type_log_hdwr_pacing(bbr,
 						 bbr->r_ctl.crte->ptbl->rs_ifp,

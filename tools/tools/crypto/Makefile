@@ -26,16 +26,13 @@
 # SUCH DAMAGE.
 #
 
-PROGS=	cryptocheck cryptotest cryptokeytest cryptostats \
+PROGS=	cryptocheck cryptotest cryptostats \
 	hifnstats ipsecstats safestats
 MAN=
 BINDIR?=	/usr/local/bin
 
 # cryptocheck: test symmetric crypto functions
 LIBADD.cryptocheck+=	crypto util
-
-# cryptokeytest: test asymmetric crypto functions
-LIBADD.cryptokeytest+=	crypto
 
 # cryptostats: dump statistics kept by the core crypto code
 # hifnstats: print statistics kept by the HIFN driver

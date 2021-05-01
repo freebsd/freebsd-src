@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -59,8 +59,54 @@ err_exit() {
 	fi
 
 	printf '%s\n' "$1"
-	printf '\nexiting...\n'
 	exit "$2"
+}
+
+checktest_retcode() {
+
+	_checktest_retcode_d="$1"
+	shift
+
+	_checktest_retcode_err="$1"
+	shift
+
+	_checktest_retcode_name="$1"
+	shift
+
+	if [ "$_checktest_retcode_err" -ne 0 ]; then
+		printf 'FAIL!!!\n'
+		err_exit "$_checktest_retcode_d failed test '$_checktest_retcode_name' with error code $_checktest_retcode_err" 1
+	fi
+}
+
+checktest() {
+
+	_checktest_d="$1"
+	shift
+
+	_checktest_err="$1"
+	shift
+
+	_checktest_name="$1"
+	shift
+
+	_checktest_test_path="$1"
+	shift
+
+	_checktest_results_name="$1"
+	shift
+
+	checktest_retcode "$_checktest_d" "$_checktest_err" "$_checktest_name"
+
+	_checktest_diff=$(diff "$_checktest_test_path" "$_checktest_results_name")
+
+	_checktest_err="$?"
+
+	if [ "$_checktest_err" -ne 0 ]; then
+		printf 'FAIL!!!\n'
+		printf '%s\n' "$_checktest_diff"
+		err_exit "$_checktest_d failed test $_checktest_name" 1
+	fi
 }
 
 die() {
@@ -99,49 +145,49 @@ checkcrash() {
 	fi
 }
 
-checktest()
+checkerrtest()
 {
-	_checktest_d="$1"
+	_checkerrtest_d="$1"
 	shift
 
-	_checktest_error="$1"
+	_checkerrtest_error="$1"
 	shift
 
-	_checktest_name="$1"
+	_checkerrtest_name="$1"
 	shift
 
-	_checktest_out="$1"
+	_checkerrtest_out="$1"
 	shift
 
-	_checktest_exebase="$1"
+	_checkerrtest_exebase="$1"
 	shift
 
-	checkcrash "$_checktest_d" "$_checktest_error" "$_checktest_name"
+	checkcrash "$_checkerrtest_d" "$_checkerrtest_error" "$_checkerrtest_name"
 
-	if [ "$_checktest_error" -eq 0 ]; then
-		die "$_checktest_d" "returned no error" "$_checktest_name" 127
+	if [ "$_checkerrtest_error" -eq 0 ]; then
+		die "$_checkerrtest_d" "returned no error" "$_checkerrtest_name" 127
 	fi
 
-	if [ "$_checktest_error" -eq 100 ]; then
+	if [ "$_checkerrtest_error" -eq 100 ]; then
 
-		_checktest_output=$(cat "$_checktest_out")
-		_checktest_fatal_error="Fatal error"
+		_checkerrtest_output=$(cat "$_checkerrtest_out")
+		_checkerrtest_fatal_error="Fatal error"
 
-		if [ "${_checktest_output##*$_checktest_fatal_error*}" ]; then
-			printf "%s\n" "$_checktest_output"
-			die "$_checktest_d" "had memory errors on a non-fatal error" \
-				"$_checktest_name" "$_checktest_error"
+		if [ "${_checkerrtest_output##*$_checkerrtest_fatal_error*}" ]; then
+			printf "%s\n" "$_checkerrtest_output"
+			die "$_checkerrtest_d" "had memory errors on a non-fatal error" \
+				"$_checkerrtest_name" "$_checkerrtest_error"
 		fi
 	fi
 
-	if [ ! -s "$_checktest_out" ]; then
-		die "$_checktest_d" "produced no error message" "$_checktest_name" "$_checktest_error"
+	if [ ! -s "$_checkerrtest_out" ]; then
+		die "$_checkerrtest_d" "produced no error message" "$_checkerrtest_name" "$_checkerrtest_error"
 	fi
 
 	# Display the error messages if not directly running exe.
 	# This allows the script to print valgrind output.
-	if [ "$_checktest_exebase" != "bc" -a "$_checktest_exebase" != "dc" ]; then
-		cat "$_checktest_out"
+	if [ "$_checkerrtest_exebase" != "bc" -a "$_checkerrtest_exebase" != "dc" ]; then
+		cat "$_checkerrtest_out"
 	fi
 }
 

@@ -124,11 +124,7 @@ static volatile u_int icl_cxgbei_ncons;
 #define ICL_CONN_LOCK_ASSERT(X)		mtx_assert(X->ic_lock, MA_OWNED)
 #define ICL_CONN_LOCK_ASSERT_NOT(X)	mtx_assert(X->ic_lock, MA_NOTOWNED)
 
-struct icl_pdu *icl_cxgbei_new_pdu(int);
-void icl_cxgbei_new_pdu_set_conn(struct icl_pdu *, struct icl_conn *);
-
 static icl_conn_new_pdu_t	icl_cxgbei_conn_new_pdu;
-icl_conn_pdu_free_t	icl_cxgbei_conn_pdu_free;
 static icl_conn_pdu_data_segment_length_t
 				    icl_cxgbei_conn_pdu_data_segment_length;
 static icl_conn_pdu_append_data_t	icl_cxgbei_conn_pdu_append_data;
@@ -373,6 +369,7 @@ icl_cxgbei_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
 void
 icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 {
+	struct epoch_tracker et;
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 	struct socket *so = ic->ic_socket;
@@ -401,6 +398,8 @@ icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 	 * already.
 	 */
 	inp = sotoinpcb(so);
+	CURVNET_SET(toep->vnet);
+	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
 	if (__predict_false(inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) ||
 	    __predict_false((toep->flags & TPF_ATTACHED) == 0))
@@ -410,6 +409,8 @@ icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 		t4_push_pdus(icc->sc, toep, 0);
 	}
 	INP_WUNLOCK(inp);
+	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
 }
 
 static struct icl_conn *
@@ -550,7 +551,7 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), &toep->ofld_txq->wrq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -579,18 +580,14 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 }
 
 static void
-set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, int hcrc, int dcrc)
+set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, u_int ulp_submode)
 {
-	uint64_t val = ULP_MODE_ISCSI;
+	uint64_t val;
 
-	if (hcrc)
-		val |= ULP_CRC_HEADER << 4;
-	if (dcrc)
-		val |= ULP_CRC_DATA << 4;
+	CTR3(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, submode=%#x",
+	    __func__, toep->tid, ulp_submode);
 
-	CTR4(KTR_CXGBE, "%s: tid %u, ULP_MODE_ISCSI, CRC hdr=%d data=%d",
-	    __func__, toep->tid, hcrc, dcrc);
-
+	val = V_TCB_ULP_TYPE(ULP_MODE_ISCSI) | V_TCB_ULP_RAW(ulp_submode);
 	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_ULP_TYPE,
 	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE) | V_TCB_ULP_RAW(M_TCB_ULP_RAW), val,
 	    0, 0);
@@ -624,7 +621,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 	 * Steal the socket from userland.
 	 */
 	error = fget(curthread, fd,
-	    cap_rights_init(&rights, CAP_SOCK_CLIENT), &fp);
+	    cap_rights_init_one(&rights, CAP_SOCK_CLIENT), &fp);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
@@ -702,8 +699,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		toep->ulpcb = icc;
 
 		send_iscsi_flowc_wr(icc->sc, toep, ci->max_tx_pdu_len);
-		set_ulp_mode_iscsi(icc->sc, toep, ic->ic_header_crc32c,
-		    ic->ic_data_crc32c);
+		set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 		error = 0;
 	}
 	INP_WUNLOCK(inp);
@@ -847,8 +843,8 @@ no_ddp:
 		goto no_ddp;
 	}
 
-	rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid, prsv,
-	    (vm_offset_t)csio->data_ptr, csio->dxfer_len);
+	rc = t4_write_page_pods_for_buf(sc, &toep->ofld_txq->wrq, toep->tid,
+	    prsv, (vm_offset_t)csio->data_ptr, csio->dxfer_len);
 	if (rc != 0) {
 		t4_free_page_pods(prsv);
 		uma_zfree(prsv_zone, prsv);
@@ -961,8 +957,8 @@ no_ddp:
 			goto no_ddp;
 		}
 
-		rc = t4_write_page_pods_for_buf(sc, toep->ofld_txq, toep->tid,
-		    prsv, buf, xferlen);
+		rc = t4_write_page_pods_for_buf(sc, &toep->ofld_txq->wrq,
+		    toep->tid, prsv, buf, xferlen);
 		if (rc != 0) {
 			t4_free_page_pods(prsv);
 			uma_zfree(prsv_zone, prsv);

@@ -67,11 +67,9 @@ struct vq_alloc_info {
 	(_i)->vqai_vq = (_vqp);						\
 } while (0)
 
-uint64_t virtqueue_filter_features(uint64_t features);
-
 int	 virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size,
-	     int align, vm_paddr_t highaddr, struct vq_alloc_info *info,
-	     struct virtqueue **vqp);
+	     bus_size_t notify_offset, int align, vm_paddr_t highaddr,
+	     struct vq_alloc_info *info, struct virtqueue **vqp);
 void	*virtqueue_drain(struct virtqueue *vq, int *last);
 void	 virtqueue_free(struct virtqueue *vq);
 int	 virtqueue_reinit(struct virtqueue *vq, uint16_t size);

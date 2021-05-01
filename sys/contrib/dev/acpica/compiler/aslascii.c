@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -184,7 +184,7 @@ FlConsumeNewComment (
  *              not handle comment delimiters within string literals. However,
  *              on the rare chance this happens and an invalid character is
  *              missed, the parser will catch the error by failing in some
- *              spectactular manner.
+ *              spectacular manner.
  *
  ******************************************************************************/
 
@@ -216,7 +216,7 @@ FlIsFileAsciiSource (
 
     while (fread (&Byte, 1, 1, Handle) == 1)
     {
-        /* Ignore comment fields (allow non-ascii within) */
+        /* Ignore comment fields (allow non-ASCII within) */
 
         if (OpeningComment)
         {

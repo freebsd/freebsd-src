@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_post.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: frm_post.c,v 1.14 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -48,7 +48,7 @@ MODULE_ID("$Id: frm_post.c,v 1.13 2020/02/02 23:34:34 tom Exp $")
 |                    E_NO_ROOM         - form doesn't fit into subwindow
 |                    E_SYSTEM_ERROR    - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 post_form(FORM *form)
 {
   WINDOW *formwin;
@@ -98,7 +98,7 @@ post_form(FORM *form)
 |                    E_NOT_POSTED    - form isn't posted
 |                    E_BAD_STATE     - called from a hook routine
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 unpost_form(FORM *form)
 {
   T((T_CALLED("unpost_form(%p)"), (void *)form));

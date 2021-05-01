@@ -179,6 +179,14 @@ uprintf(const char *fmt, ...)
 	if (TD_IS_IDLETHREAD(td))
 		return (0);
 
+	if (td->td_proc == initproc) {
+		/* Produce output when we fail to load /sbin/init: */
+		va_start(ap, fmt);
+		retval = vprintf(fmt, ap);
+		va_end(ap);
+		return (retval);
+	}
+
 	sx_slock(&proctree_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
@@ -840,6 +848,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			goto handle_nosign;
 		case 'X':
 			upper = 1;
+			/* FALLTHROUGH */
 		case 'x':
 			base = 16;
 			goto handle_nosign;

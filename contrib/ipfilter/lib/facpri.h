@@ -13,18 +13,14 @@
 
 #ifndef	__P
 # define P_DEF
-# ifdef	__STDC__
 #  define	__P(x) x
-# else
-#  define	__P(x) ()
-# endif
 #endif
 
-extern	char	*fac_toname __P((int));
-extern	int	fac_findname __P((char *));
+extern	char	*fac_toname(int);
+extern	int	fac_findname(char *);
 
-extern	char	*pri_toname __P((int));
-extern	int	pri_findname __P((char *));
+extern	char	*pri_toname(int);
+extern	int	pri_findname(char *);
 
 #ifdef P_DEF
 # undef	__P

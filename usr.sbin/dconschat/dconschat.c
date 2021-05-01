@@ -383,11 +383,7 @@ dconschat_fetch_header(struct dcons_state *dc)
 	}
 	if (ntohl(dbuf.version) != DCONS_VERSION) {
 		snprintf(ebuf, sizeof(ebuf),
-#if __FreeBSD_version < 500000
-		    "wrong version %ld,%d",
-#else
 		    "wrong version %d,%d",
-#endif
 		    ntohl(dbuf.version), DCONS_VERSION);
 		/* XXX exit? */
 		dconschat_ready(dc, 0, ebuf);
@@ -419,13 +415,8 @@ dconschat_fetch_header(struct dcons_state *dc)
 
 		if (verbose) {
 			printf("port %d   size offset   gen   pos\n", j);
-#if __FreeBSD_version < 500000
-			printf("output: %5d %6ld %5d %5d\n"
-				"input : %5d %6ld %5d %5d\n",
-#else
 			printf("output: %5d %6d %5d %5d\n"
 				"input : %5d %6d %5d %5d\n",
-#endif
 			o->size, ntohl(dbuf.ooffset[j]), o->gen, o->pos,
 			i->size, ntohl(dbuf.ioffset[j]), i->gen, i->pos);
 		}

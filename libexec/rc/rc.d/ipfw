@@ -129,7 +129,9 @@ ipfw_status()
 	status=$(sysctl -i -n net.inet.ip.fw.enable)
 	: ${status:=0}
 	if afexists inet6; then
-		status=$((${status} + $(sysctl -i -n net.inet6.ip6.fw.enable)))
+		status6=$(sysctl -i -n net.inet6.ip6.fw.enable)
+		: ${status6:=0}
+		status=$((${status} + ${status6}))
 	fi
 	if [ ${status} -eq 0 ]; then
 		echo "ipfw is not enabled"

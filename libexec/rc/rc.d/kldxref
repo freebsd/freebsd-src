@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: kldxref
-# REQUIRE: FILESYSTEMS
+# REQUIRE: mountcritlocal
 # BEFORE:  netif
 # KEYWORD: nojail
 

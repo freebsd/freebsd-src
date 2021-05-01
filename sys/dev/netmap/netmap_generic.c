@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 static inline struct mbuf *
 nm_os_get_mbuf(struct ifnet *ifp, int len)
 {
-	return alloc_skb(ifp->needed_headroom + len +
+	return alloc_skb(LL_RESERVED_SPACE(ifp) + len +
 			 ifp->needed_tailroom, GFP_ATOMIC);
 }
 
@@ -446,7 +446,7 @@ generic_mbuf_destructor(struct mbuf *m)
 	/*
 	 * First, clear the event mbuf.
 	 * In principle, the event 'm' should match the one stored
-	 * on ring 'r'. However we check it explicitely to stay
+	 * on ring 'r'. However we check it explicitly to stay
 	 * safe against lower layers (qdisc, driver, etc.) changing
 	 * MBUF_TXQ(m) under our feet. If the match is not found
 	 * on 'r', we try to see if it belongs to some other ring.

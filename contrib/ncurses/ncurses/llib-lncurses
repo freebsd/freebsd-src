@@ -452,85 +452,85 @@ int	flash(void)
 /* ./lib_gen.c */
 
 #undef addch
-int	(addch)(
+int	addch(
 		const chtype z)
 		{ return(*(int *)0); }
 
 #undef addchnstr
-int	(addchnstr)(
+int	addchnstr(
 		const chtype *a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef addchstr
-int	(addchstr)(
+int	addchstr(
 		const chtype *z)
 		{ return(*(int *)0); }
 
 #undef addnstr
-int	(addnstr)(
+int	addnstr(
 		const char *a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef addstr
-int	(addstr)(
+int	addstr(
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef attroff
-int	(attroff)(
-		NCURSES_ATTR_T	z)
+int	attroff(
+		int	z)
 		{ return(*(int *)0); }
 
 #undef attron
-int	(attron)(
-		NCURSES_ATTR_T	z)
+int	attron(
+		int	z)
 		{ return(*(int *)0); }
 
 #undef attrset
-int	(attrset)(
-		NCURSES_ATTR_T	z)
+int	attrset(
+		int	z)
 		{ return(*(int *)0); }
 
 #undef attr_get
-int	(attr_get)(
+int	attr_get(
 		attr_t	*a1, 
 		short	*a2, 
 		void	*z)
 		{ return(*(int *)0); }
 
 #undef attr_off
-int	(attr_off)(
+int	attr_off(
 		attr_t	a1, 
 		void	*z)
 		{ return(*(int *)0); }
 
 #undef attr_on
-int	(attr_on)(
+int	attr_on(
 		attr_t	a1, 
 		void	*z)
 		{ return(*(int *)0); }
 
 #undef attr_set
-int	(attr_set)(
+int	attr_set(
 		attr_t	a1, 
 		short	a2, 
 		void	*z)
 		{ return(*(int *)0); }
 
 #undef bkgd
-int	(bkgd)(
+int	bkgd(
 		chtype	z)
 		{ return(*(int *)0); }
 
 #undef bkgdset
-void	(bkgdset)(
+void	bkgdset(
 		chtype	z)
 		{ /* void */ }
 
 #undef border
-int	(border)(
+int	border(
 		chtype	a1, 
 		chtype	a2, 
 		chtype	a3, 
@@ -542,14 +542,14 @@ int	(border)(
 		{ return(*(int *)0); }
 
 #undef box
-int	(box)(
+int	box(
 		WINDOW	*a1, 
 		chtype	a2, 
 		chtype	z)
 		{ return(*(int *)0); }
 
 #undef chgat
-int	(chgat)(
+int	chgat(
 		int	a1, 
 		attr_t	a2, 
 		short	a3, 
@@ -557,137 +557,137 @@ int	(chgat)(
 		{ return(*(int *)0); }
 
 #undef clear
-int	(clear)(void)
+int	clear(void)
 		{ return(*(int *)0); }
 
 #undef clrtobot
-int	(clrtobot)(void)
+int	clrtobot(void)
 		{ return(*(int *)0); }
 
 #undef clrtoeol
-int	(clrtoeol)(void)
+int	clrtoeol(void)
 		{ return(*(int *)0); }
 
 #undef color_set
-int	(color_set)(
+int	color_set(
 		short	a1, 
 		void	*z)
 		{ return(*(int *)0); }
 
 #undef COLOR_PAIR
-int	(COLOR_PAIR)(
+int	COLOR_PAIR(
 		int	z)
 		{ return(*(int *)0); }
 
 #undef delch
-int	(delch)(void)
+int	delch(void)
 		{ return(*(int *)0); }
 
 #undef deleteln
-int	(deleteln)(void)
+int	deleteln(void)
 		{ return(*(int *)0); }
 
 #undef echochar
-int	(echochar)(
+int	echochar(
 		const chtype z)
 		{ return(*(int *)0); }
 
 #undef erase
-int	(erase)(void)
+int	erase(void)
 		{ return(*(int *)0); }
 
 #undef getbkgd
-chtype	(getbkgd)(
+chtype	getbkgd(
 		WINDOW	*z)
 		{ return(*(chtype *)0); }
 
 #undef getch
-int	(getch)(void)
+int	getch(void)
 		{ return(*(int *)0); }
 
 #undef getnstr
-int	(getnstr)(
+int	getnstr(
 		char	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef getstr
-int	(getstr)(
+int	getstr(
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef hline
-int	(hline)(
+int	hline(
 		chtype	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef inch
-chtype	(inch)(void)
+chtype	inch(void)
 		{ return(*(chtype *)0); }
 
 #undef inchnstr
-int	(inchnstr)(
+int	inchnstr(
 		chtype	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef inchstr
-int	(inchstr)(
+int	inchstr(
 		chtype	*z)
 		{ return(*(int *)0); }
 
 #undef innstr
-int	(innstr)(
+int	innstr(
 		char	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef insch
-int	(insch)(
+int	insch(
 		chtype	z)
 		{ return(*(int *)0); }
 
 #undef insdelln
-int	(insdelln)(
+int	insdelln(
 		int	z)
 		{ return(*(int *)0); }
 
 #undef insertln
-int	(insertln)(void)
+int	insertln(void)
 		{ return(*(int *)0); }
 
 #undef insnstr
-int	(insnstr)(
+int	insnstr(
 		const char *a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef insstr
-int	(insstr)(
+int	insstr(
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef instr
-int	(instr)(
+int	instr(
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef move
-int	(move)(
+int	move(
 		int	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef mvaddch
-int	(mvaddch)(
+int	mvaddch(
 		int	a1, 
 		int	a2, 
 		const chtype z)
 		{ return(*(int *)0); }
 
 #undef mvaddchnstr
-int	(mvaddchnstr)(
+int	mvaddchnstr(
 		int	a1, 
 		int	a2, 
 		const chtype *a3, 
@@ -695,14 +695,14 @@ int	(mvaddchnstr)(
 		{ return(*(int *)0); }
 
 #undef mvaddchstr
-int	(mvaddchstr)(
+int	mvaddchstr(
 		int	a1, 
 		int	a2, 
 		const chtype *z)
 		{ return(*(int *)0); }
 
 #undef mvaddnstr
-int	(mvaddnstr)(
+int	mvaddnstr(
 		int	a1, 
 		int	a2, 
 		const char *a3, 
@@ -710,14 +710,14 @@ int	(mvaddnstr)(
 		{ return(*(int *)0); }
 
 #undef mvaddstr
-int	(mvaddstr)(
+int	mvaddstr(
 		int	a1, 
 		int	a2, 
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef mvchgat
-int	(mvchgat)(
+int	mvchgat(
 		int	a1, 
 		int	a2, 
 		int	a3, 
@@ -727,19 +727,19 @@ int	(mvchgat)(
 		{ return(*(int *)0); }
 
 #undef mvdelch
-int	(mvdelch)(
+int	mvdelch(
 		int	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef mvgetch
-int	(mvgetch)(
+int	mvgetch(
 		int	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef mvgetnstr
-int	(mvgetnstr)(
+int	mvgetnstr(
 		int	a1, 
 		int	a2, 
 		char	*a3, 
@@ -747,14 +747,14 @@ int	(mvgetnstr)(
 		{ return(*(int *)0); }
 
 #undef mvgetstr
-int	(mvgetstr)(
+int	mvgetstr(
 		int	a1, 
 		int	a2, 
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef mvhline
-int	(mvhline)(
+int	mvhline(
 		int	a1, 
 		int	a2, 
 		chtype	a3, 
@@ -762,13 +762,13 @@ int	(mvhline)(
 		{ return(*(int *)0); }
 
 #undef mvinch
-chtype	(mvinch)(
+chtype	mvinch(
 		int	a1, 
 		int	z)
 		{ return(*(chtype *)0); }
 
 #undef mvinchnstr
-int	(mvinchnstr)(
+int	mvinchnstr(
 		int	a1, 
 		int	a2, 
 		chtype	*a3, 
@@ -776,14 +776,14 @@ int	(mvinchnstr)(
 		{ return(*(int *)0); }
 
 #undef mvinchstr
-int	(mvinchstr)(
+int	mvinchstr(
 		int	a1, 
 		int	a2, 
 		chtype	*z)
 		{ return(*(int *)0); }
 
 #undef mvinnstr
-int	(mvinnstr)(
+int	mvinnstr(
 		int	a1, 
 		int	a2, 
 		char	*a3, 
@@ -791,14 +791,14 @@ int	(mvinnstr)(
 		{ return(*(int *)0); }
 
 #undef mvinsch
-int	(mvinsch)(
+int	mvinsch(
 		int	a1, 
 		int	a2, 
 		chtype	z)
 		{ return(*(int *)0); }
 
 #undef mvinsnstr
-int	(mvinsnstr)(
+int	mvinsnstr(
 		int	a1, 
 		int	a2, 
 		const char *a3, 
@@ -806,21 +806,21 @@ int	(mvinsnstr)(
 		{ return(*(int *)0); }
 
 #undef mvinsstr
-int	(mvinsstr)(
+int	mvinsstr(
 		int	a1, 
 		int	a2, 
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef mvinstr
-int	(mvinstr)(
+int	mvinstr(
 		int	a1, 
 		int	a2, 
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef mvvline
-int	(mvvline)(
+int	mvvline(
 		int	a1, 
 		int	a2, 
 		chtype	a3, 
@@ -828,7 +828,7 @@ int	(mvvline)(
 		{ return(*(int *)0); }
 
 #undef mvwaddch
-int	(mvwaddch)(
+int	mvwaddch(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -836,7 +836,7 @@ int	(mvwaddch)(
 		{ return(*(int *)0); }
 
 #undef mvwaddchnstr
-int	(mvwaddchnstr)(
+int	mvwaddchnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -845,7 +845,7 @@ int	(mvwaddchnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwaddchstr
-int	(mvwaddchstr)(
+int	mvwaddchstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -853,7 +853,7 @@ int	(mvwaddchstr)(
 		{ return(*(int *)0); }
 
 #undef mvwaddnstr
-int	(mvwaddnstr)(
+int	mvwaddnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -862,7 +862,7 @@ int	(mvwaddnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwaddstr
-int	(mvwaddstr)(
+int	mvwaddstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -870,7 +870,7 @@ int	(mvwaddstr)(
 		{ return(*(int *)0); }
 
 #undef mvwchgat
-int	(mvwchgat)(
+int	mvwchgat(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -881,21 +881,21 @@ int	(mvwchgat)(
 		{ return(*(int *)0); }
 
 #undef mvwdelch
-int	(mvwdelch)(
+int	mvwdelch(
 		WINDOW	*a1, 
 		int	a2, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef mvwgetch
-int	(mvwgetch)(
+int	mvwgetch(
 		WINDOW	*a1, 
 		int	a2, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef mvwgetnstr
-int	(mvwgetnstr)(
+int	mvwgetnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -904,7 +904,7 @@ int	(mvwgetnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwgetstr
-int	(mvwgetstr)(
+int	mvwgetstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -912,7 +912,7 @@ int	(mvwgetstr)(
 		{ return(*(int *)0); }
 
 #undef mvwhline
-int	(mvwhline)(
+int	mvwhline(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -921,14 +921,14 @@ int	(mvwhline)(
 		{ return(*(int *)0); }
 
 #undef mvwinch
-chtype	(mvwinch)(
+chtype	mvwinch(
 		WINDOW	*a1, 
 		int	a2, 
 		int	z)
 		{ return(*(chtype *)0); }
 
 #undef mvwinchnstr
-int	(mvwinchnstr)(
+int	mvwinchnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -937,7 +937,7 @@ int	(mvwinchnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwinchstr
-int	(mvwinchstr)(
+int	mvwinchstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -945,7 +945,7 @@ int	(mvwinchstr)(
 		{ return(*(int *)0); }
 
 #undef mvwinnstr
-int	(mvwinnstr)(
+int	mvwinnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -954,7 +954,7 @@ int	(mvwinnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwinsch
-int	(mvwinsch)(
+int	mvwinsch(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -962,7 +962,7 @@ int	(mvwinsch)(
 		{ return(*(int *)0); }
 
 #undef mvwinsnstr
-int	(mvwinsnstr)(
+int	mvwinsnstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -971,7 +971,7 @@ int	(mvwinsnstr)(
 		{ return(*(int *)0); }
 
 #undef mvwinsstr
-int	(mvwinsstr)(
+int	mvwinsstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -979,7 +979,7 @@ int	(mvwinsstr)(
 		{ return(*(int *)0); }
 
 #undef mvwinstr
-int	(mvwinstr)(
+int	mvwinstr(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -987,7 +987,7 @@ int	(mvwinstr)(
 		{ return(*(int *)0); }
 
 #undef mvwvline
-int	(mvwvline)(
+int	mvwvline(
 		WINDOW	*a1, 
 		int	a2, 
 		int	a3, 
@@ -996,103 +996,103 @@ int	(mvwvline)(
 		{ return(*(int *)0); }
 
 #undef PAIR_NUMBER
-int	(PAIR_NUMBER)(
+int	PAIR_NUMBER(
 		int	z)
 		{ return(*(int *)0); }
 
 #undef redrawwin
-int	(redrawwin)(
+int	redrawwin(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef refresh
-int	(refresh)(void)
+int	refresh(void)
 		{ return(*(int *)0); }
 
 #undef scrl
-int	(scrl)(
+int	scrl(
 		int	z)
 		{ return(*(int *)0); }
 
 #undef scroll
-int	(scroll)(
+int	scroll(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef setscrreg
-int	(setscrreg)(
+int	setscrreg(
 		int	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef standout
-int	(standout)(void)
+int	standout(void)
 		{ return(*(int *)0); }
 
 #undef standend
-int	(standend)(void)
+int	standend(void)
 		{ return(*(int *)0); }
 
 #undef timeout
-void	(timeout)(
+void	timeout(
 		int	z)
 		{ /* void */ }
 
 #undef touchline
-int	(touchline)(
+int	touchline(
 		WINDOW	*a1, 
 		int	a2, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef touchwin
-int	(touchwin)(
+int	touchwin(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef untouchwin
-int	(untouchwin)(
+int	untouchwin(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef vline
-int	(vline)(
+int	vline(
 		chtype	a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef waddchstr
-int	(waddchstr)(
+int	waddchstr(
 		WINDOW	*a1, 
 		const chtype *z)
 		{ return(*(int *)0); }
 
 #undef waddstr
-int	(waddstr)(
+int	waddstr(
 		WINDOW	*a1, 
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef wattron
-int	(wattron)(
+int	wattron(
 		WINDOW	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef wattroff
-int	(wattroff)(
+int	wattroff(
 		WINDOW	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef wattrset
-int	(wattrset)(
+int	wattrset(
 		WINDOW	*a1, 
 		int	z)
 		{ return(*(int *)0); }
 
 #undef wattr_get
-int	(wattr_get)(
+int	wattr_get(
 		WINDOW	*a1, 
 		attr_t	*a2, 
 		short	*a3, 
@@ -1100,7 +1100,7 @@ int	(wattr_get)(
 		{ return(*(int *)0); }
 
 #undef wattr_set
-int	(wattr_set)(
+int	wattr_set(
 		WINDOW	*a1, 
 		attr_t	a2, 
 		short	a3, 
@@ -1108,173 +1108,173 @@ int	(wattr_set)(
 		{ return(*(int *)0); }
 
 #undef wdeleteln
-int	(wdeleteln)(
+int	wdeleteln(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef wgetstr
-int	(wgetstr)(
+int	wgetstr(
 		WINDOW	*a1, 
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef winchstr
-int	(winchstr)(
+int	winchstr(
 		WINDOW	*a1, 
 		chtype	*z)
 		{ return(*(int *)0); }
 
 #undef winsertln
-int	(winsertln)(
+int	winsertln(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef winsstr
-int	(winsstr)(
+int	winsstr(
 		WINDOW	*a1, 
 		const char *z)
 		{ return(*(int *)0); }
 
 #undef winstr
-int	(winstr)(
+int	winstr(
 		WINDOW	*a1, 
 		char	*z)
 		{ return(*(int *)0); }
 
 #undef wstandout
-int	(wstandout)(
+int	wstandout(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef wstandend
-int	(wstandend)(
+int	wstandend(
 		WINDOW	*z)
 		{ return(*(int *)0); }
 
 #undef getattrs
-int	(getattrs)(
+int	getattrs(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getcurx
-int	(getcurx)(
+int	getcurx(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getcury
-int	(getcury)(
+int	getcury(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getbegx
-int	(getbegx)(
+int	getbegx(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getbegy
-int	(getbegy)(
+int	getbegy(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getmaxx
-int	(getmaxx)(
+int	getmaxx(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getmaxy
-int	(getmaxy)(
+int	getmaxy(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getparx
-int	(getparx)(
+int	getparx(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef getpary
-int	(getpary)(
+int	getpary(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef wgetparent
-WINDOW	*(wgetparent)(
+WINDOW	*wgetparent(
 		const WINDOW *z)
 		{ return(*(WINDOW **)0); }
 
 #undef is_cleared
-NCURSES_BOOL (is_cleared)(
+NCURSES_BOOL is_cleared(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_idcok
-NCURSES_BOOL (is_idcok)(
+NCURSES_BOOL is_idcok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_idlok
-NCURSES_BOOL (is_idlok)(
+NCURSES_BOOL is_idlok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_immedok
-NCURSES_BOOL (is_immedok)(
+NCURSES_BOOL is_immedok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_keypad
-NCURSES_BOOL (is_keypad)(
+NCURSES_BOOL is_keypad(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_leaveok
-NCURSES_BOOL (is_leaveok)(
+NCURSES_BOOL is_leaveok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_nodelay
-NCURSES_BOOL (is_nodelay)(
+NCURSES_BOOL is_nodelay(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_notimeout
-NCURSES_BOOL (is_notimeout)(
+NCURSES_BOOL is_notimeout(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_pad
-NCURSES_BOOL (is_pad)(
+NCURSES_BOOL is_pad(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_scrollok
-NCURSES_BOOL (is_scrollok)(
+NCURSES_BOOL is_scrollok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_subwin
-NCURSES_BOOL (is_subwin)(
+NCURSES_BOOL is_subwin(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef is_syncok
-NCURSES_BOOL (is_syncok)(
+NCURSES_BOOL is_syncok(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef wgetdelay
-int	(wgetdelay)(
+int	wgetdelay(
 		const WINDOW *z)
 		{ return(*(int *)0); }
 
 #undef wgetscrreg
-int	(wgetscrreg)(
+int	wgetscrreg(
 		const WINDOW *a1, 
 		int	*a2, 
 		int	*z)
 		{ return(*(int *)0); }
 
 #undef mouse_trafo
-NCURSES_BOOL (mouse_trafo)(
+NCURSES_BOOL mouse_trafo(
 		int	*a1, 
 		int	*a2, 
 		NCURSES_BOOL z)
@@ -3628,6 +3628,13 @@ char	*tparm(
 
 #undef tiparm
 char	*tiparm(
+		const char *string, 
+		...)
+		{ return(*(char **)0); }
+
+#undef _nc_tiparm
+char	*_nc_tiparm(
+		int	expected, 
 		const char *string, 
 		...)
 		{ return(*(char **)0); }

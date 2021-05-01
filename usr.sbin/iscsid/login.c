@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -341,6 +340,11 @@ login_negotiate_key(struct connection *conn, const char *name,
 		    sizeof(conn->conn_target_alias));
 	} else if (strcmp(value, "Irrelevant") == 0) {
 		/* Ignore. */
+	} else if (strcmp(name, "iSCSIProtocolLevel") == 0) {
+		tmp = strtoul(value, NULL, 10);
+		if (tmp < 0 || tmp > 31)
+			log_errx(1, "received invalid iSCSIProtocolLevel");
+		conn->conn_protocol_level = tmp;
 	} else if (strcmp(name, "HeaderDigest") == 0) {
 		which = login_list_prefers(value, "CRC32C", "None");
 		switch (which) {
@@ -500,6 +504,7 @@ login_negotiate(struct connection *conn)
 	 * The following keys are irrelevant for discovery sessions.
 	 */
 	if (conn->conn_conf.isc_discovery == 0) {
+		keys_add(request_keys, "iSCSIProtocolLevel", "2");
 		if (conn->conn_conf.isc_header_digest != 0)
 			keys_add(request_keys, "HeaderDigest", "CRC32C");
 		else

@@ -49,13 +49,9 @@ typedef int		db_expr_t;
 	kdb_frame->tf_pc += BKPT_SIZE; \
 } while (0)
 
-#if __ARM_ARCH >= 6
 #define	db_clear_single_step	kdb_cpu_clear_singlestep
 #define	db_set_single_step	kdb_cpu_set_singlestep
 #define	db_pc_is_singlestep	kdb_cpu_pc_is_singlestep
-#else
-#define	SOFTWARE_SSTEP  1
-#endif
 
 #define	IS_BREAKPOINT_TRAP(type, code)	(type == T_BREAKPOINT)
 #define	IS_WATCHPOINT_TRAP(type, code)	(type == T_WATCHPOINT)

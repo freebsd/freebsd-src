@@ -136,24 +136,50 @@ mv_ap806_clock_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/* 
-	 * We might miss some combinations
-	 * Those are the only possible ones on the mcbin
-	 */
 	reg = RD4(sc, 0x400);
 	switch (reg & 0x1f) {
 	case 0x0:
 	case 0x1:
 		clock_freq = 2000000000;
 		break;
+	case 0x4:
+		clock_freq = 1600000000;
+		break;
 	case 0x6:
 		clock_freq = 1800000000;
+		break;
+	case 0x7:
+		clock_freq = 1800000000;
+		break;
+	case 0xb:
+		clock_freq = 1600000000;
 		break;
 	case 0xd:
 		clock_freq = 1600000000;
 		break;
+	case 0x13:
+		clock_freq = 1000000000;
+		break;
 	case 0x14:
 		clock_freq = 1333000000;
+		break;
+	case 0x17:
+		clock_freq = 1333000000;
+		break;
+	case 0x19:
+		clock_freq = 1200000000;
+		break;
+	case 0x1a:
+		clock_freq = 1400000000;
+		break;
+	case 0x1b:
+		clock_freq = 600000000;
+		break;
+	case 0x1c:
+		clock_freq = 800000000;
+		break;
+	case 0x1d:
+		clock_freq = 1000000000;
 		break;
 	default:
 		device_printf(dev, "Cannot guess clock freq with reg %x\n",

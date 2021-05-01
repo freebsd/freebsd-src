@@ -55,12 +55,11 @@ extern struct xlocale_component __xlocale_global_messages;
 extern struct xlocale_component __xlocale_C_collate;
 extern struct xlocale_component __xlocale_C_ctype;
 
-#ifndef __NO_TLS
 /*
  * The locale for this thread.
  */
 _Thread_local locale_t __thread_locale;
-#endif
+
 /*
  * Flag indicating that one or more per-thread locales exist.
  */
@@ -143,16 +142,6 @@ get_thread_locale(void)
 		pthread_getspecific(locale_info_key));
 }
 
-#ifdef __NO_TLS
-locale_t
-__get_locale(void)
-{
-	locale_t l = get_thread_locale();
-	return (l ? l : &__xlocale_global_locale);
-
-}
-#endif
-
 static void
 set_thread_locale(locale_t loc)
 {
@@ -172,10 +161,8 @@ set_thread_locale(locale_t loc)
 	} else {
 		pthread_setspecific(locale_info_key, l);
 	}
-#ifndef __NO_TLS
 	__thread_locale = l;
 	__set_thread_rune_locale(loc);
-#endif
 }
 
 /**
@@ -231,6 +218,8 @@ static int dupcomponent(int type, locale_t base, locale_t new)
 		if (new->components[type]) {
 			strncpy(new->components[type]->locale, src->locale,
 			    ENCODING_LEN);
+			strncpy(new->components[type]->version, src->version,
+			    XLOCALE_DEF_VERSION_LEN);
 		}
 	} else if (base->components[type]) {
 		new->components[type] = xlocale_retain(base->components[type]);
@@ -346,17 +335,24 @@ freelocale(locale_t loc)
 }
 
 /*
- * Returns the name of the locale for a particular component of a locale_t.
+ * Returns the name or version of the locale for a particular component of a
+ * locale_t.
  */
 const char *querylocale(int mask, locale_t loc)
 {
-	int type = ffs(mask) - 1;
+	int type = ffs(mask & ~LC_VERSION_MASK) - 1;
 	FIX_LOCALE(loc);
 	if (type >= XLC_LAST)
 		return (NULL);
-	if (loc->components[type])
-		return (loc->components[type]->locale);
-	return ("C");
+	if (mask & LC_VERSION_MASK) {
+		if (loc->components[type])
+			return (loc->components[type]->version);
+		return ("");
+	} else {
+		if (loc->components[type])
+			return (loc->components[type]->locale);
+		return ("C");
+	}
 }
 
 /*

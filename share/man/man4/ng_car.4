@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2012
+.Dd January 27, 2021
 .Dt NG_CAR 4
 .Os
 .Sh NAME
@@ -108,6 +108,7 @@ Traffic shaping is much more polite to the TCP traffic than rate limit on
 links with bandwidth * delay product less than 6-8 TCP segments, but it
 consumes additional system resources for queue processing.
 .El
+.Pp
 By default, all information rates are measured in bits per second and bursts
 are measured in bytes.
 But when NG_CAR_COUNT_PACKETS option is enabled,
@@ -138,7 +139,8 @@ struct ng_car_hookconf {
 /* possible actions (..._action) */
 enum {
     NG_CAR_ACTION_FORWARD = 1,
-    NG_CAR_ACTION_DROP
+    NG_CAR_ACTION_DROP,
+    NG_CAR_ACTION_MARK
 };
 
 /* operation modes (mode) */
@@ -149,7 +151,8 @@ enum {
     NG_CAR_SHAPE
 };
 
-/* mode options (opt) */
+/* mode options (bits for opt) */
+#define NG_CAR_COLOR_AWARE	1
 #define NG_CAR_COUNT_PACKETS	2
 
 struct ng_car_bulkconf {

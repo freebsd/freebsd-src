@@ -99,13 +99,10 @@ OBJTOP := ${HOST_OBJTOP}
 .if ${.MAKE.LEVEL} == 0 || empty(PYTHON)
 PYTHON ?= /usr/local/bin/python
 .export PYTHON
-# this works best if share/mk is ready for it.
-BUILD_AT_LEVEL0= no
 # _SKIP_BUILD is not 100% as it requires wrapping all 'all:' targets to avoid
 # building in MAKELEVEL0.  Just prohibit 'all' entirely in this case to avoid
 # problems.
-.if ${MK_DIRDEPS_BUILD} == "yes" && \
-    ${.MAKE.LEVEL} == 0 && ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL} == 0
 .MAIN: dirdeps
 .if make(all)
 .error DIRDEPS_BUILD: Please run '${MAKE}' instead of '${MAKE} all'.
@@ -176,6 +173,10 @@ LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 
 .if ${.MAKE.LEVEL} > 0 && ${MACHINE} == "host" && ${.MAKE.DEPENDFILE:E} != "host"
 # we can use this but should not update it.
+UPDATE_DEPENDFILE= NO
+.endif
+# Don't require filemon for makeman.
+.if make(showconfig)
 UPDATE_DEPENDFILE= NO
 .endif
 

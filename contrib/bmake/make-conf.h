@@ -1,4 +1,4 @@
-/*	$NetBSD: config.h,v 1.22 2020/09/01 17:40:34 rillig Exp $	*/
+/*	$NetBSD: config.h,v 1.28 2020/12/11 22:53:08 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -73,25 +73,15 @@
  */
 
 /*
- * DEFMAXJOBS
- * DEFMAXLOCAL
- *	These control the default concurrency. On no occasion will more
- *	than DEFMAXJOBS targets be created at once (locally or remotely)
- *	DEFMAXLOCAL is the highest number of targets which will be
- *	created on the local machine at once. Note that if you set this
- *	to 0, nothing will ever happen...
- */
-#define DEFMAXJOBS	4
-#define DEFMAXLOCAL	1
-
-/*
  * INCLUDES
  * LIBRARIES
  *	These control the handling of the .INCLUDES and .LIBS variables.
+ *
  *	If INCLUDES is defined, the .INCLUDES variable will be filled
  *	from the search paths of those suffixes which are marked by
- *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS
- *	See suff.c for more details.
+ *	.INCLUDES dependency lines. Similarly for LIBRARIES and .LIBS.
+ *
+ *	See varname-dot-include.mk and varname-dot-libs.mk for more details.
  */
 #define INCLUDES
 #define LIBRARIES
@@ -101,35 +91,38 @@
  *	Is the suffix used to denote libraries and is used by the Suff module
  *	to find the search path on which to seek any -l<xx> targets.
  */
-#define	LIBSUFF	".a"
+#define LIBSUFF	".a"
 
 /*
  * RECHECK
  *	If defined, Make_Update will check a target for its current
  *	modification time after it has been re-made, setting it to the
  *	starting time of the make only if the target still doesn't exist.
+ *
  *	Unfortunately, under NFS the modification time often doesn't
  *	get updated in time, so a target will appear to not have been
- *	re-made, causing later targets to appear up-to-date. On systems
- *	that don't have this problem, you should define this. Under
- *	NFS you probably should not, unless you aren't exporting jobs.
+ *	re-made, causing later targets to appear up-to-date.
+ *
+ *	On systems that don't have this problem, you should define this.
+ *	Under NFS you probably should not, unless you aren't exporting jobs.
  */
-#define	RECHECK
+#define RECHECK
 
 /*
  * POSIX
  *	Adhere to the POSIX 1003.2 draft for the make(1) program.
  *	- Use MAKEFLAGS instead of MAKE to pick arguments from the
  *	  environment.
- *	- Allow empty command lines if starting with tab.
  */
 #define POSIX
 
 /*
  * SYSVINCLUDE
  *	Recognize system V like include directives [include "filename"]
+ *	(required by POSIX 2018)
  * SYSVVARSUB
  *	Recognize system V like ${VAR:x=y} variable substitutions
+ *	(required by POSIX 2018)
  */
 #define SYSVINCLUDE
 #define SYSVVARSUB
@@ -148,14 +141,6 @@
  *				# of ${VAR}
  */
 #define SUNSHCMD
-
-/*
- * USE_IOVEC
- *	We have writev(2)
- */
-#ifdef HAVE_SYS_UIO_H
-# define USE_IOVEC
-#endif
 
 #if defined(MAKE_NATIVE) && !defined(__ELF__)
 # ifndef RANLIBMAG

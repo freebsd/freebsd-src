@@ -860,12 +860,6 @@ rtmsg(int cmd)
 			rtm->rtm_inits = RTV_EXPIRE;
 		}
 		rtm->rtm_flags |= (RTF_HOST | RTF_STATIC | RTF_LLDATA);
-#if 0		/* we don't support ipv6addr/128 type proxying */
-		if (rtm->rtm_flags & RTF_ANNOUNCE) {
-			rtm->rtm_flags &= ~RTF_HOST;
-			rtm->rtm_addrs |= RTA_NETMASK;
-		}
-#endif
 		/* FALLTHROUGH */
 	case RTM_GET:
 		rtm->rtm_addrs |= RTA_DST;
@@ -873,10 +867,6 @@ rtmsg(int cmd)
 
 	NEXTADDR(RTA_DST, sin_m);
 	NEXTADDR(RTA_GATEWAY, sdl_m);
-#if 0	/* we don't support ipv6addr/128 type proxying */
-	memset(&so_mask.sin6_addr, 0xff, sizeof(so_mask.sin6_addr));
-	NEXTADDR(RTA_NETMASK, so_mask);
-#endif
 
 	rtm->rtm_msglen = cp - (char *)&m_rtmsg;
 doit:

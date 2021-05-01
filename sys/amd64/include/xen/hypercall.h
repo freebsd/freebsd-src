@@ -427,6 +427,13 @@ HYPERVISOR_kexec_op(
 	return _hypercall2(int, kexec_op, op, args);
 }
 
+static inline int __must_check
+HYPERVISOR_dm_op(
+	domid_t domid, unsigned int nr_bufs, const void *bufs)
+{
+	return _hypercall3(int, dm_op, domid, nr_bufs, bufs);
+}
+
 #undef __must_check
 
 #endif /* __MACHINE_XEN_HYPERCALL_H__ */

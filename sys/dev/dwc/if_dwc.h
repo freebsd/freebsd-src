@@ -70,6 +70,10 @@
 #define	 GMII_ADDRESS_GB	(1 << 0)	/* Busy */
 #define	GMII_DATA		0x14
 #define	FLOW_CONTROL		0x18
+#define	 FLOW_CONTROL_PT_SHIFT	16
+#define	 FLOW_CONTROL_UP	(1 << 3)	/* Unicast pause enable */
+#define	 FLOW_CONTROL_RX	(1 << 2)	/* RX Flow control enable */
+#define	 FLOW_CONTROL_TX	(1 << 1)	/* TX Flow control enable */
 #define	GMAC_VLAN_TAG		0x1C
 #define	VERSION			0x20
 #define	DEBUG			0x24
@@ -216,6 +220,8 @@
 /* DMA */
 #define	BUS_MODE		0x1000
 #define	 BUS_MODE_EIGHTXPBL	(1 << 24) /* Multiplies PBL by 8 */
+#define	 BUS_MODE_USP		(1 << 23)
+#define	 BUS_MODE_RPBL_SHIFT	17 /* Single block transfer size */
 #define	 BUS_MODE_FIXEDBURST	(1 << 16)
 #define	 BUS_MODE_PRIORXTX_SHIFT	14
 #define	 BUS_MODE_PRIORXTX_41	3
@@ -223,8 +229,8 @@
 #define	 BUS_MODE_PRIORXTX_21	1
 #define	 BUS_MODE_PRIORXTX_11	0
 #define	 BUS_MODE_PBL_SHIFT	8 /* Single block transfer size */
-#define	 BUS_MODE_PBL_BEATS_8	8
 #define	 BUS_MODE_SWR		(1 << 0) /* Reset */
+#define	 BUS_MODE_DEFAULT_PBL	8
 #define	TRANSMIT_POLL_DEMAND	0x1004
 #define	RECEIVE_POLL_DEMAND	0x1008
 #define	RX_DESCR_LIST_ADDR	0x100C

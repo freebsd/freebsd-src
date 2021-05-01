@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2020
+.Dd March 26, 2021
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -158,7 +158,13 @@ Multiple disk setups are separated by semicolons.
 The
 .Ar disk
 argument specifies the disk on which to operate (which will be erased),
-while the
+or the special value
+.Em DEFAULT ,
+which will result in either a selection window (as in
+.Cm autopart )
+for the destination disk or, if there is only one possible disk, will
+automatically select it.
+The
 .Ar scheme
 argument specifies the
 .Xr gpart 8
@@ -199,11 +205,19 @@ As an example, a typical invocation looks like:
 .Pp
 bsdinstall scriptedpart ada0 { 20G freebsd-ufs /, 4G freebsd-swap, 20G freebsd-ufs /var, auto freebsd-ufs /usr }
 .Pp
+Note that the list of partitions should
+.Em not
+include boot partitions (e.g. EFI system partitions), which will be created automatically on whatever disk includes /.
+.Pp
 A shorter invocation to use the default partitioning (as
 .Cm autopart
 would have used) on the same disk:
 .Pp
 bsdinstall scriptedpart ada0
+.Pp
+or, even shorter:
+.Pp
+bsdinstall scriptedpart DEFAULT
 .It Cm mount
 Mounts the file systems previously configured by
 .Cm autopart ,
@@ -275,7 +289,9 @@ See
 of
 the
 .Sx TARGETS
-section for format details.
+section for format details. If this variable is unset, the installer will
+use the default partitioning as in
+.Cm autopart .
 Default: unset
 .It Ev BSDINSTALL_DISTDIR
 The directory in which the distribution files can be found (or to which they
@@ -434,6 +450,19 @@ Default:
 .El
 .Sh SCRIPTING
 .Nm
+supports unattended, or minimally-attended, installations using scripting.
+This can be used with either modified physical installation media or with
+.Xr diskless 8
+installations over the network; information on preparing such media can be
+found in
+.Sx BUILDING AUTOMATIC INSTALL MEDIA
+.Pp
+Scripted installations follow an essentially identical path to interactive
+installations, though with some minor feature differences (for example,
+scripted installations do not support fetching of remote distribution files
+since scripted installations normally install the same files and the distributions
+can be added directly to the installation media).
+.Nm
 scripts consist of two parts: a
 .Em preamble
 and a
@@ -448,27 +477,28 @@ exits.
 The two parts are separated by the usual script header (#!), which also sets
 the interpreter for the setup script.
 .Pp
-A typical bsdinstall script looks like this:
+A typical bsdinstall script, using the default filesystem layout and the UFS
+filesystem, looks like this:
 .Bd -literal -offset indent
-PARTITIONS=ada0
+PARTITIONS=DEFAULT
 DISTRIBUTIONS="kernel.txz base.txz"
 
 #!/bin/sh
-gpart bootcode -b /boot/pmbr -p /boot/gptboot -i 1 ada0
-sysrc ifconfig_em0=DHCP
+sysrc ifconfig_DEFAULT=DHCP
 sysrc sshd_enable=YES
 pkg install puppet
 .Ed
 .Pp
-For a ZFS scripted installation, the script looks like this:
+For a scripted installation involving a ZFS pool spanning multiple disks,
+the script instead looks like this:
 .Bd -literal -offset indent
 DISTRIBUTIONS="kernel.txz base.txz"
 export ZFSBOOT_VDEV_TYPE=stripe
-export ZFSBOOT_DISKS=ada0
+export ZFSBOOT_DISKS="ada0 ada1"
 export nonInteractive="YES"
 
 #!/bin/sh
-echo "ifconfig_em0=DHCP" >> /etc/rc.conf
+echo "ifconfig_DEFAULT=DHCP" >> /etc/rc.conf
 echo "sshd_enable=YES" >> /etc/rc.conf
 pkg install puppet
 .Ed
@@ -501,6 +531,7 @@ the preamble can contain a variable
 which is passed to the
 .Cm scriptedpart
 target to control disk setup.
+.Pp
 Alternatively,
 to use
 .Cm zfsboot
@@ -509,12 +540,13 @@ instead of
 the preamble can contain the variable
 .Ev ZFSBOOT_DATASETS
 instead of
-.Ev PARTITIONS ,
-and setting the variables
+.Ev PARTITIONS
+(see below).
+If using .Cm zfsboot, the variables
 .Ev ZFSBOOT_DISKS
 and
 .Ev ZFSBOOT_VDEV_TYPE
-to create the pool of disks for the base system.
+must be set to create the pool of disks for the base system.
 Usually, for a mirrored booting disk, this two variables looks like this:
 .Bd -literal -offset indent
 ZFSBOOT_DISKS="ada0 ada1"
@@ -523,7 +555,7 @@ ZFSBOOT_VDEV_TYPE=mirror
 .Pp
 Remember to export all the variables for the
 .Cm zfsboot
-command, otherwise it will not get set.
+command, otherwise installation will fail.
 .Ss SETUP SCRIPT
 Following the preamble is an optional shell script, beginning with a #!
 declaration.
@@ -535,15 +567,17 @@ Note that newly configured system services, e.g., networking have not
 been started in the installed system at this time and only installation
 host services are available.
 .Ss ZFS DATASETS
-The
+If using
 .Cm zfsboot
-partitioning takes the
+in an installation script, the
+.Cm zfsboot
+partitioning tool takes the
 .Ev ZFSBOOT_DATASETS
-variable to create the datasets on the base system.
-This variable can get pretty huge if the pool contains a lot of datasets.
+variable to create the ZFS datasets on the base system.
+This variable definition can become large if the pool contains many datasets.
 The default value of the
 .Ev ZFSBOOT_DATASETS
-looks like this:
+is:
 .Bd -literal -offset indent
 # DATASET	OPTIONS (comma or space separated; or both)
 
@@ -575,11 +609,25 @@ looks like this:
 /var/tmp	setuid=off
 .Ed
 .Pp
-The first column if the dataset to be created on the top of the
+The first column is the name of the dataset to be created as part of the
 .Ev ZFSBOOT_POOL_NAME
-and the rest of the columns are the options to be set on each dataset.
-The options must be written on a coma or space separated list, or both.
-And everything behind a pound/hash character is ignored as a comment.
+pool and the remainder of each line contains the options to be set on each dataset.
+If multiple options are given, they can be separated by either commas or whitespace;
+everything following a pound/hash character is ignored as a comment.
+.Ss BUILDING AUTOMATIC INSTALL MEDIA
+If building automatic install media, use tar to extract a release ISO:
+.Dl mkdir release-media
+.Dl tar xvf -C release-media FreeBSD-13.0-RELEASE-amd64-disc1.iso
+.Pp
+Then place a script as above in
+.Pa etc/installerconfig
+.Pp
+This directory can then be used directly as an NFS root for
+.Xr diskless 8
+installations or it can be rebuilt into an ISO image using the release scripts in
+.Pa /usr/src/release .
+For example, on amd64:
+.Dl sh /usr/src/release/amd64/mkisoimages.sh -b '13_0_RELEASE_AMD64_CD' output.iso release-media
 .Sh HISTORY
 This version of
 .Nm
@@ -587,3 +635,5 @@ first appeared in
 .Fx 9.0 .
 .Sh AUTHORS
 .An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org
+.An Devin Teske Aq Mt dteske@FreeBSD.org
+.An Allan Jude Aq Mt allanjude@FreeBSD.org

@@ -81,6 +81,7 @@ ENTRY(cpu_throw)
 	li	%r18,0	/* No old pcb flags.  The old thread is extinguished. */
 
 	b	cpu_switchin
+END(cpu_throw)
 
 /*
  * void cpu_switch(struct thread *old,
@@ -304,6 +305,7 @@ restore_tar:
 	 */
 	stdcx.	%r1, 0, %r3
 	blr
+END(cpu_switch)
 
 /*
  * savectx(pcb)
@@ -338,6 +340,7 @@ ENTRY(savectx)
 	mflr	%r4			/* Save the link register */
 	std	%r4,PCB_LR(%r3)
 	blr
+END(savectx)
 
 /*
  * fork_trampoline()
@@ -358,3 +361,4 @@ ENTRY_NOPROF(fork_trampoline)
 					   a frame pointer/saved LR */
 	bl	trapexit
 	nop
+END(fork_trampoline)

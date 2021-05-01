@@ -274,12 +274,8 @@ setsignal(int signo)
 			break;
 		case SIGQUIT:
 #ifdef DEBUG
-			{
-			extern int debug;
-
 			if (debug)
 				break;
-			}
 #endif
 			action = S_CATCH;
 			break;

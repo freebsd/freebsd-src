@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "virtio_bus_if.h"
 #include "virtio_if.h"
 
-#define	PAGE_SHIFT	12
-
 struct vtmmio_virtqueue {
 	struct virtqueue	*vtv_vq;
 	int			 vtv_no_intr;
@@ -86,7 +84,7 @@ static void	vtmmio_stop(device_t);
 static void	vtmmio_poll(device_t);
 static int	vtmmio_reinit(device_t, uint64_t);
 static void	vtmmio_reinit_complete(device_t);
-static void	vtmmio_notify_virtqueue(device_t, uint16_t);
+static void	vtmmio_notify_virtqueue(device_t, uint16_t, bus_size_t);
 static uint8_t	vtmmio_get_status(device_t);
 static void	vtmmio_set_status(device_t, uint8_t);
 static void	vtmmio_read_dev_config(device_t, bus_size_t, void *, int);
@@ -173,6 +171,48 @@ DEFINE_CLASS_0(virtio_mmio, vtmmio_driver, vtmmio_methods,
 
 MODULE_VERSION(virtio_mmio, 1);
 
+int
+vtmmio_probe(device_t dev)
+{
+	struct vtmmio_softc *sc;
+	int rid;
+	uint32_t magic, version;
+
+	sc = device_get_softc(dev);
+
+	rid = 0;
+	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->res[0] == NULL) {
+		device_printf(dev, "Cannot allocate memory window.\n");
+		return (ENXIO);
+	}
+
+	magic = vtmmio_read_config_4(sc, VIRTIO_MMIO_MAGIC_VALUE);
+	if (magic != VIRTIO_MMIO_MAGIC_VIRT) {
+		device_printf(dev, "Bad magic value %#x\n", magic);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	version = vtmmio_read_config_4(sc, VIRTIO_MMIO_VERSION);
+	if (version < 1 || version > 2) {
+		device_printf(dev, "Unsupported version: %#x\n", version);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	if (vtmmio_read_config_4(sc, VIRTIO_MMIO_DEVICE_ID) == 0) {
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+
+	device_set_desc(dev, "VirtIO MMIO adapter");
+	return (BUS_PROBE_DEFAULT);
+}
+
 static int
 vtmmio_setup_intr(device_t dev, enum intr_type type)
 {
@@ -221,20 +261,12 @@ vtmmio_attach(device_t dev)
 	rid = 0;
 	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			RF_ACTIVE);
-	if (!sc->res[0]) {
+	if (sc->res[0] == NULL) {
 		device_printf(dev, "Cannot allocate memory window.\n");
 		return (ENXIO);
 	}
 
 	sc->vtmmio_version = vtmmio_read_config_4(sc, VIRTIO_MMIO_VERSION);
-	if (sc->vtmmio_version < 1 || sc->vtmmio_version > 2) {
-		device_printf(dev, "Unsupported version: %x\n",
-		    sc->vtmmio_version);
-		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->res[0]);
-		sc->res[0] = NULL;
-		return (ENXIO);
-	}
 
 	vtmmio_reset(sc);
 
@@ -354,6 +386,13 @@ vtmmio_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		 */
 		*result = 0;
 		break;
+	case VIRTIO_IVAR_MODERN:
+		/*
+		 * There are several modern (aka MMIO v2) spec compliance
+		 * issues with this driver, but keep the status quo.
+		 */
+		*result = sc->vtmmio_version > 1;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -390,6 +429,10 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 
 	sc = device_get_softc(dev);
 
+	if (sc->vtmmio_version > 1) {
+		child_features |= VIRTIO_F_VERSION_1;
+	}
+
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 1);
 	host_features = vtmmio_read_config_4(sc, VIRTIO_MMIO_HOST_FEATURES);
 	host_features <<= 32;
@@ -404,15 +447,15 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 	 * host all support.
 	 */
 	features = host_features & child_features;
-	features = virtqueue_filter_features(features);
+	features = virtio_filter_transport_features(features);
 	sc->vtmmio_features = features;
 
 	vtmmio_describe_features(sc, "negotiated", features);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 1);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES_SEL, 1);
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES, features >> 32);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 0);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES_SEL, 0);
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES, features);
 
 	return (features);
@@ -435,10 +478,7 @@ vtmmio_set_virtqueue(struct vtmmio_softc *sc, struct virtqueue *vq,
 	vm_paddr_t paddr;
 
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NUM, size);
-#if 0
-	device_printf(dev, "virtqueue paddr 0x%08lx\n",
-	    (uint64_t)paddr);
-#endif
+
 	if (sc->vtmmio_version == 1) {
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_ALIGN,
 		    VIRTIO_MMIO_VRING_ALIGN);
@@ -506,7 +546,8 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
 		error = virtqueue_alloc(dev, idx, size,
-		    VIRTIO_MMIO_VRING_ALIGN, ~(vm_paddr_t)0, info, &vq);
+		    VIRTIO_MMIO_QUEUE_NOTIFY, VIRTIO_MMIO_VRING_ALIGN,
+		    ~(vm_paddr_t)0, info, &vq);
 		if (error) {
 			device_printf(dev,
 			    "cannot allocate virtqueue %d: %d\n",
@@ -588,13 +629,14 @@ vtmmio_reinit_complete(device_t dev)
 }
 
 static void
-vtmmio_notify_virtqueue(device_t dev, uint16_t queue)
+vtmmio_notify_virtqueue(device_t dev, uint16_t queue, bus_size_t offset)
 {
 	struct vtmmio_softc *sc;
 
 	sc = device_get_softc(dev);
+	MPASS(offset == VIRTIO_MMIO_QUEUE_NOTIFY);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NOTIFY, queue);
+	vtmmio_write_config_4(sc, offset, queue);
 }
 
 static uint8_t

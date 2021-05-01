@@ -81,6 +81,5 @@ vtmmio_acpi_probe(device_t dev)
 	if (!acpi_MatchHid(h, "LNRO0005"))
 		return (ENXIO);
 
-	device_set_desc(dev, "VirtIO MMIO adapter");
-	return (BUS_PROBE_DEFAULT);
+	return (vtmmio_probe(dev));
 }

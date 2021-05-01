@@ -99,6 +99,8 @@ __FBSDID("$FreeBSD$");
  * below) the other two.
  */
 
+#include "opt_evdev.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -125,6 +127,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/cyapa/cyapa.h>
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 #include "iicbus_if.h"
 #include "bus_if.h"
@@ -153,6 +160,9 @@ struct cyapa_softc {
 	struct selinfo selinfo;
 	struct mtx mutex;
 	struct intr_config_hook intr_hook;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *evdev;
+#endif
 
 	int	cap_resx;
 	int	cap_resy;
@@ -536,13 +546,14 @@ cyapa_attach(device_t dev)
 	    cap.phy_siz_x_low;
 	sc->cap_phyy = ((cap.phy_siz_xy_high << 8) & 0x0F00) |
 	    cap.phy_siz_y_low;
-	sc->cap_buttons = cap.buttons;
+	sc->cap_buttons = cap.buttons >> 3 &
+	    (CYAPA_FNGR_LEFT | CYAPA_FNGR_RIGHT | CYAPA_FNGR_MIDDLE);
 
 	device_printf(dev, "%5.5s-%6.6s-%2.2s buttons=%c%c%c res=%dx%d\n",
 	    cap.prod_ida, cap.prod_idb, cap.prod_idc,
-	    ((cap.buttons & CYAPA_FNGR_LEFT) ? 'L' : '-'),
-	    ((cap.buttons & CYAPA_FNGR_MIDDLE) ? 'M' : '-'),
-	    ((cap.buttons & CYAPA_FNGR_RIGHT) ? 'R' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_LEFT) ? 'L' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_MIDDLE) ? 'M' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_RIGHT) ? 'R' : '-'),
 	    sc->cap_resx, sc->cap_resy);
 
 	sc->hw.buttons = 5;
@@ -561,8 +572,47 @@ cyapa_attach(device_t dev)
 	sc->intr_hook.ich_func = cyapa_start;
 	sc->intr_hook.ich_arg = sc->dev;
 
+#ifdef EVDEV_SUPPORT
+	sc->evdev = evdev_alloc();
+	evdev_set_name(sc->evdev, device_get_desc(sc->dev));
+	evdev_set_phys(sc->evdev, device_get_nameunit(sc->dev));
+	evdev_set_id(sc->evdev, BUS_I2C, 0, 0, 1);
+	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
+	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_AUTOREL);
+
+	evdev_support_event(sc->evdev, EV_SYN);
+	evdev_support_event(sc->evdev, EV_ABS);
+	evdev_support_event(sc->evdev, EV_KEY);
+	evdev_support_prop(sc->evdev, INPUT_PROP_POINTER);
+	if (sc->cap_buttons & CYAPA_FNGR_LEFT)
+		evdev_support_key(sc->evdev, BTN_LEFT);
+	if (sc->cap_buttons & CYAPA_FNGR_RIGHT)
+		evdev_support_key(sc->evdev, BTN_RIGHT);
+	if (sc->cap_buttons & CYAPA_FNGR_MIDDLE)
+		evdev_support_key(sc->evdev, BTN_MIDDLE);
+	if (sc->cap_buttons == CYAPA_FNGR_LEFT)
+		evdev_support_prop(sc->evdev, INPUT_PROP_BUTTONPAD);
+
+	evdev_support_abs(sc->evdev, ABS_MT_SLOT,
+	    0, CYAPA_MAX_MT - 1, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_MT_TRACKING_ID, -1, 15, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_MT_POSITION_X, 0, sc->cap_resx, 0, 0,
+	    sc->cap_phyx != 0 ? sc->cap_resx / sc->cap_phyx : 0);
+	evdev_support_abs(sc->evdev, ABS_MT_POSITION_Y, 0, sc->cap_resy, 0, 0,
+	    sc->cap_phyy != 0 ? sc->cap_resy / sc->cap_phyy : 0);
+	evdev_support_abs(sc->evdev, ABS_MT_PRESSURE, 0, 255, 0, 0, 0);
+
+	if (evdev_register(sc->evdev) != 0) {
+		mtx_destroy(&sc->mutex);
+		return (ENOMEM);
+	}
+#endif
+
 	/* Postpone start of the polling thread until sleep is available */
 	if (config_intrhook_establish(&sc->intr_hook) != 0) {
+#ifdef EVDEV_SUPPORT
+		evdev_free(sc->evdev);
+#endif
 		mtx_destroy(&sc->mutex);
 		return (ENOMEM);
 	}
@@ -595,6 +645,9 @@ cyapa_detach(device_t dev)
 	knlist_clear(&sc->selinfo.si_note, 0);
 	seldrain(&sc->selinfo);
 	knlist_destroy(&sc->selinfo.si_note);
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->evdev);
+#endif
 
 	mtx_destroy(&sc->mutex);
 
@@ -1321,6 +1374,40 @@ cyapa_raw_input(struct cyapa_softc *sc, struct cyapa_regs *regs, int freq)
 		    nfingers);
 	}
 
+#ifdef EVDEV_SUPPORT
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
+		for (i = 0; i < nfingers; ++i) {
+			int32_t slot = evdev_get_mt_slot_by_tracking_id(
+			    sc->evdev, regs->touch[i].id);
+			if (slot == -1) {
+				if (cyapa_debug)
+					printf("Slot overflow for i=%d\n",
+					    regs->touch[i].id);
+				continue;
+			}
+			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
+			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID,
+			    regs->touch[i].id);
+			evdev_push_abs(sc->evdev, ABS_MT_POSITION_X,
+			    CYAPA_TOUCH_X(regs, i));
+			evdev_push_abs(sc->evdev, ABS_MT_POSITION_Y,
+			    CYAPA_TOUCH_Y(regs, i));
+			evdev_push_abs(sc->evdev, ABS_MT_PRESSURE,
+			    CYAPA_TOUCH_P(regs, i));
+		}
+		if (sc->cap_buttons & CYAPA_FNGR_LEFT)
+			evdev_push_key(sc->evdev, BTN_LEFT,
+			    regs->fngr & CYAPA_FNGR_LEFT);
+		if (sc->cap_buttons & CYAPA_FNGR_RIGHT)
+			evdev_push_key(sc->evdev, BTN_RIGHT,
+			    regs->fngr & CYAPA_FNGR_RIGHT);
+		if (sc->cap_buttons & CYAPA_FNGR_MIDDLE)
+			evdev_push_key(sc->evdev, BTN_MIDDLE,
+			    regs->fngr & CYAPA_FNGR_MIDDLE);
+		evdev_sync(sc->evdev);
+	}
+#endif
+
 	seen_thumb = 0;
 	for (i = 0; i < afingers; ) {
 		if (cyapa_debug) {
@@ -1731,4 +1818,7 @@ cyapa_fuzz(int delta, int *fuzzp)
 
 DRIVER_MODULE(cyapa, iicbus, cyapa_driver, cyapa_devclass, NULL, NULL);
 MODULE_DEPEND(cyapa, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(cyapa, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(cyapa, 1);

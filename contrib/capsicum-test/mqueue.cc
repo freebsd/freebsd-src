@@ -28,14 +28,13 @@ void seen_it_done_it(int) {
   invoked = true;
 }
 
-FORK_TEST_ON_MQ(PosixMqueue, CapMode, "/cap_mq") {
+FORK_TEST_ON_MQ(PosixMqueue, CapModeIfMqOpenAvailable, "/cap_mq") {
   int mq = mq_open_("/cap_mq", O_RDWR|O_CREAT, 0644, NULL);
   // On FreeBSD, turn on message queue support with:
   //  - 'kldload mqueuefs'
   //  - 'options P1003_1B_MQUEUE' in kernel build config.
   if (mq < 0 && errno == ENOSYS) {
-    TEST_SKIPPED("mq_open -> -ENOSYS");
-    return;
+    GTEST_SKIP() << "mq_open -> -ENOSYS";
   }
   EXPECT_OK(mq);
   cap_rights_t r_read;

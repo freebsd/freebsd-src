@@ -171,7 +171,7 @@ static void
 grow_rtables(uint32_t num_tables)
 {
 	struct domain *dom;
-	struct rib_head **prnh;
+	struct rib_head **prnh, *rh;
 	struct rib_head **new_rt_tables, **old_rt_tables;
 	int family;
 
@@ -182,6 +182,15 @@ grow_rtables(uint32_t num_tables)
 
 	new_rt_tables = mallocarray(num_tables * (AF_MAX + 1), sizeof(void *),
 	    M_RTABLE, M_WAITOK | M_ZERO);
+
+	if ((num_tables > 1) && (V_rt_add_addr_allfibs == 0))
+		printf("WARNING: Adding ifaddrs to all fibs has been turned off "
+			"by default. Consider tuning %s if needed\n",
+			"net.add_addr_allfibs");
+
+#ifdef FIB_ALGO
+	fib_grow_rtables(num_tables);
+#endif
 
 	/*
 	 * Current rt_tables layout:
@@ -201,10 +210,11 @@ grow_rtables(uint32_t num_tables)
 			prnh = &new_rt_tables[i * (AF_MAX + 1) + family];
 			if (*prnh != NULL)
 				continue;
-			*prnh = dom->dom_rtattach(i);
-			if (*prnh == NULL)
-				log(LOG_ERR, "unable to create routing tables for domain %d\n",
-				    dom->dom_family);
+			rh = dom->dom_rtattach(i);
+			if (rh == NULL)
+				log(LOG_ERR, "unable to create routing table for %d.%d\n",
+				    dom->dom_family, i);
+			*prnh = rh;
 		}
 	}
 
@@ -221,8 +231,16 @@ grow_rtables(uint32_t num_tables)
 	atomic_thread_fence_rel();
 	epoch_wait_preempt(net_epoch_preempt);
 
-	/* Finally, set number of fibs to a new value */
+	/* Set number of fibs to a new value */
 	V_rt_numfibs = num_tables;
+
+#ifdef FIB_ALGO
+	/* Attach fib algo to the new rtables */
+	for (dom = domains; dom; dom = dom->dom_next) {
+		if (dom->dom_rtattach != NULL)
+			fib_setup_family(dom->dom_family, num_tables);
+	}
+#endif
 
 	if (old_rt_tables != NULL)
 		free(old_rt_tables, M_RTABLE);
@@ -241,7 +259,9 @@ vnet_rtables_init(const void *unused __unused)
 		V_rt_numfibs = 1;
 
 	vnet_rtzone_init();
-
+#ifdef FIB_ALGO
+	vnet_fib_init();
+#endif
 	RTABLES_LOCK_INIT();
 
 	RTABLES_LOCK();
@@ -283,6 +303,9 @@ rtables_destroy(const void *unused __unused)
 
 	free(V_rt_tables, M_RTABLE);
 	vnet_rtzone_destroy();
+#ifdef FIB_ALGO
+	vnet_fib_destroy();
+#endif
 }
 VNET_SYSUNINIT(rtables_destroy, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
     rtables_destroy, 0);

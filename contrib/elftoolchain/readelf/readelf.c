@@ -40,12 +40,14 @@
 #include <libelftc.h>
 #include <libgen.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
@@ -87,6 +89,7 @@ ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
 #define	RE_WW	0x00040000
 #define	RE_W	0x00080000
 #define	RE_X	0x00100000
+#define	RE_Z	0x00200000
 
 /*
  * dwarf dump options.
@@ -189,6 +192,7 @@ static struct option longopts[] = {
 	{"arch-specific", no_argument, NULL, 'A'},
 	{"archive-index", no_argument, NULL, 'c'},
 	{"debug-dump", optional_argument, NULL, OPTION_DEBUG_DUMP},
+	{"decompress", no_argument, 0, 'z'},
 	{"dynamic", no_argument, NULL, 'd'},
 	{"file-header", no_argument, NULL, 'h'},
 	{"full-section-name", no_argument, NULL, 'N'},
@@ -281,7 +285,7 @@ static const char *elf_osabi(unsigned int abi);
 static const char *elf_type(unsigned int type);
 static const char *elf_ver(unsigned int ver);
 static const char *dt_type(unsigned int mach, unsigned int dtype);
-static void dump_ar(struct readelf *re, int);
+static bool dump_ar(struct readelf *re, int);
 static void dump_arm_attributes(struct readelf *re, uint8_t *p, uint8_t *pe);
 static void dump_attributes(struct readelf *re);
 static uint8_t *dump_compatibility_tag(uint8_t *p, uint8_t *pe);
@@ -311,7 +315,7 @@ static void dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die,
     Dwarf_Addr base);
 static void dump_dwarf_str(struct readelf *re);
 static void dump_eflags(struct readelf *re, uint64_t e_flags);
-static void dump_elf(struct readelf *re);
+static bool dump_elf(struct readelf *re);
 static void dump_flags(struct flag_desc *fd, uint64_t flags);
 static void dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab);
 static void dump_dynamic(struct readelf *re);
@@ -2628,16 +2632,21 @@ dump_shdr(struct readelf *re)
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				printf("  [%2d] %-17.17s %-15.15s %8.8jx"
-				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
-				    S_CT);
+				if (re->options & RE_WW)
+					printf("  [%2d] %-17s %-15.15s "
+					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
+					    "%2u %3u %2ju\n", S_CT);
+				else
+					printf("  [%2d] %-17.17s %-15.15s "
+					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
+					    "%2u %3u %2ju\n", S_CT);
 		} else if (re->options & RE_WW) {
 			if (re->options & RE_T)
 				printf("  [%2d] %s\n       %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				printf("  [%2d] %-17.17s %-15.15s %16.16jx"
+				printf("  [%2d] %-17s %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
 				    S_CT);
 		} else {
@@ -3676,6 +3685,8 @@ static struct flag_desc note_feature_ctl_flags[] = {
 	{ NT_FREEBSD_FCTL_PROTMAX_DISABLE,	"PROTMAX_DISABLE" },
 	{ NT_FREEBSD_FCTL_STKGAP_DISABLE,	"STKGAP_DISABLE" },
 	{ NT_FREEBSD_FCTL_WXNEEDED,		"WXNEEDED" },
+	{ NT_FREEBSD_FCTL_LA48,			"LA48" },
+	{ NT_FREEBSD_FCTL_ASG_DISABLE,		"ASG_DISABLE" },
 	{ 0, NULL }
 };
 
@@ -3737,9 +3748,7 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 			return;
 		/* NT_FREEBSD_NOINIT_TAG carries no data, treat as unknown. */
 		case NT_FREEBSD_ARCH_TAG:
-			if (sz != 4)
-				goto unknown;
-			printf("   Arch tag: %x\n", ubuf[0]);
+			printf("   Arch tag: %s\n", buf);
 			return;
 		case NT_FREEBSD_FEATURE_CTL:
 			if (sz != 4)
@@ -6900,17 +6909,96 @@ get_symbol_value(struct readelf *re, int symtab, int i)
 	return (sym.st_value);
 }
 
+/*
+ * Decompress a data section if needed (using ZLIB).
+ * Returns true if sucessful, false otherwise.
+ */
+static bool decompress_section(struct section *s,
+    unsigned char *compressed_data_buffer, size_t compressed_size,
+    unsigned char **ret_buf, size_t *ret_sz)
+{
+	GElf_Shdr sh;
+
+	if (gelf_getshdr(s->scn, &sh) == NULL)
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
+
+	if (sh.sh_flags & SHF_COMPRESSED) {
+		int ret;
+		GElf_Chdr chdr;
+		Elf64_Xword inflated_size;
+		unsigned char *uncompressed_data_buffer = NULL;
+		Elf64_Xword uncompressed_size;
+		z_stream strm;
+
+		if (gelf_getchdr(s->scn, &chdr) == NULL)
+			errx(EXIT_FAILURE, "gelf_getchdr() failed: %s", elf_errmsg(-1));
+		if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
+			warnx("unknown compression type: %d", chdr.ch_type);
+			return (false);
+		}
+
+		inflated_size = 0;
+		uncompressed_size = chdr.ch_size;
+		uncompressed_data_buffer = malloc(uncompressed_size);
+		compressed_data_buffer += sizeof(chdr);
+		compressed_size -= sizeof(chdr);
+
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		strm.avail_in = compressed_size;
+		strm.avail_out = uncompressed_size;
+		ret = inflateInit(&strm);
+
+		if (ret != Z_OK)
+			goto fail;
+		/*
+		 * The section can contain several compressed buffers,
+		 * so decompress in a loop until all data is inflated.
+		 */
+		while (inflated_size < compressed_size) {
+			strm.next_in = compressed_data_buffer + inflated_size;
+			strm.next_out = uncompressed_data_buffer + inflated_size;
+			ret = inflate(&strm, Z_FINISH);
+			if (ret != Z_STREAM_END)
+				goto fail;
+			inflated_size = uncompressed_size - strm.avail_out;
+			ret = inflateReset(&strm);
+			if (ret != Z_OK)
+				goto fail;
+		}
+		if (strm.avail_out != 0)
+			warnx("Warning: wrong info in compression header.");
+		ret = inflateEnd(&strm);
+		if (ret != Z_OK)
+			goto fail;
+		*ret_buf = uncompressed_data_buffer;
+		*ret_sz = uncompressed_size;
+		return (true);
+fail:
+		inflateEnd(&strm);
+		if (strm.msg)
+			warnx("%s", strm.msg);
+		else
+			warnx("ZLIB error: %d", ret);
+		free(uncompressed_data_buffer);
+		return (false);
+	}
+	return (false);
+}
+
 static void
 hex_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	uint8_t *buf;
+	uint8_t *buf, *new_buf;
 	size_t sz, nbytes;
 	uint64_t addr;
 	int elferr, i, j;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, HEX_DUMP, -1) == NULL)
 			continue;
@@ -6932,6 +7020,11 @@ hex_dump(struct readelf *re)
 		buf = d->d_buf;
 		sz = d->d_size;
 		addr = s->addr;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				buf = new_buf;
+		}
 		printf("\nHex dump of section '%s':\n", s->name);
 		while (sz > 0) {
 			printf("  0x%8.8jx ", (uintmax_t)addr);
@@ -6955,6 +7048,7 @@ hex_dump(struct readelf *re)
 			addr += nbytes;
 			sz -= nbytes;
 		}
+		free(new_buf);
 	}
 }
 
@@ -6963,11 +7057,13 @@ str_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	unsigned char *start, *end, *buf_end;
+	unsigned char *start, *end, *buf_end, *new_buf;
 	unsigned int len;
+	size_t sz;
 	int i, j, elferr, found;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, STR_DUMP, -1) == NULL)
 			continue;
@@ -6986,9 +7082,15 @@ str_dump(struct readelf *re)
 			    s->name);
 			continue;
 		}
-		buf_end = (unsigned char *) d->d_buf + d->d_size;
-		start = (unsigned char *) d->d_buf;
 		found = 0;
+		start = d->d_buf;
+		sz = d->d_size;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				start = new_buf;
+		}
+		buf_end = start + sz;
 		printf("\nString dump of section '%s':\n", s->name);
 		for (;;) {
 			while (start < buf_end && !isprint(*start))
@@ -7009,6 +7111,7 @@ str_dump(struct readelf *re)
 				break;
 			start = end + 1;
 		}
+		free(new_buf);
 		if (!found)
 			printf("  No strings found in this section.");
 		putchar('\n');
@@ -7108,18 +7211,18 @@ unload_sections(struct readelf *re)
 	}
 }
 
-static void
+static bool
 dump_elf(struct readelf *re)
 {
 
 	/* Fetch ELF header. No need to continue if it fails. */
 	if (gelf_getehdr(re->elf, &re->ehdr) == NULL) {
 		warnx("gelf_getehdr failed: %s", elf_errmsg(-1));
-		return;
+		return (false);
 	}
 	if ((re->ec = gelf_getclass(re->elf)) == ELFCLASSNONE) {
 		warnx("gelf_getclass failed: %s", elf_errmsg(-1));
-		return;
+		return (false);
 	}
 	if (re->ehdr.e_ident[EI_DATA] == ELFDATA2MSB) {
 		re->dw_read = _read_msb;
@@ -7163,6 +7266,7 @@ dump_elf(struct readelf *re)
 		dump_dwarf(re);
 	if (re->options & ~RE_H)
 		unload_sections(re);
+	return (true);
 }
 
 static void
@@ -7208,7 +7312,7 @@ dump_dwarf(struct readelf *re)
 	dwarf_finish(re->dbg, &de);
 }
 
-static void
+static bool
 dump_ar(struct readelf *re, int fd)
 {
 	Elf_Arsym *arsym;
@@ -7259,14 +7363,14 @@ dump_ar(struct readelf *re, int fd)
 		}
 		if (elf_rand(re->ar, SARMAG) != SARMAG) {
 			warnx("elf_rand() failed: %s", elf_errmsg(-1));
-			return;
+			return (false);
 		}
 	}
 
 process_members:
 
 	if ((re->options & ~RE_C) == 0)
-		return;
+		return (true);
 
 	cmd = ELF_C_READ;
 	while ((re->elf = elf_begin(fd, cmd, re->ar)) != NULL) {
@@ -7286,11 +7390,14 @@ process_members:
 		elf_end(re->elf);
 	}
 	re->elf = re->ar;
+	return (true);
 }
 
-static void
+static bool
 dump_object(struct readelf *re, int fd)
 {
+	bool rv = false;
+
 	if ((re->flags & DISPLAY_FILENAME) != 0)
 		printf("\nFile: %s\n", re->filename);
 
@@ -7304,10 +7411,10 @@ dump_object(struct readelf *re, int fd)
 		warnx("Not an ELF file.");
 		goto done;
 	case ELF_K_ELF:
-		dump_elf(re);
+		rv = dump_elf(re);
 		break;
 	case ELF_K_AR:
-		dump_ar(re, fd);
+		rv = dump_ar(re, fd);
 		break;
 	default:
 		warnx("Internal: libelf returned unknown elf kind.");
@@ -7315,6 +7422,7 @@ dump_object(struct readelf *re, int fd)
 
 done:
 	elf_end(re->elf);
+	return (rv);
 }
 
 static void
@@ -7634,6 +7742,7 @@ Usage: %s [options] file...\n\
                            Display DWARF information.\n\
   -x INDEX | --hex-dump=INDEX\n\
                            Display contents of a section as hexadecimal.\n\
+  -z | --decompress        Decompress the contents of a section before displaying it.\n\
   -A | --arch-specific     (accepted, but ignored)\n\
   -D | --use-dynamic       Print the symbol table specified by the DT_SYMTAB\n\
                            entry in the \".dynamic\" section.\n\
@@ -7661,14 +7770,14 @@ main(int argc, char **argv)
 	fileargs_t	*fa;
 	struct readelf	*re, re_storage;
 	unsigned long	 si;
-	int		 fd, opt, i;
+	int		 fd, opt, i, exit_code;
 	char		*ep;
 
 	re = &re_storage;
 	memset(re, 0, sizeof(*re));
 	STAILQ_INIT(&re->v_dumpop);
 
-	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:",
+	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:z",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case '?':
@@ -7765,6 +7874,9 @@ main(int argc, char **argv)
 				add_dumpop(re, 0, optarg, HEX_DUMP,
 				    DUMP_BY_NAME);
 			break;
+		case 'z':
+			re->options |= RE_Z;
+			break;
 		case OPTION_DEBUG_DUMP:
 			re->options |= RE_W;
 			parse_dwarf_op_long(re, optarg);
@@ -7799,16 +7911,19 @@ main(int argc, char **argv)
 		err(1, "Unable to enter capability mode");
 	}
 
+	exit_code = EXIT_SUCCESS;
 	for (i = 0; i < argc; i++) {
 		re->filename = argv[i];
 		fd = fileargs_open(fa, re->filename);
 		if (fd < 0) {
 			warn("open %s failed", re->filename);
+			exit_code = EXIT_FAILURE;
 		} else {
-			dump_object(re, fd);
+			if (!dump_object(re, fd))
+				exit_code = EXIT_FAILURE;
 			close(fd);
 		}
 	}
 
-	exit(EXIT_SUCCESS);
+	exit(exit_code);
 }

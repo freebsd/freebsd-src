@@ -164,6 +164,7 @@ fuse_vnode_init(struct vnode *vp, struct fuse_vnode_data *fvdat,
 	}
 	vp->v_type = vtyp;
 	vp->v_data = fvdat;
+	cluster_init_vn(&fvdat->clusterw);
 
 	counter_u64_add(fuse_node_count, 1);
 }

@@ -25,7 +25,6 @@ endif
 
 AUTOMAKE_OPTIONS = foreign
 EXTRA_DIST  = autogen.sh copy-builtin
-EXTRA_DIST += cppcheck-suppressions.txt
 EXTRA_DIST += config/config.awk config/rpm.am config/deb.am config/tgz.am
 EXTRA_DIST += META AUTHORS COPYRIGHT LICENSE NEWS NOTICE README.md
 EXTRA_DIST += CODE_OF_CONDUCT.md
@@ -136,6 +135,13 @@ shellcheck:
 		echo "skipping shellcheck because shellcheck is not installed"; \
 	fi
 
+PHONY += checkabi storeabi
+checkabi: lib
+	$(MAKE) -C lib checkabi
+
+storeabi: lib
+	$(MAKE) -C lib storeabi
+
 PHONY += checkbashisms
 checkbashisms:
 	@if type checkbashisms > /dev/null 2>&1; then \
@@ -152,9 +158,10 @@ checkbashisms:
 				-o -name 'smart' -prune \
 				-o -name 'paxcheck.sh' -prune \
 				-o -name 'make_gitrev.sh' -prune \
+				-o -name '90zfs' -prune \
 				-o -type f ! -name 'config*' \
 				! -name 'libtool' \
-			-exec bash -c 'awk "NR==1 && /\#\!.*bin\/sh.*/ {print FILENAME;}" "{}"' \;); \
+			-exec sh -c 'awk "NR==1 && /\#\!.*bin\/sh.*/ {print FILENAME;}" "{}"' \;); \
 	else \
 		echo "skipping checkbashisms because checkbashisms is not installed"; \
 	fi
@@ -196,13 +203,13 @@ vcscheck:
 PHONY += lint
 lint: cppcheck paxcheck
 
+CPPCHECKDIRS = cmd lib module
 PHONY += cppcheck
-cppcheck:
-	@if type cppcheck > /dev/null 2>&1; then \
-		cppcheck --quiet --force --error-exitcode=2 --inline-suppr \
-			--suppressions-list=${top_srcdir}/cppcheck-suppressions.txt \
-			-UHAVE_SSE2 -UHAVE_AVX512F -UHAVE_UIO_ZEROCOPY \
-			${top_srcdir}; \
+cppcheck: $(CPPCHECKDIRS)
+	@if test -n "$(CPPCHECK)"; then \
+		set -e ; for dir in $(CPPCHECKDIRS) ; do \
+			$(MAKE) -C $$dir cppcheck ; \
+		done \
 	else \
 		echo "skipping cppcheck because cppcheck is not installed"; \
 	fi

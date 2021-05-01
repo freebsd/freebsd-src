@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2020
+.Dd December 17, 2020
 .Dt CONFIG.LUA 8
 .Os
 .Sh NAME
@@ -184,6 +184,34 @@ This will be called by the Lua intercepted
 and
 .Ic boot
 commands.
+.It Fn config.enableModule modname
+Marks a module named
+.Fa modname
+to be loaded during
+.Fn config.loadelf .
+If the module was previously blacklisted, then it will be forcefully allowed to
+load.
+.It Fn config.disableModule modname
+Marks a module named
+.Fa modname
+to not be loaded during
+.Fn config.loadelf .
+.It Fn config.isModuleEnabled modname
+Checks if the module named
+.Fa modname
+will be loaded during
+.Fn config.loadelf .
+It checks both that the module is marked for loading and that it is either
+forced or not blacklisted.
+.It Fn config.getModuleInfo
+Returns a table with
+.Dq modules
+and
+.Dq blacklist
+tables describing the modules that the config module has been made aware of via
+.Xr loader.conf 5
+as well as a representation of
+.Ar module_blacklist .
 .El
 .Ss Defined Hooks
 The following hooks are defined in

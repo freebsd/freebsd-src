@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/pmc.h>
+#include <sys/sysctl.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
 
@@ -176,12 +177,36 @@ pmcstat_image_link(struct pmcstat_process *pp, struct pmcstat_image *image,
 {
 	struct pmcstat_pcmap *pcm, *pcmnew;
 	uintfptr_t offset;
+#ifdef __powerpc__
+	unsigned long kernbase;
+	size_t kernbase_len;
+#endif
 
 	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN &&
 	    image->pi_type != PMCSTAT_IMAGE_INDETERMINABLE);
 
 	if ((pcmnew = malloc(sizeof(*pcmnew))) == NULL)
 		err(EX_OSERR, "ERROR: Cannot create a map entry");
+
+	/*
+	 * PowerPC kernel is of DYN type and it has a base address
+	 * where it is initially loaded, before being relocated.
+	 * As the address in 'start' is where the kernel was relocated to,
+	 * but the symbols always use the original base address, we need to
+	 * subtract it to get the correct offset.
+	 */
+#ifdef __powerpc__
+	if (pp->pp_pid == -1) {
+		kernbase = 0;
+		kernbase_len = sizeof(kernbase);
+		if (sysctlbyname("kern.base_address", &kernbase, &kernbase_len,
+		    NULL, 0) == -1)
+			warnx(
+			    "WARNING: Could not retrieve kernel base address");
+		else
+			start -= kernbase;
+	}
+#endif
 
 	/*
 	 * Adjust the map entry to only cover the text portion

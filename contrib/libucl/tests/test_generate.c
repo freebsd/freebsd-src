@@ -106,7 +106,7 @@ main (int argc, char **argv)
 	cur = ucl_object_fromstring ("Ебв"); /* UTF8 */
 	ucl_array_prepend (ar1, cur);
 /*
- * This is ususally broken or fragile as utf collate is far from perfect
+ * This is usually broken or fragile as utf collate is far from perfect
 	cur = ucl_object_fromstring ("ёбв");
 	ucl_array_prepend (ar1, cur);
 	cur = ucl_object_fromstring ("Ёбв"); // hello to @bapt
@@ -240,31 +240,40 @@ main (int argc, char **argv)
 	/* Test iteration */
 	it = ucl_object_iterate_new (obj);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	/* key0 = 0.1 */
 	assert (ucl_object_type (it_obj) == UCL_FLOAT);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	/* key1 = "" */
 	assert (ucl_object_type (it_obj) == UCL_STRING);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	/* key2 = "" */
 	assert (ucl_object_type (it_obj) == UCL_STRING);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	/* key3 = "" */
 	assert (ucl_object_type (it_obj) == UCL_STRING);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	/* key4 = ([float, int, float], boolean) */
 	ucl_object_iterate_reset (it, it_obj);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	assert (ucl_object_type (it_obj) == UCL_FLOAT);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	assert (ucl_object_type (it_obj) == UCL_INT);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	assert (ucl_object_type (it_obj) == UCL_FLOAT);
 	it_obj = ucl_object_iterate_safe (it, true);
+	assert (!ucl_object_iter_chk_excpn (it));
 	assert (ucl_object_type (it_obj) == UCL_BOOLEAN);
 	ucl_object_iterate_free (it);
 
-	fn = ucl_object_emit_memory_funcs (&emitted);
+	fn = ucl_object_emit_memory_funcs ((void **)&emitted);
 	assert (ucl_object_emit_full (obj, UCL_EMIT_CONFIG, fn, comments));
 	fprintf (out, "%s\n", emitted);
 	ucl_object_emit_funcs_free (fn);
@@ -293,7 +302,7 @@ main (int argc, char **argv)
 	assert (ucl_parser_get_error_code (parser) == 0);
 	obj = ucl_parser_get_object (parser);
 	ucl_parser_free (parser);
-	ucl_object_free (obj);
+	ucl_object_unref (obj);
 
 	if (emitted != NULL) {
 		free (emitted);

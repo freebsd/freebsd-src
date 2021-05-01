@@ -99,16 +99,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
-#include <vm/vm_param.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
 #include <machine/_inttypes.h>
@@ -353,6 +354,7 @@ static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
 static void		mmu_booke_page_array_startup(long);
 static boolean_t mmu_booke_page_is_mapped(vm_page_t m);
+static bool mmu_booke_ps_enabled(pmap_t pmap);
 
 static struct pmap_funcs mmu_booke_methods = {
 	/* pmap dispatcher interface */
@@ -395,6 +397,7 @@ static struct pmap_funcs mmu_booke_methods = {
 	.quick_remove_page =  mmu_booke_quick_remove_page,
 	.page_array_startup = mmu_booke_page_array_startup,
 	.page_is_mapped = mmu_booke_page_is_mapped,
+	.ps_enabled = mmu_booke_ps_enabled,
 
 	/* Internal interfaces */
 	.bootstrap = mmu_booke_bootstrap,
@@ -1223,6 +1226,12 @@ mmu_booke_page_is_mapped(vm_page_t m)
 {
 
 	return (!TAILQ_EMPTY(&(m)->md.pv_list));
+}
+
+static bool
+mmu_booke_ps_enabled(pmap_t pmap __unused)
+{
+	return (false);
 }
 
 /*

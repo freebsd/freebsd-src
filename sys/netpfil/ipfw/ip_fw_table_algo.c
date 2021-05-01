@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
-#include <net/route/route_var.h>
+#include <net/route/route_ctl.h>
 
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
@@ -3781,11 +3781,10 @@ static int ta_init_kfib(struct ip_fw_chain *ch, void **ta_state,
 static void ta_destroy_kfib(void *ta_state, struct table_info *ti);
 static void ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti,
     ipfw_ta_tinfo *tinfo);
-static int contigmask(uint8_t *p, int len);
 static int ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent);
-static int ta_dump_kfib_tentry_int(struct sockaddr *paddr,
-    struct sockaddr *pmask, ipfw_obj_tentry *tent);
+static int ta_dump_kfib_tentry_int(int familt, const struct rtentry *rt,
+    ipfw_obj_tentry *tent);
 static int ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
 static void ta_foreach_kfib(void *ta_state, struct table_info *ti,
@@ -3900,84 +3899,35 @@ ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 	tinfo->flags = IPFW_TATFLAGS_AFDATA;
 	tinfo->taclass4 = IPFW_TACLASS_RADIX;
 	tinfo->count4 = 0;
-	tinfo->itemsize4 = sizeof(struct rtentry);
+	tinfo->itemsize4 = 128; /* table is readonly, value does not matter */
 	tinfo->taclass6 = IPFW_TACLASS_RADIX;
 	tinfo->count6 = 0;
-	tinfo->itemsize6 = sizeof(struct rtentry);
+	tinfo->itemsize6 = 128;
 }
 
 static int
-contigmask(uint8_t *p, int len)
-{
-	int i, n;
-
-	for (i = 0; i < len ; i++)
-		if ( (p[i/8] & (1 << (7 - (i%8)))) == 0) /* first bit unset */
-			break;
-	for (n= i + 1; n < len; n++)
-		if ( (p[n/8] & (1 << (7 - (n % 8)))) != 0)
-			return (-1); /* mask not contiguous */
-	return (i);
-}
-
-static int
-ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
+ta_dump_kfib_tentry_int(int family, const struct rtentry *rt,
     ipfw_obj_tentry *tent)
 {
-	struct rtentry *rte;
+	uint32_t scopeid;
+	int plen;
 
-	rte = (struct rtentry *)e;
-
-	return ta_dump_kfib_tentry_int(rt_key(rte), rt_mask(rte), tent);
-}
-
-static int
-ta_dump_kfib_tentry_int(struct sockaddr *paddr, struct sockaddr *pmask,
-    ipfw_obj_tentry *tent)
-{
 #ifdef INET
-	struct sockaddr_in *addr, *mask;
-#endif
-#ifdef INET6
-	struct sockaddr_in6 *addr6, *mask6;
-#endif
-	int len;
-
-	len = 0;
-
-	/* Guess IPv4/IPv6 radix by sockaddr family */
-#ifdef INET
-	if (paddr->sa_family == AF_INET) {
-		addr = (struct sockaddr_in *)paddr;
-		mask = (struct sockaddr_in *)pmask;
-		tent->k.addr.s_addr = addr->sin_addr.s_addr;
-		len = 32;
-		if (mask != NULL)
-			len = contigmask((uint8_t *)&mask->sin_addr, 32);
-		if (len == -1)
-			len = 0;
-		tent->masklen = len;
+	if (family == AF_INET) {
+		rt_get_inet_prefix_plen(rt, &tent->k.addr, &plen, &scopeid);
+		tent->masklen = plen;
 		tent->subtype = AF_INET;
-		tent->v.kidx = 0; /* Do we need to put GW here? */
+		tent->v.kidx = 0;
 	}
 #endif
 #ifdef INET6
-	if (paddr->sa_family == AF_INET6) {
-		addr6 = (struct sockaddr_in6 *)paddr;
-		mask6 = (struct sockaddr_in6 *)pmask;
-		memcpy(&tent->k.addr6, &addr6->sin6_addr,
-		    sizeof(struct in6_addr));
-		len = 128;
-		if (mask6 != NULL)
-			len = contigmask((uint8_t *)&mask6->sin6_addr, 128);
-		if (len == -1)
-			len = 0;
-		tent->masklen = len;
+	if (family == AF_INET6) {
+		rt_get_inet6_prefix_plen(rt, &tent->k.addr6, &plen, &scopeid);
+		tent->masklen = plen;
 		tent->subtype = AF_INET6;
 		tent->v.kidx = 0;
 	}
 #endif
-
 	return (0);
 }
 
@@ -3985,66 +3935,69 @@ static int
 ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
-	struct rt_addrinfo info;
-	struct sockaddr_in6 key6, dst6, mask6;
-	struct sockaddr *dst, *key, *mask;
+	struct rtentry *rt = NULL;
+	struct route_nhop_data rnd;
+	struct epoch_tracker et;
+	int error;
 
-	/* Prepare sockaddr for prefix/mask and info */
-	bzero(&dst6, sizeof(dst6));
-	dst6.sin6_len = sizeof(dst6);
-	dst = (struct sockaddr *)&dst6;
-	bzero(&mask6, sizeof(mask6));
-	mask6.sin6_len = sizeof(mask6);
-	mask = (struct sockaddr *)&mask6;
+	NET_EPOCH_ENTER(et);
 
-	bzero(&info, sizeof(info));
-	info.rti_info[RTAX_DST] = dst;
-	info.rti_info[RTAX_NETMASK] = mask;
-
-	/* Prepare the lookup key */
-	bzero(&key6, sizeof(key6));
-	key6.sin6_family = tent->subtype;
-	key = (struct sockaddr *)&key6;
-
-	if (tent->subtype == AF_INET) {
-		((struct sockaddr_in *)&key6)->sin_addr = tent->k.addr;
-		key6.sin6_len = sizeof(struct sockaddr_in);
-	} else {
-		key6.sin6_addr = tent->k.addr6;
-		key6.sin6_len = sizeof(struct sockaddr_in6);
+	switch (tent->subtype) {
+#ifdef INET
+	case AF_INET:
+		rt = fib4_lookup_rt(ti->data, tent->k.addr, 0, 0, &rnd);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		rt = fib6_lookup_rt(ti->data, &tent->k.addr6, 0, 0, &rnd);
+		break;
+#endif
 	}
+	if (rt != NULL)
+		error = ta_dump_kfib_tentry_int(tent->subtype, rt, tent);
+	else
+		error = ENOENT;
+	NET_EPOCH_EXIT(et);
 
-	if (rib_lookup_info(ti->data, key, 0, 0, &info) != 0)
-		return (ENOENT);
-	if ((info.rti_addrs & RTA_NETMASK) == 0)
-		mask = NULL;
+	return (error);
+}
 
-	ta_dump_kfib_tentry_int(dst, mask, tent);
+struct kfib_dump_arg {
+	struct rtentry *rt;
+	int		family;
+	ta_foreach_f	*f;
+	void		*arg;
+};
 
-	return (0);
+static int
+ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct kfib_dump_arg *karg = (struct kfib_dump_arg *)e;
+
+	return (ta_dump_kfib_tentry_int(karg->family, karg->rt, tent));
+}
+
+static int
+walk_wrapper_f(struct rtentry *rt, void *arg)
+{
+	struct kfib_dump_arg *karg = (struct kfib_dump_arg *)arg;
+
+	karg->rt = rt;
+	return (karg->f(karg, karg->arg));
 }
 
 static void
 ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
     void *arg)
 {
-	RIB_RLOCK_TRACKER;
-	struct rib_head *rh;
-	int error;
+	struct kfib_dump_arg karg = { .f = f, .arg = arg };
 
-	rh = rt_tables_get_rnh(ti->data, AF_INET);
-	if (rh != NULL) {
-		RIB_RLOCK(rh); 
-		error = rh->rnh_walktree(&rh->head, (walktree_f_t *)f, arg);
-		RIB_RUNLOCK(rh);
-	}
-
-	rh = rt_tables_get_rnh(ti->data, AF_INET6);
-	if (rh != NULL) {
-		RIB_RLOCK(rh); 
-		error = rh->rnh_walktree(&rh->head, (walktree_f_t *)f, arg);
-		RIB_RUNLOCK(rh); 
-	}
+	karg.family = AF_INET;
+	rib_walk(ti->data, AF_INET, false, walk_wrapper_f, &karg);
+	karg.family = AF_INET6;
+	rib_walk(ti->data, AF_INET6, false, walk_wrapper_f, &karg);
 }
 
 struct table_algo addr_kfib = {

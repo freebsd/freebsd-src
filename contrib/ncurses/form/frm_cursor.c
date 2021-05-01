@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_cursor.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: frm_cursor.c,v 1.12 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -49,7 +49,7 @@ MODULE_ID("$Id: frm_cursor.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
 |                    E_BAD_ARGUMENT            - Invalid form pointer
 |                    E_NOT_POSTED              - Form is not posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 pos_form_cursor(FORM *form)
 {
   int res;

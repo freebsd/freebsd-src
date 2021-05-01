@@ -562,6 +562,9 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 	bool usermode;
 	const char *mode;
 	const char *rw_mode;
+#ifdef KDB
+	bool handled;
+#endif
 
 	usermode = TRAPF_USERMODE(tf);
 #ifdef KDTRACE_HOOKS
@@ -609,8 +612,10 @@ abort_fatal(struct trapframe *tf, u_int idx, u_int fsr, u_int far,
 #ifdef KDB
 	if (debugger_on_trap) {
 		kdb_why = KDB_WHY_TRAP;
-		kdb_trap(fsr, 0, tf);
+		handled = kdb_trap(fsr, 0, tf);
 		kdb_why = KDB_WHY_UNSET;
+		if (handled)
+			return (0);
 	}
 #endif
 	panic("Fatal abort");

@@ -33,13 +33,13 @@
  * leading underscores.
  */
 
+extern int _go(int);
+
 static int __unused
 go(int a)
 {
 	return (a + 1);
 }
-
-#pragma weak _go = go
 
 static void
 handle(int sig __unused)
@@ -55,3 +55,5 @@ main(void)
 	for (;;)
 		getpid();
 }
+
+#pragma weak _go = go

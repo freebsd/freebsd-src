@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -212,6 +212,7 @@ const UINT8                 AcpiGbl_ResourceAmlSerialBusSizes[] =
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_I2C_SERIALBUS),
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_SPI_SERIALBUS),
     ACPI_AML_SIZE_LARGE (AML_RESOURCE_UART_SERIALBUS),
+    ACPI_AML_SIZE_LARGE (AML_RESOURCE_CSI2_SERIALBUS),
 };
 
 

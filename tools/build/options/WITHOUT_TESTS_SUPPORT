@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to disables the build of all test-related dependencies, including ATF.
+Disable the build of all test-related dependencies, including ATF.

@@ -197,15 +197,16 @@ struct secasvar {
 #define	SAV_ISCTR(_sav) ((_sav)->alg_enc == SADB_X_EALG_AESCTR)
 #define SAV_ISCTRORGCM(_sav)	(SAV_ISCTR((_sav)) || SAV_ISGCM((_sav)))
 
+#define	IPSEC_SEQH_SHIFT	32
+
 /* Replay prevention, protected by SECASVAR_LOCK:
  *  (m) locked by mtx
  *  (c) read only except during creation / free
  */
 struct secreplay {
-	u_int32_t count;	/* (m) */
+	u_int64_t count;	/* (m) */
 	u_int wsize;		/* (c) window size, i.g. 4 bytes */
-	u_int32_t seq;		/* (m) used by sender */
-	u_int32_t lastseq;	/* (m) used by receiver */
+	u_int64_t last;		/* (m) used by receiver */
 	u_int32_t *bitmap;	/* (m) used by receiver */
 	u_int bitmap_size;	/* (c) size of the bitmap array */
 	int overflow;		/* (m) overflow flag */

@@ -784,6 +784,12 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 	memset(&ret, 0, sizeof(ret));
 	ret.error = BUS_PROBE_GENERIC;
 
+	/* Check if we should deny probing. */
+	if (usb_test_quirk(uaa, UQ_MSC_IGNORE)) {
+		ret.error = ENXIO;
+		goto done;
+	}
+
 	/* Search for protocol enforcement */
 
 	if (usb_test_quirk(uaa, UQ_MSC_FORCE_WIRE_BBB)) {
@@ -2334,7 +2340,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					case USB_SPEED_SUPER:
 						cpi->base_transfer_speed =
 						    UMASS_SUPER_TRANSFER_SPEED;
-						cpi->maxio = MAXPHYS;
+						cpi->maxio = maxphys;
 						break;
 					case USB_SPEED_HIGH:
 						cpi->base_transfer_speed =

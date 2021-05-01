@@ -38,11 +38,21 @@
 
 #define	_C_LABEL(x)	x
 
+#ifdef KDTRACE_HOOKS
+#define	DTRACE_NOP	nop
+#else
+#define	DTRACE_NOP
+#endif
+
+#define	LENTRY(sym)						\
+	.text; .align 2; .type sym,#function; sym:		\
+	.cfi_startproc; DTRACE_NOP
 #define	ENTRY(sym)						\
-	.text; .globl sym; .align 2; .type sym,#function; sym:
+	.globl sym; LENTRY(sym)
 #define	EENTRY(sym)						\
 	.globl	sym; sym:
-#define	END(sym) .size sym, . - sym
+#define	LEND(sym) .ltorg; .cfi_endproc; .size sym, . - sym
+#define	END(sym) LEND(sym)
 #define	EEND(sym)
 
 #define	WEAK_REFERENCE(sym, alias)				\

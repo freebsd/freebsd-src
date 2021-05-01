@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2018
+.Dd April 14, 2021
 .Dt DOMAINSET 9
 .Os
 .Sh NAME
@@ -45,6 +45,10 @@ struct domainset {
 .Pp
 .Ft struct domainset *
 .Fn DOMAINSET_FIXED domain
+.Ft struct domainset *
+.Fn DOMAINSET_FT
+.Ft struct domainset *
+.Fn DOMAINSET_IL
 .Ft struct domainset *
 .Fn DOMAINSET_RR
 .Ft struct domainset *
@@ -104,6 +108,8 @@ efficiency higher and is preferential to round-robin for general use.
 .Pp
 The
 .Fn DOMAINSET_FIXED ,
+.Fn DOMAINSET_FT ,
+.Fn DOMAINSET_IL ,
 .Fn DOMAINSET_RR
 and
 .Fn DOMAINSET_PREF
@@ -111,8 +117,18 @@ macros provide pointers to global pre-defined policies for use when the
 desired policy is known at compile time.
 .Fn DOMAINSET_FIXED
 is a policy which only permits allocations from the specified domain.
+.Fn DOMAINSET_FT
+is a policy which attempts to allocate memory local to the current CPU,
+falling back to a round-robin policy if the initial allocation fails.
+.Fn DOMAINSET_IL
+and
 .Fn DOMAINSET_RR
-provides round-robin selection among all domains in the system.
+provide round-robin selection among all domains in the system, corresponding
+to the
+.Dv DOMAINSET_POLICY_INTERLEAVE
+and
+.Dv DOMAINSET_POLICY_ROUNDROBIN
+policies, respectively.
 The
 .Fn DOMAINSET_PREF
 policies attempt allocation from the specified domain, but unlike

@@ -674,11 +674,16 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 		err(1, "bootvar creation");
 	if (loader == NULL)
 		errx(1, "Must specify boot loader");
-	if (efivar_unix_path_to_device_path(loader, &loaderdp) != 0)
-		err(1, "Cannot translate unix loader path '%s' to UEFI", loader);
+	ret = efivar_unix_path_to_device_path(loader, &loaderdp);
+	if (ret != 0)
+		errc(1, ret, "Cannot translate unix loader path '%s' to UEFI",
+		    loader);
 	if (kernel != NULL) {
-		if (efivar_unix_path_to_device_path(kernel, &kerneldp) != 0)
-			err(1, "Cannot translate unix kernel path '%s' to UEFI", kernel);
+		ret = efivar_unix_path_to_device_path(kernel, &kerneldp);
+		if (ret != 0)
+			errc(1, ret,
+			    "Cannot translate unix kernel path '%s' to UEFI",
+			    kernel);
 	} else {
 		kerneldp = NULL;
 	}
@@ -1029,7 +1034,7 @@ report_esp_device(bool do_dp, bool do_unix)
 		printf("%s\n", buf);
 		exit(0);
 	}
-	if (efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath) < 0)
+	if (efivar_device_path_to_unix_path(dp, &dev, &relpath, &abspath) != 0)
 		errx(1, "Can't convert to unix path");
 	if (do_unix) {
 		if (abspath == NULL)
@@ -1067,11 +1072,12 @@ int
 main(int argc, char *argv[])
 {
 
+	memset(&opts, 0, sizeof (bmgr_opts_t));
+	parse_args(argc, argv);
+
 	if (!efi_variables_supported())
 		errx(1, "efi variables not supported on this system. root? kldload efirt?");
 
-	memset(&opts, 0, sizeof (bmgr_opts_t));
-	parse_args(argc, argv);
 	read_vars();
 
 	if (opts.create)

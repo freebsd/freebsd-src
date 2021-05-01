@@ -145,6 +145,8 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_getDfsThresh		= ar5211GetDfsThresh,
 	/* XXX procRadarEvent */
 	/* XXX isFastClockEnabled */
+	.ah_setNav			= ar5211SetNav,
+	.ah_getNav			= ar5211GetNav,
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5211GetKeyCacheSize,

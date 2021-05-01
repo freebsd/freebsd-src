@@ -27,7 +27,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.28 2020/02/02 23:34:34 tom Exp $ */
+/* $Id: panel.priv.h,v 1.30 2020/09/26 18:05:32 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -50,21 +50,21 @@ struct screen;              /* forward declaration */
 #include "panel.h"
 
 #ifdef TRACE
-   extern NCURSES_EXPORT(const char *) _nc_my_visbuf (const void *);
+   extern PANEL_EXPORT(const char *) _nc_my_visbuf (const void *, int);
 #  ifdef TRACE_TXT
-#    define USER_PTR(ptr) _nc_visbuf((const char *)ptr)
+#    define USER_PTR(ptr,n) _nc_visbuf2(n, (const char *)ptr)
 #  else
-#    define USER_PTR(ptr) _nc_my_visbuf((const char *)ptr)
+#    define USER_PTR(ptr,n) _nc_my_visbuf((const char *)ptr, n)
 #  endif
 
 #  define returnPanel(code)	TRACE_RETURN1(code,panel)
 
-   extern NCURSES_EXPORT(PANEL *) _nc_retrace_panel (PANEL *);
-   extern NCURSES_EXPORT(void) _nc_dPanel (const char*, const PANEL*);
-   extern NCURSES_EXPORT(void) _nc_dStack (const char*, int, const PANEL*);
-   extern NCURSES_EXPORT(void) _nc_Wnoutrefresh (const PANEL*);
-   extern NCURSES_EXPORT(void) _nc_Touchpan (const PANEL*);
-   extern NCURSES_EXPORT(void) _nc_Touchline (const PANEL*, int, int);
+   extern PANEL_EXPORT(PANEL *) _nc_retrace_panel (PANEL *);
+   extern PANEL_EXPORT(void) _nc_dPanel (const char*, const PANEL*);
+   extern PANEL_EXPORT(void) _nc_dStack (const char*, int, const PANEL*);
+   extern PANEL_EXPORT(void) _nc_Wnoutrefresh (const PANEL*);
+   extern PANEL_EXPORT(void) _nc_Touchpan (const PANEL*);
+   extern PANEL_EXPORT(void) _nc_Touchline (const PANEL*, int, int);
 
 #  define dBug(x) _tracef x
 #  define dPanel(text,pan) _nc_dPanel(text,pan)
@@ -205,7 +205,7 @@ struct screen;              /* forward declaration */
 
 #if NCURSES_SP_FUNCS
 /* These may become later renamed and part of panel.h and the public API */
-extern NCURSES_EXPORT(void) NCURSES_SP_NAME(_nc_update_panels)(SCREEN*);
+extern PANEL_EXPORT(void) NCURSES_SP_NAME(_nc_update_panels)(SCREEN*);
 #endif
 /* *INDENT-ON* */
 

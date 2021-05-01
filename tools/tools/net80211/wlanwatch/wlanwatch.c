@@ -84,6 +84,9 @@ main(int argc, char *argv[])
 	int n, s;
 	char msg[2048];
 
+	(void) argc; /* UNUSED */
+	(void) argv; /* UNUSED */
+
 	s = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (s < 0)
 		err(EX_OSERR, "socket");
@@ -135,16 +138,18 @@ char ifnetflags[] =
 char addrnames[] =
 "\1DST\2GATEWAY\3NETMASK\4GENMASK\5IFP\6IFA\7AUTHOR\010BRD";
 
+char defaultname[] = "default";
+
 static const char *
 routename(struct sockaddr *sa)
 {
-	char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1, n;
 
 	if (first) {
+		char *cp = NULL;
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
 		    (cp = strchr(domain, '.'))) {
@@ -160,12 +165,14 @@ routename(struct sockaddr *sa)
 
 	case AF_INET:
 	    {	struct in_addr in;
+		char *cp;
+
 		in = ((struct sockaddr_in *)sa)->sin_addr;
 
-		cp = 0;
+		cp = NULL;
 		if (in.s_addr == INADDR_ANY || sa->sa_len < 4)
-			cp = "default";
-		if (cp == 0 && !nflag) {
+			cp = defaultname;
+		if (cp == NULL && !nflag) {
 			hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 				AF_INET);
 			if (hp) {
@@ -290,6 +297,8 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 	struct if_announcemsghdr *ifan;
 	time_t now = time(NULL);
 	char *cnow = ctime(&now);
+
+	(void) msglen; /* UNUSED */
 
 	if (rtm->rtm_version != RTM_VERSION) {
 		(void) printf("routing message version %d not understood\n",

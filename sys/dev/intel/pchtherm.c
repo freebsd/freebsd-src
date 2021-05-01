@@ -96,7 +96,15 @@ static const struct pci_device_table pchtherm_devices[] =
 	{ PCI_DEV(0x8086, 0xa131),
 	  PCI_DESCR("Skylake PCH 100 Thermal Subsystem")},
 	{ PCI_DEV(0x8086, 0x9df9),
-	  PCI_DESCR("Cannon Lake PCH Thermal Controller")},
+	  PCI_DESCR("CannonLake-LP Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0xa379),
+	  PCI_DESCR("CannonLake-H Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0x02f9),
+	  PCI_DESCR("CometLake-LP Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0x06f9),
+	  PCI_DESCR("CometLake-H Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0xa1b1),
+	  PCI_DESCR("Lewisburg Thermal Subsystem")},
 };
 
 static int pchtherm_probe(device_t dev)
@@ -163,7 +171,7 @@ static int pchtherm_attach(device_t dev)
 			bus_write_1(sc->tbar, PCHTHERM_REG_TSEL,
 				    PCHTHERM_GEN_ENABLE);
 			sc->enable = bus_read_1(sc->tbar, PCHTHERM_REG_TSEL);
-			if (!(sc->enable & PCHTHERM_REG_TSEL)){
+			if (!(sc->enable & PCHTHERM_GEN_ENABLE)) {
 				device_printf(dev, "Sensor enable failed\n");
 				return 0;
 			}
@@ -178,7 +186,7 @@ static int pchtherm_attach(device_t dev)
 	if (bootverbose) {
 		FLAG_PRINT(dev, "SMBus report", val);
 	}
-	val = bus_read_1(sc->tbar, PCHTHERM_REG_TSC);
+	val = bus_read_1(sc->tbar, PCHTHERM_REG_TSMIC);
 	if (bootverbose) {
 		FLAG_PRINT(dev, "SMI on alert", val);
 	}

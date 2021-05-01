@@ -29,16 +29,16 @@
 #define	ADF_OFF	offsetof(addrfamily_t, adf_addr)
 #define	ADF_OFF_BITS	(ADF_OFF << 3)
 
-static ipf_rdx_node_t *ipf_rx_insert __P((ipf_rdx_head_t *,
-					  ipf_rdx_node_t nodes[2], int *));
-static void ipf_rx_attach_mask __P((ipf_rdx_node_t *, ipf_rdx_mask_t *));
-static int count_mask_bits __P((addrfamily_t *, u_32_t **));
-static void buildnodes __P((addrfamily_t *, addrfamily_t *,
-			    ipf_rdx_node_t n[2]));
-static ipf_rdx_node_t *ipf_rx_find_addr __P((ipf_rdx_node_t *, u_32_t *));
-static ipf_rdx_node_t *ipf_rx_lookup __P((ipf_rdx_head_t *, addrfamily_t *,
-					  addrfamily_t *));
-static ipf_rdx_node_t *ipf_rx_match __P((ipf_rdx_head_t *, addrfamily_t *));
+static ipf_rdx_node_t *ipf_rx_insert(ipf_rdx_head_t *,
+					  ipf_rdx_node_t nodes[2], int *);
+static void ipf_rx_attach_mask(ipf_rdx_node_t *, ipf_rdx_mask_t *);
+static int count_mask_bits(addrfamily_t *, u_32_t **);
+static void buildnodes(addrfamily_t *, addrfamily_t *,
+			    ipf_rdx_node_t n[2]);
+static ipf_rdx_node_t *ipf_rx_find_addr(ipf_rdx_node_t *, u_32_t *);
+static ipf_rdx_node_t *ipf_rx_lookup(ipf_rdx_head_t *, addrfamily_t *,
+					  addrfamily_t *);
+static ipf_rdx_node_t *ipf_rx_match(ipf_rdx_head_t *, addrfamily_t *);
 
 /*
  * Foreword.

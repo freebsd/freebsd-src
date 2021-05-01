@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <dev/gpio/gpiokeys.h>
-#include <gnu/dts/include/dt-bindings/input/linux-event-codes.h>
+#include <contrib/device-tree/include/dt-bindings/input/linux-event-codes.h>
 
 struct gpiokeys_codemap_entry {
 	uint32_t	linux_code;

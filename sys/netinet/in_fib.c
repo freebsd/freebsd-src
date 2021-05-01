@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
+#include <net/toeplitz.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -62,6 +64,43 @@ __FBSDID("$FreeBSD$");
 /* Assert 'struct route_in' is compatible with 'struct route' */
 CHK_STRUCT_ROUTE_COMPAT(struct route_in, ro_dst4);
 
+#ifdef FIB_ALGO
+VNET_DEFINE(struct fib_dp *, inet_dp);
+#endif
+
+#ifdef ROUTE_MPATH
+struct _hash_5tuple_ipv4 {
+	struct in_addr src;
+	struct in_addr dst;
+	unsigned short src_port;
+	unsigned short dst_port;
+	char proto;
+	char spare[3];
+};
+_Static_assert(sizeof(struct _hash_5tuple_ipv4) == 16,
+    "_hash_5tuple_ipv4 size is wrong");
+
+uint32_t
+fib4_calc_software_hash(struct in_addr src, struct in_addr dst,
+    unsigned short src_port, unsigned short dst_port, char proto,
+    uint32_t *phashtype)
+{
+	struct _hash_5tuple_ipv4 data;
+
+	data.src = src;
+	data.dst = dst;
+	data.src_port = src_port;
+	data.dst_port = dst_port;
+	data.proto = proto;
+	data.spare[0] = data.spare[1] = data.spare[2] = 0;
+
+	*phashtype = M_HASHTYPE_OPAQUE;
+
+	return (toeplitz_hash(MPATH_ENTROPY_KEY_LEN, mpath_entropy_key,
+	  sizeof(data), (uint8_t *)&data));
+}
+#endif
+
 /*
  * Looks up path in fib @fibnum specified by @dst.
  * Returns path nexthop on success. Nexthop is safe to use
@@ -69,6 +108,29 @@ CHK_STRUCT_ROUTE_COMPAT(struct route_in, ro_dst4);
  *  one needs to pass NHR_REF as a flag. This will return referenced
  *  nexthop.
  */
+#ifdef FIB_ALGO
+struct nhop_object *
+fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, uint32_t flowid)
+{
+	struct nhop_object *nh;
+	struct fib_dp *dp = &V_inet_dp[fibnum];
+	struct flm_lookup_key key = {.addr4 = dst };
+
+	nh = dp->f(dp->arg, key, scopeid);
+	if (nh != NULL) {
+		nh = nhop_select(nh, flowid);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			if (flags & NHR_REF)
+				nhop_ref_object(nh);
+			return (nh);
+		}
+	}
+	RTSTAT_INC(rts_unreach);
+	return (NULL);
+}
+#else
 struct nhop_object *
 fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags, uint32_t flowid)
@@ -84,11 +146,11 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 		return (NULL);
 
 	/* Prepare lookup key */
-	struct sockaddr_in sin4;
-	memset(&sin4, 0, sizeof(sin4));
-	sin4.sin_family = AF_INET;
-	sin4.sin_len = sizeof(struct sockaddr_in);
-	sin4.sin_addr = dst;
+	struct sockaddr_in sin4 = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = dst,
+	};
 
 	nh = NULL;
 	RIB_RLOCK(rh);
@@ -108,6 +170,7 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RTSTAT_INC(rts_unreach);
 	return (NULL);
 }
+#endif
 
 inline static int
 check_urpf_nhop(const struct nhop_object *nh, uint32_t flags,
@@ -146,6 +209,37 @@ check_urpf(struct nhop_object *nh, uint32_t flags,
 		return (check_urpf_nhop(nh, flags, src_if));
 }
 
+#ifndef FIB_ALGO
+static struct nhop_object *
+lookup_nhop(uint32_t fibnum, struct in_addr dst, uint32_t scopeid)
+{
+	RIB_RLOCK_TRACKER;
+	struct rib_head *rh;
+	struct radix_node *rn;
+	struct nhop_object *nh;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_check_urpf: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
+		return (NULL);
+
+	/* Prepare lookup key */
+	struct sockaddr_in sin4;
+	memset(&sin4, 0, sizeof(sin4));
+	sin4.sin_len = sizeof(struct sockaddr_in);
+	sin4.sin_addr = dst;
+
+	nh = NULL;
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0))
+		nh = RNTORT(rn)->rt_nhop;
+	RIB_RUNLOCK(rh);
+
+	return (nh);
+}
+#endif
+
 /*
  * Performs reverse path forwarding lookup.
  * If @src_if is non-zero, verifies that at least 1 path goes via
@@ -159,65 +253,79 @@ int
 fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
   uint32_t flags, const struct ifnet *src_if)
 {
+	struct nhop_object *nh;
+#ifdef FIB_ALGO
+	struct fib_dp *dp = &V_inet_dp[fibnum];
+	struct flm_lookup_key key = {.addr4 = dst };
+
+	nh = dp->f(dp->arg, key, scopeid);
+#else
+	nh = lookup_nhop(fibnum, dst, scopeid);
+#endif
+	if (nh != NULL)
+		return (check_urpf(nh, flags, src_if));
+
+	return (0);
+}
+
+/*
+ * Function returning prefix match data along with the nexthop data.
+ * Intended to be used by the control plane code.
+ * Supported flags:
+ *  NHR_UNLOCKED: do not lock radix during lookup.
+ * Returns pointer to rtentry and raw nexthop in @rnd. Both rtentry
+ *  and nexthop are safe to use within current epoch. Note:
+ * Note: rnd_nhop can actually be the nexthop group.
+ */
+struct rtentry *
+fib4_lookup_rt(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, struct route_nhop_data *rnd)
+{
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rh;
 	struct radix_node *rn;
-	int ret;
+	struct rtentry *rt;
 
-	KASSERT((fibnum < rt_numfibs), ("fib4_check_urpf: bad fibnum"));
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_rt: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
 	if (rh == NULL)
-		return (0);
+		return (NULL);
 
 	/* Prepare lookup key */
-	struct sockaddr_in sin4;
-	memset(&sin4, 0, sizeof(sin4));
-	sin4.sin_len = sizeof(struct sockaddr_in);
-	sin4.sin_addr = dst;
+	struct sockaddr_in sin4 = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = dst,
+	};
 
-	RIB_RLOCK(rh);
+	rt = NULL;
+	if (!(flags & NHR_UNLOCKED))
+		RIB_RLOCK(rh);
 	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		ret = check_urpf(RNTORT(rn)->rt_nhop, flags, src_if);
-		RIB_RUNLOCK(rh);
-		return (ret);
+		rt = (struct rtentry *)rn;
+		rnd->rnd_nhop = rt->rt_nhop;
+		rnd->rnd_weight = rt->rt_weight;
 	}
-	RIB_RUNLOCK(rh);
+	if (!(flags & NHR_UNLOCKED))
+		RIB_RUNLOCK(rh);
 
-	return (0);
+	return (rt);
 }
 
 struct nhop_object *
 fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags)
 {
-	struct rib_head *rh;
-	struct radix_node *rn;
-	struct nhop_object *nh;
+	struct rtentry *rt;
+	struct route_nhop_data rnd;
 
-	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_debugnet: bad fibnum"));
-	rh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rh == NULL)
-		return (NULL);
-
-	/* Prepare lookup key */
-	struct sockaddr_in sin4;
-	memset(&sin4, 0, sizeof(sin4));
-	sin4.sin_family = AF_INET;
-	sin4.sin_len = sizeof(struct sockaddr_in);
-	sin4.sin_addr = dst;
-
-	nh = NULL;
-	/* unlocked lookup */
-	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
-	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		nh = nhop_select((RNTORT(rn))->rt_nhop, 0);
+	rt = fib4_lookup_rt(fibnum, dst, scopeid, NHR_UNLOCKED, &rnd);
+	if (rt != NULL) {
+		struct nhop_object *nh = nhop_select(rnd.rnd_nhop, 0);
 		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(nh->nh_ifp)) {
-			if (flags & NHR_REF)
-				nhop_ref_object(nh);
+		if (RT_LINK_IS_UP(nh->nh_ifp))
 			return (nh);
-		}
 	}
 
 	return (NULL);

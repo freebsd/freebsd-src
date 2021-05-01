@@ -423,7 +423,7 @@ tty_is_ctty(struct tty *tp, struct proc *p)
 int
 tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	struct pgrp *pg;
 	ksiginfo_t ksi;
 	int error;
@@ -431,8 +431,22 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 	MPASS(sig == SIGTTIN || sig == SIGTTOU);
 	tty_assert_locked(tp);
 
+	p = td->td_proc;
 	for (;;) {
+		pg = p->p_pgrp;
+		PGRP_LOCK(pg);
 		PROC_LOCK(p);
+
+		/*
+		 * pg may no longer be our process group.
+		 * Re-check after locking.
+		 */
+		if (p->p_pgrp != pg) {
+			PROC_UNLOCK(p);
+			PGRP_UNLOCK(pg);
+			continue;
+		}
+
 		/*
 		 * The process should only sleep, when:
 		 * - This terminal is the controlling terminal
@@ -445,6 +459,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		if (!tty_is_ctty(tp, p) || p->p_pgrp == tp->t_pgrp) {
 			/* Allow the action to happen. */
 			PROC_UNLOCK(p);
+			PGRP_UNLOCK(pg);
 			return (0);
 		}
 
@@ -452,13 +467,15 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		    SIGISMEMBER(td->td_sigmask, sig)) {
 			/* Only allow them in write()/ioctl(). */
 			PROC_UNLOCK(p);
+			PGRP_UNLOCK(pg);
 			return (sig == SIGTTOU ? 0 : EIO);
 		}
 
-		pg = p->p_pgrp;
-		if (p->p_flag & P_PPWAIT || pg->pg_jobc == 0) {
+		if ((p->p_flag & P_PPWAIT) != 0 ||
+		    (pg->pg_flags & PGRP_ORPHANED) != 0) {
 			/* Don't allow the action to happen. */
 			PROC_UNLOCK(p);
+			PGRP_UNLOCK(pg);
 			return (EIO);
 		}
 		PROC_UNLOCK(p);
@@ -473,7 +490,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 			ksi.ksi_signo = sig;
 			sig = 0;
 		}
-		PGRP_LOCK(pg);
+
 		pgsignal(pg, ksi.ksi_signo, 1, &ksi);
 		PGRP_UNLOCK(pg);
 
@@ -1461,6 +1478,7 @@ void
 tty_signal_sessleader(struct tty *tp, int sig)
 {
 	struct proc *p;
+	struct session *s;
 
 	tty_assert_locked(tp);
 	MPASS(sig >= 1 && sig < NSIG);
@@ -1469,8 +1487,14 @@ tty_signal_sessleader(struct tty *tp, int sig)
 	tp->t_flags &= ~TF_STOPPED;
 	tp->t_termios.c_lflag &= ~FLUSHO;
 
-	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
-		p = tp->t_session->s_leader;
+	/*
+	 * Load s_leader exactly once to avoid race where s_leader is
+	 * set to NULL by a concurrent invocation of killjobc() by the
+	 * session leader.  Note that we are not holding t_session's
+	 * lock for the read.
+	 */
+	if ((s = tp->t_session) != NULL &&
+	    (p = atomic_load_ptr(&s->s_leader)) != NULL) {
 		PROC_LOCK(p);
 		kern_psignal(p, sig);
 		PROC_UNLOCK(p);
@@ -2063,7 +2087,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
 
 	/* Validate the file descriptor. */
 	fdp = p->p_fd;
-	error = fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_TTYHOOK),
+	error = fget_unlocked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
 	    &fp);
 	if (error != 0)
 		return (error);
@@ -2372,9 +2396,8 @@ DB_SHOW_COMMAND(tty, db_show_tty)
 	_db_show_hooks("\t", tp->t_hook);
 
 	/* Process info. */
-	db_printf("\tpgrp: %p gid %d jobc %d\n", tp->t_pgrp,
-	    tp->t_pgrp ? tp->t_pgrp->pg_id : 0,
-	    tp->t_pgrp ? tp->t_pgrp->pg_jobc : 0);
+	db_printf("\tpgrp: %p gid %d\n", tp->t_pgrp,
+	    tp->t_pgrp ? tp->t_pgrp->pg_id : 0);
 	db_printf("\tsession: %p", tp->t_session);
 	if (tp->t_session != NULL)
 	    db_printf(" count %u leader %p tty %p sid %d login %s",

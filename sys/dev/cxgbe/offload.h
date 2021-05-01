@@ -96,7 +96,7 @@ struct cxgbe_rate_tag {
 	int etid;
 	struct mbufq pending_tx, pending_fwack;
 	int plen;
-	struct sge_wrq *eo_txq;
+	struct sge_ofld_txq *eo_txq;
 	uint32_t ctrl0;
 	uint16_t iqid;
 	int8_t schedcl;
@@ -225,12 +225,14 @@ struct tom_tunables {
 	int ddp;
 	int rx_coalesce;
 	int tls;
+	int tls_rx_timeout;
 	int *tls_rx_ports;
 	int num_tls_rx_ports;
 	int tx_align;
 	int tx_zcopy;
 	int cop_managed_offloading;
 	int autorcvbuf_inc;
+	int update_hc_on_pmtu_change;
 };
 
 /* iWARP driver tunables */

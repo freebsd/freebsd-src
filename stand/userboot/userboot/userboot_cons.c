@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <sys/font.h>
 #include "bootstrap.h"
 #include "libuserboot.h"
 

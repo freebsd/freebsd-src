@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/route_ctl.h>
 #include <net/vnet.h>
 
 #include <netinet/if_ether.h>
@@ -72,9 +74,12 @@ __FBSDID("$FreeBSD$");
 
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
+static int in_gifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 
 static void	in_socktrim(struct sockaddr_in *);
 static void	in_purgemaddrs(struct ifnet *);
+
+static bool	ia_need_loopback_route(const struct in_ifaddr *);
 
 VNET_DEFINE_STATIC(int, nosameprefix);
 #define	V_nosameprefix			VNET(nosameprefix)
@@ -158,18 +163,23 @@ in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
  * the supplied one but with same IP address value.
  */
 static struct in_ifaddr *
-in_localip_more(struct in_ifaddr *ia)
+in_localip_more(struct in_ifaddr *original_ia)
 {
 	struct rm_priotracker in_ifa_tracker;
-	in_addr_t in = IA_SIN(ia)->sin_addr.s_addr;
-	struct in_ifaddr *it;
+	in_addr_t original_addr = IA_SIN(original_ia)->sin_addr.s_addr;
+	uint32_t original_fib = original_ia->ia_ifa.ifa_ifp->if_fib;
+	struct in_ifaddr *ia;
 
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
-	LIST_FOREACH(it, INADDR_HASH(in), ia_hash) {
-		if (it != ia && IA_SIN(it)->sin_addr.s_addr == in) {
-			ifa_ref(&it->ia_ifa);
+	LIST_FOREACH(ia, INADDR_HASH(original_addr), ia_hash) {
+		in_addr_t addr = IA_SIN(ia)->sin_addr.s_addr;
+		uint32_t fib = ia->ia_ifa.ifa_ifp->if_fib;
+		if (!V_rt_add_addr_allfibs && (original_fib != fib))
+			continue;
+		if ((original_ia != ia) && (original_addr == addr)) {
+			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-			return (it);
+			return (ia);
 		}
 	}
 	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
@@ -237,6 +247,11 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCGIFDSTADDR:
 	case SIOCGIFNETMASK:
 		break;
+	case SIOCGIFALIAS:
+		sx_xlock(&in_control_sx);
+		error = in_gifaddr_ioctl(cmd, data, ifp, td);
+		sx_xunlock(&in_control_sx);
+		return (error);
 	case SIOCDIFADDR:
 		sx_xlock(&in_control_sx);
 		error = in_difaddr_ioctl(cmd, data, ifp, td);
@@ -377,10 +392,11 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			continue;
 
 		it = (struct in_ifaddr *)ifa;
-		iaIsFirst = false;
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
 		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
 			ia = it;
+		else
+			iaIsFirst = false;
 	}
 	NET_EPOCH_EXIT(et);
 
@@ -436,10 +452,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	if (ifp->if_flags & IFF_POINTOPOINT)
 		ia->ia_dstaddr = *dstaddr;
 
-	/* XXXGL: rtinit() needs this strange assignment. */
-	if (ifp->if_flags & IFF_LOOPBACK)
-                ia->ia_dstaddr = ia->ia_addr;
-
 	if (vhid != 0) {
 		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
 		if (error)
@@ -472,12 +484,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * Add route for the network.
 	 */
 	if (vhid == 0) {
-		int flags = RTF_UP;
-
-		if (ifp->if_flags & (IFF_LOOPBACK|IFF_POINTOPOINT))
-			flags |= RTF_HOST;
-
-		error = in_addprefix(ia, flags);
+		error = in_addprefix(ia);
 		if (error)
 			goto fail1;
 	}
@@ -485,10 +492,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	/*
 	 * Add a loopback route to self.
 	 */
-	if (vhid == 0 && (ifp->if_flags & IFF_LOOPBACK) == 0 &&
-	    ia->ia_addr.sin_addr.s_addr != INADDR_ANY &&
-	    !((ifp->if_flags & IFF_POINTOPOINT) &&
-	     ia->ia_dstaddr.sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)) {
+	if (vhid == 0 && ia_need_loopback_route(ia)) {
 		struct in_ifaddr *eia;
 
 		eia = in_localip_more(ia);
@@ -648,47 +652,267 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	return (0);
 }
 
-#define rtinitflags(x) \
-	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
-	    ? RTF_HOST : 0)
+static int
+in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
+{
+	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
+	const struct sockaddr_in *addr = &ifra->ifra_addr;
+	struct epoch_tracker et;
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
+
+	/*
+	 * ifra_addr must be present and be of INET family.
+	 */
+	if (addr->sin_len != sizeof(struct sockaddr_in) ||
+	    addr->sin_family != AF_INET)
+		return (EINVAL);
+
+	/*
+	 * See whether address exist.
+	 */
+	ia = NULL;
+	NET_EPOCH_ENTER(et);
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		struct in_ifaddr *it;
+
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+
+		it = (struct in_ifaddr *)ifa;
+		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
+		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0) {
+			ia = it;
+			break;
+		}
+	}
+	if (ia == NULL) {
+		NET_EPOCH_EXIT(et);
+		return (EADDRNOTAVAIL);
+	}
+
+	ifra->ifra_mask = ia->ia_sockmask;
+	if ((ifp->if_flags & IFF_POINTOPOINT) &&
+	    ia->ia_dstaddr.sin_family == AF_INET)
+		ifra->ifra_dstaddr = ia->ia_dstaddr;
+	else if ((ifp->if_flags & IFF_BROADCAST) &&
+	    ia->ia_broadaddr.sin_family == AF_INET)
+		ifra->ifra_broadaddr = ia->ia_broadaddr;
+	else
+		memset(&ifra->ifra_broadaddr, 0,
+		    sizeof(ifra->ifra_broadaddr));
+
+	NET_EPOCH_EXIT(et);
+	return (0);
+}
+
+static int
+in_match_ifaddr(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
+{
+
+	if (nh->nh_ifa == (struct ifaddr *)arg)
+		return (1);
+
+	return (0);
+}
+
+static int
+in_handle_prefix_route(uint32_t fibnum, int cmd,
+    struct sockaddr_in *dst, struct sockaddr_in *netmask, struct ifaddr *ifa,
+    struct ifnet *ifp)
+{
+
+	NET_EPOCH_ASSERT();
+
+	/* Prepare gateway */
+	struct sockaddr_dl_short sdl = {
+		.sdl_family = AF_LINK,
+		.sdl_len = sizeof(struct sockaddr_dl_short),
+		.sdl_type = ifa->ifa_ifp->if_type,
+		.sdl_index = ifa->ifa_ifp->if_index,
+	};
+
+	struct rt_addrinfo info = {
+		.rti_ifa = ifa,
+		.rti_ifp = ifp,
+		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
+		.rti_info = {
+			[RTAX_DST] = (struct sockaddr *)dst,
+			[RTAX_NETMASK] = (struct sockaddr *)netmask,
+			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
+		},
+		/* Ensure we delete the prefix IFF prefix ifa matches */
+		.rti_filter = in_match_ifaddr,
+		.rti_filterdata = ifa,
+	};
+
+	return (rib_handle_ifaddr_info(fibnum, cmd, &info));
+}
 
 /*
- * Check if we have a route for the given prefix already or add one accordingly.
+ * Routing table interaction with interface addresses.
+ *
+ * In general, two types of routes needs to be installed:
+ * a) "interface" or "prefix" route, telling user that the addresses
+ *   behind the ifa prefix are reached directly.
+ * b) "loopback" route installed for the ifa address, telling user that
+ *   the address belongs to local system.
+ *
+ * Handling for (a) and (b) differs in multi-fib aspects, hence they
+ *  are implemented in different functions below.
+ *
+ * The cases above may intersect - /32 interface aliases results in
+ *  the same prefix produced by (a) and (b). This blurs the definition
+ *  of the "loopback" route and complicate interactions. The interaction
+ *  table is defined below. The case numbers are used in the multiple
+ *  functions below to refer to the particular test case.
+ *
+ * There can be multiple options:
+ * 1) Adding address with prefix on non-p2p/non-loopback interface.
+ *  Example: 192.0.2.1/24. Action:
+ *  * add "prefix" route towards 192.0.2.0/24 via @ia interface,
+ *    using @ia as an address source.
+ *  * add "loopback" route towards 192.0.2.1 via V_loif, saving
+ *   @ia ifp in the gateway and using @ia as an address source.
+ *
+ * 2) Adding address with /32 mask to non-p2p/non-loopback interface.
+ *  Example: 192.0.2.2/32. Action:
+ *  * add "prefix" host route via V_loif, using @ia as an address source.
+ *
+ * 3) Adding address with or without prefix to p2p interface.
+ *  Example: 10.0.0.1/24->10.0.0.2. Action:
+ *  * add "prefix" host route towards 10.0.0.2 via this interface, using @ia
+ *    as an address source. Note: no sense in installing full /24 as the interface
+ *    is point-to-point.
+ *  * add "loopback" route towards 10.0.9.1 via V_loif, saving
+ *   @ia ifp in the gateway and using @ia as an address source.
+ *
+ * 4) Adding address with or without prefix to loopback interface.
+ *  Example: 192.0.2.1/24. Action:
+ *  * add "prefix" host route via @ia interface, using @ia as an address source.
+ *    Note: Skip installing /24 prefix as it would introduce TTL loop
+ *    for the traffic destined to these addresses.
+ */
+
+/*
+ * Checks if @ia needs to install loopback route to @ia address via
+ *  ifa_maintain_loopback_route().
+ *
+ * Return true on success.
+ */
+static bool
+ia_need_loopback_route(const struct in_ifaddr *ia)
+{
+	struct ifnet *ifp = ia->ia_ifp;
+
+	/* Case 4: Skip loopback interfaces */
+	if ((ifp->if_flags & IFF_LOOPBACK) ||
+	    (ia->ia_addr.sin_addr.s_addr == INADDR_ANY))
+		return (false);
+
+	/* Clash avoidance: Skip p2p interfaces with both addresses are equal */
+	if ((ifp->if_flags & IFF_POINTOPOINT) &&
+	    ia->ia_dstaddr.sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
+		return (false);
+
+	/* Case 2: skip /32 prefixes */
+	if (!(ifp->if_flags & IFF_POINTOPOINT) &&
+	    (ia->ia_sockmask.sin_addr.s_addr == INADDR_BROADCAST))
+		return (false);
+
+	return (true);
+}
+
+/*
+ * Calculate "prefix" route corresponding to @ia.
+ */
+static void
+ia_getrtprefix(const struct in_ifaddr *ia, struct in_addr *prefix, struct in_addr *mask)
+{
+
+	if (ia->ia_ifp->if_flags & IFF_POINTOPOINT) {
+		/* Case 3: return host route for dstaddr */
+		*prefix = ia->ia_dstaddr.sin_addr;
+		mask->s_addr = INADDR_BROADCAST;
+	} else if (ia->ia_ifp->if_flags & IFF_LOOPBACK) {
+		/* Case 4: return host route for ifaddr */
+		*prefix = ia->ia_addr.sin_addr;
+		mask->s_addr = INADDR_BROADCAST;
+	} else {
+		/* Cases 1,2: return actual ia prefix */
+		*prefix = ia->ia_addr.sin_addr;
+		*mask = ia->ia_sockmask.sin_addr;
+		prefix->s_addr &= mask->s_addr;
+	}
+}
+
+/*
+ * Adds or delete interface "prefix" route corresponding to @ifa.
+ *  Returns 0 on success or errno.
  */
 int
-in_addprefix(struct in_ifaddr *target, int flags)
+in_handle_ifaddr_route(int cmd, struct in_ifaddr *ia)
+{
+	struct ifaddr *ifa = &ia->ia_ifa;
+	struct in_addr daddr, maddr;
+	struct sockaddr_in *pmask;
+	struct epoch_tracker et;
+	int error;
+
+	ia_getrtprefix(ia, &daddr, &maddr);
+
+	struct sockaddr_in mask = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = maddr,
+	};
+
+	pmask = (maddr.s_addr != INADDR_BROADCAST) ? &mask : NULL;
+
+	struct sockaddr_in dst = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr.s_addr = daddr.s_addr & maddr.s_addr,
+	};
+
+	struct ifnet *ifp = ia->ia_ifp;
+
+	if ((maddr.s_addr == INADDR_BROADCAST) &&
+	    (!(ia->ia_ifp->if_flags & (IFF_POINTOPOINT|IFF_LOOPBACK)))) {
+		/* Case 2: host route on broadcast interface */
+		ifp = V_loif;
+	}
+
+	uint32_t fibnum = ifa->ifa_ifp->if_fib;
+	NET_EPOCH_ENTER(et);
+	error = in_handle_prefix_route(fibnum, cmd, &dst, pmask, ifa, ifp);
+	NET_EPOCH_EXIT(et);
+
+	return (error);
+}
+
+/*
+ * Check if we have a route for the given prefix already.
+ */
+static bool
+in_hasrtprefix(struct in_ifaddr *target)
 {
 	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error;
+	bool result = false;
 
-	if ((flags & RTF_HOST) != 0) {
-		prefix = target->ia_dstaddr.sin_addr;
-		mask.s_addr = 0;
-	} else {
-		prefix = target->ia_addr.sin_addr;
-		mask = target->ia_sockmask.sin_addr;
-		prefix.s_addr &= mask.s_addr;
-	}
+	ia_getrtprefix(target, &prefix, &mask);
 
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	/* Look for an existing address with the same prefix, mask, and fib */
 	CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-		if (rtinitflags(ia)) {
-			p = ia->ia_dstaddr.sin_addr;
+		ia_getrtprefix(ia, &p, &m);
 
-			if (prefix.s_addr != p.s_addr)
-				continue;
-		} else {
-			p = ia->ia_addr.sin_addr;
-			m = ia->ia_sockmask.sin_addr;
-			p.s_addr &= m.s_addr;
+		if (prefix.s_addr != p.s_addr ||
+		    mask.s_addr != m.s_addr)
+			continue;
 
-			if (prefix.s_addr != p.s_addr ||
-			    mask.s_addr != m.s_addr)
-				continue;
-		}
 		if (target->ia_ifp->if_fib != ia->ia_ifp->if_fib)
 			continue;
 
@@ -697,26 +921,35 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
-			if (V_nosameprefix) {
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (EEXIST);
-			} else {
-				int fibnum;
-
-				fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
-					target->ia_ifp->if_fib;
-				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (0);
-			}
+			result = true;
+			break;
 		}
 	}
 	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 
+	return (result);
+}
+
+int
+in_addprefix(struct in_ifaddr *target)
+{
+	int error;
+
+	if (in_hasrtprefix(target)) {
+		if (V_nosameprefix)
+			return (EEXIST);
+		else {
+			rt_addrmsg(RTM_ADD, &target->ia_ifa,
+			    target->ia_ifp->if_fib);
+			return (0);
+		}
+	}
+
 	/*
 	 * No-one seem to have this prefix route, so we try to insert it.
 	 */
-	error = rtinit(&target->ia_ifa, (int)RTM_ADD, flags);
+	rt_addrmsg(RTM_ADD, &target->ia_ifa, target->ia_ifp->if_fib);
+	error = in_handle_ifaddr_route(RTM_ADD, target);
 	if (!error)
 		target->ia_flags |= IFA_ROUTE;
 	return (error);
@@ -776,16 +1009,9 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	/*
 	 * Remove the loopback route to the interface address.
 	 */
-	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
-	    !(target->ia_ifp->if_flags & IFF_LOOPBACK) &&
-	    (flags & LLE_STATIC)) {
+	if (ia_need_loopback_route(target) && (flags & LLE_STATIC)) {
 		struct in_ifaddr *eia;
 
-		/*
-		 * XXXME: add fib-aware in_localip.
-		 * We definitely don't want to switch between
-		 * prefixes in different fibs.
-		 */
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
@@ -798,21 +1024,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		}
 	}
 
-	if (rtinitflags(target)) {
-		prefix = target->ia_dstaddr.sin_addr;
-		mask.s_addr = 0;
-	} else {
-		prefix = target->ia_addr.sin_addr;
-		mask = target->ia_sockmask.sin_addr;
-		prefix.s_addr &= mask.s_addr;
-	}
+	ia_getrtprefix(target, &prefix, &mask);
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
-		int fibnum;
-
-		fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
-			target->ia_ifp->if_fib;
-		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
+		rt_addrmsg(RTM_DELETE, &target->ia_ifa, target->ia_ifp->if_fib);
 
 		/*
 		 * Removing address from !IFF_UP interface or
@@ -826,20 +1041,11 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 	IN_IFADDR_RLOCK(&in_ifa_tracker);
 	CK_STAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-		if (rtinitflags(ia)) {
-			p = ia->ia_dstaddr.sin_addr;
+		ia_getrtprefix(ia, &p, &m);
 
-			if (prefix.s_addr != p.s_addr)
-				continue;
-		} else {
-			p = ia->ia_addr.sin_addr;
-			m = ia->ia_sockmask.sin_addr;
-			p.s_addr &= m.s_addr;
-
-			if (prefix.s_addr != p.s_addr ||
-			    mask.s_addr != m.s_addr)
-				continue;
-		}
+		if (prefix.s_addr != p.s_addr ||
+		    mask.s_addr != m.s_addr)
+			continue;
 
 		if ((ia->ia_ifp->if_flags & IFF_UP) == 0)
 			continue;
@@ -852,8 +1058,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		if ((ia->ia_flags & IFA_ROUTE) == 0) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-			error = rtinit(&(target->ia_ifa), (int)RTM_DELETE,
-			    rtinitflags(target));
+			error = in_handle_ifaddr_route(RTM_DELETE, target);
 			if (error == 0)
 				target->ia_flags &= ~IFA_ROUTE;
 			else
@@ -862,8 +1067,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			/* Scrub all entries IFF interface is different */
 			in_scrubprefixlle(target, target->ia_ifp != ia->ia_ifp,
 			    flags);
-			error = rtinit(&ia->ia_ifa, (int)RTM_ADD,
-			    rtinitflags(ia) | RTF_UP);
+			error = in_handle_ifaddr_route(RTM_ADD, ia);
 			if (error == 0)
 				ia->ia_flags |= IFA_ROUTE;
 			else
@@ -883,15 +1087,14 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
 	 */
-	error = rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
+	rt_addrmsg(RTM_DELETE, &target->ia_ifa, target->ia_ifp->if_fib);
+	error = in_handle_ifaddr_route(RTM_DELETE, target);
 	if (error == 0)
 		target->ia_flags &= ~IFA_ROUTE;
 	else
 		log(LOG_INFO, "in_scrubprefix: err=%d, prefix delete failed\n", error);
 	return (error);
 }
-
-#undef rtinitflags
 
 void
 in_ifscrub_all(void)

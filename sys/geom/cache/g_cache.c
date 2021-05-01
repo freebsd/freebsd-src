@@ -494,7 +494,7 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 
 	/* Block size restrictions. */
 	bshift = ffs(md->md_bsize) - 1;
-	if (md->md_bsize == 0 || md->md_bsize > MAXPHYS ||
+	if (md->md_bsize == 0 || md->md_bsize > maxphys ||
 	    md->md_bsize != 1 << bshift ||
 	    (md->md_bsize % pp->sectorsize) != 0) {
 		G_CACHE_DEBUG(0, "Invalid blocksize for provider %s.", pp->name);
@@ -673,9 +673,11 @@ g_cache_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->orphan = g_cache_orphan;
 	gp->access = g_cache_access;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = g_cache_read_metadata(cp, &md);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = g_cache_read_metadata(cp, &md);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	if (error != 0)

@@ -1063,6 +1063,8 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/neighbour entries overflow%s}\n");
 	p(icp6s_overflowredirect, "\t{:redirect-overflows/%ju} "
 	    "{N:/redirect overflow%s}\n");
+	p(icp6s_invlhlim, "\t{:dropped-invalid-hop-limit/%ju} "
+	    "{N:/message%s with invalid hop limit}\n");
 	xo_close_container("errors");
 	p(icp6s_pmtuchg, "\t{:path-mtu-changes/%ju} {N:/path MTU change%s}\n");
 #undef p

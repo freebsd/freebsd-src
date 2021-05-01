@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#include <atf-c.h>
-
 #include "test-utils.h"
 
 #pragma STDC FENV_ACCESS	ON
@@ -58,14 +56,18 @@ __FBSDID("$FreeBSD$");
  * XXX The volatile here is to avoid gcc's bogus constant folding and work
  *     around the lack of support for the FENV_ACCESS pragma.
  */
-#define	test_p(func, z, result, exceptmask, excepts, checksign)	do {	\
-	volatile long double complex _d = z;				\
-	debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
-	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	ATF_CHECK(cfpequal_cs((func)(_d), (result), (checksign)));		\
-	ATF_CHECK(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
-} while (0)
+#define test_p(func, z, result, exceptmask, excepts, checksign)			\
+	do {									\
+		volatile long double complex _d = z;				\
+		debug("  testing %s(%Lg + %Lg I) == %Lg + %Lg I\n", #func,	\
+		    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
+		ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
+		CHECK_CFPEQUAL_CS((func)(_d), (result), (checksign));		\
+		volatile int _e = fetestexcept(exceptmask);			\
+		ATF_CHECK_MSG(_e == (excepts),					\
+		    "%s fetestexcept(%s) (%#x) != %#x",	__XSTRING(func),	\
+		    __XSTRING(exceptmask), _e, (excepts));			\
+	} while (0)
 
 /*
  * Test within a given tolerance.  The tolerance indicates relative error
@@ -73,10 +75,9 @@ __FBSDID("$FreeBSD$");
  * of <format>_EPSILON.
  */
 #define	test_p_tol(func, z, result, tol)			do {	\
-	volatile long double complex _d = z;				\
 	debug("  testing %s(%Lg + %Lg I) ~= %Lg + %Lg I\n", #func,	\
-	    creall(_d), cimagl(_d), creall(result), cimagl(result));	\
-	ATF_CHECK(cfpequal_tol((func)(_d), (result), (tol), FPE_ABS_ZERO)); \
+	    creall(z), cimagl(z), creall(result), cimagl(result));	\
+	CHECK_CFPEQUAL_TOL((func)(z), (result), (tol), FPE_ABS_ZERO); \
 } while (0)
 
 /* These wrappers apply the identities f(conj(z)) = conj(f(z)). */
@@ -138,13 +139,6 @@ ATF_TC_BODY(test_zero_input, tc)
 {
 	long double complex zero = CMPLXL(0.0, 0.0);
 
-#if defined(__amd64__)
-#if defined(__clang__) && \
-	((__clang_major__ >= 4))
-	atf_tc_expect_fail("test fails with clang 4.x+ - bug 217528");
-#endif
-#endif
-
 	/* csinh(0) = ctanh(0) = 0; ccosh(0) = 1 (no exceptions raised) */
 	testall_odd(csinh, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
 	testall_odd(csin, zero, zero, ALL_STD_EXCEPT, 0, CS_BOTH);
@@ -171,8 +165,8 @@ ATF_TC_BODY(test_nan_inputs, tc)
 	 * NaN,finite	NaN,NaN [inval]	NaN,NaN [inval]	NaN,NaN [inval]
 	 * NaN,Inf	NaN,NaN [inval]	NaN,NaN	[inval]	NaN,NaN [inval]
 	 * Inf,NaN	+-Inf,NaN	Inf,NaN		1,+-0
-	 * 0,NaN	+-0,NaN		NaN,+-0		NaN,NaN	[inval]
-	 * NaN,0	NaN,0		NaN,+-0		NaN,0
+	 * 0,NaN	+-0,NaN		NaN,+-0		+-0,NaN
+	 * NaN,0	NaN,0		NaN,+-0		NaN,+-0
 	 */
 	z = nan_nan;
 	testall_odd(csinh, z, nan_nan, ALL_STD_EXCEPT, 0, 0);
@@ -219,9 +213,9 @@ ATF_TC_BODY(test_nan_inputs, tc)
 	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
 
 	z = CMPLXL(0, NAN);
-	testall_odd(csinh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, 0);
+	testall_odd(csinh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
 	testall_even(ccosh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
-	testall_odd(ctanh, z, nan_nan, OPT_INVALID, 0, 0);
+	testall_odd(ctanh, z, CMPLXL(0, NAN), OPT_INVALID, 0, CS_REAL);
 	testall_odd(csin, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
 	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
 	testall_odd(ctan, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, 0, CS_REAL);
@@ -232,7 +226,7 @@ ATF_TC_BODY(test_nan_inputs, tc)
 	testall_odd(ctanh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
 	testall_odd(csin, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
 	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, 0);
-	testall_odd(ctan, z, nan_nan, OPT_INVALID, 0, 0);
+	testall_odd(ctan, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, 0, CS_IMAG);
 }
 
 ATF_TC(test_inf_inputs);
@@ -248,14 +242,11 @@ ATF_TC_BODY(test_inf_inputs, tc)
 	long double complex z, c, s;
 	unsigned i;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/244732");
-
 	/*
 	 * IN		CSINH		CCOSH		CTANH
 	 * Inf,Inf	+-Inf,NaN inval	+-Inf,NaN inval	1,+-0
 	 * Inf,finite	Inf cis(finite)	Inf cis(finite)	1,0 sin(2 finite)
-	 * 0,Inf	+-0,NaN	inval	NaN,+-0 inval	NaN,NaN	inval
+	 * 0,Inf	+-0,NaN	inval	NaN,+-0 inval	+-0,NaN
 	 * finite,Inf	NaN,NaN inval	NaN,NaN inval	NaN,NaN inval
 	 */
 	z = CMPLXL(INFINITY, INFINITY);
@@ -289,11 +280,11 @@ ATF_TC_BODY(test_inf_inputs, tc)
 	z = CMPLXL(0, INFINITY);
 	testall_odd(csinh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
 	testall_even(ccosh, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctanh, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_odd(ctanh, z, CMPLXL(0, NAN), ALL_STD_EXCEPT, FE_INVALID, CS_REAL);
 	z = CMPLXL(INFINITY, 0);
 	testall_odd(csin, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
 	testall_even(ccos, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, 0);
-	testall_odd(ctan, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);
+	testall_odd(ctan, z, CMPLXL(NAN, 0), ALL_STD_EXCEPT, FE_INVALID, CS_IMAG);
 
 	z = CMPLXL(42, INFINITY);
 	testall_odd(csinh, z, CMPLXL(NAN, NAN), ALL_STD_EXCEPT, FE_INVALID, 0);

@@ -237,3 +237,7 @@ device		cryptocteon	# Octeon coprocessor 2 crypto offload
 
 # PMC support
 #device		hwpmc
+
+# HID support
+options 	HID_DEBUG	# enable debug msgs
+device		hid		# Generic HID support

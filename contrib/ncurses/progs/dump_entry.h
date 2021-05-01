@@ -34,7 +34,7 @@
  ****************************************************************************/
 
 /*
- * $Id: dump_entry.h,v 1.42 2020/02/02 23:34:34 tom Exp $
+ * $Id: dump_entry.h,v 1.43 2020/11/14 18:16:57 tom Exp $
  *
  * Dump control definitions and variables
  */
@@ -73,7 +73,7 @@ typedef int (*PredFunc) (PredType, PredIdx);
 typedef void (*PredHook) (PredType, PredIdx, const char *);
 
 extern NCURSES_CONST char *nametrans(const char *);
-extern bool has_params(const char *src);
+extern bool has_params(const char *, bool);
 extern int fmt_entry(TERMTYPE2 *, PredFunc, int, int, int, int);
 extern int show_entry(void);
 extern void compare_entry(PredHook, TERMTYPE2 *, bool);

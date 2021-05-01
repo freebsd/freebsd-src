@@ -1,9 +1,9 @@
 /*
- *  $Id: arrows.c,v 1.52 2018/06/18 22:10:54 tom Exp $
+ *  $Id: arrows.c,v 1.53 2019/07/24 23:04:14 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
- *  Copyright 2000-2013,2018	Thomas E. Dickey
+ *  Copyright 2000-2018,2019	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -70,7 +70,6 @@ merge_colors(chtype foreground, chtype background)
 void
 dlg_draw_helpline(WINDOW *win, bool decorations)
 {
-    int cur_x, cur_y;
     int bottom;
 
     if (dialog_vars.help_line != 0
@@ -83,6 +82,8 @@ dlg_draw_helpline(WINDOW *win, bool decorations)
 	int limit = dlg_count_real_columns(dialog_vars.help_line) + 2;
 
 	if (limit < avail) {
+	    int cur_x, cur_y;
+
 	    getyx(win, cur_y, cur_x);
 	    other = decorations ? ON_LEFT : 0;
 	    (void) wmove(win, bottom, other + (avail - limit) / 2);
@@ -165,9 +166,6 @@ dlg_draw_scrollbar(WINDOW *win,
 		   chtype attr,
 		   chtype borderattr)
 {
-    char buffer[80];
-    int percent;
-    int len;
     int oldy, oldx;
 
     chtype save = dlg_get_attrs(win);
@@ -178,6 +176,10 @@ dlg_draw_scrollbar(WINDOW *win,
 
     dlg_draw_helpline(win, TRUE);
     if (bottom_arrow || top_arrow || dialog_state.use_scrollbar) {
+	char buffer[80];
+	int percent;
+	int len;
+
 	percent = (!total_data
 		   ? 100
 		   : (int) ((next_data * 100)
@@ -209,7 +211,6 @@ dlg_draw_scrollbar(WINDOW *win,
 	    int all_diff = (int) (total_data + 1);
 	    int bar_diff = (int) (next_data + 1 - this_data);
 	    int bar_high;
-	    int bar_y;
 
 	    bar_high = ORDSIZE(bar_diff);
 	    if (bar_high <= 0)
@@ -217,6 +218,7 @@ dlg_draw_scrollbar(WINDOW *win,
 
 	    if (bar_high < all_high) {
 		int bar_last = BARSIZE(next_data);
+		int bar_y;
 
 		wmove(win, top + 1, right);
 

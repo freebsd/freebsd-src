@@ -82,7 +82,7 @@ hypotl(long double x, long double y)
 	        man_t manh, manl;
 		GET_LDBL_MAN(manh,manl,b);
 		if((manh|manl)==0) return a;
-		t1=0;
+		t1=1;
 		SET_HIGH_WORD(t1,ESW(MAX_EXP-2));	/* t1=2^(MAX_EXP-2) */
 		b *= t1;
 		a *= t1;

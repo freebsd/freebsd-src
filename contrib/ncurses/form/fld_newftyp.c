@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_newftyp.c,v 1.22 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_newftyp.c,v 1.23 2020/05/24 01:40:20 anonymous.maarten Exp $")
 
 static FIELDTYPE default_fieldtype =
 {
@@ -53,7 +53,7 @@ static FIELDTYPE default_fieldtype =
 #endif
 };
 
-NCURSES_EXPORT_VAR(FIELDTYPE *)
+FORM_EXPORT_VAR(FIELDTYPE *)
   _nc_Default_FieldType = &default_fieldtype;
 
 /*---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ NCURSES_EXPORT_VAR(FIELDTYPE *)
 |
 |   Return Values :  Fieldtype pointer or NULL if error occurred
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(FIELDTYPE *)
+FORM_EXPORT(FIELDTYPE *)
 new_fieldtype(bool (*const field_check) (FIELD *, const void *),
 	      bool (*const char_check) (int, const void *))
 {
@@ -121,7 +121,7 @@ new_fieldtype(bool (*const field_check) (FIELD *, const void *),
 |                    E_CONNECTED     - there are fields referencing the type
 |                    E_BAD_ARGUMENT  - invalid fieldtype pointer
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
+FORM_EXPORT(int)
 free_fieldtype(FIELDTYPE *typ)
 {
   T((T_CALLED("free_fieldtype(%p)"), (void *)typ));

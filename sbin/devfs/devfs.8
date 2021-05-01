@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd December 1, 2020
 .Dt DEVFS 8
 .Os
 .Sh NAME
@@ -42,6 +42,15 @@ The
 utility provides an interface to manipulate properties of
 .Xr devfs 5
 mounts.
+.Pp
+The rules, by default as configured by
+.Pa /etc/rc.conf ,
+are loaded at boot via the devfs
+.Xr service 8 .
+The rules can be reloaded by running the command:
+.Bd -literal -offset indent
+service devfs restart
+.Ed
 .Pp
 The
 .Ar keyword
@@ -374,7 +383,8 @@ this feature can be used to copy rulesets:
 .Xr devfs.rules 5 ,
 .Xr chown 8 ,
 .Xr jail 8 ,
-.Xr mknod 8
+.Xr mknod 8 ,
+.Xr service 8
 .Sh HISTORY
 The
 .Nm

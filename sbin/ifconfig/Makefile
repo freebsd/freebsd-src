@@ -68,6 +68,7 @@ CFLAGS+= -DINET
 CFLAGS+= -DJAIL
 LIBADD+=	jail
 .endif
+LIBADD+=	nv
 
 MAN=	ifconfig.8
 

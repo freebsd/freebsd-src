@@ -143,6 +143,15 @@ gpio_check_flags(uint32_t caps, uint32_t flags)
 	/* Cannot mix pull-up/pull-down together. */
 	if (flags & GPIO_PIN_PULLUP && flags & GPIO_PIN_PULLDOWN)
 		return (EINVAL);
+	/* Cannot mix output and interrupt flags together */
+	if (flags & GPIO_PIN_OUTPUT && flags & GPIO_INTR_MASK)
+		return (EINVAL);
+	/* Only one interrupt flag can be defined at once */
+	if ((flags & GPIO_INTR_MASK) & ((flags & GPIO_INTR_MASK) - 1))
+		return (EINVAL);
+	/* The interrupt attached flag cannot be set */
+	if (flags & GPIO_INTR_ATTACHED)
+		return (EINVAL);
 
 	return (0);
 }

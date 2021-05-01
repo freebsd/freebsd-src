@@ -70,6 +70,7 @@ struct xen_flask_transition {
     uint32_t newsid;
 };
 
+#if __XEN_INTERFACE_VERSION__ < 0x00040800
 struct xen_flask_userlist {
     /* IN: starting SID for list */
     uint32_t start_sid;
@@ -83,6 +84,7 @@ struct xen_flask_userlist {
         XEN_GUEST_HANDLE(uint32) sids;
     } u;
 };
+#endif
 
 struct xen_flask_boolean {
     /* IN/OUT: numeric identifier for boolean [GET/SET]
@@ -167,7 +169,7 @@ struct xen_flask_op {
 #define FLASK_ACCESS            6
 #define FLASK_CREATE            7
 #define FLASK_RELABEL           8
-#define FLASK_USER              9
+#define FLASK_USER              9  /* No longer implemented */
 #define FLASK_POLICYVERS        10
 #define FLASK_GETBOOL           11
 #define FLASK_SETBOOL           12
@@ -193,7 +195,9 @@ struct xen_flask_op {
         struct xen_flask_access access;
         /* FLASK_CREATE, FLASK_RELABEL, FLASK_MEMBER */
         struct xen_flask_transition transition;
+#if __XEN_INTERFACE_VERSION__ < 0x00040800
         struct xen_flask_userlist userlist;
+#endif
         /* FLASK_GETBOOL, FLASK_SETBOOL */
         struct xen_flask_boolean boolean;
         struct xen_flask_setavc_threshold setavc_threshold;

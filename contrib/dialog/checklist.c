@@ -1,9 +1,9 @@
 /*
- *  $Id: checklist.c,v 1.160 2018/06/19 22:57:01 tom Exp $
+ *  $Id: checklist.c,v 1.167 2020/11/23 00:37:47 tom Exp $
  *
  *  checklist.c -- implements the checklist box
  *
- *  Copyright 2000-2016,2018	Thomas E. Dickey
+ *  Copyright 2000-2019,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -192,12 +192,11 @@ dlg_checklist(const char *title,
 #endif
     ALL_DATA all;
     int i, j, key2, found, x, y, cur_x, cur_y;
-    int key = 0, fkey;
+    int key, fkey;
     int button = dialog_state.visit_items ? -1 : dlg_default_button();
     int choice = dlg_default_listitem(items);
     int scrollamt = 0;
     int max_choice;
-    int was_mouse;
     int use_width, list_width, name_width, text_width;
     int result = DLG_EXIT_UNKNOWN;
     int num_states;
@@ -304,8 +303,7 @@ dlg_checklist(const char *title,
      * After displaying the prompt, we know how much space we really have.
      * Limit the list to avoid overwriting the ok-button.
      */
-    if (all.use_height + MIN_HIGH > height - cur_y)
-	all.use_height = height - MIN_HIGH - cur_y;
+    all.use_height = height - MIN_HIGH - cur_y;
     if (all.use_height <= 0)
 	all.use_height = 1;
 
@@ -379,13 +377,18 @@ dlg_checklist(const char *title,
     dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
 
     dlg_trace_win(dialog);
+
     while (result == DLG_EXIT_UNKNOWN) {
+	int was_mouse;
+
 	if (button < 0)		/* --visit-items */
 	    wmove(dialog, all.box_y + choice + 1, all.box_x + all.check_x + 2);
 
 	key = dlg_mouse_wgetch(dialog, &fkey);
-	if (dlg_result_key(key, fkey, &result))
-	    break;
+	if (dlg_result_key(key, fkey, &result)) {
+	    if (!dlg_button_key(result, &button, &key, &fkey))
+		break;
+	}
 
 	was_mouse = (fkey && is_DLGK_MOUSE(key));
 	if (was_mouse)
@@ -560,6 +563,9 @@ dlg_checklist(const char *title,
 	    case DLGK_ENTER:
 		result = dlg_enter_buttoncode(button);
 		break;
+	    case DLGK_LEAVE:
+		result = dlg_ok_buttoncode(button);
+		break;
 	    case DLGK_FIELD_PREV:
 		button = dlg_prev_button(buttons, button);
 		dlg_draw_buttons(dialog, height - 2, 0, buttons, button,
@@ -577,9 +583,7 @@ dlg_checklist(const char *title,
 		height = old_height;
 		width = old_width;
 		free(prompt);
-		dlg_clear();
-		dlg_del_window(dialog);
-		dlg_mouse_free_regions();
+		_dlg_resize_cleanup(dialog);
 		/* repaint */
 		goto retry;
 #endif
@@ -592,7 +596,7 @@ dlg_checklist(const char *title,
 		    beep();
 		}
 	    }
-	} else {
+	} else if (key > 0) {
 	    beep();
 	}
     }

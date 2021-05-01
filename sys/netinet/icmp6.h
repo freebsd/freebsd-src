@@ -639,6 +639,8 @@ struct icmp6stat {
 	uint64_t icp6s_overflowprfx;	/* Too many prefixes. */
 	uint64_t icp6s_overflownndp;	/* Too many neighbour entries. */
 	uint64_t icp6s_overflowredirect;/* Too many redirects. */
+	uint64_t icp6s_invlhlim;	/* Invalid hop limit. */
+	uint64_t icp6s_spare[32];
 };
 
 #ifdef _KERNEL

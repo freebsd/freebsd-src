@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-int	lflag, sflag, xflag, zflag;
+bool	lflag, sflag, xflag, zflag;
 
 static const struct option long_opts[] =
 {
@@ -77,7 +77,8 @@ main(int argc, char *argv[])
 {
 	struct stat sb1, sb2;
 	off_t skip1, skip2;
-	int ch, fd1, fd2, oflag, special;
+	int ch, fd1, fd2, oflag;
+	bool special;
 	const char *file1, *file2;
 
 	oflag = O_RDONLY;
@@ -87,18 +88,17 @@ main(int argc, char *argv[])
 			oflag |= O_NOFOLLOW;
 			break;
 		case 'l':		/* print all differences */
-			lflag = 1;
+			lflag = true;
 			break;
 		case 's':		/* silent run */
-			sflag = 1;
-			zflag = 1;
+			sflag = true;
 			break;
 		case 'x':		/* hex output */
-			lflag = 1;
-			xflag = 1;
+			lflag = true;
+			xflag = true;
 			break;
 		case 'z':		/* compare size first */
-			zflag = 1;
+			zflag = true;
 			break;
 		case '?':
 		default:
@@ -120,9 +120,9 @@ main(int argc, char *argv[])
 		err(ERR_EXIT, "unable to limit rights on stderr");
 
 	/* Backward compatibility -- handle "-" meaning stdin. */
-	special = 0;
+	special = false;
 	if (strcmp(file1 = argv[0], "-") == 0) {
-		special = 1;
+		special = true;
 		fd1 = STDIN_FILENO;
 		file1 = "stdin";
 	} else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
@@ -135,7 +135,7 @@ main(int argc, char *argv[])
 		if (special)
 			errx(ERR_EXIT,
 				"standard input may only be specified once");
-		special = 1;
+		special = true;
 		fd2 = STDIN_FILENO;
 		file2 = "stdin";
 	} else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
@@ -147,6 +147,9 @@ main(int argc, char *argv[])
 
 	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
 	skip2 = argc == 4 ? strtol(argv[3], NULL, 0) : 0;
+
+	if (sflag && skip1 == 0 && skip2 == 0)
+		zflag = true;
 
 	if (fd1 == -1) {
 		if (fd2 == -1) {
@@ -174,7 +177,7 @@ main(int argc, char *argv[])
 				exit(ERR_EXIT);
 		}
 		if (!S_ISREG(sb1.st_mode))
-			special = 1;
+			special = true;
 		else {
 			if (fstat(fd2, &sb2)) {
 				if (!sflag)
@@ -183,7 +186,7 @@ main(int argc, char *argv[])
 					exit(ERR_EXIT);
 			}
 			if (!S_ISREG(sb2.st_mode))
-				special = 1;
+				special = true;
 		}
 	}
 

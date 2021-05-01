@@ -42,10 +42,69 @@
 #ifndef UTIL_EDNS_H
 #define UTIL_EDNS_H
 
+#include "util/storage/dnstree.h"
+
 struct edns_data;
 struct config_file;
 struct comm_point;
 struct regional;
+
+/**
+ * Structure containing all EDNS strings.
+ */
+struct edns_strings {
+	/** Tree of EDNS client strings to use in upstream queries, per address
+	 * prefix. Contains nodes of type edns_string_addr. */
+	rbtree_type client_strings;
+	/** EDNS opcode to use for client strings */
+	uint16_t client_string_opcode;
+	/** region to allocate tree nodes in */
+	struct regional* region;
+};
+
+/**
+ * EDNS string. Node of rbtree, containing string and prefix.
+ */
+struct edns_string_addr {
+	/** node in address tree, used for tree lookups. Need to be the first
+	 * member of this struct. */
+	struct addr_tree_node node;
+	/** string, ascii format */
+	uint8_t* string;
+	/** length of string */
+	size_t string_len;
+};
+
+/**
+ * Create structure to hold EDNS strings
+ * @return: newly created edns_strings, NULL on alloc failure.
+ */
+struct edns_strings* edns_strings_create(void);
+
+/** Delete EDNS strings structure
+ * @param edns_strings: struct to delete
+ */
+void edns_strings_delete(struct edns_strings* edns_strings);
+
+/**
+ * Add configured EDNS strings
+ * @param edns_strings: edns strings to apply config to
+ * @param config: struct containing EDNS strings configuration
+ * @return 0 on error
+ */
+int edns_strings_apply_cfg(struct edns_strings* edns_strings,
+	struct config_file* config);
+
+/**
+ * Find string for address.
+ * @param tree: tree containing EDNS strings per address prefix.
+ * @param addr: address to use for tree lookup
+ * @param addrlen: length of address
+ * @return: matching tree node, NULL otherwise
+ */
+struct edns_string_addr*
+edns_string_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
+	socklen_t addrlen);
 
 /**
  * Apply common EDNS options.

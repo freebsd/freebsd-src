@@ -65,14 +65,9 @@ options 	TMPFS			#Efficient memory filesystem
 options 	GEOM_PART_APM		#Apple Partition Maps.
 options 	GEOM_PART_GPT		#GUID Partition Tables.
 options 	GEOM_LABEL		#Provides labelization
-options 	COMPAT_FREEBSD32	#Compatible with FreeBSD/powerpc binaries
-options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
-options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
-options 	COMPAT_FREEBSD7		#Compatible with FreeBSD7
-options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
-options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
-options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
-options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
+#options 	COMPAT_FREEBSD32	#Compatible with FreeBSD/powerpcle binaries
+options		COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options		COMPAT_FREEBSD12	# Compatible with FreeBSD12
 options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	STACK			#stack(9) support
@@ -141,8 +136,10 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 device		mpt		# LSI-Logic MPT-Fusion
 device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI SAS3008 MPT-Fusion SAS-3
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
@@ -251,3 +248,6 @@ device          virtio_blk              # VirtIO Block device
 device          virtio_scsi             # VirtIO SCSI device
 device          virtio_balloon          # VirtIO Memory Balloon device
 
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support

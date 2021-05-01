@@ -53,7 +53,7 @@ atf_test_case zvol_misc_002_pos cleanup
 zvol_misc_002_pos_head()
 {
 	atf_set "descr" "Verify that ZFS volume snapshot could be fscked"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 }
 zvol_misc_002_pos_body()
 {
@@ -77,7 +77,7 @@ atf_test_case zvol_misc_003_neg cleanup
 zvol_misc_003_neg_head()
 {
 	atf_set "descr" "Verify create storage pool or newfs over dump volume is denied."
-	atf_set "require.progs"  dumpadm zpool
+	atf_set "require.progs" "ksh93 dumpadm zpool"
 }
 zvol_misc_003_neg_body()
 {
@@ -102,7 +102,7 @@ atf_test_case zvol_misc_004_pos cleanup
 zvol_misc_004_pos_head()
 {
 	atf_set "descr" "Verify permit to create snapshot over dumpswap."
-	atf_set "require.progs"  zfs swap
+	atf_set "require.progs" "ksh93 zfs swap"
 }
 zvol_misc_004_pos_body()
 {
@@ -127,7 +127,7 @@ atf_test_case zvol_misc_005_neg cleanup
 zvol_misc_005_neg_head()
 {
 	atf_set "descr" "Verify a device cannot be dump and swap at the same time."
-	atf_set "require.progs"  dumpadm swap
+	atf_set "require.progs" "ksh93 dumpadm swap"
 }
 zvol_misc_005_neg_body()
 {
@@ -152,7 +152,7 @@ atf_test_case zvol_misc_006_pos cleanup
 zvol_misc_006_pos_head()
 {
 	atf_set "descr" "zfs volume as dumpdevice should have 128k volblocksize"
-	atf_set "require.progs"  dumpadm zfs
+	atf_set "require.progs" "ksh93 dumpadm zfs"
 }
 zvol_misc_006_pos_body()
 {
@@ -177,7 +177,7 @@ atf_test_case zvol_misc_007_pos cleanup
 zvol_misc_007_pos_head()
 {
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zvol_misc_007_pos_body()
@@ -203,7 +203,7 @@ atf_test_case zvol_misc_008_pos cleanup
 zvol_misc_008_pos_head()
 {
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zvol_misc_008_pos_body()
@@ -229,7 +229,7 @@ atf_test_case zvol_misc_009_pos cleanup
 zvol_misc_009_pos_head()
 {
 	atf_set "descr" "zfs volume device nodes are modified appropriately"
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 1200
 }
 zvol_misc_009_pos_body()

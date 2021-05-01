@@ -62,27 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 
 /* PRIMARY CACHE VARIABLES */
-int	arm_picache_size;
-int	arm_picache_line_size;
-int	arm_picache_ways;
-
-int	arm_pdcache_size;	/* and unified */
-int	arm_pdcache_line_size;
-int	arm_pdcache_ways;
-
-int	arm_pcache_type;
-int	arm_pcache_unified;
 
 int	arm_dcache_align;
 int	arm_dcache_align_mask;
 
-u_int	arm_cache_level;
-u_int	arm_cache_type[14];
-u_int	arm_cache_loc;
-
-#if defined(CPU_ARM9E)
-static void arm10_setup(void);
-#endif
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
 #endif
@@ -92,107 +75,6 @@ static void arm11x6_setup(void);
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 static void cortexa_setup(void);
 #endif
-
-#if defined(CPU_ARM9E)
-struct cpu_functions armv5_ec_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_nullop,			/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	armv5_ec_setttb,		/* Setttb		*/
-
-	/* TLB functions */
-
-	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushD,		/* tlb_flushD		*/
-	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
-
-	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
-	armv5_ec_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	armv5_ec_dcache_inv_range,	/* dcache_inv_range	*/
-	armv5_ec_dcache_wb_range,	/* dcache_wb_range	*/
-
-	armv4_idcache_inv_all,		/* idcache_inv_all	*/
-	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	armv5_ec_idcache_wbinv_range,	/* idcache_wbinv_range	*/
-
-	cpufunc_nullop,                 /* l2cache_wbinv_all    */
-	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
-      	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
-	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
-
-	/* Other functions */
-
-	armv4_drain_writebuf,		/* drain_writebuf	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-	arm9_context_switch,		/* context_switch	*/
-
-	arm10_setup			/* cpu setup		*/
-
-};
-
-struct cpu_functions sheeva_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_nullop,			/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	sheeva_setttb,			/* Setttb		*/
-
-	/* TLB functions */
-
-	armv4_tlb_flushID,		/* tlb_flushID		*/
-	arm9_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	armv4_tlb_flushD,		/* tlb_flushD		*/
-	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-
-	armv5_ec_icache_sync_range,	/* icache_sync_range	*/
-
-	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
-	sheeva_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	sheeva_dcache_inv_range,	/* dcache_inv_range	*/
-	sheeva_dcache_wb_range,		/* dcache_wb_range	*/
-
-	armv4_idcache_inv_all,		/* idcache_inv_all	*/
-	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	sheeva_idcache_wbinv_range,	/* idcache_wbinv_all	*/
-
-	sheeva_l2cache_wbinv_all,	/* l2cache_wbinv_all    */
-	sheeva_l2cache_wbinv_range,	/* l2cache_wbinv_range  */
-	sheeva_l2cache_inv_range,	/* l2cache_inv_range    */
-	sheeva_l2cache_wb_range,	/* l2cache_wb_range     */
-	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
-
-	/* Other functions */
-
-	armv4_drain_writebuf,		/* drain_writebuf	*/
-
-	sheeva_cpu_sleep,		/* sleep		*/
-
-	/* Soft functions */
-
-	arm9_context_switch,		/* context_switch	*/
-
-	arm10_setup			/* cpu setup		*/
-};
-#endif /* CPU_ARM9E */
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
@@ -256,27 +138,13 @@ struct cpu_functions cortexa_cpufuncs = {
 
 struct cpu_functions cpufuncs;
 u_int cputype;
-#if __ARM_ARCH <= 5
-u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
-#endif
-
-#if defined (CPU_ARM9E) ||	\
-  defined(CPU_ARM1176) ||	\
-  defined(CPU_MV_PJ4B) ||			\
-  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 static void get_cachetype_cp15(void);
-
-/* Additional cache information local to this file.  Log2 of some of the
-   above numbers.  */
-static int	arm_dcache_l2_nsets;
-static int	arm_dcache_l2_assoc;
-static int	arm_dcache_l2_linesize;
 
 static void
 get_cachetype_cp15(void)
 {
-	u_int ctype, isize, dsize, cpuid;
+	u_int ctype, dsize, cpuid;
 	u_int clevel, csize, i, sel;
 	u_int multiplier;
 	u_char type;
@@ -296,8 +164,6 @@ get_cachetype_cp15(void)
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
-		arm_cache_level = clevel;
-		arm_cache_loc = CPU_CLIDR_LOC(arm_cache_level);
 		i = 0;
 		while ((type = (clevel & 0x7)) && i < 7) {
 			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
@@ -307,7 +173,6 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
 				arm_dcache_align = 1 <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
 				arm_dcache_align_mask = arm_dcache_align - 1;
@@ -318,63 +183,27 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
 			}
 			i++;
 			clevel >>= 3;
 		}
 	} else {
-		if ((ctype & CPU_CT_S) == 0)
-			arm_pcache_unified = 1;
-
 		/*
 		 * If you want to know how this code works, go read the ARM ARM.
 		 */
 
-		arm_pcache_type = CPU_CT_CTYPE(ctype);
-
-		if (arm_pcache_unified == 0) {
-			isize = CPU_CT_ISIZE(ctype);
-			multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
-			arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
-			if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
-				if (isize & CPU_CT_xSIZE_M)
-					arm_picache_line_size = 0; /* not present */
-				else
-					arm_picache_ways = 1;
-			} else {
-				arm_picache_ways = multiplier <<
-				    (CPU_CT_xSIZE_ASSOC(isize) - 1);
-			}
-			arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
-		}
-
 		dsize = CPU_CT_DSIZE(ctype);
 		multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
-		arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
+		arm_dcache_align = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
 		if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
 			if (dsize & CPU_CT_xSIZE_M)
-				arm_pdcache_line_size = 0; /* not present */
-			else
-				arm_pdcache_ways = 1;
-		} else {
-			arm_pdcache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+				arm_dcache_align = 0; /* not present */
 		}
-		arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
-
-		arm_dcache_align = arm_pdcache_line_size;
-
-		arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
-		arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
-		arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
-		    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
 
 	out:
 		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
 }
-#endif /* ARM9 || XSCALE */
 
 /*
  * Cannot panic here as we may not have a console yet ...
@@ -386,38 +215,6 @@ set_cpufuncs(void)
 	cputype = cp15_midr_get();
 	cputype &= CPU_ID_CPU_MASK;
 
-#if defined(CPU_ARM9E)
-	if (cputype == CPU_ID_MV88FR131 || cputype == CPU_ID_MV88FR571_VD ||
-	    cputype == CPU_ID_MV88FR571_41) {
-		uint32_t sheeva_ctrl;
-
-		sheeva_ctrl = (MV_DC_STREAM_ENABLE | MV_BTB_DISABLE |
-		    MV_L2_ENABLE);
-		/*
-		 * Workaround for Marvell MV78100 CPU: Cache prefetch
-		 * mechanism may affect the cache coherency validity,
-		 * so it needs to be disabled.
-		 *
-		 * Refer to errata document MV-S501058-00C.pdf (p. 3.1
-		 * L2 Prefetching Mechanism) for details.
-		 */
-		if (cputype == CPU_ID_MV88FR571_VD ||
-		    cputype == CPU_ID_MV88FR571_41)
-			sheeva_ctrl |= MV_L2_PREFETCH_DISABLE;
-
-		sheeva_control_ext(0xffffffff & ~MV_WA_ENABLE, sheeva_ctrl);
-
-		cpufuncs = sheeva_cpufuncs;
-		get_cachetype_cp15();
-		pmap_pte_init_generic();
-		goto out;
-	} else if (cputype == CPU_ID_ARM926EJS) {
-		cpufuncs = armv5_ec_cpufuncs;
-		get_cachetype_cp15();
-		pmap_pte_init_generic();
-		goto out;
-	}
-#endif /* CPU_ARM9E */
 #if defined(CPU_ARM1176)
 	if (cputype == CPU_ID_ARM1176JZS) {
 		cpufuncs = arm1176_cpufuncs;
@@ -469,46 +266,6 @@ out:
  * CPU Setup code
  */
 
-#if defined(CPU_ARM9E)
-static void
-arm10_setup(void)
-{
-	int cpuctrl, cpuctrlmask;
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_BPRD_ENABLE;
-	cpuctrlmask = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_ROM_ENABLE
-	    | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
-	    | CPU_CONTROL_BPRD_ENABLE
-	    | CPU_CONTROL_ROUNDROBIN | CPU_CONTROL_CPCLK;
-
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-
-	/* Clear out the cache */
-	cpu_idcache_wbinv_all();
-
-	/* Now really make sure they are clean.  */
-	__asm __volatile ("mcr\tp15, 0, r0, c7, c7, 0" : : );
-
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-
-	/* Set the control register */
-	cpu_control(0xffffffff, cpuctrl);
-
-	/* And again. */
-	cpu_idcache_wbinv_all();
-}
-#endif	/* CPU_ARM9E || CPU_ARM10 */
 
 #if defined(CPU_ARM1176) \
  || defined(CPU_MV_PJ4B) \

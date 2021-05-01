@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_format.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_format.3x,v 1.18 2020/10/17 23:43:11 tom Exp $
 .TH menu_format 3X ""
 .SH NAME
 \fBset_menu_format\fP,
 \fBmenu_format\fP \- set and get menu sizes
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_format(MENU *\fP\fImenu\fP\fB, int \fP\fIrows\fP\fB, int \fP\fIcols\fP\fB);\fP
 .br
-int set_menu_format(MENU *menu, int rows, int cols);
-.br
-void menu_format(const MENU *menu, int *rows, int *cols);
+\fBvoid menu_format(const MENU *\fP\fImenu\fP\fB, int *\fP\fIrows\fP\fB, int *\fP\fIcols\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_menu_format\fR sets the maximum display size of the given

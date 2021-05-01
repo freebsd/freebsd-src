@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -410,8 +410,7 @@ AcpiPsParseLoop (
                  */
                 WalkState->Op = NULL;
                 Status = AcpiDsGetPredicateValue (WalkState, ACPI_TO_POINTER (TRUE));
-                if (ACPI_FAILURE (Status) &&
-                    ((Status & AE_CODE_MASK) != AE_CODE_CONTROL))
+                if (ACPI_FAILURE (Status) && !ACPI_CNTL_EXCEPTION (Status))
                 {
                     if (Status == AE_AML_NO_RETURN_VALUE)
                     {

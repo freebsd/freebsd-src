@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockmgr.h>
@@ -60,6 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 PMC_SOFT_DECLARE( , , lock, failed);
 #endif
+
+/*
+ * Hack. There should be prio_t or similar so that this is not necessary.
+ */
+_Static_assert((PRILASTFLAG * 2) - 1 <= USHRT_MAX,
+    "prio flags wont fit in u_short pri in struct lock");
 
 CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
     ~(LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)));
@@ -280,8 +287,10 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
-	if (queue == SQ_EXCLUSIVE_QUEUE && (flags & LK_SLEEPFAIL) != 0)
-		lk->lk_exslpfail++;
+	if (queue == SQ_EXCLUSIVE_QUEUE && (flags & LK_SLEEPFAIL) != 0) {
+		if (lk->lk_exslpfail < USHRT_MAX)
+			lk->lk_exslpfail++;
+	}
 	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
@@ -345,7 +354,7 @@ retry_sleepq:
 		realexslp = sleepq_sleepcnt(&lk->lock_object,
 		    SQ_EXCLUSIVE_QUEUE);
 		if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
-			if (lk->lk_exslpfail < realexslp) {
+			if (lk->lk_exslpfail != USHRT_MAX && lk->lk_exslpfail < realexslp) {
 				lk->lk_exslpfail = 0;
 				queue = SQ_EXCLUSIVE_QUEUE;
 				v |= (x & LK_SHARED_WAITERS);
@@ -362,7 +371,6 @@ retry_sleepq:
 				    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
 				queue = SQ_SHARED_QUEUE;
 			}
-				
 		} else {
 			/*
 			 * Exclusive waiters sleeping with LK_SLEEPFAIL on
@@ -603,10 +611,10 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	if (LK_CAN_WITNESS(flags))
 		WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
 		    file, line, flags & LK_INTERLOCK ? ilk : NULL);
+	x = lockmgr_read_value(lk);
 	lock_delay_arg_init(&lda, &lockmgr_delay);
 	if (!lk_adaptive)
 		flags &= ~LK_ADAPTIVE;
-	x = lockmgr_read_value(lk);
 	/*
 	 * The lock may already be locked exclusive by curthread,
 	 * avoid deadlock.
@@ -984,17 +992,19 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	op = flags & LK_TYPE_MASK;
 	v = lockmgr_read_value(lk);
 	for (;;) {
-		if (LK_SHARERS_LOCK(v) > 1) {
+		if (LK_SHARERS(v) > 1) {
 			if (op == LK_TRYUPGRADE) {
 				LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
 				    __func__, lk);
 				error = EBUSY;
 				goto out;
 			}
-			if (lockmgr_sunlock_try(lk, &v)) {
+			if (atomic_fcmpset_rel_ptr(&lk->lk_lock, &v,
+			    v - LK_ONE_SHARER)) {
 				lockmgr_note_shared_release(lk, file, line);
 				goto out_xlock;
 			}
+			continue;
 		}
 		MPASS((v & ~LK_ALL_WAITERS) == LK_SHARERS_LOCK(1));
 
@@ -1168,7 +1178,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 	realexslp = sleepq_sleepcnt(&lk->lock_object, SQ_EXCLUSIVE_QUEUE);
 	if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
-		if (lk->lk_exslpfail < realexslp) {
+		if (lk->lk_exslpfail != USHRT_MAX && lk->lk_exslpfail < realexslp) {
 			lk->lk_exslpfail = 0;
 			queue = SQ_EXCLUSIVE_QUEUE;
 			v |= (x & LK_SHARED_WAITERS);

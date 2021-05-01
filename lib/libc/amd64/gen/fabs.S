@@ -39,7 +39,8 @@ ENTRY(fabs)
 	ret
 END(fabs)
 
-	.data
+	.section .rodata
+	.p2align 3
 signbit:
 	.quad	0x8000000000000000
 

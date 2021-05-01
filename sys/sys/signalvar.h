@@ -301,14 +301,14 @@ sigsetmasked(sigset_t *set, sigset_t *mask)
 #define	ksiginfo_init(ksi)			\
 do {						\
 	bzero(ksi, sizeof(ksiginfo_t));		\
-} while(0)
+} while (0)
 
 #define	ksiginfo_init_trap(ksi)			\
 do {						\
 	ksiginfo_t *kp = ksi;			\
 	bzero(kp, sizeof(ksiginfo_t));		\
 	kp->ksi_flags |= KSI_TRAP;		\
-} while(0)
+} while (0)
 
 static __inline void
 ksiginfo_copy(ksiginfo_t *src, ksiginfo_t *dst)
@@ -337,7 +337,7 @@ struct thread;
 #define	SIGIO_TRYLOCK()	mtx_trylock(&sigio_lock)
 #define	SIGIO_UNLOCK()	mtx_unlock(&sigio_lock)
 #define	SIGIO_LOCKED()	mtx_owned(&sigio_lock)
-#define	SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
+#define	SIGIO_ASSERT_LOCKED() mtx_assert(&sigio_lock, MA_OWNED)
 
 extern struct mtx	sigio_lock;
 
@@ -367,7 +367,7 @@ static inline int
 sigdeferstop(int mode)
 {
 
-	if (__predict_true(mode == SIGDEFERSTOP_NOP))
+	if (__predict_false(mode == SIGDEFERSTOP_NOP))
 		return (SIGDEFERSTOP_VAL_NCHG);
 	return (sigdeferstop_impl(mode));
 }

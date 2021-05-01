@@ -8,10 +8,6 @@
 #
 
 #
-# We want LINT to cover profiling as well.
-profile         2
-
-#
 # Enable the kernel DTrace hooks which are required to load the DTrace
 # kernel modules.
 #
@@ -423,6 +419,7 @@ options 	VGA_DEBUG
 
 # vt(4) drivers.
 device		vt_vga
+device		vt_vbefb
 
 # Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
 device		s3pci
@@ -768,6 +765,7 @@ device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
 device		aesni		# AES-NI OpenCrypto module
+device		ossl		# OpenSSL OpenCrypto module
 
 #
 # Laptop/Notebook options:
@@ -858,7 +856,13 @@ options 	PMAP_SHPGPERPROC=201
 #
 options 	NKPT=31
 
-
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
+
 #####################################################################
 # ABI Emulation
 
@@ -878,10 +882,6 @@ options 	LINPROCFS
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
 options 	LINSYSFS
-
-# Enable NDIS binary driver support
-options 	NDISAPI
-device		ndis
 
 
 #####################################################################
@@ -903,7 +903,6 @@ options 	PV_STATS
 
 options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
-options 	I586_PMC_GUPROF=0x70000
 options 	KBDIO_DEBUG=2
 options 	KBD_MAXRETRY=4
 options 	KBD_MAXWAIT=6

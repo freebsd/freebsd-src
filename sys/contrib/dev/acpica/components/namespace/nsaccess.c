@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -251,14 +251,13 @@ AcpiNsRootInitialize (
          * predefined names are at the root level. It is much easier to
          * just create and link the new node(s) here.
          */
-        NewNode = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_NAMESPACE_NODE));
+        NewNode = AcpiNsCreateNode (*ACPI_CAST_PTR (UINT32, InitVal->Name));
         if (!NewNode)
         {
             Status = AE_NO_MEMORY;
             goto UnlockAndExit;
         }
 
-        ACPI_COPY_NAMESEG (NewNode->Name.Ascii, InitVal->Name);
         NewNode->DescriptorType = ACPI_DESC_TYPE_NAMED;
         NewNode->Type = InitVal->Type;
 

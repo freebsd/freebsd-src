@@ -57,6 +57,7 @@ _INTERNALLIBS=	\
 		opts \
 		parse \
 		pe \
+		pfctl \
 		pmcstat \
 		sl \
 		sm \
@@ -118,7 +119,6 @@ _LIBRARIES=	\
 		figpar \
 		fstyp \
 		geom \
-		gnuregex \
 		gpio \
 		gssapi \
 		gssapi_krb5 \
@@ -146,7 +146,6 @@ _LIBRARIES=	\
 		memstat \
 		mp \
 		mt \
-		ncurses \
 		ncursesw \
 		netgraph \
 		netmap \
@@ -184,7 +183,6 @@ _LIBRARIES=	\
 		supcplusplus \
 		sysdecode \
 		tacplus \
-		termcap \
 		termcapw \
 		tpool \
 		ufs \
@@ -306,11 +304,7 @@ _DP_radius=	crypto
 _DP_rtld_db=	elf procstat
 _DP_procstat=	kvm util elf
 .if ${MK_CXX} == "yes"
-.if ${MK_LIBCPLUSPLUS} != "no"
 _DP_proc=	cxxrt
-.else
-_DP_proc=	supcplusplus
-.endif
 .endif
 .if ${MK_CDDL} != "no"
 _DP_proc+=	ctf
@@ -382,7 +376,6 @@ _DP_c+=		ssp_nonshared
 _DP_stats=	sbuf pthread
 _DP_stdthreads=	pthread
 _DP_tacplus=	md
-_DP_panel=	ncurses
 _DP_panelw=	ncursesw
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
@@ -400,6 +393,7 @@ _DP_zutil=	avl tpool
 _DP_be=		zfs spl nvpair zfsbootenv
 _DP_netmap=
 _DP_ifconfig=	m
+_DP_pfctl=	nv
 
 # OFED support
 .if ${MK_OFED} != "no"
@@ -577,6 +571,9 @@ LIBOPTS?=	${LIBOPTSDIR}/libopts${PIE_SUFFIX}.a
 LIBPARSEDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libparse
 LIBPARSE?=	${LIBPARSEDIR}/libparse${PIE_SUFFIX}.a
 
+LIBPFCTL=	${_LIB_OBJTOP}/lib/libpfctl
+LIBPFCTL?=	${LIBPFCTLDIR}/libpfctl${PIE_SUFFIX}.a
+
 LIBLPRDIR=	${_LIB_OBJTOP}/usr.sbin/lpr/common_source
 LIBLPR?=	${LIBLPRDIR}/liblpr${PIE_SUFFIX}.a
 
@@ -585,9 +582,6 @@ LIBFIFOLOG?=	${LIBFIFOLOGDIR}/libfifolog${PIE_SUFFIX}.a
 
 LIBBSNMPTOOLSDIR=	${_LIB_OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools${PIE_SUFFIX}.a
-
-LIBAMUDIR=	${_LIB_OBJTOP}/usr.sbin/amd/libamu
-LIBAMU?=	${LIBAMUDIR}/libamu${PIE_SUFFIX}.a
 
 LIBBE?=		${LIBBEDIR}/libbe${PIE_SUFFIX}.a
 
@@ -629,7 +623,6 @@ LIBOPENSMDIR=	${OBJTOP}/lib/ofed/libopensm
 LIBOSMVENDORDIR=${OBJTOP}/lib/ofed/libvendor
 
 LIBDIALOGDIR=	${OBJTOP}/gnu/lib/libdialog
-LIBGNUREGEXDIR=	${OBJTOP}/gnu/lib/libregex
 LIBSSPDIR=	${OBJTOP}/lib/libssp
 LIBSSP_NONSHAREDDIR=	${OBJTOP}/lib/libssp_nonshared
 LIBASN1DIR=	${OBJTOP}/kerberos5/lib/libasn1
@@ -670,14 +663,10 @@ LIBBSDXMLDIR=	${OBJTOP}/lib/libexpat
 LIBKVMDIR=	${OBJTOP}/lib/libkvm
 LIBPTHREADDIR=	${OBJTOP}/lib/libthr
 LIBMDIR=	${OBJTOP}/lib/msun
-LIBFORMDIR=	${OBJTOP}/lib/ncurses/form
-LIBFORMLIBWDIR=	${OBJTOP}/lib/ncurses/formw
-LIBMENUDIR=	${OBJTOP}/lib/ncurses/menu
-LIBMENULIBWDIR=	${OBJTOP}/lib/ncurses/menuw
-LIBNCURSESDIR=	${OBJTOP}/lib/ncurses/ncurses
-LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncursesw
-LIBPANELDIR=	${OBJTOP}/lib/ncurses/panel
-LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panelw
+LIBFORMWDIR=	${OBJTOP}/lib/ncurses/form
+LIBMENUWDIR=	${OBJTOP}/lib/ncurses/menu
+LIBNCURSESWDIR=	${OBJTOP}/lib/ncurses/ncurses
+LIBPANELWDIR=	${OBJTOP}/lib/ncurses/panel
 LIBCRYPTODIR=	${OBJTOP}/secure/lib/libcrypto
 LIBSPLDIR=	${OBJTOP}/cddl/lib/libspl
 LIBSSHDIR=	${OBJTOP}/secure/lib/libssh
@@ -686,7 +675,6 @@ LIBTEKENDIR=	${OBJTOP}/sys/teken/libteken
 LIBEGACYDIR=	${OBJTOP}/tools/build
 LIBLNDIR=	${OBJTOP}/usr.bin/lex/lib
 
-LIBTERMCAPDIR=	${LIBNCURSESDIR}
 LIBTERMCAPWDIR=	${LIBNCURSESWDIR}
 
 # Default other library directories to lib/libNAME.

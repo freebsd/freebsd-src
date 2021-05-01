@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
@@ -59,24 +58,18 @@ __FBSDID("$FreeBSD$");
  * XXX The volatile here is to avoid gcc's bogus constant folding and work
  *     around the lack of support for the FENV_ACCESS pragma.
  */
-#define	test(func, x, result, exceptmask, excepts)	do {		\
-	volatile long double _d = x;					\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_d), (result)));				 \
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
-} while (0)
-
-#define	test(func, x, result, exceptmask, excepts)	do {		\
-	volatile long double _d = x;					\
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)(_d), (result)));				 \
-	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+#define	test(func, x, result, exceptmask, excepts)	do { \
+	volatile long double _d = x;                           \
+	ATF_CHECK_EQ(0, feclearexcept(FE_ALL_EXCEPT));			\
+	CHECK_FPEQUAL((func)(_d), (result));			\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 
 #define	test_tol(func, z, result, tol)			do {		\
 	volatile long double _d = z;					\
 	debug("  testing %6s(%15La) ~= % .36Le\n", #func, _d, result);	\
-	assert(fpequal_tol((func)(_d), (result), (tol), CS_BOTH));	\
+	CHECK_FPEQUAL_TOL((func)(_d), (result), (tol), CS_BOTH);	\
 } while (0)
 
 /* Test all the functions that compute log(x). */
@@ -99,8 +92,8 @@ __FBSDID("$FreeBSD$");
 	test(log1pl, x, result, exceptmask, excepts);			\
 } while (0)
 
-static void
-run_generic_tests(void)
+ATF_TC_WITHOUT_HEAD(generic_tests);
+ATF_TC_BODY(generic_tests, tc)
 {
 
 	/* log(1) == 0, no exceptions raised */
@@ -128,8 +121,8 @@ run_generic_tests(void)
 	testall1(-1.0, -INFINITY, ALL_STD_EXCEPT & ~FE_INEXACT, FE_DIVBYZERO);
 }
 
-static void
-run_log2_tests(void)
+ATF_TC_WITHOUT_HEAD(log2_tests);
+ATF_TC_BODY(log2_tests, tc)
 {
 	unsigned i;
 
@@ -137,26 +130,23 @@ run_log2_tests(void)
 	 * We should insist that log2() return exactly the correct
 	 * result and not raise an inexact exception for powers of 2.
 	 */
-	assert(feclearexcept(FE_ALL_EXCEPT) == 0);
+	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));
 	for (i = FLT_MIN_EXP - FLT_MANT_DIG; i < FLT_MAX_EXP; i++) {
-		assert(log2f(ldexpf(1.0, i)) == i);
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK_EQ(i, log2f(ldexpf(1.0, i)));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 	for (i = DBL_MIN_EXP - DBL_MANT_DIG; i < DBL_MAX_EXP; i++) {
-		assert(log2(ldexp(1.0, i)) == i);
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
+		ATF_CHECK_EQ(i, log2(ldexp(1.0, i)));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 	for (i = LDBL_MIN_EXP - LDBL_MANT_DIG; i < LDBL_MAX_EXP; i++) {
-		assert(log2l(ldexpl(1.0, i)) == i);
-#if 0
-		/* XXX This test does not pass yet. */
-		assert(fetestexcept(ALL_STD_EXCEPT) == 0);
-#endif
+		ATF_CHECK_EQ(i, log2l(ldexpl(1.0, i)));
+		CHECK_FP_EXCEPTIONS(0, ALL_STD_EXCEPT);
 	}
 }
 
-static void
-run_roundingmode_tests(void)
+ATF_TC_WITHOUT_HEAD(roundingmode_tests);
+ATF_TC_BODY(roundingmode_tests, tc)
 {
 
 	/*
@@ -189,8 +179,8 @@ run_roundingmode_tests(void)
 	fesetround(FE_TONEAREST);
 }
 
-static void
-run_accuracy_tests(void)
+ATF_TC_WITHOUT_HEAD(accuracy_tests);
+ATF_TC_BODY(accuracy_tests, tc)
 {
 	static const struct {
 		float x;
@@ -217,10 +207,21 @@ run_accuracy_tests(void)
 		   1.29556709996247903756734359702926363e0L },
 		{  19.75 * 0x1p100,
 		   1.043037807481771029244272863419411534e2L,
-		   7.229787154734166181706169344438271459e1L,
+		   72.29787154734166181706169344438271459357255439172762452L,
 		   3.139856666636059855894123306947856631e1L },
 	};
         unsigned i;
+
+	long double log1p_ldbl_ulp = LDBL_ULP();
+#if LDBL_MANT_DIG > 64
+	/*
+	 * On ld128 platforms the log1p() implementation provides less accuracy,
+	 * but does still match the ld80 precision. Use the ld80 LDBL_ULP()
+	 * value for now to avoid losing test coverage for the other functions.
+	 * Reported as https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=253984
+	 */
+	log1p_ldbl_ulp = ldexpl(1.0, 1 - 64);
+#endif
 
 	for (i = 0; i < nitems(tests); i++) {
 		test_tol(log2, tests[i].x, tests[i].log2x, DBL_ULP());
@@ -238,14 +239,18 @@ run_accuracy_tests(void)
 			test_tol(log1pf, tests[i].x - 1, tests[i].logex,
 				 FLT_ULP());
 			test_tol(log1pl, tests[i].x - 1, tests[i].logex,
-				 LDBL_ULP());
+				 log1p_ldbl_ulp);
 		}
 	}
 }
 
-static void
-run_log1p_accuracy_tests(void)
+ATF_TC_WITHOUT_HEAD(log1p_accuracy_tests);
+ATF_TC_BODY(log1p_accuracy_tests, tc)
 {
+#if LDBL_MANT_DIG > 64
+	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
+		atf_tc_expect_fail("https://bugs.freebsd.org/253984");
+#endif
 
 	test_tol(log1pf, 0x0.333333p0F,
 		 1.82321546859847114303367992804596800640e-1L, FLT_ULP());
@@ -262,26 +267,14 @@ run_log1p_accuracy_tests(void)
 		 -2.23143551314209755752742563153765697950e-1L, LDBL_ULP());
 }
 
-int
-main(void)
+ATF_TP_ADD_TCS(tp)
 {
 
-	printf("1..5\n");
+	ATF_TP_ADD_TC(tp, generic_tests);
+	ATF_TP_ADD_TC(tp, log2_tests);
+	ATF_TP_ADD_TC(tp, roundingmode_tests);
+	ATF_TP_ADD_TC(tp, accuracy_tests);
+	ATF_TP_ADD_TC(tp, log1p_accuracy_tests);
 
-	run_generic_tests();
-	printf("ok 1 - logarithm\n");
-
-	run_log2_tests();
-	printf("ok 2 - logarithm\n");
-
-	run_roundingmode_tests();
-	printf("ok 3 - logarithm\n");
-
-	run_accuracy_tests();
-	printf("ok 4 - logarithm\n");
-
-	run_log1p_accuracy_tests();
-	printf("ok 5 - logarithm\n");
-
-	return (0);
+	return (atf_no_error());
 }

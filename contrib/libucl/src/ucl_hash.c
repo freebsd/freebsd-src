@@ -143,10 +143,10 @@ ucl_hash_caseless_func (const ucl_object_t *o)
 		u.c.c2 = lc_map[u.c.c2];
 		u.c.c3 = lc_map[u.c.c3];
 		u.c.c4 = lc_map[u.c.c4];
-		u.c.c1 = lc_map[u.c.c5];
-		u.c.c2 = lc_map[u.c.c6];
-		u.c.c3 = lc_map[u.c.c7];
-		u.c.c4 = lc_map[u.c.c8];
+		u.c.c5 = lc_map[u.c.c5];
+		u.c.c6 = lc_map[u.c.c6];
+		u.c.c7 = lc_map[u.c.c7];
+		u.c.c8 = lc_map[u.c.c8];
 		r = mum_hash_step (r, u.pp);
 	}
 
@@ -154,16 +154,22 @@ ucl_hash_caseless_func (const ucl_object_t *o)
 	switch (leftover) {
 	case 7:
 		u.c.c7 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 6:
 		u.c.c6 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 5:
 		u.c.c5 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 4:
 		u.c.c4 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 3:
 		u.c.c3 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 2:
 		u.c.c2 = lc_map[(unsigned char)s[i++]];
+		/* FALLTHRU */
 	case 1:
 		u.c.c1 = lc_map[(unsigned char)s[i]];
 		r = mum_hash_step (r, u.pp);
@@ -177,7 +183,45 @@ static inline int
 ucl_hash_caseless_equal (const ucl_object_t *k1, const ucl_object_t *k2)
 {
 	if (k1->keylen == k2->keylen) {
-		return memcmp (k1->key, k2->key, k1->keylen) == 0;
+		unsigned fp, i;
+		const char *s = k1->key, *d = k2->key;
+		unsigned char c1, c2, c3, c4;
+		union {
+			unsigned char c[4];
+			uint32_t n;
+		} cmp1, cmp2;
+		size_t leftover = k1->keylen % 4;
+
+		fp = k1->keylen - leftover;
+
+		for (i = 0; i != fp; i += 4) {
+			c1 = s[i], c2 = s[i + 1], c3 = s[i + 2], c4 = s[i + 3];
+			cmp1.c[0] = lc_map[c1];
+			cmp1.c[1] = lc_map[c2];
+			cmp1.c[2] = lc_map[c3];
+			cmp1.c[3] = lc_map[c4];
+
+			c1 = d[i], c2 = d[i + 1], c3 = d[i + 2], c4 = d[i + 3];
+			cmp2.c[0] = lc_map[c1];
+			cmp2.c[1] = lc_map[c2];
+			cmp2.c[2] = lc_map[c3];
+			cmp2.c[3] = lc_map[c4];
+
+			if (cmp1.n != cmp2.n) {
+				return 0;
+			}
+		}
+
+		while (leftover > 0) {
+			if (lc_map[(unsigned char)s[i]] != lc_map[(unsigned char)d[i]]) {
+				return 0;
+			}
+
+			leftover--;
+			i++;
+		}
+
+		return 1;
 	}
 
 	return 0;
@@ -193,17 +237,21 @@ ucl_hash_create (bool ignore_case)
 
 	new = UCL_ALLOC (sizeof (ucl_hash_t));
 	if (new != NULL) {
+		void *h;
 		kv_init (new->ar);
 
 		new->caseless = ignore_case;
 		if (ignore_case) {
-			khash_t(ucl_hash_caseless_node) *h = kh_init (ucl_hash_caseless_node);
-			new->hash = (void *)h;
+			h = (void *)kh_init (ucl_hash_caseless_node);
 		}
 		else {
-			khash_t(ucl_hash_node) *h = kh_init (ucl_hash_node);
-			new->hash = (void *)h;
+			h = (void *)kh_init (ucl_hash_node);
 		}
+		if (h == NULL) {
+			UCL_FREE (sizeof (ucl_hash_t), new);
+			return NULL;
+		}
+		new->hash = h;
 	}
 	return new;
 }
@@ -249,7 +297,7 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func func)
 	UCL_FREE (sizeof (*hashlin), hashlin);
 }
 
-void
+bool
 ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		const char *key, unsigned keylen)
 {
@@ -258,7 +306,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 	struct ucl_hash_elt *elt;
 
 	if (hashlin == NULL) {
-		return;
+		return false;
 	}
 
 	if (hashlin->caseless) {
@@ -267,7 +315,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_caseless_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj);
+			kv_push_safe (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
 		}
@@ -278,11 +326,16 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 		k = kh_put (ucl_hash_node, h, obj, &ret);
 		if (ret > 0) {
 			elt = &kh_value (h, k);
-			kv_push (const ucl_object_t *, hashlin->ar, obj);
+			kv_push_safe (const ucl_object_t *, hashlin->ar, obj, e0);
 			elt->obj = obj;
 			elt->ar_idx = kv_size (hashlin->ar) - 1;
+		} else if (ret < 0) {
+			goto e0;
 		}
 	}
+	return true;
+e0:
+	return false;
 }
 
 void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
@@ -331,13 +384,16 @@ struct ucl_hash_real_iter {
 	const ucl_object_t **end;
 };
 
+#define UHI_SETERR(ep, ern) {if (ep != NULL) *ep = (ern);}
+
 const void*
-ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
+ucl_hash_iterate2 (ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *ep)
 {
 	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *)(*iter);
 	const ucl_object_t *ret = NULL;
 
 	if (hashlin == NULL) {
+		UHI_SETERR(ep, EINVAL);
 		return NULL;
 	}
 
@@ -345,6 +401,7 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		it = UCL_ALLOC (sizeof (*it));
 
 		if (it == NULL) {
+			UHI_SETERR(ep, ENOMEM);
 			return NULL;
 		}
 
@@ -352,6 +409,7 @@ ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 		it->end = it->cur + hashlin->ar.n;
 	}
 
+	UHI_SETERR(ep, 0);
 	if (it->cur < it->end) {
 		ret = *it->cur++;
 	}
@@ -418,6 +476,7 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 {
 	khiter_t k;
 	struct ucl_hash_elt *elt;
+	size_t i;
 
 	if (hashlin == NULL) {
 		return;
@@ -430,8 +489,15 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 		k = kh_get (ucl_hash_caseless_node, h, obj);
 		if (k != kh_end (h)) {
 			elt = &kh_value (h, k);
+			i = elt->ar_idx;
 			kv_del (const ucl_object_t *, hashlin->ar, elt->ar_idx);
 			kh_del (ucl_hash_caseless_node, h, k);
+
+			/* Update subsequent elts */
+			for (; i < hashlin->ar.n; i ++) {
+				elt = &kh_value (h, i);
+				elt->ar_idx --;
+			}
 		}
 	}
 	else {
@@ -440,8 +506,132 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 		k = kh_get (ucl_hash_node, h, obj);
 		if (k != kh_end (h)) {
 			elt = &kh_value (h, k);
+			i = elt->ar_idx;
 			kv_del (const ucl_object_t *, hashlin->ar, elt->ar_idx);
 			kh_del (ucl_hash_node, h, k);
+
+			/* Update subsequent elts */
+			for (; i < hashlin->ar.n; i ++) {
+				elt = &kh_value (h, i);
+				elt->ar_idx --;
+			}
+		}
+	}
+}
+
+bool ucl_hash_reserve (ucl_hash_t *hashlin, size_t sz)
+{
+	if (hashlin == NULL) {
+		return false;
+	}
+
+	if (sz > hashlin->ar.m) {
+		kv_resize_safe (const ucl_object_t *, hashlin->ar, sz, e0);
+
+		if (hashlin->caseless) {
+			khash_t(ucl_hash_caseless_node) *h = (khash_t(
+					ucl_hash_caseless_node) *)
+					hashlin->hash;
+			kh_resize (ucl_hash_caseless_node, h, sz * 2);
+		} else {
+			khash_t(ucl_hash_node) *h = (khash_t(ucl_hash_node) *)
+					hashlin->hash;
+			kh_resize (ucl_hash_node, h, sz * 2);
+		}
+	}
+	return true;
+e0:
+	return false;
+}
+
+static int
+ucl_lc_cmp (const char *s, const char *d, size_t l)
+{
+	unsigned int fp, i;
+	unsigned char c1, c2, c3, c4;
+	union {
+		unsigned char c[4];
+		uint32_t n;
+	} cmp1, cmp2;
+	size_t leftover = l % 4;
+	int ret = 0;
+
+	fp = l - leftover;
+
+	for (i = 0; i != fp; i += 4) {
+		c1 = s[i], c2 = s[i + 1], c3 = s[i + 2], c4 = s[i + 3];
+		cmp1.c[0] = lc_map[c1];
+		cmp1.c[1] = lc_map[c2];
+		cmp1.c[2] = lc_map[c3];
+		cmp1.c[3] = lc_map[c4];
+
+		c1 = d[i], c2 = d[i + 1], c3 = d[i + 2], c4 = d[i + 3];
+		cmp2.c[0] = lc_map[c1];
+		cmp2.c[1] = lc_map[c2];
+		cmp2.c[2] = lc_map[c3];
+		cmp2.c[3] = lc_map[c4];
+
+		if (cmp1.n != cmp2.n) {
+			return cmp1.n - cmp2.n;
+		}
+	}
+
+	while (leftover > 0) {
+		if (lc_map[(unsigned char)s[i]] != lc_map[(unsigned char)d[i]]) {
+			return s[i] - d[i];
+		}
+
+		leftover--;
+		i++;
+	}
+
+	return ret;
+}
+
+static int
+ucl_hash_cmp_icase (const void *a, const void *b)
+{
+	const ucl_object_t *oa = *(const ucl_object_t **)a,
+			*ob = *(const ucl_object_t **)b;
+
+	if (oa->keylen == ob->keylen) {
+		return ucl_lc_cmp (oa->key, ob->key, oa->keylen);
+	}
+
+	return ((int)(oa->keylen)) - ob->keylen;
+}
+
+static int
+ucl_hash_cmp_case_sens (const void *a, const void *b)
+{
+	const ucl_object_t *oa = *(const ucl_object_t **)a,
+			*ob = *(const ucl_object_t **)b;
+
+	if (oa->keylen == ob->keylen) {
+		return memcmp (oa->key, ob->key, oa->keylen);
+	}
+
+	return ((int)(oa->keylen)) - ob->keylen;
+}
+
+void
+ucl_hash_sort (ucl_hash_t *hashlin, enum ucl_object_keys_sort_flags fl)
+{
+
+	if (fl & UCL_SORT_KEYS_ICASE) {
+		qsort (hashlin->ar.a, hashlin->ar.n, sizeof (ucl_object_t *),
+				ucl_hash_cmp_icase);
+	}
+	else {
+		qsort (hashlin->ar.a, hashlin->ar.n, sizeof (ucl_object_t *),
+				ucl_hash_cmp_case_sens);
+	}
+
+	if (fl & UCL_SORT_KEYS_RECURSIVE) {
+		for (size_t i = 0; i < hashlin->ar.n; i ++) {
+			if (ucl_object_type (hashlin->ar.a[i]) == UCL_OBJECT) {
+				ucl_hash_sort (hashlin->ar.a[i]->value.ov, fl);
+			}
 		}
 	}
 }

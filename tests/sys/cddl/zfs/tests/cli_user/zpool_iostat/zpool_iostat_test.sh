@@ -30,7 +30,7 @@ atf_test_case zpool_iostat_001_neg cleanup
 zpool_iostat_001_neg_head()
 {
 	atf_set "descr" "zpool iostat [pool_name ...] [interval]"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "require.user" root
 	atf_set "require.config" unprivileged_user
 }
@@ -56,7 +56,7 @@ atf_test_case zpool_iostat_002_pos cleanup
 zpool_iostat_002_pos_head()
 {
 	atf_set "descr" "zpool iostat [pool_name ...] [interval] [count]"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "require.user" root
 	atf_set "require.config" unprivileged_user
 }
@@ -82,7 +82,7 @@ atf_test_case zpool_iostat_003_neg
 zpool_iostat_003_neg_head()
 {
 	atf_set "descr" "Executing 'zpool iostat' with bad options fails"
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "require.user" unprivileged
 }
 zpool_iostat_003_neg_body()

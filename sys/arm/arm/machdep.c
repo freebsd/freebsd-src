@@ -48,7 +48,6 @@
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
-#include "opt_timer.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -107,12 +106,9 @@ __FBSDID("$FreeBSD$");
 #error FreeBSD/arm doesn't provide compatibility with releases prior to 10
 #endif
 
-#if __ARM_ARCH >= 6 && !defined(INTRNG)
-#error armv6 requires INTRNG
-#endif
 
-#ifndef _ARM_ARCH_5E
-#error FreeBSD requires ARMv5 or later
+#if __ARM_ARCH < 6
+#error FreeBSD requires ARMv6 or later
 #endif
 
 struct pcpu __pcpu[MAXCPU];
@@ -135,26 +131,10 @@ extern int *end;
 
 #ifdef FDT
 vm_paddr_t pmap_pa;
-#if __ARM_ARCH >= 6
 vm_offset_t systempage;
 vm_offset_t irqstack;
 vm_offset_t undstack;
 vm_offset_t abtstack;
-#else
-/*
- * This is the number of L2 page tables required for covering max
- * (hypothetical) memsize of 4GB and all kernel mappings (vectors, msgbuf,
- * stacks etc.), uprounded to be divisible by 4.
- */
-#define KERNEL_PT_MAX	78
-static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-struct pv_addr systempage;
-static struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-static struct pv_addr kernelstack;
-#endif /* __ARM_ARCH >= 6 */
 #endif /* FDT */
 
 #ifdef PLATFORM
@@ -198,22 +178,6 @@ arm_vector_init(vm_offset_t va, int which)
 	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
-#if __ARM_ARCH < 6
-	if (va == ARM_VECTORS_HIGH) {
-		/*
-		 * Enable high vectors in the system control reg (SCTLR).
-		 *
-		 * Assume the MD caller knows what it's doing here, and really
-		 * does want the vector page relocated.
-		 *
-		 * Note: This has to be done here (and not just in
-		 * cpu_setup()) because the vector page needs to be
-		 * accessible *before* cpu_startup() is called.
-		 * Think ddb(9) ...
-		 */
-		cpu_control(CPU_CONTROL_VECRELOC, CPU_CONTROL_VECRELOC);
-	}
-#endif
 }
 
 static void
@@ -221,9 +185,6 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
-	vm_page_t m;
-#endif
 
 	identify_arm_cpu();
 
@@ -248,19 +209,6 @@ cpu_startup(void *dummy)
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
-#if __ARM_ARCH < 6
-	vector_page_setprot(VM_PROT_READ);
-	pmap_postinit();
-#ifdef ARM_CACHE_LOCK_ENABLE
-	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
-	arm_lock_cache_line(ARM_TP_ADDRESS);
-#else
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
-	pmap_kenter_user(ARM_TP_ADDRESS, VM_PAGE_TO_PHYS(m));
-#endif
-	*(uint32_t *)ARM_RAS_START = 0;
-	*(uint32_t *)ARM_RAS_END = 0xffffffff;
-#endif
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -280,7 +228,6 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
-#if __ARM_ARCH >= 6
 	struct pcpu *pc;
 
 	pc = pcpu_find(cpu_id);
@@ -293,9 +240,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	*rate = pc->pc_clock;
 
 	return (0);
-#else
-	return (ENXIO);
-#endif
 }
 
 void
@@ -304,16 +248,12 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 	spinlock_enter();
-#ifndef NO_EVENTTIMERS
 	if (!busy)
 		cpu_idleclock();
-#endif
 	if (!sched_runnable())
 		cpu_sleep(0);
-#ifndef NO_EVENTTIMERS
 	if (!busy)
 		cpu_activeclock();
-#endif
 	spinlock_exit();
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
@@ -325,21 +265,6 @@ cpu_idle_wakeup(int cpu)
 	return (0);
 }
 
-#ifdef NO_EVENTTIMERS
-/*
- * Most ARM platforms don't need to do anything special to init their clocks
- * (they get intialized during normal device attachment), and by not defining a
- * cpu_initclocks() function they get this generic one.  Any platform that needs
- * to do something special can just provide their own implementation, which will
- * override this one due to the weak linkage.
- */
-void
-arm_generic_initclocks(void)
-{
-}
-__weak_reference(arm_generic_initclocks, cpu_initclocks);
-
-#else
 void
 cpu_initclocks(void)
 {
@@ -353,7 +278,6 @@ cpu_initclocks(void)
 	cpu_initclocks_bsp();
 #endif
 }
-#endif
 
 #ifdef PLATFORM
 void
@@ -378,6 +302,8 @@ DELAY(int usec)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
+	pcpu->pc_mpidr = 0xffffffff;
 }
 
 void
@@ -758,10 +684,9 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 void
 pcpu0_init(void)
 {
-#if __ARM_ARCH >= 6
 	set_curthread(&thread0);
-#endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	pcpup->pc_mpidr = cp15_mpidr_get() & 0xFFFFFF;
 	PCPU_SET(curthread, &thread0);
 }
 
@@ -783,7 +708,6 @@ init_proc0(vm_offset_t kstack)
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
 
-#if __ARM_ARCH >= 6
 void
 set_stackptrs(int cpu)
 {
@@ -795,19 +719,6 @@ set_stackptrs(int cpu)
 	set_stackptr(PSR_UND32_MODE,
 	    undstack + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
-#else
-void
-set_stackptrs(int cpu)
-{
-
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
-}
-#endif
 
 static void
 arm_kdb_init(void)
@@ -821,287 +732,6 @@ arm_kdb_init(void)
 }
 
 #ifdef FDT
-#if __ARM_ARCH < 6
-void *
-initarm(struct arm_boot_params *abp)
-{
-	struct mem_region mem_regions[FDT_MEM_REGIONS];
-	struct pv_addr kernel_l1pt;
-	struct pv_addr dpcpu;
-	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
-	uint64_t memsize;
-	uint32_t l2size;
-	char *env;
-	void *kmdp;
-	u_int l1pagetable;
-	int i, j, err_devmap, mem_regions_sz;
-
-	lastaddr = parse_boot_param(abp);
-	arm_physmem_kernaddr = abp->abp_physaddr;
-
-	memsize = 0;
-
-	cpuinfo_init();
-	set_cpufuncs();
-
-	/*
-	 * Find the dtb passed in by the boot loader.
-	 */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp != NULL)
-		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-	else
-		dtbp = (vm_offset_t)NULL;
-
-#if defined(FDT_DTB_STATIC)
-	/*
-	 * In case the device tree blob was not retrieved (from metadata) try
-	 * to use the statically embedded one.
-	 */
-	if (dtbp == (vm_offset_t)NULL)
-		dtbp = (vm_offset_t)&fdt_static_dtb;
-#endif
-
-	if (OF_install(OFW_FDT, 0) == FALSE)
-		panic("Cannot install FDT");
-
-	if (OF_init((void *)dtbp) != 0)
-		panic("OF_init failed with the found device tree");
-
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
-		panic("Cannot get physical memory regions");
-	physmem_hardware_regions(mem_regions, mem_regions_sz);
-
-	/* Grab reserved memory regions information from device tree. */
-	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		physmem_exclude_regions(mem_regions, mem_regions_sz,
-		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
-
-	/* Platform-specific initialisation */
-	platform_probe_and_attach();
-
-	pcpu0_init();
-
-	/* Do basic tuning, hz etc */
-	init_param1();
-
-	/* Calculate number of L2 tables needed for mapping vm_page_array */
-	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
-	l2size = (l2size >> L1_S_SHIFT) + 1;
-
-	/*
-	 * Add one table for end of kernel map, one for stacks, msgbuf and
-	 * L1 and L2 tables map,  one for vectors map and two for
-	 * l2 structures from pmap_bootstrap.
-	 */
-	l2size += 5;
-
-	/* Make it divisible by 4 */
-	l2size = (l2size + 3) & ~3;
-
-	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
-
-	/* Define a macro to simplify memory allocation */
-#define valloc_pages(var, np)						\
-	alloc_pages((var).pv_va, (np));					\
-	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
-
-#define alloc_pages(var, np)						\
-	(var) = freemempos;						\
-	freemempos += (np * PAGE_SIZE);					\
-	memset((char *)(var), 0, ((np) * PAGE_SIZE));
-
-	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
-		freemempos += PAGE_SIZE;
-	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
-
-	for (i = 0, j = 0; i < l2size; ++i) {
-		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
-			valloc_pages(kernel_pt_table[i],
-			    L2_TABLE_SIZE / PAGE_SIZE);
-			j = i;
-		} else {
-			kernel_pt_table[i].pv_va = kernel_pt_table[j].pv_va +
-			    L2_TABLE_SIZE_REAL * (i - j);
-			kernel_pt_table[i].pv_pa =
-			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
-			    abp->abp_physaddr;
-		}
-	}
-	/*
-	 * Allocate a page for the system page mapped to 0x00000000
-	 * or 0xffff0000. This page will just contain the system vectors
-	 * and can be shared by all processes.
-	 */
-	valloc_pages(systempage, 1);
-
-	/* Allocate dynamic per-cpu area. */
-	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
-	dpcpu_init((void *)dpcpu.pv_va, 0);
-
-	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
-	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
-	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
-	valloc_pages(kernelstack, kstack_pages);
-	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
-
-	/*
-	 * Now we start construction of the L1 page table
-	 * We start by mapping the L2 page tables into the L1.
-	 * This means that we can replace L1 mappings later on if necessary
-	 */
-	l1pagetable = kernel_l1pt.pv_va;
-
-	/*
-	 * Try to map as much as possible of kernel text and data using
-	 * 1MB section mapping and for the rest of initial kernel address
-	 * space use L2 coarse tables.
-	 *
-	 * Link L2 tables for mapping remainder of kernel (modulo 1MB)
-	 * and kernel structures
-	 */
-	l2_start = lastaddr & ~(L1_S_OFFSET);
-	for (i = 0 ; i < l2size - 1; i++)
-		pmap_link_l2pt(l1pagetable, l2_start + i * L1_S_SIZE,
-		    &kernel_pt_table[i]);
-
-	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-
-	/* Map kernel code and data */
-	pmap_map_chunk(l1pagetable, KERNVIRTADDR, abp->abp_physaddr,
-	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
-	/* Map L1 directory and allocated L2 page tables */
-	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,
-	    L1_TABLE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-
-	pmap_map_chunk(l1pagetable, kernel_pt_table[0].pv_va,
-	    kernel_pt_table[0].pv_pa,
-	    L2_TABLE_SIZE_REAL * l2size,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-
-	/* Map allocated DPCPU, stacks and msgbuf */
-	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa,
-	    freemempos - dpcpu.pv_va,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
-	/* Link and map the vector page */
-	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
-	    &kernel_pt_table[l2size - 1]);
-	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
-	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
-
-	/* Establish static device mappings. */
-	err_devmap = platform_devmap_init();
-	devmap_bootstrap(l1pagetable, NULL);
-	vm_max_kernel_address = platform_lastaddr();
-
-	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
-	pmap_pa = kernel_l1pt.pv_pa;
-	cpu_setttb(kernel_l1pt.pv_pa);
-	cpu_tlb_flushID();
-	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
-
-	/*
-	 * Now that proper page tables are installed, call cpu_setup() to enable
-	 * instruction and data caches and other chip-specific features.
-	 */
-	cpu_setup();
-
-	/*
-	 * Only after the SOC registers block is mapped we can perform device
-	 * tree fixups, as they may attempt to read parameters from hardware.
-	 */
-	OF_interpret("perform-fixup", 0);
-
-	platform_gpio_init();
-
-	cninit();
-
-	debugf("initarm: console initialized\n");
-	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
-	debugf(" boothowto = 0x%08x\n", boothowto);
-	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
-	arm_print_kenv();
-
-	/*
-	 * Dump the boot metadata. We have to wait for cninit() since console
-	 * output is required. If it's grossly incorrect the kernel will never
-	 * make it this far.
-	 */
-	if ((boothowto & RB_VERBOSE) &&
-	    getenv_is_true("debug.dump_modinfo_at_boot"))
-		preload_dump();
-
-	env = kern_getenv("kernelname");
-	if (env != NULL) {
-		strlcpy(kernelname, env, sizeof(kernelname));
-		freeenv(env);
-	}
-
-	if (err_devmap != 0)
-		printf("WARNING: could not fully configure devmap, error=%d\n",
-		    err_devmap);
-
-	platform_late_init();
-
-	/*
-	 * Pages were allocated during the secondary bootstrap for the
-	 * stacks for different CPU modes.
-	 * We must now set the r13 registers in the different CPU modes to
-	 * point to these stacks.
-	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
-	 * of the stack memory.
-	 */
-	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-
-	set_stackptrs(0);
-
-	/*
-	 * We must now clean the cache again....
-	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in cpu_setttb()
-	 * but since we are boot strapping the addresses used for the read
-	 * may have just been remapped and thus the cache could be out
-	 * of sync. A re-clean after the switch will cure this.
-	 * After booting there are no gross relocations of the kernel thus
-	 * this problem will not occur after initarm().
-	 */
-	cpu_idcache_wbinv_all();
-
-	undefined_init();
-
-	init_proc0(kernelstack.pv_va);
-
-	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-	pmap_bootstrap(freemempos, &kernel_l1pt);
-	msgbufp = (void *)msgbufpv.pv_va;
-	msgbufinit(msgbufp, msgbufsize);
-	mutex_init();
-
-	/*
-	 * Exclude the kernel (and all the things we allocated which immediately
-	 * follow the kernel) from the VM allocation pool but not from crash
-	 * dumps.  virtual_avail is a global variable which tracks the kva we've
-	 * "allocated" while setting up pmaps.
-	 *
-	 * Prepare the list of physical memory available to the vm subsystem.
-	 */
-	physmem_exclude_region(abp->abp_physaddr,
-	    (virtual_avail - KERNVIRTADDR), EXFLAG_NOALLOC);
-	physmem_init_kernel_globals();
-
-	init_param2(physmem);
-	dbg_monitor_init();
-	arm_kdb_init();
-
-	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
-	    sizeof(struct pcb)));
-}
-#else /* __ARM_ARCH < 6 */
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -1325,6 +955,4 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }
-
-#endif /* __ARM_ARCH < 6 */
 #endif /* FDT */

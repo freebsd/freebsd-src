@@ -40,20 +40,15 @@ __FBSDID("$FreeBSD$");
 #include "ipoib.h"
 #include <sys/eventhandler.h>
 
-static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
-		struct sockaddr *);
-
-
 #include <linux/module.h>
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 
-#include <linux/if_arp.h>	/* For ARPHRD_xxx */
 #include <linux/if_vlan.h>
-#include <net/ip.h>
-#include <net/ipv6.h>
+
+#include <net/infiniband.h>
 
 #include <rdma/ib_cache.h>
 
@@ -98,18 +93,7 @@ static struct net_device *ipoib_get_net_dev_by_params(
 		const union ib_gid *gid, const struct sockaddr *addr,
 		void *client_data);
 static void ipoib_start(struct ifnet *dev);
-static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	    const struct sockaddr *dst, struct route *ro);
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
-static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
-
-#define	IPOIB_MTAP(_ifp, _m)					\
-do {								\
-	if (bpf_peers_present((_ifp)->if_bpf)) {		\
-		M_ASSERTVALID(_m);				\
-		ipoib_mtap_mb((_ifp), (_m));			\
-	}							\
-} while (0)
 
 static struct unrhdr *ipoib_unrhdr;
 
@@ -135,37 +119,6 @@ ipoib_unrhdr_uninit(void *arg)
 	}
 }
 SYSUNINIT(ipoib_unrhdr_uninit, SI_SUB_KLD - 1, SI_ORDER_ANY, ipoib_unrhdr_uninit, NULL);
-
-/*
- * This is for clients that have an ipoib_header in the mbuf.
- */
-static void
-ipoib_mtap_mb(struct ifnet *ifp, struct mbuf *mb)
-{
-	struct ipoib_header *ih;
-	struct ether_header eh;
-
-	ih = mtod(mb, struct ipoib_header *);
-	eh.ether_type = ih->proto;
-	bcopy(ih->hwaddr, &eh.ether_dhost, ETHER_ADDR_LEN);
-	bzero(&eh.ether_shost, ETHER_ADDR_LEN);
-	mb->m_data += sizeof(struct ipoib_header);
-	mb->m_len -= sizeof(struct ipoib_header);
-	bpf_mtap2(ifp->if_bpf, &eh, sizeof(eh), mb);
-	mb->m_data -= sizeof(struct ipoib_header);
-	mb->m_len += sizeof(struct ipoib_header);
-}
-
-void
-ipoib_mtap_proto(struct ifnet *ifp, struct mbuf *mb, uint16_t proto)
-{
-	struct ether_header eh;
-
-	eh.ether_type = proto;
-	bzero(&eh.ether_shost, ETHER_ADDR_LEN);
-	bzero(&eh.ether_dhost, ETHER_ADDR_LEN);
-	bpf_mtap2(ifp->if_bpf, &eh, sizeof(eh), mb);
-}
 
 static struct ib_client ipoib_client = {
 	.name   = "ipoib",
@@ -787,7 +740,7 @@ ipoib_start_locked(struct ifnet *dev, struct ipoib_dev_priv *priv)
 		IFQ_DRV_DEQUEUE(&dev->if_snd, mb);
 		if (mb == NULL)
 			break;
-		IPOIB_MTAP(dev, mb);
+		INFINIBAND_BPF_MTAP(dev, mb);
 		ipoib_send_one(priv, mb);
 	}
 }
@@ -875,8 +828,7 @@ ipoib_detach(struct ipoib_dev_priv *priv)
 	dev = priv->dev;
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		priv->gone = 1;
-		bpfdetach(dev);
-		if_detach(dev);
+		infiniband_ifdetach(dev);
 		if_free(dev);
 		free_unr(ipoib_unrhdr, priv->unit);
 	} else
@@ -935,7 +887,6 @@ struct ipoib_dev_priv *
 ipoib_intf_alloc(const char *name)
 {
 	struct ipoib_dev_priv *priv;
-	struct sockaddr_dl *sdl;
 	struct ifnet *dev;
 
 	priv = ipoib_priv_alloc();
@@ -953,24 +904,17 @@ ipoib_intf_alloc(const char *name)
 	}
 	if_initname(dev, name, priv->unit);
 	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
-	dev->if_addrlen = INFINIBAND_ALEN;
-	dev->if_hdrlen = IPOIB_HEADER_LEN;
-	if_attach(dev);
+
+	infiniband_ifattach(dev, NULL, priv->broadcastaddr);
+
 	dev->if_init = ipoib_init;
 	dev->if_ioctl = ipoib_ioctl;
 	dev->if_start = ipoib_start;
-	dev->if_output = ipoib_output;
-	dev->if_input = ipoib_input;
-	dev->if_resolvemulti = ipoib_resolvemulti;
-	dev->if_baudrate = IF_Gbps(10);
-	dev->if_broadcastaddr = priv->broadcastaddr;
+
 	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
-	sdl = (struct sockaddr_dl *)dev->if_addr->ifa_addr;
-	sdl->sdl_type = IFT_INFINIBAND;
-	sdl->sdl_alen = dev->if_addrlen;
+
 	priv->dev = dev;
 	if_link_state_change(dev, LINK_STATE_DOWN);
-	bpfattach(dev, DLT_EN10MB, ETHER_HDR_LEN);
 
 	return dev->if_softc;
 }
@@ -1165,7 +1109,6 @@ ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
 	struct ifaddr *ifa;
 	int retval = 0;
 
-	CURVNET_SET(dev->if_vnet);
 	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr == NULL ||
@@ -1179,7 +1122,6 @@ ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
 		}
 	}
 	NET_EPOCH_EXIT(et);
-	CURVNET_RESTORE();
 
 	return (retval);
 }
@@ -1475,284 +1417,6 @@ ipoib_cleanup_module(void)
 	ib_sa_unregister_client(&ipoib_sa_client);
 	destroy_workqueue(ipoib_workqueue);
 }
-
-/*
- * Infiniband output routine.
- */
-static int
-ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
-{
-	u_char edst[INFINIBAND_ALEN];
-#if defined(INET) || defined(INET6)
-	struct llentry *lle = NULL;
-#endif
-	struct ipoib_header *eh;
-	int error = 0, is_gw = 0;
-	short type;
-
-	NET_EPOCH_ASSERT();
-
-	if (ro != NULL)
-		is_gw = (ro->ro_flags & RT_HAS_GW) != 0;
-#ifdef MAC
-	error = mac_ifnet_check_transmit(ifp, m);
-	if (error)
-		goto bad;
-#endif
-
-	M_PROFILE(m);
-	if (ifp->if_flags & IFF_MONITOR) {
-		error = ENETDOWN;
-		goto bad;
-	}
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
-		error = ENETDOWN;
-		goto bad;
-	}
-
-	switch (dst->sa_family) {
-#ifdef INET
-	case AF_INET:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, lle->ll_addr, sizeof(edst));
-		else if (m->m_flags & M_MCAST)
-			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
-		else
-			error = arpresolve(ifp, is_gw, m, dst, edst, NULL, NULL);
-		if (error)
-			return (error == EWOULDBLOCK ? 0 : error);
-		type = htons(ETHERTYPE_IP);
-		break;
-	case AF_ARP:
-	{
-		struct arphdr *ah;
-		ah = mtod(m, struct arphdr *);
-		ah->ar_hrd = htons(ARPHRD_INFINIBAND);
-
-		switch(ntohs(ah->ar_op)) {
-		case ARPOP_REVREQUEST:
-		case ARPOP_REVREPLY:
-			type = htons(ETHERTYPE_REVARP);
-			break;
-		case ARPOP_REQUEST:
-		case ARPOP_REPLY:
-		default:
-			type = htons(ETHERTYPE_ARP);
-			break;
-		}
-
-		if (m->m_flags & M_BCAST)
-			bcopy(ifp->if_broadcastaddr, edst, INFINIBAND_ALEN);
-		else
-			bcopy(ar_tha(ah), edst, INFINIBAND_ALEN);
-
-	}
-	break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
-			memcpy(edst, lle->ll_addr, sizeof(edst));
-		else if (m->m_flags & M_MCAST)
-			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
-		else
-			error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL, NULL);
-		if (error)
-			return error;
-		type = htons(ETHERTYPE_IPV6);
-		break;
-#endif
-
-	default:
-		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
-		error = EAFNOSUPPORT;
-		goto bad;
-	}
-
-	/*
-	 * Add local net header.  If no space in first mbuf,
-	 * allocate another.
-	 */
-	M_PREPEND(m, IPOIB_HEADER_LEN, M_NOWAIT);
-	if (m == NULL) {
-		error = ENOBUFS;
-		goto bad;
-	}
-	eh = mtod(m, struct ipoib_header *);
-	(void)memcpy(&eh->proto, &type, sizeof(eh->proto));
-	(void)memcpy(&eh->hwaddr, edst, sizeof (edst));
-
-	/*
-	 * Queue message on interface, update output statistics if
-	 * successful, and start output if interface not yet active.
-	 */
-	return ((ifp->if_transmit)(ifp, m));
-bad:
-	if (m != NULL)
-		m_freem(m);
-	return (error);
-}
-
-/*
- * Upper layer processing for a received Infiniband packet.
- */
-void
-ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
-{
-	struct epoch_tracker et;
-	int isr;
-
-#ifdef MAC
-	/*
-	 * Tag the mbuf with an appropriate MAC label before any other
-	 * consumers can get to it.
-	 */
-	mac_ifnet_create_mbuf(ifp, m);
-#endif
-	/* Allow monitor mode to claim this frame, after stats are updated. */
-	if (ifp->if_flags & IFF_MONITOR) {
-		if_printf(ifp, "discard frame at IFF_MONITOR\n");
-		m_freem(m);
-		return;
-	}
-	/*
-	 * Dispatch frame to upper layer.
-	 */
-	switch (proto) {
-#ifdef INET
-	case ETHERTYPE_IP:
-		isr = NETISR_IP;
-		break;
-
-	case ETHERTYPE_ARP:
-		if (ifp->if_flags & IFF_NOARP) {
-			/* Discard packet if ARP is disabled on interface */
-			m_freem(m);
-			return;
-		}
-		isr = NETISR_ARP;
-		break;
-#endif
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		isr = NETISR_IPV6;
-		break;
-#endif
-	default:
-		goto discard;
-	}
-	NET_EPOCH_ENTER(et);
-	netisr_dispatch(isr, m);
-	NET_EPOCH_EXIT(et);
-	return;
-
-discard:
-	m_freem(m);
-}
-
-/*
- * Process a received Infiniband packet.
- */
-static void
-ipoib_input(struct ifnet *ifp, struct mbuf *m)
-{
-	struct ipoib_header *eh;
-
-	if ((ifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		return;
-	}
-	CURVNET_SET_QUIET(ifp->if_vnet);
-
-	/* Let BPF have it before we strip the header. */
-	IPOIB_MTAP(ifp, m);
-	eh = mtod(m, struct ipoib_header *);
-	/*
-	 * Reset layer specific mbuf flags to avoid confusing upper layers.
-	 * Strip off Infiniband header.
-	 */
-	m->m_flags &= ~M_VLANTAG;
-	m_clrprotoflags(m);
-	m_adj(m, IPOIB_HEADER_LEN);
-
-	if (IPOIB_IS_MULTICAST(eh->hwaddr)) {
-		if (memcmp(eh->hwaddr, ifp->if_broadcastaddr,
-		    ifp->if_addrlen) == 0)
-			m->m_flags |= M_BCAST;
-		else
-			m->m_flags |= M_MCAST;
-		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
-	}
-
-	ipoib_demux(ifp, m, ntohs(eh->proto));
-	CURVNET_RESTORE();
-}
-
-static int
-ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
-	struct sockaddr *sa)
-{
-	struct sockaddr_dl *sdl;
-#ifdef INET
-	struct sockaddr_in *sin;
-#endif
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-#endif
-	u_char *e_addr;
-
-	switch(sa->sa_family) {
-	case AF_LINK:
-		/*
-		 * No mapping needed. Just check that it's a valid MC address.
-		 */
-		sdl = (struct sockaddr_dl *)sa;
-		e_addr = LLADDR(sdl);
-		if (!IPOIB_IS_MULTICAST(e_addr))
-			return EADDRNOTAVAIL;
-		*llsa = NULL;
-		return 0;
-
-#ifdef INET
-	case AF_INET:
-		sin = (struct sockaddr_in *)sa;
-		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-			return EADDRNOTAVAIL;
-		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
-		sdl->sdl_alen = INFINIBAND_ALEN;
-		e_addr = LLADDR(sdl);
-		ip_ib_mc_map(sin->sin_addr.s_addr, ifp->if_broadcastaddr,
-		    e_addr);
-		*llsa = (struct sockaddr *)sdl;
-		return 0;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		sin6 = (struct sockaddr_in6 *)sa;
-		/*
-		 * An IP6 address of 0 means listen to all
-		 * of the multicast address used for IP6.  
-		 * This has no meaning in ipoib.
-		 */
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
-			return EADDRNOTAVAIL;
-		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-			return EADDRNOTAVAIL;
-		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
-		sdl->sdl_alen = INFINIBAND_ALEN;
-		e_addr = LLADDR(sdl);
-		ipv6_ib_mc_map(&sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);
-		*llsa = (struct sockaddr *)sdl;
-		return 0;
-#endif
-
-	default:
-		return EAFNOSUPPORT;
-	}
-}
-
 module_init_order(ipoib_init_module, SI_ORDER_FIFTH);
 module_exit_order(ipoib_cleanup_module, SI_ORDER_FIFTH);
 
@@ -1769,4 +1433,5 @@ static moduledata_t ipoib_mod = {
 
 DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_LAST, SI_ORDER_ANY);
 MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
+MODULE_DEPEND(ipoib, if_infiniband, 1, 1, 1);
 MODULE_DEPEND(ipoib, linuxkpi, 1, 1, 1);

@@ -191,8 +191,7 @@ vxlan_create(int s, struct ifreq *ifr)
 	vxlan_check_params();
 
 	ifr->ifr_data = (caddr_t) &params;
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
+	ioctl_ifcreate(s, ifr);
 }
 
 static
@@ -642,5 +641,5 @@ vxlan_ctor(void)
 		cmd_register(&vxlan_cmds[i]);
 	af_register(&af_vxlan);
 	callback_register(vxlan_cb, NULL);
-	clone_setdefcallback("vxlan", vxlan_create);
+	clone_setdefcallback_prefix("vxlan", vxlan_create);
 }

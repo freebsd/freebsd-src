@@ -483,9 +483,9 @@ readreg(uint32_t reg)
 #define JZ_SMBFHCNT	0x1C /* Fast speed SMB SCL high count */
 #define JZ_SMBFLCNT	0x20 /* Fast speed SMB SCL low count */
 #define JZ_SMBINTST	0x2C /* SMB Interrupt Status */
-	#define JZ_ISTT		0x400	/* START or RESTART occured */
-	#define JZ_ISTP		0x200	/* STOP occured */
-	#define JZ_TXABT	0x40	/* ABORT occured */
+	#define JZ_ISTT		0x400	/* START or RESTART occurred */
+	#define JZ_ISTP		0x200	/* STOP occurred */
+	#define JZ_TXABT	0x40	/* ABORT occurred */
 	#define JZ_TXEMP	0x10	/* TX FIFO is low */
 	#define JZ_TXOF		0x08	/* TX FIFO is high */
 	#define JZ_RXFL		0x04	/* RX FIFO is at  JZ_SMBRXTL*/

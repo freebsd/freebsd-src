@@ -61,6 +61,9 @@
 #define NET_EVENT_H
 
 #include "dnscrypt/dnscrypt.h"
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+#include <nghttp2/nghttp2.h>
+#endif
 
 struct sldns_buffer;
 struct comm_point;
@@ -68,10 +71,15 @@ struct comm_reply;
 struct tcl_list;
 struct ub_event_base;
 
+struct mesh_state;
+struct mesh_area;
+
 /* internal event notification data storage structure. */
 struct internal_event;
 struct internal_base;
 struct internal_timer; /* A sub struct of the comm_timer super struct */
+
+enum listen_type;
 
 /** callback from communication point function type */
 typedef int comm_point_callback_type(struct comm_point*, void*, int, 
@@ -87,6 +95,9 @@ typedef int comm_point_callback_type(struct comm_point*, void*, int,
 #define NETEVENT_CAPSFAIL -3
 /** to pass done transfer to callback function; http file is complete */
 #define NETEVENT_DONE -4
+/** to pass write of the write packet is done to callback function
+ * used when tcp_write_and_read is enabled */
+#define NETEVENT_PKT_WRITTEN -5
 
 /** timeout to slow accept calls when not possible, in msec. */
 #define NETEVENT_SLOW_ACCEPT_TIME 2000
@@ -155,6 +166,8 @@ struct comm_reply {
 struct comm_point {
 	/** behind the scenes structure, with say libevent info. alloced. */
 	struct internal_event* ev;
+	/** if the event is added or not */
+	int event_added;
 
 	/** file descriptor for communication point */
 	int fd;
@@ -205,6 +218,15 @@ struct comm_point {
 	} ssl_shake_state;
 
 	/* -------- HTTP ------- */
+	/** Do not allow connection to use HTTP version lower than this. 0=no
+	 * minimum. */
+	enum {
+		http_version_none = 0,
+		http_version_2 = 2
+	} http_min_version;
+	/** http endpoint */
+	char* http_endpoint;
+	/* -------- HTTP/1.1 ------- */
 	/** Currently reading in http headers */
 	int http_in_headers;
 	/** Currently reading in chunk headers, 0=not, 1=firstline, 2=unused
@@ -216,6 +238,18 @@ struct comm_point {
 	struct sldns_buffer* http_temp;
 	/** http stored content in buffer */
 	size_t http_stored;
+	/* -------- HTTP/2 ------- */
+	/** http2 session */
+	struct http2_session* h2_session;
+	/** set to 1 if h2 is negotiated to be used (using alpn) */
+	int use_h2;
+	/** stream currently being handled */
+	struct http2_stream* h2_stream;
+	/** maximum allowed query buffer size, per stream */
+	size_t http2_stream_max_qbuffer_size;
+	/** maximum number of HTTP/2 streams per connection. Send in HTTP/2
+	 * SETTINGS frame. */
+	uint32_t http2_max_streams;
 
 	/* -------- dnstap ------- */
 	/** the dnstap environment */
@@ -246,6 +280,44 @@ struct comm_point {
 	/** if set, the connection is closed on error, on timeout, 
 	    and after read/write completes. No callback is done. */
 	int tcp_do_close;
+
+	/** flag that indicates the stream is both written and read from. */
+	int tcp_write_and_read;
+
+	/** byte count for written length over write channel, for when
+	 * tcp_write_and_read is enabled.  When tcp_write_and_read is enabled,
+	 * this is the counter for writing, the one for reading is in the
+	 * commpoint.buffer sldns buffer.  The counter counts from 0 to
+	 * 2+tcp_write_pkt_len, and includes the tcp length bytes. */
+	size_t tcp_write_byte_count;
+
+	/** packet to write currently over the write channel. for when
+	 * tcp_write_and_read is enabled.  When tcp_write_and_read is enabled,
+	 * this is the buffer for the written packet, the commpoint.buffer
+	 * sldns buffer is the buffer for the received packet. */
+	uint8_t* tcp_write_pkt;
+	/** length of tcp_write_pkt in bytes */
+	size_t tcp_write_pkt_len;
+
+	/** if set try to read another packet again (over connection with
+	 * multiple packets), once set, tries once, then zero again,
+	 * so set it in the packet complete section.
+	 * The pointer itself has to be set before the callback is invoked,
+	 * when you set things up, and continue to exist also after the
+	 * commpoint is closed and deleted in your callback.  So that after
+	 * the callback cleans up netevent can see what it has to do.
+	 * Or leave NULL if it is not used at all. */
+	int* tcp_more_read_again;
+
+	/** if set try to write another packet (over connection with
+	 * multiple packets), once set, tries once, then zero again,
+	 * so set it in the packet complete section.
+	 * The pointer itself has to be set before the callback is invoked,
+	 * when you set things up, and continue to exist also after the
+	 * commpoint is closed and deleted in your callback.  So that after
+	 * the callback cleans up netevent can see what it has to do.
+	 * Or leave NULL if it is not used at all. */
+	int* tcp_more_write_again;
 
 	/** if set, read/write completes:
 		read/write state of tcp is toggled.
@@ -456,10 +528,15 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * @param num: becomes max_tcp_count, the routine allocates that
  *	many tcp handler commpoints.
  * @param idle_timeout: TCP idle timeout in ms.
+ * @param harden_large_queries: whether query size should be limited.
+ * @param http_max_streams: maximum number of HTTP/2 streams per connection.
+ * @param http_endpoint: HTTP endpoint to service queries on
  * @param tcp_conn_limit: TCP connection limit info.
  * @param bufsize: size of buffer to create for handlers.
  * @param spoolbuf: shared spool buffer for tcp_req_info structures.
  * 	or NULL to not create those structures in the tcp handlers.
+ * @param port_type: the type of port we are creating a TCP listener for. Used
+ * 	to select handler type to use.
  * @param callback: callback function pointer for TCP handlers.
  * @param callback_arg: will be passed to your callback function.
  * @return: returns the TCP listener commpoint. You can find the
@@ -468,8 +545,11 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * Inits timeout to NULL. All handlers are on the free list.
  */
 struct comm_point* comm_point_create_tcp(struct comm_base* base,
-	int fd, int num, int idle_timeout, struct tcl_list* tcp_conn_limit,
+	int fd, int num, int idle_timeout, int harden_large_queries,
+	uint32_t http_max_streams, char* http_endpoint,
+	struct tcl_list* tcp_conn_limit,
 	size_t bufsize, struct sldns_buffer* spoolbuf,
+	enum listen_type port_type,
 	comm_point_callback_type* callback, void* callback_arg);
 
 /**
@@ -552,12 +632,14 @@ void comm_point_drop_reply(struct comm_reply* repinfo);
  * Send an udp message over a commpoint.
  * @param c: commpoint to send it from.
  * @param packet: what to send.
- * @param addr: where to send it to.
+ * @param addr: where to send it to.   If NULL, send is performed,
+ * 	for connected sockets, to the connected address.
  * @param addrlen: length of addr.
+ * @param is_connected: if the UDP socket is connect()ed.
  * @return: false on a failure.
  */
 int comm_point_send_udp_msg(struct comm_point* c, struct sldns_buffer* packet,
-	struct sockaddr* addr, socklen_t addrlen);
+	struct sockaddr* addr, socklen_t addrlen,int is_connected);
 
 /**
  * Stop listening for input on the commpoint. No callbacks will happen.
@@ -581,6 +663,16 @@ void comm_point_start_listening(struct comm_point* c, int newfd, int msec);
  * @param wr: if true, listens for writing.
  */
 void comm_point_listen_for_rw(struct comm_point* c, int rd, int wr);
+
+/**
+ * For TCP handlers that use c->tcp_timeout_msec, this routine adjusts
+ * it with the minimum.  Otherwise, a 0 value advertised without the
+ * minimum applied moves to a 0 in comm_point_start_listening and that
+ * routine treats it as no timeout, listen forever, which is not wanted.
+ * @param c: comm point to use the tcp_timeout_msec of.
+ * @return adjusted tcp_timeout_msec value with the minimum if smaller.
+ */
+int adjusted_tcp_timeout(struct comm_point* c);
 
 /**
  * Get size of memory used by comm point.
@@ -722,6 +814,110 @@ void comm_point_tcp_handle_callback(int fd, short event, void* arg);
  * @param arg: the comm_point structure.
  */
 void comm_point_http_handle_callback(int fd, short event, void* arg);
+
+/**
+ * HTTP2 session.  HTTP2 related info per comm point.
+ */
+struct http2_session {
+	/** first item in list of streams */
+	struct http2_stream* first_stream;
+#ifdef HAVE_NGHTTP2
+	/** nghttp2 session */
+	nghttp2_session *session;
+	/** store nghttp2 callbacks for easy reuse */
+	nghttp2_session_callbacks* callbacks;
+#endif
+	/** comm point containing buffer used to build answer in worker or
+	 * module */
+	struct comm_point* c;
+	/** session is instructed to get dropped (comm port will be closed) */
+	int is_drop;
+	/** postpone dropping the session, can be used to prevent dropping
+	 * while being in a callback */
+	int postpone_drop;
+};
+
+/** enum of HTTP status */
+enum http_status {
+	HTTP_STATUS_OK = 200,
+	HTTP_STATUS_BAD_REQUEST = 400,
+	HTTP_STATUS_NOT_FOUND = 404,
+	HTTP_STATUS_PAYLOAD_TOO_LARGE = 413,
+	HTTP_STATUS_URI_TOO_LONG = 414,
+	HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE = 415,
+	HTTP_STATUS_NOT_IMPLEMENTED = 501
+};
+
+/**
+ * HTTP stream. Part of list of HTTP2 streams per session.
+ */
+struct http2_stream {
+	/** next stream in list per session */
+	struct http2_stream* next;
+	/** previous stream in list per session */
+	struct http2_stream* prev;
+	/** HTTP2 stream ID is an unsigned 31-bit integer */
+	int32_t stream_id;
+	/** HTTP method used for this stream */
+	enum {
+		HTTP_METHOD_POST = 1,
+		HTTP_METHOD_GET,
+		HTTP_METHOD_UNSUPPORTED
+	} http_method;
+	/** message contains invalid content type */
+	int invalid_content_type;
+	/** message body content type */
+	size_t content_length;
+	/** HTTP response status */
+	enum http_status status;
+	/** request for non existing endpoint */
+	int invalid_endpoint;
+	/** query in request is too large */
+	int query_too_large;
+	/** buffer to store query into. Can't use session shared buffer as query
+	 * can arrive in parts, intertwined with frames for other queries. */
+	struct sldns_buffer* qbuffer;
+	/** buffer to store response into. Can't use shared buffer as a next
+	 * query read callback can overwrite it before it is send out. */
+	struct sldns_buffer* rbuffer;
+	/** mesh area containing mesh state */
+	struct mesh_area* mesh;
+	/** mesh state for query. Used to remove mesh reply before closing
+	 * stream. */
+	struct mesh_state* mesh_state;
+};
+
+#ifdef HAVE_NGHTTP2
+/** nghttp2 receive cb. Read from SSL connection into nghttp2 buffer */
+ssize_t http2_recv_cb(nghttp2_session* session, uint8_t* buf,
+	size_t len, int flags, void* cb_arg);
+/** nghttp2 send callback. Send from nghttp2 buffer to ssl socket */
+ssize_t http2_send_cb(nghttp2_session* session, const uint8_t* buf,
+	size_t len, int flags, void* cb_arg);
+/** nghttp2 callback on closing stream */
+int http2_stream_close_cb(nghttp2_session* session, int32_t stream_id,
+	uint32_t error_code, void* cb_arg);
+#endif
+
+/**
+ * Create new http2 stream
+ * @param stream_id: ID for stream to create.
+ * @return malloc'ed stream, NULL on error
+ */
+struct http2_stream* http2_stream_create(int32_t stream_id);
+
+/**
+ * Add new stream to session linked list
+ * @param h2_session: http2 session to add stream to
+ * @param h2_stream: stream to add to session list
+ */
+void http2_session_add_stream(struct http2_session* h2_session,
+	struct http2_stream* h2_stream);
+
+/** Add mesh state to stream. To be able to remove mesh reply on stream closure
+ */
+void http2_stream_add_meshstate(struct http2_stream* h2_stream,
+	struct mesh_area* mesh, struct mesh_state* m);
 
 /**
  * This routine is published for checks and tests, and is only used internally.

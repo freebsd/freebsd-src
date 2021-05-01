@@ -182,6 +182,31 @@ _thr_rtld_clr_flag(int mask __unused)
 	return (0);
 }
 
+/*
+ * ABI bug workaround: This symbol must be present for rtld to accept
+ * RTLI_VERSION from RtldLockInfo
+ */
+extern char _pli_rtli_version;
+char _pli_rtli_version;
+
+static char *
+_thr_dlerror_loc(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	return (curthread->dlerror_msg);
+}
+
+static int *
+_thr_dlerror_seen(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	return (&curthread->dlerror_seen);
+}
+
 void
 _thr_rtld_init(void)
 {
@@ -205,6 +230,7 @@ _thr_rtld_init(void)
 	mprotect(NULL, 0, 0);
 	_rtld_get_stack_prot();
 
+	li.rtli_version = RTLI_VERSION;
 	li.lock_create  = _thr_rtld_lock_create;
 	li.lock_destroy = _thr_rtld_lock_destroy;
 	li.rlock_acquire = _thr_rtld_rlock_acquire;
@@ -213,6 +239,9 @@ _thr_rtld_init(void)
 	li.thread_set_flag = _thr_rtld_set_flag;
 	li.thread_clr_flag = _thr_rtld_clr_flag;
 	li.at_fork = NULL;
+	li.dlerror_loc = _thr_dlerror_loc;
+	li.dlerror_loc_sz = sizeof(curthread->dlerror_msg);
+	li.dlerror_seen = _thr_dlerror_seen;
 
 	/*
 	 * Preresolve the symbols needed for the fork interposer.  We

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -616,7 +616,7 @@ AcpiExFieldDatumIo (
          * RegionField case and write the datum to the Operation Region
          */
 
-        /*lint -fallthrough */
+        ACPI_FALLTHROUGH;
 
     case ACPI_TYPE_LOCAL_REGION_FIELD:
         /*

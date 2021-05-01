@@ -329,7 +329,8 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 
 		/* open fd */
 		fd = create_tcp_accept_sock(res, 1, &noproto, 0,
-			cfg->ip_transparent, 0, cfg->ip_freebind, cfg->use_systemd, cfg->ip_dscp);
+			cfg->ip_transparent, 0, 0, cfg->ip_freebind,
+			cfg->use_systemd, cfg->ip_dscp);
 		freeaddrinfo(res);
 	}
 
@@ -348,11 +349,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 	/* alloc */
 	n = (struct listen_port*)calloc(1, sizeof(*n));
 	if(!n) {
-#ifndef USE_WINSOCK
-		close(fd);
-#else
-		closesocket(fd);
-#endif
+		sock_close(fd);
 		log_err("out of memory");
 		return 0;
 	}
@@ -461,11 +458,7 @@ int remote_accept_callback(struct comm_point* c, void* arg, int err,
 	if(rc->active >= rc->max_active) {
 		log_warn("drop incoming remote control: too many connections");
 	close_exit:
-#ifndef USE_WINSOCK
-		close(newfd);
-#else
-		closesocket(newfd);
-#endif
+		sock_close(newfd);
 		return 0;
 	}
 
@@ -574,11 +567,8 @@ ssl_print_text(RES* res, const char* text)
 			if(r == -1) {
 				if(errno == EAGAIN || errno == EINTR)
 					continue;
-#ifndef USE_WINSOCK
-				log_err("could not send: %s", strerror(errno));
-#else
-				log_err("could not send: %s", wsa_strerror(WSAGetLastError()));
-#endif
+				log_err("could not send: %s",
+					sock_strerror(errno));
 				return 0;
 			}
 			at += r;
@@ -635,11 +625,8 @@ ssl_read_line(RES* res, char* buf, size_t max)
 					}
 					if(errno == EINTR || errno == EAGAIN)
 						continue;
-#ifndef USE_WINSOCK
-					log_err("could not recv: %s", strerror(errno));
-#else
-					log_err("could not recv: %s", wsa_strerror(WSAGetLastError()));
-#endif
+					log_err("could not recv: %s",
+						sock_strerror(errno));
 					return 0;
 				}
 				break;
@@ -862,6 +849,12 @@ print_mem(RES* ssl, struct worker* worker, struct daemon* daemon,
 	if(!print_longnum(ssl, "mem.streamwait"SQ,
 		(size_t)s->svr.mem_stream_wait))
 		return 0;
+	if(!print_longnum(ssl, "mem.http.query_buffer"SQ,
+		(size_t)s->svr.mem_http2_query_buffer))
+		return 0;
+	if(!print_longnum(ssl, "mem.http.response_buffer"SQ,
+		(size_t)s->svr.mem_http2_response_buffer))
+		return 0;
 	return 1;
 }
 
@@ -988,6 +981,8 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 		(unsigned long)s->svr.qtls_resume)) return 0;
 	if(!ssl_printf(ssl, "num.query.ipv6"SQ"%lu\n", 
 		(unsigned long)s->svr.qipv6)) return 0;
+	if(!ssl_printf(ssl, "num.query.https"SQ"%lu\n",
+		(unsigned long)s->svr.qhttps)) return 0;
 	/* flags */
 	if(!ssl_printf(ssl, "num.query.flags.QR"SQ"%lu\n", 
 		(unsigned long)s->svr.qbit_QR)) return 0;
@@ -2865,6 +2860,57 @@ do_ip_ratelimit_list(RES* ssl, struct worker* worker, char* arg)
 	slabhash_traverse(a.infra->client_ip_rates, 0, ip_rate_list, &a);
 }
 
+/** do the rpz_enable/disable command */
+static void
+do_rpz_enable_disable(RES* ssl, struct worker* worker, char* arg, int enable) {
+    size_t nmlen;
+    int nmlabs;
+    uint8_t *nm = NULL;
+    struct auth_zones *az = worker->env.auth_zones;
+    struct auth_zone *z = NULL;
+    if (!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
+        return;
+    if (az) {
+        lock_rw_rdlock(&az->lock);
+        z = auth_zone_find(az, nm, nmlen, LDNS_RR_CLASS_IN);
+        if (z) {
+            lock_rw_wrlock(&z->lock);
+        }
+        lock_rw_unlock(&az->lock);
+    }
+    free(nm);
+    if (!z) {
+        (void) ssl_printf(ssl, "error no auth-zone %s\n", arg);
+        return;
+    }
+    if (!z->rpz) {
+        (void) ssl_printf(ssl, "error auth-zone %s not RPZ\n", arg);
+        lock_rw_unlock(&z->lock);
+        return;
+    }
+    if (enable) {
+        rpz_enable(z->rpz);
+    } else {
+        rpz_disable(z->rpz);
+    }
+    lock_rw_unlock(&z->lock);
+    send_ok(ssl);
+}
+
+/** do the rpz_enable command */
+static void
+do_rpz_enable(RES* ssl, struct worker* worker, char* arg)
+{
+    do_rpz_enable_disable(ssl, worker, arg, 1);
+}
+
+/** do the rpz_disable command */
+static void
+do_rpz_disable(RES* ssl, struct worker* worker, char* arg)
+{
+    do_rpz_enable_disable(ssl, worker, arg, 0);
+}
+
 /** tell other processes to execute the command */
 static void
 distribute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd)
@@ -3065,6 +3111,10 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		do_flush_bogus(ssl, worker);
 	} else if(cmdcmp(p, "flush_negative", 14)) {
 		do_flush_negative(ssl, worker);
+    } else if(cmdcmp(p, "rpz_enable", 10)) {
+        do_rpz_enable(ssl, worker, skipwhite(p+10));
+    } else if(cmdcmp(p, "rpz_disable", 11)) {
+        do_rpz_disable(ssl, worker, skipwhite(p+11));
 	} else {
 		(void)ssl_printf(ssl, "error unknown command '%s'\n", p);
 	}
@@ -3116,11 +3166,7 @@ handle_req(struct daemon_remote* rc, struct rc_state* s, RES* res)
 				if(rr == 0) return;
 				if(errno == EINTR || errno == EAGAIN)
 					continue;
-#ifndef USE_WINSOCK
-				log_err("could not recv: %s", strerror(errno));
-#else
-				log_err("could not recv: %s", wsa_strerror(WSAGetLastError()));
-#endif
+				log_err("could not recv: %s", sock_strerror(errno));
 				return;
 			}
 			r = (int)rr;

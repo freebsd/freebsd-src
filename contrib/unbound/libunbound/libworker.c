@@ -73,12 +73,15 @@
 #include "iterator/iter_hints.h"
 #include "sldns/sbuffer.h"
 #include "sldns/str2wire.h"
+#ifdef USE_DNSTAP
+#include "dnstap/dtstream.h"
+#endif
 
 #ifdef HAVE_TARGETCONDITIONALS_H
 #include <TargetConditionals.h>
 #endif
 
-#if defined(TARGET_OS_TV) || defined(TARGET_OS_WATCH)
+#if (defined(TARGET_OS_TV) && TARGET_OS_TV) || (defined(TARGET_OS_WATCH) && TARGET_OS_WATCH)
 #undef HAVE_FORK
 #endif
 
@@ -238,7 +241,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		ports, numports, cfg->unwanted_threshold,
 		cfg->outgoing_tcp_mss, &libworker_alloc_cleanup, w,
 		cfg->do_udp || cfg->udp_upstream_without_downstream, w->sslctx,
-		cfg->delay_close, cfg->tls_use_sni, NULL);
+		cfg->delay_close, cfg->tls_use_sni, NULL, cfg->udp_connect);
 	w->env->outnet = w->back;
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);
@@ -574,6 +577,7 @@ setup_qinfo_edns(struct libworker* w, struct ctx_query* q,
 	edns->edns_version = 0;
 	edns->bits = EDNS_DO;
 	edns->opt_list = NULL;
+	edns->padding_block_size = 0;
 	if(sldns_buffer_capacity(w->back->udp_buff) < 65535)
 		edns->udp_size = (uint16_t)sldns_buffer_capacity(
 			w->back->udp_buff);

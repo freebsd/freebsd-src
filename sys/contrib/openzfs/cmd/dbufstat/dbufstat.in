@@ -113,10 +113,25 @@ cmd = ("Usage: dbufstat [-bdhnrtvx] [-i file] [-f fields] [-o file] "
 raw = 0
 
 
+if sys.platform.startswith("freebsd"):
+    import io
+    # Requires py-sysctl on FreeBSD
+    import sysctl
+
+    def default_ifile():
+        dbufs = sysctl.filter("kstat.zfs.misc.dbufs")[0].value
+        sys.stdin = io.StringIO(dbufs)
+        return "-"
+
+elif sys.platform.startswith("linux"):
+    def default_ifile():
+        return "/proc/spl/kstat/zfs/dbufs"
+
+
 def print_incompat_helper(incompat):
     cnt = 0
     for key in sorted(incompat):
-        if cnt is 0:
+        if cnt == 0:
             sys.stderr.write("\t")
         elif cnt > 8:
             sys.stderr.write(",\n\t")
@@ -645,9 +660,9 @@ def main():
             sys.exit(1)
 
     if not ifile:
-        ifile = '/proc/spl/kstat/zfs/dbufs'
+        ifile = default_ifile()
 
-    if ifile is not "-":
+    if ifile != "-":
         try:
             tmp = open(ifile, "r")
             sys.stdin = tmp

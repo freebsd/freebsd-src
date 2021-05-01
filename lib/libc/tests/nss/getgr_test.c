@@ -42,11 +42,13 @@ __FBSDID("$FreeBSD$");
 #include "testutil.h"
 
 enum test_methods {
-	TEST_GETGRENT = 1,
-	TEST_GETGRNAM = 2,
-	TEST_GETGRGID = 4,
-	TEST_GETGRENT_2PASS = 8,
-	TEST_BUILD_SNAPSHOT = 16,
+	TEST_GETGRENT,
+	TEST_GETGRNAM,
+	TEST_GETGRGID,
+	TEST_GETGRENT_2PASS,
+	TEST_GETGRENT_INTERLEAVED_GETGRNAM,
+	TEST_GETGRENT_INTERLEAVED_GETGRGID,
+	TEST_BUILD_SNAPSHOT,
 };
 
 DECLARE_TEST_DATA(group)
@@ -62,9 +64,9 @@ static void free_group(struct group *);
 static void sdump_group(struct group *, char *, size_t);
 static int group_read_snapshot_func(struct group *, char *);
 
-static int group_check_ambiguity(struct group_test_data *,
-	struct group *);
-static int group_fill_test_data(struct group_test_data *);
+static int group_check_ambiguity(struct group_test_data *, struct group *);
+static int group_fill_test_data(struct group_test_data *,
+    int (*cb)(struct group *, void *));
 static int group_test_correctness(struct group *, void *);
 static int group_test_getgrnam(struct group *, void *);
 static int group_test_getgrgid(struct group *, void *);
@@ -175,7 +177,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	int written;
 
 	written = snprintf(buffer, buflen, "%s:%s:%d:",
-		grp->gr_name, grp->gr_passwd, grp->gr_gid);
+	    grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
 	if (written > (int)buflen)
 		return;
@@ -290,16 +292,20 @@ dump_group(struct group *result)
 }
 
 static int
-group_fill_test_data(struct group_test_data *td)
+group_fill_test_data(struct group_test_data *td,
+    int (*cb)(struct group *, void *))
 {
 	struct group *grp;
 
 	setgroupent(1);
 	while ((grp = getgrent()) != NULL) {
-		if (group_test_correctness(grp, NULL) == 0)
+		if (group_test_correctness(grp, NULL) == 0) {
 			TEST_DATA_APPEND(group, td, grp);
-		else
+			if (cb != NULL && cb(grp, td) != 0)
+				return (-1);
+		} else {
 			return (-1);
+		}
 	}
 	endgrent();
 
@@ -340,8 +346,8 @@ static int
 group_check_ambiguity(struct group_test_data *td, struct group *pwd)
 {
 
-	return (TEST_DATA_FIND(group, td, pwd, compare_group,
-		NULL) != NULL ? 0 : -1);
+	return (TEST_DATA_FIND(group, td, pwd, compare_group, NULL) !=
+	    NULL ? 0 : -1);
 }
 
 static int
@@ -377,25 +383,26 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 	grp = getgrgid(grp_model->gr_gid);
 	if (group_test_correctness(grp, NULL) != 0 ||
 	    (compare_group(grp, grp_model, NULL) != 0 &&
-	     group_check_ambiguity((struct group_test_data *)mdata, grp) != 0)) {
+	     group_check_ambiguity((struct group_test_data *)mdata, grp) != 0))
 		return (-1);
-	} else {
+	else
 		return (0);
-	}
 }
 
 static int
 group_test_getgrent(struct group *grp, void *mdata __unused)
 {
-	/* Only correctness can be checked when doing 1-pass test for
-	 * getgrent(). */
+	/*
+	 * Only correctness can be checked when doing 1-pass test for
+	 * getgrent().
+	 */
 	return (group_test_correctness(grp, NULL));
 }
 
 static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
-	struct group_test_data td, td_snap, td_2pass;
+	struct group_test_data td, td_snap, td_2pass, td_interleaved;
 	int rv;
 
 	TEST_DATA_INIT(group, &td, clone_group, free_group);
@@ -422,7 +429,7 @@ run_tests(const char *snapshot_file, enum test_methods method)
 		}
 	}
 
-	rv = group_fill_test_data(&td);
+	rv = group_fill_test_data(&td, NULL);
 	if (rv == -1)
 		return (-1);
 	switch (method) {
@@ -451,12 +458,28 @@ run_tests(const char *snapshot_file, enum test_methods method)
 				compare_group, NULL);
 		break;
 	case TEST_GETGRENT_2PASS:
-			TEST_DATA_INIT(group, &td_2pass, clone_group, free_group);
-			rv = group_fill_test_data(&td_2pass);
-			if (rv != -1)
-				rv = DO_2PASS_TEST(group, &td, &td_2pass,
-					compare_group, NULL);
-			TEST_DATA_DESTROY(group, &td_2pass);
+		TEST_DATA_INIT(group, &td_2pass, clone_group, free_group);
+		rv = group_fill_test_data(&td_2pass, NULL);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(group, &td, &td_2pass,
+				compare_group, NULL);
+		TEST_DATA_DESTROY(group, &td_2pass);
+		break;
+	case TEST_GETGRENT_INTERLEAVED_GETGRNAM:
+		TEST_DATA_INIT(group, &td_interleaved, clone_group, free_group);
+		rv = group_fill_test_data(&td_interleaved, group_test_getgrnam);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(group, &td, &td_interleaved,
+			    compare_group, NULL);
+		TEST_DATA_DESTROY(group, &td_interleaved);
+		break;
+	case TEST_GETGRENT_INTERLEAVED_GETGRGID:
+		TEST_DATA_INIT(group, &td_interleaved, clone_group, free_group);
+		rv = group_fill_test_data(&td_interleaved, group_test_getgrgid);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(group, &td, &td_interleaved,
+			    compare_group, NULL);
+		TEST_DATA_DESTROY(group, &td_interleaved);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
@@ -480,14 +503,12 @@ fin:
 ATF_TC_WITHOUT_HEAD(getgrent);
 ATF_TC_BODY(getgrent, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrent_with_snapshot);
 ATF_TC_BODY(getgrent_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
 }
@@ -495,21 +516,18 @@ ATF_TC_BODY(getgrent_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getgrent_with_two_pass);
 ATF_TC_BODY(getgrent_with_two_pass, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT_2PASS) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT_2PASS) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrgid);
 ATF_TC_BODY(getgrgid, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRGID) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrgid_with_snapshot);
 ATF_TC_BODY(getgrgid_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
 }
@@ -517,21 +535,30 @@ ATF_TC_BODY(getgrgid_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getgrnam);
 ATF_TC_BODY(getgrnam, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRNAM) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrnam_with_snapshot);
 ATF_TC_BODY(getgrnam_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(getgrent_interleaved_getgrnam);
+ATF_TC_BODY(getgrent_interleaved_getgrnam, tc)
+{
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT_INTERLEAVED_GETGRNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getgrent_interleaved_getgrgid);
+ATF_TC_BODY(getgrent_interleaved_getgrgid, tc)
+{
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT_INTERLEAVED_GETGRGID) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, getgrent);
 	ATF_TP_ADD_TC(tp, getgrent_with_snapshot);
 	ATF_TP_ADD_TC(tp, getgrent_with_two_pass);
@@ -539,6 +566,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, getgrgid_with_snapshot);
 	ATF_TP_ADD_TC(tp, getgrnam);
 	ATF_TP_ADD_TC(tp, getgrnam_with_snapshot);
+	ATF_TP_ADD_TC(tp, getgrent_interleaved_getgrnam);
+	ATF_TP_ADD_TC(tp, getgrent_interleaved_getgrgid);
 
 	return (atf_no_error());
 }

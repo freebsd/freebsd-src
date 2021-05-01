@@ -39,8 +39,6 @@ struct gprovider;
 struct gmesh;
 struct ggeom;
 
-extern int tmpdfd;
-
 TAILQ_HEAD(pmetadata_head, partition_metadata);
 extern struct pmetadata_head part_metadata;
 
@@ -60,6 +58,7 @@ void delete_part_metadata(const char *name);
 
 int part_wizard(const char *fstype);
 int scripted_editor(int argc, const char **argv);
+char *boot_disk_select(struct gmesh *mesh);
 int wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype,
     int interactive);
 

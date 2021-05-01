@@ -108,7 +108,7 @@ char *reasons[] = {
 	"natv6_in-fail",
 };
 
-#ifdef	MENTAT
+#if SOLARIS
 static	char	*pidfile = "/etc/opt/ipf/ipmon.pid";
 #else
 static	char	*pidfile = "/var/run/ipmon.pid";
@@ -116,30 +116,30 @@ static	char	*pidfile = "/var/run/ipmon.pid";
 
 static	char	line[2048];
 static	int	donehup = 0;
-static	void	usage __P((char *));
-static	void	handlehup __P((int));
-static	void	flushlogs __P((char *, FILE *));
-static	void	print_log __P((config_t *, logsource_t *, char *, int));
-static	void	print_ipflog __P((config_t *, char *, int));
-static	void	print_natlog __P((config_t *, char *, int));
-static	void	print_statelog __P((config_t *, char *, int));
-static	int	read_log __P((int, int *, char *, int));
-static	void	write_pid __P((char *));
-static	char	*icmpname __P((u_int, u_int));
-static	char	*icmpname6 __P((u_int, u_int));
-static	icmp_type_t *find_icmptype __P((int, icmp_type_t *, size_t));
-static	icmp_subtype_t *find_icmpsubtype __P((int, icmp_subtype_t *, size_t));
-static	struct	tm	*get_tm __P((time_t));
+static	void	usage(char *);
+static	void	handlehup(int);
+static	void	flushlogs(char *, FILE *);
+static	void	print_log(config_t *, logsource_t *, char *, int);
+static	void	print_ipflog(config_t *, char *, int);
+static	void	print_natlog(config_t *, char *, int);
+static	void	print_statelog(config_t *, char *, int);
+static	int	read_log(int, int *, char *, int);
+static	void	write_pid(char *);
+static	char	*icmpname(u_int, u_int);
+static	char	*icmpname6(u_int, u_int);
+static	icmp_type_t *find_icmptype(int, icmp_type_t *, size_t);
+static	icmp_subtype_t *find_icmpsubtype(int, icmp_subtype_t *, size_t);
+static	struct	tm	*get_tm(time_t);
 
-char	*portlocalname __P((int, char *, u_int));
-int	main __P((int, char *[]));
+char	*portlocalname(int, char *, u_int);
+int	main(int, char *[]);
 
-static	void	logopts __P((int, char *));
-static	void	init_tabs __P((void));
-static	char	*getlocalproto __P((u_int));
-static	void	openlogs __P((config_t *conf));
-static	int	read_loginfo __P((config_t *conf));
-static	void	initconfig __P((config_t *conf));
+static	void	logopts(int, char *);
+static	void	init_tabs(void);
+static	char	*getlocalproto(u_int);
+static	void	openlogs(config_t *conf);
+static	int	read_loginfo(config_t *conf);
+static	void	initconfig(config_t *conf);
 
 static	char	**protocols = NULL;
 static	char	**udp_ports = NULL;
@@ -1108,7 +1108,7 @@ static void print_ipflog(conf, buf, blen)
 	ifname[sizeof(ipf->fl_ifname)] = '\0';
 	sprintf(t, "%s", ifname);
 	t += strlen(t);
-# if defined(MENTAT)
+# if SOLARIS
 		if (ISALPHA(*(t - 1))) {
 			sprintf(t, "%d", ipf->fl_unit);
 			t += strlen(t);
@@ -1702,7 +1702,7 @@ int main(argc, argv)
 
 	if (make_daemon &&
 	    ((config.log != stdout) || (ipmonopts & IPMON_SYSLOG))) {
-#if BSD >= 199306
+#ifdef BSD
 		daemon(0, !(ipmonopts & IPMON_SYSLOG));
 #else
 		int pid;

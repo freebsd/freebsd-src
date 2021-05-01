@@ -35,22 +35,14 @@ static inline void
 sf_buf_map(struct sf_buf *sf, int flags)
 {
 
-#if __ARM_ARCH >= 6
 	pmap_qenter(sf->kva, &(sf->m), 1);
-#else
-	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
-#endif
 }
 
 static inline int
 sf_buf_unmap(struct sf_buf *sf)
 {
 
-#if __ARM_ARCH >= 6
 	pmap_qremove(sf->kva, 1);
-#else
-	pmap_kremove(sf->kva);
-#endif
 	return (1);
 }
 #endif /* !_MACHINE_SF_BUF_H_ */

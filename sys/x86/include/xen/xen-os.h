@@ -33,6 +33,9 @@
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
+/* If non-zero, the hypervisor has been configured to use a direct vector */
+extern int xen_vector_callback_enabled;
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _MACHINE_X86_XEN_XEN_OS_H_ */

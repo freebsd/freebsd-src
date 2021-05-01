@@ -41,8 +41,8 @@ CFLAGS.errlst.c+=-I${LIBC_SRCTOP}/include
 # Use the string and memory .o files from libc instead of rebuilding them (they
 # might be using optimized assembly and duplicating that logic here is awkward).
 _libc_string_objects=	bcmp bcopy bzero memset memchr memcmp memcpy memmove \
-    stpncpy strcat strchr strcmp stpcpy strcpy strcspn strdup strlcat strlcpy \
-    strlen strncmp strncpy strrchr strsep strspn strstr strtok
+    stpncpy strcat strchr strchrnul strcmp stpcpy strcpy strcspn strdup \
+    strlcat strlcpy strlen strncmp strncpy strrchr strsep strspn strstr strtok
 # Also use all the syscall .o files from libc_nossp_pic:
 _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     cerror geteuid getegid sigfastblock munmap mprotect \
@@ -57,23 +57,17 @@ _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
 # ARM needs aeabi_unwind_cpp for _setjmp
 _libc_other_objects+=aeabi_unwind_cpp
 .elif ${LIBC_ARCH} == "i386"
-# __udivdi3 is needed by kvprintf() in rtld_printf.c
-# i386 also needs i386_set_gsbase for allocate_initial_tls()
-_libc_other_objects+=umoddi3 udivdi3 qdivrem i386_set_gsbase
+# i386 needs i386_set_gsbase for allocate_initial_tls()
+_libc_other_objects+=i386_set_gsbase
 .elif ${LIBC_ARCH} == "powerpc" || ${LIBC_ARCH} == "powerpcspe"
-# ppc needs __syncicache for reloc.c and __umoddi3+__udivdi3 for rtld_printf.c
-_libc_other_objects+=syncicache umoddi3 udivdi3 qdivrem
-# for some reason there is also a reference to abs()
-_libc_other_objects+=abs
+# ppc needs __syncicache and abs for reloc.c
+_libc_other_objects+=syncicache abs
 .elif ${LIBC_ARCH} == "powerpc64"
 # ppc64 needs __syncicache for reloc.c
 _libc_other_objects+=syncicache
-.elif ${LIBC_ARCH} == "mips"
-# 32-bit MIPS needs __umoddi3+__udivdi3 for rtld_printf.c
-.if ${MACHINE_ARCH:Mmipsn32*} == "" && ${MACHINE_ARCH:Mmips64*} == ""
-_libc_other_objects+=umoddi3 udivdi3 qdivrem
 .endif
-.endif
+
+_libc_other_objects+=_get_tp
 
 # Extract all the .o files from libc_nossp_pic.a. This ensures that
 # we don't accidentally pull in the interposing table or similar by linking
@@ -89,8 +83,9 @@ CLEANFILES+=${_obj}.nossppico
 # We insert all the .o files from libc_nossp_pic.a into a new rtld_libc.a file
 # to ensure that only .o files that are actually used end up being included.
 rtld_libc.a: ${LIBC_NOSSP_PIC} ${SRCTOP}/libexec/rtld-elf/rtld-libc/Makefile.inc
+	@rm -f ${.TARGET}
 	${AR} x ${LIBC_NOSSP_PIC} ${_rtld_libc_objs}
-	${AR} cr ${.OBJDIR}/${.TARGET} ${_rtld_libc_objs}
+	${AR} cr ${.TARGET} ${_rtld_libc_objs}
 CLEANFILES+=rtld_libc.a
 LDADD+=${.OBJDIR}/rtld_libc.a
 beforelinking: rtld_libc.a

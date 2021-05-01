@@ -174,21 +174,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5}
 
 .Lmemmove_fsrcul1loop16:
-#ifdef __ARMEB__
-	mov	r3, lr, lsl #8
-#else
 	mov	r3, lr, lsr #8
-#endif
 	ldmia	r1!, {r4, r5, r12, lr}
-#ifdef __ARMEB__
-	orr	r3, r3, r4, lsr #24
-	mov	r4, r4, lsl #8
-	orr	r4, r4, r5, lsr #24
-	mov	r5, r5, lsl #8
-	orr	r5, r5, r12, lsr #24
-	mov	r12, r12, lsl #8
-	orr	r12, r12, lr, lsr #24
-#else
 	orr	r3, r3, r4, lsl #24
 	mov	r4, r4, lsr #8
 	orr	r4, r4, r5, lsl #24
@@ -196,7 +183,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r12, lsl #24
 	mov	r12, r12, lsr #8
 	orr	r12, r12, lr, lsl #24
-#endif
 	stmia	r0!, {r3-r5, r12}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_fsrcul1loop16
@@ -205,17 +191,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_fsrcul1l4
 
 .Lmemmove_fsrcul1loop4:
-#ifdef __ARMEB__
-	mov	r12, lr, lsl #8
-#else
 	mov	r12, lr, lsr #8
-#endif
 	ldr	lr, [r1], #4
-#ifdef __ARMEB__
-	orr	r12, r12, lr, lsr #24
-#else
 	orr	r12, r12, lr, lsl #24
-#endif
 	str	r12, [r0], #4
 	subs	r2, r2, #4
 	bge	.Lmemmove_fsrcul1loop4
@@ -231,21 +209,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5}
 
 .Lmemmove_fsrcul2loop16:
-#ifdef __ARMEB__
-	mov	r3, lr, lsl #16
-#else
 	mov	r3, lr, lsr #16
-#endif
 	ldmia	r1!, {r4, r5, r12, lr}
-#ifdef __ARMEB__
-	orr	r3, r3, r4, lsr #16
-	mov	r4, r4, lsl #16
-	orr	r4, r4, r5, lsr #16
-	mov	r5, r5, lsl #16
-	orr	r5, r5, r12, lsr #16
-	mov	r12, r12, lsl #16
-	orr	r12, r12, lr, lsr #16
-#else
 	orr	r3, r3, r4, lsl #16
 	mov	r4, r4, lsr #16
 	orr	r4, r4, r5, lsl #16
@@ -253,7 +218,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r12, lsl #16
 	mov	r12, r12, lsr #16
 	orr	r12, r12, lr, lsl #16
-#endif
 	stmia	r0!, {r3-r5, r12}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_fsrcul2loop16
@@ -262,17 +226,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_fsrcul2l4
 
 .Lmemmove_fsrcul2loop4:
-#ifdef __ARMEB__
-	mov	r12, lr, lsl #16
-#else
 	mov	r12, lr, lsr #16
-#endif
 	ldr	lr, [r1], #4
-#ifdef __ARMEB__
-	orr	r12, r12, lr, lsr #16
-#else
 	orr	r12, r12, lr, lsl #16
-#endif
 	str	r12, [r0], #4
 	subs	r2, r2, #4
 	bge	.Lmemmove_fsrcul2loop4
@@ -288,21 +244,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5}
 
 .Lmemmove_fsrcul3loop16:
-#ifdef __ARMEB__
-	mov	r3, lr, lsl #24
-#else
 	mov	r3, lr, lsr #24
-#endif
 	ldmia	r1!, {r4, r5, r12, lr}
-#ifdef __ARMEB__
-	orr	r3, r3, r4, lsr #8
-	mov	r4, r4, lsl #24
-	orr	r4, r4, r5, lsr #8
-	mov	r5, r5, lsl #24
-	orr	r5, r5, r12, lsr #8
-	mov	r12, r12, lsl #24
-	orr	r12, r12, lr, lsr #8
-#else
 	orr	r3, r3, r4, lsl #8
 	mov	r4, r4, lsr #24
 	orr	r4, r4, r5, lsl #8
@@ -310,7 +253,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r12, lsl #8
 	mov	r12, r12, lsr #24
 	orr	r12, r12, lr, lsl #8
-#endif
 	stmia	r0!, {r3-r5, r12}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_fsrcul3loop16
@@ -319,17 +261,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_fsrcul3l4
 
 .Lmemmove_fsrcul3loop4:
-#ifdef __ARMEB__
-	mov	r12, lr, lsl #24
-#else
 	mov	r12, lr, lsr #24
-#endif
 	ldr	lr, [r1], #4
-#ifdef __ARMEB__
-	orr	r12, r12, lr, lsr #8
-#else
 	orr	r12, r12, lr, lsl #8
-#endif
 	str	r12, [r0], #4
 	subs	r2, r2, #4
 	bge	.Lmemmove_fsrcul3loop4
@@ -441,21 +375,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5, lr}
 
 .Lmemmove_bsrcul3loop16:
-#ifdef __ARMEB__
-	mov	lr, r3, lsr #8
-#else
 	mov	lr, r3, lsl #8
-#endif
 	ldmdb	r1!, {r3-r5, r12}
-#ifdef __ARMEB__
-	orr	lr, lr, r12, lsl #24
-	mov	r12, r12, lsr #8
-	orr	r12, r12, r5, lsl #24
-	mov	r5, r5, lsr #8
-	orr	r5, r5, r4, lsl #24
-	mov	r4, r4, lsr #8
-	orr	r4, r4, r3, lsl #24
-#else
 	orr	lr, lr, r12, lsr #24
 	mov	r12, r12, lsl #8
 	orr	r12, r12, r5, lsr #24
@@ -463,7 +384,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r4, lsr #24
 	mov	r4, r4, lsl #8
 	orr	r4, r4, r3, lsr #24
-#endif
 	stmdb	r0!, {r4, r5, r12, lr}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_bsrcul3loop16
@@ -472,17 +392,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_bsrcul3l4
 
 .Lmemmove_bsrcul3loop4:
-#ifdef __ARMEB__
-	mov	r12, r3, lsr #8
-#else
 	mov	r12, r3, lsl #8
-#endif
 	ldr	r3, [r1, #-4]!
-#ifdef __ARMEB__
-	orr	r12, r12, r3, lsl #24
-#else
 	orr	r12, r12, r3, lsr #24
-#endif
 	str	r12, [r0, #-4]!
 	subs	r2, r2, #4
 	bge	.Lmemmove_bsrcul3loop4
@@ -498,21 +410,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5, lr}
 
 .Lmemmove_bsrcul2loop16:
-#ifdef __ARMEB__
-	mov	lr, r3, lsr #16
-#else
 	mov	lr, r3, lsl #16
-#endif
 	ldmdb	r1!, {r3-r5, r12}
-#ifdef __ARMEB__
-	orr	lr, lr, r12, lsl #16
-	mov	r12, r12, lsr #16
-	orr	r12, r12, r5, lsl #16
-	mov	r5, r5, lsr #16
-	orr	r5, r5, r4, lsl #16
-	mov	r4, r4, lsr #16
-	orr	r4, r4, r3, lsl #16
-#else
 	orr	lr, lr, r12, lsr #16
 	mov	r12, r12, lsl #16
 	orr	r12, r12, r5, lsr #16
@@ -520,7 +419,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r4, lsr #16
 	mov	r4, r4, lsl #16
 	orr	r4, r4, r3, lsr #16
-#endif
 	stmdb	r0!, {r4, r5, r12, lr}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_bsrcul2loop16
@@ -529,17 +427,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_bsrcul2l4
 
 .Lmemmove_bsrcul2loop4:
-#ifdef __ARMEB__
-	mov	r12, r3, lsr #16
-#else
 	mov	r12, r3, lsl #16
-#endif
 	ldr	r3, [r1, #-4]!
-#ifdef __ARMEB__
-	orr	r12, r12, r3, lsl #16
-#else
 	orr	r12, r12, r3, lsr #16
-#endif
 	str	r12, [r0, #-4]!
 	subs	r2, r2, #4
 	bge	.Lmemmove_bsrcul2loop4
@@ -555,21 +445,8 @@ ENTRY(bcopy)
 	stmdb	sp!, {r4, r5, lr}
 
 .Lmemmove_bsrcul1loop32:
-#ifdef __ARMEB__
-	mov	lr, r3, lsr #24
-#else
 	mov	lr, r3, lsl #24
-#endif
 	ldmdb	r1!, {r3-r5, r12}
-#ifdef __ARMEB__
-	orr	lr, lr, r12, lsl #8
-	mov	r12, r12, lsr #24
-	orr	r12, r12, r5, lsl #8
-	mov	r5, r5, lsr #24
-	orr	r5, r5, r4, lsl #8
-	mov	r4, r4, lsr #24
-	orr	r4, r4, r3, lsl #8
-#else
 	orr	lr, lr, r12, lsr #8
 	mov	r12, r12, lsl #24
 	orr	r12, r12, r5, lsr #8
@@ -577,7 +454,6 @@ ENTRY(bcopy)
 	orr	r5, r5, r4, lsr #8
 	mov	r4, r4, lsl #24
 	orr	r4, r4, r3, lsr #8
-#endif
 	stmdb	r0!, {r4, r5, r12, lr}
 	subs	r2, r2, #0x10         
 	bge	.Lmemmove_bsrcul1loop32
@@ -586,17 +462,9 @@ ENTRY(bcopy)
 	blt	.Lmemmove_bsrcul1l4
 
 .Lmemmove_bsrcul1loop4:
-#ifdef __ARMEB__
-	mov	r12, r3, lsr #24
-#else
 	mov	r12, r3, lsl #24
-#endif
 	ldr	r3, [r1, #-4]!
-#ifdef __ARMEB__
-	orr	r12, r12, r3, lsl #8
-#else
 	orr	r12, r12, r3, lsr #8
-#endif
 	str	r12, [r0, #-4]!
 	subs	r2, r2, #4
 	bge	.Lmemmove_bsrcul1loop4

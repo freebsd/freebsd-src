@@ -166,6 +166,7 @@ class WriteBackAsync: public WriteBack {
 public:
 virtual void SetUp() {
 	m_async = true;
+	m_maxwrite = 65536;
 	WriteBack::SetUp();
 }
 };
@@ -191,6 +192,19 @@ virtual void SetUp() {
 	if (m_maxphys < 2 * m_maxbcachebuf)
 		GTEST_SKIP() << "MAXPHYS must be at least twice maxbcachebuf"
 			<< " for this test";
+}
+};
+
+/* Tests relating to the server's max_write property */
+class WriteMaxWrite: public Write {
+public:
+virtual void SetUp() {
+	/*
+	 * For this test, m_maxwrite must be less than either m_maxbcachebuf or
+	 * maxphys.
+	 */
+	m_maxwrite = 32768;
+	Write::SetUp();
 }
 };
 
@@ -494,17 +508,14 @@ TEST_F(Write, eof_during_rmw)
 	const char *INITIAL   = "XXXXXXXXXX";
 	uint64_t ino = 42;
 	uint64_t offset = 1;
-	ssize_t bufsize = strlen(CONTENTS);
+	ssize_t bufsize = strlen(CONTENTS) + 1;
 	off_t orig_fsize = 10;
 	off_t truncated_fsize = 5;
-	off_t final_fsize = bufsize;
 	int fd;
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, orig_fsize, 1);
 	expect_open(ino, 0, 1);
 	expect_read(ino, 0, orig_fsize, truncated_fsize, INITIAL, O_RDWR);
-	expect_getattr(ino, truncated_fsize);
-	expect_read(ino, 0, final_fsize, final_fsize, INITIAL, O_RDWR);
 	maybe_expect_write(ino, offset, bufsize, CONTENTS);
 
 	fd = open(FULLPATH, O_RDWR);
@@ -643,7 +654,7 @@ TEST_F(Write, write)
 }
 
 /* fuse(4) should not issue writes of greater size than the daemon requests */
-TEST_F(Write, write_large)
+TEST_F(WriteMaxWrite, write)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
@@ -653,6 +664,8 @@ TEST_F(Write, write_large)
 	ssize_t halfbufsize, bufsize;
 
 	halfbufsize = m_mock->m_maxwrite;
+	if (halfbufsize >= m_maxbcachebuf || halfbufsize >= m_maxphys)
+		GTEST_SKIP() << "Must lower m_maxwrite for this test";
 	bufsize = halfbufsize * 2;
 	contents = (int*)malloc(bufsize);
 	ASSERT_NE(nullptr, contents);

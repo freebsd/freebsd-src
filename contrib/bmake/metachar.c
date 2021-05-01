@@ -1,6 +1,6 @@
-/*	$NetBSD: metachar.c,v 1.6 2020/08/03 20:43:41 rillig Exp $	*/
+/*	$NetBSD: metachar.c,v 1.9 2021/01/19 20:51:46 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,18 +37,15 @@
 #include <sys/cdefs.h>
 #endif
 
-#if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: metachar.c,v 1.6 2020/08/03 20:43:41 rillig Exp $");
-#endif
-
 #include "metachar.h"
+
+MAKE_RCSID("$NetBSD: metachar.c,v 1.9 2021/01/19 20:51:46 rillig Exp $");
+
 /*
  * The following array is used to make a fast determination of which
  * characters are interpreted specially by the shell.  If a command
  * contains any of these characters, it is executed by the shell, not
  * directly by us.
- *
- * perhaps move it to ctype?
  */
 
 unsigned char _metachar[128] = {
@@ -85,4 +82,3 @@ unsigned char _metachar[128] = {
 /*      x     y     z     {     |     }     ~   del */
 	0,    0,    0,    1,    1,    1,    1,    0,
 };
-

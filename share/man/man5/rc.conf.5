@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 21, 2020
+.Dd March 21, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -251,6 +251,16 @@ Configuration file for
 .Xr ddb 8 .
 Default
 .Pa /etc/ddb.conf .
+.It Va devmatch_enable
+.Pq Vt bool
+If set to
+.Dq Li NO ,
+disable auto-loading of kernel modules with
+.Xr devmatch 8 .
+.It Va devmatch_blacklist
+.Pq Vt str
+A whitespace-separated list of kernel modules to be ignored by
+.Xr devmatch 8 .
 .It Va kld_list
 .Pq Vt str
 A whitespace-separated list of kernel modules to load right after
@@ -521,7 +531,7 @@ Valid selections from
 .Pa /etc/rc.firewall
 are:
 .Pp
-.Bl -tag -width ".Li simple" -compact
+.Bl -tag -width ".Li workstation" -compact
 .It Li open
 unrestricted IP access
 .It Li closed
@@ -529,12 +539,18 @@ all IP services disabled, except via
 .Dq Li lo0
 .It Li client
 basic protection for a workstation
+.It Li workstation
+basic protection for a workstation using stateful firewalling
 .It Li simple
 basic protection for a LAN.
 .El
 .Pp
 If a filename is specified, the full path
 must be given.
+.Pp
+Most of the predefined rulesets define additional configuration variables.
+These are documented in
+.Pa /etc/rc.firewall .
 .It Va firewall_quiet
 .Pq Vt bool
 Set to
@@ -777,16 +793,6 @@ Set to
 .Pa /etc/ipf.rules
 by default.
 This variable contains the name of the filter rule definition file.
-The file is expected to be readable for the
-.Xr ipf 8
-command to execute.
-.\" ----- ipv6_ipfilter_rules setting ---------------------------
-.It Va ipv6_ipfilter_rules
-.Pq Vt str
-Set to
-.Pa /etc/ipf6.rules
-by default.
-This variable contains the IPv6 filter rule definition file.
 The file is expected to be readable for the
 .Xr ipf 8
 command to execute.
@@ -4660,6 +4666,7 @@ it will be made permanently active.
 .Xr quotaon 8 ,
 .Xr rc 8 ,
 .Xr rc.sendmail 8 ,
+.Xr rcorder 8 ,
 .Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
 .Xr routed 8 ,

@@ -153,7 +153,7 @@ sys_sctp_peeloff(td, uap)
 	int error, fd;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, cap_rights_init(&rights, CAP_PEELOFF),
+	error = getsock_cap(td, uap->sd, cap_rights_init_one(&rights, CAP_PEELOFF),
 	    &headfp, &fflag, NULL);
 	if (error != 0)
 		goto done2;
@@ -472,7 +472,7 @@ sys_sctp_generic_recvmsg(td, uap)
 	int error, fromlen, i, msg_flags;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td, uap->sd, cap_rights_init(&rights, CAP_RECV),
+	error = getsock_cap(td, uap->sd, cap_rights_init_one(&rights, CAP_RECV),
 	    &fp, NULL, NULL);
 	if (error != 0)
 		return (error);

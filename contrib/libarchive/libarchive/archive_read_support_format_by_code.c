@@ -26,6 +26,10 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
 #include "archive.h"
 #include "archive_private.h"
 
@@ -48,6 +52,9 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 	case ARCHIVE_FORMAT_CPIO:
 		return archive_read_support_format_cpio(a);
 		break;
+	case ARCHIVE_FORMAT_EMPTY:
+		return archive_read_support_format_empty(a);
+		break;
 	case ARCHIVE_FORMAT_ISO9660:
 		return archive_read_support_format_iso9660(a);
 		break;
@@ -63,8 +70,14 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 	case ARCHIVE_FORMAT_RAR_V5:
 		return archive_read_support_format_rar5(a);
 		break;
+	case ARCHIVE_FORMAT_RAW:
+		return archive_read_support_format_raw(a);
+		break;
 	case ARCHIVE_FORMAT_TAR:
 		return archive_read_support_format_tar(a);
+		break;
+	case ARCHIVE_FORMAT_WARC:
+		return archive_read_support_format_warc(a);
 		break;
 	case ARCHIVE_FORMAT_XAR:
 		return archive_read_support_format_xar(a);
@@ -73,5 +86,7 @@ archive_read_support_format_by_code(struct archive *a, int format_code)
 		return archive_read_support_format_zip(a);
 		break;
 	}
+	archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+	    "Invalid format code specified");
 	return (ARCHIVE_FATAL);
 }

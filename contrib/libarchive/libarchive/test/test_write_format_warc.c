@@ -26,6 +26,19 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+static void test_read(struct archive *a, char *buff, size_t used, char *filedata)
+{
+	struct archive_entry *ae;
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 9, archive_read_data(a, filedata, 10));
+	assertEqualMem(filedata, "12345678", 9);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_write_format_warc)
 {
 	char filedata[64];
@@ -62,14 +75,15 @@ DEFINE_TEST(test_write_format_warc)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_warc(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_none(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
+	test_read(a, buff, used, filedata);
 
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualIntA(a, 9, archive_read_data(a, filedata, 10));
-	assertEqualMem(filedata, "12345678", 9);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_by_code(a, ARCHIVE_FORMAT_WARC));
+	test_read(a, buff, used, filedata);
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_set_format(a, ARCHIVE_FORMAT_WARC));
+	test_read(a, buff, used, filedata);
 
 	/* Create a new archive */
 	assert((a = archive_write_new()) != NULL);

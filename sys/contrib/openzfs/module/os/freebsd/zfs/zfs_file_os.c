@@ -158,7 +158,8 @@ zfs_file_read_impl(zfs_file_t *fp, void *buf, size_t count, loff_t *offp,
 	rc = fo_read(fp, &auio, td->td_ucred, FOF_OFFSET, td);
 	if (rc)
 		return (SET_ERROR(rc));
-	*resid = auio.uio_resid;
+	if (resid)
+		*resid = auio.uio_resid;
 	*offp += count - auio.uio_resid;
 	return (SET_ERROR(0));
 }
@@ -289,14 +290,15 @@ zfs_file_private(zfs_file_t *fp)
 int
 zfs_file_unlink(const char *fnamep)
 {
-	enum uio_seg seg = UIO_SYSSPACE;
+	zfs_uio_seg_t seg = UIO_SYSSPACE;
 	int rc;
 
 #if __FreeBSD_version >= 1300018
 	rc = kern_funlinkat(curthread, AT_FDCWD, fnamep, FD_NONE, seg, 0, 0);
 #else
 #ifdef AT_BENEATH
-	rc = kern_unlinkat(curthread, AT_FDCWD, fnamep, seg, 0, 0);
+	rc = kern_unlinkat(curthread, AT_FDCWD, __DECONST(char *, fnamep),
+	    seg, 0, 0);
 #else
 	rc = kern_unlinkat(curthread, AT_FDCWD, __DECONST(char *, fnamep),
 	    seg, 0);

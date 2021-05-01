@@ -390,7 +390,7 @@ read_body()
 	if true; then
 	MAX_PATH=$(getconf _XOPEN_PATH_MAX) || atf_fail "getconf failed"
 	h_pass "$prog $MAX_PATH" "echo foo |"
-	h_fail "$prog $(( $MAX_PATH + 3 ))" "echo bar |"
+	h_fail "$prog $(( $MAX_PATH + 15 ))" "echo bar |"
 	else
 	# End FreeBSD
 	h_pass "$prog 1024" "echo foo |"

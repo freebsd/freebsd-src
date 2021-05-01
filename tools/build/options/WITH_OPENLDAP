@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Enable building openldap support for kerberos.
+Enable building LDAP support for kerberos using an openldap client from ports.

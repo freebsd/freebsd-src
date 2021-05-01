@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 static int scanc(u_int, const u_char *, const u_char *, int);
 
 static daddr_t ffs_alloccg(struct inode *, int, daddr_t, int);
-static daddr_t ffs_alloccgblk(struct inode *, struct buf *, daddr_t);
+static daddr_t ffs_alloccgblk(struct inode *, struct m_buf *, daddr_t);
 static daddr_t ffs_hashalloc(struct inode *, u_int, daddr_t, int,
 		     daddr_t (*)(struct inode *, int, daddr_t, int));
 static int32_t ffs_mapsearch(struct fs *, struct cg *, daddr_t, int);
@@ -294,7 +294,7 @@ static daddr_t
 ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 {
 	struct cg *cgp;
-	struct buf *bp;
+	struct m_buf *bp;
 	daddr_t bno, blkno;
 	int error, frags, allocsiz, i;
 	struct fs *fs = ip->i_fs;
@@ -302,8 +302,8 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
 
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
 		return (0);
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
-	    NULL, &bp);
+	error = bread((void *)ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NULL, &bp);
 	if (error) {
 		brelse(bp);
 		return (0);
@@ -377,7 +377,7 @@ ffs_alloccg(struct inode *ip, int cg, daddr_t bpref, int size)
  * blocks may be fragmented by the routine that allocates them.
  */
 static daddr_t
-ffs_alloccgblk(struct inode *ip, struct buf *bp, daddr_t bpref)
+ffs_alloccgblk(struct inode *ip, struct m_buf *bp, daddr_t bpref)
 {
 	struct cg *cgp;
 	daddr_t blkno;
@@ -429,7 +429,7 @@ void
 ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 {
 	struct cg *cgp;
-	struct buf *bp;
+	struct m_buf *bp;
 	int32_t fragno, cgbno;
 	int i, error, cg, blk, frags, bbase;
 	struct fs *fs = ip->i_fs;
@@ -446,8 +446,8 @@ ffs_blkfree(struct inode *ip, daddr_t bno, long size)
 		    (uintmax_t)ip->i_number);
 		return;
 	}
-	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)), (int)fs->fs_cgsize,
-	    NULL, &bp);
+	error = bread((void *)ip->i_devvp, fsbtodb(fs, cgtod(fs, cg)),
+	    (int)fs->fs_cgsize, NULL, &bp);
 	if (error) {
 		brelse(bp);
 		return;

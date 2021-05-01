@@ -16,7 +16,8 @@ CFLAGS="@CFLAGS@ -I. -I${srcdir} @DEFS@ @CPPFLAGS@ -DMAKE_NATIVE ${XDEFS} -DBMAK
 MAKE_VERSION=@_MAKE_VERSION@
 
 MDEFS="-DMAKE_VERSION=\"$MAKE_VERSION\" \
--D@force_machine@MACHINE=\"@machine@\" -DMACHINE_ARCH=\"@machine_arch@\" \
+-D@force_machine@MACHINE=\"@machine@\" \
+-D@force_machine_arch@MACHINE_ARCH=\"@machine_arch@\" \
 -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\""
 
 
@@ -59,14 +60,14 @@ do_link() {
 }
 
 BASE_OBJECTS="arch.o buf.o compat.o cond.o dir.o enum.o for.o getopt hash.o \
-lst.o make.o make_malloc.o metachar.o parse.o sigcompat.o str.o strlist.o \
+lst.o make.o make_malloc.o metachar.o parse.o sigcompat.o str.o \
 suff.o targ.o trace.o var.o util.o"
 
 LIB_OBJECTS="@LIBOBJS@"
 
 do_compile main.o ${MDEFS}
 
-for o in ${BASE_OBJECTS} ${LST_OBJECTS} ${LIB_OBJECTS}
+for o in ${BASE_OBJECTS} ${LIB_OBJECTS}
 do
 	do_compile "$o"
 done

@@ -146,14 +146,10 @@ update_vars(Char *vp)
 	Char *cp, *canon;
 
 	cp = Strsave(varval(vp));	/* get the old value back */
-	cleanup_push(cp, xfree);
-
 	/*
 	 * convert to cononical pathname (possibly resolving symlinks)
 	 */
 	canon = dcanon(cp, cp);
-	cleanup_ignore(cp);
-	cleanup_until(cp);
 	cleanup_push(canon, xfree);
 
 	setcopy(vp, canon, VAR_READWRITE);	/* have to save the new val */
@@ -223,7 +219,7 @@ update_vars(Char *vp)
     }
 #endif /* COLOR_LS_F */
 #if defined(KANJI) && defined(SHORT_STRINGS) && defined(DSPMBYTE)
-    else if(eq(vp, CHECK_MBYTEVAR) || eq(vp, STRnokanji)) {
+    else if (eq(vp, CHECK_MBYTEVAR) || eq(vp, STRnokanji)) {
 	update_dspmbyte_vars();
     }
 #endif
@@ -276,7 +272,7 @@ doset(Char **v, struct command *c)
 	    v++;
 	    changed = 1;
 	}
-    } while(changed);
+    } while (changed);
     p = *v++;
     if (p == 0) {
 	plist(&shvhed, flags);
@@ -660,7 +656,7 @@ set1(const Char *var, Char **vec, struct varent *head, int flags)
 	gflag = tglob(oldv);
 	if (gflag) {
 	    vec = globall(oldv, gflag);
-	    if (vec == 0) {
+	    if (vec == NULL) {
 		blkfree(oldv);
 		stderror(ERR_NAME | ERR_NOMATCH);
 	    }
@@ -677,7 +673,7 @@ set1(const Char *var, Char **vec, struct varent *head, int flags)
 	 *  Delete all duplicate words leaving "holes" in the word array (vec).
 	 *  Then remove the "holes", keeping the order of the words unchanged.
 	 */
-	if (vec && vec[0] && vec[1]) { /* more than one word ? */
+	if (vec[0] && vec[1]) { /* more than one word ? */
 	    int i, j;
 	    int num_items;
 
@@ -1162,7 +1158,7 @@ update_dspmbyte_vars(void)
     if ((vp = adrof(CHECK_MBYTEVAR)) && !adrof(STRnokanji)) {
 	_enable_mbdisp = 1;
 	dstr1 = vp->vec[0];
-	if(eq (dstr1, STRsjis))
+	if (eq (dstr1, STRsjis))
 	    iskcode = 1;
 	else if (eq(dstr1, STReuc))
 	    iskcode = 2;

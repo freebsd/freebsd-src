@@ -30,7 +30,7 @@ atf_test_case write_dirs_001_pos cleanup
 write_dirs_001_pos_head()
 {
 	atf_set "descr" "Creating directories with 50 big files in each, until file systemis full."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1200
 }
 write_dirs_001_pos_body()
@@ -55,7 +55,7 @@ atf_test_case write_dirs_002_pos cleanup
 write_dirs_002_pos_head()
 {
 	atf_set "descr" "Creating directories with 5000 files in each, until file systemis full."
-	atf_set "require.progs"  zpool
+	atf_set "require.progs" "ksh93 zpool"
 	atf_set "timeout" 1200
 }
 write_dirs_002_pos_body()

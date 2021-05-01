@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
 #include <sys/linker.h>
+#include <sys/mount.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
@@ -1121,7 +1122,7 @@ static int
 acpi_parse_pxm(device_t dev)
 {
 #ifdef NUMA
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	int pxm;
@@ -2272,6 +2273,8 @@ acpi_DeviceIsPresent(device_t dev)
 	h = acpi_get_handle(dev);
 	if (h == NULL)
 		return (FALSE);
+
+#ifdef ACPI_EARLY_EPYC_WAR
 	/*
 	 * Certain Treadripper boards always returns 0 for FreeBSD because it
 	 * only returns non-zero for the OS string "Windows 2015". Otherwise it
@@ -2280,6 +2283,7 @@ acpi_DeviceIsPresent(device_t dev)
 	 */
 	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
 		return (TRUE);
+#endif
 
 	status = acpi_GetInteger(h, "_STA", &s);
 
@@ -2632,8 +2636,8 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return (AE_OK);
 }
 
-UINT8
-acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision)
+UINT64
+acpi_DSMQuery(ACPI_HANDLE h, const uint8_t *uuid, int revision)
 {
     /*
      * ACPI spec 9.1.1 defines this.
@@ -2645,7 +2649,8 @@ acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision)
      */
     ACPI_BUFFER buf;
     ACPI_OBJECT *obj;
-    UINT8 ret = 0;
+    UINT64 ret = 0;
+    int i;
 
     if (!ACPI_SUCCESS(acpi_EvaluateDSM(h, uuid, revision, 0, NULL, &buf))) {
 	ACPI_INFO(("Failed to enumerate DSM functions\n"));
@@ -2663,12 +2668,13 @@ acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision)
      */
     switch (obj->Type) {
     case ACPI_TYPE_BUFFER:
-	ret = *(uint8_t *)obj->Buffer.Pointer;
+	for (i = 0; i < MIN(obj->Buffer.Length, sizeof(ret)); i++)
+	    ret |= (((uint64_t)obj->Buffer.Pointer[i]) << (i * 8));
 	break;
     case ACPI_TYPE_INTEGER:
 	ACPI_BIOS_WARNING((AE_INFO,
 	    "Possibly buggy BIOS with ACPI_TYPE_INTEGER for function enumeration\n"));
-	ret = obj->Integer.Value & 0xFF;
+	ret = obj->Integer.Value;
 	break;
     default:
 	ACPI_WARNING((AE_INFO, "Unexpected return type %u\n", obj->Type));
@@ -2684,8 +2690,17 @@ acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision)
  * check the type of the returned object.
  */
 ACPI_STATUS
-acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid, int revision,
-    uint64_t function, union acpi_object *package, ACPI_BUFFER *out_buf)
+acpi_EvaluateDSM(ACPI_HANDLE handle, const uint8_t *uuid, int revision,
+    UINT64 function, ACPI_OBJECT *package, ACPI_BUFFER *out_buf)
+{
+	return (acpi_EvaluateDSMTyped(handle, uuid, revision, function,
+	    package, out_buf, ACPI_TYPE_ANY));
+}
+
+ACPI_STATUS
+acpi_EvaluateDSMTyped(ACPI_HANDLE handle, const uint8_t *uuid, int revision,
+    UINT64 function, ACPI_OBJECT *package, ACPI_BUFFER *out_buf,
+    ACPI_OBJECT_TYPE type)
 {
     ACPI_OBJECT arg[4];
     ACPI_OBJECT_LIST arglist;
@@ -2697,7 +2712,7 @@ acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid, int revision,
 
     arg[0].Type = ACPI_TYPE_BUFFER;
     arg[0].Buffer.Length = ACPI_UUID_LENGTH;
-    arg[0].Buffer.Pointer = uuid;
+    arg[0].Buffer.Pointer = __DECONST(uint8_t *, uuid);
     arg[1].Type = ACPI_TYPE_INTEGER;
     arg[1].Integer.Value = revision;
     arg[2].Type = ACPI_TYPE_INTEGER;
@@ -2714,7 +2729,7 @@ acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid, int revision,
     arglist.Count = 4;
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
-    status = AcpiEvaluateObject(handle, "_DSM", &arglist, &buf);
+    status = AcpiEvaluateObjectTyped(handle, "_DSM", &arglist, &buf, type);
     if (ACPI_FAILURE(status))
 	return (status);
 
@@ -3070,6 +3085,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 
     EVENTHANDLER_INVOKE(power_suspend_early);
     stop_all_proc();
+    suspend_all_fs();
     EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef EARLY_AP_STARTUP
@@ -3229,6 +3245,7 @@ backout:
     }
 #endif
 
+    resume_all_fs();
     resume_all_proc();
 
     EVENTHANDLER_INVOKE(power_resume);

@@ -226,6 +226,7 @@ struct spa {
 	boolean_t	spa_is_exporting;	/* true while exporting pool */
 	metaslab_class_t *spa_normal_class;	/* normal data class */
 	metaslab_class_t *spa_log_class;	/* intent log data class */
+	metaslab_class_t *spa_embedded_log_class; /* log on normal vdevs */
 	metaslab_class_t *spa_special_class;	/* special allocation class */
 	metaslab_class_t *spa_dedup_class;	/* dedup allocation class */
 	uint64_t	spa_first_txg;		/* first txg after spa_open() */
@@ -240,8 +241,9 @@ struct spa {
 	kcondvar_t	spa_evicting_os_cv;	/* Objset Eviction Completion */
 	txg_list_t	spa_vdev_txg_list;	/* per-txg dirty vdev list */
 	vdev_t		*spa_root_vdev;		/* top-level vdev container */
-	int		spa_min_ashift;		/* of vdevs in normal class */
-	int		spa_max_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_min_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_max_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_min_alloc;		/* of vdevs in normal class */
 	uint64_t	spa_config_guid;	/* config pool guid */
 	uint64_t	spa_load_guid;		/* spa_load initialized guid */
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
@@ -377,7 +379,7 @@ struct spa {
 	kcondvar_t	spa_proc_cv;		/* spa_proc_state transitions */
 	spa_proc_state_t spa_proc_state;	/* see definition */
 	proc_t		*spa_proc;		/* "zpool-poolname" process */
-	uint64_t	spa_did;		/* if procp != p0, did of t1 */
+	uintptr_t	spa_did;		/* if procp != p0, did of t1 */
 	boolean_t	spa_autoreplace;	/* autoreplace set in open */
 	int		spa_vdev_locks;		/* locks grabbed */
 	uint64_t	spa_creation_version;	/* version at pool creation */
@@ -421,6 +423,8 @@ struct spa {
 	kcondvar_t	spa_waiters_cv;
 	int		spa_waiters;		/* number of waiting threads */
 	boolean_t	spa_waiters_cancel;	/* waiters should return */
+
+	char		*spa_compatibility;	/* compatibility file(s) */
 
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements

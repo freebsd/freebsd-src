@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -42,7 +42,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: read_entry.c,v 1.157 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: read_entry.c,v 1.159 2021/02/14 00:17:09 tom Exp $")
 
 #define TYPE_CALLOC(type,elts) typeCalloc(type, (unsigned)(elts))
 
@@ -160,11 +160,11 @@ convert_strings(char *buf, char **Strings, int count, int size, char *table)
 
 	/* make sure all strings are NUL terminated */
 	if (VALID_STRING(Strings[i])) {
-	    for (p = Strings[i]; p <= table + size; p++)
+	    for (p = Strings[i]; p < table + size; p++)
 		if (*p == '\0')
 		    break;
 	    /* if there is no NUL, ignore the string */
-	    if (p > table + size)
+	    if (p >= table + size)
 		Strings[i] = ABSENT_STRING;
 	}
     }
@@ -257,7 +257,6 @@ _nc_read_termtype(TERMTYPE2 *ptr, char *buffer, int limit)
     char buf[MAX_ENTRY_SIZE + 2];
     char *string_table;
     unsigned want, have;
-    bool need_ints;
     size_t (*convert_numbers) (char *, NCURSES_INT2 *, int);
     int size_of_numbers;
     int max_entry_size = MAX_ENTRY_SIZE;
@@ -276,7 +275,7 @@ _nc_read_termtype(TERMTYPE2 *ptr, char *buffer, int limit)
 	returnDB(TGETENT_NO);
     }
 #if NCURSES_EXT_NUMBERS
-    if ((need_ints = (LOW_MSB(buf) == MAGIC2))) {
+    if (LOW_MSB(buf) == MAGIC2) {
 	convert_numbers = convert_32bits;
 	size_of_numbers = SIZEOF_INT2;
     } else {
@@ -285,7 +284,7 @@ _nc_read_termtype(TERMTYPE2 *ptr, char *buffer, int limit)
 	size_of_numbers = SIZEOF_SHORT;
     }
 #else
-    if ((need_ints = (LOW_MSB(buf) == MAGIC2))) {
+    if (LOW_MSB(buf) == MAGIC2) {
 	convert_numbers = convert_32bits;
 	size_of_numbers = SIZEOF_32BITS;
     } else {
@@ -666,11 +665,10 @@ decode_hex(const char **source)
 {
     int result = 0;
     int nibble;
-    int ch;
 
     for (nibble = 0; nibble < 2; ++nibble) {
+	int ch = UChar(**source);
 	result <<= 4;
-	ch = UChar(**source);
 	*source += 1;
 	if (ch >= '0' && ch <= '9') {
 	    ch -= '0';

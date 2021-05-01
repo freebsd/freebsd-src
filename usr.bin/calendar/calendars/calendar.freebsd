@@ -36,6 +36,7 @@
 01/19	Ruslan Ermilov <ru@FreeBSD.org> born in Simferopol, USSR, 1974
 01/19	Marcelo S. Araujo <araujo@FreeBSD.org> born in Joinville, Santa Catarina, Brazil, 1981
 01/20	Poul-Henning Kamp <phk@FreeBSD.org> born in Korsoer, Denmark, 1966
+01/21	Lewis Cook <lcook@FreeBSD.org> born in London, England, 1998
 01/21	Mahdi Mokhtari <mmokhi@FreeBSD.org> born in Tehran, Iran, 1995
 01/21	Mitchell Horne <mhorne@FreeBSD.org> born in Toronto, Ontario, Canada, 1997
 01/22	Johann Visagie <wjv@FreeBSD.org> born in Cape Town, South Africa, 1970
@@ -80,6 +81,7 @@
 02/14	Erwin Lansing <erwin@FreeBSD.org> born in 's-Hertogenbosch, the Netherlands, 1975
 02/14	Martin Blapp <mbr@FreeBSD.org> born in Olten, Switzerland, 1976
 02/15	Hiren Panchasara <hiren@FreeBSD.org> born in Ahmedabad, Gujarat, India, 1984
+02/15	Rajesh Kumar M A <rajeshasp@FreeBSD.org> born in Erode, Tamilnadu, India, 1986
 02/16	Justin Hibbits <jhibbits@FreeBSD.org> born in Toledo, Ohio, United States, 1983
 02/16   Tobias Christian Berner <tcberner@FreeBSD.org> born in Bern, Switzerland, 1985
 02/18   Christoph Moench-Tegeder <cmt@FreeBSD.org> born in Hannover, Niedersachsen, Germany, 1980
@@ -122,6 +124,7 @@
 03/14	Eric Turgeon <ericbsd@FreeBSD.org> born in Edmundston, New Brunswick, Canada, 1982
 03/15	Paolo Pisati <piso@FreeBSD.org> born in Lodi, Italy, 1977
 03/15	Brian Fundakowski Feldman <green@FreeBSD.org> born in Alexandria, Virginia, United States, 1983
+03/15	First quarterly status reports are due on 03/31
 03/17	Michael Smith <msmith@FreeBSD.org> born in Bankstown, New South Wales, Australia, 1971
 03/17	Alexander Motin <mav@FreeBSD.org> born in Simferopol, Ukraine, 1979
 03/18	Koop Mast <kwm@FreeBSD.org> born in Dokkum, the Netherlands, 1981
@@ -142,7 +145,6 @@
 03/29	Dave Cottlehuber <dch@FreeBSD.org> born in Christchurch, New Zealand, 1973
 03/29	Thierry Thomas <thierry@FreeBSD.org> born in Luxeuil les Bains, France, 1961
 03/30	Po-Chuan Hsieh <sunpoet@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1978
-03/31	First quarter status reports are due on 04/15
 04/01	Matthew Jacob <mjacob@FreeBSD.org> born in San Francisco, California, United States, 1958
 04/01	Alexander V. Chernikov <melifaro@FreeBSD.org> born in Moscow, Russian Federation, 1984
 04/01	Bill Fenner <fenner@FreeBSD.org> born in Bellefonte, Pennsylvania, United States, 1971
@@ -214,6 +216,7 @@
 05/22	Michael Bushkov <bushman@FreeBSD.org> born in Rostov-on-Don, Russian Federation, 1985
 05/22	Rui Paulo <rpaulo@FreeBSD.org> born in Evora, Portugal, 1986
 05/22	David Naylor <dbn@FreeBSD.org> born in Johannesburg, South Africa, 1988
+05/22	Juraj Lutter <otis@FreeBSD.org> born in Trnava, Slovakia, 1979
 05/23	Munechika Sumikawa <sumikawa@FreeBSD.org> born in Osaka, Osaka, Japan, 1972
 05/24	Duncan McLennan Barclay <dmlb@FreeBSD.org> born in London, Middlesex, United Kingdom, 1970
 05/24	Oliver Lehmann <oliver@FreeBSD.org> born in Karlsburg, Germany, 1981
@@ -249,6 +252,7 @@
 06/09	Stanislav Galabov <sgalabov@FreeBSD.org> born in Sofia, Bulgaria, 1978
 06/11	Alonso Cardenas Marquez <acm@FreeBSD.org> born in Arequipa, Peru, 1979
 06/14	Josh Paetzel <jpaetzel@FreeBSD.org> born in Minneapolis, Minnesota, United States, 1973
+06/15	Second quarterly status reports are due on 06/30
 06/17	Tilman Linneweh <arved@FreeBSD.org> born in Weinheim, Baden-Wuerttemberg, Germany, 1978
 06/18	Li-Wen Hsu <lwhsu@FreeBSD.org> born in Taipei, Taiwan, Republic of China, 1984
 06/18	Roman Bogorodskiy <novel@FreeBSD.org> born in Saratov, Russian Federation, 1986
@@ -265,7 +269,6 @@
 06/29	Daniel Harris <dannyboy@FreeBSD.org> born in Lubbock, Texas, United States, 1985
 06/29	Andrew Pantyukhin <sat@FreeBSD.org> born in Moscow, Russian Federation, 1985
 06/30	Guido van Rooij <guido@FreeBSD.org> born in Best, Noord-Brabant, the Netherlands, 1965
-06/30	Second quarter status reports are due on 07/15
 07/01	Matthew Dillon <dillon@apollo.backplane.net> born in San Francisco, California, United States, 1966
 07/01	Mateusz Guzik <mjg@FreeBSD.org> born in Dołki Górne, Poland, 1986
 07/02	Mark Christopher Ovens <marko@FreeBSD.org> born in Preston, Lancashire, United Kingdom, 1958
@@ -331,7 +334,7 @@
 08/24	Alexander Botero-Lowry <alexbl@FreeBSD.org> died in San Francisco, California, United States, 2012
 08/25	Beech Rintoul <beech@FreeBSD.org> born in Oakland, California, United States, 1952
 08/25	Jean Milanez Melo <jmelo@FreeBSD.org> born in Divinopolis, Minas Gerais, Brazil, 1982
-08/26	Scott Long <scottl@FreeBSD.org> born in Chicago, Illinois, United States, 1974
+08/25	Scott Long <scottl@FreeBSD.org> born in Chicago, Illinois, United States, 1974
 08/26	Dima Ruban <dima@FreeBSD.org> born in Nalchik, USSR, 1970
 08/26	Marc Fonvieille <blackend@FreeBSD.org> born in Avignon, France, 1972
 08/26	Herve Quiroz <hq@FreeBSD.org> born in Aix-en-Provence, France, 1977
@@ -364,6 +367,7 @@
 09/14	Matthew Seaman <matthew@FreeBSD.org> born in Bristol, United Kingdom, 1965
 09/15	Aleksandr Rybalko <ray@FreeBSD.org> born in Odessa, Ukraine, 1977
 09/15	Dima Panov <fluffy@FreeBSD.org> born in Khabarovsk, Russian Federation, 1978
+09/15	Third quarterly status reports are due on 09/30
 09/16	Maksim Yevmenkin <emax@FreeBSD.org> born in Taganrog, USSR, 1974
 09/17	Maxim Bolotin <mb@FreeBSD.org> born in Rostov-on-Don, Russian Federation, 1976
 09/18	Matthew Fleming <mdf@FreeBSD.org> born in Cleveland, Ohio, United States, 1975
@@ -384,7 +388,6 @@
 09/29	Matthew Hunt <mph@FreeBSD.org> born in Johnstown, Pennsylvania, United States, 1976
 09/30	Mark Felder <feld@FreeBSD.org> born in Prairie du Chien, Wisconsin, United States, 1985
 09/30	Hiten M. Pandya <hmp@FreeBSD.org> born in Dar-es-Salaam, Tanzania, East Africa, 1986
-09/30	Third quarter status reports are due on 10/15
 10/02	Beat Gaetzi <beat@FreeBSD.org> born in Zurich, Switzerland, 1980
 10/02	Grzegorz Blach <gblach@FreeBSD.org> born in Starachowice, Poland, 1985
 10/05	Hiroki Sato <hrs@FreeBSD.org> born in Yamagata, Japan, 1977
@@ -464,6 +467,7 @@
 12/11	Koichiro Iwao <meta@FreeBSD.org> born in Oita, Japan, 1987
 12/15	James FitzGibbon <jfitz@FreeBSD.org> born in Amersham, Buckinghamshire, United Kingdom, 1974
 12/15	Timur I. Bakeyev <timur@FreeBSD.org> born in Kazan, Republic of Tatarstan, USSR, 1974
+12/15	Fourth quarterly status reports are due on 12/31
 12/18	Chris Timmons <cwt@FreeBSD.org> born in Ellensburg, Washington, United States, 1964
 12/18	Dag-Erling Smorgrav <des@FreeBSD.org> born in Brussels, Belgium, 1977
 12/18	Muhammad Moinur Rahman <bofh@FreeBSD.org> born in Dhaka, Bangladesh, 1983
@@ -484,6 +488,5 @@
 12/28	Marius Strobl <marius@FreeBSD.org> born in Cham, Bavaria, Germany, 1978
 12/30	Sean Eric Fagan <sef@FreeBSD.org> born in Los Angeles, California, United States, 1967
 12/31	Edwin Groothuis <edwin@FreeBSD.org> born in Geldrop, the Netherlands, 1970
-12/31	Fourth quarter status reports are due on 01/15
 
 #endif /* !_calendar_freebsd_ */

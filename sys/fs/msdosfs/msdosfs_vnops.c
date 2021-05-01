@@ -796,8 +796,8 @@ msdosfs_write(struct vop_write_args *ap)
 			bawrite(bp);
 		else if (n + croffset == pmp->pm_bpcluster) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
-				cluster_write(vp, bp, dep->de_FileSize,
-				    seqcount, 0);
+				cluster_write(vp, &dep->de_clusterw, bp,
+				    dep->de_FileSize, seqcount, 0);
 			else
 				bawrite(bp);
 		} else
@@ -848,7 +848,7 @@ msdosfs_fsync(struct vop_fsync_args *ap)
 	* Non-critical metadata for associated directory entries only
 	* gets synced accidentally, as in most file systems.
 	*/
-	if (ap->a_waitfor == MNT_WAIT) {
+	if (ap->a_waitfor != MNT_NOWAIT) {
 		devvp = VTODE(ap->a_vp)->de_pmp->pm_devvp;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		allerror = VOP_FSYNC(devvp, MNT_WAIT, ap->a_td);
@@ -856,7 +856,7 @@ msdosfs_fsync(struct vop_fsync_args *ap)
 	} else
 		allerror = 0;
 
-	error = deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT);
+	error = deupdat(VTODE(ap->a_vp), ap->a_waitfor != MNT_NOWAIT);
 	if (allerror == 0)
 		allerror = error;
 	return (allerror);
@@ -1122,6 +1122,14 @@ abortit:
 			VOP_UNLOCK(tdvp);
 		vrele(tdvp);
 		vrele(ap->a_fvp);
+		/*
+		 * fdvp may be locked and has a reference. We need to
+		 * release the lock and reference, unless to and from
+		 * directories are the same.  In that case it is already
+		 * unlocked.
+		 */
+		if (tdvp != fdvp)
+			vput(fdvp);
 		return 0;
 	}
 	xp = VTODE(fvp);
@@ -1139,7 +1147,6 @@ abortit:
 	if (xp != ip) {
 		if (doingdirectory)
 			panic("rename: lost dir entry");
-		VOP_UNLOCK(fvp);
 		if (newparent)
 			VOP_UNLOCK(fdvp);
 		vrele(ap->a_fvp);
@@ -1684,6 +1691,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 			dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
 			/* NOTE: d_off is the offset of the *next* entry. */
 			dirbuf.d_off = offset + sizeof(struct direntry);
+			dirent_terminate(&dirbuf);
 			if (uio->uio_resid < dirbuf.d_reclen) {
 				brelse(bp);
 				goto out;

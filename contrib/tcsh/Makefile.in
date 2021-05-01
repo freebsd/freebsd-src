@@ -6,6 +6,7 @@
 # things; Paul Placeway, CIS Dept., Ohio State University
 #
 SHELL=/bin/sh
+ENVCMD=/usr/bin/env
 VERSION=@PACKAGE_VERSION@
 BUILD=tcsh$(EXEEXT)
 VPATH=@srcdir@
@@ -410,7 +411,7 @@ AVSRCS= BUILDING Fixes MAKEDIFFS MAKESHAR NewThings README.md FAQ \
 	pathnames.h tcsh.man Ported src.desc Imakefile imake.config \
 	complete.tcsh vmsreadme.txt termcap.vms snames.h host.defs \
 	gethost.c tcsh.man2html configure.ac configure config.h.in \
-	tests/testsuite.at aclocal.m4
+	tests/testsuite.at aclocal.m4 dot.login dot.tcshrc
 TESTFILES= tests/aliases.at tests/arguments.at tests/commands.at \
 	tests/expr.at tests/lexical.at tests/mb-eucjp.at \
 	tests/mb-utf8.at tests/noexec.at tests/parenthesis.at tests/syntax.at \
@@ -634,6 +635,8 @@ veryclean: clean
 	${RM} -f Makefile config.h config_p.h
 	${RM} -f config.status config.cache config.log tcsh.ps
 	${RM} -f missing
+	${RM} -f testsuite.log
+	${RM} -rf testsuite.dir
 	${RM} -rf autom4te.cache
 	${RM} -f *~ #*
 
@@ -735,8 +738,10 @@ $(srcdir)/stamp-h.in: $(srcdir)/configure.ac
 	cd $(srcdir) && autoheader
 	@echo timestamp > $(srcdir)/stamp-h.in
 
-check: atconfig $(srcdir)/tests/testsuite
-	$(SHELL) $(srcdir)/tests/testsuite
+check test: atconfig $(srcdir)/tests/testsuite
+	$(ENVCMD) - \
+		USER="$(USER)" \
+		$(SHELL) $(srcdir)/tests/testsuite
 
 #
 # Dependencies

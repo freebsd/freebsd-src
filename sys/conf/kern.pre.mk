@@ -92,20 +92,15 @@ CFLAGS+=	-fno-common
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS} ${ASM_CFLAGS.${.IMPSRC:T}} 
 
-.if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-CFLAGS+=	-DGPROF
-CFLAGS.gcc+=	-falign-functions=16
-.if ${PROFLEVEL} >= 2
-CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=		-pg
-.if ${COMPILER_TYPE} == "gcc"
-PROF+=		-mprofiler-epilogue
+KASAN_ENABLED!=	grep KASAN opt_global.h || true ; echo
+.if !empty(KASAN_ENABLED)
+SAN_CFLAGS+=	-fsanitize=kernel-address \
+		-mllvm -asan-stack=true \
+		-mllvm -asan-instrument-dynamic-allocas=true \
+		-mllvm -asan-globals=true \
+		-mllvm -asan-use-after-scope=true \
+		-mllvm -asan-instrumentation-with-call-threshold=0
 .endif
-.else
-PROF=		-pg
-.endif
-.endif
-DEFINED_PROF=	${PROF}
 
 KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
 .if !empty(KCSAN_ENABLED)
@@ -138,8 +133,8 @@ GCOV_CFLAGS+=	 -fprofile-arcs -ftest-coverage
 
 CFLAGS+=	${GCOV_CFLAGS}
 
-# Put configuration-specific C flags last (except for ${PROF}) so that they
-# can override the others.
+# Put configuration-specific C flags last so that they can override
+# the others.
 CFLAGS+=	${CONF_CFLAGS}
 
 .if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mbuild-id}
@@ -148,7 +143,8 @@ LDFLAGS+=	--build-id=sha1
 
 .if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386" || ${MACHINE} == "powerpc") && \
-    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
+    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == "" && \
+    !make(install)
 .error amd64/arm64/i386/ppc* kernel requires linker ifunc support
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
@@ -175,20 +171,22 @@ CFLAGS+=	-fPIE
 .endif
 .endif
 
-NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
 NORMAL_S= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
-NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
+NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${.IMPSRC}
 
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
-	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
+	  ${CC} -c ${CFLAGS} ${WERROR} ${.PREFIX}.c
 
 NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
-NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
-	-m ${LD_EMULATION} -o ${.TARGET} ${.ALLSRC:M*.fw}
+NORMAL_FWO= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} -o ${.TARGET} \
+	$S/kern/firmw.S -DFIRMW_FILE="${.ALLSRC:M*.fw}" \
+	-DFIRMW_SYMBOL="${.ALLSRC:M*.fw:C/[-.\/]/_/g}"
 
 # for ZSTD in the kernel (include zstd/lib/freebsd before other CFLAGS)
-ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} -I$S/contrib/zstd/lib -I$S/contrib/zstd/lib/common ${WERROR} -Wno-inline -Wno-missing-prototypes ${PROF} -U__BMI__ ${.IMPSRC}
+ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} \
+	-I$S/contrib/zstd/lib -I$S/contrib/zstd/lib/common ${WERROR} \
+	-Wno-missing-prototypes -U__BMI__ -DZSTD_NO_INTRINSICS ${.IMPSRC}
 # https://github.com/facebook/zstd/commit/812e8f2a [zstd 1.4.1]
 # "Note that [GCC] autovectorization still does not do a good job on the
 # optimized version, so it's turned off via attribute and flag.  I found
@@ -208,33 +206,30 @@ CDDL_CFLAGS=	\
 	-nostdinc \
 	-include $S/modules/zfs/static_ccompile.h \
 	-I${ZINCDIR} \
-	-I${ZINCDIR}/spl \
 	-I${ZINCDIR}/os/freebsd \
 	-I${ZINCDIR}/os/freebsd/spl \
 	-I${ZINCDIR}/os/freebsd/zfs  \
 	-I$S/modules/zfs \
 	-I$S/contrib/openzfs/module/zstd/include \
-	-I$S/contrib/openzfs/module/zstd/lib/freebsd/ \
 	${CFLAGS} \
-	-Wno-unknown-pragmas \
-	-Wno-missing-prototypes \
-	-Wno-undef \
-	-Wno-strict-prototypes \
 	-Wno-cast-qual \
-	-Wno-parentheses \
-	-Wno-redundant-decls \
-	-Wno-missing-braces \
-	-Wno-uninitialized \
-	-Wno-unused \
-	-Wno-inline \
-	-Wno-switch \
-	-Wno-pointer-arith \
-	-Wno-unknown-pragmas \
 	-Wno-duplicate-decl-specifier \
+	-Wno-missing-braces \
+	-Wno-missing-prototypes \
+	-Wno-nested-externs \
+	-Wno-parentheses \
+	-Wno-pointer-arith \
+	-Wno-redundant-decls \
+	-Wno-strict-prototypes \
+	-Wno-switch \
+	-Wno-undef \
+	-Wno-uninitialized \
+	-Wno-unknown-pragmas \
+	-Wno-unused \
 	-include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h \
 	-I$S/cddl/contrib/opensolaris/uts/common \
 	-I$S -I$S/cddl/compat/opensolaris
-CDDL_C=		${CC} -c ${CDDL_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+CDDL_C=		${CC} -c ${CDDL_CFLAGS} ${WERROR} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for ZFS
 ZFS_CFLAGS+=	${CDDL_CFLAGS} -DBUILDING_ZFS -DHAVE_UIO_ZEROCOPY \
@@ -255,8 +250,8 @@ ZFS_CFLAGS+= -DBITS_PER_LONG=64
 
 
 ZFS_ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${ZFS_CFLAGS}
-ZFS_C=		${CC} -c ${ZFS_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
-ZFS_RPC_C=	${CC} -c ${ZFS_CFLAGS} -DHAVE_RPC_TYPES ${WERROR} ${PROF} ${.IMPSRC}
+ZFS_C=		${CC} -c ${ZFS_CFLAGS} ${WERROR} ${.IMPSRC}
+ZFS_RPC_C=	${CC} -c ${ZFS_CFLAGS} -DHAVE_RPC_TYPES ${WERROR} ${.IMPSRC}
 ZFS_S=		${CC} -c ${ZFS_ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 
 
@@ -269,7 +264,7 @@ DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/intel -I$S/cddl/dev/dtrace/x86
 DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/util -I$S -DDIS_MEM -DSMP -I$S/cddl/compat/opensolaris
 DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common
 DTRACE_ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${DTRACE_CFLAGS}
-DTRACE_C=	${CC} -c ${DTRACE_CFLAGS}	${WERROR} ${PROF} ${.IMPSRC}
+DTRACE_C=	${CC} -c ${DTRACE_CFLAGS}	${WERROR} ${.IMPSRC}
 DTRACE_S=	${CC} -c ${DTRACE_ASM_CFLAGS}	${WERROR} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for DTrace/FBT
@@ -277,7 +272,7 @@ FBT_CFLAGS=	-DBUILDING_DTRACE -nostdinc -I$S/cddl/dev/fbt/${MACHINE_CPUARCH} -I$
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 FBT_CFLAGS+=	-I$S/cddl/dev/fbt/x86
 .endif
-FBT_C=		${CC} -c ${FBT_CFLAGS}		${WERROR} ${PROF} ${.IMPSRC}
+FBT_C=		${CC} -c ${FBT_CFLAGS}		${WERROR} ${.IMPSRC}
 
 .if ${MK_CTF} != "no"
 NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
@@ -297,7 +292,7 @@ OFEDINCLUDES=	-I$S/ofed/include -I$S/ofed/include/uapi ${LINUXKPI_INCLUDES}
 OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith
 OFEDCFLAGS=	${CFLAGS:N-I*} -DCONFIG_INFINIBAND_USER_MEM \
 		${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
-OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
+OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
 
 # mlxfw C flags.
@@ -356,37 +351,6 @@ MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
 .if !defined(NO_MODULES)
 MKMODULESENV+=	__MPATH="${__MPATH}"
-.endif
-
-# Architecture and output format arguments for objcopy to convert image to
-# object file
-
-.if ${MFS_IMAGE:Uno} != "no"
-.if empty(MD_ROOT_SIZE_CONFIGURED)
-.if !defined(EMBEDFS_FORMAT.${MACHINE_ARCH})
-EMBEDFS_FORMAT.${MACHINE_ARCH}!= awk -F'"' '/OUTPUT_FORMAT/ {print $$2}' ${LDSCRIPT}
-.if empty(EMBEDFS_FORMAT.${MACHINE_ARCH})
-.undef EMBEDFS_FORMAT.${MACHINE_ARCH}
-.endif
-.endif
-
-.if !defined(EMBEDFS_ARCH.${MACHINE_ARCH})
-EMBEDFS_ARCH.${MACHINE_ARCH}!= sed -n '/OUTPUT_ARCH/s/.*(\(.*\)).*/\1/p' ${LDSCRIPT}
-.if empty(EMBEDFS_ARCH.${MACHINE_ARCH})
-.undef EMBEDFS_ARCH.${MACHINE_ARCH}
-.endif
-.endif
-
-EMBEDFS_FORMAT.arm?=		elf32-littlearm
-EMBEDFS_FORMAT.armv6?=		elf32-littlearm
-EMBEDFS_FORMAT.armv7?=		elf32-littlearm
-EMBEDFS_FORMAT.aarch64?=	elf64-littleaarch64
-EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
-EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
-EMBEDFS_FORMAT.mips64?=		elf64-tradbigmips
-EMBEDFS_FORMAT.mips64el?=	elf64-tradlittlemips
-EMBEDFS_FORMAT.riscv64?=	elf64-littleriscv
-.endif
 .endif
 
 # Detect kernel config options that force stack frames to be turned on.

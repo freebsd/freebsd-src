@@ -58,7 +58,6 @@
 
 # TODO:
 # - automatable conflict resolution
-# - a 'revert' command to make a file "stock"
 
 usage()
 {
@@ -69,9 +68,10 @@ usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
        etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
                  <tarball>
        etcupdate diff [-d workdir] [-D destdir] [-I patterns] [-L logfile]
-       etcupdate extract [-B] [-d workdir] [-s source | -t tarball] [-L logfile]
-                 [-M options]
+       etcupdate extract [-B] [-d workdir] [-s source | -t tarball]
+                 [-D destdir] [-L logfile] [-M options]
        etcupdate resolve [-p] [-d workdir] [-D destdir] [-L logfile]
+       etcupdate revert [-d workdir] [-D destdir] [-L logfile] file ...
        etcupdate status [-d workdir] [-D destdir]
 EOF
 	exit 1
@@ -179,17 +179,21 @@ always_install()
 	return 1
 }
 
-# Build a new tree
+# Build a new tree.  This runs inside a subshell to trap SIGINT.
 #
 # $1 - directory to store new tree in
 build_tree()
-{
+(
 	local destdir dir file make
 
 	make="make $MAKE_OPTIONS -DNO_FILEMON"
 
 	log "Building tree at $1 with $make"
-	mkdir -p $1/usr/obj >&3 2>&1
+
+	exec >&3 2>&1
+	trap 'return 1' INT
+
+	mkdir -p $1/usr/obj
 	destdir=`realpath $1`
 
 	if [ -n "$preworld" ]; then
@@ -197,38 +201,39 @@ build_tree()
 		# crucial to installworld.
 		for file in $PREWORLD_FILES; do
 			name=$(basename $file)
-			mkdir -p $1/etc >&3 2>&1 || return 1
+			mkdir -p $1/etc || return 1
 			cp -p $SRCDIR/$file $1/etc/$name || return 1
 		done
 	elif ! [ -n "$nobuild" ]; then
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
     MAKEOBJDIRPREFIX=$destdir/usr/obj $make _obj SUBDIR_OVERRIDE=etc &&
     MAKEOBJDIRPREFIX=$destdir/usr/obj $make everything SUBDIR_OVERRIDE=etc &&
-    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) \
-		    >&3 2>&1 || return 1
+    MAKEOBJDIRPREFIX=$destdir/usr/obj $make DESTDIR=$destdir distribution) || \
+		    return 1
 	else
 		(cd $SRCDIR; $make DESTDIR=$destdir distrib-dirs &&
-		    $make DESTDIR=$destdir distribution) >&3 2>&1 || return 1
+		    $make DESTDIR=$destdir distribution) || return 1
 	fi
-	chflags -R noschg $1 >&3 2>&1 || return 1
-	rm -rf $1/usr/obj >&3 2>&1 || return 1
+	chflags -R noschg $1 || return 1
+	rm -rf $1/usr/obj || return 1
 
 	# Purge auto-generated files.  Only the source files need to
 	# be updated after which these files are regenerated.
-	rm -f $1/etc/*.db $1/etc/passwd $1/var/db/services.db >&3 2>&1 || \
-	    return 1
+	rm -f $1/etc/*.db $1/etc/passwd $1/var/db/services.db || return 1
 
 	# Remove empty files.  These just clutter the output of 'diff'.
-	find $1 -type f -size 0 -delete >&3 2>&1 || return 1
+	find $1 -type f -size 0 -delete || return 1
 
 	# Trim empty directories.
-	find -d $1 -type d -empty -delete >&3 2>&1 || return 1
+	find -d $1 -type d -empty -delete || return 1
 	return 0
-}
+)
 
-# Generate a new NEWTREE tree.  If tarball is set, then the tree is
+# Generate a new tree.  If tarball is set, then the tree is
 # extracted from the tarball.  Otherwise the tree is built from a
 # source tree.
+#
+# $1 - directory to store new tree in
 extract_tree()
 {
 	local files
@@ -239,16 +244,16 @@ extract_tree()
 		if [ -n "$preworld" ]; then
 			files="$PREWORLD_FILES"
 		fi
-		if ! (mkdir -p $NEWTREE && tar xf $tarball -C $NEWTREE $files) \
+		if ! (mkdir -p $1 && tar xf $tarball -C $1 $files) \
 		    >&3 2>&1; then
 			echo "Failed to extract new tree."
-			remove_tree $NEWTREE
+			remove_tree $1
 			exit 1
 		fi
 	else
-		if ! build_tree $NEWTREE; then
+		if ! build_tree $1; then
 			echo "Failed to build new tree."
-			remove_tree $NEWTREE
+			remove_tree $1
 			exit 1
 		fi
 	fi
@@ -437,7 +442,7 @@ empty_destdir()
 #
 # $1 - first tree
 # $2 - second tree
-# $3 - node name 
+# $3 - node name
 # $4 - label for first tree
 # $5 - label for second tree
 diffnode()
@@ -862,7 +867,7 @@ merge_file()
 # $1 - pathname of the file to resolve (relative to DESTDIR)
 has_conflicts()
 {
-	
+
 	egrep -q '^(<{7}|\|{7}|={7}|>{7}) ' $CONFLICTS/$1
 }
 
@@ -1353,14 +1358,28 @@ extract_cmd()
 
 	log "extract command: tarball=$tarball"
 
+	# Create a temporary directory to hold the tree
+	dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
+	if [ $? -ne 0 ]; then
+		echo "Unable to create temporary directory."
+		exit 1
+	fi
+
+	extract_tree $dir
+
 	if [ -d $NEWTREE ]; then
 		if ! remove_tree $NEWTREE; then
 			echo "Unable to remove current tree."
+			remove_tree $dir
 			exit 1
 		fi
 	fi
 
-	extract_tree
+	if ! mv $dir $NEWTREE >&3 2>&1; then
+		echo "Unable to rename temp tree to current tree."
+		remove_tree $dir
+		exit 1
+	fi
 }
 
 # Resolve conflicts left from an earlier merge.
@@ -1396,6 +1415,47 @@ resolve_cmd()
 	fi
 }
 
+# Restore files to the stock version.  Only files with a local change
+# are restored from the stock version.
+revert_cmd()
+{
+	local cmp file
+
+	if [ $# -eq 0 ]; then
+		usage
+	fi
+
+	for file; do
+		log "revert $file"
+
+		if ! [ -e $NEWTREE/$file ]; then
+			echo "File $file does not exist in the current tree."
+			exit 1
+		fi
+		if [ -d $NEWTREE/$file ]; then
+			echo "File $file is a directory."
+			exit 1
+		fi
+
+		compare $DESTDIR/$file $NEWTREE/$file
+		cmp=$?
+		if [ $cmp -eq $COMPARE_EQUAL ]; then
+			continue
+		fi
+
+		if update_unmodified $file; then
+			# If this file had a conflict, clean up the
+			# conflict.
+			if [ -e $CONFLICTS/$file ]; then
+				if ! rm $CONFLICTS/$file >&3 2>&1; then
+					echo "Failed to remove conflict " \
+					     "for $file".
+				fi
+			fi
+		fi
+	done
+}
+
 # Report a summary of the previous merge.  Specifically, list any
 # remaining conflicts followed by any warnings from the previous
 # update.
@@ -1420,7 +1480,7 @@ status_cmd()
 # source tree.
 update_cmd()
 {
-	local dir
+	local dir new old
 
 	if [ $# -ne 0 ]; then
 		usage
@@ -1449,60 +1509,44 @@ update_cmd()
 		exit 1
 	fi
 
+	# Save tree names to use for rotation later.
+	old=$OLDTREE
+	new=$NEWTREE
 	if [ -z "$rerun" ]; then
-		# For a dryrun that is not a rerun, do not rotate the existing
-		# stock tree.  Instead, extract a tree to a temporary directory
-		# and use that for the comparison.
-		if [ -n "$dryrun" ]; then
-			dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
-			if [ $? -ne 0 ]; then
-				echo "Unable to create temporary directory."
-				exit 1
-			fi
-
-			# A pre-world dryrun has already set OLDTREE to
-			# point to the current stock tree.
-			if [ -z "$preworld" ]; then
-				OLDTREE=$NEWTREE
-			fi
-			NEWTREE=$dir
-
-		# For a pre-world update, blow away any pre-existing
-		# NEWTREE.
-		elif [ -n "$preworld" ]; then
-			if ! remove_tree $NEWTREE; then
-				echo "Unable to remove pre-world tree."
-				exit 1
-			fi
-
-		# Rotate the existing stock tree to the old tree.
-		elif [ -d $NEWTREE ]; then
-			# First, delete the previous old tree if it exists.
-			if ! remove_tree $OLDTREE; then
-				echo "Unable to remove old tree."
-				exit 1
-			fi
-
-			# Move the current stock tree.
-			if ! mv $NEWTREE $OLDTREE >&3 2>&1; then
-				echo "Unable to rename current stock tree."
-				exit 1
-			fi
-		fi
-
-		if ! [ -d $OLDTREE ]; then
-			cat <<EOF
-No previous tree to compare against, a sane comparison is not possible.
-EOF
-			log "No previous tree to compare against."
-			if [ -n "$dir" ]; then
-				rmdir $dir
-			fi
+		# Extract the new tree to a temporary directory.  The
+	        # trees are only rotated after a successful update to
+	        # avoid races if an update command is interrupted
+	        # before it completes.
+		dir=`mktemp -d $WORKDIR/etcupdate-XXXXXXX`
+		if [ $? -ne 0 ]; then
+			echo "Unable to create temporary directory."
 			exit 1
 		fi
 
 		# Populate the new tree.
-		extract_tree
+		extract_tree $dir
+
+		# Compare the new tree against the previous tree.  For
+		# the preworld case OLDTREE already points to the
+		# current stock tree.
+		if [ -z "$preworld" ]; then
+			OLDTREE=$NEWTREE
+		fi
+		NEWTREE=$dir
+	fi
+
+	if ! [ -d $OLDTREE ]; then
+		cat <<EOF
+No previous tree to compare against, a sane comparison is not possible.
+EOF
+		log "No previous tree to compare against."
+		if [ -n "$dir" ]; then
+			if [ -n "$rerun" ]; then
+				panic "Should not have a temporary directory"
+			fi
+			remove_tree $dir
+		fi
+		exit 1
 	fi
 
 	# Build lists of nodes in the old and new trees.
@@ -1523,7 +1567,7 @@ EOF
 	if [ -n "$preworld" ]; then
 		> $WORKDIR/removed.files
 	fi
-	
+
 	# The order for the following sections is important.  In the
 	# odd case that a directory is converted into a file, the
 	# existing subfiles need to be removed if possible before the
@@ -1568,12 +1612,48 @@ EOF
 		cat $WARNINGS
 	fi
 
-	if [ -n "$dir" ]; then
-		if [ -z "$dryrun" -o -n "$rerun" ]; then
+	# Finally, rotate any needed trees.
+	if [ "$new" != "$NEWTREE" ]; then
+		if [ -n "$rerun" ]; then
 			panic "Should not have a temporary directory"
 		fi
-		
-		remove_tree $dir
+		if [ -z "$dir" ]; then
+			panic "Should have a temporary directory"
+		fi
+
+		# Rotate the old tree if needed
+		if [ "$old" != "$OLDTREE" ]; then
+			if [ -n "$preworld" ]; then
+				panic "Old tree should be unchanged"
+			fi
+
+			if ! remove_tree $old; then
+				echo "Unable to remove previous old tree."
+				exit 1
+			fi
+
+			if ! mv $OLDTREE $old >&3 2>&1; then
+				echo "Unable to rename old tree."
+				exit 1
+			fi
+		fi
+
+		# Rotate the new tree.  Remove a previous pre-world
+		# tree if it exists.
+		if [ -d $new ]; then
+			if [ -z "$preworld" ]; then
+				panic "New tree should be rotated to old"
+			fi
+			if ! remove_tree $new; then
+				echo "Unable to remove previous pre-world tree."
+				exit 1
+			fi
+		fi
+
+		if ! mv $NEWTREE $new >&3 2>&1; then
+			echo "Unable to rename current tree."
+			exit 1
+		fi
 	fi
 }
 
@@ -1583,7 +1663,7 @@ EOF
 command="update"
 if [ $# -gt 0 ]; then
 	case "$1" in
-		build|diff|extract|status|resolve)
+		build|diff|extract|status|resolve|revert)
 			command="$1"
 			shift
 			;;
@@ -1762,7 +1842,7 @@ case $command in
 			usage
 		fi
 		;;
-	build|diff|status)
+	build|diff|status|revert)
 		if [ -n "$dryrun" -o -n "$rerun" -o -n "$tarball" -o \
 		     -n "$preworld" ]; then
 			usage
@@ -1796,7 +1876,7 @@ if ! mkdir -p $WORKDIR 2>/dev/null; then
 fi
 
 case $command in
-	diff|resolve|status)
+	diff|resolve|revert|status)
 		exec 3>>$LOGFILE
 		;;
 	*)

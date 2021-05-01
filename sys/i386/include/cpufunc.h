@@ -412,6 +412,15 @@ rdtsc32(void)
 	return (rv);
 }
 
+static __inline uint32_t
+rdtscp32(void)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtscp" : "=a" (rv) : : "ecx", "edx");
+	return (rv);
+}
+
 static __inline void
 wbinvd(void)
 {

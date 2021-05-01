@@ -707,6 +707,11 @@
 #define LINUX_IOCTL_VIDEO2_MIN	LINUX_VIDIOC_QUERYCAP
 #define LINUX_IOCTL_VIDEO2_MAX	LINUX_VIDIOC_UNSUBSCRIBE_EVENT
 
+#define	LINUX_F2FS_IOC_GET_FEATURES		0xf50c /* 0x8004f50c */
+
+#define	LINUX_IOCTL_F2FS_MIN			0xf500
+#define	LINUX_IOCTL_F2FS_MAX	LINUX_F2FS_IOC_GET_FEATURES
+
 /*
  * Our libusb(8) calls emulated within linux(4).
  */
@@ -747,8 +752,8 @@
 #define	FBSD_LUSB_GET_POWER_USAGE	0xffdd
 #define	FBSD_LUSB_DEVICESTATS		0xffdc
 
-#define	FBSD_LUSB_MAX			0xffff
-#define	FBSD_LUSB_MIN			0xffdc
+#define	LINUX_IOCTL_FBSD_LUSB_MAX	0xffff
+#define	LINUX_IOCTL_FBSD_LUSB_MIN	0xffdc
 
 /*
  * Linux btrfs clone operation
@@ -767,8 +772,8 @@
 /*
  * kcov(4) shims
  */
-#define	LINUX_KCOV_MIN			0x6300
-#define	LINUX_KCOV_MAX			0x63ff
+#define	LINUX_IOCTL_KCOV_MIN		0x6300
+#define	LINUX_IOCTL_KCOV_MAX		0x63ff
 #define	LINUX_KCOV_INIT_TRACE		0x6301
 #define	LINUX_KCOV_ENABLE		0x6364
 #define	LINUX_KCOV_DISABLE		0x6365

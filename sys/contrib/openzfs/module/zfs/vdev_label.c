@@ -142,6 +142,7 @@
 #include <sys/zap.h>
 #include <sys/vdev.h>
 #include <sys/vdev_impl.h>
+#include <sys/vdev_draid.h>
 #include <sys/uberblock_impl.h>
 #include <sys/metaslab.h>
 #include <sys/metaslab_impl.h>
@@ -453,31 +454,13 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 	if (vd->vdev_fru != NULL)
 		fnvlist_add_string(nv, ZPOOL_CONFIG_FRU, vd->vdev_fru);
 
-	if (vd->vdev_nparity != 0) {
-		ASSERT(strcmp(vd->vdev_ops->vdev_op_type,
-		    VDEV_TYPE_RAIDZ) == 0);
+	if (vd->vdev_ops->vdev_op_config_generate != NULL)
+		vd->vdev_ops->vdev_op_config_generate(vd, nv);
 
-		/*
-		 * Make sure someone hasn't managed to sneak a fancy new vdev
-		 * into a crufty old storage pool.
-		 */
-		ASSERT(vd->vdev_nparity == 1 ||
-		    (vd->vdev_nparity <= 2 &&
-		    spa_version(spa) >= SPA_VERSION_RAIDZ2) ||
-		    (vd->vdev_nparity <= 3 &&
-		    spa_version(spa) >= SPA_VERSION_RAIDZ3));
-
-		/*
-		 * Note that we'll add the nparity tag even on storage pools
-		 * that only support a single parity device -- older software
-		 * will just ignore it.
-		 */
-		fnvlist_add_uint64(nv, ZPOOL_CONFIG_NPARITY, vd->vdev_nparity);
-	}
-
-	if (vd->vdev_wholedisk != -1ULL)
+	if (vd->vdev_wholedisk != -1ULL) {
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK,
 		    vd->vdev_wholedisk);
+	}
 
 	if (vd->vdev_not_present && !(flags & VDEV_CONFIG_MISSING))
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT, 1);
@@ -613,7 +596,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			 * as a single mapping.
 			 */
 			for (int i = 0; i < RANGE_TREE_HISTOGRAM_SIZE; i++) {
-				if (1ULL << (i + 1) < vdev_removal_max_span) {
+				if (i + 1 < highbit64(vdev_removal_max_span)
+				    - 1) {
 					to_alloc +=
 					    vd->vdev_mg->mg_histogram[i] <<
 					    (i + 1);
@@ -770,35 +754,47 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 {
 	spa_t *spa = vd->vdev_spa;
 	nvlist_t *config = NULL;
-	vdev_phys_t *vp;
-	abd_t *vp_abd;
-	zio_t *zio;
+	vdev_phys_t *vp[VDEV_LABELS];
+	abd_t *vp_abd[VDEV_LABELS];
+	zio_t *zio[VDEV_LABELS];
 	uint64_t best_txg = 0;
 	uint64_t label_txg = 0;
 	int error = 0;
 	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL |
 	    ZIO_FLAG_SPECULATIVE;
 
-	ASSERT(spa_config_held(spa, SCL_STATE_ALL, RW_WRITER) == SCL_STATE_ALL);
+	ASSERT(vd->vdev_validate_thread == curthread ||
+	    spa_config_held(spa, SCL_STATE_ALL, RW_WRITER) == SCL_STATE_ALL);
 
 	if (!vdev_readable(vd))
 		return (NULL);
 
-	vp_abd = abd_alloc_linear(sizeof (vdev_phys_t), B_TRUE);
-	vp = abd_to_buf(vp_abd);
+	/*
+	 * The label for a dRAID distributed spare is not stored on disk.
+	 * Instead it is generated when needed which allows us to bypass
+	 * the pipeline when reading the config from the label.
+	 */
+	if (vd->vdev_ops == &vdev_draid_spare_ops)
+		return (vdev_draid_read_config_spare(vd));
+
+	for (int l = 0; l < VDEV_LABELS; l++) {
+		vp_abd[l] = abd_alloc_linear(sizeof (vdev_phys_t), B_TRUE);
+		vp[l] = abd_to_buf(vp_abd[l]);
+	}
 
 retry:
 	for (int l = 0; l < VDEV_LABELS; l++) {
+		zio[l] = zio_root(spa, NULL, NULL, flags);
+
+		vdev_label_read(zio[l], vd, l, vp_abd[l],
+		    offsetof(vdev_label_t, vl_vdev_phys), sizeof (vdev_phys_t),
+		    NULL, NULL, flags);
+	}
+	for (int l = 0; l < VDEV_LABELS; l++) {
 		nvlist_t *label = NULL;
 
-		zio = zio_root(spa, NULL, NULL, flags);
-
-		vdev_label_read(zio, vd, l, vp_abd,
-		    offsetof(vdev_label_t, vl_vdev_phys),
-		    sizeof (vdev_phys_t), NULL, NULL, flags);
-
-		if (zio_wait(zio) == 0 &&
-		    nvlist_unpack(vp->vp_nvlist, sizeof (vp->vp_nvlist),
+		if (zio_wait(zio[l]) == 0 &&
+		    nvlist_unpack(vp[l]->vp_nvlist, sizeof (vp[l]->vp_nvlist),
 		    &label, 0) == 0) {
 			/*
 			 * Auxiliary vdevs won't have txg values in their
@@ -811,6 +807,8 @@ retry:
 			    ZPOOL_CONFIG_POOL_TXG, &label_txg);
 			if ((error || label_txg == 0) && !config) {
 				config = label;
+				for (l++; l < VDEV_LABELS; l++)
+					zio_wait(zio[l]);
 				break;
 			} else if (label_txg <= txg && label_txg > best_txg) {
 				best_txg = label_txg;
@@ -839,7 +837,9 @@ retry:
 		    (u_longlong_t)txg);
 	}
 
-	abd_free(vp_abd);
+	for (int l = 0; l < VDEV_LABELS; l++) {
+		abd_free(vp_abd[l]);
+	}
 
 	return (config);
 }
@@ -1433,7 +1433,7 @@ vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 
 	/*
 	 * If MMP_VALID(ub) && MMP_SEQ_VALID(ub) then the host has an MMP-aware
-	 * ZFS, e.g. zfsonlinux >= 0.7.
+	 * ZFS, e.g. OpenZFS >= 0.7.
 	 *
 	 * If one ub has MMP and the other does not, they were written by
 	 * different hosts, which matters for MMP.  So we treat no MMP/no SEQ as
@@ -1496,7 +1496,8 @@ vdev_uberblock_load_impl(zio_t *zio, vdev_t *vd, int flags,
 	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_uberblock_load_impl(zio, vd->vdev_child[c], flags, cbp);
 
-	if (vd->vdev_ops->vdev_op_leaf && vdev_readable(vd)) {
+	if (vd->vdev_ops->vdev_op_leaf && vdev_readable(vd) &&
+	    vd->vdev_ops != &vdev_draid_spare_ops) {
 		for (int l = 0; l < VDEV_LABELS; l++) {
 			for (int n = 0; n < VDEV_UBERBLOCK_COUNT(vd); n++) {
 				vdev_label_read(zio, vd, l,
@@ -1585,6 +1586,13 @@ vdev_copy_uberblocks(vdev_t *vd)
 	    SCL_STATE);
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
 
+	/*
+	 * No uberblocks are stored on distributed spares, they may be
+	 * safely skipped when expanding a leaf vdev.
+	 */
+	if (vd->vdev_ops == &vdev_draid_spare_ops)
+		return;
+
 	spa_config_enter(vd->vdev_spa, locks, FTAG, RW_READER);
 
 	ub_abd = abd_alloc_linear(VDEV_UBERBLOCK_SIZE(vd), B_TRUE);
@@ -1644,6 +1652,15 @@ vdev_uberblock_sync(zio_t *zio, uint64_t *good_writes,
 		return;
 
 	if (!vdev_writeable(vd))
+		return;
+
+	/*
+	 * There's no need to write uberblocks to a distributed spare, they
+	 * are already stored on all the leaves of the parent dRAID.  For
+	 * this same reason vdev_uberblock_load_impl() skips distributed
+	 * spares when reading uberblocks.
+	 */
+	if (vd->vdev_ops == &vdev_draid_spare_ops)
 		return;
 
 	/* If the vdev was expanded, need to copy uberblock rings. */
@@ -1760,6 +1777,14 @@ vdev_label_sync(zio_t *zio, uint64_t *good_writes,
 		return;
 
 	if (!vdev_writeable(vd))
+		return;
+
+	/*
+	 * The top-level config never needs to be written to a distributed
+	 * spare.  When read vdev_dspare_label_read_config() will generate
+	 * the config for the vdev_label_read_config().
+	 */
+	if (vd->vdev_ops == &vdev_draid_spare_ops)
 		return;
 
 	/*

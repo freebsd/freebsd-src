@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2020
+.Dd January 5, 2021
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -36,10 +36,14 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl adefkpqr
+.Op Fl aefkqr
 .Op Fl F Ar pipe
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
+.Nm
+.Fl p
+.Op Fl deq
+.Op Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -66,7 +70,7 @@ will run the specified command with an optional argument vector
 instead of an interactive shell.
 .Pp
 The following options are available:
-.Bl -tag -width indent
+.Bl -tag -width "-F pipe"
 .It Fl a
 Append the output to
 .Ar file
@@ -143,7 +147,7 @@ The results are meant to emulate a hardcopy terminal, not an addressable one.
 .Sh ENVIRONMENT
 The following environment variables are utilized by
 .Nm :
-.Bl -tag -width SHELL
+.Bl -tag -width SCRIPT
 .It Ev SCRIPT
 The
 .Ev SCRIPT
@@ -169,6 +173,68 @@ is not set, the Bourne shell
 is assumed.
 .Pq Most shells set this variable automatically .
 .El
+.Sh EXAMPLES
+Record a simple
+.Xr csh 1
+session with no additional details like input, output, and timestamping:
+.Bd -literal -offset indent
+$ SHELL=/bin/csh script
+Script started, output file is typescript
+% date
+Tue Jan  5 15:08:10 UTC 2021
+% exit
+exit
+
+Script done, output file is typescript
+.Ed
+.Pp
+Now, replay the session recorded in the previous example:
+.Bd -literal -offset indent
+$ cat ./typescript
+Script started on Tue Jan  5 15:08:08 2021
+% date
+Tue Jan  5 15:08:10 UTC 2021
+% exit
+exit
+
+Script done on Tue Jan  5 15:08:13 2021
+.Ed
+.Pp
+Record a
+.Xr csh 1
+session, but this time with additional details like timestamping:
+.Bd -literal -offset indent
+$ SHELL=/bin/csh script -r
+Script started, output file is typescript
+% date
+Tue Jan  5 15:17:11 UTC 2021
+% exit
+exit
+
+Script done, output file is typescript
+.Ed
+.Pp
+In order to replay a sessions recorded with the
+.Fl r
+flag, it is necessary to specify
+.Fl p
+.Po
+.Xr cat 1
+will not work because of all the aditional information stored in the session file
+.Pc .
+Also, let us use
+.Fl d
+to print the whole session at once:
+.Bd -literal -offset indent
+$ script -dp ./typescript
+Script started on Tue Jan  5 15:17:09 2021
+% date
+Tue Jan  5 15:17:11 UTC 2021
+% exit
+exit
+
+Script done on Tue Jan  5 15:17:14 2021
+.Ed
 .Sh SEE ALSO
 .Xr csh 1
 .Po

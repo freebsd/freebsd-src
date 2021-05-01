@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "thread allocation");
 
-static int max_threads_per_proc = 1500;
+int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
     &max_threads_per_proc, 0, "Limit on threads per proc");
 
@@ -353,14 +353,16 @@ kern_thr_exit(struct thread *td)
 		return (0);
 	}
 
-	p->p_pendingexits++;
+	if (p->p_sysent->sv_ontdexit != NULL)
+		p->p_sysent->sv_ontdexit(td);
+
 	td->td_dbgflags |= TDB_EXIT;
-	if (p->p_ptevents & PTRACE_LWP)
+	if (p->p_ptevents & PTRACE_LWP) {
+		p->p_pendingexits++;
 		ptracestop(td, SIGTRAP, NULL);
-	PROC_UNLOCK(p);
+		p->p_pendingexits--;
+	}
 	tidhash_remove(td);
-	PROC_LOCK(p);
-	p->p_pendingexits--;
 
 	/*
 	 * The check above should prevent all other threads from this

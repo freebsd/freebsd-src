@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: yesno,v 1.9 2010/01/14 01:11:11 tom Exp $
+# $Id: yesno,v 1.10 2020/11/26 00:05:52 tom Exp $
 
 . ./setup-vars
 
@@ -16,6 +16,6 @@ $DIALOG --title "YES/NO BOX" --clear "$@" \
                  auto wrap around will be disabled and you will have to \
                  control line breaking yourself." 15 61
 
-retval=$?
+returncode=$?
 
 . ./report-yesno

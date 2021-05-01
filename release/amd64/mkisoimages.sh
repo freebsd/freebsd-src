@@ -46,10 +46,10 @@ if [ "$1" = "-b" ]; then
 	bootable="-o bootimage=i386;$BASEBITSDIR/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition.
-	# The ISO file is a special case, in that it only has a maximum of
-	# 800 KB available for the boot code. So make an 800 KB ESP
 	espfilename=$(mktemp /tmp/efiboot.XXXXXX)
-	make_esp_file ${espfilename} 800 ${BASEBITSDIR}/boot/loader.efi
+	# ESP file size in KB.
+	espsize="2048"
+	make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
 	bootable="$bootable -o bootimage=i386;${espfilename} -o no-emul-boot -o platformid=efi"
 
 	shift
@@ -89,8 +89,8 @@ if [ "$bootable" != "" ]; then
 	$MKIMG -s gpt \
 	    --capacity $imgsize \
 	    -b "$BASEBITSDIR/boot/pmbr" \
-	    $espparam \
 	    -p freebsd-boot:="$BASEBITSDIR/boot/isoboot" \
+	    $espparam \
 	    -o hybrid.img
 
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.

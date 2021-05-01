@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -321,16 +321,18 @@ AcpiNsComplexRepairs (
     ACPI_STATUS             Status;
 
 
+    ACPI_FUNCTION_TRACE (NsComplexRepairs);
+
     /* Check if this name is in the list of repairable names */
 
     Predefined = AcpiNsMatchComplexRepair (Node);
     if (!Predefined)
     {
-        return (ValidateStatus);
+        return_ACPI_STATUS (ValidateStatus);
     }
 
     Status = Predefined->RepairFunction (Info, ReturnObjectPtr);
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -526,20 +528,21 @@ AcpiNsRepair_CID (
     UINT16                  OriginalRefCount;
     UINT32                  i;
 
+    ACPI_FUNCTION_TRACE (NsRepair_CID);
 
     /* Check for _CID as a simple string */
 
     if (ReturnObject->Common.Type == ACPI_TYPE_STRING)
     {
         Status = AcpiNsRepair_HID (Info, ReturnObjectPtr);
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     /* Exit if not a Package */
 
     if (ReturnObject->Common.Type != ACPI_TYPE_PACKAGE)
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* Examine each element of the _CID package */
@@ -553,7 +556,7 @@ AcpiNsRepair_CID (
         Status = AcpiNsRepair_HID (Info, ElementPtr);
         if (ACPI_FAILURE (Status))
         {
-            return (Status);
+            return_ACPI_STATUS (Status);
         }
 
         if (OriginalElement != *ElementPtr)
@@ -567,7 +570,7 @@ AcpiNsRepair_CID (
         ElementPtr++;
     }
 
-    return (AE_OK);
+    return_ACPI_STATUS (AE_OK);
 }
 
 
@@ -699,7 +702,7 @@ AcpiNsRepair_HID (
 
     if (ReturnObject->Common.Type != ACPI_TYPE_STRING)
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     if (ReturnObject->String.Length == 0)
@@ -711,7 +714,7 @@ AcpiNsRepair_HID (
         /* Return AE_OK anyway, let driver handle it */
 
         Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* It is simplest to always create a new string object */
@@ -719,7 +722,7 @@ AcpiNsRepair_HID (
     NewString = AcpiUtCreateStringObject (ReturnObject->String.Length);
     if (!NewString)
     {
-        return (AE_NO_MEMORY);
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     /*
@@ -753,7 +756,7 @@ AcpiNsRepair_HID (
 
     AcpiUtRemoveReference (ReturnObject);
     *ReturnObjectPtr = NewString;
-    return (AE_OK);
+    return_ACPI_STATUS (AE_OK);
 }
 
 

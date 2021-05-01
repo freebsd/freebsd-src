@@ -62,6 +62,8 @@ typedef struct zstd_stats {
 	kstat_named_t	zstd_stat_dec_header_inval;
 	kstat_named_t	zstd_stat_com_fail;
 	kstat_named_t	zstd_stat_dec_fail;
+	kstat_named_t	zstd_stat_buffers;
+	kstat_named_t	zstd_stat_size;
 } zstd_stats_t;
 
 static zstd_stats_t zstd_stats = {
@@ -74,6 +76,8 @@ static zstd_stats_t zstd_stats = {
 	{ "decompress_header_invalid",	KSTAT_DATA_UINT64 },
 	{ "compress_failed",		KSTAT_DATA_UINT64 },
 	{ "decompress_failed",		KSTAT_DATA_UINT64 },
+	{ "buffers",			KSTAT_DATA_UINT64 },
+	{ "size",			KSTAT_DATA_UINT64 },
 };
 
 /* Enums describing the allocator type specified by kmem_type in zstd_kmem */
@@ -198,6 +202,34 @@ static struct zstd_fallback_mem zstd_dctx_fallback;
 static struct zstd_pool *zstd_mempool_cctx;
 static struct zstd_pool *zstd_mempool_dctx;
 
+
+static void
+zstd_mempool_reap(struct zstd_pool *zstd_mempool)
+{
+	struct zstd_pool *pool;
+
+	if (!zstd_mempool || !ZSTDSTAT(zstd_stat_buffers)) {
+		return;
+	}
+
+	/* free obsolete slots */
+	for (int i = 0; i < ZSTD_POOL_MAX; i++) {
+		pool = &zstd_mempool[i];
+		if (pool->mem && mutex_tryenter(&pool->barrier)) {
+			/* Free memory if unused object older than 2 minutes */
+			if (pool->mem && gethrestime_sec() > pool->timeout) {
+				vmem_free(pool->mem, pool->size);
+				ZSTDSTAT_SUB(zstd_stat_buffers, 1);
+				ZSTDSTAT_SUB(zstd_stat_size, pool->size);
+				pool->mem = NULL;
+				pool->size = 0;
+				pool->timeout = 0;
+			}
+			mutex_exit(&pool->barrier);
+		}
+	}
+}
+
 /*
  * Try to get a cached allocated buffer from memory pool or allocate a new one
  * if necessary. If a object is older than 2 minutes and does not fit the
@@ -211,6 +243,7 @@ static struct zstd_pool *zstd_mempool_dctx;
  *
  * The scheduled release will be updated every time a object is reused.
  */
+
 static void *
 zstd_mempool_alloc(struct zstd_pool *zstd_mempool, size_t size)
 {
@@ -238,27 +271,14 @@ zstd_mempool_alloc(struct zstd_pool *zstd_mempool, size_t size)
 			 * Check if objects fits the size, if so we take it and
 			 * update the timestamp.
 			 */
-			if (size && !mem && pool->mem && size <= pool->size) {
+			if (pool->mem && size <= pool->size) {
 				pool->timeout = gethrestime_sec() +
 				    ZSTD_POOL_TIMEOUT;
 				mem = pool->mem;
-				continue;
+				return (mem);
 			}
-
-			/* Free memory if unused object older than 2 minutes */
-			if (pool->mem && gethrestime_sec() > pool->timeout) {
-				vmem_free(pool->mem, pool->size);
-				pool->mem = NULL;
-				pool->size = 0;
-				pool->timeout = 0;
-			}
-
 			mutex_exit(&pool->barrier);
 		}
-	}
-
-	if (!size || mem) {
-		return (mem);
 	}
 
 	/*
@@ -275,12 +295,13 @@ zstd_mempool_alloc(struct zstd_pool *zstd_mempool, size_t size)
 			/* Object is free, try to allocate new one */
 			if (!pool->mem) {
 				mem = vmem_alloc(size, KM_SLEEP);
-				pool->mem = mem;
-
-				if (pool->mem) {
+				if (mem) {
+					ZSTDSTAT_ADD(zstd_stat_buffers, 1);
+					ZSTDSTAT_ADD(zstd_stat_size, size);
+					pool->mem = mem;
+					pool->size = size;
 					/* Keep track for later release */
 					mem->pool = pool;
-					pool->size = size;
 					mem->kmem_type = ZSTD_KMEM_POOL;
 					mem->kmem_size = size;
 				}
@@ -693,12 +714,19 @@ zstd_mempool_deinit(void)
 void
 zfs_zstd_cache_reap_now(void)
 {
+
+	/*
+	 * Short-circuit if there are no buffers to begin with.
+	 */
+	if (ZSTDSTAT(zstd_stat_buffers) == 0)
+		return;
+
 	/*
 	 * calling alloc with zero size seeks
 	 * and releases old unused objects
 	 */
-	zstd_mempool_alloc(zstd_mempool_cctx, 0);
-	zstd_mempool_alloc(zstd_mempool_dctx, 0);
+	zstd_mempool_reap(zstd_mempool_cctx);
+	zstd_mempool_reap(zstd_mempool_dctx);
 }
 
 extern int __init

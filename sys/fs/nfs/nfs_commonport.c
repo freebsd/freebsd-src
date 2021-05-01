@@ -123,7 +123,7 @@ MALLOC_DEFINE(M_NEWNFSCLLOCKOWNER, "NFSCL lckown", "NFSCL Lock Owner");
 MALLOC_DEFINE(M_NEWNFSCLLOCK, "NFSCL lck", "NFSCL Lock");
 MALLOC_DEFINE(M_NEWNFSV4NODE, "NEWNFSnode", "NFS vnode");
 MALLOC_DEFINE(M_NEWNFSDIRECTIO, "NEWdirectio", "NFS Direct IO buffer");
-MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroffdiroff",
+MALLOC_DEFINE(M_NEWNFSDIROFF, "NFSCL diroff",
     "NFS directory offset data");
 MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
     "NFS local lock rollback");
@@ -541,16 +541,15 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			    i < NFSV42_NOPS + NFSV4OP_FAKENOPS; i++, j++)
 				oldnfsstats.srvrpccnt[j] =
 				    nfsstatsv1.srvrpccnt[i];
-			oldnfsstats.srvrpc_errs = nfsstatsv1.srvrpc_errs;
-			oldnfsstats.srv_errs = nfsstatsv1.srv_errs;
+			oldnfsstats.reserved_0 = 0;
+			oldnfsstats.reserved_1 = 0;
 			oldnfsstats.rpcrequests = nfsstatsv1.rpcrequests;
 			oldnfsstats.rpctimeouts = nfsstatsv1.rpctimeouts;
 			oldnfsstats.rpcunexpected = nfsstatsv1.rpcunexpected;
 			oldnfsstats.rpcinvalid = nfsstatsv1.rpcinvalid;
 			oldnfsstats.srvcache_inproghits =
 			    nfsstatsv1.srvcache_inproghits;
-			oldnfsstats.srvcache_idemdonehits =
-			    nfsstatsv1.srvcache_idemdonehits;
+			oldnfsstats.reserved_2 = 0;
 			oldnfsstats.srvcache_nonidemdonehits =
 			    nfsstatsv1.srvcache_nonidemdonehits;
 			oldnfsstats.srvcache_misses =
@@ -636,10 +635,8 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 					     i++, j++)
 						nfsstatsov1.srvrpccnt[j] =
 						    nfsstatsv1.srvrpccnt[i];
-					nfsstatsov1.srvrpc_errs =
-					    nfsstatsv1.srvrpc_errs;
-					nfsstatsov1.srv_errs =
-					    nfsstatsv1.srv_errs;
+					nfsstatsov1.reserved_0 = 0;
+					nfsstatsov1.reserved_1 = 0;
 					nfsstatsov1.rpcrequests =
 					    nfsstatsv1.rpcrequests;
 					nfsstatsov1.rpctimeouts =
@@ -650,8 +647,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 					    nfsstatsv1.rpcinvalid;
 					nfsstatsov1.srvcache_inproghits =
 					    nfsstatsv1.srvcache_inproghits;
-					nfsstatsov1.srvcache_idemdonehits =
-					    nfsstatsv1.srvcache_idemdonehits;
+					nfsstatsov1.reserved_2 = 0;
 					nfsstatsov1.srvcache_nonidemdonehits =
 					    nfsstatsv1.srvcache_nonidemdonehits;
 					nfsstatsov1.srvcache_misses =
@@ -750,10 +746,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				    sizeof(nfsstatsv1.rpccnt));
 			}
 			if ((uap->flag & NFSSVC_ZEROSRVSTATS) != 0) {
-				nfsstatsv1.srvrpc_errs = 0;
-				nfsstatsv1.srv_errs = 0;
 				nfsstatsv1.srvcache_inproghits = 0;
-				nfsstatsv1.srvcache_idemdonehits = 0;
 				nfsstatsv1.srvcache_nonidemdonehits = 0;
 				nfsstatsv1.srvcache_misses = 0;
 				nfsstatsv1.srvcache_tcppeak = 0;

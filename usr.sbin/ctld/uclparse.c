@@ -672,6 +672,19 @@ uclparse_portal_group(const char *name, const ucl_object_t *top)
 				}
 			}
 		}
+
+		if (!strcmp(key, "pcp")) {
+			if (obj->type != UCL_INT) {
+				log_warnx("\"pcp\" property of portal group "
+				    "\"%s\" is not an integer", portal_group->pg_name);
+				return(1);
+			}
+			portal_group->pg_pcp = ucl_object_toint(obj);
+			if (!((portal_group->pg_pcp >= 0) && (portal_group->pg_pcp <= 7))) {
+				log_warnx("invalid \"pcp\" value %d, using default", portal_group->pg_pcp);
+				portal_group->pg_pcp = -1;
+			}
+		}
 	}
 
 	return (0);

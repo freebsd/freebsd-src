@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2019
+.Dd April 6, 2021
 .Dt GPTBOOT 8
 .Os
 .Sh NAME
@@ -39,6 +39,10 @@ is installed in a
 .Cm freebsd-boot
 partition with
 .Xr gpart 8 .
+For UEFI,
+.Xr gptboot.efi 8
+is used instead.
+While conceptually similar, the details differ.
 .Pp
 When it starts,
 .Nm

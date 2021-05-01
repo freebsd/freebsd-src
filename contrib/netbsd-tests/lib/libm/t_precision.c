@@ -44,9 +44,9 @@ ATF_TC_HEAD(t_precision, tc)
 	    "Basic precision test for double and long double");
 }
 
-volatile double x = 1;
+static volatile double x = 1;
 #if __HAVE_LONG_DOUBLE
-volatile long double y = 1;
+static volatile long double y = 1;
 #endif
 
 ATF_TC_BODY(t_precision, tc)

@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_cur.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_item_cur.c,v 1.21 2020/12/12 00:38:02 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -48,8 +48,8 @@ MODULE_ID("$Id: m_item_cur.c,v 1.19 2020/02/02 23:34:34 tom Exp $")
 |
 |   Return Values :  E_OK                - success
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_current_item(MENU * menu, ITEM * item)
+MENU_EXPORT(int)
+set_current_item(MENU *menu, ITEM *item)
 {
   T((T_CALLED("set_current_item(%p,%p)"), (void *)menu, (void *)item));
 
@@ -89,11 +89,11 @@ set_current_item(MENU * menu, ITEM * item)
 |
 |   Return Values :  Item pointer or NULL if failure
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(ITEM *)
-current_item(const MENU * menu)
+MENU_EXPORT(ITEM *)
+current_item(const MENU *menu)
 {
   T((T_CALLED("current_item(%p)"), (const void *)menu));
-  returnItem((menu && menu->items) ? menu->curitem : (ITEM *) 0);
+  returnItem((menu && menu->items) ? menu->curitem : (ITEM *)0);
 }
 
 /*---------------------------------------------------------------------------
@@ -104,8 +104,8 @@ current_item(const MENU * menu)
 |
 |   Return Values :  The index or ERR if this is an invalid item pointer
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-item_index(const ITEM * item)
+MENU_EXPORT(int)
+item_index(const ITEM *item)
 {
   T((T_CALLED("item_index(%p)"), (const void *)item));
   returnCode((item && item->imenu) ? item->index : ERR);

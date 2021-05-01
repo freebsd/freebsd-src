@@ -41,6 +41,7 @@ void copy_file(const std::string&, const std::string&);
 void create_file(const std::string&, const std::string&);
 bool file_exists(const std::string&);
 pid_t fork(void);
+void reset_resultsfile(void);
 bool grep_file(const std::string&, const std::string&);
 bool grep_string(const std::string&, const std::string&);
 void redirect(const int, const std::string&);

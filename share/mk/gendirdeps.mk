@@ -1,18 +1,19 @@
 # $FreeBSD$
-# $Id: gendirdeps.mk,v 1.41 2019/11/21 23:50:40 sjg Exp $
+# $Id: gendirdeps.mk,v 1.46 2020/08/19 17:51:53 sjg Exp $
 
-# Copyright (c) 2010-2013, Juniper Networks, Inc.
+# Copyright (c) 2011-2020, Simon J. Gerraty
+# Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions 
-# are met: 
+# modification, are permitted provided that the following conditions
+# are met:
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.  
-# 
+#    documentation and/or other materials provided with the distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -23,7 +24,7 @@
 # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #
 # This makefile [re]generates ${.MAKE.DEPENDFILE}
@@ -51,7 +52,7 @@ all:
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
-_OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
+_OBJROOT ?= ${OBJROOT:U${_OBJTOP:H}}
 .if ${_OBJROOT:M*/}
 _slash=/
 .else
@@ -104,7 +105,7 @@ GENDIRDEPS_FILTER += ${GENDIRDEPS_FILTER_DIR_VARS:@v@S,${$v},_{${v}},@}
 GENDIRDEPS_FILTER += ${GENDIRDEPS_FILTER_VARS:@v@S,/${$v}/,/_{${v}}/,@:NS,//,*:u}
 .endif
 
-# this (*should* be set in meta.sys.mk) 
+# this (*should* be set in meta.sys.mk)
 # is the script that extracts what we want.
 META2DEPS ?= ${.PARSEDIR}/meta2deps.sh
 META2DEPS := ${META2DEPS}
@@ -122,7 +123,7 @@ _py_d =
 .if ${META2DEPS:E} == "py"
 # we can afford to do this all the time.
 DPDEPS ?= no
-META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} 
+META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d}
 .if ${DPDEPS:tl} != "no"
 META2DEPS_CMD += -D ${DPDEPS}
 .endif
@@ -155,8 +156,8 @@ M2D_OBJROOTS += ${STAGE_ROOT}
 # and tell it not to add machine qualifiers
 META2DEPS_ARGS += MACHINE=none
 .endif
-.if defined(SB_BACKING_SB) 
-META2DEPS_CMD += -S ${SB_BACKING_SB}/src 
+.if defined(SB_BACKING_SB)
+META2DEPS_CMD += -S ${SB_BACKING_SB}/src
 M2D_OBJROOTS += ${SB_BACKING_SB}/${SB_OBJPREFIX}
 .endif
 
@@ -177,7 +178,7 @@ _meta_files := ${META_FILES:N\*.meta:O:u}
 # assume a big list
 _meta_files_arg= @meta.list
 .if empty(_meta_files) && ${META_FILES:M\*.meta} != ""
-# XXX this should be considered a bad idea, 
+# XXX this should be considered a bad idea,
 # since we cannot ignore stale .meta
 x != cd ${_OBJDIR} && find . -name '*.meta' -print -o \( -type d ! -name . -prune \) | sed 's,^./,,' > meta.list; echo
 .elif ${_meta_files:[#]} > 500
@@ -234,10 +235,10 @@ dir_list += ${ddeps}
 
 # DIRDEPS represent things that had to have been built first
 # so they should all be undir OBJTOP.
-# Note that ${_OBJTOP}/bsd/include/machine will get reported 
+# Note that ${_OBJTOP}/bsd/include/machine will get reported
 # to us as $SRCTOP/bsd/sys/$MACHINE_ARCH/include meaning we
 # will want to visit bsd/include
-# so we add 
+# so we add
 # ${"${dir_list:M*bsd/sys/${MACHINE_ARCH}/include}":?bsd/include:}
 # to GENDIRDEPS_DIR_LIST_XTRAS
 _objtops = ${OBJTOP} ${_OBJTOP} ${_objtop}
@@ -272,11 +273,11 @@ DIRDEPS = \
 
 # We only consider things below $RELDIR/ if they have a makefile.
 # This is the same test that _DIRDEP_USE applies.
-# We have do a double test with dirdep_list as it _may_ contain 
+# We have do a double test with dirdep_list as it _may_ contain
 # qualified dirs - if we got anything from a stage dir.
 # qualdir_list we know are all qualified.
 # It would be nice do peform this check for all of DIRDEPS,
-# but we cannot assume that all of the tree is present, 
+# but we cannot assume that all of the tree is present,
 # in fact we can only assume that RELDIR is.
 DIRDEPS += \
 	${dirdep_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/$d/$m):?$d:${exists(${SRCTOP}/${d:R}/$m):?$d:}}@}@} \
@@ -309,7 +310,7 @@ SRC_DIRDEPS = \
 SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:O:u}
 
 # if you want to capture SRC_DIRDEPS in .MAKE.DEPENDFILE put
-# SRC_DIRDEPS_FILE = ${_DEPENDFILE} 
+# SRC_DIRDEPS_FILE = ${_DEPENDFILE}
 # in local.gendirdeps.mk
 .if ${SRC_DIRDEPS_FILE:Uno:tl} != "no"
 ECHO_SRC_DIRDEPS = echo 'SRC_DIRDEPS = \'; echo '${SRC_DIRDEPS:@d@	$d \\${.newline}@}'; echo;
@@ -324,7 +325,7 @@ ${SRC_DIRDEPS_FILE}: ${META_FILES} ${_this} ${META2DEPS}
 .endif
 .endif
 .endif
-_include_src_dirdeps ?= 
+_include_src_dirdeps ?=
 
 all:	${_DEPENDFILE}
 
@@ -339,6 +340,8 @@ CAT_DEPEND ?= .depend
 .PHONY: ${_DEPENDFILE}
 .endif
 
+LOCAL_DEPENDS_GUARD ?= _{.MAKE.LEVEL} > 0
+
 # 'cat .depend' should suffice, but if we are mixing build modes
 # .depend may contain things we don't want.
 # The sed command at the end of the stream, allows for the filters
@@ -350,7 +353,7 @@ ${_DEPENDFILE}: .NOMETA ${CAT_DEPEND:M.depend} ${META_FILES:O:u:@m@${exists($m):
 	${_include_src_dirdeps} \
 	echo '.include <dirdeps.mk>'; \
 	echo; \
-	echo '.if $${DEP_RELDIR} == $${_DEP_RELDIR}'; \
+	echo '.if ${LOCAL_DEPENDS_GUARD}'; \
 	echo '# local dependencies - needed for -jN in clean tree'; \
 	[ -s ${CAT_DEPEND} ] && { grep : ${CAT_DEPEND} | grep -v '[/\\]'; }; \
 	echo '.endif' ) | sed 's,_\([{(]\),$$\1,g' > $@.new${.MAKE.PID}

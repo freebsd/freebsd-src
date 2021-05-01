@@ -10,6 +10,7 @@ trim_trailing_whitespace = false
 
 [**/Makefile*]
 indent_style = tab
+indent_size = 8
 
 [build-outputs.mk]
 indent_style = tab

@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ufs.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>
@@ -59,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/dir.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dirhash.h>
+#endif
 #include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
@@ -66,6 +71,17 @@ __FBSDID("$FreeBSD$");
 
 static int ffs_indirtrunc(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, ufs2_daddr_t *);
+
+static void
+ffs_inode_bwrite(struct vnode *vp, struct buf *bp, int flags)
+{
+	if ((flags & IO_SYNC) != 0)
+		bwrite(bp);
+	else if (DOINGASYNC(vp))
+		bdwrite(bp);
+	else
+		bawrite(bp);
+}
 
 /*
  * Update the access, modified, and inode change times as specified by the
@@ -338,7 +354,7 @@ ffs_truncate(vp, length, flags, cred)
 		panic("ffs_truncate: read-only filesystem");
 	if (IS_SNAPSHOT(ip))
 		ffs_snapremove(vp);
-	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
+	cluster_init_vn(&ip->i_clusterw);
 	osize = ip->i_size;
 	/*
 	 * Lengthen the size of the file. We must ensure that the
@@ -357,12 +373,7 @@ ffs_truncate(vp, length, flags, cred)
 		DIP_SET(ip, i_size, length);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (flags & IO_SYNC)
-			bwrite(bp);
-		else if (DOINGASYNC(vp))
-			bdwrite(bp);
-		else
-			bawrite(bp);
+		ffs_inode_bwrite(vp, bp, flags);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 		return (ffs_update(vp, waitforupdate));
 	}
@@ -450,12 +461,18 @@ ffs_truncate(vp, length, flags, cred)
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
+#ifdef UFS_DIRHASH
+		if (vp->v_type == VDIR && ip->i_dirhash != NULL)
+			ufsdirhash_dirtrunc(ip, length);
+#endif
 	} else {
 		lbn = lblkno(fs, length);
 		flags |= BA_CLRBUF;
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
 		if (error)
 			return (error);
+		ffs_inode_bwrite(vp, bp, flags);
+
 		/*
 		 * When we are doing soft updates and the UFS_BALLOC
 		 * above fills in a direct block hole with a full sized
@@ -468,8 +485,16 @@ ffs_truncate(vp, length, flags, cred)
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
 			return (error);
+
+		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
+		if (error)
+			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
+#ifdef UFS_DIRHASH
+		if (vp->v_type == VDIR && ip->i_dirhash != NULL)
+			ufsdirhash_dirtrunc(ip, length);
+#endif
 		size = blksize(fs, ip, lbn);
 		if (vp->v_type != VDIR && offset != 0)
 			bzero((char *)bp->b_data + offset,
@@ -478,12 +503,7 @@ ffs_truncate(vp, length, flags, cred)
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (flags & IO_SYNC)
-			bwrite(bp);
-		else if (DOINGASYNC(vp))
-			bdwrite(bp);
-		else
-			bawrite(bp);
+		ffs_inode_bwrite(vp, bp, flags);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	}
 	/*

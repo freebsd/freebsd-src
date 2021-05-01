@@ -139,7 +139,7 @@ ata_attach(device_t dev)
 		if (ch->flags & ATA_SATA)
 			ch->user[i].bytecount = 8192;
 		else
-			ch->user[i].bytecount = MAXPHYS;
+			ch->user[i].bytecount = 65536;
 		ch->user[i].caps = 0;
 		ch->curr[i] = ch->user[i];
 		if (ch->flags & ATA_SATA) {

@@ -8,7 +8,7 @@
 .error bsd.libnames.mk cannot be included directly.
 .endif
 
-LIBDESTDIR=	${SYSROOT:U${DESTDIR}}
+LIBDESTDIR?=	${SYSROOT:U${DESTDIR}}
 
 .sinclude <src.libnames.mk>
 
@@ -68,7 +68,6 @@ LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${LIBDESTDIR}${LIBDIR_BASE}/libform.a
 LIBG2C?=	${LIBDESTDIR}${LIBDIR_BASE}/libg2c.a
 LIBGEOM?=	${LIBDESTDIR}${LIBDIR_BASE}/libgeom.a
-LIBGNUREGEX?=	${LIBDESTDIR}${LIBDIR_BASE}/libgnuregex.a
 LIBGPIO?=	${LIBDESTDIR}${LIBDIR_BASE}/libgpio.a
 LIBGSSAPI?=	${LIBDESTDIR}${LIBDIR_BASE}/libgssapi.a
 LIBGSSAPI_KRB5?= ${LIBDESTDIR}${LIBDIR_BASE}/libgssapi_krb5.a
@@ -143,7 +142,6 @@ LIBSPL?=	${LIBDESTDIR}${LIBDIR_BASE}/libspl.a
 LIBSSL?=	${LIBDESTDIR}${LIBDIR_BASE}/libssl.a
 LIBSSP_NONSHARED?=	${LIBDESTDIR}${LIBDIR_BASE}/libssp_nonshared.a
 LIBSTATS?=	${LIBDESTDIR}${LIBDIR_BASE}/libstats.a
-LIBSTDCPLUSPLUS?= ${LIBDESTDIR}${LIBDIR_BASE}/libstdc++.a
 LIBSTDTHREADS?=	${LIBDESTDIR}${LIBDIR_BASE}/libstdthreads.a
 LIBSYSDECODE?=	${LIBDESTDIR}${LIBDIR_BASE}/libsysdecode.a
 LIBTACPLUS?=	${LIBDESTDIR}${LIBDIR_BASE}/libtacplus.a

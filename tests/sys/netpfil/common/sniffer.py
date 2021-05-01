@@ -30,11 +30,14 @@ import threading
 import scapy.all as sp
 
 class Sniffer(threading.Thread):
-	def __init__(self, args, check_function):
+	def __init__(self, args, check_function, recvif=None):
 		threading.Thread.__init__(self)
 
 		self._args = args
-		self._recvif = args.recvif[0]
+		if recvif is not None:
+			self._recvif = recvif
+		else:
+			self._recvif = args.recvif[0]
 		self._check_function = check_function
 		self.foundCorrectPacket = False
 

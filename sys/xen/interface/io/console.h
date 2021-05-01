@@ -1,8 +1,8 @@
 /******************************************************************************
  * console.h
- * 
+ *
  * Console I/O interface for Xen guest OSes.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -37,6 +37,11 @@ struct xencons_interface {
     XENCONS_RING_IDX in_cons, in_prod;
     XENCONS_RING_IDX out_cons, out_prod;
 };
+
+#ifdef XEN_WANT_FLEX_CONSOLE_RING
+#include "ring.h"
+DEFINE_XEN_FLEX_RING(xencons);
+#endif
 
 #endif /* __XEN_PUBLIC_IO_CONSOLE_H__ */
 

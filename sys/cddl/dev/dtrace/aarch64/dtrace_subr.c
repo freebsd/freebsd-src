@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern void dtrace_getnanotime(struct timespec *tsp);
+extern void dtrace_getnanouptime(struct timespec *tsp);
 
 int dtrace_invop(uintptr_t, struct trapframe *, uintptr_t);
 void dtrace_invop_init(void);
@@ -152,23 +153,26 @@ dtrace_sync(void)
 }
 
 /*
- * DTrace needs a high resolution time function which can
- * be called from a probe context and guaranteed not to have
- * instrumented with probes itself.
+ * DTrace needs a high resolution time function which can be called from a
+ * probe context and guaranteed not to have instrumented with probes itself.
  *
- * Returns nanoseconds since boot.
+ * Returns nanoseconds since some arbitrary point in time (likely SoC reset?).
  */
 uint64_t
-dtrace_gethrtime()
+dtrace_gethrtime(void)
 {
-	struct timespec curtime;
+	uint64_t count, freq;
 
-	nanouptime(&curtime);
-
-	return (curtime.tv_sec * 1000000000UL + curtime.tv_nsec);
-
+	count = READ_SPECIALREG(cntvct_el0);
+	freq = READ_SPECIALREG(cntfrq_el0);
+	return ((1000000000UL * count) / freq);
 }
 
+/*
+ * Return a much lower resolution wallclock time based on the system clock
+ * updated by the timer.  If needed, we could add a version interpolated from
+ * the system clock as is the case with dtrace_gethrtime().
+ */
 uint64_t
 dtrace_gethrestime(void)
 {
@@ -300,6 +304,17 @@ dtrace_invop_start(struct trapframe *frame)
 
 		/* Update the stack pointer and program counter to continue */
 		frame->tf_sp = (register_t)sp;
+		frame->tf_elr += INSN_SIZE;
+		return (0);
+	}
+
+	if ((invop & SUB_MASK) == SUB_INSTR) {
+		frame->tf_sp -= (invop >> SUB_IMM_SHIFT) & SUB_IMM_MASK;
+		frame->tf_elr += INSN_SIZE;
+		return (0);
+	}
+
+	if (invop == NOP_INSTR) {
 		frame->tf_elr += INSN_SIZE;
 		return (0);
 	}

@@ -163,6 +163,25 @@ mttb(u_quad_t time)
 	mtspr(TBR_TBWL, (uint32_t)(time & 0xffffffff));
 }
 
+static __inline register_t
+mffs(void)
+{
+	uint64_t value;
+
+	__asm __volatile ("mffs 0; stfd 0,0(%0)"
+			:: "b"(&value));
+
+	return ((register_t)value);
+}
+
+static __inline void
+mtfsf(uint64_t value)
+{
+
+	__asm __volatile ("lfd 0,0(%0); mtfsf 0xff,0"
+			:: "b"(&value));
+}
+
 static __inline void
 eieio(void)
 {

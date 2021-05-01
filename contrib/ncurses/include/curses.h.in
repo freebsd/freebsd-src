@@ -33,7 +33,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: curses.h.in,v 1.266 2020/02/08 10:51:53 tom Exp $ */
+/* $Id: curses.h.in,v 1.269 2020/08/17 14:14:12 tom Exp $ */
 
 #ifndef __NCURSES_H
 #define __NCURSES_H
@@ -498,55 +498,6 @@ struct _win_st
 #endif /* NCURSES_OPAQUE */
 
 /*
- * This is an extension to support events...
- */
-#if @NCURSES_EXT_FUNCS@
-#ifdef NCURSES_WGETCH_EVENTS
-#if !defined(__BEOS__) || defined(__HAIKU__)
-   /* Fix _nc_timed_wait() on BEOS... */
-#  define NCURSES_EVENT_VERSION	1
-#endif	/* !defined(__BEOS__) */
-
-/*
- * Bits to set in _nc_event.data.flags
- */
-#  define _NC_EVENT_TIMEOUT_MSEC	1
-#  define _NC_EVENT_FILE		2
-#  define _NC_EVENT_FILE_READABLE	2
-#  if 0					/* Not supported yet... */
-#    define _NC_EVENT_FILE_WRITABLE	4
-#    define _NC_EVENT_FILE_EXCEPTION	8
-#  endif
-
-typedef struct
-{
-    int type;
-    union
-    {
-	long timeout_msec;	/* _NC_EVENT_TIMEOUT_MSEC */
-	struct
-	{
-	    unsigned int flags;
-	    int fd;
-	    unsigned int result;
-	} fev;				/* _NC_EVENT_FILE */
-    } data;
-} _nc_event;
-
-typedef struct
-{
-    int count;
-    int result_flags;	/* _NC_EVENT_TIMEOUT_MSEC or _NC_EVENT_FILE_READABLE */
-    _nc_event *events[1];
-} _nc_eventlist;
-
-extern NCURSES_EXPORT(int) wgetch_events (WINDOW *, _nc_eventlist *);	/* experimental */
-extern NCURSES_EXPORT(int) wgetnstr_events (WINDOW *,char *,int,_nc_eventlist *);/* experimental */
-
-#endif /* NCURSES_WGETCH_EVENTS */
-#endif /* NCURSES_EXT_FUNCS */
-
-/*
  * GCC (and some other compilers) define '__attribute__'; we're using this
  * macro to alert the compiler to flag inconsistencies in printf/scanf-like
  * function calls.  Just in case '__attribute__' isn't defined, make a dummy.
@@ -590,7 +541,7 @@ extern NCURSES_EXPORT(int) wgetnstr_events (WINDOW *,char *,int,_nc_eventlist *)
 #endif
 
 #undef  GCC_DEPRECATED
-#if (__GNUC__ - 0 > 3 || (__GNUC__ - 0 == 3 && __GNUC_MINOR__ - 0 >= 2))
+#if (__GNUC__ - 0 > 3 || (__GNUC__ - 0 == 3 && __GNUC_MINOR__ - 0 >= 2)) && !defined(NCURSES_INTERNALS)
 #define GCC_DEPRECATED(msg) __attribute__((deprecated))
 #else
 #define GCC_DEPRECATED(msg) /* nothing */
@@ -895,7 +846,6 @@ extern NCURSES_EXPORT(int) putp (const char *);				/* implemented */
 extern NCURSES_EXPORT(char *) tparm (const char *, ...);		/* special */
 #else
 extern NCURSES_EXPORT(char *) tparm (const char *, NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG,NCURSES_TPARM_ARG);	/* special */
-extern NCURSES_EXPORT(char *) tparm_varargs (const char *, ...);	/* special */
 #endif
 
 extern NCURSES_EXPORT(char *) tiparm (const char *, ...);		/* special */

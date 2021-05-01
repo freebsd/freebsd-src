@@ -33,12 +33,14 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 
 #include <machine/armreg.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/vfp.h>
 
@@ -101,7 +103,7 @@ vfp_discard(struct thread *td)
 static void
 vfp_store(struct vfpstate *state)
 {
-	__int128_t *vfp_state;
+	__uint128_t *vfp_state;
 	uint64_t fpcr, fpsr;
 
 	vfp_state = state->vfp_regs;
@@ -133,7 +135,7 @@ vfp_store(struct vfpstate *state)
 static void
 vfp_restore(struct vfpstate *state)
 {
-	__int128_t *vfp_state;
+	__uint128_t *vfp_state;
 	uint64_t fpcr, fpsr;
 
 	vfp_state = state->vfp_regs;
@@ -198,6 +200,32 @@ vfp_save_state(struct thread *td, struct pcb *pcb)
 	critical_exit();
 }
 
+/*
+ * Reset the FP state to avoid leaking state from the parent process across
+ * execve() (and to ensure that we get a consistent floating point environment
+ * in every new process).
+ */
+void
+vfp_reset_state(struct thread *td, struct pcb *pcb)
+{
+	/* Discard the threads VFP state before resetting it */
+	critical_enter();
+	vfp_discard(td);
+	critical_exit();
+
+	/*
+	 * Clear the thread state. The VFP is disabled and is not the current
+	 * VFP thread so we won't change any of these on context switch.
+	 */
+	bzero(&pcb->pcb_fpustate.vfp_regs, sizeof(pcb->pcb_fpustate.vfp_regs));
+	KASSERT(pcb->pcb_fpusaved == &pcb->pcb_fpustate,
+	    ("pcb_fpusaved should point to pcb_fpustate."));
+	pcb->pcb_fpustate.vfp_fpcr = VFPCR_INIT;
+	pcb->pcb_fpustate.vfp_fpsr = 0;
+	pcb->pcb_vfpcpu = UINT_MAX;
+	pcb->pcb_fpflags = 0;
+}
+
 void
 vfp_restore_state(void)
 {
@@ -238,6 +266,9 @@ vfp_init(void)
 
 	/* Disable to be enabled when it's used */
 	vfp_disable();
+
+	if (PCPU_GET(cpuid) == 0)
+		thread0.td_pcb->pcb_fpusaved->vfp_fpcr = VFPCR_INIT;
 }
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
@@ -353,7 +384,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 }
 
 int
-fpu_kern_thread(u_int flags)
+fpu_kern_thread(u_int flags __unused)
 {
 	struct pcb *pcb = curthread->td_pcb;
 
@@ -368,7 +399,7 @@ fpu_kern_thread(u_int flags)
 }
 
 int
-is_fpu_kern_thread(u_int flags)
+is_fpu_kern_thread(u_int flags __unused)
 {
 	struct pcb *curpcb;
 

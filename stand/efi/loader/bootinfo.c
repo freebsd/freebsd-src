@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #endif
 
-#include "framebuffer.h"
+#include "gfx_fb.h"
 
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
 
 extern EFI_SYSTEM_TABLE	*ST;
 
@@ -284,7 +285,7 @@ efi_do_vmap(EFI_MEMORY_DESCRIPTOR *mm, UINTN sz, UINTN mmsz, UINT32 mmver)
 }
 
 static int
-bi_load_efi_data(struct preloaded_file *kfp)
+bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
 	EFI_PHYSICAL_ADDRESS addr = 0;
@@ -300,19 +301,26 @@ bi_load_efi_data(struct preloaded_file *kfp)
 #if defined(__amd64__) || defined(__aarch64__)
 	struct efi_fb efifb;
 
-	if (efi_find_framebuffer(&efifb) == 0) {
-		printf("EFI framebuffer information:\n");
-		printf("addr, size     0x%jx, 0x%jx\n", efifb.fb_addr,
-		    efifb.fb_size);
-		printf("dimensions     %d x %d\n", efifb.fb_width,
-		    efifb.fb_height);
-		printf("stride         %d\n", efifb.fb_stride);
-		printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
-		    efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue,
-		    efifb.fb_mask_reserved);
+	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
+	efifb.fb_size = gfx_state.tg_fb.fb_size;
+	efifb.fb_height = gfx_state.tg_fb.fb_height;
+	efifb.fb_width = gfx_state.tg_fb.fb_width;
+	efifb.fb_stride = gfx_state.tg_fb.fb_stride;
+	efifb.fb_mask_red = gfx_state.tg_fb.fb_mask_red;
+	efifb.fb_mask_green = gfx_state.tg_fb.fb_mask_green;
+	efifb.fb_mask_blue = gfx_state.tg_fb.fb_mask_blue;
+	efifb.fb_mask_reserved = gfx_state.tg_fb.fb_mask_reserved;
 
+	printf("EFI framebuffer information:\n");
+	printf("addr, size     0x%jx, 0x%jx\n", efifb.fb_addr, efifb.fb_size);
+	printf("dimensions     %d x %d\n", efifb.fb_width, efifb.fb_height);
+	printf("stride         %d\n", efifb.fb_stride);
+	printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+	    efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue,
+	    efifb.fb_mask_reserved);
+
+	if (efifb.fb_addr != 0)
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
-	}
 #endif
 
 	do_vmap = true;
@@ -385,6 +393,8 @@ bi_load_efi_data(struct preloaded_file *kfp)
 			sz = (EFI_PAGE_SIZE * pages) - efisz;
 		}
 
+		if (!exit_bs)
+			break;
 		status = BS->ExitBootServices(IH, efi_mapkey);
 		if (!EFI_ERROR(status))
 			break;
@@ -423,13 +433,13 @@ bi_load_efi_data(struct preloaded_file *kfp)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
+bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 {
 	struct preloaded_file *xp, *kfp;
 	struct devdesc *rootdev;
 	struct file_metadata *md;
 	vm_offset_t addr;
-	uint64_t kernend;
+	uint64_t kernend, module;
 	uint64_t envp;
 	vm_offset_t size;
 	char *rootdevname;
@@ -447,7 +457,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	 */
 	uint32_t		mdt[] = {
 	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND,
-	    MODINFOMD_ENVP,
+	    MODINFOMD_ENVP, MODINFOMD_FONT,
 #if defined(LOADER_FDT_SUPPORT)
 	    MODINFOMD_DTBP
 #endif
@@ -480,6 +490,11 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	/* Pad to a page boundary. */
 	addr = roundup(addr, PAGE_SIZE);
 
+	addr = build_font_module(addr);
+
+	/* Pad to a page boundary. */
+	addr = roundup(addr, PAGE_SIZE);
+
 	/* Copy our environment. */
 	envp = addr;
 	addr = bi_copyenv(addr);
@@ -503,24 +518,29 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
-	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+
+	/* Figure out the size and location of the metadata. */
+	module = *modulep = addr;
+
+	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof(howto), &howto);
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof(envp), &envp);
 #if defined(LOADER_FDT_SUPPORT)
 	if (dtb_size)
-		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof(dtbp), &dtbp);
 	else
 		printf("WARNING! Trying to fire up the kernel, but no "
 		    "device tree blob found!\n");
 #endif
-	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
-	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof ST, &ST);
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof(kernend), &kernend);
+#ifdef MODINFOMD_MODULEP
+	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
+#endif
+	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
 #endif
-	bi_load_efi_data(kfp);
+	bi_load_efi_data(kfp, exit_bs);
 
-	/* Figure out the size and location of the metadata. */
-	*modulep = addr;
 	size = bi_copymodules(0);
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;

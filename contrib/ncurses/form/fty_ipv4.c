@@ -35,7 +35,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_ipv4.c,v 1.11 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fty_ipv4.c,v 1.14 2020/12/12 01:15:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -104,14 +104,14 @@ static FIELDTYPE typeIPV4 =
 #endif
 };
 
-NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_IPV4 = &typeIPV4;
+FORM_EXPORT_VAR(FIELDTYPE *) TYPE_IPV4 = &typeIPV4;
 
 #if NCURSES_INTEROP_FUNCS
 /* The next routines are to simplify the use of ncurses from
-   programming languages with restictions on interop with C level
+   programming languages with restrictions on interop with C level
    constructs (e.g. variable access or va_list + ellipsis constructs)
 */
-NCURSES_EXPORT(FIELDTYPE *)
+FORM_EXPORT(FIELDTYPE *)
 _nc_TYPE_IPV4(void)
 {
   return TYPE_IPV4;

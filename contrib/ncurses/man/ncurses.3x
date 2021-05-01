@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright 2018-2019,2020 Thomas E. Dickey                                *
+.\" Copyright 2018-2020,2021 Thomas E. Dickey                                *
 .\" Copyright 1998-2015,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.144 2020/02/02 23:34:34 tom Exp $
+.\" $Id: ncurses.3x,v 1.152 2021/01/09 11:07:55 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ie \n(.g .ds `` \(lq
@@ -127,7 +127,6 @@ sequence should be used:
 .PP
 Most programs would additionally use the sequence:
 .NS
-\fBnonl();\fR
 \fBintrflush(stdscr, FALSE);\fR
 \fBkeypad(stdscr, TRUE);\fR
 .NE
@@ -319,8 +318,9 @@ For example, \fBwaddch\fP becomes \fBwadd_wch\fP.
 .PP
 .\"
 .SS Routine Name Index
-The following table lists each \fBcurses\fR routine and the name of
-the manual page on which it is described.
+The following table lists the \fBcurses\fR routines provided in
+the \*(``normal\*('' and \*(``wide\*('' libraries and the names of
+the manual pages on which they are described.
 Routines flagged with \*(``*\*(''
 are ncurses-specific, not described by XPG4 or present in SVr4.
 .PP
@@ -332,17 +332,6 @@ l l .
 =
 COLOR_PAIR/\fBcurs_color\fR(3X)
 PAIR_NUMBER/\fBcurs_attr\fR(3X)
-_nc_free_and_exit/\fBcurs_memleaks\fR(3X)*
-_nc_freeall/\fBcurs_memleaks\fR(3X)*
-_nc_tracebits/\fBcurs_trace\fR(3X)*
-_traceattr/\fBcurs_trace\fR(3X)*
-_traceattr2/\fBcurs_trace\fR(3X)*
-_tracechar/\fBcurs_trace\fR(3X)*
-_tracechtype/\fBcurs_trace\fR(3X)*
-_tracechtype2/\fBcurs_trace\fR(3X)*
-_tracedump/\fBcurs_trace\fR(3X)*
-_tracef/\fBcurs_trace\fR(3X)*
-_tracemouse/\fBcurs_trace\fR(3X)*
 add_wch/\fBcurs_add_wch\fR(3X)
 add_wchnstr/\fBcurs_add_wchstr\fR(3X)
 add_wchstr/\fBcurs_add_wchstr\fR(3X)
@@ -383,6 +372,7 @@ color_content/\fBcurs_color\fR(3X)
 color_set/\fBcurs_attr\fR(3X)
 copywin/\fBcurs_overlay\fR(3X)
 curs_set/\fBcurs_kernel\fR(3X)
+curses_trace/\fBcurs_trace\fR(3X)*
 curses_version/\fBcurs_extend\fR(3X)*
 def_prog_mode/\fBcurs_kernel\fR(3X)
 def_shell_mode/\fBcurs_kernel\fR(3X)
@@ -403,6 +393,8 @@ endwin/\fBcurs_initscr\fR(3X)
 erase/\fBcurs_clear\fR(3X)
 erasechar/\fBcurs_termattrs\fR(3X)
 erasewchar/\fBcurs_termattrs\fR(3X)
+exit_curses/\fBcurs_memleaks\fR(3X)*
+exit_terminfo/\fBcurs_memleaks\fR(3X)*
 extended_color_content/\fBcurs_color\fR(3X)*
 extended_pair_content/\fBcurs_color\fR(3X)*
 extended_slk_color/\fBcurs_slk\fR(3X)*
@@ -441,6 +433,7 @@ has_colors/\fBcurs_color\fR(3X)
 has_ic/\fBcurs_termattrs\fR(3X)
 has_il/\fBcurs_termattrs\fR(3X)
 has_key/\fBcurs_getch\fR(3X)*
+has_mouse/\fBcurs_mouse\fR(3X)*
 hline/\fBcurs_border\fR(3X)
 hline_set/\fBcurs_border_set\fR(3X)
 idcok/\fBcurs_outopts\fR(3X)
@@ -589,18 +582,19 @@ napms/\fBcurs_kernel\fR(3X)
 newpad/\fBcurs_pad\fR(3X)
 newterm/\fBcurs_initscr\fR(3X)
 newwin/\fBcurs_window\fR(3X)
-nl/\fBcurs_outopts\fR(3X)
+nl/\fBcurs_inopts\fR(3X)
 nocbreak/\fBcurs_inopts\fR(3X)
 nodelay/\fBcurs_inopts\fR(3X)
 noecho/\fBcurs_inopts\fR(3X)
 nofilter/\fBcurs_util\fR(3X)*
-nonl/\fBcurs_outopts\fR(3X)
+nonl/\fBcurs_inopts\fR(3X)
 noqiflush/\fBcurs_inopts\fR(3X)
 noraw/\fBcurs_inopts\fR(3X)
 notimeout/\fBcurs_inopts\fR(3X)
 overlay/\fBcurs_overlay\fR(3X)
 overwrite/\fBcurs_overlay\fR(3X)
 pair_content/\fBcurs_color\fR(3X)
+pecho_wchar/\fBcurs_pad\fR(3X)*
 pechochar/\fBcurs_pad\fR(3X)
 pnoutrefresh/\fBcurs_pad\fR(3X)
 prefresh/\fBcurs_pad\fR(3X)
@@ -611,6 +605,7 @@ qiflush/\fBcurs_inopts\fR(3X)
 raw/\fBcurs_inopts\fR(3X)
 redrawwin/\fBcurs_refresh\fR(3X)
 refresh/\fBcurs_refresh\fR(3X)
+reset_color_pairs/\fBcurs_color\fR(3X)*
 reset_prog_mode/\fBcurs_kernel\fR(3X)
 reset_shell_mode/\fBcurs_kernel\fR(3X)
 resetty/\fBcurs_kernel\fR(3X)
@@ -632,7 +627,6 @@ set_term/\fBcurs_initscr\fR(3X)
 setcchar/\fBcurs_getcchar\fR(3X)
 setscrreg/\fBcurs_outopts\fR(3X)
 setsyx/\fBcurs_kernel\fR(3X)
-setterm/\fBcurs_terminfo\fR(3X)
 setupterm/\fBcurs_terminfo\fR(3X)
 slk_attr/\fBcurs_slk\fR(3X)*
 slk_attr_off/\fBcurs_slk\fR(3X)
@@ -650,6 +644,7 @@ slk_refresh/\fBcurs_slk\fR(3X)
 slk_restore/\fBcurs_slk\fR(3X)
 slk_set/\fBcurs_slk\fR(3X)
 slk_touch/\fBcurs_slk\fR(3X)
+slk_wset/\fBcurs_slk\fR(3X)*
 standend/\fBcurs_attr\fR(3X)
 standout/\fBcurs_attr\fR(3X)
 start_color/\fBcurs_color\fR(3X)
@@ -781,6 +776,19 @@ wunctrl/\fBcurs_util\fR(3X)
 wvline/\fBcurs_border\fR(3X)
 wvline_set/\fBcurs_border_set\fR(3X)
 .TE
+.PP
+Depending on the configuration,
+additional sets of functions may be available:
+.RS 3
+.TP 5
+\fBcurs_memleaks\fP(3X) - curses memory-leak checking
+.TP 5
+\fBcurs_sp_funcs\fP(3X) - curses screen-pointer extension
+.TP 5
+\fBcurs_threads\fP(3X) - curses thread support
+.TP 5
+\fBcurs_trace\fP(3X) - curses debugging routines
+.RE
 .SH RETURN VALUE
 Routines that return an integer return \fBERR\fR upon failure and an
 integer value other than \fBERR\fR upon successful completion, unless
@@ -798,6 +806,13 @@ The return values of
 \fBgetbegyx\fR, and
 \fBgetmaxyx\fR are undefined (i.e., these should not be used as the
 right-hand side of assignment statements).
+.PP
+Functions with a \*(``mv\*('' prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
+Most \*(``mv\*(''-prefixed functions
+(except variadic functions such as \fBmvprintw\fP)
+are provided both as macros and functions.
 .PP
 Routines that return pointers return \fBNULL\fR on error.
 .SH ENVIRONMENT
@@ -1290,6 +1305,32 @@ The debug and profiling libraries add a \*(``_g\*(''
 and a \*(``_p\*('' to the root names respectively,
 e.g., \fBlibncurses_g.a\fP and \fBlibncurses_p.a\fP.
 .TP 5
+\-\-with\-termlib
+Low-level functions which do not depend upon whether the library
+supports wide-characters, are provided in the tinfo library.
+.IP
+By doing this, it is possible to share the tinfo library between
+wide/normal configurations as well as reduce the size of the library
+when only low-level functions are needed.
+.IP
+Those functions are described in these pages:
+.RS
+.bP
+\fBcurs_extend\fP(3X) \- miscellaneous curses extensions
+.bP
+\fBcurs_inopts\fR(3X) \- \fBcurses\fR input options
+.bP
+\fBcurs_kernel\fR(3X) \- low-level \fBcurses\fR routines
+.bP
+\fBcurs_termattrs\fR(3X) \- \fBcurses\fR environment query routines
+.bP
+\fBcurs_termcap\fR(3X) \- \fBcurses\fR emulation of termcap
+.bP
+\fBcurs_terminfo\fR(3X) \- \fBcurses\fR interfaces to terminfo database
+.bP
+\fBcurs_util\fR(3X) \- miscellaneous \fBcurses\fR utility routines
+.RE
+.TP 5
 \-\-with\-trace
 The \fBtrace\fP function normally resides in the debug library,
 but it is sometimes useful to configure this in the shared library.
@@ -1354,6 +1395,10 @@ The EXTENDED XSI Curses functionality
 A small number of local differences (that is, individual differences between
 the XSI Curses and \fBncurses\fR calls) are described in \fBPORTABILITY\fR
 sections of the library man pages.
+.SS Error checking
+.PP
+In many cases, X/Open Curses is vague about error conditions,
+omitting some of the SVr4 documentation.
 .PP
 Unlike other implementations, this one checks parameters such as pointers
 to WINDOW structures to ensure they are not null.
@@ -1363,8 +1408,12 @@ The standard interface does not provide a way for the library
 to tell an application which of several possible errors were detected.
 Relying on this (or some other) extension will adversely affect the
 portability of curses applications.
+.SS Extensions versus portability
 .PP
-This implementation also contains several extensions:
+Most of the extensions provided by ncurses have not been standardized.
+Some have been incorporated into other implementations, such as
+PDCurses or NetBSD curses.
+Here are a few to consider:
 .bP
 The routine \fBhas_key\fR is not part of XPG4, nor is it present in SVr4.
 See the \fBcurs_getch\fR(3X) manual page for details.
@@ -1394,6 +1443,7 @@ See \fBcurs_threads\fR(3X) for details.
 This implementation can also be configured to provide a set of functions which
 improve the ability to manage multiple screens.
 See \fBcurs_sp_funcs\fR(3X) for details.
+.SS Padding differences
 .PP
 In historic curses versions, delays embedded in the capabilities \fBcr\fR,
 \fBind\fR, \fBcub1\fR, \fBff\fR and \fBtab\fR activated corresponding delay
@@ -1402,9 +1452,102 @@ In this implementation, all padding is done by sending NUL bytes.
 This method is slightly more expensive, but narrows the interface
 to the UNIX kernel significantly and increases the package's portability
 correspondingly.
-.SH NOTES
+.SS Header files
 The header file \fB<curses.h>\fR automatically includes the header files
 \fB<stdio.h>\fR and \fB<unctrl.h>\fR.
+.PP
+X/Open Curses has more to say,
+but does not finish the story:
+.RS 4
+.PP
+The inclusion of <curses.h> may make visible all symbols
+from the headers <stdio.h>, <term.h>, <termios.h>, and <wchar.h>.
+.RE
+.PP
+Here is a more complete story:
+.bP
+Starting with BSD curses, all implementations have included <stdio.h>.
+.IP
+BSD curses included <curses.h> and <unctrl.h> from an internal header
+"curses.ext" ("ext" was a short name for \fIexterns\fP).
+.IP
+BSD curses used <stdio.h> internally (for \fBprintw\fP and \fBscanw\fP),
+but nothing in <curses.h> itself relied upon <stdio.h>.
+.bP
+SVr2 curses added \fBnewterm\fP(3X), which relies upon <stdio.h>.
+That is, the function prototype uses \fBFILE\fP.
+.IP
+SVr4 curses added \fBputwin\fP and \fBgetwin\fP, which also use <stdio.h>.
+.IP
+X/Open Curses documents all three of these functions.
+.IP
+SVr4 curses and X/Open Curses do not require the developer to
+include <stdio.h> before including <curses.h>.
+Both document curses showing <curses.h> as the only required header.
+.IP
+As a result, standard <curses.h> will always include <stdio.h>.
+.bP
+X/Open Curses is inconsistent with respect to SVr4 regarding <unctrl.h>.
+.IP
+As noted in \fBcurs_util\fP(3X), ncurses includes <unctrl.h> from
+<curses.h> (like SVr4).
+.bP
+X/Open's comments about <term.h> and <termios.h> may refer to HP-UX and AIX:
+.IP
+HP-UX curses includes <term.h> from <curses.h>
+to declare \fBsetupterm\fP in curses.h,
+but ncurses (and Solaris curses) do not.
+.IP
+AIX curses includes <term.h> and <termios.h>.
+Again, ncurses (and Solaris curses) do not.
+.bP
+X/Open says that <curses.h> \fImay\fP include <term.h>,
+but there is no requirement that it do that.
+.IP
+Some programs use functions declared in both <curses.h> and <term.h>,
+and must include both headers in the same module.
+Very old versions of AIX curses required including <curses.h>
+before including <term.h>.
+.IP
+Because ncurses header files include the headers needed to
+define datatypes used in the headers,
+ncurses header files can be included in any order.
+But for portability, you should include <curses.h> before <term.h>.
+.bP
+X/Open Curses says \fI"may make visible"\fP
+because including a header file does not necessarily make all symbols
+in it visible (there are ifdef's to consider).
+.IP
+For instance, in ncurses <wchar.h> \fImay\fP be included if
+the proper symbol is defined, and if ncurses is configured for
+wide-character support.
+If the header is included, its symbols may be made visible.
+That depends on the value used for \fB_XOPEN_SOURCE\fP
+feature test macro.
+.bP
+X/Open Curses documents one required header,
+in a special case: <stdarg.h> before <curses.h> to prototype
+the \fBvw_printw\fP and \fBvw_scanw\fP functions
+(as well as the obsolete
+the \fBvwprintw\fP and \fBvwscanw\fP functions).
+Each of those uses a \fBva_list\fP parameter.
+.IP
+The two obsolete functions were introduced in SVr3.
+The other functions were introduced in X/Open Curses.
+In between, SVr4 curses provided for the possibility that
+an application might include either <varargs.h> or <stdarg.h>.
+Initially, that was done by using \fBvoid*\fP for the \fBva_list\fP
+parameter.
+Later, a special type (defined in <stdio.h>) was introduced,
+to allow for compiler type-checking.
+That special type is always available,
+because <stdio.h> is always included by <curses.h>.
+.IP
+None of the X/Open Curses implementations require an application
+to include <stdarg.h> before <curses.h> because they either
+have allowed for a special type, or (like ncurses) include <stdarg.h>
+directly to provide a portable interface.
+.SH NOTES
 .PP
 If standard output from a \fBncurses\fR program is re-directed to something
 which is not a tty, screen updates will be directed to standard error.

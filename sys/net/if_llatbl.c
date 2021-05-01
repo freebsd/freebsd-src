@@ -693,6 +693,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	if (dl == NULL || dl->sdl_family != AF_LINK)
 		return (EINVAL);
 
+	/* XXX: should be ntohs() */
 	ifp = ifnet_byindex(dl->sdl_index);
 	if (ifp == NULL) {
 		log(LOG_INFO, "%s: invalid ifp (sdl_index %d)\n",

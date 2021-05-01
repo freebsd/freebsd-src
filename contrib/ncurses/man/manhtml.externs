@@ -1,4 +1,4 @@
-# $Id: manhtml.externs,v 1.13 2020/02/02 23:34:34 tom Exp $
+# $Id: manhtml.externs,v 1.14 2020/04/18 09:48:50 tom Exp $
 # Items in this list will not be linked by man2html
 #***************************************************************************
 # Copyright 2019,2020 Thomas E. Dickey                                     *
@@ -51,12 +51,14 @@ putchar(3)
 putwc(3)
 read(2)
 scanf(3)
+screen(1)
 sh(1)
 sscanf(3)
 stdio(3)
 stty(1)
 system(3)
 termios(3)
+tmux(1)
 tty(4)
 ttys(5)
 vprintf(3)

@@ -131,6 +131,21 @@ struct config_file {
 	/** if SNI is to be used */
 	int tls_use_sni;
 
+	/** port on which to provide DNS over HTTPS service */
+	int https_port;
+	/** endpoint for HTTP service */
+	char* http_endpoint;
+	/** MAX_CONCURRENT_STREAMS HTTP/2 setting */
+	uint32_t http_max_streams;
+	/** maximum size of all HTTP2 query buffers combined. */
+	size_t http_query_buffer_size;
+	/** maximum size of all HTTP2 response buffers combined. */
+	size_t http_response_buffer_size;
+	/** set TCP_NODELAY option for http sockets */
+	int http_nodelay;
+	/** Disable TLS for http sockets downstream */
+	int http_notls_downstream;
+
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
 	/** number of outgoing tcp buffers per (per thread) */
@@ -166,8 +181,12 @@ struct config_file {
 	size_t infra_cache_numhosts;
 	/** min value for infra cache rtt */
 	int infra_cache_min_rtt;
+	/** keep probing hosts that are down */
+	int infra_keep_probing;
 	/** delay close of udp-timeouted ports, if 0 no delayclose. in msec */
 	int delay_close;
+	/** udp_connect enable uses UDP connect to mitigate ICMP side channel */
+	int udp_connect;
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
@@ -319,6 +338,10 @@ struct config_file {
 	char* identity;
 	/** version, package version returned if "". */
 	char* version;
+	/** nsid */
+	char *nsid_cfg_str;
+	uint8_t *nsid;
+	uint16_t nsid_len;
 
 	/** the module configuration string */
 	char* module_conf;
@@ -331,10 +354,6 @@ struct config_file {
 	struct config_strlist* auto_trust_anchor_file_list;
 	/** files with trusted DNSKEYs in named.conf format, list */
 	struct config_strlist* trusted_keys_file_list;
-	/** DLV anchor file */
-	char* dlv_anchor_file;
-	/** DLV anchor inline */
-	struct config_strlist* dlv_anchor_list;
 	/** insecure domain list */
 	struct config_strlist* domain_insecure;
 	/** send key tag query */
@@ -373,6 +392,8 @@ struct config_file {
 	/** serve expired entries only after trying to update the entries and this
 	 *  timeout (in milliseconds) is reached */
 	int serve_expired_client_timeout;
+	/** serve original TTLs rather than decrementing ones */
+	int serve_original_ttl;
 	/** nsec3 maximum iterations per key size, string */
 	char* val_nsec3_key_iterations;
 	/** autotrust add holddown time, in seconds */
@@ -553,6 +574,11 @@ struct config_file {
 	/** SHM data - key for the shm */
 	int shm_key;
 
+	/** list of EDNS client string entries, linked list */
+	struct config_str2list* edns_client_strings;
+	/** EDNS opcode to use for EDNS client strings */
+	uint16_t edns_client_string_opcode;
+
 	/** DNSCrypt */
 	/** true to enable dnscrypt */
 	int dnscrypt;
@@ -576,6 +602,17 @@ struct config_file {
 	size_t dnscrypt_nonce_cache_size;
 	/** number of slabs for dnscrypt nonces cache */
 	size_t dnscrypt_nonce_cache_slabs;
+
+	/** EDNS padding according to RFC7830 and RFC8467 */
+	/** true to enable padding of responses (default: on) */
+	int pad_responses;
+	/** block size with which to pad encrypted responses (default: 468) */
+	size_t pad_responses_block_size;
+	/** true to enable padding of queries (default: on) */
+	int pad_queries;
+	/** block size with which to pad encrypted queries (default: 128) */
+	size_t pad_queries_block_size;
+
 	/** IPsec module */
 #ifdef USE_IPSECMOD
 	/** false to bypass the IPsec module */
@@ -625,6 +662,10 @@ extern gid_t cfg_gid;
 extern int autr_permit_small_holddown;
 /** size (in bytes) of stream wait buffers max */
 extern size_t stream_wait_max;
+/** size (in bytes) of all total HTTP2 query buffers max */
+extern size_t http2_query_buffer_max;
+/** size (in bytes) of all total HTTP2 response buffers max */
+extern size_t http2_response_buffer_max;
 
 /**
  * Stub config options
@@ -970,6 +1011,9 @@ void config_deldblstrlist(struct config_str2list* list);
  */
 void config_deltrplstrlist(struct config_str3list* list);
 
+/** delete string array */
+void config_del_strarray(char** array, int num);
+
 /** delete stringbytelist */
 void config_del_strbytelist(struct config_strbytelist* list);
 
@@ -1042,6 +1086,16 @@ int cfg_count_numbers(const char* str);
  * is logged).
  */
 int cfg_parse_memsize(const char* str, size_t* res);
+
+/**
+ * Parse nsid from string into binary nsid. nsid is either a hexidecimal
+ * string or an ascii string prepended with ascii_ in which case the
+ * characters after ascii_ are simply copied.
+ * @param str: the string to parse.
+ * @param nsid_len: returns length of nsid in bytes.
+ * @return malloced bytes or NULL on parse error or malloc failure.
+ */
+uint8_t* cfg_parse_nsid(const char* str, uint16_t* nsid_len);
 
 /**
  * Add a tag name to the config.  It is added at the end with a new ID value.

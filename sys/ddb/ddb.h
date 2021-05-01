@@ -197,6 +197,7 @@ db_addr_t	db_disasm(db_addr_t loc, bool altfmt);
 				/* instruction disassembler */
 void		db_error(const char *s);
 int		db_expression(db_expr_t *valuep);
+int		db_getc(void);
 int		db_get_variable(db_expr_t *valuep);
 void		db_iprintf(const char *,...) __printflike(1, 2);
 struct proc	*db_lookup_proc(db_expr_t addr);
@@ -204,8 +205,6 @@ struct thread	*db_lookup_thread(db_expr_t addr, bool check_pid);
 struct vm_map	*db_map_addr(vm_offset_t);
 bool		db_map_current(struct vm_map *);
 bool		db_map_equal(struct vm_map *, struct vm_map *);
-int		db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
-int		db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
 void		db_md_list_watchpoints(void);
 void		db_print_loc_and_inst(db_addr_t loc);
 void		db_print_thread(void);

@@ -2,10 +2,10 @@
 #include "ipmon.h"
 #include <syslog.h>
 
-static void *syslog_parse __P((char **));
-static void syslog_destroy __P((void *));
-static int syslog_send __P((void *, ipmon_msg_t *));
-static void syslog_print __P((void *));
+static void *syslog_parse(char **);
+static void syslog_destroy(void *);
+static int syslog_send(void *, ipmon_msg_t *);
+static void syslog_print(void *);
 
 typedef struct syslog_opts_s {
 	int	facpri;

@@ -1,5 +1,5 @@
 /*-
- * BSD LICENSE
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
@@ -76,7 +76,7 @@ ena_cleanup(void *arg, int pending)
 	if (unlikely((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0))
 		return;
 
-	ena_trace(ENA_DBG, "MSI-X TX/RX routine\n");
+	ena_trace(NULL, ENA_DBG, "MSI-X TX/RX routine\n");
 
 	tx_ring = que->tx_ring;
 	rx_ring = que->rx_ring;
@@ -267,7 +267,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		bus_dmamap_unload(adapter->tx_buf_tag,
 		    tx_info->dmamap);
 
-		ena_trace(ENA_DBG | ENA_TXPTH, "tx: q %d mbuf %p completed\n",
+		ena_trace(NULL, ENA_DBG | ENA_TXPTH, "tx: q %d mbuf %p completed\n",
 		    tx_ring->qid, mbuf);
 
 		m_freem(mbuf);
@@ -292,7 +292,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 
 	work_done = TX_BUDGET - budget;
 
-	ena_trace(ENA_DBG | ENA_TXPTH, "tx: q %d done. total pkts: %d\n",
+	ena_trace(NULL, ENA_DBG | ENA_TXPTH, "tx: q %d done. total pkts: %d\n",
 	tx_ring->qid, work_done);
 
 	/* If there is still something to commit update ring state */
@@ -409,7 +409,6 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	struct ena_rx_buffer *rx_info;
 	struct ena_adapter *adapter;
 	unsigned int descs = ena_rx_ctx->descs;
-	int rc;
 	uint16_t ntc, len, req_id, buf = 0;
 
 	ntc = *next_to_clean;
@@ -417,17 +416,13 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 
 	len = ena_bufs[buf].len;
 	req_id = ena_bufs[buf].req_id;
-	rc = validate_rx_req_id(rx_ring, req_id);
-	if (unlikely(rc != 0))
-		return (NULL);
-
 	rx_info = &rx_ring->rx_buffer_info[req_id];
 	if (unlikely(rx_info->mbuf == NULL)) {
 		device_printf(adapter->pdev, "NULL mbuf in rx_info");
 		return (NULL);
 	}
 
-	ena_trace(ENA_DBG | ENA_RXPTH, "rx_info %p, mbuf %p, paddr %jx\n",
+	ena_trace(NULL, ENA_DBG | ENA_RXPTH, "rx_info %p, mbuf %p, paddr %jx\n",
 	    rx_info, rx_info->mbuf, (uintmax_t)rx_info->ena_buf.paddr);
 
 	bus_dmamap_sync(adapter->rx_buf_tag, rx_info->map,
@@ -436,12 +431,16 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	mbuf->m_flags |= M_PKTHDR;
 	mbuf->m_pkthdr.len = len;
 	mbuf->m_len = len;
+	// Only for the first segment the data starts at specific offset
+	mbuf->m_data = mtodo(mbuf, ena_rx_ctx->pkt_offset);
+	ena_trace(NULL, ENA_DBG | ENA_RXPTH,
+		"Mbuf data offset=%u\n", ena_rx_ctx->pkt_offset);
 	mbuf->m_pkthdr.rcvif = rx_ring->que->adapter->ifp;
 
 	/* Fill mbuf with hash key and it's interpretation for optimization */
 	ena_rx_hash_mbuf(rx_ring, ena_rx_ctx, mbuf);
 
-	ena_trace(ENA_DBG | ENA_RXPTH, "rx mbuf 0x%p, flags=0x%x, len: %d\n",
+	ena_trace(NULL, ENA_DBG | ENA_RXPTH, "rx mbuf 0x%p, flags=0x%x, len: %d\n",
 	    mbuf, mbuf->m_flags, mbuf->m_pkthdr.len);
 
 	/* DMA address is not needed anymore, unmap it */
@@ -459,16 +458,6 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 		++buf;
 		len = ena_bufs[buf].len;
 		req_id = ena_bufs[buf].req_id;
-		rc = validate_rx_req_id(rx_ring, req_id);
-		if (unlikely(rc != 0)) {
-			/*
-			 * If the req_id is invalid, then the device will be
-			 * reset. In that case we must free all mbufs that
-			 * were already gathered.
-			 */
-			m_freem(mbuf);
-			return (NULL);
-		}
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 
 		if (unlikely(rx_info->mbuf == NULL)) {
@@ -491,11 +480,11 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 		    BUS_DMASYNC_POSTREAD);
 		if (unlikely(m_append(mbuf, len, rx_info->mbuf->m_data) == 0)) {
 			counter_u64_add(rx_ring->rx_stats.mbuf_alloc_fail, 1);
-			ena_trace(ENA_WARNING, "Failed to append Rx mbuf %p\n",
+			ena_trace(NULL, ENA_WARNING, "Failed to append Rx mbuf %p\n",
 			    mbuf);
 		}
 
-		ena_trace(ENA_DBG | ENA_RXPTH,
+		ena_trace(NULL, ENA_DBG | ENA_RXPTH,
 		    "rx mbuf updated. len %d\n", mbuf->m_pkthdr.len);
 
 		/* Free already appended mbuf, it won't be useful anymore */
@@ -526,7 +515,7 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 		/* ipv4 checksum error */
 		mbuf->m_pkthdr.csum_flags = 0;
 		counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
-		ena_trace(ENA_DBG, "RX IPv4 header checksum error\n");
+		ena_trace(NULL, ENA_DBG, "RX IPv4 header checksum error\n");
 		return;
 	}
 
@@ -537,7 +526,7 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 			/* TCP/UDP checksum error */
 			mbuf->m_pkthdr.csum_flags = 0;
 			counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
-			ena_trace(ENA_DBG, "RX L4 checksum error\n");
+			ena_trace(NULL, ENA_DBG, "RX L4 checksum error\n");
 		} else {
 			mbuf->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
 			mbuf->m_pkthdr.csum_flags |= CSUM_IP_VALID;
@@ -557,6 +546,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	struct ena_com_rx_ctx ena_rx_ctx;
 	struct ena_com_io_cq* io_cq;
 	struct ena_com_io_sq* io_sq;
+	enum ena_regs_reset_reason_types reset_reason;
 	if_t ifp;
 	uint16_t ena_qid;
 	uint16_t next_to_clean;
@@ -583,23 +573,35 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 		return (0);
 #endif /* DEV_NETMAP */
 
-	ena_trace(ENA_DBG, "rx: qid %d\n", qid);
+	ena_trace(NULL, ENA_DBG, "rx: qid %d\n", qid);
 
 	do {
 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
 		ena_rx_ctx.max_bufs = adapter->max_rx_sgl_size;
 		ena_rx_ctx.descs = 0;
+		ena_rx_ctx.pkt_offset = 0;
+
 		bus_dmamap_sync(io_cq->cdesc_addr.mem_handle.tag,
 		    io_cq->cdesc_addr.mem_handle.map, BUS_DMASYNC_POSTREAD);
 		rc = ena_com_rx_pkt(io_cq, io_sq, &ena_rx_ctx);
-
-		if (unlikely(rc != 0))
-			goto error;
+		if (unlikely(rc != 0)) {
+			if (rc == ENA_COM_NO_SPACE) {
+				counter_u64_add(rx_ring->rx_stats.bad_desc_num,
+				    1);
+				reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+			} else {
+				counter_u64_add(rx_ring->rx_stats.bad_req_id,
+				    1);
+				reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+			}
+			ena_trigger_reset(adapter, reset_reason);
+			return (0);
+		}
 
 		if (unlikely(ena_rx_ctx.descs == 0))
 			break;
 
-		ena_trace(ENA_DBG | ENA_RXPTH, "rx: q %d got packet from ena. "
+		ena_trace(NULL, ENA_DBG | ENA_RXPTH, "rx: q %d got packet from ena. "
 		    "descs #: %d l3 proto %d l4 proto %d hash: %x\n",
 		    rx_ring->qid, ena_rx_ctx.descs, ena_rx_ctx.l3_proto,
 		    ena_rx_ctx.l4_proto, ena_rx_ctx.hash);
@@ -652,7 +654,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 					do_if_input = 0;
 		}
 		if (do_if_input != 0) {
-			ena_trace(ENA_DBG | ENA_RXPTH,
+			ena_trace(NULL, ENA_DBG | ENA_RXPTH,
 			    "calling if_input() with mbuf %p\n", mbuf);
 			(*ifp->if_input)(ifp, mbuf);
 		}
@@ -678,14 +680,6 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 	tcp_lro_flush_all(&rx_ring->lro);
 
 	return (RX_BUDGET - budget);
-
-error:
-	counter_u64_add(rx_ring->rx_stats.bad_desc_num, 1);
-
-	/* Too many desc from the device. Trigger reset */
-	ena_trigger_reset(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
-
-	return (0);
 }
 
 static void
@@ -841,7 +835,7 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 	rc = bus_dmamap_load_mbuf_sg(adapter->tx_buf_tag, tx_info->dmamap, mbuf,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
 	if (unlikely((rc != 0) || (nsegs == 0))) {
-		ena_trace(ENA_WARNING,
+		ena_trace(NULL, ENA_WARNING,
 		    "dmamap load failed! err: %d nsegs: %d\n", rc, nsegs);
 		goto dma_error;
 	}
@@ -873,7 +867,7 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 			counter_u64_add(tx_ring->tx_stats.llq_buffer_copy, 1);
 		}
 
-		ena_trace(ENA_DBG | ENA_TXPTH,
+		ena_trace(NULL, ENA_DBG | ENA_TXPTH,
 		    "mbuf: %p header_buf->vaddr: %p push_len: %d\n",
 		    mbuf, *push_hdr, *header_len);
 
@@ -951,12 +945,12 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	rc = ena_check_and_collapse_mbuf(tx_ring, mbuf);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_WARNING,
+		ena_trace(NULL, ENA_WARNING,
 		    "Failed to collapse mbuf! err: %d\n", rc);
 		return (rc);
 	}
 
-	ena_trace(ENA_DBG | ENA_TXPTH, "Tx: %d bytes\n", (*mbuf)->m_pkthdr.len);
+	ena_trace(NULL, ENA_DBG | ENA_TXPTH, "Tx: %d bytes\n", (*mbuf)->m_pkthdr.len);
 
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_tx_ids[next_to_use];
@@ -965,7 +959,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	rc = ena_tx_map_mbuf(tx_ring, tx_info, *mbuf, &push_hdr, &header_len);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_WARNING, "Failed to map TX mbuf\n");
+		ena_trace(NULL, ENA_WARNING, "Failed to map TX mbuf\n");
 		return (rc);
 	}
 	memset(&ena_tx_ctx, 0x0, sizeof(struct ena_com_tx_ctx));
@@ -980,7 +974,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 
 	if (tx_ring->acum_pkts == DB_THRESHOLD ||
 	    ena_com_is_doorbell_needed(tx_ring->ena_com_io_sq, &ena_tx_ctx)) {
-		ena_trace(ENA_DBG | ENA_TXPTH,
+		ena_trace(NULL, ENA_DBG | ENA_TXPTH,
 		    "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
 		    tx_ring->que->id);
 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
@@ -992,7 +986,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	rc = ena_com_prepare_tx(io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
 		if (likely(rc == ENA_COM_NO_MEM)) {
-			ena_trace(ENA_DBG | ENA_TXPTH,
+			ena_trace(NULL, ENA_DBG | ENA_TXPTH,
 			    "tx ring[%d] if out of space\n", tx_ring->que->id);
 		} else {
 			device_printf(adapter->pdev,
@@ -1025,7 +1019,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	 */
 	if (unlikely(!ena_com_sq_have_enough_space(tx_ring->ena_com_io_sq,
 	    adapter->max_tx_sgl_size + 2))) {
-		ena_trace(ENA_DBG | ENA_TXPTH, "Stop queue %d\n",
+		ena_trace(NULL, ENA_DBG | ENA_TXPTH, "Stop queue %d\n",
 		    tx_ring->que->id);
 
 		tx_ring->running = false;
@@ -1078,7 +1072,7 @@ ena_start_xmit(struct ena_ring *tx_ring)
 	io_sq = &adapter->ena_dev->io_sq_queues[ena_qid];
 
 	while ((mbuf = drbr_peek(adapter->ifp, tx_ring->br)) != NULL) {
-		ena_trace(ENA_DBG | ENA_TXPTH, "\ndequeued mbuf %p with flags %#x and"
+		ena_trace(NULL, ENA_DBG | ENA_TXPTH, "\ndequeued mbuf %p with flags %#x and"
 		    " header csum flags %#jx\n",
 		    mbuf, mbuf->m_flags, (uint64_t)mbuf->m_pkthdr.csum_flags);
 

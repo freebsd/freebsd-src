@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -69,6 +68,7 @@ protocol		{ return PROTOCOL; }
 offload			{ return OFFLOAD; }
 port			{ return IGNORED; }
 dscp			{ return DSCP; }
+pcp			{ return PCP; }
 MaxConnections		{ return IGNORED; }
 TargetAlias		{ return IGNORED; }
 TargetPortalGroupTag	{ return IGNORED; }

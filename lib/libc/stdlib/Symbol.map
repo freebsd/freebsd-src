@@ -122,6 +122,7 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	ptsname_r;
 	qsort_s;
 	rand;
 	srand;

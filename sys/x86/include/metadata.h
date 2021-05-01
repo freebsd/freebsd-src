@@ -35,6 +35,7 @@
 #define	MODINFOMD_EFI_MAP	0x1004
 #define	MODINFOMD_EFI_FB	0x1005
 #define	MODINFOMD_MODULEP	0x1006
+#define	MODINFOMD_VBE_FB	0x1007
 
 struct efi_map_header {
 	uint64_t	memory_size;
@@ -52,6 +53,40 @@ struct efi_fb {
 	uint32_t	fb_mask_green;
 	uint32_t	fb_mask_blue;
 	uint32_t	fb_mask_reserved;
+};
+
+struct vbe_fb {
+	uint64_t	fb_addr;
+	uint64_t	fb_size;
+	uint32_t	fb_height;
+	uint32_t	fb_width;
+	uint32_t	fb_stride;
+	uint32_t	fb_mask_red;
+	uint32_t	fb_mask_green;
+	uint32_t	fb_mask_blue;
+	uint32_t	fb_mask_reserved;
+	uint32_t	fb_bpp;
+};
+
+/*
+ * The structure below is used when FreeBSD kernel is booted as a dom0 kernel
+ * from Xen. In such scenario we need to accommodate the modules and the
+ * metadata as a contiguous memory region, so it can be passed as a multiboot
+ * module, and some extra information is required which is conveyed from the
+ * loader to the kernel using the xen_header structure below.
+ *
+ * See the comment in multiboot.c about how the structure below is packaged
+ * together with the rest of the kernel payload data.
+ */
+struct xen_header {
+	uint64_t	flags;
+#define XENHEADER_HAS_MODULEP_OFFSET (1ull << 0)
+
+	/*
+	 * Offset of the modulep location from the start of the multiboot
+	 * module blob.
+	 */
+	uint64_t	modulep_offset;
 };
 
 #endif /* !_MACHINE_METADATA_H_ */

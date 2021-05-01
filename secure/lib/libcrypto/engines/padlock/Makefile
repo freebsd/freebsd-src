@@ -11,4 +11,4 @@ SRCS+=	e_padlock-x86.S
 
 .include <bsd.lib.mk>
 
-.PATH:	${.CURDIR:H:H}/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}

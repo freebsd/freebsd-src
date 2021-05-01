@@ -20,11 +20,12 @@
 .\" $FreeBSD$
 .\"
 .\" The following requests are required for all man pages.
-.Dd July 4, 2018
+.Dd November 13, 2020
 .Dt SETPROCTITLE 3
 .Os
 .Sh NAME
 .Nm setproctitle
+.Nm setproctitle_fast
 .Nd set process title
 .Sh SYNOPSIS
 .In sys/types.h
@@ -69,6 +70,7 @@ setproctitle("talking to %s", inet_ntoa(addr));
 .Sh SEE ALSO
 .Xr ps 1 ,
 .Xr w 1 ,
+.Xr setprogname 3 ,
 .Xr kvm 3 ,
 .Xr kvm_getargv 3 ,
 .Xr printf 3

@@ -63,6 +63,15 @@ Preset brightness level to be used in economy mode.
 Defaults for these variables can be set in
 .Xr sysctl.conf 5 ,
 which is parsed at boot-time.
+.Sh COMPATIBILITY
+In order for
+.Nm
+to attach correctly,
+.Nm
+should be loaded after any of the DRM kernel modules.
+This can be achieved by setting the correct order in
+.Xr rc.conf 5
+using the kld_list directive.
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr loader.conf 5 ,

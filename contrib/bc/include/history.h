@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -185,6 +185,9 @@ typedef struct BcHistory {
 
 	/// The history.
 	BcVec history;
+
+	/// Any material printed without a trailing newline.
+	BcVec extras;
 
 #if BC_ENABLE_PROMPT
 	/// Prompt to display.

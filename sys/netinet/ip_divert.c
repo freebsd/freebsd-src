@@ -212,11 +212,17 @@ divert_packet(struct mbuf *m, bool incoming)
 
 	/* Delayed checksums are currently not compatible with divert. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL)
+			return;
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL)
+			return;
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
 		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
@@ -280,6 +286,10 @@ divert_packet(struct mbuf *m, bool incoming)
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
 			INP_RLOCK(inp);
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_RUNLOCK(inp);
+				continue;
+			}
 			sa = inp->inp_socket;
 			SOCKBUF_LOCK(&sa->so_rcv);
 			if (sbappendaddr_locked(&sa->so_rcv,

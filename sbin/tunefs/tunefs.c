@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/stat.h>
 
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -115,12 +117,12 @@ main(int argc, char *argv[])
 		switch (ch) {
 
 		case 'A':
-			found_arg = 1;
+			found_arg++;
 			Aflag++;
 			break;
 
 		case 'a':
-			found_arg = 1;
+			found_arg++;
 			name = "POSIX.1e ACLs";
 			avalue = optarg;
 			if (strcmp(avalue, "enable") &&
@@ -132,7 +134,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'e':
-			found_arg = 1;
+			found_arg++;
 			name = "maximum blocks per file in a cylinder group";
 			evalue = atoi(optarg);
 			if (evalue < 1)
@@ -142,7 +144,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'f':
-			found_arg = 1;
+			found_arg++;
 			name = "average file size";
 			fvalue = atoi(optarg);
 			if (fvalue < 1)
@@ -152,7 +154,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'j':
-			found_arg = 1;
+			found_arg++;
 			name = "softdep journaled file system";
 			jvalue = optarg;
 			if (strcmp(jvalue, "enable") &&
@@ -164,7 +166,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'J':
-			found_arg = 1;
+			found_arg++;
 			name = "gjournaled file system";
 			Jvalue = optarg;
 			if (strcmp(Jvalue, "enable") &&
@@ -176,7 +178,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'k':
-			found_arg = 1;
+			found_arg++;
 			name = "space to hold for metadata blocks";
 			kvalue = atoi(optarg);
 			if (kvalue < 0)
@@ -185,7 +187,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'L':
-			found_arg = 1;
+			found_arg++;
 			name = "volume label";
 			Lvalue = optarg;
 			i = -1;
@@ -205,7 +207,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'l':
-			found_arg = 1;
+			found_arg++;
 			name = "multilabel MAC file system";
 			lvalue = optarg;
 			if (strcmp(lvalue, "enable") &&
@@ -217,7 +219,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'm':
-			found_arg = 1;
+			found_arg++;
 			name = "minimum percentage of free space";
 			mvalue = atoi(optarg);
 			if (mvalue < 0 || mvalue > 99)
@@ -226,7 +228,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'N':
-			found_arg = 1;
+			found_arg++;
 			name = "NFSv4 ACLs";
 			Nvalue = optarg;
 			if (strcmp(Nvalue, "enable") &&
@@ -238,7 +240,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'n':
-			found_arg = 1;
+			found_arg++;
 			name = "soft updates";
 			nvalue = optarg;
 			if (strcmp(nvalue, "enable") != 0 &&
@@ -250,7 +252,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'o':
-			found_arg = 1;
+			found_arg++;
 			name = "optimization preference";
 			if (strcmp(optarg, "space") == 0)
 				ovalue = FS_OPTSPACE;
@@ -264,12 +266,12 @@ main(int argc, char *argv[])
 			break;
 
 		case 'p':
-			found_arg = 1;
+			found_arg++;
 			pflag = 1;
 			break;
 
 		case 's':
-			found_arg = 1;
+			found_arg++;
 			name = "expected number of files per directory";
 			svalue = atoi(optarg);
 			if (svalue < 1)
@@ -279,7 +281,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'S':
-			found_arg = 1;
+			found_arg++;
 			name = "Softdep Journal Size";
 			Svalue = atoi(optarg);
 			if (Svalue < SUJ_MIN)
@@ -288,7 +290,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 't':
-			found_arg = 1;
+			found_arg++;
 			name = "trim";
 			tvalue = optarg;
 			if (strcmp(tvalue, "enable") != 0 &&
@@ -310,6 +312,13 @@ main(int argc, char *argv[])
 	on = special = argv[0];
 	if (ufs_disk_fillout(&disk, special) == -1)
 		goto err;
+	/*
+	 * Check for unclean filesystem.
+	 */
+	if ((sblock.fs_clean == 0 ||
+	    (sblock.fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0) &&
+	    (found_arg > 1 || !pflag))
+		errx(1, "%s is not clean - run fsck.\n", special);
 	if (disk.d_name != special) {
 		if (statfs(special, &stfs) != 0)
 			warn("Can't stat %s", special);

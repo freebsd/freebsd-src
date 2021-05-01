@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Roman Divacky
  * Copyright (c) 2014 Dmitry Chagin
  * All rights reserved.
@@ -49,9 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/selinfo.h>
+#include <sys/specialfd.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/timespec.h>
+#include <sys/eventfd.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -67,24 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
-/*
- * epoll defines 'struct epoll_event' with the field 'data' as 64 bits
- * on all architectures. But on 32 bit architectures BSD 'struct kevent' only
- * has 32 bit opaque pointer as 'udata' field. So we can't pass epoll supplied
- * data verbatuim. Therefore we allocate 64-bit memory block to pass
- * user supplied data for every file descriptor.
- */
-
 typedef uint64_t	epoll_udata_t;
-
-struct epoll_emuldata {
-	uint32_t	fdc;		/* epoll udata max index */
-	epoll_udata_t	udata[1];	/* epoll user data vector */
-};
-
-#define	EPOLL_DEF_SZ		16
-#define	EPOLL_SIZE(fdn)			\
-	(sizeof(struct epoll_emuldata)+(fdn) * sizeof(epoll_udata_t))
 
 struct epoll_event {
 	uint32_t	events;
@@ -97,7 +84,6 @@ __attribute__((packed))
 
 #define	LINUX_MAX_EVENTS	(INT_MAX / sizeof(struct epoll_event))
 
-static void	epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata);
 static int	epoll_to_kevent(struct thread *td, int fd,
 		    struct epoll_event *l_event, struct kevent *kevent,
 		    int *nkevents);
@@ -122,53 +108,11 @@ struct epoll_copyout_args {
 	int			error;
 };
 
-/* eventfd */
-typedef uint64_t	eventfd_t;
-
-static fo_rdwr_t	eventfd_read;
-static fo_rdwr_t	eventfd_write;
-static fo_ioctl_t	eventfd_ioctl;
-static fo_poll_t	eventfd_poll;
-static fo_kqfilter_t	eventfd_kqfilter;
-static fo_stat_t	eventfd_stat;
-static fo_close_t	eventfd_close;
-static fo_fill_kinfo_t	eventfd_fill_kinfo;
-
-static struct fileops eventfdops = {
-	.fo_read = eventfd_read,
-	.fo_write = eventfd_write,
-	.fo_truncate = invfo_truncate,
-	.fo_ioctl = eventfd_ioctl,
-	.fo_poll = eventfd_poll,
-	.fo_kqfilter = eventfd_kqfilter,
-	.fo_stat = eventfd_stat,
-	.fo_close = eventfd_close,
-	.fo_chmod = invfo_chmod,
-	.fo_chown = invfo_chown,
-	.fo_sendfile = invfo_sendfile,
-	.fo_fill_kinfo = eventfd_fill_kinfo,
-	.fo_flags = DFLAG_PASSABLE
-};
-
-static void	filt_eventfddetach(struct knote *kn);
-static int	filt_eventfdread(struct knote *kn, long hint);
-static int	filt_eventfdwrite(struct knote *kn, long hint);
-
-static struct filterops eventfd_rfiltops = {
-	.f_isfd = 1,
-	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdread
-};
-static struct filterops eventfd_wfiltops = {
-	.f_isfd = 1,
-	.f_detach = filt_eventfddetach,
-	.f_event = filt_eventfdwrite
-};
-
 /* timerfd */
 typedef uint64_t	timerfd_t;
 
 static fo_rdwr_t	timerfd_read;
+static fo_ioctl_t	timerfd_ioctl;
 static fo_poll_t	timerfd_poll;
 static fo_kqfilter_t	timerfd_kqfilter;
 static fo_stat_t	timerfd_stat;
@@ -179,7 +123,7 @@ static struct fileops timerfdops = {
 	.fo_read = timerfd_read,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,
-	.fo_ioctl = eventfd_ioctl,
+	.fo_ioctl = timerfd_ioctl,
 	.fo_poll = timerfd_poll,
 	.fo_kqfilter = timerfd_kqfilter,
 	.fo_stat = timerfd_stat,
@@ -200,13 +144,6 @@ static struct filterops timerfd_rfiltops = {
 	.f_event = filt_timerfdread
 };
 
-struct eventfd {
-	eventfd_t	efd_count;
-	uint32_t	efd_flags;
-	struct selinfo	efd_sel;
-	struct mtx	efd_lock;
-};
-
 struct timerfd {
 	clockid_t	tfd_clockid;
 	struct itimerspec tfd_time;
@@ -217,51 +154,14 @@ struct timerfd {
 	struct mtx	tfd_lock;
 };
 
-static int	eventfd_create(struct thread *td, uint32_t initval, int flags);
 static void	linux_timerfd_expire(void *);
 static void	linux_timerfd_curval(struct timerfd *, struct itimerspec *);
-
-static void
-epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata)
-{
-	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
-	struct proc *p;
-
-	p = td->td_proc;
-
-	pem = pem_find(p);
-	KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-
-	LINUX_PEM_XLOCK(pem);
-	if (pem->epoll == NULL) {
-		emd = malloc(EPOLL_SIZE(fd), M_EPOLL, M_WAITOK);
-		emd->fdc = fd;
-		pem->epoll = emd;
-	} else {
-		emd = pem->epoll;
-		if (fd > emd->fdc) {
-			emd = realloc(emd, EPOLL_SIZE(fd), M_EPOLL, M_WAITOK);
-			emd->fdc = fd;
-			pem->epoll = emd;
-		}
-	}
-	emd->udata[fd] = udata;
-	LINUX_PEM_XUNLOCK(pem);
-}
 
 static int
 epoll_create_common(struct thread *td, int flags)
 {
-	int error;
 
-	error = kern_kqueue(td, flags, NULL);
-	if (error != 0)
-		return (error);
-
-	epoll_fd_install(td, EPOLL_DEF_SZ, 0);
-
-	return (0);
+	return (kern_kqueue(td, flags, NULL));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -317,11 +217,15 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 
 	/* flags related to what event is registered */
 	if ((levents & LINUX_EPOLL_EVRD) != 0) {
-		EV_SET(kevent++, fd, EVFILT_READ, kev_flags, 0, 0, 0);
+		EV_SET(kevent, fd, EVFILT_READ, kev_flags, 0, 0, 0);
+		kevent->ext[0] = l_event->data;
+		++kevent;
 		++(*nkevents);
 	}
 	if ((levents & LINUX_EPOLL_EVWR) != 0) {
-		EV_SET(kevent++, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
+		EV_SET(kevent, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
+		kevent->ext[0] = l_event->data;
+		++kevent;
 		++(*nkevents);
 	}
 	/* zero event mask is legal */
@@ -335,7 +239,6 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 
 		pem = pem_find(p);
 		KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-		KASSERT(pem->epoll != NULL, ("epoll proc epolldata not found.\n"));
 
 		LINUX_PEM_XLOCK(pem);
 		if ((pem->flags & LINUX_XUNSUP_EPOLL) == 0) {
@@ -359,6 +262,8 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 static void
 kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 {
+
+	l_event->data = kevent->ext[0];
 
 	if ((kevent->flags & EV_ERROR) != 0) {
 		l_event->events = LINUX_EPOLLERR;
@@ -388,29 +293,14 @@ static int
 epoll_kev_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct epoll_copyout_args *args;
-	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
 	struct epoll_event *eep;
-	int error, fd, i;
+	int error, i;
 
 	args = (struct epoll_copyout_args*) arg;
 	eep = malloc(sizeof(*eep) * count, M_EPOLL, M_WAITOK | M_ZERO);
 
-	pem = pem_find(args->p);
-	KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-	LINUX_PEM_SLOCK(pem);
-	emd = pem->epoll;
-	KASSERT(emd != NULL, ("epoll proc epolldata not found.\n"));
-
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
 		kevent_to_epoll(&kevp[i], &eep[i]);
-
-		fd = kevp[i].ident;
-		KASSERT(fd <= emd->fdc, ("epoll user data vector"
-						    " is too small.\n"));
-		eep[i].data = emd->udata[fd];
-	}
-	LINUX_PEM_SUNLOCK(pem);
 
 	error = copyout(eep, args->leventlist, count * sizeof(*eep));
 	if (error == 0) {
@@ -467,7 +357,7 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	}
 
 	error = fget(td, args->epfd,
-	    cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &epfp);
+	    cap_rights_init_one(&rights, CAP_KQUEUE_CHANGE), &epfp);
 	if (error != 0)
 		return (error);
 	if (epfp->f_type != DTYPE_KQUEUE) {
@@ -476,7 +366,8 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	}
 
 	 /* Protect user data vector from incorrectly supplied fd. */
-	error = fget(td, args->fd, cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
+	error = fget(td, args->fd,
+		     cap_rights_init_one(&rights, CAP_POLL_EVENT), &fp);
 	if (error != 0)
 		goto leave1;
 
@@ -518,8 +409,6 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 		goto leave0;
 	}
 
-	epoll_fd_install(td, args->fd, le.data);
-
 	error = kern_kevent_fp(td, epfp, nchanges, 0, &k_ops, NULL);
 
 leave0:
@@ -551,7 +440,7 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 		return (EINVAL);
 
 	error = fget(td, epfd,
-	    cap_rights_init(&rights, CAP_KQUEUE_EVENT), &epfp);
+	    cap_rights_init_one(&rights, CAP_KQUEUE_EVENT), &epfp);
 	if (error != 0)
 		return (error);
 	if (epfp->f_type != DTYPE_KQUEUE) {
@@ -689,300 +578,39 @@ epoll_delete_all_events(struct thread *td, struct file *epfp, int fd)
 	return (error1 == 0 ? 0 : error2);
 }
 
-static int
-eventfd_create(struct thread *td, uint32_t initval, int flags)
-{
-	struct filedesc *fdp;
-	struct eventfd *efd;
-	struct file *fp;
-	int fflags, fd, error;
-
-	fflags = 0;
-	if ((flags & LINUX_O_CLOEXEC) != 0)
-		fflags |= O_CLOEXEC;
-
-	fdp = td->td_proc->p_fd;
-	error = falloc(td, &fp, &fd, fflags);
-	if (error != 0)
-		return (error);
-
-	efd = malloc(sizeof(*efd), M_EPOLL, M_WAITOK | M_ZERO);
-	efd->efd_flags = flags;
-	efd->efd_count = initval;
-	mtx_init(&efd->efd_lock, "eventfd", NULL, MTX_DEF);
-
-	knlist_init_mtx(&efd->efd_sel.si_note, &efd->efd_lock);
-
-	fflags = FREAD | FWRITE;
-	if ((flags & LINUX_O_NONBLOCK) != 0)
-		fflags |= FNONBLOCK;
-
-	finit(fp, fflags, DTYPE_LINUXEFD, efd, &eventfdops);
-	fdrop(fp, td);
-
-	td->td_retval[0] = fd;
-	return (error);
-}
-
 #ifdef LINUX_LEGACY_SYSCALLS
 int
 linux_eventfd(struct thread *td, struct linux_eventfd_args *args)
 {
+	struct specialfd_eventfd ae;
 
-	return (eventfd_create(td, args->initval, 0));
+	bzero(&ae, sizeof(ae));
+	ae.initval = args->initval;
+	return (kern_specialfd(td, SPECIALFD_EVENTFD, &ae));
 }
 #endif
 
 int
 linux_eventfd2(struct thread *td, struct linux_eventfd2_args *args)
 {
+	struct specialfd_eventfd ae;
+	int flags;
 
-	if ((args->flags & ~(LINUX_O_CLOEXEC|LINUX_O_NONBLOCK|LINUX_EFD_SEMAPHORE)) != 0)
+	if ((args->flags & ~(LINUX_O_CLOEXEC | LINUX_O_NONBLOCK |
+	    LINUX_EFD_SEMAPHORE)) != 0)
 		return (EINVAL);
+	flags = 0;
+	if ((args->flags & LINUX_O_CLOEXEC) != 0)
+		flags |= EFD_CLOEXEC;
+	if ((args->flags & LINUX_O_NONBLOCK) != 0)
+		flags |= EFD_NONBLOCK;
+	if ((args->flags & LINUX_EFD_SEMAPHORE) != 0)
+		flags |= EFD_SEMAPHORE;
 
-	return (eventfd_create(td, args->initval, args->flags));
-}
-
-static int
-eventfd_close(struct file *fp, struct thread *td)
-{
-	struct eventfd *efd;
-
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EINVAL);
-
-	seldrain(&efd->efd_sel);
-	knlist_destroy(&efd->efd_sel.si_note);
-
-	fp->f_ops = &badfileops;
-	mtx_destroy(&efd->efd_lock);
-	free(efd, M_EPOLL);
-
-	return (0);
-}
-
-static int
-eventfd_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-	struct eventfd *efd;
-	eventfd_t count;
-	int error;
-
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EINVAL);
-
-	if (uio->uio_resid < sizeof(eventfd_t))
-		return (EINVAL);
-
-	error = 0;
-	mtx_lock(&efd->efd_lock);
-retry:
-	if (efd->efd_count == 0) {
-		if ((fp->f_flag & FNONBLOCK) != 0) {
-			mtx_unlock(&efd->efd_lock);
-			return (EAGAIN);
-		}
-		error = mtx_sleep(&efd->efd_count, &efd->efd_lock, PCATCH, "lefdrd", 0);
-		if (error == 0)
-			goto retry;
-	}
-	if (error == 0) {
-		if ((efd->efd_flags & LINUX_EFD_SEMAPHORE) != 0) {
-			count = 1;
-			--efd->efd_count;
-		} else {
-			count = efd->efd_count;
-			efd->efd_count = 0;
-		}
-		KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
-		selwakeup(&efd->efd_sel);
-		wakeup(&efd->efd_count);
-		mtx_unlock(&efd->efd_lock);
-		error = uiomove(&count, sizeof(eventfd_t), uio);
-	} else
-		mtx_unlock(&efd->efd_lock);
-
-	return (error);
-}
-
-static int
-eventfd_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-     int flags, struct thread *td)
-{
-	struct eventfd *efd;
-	eventfd_t count;
-	int error;
-
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EINVAL);
-
-	if (uio->uio_resid < sizeof(eventfd_t))
-		return (EINVAL);
-
-	error = uiomove(&count, sizeof(eventfd_t), uio);
-	if (error != 0)
-		return (error);
-	if (count == UINT64_MAX)
-		return (EINVAL);
-
-	mtx_lock(&efd->efd_lock);
-retry:
-	if (UINT64_MAX - efd->efd_count <= count) {
-		if ((fp->f_flag & FNONBLOCK) != 0) {
-			mtx_unlock(&efd->efd_lock);
-			/* Do not not return the number of bytes written */
-			uio->uio_resid += sizeof(eventfd_t);
-			return (EAGAIN);
-		}
-		error = mtx_sleep(&efd->efd_count, &efd->efd_lock,
-		    PCATCH, "lefdwr", 0);
-		if (error == 0)
-			goto retry;
-	}
-	if (error == 0) {
-		efd->efd_count += count;
-		KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
-		selwakeup(&efd->efd_sel);
-		wakeup(&efd->efd_count);
-	}
-	mtx_unlock(&efd->efd_lock);
-
-	return (error);
-}
-
-static int
-eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-	struct eventfd *efd;
-	int revents = 0;
-
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (POLLERR);
-
-	mtx_lock(&efd->efd_lock);
-	if ((events & (POLLIN|POLLRDNORM)) && efd->efd_count > 0)
-		revents |= events & (POLLIN|POLLRDNORM);
-	if ((events & (POLLOUT|POLLWRNORM)) && UINT64_MAX - 1 > efd->efd_count)
-		revents |= events & (POLLOUT|POLLWRNORM);
-	if (revents == 0)
-		selrecord(td, &efd->efd_sel);
-	mtx_unlock(&efd->efd_lock);
-
-	return (revents);
-}
-
-/*ARGSUSED*/
-static int
-eventfd_kqfilter(struct file *fp, struct knote *kn)
-{
-	struct eventfd *efd;
-
-	efd = fp->f_data;
-	if (fp->f_type != DTYPE_LINUXEFD || efd == NULL)
-		return (EINVAL);
-
-	mtx_lock(&efd->efd_lock);
-	switch (kn->kn_filter) {
-	case EVFILT_READ:
-		kn->kn_fop = &eventfd_rfiltops;
-		break;
-	case EVFILT_WRITE:
-		kn->kn_fop = &eventfd_wfiltops;
-		break;
-	default:
-		mtx_unlock(&efd->efd_lock);
-		return (EINVAL);
-	}
-
-	kn->kn_hook = efd;
-	knlist_add(&efd->efd_sel.si_note, kn, 1);
-	mtx_unlock(&efd->efd_lock);
-
-	return (0);
-}
-
-static void
-filt_eventfddetach(struct knote *kn)
-{
-	struct eventfd *efd = kn->kn_hook;
-
-	mtx_lock(&efd->efd_lock);
-	knlist_remove(&efd->efd_sel.si_note, kn, 1);
-	mtx_unlock(&efd->efd_lock);
-}
-
-/*ARGSUSED*/
-static int
-filt_eventfdread(struct knote *kn, long hint)
-{
-	struct eventfd *efd = kn->kn_hook;
-	int ret;
-
-	mtx_assert(&efd->efd_lock, MA_OWNED);
-	ret = (efd->efd_count > 0);
-
-	return (ret);
-}
-
-/*ARGSUSED*/
-static int
-filt_eventfdwrite(struct knote *kn, long hint)
-{
-	struct eventfd *efd = kn->kn_hook;
-	int ret;
-
-	mtx_assert(&efd->efd_lock, MA_OWNED);
-	ret = (UINT64_MAX - 1 > efd->efd_count);
-
-	return (ret);
-}
-
-/*ARGSUSED*/
-static int
-eventfd_ioctl(struct file *fp, u_long cmd, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	if (fp->f_data == NULL || (fp->f_type != DTYPE_LINUXEFD &&
-	    fp->f_type != DTYPE_LINUXTFD))
-		return (EINVAL);
-
-	switch (cmd)
-	{
-	case FIONBIO:
-		if ((*(int *)data))
-			atomic_set_int(&fp->f_flag, FNONBLOCK);
-		else
-			atomic_clear_int(&fp->f_flag, FNONBLOCK);
-	case FIOASYNC:
-		return (0);
-	default:
-		return (ENXIO);
-	}
-}
-
-/*ARGSUSED*/
-static int
-eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-eventfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
-{
-
-	kif->kf_type = KF_TYPE_UNKNOWN;
-	return (0);
+	bzero(&ae, sizeof(ae));
+	ae.flags = flags;
+	ae.initval = args->initval;
+	return (kern_specialfd(td, SPECIALFD_EVENTFD, &ae));
 }
 
 int
@@ -1042,9 +670,7 @@ timerfd_close(struct file *fp, struct thread *td)
 	timespecclear(&tfd->tfd_time.it_value);
 	timespecclear(&tfd->tfd_time.it_interval);
 
-	mtx_lock(&tfd->tfd_lock);
 	callout_drain(&tfd->tfd_callout);
-	mtx_unlock(&tfd->tfd_lock);
 
 	seldrain(&tfd->tfd_sel);
 	knlist_destroy(&tfd->tfd_sel.si_note);
@@ -1120,7 +746,6 @@ timerfd_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (revents);
 }
 
-/*ARGSUSED*/
 static int
 timerfd_kqfilter(struct file *fp, struct knote *kn)
 {
@@ -1151,7 +776,6 @@ filt_timerfddetach(struct knote *kn)
 	mtx_unlock(&tfd->tfd_lock);
 }
 
-/*ARGSUSED*/
 static int
 filt_timerfdread(struct knote *kn, long hint)
 {
@@ -1160,7 +784,23 @@ filt_timerfdread(struct knote *kn, long hint)
 	return (tfd->tfd_count > 0);
 }
 
-/*ARGSUSED*/
+static int
+timerfd_ioctl(struct file *fp, u_long cmd, void *data,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	if (fp->f_data == NULL || fp->f_type != DTYPE_LINUXTFD)
+		return (EINVAL);
+
+	switch (cmd) {
+	case FIONBIO:
+	case FIOASYNC:
+		return (0);
+	}
+
+	return (ENOTTY);
+}
+
 static int
 timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
     struct thread *td)
@@ -1169,7 +809,6 @@ timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	return (ENXIO);
 }
 
-/*ARGSUSED*/
 static int
 timerfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
@@ -1274,6 +913,7 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 		linux_timerfd_curval(tfd, &ots);
 
 	tfd->tfd_time = nts;
+	tfd->tfd_count = 0;
 	if (timespecisset(&nts.it_value)) {
 		linux_timerfd_clocktime(tfd, &cts);
 		ts = nts.it_value;

@@ -857,6 +857,8 @@ dsp_io_ops(struct cdev *i_dev, struct uio *buf)
 	getchns(i_dev, &rdch, &wrch, prio);
 
 	if (*ch == NULL || !((*ch)->flags & CHN_F_BUSY)) {
+		if (rdch != NULL || wrch != NULL)
+			relchns(i_dev, rdch, wrch, prio);
 		PCM_GIANT_EXIT(d);
 		return (EBADF);
 	}
@@ -2292,8 +2294,7 @@ dsp_stdclone(char *name, char *namep, char *sep, int use_sep, int *u, int *c)
 	size_t len;
 
 	len = strlen(namep);
-
-	if (bcmp(name, namep, len) != 0)
+	if (strncmp(name, namep, len) != 0)
 		return (ENODEV);
 
 	name += len;

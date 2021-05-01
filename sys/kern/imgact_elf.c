@@ -190,6 +190,11 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, sigfastblock,
     CTLFLAG_RWTUN, &__elfN(sigfastblock), 0,
     "enable sigfastblock for new processes");
 
+static bool __elfN(allow_wx) = true;
+SYSCTL_BOOL(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, allow_wx,
+    CTLFLAG_RWTUN, &__elfN(allow_wx), 0,
+    "Allow pages to be mapped simultaneously writable and executable");
+
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	aligned(a, t)	(rounddown2((u_long)(a), sizeof(t)) == (u_long)(a))
@@ -687,7 +692,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 	 */
 	if ((prot & VM_PROT_WRITE) == 0)
 		vm_map_protect(map, trunc_page(map_addr), round_page(map_addr +
-		    map_len), prot, FALSE);
+		    map_len), prot, 0, VM_MAP_PROTECT_SET_PROT);
 
 	return (0);
 }
@@ -1237,6 +1242,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			imgp->map_flags |= MAP_ASLR_IGNSTART;
 	}
 
+	if (!__elfN(allow_wx) && (fctl0 & NT_FREEBSD_FCTL_WXNEEDED) == 0)
+		imgp->map_flags |= MAP_WXORX;
+
 	error = exec_new_vmspace(imgp, sv);
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
@@ -1279,7 +1287,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		maxv1 = maxv / 2 + addr / 2;
 		MPASS(maxv1 >= addr);	/* No overflow */
 		map->anon_loc = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
-		    MAXPAGESIZES > 1 ? pagesizes[1] : pagesizes[0]);
+		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
+		    pagesizes[1] : pagesizes[0]);
 	} else {
 		map->anon_loc = addr;
 	}
@@ -1289,7 +1298,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	if (interp != NULL) {
 		VOP_UNLOCK(imgp->vp);
 		if ((map->flags & MAP_ASLR) != 0) {
-			/* Assume that interpeter fits into 1/4 of AS */
+			/* Assume that interpreter fits into 1/4 of AS */
 			maxv1 = maxv / 2 + addr / 2;
 			MPASS(maxv1 >= addr);	/* No overflow */
 			addr = __CONCAT(rnd_, __elfN(base))(map, addr,
@@ -2386,8 +2395,10 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(elf_kinfo_proc_t);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		kern_proc_out(p, sb, ELF_KERN_PROC_MASK);
+		sx_sunlock(&proctree_lock);
 	}
 	*sizep = size;
 }
@@ -2507,12 +2518,12 @@ note_procstat_umask(void *arg, struct sbuf *sb, size_t *sizep)
 	int structsize;
 
 	p = (struct proc *)arg;
-	size = sizeof(structsize) + sizeof(p->p_fd->fd_cmask);
+	size = sizeof(structsize) + sizeof(p->p_pd->pd_cmask);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
-		structsize = sizeof(p->p_fd->fd_cmask);
+		structsize = sizeof(p->p_pd->pd_cmask);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
-		sbuf_bcat(sb, &p->p_fd->fd_cmask, sizeof(p->p_fd->fd_cmask));
+		sbuf_bcat(sb, &p->p_pd->pd_cmask, sizeof(p->p_pd->pd_cmask));
 	}
 	*sizep = size;
 }
@@ -2725,6 +2736,7 @@ note_fctl_cb(const Elf_Note *note, void *arg0, boolean_t *res)
 	desc = (const Elf32_Word *)p;
 	*arg->has_fctl0 = TRUE;
 	*arg->fctl0 = desc[0];
+	*res = TRUE;
 	return (TRUE);
 }
 
@@ -2818,8 +2830,6 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 	uintptr_t range, rbase, gap;
 	int pct;
 
-	if ((imgp->map_flags & MAP_ASLR) == 0)
-		return;
 	pct = __elfN(aslr_stack_gap);
 	if (pct == 0)
 		return;

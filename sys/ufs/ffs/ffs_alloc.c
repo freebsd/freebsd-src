@@ -543,7 +543,7 @@ ffs_reallocblks(ap)
 	 * here.  Instead we simply fail to reallocate blocks if this
 	 * rare condition arises.
 	 */
-	if (DOINGSOFTDEP(ap->a_vp))
+	if (DOINGSUJ(ap->a_vp))
 		if (softdep_prealloc(ap->a_vp, MNT_NOWAIT) != 0)
 			return (ENOSPC);
 	if (ump->um_fstype == UFS1)
@@ -3218,7 +3218,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
 	if ((error = getvnode(td, cmd.handle,
-	    cap_rights_init(&rights, CAP_FSCK), &fp)) != 0)
+	    cap_rights_init_one(&rights, CAP_FSCK), &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -3468,7 +3468,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 		dp = VTOI(dvp);
-		dp->i_offset = 12;	/* XXX mastertemplate.dot_reclen */
+		SET_I_OFFSET(dp, 12);	/* XXX mastertemplate.dot_reclen */
 		error = ufs_dirrewrite(dp, VTOI(fdvp), (ino_t)cmd.size,
 		    DT_DIR, 0);
 		cache_purge(fdvp);

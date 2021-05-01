@@ -106,7 +106,7 @@ VNET_DEFINE_STATIC(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
 
 VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
-VNET_DEFINE_STATIC(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
+VNET_DEFINE_STATIC(int, nd6_maxqueuelen) = 16; /* max pkts cached in unresolved
 					 * ND entries */
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
@@ -208,6 +208,8 @@ nd6_lle_event(void *arg __unused, struct llentry *lle, int evt)
 static void
 nd6_iflladdr(void *arg __unused, struct ifnet *ifp)
 {
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
 
 	lltable_update_ifaddr(LLTABLE6(ifp));
 }
@@ -273,6 +275,10 @@ nd6_ifattach(struct ifnet *ifp)
 
 	nd->flags = ND6_IFF_PERFORMNUD;
 
+	/* Set IPv6 disabled on all interfaces but loopback by default. */
+	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
+		nd->flags |= ND6_IFF_IFDISABLED;
+
 	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL.
 	 * XXXHRS: Clear ND6_IFF_AUTO_LINKLOCAL on an IFT_BRIDGE interface by
 	 * default regardless of the V_ip6_auto_linklocal configuration to
@@ -290,8 +296,11 @@ nd6_ifattach(struct ifnet *ifp)
 	 */
 	if (V_ip6_accept_rtadv &&
 	    !(ifp->if_flags & IFF_LOOPBACK) &&
-	    (ifp->if_type != IFT_BRIDGE))
+	    (ifp->if_type != IFT_BRIDGE)) {
 			nd->flags |= ND6_IFF_ACCEPT_RTADV;
+			/* If we globally accept rtadv, assume IPv6 on. */
+			nd->flags &= ~ND6_IFF_IFDISABLED;
+	}
 	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_NO_RADR;
 
@@ -1309,11 +1318,7 @@ restart:
 			 * This is the case where multiple interfaces
 			 * have the same prefix, but only one is installed 
 			 * into the routing table and that prefix entry
-			 * is not the one being examined here. In the case
-			 * where RADIX_MPATH is enabled, multiple route
-			 * entries (of the same rt_key value) will be 
-			 * installed because the interface addresses all
-			 * differ.
+			 * is not the one being examined here.
 			 */
 			if (!IN6_ARE_ADDR_EQUAL(&pr->ndpr_prefix.sin6_addr,
 			    &rt_key.sin6_addr))
@@ -2457,6 +2462,7 @@ nd6_flush_holdchain(struct ifnet *ifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
+		m->m_nextpkt = NULL;
 		error = nd6_output_ifp(ifp, ifp, m, dst, NULL);
 	}
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,9 @@
 #define VIRTCHNL_IPSEC_MAX_SA_DESTROY_NUM	8
 #define VIRTCHNL_IPSEC_SA_DESTROY		0
 #define VIRTCHNL_IPSEC_BROADCAST_VFID		0xFFFFFFFF
+#define VIRTCHNL_IPSEC_INVALID_REQ_ID		0xFFFF
+#define VIRTCHNL_IPSEC_INVALID_SA_CFG_RESP	0xFFFFFFFF
+#define VIRTCHNL_IPSEC_INVALID_SP_CFG_RESP	0xFFFFFFFF
 
 /* crypto type */
 #define VIRTCHNL_AUTH		1
@@ -97,6 +100,17 @@
 /* sa ip type */
 #define VIRTCHNL_IPV4	1
 #define VIRTCHNL_IPV6	2
+
+/* for virtchnl_ipsec_resp */
+enum inline_ipsec_resp {
+	INLINE_IPSEC_SUCCESS = 0,
+	INLINE_IPSEC_FAIL = -1,
+	INLINE_IPSEC_ERR_FIFO_FULL = -2,
+	INLINE_IPSEC_ERR_NOT_READY = -3,
+	INLINE_IPSEC_ERR_VF_DOWN = -4,
+	INLINE_IPSEC_ERR_INVALID_PARAMS = -5,
+	INLINE_IPSEC_ERR_NO_MEM = -6,
+};
 
 /* Detailed opcodes for DPDK and IPsec use */
 enum inline_ipsec_ops {

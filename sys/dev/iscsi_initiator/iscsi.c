@@ -392,8 +392,8 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = getsock_cap(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
-	     &sp->fp, NULL, NULL);
+     error = getsock_cap(td, fd, cap_rights_init_one(&rights, CAP_SOCK_CLIENT),
+         &sp->fp, NULL, NULL);
      if(error)
 	  return error;
 

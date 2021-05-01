@@ -109,8 +109,12 @@ armv7_counter_disable(unsigned int pmc)
  * Performance Count Register N
  */
 static uint32_t
-armv7_pmcn_read(unsigned int pmc)
+armv7_pmcn_read(unsigned int pmc, uint32_t evsel)
 {
+
+	if (evsel == PMC_EV_CPU_CYCLES) {
+		return ((uint32_t)cp15_pmccntr_get());
+	}
 
 	KASSERT(pmc < armv7_npmcs, ("%s: illegal PMC number %d", __func__, pmc));
 
@@ -165,6 +169,8 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 {
 	pmc_value_t tmp;
 	struct pmc *pm;
+	register_t s;
+	u_int reg;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[armv7,%d] illegal CPU value %d", __LINE__, cpu));
@@ -173,11 +179,26 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 
 	pm  = armv7_pcpu[cpu]->pc_armv7pmcs[ri].phw_pmc;
 
+	s = intr_disable();
+	tmp = armv7_pmcn_read(ri, pm->pm_md.pm_armv7.pm_armv7_evsel);
+
+	/* Check if counter has overflowed */
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
-		tmp = (uint32_t)cp15_pmccntr_get();
+		reg = (1u << 31);
 	else
-		tmp = armv7_pmcn_read(ri);
-	tmp += 0x100000000llu * pm->pm_overflowcnt;
+		reg = (1u << ri);
+
+	if ((cp15_pmovsr_get() & reg) != 0) {
+		/* Clear Overflow Flag */
+		cp15_pmovsr_set(reg);
+		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			pm->pm_pcpu_state[cpu].pps_overflowcnt++;
+
+		/* Reread counter in case we raced. */
+		tmp = armv7_pmcn_read(ri, pm->pm_md.pm_armv7.pm_armv7_evsel);
+	}
+	tmp += 0x100000000llu * pm->pm_pcpu_state[cpu].pps_overflowcnt;
+	intr_restore(s);
 
 	PMCDBG2(MDP, REA, 2, "armv7-read id=%d -> %jd", ri, tmp);
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -205,6 +226,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 	
 	PMCDBG3(MDP, WRI, 1, "armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
+	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
 		cp15_pmccntr_set(v);
 	else
@@ -246,8 +268,6 @@ armv7_start_pmc(int cpu, int ri)
 	phw    = &armv7_pcpu[cpu]->pc_armv7pmcs[ri];
 	pm     = phw->phw_pmc;
 	config = pm->pm_md.pm_armv7.pm_armv7_evsel;
-
-	pm->pm_overflowcnt = 0;
 
 	/*
 	 * Configure the event selection.
@@ -329,9 +349,9 @@ armv7_intr(struct trapframe *tf)
 
 		/* Check if counter has overflowed */
 		if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
-			reg = (1 << 31);
+			reg = (1u << 31);
 		else
-			reg = (1 << ri);
+			reg = (1u << ri);
 
 		if ((cp15_pmovsr_get() & reg) == 0) {
 			continue;
@@ -343,7 +363,7 @@ armv7_intr(struct trapframe *tf)
 		retval = 1; /* Found an interrupting PMC. */
 
 		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
-			pm->pm_overflowcnt += 1;
+			pm->pm_pcpu_state[cpu].pps_overflowcnt += 1;
 			continue;
 		}
 		if (pm->pm_state != PMC_STATE_RUNNING)

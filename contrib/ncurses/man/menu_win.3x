@@ -28,22 +28,22 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_win.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: menu_win.3x,v 1.15 2020/10/17 23:50:51 tom Exp $
 .TH menu_win 3X ""
 .SH NAME
 \fBmenu_win\fR \- make and break menu window and subwindow associations
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_menu_win(MENU *\fP\fImenu\fP\fB, WINDOW *\fP\fIwin\fP\fB);\fP
 .br
-int set_menu_win(MENU *menu, WINDOW *win);
+\fBWINDOW *menu_win(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint set_menu_sub(MENU *\fP\fImenu\fP\fB, WINDOW *\fP\fIsub\fP\fB);\fP
 .br
-WINDOW *menu_win(const MENU *menu);
-.br
-int set_menu_sub(MENU *menu, WINDOW *sub);
-.br
-WINDOW *menu_sub(const MENU *menu);
-.br
-int scale_menu(const MENU *menu, int *rows, int *columns);
+\fBWINDOW *menu_sub(const MENU *\fP\fImenu\fP\fB);\fP
+.sp
+\fBint scale_menu(const MENU *\fP\fImenu, int *\fP\fIrows\fP\fB, int *\fP\fIcolumns);\fP
 .br
 .SH DESCRIPTION
 Every menu has an associated pair of \fBcurses\fR windows.

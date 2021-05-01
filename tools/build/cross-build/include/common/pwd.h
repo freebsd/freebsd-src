@@ -52,7 +52,7 @@ const char *user_from_uid(uid_t uid, int noname);
 
 #ifdef __linux__
 static inline int
-setpassent(int stayopen)
+setpassent(int stayopen __unused)
 {
 	setpwent();
 	return (1);

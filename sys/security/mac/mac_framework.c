@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
@@ -141,6 +142,9 @@ FPFLAG(vnode_check_mmap);
 FPFLAG_RARE(vnode_check_poll);
 FPFLAG_RARE(vnode_check_rename_from);
 FPFLAG_RARE(vnode_check_access);
+FPFLAG_RARE(vnode_check_readlink);
+FPFLAG_RARE(pipe_check_stat);
+FPFLAG_RARE(pipe_check_poll);
 
 #undef FPFLAG
 #undef FPFLAG_RARE
@@ -397,6 +401,8 @@ mac_policy_update(void)
 		mac_labeled |= mac_policy_getlabeled(mpc);
 		mac_policy_count++;
 	}
+
+	cache_fast_lookup_enabled_recalc();
 }
 
 /*
@@ -417,6 +423,8 @@ struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 	{ .offset = FPO(priv_grant), .flag = &mac_priv_grant_fp_flag },
 	{ .offset = FPO(vnode_check_lookup),
 		.flag = &mac_vnode_check_lookup_fp_flag },
+	{ .offset = FPO(vnode_check_readlink),
+		.flag = &mac_vnode_check_readlink_fp_flag },
 	{ .offset = FPO(vnode_check_open),
 		.flag = &mac_vnode_check_open_fp_flag },
 	{ .offset = FPO(vnode_check_stat),
@@ -433,6 +441,10 @@ struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 		.flag = &mac_vnode_check_rename_from_fp_flag },
 	{ .offset = FPO(vnode_check_access),
 		.flag = &mac_vnode_check_access_fp_flag },
+	{ .offset = FPO(pipe_check_stat),
+		.flag = &mac_pipe_check_stat_fp_flag },
+	{ .offset = FPO(pipe_check_poll),
+		.flag = &mac_pipe_check_poll_fp_flag },
 };
 
 static void

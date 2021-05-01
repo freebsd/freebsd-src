@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2019
+.Dd December 26, 2020
 .Dt VMX 4
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ interface to the underlying host operating system.
 This driver supports the
 .Ic VMXNET3
 driver protocol, as an alternative to the emulated
-.Xr pcn 4 ,
+.Xr le 4 ,
 .Xr em 4
 interfaces also available in the VMware environment.
 The
@@ -140,7 +140,7 @@ ethernet0.virtualDev = "vmxnet3"
 .Xr iflib 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
-.Xr pcn 4 ,
+.Xr le 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh AUTHORS

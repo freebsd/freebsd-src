@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2020
+.Dd April 28, 2021
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -40,9 +40,11 @@ normally
 and
 .Pa /usr/ports .
 These directories may be initially empty or non-existent until updated with
-.Xr svn 1
-(or
-.Xr svnlite 1 ) .
+Git
+.Po installed from packages with
+.Xr pkg 7
+or from
+.Xr ports 7 Pc .
 Directory
 .Pa /usr/src
 contains the
@@ -492,7 +494,7 @@ and not via
 or
 .Pa /etc/src.conf
 or the command line.
-.It Va NO_WERROR
+.It Va WITHOUT_WERROR
 If defined, compiler warnings will not cause the build to halt,
 even if the makefile says otherwise.
 .It Va WITH_CTF
@@ -572,6 +574,16 @@ If set, this variable supplies a list of additional mtrees relative to the
 root of the source tree to use as part of the
 .Cm hierarchy
 target.
+.It Va LOCAL_LEGACY_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm legacy
+target.
+.It Va LOCAL_BSTOOL_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm bootstrap-tools
+target.
 .It Va LOCAL_TOOL_DIRS
 If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
@@ -637,6 +649,14 @@ This variable can also be useful when debugging failed builds.
 .Bd -literal -offset indent
 make some-target SUBDIR_OVERRIDE=foo/bar
 .Ed
+.It Va SYSDIR
+Specify the location of the kernel source to override the default
+.Pa /usr/src/sys .
+The kernel source is located in the
+.Pa sys
+subdirectory of the source tree checked out from the
+.Pa src.git
+repository.
 .It Va TARGET
 The target hardware platform.
 This is analogous to the
@@ -855,15 +875,15 @@ manpage first appeared in
 .Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
-.Xr svn 1 ,
-.Xr svnlite 1 ,
 .Xr make.conf 5 ,
 .Xr src.conf 5 ,
 .Xr arch 7 ,
+.Xr pkg 7 ,
 .Xr ports 7 ,
 .Xr release 7 ,
 .Xr tests 7 ,
 .Xr config 8 ,
+.Xr etcupdate 8 ,
 .Xr mergemaster 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8

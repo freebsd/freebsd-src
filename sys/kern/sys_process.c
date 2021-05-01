@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 	else								\
 		error = (action);					\
 	return (error);							\
-} while(0)
+} while (0)
 
 int
 proc_read_regs(struct thread *td, struct reg *regs)
@@ -784,13 +784,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	/* Keep this process around until we finish this request. */
 	_PHOLD(p);
 
-#ifdef FIX_SSTEP
-	/*
-	 * Single step fixup ala procfs
-	 */
-	FIX_SSTEP(td2);
-#endif
-
 	/*
 	 * Actually do the requests
 	 */
@@ -1012,14 +1005,16 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			break;
 		case PT_DETACH:
 			/*
-			 * Reset the process parent.
-			 *
-			 * NB: This clears P_TRACED before reparenting
+			 * Clear P_TRACED before reparenting
 			 * a detached process back to its original
 			 * parent.  Otherwise the debugee will be set
 			 * as an orphan of the debugger.
 			 */
 			p->p_flag &= ~(P_TRACED | P_WAITED);
+
+			/*
+			 * Reset the process parent.
+			 */
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
@@ -1032,9 +1027,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				CTR3(KTR_PTRACE,
 			    "PT_DETACH: pid %d reparented to pid %d, sig %d",
 				    p->p_pid, pp->p_pid, data);
-			} else
+			} else {
 				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
 				    p->p_pid, data);
+			}
+
 			p->p_ptevents = 0;
 			FOREACH_THREAD_IN_PROC(p, td3) {
 				if ((td3->td_dbgflags & TDB_FSTP) != 0) {
@@ -1094,6 +1091,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		p->p_flag &= ~(P_STOPPED_TRACE | P_STOPPED_SIG | P_WAITED);
 		thread_unsuspend(p);
 		PROC_SUNLOCK(p);
+		itimer_proc_continue(p);
+		kqtimer_proc_continue(p);
 		break;
 
 	case PT_WRITE_I:

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd January 3, 2021
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -208,6 +208,8 @@ provides DNS libc compatible API
 provides
 .Xr getgrent 3
 compatible API
+.It system.net
+provides network libc compatible API
 .It system.pwd
 provides
 .Xr getpwent 3
@@ -260,6 +262,7 @@ functions always succeed.
 .Xr select 2 ,
 .Xr cap_dns 3 ,
 .Xr cap_grp 3 ,
+.Xr cap_net 3 ,
 .Xr cap_pwd 3 ,
 .Xr cap_sysctl 3 ,
 .Xr cap_syslog 3 ,

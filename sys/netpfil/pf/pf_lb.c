@@ -58,13 +58,13 @@ __FBSDID("$FreeBSD$");
 
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
-			    int, int, struct pfi_kif *,
+static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
+			    int, int, struct pfi_kkif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
-			    uint16_t, int, struct pf_anchor_stackframe *);
-static int pf_get_sport(sa_family_t, uint8_t, struct pf_rule *,
+			    uint16_t, int, struct pf_kanchor_stackframe *);
+static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
-    uint16_t *, uint16_t, uint16_t, struct pf_src_node **);
+    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **);
 
 #define mix(a,b,c) \
 	do {					\
@@ -123,14 +123,14 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	}
 }
 
-static struct pf_rule *
+static struct pf_krule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
-    int direction, struct pfi_kif *kif, struct pf_addr *saddr, u_int16_t sport,
+    int direction, struct pfi_kkif *kif, struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
-    struct pf_anchor_stackframe *anchor_stack)
+    struct pf_kanchor_stackframe *anchor_stack)
 {
-	struct pf_rule		*r, *rm = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_krule		*r, *rm = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	int			 tag = -1;
 	int			 rtableid = -1;
 	int			 asd = 0;
@@ -149,8 +149,8 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			dst = &r->dst;
 		}
 
-		r->evaluations++;
-		if (pfi_kif_match(r->kif, kif) == r->ifnot)
+		counter_u64_add(r->evaluations, 1);
+		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
 			r = r->skip[PF_SKIP_DIR].ptr;
@@ -212,10 +212,10 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 }
 
 static int
-pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
+pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
-    uint16_t high, struct pf_src_node **sn)
+    uint16_t high, struct pf_ksrc_node **sn)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
@@ -223,11 +223,6 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	bzero(&init_addr, sizeof(init_addr));
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
-
-	if (proto == IPPROTO_ICMP) {
-		low = 1;
-		high = 65535;
-	}
 
 	bzero(&key, sizeof(key));
 	key.af = af;
@@ -310,11 +305,47 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	return (1);					/* none available */
 }
 
-int
-pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
-    struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_src_node **sn)
+static int
+pf_get_mape_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
+    struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
+    uint16_t dport, struct pf_addr *naddr, uint16_t *nport,
+    struct pf_ksrc_node **sn)
 {
-	struct pf_pool		*rpool = &r->rpool;
+	uint16_t psmask, low, highmask;
+	uint16_t i, ahigh, cut;
+	int ashift, psidshift;
+
+	ashift = 16 - r->rpool.mape.offset;
+	psidshift = ashift - r->rpool.mape.psidlen;
+	psmask = r->rpool.mape.psid & ((1U << r->rpool.mape.psidlen) - 1);
+	psmask = psmask << psidshift;
+	highmask = (1U << psidshift) - 1;
+
+	ahigh = (1U << r->rpool.mape.offset) - 1;
+	cut = arc4random() & ahigh;
+	if (cut == 0)
+		cut = 1;
+
+	for (i = cut; i <= ahigh; i++) {
+		low = (i << ashift) | psmask;
+		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
+		    naddr, nport, low, low | highmask, sn))
+			return (0);
+	}
+	for (i = cut - 1; i > 0; i--) {
+		low = (i << ashift) | psmask;
+		if (!pf_get_sport(af, proto, r, saddr, sport, daddr, dport,
+		    naddr, nport, low, low | highmask, sn))
+			return (0);
+	}
+	return (1);
+}
+
+int
+pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
+    struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
+{
+	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 
 	/* Try to find a src_node if none was given and this
@@ -436,7 +467,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	    }
 	case PF_POOL_ROUNDROBIN:
 	    {
-		struct pf_pooladdr *acur = rpool->cur;
+		struct pf_kpooladdr *acur = rpool->cur;
 
 		/*
 		 * XXXGL: in the round-robin case we need to store
@@ -520,16 +551,17 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	return (0);
 }
 
-struct pf_rule *
+struct pf_krule *
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
-    struct pfi_kif *kif, struct pf_src_node **sn,
+    struct pfi_kkif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
-    uint16_t sport, uint16_t dport, struct pf_anchor_stackframe *anchor_stack)
+    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack)
 {
-	struct pf_rule	*r = NULL;
+	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
 	uint16_t	*nport;
+	uint16_t	 low, high;
 
 	PF_RULES_RASSERT();
 	KASSERT(*skp == NULL, ("*skp not NULL"));
@@ -577,9 +609,26 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 
 	switch (r->action) {
 	case PF_NAT:
-		if (pf_get_sport(pd->af, pd->proto, r, saddr, sport, daddr,
-		    dport, naddr, nport, r->rpool.proxy_port[0],
-		    r->rpool.proxy_port[1], sn)) {
+		if (pd->proto == IPPROTO_ICMP) {
+			low  = 1;
+			high = 65535;
+		} else {
+			low  = r->rpool.proxy_port[0];
+			high = r->rpool.proxy_port[1];
+		}
+		if (r->rpool.mape.offset > 0) {
+			if (pf_get_mape_sport(pd->af, pd->proto, r, saddr,
+			    sport, daddr, dport, naddr, nport, sn)) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: MAP-E port allocation (%u/%u/%u)"
+				    " failed\n",
+				    r->rpool.mape.offset,
+				    r->rpool.mape.psidlen,
+				    r->rpool.mape.psid));
+				goto notrans;
+			}
+		} else if (pf_get_sport(pd->af, pd->proto, r, saddr, sport,
+		    daddr, dport, naddr, nport, low, high, sn)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    r->rpool.proxy_port[0], r->rpool.proxy_port[1]));

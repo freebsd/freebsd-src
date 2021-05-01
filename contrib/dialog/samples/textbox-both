@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: textbox-both,v 1.1 2011/01/18 09:59:47 tom Exp $
+# $Id: textbox-both,v 1.3 2020/11/26 00:05:11 tom Exp $
 
 . ./setup-vars
 
@@ -8,14 +8,14 @@
 TEXT=/usr/share/common-licenses/GPL
 test -f $TEXT || TEXT=../COPYING
 
-cat textbox.txt | expand > $tempfile
-cat $TEXT | expand >> $tempfile
+expand < textbox.txt > $tempfile
+expand < $TEXT >> $tempfile
 
 $DIALOG --clear --title "TEXT BOX" \
 	--help-button \
 	--extra-button "$@" \
 	--textbox "$tempfile" 22 77
 
-retval=$?
+returncode=$?
 
 . ./report-button

@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 
+#include <dev/hid/hid.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -185,6 +187,7 @@ static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
 MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
 MODULE_DEPEND(ucycom, usb, 1, 1, 1);
+MODULE_DEPEND(ucycom, hid, 1, 1, 1);
 MODULE_VERSION(ucycom, 1);
 USB_PNP_HOST_INFO(ucycom_devs);
 
@@ -248,9 +251,9 @@ ucycom_attach(device_t dev)
 	}
 	/* get report sizes */
 
-	sc->sc_flen = hid_report_size(urd_ptr, urd_len, hid_feature, &sc->sc_fid);
-	sc->sc_ilen = hid_report_size(urd_ptr, urd_len, hid_input, &sc->sc_iid);
-	sc->sc_olen = hid_report_size(urd_ptr, urd_len, hid_output, &sc->sc_oid);
+	sc->sc_flen = hid_report_size_max(urd_ptr, urd_len, hid_feature, &sc->sc_fid);
+	sc->sc_ilen = hid_report_size_max(urd_ptr, urd_len, hid_input, &sc->sc_iid);
+	sc->sc_olen = hid_report_size_max(urd_ptr, urd_len, hid_output, &sc->sc_oid);
 
 	if ((sc->sc_ilen > UCYCOM_MAX_IOLEN) || (sc->sc_ilen < 1) ||
 	    (sc->sc_olen > UCYCOM_MAX_IOLEN) || (sc->sc_olen < 2) ||

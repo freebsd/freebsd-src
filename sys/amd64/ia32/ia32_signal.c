@@ -968,6 +968,8 @@ ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
 
+	x86_clear_dbregs(pcb);
+
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */

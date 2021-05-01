@@ -3191,7 +3191,7 @@ processPrimeResponse(struct module_qstate* qstate, int id)
 	/* validate the root or stub after priming (if enabled).
 	 * This is the same query as the prime query, but with validation.
 	 * Now that we are primed, the additional queries that validation
-	 * may need can be resolved, such as DLV. */
+	 * may need can be resolved. */
 	if(qstate->env->cfg->harden_referral_path) {
 		struct module_qstate* subq = NULL;
 		log_nametypeclass(VERB_ALGO, "schedule prime validation", 

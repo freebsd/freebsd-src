@@ -44,6 +44,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/buf.h>
 
 #include <fs/ext2fs/ext2_extents.h>
 
@@ -118,6 +119,8 @@ struct inode {
 	};
 
 	struct ext4_extent_cache i_ext_cache; /* cache for ext4 extent */
+
+	struct vn_clusterw i_clusterw;	/* Buffer clustering information */
 };
 
 /*

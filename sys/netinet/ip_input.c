@@ -111,8 +111,11 @@ SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_VNET | CTLFLAG_RW
     &VNET_NAME(ipforwarding), 0,
     "Enable IP forwarding between interfaces");
 
-VNET_DEFINE_STATIC(int, ipsendredirects) = 1;	/* XXX */
-#define	V_ipsendredirects	VNET(ipsendredirects)
+/*
+ * Respond with an ICMP host redirect when we forward a packet out of
+ * the same interface on which it was received.  See RFC 792.
+ */
+VNET_DEFINE(int, ipsendredirects) = 1;
 SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
@@ -376,7 +379,6 @@ ip_init(void)
 static void
 ip_destroy(void *unused __unused)
 {
-	struct ifnet *ifp;
 	int error;
 
 #ifdef	RSS
@@ -402,10 +404,7 @@ ip_destroy(void *unused __unused)
 	in_ifscrub_all();
 
 	/* Make sure the IPv4 routes are gone as well. */
-	IFNET_RLOCK();
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link)
-		rt_flushifroutes_af(ifp, AF_INET);
-	IFNET_RUNLOCK();
+	rib_flush_routes_family(AF_INET);
 
 	/* Destroy IP reassembly queue. */
 	ipreass_destroy();
@@ -571,7 +570,7 @@ tooshort:
 	 * case skip another inbound firewall processing and update
 	 * ip pointer.
 	 */
-	if (V_ipforwarding != 0 && V_ipsendredirects == 0
+	if (V_ipforwarding != 0
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	    && (!IPSEC_ENABLED(ipv4) ||
 	    IPSEC_CAPS(ipv4, m, IPSEC_CAP_OPERABLE) == 0)
@@ -978,11 +977,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = ip->ip_dst;
-#ifdef RADIX_MPATH
-	flowid = ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr);
-#else
 	flowid = m->m_pkthdr.flowid;
-#endif
 	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_REF, flowid);
 	if (ro.ro_nh != NULL) {
 		ia = ifatoia(ro.ro_nh->nh_ifa);

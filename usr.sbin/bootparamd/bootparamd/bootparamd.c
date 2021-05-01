@@ -7,10 +7,8 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef YP
 #include <rpc/rpc.h>
@@ -27,26 +25,25 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 extern int debug, dolog;
 extern in_addr_t route_addr;
-extern char *bootpfile;
+extern const char *bootpfile;
 
 #define MAXLEN 800
 
-struct hostent *he;
+static struct hostent *he;
 static char buffer[MAXLEN];
 static char hostname[MAX_MACHINE_NAME];
 static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
-int getthefile(char *, char *, char *, int);
-int checkhost(char *, char *, int);
+static int getthefile(char *, char *, char *, int);
+static int checkhost(char *, char *, int);
 
 bp_whoami_res *
-bootparamproc_whoami_1_svc(whoami, req)
-bp_whoami_arg *whoami;
-struct svc_req *req;
+bootparamproc_whoami_1_svc(bp_whoami_arg *whoami, struct svc_req *req __unused)
 {
   in_addr_t haddr;
   static bp_whoami_res res;
@@ -110,9 +107,7 @@ struct svc_req *req;
 
 
 bp_getfile_res *
-  bootparamproc_getfile_1_svc(getfile, req)
-bp_getfile_arg *getfile;
-struct svc_req *req;
+bootparamproc_getfile_1_svc(bp_getfile_arg *getfile, struct svc_req *req __unused)
 {
   char *where;
   static bp_getfile_res res;
@@ -177,17 +172,14 @@ struct svc_req *req;
   return(NULL);
 }
 
-/*    getthefile return 1 and fills the buffer with the information
+/*    getthefile return 1 and fills the buf with the information
       of the file, e g "host:/export/root/client" if it can be found.
-      If the host is in the database, but the file is not, the buffer
+      If the host is in the database, but the file is not, the buf
       will be empty. (This makes it possible to give the special
       empty answer for the file "dump")   */
 
-int
-getthefile(askname,fileid,buffer,blen)
-char *askname;
-char *fileid, *buffer;
-int blen;
+static int
+getthefile(char *l_askname, char *fileid, char *buf, int blen __unused)
 {
   FILE *bpf;
   char  *where;
@@ -211,11 +203,11 @@ int blen;
   /* XXX see comment below */
   while ( fscanf(bpf, "%255s", hostname) > 0  && !match ) {
     if ( *hostname != '#' ) { /* comment */
-      if ( ! strcmp(hostname, askname) ) {
+      if ( ! strcmp(hostname, l_askname) ) {
 	match = 1;
       } else {
 	he = gethostbyname(hostname);
-	if (he && !strcmp(he->h_name, askname)) match = 1;
+	if (he && !strcmp(he->h_name, l_askname)) match = 1;
       }
     }
     if (*hostname == '+' ) { /* NIS */
@@ -224,16 +216,16 @@ int blen;
 	 if (debug) warn("NIS");
 	 return(0);
       }
-      if (yp_match(yp_domain, "bootparams", askname, strlen(askname),
+      if (yp_match(yp_domain, "bootparams", l_askname, strlen(l_askname),
 		&result, &resultlen))
 	return (0);
       if (strstr(result, fileid) == NULL) {
-	buffer[0] = '\0';
+	buf[0] = '\0';
       } else {
-	snprintf(buffer, blen,
+	snprintf(buf, blen,
 		"%s",strchr(strstr(result,fileid), '=') + 1);
-	if (strchr(buffer, ' ') != NULL)
-	  *(char *)(strchr(buffer, ' ')) = '\0';
+	if (strchr(buf, ' ') != NULL)
+	  *(char *)(strchr(buf, ' ')) = '\0';
       }
       if (fclose(bpf))
         warnx("could not close %s", bootpfile);
@@ -265,7 +257,7 @@ int blen;
 	if (! strncmp(info, fileid, fid_len) && *(info + fid_len) == '=') {
 	  where = info + fid_len + 1;
 	  if ( isprint( *where )) {
-	    strcpy(buffer, where);                   /* found file */
+	    strcpy(buf, where);                   /* found file */
 	    res = 1; break;
 	  }
 	} else {
@@ -284,19 +276,16 @@ int blen;
     }
   }
   if (fclose(bpf)) { warnx("could not close %s", bootpfile); }
-  if ( res == -1) buffer[0] = '\0';            /* host found, file not */
+  if ( res == -1) buf[0] = '\0';            /* host found, file not */
   return(match);
 }
 
 /* checkhost puts the hostname found in the database file in
-   the hostname-variable and returns 1, if askname is a valid
+   the l_hostname-variable and returns 1, if l_askname is a valid
    name for a host in the database */
 
-int
-checkhost(askname, hostname, len)
-char *askname;
-char *hostname;
-int len;
+static int
+checkhost(char *l_askname, char *l_hostname, int len __unused)
 {
   int ch, pch;
   FILE *bpf;
@@ -315,36 +304,36 @@ int len;
 
   /* XXX there is no way in ISO C to specify the maximal length for a
      conversion in a variable way */
-  while ( fscanf(bpf, "%254s", hostname) > 0 ) {
-    if ( *hostname != '#' ) { /* comment */
-      if ( ! strcmp(hostname, askname) ) {
-        /* return true for match of hostname */
+  while ( fscanf(bpf, "%254s", l_hostname) > 0 ) {
+    if ( *l_hostname != '#' ) { /* comment */
+      if ( ! strcmp(l_hostname, l_askname) ) {
+        /* return true for match of l_hostname */
         res = 1;
         break;
       } else {
         /* check the alias list */
         he = NULL;
-        he = gethostbyname(hostname);
-        if (he && !strcmp(askname, he->h_name)) {
+        he = gethostbyname(l_hostname);
+        if (he && !strcmp(l_askname, he->h_name)) {
   	  res = 1;
 	  break;
         }
       }
     }
-    if (*hostname == '+' ) { /* NIS */
+    if (*l_hostname == '+' ) { /* NIS */
 #ifdef YP
       if (yp_get_default_domain(&yp_domain)) {
 	 if (debug) warn("NIS");
 	 return(0);
       }
-      if (!yp_match(yp_domain, "bootparams", askname, strlen(askname),
+      if (!yp_match(yp_domain, "bootparams", l_askname, strlen(l_askname),
 		&result, &resultlen)) {
         /* return true for match of hostname */
         he = NULL;
-        he = gethostbyname(askname);
-        if (he && !strcmp(askname, he->h_name)) {
+        he = gethostbyname(l_askname);
+        if (he && !strcmp(l_askname, he->h_name)) {
   	  res = 1;
-	  snprintf(hostname, len, "%s", he->h_name);
+	  snprintf(l_hostname, len, "%s", he->h_name);
 	}
       }
       if (fclose(bpf))

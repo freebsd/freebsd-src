@@ -59,10 +59,6 @@ static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__arm__)
-#if defined(__XSCALE__)
-static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
-    struct pmc_op_pmcallocate *_pmc_config);
-#endif
 static int armv7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
@@ -140,7 +136,6 @@ struct pmc_class_descr {
 
 PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k8, K8);
-PMC_CLASSDEP_TABLE(xscale, XSCALE);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
 PMC_CLASSDEP_TABLE(beri, BERI);
@@ -149,6 +144,7 @@ PMC_CLASSDEP_TABLE(mips74k, MIPS74K);
 PMC_CLASSDEP_TABLE(octeon, OCTEON);
 PMC_CLASSDEP_TABLE(ppc7450, PPC7450);
 PMC_CLASSDEP_TABLE(ppc970, PPC970);
+PMC_CLASSDEP_TABLE(power8, POWER8);
 PMC_CLASSDEP_TABLE(e500, E500);
 
 static struct pmc_event_descr soft_event_table[PMC_EV_DYN_COUNT];
@@ -192,7 +188,6 @@ static const struct pmc_event_descr cortex_a76_event_table[] =
 	}
 
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_SOFT, PMC_CLASS_XSCALE);
 PMC_MDEP_TABLE(beri, BERI, PMC_CLASS_SOFT, PMC_CLASS_BERI);
 PMC_MDEP_TABLE(cortex_a8, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(cortex_a9, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
@@ -204,6 +199,7 @@ PMC_MDEP_TABLE(mips74k, MIPS74K, PMC_CLASS_SOFT, PMC_CLASS_MIPS74K);
 PMC_MDEP_TABLE(octeon, OCTEON, PMC_CLASS_SOFT, PMC_CLASS_OCTEON);
 PMC_MDEP_TABLE(ppc7450, PPC7450, PMC_CLASS_SOFT, PMC_CLASS_PPC7450, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(ppc970, PPC970, PMC_CLASS_SOFT, PMC_CLASS_PPC970, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(power8, POWER8, PMC_CLASS_SOFT, PMC_CLASS_POWER8, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(e500, E500, PMC_CLASS_SOFT, PMC_CLASS_E500, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(generic, SOFT, PMC_CLASS_SOFT);
 
@@ -232,9 +228,6 @@ PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #endif
 #if	defined(__arm__)
-#if	defined(__XSCALE__)
-PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
-#endif
 PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a8, armv7);
 PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 #endif
@@ -252,6 +245,7 @@ PMC_CLASS_TABLE_DESC(octeon, OCTEON, octeon, mips);
 #if defined(__powerpc__)
 PMC_CLASS_TABLE_DESC(ppc7450, PPC7450, ppc7450, powerpc);
 PMC_CLASS_TABLE_DESC(ppc970, PPC970, ppc970, powerpc);
+PMC_CLASS_TABLE_DESC(power8, POWER8, power8, powerpc);
 PMC_CLASS_TABLE_DESC(e500, E500, e500, powerpc);
 #endif
 
@@ -767,29 +761,6 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 }
 
 #if	defined(__arm__)
-#if	defined(__XSCALE__)
-
-static struct pmc_event_alias xscale_aliases[] = {
-	EV_ALIAS("branches",		"BRANCH_RETIRED"),
-	EV_ALIAS("branch-mispredicts",	"BRANCH_MISPRED"),
-	EV_ALIAS("dc-misses",		"DC_MISS"),
-	EV_ALIAS("ic-misses",		"IC_MISS"),
-	EV_ALIAS("instructions",	"INSTR_RETIRED"),
-	EV_ALIAS(NULL, NULL)
-};
-static int
-xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
-    struct pmc_op_pmcallocate *pmc_config __unused)
-{
-	switch (pe) {
-	default:
-		break;
-	}
-
-	return (0);
-}
-#endif
-
 static struct pmc_event_alias cortex_a8_aliases[] = {
 	EV_ALIAS("dc-misses",		"L1_DCACHE_REFILL"),
 	EV_ALIAS("ic-misses",		"L1_ICACHE_REFILL"),
@@ -908,6 +879,12 @@ static struct pmc_event_alias ppc7450_aliases[] = {
 };
 
 static struct pmc_event_alias ppc970_aliases[] = {
+	EV_ALIAS("instructions", "INSTR_COMPLETED"),
+	EV_ALIAS("cycles",       "CYCLES"),
+	EV_ALIAS(NULL, NULL)
+};
+
+static struct pmc_event_alias power8_aliases[] = {
 	EV_ALIAS("instructions", "INSTR_COMPLETED"),
 	EV_ALIAS("cycles",       "CYCLES"),
 	EV_ALIAS(NULL, NULL)
@@ -1255,10 +1232,6 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = k8_event_table;
 		count = PMC_EVENT_TABLE_SIZE(k8);
 		break;
-	case PMC_CLASS_XSCALE:
-		ev = xscale_event_table;
-		count = PMC_EVENT_TABLE_SIZE(xscale);
-		break;
 	case PMC_CLASS_ARMV7:
 		switch (cpu_info.pm_cputype) {
 		default:
@@ -1312,6 +1285,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 	case PMC_CLASS_PPC970:
 		ev = ppc970_event_table;
 		count = PMC_EVENT_TABLE_SIZE(ppc970);
+		break;
+	case PMC_CLASS_POWER8:
+		ev = power8_event_table;
+		count = PMC_EVENT_TABLE_SIZE(power8);
 		break;
 	case PMC_CLASS_E500:
 		ev = e500_event_table;
@@ -1508,12 +1485,6 @@ pmc_init(void)
 		PMC_MDEP_INIT(generic);
 		break;
 #if defined(__arm__)
-#if defined(__XSCALE__)
-	case PMC_CPU_INTEL_XSCALE:
-		PMC_MDEP_INIT(xscale);
-		pmc_class_table[n] = &xscale_class_table_descr;
-		break;
-#endif
 	case PMC_CPU_ARMV7_CORTEX_A8:
 		PMC_MDEP_INIT(cortex_a8);
 		pmc_class_table[n] = &cortex_a8_class_table_descr;
@@ -1563,6 +1534,10 @@ pmc_init(void)
 	case PMC_CPU_PPC_970:
 		PMC_MDEP_INIT(ppc970);
 		pmc_class_table[n] = &ppc970_class_table_descr;
+		break;
+	case PMC_CPU_PPC_POWER8:
+		PMC_MDEP_INIT(power8);
+		pmc_class_table[n] = &power8_class_table_descr;
 		break;
 	case PMC_CPU_PPC_E500:
 		PMC_MDEP_INIT(e500);
@@ -1650,9 +1625,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
 		ev = k8_event_table;
 		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
-	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
-		ev = xscale_event_table;
-		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
+
 	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
 		switch (cpu) {
 		case PMC_CPU_ARMV7_CORTEX_A8:
@@ -1701,6 +1674,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_PPC970_FIRST && pe <= PMC_EV_PPC970_LAST) {
 		ev = ppc970_event_table;
 		evfence = ppc970_event_table + PMC_EVENT_TABLE_SIZE(ppc970);
+	} else if (pe >= PMC_EV_POWER8_FIRST && pe <= PMC_EV_POWER8_LAST) {
+		ev = power8_event_table;
+		evfence = power8_event_table + PMC_EVENT_TABLE_SIZE(power8);
 	} else if (pe >= PMC_EV_E500_FIRST && pe <= PMC_EV_E500_LAST) {
 		ev = e500_event_table;
 		evfence = e500_event_table + PMC_EVENT_TABLE_SIZE(e500);

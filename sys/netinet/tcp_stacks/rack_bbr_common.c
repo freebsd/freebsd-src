@@ -334,7 +334,7 @@ skip_vnet:
 				m_freem(m);
 				goto skipped_pkt;
 			}
-			iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+			iptos = IPV6_TRAFFIC_CLASS(ip6);
 			break;
 		}
 #endif
@@ -458,6 +458,7 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 			/* We lost the tcpcb (maybe a RST came in)? */
 			return(1);
 		}
+		tcp_handle_wakeup(tp, so);
 	}
 	return (0);
 }

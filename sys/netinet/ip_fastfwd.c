@@ -111,6 +111,48 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
+#define	V_ipsendredirects	VNET(ipsendredirects)
+
+static struct mbuf *
+ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
+    struct ip *ip, in_addr_t *addr)
+{
+	struct mbuf *mcopy = m_gethdr(M_NOWAIT, m->m_type);
+
+	if (mcopy == NULL)
+		return (NULL);
+
+	if (m_dup_pkthdr(mcopy, m, M_NOWAIT) == 0) {
+		/*
+		 * It's probably ok if the pkthdr dup fails (because
+		 * the deep copy of the tag chain failed), but for now
+		 * be conservative and just discard the copy since
+		 * code below may some day want the tags.
+		 */
+		m_free(mcopy);
+		return (NULL);
+	}
+	mcopy->m_len = min(ntohs(ip->ip_len), M_TRAILINGSPACE(mcopy));
+	mcopy->m_pkthdr.len = mcopy->m_len;
+	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
+
+	if (nh != NULL &&
+	    ((nh->nh_flags & (NHF_REDIRECT|NHF_DEFAULT)) == 0)) {
+		struct in_ifaddr *nh_ia = (struct in_ifaddr *)(nh->nh_ifa);
+		u_long src = ntohl(ip->ip_src.s_addr);
+
+		if (nh_ia != NULL &&
+		    (src & nh_ia->ia_subnetmask) == nh_ia->ia_subnet) {
+			if (nh->nh_flags & NHF_GATEWAY)
+				*addr = nh->gw4_sa.sin_addr.s_addr;
+			else
+				*addr = ip->ip_dst.s_addr;
+		}
+	}
+	return (mcopy);
+}
+
+
 static int
 ip_findroute(struct nhop_object **pnh, struct in_addr dest, struct mbuf *m)
 {
@@ -156,13 +198,14 @@ ip_tryforward(struct mbuf *m)
 {
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
-	struct nhop_object *nh;
+	struct nhop_object *nh = NULL;
 	struct sockaddr_in dst;
 	struct in_addr dest, odest, rtdest;
 	uint16_t ip_len, ip_off;
 	int error = 0;
 	struct m_tag *fwd_tag = NULL;
-
+	struct mbuf *mcopy = NULL;
+	struct in_addr redest;
 	/*
 	 * Are we active and forwarding packets?
 	 */
@@ -387,6 +430,13 @@ passout:
 		dst.sin_addr = dest;
 
 	/*
+	 * Handle redirect case.
+	 */
+	redest.s_addr = 0;
+	if (V_ipsendredirects && (nh->nh_ifp == m->m_pkthdr.rcvif))
+		mcopy = ip_redir_alloc(m, nh, ip, &redest.s_addr);
+
+	/*
 	 * Check if packet fits MTU or if hardware will fragment for us
 	 */
 	if (ip_len <= nh->nh_mtu) {
@@ -455,7 +505,16 @@ passout:
 		IPSTAT_INC(ips_forward);
 		IPSTAT_INC(ips_fastforward);
 	}
+
+	/* Send required redirect */
+	if (mcopy != NULL) {
+		icmp_error(mcopy, ICMP_REDIRECT, ICMP_REDIRECT_HOST, redest.s_addr, 0);
+		mcopy = NULL; /* Freed by caller */
+	}
+
 consumed:
+	if (mcopy != NULL)
+		m_freem(mcopy);
 	return NULL;
 drop:
 	if (m)

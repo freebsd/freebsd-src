@@ -42,6 +42,7 @@
 #define	PF_PACKET_LOOPED		0x08
 #define	PF_FASTFWD_OURS_PRESENT		0x10
 #define	PF_REASSEMBLED			0x20
+#define	PF_DUPLICATED			0x40
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */

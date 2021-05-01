@@ -586,7 +586,7 @@ swap_pager_swap_init(void)
 	 * but it isn't very efficient).
 	 *
 	 * The nsw_cluster_max is constrained by the bp->b_pages[]
-	 * array, which has MAXPHYS / PAGE_SIZE entries, and our locally
+	 * array, which has maxphys / PAGE_SIZE entries, and our locally
 	 * defined MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
 	 * constrained by the swap device interleave stripe size.
 	 *
@@ -601,7 +601,7 @@ swap_pager_swap_init(void)
 	 * have one NFS swap device due to the command/ack latency over NFS.
 	 * So it all works out pretty well.
 	 */
-	nsw_cluster_max = min(MAXPHYS / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
+	nsw_cluster_max = min(maxphys / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
 
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
@@ -1314,6 +1314,7 @@ swap_pager_getpages_locked(vm_object_t object, vm_page_t *ma, int count,
 
 	VM_OBJECT_WUNLOCK(object);
 	bp = uma_zalloc(swrbuf_zone, M_WAITOK);
+	MPASS((bp->b_flags & B_MAXPHYS) != 0);
 	/* Pages cannot leave the object while busy. */
 	for (i = 0, p = bm; i < count; i++, p = TAILQ_NEXT(p, listq)) {
 		MPASS(p->pindex == bm->pindex + i);
@@ -1522,8 +1523,9 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		VM_OBJECT_WUNLOCK(object);
 
 		bp = uma_zalloc(swwbuf_zone, M_WAITOK);
+		MPASS((bp->b_flags & B_MAXPHYS) != 0);
 		if (async)
-			bp->b_flags = B_ASYNC;
+			bp->b_flags |= B_ASYNC;
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 
@@ -1759,6 +1761,29 @@ swp_pager_force_dirty(vm_page_t m)
 	vm_page_dirty(m);
 	swap_pager_unswapped(m);
 	vm_page_launder(m);
+}
+
+u_long
+swap_pager_swapped_pages(vm_object_t object)
+{
+	struct swblk *sb;
+	vm_pindex_t pi;
+	u_long res;
+	int i;
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (object->type != OBJT_SWAP)
+		return (0);
+
+	for (res = 0, pi = 0; (sb = SWAP_PCTRIE_LOOKUP_GE(
+	    &object->un_pager.swp.swp_blks, pi)) != NULL;
+	    pi = sb->p + SWAP_META_PAGES) {
+		for (i = 0; i < SWAP_META_PAGES; i++) {
+			if (sb->d[i] != SWAPBLK_NONE)
+				res++;
+		}
+	}
+	return (res);
 }
 
 /*

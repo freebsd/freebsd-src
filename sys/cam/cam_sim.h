@@ -103,7 +103,6 @@ struct cam_sim {
 	int			max_dev_openings;
 	u_int32_t		flags;
 #define	CAM_SIM_REL_TIMEOUT_PENDING	0x01
-#define	CAM_SIM_MPSAFE			0x02
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
@@ -141,6 +140,12 @@ static __inline u_int32_t
 cam_sim_bus(const struct cam_sim *sim)
 {
 	return (sim->bus_id);
+}
+
+static __inline bool
+cam_sim_pollable(const struct cam_sim *sim)
+{
+	return (sim->sim_poll != NULL);
 }
 
 #endif /* _KERNEL */

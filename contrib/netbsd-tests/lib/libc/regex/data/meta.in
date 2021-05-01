@@ -5,7 +5,7 @@ a\*c		&	a*c	a*c
 a\\b		&	a\b	a\b
 a\\\*b		&	a\*b	a\*b
 # Begin FreeBSD
-a\bc		&C	EESCAPE
+a\bc		&CP	EESCAPE
 # End FreeBSD
 a\		&C	EESCAPE
 a\\bc		&	a\bc	a\bc

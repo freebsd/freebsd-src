@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to build LLVM's OpenMP runtime.
+Build LLVM's OpenMP runtime.

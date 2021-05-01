@@ -13,6 +13,7 @@ GTESTS+=	access
 GTESTS+=	allow_other
 GTESTS+=	bmap
 GTESTS+=	cache
+GTESTS+=	copy_file_range
 GTESTS+=	create
 GTESTS+=	default_permissions
 GTESTS+=	default_permissions_privileged
@@ -29,6 +30,7 @@ GTESTS+=	io
 GTESTS+=	link
 GTESTS+=	locks
 GTESTS+=	lookup
+GTESTS+=	lseek
 GTESTS+=	mkdir
 GTESTS+=	mknod
 GTESTS+=	mount
@@ -69,6 +71,9 @@ FUSEFS=		${SRCTOP}/sys/fs/fuse
 MOUNT=		${SRCTOP}/sbin/mount
 # Suppress warnings that GCC generates for the libc++ and gtest headers.
 CXXWARNFLAGS.gcc+=	-Wno-placement-new -Wno-attributes
+# Suppress Wcast-align for readdir.cc, because it is unavoidable when using
+# getdirentries.
+CXXWARNFLAGS.readdir.cc+=	-Wno-cast-align
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80000
 CXXWARNFLAGS+=	-Wno-class-memaccess
 .endif

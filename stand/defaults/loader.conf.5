@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 29, 2020
+.Dd January 6, 2021
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -87,6 +87,11 @@ than
 so its use should be avoided.
 Multiple instances of it will be processed
 independently.
+.It Ar loader_conf_dirs
+Space separated list of directories to process for configuration files.
+The lua-based loader will process files with a
+.Dq .conf
+suffix that are placed in these directories.
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
 present file.
@@ -188,7 +193,7 @@ special value
 which aborts the bootstrap process, use of this setting should be avoided.
 .El
 .Pp
-.Em WARNING:
+.Em WARNING :
 developers should never use these suffixes for any kernel environment
 variables (tunables) or conflicts will result.
 .Sh DEFAULT SETTINGS
@@ -232,8 +237,37 @@ selects the video console which prevents any input and hides all output
 replacing it with
 .Dq spinning
 character (useful for embedded products and such).
+.It Va screen.font
+Set font size for framebuffer mode.
+Default font size is selected based on screen resolution, to achieve
+terminal dimensions 80x24.
+.It Va screen.textmode
+Value
+.Dq 0
+will trigger BIOS loader to switch to use VESA BIOS Extension (VBE)
+frame buffer mode for console.
+The same effect can be achieved by setting
+.Va vbe_max_resolution .
+.Pp
+Value
+.Dq 1
+will force BIOS loader to use VGA text mode.
+.Pp
+If
+.Va vbe_max_resolution
+is not set, the loader will try to set screen resolution based on EDID
+information.
+If EDID is not available, the default resolution is 800x600 (if available).
+.It Va screen.height
+.It Va screen.width
+.It Va screen.depth
+.Va screen.height ,
+.Va screen.width ,
+.Va screen.depth
+are set by loader when loader is using framebuffer mode to draw the screen.
 .It Va efi_max_resolution
-Specify the maximum desired resolution for the EFI console.
+.It Va vbe_max_resolution
+Specify the maximum desired resolution for the EFI or VBE framebuffer console.
 The following values are accepted:
 .Bl -column "WidthxHeight"
 .It Sy Value Ta Sy Resolution
@@ -252,6 +286,8 @@ The following values are accepted:
 Space or comma separated list of kernels to present in the boot menu.
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
+.It Va loader_conf_dirs
+.Pq Dq Pa /boot/loader.conf.d
 .It Va splash_bmp_load
 .Pq Dq NO
 If set to
@@ -345,7 +381,7 @@ It is not available in the default Forth-based loader.
 .Sh FILES
 .Bl -tag -width /boot/defaults/loader.conf -compact
 .It Pa /boot/defaults/loader.conf
-default settings -- do not change this file.
+default settings \(em do not change this file.
 .It Pa /boot/loader.conf
 user defined settings.
 .It Pa /boot/loader.conf.local
@@ -371,7 +407,7 @@ The
 stops reading
 .Nm
 when it encounters a syntax error, so any options which are vital for
-booting a particular system (i.e.\&
+booting a particular system (i.e.,
 .Dq Va hw.ata.ata_dma Ns "=0" )
 should precede any experimental additions to
 .Nm .

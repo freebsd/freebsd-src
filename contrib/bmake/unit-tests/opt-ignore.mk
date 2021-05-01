@@ -1,4 +1,4 @@
-# $NetBSD: opt-ignore.mk,v 1.3 2020/08/23 14:28:04 rillig Exp $
+# $NetBSD: opt-ignore.mk,v 1.5 2020/11/09 20:50:56 rillig Exp $
 #
 # Tests for the -i command line option, which ignores the exit status of the
 # shell commands, and just continues with the next command, even from the same
@@ -9,6 +9,9 @@
 # Why are the "Error code" lines all collected at the bottom of the output
 # file, where they cannot be related to the individual shell commands that
 # failed?
+
+.MAKEFLAGS: -d0			# switch stdout to being line-buffered
+.MAKEFLAGS: -i
 
 all: dependency other
 

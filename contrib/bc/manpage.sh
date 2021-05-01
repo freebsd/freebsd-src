@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -30,6 +30,21 @@
 usage() {
 	printf "usage: %s manpage\n" "$0" 1>&2
 	exit 1
+}
+
+print_manpage() {
+
+	_print_manpage_md="$1"
+	shift
+
+	_print_manpage_out="$1"
+	shift
+
+	cat "$manualsdir/header.txt" > "$_print_manpage_out"
+	cat "$manualsdir/header_${manpage}.txt" >> "$_print_manpage_out"
+
+	pandoc -f commonmark -t man "$_print_manpage_md" >> "$_print_manpage_out"
+
 }
 
 gen_manpage() {
@@ -84,10 +99,7 @@ gen_manpage() {
 
 	IFS="$_gen_manpage_ifs"
 
-	cat "$manualsdir/header.txt" > "$_gen_manpage_out"
-	cat "$manualsdir/header_${manpage}.txt" >> "$_gen_manpage_out"
-
-	pandoc -f markdown -t man "$_gen_manpage_md" >> "$_gen_manpage_out"
+	print_manpage "$_gen_manpage_md" "$_gen_manpage_out"
 }
 
 set -e
@@ -108,6 +120,12 @@ test "$#" -eq 1 || usage
 manpage="$1"
 shift
 
-for a in $ARGS; do
-	gen_manpage "$a"
-done
+if [ "$manpage" != "bcl" ]; then
+
+	for a in $ARGS; do
+		gen_manpage "$a"
+	done
+
+else
+	print_manpage "$manualsdir/${manpage}.3.md" "$manualsdir/${manpage}.3"
+fi

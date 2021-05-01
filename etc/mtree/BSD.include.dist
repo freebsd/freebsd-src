@@ -54,6 +54,8 @@
         ..
         firewire
         ..
+        hid
+        ..
         hwpmc
         ..
         hyperv
@@ -165,10 +167,6 @@
         stripe
         ..
         virstor
-        ..
-    ..
-    gnu
-        posix
         ..
     ..
     gssapi

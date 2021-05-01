@@ -72,6 +72,23 @@ void expect_setlk(uint64_t ino, pid_t pid, uint64_t start, uint64_t end,
 			return (in.header.opcode == FUSE_SETLK &&
 				in.header.nodeid == ino &&
 				in.body.setlk.fh == FH &&
+				in.body.setlk.owner == (uint32_t)pid &&
+				in.body.setlk.lk.start == start &&
+				in.body.setlk.lk.end == end &&
+				in.body.setlk.lk.type == type &&
+				in.body.setlk.lk.pid == (uint64_t)pid);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnErrno(err)));
+}
+void expect_setlkw(uint64_t ino, pid_t pid, uint64_t start, uint64_t end,
+	uint32_t type, int err)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_SETLKW &&
+				in.header.nodeid == ino &&
+				in.body.setlkw.fh == FH &&
 				in.body.setlkw.owner == (uint32_t)pid &&
 				in.body.setlkw.lk.start == start &&
 				in.body.setlkw.lk.end == end &&
@@ -343,6 +360,32 @@ TEST_F(SetlkFallback, local)
 	leak(fd);
 }
 
+/* Clear a lock with FUSE_SETLK */
+TEST_F(Setlk, clear)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	struct flock fl;
+	int fd;
+	pid_t pid = 1234;
+
+	expect_lookup(RELPATH, ino);
+	expect_open(ino, 0, 1);
+	expect_setlk(ino, pid, 10, 1009, F_UNLCK, 0);
+
+	fd = open(FULLPATH, O_RDWR);
+	ASSERT_LE(0, fd) << strerror(errno);
+	fl.l_start = 10;
+	fl.l_len = 1000;
+	fl.l_pid = pid;
+	fl.l_type = F_UNLCK;
+	fl.l_whence = SEEK_SET;
+	fl.l_sysid = 0;
+	ASSERT_NE(-1, fcntl(fd, F_SETLK, &fl)) << strerror(errno);
+	leak(fd);
+}
+
 /* Set a new lock with FUSE_SETLK */
 TEST_F(Setlk, set)
 {
@@ -465,7 +508,7 @@ TEST_F(Setlkw, set)
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
-	expect_setlk(ino, pid, 10, 1009, F_RDLCK, 0);
+	expect_setlkw(ino, pid, 10, 1009, F_RDLCK, 0);
 
 	fd = open(FULLPATH, O_RDWR);
 	ASSERT_LE(0, fd) << strerror(errno);

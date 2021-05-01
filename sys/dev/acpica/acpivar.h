@@ -232,6 +232,20 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
+ * Plug and play information for device matching.  Matching table format
+ * is compatible with ids parameter of ACPI_ID_PROBE bus method.
+ *
+ * XXX: While ACPI_ID_PROBE matches against _HID and all _CIDs, current
+ *      acpi_pnpinfo_str() exports only _HID and first _CID.  That means second
+ *      and further _CIDs should be added to both acpi_pnpinfo_str() and
+ *      ACPICOMPAT_PNP_INFO if device matching against them is required.
+ */
+#define	ACPICOMPAT_PNP_INFO(t, busname)					\
+	MODULE_PNP_INFO("Z:_HID", busname, t##hid, t, nitems(t)-1);	\
+	MODULE_PNP_INFO("Z:_CID", busname, t##cid, t, nitems(t)-1);
+#define	ACPI_PNP_INFO(t)	ACPICOMPAT_PNP_INFO(t, acpi)
+
+/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
@@ -349,10 +363,15 @@ ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 		    ACPI_RESOURCE **resp);
 ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 		    ACPI_RESOURCE *res);
-UINT8		acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision);
-ACPI_STATUS	acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid,
-		    int revision, uint64_t function, union acpi_object *package,
+UINT64		acpi_DSMQuery(ACPI_HANDLE h, const uint8_t *uuid,
+		    int revision);
+ACPI_STATUS	acpi_EvaluateDSM(ACPI_HANDLE handle, const uint8_t *uuid,
+		    int revision, UINT64 function, ACPI_OBJECT *package,
 		    ACPI_BUFFER *out_buf);
+ACPI_STATUS	acpi_EvaluateDSMTyped(ACPI_HANDLE handle,
+		    const uint8_t *uuid, int revision, UINT64 function,
+		    ACPI_OBJECT *package, ACPI_BUFFER *out_buf,
+		    ACPI_OBJECT_TYPE type);
 ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
 		    int revision, int count, uint32_t *caps_in,
 		    uint32_t *caps_out, bool query);
@@ -428,6 +447,8 @@ typedef void (*acpi_event_handler_t)(void *, int);
 
 EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_acad_event, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);

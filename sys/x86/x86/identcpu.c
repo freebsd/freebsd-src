@@ -223,7 +223,7 @@ static struct {
 } cpu_vendors[] = {
 	{ INTEL_VENDOR_ID,	CPU_VENDOR_INTEL },	/* GenuineIntel */
 	{ AMD_VENDOR_ID,	CPU_VENDOR_AMD },	/* AuthenticAMD */
-	{ HYGON_VENDOR_ID,	CPU_VENDOR_HYGON },	/* HygonGenuine*/
+	{ HYGON_VENDOR_ID,	CPU_VENDOR_HYGON },	/* HygonGenuine */
 	{ CENTAUR_VENDOR_ID,	CPU_VENDOR_CENTAUR },	/* CentaurHauls */
 #ifdef __i386__
 	{ NSC_VENDOR_ID,	CPU_VENDOR_NSC },	/* Geode by NSC */

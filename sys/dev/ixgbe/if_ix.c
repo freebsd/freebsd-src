@@ -61,50 +61,50 @@ char ixgbe_driver_version[] = "4.0.1-k";
  ************************************************************************/
 static pci_vendor_info_t ixgbe_vendor_info_array[] =
 {
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_DUAL_PORT,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_SINGLE_PORT,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_CX4,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AT,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AT2,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_DA_DUAL_PORT,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_CX4_DUAL_PORT,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_XF_LR,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_SFP_LOM,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_KX4,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_KX4_MEZZ,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_XAUI_LOM,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_CX4,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_T3_LOM,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_COMBO_BACKPLANE,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BACKPLANE_FCOE,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF2,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599EN_SFP,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF_QP,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_QSFP_SF_QP,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T1,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550T1, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KR,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KX4,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_10G_T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_1G_T,  "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_SFP, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR_L, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SFP, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SFP_N, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SGMII, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SGMII_L, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_10G_T, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_1G_T, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_1G_T_L, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_BYPASS, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
-  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BYPASS, "Intel(R) PRO/10GbE PCI-Express Network Driver"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_DUAL_PORT,  "Intel(R) 82598EB AF (Dual Fiber)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AF_SINGLE_PORT,  "Intel(R) 82598EB AF (Fiber)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_CX4,  "Intel(R) 82598EB AT (CX4)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AT,  "Intel(R) 82598EB AT"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598AT2,  "Intel(R) 82598EB AT2"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598,  "Intel(R) 82598"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_DA_DUAL_PORT,  "Intel(R) 82598EB AF DA (Dual Fiber)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_CX4_DUAL_PORT,  "Intel(R) 82598EB AT (Dual CX4)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_XF_LR,  "Intel(R) 82598EB AF (Dual Fiber LR)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM,  "Intel(R) 82598EB AF (Dual Fiber SR)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82598EB_SFP_LOM,  "Intel(R) 82598EB LOM"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_KX4,  "Intel(R) X520 82599 (KX4)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_KX4_MEZZ,  "Intel(R) X520 82599 (KX4 Mezzanine)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP,  "Intel(R) X520 82599ES (SFI/SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_XAUI_LOM,  "Intel(R) X520 82599 (XAUI/BX4)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_CX4,  "Intel(R) X520 82599 (Dual CX4)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_T3_LOM,  "Intel(R) X520-T 82599 LOM"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_COMBO_BACKPLANE,  "Intel(R) X520 82599 (Combined Backplane)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BACKPLANE_FCOE,  "Intel(R) X520 82599 (Backplane w/FCoE)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF2,  "Intel(R) X520 82599 (Dual SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_FCOE,  "Intel(R) X520 82599 (Dual SFP+ w/FCoE)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599EN_SFP,  "Intel(R) X520-1 82599EN (SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_SFP_SF_QP,  "Intel(R) X520-4 82599 (Quad SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_QSFP_SF_QP,  "Intel(R) X520-Q1 82599 (QSFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T,  "Intel(R) X540-AT2"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540T1,  "Intel(R) X540-T1"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550T,  "Intel(R) X550-T2"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550T1, "Intel(R) X550-T1"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KR,  "Intel(R) X552 (KR Backplane)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_KX4,  "Intel(R) X552 (KX4 Backplane)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_10G_T,  "Intel(R) X552/X557-AT (10GBASE-T)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_1G_T,  "Intel(R) X552 (1000BASE-T)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_X_SFP, "Intel(R) X552 (SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR, "Intel(R) X553 (KR Backplane)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_KR_L, "Intel(R) X553 L (KR Backplane)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SFP, "Intel(R) X553 (SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SFP_N, "Intel(R) X553 N (SFP+)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SGMII, "Intel(R) X553 (1GbE SGMII)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_SGMII_L, "Intel(R) X553 L (1GbE SGMII)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_10G_T, "Intel(R) X553/X557-AT (10GBASE-T)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_1G_T, "Intel(R) X553 (1GbE)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X550EM_A_1G_T_L, "Intel(R) X553 L (1GbE)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_X540_BYPASS, "Intel(R) X540-T2 (Bypass)"),
+  PVID(IXGBE_INTEL_VENDOR_ID, IXGBE_DEV_ID_82599_BYPASS, "Intel(R) X520 82599 (Bypass)"),
 	/* required last entry */
   PVID_END
 };
@@ -391,8 +391,6 @@ static struct if_shared_ctx ixgbe_sctx_init = {
 	.isc_nrxd_default = {DEFAULT_RXD},
 	.isc_ntxd_default = {DEFAULT_TXD},
 };
-
-if_shared_ctx_t ixgbe_sctx = &ixgbe_sctx_init;
 
 /************************************************************************
  * ixgbe_if_tx_queues_alloc
@@ -855,7 +853,7 @@ ixgbe_initialize_transmit_units(if_ctx_t ctx)
 static void *
 ixgbe_register(device_t dev)
 {
-	return (ixgbe_sctx);
+	return (&ixgbe_sctx_init);
 } /* ixgbe_register */
 
 /************************************************************************
@@ -1531,7 +1529,22 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	IXGBE_SET_OMCASTS(adapter, stats->mptc);
 	IXGBE_SET_COLLISIONS(adapter, 0);
 	IXGBE_SET_IQDROPS(adapter, total_missed_rx);
-	IXGBE_SET_IERRORS(adapter, stats->crcerrs + stats->rlec);
+
+	/*
+	 * Aggregate following types of errors as RX errors:
+	 * - CRC error count,
+	 * - illegal byte error count,
+	 * - checksum error count,
+	 * - missed packets count,
+	 * - length error count,
+	 * - undersized packets count,
+	 * - fragmented packets count,
+	 * - oversized packets count,
+	 * - jabber count.
+	 */
+	IXGBE_SET_IERRORS(adapter, stats->crcerrs + stats->illerrc + stats->xec +
+	    stats->mpc[0] + stats->rlec + stats->ruc + stats->rfc + stats->roc +
+	    stats->rjc);
 } /* ixgbe_update_stats_counters */
 
 /************************************************************************
@@ -1621,6 +1634,8 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "MAC Statistics");
 	stat_list = SYSCTL_CHILDREN(stat_node);
 
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_errs",
+	    CTLFLAG_RD, &adapter->ierrors, IXGBE_SYSCTL_DESC_RX_ERRS);
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
 	    CTLFLAG_RD, &stats->crcerrs, "CRC Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "ill_errs",
@@ -2026,7 +2041,7 @@ ixgbe_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RX, ixgbe_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RXTX, ixgbe_msix_que, rx_que, rx_que->rxr.me, buf);
 
 		if (error) {
 			device_printf(iflib_get_dev(ctx),
@@ -3247,15 +3262,15 @@ ixgbe_config_delay_values(struct adapter *adapter)
  *   Called whenever multicast address list is updated.
  ************************************************************************/
 static u_int
-ixgbe_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int count)
+ixgbe_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int idx)
 {
 	struct adapter *adapter = arg;
 	struct ixgbe_mc_addr *mta = adapter->mta;
 
-	if (count == MAX_NUM_MULTICAST_ADDRESSES)
+	if (idx == MAX_NUM_MULTICAST_ADDRESSES)
 		return (0);
-	bcopy(LLADDR(sdl), mta[count].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
-	mta[count].vmdq = adapter->pool;
+	bcopy(LLADDR(sdl), mta[idx].addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	mta[idx].vmdq = adapter->pool;
 
 	return (1);
 } /* ixgbe_mc_filter_apply */
@@ -3279,7 +3294,7 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 	    adapter);
 
 	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
-	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+
 	if (ifp->if_flags & IFF_PROMISC)
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 	else if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES ||

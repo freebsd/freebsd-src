@@ -60,8 +60,6 @@ static int bectl_cmd_unmount(int argc, char *argv[]);
 
 libbe_handle_t *be;
 
-int aok;
-
 int
 usage(bool explicit)
 {
@@ -78,16 +76,15 @@ usage(bool explicit)
 	    "\tbectl check\n"
 	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
 	    "\tbectl create [-r] beName@snapshot\n"
-	    "\tbectl destroy [-F] {beName | beName@snapshot}\n"
+	    "\tbectl destroy [-Fo] {beName | beName@snapshot}\n"
 	    "\tbectl export sourceBe\n"
 	    "\tbectl import targetBe\n"
-	    "\tbectl jail {-b | -U} [{-o key=value | -u key}]... "
-	    "{jailID | jailName}\n"
-	    "\t      bootenv [utility [argument ...]]\n"
-	    "\tbectl list [-DHas] [{-c property | -C property}]\n"
+	    "\tbectl jail [-bU] [{-o key=value | -u key}]... beName\n"
+	    "\t      [utility [argument ...]]\n"
+	    "\tbectl list [-aDHs] [{-c property | -C property}]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
-	    "\tbectl {ujail | unjail} {jailID | jailName} bootenv\n"
+	    "\tbectl {ujail | unjail} {jailID | jailName | beName}\n"
 	    "\tbectl {umount | unmount} [-f] beName\n");
 
 	return (explicit ? 0 : EX_USAGE);
@@ -584,8 +581,12 @@ main(int argc, char *argv[])
 		return (usage(false));
 	}
 
-	if ((be = libbe_init(root)) == NULL)
+	if ((be = libbe_init(root)) == NULL) {
+		if (!cmd->silent)
+			fprintf(stderr, "libbe_init(\"%s\") failed.\n",
+			    root != NULL ? root : "");
 		return (-1);
+	}
 
 	libbe_print_on_error(be, !cmd->silent);
 

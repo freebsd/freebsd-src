@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform_comp.h>
 
-static	u_int32_t deflate_compress(u_int8_t *, u_int32_t, u_int8_t **);
-static	u_int32_t deflate_decompress(u_int8_t *, u_int32_t, u_int8_t **);
+static	uint32_t deflate_compress(uint8_t *, uint32_t, uint8_t **);
+static	uint32_t deflate_decompress(uint8_t *, uint32_t, uint8_t **);
 
 /* Compression instance */
 struct comp_algo comp_algo_deflate = {
@@ -67,20 +67,14 @@ struct comp_algo comp_algo_deflate = {
  * And compression
  */
 
-static u_int32_t
-deflate_compress(data, size, out)
-	u_int8_t *data;
-	u_int32_t size;
-	u_int8_t **out;
+static uint32_t
+deflate_compress(uint8_t *data, uint32_t size, uint8_t **out)
 {
 	return deflate_global(data, size, 0, out);
 }
 
-static u_int32_t
-deflate_decompress(data, size, out)
-	u_int8_t *data;
-	u_int32_t size;
-	u_int8_t **out;
+static uint32_t
+deflate_decompress(uint8_t *data, uint32_t size, uint8_t **out)
 {
 	return deflate_global(data, size, 1, out);
 }

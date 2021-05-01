@@ -15,7 +15,9 @@ CFLAGS+=${COPTS}
 
 .if ${MK_ASSERT_DEBUG} == "no"
 CFLAGS+= -DNDEBUG
-NO_WERROR=
+# XXX: shouldn't we ensure that !asserts marks potentially unused variables as
+# __unused instead of disabling -Werror globally?
+MK_WERROR=	no
 .endif
 
 .if defined(DEBUG_FLAGS)
@@ -57,6 +59,25 @@ LDFLAGS+= -Wl,-zretpolineplt
 .endif
 .else
 .warning Retpoline requested but not supported by compiler or linker
+.endif
+.endif
+
+# Initialize stack variables on function entry
+.if ${MK_INIT_ALL_ZERO} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
+CFLAGS+= -ftrivial-auto-var-init=zero \
+    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+CXXFLAGS+= -ftrivial-auto-var-init=zero \
+    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+.else
+.warning InitAll (zeros) requested but not support by compiler
+.endif
+.elif ${MK_INIT_ALL_PATTERN} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
+CFLAGS+= -ftrivial-auto-var-init=pattern
+CXXFLAGS+= -ftrivial-auto-var-init=pattern
+.else
+.warning InitAll (pattern) requested but not support by compiler
 .endif
 .endif
 
@@ -240,11 +261,7 @@ _EXTRADEPEND:
 .else
 	echo ${PROG_FULL}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
-.if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
 	echo ${PROG_FULL}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
-.else
-	echo ${PROG_FULL}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
-.endif
 .endif
 .endif
 .endif	# !defined(NO_EXTRADEPEND)

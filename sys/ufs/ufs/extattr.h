@@ -95,7 +95,7 @@ struct extattr {
  *	content referenced by eap.
  */
 #define	EXTATTR_NEXT(eap) \
-	((struct extattr *)(((u_char *)(eap)) + (eap)->ea_length))
+	((struct extattr *)(__DECONST(char *, (eap)) + (eap)->ea_length))
 #define	EXTATTR_CONTENT(eap) \
 	(void *)(((u_char *)(eap)) + EXTATTR_BASE_LENGTH(eap))
 #define	EXTATTR_CONTENT_SIZE(eap) \
@@ -103,10 +103,6 @@ struct extattr {
 /* -1 below compensates for ea_name[1] */
 #define	EXTATTR_BASE_LENGTH(eap) \
 	roundup2((sizeof(struct extattr) - 1 + (eap)->ea_namelength), 8)
-
-#ifdef _KERNEL
-
-#include <sys/_sx.h>
 
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
@@ -118,6 +114,9 @@ struct ufs_extattr_list_entry {
 	struct vnode	*uele_backing_vnode;
 };
 
+#include <sys/_lock.h>
+#include <sys/_sx.h>
+
 struct ucred;
 struct ufs_extattr_per_mount {
 	struct sx	uepm_lock;
@@ -125,6 +124,8 @@ struct ufs_extattr_per_mount {
 	struct ucred	*uepm_ucred;
 	int	uepm_flags;
 };
+
+#ifdef _KERNEL
 
 struct vop_getextattr_args;
 struct vop_deleteextattr_args;
@@ -140,7 +141,7 @@ int	ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
 int	ufs_getextattr(struct vop_getextattr_args *ap);
 int	ufs_deleteextattr(struct vop_deleteextattr_args *ap);
 int	ufs_setextattr(struct vop_setextattr_args *ap);
-void	ufs_extattr_vnode_inactive(struct vnode *vp, struct thread *td);
+void	ufs_extattr_vnode_inactive(struct vnode *vp);
 
 #endif /* !_KERNEL */
 

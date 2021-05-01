@@ -1,10 +1,10 @@
 #include "ipf.h"
 #include "ipmon.h"
 
-static void *execute_parse __P((char **));
-static void execute_destroy __P((void *));
-static int execute_send __P((void *, ipmon_msg_t *));
-static void execute_print __P((void *));
+static void *execute_parse(char **);
+static void execute_destroy(void *);
+static int execute_send(void *, ipmon_msg_t *);
+static void execute_print(void *);
 
 typedef struct execute_opts_s {
 	char	*path;

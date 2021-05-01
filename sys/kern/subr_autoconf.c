@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 /*
  * "Interrupt driven config" functions.
  */
-static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
-	TAILQ_HEAD_INITIALIZER(intr_config_hook_list);
+static STAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
+	STAILQ_HEAD_INITIALIZER(intr_config_hook_list);
 static struct intr_config_hook *next_to_notify;
 static struct mtx intr_config_hook_lock;
 MTX_SYSINIT(intr_config_hook, &intr_config_hook_lock, "intr config", MTX_DEF);
@@ -101,7 +101,7 @@ run_interrupt_driven_config_hooks_warning(int warned)
 	if (warned < 6) {
 		printf("run_interrupt_driven_hooks: still waiting after %d "
 		    "seconds for", warned * WARNING_INTERVAL_SECS);
-		TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
+		STAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
 			if (linker_search_symbol_name(
 			    (caddr_t)hook_entry->ich_func, namebuf,
 			    sizeof(namebuf), &offset) == 0)
@@ -137,7 +137,8 @@ run_interrupt_driven_config_hooks()
 
 	while (next_to_notify != NULL) {
 		hook_entry = next_to_notify;
-		next_to_notify = TAILQ_NEXT(hook_entry, ich_links);
+		next_to_notify = STAILQ_NEXT(hook_entry, ich_links);
+		hook_entry->ich_state = ICHS_RUNNING;
 		mtx_unlock(&intr_config_hook_lock);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 		mtx_lock(&intr_config_hook_lock);
@@ -158,7 +159,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 	TSWAIT("config hooks");
 	mtx_lock(&intr_config_hook_lock);
 	warned = 0;
-	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
+	while (!STAILQ_EMPTY(&intr_config_hook_list)) {
 		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
 		    0, "conifhk", WARNING_INTERVAL_SECS * hz) ==
 		    EWOULDBLOCK) {
@@ -187,7 +188,7 @@ config_intrhook_establish(struct intr_config_hook *hook)
 
 	TSHOLD("config hooks");
 	mtx_lock(&intr_config_hook_lock);
-	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
+	STAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
 			break;
 	if (hook_entry != NULL) {
@@ -196,9 +197,10 @@ config_intrhook_establish(struct intr_config_hook *hook)
 		       "already established hook.\n");
 		return (1);
 	}
-	TAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
+	STAILQ_INSERT_TAIL(&intr_config_hook_list, hook, ich_links);
 	if (next_to_notify == NULL)
 		next_to_notify = hook;
+	hook->ich_state = ICHS_QUEUED;
 	mtx_unlock(&intr_config_hook_lock);
 	if (cold == 0)
 		/*
@@ -226,13 +228,12 @@ config_intrhook_oneshot(ich_func_t func, void *arg)
 	config_intrhook_establish(&ohook->och_hook);
 }
 
-void
-config_intrhook_disestablish(struct intr_config_hook *hook)
+static void
+config_intrhook_disestablish_locked(struct intr_config_hook *hook)
 {
 	struct intr_config_hook *hook_entry;
 
-	mtx_lock(&intr_config_hook_lock);
-	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
+	STAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links)
 		if (hook_entry == hook)
 			break;
 	if (hook_entry == NULL)
@@ -240,13 +241,56 @@ config_intrhook_disestablish(struct intr_config_hook *hook)
 		      "unestablished hook");
 
 	if (next_to_notify == hook)
-		next_to_notify = TAILQ_NEXT(hook, ich_links);
-	TAILQ_REMOVE(&intr_config_hook_list, hook, ich_links);
+		next_to_notify = STAILQ_NEXT(hook, ich_links);
+	STAILQ_REMOVE(&intr_config_hook_list, hook, intr_config_hook, ich_links);
 	TSRELEASE("config hooks");
 
 	/* Wakeup anyone watching the list */
+	hook->ich_state = ICHS_DONE;
 	wakeup(&intr_config_hook_list);
+}
+
+void
+config_intrhook_disestablish(struct intr_config_hook *hook)
+{
+	mtx_lock(&intr_config_hook_lock);
+	config_intrhook_disestablish_locked(hook);
 	mtx_unlock(&intr_config_hook_lock);
+}
+
+int
+config_intrhook_drain(struct intr_config_hook *hook)
+{
+	mtx_lock(&intr_config_hook_lock);
+
+	/*
+	 * The config hook has completed, so just return.
+	 */
+	if (hook->ich_state == ICHS_DONE) {
+		mtx_unlock(&intr_config_hook_lock);
+		return (ICHS_DONE);
+	}
+
+	/*
+	 * The config hook hasn't started running, just call disestablish.
+	 */
+	if (hook->ich_state == ICHS_QUEUED) {
+		config_intrhook_disestablish_locked(hook);
+		mtx_unlock(&intr_config_hook_lock);
+		return (ICHS_QUEUED);
+	}
+
+	/*
+	 * The config hook is running, so wait for it to complete and return.
+	 */
+	while (hook->ich_state != ICHS_DONE) {
+		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
+		    0, "confhd", hz) == EWOULDBLOCK) {
+			// XXX do I whine?
+		}
+	}
+	mtx_unlock(&intr_config_hook_lock);
+	return (ICHS_RUNNING);
 }
 
 #ifdef DDB
@@ -258,7 +302,7 @@ DB_SHOW_COMMAND(conifhk, db_show_conifhk)
 	char namebuf[64];
 	long offset;
 
-	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
+	STAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
 		if (linker_ddb_search_symbol_name(
 		    (caddr_t)hook_entry->ich_func, namebuf, sizeof(namebuf),
 		    &offset) == 0) {

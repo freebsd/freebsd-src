@@ -33,11 +33,10 @@
 	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
 
 struct unwind_state {
-	uint64_t fp;
-	uint64_t sp;
-	uint64_t pc;
+	uintptr_t fp;
+	uintptr_t pc;
 };
 
-int unwind_frame(struct unwind_state *);
+bool unwind_frame(struct thread *, struct unwind_state *);
 
 #endif /* !_MACHINE_STACK_H_ */

@@ -952,7 +952,7 @@ sched_lend_user_prio_cond(struct thread *td, u_char prio)
 		goto lend;
 	if (td->td_user_pri != min(prio, td->td_base_user_pri))
 		goto lend;
-	if (td->td_priority >= td->td_user_pri)
+	if (td->td_priority != td->td_user_pri)
 		goto lend;
 	return;
 
@@ -1764,7 +1764,7 @@ sched_affinity(struct thread *td)
 	if (td->td_pinned != 0 || td->td_flags & TDF_BOUND)
 		return;
 
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_RUNQ:
 		/*
 		 * If we are on a per-CPU runqueue that is in the set,

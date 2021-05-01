@@ -24,8 +24,10 @@ dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
+dev/gpio/qoriq_gpio.c		optional	mpc85xx gpio
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_power8.c	optional	hwpmc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
@@ -109,7 +111,6 @@ dev/tsec/if_tsec_fdt.c		optional	tsec
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
-kern/kern_clocksource.c		standard
 kern/subr_atomic64.c		optional	powerpc | powerpcspe
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
@@ -129,6 +130,7 @@ libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc | powerpcspe
 libkern/qdivrem.c		optional	powerpc | powerpcspe
+libkern/strlen.c		standard
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe
@@ -185,7 +187,6 @@ powerpc/mpc85xx/mpc85xx_gpio.c	optional	mpc85xx gpio
 powerpc/mpc85xx/platform_mpc85xx.c	optional	mpc85xx
 powerpc/mpc85xx/pci_mpc85xx.c	optional	pci mpc85xx
 powerpc/mpc85xx/pci_mpc85xx_pcib.c	optional	pci mpc85xx
-powerpc/mpc85xx/qoriq_gpio.c	optional	mpc85xx gpio
 powerpc/ofw/ofw_machdep.c	standard
 powerpc/ofw/ofw_pcibus.c	optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci

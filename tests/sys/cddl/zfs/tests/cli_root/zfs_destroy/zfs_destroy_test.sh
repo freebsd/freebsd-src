@@ -30,7 +30,7 @@ atf_test_case zfs_destroy_001_pos cleanup
 zfs_destroy_001_pos_head()
 {
 	atf_set "descr" "'zfs destroy -r|-R|-f|-rf|-Rf <fs|ctr|vol|snap>' shouldrecursively destroy all children."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_001_pos_body()
@@ -57,7 +57,7 @@ atf_test_case zfs_destroy_002_pos cleanup
 zfs_destroy_002_pos_head()
 {
 	atf_set "descr" "Verify 'zfs destroy' can destroy the specified datasets without activedependents."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_002_pos_body()
@@ -84,7 +84,7 @@ atf_test_case zfs_destroy_003_pos cleanup
 zfs_destroy_003_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs destroy [-rR]' succeeds as root."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_003_pos_body()
@@ -111,7 +111,7 @@ atf_test_case zfs_destroy_004_pos cleanup
 zfs_destroy_004_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs destroy -f' succeeds as root."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_004_pos_body()
@@ -138,7 +138,7 @@ atf_test_case zfs_destroy_005_neg cleanup
 zfs_destroy_005_neg_head()
 {
 	atf_set "descr" "Separately verify 'zfs destroy -f|-r|-rf|-R|-rR <dataset>' willfail in different conditions."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_005_neg_body()
@@ -165,7 +165,7 @@ atf_test_case zfs_destroy_006_neg cleanup
 zfs_destroy_006_neg_head()
 {
 	atf_set "descr" "'zfs destroy' should return an error with badly-formed parameters."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_006_neg_body()
@@ -192,7 +192,7 @@ atf_test_case zfs_destroy_007_neg cleanup
 zfs_destroy_007_neg_head()
 {
 	atf_set "descr" "Destroy dataset which is namespace-parent of origin should failed."
-	atf_set "require.progs"  zfs
+	atf_set "require.progs" "ksh93 zfs"
 	atf_set "timeout" 3600
 }
 zfs_destroy_007_neg_body()

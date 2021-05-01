@@ -47,6 +47,7 @@
 #include <net/route.h>
 #include <net/vnet.h>
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <net/slcompress.h>
@@ -4881,9 +4882,12 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 
 	if (ifa != NULL) {
 		int error;
+		int fibnum = ifp->if_fib;
 
+		rt_addrmsg(RTM_DELETE, ifa, fibnum);
 		/* delete old route */
-		error = rtinit(ifa, (int)RTM_DELETE, RTF_HOST);
+		ia = ifatoia(ifa);
+		error = in_handle_ifaddr_route(RTM_DELETE, ia);
 		if (debug && error) {
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit DEL failed, error=%d\n",
 		    		SPP_ARGS(ifp), error);
@@ -4891,14 +4895,14 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 
 		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
-		ia = ifatoia(ifa);
 		IN_IFADDR_WLOCK();
 		LIST_REMOVE(ia, ia_hash);
 		LIST_INSERT_HEAD(INADDR_HASH(si->sin_addr.s_addr), ia, ia_hash);
 		IN_IFADDR_WUNLOCK();
 
+		rt_addrmsg(RTM_ADD, ifa, fibnum);
 		/* add new route */
-		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);
+		error = in_handle_ifaddr_route(RTM_ADD, ia);
 		if (debug && error) {
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit ADD failed, error=%d",
 		    		SPP_ARGS(ifp), error);

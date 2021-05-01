@@ -335,6 +335,7 @@ fork_and_wait(const int exitstatus, const char* expout, const char* experr)
         std::cerr << "Some error\n";
         exit(123);
     }
+    atf::utils::reset_resultsfile();
     atf::utils::wait(pid, exitstatus, expout, experr);
     exit(EXIT_SUCCESS);
 }

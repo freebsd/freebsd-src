@@ -44,11 +44,24 @@
 #include <sys/queue.h>
 #include <ufs/ufs/dinode.h>
 #include <sys/seqc.h>
+#ifdef DIAGNOSTIC
+#include <sys/stack.h>
+#endif
+#include <sys/buf.h>
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
  */
 #define	doff_t		int32_t
+
+#ifdef DIAGNOSTIC
+struct iown_tracker {
+	struct thread	*tr_owner;
+	struct stack	tr_st;
+	struct stack	tr_unlock;
+	int		tr_gen;
+};
+#endif
 
 /*
  * The inode is used to describe each active (or recently active) file in the
@@ -94,8 +107,16 @@ struct inode {
 	doff_t	  i_endoff;	/* End of useful stuff in directory. */
 	doff_t	  i_diroff;	/* Offset in dir, where we found last entry. */
 	doff_t	  i_offset;	/* Offset of free space in directory. */
+#ifdef DIAGNOSTIC
+	int			i_lock_gen;
+	struct iown_tracker	i_count_tracker;
+	struct iown_tracker	i_endoff_tracker;
+	struct iown_tracker	i_offset_tracker;
+#endif
 
 	int	i_nextclustercg; /* last cg searched for cluster */
+
+	struct vn_clusterw i_clusterw;	/* Buffer clustering information */
 
 	/*
 	 * Data for extended attribute modification.
@@ -134,6 +155,8 @@ struct inode {
 #define	IN_IBLKDATA	0x0800		/* datasync requires inode block
 					   update */
 #define	IN_SIZEMOD	0x1000		/* Inode size has been modified */
+#define	IN_ENDOFF	0x2000		/* Free space at the end of directory,
+					   try to truncate when possible */
 
 #define PRINT_INODE_FLAGS "\20\20b16\17b15\16b14\15sizemod" \
 	"\14iblkdata\13is_ufs2\12truncated\11ea_lockwait\10ea_locked" \
@@ -187,13 +210,13 @@ struct inode {
 #define	i_din1 dinode_u.din1
 #define	i_din2 dinode_u.din2
 
-#ifdef _KERNEL
-
 #define	ITOUMP(ip)	((ip)->i_ump)
 #define	ITODEV(ip)	(ITOUMP(ip)->um_dev)
 #define	ITODEVVP(ip)	(ITOUMP(ip)->um_devvp)
 #define	ITOFS(ip)	(ITOUMP(ip)->um_fs)
 #define	ITOVFS(ip)	((ip)->i_vnode->v_mount)
+
+#ifdef _KERNEL
 
 static inline _Bool
 I_IS_UFS1(const struct inode *ip)
@@ -208,6 +231,7 @@ I_IS_UFS2(const struct inode *ip)
 
 	return ((ip->i_flag & IN_UFS2) != 0);
 }
+#endif	/* _KERNEL */
 
 /*
  * The DIP macro is used to access fields in the dinode that are
@@ -241,11 +265,11 @@ struct indir {
 #define	ITOV(ip)	((ip)->i_vnode)
 
 /* Determine if soft dependencies are being done */
-#define	DOINGSOFTDEP(vp)   \
-	(((vp)->v_mount->mnt_flag & (MNT_SOFTDEP | MNT_SUJ)) != 0)
-#define	MOUNTEDSOFTDEP(mp) (((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ)) != 0)
-#define	DOINGSUJ(vp)	   (((vp)->v_mount->mnt_flag & MNT_SUJ) != 0)
-#define	MOUNTEDSUJ(mp)	   (((mp)->mnt_flag & MNT_SUJ) != 0)
+#define	MOUNTEDSOFTDEP(mp)	(((mp)->mnt_flag & MNT_SOFTDEP) != 0)
+#define	DOINGSOFTDEP(vp)	MOUNTEDSOFTDEP((vp)->v_mount)
+#define	MOUNTEDSUJ(mp)		(((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ)) == \
+    (MNT_SOFTDEP | MNT_SUJ))
+#define	DOINGSUJ(vp)		MOUNTEDSUJ((vp)->v_mount)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
@@ -254,6 +278,36 @@ struct ufid {
 	uint32_t  ufid_ino;	/* File number (ino). */
 	uint32_t  ufid_gen;	/* Generation number. */
 };
+
+#ifdef _KERNEL
+#ifdef DIAGNOSTIC
+void ufs_init_trackers(struct inode *ip);
+void ufs_unlock_tracker(struct inode *ip);
+
+doff_t ufs_get_i_offset(struct inode *ip, const char *file, int line);
+void ufs_set_i_offset(struct inode *ip, doff_t off, const char *file, int line);
+#define	I_OFFSET(ip)		ufs_get_i_offset(ip, __FILE__, __LINE__)
+#define	SET_I_OFFSET(ip, off)	ufs_set_i_offset(ip, off, __FILE__, __LINE__)
+
+int32_t ufs_get_i_count(struct inode *ip, const char *file, int line);
+void ufs_set_i_count(struct inode *ip, int32_t cnt, const char *file, int line);
+#define	I_COUNT(ip)		ufs_get_i_count(ip, __FILE__, __LINE__)
+#define	SET_I_COUNT(ip, cnt)	ufs_set_i_count(ip, cnt, __FILE__, __LINE__)
+
+doff_t ufs_get_i_endoff(struct inode *ip, const char *file, int line);
+void ufs_set_i_endoff(struct inode *ip, doff_t off, const char *file, int line);
+#define	I_ENDOFF(ip)		ufs_get_i_endoff(ip, __FILE__, __LINE__)
+#define	SET_I_ENDOFF(ip, off)	ufs_set_i_endoff(ip, off, __FILE__, __LINE__)
+
+#else
+#define	I_OFFSET(ip)		((ip)->i_offset)
+#define	SET_I_OFFSET(ip, off)	((ip)->i_offset = (off))
+#define	I_COUNT(ip)		((ip)->i_count)
+#define	SET_I_COUNT(ip, cnt)	((ip)->i_count = cnt)
+#define	I_ENDOFF(ip)		((ip)->i_endoff)
+#define	SET_I_ENDOFF(ip, off)	((ip)->i_endoff = off)
+#endif
+
 #endif /* _KERNEL */
 
 #endif /* !_UFS_UFS_INODE_H_ */

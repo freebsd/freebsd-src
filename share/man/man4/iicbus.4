@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2017
+.Dd March 7, 2021
 .Dt IICBUS 4
 .Os
 .Sh NAME
@@ -101,7 +101,6 @@ Some I2C interfaces are available:
 .It Sy pcf Ta "Philips PCF8584 master/slave interface"
 .It Sy iicbb Ta "generic bit-banging master-only driver"
 .It Sy lpbb Ta "parallel port specific bit-banging interface"
-.It Sy bktr Ta "Brooktree848 video chipset, hardware and software master-only interface"
 .El
 .Sh BUS FREQUENCY CONFIGURATION
 The operating frequency of an I2C bus may be fixed or configurable.
@@ -149,7 +148,6 @@ or the
 .Va I2CRSTCARD
 ioctl to make the change take effect.
 .Sh SEE ALSO
-.Xr bktr 4 ,
 .Xr fdt 4 ,
 .Xr iic 4 ,
 .Xr iicbb 4 ,

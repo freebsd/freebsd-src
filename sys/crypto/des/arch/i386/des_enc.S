@@ -1354,8 +1354,7 @@ ENTRY(des_encrypt1)
 	popl	%edi
 	popl	%esi
 	ret
-.L_des_encrypt1_end:
-	.size	_C_LABEL(des_encrypt1),.L_des_encrypt1_end-_C_LABEL(des_encrypt1)
+END(des_encrypt1)
 
 ENTRY(des_encrypt2)
 	pushl	%esi
@@ -2573,8 +2572,7 @@ ENTRY(des_encrypt2)
 	popl	%edi
 	popl	%esi
 	ret
-.L_des_encrypt2_end:
-	.size	_C_LABEL(des_encrypt2),.L_des_encrypt2_end-_C_LABEL(des_encrypt2)
+END(des_encrypt2)
 
 ENTRY(des_encrypt3)
 	pushl   %ebx
@@ -2692,8 +2690,7 @@ ENTRY(des_encrypt3)
 	popl    %ebp
 	popl    %ebx
 	ret
-.L_des_encrypt3_end:
-        .size   _C_LABEL(des_encrypt3),.L_des_encrypt3_end-_C_LABEL(des_encrypt3)
+END(des_encrypt3)
 
 ENTRY(des_decrypt3)
 	pushl   %ebx
@@ -2811,5 +2808,4 @@ ENTRY(des_decrypt3)
 	popl    %ebp
 	popl    %ebx
 	ret
-.L_des_decrypt3_end:
-	.size   _C_LABEL(des_decrypt3),.L_des_decrypt3_end-_C_LABEL(des_decrypt3)
+END(des_decrypt3)

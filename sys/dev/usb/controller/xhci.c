@@ -86,8 +86,7 @@
 #include <dev/usb/controller/xhcireg.h>
 
 #define	XHCI_BUS2SC(bus) \
-   ((struct xhci_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct xhci_softc *)0)->sc_bus))))
+	__containerof(bus, struct xhci_softc, sc_bus)
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB XHCI");
@@ -3871,6 +3870,8 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 * endpoint context state diagram in the XHCI specification:
 	 */
 	switch (xhci_get_endpoint_state(udev, epno)) {
+	case XHCI_EPCTX_0_EPSTATE_DISABLED:
+                break;
 	case XHCI_EPCTX_0_EPSTATE_STOPPED:
 		break;
 	case XHCI_EPCTX_0_EPSTATE_HALTED:
@@ -4020,6 +4021,9 @@ xhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
     struct usb_endpoint *ep)
 {
 	struct xhci_endpoint_ext *pepext;
+	struct xhci_softc *sc;
+	uint8_t index;
+	uint8_t epno;
 
 	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d\n",
 	    ep, udev->address, edesc->bEndpointAddress, udev->flags.usb_mode);
@@ -4036,6 +4040,18 @@ xhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	USB_BUS_LOCK(udev->bus);
 	pepext->trb_halted = 1;
 	pepext->trb_running = 0;
+
+	/*
+	 * When doing an alternate setting, except for control
+	 * endpoints, we need to re-configure the XHCI endpoint
+	 * context:
+	 */
+	if ((edesc->bEndpointAddress & UE_ADDR) != 0) {
+		sc = XHCI_BUS2SC(udev->bus);
+		index = udev->controller_slot_id;
+		epno = XHCI_EPNO2EPID(edesc->bEndpointAddress);
+		sc->sc_hw.devs[index].ep_configured &= ~(1U << epno);
+	}
 	USB_BUS_UNLOCK(udev->bus);
 }
 

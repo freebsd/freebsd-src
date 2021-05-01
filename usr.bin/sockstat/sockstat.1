@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2020
+.Dd March 28, 2021
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46CcLlSsUuvw
+.Op Fl 46CcLlnSsUuvw
 .Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -71,6 +71,8 @@ or do not contain the IPv6 loopback address
 .Li ::1 .
 .It Fl l
 Show listening sockets.
+.It Fl n
+Do not resolve numeric UIDs to user names.
 .It Fl p Ar ports
 Only show Internet sockets if the local or foreign port number
 is on the specified list.
@@ -96,7 +98,7 @@ Display the protocol state, if applicable.
 This is currently only implemented for SCTP and TCP.
 .It Fl U
 Display the remote UDP encapsulation port number, if applicable.
-This is currently only implemented for SCTP.
+This is currently only implemented for SCTP and TCP.
 .It Fl u
 Show
 .Dv AF_LOCAL
@@ -161,7 +163,7 @@ The address the foreign end of the socket is bound to (see
 .It Li ENCAPS
 The remote UDP encapsulation port number if
 .Fl U
-is specified (only for SCTP).
+is specified (only for SCTP or TCP).
 .It Li PATH STATE
 The path state if
 .Fl s

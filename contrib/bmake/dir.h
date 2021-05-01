@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.23 2020/09/02 04:08:54 rillig Exp $	*/
+/*	$NetBSD: dir.h,v 1.43 2021/02/05 05:48:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -72,45 +72,36 @@
  *	from: @(#)dir.h	8.1 (Berkeley) 6/6/93
  */
 
-#ifndef	MAKE_DIR_H
-#define	MAKE_DIR_H
+#ifndef MAKE_DIR_H
+#define MAKE_DIR_H
 
-/* A cache of a directory, remembering all the files that exist in that
- * directory. */
-typedef struct {
-    char         *name;	    	/* Name of directory */
-    int	    	  refCount; 	/* Number of paths with this directory */
-    int		  hits;	    	/* the number of times a file in this
-				 * directory has been found */
-    Hash_Table    files;    	/* Hash set of files in directory */
-} Path;
-
-struct make_stat {
-    time_t mst_mtime;
-    mode_t mst_mode;
-};
+typedef struct CachedDir CachedDir;
 
 void Dir_Init(void);
-void Dir_InitDir(const char *);
 void Dir_InitCur(const char *);
 void Dir_InitDot(void);
 void Dir_End(void);
 void Dir_SetPATH(void);
 Boolean Dir_HasWildcards(const char *);
-void Dir_Expand(const char *, Lst, Lst);
-char *Dir_FindFile(const char *, Lst);
-Boolean Dir_FindHereOrAbove(const char *, const char *, char *, int);
-int Dir_MTime(GNode *, Boolean);
-Path *Dir_AddDir(Lst, const char *);
-char *Dir_MakeFlags(const char *, Lst);
-void Dir_ClearPath(Lst);
-void Dir_Concat(Lst, Lst);
+void SearchPath_Expand(SearchPath *, const char *, StringList *);
+char *Dir_FindFile(const char *, SearchPath *);
+char *Dir_FindHereOrAbove(const char *, const char *);
+void Dir_UpdateMTime(GNode *, Boolean);
+CachedDir *SearchPath_Add(SearchPath *, const char *);
+char *SearchPath_ToFlags(SearchPath *, const char *);
+void SearchPath_Clear(SearchPath *);
+void SearchPath_AddAll(SearchPath *, SearchPath *);
 void Dir_PrintDirectories(void);
-void Dir_PrintPath(Lst);
-void Dir_Destroy(void *);
-void *Dir_CopyDir(void *);
+void SearchPath_Print(const SearchPath *);
+SearchPath *Dir_CopyDirSearchPath(void);
 
-int cached_lstat(const char *, struct make_stat *);
-int cached_stat(const char *, struct make_stat *);
+/* Stripped-down variant of struct stat. */
+struct cached_stat {
+	time_t cst_mtime;
+	mode_t cst_mode;
+};
+
+int cached_lstat(const char *, struct cached_stat *);
+int cached_stat(const char *, struct cached_stat *);
 
 #endif /* MAKE_DIR_H */

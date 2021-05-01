@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* File created from flex.skl via mkskel.sh */
 
 #include "flexdef.h"
@@ -446,16 +445,6 @@ const char *skel[] = {
   "]])",
   "",
   "/* First, we deal with  platform-specific or compiler-specific issues. */",
-  "",
-  "#if defined(__FreeBSD__)",
-  "#ifndef __STDC_LIMIT_MACROS",
-  "#define	__STDC_LIMIT_MACROS",
-  "#endif",
-  "#include <sys/cdefs.h>",
-  "#include <stdint.h>",
-  "#else",
-  "#define	__dead2",
-  "#endif",
   "",
   "/* begin standard C headers. */",
   "%if-c-only",
@@ -948,7 +937,7 @@ const char *skel[] = {
   "static yy_state_type yy_get_previous_state ( M4_YY_PROTO_ONLY_ARG );",
   "static yy_state_type yy_try_NUL_trans ( yy_state_type current_state  M4_YY_PROTO_LAST_ARG);",
   "static int yy_get_next_buffer ( M4_YY_PROTO_ONLY_ARG );",
-  "static void yynoreturn yy_fatal_error ( const char* msg M4_YY_PROTO_LAST_ARG ) __dead2;",
+  "static void yynoreturn yy_fatal_error ( const char* msg M4_YY_PROTO_LAST_ARG );",
   "]])",
   "",
   "%endif",
@@ -2301,7 +2290,11 @@ const char *skel[] = {
   "				case EOB_ACT_END_OF_FILE:",
   "					{",
   "					if ( yywrap( M4_YY_CALL_ONLY_ARG ) )",
+  "#ifdef YY_FLEX_LEX_COMPAT",
   "						return 0;",
+  "#else",
+  "						return EOF;",
+  "#endif",
   "",
   "					if ( ! YY_G(yy_did_buffer_switch_on_eof) )",
   "						YY_NEW_FILE;",

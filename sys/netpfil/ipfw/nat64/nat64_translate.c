@@ -722,7 +722,7 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 	/*
 	 * Move pkthdr from original mbuf. We should have initialized some
 	 * fields, because we can reinject this mbuf to netisr and it will
-	 * go trough input path (it requires at least rcvif should be set).
+	 * go through input path (it requires at least rcvif should be set).
 	 * Also do M_ALIGN() to reduce chances of need to allocate new mbuf
 	 * in the chain, when we will do M_PREPEND() or make some type of
 	 * tunneling.
@@ -1296,6 +1296,11 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 
 	/* Handle delayed checksums if needed. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			NAT64STAT_INC(&cfg->stats, nomem);
+			return (NAT64RETURN);
+		}
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
@@ -1673,6 +1678,11 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 
 	/* Handle delayed checksums if needed. */
 	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+		m = mb_unmapped_to_ext(m);
+		if (m == NULL) {
+			NAT64STAT_INC(&cfg->stats, nomem);
+			return (NAT64RETURN);
+		}
 		in6_delayed_cksum(m, plen, hlen);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 	}

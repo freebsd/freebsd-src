@@ -13,7 +13,7 @@
 char	thishost[MAXHOSTNAMELEN];
 
 
-void initparse __P((void))
+void initparse(void)
 {
 	gethostname(thishost, sizeof(thishost));
 	thishost[sizeof(thishost) - 1] = '\0';

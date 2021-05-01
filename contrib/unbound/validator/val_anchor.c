@@ -1030,8 +1030,6 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 				")", b);
 			(void)rbtree_delete(anchors->tree, &ta->node);
 			lock_basic_unlock(&ta->lock);
-			if(anchors->dlv_anchor == ta)
-				anchors->dlv_anchor = NULL;
 			anchors_delfunc(&ta->node, NULL);
 			ta = next;
 			continue;
@@ -1102,37 +1100,6 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 			sldns_buffer_free(parsebuf);
 			return 0;
 		}
-	}
-	if(cfg->dlv_anchor_file && cfg->dlv_anchor_file[0] != 0) {
-		struct trust_anchor* dlva;
-		nm = cfg->dlv_anchor_file;
-		if(cfg->chrootdir && cfg->chrootdir[0] && strncmp(nm,
-			cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
-			nm += strlen(cfg->chrootdir);
-		if(!(dlva = anchor_read_file(anchors, parsebuf,
-			nm, 1))) {
-			log_err("error reading dlv-anchor-file: %s", 
-				cfg->dlv_anchor_file);
-			sldns_buffer_free(parsebuf);
-			return 0;
-		}
-		lock_basic_lock(&anchors->lock);
-		anchors->dlv_anchor = dlva;
-		lock_basic_unlock(&anchors->lock);
-	}
-	for(f = cfg->dlv_anchor_list; f; f = f->next) {
-		struct trust_anchor* dlva;
-		if(!f->str || f->str[0] == 0) /* empty "" */
-			continue;
-		if(!(dlva = anchor_store_str(
-			anchors, parsebuf, f->str))) {
-			log_err("error in dlv-anchor: \"%s\"", f->str);
-			sldns_buffer_free(parsebuf);
-			return 0;
-		}
-		lock_basic_lock(&anchors->lock);
-		anchors->dlv_anchor = dlva;
-		lock_basic_unlock(&anchors->lock);
 	}
 	/* do autr last, so that it sees what anchors are filled by other
 	 * means can can print errors about double config for the name */

@@ -240,9 +240,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	/*
-	 * Save the floating-point state, if necessary, then copy it.
+	 * Set Floating Point facility to "Ignore Exceptions Mode" so signal
+	 * handler can run.
 	 */
-	/* XXX */
+	if (td->td_pcb->pcb_flags & PCB_FPU)
+		tf->srr1 = tf->srr1 & ~(PSL_FE0 | PSL_FE1);
 
 	/*
 	 * Set up the registers to return to sigcode.
@@ -330,6 +332,13 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	error = set_mcontext(td, &uc.uc_mcontext);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Save FPU state if needed. User may have changed it on
+	 * signal handler
+	 */
+	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
+		save_fpu(td);
 
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
@@ -556,6 +565,9 @@ cleanup_power_extras(struct thread *td)
 		mtspr(SPR_FSCR, 0);
 	if (pcb_flags & PCB_CDSCR) 
 		mtspr(SPR_DSCRP, 0);
+
+	if (pcb_flags & PCB_FPU)
+		cleanup_fpscr();
 }
 
 /*
@@ -823,6 +835,13 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 	error = set_mcontext32(td, &uc.uc_mcontext);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Save FPU state if needed. User may have changed it on
+	 * signal handler
+	 */
+	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
+		save_fpu(td);
 
 	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 

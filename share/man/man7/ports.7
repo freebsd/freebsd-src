@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2020
+.Dd April 17, 2021
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -64,23 +64,35 @@ The
 .Fx
 Ports Collection is maintained in several branches, which differ mostly
 by versions of software provided: the
-.Em head
-branch contains all the latest changes, while the
+.Em main
+branch contains all the latest changes and corresponds to the
+.Em latest
+package set, while the
 .Em quarterly
 branches only provide critical fixes.
 The
-.Em head
-branch can be installed or updated from the Subversion repository located at:
+.Em main
+branch can be cloned and updated from the Git repository located at:
 .Pp
-.Lk https://svn.FreeBSD.org/ports/head
+.Lk https://git.FreeBSD.org/ports.git
+.Pp
+so eg:
+.Pp
+.Cm git clone https://git.FreeBSD.org/ports.git
 .Pp
 The
 .Em quarterly
-branches can be found in Subversion in the
-.Pa branches/
-subdirectory, eg:
+branches can be found in Git as branches like
+.Pa yyyyQn
+, where
+.Em yyyy
+indicates the year and
+.Em n
+indicates the quarter
+.Po 1 to 4
+.Pc , eg:
 .Pp
-.Lk https://svn.FreeBSD.org/ports/branches/2019Q1
+.Cm git clone -b 2021Q2 https://git.FreeBSD.org/ports.git
 .Pp
 It is generally a good idea to use the
 .Nm
@@ -92,7 +104,7 @@ By default, for
 the
 .Xr pkg 8
 is configured to install packages built from the
-.Em head
+.Em main
 branch, while for
 .Fx STABLE
 or RELEASE versions it is configured to install packages built from
@@ -284,17 +296,19 @@ from the system.
 Make a binary package for the port.
 The port will be installed if it has not already been.
 The package is a
-.Pa .tbz
+.Pa .txz
 file that you can use to
 install the port on other machines with
 .Xr pkg-add 8 .
 If the directory specified by
 .Va PACKAGES
-does not exist, the package will be put into the current directory.
+does not exist, the package will be put in
+.Pa /usr/ports/category/port/work/pkg .
 See
 .Va PKGREPOSITORY
 and
-.Va PKGFILE .
+.Va PKGFILE
+for more information.
 .It Cm package-recursive
 Like
 .Cm package ,
@@ -417,14 +431,7 @@ You can change all of these.
 Location of the ports tree.
 This is
 .Pa /usr/ports
-on
-.Fx
-and
-.Ox ,
-and
-.Pa /usr/pkgsrc
-on
-.Nx .
+by default.
 .It Va WRKDIRPREFIX
 Where to create any temporary files.
 Useful if
@@ -442,7 +449,10 @@ The unprivileged user must have write access to
 and
 .Va DISTDIR .
 The default is
-.Ql /usr/bin/su root -c
+.Ql /usr/bin/su root -c .
+Many users set it to
+.Ql /usr/local/bin/sudo -E sh -c
+for convenience.
 .It Va PACKAGES
 Used only for the
 .Cm package
@@ -513,9 +523,6 @@ Normally
 .Xr fetch 1 .
 .It Va FORCE_PKG_REGISTER
 If set, overwrite any existing package registration on the system.
-.It Va MOTIFLIB
-Location of
-.Pa "libXm\&." Ns Brq Pa a , Ns Pa so .
 .It Va INTERACTIVE
 If defined, only operate on a port if it requires interaction.
 .It Va BATCH
@@ -564,7 +571,14 @@ Porter's Handbook.
 If set, debugging symbols are installed for ports binaries.
 .It Va WITH_DEBUG_PORTS
 A list of origins for which to set
-.Va WITH_DEBUG_PORTS .
+.Va WITH_DEBUG .
+.It Va DEBUG_FLAGS
+.Pq Default: Ql -g
+Additional
+.Va CFLAGS
+to set when
+.Va WITH_DEBUG
+is set.
 .It Va WITH_CCACHE_BUILD
 .Pq Vt bool
 If set, enables the use of
@@ -619,6 +633,89 @@ is going to be built with Python 3.7 support.)
 .Li # Ic cd /usr/ports/devel/py-pip
 .Li # Ic env FLAVOR=py37 make build
 .Ed
+.It Sy Example 4\&: No Setting Ports Options via Xr make.conf 5
+.Pp
+The following lines present various ways of configuring ports options via
+.Xr make.conf 5
+(as an alternative to, e.g., running
+.Dq Li make config ) :
+.Bd -literal -offset 2n
+# Enable NLS for all ports unless configured otherwise
+# using the options dialog.
+OPTIONS_SET=		NLS
+# Disable DOCS for all ports overriding the options set
+# via the options dialog.
+OPTIONS_UNSET_FORCE=	DOCS
+# Disable DOCS and EXAMPLES for the shells/zsh port.
+shells_zsh_UNSET=	DOCS EXAMPLES
+.Ed
+.Pp
+These and other options-related variables are documented in
+.Pa /usr/ports/Mk/bsd.options.mk .
+.It Sy Example 5\&: No Setting Xr make 1 Variables for Specific Ports via Xr make.conf 5
+.Pp
+The following example shows how to set arbitrary
+.Xr make 1
+variables only specific ports:
+.Bd -literal -offset 2n
+# Set DISABLE_MAKE_JOBS for the lang/rust port:
+\&.if ${.CURDIR:M*/lang/rust}
+DISABLE_MAKE_JOBS=	yes
+TRYBROKEN=		yes
+\&.endif
+.Ed
+.It Sy Example 6\&: No Debugging Ports
+By default ports are built and packaged without debugging support (e.g.,
+debugging symbols are stripped from binaries, optimization flags are used for
+compiling, verbose logging is disabled).
+Whether ports are built with debugging symbols can be controlled by the
+settings in
+.Xr make.conf 5 ,
+e.g.,
+.Bd -literal -offset 2n
+# Enable debugging for all ports.
+WITH_DEBUG=		yes
+# Enable debugging for selected ports.
+WITH_DEBUG_PORTS=	mail/dovecot security/krb5
+.Ed
+.Pp
+It is also possible to use the debug variables on the command line:
+.Bd -literal -offset 2n
+.Li # Ic make -DWITH_DEBUG DEBUG_FLAGS="-g -O0" build
+.Ed
+.Pp
+See the
+.Sx MAKE VARIABLES
+section to learn more about the debug variables.
+.Pp
+To understand the details of what happens when the debug variables are set it
+is best to consult the files located at
+.Pa ${PORTSDIR}/Mk/*
+.Po Pa bsd.port.mk
+in particular
+.Pc .
+.Pp
+If debugging is enabled for a specific port, the ports framework will:
+.Bl -bullet
+.It
+Add
+.Va DEBUG_FLAGS
+(defaults to
+.Ql -g )
+to
+.Va CFLAGS .
+.It
+Try to prevent the binaries from being stripped (including checking the install
+target to replace
+.Ql install-strip
+with
+.Ql install ) .
+Whether a binary has been stripped can be checked with
+.Xr file 1 .
+.It
+Try to enable other debugging features like debug build type or verbose logging.
+However, this is port-specific and the ports framework might not be aware of
+each supported debugging feature a given piece of software has to offer).
 .El
 .Sh SEE ALSO
 .Xr make 1 ,

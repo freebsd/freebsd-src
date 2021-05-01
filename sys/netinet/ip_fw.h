@@ -339,7 +339,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
  *
  */
 typedef struct	_ipfw_insn {	/* template for instructions */
-	u_int8_t 	opcode;
+	_Alignas(_Alignof(u_int32_t)) u_int8_t 	opcode;
 	u_int8_t	len;	/* number of 32-bit words */
 #define	F_NOT		0x80
 #define	F_OR		0x40
@@ -549,6 +549,8 @@ struct nat44_cfg_nat {
 	struct in_addr	ip;		/* nat IPv4 address */
 	uint32_t	mode;		/* aliasing mode */
 	uint32_t	redir_cnt;	/* number of entry in spool chain */
+	u_short		alias_port_lo;	/* low range for port aliasing */
+	u_short		alias_port_hi;	/* high range for port aliasing */
 };
 
 /* Nat command. */

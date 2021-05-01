@@ -58,7 +58,7 @@ usage() {
 	    "[-d <disk file>]"
 	echo "                [-e <name=value>] [-f <path of firmware>]" \
 	    "[-F <size>]"
-	echo "                [-g <gdbport> ] [-H <directory>]"
+	echo "                [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-l <loader>]"
 	echo "                [-L <VNC IP for UEFI framebuffer>]"
 	echo "                [-m <memsize>]" \
@@ -76,7 +76,6 @@ usage() {
 	echo "       -f: Use a specific UEFI firmware"
 	echo "       -F: Use a custom UEFI GOP framebuffer size" \
 	    "(default: ${DEFAULT_VNCSIZE})"
-	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -H: host filesystem to export to the loader"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location" \
@@ -120,7 +119,6 @@ nic=${DEFAULT_NIC}
 tap_total=0
 disk_total=0
 disk_emulation=${DEFAULT_DISK}
-gdbport=0
 loader_opt=""
 bhyverun_opt="-H -A -P"
 pass_total=0
@@ -166,9 +164,6 @@ while getopts aAc:C:d:e:Ef:F:g:hH:iI:l:L:m:n:p:P:t:Tuvw c ; do
 		;;
 	F)
 		vncsize="${OPTARG}"
-		;;
-	g)	
-		gdbport=${OPTARG}
 		;;
 	H)
 		host_base=`realpath ${OPTARG}`
@@ -367,7 +362,6 @@ while [ 1 ]; do
 	fi
 
 	${FBSDRUN} -c ${cpus} -m ${memsize} ${bhyverun_opt}		\
-		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,lpc						\
 		${efiargs}						\

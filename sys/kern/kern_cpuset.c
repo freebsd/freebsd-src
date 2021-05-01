@@ -119,7 +119,9 @@ __FBSDID("$FreeBSD$");
  */
 
 LIST_HEAD(domainlist, domainset);
+struct domainset __read_mostly domainset_firsttouch;
 struct domainset __read_mostly domainset_fixed[MAXMEMDOM];
+struct domainset __read_mostly domainset_interleave;
 struct domainset __read_mostly domainset_prefer[MAXMEMDOM];
 struct domainset __read_mostly domainset_roundrobin;
 
@@ -130,7 +132,7 @@ static struct setlist cpuset_ids;
 static struct domainlist cpuset_domains;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero, *cpuset_default, *cpuset_kernel;
-static struct domainset domainset0, domainset2;
+static struct domainset *domainset0, *domainset2;
 
 /* Return the size of cpuset_t at the kernel level */
 SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD | CTLFLAG_CAPRD,
@@ -207,9 +209,13 @@ cpuset_rel(struct cpuset *set)
 {
 	cpusetid_t id;
 
-	if (refcount_release(&set->cs_ref) == 0)
+	if (refcount_release_if_not_last(&set->cs_ref))
 		return;
 	mtx_lock_spin(&cpuset_lock);
+	if (!refcount_release(&set->cs_ref)) {
+		mtx_unlock_spin(&cpuset_lock);
+		return;
+	}
 	LIST_REMOVE(set, cs_siblings);
 	id = set->cs_id;
 	if (id != CPUSET_INVALID)
@@ -229,9 +235,13 @@ static void
 cpuset_rel_defer(struct setlist *head, struct cpuset *set)
 {
 
-	if (refcount_release(&set->cs_ref) == 0)
+	if (refcount_release_if_not_last(&set->cs_ref))
 		return;
 	mtx_lock_spin(&cpuset_lock);
+	if (!refcount_release(&set->cs_ref)) {
+		mtx_unlock_spin(&cpuset_lock);
+		return;
+	}
 	LIST_REMOVE(set, cs_siblings);
 	if (set->cs_id != CPUSET_INVALID)
 		LIST_REMOVE(set, cs_link);
@@ -246,9 +256,14 @@ cpuset_rel_defer(struct setlist *head, struct cpuset *set)
 static void
 cpuset_rel_complete(struct cpuset *set)
 {
+	cpusetid_t id;
+
+	id = set->cs_id;
 	LIST_REMOVE(set, cs_link);
 	cpuset_rel(set->cs_parent);
 	uma_zfree(cpuset_zone, set);
+	if (id != CPUSET_INVALID)
+		free_unr(cpuset_unr, id);
 }
 
 /*
@@ -287,12 +302,12 @@ cpuset_lookup(cpusetid_t setid, struct thread *td)
 }
 
 /*
- * Create a set in the space provided in 'set' with the provided parameters.
+ * Initialize a set in the space provided in 'set' with the provided parameters.
  * The set is returned with a single ref.  May return EDEADLK if the set
  * will have no valid cpu based on restrictions from the parent.
  */
 static int
-_cpuset_create(struct cpuset *set, struct cpuset *parent,
+cpuset_init(struct cpuset *set, struct cpuset *parent,
     const cpuset_t *mask, struct domainset *domain, cpusetid_t id)
 {
 
@@ -326,6 +341,10 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent,
  * Create a new non-anonymous set with the requested parent and mask.  May
  * return failures if the mask is invalid or a new number can not be
  * allocated.
+ *
+ * If *setp is not NULL, then it will be used as-is.  The caller must take
+ * into account that *setp will be inserted at the head of cpuset_ids and
+ * plan any potentially conflicting cs_link usage accordingly.
  */
 static int
 cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
@@ -333,16 +352,22 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 	struct cpuset *set;
 	cpusetid_t id;
 	int error;
+	bool dofree;
 
 	id = alloc_unr(cpuset_unr);
 	if (id == -1)
 		return (ENFILE);
-	*setp = set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, parent, mask, NULL, id);
+	dofree = (*setp == NULL);
+	if (*setp != NULL)
+		set = *setp;
+	else
+		*setp = set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
+	error = cpuset_init(set, parent, mask, NULL, id);
 	if (error == 0)
 		return (0);
 	free_unr(cpuset_unr, id);
-	uma_zfree(cpuset_zone, set);
+	if (dofree)
+		uma_zfree(cpuset_zone, set);
 
 	return (error);
 }
@@ -545,7 +570,7 @@ domainset_create(const struct domainset *domain)
 	if (domain->ds_policy == DOMAINSET_POLICY_PREFER &&
 	    !DOMAINSET_ISSET(domain->ds_prefer, &domain->ds_mask))
 		return (NULL);
-	if (!DOMAINSET_SUBSET(&domainset0.ds_mask, &domain->ds_mask))
+	if (!DOMAINSET_SUBSET(&domainset0->ds_mask, &domain->ds_mask))
 		return (NULL);
 	ndomain = uma_zalloc(domainset_zone, M_WAITOK | M_ZERO);
 	domainset_copy(domain, ndomain);
@@ -610,7 +635,7 @@ domainset_shadow(const struct domainset *pdomain,
  * empty as well as RDONLY flags.
  */
 static int
-cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
+cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int augment_mask)
 {
 	struct cpuset *nset;
 	cpuset_t newmask;
@@ -619,13 +644,14 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	if (check_mask) {
-		if (!CPU_OVERLAP(&set->cs_mask, mask))
-			return (EDEADLK);
+	if (augment_mask) {
 		CPU_COPY(&set->cs_mask, &newmask);
 		CPU_AND(&newmask, mask);
 	} else
 		CPU_COPY(mask, &newmask);
+
+	if (CPU_EMPTY(&newmask))
+		return (EDEADLK);
 	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
 		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
@@ -664,19 +690,34 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (error)
 		return (error);
 	/*
-	 * In case we are called from within the jail
+	 * In case we are called from within the jail,
 	 * we do not allow modifying the dedicated root
 	 * cpuset of the jail but may still allow to
-	 * change child sets.
+	 * change child sets, including subordinate jails'
+	 * roots.
 	 */
-	if (jailed(curthread->td_ucred) &&
-	    set->cs_flags & CPU_SET_ROOT)
+	if ((set->cs_flags & CPU_SET_ROOT) != 0 &&
+	    jailed(curthread->td_ucred) &&
+	    set == curthread->td_ucred->cr_prison->pr_cpuset)
 		return (EPERM);
 	/*
 	 * Verify that we have access to this set of
 	 * cpus.
 	 */
-	root = cpuset_getroot(set);
+	if ((set->cs_flags & (CPU_SET_ROOT | CPU_SET_RDONLY)) == CPU_SET_ROOT) {
+		KASSERT(set->cs_parent != NULL,
+		    ("jail.cpuset=%d is not a proper child of parent jail's root.",
+		    set->cs_id));
+
+		/*
+		 * cpuset_getroot() cannot work here due to how top-level jail
+		 * roots are constructed.  Top-level jails are parented to
+		 * thread0's cpuset (i.e. cpuset 1) rather than the system root.
+		 */
+		root = set->cs_parent;
+	} else {
+		root = cpuset_getroot(set);
+	}
 	mtx_lock_spin(&cpuset_lock);
 	if (root && !CPU_SUBSET(&root->cs_mask, mask)) {
 		error = EINVAL;
@@ -700,7 +741,7 @@ out:
  */
 static int
 cpuset_testupdate_domain(struct cpuset *set, struct domainset *dset,
-    struct domainset *orig, int *count, int check_mask)
+    struct domainset *orig, int *count, int augment_mask __unused)
 {
 	struct cpuset *nset;
 	struct domainset *domain;
@@ -784,14 +825,11 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		return (EPERM);
 	domainset_freelist_init(&domains, 0);
 	domain = domainset_create(domain);
-	ndomains = needed = 0;
-	do {
-		if (ndomains < needed) {
-			domainset_freelist_add(&domains, needed - ndomains);
-			ndomains = needed;
-		}
+	ndomains = 0;
+
+	mtx_lock_spin(&cpuset_lock);
+	for (;;) {
 		root = cpuset_getroot(set);
-		mtx_lock_spin(&cpuset_lock);
 		dset = root->cs_domain;
 		/*
 		 * Verify that we have access to this set of domains.
@@ -816,7 +854,15 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		    &needed, 0);
 		if (error)
 			goto out;
-	} while (ndomains < needed);
+		if (ndomains >= needed)
+			break;
+
+		/* Dropping the lock; we'll need to re-evaluate again. */
+		mtx_unlock_spin(&cpuset_lock);
+		domainset_freelist_add(&domains, needed - ndomains);
+		ndomains = needed;
+		mtx_lock_spin(&cpuset_lock);
+	}
 	dset = set->cs_domain;
 	cpuset_update_domain(set, domain, dset, &domains);
 out:
@@ -973,7 +1019,7 @@ cpuset_shadow(struct cpuset *set, struct cpuset **nsetp,
 	else
 		d = set->cs_domain;
 	nset = LIST_FIRST(cpusets);
-	error = _cpuset_create(nset, parent, mask, d, CPUSET_INVALID);
+	error = cpuset_init(nset, parent, mask, d, CPUSET_INVALID);
 	if (error == 0) {
 		LIST_REMOVE(nset, cs_link);
 		*nsetp = nset;
@@ -1090,18 +1136,67 @@ cpuset_setproc_setthread(struct cpuset *tdset, struct cpuset *set,
 	if (error)
 		return (error);
 
-	return cpuset_shadow(tdset, nsetp, &mask, &domain, freelist,
+	return cpuset_shadow(set, nsetp, &mask, &domain, freelist,
 	    domainlist);
 }
 
+static int
+cpuset_setproc_newbase(struct thread *td, struct cpuset *set,
+    struct cpuset *nroot, struct cpuset **nsetp,
+    struct setlist *cpusets, struct domainlist *domainlist)
+{
+	struct domainset ndomain;
+	cpuset_t nmask;
+	struct cpuset *pbase;
+	int error;
+
+	pbase = cpuset_getbase(td->td_cpuset);
+
+	/* Copy process mask, then further apply the new root mask. */
+	CPU_COPY(&pbase->cs_mask, &nmask);
+	CPU_AND(&nmask, &nroot->cs_mask);
+
+	domainset_copy(pbase->cs_domain, &ndomain);
+	DOMAINSET_AND(&ndomain.ds_mask, &set->cs_domain->ds_mask);
+
+	/* Policy is too restrictive, will not work. */
+	if (CPU_EMPTY(&nmask) || DOMAINSET_EMPTY(&ndomain.ds_mask))
+		return (EDEADLK);
+
+	/*
+	 * Remove pbase from the freelist in advance, it'll be pushed to
+	 * cpuset_ids on success.  We assume here that cpuset_create() will not
+	 * touch pbase on failure, and we just enqueue it back to the freelist
+	 * to remain in a consistent state.
+	 */
+	pbase = LIST_FIRST(cpusets);
+	LIST_REMOVE(pbase, cs_link);
+	error = cpuset_create(&pbase, set, &nmask);
+	if (error != 0) {
+		LIST_INSERT_HEAD(cpusets, pbase, cs_link);
+		return (error);
+	}
+
+	/* Duplicates some work from above... oh well. */
+	pbase->cs_domain = domainset_shadow(set->cs_domain, &ndomain,
+	    domainlist);
+	*nsetp = pbase;
+	return (0);
+}
+
 /*
- * Handle three cases for updating an entire process.
+ * Handle four cases for updating an entire process.
  *
- * 1) Set is non-null.  This reparents all anonymous sets to the provided
- *    set and replaces all non-anonymous td_cpusets with the provided set.
- * 2) Mask is non-null.  This replaces or creates anonymous sets for every
+ * 1) Set is non-null and the process is not rebasing onto a new root.  This
+ *    reparents all anonymous sets to the provided set and replaces all
+ *    non-anonymous td_cpusets with the provided set.
+ * 2) Set is non-null and the process is rebasing onto a new root.  This
+ *    creates a new base set if the process previously had its own base set,
+ *    then reparents all anonymous sets either to that set or the provided set
+ *    if one was not created.  Non-anonymous sets are similarly replaced.
+ * 3) Mask is non-null.  This replaces or creates anonymous sets for every
  *    thread with the existing base as a parent.
- * 3) domain is non-null.  This creates anonymous sets for every thread
+ * 4) domain is non-null.  This creates anonymous sets for every thread
  *    and replaces the domain set.
  *
  * This is overly complicated because we can't allocate while holding a 
@@ -1110,15 +1205,15 @@ cpuset_setproc_setthread(struct cpuset *tdset, struct cpuset *set,
  */
 static int
 cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
-    struct domainset *domain)
+    struct domainset *domain, bool rebase)
 {
 	struct setlist freelist;
 	struct setlist droplist;
 	struct domainlist domainlist;
-	struct cpuset *nset;
+	struct cpuset *base, *nset, *nroot, *tdroot;
 	struct thread *td;
 	struct proc *p;
-	int threads;
+	int needed;
 	int nfree;
 	int error;
 
@@ -1134,21 +1229,57 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 	nfree = 1;
 	LIST_INIT(&droplist);
 	nfree = 0;
+	base = set;
+	nroot = NULL;
+	if (set != NULL)
+		nroot = cpuset_getroot(set);
 	for (;;) {
 		error = cpuset_which(CPU_WHICH_PID, pid, &p, &td, &nset);
 		if (error)
 			goto out;
-		if (nfree >= p->p_numthreads)
+		tdroot = cpuset_getroot(td->td_cpuset);
+		needed = p->p_numthreads;
+		if (set != NULL && rebase && tdroot != nroot)
+			needed++;
+		if (nfree >= needed)
 			break;
-		threads = p->p_numthreads;
 		PROC_UNLOCK(p);
-		if (nfree < threads) {
-			cpuset_freelist_add(&freelist, threads - nfree);
-			domainset_freelist_add(&domainlist, threads - nfree);
-			nfree = threads;
+		if (nfree < needed) {
+			cpuset_freelist_add(&freelist, needed - nfree);
+			domainset_freelist_add(&domainlist, needed - nfree);
+			nfree = needed;
 		}
 	}
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	/*
+	 * If we're changing roots and the root set is what has been specified
+	 * as the parent, then we'll check if the process was previously using
+	 * the root set and, if it wasn't, create a new base with the process's
+	 * mask applied to it.
+	 *
+	 * If the new root is incompatible with the existing mask, then we allow
+	 * the process to take on the new root if and only if they have
+	 * privilege to widen their mask anyways.  Unprivileged processes get
+	 * rejected with EDEADLK.
+	 */
+	if (set != NULL && rebase && nroot != tdroot) {
+		cpusetid_t base_id, root_id;
+
+		root_id = td->td_ucred->cr_prison->pr_cpuset->cs_id;
+		base_id = cpuset_getbase(td->td_cpuset)->cs_id;
+
+		if (base_id != root_id) {
+			error = cpuset_setproc_newbase(td, set, nroot, &base,
+			    &freelist, &domainlist);
+			if (error == EDEADLK &&
+			    priv_check(td, PRIV_SCHED_CPUSET) == 0)
+				error = 0;
+			if (error != 0)
+				goto unlock_out;
+		}
+	}
+
 	/*
 	 * Now that the appropriate locks are held and we have enough cpusets,
 	 * make sure the operation will succeed before applying changes. The
@@ -1159,7 +1290,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 		thread_lock(td);
 		if (set != NULL)
 			error = cpuset_setproc_test_setthread(td->td_cpuset,
-			    set);
+			    base);
 		else
 			error = cpuset_setproc_test_maskthread(td->td_cpuset,
 			    mask, domain);
@@ -1175,7 +1306,7 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
 		if (set != NULL)
-			error = cpuset_setproc_setthread(td->td_cpuset, set,
+			error = cpuset_setproc_setthread(td->td_cpuset, base,
 			    &nset, &freelist, &domainlist);
 		else
 			error = cpuset_setproc_maskthread(td->td_cpuset, mask,
@@ -1190,6 +1321,8 @@ cpuset_setproc(pid_t pid, struct cpuset *set, cpuset_t *mask,
 unlock_out:
 	PROC_UNLOCK(p);
 out:
+	if (base != NULL && base != set)
+		cpuset_rel(base);
 	while ((nset = LIST_FIRST(&droplist)) != NULL)
 		cpuset_rel_complete(nset);
 	cpuset_freelist_free(&freelist);
@@ -1401,6 +1534,18 @@ domainset_init(void)
 	struct domainset *dset;
 	int i;
 
+	dset = &domainset_firsttouch;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
+	dset = &domainset_interleave;
+	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
+	dset->ds_policy = DOMAINSET_POLICY_INTERLEAVE;
+	dset->ds_prefer = -1;
+	_domainset_create(dset, NULL);
+
 	dset = &domainset_roundrobin;
 	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
 	dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
@@ -1423,7 +1568,7 @@ domainset_init(void)
 }
 
 /*
- * Create the domainset for cpuset 0, 1 and cpuset 2.
+ * Define the domainsets for cpuset 0, 1 and cpuset 2.
  */
 void
 domainset_zero(void)
@@ -1432,15 +1577,11 @@ domainset_zero(void)
 
 	mtx_init(&cpuset_lock, "cpuset", NULL, MTX_SPIN | MTX_RECURSE);
 
-	dset = &domainset0;
-	DOMAINSET_COPY(&all_domains, &dset->ds_mask);
-	dset->ds_policy = DOMAINSET_POLICY_FIRSTTOUCH;
-	dset->ds_prefer = -1;
-	curthread->td_domain.dr_policy = _domainset_create(dset, NULL);
+	domainset0 = &domainset_firsttouch;
+	curthread->td_domain.dr_policy = domainset0;
 
-	domainset_copy(dset, &domainset2);
-	domainset2.ds_policy = DOMAINSET_POLICY_INTERLEAVE;
-	kernel_object->domain.dr_policy = _domainset_create(&domainset2, NULL);
+	domainset2 = &domainset_interleave;
+	kernel_object->domain.dr_policy = domainset2;
 
 	/* Remove empty domains from the global policies. */
 	LIST_FOREACH_SAFE(dset, &cpuset_domains, ds_link, tmp)
@@ -1453,9 +1594,7 @@ domainset_zero(void)
  * sets:
  * 
  * 0 - The root set which should represent all valid processors in the
- *     system.  It is initially created with a mask of all processors
- *     because we don't know what processors are valid until cpuset_init()
- *     runs.  This set is immutable.
+ *     system.  This set is immutable.
  * 1 - The default set which all processes are a member of until changed.
  *     This allows an administrator to move all threads off of given cpus to
  *     dedicate them to high priority tasks or save power etc.
@@ -1482,9 +1621,9 @@ cpuset_thread0(void)
 	CPU_COPY(&all_cpus, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
-	set->cs_ref = 1;
+	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = CPU_SET_ROOT | CPU_SET_RDONLY;
-	set->cs_domain = &domainset0;
+	set->cs_domain = domainset0;
 	cpuset_zero = set;
 	cpuset_root = &set->cs_mask;
 
@@ -1492,16 +1631,16 @@ cpuset_thread0(void)
 	 * Now derive a default (1), modifiable set from that to give out.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 1);
+	error = cpuset_init(set, cpuset_zero, NULL, NULL, 1);
 	KASSERT(error == 0, ("Error creating default set: %d\n", error));
 	cpuset_default = set;
 	/*
 	 * Create the kernel set (2).
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 2);
+	error = cpuset_init(set, cpuset_zero, NULL, NULL, 2);
 	KASSERT(error == 0, ("Error creating kernel set: %d\n", error));
-	set->cs_domain = &domainset2;
+	set->cs_domain = domainset2;
 	cpuset_kernel = set;
 
 	/*
@@ -1552,16 +1691,17 @@ cpuset_create_root(struct prison *pr, struct cpuset **setp)
 	KASSERT(pr != NULL, ("[%s:%d] invalid pr", __func__, __LINE__));
 	KASSERT(setp != NULL, ("[%s:%d] invalid setp", __func__, __LINE__));
 
-	error = cpuset_create(setp, pr->pr_cpuset, &pr->pr_cpuset->cs_mask);
+	set = NULL;
+	error = cpuset_create(&set, pr->pr_cpuset, &pr->pr_cpuset->cs_mask);
 	if (error)
 		return (error);
 
-	KASSERT(*setp != NULL, ("[%s:%d] cpuset_create returned invalid data",
+	KASSERT(set != NULL, ("[%s:%d] cpuset_create returned invalid data",
 	    __func__, __LINE__));
 
 	/* Mark the set as root. */
-	set = *setp;
 	set->cs_flags |= CPU_SET_ROOT;
+	*setp = set;
 
 	return (0);
 }
@@ -1575,7 +1715,7 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 	KASSERT(set != NULL, ("[%s:%d] invalid set", __func__, __LINE__));
 
 	cpuset_ref(set);
-	error = cpuset_setproc(p->p_pid, set, NULL, NULL);
+	error = cpuset_setproc(p->p_pid, set, NULL, NULL, true);
 	if (error)
 		return (error);
 	cpuset_rel(set);
@@ -1618,13 +1758,14 @@ sys_cpuset(struct thread *td, struct cpuset_args *uap)
 	thread_lock(td);
 	root = cpuset_refroot(td->td_cpuset);
 	thread_unlock(td);
+	set = NULL;
 	error = cpuset_create(&set, root, &root->cs_mask);
 	cpuset_rel(root);
 	if (error)
 		return (error);
 	error = copyout(&set->cs_id, uap->setid, sizeof(set->cs_id));
 	if (error == 0)
-		error = cpuset_setproc(-1, set, NULL, NULL);
+		error = cpuset_setproc(-1, set, NULL, NULL, false);
 	cpuset_rel(set);
 	return (error);
 }
@@ -1658,7 +1799,7 @@ kern_cpuset_setid(struct thread *td, cpuwhich_t which,
 	set = cpuset_lookup(setid, td);
 	if (set == NULL)
 		return (ESRCH);
-	error = cpuset_setproc(id, set, NULL, NULL);
+	error = cpuset_setproc(id, set, NULL, NULL, false);
 	cpuset_rel(set);
 	return (error);
 }
@@ -1894,6 +2035,10 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				goto out;
 			}
 	}
+	if (CPU_EMPTY(mask)) {
+		error = EDEADLK;
+		goto out;
+	}
 	switch (level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:
@@ -1932,7 +2077,7 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			error = cpuset_setthread(id, mask);
 			break;
 		case CPU_WHICH_PID:
-			error = cpuset_setproc(id, NULL, mask, NULL);
+			error = cpuset_setproc(id, NULL, mask, NULL, false);
 			break;
 		case CPU_WHICH_CPUSET:
 		case CPU_WHICH_JAIL:
@@ -2148,6 +2293,10 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				goto out;
 			}
 	}
+	if (DOMAINSET_EMPTY(mask)) {
+		error = EDEADLK;
+		goto out;
+	}
 	DOMAINSET_COPY(mask, &domain.ds_mask);
 	domain.ds_policy = policy;
 
@@ -2176,7 +2325,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	 * across all domains.
 	 */
 	if (domainset_empty_vm(&domain))
-		domainset_copy(&domainset2, &domain);
+		domainset_copy(domainset2, &domain);
 
 	switch (level) {
 	case CPU_LEVEL_ROOT:
@@ -2216,7 +2365,7 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			error = _cpuset_setthread(id, NULL, &domain);
 			break;
 		case CPU_WHICH_PID:
-			error = cpuset_setproc(id, NULL, NULL, &domain);
+			error = cpuset_setproc(id, NULL, NULL, &domain, false);
 			break;
 		case CPU_WHICH_CPUSET:
 		case CPU_WHICH_JAIL:
@@ -2281,7 +2430,7 @@ DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 
 	LIST_FOREACH(set, &cpuset_ids, cs_link) {
 		db_printf("set=%p id=%-6u ref=%-6d flags=0x%04x parent id=%d\n",
-		    set, set->cs_id, set->cs_ref, set->cs_flags,
+		    set, set->cs_id, refcount_load(&set->cs_ref), set->cs_flags,
 		    (set->cs_parent != NULL) ? set->cs_parent->cs_id : 0);
 		db_printf("  cpu mask=");
 		ddb_display_cpuset(&set->cs_mask);

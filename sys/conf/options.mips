@@ -66,10 +66,6 @@ CFE_CONSOLE	opt_global.h
 CFE_ENV		opt_global.h
 CFE_ENV_SIZE	opt_global.h
 
-GFB_DEBUG		opt_gfb.h
-GFB_NO_FONT_LOADING	opt_gfb.h
-GFB_NO_MODE_CHANGE	opt_gfb.h
-
 NOFPU		opt_global.h
 
 TICK_USE_YAMON_FREQ	opt_global.h

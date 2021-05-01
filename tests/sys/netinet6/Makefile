@@ -14,7 +14,8 @@ ATF_TESTS_SH=			\
 				forward6 \
 				output6 \
 				lpm6 \
-				fibs6
+				fibs6 \
+				ndp
 TEST_METADATA.output6+=	required_programs="python"
 
 ${PACKAGE}FILES+=		exthdr.py

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -164,12 +165,12 @@ passthru(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(argv[optind], &fd, 1, 1);
+	open_dev(opt.dev, &fd, 1, 1);
 
 	if (opt.read && opt.write)
-		errx(1, "need exactly one of --read or --write");
+		errx(EX_USAGE, "need exactly one of --read or --write");
 	if (opt.data_len != 0 && !opt.read && !opt.write)
-		errx(1, "need exactly one of --read or --write");
+		errx(EX_USAGE, "need exactly one of --read or --write");
 	if (*opt.ifn && (ifd = open(opt.ifn, O_RDONLY)) == -1) {
 		warn("open %s", opt.ifn);
 		goto cleanup;
@@ -183,7 +184,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 	}
 #else
 	if (opt.metadata_len != 0)
-		errx(1, "metadata not supported on FreeBSD");
+		errx(EX_UNAVAILABLE, "metadata not supported on FreeBSD");
 #endif
 	if (opt.data_len) {
 		if (posix_memalign(&data, getpagesize(), opt.data_len)) {
@@ -244,7 +245,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 
 	errno = 0;
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "passthrough request failed");
+		err(EX_IOERR, "passthrough request failed");
 	/* XXX report status */
 	if (opt.read) {
 		if (opt.binary)
@@ -260,7 +261,7 @@ cleanup:
 	if (ifd > -1)
 		close(ifd);
 	if (errno)
-		exit(1);
+		exit(EX_IOERR);
 }
 
 static void

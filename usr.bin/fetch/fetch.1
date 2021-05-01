@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2018
+.Dd October 29, 2020
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -384,6 +384,52 @@ If the
 argument is used and the remote file is not newer than the
 specified file then the command will still return success,
 although no file is transferred.
+.Sh EXAMPLES
+Silently try to fetch the URLs passed as parameters.
+The first one will fail.
+If the second URL succeeds the third one will not be tried:
+.Bd -literal -offset indent
+$ fetch -1 -q https://www.freebsd.org/bad.html \e
+	ftp.freebsd.org/pub/FreeBSD/README.TXT \e
+	https://www.fake.url
+fetch: https://www.freebsd.org/bad.html: Not Found
+.Ed
+.Pp
+Be verbose when retrieving the
+.Pa README.TXT
+file:
+.Bd -literal -offset indent
+$ fetch -v ftp.freebsd.org/pub/FreeBSD/README.TXT
+resolving server address: ftp.freebsd.org:80
+requesting http://ftp.freebsd.org/pub/FreeBSD/README.TXT
+local size / mtime: 4259 / 1431015519
+remote size / mtime: 4259 / 1431015519
+README.TXT                                            4259  B   44 MBps    00s
+.Ed
+.Pp
+Quietly save the
+.Pa README.TXT
+file as
+.Pa myreadme.txt
+and do not delete the output file under any circumstances:
+.Bd -literal -offset indent
+fetch -o myreadme.txt -q -R ftp.freebsd.org/pub/FreeBSD/README.TXT
+.Ed
+.Pp
+Print the size of the requested file and identify the request with a custom user
+agent string:
+.Bd -literal -offset indent
+$ fetch -s ftp.freebsd.org/pub/FreeBSD/README.TXT
+--user-agent="Mozilla/5.0 (X11; FreeBSD x86_64; rv:78.0) Gecko/20100101"
+3513231
+.Ed
+.Pp
+Restart the transfer of the
+.Pa README.TXT
+file and retry the transfer upon soft failures:
+.Bd -literal -offset indent
+$ fetch -a -r http://ftp.freebsd.org/pub/FreeBSD/README.TXT
+.Ed
 .Sh SEE ALSO
 .Xr fetch 3 ,
 .Xr phttpget 8

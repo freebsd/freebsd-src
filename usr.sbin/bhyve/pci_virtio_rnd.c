@@ -113,8 +113,8 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 {
 	struct iovec iov;
 	struct pci_vtrnd_softc *sc;
+	struct vi_req req;
 	int len;
-	uint16_t idx;
 
 	sc = vsc;
 
@@ -124,7 +124,7 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 	}
 
 	while (vq_has_descs(vq)) {
-		vq_getchain(vq, &idx, &iov, 1, NULL);
+		vq_getchain(vq, &iov, 1, &req);
 
 		len = read(sc->vrsc_fd, iov.iov_base, iov.iov_len);
 
@@ -136,14 +136,14 @@ pci_vtrnd_notify(void *vsc, struct vqueue_info *vq)
 		/*
 		 * Release this chain and handle more
 		 */
-		vq_relchain(vq, idx, len);
+		vq_relchain(vq, req.idx, len);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
 }
 
 
 static int
-pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
 	struct pci_vtrnd_softc *sc;
 	int fd;
@@ -190,7 +190,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_RANDOM);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_CRYPTO);
-	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_ENTROPY);
+	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_ID_ENTROPY);
 	pci_set_cfgdata16(pi, PCIR_SUBVEND_0, VIRTIO_VENDOR);
 
 	if (vi_intr_init(&sc->vrsc_vs, 1, fbsdrun_virtio_msix()))
@@ -205,6 +205,9 @@ struct pci_devemu pci_de_vrnd = {
 	.pe_emu =	"virtio-rnd",
 	.pe_init =	pci_vtrnd_init,
 	.pe_barwrite =	vi_pci_write,
-	.pe_barread =	vi_pci_read
+	.pe_barread =	vi_pci_read,
+#ifdef BHYVE_SNAPSHOT
+	.pe_snapshot =	vi_pci_snapshot,
+#endif
 };
 PCI_EMUL_SET(pci_de_vrnd);

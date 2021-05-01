@@ -1,4 +1,4 @@
-/*	$NetBSD: terminal.c,v 1.39 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: terminal.c,v 1.43 2020/07/10 20:34:24 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #else
-__RCSID("$NetBSD: terminal.c,v 1.39 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: terminal.c,v 1.43 2020/07/10 20:34:24 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -497,7 +497,7 @@ terminal_move_to_line(EditLine *el, int where)
 	if (where == el->el_cursor.v)
 		return;
 
-	if (where > el->el_terminal.t_size.v) {
+	if (where >= el->el_terminal.t_size.v) {
 #ifdef DEBUG_SCREEN
 		(void) fprintf(el->el_errfile,
 		    "%s: where is ridiculous: %d\r\n", __func__, where);
@@ -647,7 +647,8 @@ terminal_overwrite(EditLine *el, const wchar_t *cp, size_t n)
 	if (el->el_cursor.h >= el->el_terminal.t_size.h) {	/* wrap? */
 		if (EL_HAS_AUTO_MARGINS) {	/* yes */
 			el->el_cursor.h = 0;
-			el->el_cursor.v++;
+			if (el->el_cursor.v + 1 < el->el_terminal.t_size.v)
+				el->el_cursor.v++;
 			if (EL_HAS_MAGIC_MARGINS) {
 				/* force the wrap to avoid the "magic"
 				 * situation */
@@ -1314,14 +1315,14 @@ terminal_settc(EditLine *el, int argc __attribute__((__unused__)),
 	const struct termcapstr *ts;
 	const struct termcapval *tv;
 	char what[8], how[8];
+	long i;
+	char *ep;
 
 	if (argv == NULL || argv[1] == NULL || argv[2] == NULL)
 		return -1;
 
-	strncpy(what, ct_encode_string(argv[1], &el->el_scratch), sizeof(what));
-	what[sizeof(what) - 1] = '\0';
-	strncpy(how,  ct_encode_string(argv[2], &el->el_scratch), sizeof(how));
-	how[sizeof(how) - 1] = '\0';
+	strlcpy(what, ct_encode_string(argv[1], &el->el_scratch), sizeof(what));
+	strlcpy(how,  ct_encode_string(argv[2], &el->el_scratch), sizeof(how));
 
 	/*
          * Do the strings first
@@ -1342,11 +1343,17 @@ terminal_settc(EditLine *el, int argc __attribute__((__unused__)),
 		if (strcmp(tv->name, what) == 0)
 			break;
 
-	if (tv->name != NULL)
+	if (tv->name == NULL) {
+		(void) fprintf(el->el_errfile,
+		    "%ls: Bad capability `%s'.\n", argv[0], what);
 		return -1;
+	}
 
 	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
 	    tv == &tval[T_am] || tv == &tval[T_xn]) {
+		/*
+		 * Booleans
+		 */
 		if (strcmp(how, "yes") == 0)
 			el->el_terminal.t_val[tv - tval] = 1;
 		else if (strcmp(how, "no") == 0)
@@ -1357,28 +1364,30 @@ terminal_settc(EditLine *el, int argc __attribute__((__unused__)),
 			return -1;
 		}
 		terminal_setflags(el);
-		if (terminal_change_size(el, Val(T_li), Val(T_co)) == -1)
-			return -1;
-		return 0;
-	} else {
-		long i;
-		char *ep;
-
-		i = strtol(how, &ep, 10);
-		if (*ep != '\0') {
-			(void) fprintf(el->el_errfile,
-			    "%ls: Bad value `%s'.\n", argv[0], how);
-			return -1;
-		}
-		el->el_terminal.t_val[tv - tval] = (int) i;
-		el->el_terminal.t_size.v = Val(T_co);
-		el->el_terminal.t_size.h = Val(T_li);
-		if (tv == &tval[T_co] || tv == &tval[T_li])
-			if (terminal_change_size(el, Val(T_li), Val(T_co))
-			    == -1)
-				return -1;
 		return 0;
 	}
+
+	/*
+	 * Numerics
+	 */
+	i = strtol(how, &ep, 10);
+	if (*ep != '\0') {
+		(void) fprintf(el->el_errfile,
+		    "%ls: Bad value `%s'.\n", argv[0], how);
+		return -1;
+	}
+	el->el_terminal.t_val[tv - tval] = (int) i;
+	i = 0;
+	if (tv == &tval[T_co]) {
+		el->el_terminal.t_size.v = Val(T_co);
+		i++;
+	} else if (tv == &tval[T_li]) {
+		el->el_terminal.t_size.h = Val(T_li);
+		i++;
+	}
+	if (i && terminal_change_size(el, Val(T_li), Val(T_co)) == -1)
+		return -1;
+	return 0;
 }
 
 

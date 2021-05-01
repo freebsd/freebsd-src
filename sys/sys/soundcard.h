@@ -484,7 +484,7 @@ struct sysex_info {
  * This structure is also used with ioctl(SNDCTL_PGMR_IFACE) which allows
  * a patch manager daemon to read and write device parameters. This
  * ioctl available through /dev/sequencer also. Avoid using it since it's
- * extremely hardware dependent. In addition access trough /dev/sequencer
+ * extremely hardware dependent. In addition access through /dev/sequencer
  * may confuse the patch manager daemon.
  */
 

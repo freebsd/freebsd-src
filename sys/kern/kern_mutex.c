@@ -535,12 +535,6 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	if (SCHEDULER_STOPPED_TD(td))
 		return;
 
-#if defined(ADAPTIVE_MUTEXES)
-	lock_delay_arg_init(&lda, &mtx_delay);
-#elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init_noadapt(&lda);
-#endif
-
 	if (__predict_false(v == MTX_UNOWNED))
 		v = MTX_READ_VALUE(m);
 
@@ -560,6 +554,12 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	}
 #if LOCK_DEBUG > 0
 	opts &= ~MTX_RECURSE;
+#endif
+
+#if defined(ADAPTIVE_MUTEXES)
+	lock_delay_arg_init(&lda, &mtx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init_noadapt(&lda);
 #endif
 
 #ifdef HWPMC_HOOKS
@@ -746,12 +746,12 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 	if (SCHEDULER_STOPPED())
 		return;
 
-	lock_delay_arg_init(&lda, &mtx_spin_delay);
-
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname((struct thread *)tid),
 	    "spinning", "lockname:\"%s\"", m->lock_object.lo_name);
+
+	lock_delay_arg_init(&lda, &mtx_spin_delay);
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);

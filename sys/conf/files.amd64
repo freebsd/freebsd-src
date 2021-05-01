@@ -121,7 +121,6 @@ amd64/amd64/minidump_machdep.c	standard
 amd64/amd64/mp_machdep.c	optional	smp
 amd64/amd64/mpboot.S		optional	smp
 amd64/amd64/pmap.c		standard
-amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/ptrace_machdep.c	standard
 amd64/amd64/sigtramp.S		standard
 amd64/amd64/support.S		standard
@@ -137,6 +136,11 @@ cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/des/des_enc.c		optional	netsmb
+crypto/openssl/amd64/chacha-x86_64.S	optional ossl
+crypto/openssl/amd64/poly1305-x86_64.S	optional ossl
+crypto/openssl/amd64/sha1-x86_64.S	optional ossl
+crypto/openssl/amd64/sha256-x86_64.S	optional ossl
+crypto/openssl/amd64/sha512-x86_64.S	optional ossl
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
@@ -186,9 +190,11 @@ dev/ice/ice_sriov.c		optional	ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_switch.c		optional	ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
+dev/ice/ice_vlan_mode.c		optional	ice pci \
+	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional ice_ddp	\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031000 -mice_ddp -c${.TARGET}"	\
-	no-implicit-rule before-depend local		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031300 -mice_ddp -c${.TARGET}"	\
+	no-ctfconvert no-implicit-rule before-depend local	\
 	clean		"ice_ddp.c"
 ice_ddp.fwo			optional ice_ddp	\
 	dependency	"ice_ddp.fw"			\
@@ -196,8 +202,8 @@ ice_ddp.fwo			optional ice_ddp	\
 	no-implicit-rule				\
 	clean		"ice_ddp.fwo"
 ice_ddp.fw			optional ice_ddp	\
-	dependency	"$S/contrib/dev/ice/ice-1.3.16.0.pkg" \
-	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.16.0.pkg ice_ddp.fw" \
+	dependency	"$S/contrib/dev/ice/ice-1.3.19.0.pkg" \
+	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.19.0.pkg ice_ddp.fw" \
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
 dev/ioat/ioat.c			optional	ioat pci
@@ -378,18 +384,6 @@ dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
-dev/vmware/vmxnet3/if_vmx.c	optional	vmx
-dev/vmware/vmci/vmci.c			optional	vmci
-dev/vmware/vmci/vmci_datagram.c		optional	vmci
-dev/vmware/vmci/vmci_doorbell.c		optional	vmci
-dev/vmware/vmci/vmci_driver.c		optional	vmci
-dev/vmware/vmci/vmci_event.c		optional	vmci
-dev/vmware/vmci/vmci_hashtable.c	optional	vmci
-dev/vmware/vmci/vmci_kernel_if.c	optional	vmci
-dev/vmware/vmci/vmci_qpair.c		optional	vmci
-dev/vmware/vmci/vmci_queue_pair.c	optional	vmci
-dev/vmware/vmci/vmci_resource.c		optional	vmci
-dev/vmware/pvscsi/pvscsi.c		optional	pvscsi
 dev/vmd/vmd.c			optional	vmd
 dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
@@ -397,7 +391,6 @@ dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
 dev/xen/pci/xen_pci.c		optional	xenhvm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/link_elf_obj.c		standard
 #
@@ -415,12 +408,13 @@ compat/linsysfs/linsysfs.c	optional	linsysfs
 #
 # Linux/i386 binary support
 #
-amd64/linux32/linux32_dummy.c	optional	compat_linux32
+amd64/linux32/linux32_dummy_machdep.c	optional	compat_linux32
 amd64/linux32/linux32_machdep.c	optional	compat_linux32
 amd64/linux32/linux32_support.s	optional	compat_linux32		\
 	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_sysent.c	optional	compat_linux32
 amd64/linux32/linux32_sysvec.c	optional	compat_linux32
+compat/linux/linux_dummy.c	optional	compat_linux32
 compat/linux/linux_emul.c	optional	compat_linux32
 compat/linux/linux_errno.c	optional	compat_linux32
 compat/linux/linux_file.c	optional	compat_linux32
@@ -444,19 +438,14 @@ compat/linux/linux_vdso.c	optional	compat_linux32
 compat/linux/linux_common.c	optional	compat_linux32
 compat/linux/linux_event.c	optional	compat_linux32
 compat/linux/linux.c		optional	compat_linux32
+x86/linux/linux_dummy_x86.c	optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
 dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
-compat/ndis/winx64_wrap.S	optional	ndisapi pci
 #
 # x86 real mode BIOS emulator, required by dpms/pci/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
 contrib/x86emu/x86emu.c		optional x86bios | dpms | pci | vesa
-#
-# bvm console
-#
-dev/bvm/bvm_console.c		optional	bvmconsole
-dev/bvm/bvm_dbg.c		optional	bvmdebug
 # Common files where we currently configure the system differently, but perhaps shouldn't
 # config(8) doesn't have a way to force standard options, so we've been inconsistent
 # about marking non-optional things 'standard'.
@@ -474,6 +463,9 @@ x86/x86/msi.c			optional	pci
 x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
 x86/xen/xen_pci_bus.c		optional	xenhvm
+
+compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 
 contrib/openzfs/module/zcommon/zfs_fletcher_avx512.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_fletcher_intel.c		optional zfs compile-with "${ZFS_C}"

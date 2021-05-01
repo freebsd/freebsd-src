@@ -450,11 +450,6 @@ intpr(int clientOnly, int serverOnly)
 		xo_close_container("operations");
 
 		xo_open_container("server");
-		xo_emit("{T:Server Re-Failed}\n");
-		xo_emit("{:retfailed/%16ju}\n", (uintmax_t)ext_nfsstats.srvrpc_errs);
-
-		xo_emit("{T:Server Faults}\n");
-		xo_emit("{:faults/%13ju}\n", (uintmax_t)ext_nfsstats.srv_errs);
 
 		xo_emit("{T:Server Write Gathering:/%13.13s}\n");
 
@@ -473,12 +468,10 @@ intpr(int clientOnly, int serverOnly)
 
 		xo_open_container("cache");
 		xo_emit("{T:Server Cache Stats:/%13.13s}\n");
-		xo_emit("{T:Inprog/%13.13s}{T:Idem/%13.13s}"
+		xo_emit("{T:Inprog/%13.13s}"
 		    "{T:Non-Idem/%13.13s}{T:Misses/%13.13s}\n");
-		xo_emit("{:inprog/%13ju}{:idem/%13ju}"
-		    "{:nonidem/%13ju}{:misses/%13ju}\n",
+		xo_emit("{:inprog/%13ju}{:nonidem/%13ju}{:misses/%13ju}\n",
 			(uintmax_t)ext_nfsstats.srvcache_inproghits,
-			(uintmax_t)ext_nfsstats.srvcache_idemdonehits,
 			(uintmax_t)ext_nfsstats.srvcache_nonidemdonehits,
 			(uintmax_t)ext_nfsstats.srvcache_misses);
 		xo_close_container("cache");
@@ -1057,17 +1050,12 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 		if (printtitle)
 			xo_emit("{T:Server:}\n");
 		xo_open_container("server");
-		xo_emit("{T:Retfailed/%13.13s}{T:Faults/%13.13s}"
-		    "{T:Clients/%13.13s}\n");
-		xo_emit("{:retfailed/%13ju}{:faults/%13ju}{:clients/%13ju}\n",
-		    (uintmax_t)ext_nfsstats.srv_errs,
-		    (uintmax_t)ext_nfsstats.srvrpc_errs,
-		    (uintmax_t)ext_nfsstats.srvclients);
-		xo_emit("{T:OpenOwner/%13.13s}{T:Opens/%13.13s}"
-		    "{T:LockOwner/%13.13s}{T:Locks/%13.13s}"
+		xo_emit("{T:Clients/%13.13s}{T:OpenOwner/%13.13s}"
+		    "{T:Opens/%13.13s}{T:LockOwner/%13.13s}{T:Locks/%13.13s}"
 		    "{T:Delegs/%13.13s}\n");
-		xo_emit("{:openowner/%13ju}{:opens/%13ju}{:lockowner/%13ju}"
-		  "{:locks/%13ju}{:delegs/%13ju}\n",
+		xo_emit("{:clients/%13ju}{:openowner/%13ju}{:opens/%13ju}"
+		    "{:lockowner/%13ju}{:locks/%13ju}{:delegs/%13ju}\n",
+		    (uintmax_t)ext_nfsstats.srvclients,
 		    (uintmax_t)ext_nfsstats.srvopenowners,
 		    (uintmax_t)ext_nfsstats.srvopens,
 		    (uintmax_t)ext_nfsstats.srvlockowners,
@@ -1078,13 +1066,12 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 		if (printtitle)
 			xo_emit("{T:Server Cache Stats:}\n");
 		xo_open_container("cache");
-		xo_emit("{T:Inprog/%13.13s}{T:Idem/%13.13s}"
+		xo_emit("{T:Inprog/%13.13s}"
 		    "{T:Non-idem/%13.13s}{T:Misses/%13.13s}"
 		    "{T:CacheSize/%13.13s}{T:TCPPeak/%13.13s}\n");
-		xo_emit("{:inprog/%13ju}{:idem/%13ju}{:nonidem/%13ju}"
+		xo_emit("{:inprog/%13ju}{:nonidem/%13ju}"
 		    "{:misses/%13ju}{:cachesize/%13ju}{:tcppeak/%13ju}\n",
 		    (uintmax_t)ext_nfsstats.srvcache_inproghits,
-		    (uintmax_t)ext_nfsstats.srvcache_idemdonehits,
 		    (uintmax_t)ext_nfsstats.srvcache_nonidemdonehits,
 		    (uintmax_t)ext_nfsstats.srvcache_misses,
 		    (uintmax_t)ext_nfsstats.srvcache_size,

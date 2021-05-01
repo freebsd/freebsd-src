@@ -141,7 +141,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		goto out;
 	}
-	ecn_bits = ((ntohl(ip6->ip6_flow) >> 20) & 0x000000ff);
+	ecn_bits = IPV6_TRAFFIC_CLASS(ip6);
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
 		SCTP_STAT_INCR(sctps_recvhwcrc);
 		compute_crc = 0;

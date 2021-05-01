@@ -42,6 +42,10 @@
 #ifndef	_CTL_IO_H_
 #define	_CTL_IO_H_
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 #define	CTL_MAX_CDBLEN	32
 /*
  * Uncomment this next line to enable printing out times for I/Os
@@ -242,7 +246,7 @@ struct ctl_io_hdr {
 	union ctl_priv	  ctl_private[CTL_NUM_PRIV];/* CTL private area */
 	TAILQ_HEAD(, ctl_io_hdr) blocked_queue;	/* I/Os blocked by this one */
 	STAILQ_ENTRY(ctl_io_hdr) links;	/* linked list pointer */
-	TAILQ_ENTRY(ctl_io_hdr) ooa_links;	/* ooa_queue links */
+	LIST_ENTRY(ctl_io_hdr) ooa_links;	/* ooa_queue links */
 	TAILQ_ENTRY(ctl_io_hdr) blocked_links;	/* blocked_queue links */
 };
 
@@ -322,13 +326,14 @@ struct ctl_scsiio {
 	struct     scsi_sense_data sense_data;	/* sense data */
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
-	uint8_t	   sense_residual;	/* Unused. */
+	uint8_t	   seridx;		/* Serialization index. */
+	uint8_t	   priority;		/* Command priority */
 	uint32_t   residual;		/* Unused */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
 	uint8_t    cdb_len;		/* CDB length */
 	uint8_t	   cdb[CTL_MAX_CDBLEN];	/* CDB */
-	int	   (*be_move_done)(union ctl_io *io); /* called by fe */
+	int	   (*be_move_done)(union ctl_io *io, bool samethr); /* called by fe */
 	int        (*io_cont)(union ctl_io *io); /* to continue processing */
 	ctl_ref	    kern_data_ref;	/* Method to reference/release data */
 	void	   *kern_data_arg;	/* Opaque argument for kern_data_ref() */
@@ -484,6 +489,7 @@ struct ctl_ha_msg_scsi {
 	uint8_t			cdb_len;	/* CDB length */
 	uint8_t			scsi_status; /* SCSI status byte */
 	uint8_t			sense_len;   /* Returned sense length */
+	uint8_t			priority;    /* Command priority */
 	uint32_t		port_status; /* trans status, set by FETD,
 						0 = good*/
 	uint32_t		kern_data_resid; /* for DATAMOVE_DONE */

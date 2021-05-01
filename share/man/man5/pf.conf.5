@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 7, 2019
+.Dd April 19, 2021
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -618,6 +618,13 @@ Generate debug messages for various errors.
 .It Ar loud
 Generate debug messages for common conditions.
 .El
+.It Ar set keepcounters
+Preserve rule counters across rule updates.
+Usually rule counters are reset to zero on every update of the ruleset.
+With
+.Ar keepcounters
+set pf will attempt to find matching rules between old and new rulesets
+and preserve the rule counters.
 .El
 .Sh TRAFFIC NORMALIZATION
 Traffic normalization is used to sanitize packet content in such
@@ -681,6 +688,7 @@ given as one of
 .Ar reliability ,
 or one of the DiffServ Code Points:
 .Ar ef ,
+.Ar va ,
 .Ar af11 No ... Ar af43 ,
 .Ar cs0 No ... Ar cs7 ;
 or as either hex or decimal.
@@ -1737,6 +1745,7 @@ given as one of
 .Ar reliability ,
 or one of the DiffServ Code Points:
 .Ar ef ,
+.Ar va ,
 .Ar af11 No ... Ar af43 ,
 .Ar cs0 No ... Ar cs7 ;
 or as either hex or decimal.
@@ -1996,6 +2005,27 @@ rules, the
 option prevents
 .Xr pf 4
 from modifying the source port on TCP and UDP packets.
+.It Xo Ar map-e-portset Aq Ar psid-offset
+.No / Aq Ar psid-len
+.No / Aq Ar psid
+.Xc
+With
+.Ar nat
+rules, the
+.Ar map-e-portset
+option enables the source port translation of MAP-E (RFC 7597) Customer Edge.
+In order to make the host act as a MAP-E Customer Edge, setting up a tunneling
+interface and pass rules for encapsulated packets are required in addition
+to the map-e-portset nat rule.
+.Pp
+For example:
+.Bd -literal -offset indent
+nat on $gif_mape_if from $int_if:network to any \e
+      -> $ipv4_mape_src map-e-portset 6/8/0x34
+.Ed
+.Pp
+sets PSID offset 6, PSID length 8, PSID 0x34.
+.Ed
 .El
 .Pp
 Additionally, the
@@ -2865,7 +2895,8 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
                  [ "require-order" ( "yes" | "no" ) ]
                  [ "fingerprints" filename ] |
                  [ "skip on" ifspec ] |
-                 [ "debug" ( "none" | "urgent" | "misc" | "loud" ) ] )
+                 [ "debug" ( "none" | "urgent" | "misc" | "loud" ) ]
+                 [ "keepcounters" ] )
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
@@ -2891,7 +2922,8 @@ nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
                  [ protospec ] hosts [ "tag" string ] [ "tagged" string ]
                  [ "-\*(Gt" ( redirhost | "{" redirhost-list "}" )
-                 [ portspec ] [ pooltype ] [ "static-port" ] ]
+                 [ portspec ] [ pooltype ] [ "static-port" ]
+                 [ "map-e-portset" number "/" number "/" number ] ]
 
 binat-rule     = [ "no" ] "binat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" interface-name ] [ af ]

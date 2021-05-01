@@ -69,6 +69,23 @@ init_amd(void)
 	uint64_t msr;
 
 	/*
+	 * C1E renders the local APIC timer dead, so we disable it by
+	 * reading the Interrupt Pending Message register and clearing
+	 * both C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
+	 *
+	 * Reference:
+	 *   "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh Processors"
+	 *   #32559 revision 3.00+
+	 *
+	 * Detect the presence of C1E capability mostly on latest
+	 * dual-cores (or future) k8 family.  Affected models range is
+	 * taken from Linux sources.
+	 */
+	if ((CPUID_TO_FAMILY(cpu_id) == 0xf ||
+	    CPUID_TO_FAMILY(cpu_id) == 0x10) && (cpu_feature2 & CPUID2_HV) == 0)
+		cpu_amdc1e_bug = 1;
+
+	/*
 	 * Work around Erratum 721 for Family 10h and 12h processors.
 	 * These processors may incorrectly update the stack pointer
 	 * after a long series of push and/or near-call instructions,

@@ -215,6 +215,7 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_SSYM		0x0003		/* start of symbols */
 #define MODINFOMD_ESYM		0x0004		/* end of symbols */
 #define MODINFOMD_DYNAMIC	0x0005		/* _DYNAMIC pointer */
+#define MODINFOMD_MB2HDR	0x0006		/* MB2 header info */
 /* These values are MD on PowerPC */
 #if !defined(__powerpc__)
 #define MODINFOMD_ENVP		0x0006		/* envp[] */
@@ -226,6 +227,7 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
 #define MODINFOMD_FW_HANDLE	0x000c		/* Firmware dependent handle */
 #define MODINFOMD_KEYBUF	0x000d		/* Crypto key intake buffer */
+#define MODINFOMD_FONT		0x000e		/* Console font */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */

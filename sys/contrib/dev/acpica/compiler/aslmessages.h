@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -152,7 +152,6 @@
 #ifndef __ASLMESSAGES_H
 #define __ASLMESSAGES_H
 
-
 /* These values must match error type string tables in aslmessages.c */
 
 typedef enum
@@ -167,8 +166,11 @@ typedef enum
 
 } ASL_MESSAGE_TYPES;
 
-
 #define ASL_ERROR_LEVEL_LENGTH          8 /* Length of strings for types above */
+
+void
+AhDecodeAslException (
+    char                    *HexString);
 
 /*
  * Exception code blocks, 0 - 999
@@ -386,6 +388,8 @@ typedef enum
     ASL_MSG_EXTERNAL_FOUND_HERE,
     ASL_MSG_LOWER_CASE_NAMESEG,
     ASL_MSG_LOWER_CASE_NAMEPATH,
+    ASL_MSG_UUID_NOT_FOUND,
+    ASL_MSG_LEGACY_DDB_TYPE,
 
 
     /* These messages are used by the Data Table compiler only */

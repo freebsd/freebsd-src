@@ -136,7 +136,7 @@ SYSCTL_UINT(_kern_geom_uzip, OID_AUTO, debug_block, CTLFLAG_RWTUN,
 /*
  * Maximum allowed valid block size (to prevent foot-shooting)
  */
-#define	MAX_BLKSZ	(MAXPHYS)
+#define	MAX_BLKSZ	(maxphys)
 
 static char CLOOP_MAGIC_START[] = "#!/bin/sh\n";
 
@@ -292,7 +292,7 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 	bp2->bio_offset = TOFF_2_BOFF(sc, pp, start_blk);
 	while (1) {
 		bp2->bio_length = TLEN_2_BLEN(sc, pp, bp2, end_blk - 1);
-		if (bp2->bio_length <= MAXPHYS) {
+		if (bp2->bio_length <= maxphys) {
 			break;
 		}
 		if (end_blk == (start_blk + 1)) {
@@ -707,11 +707,11 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp = g_new_geomf(mp, GUZ_DEV_NAME("%s"), pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
-	if (error == 0)
-		error = g_access(cp, 1, 0, 0);
-	if (error) {
+	if (error != 0)
+		goto e0;
+	error = g_access(cp, 1, 0, 0);
+	if (error)
 		goto e1;
-	}
 	g_topology_unlock();
 
 	/*
@@ -791,7 +791,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		goto e4;
 	}
 	if (sc->blksz > MAX_BLKSZ) {
-		printf("%s: block size (%u) should not be larger than %d.\n",
+		printf("%s: block size (%u) should not be larger than %lu.\n",
 		    gp->name, sc->blksz, MAX_BLKSZ);
 	}
 	total_offsets = sc->nblocks + 1;
@@ -942,6 +942,7 @@ e2:
 	g_access(cp, -1, 0, 0);
 e1:
 	g_detach(cp);
+e0:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 

@@ -27,7 +27,7 @@
 # include <sys/uio.h>
 # undef _KERNEL
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -50,7 +50,7 @@
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__)
@@ -81,26 +81,26 @@
 # undef	KERNEL
 #endif
 #include <netinet/tcp.h>
-#  if defined(__FreeBSD_version)
-#   include <net/if_var.h>
-#    define IF_QFULL _IF_QFULL
-#    define IF_DROP _IF_DROP
-#  endif
-#  include <netinet/in_var.h>
-#  include <netinet/tcp_fsm.h>
+#if defined(__FreeBSD__)
+# include <net/if_var.h>
+# define IF_QFULL _IF_QFULL
+# define IF_DROP _IF_DROP
+#endif
+#include <netinet/in_var.h>
+#include <netinet/tcp_fsm.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_auth.h"
-#if !defined(MENTAT)
+#if !SOLARIS
 # include <net/netisr.h>
 # ifdef __FreeBSD__
 #  include <machine/cpufunc.h>
 # endif
 #endif
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -115,13 +115,13 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
-static void ipf_auth_deref __P((frauthent_t **));
-static void ipf_auth_deref_unlocked __P((ipf_auth_softc_t *, frauthent_t **));
-static int ipf_auth_geniter __P((ipf_main_softc_t *, ipftoken_t *,
-				 ipfgeniter_t *, ipfobj_t *));
-static int ipf_auth_reply __P((ipf_main_softc_t *, ipf_auth_softc_t *, char *));
-static int ipf_auth_wait __P((ipf_main_softc_t *, ipf_auth_softc_t *, char *));
-static int ipf_auth_flush __P((void *));
+static void ipf_auth_deref(frauthent_t **);
+static void ipf_auth_deref_unlocked(ipf_auth_softc_t *, frauthent_t **);
+static int ipf_auth_geniter(ipf_main_softc_t *, ipftoken_t *,
+				 ipfgeniter_t *, ipfobj_t *);
+static int ipf_auth_reply(ipf_main_softc_t *, ipf_auth_softc_t *, char *);
+static int ipf_auth_wait(ipf_main_softc_t *, ipf_auth_softc_t *, char *);
+static int ipf_auth_flush(void *);
 
 
 /* ------------------------------------------------------------------------ */
@@ -298,9 +298,9 @@ ipf_auth_soft_destroy(softc, arg)
 {
 	ipf_auth_softc_t *softa = arg;
 
-# if SOLARIS && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 	cv_destroy(&softa->ipf_auth_wait);
-# endif
+#endif
 	MUTEX_DESTROY(&softa->ipf_auth_mx);
 	RW_DESTROY(&softa->ipf_authlk);
 
@@ -466,7 +466,7 @@ ipf_auth_new(m, fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
-#if defined(_KERNEL) && defined(MENTAT)
+#if defined(_KERNEL) && SOLARIS
 	qpktinfo_t *qpi = fin->fin_qpi;
 #endif
 	frauth_t *fra;
@@ -508,7 +508,7 @@ ipf_auth_new(m, fin)
 	 * them.
 	 */
 	ip = fin->fin_ip;
-# if defined(MENTAT) && defined(_KERNEL)
+# if SOLARIS && defined(_KERNEL)
 	if ((ip == (ip_t *)m->b_rptr) && (fin->fin_v == 4))
 # endif
 	{

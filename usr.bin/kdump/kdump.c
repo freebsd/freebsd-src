@@ -254,14 +254,21 @@ print_integer_arg_valid(const char *(*decoder)(int), int value)
 	}
 }
 
+static bool
+print_mask_arg_part(bool (*decoder)(FILE *, int, int *), int value, int *rem)
+{
+
+	printf("%#x<", value);
+	return (decoder(stdout, value, rem));
+}
+
 static void
 print_mask_arg(bool (*decoder)(FILE *, int, int *), int value)
 {
 	bool invalid;
 	int rem;
 
-	printf("%#x<", value);
-	invalid = !decoder(stdout, value, &rem);
+	invalid = !print_mask_arg_part(decoder, value, &rem);
 	printf(">");
 	if (invalid)
 		printf("<invalid>%u", rem);
@@ -1455,10 +1462,16 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
-			case SYS__umtx_op:
+			case SYS__umtx_op: {
+				int op;
+
 				print_number(ip, narg, c);
 				putchar(',');
-				print_integer_arg(sysdecode_umtx_op, *ip);
+				if (print_mask_arg_part(sysdecode_umtx_op_flags,
+				    *ip, &op))
+					putchar('|');
+				print_integer_arg(sysdecode_umtx_op, op);
+				putchar('>');
 				switch (*ip) {
 				case UMTX_OP_CV_WAIT:
 					ip++;
@@ -1478,6 +1491,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 				ip++;
 				narg--;
 				break;
+			}
 			case SYS_ftruncate:
 			case SYS_truncate:
 				print_number(ip, narg, c);

@@ -653,6 +653,8 @@
 #define	AUE_LGETUUID		43261	/* CADETS. */
 #define	AUE_EXECVEAT		43262	/* FreeBSD/Linux. */
 #define	AUE_SHMRENAME		43263	/* FreeBSD-specific. */
+#define	AUE_REALPATHAT		43264	/* FreeBSD-specific. */
+#define	AUE_CLOSERANGE		43265	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

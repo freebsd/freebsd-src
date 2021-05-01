@@ -111,8 +111,12 @@ ata_pci_attach(device_t dev)
 					      RF_ACTIVE);
     }
 
-    if (ctlr->chipinit(dev))
+    if (ctlr->chipinit(dev)) {
+	if (ctlr->r_res1)
+	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,
+				 ctlr->r_res1);
 	return ENXIO;
+    }
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {

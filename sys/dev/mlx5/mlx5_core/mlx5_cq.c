@@ -55,12 +55,15 @@ mlx5_cq_table_write_unlock(struct mlx5_cq_table *table)
 	NET_EPOCH_WAIT();
 }
 
-void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
+void mlx5_cq_completion(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 {
 	struct mlx5_cq_table *table = &dev->priv.cq_table;
 	struct mlx5_core_cq *cq;
 	struct epoch_tracker et;
+	u32 cqn;
 	bool do_lock;
+
+	cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
 
 	NET_EPOCH_ENTER(et);
 
@@ -78,7 +81,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
 
 	if (likely(cq != NULL)) {
 		++cq->arm_sn;
-		cq->comp(cq);
+		cq->comp(cq, eqe);
 	} else {
 		mlx5_core_warn(dev,
 		    "Completion event for bogus CQ 0x%x\n", cqn);
@@ -119,16 +122,16 @@ void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type)
 }
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen)
+			u32 *in, int inlen, u32 *out, int outlen)
 {
 	struct mlx5_cq_table *table = &dev->priv.cq_table;
-	u32 out[MLX5_ST_SZ_DW(create_cq_out)] = {0};
 	u32 din[MLX5_ST_SZ_DW(destroy_cq_in)] = {0};
 	u32 dout[MLX5_ST_SZ_DW(destroy_cq_out)] = {0};
 	int err;
 
+	memset(out, 0, outlen);
 	MLX5_SET(create_cq_in, in, opcode, MLX5_CMD_OP_CREATE_CQ);
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err)
 		return err;
 
@@ -146,6 +149,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		goto err_cmd;
 
 	cq->pid = curthread->td_proc->p_pid;
+	cq->uar = dev->priv.uar;
 
 	return 0;
 

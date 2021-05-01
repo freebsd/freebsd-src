@@ -312,7 +312,10 @@ Expected number of files per directory.
 .It Sy bsize
 Block size.
 .It Sy density
-Bytes per inode.
+Bytes per inode. If unset, will allocate the minimum number of inodes to
+represent the filesystem if no free space has been requested (free blocks
+or minimum size set); otherwise the larger of the newfs defaults or what
+is required by the free inode parameters if set.
 .It Sy fsize
 Fragment size.
 .It Sy label

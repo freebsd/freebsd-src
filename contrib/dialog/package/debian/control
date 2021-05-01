@@ -22,3 +22,12 @@ Description: dialog - display dialog boxes from shell scripts
       tailboxbg, textbox, timebox, treeview, and yesno (yes/no).
  .
  This package installs as "cdialog" to avoid conflict with other packages.
+
+Package: cdialog-dev
+Architecture: any
+Depends: libc6 (>= 2.11), libncursesw5 (>= 5.3)
+Description: dialog - display dialog boxes from shell scripts
+ Dialog is a program that will let you present a variety of questions or
+ display messages using dialog boxes from a shell script.   These  types
+ This package provides headers and documentation for the library used
+ by "cdialog".

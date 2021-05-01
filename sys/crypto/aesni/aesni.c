@@ -60,11 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#if defined(__i386__)
-#include <machine/npx.h>
-#elif defined(__amd64__)
 #include <machine/fpu.h>
-#endif
 
 static struct mtx_padalign *ctx_mtx;
 static struct fpu_kern_ctx **ctx_fpu;
@@ -241,17 +237,38 @@ aesni_cipher_supported(struct aesni_softc *sc,
 	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_CBC:
 	case CRYPTO_AES_ICM:
+		switch (csp->csp_cipher_klen * 8) {
+		case 128:
+		case 192:
+		case 256:
+			break;
+		default:
+			CRYPTDEB("invalid CBC/ICM key length");
+			return (false);
+		}
 		if (csp->csp_ivlen != AES_BLOCK_LEN)
 			return (false);
-		return (sc->has_aes);
+		break;
 	case CRYPTO_AES_XTS:
+		switch (csp->csp_cipher_klen * 8) {
+		case 256:
+		case 512:
+			break;
+		default:
+			CRYPTDEB("invalid XTS key length");
+			return (false);
+		}
 		if (csp->csp_ivlen != AES_XTS_IV_LEN)
 			return (false);
-		return (sc->has_aes);
+		break;
 	default:
 		return (false);
 	}
+
+	return (true);
 }
+
+#define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
 
 static int
 aesni_probesession(device_t dev, const struct crypto_session_params *csp)
@@ -259,8 +276,7 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 	struct aesni_softc *sc;
 
 	sc = device_get_softc(dev);
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
-	    0)
+	if ((csp->csp_flags & ~(SUPPORTED_SES)) != 0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_DIGEST:
@@ -274,6 +290,15 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_AES_NIST_GCM_16:
+			switch (csp->csp_cipher_klen * 8) {
+			case 128:
+			case 192:
+			case 256:
+				break;
+			default:
+				CRYPTDEB("invalid GCM key length");
+				return (EINVAL);
+			}
 			if (csp->csp_auth_mlen != 0 &&
 			    csp->csp_auth_mlen != GMAC_DIGEST_LEN)
 				return (EINVAL);
@@ -282,6 +307,15 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
+			switch (csp->csp_cipher_klen * 8) {
+			case 128:
+			case 192:
+			case 256:
+				break;
+			default:
+				CRYPTDEB("invalid CCM key length");
+				return (EINVAL);
+			}
 			if (csp->csp_auth_mlen != 0 &&
 			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
 				return (EINVAL);
@@ -522,46 +556,18 @@ aesni_authprepare(struct aesni_session *ses, int klen)
 }
 
 static int
-aesni_cipherprepare(const struct crypto_session_params *csp)
-{
-
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_AES_ICM:
-	case CRYPTO_AES_NIST_GCM_16:
-	case CRYPTO_AES_CCM_16:
-	case CRYPTO_AES_CBC:
-		switch (csp->csp_cipher_klen * 8) {
-		case 128:
-		case 192:
-		case 256:
-			break;
-		default:
-			CRYPTDEB("invalid CBC/ICM/GCM key length");
-			return (EINVAL);
-		}
-		break;
-	case CRYPTO_AES_XTS:
-		switch (csp->csp_cipher_klen * 8) {
-		case 256:
-		case 512:
-			break;
-		default:
-			CRYPTDEB("invalid XTS key length");
-			return (EINVAL);
-		}
-		break;
-	default:
-		return (EINVAL);
-	}
-	return (0);
-}
-
-static int
 aesni_cipher_setup(struct aesni_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct fpu_kern_ctx *ctx;
+	uint8_t *schedbase;
 	int kt, ctxidx, error;
+
+	schedbase = (uint8_t *)roundup2((uintptr_t)ses->schedules,
+	    AES_SCHED_ALIGN);
+	ses->enc_schedule = schedbase;
+	ses->dec_schedule = schedbase + AES_SCHED_LEN;
+	ses->xts_schedule = schedbase + AES_SCHED_LEN * 2;
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1_HMAC:
@@ -603,10 +609,6 @@ aesni_cipher_setup(struct aesni_session *ses,
 		if (error != 0)
 			return (error);
 	}
-
-	error = aesni_cipherprepare(csp);
-	if (error != 0)
-		return (error);
 
 	kt = is_fpu_kern_thread(0) || (csp->csp_cipher_alg == 0);
 	if (!kt) {
@@ -868,6 +870,10 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		else
 			crypto_apply(crp, crp->crp_payload_start,
 			    crp->crp_payload_length, ses->hash_update, &sctx);
+
+		if (csp->csp_flags & CSP_F_ESN)
+			ses->hash_update(&sctx, crp->crp_esn, 4);
+
 		ses->hash_finalize(res, &sctx);
 
 		/* Outer hash: (K ^ OPAD) || inner hash */

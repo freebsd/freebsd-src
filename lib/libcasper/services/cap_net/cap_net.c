@@ -795,7 +795,11 @@ net_gethostbyname(const nvlist_t *limits, const nvlist_t *nvlin,
 		return (ENOTCAPABLE);
 
 	dnscache = net_allowed_mode(limits, CAPNET_CONNECTDNS);
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR, NULL);
+	funclimit = NULL;
+	if (limits != NULL) {
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR,
+		    NULL);
+	}
 
 	family = (int)nvlist_get_number(nvlin, "family");
 	if (!net_allowed_family(funclimit, family))
@@ -825,7 +829,11 @@ net_gethostbyaddr(const nvlist_t *limits, const nvlist_t *nvlin,
 	if (!net_allowed_mode(limits, CAPNET_DEPRECATED_ADDR2NAME))
 		return (ENOTCAPABLE);
 
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME, NULL);
+	funclimit = NULL;
+	if (limits != NULL) {
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME,
+		    NULL);
+	}
 
 	family = (int)nvlist_get_number(nvlin, "family");
 	if (!net_allowed_family(funclimit, family))
@@ -855,7 +863,11 @@ net_getnameinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 
 	if (!net_allowed_mode(limits, CAPNET_ADDR2NAME))
 		return (ENOTCAPABLE);
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME, NULL);
+	funclimit = NULL;
+	if (limits != NULL) {
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_ADDR2NAME,
+		    NULL);
+	}
 
 	error = 0;
 	host = serv = NULL;
@@ -954,7 +966,11 @@ net_getaddrinfo(const nvlist_t *limits, const nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!net_allowed_mode(limits, CAPNET_NAME2ADDR))
 		return (ENOTCAPABLE);
 	dnscache = net_allowed_mode(limits, CAPNET_CONNECTDNS);
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR, NULL);
+	funclimit = NULL;
+	if (limits != NULL) {
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_NAME2ADDR,
+		    NULL);
+	}
 
 	hostname = dnvlist_get_string(nvlin, "hostname", NULL);
 	servname = dnvlist_get_string(nvlin, "servname", NULL);
@@ -1014,7 +1030,9 @@ net_bind(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 
 	if (!net_allowed_mode(limits, CAPNET_BIND))
 		return (ENOTCAPABLE);
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_BIND, NULL);
+	funclimit = NULL;
+	if (limits != NULL)
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_BIND, NULL);
 
 	saddr = nvlist_get_binary(nvlin, "saddr", &len);
 
@@ -1040,7 +1058,7 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 	const void *saddr;
 	const nvlist_t *funclimit;
 	size_t len;
-	bool conn, conndns;
+	bool conn, conndns, allowed;
 
 	conn = net_allowed_mode(limits, CAPNET_CONNECT);
 	conndns = net_allowed_mode(limits, CAPNET_CONNECTDNS);
@@ -1048,15 +1066,25 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 	if (!conn && !conndns)
 		return (ENOTCAPABLE);
 
-	funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_CONNECT, NULL);
+	funclimit = NULL;
+	if (limits != NULL)
+		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_CONNECT, NULL);
 
 	saddr = nvlist_get_binary(nvlin, "saddr", &len);
-	if (conn && !net_allowed_bsaddr(funclimit, saddr, len)) {
-		return (ENOTCAPABLE);
-	} else if (conndns && (capdnscache == NULL ||
-	   !net_allowed_bsaddr_impl(capdnscache, saddr, len))) {
+	allowed = false;
+
+	if (conn && net_allowed_bsaddr(funclimit, saddr, len)) {
+		allowed = true;
+	}
+	if (conndns && capdnscache != NULL &&
+	   net_allowed_bsaddr_impl(capdnscache, saddr, len)) {
+		allowed = true;
+	}
+
+	if (allowed == false) {
 		return (ENOTCAPABLE);
 	}
+
 	socket = dup(nvlist_get_descriptor(nvlin, "s"));
 	if (connect(socket, saddr, len) < 0) {
 		serrno = errno;

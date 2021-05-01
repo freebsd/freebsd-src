@@ -1,5 +1,6 @@
-comment testing start
-this is foo
-This is how a comment looks: # comment
-comment testing done
+echo This is a shell comment: # comment
+This is a shell comment:
+echo This is not a shell comment: '# comment'
+This is not a shell comment: # comment
+A shell comment can#not start in the middle of a word.
 exit status 0

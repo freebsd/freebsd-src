@@ -192,8 +192,8 @@ enum tcp_log_events {
 	BBR_LOG_MSGSIZE,	/* We received a EMSGSIZE error     19 */
 	BBR_LOG_BBRRTT,		/* BBR RTT is updated               20 */
 	BBR_LOG_JUSTRET,	/* We just returned out of output   21 */
-	BBR_LOG_STATE,		/* A BBR state change occured       22 */
-	BBR_LOG_PKT_EPOCH,      /* A BBR packet epoch occured       23 */
+	BBR_LOG_STATE,		/* A BBR state change occurred      22 */
+	BBR_LOG_PKT_EPOCH,      /* A BBR packet epoch occurred      23 */
 	BBR_LOG_PERSIST,        /* BBR changed to/from a persists   24 */
 	TCP_LOG_FLOWEND,        /* End of a flow                    25 */
 	BBR_LOG_RTO,            /* BBR's timeout includes BBR info  26 */
@@ -204,7 +204,7 @@ enum tcp_log_events {
 	TCP_LOG_USERSEND, 	/* User level sends data            31 */
 	BBR_RSM_CLEARED,	/* RSM cleared of ACK flags         32 */
 	BBR_LOG_STATE_TARGET, 	/* Log of target at state           33 */
-	BBR_LOG_TIME_EPOCH, 	/* A timed based Epoch occured      34 */
+	BBR_LOG_TIME_EPOCH, 	/* A timed based Epoch occurred     34 */
 	BBR_LOG_TO_PROCESS,	/* A to was processed               35 */
 	BBR_LOG_BBRTSO,		/* TSO update                       36 */
 	BBR_LOG_HPTSDIAG,	/* Hpts diag insert                 37 */
@@ -221,7 +221,7 @@ enum tcp_log_events {
 	BBR_LOG_SETTINGS_CHG,	/* Settings changed for loss response 48 */
 	BBR_LOG_SRTT_GAIN_EVENT, /* SRTT gaining -- now not used    49 */
 	TCP_LOG_REASS,		/* Reassembly buffer logging        50 */
-	TCP_HDWR_TLS,		/* TCP Hardware TLS logs            51 */
+	TCP_HDWR_PACE_SIZE,	/*  TCP pacing size set (rl and rack uses this)  51 */
 	BBR_LOG_HDWR_PACE,	/* TCP Hardware pacing log          52 */
 	BBR_LOG_TSTMP_VAL,	/* Temp debug timestamp validation  53 */
 	TCP_LOG_CONNEND,	/* End of connection                54 */

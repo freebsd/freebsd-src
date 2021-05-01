@@ -172,9 +172,11 @@ kernel panic to record a copy of the system RAM to the disk.
 Optional: if this method is provided, it gives the disk driver the
 opportunity to override the default GEOM response to BIO_GETATTR requests.
 This function should return -1 if the attribute is not handled, 0 if the
-attribute is handled, or an errno to be passed to g_io_deliver().
+attribute is handled, or an errno to be passed to
+.Fn g_io_deliver .
 .It Vt "disk_gone_t *" Va d_gone
-Optional: if this method is provided, it will be called after disk_gone()
+Optional: if this method is provided, it will be called after
+.Fn disk_gone
 is called, once GEOM has finished its cleanup process.
 Once this callback is called, it is safe for the disk driver to free all of
 its resources, as it will not be receiving further calls from GEOM.
@@ -241,15 +243,14 @@ Typically used to store a pointer to the drivers
 .Vt softc
 structure for this disk device.
 .El
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr devfs 5
 .Sh HISTORY
 The
 .Nm kernel disk storage API
 first appeared in
 .Fx 4.9 .
-.Sh SEE ALSO
-.Xr GEOM 4 ,
-.Xr devfs 5 ,
-.Xr MAKE_DEV 9
 .Sh AUTHORS
 This manual page was written by
 .An Robert Watson .

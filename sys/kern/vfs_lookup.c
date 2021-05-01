@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/dirent.h>
 #include <sys/kernel.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
@@ -76,7 +77,8 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
-SDT_PROBE_DEFINE3(vfs, namei, lookup, return, "int", "struct vnode *", "bool");
+SDT_PROBE_DEFINE4(vfs, namei, lookup, return, "int", "struct vnode *", "bool",
+    "struct nameidata");
 
 /* Allocation zone for namei. */
 uma_zone_t namei_zone;
@@ -149,7 +151,7 @@ struct nameicap_tracker {
 };
 
 /* Zone for cap mode tracker elements used for dotdot capability checks. */
-static uma_zone_t nt_zone;
+MALLOC_DEFINE(M_NAMEITRACKER, "namei_tracker", "namei tracking for dotdot");
 
 static void
 nameiinit(void *dummy __unused)
@@ -157,8 +159,6 @@ nameiinit(void *dummy __unused)
 
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	nt_zone = uma_zcreate("rentr", sizeof(struct nameicap_tracker),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	vfs_vector_op_register(&crossmp_vnodeops);
 	getnewvnode("crossmp", NULL, &crossmp_vnodeops, &vp_crossmp);
 }
@@ -183,35 +183,34 @@ nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp->v_type != VDIR)
 		return;
 	cnp = &ndp->ni_cnd;
-	if ((cnp->cn_flags & BENEATH) != 0 &&
-	    (ndp->ni_lcf & NI_LCF_BENEATH_LATCHED) == 0) {
-		MPASS((ndp->ni_lcf & NI_LCF_LATCH) != 0);
-		if (dp != ndp->ni_beneath_latch)
-			return;
-		ndp->ni_lcf |= NI_LCF_BENEATH_LATCHED;
-	}
-	nt = uma_zalloc(nt_zone, M_WAITOK);
+	nt = TAILQ_LAST(&ndp->ni_cap_tracker, nameicap_tracker_head);
+	if (nt != NULL && nt->dp == dp)
+		return;
+	nt = malloc(sizeof(*nt), M_NAMEITRACKER, M_WAITOK);
 	vhold(dp);
 	nt->dp = dp;
 	TAILQ_INSERT_TAIL(&ndp->ni_cap_tracker, nt, nm_link);
 }
 
 static void
-nameicap_cleanup(struct nameidata *ndp, bool clean_latch)
+nameicap_cleanup_from(struct nameidata *ndp, struct nameicap_tracker *first)
 {
 	struct nameicap_tracker *nt, *nt1;
 
-	KASSERT(TAILQ_EMPTY(&ndp->ni_cap_tracker) ||
-	    (ndp->ni_lcf & NI_LCF_CAP_DOTDOT) != 0, ("not strictrelative"));
-	TAILQ_FOREACH_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
+	nt = first;
+	TAILQ_FOREACH_FROM_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
 		TAILQ_REMOVE(&ndp->ni_cap_tracker, nt, nm_link);
 		vdrop(nt->dp);
-		uma_zfree(nt_zone, nt);
+		free(nt, M_NAMEITRACKER);
 	}
-	if (clean_latch && (ndp->ni_lcf & NI_LCF_LATCH) != 0) {
-		ndp->ni_lcf &= ~NI_LCF_LATCH;
-		vrele(ndp->ni_beneath_latch);
-	}
+}
+
+static void
+nameicap_cleanup(struct nameidata *ndp)
+{
+	KASSERT(TAILQ_EMPTY(&ndp->ni_cap_tracker) ||
+	    (ndp->ni_lcf & NI_LCF_CAP_DOTDOT) != 0, ("not strictrelative"));
+	nameicap_cleanup_from(ndp, NULL);
 }
 
 /*
@@ -231,23 +230,23 @@ nameicap_check_dotdot(struct nameidata *ndp, struct vnode *dp)
 	struct nameicap_tracker *nt;
 	struct mount *mp;
 
-	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp == NULL ||
-	    dp->v_type != VDIR)
+	if (dp == NULL || dp->v_type != VDIR || (ndp->ni_lcf &
+	    NI_LCF_STRICTRELATIVE) == 0)
 		return (0);
+	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0)
+		return (ENOTCAPABLE);
 	mp = dp->v_mount;
 	if (lookup_cap_dotdot_nonlocal == 0 && mp != NULL &&
 	    (mp->mnt_flag & MNT_LOCAL) == 0)
 		return (ENOTCAPABLE);
 	TAILQ_FOREACH_REVERSE(nt, &ndp->ni_cap_tracker, nameicap_tracker_head,
 	    nm_link) {
-		if ((ndp->ni_lcf & NI_LCF_LATCH) != 0 &&
-		    ndp->ni_beneath_latch == nt->dp) {
-			ndp->ni_lcf &= ~NI_LCF_BENEATH_LATCHED;
-			nameicap_cleanup(ndp, false);
+		if (dp == nt->dp) {
+			nt = TAILQ_NEXT(nt, nm_link);
+			if (nt != NULL)
+				nameicap_cleanup_from(ndp, nt);
 			return (0);
 		}
-		if (dp == nt->dp)
-			return (0);
 	}
 	return (ENOTCAPABLE);
 }
@@ -276,11 +275,6 @@ namei_handle_root(struct nameidata *ndp, struct vnode **dpp)
 #endif
 		return (ENOTCAPABLE);
 	}
-	if ((cnp->cn_flags & BENEATH) != 0) {
-		ndp->ni_lcf |= NI_LCF_BENEATH_ABS;
-		ndp->ni_lcf &= ~NI_LCF_BENEATH_LATCHED;
-		nameicap_cleanup(ndp, false);
-	}
 	while (*(cnp->cn_nameptr) == '/') {
 		cnp->cn_nameptr++;
 		ndp->ni_pathlen--;
@@ -298,7 +292,6 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	struct thread *td;
 	struct pwd *pwd;
 	cap_rights_t rights;
-	struct filecaps dirfd_caps;
 	int error;
 	bool startdir_used;
 
@@ -367,8 +360,10 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			/*
-			 * Effectively inlined fgetvp_rights, because we need to
-			 * inspect the file as well as grabbing the vnode.
+			 * Effectively inlined fgetvp_rights, because
+			 * we need to inspect the file as well as
+			 * grabbing the vnode.  No check for O_PATH,
+			 * files to implement its semantic.
 			 */
 			error = fget_cap(td, ndp->ni_dirfd, &rights,
 			    &dfp, &ndp->ni_filecaps);
@@ -385,7 +380,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 					error = ENOTDIR;
 				} else {
 					*dpp = dfp->f_vnode;
-					vrefact(*dpp);
+					vref(*dpp);
 
 					if ((dfp->f_flag & FSEARCH) != 0)
 						cnp->cn_flags |= NOEXECCHECK;
@@ -408,30 +403,14 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			}
 #endif
 		}
-		if (error == 0 && (*dpp)->v_type != VDIR)
+		if (error == 0 && (*dpp)->v_type != VDIR &&
+		    (cnp->cn_pnbuf[0] != '\0' ||
+		    (cnp->cn_flags & EMPTYPATH) == 0))
 			error = ENOTDIR;
 	}
-	if (error == 0 && (cnp->cn_flags & BENEATH) != 0) {
-		if (ndp->ni_dirfd == AT_FDCWD) {
-			ndp->ni_beneath_latch = pwd->pwd_cdir;
-			vrefact(ndp->ni_beneath_latch);
-		} else {
-			rights = *ndp->ni_rightsneeded;
-			cap_rights_set_one(&rights, CAP_LOOKUP);
-			error = fgetvp_rights(td, ndp->ni_dirfd, &rights,
-			    &dirfd_caps, &ndp->ni_beneath_latch);
-			if (error == 0 && (*dpp)->v_type != VDIR) {
-				vrele(ndp->ni_beneath_latch);
-				error = ENOTDIR;
-			}
-		}
-		if (error == 0)
-			ndp->ni_lcf |= NI_LCF_LATCH;
-	}
 	if (error == 0 && (cnp->cn_flags & RBENEATH) != 0) {
-		if (cnp->cn_pnbuf[0] == '/' ||
-		    (ndp->ni_lcf & NI_LCF_BENEATH_ABS) != 0) {
-			error = EINVAL;
+		if (cnp->cn_pnbuf[0] == '/') {
+			error = ENOTCAPABLE;
 		} else if ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) == 0) {
 			ndp->ni_lcf |= NI_LCF_STRICTRELATIVE |
 			    NI_LCF_CAP_DOTDOT;
@@ -453,17 +432,90 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 		pwd_drop(pwd);
 		return (error);
 	}
-	MPASS((ndp->ni_lcf & (NI_LCF_BENEATH_ABS | NI_LCF_LATCH)) !=
-	    NI_LCF_BENEATH_ABS);
-	if (((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) != 0 &&
-	    lookup_cap_dotdot != 0) ||
-	    ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) == 0 &&
-	    (cnp->cn_flags & BENEATH) != 0))
+	if ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) != 0 &&
+	    lookup_cap_dotdot != 0)
 		ndp->ni_lcf |= NI_LCF_CAP_DOTDOT;
 	SDT_PROBE4(vfs, namei, lookup, entry, *dpp, cnp->cn_pnbuf,
 	    cnp->cn_flags, false);
 	*pwdp = pwd;
 	return (0);
+}
+
+static int
+namei_getpath(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+	int error;
+
+	cnp = &ndp->ni_cnd;
+
+	/*
+	 * Get a buffer for the name to be translated, and copy the
+	 * name into the buffer.
+	 */
+	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+	if (ndp->ni_segflg == UIO_SYSSPACE) {
+		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		    &ndp->ni_pathlen);
+	} else {
+		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		    &ndp->ni_pathlen);
+	}
+
+	if (__predict_false(error != 0))
+		return (error);
+
+	/*
+	 * Don't allow empty pathnames unless EMPTYPATH is specified.
+	 * Caller checks for ENOENT as an indication for the empty path.
+	 */
+	if (__predict_false(*cnp->cn_pnbuf == '\0'))
+		return (ENOENT);
+
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	return (0);
+}
+
+static int
+namei_emptypath(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+	struct pwd *pwd;
+	struct vnode *dp;
+	int error;
+
+	cnp = &ndp->ni_cnd;
+	MPASS(*cnp->cn_pnbuf == '\0');
+	MPASS((cnp->cn_flags & EMPTYPATH) != 0);
+	MPASS((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) == 0);
+
+	error = namei_setup(ndp, &dp, &pwd);
+	if (error != 0) {
+		namei_cleanup_cnp(cnp);
+		goto errout;
+	}
+
+	ndp->ni_vp = dp;
+	vref(dp);
+	namei_cleanup_cnp(cnp);
+	pwd_drop(pwd);
+	ndp->ni_resflags |= NIRES_EMPTYPATH;
+	NDVALIDATE(ndp);
+	if ((cnp->cn_flags & LOCKLEAF) != 0) {
+		VOP_LOCK(dp, (cnp->cn_flags & LOCKSHARED) != 0 ?
+		    LK_SHARED : LK_EXCLUSIVE);
+		if (VN_IS_DOOMED(dp)) {
+			vput(dp);
+			error = ENOENT;
+			goto errout;
+		}
+	}
+	SDT_PROBE4(vfs, namei, lookup, return, 0, ndp->ni_vp, false, ndp);
+	return (0);
+
+errout:
+	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
+	return (error);
 }
 
 /*
@@ -502,6 +554,23 @@ namei(struct nameidata *ndp)
 	cnp = &ndp->ni_cnd;
 	td = cnp->cn_thread;
 #ifdef INVARIANTS
+	KASSERT((ndp->ni_debugflags & NAMEI_DBG_CALLED) == 0,
+	    ("%s: repeated call to namei without NDREINIT", __func__));
+	KASSERT(ndp->ni_debugflags == NAMEI_DBG_INITED,
+	    ("%s: bad debugflags %d", __func__, ndp->ni_debugflags));
+	ndp->ni_debugflags |= NAMEI_DBG_CALLED;
+	if (ndp->ni_startdir != NULL)
+		ndp->ni_debugflags |= NAMEI_DBG_HADSTARTDIR;
+	if (cnp->cn_flags & FAILIFEXISTS) {
+		KASSERT(cnp->cn_nameiop == CREATE,
+		    ("%s: FAILIFEXISTS passed for op %d", __func__, cnp->cn_nameiop));
+		/*
+		 * The limitation below is to restrict hairy corner cases.
+		 */
+		KASSERT((cnp->cn_flags & (LOCKPARENT | LOCKLEAF)) == LOCKPARENT,
+		    ("%s: FAILIFEXISTS must be passed with LOCKPARENT and without LOCKLEAF",
+		    __func__));
+	}
 	/*
 	 * For NDVALIDATE.
 	 *
@@ -511,6 +580,8 @@ namei(struct nameidata *ndp)
 	cnp->cn_origflags = cnp->cn_flags;
 #endif
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
+	KASSERT(ndp->ni_resflags == 0, ("%s: garbage in ni_resflags: %x\n",
+	    __func__, ndp->ni_resflags));
 	KASSERT(cnp->cn_cred && td->td_proc, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_flags & NAMEI_INTERNAL_FLAGS) == 0,
 	    ("namei: unexpected flags: %" PRIx64 "\n",
@@ -522,31 +593,17 @@ namei(struct nameidata *ndp)
 	    ndp->ni_startdir->v_type == VBAD);
 
 	ndp->ni_lcf = 0;
+	ndp->ni_loopcnt = 0;
 	ndp->ni_vp = NULL;
 
-	/*
-	 * Get a buffer for the name to be translated, and copy the
-	 * name into the buffer.
-	 */
-	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
-	if (ndp->ni_segflg == UIO_SYSSPACE)
-		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
-		    &ndp->ni_pathlen);
-	else
-		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
-		    &ndp->ni_pathlen);
-
+	error = namei_getpath(ndp);
 	if (__predict_false(error != 0)) {
+		if (error == ENOENT && (cnp->cn_flags & EMPTYPATH) != 0) 
+			return (namei_emptypath(ndp));
 		namei_cleanup_cnp(cnp);
+		SDT_PROBE4(vfs, namei, lookup, return, error, NULL,
+		    false, ndp);
 		return (error);
-	}
-
-	/*
-	 * Don't allow empty pathnames.
-	 */
-	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
-		namei_cleanup_cnp(cnp);
-		return (ENOENT);
 	}
 
 #ifdef KTRACE
@@ -556,8 +613,6 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
-
-	cnp->cn_nameptr = cnp->cn_pnbuf;
 
 	/*
 	 * First try looking up the target without locking any vnodes.
@@ -577,8 +632,17 @@ namei(struct nameidata *ndp)
 		TAILQ_INIT(&ndp->ni_cap_tracker);
 		dp = ndp->ni_startdir;
 		break;
+	case CACHE_FPL_STATUS_DESTROYED:
+		ndp->ni_loopcnt = 0;
+		error = namei_getpath(ndp);
+		if (__predict_false(error != 0)) {
+			namei_cleanup_cnp(cnp);
+			return (error);
+		}
+		/* FALLTHROUGH */
 	case CACHE_FPL_STATUS_ABORTED:
 		TAILQ_INIT(&ndp->ni_cap_tracker);
+		MPASS(ndp->ni_lcf == 0);
 		error = namei_setup(ndp, &dp, &pwd);
 		if (error != 0) {
 			namei_cleanup_cnp(cnp);
@@ -587,41 +651,26 @@ namei(struct nameidata *ndp)
 		break;
 	}
 
-	ndp->ni_loopcnt = 0;
-
 	/*
 	 * Locked lookup.
 	 */
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error != 0) {
-			/*
-			 * Override an error to not allow user to use
-			 * BENEATH as an oracle.
-			 */
-			if ((ndp->ni_lcf & (NI_LCF_LATCH |
-			    NI_LCF_BENEATH_LATCHED)) == NI_LCF_LATCH)
-				error = ENOTCAPABLE;
+		if (error != 0)
 			goto out;
-		}
 
 		/*
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			SDT_PROBE4(vfs, namei, lookup, return, error,
+			    (error == 0 ? ndp->ni_vp : NULL), false, ndp);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
-			if ((ndp->ni_lcf & (NI_LCF_LATCH |
-			    NI_LCF_BENEATH_LATCHED)) == NI_LCF_LATCH) {
-				NDFREE(ndp, 0);
-				error = ENOTCAPABLE;
-			}
-			nameicap_cleanup(ndp, true);
-			SDT_PROBE3(vfs, namei, lookup, return, error,
-			    (error == 0 ? ndp->ni_vp : NULL), false);
+			nameicap_cleanup(ndp);
 			pwd_drop(pwd);
 			if (error == 0)
 				NDVALIDATE(ndp);
@@ -696,9 +745,9 @@ namei(struct nameidata *ndp)
 	vrele(ndp->ni_dvp);
 out:
 	MPASS(error != 0);
+	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
 	namei_cleanup_cnp(cnp);
-	nameicap_cleanup(ndp, true);
-	SDT_PROBE3(vfs, namei, lookup, return, error, NULL, false);
+	nameicap_cleanup(ndp);
 	pwd_drop(pwd);
 	return (error);
 }
@@ -747,6 +796,14 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 	 */
 	return (0);
 }
+
+/*
+ * Various filesystems expect to be able to copy a name component with length
+ * bounded by NAME_MAX into a directory entry buffer of size MAXNAMLEN.  Make
+ * sure that these are the same size.
+ */
+_Static_assert(MAXNAMLEN == NAME_MAX,
+    "MAXNAMLEN and NAME_MAX have different values");
 
 /*
  * Search a pathname.
@@ -1272,8 +1329,12 @@ success:
 			goto bad2;
 		}
 	}
-	if (ndp->ni_vp != NULL && ndp->ni_vp->v_type == VDIR)
-		nameicap_tracker_add(ndp, ndp->ni_vp);
+	if (ndp->ni_vp != NULL) {
+		if ((cnp->cn_flags & ISDOTDOT) == 0)
+			nameicap_tracker_add(ndp, ndp->ni_vp);
+		if ((cnp->cn_flags & (FAILIFEXISTS | ISSYMLINK)) == FAILIFEXISTS)
+			goto bad_eexist;
+	}
 	return (0);
 
 bad2:
@@ -1288,6 +1349,24 @@ bad:
 		vput(dp);
 	ndp->ni_vp = NULL;
 	return (error);
+bad_eexist:
+	/*
+	 * FAILIFEXISTS handling.
+	 *
+	 * XXX namei called with LOCKPARENT but not LOCKLEAF has the strange
+	 * behaviour of leaving the vnode unlocked if the target is the same
+	 * vnode as the parent.
+	 */
+	MPASS((cnp->cn_flags & ISSYMLINK) == 0);
+	if (ndp->ni_vp == ndp->ni_dvp)
+		vrele(ndp->ni_dvp);
+	else
+		vput(ndp->ni_dvp);
+	vrele(ndp->ni_vp);
+	ndp->ni_dvp = NULL;
+	ndp->ni_vp = NULL;
+	NDFREE(ndp, NDF_ONLY_PNBUF);
+	return (EEXIST);
 }
 
 /*
@@ -1298,7 +1377,6 @@ int
 relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 {
 	struct vnode *dp = NULL;		/* the directory we are searching */
-	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
 
@@ -1307,8 +1385,8 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
-	wantparent = cnp->cn_flags & (LOCKPARENT|WANTPARENT);
-	KASSERT(wantparent, ("relookup: parent not wanted."));
+	KASSERT((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) != 0,
+	    ("relookup: parent not wanted"));
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = dvp;
@@ -1399,13 +1477,8 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	/*
 	 * Set the parent lock/ref state to the requested state.
 	 */
-	if ((cnp->cn_flags & LOCKPARENT) == 0 && dvp != dp) {
-		if (wantparent)
-			VOP_UNLOCK(dvp);
-		else
-			vput(dvp);
-	} else if (!wantparent)
-		vrele(dvp);
+	if ((cnp->cn_flags & LOCKPARENT) == 0 && dvp != dp)
+		VOP_UNLOCK(dvp);
 	/*
 	 * Check for symbolic link
 	 */
@@ -1438,6 +1511,33 @@ NDFREE_PNBUF(struct nameidata *ndp)
 		ndp->ni_cnd.cn_flags &= ~HASBUF;
 	}
 }
+
+/*
+ * NDFREE_PNBUF replacement for callers that know there is no buffer.
+ *
+ * This is a hack. Preferably the VFS layer would not produce anything more
+ * than it was asked to do. Unfortunately several non-LOOKUP cases can add the
+ * HASBUF flag to the result. Even then an interface could be implemented where
+ * the caller specifies what they expected to see in the result and what they
+ * are going to take care of.
+ *
+ * In the meantime provide this kludge as a trivial replacement for NDFREE_PNBUF
+ * calls scattered throughout the kernel where we know for a fact the flag must not
+ * be seen.
+ */
+#ifdef INVARIANTS
+void
+NDFREE_NOTHING(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+
+	cnp = &ndp->ni_cnd;
+	KASSERT(cnp->cn_nameiop == LOOKUP, ("%s: got non-LOOKUP op %d\n",
+	    __func__, cnp->cn_nameiop));
+	KASSERT((cnp->cn_flags & (SAVENAME | HASBUF)) == 0,
+	    ("%s: bad flags \%" PRIx64 "\n", __func__, cnp->cn_flags));
+}
+#endif
 
 void
 (NDFREE)(struct nameidata *ndp, const u_int flags)

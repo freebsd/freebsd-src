@@ -48,7 +48,6 @@ mips/mips/uma_machdep.c			standard
 mips/mips/vm_machdep.c			standard
 
 # misc opt-in bits
-kern/kern_clocksource.c			standard
 kern/link_elf_obj.c			standard
 kern/subr_atomic64.c			optional	mips | mipsel | mipshf | mipselhf
 kern/subr_busdma_bufalloc.c		standard
@@ -67,6 +66,7 @@ libkern/ucmpdi2.c			optional	mips | mipshf | mipsel | mipselhf
 libkern/ashldi3.c			standard
 libkern/ashrdi3.c			standard
 libkern/memcmp.c			standard
+libkern/strlen.c			standard
 
 # cfe support
 dev/cfe/cfe_api.c			optional	cfe

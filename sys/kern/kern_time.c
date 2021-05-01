@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
-#include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -99,8 +98,6 @@ static void	itimer_enter(struct itimer *);
 static void	itimer_leave(struct itimer *);
 static struct itimer *itimer_find(struct proc *, int);
 static void	itimers_alloc(struct proc *);
-static void	itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp);
-static void	itimers_event_hook_exit(void *arg, struct proc *p);
 static int	realtimer_create(struct itimer *);
 static int	realtimer_gettime(struct itimer *, struct itimerspec *);
 static int	realtimer_settime(struct itimer *, int,
@@ -108,10 +105,11 @@ static int	realtimer_settime(struct itimer *, int,
 static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
+static void	realtimer_expire_l(struct itimer *it, bool proc_locked);
 
-int		register_posix_clock(int, struct kclock *);
-void		itimer_fire(struct itimer *it);
-int		itimespecfix(struct timespec *ts);
+static int	register_posix_clock(int, const struct kclock *);
+static void	itimer_fire(struct itimer *it);
+static int	itimespecfix(struct timespec *ts);
 
 #define CLOCK_CALL(clock, call, arglist)		\
 	((*posix_clocks[clock].call) arglist)
@@ -884,6 +882,52 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 	return (0);
 }
 
+static void
+realitexpire_reset_callout(struct proc *p, sbintime_t *isbtp)
+{
+	sbintime_t prec;
+
+	prec = isbtp == NULL ? tvtosbt(p->p_realtimer.it_interval) : *isbtp;
+	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
+	    prec >> tc_precexp, realitexpire, p, C_ABSOLUTE);
+}
+
+void
+itimer_proc_continue(struct proc *p)
+{
+	struct timeval ctv;
+	struct itimer *it;
+	int id;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((p->p_flag2 & P2_ITSTOPPED) != 0) {
+		p->p_flag2 &= ~P2_ITSTOPPED;
+		microuptime(&ctv);
+		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >=))
+			realitexpire(p);
+		else
+			realitexpire_reset_callout(p, NULL);
+	}
+
+	if (p->p_itimers != NULL) {
+		for (id = 3; id < TIMER_MAX; id++) {
+			it = p->p_itimers->its_timers[id];
+			if (it == NULL)
+				continue;
+			if ((it->it_flags & ITF_PSTOPPED) != 0) {
+				ITIMER_LOCK(it);
+				if ((it->it_flags & ITF_PSTOPPED) != 0) {
+					it->it_flags &= ~ITF_PSTOPPED;
+					if ((it->it_flags & ITF_DELETING) == 0)
+						realtimer_expire_l(it, true);
+				}
+				ITIMER_UNLOCK(it);
+			}
+		}
+	}
+}
+
 /*
  * Real interval timer expired:
  * send process whose timer expired an alarm signal.
@@ -911,6 +955,7 @@ realitexpire(void *arg)
 			wakeup(&p->p_itcallout);
 		return;
 	}
+
 	isbt = tvtosbt(p->p_realtimer.it_interval);
 	if (isbt >= sbt_timethreshold)
 		getmicrouptime(&ctv);
@@ -920,8 +965,14 @@ realitexpire(void *arg)
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
 	} while (timevalcmp(&p->p_realtimer.it_value, &ctv, <=));
-	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
-	    isbt >> tc_precexp, realitexpire, p, C_ABSOLUTE);
+
+	if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+		p->p_flag2 |= P2_ITSTOPPED;
+		return;
+	}
+
+	p->p_flag2 &= ~P2_ITSTOPPED;
+	realitexpire_reset_callout(p, &isbt);
 }
 
 /*
@@ -1086,12 +1137,11 @@ ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
 static void
 itimer_start(void)
 {
-	struct kclock rt_clock = {
+	static const struct kclock rt_clock = {
 		.timer_create  = realtimer_create,
 		.timer_delete  = realtimer_delete,
 		.timer_settime = realtimer_settime,
 		.timer_gettime = realtimer_gettime,
-		.event_hook    = NULL
 	};
 
 	itimer_zone = uma_zcreate("itimer", sizeof(struct itimer),
@@ -1101,14 +1151,10 @@ itimer_start(void)
 	p31b_setcfg(CTL_P1003_1B_TIMERS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_DELAYTIMER_MAX, INT_MAX);
 	p31b_setcfg(CTL_P1003_1B_TIMER_MAX, TIMER_MAX);
-	EVENTHANDLER_REGISTER(process_exit, itimers_event_hook_exit,
-		(void *)ITIMER_EV_EXIT, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(process_exec, itimers_event_hook_exec,
-		(void *)ITIMER_EV_EXEC, EVENTHANDLER_PRI_ANY);
 }
 
-int
-register_posix_clock(int clockid, struct kclock *clk)
+static int
+register_posix_clock(int clockid, const struct kclock *clk)
 {
 	if ((unsigned)clockid >= MAX_CLOCKS) {
 		printf("%s: invalid clockid\n", __func__);
@@ -1526,8 +1572,8 @@ realtimer_gettime(struct itimer *it, struct itimerspec *ovalue)
 }
 
 static int
-realtimer_settime(struct itimer *it, int flags,
-	struct itimerspec *value, struct itimerspec *ovalue)
+realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
+    struct itimerspec *ovalue)
 {
 	struct timespec cts, ts;
 	struct timeval tv;
@@ -1556,7 +1602,7 @@ realtimer_settime(struct itimer *it, int flags,
 		if ((flags & TIMER_ABSTIME) == 0) {
 			/* Convert to absolute time. */
 			timespecadd(&it->it_time.it_value, &cts,
-				&it->it_time.it_value);
+			    &it->it_time.it_value);
 		} else {
 			timespecsub(&ts, &cts, &ts);
 			/*
@@ -1565,8 +1611,8 @@ realtimer_settime(struct itimer *it, int flags,
 			 */
 		}
 		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		callout_reset(&it->it_callout, tvtohz(&tv),
-			realtimer_expire, it);
+		callout_reset(&it->it_callout, tvtohz(&tv), realtimer_expire,
+		    it);
 	} else {
 		callout_stop(&it->it_callout);
 	}
@@ -1600,7 +1646,7 @@ itimer_accept(struct proc *p, int timerid, ksiginfo_t *ksi)
 	return (EINVAL);
 }
 
-int
+static int
 itimespecfix(struct timespec *ts)
 {
 
@@ -1611,57 +1657,98 @@ itimespecfix(struct timespec *ts)
 	return (0);
 }
 
-/* Timeout callback for realtime timer */
+#define	timespectons(tsp)			\
+	((uint64_t)(tsp)->tv_sec * 1000000000 + (tsp)->tv_nsec)
+#define	timespecfromns(ns) (struct timespec){	\
+	.tv_sec = (ns) / 1000000000,		\
+	.tv_nsec = (ns) % 1000000000		\
+}
+
 static void
-realtimer_expire(void *arg)
+realtimer_expire_l(struct itimer *it, bool proc_locked)
 {
 	struct timespec cts, ts;
 	struct timeval tv;
-	struct itimer *it;
-
-	it = (struct itimer *)arg;
+	struct proc *p;
+	uint64_t interval, now, overruns, value;
 
 	realtimer_clocktime(it->it_clockid, &cts);
 	/* Only fire if time is reached. */
 	if (timespeccmp(&cts, &it->it_time.it_value, >=)) {
 		if (timespecisset(&it->it_time.it_interval)) {
 			timespecadd(&it->it_time.it_value,
-				    &it->it_time.it_interval,
-				    &it->it_time.it_value);
-			while (timespeccmp(&cts, &it->it_time.it_value, >=)) {
-				if (it->it_overrun < INT_MAX)
-					it->it_overrun++;
-				else
+			    &it->it_time.it_interval,
+			    &it->it_time.it_value);
+
+			interval = timespectons(&it->it_time.it_interval);
+			value = timespectons(&it->it_time.it_value);
+			now = timespectons(&cts);
+
+			if (now >= value) {
+				/*
+				 * We missed at least one period.
+				 */
+				overruns = howmany(now - value + 1, interval);
+				if (it->it_overrun + overruns >=
+				    it->it_overrun &&
+				    it->it_overrun + overruns <= INT_MAX) {
+					it->it_overrun += (int)overruns;
+				} else {
+					it->it_overrun = INT_MAX;
 					it->it_ksi.ksi_errno = ERANGE;
-				timespecadd(&it->it_time.it_value,
-					    &it->it_time.it_interval,
-					    &it->it_time.it_value);
+				}
+				value =
+				    now + interval - (now - value) % interval;
+				it->it_time.it_value = timespecfromns(value);
 			}
 		} else {
 			/* single shot timer ? */
 			timespecclear(&it->it_time.it_value);
 		}
+
+		p = it->it_proc;
 		if (timespecisset(&it->it_time.it_value)) {
-			timespecsub(&it->it_time.it_value, &cts, &ts);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts);
-			callout_reset(&it->it_callout, tvtohz(&tv),
-				 realtimer_expire, it);
+			if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+				it->it_flags |= ITF_PSTOPPED;
+			} else {
+				timespecsub(&it->it_time.it_value, &cts, &ts);
+				TIMESPEC_TO_TIMEVAL(&tv, &ts);
+				callout_reset(&it->it_callout, tvtohz(&tv),
+				    realtimer_expire, it);
+			}
 		}
+
 		itimer_enter(it);
 		ITIMER_UNLOCK(it);
+		if (proc_locked)
+			PROC_UNLOCK(p);
 		itimer_fire(it);
+		if (proc_locked)
+			PROC_LOCK(p);
 		ITIMER_LOCK(it);
 		itimer_leave(it);
 	} else if (timespecisset(&it->it_time.it_value)) {
-		ts = it->it_time.it_value;
-		timespecsub(&ts, &cts, &ts);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts);
-		callout_reset(&it->it_callout, tvtohz(&tv), realtimer_expire,
- 			it);
+		p = it->it_proc;
+		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+			it->it_flags |= ITF_PSTOPPED;
+		} else {
+			ts = it->it_time.it_value;
+			timespecsub(&ts, &cts, &ts);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts);
+			callout_reset(&it->it_callout, tvtohz(&tv),
+			    realtimer_expire, it);
+		}
 	}
 }
 
-void
+/* Timeout callback for realtime timer */
+static void
+realtimer_expire(void *arg)
+{
+	realtimer_expire_l(arg, false);
+}
+
+static void
 itimer_fire(struct itimer *it)
 {
 	struct proc *p = it->it_proc;
@@ -1714,46 +1801,41 @@ itimers_alloc(struct proc *p)
 	}
 }
 
-static void
-itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
-{
-	itimers_event_hook_exit(arg, p);
-}
-
 /* Clean up timers when some process events are being triggered. */
 static void
-itimers_event_hook_exit(void *arg, struct proc *p)
+itimers_event_exit_exec(int start_idx, struct proc *p)
 {
 	struct itimers *its;
 	struct itimer *it;
-	int event = (int)(intptr_t)arg;
 	int i;
 
-	if (p->p_itimers != NULL) {
-		its = p->p_itimers;
-		for (i = 0; i < MAX_CLOCKS; ++i) {
-			if (posix_clocks[i].event_hook != NULL)
-				CLOCK_CALL(i, event_hook, (p, i, event));
-		}
-		/*
-		 * According to susv3, XSI interval timers should be inherited
-		 * by new image.
-		 */
-		if (event == ITIMER_EV_EXEC)
-			i = 3;
-		else if (event == ITIMER_EV_EXIT)
-			i = 0;
-		else
-			panic("unhandled event");
-		for (; i < TIMER_MAX; ++i) {
-			if ((it = its->its_timers[i]) != NULL)
-				kern_ktimer_delete(curthread, i);
-		}
-		if (its->its_timers[0] == NULL &&
-		    its->its_timers[1] == NULL &&
-		    its->its_timers[2] == NULL) {
-			free(its, M_SUBPROC);
-			p->p_itimers = NULL;
-		}
+	its = p->p_itimers;
+	if (its == NULL)
+		return;
+
+	for (i = start_idx; i < TIMER_MAX; ++i) {
+		if ((it = its->its_timers[i]) != NULL)
+			kern_ktimer_delete(curthread, i);
 	}
+	if (its->its_timers[0] == NULL && its->its_timers[1] == NULL &&
+	    its->its_timers[2] == NULL) {
+		free(its, M_SUBPROC);
+		p->p_itimers = NULL;
+	}
+}
+
+void
+itimers_exec(struct proc *p)
+{
+	/*
+	 * According to susv3, XSI interval timers should be inherited
+	 * by new image.
+	 */
+	itimers_event_exit_exec(3, p);
+}
+
+void
+itimers_exit(struct proc *p)
+{
+	itimers_event_exit_exec(0, p);
 }

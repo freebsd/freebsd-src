@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getch.3x,v 1.55 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_getch.3x,v 1.57 2020/12/19 21:38:20 tom Exp $
 .TH curs_getch 3X ""
 .na
 .hy 0
@@ -55,12 +55,14 @@
 \fBint getch(void);\fR
 .br
 \fBint wgetch(WINDOW *\fP\fIwin);\fR
-.br
+.sp
 \fBint mvgetch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
 .br
 \fBint mvwgetch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB);\fR
-.br
+.sp
 \fBint ungetch(int \fP\fIch\fP\fB);\fR
+.sp
+/* extension */
 .br
 \fBint has_key(int \fP\fIch\fP\fB);\fR
 .br
@@ -404,9 +406,9 @@ any code using it be conditionalized on the \fBNCURSES_VERSION\fR feature macro.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_inopts\fR(3X),
-\fBcurs_outopts\fR(3X),
 \fBcurs_mouse\fR(3X),
 \fBcurs_move\fR(3X),
+\fBcurs_outopts\fR(3X),
 \fBcurs_refresh\fR(3X),
 \fBcurs_variables\fR(3X),
 \fBresizeterm\fR(3X).

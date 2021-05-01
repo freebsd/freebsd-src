@@ -501,7 +501,7 @@ typedef	u64q_t		umaxq_t;
 #define	Q_QADDSUBQ(a, b, eop)						\
 ({									\
 	int _aserr;							\
-	if ((_aserr = Q_NORMPREC(a, b))) while(0); /* NOP */		\
+	if ((_aserr = Q_NORMPREC(a, b))) while (0); /* NOP */		\
 	else if ((eop) == '+') {					\
 		if (Q_IFMAXVAL(*(a)) - Q_GIFABSVAL(b) < Q_GIFVAL(*(a)))	\
 			_aserr = EOVERFLOW; /* [+/-a + +b] > max(a) */	\
@@ -523,7 +523,7 @@ typedef	u64q_t		umaxq_t;
 #define	Q_QDIVQ(a, b)							\
 ({									\
 	int _err;							\
-	if ((_err = Q_NORMPREC(a, b))) while(0); /* NOP */		\
+	if ((_err = Q_NORMPREC(a, b))) while (0); /* NOP */		\
 	else if (Q_GIFABSVAL(b) == 0 || (!Q_SIGNED(*(a)) && Q_LTZ(b)))	\
 		_err = EINVAL; /* Divide by zero or cannot represent. */\
 	/* XXXLAS: Handle overflow. */					\
@@ -539,7 +539,7 @@ typedef	u64q_t		umaxq_t;
 #define	Q_QMULQ(a, b)							\
 ({									\
 	int _mulerr;							\
-	if ((_mulerr = Q_NORMPREC(a, b))) while(0); /* NOP */		\
+	if ((_mulerr = Q_NORMPREC(a, b))) while (0); /* NOP */		\
 	else if (!Q_SIGNED(*(a)) && Q_LTZ(b))				\
 		_mulerr = EINVAL;					\
 	else if (Q_GIFABSVAL(b) != 0 &&					\

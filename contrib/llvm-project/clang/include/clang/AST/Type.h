@@ -4375,11 +4375,7 @@ class TypedefType : public Type {
 protected:
   friend class ASTContext; // ASTContext creates these.
 
-  TypedefType(TypeClass tc, const TypedefNameDecl *D, QualType can)
-      : Type(tc, can, can->getDependence() & ~TypeDependence::UnexpandedPack),
-        Decl(const_cast<TypedefNameDecl *>(D)) {
-    assert(!isa<TypedefType>(can) && "Invalid canonical type");
-  }
+  TypedefType(TypeClass tc, const TypedefNameDecl *D, QualType can);
 
 public:
   TypedefNameDecl *getDecl() const { return Decl; }
@@ -5616,7 +5612,8 @@ class PackExpansionType : public Type, public llvm::FoldingSetNode {
   PackExpansionType(QualType Pattern, QualType Canon,
                     Optional<unsigned> NumExpansions)
       : Type(PackExpansion, Canon,
-             (Pattern->getDependence() | TypeDependence::Instantiation) &
+             (Pattern->getDependence() | TypeDependence::Dependent |
+              TypeDependence::Instantiation) &
                  ~TypeDependence::UnexpandedPack),
         Pattern(Pattern) {
     PackExpansionTypeBits.NumExpansions =
@@ -5637,8 +5634,8 @@ public:
     return None;
   }
 
-  bool isSugared() const { return !Pattern->isDependentType(); }
-  QualType desugar() const { return isSugared() ? Pattern : QualType(this, 0); }
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
     Profile(ID, getPattern(), getNumExpansions());

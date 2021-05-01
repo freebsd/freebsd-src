@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: progress2,v 1.7 2018/06/17 20:45:25 tom Exp $
+# $Id: progress2,v 1.8 2020/11/26 00:05:11 tom Exp $
 
 . ./setup-vars
 
@@ -18,5 +18,5 @@ done <$tempfile
 
 $DIALOG --title "PROGRESS" "$@" --progressbox "This is a detailed description\nof the progress-box." 20 70
 
-retval=$?
+returncode=$?
 . ./report-button

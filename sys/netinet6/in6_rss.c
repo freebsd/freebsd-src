@@ -153,6 +153,50 @@ rss_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
 }
 
 /*
+ * Calculate an appropriate ipv6 2-tuple or 4-tuple given the given
+ * IPv6 source/destination address, UDP or TCP source/destination ports
+ * and the protocol type.
+ *
+ * The protocol code may wish to do a software hash of the given
+ * tuple. This depends upon the currently configured RSS hash types.
+ *
+ * It assumes the packet source/destination address
+ * are in "outgoin" packet order (ie, destination is "far" address.)
+ */
+uint32_t
+xps_proto_software_hash_v6(const struct in6_addr *s, const struct in6_addr *d,
+    u_short sp, u_short dp, int proto, uint32_t *hashtype)
+{
+
+	uint32_t hash;
+
+	/*
+	 * Next, choose the hash type depending upon the protocol
+	 * identifier.
+	 */
+	if ((proto == IPPROTO_TCP) &&
+	    (rss_gethashconfig() & RSS_HASHTYPE_RSS_TCP_IPV6)) {
+		hash = rss_hash_ip6_4tuple(d, dp, s, sp);
+		*hashtype = M_HASHTYPE_RSS_TCP_IPV6;
+		return (hash);
+	} else if ((proto == IPPROTO_UDP) &&
+	    (rss_gethashconfig() & RSS_HASHTYPE_RSS_UDP_IPV6)) {
+		hash = rss_hash_ip6_4tuple(d, dp, s, sp);
+		*hashtype = M_HASHTYPE_RSS_UDP_IPV6;
+		return (hash);
+	} else if (rss_gethashconfig() & RSS_HASHTYPE_RSS_IPV6) {
+		/* RSS doesn't hash on other protocols like SCTP; so 2-tuple */
+		hash = rss_hash_ip6_2tuple(d, s);
+		*hashtype = M_HASHTYPE_RSS_IPV6;
+		return (hash);
+	}
+
+	*hashtype = M_HASHTYPE_NONE;
+	return (0);
+}
+
+
+/*
  * Do a software calculation of the RSS for the given mbuf.
  *
  * This is typically used by the input path to recalculate the RSS after

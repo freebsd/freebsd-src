@@ -475,7 +475,7 @@ static kmutex_t dtrace_errlock;
 #define	DTRACE_STORE(type, tomax, offset, what) \
 	*((type *)((uintptr_t)(tomax) + (uintptr_t)offset)) = (type)(what);
 
-#ifndef __x86
+#if !defined(__x86) && !defined(__aarch64__)
 #define	DTRACE_ALIGNCHECK(addr, size, flags)				\
 	if (addr & (size - 1)) {					\
 		*flags |= CPU_DTRACE_BADALIGN;				\
@@ -6373,6 +6373,14 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 			uintptr_t s1 = regs[r1];
 			uintptr_t s2 = regs[r2];
 			size_t lim1, lim2;
+
+			/*
+			 * If one of the strings is NULL then the limit becomes
+			 * 0 which compares 0 characters in dtrace_strncmp()
+			 * resulting in a false positive.  dtrace_strncmp()
+			 * treats a NULL as an empty 1-char string.
+			 */
+			lim1 = lim2 = 1;
 
 			if (s1 != 0 &&
 			    !dtrace_strcanload(s1, sz, &lim1, mstate, vstate))

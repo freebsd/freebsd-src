@@ -92,6 +92,7 @@ static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 static int vop_stdread_pgcache(struct vop_read_pgcache_args *ap);
 static int vop_stdstat(struct vop_stat_args *ap);
+static int vop_stdvput_pair(struct vop_vput_pair_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -151,6 +152,7 @@ struct vop_vector default_vnodeops = {
 	.vop_unset_text =	vop_stdunset_text,
 	.vop_add_writecount =	vop_stdadd_writecount,
 	.vop_copy_file_range =	vop_stdcopy_file_range,
+	.vop_vput_pair =	vop_stdvput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(default_vnodeops);
 
@@ -195,6 +197,13 @@ vop_enoent(struct vop_generic_args *ap)
 {
 
 	return (ENOENT);
+}
+
+int
+vop_eagain(struct vop_generic_args *ap)
+{
+
+	return (EAGAIN);
 }
 
 int
@@ -414,10 +423,25 @@ int
 vop_stdadvlock(struct vop_advlock_args *ap)
 {
 	struct vnode *vp;
+	struct mount *mp;
 	struct vattr vattr;
 	int error;
 
 	vp = ap->a_vp;
+
+	/*
+	 * Provide atomicity of open(O_CREAT | O_EXCL | O_EXLOCK) for
+	 * local filesystems.  See vn_open_cred() for reciprocal part.
+	 */
+	mp = vp->v_mount;
+	if (mp != NULL && (mp->mnt_flag & MNT_LOCAL) != 0 &&
+	    ap->a_op == F_SETLK && (ap->a_flags & F_FIRSTOPEN) == 0) {
+		VI_LOCK(vp);
+		while ((vp->v_iflag & VI_FOPENING) != 0)
+			msleep(vp, VI_MTX(vp), PLOCK, "lockfo", 0);
+		VI_UNLOCK(vp);
+	}
+
 	if (ap->a_fl->l_whence == SEEK_END) {
 		/*
 		 * The NFSv4 server must avoid doing a vn_lock() here, since it
@@ -668,29 +692,7 @@ vop_stdgetwritemount(ap)
 	 * with releasing it.
 	 */
 	vp = ap->a_vp;
-	mp = vp->v_mount;
-	if (mp == NULL) {
-		*(ap->a_mpp) = NULL;
-		return (0);
-	}
-	if (vfs_op_thread_enter(mp)) {
-		if (mp == vp->v_mount) {
-			vfs_mp_count_add_pcpu(mp, ref, 1);
-			vfs_op_thread_exit(mp);
-		} else {
-			vfs_op_thread_exit(mp);
-			mp = NULL;
-		}
-	} else {
-		MNT_ILOCK(mp);
-		if (mp == vp->v_mount) {
-			MNT_REF(mp);
-			MNT_IUNLOCK(mp);
-		} else {
-			MNT_IUNLOCK(mp);
-			mp = NULL;
-		}
-	}
+	mp = vfs_ref_from_vp(vp);
 	*(ap->a_mpp) = mp;
 	return (0);
 }
@@ -812,7 +814,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vnode **dvp = ap->a_vpp;
-	struct ucred *cred = ap->a_cred;
+	struct ucred *cred;
 	char *buf = ap->a_buf;
 	size_t *buflen = ap->a_buflen;
 	char *dirbuf, *cpos;
@@ -829,6 +831,7 @@ vop_stdvptocnp(struct vop_vptocnp_args *ap)
 	error = 0;
 	covered = 0;
 	td = curthread;
+	cred = td->td_ucred;
 
 	if (vp->v_type != VDIR)
 		return (ENOENT);
@@ -965,8 +968,8 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	iosize = vap->va_blocksize;
 	if (iosize == 0)
 		iosize = BLKDEV_IOSIZE;
-	if (iosize > MAXPHYS)
-		iosize = MAXPHYS;
+	if (iosize > maxphys)
+		iosize = maxphys;
 	buf = malloc(iosize, M_TEMP, M_WAITOK);
 
 #ifdef __notyet__
@@ -1582,4 +1585,17 @@ static int
 vop_stdread_pgcache(struct vop_read_pgcache_args *ap __unused)
 {
 	return (EJUSTRETURN);
+}
+
+static int
+vop_stdvput_pair(struct vop_vput_pair_args *ap)
+{
+	struct vnode *dvp, *vp, **vpp;
+
+	dvp = ap->a_dvp;
+	vpp = ap->a_vpp;
+	vput(dvp);
+	if (vpp != NULL && ap->a_unlock_vp && (vp = *vpp) != NULL)
+		vput(vp);
+	return (0);
 }

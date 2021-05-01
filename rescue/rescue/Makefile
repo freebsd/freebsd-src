@@ -103,7 +103,7 @@ CRUNCH_PROGS_sbin+= ccdconfig
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no"
-CRUNCH_PROGS_sbin+= ping6
+CRUNCH_ALIAS_ping= ping6
 CRUNCH_PROGS_sbin+= rtsol
 .endif
 

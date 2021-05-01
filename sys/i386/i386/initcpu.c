@@ -2,21 +2,21 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) KATO Takenori, 1997, 1998.
- * 
+ *
  * All rights reserved.  Unpublished rights reserved under the copyright
  * laws of Japan.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer as
  *    the first lines of this file unmodified.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -720,8 +720,8 @@ initializecpu(void)
 				break;
 			}
 			break;
-#ifdef CPU_ATHLON_SSE_HACK
 		case CPU_VENDOR_AMD:
+#ifdef CPU_ATHLON_SSE_HACK
 			/*
 			 * Sometimes the BIOS doesn't enable SSE instructions.
 			 * According to AMD document 20734, the mobile
@@ -738,8 +738,16 @@ initializecpu(void)
 				do_cpuid(1, regs);
 				cpu_feature = regs[3];
 			}
-			break;
 #endif
+			/*
+			 * Detect C1E that breaks APIC.  See comment in
+			 * amd64/initcpu.c.
+			 */
+			if ((CPUID_TO_FAMILY(cpu_id) == 0xf ||
+			    CPUID_TO_FAMILY(cpu_id) == 0x10) &&
+			    (cpu_feature2 & CPUID2_HV) == 0)
+				cpu_amdc1e_bug = 1;
+			break;
 		case CPU_VENDOR_CENTAUR:
 			init_via();
 			break;
@@ -829,7 +837,7 @@ enable_K5_wt_alloc(void)
 		msr |= AMD_WT_ALLOC_TME | AMD_WT_ALLOC_FRE;
 
 		/*
-		 * There is no way to know wheter 15-16M hole exists or not. 
+		 * There is no way to know whether 15-16M hole exists or not.
 		 * Therefore, we disable write allocate for this range.
 		 */
 		wrmsr(0x86, 0x0ff00f0);
@@ -882,7 +890,7 @@ enable_K6_wt_alloc(void)
 		whcr |=  0x0001LL;
 #else
 	/*
-	 * There is no way to know wheter 15-16M hole exists or not. 
+	 * There is no way to know whether 15-16M hole exists or not.
 	 * Therefore, we disable write allocate for this range.
 	 */
 	whcr &= ~0x0001LL;
@@ -932,7 +940,7 @@ enable_K6_2_wt_alloc(void)
 		whcr |=  1LL << 16;
 #else
 	/*
-	 * There is no way to know wheter 15-16M hole exists or not. 
+	 * There is no way to know whether 15-16M hole exists or not.
 	 * Therefore, we disable write allocate for this range.
 	 */
 	whcr &= ~(1LL << 16);

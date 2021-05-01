@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/module.h>
-#include <sys/taskqueue.h>
 #include <sys/gpio.h>
 
 #include <net/bpf.h>
@@ -199,7 +198,6 @@ struct awg_softc {
 	device_t		dev;
 	device_t		miibus;
 	struct callout		stat_ch;
-	struct task		link_task;
 	void			*ih;
 	u_int			mdc_div_ratio_m;
 	int			link;
@@ -219,6 +217,9 @@ static struct resource_spec awg_spec[] = {
 };
 
 static void awg_txeof(struct awg_softc *sc);
+static void awg_start_locked(struct awg_softc *sc);
+
+static void awg_tick(void *softc);
 
 static int awg_parse_delay(device_t dev, uint32_t *tx_delay,
     uint32_t *rx_delay);
@@ -226,6 +227,10 @@ static uint32_t syscon_read_emac_clk_reg(device_t dev);
 static void syscon_write_emac_clk_reg(device_t dev, uint32_t val);
 static phandle_t awg_get_phy_node(device_t dev);
 static bool awg_has_internal_phy(device_t dev);
+
+/*
+ * MII functions
+ */
 
 static int
 awg_miibus_readreg(device_t dev, int phy, int reg)
@@ -284,10 +289,13 @@ awg_miibus_writereg(device_t dev, int phy, int reg, int val)
 }
 
 static void
-awg_update_link_locked(struct awg_softc *sc)
+awg_miibus_statchg(device_t dev)
 {
+	struct awg_softc *sc;
 	struct mii_data *mii;
 	uint32_t val;
+
+	sc = device_get_softc(dev);
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -345,27 +353,9 @@ awg_update_link_locked(struct awg_softc *sc)
 	WR4(sc, EMAC_TX_FLOW_CTL, val);
 }
 
-static void
-awg_link_task(void *arg, int pending)
-{
-	struct awg_softc *sc;
-
-	sc = arg;
-
-	AWG_LOCK(sc);
-	awg_update_link_locked(sc);
-	AWG_UNLOCK(sc);
-}
-
-static void
-awg_miibus_statchg(device_t dev)
-{
-	struct awg_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	taskqueue_enqueue(taskqueue_swi, &sc->link_task);
-}
+/*
+ * Media functions
+ */
 
 static void
 awg_media_status(if_t ifp, struct ifmediareq *ifmr)
@@ -398,6 +388,217 @@ awg_media_change(if_t ifp)
 	AWG_UNLOCK(sc);
 
 	return (error);
+}
+
+/*
+ * Core functions
+ */
+
+/* Bit Reversal - http://aggregate.org/MAGIC/#Bit%20Reversal */
+static uint32_t
+bitrev32(uint32_t x)
+{
+	x = (((x & 0xaaaaaaaa) >> 1) | ((x & 0x55555555) << 1));
+	x = (((x & 0xcccccccc) >> 2) | ((x & 0x33333333) << 2));
+	x = (((x & 0xf0f0f0f0) >> 4) | ((x & 0x0f0f0f0f) << 4));
+	x = (((x & 0xff00ff00) >> 8) | ((x & 0x00ff00ff) << 8));
+
+	return (x >> 16) | (x << 16);
+}
+
+static u_int
+awg_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t crc, hashreg, hashbit, *hash = arg;
+
+	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN) & 0x7f;
+	crc = bitrev32(~crc) >> 26;
+	hashreg = (crc >> 5);
+	hashbit = (crc & 0x1f);
+	hash[hashreg] |= (1 << hashbit);
+
+	return (1);
+}
+
+static void
+awg_setup_rxfilter(struct awg_softc *sc)
+{
+	uint32_t val, hash[2], machi, maclo;
+	uint8_t *eaddr;
+	if_t ifp;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	ifp = sc->ifp;
+	val = 0;
+	hash[0] = hash[1] = 0;
+
+	if (if_getflags(ifp) & IFF_PROMISC)
+		val |= DIS_ADDR_FILTER;
+	else if (if_getflags(ifp) & IFF_ALLMULTI) {
+		val |= RX_ALL_MULTICAST;
+		hash[0] = hash[1] = ~0;
+	} else if (if_foreach_llmaddr(ifp, awg_hash_maddr, hash) > 0)
+		val |= HASH_MULTICAST;
+
+	/* Write our unicast address */
+	eaddr = IF_LLADDR(ifp);
+	machi = (eaddr[5] << 8) | eaddr[4];
+	maclo = (eaddr[3] << 24) | (eaddr[2] << 16) | (eaddr[1] << 8) |
+	   (eaddr[0] << 0);
+	WR4(sc, EMAC_ADDR_HIGH(0), machi);
+	WR4(sc, EMAC_ADDR_LOW(0), maclo);
+
+	/* Multicast hash filters */
+	WR4(sc, EMAC_RX_HASH_0, hash[1]);
+	WR4(sc, EMAC_RX_HASH_1, hash[0]);
+
+	/* RX frame filter config */
+	WR4(sc, EMAC_RX_FRM_FLT, val);
+}
+
+static void
+awg_setup_core(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+	/* Configure DMA burst length and priorities */
+	val = awg_burst_len << BASIC_CTL_BURST_LEN_SHIFT;
+	if (awg_rx_tx_pri)
+		val |= BASIC_CTL_RX_TX_PRI;
+	WR4(sc, EMAC_BASIC_CTL_1, val);
+
+}
+
+static void
+awg_enable_mac(struct awg_softc *sc, bool enable)
+{
+	uint32_t tx, rx;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	tx = RD4(sc, EMAC_TX_CTL_0);
+	rx = RD4(sc, EMAC_RX_CTL_0);
+	if (enable) {
+		tx |= TX_EN;
+		rx |= RX_EN | CHECK_CRC;
+	} else {
+		tx &= ~TX_EN;
+		rx &= ~(RX_EN | CHECK_CRC);
+	}
+
+	WR4(sc, EMAC_TX_CTL_0, tx);
+	WR4(sc, EMAC_RX_CTL_0, rx);
+}
+
+static void 
+awg_get_eaddr(device_t dev, uint8_t *eaddr)
+{
+	struct awg_softc *sc;
+	uint32_t maclo, machi, rnd;
+	u_char rootkey[16];
+	uint32_t rootkey_size;
+
+	sc = device_get_softc(dev);
+
+	machi = RD4(sc, EMAC_ADDR_HIGH(0)) & 0xffff;
+	maclo = RD4(sc, EMAC_ADDR_LOW(0));
+
+	rootkey_size = sizeof(rootkey);
+	if (maclo == 0xffffffff && machi == 0xffff) {
+		/* MAC address in hardware is invalid, create one */
+		if (aw_sid_get_fuse(AW_SID_FUSE_ROOTKEY, rootkey,
+		    &rootkey_size) == 0 &&
+		    (rootkey[3] | rootkey[12] | rootkey[13] | rootkey[14] |
+		     rootkey[15]) != 0) {
+			/* MAC address is derived from the root key in SID */
+			maclo = (rootkey[13] << 24) | (rootkey[12] << 16) |
+				(rootkey[3] << 8) | 0x02;
+			machi = (rootkey[15] << 8) | rootkey[14];
+		} else {
+			/* Create one */
+			rnd = arc4random();
+			maclo = 0x00f2 | (rnd & 0xffff0000);
+			machi = rnd & 0xffff;
+		}
+	}
+
+	eaddr[0] = maclo & 0xff;
+	eaddr[1] = (maclo >> 8) & 0xff;
+	eaddr[2] = (maclo >> 16) & 0xff;
+	eaddr[3] = (maclo >> 24) & 0xff;
+	eaddr[4] = machi & 0xff;
+	eaddr[5] = (machi >> 8) & 0xff;
+}
+
+/*
+ * DMA functions
+ */
+
+static void
+awg_enable_dma_intr(struct awg_softc *sc)
+{
+	/* Enable interrupts */
+	WR4(sc, EMAC_INT_EN, RX_INT_EN | TX_INT_EN | TX_BUF_UA_INT_EN);
+}
+
+static void
+awg_disable_dma_intr(struct awg_softc *sc)
+{
+	/* Disable interrupts */
+	WR4(sc, EMAC_INT_EN, 0);
+}
+
+static void
+awg_init_dma(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Enable interrupts */
+#ifdef DEVICE_POLLING
+	if ((if_getcapenable(sc->ifp) & IFCAP_POLLING) == 0)
+		awg_enable_dma_intr(sc);
+	else
+		awg_disable_dma_intr(sc);
+#else
+	awg_enable_dma_intr(sc);
+#endif
+
+	/* Enable transmit DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD | TX_NEXT_FRAME);
+
+	/* Enable receive DMA */
+	val = RD4(sc, EMAC_RX_CTL_1);
+	WR4(sc, EMAC_RX_CTL_1, val | RX_DMA_EN | RX_MD);
+}
+
+static void
+awg_stop_dma(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Stop transmit DMA and flush data in the TX FIFO */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	val &= ~TX_DMA_EN;
+	val |= FLUSH_TX_FIFO;
+	WR4(sc, EMAC_TX_CTL_1, val);
+
+	/* Disable interrupts */
+	awg_disable_dma_intr(sc);
+
+	/* Disable transmit DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val & ~TX_DMA_EN);
+
+	/* Disable receive DMA */
+	val = RD4(sc, EMAC_RX_CTL_1);
+	WR4(sc, EMAC_RX_CTL_1, val & ~RX_DMA_EN);
 }
 
 static int
@@ -581,10 +782,185 @@ awg_newbuf_rx(struct awg_softc *sc, int index)
 }
 
 static void
+awg_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	if (error != 0)
+		return;
+	*(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
+static int
+awg_setup_dma(device_t dev)
+{
+	struct awg_softc *sc;
+	int error, i;
+
+	sc = device_get_softc(dev);
+
+	/* Setup TX ring */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* Parent tag */
+	    DESC_ALIGN, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    TX_DESC_SIZE, 1,		/* maxsize, nsegs */
+	    TX_DESC_SIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->tx.desc_tag);
+	if (error != 0) {
+		device_printf(dev, "cannot create TX descriptor ring tag\n");
+		return (error);
+	}
+
+	error = bus_dmamem_alloc(sc->tx.desc_tag, (void **)&sc->tx.desc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->tx.desc_map);
+	if (error != 0) {
+		device_printf(dev, "cannot allocate TX descriptor ring\n");
+		return (error);
+	}
+
+	error = bus_dmamap_load(sc->tx.desc_tag, sc->tx.desc_map,
+	    sc->tx.desc_ring, TX_DESC_SIZE, awg_dmamap_cb,
+	    &sc->tx.desc_ring_paddr, 0);
+	if (error != 0) {
+		device_printf(dev, "cannot load TX descriptor ring\n");
+		return (error);
+	}
+
+	for (i = 0; i < TX_DESC_COUNT; i++)
+		sc->tx.desc_ring[i].next =
+		    htole32(sc->tx.desc_ring_paddr + DESC_OFF(TX_NEXT(i)));
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* Parent tag */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES, TX_MAX_SEGS,	/* maxsize, nsegs */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->tx.buf_tag);
+	if (error != 0) {
+		device_printf(dev, "cannot create TX buffer tag\n");
+		return (error);
+	}
+
+	sc->tx.queued = 0;
+	for (i = 0; i < TX_DESC_COUNT; i++) {
+		error = bus_dmamap_create(sc->tx.buf_tag, 0,
+		    &sc->tx.buf_map[i].map);
+		if (error != 0) {
+			device_printf(dev, "cannot create TX buffer map\n");
+			return (error);
+		}
+	}
+
+	/* Setup RX ring */
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* Parent tag */
+	    DESC_ALIGN, 0,		/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    RX_DESC_SIZE, 1,		/* maxsize, nsegs */
+	    RX_DESC_SIZE,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rx.desc_tag);
+	if (error != 0) {
+		device_printf(dev, "cannot create RX descriptor ring tag\n");
+		return (error);
+	}
+
+	error = bus_dmamem_alloc(sc->rx.desc_tag, (void **)&sc->rx.desc_ring,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->rx.desc_map);
+	if (error != 0) {
+		device_printf(dev, "cannot allocate RX descriptor ring\n");
+		return (error);
+	}
+
+	error = bus_dmamap_load(sc->rx.desc_tag, sc->rx.desc_map,
+	    sc->rx.desc_ring, RX_DESC_SIZE, awg_dmamap_cb,
+	    &sc->rx.desc_ring_paddr, 0);
+	if (error != 0) {
+		device_printf(dev, "cannot load RX descriptor ring\n");
+		return (error);
+	}
+
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(dev),	/* Parent tag */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES, 1,		/* maxsize, nsegs */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rx.buf_tag);
+	if (error != 0) {
+		device_printf(dev, "cannot create RX buffer tag\n");
+		return (error);
+	}
+
+	error = bus_dmamap_create(sc->rx.buf_tag, 0, &sc->rx.buf_spare_map);
+	if (error != 0) {
+		device_printf(dev,
+		    "cannot create RX buffer spare map\n");
+		return (error);
+	}
+
+	for (i = 0; i < RX_DESC_COUNT; i++) {
+		sc->rx.desc_ring[i].next =
+		    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(i)));
+
+		error = bus_dmamap_create(sc->rx.buf_tag, 0,
+		    &sc->rx.buf_map[i].map);
+		if (error != 0) {
+			device_printf(dev, "cannot create RX buffer map\n");
+			return (error);
+		}
+		sc->rx.buf_map[i].mbuf = NULL;
+		error = awg_newbuf_rx(sc, i);
+		if (error != 0) {
+			device_printf(dev, "cannot create RX buffer\n");
+			return (error);
+		}
+	}
+	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
+	    BUS_DMASYNC_PREWRITE);
+
+	/* Write transmit and receive descriptor base address registers */
+	WR4(sc, EMAC_TX_DMA_LIST, sc->tx.desc_ring_paddr);
+	WR4(sc, EMAC_RX_DMA_LIST, sc->rx.desc_ring_paddr);
+
+	return (0);
+}
+
+static void
+awg_dma_start_tx(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Start and run TX DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_START);
+}
+
+/*
+ * if_ functions
+ */
+
+static void
 awg_start_locked(struct awg_softc *sc)
 {
 	struct mbuf *m;
-	uint32_t val;
 	if_t ifp;
 	int cnt, err;
 
@@ -619,9 +995,7 @@ awg_start_locked(struct awg_softc *sc)
 		bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
 		    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
-		/* Start and run TX DMA */
-		val = RD4(sc, EMAC_TX_CTL_1);
-		WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_START);
+		awg_dma_start_tx(sc);
 	}
 }
 
@@ -638,112 +1012,9 @@ awg_start(if_t ifp)
 }
 
 static void
-awg_tick(void *softc)
-{
-	struct awg_softc *sc;
-	struct mii_data *mii;
-	if_t ifp;
-	int link;
-
-	sc = softc;
-	ifp = sc->ifp;
-	mii = device_get_softc(sc->miibus);
-
-	AWG_ASSERT_LOCKED(sc);
-
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
-		return;
-
-	link = sc->link;
-	mii_tick(mii);
-	if (sc->link && !link)
-		awg_start_locked(sc);
-
-	callout_reset(&sc->stat_ch, hz, awg_tick, sc);
-}
-
-/* Bit Reversal - http://aggregate.org/MAGIC/#Bit%20Reversal */
-static uint32_t
-bitrev32(uint32_t x)
-{
-	x = (((x & 0xaaaaaaaa) >> 1) | ((x & 0x55555555) << 1));
-	x = (((x & 0xcccccccc) >> 2) | ((x & 0x33333333) << 2));
-	x = (((x & 0xf0f0f0f0) >> 4) | ((x & 0x0f0f0f0f) << 4));
-	x = (((x & 0xff00ff00) >> 8) | ((x & 0x00ff00ff) << 8));
-
-	return (x >> 16) | (x << 16);
-}
-
-static u_int
-awg_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
-{
-	uint32_t crc, hashreg, hashbit, *hash = arg;
-
-	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN) & 0x7f;
-	crc = bitrev32(~crc) >> 26;
-	hashreg = (crc >> 5);
-	hashbit = (crc & 0x1f);
-	hash[hashreg] |= (1 << hashbit);
-
-	return (1);
-}
-
-static void
-awg_setup_rxfilter(struct awg_softc *sc)
-{
-	uint32_t val, hash[2], machi, maclo;
-	uint8_t *eaddr;
-	if_t ifp;
-
-	AWG_ASSERT_LOCKED(sc);
-
-	ifp = sc->ifp;
-	val = 0;
-	hash[0] = hash[1] = 0;
-
-	if (if_getflags(ifp) & IFF_PROMISC)
-		val |= DIS_ADDR_FILTER;
-	else if (if_getflags(ifp) & IFF_ALLMULTI) {
-		val |= RX_ALL_MULTICAST;
-		hash[0] = hash[1] = ~0;
-	} else if (if_foreach_llmaddr(ifp, awg_hash_maddr, hash) > 0)
-		val |= HASH_MULTICAST;
-
-	/* Write our unicast address */
-	eaddr = IF_LLADDR(ifp);
-	machi = (eaddr[5] << 8) | eaddr[4];
-	maclo = (eaddr[3] << 24) | (eaddr[2] << 16) | (eaddr[1] << 8) |
-	   (eaddr[0] << 0);
-	WR4(sc, EMAC_ADDR_HIGH(0), machi);
-	WR4(sc, EMAC_ADDR_LOW(0), maclo);
-
-	/* Multicast hash filters */
-	WR4(sc, EMAC_RX_HASH_0, hash[1]);
-	WR4(sc, EMAC_RX_HASH_1, hash[0]);
-
-	/* RX frame filter config */
-	WR4(sc, EMAC_RX_FRM_FLT, val);
-}
-
-static void
-awg_enable_intr(struct awg_softc *sc)
-{
-	/* Enable interrupts */
-	WR4(sc, EMAC_INT_EN, RX_INT_EN | TX_INT_EN | TX_BUF_UA_INT_EN);
-}
-
-static void
-awg_disable_intr(struct awg_softc *sc)
-{
-	/* Disable interrupts */
-	WR4(sc, EMAC_INT_EN, 0);
-}
-
-static void
 awg_init_locked(struct awg_softc *sc)
 {
 	struct mii_data *mii;
-	uint32_t val;
 	if_t ifp;
 
 	mii = device_get_softc(sc->miibus);
@@ -755,38 +1026,9 @@ awg_init_locked(struct awg_softc *sc)
 		return;
 
 	awg_setup_rxfilter(sc);
-
-	/* Configure DMA burst length and priorities */
-	val = awg_burst_len << BASIC_CTL_BURST_LEN_SHIFT;
-	if (awg_rx_tx_pri)
-		val |= BASIC_CTL_RX_TX_PRI;
-	WR4(sc, EMAC_BASIC_CTL_1, val);
-
-	/* Enable interrupts */
-#ifdef DEVICE_POLLING
-	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
-		awg_enable_intr(sc);
-	else
-		awg_disable_intr(sc);
-#else
-	awg_enable_intr(sc);
-#endif
-
-	/* Enable transmit DMA */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD | TX_NEXT_FRAME);
-
-	/* Enable receive DMA */
-	val = RD4(sc, EMAC_RX_CTL_1);
-	WR4(sc, EMAC_RX_CTL_1, val | RX_DMA_EN | RX_MD);
-
-	/* Enable transmitter */
-	val = RD4(sc, EMAC_TX_CTL_0);
-	WR4(sc, EMAC_TX_CTL_0, val | TX_EN);
-
-	/* Enable receiver */
-	val = RD4(sc, EMAC_RX_CTL_0);
-	WR4(sc, EMAC_RX_CTL_0, val | RX_EN | CHECK_CRC);
+	awg_setup_core(sc);
+	awg_enable_mac(sc, true);
+	awg_init_dma(sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
@@ -819,30 +1061,8 @@ awg_stop(struct awg_softc *sc)
 
 	callout_stop(&sc->stat_ch);
 
-	/* Stop transmit DMA and flush data in the TX FIFO */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	val &= ~TX_DMA_EN;
-	val |= FLUSH_TX_FIFO;
-	WR4(sc, EMAC_TX_CTL_1, val);
-
-	/* Disable transmitter */
-	val = RD4(sc, EMAC_TX_CTL_0);
-	WR4(sc, EMAC_TX_CTL_0, val & ~TX_EN);
-
-	/* Disable receiver */
-	val = RD4(sc, EMAC_RX_CTL_0);
-	WR4(sc, EMAC_RX_CTL_0, val & ~RX_EN);
-
-	/* Disable interrupts */
-	awg_disable_intr(sc);
-
-	/* Disable transmit DMA */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	WR4(sc, EMAC_TX_CTL_1, val & ~TX_DMA_EN);
-
-	/* Disable receive DMA */
-	val = RD4(sc, EMAC_RX_CTL_1);
-	WR4(sc, EMAC_RX_CTL_1, val & ~RX_DMA_EN);
+	awg_stop_dma(sc);
+	awg_enable_mac(sc, false);
 
 	sc->link = 0;
 
@@ -881,6 +1101,92 @@ awg_stop(struct awg_softc *sc)
 
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
+
+static int
+awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
+{
+	struct awg_softc *sc;
+	struct mii_data *mii;
+	struct ifreq *ifr;
+	int flags, mask, error;
+
+	sc = if_getsoftc(ifp);
+	mii = device_get_softc(sc->miibus);
+	ifr = (struct ifreq *)data;
+	error = 0;
+
+	switch (cmd) {
+	case SIOCSIFFLAGS:
+		AWG_LOCK(sc);
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				flags = if_getflags(ifp) ^ sc->if_flags;
+				if ((flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0)
+					awg_setup_rxfilter(sc);
+			} else
+				awg_init_locked(sc);
+		} else {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+				awg_stop(sc);
+		}
+		sc->if_flags = if_getflags(ifp);
+		AWG_UNLOCK(sc);
+		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+			AWG_LOCK(sc);
+			awg_setup_rxfilter(sc);
+			AWG_UNLOCK(sc);
+		}
+		break;
+	case SIOCSIFMEDIA:
+	case SIOCGIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
+		break;
+	case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+#ifdef DEVICE_POLLING
+		if (mask & IFCAP_POLLING) {
+			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
+				error = ether_poll_register(awg_poll, ifp);
+				if (error != 0)
+					break;
+				AWG_LOCK(sc);
+				awg_disable_dma_intr(sc);
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
+				AWG_UNLOCK(sc);
+			} else {
+				error = ether_poll_deregister(ifp);
+				AWG_LOCK(sc);
+				awg_enable_dma_intr(sc);
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
+				AWG_UNLOCK(sc);
+			}
+		}
+#endif
+		if (mask & IFCAP_VLAN_MTU)
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
+		if (mask & IFCAP_RXCSUM)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
+		if (mask & IFCAP_TXCSUM)
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassistbits(ifp, CSUM_IP | CSUM_UDP | CSUM_TCP, 0);
+		else
+			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_UDP | CSUM_TCP);
+		break;
+	default:
+		error = ether_ioctl(ifp, cmd, data);
+		break;
+	}
+
+	return (error);
+}
+
+/*
+ * Interrupts functions
+ */
 
 static int
 awg_rxintr(struct awg_softc *sc)
@@ -1071,88 +1377,9 @@ awg_poll(if_t ifp, enum poll_cmd cmd, int count)
 }
 #endif
 
-static int
-awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
-{
-	struct awg_softc *sc;
-	struct mii_data *mii;
-	struct ifreq *ifr;
-	int flags, mask, error;
-
-	sc = if_getsoftc(ifp);
-	mii = device_get_softc(sc->miibus);
-	ifr = (struct ifreq *)data;
-	error = 0;
-
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		AWG_LOCK(sc);
-		if (if_getflags(ifp) & IFF_UP) {
-			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				flags = if_getflags(ifp) ^ sc->if_flags;
-				if ((flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0)
-					awg_setup_rxfilter(sc);
-			} else
-				awg_init_locked(sc);
-		} else {
-			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
-				awg_stop(sc);
-		}
-		sc->if_flags = if_getflags(ifp);
-		AWG_UNLOCK(sc);
-		break;
-	case SIOCADDMULTI:
-	case SIOCDELMULTI:
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-			AWG_LOCK(sc);
-			awg_setup_rxfilter(sc);
-			AWG_UNLOCK(sc);
-		}
-		break;
-	case SIOCSIFMEDIA:
-	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
-		break;
-	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
-#ifdef DEVICE_POLLING
-		if (mask & IFCAP_POLLING) {
-			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
-				error = ether_poll_register(awg_poll, ifp);
-				if (error != 0)
-					break;
-				AWG_LOCK(sc);
-				awg_disable_intr(sc);
-				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
-				AWG_UNLOCK(sc);
-			} else {
-				error = ether_poll_deregister(ifp);
-				AWG_LOCK(sc);
-				awg_enable_intr(sc);
-				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
-				AWG_UNLOCK(sc);
-			}
-		}
-#endif
-		if (mask & IFCAP_VLAN_MTU)
-			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
-		if (mask & IFCAP_RXCSUM)
-			if_togglecapenable(ifp, IFCAP_RXCSUM);
-		if (mask & IFCAP_TXCSUM)
-			if_togglecapenable(ifp, IFCAP_TXCSUM);
-		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
-			if_sethwassistbits(ifp, CSUM_IP | CSUM_UDP | CSUM_TCP, 0);
-		else
-			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_UDP | CSUM_TCP);
-		break;
-	default:
-		error = ether_ioctl(ifp, cmd, data);
-		break;
-	}
-
-	return (error);
-}
-
+/*
+ * syscon functions
+ */
 static uint32_t
 syscon_read_emac_clk_reg(device_t dev)
 {
@@ -1178,6 +1405,10 @@ syscon_write_emac_clk_reg(device_t dev, uint32_t val)
 	else if (sc->res[_RES_SYSCON] != NULL)
 		bus_write_4(sc->res[_RES_SYSCON], 0, val);
 }
+
+/*
+ * PHY functions
+ */
 
 static phandle_t
 awg_get_phy_node(device_t dev)
@@ -1518,46 +1749,6 @@ fail:
 	return (error);
 }
 
-static void 
-awg_get_eaddr(device_t dev, uint8_t *eaddr)
-{
-	struct awg_softc *sc;
-	uint32_t maclo, machi, rnd;
-	u_char rootkey[16];
-	uint32_t rootkey_size;
-
-	sc = device_get_softc(dev);
-
-	machi = RD4(sc, EMAC_ADDR_HIGH(0)) & 0xffff;
-	maclo = RD4(sc, EMAC_ADDR_LOW(0));
-
-	rootkey_size = sizeof(rootkey);
-	if (maclo == 0xffffffff && machi == 0xffff) {
-		/* MAC address in hardware is invalid, create one */
-		if (aw_sid_get_fuse(AW_SID_FUSE_ROOTKEY, rootkey,
-		    &rootkey_size) == 0 &&
-		    (rootkey[3] | rootkey[12] | rootkey[13] | rootkey[14] |
-		     rootkey[15]) != 0) {
-			/* MAC address is derived from the root key in SID */
-			maclo = (rootkey[13] << 24) | (rootkey[12] << 16) |
-				(rootkey[3] << 8) | 0x02;
-			machi = (rootkey[15] << 8) | rootkey[14];
-		} else {
-			/* Create one */
-			rnd = arc4random();
-			maclo = 0x00f2 | (rnd & 0xffff0000);
-			machi = rnd & 0xffff;
-		}
-	}
-
-	eaddr[0] = maclo & 0xff;
-	eaddr[1] = (maclo >> 8) & 0xff;
-	eaddr[2] = (maclo >> 16) & 0xff;
-	eaddr[3] = (maclo >> 24) & 0xff;
-	eaddr[4] = machi & 0xff;
-	eaddr[5] = (machi >> 8) & 0xff;
-}
-
 #ifdef AWG_DEBUG
 static void
 awg_dump_regs(device_t dev)
@@ -1682,165 +1873,38 @@ awg_reset(device_t dev)
 	return (0);
 }
 
-static void
-awg_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	if (error != 0)
-		return;
-	*(bus_addr_t *)arg = segs[0].ds_addr;
-}
+/*
+ * Stats
+ */
 
-static int
-awg_setup_dma(device_t dev)
+static void
+awg_tick(void *softc)
 {
 	struct awg_softc *sc;
-	int error, i;
+	struct mii_data *mii;
+	if_t ifp;
+	int link;
 
-	sc = device_get_softc(dev);
+	sc = softc;
+	ifp = sc->ifp;
+	mii = device_get_softc(sc->miibus);
 
-	/* Setup TX ring */
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    DESC_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    TX_DESC_SIZE, 1,		/* maxsize, nsegs */
-	    TX_DESC_SIZE,		/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->tx.desc_tag);
-	if (error != 0) {
-		device_printf(dev, "cannot create TX descriptor ring tag\n");
-		return (error);
-	}
+	AWG_ASSERT_LOCKED(sc);
 
-	error = bus_dmamem_alloc(sc->tx.desc_tag, (void **)&sc->tx.desc_ring,
-	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->tx.desc_map);
-	if (error != 0) {
-		device_printf(dev, "cannot allocate TX descriptor ring\n");
-		return (error);
-	}
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+		return;
 
-	error = bus_dmamap_load(sc->tx.desc_tag, sc->tx.desc_map,
-	    sc->tx.desc_ring, TX_DESC_SIZE, awg_dmamap_cb,
-	    &sc->tx.desc_ring_paddr, 0);
-	if (error != 0) {
-		device_printf(dev, "cannot load TX descriptor ring\n");
-		return (error);
-	}
+	link = sc->link;
+	mii_tick(mii);
+	if (sc->link && !link)
+		awg_start_locked(sc);
 
-	for (i = 0; i < TX_DESC_COUNT; i++)
-		sc->tx.desc_ring[i].next =
-		    htole32(sc->tx.desc_ring_paddr + DESC_OFF(TX_NEXT(i)));
-
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES, TX_MAX_SEGS,	/* maxsize, nsegs */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->tx.buf_tag);
-	if (error != 0) {
-		device_printf(dev, "cannot create TX buffer tag\n");
-		return (error);
-	}
-
-	sc->tx.queued = 0;
-	for (i = 0; i < TX_DESC_COUNT; i++) {
-		error = bus_dmamap_create(sc->tx.buf_tag, 0,
-		    &sc->tx.buf_map[i].map);
-		if (error != 0) {
-			device_printf(dev, "cannot create TX buffer map\n");
-			return (error);
-		}
-	}
-
-	/* Setup RX ring */
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    DESC_ALIGN, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    RX_DESC_SIZE, 1,		/* maxsize, nsegs */
-	    RX_DESC_SIZE,		/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->rx.desc_tag);
-	if (error != 0) {
-		device_printf(dev, "cannot create RX descriptor ring tag\n");
-		return (error);
-	}
-
-	error = bus_dmamem_alloc(sc->rx.desc_tag, (void **)&sc->rx.desc_ring,
-	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->rx.desc_map);
-	if (error != 0) {
-		device_printf(dev, "cannot allocate RX descriptor ring\n");
-		return (error);
-	}
-
-	error = bus_dmamap_load(sc->rx.desc_tag, sc->rx.desc_map,
-	    sc->rx.desc_ring, RX_DESC_SIZE, awg_dmamap_cb,
-	    &sc->rx.desc_ring_paddr, 0);
-	if (error != 0) {
-		device_printf(dev, "cannot load RX descriptor ring\n");
-		return (error);
-	}
-
-	error = bus_dma_tag_create(
-	    bus_get_dma_tag(dev),	/* Parent tag */
-	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	    BUS_SPACE_MAXADDR,		/* highaddr */
-	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES, 1,		/* maxsize, nsegs */
-	    MCLBYTES,			/* maxsegsize */
-	    0,				/* flags */
-	    NULL, NULL,			/* lockfunc, lockarg */
-	    &sc->rx.buf_tag);
-	if (error != 0) {
-		device_printf(dev, "cannot create RX buffer tag\n");
-		return (error);
-	}
-
-	error = bus_dmamap_create(sc->rx.buf_tag, 0, &sc->rx.buf_spare_map);
-	if (error != 0) {
-		device_printf(dev,
-		    "cannot create RX buffer spare map\n");
-		return (error);
-	}
-
-	for (i = 0; i < RX_DESC_COUNT; i++) {
-		sc->rx.desc_ring[i].next =
-		    htole32(sc->rx.desc_ring_paddr + DESC_OFF(RX_NEXT(i)));
-
-		error = bus_dmamap_create(sc->rx.buf_tag, 0,
-		    &sc->rx.buf_map[i].map);
-		if (error != 0) {
-			device_printf(dev, "cannot create RX buffer map\n");
-			return (error);
-		}
-		sc->rx.buf_map[i].mbuf = NULL;
-		error = awg_newbuf_rx(sc, i);
-		if (error != 0) {
-			device_printf(dev, "cannot create RX buffer\n");
-			return (error);
-		}
-	}
-	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
-	    BUS_DMASYNC_PREWRITE);
-
-	/* Write transmit and receive descriptor base address registers */
-	WR4(sc, EMAC_TX_DMA_LIST, sc->tx.desc_ring_paddr);
-	WR4(sc, EMAC_RX_DMA_LIST, sc->rx.desc_ring_paddr);
-
-	return (0);
+	callout_reset(&sc->stat_ch, hz, awg_tick, sc);
 }
+
+/*
+ * Probe/attach functions
+ */
 
 static int
 awg_probe(device_t dev)
@@ -1873,7 +1937,6 @@ awg_attach(device_t dev)
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->mtx, 0);
-	TASK_INIT(&sc->link_task, 0, awg_link_task, sc);
 
 	/* Setup clocks and regulators */
 	error = awg_setup_extres(dev);

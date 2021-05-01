@@ -721,9 +721,9 @@ cqspi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	xdma_prep_sg(sc->xchan_tx, TX_QUEUE_SIZE, MAXPHYS, 8, 16, 0,
+	xdma_prep_sg(sc->xchan_tx, TX_QUEUE_SIZE, maxphys, 8, 16, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR);
-	xdma_prep_sg(sc->xchan_rx, TX_QUEUE_SIZE, MAXPHYS, 8, 16, 0,
+	xdma_prep_sg(sc->xchan_rx, TX_QUEUE_SIZE, maxphys, 8, 16, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR);
 
 	cqspi_init(sc);

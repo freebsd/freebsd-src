@@ -36,6 +36,7 @@
 /* Feature bits. */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0x1 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	0x2 /* Memory stats virtqueue */
+#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on OOM */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -54,8 +55,33 @@ struct virtio_balloon_config {
 #define VIRTIO_BALLOON_S_MINFLT   3   /* Number of minor faults */
 #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
 #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
-#define VIRTIO_BALLOON_S_NR       6
+#define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
+#define VIRTIO_BALLOON_S_CACHES   7   /* Disk caches */
+#define VIRTIO_BALLOON_S_NR       8
 
+/*
+ * Memory statistics structure.
+ * Driver fills an array of these structures and passes to device.
+ *
+ * NOTE: fields are laid out in a way that would make compiler add padding
+ * between and after fields, so we have to use compiler-specific attributes to
+ * pack it, to disable this padding. This also often causes compiler to
+ * generate suboptimal code.
+ *
+ * We maintain this statistics structure format for backwards compatibility,
+ * but don't follow this example.
+ *
+ * If implementing a similar structure, do something like the below instead:
+ *     struct virtio_balloon_stat {
+ *         __virtio16 tag;
+ *         __u8 reserved[6];
+ *         __virtio64 val;
+ *     };
+ *
+ * In other words, add explicit reserved fields to align field and
+ * structure boundaries at field size, avoiding compiler padding
+ * without the packed attribute.
+ */
 struct virtio_balloon_stat {
 	uint16_t tag;
 	uint64_t val;

@@ -63,6 +63,7 @@ pass5(void)
 	struct fs *fs = &sblock;
 	ufs2_daddr_t d, dbase, dmax, start;
 	int rewritecg = 0;
+	ino_t inum;
 	struct csum *cs;
 	struct csum_total cstotal;
 	struct inodesc idesc[3];
@@ -238,9 +239,9 @@ pass5(void)
 		}
 		memset(&newcg->cg_frsum[0], 0, sizeof newcg->cg_frsum);
 		memset(cg_inosused(newcg), 0, (size_t)(mapsize));
-		j = fs->fs_ipg * c;
-		for (i = 0; i < inostathead[c].il_numalloced; j++, i++) {
-			switch (inoinfo(j)->ino_state) {
+		inum = fs->fs_ipg * c;
+		for (i = 0; i < inostathead[c].il_numalloced; inum++, i++) {
+			switch (inoinfo(inum)->ino_state) {
 
 			case USTATE:
 				break;
@@ -260,10 +261,10 @@ pass5(void)
 				break;
 
 			default:
-				if (j < (int)UFS_ROOTINO)
+				if (inum < UFS_ROOTINO)
 					break;
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-				    inoinfo(j)->ino_state, j);
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%ju",
+				    inoinfo(inum)->ino_state, (uintmax_t)inum);
 			}
 		}
 		if (c == 0)

@@ -206,24 +206,45 @@ linux_fetch_syscall_args(struct thread *td)
 static void
 linux_set_syscall_retval(struct thread *td, int error)
 {
-	struct trapframe *frame = td->td_frame;
+	struct trapframe *frame;
 
-	/*
-	 * On Linux only %rcx and %r11 values are not preserved across
-	 * the syscall.  So, do not clobber %rdx and %r10.
-	 */
-	td->td_retval[1] = frame->tf_rdx;
-	if (error != EJUSTRETURN)
+	frame = td->td_frame;
+
+	switch (error) {
+	case 0:
+		frame->tf_rax = td->td_retval[0];
+ 		frame->tf_r10 = frame->tf_rcx;
+		break;
+
+	case ERESTART:
+		/*
+		 * Reconstruct pc, we know that 'syscall' is 2 bytes,
+		 * lcall $X,y is 7 bytes, int 0x80 is 2 bytes.
+		 * We saved this in tf_err.
+		 *
+		 */
+		frame->tf_rip -= frame->tf_err;
 		frame->tf_r10 = frame->tf_rcx;
+		break;
+ 
+	case EJUSTRETURN:
+		break;
 
-	cpu_set_syscall_retval(td, error);
-
-	if (__predict_false(error != 0)) {
-		if (error != ERESTART && error != EJUSTRETURN)
-			frame->tf_rax = linux_to_bsd_errno(error);
+	default:
+		frame->tf_rax = bsd_to_linux_errno(error);
+		frame->tf_r10 = frame->tf_rcx;
+		break;
 	}
 
-	 /* Restore all registers. */
+	/*
+	 * Differently from FreeBSD native ABI, on Linux only %rcx
+	 * and %r11 values are not preserved across the syscall.
+	 * Require full context restore to get all registers except
+	 * those two restored at return to usermode.
+	 *
+	 * XXX: Would be great to be able to avoid PCB_FULL_IRET
+	 *      for the error == 0 case.
+	 */
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
 
@@ -244,11 +265,11 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
 	    imgp->proc->p_sysent->sv_shared_page_base);
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
-	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
@@ -257,12 +278,13 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
-	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
+	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP2, 0);
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY_PTR(pos, LINUX_AT_EXECFN, imgp->execpathp);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);
@@ -456,27 +478,7 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
 
-	/*
-	 * Reset the hardware debug registers if they were in use.
-	 * They won't have any meaning for the newly exec'd process.
-	 */
-	if (pcb->pcb_flags & PCB_DBREGS) {
-		pcb->pcb_dr0 = 0;
-		pcb->pcb_dr1 = 0;
-		pcb->pcb_dr2 = 0;
-		pcb->pcb_dr3 = 0;
-		pcb->pcb_dr6 = 0;
-		pcb->pcb_dr7 = 0;
-		if (pcb == curpcb) {
-			/*
-			 * Clear the debug registers on the running
-			 * CPU, otherwise they will end up affecting
-			 * the next process we switch to.
-			 */
-			reset_dbregs();
-		}
-		clear_pcb_flags(pcb, PCB_DBREGS);
-	}
+	x86_clear_dbregs(pcb);
 
 	/*
 	 * Drop the FP state if we hold it, so that the process gets a
@@ -759,6 +761,9 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
 	.sv_trap	= linux_vsyscall,
+	.sv_onexec	= linux_on_exec,
+	.sv_onexit	= linux_on_exit,
+	.sv_ontdexit	= linux_thread_dtor,
 };
 
 static void
@@ -794,7 +799,8 @@ static void
 linux_vdso_deinstall(void *param)
 {
 
-	__elfN(linux_shared_page_fini)(linux_shared_page_obj);
+	__elfN(linux_shared_page_fini)(linux_shared_page_obj,
+	    linux_shared_page_mapping);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_deinstall, NULL);

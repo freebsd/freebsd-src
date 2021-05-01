@@ -43,7 +43,8 @@ PANEL	*_nc_retrace_panel(
 
 #undef _nc_my_visbuf
 const char *_nc_my_visbuf(
-		const void *ptr)
+		const void *ptr, 
+		int	n)
 		{ return(*(const char **)0); }
 
 #undef _nc_dPanel

@@ -456,12 +456,15 @@ ads111x_add_channels(struct ads111x_softc *sc)
 	name = device_get_name(sc->dev);
 	unit = device_get_unit(sc->dev);
 	for (chan = 0; chan < sc->chipinfo->numchan; ++chan) {
+		char resname[16];
 		found = false;
 		gainidx = DEFAULT_GAINIDX;
 		rateidx = DEFAULT_RATEIDX;
-		if (resource_int_value(name, unit, "gain_index", &gainidx) == 0)
+		snprintf(resname, sizeof(resname), "%d.gain_index", chan);
+		if (resource_int_value(name, unit, resname, &gainidx) == 0)
 			found = true;
-		if (resource_int_value(name, unit, "rate_index", &gainidx) == 0)
+		snprintf(resname, sizeof(resname), "%d.rate_index", chan);
+		if (resource_int_value(name, unit, resname, &rateidx) == 0)
 			found = true;
 		if (found) {
 			ads111x_setup_channel(sc, chan, gainidx, rateidx);
@@ -522,7 +525,11 @@ ads111x_probe(device_t dev)
 	info = ads111x_find_chipinfo(dev);
 	if (info != NULL) {
 		device_set_desc(dev, info->name);
+#ifdef FDT
 		return (BUS_PROBE_DEFAULT);
+#else
+		return (BUS_PROBE_NOWILDCARD);
+#endif
 	}
 
 	return (ENXIO);

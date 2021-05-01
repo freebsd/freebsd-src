@@ -46,6 +46,7 @@ typedef struct	_xlocale *locale_t;
  * POSIX2008 functions
  */
 int	 strcoll_l(const char *, const char *, locale_t);
+char	*strerror_l(int num, locale_t);
 size_t	 strxfrm_l(char *, const char *, size_t, locale_t);
 #endif /* _XLOCALE_STRING1_H */
 

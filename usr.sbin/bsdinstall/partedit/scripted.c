@@ -183,10 +183,14 @@ int parse_disk_config(char *input)
 		}
 	} while (input != NULL && *input != 0);
 
-	if (disk != NULL)
-		return (part_config(disk, scheme, partconfig));
+	if (disk == NULL || strcmp(disk, "DEFAULT") == 0) {
+		struct gmesh mesh;
+		geom_gettree(&mesh);
+		disk = boot_disk_select(&mesh);
+		geom_deletetree(&mesh);
+	}
 
-	return (0);
+	return (part_config(disk, scheme, partconfig));
 }
 
 int

@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fnv_hash.h>
 
 #include <net/ethernet.h>
+#include <net/infiniband.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -42,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static const void *
-m_ether_tcpip_hash_gethdr(const struct mbuf *m, const u_int off,
+m_common_hash_gethdr(const struct mbuf *m, const u_int off,
     const u_int len, void *buf)
 {
 
@@ -65,9 +66,19 @@ m_ether_tcpip_hash_init(void)
 }
 
 uint32_t
-m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
-    const uint32_t key)
+m_infiniband_tcpip_hash_init(void)
 {
+	uint32_t seed;
+
+	seed = arc4random();
+	return (fnv_32_buf(&seed, sizeof(seed), FNV1_32_INIT));
+}
+
+static inline uint32_t
+m_tcpip_hash(const uint32_t flags, const struct mbuf *m,
+    uint32_t p, int off, const uint16_t etype)
+{
+#if defined(INET) || defined(INET6)
 	union {
 #ifdef INET
 		struct ip ip;
@@ -75,49 +86,19 @@ m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 #ifdef INET6
 		struct ip6_hdr ip6;
 #endif
-		struct ether_vlan_header vlan;
 		uint32_t port;
 	} buf;
-	const struct ether_header *eh;
-	const struct ether_vlan_header *vlan;
 #ifdef INET
 	const struct ip *ip;
 #endif
 #ifdef INET6
 	const struct ip6_hdr *ip6;
 #endif
-	uint32_t p;
-	int off;
-	uint16_t etype;
-
-	p = key;
-	off = sizeof(*eh);
-	if (m->m_len < off)
-		goto done;
-	eh = mtod(m, struct ether_header *);
-	etype = ntohs(eh->ether_type);
-	if (flags & MBUF_HASHFLAG_L2) {
-		p = fnv_32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
-		p = fnv_32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
-	}
-	/* Special handling for encapsulating VLAN frames */
-	if ((m->m_flags & M_VLANTAG) && (flags & MBUF_HASHFLAG_L2)) {
-		p = fnv_32_buf(&m->m_pkthdr.ether_vtag,
-		    sizeof(m->m_pkthdr.ether_vtag), p);
-	} else if (etype == ETHERTYPE_VLAN) {
-		vlan = m_ether_tcpip_hash_gethdr(m, off, sizeof(*vlan), &buf);
-		if (vlan == NULL)
-			goto done;
-
-		if (flags & MBUF_HASHFLAG_L2)
-			p = fnv_32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
-		etype = ntohs(vlan->evl_proto);
-		off += sizeof(*vlan) - sizeof(*eh);
-	}
+#endif
 	switch (etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
-		ip = m_ether_tcpip_hash_gethdr(m, off, sizeof(*ip), &buf);
+		ip = m_common_hash_gethdr(m, off, sizeof(*ip), &buf);
 		if (ip == NULL)
 			break;
 		if (flags & MBUF_HASHFLAG_L3) {
@@ -136,7 +117,7 @@ m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 				if (iphlen < sizeof(*ip))
 					break;
 				off += iphlen;
-				ports = m_ether_tcpip_hash_gethdr(m,
+				ports = m_common_hash_gethdr(m,
 				    off, sizeof(*ports), &buf);
 				if (ports == NULL)
 					break;
@@ -150,7 +131,7 @@ m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 #endif
 #ifdef INET6
 	case ETHERTYPE_IPV6:
-		ip6 = m_ether_tcpip_hash_gethdr(m, off, sizeof(*ip6), &buf);
+		ip6 = m_common_hash_gethdr(m, off, sizeof(*ip6), &buf);
 		if (ip6 == NULL)
 			break;
 		if (flags & MBUF_HASHFLAG_L3) {
@@ -169,6 +150,62 @@ m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 	default:
 		break;
 	}
-done:
 	return (p);
+}
+
+uint32_t
+m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
+    uint32_t p)
+{
+	union {
+		struct ether_vlan_header vlan;
+	} buf;
+	const struct ether_header *eh;
+	const struct ether_vlan_header *vlan;
+	int off;
+	uint16_t etype;
+
+	off = sizeof(*eh);
+	if (m->m_len < off)
+		return (p);
+	eh = mtod(m, struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (flags & MBUF_HASHFLAG_L2) {
+		p = fnv_32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
+		p = fnv_32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
+	}
+	/* Special handling for encapsulating VLAN frames */
+	if ((m->m_flags & M_VLANTAG) && (flags & MBUF_HASHFLAG_L2)) {
+		p = fnv_32_buf(&m->m_pkthdr.ether_vtag,
+		    sizeof(m->m_pkthdr.ether_vtag), p);
+	} else if (etype == ETHERTYPE_VLAN) {
+		vlan = m_common_hash_gethdr(m, off, sizeof(*vlan), &buf);
+		if (vlan == NULL)
+			return (p);
+
+		if (flags & MBUF_HASHFLAG_L2)
+			p = fnv_32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
+		etype = ntohs(vlan->evl_proto);
+		off += sizeof(*vlan) - sizeof(*eh);
+	}
+	return (m_tcpip_hash(flags, m, p, off, etype));
+}
+
+uint32_t
+m_infiniband_tcpip_hash(const uint32_t flags, const struct mbuf *m,
+    uint32_t p)
+{
+	const struct infiniband_header *ibh;
+	int off;
+	uint16_t etype;
+
+	off = sizeof(*ibh);
+	if (m->m_len < off)
+		return (p);
+	ibh = mtod(m, struct infiniband_header *);
+	etype = ntohs(ibh->ib_protocol);
+	if (flags & MBUF_HASHFLAG_L2)
+		p = fnv_32_buf(&ibh->ib_hwaddr, INFINIBAND_ADDR_LEN, p);
+
+	return (m_tcpip_hash(flags, m, p, off, etype));
 }

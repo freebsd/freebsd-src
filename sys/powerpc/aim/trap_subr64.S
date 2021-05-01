@@ -957,6 +957,7 @@ dbtrap:
 dbleave:
 	FRAME_LEAVE(PC_DBSAVE)
 	rfid
+ASEND(breakpoint)
 
 /*
  * In case of KDB we want a separate trap catcher for it

@@ -1,9 +1,9 @@
 /*
- *  $Id: columns.c,v 1.10 2011/10/20 20:53:55 tom Exp $
+ *  $Id: columns.c,v 1.11 2019/07/25 00:06:38 tom Exp $
  *
  *  columns.c -- implements column-alignment
  *
- *  Copyright 2008-2010,2011	Thomas E. Dickey
+ *  Copyright 2008-2011,2019	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -93,8 +93,6 @@ split_row(char *source, unsigned *offsets, unsigned *widths)
 void
 dlg_align_columns(char **target, int per_row, int num_rows)
 {
-    int row;
-
     if (column_separator()) {
 	char **value;
 	unsigned numcols = 1;
@@ -104,6 +102,7 @@ dlg_align_columns(char **target, int per_row, int num_rows)
 	unsigned *maxwidth;
 	unsigned realwidth;
 	unsigned n;
+	int row;
 
 	/* first allocate arrays for workspace */
 	for (each(row, value)) {
@@ -164,10 +163,10 @@ dlg_align_columns(char **target, int per_row, int num_rows)
 void
 dlg_free_columns(char **target, int per_row, int num_rows)
 {
-    int row;
-    char **value;
-
     if (column_separator()) {
+	int row;
+	char **value;
+
 	for (each(row, value)) {
 	    free(*value);
 	}

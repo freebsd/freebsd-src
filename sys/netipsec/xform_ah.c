@@ -236,6 +236,10 @@ ah_init(struct secasvar *sav, struct xformsw *xsp)
 
 	memset(&csp, 0, sizeof(csp));
 	csp.csp_mode = CSP_MODE_DIGEST;
+
+	if (sav->flags & SADB_X_SAFLAGS_ESN)
+		csp.csp_flags |= CSP_F_ESN;
+
 	error = ah_init0(sav, xsp, &csp);
 	return error ? error :
 		 crypto_newsession(&sav->tdb_cryptoid, &csp, V_crypto_support);
@@ -534,6 +538,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct newah *ah;
 	crypto_session_t cryptoid;
 	int hl, rplen, authsize, ahsize, error;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
@@ -557,7 +562,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Check replay window, if applicable. */
 	SECASVAR_LOCK(sav);
 	if (sav->replay != NULL && sav->replay->wsize != 0 &&
-	    ipsec_chkreplay(ntohl(ah->ah_seq), sav) == 0) {
+	    ipsec_chkreplay(ntohl(ah->ah_seq), &seqh, sav) == 0) {
 		SECASVAR_UNLOCK(sav);
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
@@ -647,11 +652,15 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Crypto operation descriptor. */
 	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ah_input_cb;
 	crp->crp_opaque = xd;
+
+	if (sav->flags & SADB_X_SAFLAGS_ESN &&
+	    sav->replay != NULL && sav->replay->wsize != 0) {
+		seqh = htonl(seqh);
+		memcpy(crp->crp_esn, &seqh, sizeof(seqh));
+	}
 
 	/* These are passed as-is to the callback. */
 	xd->sav = sav;
@@ -660,7 +669,10 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->skip = skip;
 	xd->cryptoid = cryptoid;
 	xd->vnet = curvnet;
-	return (crypto_dispatch(crp));
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 bad:
 	m_freem(m);
 	key_freesav(&sav);
@@ -833,6 +845,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	uint16_t iplen;
 	int error, rplen, authsize, ahsize, maxpacketsize, roff;
 	uint8_t prot;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ahx = sav->tdb_authalgxform;
@@ -925,7 +938,9 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Insert packet replay counter, as requested.  */
 	SECASVAR_LOCK(sav);
 	if (sav->replay) {
-		if (sav->replay->count == ~0 &&
+		if ((sav->replay->count == ~0 ||
+		    (!(sav->flags & SADB_X_SAFLAGS_ESN) &&
+		    ((uint32_t)sav->replay->count) == ~0)) &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
 			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
@@ -940,7 +955,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		if (!V_ipsec_replay)
 #endif
 			sav->replay->count++;
-		ah->ah_seq = htonl(sav->replay->count);
+		ah->ah_seq = htonl((uint32_t)sav->replay->count);
 	}
 	cryptoid = sav->tdb_cryptoid;
 	SECASVAR_UNLOCK(sav);
@@ -1022,11 +1037,14 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Crypto operation descriptor. */
 	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ah_output_cb;
 	crp->crp_opaque = xd;
+
+	if (sav->flags & SADB_X_SAFLAGS_ESN && sav->replay != NULL) {
+		seqh = htonl((uint32_t)(sav->replay->count >> IPSEC_SEQH_SHIFT));
+		memcpy(crp->crp_esn, &seqh, sizeof(seqh));
+	}
 
 	/* These are passed as-is to the callback. */
 	xd->sp = sp;
@@ -1036,7 +1054,10 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	xd->cryptoid = cryptoid;
 	xd->vnet = curvnet;
 
-	return crypto_dispatch(crp);
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 bad:
 	if (m)
 		m_freem(m);

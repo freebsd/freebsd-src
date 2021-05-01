@@ -36,12 +36,15 @@
 
 struct lock_class_key {
 };
+struct lockdep_map {
+};
 
 #define	lockdep_set_class(lock, key)
 #define	lockdep_set_subclass(lock, sub)
 #define	lockdep_set_class_and_name(lock, key, name)
 #define	lockdep_set_current_reclaim_state(g) do { } while (0)
 #define	lockdep_clear_current_reclaim_state() do { } while (0)
+#define	lockdep_init_map(_map, _name, _key, _x) do { } while(0)
 
 #ifdef INVARIANTS
 #define	lockdep_assert_held(m) do {					\
@@ -83,5 +86,9 @@ lockdep_is_held(void *__m)
 
 #define	mutex_acquire(...) do { } while (0)
 #define	mutex_release(...) do { } while (0)
+
+#define	lock_map_acquire(_map) do { } while (0)
+#define	lock_map_acquire_read(_map) do { } while (0)
+#define	lock_map_release(_map) do { } while (0)
 
 #endif /* _LINUX_LOCKDEP_H_ */

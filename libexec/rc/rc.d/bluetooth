@@ -255,17 +255,6 @@ bluetooth_start()
 		fi
 		;;
 
-	# 3Com Bluetooth Adapter 3CRWB60-A
-	btccc*)
-		hook="hook"
-
-		# Obtain unit number from device.
-		unit=`expr ${dev} : 'btccc\([0-9]\{1,\}\)'`
-		if [ -z "${unit}" ]; then
-			err 1 "Unable to get bt3c unit number: ${dev}"
-		fi
-		;;
-
 	# USB Bluetooth adapters
 	ubt*)
 		hook="hook"

@@ -1065,7 +1065,7 @@ carp_ifa_addroute(struct ifaddr *ifa)
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
-		in_addprefix(ifatoia(ifa), RTF_UP);
+		in_addprefix(ifatoia(ifa));
 		ifa_add_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia(ifa)->ia_addr);
 		break;

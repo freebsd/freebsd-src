@@ -55,7 +55,7 @@ zpl_root_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	zfsvfs_t *zfsvfs = ITOZSB(file_inode(filp));
 	int error = 0;
 
-	ZFS_ENTER(zfsvfs);
+	ZPL_ENTER(zfsvfs);
 
 	if (!zpl_dir_emit_dots(filp, ctx))
 		goto out;
@@ -76,7 +76,7 @@ zpl_root_iterate(struct file *filp, zpl_dir_context_t *ctx)
 		ctx->pos++;
 	}
 out:
-	ZFS_EXIT(zfsvfs);
+	ZPL_EXIT(zfsvfs);
 
 	return (error);
 }
@@ -101,12 +101,22 @@ zpl_root_readdir(struct file *filp, void *dirent, filldir_t filldir)
  */
 /* ARGSUSED */
 static int
+#ifdef HAVE_USERNS_IOPS_GETATTR
+zpl_root_getattr_impl(struct user_namespace *user_ns,
+    const struct path *path, struct kstat *stat, u32 request_mask,
+    unsigned int query_flags)
+#else
 zpl_root_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
+#endif
 {
 	struct inode *ip = path->dentry->d_inode;
 
+#if defined(HAVE_GENERIC_FILLATTR_USERNS) && defined(HAVE_USERNS_IOPS_GETATTR)
+	generic_fillattr(user_ns, ip, stat);
+#else
 	generic_fillattr(ip, stat);
+#endif
 	stat->atime = current_time(ip);
 
 	return (0);
@@ -242,13 +252,14 @@ zpl_snapdir_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	uint64_t id, pos;
 	int error = 0;
 
-	ZFS_ENTER(zfsvfs);
+	ZPL_ENTER(zfsvfs);
 	cookie = spl_fstrans_mark();
 
 	if (!zpl_dir_emit_dots(filp, ctx))
 		goto out;
 
-	pos = ctx->pos;
+	/* Start the position at 0 if it already emitted . and .. */
+	pos = (ctx->pos == 2 ? 0 : ctx->pos);
 	while (error == 0) {
 		dsl_pool_config_enter(dmu_objset_pool(zfsvfs->z_os), FTAG);
 		error = -dmu_snapshot_list_next(zfsvfs->z_os, MAXNAMELEN,
@@ -265,7 +276,7 @@ zpl_snapdir_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	}
 out:
 	spl_fstrans_unmark(cookie);
-	ZFS_EXIT(zfsvfs);
+	ZPL_EXIT(zfsvfs);
 
 	if (error == -ENOENT)
 		return (0);
@@ -289,8 +300,14 @@ zpl_snapdir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 #endif /* !HAVE_VFS_ITERATE && !HAVE_VFS_ITERATE_SHARED */
 
 static int
+#ifdef HAVE_IOPS_RENAME_USERNS
+zpl_snapdir_rename2(struct user_namespace *user_ns, struct inode *sdip,
+    struct dentry *sdentry, struct inode *tdip, struct dentry *tdentry,
+    unsigned int flags)
+#else
 zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
     struct inode *tdip, struct dentry *tdentry, unsigned int flags)
+#endif
 {
 	cred_t *cr = CRED();
 	int error;
@@ -308,7 +325,7 @@ zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
 	return (error);
 }
 
-#ifndef HAVE_RENAME_WANTS_FLAGS
+#if !defined(HAVE_RENAME_WANTS_FLAGS) && !defined(HAVE_IOPS_RENAME_USERNS)
 static int
 zpl_snapdir_rename(struct inode *sdip, struct dentry *sdentry,
     struct inode *tdip, struct dentry *tdentry)
@@ -332,7 +349,12 @@ zpl_snapdir_rmdir(struct inode *dip, struct dentry *dentry)
 }
 
 static int
+#ifdef HAVE_IOPS_MKDIR_USERNS
+zpl_snapdir_mkdir(struct user_namespace *user_ns, struct inode *dip,
+    struct dentry *dentry, umode_t mode)
+#else
 zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
+#endif
 {
 	cred_t *cr = CRED();
 	vattr_t *vap;
@@ -362,19 +384,29 @@ zpl_snapdir_mkdir(struct inode *dip, struct dentry *dentry, umode_t mode)
  */
 /* ARGSUSED */
 static int
+#ifdef HAVE_USERNS_IOPS_GETATTR
+zpl_snapdir_getattr_impl(struct user_namespace *user_ns,
+    const struct path *path, struct kstat *stat, u32 request_mask,
+    unsigned int query_flags)
+#else
 zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
+#endif
 {
 	struct inode *ip = path->dentry->d_inode;
 	zfsvfs_t *zfsvfs = ITOZSB(ip);
 
-	ZFS_ENTER(zfsvfs);
+	ZPL_ENTER(zfsvfs);
+#if defined(HAVE_GENERIC_FILLATTR_USERNS) && defined(HAVE_USERNS_IOPS_GETATTR)
+	generic_fillattr(user_ns, ip, stat);
+#else
 	generic_fillattr(ip, stat);
+#endif
 
 	stat->nlink = stat->size = 2;
 	stat->ctime = stat->mtime = dmu_objset_snap_cmtime(zfsvfs->z_os);
 	stat->atime = current_time(ip);
-	ZFS_EXIT(zfsvfs);
+	ZPL_EXIT(zfsvfs);
 
 	return (0);
 }
@@ -407,7 +439,7 @@ const struct file_operations zpl_fops_snapdir = {
 const struct inode_operations zpl_ops_snapdir = {
 	.lookup		= zpl_snapdir_lookup,
 	.getattr	= zpl_snapdir_getattr,
-#ifdef HAVE_RENAME_WANTS_FLAGS
+#if defined(HAVE_RENAME_WANTS_FLAGS) || defined(HAVE_IOPS_RENAME_USERNS)
 	.rename		= zpl_snapdir_rename2,
 #else
 	.rename		= zpl_snapdir_rename,
@@ -452,7 +484,7 @@ zpl_shares_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	znode_t *dzp;
 	int error = 0;
 
-	ZFS_ENTER(zfsvfs);
+	ZPL_ENTER(zfsvfs);
 	cookie = spl_fstrans_mark();
 
 	if (zfsvfs->z_shares_dir == 0) {
@@ -471,7 +503,7 @@ zpl_shares_iterate(struct file *filp, zpl_dir_context_t *ctx)
 	iput(ZTOI(dzp));
 out:
 	spl_fstrans_unmark(cookie);
-	ZFS_EXIT(zfsvfs);
+	ZPL_EXIT(zfsvfs);
 	ASSERT3S(error, <=, 0);
 
 	return (error);
@@ -494,31 +526,45 @@ zpl_shares_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 /* ARGSUSED */
 static int
+#ifdef HAVE_USERNS_IOPS_GETATTR
+zpl_shares_getattr_impl(struct user_namespace *user_ns,
+    const struct path *path, struct kstat *stat, u32 request_mask,
+    unsigned int query_flags)
+#else
 zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
     u32 request_mask, unsigned int query_flags)
+#endif
 {
 	struct inode *ip = path->dentry->d_inode;
 	zfsvfs_t *zfsvfs = ITOZSB(ip);
 	znode_t *dzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	ZPL_ENTER(zfsvfs);
 
 	if (zfsvfs->z_shares_dir == 0) {
+#if defined(HAVE_GENERIC_FILLATTR_USERNS) && defined(HAVE_USERNS_IOPS_GETATTR)
+		generic_fillattr(user_ns, path->dentry->d_inode, stat);
+#else
 		generic_fillattr(path->dentry->d_inode, stat);
+#endif
 		stat->nlink = stat->size = 2;
 		stat->atime = current_time(ip);
-		ZFS_EXIT(zfsvfs);
+		ZPL_EXIT(zfsvfs);
 		return (0);
 	}
 
 	error = -zfs_zget(zfsvfs, zfsvfs->z_shares_dir, &dzp);
 	if (error == 0) {
-		error = -zfs_getattr_fast(ZTOI(dzp), stat);
+#if defined(HAVE_GENERIC_FILLATTR_USERNS) && defined(HAVE_USERNS_IOPS_GETATTR)
+		error = -zfs_getattr_fast(user_ns, ZTOI(dzp), stat);
+#else
+		error = -zfs_getattr_fast(kcred->user_ns, ZTOI(dzp), stat);
+#endif
 		iput(ZTOI(dzp));
 	}
 
-	ZFS_EXIT(zfsvfs);
+	ZPL_EXIT(zfsvfs);
 	ASSERT3S(error, <=, 0);
 
 	return (error);

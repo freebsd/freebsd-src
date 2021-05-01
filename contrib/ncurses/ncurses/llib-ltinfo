@@ -264,6 +264,11 @@ void	_nc_free_entries(
 void	_nc_leaks_tinfo(void)
 		{ /* void */ }
 
+#undef exit_terminfo
+void	exit_terminfo(
+		int	code)
+		{ /* void */ }
+
 /* ./fallback.c */
 
 #undef _nc_fallback
@@ -898,6 +903,13 @@ char	*tiparm(
 		...)
 		{ return(*(char **)0); }
 
+#undef _nc_tiparm
+char	*_nc_tiparm(
+		int	expected, 
+		const char *string, 
+		...)
+		{ return(*(char **)0); }
+
 /* ./tinfo/lib_tputs.c */
 
 #undef PC
@@ -1008,6 +1020,11 @@ unsigned _nc_tracing;
 const char *_nc_tputs_trace = {0};
 #undef _nc_outchars
 long	_nc_outchars;
+
+#undef curses_trace
+unsigned curses_trace(
+		unsigned tracelevel)
+		{ return(*(unsigned *)0); }
 
 #undef trace
 void	trace(

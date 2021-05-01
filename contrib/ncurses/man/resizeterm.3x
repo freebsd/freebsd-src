@@ -29,7 +29,7 @@
 .\"
 .\" Author: Thomas E. Dickey 1996-on
 .\"
-.\" $Id: resizeterm.3x,v 1.27 2020/02/02 23:34:34 tom Exp $
+.\" $Id: resizeterm.3x,v 1.28 2020/10/17 23:55:41 tom Exp $
 .TH resizeterm 3X ""
 .de bP
 .ie n  .IP \(bu 4
@@ -42,11 +42,11 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBbool is_term_resized(int lines, int columns);\fR
+\fBbool is_term_resized(int \fP\fIlines\fP\fB, int \fP\fIcolumns\fP\fB);\fR
 .br
-\fBint resize_term(int lines, int columns);\fR
+\fBint resize_term(int \fP\fIlines\fP\fB, int \fP\fIcolumns\fP\fB);\fR
 .br
-\fBint resizeterm(int lines, int columns);\fR
+\fBint resizeterm(int \fP\fIlines\fP\fB, int \fP\fIcolumns\fP\fB);\fR
 .SH DESCRIPTION
 .PP
 This is an extension to the curses library.

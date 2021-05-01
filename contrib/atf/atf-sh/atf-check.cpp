@@ -29,6 +29,7 @@ extern "C" {
 
 #include <limits.h>
 #include <signal.h>
+#include <stdint.h>
 #include <unistd.h>
 }
 
@@ -52,6 +53,10 @@ extern "C" {
 #include "atf-c++/detail/process.hpp"
 #include "atf-c++/detail/sanity.hpp"
 #include "atf-c++/detail/text.hpp"
+
+static const useconds_t seconds_in_useconds = (1000 * 1000);
+static const useconds_t mseconds_in_useconds = 1000;
+static const useconds_t useconds_in_nseconds = 1000;
 
 // ------------------------------------------------------------------------
 // Auxiliary functions.
@@ -162,6 +167,33 @@ public:
 
 } // anonymous namespace
 
+static useconds_t
+get_monotonic_useconds(void)
+{
+    struct timespec ts;
+    useconds_t res;
+    int rc;
+
+    rc = clock_gettime(CLOCK_MONOTONIC, &ts);
+    if (rc != 0)
+        throw std::runtime_error("clock_gettime: " +
+            std::string(strerror(errno)));
+
+    res = ts.tv_sec * seconds_in_useconds;
+    res += ts.tv_nsec / useconds_in_nseconds;
+    return res;
+}
+
+static bool
+timo_expired(useconds_t timeout)
+{
+
+    if (get_monotonic_useconds() >= timeout)
+        return true;
+    return false;
+}
+
+
 static int
 parse_exit_code(const std::string& str)
 {
@@ -216,7 +248,7 @@ parse_signal(const std::string& str)
     if (signo == INT_MIN) {
         try {
             return atf::text::to_type< int >(str);
-        } catch (std::runtime_error) {
+        } catch (const std::runtime_error&) {
             throw atf::application::usage_error("Invalid signal name or number "
                 "in -s option");
         }
@@ -304,6 +336,62 @@ parse_output_check_arg(const std::string& arg)
         throw atf::application::usage_error("Invalid output checker");
 
     return output_check(type, negated, arg.substr(delimiter + 1));
+}
+
+static void
+parse_repeat_check_arg(const std::string& arg, useconds_t *m_timo,
+    useconds_t *m_interval)
+{
+    const std::string::size_type delimiter = arg.find(':');
+    const bool has_interval = (delimiter != std::string::npos);
+    const std::string timo_str = arg.substr(0, delimiter);
+
+    long l;
+    char *end;
+
+    // There is no reason this couldn't be a non-integer number of seconds,
+    // this was just easy to do for now.
+    errno = 0;
+    l = strtol(timo_str.c_str(), &end, 10);
+    if (errno == ERANGE)
+        throw atf::application::usage_error("Bogus timeout in seconds");
+    else if (errno != 0)
+        throw atf::application::usage_error("Timeout must be a number");
+
+    if (*end != 0)
+        throw atf::application::usage_error("Timeout must be a number");
+
+    *m_timo = get_monotonic_useconds() + (l * seconds_in_useconds);
+    // 50 milliseconds is chosen arbitrarily.  There is a tradeoff between
+    // longer and shorter poll times.  A shorter poll time makes for faster
+    // tests.  A longer poll time makes for lower CPU overhead for the polled
+    // operation.  50ms is chosen with these tradeoffs in mind: on
+    // microcontrollers, the hope is that we can still avoid meaningful CPU use
+    // with a small test every 50ms.  And on typical fast x86 hardware, our
+    // tests can be much more precise with time wasted than they typically are
+    // without this feature.
+    *m_interval = 50 * mseconds_in_useconds;
+
+    if (!has_interval)
+        return;
+
+    const std::string intv_str = arg.substr(delimiter + 1, std::string::npos);
+
+    // Same -- this could be non-integer milliseconds.
+    errno = 0;
+    l = strtol(intv_str.c_str(), &end, 10);
+    if (errno == ERANGE)
+        throw atf::application::usage_error(
+            "Bogus repeat interval in milliseconds");
+    else if (errno != 0)
+        throw atf::application::usage_error(
+            "Repeat interval must be a number");
+
+    if (*end != 0)
+        throw atf::application::usage_error(
+            "Repeat interval must be a number");
+
+    *m_interval = l * mseconds_in_useconds;
 }
 
 static
@@ -694,7 +782,11 @@ run_output_checks(const std::vector< output_check >& checks,
 namespace {
 
 class atf_check : public atf::application::app {
+    bool m_rflag;
     bool m_xflag;
+
+    useconds_t m_timo;
+    useconds_t m_interval;
 
     std::vector< status_check > m_status_checks;
     std::vector< output_check > m_stdout_checks;
@@ -722,6 +814,7 @@ const char* atf_check::m_description =
 
 atf_check::atf_check(void) :
     app(m_description, "atf-check(1)"),
+    m_rflag(false),
     m_xflag(false)
 {
 }
@@ -765,6 +858,8 @@ atf_check::specific_options(void)
     opts.insert(option('e', "action:arg", "Handle stderr. Action must be "
                 "one of: empty ignore file:<path> inline:<val> match:regexp "
                 "save:<path>"));
+    opts.insert(option('r', "timeout[:interval]", "Repeat failed check until "
+                "the timeout expires."));
     opts.insert(option('x', "", "Execute command as a shell command"));
 
     return opts;
@@ -786,6 +881,11 @@ atf_check::process_option(int ch, const char* arg)
         m_stderr_checks.push_back(parse_output_check_arg(arg));
         break;
 
+    case 'r':
+        m_rflag = true;
+        parse_repeat_check_arg(arg, &m_timo, &m_interval);
+        break;
+
     case 'x':
         m_xflag = true;
         break;
@@ -803,9 +903,6 @@ atf_check::main(void)
 
     int status = EXIT_FAILURE;
 
-    std::auto_ptr< atf::check::check_result > r =
-        m_xflag ? execute_with_shell(m_argv) : execute(m_argv);
-
     if (m_status_checks.empty())
         m_status_checks.push_back(status_check(sc_exit, false, EXIT_SUCCESS));
     else if (m_status_checks.size() > 1) {
@@ -818,12 +915,23 @@ atf_check::main(void)
     if (m_stderr_checks.empty())
         m_stderr_checks.push_back(output_check(oc_empty, false, ""));
 
-    if ((run_status_checks(m_status_checks, *r) == false) ||
-        (run_output_checks(*r, "stderr") == false) ||
-        (run_output_checks(*r, "stdout") == false))
-        status = EXIT_FAILURE;
-    else
-        status = EXIT_SUCCESS;
+    do {
+        std::auto_ptr< atf::check::check_result > r =
+            m_xflag ? execute_with_shell(m_argv) : execute(m_argv);
+
+        if ((run_status_checks(m_status_checks, *r) == false) ||
+            (run_output_checks(*r, "stderr") == false) ||
+            (run_output_checks(*r, "stdout") == false))
+            status = EXIT_FAILURE;
+        else
+            status = EXIT_SUCCESS;
+
+        if (m_rflag && status == EXIT_FAILURE) {
+            if (timo_expired(m_timo))
+                break;
+            usleep(m_interval);
+        }
+    } while (m_rflag && status == EXIT_FAILURE);
 
     return status;
 }

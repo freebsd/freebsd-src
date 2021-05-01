@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/bitstring.h>
 #include <sys/epoch.h>
 #include <sys/rangelock.h>
 #include <sys/resourcevar.h>
@@ -49,8 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
 #include <sys/syscallsubr.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/sysent.h>
 #include <sys/turnstile.h>
+#include <sys/taskqueue.h>
 #include <sys/ktr.h>
 #include <sys/rwlock.h>
 #include <sys/umtx.h>
@@ -59,12 +62,15 @@ __FBSDID("$FreeBSD$");
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+#include <sys/priv.h>
 
 #include <security/audit/audit.h>
 
+#include <vm/pmap.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
+#include <vm/vm_phys.h>
 #include <sys/eventhandler.h>
 
 /*
@@ -86,15 +92,15 @@ _Static_assert(offsetof(struct thread, td_frame) == 0x4a0,
     "struct thread KBI td_frame");
 _Static_assert(offsetof(struct thread, td_emuldata) == 0x6b0,
     "struct thread KBI td_emuldata");
-_Static_assert(offsetof(struct proc, p_flag) == 0xb0,
+_Static_assert(offsetof(struct proc, p_flag) == 0xb8,
     "struct proc KBI p_flag");
-_Static_assert(offsetof(struct proc, p_pid) == 0xbc,
+_Static_assert(offsetof(struct proc, p_pid) == 0xc4,
     "struct proc KBI p_pid");
-_Static_assert(offsetof(struct proc, p_filemon) == 0x3b8,
+_Static_assert(offsetof(struct proc, p_filemon) == 0x3c0,
     "struct proc KBI p_filemon");
-_Static_assert(offsetof(struct proc, p_comm) == 0x3d0,
+_Static_assert(offsetof(struct proc, p_comm) == 0x3d8,
     "struct proc KBI p_comm");
-_Static_assert(offsetof(struct proc, p_emuldata) == 0x4b0,
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x4b8,
     "struct proc KBI p_emuldata");
 #endif
 #ifdef __i386__
@@ -106,15 +112,15 @@ _Static_assert(offsetof(struct thread, td_frame) == 0x300,
     "struct thread KBI td_frame");
 _Static_assert(offsetof(struct thread, td_emuldata) == 0x344,
     "struct thread KBI td_emuldata");
-_Static_assert(offsetof(struct proc, p_flag) == 0x68,
+_Static_assert(offsetof(struct proc, p_flag) == 0x6c,
     "struct proc KBI p_flag");
-_Static_assert(offsetof(struct proc, p_pid) == 0x74,
+_Static_assert(offsetof(struct proc, p_pid) == 0x78,
     "struct proc KBI p_pid");
-_Static_assert(offsetof(struct proc, p_filemon) == 0x268,
+_Static_assert(offsetof(struct proc, p_filemon) == 0x26c,
     "struct proc KBI p_filemon");
-_Static_assert(offsetof(struct proc, p_comm) == 0x27c,
+_Static_assert(offsetof(struct proc, p_comm) == 0x280,
     "struct proc KBI p_comm");
-_Static_assert(offsetof(struct proc, p_emuldata) == 0x308,
+_Static_assert(offsetof(struct proc, p_emuldata) == 0x30c,
     "struct proc KBI p_emuldata");
 #endif
 
@@ -126,65 +132,209 @@ SDT_PROBE_DEFINE(proc, , , lwp__exit);
  */
 static uma_zone_t thread_zone;
 
-TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
-static struct mtx zombie_lock;
-MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
+struct thread_domain_data {
+	struct thread	*tdd_zombies;
+	int		tdd_reapticks;
+} __aligned(CACHE_LINE_SIZE);
+
+static struct thread_domain_data thread_domain_data[MAXMEMDOM];
+
+static struct task	thread_reap_task;
+static struct callout  	thread_reap_callout;
 
 static void thread_zombie(struct thread *);
+static void thread_reap(void);
+static void thread_reap_all(void);
+static void thread_reap_task_cb(void *, int);
+static void thread_reap_callout_cb(void *);
 static int thread_unsuspend_one(struct thread *td, struct proc *p,
     bool boundary);
+static void thread_free_batched(struct thread *td);
 
-#define TID_BUFFER_SIZE	1024
+static __exclusive_cache_line struct mtx tid_lock;
+static bitstr_t *tid_bitmap;
 
-struct mtx tid_lock;
-static struct unrhdr *tid_unrhdr;
-static lwpid_t tid_buffer[TID_BUFFER_SIZE];
-static int tid_head, tid_tail;
 static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
 
-struct	tidhashhead *tidhashtbl;
-u_long	tidhash;
-struct	rwlock tidhash_lock;
+static int maxthread;
+SYSCTL_INT(_kern, OID_AUTO, maxthread, CTLFLAG_RDTUN,
+    &maxthread, 0, "Maximum number of threads");
+
+static __exclusive_cache_line int nthreads;
+
+static LIST_HEAD(tidhashhead, thread) *tidhashtbl;
+static u_long	tidhash;
+static u_long	tidhashlock;
+static struct	rwlock *tidhashtbl_lock;
+#define	TIDHASH(tid)		(&tidhashtbl[(tid) & tidhash])
+#define	TIDHASHLOCK(tid)	(&tidhashtbl_lock[(tid) & tidhashlock])
 
 EVENTHANDLER_LIST_DEFINE(thread_ctor);
 EVENTHANDLER_LIST_DEFINE(thread_dtor);
 EVENTHANDLER_LIST_DEFINE(thread_init);
 EVENTHANDLER_LIST_DEFINE(thread_fini);
 
-static lwpid_t
-tid_alloc(void)
+static bool
+thread_count_inc_try(void)
 {
-	lwpid_t	tid;
+	int nthreads_new;
 
-	tid = alloc_unr(tid_unrhdr);
-	if (tid != -1)
-		return (tid);
-	mtx_lock(&tid_lock);
-	if (tid_head == tid_tail) {
-		mtx_unlock(&tid_lock);
-		return (-1);
+	nthreads_new = atomic_fetchadd_int(&nthreads, 1) + 1;
+	if (nthreads_new >= maxthread - 100) {
+		if (priv_check_cred(curthread->td_ucred, PRIV_MAXPROC) != 0 ||
+		    nthreads_new >= maxthread) {
+			atomic_subtract_int(&nthreads, 1);
+			return (false);
+		}
 	}
-	tid = tid_buffer[tid_head];
-	tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
-	mtx_unlock(&tid_lock);
-	return (tid);
+	return (true);
+}
+
+static bool
+thread_count_inc(void)
+{
+	static struct timeval lastfail;
+	static int curfail;
+
+	thread_reap();
+	if (thread_count_inc_try()) {
+		return (true);
+	}
+
+	thread_reap_all();
+	if (thread_count_inc_try()) {
+		return (true);
+	}
+
+	if (ppsratecheck(&lastfail, &curfail, 1)) {
+		printf("maxthread limit exceeded by uid %u "
+		    "(pid %d); consider increasing kern.maxthread\n",
+		    curthread->td_ucred->cr_ruid, curproc->p_pid);
+	}
+	return (false);
 }
 
 static void
-tid_free(lwpid_t tid)
+thread_count_sub(int n)
 {
-	lwpid_t tmp_tid = -1;
+
+	atomic_subtract_int(&nthreads, n);
+}
+
+static void
+thread_count_dec(void)
+{
+
+	thread_count_sub(1);
+}
+
+static lwpid_t
+tid_alloc(void)
+{
+	static lwpid_t trytid;
+	lwpid_t tid;
 
 	mtx_lock(&tid_lock);
-	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
-		tmp_tid = tid_buffer[tid_head];
-		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
+	/*
+	 * It is an invariant that the bitmap is big enough to hold maxthread
+	 * IDs. If we got to this point there has to be at least one free.
+	 */
+	if (trytid >= maxthread)
+		trytid = 0;
+	bit_ffc_at(tid_bitmap, trytid, maxthread, &tid);
+	if (tid == -1) {
+		KASSERT(trytid != 0, ("unexpectedly ran out of IDs"));
+		trytid = 0;
+		bit_ffc_at(tid_bitmap, trytid, maxthread, &tid);
+		KASSERT(tid != -1, ("unexpectedly ran out of IDs"));
 	}
-	tid_buffer[tid_tail] = tid;
-	tid_tail = (tid_tail + 1) % TID_BUFFER_SIZE;
+	bit_set(tid_bitmap, tid);
+	trytid = tid + 1;
 	mtx_unlock(&tid_lock);
-	if (tmp_tid != -1)
-		free_unr(tid_unrhdr, tmp_tid);
+	return (tid + NO_PID);
+}
+
+static void
+tid_free_locked(lwpid_t rtid)
+{
+	lwpid_t tid;
+
+	mtx_assert(&tid_lock, MA_OWNED);
+	KASSERT(rtid >= NO_PID,
+	    ("%s: invalid tid %d\n", __func__, rtid));
+	tid = rtid - NO_PID;
+	KASSERT(bit_test(tid_bitmap, tid) != 0,
+	    ("thread ID %d not allocated\n", rtid));
+	bit_clear(tid_bitmap, tid);
+}
+
+static void
+tid_free(lwpid_t rtid)
+{
+
+	mtx_lock(&tid_lock);
+	tid_free_locked(rtid);
+	mtx_unlock(&tid_lock);
+}
+
+static void
+tid_free_batch(lwpid_t *batch, int n)
+{
+	int i;
+
+	mtx_lock(&tid_lock);
+	for (i = 0; i < n; i++) {
+		tid_free_locked(batch[i]);
+	}
+	mtx_unlock(&tid_lock);
+}
+
+/*
+ * Batching for thread reapping.
+ */
+struct tidbatch {
+	lwpid_t tab[16];
+	int n;
+};
+
+static void
+tidbatch_prep(struct tidbatch *tb)
+{
+
+	tb->n = 0;
+}
+
+static void
+tidbatch_add(struct tidbatch *tb, struct thread *td)
+{
+
+	KASSERT(tb->n < nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	tb->tab[tb->n] = td->td_tid;
+	tb->n++;
+}
+
+static void
+tidbatch_process(struct tidbatch *tb)
+{
+
+	KASSERT(tb->n <= nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	if (tb->n == nitems(tb->tab)) {
+		tid_free_batch(tb->tab, tb->n);
+		tb->n = 0;
+	}
+}
+
+static void
+tidbatch_final(struct tidbatch *tb)
+{
+
+	KASSERT(tb->n <= nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	if (tb->n != 0) {
+		tid_free_batch(tb->tab, tb->n);
+	}
 }
 
 /*
@@ -196,10 +346,8 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	struct thread	*td;
 
 	td = (struct thread *)mem;
-	td->td_state = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 	td->td_lastcpu = td->td_oncpu = NOCPU;
-
-	td->td_tid = tid_alloc();
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -208,11 +356,14 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	 */
 	td->td_critnest = 1;
 	td->td_lend_user_pri = PRI_MAX;
-	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 #ifdef AUDIT
 	audit_thread_alloc(td);
 #endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_ctor(td);
+#endif
 	umtx_thread_alloc(td);
+	MPASS(td->td_sel == NULL);
 	return (0);
 }
 
@@ -228,7 +379,7 @@ thread_dtor(void *mem, int size, void *arg)
 
 #ifdef INVARIANTS
 	/* Verify that this thread is in a safe state to free. */
-	switch (td->td_state) {
+	switch (TD_GET_STATE(td)) {
 	case TDS_INHIBITED:
 	case TDS_RUNNING:
 	case TDS_CAN_RUN:
@@ -249,13 +400,14 @@ thread_dtor(void *mem, int size, void *arg)
 #ifdef AUDIT
 	audit_thread_free(td);
 #endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_dtor(td);
+#endif
 	/* Free all OSD associated to this thread. */
 	osd_thread_exit(td);
 	td_softdep_cleanup(td);
 	MPASS(td->td_su == NULL);
-
-	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
-	tid_free(td->td_tid);
+	seltdfini(td);
 }
 
 /*
@@ -268,6 +420,7 @@ thread_init(void *mem, int size, int flags)
 
 	td = (struct thread *)mem;
 
+	td->td_allocdomain = vm_phys_domain(vtophys(td));
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
 	td->td_rlqe = NULL;
@@ -292,7 +445,7 @@ thread_fini(void *mem, int size)
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);
-	seltdfini(td);
+	MPASS(td->td_sel == NULL);
 }
 
 /*
@@ -325,21 +478,43 @@ proc_linkup(struct proc *p, struct thread *td)
 	thread_link(td, p);
 }
 
+extern int max_threads_per_proc;
+
 /*
  * Initialize global thread allocation resources.
  */
 void
 threadinit(void)
 {
+	u_long i;
+	lwpid_t tid0;
 	uint32_t flags;
 
-	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
-
 	/*
-	 * pid_max cannot be greater than PID_MAX.
-	 * leave one number for thread0.
+	 * Place an upper limit on threads which can be allocated.
+	 *
+	 * Note that other factors may make the de facto limit much lower.
+	 *
+	 * Platform limits are somewhat arbitrary but deemed "more than good
+	 * enough" for the foreseable future.
 	 */
-	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
+	if (maxthread == 0) {
+#ifdef _LP64
+		maxthread = MIN(maxproc * max_threads_per_proc, 1000000);
+#else
+		maxthread = MIN(maxproc * max_threads_per_proc, 100000);
+#endif
+	}
+
+	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
+	tid_bitmap = bit_alloc(maxthread, M_TIDHASH, M_WAITOK);
+	/*
+	 * Handle thread0.
+	 */
+	thread_count_inc();
+	tid0 = tid_alloc();
+	if (tid0 != THREAD0_TID)
+		panic("tid0 %d != %d\n", tid0, THREAD0_TID);
 
 	flags = UMA_ZONE_NOFREE;
 #ifdef __aarch64__
@@ -356,19 +531,37 @@ threadinit(void)
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    32 - 1, flags);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
-	rw_init(&tidhash_lock, "tidhash");
+	tidhashlock = (tidhash + 1) / 64;
+	if (tidhashlock > 0)
+		tidhashlock--;
+	tidhashtbl_lock = malloc(sizeof(*tidhashtbl_lock) * (tidhashlock + 1),
+	    M_TIDHASH, M_WAITOK | M_ZERO);
+	for (i = 0; i < tidhashlock + 1; i++)
+		rw_init(&tidhashtbl_lock[i], "tidhash");
+
+	TASK_INIT(&thread_reap_task, 0, thread_reap_task_cb, NULL);
+	callout_init(&thread_reap_callout, 1);
+	callout_reset(&thread_reap_callout, 5 * hz, thread_reap_callout_cb, NULL);
 }
 
 /*
  * Place an unused thread on the zombie list.
- * Use the slpq as that must be unused by now.
  */
 void
 thread_zombie(struct thread *td)
 {
-	mtx_lock_spin(&zombie_lock);
-	TAILQ_INSERT_HEAD(&zombie_threads, td, td_slpq);
-	mtx_unlock_spin(&zombie_lock);
+	struct thread_domain_data *tdd;
+	struct thread *ztd;
+
+	tdd = &thread_domain_data[td->td_allocdomain];
+	ztd = atomic_load_ptr(&tdd->tdd_zombies);
+	for (;;) {
+		td->td_zombie = ztd;
+		if (atomic_fcmpset_rel_ptr((uintptr_t *)&tdd->tdd_zombies,
+		    (uintptr_t *)&ztd, (uintptr_t)td))
+			break;
+		continue;
+	}
 }
 
 /*
@@ -382,30 +575,136 @@ thread_stash(struct thread *td)
 }
 
 /*
- * Reap zombie resources.
+ * Reap zombies from passed domain.
  */
-void
-thread_reap(void)
+static void
+thread_reap_domain(struct thread_domain_data *tdd)
 {
-	struct thread *td_first, *td_next;
+	struct thread *itd, *ntd;
+	struct tidbatch tidbatch;
+	struct credbatch credbatch;
+	int tdcount;
+	struct plimit *lim;
+	int limcount;
 
 	/*
-	 * Don't even bother to lock if none at this instant,
-	 * we really don't care about the next instant.
+	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
+	 * but most of the time the list is empty.
 	 */
-	if (!TAILQ_EMPTY(&zombie_threads)) {
-		mtx_lock_spin(&zombie_lock);
-		td_first = TAILQ_FIRST(&zombie_threads);
-		if (td_first)
-			TAILQ_INIT(&zombie_threads);
-		mtx_unlock_spin(&zombie_lock);
-		while (td_first) {
-			td_next = TAILQ_NEXT(td_first, td_slpq);
-			thread_cow_free(td_first);
-			thread_free(td_first);
-			td_first = td_next;
+	if (tdd->tdd_zombies == NULL)
+		return;
+
+	itd = (struct thread *)atomic_swap_ptr((uintptr_t *)&tdd->tdd_zombies,
+	    (uintptr_t)NULL);
+	if (itd == NULL)
+		return;
+
+	/*
+	 * Multiple CPUs can get here, the race is fine as ticks is only
+	 * advisory.
+	 */
+	tdd->tdd_reapticks = ticks;
+
+	tidbatch_prep(&tidbatch);
+	credbatch_prep(&credbatch);
+	tdcount = 0;
+	lim = NULL;
+	limcount = 0;
+
+	while (itd != NULL) {
+		ntd = itd->td_zombie;
+		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, itd);
+		tidbatch_add(&tidbatch, itd);
+		credbatch_add(&credbatch, itd);
+		MPASS(itd->td_limit != NULL);
+		if (lim != itd->td_limit) {
+			if (limcount != 0) {
+				lim_freen(lim, limcount);
+				limcount = 0;
+			}
+		}
+		lim = itd->td_limit;
+		limcount++;
+		thread_free_batched(itd);
+		tidbatch_process(&tidbatch);
+		credbatch_process(&credbatch);
+		tdcount++;
+		if (tdcount == 32) {
+			thread_count_sub(tdcount);
+			tdcount = 0;
+		}
+		itd = ntd;
+	}
+
+	tidbatch_final(&tidbatch);
+	credbatch_final(&credbatch);
+	if (tdcount != 0) {
+		thread_count_sub(tdcount);
+	}
+	MPASS(limcount != 0);
+	lim_freen(lim, limcount);
+}
+
+/*
+ * Reap zombies from all domains.
+ */
+static void
+thread_reap_all(void)
+{
+	struct thread_domain_data *tdd;
+	int i, domain;
+
+	domain = PCPU_GET(domain);
+	for (i = 0; i < vm_ndomains; i++) {
+		tdd = &thread_domain_data[(i + domain) % vm_ndomains];
+		thread_reap_domain(tdd);
+	}
+}
+
+/*
+ * Reap zombies from local domain.
+ */
+static void
+thread_reap(void)
+{
+	struct thread_domain_data *tdd;
+	int domain;
+
+	domain = PCPU_GET(domain);
+	tdd = &thread_domain_data[domain];
+
+	thread_reap_domain(tdd);
+}
+
+static void
+thread_reap_task_cb(void *arg __unused, int pending __unused)
+{
+
+	thread_reap_all();
+}
+
+static void
+thread_reap_callout_cb(void *arg __unused)
+{
+	struct thread_domain_data *tdd;
+	int i, cticks, lticks;
+	bool wantreap;
+
+	wantreap = false;
+	cticks = atomic_load_int(&ticks);
+	for (i = 0; i < vm_ndomains; i++) {
+		tdd = &thread_domain_data[i];
+		lticks = tdd->tdd_reapticks;
+		if (tdd->tdd_zombies != NULL &&
+		    (u_int)(cticks - lticks) > 5 * hz) {
+			wantreap = true;
+			break;
 		}
 	}
+
+	if (wantreap)
+		taskqueue_enqueue(taskqueue_thread, &thread_reap_task);
+	callout_reset(&thread_reap_callout, 5 * hz, thread_reap_callout_cb, NULL);
 }
 
 /*
@@ -415,16 +714,24 @@ struct thread *
 thread_alloc(int pages)
 {
 	struct thread *td;
+	lwpid_t tid;
 
-	thread_reap(); /* check if any zombies to get */
+	if (!thread_count_inc()) {
+		return (NULL);
+	}
 
-	td = (struct thread *)uma_zalloc(thread_zone, M_WAITOK);
+	tid = tid_alloc();
+	td = uma_zalloc(thread_zone, M_WAITOK);
 	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
 	if (!vm_thread_new(td, pages)) {
 		uma_zfree(thread_zone, td);
+		tid_free(tid);
+		thread_count_dec();
 		return (NULL);
 	}
+	td->td_tid = tid;
 	cpu_thread_alloc(td);
+	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 	return (td);
 }
 
@@ -443,8 +750,8 @@ thread_alloc_stack(struct thread *td, int pages)
 /*
  * Deallocate a thread.
  */
-void
-thread_free(struct thread *td)
+static void
+thread_free_batched(struct thread *td)
 {
 
 	lock_profile_thread_exit(td);
@@ -455,7 +762,23 @@ thread_free(struct thread *td)
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	callout_drain(&td->td_slpcallout);
+	/*
+	 * Freeing handled by the caller.
+	 */
+	td->td_tid = -1;
 	uma_zfree(thread_zone, td);
+}
+
+void
+thread_free(struct thread *td)
+{
+	lwpid_t tid;
+
+	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
+	tid = td->td_tid;
+	thread_free_batched(td);
+	tid_free(tid);
+	thread_count_dec();
 }
 
 void
@@ -621,7 +944,7 @@ thread_exit(void)
 	rucollect(&p->p_ru, &td->td_ru);
 	PROC_STATUNLOCK(p);
 
-	td->td_state = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 #ifdef WITNESS
 	witness_thread_exit(td);
 #endif
@@ -670,7 +993,7 @@ thread_link(struct thread *td, struct proc *p)
 	 * its lock has been created.
 	 * PROC_LOCK_ASSERT(p, MA_OWNED);
 	 */
-	td->td_state    = TDS_INACTIVE;
+	TD_SET_STATE(td, TDS_INACTIVE);
 	td->td_proc     = p;
 	td->td_flags    = TDF_INMEM;
 
@@ -1279,26 +1602,65 @@ thread_single_end(struct proc *p, int mode)
 		kick_proc0();
 }
 
-struct thread *
-thread_find(struct proc *p, lwpid_t tid)
+/*
+ * Locate a thread by number and return with proc lock held.
+ *
+ * thread exit establishes proc -> tidhash lock ordering, but lookup
+ * takes tidhash first and needs to return locked proc.
+ *
+ * The problem is worked around by relying on type-safety of both
+ * structures and doing the work in 2 steps:
+ * - tidhash-locked lookup which saves both thread and proc pointers
+ * - proc-locked verification that the found thread still matches
+ */
+static bool
+tdfind_hash(lwpid_t tid, pid_t pid, struct proc **pp, struct thread **tdp)
 {
+#define RUN_THRESH	16
+	struct proc *p;
 	struct thread *td;
+	int run;
+	bool locked;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td->td_tid == tid)
+	run = 0;
+	rw_rlock(TIDHASHLOCK(tid));
+	locked = true;
+	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
+		if (td->td_tid != tid) {
+			run++;
+			continue;
+		}
+		p = td->td_proc;
+		if (pid != -1 && p->p_pid != pid) {
+			td = NULL;
 			break;
+		}
+		if (run > RUN_THRESH) {
+			if (rw_try_upgrade(TIDHASHLOCK(tid))) {
+				LIST_REMOVE(td, td_hash);
+				LIST_INSERT_HEAD(TIDHASH(td->td_tid),
+					td, td_hash);
+				rw_wunlock(TIDHASHLOCK(tid));
+				locked = false;
+				break;
+			}
+		}
+		break;
 	}
-	return (td);
+	if (locked)
+		rw_runlock(TIDHASHLOCK(tid));
+	if (td == NULL)
+		return (false);
+	*pp = p;
+	*tdp = td;
+	return (true);
 }
 
-/* Locate a thread by number; return with proc lock held. */
 struct thread *
 tdfind(lwpid_t tid, pid_t pid)
 {
-#define RUN_THRESH	16
+	struct proc *p;
 	struct thread *td;
-	int run = 0;
 
 	td = curthread;
 	if (td->td_tid == tid) {
@@ -1308,48 +1670,39 @@ tdfind(lwpid_t tid, pid_t pid)
 		return (td);
 	}
 
-	rw_rlock(&tidhash_lock);
-	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
-		if (td->td_tid == tid) {
-			if (pid != -1 && td->td_proc->p_pid != pid) {
-				td = NULL;
-				break;
-			}
-			PROC_LOCK(td->td_proc);
-			if (td->td_proc->p_state == PRS_NEW) {
-				PROC_UNLOCK(td->td_proc);
-				td = NULL;
-				break;
-			}
-			if (run > RUN_THRESH) {
-				if (rw_try_upgrade(&tidhash_lock)) {
-					LIST_REMOVE(td, td_hash);
-					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
-						td, td_hash);
-					rw_wunlock(&tidhash_lock);
-					return (td);
-				}
-			}
-			break;
+	for (;;) {
+		if (!tdfind_hash(tid, pid, &p, &td))
+			return (NULL);
+		PROC_LOCK(p);
+		if (td->td_tid != tid) {
+			PROC_UNLOCK(p);
+			continue;
 		}
-		run++;
+		if (td->td_proc != p) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			return (NULL);
+		}
+		return (td);
 	}
-	rw_runlock(&tidhash_lock);
-	return (td);
 }
 
 void
 tidhash_add(struct thread *td)
 {
-	rw_wlock(&tidhash_lock);
+	rw_wlock(TIDHASHLOCK(td->td_tid));
 	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
-	rw_wunlock(&tidhash_lock);
+	rw_wunlock(TIDHASHLOCK(td->td_tid));
 }
 
 void
 tidhash_remove(struct thread *td)
 {
-	rw_wlock(&tidhash_lock);
+
+	rw_wlock(TIDHASHLOCK(td->td_tid));
 	LIST_REMOVE(td, td_hash);
-	rw_wunlock(&tidhash_lock);
+	rw_wunlock(TIDHASHLOCK(td->td_tid));
 }

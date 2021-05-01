@@ -147,8 +147,8 @@ are:
 .It Cm Read_RSSI
 .It Cm LE_Enable
 .It Cm LE_Read_Local_Supported_Features
-.It Cm LE_Set_Advertising_Parameters 
-.It Cm LE_Read_Advertising_Physical_Channel_Tx_Power 
+.It Cm LE_Set_Advertising_Parameters
+.It Cm LE_Read_Advertising_Physical_Channel_Tx_Power
 .It Cm LE_Set_Advertising_Data
 .It Cm LE_Set_Scan_Response_Data
 .It Cm LE_Set_Advertising_Enable
@@ -192,10 +192,11 @@ are:
 .It Cm Write_Node_Role_Switch
 .It Cm Read_Node_List
 .El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Make the blutooth LE host, ubt0hci, scannable through
 .Xr hccontrol 8 commands:
-.Pp
 .Bd -literal -offset indent
 hccontrol -n ubt0hci le_set_advertising_enable disable
 hccontrol -n ubt0hci le_set_advertising_param
@@ -204,8 +205,6 @@ hccontrol -n ubt0hci le_set_advertising_data
 hccontrol -n ubt0hci le_set_scan_response -n FBSD_Host
 hccontrol -n ubt0hci le_set_advertising_enable enable
 .Ed
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .Xr bluetooth 3 ,
 .Xr netgraph 3 ,

@@ -615,7 +615,7 @@ ctf_add_generic(ctf_file_t *fp, uint_t flag, const char *name, ctf_dtdef_t **rp)
 	if ((dtd = ctf_alloc(sizeof (ctf_dtdef_t))) == NULL)
 		return (ctf_set_errno(fp, EAGAIN));
 
-	if (name != NULL && (s = ctf_strdup(name)) == NULL) {
+	if (name != NULL && *name != '\0' && (s = ctf_strdup(name)) == NULL) {
 		ctf_free(dtd, sizeof (ctf_dtdef_t));
 		return (ctf_set_errno(fp, EAGAIN));
 	}
@@ -1217,7 +1217,7 @@ membadd(const char *name, ctf_id_t type, ulong_t offset, void *arg)
 	if ((dmd = ctf_alloc(sizeof (ctf_dmdef_t))) == NULL)
 		return (ctf_set_errno(ctb->ctb_file, EAGAIN));
 
-	if (name != NULL && (s = ctf_strdup(name)) == NULL) {
+	if (name != NULL && *name != '\0' && (s = ctf_strdup(name)) == NULL) {
 		ctf_free(dmd, sizeof (ctf_dmdef_t));
 		return (ctf_set_errno(ctb->ctb_file, EAGAIN));
 	}
@@ -1258,7 +1258,7 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	uint_t kind, flag, vlen;
 
 	ctf_bundle_t src, dst;
-	ctf_encoding_t src_en, dst_en;
+	ctf_encoding_t src_en, main_en, dst_en;
 	ctf_arinfo_t src_ar, dst_ar;
 
 	ctf_dtdef_t *dtd;
@@ -1372,6 +1372,27 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 	case CTF_K_FLOAT:
 		if (ctf_type_encoding(src_fp, src_type, &src_en) != 0)
 			return (ctf_set_errno(dst_fp, ctf_errno(src_fp)));
+
+		/*
+		 * This could be a bitfield, and the CTF library assumes
+		 * intrinsics will appear before bitfields. Therefore,
+		 * try to copy over the intrinsic prior to copying the
+		 * bitfield.
+		 */
+		if (dst_type == CTF_ERR && name[0] != '\0' &&
+		    (hep = ctf_hash_lookup(&src_fp->ctf_names, src_fp, name,
+		    strlen(name))) != NULL &&
+		    src_type != (ctf_id_t)hep->h_type) {
+			if (ctf_type_encoding(src_fp, (ctf_id_t)hep->h_type,
+			    &main_en) != 0) {
+				return (ctf_set_errno(dst_fp,
+				    ctf_errno(src_fp)));
+			}
+			if (bcmp(&src_en, &main_en, sizeof (ctf_encoding_t)) &&
+			    ctf_add_type(dst_fp, src_fp,
+			    (ctf_id_t)hep->h_type) == CTF_ERR)
+				return (CTF_ERR); /* errno is set for us */
+		}
 
 		if (dst_type != CTF_ERR) {
 			if (ctf_type_encoding(dst_fp, dst_type, &dst_en) != 0)

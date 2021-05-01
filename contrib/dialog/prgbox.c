@@ -1,9 +1,9 @@
 /*
- *  $Id: prgbox.c,v 1.13 2016/01/27 01:37:26 tom Exp $
+ *  $Id: prgbox.c,v 1.14 2019/07/25 00:07:15 tom Exp $
  *
  *  prgbox.c -- implements the prg box
  *
- *  Copyright 2011-2014,2016	Thomas E. Dickey
+ *  Copyright 2011-2016,2019	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -37,10 +37,10 @@ dlg_popen(const char *command, const char *type)
 {
     FILE *result = 0;
     int fd[2];
-    char *blob;
-    char **argv;
 
-    if ((*type == 'r' || *type != 'w') && pipe(fd) == 0) {
+    if ((*type == 'r' || *type == 'w') && pipe(fd) == 0) {
+	char *blob;
+
 	switch (fork()) {
 	case -1:		/* Error. */
 	    (void) close(fd[0]);
@@ -68,6 +68,7 @@ dlg_popen(const char *command, const char *type)
 	     * tokens.
 	     */
 	    if ((blob = malloc(10 + strlen(command))) != 0) {
+		char **argv;
 		sprintf(blob, "sh -c \"%s\"", command);
 		argv = dlg_string_to_argv(blob);
 		execvp("sh", argv);

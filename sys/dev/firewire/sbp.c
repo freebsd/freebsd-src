@@ -71,7 +71,7 @@
  * because of CAM_SCSI2_MAXLUN in cam_xpt.c
  */
 #define SBP_NUM_LUNS 64
-#define SBP_MAXPHYS  MIN(MAXPHYS, (512*1024) /* 512KB */)
+#define SBP_MAXPHYS  (128 * 1024)
 #define SBP_DMA_SIZE PAGE_SIZE
 #define SBP_LOGIN_SIZE sizeof(struct sbp_login_res)
 #define SBP_QUEUE_LEN ((SBP_DMA_SIZE - SBP_LOGIN_SIZE) / sizeof(struct sbp_ocb))
@@ -987,7 +987,7 @@ END_DEBUG
 	sdev = sbp_next_dev(target, sdev->lun_id + 1);
 	if (sdev == NULL) {
 		SBP_UNLOCK(sbp);
-		free(ccb, M_SBP);
+		xpt_free_ccb(ccb);
 		return;
 	}
 	/* reuse ccb */
@@ -1019,9 +1019,9 @@ SBP_DEBUG(0)
 	device_printf(sdev->target->sbp->fd.dev,
 		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
-	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
+	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		printf("sbp_cam_scan_target: malloc failed\n");
+		printf("sbp_cam_scan_target: xpt_alloc_ccb_nowait() failed\n");
 		return;
 	}
 	SBP_UNLOCK(target->sbp);

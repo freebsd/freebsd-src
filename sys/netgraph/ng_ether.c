@@ -414,8 +414,7 @@ ng_ether_ifnet_arrival_event(void *arg __unused, struct ifnet *ifp)
 	node_p node;
 
 	/* Only ethernet interfaces are of interest. */
-	if (ifp->if_type != IFT_ETHER
-	    && ifp->if_type != IFT_L2VLAN)
+	if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN)
 		return;
 
 	/*
@@ -753,13 +752,13 @@ ng_ether_shutdown(node_p node)
 
 	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
-		 * WE came here because the ethernet card is being unloaded,
-		 * so stop being persistent.
-		 * Actually undo all the things we did on creation.
-		 * Assume the ifp has already been freed.
+		 * The ifnet is going away, perhaps because the driver was
+		 * unloaded or its vnet is being torn down.
 		 */
 		NG_NODE_SET_PRIVATE(node, NULL);
-		free(priv, M_NETGRAPH);		
+		if (priv->ifp != NULL)
+			IFP2NG(priv->ifp) = NULL;
+		free(priv, M_NETGRAPH);
 		NG_NODE_UNREF(node);	/* free node itself */
 		return (0);
 	}

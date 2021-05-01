@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sysdecode.h>
 
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
-static
+#include <compat/linux/linux_errno.h>
 #include <compat/linux/linux_errno.inc>
 #endif
 

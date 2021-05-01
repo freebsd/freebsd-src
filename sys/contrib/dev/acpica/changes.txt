@@ -1,5 +1,189 @@
 ----------------------------------------
+31 March 2021. Summary of changes for version 20210331:
 
+This release is available at https://acpica.org/downloads, and includes 
+all ACPI 6.4 support
+
+1) ACPICA kernel-resident subsystem:
+ACPI 6.4: iASL: deprecate DDBHandleObj keyword
+Always create namespace nodes using AcpiNsCreateNode(). ACPICA is 
+allocating an object using kmalloc(), but then frees it
+using kmem_cache_free(<"Acpi-Namespace" kmem_cache>). This is wrong.
+Fixed a race condition in generic serial bus operation region handler. 
+Fixed by Hans de Goede.
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+ACPI 6.4: NFIT: add Location Cookie field
+ACPI 6.4: HMAT: add new fields/flags
+ACPI 6.4: Add new flags in SRAT
+ACPI 6.4: add SDEV secure access components
+ACPI 6.4: add Csi2Bus resource template
+ACPI 6.4: add support for PHAT table
+ACPI 6.4: add support for PMTT table
+Add disassembly support for the IVRS table. Compilation of the table is 
+not yet complete.
+Fixed a potential infinite loop due to type mismatch. The for-loop is 
+using a UINT8 counter and comparing the upper
+limit against a UINT32 AslGbl_ExpectedMessagesIndex maximum. In
+the case where AslGbl_ExpectedMessagesIndex is > 255 the counter i
+will wrap around to zero and the loop will never exit. I suspect
+the AslGbl_ExpectedMessagesIndex is never that high, but fixing
+this does future proof the code and cleans up static analysis
+warnings.Colin King.
+iASL/TableCompiler: update it with IORT table E.b revision changes. From 
+shamiali2008.
+iASL/TableCompiler: Add compilation support for the VIOT table. Signed-
+off-by: Jean-Philippe Brucker.
+iASL/TableCompiler: Add compilation support for CEDT table. Also, update 
+the CEDT template.
+
+----------------------------------------
+05 January 2021. Summary of changes for version 20210105:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2021. This affects all ACPICA source code 
+modules.
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+ASL test suite (ASLTS): Updated all copyrights to 2021.
+
+Tools and utilities: Updated all signon copyrights to 2021.
+
+iASL Table Compiler: Removed support for obsolete ACPI tables: VRTC, 
+MTMR. Al Stone.
+
+
+----------------------------------------
+17 December 2020. Summary of changes for version 20201217:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Note: The implementation of ACPI 6.4 is underway, and is expected to be 
+mostly finished next month, when ACPI 6.4 is released.
+
+From qzed:- fixed-ae-class-macros. Fix exception code class checks. Added 
+several new macros, such as ACPI_CNTL_EXCEPTION(Status) in order to 
+enable this.
+
+AcpiExec/iASL/AcpiHelp: Added a few changes for support of GCC 10.2.0. 
+These included a few casts, as well as a null pointer check.
+
+Fix -Wfallthrough: GCC 7.1 gained -Wimplicit-fallthrough to warn on 
+implicit fallthrough, as well as __attribute__((__fallthrough__)) and 
+comments to explicitly denote that cases of fallthrough were intentional. 
+Clang also supports this warning and statement attribute, but not the 
+comment form. Added a new macro, ACPI_FALLTHROUGH to support this feature 
+of GCC. With assistance from @nickdesaulniers. 
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+Added improvement to method call analysis by saving the return type and 
+relaxing certain cases of type checking.
+
+iASL Table Compiler: Improved info messages. Added a message to the -T 
+option for when the default template (DSDT) is used.
+Also added a note for when multiple SSDTs are created with a DSDT that 
+the SSDTs are created in the same file as the DSDT.
+
+
+----------------------------------------
+
+13 November 2020. Summary of changes for version 20201113:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Interpreter: fixed a memory leak by using use existing buffer in _HID 
+repair. There was a memory leak that occurred when a _CID object is 
+defined as a package containing string objects. When _CID is checked for 
+any possible repairs, it calls a helper function to repair _HID (because 
+_CID basically contains multiple _HID entries). The _HID repair function 
+assumes that string objects are standalone objects that are not contained 
+inside of any packages. The _HID repair function replaced the string 
+object with a brand new object and attempted to delete the old object by 
+decrementing the reference count of the old object. Strings inside of 
+packages have a reference count of 2 so the _HID repair function leaves 
+this object in a dangling state and causes a memory leak. Instead of 
+allocating a brand new object and removing the old object, use the 
+existing object when repairing the _HID object.
+
+Added function trace macros to improve namespace debugging. The namespace 
+repair mechanism does not have function tracing macros. Add several trace 
+macros to improve debuggability.
+
+Handle "orphan" _REG methods for GPIO OpRegions. Before this change 
+AcpiEvExecuteRegMethods() had special handling to handle "orphan" (no 
+matching OpRegion declared) _REG methods for EC nodes. On Intel Cherry 
+Trail devices there are 2 possible ACPI OpRegions for accessing GPIOs. 
+The standard GeneralPurposeIo OpRegion and the Cherry Trail - specific 
+UserDefined 0x9X OpRegions. Having 2 different types of OpRegions leads 
+to potential issues with checks for OpRegion availability, or in other 
+words checks if _REG has been called for the OpRegion which the ACPI code 
+wants to use. Except for the "orphan" EC handling, ACPICA core does not 
+call _REG on an ACPI node which does not define an OpRegion matching the 
+type being registered; and the reference design DSDT, from which most 
+Cherry Trail DSDTs are derived, does not define GeneralPurposeIo, nor 
+UserDefined(0x93) OpRegions for the GPO2 (UID 3) device, because no pins 
+were assigned ACPI controlled functions in the reference design. Together 
+this leads to the perfect storm, at least on the Cherry Trail based 
+Medion Akayo E1239T. This design does use a GPO2 pin from its ACPI code 
+and has added the Cherry Trail specific UserDefined(0x93) opregion to its 
+GPO2 ACPI node to access this pin. But it uses a "has _REG been called" 
+availability check for the standard GeneralPurposeIo OpRegion. This 
+clearly is a bug in the DSDT, but this does work under Windows. This 
+issue leads to the intel vbtn driver reporting the device always being in 
+tablet-mode at boot, even if it is in laptop mode. Which in turn causes 
+userspace to ignore touchpad events. So in other words, this issue causes 
+the touchpad to not work at boot. This change fixes this by extending the 
+"orphan" _REG method handling to also apply to GPIO address-space 
+handlers.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+iASL: Added more info to namespace dump file (-ln option). In a separate 
+section of the dump file (after the main namespace dump), emit the full 
+pathname for each namespace node, its type, and the ASL filename and line 
+number where it is declared.
+
+AcpiHelp: Added an option to display/decode iASL exceptions. Option is: -
+x [Hex Value] where "Hex Value" is the iASL exception code. If Hex Value 
+is omitted, all iASL exceptions are displayed.
+
+iASL: Use StringLiteral instead of StringData for some ASL macros. The 
+use of the stringData rule allows for some "string" oriented opcodes 
+(Such as ToString, ToHexString, etc.) None of which make sense with the 
+macros in question. This change modifies the StringData part of the rule 
+for these macros to a simple string  literal - thus disallowing the use 
+of ToString, ToHexString, etc.
+The following ASL operators (macros) are affected:
+EisaId
+Fprintf
+Printf
+ToUuid
+Unicode
+Note: The MS compiler requires the use of string literals for these 
+operators also.
+
+iASL: Added a remark for an unknown UUID: ASL_MSG_UUID_NOT_FOUND. Search 
+the list of "known" UUIDs for the input to the ToUUID macro.
+
+Added 5 new UUIDs to the known UUID table. All related to NVDIMM and the 
+NFIT table.
+
+
+----------------------------------------
 
 25 September 2020. Summary of changes for version 20200925:
 
@@ -41,7 +225,7 @@ names:
     _SBT
     _SBW
 
-AML Disassembler: Added a new command, "All <NameSeg". This command will 
+AML Disassembler: Added a new command, "All <NameSeg>". This command will 
 evaluate all objects in the current namespace whose NameString contains 
 the input NameSeg as the last element of the NameString. Useful for 
 debugging.
@@ -54,6 +238,11 @@ with lengths that exceed the initializer list.
 
 iASL: added more detail to external resolution error message when 
 compiling multiple definition blocks.
+
+iASL: added a remark for an attempt to create a nameseg or namestring 
+containing lower-case letters. This should prevent declaring multiple 
+namesegs or namestrings in an attempt to refer to different objects (with 
+different cases), but actually refer to the same object(s).
 
 iASL: improve alias analysis by saving object type. If the alias is a 
 method type, the parameter count is also recorded.
@@ -3702,7 +3891,7 @@ iASL compiler, all ACPICA utilities, and the test suites.
 Events: Introduce ACPI_GPE_DISPATCH_RAW_HANDLER to fix GPE storm issues.
 A raw gpe handling mechanism was created to allow better handling of GPE
 storms that aren't easily managed by the normal handler. The raw handler
-allows disabling/renabling of the the GPE so that interrupt storms can be
+allows disabling/renabling of the GPE so that interrupt storms can be
 avoided in cases where events cannot be timely serviced. In this 
 scenario, handlers should use the AcpiSetGpe() API to disable/enable the 
 GPE. This API will leave the reference counts undisturbed, thereby 

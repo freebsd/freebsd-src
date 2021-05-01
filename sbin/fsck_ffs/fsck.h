@@ -73,8 +73,7 @@
 
 #define	MAXDUP		10	/* limit on dup blks (per inode) */
 #define	MAXBAD		10	/* limit on bad blks (per inode) */
-#define	MINBUFS		10	/* minimum number of buffers required */
-#define	MAXBUFS		40	/* maximum space to allocate to buffers */
+#define	MINBUFS		100	/* minimum number of buffers required */
 #define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
 #define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
@@ -101,9 +100,10 @@ union dinode {
  * have its link count adjusted by the value remaining in ino_linkcnt.
  */
 struct inostat {
-	char	ino_state;	/* state of inode, see below */
-	char	ino_type;	/* type of inode */
-	short	ino_linkcnt;	/* number of links not found */
+	u_char	ino_state;	/* state of inode, see below */
+	u_char	ino_type:4;	/* type of inode */
+	u_char	ino_idtype:4;	/* idesc id_type, SNAP or ADDR */
+	u_short	ino_linkcnt;	/* number of links not found */
 };
 /*
  * Inode states.
@@ -133,15 +133,34 @@ extern struct inostatlist {
 } *inostathead;
 
 /*
+ * Structure to reference a dinode.
+ */
+struct inode {
+	struct bufarea *i_bp;	/* buffer containing the dinode */
+	union dinode *i_dp;	/* pointer to dinode in buffer */
+	ino_t i_number;		/* inode number */
+};
+
+/*
+ * Size of hash tables
+ */
+#define	HASHSIZE	2048
+#define	HASH(x)		((x * 2654435761) & (HASHSIZE - 1))
+
+/*
  * buffer cache structure.
  */
 struct bufarea {
-	TAILQ_ENTRY(bufarea) b_list;		/* buffer list */
-	ufs2_daddr_t b_bno;
-	int b_size;
-	int b_errs;
-	int b_flags;
-	int b_type;
+	TAILQ_ENTRY(bufarea) b_list;		/* LRU buffer queue */
+	LIST_ENTRY(bufarea) b_hash;		/* hash list */
+	ufs2_daddr_t b_bno;			/* disk block number */
+	int b_size;				/* size of I/O */
+	int b_errs;				/* I/O error */
+	int b_flags;				/* B_ flags below */
+	int b_type;				/* BT_ type below */
+	int b_refcnt;				/* ref count of users */
+	int b_index;				/* for BT_LEVEL, ptr index */
+						/* for BT_INODES, first inum */
 	union {
 		char *b_buf;			/* buffer space */
 		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
@@ -151,7 +170,6 @@ struct bufarea {
 		struct ufs1_dinode *b_dinode1;	/* UFS1 inode block */
 		struct ufs2_dinode *b_dinode2;	/* UFS2 inode block */
 	} b_un;
-	char b_dirty;
 };
 
 #define	IBLK(bp, i) \
@@ -168,21 +186,22 @@ struct bufarea {
 /*
  * Buffer flags
  */
-#define	B_INUSE 	0x00000001	/* Buffer is in use */
+#define	B_DIRTY 	0x00000001	/* Buffer is dirty */
 /*
  * Type of data in buffer
  */
-#define	BT_UNKNOWN 	 0	/* Buffer holds a superblock */
+#define	BT_UNKNOWN 	 0	/* Buffer type is unknown */
 #define	BT_SUPERBLK 	 1	/* Buffer holds a superblock */
 #define	BT_CYLGRP 	 2	/* Buffer holds a cylinder group map */
 #define	BT_LEVEL1 	 3	/* Buffer holds single level indirect */
 #define	BT_LEVEL2 	 4	/* Buffer holds double level indirect */
 #define	BT_LEVEL3 	 5	/* Buffer holds triple level indirect */
 #define	BT_EXTATTR 	 6	/* Buffer holds external attribute data */
-#define	BT_INODES 	 7	/* Buffer holds external attribute data */
+#define	BT_INODES 	 7	/* Buffer holds inodes */
 #define	BT_DIRDATA 	 8	/* Buffer holds directory data */
 #define	BT_DATA	 	 9	/* Buffer holds user data */
-#define BT_NUMBUFTYPES	10
+#define	BT_EMPTY 	10	/* Buffer allocated but not filled */
+#define BT_NUMBUFTYPES	11
 #define BT_NAMES {			\
 	"unknown",			\
 	"Superblock",			\
@@ -193,28 +212,36 @@ struct bufarea {
 	"External Attribute",		\
 	"Inode Block",			\
 	"Directory Contents",		\
-	"User Data" }
+	"User Data",			\
+	"Allocated but not filled" }
+extern char *buftype[];
+#define BT_BUFTYPE(type) \
+	type < BT_NUMBUFTYPES ? buftype[type] : buftype[BT_UNKNOWN]
 extern long readcnt[BT_NUMBUFTYPES];
 extern long totalreadcnt[BT_NUMBUFTYPES];
 extern struct timespec readtime[BT_NUMBUFTYPES];
 extern struct timespec totalreadtime[BT_NUMBUFTYPES];
 extern struct timespec startprog;
 
+extern struct bufarea *icachebp;	/* inode cache buffer */
 extern struct bufarea sblk;		/* file system superblock */
 extern struct bufarea *pdirbp;		/* current directory contents */
-extern struct bufarea *pbp;		/* current inode block */
+extern int sujrecovery;			/* 1 => doing check using the journal */
 
 #define	dirty(bp) do { \
 	if (fswritefd < 0) \
 		pfatal("SETTING DIRTY FLAG IN READ_ONLY MODE\n"); \
 	else \
-		(bp)->b_dirty = 1; \
+		(bp)->b_flags |= B_DIRTY; \
 } while (0)
 #define	initbarea(bp, type) do { \
-	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs2_daddr_t)-1; \
+	(bp)->b_size = 0; \
+	(bp)->b_errs = 0; \
 	(bp)->b_flags = 0; \
 	(bp)->b_type = type; \
+	(bp)->b_refcnt = 0; \
+	(bp)->b_index = 0; \
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
@@ -227,6 +254,8 @@ struct inodesc {
 	enum fixstate id_fix;	/* policy on fixing errors */
 	int (*id_func)(struct inodesc *);
 				/* function to be applied to blocks of inode */
+	struct bufarea *id_bp;	/* ckinode: buffer with indirect pointers */
+	union dinode *id_dp;	/* ckinode: dinode being traversed */
 	ino_t id_number;	/* inode number described */
 	ino_t id_parent;	/* for DATA nodes, their parent */
 	ufs_lbn_t id_lbn;	/* logical block number of current block */
@@ -239,7 +268,7 @@ struct inodesc {
 	int id_loc;		/* for DATA nodes, current location in dir */
 	struct direct *id_dirp;	/* for DATA nodes, ptr to current entry */
 	char *id_name;		/* for DATA nodes, name to find or enter */
-	char id_type;		/* type of descriptor, DATA or ADDR */
+	char id_type;		/* type of descriptor, DATA, ADDR, or SNAP */
 };
 /* file types */
 #define	DATA	1	/* a directory */
@@ -332,7 +361,6 @@ extern char	skipclean;		/* skip clean file systems if preening */
 extern int	fsmodified;		/* 1 => write done to file system */
 extern int	fsreadfd;		/* file descriptor for reading file system */
 extern int	fswritefd;		/* file descriptor for writing file system */
-extern struct	uufsd disk;		/* libufs user-ufs disk structure */
 extern int	surrender;		/* Give up if reads fail */
 extern int	wantrestart;		/* Restart fsck on early termination */
 
@@ -352,12 +380,11 @@ extern volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
 
 #define	clearinode(dp) \
 	if (sblock.fs_magic == FS_UFS1_MAGIC) { \
-		(dp)->dp1 = ufs1_zino; \
+		(dp)->dp1 = zino.dp1; \
 	} else { \
-		(dp)->dp2 = ufs2_zino; \
+		(dp)->dp2 = zino.dp2; \
 	}
-extern struct	ufs1_dinode ufs1_zino;
-extern struct	ufs2_dinode ufs2_zino;
+extern union dinode zino;
 
 #define	setbmap(blkno)	setbit(blockmap, blkno)
 #define	testbmap(blkno)	isset(blockmap, blkno)
@@ -408,6 +435,7 @@ struct fstab;
 
 
 void		adjust(struct inodesc *, int lcnt);
+void		alarmhandler(int sig);
 ufs2_daddr_t	allocblk(long frags);
 ino_t		allocdir(ino_t parent, ino_t request, int mode);
 ino_t		allocino(ino_t request, int type);
@@ -418,12 +446,14 @@ void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
 void		blzero(int fd, ufs2_daddr_t blk, long size);
+void		brelse(struct bufarea *);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 void		cgdirty(struct bufarea *);
+struct bufarea *cglookup(int cg);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
-int		check_cgmagic(int cg, struct bufarea *cgbp);
+int		check_cgmagic(int cg, struct bufarea *cgbp, int requestrebuild);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
@@ -438,22 +468,23 @@ void		finalIOstats(void);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
-void		freeblk(ufs2_daddr_t blkno, long frags);
+int		freeblock(struct inodesc *);
 void		freeino(ino_t ino);
 void		freeinodebuf(void);
 void		fsutilinit(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
-struct bufarea *cglookup(int cg);
 struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
-union dinode   *ginode(ino_t inumber);
+void		ginode(ino_t, struct inode *);
 void		infohandler(int sig);
-void		alarmhandler(int sig);
+void		irelse(struct inode *);
+ufs2_daddr_t	ino_blkatoff(union dinode *, ino_t, ufs_lbn_t, int *,
+		    struct bufarea **);
 void		inocleanup(void);
-void		inodirty(union dinode *);
+void		inodirty(struct inode *);
 struct inostat *inoinfo(ino_t inum);
 void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
@@ -465,17 +496,16 @@ int		pass1check(struct inodesc *);
 void		pass2(void);
 void		pass3(void);
 void		pass4(void);
-int		pass4check(struct inodesc *);
 void		pass5(void);
 void		pfatal(const char *fmt, ...) __printflike(1, 2);
 void		propagate(void);
-void		prtinode(ino_t ino, union dinode *dp);
+void		prtinode(struct inode *);
 void		pwarn(const char *fmt, ...) __printflike(1, 2);
 int		readsb(int listerr);
 int		reply(const char *question);
 void		rwerror(const char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);
-void		setinodebuf(ino_t);
+void		setinodebuf(int, ino_t);
 int		setup(char *dev);
 void		gjournal_check(const char *filesys);
 int		suj_check(const char *filesys);

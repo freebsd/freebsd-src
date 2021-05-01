@@ -1,36 +1,29 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright IBM Corp. 2007
- *
- * Authors:
- *  Anthony Liguori  <aliguori@us.ibm.com>
- *
- * This header is BSD licensed so anyone can use the definitions to implement
- * compatible drivers/servers.
+ * Copyright (c) 2017, Bryan Venteicher <bryanv@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD$
  */
@@ -38,51 +31,102 @@
 #ifndef _VIRTIO_PCI_H
 #define _VIRTIO_PCI_H
 
-/* VirtIO PCI vendor/device ID. */
-#define VIRTIO_PCI_VENDORID	0x1AF4
-#define VIRTIO_PCI_DEVICEID_MIN	0x1000
-#define VIRTIO_PCI_DEVICEID_MAX	0x103F
+struct vtpci_interrupt {
+	struct resource		*vti_irq;
+	int			 vti_rid;
+	void			*vti_handler;
+};
 
-/* VirtIO ABI version, this must match exactly. */
-#define VIRTIO_PCI_ABI_VERSION	0
+struct vtpci_virtqueue {
+	struct virtqueue	*vtv_vq;
+	int			 vtv_no_intr;
+	int			 vtv_notify_offset;
+};
 
-/*
- * VirtIO Header, located in BAR 0.
- */
-#define VIRTIO_PCI_HOST_FEATURES  0  /* host's supported features (32bit, RO)*/
-#define VIRTIO_PCI_GUEST_FEATURES 4  /* guest's supported features (32, RW) */
-#define VIRTIO_PCI_QUEUE_PFN      8  /* physical address of VQ (32, RW) */
-#define VIRTIO_PCI_QUEUE_NUM      12 /* number of ring entries (16, RO) */
-#define VIRTIO_PCI_QUEUE_SEL      14 /* current VQ selection (16, RW) */
-#define VIRTIO_PCI_QUEUE_NOTIFY	  16 /* notify host regarding VQ (16, RW) */
-#define VIRTIO_PCI_STATUS         18 /* device status register (8, RW) */
-#define VIRTIO_PCI_ISR            19 /* interrupt status register, reading
-				      * also clears the register (8, RO) */
-/* Only if MSIX is enabled: */
-#define VIRTIO_MSI_CONFIG_VECTOR  20 /* configuration change vector (16, RW) */
-#define VIRTIO_MSI_QUEUE_VECTOR   22 /* vector for selected VQ notifications
-					(16, RW) */
+struct vtpci_common {
+	device_t			 vtpci_dev;
+	uint64_t			 vtpci_host_features;
+	uint64_t			 vtpci_features;
+	struct vtpci_virtqueue		*vtpci_vqs;
+	int				 vtpci_nvqs;
 
-/* The bit of the ISR which indicates a device has an interrupt. */
-#define VIRTIO_PCI_ISR_INTR	0x1
-/* The bit of the ISR which indicates a device configuration change. */
-#define VIRTIO_PCI_ISR_CONFIG	0x2
-/* Vector value used to disable MSI for queue. */
-#define VIRTIO_MSI_NO_VECTOR	0xFFFF
+	uint32_t			 vtpci_flags;
+#define VTPCI_FLAG_NO_MSI		0x0001
+#define VTPCI_FLAG_NO_MSIX		0x0002
+#define VTPCI_FLAG_MODERN		0x0004
+#define VTPCI_FLAG_INTX			0x1000
+#define VTPCI_FLAG_MSI			0x2000
+#define VTPCI_FLAG_MSIX			0x4000
+#define VTPCI_FLAG_SHARED_MSIX		0x8000
+#define VTPCI_FLAG_ITYPE_MASK		0xF000
 
-/*
- * The remaining space is defined by each driver as the per-driver
- * configuration space.
- */
-#define VIRTIO_PCI_CONFIG_OFF(msix_enabled)     ((msix_enabled) ? 24 : 20)
+	/* The VirtIO PCI "bus" will only ever have one child. */
+	device_t			 vtpci_child_dev;
+	struct virtio_feature_desc	*vtpci_child_feat_desc;
 
-/*
- * How many bits to shift physical queue address written to QUEUE_PFN.
- * 12 is historical, and due to x86 page size.
- */
-#define VIRTIO_PCI_QUEUE_ADDR_SHIFT	12
+	/*
+	 * Ideally, each virtqueue that the driver provides a callback for will
+	 * receive its own MSIX vector. If there are not sufficient vectors
+	 * available, then attempt to have all the VQs share one vector. For
+	 * MSIX, the configuration changed notifications must be on their own
+	 * vector.
+	 *
+	 * If MSIX is not available, attempt to have the whole device share
+	 * one MSI vector, and then, finally, one intx interrupt.
+	 */
+	struct vtpci_interrupt		 vtpci_device_interrupt;
+	struct vtpci_interrupt		*vtpci_msix_vq_interrupts;
+	int				 vtpci_nmsix_resources;
+};
 
-/* The alignment to use between consumer and producer parts of vring. */
-#define VIRTIO_PCI_VRING_ALIGN	4096
+extern int vtpci_disable_msix;
+
+static inline device_t
+vtpci_child_device(struct vtpci_common *cn)
+{
+	return (cn->vtpci_child_dev);
+}
+
+static inline bool
+vtpci_is_msix_available(struct vtpci_common *cn)
+{
+	return ((cn->vtpci_flags & VTPCI_FLAG_NO_MSIX) == 0);
+}
+
+static inline bool
+vtpci_is_msix_enabled(struct vtpci_common *cn)
+{
+	return ((cn->vtpci_flags & VTPCI_FLAG_MSIX) != 0);
+}
+
+static inline bool
+vtpci_is_modern(struct vtpci_common *cn)
+{
+	return ((cn->vtpci_flags & VTPCI_FLAG_MODERN) != 0);
+}
+
+static inline int
+vtpci_virtqueue_count(struct vtpci_common *cn)
+{
+	return (cn->vtpci_nvqs);
+}
+
+void	vtpci_init(struct vtpci_common *cn, device_t dev, bool modern);
+int	vtpci_add_child(struct vtpci_common *cn);
+int	vtpci_delete_child(struct vtpci_common *cn);
+void	vtpci_child_detached(struct vtpci_common *cn);
+int	vtpci_reinit(struct vtpci_common *cn);
+
+uint64_t vtpci_negotiate_features(struct vtpci_common *cn,
+	     uint64_t child_features, uint64_t host_features);
+int	 vtpci_with_feature(struct vtpci_common *cn, uint64_t feature);
+
+int	vtpci_read_ivar(struct vtpci_common *cn, int index, uintptr_t *result);
+int	vtpci_write_ivar(struct vtpci_common *cn, int index, uintptr_t value);
+
+int	vtpci_alloc_virtqueues(struct vtpci_common *cn, int flags, int nvqs,
+	    struct vq_alloc_info *vq_info);
+int	vtpci_setup_interrupts(struct vtpci_common *cn, enum intr_type type);
+void	vtpci_release_child_resources(struct vtpci_common *cn);
 
 #endif /* _VIRTIO_PCI_H */

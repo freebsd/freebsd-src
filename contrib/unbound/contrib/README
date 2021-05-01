@@ -53,3 +53,5 @@ distribution but may be helpful.
   lookups for downstream clients.
 * drop2rpz: perl script that converts the Spamhaus DROP-List in RPZ-Format,
   contributed by Andreas Schulze.
+* metrics.awk: awk script that can convert unbound-control stats to
+  Prometheus metrics format output.

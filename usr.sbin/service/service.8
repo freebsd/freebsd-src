@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2020
+.Dd January 16, 2021
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -130,6 +130,15 @@ service -rv
 .Ed
 .Pp
 The following programmable completion entry can be used in
+.Xr csh 1
+for the names and common commands of the rc.d scripts:
+.Bd -literal -offset indent
+complete service 'c/-/(e l r v)/' 'p/1/`service -l`/' \e
+		 'n/*/(start stop reload restart \e
+		 status rcvar onestart onestop)/'
+.Ed
+.Pp
+The following programmable completion entry can be use in
 .Xr bash 1
 for the names of the rc.d scripts:
 .Bd -literal -offset -ident

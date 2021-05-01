@@ -68,16 +68,26 @@ extern "C" {
 #define	Z_ISCHR(type) S_ISCHR(type)
 #define	Z_ISLNK(type) S_ISLNK(type)
 #define	Z_ISDEV(type)	(S_ISCHR(type) || S_ISBLK(type) || S_ISFIFO(type))
+#define	Z_ISDIR(type)	S_ISDIR(type)
 
-#define	zhold(zp)	igrab(ZTOI((zp)))
+#define	zn_has_cached_data(zp)		((zp)->z_is_mapped)
+#define	zn_rlimit_fsize(zp, uio)	(0)
+
+/*
+ * zhold() wraps igrab() on Linux, and igrab() may fail when the
+ * inode is in the process of being deleted.  As zhold() must only be
+ * called when a ref already exists - so the inode cannot be
+ * mid-deletion - we VERIFY() this.
+ */
+#define	zhold(zp)	VERIFY3P(igrab(ZTOI((zp))), !=, NULL)
 #define	zrele(zp)	iput(ZTOI((zp)))
 
 /* Called on entry to each ZFS inode and vfs operation. */
 #define	ZFS_ENTER_ERROR(zfsvfs, error)				\
 do {								\
-	rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG);	\
-	if ((zfsvfs)->z_unmounted) {				\
-		ZFS_EXIT(zfsvfs);				\
+	ZFS_TEARDOWN_ENTER_READ(zfsvfs, FTAG);			\
+	if (unlikely((zfsvfs)->z_unmounted)) {			\
+		ZFS_TEARDOWN_EXIT_READ(zfsvfs, FTAG);		\
 		return (error);					\
 	}							\
 } while (0)
@@ -88,14 +98,18 @@ do {								\
 #define	ZFS_EXIT(zfsvfs)					\
 do {								\
 	zfs_exit_fs(zfsvfs);					\
+	ZFS_TEARDOWN_EXIT_READ(zfsvfs, FTAG);			\
+} while (0)
+
+#define	ZPL_EXIT(zfsvfs)					\
+do {								\
 	rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG);		\
 } while (0)
-#define	ZPL_EXIT(zfsvfs)	ZFS_EXIT(zfsvfs)
 
 /* Verifies the znode is valid. */
 #define	ZFS_VERIFY_ZP_ERROR(zp, error)				\
 do {								\
-	if ((zp)->z_sa_hdl == NULL) {				\
+	if (unlikely((zp)->z_sa_hdl == NULL)) {			\
 		ZFS_EXIT(ZTOZSB(zp));				\
 		return (error);					\
 	}							\
@@ -143,12 +157,13 @@ do {						\
 } while (0)
 #endif /* HAVE_INODE_TIMESPEC64_TIMES */
 
+#define	ZFS_ACCESSTIME_STAMP(zfsvfs, zp)
+
 struct znode;
 
 extern int	zfs_sync(struct super_block *, int, cred_t *);
 extern int	zfs_inode_alloc(struct super_block *, struct inode **ip);
 extern void	zfs_inode_destroy(struct inode *);
-extern void	zfs_inode_update(struct znode *);
 extern void	zfs_mark_inode_dirty(struct inode *);
 extern boolean_t zfs_relatime_need_update(const struct inode *);
 
@@ -157,7 +172,6 @@ extern caddr_t zfs_map_page(page_t *, enum seg_rw);
 extern void zfs_unmap_page(page_t *, caddr_t);
 #endif /* HAVE_UIO_RW */
 
-extern zil_get_data_t zfs_get_data;
 extern zil_replay_func_t *zfs_replay_vector[TX_MAX_TYPE];
 extern int zfsfstype;
 

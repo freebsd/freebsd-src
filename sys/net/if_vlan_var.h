@@ -69,6 +69,7 @@
 struct	vlanreq {
 	char	vlr_parent[IFNAMSIZ];
 	u_short	vlr_tag;
+	u_short	vlr_proto;
 };
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
@@ -122,6 +123,15 @@ struct	vlanreq {
 #define	MTAG_8021Q		1326104895
 #define	MTAG_8021Q_PCP_IN	0		/* Input priority. */
 #define	MTAG_8021Q_PCP_OUT	1		/* Output priority. */
+
+/*
+ * 802.1q full tag. Proto and vid are stored in host byte order.
+ */
+struct ether_8021q_tag {
+	uint16_t proto;
+	uint16_t vid;
+	uint8_t  pcp;
+};
 
 #define	VLAN_CAPABILITIES(_ifp) do {				\
 	if ((_ifp)->if_vlantrunk != NULL) 			\

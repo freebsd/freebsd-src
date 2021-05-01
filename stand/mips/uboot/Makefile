@@ -44,6 +44,10 @@ LDADD=		${LDR_INTERP} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSA}
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
+# ubldr on MIPS is built with '-mno-abicalls' flag,
+# which is incompatible with PIE
+MK_PIE=		no
+
 ldscript.abs:
 	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >${.TARGET}
 

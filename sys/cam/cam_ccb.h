@@ -758,6 +758,7 @@ struct ccb_scsiio {
 	 * from scsi_message.h.
 	 */
 #define		CAM_TAG_ACTION_NONE	0x00
+	uint8_t	   priority;		/* Command priority for SIMPLE tag */
 	u_int	   tag_id;		/* tag id from initator (target mode) */
 	u_int	   init_id;		/* initiator id of who selected */
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
@@ -785,6 +786,8 @@ struct ccb_ataio {
 	u_int32_t  resid;		/* Transfer residual length: 2's comp */
 	u_int8_t   ata_flags;		/* Flags for the rest of the buffer */
 #define ATA_FLAG_AUX 0x1
+#define ATA_FLAG_ICC 0x2
+	uint8_t    icc;			/* Isochronous Command Completion */
 	uint32_t   aux;
 	uint32_t   unused;
 };
@@ -805,6 +808,7 @@ struct ccb_accept_tio {
 	u_int8_t   cdb_len;		/* Number of bytes for the CDB */
 	u_int8_t   tag_action;		/* What to do for tag queueing */
 	u_int8_t   sense_len;		/* Number of bytes of Sense Data */
+	uint8_t	   priority;		/* Command priority for SIMPLE tag */
 	u_int      tag_id;		/* tag id from initator (target mode) */
 	u_int      init_id;		/* initiator id of who selected */
 	struct     scsi_sense_data sense_data;
@@ -1392,6 +1396,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->sense_len = sense_len;
 	csio->cdb_len = cdb_len;
 	csio->tag_action = tag_action;
+	csio->priority = 0;
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 	csio->bio = NULL;
 #endif
@@ -1414,6 +1419,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->dxfer_len = dxfer_len;
 	csio->scsi_status = scsi_status;
 	csio->tag_action = tag_action;
+	csio->priority = 0;
 	csio->tag_id = tag_id;
 	csio->init_id = init_id;
 }

@@ -85,12 +85,12 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
-	state.fp = (uint64_t)__builtin_frame_address(0);
+	state.fp = (uintptr_t)__builtin_frame_address(0);
 	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getpcstack;
+	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
-		if (unwind_frame(&state))
+		if (!unwind_frame(curthread, &state))
 			break;
 
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
@@ -122,6 +122,7 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 	uintptr_t oldfp;
 	int ret;
 
+	oldfp = fp;
 	ret = 0;
 	flags = (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 
@@ -157,6 +158,7 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 			cpu_core[curcpu].cpuc_dtrace_illval = fp;
 			break;
 		}
+		oldfp = fp;
 	}
 
 	return (ret);
@@ -259,19 +261,19 @@ dtrace_getstackdepth(int aframes)
 	int scp_offset;
 	register_t sp;
 	int depth;
-	int done;
+	bool done;
 
 	depth = 1;
-	done = 0;
+	done = false;
 
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
-	state.fp = (uint64_t)__builtin_frame_address(0);
+	state.fp = (uintptr_t)__builtin_frame_address(0);
 	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getstackdepth;
+	state.pc = (uintptr_t)dtrace_getstackdepth;
 
 	do {
-		done = unwind_frame(&state);
+		done = !unwind_frame(curthread, &state);
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
 			break;
 		depth++;

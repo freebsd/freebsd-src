@@ -93,7 +93,7 @@ v6_counters_body()
 	    "pass in from <foo6> to any" \
 	    "pass out from any to <foo6>"
 
-	atf_check -s exit:0 -o ignore ping6 -c 3 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 3 2001:db8:42::2
 
 	atf_check -s exit:0 -e ignore \
 	    -o match:'In/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \
@@ -108,8 +108,117 @@ v6_counters_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr251414" "cleanup"
+pr251414_head()
+{
+	atf_set descr 'Test PR 251414'
+	atf_set require.user root
+}
+
+pr251414_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"pass all" \
+		"table <tab> { self }" \
+		"pass in log to <tab>"
+
+	pft_set_rules noflush alcatraz \
+		"pass all" \
+		"table <tab> counters { self }" \
+		"pass in log to <tab>"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	jexec alcatraz pfctl -t tab -T show -vv
+}
+
+pr251414_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "automatic" "cleanup"
+automatic_head()
+{
+	atf_set descr "Test automatic - optimizer generated - tables"
+	atf_set require.user root
+}
+
+automatic_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"block in" \
+		"pass in proto icmp from 192.0.2.1" \
+		"pass in proto icmp from 192.0.2.3" \
+		"pass in proto icmp from 192.0.2.4" \
+		"pass in proto icmp from 192.0.2.5" \
+		"pass in proto icmp from 192.0.2.6" \
+		"pass in proto icmp from 192.0.2.7" \
+		"pass in proto icmp from 192.0.2.8" \
+		"pass in proto icmp from 192.0.2.9"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+automatic_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "network" "cleanup"
+network_head()
+{
+	atf_set descr 'Test <ifgroup>:network'
+	atf_set require.user root
+}
+
+network_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"table <allow> const { epair:network }"\
+		"block in" \
+		"pass in from <allow>"
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+}
+
+network_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
+	atf_add_test_case "pr251414"
+	atf_add_test_case "automatic"
+	atf_add_test_case "network"
 }

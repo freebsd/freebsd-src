@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_opaque.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_opaque.3x,v 1.15 2020/10/24 09:41:22 tom Exp $
 .TH curs_opaque 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -56,35 +56,35 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
-\fBbool is_cleared(const WINDOW *win);\fR
+\fBbool is_cleared(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_idcok(const WINDOW *win);\fR
+\fBbool is_idcok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_idlok(const WINDOW *win);\fR
+\fBbool is_idlok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_immedok(const WINDOW *win);\fR
+\fBbool is_immedok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_keypad(const WINDOW *win);\fR
+\fBbool is_keypad(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_leaveok(const WINDOW *win);\fR
+\fBbool is_leaveok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_nodelay(const WINDOW *win);\fR
+\fBbool is_nodelay(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_notimeout(const WINDOW *win);\fR
+\fBbool is_notimeout(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_pad(const WINDOW *win);\fR
+\fBbool is_pad(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_scrollok(const WINDOW *win);\fR
+\fBbool is_scrollok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_subwin(const WINDOW *win);\fR
+\fBbool is_subwin(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBbool is_syncok(const WINDOW *win);\fR
+\fBbool is_syncok(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBWINDOW * wgetparent(const WINDOW *win);\fR
+\fBWINDOW * wgetparent(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint wgetdelay(const WINDOW *win);\fR
+\fBint wgetdelay(const WINDOW *\fP\fIwin\fP\fB);\fR
 .br
-\fBint wgetscrreg(const WINDOW *win, int *top, int *bottom);\fR
+\fBint wgetscrreg(const WINDOW *\fP\fIwin\fP\fB, int *\fP\fItop\fP\fB, int *\fP\fIbottom\fP\fB);\fR
 .br
 .SH DESCRIPTION
 This implementation provides functions which return properties

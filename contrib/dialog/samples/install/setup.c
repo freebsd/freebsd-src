@@ -2,7 +2,7 @@
 /* Who wants to help coding? I don't like doing this... */
 
 /* You can just start setup as normal user and see how far it is coded
-   right now. This will do a fake installation and won't actually chnage
+   right now. This will do a fake installation and won't actually change
    any data on your computer. */
 
 /* TODO: write a good package selection code

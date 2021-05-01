@@ -4769,6 +4769,10 @@ kitty+common|KovId's TTY common properties:\
 	:us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?12l\E[?25h:vi=\E[?25l:\
 	:vs=\E[?12;25h:
 
+foot|foot terminal emulator:\
+	:bw:hs:\
+	:ds=\E]2;\E\\:fs=\E\\:kb=\177:ts=\E]2;:vb=\E]555\E\\:\
+	:tc=xterm-256color:
 #
 # END OF TERMCAP
 # ------------------------

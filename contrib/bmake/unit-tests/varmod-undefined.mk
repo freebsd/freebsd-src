@@ -1,26 +1,29 @@
-# $NetBSD: varmod-undefined.mk,v 1.3 2020/08/23 20:49:33 rillig Exp $
+# $NetBSD: varmod-undefined.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the :U variable modifier, which returns the given string
 # if the variable is undefined.
 #
-# The pattern ${:Uword} is heavily used when expanding .for loops.
+# See also:
+#	directive-for.mk
+#	varmod-defined.mk
 
+# The pattern ${:Uword} is heavily used when expanding .for loops.
+#
 # This is how an expanded .for loop looks like.
 # .for word in one
 # .  if ${word} != one
-# .    error ${word}
-# .  endif
-# .endfor
-
 .if ${:Uone} != one
+# .    error ${word}
 .  error ${:Uone}
+# .  endif
 .endif
+# .endfor
 
 # The variable expressions in the text of the :U modifier may be arbitrarily
 # nested.
 
 .if ${:U${:Unested}${${${:Udeeply}}}} != nested
-.error
+.  error
 .endif
 
 # The nested variable expressions may contain braces, and these braces don't
@@ -30,7 +33,7 @@
 # For more similar examples, see varmod-subst.mk, mod-subst-delimiter.
 
 .if ${:U${:Uvalue:S{a{X{}} != vXlue
-.error
+.  error
 .endif
 
 # The escaping rules for the :U modifier (left-hand side) and condition
@@ -46,9 +49,19 @@
 # the .newline variable is for.
 #
 # Whitespace at the edges is preserved, on both sides of the comparison.
-
+#
 .if ${:U \: \} \$ \\ \a \b \n } != " : } \$ \\ \\a \\b \\n "
-.error
+.  error
+.endif
+
+# Even after the :U modifier has been applied, the expression still remembers
+# that it originated from an undefined variable, and the :U modifier can
+# be used to overwrite the value of the expression.
+#
+.if ${UNDEF:Uvalue:S,a,X,} != "vXlue"
+.  error
+.elif ${UNDEF:Uvalue:S,a,X,:Uwas undefined} != "was undefined"
+.  error
 .endif
 
 all:

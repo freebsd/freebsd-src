@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_gdb.h"
 #include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 #include "opt_sched.h"
@@ -1520,7 +1521,7 @@ cpustop_handler_post(u_int cpu)
 	 */
 	invltlb_glob();
 
-#if defined(__amd64__) && defined(DDB)
+#if defined(__amd64__) && (defined(DDB) || defined(GDB))
 	amd64_db_resume_dbreg();
 #endif
 

@@ -15,4 +15,14 @@ CFLAGS+=-DBOOTSTRAP_CAT
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
 
+# Temporary disable building cat with Casper.
+#.if ${MK_CASPER} != "no" && !defined(RESCUE) && !defined(BOOTSTRAPPING)
+#LIBADD+=        casper
+#LIBADD+=        cap_fileargs
+#LIBADD+=        cap_net
+#CFLAGS+=-DWITH_CASPER
+#.endif
+# Depend on Makefile to rebiuld when WITH_CASPER changes
+cat.o:	Makefile
+
 .include <bsd.prog.mk>

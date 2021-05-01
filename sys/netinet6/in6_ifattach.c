@@ -520,8 +520,11 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	 * valid with referring to the old link-local address.
 	 */
 	if ((pr = nd6_prefix_lookup(&pr0)) == NULL) {
-		if ((error = nd6_prelist_add(&pr0, NULL, NULL)) != 0)
+		if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0)
 			return (error);
+		/* Reference prefix */
+		ia->ia6_ndpr = pr;
+		pr->ndpr_addrcnt++;
 	} else
 		nd6_prefix_rele(pr);
 
@@ -710,11 +713,9 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 		/*
 		 * check that loopback address doesn't exist yet.
 		 */
-		ia = in6ifa_ifwithaddr(&in6addr_loopback, 0);
+		ia = in6ifa_ifwithaddr(&in6addr_loopback, 0, false);
 		if (ia == NULL)
 			in6_ifattach_loopback(ifp);
-		else
-			ifa_free(&ia->ia_ifa);
 	}
 
 	/*

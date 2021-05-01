@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2020 Thomas E. Dickey                                          *
+ * Copyright 2020,2021 Thomas E. Dickey                                     *
  * Copyright 1998-2009,2010 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -38,7 +38,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_new.c,v 1.22 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: m_new.c,v 1.26 2021/02/13 19:43:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -51,8 +51,8 @@ MODULE_ID("$Id: m_new.c,v 1.22 2020/02/02 23:34:34 tom Exp $")
 |
 |   Return Values :  NULL on error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(MENU *)
-NCURSES_SP_NAME(new_menu) (NCURSES_SP_DCLx ITEM ** items)
+MENU_EXPORT(MENU *)
+NCURSES_SP_NAME(new_menu) (NCURSES_SP_DCLx ITEM **items)
 {
   int err = E_SYSTEM_ERROR;
   MENU *menu = typeCalloc(MENU, 1);
@@ -60,6 +60,7 @@ NCURSES_SP_NAME(new_menu) (NCURSES_SP_DCLx ITEM ** items)
   T((T_CALLED("new_menu(%p,%p)"), (void *)SP_PARM, (void *)items));
   if (menu)
     {
+      T((T_CREATE("menu %p"), (void *)menu));
       *menu = _nc_Default_Menu;
       menu->status = 0;
       menu->rows = menu->frows;
@@ -77,7 +78,7 @@ NCURSES_SP_NAME(new_menu) (NCURSES_SP_DCLx ITEM ** items)
 	    {
 	      err = E_NOT_CONNECTED;
 	      free(menu);
-	      menu = (MENU *) 0;
+	      menu = (MENU *)0;
 	    }
 	  else
 	    err = E_OK;
@@ -102,8 +103,8 @@ NCURSES_SP_NAME(new_menu) (NCURSES_SP_DCLx ITEM ** items)
 |   Return Values :  NULL on error
 +--------------------------------------------------------------------------*/
 #if NCURSES_SP_FUNCS
-NCURSES_EXPORT(MENU *)
-new_menu(ITEM ** items)
+MENU_EXPORT(MENU *)
+new_menu(ITEM **items)
 {
   return NCURSES_SP_NAME(new_menu) (CURRENT_SCREEN, items);
 }
@@ -120,8 +121,8 @@ new_menu(ITEM ** items)
 |                    E_BAD_ARGUMENT     - Invalid menu pointer passed
 |                    E_POSTED           - Menu is already posted
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-free_menu(MENU * menu)
+MENU_EXPORT(int)
+free_menu(MENU *menu)
 {
   T((T_CALLED("free_menu(%p)"), (void *)menu));
   if (!menu)

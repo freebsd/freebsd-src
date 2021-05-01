@@ -51,7 +51,7 @@
 #endif
 
 /* Local Prototypes */
-static void	ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype);
+static u8	ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype);
 
 static int	ixl_isc_txd_encap(void *arg, if_pkt_info_t pi);
 static void	ixl_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
@@ -720,7 +720,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxr->rx_packets++;
 
 	if ((if_getcapenable(vsi->ifp) & IFCAP_RXCSUM) != 0)
-		ixl_rx_checksum(ri, status, error, ptype);
+		rxr->csum_errs += ixl_rx_checksum(ri, status, error, ptype);
 	ri->iri_flowid = le32toh(cur->wb.qword0.hi_dword.rss);
 	ri->iri_rsstype = ixl_ptype_to_hash(ptype);
 	ri->iri_vtag = vtag;
@@ -737,7 +737,7 @@ ixl_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *  doesn't spend time verifying the checksum.
  *
  *********************************************************************/
-static void
+static u8
 ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype)
 {
 	struct i40e_rx_ptype_decoded decoded;
@@ -746,7 +746,7 @@ ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype)
 
 	/* No L3 or L4 checksum was calculated */
 	if (!(status & (1 << I40E_RX_DESC_STATUS_L3L4P_SHIFT)))
-		return;
+		return (0);
 
 	decoded = decode_rx_desc_ptype(ptype);
 
@@ -756,7 +756,7 @@ ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype)
 		if (status &
 		    (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT)) {
 			ri->iri_csum_flags = 0;
-			return;
+			return (1);
 		}
 	}
 
@@ -764,17 +764,19 @@ ixl_rx_checksum(if_rxd_info_t ri, u32 status, u32 error, u8 ptype)
 
 	/* IPv4 checksum error */
 	if (error & (1 << I40E_RX_DESC_ERROR_IPE_SHIFT))
-		return;
+		return (1);
 
 	ri->iri_csum_flags |= CSUM_L3_VALID;
 	ri->iri_csum_flags |= CSUM_L4_CALC;
 
 	/* L4 checksum error */
 	if (error & (1 << I40E_RX_DESC_ERROR_L4E_SHIFT))
-		return;
+		return (1);
 
 	ri->iri_csum_flags |= CSUM_L4_VALID;
 	ri->iri_csum_data |= htons(0xffff);
+
+	return (0);
 }
 
 /* Set Report Status queue fields to 0 */

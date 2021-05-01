@@ -1104,16 +1104,12 @@ mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 
 	if (hdr->cmd == MFI_CMD_PD_SCSI_IO) {
 		/* check for inquiry commands coming from CLI */
-		if (cdb[0] != 0x28 && cdb[0] != 0x2A) {
-			if ((req_desc = mfi_tbolt_build_mpt_cmd(sc, cm)) ==
-			    NULL) {
-				device_printf(sc->mfi_dev, "Mapping from MFI "
-				    "to MPT Failed \n");
-				return 1;
-			}
+		if ((req_desc = mfi_tbolt_build_mpt_cmd(sc, cm)) ==
+		    NULL) {
+			device_printf(sc->mfi_dev, "Mapping from MFI "
+			    "to MPT Failed \n");
+			return 1;
 		}
-		else
-			device_printf(sc->mfi_dev, "DJA NA XXX SYSPDIO\n");
 	} else if (hdr->cmd == MFI_CMD_LD_SCSI_IO ||
 	    hdr->cmd == MFI_CMD_LD_READ || hdr->cmd == MFI_CMD_LD_WRITE) {
 		cm->cm_flags |= MFI_CMD_SCSI;

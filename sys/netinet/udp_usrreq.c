@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -608,9 +610,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 						    uh);
 					if (udp_append(last, ip, n, iphlen,
 						udp_in)) {
-						goto inp_lost;
+						INP_RUNLOCK(inp);
+						goto badunlocked;
 					}
 				}
+				/* Release PCB lock taken on previous pass. */
 				INP_RUNLOCK(last);
 			}
 			last = inp;
@@ -633,9 +637,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			 * to send an ICMP Port Unreachable for a broadcast
 			 * or multicast datgram.)
 			 */
-			UDPSTAT_INC(udps_noportbcast);
-			if (inp)
-				INP_RUNLOCK(inp);
+			UDPSTAT_INC(udps_noport);
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+				UDPSTAT_INC(udps_noportmcast);
+			else
+				UDPSTAT_INC(udps_noportbcast);
 			goto badunlocked;
 		}
 		if (proto == IPPROTO_UDPLITE)
@@ -644,7 +650,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDP_PROBE(receive, NULL, last, ip, last, uh);
 		if (udp_append(last, ip, m, iphlen, udp_in) == 0)
 			INP_RUNLOCK(last);
-	inp_lost:
 		return (IPPROTO_DONE);
 	}
 
@@ -1483,30 +1488,14 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m->m_pkthdr.flowid = flowid;
 		M_HASHTYPE_SET(m, flowtype);
 	}
-#ifdef	RSS
-	else {
+#if defined(ROUTE_MPATH) || defined(RSS)
+	else if (CALC_FLOWID_OUTBOUND_SENDTO) {
 		uint32_t hash_val, hash_type;
-		/*
-		 * Calculate an appropriate RSS hash for UDP and
-		 * UDP Lite.
-		 *
-		 * The called function will take care of figuring out
-		 * whether a 2-tuple or 4-tuple hash is required based
-		 * on the currently configured scheme.
-		 *
-		 * Later later on connected socket values should be
-		 * cached in the inpcb and reused, rather than constantly
-		 * re-calculating it.
-		 *
-		 * UDP Lite is a different protocol number and will
-		 * likely end up being hashed as a 2-tuple until
-		 * RSS / NICs grow UDP Lite protocol awareness.
-		 */
-		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
-		    pr, &hash_val, &hash_type) == 0) {
-			m->m_pkthdr.flowid = hash_val;
-			M_HASHTYPE_SET(m, hash_type);
-		}
+
+		hash_val = fib4_calc_packet_hash(laddr, faddr,
+		    lport, fport, pr, &hash_type);
+		m->m_pkthdr.flowid = hash_val;
+		M_HASHTYPE_SET(m, hash_type);
 	}
 
 	/*

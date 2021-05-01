@@ -62,9 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_common.h>
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\

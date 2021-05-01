@@ -4345,7 +4345,6 @@ static void captureVariablyModifiedType(ASTContext &Context, QualType T,
     case Type::UnaryTransform:
     case Type::Attributed:
     case Type::SubstTemplateTypeParm:
-    case Type::PackExpansion:
     case Type::MacroQualified:
       // Keep walking after single level desugaring.
       T = T.getSingleStepDesugaredType(Context);
@@ -7402,7 +7401,7 @@ Sema::ActOnCastExpr(Scope *S, SourceLocation LParenLoc,
     }
     if (PE || PLE->getNumExprs() == 1) {
       Expr *E = (PE ? PE->getSubExpr() : PLE->getExpr(0));
-      if (!E->getType()->isVectorType())
+      if (!E->isTypeDependent() && !E->getType()->isVectorType())
         isVectorLiteral = true;
     }
     else

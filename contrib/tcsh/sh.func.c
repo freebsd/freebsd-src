@@ -1423,7 +1423,7 @@ dosetenv(Char **v, struct command *c)
     /* dspkanji/dspmbyte autosetting */
     /* PATCH IDEA FROM Issei.Suzuki VERY THANKS */
 #if defined(DSPMBYTE)
-    if(eq(vp, STRLANG) && !adrof(CHECK_MBYTEVAR)) {
+    if (eq(vp, STRLANG) && !adrof(CHECK_MBYTEVAR)) {
 	autoset_dspmbyte(lp);
     }
 #endif
@@ -1517,9 +1517,8 @@ dosetenv(Char **v, struct command *c)
 	/*
 	 * convert to canonical pathname (possibly resolving symlinks)
 	 */
-	canon = dcanon(lp, lp);
 	cleanup_ignore(lp);
-	cleanup_until(lp);
+	canon = dcanon(lp, lp);
 	cleanup_push(canon, xfree);
 	setv(STRhome, quote(canon), VAR_READWRITE); /* lp memory used here */
 	cleanup_ignore(canon);

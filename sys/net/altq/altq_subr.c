@@ -114,6 +114,38 @@ static struct ip4_frag	*ip4f_alloc(void);
 static void 	ip4f_free(struct ip4_frag *);
 #endif /* ALTQ3_CLFIER_COMPAT */
 
+#ifdef ALTQ
+SYSCTL_NODE(_kern_features, OID_AUTO, altq, CTLFLAG_RD | CTLFLAG_CAPRD, 0,
+    "ALTQ packet queuing");
+
+#define	ALTQ_FEATURE(name, desc)					\
+	SYSCTL_INT_WITH_LABEL(_kern_features_altq, OID_AUTO, name,	\
+	    CTLFLAG_RD | CTLFLAG_CAPRD, SYSCTL_NULL_INT_PTR, 1,		\
+	    desc, "feature")
+
+#ifdef ALTQ_CBQ
+ALTQ_FEATURE(cbq, "ALTQ Class Based Queuing discipline");
+#endif
+#ifdef ALTQ_CODEL
+ALTQ_FEATURE(codel, "ALTQ Controlled Delay discipline");
+#endif
+#ifdef ALTQ_RED
+ALTQ_FEATURE(red, "ALTQ Random Early Detection discipline");
+#endif
+#ifdef ALTQ_RIO
+ALTQ_FEATURE(rio, "ALTQ Random Early Drop discipline");
+#endif
+#ifdef ALTQ_HFSC
+ALTQ_FEATURE(hfsc, "ALTQ Hierarchical Packet Scheduler discipline");
+#endif
+#ifdef ALTQ_PRIQ
+ALTQ_FEATURE(priq, "ATLQ Priority Queuing discipline");
+#endif
+#ifdef ALTQ_FAIRQ
+ALTQ_FEATURE(fairq, "ALTQ Fair Queuing discipline");
+#endif
+#endif
+
 /*
  * alternate queueing support routines
  */
@@ -136,15 +168,13 @@ altq_lookup(name, type)
 }
 
 int
-altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
+altq_attach(ifq, type, discipline, enqueue, dequeue, request)
 	struct ifaltq *ifq;
 	int type;
 	void *discipline;
 	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
 	struct mbuf *(*dequeue)(struct ifaltq *, int);
 	int (*request)(struct ifaltq *, int, void *);
-	void *clfier;
-	void *(*classify)(void *, struct mbuf *, int);
 {
 	IFQ_LOCK(ifq);
 	if (!ALTQ_IS_READY(ifq)) {
@@ -157,8 +187,6 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	ifq->altq_enqueue  = enqueue;
 	ifq->altq_dequeue  = dequeue;
 	ifq->altq_request  = request;
-	ifq->altq_clfier   = clfier;
-	ifq->altq_classify = classify;
 	ifq->altq_flags &= (ALTQF_CANTCHANGE|ALTQF_ENABLED);
 	IFQ_UNLOCK(ifq);
 	return 0;
@@ -188,8 +216,6 @@ altq_detach(ifq)
 	ifq->altq_enqueue  = NULL;
 	ifq->altq_dequeue  = NULL;
 	ifq->altq_request  = NULL;
-	ifq->altq_clfier   = NULL;
-	ifq->altq_classify = NULL;
 	ifq->altq_flags &= ALTQF_CANTCHANGE;
 
 	IFQ_UNLOCK(ifq);
@@ -218,8 +244,6 @@ altq_enable(ifq)
 	ASSERT(ifq->ifq_len == 0);
 	ifq->ifq_drv_maxlen = 0;		/* disable bulk dequeue */
 	ifq->altq_flags |= ALTQF_ENABLED;
-	if (ifq->altq_clfier != NULL)
-		ifq->altq_flags |= ALTQF_CLASSIFY;
 	splx(s);
 
 	IFQ_UNLOCK(ifq);
@@ -241,7 +265,7 @@ altq_disable(ifq)
 	s = splnet();
 	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
-	ifq->altq_flags &= ~(ALTQF_ENABLED|ALTQF_CLASSIFY);
+	ifq->altq_flags &= ~(ALTQF_ENABLED);
 	splx(s);
 
 	IFQ_UNLOCK(ifq);
@@ -1063,7 +1087,7 @@ altq_extractflow(m, af, flow, filt_bmask)
 		fin6->fi6_family = AF_INET6;
 
 		fin6->fi6_proto = ip6->ip6_nxt;
-		fin6->fi6_tclass   = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+		fin6->fi6_tclass   = IPV6_TRAFFIC_CLASS(ip6);
 
 		fin6->fi6_flowlabel = ip6->ip6_flow & htonl(0x000fffff);
 		fin6->fi6_src = ip6->ip6_src;

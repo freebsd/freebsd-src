@@ -82,6 +82,10 @@ variable logoY
 	then
 ;
 
+: draw-beastie
+	['] draw-beastie console-iterate
+;
+
 also support-functions
 
 : beastie-start ( -- ) \ starts the menu

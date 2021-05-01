@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2018
+.Dd January 1, 2021
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -96,6 +96,28 @@ or
 seconds, milliseconds, or microseconds, respectively.
 .It Fl p
 Only display physical providers (those with rank of 1).
+.El
+.Sh INTERACTIVE COMMANDS
+These commands are currently recognized if
+.Nm
+is not running in batch mode:
+.Bl -tag -width indent
+.It Ic <
+Halve the update interval.
+.It Ic >
+Double the update interval.
+.It Ic c
+Toggle display of
+.Xr geom 4
+consumers.
+.It Ic f
+Display only devices with the names matching regular expression filter
+(prompt for filter).
+.It Ic F
+Remove device filter.
+.It Ic q
+Quit
+.Nm .
 .El
 .Sh EXIT STATUS
 .Ex -std

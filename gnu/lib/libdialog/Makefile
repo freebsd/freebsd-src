@@ -3,7 +3,7 @@
 DIALOG=		${SRCTOP}/contrib/dialog
 
 LIB=		dialog
-SHLIB_MAJOR=	8
+SHLIB_MAJOR=	9
 SRCS=		argv.c arrows.c buildlist.c buttons.c calendar.c checklist.c \
 		columns.c dlg_keys.c editbox.c fselect.c formbox.c guage.c \
 		help.c inputbox.c inputstr.c menubox.c mixedform.c \
@@ -15,7 +15,7 @@ MAN=		dialog.3
 
 LIBADD=		ncursesw m
 
-CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED -DGCC_UNUSED=__unused
+CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED
 .PATH:		${DIALOG}
 WARNS?=		1
 

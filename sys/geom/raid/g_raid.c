@@ -2228,7 +2228,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->orphan = g_raid_taste_orphan;
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_RECEIVE;
-	g_attach(cp, pp);
+	if (g_attach(cp, pp) != 0)
+		goto ofail2;
 	if (g_access(cp, 1, 0, 0) != 0)
 		goto ofail;
 
@@ -2251,6 +2252,7 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		(void)g_access(cp, -1, 0, 0);
 ofail:
 	g_detach(cp);
+ofail2:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	G_RAID_DEBUG(2, "Tasting provider %s done.", pp->name);

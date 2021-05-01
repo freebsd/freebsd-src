@@ -61,11 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <util.h>
 
-#include "ffs/buf.h"
-
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
+#include "msdos/denode.h"
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
@@ -93,7 +90,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	uint64_t inode;
 	struct direntry *direntptr;
 	struct denode *ldep;
-	struct buf *bp;
+	struct m_buf *bp;
 
 	MSDOSFS_DPRINTF(("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
 	    pmp, dirclust, diroffset, depp));
@@ -155,7 +152,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		ldep->de_MDate = ldep->de_CDate;
 		/* leave the other fields as garbage */
 	} else {
-		error = readep(pmp, dirclust, diroffset, &bp, &direntptr);
+		error = m_readep(pmp, dirclust, diroffset, &bp, &direntptr);
 		if (error) {
 			ldep->de_Name[0] = SLOT_DELETED;
 
@@ -219,7 +216,7 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 	daddr_t bn;
 	int boff;
 	int isadir = dep->de_Attributes & ATTR_DIRECTORY;
-	struct buf *bp;
+	struct m_buf *bp;
 	struct msdosfsmount *pmp = dep->de_pmp;
 
 	MSDOSFS_DPRINTF(("detrunc(): file %s, length %lu, flags %x\n",
@@ -277,8 +274,8 @@ detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred)
 	if ((boff = length & pmp->pm_crbomask) != 0) {
 		if (isadir) {
 			bn = cntobn(pmp, eofentry);
-			error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
-			    0, &bp);
+			error = bread((void *)pmp->pm_devvp, bn,
+			    pmp->pm_bpcluster, 0, &bp);
 			if (error) {
 				brelse(bp);
 				MSDOSFS_DPRINTF(("detrunc(): bread fails %d\n",
@@ -359,7 +356,7 @@ deextend(struct denode *dep, u_long length, struct ucred *cred)
 	if (count > 0) {
 		if (count > pmp->pm_freeclustercount)
 			return (ENOSPC);
-		error = extendfile(dep, count, NULL, NULL, DE_CLEAR);
+		error = m_extendfile(dep, count, NULL, NULL, DE_CLEAR);
 		if (error) {
 			/* truncate the added clusters away again */
 			(void) detrunc(dep, dep->de_FileSize, 0, cred);

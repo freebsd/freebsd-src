@@ -62,8 +62,7 @@ int verbosity = 0;
 
 const char* opcode2opname(uint32_t opcode)
 {
-	const int NUM_OPS = 39;
-	const char* table[NUM_OPS] = {
+	const char* table[] = {
 		"Unknown (opcode 0)",
 		"LOOKUP",
 		"FORGET",
@@ -102,9 +101,18 @@ const char* opcode2opname(uint32_t opcode)
 		"CREATE",
 		"INTERRUPT",
 		"BMAP",
-		"DESTROY"
+		"DESTROY",
+		"IOCTL",
+		"POLL",
+		"NOTIFY_REPLY",
+		"BATCH_FORGET",
+		"FALLOCATE",
+		"READDIRPLUS",
+		"RENAME2",
+		"LSEEK",
+		"COPY_FILE_RANGE",
 	};
-	if (opcode >= NUM_OPS)
+	if (opcode >= nitems(table))
 		return ("Unknown (opcode > max)");
 	else
 		return (table[opcode]);
@@ -175,6 +183,20 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 			printf(" block=%" PRIx64 " blocksize=%#x",
 				in.body.bmap.block, in.body.bmap.blocksize);
 			break;
+		case FUSE_COPY_FILE_RANGE:
+			printf(" off_in=%" PRIu64 " ino_out=%" PRIu64
+			       " off_out=%" PRIu64 " size=%" PRIu64,
+			       in.body.copy_file_range.off_in,
+			       in.body.copy_file_range.nodeid_out,
+			       in.body.copy_file_range.off_out,
+			       in.body.copy_file_range.len);
+			if (verbosity > 1)
+				printf(" fh_in=%" PRIu64 " fh_out=%" PRIu64
+				       " flags=%" PRIx64,
+				       in.body.copy_file_range.fh_in,
+				       in.body.copy_file_range.fh_out,
+				       in.body.copy_file_range.flags);
+			break;
 		case FUSE_CREATE:
 			if (m_kernel_minor_version >= 12)
 				name = (const char*)in.body.bytes +
@@ -210,6 +232,22 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in.body.lookup);
+			break;
+		case FUSE_LSEEK:
+			switch (in.body.lseek.whence) {
+			case SEEK_HOLE:
+				printf(" SEEK_HOLE offset=%jd",
+				    in.body.lseek.offset);
+				break;
+			case SEEK_DATA:
+				printf(" SEEK_DATA offset=%jd",
+				    in.body.lseek.offset);
+				break;
+			default:
+				printf(" whence=%u offset=%jd",
+				    in.body.lseek.whence, in.body.lseek.offset);
+				break;
+			}
 			break;
 		case FUSE_MKDIR:
 			name = (const char*)in.body.bytes +
@@ -365,7 +403,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	m_daemon_id = NULL;
 	m_kernel_minor_version = kernel_minor_version;
 	m_maxreadahead = max_readahead;
-	m_maxwrite = max_write;
+	m_maxwrite = MIN(max_write, max_max_write);
 	m_nready = -1;
 	m_pm = pm;
 	m_time_gran = time_gran;
@@ -634,6 +672,15 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 		break;
 	case FUSE_BMAP:
 		EXPECT_EQ(inlen, fih + sizeof(in.body.bmap));
+		EXPECT_EQ((size_t)buflen, inlen);
+		break;
+	case FUSE_LSEEK:
+		EXPECT_EQ(inlen, fih + sizeof(in.body.lseek));
+		EXPECT_EQ((size_t)buflen, inlen);
+		break;
+	case FUSE_COPY_FILE_RANGE:
+		EXPECT_EQ(inlen, fih + sizeof(in.body.copy_file_range));
+		EXPECT_EQ(0ul, in.body.copy_file_range.flags);
 		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_NOTIFY_REPLY:

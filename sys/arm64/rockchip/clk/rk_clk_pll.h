@@ -40,6 +40,7 @@ struct rk_clk_pll_rate {
 	uint32_t	postdiv2;
 	uint32_t	dsmpd;
 	uint32_t	frac;
+	uint32_t	bwadj;
 };
 
 struct rk_clk_pll_def {
@@ -60,6 +61,7 @@ struct rk_clk_pll_def {
 
 #define	RK_CLK_PLL_HAVE_GATE	0x1
 
+int rk3066_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
 int rk3328_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
 int rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
 

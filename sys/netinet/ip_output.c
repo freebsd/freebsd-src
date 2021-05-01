@@ -746,7 +746,7 @@ sendit:
 		}
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-	} else if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {
+	} else if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
 		m = mb_unmapped_to_ext(m);
 		if (m == NULL) {
 			IPSTAT_INC(ips_odropped);

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2017
+.Dd December 2, 2020
 .Dt CRASHINFO 8
 .Os
 .Sh NAME
@@ -85,13 +85,16 @@ it uses several utilities to analyze the core including
 .Xr pstat 8 ,
 and
 .Xr vmstat 8 .
+Note that kgdb must be installed from the devel/gdb port or gdb package.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl b
-Run in batch mode.  Write most messages to the
+Run in batch mode.
+Write most messages to the
 .Pa core.txt.XX
-file instead of the terminal.  This flag is used when
+file instead of the terminal.
+This flag is used when
 .Nm
 is run during boot.
 .It Fl d Ar crashdir

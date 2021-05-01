@@ -32,7 +32,7 @@
 .\" Author: Dave Chapeskie
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2007
+.Dd January 18, 2021
 .Dt NG_SOURCE 4
 .Os
 .Sh NAME
@@ -91,7 +91,14 @@ should be turned off on
 .Xr ng_ether 4
 node manually.
 .Pp
-Once interface is configured, upon receipt of a
+If the node is connected to a netgraph network, which does not
+terminate in a real
+.Xr ng_ether 4
+interface, limit the packet injection rate explicitly with the
+.Va NGM_SOURCE_SETPPS
+control message.
+.Pp
+Upon receipt of a
 .Dv NGM_SOURCE_START
 control message the node starts sending
 the previously queued packets out the

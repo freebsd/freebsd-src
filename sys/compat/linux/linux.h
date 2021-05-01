@@ -58,6 +58,16 @@ struct l_sockaddr {
 #define	LINUX_AF_IPX		4
 #define	LINUX_AF_APPLETALK	5
 #define	LINUX_AF_INET6		10
+#define	LINUX_AF_NETLINK	16
+
+#define	LINUX_NETLINK_ROUTE		0
+#define	LINUX_NETLINK_SOCK_DIAG		4
+#define	LINUX_NETLINK_NFLOG		5
+#define	LINUX_NETLINK_SELINUX		7
+#define	LINUX_NETLINK_AUDIT		9
+#define	LINUX_NETLINK_FIB_LOOKUP	10
+#define	LINUX_NETLINK_NETFILTER		12
+#define	LINUX_NETLINK_KOBJECT_UEVENT	15
 
 /*
  * net device flags
@@ -192,6 +202,7 @@ int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
 	}
 #define	BITMAP_1t1_LINUX(_name)	BITMAP_EASY_LINUX(_name, LINUX_##_name)
 
-int linux_to_bsd_errno(int error);
+int bsd_to_linux_errno(int error);
+void linux_check_errtbl(void);
 
 #endif /* _LINUX_MI_H_ */

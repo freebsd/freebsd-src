@@ -1404,6 +1404,8 @@ struct ath_hal {
 				HAL_QUIET_FLAG flag);
 	void	  __ahdecl(*ah_setChainMasks)(struct ath_hal *,
 				uint32_t, uint32_t);
+	u_int	  __ahdecl(*ah_getNav)(struct ath_hal*);
+	void	  __ahdecl(*ah_setNav)(struct ath_hal*, u_int);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,

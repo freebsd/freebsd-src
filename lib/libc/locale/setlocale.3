@@ -157,6 +157,15 @@ if the given combination of
 and
 .Fa locale
 makes no sense.
+.Sh FILES
+.Bl -tag -width /usr/share/locale/locale/category -compact
+.It Pa $PATH_LOCALE/ Ns Em locale/category
+.It Pa /usr/share/locale/ Ns Em locale/category
+locale file for the locale
+.Em locale
+and the category
+.Em category .
+.El
 .Sh EXAMPLES
 The following code illustrates how a program can initialize the
 international environment for one language, while selectively
@@ -176,15 +185,6 @@ following manner before using any of the locale-specific information:
 .Bd -literal
     setlocale(LC_ALL, "");
 .Ed
-.Sh FILES
-.Bl -tag -width /usr/share/locale/locale/category -compact
-.It Pa $PATH_LOCALE/ Ns Em locale/category
-.It Pa /usr/share/locale/ Ns Em locale/category
-locale file for the locale
-.Em locale
-and the category
-.Em category .
-.El
 .Sh ERRORS
 No errors are defined.
 .Sh SEE ALSO

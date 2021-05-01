@@ -5,8 +5,8 @@ _MAKE_VERSION?=@_MAKE_VERSION@
 prefix?= @prefix@
 srcdir= @srcdir@
 CC?= @CC@
-MACHINE?= @machine@
-MACHINE_ARCH?= @machine_arch@
+@force_machine@MACHINE?= @machine@
+@force_machine_arch@MACHINE_ARCH?= @machine_arch@
 DEFAULT_SYS_PATH?= @default_sys_path@
 
 CPPFLAGS+= @CPPFLAGS@

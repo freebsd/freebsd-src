@@ -71,7 +71,7 @@ struct vattr {
 	long		va_spare;	/* remain quad aligned */
 };
 
-
+#define _WANT_MOUNT
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>
 

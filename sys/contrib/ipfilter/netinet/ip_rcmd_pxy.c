@@ -20,17 +20,17 @@ typedef struct rcmdinfo {
 	ipnat_t	*rcmd_rule;	/* Template rule for back connection */
 } rcmdinfo_t;
 
-void ipf_p_rcmd_main_load __P((void));
-void ipf_p_rcmd_main_unload __P((void));
+void ipf_p_rcmd_main_load(void);
+void ipf_p_rcmd_main_unload(void);
 
-int ipf_p_rcmd_init __P((void));
-void ipf_p_rcmd_fini __P((void));
-void ipf_p_rcmd_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_rcmd_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_rcmd_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_rcmd_in __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-u_short ipf_rcmd_atoi __P((char *));
-int ipf_p_rcmd_portmsg __P((fr_info_t *, ap_session_t *, nat_t *));
+int ipf_p_rcmd_init(void);
+void ipf_p_rcmd_fini(void);
+void ipf_p_rcmd_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_rcmd_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_rcmd_out(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_rcmd_in(void *, fr_info_t *, ap_session_t *, nat_t *);
+u_short ipf_rcmd_atoi(char *);
+int ipf_p_rcmd_portmsg(fr_info_t *, ap_session_t *, nat_t *);
 
 static	frentry_t	rcmdfr;
 

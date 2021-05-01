@@ -524,7 +524,7 @@ cfi_submit_wait(union ctl_io *io)
 	CTL_DEBUG_PRINT(("cfi_submit_wait\n"));
 
 	/* This shouldn't happen */
-	if ((retval = ctl_queue(io)) != CTL_RETVAL_COMPLETE)
+	if ((retval = ctl_run(io)) != CTL_RETVAL_COMPLETE)
 		return (retval);
 
 	done = 0;
@@ -566,7 +566,7 @@ cfi_submit_wait(union ctl_io *io)
 			 * will immediately call back and wake us up,
 			 * probably using our own context.
 			 */
-			io->scsiio.be_move_done(io);
+			ctl_datamove_done(io, false);
 			break;
 		case CTL_IOCTL_DONE:
 			mtx_unlock(&params.ioctl_mtx);

@@ -32,12 +32,13 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2011
+.Dd December 17, 2020
 .Dt STRERROR 3
 .Os
 .Sh NAME
 .Nm perror ,
 .Nm strerror ,
+.Nm strerror_l ,
 .Nm strerror_r ,
 .Nm sys_errlist ,
 .Nm sys_nerr
@@ -53,12 +54,15 @@
 .In string.h
 .Ft "char *"
 .Fn strerror "int errnum"
+.Ft "char *"
+.Fn strerror_l "int errnum" "locale_t"
 .Ft int
 .Fn strerror_r "int errnum" "char *strerrbuf" "size_t buflen"
 .Sh DESCRIPTION
 The
 .Fn strerror ,
-.Fn strerror_r
+.Fn strerror_l ,
+.Fn strerror_r ,
 and
 .Fn perror
 functions look up the error message string corresponding to an
@@ -68,8 +72,28 @@ The
 .Fn strerror
 function accepts an error number argument
 .Fa errnum
-and returns a pointer to the corresponding
-message string.
+and returns a pointer to the corresponding message string
+in the current locale.
+.Fn strerror
+is not thread-safe.
+It returns a pointer to an internal static buffer that could be
+overwritten by a
+.Fn strerror
+call from another thread.
+.Pp
+The
+.Fn strerror_l
+function accepts
+.Fa errnum
+error number and
+.Fa locale
+locale handle arguments and returns a pointer to a string
+corresponding to the specified error in the given locale.
+.Fn strerror_l
+is thread-safe, its result can be only overwritten by
+another call to
+.Fn strerror_l
+from the current thread.
 .Pp
 The
 .Fn strerror_r
@@ -141,10 +165,36 @@ The external value
 contains a count of the messages in
 .Va sys_errlist .
 The use of these variables is deprecated;
-.Fn strerror
+.Fn strerror ,
+.Fn strerror_l ,
 or
 .Fn strerror_r
 should be used instead.
+.Sh EXAMPLES
+The following example shows how to use
+.Fn perror
+to report an error.
+.Bd -literal -offset 2n
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(void)
+{
+	int fd;
+
+	if ((fd = open("/nonexistent", O_RDONLY)) == -1) {
+		perror("open()");
+		exit(1);
+	}
+	printf("File descriptor: %d\en", fd);
+	return (0);
+}
+.Ed
+.Pp
+When executed, the program will print an error message along the lines of
+.Ql "open(): No such file or directory" .
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr err 3 ,
@@ -160,6 +210,10 @@ The
 .Fn strerror_r
 function conforms to
 .St -p1003.1-2001 .
+The
+.Fn strerror_l
+function conforms to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn strerror
@@ -173,18 +227,21 @@ function was implemented in
 .Fx 4.4
 by
 .An Wes Peters Aq Mt wes@FreeBSD.org .
+The
+.Fn strerror_l
+function was added in
+.Fx 13.0 .
 .Sh BUGS
 The
 .Fn strerror
 function returns its result in a static buffer which
 will be overwritten by subsequent calls.
 .Pp
-The return type for
-.Fn strerror
-is missing a type-qualifier; it should actually be
-.Vt const char * .
-.Pp
 Programs that use the deprecated
 .Va sys_errlist
 variable often fail to compile because they declare it
 inconsistently.
+Size of the
+.Va sys_errlist
+object might increase during FreeBSD lifetime,
+breaking some ABI stability guarantees.

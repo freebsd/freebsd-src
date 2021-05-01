@@ -1,12 +1,13 @@
 /*
- *  $Id: editbox.c,v 1.70 2018/06/19 22:57:01 tom Exp $
+ *  $Id: editbox.c,v 1.80 2020/11/23 00:27:21 tom Exp $
  *
  *  editbox.c -- implements the edit box
  *
- *  Copyright 2007-2016,2018 Thomas E. Dickey
+ *  Copyright 2007-2019,2020 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful, but
  *  WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -54,11 +55,8 @@ grow_list(char ***list, int *have, int want)
 static void
 load_list(const char *file, char ***list, int *rows)
 {
-    FILE *fp;
     char *blob = 0;
     struct stat sb;
-    unsigned n, pass;
-    unsigned need;
     size_t size;
 
     *list = 0;
@@ -72,6 +70,9 @@ load_list(const char *file, char ***list, int *rows)
     if ((blob = dlg_malloc(char, size + 2)) == 0) {
 	fail_list();
     } else {
+	FILE *fp;
+	unsigned n, pass;
+
 	blob[size] = '\0';
 
 	if ((fp = fopen(file, "r")) == 0)
@@ -89,7 +90,8 @@ load_list(const char *file, char ***list, int *rows)
 
 	for (pass = 0; pass < 2; ++pass) {
 	    int first = TRUE;
-	    need = 0;
+	    unsigned need = 0;
+
 	    for (n = 0; n < size; ++n) {
 		if (first && pass) {
 		    (*list)[need] = blob + n;
@@ -273,7 +275,8 @@ col_to_chr_offset(const char *text, int col)
     return result;
 }
 
-#define SCROLL_TO(target) show_all = scroll_to(pagesize, listsize, &base_row, &thisrow, target)
+#define Scroll_To(target) scroll_to(pagesize, listsize, &base_row, &thisrow, target)
+#define SCROLL_TO(target) show_all = Scroll_To(target)
 
 #define PREV_ROW (*list)[thisrow - 1]
 #define THIS_ROW (*list)[thisrow]
@@ -285,9 +288,10 @@ static int
 widest_line(char **list)
 {
     int result = MAX_LEN;
-    char *value;
 
     if (list != 0) {
+	char *value;
+
 	while ((value = *list++) != 0) {
 	    int check = (int) strlen(value);
 	    if (check > result)
@@ -355,8 +359,8 @@ dlg_editbox(const char *title,
     int result = DLG_EXIT_UNKNOWN;
     int state;
     size_t max_len = (size_t) dlg_max_input(widest_line(*list));
-    char *input, *buffer;
-    bool show_all, show_one, was_mouse;
+    char *buffer;
+    bool show_all, show_one;
     bool first_trace = TRUE;
     WINDOW *dialog;
     WINDOW *editing;
@@ -436,7 +440,8 @@ dlg_editbox(const char *title,
     pagesize = getmaxy(editing);
 
     while (result == DLG_EXIT_UNKNOWN) {
-	int edit = 0;
+	bool was_mouse;
+	char *input;
 
 	if (show_all) {
 	    display_all(editing, *list, thisrow, base_row, listsize, chr_offset);
@@ -510,8 +515,10 @@ dlg_editbox(const char *title,
 	    break;
 	}
 	if (state != sTEXT) {
-	    if (dlg_result_key(key, fkey, &result))
-		break;
+	    if (dlg_result_key(key, fkey, &result)) {
+		if (!dlg_button_key(result, &code, &key, &fkey))
+		    break;
+	    }
 	}
 
 	was_mouse = (fkey && is_DLGK_MOUSE(key));
@@ -552,6 +559,8 @@ dlg_editbox(const char *title,
 	}
 
 	if (state == sTEXT) {	/* editing box selected */
+	    int edit = 0;
+
 	    /*
 	     * Intercept scrolling keys that dlg_edit_string() does not
 	     * understand.
@@ -608,7 +617,7 @@ dlg_editbox(const char *title,
 			    }
 			    --listsize;
 			    --thisrow;
-			    SCROLL_TO(thisrow);
+			    (void) Scroll_To(thisrow);
 
 			    show_all = TRUE;
 			}
@@ -687,11 +696,15 @@ dlg_editbox(const char *title,
 		    chr_offset = 0;
 		    col_offset = 0;
 		    THIS_ROW = tmp;
-		    SCROLL_TO(thisrow);
+		    (void) Scroll_To(thisrow);
 		    show_all = TRUE;
 		} else {
-		    result = dlg_ok_buttoncode(state);
+		    result = dlg_enter_buttoncode(state);
 		}
+		break;
+	    case DLGK_LEAVE:
+		if (state >= 0)
+		    result = dlg_ok_buttoncode(state);
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
@@ -699,12 +712,10 @@ dlg_editbox(const char *title,
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		dlg_clear();
-		dlg_unregister_window(editing);
-		dlg_del_window(editing);
-		dlg_del_window(dialog);
-		dlg_mouse_free_regions();
 		/* repaint */
+		dlg_del_window(editing);
+		dlg_unregister_window(editing);
+		_dlg_resize_cleanup(dialog);
 		goto retry;
 #endif
 	    case DLGK_TOGGLE:
@@ -718,7 +729,7 @@ dlg_editbox(const char *title,
 		beep();
 		break;
 	    }
-	} else {
+	} else if (key > 0) {
 	    beep();
 	}
     }

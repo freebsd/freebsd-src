@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/iommu/iommu.h>
+#include <dev/iommu/iommu_gas.h>
+#include <dev/iommu/iommu_msi.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -208,6 +210,13 @@ iommu_gas_rb_remove(struct iommu_domain *domain, struct iommu_map_entry *entry)
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
 }
 
+struct iommu_domain *
+iommu_get_ctx_domain(struct iommu_ctx *ctx)
+{
+
+	return (ctx->domain);
+}
+
 void
 iommu_gas_init_domain(struct iommu_domain *domain)
 {
@@ -249,7 +258,8 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 	entry = RB_MIN(iommu_gas_entries_tree, &domain->rb_root);
 	KASSERT(entry->start == 0, ("start entry start %p", domain));
 	KASSERT(entry->end == IOMMU_PAGE_SIZE, ("start entry end %p", domain));
-	KASSERT(entry->flags == IOMMU_MAP_ENTRY_PLACE,
+	KASSERT(entry->flags ==
+	    (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED),
 	    ("start entry flags %p", domain));
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
 	iommu_gas_free_entry(domain, entry);
@@ -257,7 +267,8 @@ iommu_gas_fini_domain(struct iommu_domain *domain)
 	entry = RB_MAX(iommu_gas_entries_tree, &domain->rb_root);
 	KASSERT(entry->start == domain->end, ("end entry start %p", domain));
 	KASSERT(entry->end == domain->end, ("end entry end %p", domain));
-	KASSERT(entry->flags == IOMMU_MAP_ENTRY_PLACE,
+	KASSERT(entry->flags ==
+	    (IOMMU_MAP_ENTRY_PLACE | IOMMU_MAP_ENTRY_UNMAPPED),
 	    ("end entry flags %p", domain));
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
 	iommu_gas_free_entry(domain, entry);
@@ -666,22 +677,86 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	return (0);
 }
 
+static int
+iommu_gas_reserve_region_locked(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t end, struct iommu_map_entry *entry)
+{
+	int error;
+
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+
+	entry->start = start;
+	entry->end = end;
+	error = iommu_gas_alloc_region(domain, entry, IOMMU_MF_CANWAIT);
+	if (error == 0)
+		entry->flags |= IOMMU_MAP_ENTRY_UNMAPPED;
+	return (error);
+}
+
 int
 iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
-    iommu_gaddr_t end)
+    iommu_gaddr_t end, struct iommu_map_entry **entry0)
 {
 	struct iommu_map_entry *entry;
 	int error;
 
 	entry = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	entry->start = start;
-	entry->end = end;
 	IOMMU_DOMAIN_LOCK(domain);
-	error = iommu_gas_alloc_region(domain, entry, IOMMU_MF_CANWAIT);
-	if (error == 0)
-		entry->flags |= IOMMU_MAP_ENTRY_UNMAPPED;
+	error = iommu_gas_reserve_region_locked(domain, start, end, entry);
 	IOMMU_DOMAIN_UNLOCK(domain);
 	if (error != 0)
+		iommu_gas_free_entry(domain, entry);
+	else if (entry0 != NULL)
+		*entry0 = entry;
+	return (error);
+}
+
+/*
+ * As in iommu_gas_reserve_region, reserve [start, end), but allow for existing
+ * entries.
+ */
+int
+iommu_gas_reserve_region_extend(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t end)
+{
+	struct iommu_map_entry *entry, *next, *prev, key = {};
+	iommu_gaddr_t entry_start, entry_end;
+	int error;
+
+	error = 0;
+	entry = NULL;
+	end = ummin(end, domain->end);
+	while (start < end) {
+		/* Preallocate an entry. */
+		if (entry == NULL)
+			entry = iommu_gas_alloc_entry(domain,
+			    IOMMU_PGF_WAITOK);
+		/* Calculate the free region from here to the next entry. */
+		key.start = key.end = start;
+		IOMMU_DOMAIN_LOCK(domain);
+		next = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &key);
+		KASSERT(next != NULL, ("domain %p with end %#jx has no entry "
+		    "after %#jx", domain, (uintmax_t)domain->end,
+		    (uintmax_t)start));
+		entry_end = ummin(end, next->start);
+		prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, next);
+		if (prev != NULL)
+			entry_start = ummax(start, prev->end);
+		else
+			entry_start = start;
+		start = next->end;
+		/* Reserve the region if non-empty. */
+		if (entry_start != entry_end) {
+			error = iommu_gas_reserve_region_locked(domain,
+			    entry_start, entry_end, entry);
+			if (error != 0)
+				break;
+			entry = NULL;
+		}
+		IOMMU_DOMAIN_UNLOCK(domain);
+	}
+	/* Release a preallocated entry if it was not used. */
+	if (entry != NULL)
 		iommu_gas_free_entry(domain, entry);
 	return (error);
 }
@@ -714,6 +789,94 @@ iommu_map(struct iommu_domain *domain,
 	    ma, res);
 
 	return (error);
+}
+
+void
+iommu_unmap_msi(struct iommu_ctx *ctx)
+{
+	struct iommu_map_entry *entry;
+	struct iommu_domain *domain;
+
+	domain = ctx->domain;
+	entry = domain->msi_entry;
+	if (entry == NULL)
+		return;
+
+	domain->ops->unmap(domain, entry->start, entry->end -
+	    entry->start, IOMMU_PGF_WAITOK);
+
+	IOMMU_DOMAIN_LOCK(domain);
+	iommu_gas_free_space(domain, entry);
+	IOMMU_DOMAIN_UNLOCK(domain);
+
+	iommu_gas_free_entry(domain, entry);
+
+	domain->msi_entry = NULL;
+	domain->msi_base = 0;
+	domain->msi_phys = 0;
+}
+
+int
+iommu_map_msi(struct iommu_ctx *ctx, iommu_gaddr_t size, int offset,
+    u_int eflags, u_int flags, vm_page_t *ma)
+{
+	struct iommu_domain *domain;
+	struct iommu_map_entry *entry;
+	int error;
+
+	error = 0;
+	domain = ctx->domain;
+
+	/* Check if there is already an MSI page allocated */
+	IOMMU_DOMAIN_LOCK(domain);
+	entry = domain->msi_entry;
+	IOMMU_DOMAIN_UNLOCK(domain);
+
+	if (entry == NULL) {
+		error = iommu_gas_map(domain, &ctx->tag->common, size, offset,
+		    eflags, flags, ma, &entry);
+		IOMMU_DOMAIN_LOCK(domain);
+		if (error == 0) {
+			if (domain->msi_entry == NULL) {
+				MPASS(domain->msi_base == 0);
+				MPASS(domain->msi_phys == 0);
+
+				domain->msi_entry = entry;
+				domain->msi_base = entry->start;
+				domain->msi_phys = VM_PAGE_TO_PHYS(ma[0]);
+			} else {
+				/*
+				 * We lost the race and already have an
+				 * MSI page allocated. Free the unneeded entry.
+				 */
+				iommu_gas_free_entry(domain, entry);
+			}
+		} else if (domain->msi_entry != NULL) {
+			/*
+			 * The allocation failed, but another succeeded.
+			 * Return success as there is a valid MSI page.
+			 */
+			error = 0;
+		}
+		IOMMU_DOMAIN_UNLOCK(domain);
+	}
+
+	return (error);
+}
+
+void
+iommu_translate_msi(struct iommu_domain *domain, uint64_t *addr)
+{
+
+	*addr = (*addr - domain->msi_phys) + domain->msi_base;
+
+	KASSERT(*addr >= domain->msi_entry->start,
+	    ("%s: Address is below the MSI entry start address (%jx < %jx)",
+	    __func__, (uintmax_t)*addr, (uintmax_t)domain->msi_entry->start));
+
+	KASSERT(*addr + sizeof(*addr) <= domain->msi_entry->end,
+	    ("%s: Address is above the MSI entry end address (%jx < %jx)",
+	    __func__, (uintmax_t)*addr, (uintmax_t)domain->msi_entry->end));
 }
 
 int

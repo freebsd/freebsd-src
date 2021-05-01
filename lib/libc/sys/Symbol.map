@@ -403,6 +403,8 @@ FBSD_1.5 {
 
 FBSD_1.6 {
 	__sysctlbyname;
+	aio_readv;
+	aio_writev;
 	close_range;
 	copy_file_range;
 	fhlink;
@@ -802,6 +804,7 @@ FBSDprivate_1.0 {
 	__sys_openat;
 	_pathconf;
 	__sys_pathconf;
+	__sys_pdfork;
 	_pipe;
 	__sys_pipe;
 	_poll;

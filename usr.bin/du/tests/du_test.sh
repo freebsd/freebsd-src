@@ -24,6 +24,17 @@
 #
 # $FreeBSD$
 
+require_sparse_file_support()
+{
+	if ! getconf MIN_HOLE_SIZE "$(pwd)"; then
+		echo "getconf MIN_HOLE_SIZE $(pwd) failed; sparse files " \
+		    "probably not supported by file system"
+		mount
+		atf_skip "Test's work directory does not support sparse files;" \
+		    "try with a different TMPDIR?"
+	fi
+}
+
 atf_test_case A_flag
 A_flag_head()
 {
@@ -31,6 +42,7 @@ A_flag_head()
 }
 A_flag_body()
 {
+	require_sparse_file_support
 	# XXX: compressed volumes?
 	atf_check truncate -s 10g sparse.file
 	atf_check -o inline:'1\tsparse.file\n' du -g sparse.file
@@ -45,16 +57,25 @@ H_flag_head()
 H_flag_body()
 {
 	local paths1='testdir/A/B testdir/A testdir/C testdir'
-	local paths2='testdir/A/B testdir/A testdir/C testdir'
-	local sep='\n[0-9]+\t'
+	local paths2='testdir/C/B testdir/C'
+	local lineprefix=$'^[0-9]+\t'
+	local sep="\$\n${lineprefix}"
 
 	atf_check mkdir testdir
 	atf_check -x "cd testdir && mkdir A && touch A/B && ln -s A C"
 
 	atf_check -o save:du.out du -aAH testdir
-	atf_check egrep -q "[0-9]+\t$(echo $paths1 | tr ' ' "$sep")\n" du.out
+	atf_check egrep -q "${lineprefix}$(echo $paths1 | sed -e "s/ /$sep/g")$" du.out
+	# Check that the output doesn't contain any lines (i.e. paths) that we
+	# did not expect it to contain from $paths1.
+	atf_check -s exit:1 egrep -vq "${lineprefix}$(echo $paths1 | sed -e "s/ /$sep/g")$" du.out
+
 	atf_check -o save:du_C.out du -aAH testdir/C
-	atf_check egrep -q "[0-9]+\t$(echo $paths2 | tr ' ' "$sep")\n" du_C.out
+	atf_check egrep -q "${lineprefix}$(echo $paths2 | sed -e "s/ /$sep/g")$" du_C.out
+
+	# Check that the output doesn't contain any lines (i.e. paths) that we
+	# did not expect it to contain from $paths2.
+	atf_check -s exit:1 egrep -vq "${lineprefix}$(echo $paths2 | sed -e "s/ /$sep/g")$" du_C.out
 }
 
 atf_test_case I_flag
@@ -94,6 +115,7 @@ g_flag_head()
 }
 g_flag_body()
 {
+	require_sparse_file_support
 	atf_check truncate -s 1k A
 	atf_check truncate -s 1m B
 	atf_check truncate -s 1g C
@@ -108,6 +130,7 @@ h_flag_head()
 }
 h_flag_body()
 {
+	require_sparse_file_support
 	atf_check truncate -s 1k A
 	atf_check truncate -s 1m B
 	atf_check truncate -s 1g C

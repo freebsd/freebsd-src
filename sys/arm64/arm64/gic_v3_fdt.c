@@ -121,6 +121,8 @@ gic_v3_fdt_attach(device_t dev)
 	pcell_t redist_regions;
 	intptr_t xref;
 	int err;
+	uint32_t *mbi_ranges;
+	ssize_t ret;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -135,6 +137,21 @@ gic_v3_fdt_attach(device_t dev)
 	else
 		sc->gic_redists.nregions = redist_regions;
 
+	/* Add Message Based Interrupts using SPIs. */
+	ret = OF_getencprop_alloc_multi(ofw_bus_get_node(dev), "mbi-ranges",
+	    sizeof(*mbi_ranges), (void **)&mbi_ranges);
+	if (ret > 0) {
+		if (ret % 2 == 0) {
+			/* Limit to a single range for now. */
+			sc->gic_mbi_start = mbi_ranges[0];
+			sc->gic_mbi_end = mbi_ranges[0] + mbi_ranges[1] - 1;
+		} else {
+			if (bootverbose)
+				device_printf(dev, "Malformed mbi-ranges property\n");
+		}
+		free(mbi_ranges, M_OFWPROP);
+	}
+
 	err = gic_v3_attach(dev);
 	if (err != 0)
 		goto error;
@@ -146,6 +163,9 @@ gic_v3_fdt_attach(device_t dev)
 		err = ENXIO;
 		goto error;
 	}
+
+	if (sc->gic_mbi_start > 0)
+		intr_msi_register(dev, xref);
 
 	/* Register xref */
 	OF_device_register_xref(xref, dev);

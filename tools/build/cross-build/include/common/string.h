@@ -38,7 +38,9 @@
 #pragma once
 
 /* Avoid incompatible opensolaris redeclarations (without _FORTIFY_SOURCE). */
+#undef HAVE_STRLCAT
 #define HAVE_STRLCAT 1
+#undef HAVE_STRLCPY
 #define HAVE_STRLCPY 1
 
 #include_next <string.h>

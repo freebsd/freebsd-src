@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2020
+.Dd April 2, 2021
 .Dt DTRACE 1
 .Os
 .Sh NAME
@@ -602,8 +602,12 @@ Number of default stack frames for
 .It Sy jstackstrsize Ns = Ns Ar scalar
 Default string space size for
 .Fn jstack .
+.It Sy libdir Ns = Ns Ar path
+Add a directory to the system library path.
 .It Sy nspec Ns = Ns Ar scalar
 Number of speculations.
+.It Sy nolibs
+Do not load D system libraries.
 .It Sy quiet
 Set quiet mode.
 Same as the
@@ -627,6 +631,10 @@ output.
 Rate of status checking.
 .It Sy switchrate Ns = Ns Ar time
 Rate of buffer switching.
+.It Sy syslibdir Ns = Ns Ar path
+Path to system libraries.
+Defaults to
+.Pa /usr/lib/dtrace .
 .It Sy ustackframes Ns = Ns Ar scalar
 Maximum number of userspace stack frames to unwind when executing the
 .Fn ustack

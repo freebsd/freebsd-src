@@ -5,25 +5,33 @@ PACKAGE=	tests
 TESTSDIR=       ${TESTSBASE}/sys/netpfil/pf
 TESTS_SUBDIRS+=	ioctl
 
-ATF_TESTS_SH+=	anchor \
-		pass_block \
+ATF_TESTS_SH+=	altq \
+		anchor \
+		checksum \
+		dup \
 		forward \
 		fragmentation \
+		icmp \
+		killstate \
+		map_e \
 		names \
 		nat \
-		set_tos \
+		pass_block \
+		pfsync	\
 		rdr \
 		route_to \
-		synproxy \
+		rules_counter \
 		set_skip \
+		set_tos \
+		src_track \
+		synproxy \
 		table \
-		pfsync	\
-		icmp
+		tos
 
-${PACKAGE}FILES+=	utils.subr \
+${PACKAGE}FILES+=	CVE-2019-5597.py \
+			CVE-2019-5598.py \
 			echo_inetd.conf \
-			CVE-2019-5597.py \
-			CVE-2019-5598.py
+			utils.subr
 
 ${PACKAGE}FILESMODE_CVE-2019-5597.py=	0555
 ${PACKAGE}FILESMODE_CVE-2019-5598.py=	0555

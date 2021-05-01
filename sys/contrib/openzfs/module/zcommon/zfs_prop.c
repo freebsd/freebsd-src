@@ -254,6 +254,7 @@ zfs_prop_init(void)
 	static zprop_index_t acltype_table[] = {
 		{ "off",	ZFS_ACLTYPE_OFF },
 		{ "posix",	ZFS_ACLTYPE_POSIX },
+		{ "nfsv4",	ZFS_ACLTYPE_NFSV4 },
 		{ "disabled",	ZFS_ACLTYPE_OFF }, /* bkwrd compatibility */
 		{ "noacl",	ZFS_ACLTYPE_OFF }, /* bkwrd compatibility */
 		{ "posixacl",	ZFS_ACLTYPE_POSIX }, /* bkwrd compatibility */
@@ -416,7 +417,7 @@ zfs_prop_init(void)
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "on | off | lzjb | gzip | gzip-[1-9] | zle | lz4 | "
 	    "zstd | zstd-[1-19] | "
-	    "zstd-fast-[1-10,20,30,40,50,60,70,80,90,100,500,1000]",
+	    "zstd-fast | zstd-fast-[1-10,20,30,40,50,60,70,80,90,100,500,1000]",
 	    "COMPRESS", compress_table);
 	zprop_register_index(ZFS_PROP_SNAPDIR, "snapdir", ZFS_SNAPDIR_HIDDEN,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
@@ -428,11 +429,15 @@ zfs_prop_init(void)
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "discard | groupmask | passthrough | restricted", "ACLMODE",
 	    acl_mode_table);
-#ifndef __FreeBSD__
-	zprop_register_index(ZFS_PROP_ACLTYPE, "acltype", ZFS_ACLTYPE_OFF,
-	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
-	    "off | posix", "ACLTYPE", acltype_table);
+	zprop_register_index(ZFS_PROP_ACLTYPE, "acltype",
+#ifdef __linux__
+	    /* Linux doesn't natively support ZFS's NFSv4-style ACLs. */
+	    ZFS_ACLTYPE_OFF,
+#else
+	    ZFS_ACLTYPE_NFSV4,
 #endif
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
+	    "off | nfsv4 | posix", "ACLTYPE", acltype_table);
 	zprop_register_index(ZFS_PROP_ACLINHERIT, "aclinherit",
 	    ZFS_ACL_RESTRICTED, PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "discard | noallow | restricted | passthrough | passthrough-x",
@@ -546,14 +551,14 @@ zfs_prop_init(void)
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "<path> | legacy | none",
 	    "MOUNTPOINT");
 	zprop_register_string(ZFS_PROP_SHARENFS, "sharenfs", "off",
-	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "on | off | share(1M) options",
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "on | off | NFS share options",
 	    "SHARENFS");
 	zprop_register_string(ZFS_PROP_TYPE, "type", NULL, PROP_READONLY,
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK,
 	    "filesystem | volume | snapshot | bookmark", "TYPE");
 	zprop_register_string(ZFS_PROP_SHARESMB, "sharesmb", "off",
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
-	    "on | off | sharemgr(1M) options", "SHARESMB");
+	    "on | off | SMB share options", "SHARESMB");
 	zprop_register_string(ZFS_PROP_MLSLABEL, "mlslabel",
 	    ZFS_MLSLABEL_DEFAULT, PROP_INHERIT, ZFS_TYPE_DATASET,
 	    "<sensitivity label>", "MLSLABEL");
@@ -702,12 +707,6 @@ zfs_prop_init(void)
 	 * that we don't have to change the values of the zfs_prop_t enum, or
 	 * have NULL pointers in the zfs_prop_table[].
 	 */
-#ifdef __FreeBSD__
-	zprop_register_impl(ZFS_PROP_ACLTYPE, "acltype", PROP_TYPE_INDEX,
-	    ZFS_ACLTYPE_OFF, NULL, PROP_INHERIT,
-	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
-	    "off | posix", "ACLTYPE", B_FALSE, B_FALSE, acltype_table);
-#endif
 	zprop_register_hidden(ZFS_PROP_REMAPTXG, "remaptxg", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET, "REMAPTXG");
 
@@ -1017,7 +1016,7 @@ zcommon_fini(void)
 	kfpu_fini();
 }
 
-module_init(zcommon_init);
+module_init_early(zcommon_init);
 module_exit(zcommon_fini);
 
 #endif

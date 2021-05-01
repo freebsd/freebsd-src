@@ -68,6 +68,11 @@ struct gic_v3_softc {
 	/* Re-Distributors */
 	struct gic_redists	gic_redists;
 
+	/* Message Based Interrupts */
+	u_int			gic_mbi_start;
+	u_int			gic_mbi_end;
+	struct mtx		gic_mbi_mtx;
+
 	uint32_t		gic_pidr2;
 	u_int			gic_bus;
 

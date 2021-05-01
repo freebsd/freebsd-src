@@ -60,7 +60,7 @@ struct service_curve_v1 {
 
 /* special class handles */
 #define	HFSC_NULLCLASS_HANDLE	0
-#define	HFSC_MAX_CLASSES	64
+#define	HFSC_MAX_CLASSES	2048
 
 /* hfsc class flags */
 #define	HFCF_RED		0x0001	/* use RED */

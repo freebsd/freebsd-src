@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2019
+.Dd November 20, 2020
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -117,9 +117,13 @@ exported to the host set.
 The option flags specify whether the file system
 is exported read-only or read-write and how the client UID is mapped to
 user credentials on the server.
-For the NFSv4 tree root, the only option that can be specified in this
-section is
-.Fl sec .
+For the NFSv4 tree root, the only options that can be specified in this
+section are ones related to security:
+.Fl sec ,
+.Fl tls ,
+.Fl tlscert
+and
+.Fl tlscertuser .
 .Pp
 Export options are specified as follows:
 .Pp
@@ -240,6 +244,48 @@ option only makes sense in combination with the
 or
 .Fl webnfs
 flags.
+.Pp
+The
+.Fl tls ,
+.Fl tlscert
+and
+.Fl tlscertuser
+export options are used to require the client to use TLS for the mount(s)
+per RFC NNNN.
+For NFS mounts using TLS to work,
+.Xr rpc.tlsservd 8
+must be running on the server.
+.Bd -filled -offset indent
+.Fl tls
+requires that the client use TLS.
+.br
+.Fl tlscert
+requires that the client use TLS and provide a verifiable X.509 certificate
+during TLS handshake.
+.br
+.Fl tlscertuser
+requires that the client use TLS and provide a verifiable X.509 certificate.
+The otherName component of the certificate's subjAltName must have a
+an OID of 1.3.6.1.4.1.2238.1.1.1 and a UTF8 string of the form
+.Dq user@domain .
+.Dq user@domain
+will be translated to the credentials of the specified user in the same
+manner as
+.Xr nfsuserd 8 ,
+where
+.Dq user
+is normally a username is the server's password database and
+.Dq domain
+is the DNS domain name for the server.
+All RPCs will be performed using these credentials instead of the
+ones in the RPC header in a manner similar to
+.Sm off
+.Fl mapall Li = Sy user .
+.Sm on
+.Ed
+.Pp
+If none of these three flags are specified, TLS mounts are permitted but
+not required.
 .Pp
 Specifying the
 .Fl quiet
@@ -541,7 +587,15 @@ afterwards, whereas NFSv3 rejects the mount request.
 .Xr netgroup 5 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
+.Xr rpc.tlsservd 8 ,
 .Xr showmount 8
+.Sh STANDARDS
+The implementation is based on the specification in
+.Rs
+.%T "Network File System Protocol Specification, Appendix A, RFC 1094"
+.%T "NFS: Network File System Version 3, Appendix I, RFC 1813"
+.%T "Towards Remote Procedure Call Encryption By Default, RFC nnnn"
+.Re
 .Sh BUGS
 The export options are tied to the local mount points in the kernel and
 must be non-contradictory for any exported subdirectory of the local

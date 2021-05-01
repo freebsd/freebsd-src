@@ -33,7 +33,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_type.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: fld_type.c,v 1.19 2020/12/11 23:20:37 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,8 +46,8 @@ MODULE_ID("$Id: fld_type.c,v 1.17 2020/02/02 23:34:34 tom Exp $")
 |   Return Values :  E_OK           - success
 |                    E_SYSTEM_ERROR - system error
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(int)
-set_field_type(FIELD *field, FIELDTYPE *type,...)
+FORM_EXPORT(int)
+set_field_type(FIELD *field, FIELDTYPE *type, ...)
 {
   va_list ap;
   int res = E_SYSTEM_ERROR;
@@ -88,7 +88,7 @@ set_field_type(FIELD *field, FIELDTYPE *type,...)
 |
 |   Return Values :  Pointer to fieldtype of NULL if none is defined.
 +--------------------------------------------------------------------------*/
-NCURSES_EXPORT(FIELDTYPE *)
+FORM_EXPORT(FIELDTYPE *)
 field_type(const FIELD *field)
 {
   T((T_CALLED("field_type(%p)"), (const void *)field));

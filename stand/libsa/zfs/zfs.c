@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/queue.h>
-#include <disk.h>
 #include <part.h>
 #include <stddef.h>
 #include <stdarg.h>
@@ -1421,7 +1420,6 @@ zfs_attach_nvstore(void *vdev)
 int
 zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 {
-	struct disk_devdesc *dev;
 	struct ptable *table;
 	struct zfs_probe_args pa;
 	uint64_t mediasz;
@@ -1432,22 +1430,10 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	pa.fd = open(devname, O_RDWR);
 	if (pa.fd == -1)
 		return (ENXIO);
-	/*
-	 * We will not probe the whole disk, we can not boot from such
-	 * disks and some systems will misreport the disk sizes and will
-	 * hang while accessing the disk.
-	 */
-	if (archsw.arch_getdev((void **)&dev, devname, NULL) == 0) {
-		int partition = dev->d_partition;
-		int slice = dev->d_slice;
-
-		free(dev);
-		if (partition != D_PARTNONE && slice != D_SLICENONE) {
-			ret = zfs_probe(pa.fd, pool_guid);
-			if (ret == 0)
-				return (0);
-		}
-	}
+	/* Probe the whole disk */
+	ret = zfs_probe(pa.fd, pool_guid);
+	if (ret == 0)
+		return (0);
 
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);

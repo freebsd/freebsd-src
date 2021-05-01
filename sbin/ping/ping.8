@@ -28,17 +28,20 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2019
+.Dd November 26, 2020
 .Dt PING 8
 .Os
 .Sh NAME
 .Nm ping
 .Nd send
-.Tn ICMP ECHO_REQUEST
+.Tn ICMP
+or
+.Tn ICMPv6 ECHO_REQUEST
 packets to network hosts
 .Sh SYNOPSIS
 .Nm
-.Op Fl AaDdfHnoQqRrv
+.Op Fl 4AaDdfHnoQqRrv
+.Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl G Ar sweepmaxsize
 .Op Fl g Ar sweepminsize
@@ -54,9 +57,10 @@ packets to network hosts
 .Op Fl t Ar timeout
 .Op Fl W Ar waittime
 .Op Fl z Ar tos
-.Ar host
+.Ar IPv4-host
 .Nm
-.Op Fl AaDdfHLnoQqRrv
+.Op Fl 4AaDdfHLnoQqRrv
+.Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl I Ar iface
 .Op Fl i Ar wait
@@ -71,11 +75,31 @@ packets to network hosts
 .Op Fl t Ar timeout
 .Op Fl W Ar waittime
 .Op Fl z Ar tos
-.Ar mcast-group
+.Ar IPv4-mcast-group
+.Nm
+.Op Fl 6AaDdEfHNnOoquvYyZ
+.Op Fl b Ar bufsiz
+.Op Fl c Ar count
+.Op Fl e Ar gateway
+.Op Fl I Ar interface
+.Op Fl i Ar wait
+.Op Fl k Ar addrtype
+.Op Fl l Ar preload
+.Op Fl m Ar hoplimit
+.Op Fl P Ar policy
+.Op Fl p Ar pattern
+.Op Fl S Ar sourceaddr
+.Op Fl s Ar packetsize
+.Op Fl t Ar timeout
+.Op Fl W Ar waittime
+.Op Ar IPv6-hops ...
+.Ar IPv6-host
 .Sh DESCRIPTION
 The
 .Nm
-utility uses the
+utility invoked with an IPv4 target
+.Ns ( Ar IPv4-host No or Ar IPv4-mcast-group Ns )
+uses the
 .Tn ICMP
 .No protocol Ap s mandatory
 .Tn ECHO_REQUEST
@@ -92,7 +116,34 @@ header, followed by a
 and then an arbitrary number of
 .Dq pad
 bytes used to fill out the packet.
-The options are as follows:
+.Pp
+When invoked with an IPv6 target
+.Ns ( Ar IPv6-host Ns ) Ns ,
+it uses the
+.Tn ICMPv6
+protocol's mandatory
+.Tn ICMP6_ECHO_REQUEST
+datagram to elicit an
+.Tn ICMP6_ECHO_REPLY
+.Ns .
+.Tn ICMP6_ECHO_REQUEST
+datagrams have an IPv6 header and
+.Tn ICMPv6
+header formatted as documented in RFC 2463.
+.Pp
+When invoked with a hostname, the version to which the target is resolved first is used.
+In that case, the options and arguments used must be valid for the specific IP version, otherwise
+.Nm
+exits with an error.
+If the target is resolved to both IPv4 and IPv6, the specific IP version can be requested by
+.Fl 4
+or
+.Fl 6
+options, respectively.
+For backwards-compatibility, ICMPv6 can also be selected by invoking the binary
+as
+.Nm ping6 .
+.Ss Options common to both IPv4 and IPv6 targets
 .Bl -tag -width indent
 .It Fl A
 Audible.
@@ -110,8 +161,9 @@ Include a bell
 .Tn ( ASCII
 0x07)
 character in the output when any packet is received.
-This option is ignored
-if other format options are present.
+.It Fl C Ar pcp
+Add an 802.1p Ethernet Priority Code Point when sending a packet.
+0..7 uses that specific PCP, -1 uses the interface default PCP (or none).
 .It Fl c Ar count
 Stop after sending
 (and receiving)
@@ -121,12 +173,13 @@ packets.
 If this option is not specified,
 .Nm
 will operate until interrupted.
-If this option is specified in conjunction with ping sweeps,
+.Pp
+For an IPv4 target, if this option is specified in conjunction with ping sweeps,
 each sweep will consist of
 .Ar count
 packets.
 .It Fl D
-Set the Don't Fragment bit.
+Disable fragmentation.
 .It Fl d
 Set the
 .Dv SO_DEBUG
@@ -147,31 +200,23 @@ Only the super-user may use this option.
 .Bf -emphasis
 This can be very hard on a network and should be used with caution.
 .Ef
-.It Fl G Ar sweepmaxsize
-Specify the maximum size of
-.Tn ICMP
-payload when sending sweeping pings.
-This option is required for ping sweeps.
-.It Fl g Ar sweepminsize
-Specify the size of
-.Tn ICMP
-payload to start with when sending sweeping pings.
-The default value is 0.
 .It Fl H
 Hostname output.
 Try to do a reverse DNS lookup when displaying addresses.
 This is the opposite of the
 .Fl n
 option.
-.It Fl h Ar sweepincrsize
-Specify the number of bytes to increment the size of
-.Tn ICMP
-payload after
-each sweep when sending sweeping pings.
-The default value is 1.
 .It Fl I Ar iface
-Source multicast packets with the given interface address.
-This flag only applies if the ping destination is a multicast address.
+For an IPv4 target,
+.Ar iface
+is an IP address indentifying an interface from which the packets will be sent.
+This flag applies only if the ping target is a multicast address.
+.Pp
+For an IPv6 target,
+.Ar iface
+is a name of an interface (e.g. `em0') from which the packets will be sent.
+This flag applies if the ping target is a multicast address, or link-local/site-local
+unicast address.
 .It Fl i Ar wait
 Wait
 .Ar wait
@@ -183,9 +228,6 @@ values less than 1 second.
 This option is incompatible with the
 .Fl f
 option.
-.It Fl L
-Suppress loopback of multicast packets.
-This flag only applies if the ping destination is a multicast address.
 .It Fl l Ar preload
 If
 .Ar preload
@@ -194,35 +236,13 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
-.It Fl M Cm mask | time
-Use
-.Dv ICMP_MASKREQ
-or
-.Dv ICMP_TSTAMP
-instead of
-.Dv ICMP_ECHO .
-For
-.Cm mask ,
-print the netmask of the remote machine.
-Set the
-.Va net.inet.icmp.maskrepl
-MIB variable to enable
-.Dv ICMP_MASKREPLY
-and
-.Va net.inet.icmp.maskfake
-if you want to override the netmask in the response.
-For
-.Cm time ,
-print the origination, reception and transmission timestamps.
-Set the
-.Va net.inet.icmp.tstamprepl
-MIB variable to enable or disable
-.Dv ICMP_TSTAMPREPLY .
 .It Fl m Ar ttl
-Set the IP Time To Live for outgoing packets.
+For an IPv4 target, set the IP Time To Live for outgoing packets.
 If not specified, the kernel uses the value of the
 .Va net.inet.ip.ttl
 MIB variable.
+.Pp
+For an IPv6 target, set the IPv6 hoplimit.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
@@ -247,6 +267,97 @@ For example,
 .Dq Li \-p ff
 will cause the sent packet to be filled with all
 ones.
+.It Fl q
+Quiet output.
+Nothing is displayed except the summary lines at startup time and
+when finished.
+.It Fl S Ar src_addr
+Use the following IP address as the source address in outgoing packets.
+On hosts with more than one IP address, this option can be used to
+force the source address to be something other than the IP address
+of the interface the probe packet is sent on.
+.Pp
+For IPv4, if the IP address is not one of this machine's interface
+addresses, an error is returned and nothing is sent.
+.Pp
+For IPv6, the source address must be one of the unicast addresses of
+the sending node, and must be numeric.
+.It Fl s Ar packetsize
+Specify the number of data bytes to be sent.
+The default is 56, which translates into 64
+.Tn ICMP
+data bytes when combined
+with the 8 bytes of
+.Tn ICMP
+header data.
+.Pp
+For IPv4, only the super-user may specify values more than default.
+This option cannot be used with ping sweeps.
+.Pp
+For IPv6, you may need to specify
+.Fl b
+as well to extend socket buffer size.
+.It Fl t Ar timeout
+Specify a timeout, in seconds, before ping exits regardless of how
+many packets have been received.
+.It Fl v
+Verbose output.
+.Tn ICMP
+packets other than
+.Tn ECHO_RESPONSE
+that are received are listed.
+.It Fl W Ar waittime
+Time in milliseconds to wait for a reply for each packet sent.
+If a reply arrives later, the packet is not printed as replied, but
+considered as replied when calculating statistics.
+.El
+.Ss Options only for IPv4 targets
+.Bl -tag -width indent
+.It Fl 4
+Use IPv4 regardless of how the target is resolved.
+.It Fl G Ar sweepmaxsize
+Specify the maximum size of
+.Tn ICMP
+payload when sending sweeping pings.
+This option is required for ping sweeps.
+.It Fl g Ar sweepminsize
+Specify the size of
+.Tn ICMP
+payload to start with when sending sweeping pings.
+The default value is 0.
+.It Fl h Ar sweepincrsize
+Specify the number of bytes to increment the size of
+.Tn ICMP
+payload after
+each sweep when sending sweeping pings.
+The default value is 1.
+.It Fl L
+Suppress loopback of multicast packets.
+This flag only applies if the ping destination is a multicast address.
+.It Fl M Cm mask | time
+Use
+.Dv ICMP_MASKREQ
+or
+.Dv ICMP_TSTAMP
+instead of
+.Dv ICMP_ECHO .
+For
+.Cm mask ,
+print the netmask of the remote machine.
+Set the
+.Va net.inet.icmp.maskrepl
+MIB variable to enable
+.Dv ICMP_MASKREPLY
+and
+.Va net.inet.icmp.maskfake
+if you want to override the netmask in the response.
+For
+.Cm time ,
+print the origination, reception and transmission timestamps.
+Set the
+.Va net.inet.icmp.tstamprepl
+MIB variable to enable or disable
+.Dv ICMP_TSTAMPREPLY .
 .It Fl Q
 Somewhat quiet output.
 .No Don Ap t
@@ -263,10 +374,6 @@ flag,
 .Nm
 prints out any ICMP error messages caused by its own ECHO_REQUEST
 messages.
-.It Fl q
-Quiet output.
-Nothing is displayed except the summary lines at startup time and
-when finished.
 .It Fl R
 Record route.
 Includes the
@@ -294,42 +401,121 @@ This option can be used to ping a local host through an interface
 that has no route through it
 (e.g., after the interface was dropped by
 .Xr routed 8 ) .
-.It Fl S Ar src_addr
-Use the following IP address as the source address in outgoing packets.
-On hosts with more than one IP address, this option can be used to
-force the source address to be something other than the IP address
-of the interface the probe packet is sent on.
-If the IP address
-is not one of this machine's interface addresses, an error is
-returned and nothing is sent.
-.It Fl s Ar packetsize
-Specify the number of data bytes to be sent.
-The default is 56, which translates into 64
-.Tn ICMP
-data bytes when combined
-with the 8 bytes of
-.Tn ICMP
-header data.
-Only the super-user may specify values more than default.
-This option cannot be used with ping sweeps.
 .It Fl T Ar ttl
 Set the IP Time To Live for multicasted packets.
 This flag only applies if the ping destination is a multicast address.
-.It Fl t Ar timeout
-Specify a timeout, in seconds, before ping exits regardless of how
-many packets have been received.
-.It Fl v
-Verbose output.
-.Tn ICMP
-packets other than
-.Tn ECHO_RESPONSE
-that are received are listed.
-.It Fl W Ar waittime
-Time in milliseconds to wait for a reply for each packet sent.
-If a reply arrives later, the packet is not printed as replied, but
-considered as replied when calculating statistics.
 .It Fl z Ar tos
 Use the specified type of service.
+.It Ar IPv4-host
+hostname or IPv4 address of the final destination node.
+.It Ar IPv4-mcast-group
+IPv4 multicast address of the final destination nodes.
+.El
+.Ss Options only for IPv6 targets
+.Bl -tag -width indent
+.It Fl 6
+Use IPv6 regardless of how the target is resolved.
+.It Fl b Ar bufsiz
+Set socket buffer size.
+.It Fl e Ar gateway
+Specifies to use
+.Ar gateway
+as the next hop to the destination.
+The gateway must be a neighbor of the sending node.
+.It Fl k Ar addrtype
+Generate ICMPv6 Node Information Node Addresses query, rather than echo-request.
+.Ar addrtype
+must be a string constructed of the following characters.
+.Bl -tag -width Ds -compact
+.It Ic a
+requests unicast addresses from all of the responder's interfaces.
+If the character is omitted,
+only those addresses which belong to the interface which has the
+responder's address are requests.
+.It Ic c
+requests responder's IPv4-compatible and IPv4-mapped addresses.
+.It Ic g
+requests responder's global-scope addresses.
+.It Ic s
+requests responder's site-local addresses.
+.It Ic l
+requests responder's link-local addresses.
+.It Ic A
+requests responder's anycast addresses.
+Without this character, the responder will return unicast addresses only.
+With this character, the responder will return anycast addresses only.
+Note that the specification does not specify how to get responder's
+anycast addresses.
+This is an experimental option.
+.El
+.It Fl N
+Probe node information multicast group address
+.Pq Li ff02::2:ffxx:xxxx .
+.Ar host
+must be string hostname of the target
+(must not be a numeric IPv6 address).
+Node information multicast group will be computed based on given
+.Ar host ,
+and will be used as the final destination.
+Since node information multicast group is a link-local multicast group,
+outgoing interface needs to be specified by
+.Fl I
+option.
+.Pp
+When specified twice, the address
+.Pq Li ff02::2:xxxx:xxxx
+is used instead.
+The former is in RFC 4620, the latter is in an old Internet Draft
+draft-ietf-ipngwg-icmp-name-lookup.
+Note that KAME-derived implementations including
+.Fx
+use the latter.
+.It Fl O
+Generate ICMPv6 Node Information supported query types query,
+rather than echo-request.
+.Fl s
+has no effect if
+.Fl O
+is specified.
+.It Fl u
+By default,
+.Nm
+asks the kernel to fragment packets to fit into the minimum IPv6 MTU.
+The
+.Fl u
+option
+will suppress the behavior in the following two levels:
+when the option is specified once, the behavior will be disabled for
+unicast packets.
+When the option is more than once, it will be disabled for both
+unicast and multicast packets.
+.It Fl Y
+Same as
+.Fl y ,
+but with old packet format based on 03 draft.
+This option is present for backward compatibility.
+.Fl s
+has no effect if
+.Fl y
+is specified.
+.It Fl y
+Generate ICMPv6 Node Information DNS Name query, rather than echo-request.
+.Fl s
+has no effect if
+.Fl y
+is specified.
+.It Ar IPv6-hops
+IPv6 addresses for intermediate nodes,
+which will be put into type 0 routing header.
+.It Ar IPv6-host
+IPv6 address of the final destination node.
+.El
+.Ss Experimental options only for IPv6 target
+.Bl -tag -width indent
+.It Fl E
+Enables transport-mode IPsec encapsulated security payload.
+.It Fl Z
+Enables transport-mode IPsec authentication header.
 .El
 .Pp
 When using
@@ -359,8 +545,8 @@ receives a
 argument for
 .Xr stty 1 )
 signal, the current number of packets sent and received, and the
-minimum, mean, and maximum of the round-trip times will be written to
-the standard error output.
+minimum, mean, maximum, and standard deviation of the round-trip times
+will be written to the standard output.
 .Pp
 This program is intended for use in network testing, measurement and
 management.
@@ -441,7 +627,7 @@ using the
 .Fl p
 option of
 .Nm .
-.Sh TTL DETAILS
+.Sh IPv4 TTL DETAILS
 The
 .Tn TTL
 value of an IP packet represents the maximum number of IP routers
@@ -531,20 +717,74 @@ At least one response was heard from the specified
 The transmission was successful but no responses were received.
 .It any other value
 An error occurred.
-These values are defined in
-.In sysexits.h .
 .El
+.Sh EXAMPLES
+The following will send ICMPv6 echo request to
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping -6 -n dst.foo.com
+.Ed
+.Pp
+The following will probe hostnames for all nodes on the network link attached to
+.Li wi0
+interface.
+The address
+.Li ff02::1
+is named the link-local all-node multicast address, and the packet would
+reach every node on the network link.
+.Bd -literal -offset indent
+ping -6 -y ff02::1%wi0
+.Ed
+.Pp
+The following will probe addresses assigned to the destination node,
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping -6 -k agl dst.foo.com
+.Ed
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr icmp 4 ,
+.Xr icmp6 4 ,
+.Xr inet6 4 ,
+.Xr ip6 4 ,
 .Xr ifconfig 8 ,
 .Xr routed 8 ,
-.Xr traceroute 8
+.Xr traceroute 8 ,
+.Xr traceroute6 8
+.Rs
+.%A A. Conta
+.%A S. Deering
+.%T "Internet Control Message Protocol (ICMPv6) for the Internet Protocol Version 6 (IPv6) Specification"
+.%N RFC 2463
+.%D December 1998
+.Re
+.Rs
+.%A Matt Crawford
+.%T "IPv6 Node Information Queries"
+.%N draft-ietf-ipngwg-icmp-name-lookups-09.txt
+.%D May 2002
+.%O work in progress material
+.Re
 .Sh HISTORY
 The
 .Nm
 utility appeared in
 .Bx 4.3 .
+The
+.Nm ping6
+utility with IPv6 support first appeared in the WIDE Hydrangea IPv6
+protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project
+.Pq Pa http://www.kame.net/
+stack was initially integrated into
+.Fx 4.0 .
+.Pp
+The
+.Nm ping6
+utility was merged to
+.Nm
+in Google Summer of Code 2019.
 .Sh AUTHORS
 The original
 .Nm
@@ -553,7 +793,7 @@ utility was written by
 while at the US Army Ballistics
 Research Laboratory.
 .Sh BUGS
-Many Hosts and Gateways ignore the
+Many Hosts and Gateways ignore the IPv4
 .Tn RECORD_ROUTE
 option.
 .Pp

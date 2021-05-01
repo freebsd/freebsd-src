@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/rmlock.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -105,6 +106,18 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
+
+#define	IPFW_PROBE(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+    SDT_PROBE6(ipfw, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
+
+SDT_PROVIDER_DEFINE(ipfw);
+SDT_PROBE_DEFINE6(ipfw, , , rule__matched,
+    "int",			/* retval */
+    "int",			/* af */
+    "void *",			/* src addr */
+    "void *",			/* dst addr */
+    "struct ip_fw_args *",	/* args */
+    "struct ip_fw *"		/* rule */);
 
 /*
  * static variables followed by global ones.
@@ -2607,9 +2620,7 @@ do {								\
 #ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
-				
-				if (is_ipv6) /* XXX can we remove this ? */
-					break;
+				bool inp_locked = false;
 
 				if (proto == IPPROTO_TCP)
 					pi = &V_tcbinfo;
@@ -2625,27 +2636,37 @@ do {								\
 				 * certainly be inp_user_cookie?
 				 */
 
-				/* For incoming packet, lookup up the 
-				inpcb using the src/dest ip/port tuple */
-				if (inp == NULL) {
-					inp = in_pcblookup(pi, 
-						src_ip, htons(src_port),
-						dst_ip, htons(dst_port),
-						INPLOOKUP_RLOCKPCB, NULL);
-					if (inp != NULL) {
-						tablearg =
-						    inp->inp_socket->so_user_cookie;
-						if (tablearg)
-							match = 1;
-						INP_RUNLOCK(inp);
-					}
-				} else {
+				/*
+				 * For incoming packet lookup the inpcb
+				 * using the src/dest ip/port tuple.
+				 */
+				if (is_ipv4 && inp == NULL) {
+					inp = in_pcblookup(pi,
+					    src_ip, htons(src_port),
+					    dst_ip, htons(dst_port),
+					    INPLOOKUP_RLOCKPCB, NULL);
+					inp_locked = true;
+				}
+#ifdef INET6
+				if (is_ipv6 && inp == NULL) {
+					inp = in6_pcblookup(pi,
+					    &args->f_id.src_ip6,
+					    htons(src_port),
+					    &args->f_id.dst_ip6,
+					    htons(dst_port),
+					    INPLOOKUP_RLOCKPCB, NULL);
+					inp_locked = true;
+				}
+#endif /* INET6 */
+				if (inp != NULL) {
 					if (inp->inp_socket) {
 						tablearg =
 						    inp->inp_socket->so_user_cookie;
 						if (tablearg)
 							match = 1;
 					}
+					if (inp_locked)
+						INP_RUNLOCK(inp);
 				}
 #endif /* !USERSPACE */
 				break;
@@ -3237,6 +3258,13 @@ do {								\
 		struct ip_fw *rule = chain->map[f_pos];
 		/* Update statistics */
 		IPFW_INC_RULE_COUNTER(rule, pktlen);
+		IPFW_PROBE(rule__matched, retval,
+		    is_ipv4 ? AF_INET : AF_INET6,
+		    is_ipv4 ? (uintptr_t)&src_ip :
+		        (uintptr_t)&args->f_id.src_ip6,
+		    is_ipv4 ? (uintptr_t)&dst_ip :
+		        (uintptr_t)&args->f_id.dst_ip6,
+		    args, rule);
 	} else {
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");

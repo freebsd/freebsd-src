@@ -227,6 +227,13 @@ tasklet_disable(struct tasklet_struct *ts)
 	tasklet_unlock_wait(ts);
 }
 
+void
+tasklet_disable_nosync(struct tasklet_struct *ts)
+{
+	atomic_inc(&ts->count);
+	barrier();
+}
+
 int
 tasklet_trylock(struct tasklet_struct *ts)
 {

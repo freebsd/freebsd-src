@@ -513,7 +513,8 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 			edns->ext_rcode = 0;
 			edns->bits &= EDNS_DO;
 			if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL,
-				msg->rep, LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
+				msg->rep, LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad,
+				worker->env.now_tv))
 					return 0;
 			error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
 				&msg->qinfo, id, flags, edns);
@@ -544,7 +545,8 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
 	if(!inplace_cb_reply_cache_call(&worker->env, qinfo, NULL, msg->rep,
-		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad))
+		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad,
+		worker->env.now_tv))
 			return 0;
 	msg->rep->flags |= BIT_QR|BIT_RA;
 	if(!apply_edns_options(edns, &edns_bak, worker->env.cfg,
@@ -553,7 +555,8 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
 		repinfo->c->buffer, 0, 1, worker->scratchpad,
 		udpsize, edns, (int)(edns->bits & EDNS_DO), secure)) {
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, NULL,
-			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
+			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad,
+			worker->env.now_tv))
 				edns->opt_list = NULL;
 		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
 			&msg->qinfo, id, flags, edns);
@@ -576,7 +579,7 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	struct comm_reply* repinfo, struct ub_packed_rrset_key** alias_rrset,
 	struct reply_info** encode_repp, struct auth_zones* az)
 {
-	struct respip_action_info actinfo = {0};
+	struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
 	actinfo.action = respip_none;
 
 	if(qinfo->qtype != LDNS_RR_TYPE_A &&
@@ -684,7 +687,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		edns->ext_rcode = 0;
 		edns->bits &= EDNS_DO;
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, rep,
-			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
+			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad,
+			worker->env.now_tv))
 			goto bail_out;
 		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL,
 			qinfo, id, flags, edns);
@@ -718,7 +722,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
 	if(!inplace_cb_reply_cache_call(&worker->env, qinfo, NULL, rep,
-		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad))
+		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad,
+		worker->env.now_tv))
 		goto bail_out;
 	*alias_rrset = NULL; /* avoid confusion if caller set it to non-NULL */
 	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
@@ -754,7 +759,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		repinfo->c->buffer, timenow, 1, worker->scratchpad,
 		udpsize, edns, (int)(edns->bits & EDNS_DO), *is_secure_answer)) {
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, NULL,
-			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
+			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad,
+			worker->env.now_tv))
 				edns->opt_list = NULL;
 		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
 			qinfo, id, flags, edns);
@@ -842,7 +848,8 @@ chaos_replystr(sldns_buffer* pkt, char** str, int num, struct edns_data* edns,
 	edns->udp_size = EDNS_ADVERTISED_SIZE;
 	edns->bits &= EDNS_DO;
 	if(!inplace_cb_reply_local_call(&worker->env, NULL, NULL, NULL,
-		LDNS_RCODE_NOERROR, edns, repinfo, worker->scratchpad))
+		LDNS_RCODE_NOERROR, edns, repinfo, worker->scratchpad,
+		worker->env.now_tv))
 			edns->opt_list = NULL;
 	if(sldns_buffer_capacity(pkt) >=
 		sldns_buffer_limit(pkt)+calc_edns_field_size(edns))
@@ -1109,7 +1116,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 	memset(&qinfo, 0, sizeof(qinfo));
 
-	if(error != NETEVENT_NOERROR || !repinfo) {
+	if((error != NETEVENT_NOERROR && error != NETEVENT_DONE)|| !repinfo) {
 		/* some bad tcp query DNS formats give these error calls */
 		verbose(VERB_ALGO, "handle request called with err=%d", error);
 		return 0;
@@ -1219,7 +1226,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		LDNS_QR_SET(sldns_buffer_begin(c->buffer));
 		LDNS_RCODE_SET(sldns_buffer_begin(c->buffer), 
 			LDNS_RCODE_FORMERR);
-		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
 	if(worker->env.cfg->log_queries) {
@@ -1237,7 +1243,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			LDNS_RCODE_REFUSED);
 		if(worker->stats.extended) {
 			worker->stats.qtype[qinfo.qtype]++;
-			server_stats_insrcode(&worker->stats, c->buffer);
 		}
 		goto send_reply;
 	}
@@ -1259,7 +1264,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			LDNS_RCODE_FORMERR);
 		if(worker->stats.extended) {
 			worker->stats.qtype[qinfo.qtype]++;
-			server_stats_insrcode(&worker->stats, c->buffer);
 		}
 		goto send_reply;
 	}
@@ -1275,7 +1279,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 			sldns_buffer_read_u16_at(c->buffer, 2), &reply_edns);
 		regional_free_all(worker->scratchpad);
-		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
 	if(edns.edns_present) {
@@ -1286,6 +1289,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			edns.udp_size = EDNS_ADVERTISED_SIZE;
 			edns.bits &= EDNS_DO;
 			edns.opt_list = NULL;
+			edns.padding_block_size = 0;
 			verbose(VERB_ALGO, "query with bad edns version.");
 			log_addr(VERB_CLIENT,"from",&repinfo->addr, repinfo->addrlen);
 			error_encode(c->buffer, EDNS_RCODE_BADVERS&0xf, &qinfo,
@@ -1354,7 +1358,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		edns.udp_size = 65535; /* max size for TCP replies */
 	if(qinfo.qclass == LDNS_RR_CLASS_CH && answer_chaos(worker, &qinfo,
 		&edns, repinfo, c->buffer)) {
-		server_stats_insrcode(&worker->stats, c->buffer);
 		regional_free_all(worker->scratchpad);
 		goto send_reply;
 	}
@@ -1375,7 +1378,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			comm_point_drop_reply(repinfo);
 			return 0;
 		}
-		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
 	if(worker->env.auth_zones &&
@@ -1387,7 +1389,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			comm_point_drop_reply(repinfo);
 			return 0;
 		}
-		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
 	if(worker->env.auth_zones &&
@@ -1403,7 +1404,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		if(LDNS_RD_WIRE(sldns_buffer_begin(c->buffer)) &&
 		   acl != acl_deny_non_local && acl != acl_refuse_non_local)
 			LDNS_RA_SET(sldns_buffer_begin(c->buffer));
-		server_stats_insrcode(&worker->stats, c->buffer);
 		goto send_reply;
 	}
 
@@ -1432,7 +1432,6 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 			*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 			sldns_buffer_read_u16_at(c->buffer, 2), NULL);
 		regional_free_all(worker->scratchpad);
-		server_stats_insrcode(&worker->stats, c->buffer);
 		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
 			&repinfo->addr, repinfo->addrlen);
 		goto send_reply;
@@ -1588,9 +1587,9 @@ send_reply_rc:
 	if(is_expired_answer) {
 		worker->stats.ans_expired++;
 	}
+	server_stats_insrcode(&worker->stats, c->buffer);
 	if(worker->stats.extended) {
 		if(is_secure_answer) worker->stats.ans_secure++;
-		server_stats_insrcode(&worker->stats, repinfo->c->buffer);
 	}
 #ifdef USE_DNSTAP
 	if(worker->dtenv.log_client_response_messages)
@@ -1726,14 +1725,6 @@ worker_create(struct daemon* daemon, int id, int* ports, int n)
 		return NULL;
 	}
 	explicit_bzero(&seed, sizeof(seed));
-#ifdef USE_DNSTAP
-	if(daemon->cfg->dnstap) {
-		log_assert(daemon->dtenv != NULL);
-		memcpy(&worker->dtenv, daemon->dtenv, sizeof(struct dt_env));
-		if(!dt_init(&worker->dtenv))
-			fatal_exit("dt_init failed");
-	}
-#endif
 	return worker;
 }
 
@@ -1792,13 +1783,22 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	} else { /* !do_sigs */
 		worker->comsig = NULL;
 	}
+#ifdef USE_DNSTAP
+	if(cfg->dnstap) {
+		log_assert(worker->daemon->dtenv != NULL);
+		memcpy(&worker->dtenv, worker->daemon->dtenv, sizeof(struct dt_env));
+		if(!dt_init(&worker->dtenv, worker->base))
+			fatal_exit("dt_init failed");
+	}
+#endif
 	worker->front = listen_create(worker->base, ports,
 		cfg->msg_buffer_size, (int)cfg->incoming_num_tcp,
 		cfg->do_tcp_keepalive
 			? cfg->tcp_keepalive_timeout
 			: cfg->tcp_idle_timeout,
-			worker->daemon->tcl,
-		worker->daemon->listen_sslctx,
+		cfg->harden_large_queries, cfg->http_max_streams,
+		cfg->http_endpoint, cfg->http_notls_downstream,
+		worker->daemon->tcl, worker->daemon->listen_sslctx,
 		dtenv, worker_handle_request, worker);
 	if(!worker->front) {
 		log_err("could not create listening sockets");
@@ -1815,7 +1815,7 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		&worker_alloc_cleanup, worker,
 		cfg->do_udp || cfg->udp_upstream_without_downstream,
 		worker->daemon->connect_sslctx, cfg->delay_close,
-		cfg->tls_use_sni, dtenv);
+		cfg->tls_use_sni, dtenv, cfg->udp_connect);
 	if(!worker->back) {
 		log_err("could not create outgoing sockets");
 		worker_delete(worker);

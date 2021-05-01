@@ -434,11 +434,13 @@ ath_hal_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		printf("[ath_hal] loaded\n");
+		if (bootverbose)
+			printf("[ath_hal] loaded\n");
 		break;
 
 	case MOD_UNLOAD:
-		printf("[ath_hal] unloaded\n");
+		if (bootverbose)
+			printf("[ath_hal] unloaded\n");
 		break;
 
 	case MOD_SHUTDOWN:

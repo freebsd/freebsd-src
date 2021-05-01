@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: treeview,v 1.2 2012/12/04 10:53:09 tom Exp $
+# $Id: treeview,v 1.3 2020/11/26 00:05:52 tom Exp $
 
 . ./setup-vars
 
@@ -17,6 +17,6 @@ $DIALOG --title "TREE VIEW DIALOG" \
 		tag8 eight off 4 \
 		tag9 nine off 1 2> $tempfile
 
-retval=$?
+returncode=$?
 
 . ./report-tempfile

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stdint.h>
 #define _MACHINE_ELF_WANT_32BIT
 #include <machine/elf.h>
+#include <machine/metadata.h>
 #include <string.h>
 #include <stand.h>
 
@@ -55,11 +56,6 @@ __FBSDID("$FreeBSD$");
 #define MULTIBOOT_SUPPORTED_FLAGS \
 				(MULTIBOOT_PAGE_ALIGN|MULTIBOOT_MEMORY_INFO)
 #define NUM_MODULES		2
-#define METADATA_FIXED_SIZE	(PAGE_SIZE*4)
-#define METADATA_MODULE_SIZE	PAGE_SIZE
-
-#define METADATA_RESV_SIZE(mod_num) \
-	roundup(METADATA_FIXED_SIZE + METADATA_MODULE_SIZE * mod_num, PAGE_SIZE)
 
 extern int elf32_loadfile_raw(char *filename, uint64_t dest,
     struct preloaded_file **result, int multiboot);
@@ -80,32 +76,6 @@ struct file_format multiboot_obj =
 extern void multiboot_tramp();
 
 static const char mbl_name[] = "FreeBSD Loader";
-
-static int
-num_modules(struct preloaded_file *kfp)
-{
-	struct kernel_module	*kmp;
-	int			 mod_num = 0;
-
-	for (kmp = kfp->f_modules; kmp != NULL; kmp = kmp->m_next)
-		mod_num++;
-
-	return (mod_num);
-}
-
-static vm_offset_t
-max_addr(void)
-{
-	struct preloaded_file	*fp;
-	vm_offset_t		 addr = 0;
-
-	for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-		if (addr < (fp->f_addr + fp->f_size))
-			addr = fp->f_addr + fp->f_size;
-	}
-
-	return (addr);
-}
 
 static int
 multiboot_loadfile(char *filename, uint64_t dest,
@@ -188,7 +158,6 @@ out:
 static int
 multiboot_exec(struct preloaded_file *fp)
 {
-	vm_offset_t			 module_start, last_addr, metadata_size;
 	vm_offset_t			 modulep, kernend, entry;
 	struct file_metadata		*md;
 	Elf_Ehdr			*ehdr;
@@ -197,6 +166,9 @@ multiboot_exec(struct preloaded_file *fp)
 	char				*cmdline = NULL;
 	size_t				 len;
 	int				 error, mod_num;
+	struct xen_header		 header;
+
+	CTASSERT(sizeof(header) <= PAGE_SIZE);
 
 	/*
 	 * Don't pass the memory size found by the bootloader, the memory
@@ -260,13 +232,11 @@ multiboot_exec(struct preloaded_file *fp)
 	 * FreeBSD kernel loaded as a raw file. The second module is going
 	 * to contain the metadata info and the loaded modules.
 	 *
-	 * On native FreeBSD loads all the modules and then places the
-	 * metadata info at the end, but this is painful when running on Xen,
-	 * because it relocates the second multiboot module wherever it
-	 * likes. In order to workaround this limitation the metadata
-	 * information is placed at the start of the second module and
-	 * the original modulep value is saved together with the other
-	 * metadata, so we can relocate everything.
+	 * There's a small header prefixed in the second module that contains
+	 * some information required to calculate the relocated address of
+	 * modulep based on the original offset of modulep from the start of
+	 * the module address. Note other fields might be added to this header
+	 * if required.
 	 *
 	 * Native layout:
 	 *           fp->f_addr + fp->f_size
@@ -277,27 +247,16 @@ multiboot_exec(struct preloaded_file *fp)
 	 * +---------+----------------+------------+
 	 * fp->f_addr                 modulep      kernend
 	 *
-	 * Xen layout:
-	 *
-	 * Initial:
-	 *                      fp->f_addr + fp->f_size
-	 * +---------+----------+----------------+------------+
-	 * |         |          |                |            |
-	 * | Kernel  | Reserved |    Modules     |  Metadata  |
-	 * |         |          |                |  dry run   |
-	 * +---------+----------+----------------+------------+
-	 * fp->f_addr
-	 *
-	 * After metadata polacement (ie: final):
-	 *                                  fp->f_addr + fp->f_size
-	 * +-----------+---------+----------+----------------+
-	 * |           |         |          |                |
-	 * |  Kernel   |  Free   | Metadata |    Modules     |
-	 * |           |         |          |                |
-	 * +-----------+---------+----------+----------------+
-	 * fp->f_addr            modulep                     kernend
-	 * \__________/          \__________________________/
-	 *  Multiboot module 0    Multiboot module 1
+	 * Xen dom0 layout:
+	 * fp->f_addr             fp->f_addr + fp->f_size
+	 * +---------+------------+----------------+------------+
+	 * |         |            |                |            |
+	 * | Kernel  | xen_header |    Modules     |  Metadata  |
+	 * |         |            |                |            |
+	 * +---------+------------+----------------+------------+
+	 * 	                                   modulep      kernend
+	 * \________/\__________________________________________/
+	 *  module 0                 module 1
 	 */
 
 	fp = file_findfile(NULL, "elf kernel");
@@ -307,13 +266,6 @@ multiboot_exec(struct preloaded_file *fp)
 		goto error;
 	}
 
-	if (fp->f_metadata != NULL) {
-		printf("FreeBSD kernel already contains metadata, aborting\n");
-		error = EINVAL;
-		goto error;
-	}
-
-
 	mb_mod = malloc(sizeof(struct multiboot_mod_list) * NUM_MODULES);
 	if (mb_mod == NULL) {
 		error = ENOMEM;
@@ -322,60 +274,33 @@ multiboot_exec(struct preloaded_file *fp)
 
 	bzero(mb_mod, sizeof(struct multiboot_mod_list) * NUM_MODULES);
 
-	/*
-	 * Calculate how much memory is needed for the metatdata. We did
-	 * an approximation of the maximum size when loading the kernel,
-	 * but now we know the exact size, so we can release some of this
-	 * preallocated memory if not needed.
-	 */
-	last_addr = roundup(max_addr(), PAGE_SIZE);
-	mod_num = num_modules(fp);
-
-	/*
-	 * Place the metadata after the last used address in order to
-	 * calculate it's size, this will not be used.
-	 */
-	error = bi_load64(fp->f_args, last_addr, &modulep, &kernend, 0);
-	if (error != 0) {
-		printf("bi_load64 failed: %d\n", error);
-		goto error;
-	}
-	metadata_size = roundup(kernend - last_addr, PAGE_SIZE);
-
-	/* Check that the size is not greater than what we have reserved */
-	if (metadata_size > METADATA_RESV_SIZE(mod_num)) {
-		printf("Required memory for metadata is greater than reserved "
-		    "space, please increase METADATA_FIXED_SIZE and "
-		    "METADATA_MODULE_SIZE and rebuild the loader\n");
-		error = ENOMEM;
-		goto error;
-	}
-
-	/* Clean the metadata added to the kernel in the bi_load64 dry run */
-	file_removemetadata(fp);
-
-	/*
-	 * This is the position where the second multiboot module
-	 * will be placed.
-	 */
-	module_start = fp->f_addr + fp->f_size - metadata_size;
-
-	error = bi_load64(fp->f_args, module_start, &modulep, &kernend, 0);
+	error = bi_load64(fp->f_args, &modulep, &kernend, 0);
 	if (error != 0) {
 		printf("bi_load64 failed: %d\n", error);
 		goto error;
 	}
 
 	mb_mod[0].mod_start = fp->f_addr;
-	mb_mod[0].mod_end = fp->f_addr + fp->f_size;
-	mb_mod[0].mod_end -= METADATA_RESV_SIZE(mod_num);
+	mb_mod[0].mod_end = fp->f_addr + fp->f_size - PAGE_SIZE;
 
-	mb_mod[1].mod_start = module_start;
-	mb_mod[1].mod_end = last_addr;
+	mb_mod[1].mod_start = mb_mod[0].mod_end;
+	mb_mod[1].mod_end = kernend;
+	/* Indicate the kernel metadata is prefixed with a xen_header. */
+	cmdline = strdup("header");
+	if (cmdline == NULL) {
+		printf("Out of memory, aborting\n");
+		error = ENOMEM;
+		goto error;
+	}
+	mb_mod[1].cmdline = VTOP(cmdline);
 
 	mb_info->mods_count = NUM_MODULES;
 	mb_info->mods_addr = VTOP(mb_mod);
 	mb_info->flags |= MULTIBOOT_INFO_MODS;
+
+	header.flags = XENHEADER_HAS_MODULEP_OFFSET;
+	header.modulep_offset = modulep - mb_mod[1].mod_start;
+	archsw.arch_copyin(&header, mb_mod[1].mod_start, sizeof(header));
 
 	dev_cleanup();
 	__exec((void *)VTOP(multiboot_tramp), (void *)entry,
@@ -434,17 +359,14 @@ multiboot_obj_loadfile(char *filename, uint64_t dest,
 			return (EINVAL);
 		}
 
+
 		/*
-		 * Save space at the end of the kernel in order to place
-		 * the metadata information. We do an approximation of the
-		 * max metadata size, this is not optimal but it's probably
-		 * the best we can do at this point. Once all modules are
-		 * loaded and the size of the metadata is known this
-		 * space will be recovered if not used.
+		 * Reserve one page at the end of the kernel to place some
+		 * metadata in order to cope for Xen relocating the modules and
+		 * the metadata information.
 		 */
-		mod_num = num_modules(rfp);
 		rfp->f_size = roundup(rfp->f_size, PAGE_SIZE);
-		rfp->f_size += METADATA_RESV_SIZE(mod_num);
+		rfp->f_size += PAGE_SIZE;
 		*result = rfp;
 	} else {
 		/* The rest should be loaded as regular modules */

@@ -238,7 +238,7 @@ struct sysent freebsd32_sysent[] = {
 	{ compat6(AS(freebsd6_freebsd32_pread_args),freebsd32_pread), .sy_auevent = AUE_PREAD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 173 = freebsd6 freebsd32_pread */
 	{ compat6(AS(freebsd6_freebsd32_pwrite_args),freebsd32_pwrite), .sy_auevent = AUE_PWRITE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 174 = freebsd6 freebsd32_pwrite */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 175 = nosys */
-	{ .sy_narg = AS(ntp_adjtime_args), .sy_call = (sy_call_t *)sys_ntp_adjtime, .sy_auevent = AUE_NTP_ADJTIME, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 176 = ntp_adjtime */
+	{ .sy_narg = AS(freebsd32_ntp_adjtime_args), .sy_call = (sy_call_t *)freebsd32_ntp_adjtime, .sy_auevent = AUE_NTP_ADJTIME, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 176 = freebsd32_ntp_adjtime */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 177 = sfork */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 178 = getdescriptor */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 179 = setdescriptor */
@@ -666,4 +666,7 @@ struct sysent freebsd32_sysent[] = {
 	{ .sy_narg = AS(__realpathat_args), .sy_call = (sy_call_t *)sys___realpathat, .sy_auevent = AUE_REALPATHAT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 574 = __realpathat */
 	{ .sy_narg = AS(close_range_args), .sy_call = (sy_call_t *)sys_close_range, .sy_auevent = AUE_CLOSERANGE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 575 = close_range */
 	{ .sy_narg = AS(rpctls_syscall_args), .sy_call = (sy_call_t *)lkmressys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },	/* 576 = rpctls_syscall */
+	{ .sy_narg = AS(__specialfd_args), .sy_call = (sy_call_t *)sys___specialfd, .sy_auevent = AUE_SPECIALFD, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 577 = __specialfd */
+	{ .sy_narg = AS(freebsd32_aio_writev_args), .sy_call = (sy_call_t *)freebsd32_aio_writev, .sy_auevent = AUE_AIO_WRITEV, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 578 = freebsd32_aio_writev */
+	{ .sy_narg = AS(freebsd32_aio_readv_args), .sy_call = (sy_call_t *)freebsd32_aio_readv, .sy_auevent = AUE_AIO_READV, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 579 = freebsd32_aio_readv */
 };

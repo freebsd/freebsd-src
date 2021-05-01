@@ -134,6 +134,12 @@ fsirand(char *device)
 			return (1);
 		}
 	}
+	/*
+	 * Check for unclean filesystem.
+	 */
+	if (sblock->fs_clean == 0 ||
+	    (sblock->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0)
+		errx(1, "%s is not clean - run fsck.\n", device);
 
 	if (sblock->fs_magic == FS_UFS1_MAGIC &&
 	    sblock->fs_old_inodefmt < FS_44INODEFMT) {

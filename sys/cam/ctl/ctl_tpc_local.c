@@ -254,7 +254,7 @@ tpcl_datamove(union ctl_io *io)
 			 __func__, ctsio->ext_data_len, ctsio->kern_data_len));
 
 bailout:
-	io->scsiio.be_move_done(io);
+	ctl_datamove_done(io, true);
 }
 
 static void
@@ -294,12 +294,12 @@ tpcl_resolve(struct ctl_softc *softc, int init_port,
 		    lun->lun_devid->len, &cscdid->codeset,
 		    cscdid->length + 4) == 0) {
 			lunid = lun->lun;
-			if (ss && lun->be_lun)
+			if (ss)
 				*ss = lun->be_lun->blocksize;
-			if (ps && lun->be_lun)
+			if (ps)
 				*ps = lun->be_lun->blocksize <<
 				    lun->be_lun->pblockexp;
-			if (pso && lun->be_lun)
+			if (pso)
 				*pso = lun->be_lun->blocksize *
 				    lun->be_lun->pblockoff;
 			break;

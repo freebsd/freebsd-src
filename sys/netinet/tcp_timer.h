@@ -115,8 +115,6 @@
 
 #define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
 
-#define	TCP_LINGERTIME	120			/* linger at most 2 minutes */
-
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
 #define	TCPTV_DELACK	( hz/25 )		/* 40ms timeout */

@@ -3915,7 +3915,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->pcaps);
 
 	fec = 0;
-	if (fec_supported(lc->pcaps)) {
+	if (fec_supported(speed)) {
 		if (lc->requested_fec == FEC_AUTO) {
 			if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC) {
 				if (speed & FW_PORT_CAP32_SPEED_100G) {
@@ -6169,6 +6169,25 @@ void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
 }
 
 /**
+ *	t4_tp_get_err_stats - read TP's error MIB counters
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
+ *
+ *	Returns the values of TP's error counters.
+ */
+void t4_tp_get_tnl_stats(struct adapter *adap, struct tp_tnl_stats *st,
+			 bool sleep_ok)
+{
+	int nchan = adap->chip_params->nchan;
+
+	t4_tp_mib_read(adap, st->out_pkt, nchan, A_TP_MIB_TNL_OUT_PKT_0,
+		       sleep_ok);
+	t4_tp_mib_read(adap, st->in_pkt, nchan, A_TP_MIB_TNL_IN_PKT_0,
+		       sleep_ok);
+}
+
+/**
  *	t4_tp_get_proxy_stats - read TP's proxy MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
@@ -6259,6 +6278,21 @@ void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
 	st->frames = val[0];
 	st->drops = val[1];
 	st->octets = ((u64)val[2] << 32) | val[3];
+}
+
+/**
+ *	t4_tp_get_tid_stats - read TP's tid MIB counters.
+ *	@adap: the adapter
+ *	@st: holds the counter values
+ * 	@sleep_ok: if true we may sleep while awaiting command completion
+ *
+ *	Returns the values of TP's counters for tids.
+ */
+void t4_tp_get_tid_stats(struct adapter *adap, struct tp_tid_stats *st,
+		      bool sleep_ok)
+{
+
+	t4_tp_mib_read(adap, &st->del, 4, A_TP_MIB_TID_DEL, sleep_ok);
 }
 
 /**
@@ -6784,6 +6818,23 @@ static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
 	return 1 << idx;
 }
 
+/*
+ * TP RX c-channel associated with the port.
+ */
+static unsigned int t4_get_rx_c_chan(struct adapter *adap, int idx)
+{
+	u32 param, val;
+	int ret;
+
+	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_TPCHMAP));
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (!ret)
+		return (val >> (8 * idx)) & 0xff;
+
+        return 0;
+}
+
 /**
  *      t4_get_port_type_description - return Port Type string description
  *      @port_type: firmware Port Type enumeration
@@ -6957,7 +7008,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
  */
 void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 {
-	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -6982,14 +7032,18 @@ void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 	p->frames_1519_max	= GET_STAT(1519B_MAX);
 	p->drop			= GET_STAT(DROP_FRAMES);
 
-	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
-	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
-	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
-	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
-	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
-	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
-	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
-	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
+	if (idx < adap->params.nports) {
+		u32 bg = adap2pinfo(adap, idx)->mps_bg_map;
+
+		p->ovflow0 = (bg & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
+		p->ovflow1 = (bg & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
+		p->ovflow2 = (bg & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
+		p->ovflow3 = (bg & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
+		p->trunc0 = (bg & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
+		p->trunc1 = (bg & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
+		p->trunc2 = (bg & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
+		p->trunc3 = (bg & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
+	}
 
 #undef GET_STAT
 #undef GET_STAT_COM
@@ -8617,6 +8671,32 @@ int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *	t4_eth_eq_stop - stop an Ethernet egress queue
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the queues
+ *	@vf: the VF owning the queues
+ *	@eqid: egress queue id
+ *
+ *	Stops an Ethernet egress queue.  The queue can be reinitialized or
+ *	freed but is not otherwise functional after this call.
+ */
+int t4_eth_eq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+                   unsigned int vf, unsigned int eqid)
+{
+	struct fw_eq_eth_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_EQ_ETH_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				  V_FW_EQ_ETH_CMD_PFN(pf) |
+				  V_FW_EQ_ETH_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_EQ_ETH_CMD_EQSTOP | FW_LEN16(c));
+	c.eqid_pkd = cpu_to_be32(V_FW_EQ_ETH_CMD_EQID(eqid));
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_eth_eq_free - free an Ethernet egress queue
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -9178,6 +9258,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 15,
 			.cim_num_obq = CIM_NUM_OBQ,
+			.filter_opt_len = FILTER_OPT_LEN,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO,
@@ -9191,6 +9272,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 2,
 			.nsched_cls = 16,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.filter_opt_len = T5_FILTER_OPT_LEN,
 			.mps_rplc_size = 128,
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO | F_DBTYPE,
@@ -9204,6 +9286,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.cng_ch_bits_log = 3,
 			.nsched_cls = 16,
 			.cim_num_obq = CIM_NUM_OBQ_T5,
+			.filter_opt_len = T5_FILTER_OPT_LEN,
 			.mps_rplc_size = 256,
 			.vfcount = 256,
 			.sge_fl_db = 0,
@@ -9570,19 +9653,74 @@ int t4_init_sge_params(struct adapter *adapter)
 	return 0;
 }
 
+/* Convert the LE's hardware hash mask to a shorter filter mask. */
+static inline uint16_t
+hashmask_to_filtermask(uint64_t hashmask, uint16_t filter_mode)
+{
+	static const uint8_t width[] = {1, 3, 17, 17, 8, 8, 16, 9, 3, 1};
+	int i;
+	uint16_t filter_mask;
+	uint64_t mask;		/* field mask */
+
+	filter_mask = 0;
+	for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
+		if ((filter_mode & (1 << i)) == 0)
+			continue;
+		mask = (1 << width[i]) - 1;
+		if ((hashmask & mask) == mask)
+			filter_mask |= 1 << i;
+		hashmask >>= width[i];
+	}
+
+	return (filter_mask);
+}
+
 /*
  * Read and cache the adapter's compressed filter mode and ingress config.
  */
-static void read_filter_mode_and_ingress_config(struct adapter *adap,
-    bool sleep_ok)
+static void
+read_filter_mode_and_ingress_config(struct adapter *adap)
 {
-	uint32_t v;
+	int rc;
+	uint32_t v, param[2], val[2];
 	struct tp_params *tpp = &adap->params.tp;
+	uint64_t hash_mask;
 
-	t4_tp_pio_read(adap, &tpp->vlan_pri_map, 1, A_TP_VLAN_PRI_MAP,
-	    sleep_ok);
-	t4_tp_pio_read(adap, &tpp->ingress_config, 1, A_TP_INGRESS_CONFIG,
-	    sleep_ok);
+	param[0] = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FILTER) |
+	    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_FILTER_MODE_MASK);
+	param[1] = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FILTER) |
+	    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_FILTER_VNIC_MODE);
+	rc = -t4_query_params(adap, adap->mbox, adap->pf, 0, 2, param, val);
+	if (rc == 0) {
+		tpp->filter_mode = G_FW_PARAMS_PARAM_FILTER_MODE(val[0]);
+		tpp->filter_mask = G_FW_PARAMS_PARAM_FILTER_MASK(val[0]);
+		tpp->vnic_mode = val[1];
+	} else {
+		/*
+		 * Old firmware.  Read filter mode/mask and ingress config
+		 * straight from the hardware.
+		 */
+		t4_tp_pio_read(adap, &v, 1, A_TP_VLAN_PRI_MAP, true);
+		tpp->filter_mode = v & 0xffff;
+
+		hash_mask = 0;
+		if (chip_id(adap) > CHELSIO_T4) {
+			v = t4_read_reg(adap, LE_HASH_MASK_GEN_IPV4T5(3));
+			hash_mask = v;
+			v = t4_read_reg(adap, LE_HASH_MASK_GEN_IPV4T5(4));
+			hash_mask |= (u64)v << 32;
+		}
+		tpp->filter_mask = hashmask_to_filtermask(hash_mask,
+		    tpp->filter_mode);
+
+		t4_tp_pio_read(adap, &v, 1, A_TP_INGRESS_CONFIG, true);
+		if (v & F_VNIC)
+			tpp->vnic_mode = FW_VNIC_MODE_PF_VF;
+		else
+			tpp->vnic_mode = FW_VNIC_MODE_OUTER_VLAN;
+	}
 
 	/*
 	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
@@ -9599,13 +9737,6 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap,
 	tpp->macmatch_shift = t4_filter_field_shift(adap, F_MACMATCH);
 	tpp->matchtype_shift = t4_filter_field_shift(adap, F_MPSHITTYPE);
 	tpp->frag_shift = t4_filter_field_shift(adap, F_FRAGMENTATION);
-
-	if (chip_id(adap) > CHELSIO_T4) {
-		v = t4_read_reg(adap, LE_HASH_MASK_GEN_IPV4T5(3));
-		adap->params.tp.hash_filter_mask = v;
-		v = t4_read_reg(adap, LE_HASH_MASK_GEN_IPV4T5(4));
-		adap->params.tp.hash_filter_mask |= (u64)v << 32;
-	}
 }
 
 /**
@@ -9614,7 +9745,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap,
  *
  *      Initialize various fields of the adapter's TP Parameters structure.
  */
-int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
+int t4_init_tp_params(struct adapter *adap)
 {
 	int chan;
 	u32 tx_len, rx_len, r, v;
@@ -9628,7 +9759,7 @@ int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 	for (chan = 0; chan < MAX_NCHAN; chan++)
 		tpp->tx_modq[chan] = chan;
 
-	read_filter_mode_and_ingress_config(adap, sleep_ok);
+	read_filter_mode_and_ingress_config(adap);
 
 	if (chip_id(adap) > CHELSIO_T5) {
 		v = t4_read_reg(adap, A_TP_OUT_CONFIG);
@@ -9665,7 +9796,7 @@ int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
  */
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 {
-	unsigned int filter_mode = adap->params.tp.vlan_pri_map;
+	const unsigned int filter_mode = adap->params.tp.filter_mode;
 	unsigned int sel;
 	int field_shift;
 
@@ -9726,6 +9857,7 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	p->tx_chan = j;
 	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
 	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
+	p->rx_c_chan = t4_get_rx_c_chan(adap, j);
 	p->lport = j;
 
 	if (!(adap->flags & IS_VF) ||
@@ -10196,6 +10328,48 @@ void t4_idma_monitor(struct adapter *adapter,
 			debug0, debug11);
 		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
 	}
+}
+
+/**
+ *     t4_set_vf_mac - Set MAC address for the specified VF
+ *     @adapter: The adapter
+ *     @pf: the PF used to instantiate the VFs
+ *     @vf: one of the VFs instantiated by the specified PF
+ *     @naddr: the number of MAC addresses
+ *     @addr: the MAC address(es) to be set to the specified VF
+ */
+int t4_set_vf_mac(struct adapter *adapter, unsigned int pf, unsigned int vf,
+		  unsigned int naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_ACL_MAC_CMD) |
+				    F_FW_CMD_REQUEST |
+				    F_FW_CMD_WRITE |
+				    V_FW_ACL_MAC_CMD_PFN(pf) |
+				    V_FW_ACL_MAC_CMD_VFN(vf));
+
+	/* Note: Do not enable the ACL */
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	cmd.nmac = naddr;
+
+	switch (pf) {
+	case 3:
+		memcpy(cmd.macaddr3, addr, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(cmd.macaddr2, addr, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(cmd.macaddr1, addr, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(cmd.macaddr0, addr, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
 }
 
 /**
@@ -10693,30 +10867,98 @@ out:
 }
 
 /**
- *	t4_set_filter_mode - configure the optional components of filter tuples
+ *	t4_set_filter_cfg - set up filter mode/mask and ingress config.
  *	@adap: the adapter
- *	@mode_map: a bitmap selcting which optional filter components to enable
- * 	@sleep_ok: if true we may sleep while awaiting command completion
+ *	@mode: a bitmap selecting which optional filter components to enable
+ *	@mask: a bitmap selecting which components to enable in filter mask
+ *	@vnic_mode: the ingress config/vnic mode setting
  *
- *	Sets the filter mode by selecting the optional components to enable
- *	in filter tuples.  Returns 0 on success and a negative error if the
- *	requested mode needs more bits than are available for optional
- *	components.
+ *	Sets the filter mode and mask by selecting the optional components to
+ *	enable in filter tuples.  Returns 0 on success and a negative error if
+ *	the requested mode needs more bits than are available for optional
+ *	components.  The filter mask must be a subset of the filter mode.
  */
-int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map,
-		       bool sleep_ok)
+int t4_set_filter_cfg(struct adapter *adap, int mode, int mask, int vnic_mode)
 {
-	static u8 width[] = { 1, 3, 17, 17, 8, 8, 16, 9, 3, 1 };
+	static const uint8_t width[] = {1, 3, 17, 17, 8, 8, 16, 9, 3, 1};
+	int i, nbits, rc;
+	uint32_t param, val;
+	uint16_t fmode, fmask;
+	const int maxbits = adap->chip_params->filter_opt_len;
 
-	int i, nbits = 0;
+	if (mode != -1 || mask != -1) {
+		if (mode != -1) {
+			fmode = mode;
+			nbits = 0;
+			for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
+				if (fmode & (1 << i))
+					nbits += width[i];
+			}
+			if (nbits > maxbits) {
+				CH_ERR(adap, "optional fields in the filter "
+				    "mode (0x%x) add up to %d bits "
+				    "(must be <= %db).  Remove some fields and "
+				    "try again.\n", fmode, nbits, maxbits);
+				return -E2BIG;
+			}
 
-	for (i = S_FCOE; i <= S_FRAGMENTATION; i++)
-		if (mode_map & (1 << i))
-			nbits += width[i];
-	if (nbits > FILTER_OPT_LEN)
-		return -EINVAL;
-	t4_tp_pio_write(adap, &mode_map, 1, A_TP_VLAN_PRI_MAP, sleep_ok);
-	read_filter_mode_and_ingress_config(adap, sleep_ok);
+			/*
+			 * Hardware wants the bits to be maxed out.  Keep
+			 * setting them until there's no room for more.
+			 */
+			for (i = S_FCOE; i <= S_FRAGMENTATION; i++) {
+				if (fmode & (1 << i))
+					continue;
+				if (nbits + width[i] <= maxbits) {
+					fmode |= 1 << i;
+					nbits += width[i];
+					if (nbits == maxbits)
+						break;
+				}
+			}
+
+			fmask = fmode & adap->params.tp.filter_mask;
+			if (fmask != adap->params.tp.filter_mask) {
+				CH_WARN(adap,
+				    "filter mask will be changed from 0x%x to "
+				    "0x%x to comply with the filter mode (0x%x).\n",
+				    adap->params.tp.filter_mask, fmask, fmode);
+			}
+		} else {
+			fmode = adap->params.tp.filter_mode;
+			fmask = mask;
+			if ((fmode | fmask) != fmode) {
+				CH_ERR(adap,
+				    "filter mask (0x%x) must be a subset of "
+				    "the filter mode (0x%x).\n", fmask, fmode);
+				return -EINVAL;
+			}
+		}
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FILTER) |
+		    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_FILTER_MODE_MASK);
+		val = V_FW_PARAMS_PARAM_FILTER_MODE(fmode) |
+		    V_FW_PARAMS_PARAM_FILTER_MASK(fmask);
+		rc = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param,
+		    &val);
+		if (rc < 0)
+			return rc;
+	}
+
+	if (vnic_mode != -1) {
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_FILTER) |
+		    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_FILTER_VNIC_MODE);
+		val = vnic_mode;
+		rc = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param,
+		    &val);
+		if (rc < 0)
+			return rc;
+	}
+
+	/* Refresh. */
+	read_filter_mode_and_ingress_config(adap);
 
 	return 0;
 }

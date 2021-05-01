@@ -49,13 +49,13 @@ __FBSDID("$FreeBSD$");
 
 SDT_PROVIDER_DECLARE(opencrypto);
 SDT_PROBE_DEFINE2(opencrypto, deflate, deflate_global, entry,
-    "int", "u_int32_t");
+    "int", "uint32_t");
 SDT_PROBE_DEFINE6(opencrypto, deflate, deflate_global, bad,
     "int", "int", "int", "int", "int", "int");
 SDT_PROBE_DEFINE6(opencrypto, deflate, deflate_global, iter,
     "int", "int", "int", "int", "int", "int");
 SDT_PROBE_DEFINE2(opencrypto, deflate, deflate_global, return,
-    "int", "u_int32_t");
+    "int", "uint32_t");
 
 int window_inflate = -1 * MAX_WBITS;
 int window_deflate = -12;
@@ -81,18 +81,14 @@ crypto_zfree(void *nil, void *ptr)
  * algorithm
  */
 
-u_int32_t
-deflate_global(data, size, decomp, out)
-	u_int8_t *data;
-	u_int32_t size;
-	int decomp;
-	u_int8_t **out;
+uint32_t
+deflate_global(uint8_t *data, uint32_t size, int decomp, uint8_t **out)
 {
 	/* decomp indicates whether we compress (0) or decompress (1) */
 
 	z_stream zbuf;
-	u_int8_t *output;
-	u_int32_t count, result;
+	uint8_t *output;
+	uint32_t count, result;
 	int error, i;
 	struct deflate_buf *bufh, *bufp;
 

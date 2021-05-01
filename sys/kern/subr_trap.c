@@ -204,6 +204,7 @@ ast(struct trapframe *framep)
 	struct thread *td;
 	struct proc *p;
 	int flags, sig;
+	bool resched_sigs;
 
 	td = curthread;
 	p = td->td_proc;
@@ -316,27 +317,24 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDSIGCHK || p->p_pendingcnt > 0 ||
 	    !SIGISEMPTY(p->p_siglist)) {
 		sigfastblock_fetch(td);
-		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0 &&
-		    td->td_sigblock_val != 0) {
-			sigfastblock_setpend(td, true);
-		} else {
-			PROC_LOCK(p);
-			mtx_lock(&p->p_sigacts->ps_mtx);
-			while ((sig = cursig(td)) != 0) {
-				KASSERT(sig >= 0, ("sig %d", sig));
-				postsig(sig);
-			}
-			mtx_unlock(&p->p_sigacts->ps_mtx);
-			PROC_UNLOCK(p);
+		PROC_LOCK(p);
+		mtx_lock(&p->p_sigacts->ps_mtx);
+		while ((sig = cursig(td)) != 0) {
+			KASSERT(sig >= 0, ("sig %d", sig));
+			postsig(sig);
 		}
+		mtx_unlock(&p->p_sigacts->ps_mtx);
+		PROC_UNLOCK(p);
+		resched_sigs = true;
+	} else {
+		resched_sigs = false;
 	}
 
 	/*
 	 * Handle deferred update of the fast sigblock value, after
 	 * the postsig() loop was performed.
 	 */
-	if (td->td_pflags & TDP_SIGFASTPENDING)
-		sigfastblock_setpend(td, false);
+	sigfastblock_setpend(td, resched_sigs);
 
 #ifdef KTRACE
 	KTRUSERRET(td);

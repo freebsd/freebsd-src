@@ -104,6 +104,10 @@ typedef unsigned long sopno;
 #define	O_CH	(18L<<OPSHIFT)	/* end choice	back to OOR1		*/
 #define	OBOW	(19L<<OPSHIFT)	/* begin word	-			*/
 #define	OEOW	(20L<<OPSHIFT)	/* end word	-			*/
+#define	OBOS	(21L<<OPSHIFT)	/* begin subj.  -			*/
+#define	OEOS	(22L<<OPSHIFT)	/* end subj.	-			*/
+#define	OWBND	(23L<<OPSHIFT)	/* word bound	-			*/
+#define	ONWBND	(24L<<OPSHIFT)	/* not bound	-			*/
 
 /*
  * Structures for [] character-set representation.
@@ -182,7 +186,6 @@ struct re_guts {
 #		define	USEBOL	01	/* used ^ */
 #		define	USEEOL	02	/* used $ */
 #		define	BAD	04	/* something wrong */
-#		define	EMPTBR	010	/* empty branch present */
 	int nbol;		/* number of ^ used */
 	int neol;		/* number of $ used */
 	char *must;		/* match must contain this string */

@@ -582,7 +582,8 @@ ifc_name2unit(const char *name, int *unit)
 	int		cutoff = INT_MAX / 10;
 	int		cutlim = INT_MAX % 10;
 
-	for (cp = name; *cp != '\0' && (*cp < '0' || *cp > '9'); cp++);
+	for (cp = name; *cp != '\0' && (*cp < '0' || *cp > '9'); cp++)
+		;
 	if (*cp == '\0') {
 		*unit = -1;
 	} else if (cp[0] == '0' && cp[1] != '\0') {

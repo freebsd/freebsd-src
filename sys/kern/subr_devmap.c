@@ -74,7 +74,9 @@ devmap_dump_table(int (*prfunc)(const char *, ...))
 	prfunc("Static device mappings:\n");
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		prfunc("  0x%08jx - 0x%08jx mapped at VA 0x%08jx\n",
-		    pd->pd_pa, pd->pd_pa + pd->pd_size - 1, pd->pd_va);
+		    (uintmax_t)pd->pd_pa,
+		    (uintmax_t)(pd->pd_pa + pd->pd_size - 1),
+		    (uintmax_t)pd->pd_va);
 	}
 }
 
@@ -275,7 +277,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
-		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - L2_SIZE,
+		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE,
 		    ("Too many early devmap mappings"));
 	} else
 #endif

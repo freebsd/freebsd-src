@@ -26,52 +26,52 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2008
+.Dd December 7, 2020
 .Dt EXTATTR 2
 .Os
 .Sh NAME
-.Nm extattr_get_fd ,
-.Nm extattr_set_fd ,
 .Nm extattr_delete_fd ,
-.Nm extattr_list_fd ,
-.Nm extattr_get_file ,
-.Nm extattr_set_file ,
 .Nm extattr_delete_file ,
-.Nm extattr_list_file ,
-.Nm extattr_get_link ,
-.Nm extattr_set_link ,
 .Nm extattr_delete_link ,
-.Nm extattr_list_link
+.Nm extattr_get_fd ,
+.Nm extattr_get_file ,
+.Nm extattr_get_link ,
+.Nm extattr_list_fd ,
+.Nm extattr_list_file ,
+.Nm extattr_list_link ,
+.Nm extattr_set_fd ,
+.Nm extattr_set_file ,
+.Nm extattr_set_link
 .Nd system calls to manipulate VFS extended attributes
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/extattr.h
-.Ft ssize_t
-.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
-.Ft ssize_t
-.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
-.Ft ssize_t
-.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"
 .Ft ssize_t
+.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
 .Fn extattr_list_link "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Sh DESCRIPTION
 Named extended attributes are meta-data associated with vnodes
 representing files and directories.
@@ -101,7 +101,7 @@ Each list entry consists of a single byte containing the length
 of the attribute name, followed by the attribute name.
 The attribute name is not terminated by ASCII 0 (nul).
 The
-.Fn extattr_get_file ,
+.Fn extattr_get_file
 and
 .Fn extattr_list_file
 calls consume the
@@ -135,10 +135,10 @@ they do not follow symlinks.
 .Pp
 The
 .Fn extattr_get_fd ,
-.Fn extattr_set_fd ,
 .Fn extattr_delete_fd ,
-and
 .Fn extattr_list_fd ,
+and
+.Fn extattr_set_fd
 calls are identical to their
 .Qq Li _file
 counterparts except for the first argument.
@@ -167,27 +167,34 @@ is attribute-specific.
 .Pp
 For more information on named extended attributes, please see
 .Xr extattr 9 .
-.Sh CAVEAT
-This interface is under active development, and as such is subject to
-change as applications are adapted to use it.
-Developers are discouraged from relying on its stability.
 .Sh RETURN VALUES
 If successful, the
+.Fn extattr_get_fd ,
 .Fn extattr_get_file ,
+.Fn extattr_get_link ,
+.Fn extattr_list_fd ,
+.Fn extattr_list_file ,
+.Fn extattr_list_link ,
+.Fn extattr_set_fd ,
 .Fn extattr_set_file ,
 and
-.Fn extattr_list_file
+.Fn extattr_set_link
 calls return the number of bytes
 that were read or written from the
 .Fa data ,
-respectively, or if
+respectively.
+If
 .Fa data
 was
 .Dv NULL ,
 then
-.Fn extattr_get_file
+.Fn extattr_get_fd ,
+.Fn extattr_get_file ,
+.Fn extattr_get_link ,
+.Fn extattr_list_fd ,
+.Fn extattr_list_file ,
 and
-.Fn extattr_list_file
+.Fn extattr_list_link
 return the number of bytes available to read.
 If any of the calls are unsuccessful, the value \-1 is returned
 and the global variable
@@ -264,6 +271,10 @@ Project, and introduced in
 .Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
+.Sh CAVEATS
+This interface is under active development, and as such is subject to
+change as applications are adapted to use it.
+Developers are discouraged from relying on its stability.
 .Sh BUGS
 In earlier versions of this API, passing an empty string for the
 attribute name to

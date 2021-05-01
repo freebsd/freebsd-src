@@ -31,59 +31,54 @@ main() {
 
 	shift $(( ${OPTIND} - 1 ))
 
-	outname="$(echo ${outname} | tr '-' '_')"
+	vital="false"
 
 	case "${outname}" in
 		clibs)
+			vital="true"
 			# clibs should not have any dependencies or anything
 			# else imposed on it.
 			;;
 		caroot)
 			pkgdeps="utilities"
 			;;
+		utilities)
+			uclfile="${uclfile}"
+			vital="true"
+			;;
 		runtime)
 			outname="runtime"
-			uclfile="${uclfile}"
-			;;
-		runtime_manuals)
-			outname="${origname}"
-			pkgdeps="runtime"
-			;;
-		runtime_*)
-			outname="${origname}"
-			uclfile="${outname##*}${uclfile}"
-			pkgdeps="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
+			vital="true"
 			;;
-		jail_*)
-			outname="${origname}"
-			uclfile="${outname##*}${uclfile}"
-			pkgdeps="runtime"
-			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
-			;;
-		*_lib32_dev)
-			outname="${outname%%_lib32_dev}"
+		*-lib32_dev)
+			outname="${outname%%-lib32_dev}"
 			_descr="32-bit Libraries, Development Files"
 			pkgdeps="${outname}"
 			;;
-		*_lib32_dbg)
-			outname="${outname%%_lib32_dbg}"
+		*-lib32_dbg)
+			outname="${outname%%-lib32_dbg}"
 			_descr="32-bit Libraries, Debugging Symbols"
 			pkgdeps="${outname}"
 			;;
-		*_lib32)
-			outname="${outname%%_lib32}"
+		*-lib32)
+			outname="${outname%%-lib32}"
 			_descr="32-bit Libraries"
 			pkgdeps="${outname}"
 			;;
-		*_dev)
-			outname="${outname%%_dev}"
+		*-dev)
+			outname="${outname%%-dev}"
 			_descr="Development Files"
 			pkgdeps="${outname}"
 			;;
-		*_dbg)
-			outname="${outname%%_dbg}"
+		*-dbg)
+			outname="${outname%%-dbg}"
 			_descr="Debugging Symbols"
+			pkgdeps="${outname}"
+			;;
+		*-man)
+			outname="${outname%%-man}"
+			_descr="Manual Pages"
 			pkgdeps="${outname}"
 			;;
 		${origname})
@@ -94,10 +89,6 @@ main() {
 			outname="${outname##*}${origname}"
 			;;
 	esac
-
-	outname="${outname%%_*}"
-
-	pkgdeps="$(echo ${pkgdeps} | tr '_' '-')"
 
 	desc="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESC)"
 	comment="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_COMMENT)"
@@ -118,6 +109,7 @@ main() {
 		echo "uclfile=${uclfile}"
 		echo "desc=${desc}"
 		echo "comment=${comment}"
+		echo "vital=${vital}"
 		echo "cp ${uclsource} -> ${uclfile}"
 		echo "==============================================================="
 		echo ""
@@ -145,6 +137,7 @@ EOF
 		-e "s/%PKGNAME%/${origname}/" \
 		-e "s/%COMMENT%/${comment}/" \
 		-e "s/%DESC%/${desc}/" \
+		-e "s/%VITAL%/${vital}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
 		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
 		-e "s|%PKG_WWW%|${PKG_WWW}|" \

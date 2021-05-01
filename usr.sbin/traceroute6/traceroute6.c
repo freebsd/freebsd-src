@@ -578,8 +578,6 @@ main(int argc, char *argv[])
 	 */
 	switch (useproto) {
 	case IPPROTO_ICMPV6:
-		sndsock = rcvsock;
-		break;
 	case IPPROTO_NONE:
 	case IPPROTO_SCTP:
 	case IPPROTO_TCP:
@@ -928,7 +926,6 @@ main(int argc, char *argv[])
 	 * namespaces (e.g filesystem) is restricted (see capsicum(4)).
 	 * We must connect(2) our socket before this point.
 	 */
-
 	if (caph_enter_casper() < 0) {
 		fprintf(stderr, "caph_enter_casper: %s\n", strerror(errno));
 		exit(1);
@@ -937,6 +934,12 @@ main(int argc, char *argv[])
 	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
 	if (caph_rights_limit(sndsock, &rights) < 0) {
 		fprintf(stderr, "caph_rights_limit sndsock: %s\n",
+		    strerror(errno));
+		exit(1);
+	}
+	cap_rights_init(&rights, CAP_RECV);
+	if (caph_rights_limit(rcvsock, &rights) < 0) {
+		fprintf(stderr, "caph_rights_limit rcvsock: %s\n",
 		    strerror(errno));
 		exit(1);
 	}
@@ -1527,8 +1530,9 @@ get_uphdr(struct ip6_hdr *ip6, u_char *lim)
 }
 
 void
-capdns_open()
+capdns_open(void)
 {
+#ifdef	WITH_CASPER
 	const char *types[] = { "NAME", "ADDR" };
 	int families[1];
 	cap_channel_t *casper;
@@ -1545,6 +1549,7 @@ capdns_open()
 	if (cap_dns_family_limit(capdns, families, nitems(families)) < 0)
 		errx(1, "unable to limit access to system.dns service");
 	cap_close(casper);
+#endif	/* WITH_CASPER */
 }
 
 void

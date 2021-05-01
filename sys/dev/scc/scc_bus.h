@@ -42,7 +42,7 @@
 #define	SCC_IVAR_HWMTX		5
 
 /* Hardware class -- the SCC type. */
-#define	SCC_CLASS_SAB82532	0
+#define	SCC_CLASS_UNUSED	0
 #define	SCC_CLASS_Z8530		1
 #define	SCC_CLASS_QUICC		2
 

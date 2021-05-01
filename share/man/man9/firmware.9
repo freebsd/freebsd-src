@@ -23,13 +23,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2019
+.Dd January 27, 2021
 .Dt FIRMWARE 9
 .Os
 .Sh NAME
 .Nm firmware_register ,
 .Nm firmware_unregister ,
 .Nm firmware_get ,
+.Nm firmware_get_flags ,
 .Nm firmware_put
 .Nd firmware image loading and management
 .Sh SYNOPSIS
@@ -57,6 +58,8 @@ struct firmware {
 .Fn firmware_unregister "const char *imagename"
 .Ft "const struct firmware *"
 .Fn firmware_get "const char *imagename"
+.Ft "const struct firmware *"
+.Fn firmware_get_flags "const char *imagename" "uint32_t flags"
 .Ft void
 .Fn firmware_put "const struct firmware *fp" "int flags"
 .Sh DESCRIPTION
@@ -97,7 +100,13 @@ by calling the function
 .Fn firmware_get
 with the
 .Nm imagename
-they want as an argument.
+they want as an argument, or by calling
+.Fn firmware_get_flags
+with the
+.Nm imagename
+and
+.Nm flags
+they want as an arguments.
 If a matching image is not already registered,
 the firmware subsystem will try to load it using the
 mechanisms specified below (typically, a kernel module
@@ -134,11 +143,22 @@ if there are no pending references to the image, otherwise
 it does not unregister the image and returns EBUSY.
 .Pp
 .Fn firmware_get
-returns the requested firmware image.
+and
+.Fn firmware_get_flags
+return the requested firmware image.
+The
+.Fa flags
+argument may be set to
+.Dv FIRMWARE_GET_NOWARN
+to indicate that errors on firmware load or registration should
+only be logged in case of
+.Nm booverbose .
 If the image is not yet registered with the system,
-the function tries to load it.
+the functions try to load it.
 This involves the linker subsystem and disk access, so
 .Fn firmware_get
+or
+.Fn firmware_get_flags
 must not be called with any locks (except for
 .Va Giant ) .
 Note also that if the firmware image is loaded from a filesystem
@@ -149,9 +169,11 @@ already mounted.
 .Pp
 On success,
 .Fn firmware_get
-returns a pointer to the image description and increases the reference count
+and
+.Fn firmware_get_flags
+return a pointer to the image description and increase the reference count
 for this image.
-On failure, the function returns NULL.
+On failure, the functions return NULL.
 .Pp
 .Fn firmware_put
 drops a reference to a firmware image.
@@ -183,10 +205,12 @@ these images in memory before calling
 .Pp
 When
 .Fn firmware_get
+or
+.Fn firmware_get_flags
 does not find the requested image, it tries to load it using
 one of the available loading mechanisms.
 At the moment, there is only one, namely
-.Nm Loadable kernel modules :
+.Nm Loadable kernel modules .
 .Pp
 A firmware image named
 .Nm foo
@@ -203,6 +227,8 @@ which on most systems defaults to
 Note that in case a module contains multiple images,
 the caller should first request a
 .Fn firmware_get
+or
+.Fn firmware_get_flags
 for the first image contained in the module, followed by requests
 for the other images.
 .Sh BUILDING FIRMWARE LOADABLE MODULES

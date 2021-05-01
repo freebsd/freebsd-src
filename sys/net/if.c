@@ -37,6 +37,7 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
@@ -275,6 +276,8 @@ static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
 static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
 static void	if_siocaddmulti(void *, int);
+static void	if_link_ifnet(struct ifnet *);
+static bool	if_unlink_ifnet(struct ifnet *, bool);
 #ifdef VIMAGE
 static int	if_vmove(struct ifnet *, struct vnet *);
 #endif
@@ -306,17 +309,15 @@ VNET_DEFINE(struct ifnet **, ifindex_table);
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
- * if_index, if_indexlim, and ifindex_table) are protected by an sxlock and
- * an rwlock.  Either may be acquired shared to stablize the list, but both
- * must be acquired writable to modify the list.  This model allows us to
- * both stablize the interface list during interrupt thread processing, but
- * also to stablize it over long-running ioctls, without introducing priority
- * inversions and deadlocks.
+ * if_index, if_indexlim, and ifindex_table) are protected by an sxlock.
+ * This may be acquired to stabilise the list, or we may rely on NET_EPOCH.
  */
-struct rwlock ifnet_rwlock;
-RW_SYSINIT_FLAGS(ifnet_rw, &ifnet_rwlock, "ifnet_rw", RW_RECURSE);
 struct sx ifnet_sxlock;
 SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
+
+struct sx ifnet_detach_sxlock;
+SX_SYSINIT_FLAGS(ifnet_detach, &ifnet_detach_sxlock, "ifnet_detach_sx",
+    SX_RECURSE);
 
 /*
  * The allocation of network interfaces is a rather non-atomic affair; we
@@ -359,7 +360,8 @@ ifnet_byindex_ref(u_short idx)
 	ifp = ifnet_byindex(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING))
 		return (NULL);
-	if_ref(ifp);
+	if (!if_try_ref(ifp))
+		return (NULL);
 	return (ifp);
 }
 
@@ -472,17 +474,85 @@ vnet_if_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
+#endif
 
+static void
+if_link_ifnet(struct ifnet *ifp)
+{
+
+	IFNET_WLOCK();
+	CK_STAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
+#ifdef VIMAGE
+	curvnet->vnet_ifcnt++;
+#endif
+	IFNET_WUNLOCK();
+}
+
+static bool
+if_unlink_ifnet(struct ifnet *ifp, bool vmove)
+{
+	struct ifnet *iter;
+	int found = 0;
+
+	IFNET_WLOCK();
+	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
+		if (iter == ifp) {
+			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
+			if (!vmove)
+				ifp->if_flags |= IFF_DYING;
+			found = 1;
+			break;
+		}
+#ifdef VIMAGE
+	curvnet->vnet_ifcnt--;
+#endif
+	IFNET_WUNLOCK();
+
+	return (found);
+}
+
+#ifdef VIMAGE
 static void
 vnet_if_return(const void *unused __unused)
 {
 	struct ifnet *ifp, *nifp;
+	struct ifnet **pending;
+	int found, i;
+
+	i = 0;
+
+	/*
+	 * We need to protect our access to the V_ifnet tailq. Ordinarily we'd
+	 * enter NET_EPOCH, but that's not possible, because if_vmove() calls
+	 * if_detach_internal(), which waits for NET_EPOCH callbacks to
+	 * complete. We can't do that from within NET_EPOCH.
+	 *
+	 * However, we can also use the IFNET_xLOCK, which is the V_ifnet
+	 * read/write lock. We cannot hold the lock as we call if_vmove()
+	 * though, as that presents LOR w.r.t ifnet_sx, in_multi_sx and iflib
+	 * ctx lock.
+	 */
+	IFNET_WLOCK();
+
+	pending = malloc(sizeof(struct ifnet *) * curvnet->vnet_ifcnt,
+	    M_IFNET, M_WAITOK | M_ZERO);
 
 	/* Return all inherited interfaces to their parent vnets. */
 	CK_STAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
-		if (ifp->if_home_vnet != ifp->if_vnet)
-			if_vmove(ifp, ifp->if_home_vnet);
+		if (ifp->if_home_vnet != ifp->if_vnet) {
+			found = if_unlink_ifnet(ifp, true);
+			MPASS(found);
+
+			pending[i++] = ifp;
+		}
 	}
+	IFNET_WUNLOCK();
+
+	for (int j = 0; j < i; j++) {
+		if_vmove(pending[j], pending[j]->if_home_vnet);
+	}
+
+	free(pending, M_IFNET);
 }
 VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     vnet_if_return, NULL);
@@ -670,9 +740,18 @@ if_free(struct ifnet *ifp)
 void
 if_ref(struct ifnet *ifp)
 {
+	u_int old;
 
 	/* We don't assert the ifnet list lock here, but arguably should. */
-	refcount_acquire(&ifp->if_refcount);
+	old = refcount_acquire(&ifp->if_refcount);
+	KASSERT(old > 0, ("%s: ifp %p has 0 refs", __func__, ifp));
+}
+
+bool
+if_try_ref(struct ifnet *ifp)
+{
+	NET_EPOCH_ASSERT();
+	return (refcount_acquire_if_not_zero(&ifp->if_refcount));
 }
 
 void
@@ -912,12 +991,7 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	}
 #endif
 
-	IFNET_WLOCK();
-	CK_STAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
-#ifdef VIMAGE
-	curvnet->vnet_ifcnt++;
-#endif
-	IFNET_WUNLOCK();
+	if_link_ifnet(ifp);
 
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
@@ -1013,7 +1087,7 @@ if_purgeaddrs(struct ifnet *ifp)
 #endif /* INET */
 #ifdef INET6
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
-			in6_purgeaddr(ifa);
+			in6_purgeifaddr((struct in6_ifaddr *)ifa);
 			/* ifp_addrhead is already updated */
 			continue;
 		}
@@ -1055,9 +1129,15 @@ if_purgemaddrs(struct ifnet *ifp)
 void
 if_detach(struct ifnet *ifp)
 {
+	bool found;
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0, NULL);
+	found = if_unlink_ifnet(ifp, false);
+	if (found) {
+		sx_xlock(&ifnet_detach_sxlock);
+		if_detach_internal(ifp, 0, NULL);
+		sx_xunlock(&ifnet_detach_sxlock);
+	}
 	CURVNET_RESTORE();
 }
 
@@ -1077,46 +1157,16 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	struct ifaddr *ifa;
 	int i;
 	struct domain *dp;
- 	struct ifnet *iter;
- 	int found = 0;
 #ifdef VIMAGE
 	bool shutdown;
 
 	shutdown = VNET_IS_SHUTTING_DOWN(ifp->if_vnet);
 #endif
-	IFNET_WLOCK();
-	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
-		if (iter == ifp) {
-			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
-			if (!vmove)
-				ifp->if_flags |= IFF_DYING;
-			found = 1;
-			break;
-		}
-	IFNET_WUNLOCK();
-	if (!found) {
-		/*
-		 * While we would want to panic here, we cannot
-		 * guarantee that the interface is indeed still on
-		 * the list given we don't hold locks all the way.
-		 */
-		return (ENOENT);
-#if 0
-		if (vmove)
-			panic("%s: ifp=%p not on the ifnet tailq %p",
-			    __func__, ifp, &V_ifnet);
-		else
-			return; /* XXX this should panic as well? */
-#endif
-	}
 
 	/*
 	 * At this point we know the interface still was on the ifnet list
 	 * and we removed it so we are in a stable state.
 	 */
-#ifdef VIMAGE
-	curvnet->vnet_ifcnt--;
-#endif
 	epoch_wait_preempt(net_epoch_preempt);
 
 	/*
@@ -1298,11 +1348,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
-
-	/* Don't re-attach DYING interfaces. */
-	if (ifp->if_flags & IFF_DYING)
-		return (0);
-
 	/*
 	 * Perform interface-specific reassignment tasks, if provided by
 	 * the driver.
@@ -1346,6 +1391,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	int error;
+	bool found;
 	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1382,6 +1428,9 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 	CURVNET_RESTORE();
 
+	found = if_unlink_ifnet(ifp, true);
+	MPASS(found);
+
 	/* Move the interface into the child jail/vnet. */
 	error = if_vmove(ifp, pr->pr_vnet);
 
@@ -1399,7 +1448,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int error;
+	int error, found;
  	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1437,6 +1486,8 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	}
 
 	/* Get interface back from child jail/vnet. */
+	found = if_unlink_ifnet(ifp, true);
+	MPASS(found);
 	error = if_vmove(ifp, vnet_dst);
 	CURVNET_RESTORE();
 
@@ -1817,8 +1868,18 @@ fail:
 void
 ifa_ref(struct ifaddr *ifa)
 {
+	u_int old;
 
-	refcount_acquire(&ifa->ifa_refcnt);
+	old = refcount_acquire(&ifa->ifa_refcnt);
+	KASSERT(old > 0, ("%s: ifa %p has 0 refs", __func__, ifa));
+}
+
+int
+ifa_try_ref(struct ifaddr *ifa)
+{
+
+	NET_EPOCH_ASSERT();
+	return (refcount_acquire_if_not_zero(&ifa->ifa_refcnt));
 }
 
 static void
@@ -1840,76 +1901,6 @@ ifa_free(struct ifaddr *ifa)
 
 	if (refcount_release(&ifa->ifa_refcnt))
 		NET_EPOCH_CALL(ifa_destroy, &ifa->ifa_epoch_ctx);
-}
-
-static int
-ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
-    struct sockaddr *ia)
-{
-	struct rib_cmd_info rc;
-	struct epoch_tracker et;
-	int error;
-	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
-	struct ifnet *ifp;
-	struct ifaddr *rti_ifa = NULL;
-
-	ifp = ifa->ifa_ifp;
-
-	NET_EPOCH_ENTER(et);
-	bzero(&info, sizeof(info));
-	if (cmd != RTM_DELETE)
-		info.rti_ifp = V_loif;
-	if (cmd == RTM_ADD) {
-		/* explicitly specify (loopback) ifa */
-		if (info.rti_ifp != NULL) {
-			rti_ifa = ifaof_ifpforaddr(ifa->ifa_addr, info.rti_ifp);
-			if (rti_ifa != NULL)
-				ifa_ref(rti_ifa);
-			info.rti_ifa = rti_ifa;
-		}
-	}
-	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC | RTF_PINNED;
-	info.rti_info[RTAX_DST] = ia;
-	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
-
-	error = rib_action(ifp->if_fib, cmd, &info, &rc);
-	NET_EPOCH_EXIT(et);
-
-	if (rti_ifa != NULL)
-		ifa_free(rti_ifa);
-
-	if (error == 0 ||
-	    (cmd == RTM_ADD && error == EEXIST) ||
-	    (cmd == RTM_DELETE && (error == ENOENT || error == ESRCH)))
-		return (error);
-
-	log(LOG_DEBUG, "%s: %s failed for interface %s: %u\n",
-		__func__, otype, if_name(ifp), error);
-
-	return (error);
-}
-
-int
-ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
-{
-
-	return (ifa_maintain_loopback_route(RTM_ADD, "insertion", ifa, ia));
-}
-
-int
-ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
-{
-
-	return (ifa_maintain_loopback_route(RTM_DELETE, "deletion", ifa, ia));
-}
-
-int
-ifa_switch_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
-{
-
-	return (ifa_maintain_loopback_route(RTM_CHANGE, "switch", ifa, ia));
 }
 
 /*
@@ -3042,8 +3033,12 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		goto out_noref;
 	case SIOCIFDESTROY:
 		error = priv_check(td, PRIV_NET_IFDESTROY);
-		if (error == 0)
+
+		if (error == 0) {
+			sx_xlock(&ifnet_detach_sxlock);
 			error = if_clone_destroy(ifr->ifr_name);
+			sx_xunlock(&ifnet_detach_sxlock);
+		}
 		goto out_noref;
 
 	case SIOCIFGCLONERS:
@@ -3232,8 +3227,8 @@ ifconf(u_long cmd, caddr_t data)
 	struct sbuf *sb;
 	int error, full = 0, valid_len, max_len;
 
-	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
-	max_len = MAXPHYS - 1;
+	/* Limit initial buffer size to maxphys to avoid DoS from userspace. */
+	max_len = maxphys - 1;
 
 	/* Prevent hostile input from being able to crash the system */
 	if (ifc->ifc_len <= 0)
@@ -3974,15 +3969,35 @@ if_initname(struct ifnet *ifp, const char *name, int unit)
 		strlcpy(ifp->if_xname, name, IFNAMSIZ);
 }
 
+static int
+if_vlog(struct ifnet *ifp, int pri, const char *fmt, va_list ap)
+{
+	char if_fmt[256];
+
+	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", ifp->if_xname, fmt);
+	vlog(pri, if_fmt, ap);
+	return (0);
+}
+
+
 int
 if_printf(struct ifnet *ifp, const char *fmt, ...)
 {
-	char if_fmt[256];
 	va_list ap;
 
-	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", ifp->if_xname, fmt);
 	va_start(ap, fmt);
-	vlog(LOG_INFO, if_fmt, ap);
+	if_vlog(ifp, LOG_INFO, fmt, ap);
+	va_end(ap);
+	return (0);
+}
+
+int
+if_log(struct ifnet *ifp, int pri, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	if_vlog(ifp, pri, fmt, ap);
 	va_end(ap);
 	return (0);
 }
@@ -4061,6 +4076,14 @@ if_deregister_com_alloc(u_char type)
 	    ("if_deregister_com_alloc: %d not registered", type));
 	KASSERT(if_com_free[type] != NULL,
 	    ("if_deregister_com_alloc: %d free not registered", type));
+
+	/*
+	 * Ensure all pending EPOCH(9) callbacks have been executed. This
+	 * fixes issues about late invocation of if_destroy(), which leads
+	 * to memory leak from if_com_alloc[type] allocated if_l2com.
+	 */
+	epoch_drain_callbacks(net_epoch_preempt);
+
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
 }

@@ -379,20 +379,9 @@ axgbe_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 	axgbe_printf(1, "--> %s: flush txq %d pidx %d cur %d dirty %d\n",
 	    __func__, txqid, pidx, ring->cur, ring->dirty);
 
-	MPASS(ring->cur == pidx);
-	if (__predict_false(ring->cur != pidx)) {
-		axgbe_error("--> %s: cur(%d) ne pidx(%d)\n", __func__,
-		    ring->cur, pidx);
-	}
-	
-	wmb();
-
 	/* Ring Doorbell */
-	if (XGMAC_DMA_IOREAD(channel, DMA_CH_TDTR_LO) !=
-	    lower_32_bits(rdata->rdata_paddr)) {
-		XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
-	    	    lower_32_bits(rdata->rdata_paddr));
-	}
+	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
+	    lower_32_bits(rdata->rdata_paddr));
 }
 
 static int
@@ -466,6 +455,7 @@ axgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 	unsigned int inte;
 	uint8_t	count = iru->iru_count;
 	int i, j;
+	bool config_intr = false;
 
 	axgbe_printf(1, "--> %s: rxq %d fl %d pidx %d count %d ring cur %d "
 	    "dirty %d\n", __func__, iru->iru_qsidx, iru->iru_flidx,
@@ -473,7 +463,7 @@ axgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 
 	for (i = iru->iru_pidx, j = 0 ; j < count ; i++, j++) {
 
-		if (i == XGBE_RX_DESC_CNT_DEFAULT)
+		if (i == sc->scctx->isc_nrxd[0])
 			i = 0;
 
 		rdata = XGBE_GET_DESC_DATA(ring, i);
@@ -485,29 +475,42 @@ axgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 			    "pidx %d\n", __func__, ring->cur, ring->dirty, j, i);
 		}
 
-		/* Assuming split header is enabled */
-		if (iru->iru_flidx == 0) {
+		if (pdata->sph_enable) {
+			if (iru->iru_flidx == 0) {
 
-			/* Fill header/buffer1 address */
-			rdesc->desc0 =
-			    cpu_to_le32(lower_32_bits(iru->iru_paddrs[j]));
-			rdesc->desc1 =
-			    cpu_to_le32(upper_32_bits(iru->iru_paddrs[j]));
+				/* Fill header/buffer1 address */
+				rdesc->desc0 =
+				    cpu_to_le32(lower_32_bits(iru->iru_paddrs[j]));
+				rdesc->desc1 =
+				    cpu_to_le32(upper_32_bits(iru->iru_paddrs[j]));
+			} else {
+
+				/* Fill data/buffer2 address */
+				rdesc->desc2 =
+				    cpu_to_le32(lower_32_bits(iru->iru_paddrs[j]));
+				rdesc->desc3 =
+				    cpu_to_le32(upper_32_bits(iru->iru_paddrs[j]));
+
+				config_intr = true;
+			}
 		} else {
-
-			/* Fill data/buffer2 address */
-			rdesc->desc2 =
+			/* Fill header/buffer1 address */
+			rdesc->desc0 = rdesc->desc2 =
 			    cpu_to_le32(lower_32_bits(iru->iru_paddrs[j]));
-			rdesc->desc3 =
+			rdesc->desc1 = rdesc->desc3 =
 			    cpu_to_le32(upper_32_bits(iru->iru_paddrs[j]));
+
+			config_intr = true;
+		}
+
+		if (config_intr) {
 
 			if (!rx_usecs && !rx_frames) {
 				/* No coalescing, interrupt for every descriptor */
 				inte = 1;
 			} else {
 				/* Set interrupt based on Rx frame coalescing setting */
-				if (rx_frames &&
-				    !(((ring->dirty + 1) &(ring->rdesc_count - 1)) % rx_frames))
+				if (rx_frames && !((ring->dirty + 1) % rx_frames))
 					inte = 1;
 				else
 					inte = 0;
@@ -520,6 +523,8 @@ axgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 			wmb();
 
 			ring->dirty = ((ring->dirty + 1) & (ring->rdesc_count - 1));
+
+			config_intr = false;
 		}
 	}
 
@@ -539,15 +544,16 @@ axgbe_isc_rxd_flush(void *arg, uint16_t qsidx, uint8_t flidx, qidx_t pidx)
 	axgbe_printf(1, "--> %s: rxq %d fl %d pidx %d cur %d dirty %d\n",
 	    __func__, qsidx, flidx, pidx, ring->cur, ring->dirty);
 
-	if (flidx == 1) {
+	rdata = XGBE_GET_DESC_DATA(ring, pidx);
 
-		rdata = XGBE_GET_DESC_DATA(ring, pidx);
-
+	/*
+	 * update RX descriptor tail pointer in hardware to indicate
+	 * that new buffers are present in the allocated memory region
+	 */
+	if (!pdata->sph_enable || flidx == 1) {
 		XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
 		    lower_32_bits(rdata->rdata_paddr));
 	}
-
-	wmb();
 }
 
 static int
@@ -560,11 +566,16 @@ axgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t idx, qidx_t budget)
 	struct xgbe_ring_data   *rdata;
 	struct xgbe_ring_desc   *rdesc;
 	unsigned int cur;
-	int count;
+	int count = 0;
 	uint8_t incomplete = 1, context_next = 0, running = 0;
 
 	axgbe_printf(1, "--> %s: rxq %d idx %d budget %d cur %d dirty %d\n",
 	    __func__, qsidx, idx, budget, ring->cur, ring->dirty);
+
+	if (__predict_false(test_bit(XGBE_DOWN, &pdata->dev_state))) {
+		axgbe_printf(0, "%s: Polling when XGBE_DOWN\n", __func__);
+		return (count);
+	}
 
 	cur = ring->cur;
 	for (count = 0; count <= budget; ) {
@@ -609,11 +620,14 @@ static unsigned int
 xgbe_rx_buf1_len(struct xgbe_prv_data *pdata, struct xgbe_ring_data *rdata,
     struct xgbe_packet_data *packet)
 {
+	unsigned int ret = 0;
 
-	/* Always zero if not the first descriptor */
-	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, FIRST)) {
-		axgbe_printf(1, "%s: Not First\n", __func__);
-		return (0);
+	if (pdata->sph_enable) {
+		/* Always zero if not the first descriptor */
+		if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, FIRST)) {
+			axgbe_printf(1, "%s: Not First\n", __func__);
+			return (0);
+		}
 	}
 
 	/* First descriptor with split header, return header length */
@@ -623,21 +637,33 @@ xgbe_rx_buf1_len(struct xgbe_prv_data *pdata, struct xgbe_ring_data *rdata,
 	}
 
 	/* First descriptor but not the last descriptor and no split header,
-	 * so the full buffer was used
+	 * so the full buffer was used, 256 represents the hardcoded value of
+	 * a max header split defined in the hardware
 	 */
 	if (!XGMAC_GET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES, LAST)) {
 		axgbe_printf(1, "%s: Not last %d\n", __func__,
 		    pdata->rx_buf_size);
-		return (256);
+		if (pdata->sph_enable) {
+			return (256);
+		} else {
+			return (pdata->rx_buf_size);
+		}
 	}
 
 	/* First descriptor and last descriptor and no split header, so
-	 * calculate how much of the buffer was used
+	 * calculate how much of the buffer was used, we can return the
+	 * segment length or the remaining bytes of the packet
 	 */
 	axgbe_printf(1, "%s: pkt_len %d buf_size %d\n", __func__, rdata->rx.len,
 	    pdata->rx_buf_size);
 
-	return (min_t(unsigned int, 256, rdata->rx.len));
+	if (pdata->sph_enable) {
+		ret = min_t(unsigned int, 256, rdata->rx.len);
+	} else {
+		ret = rdata->rx.len;
+	}
+
+	return (ret);
 }
 
 static unsigned int
@@ -712,8 +738,10 @@ read_again:
 			/* Get the data length in the descriptor buffers */
 			buf1_len = xgbe_rx_buf1_len(pdata, rdata, packet);
 			len += buf1_len;
-			buf2_len = xgbe_rx_buf2_len(pdata, rdata, packet, len);
-			len += buf2_len;
+			if (pdata->sph_enable) {
+				buf2_len = xgbe_rx_buf2_len(pdata, rdata, packet, len);
+				len += buf2_len;
+			}
 		} else
 			buf1_len = buf2_len = 0;
 
@@ -724,8 +752,10 @@ read_again:
 
 		axgbe_add_frag(pdata, ri, prev_cur, buf1_len, i, 0);
 		i++;
-		axgbe_add_frag(pdata, ri, prev_cur, buf2_len, i, 1);
-		i++;
+		if (pdata->sph_enable) {
+			axgbe_add_frag(pdata, ri, prev_cur, buf2_len, i, 1);
+			i++;
+		}
 
 		if (!last || context_next)
 			goto read_again;
@@ -758,7 +788,7 @@ read_again:
 	}
 
 	if (__predict_false(len == 0))
-		axgbe_error("%s: Zero len packet\n", __func__);
+		axgbe_printf(1, "%s: Discarding Zero len packet\n", __func__);
 
 	if (__predict_false(len > max_len))
 		axgbe_error("%s: Big packet %d/%d\n", __func__, len, max_len);

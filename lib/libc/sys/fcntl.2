@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2020
+.Dd January 6, 2021
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -196,7 +196,7 @@ The flags for the
 .Dv F_GETFL
 and
 .Dv F_SETFL
-flags are as follows:
+commands are as follows:
 .Bl -tag -width O_NONBLOCKX
 .It Dv O_NONBLOCK
 Non-blocking I/O; if no data is available to a
@@ -225,6 +225,21 @@ Enable the
 signal to be sent to the process group
 when I/O is possible, e.g.,
 upon availability of data to be read.
+.It Dv O_SYNC
+Enable synchronous writes.
+Corresponds to the
+.Dv O_SYNC
+flag of
+.Xr open 2 .
+.Dv O_FSYNC
+is an historical synonym for
+.Dv O_SYNC .
+.It Dv O_DSYNC
+Enable synchronous data writes.
+Corresponds to the
+.Dv O_DSYNC
+flag of
+.Xr open 2 .
 .El
 .Pp
 The seals that may be applied with

@@ -194,11 +194,6 @@ tried first; if failed or not implemented, power reset is tried.
 If you have detached or suspended a child device explicitly and then
 do a reset, the child device will end up attached.
 .El
-.Sh BUGS
-Currently there is no administrative flag to prevent re-attach or resume
-of the manually detached or suspended devices after reset.
-Similarly, there is no flag to prevent un-suspending of the the manually
-suspended devices after system resume.
 .Sh SEE ALSO
 .Xr devctl 3 ,
 .Xr devinfo 8
@@ -207,3 +202,8 @@ The
 .Nm
 utility first appeared in
 .Fx 10.3 .
+.Sh BUGS
+Currently there is no administrative flag to prevent re-attach or resume
+of the manually detached or suspended devices after reset.
+Similarly, there is no flag to prevent un-suspending of the the manually
+suspended devices after system resume.

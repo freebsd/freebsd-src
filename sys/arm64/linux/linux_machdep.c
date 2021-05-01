@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sdt.h>
 
+#include <security/audit/audit.h>
+
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
@@ -50,7 +52,7 @@ __FBSDID("$FreeBSD$");
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 /* DTrace probes */
-LIN_SDT_PROBE_DEFINE0(machdep, linux_set_upcall_kse, todo);
+LIN_SDT_PROBE_DEFINE0(machdep, linux_set_upcall, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_mmap2, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_rt_sigsuspend, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_sigaltstack, todo);
@@ -78,15 +80,16 @@ linux_execve(struct thread *td, struct linux_execve_args *uap)
 	}
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
+	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
 	return (error);
 }
 
-/* LINUXTODO: implement (or deduplicate) arm64 linux_set_upcall_kse */
+/* LINUXTODO: implement (or deduplicate) arm64 linux_set_upcall */
 int
-linux_set_upcall_kse(struct thread *td, register_t stack)
+linux_set_upcall(struct thread *td, register_t stack)
 {
 
-	LIN_SDT_PROBE0(machdep, linux_set_upcall_kse, todo);
+	LIN_SDT_PROBE0(machdep, linux_set_upcall, todo);
 	return (EDOOFUS);
 }
 

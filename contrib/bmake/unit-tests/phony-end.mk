@@ -1,4 +1,4 @@
-# $Id: phony-end.mk,v 1.1.1.1 2014/08/30 18:57:18 sjg Exp $
+# $NetBSD: phony-end.mk,v 1.2 2020/10/24 08:34:59 rillig Exp $
 
 all ok also.ok bug phony:
 	@echo '${.TARGET .PREFIX .IMPSRC:L:@v@$v="${$v}"@}'

@@ -335,10 +335,10 @@ int nfsv4_loadattr(struct nfsrv_descript *, vnode_t,
     struct nfsv3_pathconf *, struct statfs *, struct nfsstatfs *,
     struct nfsfsinfo *, NFSACL_T *,
     int, int *, u_int32_t *, u_int32_t *, NFSPROC_T *, struct ucred *);
-int nfsv4_lock(struct nfsv4lock *, int, int *, void *, struct mount *);
+int nfsv4_lock(struct nfsv4lock *, int, int *, struct mtx *, struct mount *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
-void nfsv4_getref(struct nfsv4lock *, int *, void *, struct mount *);
+void nfsv4_getref(struct nfsv4lock *, int *, struct mtx *, struct mount *);
 int nfsv4_getref_nonblock(struct nfsv4lock *);
 int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
@@ -355,7 +355,7 @@ void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
     struct nfsclsession *, int);
 int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
     int *, uint32_t *, uint8_t *);
-void nfsv4_freeslot(struct nfsclsession *, int);
+void nfsv4_freeslot(struct nfsclsession *, int, bool);
 struct ucred *nfsrv_getgrpscred(struct ucred *);
 struct nfsdevice *nfsv4_findmirror(struct nfsmount *);
 void nfsm_set(struct nfsrv_descript *, u_int);
@@ -561,6 +561,7 @@ int nfsrpc_listextattr(vnode_t, uint64_t *, struct uio *, size_t *, bool *,
     struct nfsvattr *, int *, struct ucred *, NFSPROC_T *);
 int nfsrpc_rmextattr(vnode_t, const char *, struct nfsvattr *, int *,
     struct ucred *, NFSPROC_T *);
+void nfsrpc_bindconnsess(CLIENT *, void *, struct ucred *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
@@ -603,6 +604,7 @@ void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
 void nfscl_lockderef(struct nfsv4lock *);
+void nfscl_delegreturnvp(vnode_t, NFSPROC_T *);
 void nfscl_docb(struct nfsrv_descript *, NFSPROC_T *);
 void nfscl_releasealllocks(struct nfsclclient *, vnode_t, NFSPROC_T *, void *,
     int);
@@ -753,6 +755,8 @@ int nfsvno_rmxattr(struct nfsrv_descript *, struct vnode *, char *,
     struct ucred *, struct thread *);
 int nfsvno_listxattr(struct vnode *, uint64_t, struct ucred *, struct thread *,
     u_char **, uint32_t *, bool *);
+void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
+    int);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);

@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
-#include <net/route/route_var.h>
 #include <net/radix.h>
 #include <net/vnet.h>
 
@@ -177,7 +176,8 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 
 	/* Sanity checks */
 	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6->ip6_hlim != 255) {
+	if (__predict_false(ip6->ip6_hlim != 255)) {
+		ICMP6STAT_INC(icp6s_invlhlim);
 		nd6log((LOG_ERR,
 		    "%s: invalid hlim (%d) from %s to %s on %s\n", __func__,
 		    ip6->ip6_hlim, ip6_sprintf(ip6bufs, &ip6->ip6_src),
@@ -376,7 +376,8 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto freeit;
 
 	ip6 = mtod(m, struct ip6_hdr *);
-	if (ip6->ip6_hlim != 255) {
+	if (__predict_false(ip6->ip6_hlim != 255)) {
+		ICMP6STAT_INC(icp6s_invlhlim);
 		nd6log((LOG_ERR,
 		    "%s: invalid hlim (%d) from %s to %s on %s\n", __func__,
 		    ip6->ip6_hlim, ip6_sprintf(ip6bufs, &ip6->ip6_src),
@@ -696,10 +697,11 @@ defrouter_addreq(struct nd_defrouter *new)
 
 	NET_EPOCH_ASSERT();
 	error = rib_action(fibnum, RTM_ADD, &info, &rc);
-	if (rc.rc_rt != NULL)
-		rt_routemsg(RTM_ADD, rc.rc_rt, new->ifp, 0, fibnum);
-	if (error == 0)
+	if (error == 0) {
+		struct nhop_object *nh = nhop_select_func(rc.rc_nh_new, 0);
+		rt_routemsg(RTM_ADD, rc.rc_rt, nh, fibnum);
 		new->installed = 1;
+	}
 }
 
 /*
@@ -715,6 +717,7 @@ defrouter_delreq(struct nd_defrouter *dr)
 	struct rib_cmd_info rc;
 	struct epoch_tracker et;
 	unsigned int fibnum;
+	int error;
 
 	bzero(&def, sizeof(def));
 	bzero(&mask, sizeof(mask));
@@ -733,9 +736,11 @@ defrouter_delreq(struct nd_defrouter *dr)
 	info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&mask;
 
 	NET_EPOCH_ENTER(et);
-	rib_action(fibnum, RTM_DELETE, &info, &rc);
-	if (rc.rc_rt != NULL)
-		rt_routemsg(RTM_DELETE, rc.rc_rt, dr->ifp, 0, fibnum);
+	error = rib_action(fibnum, RTM_DELETE, &info, &rc);
+	if (error == 0) {
+		struct nhop_object *nh = nhop_select_func(rc.rc_nh_old, 0);
+		rt_routemsg(RTM_DELETE, rc.rc_rt, nh, fibnum);
+	}
 	NET_EPOCH_EXIT(et);
 
 	dr->installed = 0;
@@ -2014,72 +2019,61 @@ restart:
 	ND6_ONLINK_UNLOCK();
 }
 
+/*
+ * Add or remove interface route specified by @dst, @netmask and @ifp.
+ * ifa can be NULL.
+ * Returns 0 on success
+ */
+static int
+nd6_prefix_rtrequest(uint32_t fibnum, int cmd, struct sockaddr_in6 *dst,
+    struct sockaddr_in6 *netmask, struct ifnet *ifp, struct ifaddr *ifa)
+{
+	struct epoch_tracker et;
+	int error;
+
+	/* Prepare gateway */
+	struct sockaddr_dl_short sdl = {
+		.sdl_family = AF_LINK,
+		.sdl_len = sizeof(struct sockaddr_dl_short),
+		.sdl_type = ifp->if_type,
+		.sdl_index = ifp->if_index,
+	};
+
+	struct rt_addrinfo info = {
+		.rti_ifa = ifa,
+		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
+		.rti_info = {
+			[RTAX_DST] = (struct sockaddr *)dst,
+			[RTAX_NETMASK] = (struct sockaddr *)netmask,
+			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
+		},
+	};
+	/* Don't set additional per-gw filters on removal */
+
+	NET_EPOCH_ENTER(et);
+	error = rib_handle_ifaddr_info(fibnum, cmd, &info);
+	NET_EPOCH_EXIT(et);
+	return (error);
+}
+
 static int
 nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
-	struct sockaddr_dl_short sdl;
-	struct sockaddr_in6 mask6;
-	u_long rtflags;
-	int error, a_failure, fibnum, maxfib;
+	int error;
 
-	bzero(&mask6, sizeof(mask6));
-	mask6.sin6_len = sizeof(mask6);
-	mask6.sin6_addr = pr->ndpr_mask;
-	rtflags = (ifa->ifa_flags & ~IFA_RTSELF) | RTF_UP;
+	struct sockaddr_in6 mask6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_addr = pr->ndpr_mask,
+	};
+	struct sockaddr_in6 *pmask6 = (pr->ndpr_plen != 128) ? &mask6 : NULL;
 
-	bzero(&sdl, sizeof(struct sockaddr_dl_short));
-	sdl.sdl_len = sizeof(struct sockaddr_dl_short);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_type = ifa->ifa_ifp->if_type;
-	sdl.sdl_index = ifa->ifa_ifp->if_index;
-
-	if(V_rt_add_addr_allfibs) {
-		fibnum = 0;
-		maxfib = rt_numfibs;
-	} else {
-		fibnum = ifa->ifa_ifp->if_fib;
-		maxfib = fibnum + 1;
-	}
-	a_failure = 0;
-	for (; fibnum < maxfib; fibnum++) {
-		struct rt_addrinfo info;
-		struct rib_cmd_info rc;
-
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_flags = rtflags;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&pr->ndpr_prefix;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&sdl;
-		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&mask6;
-
-		NET_EPOCH_ASSERT();
-		error = rib_action(fibnum, RTM_ADD, &info, &rc);
-		if (error != 0) {
-			char ip6buf[INET6_ADDRSTRLEN];
-			char ip6bufg[INET6_ADDRSTRLEN];
-			char ip6bufm[INET6_ADDRSTRLEN];
-			struct sockaddr_in6 *sin6;
-
-			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-			nd6log((LOG_ERR, "%s: failed to add "
-			    "route for a prefix (%s/%d) on %s, gw=%s, mask=%s, "
-			    "flags=%lx errno = %d\n", __func__,
-			    ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
-			    pr->ndpr_plen, if_name(pr->ndpr_ifp),
-			    ip6_sprintf(ip6bufg, &sin6->sin6_addr),
-			    ip6_sprintf(ip6bufm, &mask6.sin6_addr),
-			    rtflags, error));
-
-			/* Save last error to return, see rtinit(). */
-			a_failure = error;
-			continue;
-		}
-
+	error = nd6_prefix_rtrequest(pr->ndpr_ifp->if_fib, RTM_ADD,
+	    &pr->ndpr_prefix, pmask6, pr->ndpr_ifp, ifa);
+	if (error == 0)
 		pr->ndpr_stateflags |= NDPRF_ONLINK;
-		rt_routemsg(RTM_ADD, rc.rc_rt, pr->ndpr_ifp, 0, fibnum);
-	}
 
-	/* Return the last error we got. */
-	return (a_failure);
+	return (error);
 }
 
 static int
@@ -2171,11 +2165,10 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	int error = 0;
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct nd_prefix *opr;
-	struct sockaddr_in6 sa6, mask6;
+	struct sockaddr_in6 sa6;
 	char ip6buf[INET6_ADDRSTRLEN];
 	uint64_t genid;
-	int fibnum, maxfib, a_failure;
-	struct epoch_tracker et;
+	int a_failure;
 
 	ND6_ONLINK_LOCK_ASSERT();
 	ND6_UNLOCK_ASSERT();
@@ -2183,49 +2176,16 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0)
 		return (EEXIST);
 
-	bzero(&sa6, sizeof(sa6));
-	sa6.sin6_family = AF_INET6;
-	sa6.sin6_len = sizeof(sa6);
-	bcopy(&pr->ndpr_prefix.sin6_addr, &sa6.sin6_addr,
-	    sizeof(struct in6_addr));
-	bzero(&mask6, sizeof(mask6));
-	mask6.sin6_family = AF_INET6;
-	mask6.sin6_len = sizeof(sa6);
-	bcopy(&pr->ndpr_mask, &mask6.sin6_addr, sizeof(struct in6_addr));
+	struct sockaddr_in6 mask6 = {
+		.sin6_family = AF_INET6,
+		.sin6_len = sizeof(struct sockaddr_in6),
+		.sin6_addr = pr->ndpr_mask,
+	};
+	struct sockaddr_in6 *pmask6 = (pr->ndpr_plen != 128) ? &mask6 : NULL;
 
-	if (V_rt_add_addr_allfibs) {
-		fibnum = 0;
-		maxfib = rt_numfibs;
-	} else {
-		fibnum = ifp->if_fib;
-		maxfib = fibnum + 1;
-	}
+	error = nd6_prefix_rtrequest(ifp->if_fib, RTM_DELETE,
+	    &pr->ndpr_prefix, pmask6, ifp, NULL);
 
-	a_failure = 0;
-	NET_EPOCH_ENTER(et);
-	for (; fibnum < maxfib; fibnum++) {
-		struct rt_addrinfo info;
-		struct rib_cmd_info rc;
-
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_flags = RTF_GATEWAY;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&sa6;
-		info.rti_info[RTAX_GATEWAY] = NULL;
-		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&mask6;
-
-		NET_EPOCH_ASSERT();
-		error = rib_action(fibnum, RTM_DELETE, &info, &rc);
-		if (error != 0) {
-			/* Save last error to return, see rtinit(). */
-			a_failure = error;
-			continue;
-		}
-
-		/* report route deletion to the routing socket. */
-		rt_routemsg(RTM_DELETE, rc.rc_rt, ifp, 0, fibnum);
-	}
-	NET_EPOCH_EXIT(et);
-	error = a_failure;
 	a_failure = 1;
 	if (error == 0) {
 		pr->ndpr_stateflags &= ~NDPRF_ONLINK;
@@ -2275,7 +2235,7 @@ restart:
 		/* XXX: can we still set the NDPRF_ONLINK flag? */
 		nd6log((LOG_ERR,
 		    "%s: failed to delete route: %s/%d on %s (errno=%d)\n",
-		    __func__, ip6_sprintf(ip6buf, &sa6.sin6_addr),
+		    __func__, ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
 		    pr->ndpr_plen, if_name(ifp), error));
 	}
 
@@ -2458,7 +2418,7 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		return;
 
 	/* XXX Do we really need to walk any but the default FIB? */
-	rt_foreach_fib_walk_del(AF_INET6, rt6_deleteroute, (void *)gateway);
+	rib_foreach_table_walk_del(AF_INET6, rt6_deleteroute, (void *)gateway);
 }
 
 int

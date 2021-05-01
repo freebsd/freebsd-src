@@ -68,6 +68,7 @@ extern "C" {
  */
 #define	ZFS_ACLTYPE_OFF			0
 #define	ZFS_ACLTYPE_POSIX		1
+#define	ZFS_ACLTYPE_NFSV4		2
 
 /*
  * Field manipulation macros for the drr_versioninfo field of the
@@ -524,7 +525,6 @@ typedef struct zfs_useracct {
 } zfs_useracct_t;
 
 #define	ZFSDEV_MAX_MINOR	(1 << 16)
-#define	ZFS_MIN_MINOR	(ZFSDEV_MAX_MINOR + 1)
 
 #define	ZPOOL_EXPORT_AFTER_SPLIT 0x1
 

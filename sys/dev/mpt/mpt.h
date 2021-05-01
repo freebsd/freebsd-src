@@ -668,7 +668,7 @@ struct mpt_softc {
 	bus_addr_t		request_phys;	/* BusAddr of request memory */
 
 	uint32_t		max_seg_cnt;	/* calculated after IOC facts */
-	uint32_t		max_cam_seg_cnt;/* calculated from MAXPHYS*/
+	uint32_t		max_cam_seg_cnt;/* calculated from maxphys */
 
 	/*
 	 * Hardware management

@@ -121,6 +121,8 @@ cam/ctl/ctl_error.c		optional ctl
 cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
 cam/mmc/mmc_xpt.c		optional scbus mmccam
+cam/mmc/mmc_sim.c		optional scbus mmccam
+cam/mmc/mmc_sim_if.m		optional scbus mmccam
 cam/mmc/mmc_da.c		optional scbus mmccam da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_pass.c		optional pass
@@ -217,8 +219,9 @@ contrib/openzfs/module/os/freebsd/zfs/zfs_dir.c		optional zfs compile-with "${ZF
 contrib/openzfs/module/os/freebsd/zfs/zfs_file_os.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zfs_ioctl_compat.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zfs_ioctl_os.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/os/freebsd/zfs/zfs_racct.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zfs_vfsops.c		optional zfs compile-with "${ZFS_C}"
-contrib/openzfs/module/os/freebsd/zfs/zfs_vnops.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/os/freebsd/zfs/zfs_vnops_os.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zfs_znode.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zio_crypt.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zvol_os.c		optional zfs compile-with "${ZFS_C}"
@@ -311,6 +314,8 @@ contrib/openzfs/module/zfs/uberblock.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/unique.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_cache.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/vdev_draid.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/vdev_draid_rand.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect_births.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect_mapping.c		optional zfs compile-with "${ZFS_C}"
@@ -347,6 +352,7 @@ contrib/openzfs/module/zfs/zfs_ratelimit.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_replay.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_rlock.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zfs_sa.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/zfs_vnops.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zstd/zfs_zstd.c		optional zfs zstdio compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zil.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/zio.c		optional zfs compile-with "${ZFS_C}"
@@ -734,6 +740,12 @@ crypto/chacha20/chacha.c	standard
 crypto/chacha20/chacha-sw.c	optional crypto | ipsec | ipsec_support
 crypto/des/des_ecb.c		optional netsmb
 crypto/des/des_setkey.c		optional netsmb
+crypto/openssl/ossl.c		optional ossl
+crypto/openssl/ossl_chacha20.c	optional ossl
+crypto/openssl/ossl_poly1305.c	optional ossl
+crypto/openssl/ossl_sha1.c	optional ossl
+crypto/openssl/ossl_sha256.c	optional ossl
+crypto/openssl/ossl_sha512.c	optional ossl
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
 	ipsec | ipsec_support | !random_loadable | wlan_ccmp
@@ -845,43 +857,43 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
 dev/al_eth/al_eth.c				optional al_eth	fdt	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 dev/al_eth/al_init_eth_lm.c			optional al_eth	fdt	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 dev/al_eth/al_init_eth_kr.c			optional al_eth	fdt	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_iofic.c		optional al_iofic	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_serdes_25g.c		optional al_serdes	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_serdes_hssp.c		optional al_serdes	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_udma_config.c		optional al_udma	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_udma_debug.c		optional al_udma	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_udma_iofic.c		optional al_udma	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_hal_udma_main.c		optional al_udma	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/al_serdes.c			optional al_serdes	\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/eth/al_hal_eth_kr.c		optional al_eth		\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 contrib/alpine-hal/eth/al_hal_eth_main.c	optional al_eth		\
 	no-depend	\
-	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
+	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${.IMPSRC}"
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
@@ -906,7 +918,6 @@ dev/amr/amr_linux.c		optional amr compat_linux
 dev/amr/amr_pci.c		optional amr pci
 dev/an/if_an.c			optional an
 dev/an/if_an_isa.c		optional an isa
-dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
 #
 dev/ata/ata_if.m		optional ata | atacore
@@ -914,7 +925,6 @@ dev/ata/ata-all.c		optional ata | atacore
 dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
 dev/ata/ata-sata.c		optional ata | atacore
-dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
@@ -1312,8 +1322,8 @@ dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
-dev/backlight/backlight_if.m		optional backlight
-dev/backlight/backlight.c		optional backlight
+dev/backlight/backlight_if.m		optional backlight | compat_linuxkpi
+dev/backlight/backlight.c		optional backlight | compat_linuxkpi
 dev/bce/if_bce.c			optional bce
 dev/bfe/if_bfe.c			optional bfe
 dev/bge/if_bge.c			optional bge
@@ -1404,6 +1414,7 @@ dev/cadence/if_cgem.c		optional cgem fdt
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
+dev/cardbus/power_if.m		standard
 dev/cas/if_cas.c		optional cas
 dev/cfi/cfi_bus_fdt.c		optional cfi fdt
 dev/cfi/cfi_bus_nexus.c		optional cfi
@@ -1412,8 +1423,6 @@ dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
 dev/chromebook_platform/chromebook_platform.c	optional chromebook_platform
 dev/ciss/ciss.c			optional ciss
-dev/cmx/cmx.c			optional cmx
-dev/cmx/cmx_pccard.c		optional cmx pccard
 dev/cpufreq/ichss.c		optional cpufreq pci
 dev/cxgb/cxgb_main.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -1488,7 +1497,7 @@ dev/cxgbe/cudbg/fastlz_api.c	optional cxgbe \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 t4fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t4fw_cfg.fw:t4fw_cfg t4fw_cfg_uwire.fw:t4fw_cfg_uwire t4fw.fw:t4fw -mt4fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t4fw_cfg.c"
 t4fw_cfg.fwo		optional cxgbe					\
 	dependency	"t4fw_cfg.fw"					\
@@ -1516,13 +1525,13 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.25.0.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.25.0.40.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
 t5fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t5fw_cfg.c"
 t5fw_cfg.fwo		optional cxgbe					\
 	dependency	"t5fw_cfg.fw"					\
@@ -1550,13 +1559,13 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.25.0.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.25.0.40.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
 t6fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t6fw_cfg.fw:t6fw_cfg t6fw_cfg_uwire.fw:t6fw_cfg_uwire t6fw.fw:t6fw -mt6fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t6fw_cfg.c"
 t6fw_cfg.fwo		optional cxgbe					\
 	dependency	"t6fw_cfg.fw"					\
@@ -1584,7 +1593,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.25.0.0.bin"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.25.0.40.bin"	\
 	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -1811,9 +1820,23 @@ dev/gpio/gpio_if.m		optional gpio
 dev/gpio/gpiobus_if.m		optional gpio
 dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
+dev/hid/hconf.c			optional hconf
+dev/hid/hcons.c			optional hcons
+dev/hid/hgame.c			optional hgame
+dev/hid/hid.c			optional hid
+dev/hid/hid_if.m		optional hid
+dev/hid/hidbus.c		optional hidbus
+dev/hid/hidmap.c		optional hidmap
+dev/hid/hidquirk.c		optional hid
+dev/hid/hidraw.c		optional hidraw
+dev/hid/hkbd.c			optional hkbd
+dev/hid/hms.c			optional hms
+dev/hid/hmt.c			optional hmt hconf
+dev/hid/hpen.c			optional hpen
+dev/hid/hsctrl.c		optional hsctrl
+dev/hid/ps4dshock.c		optional ps4dshock
+dev/hid/xb360gp.c		optional xb360gp
 dev/hifn/hifn7751.c		optional hifn
-dev/hme/if_hme.c		optional hme
-dev/hme/if_hme_pci.c		optional hme pci
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
@@ -1833,7 +1856,7 @@ dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/ds3231.c		optional ds3231
-dev/iicbus/syr827.c		optional syr827 ext_resources fdt
+dev/iicbus/htu21.c		optional htu21
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
@@ -1842,6 +1865,7 @@ dev/iicbus/iicbb.c		optional iicbb
 dev/iicbus/iicbb_if.m		optional iicbb
 dev/iicbus/iicbus.c		optional iicbus
 dev/iicbus/iicbus_if.m		optional iicbus
+dev/iicbus/iichid.c		optional iichid acpi hid iicbus
 dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
@@ -1850,6 +1874,7 @@ dev/iicbus/iicoc_fdt.c		optional iicoc ext_resources fdt
 dev/iicbus/iicoc_pci.c		optional iicoc pci
 dev/iicbus/isl12xx.c		optional isl12xx
 dev/iicbus/lm75.c		optional lm75
+dev/iicbus/mux/pca9547.c	optional pca9547 iicmux fdt
 dev/iicbus/mux/iicmux.c		optional iicmux
 dev/iicbus/mux/iicmux_if.m	optional iicmux
 dev/iicbus/mux/iic_gpiomux.c	optional iic_gpiomux fdt
@@ -1860,6 +1885,7 @@ dev/iicbus/rtc8583.c		optional rtc8583
 dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
+dev/iicbus/syr827.c		optional syr827 ext_resources fdt
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
@@ -1875,7 +1901,7 @@ dev/ips/ips_pci.c		optional ips pci
 dev/ipw/if_ipw.c		optional ipw
 ipwbssfw.c			optional ipwbssfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_bss.fw:ipw_bss:130 -lintel_ipw -mipw_bss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwbssfw.c"
 ipw_bss.fwo			optional ipwbssfw | ipwfw		\
 	dependency	"ipw_bss.fw"					\
@@ -1889,7 +1915,7 @@ ipw_bss.fw			optional ipwbssfw | ipwfw		\
 	clean		"ipw_bss.fw"
 ipwibssfw.c			optional ipwibssfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_ibss.fw:ipw_ibss:130 -lintel_ipw -mipw_ibss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwibssfw.c"
 ipw_ibss.fwo			optional ipwibssfw | ipwfw		\
 	dependency	"ipw_ibss.fw"					\
@@ -1903,7 +1929,7 @@ ipw_ibss.fw			optional ipwibssfw | ipwfw		\
 	clean		"ipw_ibss.fw"
 ipwmonitorfw.c			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_monitor.fw:ipw_monitor:130 -lintel_ipw -mipw_monitor -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwmonitorfw.c"
 ipw_monitor.fwo			optional ipwmonitorfw | ipwfw		\
 	dependency	"ipw_monitor.fw"				\
@@ -1937,7 +1963,7 @@ dev/ispfw/ispfw.c		optional ispfw
 dev/iwi/if_iwi.c		optional iwi
 iwibssfw.c			optional iwibssfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_bss.fw:iwi_bss:300 -lintel_iwi -miwi_bss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwibssfw.c"
 iwi_bss.fwo			optional iwibssfw | iwifw		\
 	dependency	"iwi_bss.fw"					\
@@ -1951,7 +1977,7 @@ iwi_bss.fw			optional iwibssfw | iwifw		\
 	clean		"iwi_bss.fw"
 iwiibssfw.c			optional iwiibssfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_ibss.fw:iwi_ibss:300 -lintel_iwi -miwi_ibss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwiibssfw.c"
 iwi_ibss.fwo			optional iwiibssfw | iwifw		\
 	dependency	"iwi_ibss.fw"					\
@@ -1965,7 +1991,7 @@ iwi_ibss.fw			optional iwiibssfw | iwifw		\
 	clean		"iwi_ibss.fw"
 iwimonitorfw.c			optional iwimonitorfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_monitor.fw:iwi_monitor:300 -lintel_iwi -miwi_monitor -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwimonitorfw.c"
 iwi_monitor.fwo			optional iwimonitorfw | iwifw		\
 	dependency	"iwi_monitor.fw"				\
@@ -1998,7 +2024,7 @@ dev/iwm/if_iwm_time_event.c	optional iwm
 dev/iwm/if_iwm_util.c		optional iwm
 iwm3160fw.c			optional iwm3160fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm3160.fw:iwm3160fw -miwm3160fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm3160fw.c"
 iwm3160fw.fwo			optional iwm3160fw | iwmfw		\
 	dependency	"iwm3160.fw"					\
@@ -2012,7 +2038,7 @@ iwm3160.fw			optional iwm3160fw | iwmfw		\
 	clean		"iwm3160.fw"
 iwm3168fw.c			optional iwm3168fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm3168.fw:iwm3168fw -miwm3168fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm3168fw.c"
 iwm3168fw.fwo			optional iwm3168fw | iwmfw		\
 	dependency	"iwm3168.fw"					\
@@ -2026,7 +2052,7 @@ iwm3168.fw			optional iwm3168fw | iwmfw		\
 	clean		"iwm3168.fw"
 iwm7260fw.c			optional iwm7260fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7260.fw:iwm7260fw -miwm7260fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7260fw.c"
 iwm7260fw.fwo			optional iwm7260fw | iwmfw		\
 	dependency	"iwm7260.fw"					\
@@ -2040,7 +2066,7 @@ iwm7260.fw			optional iwm7260fw | iwmfw		\
 	clean		"iwm7260.fw"
 iwm7265fw.c			optional iwm7265fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7265.fw:iwm7265fw -miwm7265fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7265fw.c"
 iwm7265fw.fwo			optional iwm7265fw | iwmfw		\
 	dependency	"iwm7265.fw"					\
@@ -2054,7 +2080,7 @@ iwm7265.fw			optional iwm7265fw | iwmfw		\
 	clean		"iwm7265.fw"
 iwm7265Dfw.c			optional iwm7265Dfw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7265D.fw:iwm7265Dfw -miwm7265Dfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7265Dfw.c"
 iwm7265Dfw.fwo			optional iwm7265Dfw | iwmfw		\
 	dependency	"iwm7265D.fw"					\
@@ -2068,7 +2094,7 @@ iwm7265D.fw			optional iwm7265Dfw | iwmfw		\
 	clean		"iwm7265D.fw"
 iwm8000Cfw.c			optional iwm8000Cfw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8000C.fw:iwm8000Cfw -miwm8000Cfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm8000Cfw.c"
 iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
 	dependency	"iwm8000C.fw"					\
@@ -2087,7 +2113,7 @@ iwm8265.fw			optional iwm8265fw | iwmfw		\
 	clean		"iwm8265.fw"
 iwm8265fw.c			optional iwm8265fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8265.fw:iwm8265fw -miwm8265fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm8265fw.c"
 iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
 	dependency	"iwm8265.fw"					\
@@ -2097,7 +2123,7 @@ iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn1000fw.c"
 iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
 	dependency	"iwn1000.fw"					\
@@ -2111,7 +2137,7 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	clean		"iwn1000.fw"
 iwn100fw.c			optional iwn100fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn100.fw:iwn100fw -miwn100fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn100fw.c"
 iwn100fw.fwo			optional iwn100fw | iwnfw		\
 	dependency	"iwn100.fw"					\
@@ -2125,7 +2151,7 @@ iwn100.fw			optional iwn100fw | iwnfw		\
 	clean		"iwn100.fw"
 iwn105fw.c			optional iwn105fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn105fw.c"
 iwn105fw.fwo			optional iwn105fw | iwnfw		\
 	dependency	"iwn105.fw"					\
@@ -2139,7 +2165,7 @@ iwn105.fw			optional iwn105fw | iwnfw		\
 	clean		"iwn105.fw"
 iwn135fw.c			optional iwn135fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn135.fw:iwn135fw -miwn135fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn135fw.c"
 iwn135fw.fwo			optional iwn135fw | iwnfw		\
 	dependency	"iwn135.fw"					\
@@ -2153,7 +2179,7 @@ iwn135.fw			optional iwn135fw | iwnfw		\
 	clean		"iwn135.fw"
 iwn2000fw.c			optional iwn2000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn2000fw.c"
 iwn2000fw.fwo			optional iwn2000fw | iwnfw		\
 	dependency	"iwn2000.fw"					\
@@ -2167,7 +2193,7 @@ iwn2000.fw			optional iwn2000fw | iwnfw		\
 	clean		"iwn2000.fw"
 iwn2030fw.c			optional iwn2030fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2030.fw:iwn2030fw -miwn2030fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn2030fw.c"
 iwn2030fw.fwo			optional iwn2030fw | iwnfw		\
 	dependency	"iwn2030.fw"					\
@@ -2181,7 +2207,7 @@ iwn2030.fw			optional iwn2030fw | iwnfw		\
 	clean		"iwn2030.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn4965fw.c"
 iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
 	dependency	"iwn4965.fw"					\
@@ -2195,7 +2221,7 @@ iwn4965.fw			optional iwn4965fw | iwnfw		\
 	clean		"iwn4965.fw"
 iwn5000fw.c			optional iwn5000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5000.fw:iwn5000fw -miwn5000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn5000fw.c"
 iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	dependency	"iwn5000.fw"					\
@@ -2209,7 +2235,7 @@ iwn5000.fw			optional iwn5000fw | iwnfw		\
 	clean		"iwn5000.fw"
 iwn5150fw.c			optional iwn5150fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5150.fw:iwn5150fw -miwn5150fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn5150fw.c"
 iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
 	dependency	"iwn5150.fw"					\
@@ -2223,7 +2249,7 @@ iwn5150.fw			optional iwn5150fw | iwnfw		\
 	clean		"iwn5150.fw"
 iwn6000fw.c			optional iwn6000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000.fw:iwn6000fw -miwn6000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000fw.c"
 iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	dependency	"iwn6000.fw"					\
@@ -2237,7 +2263,7 @@ iwn6000.fw			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000.fw"
 iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2a.fw:iwn6000g2afw -miwn6000g2afw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000g2afw.c"
 iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
 	dependency	"iwn6000g2a.fw"					\
@@ -2251,7 +2277,7 @@ iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
 	clean		"iwn6000g2a.fw"
 iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2b.fw:iwn6000g2bfw -miwn6000g2bfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000g2bfw.c"
 iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
 	dependency	"iwn6000g2b.fw"					\
@@ -2265,7 +2291,7 @@ iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
 	clean		"iwn6000g2b.fw"
 iwn6050fw.c			optional iwn6050fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6050.fw:iwn6050fw -miwn6050fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6050fw.c"
 iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
 	dependency	"iwn6050.fw"					\
@@ -2317,7 +2343,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
 dev/jme/if_jme.c		optional jme pci
-dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt | hkbd
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -2370,7 +2396,7 @@ dev/liquidio/lio_sysctl.c			optional lio	\
 	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
 lio.c	optional lio						\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk lio_23xx_nic.bin.fw:lio_23xx_nic.bin -mlio_23xx_nic.bin -c${.TARGET}" \
-	no-implicit-rule before-depend local			\
+	no-ctfconvert no-implicit-rule before-depend local	\
 	clean		"lio.c"
 lio_23xx_nic.bin.fw.fwo optional lio				\
 	dependency	"lio_23xx_nic.bin.fw"			\
@@ -2385,7 +2411,6 @@ lio_23xx_nic.bin.fw	optional lio					\
 dev/malo/if_malo.c		optional malo
 dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
-dev/mc146818/mc146818.c		optional mc146818
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
@@ -2418,7 +2443,6 @@ dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/mii_fdt.c		optional miibus fdt | mii fdt
 dev/mii/miibus_if.m		optional miibus | mii
-dev/mii/mlphy.c			optional miibus | mlphy
 dev/mii/nsgphy.c		optional miibus | nsgphy
 dev/mii/nsphy.c			optional miibus | nsphy
 dev/mii/nsphyter.c		optional miibus | nsphyter
@@ -2431,13 +2455,11 @@ dev/mii/rlswitch.c		optional rlswitch
 dev/mii/smcphy.c		optional miibus | smcphy
 dev/mii/smscphy.c		optional miibus | smscphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
-dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/truephy.c		optional miibus | truephy
 dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
 dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
-dev/mk48txx/mk48txx.c		optional mk48txx
 dev/mlxfw/mlxfw_fsm.c			optional mlxfw \
 	compile-with "${MLXFW_C}"
 dev/mlxfw/mlxfw_mfa2.c			optional mlxfw \
@@ -2455,7 +2477,6 @@ dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
 dev/mmc/mmc_fdt_helpers.c	optional mmc fdt | mmccam fdt
 dev/mmcnull/mmcnull.c		optional mmcnull
-dev/mn/if_mn.c			optional mn pci
 dev/mpr/mpr.c			optional mpr
 dev/mpr/mpr_config.c		optional mpr
 # XXX Work around clang warning, until maintainer approves fix.
@@ -2497,7 +2518,7 @@ dev/mwl/if_mwl_pci.c		optional mwl pci
 dev/mwl/mwlhal.c		optional mwl
 mwlfw.c				optional mwlfw				\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk mw88W8363.fw:mw88W8363fw mwlboot.fw:mwlboot -mmwl -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"mwlfw.c"
 mw88W8363.fwo		optional mwlfw					\
 	dependency	"mw88W8363.fw"					\
@@ -2607,7 +2628,6 @@ dev/pccard/pccard.c		optional pccard
 dev/pccard/pccard_cis.c		optional pccard
 dev/pccard/pccard_cis_quirks.c	optional pccard
 dev/pccard/pccard_device.c	optional pccard
-dev/pccard/power_if.m		standard
 dev/pccbb/pccbb.c		optional cbb
 dev/pccbb/pccbb_pci.c		optional cbb pci
 dev/pcf/pcf.c			optional pcf
@@ -2748,7 +2768,6 @@ dev/pst/pst-raid.c		optional pst
 dev/pty/pty.c			optional pty
 dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
-dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
 dev/pwm/pwmc.c			optional pwm | pwmc
 dev/pwm/pwmbus.c		optional pwm | pwmbus
@@ -2763,7 +2782,7 @@ dev/ral/rt2860.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 rt2561fw.c			optional rt2561fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2561fw.c"
 rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
@@ -2777,7 +2796,7 @@ rt2561.fw			optional rt2561fw | ralfw		\
 	clean		"rt2561.fw"
 rt2561sfw.c			optional rt2561sfw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561s.fw:rt2561sfw -mrt2561s -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2561sfw.c"
 rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
@@ -2791,7 +2810,7 @@ rt2561s.fw			optional rt2561sfw | ralfw		\
 	clean		"rt2561s.fw"
 rt2661fw.c			optional rt2661fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2661.fw:rt2661fw -mrt2661 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2661fw.c"
 rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
@@ -2805,7 +2824,7 @@ rt2661.fw			optional rt2661fw | ralfw		\
 	clean		"rt2661.fw"
 rt2860fw.c			optional rt2860fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2860.fw:rt2860fw -mrt2860 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2860fw.c"
 rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
@@ -2833,6 +2852,8 @@ dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
+#
+dev/rtsx/rtsx.c			optional rtsx pci
 #
 dev/rtwn/if_rtwn.c		optional rtwn
 dev/rtwn/if_rtwn_beacon.c	optional rtwn
@@ -2934,7 +2955,7 @@ dev/rtwn/rtl8821a/usb/r21au_dfs.c	optional rtwn_usb
 dev/rtwn/rtl8821a/usb/r21au_init.c	optional rtwn_usb
 rtwn-rtl8188eefw.c		optional rtwn-rtl8188eefw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eefw.fw:rtwn-rtl8188eefw:111 -mrtwn-rtl8188eefw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8188eefw.c"
 rtwn-rtl8188eefw.fwo		optional rtwn-rtl8188eefw | rtwnfw	\
 	dependency	"rtwn-rtl8188eefw.fw"				\
@@ -2948,7 +2969,7 @@ rtwn-rtl8188eefw.fw		optional rtwn-rtl8188eefw | rtwnfw	\
 	clean		"rtwn-rtl8188eefw.fw"
 rtwn-rtl8188eufw.c		optional rtwn-rtl8188eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eufw.fw:rtwn-rtl8188eufw:111 -mrtwn-rtl8188eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8188eufw.c"
 rtwn-rtl8188eufw.fwo		optional rtwn-rtl8188eufw | rtwnfw	\
 	dependency	"rtwn-rtl8188eufw.fw"				\
@@ -2962,7 +2983,7 @@ rtwn-rtl8188eufw.fw		optional rtwn-rtl8188eufw | rtwnfw	\
 	clean		"rtwn-rtl8188eufw.fw"
 rtwn-rtl8192cfwE.c		optional rtwn-rtl8192cfwE | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE.fw:rtwn-rtl8192cfwE:111 -mrtwn-rtl8192cfwE -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwE.c"
 rtwn-rtl8192cfwE.fwo		optional rtwn-rtl8192cfwE | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwE.fw"				\
@@ -2976,7 +2997,7 @@ rtwn-rtl8192cfwE.fw		optional rtwn-rtl8192cfwE | rtwnfw	\
 	clean		"rtwn-rtl8192cfwE.fw"
 rtwn-rtl8192cfwE_B.c		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE_B.fw:rtwn-rtl8192cfwE_B:111 -mrtwn-rtl8192cfwE_B -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwE_B.c"
 rtwn-rtl8192cfwE_B.fwo		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwE_B.fw"				\
@@ -2990,7 +3011,7 @@ rtwn-rtl8192cfwE_B.fw		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	clean		"rtwn-rtl8192cfwE_B.fw"
 rtwn-rtl8192cfwT.c		optional rtwn-rtl8192cfwT | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwT.fw:rtwn-rtl8192cfwT:111 -mrtwn-rtl8192cfwT -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwT.c"
 rtwn-rtl8192cfwT.fwo		optional rtwn-rtl8192cfwT | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwT.fw"				\
@@ -3004,7 +3025,7 @@ rtwn-rtl8192cfwT.fw		optional rtwn-rtl8192cfwT | rtwnfw	\
 	clean		"rtwn-rtl8192cfwT.fw"
 rtwn-rtl8192cfwU.c		optional rtwn-rtl8192cfwU | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU.fw:rtwn-rtl8192cfwU:111 -mrtwn-rtl8192cfwU -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwU.c"
 rtwn-rtl8192cfwU.fwo		optional rtwn-rtl8192cfwU | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwU.fw"				\
@@ -3018,7 +3039,7 @@ rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
 	clean		"rtwn-rtl8192cfwU.fw"
 rtwn-rtl8192eufw.c		optional rtwn-rtl8192eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192eufw.fw:rtwn-rtl8192eufw:111 -mrtwn-rtl8192eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192eufw.c"
 rtwn-rtl8192eufw.fwo		optional rtwn-rtl8192eufw | rtwnfw	\
 	dependency	"rtwn-rtl8192eufw.fw"				\
@@ -3032,7 +3053,7 @@ rtwn-rtl8192eufw.fw		optional rtwn-rtl8192eufw | rtwnfw	\
 	clean		"rtwn-rtl8192eufw.fw"
 rtwn-rtl8812aufw.c		optional rtwn-rtl8812aufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8812aufw.fw:rtwn-rtl8812aufw:111 -mrtwn-rtl8812aufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8812aufw.c"
 rtwn-rtl8812aufw.fwo		optional rtwn-rtl8812aufw | rtwnfw	\
 	dependency	"rtwn-rtl8812aufw.fw"				\
@@ -3046,7 +3067,7 @@ rtwn-rtl8812aufw.fw		optional rtwn-rtl8812aufw | rtwnfw	\
 	clean		"rtwn-rtl8812aufw.fw"
 rtwn-rtl8821aufw.c		optional rtwn-rtl8821aufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8821aufw.fw:rtwn-rtl8821aufw:111 -mrtwn-rtl8821aufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8821aufw.c"
 rtwn-rtl8821aufw.fwo		optional rtwn-rtl8821aufw | rtwnfw	\
 	dependency	"rtwn-rtl8821aufw.fw"				\
@@ -3063,7 +3084,6 @@ dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_quicc.c		optional scc quicc
 dev/scc/scc_core.c		optional scc
 dev/scc/scc_dev_quicc.c		optional scc quicc
-dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_fdt.c		optional sdhci fdt
@@ -3079,6 +3099,7 @@ dev/sge/if_sge.c		optional sge pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
+dev/smbios/smbios.c		optional smbios
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
@@ -3224,7 +3245,6 @@ dev/tws/tws_user.c		optional tws
 dev/uart/uart_bus_acpi.c	optional uart acpi
 dev/uart/uart_bus_fdt.c		optional uart fdt
 dev/uart/uart_bus_isa.c		optional uart isa
-dev/uart/uart_bus_pccard.c	optional uart pccard
 dev/uart/uart_bus_pci.c		optional uart pci
 dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
@@ -3237,7 +3257,6 @@ dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
-dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532 | uart scc
 dev/uart/uart_dev_snps.c	optional uart uart_snps fdt
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530 | uart scc
 dev/uart/uart_if.m		optional uart
@@ -3326,7 +3345,7 @@ dev/usb/net/uhso.c		optional uhso
 dev/usb/wlan/if_rsu.c		optional rsu
 rsu-rtl8712fw.c			optional rsu-rtl8712fw | rsufw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rsu-rtl8712fw.fw:rsu-rtl8712fw:120 -mrsu-rtl8712fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rsu-rtl8712fw.c"
 rsu-rtl8712fw.fwo		optional rsu-rtl8712fw | rsufw		\
 	dependency	"rsu-rtl8712fw.fw"				\
@@ -3342,7 +3361,7 @@ dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk run.fw:runfw -mrunfw -c${.TARGET}"	\
-	no-implicit-rule before-depend local							\
+	no-ctfconvert no-implicit-rule before-depend local					\
 	clean		"runfw.c"
 runfw.fwo			optional runfw							\
 	dependency	"run.fw"								\
@@ -3402,6 +3421,7 @@ dev/usb/input/uhid.c		optional uhid
 dev/usb/input/uhid_snes.c	optional uhid_snes
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
+dev/usb/input/usbhid.c		optional usbhid
 dev/usb/input/wmt.c		optional wmt
 dev/usb/input/wsp.c		optional wsp
 #
@@ -3435,7 +3455,7 @@ dev/videomode/videomode.c		optional videomode
 dev/videomode/edid.c			optional videomode
 dev/videomode/pickmode.c		optional videomode
 dev/videomode/vesagtf.c			optional videomode
-dev/veriexec/verified_exec.c	optional veriexec mac_veriexec
+dev/veriexec/verified_exec.c	optional mac_veriexec
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
 dev/virtio/virtio.c			optional	virtio
@@ -3443,6 +3463,9 @@ dev/virtio/virtqueue.c			optional	virtio
 dev/virtio/virtio_bus_if.m		optional	virtio
 dev/virtio/virtio_if.m			optional	virtio
 dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/pci/virtio_pci_if.m		optional	virtio_pci
+dev/virtio/pci/virtio_pci_legacy.c	optional	virtio_pci
+dev/virtio/pci/virtio_pci_modern.c	optional	virtio_pci
 dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
 dev/virtio/mmio/virtio_mmio_acpi.c	optional	virtio_mmio acpi
 dev/virtio/mmio/virtio_mmio_fdt.c	optional	virtio_mmio fdt
@@ -3455,11 +3478,24 @@ dev/virtio/random/virtio_random.c	optional	virtio_random
 dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/vkbd/vkbd.c			optional vkbd
 dev/vmgenc/vmgenc_acpi.c	optional acpi
+dev/vmware/vmxnet3/if_vmx.c		optional vmx
+dev/vmware/vmci/vmci.c			optional vmci
+dev/vmware/vmci/vmci_datagram.c		optional vmci
+dev/vmware/vmci/vmci_doorbell.c		optional vmci
+dev/vmware/vmci/vmci_driver.c		optional vmci
+dev/vmware/vmci/vmci_event.c		optional vmci
+dev/vmware/vmci/vmci_hashtable.c	optional vmci
+dev/vmware/vmci/vmci_kernel_if.c	optional vmci
+dev/vmware/vmci/vmci_qpair.c		optional vmci
+dev/vmware/vmci/vmci_queue_pair.c	optional vmci
+dev/vmware/vmci/vmci_resource.c		optional vmci
+dev/vmware/pvscsi/pvscsi.c		optional pvscsi
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
 dev/vt/font/vt_font_default.c	optional vt
 dev/vt/font/vt_mouse_cursor.c	optional vt
 dev/vt/hw/efifb/efifb.c		optional vt_efifb
+dev/vt/hw/vbefb/vbefb.c		optional vt_vbefb
 dev/vt/hw/fb/vt_fb.c		optional vt
 dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
@@ -3472,13 +3508,10 @@ dev/vt/vt_font.c		optional vt
 dev/vt/vt_sysmouse.c		optional vt
 dev/vte/if_vte.c		optional vte pci
 dev/watchdog/watchdog.c		standard
-dev/wi/if_wi.c			optional wi
-dev/wi/if_wi_pccard.c		optional wi pccard
-dev/wi/if_wi_pci.c		optional wi pci
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:153229 -mwpi -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"wpifw.c"
 wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
@@ -3506,6 +3539,7 @@ dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm
 dev/xen/console/xen_console.c	optional xenhvm
 dev/xen/control/control.c	optional xenhvm
+dev/xen/efi/pvefi.c		optional xenhvm efirt
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm
 dev/xen/netfront/netfront.c	optional xenhvm
@@ -3765,6 +3799,7 @@ kern/ksched.c			optional _kposix_priority_scheduling
 kern/kern_acct.c		standard
 kern/kern_alq.c			optional alq
 kern/kern_clock.c		standard
+kern/kern_clocksource.c		standard
 kern/kern_condvar.c		standard
 kern/kern_conf.c		standard
 kern/kern_cons.c		standard
@@ -3852,6 +3887,8 @@ kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
 kern/subr_acl_nfs4.c		optional ufs_acl | zfs
 kern/subr_acl_posix1e.c		optional ufs_acl
+kern/subr_asan.c		optional kasan \
+	compile-with "${NORMAL_C:N-fsanitize*}"
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_boot.c		standard
@@ -3913,6 +3950,7 @@ kern/subr_unit.c		standard
 kern/subr_vmem.c		standard
 kern/subr_witness.c		optional witness
 kern/sys_capability.c		standard
+kern/sys_eventfd.c		standard
 kern/sys_generic.c		standard
 kern/sys_getrandom.c		standard
 kern/sys_pipe.c			standard
@@ -3973,12 +4011,12 @@ gssd.h				optional kgssapi			\
 gssd_xdr.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
 	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean			"gssd_xdr.c"
 gssd_clnt.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
 	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean			"gssd_clnt.c"
 kgssapi/gss_accept_sec_context.c optional kgssapi
 kgssapi/gss_add_oid_set_member.c optional kgssapi
@@ -4035,7 +4073,6 @@ libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
 libkern/jenkins_hash.c		standard
 libkern/murmur3_32.c		standard
-libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memchr.c		standard
 libkern/memmem.c		optional gdb
@@ -4044,6 +4081,7 @@ libkern/qsort_r.c		standard
 libkern/random.c		standard
 libkern/scanc.c			standard
 libkern/strcasecmp.c		standard
+libkern/strcasestr.c		standard
 libkern/strcat.c		standard
 libkern/strchr.c		standard
 libkern/strchrnul.c		optional gdb
@@ -4054,7 +4092,6 @@ libkern/strdup.c		standard
 libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
-libkern/strlen.c		standard
 libkern/strncat.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
@@ -4159,16 +4196,18 @@ net/route/nhgrp_ctl.c		optional route_mpath
 net/route/nhop.c		standard
 net/route/nhop_ctl.c		standard
 net/route/nhop_utils.c		standard
+net/route/fib_algo.c		optional fib_algo
 net/route/route_ctl.c		standard
 net/route/route_ddb.c		optional ddb
 net/route/route_helpers.c	standard
+net/route/route_ifaddrs.c	standard
 net/route/route_tables.c	standard
 net/route/route_temporal.c	standard
 net/rss_config.c		optional inet rss | inet6 rss
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
-net/toeplitz.c			optional inet rss | inet6 rss
+net/toeplitz.c			optional inet rss | inet6 rss | route_mpath
 net/vnet.c			optional vimage
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
@@ -4227,7 +4266,6 @@ netgraph/atm/sscop/ng_sscop.c optional ngatm_sscop \
 netgraph/atm/uni/ng_uni.c	optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
-netgraph/bluetooth/drivers/bt3c/ng_bt3c_pccard.c optional netgraph_bluetooth_bt3c
 netgraph/bluetooth/drivers/h4/ng_h4.c optional netgraph_bluetooth_h4
 netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt usb
 netgraph/bluetooth/drivers/ubt/ng_ubt_intel.c optional netgraph_bluetooth_ubt usb
@@ -4277,6 +4315,7 @@ netgraph/ng_ipfw.c		optional netgraph_ipfw inet ipfirewall
 netgraph/ng_ksocket.c		optional netgraph_ksocket
 netgraph/ng_l2tp.c		optional netgraph_l2tp
 netgraph/ng_lmi.c		optional netgraph_lmi
+netgraph/ng_macfilter.c		optional netgraph_macfilter
 netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 					 netgraph_mppc_encryption
 netgraph/ng_nat.c		optional netgraph_nat inet libalias
@@ -4298,6 +4337,7 @@ netgraph/ng_tee.c		optional netgraph_tee
 netgraph/ng_tty.c		optional netgraph_tty
 netgraph/ng_vjc.c		optional netgraph_vjc
 netgraph/ng_vlan.c		optional netgraph_vlan
+netgraph/ng_vlan_rotate.c	optional netgraph_vlan_rotate
 netinet/accf_data.c		optional accept_filter_data inet
 netinet/accf_dns.c		optional accept_filter_dns inet
 netinet/accf_http.c		optional accept_filter_http inet
@@ -4308,6 +4348,7 @@ netinet/in_debug.c		optional inet ddb
 netinet/in_kdtrace.c		optional inet | inet6
 netinet/ip_carp.c		optional inet carp | inet6 carp
 netinet/in_fib.c		optional inet
+netinet/in_fib_algo.c		optional inet fib_algo
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
@@ -4384,6 +4425,7 @@ netinet6/icmp6.c		optional inet6
 netinet6/in6.c			optional inet6
 netinet6/in6_cksum.c		optional inet6
 netinet6/in6_fib.c		optional inet6
+netinet6/in6_fib_algo.c		optional inet6 fib_algo
 netinet6/in6_gif.c		optional gif inet6 | netgraph_gif inet6
 netinet6/in6_ifattach.c		optional inet6
 netinet6/in6_jail.c		optional inet6
@@ -4487,6 +4529,7 @@ netpfil/pf/pf_if.c		optional pf inet
 netpfil/pf/pf_ioctl.c		optional pf inet
 netpfil/pf/pf_lb.c		optional pf inet
 netpfil/pf/pf_norm.c		optional pf inet
+netpfil/pf/pf_nv.c		optional pf inet
 netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
@@ -4515,11 +4558,19 @@ nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 # Linux Kernel Programming Interface
 compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_acpi.c		optional compat_linuxkpi acpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_compat.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_current.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_devres.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_dmi.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_domain.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_firmware.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_hrtimer.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
@@ -4543,6 +4594,8 @@ compat/linuxkpi/common/src/linux_schedule.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_shmemfs.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_shrinker.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_slab.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \
@@ -4559,6 +4612,7 @@ compat/lindebugfs/lindebugfs.c			optional lindebugfs \
 	compile-with "${LINUXKPI_C}"
 
 # OpenFabrics Enterprise Distribution (Infiniband)
+net/if_infiniband.c					optional ofed | lagg
 ofed/drivers/infiniband/core/ib_addr.c			optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_agent.c			optional ofed	\
@@ -4868,6 +4922,7 @@ dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 
 # crypto support
+opencrypto/cbc_mac.c		optional crypto
 opencrypto/criov.c		optional crypto | ipsec | ipsec_support
 opencrypto/crypto.c		optional crypto | ipsec | ipsec_support
 opencrypto/cryptodev.c		optional cryptodev
@@ -4878,6 +4933,9 @@ opencrypto/gmac.c		optional crypto | ipsec | ipsec_support
 opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
 opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support
 opencrypto/xform.c		optional crypto | ipsec | ipsec_support
+opencrypto/xform_cbc_mac.c	optional crypto
+opencrypto/xform_chacha20_poly1305.c	optional crypto \
+	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 opencrypto/xform_poly1305.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 contrib/libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305.c \
@@ -4909,9 +4967,6 @@ contrib/libsodium/src/libsodium/crypto_aead/xchacha20poly1305/sodium/aead_xchach
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
 
-
-opencrypto/cbc_mac.c		optional crypto
-opencrypto/xform_cbc_mac.c	optional crypto
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd

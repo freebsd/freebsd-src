@@ -11,13 +11,13 @@
 #define	IPF_IRCBUFSZ	96	/* This *MUST* be >= 64! */
 
 
-void ipf_p_irc_main_load __P((void));
-void ipf_p_irc_main_unload __P((void));
-int ipf_p_irc_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_irc_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_irc_send __P((fr_info_t *, nat_t *));
-int ipf_p_irc_complete __P((ircinfo_t *, char *, size_t));
-u_short ipf_irc_atoi __P((char **));
+void ipf_p_irc_main_load(void);
+void ipf_p_irc_main_unload(void);
+int ipf_p_irc_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_irc_out(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_irc_send(fr_info_t *, nat_t *);
+int ipf_p_irc_complete(ircinfo_t *, char *, size_t);
+u_short ipf_irc_atoi(char **);
 
 static	frentry_t	ircnatfr;
 
@@ -267,7 +267,7 @@ ipf_p_irc_send(fin, nat)
 	u_int a1;
 	ip_t *ip;
 	mb_t *m;
-#ifdef	MENTAT
+#if SOLARIS
 	mb_t *m1;
 #endif
 	softc = fin->fin_main_soft;
@@ -322,7 +322,7 @@ ipf_p_irc_send(fin, nat)
 	if ((inc + fin->fin_plen) > 65535)
 		return 0;
 
-#ifdef	MENTAT
+#if SOLARIS
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
 	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
@@ -357,7 +357,7 @@ ipf_p_irc_send(fin, nat)
 	fin->fin_flx |= FI_DOCKSUM;
 
 	if (inc != 0) {
-#if defined(MENTAT)
+#if SOLARIS
 		register u_32_t	sum1, sum2;
 
 		sum1 = fin->fin_plen;

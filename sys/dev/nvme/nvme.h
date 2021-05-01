@@ -59,8 +59,8 @@
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
 
-/* Cap nvme to 1MB transfers driver explodes with larger sizes */
-#define NVME_MAX_XFER_SIZE		(MAXPHYS < (1<<20) ? MAXPHYS : (1<<20))
+/* Cap transfers by the maximum addressable by page-sized PRP (4KB -> 2MB). */
+#define NVME_MAX_XFER_SIZE		MIN(maxphys, (PAGE_SIZE/8*PAGE_SIZE))
 
 /* Register field definitions */
 #define NVME_CAP_LO_REG_MQES_SHIFT			(0)
@@ -84,6 +84,8 @@
 #define NVME_CAP_HI_REG_DSTRD_MASK			(0xF)
 #define NVME_CAP_HI_REG_NSSRS_SHIFT			(4)
 #define NVME_CAP_HI_REG_NSSRS_MASK			(0x1)
+#define NVME_CAP_HI_REG_CSS_SHIFT			(5)
+#define NVME_CAP_HI_REG_CSS_MASK			(0xff)
 #define NVME_CAP_HI_REG_CSS_NVM_SHIFT			(5)
 #define NVME_CAP_HI_REG_CSS_NVM_MASK			(0x1)
 #define NVME_CAP_HI_REG_BPS_SHIFT			(13)
@@ -98,12 +100,22 @@
 #define NVME_CAP_HI_REG_CMBS_MASK			(0x1)
 #define NVME_CAP_HI_DSTRD(x) \
 	(((x) >> NVME_CAP_HI_REG_DSTRD_SHIFT) & NVME_CAP_HI_REG_DSTRD_MASK)
+#define NVME_CAP_HI_NSSRS(x) \
+	(((x) >> NVME_CAP_HI_REG_NSSRS_SHIFT) & NVME_CAP_HI_REG_NSSRS_MASK)
+#define NVME_CAP_HI_CSS(x) \
+	(((x) >> NVME_CAP_HI_REG_CSS_SHIFT) & NVME_CAP_HI_REG_CSS_MASK)
 #define NVME_CAP_HI_CSS_NVM(x) \
 	(((x) >> NVME_CAP_HI_REG_CSS_NVM_SHIFT) & NVME_CAP_HI_REG_CSS_NVM_MASK)
+#define NVME_CAP_HI_BPS(x) \
+	(((x) >> NVME_CAP_HI_REG_BPS_SHIFT) & NVME_CAP_HI_REG_BPS_MASK)
 #define NVME_CAP_HI_MPSMIN(x) \
 	(((x) >> NVME_CAP_HI_REG_MPSMIN_SHIFT) & NVME_CAP_HI_REG_MPSMIN_MASK)
 #define NVME_CAP_HI_MPSMAX(x) \
 	(((x) >> NVME_CAP_HI_REG_MPSMAX_SHIFT) & NVME_CAP_HI_REG_MPSMAX_MASK)
+#define NVME_CAP_HI_PMRS(x) \
+	(((x) >> NVME_CAP_HI_REG_PMRS_SHIFT) & NVME_CAP_HI_REG_PMRS_MASK)
+#define NVME_CAP_HI_CMBS(x) \
+	(((x) >> NVME_CAP_HI_REG_CMBS_SHIFT) & NVME_CAP_HI_REG_CMBS_MASK)
 
 #define NVME_CC_REG_EN_SHIFT				(0)
 #define NVME_CC_REG_EN_MASK				(0x1)
@@ -137,6 +149,36 @@
 #define NVME_AQA_REG_ASQS_MASK				(0xFFF)
 #define NVME_AQA_REG_ACQS_SHIFT				(16)
 #define NVME_AQA_REG_ACQS_MASK				(0xFFF)
+
+#define NVME_PMRCAP_REG_RDS_SHIFT			(3)
+#define NVME_PMRCAP_REG_RDS_MASK			(0x1)
+#define NVME_PMRCAP_REG_WDS_SHIFT			(4)
+#define NVME_PMRCAP_REG_WDS_MASK			(0x1)
+#define NVME_PMRCAP_REG_BIR_SHIFT			(5)
+#define NVME_PMRCAP_REG_BIR_MASK			(0x7)
+#define NVME_PMRCAP_REG_PMRTU_SHIFT			(8)
+#define NVME_PMRCAP_REG_PMRTU_MASK			(0x3)
+#define NVME_PMRCAP_REG_PMRWBM_SHIFT			(10)
+#define NVME_PMRCAP_REG_PMRWBM_MASK			(0xf)
+#define NVME_PMRCAP_REG_PMRTO_SHIFT			(16)
+#define NVME_PMRCAP_REG_PMRTO_MASK			(0xff)
+#define NVME_PMRCAP_REG_CMSS_SHIFT			(24)
+#define NVME_PMRCAP_REG_CMSS_MASK			(0x1)
+
+#define NVME_PMRCAP_RDS(x) \
+	(((x) >> NVME_PMRCAP_REG_RDS_SHIFT) & NVME_PMRCAP_REG_RDS_MASK)
+#define NVME_PMRCAP_WDS(x) \
+	(((x) >> NVME_PMRCAP_REG_WDS_SHIFT) & NVME_PMRCAP_REG_WDS_MASK)
+#define NVME_PMRCAP_BIR(x) \
+	(((x) >> NVME_PMRCAP_REG_BIR_SHIFT) & NVME_PMRCAP_REG_BIR_MASK)
+#define NVME_PMRCAP_PMRTU(x) \
+	(((x) >> NVME_PMRCAP_REG_PMRTU_SHIFT) & NVME_PMRCAP_REG_PMRTU_MASK)
+#define NVME_PMRCAP_PMRWBM(x) \
+	(((x) >> NVME_PMRCAP_REG_PMRWBM_SHIFT) & NVME_PMRCAP_REG_PMRWBM_MASK)
+#define NVME_PMRCAP_PMRTO(x) \
+	(((x) >> NVME_PMRCAP_REG_PMRTO_SHIFT) & NVME_PMRCAP_REG_PMRTO_MASK)
+#define NVME_PMRCAP_CMSS(x) \
+	(((x) >> NVME_PMRCAP_REG_CMSS_SHIFT) & NVME_PMRCAP_REG_CMSS_MASK)
 
 /* Command field definitions */
 
@@ -691,7 +733,7 @@ enum nvme_command_specific_status_code {
 	NVME_SC_NS_NOT_ATTACHED			= 0x1a,
 	NVME_SC_THIN_PROV_NOT_SUPPORTED		= 0x1b,
 	NVME_SC_CTRLR_LIST_INVALID		= 0x1c,
-	NVME_SC_SELT_TEST_IN_PROGRESS		= 0x1d,
+	NVME_SC_SELF_TEST_IN_PROGRESS		= 0x1d,
 	NVME_SC_BOOT_PART_WRITE_PROHIB		= 0x1e,
 	NVME_SC_INVALID_CTRLR_ID		= 0x1f,
 	NVME_SC_INVALID_SEC_CTRLR_STATE		= 0x20,
@@ -1354,6 +1396,28 @@ struct nvme_command_effects_page {
 _Static_assert(sizeof(struct nvme_command_effects_page) == 4096,
     "bad size for nvme_command_effects_page");
 
+struct nvme_device_self_test_page {
+	uint8_t			curr_operation;
+	uint8_t			curr_compl;
+	uint8_t			rsvd2[2];
+	struct {
+		uint8_t		status;
+		uint8_t		segment_num;
+		uint8_t		valid_diag_info;
+		uint8_t		rsvd3;
+		uint64_t	poh;
+		uint32_t	nsid;
+		/* Define as an array to simplify alignment issues */
+		uint8_t		failing_lba[8];
+		uint8_t		status_code_type;
+		uint8_t		status_code;
+		uint8_t		vendor_specific[2];
+	} __packed result[20];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_device_self_test_page) == 564,
+    "bad size for nvme_device_self_test_page");
+
 struct nvme_res_notification_page {
 	uint64_t		log_page_count;
 	uint8_t			log_page_type;
@@ -1688,8 +1752,9 @@ extern int nvme_use_nvd;
 
 /* Endianess conversion functions for NVMe structs */
 static inline
-void	nvme_completion_swapbytes(struct nvme_completion *s)
+void	nvme_completion_swapbytes(struct nvme_completion *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->cdw0 = le32toh(s->cdw0);
 	/* omit rsvd1 */
@@ -1697,22 +1762,26 @@ void	nvme_completion_swapbytes(struct nvme_completion *s)
 	s->sqid = le16toh(s->sqid);
 	/* omit cid */
 	s->status = le16toh(s->status);
+#endif
 }
 
 static inline
-void	nvme_power_state_swapbytes(struct nvme_power_state *s)
+void	nvme_power_state_swapbytes(struct nvme_power_state *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->mp = le16toh(s->mp);
 	s->enlat = le32toh(s->enlat);
 	s->exlat = le32toh(s->exlat);
 	s->idlp = le16toh(s->idlp);
 	s->actp = le16toh(s->actp);
+#endif
 }
 
 static inline
-void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
+void	nvme_controller_data_swapbytes(struct nvme_controller_data *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->vid = le16toh(s->vid);
@@ -1758,11 +1827,13 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
 	s->mnan = le32toh(s->mnan);
 	for (i = 0; i < 32; i++)
 		nvme_power_state_swapbytes(&s->power_state[i]);
+#endif
 }
 
 static inline
-void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
+void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->nsze = le64toh(s->nsze);
@@ -1785,11 +1856,14 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
 	s->endgid = le16toh(s->endgid);
 	for (i = 0; i < 16; i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
+#endif
 }
 
 static inline
-void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry *s)
+void	nvme_error_information_entry_swapbytes(
+    struct nvme_error_information_entry *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->error_count = le64toh(s->error_count);
 	s->sqid = le16toh(s->sqid);
@@ -1800,10 +1874,11 @@ void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry 
 	s->nsid = le32toh(s->nsid);
 	s->csi = le64toh(s->csi);
 	s->ttsi = le16toh(s->ttsi);
+#endif
 }
 
 static inline
-void	nvme_le128toh(void *p)
+void	nvme_le128toh(void *p __unused)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	/* Swap 16 bytes in place */
@@ -1815,14 +1890,14 @@ void	nvme_le128toh(void *p)
 		tmp[i] = tmp[15-i];
 		tmp[15-i] = b;
 	}
-#else
-	(void)p;
 #endif
 }
 
 static inline
-void	nvme_health_information_page_swapbytes(struct nvme_health_information_page *s)
+void	nvme_health_information_page_swapbytes(
+    struct nvme_health_information_page *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->temperature = le16toh(s->temperature);
@@ -1844,47 +1919,60 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 	s->tmt2tc = le32toh(s->tmt2tc);
 	s->ttftmt1 = le32toh(s->ttftmt1);
 	s->ttftmt2 = le32toh(s->ttftmt2);
+#endif
 }
 
 static inline
-void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)
+void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 7; i++)
 		s->revision[i] = le64toh(s->revision[i]);
+#endif
 }
 
 static inline
-void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
+void	nvme_ns_list_swapbytes(struct nvme_ns_list *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 1024; i++)
 		s->ns[i] = le32toh(s->ns[i]);
+#endif
 }
 
 static inline
-void	nvme_command_effects_page_swapbytes(struct nvme_command_effects_page *s)
+void	nvme_command_effects_page_swapbytes(
+    struct nvme_command_effects_page *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 256; i++)
 		s->acs[i] = le32toh(s->acs[i]);
 	for (i = 0; i < 256; i++)
 		s->iocs[i] = le32toh(s->iocs[i]);
+#endif
 }
 
 static inline
-void	nvme_res_notification_page_swapbytes(struct nvme_res_notification_page *s)
+void	nvme_res_notification_page_swapbytes(
+    struct nvme_res_notification_page *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->log_page_count = le64toh(s->log_page_count);
 	s->nsid = le32toh(s->nsid);
+#endif
 }
 
 static inline
-void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
+void	nvme_sanitize_status_page_swapbytes(
+    struct nvme_sanitize_status_page *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->sprog = le16toh(s->sprog);
 	s->sstat = le16toh(s->sstat);
 	s->scdw10 = le32toh(s->scdw10);
@@ -1894,11 +1982,13 @@ void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
 	s->etfownd = le32toh(s->etfownd);
 	s->etfbewnd = le32toh(s->etfbewnd);
 	s->etfcewnd = le32toh(s->etfcewnd);
+#endif
 }
 
 static inline
-void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
+void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->current = le64toh(s->current);
 	s->overtemp_flag_last = le64toh(s->overtemp_flag_last);
@@ -1909,11 +1999,14 @@ void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
 	s->max_oper_temp = le64toh(s->max_oper_temp);
 	s->min_oper_temp = le64toh(s->min_oper_temp);
 	s->est_offset = le64toh(s->est_offset);
+#endif
 }
 
 static inline
-void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
+void	nvme_resv_status_swapbytes(struct nvme_resv_status *s __unused,
+    size_t size __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
 
 	s->gen = le32toh(s->gen);
@@ -1924,11 +2017,14 @@ void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
 		s->ctrlr[i].hostid = le64toh(s->ctrlr[i].hostid);
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
 	}
+#endif
 }
 
 static inline
-void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
+void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s __unused,
+    size_t size __unused)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
 
 	s->gen = le32toh(s->gen);
@@ -1939,6 +2035,28 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
 		nvme_le128toh((void *)s->ctrlr[i].hostid);
 	}
+#endif
 }
 
+static inline void
+nvme_device_self_test_swapbytes(struct nvme_device_self_test_page *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	uint8_t *tmp;
+	uint32_t r, i;
+	uint8_t b;
+
+	for (r = 0; r < 20; r++) {
+		s->result[r].poh = le64toh(s->result[r].poh);
+		s->result[r].nsid = le32toh(s->result[r].nsid);
+		/* Unaligned 64-bit loads fail on some architectures */
+		tmp = s->result[r].failing_lba;
+		for (i = 0; i < 4; i++) {
+			b = tmp[i];
+			tmp[i] = tmp[7-i];
+			tmp[7-i] = b;
+		}
+	}
+#endif
+}
 #endif /* __NVME_H__ */

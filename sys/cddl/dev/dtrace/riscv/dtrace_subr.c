@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 extern void dtrace_getnanotime(struct timespec *tsp);
+extern void dtrace_getnanouptime(struct timespec *tsp);
 
 int dtrace_invop(uintptr_t, struct trapframe *);
 void dtrace_invop_init(void);
@@ -165,7 +166,7 @@ dtrace_gethrtime()
 {
 	struct timespec curtime;
 
-	nanouptime(&curtime);
+	dtrace_getnanouptime(&curtime);
 
 	return (curtime.tv_sec * 1000000000UL + curtime.tv_nsec);
 
@@ -202,9 +203,9 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-		case EXCP_FAULT_LOAD:
-		case EXCP_FAULT_STORE:
-		case EXCP_FAULT_FETCH:
+		case SCAUSE_LOAD_ACCESS_FAULT:
+		case SCAUSE_STORE_ACCESS_FAULT:
+		case SCAUSE_INST_ACCESS_FAULT:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
 			cpu_core[curcpu].cpuc_dtrace_illval = 0;

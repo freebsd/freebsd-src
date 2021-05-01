@@ -59,7 +59,7 @@
 			/* 4.3BSD-style crontab */
 #define SYSCRONTAB	"/etc/crontab"
 #define SYSCRONTABS	"/etc/cron.d"
-#define LOCALSYSCRONTABS	"/usr/local/etc/cron.d"
+#define LOCALSYSCRONTABS	_PATH_LOCALBASE "/etc/cron.d"
 
 			/* what editor to use if no EDITOR or VISUAL
 			 * environment variable specified.

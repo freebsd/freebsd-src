@@ -25,9 +25,12 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/extattr.h>
 #include <sys/ioctl.h>
 
 #include <bsm/libbsm.h>
+#include <bsm/auditd_lib.h>
 #include <security/audit/audit_ioctl.h>
 
 #include <atf-c.h>
@@ -76,6 +79,7 @@ get_records(const char *auditregex, FILE *pipestream)
 
 		/* Print the tokens as they are obtained, in the default form */
 		au_print_flags_tok(memstream, &token, del, AU_OFLAG_NONE);
+		fputc(',', memstream);
 		bytes += token.len;
 	}
 
@@ -146,13 +150,18 @@ check_auditpipe(struct pollfd fd[], const char *auditregex, FILE *pipestream)
 
 	/* Set the expire time for poll(2) while waiting for syscall audit */
 	ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC, &endtime));
-	endtime.tv_sec += 10;
-	timeout.tv_nsec = endtime.tv_nsec;
+	/* Set limit to 30 seconds total and ~10s without an event. */
+	endtime.tv_sec += 30;
 
 	for (;;) {
 		/* Update the time left for auditpipe to return any event */
 		ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC, &currtime));
-		timeout.tv_sec = endtime.tv_sec - currtime.tv_sec;
+		timespecsub(&endtime, &currtime, &timeout);
+		timeout.tv_sec = MIN(timeout.tv_sec, 9);
+		if (timeout.tv_sec < 0) {
+			atf_tc_fail("%s not found in auditpipe within the "
+			    "time limit", auditregex);
+		}
 
 		switch (ppoll(fd, 1, &timeout, NULL)) {
 		/* ppoll(2) returns, check if it's what we want */
@@ -199,13 +208,60 @@ check_audit(struct pollfd fd[], const char *auditrgx, FILE *pipestream) {
 	ATF_REQUIRE_EQ(0, fclose(pipestream));
 }
 
-FILE
-*setup(struct pollfd fd[], const char *name)
+void
+skip_if_extattr_not_supported(const char *path)
+{
+	ssize_t result;
+
+	/*
+	 * Some file systems (e.g. tmpfs) do not support extattr, so we need
+	 * skip tests that use extattrs. To detect this we can check whether
+	 * the extattr_list_file returns EOPNOTSUPP.
+	 */
+	result = extattr_list_file(path, EXTATTR_NAMESPACE_USER, NULL, 0);
+	if (result == -1 && errno == EOPNOTSUPP) {
+		atf_tc_skip("File system does not support extattrs.");
+	}
+}
+
+static bool
+is_auditd_running(void)
+{
+	int trigger;
+	int err;
+
+	/*
+	 * AUDIT_TRIGGER_INITIALIZE is a no-op message on FreeBSD and can
+	 * therefore be used to check whether auditd has already been started.
+	 * This is significantly cheaper than running `service auditd onestatus`
+	 * for each test case. It is also slightly less racy since it will only
+	 * return true once auditd() has opened the trigger file rather than
+	 * just when the pidfile has been created.
+	 */
+	trigger = AUDIT_TRIGGER_INITIALIZE;
+	err = auditon(A_SENDTRIGGER, &trigger, sizeof(trigger));
+	if (err == 0) {
+		fprintf(stderr, "auditd(8) is running.\n");
+		return (true);
+	} else {
+		/*
+		 * A_SENDTRIGGER returns ENODEV if auditd isn't listening,
+		 * all other error codes indicate a fatal error.
+		 */
+		ATF_REQUIRE_MSG(errno == ENODEV,
+		    "Unexpected error from auditon(2): %s", strerror(errno));
+		return (false);
+	}
+
+}
+
+FILE *
+setup(struct pollfd fd[], const char *name)
 {
 	au_mask_t fmask, nomask;
+	FILE *pipestream;
 	fmask = get_audit_mask(name);
 	nomask = get_audit_mask("no");
-	FILE *pipestream;
 
 	ATF_REQUIRE((fd[0].fd = open("/dev/auditpipe", O_RDONLY)) != -1);
 	ATF_REQUIRE((pipestream = fdopen(fd[0].fd, "r")) != NULL);
@@ -221,12 +277,39 @@ FILE
 
 	/* Set local preselection audit_class as "no" for audit startup */
 	set_preselect_mode(fd[0].fd, &nomask);
-	ATF_REQUIRE_EQ(0, system("service auditd onestatus || \
-	{ service auditd onestart && touch started_auditd ; }"));
-
-	/* If 'started_auditd' exists, that means we started auditd(8) */
-	if (atf_utils_file_exists("started_auditd"))
+	if (!is_auditd_running()) {
+		fprintf(stderr, "Running audit_quick_start() for testing... ");
+		/*
+		 * Previously, this test started auditd using
+		 * `service auditd onestart`. However, there is a race condition
+		 * there since service can return before auditd(8) has
+		 * fully started (once the daemon parent process has forked)
+		 * and this can cause check_audit_startup() to fail sometimes.
+		 *
+		 * In the CheriBSD CI this caused the first test executed by
+		 * kyua (administrative:acct_failure) to fail every time, but
+		 * subsequent ones would almost always succeed.
+		 *
+		 * To avoid this problem (and as a nice side-effect this speeds
+		 * up the test quite a bit), we register this process as a
+		 * "fake" auditd(8) using the audit_quick_start() function from
+		 * libauditd.
+		 */
+		atf_utils_create_file("started_fake_auditd", "yes\n");
+		ATF_REQUIRE(atf_utils_file_exists("started_fake_auditd"));
+		ATF_REQUIRE_EQ_MSG(0, audit_quick_start(),
+		    "Failed to start fake auditd: %m");
+		fprintf(stderr, "done.\n");
+		/* audit_quick_start() should log an audit start event. */
 		check_audit_startup(fd, "audit startup", pipestream);
+		/*
+		 * If we exit cleanly shutdown audit_quick_start(), if not
+		 * cleanup() will take care of it.
+		 * This is not required, but makes it easier to run individual
+		 * tests outside of kyua.
+		 */
+		atexit(cleanup);
+	}
 
 	/* Set local preselection parameters specific to "name" audit_class */
 	set_preselect_mode(fd[0].fd, &fmask);
@@ -236,6 +319,13 @@ FILE
 void
 cleanup(void)
 {
-	if (atf_utils_file_exists("started_auditd"))
-		system("service auditd onestop > /dev/null 2>&1");
+	if (atf_utils_file_exists("started_fake_auditd")) {
+		fprintf(stderr, "Running audit_quick_stop()... ");
+		if (audit_quick_stop() != 0) {
+			fprintf(stderr, "Failed to stop fake auditd: %m\n");
+			abort();
+		}
+		fprintf(stderr, "done.\n");
+		unlink("started_fake_auditd");
+	}
 }

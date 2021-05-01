@@ -101,6 +101,8 @@ spibus_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 	retval += printf(" at cs %d", devi->cs);
 	retval += printf(" mode %d", devi->mode);
+	retval += resource_list_print_type(&devi->rl, "irq",
+	    SYS_RES_IRQ, "%jd");
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -202,6 +204,7 @@ spibus_add_child(device_t dev, u_int order, const char *name, int unit)
 		device_delete_child(dev, child);
 		return (0);
 	}
+	resource_list_init(&devi->rl);
 	device_set_ivars(child, devi);
 	return (child);
 }
@@ -210,6 +213,7 @@ static void
 spibus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	device_t child;
+	int irq;
 	struct spibus_ivar *devi;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
@@ -218,6 +222,20 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 	resource_int_value(dname, dunit, "clock", &devi->clock);
 	resource_int_value(dname, dunit, "cs", &devi->cs);
 	resource_int_value(dname, dunit, "mode", &devi->mode);
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		if (bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1) != 0)
+			device_printf(bus,
+			    "Warning: bus_set_resource() failed\n");
+	}
+}
+
+static struct resource_list *
+spibus_get_resource_list(device_t bus __unused, device_t child)
+{
+	struct spibus_ivar *devi;
+
+	devi = SPIBUS_IVAR(child);
+	return (&devi->rl);
 }
 
 static int
@@ -236,6 +254,17 @@ static device_method_t spibus_methods[] = {
 	DEVMETHOD(device_resume,	spibus_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource_list, spibus_get_resource_list),
+
 	DEVMETHOD(bus_add_child,	spibus_add_child),
 	DEVMETHOD(bus_print_child,	spibus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	spibus_probe_nomatch),

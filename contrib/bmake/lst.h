@@ -1,4 +1,4 @@
-/*	$NetBSD: lst.h,v 1.60 2020/09/02 23:33:13 rillig Exp $	*/
+/*	$NetBSD: lst.h,v 1.96 2021/02/01 18:55:15 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -78,102 +78,126 @@
 #ifndef MAKE_LST_H
 #define MAKE_LST_H
 
-#include <sys/param.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
 
 /* A doubly-linked list of pointers. */
-typedef	struct List	*Lst;
+typedef struct List List;
 /* A single node in the doubly-linked list. */
-typedef	struct ListNode	*LstNode;
+typedef struct ListNode ListNode;
 
-/* Copy a node, usually by allocating a copy of the given object.
- * For reference-counted objects, the original object may need to be
- * modified, therefore the parameter is not const. */
-typedef void *LstCopyProc(void *);
+struct ListNode {
+	ListNode *prev;		/* previous node in list, or NULL */
+	ListNode *next;		/* next node in list, or NULL */
+	void *datum;		/* datum associated with this element */
+};
+
+struct List {
+	ListNode *first;
+	ListNode *last;
+};
+
 /* Free the datum of a node, called before freeing the node itself. */
 typedef void LstFreeProc(void *);
-/* Return TRUE if the datum matches the args, for Lst_Find. */
-typedef Boolean LstFindProc(const void *datum, const void *args);
-/* An action for Lst_ForEach. */
-typedef int LstActionProc(void *datum, void *args);
 
 /* Create or destroy a list */
 
 /* Create a new list. */
-Lst Lst_Init(void);
-/* Duplicate an existing list. */
-Lst Lst_Copy(Lst, LstCopyProc);
+List *Lst_New(void);
+/* Free the list nodes, but not the list itself. */
+void Lst_Done(List *);
+/* Free the list nodes, freeing the node data using the given function. */
+void Lst_DoneCall(List *, LstFreeProc);
 /* Free the list, leaving the node data unmodified. */
-void Lst_Free(Lst);
-/* Free the list, freeing the node data using the given function. */
-void Lst_Destroy(Lst, LstFreeProc);
+void Lst_Free(List *);
+
+#define LST_INIT { NULL, NULL }
+
+/* Initialize a list, without memory allocation. */
+MAKE_INLINE void
+Lst_Init(List *list)
+{
+    list->first = NULL;
+    list->last = NULL;
+}
 
 /* Get information about a list */
 
-Boolean Lst_IsEmpty(Lst);
-/* Return the first node of the list, or NULL. */
-LstNode Lst_First(Lst);
-/* Return the last node of the list, or NULL. */
-LstNode Lst_Last(Lst);
-/* Find the first node for which the function returns TRUE, or NULL. */
-LstNode Lst_Find(Lst, LstFindProc, const void *);
-/* Find the first node for which the function returns TRUE, or NULL.
- * The search starts at the given node, towards the end of the list. */
-LstNode Lst_FindFrom(Lst, LstNode, LstFindProc, const void *);
+MAKE_INLINE Boolean
+Lst_IsEmpty(List *list)
+{ return list->first == NULL; }
+
 /* Find the first node that contains the given datum, or NULL. */
-LstNode Lst_FindDatum(Lst, const void *);
+ListNode *Lst_FindDatum(List *, const void *);
 
 /* Modify a list */
 
 /* Insert a datum before the given node. */
-void Lst_InsertBefore(Lst, LstNode, void *);
+void Lst_InsertBefore(List *, ListNode *, void *);
 /* Place a datum at the front of the list. */
-void Lst_Prepend(Lst, void *);
+void Lst_Prepend(List *, void *);
 /* Place a datum at the end of the list. */
-void Lst_Append(Lst, void *);
+void Lst_Append(List *, void *);
 /* Remove the node from the list. */
-void Lst_Remove(Lst, LstNode);
-void Lst_PrependAll(Lst, Lst);
-void Lst_AppendAll(Lst, Lst);
-void Lst_MoveAll(Lst, Lst);
+void Lst_Remove(List *, ListNode *);
+void Lst_PrependAll(List *, List *);
+void Lst_AppendAll(List *, List *);
+void Lst_MoveAll(List *, List *);
 
 /* Node-specific functions */
 
-/* Return the successor of the node, or NULL. */
-LstNode LstNode_Next(LstNode);
-/* Return the predecessor of the node, or NULL. */
-LstNode LstNode_Prev(LstNode);
-/* Return the datum of the node. Usually not NULL. */
-void *LstNode_Datum(LstNode);
 /* Replace the value of the node. */
-void LstNode_Set(LstNode, void *);
+void LstNode_Set(ListNode *, void *);
 /* Set the value of the node to NULL. Having NULL in a list is unusual. */
-void LstNode_SetNull(LstNode);
-
-/* Iterating over a list, using a callback function */
-
-/* Apply a function to each datum of the list, until the callback function
- * returns non-zero. */
-int Lst_ForEach(Lst, LstActionProc, void *);
-/* Apply a function to each datum of the list, starting at the node,
- * until the callback function returns non-zero. */
-int Lst_ForEachFrom(Lst, LstNode, LstActionProc, void *);
-
-/* Iterating over a list while keeping track of the current node and possible
- * concurrent modifications */
-
-/* Start iterating the list. */
-void Lst_Open(Lst);
-/* Return the next node, or NULL. */
-LstNode Lst_Next(Lst);
-/* Finish iterating the list. */
-void Lst_Close(Lst);
+void LstNode_SetNull(ListNode *);
 
 /* Using the list as a queue */
 
 /* Add a datum at the tail of the queue. */
-void Lst_Enqueue(Lst, void *);
+MAKE_INLINE void
+Lst_Enqueue(List *list, void *datum) {
+	Lst_Append(list, datum);
+}
+
 /* Remove the head node of the queue and return its datum. */
-void *Lst_Dequeue(Lst);
+void *Lst_Dequeue(List *);
+
+/*
+ * A vector is an ordered collection of items, allowing for fast indexed
+ * access.
+ */
+typedef struct Vector {
+	void *items;		/* memory holding the items */
+	size_t itemSize;	/* size of a single item */
+	size_t len;		/* number of actually usable elements */
+	size_t cap;		/* capacity */
+} Vector;
+
+void Vector_Init(Vector *, size_t);
+
+/*
+ * Return the pointer to the given item in the vector.
+ * The returned data is valid until the next modifying operation.
+ */
+MAKE_INLINE void *
+Vector_Get(Vector *v, size_t i)
+{
+	unsigned char *items = v->items;
+	return items + i * v->itemSize;
+}
+
+void *Vector_Push(Vector *);
+void *Vector_Pop(Vector *);
+
+MAKE_INLINE void
+Vector_Done(Vector *v) {
+	free(v->items);
+}
 
 #endif /* MAKE_LST_H */

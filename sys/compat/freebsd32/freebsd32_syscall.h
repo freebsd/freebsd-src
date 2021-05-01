@@ -167,7 +167,7 @@
 #define	FREEBSD32_SYS_freebsd32_shmsys	171
 				/* 173 is freebsd6 freebsd32_pread */
 				/* 174 is freebsd6 freebsd32_pwrite */
-#define	FREEBSD32_SYS_ntp_adjtime	176
+#define	FREEBSD32_SYS_freebsd32_ntp_adjtime	176
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
 #define	FREEBSD32_SYS_seteuid	183
@@ -503,4 +503,7 @@
 #define	FREEBSD32_SYS___realpathat	574
 #define	FREEBSD32_SYS_close_range	575
 #define	FREEBSD32_SYS_rpctls_syscall	576
-#define	FREEBSD32_SYS_MAXSYSCALL	577
+#define	FREEBSD32_SYS___specialfd	577
+#define	FREEBSD32_SYS_freebsd32_aio_writev	578
+#define	FREEBSD32_SYS_freebsd32_aio_readv	579
+#define	FREEBSD32_SYS_MAXSYSCALL	580

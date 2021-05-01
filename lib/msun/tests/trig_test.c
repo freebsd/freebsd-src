@@ -38,13 +38,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <assert.h>
 #include <fenv.h>
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
-
-#include <atf-c.h>
 
 #include "test-utils.h"
 
@@ -66,8 +63,9 @@ __FBSDID("$FreeBSD$");
 #define	test(func, x, result, exceptmask, excepts)	do {		\
 	volatile long double _d = x;					\
 	ATF_CHECK(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	ATF_CHECK(fpequal((func)(_d), (result)));				\
-	ATF_CHECK(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
+	CHECK_FPEQUAL((func)(_d), (result));			\
+	CHECK_FP_EXCEPTIONS_MSG(excepts, exceptmask, "for %s(%s)",	\
+	    #func, #x);							\
 } while (0)
 
 #define	testall(prefix, x, result, exceptmask, excepts)	do {		\
@@ -161,8 +159,8 @@ ATF_TC_BODY(reduction, tc)
 	unsigned i;
 
 #if defined(__amd64__) && defined(__clang__) && __clang_major__ >= 7 && \
-    __FreeBSD_cc_version < 1300002
-	atf_tc_expect_fail("test fails with clang 7+ - bug 234040");
+    __clang_major__ < 10 && __FreeBSD_cc_version < 1300002
+	atf_tc_expect_fail("test fails with clang 7-9 - bug 234040");
 #endif
 
 	for (i = 0; i < nitems(f_pi_odd); i++) {

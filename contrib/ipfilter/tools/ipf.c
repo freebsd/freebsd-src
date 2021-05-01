@@ -17,7 +17,7 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
-extern	char	*index __P((const char *, int));
+extern	char	*index(const char *, int);
 #endif
 
 extern	char	*optarg;
@@ -25,28 +25,28 @@ extern	int	optind;
 extern	frentry_t *frtop;
 
 
-void	ipf_frsync __P((void));
-void	zerostats __P((void));
-int	main __P((int, char *[]));
+void	ipf_frsync(void);
+void	zerostats(void);
+int	main(int, char *[]);
 
 int	opts = 0;
 int	outputc = 0;
 int	use_inet6 = 0;
 int	exitstatus = 0;
 
-static	void	procfile __P((char *));
-static	void	flushfilter __P((char *, int *));
-static	void	set_state __P((u_int));
-static	void	showstats __P((friostat_t *));
-static	void	packetlogon __P((char *));
-static	void	swapactive __P((void));
-static	int	opendevice __P((char *, int));
-static	void	closedevice __P((void));
+static	void	procfile(char *);
+static	void	flushfilter(char *, int *);
+static	void	set_state(u_int);
+static	void	showstats(friostat_t *);
+static	void	packetlogon(char *);
+static	void	swapactive(void);
+static	int	opendevice(char *, int);
+static	void	closedevice(void);
 static	char	*ipfname = IPL_NAME;
-static	void	usage __P((void));
-static	int	showversion __P((void));
-static	int	get_flags __P((void));
-static	int	ipf_interceptadd __P((int, ioctlfunc_t, void *));
+static	void	usage(void);
+static	int	showversion(void);
+static	int	get_flags(void);
+static	int	ipf_interceptadd(int, ioctlfunc_t, void *);
 
 static	int	fd = -1;
 static	ioctlfunc_t	iocfunctions[IPL_LOGSIZE] = { ioctl, ioctl, ioctl,

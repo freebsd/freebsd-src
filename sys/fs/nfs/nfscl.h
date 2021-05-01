@@ -81,4 +81,9 @@ struct nfsv4node {
 			printf(__VA_ARGS__);				\
 	} while (0)
 
+struct nfscl_reconarg {
+	int	minorvers;
+	uint8_t	sessionid[NFSX_V4SESSIONID];
+};
+
 #endif	/* _NFS_NFSCL_H */

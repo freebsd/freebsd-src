@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd May 13, 2007
+.Dd October 12, 2020
 .Dt BOOT.CONFIG 5
 .Os
 .Sh NAME
@@ -68,6 +68,8 @@ manual page.
 .Bl -tag -width /boot.config -compact
 .It Pa /boot.config
 parameters for the boot blocks (optional)
+.It Pa /boot/config
+Altnerate location for boot config information
 .El
 .Sh EXAMPLES
 The command:
@@ -76,7 +78,8 @@ The command:
 .Ed
 .Pp
 will activate the serial console of
-.Fx .
+.Fx
+if no keyboard is present, otherwise video console will be used.
 .Pp
 The command:
 .Bd -literal -offset indent

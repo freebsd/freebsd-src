@@ -666,8 +666,8 @@ options		IPSEC_SUPPORT
 #options 	IPSEC_DEBUG		#debug for IP security
 
 
-# TLS framing and encryption of data transmitted over TCP sockets.
-options		KERN_TLS		# TLS transmit offload
+# TLS framing and encryption/decryption of data over TCP sockets.
+options		KERN_TLS		# TLS transmit and receive offload
 
 #
 # SMB/CIFS requester
@@ -769,7 +769,6 @@ options 	NETGRAPH_ASYNC
 options 	NETGRAPH_ATMLLC
 options 	NETGRAPH_ATM_ATMPIF
 options 	NETGRAPH_BLUETOOTH		# ng_bluetooth(4)
-options 	NETGRAPH_BLUETOOTH_BT3C		# ng_bt3c(4)
 options 	NETGRAPH_BLUETOOTH_HCI		# ng_hci(4)
 options 	NETGRAPH_BLUETOOTH_L2CAP	# ng_l2cap(4)
 options 	NETGRAPH_BLUETOOTH_SOCKET	# ng_btsocket(4)
@@ -824,8 +823,6 @@ options 	NGATM_SSCOP
 options 	NGATM_SSCFU
 options 	NGATM_UNI
 options 	NGATM_CCATM
-
-device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 
 # Network stack virtualization.
 options	VIMAGE
@@ -1771,7 +1768,7 @@ options 	BREAK_TO_DEBUGGER	# A BREAK/DBG on the console goes to
 options 	ALT_BREAK_TO_DEBUGGER
 
 # Serial Communications Controller
-# Supports the Siemens SAB 82532 and Zilog Z8530 multi-channel
+# Supports the Freescale/NXP QUad Integrated and Zilog Z8530 multi-channel
 # communications controllers.
 device		scc
 
@@ -1810,7 +1807,6 @@ device  	icsphy		# ICS ICS1889-1893
 device  	ip1000phy	# IC Plus IP1000A/IP1001
 device  	jmphy		# JMicron JMP211/JMP202
 device  	lxtphy		# Level One LXT-970
-device  	mlphy		# Micro Linear 6692
 device  	nsgphy		# NatSemi DP8361/DP83865/DP83891
 device  	nsphy		# NatSemi DP83840A
 device  	nsphyter	# NatSemi DP83843/DP83815
@@ -1822,7 +1818,6 @@ device  	rlphy		# RealTek 8139
 device  	rlswitch	# RealTek 8305
 device  	smcphy		# SMSC LAN91C111
 device  	tdkphy		# TDK 89Q2120
-device  	tlphy		# Texas Instruments ThunderLAN
 device  	truephy		# LSI TruePHY
 device		xmphy		# XaQti XMAC II
 
@@ -1867,7 +1862,6 @@ device		xmphy		# XaQti XMAC II
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
-# hme:  Sun HME (Happy Meal Ethernet)
 # jme:  JMicron JMC260 Fast Ethernet/JMC250 Gigabit Ethernet based adapters.
 # le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
@@ -1927,9 +1921,6 @@ device		xmphy		# XaQti XMAC II
 #       including the D-Link DFE520TX and D-Link DFE530TX (see 'rl' for
 #       DFE530TX+), the Hawking Technologies PN102TX, and the AOpen/Acer ALN-320.
 # vte:  DM&P Vortex86 RDC R6040 Fast Ethernet
-# wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
-#       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
-#       bridge with a PCMCIA adapter plugged into it.
 # xl:   Support for the 3Com 3c900, 3c905, 3c905B and 3c905C (Fast)
 #       Etherlink XL cards and integrated controllers.  This includes the
 #       integrated 3c905B-TX chips in certain Dell Optiplex and Dell
@@ -1940,7 +1931,6 @@ device		xmphy		# XaQti XMAC II
 # Order for ISA devices is important here
 
 device		an
-device		wi
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
@@ -1956,7 +1946,6 @@ device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 envvar		hint.fxp.0.prefer_iomap="0"
 device		gem		# Apple GMAC/Sun ERI/Sun GEM
-device		hme		# Sun HME (Happy Meal Ethernet)
 device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		mlxfw		# Mellanox firmware update module
@@ -2190,13 +2179,6 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# Miscellaneous hardware:
-#
-# cmx: OmniKey CardMan 4040 pccard smartcard reader
-
-device		cmx
-
-#
 # PC Card/PCMCIA and Cardbus
 #
 # cbb: pci/cardbus bridge implementing YENTA interface
@@ -2212,10 +2194,11 @@ device		cardbus
 # mmc 		MMC/SD bus
 # mmcsd		MMC/SD memory card
 # sdhci		Generic PCI SD Host Controller
-#
+# rtsx		Realtek SD card reader (RTS5209, RTS5227, ...)
 device		mmc
 device		mmcsd
 device		sdhci
+device		rtsx
 
 #
 # SMB bus
@@ -2427,7 +2410,25 @@ options 	NSFBUFS=1024
 #
 options 	DEBUG_LOCKS
 
-
+#####################################################################
+# HID support
+device		hid		# Generic HID support
+options 	HID_DEBUG	# enable debug msgs
+device		hidbus		# HID bus
+device		hidmap		# HID to evdev mapping
+device		hidraw		# Raw access driver
+options 	HIDRAW_MAKE_UHID_ALIAS	# install /dev/uhid alias
+device		hconf		# Multitouch configuration TLC
+device		hcons		# Consumer controls
+device		hgame		# Generic game controllers
+device		hkbd		# HID keyboard
+device		hms		# HID mouse
+device		hmt		# HID multitouch (MS-compatible)
+device		hpen		# Generic pen driver
+device		hsctrl		# System controls
+device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
+device		xb360gp		# XBox 360 gamepad driver
+
 #####################################################################
 # USB support
 # UHCI controller
@@ -2472,6 +2473,9 @@ device		wsp
 device		uep
 # Diamond Rio 500 MP3 player
 device		urio
+# HID-over-USB driver
+device		usbhid
+
 #
 # USB serial support
 device		ucom
@@ -2725,9 +2729,6 @@ options 	NSWBUF_MIN=120
 # Note that documenting these is not considered an affront.
 
 options 	CAM_DEBUG_DELAY
-
-# VFS cluster debugging.
-options 	CLUSTERDEBUG
 
 options 	DEBUG
 

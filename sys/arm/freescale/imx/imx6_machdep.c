@@ -78,6 +78,10 @@ static platform_cpu_reset_t imx6_cpu_reset;
  * node to refer to GIC instead of GPC.  This will get us by until we write our
  * own GPC driver (or until linux changes its mind and the FDT data again).
  *
+ * 2020/11/25: The tempmon and pmu nodes are siblings (not children) of the soc
+ * node, so for them to use interrupts we need to apply the same fix as we do
+ * for the soc node.
+ *
  * We validate that we have data that looks like we expect before changing it:
  *  - SOC node exists and has GPC as its interrupt parent.
  *  - GPC node exists and has GIC as its interrupt parent.
@@ -95,21 +99,29 @@ static platform_cpu_reset_t imx6_cpu_reset;
  * nodes by string matching we now have to search for both flavors of each node
  * name involved.
  */
+
+static void
+fix_node_iparent(const char* nodepath, phandle_t gpcxref, phandle_t gicxref)
+{
+	static const char *propname = "interrupt-parent";
+	phandle_t node, iparent;
+
+	if ((node = OF_finddevice(nodepath)) == -1)
+		return;
+	if (OF_getencprop(node, propname, &iparent, sizeof(iparent)) <= 0)
+		return;
+	if (iparent != gpcxref)
+		return;
+
+	OF_setprop(node, propname, &gicxref, sizeof(gicxref));
+}
+
 static void
 fix_fdt_interrupt_data(void)
 {
 	phandle_t gicipar, gicnode, gicxref;
 	phandle_t gpcipar, gpcnode, gpcxref;
-	phandle_t socipar, socnode;
 	int result;
-
-	socnode = OF_finddevice("/soc");
-	if (socnode == -1)
-	    return;
-	result = OF_getencprop(socnode, "interrupt-parent", &socipar,
-	    sizeof(socipar));
-	if (result <= 0)
-		return;
 
 	/* GIC node may be child of soc node, or appear directly at root. */
 	gicnode = OF_finddevice("/soc/interrupt-controller@00a01000");
@@ -143,11 +155,13 @@ fix_fdt_interrupt_data(void)
 		return;
 	gpcxref = OF_xref_from_node(gpcnode);
 
-	if (socipar != gpcxref || gpcipar != gicxref || gicipar != gicxref)
+	if (gpcipar != gicxref || gicipar != gicxref)
 		return;
 
 	gicxref = cpu_to_fdt32(gicxref);
-	OF_setprop(socnode, "interrupt-parent", &gicxref, sizeof(gicxref));
+	fix_node_iparent("/soc", gpcxref, gicxref);
+	fix_node_iparent("/pmu", gpcxref, gicxref);
+	fix_node_iparent("/tempmon", gpcxref, gicxref);
 }
 
 static void

@@ -71,6 +71,8 @@ struct ether_addr {
 } __packed;
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
+#define	ETHER_IS_IPV6_MULTICAST(addr) \
+	(((addr)[0] == 0x33) && ((addr)[1] == 0x33))
 #define	ETHER_IS_BROADCAST(addr) \
 	(((addr)[0] & (addr)[1] & (addr)[2] & \
 	  (addr)[3] & (addr)[4] & (addr)[5]) == 0xff)
@@ -428,12 +430,17 @@ struct mbuf;
 struct route;
 struct sockaddr;
 struct bpf_if;
+struct ether_8021q_tag;
 
 extern	uint32_t ether_crc32_le(const uint8_t *, size_t);
 extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
 extern	void ether_demux(struct ifnet *, struct mbuf *);
 extern	void ether_ifattach(struct ifnet *, const u_int8_t *);
 extern	void ether_ifdetach(struct ifnet *);
+#ifdef VIMAGE
+struct vnet;
+extern	void ether_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 extern	int  ether_ioctl(struct ifnet *, u_long, caddr_t);
 extern	int  ether_output(struct ifnet *, struct mbuf *,
 	    const struct sockaddr *, struct route *);
@@ -441,10 +448,16 @@ extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
 extern	char *ether_sprintf(const u_int8_t *);
 void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
 	    void *, u_int);
-struct mbuf  *ether_vlanencap(struct mbuf *, uint16_t);
-bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
-	    uint16_t vid, uint8_t pcp);
+struct mbuf  *ether_vlanencap_proto(struct mbuf *, uint16_t, uint16_t);
+bool	ether_8021q_frame(struct mbuf **mp, struct ifnet *ife,
+		struct ifnet *p, struct ether_8021q_tag *);
 void	ether_gen_addr(struct ifnet *ifp, struct ether_addr *hwaddr);
+
+static __inline struct mbuf *ether_vlanencap(struct mbuf *m, uint16_t tag)
+{
+
+	return ether_vlanencap_proto(m, tag, ETHERTYPE_VLAN);
+}
 
 /* new ethernet interface attached event */
 typedef void (*ether_ifattach_event_handler_t)(void *, struct ifnet *);

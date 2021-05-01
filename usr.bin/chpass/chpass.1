@@ -28,7 +28,7 @@
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd November 17, 2020
 .Dt CHPASS 1
 .Os
 .Sh NAME
@@ -40,20 +40,20 @@
 .Nm ypchsh
 .Nd add or change user database information
 .Sh SYNOPSIS
-.Nm
+.Nm chpass
 .Op Fl a Ar list
-.Op Fl p Ar encpass
 .Op Fl e Ar expiretime
+.Op Fl p Ar encpass
 .Op Fl s Ar newshell
 .Op user
-.Nm
-.Op Fl oly
+.Nm ypchpass
+.Op Fl loy
 .Op Fl a Ar list
-.Op Fl p Ar encpass
-.Op Fl e Ar expiretime
-.Op Fl s Ar newshell
 .Op Fl d Ar domain
+.Op Fl e Ar expiretime
 .Op Fl h Ar host
+.Op Fl p Ar encpass
+.Op Fl s Ar newshell
 .Op user
 .Sh DESCRIPTION
 The
@@ -80,8 +80,8 @@ The information is formatted and supplied to an editor for changes.
 Only the information that the user is allowed to change is displayed.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
-.It Fl a
+.Bl -tag -width "-e expiretime"
+.It Fl a Ar list
 The super-user is allowed to directly supply a user database
 entry, in the format specified by
 .Xr passwd 5 ,
@@ -90,15 +90,15 @@ This argument must be a colon
 .Pq Dq \&:
 separated list of all the
 user database fields, although they may be empty.
-.It Fl p
-The super-user is allowed to directly supply an encrypted password field,
-in the format used by
-.Xr crypt 3 ,
-as an argument.
 .It Fl e Ar expiretime
 Change the account expire time.
 This option is used to set the expire time
 from a script as if it was done in the interactive editor.
+.It Fl p Ar encpass
+The super-user is allowed to directly supply an encrypted password field,
+in the format used by
+.Xr crypt 3 ,
+as an argument.
 .It Fl s Ar newshell
 Attempt to change the user's shell to
 .Ar newshell .
@@ -216,7 +216,7 @@ Note that
 .Xr finger 1
 will display the office location and office phone together under the
 heading
-.Ar Office: .
+.Ar Office\&: .
 .Pp
 The user's
 .Ar home directory
@@ -313,7 +313,7 @@ changing other fields could be added, this would lead to
 compatibility problems with other NIS-capable systems.
 Even though the super-user may supply data for other fields
 while editing an entry, the extra information (other than the
-password -- see below) will be silently discarded.
+password \(em see below) will be silently discarded.
 .Pp
 Exception: the super-user on the NIS master server is permitted to
 change any field.
@@ -382,19 +382,7 @@ change a user's NIS password with
 There are also a few extra option flags that are available when
 .Nm
 is compiled with NIS support:
-.Bl -tag -width indent
-.It Fl l
-Force
-.Nm
-to modify the local copy of a user's password
-information in the event that a user exists in both
-the local and NIS databases.
-.It Fl y
-Opposite effect of
-.Fl l .
-This flag is largely redundant since
-.Nm
-operates on NIS entries by default if NIS is enabled.
+.Bl -tag -width "-d domain"
 .It Fl d Ar domain
 Specify a particular NIS domain.
 The
@@ -432,6 +420,12 @@ option can be used in conjunction with the
 .Fl d
 option, in which case the user-specified hostname will override
 the default.
+.It Fl l
+Force
+.Nm
+to modify the local copy of a user's password
+information in the event that a user exists in both
+the local and NIS databases.
 .It Fl o
 Force the use of RPC-based updates when communicating with
 .Xr rpc.yppasswdd 8
@@ -449,6 +443,12 @@ flag can be used to force
 to use the standard update mechanism instead.
 This option is provided
 mainly for testing purposes.
+.It Fl y
+Opposite effect of
+.Fl l .
+This flag is largely redundant since
+.Nm
+operates on NIS entries by default if NIS is enabled.
 .El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
@@ -461,6 +461,12 @@ temporary copy of the password file
 .It Pa /etc/shells
 the list of approved shells
 .El
+.Sh EXAMPLES
+Change the shell of the current user to
+.Ql /usr/local/bin/zsh :
+.Bd -literal -offset indent
+chsh -s /usr/local/bin/zsh
+.Ed
 .Sh SEE ALSO
 .Xr finger 1 ,
 .Xr login 1 ,

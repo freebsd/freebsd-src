@@ -80,11 +80,8 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 	if (rootdevmp != NULL && vp->v_mount->mnt_vfc == rootdevmp->mnt_vfc)
 		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 
-	if (vp->v_type == VCHR && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
-	    &major, &minor) == 0) {
+	if (linux_vn_get_major_minor(vp, &major, &minor) == 0)
 		sb->st_rdev = (major << 8 | minor);
-	}
 }
 
 static int
@@ -140,9 +137,7 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 		if (mp != NULL && mp->mnt_vfc == rootdevmp->mnt_vfc)
 			buf->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 	}
-	if (vp != NULL && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
-					 &major, &minor) == 0) {
+	if (linux_vn_get_major_minor(vp, &major, &minor) == 0) {
 		buf->st_rdev = (major << 8 | minor);
 	} else if (fp->f_type == DTYPE_PTS) {
 		struct tty *tp = fp->f_data;
@@ -637,10 +632,14 @@ linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 	int error, dfd, flag;
 	struct stat buf;
 
-	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+	if (args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
+		linux_msg(td, "fstatat64 unsupported flag 0x%x", args->flag);
 		return (EINVAL);
+	}
 	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
 	    AT_SYMLINK_NOFOLLOW : 0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
+	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	if (!LUSECONVPATH(td)) {
@@ -666,10 +665,15 @@ linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 	int error, dfd, flag;
 	struct stat buf;
 
-	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
+	if (args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
+		linux_msg(td, "fstatat unsupported flag 0x%x", args->flag);
 		return (EINVAL);
+	}
+
 	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
 	    AT_SYMLINK_NOFOLLOW : 0;
+	flag |= (args->flag & LINUX_AT_EMPTY_PATH) ?
+	    AT_EMPTY_PATH : 0;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	if (!LUSECONVPATH(td)) {

@@ -56,7 +56,7 @@ makeimage()
     if test -z "$partarg"; then
 	local swap ufs
 	swap="-p freebsd-swap::128K"
-	ufs="-p freebsd-ufs:=`mkcontents P 4194304`"
+	ufs="-p freebsd-ufs:=$(atf_get_srcdir)/partition_data_4M.bin"
 	partarg="$ufs $swap"
     fi
 

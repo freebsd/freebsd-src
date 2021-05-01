@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -384,6 +384,8 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_EXTERNAL_FOUND_HERE */        "External declaration below ",
 /*    ASL_MSG_LOWER_CASE_NAMESEG */         "At least one lower case letter found in NameSeg, ASL is case insensitive - converting to upper case",
 /*    ASL_MSG_LOWER_CASE_NAMEPATH */        "At least one lower case letter found in NamePath, ASL is case insensitive - converting to upper case",
+/*    ASL_MSG_UUID_NOT_FOUND */             "Unknown UUID string",
+/*    ASL_MSG_LEGACY_DDB_TYPE */            "DDBHandleObj has been deprecated along with the Unload operator. DDBHandlObj objects are only used in Unload"
 };
 
 /* Table compiler */
@@ -457,7 +459,7 @@ AeDecodeMessageId (
 
         if (Index >= ACPI_ARRAY_LENGTH (AslCompilerMsgs))
         {
-            return ("[Unknown ASL Compiler exception ID]");
+            return ("[Unknown iASL Compiler exception ID]");
         }
     }
 
@@ -470,7 +472,7 @@ AeDecodeMessageId (
 
         if (Index >= ACPI_ARRAY_LENGTH (AslTableCompilerMsgs))
         {
-            return ("[Unknown Table Compiler exception ID]");
+            return ("[Unknown iASL Table Compiler exception ID]");
         }
     }
 
@@ -483,7 +485,7 @@ AeDecodeMessageId (
 
         if (Index >= ACPI_ARRAY_LENGTH (AslPreprocessorMsgs))
         {
-            return ("[Unknown Preprocessor exception ID]");
+            return ("[Unknown iASL Preprocessor exception ID]");
         }
     }
 
@@ -491,7 +493,7 @@ AeDecodeMessageId (
 
     else
     {
-        return ("[Unknown exception/component ID]");
+        return ("[Unknown iASL exception ID]");
     }
 
     return (MessageTable[Index]);
@@ -559,3 +561,79 @@ AeBuildFullExceptionCode (
      */
     return (((Level + 1) * 1000) + MessageId);
 }
+
+
+#ifdef ACPI_HELP_APP
+/*******************************************************************************
+ *
+ * FUNCTION:    AhDecodeAslException
+ *
+ * PARAMETERS:  HexString           - iASL status string from command line, in
+ *                                    hex. If null, display all exceptions.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode and display an iASL exception code. Note1: a
+ * NULL string for HexString displays all known iASL exceptions. Note2:
+ * implements the -x option for AcpiHelp.
+ *
+ ******************************************************************************/
+
+#define AH_DISPLAY_ASL_EXCEPTION_TEXT(Status, Exception) \
+    printf ("%.4X: %s\n", Status, Exception)
+
+#define AH_DISPLAY_EXCEPTION(Status, Name) \
+    printf ("%.4X: %s\n", Status, Name)
+
+
+void
+AhDecodeAslException (
+    char                    *HexString)
+{
+    UINT32                  i;
+    UINT32                  MessageId;
+    const char              *OneException;
+    UINT32                  Index = 1;
+
+
+    /*
+     * A null input string means to decode and display all known
+     * exception codes.
+     */
+    if (!HexString)
+    {
+        printf ("All defined iASL exception codes:\n\n");
+        printf ("Main iASL exceptions:\n\n");
+        AH_DISPLAY_EXCEPTION (0,
+            "AE_OK                        (No error occurred)");
+
+        /* Display codes in each block of exception types */
+
+        for (i = 1; Index < ACPI_ARRAY_LENGTH (AslCompilerMsgs); i++, Index++)
+        {
+            AH_DISPLAY_ASL_EXCEPTION_TEXT (Index, AslCompilerMsgs[i]);
+        }
+
+        printf ("\niASL Table Compiler exceptions:\n\n");
+        Index = ASL_MSG_TABLE_COMPILER;
+        for (i = 0; i < ACPI_ARRAY_LENGTH (AslTableCompilerMsgs); i++, Index++)
+        {
+            AH_DISPLAY_ASL_EXCEPTION_TEXT (Index, AslTableCompilerMsgs[i]);
+        }
+
+        printf ("\niASL Preprocessor exceptions:\n\n");
+        Index = ASL_MSG_PREPROCESSOR;
+        for (i = 0; i < ACPI_ARRAY_LENGTH (AslPreprocessorMsgs); i++, Index++)
+        {
+            AH_DISPLAY_ASL_EXCEPTION_TEXT (Index, AslPreprocessorMsgs[i]);
+        }
+        return;
+    }
+
+    /* HexString is valid - convert it to a MessageId and decode it */
+
+    MessageId = strtol (HexString, NULL, 16);
+    OneException = AeDecodeMessageId ((UINT16) MessageId);
+    AH_DISPLAY_ASL_EXCEPTION_TEXT (MessageId, OneException);
+}
+#endif

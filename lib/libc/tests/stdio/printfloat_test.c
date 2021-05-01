@@ -50,7 +50,7 @@ smash_stack(void)
 {
 	static uint32_t junk = 0xdeadbeef;
 	uint32_t buf[512];
-	int i;
+	size_t i;
 
 	for (i = 0; i < sizeof(buf) / sizeof(buf[0]); i++)
 		buf[i] = junk;
@@ -370,6 +370,37 @@ ATF_TC_BODY(hexadecimal_rounding, tc)
 	testfmt("0x1.83p+0", "%.2a", 1.51);
 }
 
+ATF_TC_WITHOUT_HEAD(subnormal_double);
+ATF_TC_BODY(subnormal_double, tc)
+{
+	/* Regression test for https://bugs.freebsd.org/253847 */
+	double positive = __DBL_DENORM_MIN__;
+	testfmt("4.9406564584124654418e-324", "%20.20g", positive);
+	testfmt("4.9406564584124654418E-324", "%20.20G", positive);
+	testfmt("0x1p-1074", "%a", positive);
+	testfmt("0X1P-1074", "%A", positive);
+	double negative = -__DBL_DENORM_MIN__;
+	testfmt("-4.9406564584124654418e-324", "%20.20g", negative);
+	testfmt("-4.9406564584124654418E-324", "%20.20G", negative);
+	testfmt("-0x1p-1074", "%a", negative);
+	testfmt("-0X1P-1074", "%A", negative);
+}
+
+ATF_TC_WITHOUT_HEAD(subnormal_float);
+ATF_TC_BODY(subnormal_float, tc)
+{
+	float positive = __FLT_DENORM_MIN__;
+	testfmt("1.4012984643248170709e-45", "%20.20g", positive);
+	testfmt("1.4012984643248170709E-45", "%20.20G", positive);
+	testfmt("0x1p-149", "%a", positive);
+	testfmt("0X1P-149", "%A", positive);
+	float negative = -__FLT_DENORM_MIN__;
+	testfmt("-1.4012984643248170709e-45", "%20.20g", negative);
+	testfmt("-1.4012984643248170709E-45", "%20.20G", negative);
+	testfmt("-0x1p-149", "%a", negative);
+	testfmt("-0X1P-149", "%A", negative);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -384,6 +415,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, decimal_rounding);
 	ATF_TP_ADD_TC(tp, hexadecimal_floating_point);
 	ATF_TP_ADD_TC(tp, hexadecimal_rounding);
+	ATF_TP_ADD_TC(tp, subnormal_double);
+	ATF_TP_ADD_TC(tp, subnormal_float);
 
 	return (atf_no_error());
 }

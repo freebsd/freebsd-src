@@ -58,8 +58,8 @@ int	rpctls_syscall(int, const char *);
 
 #ifdef _KERNEL
 /* Functions that perform upcalls to the rpctlsd daemon. */
-enum clnt_stat	rpctls_connect(CLIENT *newclient, struct socket *so,
-		    uint64_t *sslp, uint32_t *reterr);
+enum clnt_stat	rpctls_connect(CLIENT *newclient, char *certname,
+		    struct socket *so, uint64_t *sslp, uint32_t *reterr);
 enum clnt_stat	rpctls_cl_handlerecord(uint64_t sec, uint64_t usec,
 		    uint64_t ssl, uint32_t *reterr);
 enum clnt_stat	rpctls_srv_handlerecord(uint64_t sec, uint64_t usec,

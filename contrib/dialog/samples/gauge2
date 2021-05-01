@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: gauge2,v 1.8 2010/01/13 10:26:52 tom Exp $
+# $Id: gauge2,v 1.9 2019/12/10 23:37:10 tom Exp $
 # The original dialog program assumed the first line after the first "XXX"
 # was a percentage value (compare with "gauge" script).
 
@@ -22,7 +22,7 @@ echo "100") | \
 
 $DIALOG --title "GAUGE" "$@" --gauge "Hi, this is a gauge widget" 10 40 0
 
-if [ "$?" = $DIALOG_ESC ] ; then
+if [ "$?" = "$DIALOG_ESC" ] ; then
 	echo ""
 	echo "Box closed !"
 fi

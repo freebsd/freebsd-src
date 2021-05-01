@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.65 2017/06/30 20:26:52 kre Exp $
+#	$NetBSD: Makefile,v 1.66 2019/10/13 07:28:10 mrg Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -137,3 +137,7 @@ COPTS.literal.c+=	-Wno-sign-conversion
 COPTS.tokenizer.c+=	-Wno-cast-qual
 COPTS.tokenizern.c+=	-Wno-cast-qual
 .endif
+
+COPTS.history.c+=	${GCC_NO_STRINGOP_OVERFLOW}
+COPTS.historyn.c+=	${GCC_NO_STRINGOP_OVERFLOW}
+COPTS.readline.c+=	${GCC_NO_STRINGOP_TRUNCATION} ${GCC_NO_STRINGOP_OVERFLOW}

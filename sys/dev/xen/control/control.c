@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/kdb.h>
 #include <sys/module.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -204,6 +205,7 @@ xctrl_suspend()
 	xs_lock();
 	stop_all_proc();
 	xs_unlock();
+	suspend_all_fs();
 	EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef EARLY_AP_STARTUP
@@ -317,6 +319,7 @@ xctrl_suspend()
 	}
 #endif
 
+	resume_all_fs();
 	resume_all_proc();
 
 	EVENTHANDLER_INVOKE(power_resume);
@@ -431,6 +434,12 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.node = "control/shutdown";
 	xctrl->xctrl_watch.callback = xctrl_on_watch_event;
 	xctrl->xctrl_watch.callback_data = (uintptr_t)xctrl;
+	/*
+	 * We don't care about the path updated, just about the value changes
+	 * on that single node, hence there's no need to queue more that one
+	 * event.
+	 */
+	xctrl->xctrl_watch.max_pending = 1;
 	xs_register_watch(&xctrl->xctrl_watch);
 
 	if (xen_pv_domain())

@@ -452,7 +452,7 @@ append_tree_conflict_info_xml(svn_stringbuf_t *str,
                                      repos_root_url, repos_relpath, peg_rev,
                                      node_kind, pool));
 
-  SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(&repos_relpath,
+  SVN_ERR(svn_client_conflict_get_incoming_new_repos_location(&repos_relpath,
                                                               &peg_rev,
                                                               &node_kind,
                                                               conflict,
@@ -529,7 +529,7 @@ svn_cl__append_conflict_info_xml(svn_stringbuf_t *str,
                                          repos_root_url, repos_relpath, peg_rev,
                                          node_kind, scratch_pool));
 
-      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+      SVN_ERR(svn_client_conflict_get_incoming_new_repos_location(
                 &repos_relpath, &peg_rev, &node_kind, conflict,
                 scratch_pool, scratch_pool));
       if (repos_root_url && repos_relpath)
@@ -576,7 +576,7 @@ svn_cl__append_conflict_info_xml(svn_stringbuf_t *str,
                                          repos_root_url, repos_relpath, peg_rev,
                                          node_kind, scratch_pool));
 
-      SVN_ERR(svn_client_conflict_get_incoming_old_repos_location(
+      SVN_ERR(svn_client_conflict_get_incoming_new_repos_location(
                 &repos_relpath, &peg_rev, &node_kind, conflict,
                 scratch_pool, scratch_pool));
       if (repos_root_url && repos_relpath)

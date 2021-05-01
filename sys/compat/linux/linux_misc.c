@@ -99,19 +99,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
 
-/**
- * Special DTrace provider for the linuxulator.
- *
- * In this file we define the provider for the entire linuxulator. All
- * modules (= files of the linuxulator) use it.
- *
- * We define a different name depending on the emulated bitsize, see
- * ../../<ARCH>/linux{,32}/linux.h, e.g.:
- *      native bitsize          = linuxulator
- *      amd64, 32bit emulation  = linuxulator32
- */
-LIN_SDT_PROVIDER_DEFINE(LINUX_DTRACE);
-
 int stclohz;				/* Statistics clock frequency */
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
@@ -874,6 +861,13 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 			return (0);
 	}
 
+	if (!LUSECONVPATH(td)) {
+		if (args->pathname != NULL) {
+			return (kern_utimensat(td, dfd, args->pathname,
+			    UIO_USERSPACE, timesp, UIO_SYSSPACE, flags));
+		}
+	}
+
 	if (args->pathname != NULL)
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
 	else if (args->flags != 0)
@@ -1373,6 +1367,31 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 	return (0);
 }
 
+static bool
+linux_get_dummy_limit(l_uint resource, struct rlimit *rlim)
+{
+
+	if (linux_dummy_rlimits == 0)
+		return (false);
+
+	switch (resource) {
+	case LINUX_RLIMIT_LOCKS:
+	case LINUX_RLIMIT_SIGPENDING:
+	case LINUX_RLIMIT_MSGQUEUE:
+	case LINUX_RLIMIT_RTTIME:
+		rlim->rlim_cur = LINUX_RLIM_INFINITY;
+		rlim->rlim_max = LINUX_RLIM_INFINITY;
+		return (true);
+	case LINUX_RLIMIT_NICE:
+	case LINUX_RLIMIT_RTPRIO:
+		rlim->rlim_cur = 0;
+		rlim->rlim_max = 0;
+		return (true);
+	default:
+		return (false);
+	}
+}
+
 int
 linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 {
@@ -1404,6 +1423,12 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	struct l_rlimit rlim;
 	struct rlimit bsd_rlim;
 	u_int which;
+
+	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+		rlim.rlim_cur = bsd_rlim.rlim_cur;
+		rlim.rlim_max = bsd_rlim.rlim_max;
+		return (copyout(&rlim, args->rlim, sizeof(rlim)));
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
@@ -1439,6 +1464,12 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	struct l_rlimit rlim;
 	struct rlimit bsd_rlim;
 	u_int which;
+
+	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+		rlim.rlim_cur = bsd_rlim.rlim_cur;
+		rlim.rlim_max = bsd_rlim.rlim_max;
+		return (copyout(&rlim, args->rlim, sizeof(rlim)));
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
@@ -1893,7 +1924,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
-	int pdeath_signal;
+	int pdeath_signal, trace_state;
 
 	switch (args->option) {
 	case LINUX_PR_SET_PDEATHSIG:
@@ -1911,7 +1942,46 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		return (copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal)));
-		break;
+	/*
+	 * In Linux, this flag controls if set[gu]id processes can coredump.
+	 * There are additional semantics imposed on processes that cannot
+	 * coredump:
+	 * - Such processes can not be ptraced.
+	 * - There are some semantics around ownership of process-related files
+	 *   in the /proc namespace.
+	 *
+	 * In FreeBSD, we can (and by default, do) disable setuid coredump
+	 * system-wide with 'sugid_coredump.'  We control tracability on a
+	 * per-process basis with the procctl PROC_TRACE (=> P2_NOTRACE flag).
+	 * By happy coincidence, P2_NOTRACE also prevents coredumping.  So the
+	 * procctl is roughly analogous to Linux's DUMPABLE.
+	 *
+	 * So, proxy these knobs to the corresponding PROC_TRACE setting.
+	 */
+	case LINUX_PR_GET_DUMPABLE:
+		error = kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_STATUS,
+		    &trace_state);
+		if (error != 0)
+			return (error);
+		td->td_retval[0] = (trace_state != -1);
+		return (0);
+	case LINUX_PR_SET_DUMPABLE:
+		/*
+		 * It is only valid for userspace to set one of these two
+		 * flags, and only one at a time.
+		 */
+		switch (args->arg2) {
+		case LINUX_SUID_DUMP_DISABLE:
+			trace_state = PROC_TRACE_CTL_DISABLE_EXEC;
+			break;
+		case LINUX_SUID_DUMP_USER:
+			trace_state = PROC_TRACE_CTL_ENABLE;
+			break;
+		default:
+			return (EINVAL);
+		}
+		return (kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_CTL,
+		    &trace_state));
 	case LINUX_PR_GET_KEEPCAPS:
 		/*
 		 * Indicate that we always clear the effective and
@@ -1964,7 +2034,33 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = copyout(comm, (void *)(register_t)args->arg2,
 		    strlen(comm) + 1);
 		break;
+	case LINUX_PR_GET_SECCOMP:
+	case LINUX_PR_SET_SECCOMP:
+		/*
+		 * Same as returned by Linux without CONFIG_SECCOMP enabled.
+		 */
+		error = EINVAL;
+		break;
+	case LINUX_PR_CAPBSET_READ:
+#if 0
+		/*
+		 * This makes too much noise with Ubuntu Focal.
+		 */
+		linux_msg(td, "unsupported prctl PR_CAPBSET_READ %d",
+		    (int)args->arg2);
+#endif
+		error = EINVAL;
+		break;
+	case LINUX_PR_SET_NO_NEW_PRIVS:
+		linux_msg(td, "unsupported prctl PR_SET_NO_NEW_PRIVS");
+		error = EINVAL;
+		break;
+	case LINUX_PR_SET_PTRACER:
+		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
+		error = EINVAL;
+		break;
 	default:
+		linux_msg(td, "unsupported prctl option %d", args->option);
 		error = EINVAL;
 		break;
 	}
@@ -2137,6 +2233,14 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	u_int which;
 	int flags;
 	int error;
+
+	if (args->new == NULL && args->old != NULL) {
+		if (linux_get_dummy_limit(args->resource, &rlim)) {
+			lrlim.rlim_cur = rlim.rlim_cur;
+			lrlim.rlim_max = rlim.rlim_max;
+			return (copyout(&lrlim, args->old, sizeof(lrlim)));
+		}
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);

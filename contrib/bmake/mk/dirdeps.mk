@@ -1,6 +1,6 @@
-# $Id: dirdeps.mk,v 1.125 2020/08/26 21:49:45 sjg Exp $
+# $Id: dirdeps.mk,v 1.133 2021/01/31 04:39:22 sjg Exp $
 
-# Copyright (c) 2010-2020, Simon J. Gerraty
+# Copyright (c) 2010-2021, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -209,12 +209,9 @@ DEP_$v ?= ${$v}
 # so we need to construct a set of modifiers to fill in the gaps.
 .if ${MAKE_VERSION} >= 20170130
 _tspec_x := ${TARGET_SPEC_VARS:range}
-.elif ${TARGET_SPEC_VARS:[#]} > 10
-# seriously? better have jot(1) or equivalent to produce suitable sequence
-_tspec_x := ${${JOT:Ujot} ${TARGET_SPEC_VARS:[#]}:L:sh}
 .else
-# we can provide the sequence ourselves
-_tspec_x := ${1 2 3 4 5 6 7 8 9 10:L:[1..${TARGET_SPEC_VARS:[#]}]}
+# do it the hard way
+_tspec_x := ${TARGET_SPEC_VARS:[#]:@x@i=1;while [ $$i -le $x ]; do echo $$i; i=$$((i + 1)); done;@:sh}
 .endif
 # this handles unqualified entries
 M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.$${DEP_TARGET_SPEC};
@@ -268,24 +265,9 @@ N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N*${MACHINE}*:${M_ListToSkip}}
 
 # if we were included recursively _DEP_TARGET_SPEC should be valid.
 .if empty(_DEP_TARGET_SPEC)
-# we may or may not have included a dependfile yet
-.if defined(.INCLUDEDFROMFILE)
-_last_dependfile := ${.INCLUDEDFROMFILE:M${.MAKE.DEPENDFILE_PREFIX}*}
-.else
-_last_dependfile := ${.MAKE.MAKEFILES:M*/${.MAKE.DEPENDFILE_PREFIX}*:[-1]}
-.endif
-.if ${_debug_reldir:U0}
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: _last_dependfile='${_last_dependfile}'
-.endif
-
-.if empty(_last_dependfile) || ${_last_dependfile:E:${N_notmachine}} == ""
-# this is all we have to work with
 DEP_MACHINE = ${TARGET_MACHINE:U${MACHINE}}
 _DEP_TARGET_SPEC := ${DEP_TARGET_SPEC}
-.else
-_DEP_TARGET_SPEC = ${_last_dependfile:${M_dep_qual_fixes:ts:}:E}
-.endif
-.if !empty(_last_dependfile)
+.if ${.INCLUDEDFROMFILE:U:M${.MAKE.DEPENDFILE_PREFIX}*} != ""
 # record that we've read dependfile for this
 _dirdeps_checked.${_CURDIR}.${TARGET_SPEC}:
 .endif
@@ -404,8 +386,10 @@ DIRDEP_LOADAVG_LAST = 0
 # yes the expression here is a bit complicated,
 # the trick is to only eval ${DIRDEP_LOADAVG_LAST::=${now_utc}}
 # when we want to report.
+# Note: expr(1) will exit 1 if the expression evaluates to 0
+# hence the  || true
 DIRDEP_LOADAVG_REPORT = \
-	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST}:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
+	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
 	echo "${TRACER}`${DIRDEP_LOADAVG_CMD}`"
 
 # we suppress SUBDIR when visiting the leaves
@@ -494,6 +478,11 @@ dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 	@MAKELEVEL=${.MAKE.LEVEL} ${.MAKE} -C ${_CURDIR} -f ${DIRDEPS_CACHE} \
 		dirdeps MK_DIRDEPS_CACHE=no BUILD_DIRDEPS=no
 
+# leaf makefiles rarely work for building DIRDEPS_CACHE
+.if ${RELDIR} != "."
+BUILD_DIRDEPS_MAKEFILE ?= -f dirdeps.mk
+.endif
+
 # these should generally do
 BUILD_DIRDEPS_MAKEFILE ?=
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
@@ -517,6 +506,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
+	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
 	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
 	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
 	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
@@ -627,6 +617,7 @@ __qual_depdirs += ${__hostdpadd}
 .endif
 
 .if ${_debug_reldir}
+.info DEP_DIRDEPS_FILTER=${DEP_DIRDEPS_FILTER:ts:}
 .info depdirs=${__depdirs}
 .info qualified=${__qual_depdirs}
 .info unqualified=${__unqual_depdirs}

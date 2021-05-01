@@ -389,7 +389,7 @@ static inline struct vm_domain *
 vm_pagequeue_domain(vm_page_t m)
 {
 
-	return (VM_DOMAIN(vm_phys_domain(m)));
+	return (VM_DOMAIN(vm_page_domain(m)));
 }
 
 /*

@@ -173,7 +173,9 @@
  * The (non-default) location the initial phys-to-machine map should be
  * placed at by the hypervisor (Dom0) or the tools (DomU).
  * The kernel must be prepared for this mapping to be established using
- * large pages, despite such otherwise not being available to guests.
+ * large pages, despite such otherwise not being available to guests. Note
+ * that these large pages may be misaligned in PFN space (they'll obviously
+ * be aligned in MFN and virtual address spaces).
  * The kernel must also be able to handle the page table pages used for
  * this mapping not being accessible through the initial mapping.
  * (Only x86-64 supports this at present.)
@@ -217,7 +219,7 @@
 /*
  * System information exported through crash notes.
  *
- * The kexec / kdump code will create one XEN_ELFNOTE_CRASH_INFO 
+ * The kexec / kdump code will create one XEN_ELFNOTE_CRASH_INFO
  * note in case of a system crash. This note will contain various
  * information about the system, see xen/include/xen/elfcore.h.
  */
@@ -226,12 +228,13 @@
 /*
  * System registers exported through crash notes.
  *
- * The kexec / kdump code will create one XEN_ELFNOTE_CRASH_REGS 
+ * The kexec / kdump code will create one XEN_ELFNOTE_CRASH_REGS
  * note per cpu in case of a system crash. This note is architecture
  * specific and will contain registers not saved in the "CORE" note.
  * See xen/include/xen/elfcore.h for more information.
  */
 #define XEN_ELFNOTE_CRASH_REGS 0x1000002
+
 
 /*
  * xen dump-core none note.

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <inttypes.h>
 #include <netdb.h>
+#include <paths.h>
 #include <poll.h>
 #include <pwd.h>
 #include <stdarg.h>
@@ -1053,9 +1054,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 {
 	long ssl_ctx_options;
 
-	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_TICKET;
-	if (getenv("SSL_ALLOW_SSL3") == NULL)
-		ssl_ctx_options |= SSL_OP_NO_SSLv3;
+	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_SSLv3 | SSL_OP_NO_TICKET;
 	if (getenv("SSL_NO_TLS1") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1;
 	if (getenv("SSL_NO_TLS1_1") != NULL)
@@ -1071,7 +1070,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 /*
  * Configure peer verification based on environment.
  */
-#define LOCAL_CERT_FILE	"/usr/local/etc/ssl/cert.pem"
+#define LOCAL_CERT_FILE	_PATH_LOCALBASE "/etc/ssl/cert.pem"
 #define BASE_CERT_FILE	"/etc/ssl/cert.pem"
 static int
 fetch_ssl_setup_peer_verification(SSL_CTX *ctx, int verbose)

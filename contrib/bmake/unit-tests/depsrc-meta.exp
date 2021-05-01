@@ -1,1 +1,5 @@
+Skipping meta for actual-test: no commands
+Skipping meta for .END: .SPECIAL
+Targets from meta mode:
+| TARGET depsrc-meta-target
 exit status 0

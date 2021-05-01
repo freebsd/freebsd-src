@@ -400,7 +400,8 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->access = g_label_access_taste;
 	gp->orphan = g_label_orphan_taste;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
+	if (g_attach(cp, pp) != 0)
+		goto end2;
 	if (g_access(cp, 1, 0, 0) != 0)
 		goto end;
 	for (i = 0; g_labels[i] != NULL; i++) {
@@ -425,6 +426,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_access(cp, -1, 0, 0);
 end:
 	g_detach(cp);
+end2:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	return (NULL);

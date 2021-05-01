@@ -706,8 +706,11 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 				ath_dfs_process_phy_err(sc, m, rstamp, rs);
 			}
 
-			/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
-			if (rs->rs_phyerr < 64)
+			/*
+			 * Be suitably paranoid about receiving phy errors
+			 * out of the stats array bounds
+			 */
+			if (rs->rs_phyerr < ATH_IOCTL_STATS_NUM_RX_PHYERR)
 				sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
 			goto rx_error;	/* NB: don't count in ierrors */
 		}
@@ -835,7 +838,7 @@ rx_accept:
 	 * the majority of the statistics are only valid
 	 * for the last frame in an aggregate.
 	 */
-	if (rs->rs_antenna > 7) {
+	if (rs->rs_antenna >= ATH_IOCTL_STATS_NUM_RX_ANTENNA) {
 		device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
 		    __func__, rs->rs_antenna);
 #ifdef	ATH_DEBUG

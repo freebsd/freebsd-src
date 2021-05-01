@@ -20,4 +20,6 @@ mod-regex-limits:22-ok:1 33 556
 mod-regex-limits:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
 make: Regex compilation error: (details omitted)
 mod-regex-errors:
+make: Unknown modifier 'Z'
+mod-regex-errors: xy
 exit status 0

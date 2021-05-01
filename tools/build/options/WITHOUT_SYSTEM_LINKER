@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to not opportunistically skip building a cross-linker during the
+Do not opportunistically skip building a cross-linker during the
 bootstrap phase of the build.
 Normally, if the currently installed linker matches the planned bootstrap
 linker type and revision, then it will not be built.

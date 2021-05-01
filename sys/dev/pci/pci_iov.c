@@ -95,6 +95,7 @@ static void	pci_iov_build_pf_schema(nvlist_t *schema,
 		    nvlist_t **driver_schema);
 static void	pci_iov_build_vf_schema(nvlist_t *schema,
 		    nvlist_t **driver_schema);
+static int	pci_iov_delete_iov_children(struct pci_devinfo *dinfo);
 static nvlist_t	*pci_iov_get_pf_subsystem_schema(void);
 static nvlist_t	*pci_iov_get_vf_subsystem_schema(void);
 
@@ -191,6 +192,7 @@ pci_iov_detach_method(device_t bus, device_t dev)
 {
 	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
+	int error;
 
 	mtx_lock(&Giant);
 	dinfo = device_get_ivars(dev);
@@ -201,9 +203,15 @@ pci_iov_detach_method(device_t bus, device_t dev)
 		return (0);
 	}
 
-	if (iov->iov_num_vfs != 0 || iov->iov_flags & IOV_BUSY) {
+	if ((iov->iov_flags & IOV_BUSY) != 0) {
 		mtx_unlock(&Giant);
 		return (EBUSY);
+	}
+
+	error = pci_iov_delete_iov_children(dinfo);
+	if (error != 0) {
+		mtx_unlock(&Giant);
+		return (error);
 	}
 
 	dinfo->cfg.iov = NULL;
@@ -823,30 +831,19 @@ pci_iov_is_child_vf(struct pcicfg_iov *pf, device_t child)
 }
 
 static int
-pci_iov_delete(struct cdev *cdev)
+pci_iov_delete_iov_children(struct pci_devinfo *dinfo)
 {
 	device_t bus, dev, vf, *devlist;
-	struct pci_devinfo *dinfo;
 	struct pcicfg_iov *iov;
 	int i, error, devcount;
 	uint32_t iov_ctl;
 
-	mtx_lock(&Giant);
-	dinfo = cdev->si_drv1;
+	mtx_assert(&Giant, MA_OWNED);
+
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
 	devlist = NULL;
-
-	if (iov->iov_flags & IOV_BUSY) {
-		mtx_unlock(&Giant);
-		return (EBUSY);
-	}
-
-	if (iov->iov_num_vfs == 0) {
-		mtx_unlock(&Giant);
-		return (ECHILD);
-	}
 
 	iov->iov_flags |= IOV_BUSY;
 
@@ -905,6 +902,32 @@ pci_iov_delete(struct cdev *cdev)
 out:
 	free(devlist, M_TEMP);
 	iov->iov_flags &= ~IOV_BUSY;
+	return (error);
+}
+
+static int
+pci_iov_delete(struct cdev *cdev)
+{
+	struct pci_devinfo *dinfo;
+	struct pcicfg_iov *iov;
+	int error;
+
+	mtx_lock(&Giant);
+	dinfo = cdev->si_drv1;
+	iov = dinfo->cfg.iov;
+
+	if ((iov->iov_flags & IOV_BUSY) != 0) {
+		error = EBUSY;
+		goto out;
+	}
+	if (iov->iov_num_vfs == 0) {
+		error = ECHILD;
+		goto out;
+	}
+
+	error = pci_iov_delete_iov_children(dinfo);
+
+out:
 	mtx_unlock(&Giant);
 	return (error);
 }

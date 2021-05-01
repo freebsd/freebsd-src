@@ -1,6 +1,6 @@
 /*
- * This file is part of the ZFS Event Daemon (ZED)
- * for ZFS on Linux (ZoL) <http://zfsonlinux.org/>.
+ * This file is part of the ZFS Event Daemon (ZED).
+ *
  * Developed at Lawrence Livermore National Laboratory (LLNL-CODE-403049).
  * Copyright (C) 2013-2014 Lawrence Livermore National Security, LLC.
  * Refer to the ZoL git commit log for authoritative copyright attribution.
@@ -173,6 +173,7 @@ _zed_exec_fork_child(uint64_t eid, const char *dir, const char *prog,
 		zed_log_msg(LOG_WARNING, "Killing hung \"%s\" pid=%d",
 		    prog, pid);
 		(void) kill(pid, SIGKILL);
+		(void) waitpid(pid, &status, 0);
 	}
 }
 

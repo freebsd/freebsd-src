@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd August 21, 2018
+.Dd February 26, 2021
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -286,6 +286,18 @@ this log file.
 This option would affect how the
 .Xr dump 8
 command treats the log file when making a file system backup.
+.It Cm E
+indicates that the log file should not be rotated when its
+size is zero.
+The
+.Cm E
+flag is mostly useful in conjunction with
+.Cm B
+flag to prevent
+.Xr newsyslog 8
+from inserting an informational 
+.Tn ASCII
+message into the new file.
 .It Cm G
 indicates that the specified
 .Ar logfile_name

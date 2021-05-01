@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border.3x,v 1.25 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_border.3x,v 1.27 2020/10/18 00:33:06 tom Exp $
 .TH curs_border 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -51,31 +51,31 @@
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
+.sp
+\fBint border(chtype \fP\fIls\fP\fB, chtype \fP\fIrs\fP\fB, chtype \fP\fIts\fP\fB, chtype \fP\fIbs\fP\fB,\fR
+           \fBchtype \fP\fItl\fP\fB, chtype \fP\fItr\fP\fB, chtype \fP\fIbl\fP\fB, chtype \fP\fIbr\fP\fB);\fR
 .br
-\fBint border(chtype ls, chtype rs, chtype ts, chtype bs,\fR
-   \fBchtype tl, chtype tr, chtype bl, chtype br);\fR
+\fBint wborder(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIls\fP\fB, chtype \fP\fIrs\fP\fB,\fR
+            \fBchtype \fP\fIts\fP\fB, chtype \fP\fIbs\fP\fB, chtype \fP\fItl\fP\fB, chtype \fP\fItr\fP\fB,\fR
+            \fBchtype \fP\fIbl\fP\fB, chtype \fP\fIbr\fP\fB);\fR
+.sp
+\fBint box(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIverch\fP\fB, chtype \fP\fIhorch\fP\fB);\fR
+.sp
+\fBint hline(chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint wborder(WINDOW *win, chtype ls, chtype rs,\fR
-   \fBchtype ts, chtype bs, chtype tl, chtype tr,\fR
-   \fBchtype bl, chtype br);\fR
+\fBint whline(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint box(WINDOW *win, chtype verch, chtype horch);\fR
+\fBint vline(chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint hline(chtype ch, int n);\fR
+\fBint wvline(WINDOW *\fP\fIwin\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
+\fBint mvhline(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint whline(WINDOW *win, chtype ch, int n);\fR
+\fBint mvwhline(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint vline(chtype ch, int n);\fR
+\fBint mvvline(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
-\fBint wvline(WINDOW *win, chtype ch, int n);\fR
-.br
-\fBint mvhline(int y, int x, chtype ch, int n);\fR
-.br
-\fBint mvwhline(WINDOW *, int y, int x, chtype ch, int n);\fR
-.br
-\fBint mvvline(int y, int x, chtype ch, int n);\fR
-.br
-\fBint mvwvline(WINDOW *, int y, int x, chtype ch, int n);\fR
+\fBint mvwvline(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, chtype \fP\fIch\fP\fB, int \fP\fIn\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBborder\fR, \fBwborder\fR and \fBbox\fR routines

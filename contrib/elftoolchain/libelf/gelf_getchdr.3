@@ -1,0 +1,117 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2020 The FreeBSD Foundation
+.\"
+.\" This document was written by Tiger Gao under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are
+.\" met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in
+.\"    the documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id: gelf_getchdr.3 3639 2020-10-20 16:07:02Z tig $
+.\"
+.Dd October 23, 2020
+.Dt GELF_GETCHDR 3
+.Os
+.Sh NAME
+.Nm elf32_getchdr ,
+.Nm elf64_getchdr ,
+.Nm gelf_getchdr
+.Nd retrieve the compression header of a section
+.Sh LIBRARY
+.Lb libelf
+.Sh SYNOPSIS
+.In libelf.h
+.Ft "Elf32_Chdr *"
+.Fn elf32_getchdr "Elf_Scn *s"
+.Ft "Elf64_Chdr *"
+.Fn elf64_getchdr "Elf_Scn *s"
+.In gelf.h
+.Ft "GElf_Chdr *"
+.Fn gelf_getchdr "Elf_Scn *scn" "GElf_Chdr *chdr"
+.Sh DESCRIPTION
+These functions return a pointer to the ELF Compression Header data
+structure associated with section descriptor
+.Ar scn .
+.Pp
+Function
+.Fn elf32_getchdr
+retrieves a pointer to an
+.Vt Elf32_Chdr
+structure.
+Section descriptor
+.Ar scn
+must be associated with an ELF descriptor of class
+.Dv ELFCLASS32 .
+.Pp
+Function
+.Fn elf64_getchdr
+retrieves a pointer to an
+.Vt Elf64_Chdr
+structure.
+Section descriptor
+.Ar scn
+must be associated with an ELF descriptor of class
+.Dv ELFCLASS64 .
+.Pp
+Function
+.Fn gelf_getchdr
+copies the values in the compression header associated with argument
+.Ar scn
+to the structure pointed to be argument
+.Ar dst .
+The
+.Vt GElf_Chdr
+data structure is described in
+.Xr gelf 3 .
+.Sh RETURN VALUES
+Functions
+.Fn elf32_getchdr
+and
+.Fn elf64_getchdr
+return a valid pointer to the appropriate compression header on success
+or NULL if an error was encountered.
+.Pp
+Function
+.Fn gelf_getchdr
+returns argument
+.Ar dst
+if successful, or NULL if an error was encountered.
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width "[ELF_E_RESOURCE]"
+.It Bq Er ELF_E_INVALID_SECTION_FLAGS
+Arguments
+.Ar scn
+has invalid flags.
+.It Bq Er ELF_E_INVALID_SECTION_TYPE
+Argument
+.Ar scn
+has invalid type.
+.It Bq Er ELF_E_NOT_COMPRESSED
+Argument
+.Ar scn
+is not compressed.
+.El
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf_getscn 3 ,
+.Xr gelf 3 ,

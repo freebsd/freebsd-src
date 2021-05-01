@@ -80,6 +80,8 @@ int	ffs_freefile(struct ufsmount *, struct fs *, struct vnode *, ino_t,
 void	ffs_fserr(struct fs *, ino_t, char *);
 int	ffs_getcg(struct fs *, struct vnode *, u_int, int, struct buf **,
 	    struct cg **);
+int	ffs_inotovp(struct mount *, ino_t, u_int64_t, int, struct vnode **,
+	    int);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);
@@ -122,8 +124,12 @@ int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
 /*
  * Flags to ffs_vgetf
  */
-#define	FFSV_FORCEINSMQ	0x0001
-#define	FFSV_REPLACE	0x0002
+#define	FFSV_FORCEINSMQ		0x0001	/* Force insertion into mount list */
+#define	FFSV_REPLACE		0x0002	/* Replace existing vnode */
+#define	FFSV_REPLACE_DOOMED	0x0004	/* Replace existing vnode if it is
+					   doomed */
+#define	FFSV_FORCEINODEDEP	0x0008	/* Force allocation of inodedep, ignore
+					   MNT_SOFTDEP */
 
 /*
  * Flags to ffs_reload
@@ -173,6 +179,9 @@ void	softdep_load_inodeblock(struct inode *);
 void	softdep_freefile(struct vnode *, ino_t, int);
 int	softdep_request_cleanup(struct fs *, struct vnode *,
 	    struct ucred *, int);
+int	softdep_prerename(struct vnode *, struct vnode *, struct vnode *,
+	    struct vnode *);
+int	softdep_prelink(struct vnode *, struct vnode *);
 void	softdep_setup_freeblocks(struct inode *, off_t, int);
 void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t, int);
 void	softdep_setup_blkmapdep(struct buf *, struct mount *, ufs2_daddr_t,

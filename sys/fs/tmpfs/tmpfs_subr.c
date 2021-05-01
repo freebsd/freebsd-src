@@ -75,7 +75,7 @@ SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
 
-static uma_zone_t tmpfs_dirent_pool;
+MALLOC_DEFINE(M_TMPFSDIR, "tmpfs dir", "tmpfs dirent structure");
 static uma_zone_t tmpfs_node_pool;
 VFS_SMR_DECLARE;
 
@@ -129,9 +129,6 @@ tmpfs_node_fini(void *mem, int size)
 void
 tmpfs_subr_init(void)
 {
-	tmpfs_dirent_pool = uma_zcreate("TMPFS dirent",
-	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 	tmpfs_node_pool = uma_zcreate("TMPFS node",
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
@@ -142,7 +139,6 @@ void
 tmpfs_subr_uninit(void)
 {
 	uma_zdestroy(tmpfs_node_pool);
-	uma_zdestroy(tmpfs_dirent_pool);
 }
 
 static int
@@ -256,6 +252,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 {
 	struct tmpfs_node *nnode;
 	vm_object_t obj;
+	char *symlink;
+	char symlink_smr;
 
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
@@ -331,9 +329,37 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	case VLNK:
 		MPASS(strlen(target) < MAXPATHLEN);
 		nnode->tn_size = strlen(target);
-		nnode->tn_link = malloc(nnode->tn_size, M_TMPFSNAME,
-		    M_WAITOK);
-		memcpy(nnode->tn_link, target, nnode->tn_size);
+
+		symlink = NULL;
+		if (!tmp->tm_nonc) {
+			symlink = cache_symlink_alloc(nnode->tn_size + 1, M_WAITOK);
+			symlink_smr = true;
+		}
+		if (symlink == NULL) {
+			symlink = malloc(nnode->tn_size + 1, M_TMPFSNAME, M_WAITOK);
+			symlink_smr = false;
+		}
+		memcpy(symlink, target, nnode->tn_size + 1);
+
+		/*
+		 * Allow safe symlink resolving for lockless lookup.
+		 * tmpfs_fplookup_symlink references this comment.
+		 *
+		 * 1. nnode is not yet visible to the world
+		 * 2. both tn_link_target and tn_link_smr get populated
+		 * 3. release fence publishes their content
+		 * 4. tn_link_target content is immutable until node destruction,
+		 *    where the pointer gets set to NULL
+		 * 5. tn_link_smr is never changed once set
+		 *
+		 * As a result it is sufficient to issue load consume on the node
+		 * pointer to also get the above content in a stable manner.
+		 * Worst case tn_link_smr flag may be set to true despite being stale,
+		 * while the target buffer is already cleared out.
+		 */
+		atomic_store_ptr(&nnode->tn_link_target, symlink);
+		atomic_store_char((char *)&nnode->tn_link_smr, symlink_smr);
+		atomic_thread_fence_rel();
 		break;
 
 	case VREG:
@@ -386,6 +412,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
     bool detach)
 {
 	vm_object_t uobj;
+	char *symlink;
 	bool last;
 
 	TMPFS_MP_ASSERT_LOCKED(tmp);
@@ -421,7 +448,13 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		break;
 
 	case VLNK:
-		free(node->tn_link, M_TMPFSNAME);
+		symlink = node->tn_link_target;
+		atomic_store_ptr(&node->tn_link_target, NULL);
+		if (atomic_load_char(&node->tn_link_smr)) {
+			cache_symlink_free(symlink, node->tn_size + 1);
+		} else {
+			free(symlink, M_TMPFSNAME);
+		}
 		break;
 
 	case VREG:
@@ -506,7 +539,7 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 {
 	struct tmpfs_dirent *nde;
 
-	nde = uma_zalloc(tmpfs_dirent_pool, M_WAITOK);
+	nde = malloc(sizeof(*nde), M_TMPFSDIR, M_WAITOK);
 	nde->td_node = node;
 	if (name != NULL) {
 		nde->ud.td_name = malloc(len, M_TMPFSNAME, M_WAITOK);
@@ -542,7 +575,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 	}
 	if (!tmpfs_dirent_duphead(de) && de->ud.td_name != NULL)
 		free(de->ud.td_name, M_TMPFSNAME);
-	uma_zfree(tmpfs_dirent_pool, de);
+	free(de, M_TMPFSDIR);
 }
 
 void
@@ -702,7 +735,7 @@ loop:
 		vp->v_object = object;
 		object->un_pager.swp.swp_tmpfs = vp;
 		vm_object_set_flag(object, OBJ_TMPFS);
-		vp->v_irflag |= VIRF_PGREAD;
+		vn_irflag_set_locked(vp, VIRF_PGREAD);
 		VI_UNLOCK(vp);
 		VM_OBJECT_WUNLOCK(object);
 		break;
@@ -1191,6 +1224,7 @@ tmpfs_dir_getdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	MPASS(uio->uio_offset == TMPFS_DIRCOOKIE_DOT);
 
 	dent.d_fileno = node->tn_id;
+	dent.d_off = TMPFS_DIRCOOKIE_DOTDOT;
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 1;
 	dent.d_name[0] = '.';
@@ -1216,7 +1250,7 @@ tmpfs_dir_getdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
  */
 static int
 tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
-    struct uio *uio)
+    struct uio *uio, off_t next)
 {
 	struct tmpfs_node *parent;
 	struct dirent dent;
@@ -1237,6 +1271,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	dent.d_fileno = parent->tn_id;
 	TMPFS_NODE_UNLOCK(parent);
 
+	dent.d_off = next;
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 2;
 	dent.d_name[0] = '.';
@@ -1266,7 +1301,7 @@ tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
     struct uio *uio, int maxcookies, u_long *cookies, int *ncookies)
 {
 	struct tmpfs_dir_cursor dc;
-	struct tmpfs_dirent *de;
+	struct tmpfs_dirent *de, *nde;
 	off_t off;
 	int error;
 
@@ -1287,18 +1322,19 @@ tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
 		error = tmpfs_dir_getdotdent(tm, node, uio);
 		if (error != 0)
 			return (error);
-		uio->uio_offset = TMPFS_DIRCOOKIE_DOTDOT;
+		uio->uio_offset = off = TMPFS_DIRCOOKIE_DOTDOT;
 		if (cookies != NULL)
-			cookies[(*ncookies)++] = off = uio->uio_offset;
+			cookies[(*ncookies)++] = off;
 		/* FALLTHROUGH */
 	case TMPFS_DIRCOOKIE_DOTDOT:
-		error = tmpfs_dir_getdotdotdent(tm, node, uio);
+		de = tmpfs_dir_first(node, &dc);
+		off = tmpfs_dirent_cookie(de);
+		error = tmpfs_dir_getdotdotdent(tm, node, uio, off);
 		if (error != 0)
 			return (error);
-		de = tmpfs_dir_first(node, &dc);
-		uio->uio_offset = tmpfs_dirent_cookie(de);
+		uio->uio_offset = off;
 		if (cookies != NULL)
-			cookies[(*ncookies)++] = off = uio->uio_offset;
+			cookies[(*ncookies)++] = off;
 		/* EOF. */
 		if (de == NULL)
 			return (0);
@@ -1313,13 +1349,17 @@ tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
 			off = tmpfs_dirent_cookie(de);
 	}
 
-	/* Read as much entries as possible; i.e., until we reach the end of
-	 * the directory or we exhaust uio space. */
+	/*
+	 * Read as much entries as possible; i.e., until we reach the end of the
+	 * directory or we exhaust uio space.
+	 */
 	do {
 		struct dirent d;
 
-		/* Create a dirent structure representing the current
-		 * tmpfs_node and fill it. */
+		/*
+		 * Create a dirent structure representing the current tmpfs_node
+		 * and fill it.
+		 */
 		if (de->td_node == NULL) {
 			d.d_fileno = 1;
 			d.d_type = DT_WHT;
@@ -1363,20 +1403,27 @@ tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
 		MPASS(de->td_namelen < sizeof(d.d_name));
 		(void)memcpy(d.d_name, de->ud.td_name, de->td_namelen);
 		d.d_reclen = GENERIC_DIRSIZ(&d);
-		dirent_terminate(&d);
 
-		/* Stop reading if the directory entry we are treating is
-		 * bigger than the amount of data that can be returned. */
+		/*
+		 * Stop reading if the directory entry we are treating is bigger
+		 * than the amount of data that can be returned.
+		 */
 		if (d.d_reclen > uio->uio_resid) {
 			error = EJUSTRETURN;
 			break;
 		}
 
-		/* Copy the new dirent structure into the output buffer and
-		 * advance pointers. */
+		nde = tmpfs_dir_next(node, &dc);
+		d.d_off = tmpfs_dirent_cookie(nde);
+		dirent_terminate(&d);
+
+		/*
+		 * Copy the new dirent structure into the output buffer and
+		 * advance pointers.
+		 */
 		error = uiomove(&d, d.d_reclen, uio);
 		if (error == 0) {
-			de = tmpfs_dir_next(node, &dc);
+			de = nde;
 			if (cookies != NULL) {
 				off = tmpfs_dirent_cookie(de);
 				MPASS(*ncookies < maxcookies);

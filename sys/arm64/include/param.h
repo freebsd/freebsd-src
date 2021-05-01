@@ -63,7 +63,7 @@
 #endif
 
 #ifndef MAXMEMDOM
-#define	MAXMEMDOM	2
+#define	MAXMEMDOM	8
 #endif
 
 #define	ALIGNBYTES	_ALIGNBYTES
@@ -83,9 +83,9 @@
 #define	CACHE_LINE_SHIFT	7
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
-#define	PAGE_SHIFT	12
-#define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
-#define	PAGE_MASK	(PAGE_SIZE - 1)
+#define	PAGE_SHIFT_4K	12
+#define	PAGE_SIZE_4K	(1 << PAGE_SHIFT_4K)
+#define	PAGE_MASK_4K	(PAGE_SIZE_4K - 1)
 
 #define	PAGE_SHIFT_16K	14
 #define	PAGE_SIZE_16K	(1 << PAGE_SHIFT_16K)
@@ -95,6 +95,10 @@
 #define	PAGE_SIZE_64K	(1 << PAGE_SHIFT_64K)
 #define	PAGE_MASK_64K	(PAGE_SIZE_64K - 1)
 
+#define	PAGE_SHIFT	PAGE_SHIFT_4K
+#define	PAGE_SIZE	PAGE_SIZE_4K
+#define	PAGE_MASK	PAGE_MASK_4K
+
 #define	MAXPAGESIZES	3		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
@@ -103,15 +107,6 @@
 
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	PCPU_PAGES		1
-
-/*
- * Ceiling on size of buffer cache (really only effects write queueing,
- * the VM page cache is not effected), can be changed via
- * the kern.maxbcache /boot/loader.conf variable.
- */
-#ifndef VM_BCACHE_SIZE_MAX
-#define	VM_BCACHE_SIZE_MAX      (400 * 1024 * 1024)
-#endif
 
 /*
  * Mach derived conversion macros

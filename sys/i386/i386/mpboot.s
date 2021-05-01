@@ -68,7 +68,7 @@
  */
 	.p2align 4
 
-NON_GPROF_ENTRY(MPentry)
+ENTRY(MPentry)
 	CHECKPOINT(0x36, 3)
 	/*
 	 * Enable features on this processor.  We don't support SMP on
@@ -142,7 +142,7 @@ mp_begin:	/* now running relocated at KERNBASE */
 
 BOOTMP1:
 
-NON_GPROF_ENTRY(bootMP)
+ENTRY(bootMP)
 	.code16		
 	cli
 	CHECKPOINT(0x34, 1)

@@ -824,6 +824,7 @@ files_setgrent(void *retval, void *mdata, va_list ap)
 			rewind(st->fp);
 		else if (stayopen)
 			st->fp = fopen(_PATH_GROUP, "re");
+		st->stayopen = stayopen;
 		break;
 	case ENDGRENT:
 		if (st->fp != NULL) {
@@ -882,16 +883,12 @@ files_group(void *retval, void *mdata, va_list ap)
 		}
 		fresh = 1;
 	}
-	if (how == nss_lt_all)
-		stayopen = 1;
-	else {
-		if (!fresh)
-			rewind(st->fp);
-		stayopen = st->stayopen;
-	}
-	rv = NS_NOTFOUND;
+	stayopen = (how == nss_lt_all || !fresh) ? 1 : st->stayopen;
 	if (stayopen)
 		pos = ftello(st->fp);
+	if (how != nss_lt_all && !fresh)
+		rewind(st->fp);
+	rv = NS_NOTFOUND;
 	while ((line = fgetln(st->fp, &linesize)) != NULL) {
 		if (line[linesize-1] == '\n')
 			linesize--;
@@ -913,13 +910,15 @@ files_group(void *retval, void *mdata, va_list ap)
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;
-		if (stayopen)
+		if (how == nss_lt_all)
 			pos = ftello(st->fp);
 	}
 	if (st->fp != NULL && !stayopen) {
 		fclose(st->fp);
 		st->fp = NULL;
 	}
+	if (st->fp != NULL && how != nss_lt_all)
+		fseeko(st->fp, pos, SEEK_SET);
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
 	else if (rv == NS_RETURN && *errnop == ERANGE && st->fp != NULL)
@@ -972,7 +971,7 @@ dns_group(void *retval, void *mdata, va_list ap)
 	hes = NULL;
 	name = NULL;
 	gid = (gid_t)-1;
-	how = (enum nss_lookup_type)mdata;
+	how = (enum nss_lookup_type)(uintptr_t)mdata;
 	switch (how) {
 	case nss_lt_name:
 		name = va_arg(ap, const char *);
@@ -1273,6 +1272,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 			rewind(st->fp);
 		else if (stayopen)
 			st->fp = fopen(_PATH_GROUP, "re");
+		st->stayopen = stayopen;
 		set_setent(dtab, mdata);
 		(void)_nsdispatch(NULL, dtab, NSDB_GROUP_COMPAT, "setgrent",
 		    compatsrc, 0);
@@ -1364,13 +1364,11 @@ compat_group(void *retval, void *mdata, va_list ap)
 		}
 		fresh = 1;
 	}
-	if (how == nss_lt_all)
-		stayopen = 1;
-	else {
-		if (!fresh)
-			rewind(st->fp);
-		stayopen = st->stayopen;
-	}
+	stayopen = (how == nss_lt_all || !fresh) ? 1 : st->stayopen;
+	if (stayopen)
+		pos = ftello(st->fp);
+	if (how != nss_lt_all && !fresh)
+		rewind(st->fp);
 docompat:
 	switch (st->compat) {
 	case COMPAT_MODE_ALL:
@@ -1431,8 +1429,6 @@ docompat:
 		break;
 	}
 	rv = NS_NOTFOUND;
-	if (stayopen)
-		pos = ftello(st->fp);
 	while ((line = fgetln(st->fp, &linesize)) != NULL) {
 		if (line[linesize-1] == '\n')
 			linesize--;
@@ -1473,7 +1469,7 @@ docompat:
 		    &buffer[linesize + 1], bufsize - linesize - 1, errnop);
 		if (rv & NS_TERMINATE)
 			break;
-		if (stayopen)
+		if (how == nss_lt_all)
 			pos = ftello(st->fp);
 	}
 fin:
@@ -1481,6 +1477,8 @@ fin:
 		fclose(st->fp);
 		st->fp = NULL;
 	}
+	if (st->fp != NULL && how != nss_lt_all)
+		fseeko(st->fp, pos, SEEK_SET);
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
 	else if (rv == NS_RETURN && *errnop == ERANGE && st->fp != NULL)

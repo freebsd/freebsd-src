@@ -562,6 +562,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	VOP_UNLOCK(vp);
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_QUOTA;
+	mp->mnt_stat.f_flags |= MNT_QUOTA;
 	MNT_IUNLOCK(mp);
 
 	vpp = &ump->um_quotas[type];
@@ -764,6 +765,7 @@ quotaoff_inchange(struct thread *td, struct mount *mp, int type)
 	if (i == MAXQUOTAS) {
 		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~MNT_QUOTA;
+		mp->mnt_stat.f_flags &= ~MNT_QUOTA;
 		MNT_IUNLOCK(mp);
 	}
 	UFS_UNLOCK(ump);

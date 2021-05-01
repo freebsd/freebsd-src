@@ -36,7 +36,6 @@
 #include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ktime.h>
 #include <linux/net_dim.h>
@@ -149,7 +148,7 @@ MALLOC_DECLARE(M_MLX5EN);
 struct mlx5_core_dev;
 struct mlx5e_cq;
 
-typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
+typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *, struct mlx5_eqe *);
 
 #define	mlx5_en_err(_dev, format, ...)				\
 	if_printf(_dev, "ERR: ""%s:%d:(pid %d): " format, \
@@ -796,7 +795,7 @@ struct mlx5e_sq {
 	struct	mtx lock;
 	struct	mtx comp_lock;
 	struct	mlx5e_sq_stats stats;
-  	struct	callout cev_callout;
+	struct	callout cev_callout;
 
 	/* data path */
 #define	mlx5e_sq_zero_start dma_tag
@@ -807,7 +806,6 @@ struct mlx5e_sq {
 
 	/* dirtied @xmit */
 	u16	pc __aligned(MLX5E_CACHELINE_SIZE);
-	u16	bf_offset;
 	u16	cev_counter;		/* completion event counter */
 	u16	cev_factor;		/* completion event factor */
 	u16	cev_next_state;		/* next completion event state */
@@ -827,10 +825,9 @@ struct mlx5e_sq {
 
 	/* read only */
 	struct	mlx5_wq_cyc wq;
-	struct	mlx5_uar uar;
+	void __iomem *uar_map;
 	struct	ifnet *ifp;
 	u32	sqn;
-	u32	bf_buf_size;
 	u32	mkey_be;
 	u16	max_inline;
 	u8	min_inline_mode;
@@ -1001,7 +998,6 @@ struct mlx5e_priv {
 #define	PRIV_LOCKED(priv) sx_xlocked(&(priv)->state_lock)
 #define	PRIV_ASSERT_LOCKED(priv) sx_assert(&(priv)->state_lock, SA_XLOCKED)
 	struct sx state_lock;		/* Protects Interface state */
-	struct mlx5_uar cq_uar;
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;
@@ -1055,6 +1051,8 @@ struct mlx5e_priv {
 	struct mlx5e_dcbx dcbx;
 	bool	sw_is_port_buf_owner;
 
+	struct mlx5_sq_bfreg bfreg;
+
 	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
 };
@@ -1107,8 +1105,8 @@ int	mlx5e_open_locked(struct ifnet *);
 int	mlx5e_close_locked(struct ifnet *);
 
 void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
-void	mlx5e_rx_cq_comp(struct mlx5_core_cq *);
-void	mlx5e_tx_cq_comp(struct mlx5_core_cq *);
+mlx5e_cq_comp_t mlx5e_rx_cq_comp;
+mlx5e_cq_comp_t mlx5e_tx_cq_comp;
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void	mlx5e_dim_work(struct work_struct *);
@@ -1127,10 +1125,8 @@ int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
 {
-	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
-
 	/* ensure wqe is visible to device before updating doorbell record */
 	wmb();
 
@@ -1142,18 +1138,8 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 	 */
 	wmb();
 
-	if (bf_sz) {
-		__iowrite64_copy(sq->uar.bf_map + ofst, wqe, bf_sz);
-
-		/* flush the write-combining mapped buffer */
-		wmb();
-
-	} else {
-		mlx5_write64(wqe, sq->uar.map + ofst,
-		    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
-	}
-
-	sq->bf_offset ^= sq->bf_buf_size;
+	mlx5_write64(wqe, sq->uar_map,
+	    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 }
 
 static inline void

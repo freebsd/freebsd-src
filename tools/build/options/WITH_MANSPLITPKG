@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Split man pages into their own packages during make package.

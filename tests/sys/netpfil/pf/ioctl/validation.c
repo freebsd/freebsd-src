@@ -265,6 +265,11 @@ ATF_TC_BODY(clrtstats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRCLRTSTATS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+
+	io.pfrio_size = sizeof(tbl);
+	io.pfrio_buffer = NULL;
+	if (ioctl(dev, DIOCRCLRTSTATS, &io) == 0)
+		atf_tc_fail("Request with NULL buffer succeeded");
 }
 
 ATF_TC_CLEANUP(clrtstats, tc)
@@ -790,6 +795,43 @@ ATF_TC_CLEANUP(getsrcnodes, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(tag);
+ATF_TC_HEAD(tag, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(tag, tc)
+{
+	struct pfioc_rule rule;
+
+	COMMON_HEAD();
+
+	memset(&rule, 0x42, sizeof(rule));
+
+	rule.ticket = 0;
+	rule.pool_ticket = 0;
+	rule.anchor[0] = 0;
+
+	rule.rule.return_icmp = 0;
+	bzero(&rule.rule.src, sizeof(rule.rule.src));
+	bzero(&rule.rule.dst, sizeof(rule.rule.dst));
+
+	rule.rule.ifname[0] = 0;
+	rule.rule.action = 0;
+	rule.rule.rtableid = 0;
+
+	rule.rule.tagname[0] = 0;
+
+	for (int i = 0; i < 10; i++)
+		ioctl(dev, DIOCADDRULE, &rule);
+}
+
+ATF_TC_CLEANUP(tag, tc)
+{
+	COMMON_CLEANUP();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -811,6 +853,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cxrollback);
 	ATF_TP_ADD_TC(tp, commit);
 	ATF_TP_ADD_TC(tp, getsrcnodes);
+	ATF_TP_ADD_TC(tp, tag);
 
 	return (atf_no_error());
 }

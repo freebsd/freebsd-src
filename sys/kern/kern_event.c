@@ -161,6 +161,7 @@ static void	filt_procdetach(struct knote *kn);
 static int	filt_proc(struct knote *kn, long hint);
 static int	filt_fileattach(struct knote *kn);
 static void	filt_timerexpire(void *knx);
+static void	filt_timerexpire_l(struct knote *kn, bool proc_locked);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static void	filt_timerstart(struct knote *kn, sbintime_t to);
@@ -221,7 +222,7 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 		knote_enqueue((kn));					\
 	if (!(islock))							\
 		KQ_UNLOCK((kn)->kn_kq);					\
-} while(0)
+} while (0)
 #define KQ_LOCK(kq) do {						\
 	mtx_lock(&(kq)->kq_lock);					\
 } while (0)
@@ -305,13 +306,13 @@ kn_leave_flux(struct knote *kn)
 } while (0)
 #ifdef INVARIANTS
 #define	KNL_ASSERT_LOCKED(knl) do {					\
-	knl->kl_assert_locked((knl)->kl_lockarg);			\
+	knl->kl_assert_lock((knl)->kl_lockarg, LA_LOCKED);		\
 } while (0)
 #define	KNL_ASSERT_UNLOCKED(knl) do {					\
-	knl->kl_assert_unlocked((knl)->kl_lockarg);			\
+	knl->kl_assert_lock((knl)->kl_lockarg, LA_UNLOCKED);		\
 } while (0)
 #else /* !INVARIANTS */
-#define	KNL_ASSERT_LOCKED(knl) do {} while(0)
+#define	KNL_ASSERT_LOCKED(knl) do {} while (0)
 #define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
 #endif /* INVARIANTS */
 
@@ -665,7 +666,7 @@ timer2sbintime(int64_t data, int flags)
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
-			return (secs << 32 | US_TO_SBT(data % 1000000000));
+			return (secs << 32 | NS_TO_SBT(data % 1000000000));
 		}
 		return (NS_TO_SBT(data));
 	default:
@@ -676,28 +677,88 @@ timer2sbintime(int64_t data, int flags)
 
 struct kq_timer_cb_data {
 	struct callout c;
+	struct proc *p;
+	struct knote *kn;
+	int cpuid;
+	TAILQ_ENTRY(kq_timer_cb_data) link;
 	sbintime_t next;	/* next timer event fires at */
 	sbintime_t to;		/* precalculated timer period, 0 for abs */
 };
 
 static void
-filt_timerexpire(void *knx)
+kqtimer_sched_callout(struct kq_timer_cb_data *kc)
 {
-	struct knote *kn;
-	struct kq_timer_cb_data *kc;
+	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kc->kn,
+	    kc->cpuid, C_ABSOLUTE);
+}
 
-	kn = knx;
-	kn->kn_data++;
+void
+kqtimer_proc_continue(struct proc *p)
+{
+	struct kq_timer_cb_data *kc, *kc1;
+	struct bintime bt;
+	sbintime_t now;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	getboottimebin(&bt);
+	now = bttosbt(bt);
+
+	TAILQ_FOREACH_SAFE(kc, &p->p_kqtim_stop, link, kc1) {
+		TAILQ_REMOVE(&p->p_kqtim_stop, kc, link);
+		if (kc->next <= now)
+			filt_timerexpire_l(kc->kn, true);
+		else
+			kqtimer_sched_callout(kc);
+	}
+}
+
+static void
+filt_timerexpire_l(struct knote *kn, bool proc_locked)
+{
+	struct kq_timer_cb_data *kc;
+	struct proc *p;
+	sbintime_t now;
+
+	kc = kn->kn_ptr.p_v;
+
+	if ((kn->kn_flags & EV_ONESHOT) != 0 || kc->to == 0) {
+		kn->kn_data++;
+		KNOTE_ACTIVATE(kn, 0);
+		return;
+	}
+
+	for (now = sbinuptime(); kc->next <= now; kc->next += kc->to)
+		kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
-	if ((kn->kn_flags & EV_ONESHOT) != 0)
-		return;
-	kc = kn->kn_ptr.p_v;
-	if (kc->to == 0)
-		return;
-	kc->next += kc->to;
-	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), C_ABSOLUTE);
+	/*
+	 * Initial check for stopped kc->p is racy.  It is fine to
+	 * miss the set of the stop flags, at worst we would schedule
+	 * one more callout.  On the other hand, it is not fine to not
+	 * schedule when we we missed clearing of the flags, we
+	 * recheck them under the lock and observe consistent state.
+	 */
+	p = kc->p;
+	if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+		if (!proc_locked)
+			PROC_LOCK(p);
+		if (P_SHOULDSTOP(p) || P_KILLED(p)) {
+			TAILQ_INSERT_TAIL(&p->p_kqtim_stop, kc, link);
+			if (!proc_locked)
+				PROC_UNLOCK(p);
+			return;
+		}
+		if (!proc_locked)
+			PROC_UNLOCK(p);
+	}
+	kqtimer_sched_callout(kc);
+}
+
+static void
+filt_timerexpire(void *knx)
+{
+	filt_timerexpire_l(knx, false);
 }
 
 /*
@@ -753,6 +814,9 @@ filt_timerattach(struct knote *kn)
 		kn->kn_flags |= EV_CLEAR;	/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
+	kc->kn = kn;
+	kc->p = curproc;
+	kc->cpuid = PCPU_GET(cpuid);
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);
 
@@ -772,8 +836,7 @@ filt_timerstart(struct knote *kn, sbintime_t to)
 		kc->next = to + sbinuptime();
 		kc->to = to;
 	}
-	callout_reset_sbt_on(&kc->c, kc->next, 0, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), C_ABSOLUTE);
+	kqtimer_sched_callout(kc);
 }
 
 static void
@@ -2375,17 +2438,13 @@ knlist_mtx_unlock(void *arg)
 }
 
 static void
-knlist_mtx_assert_locked(void *arg)
+knlist_mtx_assert_lock(void *arg, int what)
 {
 
-	mtx_assert((struct mtx *)arg, MA_OWNED);
-}
-
-static void
-knlist_mtx_assert_unlocked(void *arg)
-{
-
-	mtx_assert((struct mtx *)arg, MA_NOTOWNED);
+	if (what == LA_LOCKED)
+		mtx_assert((struct mtx *)arg, MA_OWNED);
+	else
+		mtx_assert((struct mtx *)arg, MA_NOTOWNED);
 }
 
 static void
@@ -2403,23 +2462,19 @@ knlist_rw_runlock(void *arg)
 }
 
 static void
-knlist_rw_assert_locked(void *arg)
+knlist_rw_assert_lock(void *arg, int what)
 {
 
-	rw_assert((struct rwlock *)arg, RA_LOCKED);
-}
-
-static void
-knlist_rw_assert_unlocked(void *arg)
-{
-
-	rw_assert((struct rwlock *)arg, RA_UNLOCKED);
+	if (what == LA_LOCKED)
+		rw_assert((struct rwlock *)arg, RA_LOCKED);
+	else
+		rw_assert((struct rwlock *)arg, RA_UNLOCKED);
 }
 
 void
 knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
     void (*kl_unlock)(void *),
-    void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *))
+    void (*kl_assert_lock)(void *, int))
 {
 
 	if (lock == NULL)
@@ -2435,14 +2490,10 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 		knl->kl_unlock = knlist_mtx_unlock;
 	else
 		knl->kl_unlock = kl_unlock;
-	if (kl_assert_locked == NULL)
-		knl->kl_assert_locked = knlist_mtx_assert_locked;
+	if (kl_assert_lock == NULL)
+		knl->kl_assert_lock = knlist_mtx_assert_lock;
 	else
-		knl->kl_assert_locked = kl_assert_locked;
-	if (kl_assert_unlocked == NULL)
-		knl->kl_assert_unlocked = knlist_mtx_assert_unlocked;
-	else
-		knl->kl_assert_unlocked = kl_assert_unlocked;
+		knl->kl_assert_lock = kl_assert_lock;
 
 	knl->kl_autodestroy = 0;
 	SLIST_INIT(&knl->kl_list);
@@ -2452,7 +2503,7 @@ void
 knlist_init_mtx(struct knlist *knl, struct mtx *lock)
 {
 
-	knlist_init(knl, lock, NULL, NULL, NULL, NULL);
+	knlist_init(knl, lock, NULL, NULL, NULL);
 }
 
 struct knlist *
@@ -2470,7 +2521,7 @@ knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock)
 {
 
 	knlist_init(knl, lock, knlist_rw_rlock, knlist_rw_runlock,
-	    knlist_rw_assert_locked, knlist_rw_assert_unlocked);
+	    knlist_rw_assert_lock);
 }
 
 void
@@ -2726,7 +2777,8 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int mflag)
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &fp);
+	error = fget(td, fd, cap_rights_init_one(&rights, CAP_KQUEUE_CHANGE),
+	    &fp);
 	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)

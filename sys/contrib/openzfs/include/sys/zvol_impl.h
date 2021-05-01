@@ -46,6 +46,7 @@ typedef struct zvol_state {
 	uint32_t		zv_flags;	/* ZVOL_* flags */
 	uint32_t		zv_open_count;	/* open counts */
 	uint32_t		zv_changed;	/* disk changed */
+	uint32_t		zv_volmode;	/* volmode */
 	zilog_t			*zv_zilog;	/* ZIL handle */
 	zfs_rangelock_t		zv_rangelock;	/* for range locking */
 	dnode_t			*zv_dn;		/* dnode hold */
@@ -84,10 +85,11 @@ void zvol_log_truncate(zvol_state_t *zv, dmu_tx_t *tx, uint64_t off,
     uint64_t len, boolean_t sync);
 void zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
     uint64_t size, int sync);
-int zvol_get_data(void *arg, lr_write_t *lr, char *buf, struct lwb *lwb,
-    zio_t *zio);
+int zvol_get_data(void *arg, uint64_t arg2, lr_write_t *lr, char *buf,
+    struct lwb *lwb, zio_t *zio);
 int zvol_init_impl(void);
 void zvol_fini_impl(void);
+void zvol_wait_close(zvol_state_t *zv);
 
 /*
  * platform dependent functions exported to platform independent code

@@ -92,6 +92,7 @@ void	fpu_save_area_reset(union savefpu *fsa);
 #define	FPU_KERN_NORMAL	0x0000
 #define	FPU_KERN_NOWAIT	0x0001
 #define	FPU_KERN_KTHR	0x0002
+#define	FPU_KERN_NOCTX	0x0004
 
 #endif
 

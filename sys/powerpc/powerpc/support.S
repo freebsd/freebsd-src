@@ -61,6 +61,7 @@
 /* log_2(8 * WORD) */
 #define	LOOP_LOG	6
 #define	LOG_WORD	3
+#define	CURTHREAD	%r13
 #else
 #define	LOAD	lwz
 #define	STORE	stw
@@ -70,12 +71,15 @@
 /* log_2(8 * WORD) */
 #define	LOOP_LOG	5
 #define	LOG_WORD	2
+#define	CURTHREAD	%r2
 #endif
 
 #ifdef AIM
-#define ENTRY_DIRECT(x) ENTRY(x ## _direct)
+#define	ENTRY_DIRECT(x)	ENTRY(x ## _direct)
+#define	END_DIRECT(x)	END(x ## _direct)
 #else
 #define	ENTRY_DIRECT(x)	ENTRY(x)
+#define	END_DIRECT(x)	END(x)
 #endif
 	
 #ifdef __powerpc64__
@@ -147,32 +151,26 @@
 
 #endif
 
-#define PCPU(reg) mfsprg  reg, 0
-
 #define	SET_COPYFAULT(raddr, rpcb, len)	\
 	VALIDATE_ADDR_COPY(raddr, len)	;\
-	PCPU(%r9)			;\
 	li	%r0, COPYFAULT		;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	STORE	%r0, PCB_ONFAULT(rpcb)	;\
 
 #define	SET_COPYFAULT_TRUNCATE(raddr, rpcb, len)\
 	VALIDATE_TRUNCATE_ADDR_COPY(raddr, len)	;\
-	PCPU(%r9)				;\
 	li	%r0, COPYFAULT			;\
-	LOAD	rpcb, PC_CURPCB(%r9)		;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)		;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
 #define	SET_FUSUFAULT(raddr, rpcb)	\
 	VALIDATE_ADDR_FUSU(raddr)	;\
-	PCPU(%r9)			;\
 	li	%r0, FUSUFAULT		;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
 #define	CLEAR_FAULT_NO_CLOBBER(rpcb)	\
-	PCPU(%r9)			;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	li	%r0, 0			;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
@@ -320,6 +318,7 @@ ENTRY(bcopy_generic)
 /* done */	
 .Lend:	
 	blr
+END(bcopy_generic)
 
 /*
  * copyout(from_kernel, to_user, len)
@@ -332,6 +331,7 @@ ENTRY_DIRECT(copyout)
 	nop
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(copyout)
 
 /*
  * copyin(from_user, to_kernel, len)
@@ -344,6 +344,8 @@ ENTRY_DIRECT(copyin)
 	nop
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(copyin)
+
 /*
  * copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
  *			%r3          %r4         %r5        %r6 
@@ -379,6 +381,7 @@ ENTRY_DIRECT(copyinstr)
 3:
 	CLEAR_FAULT_NO_CLOBBER(%r7)
 	EPILOGUE
+END_DIRECT(copyinstr)
 
 ENTRY_DIRECT(subyte)
 	PROLOGUE
@@ -386,6 +389,7 @@ ENTRY_DIRECT(subyte)
 	stb  %r4, 0(%r3)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(subyte)
 
 #ifndef __powerpc64__
 ENTRY_DIRECT(suword)
@@ -394,6 +398,7 @@ ENTRY_DIRECT(suword)
 	stw  %r4, 0(%r3)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(suword)
 #endif	
 
 ENTRY_DIRECT(suword32)
@@ -402,6 +407,7 @@ ENTRY_DIRECT(suword32)
 	stw  %r4, 0(%r3)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(suword32)
 
 #ifdef __powerpc64__	
 ENTRY_DIRECT(suword64)
@@ -410,12 +416,15 @@ ENTRY_DIRECT(suword64)
 	std  %r4, 0(%r3) 
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(suword64)
+
 ENTRY_DIRECT(suword)
 	PROLOGUE
 	SET_FUSUFAULT(%r3, %r7)
 	std  %r4, 0(%r3) 
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(suword)
 #endif	
 	
 ENTRY_DIRECT(fubyte)
@@ -424,6 +433,7 @@ ENTRY_DIRECT(fubyte)
 	lbz %r3, 0(%r3)
 	CLEAR_FAULT_NO_CLOBBER(%r7)
 	EPILOGUE
+END_DIRECT(fubyte)
 
 ENTRY_DIRECT(fuword16)
 	PROLOGUE
@@ -431,6 +441,7 @@ ENTRY_DIRECT(fuword16)
 	lhz %r3, 0(%r3)
 	CLEAR_FAULT_NO_CLOBBER(%r7)
 	EPILOGUE
+END_DIRECT(fuword16)
 
 #ifndef __powerpc64__
 ENTRY_DIRECT(fueword)	
@@ -440,6 +451,7 @@ ENTRY_DIRECT(fueword)
 	stw  %r0,  0(%r4)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(fueword)	
 #endif	
 ENTRY_DIRECT(fueword32)
 	PROLOGUE
@@ -448,6 +460,7 @@ ENTRY_DIRECT(fueword32)
 	stw  %r0,  0(%r4)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(fueword32)
 
 #ifdef __powerpc64__
 ENTRY_DIRECT(fueword)	
@@ -457,6 +470,7 @@ ENTRY_DIRECT(fueword)
 	std %r0, 0(%r4)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(fueword)	
 
 ENTRY_DIRECT(fueword64)
 	PROLOGUE
@@ -465,6 +479,7 @@ ENTRY_DIRECT(fueword64)
 	std %r0, 0(%r4)
 	CLEAR_FAULT(%r7)
 	EPILOGUE
+END_DIRECT(fueword64)
 #endif
 
 /*
@@ -495,6 +510,7 @@ ENTRY_DIRECT(fueword64)
 	
 ENTRY_DIRECT(casueword32)
 	CASUEWORD32(%r3, %r7)
+END_DIRECT(casueword32)
 
 #ifdef __powerpc64__
 #define	CASUEWORD64(raddr, rpcb)					;\
@@ -520,20 +536,25 @@ ENTRY_DIRECT(casueword32)
 
 ENTRY_DIRECT(casueword)
 	CASUEWORD64(%r3, %r7)
+END_DIRECT(casueword)
 
 ENTRY_DIRECT(casueword64)
 	CASUEWORD64(%r3, %r7)
+END_DIRECT(casueword64)
 #else
 ENTRY_DIRECT(casueword)
 	CASUEWORD32(%r3, %r7)
+END_DIRECT(casueword)
 #endif
 	
 _NAKED_ENTRY(fusufault)
 	CLEAR_FAULT_NO_CLOBBER(%r7)
 	li %r3, -1
 	EPILOGUE
+_END(fusufault)
 
 _NAKED_ENTRY(copy_fault)
 	CLEAR_FAULT_NO_CLOBBER(%r7)
 	li %r3, EFAULT
 	EPILOGUE
+_END(copy_fault)

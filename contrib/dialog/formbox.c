@@ -1,9 +1,9 @@
 /*
- *  $Id: formbox.c,v 1.95 2018/06/21 08:23:31 tom Exp $
+ *  $Id: formbox.c,v 1.103 2021/01/17 22:19:05 tom Exp $
  *
  *  formbox.c -- implements the form (i.e., some pairs label/editbox)
  *
- *  Copyright 2003-2016,2018	Thomas E. Dickey
+ *  Copyright 2003-2020,2021	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -151,12 +151,13 @@ static int
 set_choice(DIALOG_FORMITEM item[], int choice, int item_no, bool * noneditable)
 {
     int result = -1;
-    int i;
 
     *noneditable = FALSE;
     if (!is_readonly(&item[choice])) {
 	result = choice;
     } else {
+	int i;
+
 	for (i = 0; i < item_no; i++) {
 	    if (!is_readonly(&(item[i]))) {
 		result = i;
@@ -292,7 +293,6 @@ scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int 
     int old_scroll = *scrollamt;
     int old_row = MIN(item[old_choice].text_y, item[old_choice].name_y);
     int target = old_scroll + stepsize;
-    int n;
 
     if (stepsize < 0) {
 	if (old_row != old_scroll)
@@ -309,6 +309,8 @@ scroll_next(WINDOW *win, DIALOG_FORMITEM item[], int stepsize, int *choice, int 
     }
 
     if (result) {
+	int n;
+
 	for (n = 0; item[n].name != 0; ++n) {
 	    if (item[n].text_flen > 0) {
 		int new_row = MIN(item[n].text_y, item[n].name_y);
@@ -392,7 +394,6 @@ make_FORM_ELTs(DIALOG_FORMITEM * item,
 	    sprintf(item[i].text, "%.*s", item[i].text_ilen, old_text);
 
 	    if (item[i].text_free) {
-		item[i].text_free = FALSE;
 		free(old_text);
 	    }
 	    item[i].text_free = TRUE;
@@ -500,7 +501,6 @@ dlg_form(const char *title,
 		 : sTEXT);
     int x, y, cur_x, cur_y, box_x, box_y;
     int code;
-    int key = 0;
     int fkey;
     int choice = dlg_default_formitem(items);
     int new_choice, new_scroll;
@@ -608,6 +608,7 @@ dlg_form(const char *title,
 
     while (result == DLG_EXIT_UNKNOWN) {
 	int edit = FALSE;
+	int key;
 
 	if (scroll_changed) {
 	    print_form(form, items, item_no, scrollamt, choice);
@@ -658,8 +659,9 @@ dlg_form(const char *title,
 	}
 
 	key = dlg_mouse_wgetch((state == sTEXT) ? form : dialog, &fkey);
-	if (dlg_result_key(key, fkey, &result))
+	if (dlg_result_key(key, fkey, &result)) {
 	    break;
+	}
 
 	/* handle non-functionkeys */
 	if (!fkey) {
@@ -697,6 +699,10 @@ dlg_form(const char *title,
 		dlg_del_window(dialog);
 		result = (state >= 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
 		continue;
+	    case DLGK_LEAVE:
+		if (state >= 0)
+		    result = dlg_ok_buttoncode(state);
+		break;
 
 	    case DLGK_GRID_LEFT:
 		if (state == sTEXT)
@@ -780,10 +786,8 @@ dlg_form(const char *title,
 		height = old_height;
 		width = old_width;
 		free(prompt);
-		dlg_clear();
+		_dlg_resize_cleanup(dialog);
 		dlg_unregister_window(form);
-		dlg_del_window(dialog);
-		dlg_mouse_free_regions();
 		/* repaint */
 		goto retry;
 #endif

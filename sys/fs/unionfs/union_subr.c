@@ -486,7 +486,7 @@ unionfs_create_uppervattr_core(struct unionfs_mount *ump,
 		}
 		break;
 	default:		/* UNIONFS_TRADITIONAL */
-		uva->va_mode = 0777 & ~td->td_proc->p_fd->fd_cmask;
+		uva->va_mode = 0777 & ~td->td_proc->p_pd->pd_cmask;
 		uva->va_uid = ump->um_uid;
 		uva->va_gid = ump->um_gid;
 		break;

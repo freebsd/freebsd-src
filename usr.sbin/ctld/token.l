@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2012 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -64,6 +63,7 @@ device-type		{ return DEVICE_TYPE; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
 discovery-filter	{ return DISCOVERY_FILTER; }
 dscp			{ return DSCP; }
+pcp			{ return PCP; }
 foreign			{ return FOREIGN; }
 initiator-name		{ return INITIATOR_NAME; }
 initiator-portal	{ return INITIATOR_PORTAL; }

@@ -65,6 +65,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, dssameconn, CTLFLAG_RW,
 /*
  * Global variables
  */
+extern struct nfsstatsv1 nfsstatsv1;
 extern int nfs_numnfscbd;
 extern struct timeval nfsboottime;
 extern u_int32_t newnfs_false, newnfs_true;
@@ -945,6 +946,8 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	struct nfsclds *dsp, *odsp;
 	struct in6_addr a6;
 	struct nfsclsession *tsep;
+	struct rpc_reconupcall recon;
+	struct nfscl_reconarg *rcp;
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
@@ -1018,6 +1021,23 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 			NFSCL_DEBUG(1, "aft createsess=%d\n", error);
 		}
 		if (error == 0) {
+			/*
+			 * If the session supports a backchannel, set up
+			 * the BindConnectionToSession call in the krpc
+			 * so that it is done on a reconnection.
+			 */
+			if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0) {
+				rcp = mem_alloc(sizeof(*rcp));
+				rcp->minorvers = nmp->nm_minorvers;
+				memcpy(rcp->sessionid,
+				    dsp->nfsclds_sess.nfsess_sessionid,
+				    NFSX_V4SESSIONID);
+				recon.call = nfsrpc_bindconnsess;
+				recon.arg = rcp;
+				CLNT_CONTROL(nmp->nm_client, CLSET_RECONUPCALL,
+				    &recon);
+			}
+
 			NFSLOCKMNT(nmp);
 			/*
 			 * The old sessions cannot be safely free'd
@@ -1871,7 +1891,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 		if (nd->nd_repstat) {
 			/*
 			 * In case the rpc gets retried, roll
-			 * the uio fileds changed by nfsm_uiombuf()
+			 * the uio fields changed by nfsm_uiombuf()
 			 * back.
 			 */
 			uiop->uio_offset -= len;
@@ -3761,6 +3781,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    ndp->ni_vp = newvp;
 				    NFSCNHASH(cnp, HASHINIT);
 				    if (cnp->cn_namelen <= NCHNAMLEN &&
+					ndp->ni_dvp != ndp->ni_vp &&
 					(newvp->v_type != VDIR ||
 					 dctime.tv_sec != 0)) {
 					cache_enter_time(ndp->ni_dvp,
@@ -6023,7 +6044,7 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 
 	np = VTONFS(vp);
 	rel_off = off - flp->nfsfl_patoff;
-	stripe_unit_size = (flp->nfsfl_util >> 6) & 0x3ffffff;
+	stripe_unit_size = flp->nfsfl_util & NFSFLAYUTIL_STRIPE_MASK;
 	stripe_pos = (rel_off / stripe_unit_size + flp->nfsfl_stripe1) %
 	    dp->nfsdi_stripecnt;
 	transfer = stripe_unit_size - (rel_off % stripe_unit_size);
@@ -6319,6 +6340,8 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 	} else {
 		nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh,
 		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSDECRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_READ]);
+		NFSINCRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_READDS]);
 		NFSCL_DEBUG(4, "nfsrpc_readds: vers3\n");
 	}
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
@@ -6394,6 +6417,8 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	} else {
 		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
 		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSDECRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_WRITE]);
+		NFSINCRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_WRITEDS]);
 		NFSCL_DEBUG(4, "nfsrpc_writeds: vers3\n");
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
 	}
@@ -6417,7 +6442,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	if (nd->nd_repstat != 0) {
 		/*
 		 * In case the rpc gets retried, roll
-		 * the uio fileds changed by nfsm_uiombuf()
+		 * the uio fields changed by nfsm_uiombuf()
 		 * back.
 		 */
 		uiop->uio_offset -= len;
@@ -6521,6 +6546,8 @@ nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 	} else {
 		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
 		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSDECRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_WRITE]);
+		NFSINCRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_WRITEDS]);
 		NFSCL_DEBUG(4, "nfsrpc_writedsmir: vers3\n");
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
 	}
@@ -6736,9 +6763,12 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 		nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh,
 		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
 		vers = NFS_VER4;
-	} else
+	} else {
 		nfscl_reqstart(nd, NFSPROC_COMMIT, nmp, fhp->nfh_fh,
 		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		NFSDECRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_COMMIT]);
+		NFSINCRGLOBAL(nfsstatsv1.rpccnt[NFSPROC_COMMITDS]);
+	}
 	NFSCL_DEBUG(4, "nfsrpc_commitds: vers=%d minvers=%d\n", vers,
 	    minorvers);
 	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
@@ -8697,4 +8727,75 @@ nfsm_split(struct mbuf *mp, uint64_t xfer)
 	m2->m_next = m->m_next;
 	m->m_next = NULL;
 	return (m2);
+}
+
+/*
+ * Do the NFSv4.1 Bind Connection to Session.
+ * Called from the reconnect layer of the krpc (sys/rpc/clnt_rc.c).
+ */
+void
+nfsrpc_bindconnsess(CLIENT *cl, void *arg, struct ucred *cr)
+{
+	struct nfscl_reconarg *rcp = (struct nfscl_reconarg *)arg;
+	uint32_t res, *tl;
+	struct nfsrv_descript nfsd;
+	struct nfsrv_descript *nd = &nfsd;
+	struct rpc_callextra ext;
+	struct timeval utimeout;
+	enum clnt_stat stat;
+	int error;
+
+	nfscl_reqstart(nd, NFSPROC_BINDCONNTOSESS, NULL, NULL, 0, NULL, NULL,
+	    NFS_VER4, rcp->minorvers);
+	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 2 * NFSX_UNSIGNED);
+	memcpy(tl, rcp->sessionid, NFSX_V4SESSIONID);
+	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+	*tl++ = txdr_unsigned(NFSCDFC4_FORE_OR_BOTH);
+	*tl = newnfs_false;
+
+	memset(&ext, 0, sizeof(ext));
+	utimeout.tv_sec = 30;
+	utimeout.tv_usec = 0;
+	ext.rc_auth = authunix_create(cr);
+	nd->nd_mrep = NULL;
+	stat = CLNT_CALL_MBUF(cl, &ext, NFSV4PROC_COMPOUND, nd->nd_mreq,
+	    &nd->nd_mrep, utimeout);
+	AUTH_DESTROY(ext.rc_auth);
+	if (stat != RPC_SUCCESS) {
+		printf("nfsrpc_bindconnsess: call failed stat=%d\n", stat);
+		return;
+	}
+	if (nd->nd_mrep == NULL) {
+		printf("nfsrpc_bindconnsess: no reply args\n");
+		return;
+	}
+	error = 0;
+	newnfs_realign(&nd->nd_mrep, M_WAITOK);
+	nd->nd_md = nd->nd_mrep;
+	nd->nd_dpos = mtod(nd->nd_md, char *);
+	NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+	nd->nd_repstat = fxdr_unsigned(uint32_t, *tl++);
+	if (nd->nd_repstat == NFSERR_OK) {
+		res = fxdr_unsigned(uint32_t, *tl);
+		if (res > 0 && (error = nfsm_advance(nd, NFSM_RNDUP(res),
+		    -1)) != 0)
+			goto nfsmout;
+		NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
+		    4 * NFSX_UNSIGNED);
+		tl += 3;
+		if (!NFSBCMP(tl, rcp->sessionid, NFSX_V4SESSIONID)) {
+			tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+			res = fxdr_unsigned(uint32_t, *tl);
+			if (res != NFSCDFS4_BOTH)
+				printf("nfsrpc_bindconnsess: did not "
+				    "return FS4_BOTH\n");
+		} else
+			printf("nfsrpc_bindconnsess: not same "
+			    "sessionid\n");
+	} else if (nd->nd_repstat != NFSERR_BADSESSION)
+		printf("nfsrpc_bindconnsess: returned %d\n", nd->nd_repstat);
+nfsmout:
+	if (error != 0)
+		printf("nfsrpc_bindconnsess: reply bad xdr\n");
+	m_freem(nd->nd_mrep);
 }

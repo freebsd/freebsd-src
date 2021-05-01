@@ -41,6 +41,7 @@
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
 #include <linux/idr.h>
+#include <linux/wait.h>
 
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/doorbell.h>
@@ -217,38 +218,6 @@ enum {
 };
 
 #define MLX5_PROT_MASK(link_mode) (1 << link_mode)
-
-struct mlx5_uuar_info {
-	struct mlx5_uar	       *uars;
-	int			num_uars;
-	int			num_low_latency_uuars;
-	unsigned long	       *bitmap;
-	unsigned int	       *count;
-	struct mlx5_bf	       *bfs;
-
-	/*
-	 * protect uuar allocation data structs
-	 */
-	struct mutex		lock;
-	u32			ver;
-};
-
-struct mlx5_bf {
-	void __iomem	       *reg;
-	void __iomem	       *regreg;
-	int			buf_size;
-	struct mlx5_uar	       *uar;
-	unsigned long		offset;
-	int			need_lock;
-	/* protect blue flame buffer selection when needed
-	 */
-	spinlock_t		lock;
-
-	/* serialize 64 bit writes when done as two 32 bit accesses
-	 */
-	spinlock_t		lock32;
-	int			uuarn;
-};
 
 struct mlx5_cmd_first {
 	__be32		data[4];
@@ -463,6 +432,39 @@ struct mlx5_core_rsc_common {
 	struct completion	free;
 };
 
+struct mlx5_uars_page {
+	void __iomem	       *map;
+	bool			wc;
+	u32			index;
+	struct list_head	list;
+	unsigned int		bfregs;
+	unsigned long	       *reg_bitmap; /* for non fast path bf regs */
+	unsigned long	       *fp_bitmap;
+	unsigned int		reg_avail;
+	unsigned int		fp_avail;
+	struct kref		ref_count;
+	struct mlx5_core_dev   *mdev;
+};
+
+struct mlx5_bfreg_head {
+	/* protect blue flame registers allocations */
+	struct mutex		lock;
+	struct list_head	list;
+};
+
+struct mlx5_bfreg_data {
+	struct mlx5_bfreg_head	reg_head;
+	struct mlx5_bfreg_head	wc_head;
+};
+
+struct mlx5_sq_bfreg {
+	void __iomem	       *map;
+	struct mlx5_uars_page  *up;
+	bool			wc;
+	u32			index;
+	unsigned int		offset;
+};
+
 struct mlx5_core_srq {
 	struct mlx5_core_rsc_common	common; /* must be first */
 	u32				srqn;
@@ -487,13 +489,6 @@ struct mlx5_eq_table {
 	 */
 	spinlock_t		lock;
 };
-
-struct mlx5_uar {
-	u32			index;
-	void __iomem	       *bf_map;
-	void __iomem	       *map;
-};
-
 
 struct mlx5_core_health {
 	struct mlx5_health_buffer __iomem	*health;
@@ -577,11 +572,8 @@ struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
 	struct msix_entry	*msix_arr;
-	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 	int			disable_irqs;
-
-	struct io_mapping	*bf_mapping;
 
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;
@@ -631,6 +623,9 @@ struct mlx5_priv {
 	struct mlx5_pme_stats pme_stats;
 
 	struct mlx5_eswitch	*eswitch;
+
+	struct mlx5_bfreg_data		bfregs;
+	struct mlx5_uars_page	       *uar;
 };
 
 enum mlx5_device_state {
@@ -947,19 +942,39 @@ void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
+
+struct mlx5_async_ctx {
+	struct mlx5_core_dev *dev;
+	atomic_t num_inflight;
+	struct wait_queue_head wait;
+};
+
+struct mlx5_async_work;
+
+typedef void (*mlx5_async_cbk_t)(int status, struct mlx5_async_work *context);
+
+struct mlx5_async_work {
+	struct mlx5_async_ctx *ctx;
+	mlx5_async_cbk_t user_callback;
+};
+
+void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
+			     struct mlx5_async_ctx *ctx);
+void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx);
+int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
+		     void *out, int out_size, mlx5_async_cbk_t callback,
+		     struct mlx5_async_work *work);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
-int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
-		     void *out, int out_size, mlx5_cmd_cbk_t callback,
-		     void *context);
 int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 			  void *out, int out_size);
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
-int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
-int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
-int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
-void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
+int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
+		     bool map_wc, bool fast_path);
+void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
+struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
+void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 void mlx5_health_cleanup(struct mlx5_core_dev *dev);
 int mlx5_health_init(struct mlx5_core_dev *dev);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
@@ -986,9 +1001,10 @@ void mlx5_init_mr_table(struct mlx5_core_dev *dev);
 void mlx5_cleanup_mr_table(struct mlx5_core_dev *dev);
 int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 			     struct mlx5_core_mr *mkey,
-			     u32 *in, int inlen,
-			     u32 *out, int outlen,
-			     mlx5_cmd_cbk_t callback, void *context);
+			     struct mlx5_async_ctx *async_ctx, u32 *in,
+			     int inlen, u32 *out, int outlen,
+			     mlx5_async_cbk_t callback,
+			     struct mlx5_async_work *context);
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mr *mr,
 			  u32 *in, int inlen);
@@ -1021,14 +1037,14 @@ void mlx5_unregister_debugfs(void);
 int mlx5_eq_init(struct mlx5_core_dev *dev);
 void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
-void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
+void mlx5_cq_completion(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector, enum mlx5_cmd_mode mode);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
-		       int nent, u64 mask, struct mlx5_uar *uar);
+		       int nent, u64 mask);
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
 int mlx5_stop_eqs(struct mlx5_core_dev *dev);

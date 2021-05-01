@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2018
+.Dd November 6, 2020
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -127,7 +127,7 @@ Filename to use for the vnode type memory disk.
 The
 .Fl a
 and
-.Fl t Ar vnode
+.Fl t Cm vnode
 options are implied if not specified.
 .It Fl l
 List configured devices.
@@ -170,7 +170,7 @@ When used without the
 option, the
 .Fl a
 and
-.Fl t Ar swap
+.Fl t Cm swap
 options are implied if not specified.
 .It Fl S Ar sectorsize
 Sectorsize to use for the memory disk, in bytes.
@@ -261,7 +261,7 @@ checksums or cryptographic signatures.
 Request a specific unit number or device name for the
 .Xr md 4
 device instead of automatic allocation.
-If a device name is specified, it must be start with
+If a device name is specified, it must start with
 .Dq md
 followed by the unit number.
 .El
@@ -272,7 +272,7 @@ The last form,
 is provided for convenience as an abbreviation of
 .Nm
 .Fl a
-.Fl t Ar vnode
+.Fl t Cm vnode
 .Fl f Ar file .
 .Sh EXAMPLES
 Create a disk with
@@ -350,11 +350,8 @@ The
 .Nm
 utility first appeared in
 .Fx 5.0
-as a cleaner replacement for the
-.Xr vn 4
-and
-.Xr vnconfig 8
-combo.
+as a cleaner replacement for the vn kernel module
+and the vnconfig utility combo.
 .Sh AUTHORS
 The
 .Nm

@@ -37,14 +37,8 @@
 
 #ifdef LOCORE
 
-#if __ARM_ARCH >= 6
 #define GET_CURTHREAD_PTR(tmp) \
     	mrc	p15, 0, tmp, c13, c0, 4
-#else
-#define GET_CURTHREAD_PTR(tmp)	\
-	ldr	tmp, =_C_LABEL(__pcpu);\
-	ldr	tmp, [tmp, #PC_CURTHREAD]
-#endif
 
 #define	ELFNOTE(section, type, vendor, desctype, descdata...)	  \
 	.pushsection section					; \

@@ -1,4 +1,4 @@
-# $Id: meta.subdir.mk,v 1.12 2020/08/19 17:51:53 sjg Exp $
+# $Id: meta.subdir.mk,v 1.13 2021/01/05 22:24:37 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -17,7 +17,7 @@
 .if !defined(NO_SUBDIR) && !empty(SUBDIR)
 .if make(destroy*) || make(clean*)
 .MAKE.MODE = compat
-.if !commands(destroy)
+.if !commands(obj)
 .-include <bsd.obj.mk>
 .endif
 .elif ${.MAKE.LEVEL} == 0

@@ -7,10 +7,10 @@ expected M pattern
 expected or
 expected or exists
 expected or empty
-defined(V42) && 42 > 0: Ok
-defined(V66) && ( "" < 42 ): Ok
-1 || 42 < 42: Ok
-1 ||  < 42: Ok
-0 || 42 <= 42: Ok
-0 ||  < 42: Ok
+defined(V42) && ${V42} > 0: Ok
+defined(V66) && ( "${iV2}" < ${V42} ): Ok
+1 || ${iV1} < ${V42}: Ok
+1 || ${iV2:U2} < ${V42}: Ok
+0 || ${iV1} <= ${V42}: Ok
+0 || ${iV2:U2} < ${V42}: Ok
 exit status 0

@@ -117,9 +117,7 @@
 #define __XGBE_H__
 
 #include <sys/param.h>
-#if __FreeBSD_version < 1300000
 #include <sys/kernel.h>
-#endif
 #include <sys/bus.h>
 #include <sys/socket.h>
 #include <sys/bitstring.h>
@@ -1298,6 +1296,13 @@ struct xgbe_prv_data {
 	uint64_t rx_coalesce_usecs;
 
 	unsigned int debug_level;
+
+	/*
+	 * Toggles the split header feature.
+	 * This requires a complete restart.
+	 */
+	unsigned int sph_enable;
+	unsigned int link_workaround;
 };
 
 struct axgbe_if_softc {

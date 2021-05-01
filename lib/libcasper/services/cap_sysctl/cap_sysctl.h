@@ -38,11 +38,15 @@
 
 #include <sys/cdefs.h>
 
-#ifdef WITH_CASPER
 #define	CAP_SYSCTL_READ		0x01
 #define	CAP_SYSCTL_WRITE	0x02
 #define	CAP_SYSCTL_RDWR		(CAP_SYSCTL_READ | CAP_SYSCTL_WRITE)
 #define	CAP_SYSCTL_RECURSIVE	0x04
+
+struct cap_sysctl_limit;
+typedef struct cap_sysctl_limit cap_sysctl_limit_t;
+
+#ifdef WITH_CASPER
 
 __BEGIN_DECLS
 
@@ -52,9 +56,6 @@ int cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
     size_t *oldlenp, const void *newp, size_t newlen);
 int cap_sysctlnametomib(cap_channel_t *chan, const char *name, int *mibp,
     size_t *sizep);
-
-struct cap_sysctl_limit;
-typedef struct cap_sysctl_limit cap_sysctl_limit_t;
 
 cap_sysctl_limit_t *cap_sysctl_limit_init(cap_channel_t *);
 cap_sysctl_limit_t *cap_sysctl_limit_name(cap_sysctl_limit_t *limit,
@@ -66,17 +67,60 @@ int cap_sysctl_limit(cap_sysctl_limit_t *limit);
 __END_DECLS
 
 #else /* !WITH_CASPER */
-#define	cap_sysctl(chan, name, namelen, oldp, oldlenp, newp, newlen)	\
-	sysctl((name), (namelen), (oldp), (oldlenp), (newp), (newlen))
-#define	cap_sysctlbyname(chan, name, oldp, oldlenp, newp, newlen)	\
-	sysctlbyname((name), (oldp), (oldlenp), (newp), (newlen))
-#define	cap_sysctlnametomib(chan, name, mibp, sizep)			\
-	sysctlnametomib((name), (mibp), (sizep))
+static inline int
+cap_sysctl(cap_channel_t *chan __unused, const int *name, u_int namelen,
+    void *oldp, size_t *oldlenp, const void *newp, size_t newlen)
+{
 
-#define	cap_sysctl_limit_init(chan)				(NULL)
-#define	cap_sysctl_limit_name(limit, name, flags)		(NULL)
-#define	cap_sysctl_limit_mib(limit, mibp, miblen, flags)	(NULL)
-#define	cap_sysctl_limit(limit)					(0)
+	return (sysctl(name, namelen, oldp, oldlenp, newp, newlen));
+}
+
+static inline int
+cap_sysctlbyname(cap_channel_t *chan __unused, const char *name,
+    void *oldp, size_t *oldlenp, const void *newp, size_t newlen)
+{
+
+	return (sysctlbyname(name, oldp, oldlenp, newp, newlen));
+}
+
+static inline int
+cap_sysctlnametomib(cap_channel_t *chan __unused, const char *name, int *mibp,
+    size_t *sizep)
+{
+
+	return (sysctlnametomib(name, mibp, sizep));
+}
+
+static inline cap_sysctl_limit_t *
+cap_sysctl_limit_init(cap_channel_t *limit __unused)
+{
+
+	return (NULL);
+}
+
+static inline cap_sysctl_limit_t *
+cap_sysctl_limit_name(cap_sysctl_limit_t *limit __unused,
+    const char *name __unused, int flags __unused)
+{
+
+	return (NULL);
+}
+
+static inline cap_sysctl_limit_t *
+cap_sysctl_limit_mib(cap_sysctl_limit_t *limit __unused,
+    const int *mibp __unused, u_int miblen __unused,
+    int flags __unused)
+{
+
+	return (NULL);
+}
+
+static inline int
+cap_sysctl_limit(cap_sysctl_limit_t *limit __unused)
+{
+
+	return (0);
+}
 #endif /* WITH_CASPER */
 
 #endif /* !_CAP_SYSCTL_H_ */

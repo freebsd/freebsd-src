@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# prepare-commit-msg: Prepare a commit message upon `git commit` for the
+# user to edit.  A script (rather than a static template) is used, so
+# that we can insert our template text other than at the top of the
+# message.
+#
+# Install by copying into the git hooks directory - for example,
+# cp tools/tools/git/hooks/prepare-commit-msg .git/hooks/
+
+case "$2" in
+commit|message)
+	# It appears git invokes this script for interactive rebase but does
+	# not remove commented lines, so just exit if we're not called with the
+	# default (comment-containing) template.
+	grep -E -q '^#' "$1" || exit 0
+	;;
+template)
+	exit 0
+	;;
+merge)
+	exit 0
+	;;
+esac
+
+outfile=$(mktemp /tmp/freebsd-git-commit.XXXXXXXX)
+
+# Create a commit message template from three parts:
+#
+# 1. The beginning of the git-provided template (up to the first comment-only
+#    line) which explains commented lines and such.
+#
+# 2. Our template.
+#
+# 3. The remainder of the git-provided template (from the first comment-only
+#    line to the end of the file) which lists files staged for commit, files
+#    not staged, and untracked files.
+
+cat >$outfile <<EOF
+$(awk '1;/^#$/{exit}' $1)
+#                                                         72 columns --|
+#
+# Uncomment and complete these metadata fields, as appropriate:
+#
+# PR:		<If and which Problem Report is related.>
+# Reported by:	<If someone else reported the issue.>
+# Reviewed by:	<If someone else reviewed your modification.>
+# Tested by:	<If someone else tested the change.>
+# Approved by:	<If you needed approval for this commit.>
+# Obtained from:	<If the change is from a third party.>
+# Fixes:	<Short hash and title line of commit fixed by this change>
+# MFC after:	<N [day[s]|week[s]|month[s]].  Request a reminder email>
+# MFH:		<Ports tree branch name.  Request approval for merge.>
+# Relnotes:	<Set to 'yes' for mention in release notes.>
+# Security:	<Vulnerability reference (one per line) or description.>
+# Sponsored by:	<If the change was sponsored by an organization.>
+# Pull Request:	<https://github.com/freebsd/<repo>/pull/###>
+# Differential Revision:	<https://reviews.freebsd.org/D###>
+#
+# "Pull Request" and "Differential Revision" require the *full* GitHub or
+# Phabricator URL.  The commit author should be set appropriately, using
+# \`git commit --author\` if someone besides the committer sent in the change.
+$(awk '/^#$/,EOF' "$1")
+EOF
+
+mv "$outfile" "$1"

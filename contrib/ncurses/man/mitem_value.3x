@@ -27,17 +27,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_value.3x,v 1.14 2020/02/02 23:34:34 tom Exp $
+.\" $Id: mitem_value.3x,v 1.15 2020/10/17 23:53:24 tom Exp $
 .TH mitem_value 3X ""
 .SH NAME
 \fBset_item_value\fP,
 \fBitem_value\fP \- set and get menu item values
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBint set_item_value(ITEM *\fP\fIitem\fP\fB, bool \fP\fIvalue\fP\fB);\fP
 .br
-int set_item_value(ITEM *item, bool value);
-.br
-bool item_value(const ITEM *item);
+\fBbool item_value(const ITEM *\fP\fIitem\fP\fB);\fP
 .br
 .SH DESCRIPTION
 If you turn off the menu option \fBO_ONEVALUE\fR (e.g., with

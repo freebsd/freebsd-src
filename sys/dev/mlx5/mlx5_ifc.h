@@ -1192,7 +1192,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         uc[0x1];
 	u8         rc[0x1];
 
-	u8         reserved_34[0xa];
+	u8         uar_4k[0x1];
+	u8         reserved_at_241[0x9];
 	u8         uar_sz[0x6];
 	u8         reserved_35[0x8];
 	u8         log_pg_sz[0x8];
@@ -1295,7 +1296,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         device_frequency_khz[0x20];
 
-	u8         reserved_66[0x80];
+	u8         reserved_at_500[0x20];
+	u8	   num_of_uars_per_page[0x20];
+	u8         reserved_at_540[0x40];
 
 	u8         log_max_atomic_size_qp[0x8];
 	u8         reserved_67[0x10];

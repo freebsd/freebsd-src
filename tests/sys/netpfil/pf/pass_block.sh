@@ -27,6 +27,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "v4" "cleanup"
 v4_head()
 {
@@ -85,23 +87,23 @@ v6_body()
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
 
 	# Trivial ping to the jail, without pf
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# pf without policy will let us ping
 	jexec alcatraz pfctl -e
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Block everything
 	pft_set_rules alcatraz "block in"
-	atf_check -s exit:2 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Block everything but ICMP
 	pft_set_rules alcatraz "block in" "pass in proto icmp6"
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Allowing ICMPv4 does not allow ICMPv6
 	pft_set_rules alcatraz "block in" "pass in proto icmp"
-	atf_check -s exit:2 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 }
 
 v6_cleanup()
@@ -132,21 +134,21 @@ noalias_body()
 		| cut -d % -f 1)
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 2001:db8:42::2
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz "block out inet6 from (${epair}b:0) to any"
 
-	atf_check -s exit:2 -o ignore ping6 -c 3 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 3 -W 1 2001:db8:42::2
 
 	# We should still be able to ping the link-local address
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 
 	pft_set_rules alcatraz "block out inet6 from (${epair}b) to any"
 
 	# We cannot ping to the link-local address
-	atf_check -s exit:2 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:2 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 }
 
 noalias_cleanup()
@@ -189,10 +191,75 @@ nested_inline_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "urpf" "cleanup"
+urpf_head()
+{
+	atf_set descr "Test unicast reverse path forwarding check"
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+urpf_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_one}b ${epair_two}b
+
+	ifconfig ${epair_one}a 192.0.2.2/24 up
+	ifconfig ${epair_two}a 198.51.100.2/24 up
+
+	jexec alcatraz ifconfig ${epair_one}b 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair_two}b 198.51.100.1/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.1
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_one}a \
+		--to 192.0.2.1 \
+		--fromaddr 198.51.100.2 \
+		--replyif ${epair_two}a
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_two}a \
+		--to 198.51.100.1 \
+		--fromaddr 192.0.2.2 \
+		--replyif ${epair_one}a
+
+	pft_set_rules alcatraz \
+		"block quick from urpf-failed"
+	jexec alcatraz pfctl -e
+
+	# Correct source still works
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.1
+
+	# Unexpected source interface is blocked
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
+		--sendif ${epair_one}a \
+		--to 192.0.2.1 \
+		--fromaddr 198.51.100.2 \
+		--replyif ${epair_two}a
+	atf_check -s exit:1 ${common_dir}/pft_ping.py \
+		--sendif ${epair_two}a \
+		--to 198.51.100.1 \
+		--fromaddr 192.0.2.2 \
+		--replyif ${epair_one}a
+}
+
+urpf_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "noalias"
 	atf_add_test_case "nested_inline"
+	atf_add_test_case "urpf"
 }

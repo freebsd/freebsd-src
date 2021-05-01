@@ -148,15 +148,15 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_MOUNTFAILED:
 		return (dgettext(TEXT_DOMAIN, "mount failed"));
 	case EZFS_UMOUNTFAILED:
-		return (dgettext(TEXT_DOMAIN, "umount failed"));
+		return (dgettext(TEXT_DOMAIN, "unmount failed"));
 	case EZFS_UNSHARENFSFAILED:
-		return (dgettext(TEXT_DOMAIN, "unshare(1M) failed"));
+		return (dgettext(TEXT_DOMAIN, "NFS share removal failed"));
 	case EZFS_SHARENFSFAILED:
-		return (dgettext(TEXT_DOMAIN, "share(1M) failed"));
+		return (dgettext(TEXT_DOMAIN, "NFS share creation failed"));
 	case EZFS_UNSHARESMBFAILED:
-		return (dgettext(TEXT_DOMAIN, "smb remove share failed"));
+		return (dgettext(TEXT_DOMAIN, "SMB share removal failed"));
 	case EZFS_SHARESMBFAILED:
-		return (dgettext(TEXT_DOMAIN, "smb add share failed"));
+		return (dgettext(TEXT_DOMAIN, "SMB share creation failed"));
 	case EZFS_PERM:
 		return (dgettext(TEXT_DOMAIN, "permission denied"));
 	case EZFS_NOSPC:
@@ -1010,8 +1010,7 @@ libzfs_init(void)
 	int error;
 	char *env;
 
-	error = libzfs_load_module();
-	if (error) {
+	if ((error = libzfs_load_module()) != 0) {
 		errno = error;
 		return (NULL);
 	}

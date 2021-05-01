@@ -1031,7 +1031,7 @@ int
 kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
     int shmflags, struct filecaps *fcaps, const char *name __unused)
 {
-	struct filedesc *fdp;
+	struct pwddesc *pdp;
 	struct shmfd *shmfd;
 	struct file *fp;
 	char *path;
@@ -1081,8 +1081,8 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 	if ((initial_seals & ~F_SEAL_SEAL) != 0)
 		return (EINVAL);
 
-	fdp = td->td_proc->p_fd;
-	cmode = (mode & ~fdp->fd_cmask) & ACCESSPERMS;
+	pdp = td->td_proc->p_pd;
+	cmode = (mode & ~pdp->pd_cmask) & ACCESSPERMS;
 
 	/*
 	 * shm_open(2) created shm should always have O_CLOEXEC set, as mandated

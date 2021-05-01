@@ -22,6 +22,8 @@
         ..
         firmware
         ..
+        loader.conf.d             tags=package=bootloader
+        ..
         lua
         ..
         kernel
@@ -54,7 +56,7 @@
         ..
         gss
         ..
-        kyua
+        kyua             tags=package=tests
         ..
         mail
         ..
@@ -93,6 +95,8 @@
         syslog.d
         ..
         zfs
+            compatibility.d
+            ..
         ..
     ..
     lib

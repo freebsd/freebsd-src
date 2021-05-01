@@ -88,17 +88,10 @@ lookup_crid(int fd, const char *devname)
 static int
 get_handle_fd(void)
 {
-	int dc_fd, fd;
+	int fd;
 
-	dc_fd = open("/dev/crypto", O_RDWR);
-
-	/*
-	 * Why do we do this dance instead of just operating on /dev/crypto
-	 * directly?  I have no idea.
-	 */
-	ATF_REQUIRE(dc_fd >= 0);
-	ATF_REQUIRE(ioctl(dc_fd, CRIOGET, &fd) != -1);
-	close(dc_fd);
+	fd = open("/dev/crypto", O_RDWR);
+	ATF_REQUIRE(fd >= 0);
 	return (fd);
 }
 
@@ -185,14 +178,14 @@ test_blake2s_vectors(const char *devname, const char *modname)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors);
 ATF_TC_BODY(blake2b_vectors, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2b_vectors("cryptosoft0", "nexus/cryptosoft");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors);
 ATF_TC_BODY(blake2s_vectors, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2s_vectors("cryptosoft0", "nexus/cryptosoft");
 }
 
@@ -200,14 +193,14 @@ ATF_TC_BODY(blake2s_vectors, tc)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors_x86);
 ATF_TC_BODY(blake2b_vectors_x86, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2b_vectors("blaketwo0", "nexus/blake2");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors_x86);
 ATF_TC_BODY(blake2s_vectors_x86, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2s_vectors("blaketwo0", "nexus/blake2");
 }
 #endif

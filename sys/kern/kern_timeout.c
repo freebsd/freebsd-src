@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
 #include "opt_ddb.h"
-#if defined(__arm__)
-#include "opt_timer.h"
-#endif
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -74,9 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #endif
 
-#ifndef NO_EVENTTIMERS
 DPCPU_DECLARE(sbintime_t, hardclocktime);
-#endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
 SDT_PROBE_DEFINE1(callout_execute, , , callout__start, "struct callout *");
@@ -124,7 +119,7 @@ static int pin_pcpu_swi = 0;
 SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_default_swi,
     0, "Pin the default (non-per-cpu) swi (shared with PCPU 0 swi)");
 SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_pcpu_swi,
-    0, "Pin the per-CPU swis (except PCPU 0, which is also default");
+    0, "Pin the per-CPU swis (except PCPU 0, which is also default)");
 
 /*
  * TODO:
@@ -527,9 +522,8 @@ next:
 		 */
 	} while (((int)(firstb - lastb)) <= 0);
 	cc->cc_firstevent = last;
-#ifndef NO_EVENTTIMERS
 	cpu_new_callout(curcpu, last, first);
-#endif
+
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
 	avg_mpcalls_dir += (mpcalls_dir * 1000 - avg_mpcalls_dir) >> 8;
@@ -594,7 +588,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	LIST_INSERT_HEAD(&cc->cc_callwheel[bucket], c, c_links.le);
 	if (cc->cc_bucket == bucket)
 		cc_exec_next(cc) = c;
-#ifndef NO_EVENTTIMERS
+
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
@@ -606,7 +600,6 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 		cc->cc_firstevent = sbt;
 		cpu_new_callout(cpu, sbt, c->c_time);
 	}
-#endif
 }
 
 static void
@@ -851,15 +844,7 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 	}
 	if ((flags & C_HARDCLOCK) != 0 && sbt < tick_sbt)
 		sbt = tick_sbt;
-	if ((flags & C_HARDCLOCK) != 0 ||
-#ifdef NO_EVENTTIMERS
-	    sbt >= sbt_timethreshold) {
-		to_sbt = getsbinuptime();
-
-		/* Add safety belt for the case of hz > 1000. */
-		to_sbt += tc_tick_sbt - tick_sbt;
-#else
-	    sbt >= sbt_tickthreshold) {
+	if ((flags & C_HARDCLOCK) != 0 || sbt >= sbt_tickthreshold) {
 		/*
 		 * Obtain the time of the last hardclock() call on
 		 * this CPU directly from the kern_clocksource.c.
@@ -872,7 +857,6 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		spinlock_enter();
 		to_sbt = DPCPU_GET(hardclocktime);
 		spinlock_exit();
-#endif
 #endif
 		if (cold && to_sbt == 0)
 			to_sbt = sbinuptime();
@@ -1161,7 +1145,7 @@ again:
 			 * just wait for the current invocation to
 			 * finish.
 			 */
-			while (cc_exec_curr(cc, direct) == c) {
+			if (cc_exec_curr(cc, direct) == c) {
 				/*
 				 * Use direct calls to sleepqueue interface
 				 * instead of cv/msleep in order to avoid
@@ -1209,7 +1193,7 @@ again:
 
 				/* Reacquire locks previously released. */
 				PICKUP_GIANT();
-				CC_LOCK(cc);
+				goto again;
 			}
 			c->c_flags &= ~CALLOUT_ACTIVE;
 		} else if (use_lock &&
@@ -1354,71 +1338,6 @@ _callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 	c->c_iflags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
 	c->c_cpu = cc_default_cpu;
 }
-
-#ifdef APM_FIXUP_CALLTODO
-/* 
- * Adjust the kernel calltodo timeout list.  This routine is used after 
- * an APM resume to recalculate the calltodo timer list values with the 
- * number of hz's we have been sleeping.  The next hardclock() will detect 
- * that there are fired timers and run softclock() to execute them.
- *
- * Please note, I have not done an exhaustive analysis of what code this
- * might break.  I am motivated to have my select()'s and alarm()'s that
- * have expired during suspend firing upon resume so that the applications
- * which set the timer can do the maintanence the timer was for as close
- * as possible to the originally intended time.  Testing this code for a 
- * week showed that resuming from a suspend resulted in 22 to 25 timers 
- * firing, which seemed independent on whether the suspend was 2 hours or
- * 2 days.  Your milage may vary.   - Ken Key <key@cs.utk.edu>
- */
-void
-adjust_timeout_calltodo(struct timeval *time_change)
-{
-	struct callout *p;
-	unsigned long delta_ticks;
-
-	/* 
-	 * How many ticks were we asleep?
-	 * (stolen from tvtohz()).
-	 */
-
-	/* Don't do anything */
-	if (time_change->tv_sec < 0)
-		return;
-	else if (time_change->tv_sec <= LONG_MAX / 1000000)
-		delta_ticks = howmany(time_change->tv_sec * 1000000 +
-		    time_change->tv_usec, tick) + 1;
-	else if (time_change->tv_sec <= LONG_MAX / hz)
-		delta_ticks = time_change->tv_sec * hz +
-		    howmany(time_change->tv_usec, tick) + 1;
-	else
-		delta_ticks = LONG_MAX;
-
-	if (delta_ticks > INT_MAX)
-		delta_ticks = INT_MAX;
-
-	/* 
-	 * Now rip through the timer calltodo list looking for timers
-	 * to expire.
-	 */
-
-	/* don't collide with softclock() */
-	CC_LOCK(cc);
-	for (p = calltodo.c_next; p != NULL; p = p->c_next) {
-		p->c_time -= delta_ticks;
-
-		/* Break if the timer had more time on it than delta_ticks */
-		if (p->c_time > 0)
-			break;
-
-		/* take back the ticks the timer didn't use (p->c_time <= 0) */
-		delta_ticks = -p->c_time;
-	}
-	CC_UNLOCK(cc);
-
-	return;
-}
-#endif /* APM_FIXUP_CALLTODO */
 
 static int
 flssbt(sbintime_t sbt)

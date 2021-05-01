@@ -516,12 +516,6 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 	}
 }
 
-void
-pre_init(void)
-{
-
-}
-
 int __getosreldate(void);
 
 void
@@ -544,13 +538,13 @@ allocate_initial_tls(Obj_Entry *objs)
 		sysarch(AMD64_SET_FSBASE, &addr);
 }
 
-void *__tls_get_addr(tls_index *ti)
+void *
+__tls_get_addr(tls_index *ti)
 {
-    Elf_Addr** segbase;
+	Elf_Addr **dtvp;
 
-    __asm __volatile("movq %%fs:0, %0" : "=r" (segbase));
-
-    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
+	dtvp = _get_tp();
+	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
 }
 
 size_t

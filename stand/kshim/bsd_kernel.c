@@ -30,23 +30,14 @@ struct usb_process usb_process[USB_PROC_MAX];
 
 static device_t usb_pci_root;
 
-/*------------------------------------------------------------------------*
- * Implementation of mutex API
- *------------------------------------------------------------------------*/
-
-struct mtx Giant;
 int (*bus_alloc_resource_any_cb)(struct resource *res, device_t dev,
     int type, int *rid, unsigned int flags);
 int (*ofw_bus_status_ok_cb)(device_t dev);
 int (*ofw_bus_is_compatible_cb)(device_t dev, char *name);
 
-static void
-mtx_system_init(void *arg)
-{
-	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
-}
-SYSINIT(mtx_system_init, SI_SUB_LOCK, SI_ORDER_MIDDLE, mtx_system_init, NULL);
-
+/*------------------------------------------------------------------------*
+ * Implementation of busdma API
+ *------------------------------------------------------------------------*/
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t boundary, bus_addr_t lowaddr,
@@ -101,6 +92,13 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 }
 
 void
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
+{
+	/* Assuming coherent memory */
+	__asm__ __volatile__("": : :"memory");
+}
+
+void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 
@@ -114,6 +112,10 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	free(dmat, XXX);
 	return (0);
 }
+
+/*------------------------------------------------------------------------*
+ * Implementation of resource management API
+ *------------------------------------------------------------------------*/
 
 struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, unsigned int flags)
@@ -254,6 +256,19 @@ ofw_bus_is_compatible(device_t dev, char *name)
 
 	return ((*ofw_bus_is_compatible_cb)(dev, name));
 }
+
+/*------------------------------------------------------------------------*
+ * Implementation of mutex API
+ *------------------------------------------------------------------------*/
+
+struct mtx Giant;
+
+static void
+mtx_system_init(void *arg)
+{
+	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
+}
+SYSINIT(mtx_system_init, SI_SUB_LOCK, SI_ORDER_MIDDLE, mtx_system_init, NULL);
 
 void
 mtx_init(struct mtx *mtx, const char *name, const char *type, int opt)

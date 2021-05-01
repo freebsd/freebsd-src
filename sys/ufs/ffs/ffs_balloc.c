@@ -128,8 +128,6 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 		return (EFBIG);
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
-	if (DOINGSOFTDEP(vp))
-		softdep_prealloc(vp, MNT_WAIT);
 	/*
 	 * If the next write will extend the file into a new block,
 	 * and the file is currently composed of a fragment
@@ -172,9 +170,17 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			panic("ffs_balloc_ufs1: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
-			error = bread(vp, lbn, fs->fs_bsize, NOCRED, &bp);
-			if (error) {
-				return (error);
+			if ((flags & BA_CLRBUF) != 0) {
+				error = bread(vp, lbn, fs->fs_bsize, NOCRED,
+				    &bp);
+				if (error != 0)
+					return (error);
+			} else {
+				bp = getblk(vp, lbn, fs->fs_bsize, 0, 0,
+				    gbflags);
+				if (bp == NULL)
+					return (EIO);
+				vfs_bio_clrbuf(bp);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
 			*bpp = bp;
@@ -613,9 +619,6 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 		return (EFBIG);
 	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
 
-	if (DOINGSOFTDEP(vp))
-		softdep_prealloc(vp, MNT_WAIT);
-
 	/*
 	 * Check for allocating external data.
 	 */
@@ -768,10 +771,17 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			panic("ffs_balloc_ufs2: BA_METAONLY for direct block");
 		nb = dp->di_db[lbn];
 		if (nb != 0 && ip->i_size >= smalllblktosize(fs, lbn + 1)) {
-			error = bread_gb(vp, lbn, fs->fs_bsize, NOCRED,
-			    gbflags, &bp);
-			if (error) {
-				return (error);
+			if ((flags & BA_CLRBUF) != 0) {
+				error = bread_gb(vp, lbn, fs->fs_bsize, NOCRED,
+				    gbflags, &bp);
+				if (error != 0)
+					return (error);
+			} else {
+				bp = getblk(vp, lbn, fs->fs_bsize, 0, 0,
+				    gbflags);
+				if (bp == NULL)
+					return (EIO);
+				vfs_bio_clrbuf(bp);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
 			*bpp = bp;

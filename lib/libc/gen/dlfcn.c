@@ -34,17 +34,20 @@ __FBSDID("$FreeBSD$");
 /*
  * Linkage to services provided by the dynamic linker.
  */
+#include <sys/types.h>
 #include <sys/mman.h>
+#include <machine/atomic.h>
 #include <dlfcn.h>
 #include <link.h>
 #include <stddef.h>
 #include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
+#include "rtld.h"
 #include "libc_private.h"
 #include "reentrant.h"
 
-static char sorry[] = "Service unavailable";
+static const char sorry[] = "Service unavailable";
 
 void _rtld_thread_init(void *);
 void _rtld_atfork_pre(int *);
@@ -89,7 +92,7 @@ char *
 dlerror(void)
 {
 
-	return (sorry);
+	return (__DECONST(char *, sorry));
 }
 
 #pragma weak dllockinit
@@ -193,8 +196,6 @@ dl_init_phdr_info(void)
 	for (i = 0; i < phdr_info.dlpi_phnum; i++) {
 		if (phdr_info.dlpi_phdr[i].p_type == PT_TLS) {
 			phdr_info.dlpi_tls_modid = 1;
-			phdr_info.dlpi_tls_data =
-			    (void*)phdr_info.dlpi_phdr[i].p_vaddr;
 		}
 	}
 	phdr_info.dlpi_adds = 1;
@@ -207,13 +208,17 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
     void *data __unused)
 {
 #ifndef IN_LIBDL
+	tls_index ti;
 	int ret;
 
 	__init_elf_aux_vector();
 	if (__elf_aux_vector == NULL)
 		return (1);
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
+	ti.ti_module = 1;
+	ti.ti_offset = 0;
 	mutex_lock(&dl_phdr_info_lock);
+	phdr_info.dlpi_tls_data = __tls_get_addr(&ti);
 	ret = callback(&phdr_info, sizeof(phdr_info), data);
 	mutex_unlock(&dl_phdr_info_lock);
 	return (ret);
@@ -256,8 +261,30 @@ _rtld_addr_phdr(const void *addr __unused,
 int
 _rtld_get_stack_prot(void)
 {
+#ifndef IN_LIBDL
+	unsigned i;
+	int r;
+	static int ret;
 
-	return (PROT_EXEC | PROT_READ | PROT_WRITE);
+	r = atomic_load_int(&ret);
+	if (r != 0)
+		return (r);
+
+	_once(&dl_phdr_info_once, dl_init_phdr_info);
+	r = PROT_EXEC | PROT_READ | PROT_WRITE;
+	for (i = 0; i < phdr_info.dlpi_phnum; i++) {
+		if (phdr_info.dlpi_phdr[i].p_type != PT_GNU_STACK)
+			continue;
+		r = PROT_READ | PROT_WRITE;
+		if ((phdr_info.dlpi_phdr[i].p_flags & PF_X) != 0)
+			r |= PROT_EXEC;
+		break;
+	}
+	atomic_store_int(&ret, r);
+	return (r);
+#else
+	return (0);
+#endif
 }
 
 #pragma weak _rtld_is_dlopened

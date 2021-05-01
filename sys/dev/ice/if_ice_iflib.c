@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -1493,7 +1493,7 @@ ice_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 		err = iflib_irq_alloc_generic(ctx, &sc->irqvs[vector].irq, rid,
-					      IFLIB_INTR_RX, ice_msix_que,
+					      IFLIB_INTR_RXTX, ice_msix_que,
 					      rxq, rxq->me, irq_name);
 		if (err) {
 			device_printf(sc->dev,

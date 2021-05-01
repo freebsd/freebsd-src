@@ -26,13 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2020
+.Dd April 13, 2021
 .Dt DOMAIN 9
 .Os
 .Sh NAME
 .Nm domain_add ,
 .Nm pfctlinput ,
-.Nm pfctlinput2 ,
 .Nm pffinddomain ,
 .Nm pffindproto ,
 .Nm pffindtype ,
@@ -47,8 +46,6 @@
 .Fn domain_add "void *data"
 .Ft void
 .Fn pfctlinput "int cmd" "struct sockaddr *sa"
-.Ft void
-.Fn pfctlinput2 "int cmd" "struct sockaddr *sa" "void *ctlparam"
 .Ft struct domain *
 .Fn pffinddomain "int family"
 .Ft struct protosw *
@@ -129,27 +126,6 @@ When called,
 calls the protocol specific
 .Fn pr_ctlinput
 function for each protocol in that has defined one, in every domain.
-.Pp
-.Fn pfctlinput2
-provides that same functionality of
-.Fn pfctlinput ,
-but with a few additional checks and a new
-.Vt "void *"
-argument that is passed directly to the protocol's
-.Fn pr_ctlinput
-function.
-Unlike
-.Fn pfctlinput ,
-.Fn pfctlinput2
-verifies that
-.Fa sa
-is not
-.Dv NULL ,
-and that only the protocol families that are the same as
-.Fa sa
-have their
-.Fn pr_ctlinput
-function called.
 .Pp
 .Fn domain_add
 adds a new protocol domain to the system.
@@ -240,7 +216,6 @@ types if the domain has a default raw protocol.
 The functions
 .Fn domain_add ,
 .Fn pfctlinput ,
-.Fn pfctlinput2 ,
 .Fn pffinddomain ,
 .Fn pffindproto ,
 .Fn pffindtype

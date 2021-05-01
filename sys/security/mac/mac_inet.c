@@ -487,7 +487,7 @@ void
 mac_syncache_create(struct label *label, struct inpcb *inp)
 {
 
-	INP_WLOCK_ASSERT(inp);
+	INP_LOCK_ASSERT(inp);
 
 	MAC_POLICY_PERFORM_NOSLEEP(syncache_create, label, inp);
 }

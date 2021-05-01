@@ -52,13 +52,13 @@ int		yysavedepth = 0;
 wordtab_t	*yysavewords[30];
 
 
-static	wordtab_t	*yyfindkey __P((char *));
-static	int		yygetc __P((int));
-static	void		yyunputc __P((int));
-static	int		yyswallow __P((int));
-static	char		*yytexttostr __P((int, int));
-static	void		yystrtotext __P((char *));
-static	char		*yytexttochar __P((void));
+static	wordtab_t	*yyfindkey(char *);
+static	int		yygetc(int);
+static	void		yyunputc(int);
+static	int		yyswallow(int);
+static	char		*yytexttostr(int, int);
+static	void		yystrtotext(char *);
+static	char		*yytexttochar(void);
 
 static int yygetc(docont)
 	int docont;

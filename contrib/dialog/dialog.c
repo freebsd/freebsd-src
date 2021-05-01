@@ -1,9 +1,9 @@
 /*
- * $Id: dialog.c,v 1.268 2018/06/21 09:16:05 tom Exp $
+ * $Id: dialog.c,v 1.281 2021/01/17 16:52:18 tom Exp $
  *
  *  cdialog - Display simple dialog boxes from shell scripts
  *
- *  Copyright 2000-2017,2018	Thomas E. Dickey
+ *  Copyright 2000-2020,2021	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -25,6 +25,8 @@
  */
 
 #include <dialog.h>
+
+#include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -32,6 +34,8 @@
 #ifdef HAVE_SETLOCALE
 #include <locale.h>
 #endif
+
+#include <dlg_internals.h>
 
 #define PASSARGS             t,       av,        offset_add
 #define CALLARGS const char *t, char *av[], int *offset_add
@@ -42,23 +46,25 @@ typedef enum {
     ,o_allow_close
     ,o_and_widget
     ,o_ascii_lines
-    ,o_aspect
+    ,o_aspect_ratio
     ,o_auto_placement
     ,o_backtitle
-    ,o_beep
-    ,o_beep_after
-    ,o_begin
+    ,o_beep_signal
+    ,o_beep_after_signal
+    ,o_begin_set
     ,o_cancel_label
     ,o_checklist
-    ,o_clear
+    ,o_dlg_clear_screen
     ,o_colors
     ,o_column_separator
     ,o_cr_wrap
     ,o_create_rc
+    ,o_cursor_off_label
     ,o_date_format
     ,o_default_button
     ,o_default_item
     ,o_defaultno
+    ,o_erase_on_exit
     ,o_exit_label
     ,o_extra_button
     ,o_extra_label
@@ -90,14 +96,15 @@ typedef enum {
     ,o_mixedgauge
     ,o_msgbox
     ,o_no_close
-    ,o_no_collapse
+    ,o_nocollapse
     ,o_no_cr_wrap
-    ,o_no_kill
+    ,o_cant_kill
+    ,o_no_hot_list
     ,o_no_label
     ,o_no_lines
     ,o_no_mouse
     ,o_no_nl_expand
-    ,o_no_shadow
+    ,o_use_shadow
     ,o_nocancel
     ,o_nook
     ,o_ok_label
@@ -108,8 +115,8 @@ typedef enum {
     ,o_pause
     ,o_prgbox
     ,o_print_maxsize
-    ,o_print_size
-    ,o_print_text_only
+    ,o_print_siz
+    ,o_text_only
     ,o_print_text_size
     ,o_print_version
     ,o_programbox
@@ -117,26 +124,24 @@ typedef enum {
     ,o_quoted
     ,o_radiolist
     ,o_screen_center
-    ,o_scrollbar
+    ,o_use_scrollbar
     ,o_separate_output
-    ,o_separate_widget
-    ,o_separator
-    ,o_shadow
+    ,o_separate_str
     ,o_single_quoted
     ,o_size_err
-    ,o_sleep
+    ,o_sleep_secs
     ,o_smooth
-    ,o_stderr
-    ,o_stdout
+    ,o_output_stderr
+    ,o_output_stdout
     ,o_tab_correct
     ,o_tab_len
     ,o_tailbox
     ,o_tailboxbg
     ,o_textbox
     ,o_time_format
-    ,o_timeout
+    ,o_timeout_secs
     ,o_title
-    ,o_trim
+    ,o_trim_whitespace
     ,o_under_mouse
     ,o_version
     ,o_visit_items
@@ -171,6 +176,14 @@ typedef enum {
     ,o_iso_week
 } eOptions;
 
+typedef enum {
+    tUnknown
+    ,tFalse
+    ,tTrue
+    ,tNumber
+    ,tString
+} tOptions;
+
 /*
  * The bits in 'pass' are used to decide which options are applicable at
  * different stages in the program:
@@ -181,6 +194,9 @@ typedef enum {
 typedef struct {
     const char *name;
     eOptions code;
+    int vars;			/* 0=none, 1=state, 2=vars */
+    tOptions type;		/* type for bool(true/false), number, string */
+    unsigned offset;
     int pass;			/* 1,2,4 or combination */
     const char *help;		/* NULL to suppress, non-empty to display params */
 } Options;
@@ -190,6 +206,30 @@ typedef struct {
     int argmin, argmax;
     callerFn *jumper;
 } Mode;
+
+/* use these macros for simple options in DIALOG_STATE */
+#define ssF(name) o_##name, 1, tFalse,  offsetof(DIALOG_STATE,name)
+#define ssT(name) o_##name, 1, tTrue,   offsetof(DIALOG_STATE,name)
+#define ssN(name) o_##name, 1, tNumber, offsetof(DIALOG_STATE,name)
+#define ssS(name) o_##name, 1, tString, offsetof(DIALOG_STATE,name)
+
+/* use these macros for simple options in DIALOG_VARS */
+#define svF(name) o_##name, 2, tFalse,  offsetof(DIALOG_VARS,name)
+#define svT(name) o_##name, 2, tTrue,   offsetof(DIALOG_VARS,name)
+#define svN(name) o_##name, 2, tNumber, offsetof(DIALOG_VARS,name)
+#define svS(name) o_##name, 2, tString, offsetof(DIALOG_VARS,name)
+
+/* use these macros for ignored options */
+#define xxF(name) o_##name, 0, tFalse,  0
+#define xxT(name) o_##name, 0, tTrue,   0
+#define xxN(name) o_##name, 0, tNumber, 0
+#define xxS(name) o_##name, 0, tString, 0
+
+/* use this macro for widget options */
+#define opW(name) o_##name, 0, 0, 0
+
+/* use this macro for other options */
+#define opO(name) o_##name, 0, 0, 0
 
 static int known_opts = 0;
 static const char **dialog_opts;
@@ -214,149 +254,153 @@ static AllBlobs *all_blobs;
 /*
  * The options[] table is organized this way to make it simple to maintain
  * a sorted list of options for the help-message.
+ *
+ * Because Boolean options correspond to "true", --shadow is listed here while
+ * --no-shadow is not.  The findOption and optionBool functions handle the
+ * cases where "no" is added or removed from the option name to derive an
+ * opposite setting.
  */
 /* *INDENT-OFF* */
 static const Options options[] = {
-    { "allow-close",	o_allow_close,		1, NULL },
-    { "and-widget",	o_and_widget,		4, NULL },
-    { "ascii-lines",	o_ascii_lines, 		1, "" },
-    { "aspect",		o_aspect,		1, "<ratio>" },
-    { "auto-placement", o_auto_placement,	1, NULL },
-    { "backtitle",	o_backtitle,		1, "<backtitle>" },
-    { "beep",		o_beep,			1, "" },
-    { "beep-after",	o_beep_after,		1, "" },
-    { "begin",		o_begin,		1, "<y> <x>" },
-    { "cancel-label",	o_cancel_label,		1, "<str>" },
-    { "checklist",	o_checklist,		2, "<text> <height> <width> <list height> <tag1> <item1> <status1>..." },
-    { "clear",		o_clear,		1, "" },
-    { "colors",		o_colors,		1, "" },
-    { "column-separator",o_column_separator,	1, "<str>" },
-    { "cr-wrap",	o_cr_wrap,		1, "" },
-    { "create-rc",	o_create_rc,		1, NULL },
-    { "date-format",	o_date_format,		1, "<str>" },
-    { "default-button",	o_default_button,	1, "<str>" },
-    { "default-item",	o_default_item,		1, "<str>" },
-    { "defaultno",	o_defaultno,		1, "" },
-    { "exit-label",	o_exit_label,		1, "<str>" },
-    { "extra-button",	o_extra_button,		1, "" },
-    { "extra-label",	o_extra_label,		1, "<str>" },
-    { "fixed-font",	o_fixed_font,		1, NULL },
-    { "form",		o_form,			2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>..." },
-    { "gauge",		o_gauge,		2, "<text> <height> <width> [<percent>]" },
-    { "guage",		o_gauge,		2, NULL },
-    { "help",		o_help,			4, "" },
-    { "help-button",	o_help_button,		1, "" },
-    { "help-label",	o_help_label,		1, "<str>" },
-    { "help-status",	o_help_status,		1, "" },
-    { "help-tags",	o_help_tags,		1, "" },
-    { "hfile",		o_help_file,		1, "<str>" },
-    { "hline",		o_help_line,		1, "<str>" },
-    { "icon",		o_icon,			1, NULL },
-    { "ignore",		o_ignore,		1, "" },
-    { "infobox",	o_infobox,		2, "<text> <height> <width>" },
-    { "input-fd",	o_input_fd,		1, "<fd>" },
-    { "inputbox",	o_inputbox,		2, "<text> <height> <width> [<init>]" },
-    { "inputmenu",	o_inputmenu,		2, "<text> <height> <width> <menu height> <tag1> <item1>..." },
-    { "insecure",	o_insecure,		1, "" },
-    { "item-help",	o_item_help,		1, "" },
-    { "keep-colors",	o_keep_colors,		1, NULL },
-    { "keep-tite",	o_keep_tite,		1, "" },
-    { "keep-window",	o_keep_window,		1, "" },
-    { "last-key",	o_last_key,		1, "" },
-    { "max-input",	o_max_input,		1, "<n>" },
-    { "menu",		o_menu,			2, "<text> <height> <width> <menu height> <tag1> <item1>..." },
-    { "mixedform",	o_mixedform,		2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1> <itype>..." },
-    { "mixedgauge",	o_mixedgauge,		2, "<text> <height> <width> <percent> <tag1> <item1>..." },
-    { "msgbox",		o_msgbox,		2, "<text> <height> <width>" },
-    { "no-cancel",	o_nocancel,		1, "" },
-    { "no-close",	o_no_close,		1, NULL },
-    { "no-collapse",	o_no_collapse,		1, "" },
-    { "no-cr-wrap",	o_no_cr_wrap,		1, "" },
-    { "no-kill",	o_no_kill,		1, "" },
-    { "no-label",	o_no_label,		1, "<str>" },
-    { "no-lines",	o_no_lines, 		1, "" },
-    { "no-mouse",	o_no_mouse,		1, "" },
-    { "no-nl-expand",	o_no_nl_expand,		1, "" },
-    { "no-ok",		o_nook,			1, "" },
-    { "no-shadow",	o_no_shadow,		1, "" },
-    { "nocancel",	o_nocancel,		1, NULL }, /* see --no-cancel */
-    { "nook",		o_nook,			1, "" }, /* See no-ok */
-    { "ok-label",	o_ok_label,		1, "<str>" },
-    { "output-fd",	o_output_fd,		1, "<fd>" },
-    { "output-separator",o_output_separator,	1, "<str>" },
-    { "passwordbox",	o_passwordbox,		2, "<text> <height> <width> [<init>]" },
-    { "passwordform",	o_passwordform,		2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>..." },
-    { "pause",		o_pause,		2, "<text> <height> <width> <seconds>" },
-    { "prgbox",		o_prgbox,		2, "<text> <command> <height> <width>" },
-    { "print-maxsize",	o_print_maxsize,	1, "" },
-    { "print-size",	o_print_size,		1, "" },
-    { "print-text-only",o_print_text_only,	5, "<text> <height> <width>" },
-    { "print-text-size",o_print_text_size,	5, "<text> <height> <width>" },
-    { "print-version",	o_print_version,	5, "" },
-    { "programbox",	o_programbox,		2, "<text> <height> <width>" },
-    { "progressbox",	o_progressbox,		2, "<text> <height> <width>" },
-    { "quoted",		o_quoted,		1, "" },
-    { "radiolist",	o_radiolist,		2, "<text> <height> <width> <list height> <tag1> <item1> <status1>..." },
-    { "screen-center",	o_screen_center,	1, NULL },
-    { "scrollbar",	o_scrollbar,		1, "" },
-    { "separate-output",o_separate_output,	1, "" },
-    { "separate-widget",o_separate_widget,	1, "<str>" },
-    { "separator",	o_separator,		1, NULL },
-    { "shadow",		o_shadow,		1, "" },
-    { "single-quoted",	o_single_quoted,	1, "" },
-    { "size-err",	o_size_err,		1, "" },
-    { "sleep",		o_sleep,		1, "<secs>" },
-    { "smooth",		o_smooth,		1, NULL },
-    { "stderr",		o_stderr,		1, "" },
-    { "stdout",		o_stdout,		1, "" },
-    { "tab-correct",	o_tab_correct,		1, "" },
-    { "tab-len",	o_tab_len,		1, "<n>" },
-    { "tailbox",	o_tailbox,		2, "<file> <height> <width>" },
-    { "tailboxbg",	o_tailboxbg,		2, "<file> <height> <width>" },
-    { "textbox",	o_textbox,		2, "<file> <height> <width>" },
-    { "time-format",	o_time_format,		1, "<str>" },
-    { "timeout",	o_timeout,		1, "<secs>" },
-    { "title",		o_title,		1, "<title>" },
-    { "trim",		o_trim,			1, "" },
-    { "under-mouse", 	o_under_mouse,		1, NULL },
-    { "version",	o_version,		5, "" },
-    { "visit-items", 	o_visit_items,		1, "" },
-    { "wmclass",	o_wmclass,		1, NULL },
-    { "yes-label",	o_yes_label,		1, "<str>" },
-    { "yesno",		o_yesno,		2, "<text> <height> <width>" },
+    { "allow-close",	xxT(allow_close),	1, NULL },
+    { "and-widget",	opO(and_widget),	4, NULL },
+    { "ascii-lines",	svT(ascii_lines), 	1, "" },
+    { "aspect",		ssN(aspect_ratio),	1, "<ratio>" },
+    { "auto-placement", xxT(auto_placement),	1, NULL },
+    { "backtitle",	svS(backtitle),		1, "<backtitle>" },
+    { "beep",		svT(beep_signal),	1, "" },
+    { "beep-after",	svT(beep_after_signal),	1, "" },
+    { "begin",		svT(begin_set),		1, "<y> <x>" },
+    { "cancel-label",	svS(cancel_label),	1, "<str>" },
+    { "checklist",	opW(checklist),		2, "<text> <height> <width> <list height> <tag1> <item1> <status1>..." },
+    { "clear",		svT(dlg_clear_screen),	1, "" },
+    { "colors",		svT(colors),		1, "" },
+    { "column-separator",svS(column_separator),	1, "<str>" },
+    { "cr-wrap",	svT(cr_wrap),		1, "" },
+    { "create-rc",	opO(create_rc),		1, NULL },
+    { "cursor-off-label",svT(cursor_off_label),	1, "" },
+    { "date-format",	svS(date_format),	1, "<str>" },
+    { "default-button",	xxS(default_button),	1, "<str>" },
+    { "default-item",	svS(default_item),	1, "<str>" },
+    { "defaultno",	svT(defaultno),		1, "" },
+    { "erase-on-exit",	svT(erase_on_exit),	1, "" },
+    { "exit-label",	svS(exit_label),	1, "<str>" },
+    { "extra-button",	svT(extra_button),	1, "" },
+    { "extra-label",	svS(extra_label),	1, "<str>" },
+    { "fixed-font",	xxT(fixed_font),	1, NULL },
+    { "form",		opW(form),		2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>..." },
+    { "gauge",		opW(gauge),		2, "<text> <height> <width> [<percent>]" },
+    { "guage",		opW(gauge),		2, NULL },
+    { "help",		opO(help),		4, "" },
+    { "help-button",	svT(help_button),	1, "" },
+    { "help-label",	svS(help_label),	1, "<str>" },
+    { "help-status",	svT(help_status),	1, "" },
+    { "help-tags",	svT(help_tags),		1, "" },
+    { "hfile",		svS(help_file),		1, "<str>" },
+    { "hline",		svS(help_line),		1, "<str>" },
+    { "icon",		xxS(icon),		1, NULL },
+    { "ignore",		opO(ignore),		1, "" },
+    { "infobox",	opW(infobox),		2, "<text> <height> <width>" },
+    { "input-fd",	opO(input_fd),		1, "<fd>" },
+    { "inputbox",	opW(inputbox),		2, "<text> <height> <width> [<init>]" },
+    { "inputmenu",	opW(inputmenu),		2, "<text> <height> <width> <menu height> <tag1> <item1>..." },
+    { "insecure",	svT(insecure),		1, "" },
+    { "item-help",	svT(item_help),		1, "" },
+    { "keep-colors",	xxT(keep_colors),	1, NULL },
+    { "keep-tite",	svT(keep_tite),		1, "" },
+    { "keep-window",	svT(keep_window),	1, "" },
+    { "last-key",	svT(last_key),		1, "" },
+    { "max-input",	svN(max_input),		1, "<n>" },
+    { "menu",		opW(menu),		2, "<text> <height> <width> <menu height> <tag1> <item1>..." },
+    { "mixedform",	opW(mixedform),		2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1> <itype>..." },
+    { "mixedgauge",	opW(mixedgauge),	2, "<text> <height> <width> <percent> <tag1> <item1>..." },
+    { "msgbox",		opW(msgbox),		2, "<text> <height> <width>" },
+    { "no-cancel",	svT(nocancel),		1, "" },
+    { "no-close",	xxT(no_close),		1, NULL },
+    { "no-collapse",	svT(nocollapse),	1, "" },
+    { "no-hot-list",	svT(no_hot_list),	1, "" },
+    { "no-kill",	svT(cant_kill),		1, "" },
+    { "no-label",	svS(no_label),		1, "<str>" },
+    { "no-lines",	svT(no_lines), 		1, "" },
+    { "no-mouse",	ssT(no_mouse),		1, "" },
+    { "no-nl-expand",	svT(no_nl_expand),	1, "" },
+    { "no-ok",		svT(nook),		1, "" },
+    { "no-shadow",	ssF(use_shadow),	1, "" },
+    { "ok-label",	svS(ok_label),		1, "<str>" },
+    { "output-fd",	opO(output_fd),		1, "<fd>" },
+    { "output-separator",svS(output_separator),	1, "<str>" },
+    { "passwordbox",	opW(passwordbox),	2, "<text> <height> <width> [<init>]" },
+    { "passwordform",	opW(passwordform),	2, "<text> <height> <width> <form height> <label1> <l_y1> <l_x1> <item1> <i_y1> <i_x1> <flen1> <ilen1>..." },
+    { "pause",		opW(pause),		2, "<text> <height> <width> <seconds>" },
+    { "prgbox",		opW(prgbox),		2, "<text> <command> <height> <width>" },
+    { "print-maxsize",	opO(print_maxsize),	1, "" },
+    { "print-size",	svT(print_siz),		1, "" },
+    { "print-text-only",ssT(text_only),		5, "<text> <height> <width>" },
+    { "print-text-size",opO(print_text_size),	5, "<text> <height> <width>" },
+    { "print-version",	opO(print_version),	5, "" },
+    { "programbox",	opW(programbox),	2, "<text> <height> <width>" },
+    { "progressbox",	opW(progressbox),	2, "<text> <height> <width>" },
+    { "quoted",		svT(quoted),		1, "" },
+    { "radiolist",	opW(radiolist),		2, "<text> <height> <width> <list height> <tag1> <item1> <status1>..." },
+    { "screen-center",	xxT(screen_center),	1, NULL },
+    { "scrollbar",	ssT(use_scrollbar),	1, "" },
+    { "separate-output",svT(separate_output),	1, "" },
+    { "separate-widget",ssS(separate_str),	1, "<str>" },
+    { "separator",	svS(output_separator),	1, NULL },
+    { "single-quoted",	svT(single_quoted),	1, "" },
+    { "size-err",	svT(size_err),		1, "" },
+    { "sleep",		svN(sleep_secs),	1, "<secs>" },
+    { "smooth",		xxT(smooth),		1, NULL },
+    { "stderr",		opO(output_stderr),	1, "" },
+    { "stdout",		opO(output_stdout),	1, "" },
+    { "tab-correct",	svT(tab_correct),	1, "" },
+    { "tab-len",	ssN(tab_len),		1, "<n>" },
+    { "tailbox",	opW(tailbox),		2, "<file> <height> <width>" },
+    { "tailboxbg",	opW(tailboxbg),		2, "<file> <height> <width>" },
+    { "textbox",	opW(textbox),		2, "<file> <height> <width>" },
+    { "time-format",	svS(time_format),	1, "<str>" },
+    { "timeout",	svN(timeout_secs),	1, "<secs>" },
+    { "title",		svS(title),		1, "<title>" },
+    { "trim",		svT(trim_whitespace),	1, "" },
+    { "under-mouse", 	xxT(under_mouse),	1, NULL },
+    { "version",	opO(version),		5, "" },
+    { "visit-items", 	ssT(visit_items),	1, "" },
+    { "wmclass",	xxS(wmclass),		1, NULL },
+    { "yes-label",	svS(yes_label),		1, "<str>" },
+    { "yesno",		opW(yesno),		2, "<text> <height> <width>" },
 #ifdef HAVE_WHIPTAIL
-    { "cancel-button",	o_cancel_label,		1, NULL },
-    { "fb",		o_fullbutton,		1, NULL },
-    { "fullbutton",	o_fullbutton,		1, NULL },
-    { "no-button",	o_no_label,		1, NULL },
-    { "ok-button",	o_ok_label,		1, NULL },
-    { "scrolltext",	o_scrollbar,		1, NULL },
-    { "topleft",	o_topleft,		1, NULL },
-    { "yes-button",	o_yes_label,		1, NULL },
+    { "cancel-button",	svS(cancel_label),	1, NULL },
+    { "fb",		xxT(fullbutton),	1, NULL },
+    { "fullbutton",	xxT(fullbutton),	1, NULL },
+    { "no-button",	svS(no_label),		1, NULL },
+    { "ok-button",	svS(ok_label),		1, NULL },
+    { "scrolltext",	ssT(use_scrollbar),	1, NULL },
+    { "topleft",	svT(begin_set),		1, NULL },
+    { "yes-button",	svS(yes_label),		1, NULL },
 #endif
 #ifdef HAVE_XDIALOG
-    { "calendar",	o_calendar,		2, "<text> <height> <width> <day> <month> <year>" },
-    { "dselect",	o_dselect,		2, "<directory> <height> <width>" },
-    { "editbox",	o_editbox,		2, "<file> <height> <width>" },
-    { "fselect",	o_fselect,		2, "<filepath> <height> <width>" },
-    { "timebox",	o_timebox,		2, "<text> <height> <width> <hour> <minute> <second>" },
-    { "week-start",	o_week_start,		1, "<str>" },
-    { "iso-week",	o_iso_week,		1, NULL },
+    { "calendar",	opW(calendar),		2, "<text> <height> <width> <day> <month> <year>" },
+    { "dselect",	opW(dselect),		2, "<directory> <height> <width>" },
+    { "editbox",	opW(editbox),		2, "<file> <height> <width>" },
+    { "fselect",	opW(fselect),		2, "<filepath> <height> <width>" },
+    { "timebox",	opW(timebox),		2, "<text> <height> <width> <hour> <minute> <second>" },
+    { "week-start",	svS(week_start),	1, "<str>" },
+    { "iso-week",	svT(iso_week),		1, NULL },
 #endif
 #ifdef HAVE_XDIALOG2
-    { "buildlist",	o_buildlist,		2, "<text> <height> <width> <list-height> <tag1> <item1> <status1>..." },
-    { "no-items", 	o_no_items,		1, "" },
-    { "no-tags", 	o_no_tags,		1, "" },
-    { "rangebox",	o_rangebox,		2, "<text> <height> <width> <min-value> <max-value> <default-value>" },
-    { "reorder", 	o_reorder,		1, "" },
-    { "treeview",	o_treeview,		2, "<text> <height> <width> <list-height> <tag1> <item1> <status1> <depth1>..." },
+    { "buildlist",	opW(buildlist),		2, "<text> <height> <width> <list-height> <tag1> <item1> <status1>..." },
+    { "no-items", 	svT(no_items),		1, "" },
+    { "no-tags", 	svT(no_tags),		1, "" },
+    { "rangebox",	opW(rangebox),		2, "<text> <height> <width> <min-value> <max-value> <default-value>" },
+    { "reorder", 	svT(reorder),		1, "" },
+    { "treeview",	opW(treeview),		2, "<text> <height> <width> <list-height> <tag1> <item1> <status1> <depth1>..." },
 #endif
 #if defined(HAVE_XDIALOG2) || defined(HAVE_WHIPTAIL)
-    { "noitem", 	o_no_items,		1, NULL },
-    { "notags", 	o_no_tags,		1, NULL },
+    { "noitem", 	svT(no_items),		1, NULL },
+    { "notags", 	svT(no_tags),		1, NULL },
 #endif
 #ifdef HAVE_DLG_TRACE
-    { "trace",		o_trace,		1, "<file>" },
+    { "trace",		opO(trace),		1, "<file>" },
 #endif
 };
 /* *INDENT-ON* */
@@ -499,11 +543,6 @@ unescape_argv(int *argcp, char ***argvp)
 	    if ((filename = (*argvp)[j + 1]) != 0) {
 		FILE *fp;
 		char **list;
-		char *blob;
-		int added;
-		size_t bytes_read;
-		size_t length;
-		int n;
 
 		if (*filename == '&') {
 		    fp = fdopen(atoi(filename + sizeof(char)), "r");
@@ -512,6 +551,12 @@ unescape_argv(int *argcp, char ***argvp)
 		}
 
 		if (fp) {
+		    char *blob;
+		    int added;
+		    size_t bytes_read;
+		    size_t length;
+		    int n;
+
 		    DLG_TRACE(("# opened --file %s ..\n", filename));
 		    blob = NULL;
 		    length = 0;
@@ -609,21 +654,52 @@ unescape_argv(int *argcp, char ***argvp)
     dialog_argv = (*argvp);
 }
 
-static eOptions
-lookupOption(const char *name, int pass)
+static const Options *
+findOption(const char *name, int pass, bool recur)
 {
-    unsigned n;
-    eOptions result = o_unknown;
+    const Options *result = NULL;
 
-    if (isOption(name)) {
-	name += 2;
-	for (n = 0; n < sizeof(options) / sizeof(options[0]); n++) {
+    if (!strncmp(name, "--", 2) && isalpha(UCH(name[2]))) {
+	unsigned n;
+
+	name += 2;		/* skip the "--" */
+	for (n = 0; n < TableSize(options); n++) {
 	    if ((pass & options[n].pass) != 0
 		&& !strcmp(name, options[n].name)) {
-		result = options[n].code;
+		result = &options[n];
 		break;
 	    }
 	}
+	if (result == NULL && !recur) {
+	    char *temp = malloc(8 + strlen(name));
+	    if (temp != NULL) {
+		if (!strncmp(name, "no", 2)) {
+		    int skip = !strncmp(name, "no-", 3) ? 3 : 2;
+		    sprintf(temp, "--no-%s", name + skip);
+		    result = findOption(temp, pass, TRUE);
+		    if (result == NULL) {
+			sprintf(temp, "--%s", name + skip);
+			result = findOption(temp, pass, TRUE);
+		    }
+		}
+		if (result == NULL && strncmp(name, "no", 2)) {
+		    sprintf(temp, "--no-%s", name);
+		    result = findOption(temp, pass, TRUE);
+		}
+		free(temp);
+	    }
+	}
+    }
+    return result;
+}
+
+static eOptions
+lookupOption(const char *name, int pass)
+{
+    eOptions result = o_unknown;
+    const Options *data = findOption(name, pass, FALSE);
+    if (data != NULL) {
+	result = data->code;
     }
     return result;
 }
@@ -632,7 +708,7 @@ static void
 Usage(const char *msg)
 {
     handle_leaks();
-    dlg_exiterr("Error: %s.\nUse --help to list options.\n\n", msg);
+    dlg_exiterr("%s.\nUse --help to list options.\n\n", msg);
 }
 
 /*
@@ -658,10 +734,11 @@ static int
 howmany_tags(char *argv[], int group)
 {
     int result = 0;
-    int have;
     char temp[80];
 
     while (argv[0] != 0) {
+	int have;
+
 	if (isOption(argv[0]))
 	    break;
 	if ((have = arg_rest(argv)) < group) {
@@ -687,11 +764,12 @@ numeric_arg(char **av, int n)
     int result = 0;
 
     if (n < dlg_count_argv(av)) {
-	char msg[80];
 	char *last = 0;
 	result = (int) strtol(av[n], &last, 10);
 
 	if (last == 0 || *last != 0) {
+	    char msg[80];
+
 	    sprintf(msg, "Expected a number for token %d of %.20s", n, av[0]);
 	    Usage(msg);
 	}
@@ -1289,6 +1367,24 @@ optionValue(char **argv, int *num)
     return result;
 }
 
+/*
+ * In findOption, we made provision for adding/removing a "no" prefix from
+ * any boolean option.  This function determines the actual true/false result.
+ */
+static bool
+optionBool(const char *actual, const Options * data)
+{
+    bool normal = (data->type == tTrue) ? TRUE : FALSE;
+    bool result = !strcmp(actual + 2, data->name) ? normal : !normal;
+    if (result != normal) {
+	int want_no = (strncmp(actual + 2, "no", 2) == 0);
+	int have_no = (strncmp(data->name, "no", 2) == 0);
+	if (have_no == want_no)
+	    result = normal;
+    }
+    return result;
+}
+
 /* Return exit-code for a named button */
 static int
 button_code(const char *name)
@@ -1310,7 +1406,7 @@ button_code(const char *name)
     int code = DLG_EXIT_ERROR;
     size_t i;
 
-    for (i = 0; i < (sizeof(table) / sizeof(table[0])); i++) {
+    for (i = 0; i < TableSize(table); i++) {
 	if (!dlg_strcmp(name, table[i].name)) {
 	    code = table[i].code;
 	    break;
@@ -1351,8 +1447,11 @@ PrintTextOnly(char **argv, int *offset, eOptions code)
     int width2 = 0;
     int next = arg_rest(argv + *offset);
 
-    if (LINES <= 0 && COLS <= 0)
-	dlg_ttysize(fileno(dialog_state.input), &LINES, &COLS);
+    if (LINES <= 0 && COLS <= 0) {
+	dlg_ttysize(fileno(dialog_state.input),
+		    &dialog_state.screen_height,
+		    &dialog_state.screen_width);
+    }
 
     text = strdup(optionString(argv, offset));
     IgnoreNonScreen(argv, *offset);
@@ -1369,7 +1468,7 @@ PrintTextOnly(char **argv, int *offset, eOptions code)
     dlg_auto_size(NULL, text, &height2, &width2, height, width);
 
     switch (code) {
-    case o_print_text_only:
+    case o_text_only:
 	dialog_state.text_only = TRUE;
 	dlg_print_autowrap(stdscr, text, height2, width2);
 	dialog_state.text_only = FALSE;
@@ -1412,7 +1511,7 @@ lookupMode(eOptions code)
     const Mode *modePtr = 0;
     unsigned n;
 
-    for (n = 0; n < sizeof(modes) / sizeof(modes[0]); n++) {
+    for (n = 0; n < TableSize(modes); n++) {
 	if (modes[n].code == code) {
 	    modePtr = &modes[n];
 	    break;
@@ -1447,7 +1546,7 @@ Help(void)
     static const char *const tbl_1[] =
     {
 	"cdialog (ComeOn Dialog!) version %s",
-	"Copyright 2000-2017,2018 Thomas E. Dickey",
+	"Copyright 2000-2020,2021 Thomas E. Dickey",
 	"This is free software; see the source for copying conditions.  There is NO",
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
 	"",
@@ -1468,7 +1567,7 @@ Help(void)
 	"Global-auto-size if also menu_height/list_height = 0.",
 	0
     };
-    size_t limit = sizeof(options) / sizeof(options[0]);
+    size_t limit = TableSize(options);
     size_t j, k;
     const Options **opts;
 
@@ -1545,121 +1644,92 @@ process_trace_option(char **argv, int *offset)
  * output stream.
  */
 static int
-process_common_options(int argc, char **argv, int offset, bool output)
+process_common_options(int argc, char **argv, int offset, int output)
 {
+    const Options *data = NULL;
     bool done = FALSE;
-    eOptions code;
 
-    DLG_TRACE(("# process_common_options, offset %d\n", offset));
+    DLG_TRACE(("# process_common_options, offset %d:%d\n", offset, argc));
 
-    while (offset < argc && !done) {	/* Common options */
+    while (!done && offset < argc) {
+	static char empty[] = "";
+	eOptions code = o_unknown;
+	char *sval = empty;
+	bool bval;
+	int nval;
+	char *target;
+
 	DLG_TRACE(("#\targv[%d] = %s\n", offset, argv[offset]));
-	switch (code = lookupOption(argv[offset], 1)) {
-	case o_title:
-	    dialog_vars.title = optionString(argv, &offset);
+	if ((data = findOption(argv[offset], 1, FALSE)) == NULL) {
+	    done = TRUE;
+	    continue;
+	}
+
+	switch (data->vars) {
+	default:
+	    target = NULL;
 	    break;
-	case o_backtitle:
-	    dialog_vars.backtitle = optionString(argv, &offset);
+	case 1:
+	    target = (char *) &dialog_state;
 	    break;
-	case o_separate_widget:
-	    dialog_state.separate_str = optionString(argv, &offset);
+	case 2:
+	    target = (char *) &dialog_vars;
 	    break;
-	case o_separate_output:
-	    dialog_vars.separate_output = TRUE;
+	}
+
+#define TraceTarget \
+	    ((target == (char *) &dialog_state) \
+	     ? "dialog_state" \
+	     : "dialog_vars")
+#define TraceBVal (bval ? "TRUE" : "FALSE")
+#define TraceDone(fmt,value) \
+	DLG_TRACE(("#\t.. set %s.%s = %"fmt"\n", TraceTarget, data->name, value))
+#define TraceLate(fmt,value) \
+	DLG_TRACE(("#\t.. defer setting %s = %"fmt"\n", data->name, value))
+
+	code = data->code;
+	switch (data->type) {
+	default:
 	    break;
-	case o_colors:
-	    dialog_vars.colors = TRUE;
+	case tFalse:
+	case tTrue:
+	    bval = optionBool(argv[offset], data);
+	    if (target != NULL) {
+		*(bool *) (target + data->offset) = bval;
+		TraceDone("s", TraceBVal);
+	    } else {
+		TraceLate("s", TraceBVal);
+	    }
 	    break;
-	case o_cr_wrap:
-	    dialog_vars.cr_wrap = TRUE;
+	case tNumber:
+	    nval = optionValue(argv, &offset);
+	    if (target != NULL) {
+		*(int *) (void *) (target + data->offset) = nval;
+		TraceDone("d", nval);
+	    } else {
+		TraceLate("d", nval);
+	    }
 	    break;
-	case o_no_nl_expand:
-	    dialog_vars.no_nl_expand = TRUE;
+	case tString:
+	    sval = optionString(argv, &offset);
+	    if (target != NULL) {
+		*(char **) (void *) (target + data->offset) = sval;
+		TraceDone("s", sval);
+	    } else {
+		TraceLate("s", sval);
+	    }
 	    break;
-	case o_no_collapse:
-	    dialog_vars.nocollapse = TRUE;
-	    break;
-	case o_no_kill:
-	    dialog_vars.cant_kill = TRUE;
-	    break;
-	case o_nocancel:
-	    dialog_vars.nocancel = TRUE;
-	    break;
-	case o_nook:
-	    dialog_vars.nook = TRUE;
-	    break;
-	case o_quoted:
-	    dialog_vars.quoted = TRUE;
-	    break;
-	case o_single_quoted:
-	    dialog_vars.single_quoted = TRUE;
-	    break;
-	case o_size_err:
-	    dialog_vars.size_err = TRUE;
-	    break;
-	case o_beep:
-	    dialog_vars.beep_signal = TRUE;
-	    break;
-	case o_beep_after:
-	    dialog_vars.beep_after_signal = TRUE;
-	    break;
-	case o_scrollbar:
-	    dialog_state.use_scrollbar = TRUE;
-	    break;
-	case o_shadow:
-	    dialog_state.use_shadow = TRUE;
-	    break;
+	}
+
+	switch (code) {
 	case o_defaultno:
-	    dialog_vars.defaultno = TRUE;
 	    dialog_vars.default_button = DLG_EXIT_CANCEL;
 	    break;
 	case o_default_button:
-	    dialog_vars.default_button = button_code(optionString(argv, &offset));
+	    dialog_vars.default_button = button_code(sval);
 	    dialog_vars.defaultno = dialog_vars.default_button == DLG_EXIT_CANCEL;
 	    break;
-	case o_default_item:
-	    dialog_vars.default_item = optionString(argv, &offset);
-	    break;
-	case o_insecure:
-	    dialog_vars.insecure = TRUE;
-	    break;
-	case o_item_help:
-	    dialog_vars.item_help = TRUE;
-	    break;
-	case o_help_line:
-	    dialog_vars.help_line = optionString(argv, &offset);
-	    break;
-	case o_help_file:
-	    dialog_vars.help_file = optionString(argv, &offset);
-	    break;
-	case o_help_button:
-	    dialog_vars.help_button = TRUE;
-	    break;
-	case o_help_status:
-	    dialog_vars.help_status = TRUE;
-	    break;
-	case o_help_tags:
-	    dialog_vars.help_tags = TRUE;
-	    break;
-	case o_extra_button:
-	    dialog_vars.extra_button = TRUE;
-	    break;
-	case o_ignore:
-	    ignore_unknown = TRUE;
-	    break;
-	case o_keep_window:
-	    dialog_vars.keep_window = TRUE;
-	    break;
-	case o_last_key:
-	    dialog_vars.last_key = TRUE;
-	    break;
-	case o_no_shadow:
-	    dialog_state.use_shadow = FALSE;
-	    break;
-	case o_print_size:
-	    dialog_vars.print_siz = TRUE;
-	    break;
-	case o_print_text_only:
+	case o_text_only:
 	case o_print_text_size:
 	    PrintTextOnly(argv, &offset, code);
 	    break;
@@ -1675,145 +1745,40 @@ process_common_options(int argc, char **argv, int offset, bool output)
 		PrintVersion(dialog_state.output);
 	    }
 	    break;
-	case o_separator:
-	case o_output_separator:
-	    dialog_vars.output_separator = optionString(argv, &offset);
-	    break;
-	case o_column_separator:
-	    dialog_vars.column_separator = optionString(argv, &offset);
-	    break;
-	case o_tab_correct:
-	    dialog_vars.tab_correct = TRUE;
-	    break;
-	case o_sleep:
-	    dialog_vars.sleep_secs = optionValue(argv, &offset);
-	    break;
-	case o_timeout:
-	    dialog_vars.timeout_secs = optionValue(argv, &offset);
-	    break;
-	case o_max_input:
-	    dialog_vars.max_input = optionValue(argv, &offset);
-	    break;
-	case o_tab_len:
-	    dialog_state.tab_len = optionValue(argv, &offset);
-	    break;
-	case o_trim:
-	    dialog_vars.trim_whitespace = TRUE;
-	    break;
 	case o_visit_items:
-	    dialog_state.visit_items = TRUE;
 	    dialog_state.visit_cols = 1;
 	    break;
-	case o_aspect:
-	    dialog_state.aspect_ratio = optionValue(argv, &offset);
-	    break;
-	case o_begin:
-	    dialog_vars.begin_set = TRUE;
-	    dialog_vars.begin_y = optionValue(argv, &offset);
-	    dialog_vars.begin_x = optionValue(argv, &offset);
-	    break;
-	case o_clear:
-	    dialog_vars.dlg_clear_screen = TRUE;
-	    break;
-	case o_yes_label:
-	    dialog_vars.yes_label = optionString(argv, &offset);
-	    break;
-	case o_no_label:
-	    dialog_vars.no_label = optionString(argv, &offset);
-	    break;
-	case o_ok_label:
-	    dialog_vars.ok_label = optionString(argv, &offset);
-	    break;
-	case o_cancel_label:
-	    dialog_vars.cancel_label = optionString(argv, &offset);
-	    break;
-	case o_extra_label:
-	    dialog_vars.extra_label = optionString(argv, &offset);
-	    break;
-	case o_exit_label:
-	    dialog_vars.exit_label = optionString(argv, &offset);
-	    break;
-	case o_help_label:
-	    dialog_vars.help_label = optionString(argv, &offset);
-	    break;
-	case o_date_format:
-	    dialog_vars.date_format = optionString(argv, &offset);
-	    break;
-	case o_time_format:
-	    dialog_vars.time_format = optionString(argv, &offset);
-	    break;
-	case o_keep_tite:
-	    dialog_vars.keep_tite = TRUE;
+	case o_begin_set:
+#ifdef HAVE_WHIPTAIL
+	    if (!strcmp(argv[offset], "--topleft")) {
+		dialog_vars.begin_y = 0;
+		dialog_vars.begin_x = 0;
+	    } else
+#endif
+	    {
+		dialog_vars.begin_y = optionValue(argv, &offset);
+		dialog_vars.begin_x = optionValue(argv, &offset);
+	    }
 	    break;
 	case o_ascii_lines:
-	    dialog_vars.ascii_lines = TRUE;
 	    dialog_vars.no_lines = FALSE;
 	    break;
 	case o_no_lines:
-	    dialog_vars.no_lines = TRUE;
 	    dialog_vars.ascii_lines = FALSE;
 	    break;
 	case o_no_mouse:
-	    dialog_state.no_mouse = TRUE;
 	    mouse_close();
 	    break;
-#ifdef HAVE_WHIPTAIL
-	case o_topleft:
-	    dialog_vars.begin_set = TRUE;
-	    dialog_vars.begin_y = 0;
-	    dialog_vars.begin_x = 0;
-	    break;
-	case o_fullbutton:
-	    /* ignore */
-	    break;
-#endif
-	    /* options of Xdialog which we ignore */
-	case o_icon:
-	case o_wmclass:
-	    (void) optionString(argv, &offset);
-	    /* FALLTHRU */
-	case o_allow_close:
-	case o_auto_placement:
-	case o_fixed_font:
-	case o_keep_colors:
-	case o_no_close:
-	case o_no_cr_wrap:
-	case o_screen_center:
-	case o_smooth:
-	case o_under_mouse:
-	    break;
 	case o_unknown:
-	    if (ignore_unknown)
-		break;
-	    /* FALLTHRU */
-	default:		/* no more common options */
-	    done = TRUE;
+	    done = !ignore_unknown;
+	default:
 	    break;
 #ifdef HAVE_DLG_TRACE
 	case o_trace:
 	    process_trace_option(argv, &offset);
 	    break;
 #endif
-#if defined(HAVE_XDIALOG2) || defined(HAVE_WHIPTAIL)
-	case o_no_items:
-	    dialog_vars.no_items = TRUE;
-	    break;
-	case o_no_tags:
-	    dialog_vars.no_tags = TRUE;
-	    break;
-#endif
-#ifdef HAVE_XDIALOG2
-	case o_reorder:
-	    dialog_vars.reorder = TRUE;
-	    break;
-#endif
-#ifdef HAVE_XDIALOG
-	case o_week_start:
-	    dialog_vars.week_start = optionString(argv, &offset);
-	    break;
-#endif
 	case o_iso_week:
-	    dialog_vars.iso_week = TRUE;
 	    if (dialog_vars.week_start == 0) {	/* Monday is implied */
 		static char default_1st[] = "1";
 		dialog_vars.week_start = default_1st;
@@ -1854,7 +1819,7 @@ init_result(char *buffer)
      * environment variable.
      */
     if (first) {
-	char *env = getenv("DIALOGOPTS");
+	char *env = dlg_getenv_str("DIALOGOPTS");
 	if (env != 0)
 	    env = dlg_strclone(env);
 	if (env != 0) {
@@ -1875,13 +1840,12 @@ main(int argc, char *argv[])
     char temp[256];
     bool esc_pressed = FALSE;
     bool keep_tite = FALSE;
-    bool first_time = TRUE;
+    int initial = 1;
     int offset = 1;
-    int offset_add;
+    int offset_add = 0;
     int retval = DLG_EXIT_OK;
-    int j, have;
+    int j;
     eOptions code;
-    const Mode *modePtr;
     char my_buffer[MAX_LEN + 1];
 
     memset(&dialog_state, 0, sizeof(dialog_state));
@@ -1914,10 +1878,10 @@ main(int argc, char *argv[])
     while (offset < argc) {
 	int base = offset;
 	switch (lookupOption(argv[offset], 7)) {
-	case o_stdout:
+	case o_output_stdout:
 	    dialog_state.output = stdout;
 	    break;
-	case o_stderr:
+	case o_output_stderr:
 	    dialog_state.output = stderr;
 	    break;
 	case o_input_fd:
@@ -1975,7 +1939,7 @@ main(int argc, char *argv[])
     }
     offset = 1;
     init_result(my_buffer);
-    dialog_vars.keep_tite = keep_tite;	/* init_result() cleared global */
+    dialog_vars.keep_tite |= keep_tite;		/* init_result() cleared global */
 
     /*
      * Dialog's output may be redirected (see above).  Handle the special
@@ -1992,9 +1956,10 @@ main(int argc, char *argv[])
 	case o_print_version:
 	    PrintVersion(dialog_state.output);
 	    break;
-	case o_clear:
+	case o_dlg_clear_screen:
 	    initscr();
 	    refresh();
+	    dlg_keep_tite((dialog_state.output == stdout) ? stderr : stdout);
 	    endwin();
 	    break;
 	case o_ignore:
@@ -2027,20 +1992,19 @@ main(int argc, char *argv[])
 	 * which can be done before involving curses, in case we can exit
 	 * without initializing curses (and writing to the terminal).
 	 */
-	offset = process_common_options(argc, argv, offset, TRUE);
-	if (offset >= argc)
+	initial = process_common_options(argc, argv, offset, TRUE);
+	if (initial >= argc)
 	    dlg_exit(DLG_EXIT_OK);
     }
 
     init_dialog(dialog_state.input, dialog_state.output);
 
     while (offset < argc && !esc_pressed) {
-	if (first_time) {
-	    first_time = FALSE;
-	} else {
-	    init_result(my_buffer);
-	    offset = process_common_options(argc, argv, offset, TRUE);
-	}
+	int have;
+	const Mode *modePtr;
+
+	init_result(my_buffer);
+	offset = process_common_options(argc, argv, offset, offset > initial);
 
 	if (argv[offset] == NULL) {
 	    if (ignore_unknown)

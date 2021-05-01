@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.60 2020/08/19 17:51:53 sjg Exp $
+# $Id: meta.stage.mk,v 1.61 2021/01/31 04:43:12 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -30,8 +30,11 @@ _dirdep ?= ${RELDIR}
 CLEANFILES+= .dirdep
 
 # this allows us to trace dependencies back to their src dir
-.dirdep:	.NOPATH
+.dirdep: .NOPATH
+.if !commands(.dirdep)
+.dirdep:
 	@echo '${_dirdep}' > $@
+.endif
 
 .if defined(NO_POSIX_SHELL) || ${type printf:L:sh:Mbuiltin} == ""
 _stage_file_basename = `basename $$f`

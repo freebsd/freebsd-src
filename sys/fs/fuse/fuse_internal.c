@@ -219,7 +219,7 @@ fuse_internal_access(struct vnode *vp,
 		SDT_PROBE0(fusefs, , internal, access_vadmin);
 	}
 
-	if (!fsess_isimpl(mp, FUSE_ACCESS))
+	if (fsess_not_impl(mp, FUSE_ACCESS))
 		return 0;
 
 	if ((mode & (VWRITE | VAPPEND)) != 0)
@@ -337,14 +337,14 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	int err = 0;
 
-	if (!fsess_isimpl(vnode_mount(vp),
+	if (fsess_not_impl(vnode_mount(vp),
 	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
 		return 0;
 	}
 	if (vnode_isdir(vp))
 		op = FUSE_FSYNCDIR;
 
-	if (!fsess_isimpl(mp, op))
+	if (fsess_not_impl(mp, op))
 		return 0;
 
 	fdisp_init(&fdi, sizeof(*ffsi));
@@ -497,7 +497,7 @@ fuse_internal_mknod(struct vnode *dvp, struct vnode **vpp,
 	fmni.rdev = vap->va_rdev;
 	if (fuse_libabi_geq(data, 7, 12)) {
 		insize = sizeof(fmni);
-		fmni.umask = curthread->td_proc->p_fd->fd_cmask;
+		fmni.umask = curthread->td_proc->p_pd->pd_cmask;
 	} else {
 		insize = FUSE_COMPAT_MKNOD_IN_SIZE;
 	}
@@ -583,7 +583,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
     u_long **cookiesp)
 {
 	int err = 0;
-	int bytesavail;
+	int oreclen;
 	size_t freclen;
 
 	struct dirent *de;
@@ -620,10 +620,10 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			err = EINVAL;
 			break;
 		}
-		bytesavail = GENERIC_DIRSIZ((struct pseudo_dirent *)
+		oreclen = GENERIC_DIRSIZ((struct pseudo_dirent *)
 					    &fudge->namelen);
 
-		if (bytesavail > uio_resid(uio)) {
+		if (oreclen > uio_resid(uio)) {
 			/* Out of space for the dir so we are done. */
 			err = -1;
 			break;
@@ -633,12 +633,13 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		 * the requested offset in the directory is found.
 		 */
 		if (*fnd_start != 0) {
-			fiov_adjust(cookediov, bytesavail);
-			bzero(cookediov->base, bytesavail);
+			fiov_adjust(cookediov, oreclen);
+			bzero(cookediov->base, oreclen);
 
 			de = (struct dirent *)cookediov->base;
 			de->d_fileno = fudge->ino;
-			de->d_reclen = bytesavail;
+			de->d_off = fudge->off;
+			de->d_reclen = oreclen;
 			de->d_type = fudge->type;
 			de->d_namlen = fudge->namelen;
 			memcpy((char *)cookediov->base + sizeof(struct dirent) -
@@ -1051,6 +1052,12 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	else
 		data->cache_mode = FUSE_CACHE_WT;
 
+	if (!fuse_libabi_geq(data, 7, 24))
+		fsess_set_notimpl(data->mp, FUSE_LSEEK);
+
+	if (!fuse_libabi_geq(data, 7, 28))
+		fsess_set_notimpl(data->mp, FUSE_COPY_FILE_RANGE);
+
 out:
 	if (err) {
 		fdata_set_dead(data);
@@ -1095,6 +1102,12 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_READDIRPLUS_AUTO: not yet implemented
 	 * FUSE_ASYNC_DIO: not yet implemented
 	 * FUSE_NO_OPEN_SUPPORT: not yet implemented
+	 * FUSE_PARALLEL_DIROPS: not yet implemented
+	 * FUSE_HANDLE_KILLPRIV: not yet implemented
+	 * FUSE_POSIX_ACL: not yet implemented
+	 * FUSE_ABORT_ERROR: not yet implemented
+	 * FUSE_CACHE_SYMLINKS: not yet implemented
+	 * FUSE_MAX_PAGES: not yet implemented
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
 		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE;
@@ -1223,6 +1236,45 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 out:
 	fdisp_destroy(&fdi);
 	return err;
+}
+
+/*
+ * FreeBSD clears the SUID and SGID bits on any write by a non-root user.
+ */
+void
+fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
+	struct thread *td)
+{
+	struct fuse_data *data;
+	struct mount *mp;
+	struct vattr va;
+	int dataflags;
+
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
+	dataflags = data->dataflags;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID)) {
+			fuse_internal_getattr(vp, &va, cred, td);
+			if (va.va_mode & (S_ISUID | S_ISGID)) {
+				mode_t mode = va.va_mode & ~(S_ISUID | S_ISGID);
+				/* Clear all vattr fields except mode */
+				vattr_null(&va);
+				va.va_mode = mode;
+
+				/*
+				 * Ignore fuse_internal_setattr's return value,
+				 * because at this point the write operation has
+				 * already succeeded and we don't want to return
+				 * failing status for that.
+				 */
+				(void)fuse_internal_setattr(vp, &va, td, NULL);
+			}
+		}
+	}
 }
 
 #ifdef ZERO_PAD_INCOMPLETE_BUFS

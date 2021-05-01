@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_attributes.3x,v 1.16 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_attributes.3x,v 1.18 2020/10/18 00:14:20 tom Exp $
 .TH form_field_attributes 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -38,18 +38,18 @@
 \fBform_field_attributes\fR \- color and attribute control for form fields
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_field_fore(FIELD *\fP\fIfield\fP\fB, chtype \fP\fIattr\fP\fB);\fP
 .br
-int set_field_fore(FIELD *field, chtype attr);
+\fBchtype field_fore(const FIELD *\fP\fIfield\fP\fB);\fP
+.sp
+\fBint set_field_back(FIELD *\fP\fIfield\fP\fB, chtype \fP\fIattr\fP\fB);\fP
 .br
-chtype field_fore(const FIELD *field);
+\fBchtype field_back(const FIELD *\fP\fIfield\fP\fB);\fP
+.sp
+\fBint set_field_pad(FIELD *\fP\fIfield\fP\fB, int \fP\fIpad\fP\fB);\fP
 .br
-int set_field_back(FIELD *field, chtype attr);
-.br
-chtype field_back(const FIELD *field);
-.br
-int set_field_pad(FIELD *field, int pad);
-.br
-int field_pad(const FIELD *field);
+\fBint field_pad(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_field_fore\fR sets the foreground attribute of

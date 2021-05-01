@@ -380,6 +380,7 @@ ffs_mount(struct mount *mp)
 	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
+	bool mounted_softdep;
 
 	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
@@ -491,6 +492,16 @@ ffs_mount(struct mount *mp)
 			error = vfs_write_suspend_umnt(mp);
 			if (error != 0)
 				return (error);
+
+			fs->fs_ronly = 1;
+			if (MOUNTEDSOFTDEP(mp)) {
+				MNT_ILOCK(mp);
+				mp->mnt_flag &= ~MNT_SOFTDEP;
+				MNT_IUNLOCK(mp);
+				mounted_softdep = true;
+			} else
+				mounted_softdep = false;
+
 			/*
 			 * Check for and optionally get rid of files open
 			 * for writing.
@@ -498,15 +509,22 @@ ffs_mount(struct mount *mp)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (MOUNTEDSOFTDEP(mp)) {
+			if (mounted_softdep) {
 				error = softdep_flushfiles(mp, flags, td);
 			} else {
 				error = ffs_flushfiles(mp, flags, td);
 			}
 			if (error) {
+				fs->fs_ronly = 0;
+				if (mounted_softdep) {
+					MNT_ILOCK(mp);
+					mp->mnt_flag |= MNT_SOFTDEP;
+					MNT_IUNLOCK(mp);
+				}
 				vfs_write_resume(mp, 0);
 				return (error);
 			}
+
 			if (fs->fs_pendingblocks != 0 ||
 			    fs->fs_pendinginodes != 0) {
 				printf("WARNING: %s Update error: blocks %jd "
@@ -521,10 +539,15 @@ ffs_mount(struct mount *mp)
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 0;
 				fs->fs_clean = 0;
+				if (mounted_softdep) {
+					MNT_ILOCK(mp);
+					mp->mnt_flag |= MNT_SOFTDEP;
+					MNT_IUNLOCK(mp);
+				}
 				vfs_write_resume(mp, 0);
 				return (error);
 			}
-			if (MOUNTEDSOFTDEP(mp))
+			if (mounted_softdep)
 				softdep_unmount(mp);
 			g_topology_lock();
 			/*
@@ -532,7 +555,6 @@ ffs_mount(struct mount *mp)
 			 */
 			g_access(ump->um_cp, 0, -1, -1);
 			g_topology_unlock();
-			fs->fs_ronly = 1;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
 			MNT_IUNLOCK(mp);
@@ -623,6 +645,8 @@ ffs_mount(struct mount *mp)
 			fs->fs_clean = 0;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				fs->fs_ronly = 1;
+				if ((fs->fs_flags & FS_DOSOFTDEP) != 0)
+					softdep_unmount(mp);
 				MNT_ILOCK(mp);
 				mp->mnt_flag |= saved_mnt_flag;
 				MNT_IUNLOCK(mp);
@@ -1035,6 +1059,7 @@ ffs_mountfs(odevvp, mp, td)
 	VOP_UNLOCK(odevvp);
 	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
+	KASSERT(dev->si_snapdata == NULL, ("non-NULL snapshot data"));
 	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
 	    (uintptr_t)mp) == 0) {
 		mntfs_freevp(devvp);
@@ -1055,8 +1080,8 @@ ffs_mountfs(odevvp, mp, td)
 	BO_UNLOCK(&odevvp->v_bufobj);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
-	if (mp->mnt_iosize_max > MAXPHYS)
-		mp->mnt_iosize_max = MAXPHYS;
+	if (mp->mnt_iosize_max > maxphys)
+		mp->mnt_iosize_max = maxphys;
 	if ((SBLOCKSIZE % cp->provider->sectorsize) != 0) {
 		error = EINVAL;
 		vfs_mount_error(mp,
@@ -1070,10 +1095,6 @@ ffs_mountfs(odevvp, mp, td)
 		loc = STDSB_NOHASHFAIL;
 	if ((error = ffs_sbget(devvp, &fs, loc, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
-	/* none of these types of check-hashes are maintained by this kernel */
-	fs->fs_metackhash &= ~(CK_INDIR | CK_DIR);
-	/* no support for any undefined flags */
-	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
@@ -1334,6 +1355,7 @@ out:
 			free(mp->mnt_gjprovider, M_UFSMNT);
 			mp->mnt_gjprovider = NULL;
 		}
+		MPASS(ump->um_softdep == NULL);
 		free(ump, M_UFSMNT);
 		mp->mnt_data = NULL;
 	}
@@ -1516,6 +1538,7 @@ ffs_unmount(mp, mntflags)
 	UFS_UNLOCK(ump);
 	if (MOUNTEDSOFTDEP(mp))
 		softdep_unmount(mp);
+	MPASS(ump->um_softdep == NULL);
 	if (fs->fs_ronly == 0 || ump->um_fsckpid > 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
@@ -1865,8 +1888,14 @@ loop:
 #ifdef QUOTA
 		qsyncvp(vp);
 #endif
-		if ((error = ffs_syncvnode(vp, waitfor, 0)) != 0)
-			allerror = error;
+		for (;;) {
+			error = ffs_syncvnode(vp, waitfor, 0);
+			if (error == ERELOOKUP)
+				continue;
+			if (error != 0)
+				allerror = error;
+			break;
+		}
 		vput(vp);
 	}
 	/*
@@ -1951,13 +1980,16 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	daddr_t dbn;
 	int error;
 
-	MPASS((ffs_flags & FFSV_REPLACE) == 0 || (flags & LK_EXCLUSIVE) != 0);
+	MPASS((ffs_flags & (FFSV_REPLACE | FFSV_REPLACE_DOOMED)) == 0 ||
+	    (flags & LK_EXCLUSIVE) != 0);
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	if (*vpp != NULL) {
-		if ((ffs_flags & FFSV_REPLACE) == 0)
+		if ((ffs_flags & FFSV_REPLACE) == 0 ||
+		    ((ffs_flags & FFSV_REPLACE_DOOMED) == 0 ||
+		    !VN_IS_DOOMED(*vpp)))
 			return (0);
 		vgone(*vpp);
 		vput(*vpp);
@@ -2005,6 +2037,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_nextclustercg = -1;
 	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
 	ip->i_mode = 0; /* ensure error cases below throw away vnode */
+	cluster_init_vn(&ip->i_clusterw);
+#ifdef DIAGNOSTIC
+	ufs_init_trackers(ip);
+#endif
 #ifdef QUOTA
 	{
 		int i;
@@ -2064,7 +2100,8 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		*vpp = NULL;
 		return (error);
 	}
-	if (DOINGSOFTDEP(vp))
+	if (DOINGSOFTDEP(vp) && (!fs->fs_ronly ||
+	    (ffs_flags & FFSV_FORCEINODEDEP) != 0))
 		softdep_load_inodeblock(ip);
 	else
 		ip->i_effnlink = ip->i_nlink;
@@ -2144,35 +2181,68 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	struct vnode **vpp;
 {
 	struct ufid *ufhp;
+
+	ufhp = (struct ufid *)fhp;
+	return (ffs_inotovp(mp, ufhp->ufid_ino, ufhp->ufid_gen, flags,
+	    vpp, 0));
+}
+
+int
+ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
+	struct mount *mp;
+	ino_t ino;
+	u_int64_t gen;
+	int lflags;
+	struct vnode **vpp;
+	int ffs_flags;
+{
 	struct ufsmount *ump;
+	struct vnode *nvp;
+	struct inode *ip;
 	struct fs *fs;
 	struct cg *cgp;
 	struct buf *bp;
-	ino_t ino;
 	u_int cg;
 	int error;
 
-	ufhp = (struct ufid *)fhp;
-	ino = ufhp->ufid_ino;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
+	*vpp = NULL;
+
 	if (ino < UFS_ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
+
 	/*
 	 * Need to check if inode is initialized because UFS2 does lazy
 	 * initialization and nfs_fhtovp can offer arbitrary inode numbers.
 	 */
-	if (fs->fs_magic != FS_UFS2_MAGIC)
-		return (ufs_fhtovp(mp, ufhp, flags, vpp));
-	cg = ino_to_cg(fs, ino);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0)
-		return (error);
-	if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
+		cg = ino_to_cg(fs, ino);
+		error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp);
+		if (error != 0)
+			return (error);
+		if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+			brelse(bp);
+			return (ESTALE);
+		}
 		brelse(bp);
+	}
+
+	error = ffs_vgetf(mp, ino, lflags, &nvp, ffs_flags);
+	if (error != 0)
+		return (error);
+
+	ip = VTOI(nvp);
+	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
+		if (ip->i_mode == 0)
+			vgone(nvp);
+		vput(nvp);
 		return (ESTALE);
 	}
-	brelse(bp);
-	return (ufs_fhtovp(mp, ufhp, flags, vpp));
+
+	vnode_create_vobject(nvp, DIP(ip, i_size), curthread);
+	*vpp = nvp;
+	return (0);
 }
 
 /*
@@ -2387,10 +2457,10 @@ ffs_backgroundwritedone(struct buf *bp)
 #endif
 	/*
 	 * This buffer is marked B_NOCACHE so when it is released
-	 * by biodone it will be tossed.
+	 * by biodone it will be tossed.  Clear B_IOSTARTED in case of error.
 	 */
 	bp->b_flags |= B_NOCACHE;
-	bp->b_flags &= ~B_CACHE;
+	bp->b_flags &= ~(B_CACHE | B_IOSTARTED);
 	pbrelvp(bp);
 
 	/*

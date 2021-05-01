@@ -230,7 +230,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 		 * If the fuse daemon doesn't support interrupts, then there's
 		 * nothing more that we can do
 		 */
-		if (!fsess_isimpl(data->mp, FUSE_INTERRUPT))
+		if (fsess_not_impl(data->mp, FUSE_INTERRUPT))
 			return;
 
 		/* 
@@ -356,11 +356,9 @@ fticket_init(void *mem, int size, int flags)
 	bzero(ftick, sizeof(struct fuse_ticket));
 
 	fiov_init(&ftick->tk_ms_fiov, sizeof(struct fuse_in_header));
-	ftick->tk_ms_type = FT_M_FIOV;
 
 	mtx_init(&ftick->tk_aw_mtx, "fuse answer delivery mutex", NULL, MTX_DEF);
 	fiov_init(&ftick->tk_aw_fiov, 0);
-	ftick->tk_aw_type = FT_A_FIOV;
 
 	return 0;
 }
@@ -395,18 +393,11 @@ fticket_refresh(struct fuse_ticket *ftick)
 	FUSE_ASSERT_AW_DONE(ftick);
 
 	fiov_refresh(&ftick->tk_ms_fiov);
-	ftick->tk_ms_bufdata = NULL;
-	ftick->tk_ms_bufsize = 0;
-	ftick->tk_ms_type = FT_M_FIOV;
 
 	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
 
 	fiov_refresh(&ftick->tk_aw_fiov);
 	ftick->tk_aw_errno = 0;
-	ftick->tk_aw_bufdata = NULL;
-	ftick->tk_aw_bufsize = 0;
-	ftick->tk_aw_type = FT_A_FIOV;
-
 	ftick->tk_flag = 0;
 }
 
@@ -417,17 +408,9 @@ fticket_reset(struct fuse_ticket *ftick)
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
-	ftick->tk_ms_bufdata = NULL;
-	ftick->tk_ms_bufsize = 0;
-	ftick->tk_ms_type = FT_M_FIOV;
-
 	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
 
 	ftick->tk_aw_errno = 0;
-	ftick->tk_aw_bufdata = NULL;
-	ftick->tk_aw_bufsize = 0;
-	ftick->tk_aw_type = FT_A_FIOV;
-
 	ftick->tk_flag = 0;
 }
 
@@ -440,7 +423,7 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	struct fuse_data *data = ftick->tk_data;
 	bool interrupted = false;
 
-	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT) &&
+	if (fsess_maybe_impl(ftick->tk_data->mp, FUSE_INTERRUPT) &&
 	    data->dataflags & FSESS_INTR) {
 		SIGEMPTYSET(blockedset);
 	} else {
@@ -546,20 +529,8 @@ fticket_aw_pull_uio(struct fuse_ticket *ftick, struct uio *uio)
 	size_t len = uio_resid(uio);
 
 	if (len) {
-		switch (ftick->tk_aw_type) {
-		case FT_A_FIOV:
-			fiov_adjust(fticket_resp(ftick), len);
-			err = uiomove(fticket_resp(ftick)->base, len, uio);
-			break;
-
-		case FT_A_BUF:
-			ftick->tk_aw_bufsize = len;
-			err = uiomove(ftick->tk_aw_bufdata, len, uio);
-			break;
-
-		default:
-			panic("FUSE: unknown answer type for ticket %p", ftick);
-		}
+		fiov_adjust(fticket_resp(ftick), len);
+		err = uiomove(fticket_resp(ftick)->base, len, uio);
 	}
 	return err;
 }
@@ -878,6 +849,14 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 
 	case FUSE_DESTROY:
 		err = (blen == 0) ? 0 : EINVAL;
+		break;
+
+	case FUSE_LSEEK:
+		err = (blen == sizeof(struct fuse_lseek_out)) ? 0 : EINVAL;
+		break;
+
+	case FUSE_COPY_FILE_RANGE:
+		err = (blen == sizeof(struct fuse_write_out)) ? 0 : EINVAL;
 		break;
 
 	default:

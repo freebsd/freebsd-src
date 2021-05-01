@@ -70,6 +70,13 @@ atf::utils::fork(void)
     return atf_utils_fork();
 }
 
+void
+atf::utils::reset_resultsfile(void)
+{
+
+    atf_utils_reset_resultsfile();
+}
+
 bool
 atf::utils::grep_file(const std::string& regex, const std::string& path)
 {

@@ -4,6 +4,10 @@ OS:=$(shell uname)
 ARCH?=64
 ARCHFLAG=-m$(ARCH)
 
+ifeq ($(OS),FreeBSD)
+EXTRA_LIBS=-lprocstat
+endif
+
 ifeq ($(OS),Linux)
 PROCESSOR:=$(shell uname -p)
 

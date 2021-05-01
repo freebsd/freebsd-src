@@ -1,8 +1,8 @@
 /******************************************************************************
  * dom0_ops.h
- * 
+ *
  * Process command requests from domain-0 guest OS.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the

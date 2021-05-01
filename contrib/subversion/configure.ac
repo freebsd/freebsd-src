@@ -91,7 +91,7 @@ AC_SUBST([MKDIR])
 dnl verify apr version and set apr flags
 dnl These regular expressions should not contain "\(" and "\)".
 
-APR_VER_REGEXES=["1\.[5-9]\. 2\."]
+APR_VER_REGEXES=["1\.[4-9]\. 2\."]
 
 SVN_LIB_APR($APR_VER_REGEXES)
 

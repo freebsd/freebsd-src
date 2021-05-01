@@ -43,6 +43,7 @@ struct spibus_ivar
 	uint32_t	cs;
 	uint32_t	mode;
 	uint32_t	clock;
+	struct resource_list	rl;
 };
 
 #define	SPIBUS_CS_HIGH	(1U << 31)

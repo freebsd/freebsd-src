@@ -248,11 +248,12 @@ after the DS failure or network partitioning occurs.
 the arguments for a LayoutReturn operation.
 .sp
 3 - The system administrator can perform the pnfsdskill(8) command on the MDS
-to disable it. If the system administrator does a pnfsdskill(8) and it fails
-with ENXIO (Device not configured) that normally means the DS was already
-disabled via #1 or #2. Since doing this is harmless, once a system
-administrator knows that there is a problem with a mirrored DS, doing the
-command is recommended.
+to disable it.
+If the system administrator does a pnfsdskill(8) and it fails with ENXIO
+(Device not configured) that normally means the DS was already
+disabled via #1 or #2.
+Since doing this is harmless, once a system administrator knows that
+there is a problem with a mirrored DS, doing the command is recommended.
 .sp
 Once a system administrator knows that a mirrored DS has malfunctioned
 or has been network partitioned, they should do the following as root/su
@@ -266,9 +267,8 @@ Note that the <mounted-on-path-of-DS> must be the exact mounted-on path
 string used when the DS was mounted on the MDS.
 .Pp
 Once the mirrored DS has been disabled, the pNFS service should continue to
-function, but file updates will only happen on the DS(s)
-that have not been disabled. Assuming two way mirroring, that implies
-the one DS of the pair stored in the
+function, but file updates will only happen on the DS(s) that have not been disabled.
+Assuming two way mirroring, that implies the one DS of the pair stored in the
 .Dq pnfsd.dsfile
 extended attribute for the file on the MDS, for files stored on the disabled DS.
 .Pp

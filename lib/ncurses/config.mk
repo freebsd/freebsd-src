@@ -3,27 +3,22 @@
 # This Makefile is shared by libncurses, libform, libmenu, libpanel.
 
 NCURSES_DIR=	${SRCTOP}/contrib/ncurses
+NCURSES_MAJOR=	6
+NCURSES_MINOR=	2
+NCURSES_PATCH=	20210220
 
-.if defined(ENABLE_WIDEC)
-LIB_SUFFIX=	w
-CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED -DENABLE_WIDEC
-NCURSES_CFG_H=	${.CURDIR:H}/ncurses/ncurses_cfg.h
-.else
-LIB_SUFFIX=
+CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED
 NCURSES_CFG_H=	${.CURDIR}/ncurses_cfg.h
-.endif
 
 CFLAGS+=	-I.
-.if exists(${.OBJDIR:H}/ncurses${LIB_SUFFIX})
-CFLAGS+=	-I${.OBJDIR:H}/ncurses${LIB_SUFFIX}
-.endif
-CFLAGS+=	-I${.CURDIR:H}/ncurses${LIB_SUFFIX}
+CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 # for ${NCURSES_CFG_H}
 CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 CFLAGS+=	-I${NCURSES_DIR}/include
 CFLAGS+=	-I${NCURSES_DIR}/ncurses
+CFLAGS+=	-I${.OBJDIR:H}/ncurses/
 
 CFLAGS+=	-Wall
 
@@ -50,5 +45,13 @@ MANFILTER=	sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g' \
 		    -e 's%@NCURSES_MAJOR@%${NCURSES_MAJOR}%g' \
 		    -e 's%@NCURSES_MINOR@%${NCURSES_MINOR}%g' \
 		    -e 's%@NCURSES_PATCH@%${NCURSES_PATCH}%g' \
+		    -e 's%@TPUT@%tput%g' \
+		    -e 's%@TSET@%tset%g' \
+		    -e 's%@RESET@%reset%g' \
+		    -e 's%@CLEAR@%clear%g' \
+		    -e 's%@TABS@%tabs%g' \
 		    -e 's%@TIC@%tic%g' \
-		    -e 's%@INFOCMP@%infocmp%g'
+		    -e 's%@TOE@%toe%g' \
+		    -e 's%@INFOCMP@%infocmp%g' \
+		    -e 's%@CAPTOINFO@%captoinfo%g' \
+		    -e 's%@INFOTOCAP@%infotocap%g'

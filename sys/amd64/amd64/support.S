@@ -81,30 +81,6 @@ ENTRY(pagecopy)
 	ret
 END(pagecopy)
 
-/* Address: %rdi */
-ENTRY(sse2_pagezero)
-	PUSH_FRAME_POINTER
-	movq	$-PAGE_SIZE,%rdx
-	subq	%rdx,%rdi
-	xorl	%eax,%eax
-	jmp	1f
-	/*
-	 * The loop takes 29 bytes.  Ensure that it doesn't cross a 32-byte
-	 * cache line.
-	 */
-	.p2align 5,0x90
-1:
-	movnti	%rax,(%rdi,%rdx)
-	movnti	%rax,8(%rdi,%rdx)
-	movnti	%rax,16(%rdi,%rdx)
-	movnti	%rax,24(%rdi,%rdx)
-	addq	$32,%rdx
-	jne	1b
-	sfence
-	POP_FRAME_POINTER
-	ret
-END(sse2_pagezero)
-
 /*
  * memcmpy(b1, b2, len)
  *	   rdi,rsi,rdx
@@ -117,9 +93,26 @@ ENTRY(memcmp)
 	cmpq	$16,%rdx
 	ja	101632f
 
-100816:
 	cmpb	$8,%dl
-	jl	100408f
+	jg	100816f
+
+	cmpb	$4,%dl
+	jg	100408f
+
+	cmpb	$2,%dl
+	jge	100204f
+
+	cmpb	$1,%dl
+	jl	100000f
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
+	subl	%r8d,%eax
+100000:
+	POP_FRAME_POINTER
+	ret
+
+	ALIGN_TEXT
+100816:
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
@@ -130,9 +123,8 @@ ENTRY(memcmp)
 	jne	10081608f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 100408:
-	cmpb	$4,%dl
-	jl	100204f
 	movl	(%rdi),%r8d
 	movl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
@@ -143,9 +135,8 @@ ENTRY(memcmp)
 	jne	10040804f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 100204:
-	cmpb	$2,%dl
-	jl	100001f
 	movzwl	(%rdi),%r8d
 	movzwl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
@@ -156,16 +147,7 @@ ENTRY(memcmp)
 	jne	1f
 	POP_FRAME_POINTER
 	ret
-100001:
-	cmpb	$1,%dl
-	jl	100000f
-	movzbl	(%rdi),%eax
-	movzbl	(%rsi),%r8d
-	subl	%r8d,%eax
-100000:
-	POP_FRAME_POINTER
-	ret
-ALIGN_TEXT
+	ALIGN_TEXT
 101632:
 	cmpq	$32,%rdx
 	ja	103200f
@@ -187,7 +169,7 @@ ALIGN_TEXT
 	jne	10163224f
 	POP_FRAME_POINTER
 	ret
-ALIGN_TEXT
+	ALIGN_TEXT
 103200:
 	movq	(%rdi),%r8
 	movq	8(%rdi),%r9
@@ -218,7 +200,7 @@ ALIGN_TEXT
  *
  * Before we compute it we narrow down the range (16 -> 8 -> 4 bytes).
  */
-ALIGN_TEXT
+	ALIGN_TEXT
 10320016:
 	leaq	16(%rdi),%rdi
 	leaq	16(%rsi),%rsi
@@ -230,29 +212,29 @@ ALIGN_TEXT
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10081608:
 10163224:
 	leaq	-8(%rdi,%rdx),%rdi
 	leaq	-8(%rsi,%rdx),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10163216:
 	leaq	-16(%rdi,%rdx),%rdi
 	leaq	-16(%rsi,%rdx),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10163208:
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10040804:
 	leaq	-4(%rdi,%rdx),%rdi
 	leaq	-4(%rsi,%rdx),%rsi
 	jmp	1f
 
-ALIGN_TEXT
+	ALIGN_TEXT
 80:
 	movl	(%rdi),%r8d
 	movl	(%rsi),%r9d
@@ -322,6 +304,7 @@ END(memcmp)
 	cmpq	$256,%rcx
 	ja	1256f
 
+	ALIGN_TEXT
 103200:
 	movq	(%rsi),%rdx
 	movq	%rdx,(%rdi)
@@ -455,6 +438,7 @@ END(memcmp)
 	cmpq	$32,%rcx
 	jb	2016f
 
+	ALIGN_TEXT
 2032:
 	movq	(%rsi),%rdx
 	movq	%rdx,(%rdi)
@@ -595,6 +579,7 @@ END(memcpy_erms)
 	cmpq	$256,%rcx
 	ja	1256f
 
+	ALIGN_TEXT
 103200:
 	movq	%r10,(%rdi)
 	movq	%r10,8(%rdi)
@@ -711,6 +696,72 @@ ENTRY(fillw)
 	POP_FRAME_POINTER
 	ret
 END(fillw)
+
+/*
+ * strlen(string)
+ *	  %rdi
+ *
+ * Uses the ((x - 0x01....01) & ~x & 0x80....80) trick.
+ *
+ * 0x01....01 is replaced with 0x0 - 0x01....01 so that it can be added
+ * with leaq.
+ *
+ * For a description see either:
+ * - "Hacker's Delight" by Henry S. Warren, Jr.
+ * - "Optimizing subroutines in assembly language: An optimization guide for x86 platforms"
+ *   by Agner Fog
+ *
+ * The latter contains a 32-bit variant of the same algorithm coded in assembly for i386.
+ */
+ENTRY(strlen)
+	PUSH_FRAME_POINTER
+	movabsq	$0xfefefefefefefeff,%r8
+	movabsq	$0x8080808080808080,%r9
+
+	movq	%rdi,%r10
+	movq	%rdi,%rcx
+	testb	$7,%dil
+	jz	2f
+
+	/*
+	 * Handle misaligned reads: align to 8 and fill
+	 * the spurious bytes.
+	 */
+	andq	$~7,%rdi
+	movq	(%rdi),%r11
+	shlq	$3,%rcx
+	movq	$-1,%rdx
+	shlq	%cl,%rdx
+	notq	%rdx
+	orq	%rdx,%r11
+
+	leaq	(%r11,%r8),%rcx
+	notq	%r11
+	andq	%r11,%rcx
+	andq	%r9,%rcx
+	jnz	3f
+
+	/*
+	 * Main loop.
+	 */
+	ALIGN_TEXT
+1:
+	leaq	8(%rdi),%rdi
+2:
+	movq	(%rdi),%r11
+	leaq	(%r11,%r8),%rcx
+	notq	%r11
+	andq	%r11,%rcx
+	andq	%r9,%rcx
+	jz	1b
+3:
+	bsfq	%rcx,%rcx
+	shrq	$3,%rcx
+	leaq	(%rcx,%rdi),%rax
+	subq	%r10,%rax
+	POP_FRAME_POINTER
+	ret
+END(strlen)
 
 /*****************************************************************************/
 /* copyout and fubyte family                                                 */
@@ -1439,7 +1490,6 @@ ENTRY(lgdt)
 	popq	%rax
 	pushq	$KCSEL
 	pushq	%rax
-	MEXITCOUNT
 	lretq
 END(lgdt)
 
@@ -1651,7 +1701,8 @@ END(handle_ibrs_exit_rs)
  *
  * N.B. The function does not follow ABI calling conventions, it corrupts %rbx.
  * The vmm.ko caller expects that only %rax, %rdx, %rbx, %rcx, %r9, and %rflags
- * registers are clobbered.  The NMI handler caller only needs %r13 preserved.
+ * registers are clobbered.  The NMI handler caller only needs %r13 and %r15
+ * preserved.
  */
 ENTRY(flush_l1d_sw)
 #define	L1D_FLUSH_SIZE	(64 * 1024)

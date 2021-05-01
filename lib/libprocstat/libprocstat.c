@@ -68,15 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/capsicum.h>
 #include <sys/ptrace.h>
-#define	_KERNEL
+#define	_WANT_MOUNT
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/pipe.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
-#undef _KERNEL
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -460,6 +457,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 {
 	struct file file;
 	struct filedesc filed;
+	struct pwddesc pathsd;
 	struct fdescenttbl *fdt;
 	struct pwd pwd;
 	unsigned long pwd_addr;
@@ -484,15 +482,20 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	kd = procstat->kd;
 	if (kd == NULL)
 		return (NULL);
-	if (kp->ki_fd == NULL)
+	if (kp->ki_fd == NULL || kp->ki_pd == NULL)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
 	    sizeof(filed))) {
 		warnx("can't read filedesc at %p", (void *)kp->ki_fd);
 		return (NULL);
 	}
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_pd, &pathsd,
+	    sizeof(pathsd))) {
+		warnx("can't read pwddesc at %p", (void *)kp->ki_pd);
+		return (NULL);
+	}
 	haspwd = false;
-	pwd_addr = (unsigned long)(FILEDESC_KVM_LOAD_PWD(&filed));
+	pwd_addr = (unsigned long)(PWDDESC_KVM_LOAD_PWD(&pathsd));
 	if (pwd_addr != 0) {
 		if (!kvm_read_all(kd, pwd_addr, &pwd, sizeof(pwd))) {
 			warnx("can't read fd_pwd at %p", (void *)pwd_addr);
@@ -622,6 +625,10 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			type = PS_FST_TYPE_DEV;
 			data = file.f_data;
 			break;
+		case DTYPE_EVENTFD:
+			type = PS_FST_TYPE_EVENTFD;
+			data = file.f_data;
+			break;
 		default:
 			continue;
 		}
@@ -702,7 +709,6 @@ kinfo_type2fst(int kftype)
 		int	fst_type;
 	} kftypes2fst[] = {
 		{ KF_TYPE_PROCDESC, PS_FST_TYPE_PROCDESC },
-		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_DEV, PS_FST_TYPE_DEV },
 		{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
 		{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
@@ -714,6 +720,7 @@ kinfo_type2fst(int kftype)
 		{ KF_TYPE_SHM, PS_FST_TYPE_SHM },
 		{ KF_TYPE_SOCKET, PS_FST_TYPE_SOCKET },
 		{ KF_TYPE_VNODE, PS_FST_TYPE_VNODE },
+		{ KF_TYPE_EVENTFD, PS_FST_TYPE_EVENTFD },
 		{ KF_TYPE_UNKNOWN, PS_FST_TYPE_UNKNOWN }
 	};
 #define NKFTYPES	(sizeof(kftypes2fst) / sizeof(*kftypes2fst))
@@ -2086,18 +2093,18 @@ procstat_freegroups(struct procstat *procstat __unused, gid_t *groups)
 static int
 procstat_getumask_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned short *maskp)
 {
-	struct filedesc fd;
+	struct pwddesc pd;
 
 	assert(kd != NULL);
 	assert(kp != NULL);
-	if (kp->ki_fd == NULL)
+	if (kp->ki_pd == NULL)
 		return (-1);
-	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &fd, sizeof(fd))) {
-		warnx("can't read filedesc at %p for pid %d", kp->ki_fd,
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_pd, &pd, sizeof(pd))) {
+		warnx("can't read pwddesc at %p for pid %d", kp->ki_pd,
 		    kp->ki_pid);
 		return (-1);
 	}
-	*maskp = fd.fd_cmask;
+	*maskp = pd.pd_cmask;
 	return (0);
 }
 

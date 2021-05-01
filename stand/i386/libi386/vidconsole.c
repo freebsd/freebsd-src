@@ -31,12 +31,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <sys/param.h>
 #include <bootstrap.h>
 #include <btxv86.h>
-#include <machine/psl.h>
-#include <machine/cpufunc.h>
+#include <gfx_fb.h>
 #include <teken.h>
 #include <stdbool.h>
+#include "vbe.h"
 
 #include <dev/vt/hw/vga/vt_vga_reg.h>
 
@@ -50,8 +51,9 @@ static int	vidc_init(int arg);
 static void	vidc_putchar(int c);
 static int	vidc_getchar(void);
 static int	vidc_ischar(void);
+static void	cons_draw_frame(teken_attr_t *);
 
-static int	vidc_started;
+static bool	vidc_started;
 static uint16_t	*vgatext;
 
 static tf_bell_t	vidc_cons_bell;
@@ -72,30 +74,16 @@ static teken_funcs_t tf = {
 	.tf_respond	= vidc_cons_respond,
 };
 
-teken_t		teken;
-teken_pos_t	tp;
-
-struct text_pixel {
-	teken_char_t c;
-	teken_attr_t a;
+static teken_funcs_t tfx = {
+	.tf_bell	= vidc_cons_bell,
+	.tf_cursor	= gfx_fb_cursor,
+	.tf_putchar	= gfx_fb_putchar,
+	.tf_fill	= gfx_fb_fill,
+	.tf_copy	= gfx_fb_copy,
+	.tf_param	= gfx_fb_param,
+	.tf_respond	= vidc_cons_respond,
 };
 
-static struct text_pixel *buffer;
-
-#define	NCOLORS	16
-
-/*
- * Between console's palette and VGA's one:
- *   - blue and red are swapped (1 <-> 4)
- *   - yellow and cyan are swapped (3 <-> 6)
- */
-static const int cons_to_vga_colors[NCOLORS] = {
-	0,  4,  2,  6,  1,  5,  3,  7,
-	8, 12, 10, 14,  9, 13, 11, 15
-};
-
-#define	TEXT_COLS	80
-#define	TEXT_ROWS	25
 #define	KEYBUFSZ	10
 
 static uint8_t	keybuf[KEYBUFSZ];	/* keybuf for extended codes */
@@ -111,60 +99,29 @@ struct console vidconsole = {
 	.c_ready = vidc_ischar
 };
 
-static int
-vga_get_reg(int reg, int index)
+/*
+ * This function is used to mark a rectangular image area so the scrolling
+ * will know we need to copy the data from there.
+ */
+void
+term_image_display(teken_gfx_t *state, const teken_rect_t *r)
 {
-        return (inb(reg + index));
-}
+	teken_pos_t p;
+	int idx;
 
-static int
-vga_get_atr(int reg, int i)
-{
-	int ret;
+	if (screen_buffer == NULL)
+		return;
 
-	(void) inb(reg + VGA_GEN_INPUT_STAT_1);
-	outb(reg + VGA_AC_WRITE, i);
-	ret = inb(reg + VGA_AC_READ);
-
-	(void) inb(reg + VGA_GEN_INPUT_STAT_1);
-
-	return (ret);
-}
-
-static void
-vga_set_atr(int reg, int i, int v)
-{
-        (void) inb(reg + VGA_GEN_INPUT_STAT_1);
-        outb(reg + VGA_AC_WRITE, i);
-        outb(reg + VGA_AC_WRITE, v);
-
-        (void) inb(reg + VGA_GEN_INPUT_STAT_1);
-}
-
-static void
-vga_set_indexed(int reg, int indexreg, int datareg, uint8_t index, uint8_t val)
-{
-	outb(reg + indexreg, index);
-	outb(reg + datareg, val);
-}
-
-static int
-vga_get_indexed(int reg, int indexreg, int datareg, uint8_t index)
-{
-	outb(reg + indexreg, index);
-	return (inb(reg + datareg));
-}
-
-static int
-vga_get_crtc(int reg, int i)
-{
-	return (vga_get_indexed(reg, VGA_CRTC_ADDRESS, VGA_CRTC_DATA, i));
-}
-
-static void
-vga_set_crtc(int reg, int i, int v)
-{
-	vga_set_indexed(reg, VGA_CRTC_ADDRESS, VGA_CRTC_DATA, i, v);
+	for (p.tp_row = r->tr_begin.tp_row;
+	    p.tp_row < r->tr_end.tp_row; p.tp_row++) {
+                for (p.tp_col = r->tr_begin.tp_col;
+                    p.tp_col < r->tr_end.tp_col; p.tp_col++) {
+			idx = p.tp_col + p.tp_row * state->tg_tp.tp_col;
+			if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
+				return;
+			screen_buffer[idx].a.ta_format |= TF_IMAGE;
+		}
+	}
 }
 
 static void
@@ -353,9 +310,9 @@ vga_get_cp437(teken_char_t c)
 }
 
 static void
-vidc_text_printchar(const teken_pos_t *p)
+vidc_text_printchar(teken_gfx_t *state, const teken_pos_t *p)
 {
-	int i;
+	int idx;
 	uint8_t attr;
 	struct text_pixel *px;
 	teken_color_t fg, bg, tmp;
@@ -364,7 +321,8 @@ vidc_text_printchar(const teken_pos_t *p)
 		uint8_t attr;
 	} *addr;
 
-	px = buffer + p->tp_col + p->tp_row * tp.tp_col;
+	idx = p->tp_col + p->tp_row * state->tg_tp.tp_col;
+	px = &screen_buffer[idx];
 	fg = teken_256to16(px->a.ta_fgcolor);
 	bg = teken_256to16(px->a.ta_bgcolor);
 	if (px->a.ta_format & TF_BOLD)
@@ -378,29 +336,34 @@ vidc_text_printchar(const teken_pos_t *p)
 		bg = tmp;
 	}
 
-	attr = (cons_to_vga_colors[bg & 0xf] << 4) |
-	    cons_to_vga_colors[fg & 0xf];
-	addr = (struct cgatext *)vgatext + p->tp_col + p->tp_row * tp.tp_col;
-	addr->ch = vga_get_cp437(px->c);
-	addr->attr = attr;
+	attr = (cmap[bg & 0xf] << 4) | cmap[fg & 0xf];
+	addr = (struct cgatext *)vgatext;
+	addr[idx].ch = vga_get_cp437(px->c);
+	addr[idx].attr = attr;
 }
 
 static void
-vidc_text_putchar(void *s __unused, const teken_pos_t *p, teken_char_t c,
+vidc_text_putchar(void *s, const teken_pos_t *p, teken_char_t c,
     const teken_attr_t *a)
 {
-        int attr, idx;
+	teken_gfx_t *state = s;
+	int attr, idx;
 
-        idx = p->tp_col + p->tp_row * tp.tp_col;
-        buffer[idx].c = c;
-        buffer[idx].a = *a;
-        vidc_text_printchar(p);
+	idx = p->tp_col + p->tp_row * state->tg_tp.tp_col;
+	if (idx >= state->tg_tp.tp_col * state->tg_tp.tp_row)
+		return;
+
+	screen_buffer[idx].c = c;
+	screen_buffer[idx].a = *a;
+
+	vidc_text_printchar(state, p);
 }
 
 static void
-vidc_text_fill(void *s, const teken_rect_t *r, teken_char_t c,
+vidc_text_fill(void *arg, const teken_rect_t *r, teken_char_t c,
     const teken_attr_t *a)
 {
+	teken_gfx_t *state = arg;
 	teken_pos_t p;
 	teken_unit_t row, col;
 
@@ -410,29 +373,14 @@ vidc_text_fill(void *s, const teken_rect_t *r, teken_char_t c,
 	    p.tp_row++)
 		for (p.tp_col = r->tr_begin.tp_col;
 		    p.tp_col < r->tr_end.tp_col; p.tp_col++)
-			vidc_text_putchar(s, &p, c, a);
+			vidc_text_putchar(state, &p, c, a);
 	vidc_text_set_cursor(row, col, true);
 }
 
-static bool
-vidc_same_pixel(struct text_pixel *px1, struct text_pixel *px2)
-{
-	if (px1->c != px2->c)
-		return (false);
-
-	if (px1->a.ta_format != px2->a.ta_format)
-		return (false);
-	if (px1->a.ta_fgcolor != px2->a.ta_fgcolor)
-		return (false);
-	if (px1->a.ta_bgcolor != px2->a.ta_bgcolor)
-		return (false);
-
-	return (true);
-}
-
 static void
-vidc_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
+vidc_text_copy(void *ptr, const teken_rect_t *r, const teken_pos_t *p)
 {
+	teken_gfx_t *state = ptr;
 	int srow, drow;
 	int nrow, ncol, x, y; /* Has to be signed - >= 0 comparison */
 	teken_pos_t d, s;
@@ -453,18 +401,18 @@ vidc_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 		for (y = 0; y < nrow; y++) {
 			d.tp_row = p->tp_row + y;
 			s.tp_row = r->tr_begin.tp_row + y;
-			drow = d.tp_row * tp.tp_col;
-			srow = s.tp_row * tp.tp_col;
+			drow = d.tp_row * state->tg_tp.tp_col;
+			srow = s.tp_row * state->tg_tp.tp_col;
 			for (x = 0; x < ncol; x++) {
 				d.tp_col = p->tp_col + x;
 				s.tp_col = r->tr_begin.tp_col + x;
 
-				if (!vidc_same_pixel(
-				    &buffer[d.tp_col + drow],
-				    &buffer[s.tp_col + srow])) {
-					buffer[d.tp_col + drow] =
-					    buffer[s.tp_col + srow];
-					vidc_text_printchar(&d);
+				if (!is_same_pixel(
+				    &screen_buffer[d.tp_col + drow],
+				    &screen_buffer[s.tp_col + srow])) {
+					screen_buffer[d.tp_col + drow] =
+					    screen_buffer[s.tp_col + srow];
+					vidc_text_printchar(state, &d);
 				}
 			}
 		}
@@ -475,18 +423,18 @@ vidc_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 			for (y = nrow - 1; y >= 0; y--) {
 				d.tp_row = p->tp_row + y;
 				s.tp_row = r->tr_begin.tp_row + y;
-				drow = d.tp_row * tp.tp_col;
-				srow = s.tp_row * tp.tp_col;
+				drow = d.tp_row * state->tg_tp.tp_col;
+				srow = s.tp_row * state->tg_tp.tp_col;
 				for (x = 0; x < ncol; x++) {
 					d.tp_col = p->tp_col + x;
 					s.tp_col = r->tr_begin.tp_col + x;
 
-					if (!vidc_same_pixel(
-					    &buffer[d.tp_col + drow],
-					    &buffer[s.tp_col + srow])) {
-						buffer[d.tp_col + drow] =
-						    buffer[s.tp_col + srow];
-						vidc_text_printchar(&d);
+					if (!is_same_pixel(
+					    &screen_buffer[d.tp_col + drow],
+					    &screen_buffer[s.tp_col + srow])) {
+						screen_buffer[d.tp_col + drow] =
+						    screen_buffer[s.tp_col + srow];
+						vidc_text_printchar(state, &d);
 					}
 				}
 			}
@@ -495,18 +443,18 @@ vidc_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 			for (y = nrow - 1; y >= 0; y--) {
 				d.tp_row = p->tp_row + y;
 				s.tp_row = r->tr_begin.tp_row + y;
-				drow = d.tp_row * tp.tp_col;
-				srow = s.tp_row * tp.tp_col;
+				drow = d.tp_row * state->tg_tp.tp_col;
+				srow = s.tp_row * state->tg_tp.tp_col;
 				for (x = ncol - 1; x >= 0; x--) {
 					d.tp_col = p->tp_col + x;
 					s.tp_col = r->tr_begin.tp_col + x;
 
-					if (!vidc_same_pixel(
-					    &buffer[d.tp_col + drow],
-					    &buffer[s.tp_col + srow])) {
-						buffer[d.tp_col + drow] =
-						    buffer[s.tp_col + srow];
-						vidc_text_printchar(&d);
+					if (!is_same_pixel(
+					    &screen_buffer[d.tp_col + drow],
+					    &screen_buffer[s.tp_col + srow])) {
+						screen_buffer[d.tp_col + drow] =
+						    screen_buffer[s.tp_col + srow];
+						vidc_text_printchar(state, &d);
 					}
 				}
 			}
@@ -516,8 +464,9 @@ vidc_text_copy(void *ptr __unused, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static void
-vidc_text_param(void *s __unused, int cmd, unsigned int value)
+vidc_text_param(void *arg, int cmd, unsigned int value)
 {
+	teken_gfx_t *state = arg;
 	teken_unit_t row, col;
 
 	switch (cmd) {
@@ -532,10 +481,13 @@ vidc_text_param(void *s __unused, int cmd, unsigned int value)
 		/* FALLTHROUGH */
 	case TP_SHOWCURSOR:
 		vidc_text_get_cursor(&row, &col);
-		if (value == 1)
+		if (value != 0) {
 			vidc_text_set_cursor(row, col, true);
-		else
+			state->tg_cursor_visible = true;
+		} else {
 			vidc_text_set_cursor(row, col, false);
+			state->tg_cursor_visible = false;
+		}
 		break;
 	default:
 		/* Not yet implemented */
@@ -635,7 +587,7 @@ vidc_set_colors(struct env_var *ev, int flags, const void *value)
 		evalue = value;
 	}
 
-	ap = teken_get_defattr(&teken);
+	ap = teken_get_defattr(&gfx_state.tg_teken);
 	a = *ap;
 	if (strcmp(ev->ev_name, "teken.fg_color") == 0) {
 		/* is it already set? */
@@ -654,9 +606,388 @@ vidc_set_colors(struct env_var *ev, int flags, const void *value)
 	if (a.ta_bgcolor == TC_WHITE)
 		a.ta_bgcolor |= TC_LIGHT;
 
+	teken_set_defattr(&gfx_state.tg_teken, &a);
+	cons_draw_frame(&a);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, evalue, NULL, NULL);
-	teken_set_defattr(&teken, &a);
+	teken_input(&gfx_state.tg_teken, "\e[2J", 4);
+
 	return (CMD_OK);
+}
+
+static int
+env_screen_nounset(struct env_var *ev __unused)
+{
+	if (gfx_state.tg_fb_type == FB_TEXT)
+		return (0);
+	return (EPERM);
+}
+
+static int
+vidc_load_palette(void)
+{
+	int i, roff, goff, boff, rc;
+
+	if (pe8 == NULL)
+		pe8 = calloc(sizeof(*pe8), NCMAP);
+	if (pe8 == NULL)
+		return (ENOMEM);
+
+	/* Generate VGA colors */
+	roff = ffs(gfx_state.tg_fb.fb_mask_red) - 1;
+	goff = ffs(gfx_state.tg_fb.fb_mask_green) - 1;
+	boff = ffs(gfx_state.tg_fb.fb_mask_blue) - 1;
+	rc = generate_cons_palette((uint32_t *)pe8, COLOR_FORMAT_RGB,
+	    gfx_state.tg_fb.fb_mask_red >> roff, roff,
+	    gfx_state.tg_fb.fb_mask_green >> goff, goff,
+	    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
+
+	if (rc == 0) {
+		for (i = 0; i < NCMAP; i++) {
+			int idx;
+
+			if (i < NCOLORS)
+				idx = cons_to_vga_colors[i];
+			else
+				idx = i;
+
+			rc = vbe_set_palette(&pe8[i], idx);
+			if (rc != 0)
+				break;
+		}
+	}
+	return (rc);
+}
+
+static void
+cons_draw_frame(teken_attr_t *a)
+{
+	teken_attr_t attr = *a;
+	teken_color_t fg = a->ta_fgcolor;
+
+	attr.ta_fgcolor = attr.ta_bgcolor;
+	teken_set_defattr(&gfx_state.tg_teken, &attr);
+
+	gfx_fb_drawrect(0, 0, gfx_state.tg_fb.fb_width,
+	    gfx_state.tg_origin.tp_row, 1);
+	gfx_fb_drawrect(0,
+	    gfx_state.tg_fb.fb_height - gfx_state.tg_origin.tp_row - 1,
+	    gfx_state.tg_fb.fb_width, gfx_state.tg_fb.fb_height, 1);
+	gfx_fb_drawrect(0, gfx_state.tg_origin.tp_row,
+	    gfx_state.tg_origin.tp_col,
+	    gfx_state.tg_fb.fb_height - gfx_state.tg_origin.tp_row - 1, 1);
+	gfx_fb_drawrect(
+	    gfx_state.tg_fb.fb_width - gfx_state.tg_origin.tp_col - 1,
+	    gfx_state.tg_origin.tp_row, gfx_state.tg_fb.fb_width,
+	    gfx_state.tg_fb.fb_height, 1);
+
+	attr.ta_fgcolor = fg;
+	teken_set_defattr(&gfx_state.tg_teken, &attr);
+}
+
+/*
+ * Binary searchable table for CP437 to Unicode conversion.
+ */
+struct cp437uni {
+	uint8_t		cp437_base;
+	uint16_t	unicode_base;
+	uint8_t		length;
+};
+
+static const struct cp437uni cp437unitable[] = {
+	{   0, 0x0000, 0 }, {   1, 0x263A, 1 }, {   3, 0x2665, 1 },
+	{   5, 0x2663, 0 }, {   6, 0x2660, 0 }, {   7, 0x2022, 0 },
+	{   8, 0x25D8, 0 }, {   9, 0x25CB, 0 }, {  10, 0x25D9, 0 },
+	{  11, 0x2642, 0 }, {  12, 0x2640, 0 }, {  13, 0x266A, 1 },
+	{  15, 0x263C, 0 }, {  16, 0x25BA, 0 }, {  17, 0x25C4, 0 },
+	{  18, 0x2195, 0 }, {  19, 0x203C, 0 }, {  20, 0x00B6, 0 },
+	{  21, 0x00A7, 0 }, {  22, 0x25AC, 0 }, {  23, 0x21A8, 0 },
+	{  24, 0x2191, 0 }, {  25, 0x2193, 0 }, {  26, 0x2192, 0 },
+	{  27, 0x2190, 0 }, {  28, 0x221F, 0 }, {  29, 0x2194, 0 },
+	{  30, 0x25B2, 0 }, {  31, 0x25BC, 0 }, {  32, 0x0020, 0x5e },
+	{ 127, 0x2302, 0 }, { 128, 0x00C7, 0 }, { 129, 0x00FC, 0 },
+	{ 130, 0x00E9, 0 }, { 131, 0x00E2, 0 }, { 132, 0x00E4, 0 },
+	{ 133, 0x00E0, 0 }, { 134, 0x00E5, 0 }, { 135, 0x00E7, 0 },
+	{ 136, 0x00EA, 1 }, { 138, 0x00E8, 0 }, { 139, 0x00EF, 0 },
+	{ 140, 0x00EE, 0 }, { 141, 0x00EC, 0 }, { 142, 0x00C4, 1 },
+	{ 144, 0x00C9, 0 }, { 145, 0x00E6, 0 }, { 146, 0x00C6, 0 },
+	{ 147, 0x00F4, 0 }, { 148, 0x00F6, 0 }, { 149, 0x00F2, 0 },
+	{ 150, 0x00FB, 0 }, { 151, 0x00F9, 0 }, { 152, 0x00FF, 0 },
+	{ 153, 0x00D6, 0 }, { 154, 0x00DC, 0 }, { 155, 0x00A2, 1 },
+	{ 157, 0x00A5, 0 }, { 158, 0x20A7, 0 }, { 159, 0x0192, 0 },
+	{ 160, 0x00E1, 0 }, { 161, 0x00ED, 0 }, { 162, 0x00F3, 0 },
+	{ 163, 0x00FA, 0 }, { 164, 0x00F1, 0 }, { 165, 0x00D1, 0 },
+	{ 166, 0x00AA, 0 }, { 167, 0x00BA, 0 }, { 168, 0x00BF, 0 },
+	{ 169, 0x2310, 0 }, { 170, 0x00AC, 0 }, { 171, 0x00BD, 0 },
+	{ 172, 0x00BC, 0 }, { 173, 0x00A1, 0 }, { 174, 0x00AB, 0 },
+	{ 175, 0x00BB, 0 }, { 176, 0x2591, 2 }, { 179, 0x2502, 0 },
+	{ 180, 0x2524, 0 }, { 181, 0x2561, 1 }, { 183, 0x2556, 0 },
+	{ 184, 0x2555, 0 }, { 185, 0x2563, 0 }, { 186, 0x2551, 0 },
+	{ 187, 0x2557, 0 }, { 188, 0x255D, 0 }, { 189, 0x255C, 0 },
+	{ 190, 0x255B, 0 }, { 191, 0x2510, 0 }, { 192, 0x2514, 0 },
+	{ 193, 0x2534, 0 }, { 194, 0x252C, 0 }, { 195, 0x251C, 0 },
+	{ 196, 0x2500, 0 }, { 197, 0x253C, 0 }, { 198, 0x255E, 1 },
+	{ 200, 0x255A, 0 }, { 201, 0x2554, 0 }, { 202, 0x2569, 0 },
+	{ 203, 0x2566, 0 }, { 204, 0x2560, 0 }, { 205, 0x2550, 0 },
+	{ 206, 0x256C, 0 }, { 207, 0x2567, 1 }, { 209, 0x2564, 1 },
+	{ 211, 0x2559, 0 }, { 212, 0x2558, 0 }, { 213, 0x2552, 1 },
+	{ 215, 0x256B, 0 }, { 216, 0x256A, 0 }, { 217, 0x2518, 0 },
+	{ 218, 0x250C, 0 }, { 219, 0x2588, 0 }, { 220, 0x2584, 0 },
+	{ 221, 0x258C, 0 }, { 222, 0x2590, 0 }, { 223, 0x2580, 0 },
+	{ 224, 0x03B1, 0 }, { 225, 0x00DF, 0 }, { 226, 0x0393, 0 },
+	{ 227, 0x03C0, 0 }, { 228, 0x03A3, 0 }, { 229, 0x03C3, 0 },
+	{ 230, 0x00B5, 0 }, { 231, 0x03C4, 0 }, { 232, 0x03A6, 0 },
+	{ 233, 0x0398, 0 }, { 234, 0x03A9, 0 }, { 235, 0x03B4, 0 },
+	{ 236, 0x221E, 0 }, { 237, 0x03C6, 0 }, { 238, 0x03B5, 0 },
+	{ 239, 0x2229, 0 }, { 240, 0x2261, 0 }, { 241, 0x00B1, 0 },
+	{ 242, 0x2265, 0 }, { 243, 0x2264, 0 }, { 244, 0x2320, 1 },
+	{ 246, 0x00F7, 0 }, { 247, 0x2248, 0 }, { 248, 0x00B0, 0 },
+	{ 249, 0x2219, 0 }, { 250, 0x00B7, 0 }, { 251, 0x221A, 0 },
+	{ 252, 0x207F, 0 }, { 253, 0x00B2, 0 }, { 254, 0x25A0, 0 },
+	{ 255, 0x00A0, 0 }
+};
+
+static uint16_t
+vga_cp437_to_uni(uint8_t c)
+{
+	int min, mid, max;
+
+	min = 0;
+	max = (sizeof(cp437unitable) / sizeof(struct cp437uni)) - 1;
+
+	while (max >= min) {
+		mid = (min + max) / 2;
+		if (c < cp437unitable[mid].cp437_base)
+			max = mid - 1;
+		else if (c > cp437unitable[mid].cp437_base +
+		    cp437unitable[mid].length)
+			min = mid + 1;
+		else
+			return (c - cp437unitable[mid].cp437_base +
+			    cp437unitable[mid].unicode_base);
+	}
+
+	return ('?');
+}
+
+/*
+ * install font for text mode
+ */
+static void
+vidc_install_font(void)
+{
+	uint8_t reg[7];
+	const uint8_t *from;
+	uint8_t volatile *to;
+	uint16_t c;
+	int i, j, s;
+	int bpc, f_offset;
+	teken_attr_t a = { 0 };
+
+	/* We can only program VGA registers. */
+	if (!vbe_is_vga())
+		return;
+
+	if (gfx_state.tg_fb_type != FB_TEXT)
+		return;
+
+	/* Sync-reset the sequencer registers */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_RESET, VGA_SEQ_RST_NAR);
+
+	reg[0] = vga_get_seq(VGA_REG_BASE, VGA_SEQ_MAP_MASK);
+	reg[1] = vga_get_seq(VGA_REG_BASE, VGA_SEQ_CLOCKING_MODE);
+	reg[2] = vga_get_seq(VGA_REG_BASE, VGA_SEQ_MEMORY_MODE);
+	reg[3] = vga_get_grc(VGA_REG_BASE, VGA_GC_READ_MAP_SELECT);
+	reg[4] = vga_get_grc(VGA_REG_BASE, VGA_GC_MODE);
+	reg[5] = vga_get_grc(VGA_REG_BASE, VGA_GC_MISCELLANEOUS);
+	reg[6] = vga_get_atr(VGA_REG_BASE, VGA_AC_MODE_CONTROL);
+
+	/* Screen off */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_CLOCKING_MODE,
+	    reg[1] | VGA_SEQ_CM_SO);
+
+	/*
+	 * enable write to plane2, since fonts
+	 * could only be loaded into plane2
+	 */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_MAP_MASK, VGA_SEQ_MM_EM2);
+	/*
+	 * sequentially access data in the bit map being
+	 * selected by MapMask register (index 0x02)
+	 */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_MEMORY_MODE, 0x07);
+	/* Sync-reset ended, and allow the sequencer to operate */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_RESET,
+	    VGA_SEQ_RST_SR | VGA_SEQ_RST_NAR);
+
+	/*
+	 * select plane 2 on Read Mode 0
+	 */
+	vga_set_grc(VGA_REG_BASE, VGA_GC_READ_MAP_SELECT, 0x02);
+	/*
+	 * system addresses sequentially access data, follow
+	 * Memory Mode register bit 2 in the sequencer
+	 */
+	vga_set_grc(VGA_REG_BASE, VGA_GC_MODE, 0x00);
+	/*
+	 * set range of host memory addresses decoded by VGA
+	 * hardware -- A0000h-BFFFFh (128K region)
+	 */
+	vga_set_grc(VGA_REG_BASE, VGA_GC_MISCELLANEOUS, 0x00);
+
+	/*
+	 * This assumes 8x16 characters, which yield the traditional 80x25
+	 * screen.
+	 */
+	bpc = 16;
+	s = 0;	/* font slot, maybe should use tunable there. */
+	f_offset = s * 8 * 1024;
+	for (i = 0; i < 256; i++) {
+		c = vga_cp437_to_uni(i);
+		from = font_lookup(&gfx_state.tg_font, c, &a);
+		to = (unsigned char *)ptov(VGA_MEM_BASE) + f_offset +
+		    i * 0x20;
+		for (j = 0; j < bpc; j++)
+			*to++ = *from++;
+	}
+
+	vga_set_atr(VGA_REG_BASE, VGA_AC_MODE_CONTROL, reg[6]);
+
+	/* Sync-reset the sequencer registers */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_RESET, VGA_SEQ_RST_NAR);
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_MAP_MASK, reg[0]);
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_MEMORY_MODE, reg[2]);
+	/* Sync-reset ended, and allow the sequencer to operate */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_RESET,
+	    VGA_SEQ_RST_SR | VGA_SEQ_RST_NAR);
+
+	/* restore graphic registers */
+	vga_set_grc(VGA_REG_BASE, VGA_GC_READ_MAP_SELECT, reg[3]);
+	vga_set_grc(VGA_REG_BASE, VGA_GC_MODE, reg[4]);
+	vga_set_grc(VGA_REG_BASE, VGA_GC_MISCELLANEOUS, (reg[5] & 0x03) | 0x0c);
+
+	/* Screen on */
+	vga_set_seq(VGA_REG_BASE, VGA_SEQ_CLOCKING_MODE, reg[1] & 0xdf);
+}
+
+bool
+cons_update_mode(bool use_gfx_mode)
+{
+	const teken_attr_t *a;
+	teken_attr_t attr;
+	char env[10], *ptr;
+	int format, roff, goff, boff;
+
+	/* vidc_init() is not called yet. */
+	if (!vidc_started)
+		return (false);
+
+	gfx_state.tg_tp.tp_row = TEXT_ROWS;
+	gfx_state.tg_tp.tp_col = TEXT_COLS;
+
+	if (use_gfx_mode) {
+		setup_font(&gfx_state, gfx_state.tg_fb.fb_height,
+		    gfx_state.tg_fb.fb_width);
+		/* Point of origin in pixels. */
+		gfx_state.tg_origin.tp_row = (gfx_state.tg_fb.fb_height -
+		    (gfx_state.tg_tp.tp_row * gfx_state.tg_font.vf_height)) / 2;
+		gfx_state.tg_origin.tp_col = (gfx_state.tg_fb.fb_width -
+		    (gfx_state.tg_tp.tp_col * gfx_state.tg_font.vf_width)) / 2;
+
+		gfx_state.tg_glyph_size = gfx_state.tg_font.vf_height *
+		    gfx_state.tg_font.vf_width * 4;
+		free(gfx_state.tg_glyph);
+		gfx_state.tg_glyph = malloc(gfx_state.tg_glyph_size);
+		if (gfx_state.tg_glyph == NULL)
+			return (false);
+		gfx_state.tg_functions = &tfx;
+		snprintf(env, sizeof (env), "%d", gfx_state.tg_fb.fb_height);
+		env_setenv("screen.height", EV_VOLATILE | EV_NOHOOK, env,
+		    env_noset, env_screen_nounset);
+		snprintf(env, sizeof (env), "%d", gfx_state.tg_fb.fb_width);
+		env_setenv("screen.width", EV_VOLATILE | EV_NOHOOK, env,
+		    env_noset, env_screen_nounset);
+		snprintf(env, sizeof (env), "%d", gfx_state.tg_fb.fb_bpp);
+		env_setenv("screen.depth", EV_VOLATILE | EV_NOHOOK, env,
+		    env_noset, env_screen_nounset);
+	} else {
+		/* Trigger loading of 8x16 font. */
+		setup_font(&gfx_state,
+		    16 * gfx_state.tg_fb.fb_height,
+		    8 * gfx_state.tg_fb.fb_width);
+		gfx_state.tg_functions = &tf;
+		/* ensure the following are not set for text mode */
+		unsetenv("screen.height");
+		unsetenv("screen.width");
+		unsetenv("screen.depth");
+		vidc_install_font();
+	}
+
+	free(screen_buffer);
+	screen_buffer = malloc(gfx_state.tg_tp.tp_row * gfx_state.tg_tp.tp_col *
+	    sizeof(*screen_buffer));
+	if (screen_buffer == NULL)
+		return (false);
+
+	teken_init(&gfx_state.tg_teken, gfx_state.tg_functions, &gfx_state);
+
+	if (gfx_state.tg_ctype == CT_INDEXED)
+		format = COLOR_FORMAT_VGA;
+	else
+		format = COLOR_FORMAT_RGB;
+
+	roff = ffs(gfx_state.tg_fb.fb_mask_red) - 1;
+	goff = ffs(gfx_state.tg_fb.fb_mask_green) - 1;
+	boff = ffs(gfx_state.tg_fb.fb_mask_blue) - 1;
+	(void) generate_cons_palette(cmap, format,
+	    gfx_state.tg_fb.fb_mask_red >> roff, roff,
+	    gfx_state.tg_fb.fb_mask_green >> goff, goff,
+	    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
+
+	if (gfx_state.tg_ctype == CT_INDEXED && use_gfx_mode)
+		vidc_load_palette();
+
+	teken_set_winsize(&gfx_state.tg_teken, &gfx_state.tg_tp);
+	a = teken_get_defattr(&gfx_state.tg_teken);
+	attr = *a;
+
+	/*
+	 * On first run, we set up the vidc_set_colors()
+	 * callback. If the env is already set, we
+	 * pick up fg and bg color values from the environment.
+	 */
+	ptr = getenv("teken.fg_color");
+	if (ptr != NULL) {
+		attr.ta_fgcolor = strtol(ptr, NULL, 10);
+		ptr = getenv("teken.bg_color");
+		attr.ta_bgcolor = strtol(ptr, NULL, 10);
+
+		teken_set_defattr(&gfx_state.tg_teken, &attr);
+	} else {
+		snprintf(env, sizeof(env), "%d", attr.ta_fgcolor);
+		env_setenv("teken.fg_color", EV_VOLATILE, env,
+		    vidc_set_colors, env_nounset);
+		snprintf(env, sizeof(env), "%d", attr.ta_bgcolor);
+		env_setenv("teken.bg_color", EV_VOLATILE, env,
+		    vidc_set_colors, env_nounset);
+	}
+
+	/* Improve visibility */
+	if (attr.ta_bgcolor == TC_WHITE)
+		attr.ta_bgcolor |= TC_LIGHT;
+	teken_set_defattr(&gfx_state.tg_teken, &attr);
+
+	snprintf(env, sizeof (env), "%u", (unsigned)gfx_state.tg_tp.tp_row);
+	setenv("LINES", env, 1);
+	snprintf(env, sizeof (env), "%u", (unsigned)gfx_state.tg_tp.tp_col);
+	setenv("COLUMNS", env, 1);
+
+	/* Draw frame around terminal area. */
+	cons_draw_frame(&attr);
+	/* Erase display, this will also fill our screen buffer. */
+	teken_input(&gfx_state.tg_teken, "\e[2J", 4);
+	gfx_state.tg_functions->tf_param(&gfx_state, TP_SHOWCURSOR, 1);
+
+        return (true);
 }
 
 static int
@@ -669,7 +1000,8 @@ vidc_init(int arg)
 	if (vidc_started && arg == 0)
 		return (0);
 
-	vidc_started = 1;
+	vidc_started = true;
+	vbe_init();
 
 	/*
 	 * Check Miscellaneous Output Register (Read at 3CCh, Write at 3C2h)
@@ -687,30 +1019,19 @@ vidc_init(int arg)
         val &= ~VGA_AC_MC_ELG;
         vga_set_atr(VGA_REG_BASE, VGA_AC_MODE_CONTROL, val);
 
-	tp.tp_row = TEXT_ROWS;
-	tp.tp_col = TEXT_COLS;
-	buffer = malloc(tp.tp_row * tp.tp_col * sizeof(*buffer));
-	if (buffer == NULL)
+#if defined(FRAMEBUFFER_MODE)
+	val = vbe_default_mode();
+	/* if val is not legal VBE mode, use text mode */
+	if (VBE_VALID_MODE(val)) {
+		if (vbe_set_mode(val) != 0)
+			bios_set_text_mode(VGA_TEXT_MODE);
+	}
+#endif
+
+	gfx_framework_init();
+
+	if (!cons_update_mode(VBE_VALID_MODE(vbe_get_mode())))
 		return (1);
-
-	snprintf(env, sizeof (env), "%u", tp.tp_row);
-	setenv("LINES", env, 1);
-	snprintf(env, sizeof (env), "%u", tp.tp_col);
-	setenv("COLUMNS", env, 1);
-
-	teken_init(&teken, &tf, NULL);
-	teken_set_winsize(&teken, &tp);
-	a = teken_get_defattr(&teken);
-
-	snprintf(env, sizeof(env), "%d", a->ta_fgcolor);
-	env_setenv("teken.fg_color", EV_VOLATILE, env, vidc_set_colors,
-	    env_nounset);
-	snprintf(env, sizeof(env), "%d", a->ta_bgcolor);
-	env_setenv("teken.bg_color", EV_VOLATILE, env, vidc_set_colors,
-	    env_nounset);
-
-	/* Erase display, this will also fill our screen buffer. */
-	teken_input(&teken, "\e[J", 3);
 
 	for (int i = 0; i < 10 && vidc_ischar(); i++)
 		(void) vidc_getchar();
@@ -734,8 +1055,8 @@ vidc_putchar(int c)
 {
 	unsigned char ch = c;
 
-	if (buffer != NULL)
-		teken_input(&teken, &ch, sizeof (ch));
+	if (screen_buffer != NULL)
+		teken_input(&gfx_state.tg_teken, &ch, sizeof (ch));
 	else
 		vidc_biosputchar(c);
 }
@@ -808,27 +1129,27 @@ vidc_ischar(void)
 
 #if KEYBOARD_PROBE
 
-#define PROBE_MAXRETRY	5
-#define PROBE_MAXWAIT	400
-#define IO_DUMMY	0x84
-#define IO_KBD		0x060		/* 8042 Keyboard */
+#define	PROBE_MAXRETRY	5
+#define	PROBE_MAXWAIT	400
+#define	IO_DUMMY	0x84
+#define	IO_KBD		0x060		/* 8042 Keyboard */
 
 /* selected defines from kbdio.h */
-#define KBD_STATUS_PORT 	4	/* status port, read */
-#define KBD_DATA_PORT		0	/* data port, read/write 
+#define	KBD_STATUS_PORT 	4	/* status port, read */
+#define	KBD_DATA_PORT		0	/* data port, read/write
 					 * also used as keyboard command
 					 * and mouse command port 
 					 */
-#define KBDC_ECHO		0x00ee
-#define KBDS_ANY_BUFFER_FULL	0x0001
-#define KBDS_INPUT_BUFFER_FULL	0x0002
-#define KBD_ECHO		0x00ee
+#define	KBDC_ECHO		0x00ee
+#define	KBDS_ANY_BUFFER_FULL	0x0001
+#define	KBDS_INPUT_BUFFER_FULL	0x0002
+#define	KBD_ECHO		0x00ee
 
 /* 7 microsec delay necessary for some keyboard controllers */
 static void
 delay7(void)
 {
-	/* 
+	/*
 	 * I know this is broken, but no timer is available yet at this stage...
 	 * See also comments in `delay1ms()'.
 	 */
@@ -854,7 +1175,7 @@ delay1ms(void)
 		(void) inb(0x84);
 }
 
-/* 
+/*
  * We use the presence/absence of a keyboard to determine whether the internal
  * console can be used for input.
  *

@@ -301,7 +301,7 @@ PMODES="
 
 CURARCH=$( uname -m )
 case $CURARCH in
-	amd64|arm64|i386)	# Booting ZFS Supported
+	amd64|arm64|i386|riscv)	# Booting ZFS Supported
 		PMODES="
 			'$msg_auto_zfs' '$msg_auto_zfs_desc' '$msg_auto_zfs_help'
 			$PMODES

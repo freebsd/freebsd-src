@@ -76,6 +76,8 @@ sub print_header($$)
 ##  Authority (CA). It was automatically extracted from Mozilla's
 ##  root CA list (the file `certdata.txt' in security/nss).
 ##
+##  It contains a certificate trusted for server authentication.
+##
 ##  Extracted from nss
 ##  with $VERSION
 ##
@@ -91,6 +93,8 @@ EOFH
 ##  Authorities (CA). These were automatically extracted from Mozilla's
 ##  root CA list (the file `certdata.txt').
 ##
+##  It contains certificates trusted for server authentication.
+##
 ##  Extracted from nss
 ##  with $VERSION
 ##
@@ -98,6 +102,13 @@ EOFH
 ##
 EOH
     }
+}
+
+# returns a string like YYMMDDhhmmssZ of current time in GMT zone
+sub timenow()
+{
+	my ($sec,$min,$hour,$mday,$mon,$year,undef,undef,undef) = gmtime(time);
+	return sprintf "%02d%02d%02d%02d%02d%02dZ", $year-100, $mon+1, $mday, $hour, $min, $sec;
 }
 
 sub printcert($$$)
@@ -110,6 +121,8 @@ sub printcert($$$)
     close(OUT) or die "openssl x509 failed with exit code $?";
 }
 
+# converts a datastream that is to be \177-style octal constants
+# from <> to a (binary) string and returns it
 sub graboct($)
 {
     my $ifh = shift;
@@ -125,13 +138,13 @@ sub graboct($)
     return $data;
 }
 
-
 sub grabcert($)
 {
     my $ifh = shift;
     my $certdata;
-    my $cka_label;
-    my $serial;
+    my $cka_label = '';
+    my $serial = 0;
+    my $distrust = 0;
 
     while (<$ifh>) {
 	chomp;
@@ -147,6 +160,19 @@ sub grabcert($)
 
 	if (/^CKA_SERIAL_NUMBER MULTILINE_OCTAL/) {
 	    $serial = graboct($ifh);
+	}
+
+	if (/^CKA_NSS_SERVER_DISTRUST_AFTER MULTILINE_OCTAL/)
+	{
+	    my $distrust_after = graboct($ifh);
+	    my $time_now = timenow();
+	    if ($time_now >= $distrust_after) { $distrust = 1; }
+	    if ($debug) {
+		printf STDERR "line $.: $cka_label ser #%d: distrust after %s, now: %s -> distrust $distrust\n", $serial, $distrust_after, timenow();
+	    }
+	    if ($distrust) {
+		return undef;
+	    }
 	}
     }
     return ($serial, $cka_label, $certdata);
@@ -171,13 +197,13 @@ sub grabtrust($) {
 	    $serial = graboct($ifh);
 	}
 
-	if (/^CKA_TRUST_(SERVER_AUTH|EMAIL_PROTECTION|CODE_SIGNING) CK_TRUST (\S+)$/)
+	if (/^CKA_TRUST_SERVER_AUTH CK_TRUST (\S+)$/)
 	{
-	    if ($2 eq      'CKT_NSS_NOT_TRUSTED') {
+	    if ($1 eq      'CKT_NSS_NOT_TRUSTED') {
 		$distrust = 1;
-	    } elsif ($2 eq 'CKT_NSS_TRUSTED_DELEGATOR') {
+	    } elsif ($1 eq 'CKT_NSS_TRUSTED_DELEGATOR') {
 		$maytrust = 1;
-	    } elsif ($2 ne 'CKT_NSS_MUST_VERIFY_TRUST') {
+	    } elsif ($1 ne 'CKT_NSS_MUST_VERIFY_TRUST') {
 		confess "Unknown trust setting on line $.:\n"
 		. "$_\n"
 		. "Script must be updated:";
@@ -197,16 +223,22 @@ if (!$outputdir) {
 	print_header(*STDOUT, "");
 }
 
+my $untrusted = 0;
+
 while (<$inputfh>) {
     if (/^CKA_CLASS CK_OBJECT_CLASS CKO_CERTIFICATE/) {
 	my ($serial, $label, $certdata) = grabcert($inputfh);
 	if (defined $certs{$label."\0".$serial}) {
 	    warn "Certificate $label duplicated!\n";
 	}
-	$certs{$label."\0".$serial} = $certdata;
-	# We store the label in a separate hash because truncating the key
-	# with \0 was causing garbage data after the end of the text.
-	$labels{$label."\0".$serial} = $label;
+	if (defined $certdata) {
+		$certs{$label."\0".$serial} = $certdata;
+		# We store the label in a separate hash because truncating the key
+		# with \0 was causing garbage data after the end of the text.
+		$labels{$label."\0".$serial} = $label;
+	} else { # $certdata undefined? distrust_after in effect
+		$untrusted ++;
+	}
     } elsif (/^CKA_CLASS CK_OBJECT_CLASS CKO_NSS_TRUST/) {
 	my ($serial, $label, $trust) = grabtrust($inputfh);
 	if (defined $trusts{$label."\0".$serial}) {
@@ -226,7 +258,6 @@ sub label_to_filename(@) {
 }
 
 # weed out untrusted certificates
-my $untrusted = 0;
 foreach my $it (keys %trusts) {
     if (!$trusts{$it}) {
 	if (!exists($certs{$it})) {

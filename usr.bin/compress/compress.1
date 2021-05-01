@@ -32,7 +32,7 @@
 .\"     @(#)compress.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2002
+.Dd March 4, 2021
 .Dt COMPRESS 1
 .Os
 .Sh NAME
@@ -177,6 +177,13 @@ Compression is generally much better than that achieved by Huffman
 coding (as used in the historical command pack), or adaptive Huffman
 coding (as used in the historical command compact), and takes less
 time to compute.
+.Pp
+If
+.Ar file
+is a soft or hard link
+.Nm
+will replace it with a compressed copy of the file pointed to by the link.
+The link's target file is left uncompressed.
 .Sh EXIT STATUS
 .Ex -std compress uncompress
 .Pp
@@ -186,6 +193,40 @@ utility exits 2 if attempting to compress a file would not reduce its size
 and the
 .Fl f
 option was not specified and if no other error occurs.
+.Sh EXAMPLES
+Create a file
+.Pa test_file
+with a single line of text:
+.Bd -literal -offset indent
+echo "This is a test" > test_file
+.Ed
+.Pp
+Try to reduce the size of the file using a 10-bit code and show the exit status:
+.Bd -literal -offset indent
+$ compress -b 10 test_file
+$ echo $?
+2
+.Ed
+.Pp
+Try to compress the file and show compression percentage:
+.Bd -literal -offset indent
+$ compress -v test_file
+test_file: file would grow; left unmodified
+.Ed
+.Pp
+Same as above but forcing compression:
+.Bd -literal -offset indent
+$ compress -f -v test_file
+test_file.Z: 79% expansion
+.Ed
+.Pp
+Compress and uncompress the string
+.Ql hello
+on the fly:
+.Bd -literal -offset indent
+$ echo "hello" | compress | uncompress
+hello
+.Ed
 .Sh SEE ALSO
 .Xr gunzip 1 ,
 .Xr gzexe 1 ,
@@ -214,6 +255,8 @@ The
 command appeared in
 .Bx 4.3 .
 .Sh BUGS
+The program does not handle links well and has no link-handling options.
+.Pp
 Some of these might be considered otherwise-undocumented features.
 .Pp
 .Nm compress :

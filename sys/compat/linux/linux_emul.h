@@ -52,10 +52,10 @@ struct linux_emuldata	*em_find(struct thread *);
 
 int	linux_exec_imgact_try(struct image_params *);
 void	linux_proc_init(struct thread *, struct thread *, int);
-void	linux_proc_exit(void *, struct proc *);
+void	linux_on_exit(struct proc *);
 void	linux_schedtail(struct thread *);
-void	linux_proc_exec(void *, struct proc *, struct image_params *);
-void	linux_thread_dtor(void *arg __unused, struct thread *);
+void	linux_on_exec(struct proc *, struct image_params *);
+void	linux_thread_dtor(struct thread *);
 void	linux_thread_detach(struct thread *);
 int	linux_common_execve(struct thread *, struct image_args *);
 
@@ -68,7 +68,6 @@ int	linux_common_execve(struct thread *, struct image_args *);
 struct linux_pemuldata {
 	uint32_t	flags;		/* process emuldata flags */
 	struct sx	pem_sx;		/* lock for this struct */
-	void		*epoll;		/* epoll data */
 	uint32_t	persona;	/* process execution domain */
 	uint32_t	ptrace_flags;	/* used by ptrace(2) */
 };
@@ -79,7 +78,5 @@ struct linux_pemuldata {
 #define	LINUX_PEM_SUNLOCK(p)	sx_sunlock(&(p)->pem_sx)
 
 struct linux_pemuldata	*pem_find(struct proc *);
-
-extern const int linux_errtbl[];
 
 #endif	/* !_LINUX_EMUL_H_ */

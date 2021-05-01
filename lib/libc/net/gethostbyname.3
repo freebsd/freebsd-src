@@ -303,7 +303,26 @@ for example, a mail-forwarder may be registered for this domain.
 .Xr hosts 5 ,
 .Xr hostname 7 ,
 .Xr named 8
-.Sh CAVEAT
+.Sh HISTORY
+The
+.Fn herror
+function appeared in
+.Bx 4.3 .
+The
+.Fn endhostent ,
+.Fn gethostbyaddr ,
+.Fn gethostbyname ,
+.Fn gethostent ,
+and
+.Fn sethostent
+functions appeared in
+.Bx 4.2 .
+The
+.Fn gethostbyname2
+function first appeared in
+.Tn BIND
+version 4.9.4.
+.Sh CAVEATS
 The
 .Fn gethostent
 function
@@ -343,25 +362,6 @@ The
 .Fn endhostent
 function
 closes the file.
-.Sh HISTORY
-The
-.Fn herror
-function appeared in
-.Bx 4.3 .
-The
-.Fn endhostent ,
-.Fn gethostbyaddr ,
-.Fn gethostbyname ,
-.Fn gethostent ,
-and
-.Fn sethostent
-functions appeared in
-.Bx 4.2 .
-The
-.Fn gethostbyname2
-function first appeared in
-.Tn BIND
-version 4.9.4.
 .Sh BUGS
 These functions use a thread-specific data storage;
 if the data is needed for future use, it should be

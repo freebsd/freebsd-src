@@ -6,11 +6,14 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
 .PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.PATH: ${SRCTOP}/sys/x86/linux
+.endif
 
 VDSO=	linux${SFX}_vdso
 
 KMOD=	linux
-SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
+SRCS=	linux_fork.c linux${SFX}_dummy_machdep.c linux_file.c linux_event.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux${SFX}_machdep.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
@@ -18,6 +21,9 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	linux_timer.c linux_vdso.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	linux_dummy_x86.c
+.endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux${SFX}_support.s
 .else
@@ -35,7 +41,7 @@ OBJS=	${VDSO}.so
 
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c linux_mmap.c \
-	linux_emul.c linux_errno.c opt_cpu.h linux.c
+	linux_dummy.c linux_emul.c linux_errno.c opt_cpu.h linux.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"

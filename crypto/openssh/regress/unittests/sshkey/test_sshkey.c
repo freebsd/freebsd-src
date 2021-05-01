@@ -9,6 +9,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <paths.h>
 #include <stdio.h>
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -79,7 +80,7 @@ build_cert(struct sshbuf *b, const struct sshkey *k, const char *type,
 
 	critopts = sshbuf_new();
 	ASSERT_PTR_NE(critopts, NULL);
-	put_opt(critopts, "force-command", "/usr/local/bin/nethack");
+	put_opt(critopts, "force-command", _PATH_LOCALBASE "/bin/nethack");
 	put_opt(critopts, "source-address", "192.168.0.0/24,127.0.0.1,::1");
 
 	exts = sshbuf_new();

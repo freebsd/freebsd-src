@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -191,7 +192,8 @@ identify_ctrlr(int fd)
 	struct nvme_controller_data	cdata;
 	int				hexlength;
 
-	read_controller_data(fd, &cdata);
+	if (read_controller_data(fd, &cdata))
+		errx(EX_IOERR, "Identify request failed");
 	close(fd);
 
 	if (opt.hex) {
@@ -214,7 +216,8 @@ identify_ns(int fd, uint32_t nsid)
 	struct nvme_namespace_data	nsdata;
 	int				hexlength;
 
-	read_namespace_data(fd, nsid, &nsdata);
+	if (read_namespace_data(fd, nsid, &nsdata))
+		errx(EX_IOERR, "Identify request failed");
 	close(fd);
 
 	if (opt.hex) {

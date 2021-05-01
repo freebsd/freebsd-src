@@ -8,6 +8,7 @@ AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Left
 AlignOperands: false
 AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
@@ -24,7 +25,20 @@ BreakBeforeBraces: WebKit
 BreakBeforeTernaryOperators: false
 # TODO: BreakStringLiterals can cause very strange formatting so turn it off?
 BreakStringLiterals: false
-PenaltyBreakBeforeFirstCallParameter: 1000
+# Prefer:
+# some_var = function(arg1,
+#    arg2)
+# over:
+# some_var =
+#     function(arg1, arg2)
+PenaltyBreakAssignment: 100
+# Prefer:
+# some_long_function(arg1, arg2
+#     arg3)
+# over:
+# some_long_function(
+#     arg1, arg2, arg3)
+PenaltyBreakBeforeFirstCallParameter: 100
 CompactNamespaces: true
 DerivePointerAlignment: false
 DisableFormat: false
@@ -102,9 +116,12 @@ IncludeCategories:
   - Regex: '^<sys/param\.h>'
     Priority: 2
     SortPriority: 22
-  - Regex: '^<sys.*/'
+  - Regex: '^<sys/systm\.h>'
     Priority: 2
     SortPriority: 23
+  - Regex: '^<sys.*/'
+    Priority: 2
+    SortPriority: 24
   - Regex: '^<vm/vm\.h>'
     Priority: 3
     SortPriority: 30

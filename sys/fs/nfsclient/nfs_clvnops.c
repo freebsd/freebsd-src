@@ -1423,7 +1423,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
-	if ((cnp->cn_flags & MAKEENTRY) &&
+	if ((cnp->cn_flags & MAKEENTRY) && dvp != newvp &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) &&
 	    attrflag != 0 && (newvp->v_type != VDIR || dattrflag != 0))
 		cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
@@ -1752,9 +1752,14 @@ again:
 		}
 	}
 	if (!error) {
-		if ((cnp->cn_flags & MAKEENTRY) && attrflag)
-			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
-			    NULL);
+		if ((cnp->cn_flags & MAKEENTRY) && attrflag) {
+			if (dvp != newvp)
+				cache_enter_time(dvp, newvp, cnp,
+				    &nfsva.na_ctime, NULL);
+			else
+				printf("nfs_create: bogus NFS server returned "
+				    "the directory as the new file object\n");
+		}
 		*ap->a_vpp = newvp;
 	} else if (NFS_ISV4(dvp)) {
 		error = nfscl_maperr(cnp->cn_thread, error, vap->va_uid,
@@ -2126,7 +2131,11 @@ nfs_link(struct vop_link_args *ap)
 	 */
 	if (VFSTONFS(vp->v_mount)->nm_negnametimeo != 0 &&
 	    (cnp->cn_flags & MAKEENTRY) && attrflag != 0 && error == 0) {
-		cache_enter_time(tdvp, vp, cnp, &nfsva.na_ctime, NULL);
+		if (tdvp != vp)
+			cache_enter_time(tdvp, vp, cnp, &nfsva.na_ctime, NULL);
+		else
+			printf("nfs_link: bogus NFS server returned "
+			    "the directory as the new link\n");
 	}
 	if (error && NFS_ISV4(vp))
 		error = nfscl_maperr(cnp->cn_thread, error, (uid_t)0,
@@ -2205,7 +2214,12 @@ nfs_symlink(struct vop_symlink_args *ap)
 	 */
 	if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
 	    (cnp->cn_flags & MAKEENTRY) && attrflag != 0 && error == 0) {
-		cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime, NULL);
+		if (dvp != newvp)
+			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
+			    NULL);
+		else
+			printf("nfs_symlink: bogus NFS server returned "
+			    "the directory as the new file object\n");
 	}
 	return (error);
 }
@@ -2278,9 +2292,15 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 		 */
 		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
 		    (cnp->cn_flags & MAKEENTRY) &&
-		    attrflag != 0 && dattrflag != 0)
-			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime,
-			    &dnfsva.na_ctime);
+		    attrflag != 0 && dattrflag != 0) {
+			if (dvp != newvp)
+				cache_enter_time(dvp, newvp, cnp,
+				    &nfsva.na_ctime, &dnfsva.na_ctime);
+			else
+				printf("nfs_mkdir: bogus NFS server returned "
+				    "the directory that the directory was "
+				    "created in as the new file object\n");
+		}
 		*ap->a_vpp = newvp;
 	}
 	return (error);
@@ -2349,8 +2369,10 @@ nfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * First, check for hit on the EOF offset cache
 	 */
+	NFSLOCKNODE(np);
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
+		NFSUNLOCKNODE(np);
 		if (VOP_GETATTR(vp, &vattr, ap->a_cred) == 0) {
 			NFSLOCKNODE(np);
 			if ((NFS_ISV4(vp) && np->n_change == vattr.va_filerev) ||
@@ -2363,7 +2385,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 			} else
 				NFSUNLOCKNODE(np);
 		}
-	}
+	} else
+		NFSUNLOCKNODE(np);
 
 	/*
 	 * NFS always guarantees that directory entries don't straddle
@@ -2416,6 +2439,7 @@ ncl_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	 * If there is no cookie, assume directory was stale.
 	 */
 	ncl_dircookie_lock(dnp);
+	NFSUNLOCKNODE(dnp);
 	cookiep = ncl_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep) {
 		cookie = *cookiep;
@@ -2438,12 +2462,15 @@ ncl_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		 * We are now either at the end of the directory or have filled
 		 * the block.
 		 */
-		if (eof)
+		if (eof) {
+			NFSLOCKNODE(dnp);
 			dnp->n_direofoffset = uiop->uio_offset;
-		else {
+			NFSUNLOCKNODE(dnp);
+		} else {
 			if (uiop->uio_resid > 0)
 				printf("EEK! readdirrpc resid > 0\n");
 			ncl_dircookie_lock(dnp);
+			NFSUNLOCKNODE(dnp);
 			cookiep = ncl_getcookie(dnp, uiop->uio_offset, 1);
 			*cookiep = cookie;
 			ncl_dircookie_unlock(dnp);
@@ -2476,6 +2503,7 @@ ncl_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	 * If there is no cookie, assume directory was stale.
 	 */
 	ncl_dircookie_lock(dnp);
+	NFSUNLOCKNODE(dnp);
 	cookiep = ncl_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep) {
 		cookie = *cookiep;
@@ -2497,12 +2525,15 @@ ncl_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		 * We are now either at end of the directory or have filled the
 		 * the block.
 		 */
-		if (eof)
+		if (eof) {
+			NFSLOCKNODE(dnp);
 			dnp->n_direofoffset = uiop->uio_offset;
-		else {
+			NFSUNLOCKNODE(dnp);
+		} else {
 			if (uiop->uio_resid > 0)
 				printf("EEK! readdirplusrpc resid > 0\n");
 			ncl_dircookie_lock(dnp);
+			NFSUNLOCKNODE(dnp);
 			cookiep = ncl_getcookie(dnp, uiop->uio_offset, 1);
 			*cookiep = cookie;
 			ncl_dircookie_unlock(dnp);

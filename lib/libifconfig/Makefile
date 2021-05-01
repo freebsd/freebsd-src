@@ -7,7 +7,11 @@ INTERNALLIB=	true
 LIBADD=		m
 
 SHLIBDIR?=	/lib
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
+
+VERSION_DEF=	${LIBCSRCDIR}/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
+
 SRCS=		libifconfig.c \
 		libifconfig_bridge.c \
 		libifconfig_carp.c \

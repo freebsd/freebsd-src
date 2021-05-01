@@ -69,7 +69,7 @@ struct nameidata;
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
 #define	DTYPE_DEV	11	/* Device specific fd type */
 #define	DTYPE_PROCDESC	12	/* process descriptor */
-#define	DTYPE_LINUXEFD	13	/* emulation eventfd type */
+#define	DTYPE_EVENTFD	13	/* eventfd */
 #define	DTYPE_LINUXTFD	14	/* emulation timerfd type */
 
 #ifdef _KERNEL
@@ -177,14 +177,14 @@ struct fadvise_info {
 };
 
 struct file {
-	void		*f_data;	/* file descriptor specific data */
-	struct fileops	*f_ops;		/* File operations */
-	struct ucred	*f_cred;	/* associated credentials. */
-	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
-	short		f_type;		/* descriptor type */
-	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	volatile u_int	f_flag;		/* see fcntl.h */
 	volatile u_int 	f_count;	/* reference count */
+	void		*f_data;	/* file descriptor specific data */
+	struct fileops	*f_ops;		/* File operations */
+	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
+	struct ucred	*f_cred;	/* associated credentials. */
+	short		f_type;		/* descriptor type */
+	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
@@ -239,6 +239,7 @@ struct xfile {
 
 extern struct fileops vnops;
 extern struct fileops badfileops;
+extern struct fileops path_fileops;
 extern struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
@@ -262,10 +263,11 @@ fo_kqfilter_t	invfo_kqfilter;
 fo_chmod_t	invfo_chmod;
 fo_chown_t	invfo_chown;
 fo_sendfile_t	invfo_sendfile;
-
+fo_stat_t	vn_statfile;
 fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;
 fo_fill_kinfo_t	vn_fill_kinfo;
+fo_kqfilter_t	vn_kqfilter_opath;
 int vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif);
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
@@ -295,6 +297,17 @@ fhold(struct file *fp)
 	_error = 0;						\
 	_fp = (fp);						\
 	if (__predict_false(refcount_release(&_fp->f_count)))	\
+		_error = _fdrop(_fp, td);			\
+	_error;							\
+})
+
+#define	fdrop_close(fp, td)		({			\
+	struct file *_fp;					\
+	int _error;						\
+								\
+	_error = 0;						\
+	_fp = (fp);						\
+	if (__predict_true(refcount_release(&_fp->f_count)))	\
 		_error = _fdrop(_fp, td);			\
 	_error;							\
 })

@@ -1,9 +1,9 @@
 #include "ipf.h"
 #include "ipmon.h"
 
-static void *nothing_parse __P((char **));
-static void nothing_destroy __P((void *));
-static int nothing_send __P((void *, ipmon_msg_t *));
+static void *nothing_parse(char **);
+static void nothing_destroy(void *);
+static int nothing_send(void *, ipmon_msg_t *);
 
 typedef struct nothing_opts_s {
 	FILE	*fp;

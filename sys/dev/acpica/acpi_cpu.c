@@ -114,8 +114,6 @@ struct acpi_cpu_device {
     (bus_space_write_ ## width(rman_get_bustag((reg)), 			\
 		       rman_get_bushandle((reg)), 0, (val)))
 
-#define PM_USEC(x)	 ((x) >> 2)	/* ~4 clocks per usec (3.57955 Mhz) */
-
 #define ACPI_NOTIFY_CX_STATES	0x81	/* _CST changed. */
 
 #define CPU_QUIRK_NO_C3		(1<<0)	/* C3-type states are not usable. */
@@ -1107,7 +1105,7 @@ acpi_cpu_idle(sbintime_t sbt)
 {
     struct	acpi_cpu_softc *sc;
     struct	acpi_cx *cx_next;
-    uint64_t	cputicks;
+    uint64_t	start_ticks, end_ticks;
     uint32_t	start_time, end_time;
     ACPI_STATUS	status;
     int		bm_active, cx_next_idx, i, us;
@@ -1153,17 +1151,19 @@ acpi_cpu_idle(sbintime_t sbt)
      * driver polling for new devices keeps this bit set all the
      * time if USB is loaded.
      */
+    cx_next = &sc->cpu_cx_states[cx_next_idx];
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0 &&
-	cx_next_idx > sc->cpu_non_c3) {
+	cx_next_idx > sc->cpu_non_c3 &&
+	(!cx_next->do_mwait || cx_next->mwait_bm_avoidance)) {
 	status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
 	if (ACPI_SUCCESS(status) && bm_active != 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = sc->cpu_non_c3;
+	    cx_next = &sc->cpu_cx_states[cx_next_idx];
 	}
     }
 
     /* Select the next state and update statistics. */
-    cx_next = &sc->cpu_cx_states[cx_next_idx];
     sc->cpu_cx_stats[cx_next_idx]++;
     KASSERT(cx_next->type != ACPI_STATE_C0, ("acpi_cpu_idle: C0 sleep"));
 
@@ -1174,7 +1174,7 @@ acpi_cpu_idle(sbintime_t sbt)
      * we are called inside critical section, delaying context switch.
      */
     if (cx_next->type == ACPI_STATE_C1) {
-	cputicks = cpu_ticks();
+	start_ticks = cpu_ticks();
 	if (cx_next->p_lvlx != NULL) {
 	    /* C1 I/O then Halt */
 	    CPU_GET_REG(cx_next->p_lvlx, 1);
@@ -1183,12 +1183,13 @@ acpi_cpu_idle(sbintime_t sbt)
 	    acpi_cpu_idle_mwait(cx_next->mwait_hint);
 	else
 	    acpi_cpu_c1();
-	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
-	if (curthread->td_critnest == 0)
-		end_time = min(end_time, 500000 / hz);
+	end_ticks = cpu_ticks();
 	/* acpi_cpu_c1() returns with interrupts enabled. */
 	if (cx_next->do_mwait)
 	    ACPI_ENABLE_IRQS();
+	end_time = ((end_ticks - start_ticks) << 20) / cpu_tickrate();
+	if (!cx_next->do_mwait && curthread->td_critnest == 0)
+		end_time = min(end_time, 500000 / hz);
 	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
     }
@@ -1197,7 +1198,7 @@ acpi_cpu_idle(sbintime_t sbt)
      * For C3, disable bus master arbitration and enable bus master wake
      * if BM control is available, otherwise flush the CPU cache.
      */
-    if (cx_next->type == ACPI_STATE_C3 || cx_next->mwait_bm_avoidance) {
+    if (cx_next->type == ACPI_STATE_C3) {
 	if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 1);
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 1);
@@ -1213,38 +1214,42 @@ acpi_cpu_idle(sbintime_t sbt)
      */
     if (cx_next->type == ACPI_STATE_C3) {
 	AcpiGetTimer(&start_time);
-	cputicks = 0;
+	start_ticks = 0;
     } else {
 	start_time = 0;
-	cputicks = cpu_ticks();
+	start_ticks = cpu_ticks();
     }
-    if (cx_next->do_mwait)
+    if (cx_next->do_mwait) {
 	acpi_cpu_idle_mwait(cx_next->mwait_hint);
-    else
+    } else {
 	CPU_GET_REG(cx_next->p_lvlx, 1);
-
-    /*
-     * Read the end time twice.  Since it may take an arbitrary time
-     * to enter the idle state, the first read may be executed before
-     * the processor has stopped.  Doing it again provides enough
-     * margin that we are certain to have a correct value.
-     */
-    AcpiGetTimer(&end_time);
-    if (cx_next->type == ACPI_STATE_C3) {
+	/*
+	 * Read the end time twice.  Since it may take an arbitrary time
+	 * to enter the idle state, the first read may be executed before
+	 * the processor has stopped.  Doing it again provides enough
+	 * margin that we are certain to have a correct value.
+	 */
 	AcpiGetTimer(&end_time);
-	AcpiGetTimerDuration(start_time, end_time, &end_time);
-    } else
-	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
+    }
+
+    if (cx_next->type == ACPI_STATE_C3)
+	AcpiGetTimer(&end_time);
+    else
+	end_ticks = cpu_ticks();
 
     /* Enable bus master arbitration and disable bus master wakeup. */
-    if ((cx_next->type == ACPI_STATE_C3 || cx_next->mwait_bm_avoidance) &&
+    if (cx_next->type == ACPI_STATE_C3 &&
       (cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
 	AcpiWriteBitRegister(ACPI_BITREG_ARB_DISABLE, 0);
 	AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
     }
     ACPI_ENABLE_IRQS();
 
-    sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + PM_USEC(end_time)) / 4;
+    if (cx_next->type == ACPI_STATE_C3)
+	AcpiGetTimerDuration(start_time, end_time, &end_time);
+    else
+	end_time = ((end_ticks - start_ticks) << 20) / cpu_tickrate();
+    sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 }
 #endif
 

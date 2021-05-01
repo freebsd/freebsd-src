@@ -98,6 +98,7 @@
  *	gmac		128-bit GMAC
  *	gmac192		192-bit GMAC
  *	gmac256		256-bit GMAC
+ *	poly1305
  *
  * Ciphers:
  *	aes-cbc		128-bit AES-CBC
@@ -120,6 +121,7 @@
  *	aes-ccm		128-bit AES-CCM
  *	aes-ccm192	192-bit AES-CCM
  *	aes-ccm256	256-bit AES-CCM
+ *	chacha20-poly1305 Chacha20 (96 bit nonce) with Poly1305 per RFC 8439
  */
 
 #include <sys/param.h>
@@ -144,13 +146,16 @@ struct ocf_session {
 	int crid;
 };
 
-const struct alg {
+static const struct alg {
 	const char *name;
 	int cipher;
 	int mac;
-	enum { T_HASH, T_HMAC, T_GMAC, T_CIPHER, T_ETA, T_AEAD } type;
+	enum { T_HASH, T_HMAC, T_GMAC, T_DIGEST, T_CIPHER, T_ETA, T_AEAD } type;
+	int key_len;
+	int tag_len;
 	const EVP_CIPHER *(*evp_cipher)(void);
 	const EVP_MD *(*evp_md)(void);
+	int pkey;
 } algs[] = {
 	{ .name = "sha1", .mac = CRYPTO_SHA1, .type = T_HASH,
 	  .evp_md = EVP_sha1 },
@@ -177,11 +182,13 @@ const struct alg {
 	{ .name = "blake2s", .mac = CRYPTO_BLAKE2S, .type = T_HASH,
 	  .evp_md = EVP_blake2s256 },
 	{ .name = "gmac", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_128_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_128_gcm },
 	{ .name = "gmac192", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_192_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "gmac256", .mac = CRYPTO_AES_NIST_GMAC, .type = T_GMAC,
-	  .evp_cipher = EVP_aes_256_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_256_gcm },
+	{ .name = "poly1305", .mac = CRYPTO_POLY1305, .type = T_DIGEST,
+	  .key_len = POLY1305_KEY_LEN, .pkey = EVP_PKEY_POLY1305 },
 	{ .name = "aes-cbc", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
 	  .evp_cipher = EVP_aes_128_cbc },
 	{ .name = "aes-cbc192", .cipher = CRYPTO_AES_CBC, .type = T_CIPHER,
@@ -201,22 +208,27 @@ const struct alg {
 	{ .name = "chacha20", .cipher = CRYPTO_CHACHA20, .type = T_CIPHER,
 	  .evp_cipher = EVP_chacha20 },
 	{ .name = "aes-gcm", .cipher = CRYPTO_AES_NIST_GCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_128_gcm },
+	  .tag_len = AES_GMAC_HASH_LEN, .evp_cipher = EVP_aes_128_gcm },
 	{ .name = "aes-gcm192", .cipher = CRYPTO_AES_NIST_GCM_16,
-	  .type = T_AEAD, .evp_cipher = EVP_aes_192_gcm },
+	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
+	  .evp_cipher = EVP_aes_192_gcm },
 	{ .name = "aes-gcm256", .cipher = CRYPTO_AES_NIST_GCM_16,
-	  .type = T_AEAD, .evp_cipher = EVP_aes_256_gcm },
+	  .type = T_AEAD, .tag_len = AES_GMAC_HASH_LEN,
+	  .evp_cipher = EVP_aes_256_gcm },
 	{ .name = "aes-ccm", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_128_ccm },
+	  .evp_cipher = EVP_aes_128_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
 	{ .name = "aes-ccm192", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_192_ccm },
+	  .evp_cipher = EVP_aes_192_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
 	{ .name = "aes-ccm256", .cipher = CRYPTO_AES_CCM_16, .type = T_AEAD,
-	  .evp_cipher = EVP_aes_256_ccm },
+	  .evp_cipher = EVP_aes_256_ccm, .tag_len = AES_CBC_MAC_HASH_LEN },
+	{ .name = "chacha20-poly1305", .cipher = CRYPTO_CHACHA20_POLY1305,
+	  .type = T_AEAD, .tag_len = POLY1305_HASH_LEN,
+	  .evp_cipher = EVP_chacha20_poly1305 },
 };
 
 static bool verbose;
-static int crid;
-static size_t aad_sizes[48], sizes[128];
+static int requested_crid;
+static size_t aad_sizes[48], sizes[EALG_MAX_BLOCK_LEN * 2];
 static u_int naad_sizes, nsizes;
 
 static void
@@ -340,7 +352,7 @@ crlookup(const char *devname)
 	return (find.crid);
 }
 
-const char *
+static const char *
 crfind(int crid)
 {
 	static struct crypt_find_op find;
@@ -352,21 +364,9 @@ crfind(int crid)
 
 	bzero(&find, sizeof(find));
 	find.crid = crid;
-	if (ioctl(devcrypto(), CRIOFINDDEV, &find) == -1)
+	if (ioctl(devcrypto(), CIOCFINDDEV, &find) == -1)
 		err(1, "ioctl(CIOCFINDDEV): crid %d", crid);
 	return (find.name);
-}
-
-static int
-crget(void)
-{
-	int fd;
-
-	if (ioctl(devcrypto(), CRIOGET, &fd) == -1)
-		err(1, "ioctl(CRIOGET)");
-	if (fcntl(fd, F_SETFD, 1) == -1)
-		err(1, "fcntl(F_SETFD) (crget)");
-	return fd;
 }
 
 static char
@@ -427,7 +427,7 @@ static void
 ocf_init_sop(struct session2_op *sop)
 {
 	memset(sop, 0, sizeof(*sop));
-	sop->crid = crid;
+	sop->crid = requested_crid;
 }
 
 static bool
@@ -436,11 +436,10 @@ ocf_init_session(struct session2_op *sop, const char *type, const char *name,
 {
 	int fd;
 
-	fd = crget();
+	fd = devcrypto();
 	if (ioctl(fd, CIOCGSESSION2, sop) < 0) {
 		warn("cryptodev %s %s not supported for device %s",
-		    type, name, crfind(crid));
-		close(fd);
+		    type, name, crfind(sop->crid));
 		ses->fd = -1;
 		return (false);
 	}
@@ -458,8 +457,6 @@ ocf_destroy_session(struct ocf_session *ses)
 
 	if (ioctl(ses->fd, CIOCFSESSION, &ses->ses) < 0)
 		warn("ioctl(CIOCFSESSION)");
-
-	close(ses->fd);
 }
 
 static void
@@ -483,7 +480,6 @@ ocf_hash(const struct alg *alg, const char *buffer, size_t size, char *digest,
 	struct ocf_session ses;
 	struct session2_op sop;
 	struct crypt_op cop;
-	int error;
 
 	ocf_init_sop(&sop);
 	sop.mac = alg->mac;
@@ -493,12 +489,12 @@ ocf_hash(const struct alg *alg, const char *buffer, size_t size, char *digest,
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = (char *)buffer;
+	cop.src = buffer;
 	cop.mac = digest;
 
 	if (ioctl(ses.fd, CIOCCRYPT, &cop) < 0) {
 		warn("cryptodev %s (%zu) HASH failed for device %s", alg->name,
-		    size, crfind(crid));
+		    size, crfind(ses.crid));
 		ocf_destroy_session(&ses);
 		return (false);
 	}
@@ -555,7 +551,7 @@ run_hash_test(const struct alg *alg, size_t size)
 	memset(test_digest, 0x3c, sizeof(test_digest));
 
 	md = alg->evp_md();
-	assert(EVP_MD_size(md) <= sizeof(control_digest));
+	assert((size_t)EVP_MD_size(md) <= sizeof(control_digest));
 
 	buffer = alloc_buffer(size);
 
@@ -597,7 +593,7 @@ ocf_hmac(const struct alg *alg, const char *buffer, size_t size,
 
 	ocf_init_sop(&sop);
 	sop.mackeylen = key_len;
-	sop.mackey = (char *)key;
+	sop.mackey = key;
 	sop.mac = alg->mac;
 	if (!ocf_init_session(&sop, "HMAC", alg->name, &ses))
 		return (false);
@@ -605,12 +601,12 @@ ocf_hmac(const struct alg *alg, const char *buffer, size_t size,
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = (char *)buffer;
+	cop.src = buffer;
 	cop.mac = digest;
 
 	if (ioctl(ses.fd, CIOCCRYPT, &cop) < 0) {
 		warn("cryptodev %s (%zu) HMAC failed for device %s", alg->name,
-		    size, crfind(crid));
+		    size, crfind(ses.crid));
 		ocf_destroy_session(&ses);
 		return (false);
 	}
@@ -634,7 +630,7 @@ run_hmac_test(const struct alg *alg, size_t size)
 
 	md = alg->evp_md();
 	key_len = EVP_MD_size(md);
-	assert(EVP_MD_size(md) <= sizeof(control_digest));
+	assert((size_t)EVP_MD_size(md) <= sizeof(control_digest));
 
 	key = alloc_buffer(key_len);
 	buffer = alloc_buffer(size);
@@ -696,7 +692,7 @@ openssl_cipher(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 		errx(1, "OpenSSL %s (%zu) cipher final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
 	total += outl;
-	if (total != size)
+	if ((size_t)total != size)
 		errx(1, "OpenSSL %s (%zu) cipher size mismatch: %d", alg->name,
 		    size, total);
 	EVP_CIPHER_CTX_free(ctx);
@@ -710,7 +706,7 @@ ocf_init_cipher_session(const struct alg *alg, const char *key, size_t key_len,
 
 	ocf_init_sop(&sop);
 	sop.keylen = key_len;
-	sop.key = (char *)key;
+	sop.key = key;
 	sop.cipher = alg->cipher;
 	return (ocf_init_session(&sop, "cipher", alg->name, ses));
 }
@@ -724,13 +720,13 @@ ocf_cipher(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 	ocf_init_cop(ses, &cop);
 	cop.op = op;
 	cop.len = size;
-	cop.src = (char *)input;
+	cop.src = input;
 	cop.dst = output;
-	cop.iv = (char *)iv;
+	cop.iv = iv;
 
 	if (ioctl(ses->fd, CIOCCRYPT, &cop) < 0) {
 		warn("cryptodev %s (%zu) cipher failed for device %s",
-		    alg->name, size, crfind(crid));
+		    alg->name, size, crfind(ses->crid));
 		return (false);
 	}
 
@@ -842,18 +838,18 @@ ocf_init_eta_session(const struct alg *alg, const char *cipher_key,
 
 	ocf_init_sop(&sop);
 	sop.keylen = cipher_key_len;
-	sop.key = (char *)cipher_key;
+	sop.key = cipher_key;
 	sop.cipher = alg->cipher;
 	sop.mackeylen = auth_key_len;
-	sop.mackey = (char *)auth_key;
+	sop.mackey = auth_key;
 	sop.mac = alg->mac;
 	return (ocf_init_session(&sop, "ETA", alg->name, ses));
 }
 
 static int
-ocf_eta(const struct ocf_session *ses, const struct alg *alg, const char *iv,
-    size_t iv_len, const char *aad, size_t aad_len, const char *input,
-    char *output, size_t size, char *digest, int op)
+ocf_eta(const struct ocf_session *ses, const char *iv, size_t iv_len,
+    const char *aad, size_t aad_len, const char *input, char *output,
+    size_t size, char *digest, int op)
 {
 	int ret;
 
@@ -865,11 +861,11 @@ ocf_eta(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 		caead.len = size;
 		caead.aadlen = aad_len;
 		caead.ivlen = iv_len;
-		caead.src = (char *)input;
+		caead.src = input;
 		caead.dst = output;
-		caead.aad = (char *)aad;
+		caead.aad = aad;
 		caead.tag = digest;
-		caead.iv = (char *)iv;
+		caead.iv = iv;
 
 		ret = ioctl(ses->fd, CIOCCRYPTAEAD, &caead);
 	} else {
@@ -878,10 +874,10 @@ ocf_eta(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 		ocf_init_cop(ses, &cop);
 		cop.op = op;
 		cop.len = size;
-		cop.src = (char *)input;
+		cop.src = input;
 		cop.dst = output;
 		cop.mac = digest;
-		cop.iv = (char *)iv;
+		cop.iv = iv;
 
 		ret = ioctl(ses->fd, CIOCCRYPT, &cop);
 	}
@@ -897,7 +893,7 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 	struct ocf_session ses;
 	const EVP_CIPHER *cipher;
 	const EVP_MD *md;
-	char *aad, *buffer, *cleartext, *ciphertext;
+	char *buffer, *cleartext, *ciphertext;
 	char *iv, *auth_key, *cipher_key;
 	u_int iv_len, auth_key_len, cipher_key_len, digest_len;
 	int error;
@@ -958,9 +954,9 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 		goto out;
 
 	/* OCF encrypt + HMAC. */
-	error = ocf_eta(&ses, alg, iv, iv_len,
-	    aad_len != 0 ? cleartext : NULL, aad_len, cleartext + aad_len,
-	    buffer + aad_len, size, test_digest, COP_ENCRYPT);
+	error = ocf_eta(&ses, iv, iv_len, aad_len != 0 ? cleartext : NULL,
+	    aad_len, cleartext + aad_len, buffer + aad_len, size, test_digest,
+	    COP_ENCRYPT);
 	if (error != 0) {
 		warnc(error, "cryptodev %s (%zu, %zu) ETA failed for device %s",
 		    alg->name, aad_len, size, crfind(ses.crid));
@@ -990,9 +986,9 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 	}
 
 	/* OCF HMAC + decrypt. */
-	error = ocf_eta(&ses, alg, iv, iv_len,
-	    aad_len != 0 ? ciphertext : NULL, aad_len, ciphertext + aad_len,
-	    buffer + aad_len, size, test_digest, COP_DECRYPT);
+	error = ocf_eta(&ses, iv, iv_len, aad_len != 0 ? ciphertext : NULL,
+	    aad_len, ciphertext + aad_len, buffer + aad_len, size, test_digest,
+	    COP_DECRYPT);
 	if (error != 0) {
 		warnc(error, "cryptodev %s (%zu, %zu) ETA failed for device %s",
 		    alg->name, aad_len, size, crfind(ses.crid));
@@ -1010,9 +1006,9 @@ run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 
 	/* Verify OCF HMAC + decrypt fails with busted MAC. */
 	test_digest[0] ^= 0x1;
-	error = ocf_eta(&ses, alg, iv, iv_len,
-	    aad_len != 0 ? ciphertext : NULL, aad_len, ciphertext + aad_len,
-	    buffer + aad_len, size, test_digest, COP_DECRYPT);
+	error = ocf_eta(&ses, iv, iv_len, aad_len != 0 ? ciphertext : NULL,
+	    aad_len, ciphertext + aad_len, buffer + aad_len, size, test_digest,
+	    COP_DECRYPT);
 	if (error != EBADMSG) {
 		if (error != 0)
 			warnc(error,
@@ -1062,7 +1058,7 @@ openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	if (EVP_EncryptFinal_ex(ctx, NULL, &outl) != 1)
 		errx(1, "OpenSSL %s (%zu) final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1070,7 +1066,7 @@ openssl_gmac(const struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 }
 
 static bool
-ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
+ocf_mac(const struct alg *alg, const char *input, size_t size, const char *key,
     size_t key_len, const char *iv, char *tag, int *cridp)
 {
 	struct ocf_session ses;
@@ -1079,21 +1075,21 @@ ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
 
 	ocf_init_sop(&sop);
 	sop.mackeylen = key_len;
-	sop.mackey = (char *)key;
+	sop.mackey = key;
 	sop.mac = alg->mac;
-	if (!ocf_init_session(&sop, "GMAC", alg->name, &ses))
+	if (!ocf_init_session(&sop, "MAC", alg->name, &ses))
 		return (false);
 
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = (char *)input;
+	cop.src = input;
 	cop.mac = tag;
 	cop.iv = iv;
 
 	if (ioctl(ses.fd, CIOCCRYPT, &cop) < 0) {
 		warn("cryptodev %s (%zu) failed for device %s", alg->name,
-		    size, crfind(crid));
+		    size, crfind(ses.crid));
 		ocf_destroy_session(&ses);
 		return (false);
 	}
@@ -1108,7 +1104,7 @@ run_gmac_test(const struct alg *alg, size_t size)
 {
 	const EVP_CIPHER *cipher;
 	char *iv, *key, *buffer;
-	u_int iv_len, key_len, digest_len;
+	u_int iv_len, key_len;
 	int crid;
 	char control_tag[AES_GMAC_HASH_LEN], test_tag[AES_GMAC_HASH_LEN];
 
@@ -1128,7 +1124,79 @@ run_gmac_test(const struct alg *alg, size_t size)
 	openssl_gmac(alg, cipher, key, iv, buffer, size, control_tag);
 
 	/* OCF GMAC. */
-	if (!ocf_gmac(alg, buffer, size, key, key_len, iv, test_tag, &crid))
+	if (!ocf_mac(alg, buffer, size, key, key_len, iv, test_tag, &crid))
+		goto out;
+	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
+		printf("%s (%zu) mismatch:\n", alg->name, size);
+		printf("control:\n");
+		hexdump(control_tag, sizeof(control_tag), NULL, 0);
+		printf("test (cryptodev device %s):\n", crfind(crid));
+		hexdump(test_tag, sizeof(test_tag), NULL, 0);
+		goto out;
+	}
+
+	if (verbose)
+		printf("%s (%zu) matched (cryptodev device %s)\n",
+		    alg->name, size, crfind(crid));
+
+out:
+	free(buffer);
+	free(iv);
+	free(key);
+}
+
+static void
+openssl_digest(const struct alg *alg, const char *key, u_int key_len,
+    const char *input, size_t size, char *tag, u_int tag_len)
+{
+	EVP_MD_CTX *mdctx;
+	EVP_PKEY *pkey;
+	size_t len;
+
+	pkey = EVP_PKEY_new_raw_private_key(alg->pkey, NULL, key, key_len);
+	if (pkey == NULL)
+		errx(1, "OpenSSL %s (%zu) pkey new failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	mdctx = EVP_MD_CTX_new();
+	if (mdctx == NULL)
+		errx(1, "OpenSSL %s (%zu) ctx new failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_DigestSignInit(mdctx, NULL, NULL, NULL, pkey) != 1)
+		errx(1, "OpenSSL %s (%zu) digest sign init failed: %s",
+		    alg->name, size, ERR_error_string(ERR_get_error(), NULL));
+	if (EVP_DigestSignUpdate(mdctx, input, size) != 1)
+		errx(1, "OpenSSL %s (%zu) digest update failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	len = tag_len;
+	if (EVP_DigestSignFinal(mdctx, tag, &len) != 1)
+		errx(1, "OpenSSL %s (%zu) digest final failed: %s", alg->name,
+		    size, ERR_error_string(ERR_get_error(), NULL));
+	EVP_MD_CTX_free(mdctx);
+	EVP_PKEY_free(pkey);
+}
+
+static void
+run_digest_test(const struct alg *alg, size_t size)
+{
+	char *key, *buffer;
+	u_int key_len;
+	int crid;
+	char control_tag[EVP_MAX_MD_SIZE], test_tag[EVP_MAX_MD_SIZE];
+
+	memset(control_tag, 0x3c, sizeof(control_tag));
+	memset(test_tag, 0x3c, sizeof(test_tag));
+
+	key_len = alg->key_len;
+
+	key = alloc_buffer(key_len);
+	buffer = alloc_buffer(size);
+
+	/* OpenSSL Poly1305. */
+	openssl_digest(alg, key, key_len, buffer, size, control_tag,
+	    sizeof(control_tag));
+
+	/* OCF Poly1305. */
+	if (!ocf_mac(alg, buffer, size, key, key_len, NULL, test_tag, &crid))
 		goto out;
 	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
 		printf("%s (%zu) mismatch:\n", alg->name, size);
@@ -1149,7 +1217,7 @@ out:
 }
 
 static void
-openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
+openssl_aead_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, const char *aad, size_t aad_len,
     const char *input, char *output, size_t size, char *tag)
 {
@@ -1181,10 +1249,10 @@ openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 		errx(1, "OpenSSL %s (%zu) encrypt final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
 	total += outl;
-	if (total != size)
+	if ((size_t)total != size)
 		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1193,7 +1261,7 @@ openssl_gcm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 
 #ifdef notused
 static bool
-openssl_gcm_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
+openssl_aead_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
     const char *key, const char *iv, const char *aad, size_t aad_len,
     const char *input, char *output, size_t size, char *tag)
 {
@@ -1222,7 +1290,7 @@ openssl_gcm_decrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 		errx(1, "OpenSSL %s (%zu) decrypt update failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
 	total = outl;
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, AES_GMAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, alg->tag_len,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1251,10 +1319,10 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, iv_len, NULL) != 1)
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, iv_len, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting tag length failed: %s", alg->name,
 		     size, ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_EncryptInit_ex(ctx, NULL, NULL, (const u_char *)key,
@@ -1281,10 +1349,10 @@ openssl_ccm_encrypt(const struct alg *alg, const EVP_CIPHER *cipher,
 		errx(1, "OpenSSL %s (%zu) encrypt final failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
 	total += outl;
-	if (total != size)
+	if ((size_t)total != size)
 		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_GET_TAG, AES_CBC_MAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, AES_CBC_MAC_HASH_LEN,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1299,15 +1367,15 @@ ocf_init_aead_session(const struct alg *alg, const char *key, size_t key_len,
 
 	ocf_init_sop(&sop);
 	sop.keylen = key_len;
-	sop.key = (char *)key;
+	sop.key = key;
 	sop.cipher = alg->cipher;
 	return (ocf_init_session(&sop, "AEAD", alg->name, ses));
 }
 
 static int
-ocf_aead(const struct ocf_session *ses, const struct alg *alg, const char *iv,
-    size_t iv_len, const char *aad, size_t aad_len, const char *input,
-    char *output, size_t size, char *tag, int op)
+ocf_aead(const struct ocf_session *ses, const char *iv, size_t iv_len,
+    const char *aad, size_t aad_len, const char *input, char *output,
+    size_t size, char *tag, int op)
 {
 	struct crypt_aead caead;
 
@@ -1316,18 +1384,19 @@ ocf_aead(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 	caead.len = size;
 	caead.aadlen = aad_len;
 	caead.ivlen = iv_len;
-	caead.src = (char *)input;
+	caead.src = input;
 	caead.dst = output;
-	caead.aad = (char *)aad;
+	caead.aad = aad;
 	caead.tag = tag;
-	caead.iv = (char *)iv;
+	caead.iv = iv;
 
 	if (ioctl(ses->fd, CIOCCRYPTAEAD, &caead) < 0)
 		return (errno);
 	return (0);
 }
 
-#define	AEAD_MAX_TAG_LEN	MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN)
+#define	AEAD_MAX_TAG_LEN				\
+	MAX(MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN), POLY1305_HASH_LEN)
 
 static void
 run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
@@ -1384,14 +1453,14 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		openssl_ccm_encrypt(alg, cipher, key, iv, iv_len, aad,
 		    aad_len, cleartext, ciphertext, size, control_tag);
 	else
-		openssl_gcm_encrypt(alg, cipher, key, iv, aad, aad_len,
+		openssl_aead_encrypt(alg, cipher, key, iv, aad, aad_len,
 		    cleartext, ciphertext, size, control_tag);
 
 	if (!ocf_init_aead_session(alg, key, key_len, &ses))
 		goto out;
 
 	/* OCF encrypt */
-	error = ocf_aead(&ses, alg, iv, iv_len, aad, aad_len, cleartext, buffer,
+	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, cleartext, buffer,
 	    size, test_tag, COP_ENCRYPT);
 	if (error != 0) {
 		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
@@ -1403,7 +1472,7 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		    aad_len, size);
 		printf("control:\n");
 		hexdump(ciphertext, size, NULL, 0);
-		printf("test (cryptodev device %s):\n", crfind(crid));
+		printf("test (cryptodev device %s):\n", crfind(ses.crid));
 		hexdump(buffer, size, NULL, 0);
 		goto out;
 	}
@@ -1412,13 +1481,13 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		    size);
 		printf("control:\n");
 		hexdump(control_tag, sizeof(control_tag), NULL, 0);
-		printf("test (cryptodev device %s):\n", crfind(crid));
+		printf("test (cryptodev device %s):\n", crfind(ses.crid));
 		hexdump(test_tag, sizeof(test_tag), NULL, 0);
 		goto out;
 	}
 
 	/* OCF decrypt */
-	error = ocf_aead(&ses, alg, iv, iv_len, aad, aad_len, ciphertext,
+	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, ciphertext,
 	    buffer, size, control_tag, COP_DECRYPT);
 	if (error != 0) {
 		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
@@ -1430,14 +1499,14 @@ run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 		    aad_len, size);
 		printf("control:\n");
 		hexdump(cleartext, size, NULL, 0);
-		printf("test (cryptodev device %s):\n", crfind(crid));
+		printf("test (cryptodev device %s):\n", crfind(ses.crid));
 		hexdump(buffer, size, NULL, 0);
 		goto out;
 	}
 
 	/* Verify OCF decrypt fails with busted tag. */
 	test_tag[0] ^= 0x1;
-	error = ocf_aead(&ses, alg, iv, iv_len, aad, aad_len, ciphertext,
+	error = ocf_aead(&ses, iv, iv_len, aad, aad_len, ciphertext,
 	    buffer, size, test_tag, COP_DECRYPT);
 	if (error != EBADMSG) {
 		if (error != 0)
@@ -1478,6 +1547,9 @@ run_test(const struct alg *alg, size_t aad_len, size_t size)
 		break;
 	case T_GMAC:
 		run_gmac_test(alg, size);
+		break;
+	case T_DIGEST:
+		run_digest_test(alg, size);
 		break;
 	case T_CIPHER:
 		run_cipher_test(alg, size);
@@ -1526,7 +1598,8 @@ run_mac_tests(void)
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
-		if (algs[i].type == T_HMAC || algs[i].type == T_GMAC)
+		if (algs[i].type == T_HMAC || algs[i].type == T_GMAC ||
+		    algs[i].type == T_DIGEST)
 			run_test_sizes(&algs[i]);
 }
 
@@ -1585,7 +1658,7 @@ main(int ac, char **av)
 	int ch;
 
 	algname = NULL;
-	crid = CRYPTO_FLAG_HARDWARE;
+	requested_crid = CRYPTO_FLAG_HARDWARE;
 	testall = false;
 	verbose = false;
 	while ((ch = getopt(ac, av, "A:a:d:vz")) != -1)
@@ -1604,7 +1677,7 @@ main(int ac, char **av)
 			algname = optarg;
 			break;
 		case 'd':
-			crid = crlookup(optarg);
+			requested_crid = crlookup(optarg);
 			break;
 		case 'v':
 			verbose = true;
@@ -1656,12 +1729,18 @@ main(int ac, char **av)
 
 	if (nsizes == 0) {
 		if (testall) {
-			for (i = 1; i <= 32; i++) {
+			for (i = 1; i <= EALG_MAX_BLOCK_LEN; i++) {
 				sizes[nsizes] = i;
 				nsizes++;
 			}
 
-			base_size = 32;
+			for (i = EALG_MAX_BLOCK_LEN + 8;
+			     i <= EALG_MAX_BLOCK_LEN * 2; i += 8) {
+				sizes[nsizes] = i;
+				nsizes++;
+			}
+
+			base_size = EALG_MAX_BLOCK_LEN * 2;
 			while (base_size * 2 < 240 * 1024) {
 				base_size *= 2;
 				assert(nsizes < nitems(sizes));

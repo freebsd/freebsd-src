@@ -343,7 +343,8 @@
 				    const void *buf, size_t nbyte, int pad, \
 				    uint32_t offset1, uint32_t offset2); }
 175	AUE_NULL	UNIMPL	nosys
-176	AUE_NTP_ADJTIME	NOPROTO	{ int ntp_adjtime(struct timex *tp); }
+176	AUE_NTP_ADJTIME	STD	{ int freebsd32_ntp_adjtime( \
+				    struct timex32 *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
 178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
 179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
@@ -1167,5 +1168,11 @@
 ; 576 is initialised by the krpc code, if present.
 576	AUE_NULL	NOSTD|NOPROTO	{ int rpctls_syscall(int op, \
 				    const char *path); }
+577	AUE_SPECIALFD	NOPROTO	{ int __specialfd(int type, const void *req, \
+				    size_t len); }
+578	AUE_AIO_WRITEV	STD	{ int freebsd32_aio_writev( \
+				    struct aiocb32 *aiocbp); }
+579	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
+				    struct aiocb32 *aiocbp); }
 
 ; vim: syntax=off

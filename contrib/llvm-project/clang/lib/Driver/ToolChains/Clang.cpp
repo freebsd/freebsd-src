@@ -1197,7 +1197,11 @@ void Clang::AddPreprocessingOptions(Compilation &C, const JobAction &JA,
     if (YcArg && JA.getKind() >= Action::PrecompileJobClass &&
         JA.getKind() <= Action::AssembleJobClass) {
       CmdArgs.push_back(Args.MakeArgString("-building-pch-with-obj"));
-      CmdArgs.push_back(Args.MakeArgString("-fpch-instantiate-templates"));
+      // -fpch-instantiate-templates is the default when creating
+      // precomp using /Yc
+      if (Args.hasFlag(options::OPT_fpch_instantiate_templates,
+                       options::OPT_fno_pch_instantiate_templates, true))
+        CmdArgs.push_back(Args.MakeArgString("-fpch-instantiate-templates"));
     }
     if (YcArg || YuArg) {
       StringRef ThroughHeader = YcArg ? YcArg->getValue() : YuArg->getValue();
@@ -2963,7 +2967,7 @@ static void RenderSCPOptions(const ToolChain &TC, const ArgList &Args,
                              ArgStringList &CmdArgs) {
   const llvm::Triple &EffectiveTriple = TC.getEffectiveTriple();
 
-  if (!EffectiveTriple.isOSLinux())
+  if (!EffectiveTriple.isOSFreeBSD() && !EffectiveTriple.isOSLinux())
     return;
 
   if (!EffectiveTriple.isX86() && !EffectiveTriple.isSystemZ() &&

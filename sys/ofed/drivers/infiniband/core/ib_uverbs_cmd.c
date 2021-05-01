@@ -666,11 +666,11 @@ err_put:
 struct xrcd_table_entry {
 	struct rb_node  node;
 	struct ib_xrcd *xrcd;
-	struct inode   *inode;
+	struct vnode   *vnode;
 };
 
 static int xrcd_table_insert(struct ib_uverbs_device *dev,
-			    struct inode *inode,
+			    struct vnode *vnode,
 			    struct ib_xrcd *xrcd)
 {
 	struct xrcd_table_entry *entry, *scan;
@@ -682,15 +682,15 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 		return -ENOMEM;
 
 	entry->xrcd  = xrcd;
-	entry->inode = inode;
+	entry->vnode = vnode;
 
 	while (*p) {
 		parent = *p;
 		scan = rb_entry(parent, struct xrcd_table_entry, node);
 
-		if (inode < scan->inode) {
+		if ((uintptr_t)vnode < (uintptr_t)scan->vnode) {
 			p = &(*p)->rb_left;
-		} else if (inode > scan->inode) {
+		} else if ((uintptr_t)vnode > (uintptr_t)scan->vnode) {
 			p = &(*p)->rb_right;
 		} else {
 			kfree(entry);
@@ -700,12 +700,12 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 
 	rb_link_node(&entry->node, parent, p);
 	rb_insert_color(&entry->node, &dev->xrcd_tree);
-	igrab(inode);
+	vrefact(vnode);
 	return 0;
 }
 
 static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
-						  struct inode *inode)
+						  struct vnode *vnode)
 {
 	struct xrcd_table_entry *entry;
 	struct rb_node *p = dev->xrcd_tree.rb_node;
@@ -713,9 +713,9 @@ static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
 	while (p) {
 		entry = rb_entry(p, struct xrcd_table_entry, node);
 
-		if (inode < entry->inode)
+		if ((uintptr_t)vnode < (uintptr_t)entry->vnode)
 			p = p->rb_left;
-		else if (inode > entry->inode)
+		else if ((uintptr_t)vnode > (uintptr_t)entry->vnode)
 			p = p->rb_right;
 		else
 			return entry;
@@ -724,11 +724,11 @@ static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
 	return NULL;
 }
 
-static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *inode)
+static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct vnode *vnode)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, vnode);
 	if (!entry)
 		return NULL;
 
@@ -736,13 +736,13 @@ static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *ino
 }
 
 static void xrcd_table_delete(struct ib_uverbs_device *dev,
-			      struct inode *inode)
+			      struct vnode *vnode)
 {
 	struct xrcd_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = xrcd_table_search(dev, vnode);
 	if (entry) {
-		iput(inode);
+		vrele(vnode);
 		rb_erase(&entry->node, &dev->xrcd_tree);
 		kfree(entry);
 	}
@@ -758,8 +758,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	struct ib_udata			udata;
 	struct ib_uxrcd_object         *obj;
 	struct ib_xrcd                 *xrcd = NULL;
-	struct fd			f = {NULL};
-	struct inode                   *inode = NULL;
+	struct vnode                   *vnode = NULL;
 	int				ret = 0;
 	int				new_xrcd = 0;
 
@@ -777,14 +776,11 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 
 	if (cmd.fd != -1) {
 		/* search for file descriptor */
-		f = fdget(cmd.fd);
-		if (!f.file) {
-			ret = -EBADF;
+		ret = -fgetvp(curthread, cmd.fd, &cap_no_rights, &vnode);
+		if (ret != 0)
 			goto err_tree_mutex_unlock;
-		}
 
-		inode = f.file->f_dentry->d_inode;
-		xrcd = find_xrcd(file->device, inode);
+		xrcd = find_xrcd(file->device, vnode);
 		if (!xrcd && !(cmd.oflags & O_CREAT)) {
 			/* no file descriptor. Need CREATE flag */
 			ret = -EAGAIN;
@@ -814,7 +810,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 			goto err;
 		}
 
-		xrcd->inode   = inode;
+		xrcd->vnode   = vnode;
 		xrcd->device  = ib_dev;
 		atomic_set(&xrcd->usecnt, 0);
 		mutex_init(&xrcd->tgt_qp_mutex);
@@ -831,10 +827,10 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof resp);
 	resp.xrcd_handle = obj->uobject.id;
 
-	if (inode) {
+	if (vnode != NULL) {
 		if (new_xrcd) {
-			/* create new inode/xrcd table entry */
-			ret = xrcd_table_insert(file->device, inode, xrcd);
+			/* create new vnode/xrcd table entry */
+			ret = xrcd_table_insert(file->device, vnode, xrcd);
 			if (ret)
 				goto err_insert_xrcd;
 		}
@@ -847,8 +843,8 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 		goto err_copy;
 	}
 
-	if (f.file)
-		fdput(f);
+	if (vnode != NULL)
+		vrele(vnode);
 
 	mutex_lock(&file->mutex);
 	list_add_tail(&obj->uobject.list, &file->ucontext->xrcd_list);
@@ -861,9 +857,9 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	return in_len;
 
 err_copy:
-	if (inode) {
+	if (vnode != NULL) {
 		if (new_xrcd)
-			xrcd_table_delete(file->device, inode);
+			xrcd_table_delete(file->device, vnode);
 		atomic_dec(&xrcd->usecnt);
 	}
 
@@ -877,8 +873,8 @@ err:
 	put_uobj_write(&obj->uobject);
 
 err_tree_mutex_unlock:
-	if (f.file)
-		fdput(f);
+	if (vnode != NULL)
+		vrele(vnode);
 
 	mutex_unlock(&file->device->xrcd_tree_mutex);
 
@@ -893,7 +889,7 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 	struct ib_uverbs_close_xrcd cmd;
 	struct ib_uobject           *uobj;
 	struct ib_xrcd              *xrcd = NULL;
-	struct inode                *inode = NULL;
+	struct vnode                *vnode = NULL;
 	struct ib_uxrcd_object      *obj;
 	int                         live;
 	int                         ret = 0;
@@ -909,7 +905,7 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 	}
 
 	xrcd  = uobj->object;
-	inode = xrcd->inode;
+	vnode = xrcd->vnode;
 	obj   = container_of(uobj, struct ib_uxrcd_object, uobject);
 	if (atomic_read(&obj->refcnt)) {
 		put_uobj_write(uobj);
@@ -917,14 +913,14 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 		goto out;
 	}
 
-	if (!inode || atomic_dec_and_test(&xrcd->usecnt)) {
+	if (!vnode || atomic_dec_and_test(&xrcd->usecnt)) {
 		ret = ib_dealloc_xrcd(uobj->object);
 		if (!ret)
 			uobj->live = 0;
 	}
 
 	live = uobj->live;
-	if (inode && ret)
+	if (vnode && ret)
 		atomic_inc(&xrcd->usecnt);
 
 	put_uobj_write(uobj);
@@ -932,8 +928,8 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 	if (ret)
 		goto out;
 
-	if (inode && !live)
-		xrcd_table_delete(file->device, inode);
+	if (vnode && !live)
+		xrcd_table_delete(file->device, vnode);
 
 	idr_remove_uobj(&ib_uverbs_xrcd_idr, uobj);
 	mutex_lock(&file->mutex);
@@ -951,16 +947,16 @@ out:
 void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
 			    struct ib_xrcd *xrcd)
 {
-	struct inode *inode;
+	struct vnode *vnode;
 
-	inode = xrcd->inode;
-	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
+	vnode = xrcd->vnode;
+	if (vnode && !atomic_dec_and_test(&xrcd->usecnt))
 		return;
 
 	ib_dealloc_xrcd(xrcd);
 
-	if (inode)
-		xrcd_table_delete(dev, inode);
+	if (vnode)
+		xrcd_table_delete(dev, vnode);
 }
 
 ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,

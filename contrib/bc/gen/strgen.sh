@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -32,24 +32,24 @@ export LC_CTYPE=C
 
 progname=${0##*/}
 
-if [ $# -lt 4 ]; then
-	echo "usage: $progname input output name header [label [define [remove_tabs]]]"
+if [ $# -lt 3 ]; then
+	echo "usage: $progname input output name [label [define [remove_tabs]]]"
 	exit 1
 fi
 
 input="$1"
 output="$2"
 name="$3"
-header="$4"
-label="$5"
-define="$6"
-remove_tabs="$7"
+label="$4"
+define="$5"
+remove_tabs="$6"
 
 exec < "$input"
 exec > "$output"
 
 if [ -n "$label" ]; then
 	nameline="const char *${label} = \"${input}\";"
+	labelexternline="extern const char *${label};"
 fi
 
 if [ -n "$define" ]; then
@@ -64,11 +64,14 @@ if [ -n "$remove_tabs" ]; then
 fi
 
 cat<<EOF
+// Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 // Licensed under the 2-clause BSD license.
 // *** AUTOMATICALLY GENERATED FROM ${input}. DO NOT MODIFY. ***
 
 ${condstart}
-#include <${header}>
+$labelexternline
+
+extern const char $name[];
 
 $nameline
 

@@ -88,9 +88,11 @@ struct xprison {
 };
 #define	XPRISON_VERSION		3
 
-#define	PRISON_STATE_INVALID	0
-#define	PRISON_STATE_ALIVE	1
-#define	PRISON_STATE_DYING	2
+enum prison_state {
+    PRISON_STATE_INVALID = 0,	/* New prison, not ready to be seen */
+    PRISON_STATE_ALIVE,		/* Current prison, visible to all */
+    PRISON_STATE_DYING		/* Removed but holding resources, */
+};				/* optionally visible. */
 
 /*
  * Flags for jail_set and jail_get.
@@ -150,15 +152,20 @@ struct prison_racct;
  *
  * Lock key:
  *   (a) allprison_lock
- *   (p) locked by pr_mtx
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
+ *   (m) locked by pr_mtx
+ *   (p) locked by pr_mtx, and also at least shared allprison_lock required
+ *       to update
+ *   (q) locked by both pr_mtx and allprison_lock
+ *   (r) atomic via refcount(9), pr_mtx and allprison_lock required to
+ *       decrement to zero
  */
 struct prison {
 	TAILQ_ENTRY(prison) pr_list;			/* (a) all prisons */
 	int		 pr_id;				/* (c) prison id */
-	int		 pr_ref;			/* (p) refcount */
-	int		 pr_uref;			/* (p) user (alive) refcount */
+	volatile u_int	 pr_ref;			/* (r) refcount */
+	volatile u_int	 pr_uref;			/* (r) user (alive) refcount */
 	unsigned	 pr_flags;			/* (p) PR_* flags */
 	LIST_HEAD(, prison) pr_children;		/* (a) list of child jails */
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
@@ -181,7 +188,8 @@ struct prison {
 	int		 pr_securelevel;		/* (p) securelevel */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
 	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
-	int		 pr_spare[3];
+	enum prison_state pr_state;			/* (q) state in life cycle */
+	int		 pr_spare[2];
 	int		 pr_osreldate;			/* (c) kern.osreldate value */
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
@@ -213,10 +221,13 @@ struct prison_racct {
 					/* primary jail address. */
 
 /* Internal flag bits */
+#define	PR_REMOVE	0x01000000	/* In process of being removed */
 #define	PR_IP4		0x02000000	/* IPv4 restricted or disabled */
 					/* by this jail or an ancestor */
 #define	PR_IP6		0x04000000	/* IPv6 restricted or disabled */
 					/* by this jail or an ancestor */
+#define PR_COMPLETE_PROC 0x08000000	/* prison_complete called from */
+					/* prison_proc_free, releases uref */
 
 /*
  * Flags for pr_allow
@@ -232,9 +243,10 @@ struct prison_racct {
 #define	PR_ALLOW_MLOCK			0x00000080
 #define	PR_ALLOW_READ_MSGBUF		0x00000100
 #define	PR_ALLOW_UNPRIV_DEBUG		0x00000200
+#define	PR_ALLOW_SUSER			0x00000400
 #define	PR_ALLOW_RESERVED_PORTS		0x00008000
 #define	PR_ALLOW_KMEM_ACCESS		0x00010000	/* reserved, not used yet */
-#define	PR_ALLOW_ALL_STATIC		0x000183ff
+#define	PR_ALLOW_ALL_STATIC		0x000187ff
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
@@ -330,6 +342,19 @@ prison_unlock(struct prison *pr)
 		else
 
 /*
+ * Traverse a prison's descendants, visiting both preorder and postorder.
+ */
+#define FOREACH_PRISON_DESCENDANT_PRE_POST(ppr, cpr, descend)		\
+	for ((cpr) = (ppr), (descend) = 1;				\
+	     ((cpr) = (descend)						\
+	      ? ((descend) = !LIST_EMPTY(&(cpr)->pr_children))		\
+		? LIST_FIRST(&(cpr)->pr_children)			\
+		: (cpr)							\
+	      : ((descend) = LIST_NEXT(cpr, pr_sibling) != NULL)	\
+		? LIST_NEXT(cpr, pr_sibling)				\
+		: cpr->pr_parent) != (ppr);)
+
+/*
  * Attributes of the physical system, and the root of the jail tree.
  */
 extern struct	prison prison0;
@@ -402,7 +427,10 @@ void prison_hold(struct prison *pr);
 void prison_hold_locked(struct prison *pr);
 void prison_proc_hold(struct prison *);
 void prison_proc_free(struct prison *);
+void prison_set_allow(struct ucred *cred, unsigned flag, int enable);
 int prison_ischild(struct prison *, struct prison *);
+bool prison_isalive(struct prison *);
+bool prison_isvalid(struct prison *);
 int prison_equal_ip4(struct prison *, struct prison *);
 int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);

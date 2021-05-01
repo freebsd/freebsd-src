@@ -29,7 +29,7 @@
 # include <sys/protosw.h>
 #include <sys/socket.h>
 #if defined(_KERNEL)
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 #  include <sys/ctype.h>
 # endif
 # include <sys/systm.h>
@@ -37,7 +37,7 @@
 #  include <sys/mbuf.h>
 # endif
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -51,11 +51,11 @@
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
-#if defined(__FreeBSD_version) && defined(_KERNEL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
 #include <net/vnet.h>
 #else
 #define CURVNET_SET(arg)
@@ -80,7 +80,7 @@
 #include "netinet/ip_nat.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_proxy.h"
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 #endif
 
@@ -104,8 +104,8 @@ static const char rcsid[] = "@(#)$Id$";
 
 #define	AP_SESS_SIZE	53
 
-static int ipf_proxy_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
-static aproxy_t *ipf_proxy_create_clone __P((ipf_main_softc_t *, aproxy_t *));
+static int ipf_proxy_fixseqack(fr_info_t *, ip_t *, ap_session_t *, int );
+static aproxy_t *ipf_proxy_create_clone(ipf_main_softc_t *, aproxy_t *);
 
 typedef struct ipf_proxy_softc_s {
 	int		ips_proxy_debug;
@@ -914,7 +914,7 @@ ipf_proxy_check(fin, nat)
 	ip_t *ip;
 	short rv;
 	int err;
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 	u_32_t s1, s2, sd;
 #endif
 
@@ -942,7 +942,7 @@ ipf_proxy_check(fin, nat)
 		 * If there is data in this packet to be proxied then try and
 		 * get it all into the one buffer, else drop it.
 		 */
-#if defined(MENTAT) || defined(HAVE_M_PULLDOWN)
+#if SOLARIS || defined(HAVE_M_PULLDOWN)
 		if ((fin->fin_dlen > 0) && !(fin->fin_flx & FI_COALESCE))
 			if (ipf_coalesce(fin) == -1) {
 				if (softp->ips_proxy_debug & 0x08)
@@ -1006,7 +1006,7 @@ ipf_proxy_check(fin, nat)
 		 * packet.
 		 */
 		adjlen = APR_INC(err);
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 		s1 = LONG_SUM(fin->fin_plen - adjlen);
 		s2 = LONG_SUM(fin->fin_plen);
 		CALC_SUMD(s1, s2, sd);
@@ -1048,9 +1048,8 @@ ipf_proxy_check(fin, nat)
 		}
 		aps->aps_bytes += fin->fin_plen;
 		aps->aps_pkts++;
-		return 1;
 	}
-	return 0;
+	return 1;
 }
 
 

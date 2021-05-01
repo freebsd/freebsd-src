@@ -96,3 +96,4 @@ power_save_sequence:
 	bne	2b
 	nap
 	b	.
+END(enter_idle_powerx)

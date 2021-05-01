@@ -177,10 +177,10 @@ static char nuls[10];		/* place to point scanner in event of error */
  */
 #define	PEEK()	(*p->next)
 #define	PEEK2()	(*(p->next+1))
-#define	MORE()	(p->next < p->end)
-#define	MORE2()	(p->next+1 < p->end)
+#define	MORE()	(p->end - p->next > 0)
+#define	MORE2()	(p->end - p->next > 1)
 #define	SEE(c)	(MORE() && PEEK() == (c))
-#define	SEETWO(a, b)	(MORE() && MORE2() && PEEK() == (a) && PEEK2() == (b))
+#define	SEETWO(a, b)	(MORE2() && PEEK() == (a) && PEEK2() == (b))
 #define	SEESPEC(a)	(p->bre ? SEETWO('\\', a) : SEE(a))
 #define	EAT(c)	((SEE(c)) ? (NEXT(), 1) : 0)
 #define	EATTWO(a, b)	((SEETWO(a, b)) ? (NEXT2(), 1) : 0)
@@ -480,6 +480,18 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 		if (p->gnuext) {
 			handled = 1;
 			switch (wc) {
+			case '`':
+				EMIT(OBOS, 0);
+				break;
+			case '\'':
+				EMIT(OEOS, 0);
+				break;
+			case 'B':
+				EMIT(ONWBND, 0);
+				break;
+			case 'b':
+				EMIT(OWBND, 0);
+				break;
 			case 'W':
 			case 'w':
 			case 'S':
@@ -679,15 +691,9 @@ static bool
 p_branch_empty(struct parse *p, struct branchc *bc)
 {
 
-#if defined(LIBREGEX) && defined(NOTYET)
-	if (bc->outer)
-		p->g->iflags |= EMPTBR;
-	return (true);
-#else
 	(void)bc;
 	SETERROR(REG_EMPTY);
 	return (false);
-#endif
 }
 
 /*
@@ -833,6 +839,18 @@ p_simp_re(struct parse *p, struct branchc *bc)
 		if (p->gnuext) {
 			handled = true;
 			switch (c) {
+			case BACKSL|'`':
+				EMIT(OBOS, 0);
+				break;
+			case BACKSL|'\'':
+				EMIT(OEOS, 0);
+				break;
+			case BACKSL|'B':
+				EMIT(ONWBND, 0);
+				break;
+			case BACKSL|'b':
+				EMIT(OWBND, 0);
+				break;
 			case BACKSL|'W':
 			case BACKSL|'w':
 			case BACKSL|'S':
@@ -995,15 +1013,17 @@ p_bracket(struct parse *p)
 	wint_t ch;
 
 	/* Dept of Truly Sickening Special-Case Kludges */
-	if (p->next + 5 < p->end && strncmp(p->next, "[:<:]]", 6) == 0) {
-		EMIT(OBOW, 0);
-		NEXTn(6);
-		return;
-	}
-	if (p->next + 5 < p->end && strncmp(p->next, "[:>:]]", 6) == 0) {
-		EMIT(OEOW, 0);
-		NEXTn(6);
-		return;
+	if (p->end - p->next > 5) {
+		if (strncmp(p->next, "[:<:]]", 6) == 0) {
+			EMIT(OBOW, 0);
+			NEXTn(6);
+			return;
+		}
+		if (strncmp(p->next, "[:>:]]", 6) == 0) {
+			EMIT(OEOW, 0);
+			NEXTn(6);
+			return;
+		}
 	}
 
 	if ((cs = allocset(p)) == NULL)
@@ -1878,6 +1898,10 @@ findmust(struct parse *p, struct re_guts *g)
 		case OEOW:
 		case OBOL:
 		case OEOL:
+		case OBOS:
+		case OEOS:
+		case OWBND:
+		case ONWBND:
 		case O_QUEST:
 		case O_CH:
 		case OEND:
@@ -2029,6 +2053,8 @@ altoffset(sop *scan, int offset)
 			try++;
 		case OBOW:
 		case OEOW:
+		case OWBND:
+		case ONWBND:
 		case OLPAREN:
 		case ORPAREN:
 		case OOR2:

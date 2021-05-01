@@ -39,7 +39,7 @@
 #include <progs.priv.h>
 #include <tty_settings.h>
 
-MODULE_ID("$Id: tabs.c,v 1.42 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: tabs.c,v 1.45 2020/05/27 23:47:22 tom Exp $")
 
 static void usage(void) GCC_NORETURN;
 
@@ -75,7 +75,7 @@ do_tabs(int *tab_list)
 	    }
 	}
 	if (stop <= max_cols) {
-	    tputs(tparm(set_tab, stop), 1, putch);
+	    tputs(TIPARM_1(set_tab, stop), 1, putch);
 	    last = stop;
 	} else {
 	    break;

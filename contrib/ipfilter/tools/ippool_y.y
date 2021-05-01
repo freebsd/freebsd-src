@@ -37,7 +37,7 @@
 #define	YYDEBUG	1
 #define	YYSTACKSIZE	0x00ffffff
 
-extern	int	yyparse __P((void));
+extern	int	yyparse(void);
 extern	int	yydebug;
 extern	FILE	*yyin;
 
@@ -48,10 +48,10 @@ static	ippool_dst_t	ipld;
 static	ioctlfunc_t	poolioctl = NULL;
 static	char		poolname[FR_GROUPLEN];
 
-static iphtent_t *add_htablehosts __P((char *));
-static ip_pool_node_t *add_poolhosts __P((char *));
-static ip_pool_node_t *read_whoisfile __P((char *));
-static void setadflen __P((addrfamily_t *));
+static iphtent_t *add_htablehosts(char *);
+static ip_pool_node_t *add_poolhosts(char *);
+static ip_pool_node_t *read_whoisfile(char *);
+static void setadflen(addrfamily_t *);
 
 %}
 

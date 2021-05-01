@@ -97,9 +97,9 @@ find_entry_point(const char *basename)
 
 	for (ep = entry_points; ep->name != NULL; ep++)
 		if (!strcmp(basename, ep->name))
-			break;
+			return (ep);
 
-	return (ep);
+	return (NULL);
 }
 
 static const char *
@@ -114,6 +114,7 @@ main(int argc, char **argv, char **envp)
 {
 	struct stub *ep = NULL;
 	const char *basename = NULL;
+	char buf[MAXPATHLEN];
 
 	/*
 	 * Look at __progname first (this will be set if the crunched binary is
@@ -141,7 +142,6 @@ main(int argc, char **argv, char **envp)
 	 * try AT_EXECPATH to get the actual binary that was executed.
 	 */
 	if (ep == NULL) {
-		char buf[MAXPATHLEN];
 		int error = elf_aux_info(AT_EXECPATH, &buf, sizeof(buf));
 
 		if (error == 0) {

@@ -39,6 +39,7 @@
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/priority.h>
 #include <sys/seqc.h>
 #include <sys/sx.h>
@@ -92,12 +93,17 @@ struct pwd {
 };
 typedef SMR_POINTER(struct pwd *) smrpwd_t;
 
+struct pwddesc {
+	struct mtx	pd_lock;	/* protects members of this struct */
+	smrpwd_t	pd_pwd;		/* directories */
+	volatile u_int	pd_refcount;
+	u_short		pd_cmask;	/* mask for file creation */
+};
+
 struct filedesc {
 	struct	fdescenttbl *fd_files;	/* open files table */
-	smrpwd_t fd_pwd;		/* directories */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
 	int	fd_freefile;		/* approx. next free file */
-	u_short	fd_cmask;		/* mask for file creation */
 	int	fd_refcnt;		/* thread reference count */
 	int	fd_holdcnt;		/* hold count on structure + mutex */
 	struct	sx fd_sx;		/* protects members of this struct */
@@ -134,6 +140,28 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
+/* Lock a paths descriptor table. */
+#define	PWDDESC_LOCK(pdp)	(&(pdp)->pd_lock)
+#define	PWDDESC_LOCK_INIT(pdp) \
+    mtx_init(PWDDESC_LOCK(pdp), "pwddesc", NULL, MTX_DEF)
+#define	PWDDESC_LOCK_DESTROY(pdp)	mtx_destroy(PWDDESC_LOCK(pdp))
+#define	PWDDESC_XLOCK(pdp)	mtx_lock(PWDDESC_LOCK(pdp))
+#define	PWDDESC_XUNLOCK(pdp)	mtx_unlock(PWDDESC_LOCK(pdp))
+#define	PWDDESC_LOCK_ASSERT(pdp, what) \
+    mtx_assert(PWDDESC_LOCK(pdp), (what))
+#define	PWDDESC_ASSERT_XLOCKED(pdp) \
+    PWDDESC_LOCK_ASSERT((pdp), MA_OWNED)
+#define	PWDDESC_ASSERT_UNLOCKED(pdp) \
+    PWDDESC_LOCK_ASSERT((pdp), MA_NOTOWNED)
+
+#define	PWDDESC_XLOCKED_LOAD_PWD(pdp)	({					\
+	struct pwddesc *_pdp = (pdp);						\
+	struct pwd *_pwd;							\
+	_pwd = smr_serialized_load(&(_pdp)->pd_pwd,				\
+	    (PWDDESC_ASSERT_XLOCKED(_pdp), true));				\
+	_pwd;									\
+})
+
 /* Lock a file descriptor table. */
 #define	FILEDESC_LOCK_INIT(fdp)	sx_init(&(fdp)->fd_sx, "filedesc structure")
 #define	FILEDESC_LOCK_DESTROY(fdp)	sx_destroy(&(fdp)->fd_sx)
@@ -149,31 +177,20 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
 
-#define	FILEDESC_LOCKED_LOAD_PWD(fdp)	({					\
+#define	FILEDESC_IS_ONLY_USER(fdp)	({					\
 	struct filedesc *_fdp = (fdp);						\
-	struct pwd *_pwd;							\
-	_pwd = smr_serialized_load(&(_fdp)->fd_pwd,				\
-	    (FILEDESC_LOCK_ASSERT(_fdp), true));				\
-	_pwd;									\
+	MPASS(curproc->p_fd == _fdp);						\
+	(curproc->p_numthreads == 1 && refcount_load(&_fdp->fd_refcnt) == 1);	\
 })
-
-#define	FILEDESC_XLOCKED_LOAD_PWD(fdp)	({					\
-	struct filedesc *_fdp = (fdp);						\
-	struct pwd *_pwd;							\
-	_pwd = smr_serialized_load(&(_fdp)->fd_pwd,				\
-	    (FILEDESC_XLOCK_ASSERT(_fdp), true));				\
-	_pwd;									\
-})
-
 #else
 
 /*
  * Accessor for libkvm et al.
  */
-#define	FILEDESC_KVM_LOAD_PWD(fdp)	({					\
-	struct filedesc *_fdp = (fdp);						\
+#define	PWDDESC_KVM_LOAD_PWD(pdp)	({					\
+	struct pwddesc *_pdp = (pdp);						\
 	struct pwd *_pwd;							\
-	_pwd = smr_kvm_load(&(_fdp)->fd_pwd);					\
+	_pwd = smr_kvm_load(&(_pdp)->pd_pwd);					\
 	_pwd;									\
 })
 
@@ -212,14 +229,19 @@ void	filecaps_move(struct filecaps *src, struct filecaps *dst);
 void	filecaps_free(struct filecaps *fcaps);
 
 int	closef(struct file *fp, struct thread *td);
+void	closef_nothread(struct file *fp);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
 int	falloc_caps(struct thread *td, struct file **resultfp, int *resultfd,
 	    int flags, struct filecaps *fcaps);
-int	falloc_noinstall(struct thread *td, struct file **resultfp);
+void	falloc_abort(struct thread *td, struct file *fp);
+int	_falloc_noinstall(struct thread *td, struct file **resultfp, u_int n);
+#define	falloc_noinstall(td, resultfp) _falloc_noinstall(td, resultfp, 1)
 void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	    struct filecaps *fcaps);
 int	finstall(struct thread *td, struct file *fp, int *resultfd, int flags,
+	    struct filecaps *fcaps);
+int	finstall_refed(struct thread *td, struct file *fp, int *resultfd, int flags,
 	    struct filecaps *fcaps);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdallocn(struct thread *td, int minfd, int *fds, int n);
@@ -243,6 +265,8 @@ struct filedesc_to_leader *
 	    struct filedesc *fdp, struct proc *leader);
 int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
+int	getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
+	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
 int	fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
@@ -255,6 +279,13 @@ int	fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, seqc_t *seqp);
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp);
+/* Return a file pointer without a ref. FILEDESC_IS_ONLY_USER must be true.  */
+int	fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp);
+#define	fput_only_user(fdp, fp)	({					\
+	MPASS(FILEDESC_IS_ONLY_USER(fdp));				\
+	MPASS(refcount_load(&fp->f_count) > 0);				\
+})
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
@@ -296,23 +327,29 @@ fd_modified(struct filedesc *fdp, int fd, seqc_t seqc)
 #endif
 
 /* cdir/rdir/jdir manipulation functions. */
+struct pwddesc *pdcopy(struct pwddesc *pdp);
+void	pdescfree(struct thread *td);
+struct pwddesc *pdinit(struct pwddesc *pdp, bool keeplock);
+struct pwddesc *pdshare(struct pwddesc *pdp);
+void	pdunshare(struct thread *td);
+
 void	pwd_chdir(struct thread *td, struct vnode *vp);
 int	pwd_chroot(struct thread *td, struct vnode *vp);
+int	pwd_chroot_chdir(struct thread *td, struct vnode *vp);
 void	pwd_ensure_dirs(void);
 void	pwd_set_rootvnode(void);
 
-struct pwd *pwd_hold_filedesc(struct filedesc *fdp);
+struct pwd *pwd_hold_pwddesc(struct pwddesc *pdp);
 bool	pwd_hold_smr(struct pwd *pwd);
 struct pwd *pwd_hold(struct thread *td);
 void	pwd_drop(struct pwd *pwd);
 static inline void
-pwd_set(struct filedesc *fdp, struct pwd *newpwd)
+pwd_set(struct pwddesc *pdp, struct pwd *newpwd)
 {
-
-	smr_serialized_store(&fdp->fd_pwd, newpwd,
-	    (FILEDESC_XLOCK_ASSERT(fdp), true));
+	smr_serialized_store(&pdp->pd_pwd, newpwd,
+	    (PWDDESC_ASSERT_XLOCKED(pdp), true));
 }
-struct pwd *pwd_get_smr(void);
+#define	pwd_get_smr()	vfs_smr_entered_load(&curproc->p_pd->pd_pwd)
 
 #endif /* _KERNEL */
 

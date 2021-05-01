@@ -987,6 +987,8 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		m_freem(m);
 		return (ENOBUFS);
 	}
+
+	/* sorwakeup_locked () releases the lock internally. */
 	sorwakeup_locked(so);
 
 	return (error);
@@ -1025,12 +1027,17 @@ ngs_rcvdata(hook_p hook, item_p item)
 	addr->sg_data[addrlen] = '\0';
 
 	/* Try to tell the socket which hook it came in on. */
-	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)addr, m, NULL) == 0) {
+	SOCKBUF_LOCK(&so->so_rcv);
+	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)addr, m,
+	    NULL) == 0) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		m_freem(m);
 		TRAP_ERROR;
 		return (ENOBUFS);
 	}
-	sorwakeup(so);
+
+	/* sorwakeup_locked () releases the lock internally. */
+	sorwakeup_locked(so);
 	return (0);
 }
 

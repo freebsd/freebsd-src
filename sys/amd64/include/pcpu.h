@@ -76,7 +76,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
-	uint64_t	pc_pm_save_cnt;					\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];				\
@@ -89,7 +88,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint32_t pc_ibpb_set;						\
 	void	*pc_mds_buf;						\
 	void	*pc_mds_buf64;						\
-	uint32_t pc_pad[2];						\
+	uint32_t pc_pad[4];						\
 	uint8_t	pc_mds_tmp[64];						\
 	u_int 	pc_ipi_bitmap;						\
 	struct amd64tss pc_common_tss;					\
@@ -181,34 +180,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 } while (0)
 
 /*
- * Increments the value of the per-cpu counter name.  The implementation
- * must be atomic with respect to interrupts.
- */
-#define	__PCPU_INC(name) do {						\
-	CTASSERT(sizeof(__pcpu_type(name)) == 1 ||			\
-	    sizeof(__pcpu_type(name)) == 2 ||				\
-	    sizeof(__pcpu_type(name)) == 4 ||				\
-	    sizeof(__pcpu_type(name)) == 8);				\
-	if (sizeof(__pcpu_type(name)) == 1) {				\
-		__asm __volatile("incb %%gs:%0"				\
-		    : "=m" (*(__pcpu_type(name) *)(__pcpu_offset(name)))\
-		    : "m" (*(__pcpu_type(name) *)(__pcpu_offset(name))));\
-	} else if (sizeof(__pcpu_type(name)) == 2) {			\
-		__asm __volatile("incw %%gs:%0"				\
-		    : "=m" (*(__pcpu_type(name) *)(__pcpu_offset(name)))\
-		    : "m" (*(__pcpu_type(name) *)(__pcpu_offset(name))));\
-	} else if (sizeof(__pcpu_type(name)) == 4) {			\
-		__asm __volatile("incl %%gs:%0"				\
-		    : "=m" (*(__pcpu_type(name) *)(__pcpu_offset(name)))\
-		    : "m" (*(__pcpu_type(name) *)(__pcpu_offset(name))));\
-	} else if (sizeof(__pcpu_type(name)) == 8) {			\
-		__asm __volatile("incq %%gs:%0"				\
-		    : "=m" (*(__pcpu_type(name) *)(__pcpu_offset(name)))\
-		    : "m" (*(__pcpu_type(name) *)(__pcpu_offset(name))));\
-	}								\
-} while (0)
-
-/*
  * Sets the value of the per-cpu variable name to value val.
  */
 #define	__PCPU_SET(name, val) {						\
@@ -240,7 +211,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
-#define	PCPU_INC(member)	__PCPU_INC(pc_ ## member)
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 

@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/syscon/syscon.h>
 #include "clkdev_if.h"
 
+#include <arm/ti/ti_cpuid.h>
+
 #if 0
 #define DPRINTF(dev, msg...) device_printf(dev, msg)
 #else
@@ -146,6 +148,9 @@ static int
 ti_scm_syscon_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ti_soc_is_supported())
 		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)

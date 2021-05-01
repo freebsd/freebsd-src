@@ -26,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(__BIG_ENDIAN__)
-#error "Optimized SRTCPY is only supported by big-endian architecture!"
-#endif
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
@@ -71,6 +68,7 @@ ENTRY(__strcpy_arch_2_05)
 	beq	cr7,.Lcopy_dw_loop
 
 	addi	%r8,%r8,8   /* Forward r8 to use std instruction. */
+#if defined(__BIG_ENDIAN__)
 /* Find where the zero is located. */
 .Lcheck_zero:
 	rldicr.	%r5,%r0,0,7
@@ -136,6 +134,68 @@ ENTRY(__strcpy_arch_2_05)
 .Lfound_on_byte_0:
 	srdi	%r6,%r0,56
 	stb	%r6,0(%r8)
+#elif defined(__LITTLE_ENDIAN__)
+/* Find where the zero is located. */
+.Lcheck_zero:
+	andi.	%r7,%r0,0xff
+	beq	.Lfound_on_byte_0
+	andi.	%r7,%r0,0xff00
+	beq	.Lfound_on_byte_1
+	andis.	%r7,%r0,0xff
+	beq	.Lfound_on_byte_2
+	andis.	%r7,%r0,0xff00
+	beq	.Lfound_on_byte_3
+	rldicr.	%r7,%r0,24,7
+	beq	.Lfound_on_byte_4
+	rldicr.	%r7,%r0,16,7
+	beq	.Lfound_on_byte_5
+	rldicr.	%r7,%r0,8,7
+	beq	.Lfound_on_byte_6
+
+/* Copy the last string bytes according to the string end position. */
+.Lfound_on_byte_7:
+	std	%r0,0(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_6:
+	stw	%r0,0(%r8)
+	srdi	%r6,%r0,32
+	sth	%r6,4(%r8)
+	srdi	%r6,%r0,48
+	stb	%r6,6(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_5:
+	stw	%r0,0(%r8)
+	srdi	%r6,%r0,32
+	sth	%r6,4(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_4:
+	stw	%r0,0(%r8)
+	srdi	%r6,%r0,32
+	stb	%r6,4(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_3:
+	stw	%r0,0(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_2:
+	sth	%r0,0(%r8)
+	srdi	%r6,%r0,16
+	stb	%r6,2(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_1:
+	sth	%r0,0(%r8)
+	b	.Lexit
+
+.Lfound_on_byte_0:
+	stb	%r0,0(%r8)
+#else
+#error "Unable to determine Endianness"
+#endif
 .Lexit:
 	blr
 

@@ -1,4 +1,4 @@
-# $Id: unexport.mk,v 1.1.1.3 2020/08/08 22:34:25 sjg Exp $
+# $NetBSD: unexport.mk,v 1.5 2020/10/24 08:50:17 rillig Exp $
 
 # pick up a bunch of exported vars
 FILTER_CMD=	grep ^UT_
@@ -6,7 +6,7 @@ FILTER_CMD=	grep ^UT_
 
 .unexport UT_ZOO UT_FOO
 
-UT_TEST = unexport
+UT_TEST=	unexport
 
 # Until 2020-08-08, Var_UnExport had special handling for '\n', that code
 # was not reachable though.  At that point, backslash-newline has already

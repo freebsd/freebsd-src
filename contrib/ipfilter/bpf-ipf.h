@@ -420,25 +420,13 @@ struct bpf_insn {
  * Systems based on non-BSD kernels don't have ifnet's (or they don't mean
  * anything if it is in <net/if.h>) and won't work like this.
  */
-# if __STDC__
 extern void bpf_tap(struct ifnet *, u_char *, u_int);
 extern void bpf_mtap(struct ifnet *, struct mbuf *);
 extern void bpfattach(struct ifnet *, u_int, u_int);
 extern void bpfilterattach(int);
-# else
-extern void bpf_tap();
-extern void bpf_mtap();
-extern void bpfattach();
-extern void bpfilterattach();
-# endif /* __STDC__ */
 #endif /* BSD && (_KERNEL || KERNEL) */
-#if __STDC__ || defined(__cplusplus)
 extern int bpf_validate(struct bpf_insn *, int);
 extern u_int bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
-#else
-extern int bpf_validate();
-extern u_int bpf_filter();
-#endif
 
 /*
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).

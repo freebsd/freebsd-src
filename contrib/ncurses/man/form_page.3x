@@ -28,24 +28,24 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_page.3x,v 1.17 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_page.3x,v 1.19 2020/10/18 00:02:44 tom Exp $
 .TH form_page 3X ""
 .SH NAME
 \fBform_page\fR \- set and get form page number
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBint set_current_field(FORM *\fP\fIform\fP\fB, FIELD *\fP\fIfield\fP\fB);\fP
 .br
-int set_current_field(FORM *form, FIELD *field);
+\fBFIELD *current_field(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint unfocus_current_field(FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint set_form_page(FORM *\fP\fIform\fP\fB, int \fP\fIn\fP\fB);\fP
 .br
-FIELD *current_field(const FORM *);
-.br
-int unfocus_current_field(FORM *form);
-.br
-int set_form_page(FORM *form, int n);
-.br
-int form_page(const FORM *form);
-.br
-int field_index(const FIELD *field);
+\fBint form_page(const FORM *\fP\fIform\fP\fB);\fP
+.sp
+\fBint field_index(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBset_current_field\fR sets the current field of the given

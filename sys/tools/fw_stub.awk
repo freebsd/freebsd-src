@@ -143,7 +143,7 @@ if (opt_l) {
 
 for (file_i = 0; file_i < num_files; file_i++) {
 	symb = filenames[file_i];
-	# '-', '.' and '/' are converted to '_' by ld/objcopy
+	# '-', '.' and '/' are converted to '_'
 	gsub(/-|\.|\//, "_", symb);
 	printc("extern char _binary_" symb "_start[], _binary_" symb "_end[];");
 }
@@ -170,7 +170,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 	short = shortnames[file_i];
 	symb = filenames[file_i];
 	version = versions[file_i];
-	# '-', '.' and '/' are converted to '_' by ld/objcopy
+	# '-', '.' and '/' are converted to '_'
 	gsub(/-|\.|\//, "_", symb);
 
 	reg = "\t\tfp = ";

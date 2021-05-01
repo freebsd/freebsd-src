@@ -28,17 +28,17 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: mitem_name.3x,v 1.11 2020/02/02 23:34:34 tom Exp $
+.\" $Id: mitem_name.3x,v 1.14 2020/10/18 00:37:48 tom Exp $
 .TH mitem_name 3X ""
 .SH NAME
 \fBitem_name\fR,
 \fBitem_description\fR \- get menu item name and description fields
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
+.sp
+\fBconst char *item_name(const ITEM *\fP\fIitem\fP\fB);\fP
 .br
-const char *item_name(const ITEM *item);
-.br
-const char *item_description(const ITEM *item);
+\fBconst char *item_description(const ITEM *\fP\fIitem\fP\fB);\fP
 .br
 .SH DESCRIPTION
 The function \fBitem_name\fR returns the name part of the given item.
@@ -47,7 +47,7 @@ The function \fBitem_description\fR returns the description part of the given
 item.
 .SH RETURN VALUE
 These routines return a pointer (which may be \fBNULL\fR).
-They do not set errno.
+They do not set \fBerrno\fP.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).
 .SH NOTES

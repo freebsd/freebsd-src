@@ -199,6 +199,14 @@ toedev_alloc_tls_session(struct toedev *tod __unused, struct tcpcb *tp __unused,
 	return (EINVAL);
 }
 
+static void
+toedev_pmtu_update(struct toedev *tod __unused, struct tcpcb *tp __unused,
+    tcp_seq seq __unused, int mtu __unused)
+{
+
+	return;
+}
+
 /*
  * Inform one or more TOE devices about a listening socket.
  */
@@ -290,6 +298,7 @@ init_toedev(struct toedev *tod)
 	tod->tod_ctloutput = toedev_ctloutput;
 	tod->tod_tcp_info = toedev_tcp_info;
 	tod->tod_alloc_tls_session = toedev_alloc_tls_session;
+	tod->tod_pmtu_update = toedev_pmtu_update;
 }
 
 /*
@@ -348,11 +357,11 @@ void
 toe_syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, void *tod, void *todctx, uint8_t iptos)
 {
-	struct socket *lso = inp->inp_socket;
 
-	INP_WLOCK_ASSERT(inp);
+	INP_RLOCK_ASSERT(inp);
 
-	syncache_add(inc, to, th, inp, &lso, NULL, tod, todctx, iptos);
+	(void )syncache_add(inc, to, th, inp, inp->inp_socket, NULL, tod,
+	    todctx, iptos, htons(0));
 }
 
 int
@@ -362,7 +371,7 @@ toe_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
 
 	NET_EPOCH_ASSERT();
 
-	return (syncache_expand(inc, to, th, lsop, NULL));
+	return (syncache_expand(inc, to, th, lsop, NULL, htons(0)));
 }
 
 /*

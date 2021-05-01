@@ -57,8 +57,8 @@ _WITH_STRSVIS!=	grep -c strsvis ${HOST_INCLUDE_ROOT}/vis.h 2>/dev/null || true
 .PATH: ${.CURDIR}/../../contrib/libc-vis
 INCS+=		vis.h
 SRCS+=		vis.c unvis.c
-CFLAGS.vis.c+=	-I${.CURDIR}/../../contrib/libc-vis
-CFLAGS.unvis.c+=	-I${.CURDIR}/../../contrib/libc-vis
+CFLAGS.vis.c+=	-I${.CURDIR}/../../contrib/libc-vis -DHAVE_VIS=0 -DHAVE_SVIS=0
+CFLAGS.unvis.c+=	-I${.CURDIR}/../../contrib/libc-vis -DHAVE_VIS=0 -DHAVE_SVIS=0
 .endif
 
 _WITH_REALLOCARRAY!= grep -c reallocarray ${HOST_INCLUDE_ROOT}/stdlib.h || true
@@ -105,9 +105,6 @@ INCS+=		libcasper.h
 # not match.
 RPCINCS+=	${SRCTOP}/sys/rpc/types.h
 
-.if ${.MAKE.OS} != "FreeBSD"
-.PATH: ${.CURDIR}/cross-build
-
 INCS+=	${SRCTOP}/include/mpool.h
 INCS+=	${SRCTOP}/include/ndbm.h
 INCS+=	${SRCTOP}/include/err.h
@@ -143,6 +140,9 @@ INCS+=	${SRCTOP}/include/nlist.h
 SYSINCS+=	${SRCTOP}/sys/sys/imgact_aout.h
 SYSINCS+=	${SRCTOP}/sys/sys/nlist_aout.h
 
+
+.if ${.MAKE.OS} != "FreeBSD"
+.PATH: ${.CURDIR}/cross-build
 # dbopen() behaves differently on Linux and FreeBSD so we ensure that we
 # bootstrap the FreeBSD db code. The cross-build headers #define dbopen() to
 # __freebsd_dbopen() so that we don't ever use the host version
@@ -158,6 +158,9 @@ INCS+=	 ${SRCTOP}/include/getopt.h
 # getcap.c is needed for cap_mkdb:
 .PATH: ${LIBC_SRCTOP}/gen
 SRCS+=	getcap.c
+# Glibc does not provide all err*/warn* functions, and for macOS we need the
+# alias with the extra underscore.
+SRCS+=	err.c
 # Add various libbc functions that are not available in glibc:
 SRCS+=	stringlist.c setmode.c
 SRCS+=	strtonum.c merge.c heapsort.c reallocf.c
@@ -172,8 +175,10 @@ SRCS+=	strlcpy.c strlcat.c strmode.c
 SRCS+=	fgetln_fallback.c fgetwln_fallback.c closefrom.c
 CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 	-DHAVE_DIRFD -DHAVE_SYSCONF
-# Provide warnc/errc/getprogname/setprograme
-SRCS+=	err.c progname.c
+# Provide getprogname/setprograme
+SRCS+=	progname.c
+# Stub implementations of fflagstostr/strtofflags
+SRCS+=	fflags.c
 .endif
 # Provide the same arc4random implementation on Linux/macOS
 CFLAGS.arc4random.c+=	-I${SRCTOP}/sys/crypto/chacha20 -D__isthreaded=1
@@ -200,6 +205,7 @@ CLEANFILES+=	subr_capability.c
 .endif
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
+CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_net/cap_net.h
 
 .if empty(SRCS)
 SRCS=		dummy.c
@@ -269,7 +275,17 @@ _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 _make_abs!=	which "${MAKE}"
 _host_abs_tools_to_symlink=	${_make_abs}:make ${_make_abs}:bmake
 
-.if ${.MAKE.OS} != "FreeBSD"
+.if ${.MAKE.OS} == "FreeBSD"
+# When building on FreeBSD we always copy the host tools instead of linking
+# into WORLDTMP to avoid issues with incompatible libraries (see r364030).
+# Note: we could create links if we don't intend to update the current machine.
+_COPY_HOST_TOOL=cp -pf
+.else
+# However, this is not necessary on Linux/macOS. Additionally, copying the host
+# tools to another directory with cp -p results in freezes on macOS Big Sur for
+# some unknown reason. It can also break building inside docker containers if
+# there are ACLs on shared volumes.
+_COPY_HOST_TOOL=ln -sfn
 _make_abs!=	which "${MAKE}"
 _host_abs_tools_to_symlink+=	${_make_abs}:make ${_make_abs}:bmake
 .if ${.MAKE.OS} == "Darwin"
@@ -285,12 +301,13 @@ _host_tools_to_symlink:=${_host_tools_to_symlink:Nsh}
 host-symlinks:
 	@echo "Linking host tools into ${DESTDIR}/bin"
 .for _tool in ${_host_tools_to_symlink}
-	@export PATH=$${PATH}:/usr/local/bin; source_path=`which ${_tool}`; \
+	@export PATH=$${PATH}:/usr/local/bin; \
+	source_path=`which ${_tool} || echo /dev/null/no/such`; \
 	if [ ! -e "$${source_path}" ] ; then \
 		echo "Cannot find host tool '${_tool}' in PATH ($$PATH)." >&2; false; \
 	fi; \
 	rm -f "${DESTDIR}/bin/${_tool}"; \
-	cp -pf "$${source_path}" "${DESTDIR}/bin/${_tool}"
+	${_COPY_HOST_TOOL} "$${source_path}" "${DESTDIR}/bin/${_tool}"
 .endfor
 .for _tool in ${_host_abs_tools_to_symlink}
 	@source_path="${_tool:S/:/ /:[1]}"; \
@@ -299,11 +316,11 @@ host-symlinks:
 		echo "Host tool '${src_path}' is missing"; false; \
 	fi; \
 	rm -f "$${target_path}"; \
-	cp -pf "$${source_path}" "$${target_path}"
+	${_COPY_HOST_TOOL} "$${source_path}" "$${target_path}"
 .endfor
 .if exists(/usr/libexec/flua)
 	rm -f ${DESTDIR}/usr/libexec/flua
-	cp -pf /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
+	${_COPY_HOST_TOOL} /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
 .endif
 
 # Create all the directories that are needed during the legacy, bootstrap-tools

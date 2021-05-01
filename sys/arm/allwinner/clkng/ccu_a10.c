@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/clkng/aw_ccung.h>
 
-#include <gnu/dts/include/dt-bindings/clock/sun4i-a10-ccu.h>
-#include <gnu/dts/include/dt-bindings/clock/sun7i-a20-ccu.h>
-#include <gnu/dts/include/dt-bindings/reset/sun4i-a10-ccu.h>
+#include <dt-bindings/clock/sun4i-a10-ccu.h>
+#include <dt-bindings/clock/sun7i-a20-ccu.h>
+#include <dt-bindings/reset/sun4i-a10-ccu.h>
 
 /* Non-exported resets */
 /* Non-exported clocks */

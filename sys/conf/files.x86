@@ -20,39 +20,33 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-compat/ndis/kern_ndis.c		optional ndisapi pci
-compat/ndis/kern_windrv.c	optional ndisapi pci
-compat/ndis/subr_hal.c		optional ndisapi pci
-compat/ndis/subr_ndis.c		optional ndisapi pci
-compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
-compat/ndis/subr_pe.c		optional ndisapi pci
-compat/ndis/subr_usbd.c		optional ndisapi pci
 crypto/aesni/aesni.c		optional aesni
 aesni_ghash.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_ghash.o"
 aesni_ccm.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_ccm.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_ccm.o"
 aesni_wrap.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 intel_sha1.o			optional	aesni			\
 	dependency	"$S/crypto/aesni/intel_sha1.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"intel_sha1.o"
 intel_sha256.o			optional	aesni			\
 	dependency	"$S/crypto/aesni/intel_sha256.c"		\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"intel_sha256.o"
+crypto/openssl/ossl_x86.c	optional ossl
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
@@ -94,39 +88,26 @@ dev/fb/vga.c			optional	vga
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
-dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/gpio/bytgpio.c		optional	bytgpio
 dev/gpio/chvgpio.c		optional	chvgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
-hpt27xx_lib.o			optional	hpt27xx			\
-	dependency	"$S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu"	\
-	compile-with	"uudecode < $S/dev/hpt27xx/$M-elf.hpt27xx_lib.o.uu" \
-	no-implicit-rule
+dev/hpt27xx/$M-elf.hpt27xx_lib.o optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
 dev/hptmv/gui_lib.c		optional	hptmv
 dev/hptmv/hptproc.c		optional	hptmv
 dev/hptmv/ioctl.c		optional	hptmv
-hptmvraid.o			optional	hptmv			\
-	dependency	"$S/dev/hptmv/$M-elf.raid.o.uu"			\
-	compile-with	"uudecode < $S/dev/hptmv/$M-elf.raid.o.uu"	\
-	no-implicit-rule
+dev/hptmv/$M-elf.hptmvraid.o	optional	hptmv
 dev/hptnr/hptnr_os_bsd.c	optional	hptnr
 dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
 dev/hptnr/hptnr_config.c	optional	hptnr
-hptnr_lib.o			optional	hptnr			\
-	dependency	"$S/dev/hptnr/$M-elf.hptnr_lib.o.uu"		\
-	compile-with	"uudecode < $S/dev/hptnr/$M-elf.hptnr_lib.o.uu" \
-	no-implicit-rule
+dev/hptnr/$M-elf.hptnr_lib.o	optional	hptnr
 dev/hptrr/hptrr_os_bsd.c	optional	hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
-hptrr_lib.o			optional	hptrr			\
-	dependency	"$S/dev/hptrr/$M-elf.hptrr_lib.o.uu"		\
-	compile-with	"uudecode < $S/dev/hptrr/$M-elf.hptrr_lib.o.uu" \
-	no-implicit-rule
+dev/hptrr/$M-elf.hptrr_lib.o	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
@@ -157,10 +138,6 @@ dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
 dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/ichwd/ichwd.c		optional	ichwd
-dev/if_ndis/if_ndis.c		optional	ndis
-dev/if_ndis/if_ndis_pccard.c	optional	ndis pccard
-dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
-dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
 dev/intel/spi.c			optional	intelspi
@@ -287,6 +264,15 @@ dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
 dev/itwd/itwd.c							optional itwd
+dev/qat/qat.c			optional qat
+dev/qat/qat_ae.c		optional qat
+dev/qat/qat_c2xxx.c		optional qat
+dev/qat/qat_c3xxx.c		optional qat
+dev/qat/qat_c62x.c		optional qat
+dev/qat/qat_d15xx.c		optional qat
+dev/qat/qat_dh895xcc.c		optional qat
+dev/qat/qat_hw15.c		optional qat
+dev/qat/qat_hw17.c		optional qat
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures
@@ -295,7 +281,6 @@ x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/acpi_apm.c		optional	acpi
 x86/acpica/acpi_wakeup.c	optional	acpi
 x86/acpica/srat.c		optional	acpi
-x86/bios/smbios.c		optional	smbios
 x86/bios/vpd.c			optional	vpd
 x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate_amd.c	optional	cpufreq
@@ -323,6 +308,7 @@ x86/x86/bus_machdep.c		standard
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/cpu_machdep.c		standard
+x86/x86/dbreg.c			optional	ddb | gdb
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional	fdt
 x86/x86/identcpu.c		standard

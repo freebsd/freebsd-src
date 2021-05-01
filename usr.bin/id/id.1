@@ -136,7 +136,43 @@ Display the effective user ID as a number.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show information for the user
+.Ql bob
+as a password file entry:
+.Bd -literal -offset indent
+$ id -P bob
+bob:*:0:0::0:0:Robert:/bob:/usr/local/bin/bash
+.Ed
+.Pp
+Same output as
+.Xr groups 1 for the root user:
+.Bd -literal -offset indent
+$ id -Gn root
+wheel operator
+.Ed
+.Pp
+Show human readable information about
+.Ql alice :
+.Bd -literal -offset indent
+$ id -p alice
+uid     alice
+groups  alice webcamd vboxusers
+.Ed
+.Pp
+Assuming the user
+.Ql bob
+executed
+.Dq Nm su Fl l
+to simulate a root login, compare the result of the following commands:
+.Bd -literal -offset indent
+# id -un
+root
+# who am i
+bob          pts/5        Dec  4 19:51
+.Ed
 .Sh SEE ALSO
+.Xr groups 1 ,
 .Xr who 1
 .Sh STANDARDS
 The

@@ -47,12 +47,10 @@
 #define isb()  __asm __volatile("isb" : : : "memory")
 #define dsb()  __asm __volatile("dsb" : : : "memory")
 #define dmb()  __asm __volatile("dmb" : : : "memory")
-#elif __ARM_ARCH >= 6
+#else
 #define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
 #define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 #define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
-#else
-#error Only use this file with ARMv6 and later
 #endif
 
 #define mb()   dmb()
@@ -883,7 +881,7 @@ atomic_testandclear_32(volatile uint32_t *ptr, u_int bit)
 	      [oldv] "=&r"   (oldv),
 	      [newv] "=&r"   (newv)
 	    : [ptr]  "r"     (ptr),
-	             "[bit]" (bit)
+	             "[bit]" (bit & 0x1f)
 	    : "cc", "ip", "memory");
 
 	return (result);
@@ -903,6 +901,22 @@ atomic_testandclear_long(volatile u_long *p, u_int v)
 	return (atomic_testandclear_32((volatile uint32_t *)p, v));
 }
 #define	atomic_testandclear_long	atomic_testandclear_long
+
+
+static __inline int
+atomic_testandclear_64(volatile uint64_t *p, u_int v)
+{
+	volatile uint32_t *p32;
+
+	p32 = (volatile uint32_t *)p;
+	/*
+	 * Assume little-endian,
+	 * atomic_testandclear_32() uses only last 5 bits of v
+	 */
+	if ((v & 0x20) != 0)
+		p32++;
+	return (atomic_testandclear_32(p32, v));
+}
 
 static __inline int
 atomic_testandset_32(volatile uint32_t *ptr, u_int bit)
@@ -927,7 +941,7 @@ atomic_testandset_32(volatile uint32_t *ptr, u_int bit)
 	      [oldv] "=&r"   (oldv),
 	      [newv] "=&r"   (newv)
 	    : [ptr]  "r"     (ptr),
-	             "[bit]" (bit)
+	             "[bit]" (bit & 0x1f)
 	    : "cc", "ip", "memory");
 
 	return (result);
@@ -954,11 +968,12 @@ atomic_testandset_64(volatile uint64_t *p, u_int v)
 	volatile uint32_t *p32;
 
 	p32 = (volatile uint32_t *)p;
-	/* Assume little-endian */
-	if (v >= 32) {
-		v &= 0x1f;
+	/*
+	 * Assume little-endian,
+	 * atomic_testandset_32() uses only last 5 bits of v
+	 */
+	if ((v & 0x20) != 0)
 		p32++;
-	}
 	return (atomic_testandset_32(p32, v));
 }
 

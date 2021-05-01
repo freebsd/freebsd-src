@@ -299,7 +299,7 @@ fq_update_stats(struct fq_pie_flow *q, struct fq_pie_si *si, int len,
 		si->main_q.ni.drops ++;
 		q->stats.drops ++;
 		si->_si.ni.drops ++;
-		io_pkt_drop ++;
+		dn_cfg.io_pkt_drop ++;
 	} 
 
 	if (!drop || (drop && len < 0)) {

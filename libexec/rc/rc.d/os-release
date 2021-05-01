@@ -13,6 +13,7 @@
 : ${osrelease_perms:=444}
 name="osrelease"
 desc="Update ${osrelease_file}"
+rcvar="osrelease_enable"
 start_cmd="osrelease_start"
 stop_cmd=":"
 

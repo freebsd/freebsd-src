@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: tmp
-# REQUIRE: mountcritremote
+# REQUIRE: mountcritlocal
 
 . /etc/rc.subr
 
@@ -40,10 +40,16 @@ load_rc_config $name
 
 mount_tmpmfs()
 {
-	if ! /bin/df /tmp | grep -q "^/dev/md[0-9].* /tmp"; then
-		mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
-		chmod 01777 /tmp
-	fi
+	while read line; do
+		case $line in
+		/dev/md[0-9]*\ /tmp)
+			return;;
+		esac
+	done <<*EOF
+$(df /tmp)
+*EOF
+	mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
+	chmod 01777 /tmp
 }
 
 # If we do not have a writable /tmp, create a memory
@@ -52,7 +58,8 @@ mount_tmpmfs()
 #
 case "${tmpmfs}" in
 [Aa][Uu][Tt][Oo])
-	if _tmpdir=$(mktemp -d -q /tmp/.diskless.XXXXXX); then
+	_tmpdir=/tmp/.diskless.$(dd if=/dev/random bs=32 count=1 status=none | sha256)
+	if mkdir -m 0700 ${_tmpdir}; then
 		rmdir ${_tmpdir}
 	else
 		if [ -h /tmp ]; then

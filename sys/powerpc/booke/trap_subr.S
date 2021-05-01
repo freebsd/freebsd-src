@@ -1097,6 +1097,7 @@ dbtrap:
 dbleave:
 	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
 	rfi
+ASEND(breakpoint)
 #endif /* KDB */
 
 #ifdef SMP
@@ -1111,6 +1112,7 @@ ENTRY(tlb_lock)
 	isync
 	msync
 	blr
+END(tlb_lock)
 
 ENTRY(tlb_unlock)
 	isync
@@ -1120,6 +1122,7 @@ ENTRY(tlb_unlock)
 	isync
 	msync
 	blr
+END(tlb_unlock)
 
 /*
  * TLB miss spin locks. For each CPU we have a reservation granule (32 bytes);

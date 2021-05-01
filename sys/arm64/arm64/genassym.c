@@ -45,6 +45,7 @@ ASSYM(BP_KERN_L1PT, offsetof(struct arm64_bootparams, kern_l1pt));
 ASSYM(BP_KERN_DELTA, offsetof(struct arm64_bootparams, kern_delta));
 ASSYM(BP_KERN_STACK, offsetof(struct arm64_bootparams, kern_stack));
 ASSYM(BP_KERN_L0PT, offsetof(struct arm64_bootparams, kern_l0pt));
+ASSYM(BP_KERN_TTBR0, offsetof(struct arm64_bootparams, kern_ttbr0));
 ASSYM(BP_BOOT_EL, offsetof(struct arm64_bootparams, boot_el));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
@@ -59,6 +60,7 @@ ASSYM(PC_SSBD, offsetof(struct pcpu, pc_ssbd));
 ASSYM(PCB_SIZE, roundup2(sizeof(struct pcb), STACKALIGNBYTES + 1));
 ASSYM(PCB_SINGLE_STEP_SHIFT, PCB_SINGLE_STEP_SHIFT);
 ASSYM(PCB_REGS, offsetof(struct pcb, pcb_x));
+ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_TPIDRRO, offsetof(struct pcb, pcb_tpidrro_el0));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));

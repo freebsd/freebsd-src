@@ -327,8 +327,6 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_driver_version = bnxt_driver_version,
 };
 
-if_shared_ctx_t bnxt_sctx = &bnxt_sctx_init;
-
 /*
  * Device Methods
  */
@@ -336,7 +334,7 @@ if_shared_ctx_t bnxt_sctx = &bnxt_sctx_init;
 static void *
 bnxt_register(device_t dev)
 {
-	return bnxt_sctx;
+	return (&bnxt_sctx_init);
 }
 
 /*
@@ -1534,7 +1532,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_cp_rings[i].irq,
-		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RX,
+		    softc->rx_cp_rings[i].ring.id + 1, IFLIB_INTR_RXTX,
 		    bnxt_handle_rx_cp, &softc->rx_cp_rings[i], i, irq_name);
 		if (rc) {
 			device_printf(iflib_get_dev(ctx),

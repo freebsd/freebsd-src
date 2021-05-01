@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2020, Intel Corporation
+/*  Copyright (c) 2021, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -265,7 +265,7 @@ ice_aq_get_link_topo_handle(struct ice_port_info *pi, u8 node_type,
 	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
 }
 
-/*
+/**
  * ice_is_media_cage_present
  * @pi: port information structure
  *
@@ -704,13 +704,14 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
 void ice_print_rollback_msg(struct ice_hw *hw)
 {
 	char nvm_str[ICE_NVM_VER_LEN] = { 0 };
-	struct ice_nvm_info *nvm = &hw->nvm;
 	struct ice_orom_info *orom;
+	struct ice_nvm_info *nvm;
 
-	orom = &nvm->orom;
+	orom = &hw->flash.orom;
+	nvm = &hw->flash.nvm;
 
 	SNPRINTF(nvm_str, sizeof(nvm_str), "%x.%02x 0x%x %d.%d.%d",
-		 nvm->major_ver, nvm->minor_ver, nvm->eetrack, orom->major,
+		 nvm->major, nvm->minor, nvm->eetrack, orom->major,
 		 orom->build, orom->patch);
 	ice_warn(hw,
 		 "Firmware rollback mode detected. Current version is NVM: %s, FW: %d.%d. Device may exhibit limited functionality. Refer to the Intel(R) Ethernet Adapters and Devices User Guide for details on firmware rollback mode\n",
@@ -805,8 +806,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 				     ICE_AQC_REPORT_TOPO_CAP, pcaps, NULL);
 	ice_free(hw, pcaps);
 	if (status)
-		ice_debug(hw, ICE_DBG_PHY, "%s: Get PHY capabilities failed, continuing anyway\n",
-			  __func__);
+		ice_debug(hw, ICE_DBG_PHY, "Get PHY capabilities failed, continuing anyway\n");
 
 	/* Initialize port_info struct with link information */
 	status = ice_aq_get_link_info(hw->port_info, false, NULL, NULL);
@@ -850,6 +850,9 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 	ice_init_lock(&hw->tnl_lock);
+
+	ice_init_vlan_mode_ops(hw);
+
 	return ICE_SUCCESS;
 
 err_unroll_fltr_mgmt_struct:
@@ -1701,7 +1704,7 @@ ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
 	if (!buf)
 		return ICE_ERR_PARAM;
 
-	if (buf_size < (num_entries * sizeof(buf->elem[0])))
+	if (buf_size < FLEX_ARRAY_SIZE(buf, elem, num_entries))
 		return ICE_ERR_PARAM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
@@ -1982,6 +1985,16 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 	case ICE_AQC_CAPS_NVM_VER:
 		break;
 	case ICE_AQC_CAPS_NVM_MGMT:
+		caps->sec_rev_disabled =
+			(number & ICE_NVM_MGMT_SEC_REV_DISABLED) ?
+			true : false;
+		ice_debug(hw, ICE_DBG_INIT, "%s: sec_rev_disabled = %d\n", prefix,
+			  caps->sec_rev_disabled);
+		caps->update_disabled =
+			(number & ICE_NVM_MGMT_UPDATE_DISABLED) ?
+			true : false;
+		ice_debug(hw, ICE_DBG_INIT, "%s: update_disabled = %d\n", prefix,
+			  caps->update_disabled);
 		caps->nvm_unified_update =
 			(number & ICE_NVM_MGMT_UNIFIED_UPD_SUPPORT) ?
 			true : false;
@@ -2389,26 +2402,25 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 {
 	struct ice_hw_func_caps *func_caps = &hw->func_caps;
 	struct ice_hw_dev_caps *dev_caps = &hw->dev_caps;
-	u32 valid_func, rxq_first_id, txq_first_id;
-	u32 msix_vector_first_id, max_mtu;
+	struct ice_hw_common_caps cached_caps;
 	u32 num_funcs;
 
 	/* cache some func_caps values that should be restored after memset */
-	valid_func = func_caps->common_cap.valid_functions;
-	txq_first_id = func_caps->common_cap.txq_first_id;
-	rxq_first_id = func_caps->common_cap.rxq_first_id;
-	msix_vector_first_id = func_caps->common_cap.msix_vector_first_id;
-	max_mtu = func_caps->common_cap.max_mtu;
+	cached_caps = func_caps->common_cap;
 
 	/* unset func capabilities */
 	memset(func_caps, 0, sizeof(*func_caps));
 
+#define ICE_RESTORE_FUNC_CAP(name) \
+	func_caps->common_cap.name = cached_caps.name
+
 	/* restore cached values */
-	func_caps->common_cap.valid_functions = valid_func;
-	func_caps->common_cap.txq_first_id = txq_first_id;
-	func_caps->common_cap.rxq_first_id = rxq_first_id;
-	func_caps->common_cap.msix_vector_first_id = msix_vector_first_id;
-	func_caps->common_cap.max_mtu = max_mtu;
+	ICE_RESTORE_FUNC_CAP(valid_functions);
+	ICE_RESTORE_FUNC_CAP(txq_first_id);
+	ICE_RESTORE_FUNC_CAP(rxq_first_id);
+	ICE_RESTORE_FUNC_CAP(msix_vector_first_id);
+	ICE_RESTORE_FUNC_CAP(max_mtu);
+	ICE_RESTORE_FUNC_CAP(nvm_unified_update);
 
 	/* one Tx and one Rx queue in safe mode */
 	func_caps->common_cap.num_rxq = 1;
@@ -2419,22 +2431,22 @@ void ice_set_safe_mode_caps(struct ice_hw *hw)
 	func_caps->guar_num_vsi = 1;
 
 	/* cache some dev_caps values that should be restored after memset */
-	valid_func = dev_caps->common_cap.valid_functions;
-	txq_first_id = dev_caps->common_cap.txq_first_id;
-	rxq_first_id = dev_caps->common_cap.rxq_first_id;
-	msix_vector_first_id = dev_caps->common_cap.msix_vector_first_id;
-	max_mtu = dev_caps->common_cap.max_mtu;
+	cached_caps = dev_caps->common_cap;
 	num_funcs = dev_caps->num_funcs;
 
 	/* unset dev capabilities */
 	memset(dev_caps, 0, sizeof(*dev_caps));
 
+#define ICE_RESTORE_DEV_CAP(name) \
+	dev_caps->common_cap.name = cached_caps.name
+
 	/* restore cached values */
-	dev_caps->common_cap.valid_functions = valid_func;
-	dev_caps->common_cap.txq_first_id = txq_first_id;
-	dev_caps->common_cap.rxq_first_id = rxq_first_id;
-	dev_caps->common_cap.msix_vector_first_id = msix_vector_first_id;
-	dev_caps->common_cap.max_mtu = max_mtu;
+	ICE_RESTORE_DEV_CAP(valid_functions);
+	ICE_RESTORE_DEV_CAP(txq_first_id);
+	ICE_RESTORE_DEV_CAP(rxq_first_id);
+	ICE_RESTORE_DEV_CAP(msix_vector_first_id);
+	ICE_RESTORE_DEV_CAP(max_mtu);
+	ICE_RESTORE_DEV_CAP(nvm_unified_update);
 	dev_caps->num_funcs = num_funcs;
 
 	/* one Tx and one Rx queue per function in safe mode */
@@ -2480,7 +2492,7 @@ ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_write);
 
 	cmd->flags = flags;
-	ice_memcpy(cmd->mac_addr, mac_addr, ETH_ALEN, ICE_NONDMA_TO_DMA);
+	ice_memcpy(cmd->mac_addr, mac_addr, ETH_ALEN, ICE_NONDMA_TO_NONDMA);
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
@@ -2815,6 +2827,11 @@ enum ice_status ice_update_link_info(struct ice_port_info *pi)
 
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
 					     pcaps, NULL);
+
+		if (status == ICE_SUCCESS)
+			ice_memcpy(li->module_type, &pcaps->module_type,
+				   sizeof(li->module_type),
+				   ICE_NONDMA_TO_NONDMA);
 
 		ice_free(hw, pcaps);
 	}
@@ -3379,7 +3396,7 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_sff_eeprom);
 	cmd = &desc.params.read_write_sff_param;
-	desc.flags = CPU_TO_LE16(ICE_AQ_FLAG_RD | ICE_AQ_FLAG_BUF);
+	desc.flags = CPU_TO_LE16(ICE_AQ_FLAG_RD);
 	cmd->lport_num = (u8)(lport & 0xff);
 	cmd->lport_num_valid = (u8)((lport >> 8) & 0x01);
 	cmd->i2c_bus_addr = CPU_TO_LE16(((bus_addr >> 1) &
@@ -3399,23 +3416,33 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 /**
  * __ice_aq_get_set_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_id: VSI FW index
- * @lut_type: LUT table type
- * @lut: pointer to the LUT buffer provided by the caller
- * @lut_size: size of the LUT buffer
- * @glob_lut_idx: global LUT index
+ * @params: RSS LUT parameters
  * @set: set true to set the table, false to get the table
  *
  * Internal function to get (0x0B05) or set (0x0B03) RSS look up table
  */
 static enum ice_status
-__ice_aq_get_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
-			 u16 lut_size, u8 glob_lut_idx, bool set)
+__ice_aq_get_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *params, bool set)
 {
+	u16 flags = 0, vsi_id, lut_type, lut_size, glob_lut_idx, vsi_handle;
 	struct ice_aqc_get_set_rss_lut *cmd_resp;
 	struct ice_aq_desc desc;
 	enum ice_status status;
-	u16 flags = 0;
+	u8 *lut;
+
+	if (!params)
+		return ICE_ERR_PARAM;
+
+	vsi_handle = params->vsi_handle;
+	lut = params->lut;
+
+	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
+		return ICE_ERR_PARAM;
+
+	lut_size = params->lut_size;
+	lut_type = params->lut_type;
+	glob_lut_idx = params->global_lut_id;
+	vsi_id = ice_get_hw_vsi_num(hw, vsi_handle);
 
 	cmd_resp = &desc.params.get_set_rss_lut;
 
@@ -3492,43 +3519,27 @@ ice_aq_get_set_rss_lut_exit:
 /**
  * ice_aq_get_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_handle: software VSI handle
- * @lut_type: LUT table type
- * @lut: pointer to the LUT buffer provided by the caller
- * @lut_size: size of the LUT buffer
+ * @get_params: RSS LUT parameters used to specify which RSS LUT to get
  *
  * get the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
-		   u8 *lut, u16 lut_size)
+ice_aq_get_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *get_params)
 {
-	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
-		return ICE_ERR_PARAM;
-
-	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
-					lut_type, lut, lut_size, 0, false);
+	return __ice_aq_get_set_rss_lut(hw, get_params, false);
 }
 
 /**
  * ice_aq_set_rss_lut
  * @hw: pointer to the hardware structure
- * @vsi_handle: software VSI handle
- * @lut_type: LUT table type
- * @lut: pointer to the LUT buffer provided by the caller
- * @lut_size: size of the LUT buffer
+ * @set_params: RSS LUT parameters used to specify how to set the RSS LUT
  *
  * set the RSS lookup table, PF or VSI type
  */
 enum ice_status
-ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_handle, u8 lut_type,
-		   u8 *lut, u16 lut_size)
+ice_aq_set_rss_lut(struct ice_hw *hw, struct ice_aq_get_set_rss_lut_params *set_params)
 {
-	if (!ice_is_vsi_valid(hw, vsi_handle) || !lut)
-		return ICE_ERR_PARAM;
-
-	return __ice_aq_get_set_rss_lut(hw, ice_get_hw_vsi_num(hw, vsi_handle),
-					lut_type, lut, lut_size, 0, true);
+	return __ice_aq_get_set_rss_lut(hw, set_params, true);
 }
 
 /**

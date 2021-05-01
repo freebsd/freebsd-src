@@ -65,7 +65,7 @@ void		 stack_ktr(u_int, const char *, int, const struct stack *,
 #define	CTRSTACK(m, st, depth) do {					\
 	if (KTR_COMPILE & (m))						\
 		stack_ktr((m), __FILE__, __LINE__, st, depth);		\
-	} while(0)
+	} while (0)
 #else
 #define	CTRSTACK(m, st, depth)
 #endif

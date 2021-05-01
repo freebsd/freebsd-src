@@ -120,7 +120,7 @@ static const char * reg_names[] = { "rev", "sysc", "syss" };
 #define REG_MAX		3
 
 /* master idle / slave idle mode defined in 8.1.3.2.1 / 8.1.3.2.2 */
-#include <gnu/dts/include/dt-bindings/bus/ti-sysc.h>
+#include <dt-bindings/bus/ti-sysc.h>
 #define SYSC_IDLE_MAX		4
 
 struct sysc_reg {

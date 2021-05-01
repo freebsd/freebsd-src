@@ -207,7 +207,7 @@ script_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 }
 
 static int
-script_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits __unused)
+script_limit(const nvlist_t *oldlimits, const nvlist_t *newlimits)
 {
 	const char *name;
 	void *cookie;

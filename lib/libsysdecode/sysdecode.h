@@ -121,6 +121,7 @@ const char *sysdecode_sysarch_number(int _number);
 bool	sysdecode_thr_create_flags(FILE *_fp, int _flags, int *_rem);
 bool	sysdecode_umtx_cvwait_flags(FILE *_fp, u_long _flags, u_long *_rem);
 const char *sysdecode_umtx_op(int _op);
+bool	sysdecode_umtx_op_flags(FILE *_fp, int op, int *_rem);
 bool	sysdecode_umtx_rwlock_flags(FILE *_fp, u_long _flags, u_long *_rem);
 int	sysdecode_utrace(FILE *_fp, void *_buf, size_t _len);
 bool	sysdecode_vmprot(FILE *_fp, int _type, int *_rem);

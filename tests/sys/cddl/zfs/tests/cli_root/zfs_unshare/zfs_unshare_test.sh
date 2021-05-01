@@ -30,7 +30,7 @@ atf_test_case zfs_unshare_001_pos cleanup
 zfs_unshare_001_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs unshare [-a] <filesystem|mountpoint>' succeeds as root."
-	atf_set "require.progs"  zfs unshare svcs
+	atf_set "require.progs" "ksh93 zfs unshare svcs"
 }
 zfs_unshare_001_pos_body()
 {
@@ -53,7 +53,7 @@ atf_test_case zfs_unshare_002_pos cleanup
 zfs_unshare_002_pos_head()
 {
 	atf_set "descr" "Verify that 'zfs unshare [-a]' is aware of legacy share."
-	atf_set "require.progs"  zfs unshare share svcs
+	atf_set "require.progs" "ksh93 zfs unshare share svcs"
 }
 zfs_unshare_002_pos_body()
 {
@@ -76,7 +76,7 @@ atf_test_case zfs_unshare_003_pos cleanup
 zfs_unshare_003_pos_head()
 {
 	atf_set "descr" "Verify that a file system and its dependent are unshared."
-	atf_set "require.progs"  zfs unshare svcs
+	atf_set "require.progs" "ksh93 zfs unshare svcs"
 }
 zfs_unshare_003_pos_body()
 {
@@ -99,7 +99,7 @@ atf_test_case zfs_unshare_004_neg cleanup
 zfs_unshare_004_neg_head()
 {
 	atf_set "descr" "Verify that '$ZFS unshare' issue error message with badly formed parameter."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" "ksh93 zfs svcs"
 }
 zfs_unshare_004_neg_body()
 {
@@ -122,7 +122,7 @@ atf_test_case zfs_unshare_005_neg cleanup
 zfs_unshare_005_neg_head()
 {
 	atf_set "descr" "Verify that unsharing a dataset other than filesystem fails."
-	atf_set "require.progs"  zfs svcs
+	atf_set "require.progs" "ksh93 zfs svcs"
 }
 zfs_unshare_005_neg_body()
 {

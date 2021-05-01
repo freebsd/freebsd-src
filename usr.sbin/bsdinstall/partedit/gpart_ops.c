@@ -223,8 +223,6 @@ choose_part_type(const char *def_scheme)
 		    "Bootable on most x86 systems and EFI aware ARM64", 0 },
 		{"MBR", "DOS Partitions",
 		    "Bootable on most x86 systems", 0 },
-		{"VTOC8", "Sun VTOC8 Partition Table",
-		    "Bootable on Sun SPARC systems", 0 },
 	};
 
 parttypemenu:
@@ -709,26 +707,11 @@ set_default_part_metadata(const char *name, const char *scheme,
 	if (strcmp(type, "freebsd-swap") == 0)
 		mountpoint = "none";
 	if (strcmp(type, bootpart_type(scheme, &default_bootmount)) == 0) {
-		if (default_bootmount == NULL) {
-
-			int fd = openat(tmpdfd, "bsdinstall-esps",
-			    O_CREAT | O_WRONLY | O_APPEND, 0600);
-			if (fd > 0) {
-				write(fd, md->name, strlen(md->name));
-				write(fd, "\n", 1);
-				close(fd);
-			}
-
+		if (default_bootmount == NULL)
 			md->bootcode = 1;
-		}
 		else if (mountpoint == NULL || strlen(mountpoint) == 0)
 			mountpoint = default_bootmount;
 	}
-
-	/* VTOC8 needs partcode at the start of partitions */
-	if (strcmp(scheme, "VTOC8") == 0 && (strcmp(type, "freebsd-ufs") == 0
-	    || strcmp(type, "freebsd-zfs") == 0))
-		md->bootcode = 1;
 
 	if (mountpoint == NULL || mountpoint[0] == '\0') {
 		if (md->fstab != NULL) {

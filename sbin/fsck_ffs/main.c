@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-int	restarts;
+static int	restarts;
 
 static void usage(void) __dead2;
 static intmax_t argtoimax(int flag, const char *req, const char *str, int base);
@@ -243,7 +243,6 @@ checkfilesys(char *filesys)
 	char errmsg[255];
 	int ofsmodified;
 	int iovlen;
-	int cylno;
 	intmax_t blks, files;
 	size_t size;
 
@@ -296,7 +295,12 @@ checkfilesys(char *filesys)
 		 */
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
-		close(fsreadfd);
+		if (nflag || (fswritefd = open(filesys, O_WRONLY)) < 0) {
+			fswritefd = -1;
+			if (preen)
+				pfatal("NO WRITE ACCESS");
+			printf(" (NO WRITE)");
+		}
 		if ((sblock.fs_flags & FS_GJOURNAL) != 0) {
 			//printf("GJournaled file system detected on %s.\n",
 			//    filesys);
@@ -312,6 +316,8 @@ checkfilesys(char *filesys)
 			} else {
 				pfatal(
 			    "UNEXPECTED INCONSISTENCY, CANNOT RUN FAST FSCK\n");
+				close(fsreadfd);
+				close(fswritefd);
 			}
 		}
 	}
@@ -424,12 +430,14 @@ checkfilesys(char *filesys)
 	 */
 	if ((sblock.fs_flags & FS_SUJ) == FS_SUJ) {
 		if ((sblock.fs_flags & FS_NEEDSFSCK) != FS_NEEDSFSCK && skipclean) {
+			sujrecovery = 1;
 			if (suj_check(filesys) == 0) {
 				printf("\n***** FILE SYSTEM MARKED CLEAN *****\n");
 				if (chkdoreload(mntp) == 0)
 					exit(0);
 				exit(4);
 			}
+			sujrecovery = 0;
 			printf("** Skipping journal, falling through to full fsck\n\n");
 		}
 		/*
@@ -601,7 +609,7 @@ checkfilesys(char *filesys)
 		sblock.fs_time = time(NULL);
 		sbdirty();
 	}
-	if (cvtlevel && sblk.b_dirty) {
+	if (cvtlevel && (sblk.b_flags & B_DIRTY) != 0) {
 		/*
 		 * Write out the duplicate super blocks
 		 */
@@ -610,7 +618,6 @@ checkfilesys(char *filesys)
 	}
 	if (rerun)
 		resolved = 0;
-	finalIOstats();
 
 	/*
 	 * Check to see if the file system is mounted read-write.
@@ -619,11 +626,6 @@ checkfilesys(char *filesys)
 		resolved = 0;
 	ckfini(resolved);
 
-	for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-		if (inostathead[cylno].il_stat != NULL)
-			free((char *)inostathead[cylno].il_stat);
-	free((char *)inostathead);
-	inostathead = NULL;
 	if (fsmodified && !preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun) {

@@ -11,7 +11,7 @@ MAN=
 .include <bsd.prog.mk>
 .include <bsd.lib.mk>
 
-LDFLAGS += -lpthread
+LDFLAGS += -lpthread -lnetmap
 .ifdef WITHOUT_PCAP
 CFLAGS += -DNO_PCAP
 .else
@@ -27,7 +27,7 @@ pkt-gen: pkt-gen.o
 	$(CC) $(CFLAGS) -o pkt-gen pkt-gen.o $(LDFLAGS)
 
 bridge: bridge.o
-	$(CC) $(CFLAGS) -o bridge bridge.o
+	$(CC) $(CFLAGS) -o bridge bridge.o $(LDFLAGS)
 
 nmreplay: nmreplay.o
 	$(CC) $(CFLAGS) -o nmreplay nmreplay.o $(LDFLAGS)

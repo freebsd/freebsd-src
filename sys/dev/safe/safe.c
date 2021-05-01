@@ -385,8 +385,6 @@ safe_attach(device_t dev)
 #if 0
 		printf(" key");
 		sc->sc_flags |= SAFE_FLAGS_KEY;
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP, 0);
-		crypto_kregister(sc->sc_cid, CRK_MOD_EXP_CRT, 0);
 #endif
 	}
 	if (sc->sc_devinfo & SAFE_DEVINFO_DES) {
@@ -584,7 +582,7 @@ safe_intr(void *arg)
 	}
 
 	if (sc->sc_needwakeup) {		/* XXX check high watermark */
-		int wakeup = sc->sc_needwakeup & (CRYPTO_SYMQ|CRYPTO_ASYMQ);
+		int wakeup = sc->sc_needwakeup & CRYPTO_SYMQ;
 		DPRINTF(("%s: wakeup crypto %x\n", __func__,
 			sc->sc_needwakeup));
 		sc->sc_needwakeup &= ~wakeup;

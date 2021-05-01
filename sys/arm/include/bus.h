@@ -254,10 +254,6 @@ struct bus_space {
 			    bus_size_t, const uint64_t *, bus_size_t);
 };
 
-#if __ARM_ARCH < 6
-extern bus_space_tag_t arm_base_bs_tag;
-#endif
-
 /*
  * Utility macros; INTERNAL USE ONLY.
  */

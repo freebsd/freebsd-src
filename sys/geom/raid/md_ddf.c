@@ -1160,12 +1160,12 @@ hdrerror:
 		    (GET16(meta, hdr->Configuration_Record_Length) * ss - 512) / 12));
 	}
 
-	if (GET32(meta, hdr->cd_length) * ss >= MAXPHYS ||
-	    GET32(meta, hdr->pdr_length) * ss >= MAXPHYS ||
-	    GET32(meta, hdr->vdr_length) * ss >= MAXPHYS ||
-	    GET32(meta, hdr->cr_length) * ss >= MAXPHYS ||
-	    GET32(meta, hdr->pdd_length) * ss >= MAXPHYS ||
-	    GET32(meta, hdr->bbmlog_length) * ss >= MAXPHYS) {
+	if (GET32(meta, hdr->cd_length) * ss >= maxphys ||
+	    GET32(meta, hdr->pdr_length) * ss >= maxphys ||
+	    GET32(meta, hdr->vdr_length) * ss >= maxphys ||
+	    GET32(meta, hdr->cr_length) * ss >= maxphys ||
+	    GET32(meta, hdr->pdd_length) * ss >= maxphys ||
+	    GET32(meta, hdr->bbmlog_length) * ss >= maxphys) {
 		G_RAID_DEBUG(1, "%s: Blocksize is too big.", pp->name);
 		goto hdrerror;
 	}

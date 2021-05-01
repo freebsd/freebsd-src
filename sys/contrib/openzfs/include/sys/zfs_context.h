@@ -32,7 +32,15 @@
 extern "C" {
 #endif
 
-#ifdef __KERNEL__
+/*
+ * This code compiles in three different contexts. When __KERNEL__ is defined,
+ * the code uses "unix-like" kernel interfaces. When _STANDALONE is defined, the
+ * code is running in a reduced capacity environment of the boot loader which is
+ * generally a subset of both POSIX and kernel interfaces (with a few unique
+ * interfaces too). When neither are defined, it's in a userland POSIX or
+ * similar environment.
+ */
+#if defined(__KERNEL__) || defined(_STANDALONE)
 #include <sys/note.h>
 #include <sys/types.h>
 #include <sys/atomic.h>
@@ -64,8 +72,9 @@ extern "C" {
 #include <sys/trace.h>
 #include <sys/procfs_list.h>
 #include <sys/mod.h>
+#include <sys/uio_impl.h>
 #include <sys/zfs_context_os.h>
-#else /* _KERNEL */
+#else /* _KERNEL || _STANDALONE */
 
 #define	_SYS_MUTEX_H
 #define	_SYS_RWLOCK_H
@@ -618,6 +627,7 @@ extern void delay(clock_t ticks);
 #define	defclsyspri	0
 
 #define	CPU_SEQID	((uintptr_t)pthread_self() & (max_ncpus - 1))
+#define	CPU_SEQID_UNSTABLE	CPU_SEQID
 
 #define	kcred		NULL
 #define	CRED()		NULL
@@ -643,7 +653,7 @@ extern void random_fini(void);
 
 struct spa;
 extern void show_pool_stats(struct spa *);
-extern int set_global_var(char *arg);
+extern int set_global_var(char const *arg);
 
 typedef struct callb_cpr {
 	kmutex_t	*cc_lockp;
@@ -759,7 +769,7 @@ extern int kmem_cache_reap_active(void);
 #define	__init
 #define	__exit
 
-#endif /* _KERNEL */
+#endif  /* _KERNEL || _STANDALONE */
 
 #ifdef __cplusplus
 };

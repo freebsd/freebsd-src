@@ -36,6 +36,12 @@
 
 #include <dev/kbd/kbdreg.h>
 
+#include "opt_evdev.h"
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
+
 #define HVKBD_DRIVER_NAME	"hvkbd"
 #define IS_UNICODE		(1)
 #define IS_BREAK		(2)
@@ -84,9 +90,17 @@ typedef struct hv_kbd_sc_t {
 	keyboard_t			sc_kbd;
 	int				sc_mode;
 	int				sc_state;
+	uint32_t			sc_accents;	/* accent key index (> 0) */
+	uint32_t			sc_composed_char; /* composed char code */
+	uint8_t				sc_prefix;	/* AT scan code prefix */
 	int				sc_polling;	/* polling recursion count */
 	uint32_t			sc_flags;
 	int				debug;
+
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev		*ks_evdev;
+	int				ks_evdev_state;
+#endif
 } hv_kbd_sc;
 
 int	hv_kbd_produce_ks(hv_kbd_sc *sc, const keystroke *ks);

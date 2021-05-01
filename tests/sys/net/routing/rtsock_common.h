@@ -454,7 +454,7 @@ sa_equal_msg_flags(const struct sockaddr *a, const struct sockaddr *b, char *msg
 		b6 = (const struct sockaddr_in6 *)b;
 		if (!IN6_ARE_ADDR_EQUAL(&a6->sin6_addr, &b6->sin6_addr)) {
 			inet_ntop(AF_INET6, &a6->sin6_addr, a_s, sizeof(a_s));
-			inet_ntop(AF_INET6, &b6->sin6_addr, a_s, sizeof(a_s));
+			inet_ntop(AF_INET6, &b6->sin6_addr, b_s, sizeof(b_s));
 			snprintf(msg, sz, "addr diff: %s vs %s", a_s, b_s);
 			return 0;
 		}
@@ -826,10 +826,6 @@ _validate_message_sockaddrs(char *buffer, int rtm_len, size_t offset, int rtm_ad
 		}
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
 	}
-
-	RTSOCK_ATF_REQUIRE_MSG((struct rt_msghdr *)buffer, parsed_len == rtm_len,
-	    "message len != parsed len: expected %d parsed %d",
-	    rtm_len, (int)parsed_len);
 }
 
 /*

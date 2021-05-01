@@ -90,6 +90,13 @@ do
 	    pattern_found=1
 	    shift
 	    ;;
+	-h|--no-filename)
+	    silent=1
+	    shift
+	    ;;
+	-V|--version)
+	    exec ${grep} -V
+	    ;;
 	--*)
 	    grep_args="${grep_args} $1"
 	    shift
@@ -120,16 +127,9 @@ do
 	    hyphen=1
 	    shift
 	    ;;
-	-h)
-	    silent=1
-	    shift
-	    ;;
 	-r|-R)
 	    echo "${prg}: the ${1} flag is not currently supported" >&2
 	    exit 1
-	    ;;
-	-V|--version)
-	    exec ${grep} -V
 	    ;;
 	-*)
 	    grep_args="${grep_args} $1"

@@ -6,6 +6,7 @@ SRCS=	libpmc.c pmclog.c libpmc_pmu_util.c libpmc_json.cc
 INCS=	pmc.h pmclog.h pmcformat.h
 
 CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
+LDADD+=	-lc++
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386"
@@ -93,7 +94,6 @@ MAN+=	pmc.tsc.3
 MAN+=	pmc.ucf.3
 MAN+=	pmc.westmere.3
 MAN+=	pmc.westmereuc.3
-MAN+=	pmc.xscale.3
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \

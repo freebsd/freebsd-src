@@ -32,8 +32,8 @@
 # define SM_CONF_SHM	1
 #endif
 #ifndef SM_CONF_SEM
-# if __FreeBSD__ > 11
-#  define SM_CONF_SEM	2 /* union semun is now longer available by default */
+# if __FreeBSD_version >= 1200059
+#  define SM_CONF_SEM	2 /* union semun is no longer declared by default */
 # else
 #  define SM_CONF_SEM	1
 # endif

@@ -887,6 +887,7 @@ int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 void	in6_prepare_ifra(struct in6_aliasreq *, const struct in6_addr *,
 	const struct in6_addr *);
 void	in6_purgeaddr(struct ifaddr *);
+void	in6_purgeifaddr(struct in6_ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
 void	*in6_domifattach(struct ifnet *);
@@ -898,7 +899,7 @@ void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
 struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, const struct in6_addr *);
-struct in6_ifaddr *in6ifa_ifwithaddr(const struct in6_addr *, uint32_t);
+struct in6_ifaddr *in6ifa_ifwithaddr(const struct in6_addr *, uint32_t, bool);
 struct in6_ifaddr *in6ifa_llaonifp(struct ifnet *);
 int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);
 int	in6_matchlen(struct in6_addr *, struct in6_addr *);

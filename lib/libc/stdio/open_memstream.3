@@ -110,7 +110,7 @@ These multibyte characters are then converted back to wide characters when
 written into the stream.
 As a result,
 the wide-oriented streams maintain an internal multibyte character conversion
-state that is cleared on any seek opertion that changes the current position.
+state that is cleared on any seek operation that changes the current position.
 This should have no effect as long as wide-oriented output operations are used
 on a wide-oriented stream.
 .Sh RETURN VALUES
@@ -119,7 +119,7 @@ Upon successful completion,
 and
 .Fn open_wmemstream
 return a
-.Tn FILE
+.Vt FILE
 pointer.
 Otherwise,
 .Dv NULL

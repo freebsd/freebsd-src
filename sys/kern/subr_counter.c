@@ -61,14 +61,14 @@ counter_u64_t
 counter_u64_alloc(int flags)
 {
 
-	return (uma_zalloc_pcpu(pcpu_zone_64, flags | M_ZERO));
+	return (uma_zalloc_pcpu(pcpu_zone_8, flags | M_ZERO));
 }
 
 void
 counter_u64_free(counter_u64_t c)
 {
 
-	uma_zfree_pcpu(pcpu_zone_64, c);
+	uma_zfree_pcpu(pcpu_zone_8, c);
 }
 
 int

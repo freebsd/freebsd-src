@@ -35,11 +35,7 @@ struct xen_pmu_amd_ctxt {
     uint32_t ctrls;
 
     /* Counter MSRs */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    uint64_t regs[];
-#elif defined(__GNUC__)
-    uint64_t regs[0];
-#endif
+    uint64_t regs[XEN_FLEX_ARRAY_DIM];
 };
 typedef struct xen_pmu_amd_ctxt xen_pmu_amd_ctxt_t;
 DEFINE_XEN_GUEST_HANDLE(xen_pmu_amd_ctxt_t);
@@ -71,11 +67,7 @@ struct xen_pmu_intel_ctxt {
     uint64_t debugctl;
 
     /* Fixed and architectural counter MSRs */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    uint64_t regs[];
-#elif defined(__GNUC__)
-    uint64_t regs[0];
-#endif
+    uint64_t regs[XEN_FLEX_ARRAY_DIM];
 };
 typedef struct xen_pmu_intel_ctxt xen_pmu_intel_ctxt_t;
 DEFINE_XEN_GUEST_HANDLE(xen_pmu_intel_ctxt_t);
@@ -164,3 +156,4 @@ DEFINE_XEN_GUEST_HANDLE(xen_pmu_arch_t);
  * indent-tabs-mode: nil
  * End:
  */
+

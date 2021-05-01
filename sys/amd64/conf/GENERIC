@@ -31,11 +31,14 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		ROUTE_MPATH		# Multipath routing support
+options		FIB_ALGO		# Modular fib lookups
 options 	TCP_OFFLOAD		# TCP offload
 options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options		TCP_RFC7413		# TCP Fast Open
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
+options		KERN_TLS		# TLS transmit & receive offload
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -102,7 +105,6 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
-options 	IOMMU
 
 # Kernel Sanitizers
 #options 	COVERAGE		# Generic kernel coverage. Used by KCOV
@@ -128,9 +130,13 @@ device		cpufreq
 
 # Bus support.
 device		acpi
+device		smbios
+options 	IOMMU
 device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
 options		PCI_IOV			# PCI SR-IOV support
+
+options 	COMPAT_LINUXKPI
 
 # Floppy drives
 device		fdc
@@ -218,6 +224,7 @@ options 	SC_PIXEL_MODE		# add support for the raster text mode
 device		vt
 device		vt_vga
 device		vt_efifb
+device		vt_vbefb
 
 device		agp			# support several AGP chipsets
 
@@ -248,12 +255,18 @@ device		ixl			# Intel 700 Series Physical Function
 device		iavf			# Intel Adaptive Virtual Function
 device		ice			# Intel 800 Series Physical Function
 device		vmx			# VMware VMXNET3 Ethernet
-device		axp			# AMD EPYC integrated NIC
+device		axp			# AMD EPYC integrated NIC (requires miibus)
 
 # PCI Ethernet NICs.
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		le			# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti			# Alteon Networks Tigon I/II gigabit Ethernet
+
+# Nvidia/Mellanox Connect-X 4 and later, Ethernet only
+# mlx5ib requires ibcore infra and is not included by default
+device		mlx5			# Base driver
+device		mlxfw			# Firmware update
+device		mlx5en			# Ethernet driver
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
@@ -270,7 +283,6 @@ device		dc			# DEC/Intel 21143 and various workalikes
 device		et			# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp			# Intel EtherExpress PRO/100B (82557, 82558)
 device		gem			# Sun GEM/Sun ERI/Apple GMAC
-device		hme			# Sun HME (Happy Meal Ethernet)
 device		jme			# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge			# Level 1 LXT1001 gigabit Ethernet
 device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
@@ -310,11 +322,11 @@ device		iwn			# Intel 4965/1000/5000/6000 wireless NICs.
 device		malo			# Marvell Libertas wireless NICs.
 device		mwl			# Marvell 88W8363 802.11n wireless NICs.
 device		ral			# Ralink Technology RT2500 wireless NICs.
-device		wi			# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 device		wpi			# Intel 3945ABG wireless NICs.
 
 # Pseudo devices.
 device		crypto			# core crypto support
+device		aesni			# AES-NI OpenCrypto module
 device		loop			# Network loopback
 device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
@@ -324,6 +336,7 @@ device		tuntap			# Packet tunnel.
 device		md			# Memory "disks"
 device		gif			# IPv6 and IPv4 tunneling
 device		firmware		# firmware assist module
+device		xz			# lzma decompression
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -354,6 +367,7 @@ device		snd_via8233		# VIA VT8233x Audio
 device		mmc			# MMC/SD bus
 device		mmcsd			# MMC/SD memory card
 device		sdhci			# Generic PCI SD Host Controller
+device		rtsx			# Realtek SD card reader
 
 # VirtIO support
 device		virtio			# Generic VirtIO bus (required)
@@ -378,3 +392,8 @@ device		netmap			# netmap(4) support
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support
+options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2006 nCircle Network Security, Inc.
  * Copyright (c) 2009 Robert N. M. Watson
+ * Copyright (c) 2020 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -36,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sdt.h>
@@ -54,9 +58,32 @@ __FBSDID("$FreeBSD$");
  * userland programs, and should not be done without careful consideration of
  * the consequences.
  */
-static int __read_mostly 	suser_enabled = 1;
-SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RWTUN,
-    &suser_enabled, 0, "processes with uid 0 have privilege");
+
+static bool
+suser_enabled(struct ucred *cred)
+{
+
+	return (prison_allow(cred, PR_ALLOW_SUSER));
+}
+
+static int
+sysctl_kern_suser_enabled(SYSCTL_HANDLER_ARGS)
+{
+	struct ucred *cred;
+	int error, enabled;
+
+	cred = req->td->td_ucred;
+	enabled = suser_enabled(cred);
+	error = sysctl_handle_int(oidp, &enabled, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	prison_set_allow(cred, PR_ALLOW_SUSER, enabled);
+	return (0);
+}
+
+SYSCTL_PROC(_security_bsd, OID_AUTO, suser_enabled, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_PRISON | CTLFLAG_MPSAFE, 0, 0,
+    &sysctl_kern_suser_enabled, "I", "Processes with uid 0 have privilege");
 
 static int	unprivileged_mlock = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_mlock, CTLFLAG_RWTUN,
@@ -186,7 +213,7 @@ priv_check_cred(struct ucred *cred, int priv)
 	 * superuser policy to be globally disabled, although this is
 	 * currenty of limited utility.
 	 */
-	if (suser_enabled) {
+	if (suser_enabled(cred)) {
 		switch (priv) {
 		case PRIV_MAXFILES:
 		case PRIV_MAXPROC:
@@ -258,7 +285,7 @@ priv_check_cred_vfs_lookup_slow(struct ucred *cred)
 	if (error)
 		goto out;
 
-	if (cred->cr_uid == 0 && suser_enabled) {
+	if (cred->cr_uid == 0 && suser_enabled(cred)) {
 		error = 0;
 		goto out;
 	}
@@ -279,7 +306,7 @@ priv_check_cred_vfs_lookup(struct ucred *cred)
 		return (priv_check_cred_vfs_lookup_slow(cred));
 
 	error = EPERM;
-	if (cred->cr_uid == 0 && suser_enabled)
+	if (cred->cr_uid == 0 && suser_enabled(cred))
 		error = 0;
 	return (error);
 }
@@ -294,7 +321,7 @@ priv_check_cred_vfs_lookup_nomac(struct ucred *cred)
 		return (EAGAIN);
 
 	error = EPERM;
-	if (cred->cr_uid == 0 && suser_enabled)
+	if (cred->cr_uid == 0 && suser_enabled(cred))
 		error = 0;
 	return (error);
 }
@@ -313,7 +340,7 @@ priv_check_cred_vfs_generation_slow(struct ucred *cred)
 		goto out;
 	}
 
-	if (cred->cr_uid == 0 && suser_enabled) {
+	if (cred->cr_uid == 0 && suser_enabled(cred)) {
 		error = 0;
 		goto out;
 	}
@@ -334,7 +361,7 @@ priv_check_cred_vfs_generation(struct ucred *cred)
 		return (priv_check_cred_vfs_generation_slow(cred));
 
 	error = EPERM;
-	if (!jailed(cred) && cred->cr_uid == 0 && suser_enabled)
+	if (!jailed(cred) && cred->cr_uid == 0 && suser_enabled(cred))
 		error = 0;
 	return (error);
 }

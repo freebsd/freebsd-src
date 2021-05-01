@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: msgbox5,v 1.5 2010/01/13 10:26:52 tom Exp $
+# $Id: msgbox5,v 1.6 2019/12/11 00:03:34 tom Exp $
 # this differs from msgbox3 by making a window small enough to force scrolling.
 
 . ./setup-vars
@@ -18,6 +18,6 @@ $DIALOG --title "MESSAGE BOX (width $width)" --clear --no-collapse "$@" \
 Hi, this is a simple message box.  You can use this to \
 display any message you like.  The box will remain until \
 you press the ENTER key." 10 $width
-test $? = $DIALOG_ESC && break
+test $? = "$DIALOG_ESC" && break
 width=`expr $width + 1`
 done

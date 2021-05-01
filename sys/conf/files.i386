@@ -52,6 +52,7 @@ cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
+compat/linux/linux_dummy.c	optional compat_linux
 compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
 compat/linux/linux_errno.c	optional compat_linux
@@ -74,9 +75,13 @@ compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/linux/linux_vdso.c	optional compat_linux
 compat/linux/linux.c		optional compat_linux
-compat/ndis/winx32_wrap.S	optional ndisapi pci
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
+crypto/openssl/i386/chacha-x86.S	optional ossl
+crypto/openssl/i386/poly1305-x86.S	optional ossl
+crypto/openssl/i386/sha1-586.S	optional ossl
+crypto/openssl/i386/sha256-586.S	optional ossl
+crypto/openssl/i386/sha512-586.S	optional ossl
 dev/agp/agp_ali.c		optional agp
 dev/agp/agp_amd.c		optional agp
 dev/agp/agp_amd64.c		optional agp
@@ -126,18 +131,6 @@ dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
-dev/vmware/vmxnet3/if_vmx.c	optional vmx
-dev/vmware/vmci/vmci.c			optional	vmci
-dev/vmware/vmci/vmci_datagram.c		optional	vmci
-dev/vmware/vmci/vmci_doorbell.c		optional	vmci
-dev/vmware/vmci/vmci_driver.c		optional	vmci
-dev/vmware/vmci/vmci_event.c		optional	vmci
-dev/vmware/vmci/vmci_hashtable.c	optional	vmci
-dev/vmware/vmci/vmci_kernel_if.c	optional	vmci
-dev/vmware/vmci/vmci_qpair.c		optional	vmci
-dev/vmware/vmci/vmci_queue_pair.c	optional	vmci
-dev/vmware/vmci/vmci_resource.c		optional	vmci
-dev/vmware/pvscsi/pvscsi.c		optional	pvscsi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
 i386/acpica/acpi_machdep.c	optional acpi
@@ -197,7 +190,6 @@ i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap_base.c		standard
 i386/i386/pmap_nopae.c		standard
 i386/i386/pmap_pae.c		standard
-i386/i386/prof_machdep.c	optional profiling-routine
 i386/i386/ptrace_machdep.c	standard
 i386/i386/sigtramp.s		standard
 i386/i386/support.s		standard
@@ -209,7 +201,7 @@ i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_copyout.c	optional compat_linux
-i386/linux/linux_dummy.c	optional compat_linux
+i386/linux/linux_dummy_machdep.c	optional compat_linux
 i386/linux/linux_machdep.c	optional compat_linux
 i386/linux/linux_ptrace.c	optional compat_linux
 i386/linux/linux_sysent.c	optional compat_linux
@@ -218,7 +210,6 @@ i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
-kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
@@ -228,6 +219,7 @@ libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
+libkern/strlen.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
@@ -235,11 +227,6 @@ libkern/umoddi3.c		standard
 # x86 real mode BIOS support, required by dpms/pci/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
-#
-# bvm console
-#
-dev/bvm/bvm_console.c		optional	bvmconsole
-dev/bvm/bvm_dbg.c		optional	bvmdebug
 # Common files where we currently configure the system differently, but perhaps shouldn't
 # config(8) doesn't have a way to force standard options, so we've been inconsistent
 # about marking non-optional things 'standard'.
@@ -249,8 +236,12 @@ x86/isa/atpic.c			optional atpic
 x86/isa/elcr.c			optional atpic | apic
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
+x86/linux/linux_dummy_x86.c	optional compat_linux
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
+
+compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"

@@ -146,6 +146,10 @@ main(int argc, char *argv[])
 			warnx("%s: bad process id", s);
 			continue;
 		}
+		if (pid == getpid()) {
+			warnx("%s: skipping my own pid", s);
+			continue;
+		}
 		for (i = 0; i < nleft; i++) {
 			if (e[i].ident == (uintptr_t)pid) {
 				break;

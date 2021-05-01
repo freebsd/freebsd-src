@@ -66,6 +66,7 @@ LIST:[@]:[2]="two"
 LIST:[*]:C/ /,/:[2]=""
 LIST:[*]:C/ /,/:[*]:[2]=""
 LIST:[*]:C/ /,/:[@]:[2]="three"
+LONGLIST:[012..0x12]="10 11 12 13 14 15 16 17 18"
 make: Bad modifier `:[1.]' for LIST
 LIST:[1.]="" is an error
 make: Bad modifier `:[1..]' for LIST
@@ -99,6 +100,7 @@ LIST:[${EMPTY}]="" is an error
 LIST:[${LONGLIST:[21]:S/2//}]="one"
 LIST:[${LIST:[#]}]="six"
 LIST:[${LIST:[${HASH}]}]="six"
+LIST:[  -1..   +3]="six five four three"
 LIST:S/ /,/="one two three four five six"
 LIST:S/ /,/W="one,two three four five six"
 LIST:S/ /,/gW="one,two,three,four,five,six"

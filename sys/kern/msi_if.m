@@ -32,7 +32,26 @@
 INTERFACE msi;
 
 HEADER {
+	#include <machine/bus.h>
+	#include <dev/iommu/iommu_msi.h>
+
 	struct intr_irqsrc;
+};
+
+#
+# Default implementations of some methods.
+#
+CODE {
+	static int
+	iommu_init(device_t dev, device_t child, struct iommu_domain **domain)
+	{
+		*domain = NULL;
+		return (0);
+	}
+	static void
+	iommu_deinit(device_t dev, device_t child)
+	{
+	}
 };
 
 METHOD int alloc_msi {
@@ -72,3 +91,13 @@ METHOD int map_msi {
 	uint32_t	*data;
 };
 
+METHOD int iommu_init {
+	device_t	dev;
+	device_t	child;
+	struct iommu_domain **domain;
+} DEFAULT iommu_init;
+
+METHOD void iommu_deinit {
+	device_t	dev;
+	device_t	child;
+} DEFAULT iommu_deinit;

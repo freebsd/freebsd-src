@@ -83,6 +83,7 @@
 #define	D_MISMATCH2	4	/* path1 was a file, path2 a dir */
 #define	D_SKIPPED1	5	/* path1 was a special file */
 #define	D_SKIPPED2	6	/* path2 was a special file */
+#define	D_ERROR		7	/* A file access error occurred */
 
 struct excludes {
 	char *pattern;
@@ -101,9 +102,6 @@ extern regex_t	ignore_re;
 
 char	*splice(char *, char *);
 int	diffreg(char *, char *, int, int);
-int	easprintf(char **, const char *, ...);
-void	*emalloc(size_t);
-void	*erealloc(void *, size_t);
 void	diffdir(char *, char *, int);
 void	print_only(const char *, size_t, const char *);
 void	print_status(int, char *, char *, const char *);

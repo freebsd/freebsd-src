@@ -53,10 +53,12 @@ ${group}TAG_ARGS=	-T ${${group}TAGS:[*]:S/ /,/g}
 .if ${${group}DIR:S/^\///} == ${${group}DIR}
 # ${group}DIR specifies a variable that specifies a path
 DIRS+=	${${group}DIR}
+${group}DIRTAGS=	${group}TAGS
 _${group}DIR=	${${group}DIR}
 .else
 # ${group}DIR specifies a path
 DIRS+=	${group}DIR
+${group}DIRTAGS=	${${group}TAGS}
 _${group}DIR=	${group}DIR
 .endif
 

@@ -492,7 +492,7 @@ static const char *hsynd_str(u8 synd)
 	case MLX5_HEALTH_SYNDR_FFSER_ERR:
 		return "FFSER error";
 	case MLX5_HEALTH_SYNDR_HIGH_TEMP:
-		return "High temprature";
+		return "High temperature";
 	default:
 		return "unrecognized error";
 	}

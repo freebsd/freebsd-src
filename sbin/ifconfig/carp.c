@@ -50,6 +50,8 @@
 #include <err.h>
 #include <errno.h>
 
+#include <libifconfig.h>
+
 #include "ifconfig.h"
 
 static const char *carp_states[] = { CARP_STATES };
@@ -71,16 +73,11 @@ static void
 carp_status(int s)
 {
 	struct carpreq carpr[CARP_MAXVHID];
-	int i;
 
-	bzero(carpr, sizeof(struct carpreq) * CARP_MAXVHID);
-	carpr[0].carpr_count = CARP_MAXVHID;
-	ifr.ifr_data = (caddr_t)&carpr;
-
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
+	if (ifconfig_carp_get_info(lifh, name, carpr, CARP_MAXVHID) == -1)
 		return;
 
-	for (i = 0; i < carpr[0].carpr_count; i++) {
+	for (size_t i = 0; i < carpr[0].carpr_count; i++) {
 		printf("\tcarp: %s vhid %d advbase %d advskew %d",
 		    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
 		    carpr[i].carpr_advbase, carpr[i].carpr_advskew);

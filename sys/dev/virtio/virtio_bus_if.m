@@ -36,6 +36,12 @@ struct vq_alloc_info;
 
 CODE {
 	static int
+	virtio_bus_default_finalize_features(device_t dev)
+	{
+		return (0);
+	}
+
+	static int
 	virtio_bus_default_config_generation(device_t dev)
 	{
 		return (0);
@@ -46,6 +52,10 @@ METHOD uint64_t negotiate_features {
 	device_t	dev;
 	uint64_t	child_features;
 };
+
+METHOD int finalize_features {
+	device_t	dev;
+} DEFAULT virtio_bus_default_finalize_features;
 
 METHOD int with_feature {
 	device_t	dev;
@@ -80,6 +90,7 @@ METHOD void reinit_complete {
 METHOD void notify_vq {
 	device_t	dev;
 	uint16_t	queue;
+	bus_size_t	offset;
 };
 
 METHOD int config_generation {

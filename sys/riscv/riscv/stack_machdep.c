@@ -53,11 +53,8 @@ stack_capture(struct thread *td, struct stack *st, struct unwind_state *frame)
 	stack_zero(st);
 
 	while (1) {
-		if ((vm_offset_t)frame->fp < td->td_kstack ||
-		    (vm_offset_t)frame->fp >= td->td_kstack +
-		    td->td_kstack_pages * PAGE_SIZE)
+		if (!unwind_frame(td, frame))
 			break;
-		unwind_frame(frame);
 		if (!INKERNEL((vm_offset_t)frame->pc))
 			break;
 		if (stack_put(st, frame->pc) == -1)

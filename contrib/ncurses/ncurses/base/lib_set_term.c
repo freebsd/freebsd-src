@@ -44,10 +44,17 @@
 #include <curses.priv.h>
 #include <tic.h>
 
+#if USE_GPM_SUPPORT
+#ifdef HAVE_LIBDL
+/* use dynamic loader to avoid linkage dependency */
+#include <dlfcn.h>
+#endif
+#endif
+
 #undef CUR
 #define CUR SP_TERMTYPE
 
-MODULE_ID("$Id: lib_set_term.c,v 1.169 2020/02/02 23:34:34 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.175 2020/10/10 19:09:03 juergen Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define MaxColors      InfoOf(sp).maxcolors
@@ -197,6 +204,14 @@ delscreen(SCREEN *sp)
 	if (_nc_find_prescr() == sp) {
 	    _nc_forget_prescr();
 	}
+#if USE_GPM_SUPPORT
+#ifdef HAVE_LIBDL
+	if (sp->_dlopen_gpm != 0) {
+	    dlclose(sp->_dlopen_gpm);
+	    sp->_dlopen_gpm = 0;
+	}
+#endif
+#endif /* USE_GPM_SUPPORT */
 	free(sp);
 
 	/*
@@ -340,8 +355,9 @@ NCURSES_SP_NAME(_nc_setupscreen) (
     sp->_next_screen = _nc_screen_chain;
     _nc_screen_chain = sp;
 
-    if ((sp->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == 0)
+    if ((sp->_current_attr = typeCalloc(NCURSES_CH_T, 1)) == 0) {
 	returnCode(ERR);
+    }
 #endif
 
     /*
@@ -391,6 +407,11 @@ NCURSES_SP_NAME(_nc_setupscreen) (
     fflush(output);
     setmode(output, O_BINARY);
 #endif
+#if defined(EXP_WIN32_DRIVER)
+    T(("setting output mode to binary"));
+    fflush(output);
+    _setmode(fileno(output), _O_BINARY);
+#endif
     NCURSES_SP_NAME(_nc_set_buffer) (NCURSES_SP_ARGx output, TRUE);
     sp->_lines = (NCURSES_SIZE_T) slines;
     sp->_lines_avail = (NCURSES_SIZE_T) slines;
@@ -399,6 +420,10 @@ NCURSES_SP_NAME(_nc_setupscreen) (
     fflush(output);
     sp->_ofd = output ? fileno(output) : -1;
     sp->_ofp = output;
+#if defined(EXP_WIN32_DRIVER)
+    if (output)
+	_setmode(fileno(output), _O_BINARY);
+#endif
     sp->out_limit = (size_t) ((2 + slines) * (6 + scolumns));
     if ((sp->out_buffer = malloc(sp->out_limit)) == 0)
 	sp->out_limit = 0;

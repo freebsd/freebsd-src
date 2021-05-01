@@ -132,11 +132,11 @@ typedef	struct	ipmon_action {
 #define	LOGFAC	LOG_LOCAL0
 #endif
 
-extern	void	dump_config __P((void));
-extern	int	load_config __P((char *));
-extern	void	unload_config __P((void));
-extern	void	dumphex __P((FILE *, int, char *, int));
-extern	int	check_action __P((char *, char *, int, int));
-extern	char	*getword __P((int));
-extern	void	*add_doing __P((ipmon_saver_t *));
+extern	void	dump_config(void);
+extern	int	load_config(char *);
+extern	void	unload_config(void);
+extern	void	dumphex(FILE *, int, char *, int);
+extern	int	check_action(char *, char *, int, int);
+extern	char	*getword(int);
+extern	void	*add_doing(ipmon_saver_t *);
 

@@ -26,7 +26,6 @@
  *
  * $FreeBSD$
  */
-#define RTDEBUG
 #include "opt_inet.h"
 #include "opt_route.h"
 
@@ -294,6 +293,17 @@ alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 }
 
 void
+nhgrp_ref_object(struct nhgrp_object *nhg)
+{
+	struct nhgrp_priv *nhg_priv;
+	u_int old;
+
+	nhg_priv = NHGRP_PRIV(nhg);
+	old = refcount_acquire(&nhg_priv->nhg_refcount);
+	KASSERT(old > 0, ("%s: nhgrp object %p has 0 refs", __func__, nhg));
+}
+
+void
 nhgrp_free(struct nhgrp_object *nhg)
 {
 	struct nhgrp_priv *nhg_priv;
@@ -478,7 +488,9 @@ get_nhgrp(struct nh_control *ctl, struct weightened_nhop *wn, int num_nhops,
 		if (link_nhgrp(ctl, key) == 0) {
 			/* Unable to allocate index? */
 			*perror = EAGAIN;
-			destroy_nhgrp(key);
+			free_nhgrp_nhops(key);
+			destroy_nhgrp_int(key);
+			return (NULL);
 		}
 		*perror = 0;
 		return (key);
@@ -634,7 +646,7 @@ nhgrp_get_addition_group(struct rib_head *rh, struct route_nhop_data *rnd_orig,
 {
 	struct nh_control *ctl = rh->nh_control;
 	struct nhgrp_priv *nhg_priv;
-	struct weightened_nhop wn[2];
+	struct weightened_nhop wn[2] = {};
 	int error;
 
 	if (rnd_orig->rnd_nhop == NULL) {
@@ -753,6 +765,30 @@ dump_nhgrp_entry(struct rib_head *rh, const struct nhgrp_priv *nhg_priv,
 	return (error);
 }
 
+uint32_t
+nhgrp_get_idx(const struct nhgrp_object *nhg)
+{
+	const struct nhgrp_priv *nhg_priv;
+
+	nhg_priv = NHGRP_PRIV_CONST(nhg);
+	return (nhg_priv->nhg_idx);
+}
+
+uint32_t
+nhgrp_get_count(struct rib_head *rh)
+{
+	struct nh_control *ctl;
+	uint32_t count;
+
+	ctl = rh->nh_control;
+
+	NHOPS_RLOCK(ctl);
+	count = ctl->gr_head.items_count;
+	NHOPS_RUNLOCK(ctl);
+
+	return (count);
+}
+
 int
 nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 {
@@ -770,7 +806,9 @@ nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 	sz = sizeof(struct rt_msghdr) + sizeof(struct nhgrp_external);
 	sz += 2 * sizeof(struct nhgrp_container);
 	sz += 2 * sizeof(struct nhgrp_nhop_external) * RIB_MAX_MPATH_WIDTH;
-	buffer = malloc(sz, M_TEMP, M_WAITOK);
+	buffer = malloc(sz, M_TEMP, M_NOWAIT);
+	if (buffer == NULL)
+		return (ENOMEM);
 
 	NET_EPOCH_ENTER(et);
 	NHOPS_RLOCK(ctl);

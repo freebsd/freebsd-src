@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 volatile static int ap_awake;
 volatile static u_int ap_letgo;
 volatile static u_quad_t ap_timebase;
-static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
 
@@ -309,7 +308,6 @@ powerpc_ipi_handler(void *arg)
 		return (FILTER_STRAY);
 	while ((msg = ffs(ipimask) - 1) != -1) {
 		ipimask &= ~(1u << msg);
-		ipi_msg_cnt[msg]++;
 		switch (msg) {
 		case IPI_AST:
 			CTR1(KTR_SMP, "%s: IPI_AST", __func__);

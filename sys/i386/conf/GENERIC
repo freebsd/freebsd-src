@@ -32,6 +32,7 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		ROUTE_MPATH		# Multipath routing support
 options 	TCP_HHOOK		# hhook(9) framework for TCP
 options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
@@ -114,6 +115,7 @@ device		cpufreq
 
 # Bus support.
 device		acpi
+device		smbios
 device		pci
 options 	PCI_HP			# PCI-Express native HotPlug
 options		PCI_IOV			# PCI SR-IOV support
@@ -195,6 +197,7 @@ options 	SC_PIXEL_MODE		# add support for the raster text mode
 # vt is the new video console driver
 device		vt
 device		vt_vga
+device		vt_vbefb
 
 device		agp			# support several AGP chipsets
 
@@ -241,7 +244,6 @@ device		dc			# DEC/Intel 21143 and various workalikes
 device		et			# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp			# Intel EtherExpress PRO/100B (82557, 82558)
 device		gem			# Sun GEM/Sun ERI/Apple GMAC
-device		hme			# Sun HME (Happy Meal Ethernet)
 device		jme			# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge			# Level 1 LXT1001 gigabit Ethernet
 device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
@@ -282,11 +284,11 @@ device		iwn			# Intel 4965/1000/5000/6000 wireless NICs.
 device		malo			# Marvell Libertas wireless NICs.
 device		mwl			# Marvell 88W8363 802.11n wireless NICs.
 device		ral			# Ralink Technology RT2500 wireless NICs.
-device		wi			# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 device		wpi			# Intel 3945ABG wireless NICs.
 
 # Pseudo devices.
 device		crypto			# core crypto support
+device		aesni			# AES-NI OpenCrypto module
 device		loop			# Network loopback
 device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
@@ -326,6 +328,7 @@ device		snd_via8233		# VIA VT8233x Audio
 device		mmc			# MMC/SD bus
 device		mmcsd			# MMC/SD memory card
 device		sdhci			# Generic PCI SD Host Controller
+device		rtsx			# Realtek SD card reader
 
 # VirtIO support
 device		virtio			# Generic VirtIO bus (required)
@@ -335,7 +338,7 @@ device		virtio_blk		# VirtIO Block device
 device		virtio_scsi		# VirtIO SCSI device
 device		virtio_balloon		# VirtIO Memory Balloon device
 
-# HyperV drivers and enchancement support
+# HyperV drivers and enhancement support
 device		hyperv			# HyperV drivers 
 
 # Xen HVM Guest Optimizations
@@ -347,3 +350,8 @@ device		xenpci			# Xen HVM Hypervisor services driver
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# HID support
+options 	HID_DEBUG		# enable debug msgs
+device		hid			# Generic HID support
+options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support

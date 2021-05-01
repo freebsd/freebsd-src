@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2016
+.Dd October 24, 2020
 .Dt GETENT 1
 .Os
 .Sh NAME
@@ -103,6 +103,24 @@ utility exits 0 on success,
 .Ar database ,
 or 3 if there is no support for enumeration on
 .Ar database .
+.Sh EXAMPLES
+Show entry for user sshd from the passwd database:
+.Bd -literal -offset indent
+$ getent passwd sshd
+sshd:*:22:22:Secure Shell Daemon:/var/empty:/usr/sbin/nologin
+.Ed
+.Pp
+Show entry for TCP from the protocols database:
+.Bd -literal -offset indent
+$ getent protocols tcp
+tcp                   6  TCP
+.Ed
+.Pp
+Show entry for the localhost IPv6 address ::1 from the hosts database:
+.Bd -literal -offset indent
+$ getent hosts ::1
+::1               localhost  localhost.my.domain
+.Ed
 .Sh SEE ALSO
 .Xr getutxent 3 ,
 .Xr ethers 5 ,
@@ -123,7 +141,4 @@ command appeared in
 .Nx 3.0 ,
 and was imported into
 .Fx 7.0 .
-It was based on the command of the same name in
-.Tn Solaris
-and
-.Tn Linux .
+It was based on the command of the same name in Solaris and Linux.

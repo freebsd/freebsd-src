@@ -164,7 +164,7 @@ done:	argv += optind;
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
 		err(1, "fts_open");
-	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
+	for (rval = 0; errno = 0, (p = fts_read(ftsp)) != NULL;) {
 		int atflag;
 
 		if ((fts_options & FTS_LOGICAL) ||

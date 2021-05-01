@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2020
+.Dd April 24, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -300,86 +300,38 @@ Each dropped segment is taken into account in the TCP protocol statistics.
 .It Dv TCP_TXTLS_ENABLE
 Enable in-kernel Transport Layer Security (TLS) for data written to this
 socket.
-The
-.Vt struct tls_so_enable
-argument defines the encryption and authentication algorithms and keys
-used to encrypt the socket data as well as the maximum TLS record
-payload size.
-.Pp
-All data written to this socket will be encapsulated in TLS records
-and subsequently encrypted.
-By default all data written to this socket is treated as application data.
-Individual TLS records with a type other than application data
-(for example, handshake messages),
-may be transmitted by invoking
-.Xr sendmsg 2
-with a custom TLS record type set in a
-.Dv TLS_SET_RECORD_TYPE
-control message.
-The payload of this control message is a single byte holding the desired
-TLS record type.
-.Pp
-At present, only a single transmit key may be set on a socket.
-As such, users of this option must disable rekeying.
+See
+.Xr ktls 4
+for more details.
 .It Dv TCP_TXTLS_MODE
 The integer argument can be used to get or set the current TLS transmit mode
 of a socket.
-Setting the mode can only used to toggle between software and NIC TLS after
-TLS has been initially enabled via the
-.Dv TCP_TXTLS_ENABLE
-option.
-The available modes are:
-.Bl -tag -width "Dv TCP_TLS_MODE_IFNET"
-.It Dv TCP_TLS_MODE_NONE
-In-kernel TLS framing and encryption is not enabled for this socket.
-.It Dv TCP_TLS_MODE_SW
-TLS records are encrypted by the kernel prior to placing the data in the
-socket buffer.
-Typically this encryption is performed in software.
-.It Dv TCP_TLS_MODE_IFNET
-TLS records are encrypted by the network interface card (NIC).
-.It Dv TCP_TLS_MODE_TOE
-TLS records are encrypted by the NIC using a TCP offload engine (TOE).
-.El
+See
+.Xr ktls 4
+for more details.
 .It Dv TCP_RXTLS_ENABLE
 Enable in-kernel TLS for data read from this socket.
-The
-.Vt struct tls_so_enable
-argument defines the encryption and authentication algorithms and keys
-used to decrypt the socket data.
-.Pp
-Each received TLS record must be read from the socket using
-.Xr recvmsg 2 .
-Each received TLS record will contain a
-.Dv TLS_GET_RECORD
-control message along with the decrypted payload.
-The control message contains a
-.Vt struct tls_get_record
-which includes fields from the TLS record header.
-If an invalid or corrupted TLS record is received,
-recvmsg 2
-will fail with one of the following errors:
-.Bl -tag -width Er
-.It Bq Er EINVAL
-The version fields in a TLS record's header did not match the version required
-by the
-.Vt struct tls_so_enable
-structure used to enable in-kernel TLS.
-.It Bq Er EMSGSIZE
-A TLS record's length was either too small or too large.
-.It Bq Er EMSGSIZE
-The connection was closed after sending a truncated TLS record.
-.It Bq Er EBADMSG
-The TLS record failed to match the included authentication tag.
+See
+.Xr ktls 4
+for more details.
+.It Dv TCP_REUSPORT_LB_NUMA
+Changes NUMA affinity filtering for an established TCP listen
+socket.
+This option takes a single integer argument which specifies
+the NUMA domain to filter on for this listen socket.
+The argument can also have the follwing special values:
+.Bl -tag -width "Dv TCP_REUSPORT_LB_NUMA"
+.It Dv TCP_REUSPORT_LB_NUMA_NODOM
+Remove NUMA filtering for this listen socket.
+.It Dv TCP_REUSPORT_LB_NUMA_CURDOM
+Filter traffic associated with the domain where the calling thread is
+currently executing.
+This is typically used after a process or thread inherits a listen
+socket from its parent, and sets its CPU affinity to a particular core.
 .El
-.Pp
-At present, only a single receive key may be set on a socket.
-As such, users of this option must disable rekeying.
-.It Dv TCP_RXTLS_MODE
-The integer argument can be used to get the current TLS receive mode
-of a socket.
-The available modes are the same as for
-.Dv TCP_TXTLS_MODE .
+.It Dv TCP_REMOTE_UDP_ENCAPS_PORT
+Set and get the remote UDP encapsulation port.
+It can only be set on a closed TCP socket.
 .El
 .Pp
 The option level for the
@@ -420,8 +372,17 @@ MIB.
 .Bl -tag -width ".Va TCPCTL_DO_RFC1323"
 .It Dv TCPCTL_DO_RFC1323
 .Pq Va rfc1323
-Implement the window scaling and timestamp options of RFC 1323
+Implement the window scaling and timestamp options of RFC 1323/RFC 7323
 (default is true).
+.It Va tolerate_missing_ts
+Tolerate the missing of timestamps (RFC 1323/RFC 7323) for
+.Tn TCP
+segments belonging to
+.Tn TCP
+connections for which support of
+.Tn TCP
+timestamps has been negotiated.
+(default is 0, i.e., the missing of timestamps is not tolerated).
 .It Dv TCPCTL_MSSDFLT
 .Pq Va mssdflt
 The default value used for the maximum segment size
@@ -586,9 +547,22 @@ This gently reduces the congestion window during periods, where TCP is
 application limited and the network bandwidth is not utilized completely.
 That prevents self-inflicted packet losses once the application starts to
 transmit data at a higher speed.
+.It Va do_prr
+Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
+described in RFC6937.
+This improves the effectiveness of retransmissions particular in environments
+with ACK thinning or burst loss events, as chances to run out of the ACK clock
+are reduced, preventing lengthy and performance reducing RTO based loss recovery
+(default is true).
+.It Va do_prr_conservative
+While doing Proportional Rate Reduction, remain strictly in a packet conserving
+mode, sending only one new packet for each ACK received.
+Helpful when a misconfigured token bucket traffic policer causes persistent
+high losses leading to RTO, but reduces PRR effectiveness in more common settings
+(default is false).
 .It Va rfc6675_pipe
-Calculate the bytes in flight using the algorithm described in RFC 6675, and
-is also a prerequisite to enable Proportional Rate Reduction.
+Deprecated and superseded by
+.Va sack.revised
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window
@@ -605,6 +579,17 @@ Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
+.It Va sack.revised
+Enables three updated mechanisms from RFC6675 (default is true).
+Calculate the bytes in flight using the algorithm described in RFC 6675, and
+is also an improvement when Proportional Rate Reduction is enabled.
+Next, Rescue Retransmission helps timely loss recovery, when the trailing segments
+of a transmission are lost, while no additional data is ready to be sent.
+In case a partial ACK without a SACK block is received during SACK loss
+recovery, the trailing segment is immediately resent, rather than waiting
+for a Retransmission timeout.
+Finally, SACK loss recovery is also engaged, once two segments plus one byte are
+SACKed - even if no traditional duplicate ACKs were observed.
 .It Va sack.maxholes
 Maximum number of SACK holes per connection.
 Defaults to 128.
@@ -649,7 +634,6 @@ Defaults to 60 seconds.
 Enable support for TCP Explicit Congestion Notification (ECN).
 ECN allows a TCP sender to reduce the transmission rate in order to
 avoid packet drops.
-Settings:
 .Bl -tag -compact
 .It 0
 Disable ECN.
@@ -659,6 +643,7 @@ Outgoing connections will request ECN.
 .It 2
 Allow incoming connections to request ECN.
 Outgoing connections will not request ECN.
+(default)
 .El
 .It Va ecn.maxretries
 Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
@@ -695,6 +680,56 @@ Enable path MTU blackhole detection only for IPv6.
 MSS to try for IPv4 if PMTU blackhole detection is turned on.
 .It Va v6pmtud_blackhole_mss
 MSS to try for IPv6 if PMTU blackhole detection is turned on.
+.It Va hostcache.enable
+The TCP host cache is used to cache connection details and metrics to
+improve future performance of connections between the same hosts.
+At the completion of a TCP connection, a host will cache information
+for the connection for some defined period of time.
+.Bl -tag -compact
+.It 0
+Disable the host cache.
+.It 1
+Enable the host cache. (default)
+.El
+.It Va hostcache.purgenow
+Immediately purge all entries once set to any value.
+Setting this to 2 will also reseed the hash salt.
+.It Va hostcache.purge
+Expire all entires on next pruning of host cache entries.
+Any non-zero setting will be reset to zero, once the pruge
+is running.
+.Bl -tag -compact
+.It 0
+Do not purge all entries when pruning the host cache. (default)
+.It 1
+Purge all entries when doing the next pruning.
+.It 2
+Purge all entries, and also reseed the hash salt.
+.El
+.It Va hostcache.prune
+Time in seconds between pruning expired host cache entries.
+Defaults to 300 (5 minutes).
+.It Va hostcache.expire
+Time in seconds, how long a entry should be kept in the
+host cache since last accessed.
+Defaults to 3600 (1 hour).
+.It Va hostcache.count
+The current number of entries in the host cache.
+.It Va hostcache.bucketlimit
+The maximum number of entries for the same hash.
+Defaults to 30.
+.It Va hostcache.hashsize
+Size of TCP hostcache hashtable.
+This number has to be a power of two, or will be rejected.
+Defaults to 512.
+.It Va hostcache.cachelimit
+Overall entry limit for hostcache.
+Defaults to hashsize * bucketlimit.
+.It Va hostcache.histo
+Provide a Histogram of the hostcache hash utilization.
+.It Va hostcache.list
+Provide a complete list of all current entries in the host
+cache.
 .It Va functions_available
 List of available TCP function blocks (TCP stacks).
 .It Va functions_default
@@ -725,6 +760,16 @@ A CSV list of template_spec=percent key-value pairs which controls the per
 template sampling rates when
 .Xr stats 3
 sampling is enabled.
+.It Va udp_tunneling_port
+The local UDP encapsulation port.
+A value of 0 indicates that UDP encapsulation is disabled.
+The default is 0.
+.It Va udp_tunneling_overhead
+The overhead taken into account when using UDP encapsulation.
+Since MSS clamping by middleboxes will most likely not work, values larger than
+8 (the size of the UDP header) are also supported.
+Supported values are between 8 and 1024.
+The default is 8.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
@@ -770,6 +815,7 @@ when trying to use a TCP function block that is not available;
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
+.Xr ktls 4 ,
 .Xr mod_cc 4 ,
 .Xr siftr 4 ,
 .Xr syncache 4 ,
@@ -778,10 +824,18 @@ when trying to use a TCP function block that is not available;
 .Xr tcp_functions 9
 .Rs
 .%A "V. Jacobson"
-.%A "R. Braden"
+.%A "B. Braden"
 .%A "D. Borman"
 .%T "TCP Extensions for High Performance"
 .%O "RFC 1323"
+.Re
+.Rs
+.%A "D. Borman"
+.%A "B. Braden"
+.%A "V. Jacobson"
+.%A "R. Scheffenegger"
+.%T "TCP Extensions for High Performance"
+.%O "RFC 7323"
 .Re
 .Rs
 .%A "A. Heffernan"

@@ -1,4 +1,4 @@
-/*	$NetBSD: pathnames.h,v 1.17 2009/04/11 09:41:18 apb Exp $	*/
+/*	$NetBSD: pathnames.h,v 1.18 2020/11/29 09:27:40 rillig Exp $	*/
 
 /*
  * Copyright (c) 1990, 1993
@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
- *	$Id: pathnames.h,v 1.13 2009/08/26 23:43:42 sjg Exp $
+ *	$Id: pathnames.h,v 1.14 2020/11/30 19:27:41 sjg Exp $
  */
 
 #if HAVE_CONFIG_H
@@ -43,12 +43,13 @@
 #ifdef HAVE_PATHS_H
 #include <paths.h>
 #endif
-#define	_PATH_OBJDIR		"obj"
-#define	_PATH_OBJDIRPREFIX	"/usr/obj"
+
+#define _PATH_OBJDIR		"obj"
+#define _PATH_OBJDIRPREFIX	"/usr/obj"
 #ifndef _PATH_DEFSHELLDIR
-#define	_PATH_DEFSHELLDIR	"/bin"
+#define _PATH_DEFSHELLDIR	"/bin"
 #endif
-#define	_PATH_DEFSYSMK		"sys.mk"
+#define _PATH_DEFSYSMK		"sys.mk"
 #define _path_defsyspath	"/usr/share/mk:/usr/local/share/mk:/opt/share/mk"
 #ifndef _PATH_DEFSYSPATH
 # ifdef _PATH_PREFIX_SYSPATH
@@ -58,5 +59,5 @@
 # endif
 #endif
 #ifndef _PATH_TMP
-#define	_PATH_TMP		"/tmp/"		/* with trailing slash */
+#define _PATH_TMP		"/tmp/"		/* with trailing slash */
 #endif

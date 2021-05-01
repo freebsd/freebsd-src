@@ -62,10 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_soc.h"
 #endif
 
-#ifdef INTRNG
 #include "pic_if.h"
-#endif
-
 #include "gpio_if.h"
 
 #define	AW_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
@@ -257,7 +254,6 @@ struct clk_list {
 	clk_t			clk;
 };
 
-#ifdef INTRNG
 struct gpio_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
@@ -269,7 +265,6 @@ struct gpio_irqsrc {
 	uint32_t		oldfunc;
 	bool			enabled;
 };
-#endif
 
 #define	AW_GPIO_MEMRES		0
 #define	AW_GPIO_IRQRES		1
@@ -286,10 +281,8 @@ struct aw_gpio_softc {
 	struct aw_gpio_conf	*conf;
 	TAILQ_HEAD(, clk_list)		clk_list;
 
-#ifdef INTRNG
 	struct gpio_irqsrc 	*gpio_pic_irqsrc;
 	int			nirqs;
-#endif
 };
 
 static struct resource_spec aw_gpio_res_spec[] = {
@@ -1071,10 +1064,8 @@ aw_gpio_attach(device_t dev)
 		goto fail;
 	}
 
-#ifdef INTRNG
 	aw_gpio_register_isrcs(sc);
 	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
-#endif
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL)
@@ -1451,7 +1442,6 @@ static device_method_t aw_gpio_methods[] = {
 	DEVMETHOD(device_attach,	aw_gpio_attach),
 	DEVMETHOD(device_detach,	aw_gpio_detach),
 
-#ifdef INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_disable_intr,	aw_gpio_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	aw_gpio_pic_enable_intr),
@@ -1461,7 +1451,6 @@ static device_method_t aw_gpio_methods[] = {
 	DEVMETHOD(pic_post_filter,	aw_gpio_pic_post_filter),
 	DEVMETHOD(pic_post_ithread,	aw_gpio_pic_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	aw_gpio_pic_pre_ithread),
-#endif
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		aw_gpio_get_bus),

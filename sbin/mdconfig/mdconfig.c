@@ -423,7 +423,7 @@ md_set_file(const char *fn)
 /*
  * Lists md(4) disks. Is used also as a query routine, since it handles XML
  * interface. 'units' can be NULL for listing memory disks. It might be
- * coma-separated string containing md(4) disk names. 'opt' distinguished
+ * comma-separated string containing md(4) disk names. 'opt' distinguished
  * between list and query mode.
  */
 static int

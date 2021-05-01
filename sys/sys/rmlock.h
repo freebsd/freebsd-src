@@ -48,6 +48,7 @@
 #define	RM_RECURSE	0x00000002
 #define	RM_SLEEPABLE	0x00000004
 #define	RM_NEW		0x00000008
+#define	RM_DUPOK	0x00000010
 
 void	rm_init(struct rmlock *rm, const char *name);
 void	rm_init_flags(struct rmlock *rm, const char *name, int opts);
@@ -140,17 +141,39 @@ int	rms_try_rlock(struct rmslock *rms);
 void	rms_runlock(struct rmslock *rms);
 void	rms_wlock(struct rmslock *rms);
 void	rms_wunlock(struct rmslock *rms);
+void	rms_unlock(struct rmslock *rms);
 
-/*
- * Writers are not explicitly tracked, thus until that changes the best we can
- * do is indicate the lock is taken for writing by *someone*.
- */
 static inline int
 rms_wowned(struct rmslock *rms)
 {
 
-	return (rms->writers > 0);
+	return (rms->owner == curthread);
 }
+
+#ifdef INVARIANTS
+/*
+ * For assertion purposes.
+ *
+ * Main limitation is that we at best can tell there are readers, but not
+ * whether curthread is one of them.
+ */
+static inline int
+rms_rowned(struct rmslock *rms)
+{
+
+	return (rms->debug_readers > 0);
+}
+
+static inline int
+rms_owned_any(struct rmslock *rms)
+{
+
+	if (rms_wowned(rms))
+		return (1);
+
+	return (rms_rowned(rms));
+}
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */

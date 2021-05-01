@@ -36,6 +36,10 @@
  * $FreeBSD$
  */
 
+#pragma once
+
+#include <libifconfig.h>
+
 #define	__constructor	__attribute__((constructor))
 
 struct afswtch;
@@ -128,6 +132,7 @@ struct option {
 };
 void	opt_register(struct option *);
 
+extern	ifconfig_handle_t *lifh;
 extern	struct ifreq ifr;
 extern	char name[IFNAMSIZ];	/* name of interface */
 extern	int allmedia;
@@ -145,8 +150,10 @@ void	printb(const char *s, unsigned value, const char *bits);
 
 void	ifmaybeload(const char *name);
 
+typedef int  clone_match_func(const char *);
 typedef void clone_callback_func(int, struct ifreq *);
-void	clone_setdefcallback(const char *, clone_callback_func *);
+void	clone_setdefcallback_prefix(const char *, clone_callback_func *);
+void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 
 void	sfp_status(int s, struct ifreq *ifr, int verbose);
 
@@ -154,7 +161,8 @@ void	sfp_status(int s, struct ifreq *ifr, int verbose);
  * XXX expose this so modules that neeed to know of any pending
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
-struct ifmediareq *ifmedia_getstate(int s);
+struct ifmediareq *ifmedia_getstate(void);
 
 void print_vhid(const struct ifaddrs *, const char *);
 
+void ioctl_ifcreate(int s, struct ifreq *);

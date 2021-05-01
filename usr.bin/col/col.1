@@ -31,7 +31,7 @@
 .\"     @(#)col.1	8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2015
+.Dd October 21, 2020
 .Dt COL 1
 .Os
 .Sh NAME
@@ -47,10 +47,6 @@ The
 utility filters out reverse (and half reverse) line feeds so that the output is
 in the correct order with only forward and half forward line
 feeds, and replaces white-space characters with tabs where possible.
-This can be useful in processing the output of
-.Xr nroff 1
-and
-.Xr tbl 1 .
 .Pp
 The
 .Nm
@@ -149,11 +145,19 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+We can use
+.Nm
+to filter the output of
+.Xr man 1
+and remove the backspace characters (
+.Em ^H
+) before searching for some text:
+.Bd -literal -offset indent
+man ls | col -b | grep HISTORY
+.Ed
 .Sh SEE ALSO
-.Xr colcrt 1 ,
-.Xr expand 1 ,
-.Xr nroff 1 ,
-.Xr tbl 1
+.Xr expand 1
 .Sh STANDARDS
 The
 .Nm

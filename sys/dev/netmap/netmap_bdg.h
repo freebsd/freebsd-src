@@ -178,8 +178,10 @@ int netmap_bdg_free(struct nm_bridge *b);
 void netmap_bdg_detach_common(struct nm_bridge *b, int hw, int sw);
 int netmap_vp_bdg_ctl(struct nmreq_header *hdr, struct netmap_adapter *na);
 int netmap_bwrap_reg(struct netmap_adapter *, int onoff);
+int netmap_bdg_detach_locked(struct nmreq_header *hdr, void *auth_token);
 int netmap_vp_reg(struct netmap_adapter *na, int onoff);
 int netmap_vp_rxsync(struct netmap_kring *kring, int flags);
+int netmap_bwrap_intr_notify(struct netmap_kring *kring, int flags);
 int netmap_bwrap_notify(struct netmap_kring *kring, int flags);
 int netmap_bwrap_attach_common(struct netmap_adapter *na,
 		struct netmap_adapter *hwna);

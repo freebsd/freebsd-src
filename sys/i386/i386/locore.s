@@ -79,7 +79,7 @@ bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
  * This is where the bootblocks start us, set the ball rolling...
  *
  */
-NON_GPROF_ENTRY(btext)
+ENTRY(btext)
 
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
@@ -451,6 +451,6 @@ END(identify_cpu)
 	.text
 .p2align PAGE_SHIFT, 0x90	/* Hypercall_page needs to be PAGE aligned */
 
-NON_GPROF_ENTRY(hypercall_page)
+ENTRY(hypercall_page)
 	.skip	0x1000, 0x90	/* Fill with "nop"s */
 #endif

@@ -1614,6 +1614,14 @@ axgbe_sysctl_init(struct xgbe_prv_data *pdata)
 	SYSCTL_ADD_UINT(clist, top, OID_AUTO, "axgbe_debug_level", CTLFLAG_RWTUN,
 	    &pdata->debug_level, 0, "axgbe log level -- higher is verbose");
 
+	SYSCTL_ADD_UINT(clist, top, OID_AUTO, "sph_enable",
+	    CTLFLAG_RDTUN, &pdata->sph_enable, 1,
+	    "shows the split header feature state (1 - enable, 0 - disable");
+
+	SYSCTL_ADD_UINT(clist, top, OID_AUTO, "link_workaround",
+	    CTLFLAG_RWTUN, &pdata->link_workaround, 0,
+	    "enable the workaround for link issue in coming up");
+
 	SYSCTL_ADD_PROC(clist, top, OID_AUTO, "xgmac_register",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 	    pdata, 0, sysctl_xgmac_reg_addr_handler, "IU",

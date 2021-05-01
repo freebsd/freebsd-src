@@ -31,36 +31,67 @@ __FBSDID("$FreeBSD$");
 #include <linux/completion.h>
 #include <linux/mm.h>
 #include <linux/kthread.h>
+#include <linux/moduleparam.h>
 
 #include <sys/kernel.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
+#include <vm/uma.h>
+
+#if defined(__i386__) || defined(__amd64__)
+extern u_int first_msi_irq, num_msi_irqs;
+#endif
 
 static eventhandler_tag linuxkpi_thread_dtor_tag;
 
-static MALLOC_DEFINE(M_LINUX_CURRENT, "linuxcurrent", "LinuxKPI task structure");
+static uma_zone_t linux_current_zone;
+static uma_zone_t linux_mm_zone;
+
+/* check if another thread already has a mm_struct */
+static struct mm_struct *
+find_other_mm(struct proc *p)
+{
+	struct thread *td;
+	struct task_struct *ts;
+	struct mm_struct *mm;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	FOREACH_THREAD_IN_PROC(p, td) {
+		ts = td->td_lkpi_task;
+		if (ts == NULL)
+			continue;
+		mm = ts->mm;
+		if (mm == NULL)
+			continue;
+		/* try to share other mm_struct */
+		if (atomic_inc_not_zero(&mm->mm_users))
+			return (mm);
+	}
+	return (NULL);
+}
 
 int
 linux_alloc_current(struct thread *td, int flags)
 {
 	struct proc *proc;
-	struct thread *td_other;
 	struct task_struct *ts;
-	struct task_struct *ts_other;
-	struct mm_struct *mm;
-	struct mm_struct *mm_other;
+	struct mm_struct *mm, *mm_other;
 
 	MPASS(td->td_lkpi_task == NULL);
 
-	ts = malloc(sizeof(*ts), M_LINUX_CURRENT, flags | M_ZERO);
-	if (ts == NULL)
-		return (ENOMEM);
+	if ((td->td_pflags & TDP_ITHREAD) != 0 || !THREAD_CAN_SLEEP()) {
+		flags &= ~M_WAITOK;
+		flags |= M_NOWAIT | M_USE_RESERVE;
+	}
 
-	mm = malloc(sizeof(*mm), M_LINUX_CURRENT, flags | M_ZERO);
-	if (mm == NULL) {
-		free(ts, M_LINUX_CURRENT);
+	ts = uma_zalloc(linux_current_zone, flags | M_ZERO);
+	if (ts == NULL) {
+		if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
+			panic("linux_alloc_current: failed to allocate task");
 		return (ENOMEM);
 	}
+	mm = NULL;
 
 	/* setup new task structure */
 	atomic_set(&ts->kthread_flags, 0);
@@ -75,35 +106,37 @@ linux_alloc_current(struct thread *td, int flags)
 
 	proc = td->td_proc;
 
-	/* check if another thread already has a mm_struct */
 	PROC_LOCK(proc);
-	FOREACH_THREAD_IN_PROC(proc, td_other) {
-		ts_other = td_other->td_lkpi_task;
-		if (ts_other == NULL)
-			continue;
-
-		mm_other = ts_other->mm;
-		if (mm_other == NULL)
-			continue;
-
-		/* try to share other mm_struct */
-		if (atomic_inc_not_zero(&mm_other->mm_users)) {
-			/* set mm_struct pointer */
-			ts->mm = mm_other;
-			break;
-		}
-	}
+	mm_other = find_other_mm(proc);
 
 	/* use allocated mm_struct as a fallback */
-	if (ts->mm == NULL) {
-		/* setup new mm_struct */
-		init_rwsem(&mm->mmap_sem);
-		atomic_set(&mm->mm_count, 1);
-		atomic_set(&mm->mm_users, 1);
-		/* set mm_struct pointer */
-		ts->mm = mm;
-		/* clear pointer to not free memory */
-		mm = NULL;
+	if (mm_other == NULL) {
+		PROC_UNLOCK(proc);
+		mm = uma_zalloc(linux_mm_zone, flags | M_ZERO);
+		if (mm == NULL) {
+			if ((flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK)
+				panic(
+			    "linux_alloc_current: failed to allocate mm");
+			uma_zfree(linux_current_zone, mm);
+			return (ENOMEM);
+		}
+
+		PROC_LOCK(proc);
+		mm_other = find_other_mm(proc);
+		if (mm_other == NULL) {
+			/* setup new mm_struct */
+			init_rwsem(&mm->mmap_sem);
+			atomic_set(&mm->mm_count, 1);
+			atomic_set(&mm->mm_users, 1);
+			/* set mm_struct pointer */
+			ts->mm = mm;
+			/* clear pointer to not free memory */
+			mm = NULL;
+		} else {
+			ts->mm = mm_other;
+		}
+	} else {
+		ts->mm = mm_other;
 	}
 
 	/* store pointer to task struct */
@@ -111,7 +144,7 @@ linux_alloc_current(struct thread *td, int flags)
 	PROC_UNLOCK(proc);
 
 	/* free mm_struct pointer, if any */
-	free(mm, M_LINUX_CURRENT);
+	uma_zfree(linux_mm_zone, mm);
 
 	return (0);
 }
@@ -132,14 +165,14 @@ linux_get_task_mm(struct task_struct *task)
 void
 linux_mm_dtor(struct mm_struct *mm)
 {
-	free(mm, M_LINUX_CURRENT);
+	uma_zfree(linux_mm_zone, mm);
 }
 
 void
 linux_free_current(struct task_struct *ts)
 {
 	mmput(ts->mm);
-	free(ts, M_LINUX_CURRENT);
+	uma_zfree(linux_current_zone, ts);
 }
 
 static void
@@ -229,14 +262,45 @@ linux_task_exiting(struct task_struct *task)
 	return (ret);
 }
 
+static int lkpi_task_resrv;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, task_struct_reserve,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &lkpi_task_resrv, 0,
+    "Number of struct task and struct mm to reserve for non-sleepable "
+    "allocations");
+
 static void
 linux_current_init(void *arg __unused)
 {
 	lkpi_alloc_current = linux_alloc_current;
 	linuxkpi_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 	    linuxkpi_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
+
+	TUNABLE_INT_FETCH("compat.linuxkpi.task_struct_reserve",
+	    &lkpi_task_resrv);
+	if (lkpi_task_resrv == 0) {
+#if defined(__i386__) || defined(__amd64__)
+		/*
+		 * Number of interrupt threads plus per-cpu callout
+		 * SWI threads.
+		 */
+		lkpi_task_resrv = first_msi_irq + num_msi_irqs + MAXCPU;
+#else
+		lkpi_task_resrv = 1024;		/* XXXKIB arbitrary */
+#endif
+	}
+	linux_current_zone = uma_zcreate("lkpicurr",
+	    sizeof(struct task_struct), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	uma_zone_reserve(linux_current_zone, lkpi_task_resrv);
+	uma_prealloc(linux_current_zone, lkpi_task_resrv);
+	linux_mm_zone = uma_zcreate("lkpimm",
+	    sizeof(struct task_struct), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	uma_zone_reserve(linux_mm_zone, lkpi_task_resrv);
+	uma_prealloc(linux_mm_zone, lkpi_task_resrv);
 }
-SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_init, NULL);
+SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+    linux_current_init, NULL);
 
 static void
 linux_current_uninit(void *arg __unused)
@@ -259,5 +323,8 @@ linux_current_uninit(void *arg __unused)
 	sx_sunlock(&allproc_lock);
 	EVENTHANDLER_DEREGISTER(thread_dtor, linuxkpi_thread_dtor_tag);
 	lkpi_alloc_current = linux_alloc_current_noop;
+	uma_zdestroy(linux_current_zone);
+	uma_zdestroy(linux_mm_zone);
 }
-SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_current_uninit, NULL);
+SYSUNINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
+    linux_current_uninit, NULL);

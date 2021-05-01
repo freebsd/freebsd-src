@@ -41,14 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "hwpmc_powerpc.h"
 
-#define	POWERPC_PMC_CAPS	(PMC_CAP_INTERRUPT | PMC_CAP_USER |     \
-				 PMC_CAP_SYSTEM | PMC_CAP_EDGE |	\
-				 PMC_CAP_THRESHOLD | PMC_CAP_READ |	\
-				 PMC_CAP_WRITE | PMC_CAP_INVERT |	\
-				 PMC_CAP_QUALIFIER)
-
-#define E500_PMC_HAS_OVERFLOWED(x) (e500_pmcn_read(x) & (0x1 << 31))
-
 struct e500_event_code_map {
 	enum pmc_event	pe_ev;       /* enum value */
 	uint8_t         pe_counter_mask;  /* Which counter this can be counted in. */
@@ -246,20 +238,16 @@ static pmc_value_t
 e500_pmcn_read(unsigned int pmc)
 {
 	switch (pmc) {
-		case 0:
-			return mfpmr(PMR_PMC0);
-			break;
-		case 1:
-			return mfpmr(PMR_PMC1);
-			break;
-		case 2:
-			return mfpmr(PMR_PMC2);
-			break;
-		case 3:
-			return mfpmr(PMR_PMC3);
-			break;
-		default:
-			panic("Invalid PMC number: %d\n", pmc);
+	case 0:
+		return (mfpmr(PMR_PMC0));
+	case 1:
+		return (mfpmr(PMR_PMC1));
+	case 2:
+		return (mfpmr(PMR_PMC2));
+	case 3:
+		return (mfpmr(PMR_PMC3));
+	default:
+		panic("Invalid PMC number: %d\n", pmc);
 	}
 }
 
@@ -267,206 +255,98 @@ static void
 e500_pmcn_write(unsigned int pmc, uint32_t val)
 {
 	switch (pmc) {
+	case 0:
+		mtpmr(PMR_PMC0, val);
+		break;
+	case 1:
+		mtpmr(PMR_PMC1, val);
+		break;
+	case 2:
+		mtpmr(PMR_PMC2, val);
+		break;
+	case 3:
+		mtpmr(PMR_PMC3, val);
+		break;
+	default:
+		panic("Invalid PMC number: %d\n", pmc);
+	}
+}
+
+static void
+e500_set_pmc(int cpu, int ri, int config)
+{
+	struct pmc *pm;
+	struct pmc_hw *phw;
+	register_t pmc_pmlc;
+
+	phw    = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
+	pm     = phw->phw_pmc;
+	config &= ~POWERPC_PMC_ENABLE;
+
+	if (config != PMCN_NONE) {
+		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
+			config |= PMLCax_CE;
+
+		/* Enable the PMC. */
+		switch (ri) {
 		case 0:
-			mtpmr(PMR_PMC0, val);
+			mtpmr(PMR_PMLCa0, config);
 			break;
 		case 1:
-			mtpmr(PMR_PMC1, val);
+			mtpmr(PMR_PMLCa1, config);
 			break;
 		case 2:
-			mtpmr(PMR_PMC2, val);
+			mtpmr(PMR_PMLCa2, config);
 			break;
 		case 3:
-			mtpmr(PMR_PMC3, val);
+			mtpmr(PMR_PMLCa3, config);
 			break;
-		default:
-			panic("Invalid PMC number: %d\n", pmc);
+		}
+	} else {
+		/* Disable the PMC. */
+		switch (ri) {
+		case 0:
+			pmc_pmlc = mfpmr(PMR_PMLCa0);
+			pmc_pmlc |= PMLCax_FC;
+			mtpmr(PMR_PMLCa0, pmc_pmlc);
+			break;
+		case 1:
+			pmc_pmlc = mfpmr(PMR_PMLCa1);
+			pmc_pmlc |= PMLCax_FC;
+			mtpmr(PMR_PMLCa1, pmc_pmlc);
+			break;
+		case 2:
+			pmc_pmlc = mfpmr(PMR_PMLCa2);
+			pmc_pmlc |= PMLCax_FC;
+			mtpmr(PMR_PMLCa2, pmc_pmlc);
+			break;
+		case 3:
+			pmc_pmlc = mfpmr(PMR_PMLCa3);
+			pmc_pmlc |= PMLCax_FC;
+			mtpmr(PMR_PMLCa3, pmc_pmlc);
+			break;
+		}
 	}
-}
-
-static int
-e500_read_pmc(int cpu, int ri, pmc_value_t *v)
-{
-	struct pmc *pm;
-	pmc_value_t tmp;
-
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < E500_MAX_PMCS,
-	    ("[powerpc,%d] illegal row index %d", __LINE__, ri));
-
-	pm  = powerpc_pcpu[cpu]->pc_ppcpmcs[ri].phw_pmc;
-	KASSERT(pm,
-	    ("[core,%d] cpu %d ri %d pmc not configured", __LINE__, cpu,
-		ri));
-
-	tmp = e500_pmcn_read(ri);
-	PMCDBG2(MDP,REA,2,"ppc-read id=%d -> %jd", ri, tmp);
-	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		*v = POWERPC_PERFCTR_VALUE_TO_RELOAD_COUNT(tmp);
-	else
-		*v = tmp;
-
-	return 0;
-}
-
-static int
-e500_write_pmc(int cpu, int ri, pmc_value_t v)
-{
-	struct pmc *pm;
-
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < E500_MAX_PMCS,
-	    ("[powerpc,%d] illegal row-index %d", __LINE__, ri));
-
-	pm  = powerpc_pcpu[cpu]->pc_ppcpmcs[ri].phw_pmc;
-
-	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		v = POWERPC_RELOAD_COUNT_TO_PERFCTR_VALUE(v);
-	
-	PMCDBG3(MDP,WRI,1,"powerpc-write cpu=%d ri=%d v=%jx", cpu, ri, v);
-
-	e500_pmcn_write(ri, v);
-
-	return 0;
-}
-
-static int
-e500_config_pmc(int cpu, int ri, struct pmc *pm)
-{
-	struct pmc_hw *phw;
-
-	PMCDBG3(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
-
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < E500_MAX_PMCS,
-	    ("[powerpc,%d] illegal row-index %d", __LINE__, ri));
-
-	phw = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
-
-	KASSERT(pm == NULL || phw->phw_pmc == NULL,
-	    ("[powerpc,%d] pm=%p phw->pm=%p hwpmc not unconfigured",
-	    __LINE__, pm, phw->phw_pmc));
-
-	phw->phw_pmc = pm;
-
-	return 0;
-}
-
-static int
-e500_start_pmc(int cpu, int ri)
-{
-	uint32_t config;
-        struct pmc *pm;
-        struct pmc_hw *phw;
-
-	phw    = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
-	pm     = phw->phw_pmc;
-	config = pm->pm_md.pm_powerpc.pm_powerpc_evsel;
-
-	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-		config |= PMLCax_CE;
-
-	/* Enable the PMC. */
-	switch (ri) {
-	case 0:
-		mtpmr(PMR_PMLCa0, config);
-		break;
-	case 1:
-		mtpmr(PMR_PMLCa1, config);
-		break;
-	case 2:
-		mtpmr(PMR_PMLCa2, config);
-		break;
-	case 3:
-		mtpmr(PMR_PMLCa3, config);
-		break;
-	default:
-		break;
-	}
-	
-	return 0;
-}
-
-static int
-e500_stop_pmc(int cpu, int ri)
-{
-        struct pmc *pm;
-        struct pmc_hw *phw;
-        register_t pmc_pmlc;
-
-	phw    = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
-	pm     = phw->phw_pmc;
-
-	/*
-	 * Disable the PMCs.
-	 */
-	switch (ri) {
-	case 0:
-		pmc_pmlc = mfpmr(PMR_PMLCa0);
-		pmc_pmlc |= PMLCax_FC;
-		mtpmr(PMR_PMLCa0, pmc_pmlc);
-		break;
-	case 1:
-		pmc_pmlc = mfpmr(PMR_PMLCa1);
-		pmc_pmlc |= PMLCax_FC;
-		mtpmr(PMR_PMLCa1, pmc_pmlc);
-		break;
-	case 2:
-		pmc_pmlc = mfpmr(PMR_PMLCa2);
-		pmc_pmlc |= PMLCax_FC;
-		mtpmr(PMR_PMLCa2, pmc_pmlc);
-		break;
-	case 3:
-		pmc_pmlc = mfpmr(PMR_PMLCa3);
-		pmc_pmlc |= PMLCax_FC;
-		mtpmr(PMR_PMLCa3, pmc_pmlc);
-		break;
-	default:
-		break;
-	}
-	return 0;
 }
 
 static int
 e500_pcpu_init(struct pmc_mdep *md, int cpu)
 {
-	int first_ri, i;
-	struct pmc_cpu *pc;
-	struct powerpc_cpu *pac;
-	struct pmc_hw  *phw;
+	int i;
 
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] wrong cpu number %d", __LINE__, cpu));
-	PMCDBG1(MDP,INI,1,"powerpc-init cpu=%d", cpu);
+	powerpc_pcpu_init(md, cpu);
 
 	/* Freeze all counters. */
 	mtpmr(PMR_PMGC0, PMGC_FAC | PMGC_PMIE | PMGC_FCECE);
 
-	powerpc_pcpu[cpu] = pac = malloc(sizeof(struct powerpc_cpu), M_PMC,
-	    M_WAITOK|M_ZERO);
-	pac->pc_ppcpmcs = malloc(sizeof(struct pmc_hw) * E500_MAX_PMCS,
-	    M_PMC, M_WAITOK|M_ZERO);
-	pac->pc_class = PMC_CLASS_E500;
-	pc = pmc_pcpu[cpu];
-	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_POWERPC].pcd_ri;
-	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
-
-	for (i = 0, phw = pac->pc_ppcpmcs; i < E500_MAX_PMCS; i++, phw++) {
-		phw->phw_state    = PMC_PHW_FLAG_IS_ENABLED |
-		    PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(i);
-		phw->phw_pmc      = NULL;
-		pc->pc_hwpmcs[i + first_ri] = phw;
-
+	for (i = 0; i < E500_MAX_PMCS; i++)
 		/* Initialize the PMC to stopped */
-		e500_stop_pmc(cpu, i);
-	}
+		powerpc_stop_pmc(cpu, i);
+
 	/* Unfreeze global register. */
 	mtpmr(PMR_PMGC0, PMGC_PMIE | PMGC_FCECE);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -478,10 +358,7 @@ e500_pcpu_fini(struct pmc_mdep *md, int cpu)
 	mtpmr(PMR_PMGC0, pmgc0);
 	mtmsr(mfmsr() & ~PSL_PMM);
 
-	free(powerpc_pcpu[cpu]->pc_ppcpmcs, M_PMC);
-	free(powerpc_pcpu[cpu], M_PMC);
-
-	return 0;
+	return (powerpc_pcpu_fini(md, cpu));
 }
 
 static int
@@ -547,85 +424,12 @@ e500_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	return 0;
 }
 
-static int
-e500_release_pmc(int cpu, int ri, struct pmc *pmc)
+static void
+e500_resume_pmc(bool ie)
 {
-	struct pmc_hw *phw;
-
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < E500_MAX_PMCS,
-	    ("[powerpc,%d] illegal row-index %d", __LINE__, ri));
-
-	phw = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
-	KASSERT(phw->phw_pmc == NULL,
-	    ("[powerpc,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
-
-	return 0;
-}
-
-static int
-e500_intr(struct trapframe *tf)
-{
-	int i, error, retval, cpu;
-	uint32_t config;
-	struct pmc *pm;
-	struct powerpc_cpu *pac;
-
-	cpu = curcpu;
-	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
-
-	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *) tf,
-	    TRAPF_USERMODE(tf));
-
-	retval = 0;
-
-	pac = powerpc_pcpu[cpu];
-
-	config  = mfpmr(PMR_PMGC0) & ~PMGC_FAC;
-
-	/*
-	 * look for all PMCs that have interrupted:
-	 * - look for a running, sampling PMC which has overflowed
-	 *   and which has a valid 'struct pmc' association
-	 *
-	 * If found, we call a helper to process the interrupt.
-	 */
-
-	for (i = 0; i < E500_MAX_PMCS; i++) {
-		if ((pm = pac->pc_ppcpmcs[i].phw_pmc) == NULL ||
-		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
-			continue;
-		}
-
-		if (!E500_PMC_HAS_OVERFLOWED(i))
-			continue;
-
-		retval = 1;	/* Found an interrupting PMC. */
-
-		if (pm->pm_state != PMC_STATE_RUNNING)
-			continue;
-
-		/* Stop the counter if logging fails. */
-		error = pmc_process_interrupt(PMC_HR, pm, tf);
-		if (error != 0)
-			e500_stop_pmc(cpu, i);
-
-		/* reload count. */
-		e500_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
-	}
-
-	if (retval)
-		counter_u64_add(pmc_stats.pm_intr_processed, 1);
-	else
-		counter_u64_add(pmc_stats.pm_intr_ignored, 1);
-
 	/* Re-enable PERF exceptions. */
-	if (retval)
-		mtpmr(PMR_PMGC0, config | PMGC_PMIE);
-
-	return (retval);
+	if (ie)
+		mtpmr(PMR_PMGC0, (mfpmr(PMR_PMGC0) & ~PMGC_FAC) | PMGC_PMIE);
 }
 
 int
@@ -643,19 +447,26 @@ pmc_e500_initialize(struct pmc_mdep *pmc_mdep)
 	pcd->pcd_width = 32;
 
 	pcd->pcd_allocate_pmc   = e500_allocate_pmc;
-	pcd->pcd_config_pmc     = e500_config_pmc;
+	pcd->pcd_config_pmc     = powerpc_config_pmc;
 	pcd->pcd_pcpu_fini      = e500_pcpu_fini;
 	pcd->pcd_pcpu_init      = e500_pcpu_init;
 	pcd->pcd_describe       = powerpc_describe;
 	pcd->pcd_get_config     = powerpc_get_config;
-	pcd->pcd_read_pmc       = e500_read_pmc;
-	pcd->pcd_release_pmc    = e500_release_pmc;
-	pcd->pcd_start_pmc      = e500_start_pmc;
-	pcd->pcd_stop_pmc       = e500_stop_pmc;
- 	pcd->pcd_write_pmc      = e500_write_pmc;
+	pcd->pcd_read_pmc       = powerpc_read_pmc;
+	pcd->pcd_release_pmc    = powerpc_release_pmc;
+	pcd->pcd_start_pmc      = powerpc_start_pmc;
+	pcd->pcd_stop_pmc       = powerpc_stop_pmc;
+	pcd->pcd_write_pmc      = powerpc_write_pmc;
 
 	pmc_mdep->pmd_npmc   += E500_MAX_PMCS;
-	pmc_mdep->pmd_intr   =  e500_intr;
+	pmc_mdep->pmd_intr   =  powerpc_pmc_intr;
+
+	ppc_max_pmcs = E500_MAX_PMCS;
+
+	powerpc_set_pmc = e500_set_pmc;
+	powerpc_pmcn_read = e500_pmcn_read;
+	powerpc_pmcn_write = e500_pmcn_write;
+	powerpc_resume_pmc = e500_resume_pmc;
 
 	return (0);
 }

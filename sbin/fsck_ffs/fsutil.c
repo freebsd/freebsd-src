@@ -64,9 +64,14 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
+int		sujrecovery = 0;
+
+static struct bufarea *allocbuf(const char *);
+static void cg_write(struct bufarea *);
 static void slowio_start(void);
 static void slowio_end(void);
 static void printIOstats(void);
+static void prtbuf(const char *, struct bufarea *);
 
 static long diskreads, totaldiskreads, totalreads; /* Disk cache statistics */
 static struct timespec startpass, finishpass;
@@ -74,11 +79,14 @@ struct timeval slowio_starttime;
 int slowio_delay_usec = 10000;	/* Initial IO delay for background fsck */
 int slowio_pollcnt;
 static struct bufarea cgblk;	/* backup buffer for cylinder group blocks */
-static TAILQ_HEAD(buflist, bufarea) bufhead;	/* head of buffer cache list */
+static TAILQ_HEAD(bufqueue, bufarea) bufqueuehd; /* head of buffer cache LRU */
+static LIST_HEAD(bufhash, bufarea) bufhashhd[HASHSIZE]; /* buffer hash list */
 static int numbufs;				/* size of buffer cache */
-static char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
-static struct bufarea *cgbufs;	/* header for cylinder group cache */
+static int cachelookups;			/* number of cache lookups */
+static int cachereads;				/* number of cache reads */
 static int flushtries;		/* number of tries to reclaim memory */
+
+char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
 
 void
 fsutilinit(void)
@@ -89,11 +97,6 @@ fsutilinit(void)
 	bzero(&slowio_starttime, sizeof(struct timeval));
 	slowio_delay_usec = 10000;
 	slowio_pollcnt = 0;
-	bzero(&cgblk, sizeof(struct bufarea));
-	TAILQ_INIT(&bufhead);
-	numbufs = 0;
-	/* buftype ? */
-	cgbufs = NULL;
 	flushtries = 0;
 }
 
@@ -181,38 +184,39 @@ inoinfo(ino_t inum)
 void
 bufinit(void)
 {
-	struct bufarea *bp;
-	long bufcnt, i;
-	char *bufp;
+	int i;
 
-	pbp = pdirbp = (struct bufarea *)0;
-	bufp = Malloc((unsigned int)sblock.fs_bsize);
-	if (bufp == NULL)
-		errx(EEXIT, "cannot allocate buffer pool");
-	cgblk.b_un.b_buf = bufp;
+	if ((cgblk.b_un.b_buf = Malloc((unsigned int)sblock.fs_bsize)) == NULL)
+		errx(EEXIT, "Initial malloc(%d) failed", sblock.fs_bsize);
 	initbarea(&cgblk, BT_CYLGRP);
-	TAILQ_INIT(&bufhead);
-	bufcnt = MAXBUFS;
-	if (bufcnt < MINBUFS)
-		bufcnt = MINBUFS;
-	for (i = 0; i < bufcnt; i++) {
-		bp = (struct bufarea *)Malloc(sizeof(struct bufarea));
-		bufp = Malloc((unsigned int)sblock.fs_bsize);
-		if (bp == NULL || bufp == NULL) {
-			if (i >= MINBUFS)
-				break;
-			errx(EEXIT, "cannot allocate buffer pool");
-		}
-		bp->b_un.b_buf = bufp;
-		TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
-		initbarea(bp, BT_UNKNOWN);
-	}
-	numbufs = i;	/* save number of buffers */
+	numbufs = cachelookups = cachereads = 0;
+	TAILQ_INIT(&bufqueuehd);
+	for (i = 0; i < HASHSIZE; i++)
+		LIST_INIT(&bufhashhd[i]);
 	for (i = 0; i < BT_NUMBUFTYPES; i++) {
 		readtime[i].tv_sec = totalreadtime[i].tv_sec = 0;
 		readtime[i].tv_nsec = totalreadtime[i].tv_nsec = 0;
 		readcnt[i] = totalreadcnt[i] = 0;
 	}
+}
+
+static struct bufarea *
+allocbuf(const char *failreason)
+{
+	struct bufarea *bp;
+	char *bufp;
+
+	bp = (struct bufarea *)Malloc(sizeof(struct bufarea));
+	bufp = Malloc((unsigned int)sblock.fs_bsize);
+	if (bp == NULL || bufp == NULL) {
+		errx(EEXIT, "%s", failreason);
+		/* NOTREACHED */
+	}
+	numbufs++;
+	bp->b_un.b_buf = bufp;
+	TAILQ_INSERT_HEAD(&bufqueuehd, bp, b_list);
+	initbarea(bp, BT_UNKNOWN);
+	return (bp);
 }
 
 /*
@@ -230,18 +234,22 @@ cglookup(int cg)
 	struct bufarea *cgbp;
 	struct cg *cgp;
 
+	if ((unsigned) cg >= sblock.fs_ncg)
+		errx(EEXIT, "cglookup: out of range cylinder group %d", cg);
 	if (cgbufs == NULL) {
 		cgbufs = calloc(sblock.fs_ncg, sizeof(struct bufarea));
 		if (cgbufs == NULL)
-			errx(EEXIT, "cannot allocate cylinder group buffers");
+			errx(EEXIT, "Cannot allocate cylinder group buffers");
 	}
 	cgbp = &cgbufs[cg];
 	if (cgbp->b_un.b_cg != NULL)
 		return (cgbp);
 	cgp = NULL;
 	if (flushtries == 0)
-		cgp = malloc((unsigned int)sblock.fs_cgsize);
+		cgp = Malloc((unsigned int)sblock.fs_cgsize);
 	if (cgp == NULL) {
+		if (sujrecovery)
+			errx(EEXIT,"Ran out of memory during journal recovery");
 		getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
 		return (&cgblk);
 	}
@@ -278,7 +286,7 @@ flushentry(void)
 {
 	struct bufarea *cgbp;
 
-	if (flushtries == sblock.fs_ncg || cgbufs == NULL)
+	if (sujrecovery || flushtries == sblock.fs_ncg || cgbufs == NULL)
 		return (0);
 	cgbp = &cgbufs[flushtries++];
 	if (cgbp->b_un.b_cg == NULL)
@@ -296,25 +304,84 @@ struct bufarea *
 getdatablk(ufs2_daddr_t blkno, long size, int type)
 {
 	struct bufarea *bp;
+	struct bufhash *bhdp;
 
-	TAILQ_FOREACH(bp, &bufhead, b_list)
-		if (bp->b_bno == fsbtodb(&sblock, blkno))
+	cachelookups++;
+	/* If out of range, return empty buffer with b_err == -1 */
+	if (type != BT_INODES && chkrange(blkno, size / sblock.fs_fsize)) {
+		blkno = -1;
+		type = BT_EMPTY;
+	}
+	bhdp = &bufhashhd[HASH(blkno)];
+	LIST_FOREACH(bp, bhdp, b_hash)
+		if (bp->b_bno == fsbtodb(&sblock, blkno)) {
+			if (debug && bp->b_size != size) {
+				prtbuf("getdatablk: size mismatch", bp);
+				pfatal("getdatablk: b_size %d != size %ld\n",
+				    bp->b_size, size);
+			}
 			goto foundit;
-	TAILQ_FOREACH_REVERSE(bp, &bufhead, buflist, b_list)
-		if ((bp->b_flags & B_INUSE) == 0)
-			break;
-	if (bp == NULL)
-		errx(EEXIT, "deadlocked buffer pool");
+		}
+	/*
+	 * Move long-term busy buffer back to the front of the LRU so we 
+	 * do not endless inspect them for recycling.
+	 */
+	bp = TAILQ_LAST(&bufqueuehd, bufqueue);
+	if (bp != NULL && bp->b_refcnt != 0) {
+		TAILQ_REMOVE(&bufqueuehd, bp, b_list);
+		TAILQ_INSERT_HEAD(&bufqueuehd, bp, b_list);
+	}
+	/*
+	 * Allocate up to the minimum number of buffers before
+	 * considering recycling any of them.
+	 */
+	if (size > sblock.fs_bsize)
+		errx(EEXIT, "Excessive buffer size %ld > %d\n", size,
+		    sblock.fs_bsize);
+	if (numbufs < MINBUFS) {
+		bp = allocbuf("cannot create minimal buffer pool");
+	} else if (sujrecovery) {
+		/*
+		 * SUJ recovery does not want anything written until it 
+		 * has successfully completed (so it can fail back to
+		 * full fsck). Thus, we can only recycle clean buffers.
+		 */
+		TAILQ_FOREACH_REVERSE(bp, &bufqueuehd, bufqueue, b_list)
+			if ((bp->b_flags & B_DIRTY) == 0 && bp->b_refcnt == 0)
+				break;
+		if (bp == NULL)
+			bp = allocbuf("Ran out of memory during "
+			    "journal recovery");
+		else
+			LIST_REMOVE(bp, b_hash);
+	} else {
+		/*
+		 * Recycle oldest non-busy buffer.
+		 */
+		TAILQ_FOREACH_REVERSE(bp, &bufqueuehd, bufqueue, b_list)
+			if (bp->b_refcnt == 0)
+				break;
+		if (bp == NULL)
+			bp = allocbuf("Ran out of memory for buffers");
+		else
+			LIST_REMOVE(bp, b_hash);
+	}
+	flush(fswritefd, bp);
 	bp->b_type = type;
+	LIST_INSERT_HEAD(bhdp, bp, b_hash);
 	getblk(bp, blkno, size);
+	cachereads++;
 	/* fall through */
 foundit:
-	if (debug && bp->b_type != type)
-		printf("Buffer type changed from %s to %s\n",
-		    buftype[bp->b_type], buftype[type]);
-	TAILQ_REMOVE(&bufhead, bp, b_list);
-	TAILQ_INSERT_HEAD(&bufhead, bp, b_list);
-	bp->b_flags |= B_INUSE;
+	if (debug && bp->b_type != type) {
+		printf("getdatablk: buffer type changed to %s",
+		    BT_BUFTYPE(type));
+		prtbuf("", bp);
+	}
+	TAILQ_REMOVE(&bufqueuehd, bp, b_list);
+	TAILQ_INSERT_HEAD(&bufqueuehd, bp, b_list);
+	if (bp->b_errs == 0)
+		bp->b_refcnt++;
 	return (bp);
 }
 
@@ -328,12 +395,15 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 	if (bp->b_bno == dblk) {
 		totalreads++;
 	} else {
-		flush(fswritefd, bp);
 		if (debug) {
 			readcnt[bp->b_type]++;
 			clock_gettime(CLOCK_REALTIME_PRECISE, &start);
 		}
-		bp->b_errs = blread(fsreadfd, bp->b_un.b_buf, dblk, size);
+		if (bp->b_type != BT_EMPTY)
+			bp->b_errs =
+			    blread(fsreadfd, bp->b_un.b_buf, dblk, size);
+		else
+			bp->b_errs = -1;
 		if (debug) {
 			clock_gettime(CLOCK_REALTIME_PRECISE, &finish);
 			timespecsub(&finish, &start, &finish);
@@ -346,12 +416,22 @@ getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 }
 
 void
-flush(int fd, struct bufarea *bp)
+brelse(struct bufarea *bp)
 {
 
-	if (!bp->b_dirty)
+	if (bp->b_refcnt <= 0)
+		prtbuf("brelse: buffer with negative reference count", bp);
+	bp->b_refcnt--;
+}
+
+void
+flush(int fd, struct bufarea *bp)
+{
+	struct inode ip;
+
+	if ((bp->b_flags & B_DIRTY) == 0)
 		return;
-	bp->b_dirty = 0;
+	bp->b_flags &= ~B_DIRTY;
 	if (fswritefd < 0) {
 		pfatal("WRITING IN READ_ONLY MODE.\n");
 		return;
@@ -373,13 +453,88 @@ flush(int fd, struct bufarea *bp)
 			fsmodified = 1;
 		break;
 	case BT_CYLGRP:
+		if (sujrecovery)
+			cg_write(bp);
 		if (cgput(fswritefd, &sblock, bp->b_un.b_cg) == 0)
 			fsmodified = 1;
 		break;
+	case BT_INODES:
+		if (debug && sblock.fs_magic == FS_UFS2_MAGIC) {
+			struct ufs2_dinode *dp = bp->b_un.b_dinode2;
+			int i;
+
+			for (i = 0; i < INOPB(&sblock); dp++, i++) {
+				if (ffs_verify_dinode_ckhash(&sblock, dp) == 0)
+					continue;
+				pwarn("flush: INODE CHECK-HASH FAILED");
+				ip.i_bp = bp;
+				ip.i_dp = (union dinode *)dp;
+				ip.i_number = bp->b_index + i;
+				prtinode(&ip);
+				if (preen || reply("FIX") != 0) {
+					if (preen)
+						printf(" (FIXED)\n");
+					ffs_update_dinode_ckhash(&sblock, dp);
+					inodirty(&ip);
+				}
+			}
+		}
+		/* FALLTHROUGH */
 	default:
 		blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
 		break;
 	}
+}
+
+/*
+ * Journaled soft updates does not maintain cylinder group summary
+ * information during cleanup, so this routine recalculates the summary
+ * information and updates the superblock summary in preparation for
+ * writing out the cylinder group.
+ */
+static void
+cg_write(struct bufarea *bp)
+{
+	ufs1_daddr_t fragno, cgbno, maxbno;
+	u_int8_t *blksfree;
+	struct cg *cgp;
+	int blk;
+	int i;
+
+	/*
+	 * Fix the frag and cluster summary.
+	 */
+	cgp = bp->b_un.b_cg;
+	cgp->cg_cs.cs_nbfree = 0;
+	cgp->cg_cs.cs_nffree = 0;
+	bzero(&cgp->cg_frsum, sizeof(cgp->cg_frsum));
+	maxbno = fragstoblks(&sblock, sblock.fs_fpg);
+	if (sblock.fs_contigsumsize > 0) {
+		for (i = 1; i <= sblock.fs_contigsumsize; i++)
+			cg_clustersum(cgp)[i] = 0;
+		bzero(cg_clustersfree(cgp), howmany(maxbno, CHAR_BIT));
+	}
+	blksfree = cg_blksfree(cgp);
+	for (cgbno = 0; cgbno < maxbno; cgbno++) {
+		if (ffs_isfreeblock(&sblock, blksfree, cgbno))
+			continue;
+		if (ffs_isblock(&sblock, blksfree, cgbno)) {
+			ffs_clusteracct(&sblock, cgp, cgbno, 1);
+			cgp->cg_cs.cs_nbfree++;
+			continue;
+		}
+		fragno = blkstofrags(&sblock, cgbno);
+		blk = blkmap(&sblock, blksfree, fragno);
+		ffs_fragacct(&sblock, blk, cgp->cg_frsum, 1);
+		for (i = 0; i < sblock.fs_frag; i++)
+			if (isset(blksfree, fragno + i))
+				cgp->cg_cs.cs_nffree++;
+	}
+	/*
+	 * Update the superblock cg summary from our now correct values
+	 * before writing the block.
+	 */
+	sblock.fs_cs(&sblock, cgp->cg_cgx) = cgp->cg_cs;
 }
 
 void
@@ -399,7 +554,8 @@ void
 ckfini(int markclean)
 {
 	struct bufarea *bp, *nbp;
-	int ofsmodified, cnt;
+	struct inoinfo *inp, *ninp;
+	int ofsmodified, cnt, cg, i;
 
 	if (bkgrdflag) {
 		unlink(snapname);
@@ -421,13 +577,107 @@ ckfini(int markclean)
 		}
 	}
 	if (debug && totalreads > 0)
-		printf("cache with %d buffers missed %ld of %ld (%d%%)\n",
-		    numbufs, totaldiskreads, totalreads,
-		    (int)(totaldiskreads * 100 / totalreads));
+		printf("cache with %d buffers missed %d of %d (%d%%)\n",
+		    numbufs, cachereads, cachelookups,
+		    (int)(cachereads * 100 / cachelookups));
 	if (fswritefd < 0) {
 		(void)close(fsreadfd);
 		return;
 	}
+	/*
+	 * To remain idempotent with partial truncations the buffers
+	 * must be flushed in this order:
+	 *  1) cylinder groups (bitmaps)
+	 *  2) indirect, directory, external attribute, and data blocks
+	 *  3) inode blocks
+	 *  4) superblock
+	 * This ordering preserves access to the modified pointers
+	 * until they are freed.
+	 */
+	/* Step 1: cylinder groups */
+	if (debug)
+		printf("Flush Cylinder groups\n");
+	if (cgbufs != NULL) {
+		for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
+			if (cgbufs[cnt].b_un.b_cg == NULL)
+				continue;
+			flush(fswritefd, &cgbufs[cnt]);
+			free(cgbufs[cnt].b_un.b_cg);
+		}
+		free(cgbufs);
+		cgbufs = NULL;
+	}
+	flush(fswritefd, &cgblk);
+	free(cgblk.b_un.b_buf);
+	cgblk.b_un.b_buf = NULL;
+	cnt = 0;
+	/* Step 2: indirect, directory, external attribute, and data blocks */
+	if (debug)
+		printf("Flush indirect, directory, external attribute, "
+		    "and data blocks\n");
+	if (pdirbp != NULL) {
+		brelse(pdirbp);
+		pdirbp = NULL;
+	}
+	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufqueuehd, bufqueue, b_list, nbp) {
+		switch (bp->b_type) {
+		/* These should not be in the buffer cache list */
+		case BT_UNKNOWN:
+		case BT_SUPERBLK:
+		case BT_CYLGRP:
+		default:
+			prtbuf("ckfini: improper buffer type on cache list",bp);
+			continue;
+		/* These are the ones to flush in this step */
+		case BT_EMPTY:
+			if (bp->b_bno >= 0)
+				pfatal("Unused BT_EMPTY buffer for block %jd\n",
+				    (intmax_t)bp->b_bno);
+			/* FALLTHROUGH */
+		case BT_LEVEL1:
+		case BT_LEVEL2:
+		case BT_LEVEL3:
+		case BT_EXTATTR:
+		case BT_DIRDATA:
+		case BT_DATA:
+			break;
+		/* These are the ones to flush in the next step */
+		case BT_INODES:
+			continue;
+		}
+		if (debug && bp->b_refcnt != 0) {
+			prtbuf("ckfini: clearing in-use buffer", bp);
+			pfatal("ckfini: clearing in-use buffer\n");
+		}
+		TAILQ_REMOVE(&bufqueuehd, bp, b_list);
+		cnt++;
+		flush(fswritefd, bp);
+		free(bp->b_un.b_buf);
+		free((char *)bp);
+	}
+	/* Step 3: inode blocks */
+	if (debug)
+		printf("Flush inode blocks\n");
+	if (icachebp != NULL) {
+		brelse(icachebp);
+		icachebp = NULL;
+	}
+	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufqueuehd, bufqueue, b_list, nbp) {
+		if (debug && bp->b_refcnt != 0) {
+			prtbuf("ckfini: clearing in-use buffer", bp);
+			pfatal("ckfini: clearing in-use buffer\n");
+		}
+		TAILQ_REMOVE(&bufqueuehd, bp, b_list);
+		cnt++;
+		flush(fswritefd, bp);
+		free(bp->b_un.b_buf);
+		free((char *)bp);
+	}
+	if (numbufs != cnt)
+		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
+	/* Step 4: superblock */
+	if (debug)
+		printf("Flush the superblock\n");
 	flush(fswritefd, &sblk);
 	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
 	    sblk.b_bno != sblock.fs_sblockloc / dev_bsize &&
@@ -438,28 +688,6 @@ ckfini(int markclean)
 		sbdirty();
 		flush(fswritefd, &sblk);
 	}
-	flush(fswritefd, &cgblk);
-	free(cgblk.b_un.b_buf);
-	cnt = 0;
-	TAILQ_FOREACH_REVERSE_SAFE(bp, &bufhead, buflist, b_list, nbp) {
-		TAILQ_REMOVE(&bufhead, bp, b_list);
-		cnt++;
-		flush(fswritefd, bp);
-		free(bp->b_un.b_buf);
-		free((char *)bp);
-	}
-	if (numbufs != cnt)
-		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
-	if (cgbufs != NULL) {
-		for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
-			if (cgbufs[cnt].b_un.b_cg == NULL)
-				continue;
-			flush(fswritefd, &cgbufs[cnt]);
-			free(cgbufs[cnt].b_un.b_cg);
-		}
-		free(cgbufs);
-	}
-	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {
 			sblock.fs_flags &= ~(FS_UNCLEAN | FS_NEEDSFSCK);
@@ -484,6 +712,33 @@ ckfini(int markclean)
 			rerun = 1;
 		}
 	}
+	/*
+	 * Free allocated tracking structures.
+	 */
+	if (blockmap != NULL)
+		free(blockmap);
+	blockmap = NULL;
+	if (inostathead != NULL) {
+		for (cg = 0; cg < sblock.fs_ncg; cg++)
+			if (inostathead[cg].il_stat != NULL)
+				free((char *)inostathead[cg].il_stat);
+		free(inostathead);
+	}
+	inostathead = NULL;
+	if (inpsort != NULL)
+		free(inpsort);
+	inpsort = NULL;
+	if (inphead != NULL) {
+		for (i = 0; i < dirhash; i++) {
+			for (inp = inphead[i]; inp != NULL; inp = ninp) {
+				ninp = inp->i_nexthash;
+				free(inp);
+			}
+		}
+		free(inphead);
+	}
+	inphead = NULL;
+	finalIOstats();
 	(void)close(fsreadfd);
 	(void)close(fswritefd);
 }
@@ -689,14 +944,26 @@ blzero(int fd, ufs2_daddr_t blk, long size)
  * test fails, offer an option to rebuild the whole cylinder group.
  */
 int
-check_cgmagic(int cg, struct bufarea *cgbp)
+check_cgmagic(int cg, struct bufarea *cgbp, int request_rebuild)
 {
 	struct cg *cgp = cgbp->b_un.b_cg;
+	uint32_t cghash, calchash;
+	static int prevfailcg = -1;
 
 	/*
 	 * Extended cylinder group checks.
 	 */
-	if (cg_chkmagic(cgp) &&
+	calchash = cgp->cg_ckhash;
+	if ((sblock.fs_metackhash & CK_CYLGRP) != 0 &&
+	    (ckhashadd & CK_CYLGRP) == 0) {
+		cghash = cgp->cg_ckhash;
+		cgp->cg_ckhash = 0;
+		calchash = calculate_crc32c(~0L, (void *)cgp, sblock.fs_cgsize);
+		cgp->cg_ckhash = cghash;
+	}
+	if (cgp->cg_ckhash == calchash &&
+	    cg_chkmagic(cgp) &&
+	    cgp->cg_cgx == cg &&
 	    ((sblock.fs_magic == FS_UFS1_MAGIC &&
 	      cgp->cg_old_niblk == sblock.fs_ipg &&
 	      cgp->cg_ndblk <= sblock.fs_fpg &&
@@ -707,7 +974,14 @@ check_cgmagic(int cg, struct bufarea *cgbp)
 	      cgp->cg_initediblk <= sblock.fs_ipg))) {
 		return (1);
 	}
-	pfatal("CYLINDER GROUP %d: BAD MAGIC NUMBER", cg);
+	if (prevfailcg == cg)
+		return (0);
+	prevfailcg = cg;
+	pfatal("CYLINDER GROUP %d: INTEGRITY CHECK FAILED", cg);
+	if (!request_rebuild) {
+		printf("\n");
+		return (0);
+	}
 	if (!reply("REBUILD CYLINDER GROUP")) {
 		printf("YOU WILL NEED TO RERUN FSCK.\n");
 		rerun = 1;
@@ -780,8 +1054,10 @@ allocblk(long frags)
 			cg = dtog(&sblock, i + j);
 			cgbp = cglookup(cg);
 			cgp = cgbp->b_un.b_cg;
-			if (!check_cgmagic(cg, cgbp))
-				return (0);
+			if (!check_cgmagic(cg, cgbp, 0)) {
+				i = (cg + 1) * sblock.fs_fpg - sblock.fs_frag;
+				continue;
+			}
 			baseblk = dtogd(&sblock, i + j);
 			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
@@ -800,19 +1076,8 @@ allocblk(long frags)
 }
 
 /*
- * Free a previously allocated block
+ * Slow down IO so as to leave some disk bandwidth for other processes
  */
-void
-freeblk(ufs2_daddr_t blkno, long frags)
-{
-	struct inodesc idesc;
-
-	idesc.id_blkno = blkno;
-	idesc.id_numfrags = frags;
-	(void)pass4check(&idesc);
-}
-
-/* Slow down IO so as to leave some disk bandwidth for other processes */
 void
 slowio_start()
 {
@@ -855,6 +1120,7 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 {
 	int len;
 	char *cp;
+	struct inode ip;
 	struct inodesc idesc;
 	static int busy = 0;
 
@@ -880,15 +1146,23 @@ getpathname(char *namebuf, ino_t curdir, ino_t ino)
 		idesc.id_number = ino;
 		idesc.id_func = findino;
 		idesc.id_name = strdup("..");
-		if ((ckinode(ginode(ino), &idesc) & FOUND) == 0)
+		ginode(ino, &ip);
+		if ((ckinode(ip.i_dp, &idesc) & FOUND) == 0) {
+			irelse(&ip);
 			break;
+		}
+		irelse(&ip);
 	namelookup:
 		idesc.id_number = idesc.id_parent;
 		idesc.id_parent = ino;
 		idesc.id_func = findname;
 		idesc.id_name = namebuf;
-		if ((ckinode(ginode(idesc.id_number), &idesc)&FOUND) == 0)
+		ginode(idesc.id_number, &ip);
+		if ((ckinode(ip.i_dp, &idesc) & FOUND) == 0) {
+			irelse(&ip);
 			break;
+		}
+		irelse(&ip);
 		len = strlen(namebuf);
 		cp -= len;
 		memmove(cp, namebuf, (size_t)len);
@@ -965,6 +1239,19 @@ dofix(struct inodesc *idesc, const char *msg)
 }
 
 #include <stdarg.h>
+
+/*
+ * Print details about a buffer.
+ */
+static void
+prtbuf(const char *msg, struct bufarea *bp)
+{
+	
+	printf("%s: bp %p, type %s, bno %jd, size %d, refcnt %d, flags %s, "
+	    "index %jd\n", msg, bp, BT_BUFTYPE(bp->b_type), (intmax_t) bp->b_bno,
+	    bp->b_size, bp->b_refcnt, bp->b_flags & B_DIRTY ? "dirty" : "clean",
+	    (intmax_t) bp->b_index);
+}
 
 /*
  * An unexpected inconsistency occurred.

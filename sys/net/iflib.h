@@ -49,7 +49,7 @@ typedef uint16_t qidx_t;
 struct iflib_ctx;
 typedef struct iflib_ctx *if_ctx_t;
 struct if_shared_ctx;
-typedef struct if_shared_ctx *if_shared_ctx_t;
+typedef const struct if_shared_ctx *if_shared_ctx_t;
 struct if_int_delay_info;
 typedef struct if_int_delay_info  *if_int_delay_info_t;
 struct if_pseudo;
@@ -236,6 +236,8 @@ typedef struct if_softc_ctx {
 	int isc_disable_msix;
 	if_txrx_t isc_txrx;
 	struct ifmedia *isc_media;
+	bus_size_t isc_dma_width;	/* device dma width in bits, 0 means
+					   use BUS_SPACE_MAXADDR instead */
 } *if_softc_ctx_t;
 
 /*
@@ -288,10 +290,27 @@ typedef struct iflib_dma_info {
 #define IFLIB_MAGIC 0xCAFEF00D
 
 typedef enum {
+	/* Interrupt or softirq handles only receive */
 	IFLIB_INTR_RX,
+
+	/* Interrupt or softirq handles only transmit */
 	IFLIB_INTR_TX,
+
+	/*
+	 * Interrupt will check for both pending receive
+	 * and available tx credits and dispatch a task
+	 * for one or both depending on the disposition
+	 * of the respective queues.
+	 */
 	IFLIB_INTR_RXTX,
+
+	/*
+	 * Other interrupt - typically link status and
+	 * or error conditions.
+	 */
 	IFLIB_INTR_ADMIN,
+
+	/* Softirq (task) for iov handling */
 	IFLIB_INTR_IOV,
 } iflib_intr_type_t;
 
@@ -378,6 +397,11 @@ typedef enum {
  * emulating ethernet
  */
 #define IFLIB_PSEUDO_ETHER	0x80000
+
+/*
+ * Interface has an admin completion queue
+ */
+#define IFLIB_HAS_ADMINCQ	0x100000
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib

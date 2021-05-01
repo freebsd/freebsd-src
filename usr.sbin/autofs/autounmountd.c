@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2014 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Edward Tomasz Napierala under sponsorship
  * from the FreeBSD Foundation.
@@ -171,7 +170,8 @@ unmount_by_fsid(const fsid_t fsid, const char *mountpoint)
 			log_warn("cannot unmount %s (%s)",
 			    mountpoint, fsid_str);
 		}
-	}
+	} else
+		rpc_umntall();
 
 	free(fsid_str);
 
@@ -328,7 +328,7 @@ main_autounmountd(int argc, char **argv)
 	if (kq < 0)
 		log_err(1, "kqueue");
 
-	EV_SET(&event, 0, EVFILT_FS, EV_ADD | EV_CLEAR, 0, 0, NULL);
+	EV_SET(&event, 0, EVFILT_FS, EV_ADD | EV_CLEAR, VQ_MOUNT | VQ_UNMOUNT, 0, NULL);
 	error = kevent(kq, &event, 1, NULL, 0, NULL);
 	if (error < 0)
 		log_err(1, "kevent");

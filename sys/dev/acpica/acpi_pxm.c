@@ -265,6 +265,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_SRAT_MEM_AFFINITY *mem;
 	ACPI_SRAT_GICC_AFFINITY *gicc;
 	static struct cpu_info *cpup;
+	uint64_t base, length;
 	int domain, i, slot;
 
 	switch (entry->Type) {
@@ -327,20 +328,22 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		break;
 	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
 		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;
+		base = mem->BaseAddress;
+		length = mem->Length;
+		domain = mem->ProximityDomain;
+
 		if (bootverbose)
 			printf(
 		    "SRAT: Found memory domain %d addr 0x%jx len 0x%jx: %s\n",
-			    mem->ProximityDomain, (uintmax_t)mem->BaseAddress,
-			    (uintmax_t)mem->Length,
+			    domain, (uintmax_t)base, (uintmax_t)length,
 			    (mem->Flags & ACPI_SRAT_MEM_ENABLED) ?
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
-		if (mem->BaseAddress >= maxphyaddr ||
-		    !overlaps_phys_avail(mem->BaseAddress,
-		    mem->BaseAddress + mem->Length)) {
+		if (base >= maxphyaddr ||
+		    !overlaps_phys_avail(base, base + length)) {
 			printf("SRAT: Ignoring memory at addr 0x%jx\n",
-			    (uintmax_t)mem->BaseAddress);
+			    (uintmax_t)base);
 			break;
 		}
 		if (num_mem == VM_PHYSSEG_MAX) {
@@ -350,10 +353,20 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		}
 		slot = num_mem;
 		for (i = 0; i < num_mem; i++) {
-			if (mem_info[i].end <= mem->BaseAddress)
+			if (mem_info[i].domain == domain) {
+				/* Try to extend an existing segment. */
+				if (base == mem_info[i].end) {
+					mem_info[i].end += length;
+					return;
+				}
+				if (base + length == mem_info[i].start) {
+					mem_info[i].start -= length;
+					return;
+				}
+			}
+			if (mem_info[i].end <= base)
 				continue;
-			if (mem_info[i].start <
-			    (mem->BaseAddress + mem->Length)) {
+			if (mem_info[i].start < base + length) {
 				printf("SRAT: Overlapping memory entries\n");
 				*(int *)arg = ENXIO;
 				return;
@@ -362,9 +375,9 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		}
 		for (i = num_mem; i > slot; i--)
 			mem_info[i] = mem_info[i - 1];
-		mem_info[slot].start = mem->BaseAddress;
-		mem_info[slot].end = mem->BaseAddress + mem->Length;
-		mem_info[slot].domain = mem->ProximityDomain;
+		mem_info[slot].start = base;
+		mem_info[slot].end = base + length;
+		mem_info[slot].domain = domain;
 		num_mem++;
 		break;
 	}

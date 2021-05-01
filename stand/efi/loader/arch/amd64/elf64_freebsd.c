@@ -54,7 +54,8 @@ __FBSDID("$FreeBSD$");
 static EFI_GUID acpi_guid = ACPI_TABLE_GUID;
 static EFI_GUID acpi20_guid = ACPI_20_TABLE_GUID;
 
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
 
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
@@ -68,7 +69,12 @@ static struct file_format amd64_elf_obj = {
 	.l_exec = elf64_obj_exec,
 };
 
+extern struct file_format multiboot2;
+extern struct file_format multiboot2_obj;
+
 struct file_format *file_formats[] = {
+	&multiboot2,
+	&multiboot2_obj,
 	&amd64_elf,
 	&amd64_elf_obj,
 	NULL
@@ -186,7 +192,7 @@ elf64_exec(struct preloaded_file *fp)
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
 
 	efi_time_fini();
-	err = bi_load(fp->f_args, &modulep, &kernend);
+	err = bi_load(fp->f_args, &modulep, &kernend, true);
 	if (err != 0) {
 		efi_time_init();
 		return(err);

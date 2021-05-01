@@ -47,6 +47,7 @@
 
 #ifdef _KERNEL
 #include <isa/rtc.h>
+#define ARCH_MAY_USE_EFI
 
 #define	EFI_TIME_LOCK()		mtx_lock(&atrtc_time_lock)
 #define	EFI_TIME_UNLOCK()	mtx_unlock(&atrtc_time_lock)

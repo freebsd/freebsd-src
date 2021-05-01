@@ -70,7 +70,7 @@ def main(fname, gentype, verfname=None,
 
   if ('--debug', '') in other_options:
     for dep_type, target_dict in generator.graph.deps.items():
-      sorted_targets = list(target_dict.keys()); sorted_targets.sort()
+      sorted_targets = sorted(target_dict.keys(), key=str)
       for target in sorted_targets:
         print(dep_type + ": " + _objinfo(target))
         for source in target_dict[target]:

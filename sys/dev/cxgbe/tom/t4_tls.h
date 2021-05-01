@@ -276,7 +276,6 @@ struct tls_ofld_info {
 	enum tls_mode mode;
 	struct callout handshake_timer;
 	u_int sb_off;
-	u_int rcv_over;
 };
 
 struct tls_key_req {

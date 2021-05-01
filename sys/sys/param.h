@@ -52,7 +52,7 @@
  * there.
  * Currently this lives here in the doc/ repository:
  *
- *	head/en_US.ISO8859-1/books/porters-handbook/versions/chapter.xml
+ *	documentation/content/en/books/porters-handbook/versions/_index.adoc
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
@@ -60,7 +60,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1300119	/* Master, propagated to newvers */
+#define __FreeBSD_version 1400013	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -159,8 +159,12 @@
 #ifndef DFLTPHYS
 #define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
 #endif
-#ifndef MAXPHYS
-#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
+#ifndef MAXPHYS				/* max raw I/O transfer size */
+#ifdef __ILP32__
+#define MAXPHYS		(128 * 1024)
+#else
+#define MAXPHYS		(1024 * 1024)
+#endif
 #endif
 #ifndef MAXDUMPPGS
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
@@ -223,9 +227,10 @@
 	((off_t)(db) << DEV_BSHIFT)
 #endif
 
-#define	PRIMASK	0x0ff
-#define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
-#define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PRIMASK		0x0ff
+#define	PCATCH		0x100	/* OR'd with pri for tsleep to check signals */
+#define	PDROP		0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PRILASTFLAG	0x200	/* Last flag defined above */
 
 #define	NZERO	0		/* default "nice" */
 
@@ -301,9 +306,9 @@
 #endif
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	rounddown(x, y)	(((x)/(y))*(y))
-#define	rounddown2(x, y) ((x)&(~((y)-1)))          /* if y is power of two */
+#define	rounddown2(x, y) __align_down(x, y) /* if y is power of two */
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))  /* to any y */
-#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
+#define	roundup2(x, y)	__align_up(x, y) /* if y is powers of two */
 #define powerof2(x)	((((x)-1)&(x))==0)
 
 /* Macros for min/max. */

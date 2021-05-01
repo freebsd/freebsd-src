@@ -78,7 +78,7 @@ enum ixl_i2c_access_method_t {
 /* Used in struct ixl_pf's state field */
 enum ixl_pf_state {
 	IXL_PF_STATE_RECOVERY_MODE	= (1 << 0),
-	IXL_PF_STATE_ADAPTER_RESETTING	= (1 << 1),
+	IXL_PF_STATE_RESETTING		= (1 << 1),
 	IXL_PF_STATE_MDD_PENDING	= (1 << 2),
 	IXL_PF_STATE_PF_RESET_REQ	= (1 << 3),
 	IXL_PF_STATE_VF_RESET_REQ	= (1 << 4),
@@ -88,11 +88,14 @@ enum ixl_pf_state {
 	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 8),
 	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 9),
 	IXL_PF_STATE_EEE_ENABLED	= (1 << 10),
+	IXL_PF_STATE_LINK_ACTIVE_ON_DOWN = (1 << 11),
 };
 
 #define IXL_PF_IN_RECOVERY_MODE(pf)	\
 	((atomic_load_acq_32(&pf->state) & IXL_PF_STATE_RECOVERY_MODE) != 0)
 
+#define IXL_PF_IS_RESETTING(pf)	\
+	((atomic_load_acq_32(&pf->state) & IXL_PF_STATE_RESETTING) != 0)
 
 struct ixl_vf {
 	struct ixl_vsi		vsi;
@@ -227,6 +230,11 @@ struct ixl_pf {
 "\t0 - disable\n"			\
 "\t1 - enable\n"
 
+#define IXL_SYSCTL_HELP_SET_LINK_ACTIVE			\
+"\nKeep link active after setting interface down:\n"	\
+"\t0 - disable\n"					\
+"\t1 - enable\n"
+
 #define IXL_SYSCTL_HELP_READ_I2C		\
 "\nRead a byte from I2C bus\n"			\
 "Input: 32-bit value\n"				\
@@ -257,8 +265,6 @@ struct ixl_pf {
 "\t0 - Disable (VEPA)\n"			\
 "\t1 - Enable (VEB)\n"				\
 "Enabling this will allow VFs in separate VMs to communicate over the hardware bridge."
-
-MALLOC_DECLARE(M_IXL);
 
 /*** Functions / Macros ***/
 /* Adjust the level here to 10 or over to print stats messages */
@@ -351,6 +357,7 @@ void	ixl_pf_reset_stats(struct ixl_pf *);
 void	ixl_get_bus_info(struct ixl_pf *pf);
 int	ixl_aq_get_link_status(struct ixl_pf *,
     struct i40e_aqc_get_link_status *);
+void	ixl_set_link(struct ixl_pf *, bool);
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
 int	ixl_handle_i2c_eeprom_read_cmd(struct ixl_pf *, struct ifreq *ifr);
@@ -367,6 +374,8 @@ void	ixl_set_queue_tx_itr(struct ixl_tx_queue *);
 
 void	ixl_add_filter(struct ixl_vsi *, const u8 *, s16 vlan);
 void	ixl_del_filter(struct ixl_vsi *, const u8 *, s16 vlan);
+void	ixl_add_vlan_filters(struct ixl_vsi *, const u8 *);
+void	ixl_del_all_vlan_filters(struct ixl_vsi *, const u8 *);
 void	ixl_reconfigure_filters(struct ixl_vsi *vsi);
 
 int	ixl_disable_rings(struct ixl_pf *, struct ixl_vsi *, struct ixl_pf_qtag *);
@@ -391,16 +400,15 @@ void	ixl_enable_intr(struct ixl_vsi *);
 void	ixl_disable_rings_intr(struct ixl_vsi *);
 void	ixl_set_promisc(struct ixl_vsi *);
 void	ixl_add_multi(struct ixl_vsi *);
-int	ixl_del_multi(struct ixl_vsi *);
+void	ixl_del_multi(struct ixl_vsi *, bool);
 void	ixl_setup_vlan_filters(struct ixl_vsi *);
 void	ixl_init_filters(struct ixl_vsi *);
-void	ixl_add_hw_filters(struct ixl_vsi *, int, int);
-void	ixl_del_hw_filters(struct ixl_vsi *, int);
+void	ixl_free_filters(struct ixl_ftl_head *);
+void	ixl_add_hw_filters(struct ixl_vsi *, struct ixl_ftl_head *, int);
+void	ixl_del_hw_filters(struct ixl_vsi *, struct ixl_ftl_head *, int);
 void	ixl_del_default_hw_filters(struct ixl_vsi *);
 struct ixl_mac_filter *
-		ixl_find_filter(struct ixl_vsi *, const u8 *, s16);
-void	ixl_add_mc_filter(struct ixl_vsi *, u8 *);
-void	ixl_free_mac_filters(struct ixl_vsi *vsi);
+		ixl_find_filter(struct ixl_ftl_head *, const u8 *, s16);
 void	ixl_update_vsi_stats(struct ixl_vsi *);
 void	ixl_vsi_reset_stats(struct ixl_vsi *);
 

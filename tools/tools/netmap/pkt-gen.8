@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2020
+.Dd November 21, 2020
 .Dt PKT-GEN 8
 .Os
 .Sh NAME
@@ -287,7 +287,7 @@ Send a stream of fake DNS packets between two hosts with a packet
 length of 128 bytes.
 You must set the destination MAC address for
 packets to be received by the target host.
-.Bd -literal -offset intent
+.Bd -literal -offset indent
 pkt-gen -i netmap:ncxl0 -f tx -s 172.16.0.1:53 -d 172.16.1.3:53 -D 00:07:43:29:2a:e0
 .Ed
 .Sh SEE ALSO

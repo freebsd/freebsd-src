@@ -23,13 +23,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 7, 2018
+.Dd October 13, 2020
 .Dt FPU_KERN 9
 .Os
 .Sh NAME
 .Nm fpu_kern
 .Nd "facility to use the FPU in the kernel"
 .Sh SYNOPSIS
+.In machine/fpu.h
 .Ft struct fpu_kern_ctx *
 .Fn fpu_kern_alloc_ctx "u_int flags"
 .Ft void

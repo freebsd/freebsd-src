@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.289 2020/08/28 17:15:04 rillig Exp $
+.\"	$NetBSD: make.1,v 1.296 2021/02/04 21:42:46 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd August 28, 2020
+.Dd December 22, 2020
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm
-.Op Fl BeikNnqrstWwX
+.Op Fl BeikNnqrSstWwX
 .Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -99,7 +99,7 @@ is equivalent to
 .It Fl D Ar variable
 Define
 .Ar variable
-to be 1, in the global context.
+to be 1, in the global scope.
 .It Fl d Ar [-]flags
 Turn on debugging, and specify which portions of
 .Nm
@@ -329,6 +329,10 @@ Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
 .It Fl r
 Do not use the built-in rules specified in the system makefile.
+.It Fl S
+Stop processing if an error is encountered.
+This is the default behavior and the opposite of
+.Fl k .
 .It Fl s
 Do not echo any commands as they are executed.
 Equivalent to specifying
@@ -351,7 +355,7 @@ Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
-The value printed is extracted from the global context after all
+The value printed is extracted from the global scope after all
 makefiles have been read.
 By default, the raw variable contents (which may
 include additional unexpanded variable references) are shown.
@@ -1015,6 +1019,12 @@ If set to false,
 becomes
 .Ql $
 per normal evaluation rules.
+.It Va .MAKE.UID
+The user-id running
+.Nm .
+.It Va .MAKE.GID
+The group-id running
+.Nm .
 .It Va MAKE_PRINT_VAR_ON_ERROR
 When
 .Nm
@@ -1090,6 +1100,15 @@ to the specified directory if it exists, and set
 and
 .Ql Ev PWD
 to that directory before executing any targets.
+.Pp
+Except in the case of an explicit
+.Ql Ic .OBJDIR
+target,
+.Nm
+will check that the specified directory is writable and ignore it if not.
+This check can be skipped by setting the environment variable
+.Ql Ev MAKE_OBJDIR_CHECK_WRITABLE
+to "no".
 .
 .It Va .PARSEDIR
 A path to the directory of the current
@@ -1730,9 +1749,9 @@ The same as
 except that variables in the value are not expanded.
 .It Ic .info Ar message
 The message is printed along with the name of the makefile and line number.
-.It Ic .undef Ar variable
-Un-define the specified global variable.
-Only global variables may be un-defined.
+.It Ic .undef Ar variable ...
+Un-define the specified global variables.
+Only global variables can be un-defined.
 .It Ic .unexport Ar variable ...
 The opposite of
 .Ql .export .
@@ -1872,7 +1891,7 @@ has been defined and has commands associated with it.
 .Ar Expression
 may also be an arithmetic or string comparison.
 Variable expansion is
-performed on both sides of the comparison, after which the integral
+performed on both sides of the comparison, after which the numerical
 values are compared.
 A value is interpreted as hexadecimal if it is
 preceded by 0x, otherwise it is decimal; octal numbers are not supported.
@@ -1882,7 +1901,7 @@ variable expansion, either the left or right hand side of a
 .Ql Ic ==
 or
 .Ql Ic "!="
-operator is not an integral value, then
+operator is not a numerical value, then
 string comparison is performed between the expanded
 variables.
 If no relational operator is given, it is assumed that the expanded

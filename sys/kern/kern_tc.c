@@ -141,11 +141,13 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
 volatile int rtc_generation = 1;
 
 static int tc_chosen;	/* Non-zero if a specific tc was chosen via sysctl. */
+static char tc_from_tunable[16];
 
 static void tc_windup(struct bintime *new_boottimebin);
 static void cpu_tick_calibrate(int);
 
 void dtrace_getnanotime(struct timespec *tsp);
+void dtrace_getnanouptime(struct timespec *tsp);
 
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
@@ -998,6 +1000,20 @@ dtrace_getnanotime(struct timespec *tsp)
 }
 
 /*
+ * This is a clone of getnanouptime used for time since boot.
+ * The dtrace_ prefix prevents fbt from creating probes for
+ * it so an uptime that can be safely used in all fbt probes.
+ */
+void
+dtrace_getnanouptime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	GETTHMEMBER(&bt, th_offset);
+	bintime2timespec(&bt, tsp);
+}
+
+/*
  * System clock currently providing time to the system. Modifiable via sysctl
  * when the FFCLOCK option is defined.
  */
@@ -1200,11 +1216,17 @@ tc_init(struct timecounter *tc)
 		return;
 	if (tc->tc_quality < 0)
 		return;
-	if (tc->tc_quality < timecounter->tc_quality)
-		return;
-	if (tc->tc_quality == timecounter->tc_quality &&
-	    tc->tc_frequency < timecounter->tc_frequency)
-		return;
+	if (tc_from_tunable[0] != '\0' &&
+	    strcmp(tc->tc_name, tc_from_tunable) == 0) {
+		tc_chosen = 1;
+		tc_from_tunable[0] = '\0';
+	} else {
+		if (tc->tc_quality < timecounter->tc_quality)
+			return;
+		if (tc->tc_quality == timecounter->tc_quality &&
+		    tc->tc_frequency < timecounter->tc_frequency)
+			return;
+	}
 	(void)tc->tc_get_timecount(tc);
 	timecounter = tc;
 }
@@ -1485,7 +1507,7 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, 0, 0,
     sysctl_kern_timecounter_hardware, "A",
     "Timecounter hardware selected");
 
@@ -1925,6 +1947,9 @@ inittimehands(void *dummy)
 	for (i = 1, thp = &ths[0]; i < timehands_count;  thp = &ths[i++])
 		thp->th_next = &ths[i];
 	thp->th_next = &ths[0];
+
+	TUNABLE_STR_FETCH("kern.timecounter.hardware", tc_from_tunable,
+	    sizeof(tc_from_tunable));
 }
 SYSINIT(timehands, SI_SUB_TUNABLES, SI_ORDER_ANY, inittimehands, NULL);
 
@@ -2170,5 +2195,35 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	if (!vdso_th_enable)
 		enabled = 0;
 	return (enabled);
+}
+#endif
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(timecounter, db_show_timecounter)
+{
+	struct timehands *th;
+	struct timecounter *tc;
+	u_int val1, val2;
+
+	th = timehands;
+	tc = th->th_counter;
+	val1 = tc->tc_get_timecount(tc);
+	__compiler_membar();
+	val2 = tc->tc_get_timecount(tc);
+
+	db_printf("timecounter %p %s\n", tc, tc->tc_name);
+	db_printf("  mask %#x freq %ju qual %d flags %#x priv %p\n",
+	    tc->tc_counter_mask, (uintmax_t)tc->tc_frequency, tc->tc_quality,
+	    tc->tc_flags, tc->tc_priv);
+	db_printf("  val %#x %#x\n", val1, val2);
+	db_printf("timehands adj %#jx scale %#jx ldelta %d off_cnt %d gen %d\n",
+	    (uintmax_t)th->th_adjustment, (uintmax_t)th->th_scale,
+	    th->th_large_delta, th->th_offset_count, th->th_generation);
+	db_printf("  offset %jd %jd boottime %jd %jd\n",
+	    (intmax_t)th->th_offset.sec, (uintmax_t)th->th_offset.frac,
+	    (intmax_t)th->th_boottime.sec, (uintmax_t)th->th_boottime.frac);
 }
 #endif

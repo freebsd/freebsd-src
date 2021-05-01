@@ -171,7 +171,7 @@ update_clip(struct adapter *sc, void *arg __unused)
 	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4clip"))
 		return;
 
-	if (mtx_initialized(&sc->clip_table_lock))
+	if (mtx_initialized(&sc->clip_table_lock) && !hw_off_limits(sc))
 		update_clip_table(sc);
 
 	end_synchronized_op(sc, LOCK_HELD);
@@ -215,6 +215,9 @@ update_clip_table(struct adapter *sc)
 	last_vnet = (uintptr_t)(-1);
 	for_each_port(sc, i)
 	for_each_vi(sc->port[i], j, vi) {
+		if (IS_DOOMED(vi))
+			continue;
+
 		if (last_vnet == (uintptr_t)vi->ifp->if_vnet)
 			continue;
 
@@ -273,7 +276,7 @@ update_clip_table(struct adapter *sc)
 
 				inet_ntop(AF_INET6, &ce->lip, &ip[0],
 				    sizeof(ip));
-				if (sc->flags & KERN_TLS_OK ||
+				if (sc->flags & KERN_TLS_ON ||
 				    sc->active_ulds != 0) {
 					log(LOG_ERR,
 					    "%s: could not add %s (%d)\n",

@@ -28,31 +28,32 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_requestname.3x,v 1.12 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_requestname.3x,v 1.16 2020/12/12 16:37:14 tom Exp $
 .TH form_requestname 3X ""
 .SH NAME
 \fBform_request_by_name\fP,
 \fBform_request_name\fR \- handle printable form request names
 .SH SYNOPSIS
 \fB#include <form.h>\fR
+.sp
+\fBconst char *form_request_name(int \fP\fIrequest\fP\fB);\fP
 .br
-const char *form_request_name(int request);
-.br
-int form_request_by_name(const char *name);
+\fBint form_request_by_name(const char *\fP\fIname\fP\fB);\fP
 .br
 .SH DESCRIPTION
+.SS form_request_name
 The function \fBform_request_name\fR returns the printable name of a form
 request code.
-.br
+.SS form_request_name_by_name
 The function \fBform_request_by_name\fR searches in the name-table for a request
 with the given name and returns its request code.
 Otherwise E_NO_MATCH is returned.
 .SH RETURN VALUE
-\fBform_request_name\fR returns \fBNULL\fR on error and sets errno
+\fBform_request_name\fR returns \fBNULL\fR on error and sets \fBerrno\fP
 to \fBE_BAD_ARGUMENT\fR.
-.br
+.PP
 \fBform_request_by_name\fR returns \fBE_NO_MATCH\fR on error.
-It does not set errno.
+It does not set \fBerrno\fP.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES

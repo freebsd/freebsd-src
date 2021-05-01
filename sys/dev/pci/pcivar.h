@@ -666,6 +666,7 @@ device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
 device_t pci_find_class(uint8_t class, uint8_t subclass);
+device_t pci_find_class_from(uint8_t class, uint8_t subclass, device_t devfrom);
 
 /* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);
@@ -676,6 +677,7 @@ int	pci_msix_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 device_t pci_find_pcie_root_port(device_t dev);
+int	pci_get_relaxed_ordering_enabled(device_t dev);
 int	pci_get_max_payload(device_t dev);
 int	pci_get_max_read_req(device_t dev);
 void	pci_restore_state(device_t dev);

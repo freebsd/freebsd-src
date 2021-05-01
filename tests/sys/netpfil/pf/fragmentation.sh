@@ -112,23 +112,23 @@ v6_body()
 
 	# Host test
 	atf_check -s exit:0 -o ignore \
-		ping6 -c 1 2001:db8:42::2
+		ping -6 -c 1 2001:db8:42::2
 
 	atf_check -s exit:0 -o ignore \
-		ping6 -c 1 -s 4500 2001:db8:42::2
+		ping -6 -c 1 -s 4500 2001:db8:42::2
 
 	atf_check -s exit:0 -o ignore\
-		ping6 -c 1 -b 70000 -s 65000 2001:db8:42::2
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:42::2
 
 	# Forwarding test
 	atf_check -s exit:0 -o ignore \
-		ping6 -c 1 2001:db8:43::3
+		ping -6 -c 1 2001:db8:43::3
 
 	atf_check -s exit:0 -o ignore \
-		ping6 -c 1 -s 4500 2001:db8:43::3
+		ping -6 -c 1 -s 4500 2001:db8:43::3
 
 	atf_check -s exit:0 -o ignore\
-		ping6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
 
 	$(atf_get_srcdir)/CVE-2019-5597.py \
 		${epair_send}a \

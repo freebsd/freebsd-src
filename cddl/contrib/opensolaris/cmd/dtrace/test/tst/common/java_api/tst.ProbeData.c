@@ -66,7 +66,7 @@ fN2(f func, char *a, int i __unused)
 }
 
 int
-main()
+main(void)
 {
 	/*
 	 * Avoid length of 1, 2, 4, or 8 bytes so DTrace will treat the data as

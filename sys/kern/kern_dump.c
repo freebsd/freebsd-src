@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_dumpset.h>
 #include <vm/pmap.h>
 #include <machine/dump.h>
 #include <machine/elf.h>
@@ -289,7 +290,7 @@ dumpsys_generic(struct dumperinfo *di)
 	size_t hdrsz;
 	int error;
 
-#if !defined(__powerpc__) || defined(__powerpc64__)
+#if MINIDUMP_PAGE_TRACKING == 1
 	if (do_minidump)
 		return (minidumpsys(di));
 #endif

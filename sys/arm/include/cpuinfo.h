@@ -124,8 +124,6 @@ struct cpuinfo {
 extern struct cpuinfo cpuinfo;
 
 void cpuinfo_init(void);
-#if __ARM_ARCH >= 6
 void cpuinfo_init_bp_hardening(void);
 void cpuinfo_reinit_mmu(uint32_t ttb);
-#endif
 #endif	/* _MACHINE_CPUINFO_H_ */

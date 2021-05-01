@@ -130,6 +130,8 @@ cpuset_t all_harts;
 
 extern int *end;
 
+static char static_kenv[PAGE_SIZE];
+
 static void
 cpu_startup(void *dummy)
 {
@@ -836,6 +838,8 @@ parse_metadata(void)
 	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 	if (kern_envp != NULL)
 		init_static_kenv(kern_envp, 0);
+	else
+		init_static_kenv(static_kenv, sizeof(static_kenv));
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
@@ -954,8 +958,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	 * output is required. If it's grossly incorrect the kernel will never
 	 * make it this far.
 	 */
-	if ((boothowto & RB_VERBOSE) &&
-	    getenv_is_true("debug.dump_modinfo_at_boot"))
+	if (getenv_is_true("debug.dump_modinfo_at_boot"))
 		preload_dump();
 
 	init_proc0(rvbp->kern_stack);

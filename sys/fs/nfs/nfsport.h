@@ -412,10 +412,13 @@
 #define	NFSPROC_RMEXTATTR	63
 #define	NFSPROC_LISTEXTATTR	64
 
+/* BindConnectionToSession, done by the krpc for a new connection. */
+#define	NFSPROC_BINDCONNTOSESS	65
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		65
+#define	NFSV42_NPROCS		66
 
 #endif	/* NFS_V3NPROCS */
 
@@ -444,17 +447,17 @@ struct nfsstatsv1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 15];
+	uint64_t	rpccnt[NFSV42_NPROCS + 14];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_NOPS + NFSV4OP_FAKENOPS + 15];
-	uint64_t	srvrpc_errs;
-	uint64_t	srv_errs;
+	uint64_t	reserved_0;
+	uint64_t	reserved_1;
 	uint64_t	rpcrequests;
 	uint64_t	rpctimeouts;
 	uint64_t	rpcunexpected;
 	uint64_t	rpcinvalid;
 	uint64_t	srvcache_inproghits;
-	uint64_t	srvcache_idemdonehits;
+	uint64_t	reserved_2;
 	uint64_t	srvcache_nonidemdonehits;
 	uint64_t	srvcache_misses;
 	uint64_t	srvcache_tcppeak;
@@ -509,17 +512,17 @@ struct nfsstatsov1 {
 	uint64_t	readlink_bios;
 	uint64_t	biocache_readdirs;
 	uint64_t	readdir_bios;
-	uint64_t	rpccnt[NFSV42_NPROCS + 4];
+	uint64_t	rpccnt[NFSV42_NPROCS + 3];
 	uint64_t	rpcretries;
 	uint64_t	srvrpccnt[NFSV42_PURENOPS + NFSV4OP_FAKENOPS];
-	uint64_t	srvrpc_errs;
-	uint64_t	srv_errs;
+	uint64_t	reserved_0;
+	uint64_t	reserved_1;
 	uint64_t	rpcrequests;
 	uint64_t	rpctimeouts;
 	uint64_t	rpcunexpected;
 	uint64_t	rpcinvalid;
 	uint64_t	srvcache_inproghits;
-	uint64_t	srvcache_idemdonehits;
+	uint64_t	reserved_2;
 	uint64_t	srvcache_nonidemdonehits;
 	uint64_t	srvcache_misses;
 	uint64_t	srvcache_tcppeak;
@@ -574,14 +577,14 @@ struct ext_nfsstats {
 	int	rpccnt[NFSV4_NPROCS];
 	int	rpcretries;
 	int	srvrpccnt[NFSV4OP_NOPS + NFSV4OP_FAKENOPS];
-	int	srvrpc_errs;
-	int	srv_errs;
+	int	reserved_0;
+	int	reserved_1;
 	int	rpcrequests;
 	int	rpctimeouts;
 	int	rpcunexpected;
 	int	rpcinvalid;
 	int	srvcache_inproghits;
-	int	srvcache_idemdonehits;
+	int	reserved_2;
 	int	srvcache_nonidemdonehits;
 	int	srvcache_misses;
 	int	srvcache_tcppeak;
@@ -880,9 +883,11 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 /*
  * Some queue.h files don't have these dfined in them.
  */
+#ifndef LIST_END
 #define	LIST_END(head)		NULL
 #define	SLIST_END(head)		NULL
 #define	TAILQ_END(head)		NULL
+#endif
 
 /*
  * This must be defined to be a global variable that increments once
@@ -1004,6 +1009,7 @@ bool ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep);
  * "out by one" without disastrous consequences.
  */
 #define	NFSINCRGLOBAL(a)	((a)++)
+#define	NFSDECRGLOBAL(a)	((a)--)
 
 /*
  * Assorted funky stuff to make things work under Darwin8.

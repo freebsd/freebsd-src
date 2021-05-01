@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (C) 1992-2020 The FreeBSD Project. All rights reserved.
+ * Copyright (C) 1992-2021 The FreeBSD Project. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /* Copyrights macros  */
@@ -35,7 +33,7 @@
 
 /* FreeBSD */
 #define COPYRIGHT_FreeBSD \
-	"Copyright (c) 1992-2020 The FreeBSD Project.\n"
+	"Copyright (c) 1992-2021 The FreeBSD Project.\n"
 
 /* Foundation */
 #define	TRADEMARK_Foundation \

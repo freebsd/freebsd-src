@@ -57,18 +57,15 @@ __FBSDID("$FreeBSD$");
 
 struct virtqueue {
 	device_t		 vq_dev;
-	char			 vq_name[VIRTQUEUE_MAX_NAME_SZ];
 	uint16_t		 vq_queue_index;
 	uint16_t		 vq_nentries;
 	uint32_t		 vq_flags;
-#define	VIRTQUEUE_FLAG_INDIRECT	 0x0001
-#define	VIRTQUEUE_FLAG_EVENT_IDX 0x0002
+#define	VIRTQUEUE_FLAG_MODERN	 0x0001
+#define	VIRTQUEUE_FLAG_INDIRECT	 0x0002
+#define	VIRTQUEUE_FLAG_EVENT_IDX 0x0004
 
-	int			 vq_alignment;
-	int			 vq_ring_size;
-	void			*vq_ring_mem;
 	int			 vq_max_indirect_size;
-	int			 vq_indirect_mem_size;
+	bus_size_t		 vq_notify_offset;
 	virtqueue_intr_t	*vq_intrhand;
 	void			*vq_intrhand_arg;
 
@@ -86,6 +83,12 @@ struct virtqueue {
 	 * trails vq_ring.used->idx.
 	 */
 	uint16_t		 vq_used_cons_idx;
+
+	void			*vq_ring_mem;
+	int			 vq_indirect_mem_size;
+	int			 vq_alignment;
+	int			 vq_ring_size;
+	char			 vq_name[VIRTQUEUE_MAX_NAME_SZ];
 
 	struct vq_desc_extra {
 		void		  *cookie;
@@ -134,22 +137,18 @@ static int	vq_ring_must_notify_host(struct virtqueue *);
 static void	vq_ring_notify_host(struct virtqueue *);
 static void	vq_ring_free_chain(struct virtqueue *, uint16_t);
 
-uint64_t
-virtqueue_filter_features(uint64_t features)
-{
-	uint64_t mask;
-
-	mask = (1 << VIRTIO_TRANSPORT_F_START) - 1;
-	mask |= VIRTIO_RING_F_INDIRECT_DESC;
-	mask |= VIRTIO_RING_F_EVENT_IDX;
-	mask |= VIRTIO_F_VERSION_1;
-
-	return (features & mask);
-}
+#define vq_modern(_vq) 		(((_vq)->vq_flags & VIRTQUEUE_FLAG_MODERN) != 0)
+#define vq_htog16(_vq, _val) 	virtio_htog16(vq_modern(_vq), _val)
+#define vq_htog32(_vq, _val) 	virtio_htog32(vq_modern(_vq), _val)
+#define vq_htog64(_vq, _val) 	virtio_htog64(vq_modern(_vq), _val)
+#define vq_gtoh16(_vq, _val) 	virtio_gtoh16(vq_modern(_vq), _val)
+#define vq_gtoh32(_vq, _val) 	virtio_gtoh32(vq_modern(_vq), _val)
+#define vq_gtoh64(_vq, _val) 	virtio_gtoh64(vq_modern(_vq), _val)
 
 int
-virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size, int align,
-    vm_paddr_t highaddr, struct vq_alloc_info *info, struct virtqueue **vqp)
+virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size,
+    bus_size_t notify_offset, int align, vm_paddr_t highaddr,
+    struct vq_alloc_info *info, struct virtqueue **vqp)
 {
 	struct virtqueue *vq;
 	int error;
@@ -185,12 +184,15 @@ virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size, int align,
 	vq->vq_dev = dev;
 	strlcpy(vq->vq_name, info->vqai_name, sizeof(vq->vq_name));
 	vq->vq_queue_index = queue;
+	vq->vq_notify_offset = notify_offset;
 	vq->vq_alignment = align;
 	vq->vq_nentries = size;
 	vq->vq_free_cnt = size;
 	vq->vq_intrhand = info->vqai_intr;
 	vq->vq_intrhand_arg = info->vqai_intr_arg;
 
+	if (VIRTIO_BUS_WITH_FEATURE(dev, VIRTIO_F_VERSION_1) != 0)
+		vq->vq_flags |= VIRTQUEUE_FLAG_MODERN;
 	if (VIRTIO_BUS_WITH_FEATURE(dev, VIRTIO_RING_F_EVENT_IDX) != 0)
 		vq->vq_flags |= VIRTQUEUE_FLAG_EVENT_IDX;
 
@@ -295,8 +297,8 @@ virtqueue_init_indirect_list(struct virtqueue *vq,
 	bzero(indirect, vq->vq_indirect_mem_size);
 
 	for (i = 0; i < vq->vq_max_indirect_size - 1; i++)
-		indirect[i].next = i + 1;
-	indirect[i].next = VQ_RING_DESC_CHAIN_END;
+		indirect[i].next = vq_gtoh16(vq, i + 1);
+	indirect[i].next = vq_gtoh16(vq, VQ_RING_DESC_CHAIN_END);
 }
 
 int
@@ -394,6 +396,7 @@ virtqueue_used_paddr(struct virtqueue *vq)
 uint16_t
 virtqueue_index(struct virtqueue *vq)
 {
+
 	return (vq->vq_queue_index);
 }
 
@@ -442,7 +445,7 @@ virtqueue_nused(struct virtqueue *vq)
 {
 	uint16_t used_idx, nused;
 
-	used_idx = vq->vq_ring.used->idx;
+	used_idx = vq_htog16(vq, vq->vq_ring.used->idx);
 
 	nused = (uint16_t)(used_idx - vq->vq_used_cons_idx);
 	VQASSERT(vq, nused <= vq->vq_nentries, "used more than available");
@@ -454,7 +457,7 @@ int
 virtqueue_intr_filter(struct virtqueue *vq)
 {
 
-	if (vq->vq_used_cons_idx == vq->vq_ring.used->idx)
+	if (vq->vq_used_cons_idx == vq_htog16(vq, vq->vq_ring.used->idx))
 		return (0);
 
 	virtqueue_disable_intr(vq);
@@ -481,7 +484,7 @@ virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint)
 {
 	uint16_t ndesc, avail_idx;
 
-	avail_idx = vq->vq_ring.avail->idx;
+	avail_idx = vq_htog16(vq, vq->vq_ring.avail->idx);
 	ndesc = (uint16_t)(avail_idx - vq->vq_used_cons_idx);
 
 	switch (hint) {
@@ -506,10 +509,12 @@ virtqueue_disable_intr(struct virtqueue *vq)
 {
 
 	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) {
-		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx -
-		    vq->vq_nentries - 1;
-	} else
-		vq->vq_ring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
+		vring_used_event(&vq->vq_ring) = vq_gtoh16(vq,
+		    vq->vq_used_cons_idx - vq->vq_nentries - 1);
+		return;
+	}
+
+	vq->vq_ring.avail->flags |= vq_gtoh16(vq, VRING_AVAIL_F_NO_INTERRUPT);
 }
 
 int
@@ -572,16 +577,16 @@ virtqueue_dequeue(struct virtqueue *vq, uint32_t *len)
 	void *cookie;
 	uint16_t used_idx, desc_idx;
 
-	if (vq->vq_used_cons_idx == vq->vq_ring.used->idx)
+	if (vq->vq_used_cons_idx == vq_htog16(vq, vq->vq_ring.used->idx))
 		return (NULL);
 
 	used_idx = vq->vq_used_cons_idx++ & (vq->vq_nentries - 1);
 	uep = &vq->vq_ring.used->ring[used_idx];
 
 	rmb();
-	desc_idx = (uint16_t) uep->id;
+	desc_idx = (uint16_t) vq_htog32(vq, uep->id);
 	if (len != NULL)
-		*len = uep->len;
+		*len = vq_htog32(vq, uep->len);
 
 	vq_ring_free_chain(vq, desc_idx);
 
@@ -639,13 +644,13 @@ virtqueue_dump(struct virtqueue *vq)
 	printf("VQ: %s - size=%d; free=%d; used=%d; queued=%d; "
 	    "desc_head_idx=%d; avail.idx=%d; used_cons_idx=%d; "
 	    "used.idx=%d; used_event_idx=%d; avail.flags=0x%x; used.flags=0x%x\n",
-	    vq->vq_name, vq->vq_nentries, vq->vq_free_cnt,
-	    virtqueue_nused(vq), vq->vq_queued_cnt, vq->vq_desc_head_idx,
-	    vq->vq_ring.avail->idx, vq->vq_used_cons_idx,
-	    vq->vq_ring.used->idx,
-		vring_used_event(&vq->vq_ring),
-	    vq->vq_ring.avail->flags,
-	    vq->vq_ring.used->flags);
+	    vq->vq_name, vq->vq_nentries, vq->vq_free_cnt, virtqueue_nused(vq),
+	    vq->vq_queued_cnt, vq->vq_desc_head_idx,
+	    vq_htog16(vq, vq->vq_ring.avail->idx), vq->vq_used_cons_idx,
+	    vq_htog16(vq, vq->vq_ring.used->idx),
+	    vq_htog16(vq, vring_used_event(&vq->vq_ring)),
+	    vq_htog16(vq, vq->vq_ring.avail->flags),
+	    vq_htog16(vq, vq->vq_ring.used->flags));
 }
 
 static void
@@ -662,14 +667,14 @@ vq_ring_init(struct virtqueue *vq)
 	vring_init(vr, size, ring_mem, vq->vq_alignment);
 
 	for (i = 0; i < size - 1; i++)
-		vr->desc[i].next = i + 1;
-	vr->desc[i].next = VQ_RING_DESC_CHAIN_END;
+		vr->desc[i].next = vq_gtoh16(vq, i + 1);
+	vr->desc[i].next = vq_gtoh16(vq, VQ_RING_DESC_CHAIN_END);
 }
 
 static void
 vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 {
-	uint16_t avail_idx;
+	uint16_t avail_idx, avail_ring_idx;
 
 	/*
 	 * Place the head of the descriptor chain into the next slot and make
@@ -678,11 +683,12 @@ vq_ring_update_avail(struct virtqueue *vq, uint16_t desc_idx)
 	 * currently running on another CPU, we can keep it processing the new
 	 * descriptor.
 	 */
-	avail_idx = vq->vq_ring.avail->idx & (vq->vq_nentries - 1);
-	vq->vq_ring.avail->ring[avail_idx] = desc_idx;
+	avail_idx = vq_htog16(vq, vq->vq_ring.avail->idx);
+	avail_ring_idx = avail_idx & (vq->vq_nentries - 1);
+	vq->vq_ring.avail->ring[avail_ring_idx] = vq_gtoh16(vq, desc_idx);
 
 	wmb();
-	vq->vq_ring.avail->idx++;
+	vq->vq_ring.avail->idx = vq_gtoh16(vq, avail_idx + 1);
 
 	/* Keep pending count until virtqueue_notify(). */
 	vq->vq_queued_cnt++;
@@ -701,19 +707,19 @@ vq_ring_enqueue_segments(struct virtqueue *vq, struct vring_desc *desc,
 
 	for (i = 0, idx = head_idx, seg = sg->sg_segs;
 	     i < needed;
-	     i++, idx = dp->next, seg++) {
+	     i++, idx = vq_htog16(vq, dp->next), seg++) {
 		VQASSERT(vq, idx != VQ_RING_DESC_CHAIN_END,
 		    "premature end of free desc chain");
 
 		dp = &desc[idx];
-		dp->addr = seg->ss_paddr;
-		dp->len = seg->ss_len;
+		dp->addr = vq_gtoh64(vq, seg->ss_paddr);
+		dp->len = vq_gtoh32(vq, seg->ss_len);
 		dp->flags = 0;
 
 		if (i < needed - 1)
-			dp->flags |= VRING_DESC_F_NEXT;
+			dp->flags |= vq_gtoh16(vq, VRING_DESC_F_NEXT);
 		if (i >= readable)
-			dp->flags |= VRING_DESC_F_WRITE;
+			dp->flags |= vq_gtoh16(vq, VRING_DESC_F_WRITE);
 	}
 
 	return (idx);
@@ -758,14 +764,14 @@ vq_ring_enqueue_indirect(struct virtqueue *vq, void *cookie,
 	dxp->cookie = cookie;
 	dxp->ndescs = 1;
 
-	dp->addr = dxp->indirect_paddr;
-	dp->len = needed * sizeof(struct vring_desc);
-	dp->flags = VRING_DESC_F_INDIRECT;
+	dp->addr = vq_gtoh64(vq, dxp->indirect_paddr);
+	dp->len = vq_gtoh32(vq, needed * sizeof(struct vring_desc));
+	dp->flags = vq_gtoh16(vq, VRING_DESC_F_INDIRECT);
 
 	vq_ring_enqueue_segments(vq, dxp->indirect, 0,
 	    sg, readable, writable);
 
-	vq->vq_desc_head_idx = dp->next;
+	vq->vq_desc_head_idx = vq_htog16(vq, dp->next);
 	vq->vq_free_cnt--;
 	if (vq->vq_free_cnt == 0)
 		VQ_RING_ASSERT_CHAIN_TERM(vq);
@@ -783,10 +789,13 @@ vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
 	 * Enable interrupts, making sure we get the latest index of
 	 * what's already been consumed.
 	 */
-	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX)
-		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx + ndesc;
-	else
-		vq->vq_ring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
+	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) {
+		vring_used_event(&vq->vq_ring) =
+		    vq_gtoh16(vq, vq->vq_used_cons_idx + ndesc);
+	} else {
+		vq->vq_ring.avail->flags &=
+		    vq_gtoh16(vq, ~VRING_AVAIL_F_NO_INTERRUPT);
+	}
 
 	mb();
 
@@ -804,24 +813,26 @@ vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
 static int
 vq_ring_must_notify_host(struct virtqueue *vq)
 {
-	uint16_t new_idx, prev_idx, event_idx;
+	uint16_t new_idx, prev_idx, event_idx, flags;
 
 	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) {
-		new_idx = vq->vq_ring.avail->idx;
+		new_idx = vq_htog16(vq, vq->vq_ring.avail->idx);
 		prev_idx = new_idx - vq->vq_queued_cnt;
-		event_idx = vring_avail_event(&vq->vq_ring);
+		event_idx = vq_htog16(vq, vring_avail_event(&vq->vq_ring));
 
 		return (vring_need_event(event_idx, new_idx, prev_idx) != 0);
 	}
 
-	return ((vq->vq_ring.used->flags & VRING_USED_F_NO_NOTIFY) == 0);
+	flags = vq->vq_ring.used->flags;
+	return ((flags & vq_gtoh16(vq, VRING_USED_F_NO_NOTIFY)) == 0);
 }
 
 static void
 vq_ring_notify_host(struct virtqueue *vq)
 {
 
-	VIRTIO_BUS_NOTIFY_VQ(vq->vq_dev, vq->vq_queue_index);
+	VIRTIO_BUS_NOTIFY_VQ(vq->vq_dev, vq->vq_queue_index,
+	    vq->vq_notify_offset);
 }
 
 static void
@@ -840,10 +851,11 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 	vq->vq_free_cnt += dxp->ndescs;
 	dxp->ndescs--;
 
-	if ((dp->flags & VRING_DESC_F_INDIRECT) == 0) {
-		while (dp->flags & VRING_DESC_F_NEXT) {
-			VQ_RING_ASSERT_VALID_IDX(vq, dp->next);
-			dp = &vq->vq_ring.desc[dp->next];
+	if ((dp->flags & vq_gtoh16(vq, VRING_DESC_F_INDIRECT)) == 0) {
+		while (dp->flags & vq_gtoh16(vq, VRING_DESC_F_NEXT)) {
+			uint16_t next_idx = vq_htog16(vq, dp->next);
+			VQ_RING_ASSERT_VALID_IDX(vq, next_idx);
+			dp = &vq->vq_ring.desc[next_idx];
 			dxp->ndescs--;
 		}
 	}
@@ -856,6 +868,6 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 	 * newly freed chain. If the virtqueue was completely used, then
 	 * head would be VQ_RING_DESC_CHAIN_END (ASSERTed above).
 	 */
-	dp->next = vq->vq_desc_head_idx;
+	dp->next = vq_gtoh16(vq, vq->vq_desc_head_idx);
 	vq->vq_desc_head_idx = desc_idx;
 }

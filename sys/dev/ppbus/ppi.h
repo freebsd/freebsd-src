@@ -51,6 +51,6 @@
 #define	PPISFIFO	_IOW('P', 21, u_int8_t)
 
 #define	PPIGEPPA	_IOR('P', 22, u_int8_t)
-#define	PPISEPPA	_IOR('P', 23, u_int8_t)
+#define	PPISEPPA	_IOW('P', 23, u_int8_t)
 
 #endif

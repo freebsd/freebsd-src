@@ -36,10 +36,10 @@
 #define	EFI_PAGE_SIZE		(1 << EFI_PAGE_SHIFT)
 #define	EFI_PAGE_MASK		(EFI_PAGE_SIZE - 1)
 
-#define	EFI_TABLE_ACPI20			\
-	{0x8868e871,0xe4f1,0x11d3,0xbc,0x22,{0x00,0x80,0xc7,0x3c,0x88,0x81}}
-#define	EFI_TABLE_SAL				\
-	{0xeb9d2d32,0x2d88,0x11d3,0x9a,0x16,{0x00,0x90,0x27,0x3f,0xc1,0x4d}}
+#define	EFI_TABLE_SMBIOS				\
+	{0xeb9d2d31,0x2d88,0x11d3,0x9a,0x16,{0x00,0x90,0x27,0x3f,0xc1,0x4d}}
+#define	EFI_TABLE_SMBIOS3				\
+	{0xf2fd1544,0x9794,0x4a2c,0x99,0x2e,{0xe5,0xbb,0xcf,0x20,0xe3,0x94}}
 
 enum efi_reset {
 	EFI_RESET_COLD = 0,
@@ -52,7 +52,7 @@ typedef unsigned long efi_status;
 
 struct efi_cfgtbl {
 	struct uuid	ct_uuid;
-	uint64_t	ct_data;
+	void		*ct_data;
 };
 
 struct efi_md {
@@ -180,18 +180,102 @@ int efi_rt_arch_call(struct efirt_callinfo *);
 bool efi_create_1t1_map(struct efi_md *, int, int);
 void efi_destroy_1t1_map(void);
 
+struct efi_ops {
+	/*
+	 * The EFI calls might be virtualized in some environments, requiring
+	 * FreeBSD to use a different interface (ie: hypercalls) in order to
+	 * access them.
+	 */
+	int	(*rt_ok)(void);
+	int 	(*get_table)(struct uuid *, void **);
+	int 	(*get_time)(struct efi_tm *);
+	int 	(*get_time_capabilities)(struct efi_tmcap *);
+	int	(*reset_system)(enum efi_reset);
+	int 	(*set_time)(struct efi_tm *);
+	int 	(*var_get)(uint16_t *, struct uuid *, uint32_t *, size_t *,
+    void *);
+	int 	(*var_nextname)(size_t *, uint16_t *, struct uuid *);
+	int 	(*var_set)(uint16_t *, struct uuid *, uint32_t, size_t, void *);
+};
+extern const struct efi_ops *active_efi_ops;
+
 /* Public MI EFI functions */
-int efi_rt_ok(void);
-int efi_get_table(struct uuid *uuid, void **ptr);
-int efi_get_time(struct efi_tm *tm);
-int efi_get_time_capabilities(struct efi_tmcap *tmcap);
-int efi_reset_system(enum efi_reset type);
-int efi_set_time(struct efi_tm *tm);
-int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
-    size_t *datasize, void *data);
-int efi_var_nextname(size_t *namesize, uint16_t *name, struct uuid *vendor);
-int efi_var_set(uint16_t *name, struct uuid *vendor, uint32_t attrib,
-    size_t datasize, void *data);
+static inline int efi_rt_ok(void)
+{
+
+	if (active_efi_ops->rt_ok == NULL)
+		return (ENXIO);
+	return (active_efi_ops->rt_ok());
+}
+
+static inline int efi_get_table(struct uuid *uuid, void **ptr)
+{
+
+        if (active_efi_ops->get_table == NULL)
+		return (ENXIO);
+	return (active_efi_ops->get_table(uuid, ptr));
+}
+
+static inline int efi_get_time(struct efi_tm *tm)
+{
+
+	if (active_efi_ops->get_time == NULL)
+		return (ENXIO);
+	return (active_efi_ops->get_time(tm));
+}
+
+static inline int efi_get_time_capabilities(struct efi_tmcap *tmcap)
+{
+
+	if (active_efi_ops->get_time_capabilities == NULL)
+		return (ENXIO);
+	return (active_efi_ops->get_time_capabilities(tmcap));
+}
+
+static inline int efi_reset_system(enum efi_reset type)
+{
+
+	if (active_efi_ops->reset_system == NULL)
+		return (ENXIO);
+	return (active_efi_ops->reset_system(type));
+}
+
+static inline int efi_set_time(struct efi_tm *tm)
+{
+
+	if (active_efi_ops->set_time == NULL)
+		return (ENXIO);
+	return (active_efi_ops->set_time(tm));
+}
+
+static inline int efi_var_get(uint16_t *name, struct uuid *vendor,
+    uint32_t *attrib, size_t *datasize, void *data)
+{
+
+	if (active_efi_ops->var_get == NULL)
+		return (ENXIO);
+	return (active_efi_ops->var_get(name, vendor, attrib, datasize, data));
+}
+
+static inline int efi_var_nextname(size_t *namesize, uint16_t *name,
+    struct uuid *vendor)
+{
+
+	if (active_efi_ops->var_nextname == NULL)
+		return (ENXIO);
+	return (active_efi_ops->var_nextname(namesize, name, vendor));
+}
+
+static inline int efi_var_set(uint16_t *name, struct uuid *vendor,
+    uint32_t attrib, size_t datasize, void *data)
+{
+
+	if (active_efi_ops->var_set == NULL)
+		return (ENXIO);
+	return (active_efi_ops->var_set(name, vendor, attrib, datasize, data));
+}
+
+int efi_status_to_errno(efi_status status);
 
 #endif	/* _KERNEL */
 

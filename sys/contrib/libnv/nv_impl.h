@@ -52,13 +52,13 @@ typedef struct nvpair nvpair_t;
 #define	NV_FLAG_IN_ARRAY		0x100
 
 #ifdef _KERNEL
-#define	nv_malloc(size)			malloc((size), M_NVLIST, M_WAITOK)
+#define	nv_malloc(size)			malloc((size), M_NVLIST, M_NOWAIT)
 #define	nv_calloc(n, size)		mallocarray((n), (size), M_NVLIST, \
-					    M_WAITOK | M_ZERO)
+					    M_NOWAIT | M_ZERO)
 #define	nv_realloc(buf, size)		realloc((buf), (size), M_NVLIST, \
-					    M_WAITOK)
+					    M_NOWAIT)
 #define	nv_free(buf)			free((buf), M_NVLIST)
-#define	nv_strdup(buf)			strdup((buf), M_NVLIST)
+#define	nv_strdup(buf)			strdup_flags((buf), M_NVLIST, M_NOWAIT)
 #define	nv_vasprintf(ptr, ...)		vasprintf(ptr, M_NVLIST, __VA_ARGS__)
 
 #define	ERRNO_SET(var)			do { } while (0)

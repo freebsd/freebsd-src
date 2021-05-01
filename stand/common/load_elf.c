@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #define FREEBSD_ELF
 #include <sys/link_elf.h>
+#include <gfx_fb.h>
 
 #include "bootstrap.h"
 
@@ -84,11 +85,13 @@ typedef struct elf_file {
 
 static int __elfN(loadimage)(struct preloaded_file *mp, elf_file_t ef,
     uint64_t loadaddr);
-static int __elfN(lookup_symbol)(struct preloaded_file *mp, elf_file_t ef,
-    const char* name, Elf_Sym* sym);
+static int __elfN(lookup_symbol)(elf_file_t ef, const char* name,
+    Elf_Sym *sym, unsigned char type);
 static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p, void *val, size_t len);
 static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef,
+    Elf_Addr p_start, Elf_Addr p_end);
+static bool __elfN(parse_vt_drv_set)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p_start, Elf_Addr p_end);
 static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
@@ -872,12 +875,24 @@ nosyms:
 	ef->buckets = ef->hashtab + 2;
 	ef->chains = ef->buckets + ef->nbuckets;
 
-	if (__elfN(lookup_symbol)(fp, ef, "__start_set_modmetadata_set",
-	    &sym) != 0)
+	if (!gfx_state.tg_kernel_supported &&
+	    __elfN(lookup_symbol)(ef, "__start_set_vt_drv_set", &sym,
+	    STT_NOTYPE) == 0) {
+		p_start = sym.st_value + ef->off;
+		if (__elfN(lookup_symbol)(ef, "__stop_set_vt_drv_set", &sym,
+		    STT_NOTYPE) == 0) {
+			p_end = sym.st_value + ef->off;
+			gfx_state.tg_kernel_supported =
+			    __elfN(parse_vt_drv_set)(fp, ef, p_start, p_end);
+		}
+	}
+
+	if (__elfN(lookup_symbol)(ef, "__start_set_modmetadata_set", &sym,
+	    STT_NOTYPE) != 0)
 		return 0;
 	p_start = sym.st_value + ef->off;
-	if (__elfN(lookup_symbol)(fp, ef, "__stop_set_modmetadata_set",
-	    &sym) != 0)
+	if (__elfN(lookup_symbol)(ef, "__stop_set_modmetadata_set", &sym,
+	    STT_NOTYPE) != 0)
 		return ENOENT;
 	p_end = sym.st_value + ef->off;
 
@@ -1072,6 +1087,36 @@ out:
 	return (err);
 }
 
+/*
+ * Walk through vt_drv_set, each vt driver structure starts with
+ * static 16 chars for driver name. If we have "vbefb", return true.
+ */
+static bool
+__elfN(parse_vt_drv_set)(struct preloaded_file *fp, elf_file_t ef,
+    Elf_Addr p_start, Elf_Addr p_end)
+{
+	Elf_Addr v, p;
+	char vd_name[16];
+	int error;
+
+	p = p_start;
+	while (p < p_end) {
+		COPYOUT(p, &v, sizeof(v));
+
+		error = __elfN(reloc_ptr)(fp, ef, p, &v, sizeof(v));
+		if (error == EOPNOTSUPP)
+			v += ef->off;
+		else if (error != 0)
+			return (false);
+		COPYOUT(v, &vd_name, sizeof(vd_name));
+		if (strncmp(vd_name, "vbefb", sizeof(vd_name)) == 0)
+			return (true);
+		p += sizeof(Elf_Addr);
+	}
+
+	return (false);
+}
+
 int
 __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
     Elf_Addr p_start, Elf_Addr p_end)
@@ -1185,8 +1230,8 @@ elf_hash(const char *name)
 static const char __elfN(bad_symtable)[] = "elf" __XSTRING(__ELF_WORD_SIZE)
     "_lookup_symbol: corrupt symbol table\n";
 int
-__elfN(lookup_symbol)(struct preloaded_file *fp, elf_file_t ef,
-    const char* name, Elf_Sym *symp)
+__elfN(lookup_symbol)(elf_file_t ef, const char* name, Elf_Sym *symp,
+    unsigned char type)
 {
 	Elf_Hashelt symnum;
 	Elf_Sym sym;
@@ -1213,7 +1258,7 @@ __elfN(lookup_symbol)(struct preloaded_file *fp, elf_file_t ef,
 			free(strp);
 			if (sym.st_shndx != SHN_UNDEF ||
 			    (sym.st_value != 0 &&
-			    ELF_ST_TYPE(sym.st_info) == STT_FUNC)) {
+			    ELF_ST_TYPE(sym.st_info) == type)) {
 				*symp = sym;
 				return 0;
 			}

@@ -3,7 +3,7 @@ Zstandard Compression Format
 
 ### Notices
 
-Copyright (c) 2016-present Yann Collet, Facebook, Inc.
+Copyright (c) 2016-2020 Yann Collet, Facebook, Inc.
 
 Permission is granted to copy and distribute this document
 for any purpose and without charge,
@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.5 (13/11/19)
+0.3.7 (2020-12-09)
 
 
 Introduction
@@ -291,21 +291,10 @@ Format is __little-endian__.
 It's allowed to represent a small ID (for example `13`)
 with a large 4-bytes dictionary ID, even if it is less efficient.
 
-_Reserved ranges :_
-Within private environments, any `Dictionary_ID` can be used.
-
-However, for frames and dictionaries distributed in public space,
-`Dictionary_ID` must be attributed carefully.
-Rules for public environment are not yet decided,
-but the following ranges are reserved for some future registrar :
-- low range  : `<= 32767`
-- high range : `>= (1 << 31)`
-
-Outside of these ranges, any value of `Dictionary_ID`
-which is both `>= 32768` and `< (1<<31)` can be used freely,
-even in public environment.
-
-
+A value of `0` has same meaning as no `Dictionary_ID`,
+in which case the frame may or may not need a dictionary to be decoded,
+and the ID of such a dictionary is not specified.
+The decoder must know this information by other means.
 
 #### `Frame_Content_Size`
 
@@ -389,7 +378,7 @@ __`Block_Size`__
 The upper 21 bits of `Block_Header` represent the `Block_Size`.
 
 When `Block_Type` is `Compressed_Block` or `Raw_Block`,
-`Block_Size` is the size of `Block_Content` (hence excluding `Block_Header`).  
+`Block_Size` is the size of `Block_Content` (hence excluding `Block_Header`).
 
 When `Block_Type` is `RLE_Block`, since `Block_Content`’s size is always 1,
 `Block_Size` represents the number of times this byte must be repeated.
@@ -929,38 +918,41 @@ Note that blocks which are not `Compressed_Block` are skipped, they do not contr
 
 ###### Offset updates rules
 
-The newest offset takes the lead in offset history,
-shifting others back by one rank,
-up to the previous rank of the new offset _if it was present in history_.
+During the execution of the sequences of a `Compressed_Block`, the
+`Repeated_Offsets`' values are kept up to date, so that they always represent
+the three most-recently used offsets. In order to achieve that, they are
+updated after executing each sequence in the following way:
 
-__Examples__ :
+When the sequence's `offset_value` does not refer to one of the
+`Repeated_Offsets`--when it has value greater than 3, or when it has value 3
+and the sequence's `literals_length` is zero--the `Repeated_Offsets`' values
+are shifted back one, and `Repeated_Offset1` takes on the value of the
+just-used offset.
 
-In the common case, when new offset is not part of history :
-`Repeated_Offset3` = `Repeated_Offset2`
-`Repeated_Offset2` = `Repeated_Offset1`
-`Repeated_Offset1` = `NewOffset`
+Otherwise, when the sequence's `offset_value` refers to one of the
+`Repeated_Offsets`--when it has value 1 or 2, or when it has value 3 and the
+sequence's `literals_length` is non-zero--the `Repeated_Offsets` are re-ordered
+so that `Repeated_Offset1` takes on the value of the used Repeated_Offset, and
+the existing values are pushed back from the first `Repeated_Offset` through to
+the `Repeated_Offset` selected by the `offset_value`. This effectively performs
+a single-stepped wrapping rotation of the values of these offsets, so that
+their order again reflects the recency of their use.
 
-When the new offset _is_ part of history, there may be specific adjustments.
+The following table shows the values of the `Repeated_Offsets` as a series of
+sequences are applied to them:
 
-When `NewOffset` == `Repeated_Offset1`, offset history remains actually unmodified.
-
-When `NewOffset` == `Repeated_Offset2`,
-`Repeated_Offset1` and `Repeated_Offset2` ranks are swapped.
-`Repeated_Offset3` is unmodified.
-
-When `NewOffset` == `Repeated_Offset3`,
-there is actually no difference with the common case :
-all offsets are shifted by one rank,
-`NewOffset` (== `Repeated_Offset3`) becomes the new `Repeated_Offset1`.
-
-Also worth mentioning, the specific corner case when `offset_value` == 3,
-and the literal length of the current sequence is zero.
-In which case , `NewOffset` = `Repeated_Offset1` - 1_byte.
-Here also, from an offset history update perspective, it's just a common case :
-`Repeated_Offset3` = `Repeated_Offset2`
-`Repeated_Offset2` = `Repeated_Offset1`
-`Repeated_Offset1` = `NewOffset` ( == `Repeated_Offset1` - 1_byte )
-
+| `offset_value` | `literals_length` | `Repeated_Offset1` | `Repeated_Offset2` | `Repeated_Offset3` | Comment                 |
+|:--------------:|:-----------------:|:------------------:|:------------------:|:------------------:|:-----------------------:|
+|                |                   |                  1 |                  4 |                  8 | starting values         |
+|           1114 |                11 |               1111 |                  1 |                  4 | non-repeat              |
+|              1 |                22 |               1111 |                  1 |                  4 | repeat 1; no change     |
+|           2225 |                22 |               2222 |               1111 |                  1 | non-repeat              |
+|           1114 |               111 |               1111 |               2222 |               1111 | non-repeat              |
+|           3336 |                33 |               3333 |               1111 |               2222 | non-repeat              |
+|              2 |                22 |               1111 |               3333 |               2222 | repeat 2; swap 1 & 2    |
+|              3 |                33 |               2222 |               1111 |               3333 | repeat 3; rotate 3 to 1 |
+|              3 |                 0 |               2221 |               2222 |               1111 | insert resolved offset  |
+|              1 |                 0 |               2222 |               2221 |               3333 | repeat 2                |
 
 
 Skippable Frames
@@ -1429,13 +1421,17 @@ __`Dictionary_ID`__ : 4 bytes, stored in __little-endian__ format.
               It's used by decoders to check if they use the correct dictionary.
 
 _Reserved ranges :_
-              If the frame is going to be distributed in a private environment,
-              any `Dictionary_ID` can be used.
-              However, for public distribution of compressed frames,
-              the following ranges are reserved and shall not be used :
+If the dictionary is going to be distributed in a public environment,
+the following ranges of `Dictionary_ID` are reserved for some future registrar
+and shall not be used :
 
-              - low range  : <= 32767
-              - high range : >= (2^31)
+    - low range  : <= 32767
+    - high range : >= (2^31)
+
+Outside of these ranges, any value of `Dictionary_ID`
+which is both `>= 32768` and `< (1<<31)` can be used freely,
+even in public environment.
+
 
 __`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].
               See the relevant [FSE](#fse-table-description)
@@ -1447,7 +1443,7 @@ __`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].
               Repeat distribution mode for sequence decoding.
               It's finally followed by 3 offset values, populating recent offsets (instead of using `{1,4,8}`),
               stored in order, 4-bytes __little-endian__ each, for a total of 12 bytes.
-              Each recent offset must have a value < dictionary size.
+              Each recent offset must have a value <= dictionary content size, and cannot equal 0.
 
 __`Content`__ : The rest of the dictionary is its content.
               The content act as a "past" in front of data to compress or decompress,
@@ -1455,7 +1451,7 @@ __`Content`__ : The rest of the dictionary is its content.
               As long as the amount of data decoded from this frame is less than or
               equal to `Window_Size`, sequence commands may specify offsets longer
               than the total length of decoded output so far to reference back to the
-              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.  
+              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.
               After the total output has surpassed `Window_Size` however,
               this is no longer allowed and the dictionary is no longer accessible.
 
@@ -1673,6 +1669,8 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.7 : clarifications for Repeat_Offsets
+- 0.3.6 : clarifications for Dictionary_ID
 - 0.3.5 : clarifications for Block_Maximum_Size
 - 0.3.4 : clarifications for FSE decoding table
 - 0.3.3 : clarifications for field Block_Size

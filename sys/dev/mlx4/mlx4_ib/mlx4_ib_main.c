@@ -38,7 +38,6 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
-#include <linux/inetdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/fs.h>
 #include <linux/rcupdate.h>
@@ -64,9 +63,9 @@
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
 #ifndef DRV_VERSION
-#define DRV_VERSION	"3.5.1"
+#define DRV_VERSION	"3.6.0"
 #endif
-#define DRV_RELDATE	"April 2019"
+#define DRV_RELDATE	"December 2020"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
@@ -371,8 +370,13 @@ static int mlx4_ib_del_gid(struct ib_device *device,
 		if (!gids) {
 			ret = -ENOMEM;
 		} else {
-			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++)
-				memcpy(&gids[i].gid, &port_gid_table->gids[i].gid, sizeof(union ib_gid));
+			for (i = 0; i < MLX4_MAX_PORT_GIDS; i++) {
+				memcpy(&gids[i].gid,
+				       &port_gid_table->gids[i].gid,
+				       sizeof(union ib_gid));
+				gids[i].gid_type =
+				    port_gid_table->gids[i].gid_type;
+			}
 		}
 	}
 	spin_unlock_bh(&iboe->lock);

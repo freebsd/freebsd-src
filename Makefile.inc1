@@ -20,12 +20,17 @@
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
 #	    to be created before files are installed
+#	LOCAL_LEGACY_DIRS="list of dirs" to add additional dirs to the legacy
+#	    target
+#	LOCAL_BSTOOL_DIRS="list of dirs" to add additional dirs to the
+#	    bootstrap-tools target
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
-#	    list
+#	    target
 #	LOCAL_XTOOL_DIRS="list of dirs" to add additional dirs to the
 #	    cross-tools target
 #	METALOG="path to metadata log" to write permission and ownership
-#	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
+#	    when NO_ROOT is set.  (default: ${DESTDIR}/${DISTDIR}/METALOG,
+#           check /etc/make.conf for DISTDIR)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:${SHELL})
@@ -132,9 +137,9 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd13.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd14.0
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd13.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/[hs]f$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd14.0
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		armv6/arm \
@@ -535,14 +540,12 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(_REVISION)
-_REVISION!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V REVISION
-.export _REVISION
+.for _V in BRANCH REVISION
+.if !defined(_${_V})
+_${_V}!=	eval $$(awk '/^${_V}=/{print}' ${SRCTOP}/sys/conf/newvers.sh); echo $$${_V}
+.export _${_V}
 .endif
-.if !defined(_BRANCH)
-_BRANCH!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V BRANCH
-.export _BRANCH
-.endif
+.endfor
 .if !defined(SRCRELDATE)
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
@@ -554,26 +557,26 @@ VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDA
 .endif
 
 .if !defined(PKG_VERSION)
-.if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*}
-TIMENOW=	%Y%m%d%H%M%S
-EXTRA_REVISION=	.s${TIMENOW:gmtime}
+_STRTIMENOW=	%Y%m%d%H%M%S
+_TIMENOW=	${_STRTIMENOW:gmtime}
+.if ${_BRANCH:MCURRENT*} || ${_BRANCH:MSTABLE*} || ${_BRANCH:MPRERELEASE*}
+_REVISION:=	${_REVISION:R}
+EXTRA_REVISION=	.snap${_TIMENOW}
 .elif ${_BRANCH:MALPHA*}
-EXTRA_REVISION= _${_BRANCH:C/-ALPHA/.a/}
+EXTRA_REVISION=	.a${_BRANCH:C/ALPHA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MBETA*}
-EXTRA_REVISION= _${_BRANCH:C/-BETA/.b/}
+EXTRA_REVISION=	.b${_BRANCH:C/BETA([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:MRC*}
-EXTRA_REVISION= _${_BRANCH:C/-RC/.r/}
-.elif ${_BRANCH:MPRERELEASE*}
-EXTRA_REVISION= _${_BRANCH:C/-PRERELEASE/.p/}
+EXTRA_REVISION=	.rc${_BRANCH:C/RC([0-9]+).*/\1/}.${_TIMENOW}
 .elif ${_BRANCH:M*-p*}
-EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
+EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
+PKG_VERSION:=	${_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
 .endif	# !defined(PKG_VERSION)
 
 .if !defined(PKG_TIMESTAMP)
-TIMEEPOCHNOW=	%s
+TIMEEPOCHNOW=		%s
 SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
 .else
 SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
@@ -726,7 +729,7 @@ BSARGS= 	DESTDIR= \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no MK_MAN_UTILS=yes \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		-DNO_CPU_CFLAGS MK_WERROR=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FORMAT=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no \
 		MK_INCLUDES=yes
@@ -747,7 +750,7 @@ TMAKE=		\
 		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		-DNO_CPU_CFLAGS MK_WERROR=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FORMAT=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no
 
@@ -756,7 +759,7 @@ TMAKE=		\
 XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_CLANG_IS_CC=${MK_CLANG_BOOTSTRAP} \
-		MK_GDB=no MK_TESTS=no
+		MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -775,7 +778,7 @@ KTMAKE=		\
 		SSP_CFLAGS= \
 		MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS MK_RETPOLINE=no MK_WARNS=no MK_CTF=no
+		-DNO_CPU_CFLAGS MK_RETPOLINE=no MK_WERROR=no MK_CTF=no
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -1590,6 +1593,10 @@ KERNCONF=${KERNFAST}
 .endif
 .if ${TARGET_ARCH} == "powerpc64"
 KERNCONF?=	GENERIC64
+.elif ${TARGET_ARCH} == "powerpc64le"
+KERNCONF?=	GENERIC64LE
+.elif ${TARGET_ARCH} == "powerpcspe"
+KERNCONF?=	MPC85XXSPE
 .else
 KERNCONF?=	GENERIC
 .endif
@@ -1704,7 +1711,15 @@ buildkernel: .MAKE .PHONY
 	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
+.if !make(packages) && !make(update-packages)
 NO_INSTALLEXTRAKERNELS?=	yes
+.else
+# packages/update-packages installs kernels to a staging directory then builds
+# packages from the result to be installed, typically to other systems.  It is
+# less surprising for these targets to honor KERNCONF if multiple kernels are
+# specified.
+NO_INSTALLEXTRAKERNELS?=	no
+.endif
 
 #
 # installkernel, etc.
@@ -1842,7 +1857,7 @@ WSTAGEDIR?=	${OBJTOP}/worldstage
 KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	txz
-PKGSIGNKEY?=	# empty
+PKG_REPO_SIGNING_KEY?=	# empty
 PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
 .ORDER:		stage-packages create-packages
@@ -1855,8 +1870,30 @@ _pkgbootstrap: .PHONY
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
 
+.if make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages)
+PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
+.endif
+
+.if !defined(PKG_VERSION_FROM) && make(real-update-packages)
+.if defined(PKG_ABI)
+.if exists(${REPODIR}/${PKG_ABI})
+PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
+PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
+.else
+PKG_VERSION_FROM=
+PKG_VERSION_FROM_DIR=
+.endif
+.endif
+.endif
+
+PKGMAKEARGS+=	PKG_VERSION=${PKG_VERSION} \
+		NO_INSTALLEXTRAKERNELS=${NO_INSTALLEXTRAKERNELS}
+
 packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-packages
+
+update-packages: .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
@@ -1866,6 +1903,32 @@ package-pkg: .PHONY
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
+
+real-update-packages: stage-packages .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} create-packages
+.if empty(PKG_VERSION_FROM_DIR)
+	@echo "==> Bootstrapping repository, not checking for new packages"
+.else
+	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
+	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
+	  pkgname=$$(pkg query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
+	  newpkgname=${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION}.${PKG_FORMAT} ; \
+	  oldsum=$$(pkg query -F $${pkg} '%X') ; \
+	  if [ ! -f ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ]; then \
+	    continue; \
+	  fi ; \
+	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
+	  if [ "$${oldsum}" == "$${newsum}" ]; then \
+	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_FORMAT}" ; \
+	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
+	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
+	  else \
+	    echo "==> New package $${newpkgname}" ; \
+	  fi ; \
+	done
+.endif
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} sign-packages
 
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
@@ -1915,10 +1978,6 @@ create-world-packages:	_pkgbootstrap .PHONY
 
 .if make(create-world-packages-jobs)
 .include "${WSTAGEDIR}/packages.mk"
-.endif
-
-.if make(create-world-packages-jobs) || make(create-kernel-packages*)
-PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
 .endif
 
 create-world-packages-jobs: .PHONY
@@ -2024,7 +2083,7 @@ sign-packages:	_pkgbootstrap .PHONY
 		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
-		${PKGSIGNKEY} ; \
+		${PKG_REPO_SIGNING_KEY} ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
 	ln -s ${PKG_OUTPUT_DIR} latest
 
@@ -2085,18 +2144,15 @@ update: .PHONY
 # which don't have the APIs required by the targets built in bootstrap-tools,
 # build-tools or cross-tools.
 #
-
-# libnv and libsbuf are requirements for config(8), which is an unconditional
-# bootstrap-tool.
-_config_deps= lib/libnv lib/libsbuf
-
 legacy: .PHONY
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
 	false
 .endif
 
-.for _tool in tools/build
+.for _tool in \
+  tools/build \
+  ${LOCAL_LEGACY_DIRS}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -2153,9 +2209,9 @@ ${_bt}-usr.sbin/config: ${_bt}-lib/libnv ${_bt}-lib/libsbuf
 _strfile=	usr.bin/fortune/strfile
 .endif
 
-.if ${MK_VT} != "no"
+# vtfontcvt is used to build font files for loader and to generate
+# C source for loader built in font (8x16.c).
 _vtfontcvt=	usr.bin/vtfontcvt
-.endif
 
 # If we are not building the bootstrap because BOOTSTRAPPING is sufficient
 # we symlink the host version to $WORLDTMP instead. By doing this we can also
@@ -2233,7 +2289,7 @@ _bootstrap_tools_links+=crunchide
 
 # 1300115: Higher WARNS fixes
 .if ${BOOTSTRAPPING} < 1202502 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300115)
+	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300131)
 _crunchgen=	usr.sbin/crunch/crunchgen
 .else
 _bootstrap_tools_links+=crunchgen
@@ -2243,11 +2299,20 @@ _bootstrap_tools_links+=crunchgen
 # Note: kbdcontrol can not be bootstrapped on non-FreeBSD systems
 .if !defined(CROSSBUILD_HOST)
 .if (${BOOTSTRAPPING} < 1003501 || \
-	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103))
+	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103) || \
+	(!exists(/usr/sbin/kbdcontrol)))
 _kbdcontrol=	usr.sbin/kbdcontrol
 .else
 _bootstrap_tools_links+=kbdcontrol
 .endif
+.endif
+
+# 1300102: VHDX support
+.if ${BOOTSTRAPPING} < 1201520 || \
+	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300102)
+_mkimg=	usr.bin/mkimg
+.else
+_bootstrap_tools_links+=mkimg
 .endif
 
 _yacc=		usr.bin/yacc
@@ -2342,6 +2407,8 @@ _other_bootstrap_tools+=tools/build/cross-build/fake_chflags
 .endif
 # mkfifo is used by sys/conf/newvers.sh
 _basic_bootstrap_tools+=usr.bin/mkfifo
+# jot is needed for the mkimg tests
+_basic_bootstrap_tools+=usr.bin/jot
 
 .if ${MK_BOOT} != "no"
 # md5 is used by boot/beri (and possibly others)
@@ -2423,9 +2490,11 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_flua} \
     ${_crunchide} \
     ${_crunchgen} \
+    ${_mkimg} \
     ${_nmtree} \
     ${_vtfontcvt} \
-    ${_localedef}
+    ${_localedef} \
+    ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -2484,7 +2553,6 @@ _bt_clean=	${CLEANDIR}
     ${LOCAL_TOOL_DIRS} \
     ${_jevents} \
     lib/ncurses/ncurses \
-    lib/ncurses/ncursesw \
     ${_rescue} \
     ${_share} \
     usr.bin/awk \
@@ -2689,7 +2757,6 @@ NXBMAKEARGS+= \
 	MK_CLANG_FULL=no \
 	MK_CTF=no \
 	MK_DEBUG_FILES=no \
-	MK_GDB=no \
 	MK_HTML=no \
 	MK_LLDB=no \
 	MK_MAN=no \
@@ -2701,7 +2768,7 @@ NXBMAKEARGS+= \
 	MK_SENDMAIL=no \
 	MK_SVNLITE=no \
 	MK_TESTS=no \
-	MK_WARNS=no \
+	MK_WERROR=no \
 	MK_ZFS=no
 
 .if make(native-xtools*) && \
@@ -2801,7 +2868,7 @@ _prereq_libs+= lib/libssp_nonshared
 _startup_libs=	lib/csu
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no"
 _startup_libs+=	lib/libcxxrt
 .endif
 
@@ -2810,7 +2877,7 @@ _startup_libs+=	lib/libgcc_eh lib/libgcc_s
 
 lib/libgcc_s__L: lib/libc__L
 lib/libgcc_s__L: lib/libc_nonshared__L
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no"
 lib/libcxxrt__L: lib/libgcc_s__L
 .endif
 
@@ -2827,11 +2894,12 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libelf lib/libexpat \
 		lib/libfigpar \
 		${_lib_libgssapi} \
+		lib/libjail \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd lib/libnv \
 		lib/libzstd \
 		${_lib_casper} \
-		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie lib/libpam/libpam ${_lib_libthr} \
+		lib/ncurses/ncurses \
+		lib/libopie lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
@@ -2851,23 +2919,19 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
-gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncurses__L
 .endif
 
 .if ${MK_GOOGLETEST} != "no"
 _prebuild_libs+= lib/libregex
 .endif
 
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no"
 _prebuild_libs+= lib/libc++
 .endif
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
 lib/libkvm__L: lib/libelf__L
-
-.if ${MK_LIBTHR} != "no"
-_lib_libthr=	lib/libthr
-.endif
 
 .if ${MK_RADIUS_SUPPORT} != "no"
 _lib_libradius=	lib/libradius
@@ -3026,7 +3090,7 @@ lib/libradius__L: lib/libmd__L
 
 lib/libproc__L: \
     ${_cddl_lib_libctf:D${_cddl_lib_libctf}__L} lib/libelf__L lib/librtld_db__L lib/libutil__L
-.if ${MK_CXX} != "no" && ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no"
 lib/libproc__L: lib/libcxxrt__L
 .endif
 
@@ -3319,7 +3383,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
-	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
+	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 

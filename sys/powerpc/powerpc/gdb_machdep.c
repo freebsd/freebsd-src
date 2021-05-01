@@ -98,10 +98,7 @@ gdb_cpu_signal(int vector, int dummy __unused)
 		return (SIGTRAP);
 #endif
 
-	if (vector <= 255)
-		return (vector);
-	else
-		return (SIGEMT);
+	return (SIGEMT);
 }
 
 void

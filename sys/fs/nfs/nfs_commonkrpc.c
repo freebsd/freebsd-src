@@ -281,8 +281,12 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			CLNT_CONTROL(client, CLSET_INTERRUPTIBLE, &one);
 		if ((nmp->nm_flag & NFSMNT_RESVPORT))
 			CLNT_CONTROL(client, CLSET_PRIVPORT, &one);
-		if (NFSHASTLS(nmp))
+		if (NFSHASTLS(nmp)) {
 			CLNT_CONTROL(client, CLSET_TLS, &one);
+			if (nmp->nm_tlscertname != NULL)
+				CLNT_CONTROL(client, CLSET_TLSCERTNAME,
+				    nmp->nm_tlscertname);
+		}
 		if (NFSHASSOFT(nmp)) {
 			if (nmp->nm_sotype == SOCK_DGRAM)
 				/*
@@ -867,7 +871,7 @@ tryagain:
 			sep->nfsess_slotseq[nd->nd_slotid] += 10;
 			mtx_unlock(&sep->nfsess_mtx);
 			/* And free the slot. */
-			nfsv4_freeslot(sep, nd->nd_slotid);
+			nfsv4_freeslot(sep, nd->nd_slotid, false);
 		}
 		NFSINCRGLOBAL(nfsstatsv1.rpcinvalid);
 		error = ENXIO;
@@ -1063,7 +1067,9 @@ tryagain:
 			     nd->nd_procnum != NFSPROC_WRITE &&
 			     nd->nd_procnum != NFSPROC_WRITEDS &&
 			     nd->nd_procnum != NFSPROC_OPEN &&
+			     nd->nd_procnum != NFSPROC_OPENLAYGET &&
 			     nd->nd_procnum != NFSPROC_CREATE &&
+			     nd->nd_procnum != NFSPROC_CREATELAYGET &&
 			     nd->nd_procnum != NFSPROC_OPENCONFIRM &&
 			     nd->nd_procnum != NFSPROC_OPENDOWNGRADE &&
 			     nd->nd_procnum != NFSPROC_CLOSE &&
@@ -1104,7 +1110,7 @@ tryagain:
 		if ((nd->nd_flag & ND_NFSV4) != 0) {
 			/* Free the slot, as required. */
 			if (freeslot != -1)
-				nfsv4_freeslot(sep, freeslot);
+				nfsv4_freeslot(sep, freeslot, false);
 			/*
 			 * If this op is Putfh, throw its results away.
 			 */

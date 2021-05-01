@@ -28,7 +28,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addch.3x,v 1.51 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_addch.3x,v 1.55 2020/10/24 09:12:31 tom Exp $
 .TH curs_addch 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -48,17 +48,17 @@
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .PP
-\fBint addch(const chtype ch);\fR
+\fBint addch(const chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint waddch(WINDOW *win, const chtype ch);\fR
+\fBint waddch(WINDOW *\fP\fIwin\fP\fB, const chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint mvaddch(int y, int x, const chtype ch);\fR
+\fBint mvaddch(int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint mvwaddch(WINDOW *win, int y, int x, const chtype ch);\fR
+\fBint mvwaddch(WINDOW *\fP\fIwin\fP\fB, int \fP\fIy\fP\fB, int \fP\fIx\fP\fB, const chtype \fP\fIch\fP\fB);\fR
+.sp
+\fBint echochar(const chtype \fP\fIch\fP\fB);\fR
 .br
-\fBint echochar(const chtype ch);\fR
-.br
-\fBint wechochar(WINDOW *win, const chtype ch);\fR
+\fBint wechochar(WINDOW *\fP\fIwin\fP\fB, const chtype \fP\fIch\fP\fB);\fR
 .br
 .SH DESCRIPTION
 .SS Adding characters
@@ -94,11 +94,12 @@ scrolling the window if on the last line.
 Tabs are considered to be at every eighth column.
 The tab interval may be altered by setting the \fBTABSIZE\fR variable.
 .PP
-If \fIch\fR is any other control character, it
-is drawn in \fB^\fR\fIX\fR notation.
+If \fIch\fR is any other nonprintable character,
+it is drawn in printable form,
+i.e., the \fB^\fR\fIX\fR notation used by \fBunctrl\fR(3X).
 Calling \fBwinch\fR after adding a
-control character does not return the character itself, but instead returns
-the ^-representation of the control character.
+nonprintable character does not return the character itself,
+but instead returns the printable representation of the character.
 .PP
 Video attributes can be combined with a character argument passed to
 \fBaddch\fR or related functions by logical-ORing them into the character.
@@ -175,6 +176,19 @@ unless otherwise noted in the preceding routine descriptions.
 Functions with a \*(``mv\*('' prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
+.PP
+If it is not possible to add a complete character,
+an error is returned:
+.bP
+If \fBscrollok\fR is not enabled,
+writing a character at the lower right margin succeeds.
+However, an error is returned because
+it is not possible to wrap to a new line
+.bP
+If an error is detected when converting a multibyte character to a sequence
+of bytes,
+or if it is not possible to add all of the resulting bytes in the window,
+an error is returned.
 .SH NOTES
 Note that \fBaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR, and
 \fBechochar\fR may be macros.

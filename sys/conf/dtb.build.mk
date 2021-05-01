@@ -32,7 +32,7 @@ DTB+=	${_dts:T:R:S/$/.dtb/}
 DTBO=${DTSO:T:R:S/$/.dtbo/}
 
 .SUFFIXES: .dtb .dts .dtbo .dtso
-.PATH.dts: ${SYSDIR}/gnu/dts/${MACHINE} ${SYSDIR}/dts/${MACHINE}
+.PATH.dts: ${SYSDIR}/contrib/device-tree/src/${MACHINE} ${SYSDIR}/dts/${MACHINE}
 .PATH.dtso: ${SYSDIR}/dts/${MACHINE}/overlays
 
 .export DTC ECHO

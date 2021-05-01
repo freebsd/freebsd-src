@@ -571,8 +571,7 @@ static void sym_mfree(void *ptr, int size, char *name)
  * BUS handle. A reverse table (hashed) is maintained for virtual
  * to BUS address translation.
  */
-static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg __unused,
-    int error)
+static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *baddr;
 
@@ -610,8 +609,6 @@ static m_addr_t ___dma_getp(m_pool_s *mp)
 		return (m_addr_t) vaddr;
 	}
 out_err:
-	if (baddr)
-		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 	if (vaddr)
 		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
 	if (vbp)
@@ -4680,6 +4677,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, ccb_p cp)
 			PRINT_ADDR(cp);
 			printf (s_status == S_BUSY ? "BUSY" : "QUEUE FULL\n");
 		}
+		/* FALLTHROUGH */
 	default:	/* S_INT, S_INT_COND_MET, S_CONFLICT */
 		sym_complete_error (np, cp);
 		break;
@@ -6003,6 +6001,8 @@ static void sym_int_sir (hcb_p np)
 	 *  or has been auto-sensed.
 	 */
 	case SIR_COMPLETE_ERROR:
+		if (!cp)
+			goto out;
 		sym_complete_error(np, cp);
 		return;
 	/*
@@ -6228,6 +6228,8 @@ static void sym_int_sir (hcb_p np)
 	 *  Target does not want answer message.
 	 */
 	case SIR_NEGO_PROTO:
+		if (!cp)
+			goto out;
 		sym_nego_default(np, tp, cp);
 		goto out;
 	}
@@ -6289,13 +6291,12 @@ static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 			goto out_free;
 	} else {
 		/*
-		 *  If we have been asked for a tagged command.
+		 *  If we have been asked for a tagged command, refuse
+		 *  to overlap with an existing untagged one.
 		 */
 		if (tag_order) {
-			/*
-			 *  Debugging purpose.
-			 */
-			assert(lp->busy_itl == 0);
+			if (lp->busy_itl != 0)
+				goto out_free;
 			/*
 			 *  Allocate resources for tags if not yet.
 			 */
@@ -6328,22 +6329,17 @@ static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 		 *  one, refuse to overlap this untagged one.
 		 */
 		else {
-			/*
-			 *  Debugging purpose.
-			 */
-			assert(lp->busy_itl == 0 && lp->busy_itlq == 0);
+			if (lp->busy_itlq != 0 || lp->busy_itl != 0)
+				goto out_free;
 			/*
 			 *  Count this nexus for this LUN.
 			 *  Set up the CCB bus address for reselection.
 			 *  Toggle reselect path to untagged.
 			 */
-			if (++lp->busy_itl == 1) {
-				lp->head.itl_task_sa = cpu_to_scr(cp->ccb_ba);
-				lp->head.resel_sa =
-				      cpu_to_scr(SCRIPTA_BA (np, resel_no_tag));
-			}
-			else
-				goto out_free;
+			lp->busy_itl = 1;
+			lp->head.itl_task_sa = cpu_to_scr(cp->ccb_ba);
+			lp->head.resel_sa =
+			      cpu_to_scr(SCRIPTA_BA (np, resel_no_tag));
 		}
 	}
 	/*
@@ -6389,7 +6385,7 @@ static void sym_free_ccb(hcb_p np, ccb_p cp)
 	 */
 	if (lp) {
 		/*
-		 *  If tagged, release the tag, set the relect path
+		 *  If tagged, release the tag, set the reselect path.
 		 */
 		if (cp->tag != NO_TAG) {
 			/*
@@ -6410,7 +6406,7 @@ static void sym_free_ccb(hcb_p np, ccb_p cp)
 			 *  and uncount this CCB.
 			 */
 			lp->head.itl_task_sa = cpu_to_scr(np->bad_itl_ba);
-			--lp->busy_itl;
+			lp->busy_itl = 0;
 		}
 		/*
 		 *  If no JOB active, make the LUN reselect path invalid.

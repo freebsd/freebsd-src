@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: tailboxbg1,v 1.10 2012/06/29 09:51:46 tom Exp $
+# $Id: tailboxbg1,v 1.11 2019/12/11 00:12:27 tom Exp $
 
 . ./setup-vars
 
@@ -18,13 +18,13 @@ $DIALOG --title "TAIL BOXES" \
 
 # The --and-widget causes a tab to be emitted, but our example will only
 # write one number to stderr.
-pid=`cat $tempfile |sed -e 's/	//g'`
+pid=`sed -e 's/	//g' $tempfile`
 if test -n "$pid" ; then
 # wait a while for the background process to run
 sleep 10
 
 # now kill it
-kill -$SIG_QUIT $pid 2>&1 >/dev/null 2>/dev/null
+kill "-$SIG_QUIT" "$pid "2>&1 >/dev/null 2>/dev/null
 echo "killed [$pid]"
 fi
 

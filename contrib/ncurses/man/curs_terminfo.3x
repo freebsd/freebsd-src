@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright 2018,2020 Thomas E. Dickey                                     *
+.\" Copyright 2018-2020,2021 Thomas E. Dickey                                *
 .\" Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.64 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.72 2021/01/02 23:50:04 tom Exp $
 .TH curs_terminfo 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -46,7 +46,6 @@
 \fBputp\fR,
 \fBrestartterm\fR,
 \fBset_curterm\fR,
-\fBsetterm\fR,
 \fBsetupterm\fR,
 \fBtigetflag\fR,
 \fBtigetnum\fR,
@@ -63,7 +62,6 @@
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>\fR
-.br
 \fB#include <term.h>\fR
 .sp
 \fBTERMINAL *cur_term;\fR
@@ -79,8 +77,6 @@
 \fBconst char * const strfnames[];\fP
 .sp
 \fBint setupterm(const char *\fR\fIterm\fR\fB, int \fR\fIfiledes\fR\fB, int *\fR\fIerrret\fR\fB);\fR
-.br
-\fBint setterm(const char *\fR\fIterm\fR\fB);\fR
 .br
 \fBTERMINAL *set_curterm(TERMINAL *\fR\fInterm\fR\fB);\fR
 .br
@@ -120,6 +116,14 @@ capabilities, such as programming function keys.
 For all other
 functionality, \fBcurses\fR routines are more suitable and their use is
 recommended.
+.PP
+None of these functions use (or are aware of) multibyte character strings
+such as UTF-8:
+.bP
+capability names use the POSIX portable character set
+.bP
+capability string values have no associated encoding;
+they are strings of 8-bit characters.
 .SS Initialization
 .PP
 Initially, \fBsetupterm\fR should be called.
@@ -227,14 +231,6 @@ Thus, the simplest call is:
 .sp
 which uses all the defaults and sends the output to \fBstdout\fR.
 .RE
-.PP
-The \fBsetterm\fR routine was replaced by \fBsetupterm\fR.  The call:
-.sp
-      \fBsetupterm(\fR\fIterm\fR\fB, 1, (int *)0)\fR
-.sp
-provides the same functionality as \fBsetterm(\fR\fIterm\fR\fB)\fR.
-The \fBsetterm\fR routine is provided for BSD compatibility, and
-is not recommended for new programs.
 .\" ***************************************************************************
 .SS The Terminal State
 .PP
@@ -340,8 +336,12 @@ this implementation allows \fIopts\fP to be used as a pointer to \fBint\fP,
 which overrides the \fIpair\fP (\fBshort\fP) argument.
 .PP
 The \fBmvcur\fR routine provides low-level cursor motion.
-It takes
-effect immediately (rather than at the next refresh).
+It takes effect immediately (rather than at the next refresh).
+.PP
+While \fBputp\fR and \fBmvcur\fP are low-level functions which
+do not use the high-level curses state,
+they are declared in \fB<curses.h>\fP because SystemV did this
+(see \fBHISTORY\fP).
 .\" ***************************************************************************
 .SS Terminal Capability Functions
 .PP
@@ -385,7 +385,7 @@ These null-terminated arrays contain
 .bP
 the short terminfo names (\*(``codes\*(''),
 .bP
-the \fBtermcap\fR names (\*(``names\*('', and
+the \fBtermcap\fR names (\*(``names\*(''), and
 .bP
 the long terminfo names (\*(``fnames\*('')
 .PP
@@ -433,6 +433,32 @@ It does not detect I/O errors:
 X/Open states that \fBtputs\fP ignores the return value
 of the output function \fIputc\fP.
 .RE
+.\" ***************************************************************************
+.SS Compatibility macros
+This implementation provides a few macros for compatibility with systems
+before SVr4 (see \fBHISTORY\fP).
+Those include
+\fBcrmode\fP,
+\fBfixterm\fP,
+\fBgettmode\fP,
+\fBnocrmode\fP,
+\fBresetterm\fP,
+\fBsaveterm\fP, and
+\fBsetterm\fP.
+.PP
+In SVr4, those are found in \fB<curses.h>\fP,
+but except for \fBsetterm\fR, are likewise macros.
+The one function, \fBsetterm\fR, is mentioned in the manual page.
+The manual page notes that the \fBsetterm\fR routine
+was replaced by \fBsetupterm\fR, stating that the call:
+.sp
+      \fBsetupterm(\fR\fIterm\fR\fB, 1, (int *)0)\fR
+.sp
+provides the same functionality as \fBsetterm(\fR\fIterm\fR\fB)\fR,
+and is not recommended for new programs.
+This implementation provides each of those symbols
+as macros for BSD compatibility,
+.\" ***************************************************************************
 .SH HISTORY
 .PP
 SVr2 introduced the terminfo feature.

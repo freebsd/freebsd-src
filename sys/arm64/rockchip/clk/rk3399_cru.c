@@ -964,19 +964,19 @@ static struct rk_clk rk3399_clks[] = {
 	    27, 0, 10,	15, 1),
 
 	/* CRU_CLKSEL_CON28 */
-	MUX(0, "clk_i2s0_mux", i2s0_p, 0,
+	MUX(0, "clk_i2s0_mux", i2s0_p, RK_CLK_MUX_REPARENT,
 	    28, 8, 2),
 	COMP(0, "clk_i2s0_div_c", pll_src_cpll_gpll_p, 0,
 	    28, 0, 7,	7, 1),
 
 	/* CRU_CLKSEL_CON29 */
-	MUX(0, "clk_i2s1_mux", i2s1_p, 0,
+	MUX(0, "clk_i2s1_mux", i2s1_p, RK_CLK_MUX_REPARENT,
 	    29,		8, 2),
 	COMP(0, "clk_i2s1_div_c", pll_src_cpll_gpll_p, 0,
 	    29, 0, 7,	7, 1),
 
 	/* CRU_CLKSEL_CON30 */
-	MUX(0, "clk_i2s2_mux", i2s2_p, 0,
+	MUX(0, "clk_i2s2_mux", i2s2_p, RK_CLK_MUX_REPARENT,
 	    30,		8, 2),
 	COMP(0, "clk_i2s2_div_c", pll_src_cpll_gpll_p, 0,
 	    30, 0, 7,	7, 1),
@@ -1211,6 +1211,11 @@ static struct rk_clk rk3399_clks[] = {
 	    106),
 	FRACT(DCLK_VOP1_FRAC, "dclk_vop1_frac", "dclk_vop1_div", 0,
 	    107),
+
+	/* 
+	 * This clock is controlled in the secure world
+	 */
+	FFACT(PCLK_WDT, "pclk_wdt", "pclk_alive", 1, 1),
 
 /* Not yet implemented yet
  *	MMC(SCLK_SDMMC_DRV,     "sdmmc_drv",    "clk_sdmmc", RK3399_SDMMC_CON0, 1),

@@ -60,9 +60,10 @@
 	    .udata = (f),			\
 	    .ext = {0},				\
 	};					\
-} while(0)
+} while (0)
 #else /* Pre-C99 or not STDC (e.g., C++) */
-/* The definition of the local variable kevp could possibly conflict
+/*
+ * The definition of the local variable kevp could possibly conflict
  * with a user-defined value passed in parameters a-f.
  */
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
@@ -77,7 +78,7 @@
 	(kevp)->ext[1] = 0;			\
 	(kevp)->ext[2] = 0;			\
 	(kevp)->ext[3] = 0;			\
-} while(0)
+} while (0)
 #endif
 
 struct kevent {
@@ -224,8 +225,7 @@ struct knlist {
 	struct	klist	kl_list;
 	void    (*kl_lock)(void *);	/* lock function */
 	void    (*kl_unlock)(void *);
-	void	(*kl_assert_locked)(void *);
-	void	(*kl_assert_unlocked)(void *);
+	void	(*kl_assert_lock)(void *, int);
 	void	*kl_lockarg;		/* argument passed to lock functions */
 	int	kl_autodestroy;
 };
@@ -334,8 +334,7 @@ void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
 int	knlist_empty(struct knlist *knl);
 void	knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
-	    void (*kl_unlock)(void *), void (*kl_assert_locked)(void *),
-	    void (*kl_assert_unlocked)(void *));
+	    void (*kl_unlock)(void *), void (*kl_assert_lock)(void *, int));
 void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
 void	knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock);
 void	knlist_destroy(struct knlist *knl);

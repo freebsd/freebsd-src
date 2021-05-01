@@ -94,6 +94,14 @@ bdev_capacity(struct block_device *bdev)
 	return (i_size_read(bdev->bd_inode));
 }
 
+#if !defined(HAVE_BDEV_WHOLE)
+static inline struct block_device *
+bdev_whole(struct block_device *bdev)
+{
+	return (bdev->bd_contains);
+}
+#endif
+
 /*
  * Returns the maximum expansion capacity of the block device (in bytes).
  *
@@ -118,7 +126,7 @@ bdev_max_capacity(struct block_device *bdev, uint64_t wholedisk)
 	uint64_t psize;
 	int64_t available;
 
-	if (wholedisk && bdev->bd_part != NULL && bdev != bdev->bd_contains) {
+	if (wholedisk && bdev != bdev_whole(bdev)) {
 		/*
 		 * When reporting maximum expansion capacity for a wholedisk
 		 * deduct any capacity which is expected to be lost due to
@@ -132,7 +140,7 @@ bdev_max_capacity(struct block_device *bdev, uint64_t wholedisk)
 		 * "reserved" EFI partition: in such cases return the device
 		 * usable capacity.
 		 */
-		available = i_size_read(bdev->bd_contains->bd_inode) -
+		available = i_size_read(bdev_whole(bdev)->bd_inode) -
 		    ((EFI_MIN_RESV_SIZE + NEW_START_BLOCK +
 		    PARTITION_END_ALIGNMENT) << SECTOR_BITS);
 		psize = MAX(available, bdev_capacity(bdev));
@@ -192,8 +200,8 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 		vd->vd_bdev = NULL;
 
 		if (bdev) {
-			if (v->vdev_expanding && bdev != bdev->bd_contains) {
-				bdevname(bdev->bd_contains, disk_name + 5);
+			if (v->vdev_expanding && bdev != bdev_whole(bdev)) {
+				bdevname(bdev_whole(bdev), disk_name + 5);
 				/*
 				 * If userland has BLKPG_RESIZE_PARTITION,
 				 * then it should have updated the partition
@@ -342,19 +350,14 @@ vdev_disk_close(vdev_t *v)
 static dio_request_t *
 vdev_disk_dio_alloc(int bio_count)
 {
-	dio_request_t *dr;
-	int i;
-
-	dr = kmem_zalloc(sizeof (dio_request_t) +
+	dio_request_t *dr = kmem_zalloc(sizeof (dio_request_t) +
 	    sizeof (struct bio *) * bio_count, KM_SLEEP);
-	if (dr) {
-		atomic_set(&dr->dr_ref, 0);
-		dr->dr_bio_count = bio_count;
-		dr->dr_error = 0;
+	atomic_set(&dr->dr_ref, 0);
+	dr->dr_bio_count = bio_count;
+	dr->dr_error = 0;
 
-		for (i = 0; i < dr->dr_bio_count; i++)
-			dr->dr_bio[i] = NULL;
-	}
+	for (int i = 0; i < dr->dr_bio_count; i++)
+		dr->dr_bio[i] = NULL;
 
 	return (dr);
 }
@@ -468,7 +471,11 @@ vdev_blkg_tryget(struct blkcg_gq *blkg)
 		this_cpu_inc(*count);
 		rc = true;
 	} else {
+#ifdef ZFS_PERCPU_REF_COUNT_IN_DATA
+		rc = atomic_long_inc_not_zero(&ref->data->count);
+#else
 		rc = atomic_long_inc_not_zero(&ref->count);
+#endif
 	}
 
 	rcu_read_unlock_sched();
@@ -487,7 +494,11 @@ vdev_blkg_tryget(struct blkcg_gq *blkg)
 static inline void
 vdev_bio_associate_blkg(struct bio *bio)
 {
+#if defined(HAVE_BIO_BDEV_DISK)
+	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+#else
 	struct request_queue *q = bio->bi_disk->queue;
+#endif
 
 	ASSERT3P(q, !=, NULL);
 	ASSERT3P(bio->bi_blkg, ==, NULL);
@@ -524,8 +535,9 @@ __vdev_disk_physio(struct block_device *bdev, zio_t *zio,
 	dio_request_t *dr;
 	uint64_t abd_offset;
 	uint64_t bio_offset;
-	int bio_size, bio_count = 16;
-	int i = 0, error = 0;
+	int bio_size;
+	int bio_count = 16;
+	int error = 0;
 	struct blk_plug plug;
 
 	/*
@@ -540,8 +552,6 @@ __vdev_disk_physio(struct block_device *bdev, zio_t *zio,
 
 retry:
 	dr = vdev_disk_dio_alloc(bio_count);
-	if (dr == NULL)
-		return (SET_ERROR(ENOMEM));
 
 	if (zio && !(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
 		bio_set_flags_failfast(bdev, &flags);
@@ -549,26 +559,28 @@ retry:
 	dr->dr_zio = zio;
 
 	/*
-	 * When the IO size exceeds the maximum bio size for the request
-	 * queue we are forced to break the IO in multiple bio's and wait
-	 * for them all to complete.  Ideally, all pool users will set
-	 * their volume block size to match the maximum request size and
-	 * the common case will be one bio per vdev IO request.
+	 * Since bio's can have up to BIO_MAX_PAGES=256 iovec's, each of which
+	 * is at least 512 bytes and at most PAGESIZE (typically 4K), one bio
+	 * can cover at least 128KB and at most 1MB.  When the required number
+	 * of iovec's exceeds this, we are forced to break the IO in multiple
+	 * bio's and wait for them all to complete.  This is likely if the
+	 * recordsize property is increased beyond 1MB.  The default
+	 * bio_count=16 should typically accommodate the maximum-size zio of
+	 * 16MB.
 	 */
 
 	abd_offset = 0;
 	bio_offset = io_offset;
-	bio_size   = io_size;
-	for (i = 0; i <= dr->dr_bio_count; i++) {
+	bio_size = io_size;
+	for (int i = 0; i <= dr->dr_bio_count; i++) {
 
 		/* Finished constructing bio's for given buffer */
 		if (bio_size <= 0)
 			break;
 
 		/*
-		 * By default only 'bio_count' bio's per dio are allowed.
-		 * However, if we find ourselves in a situation where more
-		 * are needed we allocate a larger dio and warn the user.
+		 * If additional bio's are required, we have to retry, but
+		 * this should be rare - see the comment above.
 		 */
 		if (dr->dr_bio_count == i) {
 			vdev_disk_dio_free(dr);
@@ -577,9 +589,14 @@ retry:
 		}
 
 		/* bio_alloc() with __GFP_WAIT never returns NULL */
+#ifdef HAVE_BIO_MAX_SEGS
+		dr->dr_bio[i] = bio_alloc(GFP_NOIO, bio_max_segs(
+		    abd_nr_pages_off(zio->io_abd, bio_size, abd_offset)));
+#else
 		dr->dr_bio[i] = bio_alloc(GFP_NOIO,
 		    MIN(abd_nr_pages_off(zio->io_abd, bio_size, abd_offset),
 		    BIO_MAX_PAGES));
+#endif
 		if (unlikely(dr->dr_bio[i] == NULL)) {
 			vdev_disk_dio_free(dr);
 			return (SET_ERROR(ENOMEM));
@@ -610,9 +627,10 @@ retry:
 		blk_start_plug(&plug);
 
 	/* Submit all bio's associated with this dio */
-	for (i = 0; i < dr->dr_bio_count; i++)
+	for (int i = 0; i < dr->dr_bio_count; i++) {
 		if (dr->dr_bio[i])
 			vdev_submit_bio(dr->dr_bio[i]);
+	}
 
 	if (dr->dr_bio_count > 1)
 		blk_finish_plug(&plug);
@@ -787,7 +805,7 @@ vdev_disk_io_done(zio_t *zio)
 		vdev_t *v = zio->io_vd;
 		vdev_disk_t *vd = v->vdev_tsd;
 
-		if (check_disk_change(vd->vd_bdev)) {
+		if (zfs_check_media_change(vd->vd_bdev)) {
 			invalidate_bdev(vd->vd_bdev);
 			v->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
@@ -822,9 +840,13 @@ vdev_disk_rele(vdev_t *vd)
 }
 
 vdev_ops_t vdev_disk_ops = {
+	.vdev_op_init = NULL,
+	.vdev_op_fini = NULL,
 	.vdev_op_open = vdev_disk_open,
 	.vdev_op_close = vdev_disk_close,
 	.vdev_op_asize = vdev_default_asize,
+	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_disk_io_start,
 	.vdev_op_io_done = vdev_disk_io_done,
 	.vdev_op_state_change = NULL,
@@ -833,6 +855,11 @@ vdev_ops_t vdev_disk_ops = {
 	.vdev_op_rele = vdev_disk_rele,
 	.vdev_op_remap = NULL,
 	.vdev_op_xlate = vdev_default_xlate,
+	.vdev_op_rebuild_asize = NULL,
+	.vdev_op_metaslab_init = NULL,
+	.vdev_op_config_generate = NULL,
+	.vdev_op_nparity = NULL,
+	.vdev_op_ndisks = NULL,
 	.vdev_op_type = VDEV_TYPE_DISK,		/* name of this vdev type */
 	.vdev_op_leaf = B_TRUE			/* leaf vdev */
 };

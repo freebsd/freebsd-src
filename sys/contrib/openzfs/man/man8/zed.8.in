@@ -1,6 +1,5 @@
 .\"
-.\" This file is part of the ZFS Event Daemon (ZED)
-.\" for ZFS on Linux (ZoL) <https://zfsonlinux.org/>.
+.\" This file is part of the ZFS Event Daemon (ZED).
 .\" Developed at Lawrence Livermore National Laboratory (LLNL-CODE-403049).
 .\" Copyright (C) 2013-2014 Lawrence Livermore National Security, LLC.
 .\" Refer to the ZoL git commit log for authoritative copyright attribution.
@@ -235,8 +234,8 @@ Terminate the daemon.
 Events are processed synchronously by a single thread.  This can delay the
 processing of simultaneous zevents.
 .PP
-There is no maximum timeout for ZEDLET execution.  Consequently, a misbehaving
-ZEDLET can delay the processing of subsequent zevents.
+ZEDLETs are killed after a maximum of ten seconds.
+This can lead to a violation of a ZEDLET's atomicity assumptions.
 .PP
 The ownership and permissions of the \fIenabled-zedlets\fR directory (along
 with all parent directories) are not checked.  If any of these directories

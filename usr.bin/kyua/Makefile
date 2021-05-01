@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .include "${SRCTOP}/lib/kyua/Makefile.kyua"
 
 .PATH: ${KYUA_SRCDIR}
 
+PACKAGE=	tests
 PROG_CXX=	kyua
 SRCS=		main.cpp
 LIBADD=		kyua_cli kyua_drivers kyua_engine kyua_model kyua_store
@@ -28,27 +31,36 @@ CFLAGS+=	-I${KYUA_SRCDIR}
 # kyua uses auto_ptr
 CFLAGS+=	-Wno-deprecated-declarations
 
-FILESGROUPS=	DOCS EXAMPLES MISC STORE
+FILESGROUPS=	DOCS MISC STORE
+
+.if ${MK_EXAMPLES} != "no"
+FILESGROUPS+=	EXAMPLES
+.endif
 
 # Install a minimal default config that uses the 'tests' user.
 # The examples config is not appropriate for general use.
 CONFS=		kyua.conf-default
 CONFSDIR=	${KYUA_CONFDIR}
 CONFSNAME=	kyua.conf
+CONFSDIRTAGS=	package=tests
 
 DOCS=		AUTHORS CONTRIBUTORS LICENSE
 DOCSDIR=	${KYUA_DOCDIR}
+DOCSTAGS=	package=tests
 
 EXAMPLES=	Kyuafile.top kyua.conf
 EXAMPLESDIR=	${KYUA_EGDIR}
+EXAMPLESTAGS=	package=tests
 .PATH:		${KYUA_SRCDIR}/examples
 
 MISC=		context.html index.html report.css test_result.html
 MISCDIR=	${KYUA_MISCDIR}
+MISCTAGS=	package=tests
 .PATH:		${KYUA_SRCDIR}/misc
 
 STORE=		migrate_v1_v2.sql migrate_v2_v3.sql schema_v3.sql
 STOREDIR=	${KYUA_STOREDIR}
+STORETAGS=	package=tests
 .PATH:		${KYUA_SRCDIR}/store
 
 CLEANFILES+=	${MAN}

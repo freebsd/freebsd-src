@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_validation.3x,v 1.25 2020/02/02 23:34:34 tom Exp $
+.\" $Id: form_field_validation.3x,v 1.33 2020/12/12 19:57:55 tom Exp $
 .TH form_field_validation 3X ""
 .ie \n(.g .ds `` \(lq
 .el       .ds `` ``
@@ -41,80 +41,117 @@
 \fBform_field_validation\fR \- data type validation for fields
 .SH SYNOPSIS
 \fB#include <form.h>\fR
-.br
-int set_field_type(FIELD *field, FIELDTYPE *type, ...);
-.br
-FIELDTYPE *field_type(const FIELD *field);
-.br
-void *field_arg(const FIELD *field);
 .sp
-FIELDTYPE *TYPE_ALNUM;
+\fBvoid *field_arg(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
-FIELDTYPE *TYPE_ALPHA;
+\fBFIELDTYPE *field_type(const FIELD *\fP\fIfield\fP\fB);\fP
 .br
-FIELDTYPE *TYPE_ENUM;
+\fBint set_field_type(FIELD *\fP\fIfield\fP\fB, FIELDTYPE *\fP\fItype\fP\fB, ...);\fP
+.sp
+/* predefined field types */
 .br
-FIELDTYPE *TYPE_INTEGER;
+\fBFIELDTYPE *TYPE_ALNUM;\fP
 .br
-FIELDTYPE *TYPE_NUMERIC;
+\fBFIELDTYPE *TYPE_ALPHA;\fP
 .br
-FIELDTYPE *TYPE_REGEXP;
+\fBFIELDTYPE *TYPE_ENUM;\fP
 .br
-FIELDTYPE *TYPE_IPV4;
+\fBFIELDTYPE *TYPE_INTEGER;\fP
+.br
+\fBFIELDTYPE *TYPE_NUMERIC;\fP
+.br
+\fBFIELDTYPE *TYPE_REGEXP;\fP
+.br
+\fBFIELDTYPE *TYPE_IPV4;\fP
 .br
 .SH DESCRIPTION
-The function \fBset_field_type\fR declares a data type for a given form field.
+By default, no validation is done on form fields.
+You can associate a form with with a \fIfield type\fP,
+making the form library validate input.
+.SS field_arg
+Returns a pointer to the field's argument block.
+The \fIargument block\fP is an opaque structure containing
+a copy of the arguments provided in a \fBset_field_type\fP call.
+.SS field_type
+Returns a pointer to the \fIfield type\fP associated with the form field,
+i.e., by calling \fBset_field_type\fP.
+.SS set_field_type
+The function \fBset_field_type\fR associates
+a field type with a given form field.
 This is the type checked by validation functions.
+Most field types are configurable,
+via arguments which the caller provides when calling \fBset_field_type\fP.
+.PP
+Several field types are predefined by the form library.
+.SS Predefined types
+.PP
+It is possible to set up new programmer-defined field types.
+Field types are implemented via the \fBFIELDTYPE\fP data
+structure, which contains several pointers to functions.
+.PP
+See the \fBform_fieldtype\fR(3X) manual page,
+which describes functions which can be used to construct
+a field-type dynamically.
+.PP
 The predefined types are as follows:
 .TP 5
 TYPE_ALNUM
 Alphanumeric data.
-Requires a third \fBint\fR argument, a minimum field width.
+Required parameter:
+.RS
+.bP
+a third \fBint\fR argument, a minimum field width.
+.RE
 .TP 5
 TYPE_ALPHA
 Character data.
-Requires a third \fBint\fR argument, a minimum field width.
+Required parameter:
+.RS
+.bP
+a third \fBint\fR argument, a minimum field width.
+.RE
 .TP 5
 TYPE_ENUM
 Accept one of a specified set of strings.
-Requires additional parameters:
+Required parameters:
 .RS
 .bP
 a third \fB(char **)\fR argument pointing to a string list;
 .bP
 a fourth \fBint\fR flag argument to enable case-sensitivity;
 .bP
-and a fifth \fBint\fR flag argument specifying whether a partial
+a fifth \fBint\fR flag argument specifying whether a partial
 match must be a unique one.
 If this flag is off, a prefix matches the first
 of any set of more than one list elements with that prefix.
+.RE
 .IP
 The library copies the string list,
 so you may use a list that lives in automatic variables on the stack.
-.RE
 .TP 5
 TYPE_INTEGER
 Integer data, parsable to an integer by \fBatoi\fP(3).
-Requires additional parameters:
+Required parameters:
 .RS
 .bP
 a third \fBint\fR argument controlling the precision,
 .bP
 a fourth \fBlong\fR argument constraining minimum value,
 .bP
-and a fifth \fBlong\fR constraining maximum value.
+a fifth \fBlong\fR constraining maximum value.
 If the maximum value is less than or equal to the minimum value, the range is
 simply ignored.
+.RE
+.IP
 On return, the field buffer is formatted according to the
 \fBprintf\fR format specification \*(``.*ld\*('',
 where the \*(``*\*('' is replaced by the precision argument.
 .IP
 For details of the precision handling see \fBprintf\fR(3).
-.RE
 .TP 5
 TYPE_NUMERIC
 Numeric data (may have a decimal-point part).
-This requires additional parameters:
+Required parameters:
 .RS
 .bP
 a third \fBint\fR argument controlling the precision,
@@ -126,18 +163,22 @@ If your system supports locales,
 the decimal point character must be the one specified by your locale.
 If the maximum value is less than or equal to the minimum value,
 the range is simply ignored.
+.RE
 .IP
 On return, the field buffer is formatted according to the
 \fBprintf\fR format specification \*(``.*f\*('',
 where the \*(``*\*('' is replaced by the precision argument.
 .IP
 For details of the precision handling see \fBprintf\fR(3).
-.RE
 .TP 5
 TYPE_REGEXP
 Regular expression data.
-Requires a regular expression \fB(char *)\fR third argument.
+Required parameter:
+.RS
+.bP
+a third argument, a regular expression \fB(char *)\fR string.
 The data is valid if the regular expression matches it.
+.RE
 .IP
 Regular expressions
 are in the format of \fBregcomp\fR and \fBregexec\fR.
@@ -154,17 +195,19 @@ leading and trailing spaces around the digits.
 .TP 5
 TYPE_IPV4
 An Internet Protocol Version 4 address.
-This requires no additional argument.
-The library checks whether or not the buffer has the form a.b.c.d,
-where a,b,c and d are numbers between 0 and 255.
+Required parameter:
+.RS
+.bP
+none
+.RE
+.IP
+The form library checks whether or not the buffer has the form \fIa.b.c.d\fP,
+where \fIa\fP, \fIb\fP, \fIc\fP, and \fId\fP are numbers in the range 0 to 255.
 Trailing blanks in the buffer are ignored.
 The address itself is not validated.
 .IP
 This is an ncurses extension;
 this field type may not be available in other curses implementations.
-.PP
-It is possible to set up new programmer-defined field types.
-See the \fBform_fieldtype\fR(3X) manual page.
 .SH RETURN VALUE
 The functions \fBfield_type\fR and \fBfield_arg\fR return \fBNULL\fR on error.
 The function \fBset_field_type\fR returns one of the following:
@@ -177,6 +220,7 @@ System error occurred (see \fBerrno\fR(3)).
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBform\fR(3X),
+\fBform_fieldtype\fR(3X),
 \fBform_variables\fR(3X).
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file

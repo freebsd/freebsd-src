@@ -95,11 +95,7 @@ struct	proc	*proc;
 #endif
 
 
-#if BSD < 199103
-static	struct	proc	*getproc __P((void));
-#else
-static	struct	kinfo_proc	*getproc __P((void));
-#endif
+static	struct	kinfo_proc	*getproc(void);
 
 
 int	kmemcpy(buf, pos, n)
@@ -172,7 +168,7 @@ struct	tcpcb	*find_tcp(tfd, ti)
 	fd = (struct filedesc *)malloc(sizeof(*fd));
 	if (fd == NULL)
 		return NULL;
-#if defined( __FreeBSD_version)
+#if defined( __FreeBSD__)
 	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",

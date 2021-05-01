@@ -1,3 +1,425 @@
+2 February 2021: Wouter
+	- branch-1.13.1 is created, with release-1.13.1rc1 tag.
+	- Fix dynlibmod link on rhel8 for -ldl inclusion.
+	- Fix windows dependency on libssp.dll because of default stack
+	  protector in mingw.
+	- Fix indentation of root anchor for use by windows install script.
+
+1 February 2021: George
+	- Attempt to fix NULL keys in the reuse_tcp tree; relates to #411.
+
+29 January 2021: Wouter
+	- Fix for doxygen 1.8.20 compatibility.
+
+28 January 2021: Wouter
+	- Annotate that we ignore the return value of if_indextoname.
+	- Fix to use correct type for label count in rpz routine.
+	- Fix empty clause warning in config_file nsid parse.
+	- Fix to use correct type for label count in ipdnametoaddr rpz routine.
+	- Fix empty clause warning in edns pass for padding.
+	- Fix fwd ancil test post script when not supported.
+
+26 January 2021: George
+	- Merge PR #408 from fobser: Prevent a few more yacc clashes.
+	- Merge PR #275 from Roland van Rijswijk-Deij: Add feature to return the
+	  original instead of a decrementing TTL ('serve-original-ttl')
+	- Merge PR #355 from noloader: Make ICANN Update CA and DS Trust Anchor
+	  static data.
+	- Ignore cache blacklisting when trying to reply with expired data from
+	  cache (#394).
+
+26 January 2021: Wouter
+	- Fix compile of unbound-dnstap-socket without dnstap installed.
+
+22 January 2021: Willem
+	- Padding of queries and responses with DNS over TLS as specified in
+	  RFC7830 and RFC8467.
+
+22 January 2021: George
+	- Fix TTL of SOA record for negative answers (localzone and
+	  authzone data) to be the minimum of the SOA TTL and the SOA.MINIMUM.
+
+19 January 2021: Willem
+	- Support for RFC5001: DNS Name Server Identifier (NSID) Option
+	  with the nsid: option in unbound.conf
+
+18 January 2021: Wouter
+	- Fix #404: DNS query with small edns bufsize fail.
+	- Fix declaration before statement and signed comparison warning in
+	  dns64.
+
+15 January 2021: Wouter
+	- Merge #402 from fobser: Implement IPv4-Embedded addresses according
+	  to RFC6052.
+
+14 January 2021: Wouter
+	- Fix for #93: dynlibmodule import library is named libunbound.dll.a.
+
+13 January 2021: Wouter
+	- Merge #399 from xiangbao227: The lock of lruhash table should
+	  unlocked after markdel entry.
+	- Fix for #93: dynlibmodule link fix for Windows.
+
+12 January 2021: Wouter
+	- Fix #397: [Feature request] add new type always_null to local-zone
+	  similar to always_nxdomain.
+	- Fix so local zone types always_nodata and always_deny can be used
+	  from the config file.
+
+8 January 2021: Wouter
+	- Merge PR #391 from fhriley: Add start_time to reply callbacks so
+	  modules can compute the response time.
+	- For #391: use struct timeval* start_time for callback information.
+	- For #391: fix indentation.
+	- For #391: more double casts in python start time calculation.
+	- Add comment documentation.
+	- Fix clang analysis warning.
+
+6 January 2021: Wouter
+	- Fix #379: zone loading over HTTP appears to have buffer issues.
+	- Merge PR #395 from mptre: add missing null check.
+	- Fix #387: client-subnet-always-forward seems to effectively bypass
+	  any caching?
+
+5 January 2021: Wouter
+	- Fix #385: autoconf 2.70 impacts unbound build
+	- Merge PR #375 by fhriley: Add rpz_enable and rpz_disable commands
+	  to unbound-control.
+
+4 January 2021: Wouter
+	- For #376: Fix that comm point event is not double removed or double
+	  added to event map.
+	- iana portlist updated.
+
+16 December 2020: George
+	- Fix error cases when udp-connect is set and send() returns an error
+	  (modified patch from Xin Li @delphij).
+
+11 December 2020: Wouter
+	- Fix #371: unbound-control timeout when Unbound is not running.
+	- Fix to squelch permission denied and other errors from remote host,
+	  they are logged at higher verbosity but not on low verbosity.
+	- Merge PR #335 from fobser: Sprinkle in some static to prevent
+	  missing prototype warnings.
+	- Merge PR #373 from fobser: Warning: arithmetic on a pointer to void
+	  is a GNU extension.
+	- Fix missing prototypes in the code.
+
+3 December 2020: Wouter
+	- make depend.
+	- iana portlist updated.
+
+2 December 2020: Wouter
+	- Fix #360: for the additionally reported TCP Fast Open makes TCP
+	  connections fail, in that case we print a hint that this is
+	  happening with the error in the logs.
+	- Fix #356: deadlock when listening tcp.
+	- Fix unbound-dnstap-socket to not use log routine from interrupt
+	  handler and not print so frequently when invoked in sequence.
+	- Fix on windows to ignore connection failure on UDP, unless verbose.
+	- Fix for #283: fix stream reuse and tcp fast open.
+	- Fix update, with write event check with streamreuse and fastopen.
+
+1 December 2020: Wouter
+	- Fix #358: Squelch udp connect 'no route to host' errors on low
+	  verbosity.
+
+30 November 2020: Wouter
+	- Fix assertion failure on double callback when iterator loses
+	  interest in query at head of line that then has the tcp stream
+	  not kept for reuse.
+	- tag for the 1.13.0rc4 release.  This also became the 1.13.0
+	  release version on 3 dec 2020 with the streamreuse and fastopen
+	  fix from 2 dec 2020.  The code repo continues for 1.13.1 in
+	  development.
+
+27 November 2020: Wouter
+	- Fix compile warning for type cast in http2_submit_dns_response.
+	- Fix when use free buffer to initialize rbtree for stream reuse.
+	- Fix compile warnings for windows.
+	- Fix compile warnings in rpz initialization.
+	- Fix contrib/metrics.awk for FreeBSD awk compatibility.
+	- tag for the 1.13.0rc3 release.
+
+26 November 2020: Wouter
+	- Fix to omit UDP receive errors from log, if verbosity low.
+	  These happen because of udp-connect.
+	- For #352: contrib/metrics.awk for Prometheus style metrics output.
+	- Fix that after failed read, the readagain cannot activate.
+	- Clear readagain upon decommission of pending tcp structure.
+
+25 November 2020: Wouter
+	- with udp-connect ignore connection refused with UDP timeouts.
+	- Fix udp-connect on FreeBSD, do send calls on connected UDP socket.
+	- Better fix for reuse tree comparison for is-tls sockets.  Where
+	  the tree key identity is preserved after cleanup of the TLS state.
+	- Remove debug commands from reuse tests.
+	- Fix memory leak for edns client tag opcode config element.
+	- Attempt fix for libevent state in tcp reuse cases after a packet
+	  is written.
+	- Fix readagain and writeagain callback functions for comm point
+	  cleanup.
+	- tag for the 1.13.0rc2 release.
+
+24 November 2020: Wouter
+	- Merge PR #283 : Stream reuse.  This implements upstream stream
+	  reuse for performing several queries over the same TCP or TLS
+	  channel.
+	- set version of main branch to 1.13.0 for upcoming release.
+	- iana portlist updated.
+	- Fix one port unit test for udp-connect.
+	- tag for the 1.13.0rc1 release.
+	- Fix crash when TLS connection is closed prematurely, when
+	  reuse tree comparison is not properly identical to insertion.
+	- Fix padding of struct regional for 32bit systems.
+
+23 November 2020: George
+	- Merge PR #313 from Ralph Dolmans: Replace edns-client-tag with
+	  edns-client-string option.
+
+23 November 2020: Wouter
+	- Merge #351 from dvzrv: Add AF_NETLINK to set of allowed socket
+	  address families.
+	- Fix #350: with the AF_NETLINK permission, to fix 1.12.0 error:
+	  failed to list interfaces: getifaddrs: Address family not
+	  supported by protocol.
+	- Fix #347: IP_DONTFRAG broken on Apple xcode 12.2.
+	- Option to toggle udp-connect, default is enabled.
+	- Fix for #303 CVE-2020-28935 : Fix that symlink does not interfere
+	  with chown of pidfile.
+	- Further fix for it and retvalue 0 fix for it.
+
+12 November 2020: Wouter
+	- Fix to connect() to UDP destinations, default turned on,
+	  this lowers vulnerability to ICMP side channels.
+	- Retry for interfaces with unused ports if possible.
+
+10 November 2020: Wouter
+	- Fix #341: fixing a possible memory leak.
+	- Fix memory leak after fix for possible memory leak failure.
+	- Fix #343: Fail to build --with-libnghttp2 with error: 'SSIZE_MAX'
+	  undeclared.
+
+27 October 2020: Wouter
+	- In man page note that tls-cert-bundle is read before permission
+	  drop and chroot.
+
+22 October 2020: Wouter
+	- Fix #333: Unbound Segmentation Fault w/ log_info Functions From
+	  Python Mod.
+	- Fix that minimal-responses does not remove addresses from a priming
+	  query response.
+
+21 October 2020: George
+	- Fix #327: net/if.h check fails on some darwin versions; contribution by
+	  Joshua Root.
+	- Fix #320: potential memory corruption due to size miscomputation upton
+	  custom region alloc init.
+
+21 October 2020: Wouter
+	- Merge PR #228 : infra-keep-probing option to probe hosts that are
+	  down.  Add infra-keep-probing: yes option. Hosts that are down are
+	  probed more frequently.
+	  With the option turned on, it probes about every 120 seconds,
+	  eventually after exponential backoff, and that keeps that way. If
+	  traffic keeps up for the domain. It probes with one at a time, eg.
+	  one query is allowed to probe, other queries within that 120 second
+	  interval are turned away.
+
+19 October 2020: George
+	- Merge PR #324 from James Renken: Add modern X.509v3 extensions to
+	  unbound-control TLS certificates.
+	- Fix for PR #324 to attach the x509v3 extensions to the client
+	  certificate.
+
+19 October 2020: Ralph
+	- local-zone regional allocations outside of chunk
+
+19 October 2020: Wouter
+	- Fix that http settings have colon in set_option, for
+	  http-endpoint, http-max-streams, http-query-buffer-size,
+	  http-response-buffer-size, and http-nodelay.
+	- Fix memory leak of https port string when reading config.
+	- Fix #330: [Feature request] Add unencrypted DNS over HTTPS support.
+	  This adds the option http-notls-downstream: yesno to change that,
+	  and the dohclient test code has the -n option.
+	- Fix python documentation warning on functions.rst inplace_cb_reply.
+	- Fix dnstap test to wait for log timer to see if queries are logged.
+	- Log ip address when http session recv fails, eg. due to tls fail.
+	- Fix to set the tcp handler event toggle flag back to default when
+	  the handler structure is reused.
+	- Clean the fix for out of order TCP processing limits on number
+	  of queries.  It was tested to work.
+
+16 October 2020: Wouter
+	- Fix that the out of order TCP processing does not limit the
+	  number of outstanding queries over a connection.
+
+15 October 2020: George
+	- Fix that if there are reply callbacks for the given rcode, those
+	  are called per reply and a new message created if that was modified
+	  by the call.
+	- Pass the comm_reply information to the inplace_cb_reply* functions
+	  during the mesh state and update the documentation on that.
+
+15 October 2020: Wouter
+	- Merge PR #326 from netblue30: DoH: implement content-length
+	  header field
+	- DoH content length, simplify code, remove declaration after
+	  statement and fix cast warning.
+
+14 October 2020: Wouter
+	- Fix for python reply callback to see mesh state reply_list member,
+	  it only removes it briefly for the commpoint call so that it does
+	  not drop it and attempt to modify the reply list during reply.
+	- Fix that if there are on reply callbacks, those are called per
+	  reply and a new message created if that was modified by the call.
+	- Free up auth zone parse region after use for lookup of host
+
+13 October 2020: Wouter
+	- Fix #323: unbound testsuite fails on mock build in systemd-nspawn
+	  if systemd support is build.
+
+9 October 2020: Wouter
+	- Fix dnstap socket and the chroot not applied properly to the dnstap
+	  socket path.
+	- Fix warning in libnss compile, nss_buf2dsa is not used without DSA.
+
+8 October 2020: Wouter
+	- Tag for 1.12.0 release.
+	- Current repo is version 1.12.1 in development.
+	- Fix #319: potential memory leak on config failure, in rpz config.
+
+1 October 2020: Wouter
+	- Current repo is version 1.12.0 for release.  Tag for 1.12.0rc1.
+
+30 September 2020: Wouter
+	- Fix doh tests when not compiled in.
+	- Add dohclient test executable to gitignore.
+	- Fix stream_ssl, ssl_req_order and ssl_req_timeout tests for
+	  alloc check debug output.
+	- Easier kill of unbound-dnstap-socket tool in test.
+	- Fix memory leak of edns tags at libunbound context delete.
+	- Fix double loopexit for unbound-dnstap-socket after sigterm.
+
+29 September 2020: Ralph
+	- DNS Flag Day 2020: change edns-buffer-size default to 1232.
+
+28 September 2020: Wouter
+	- Fix unit test for dnstap changes, so that it waits for the timer.
+
+23 September 2020: Wouter
+	- Fix #305: dnstap logging significantly affects unbound performance
+	  (regression in 1.11).
+	- Fix #305: only wake up thread when threshold reached.
+	- Fix to ifdef fptr wlist item for dnstap.
+
+23 September 2020: Ralph
+	- Fix edns-client-tags get_option typo
+	- Add edns-client-tag-opcode option
+	- Use inclusive language in configuration
+
+21 September 2020: Ralph
+	- Fix #304: dnstap logging not recovering after dnstap process restarts
+
+21 September 2020: Wouter
+	- Merge PR #311 by luismerino: Dynlibmod leak.
+	- Error message is logged for dynlibmod malloc failures.
+	- iana portlist updated.
+
+18 September 2020: Wouter
+	- Fix that prefer-ip4 and prefer-ip6 can be get and set with
+	  unbound-control, with libunbound and the unbound-checkconf option
+	  output function.
+	- iana portlist updated.
+
+15 September 2020: George
+	- Introduce test for statistics.
+
+15 September 2020: Wouter
+	- Spelling fix.
+
+11 September 2020: Wouter
+	- Remove x file mode on ipset/ipset.c and h files.
+
+9 September 2020: Wouter
+	- Fix num.expired statistics output.
+
+31 August 2020: Wouter
+	- Merge PR #293: Add missing prototype.  Also refactor to use the new
+	  shorthand function to clean up the code.
+	- Refactor to use sock_strerr shorthand function.
+	- Fix #296: systemd nss-lookup.target is reached before unbound can
+	  successfully answer queries. Changed contrib/unbound.service.in.
+
+27 August 2020: Wouter
+	- Similar to NSD PR#113, implement that interface names can be used,
+	  eg. something like interface: eth0 is resolved at server start and
+	  uses the IP addresses for that named interface.
+	- Review fix, doxygen and assign null in case of error free.
+
+26 August 2020: George
+	- Update documentation in python example code.
+
+24 August 2020: Wouter
+	- Fix that dnstap reconnects do not spam the log with the repeated
+	  attempts.  Attempts on the timer are only logged on high verbosity,
+	  if they produce a connection failure error.
+	- Fix to apply chroot to dnstap-socket-path, if chroot is enabled.
+	- Change configure to use EVP_sha256 instead of HMAC_Update for
+	  openssl-3.0.0.
+
+20 August 2020: Ralph
+	- Fix stats double count issue (#289).
+
+13 August 2020: Ralph
+	- Create and init edns tags data for libunbound.
+
+10 August 2020: Ralph
+	- Merge (modified) PR #277, use EVP_MAC_CTX_set_params if available,
+	  by Vítězslav Čížek.
+
+10 August 2020: Wouter
+	- Fix #287: doc typo: "Additionaly".
+	- Rerun autoconf
+
+6 August 2020: Wouter
+	- Merge PR #284 and Fix #246: Remove DLV entirely from Unbound.
+	  The DLV has been decommisioned and in unbound 1.5.4, in 2015, there
+	  was advise to stop using it.  The current code base does not contain
+	  DLV code any more.  The use of dlv options displays a warning.
+
+5 August 2020: Wouter
+	- contrib/aaaa-filter-iterator.patch file renewed diff content to
+	  apply cleanly to the current coderepo for the current code version.
+
+5 August 2020: Ralph
+	- Merge PR #272: Add EDNS client tag functionality.
+
+4 August 2020: George
+	- Improve error log message when inserting rpz RR.
+	- Merge PR #280, Make tvOS & watchOS checks verify truthiness as well as
+	  definedness, by Felipe Gasper.
+
+4 August 2020: Wouter
+	- Fix mini_event.h on OpenBSD cannot find fd_set.
+
+31 July 2020: Wouter
+	- Fix doxygen comment for no ssl for tls session ticket key callback
+	  routine.
+
+27 July 2020: George
+	- Merge PR #268, draft-ietf-dnsop-serve-stale-10 has become RFC 8767 on
+	  March 2020, by and0x000.
+
+27 July 2020: Ralph
+	- Merge PR #269, Fix python module len() implementations, by Torbjörn
+	  Lönnemark
+
+27 July 2020: Wouter
+	- branch now named 1.11.1.  1.11.0rc1 became the 1.11.0 release.
+	- Merge PR #270 from cgzones: munin plugin: always exit 0 in autoconf
+
 20 July 2020: Wouter
 	- Fix streamtcp to print packet data to stdout.  This makes the
 	  stdout and stderr not mix together lines, when parsing its output.

@@ -8,24 +8,14 @@
  * $Id$
  */
 
-#if defined(__STDC__)
 # include <stdarg.h>
-#else
-# include <varargs.h>
-#endif
 #include <stdio.h>
 
 #include "ipf.h"
 #include "opts.h"
 
 
-#if defined(__STDC__)
 void	verbose(int level, char *fmt, ...)
-#else
-void	verbose(level, fmt, va_alist)
-	char	*fmt;
-	va_dcl
-#endif
 {
 	va_list pvar;
 
@@ -37,13 +27,7 @@ void	verbose(level, fmt, va_alist)
 }
 
 
-#if defined(__STDC__)
 void	ipfkverbose(char *fmt, ...)
-#else
-void	ipfkverbose(fmt, va_alist)
-	char	*fmt;
-	va_dcl
-#endif
 {
 	va_list pvar;
 

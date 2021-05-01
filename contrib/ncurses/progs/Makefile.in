@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.103 2020/02/02 23:34:34 tom Exp $
+# $Id: Makefile.in,v 1.108 2021/01/23 20:42:08 tom Exp $
 ##############################################################################
-# Copyright 2020 Thomas E. Dickey                                            #
+# Copyright 2020,2021 Thomas E. Dickey                                       #
 # Copyright 1998-2016,2018 Free Software Foundation, Inc.                    #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
@@ -47,7 +47,7 @@ SHELL		= @SHELL@
 VPATH		= @srcdir@
 THIS		= Makefile
 
-CF_MFLAGS 	= @cf_cv_makeflags@
+TOP_MFLAGS	= @cf_cv_makeflags@ DESTDIR="$(DESTDIR)" RPATH_LIST="$(RPATH_LIST)"
 @SET_MAKE@
 
 x		= @EXEEXT@
@@ -90,7 +90,7 @@ ETAGS		= @ETAGS@
 
 CC		= @CC@
 CPP		= @CPP@
-CFLAGS		= @CFLAGS@
+CFLAGS		= @CFLAGS@ @EXTRA_CFLAGS@
 
 INCDIR		= $(top_srcdir)/include
 CPPFLAGS	= -DHAVE_CONFIG_H -I../progs @CPPFLAGS@
@@ -98,9 +98,9 @@ CPPFLAGS	= -DHAVE_CONFIG_H -I../progs @CPPFLAGS@
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
 CFLAGS_LIBTOOL	= $(CCFLAGS)
-CFLAGS_NORMAL	= $(CCFLAGS)
-CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
-CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_NORMAL	= $(CCFLAGS) -DNCURSES_STATIC
+CFLAGS_DEBUG	= $(CCFLAGS) -DNCURSES_STATIC @CC_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -DNCURSES_STATIC -pg
 CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
@@ -203,10 +203,10 @@ install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
 @MAKE_TERMINFO@	$(LIBTOOL_INSTALL) $(INSTALL_PROG) toe$x     $(DESTDIR)$(bindir)/$(actual_toe)
 @MAKE_TERMINFO@	@echo "linking $(actual_infotocap) to $(actual_tic)"
 @MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
-@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_infotocap))
+@MAKE_TERMINFO@	( cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_infotocap) )
 @MAKE_TERMINFO@	@echo "linking $(actual_captoinfo) to $(actual_tic)"
 @MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_captoinfo)
-@MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
+@MAKE_TERMINFO@	( cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo) )
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tabs$x    $(DESTDIR)$(bindir)/$(actual_tabs)
@@ -214,7 +214,7 @@ install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
 	@echo "linking $(actual_reset) to $(actual_tset)"
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
-	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tset) $(actual_reset))
+	( cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tset) $(actual_reset) )
 
 uninstall.progs:
 @MAKE_TERMINFO@	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tic)
@@ -323,9 +323,9 @@ realclean :: distclean
 ../include/hashsize.h \
 ../include/parametrized.h \
 ../include/term.h :
-	cd ../include; $(MAKE) $(CF_MFLAGS)
+	( cd ../include && $(MAKE) $(TOP_MFLAGS) )
 $(DEPS_CURSES) :
-	cd ../ncurses; $(MAKE) $(CF_MFLAGS)
+	( cd ../ncurses && $(MAKE) $(TOP_MFLAGS) )
 
 lint:
 @MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tic.c     $(srcdir)/dump_entry.c $(LINT_LIBS)

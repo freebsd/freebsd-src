@@ -257,6 +257,13 @@ tls-session-ticket-keys{COLON}	{ YDVAR(1, VAR_TLS_SESSION_TICKET_KEYS) }
 tls-ciphers{COLON}		{ YDVAR(1, VAR_TLS_CIPHERS) }
 tls-ciphersuites{COLON}		{ YDVAR(1, VAR_TLS_CIPHERSUITES) }
 tls-use-sni{COLON}		{ YDVAR(1, VAR_TLS_USE_SNI) }
+https-port{COLON}		{ YDVAR(1, VAR_HTTPS_PORT) }
+http-endpoint{COLON}		{ YDVAR(1, VAR_HTTP_ENDPOINT) }
+http-max-streams{COLON}		{ YDVAR(1, VAR_HTTP_MAX_STREAMS) }
+http-query-buffer-size{COLON}	{ YDVAR(1, VAR_HTTP_QUERY_BUFFER_SIZE) }
+http-response-buffer-size{COLON} { YDVAR(1, VAR_HTTP_RESPONSE_BUFFER_SIZE) }
+http-nodelay{COLON}		{ YDVAR(1, VAR_HTTP_NODELAY) }
+http-notls-downstream{COLON}	{ YDVAR(1, VAR_HTTP_NOTLS_DOWNSTREAM) }
 use-systemd{COLON}		{ YDVAR(1, VAR_USE_SYSTEMD) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
@@ -291,9 +298,11 @@ infra-cache-slabs{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_SLABS) }
 infra-cache-numhosts{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_NUMHOSTS) }
 infra-cache-lame-size{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_LAME_SIZE) }
 infra-cache-min-rtt{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_MIN_RTT) }
+infra-keep-probing{COLON}	{ YDVAR(1, VAR_INFRA_KEEP_PROBING) }
 num-queries-per-thread{COLON}	{ YDVAR(1, VAR_NUM_QUERIES_PER_THREAD) }
 jostle-timeout{COLON}		{ YDVAR(1, VAR_JOSTLE_TIMEOUT) }
 delay-close{COLON}		{ YDVAR(1, VAR_DELAY_CLOSE) }
+udp-connect{COLON}		{ YDVAR(1, VAR_UDP_CONNECT) }
 target-fetch-policy{COLON}	{ YDVAR(1, VAR_TARGET_FETCH_POLICY) }
 harden-short-bufsize{COLON}	{ YDVAR(1, VAR_HARDEN_SHORT_BUFSIZE) }
 harden-large-queries{COLON}	{ YDVAR(1, VAR_HARDEN_LARGE_QUERIES) }
@@ -304,6 +313,7 @@ harden-referral-path{COLON}	{ YDVAR(1, VAR_HARDEN_REFERRAL_PATH) }
 harden-algo-downgrade{COLON}	{ YDVAR(1, VAR_HARDEN_ALGO_DOWNGRADE) }
 use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
 caps-whitelist{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
+caps-exempt{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
 unwanted-reply-threshold{COLON}	{ YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
 private-address{COLON}		{ YDVAR(1, VAR_PRIVATE_ADDRESS) }
 private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
@@ -335,6 +345,7 @@ rpz-log{COLON}			{ YDVAR(1, VAR_RPZ_LOG) }
 rpz-log-name{COLON}		{ YDVAR(1, VAR_RPZ_LOG_NAME) }
 zonefile{COLON}			{ YDVAR(1, VAR_ZONEFILE) }
 master{COLON}			{ YDVAR(1, VAR_MASTER) }
+primary{COLON}			{ YDVAR(1, VAR_MASTER) }
 url{COLON}			{ YDVAR(1, VAR_URL) }
 allow-notify{COLON}		{ YDVAR(1, VAR_ALLOW_NOTIFY) }
 for-downstream{COLON}		{ YDVAR(1, VAR_FOR_DOWNSTREAM) }
@@ -382,6 +393,7 @@ serve-expired-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL) }
 serve-expired-ttl-reset{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL_RESET) }
 serve-expired-reply-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_REPLY_TTL) }
 serve-expired-client-timeout{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_CLIENT_TIMEOUT) }
+serve-original-ttl{COLON}	{ YDVAR(1, VAR_SERVE_ORIGINAL_TTL) }
 fake-dsa{COLON}			{ YDVAR(1, VAR_FAKE_DSA) }
 fake-sha1{COLON}		{ YDVAR(1, VAR_FAKE_SHA1) }
 val-log-level{COLON}		{ YDVAR(1, VAR_VAL_LOG_LEVEL) }
@@ -500,11 +512,16 @@ dnscrypt-shared-secret-cache-slabs{COLON}	{
 		YDVAR(1, VAR_DNSCRYPT_SHARED_SECRET_CACHE_SLABS) }
 dnscrypt-nonce-cache-size{COLON}	{ YDVAR(1, VAR_DNSCRYPT_NONCE_CACHE_SIZE) }
 dnscrypt-nonce-cache-slabs{COLON}	{ YDVAR(1, VAR_DNSCRYPT_NONCE_CACHE_SLABS) }
+pad-responses{COLON}		{ YDVAR(1, VAR_PAD_RESPONSES) }
+pad-responses-block-size{COLON}	{ YDVAR(1, VAR_PAD_RESPONSES_BLOCK_SIZE) }
+pad-queries{COLON}		{ YDVAR(1, VAR_PAD_QUERIES) }
+pad-queries-block-size{COLON}	{ YDVAR(1, VAR_PAD_QUERIES_BLOCK_SIZE) }
 ipsecmod-enabled{COLON}		{ YDVAR(1, VAR_IPSECMOD_ENABLED) }
 ipsecmod-ignore-bogus{COLON}	{ YDVAR(1, VAR_IPSECMOD_IGNORE_BOGUS) }
 ipsecmod-hook{COLON}		{ YDVAR(1, VAR_IPSECMOD_HOOK) }
 ipsecmod-max-ttl{COLON}		{ YDVAR(1, VAR_IPSECMOD_MAX_TTL) }
 ipsecmod-whitelist{COLON}	{ YDVAR(1, VAR_IPSECMOD_WHITELIST) }
+ipsecmod-allow{COLON}		{ YDVAR(1, VAR_IPSECMOD_WHITELIST) }
 ipsecmod-strict{COLON}		{ YDVAR(1, VAR_IPSECMOD_STRICT) }
 cachedb{COLON}			{ YDVAR(0, VAR_CACHEDB) }
 backend{COLON}			{ YDVAR(1, VAR_CACHEDB_BACKEND) }
@@ -518,6 +535,9 @@ name-v4{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V4) }
 name-v6{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V6) }
 udp-upstream-without-downstream{COLON} { YDVAR(1, VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM) }
 tcp-connection-limit{COLON}	{ YDVAR(2, VAR_TCP_CONNECTION_LIMIT) }
+edns-client-string{COLON}	{ YDVAR(2, VAR_EDNS_CLIENT_STRING) }
+edns-client-string-opcode{COLON} { YDVAR(1, VAR_EDNS_CLIENT_STRING_OPCODE) }
+nsid{COLON}			{ YDVAR(1, VAR_NSID ) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */

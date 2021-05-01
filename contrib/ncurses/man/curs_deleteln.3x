@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_deleteln.3x,v 1.15 2020/02/02 23:34:34 tom Exp $
+.\" $Id: curs_deleteln.3x,v 1.17 2020/10/18 00:28:51 tom Exp $
 .TH curs_deleteln 3X ""
 .SH NAME
 \fBdeleteln\fR,
@@ -41,15 +41,15 @@
 .sp
 \fBint deleteln(void);\fR
 .br
-\fBint wdeleteln(WINDOW *win);\fR
+\fBint wdeleteln(WINDOW *\fP\fIwin\fP\fB);\fR
+.sp
+\fBint insdelln(int \fP\fIn\fP\fB);\fR
 .br
-\fBint insdelln(int n);\fR
-.br
-\fBint winsdelln(WINDOW *win, int n);\fR
-.br
+\fBint winsdelln(WINDOW *\fP\fIwin\fP\fB, int \fP\fIn\fP\fB);\fR
+.sp
 \fBint insertln(void);\fR
 .br
-\fBint winsertln(WINDOW *win);\fR
+\fBint winsertln(WINDOW *\fP\fIwin\fP\fB);\fR
 .br
 .SH DESCRIPTION
 The \fBdeleteln\fR and \fBwdeleteln\fR routines delete the line under the

@@ -32,11 +32,7 @@
 #include <opencrypto/cryptodev.h>
 #include <crypto/rijndael/rijndael.h>
 
-#if defined(__i386__)
-#include <machine/npx.h>
-#elif defined(__amd64__)
 #include <machine/fpu.h>
-#endif
 
 union padlock_cw {
 	uint64_t raw;

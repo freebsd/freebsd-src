@@ -1,9 +1,9 @@
 /*
- * $Id: argv.c,v 1.12 2018/06/12 22:47:23 tom Exp $
+ * $Id: argv.c,v 1.13 2020/03/26 02:55:37 tom Exp $
  *
  *  argv - Reusable functions for argv-parsing.
  *
- *  Copyright 2011-2017,2018	Thomas E. Dickey
+ *  Copyright 2011-2018,2020	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -60,37 +60,38 @@ dlg_string_to_argv(char *blob)
     for (pass = 0; pass < 2; ++pass) {
 	bool inparm = FALSE;
 	bool quoted = FALSE;
-	bool escape = FALSE;
 	char *param = blob;
 	size_t count = 0;
 
 	for (n = 0; n < length; ++n) {
-	    if (escape) {
-		;
-	    } else if (quoted && blob[n] == '"') {
+	    if (quoted && blob[n] == '"') {
 		quoted = FALSE;
 	    } else if (blob[n] == '"') {
 		quoted = TRUE;
 		if (!inparm) {
-		    if (pass)
+		    if (pass) {
 			result[count] = param;
+		    }
 		    ++count;
 		    inparm = TRUE;
 		}
 	    } else if (!quoted && isspace(UCH(blob[n]))) {
 		if (inparm) {
 		    if (pass) {
-			*param++ = '\0';
+			*param = '\0';
 		    }
+		    ++param;
 		    inparm = FALSE;
 		}
 	    } else {
 		if (blob[n] == '\\') {
-		    if (n + 1 == length) {
+		    size_t n1 = (n + 1);
+		    bool ignore = FALSE;
+		    if (n1 == length) {
 			break;	/* The string is terminated by a backslash */
-		    } else if ((blob[n + 1] == '\\') ||
-			       (blob[n + 1] == '"') ||
-			       (!quoted && blob[n + 1] == '\n')) {
+		    } else if ((blob[n1] == '\\') ||
+			       (blob[n1] == '"') ||
+			       (ignore = (blob[n1] == '\n'))) {
 			/* eat the backslash */
 			if (pass) {
 			    --length;
@@ -98,33 +99,35 @@ dlg_string_to_argv(char *blob)
 				blob[k] = blob[k + 1];
 			    blob[length] = '\0';
 			} else {
-			    escape = TRUE;
-			    continue;
+			    ++param;	/* pretend I ate it */
 			}
+			if (ignore)
+			    continue;
 		    }
 		}
 		if (!inparm) {
-		    if (pass)
+		    if (pass) {
 			result[count] = param;
+		    }
 		    ++count;
 		    inparm = TRUE;
 		}
 		if (pass) {
-		    *param++ = blob[n];
+		    *param = blob[n];
 		}
+		++param;
 	    }
-	    escape = FALSE;
 	}
 
-	if (!pass) {
+	if (pass) {
+	    *param = '\0';
+	} else {
 	    if (count) {
 		result = dlg_calloc(char *, count + 1);
 		assert_ptr(result, "string_to_argv");
 	    } else {
 		break;		/* no tokens found */
 	    }
-	} else {
-	    *param = '\0';
 	}
     }
 #ifdef HAVE_DLG_TRACE

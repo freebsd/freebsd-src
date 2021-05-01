@@ -63,18 +63,18 @@ int	use_inet6 = 0;
 
 extern	char	*optarg;
 
-void	dostats __P((int, natstat_t *, int, int, int *));
-void	dotable __P((natstat_t *, int, int, int, char *));
-void	flushtable __P((int, int, int *));
-void	usage __P((char *));
-int	main __P((int, char*[]));
-void	showhostmap __P((natstat_t *nsp));
-void	natstat_dead __P((natstat_t *, char *));
-void	dostats_live __P((int, natstat_t *, int, int *));
-void	showhostmap_dead __P((natstat_t *));
-void	showhostmap_live __P((int, natstat_t *));
-void	dostats_dead __P((natstat_t *, int, int *));
-int	nat_matcharray __P((nat_t *, int *));
+void	dostats(int, natstat_t *, int, int, int *);
+void	dotable(natstat_t *, int, int, int, char *);
+void	flushtable(int, int, int *);
+void	usage(char *);
+int	main(int, char*[]);
+void	showhostmap(natstat_t *nsp);
+void	natstat_dead(natstat_t *, char *);
+void	dostats_live(int, natstat_t *, int, int *);
+void	showhostmap_dead(natstat_t *);
+void	showhostmap_live(int, natstat_t *);
+void	dostats_dead(natstat_t *, int, int *);
+int	nat_matcharray(nat_t *, int *);
 
 int		opts;
 int		nohdrfields = 0;
