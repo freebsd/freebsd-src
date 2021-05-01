@@ -3164,14 +3164,20 @@ swap_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 	 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
 	 * this case there is no v_writecount to adjust.
 	 */
-	VM_OBJECT_RLOCK(object);
+	if (vp_heldp != NULL)
+		VM_OBJECT_RLOCK(object);
+	else
+		VM_OBJECT_ASSERT_LOCKED(object);
 	if ((object->flags & OBJ_TMPFS) != 0) {
 		vp = object->un_pager.swp.swp_tmpfs;
 		if (vp != NULL) {
-			vhold(vp);
 			*vpp = vp;
-			*vp_heldp = true;
+			if (vp_heldp != NULL) {
+				vhold(vp);
+				*vp_heldp = true;
+			}
 		}
 	}
-	VM_OBJECT_RUNLOCK(object);
+	if (vp_heldp != NULL)
+		VM_OBJECT_RUNLOCK(object);
 }
