@@ -2332,13 +2332,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 }
 
 void
-vm_object_set_writeable_dirty(vm_object_t object)
+vm_object_set_writeable_dirty_(vm_object_t object)
 {
-
-	/* Only set for vnodes & tmpfs */
-	if (object->type != OBJT_VNODE &&
-	    (object->flags & OBJ_TMPFS_NODE) == 0)
-		return;
 	atomic_add_int(&object->generation, 1);
 }
 

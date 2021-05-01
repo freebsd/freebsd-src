@@ -378,6 +378,7 @@ void vm_object_deallocate (vm_object_t);
 void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
+void vm_object_set_writeable_dirty_(vm_object_t object);
 void vm_object_init (void);
 int  vm_object_kvme_type(vm_object_t object, struct vnode **vpp);
 void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);

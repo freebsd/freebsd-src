@@ -62,6 +62,7 @@ typedef int pgo_populate_t(vm_object_t, vm_pindex_t, int, vm_prot_t,
     vm_pindex_t *, vm_pindex_t *);
 typedef void pgo_pageunswapped_t(vm_page_t);
 typedef void pgo_writecount_t(vm_object_t, vm_offset_t, vm_offset_t);
+typedef void pgo_set_writeable_dirty_t(vm_object_t);
 
 struct pagerops {
 	pgo_init_t		*pgo_init;		/* Initialize pager. */
@@ -73,9 +74,9 @@ struct pagerops {
 	pgo_haspage_t		*pgo_haspage;		/* Query page. */
 	pgo_populate_t		*pgo_populate;		/* Bulk spec pagein. */
 	pgo_pageunswapped_t	*pgo_pageunswapped;
-	/* Operations for specialized writecount handling */
 	pgo_writecount_t	*pgo_update_writecount;
 	pgo_writecount_t	*pgo_release_writecount;
+	pgo_set_writeable_dirty_t *pgo_set_writeable_dirty;
 };
 
 extern struct pagerops defaultpagerops;
