@@ -434,6 +434,7 @@ static void	swap_pager_update_writecount(vm_object_t object,
 static void	swap_pager_release_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
 static void	swap_pager_set_writeable_dirty(vm_object_t object);
+static bool	swap_pager_mightbedirty(vm_object_t object);
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
@@ -447,6 +448,7 @@ struct pagerops swappagerops = {
 	.pgo_update_writecount = swap_pager_update_writecount,
 	.pgo_release_writecount = swap_pager_release_writecount,
 	.pgo_set_writeable_dirty = swap_pager_set_writeable_dirty,
+	.pgo_mightbedirty = swap_pager_mightbedirty,
 };
 
 /*
@@ -3131,4 +3133,12 @@ swap_pager_set_writeable_dirty(vm_object_t object)
 {
 	if ((object->flags & OBJ_TMPFS_NODE) != 0)
 		vm_object_set_writeable_dirty_(object);
+}
+
+static bool
+swap_pager_mightbedirty(vm_object_t object)
+{
+	if ((object->flags & OBJ_TMPFS_NODE) != 0)
+		return (vm_object_mightbedirty_(object));
+	return (false);
 }

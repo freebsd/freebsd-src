@@ -508,3 +508,13 @@ vm_object_set_writeable_dirty(vm_object_t object)
 		method(object);
 }
 
+bool
+vm_object_mightbedirty(vm_object_t object)
+{
+	pgo_mightbedirty_t *method;
+
+	method = pagertab[object->type]->pgo_mightbedirty;
+	if (method == NULL)
+		return (false);
+	return (method(object));
+}

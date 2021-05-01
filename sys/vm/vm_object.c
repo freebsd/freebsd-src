@@ -2337,6 +2337,12 @@ vm_object_set_writeable_dirty_(vm_object_t object)
 	atomic_add_int(&object->generation, 1);
 }
 
+bool
+vm_object_mightbedirty_(vm_object_t object)
+{
+	return (object->generation != object->cleangeneration);
+}
+
 /*
  *	vm_object_unwire:
  *
