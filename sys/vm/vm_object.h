@@ -330,21 +330,6 @@ vm_object_reserv(vm_object_t object)
 	return (false);
 }
 
-static __inline bool
-vm_object_mightbedirty(vm_object_t object)
-{
-
-	if (object->type != OBJT_VNODE) {
-		if ((object->flags & OBJ_TMPFS_NODE) == 0)
-			return (false);
-#ifdef KASSERT
-		KASSERT(object->type == OBJT_SWAP,
-		    ("TMPFS_NODE obj %p is not swap", object));
-#endif
-	}
-	return (object->generation != object->cleangeneration);
-}
-
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_wakeup(vm_object_t object);
@@ -379,6 +364,8 @@ void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_set_writeable_dirty_(vm_object_t object);
+bool vm_object_mightbedirty(vm_object_t object);
+bool vm_object_mightbedirty_(vm_object_t object);
 void vm_object_init (void);
 int  vm_object_kvme_type(vm_object_t object, struct vnode **vpp);
 void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);
