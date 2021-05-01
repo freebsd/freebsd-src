@@ -545,7 +545,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 			 * clog the laundry and inactive queues.  (We will try
 			 * paging it out again later.)
 			 */
-			if (object->type == OBJT_SWAP &&
+			if ((object->flags & OBJ_SWAP) != 0 &&
 			    pageout_status[i] == VM_PAGER_FAIL) {
 				vm_page_unswappable(mt);
 				numpagedout++;
@@ -897,7 +897,7 @@ free_page:
 			vm_page_free(m);
 			VM_CNT_INC(v_dfree);
 		} else if ((object->flags & OBJ_DEAD) == 0) {
-			if (object->type != OBJT_SWAP &&
+			if ((object->flags & OBJ_SWAP) == 0 &&
 			    object->type != OBJT_DEFAULT)
 				pageout_ok = true;
 			else if (disable_swap_pageouts)
@@ -1890,6 +1890,7 @@ vm_pageout_oom_pagecount(struct vmspace *vmspace)
 		switch (obj->type) {
 		case OBJT_DEFAULT:
 		case OBJT_SWAP:
+		case OBJT_SWAP_TMPFS:
 		case OBJT_PHYS:
 		case OBJT_VNODE:
 			res += obj->resident_page_count;

@@ -623,8 +623,9 @@ tmpfs_read_pgcache(struct vop_read_pgcache_args *v)
 	if (object == NULL)
 		goto out_smr;
 
-	MPASS((object->flags & (OBJ_ANON | OBJ_DEAD | OBJ_TMPFS_NODE)) ==
-	    OBJ_TMPFS_NODE);
+	MPASS(object->type == OBJT_SWAP_TMPFS);
+	MPASS((object->flags & (OBJ_ANON | OBJ_DEAD | OBJ_SWAP)) ==
+	    OBJ_SWAP);
 	if (!VN_IS_DOOMED(vp)) {
 		/* size cannot become shorter due to rangelock. */
 		size = node->tn_size;

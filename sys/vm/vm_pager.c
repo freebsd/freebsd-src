@@ -172,6 +172,7 @@ struct pagerops *pagertab[] = {
 	[OBJT_DEAD] =		&deadpagerops,
 	[OBJT_SG] = 		&sgpagerops,
 	[OBJT_MGTDEVICE] = 	&mgtdevicepagerops,
+	[OBJT_SWAP_TMPFS] =	&swaptmpfspagerops,
 };
 
 void

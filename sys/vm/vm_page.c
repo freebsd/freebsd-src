@@ -2639,7 +2639,7 @@ retry:
 			}
 			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (object->type != OBJT_DEFAULT &&
-			    object->type != OBJT_SWAP &&
+			    (object->flags & OBJ_SWAP) == 0 &&
 			    object->type != OBJT_VNODE) {
 				run_ext = 0;
 #if VM_NRESERVLEVEL > 0
@@ -2777,7 +2777,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 			/* Don't care: PG_NODUMP, PG_ZERO. */
 			if (m->object != object ||
 			    (object->type != OBJT_DEFAULT &&
-			    object->type != OBJT_SWAP &&
+			    (object->flags & OBJ_SWAP) == 0 &&
 			    object->type != OBJT_VNODE))
 				error = EINVAL;
 			else if (object->memattr != VM_MEMATTR_DEFAULT)

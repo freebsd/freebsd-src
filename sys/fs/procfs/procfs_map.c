@@ -166,16 +166,15 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				vp = lobj->handle;
 				vref(vp);
 				break;
-			case OBJT_SWAP:
-				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
-					type = "vnode";
-					if ((lobj->flags & OBJ_TMPFS) != 0) {
-						vp = lobj->un_pager.swp.swp_tmpfs;
-						vref(vp);
-					}
-				} else {
-					type = "swap";
+			case OBJT_SWAP_TMPFS:
+				type = "vnode";
+				if ((lobj->flags & OBJ_TMPFS) != 0) {
+					vp = lobj->un_pager.swp.swp_tmpfs;
+					vref(vp);
 				}
+				break;
+			case OBJT_SWAP:
+				type = "swap";
 				break;
 			case OBJT_SG:
 			case OBJT_DEVICE:

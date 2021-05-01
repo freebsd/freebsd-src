@@ -240,7 +240,8 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
 	LIST_INIT(&object->shadow_head);
 
 	object->type = type;
-	if (type == OBJT_SWAP)
+	object->flags = flags;
+	if ((flags & OBJ_SWAP) != 0)
 		pctrie_init(&object->un_pager.swp.swp_blks);
 
 	/*
@@ -251,7 +252,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
 	atomic_thread_fence_rel();
 
 	object->pg_color = 0;
-	object->flags = flags;
 	object->size = size;
 	object->domain.dr_policy = NULL;
 	object->generation = 1;
@@ -337,6 +337,7 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 	case OBJT_PHYS:
 	case OBJT_SG:
 	case OBJT_SWAP:
+	case OBJT_SWAP_TMPFS:
 	case OBJT_VNODE:
 		if (!TAILQ_EMPTY(&object->memq))
 			return (KERN_FAILURE);
@@ -421,8 +422,11 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 	case OBJT_DEAD:
 		panic("vm_object_allocate: can't create OBJT_DEAD");
 	case OBJT_DEFAULT:
-	case OBJT_SWAP:
 		flags = OBJ_COLORED;
+		break;
+	case OBJT_SWAP:
+	case OBJT_SWAP_TMPFS:
+		flags = OBJ_COLORED | OBJ_SWAP;
 		break;
 	case OBJT_DEVICE:
 	case OBJT_SG:
@@ -573,7 +577,7 @@ vm_object_deallocate_anon(vm_object_t backing_object)
 	KASSERT(object != NULL && backing_object->shadow_count == 1,
 	    ("vm_object_anon_deallocate: ref_count: %d, shadow_count: %d",
 	    backing_object->ref_count, backing_object->shadow_count));
-	KASSERT((object->flags & (OBJ_TMPFS_NODE | OBJ_ANON)) == OBJ_ANON,
+	KASSERT((object->flags & OBJ_ANON) != 0,
 	    ("invalid shadow object %p", object));
 
 	if (!VM_OBJECT_TRYWLOCK(object)) {
@@ -677,7 +681,7 @@ vm_object_deallocate(vm_object_t object)
 		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
-			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
+			KASSERT(object->type != OBJT_SWAP_TMPFS,
 			    ("shadowed tmpfs v_object 2 %p", object));
 			vm_object_backing_remove(object);
 		}
@@ -958,7 +962,7 @@ vm_object_terminate(vm_object_t object)
 #endif
 
 	KASSERT(object->cred == NULL || object->type == OBJT_DEFAULT ||
-	    object->type == OBJT_SWAP,
+	    object->type == OBJT_SWAP || object->type == OBJT_SWAP_TMPFS,
 	    ("%s: non-swap obj %p has cred", __func__, object));
 
 	/*
@@ -1627,7 +1631,7 @@ retry:
 		else if (m_busy == NULL)
 			m_busy = m;
 	}
-	if (orig_object->type == OBJT_SWAP) {
+	if ((orig_object->flags & OBJ_SWAP) != 0) {
 		/*
 		 * swap_pager_copy() can sleep, in which case the orig_object's
 		 * and new_object's locks are released and reacquired. 
@@ -1955,7 +1959,7 @@ vm_object_collapse(vm_object_t object)
 			/*
 			 * Move the pager from backing_object to object.
 			 */
-			if (backing_object->type == OBJT_SWAP) {
+			if ((backing_object->flags & OBJ_SWAP) != 0) {
 				/*
 				 * swap_pager_copy() can sleep, in which case
 				 * the backing_object's and object's locks are
@@ -2482,9 +2486,9 @@ vm_object_kvme_type(vm_object_t object, struct vnode **vpp)
 	case OBJT_VNODE:
 		return (KVME_TYPE_VNODE);
 	case OBJT_SWAP:
-		if ((object->flags & OBJ_TMPFS_NODE) != 0)
-			return (KVME_TYPE_VNODE);
 		return (KVME_TYPE_SWAP);
+	case OBJT_SWAP_TMPFS:
+		return (KVME_TYPE_VNODE);
 	case OBJT_DEVICE:
 		return (KVME_TYPE_DEVICE);
 	case OBJT_PHYS:

@@ -1947,7 +1947,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		crhold(dst_object->cred);
 		*fork_charge += dst_object->charge;
 	} else if ((dst_object->type == OBJT_DEFAULT ||
-	    dst_object->type == OBJT_SWAP) &&
+	    (dst_object->flags & OBJ_SWAP) != 0) &&
 	    dst_object->cred == NULL) {
 		KASSERT(dst_entry->cred != NULL, ("no cred for entry %p",
 		    dst_entry));
