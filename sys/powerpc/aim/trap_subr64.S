@@ -56,10 +56,10 @@
 
 /*
  * User SRs are loaded through a pointer to the current pmap.
+ * PCPU already in %r3
  */
 restore_usersrs:
-	GET_CPUINFO(%r28)
-	ld	%r28,PC_USERSLB(%r28)
+	ld	%r28,PC_USERSLB(%r3)
 	cmpdi	%r28, 0			/* If user SLB pointer NULL, exit */
 	beqlr
 
@@ -84,13 +84,13 @@ restore_usersrs:
 
 /*
  * Kernel SRs are loaded directly from the PCPU fields
+ * PCPU in %r1
  */
 restore_kernsrs:
-	GET_CPUINFO(%r28)
-	lwz	%r29, PC_FLAGS(%r28)
+	lwz	%r29, PC_FLAGS(%r1)
 	mtcr	%r29
 	btlr	0
-	addi	%r28,%r28,PC_KERNSLB
+	addi	%r28,%r1,PC_KERNSLB
 	ld	%r29,16(%r28)		/* One past USER_SLB_SLOT */
 	cmpdi	%r29,0
 	beqlr				/* If first kernel entry is invalid,
@@ -269,21 +269,21 @@ restore_kernsrs:
 /* Restore user SRs */							\
 	GET_CPUINFO(%r3);						\
 	std	%r27,(savearea+CPUSAVE_R27)(%r3);			\
+	lwz	%r27,PC_FLAGS(%r3);					\
+	mtcr	%r27;							\
+	bt	0, 0f;	/* Check to skip restoring SRs. */		\
 	std	%r28,(savearea+CPUSAVE_R28)(%r3);			\
 	std	%r29,(savearea+CPUSAVE_R29)(%r3);			\
 	std	%r30,(savearea+CPUSAVE_R30)(%r3);			\
 	std	%r31,(savearea+CPUSAVE_R31)(%r3);			\
-	lwz	%r28,PC_FLAGS(%r3);					\
-	mtcr	%r28;							\
-	bt	0, 0f;	/* Check to skip restoring SRs. */		\
 	mflr	%r27;			/* preserve LR */		\
 	bl	restore_usersrs;	/* uses r28-r31 */		\
 	mtlr	%r27;							\
-0:									\
 	ld	%r31,(savearea+CPUSAVE_R31)(%r3);			\
 	ld	%r30,(savearea+CPUSAVE_R30)(%r3);			\
 	ld	%r29,(savearea+CPUSAVE_R29)(%r3);			\
 	ld	%r28,(savearea+CPUSAVE_R28)(%r3);			\
+0:									\
 	ld	%r27,(savearea+CPUSAVE_R27)(%r3);			\
 1:	mfsprg2	%r3;			/* restore cr */		\
 	mtcr	%r3;							\
@@ -778,12 +778,12 @@ realtrap:
 					   overwritten) */
 	bf	17,k_trap		/* branch if PSL_PR is false */
 	GET_CPUINFO(%r1)
-	ld	%r1,PC_CURPCB(%r1)
 	mr	%r27,%r28		/* Save LR, r29 */
 	mtsprg2	%r29
 	bl	restore_kernsrs		/* enable kernel mapping */
 	mfsprg2	%r29
 	mr	%r28,%r27
+	ld	%r1,PC_CURPCB(%r1)
 	b	s_trap
 
 /*
@@ -839,12 +839,12 @@ s_trap:
 	bf	17,k_trap		/* branch if PSL_PR is false */
 	GET_CPUINFO(%r1)
 u_trap:
-	ld	%r1,PC_CURPCB(%r1)
 	mr	%r27,%r28		/* Save LR, r29 */
 	mtsprg2	%r29
 	bl	restore_kernsrs		/* enable kernel mapping */
 	mfsprg2	%r29
 	mr	%r28,%r27
+	ld	%r1,PC_CURPCB(%r1)
 
 /*
  * Now the common trap catching code.
