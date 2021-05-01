@@ -27,6 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef __amd64__
+#define	DEV_APIC
+#elif defined(__i386__)
+#include "opt_apic.h"
+#endif
+
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/mm.h>
@@ -39,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 
-#if defined(__i386__) || defined(__amd64__)
+#ifdef DEV_APIC
 extern u_int first_msi_irq, num_msi_irqs;
 #endif
 
@@ -274,7 +280,7 @@ linux_current_init(void *arg __unused)
 	TUNABLE_INT_FETCH("compat.linuxkpi.task_struct_reserve",
 	    &lkpi_task_resrv);
 	if (lkpi_task_resrv == 0) {
-#if defined(__i386__) || defined(__amd64__)
+#ifdef DEV_APIC
 		/*
 		 * Number of interrupt threads plus per-cpu callout
 		 * SWI threads.
