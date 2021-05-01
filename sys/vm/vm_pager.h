@@ -47,6 +47,7 @@
 #include <sys/queue.h>
 
 TAILQ_HEAD(pagerlst, vm_object);
+struct vnode;
 
 typedef void pgo_init_t(void);
 typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
@@ -64,6 +65,8 @@ typedef void pgo_pageunswapped_t(vm_page_t);
 typedef void pgo_writecount_t(vm_object_t, vm_offset_t, vm_offset_t);
 typedef void pgo_set_writeable_dirty_t(vm_object_t);
 typedef bool pgo_mightbedirty_t(vm_object_t);
+typedef void pgo_getvp_t(vm_object_t object, struct vnode **vpp,
+    bool *vp_heldp);
 
 struct pagerops {
 	pgo_init_t		*pgo_init;		/* Initialize pager. */
@@ -79,6 +82,7 @@ struct pagerops {
 	pgo_writecount_t	*pgo_release_writecount;
 	pgo_set_writeable_dirty_t *pgo_set_writeable_dirty;
 	pgo_mightbedirty_t	*pgo_mightbedirty;
+	pgo_getvp_t		*pgo_getvp;
 };
 
 extern struct pagerops defaultpagerops;
@@ -214,6 +218,22 @@ vm_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	method = pagertab[object->type]->pgo_release_writecount;
 	if (method != NULL)
 		method(object, start, end);
+}
+
+static __inline void
+vm_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
+{
+	pgo_getvp_t *method;
+
+	*vpp = NULL;
+	*vp_heldp = false;
+	method = pagertab[object->type]->pgo_getvp;
+	if (method != NULL) {
+		method(object, vpp, vp_heldp);
+	} else {
+		KASSERT(0,
+		    ("vm_pager_getvp: wrong object type obj %p", object));
+	}
 }
 
 struct cdev_pager_ops {

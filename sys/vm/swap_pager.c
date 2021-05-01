@@ -435,6 +435,8 @@ static void	swap_pager_release_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
 static void	swap_pager_set_writeable_dirty(vm_object_t object);
 static bool	swap_pager_mightbedirty(vm_object_t object);
+static void	swap_pager_getvp(vm_object_t object, struct vnode **vpp,
+    bool *vp_heldp);
 
 struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
@@ -449,6 +451,7 @@ struct pagerops swappagerops = {
 	.pgo_release_writecount = swap_pager_release_writecount,
 	.pgo_set_writeable_dirty = swap_pager_set_writeable_dirty,
 	.pgo_mightbedirty = swap_pager_mightbedirty,
+	.pgo_getvp = swap_pager_getvp,
 };
 
 /*
@@ -3145,4 +3148,29 @@ swap_pager_mightbedirty(vm_object_t object)
 	if ((object->flags & OBJ_TMPFS_NODE) != 0)
 		return (vm_object_mightbedirty_(object));
 	return (false);
+}
+
+static void
+swap_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
+{
+	struct vnode *vp;
+
+	KASSERT((object->flags & OBJ_TMPFS_NODE) != 0,
+	    ("swap_pager_getvp: swap and !TMPFS obj %p", object));
+
+	/*
+	 * Tmpfs VREG node, which was reclaimed, has
+	 * OBJ_TMPFS_NODE flag set, but not OBJ_TMPFS.  In
+	 * this case there is no v_writecount to adjust.
+	 */
+	VM_OBJECT_RLOCK(object);
+	if ((object->flags & OBJ_TMPFS) != 0) {
+		vp = object->un_pager.swp.swp_tmpfs;
+		if (vp != NULL) {
+			vhold(vp);
+			*vpp = vp;
+			*vp_heldp = true;
+		}
+	}
+	VM_OBJECT_RUNLOCK(object);
 }
