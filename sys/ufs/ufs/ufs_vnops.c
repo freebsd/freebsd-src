@@ -105,14 +105,16 @@ VFS_SMR_DECLARE;
 static vop_accessx_t	ufs_accessx;
 static vop_fplookup_vexec_t ufs_fplookup_vexec;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
-static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
+static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
+    struct thread *);
 static vop_close_t	ufs_close;
 static vop_create_t	ufs_create;
 static vop_stat_t	ufs_stat;
 static vop_getattr_t	ufs_getattr;
 static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
-static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *, const char *);
+static int ufs_makeinode(int mode, struct vnode *, struct vnode **,
+    struct componentname *, const char *);
 static vop_mmapped_t	ufs_mmapped;
 static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
