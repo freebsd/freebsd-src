@@ -105,6 +105,7 @@ static void vnode_pager_update_writecount(vm_object_t, vm_offset_t,
     vm_offset_t);
 static void vnode_pager_release_writecount(vm_object_t, vm_offset_t,
     vm_offset_t);
+static void vnode_pager_getvp(vm_object_t, struct vnode **, bool *);
 
 struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
@@ -117,6 +118,7 @@ struct pagerops vnodepagerops = {
 	.pgo_release_writecount = vnode_pager_release_writecount,
 	.pgo_set_writeable_dirty = vm_object_set_writeable_dirty_,
 	.pgo_mightbedirty = vm_object_mightbedirty_,
+	.pgo_getvp = vnode_pager_getvp,
 };
 
 static struct domainset *vnode_domainset = NULL;
@@ -1601,4 +1603,10 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	vdrop(vp);
 	if (mp != NULL)
 		vn_finished_write(mp);
+}
+
+static void
+vnode_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
+{
+	*vpp = object->handle;
 }

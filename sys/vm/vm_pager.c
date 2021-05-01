@@ -100,6 +100,7 @@ static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
 static void dead_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dead_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dead_pager_dealloc(vm_object_t);
+static void dead_pager_getvp(vm_object_t, struct vnode **, bool *);
 
 static int
 dead_pager_getpages(vm_object_t obj, vm_page_t *ma, int count, int *rbehind,
@@ -144,12 +145,22 @@ dead_pager_dealloc(vm_object_t object)
 
 }
 
+static void
+dead_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
+{
+	/*
+	 * For OBJT_DEAD objects, v_writecount was handled in
+	 * vnode_pager_dealloc().
+	 */
+}
+
 static struct pagerops deadpagerops = {
 	.pgo_alloc = 	dead_pager_alloc,
 	.pgo_dealloc =	dead_pager_dealloc,
 	.pgo_getpages =	dead_pager_getpages,
 	.pgo_putpages =	dead_pager_putpages,
 	.pgo_haspage =	dead_pager_haspage,
+	.pgo_getvp =	dead_pager_getvp,
 };
 
 struct pagerops *pagertab[] = {
