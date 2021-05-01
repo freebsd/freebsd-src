@@ -164,14 +164,14 @@ static struct pagerops deadpagerops = {
 };
 
 struct pagerops *pagertab[] = {
-	&defaultpagerops,	/* OBJT_DEFAULT */
-	&swappagerops,		/* OBJT_SWAP */
-	&vnodepagerops,		/* OBJT_VNODE */
-	&devicepagerops,	/* OBJT_DEVICE */
-	&physpagerops,		/* OBJT_PHYS */
-	&deadpagerops,		/* OBJT_DEAD */
-	&sgpagerops,		/* OBJT_SG */
-	&mgtdevicepagerops,	/* OBJT_MGTDEVICE */
+	[OBJT_DEFAULT] =	&defaultpagerops,
+	[OBJT_SWAP] =		&swappagerops,
+	[OBJT_VNODE] =		&vnodepagerops,
+	[OBJT_DEVICE] =		&devicepagerops,
+	[OBJT_PHYS] =		&physpagerops,
+	[OBJT_DEAD] =		&deadpagerops,
+	[OBJT_SG] = 		&sgpagerops,
+	[OBJT_MGTDEVICE] = 	&mgtdevicepagerops,
 };
 
 void
