@@ -213,7 +213,7 @@ nhop_map_update(struct nhop_map *map, uint32_t idx, char *gw, char *ifname)
 		else
 			new_size = map->size * 2;
 		if (new_size <= idx)
-			new_size = roundup(idx + 1, 32);
+			new_size = roundup2(idx + 1, 32);
 
 		sz = new_size * (sizeof(struct nhop_entry));
 		if ((map->ptr = realloc(map->ptr, sz)) == NULL)
