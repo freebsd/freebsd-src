@@ -51,4 +51,4 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
 
 
 
-                           Version 581: 06 Apr 2021                LESSECHO(1)
+                          Version 581.2: 28 Apr 2021               LESSECHO(1)
