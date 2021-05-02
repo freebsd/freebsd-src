@@ -3099,13 +3099,13 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
     struct vnode *outvp, off_t *outoffp, size_t *lenp, unsigned int flags,
     struct ucred *incred, struct ucred *outcred, struct thread *fsize_td)
 {
-	struct vattr va;
+	struct vattr va, inva;
 	struct mount *mp;
 	struct uio io;
 	off_t startoff, endoff, xfer, xfer2;
 	u_long blksize;
 	int error, interrupted;
-	bool cantseek, readzeros, eof, lastblock;
+	bool cantseek, readzeros, eof, lastblock, holetoeof;
 	ssize_t aresid;
 	size_t copylen, len, rem, savlen;
 	char *dat;
@@ -3122,7 +3122,11 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		goto out;
 	if (VOP_PATHCONF(invp, _PC_MIN_HOLE_SIZE, &holein) != 0)
 		holein = 0;
+	if (holein > 0)
+		error = VOP_GETATTR(invp, &inva, incred);
 	VOP_UNLOCK(invp);
+	if (error != 0)
+		goto out;
 
 	mp = NULL;
 	error = vn_start_write(outvp, &mp, V_WAIT);
@@ -3203,7 +3207,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	 * Note that some file systems such as NFSv3, NFSv4.0 and NFSv4.1 may
 	 * support holes on the server, but do not support FIOSEEKHOLE.
 	 */
-	eof = false;
+	holetoeof = eof = false;
 	while (len > 0 && error == 0 && !eof && interrupted == 0) {
 		endoff = 0;			/* To shut up compilers. */
 		cantseek = true;
@@ -3212,8 +3216,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 
 		/*
 		 * Find the next data area.  If there is just a hole to EOF,
-		 * FIOSEEKDATA should fail and then we drop down into the
-		 * inner loop and create the hole on the outvp file.
+		 * FIOSEEKDATA should fail with ENXIO.
 		 * (I do not know if any file system will report a hole to
 		 *  EOF via FIOSEEKHOLE, but I am pretty sure FIOSEEKDATA
 		 *  will fail for those file systems.)
@@ -3222,10 +3225,16 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 		 * the code just falls through to the inner copy loop.
 		 */
 		error = EINVAL;
-		if (holein > 0)
+		if (holein > 0) {
 			error = VOP_IOCTL(invp, FIOSEEKDATA, &startoff, 0,
 			    incred, curthread);
-		if (error == 0) {
+			if (error == ENXIO) {
+				startoff = endoff = inva.va_size;
+				eof = holetoeof = true;
+				error = 0;
+			}
+		}
+		if (error == 0 && !holetoeof) {
 			endoff = startoff;
 			error = VOP_IOCTL(invp, FIOSEEKHOLE, &endoff, 0,
 			    incred, curthread);
@@ -3256,11 +3265,12 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 				}
 
 				if (error == 0 && *outoffp + xfer >
-				    va.va_size && xfer == len)
-					/* Grow last block. */
+				    va.va_size && (xfer == len || holetoeof)) {
+					/* Grow output file (hole at end). */
 					error = vn_write_outvp(outvp, dat,
 					    *outoffp, xfer, blksize, true,
 					    false, outcred);
+				}
 				if (error == 0) {
 					*inoffp += xfer;
 					*outoffp += xfer;
