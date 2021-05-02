@@ -445,7 +445,10 @@ struct uma_zone_domain {
 	long		uzd_nitems;	/* total item count */
 	long		uzd_imax;	/* maximum item count this period */
 	long		uzd_imin;	/* minimum item count this period */
+	long		uzd_bimin;	/* Minimum item count this batch. */
 	long		uzd_wss;	/* working set size estimate */
+	long		uzd_limin;	/* Longtime minimum item count. */
+	u_int		uzd_timin;	/* Time since uzd_limin == 0. */
 	smr_seq_t	uzd_seq;	/* Lowest queued seq. */
 	struct mtx	uzd_lock;	/* Lock for the domain */
 } __aligned(CACHE_LINE_SIZE);
