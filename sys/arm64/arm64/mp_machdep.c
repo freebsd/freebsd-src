@@ -364,6 +364,8 @@ intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 	ii->ii_send_arg = isrc;
 	strlcpy(ii->ii_name, name, INTR_IPI_NAMELEN);
 	ii->ii_count = intr_ipi_setup_counters(name);
+
+	PIC_ENABLE_INTR(intr_irq_root_dev, isrc);
 }
 
 static void
