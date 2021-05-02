@@ -114,7 +114,7 @@ prepare_ifmap(size_t *pifmap_size)
 		ifindex = sdl->sdl_index;
 
 		if (ifindex >= ifmap_size) {
-			size = roundup(ifindex + 1, 32) *
+			size = roundup2(ifindex + 1, 32) *
 			    sizeof(struct ifmap_entry);
 			if ((ifmap = realloc(ifmap, size)) == NULL)
 				errx(2, "realloc(%d) failed", size);
@@ -122,7 +122,7 @@ prepare_ifmap(size_t *pifmap_size)
 			    size - ifmap_size *
 			    sizeof(struct ifmap_entry));
 
-			ifmap_size = roundup(ifindex + 1, 32);
+			ifmap_size = roundup2(ifindex + 1, 32);
 		}
 
 		if (*ifmap[ifindex].ifname != '\0')
