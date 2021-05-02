@@ -292,8 +292,10 @@ static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int, int, int);
 static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
 static void bucket_cache_reclaim(uma_zone_t zone, bool, int);
+static bool bucket_cache_reclaim_domain(uma_zone_t, bool, bool, int);
 static int keg_ctor(void *, int, void *, int);
 static void keg_dtor(void *, int, void *);
+static void keg_drain(uma_keg_t keg, int domain);
 static int zone_ctor(void *, int, void *, int);
 static void zone_dtor(void *, int, void *);
 static inline void item_dtor(uma_zone_t zone, void *item, int size,
@@ -611,24 +613,6 @@ zone_domain_highest(uma_zone_t zone, int pref)
 }
 
 /*
- * Safely subtract cnt from imax.
- */
-static void
-zone_domain_imax_sub(uma_zone_domain_t zdom, int cnt)
-{
-	long new;
-	long old;
-
-	old = zdom->uzd_imax;
-	do {
-		if (old <= cnt)
-			new = 0;
-		else
-			new = old - cnt;
-	} while (atomic_fcmpset_long(&zdom->uzd_imax, &old, new) == 0);
-}
-
-/*
  * Set the maximum imax value.
  */
 static void
@@ -639,8 +623,16 @@ zone_domain_imax_set(uma_zone_domain_t zdom, int nitems)
 	old = zdom->uzd_imax;
 	do {
 		if (old >= nitems)
-			break;
+			return;
 	} while (atomic_fcmpset_long(&zdom->uzd_imax, &old, nitems) == 0);
+
+	/*
+	 * We are at new maximum, so do the last WSS update for the old
+	 * bimin and prepare to measure next allocation batch.
+	 */
+	if (zdom->uzd_wss < old - zdom->uzd_bimin)
+		zdom->uzd_wss = old - zdom->uzd_bimin;
+	zdom->uzd_bimin = nitems;
 }
 
 /*
@@ -651,6 +643,7 @@ static uma_bucket_t
 zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom, bool reclaim)
 {
 	uma_bucket_t bucket;
+	long cnt;
 	int i;
 	bool dtor = false;
 
@@ -678,15 +671,26 @@ zone_fetch_bucket(uma_zone_t zone, uma_zone_domain_t zdom, bool reclaim)
 	    ("%s: empty bucket in bucket cache", __func__));
 	zdom->uzd_nitems -= bucket->ub_cnt;
 
-	/*
-	 * Shift the bounds of the current WSS interval to avoid
-	 * perturbing the estimate.
-	 */
 	if (reclaim) {
+		/*
+		 * Shift the bounds of the current WSS interval to avoid
+		 * perturbing the estimates.
+		 */
+		cnt = lmin(zdom->uzd_bimin, bucket->ub_cnt);
+		atomic_subtract_long(&zdom->uzd_imax, cnt);
+		zdom->uzd_bimin -= cnt;
 		zdom->uzd_imin -= lmin(zdom->uzd_imin, bucket->ub_cnt);
-		zone_domain_imax_sub(zdom, bucket->ub_cnt);
-	} else if (zdom->uzd_imin > zdom->uzd_nitems)
-		zdom->uzd_imin = zdom->uzd_nitems;
+		if (zdom->uzd_limin >= bucket->ub_cnt) {
+			zdom->uzd_limin -= bucket->ub_cnt;
+		} else {
+			zdom->uzd_limin = 0;
+			zdom->uzd_timin = 0;
+		}
+	} else if (zdom->uzd_bimin > zdom->uzd_nitems) {
+		zdom->uzd_bimin = zdom->uzd_nitems;
+		if (zdom->uzd_imin > zdom->uzd_nitems)
+			zdom->uzd_imin = zdom->uzd_nitems;
+	}
 
 	ZDOM_UNLOCK(zdom);
 	if (dtor)
@@ -718,8 +722,18 @@ zone_put_bucket(uma_zone_t zone, int domain, uma_bucket_t bucket, void *udata,
 	 */
 	zdom->uzd_nitems += bucket->ub_cnt;
 	if (__predict_true(zdom->uzd_nitems < zone->uz_bucket_max)) {
-		if (ws)
+		if (ws) {
 			zone_domain_imax_set(zdom, zdom->uzd_nitems);
+		} else {
+			/*
+			 * Shift the bounds of the current WSS interval to
+			 * avoid perturbing the estimates.
+			 */
+			atomic_add_long(&zdom->uzd_imax, bucket->ub_cnt);
+			zdom->uzd_imin += bucket->ub_cnt;
+			zdom->uzd_bimin += bucket->ub_cnt;
+			zdom->uzd_limin += bucket->ub_cnt;
+		}
 		if (STAILQ_EMPTY(&zdom->uzd_buckets))
 			zdom->uzd_seq = bucket->ub_seq;
 
@@ -951,22 +965,49 @@ uma_timeout(void *unused)
 }
 
 /*
- * Update the working set size estimate for the zone's bucket cache.
- * The constants chosen here are somewhat arbitrary.  With an update period of
- * 20s (UMA_TIMEOUT), this estimate is dominated by zone activity over the
- * last 100s.
+ * Update the working set size estimates for the zone's bucket cache.
+ * The constants chosen here are somewhat arbitrary.
  */
 static void
 zone_domain_update_wss(uma_zone_domain_t zdom)
 {
-	long wss;
+	long m;
 
-	ZDOM_LOCK(zdom);
-	MPASS(zdom->uzd_imax >= zdom->uzd_imin);
-	wss = zdom->uzd_imax - zdom->uzd_imin;
-	zdom->uzd_imax = zdom->uzd_imin = zdom->uzd_nitems;
-	zdom->uzd_wss = (4 * wss + zdom->uzd_wss) / 5;
-	ZDOM_UNLOCK(zdom);
+	ZDOM_LOCK_ASSERT(zdom);
+	MPASS(zdom->uzd_imax >= zdom->uzd_nitems);
+	MPASS(zdom->uzd_nitems >= zdom->uzd_bimin);
+	MPASS(zdom->uzd_bimin >= zdom->uzd_imin);
+
+	/*
+	 * Estimate WSS as modified moving average of biggest allocation
+	 * batches for each period over few minutes (UMA_TIMEOUT of 20s).
+	 */
+	zdom->uzd_wss = lmax(zdom->uzd_wss * 3 / 4,
+	    zdom->uzd_imax - zdom->uzd_bimin);
+
+	/*
+	 * Estimate longtime minimum item count as a combination of recent
+	 * minimum item count, adjusted by WSS for safety, and the modified
+	 * moving average over the last several hours (UMA_TIMEOUT of 20s).
+	 * timin measures time since limin tried to go negative, that means
+	 * we were dangerously close to or got out of cache.
+	 */
+	m = zdom->uzd_imin - zdom->uzd_wss;
+	if (m >= 0) {
+		if (zdom->uzd_limin >= m)
+			zdom->uzd_limin = m;
+		else
+			zdom->uzd_limin = (m + zdom->uzd_limin * 255) / 256;
+		zdom->uzd_timin++;
+	} else {
+		zdom->uzd_limin = 0;
+		zdom->uzd_timin = 0;
+	}
+
+	/* To reduce period edge effects on WSS keep half of the imax. */
+	atomic_subtract_long(&zdom->uzd_imax,
+	    (zdom->uzd_imax - zdom->uzd_nitems + 1) / 2);
+	zdom->uzd_imin = zdom->uzd_bimin = zdom->uzd_nitems;
 }
 
 /*
@@ -982,7 +1023,7 @@ zone_timeout(uma_zone_t zone, void *unused)
 	u_int slabs, pages;
 
 	if ((zone->uz_flags & UMA_ZFLAG_HASH) == 0)
-		goto update_wss;
+		goto trim;
 
 	keg = zone->uz_keg;
 
@@ -1023,14 +1064,18 @@ zone_timeout(uma_zone_t zone, void *unused)
 
 			KEG_UNLOCK(keg, 0);
 			hash_free(&oldhash);
-			goto update_wss;
+			goto trim;
 		}
 	}
 	KEG_UNLOCK(keg, 0);
 
-update_wss:
-	for (int i = 0; i < vm_ndomains; i++)
-		zone_domain_update_wss(ZDOM_GET(zone, i));
+trim:
+	/* Trim caches not used for a long time. */
+	for (int i = 0; i < vm_ndomains; i++) {
+		if (bucket_cache_reclaim_domain(zone, false, false, i) &&
+		    (zone->uz_flags & UMA_ZFLAG_CACHE) == 0)
+			keg_drain(zone->uz_keg, i);
+	}
 }
 
 /*
@@ -1312,12 +1357,13 @@ pcpu_cache_drain_safe(uma_zone_t zone)
  * requested a drain, otherwise the per-domain caches are trimmed to either
  * estimated working set size.
  */
-static void
-bucket_cache_reclaim_domain(uma_zone_t zone, bool drain, int domain)
+static bool
+bucket_cache_reclaim_domain(uma_zone_t zone, bool drain, bool trim, int domain)
 {
 	uma_zone_domain_t zdom;
 	uma_bucket_t bucket;
 	long target;
+	bool done = false;
 
 	/*
 	 * The cross bucket is partially filled and not part of
@@ -1335,23 +1381,35 @@ bucket_cache_reclaim_domain(uma_zone_t zone, bool drain, int domain)
 
 	/*
 	 * If we were asked to drain the zone, we are done only once
-	 * this bucket cache is empty.  Otherwise, we reclaim items in
-	 * excess of the zone's estimated working set size.  If the
-	 * difference nitems - imin is larger than the WSS estimate,
-	 * then the estimate will grow at the end of this interval and
-	 * we ignore the historical average.
+	 * this bucket cache is empty.  If trim, we reclaim items in
+	 * excess of the zone's estimated working set size.  Multiple
+	 * consecutive calls will shrink the WSS and so reclaim more.
+	 * If neither drain nor trim, then voluntarily reclaim 1/4
+	 * (to reduce first spike) of items not used for a long time.
 	 */
 	ZDOM_LOCK(zdom);
-	target = drain ? 0 : lmax(zdom->uzd_wss, zdom->uzd_nitems -
-	    zdom->uzd_imin);
-	while (zdom->uzd_nitems > target) {
+	zone_domain_update_wss(zdom);
+	if (drain)
+		target = 0;
+	else if (trim)
+		target = zdom->uzd_wss;
+	else if (zdom->uzd_timin > 900 / UMA_TIMEOUT)
+		target = zdom->uzd_nitems - zdom->uzd_limin / 4;
+	else {
+		ZDOM_UNLOCK(zdom);
+		return (done);
+	}
+	while ((bucket = STAILQ_FIRST(&zdom->uzd_buckets)) != NULL &&
+	    zdom->uzd_nitems >= target + bucket->ub_cnt) {
 		bucket = zone_fetch_bucket(zone, zdom, true);
 		if (bucket == NULL)
 			break;
 		bucket_free(zone, bucket, NULL);
+		done = true;
 		ZDOM_LOCK(zdom);
 	}
 	ZDOM_UNLOCK(zdom);
+	return (done);
 }
 
 static void
@@ -1368,10 +1426,10 @@ bucket_cache_reclaim(uma_zone_t zone, bool drain, int domain)
 
 	if (domain != UMA_ANYDOMAIN &&
 	    (zone->uz_flags & UMA_ZONE_ROUNDROBIN) == 0) {
-		bucket_cache_reclaim_domain(zone, drain, domain);
+		bucket_cache_reclaim_domain(zone, drain, true, domain);
 	} else {
 		for (i = 0; i < vm_ndomains; i++)
-			bucket_cache_reclaim_domain(zone, drain, i);
+			bucket_cache_reclaim_domain(zone, drain, true, i);
 	}
 }
 
@@ -2516,8 +2574,17 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 		    "imin", CTLFLAG_RD, &zdom->uzd_imin,
 		    "minimum item count in this period");
 		SYSCTL_ADD_LONG(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "bimin", CTLFLAG_RD, &zdom->uzd_bimin,
+		    "Minimum item count in this batch");
+		SYSCTL_ADD_LONG(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "wss", CTLFLAG_RD, &zdom->uzd_wss,
 		    "Working set size");
+		SYSCTL_ADD_LONG(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "limin", CTLFLAG_RD, &zdom->uzd_limin,
+		    "Long time minimum item count");
+		SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "timin", CTLFLAG_RD, &zdom->uzd_timin, 0,
+		    "Time since zero long time minimum item count");
 	}
 
 	/*
@@ -3537,7 +3604,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 * We lost the race, release this bucket and start over.
 	 */
 	critical_exit();
-	zone_put_bucket(zone, domain, bucket, udata, false);
+	zone_put_bucket(zone, domain, bucket, udata, !new);
 	critical_enter();
 
 	return (true);
