@@ -12,7 +12,7 @@
 
 ======================================================================
 
-	Major changes between "less" versions 563 and 581
+	Major changes between "less" versions 563 and 581.2
 
 * Change ESC-u command to toggle, not disable, highlighting per man page.
 
