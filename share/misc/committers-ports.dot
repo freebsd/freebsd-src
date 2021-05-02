@@ -283,6 +283,7 @@ ultima [label="Richard Gallamore\nultima@FreeBSD.org\n2017/06/07"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2012/01/19"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
+vishwin [label="Charlie Li\nvishwin@FreeBSD.org\n2021/04/29"]
 vsevolod [label="Vsevolod Stakhov\nvsevolod@FreeBSD.org\n2005/07/22"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
@@ -328,6 +329,7 @@ araujo -> pgollucci
 araujo -> samm
 
 arrowd -> rhurlin
+arrowd -> vishwin
 
 arved -> markus
 arved -> stefan
@@ -452,6 +454,8 @@ flo -> bar
 flo -> jase
 flo -> jbeich
 flo -> grembo
+
+fluffy -> vishwin
 
 flz -> garga
 flz -> johans
@@ -766,6 +770,7 @@ tcberner -> pkubaj
 tcberner -> rhurlin
 tcberner -> rigoletto
 tcberner -> salvadore
+tcberner -> vishwin
 tcberner -> yuri
 
 thierry -> jadawin
