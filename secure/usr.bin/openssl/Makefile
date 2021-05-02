@@ -3,6 +3,7 @@
 CONFS=	openssl.cnf
 CONFSDIR=	/etc/ssl
 PROG=	openssl
+PACKAGE=	openssl
 
 LIBADD=	ssl crypto
 
