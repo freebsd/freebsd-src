@@ -223,6 +223,7 @@ intr_pic_ipi_setup(u_int ipi, const char *name, intr_ipi_handler_t *hand,
 
 	isrc->isrc_handlers++;
 	intr_ipi_setup(ipi, name, hand, arg, pic_ipi_send, isrc);
+	PIC_ENABLE_INTR(intr_irq_root_dev, isrc);
 	return (0);
 }
 #endif
