@@ -143,7 +143,7 @@ static bool irq_assign_cpu = false;
 #endif
 #endif
 
-int intr_nirq = NIRQ;
+u_int intr_nirq = NIRQ;
 SYSCTL_UINT(_machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0,
     "Number of IRQs");
 
@@ -166,7 +166,7 @@ static void intr_map_copy_map_data(u_int res_id, device_t *dev, intptr_t *xref,
 static void
 intr_irq_init(void *dummy __unused)
 {
-	int intrcnt_count;
+	u_int intrcnt_count;
 
 	SLIST_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
@@ -1576,8 +1576,8 @@ struct intr_map_entry
 
 /* XXX Convert irq_map[] to dynamicaly expandable one. */
 static struct intr_map_entry **irq_map;
-static int irq_map_count;
-static int irq_map_first_free_idx;
+static u_int irq_map_count;
+static u_int irq_map_first_free_idx;
 static struct mtx irq_map_lock;
 
 static struct intr_irqsrc *
