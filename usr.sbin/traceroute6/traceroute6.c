@@ -1118,6 +1118,7 @@ send_probe(int seq, u_long hops)
 		outudp->uh_sport = htons(ident);
 		outudp->uh_dport = htons(port+seq);
 		outudp->uh_ulen = htons(datalen);
+		outudp->uh_sum = 0;
 		outudp->uh_sum = udp_cksum(&Src, &Dst, outpacket, datalen);
 		break;
 	case IPPROTO_NONE:
