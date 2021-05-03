@@ -327,7 +327,7 @@ shm_largepage_phys_dtor(vm_object_t object)
 	}
 }
 
-static struct phys_pager_ops shm_largepage_phys_ops = {
+static const struct phys_pager_ops shm_largepage_phys_ops = {
 	.phys_pg_populate =	shm_largepage_phys_populate,
 	.phys_pg_haspage =	shm_largepage_phys_haspage,
 	.phys_pg_ctor =		shm_largepage_phys_ctor,

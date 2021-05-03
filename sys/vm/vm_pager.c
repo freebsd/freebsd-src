@@ -154,7 +154,7 @@ dead_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 	 */
 }
 
-static struct pagerops deadpagerops = {
+static const struct pagerops deadpagerops = {
 	.pgo_alloc = 	dead_pager_alloc,
 	.pgo_dealloc =	dead_pager_dealloc,
 	.pgo_getpages =	dead_pager_getpages,
@@ -163,7 +163,7 @@ static struct pagerops deadpagerops = {
 	.pgo_getvp =	dead_pager_getvp,
 };
 
-struct pagerops *pagertab[] = {
+const struct pagerops *pagertab[] __read_mostly = {
 	[OBJT_DEFAULT] =	&defaultpagerops,
 	[OBJT_SWAP] =		&swappagerops,
 	[OBJT_VNODE] =		&vnodepagerops,
@@ -178,7 +178,7 @@ struct pagerops *pagertab[] = {
 void
 vm_pager_init(void)
 {
-	struct pagerops **pgops;
+	const struct pagerops **pgops;
 
 	/*
 	 * Initialize known pagers
@@ -244,7 +244,7 @@ vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
     vm_prot_t prot, vm_ooffset_t off, struct ucred *cred)
 {
 	vm_object_t ret;
-	struct pagerops *ops;
+	const struct pagerops *ops;
 
 	ops = pagertab[type];
 	if (ops)
