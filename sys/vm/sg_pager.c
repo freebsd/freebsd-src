@@ -59,7 +59,7 @@ static void sg_pager_putpages(vm_object_t, vm_page_t *, int,
 static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
 
-struct pagerops sgpagerops = {
+const struct pagerops sgpagerops = {
 	.pgo_alloc =	sg_pager_alloc,
 	.pgo_dealloc =	sg_pager_dealloc,
 	.pgo_getpages =	sg_pager_getpages,

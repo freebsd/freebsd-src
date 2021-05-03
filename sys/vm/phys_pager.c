@@ -57,7 +57,7 @@ static int default_phys_pager_populate(vm_object_t object, vm_pindex_t pidx,
     int fault_type, vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last);
 static boolean_t default_phys_pager_haspage(vm_object_t object,
     vm_pindex_t pindex, int *before, int *after);
-struct phys_pager_ops default_phys_pg_ops = {
+const struct phys_pager_ops default_phys_pg_ops = {
 	.phys_pg_getpages = default_phys_pager_getpages,
 	.phys_pg_populate = default_phys_pager_populate,
 	.phys_pg_haspage = default_phys_pager_haspage,
@@ -74,7 +74,7 @@ phys_pager_init(void)
 }
 
 vm_object_t
-phys_pager_allocate(void *handle, struct phys_pager_ops *ops, void *data,
+phys_pager_allocate(void *handle, const struct phys_pager_ops *ops, void *data,
     vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff, struct ucred *cred)
 {
 	vm_object_t object, object1;
@@ -298,7 +298,7 @@ phys_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	    before, after));
 }
 
-struct pagerops physpagerops = {
+const struct pagerops physpagerops = {
 	.pgo_init =	phys_pager_init,
 	.pgo_alloc =	phys_pager_alloc,
 	.pgo_dealloc = 	phys_pager_dealloc,

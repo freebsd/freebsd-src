@@ -140,7 +140,7 @@ struct vm_object {
 		 */
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
-			struct cdev_pager_ops *ops;
+			const struct cdev_pager_ops *ops;
 			struct cdev *dev;
 		} devp;
 
@@ -178,7 +178,7 @@ struct vm_object {
 		 * Phys pager
 		 */
 		struct {
-			struct phys_pager_ops *ops;
+			const struct phys_pager_ops *ops;
 			union {
 				void *data_ptr;
 				uintptr_t data_val;
