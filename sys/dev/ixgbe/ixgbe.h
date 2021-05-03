@@ -408,6 +408,7 @@ struct adapter {
 
 	/* Info about the interface */
 	int                     advertise;  /* link speeds */
+	int                     enable_aim; /* adaptive interrupt moderation */
 	bool                    link_active;
 	u16                     num_segs;
 	u32                     link_speed;
