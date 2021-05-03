@@ -347,6 +347,16 @@ static int ixgbe_enable_rss = 1;
 SYSCTL_INT(_hw_ix, OID_AUTO, enable_rss, CTLFLAG_RDTUN, &ixgbe_enable_rss, 0,
     "Enable Receive-Side Scaling (RSS)");
 
+/*
+ * AIM: Adaptive Interrupt Moderation
+ * which means that the interrupt rate
+ * is varied over time based on the
+ * traffic for that interrupt vector
+ */
+static int ixgbe_enable_aim = FALSE;
+SYSCTL_INT(_hw_ix, OID_AUTO, enable_aim, CTLFLAG_RWTUN, &ixgbe_enable_aim, 0,
+    "Enable adaptive interrupt moderation");
+
 #if 0
 /* Keep running tab on them for sanity check */
 static int ixgbe_total_ports;
@@ -2100,6 +2110,60 @@ fail:
 	return (error);
 } /* ixgbe_if_msix_intr_assign */
 
+static inline void
+ixgbe_perform_aim(struct adapter *adapter, struct ix_rx_queue *que)
+{
+	uint32_t newitr = 0;
+	struct rx_ring *rxr = &que->rxr;
+
+	/*
+	 * Do Adaptive Interrupt Moderation:
+	 *  - Write out last calculated setting
+	 *  - Calculate based on average size over
+	 *    the last interval.
+	 */
+	if (que->eitr_setting) {
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(que->msix),
+		    que->eitr_setting);
+	}
+
+	que->eitr_setting = 0;
+	/* Idle, do nothing */
+	if (rxr->bytes == 0) {
+		return;
+	}
+
+	if ((rxr->bytes) && (rxr->packets)) {
+		newitr = (rxr->bytes / rxr->packets);
+	}
+
+	newitr += 24; /* account for hardware frame, crc */
+	/* set an upper boundary */
+	newitr = min(newitr, 3000);
+
+	/* Be nice to the mid range */
+	if ((newitr > 300) && (newitr < 1200)) {
+		newitr = (newitr / 3);
+	} else {
+		newitr = (newitr / 2);
+	}
+
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		newitr |= newitr << 16;
+	} else {
+		newitr |= IXGBE_EITR_CNT_WDIS;
+	}
+
+	/* save for next interrupt */
+	que->eitr_setting = newitr;
+
+	/* Reset state */
+	rxr->bytes = 0;
+	rxr->packets = 0;
+
+	return;
+}
+
 /*********************************************************************
  * ixgbe_msix_que - MSI-X Queue Interrupt Service routine
  **********************************************************************/
@@ -2116,6 +2180,11 @@ ixgbe_msix_que(void *arg)
 
 	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
+
+	/* Check for AIM */
+	if (adapter->enable_aim) {
+		ixgbe_perform_aim(adapter, que);
+	}
 
 	return (FILTER_SCHEDULE_THREAD);
 } /* ixgbe_msix_que */
@@ -2574,6 +2643,10 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    adapter, 0, ixgbe_sysctl_advertise, "I",
 	    IXGBE_SYSCTL_DESC_ADV_SPEED);
+
+	adapter->enable_aim = ixgbe_enable_aim;
+	SYSCTL_ADD_INT(ctx_list, child, OID_AUTO, "enable_aim", CTLFLAG_RW,
+	    &adapter->enable_aim, 0, "Interrupt Moderation");
 
 #ifdef IXGBE_DEBUG
 	/* testing sysctls (for all devices) */
