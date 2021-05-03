@@ -131,6 +131,8 @@ ENTRY(cpu_switch)
 	
 	stdu	%r1,-48(%r1)
 
+	/* Keep this next section in sync with cpu_save_thread_regs()! */
+
 	lwz	%r18, PCB_FLAGS(%r17)
 	andi.	%r7, %r18, PCB_CFSCR
 	beq	1f

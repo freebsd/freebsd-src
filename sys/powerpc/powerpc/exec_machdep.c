@@ -571,6 +571,74 @@ cleanup_power_extras(struct thread *td)
 }
 
 /*
+ * Ensure the PCB has been updated in preparation for copying a thread.
+ *
+ * This is needed because normally this only happens during switching tasks,
+ * but when we are cloning a thread, we need the updated state before doing
+ * the actual copy, so the new thread inherits the current state instead of
+ * the state at the last task switch.
+ *
+ * Keep this in sync with the assembly code in cpu_switch()!
+ */
+void
+cpu_save_thread_regs(struct thread *td)
+{
+	uint32_t pcb_flags;
+	struct pcb *pcb;
+
+	KASSERT(td == curthread,
+	    ("cpu_save_thread_regs: td is not curthread"));
+
+	pcb = td->td_pcb;
+
+	pcb_flags = pcb->pcb_flags;
+
+#if defined(__powerpc64__)
+	/* Are *any* FSCR flags in use? */
+	if (pcb_flags & PCB_CFSCR) {
+		pcb->pcb_fscr = mfspr(SPR_FSCR);
+
+		if (pcb->pcb_fscr & FSCR_EBB) {
+			pcb->pcb_ebb.ebbhr = mfspr(SPR_EBBHR);
+			pcb->pcb_ebb.ebbrr = mfspr(SPR_EBBRR);
+			pcb->pcb_ebb.bescr = mfspr(SPR_BESCR);
+		}
+		if (pcb->pcb_fscr & FSCR_LM) {
+			pcb->pcb_lm.lmrr = mfspr(SPR_LMRR);
+			pcb->pcb_lm.lmser = mfspr(SPR_LMSER);
+		}
+		if (pcb->pcb_fscr & FSCR_TAR)
+			pcb->pcb_tar = mfspr(SPR_TAR);
+	}
+
+	/*
+	 * This is outside of the PCB_CFSCR check because it can be set
+	 * independently when running on POWER7/POWER8.
+	 */
+	if (pcb_flags & PCB_CDSCR)
+		pcb->pcb_dscr = mfspr(SPR_DSCRP);
+#endif
+
+#if defined(__SPE__)
+	/*
+	 * On E500v2, single-precision scalar instructions and access to
+	 * SPEFSCR may be used without PSL_VEC turned on, as long as they
+	 * limit themselves to the low word of the registers.
+	 *
+	 * As such, we need to unconditionally save SPEFSCR, even though
+	 * it is also updated in save_vec_nodrop().
+	 */
+	pcb->pcb_vec.vscr = mfspr(SPR_SPEFSCR);
+#endif
+
+	if (pcb_flags & PCB_FPU)
+		save_fpu_nodrop(td);
+
+	if (pcb_flags & PCB_VEC)
+		save_vec_nodrop(td);
+}
+
+/*
  * Set set up registers on exec.
  */
 void
@@ -1027,6 +1095,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	struct pcb *pcb2;
 	struct trapframe *tf;
 	struct callframe *cf;
+
+	/* Ensure td0 pcb is up to date. */
+	if (td == curthread)
+		cpu_save_thread_regs(td0);
 
 	pcb2 = td->td_pcb;
 
