@@ -760,6 +760,8 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_bind: inp == NULL"));
 
+	if (nam->sa_family != AF_INET6)
+		return (EAFNOSUPPORT);
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
 	if ((error = prison_check_ip6(td->td_ucred, &addr->sin6_addr)) != 0)
@@ -890,6 +892,10 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		if (nam == NULL) {
 			m_freem(m);
 			return (ENOTCONN);
+		}
+		if (nam->sa_family != AF_INET6) {
+			m_freem(m);
+			return (EAFNOSUPPORT);
 		}
 		if (nam->sa_len != sizeof(struct sockaddr_in6)) {
 			m_freem(m);

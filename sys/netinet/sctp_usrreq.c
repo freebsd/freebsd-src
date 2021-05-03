@@ -598,9 +598,20 @@ sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	    ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE))) {
 		goto connected_type;
-	} else if (addr == NULL) {
+	}
+
+	error = 0;
+	if (addr == NULL) {
 		SCTP_LTRACE_ERR_RET_PKT(m, inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EDESTADDRREQ);
 		error = EDESTADDRREQ;
+	} else if (addr->sa_family != AF_INET) {
+		SCTP_LTRACE_ERR_RET_PKT(m, inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EAFNOSUPPORT);
+		error = EAFNOSUPPORT;
+	} else if (addr->sa_len != sizeof(struct sockaddr_in)) {
+		SCTP_LTRACE_ERR_RET_PKT(m, inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+		error = EINVAL;
+	}
+	if (error != 0) {
 		sctp_m_freem(m);
 		if (control) {
 			sctp_m_freem(control);
@@ -608,19 +619,6 @@ sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 		return (error);
 	}
-#ifdef INET6
-	if (addr->sa_family != AF_INET) {
-		/* must be a v4 address! */
-		SCTP_LTRACE_ERR_RET_PKT(m, inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EDESTADDRREQ);
-		sctp_m_freem(m);
-		if (control) {
-			sctp_m_freem(control);
-			control = NULL;
-		}
-		error = EDESTADDRREQ;
-		return (error);
-	}
-#endif				/* INET6 */
 connected_type:
 	/* now what about control */
 	if (control) {

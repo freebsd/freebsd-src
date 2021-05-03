@@ -231,6 +231,14 @@ send_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		__func__, so, V_send_so));
 
 	sendsrc = (struct sockaddr_send *)nam;
+	if (sendsrc->send_family != AF_INET6) {
+		error = EAFNOSUPPORT;
+		goto err;
+	}
+	if (sendsrc->send_len != sizeof(*sendsrc)) {
+		error = EINVAL;
+		goto err;
+	}
 	ifp = ifnet_byindex_ref(sendsrc->send_ifidx);
 	if (ifp == NULL) {
 		error = ENETUNREACH;

@@ -1626,6 +1626,12 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_bind: inp == NULL"));
+
+	if (nam->sa_family != AF_INET)
+		return (EAFNOSUPPORT);
+	if (nam->sa_len != sizeof(struct sockaddr_in))
+		return (EINVAL);
+
 	INP_WLOCK(inp);
 	INP_HASH_WLOCK(pcbinfo);
 	error = in_pcbbind(inp, nam, td->td_ucred);
@@ -1666,12 +1672,18 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	pcbinfo = udp_get_inpcbinfo(so->so_proto->pr_protocol);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_connect: inp == NULL"));
+
+	sin = (struct sockaddr_in *)nam;
+	if (sin->sin_family != AF_INET)
+		return (EAFNOSUPPORT);
+	if (sin->sin_len != sizeof(*sin))
+		return (EINVAL);
+
 	INP_WLOCK(inp);
 	if (inp->inp_faddr.s_addr != INADDR_ANY) {
 		INP_WUNLOCK(inp);
 		return (EISCONN);
 	}
-	sin = (struct sockaddr_in *)nam;
 	error = prison_remote_ip4(td->td_ucred, &sin->sin_addr);
 	if (error != 0) {
 		INP_WUNLOCK(inp);
@@ -1741,9 +1753,23 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
+	int error;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
+
+	if (addr != NULL) {
+		error = 0;
+		if (addr->sa_family != AF_INET)
+			error = EAFNOSUPPORT;
+		else if (addr->sa_len != sizeof(struct sockaddr_in))
+			error = EINVAL;
+		if (__predict_false(error != 0)) {
+			m_freem(control);
+			m_freem(m);
+			return (error);
+		}
+	}
 	return (udp_output(inp, m, addr, control, td, flags));
 }
 #endif /* INET */

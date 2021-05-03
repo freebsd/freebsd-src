@@ -300,6 +300,7 @@ hvs_addr_set(struct sockaddr_hvs *addr, unsigned int port)
 {
 	memset(addr, 0, sizeof(*addr));
 	addr->sa_family = AF_HYPERV;
+	addr->sa_len = sizeof(*addr);
 	addr->hvs_port = port;
 }
 
@@ -430,6 +431,12 @@ hvs_trans_bind(struct socket *so, struct sockaddr *addr, struct thread *td)
 		    __func__, sa->sa_family);
 		return (EAFNOSUPPORT);
 	}
+	if (sa->sa_len != sizeof(*sa)) {
+		HVSOCK_DBG(HVSOCK_DBG_ERR,
+		    "%s: Not supported, sa_len is %u\n",
+		    __func__, sa->sa_len);
+		return (EINVAL);
+	}
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: binding port = 0x%x\n", __func__, sa->hvs_port);
@@ -521,6 +528,8 @@ hvs_trans_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EINVAL);
 	if (raddr->sa_family != AF_HYPERV)
 		return (EAFNOSUPPORT);
+	if (raddr->sa_len != sizeof(*raddr))
+		return (EINVAL);
 
 	mtx_lock(&hvs_trans_socks_mtx);
 	if (so->so_state &
