@@ -245,7 +245,7 @@ usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-"usage: %s [-AdeghmNnOPqRrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
+"usage: %s [-AdeghMmNnOPqRrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
 	"\t[-f file] [-i interface] [-K host | network]\n"
 	"\t[-k host | network | gateway | label | id] [-o level] [-p device]\n"
 	"\t[-s modifier] [-t table -T command [address ...]] [-x level]\n",
@@ -478,6 +478,9 @@ pfctl_clear_iface_states(int dev, const char *iface, int opts)
 	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
+	if (opts & PF_OPT_KILLMATCH)
+		kill.kill_match = true;
+
 	if (pfctl_clear_states(dev, &kill, &killed))
 		err(1, "DIOCCLRSTATES");
 	if ((opts & PF_OPT_QUIET) == 0)
@@ -661,6 +664,9 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 
 	pfctl_addrprefix(state_kill[0], &kill.src.addr.v.a.mask);
 
+	if (opts & PF_OPT_KILLMATCH)
+		kill.kill_match = true;
+
 	if ((ret_ga = getaddrinfo(state_kill[0], NULL, NULL, &res[0]))) {
 		errx(1, "getaddrinfo: %s", gai_strerror(ret_ga));
 		/* NOTREACHED */
@@ -768,6 +774,9 @@ pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
+	if (opts & PF_OPT_KILLMATCH)
+		kill.kill_match = true;
+
 	pfctl_addrprefix(state_kill[1], &kill.rt_addr.addr.v.a.mask);
 
 	if ((ret_ga = getaddrinfo(state_kill[1], NULL, NULL, &res))) {
@@ -821,6 +830,9 @@ pfctl_label_kill_states(int dev, const char *iface, int opts)
 	    sizeof(kill.ifname)) >= sizeof(kill.ifname))
 		errx(1, "invalid interface: %s", iface);
 
+	if (opts & PF_OPT_KILLMATCH)
+		kill.kill_match = true;
+
 	if (strlcpy(kill.label, state_kill[1], sizeof(kill.label)) >=
 	    sizeof(kill.label))
 		errx(1, "label too long: %s", state_kill[1]);
@@ -846,6 +858,10 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 	}
 
 	memset(&kill, 0, sizeof(kill));
+
+	if (opts & PF_OPT_KILLMATCH)
+		kill.kill_match = true;
+
 	if ((sscanf(state_kill[1], "%jx/%x",
 	    &kill.cmp.id, &kill.cmp.creatorid)) == 2)
 		HTONL(kill.cmp.creatorid);
@@ -2199,7 +2215,7 @@ main(int argc, char *argv[])
 		usage();
 
 	while ((ch = getopt(argc, argv,
-	    "a:AdD:eqf:F:ghi:k:K:mnNOo:Pp:rRs:t:T:vx:z")) != -1) {
+	    "a:AdD:eqf:F:ghi:k:K:mMnNOo:Pp:rRs:t:T:vx:z")) != -1) {
 		switch (ch) {
 		case 'a':
 			anchoropt = optarg;
@@ -2251,6 +2267,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':
 			opts |= PF_OPT_MERGE;
+			break;
+		case 'M':
+			opts |= PF_OPT_KILLMATCH;
 			break;
 		case 'n':
 			opts |= PF_OPT_NOACTION;
