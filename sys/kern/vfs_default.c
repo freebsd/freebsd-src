@@ -1500,6 +1500,7 @@ vop_stdstat(struct vop_stat_args *a)
 	vap->va_birthtime.tv_sec = -1;
 	vap->va_birthtime.tv_nsec = 0;
 	vap->va_fsid = VNOVAL;
+	vap->va_gen = 0;
 	vap->va_rdev = NODEV;
 
 	error = VOP_GETATTR(vp, vap, a->a_active_cred);
