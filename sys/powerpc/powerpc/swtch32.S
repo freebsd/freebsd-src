@@ -104,6 +104,8 @@ ENTRY(cpu_switch)
 	mr	%r16,%r5		/* and the new lock */
 	mr	%r17,%r6		/* and the PCB */
 	
+	/* Keep this next section in sync with cpu_save_thread_regs()! */
+
 	lwz	%r18,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
 	andi.	%r7, %r18, PCB_FPU
