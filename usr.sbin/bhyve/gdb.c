@@ -1821,7 +1821,7 @@ void
 init_gdb(struct vmctx *_ctx, int sport, bool wait)
 {
 	struct sockaddr_in sin;
-	int error, flags, s;
+	int error, flags, optval, s;
 
 	debug("==> starting on %d, %swaiting\n", sport, wait ? "" : "not ");
 
@@ -1836,6 +1836,9 @@ init_gdb(struct vmctx *_ctx, int sport, bool wait)
 	s = socket(PF_INET, SOCK_STREAM, 0);
 	if (s < 0)
 		err(1, "gdb socket create");
+
+	optval = 1;
+	(void)setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
