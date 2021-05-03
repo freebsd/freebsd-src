@@ -654,6 +654,10 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
 	int anonport, error;
 
+	KASSERT(nam == NULL || nam->sa_family == AF_INET,
+	    ("%s: invalid address family for %p", __func__, nam));
+	KASSERT(nam == NULL || nam->sa_len == sizeof(struct sockaddr_in),
+	    ("%s: invalid address length for %p", __func__, nam));
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);
 
@@ -940,16 +944,11 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			return (error);
 	} else {
 		sin = (struct sockaddr_in *)nam;
-		if (nam->sa_len != sizeof (*sin))
-			return (EINVAL);
-#ifdef notdef
-		/*
-		 * We should check the family, but old programs
-		 * incorrectly fail to initialize it.
-		 */
-		if (sin->sin_family != AF_INET)
-			return (EAFNOSUPPORT);
-#endif
+		KASSERT(sin->sin_family == AF_INET,
+		    ("%s: invalid family for address %p", __func__, sin));
+		KASSERT(sin->sin_len == sizeof(*sin),
+		    ("%s: invalid length for address %p", __func__, sin));
+
 		error = prison_local_ip4(cred, &sin->sin_addr);
 		if (error)
 			return (error);
@@ -1372,6 +1371,11 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	u_short lport, fport;
 	int error;
 
+	KASSERT(sin->sin_family == AF_INET,
+	    ("%s: invalid address family for %p", __func__, sin));
+	KASSERT(sin->sin_len == sizeof(*sin),
+	    ("%s: invalid address length for %p", __func__, sin));
+
 	/*
 	 * Because a global state change doesn't actually occur here, a read
 	 * lock is sufficient.
@@ -1382,10 +1386,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 
 	if (oinpp != NULL)
 		*oinpp = NULL;
-	if (nam->sa_len != sizeof (*sin))
-		return (EINVAL);
-	if (sin->sin_family != AF_INET)
-		return (EAFNOSUPPORT);
 	if (sin->sin_port == 0)
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;

@@ -240,11 +240,16 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 	}
 
+	if (sap->sg_len > NG_NODESIZ + offsetof(struct sockaddr_ng, sg_data)) {
+		error = EINVAL;
+		goto release;
+	}
+
 	/*
 	 * Allocate an expendable buffer for the path, chop off
 	 * the sockaddr header, and make sure it's NUL terminated.
 	 */
-	len = sap->sg_len - 2;
+	len = sap->sg_len - offsetof(struct sockaddr_ng, sg_data);
 	path = malloc(len + 1, M_NETGRAPH_PATH, M_WAITOK);
 	bcopy(sap->sg_data, path, len);
 	path[len] = '\0';
@@ -422,10 +427,16 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		goto release;
 	}
 
-	if (sap == NULL)
+	if (sap == NULL) {
 		len = 0;		/* Make compiler happy. */
-	else
-		len = sap->sg_len - 2;
+	} else {
+		if (sap->sg_len > NG_NODESIZ +
+		    offsetof(struct sockaddr_ng, sg_data)) {
+			error = EINVAL;
+			goto release;
+		}
+		len = sap->sg_len - offsetof(struct sockaddr_ng, sg_data);
+	}
 
 	/*
 	 * If the user used any of these ways to not specify an address
