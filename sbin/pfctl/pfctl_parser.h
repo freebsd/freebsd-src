@@ -55,6 +55,7 @@
 #define PF_OPT_NUMERIC		0x1000
 #define PF_OPT_MERGE		0x2000
 #define PF_OPT_RECURSE		0x4000
+#define PF_OPT_KILLMATCH	0x8000
 
 #define PF_TH_ALL		0xFF
 

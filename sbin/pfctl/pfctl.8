@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .Nm pfctl
 .Bk -words
-.Op Fl AdeghmNnOPqRrvz
+.Op Fl AdeghMmNnOPqRrvz
 .Op Fl a Ar anchor
 .Oo Fl D Ar macro Ns =
 .Ar value Oc
@@ -331,6 +331,17 @@ A network prefix length can also be specified.
 To kill all states using a gateway in 192.168.0.0/24:
 .Pp
 .Dl # pfctl -k gateway -k 192.168.0.0/24
+.Pp
+.It Fl M
+Kill matching states in the opposite direction (on other interfaces) when
+killing states.
+This applies to states killed using the -k option and also will apply to the
+flush command when flushing states.
+This is useful when an interface is specified when flushing states.
+Example:
+.Pp
+.Dl # pfctl -M -i interface -Fs
+.Pp
 .It Fl m
 Merge in explicitly given options without resetting those
 which are omitted.
