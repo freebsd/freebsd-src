@@ -2066,6 +2066,7 @@ OLD_FILES+=usr/include/dev/wi/if_wavelan_ieee.h
 OLD_FILES+=usr/include/dev/wi/if_wivar.h
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/share/man/man4/cmw.4.gz
+OLD_FILES+=usr/share/man/man4/if_wi.4.gz
 OLD_FILES+=usr/share/man/man4/ng_bt3c.4.gz
 OLD_FILES+=usr/share/man/man4/wi.4.gz
 OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
@@ -2073,6 +2074,9 @@ OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
 # 20210107: retire a.out support
 OLD_DIRS+=usr/lib/aout
 OLD_DIRS+=usr/lib/compat/aout
+
+# 20210107: remove cmx(4)
+OLD_FILES+=usr/share/man/man4/cmx.4.gz
 
 # 20210105: remove non widechar version of ncurses
 OLD_LIBS+=lib/libncurses.so.9
@@ -2343,6 +2347,9 @@ OLD_DIRS+=usr/lib/clang/11.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/11.0.0/lib
 OLD_DIRS+=usr/lib/clang/11.0.0
 
+# 20201225: PMC for Xscale removed
+OLD_FILES+=usr/share/man/man3/pmc.xscale.3.gz
+
 # 20201225: libregex removed
 OLD_FILES+=usr/include/gnu/posix/regex.h
 OLD_DIRS+=usr/include/gnu/posix
@@ -2459,6 +2466,8 @@ OLD_FILES+=boot/lua/logo-orbbw.lua
 # 20200825: merged OpenZFS support
 OLD_LIBS+=lib/libzfs.so.3
 OLD_LIBS+=usr/lib32/libzfs.so.3
+OLD_FILES+=usr/share/man/man1/zstreamdump.1.gz
+OLD_FILES+=usr/share/man/man7/zpool-features.7.gz
 
 # 20200923: memfd_test moved to /usr/tests/sys/posixshm
 OLD_FILES+=usr/tests/sys/kern/memfd_test
@@ -2761,6 +2770,7 @@ OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4d.h
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld.bfd
 OLD_FILES+=usr/share/man/man1/as.1.gz
+OLD_FILES+=usr/share/man/man1/ld.bfd.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
@@ -3561,6 +3571,7 @@ OLD_FILES+=usr/include/machine/ioctl_bktr.h
 OLD_FILES+=usr/include/machine/ioctl_meteor.h
 .endif
 OLD_FILES+=usr/share/man/man4/bktr.4.gz
+OLD_FILES+=usr/share/man/man4/brooktree.4.gz
 
 # 20200229: GCC 4.2.1 removed
 .if !defined(WITH_PORT_BASE_GCC)
@@ -4174,7 +4185,7 @@ OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
-OLD_FILES+=usr/share/man/man1/gperf.7.gz
+OLD_FILES+=usr/share/man/man7/gperf.7.gz
 
 # 20200220: Upgrade of ncurses, shlib bumped to version 9
 OLD_LIBS+=lib/libncurses.so.8
@@ -4202,8 +4213,9 @@ OLD_DIRS+=usr/include/ssp
 OLD_FILES+=usr/lib/libssp.a
 
 # 20191229: GEOM_SCHED class and gsched tool removed
-OLD_FILES+=sbin/gsched
 OLD_LIBS+=lib/geom/geom_sched.so
+OLD_FILES+=sbin/gsched
+OLD_FILES+=usr/share/man/man8/gsched.8.gz
 
 # 20191222: new clang import which bumps version from 9.0.0 to 9.0.1
 OLD_FILES+=usr/lib/clang/9.0.0/include/cuda_wrappers/algorithm
@@ -4441,8 +4453,14 @@ OLD_FILES+=usr/lib/clang/9.0.0/lib/freebsd/libclang_rt.xray-x86_64.a
 OLD_DIRS+=usr/lib/clang/9.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/9.0.0/lib
 OLD_DIRS+=usr/lib/clang/9.0.0
+# 20191221: Update libpcap from 1.9.0 to 1.9.1
+OLD_FILES+=usr/share/man/man3/pcap_set_immediate_mode.3.gz
+OLD_FILES+=usr/share/man/man3/pcap_set_protocol.3.gz
 # 20191214: Removal of sranddev(3)
 OLD_FILES+=usr/share/man/man3/sranddev.3.gz
+# 20191213: Renamed (BIT|CPU)_NAND to (BIT|CPU)_ANDNOT
+OLD_FILES+=usr/share/man/man9/BIT_NAND.9.gz
+OLD_FILES+=usr/share/man/man9/CPU_NAND.9.gz
 # 20191213: remove timeout(9)
 OLD_FILES+=usr/share/man/man9/callout_handle_init.9.gz
 OLD_FILES+=usr/share/man/man9/timeout.9.gz
@@ -4453,7 +4471,9 @@ OLD_FILES+=usr/share/man/man4/trm.4.gz
 OLD_FILES+=usr/share/man/man4/sio.4.gz
 # 20191105: picobsd(8), et al, removed
 OLD_FILES+=usr/share/man/man8/picobsd.8.gz
-# 20191009: new clang import which bumps version from 8.0.1 to 9.0.0
+# 20191017: taskqueue_start_threads_pinned became taskqueue_start_threads_cpuset
+OLD_FILES+=usr/share/man/man9/taskqueue_start_threads_pinned.9.gz
+# 20191009: new clang import which bumps version from 8.0.1 to 9.0.0.
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/8.0.1/include/sanitizer/common_interface_defs.h
@@ -4624,6 +4644,8 @@ OLD_FILES+=usr/bin/mklocale
 OLD_FILES+=usr/share/man/man1/mklocale.1.gz
 OLD_FILES+=usr/bin/colldef
 OLD_FILES+=usr/share/man/man1/colldef.1.gz
+# 20190909: vm_map_unwire(9) removed
+OLD_FILES+=usr/share/man/man9/vm_map_unwire.9.gz
 # 20190904: Remove boot1.efifat and gptboot.efifat (which never should have been)
 OLD_FILES+=boot/boot1.efifat
 OLD_FILES+=boot/gptboot.efifat
@@ -4715,16 +4737,23 @@ OLD_FILES+=usr/tests/sys/netpfil/pf/sniffer.py
 OLD_FILES+=usr/tests/sys/netpfil/pf/pft_ping.py
 # 20190816: dir.h removed from POSIX
 OLD_FILES+=usr/include/sys/dir.h
+# 20190813: deprecated GEOM classes removed
+OLD_FILES+=usr/share/man/man4/geom_fox.4.gz
 # 20190729: gzip'ed a.out support removed
 OLD_FILES+=usr/include/sys/inflate.h
 # 20190722: cap_random(3) removed
 OLD_LIBS+=lib/casper/libcap_random.so.1
 OLD_FILES+=usr/include/casper/cap_random.h
 OLD_LIBS+=usr/lib/casper/libcap_random.so
+OLD_FILES+=usr/share/man/man3/libcap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random_buf.3.gz
 # 20190708: vm_page_hold() and _unhold() removed
 OLD_FILES+=usr/share/man/man9/vm_page_hold.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_unhold.9.gz
+# 20190625: Remove NAND and NANDFS support
+OLD_FILES+=usr/share/man/man4/nand.4.gz
+OLD_FILES+=usr/share/man/man4/nandsim.4.gz
 # 20190618: sys/capability.h removed (sys/capsicum.h is the one to use)
 OLD_FILES+=usr/include/sys/capability.h
 # 20190615: sys/pwm.h renamed to dev/pwmc.h
@@ -4907,6 +4936,7 @@ OLD_FILES+=usr/share/man/man4/txp.4.gz
 OLD_FILES+=usr/share/man/man4/if_txp.4.gz
 OLD_FILES+=usr/share/man/man4/vx.4.gz
 OLD_FILES+=usr/share/man/man4/wb.4.gz
+OLD_FILES+=usr/share/man/man4/if_wb.4.gz
 OLD_FILES+=usr/share/man/man4/xe.4.gz
 OLD_FILES+=usr/share/man/man4/if_xe.4.gz
 # 20190513: libcap_sysctl interface change
@@ -5262,6 +5292,18 @@ OLD_LIBS+=lib/libcrypto.so.9
 OLD_LIBS+=usr/lib/libssl.so.9
 OLD_LIBS+=usr/lib32/libcrypto.so.9
 OLD_LIBS+=usr/lib32/libssl.so.9
+# 20181022: aha(4) removal
+OLD_FILES+=usr/share/man/man4/aha.4.gz
+# 20181022: dpt(4) removal
+OLD_FILES+=usr/share/man/man4/dpt.4.gz
+# 20181022: ncr(4) removal
+OLD_FILES+=usr/share/man/man4/ncr.4.gz
+# 20181022: ncv(4) removal
+OLD_FILES+=usr/share/man/man4/ncv.4.gz
+# 20181022: nsp(4) removal
+OLD_FILES+=usr/share/man/man4/nsp.4.gz
+# 20181022: stg(4) removal
+OLD_FILES+=usr/share/man/man4/stg.4.gz
 # 20181021: mse(4) removal
 OLD_FILES+=usr/share/man/man4/mse.4.gz
 # 20181015: Stale libcasper(3) files following r329452
@@ -5278,6 +5320,7 @@ OLD_LIBS+=usr/lib32/libcap_random.so.0
 OLD_LIBS+=usr/lib32/libcap_dns.so.0
 OLD_LIBS+=usr/lib32/libcap_syslog.so.0
 # 20181012: rename of ixlv(4) to iavf(4)
+OLD_FILES+=usr/share/man/man4/if_ixlv.4.gz
 OLD_FILES+=usr/share/man/man4/ixlv.4.gz
 # 20181009: OpenSSL 1.1.1
 OLD_FILES+=usr/include/openssl/des_old.h
@@ -5515,6 +5558,8 @@ OLD_FILES+=usr/share/man/man3/arc4random_addrandom.3.gz
 OLD_FILES+=usr/share/man/man3/arc4random_stir.3.gz
 # 20180819: send-pr(1) placeholder removal
 OLD_FILES+=usr/bin/send-pr
+# 20180801: jedec_ts(4) removed
+OLD_FILES+=usr/share/man/man4/jedec_ts.4.gz
 # 20180725: Cleanup old libcasper.so.0
 OLD_LIBS+=lib/libcasper.so.0
 OLD_LIBS+=usr/lib32/libcasper.so.0
@@ -5528,6 +5573,8 @@ OLD_FILES+=usr/bin/indent/tests/sac.0.stdout
 # 20180721: move of libmlx5.so.1 and libibverbs.so.1
 OLD_LIBS+=usr/lib/libmlx5.so.1
 OLD_LIBS+=usr/lib/libibverbs.so.1
+# 20180720: zfsloader.8 merged into loader.8
+OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 # 20180710: old numa cleanup
 OLD_FILES+=usr/include/sys/numa.h
 OLD_FILES+=usr/share/man/man2/numa_getaffinity.2.gz
@@ -6049,6 +6096,8 @@ OLD_FILES+=usr/share/games/fortune/zippy.dat
 OLD_FILES+=usr/share/misc/eqnchar
 # 20171110: Removal of mailaddr man page
 OLD_FILES+=usr/share/man/man7/mailaddr.7.gz
+# 20171108: Rename of NgSendMsgReply to NgSendReplyMsg
+OLD_FILES+=usr/share/man/man3/NgSendMsgReply.3.gz
 # 20171108: badsect(8) removal
 OLD_FILES+=sbin/badsect
 OLD_FILES+=rescue/badsect
@@ -6259,6 +6308,8 @@ OLD_DIRS+=usr/share/openssl/man/cat1
 OLD_DIRS+=usr/share/openssl/man/cat3
 OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat1
 OLD_DIRS+=usr/share/openssl/man/en.ISO8859-1/cat3
+# 20170830: rename ntb_hw(4) to ntb_hw_intel(4)
+OLD_FILES+=usr/share/man/man4/ntb_hw.4.gz
 # 20170802: ksyms(4) ioctl interface was removed
 OLD_FILES+=usr/include/sys/ksyms.h
 # 20170729: the iicbus/pcf8563 driver is replaced with iicbus/nxprtc
@@ -7010,6 +7061,9 @@ OLD_LIBS+=usr/lib32/libmilter.so.5
 OLD_FILES+=etc/rc.d/atm1
 OLD_FILES+=etc/rc.d/atm2
 OLD_FILES+=etc/rc.d/atm3
+OLD_FILES+=usr/share/man/man8/rc.atm.8.gz
+# 20170426: UMA_ZONE_REFCNT removed
+OLD_FILES+=usr/share/man/man9/uma_find_refcnt.9.gz
 # 20170424: NATM support removed
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
@@ -7082,6 +7136,8 @@ OLD_DIRS+=usr/tests/sys/geom/eli
 # 20170313: sbin/ipftest and ipresend temporarily disconnected
 OLD_FILES+=sbin/ipftest
 OLD_FILES+=sbin/ipresend
+OLD_FILES+=usr/share/man/man1/ipftest.1.gz
+OLD_FILES+=usr/share/man/man1/ipresend.1.gz
 # 20170311: Remove WITHOUT_MANDOCDB option
 OLD_FILES+=usr/share/man/man1/makewhatis.1.gz
 # 20170308: rename some tests
@@ -7213,6 +7269,10 @@ OLD_FILES+=usr/tests/lib/libpam/t_openpam_ctype
 OLD_FILES+=usr/tests/lib/libpam/t_openpam_readlinev
 OLD_FILES+=usr/tests/lib/libpam/t_openpam_readword
 OLD_DIRS+=usr/test/lib/libpam
+# 20170216: remove ahb(4)
+OLD_FILES+=usr/share/man/man4/ahb.4.gz
+# 20170216: remove fea(4)
+OLD_FILES+=usr/share/man/man4/fea.4.gz
 # 20170206: remove bdes(1)
 OLD_FILES+=usr/bin/bdes
 OLD_FILES+=usr/lib/debug/usr/bin/bdes.debug
@@ -7469,6 +7529,7 @@ OLD_FILES+=usr/share/man/man4/hv_vss.4.gz
 # 20161118: Remove hv_ata_pci_disengage(4)
 OLD_FILES+=usr/share/man/man4/hv_ata_pci_disengage.4.gz
 # 20161017: urtwn(4) was merged into rtwn(4)
+OLD_FILES+=usr/share/man/man4/if_urtwn.4.gz
 OLD_FILES+=usr/share/man/man4/urtwn.4.gz
 OLD_FILES+=usr/share/man/man4/urtwnfw.4.gz
 # 20161015: Remove GNU rcs
@@ -7805,6 +7866,7 @@ OLD_FILES+=usr/lib/clang/3.7.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/3.7.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/3.7.1/lib
 OLD_DIRS+=usr/lib/clang/3.7.1
+OLD_FILES+=usr/share/man/man1/tblgen.1.gz
 # 20160301: Remove taskqueue_enqueue_fast
 OLD_FILES+=usr/share/man/man9/taskqueue_enqueue_fast.9.gz
 # 20160225: Remove casperd and libcapsicum
@@ -9180,7 +9242,7 @@ OLD_FILES+=usr/tests/usr.sbin/pw/pw_delete
 OLD_FILES+=usr/tests/usr.sbin/pw/pw_modify
 # 20141202: update to mandoc CVS 20141201
 OLD_FILES+=usr.bin/preconv
-OLD_FILES+=share/man/man1/preconv.1.gz
+OLD_FILES+=usr/share/man/man1/preconv.1.gz
 # 20141129: mrouted rc.d scripts removed from base
 OLD_FILES+=etc/rc.d/mrouted
 # 20141126: convert sbin/mdconfig/tests to ATF format tests
@@ -9409,6 +9471,8 @@ OLD_FILES+=usr/lib/libssp_p.a
 OLD_FILES+=usr/lib/libstand_p.a
 OLD_FILES+=usr/lib32/libssp_p.a
 OLD_FILES+=usr/lib32/libstand_p.a
+# 20140413: Removed NO_MANCOMPRESS from mount_fusefs
+OLD_FILES+=usr/share/man/man8/mount_fusefs.8
 # 20140314: AppleTalk
 OLD_DIRS+=usr/include/netatalk
 OLD_FILES+=usr/include/netatalk/aarp.h
@@ -9864,7 +9928,7 @@ OLD_FILES+=usr/share/man/man9/vm_page_io.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_io_finish.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_io_start.9.gz
 OLD_FILES+=usr/share/man/man9/vm_page_wakeup.9.gz
-# 20130710: libkvm version bump 
+# 20130710: libkvm version bump
 OLD_LIBS+=lib/libkvm.so.5
 OLD_LIBS+=usr/lib32/libkvm.so.5
 # 20130623: dialog update from 1.1 to 1.2
