@@ -2965,10 +2965,12 @@ OLD_LIBS+=usr/lib/libpanel.so.5
 OLD_LIBS+=usr/lib/libpanelw.so.5
 
 # 20210125: ndis driver support removed
+OLD_FILES+=usr/sbin/ndis_events
 OLD_FILES+=usr/sbin/ndiscvt
 OLD_FILES+=usr/sbin/ndisgen
 OLD_FILES+=usr/share/man/man4/ndis.4.gz
 OLD_FILES+=usr/share/man/man4/if_ndis.4.gz
+OLD_FILES+=usr/share/man/man8/ndis_events.8.gz
 OLD_FILES+=usr/share/man/man8/ndiscvt.8.gz
 OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
 OLD_FILES+=usr/share/misc/windrv_stub.c
