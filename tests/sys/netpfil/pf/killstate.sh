@@ -377,6 +377,76 @@ gateway_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "match" "cleanup"
+match_head()
+{
+	atf_set descr 'Test killing matching states'
+	atf_set require.user root
+}
+
+match_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	ifconfig ${epair_one}a 192.0.2.1/24 up
+
+	epair_two=$(vnet_mkepair)
+
+	vnet_mkjail alcatraz ${epair_one}b ${epair_two}a
+	jexec alcatraz ifconfig ${epair_one}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+	jexec alcatraz pfctl -e
+
+	vnet_mkjail singsing ${epair_two}b
+	jexec singsing ifconfig ${epair_two}b 198.51.100.2/24 up
+	jexec singsing route add default 198.51.100.1
+	jexec singsing /usr/sbin/inetd -p inetd-echo.pid \
+	    $(atf_get_srcdir)/echo_inetd.conf
+
+	route add 198.51.100.0/24 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"nat on ${epair_two}a from 192.0.2.0/24 -> (${epair_two}a)" \
+		"pass all"
+
+	nc 198.51.100.2 7 &
+
+	# Expect two states
+	states=$(jexec alcatraz pfctl -s s | wc -l)
+	if [ $states -ne 2 ] ;
+	then
+		atf_fail "Expected two states, found $states"
+	fi
+
+	# If we don't kill the matching NAT state one should be left
+	jexec alcatraz pfctl -k 192.0.2.1
+	states=$(jexec alcatraz pfctl -s s | wc -l)
+	if [ $states -ne 1 ] ;
+	then
+		atf_fail "Expected one states, found $states"
+	fi
+
+	# Flush
+	jexec alcatraz pfctl -F states
+
+	nc 198.51.100.2 7 &
+
+	# Kill matching states, expect all of them to be gone
+	jexec alcatraz pfctl -M -k 192.0.2.1
+	states=$(jexec alcatraz pfctl -s s | wc -l)
+	if [ $states -ne 0 ] ;
+	then
+		atf_fail "Expected zero states, found $states"
+	fi
+}
+
+match_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -384,4 +454,5 @@ atf_init_test_cases()
 	atf_add_test_case "label"
 	atf_add_test_case "multilabel"
 	atf_add_test_case "gateway"
+	atf_add_test_case "match"
 }
