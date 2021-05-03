@@ -2467,6 +2467,8 @@ pf_nvstate_kill_to_kstate_kill(const nvlist_t *nvl,
 	    sizeof(kill->psk_ifname)));
 	PFNV_CHK(pf_nvstring(nvl, "label", kill->psk_label,
 	    sizeof(kill->psk_label)));
+	if (nvlist_exists_bool(nvl, "kill_match"))
+		kill->psk_kill_match = nvlist_get_bool(nvl, "kill_match");
 
 errout:
 	return (error);
@@ -2644,13 +2646,33 @@ pf_label_match(const struct pf_krule *rule, const char *label)
 	return (false);
 }
 
+static unsigned int
+pf_kill_matching_state(struct pf_state_key_cmp *key, int dir)
+{
+	struct pf_state *match;
+	int more = 0;
+	unsigned int killed = 0;
+
+	/* Call with unlocked hashrow */
+
+	match = pf_find_state_all(key, dir, &more);
+	if (match && !more) {
+		pf_unlink_state(match, 0);
+		killed++;
+	}
+
+	return (killed);
+}
+
 static int
 pf_killstates_row(struct pf_kstate_kill *psk, struct pf_idhash *ih)
 {
 	struct pf_state		*s;
 	struct pf_state_key	*sk;
 	struct pf_addr		*srcaddr, *dstaddr;
-	int			 killed = 0;
+	struct pf_state_key_cmp	 match_key;
+	int			 idx, killed = 0;
+	unsigned int		 dir;
 	u_int16_t		 srcport, dstport;
 
 relock_DIOCKILLSTATES:
@@ -2707,8 +2729,36 @@ relock_DIOCKILLSTATES:
 		    s->kif->pfik_name))
 			continue;
 
+		if (psk->psk_kill_match) {
+			/* Create the key to find matching states, with lock
+			 * held. */
+
+			bzero(&match_key, sizeof(match_key));
+
+			if (s->direction == PF_OUT) {
+				dir = PF_IN;
+				idx = PF_SK_STACK;
+			} else {
+				dir = PF_OUT;
+				idx = PF_SK_WIRE;
+			}
+
+			match_key.af = s->key[idx]->af;
+			match_key.proto = s->key[idx]->proto;
+			PF_ACPY(&match_key.addr[0],
+			    &s->key[idx]->addr[1], match_key.af);
+			match_key.port[0] = s->key[idx]->port[1];
+			PF_ACPY(&match_key.addr[1],
+			    &s->key[idx]->addr[0], match_key.af);
+			match_key.port[1] = s->key[idx]->port[0];
+		}
+
 		pf_unlink_state(s, PF_ENTER_LOCKED);
 		killed++;
+
+		if (psk->psk_kill_match)
+			killed += pf_kill_matching_state(&match_key, dir);
+
 		goto relock_DIOCKILLSTATES;
 	}
 	PF_HASHROW_UNLOCK(ih);
@@ -5442,27 +5492,57 @@ on_error:
 static unsigned int
 pf_clear_states(const struct pf_kstate_kill *kill)
 {
+	struct pf_state_key_cmp	 match_key;
 	struct pf_state	*s;
-	unsigned int	 killed = 0;
+	int		 idx;
+	unsigned int	 killed = 0, dir;
 
 	for (unsigned int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCCLRSTATES:
 		PF_HASHROW_LOCK(ih);
-		LIST_FOREACH(s, &ih->states, entry)
-			if (!kill->psk_ifname[0] ||
-			    !strcmp(kill->psk_ifname,
-			    s->kif->pfik_name)) {
-				/*
-				 * Don't send out individual
-				 * delete messages.
-				 */
-				s->state_flags |= PFSTATE_NOSYNC;
-				pf_unlink_state(s, PF_ENTER_LOCKED);
-				killed++;
-				goto relock_DIOCCLRSTATES;
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (kill->psk_ifname[0] &&
+			    strcmp(kill->psk_ifname,
+			    s->kif->pfik_name))
+				continue;
+
+			if (kill->psk_kill_match) {
+				bzero(&match_key, sizeof(match_key));
+
+				if (s->direction == PF_OUT) {
+					dir = PF_IN;
+					idx = PF_SK_STACK;
+				} else {
+					dir = PF_OUT;
+					idx = PF_SK_WIRE;
+				}
+
+				match_key.af = s->key[idx]->af;
+				match_key.proto = s->key[idx]->proto;
+				PF_ACPY(&match_key.addr[0],
+				    &s->key[idx]->addr[1], match_key.af);
+				match_key.port[0] = s->key[idx]->port[1];
+				PF_ACPY(&match_key.addr[1],
+				    &s->key[idx]->addr[0], match_key.af);
+				match_key.port[1] = s->key[idx]->port[0];
 			}
+
+			/*
+			 * Don't send out individual
+			 * delete messages.
+			 */
+			s->state_flags |= PFSTATE_NOSYNC;
+			pf_unlink_state(s, PF_ENTER_LOCKED);
+			killed++;
+
+			if (kill->psk_kill_match)
+				killed += pf_kill_matching_state(&match_key,
+				    dir);
+
+			goto relock_DIOCCLRSTATES;
+		}
 		PF_HASHROW_UNLOCK(ih);
 	}
 

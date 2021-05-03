@@ -194,6 +194,7 @@ struct pfctl_kill {
 	struct pf_rule_addr	rt_addr;
 	char			ifname[IFNAMSIZ];
 	char			label[PF_RULE_LABEL_SIZE];
+	bool			kill_match;
 };
 
 int	pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket,
