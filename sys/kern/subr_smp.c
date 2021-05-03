@@ -895,6 +895,8 @@ smp_rendezvous_cpus_retry(cpuset_t map,
 {
 	int cpu;
 
+	CPU_COPY(&map, &arg->cpus);
+
 	/*
 	 * Only one CPU to execute on.
 	 */
@@ -914,7 +916,6 @@ smp_rendezvous_cpus_retry(cpuset_t map,
 	 * Execute an action on all specified CPUs while retrying until they
 	 * all acknowledge completion.
 	 */
-	CPU_COPY(&map, &arg->cpus);
 	for (;;) {
 		smp_rendezvous_cpus(
 		    arg->cpus,
