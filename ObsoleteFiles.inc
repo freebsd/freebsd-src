@@ -3275,14 +3275,19 @@ OLD_DIRS+=usr/lib/clang/11.0.0
 OLD_FILES+=usr/share/man/man3/pmc.xscale.3.gz
 
 # 20201225: libregex removed
-OLD_FILES+=usr/lib/libgnuregex.so
-OLD_LIBS+=usr/lib/libgnuregex.so.5
-OLD_FILES+=usr/lib/libgnuregex_p.a
 OLD_FILES+=usr/include/gnu/posix/regex.h
 OLD_DIRS+=usr/include/gnu/posix
 OLD_FILES+=usr/include/gnu/regex.h
 OLD_DIRS+=usr/include/gnu
 OLD_FILES+=usr/include/gnuregex.h
+OLD_FILES+=usr/lib/libgnuregex.a
+OLD_FILES+=usr/lib/libgnuregex.so
+OLD_LIBS+=usr/lib/libgnuregex.so.5
+OLD_FILES+=usr/lib/libgnuregex_p.a
+OLD_FILES+=usr/lib32/libgnuregex.a
+OLD_FILES+=usr/lib32/libgnuregex.so
+OLD_LIBS+=usr/lib32/libgnuregex.so.5
+OLD_FILES+=usr/lib32/libgnuregex_p.a
 
 # 20201225: gnugrep removed
 OLD_FILES+=usr/bin/bsdgrep
