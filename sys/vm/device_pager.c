@@ -74,7 +74,7 @@ static struct pagerlst dev_pager_object_list;
 /* protect list manipulation */
 static struct mtx dev_pager_mtx;
 
-struct pagerops devicepagerops = {
+const struct pagerops devicepagerops = {
 	.pgo_init =	dev_pager_init,
 	.pgo_alloc =	dev_pager_alloc,
 	.pgo_dealloc =	dev_pager_dealloc,
@@ -83,7 +83,7 @@ struct pagerops devicepagerops = {
 	.pgo_haspage =	dev_pager_haspage,
 };
 
-struct pagerops mgtdevicepagerops = {
+const struct pagerops mgtdevicepagerops = {
 	.pgo_alloc =	dev_pager_alloc,
 	.pgo_dealloc =	dev_pager_dealloc,
 	.pgo_getpages =	dev_pager_getpages,
@@ -98,7 +98,7 @@ static void old_dev_pager_dtor(void *handle);
 static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
     int prot, vm_page_t *mres);
 
-static struct cdev_pager_ops old_dev_pager_ops = {
+static const struct cdev_pager_ops old_dev_pager_ops = {
 	.cdev_pg_ctor =	old_dev_pager_ctor,
 	.cdev_pg_dtor =	old_dev_pager_dtor,
 	.cdev_pg_fault = old_dev_pager_fault
@@ -124,8 +124,9 @@ cdev_pager_lookup(void *handle)
 }
 
 vm_object_t
-cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
-    vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff, struct ucred *cred)
+cdev_pager_allocate(void *handle, enum obj_type tp,
+    const struct cdev_pager_ops *ops, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred)
 {
 	vm_object_t object, object1;
 	vm_pindex_t pindex;

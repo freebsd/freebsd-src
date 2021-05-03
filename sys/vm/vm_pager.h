@@ -88,14 +88,14 @@ struct pagerops {
 	pgo_freespace_t		*pgo_freespace;
 };
 
-extern struct pagerops defaultpagerops;
-extern struct pagerops swappagerops;
-extern struct pagerops vnodepagerops;
-extern struct pagerops devicepagerops;
-extern struct pagerops physpagerops;
-extern struct pagerops sgpagerops;
-extern struct pagerops mgtdevicepagerops;
-extern struct pagerops swaptmpfspagerops;
+extern const struct pagerops defaultpagerops;
+extern const struct pagerops swappagerops;
+extern const struct pagerops vnodepagerops;
+extern const struct pagerops devicepagerops;
+extern const struct pagerops physpagerops;
+extern const struct pagerops sgpagerops;
+extern const struct pagerops mgtdevicepagerops;
+extern const struct pagerops swaptmpfspagerops;
 
 /*
  * get/put return values
@@ -120,7 +120,7 @@ extern struct pagerops swaptmpfspagerops;
 
 #ifdef _KERNEL
 
-extern struct pagerops *pagertab[];
+extern const struct pagerops *pagertab[] __read_mostly;
 extern struct mtx_padalign pbuf_mtx;
 
 /*
@@ -260,7 +260,7 @@ struct cdev_pager_ops {
 };
 
 vm_object_t cdev_pager_allocate(void *handle, enum obj_type tp,
-    struct cdev_pager_ops *ops, vm_ooffset_t size, vm_prot_t prot,
+    const struct cdev_pager_ops *ops, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred);
 vm_object_t cdev_pager_lookup(void *handle);
 void cdev_pager_free_page(vm_object_t object, vm_page_t m);
@@ -277,8 +277,8 @@ struct phys_pager_ops {
 	    vm_ooffset_t foff, struct ucred *cred);
 	void (*phys_pg_dtor)(vm_object_t vm_obj);
 };
-extern struct phys_pager_ops default_phys_pg_ops;
-vm_object_t phys_pager_allocate(void *handle, struct phys_pager_ops *ops,
+extern const struct phys_pager_ops default_phys_pg_ops;
+vm_object_t phys_pager_allocate(void *handle, const struct phys_pager_ops *ops,
     void *data, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff,
     struct ucred *cred);
 

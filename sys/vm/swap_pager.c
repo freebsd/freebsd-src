@@ -441,7 +441,7 @@ static void	swap_tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp,
 static void	swap_pager_freespace(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
 
-struct pagerops swappagerops = {
+const struct pagerops swappagerops = {
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
 	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object */
 	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object */
@@ -455,7 +455,7 @@ struct pagerops swappagerops = {
 	.pgo_freespace = swap_pager_freespace,
 };
 
-struct pagerops swaptmpfspagerops = {
+const struct pagerops swaptmpfspagerops = {
 	.pgo_alloc =	swap_tmpfs_pager_alloc,
 	.pgo_dealloc =	swap_pager_dealloc,
 	.pgo_getpages =	swap_pager_getpages,

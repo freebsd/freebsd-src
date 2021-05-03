@@ -107,7 +107,7 @@ static void vnode_pager_release_writecount(vm_object_t, vm_offset_t,
     vm_offset_t);
 static void vnode_pager_getvp(vm_object_t, struct vnode **, bool *);
 
-struct pagerops vnodepagerops = {
+const struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
 	.pgo_dealloc =	vnode_pager_dealloc,
 	.pgo_getpages =	vnode_pager_getpages,
