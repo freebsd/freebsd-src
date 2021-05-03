@@ -4170,6 +4170,9 @@ OLD_FILES+=usr/include/crypto/xform_userland.h
 OLD_LIBS+=lib/libalias_cuseeme.so
 OLD_FILES+=usr/lib/libalias_cuseeme.a
 OLD_FILES+=usr/lib/libalias_cuseeme_p.a
+OLD_FILES+=usr/lib32/libalias_cuseeme.a
+OLD_LIBS+=usr/lib32/libalias_cuseeme.so
+OLD_FILES+=usr/lib32/libalias_cuseeme_p.a
 
 # 20200511: Remove deprecated crypto algorithms
 OLD_FILES+=usr/include/crypto/cast.h
