@@ -120,9 +120,8 @@ static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp,
     int *ref)
 {
-
 	*dswp = devvn_refthread(fp->f_vnode, devp, ref);
-	if (*devp != fp->f_data) {
+	if (*dswp == NULL || *devp != fp->f_data) {
 		if (*dswp != NULL)
 			dev_relthread(*devp, *ref);
 		return (ENXIO);
