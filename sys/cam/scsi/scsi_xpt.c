@@ -1210,8 +1210,6 @@ out:
 
 			if (periph_qual == SID_QUAL_LU_CONNECTED ||
 			    periph_qual == SID_QUAL_LU_OFFLINE) {
-				u_int8_t len;
-
 				/*
 				 * We conservatively request only
 				 * SHORT_INQUIRY_LEN bytes of inquiry
@@ -1222,11 +1220,9 @@ out:
 				 * the amount of information the device
 				 * is willing to give.
 				 */
-				len = inq_buf->additional_length
-				    + offsetof(struct scsi_inquiry_data,
-                                               additional_length) + 1;
 				if (softc->action == PROBE_INQUIRY
-				    && len > SHORT_INQUIRY_LENGTH) {
+				    && SID_ADDITIONAL_LENGTH(inq_buf)
+				    > SHORT_INQUIRY_LENGTH) {
 					PROBE_SET_ACTION(softc, PROBE_FULL_INQUIRY);
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
