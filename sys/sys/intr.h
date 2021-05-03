@@ -165,6 +165,6 @@ u_long * intr_ipi_setup_counters(const char *name);
 
 #endif
 
-extern int	intr_nirq;	/* number of IRQs on intrng platforms */
+extern u_int	intr_nirq;	/* number of IRQs on intrng platforms */
 
 #endif	/* _SYS_INTR_H */
