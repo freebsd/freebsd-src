@@ -855,6 +855,10 @@ ng_name_node(node_p node, const char *name)
 	node_p node2;
 	int i;
 
+	/* Rename without change is a noop */
+	if (strcmp(NG_NODE_NAME(node), name) == 0)
+		return (0);
+
 	/* Check the name is valid */
 	for (i = 0; i < NG_NODESIZ; i++) {
 		if (name[i] == '\0' || name[i] == '.' || name[i] == ':')
