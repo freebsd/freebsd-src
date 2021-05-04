@@ -506,18 +506,18 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	}
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 		/*
-		 * The strace(1) utility depends on RAX being set to -ENOSYS
-		 * on syscall entry; otherwise it loops printing those:
-		 *
-		 * [ Process PID=928 runs in 64 bit mode. ]
-		 * [ Process PID=928 runs in x32 mode. ]
-		 */
-		l_regset.rax = -38; /* -ENOSYS */
-
-		/*
 		 * Undo the mangling done in exception.S:fast_syscall_common().
 		 */
 		l_regset.r10 = l_regset.rcx;
+	}
+
+	if (lwpinfo.pl_flags & (PL_FLAG_SCE | PL_FLAG_SCX)) {
+		/*
+		 * In Linux, the syscall number - passed to the syscall
+		 * as rax - is preserved in orig_rax; rax gets overwritten
+		 * with syscall return value.
+		 */
+		l_regset.orig_rax = lwpinfo.pl_syscall_code;
 	}
 
 	len = MIN(iov.iov_len, sizeof(l_regset));
