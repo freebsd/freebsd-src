@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/stat.h>
 
@@ -127,6 +127,125 @@ iwmbt_hci_command(struct libusb_device_handle *hdl, struct iwmbt_hci_cmd *cmd,
 }
 
 int
+iwmbt_patch_fwfile(struct libusb_device_handle *hdl,
+    const struct iwmbt_firmware *fw)
+{
+	int ret, transferred;
+	struct iwmbt_firmware fw_job = *fw;
+	uint16_t cmd_opcode;
+	uint8_t cmd_length;
+	uint8_t cmd_buf[IWMBT_HCI_MAX_CMD_SIZE];
+	uint8_t evt_code;
+	uint8_t evt_length;
+	uint8_t evt_buf[IWMBT_HCI_MAX_EVENT_SIZE];
+	int skip_patch = 0;
+
+	for (;;) {
+		skip_patch = 0;
+
+		if (fw_job.len < 4)
+			break;
+
+		if (fw_job.buf[0] != 0x01) {
+			iwmbt_err("Invalid firmware, expected HCI command (%d)",
+					fw_job.buf[0]);
+			return (-1);
+		}
+
+		/* Advance by one. */
+		fw_job.buf++;
+		fw_job.len--;
+
+		/* Load in the HCI command to perform. */
+		cmd_opcode = le16dec(fw_job.buf);
+		cmd_length = fw_job.buf[2];
+		memcpy(cmd_buf, fw_job.buf, 3);
+
+		iwmbt_debug("opcode=%04x, len=%02x", cmd_opcode, cmd_length);
+
+		/* For some reason the command 0xfc2f hangs up my card. */
+		if (cmd_opcode == 0xfc2f)
+			skip_patch = 1;
+
+		/* Advance by three. */
+		fw_job.buf += 3;
+		fw_job.len -= 3;
+
+		if (fw_job.len < cmd_length)
+			cmd_length = fw_job.len;
+
+		/* Copy data to HCI command buffer. */
+		memcpy(cmd_buf + 3, fw_job.buf,
+		    MIN(cmd_length, IWMBT_HCI_MAX_CMD_SIZE - 3));
+
+		/* Advance by data length. */
+		fw_job.buf += cmd_length;
+		fw_job.len -= cmd_length;
+
+		/*
+		 * Every command has its associated event: data must match
+		 * what is recorded in the firmware file. Perform that check
+		 * now.
+		 *
+		 * Some commands are mapped to more than one event sequence,
+		 * in that case we can drop the non-patch commands, as we
+		 * probably don't need them for operation of the card.
+		 *
+		 */
+
+		for (;;) {
+			/* Is this the end of the file? */
+			if (fw_job.len < 3)
+				break;
+
+			if (fw_job.buf[0] != 0x02)
+				break;
+
+			/* Advance by one. */
+			fw_job.buf++;
+			fw_job.len--;
+
+			/* Load in the HCI event. */
+			evt_code = fw_job.buf[0];
+			evt_length = fw_job.buf[1];
+
+			/* Advance by two. */
+			fw_job.buf += 2;
+			fw_job.len -= 2;
+
+			/* Prepare HCI event buffer. */
+			memset(evt_buf, 0, IWMBT_HCI_MAX_EVENT_SIZE);
+
+			iwmbt_debug("event=%04x, len=%02x",
+					evt_code, evt_length);
+
+			/* Advance by data length. */
+			fw_job.buf += evt_length;
+			fw_job.len -= evt_length;
+
+			if (skip_patch == 0) {
+				ret = iwmbt_hci_command(hdl,
+				    (struct iwmbt_hci_cmd *)cmd_buf,
+				    evt_buf,
+				    IWMBT_HCI_MAX_EVENT_SIZE,
+				    &transferred,
+				    IWMBT_HCI_CMD_TIMEOUT);
+
+				if (ret < 0) {
+					iwmbt_debug("Can't send patch: "
+					    "code=%d, size=%d",
+					    ret,
+					    transferred);
+					 return (-1);
+				}
+			}
+		}
+	}
+
+	return (0);
+}
+
+int
 iwmbt_load_fwfile(struct libusb_device_handle *hdl,
     const struct iwmbt_firmware *fw, uint32_t *boot_param)
 {
@@ -212,6 +331,74 @@ iwmbt_load_fwfile(struct libusb_device_handle *hdl,
 	if (event->header.event != 0xFF || event->data[0] != 0x06) {
 		iwmbt_err("firmware download completion event missed");
 		return (-1);
+	}
+
+	return (0);
+}
+
+int
+iwmbt_enter_manufacturer(struct libusb_device_handle *hdl)
+{
+	int ret, transferred;
+	static struct iwmbt_hci_cmd cmd = {
+		.opcode = htole16(0xfc11),
+		.length = 2,
+		.data = { 0x01, 0x00 },
+	};
+	uint8_t buf[IWMBT_HCI_MAX_EVENT_SIZE];
+
+	ret = iwmbt_hci_command(hdl,
+	    &cmd,
+	    buf,
+	    sizeof(buf),
+	    &transferred,
+	    IWMBT_HCI_CMD_TIMEOUT);
+
+	if (ret < 0) {
+		 iwmbt_debug("Can't enter manufacturer mode: code=%d, size=%d",
+		     ret,
+		     transferred);
+		 return (-1);
+	}
+
+	return (0);
+}
+
+int
+iwmbt_exit_manufacturer(struct libusb_device_handle *hdl, int mode)
+{
+	int ret, transferred;
+	static struct iwmbt_hci_cmd cmd = {
+		.opcode = htole16(0xfc11),
+		.length = 2,
+		.data = { 0x00, 0x00 },
+	};
+	uint8_t buf[IWMBT_HCI_MAX_EVENT_SIZE];
+
+	/*
+	 * The mode sets the type of reset we want to perform:
+	 * 0x00: simply exit manufacturer mode without a reset.
+	 * 0x01: exit manufacturer mode with a reset and patches disabled
+	 * 0x02: exit manufacturer mode with a reset and patches enabled
+	 */
+	if (mode > 2) {
+		iwmbt_debug("iwmbt_exit_manufacturer(): unknown mode (%d)",
+				mode);
+	}
+	cmd.data[1] = mode;
+
+	ret = iwmbt_hci_command(hdl,
+	    &cmd,
+	    buf,
+	    sizeof(buf),
+	    &transferred,
+	    IWMBT_HCI_CMD_TIMEOUT);
+
+	if (ret < 0) {
+		 iwmbt_debug("Can't exit manufacturer mode: code=%d, size=%d",
+		     ret,
+		     transferred);
+		 return (-1);
 	}
 
 	return (0);

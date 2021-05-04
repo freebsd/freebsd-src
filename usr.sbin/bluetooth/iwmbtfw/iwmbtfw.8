@@ -1,5 +1,6 @@
 .\" Copyright (c) 2013, 2016 Adrian Chadd <adrian@freebsd.org>
 .\" Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\" Copyright (c) 2021 Philippe Michaud-Boudreault <pitwuu@gmail.com>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2019
+.Dd May 3, 2021
 .Dt IWMBTFW 8
 .Os
 .Sh NAME
 .Nm iwmbtfw
-.Nd firmware download utility for Intel Wireless 8260/8265 chip based Bluetooth
+.Nd firmware download utility for Intel Wireless 7260/8260/8265 chip based Bluetooth
 USB devices
 .Sh SYNOPSIS
 .Nm
@@ -46,7 +47,7 @@ device.
 .Pp
 This utility will
 .Em only
-work with Intel Wireless 8260/8265 chip based Bluetooth USB devices and some of
+work with Intel Wireless 7260/8260/8265 chip based Bluetooth USB devices and some of
 their successors.
 The identification is currently based on USB vendor ID/product ID pair.
 The vendor ID should be 0x8087
@@ -91,6 +92,9 @@ utility used as firmware downloader template and on Linux btintel driver
 source code.
 It is written by
 .An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Pp
+Support for the 7260 card added by
+.An Philippe Michaud-Boudreault Aq Mt pitwuu@gmail.com .
 .Sh BUGS
 Most likely.
 Please report if found.
