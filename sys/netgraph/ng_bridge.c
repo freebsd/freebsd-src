@@ -234,6 +234,13 @@ static const struct ng_parse_type ng_bridge_stats_type = {
 	&ng_parse_struct_type,
 	&ng_bridge_stats_type_fields
 };
+/* Parse type for struct ng_bridge_move_host */
+static const struct ng_parse_struct_field ng_bridge_move_host_type_fields[]
+	= NG_BRIDGE_MOVE_HOST_TYPE_INFO(&ng_parse_enaddr_type);
+static const struct ng_parse_type ng_bridge_move_host_type = {
+	&ng_parse_struct_type,
+	&ng_bridge_move_host_type_fields
+};
 
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_bridge_cmdlist[] = {
@@ -291,6 +298,13 @@ static const struct ng_cmdlist ng_bridge_cmdlist[] = {
 	  NGM_BRIDGE_SET_PERSISTENT,
 	  "setpersistent",
 	  NULL,
+	  NULL
+	},
+	{
+	  NGM_BRIDGE_COOKIE,
+	  NGM_BRIDGE_MOVE_HOST,
+	  "movehost",
+	  &ng_bridge_move_host_type,
 	  NULL
 	},
 	{ 0 }
@@ -601,6 +615,32 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			priv->persistent = 1;
 			break;
 		    }
+		case NGM_BRIDGE_MOVE_HOST:
+		{
+			struct ng_bridge_move_host *mh;
+			hook_p hook;
+			struct ng_bridge_host *host;
+
+			if (msg->header.arglen < sizeof(*mh)) {
+				error = EINVAL;
+				break;
+			}
+			mh = (struct ng_bridge_move_host *)msg->data;
+			hook = (mh->hook[0] == 0)
+			    ? lasthook
+			    : ng_findhook(node, mh->hook);
+			if (hook == NULL) {
+				error = ENOENT;
+				break;
+			}
+			host = ng_bridge_get(priv, mh->addr);
+			if (host != NULL) {
+				error = EADDRINUSE;
+				break;
+			}
+			error = ng_bridge_put(priv, mh->addr, NG_HOOK_PRIVATE(hook));
+			break;
+		}
 		default:
 			error = EINVAL;
 			break;
@@ -809,12 +849,26 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			host->age = 0;
 		}
 	} else if (ctx.incoming->learnMac) {
-		if (!ng_bridge_put(priv, eh->ether_shost, ctx.incoming)) {
+		struct ng_mesg *msg;
+		struct ng_bridge_move_host *mh;
+		int error = 0;
+
+		NG_MKMESSAGE(msg, NGM_BRIDGE_COOKIE, NGM_BRIDGE_MOVE_HOST,
+		    sizeof(*mh), M_NOWAIT);
+		if (msg == NULL) {
 			counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
 			NG_FREE_ITEM(item);
 			NG_FREE_M(ctx.m);
 			return (ENOMEM);
 		}
+		mh = (struct ng_bridge_move_host *)msg->data;
+		strncpy(mh->hook, NG_HOOK_NAME(ctx.incoming->hook),
+		    sizeof(mh->hook));
+		memcpy(mh->addr, eh->ether_shost, sizeof(mh->addr));
+		NG_SEND_MSG_ID(error, node, msg, NG_NODE_ID(node),
+		    NG_NODE_ID(node));
+		if (error)
+			counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
 	}
 
 	/* Run packet through ipfw processing, if enabled */
@@ -959,8 +1013,7 @@ ng_bridge_get(priv_cp priv, const u_char *addr)
 
 /*
  * Add a new host entry to the table. This assumes the host doesn't
- * already exist in the table. Returns 1 on success, 0 if there
- * was a memory allocation failure.
+ * already exist in the table. Returns 0 on success.
  */
 static int
 ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
@@ -970,16 +1023,14 @@ ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
 
 #ifdef INVARIANTS
 	/* Assert that entry does not already exist in hashtable */
-	SLIST_FOREACH(host, &priv->tab[bucket], next) {
-		KASSERT(!ETHER_EQUAL(host->addr, addr),
-		    ("%s: entry %6D exists in table", __func__, addr, ":"));
-	}
+	KASSERT(ng_bridge_get(priv, addr) == NULL,
+	    ("%s: entry %6D exists in table", __func__, addr, ":"));
 #endif
 
 	/* Allocate and initialize new hashtable entry */
 	host = malloc(sizeof(*host), M_NETGRAPH_BRIDGE, M_NOWAIT);
 	if (host == NULL)
-		return (0);
+		return (ENOMEM);
 	bcopy(addr, host->addr, ETHER_ADDR_LEN);
 	host->link = link;
 	host->staleness = 0;
@@ -991,7 +1042,7 @@ ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
 
 	/* Resize table if necessary */
 	ng_bridge_rehash(priv);
-	return (1);
+	return (0);
 }
 
 /*
