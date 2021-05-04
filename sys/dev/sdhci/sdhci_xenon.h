@@ -46,6 +46,10 @@
 #define	 XENON_ENABLE_DATA_STROBE		(1 << 24)
 #define	 XENON_ENABLE_RESP_STROBE		(1 << 25)
 
+/* Custom HS200 / HS400 Mode Select values in SDHCI_HOST_CONTROL2 register. */
+#define	XENON_CTRL2_MMC_HS200			0x5
+#define	XENON_CTRL2_MMC_HS400			0x6
+
 /* eMMC PHY */
 #define	XENON_EMMC_PHY_REG_BASE			0x170
 
