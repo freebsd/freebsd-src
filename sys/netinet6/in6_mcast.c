@@ -2027,7 +2027,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			 * state at t1, because allocation of a filter
 			 * is atomic with allocation of a membership.
 			 */
-			error = EINVAL;
+			error = EADDRINUSE;
 			goto out_in6p_locked;
 		}
 	}
