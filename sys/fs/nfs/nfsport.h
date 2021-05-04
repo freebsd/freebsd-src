@@ -1001,6 +1001,7 @@ int nfscl_loadattrcache(struct vnode **, struct nfsvattr *, void *, void *,
     int, int);
 int newnfs_realign(struct mbuf **, int);
 bool ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep);
+void ncl_copy_vattr(struct vattr *dst, struct vattr *src);
 
 /*
  * If the port runs on an SMP box that can enforce Atomic ops with low
