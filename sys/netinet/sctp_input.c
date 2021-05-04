@@ -4502,27 +4502,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				}
 				return (NULL);
 			}
-		} else if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			if (vtag_in != asoc->my_vtag) {
-				/*
-				 * this could be a stale SHUTDOWN-ACK or the
-				 * peer never got the SHUTDOWN-COMPLETE and
-				 * is still hung; we have started a new asoc
-				 * but it won't complete until the shutdown
-				 * is completed
-				 */
-				if (stcb != NULL) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				SCTP_SNPRINTF(msg, sizeof(msg), "OOTB, %s:%d at %s", __FILE__, __LINE__, __func__);
-				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-				    msg);
-				sctp_handle_ootb(m, iphlen, *offset, src, dst,
-				    sh, inp, op_err,
-				    mflowtype, mflowid, fibnum,
-				    vrf_id, port);
-				return (NULL);
-			}
 		} else {
 			/* for all other chunks, vtag must match */
 			if (vtag_in != asoc->my_vtag) {
