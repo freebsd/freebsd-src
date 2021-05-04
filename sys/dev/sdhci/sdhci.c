@@ -891,7 +891,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		    "support voltages.\n");
 	}
 
-	host_caps = MMC_CAP_4_BIT_DATA;
+	host_caps = slot->host.caps;
+	host_caps |= MMC_CAP_4_BIT_DATA;
 	if (caps & SDHCI_CAN_DO_8BITBUS)
 		host_caps |= MMC_CAP_8_BIT_DATA;
 	if (caps & SDHCI_CAN_DO_HISPD)
