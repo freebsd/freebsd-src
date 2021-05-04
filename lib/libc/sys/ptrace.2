@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd April 10, 2021
+.Dd May 4, 2021
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -1210,6 +1210,17 @@ above.
 .Dv PT_VM_ENTRY
 previously returned the last entry of the memory map.
 No more entries exist.
+.El
+.It Bq Er ENOMEM
+.Bl -bullet -compact
+.It
+A
+.Dv PT_READ_I,
+.Dv PT_READ_D,
+.Dv PT_WRITE_I, or
+.Dv PT_WRITE_D
+request attempted to access an invalid address, or a memory allocation failure
+occurred when accessing process memory.
 .El
 .It Bq Er ENAMETOOLONG
 .Bl -bullet -compact
