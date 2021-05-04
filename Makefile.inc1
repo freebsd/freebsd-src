@@ -1936,14 +1936,14 @@ real-update-packages: stage-packages .PHONY
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
 	  pkgname=$$(pkg query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
-	  newpkgname=${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION}.${PKG_FORMAT} ; \
+	  newpkgname=${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION}.pkg ; \
 	  oldsum=$$(pkg query -F $${pkg} '%X') ; \
 	  if [ ! -f ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ]; then \
 	    continue; \
 	  fi ; \
 	  newsum=$$(pkg query -F ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} '%X') ; \
 	  if [ "$${oldsum}" == "$${newsum}" ]; then \
-	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.${PKG_FORMAT}" ; \
+	   echo "==> Keeping old ${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION_FROM}.pkg" ; \
 	   rm ${REPODIR}/${PKG_ABI}/${PKG_VERSION}/$${newpkgname} ; \
 	   cp $${pkg} ${REPODIR}/${PKG_ABI}/${PKG_VERSION} ; \
 	  else \
@@ -2100,7 +2100,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 .endif
 
 sign-packages:	_pkgbootstrap .PHONY
-	printf "version = 2;\npacking_format = \"${PKG_FORMAT}\";\n" > ${WSTAGEDIR}/meta
+	printf "version = 2;\n" > ${WSTAGEDIR}/meta
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/latest ; \
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname repo \
