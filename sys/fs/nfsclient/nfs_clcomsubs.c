@@ -285,6 +285,7 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		fxdr_nfsv3time(&fp->fa3_ctime, &nap->na_ctime);
 		fxdr_nfsv3time(&fp->fa3_mtime, &nap->na_mtime);
 		nap->na_flags = 0;
+		nap->na_gen = 0;
 		nap->na_filerev = 0;
 	} else {
 		NFSM_DISSECT(fp, struct nfs_fattr *, NFSX_V2FATTR);
