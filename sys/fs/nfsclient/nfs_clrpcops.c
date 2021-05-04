@@ -1151,7 +1151,7 @@ nfsrpc_getattr(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 }
 
 /*
- * nfs getattr call with non-vnode arguemnts.
+ * nfs getattr call with non-vnode arguments.
  */
 int
 nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
