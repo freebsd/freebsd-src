@@ -1,8 +1,8 @@
 #
 #	List of PCI ID's
 #
-#	Version: 2021.04.26
-#	Date:    2021-04-26 03:15:02
+#	Version: 2021.05.04
+#	Date:    2021-05-04 03:15:01
 #
 #	Maintained by Albert Pool, Martin Mares, and other volunteers from
 #	the PCI ID Project at https://pci-ids.ucw.cz/.
@@ -12142,6 +12142,7 @@
 	1e04  TU102 [GeForce RTX 2080 Ti]
 	1e07  TU102 [GeForce RTX 2080 Ti Rev. A]
 		1462 3715  RTX 2080 Ti GAMING X TRIO
+	1e09  CMP 50HX
 	1e2d  TU102 [GeForce RTX 2080 Ti Engineering Sample]
 	1e2e  TU102 [GeForce RTX 2080 Ti 12GB Engineering Sample]
 	1e30  TU102GL [Quadro RTX 6000/8000]
@@ -12257,6 +12258,7 @@
 		10de 146d  GA102 [GeForce RTX 3080 20GB]
 		1462 3892  RTX 3080 10GB GAMING X TRIO
 	2208  GA102 [GeForce RTX 3080 Ti]
+	220d  GA102
 	222b  GA102 [GeForce RTX 3090 Engineering Sample]
 	222f  GA102 [GeForce RTX 3080 11GB / 12GB Engineering Sample]
 	2230  GA102GL [RTX A6000]
@@ -12281,13 +12283,15 @@
 	24ad  GA104 [GeForce RTX 3060 Engineering Sample]
 	24af  GA104 [GeForce RTX 3070 Engineering Sample]
 	24b0  GA104GL [RTX A4000]
-	24b6  GA104
-	24b8  GA104
+	24b6  GA104GLM [RTX A5000 Mobile]
+	24b7  GA104GLM [RTX A4000 Mobile]
+	24b8  GA104GLM [RTX A3000 Mobile]
 	24bf  GA104 [GeForce RTX 3070 Engineering Sample]
 	24dc  GA104M [GeForce RTX 3080 Mobile / Max-Q 8GB/16GB]
 	24dd  GA104M [GeForce RTX 3070 Mobile / Max-Q]
 	2501  GA106 [GeForce RTX 3060]
 	2503  GA106 [GeForce RTX 3060]
+	2504  GA106 [GeForce RTX 3060 Lite Hash Rate]
 	2505  GA106
 	2520  GA106M [GeForce RTX 3060 Mobile / Max-Q]
 	252f  GA106 [GeForce RTX 3060 Engineering Sample]
@@ -12299,7 +12303,7 @@
 	25a5  GA107M
 	25af  GA107 [GeForce RTX 3050 Engineering Sample]
 	25b5  GA107GLM [RTX A4 Mobile]
-	25b8  GA107GLM
+	25b8  GA107GLM [RTX A2000 Mobile]
 	25e0  GA107BM
 	25e2  GA107BM
 10df  Emulex Corporation
@@ -19324,8 +19328,12 @@
 	1750  BCM57508 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb/200Gb Ethernet
 		14e4 2100  NetXtreme-E Dual-port 100G QSFP56 Ethernet PCIe4.0 x16 Adapter (BCM957508-P2100G)
 		14e4 5208  NetXtreme-E Dual-port 100G QSFP56 Ethernet OCP 3.0 Adapter (BCM957508-N2100G)
+		14e4 d124  NetXtreme-E P2100D BCM57508 2x100G QSFP PCIE
 		14e4 df24  BCM57508 NetXtreme-E NGM2100D 2x100G KR Mezz Ethernet
 	1751  BCM57504 NetXtreme-E 10Gb/25Gb/40Gb/50Gb/100Gb/200Gb Ethernet
+		14e4 5045  NetXtreme-E BCM57504 4x25G OCP3.0
+		14e4 5250  NetXtreme-E BCM57504 4x25G KR Mezz
+		14e4 d142  NetXtreme-E P425D BCM57504 4x25G SFP28 PCIE
 	1752  BCM57502 NetXtreme-E 10Gb/25Gb/40Gb/50Gb Ethernet
 	1800  BCM57502 NetXtreme-E Ethernet Partition
 	1801  BCM57504 NetXtreme-E Ethernet Partition
@@ -23868,7 +23876,7 @@
 1eae  XFX Limited
 1eb1  VeriSilicon Inc
 	1001  Video Accelerator
-1ebd  Emerge Technologies Company Ltd.
+1ebd  EMERGETECH Company Ltd.
 	0101  Seirios 2063 Video Codec
 1ed3  Yeston
 1ed8  Digiteq Automotive
@@ -26198,7 +26206,7 @@
 		103c 2159  Ethernet 10Gb 2-port 562i Adapter
 		108e 7b11  Ethernet Server Adapter X520-2
 		1170 004c  82599 DP 10G Mezzanine Adapter
-		15d9 0611  AOC-STGN-I2S [REV 1.01]
+		15d9 0611  AOC-STGN-i2S
 		1734 11a9  10 Gigabit Dual Port Network Connection
 		17aa 1071  ThinkServer X520-2 AnyFabric
 		17aa 4007  82599ES 10-Gigabit SFI/SFP+ Network Connection
@@ -26533,6 +26541,7 @@
 		1093 775b  PCIe-8237 Ethernet Adapter
 		10a9 802a  UV2-BaseIO dual-port GbE
 		1137 023e  1GigE I350 LOM
+		15d9 0000  AOC-SGP-i4
 		15d9 0652  Dual Port i350 GbE MicroLP [AOC-CGP-i2]
 		17aa 1074  ThinkServer I350-T4 AnyFabric
 		17aa 4005  I350 Gigabit Network Connection
@@ -27383,6 +27392,7 @@
 		15d9 066b  X9SRL-F
 	1d2d  C600/X79 series chipset USB2 Enhanced Host Controller #2
 		1028 04f7  C602J on PowerEdge R320 server
+		103c 18a9  HP DL360e G8
 		15d9 066b  X9SRL-F
 	1d33  C600/X79 series chipset LAN Controller
 	1d35  C600/X79 series chipset VECI Controller
@@ -30469,7 +30479,7 @@
 	31d9  Gemini Lake PCI Express Root Port
 	31da  Gemini Lake PCI Express Root Port
 	31db  Gemini Lake PCI Express Root Port
-	31dc  AC 1550i Wireless
+	31dc  Gemini Lake PCH CNVi WiFi
 	31e3  Celeron/Pentium Silver Processor SATA Controller
 	31e8  Celeron/Pentium Silver Processor LPC Controller
 	31ee  Celeron/Pentium Silver Processor Serial IO UART Host Controller
@@ -30570,7 +30580,7 @@
 	34eb  Ice Lake-LP Serial IO I2C Controller #3
 	34ed  Ice Lake-LP USB 3.1 xHCI Host Controller
 	34ef  Ice Lake-LP DRAM Controller
-	34f0  Killer Wi-Fi 6 AX1650i 160MHz Wireless Network Adapter (201NGW)
+	34f0  Ice Lake-LP PCH CNVi WiFi
 	34f8  Ice Lake-LP SD Controller
 	34fc  Ice Lake-LP Integrated Sensor Solution
 	3500  6311ESB/6321ESB PCI Express Upstream Port
@@ -32145,6 +32155,7 @@
 	9a60  TigerLake-H GT1 [UHD Graphics]
 	9a68  TigerLake-H GT1 [UHD Graphics]
 	9b41  CometLake-U GT2 [UHD Graphics]
+		1028 09bd  Latitude 7310
 	9b44  10th Gen Core Processor Host Bridge/DRAM Registers
 	9b53  Comet Lake-S 6c Host Bridge/DRAM Controller
 	9b54  10th Gen Core Processor Host Bridge/DRAM Registers
@@ -32766,7 +32777,7 @@
 	a36d  Cannon Lake PCH USB 3.1 xHCI Host Controller
 		1028 0869  Vostro 3470
 	a36f  Cannon Lake PCH Shared SRAM
-	a370  Wireless-AC 9560 [Jefferson Peak]
+	a370  Cannon Lake PCH CNVi WiFi
 		1a56 1552  Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW)
 	a379  Cannon Lake PCH Thermal Controller
 		1028 0869  Vostro 3470
