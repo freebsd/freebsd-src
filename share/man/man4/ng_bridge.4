@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2021
+.Dd February 17, 2021
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -214,6 +214,25 @@ Returns the current host mapping table used to direct packets, in a
 .Vt "struct ng_bridge_host_ary" .
 .It Dv NGM_BRIDGE_SET_PERSISTENT Pq Ar setpersistent
 This command sets the persistent flag on the node, and takes no arguments.
+.It Dv NGM_BRIDGE_MOVE_HOST Pq Ar movehost
+This command takes a
+.Vt "struct ng_bridge_move_host"
+as an argument.
+It assigns the MAC
+.Va addr
+to the
+.Va hook ,
+which must not be assigned yet.
+If the
+.Va hook
+is the empty string, the incoming hook of the control message is
+used as fallback.
+.Bd -literal -offset 0n
+struct ng_bridge_move_host {
+  u_char  addr[ETHER_ADDR_LEN];	/* ethernet address */
+  char    hook[NG_HOOKSIZ];	/* link where addr can be found */
+};
+.Ed
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

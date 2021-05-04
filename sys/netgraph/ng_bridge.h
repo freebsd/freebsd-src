@@ -140,6 +140,16 @@ struct ng_bridge_host_ary {
 	  { NULL }						\
 }
 
+struct ng_bridge_move_host {
+	u_char		addr[ETHER_ADDR_LEN];	/* ethernet address */
+	char		hook[NG_HOOKSIZ];	/* link where addr can be found */
+};
+/* Keep this in sync with the above structure definition */
+#define NG_BRIDGE_MOVE_HOST_TYPE_INFO(entype)	{		\
+	  { "addr",		(entype)		},	\
+	  { "hook",		&ng_parse_hookbuf_type	},	\
+}
+
 /* Netgraph control messages */
 enum {
 	NGM_BRIDGE_SET_CONFIG = 1,	/* set node configuration */
@@ -150,6 +160,7 @@ enum {
 	NGM_BRIDGE_GETCLR_STATS,	/* atomically get & clear link stats */
 	NGM_BRIDGE_GET_TABLE,		/* get link table */
 	NGM_BRIDGE_SET_PERSISTENT,	/* set persistent mode */
+	NGM_BRIDGE_MOVE_HOST,		/* move a host to a link */
 };
 
 #endif /* _NETGRAPH_NG_BRIDGE_H_ */
