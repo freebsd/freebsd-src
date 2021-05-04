@@ -197,6 +197,43 @@ sdhci_xenon_get_card_present(device_t dev, struct sdhci_slot *slot)
 	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
+static void
+sdhci_xenon_set_uhs_timing(device_t brdev, struct sdhci_slot *slot)
+{
+	const struct mmc_ios *ios;
+	uint16_t hostctrl2;
+
+	if (slot->version < SDHCI_SPEC_300)
+		return;
+
+	mtx_assert(&slot->mtx, MA_OWNED);
+	ios = &slot->host.ios;
+
+	/* Update timing parameteres in SDHCI_HOST_CONTROL2 register. */
+	hostctrl2 = sdhci_xenon_read_2(brdev, slot, SDHCI_HOST_CONTROL2);
+	hostctrl2 &= ~SDHCI_CTRL2_UHS_MASK;
+	if (ios->clock > SD_SDR50_MAX) {
+		if (ios->timing == bus_timing_mmc_hs400 ||
+		    ios->timing == bus_timing_mmc_hs400es)
+			hostctrl2 |= XENON_CTRL2_MMC_HS400;
+		else if (ios->timing == bus_timing_mmc_hs200)
+			hostctrl2 |= XENON_CTRL2_MMC_HS200;
+		else
+			hostctrl2 |= SDHCI_CTRL2_UHS_SDR104;
+	}
+	else if (ios->clock > SD_SDR25_MAX)
+		hostctrl2 |= SDHCI_CTRL2_UHS_SDR50;
+	else if (ios->clock > SD_SDR12_MAX) {
+		if (ios->timing == bus_timing_uhs_ddr50 ||
+		    ios->timing == bus_timing_mmc_ddr52)
+			hostctrl2 |= SDHCI_CTRL2_UHS_DDR50;
+		else
+			hostctrl2 |= SDHCI_CTRL2_UHS_SDR25;
+	} else if (ios->clock > SD_MMC_CARD_ID_FREQUENCY)
+		hostctrl2 |= SDHCI_CTRL2_UHS_SDR12;
+	sdhci_xenon_write_2(brdev, slot, SDHCI_HOST_CONTROL2, hostctrl2);
+}
+
 static int
 sdhci_xenon_phy_init(device_t brdev, struct mmc_ios *ios)
 {
@@ -663,6 +700,8 @@ static device_method_t sdhci_xenon_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 	DEVMETHOD(mmcbr_switch_vccq,	sdhci_xenon_switch_vccq),
+	DEVMETHOD(mmcbr_tune,		sdhci_generic_tune),
+	DEVMETHOD(mmcbr_retune,		sdhci_generic_retune),
 
 	/* SDHCI registers accessors */
 	DEVMETHOD(sdhci_read_1,		sdhci_xenon_read_1),
@@ -674,6 +713,7 @@ static device_method_t sdhci_xenon_methods[] = {
 	DEVMETHOD(sdhci_write_4,	sdhci_xenon_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_xenon_write_multi_4),
 	DEVMETHOD(sdhci_get_card_present,	sdhci_xenon_get_card_present),
+	DEVMETHOD(sdhci_set_uhs_timing, sdhci_xenon_set_uhs_timing),
 
 	DEVMETHOD_END
 };
