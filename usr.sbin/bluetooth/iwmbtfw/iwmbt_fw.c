@@ -119,6 +119,20 @@ iwmbt_get_fwname(struct iwmbt_version *ver, struct iwmbt_boot_params *params,
 	char *fwname;
 
 	switch (ver->hw_variant) {
+	case 0x07:	/* 7260 */
+		asprintf(&fwname, "%s/ibt-hw-%x.%x.%x-fw-%x.%x.%x.%x.%x.%s",
+		    prefix,
+		    le16toh(ver->hw_platform),
+		    le16toh(ver->hw_variant),
+		    le16toh(ver->hw_revision),
+		    le16toh(ver->fw_variant),
+		    le16toh(ver->fw_revision),
+		    le16toh(ver->fw_build_num),
+		    le16toh(ver->fw_build_ww),
+		    le16toh(ver->fw_build_yy),
+		    suffix);
+		break;
+
 	case 0x0b:	/* 8260 */
 	case 0x0c:	/* 8265 */
 		asprintf(&fwname, "%s/ibt-%u-%u.%s",
