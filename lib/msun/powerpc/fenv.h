@@ -42,6 +42,17 @@ typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
 /* Exception flags */
+#ifdef __SPE__
+#define FE_OVERFLOW	0x00000100
+#define FE_UNDERFLOW	0x00000200
+#define FE_DIVBYZERO	0x00000400
+#define FE_INVALID	0x00000800
+#define FE_INEXACT	0x00001000
+
+#define	FE_ALL_INVALID	FE_INVALID
+
+#define	_FPUSW_SHIFT	6
+#else
 #define	FE_INEXACT	0x02000000
 #define	FE_DIVBYZERO	0x04000000
 #define	FE_UNDERFLOW	0x08000000
@@ -67,6 +78,9 @@ typedef	__uint32_t	fexcept_t;
 #define	FE_ALL_INVALID	(FE_VXCVI | FE_VXSQRT | FE_VXSOFT | FE_VXVC | \
 			 FE_VXIMZ | FE_VXZDZ | FE_VXIDI | FE_VXISI | \
 			 FE_VXSNAN | FE_INVALID)
+
+#define	_FPUSW_SHIFT	22
+#endif
 #define	FE_ALL_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | \
 			 FE_ALL_INVALID | FE_OVERFLOW | FE_UNDERFLOW)
 
@@ -85,7 +99,6 @@ extern const fenv_t	__fe_dfl_env;
 #define	FE_DFL_ENV	(&__fe_dfl_env)
 
 /* We need to be able to map status flag positions to mask flag positions */
-#define	_FPUSW_SHIFT	22
 #define	_ENABLE_MASK	((FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
 			 FE_OVERFLOW | FE_UNDERFLOW) >> _FPUSW_SHIFT)
 
@@ -156,6 +169,9 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
+#ifdef __SPE__
+extern int	feraiseexcept(int __excepts);
+#else
 __fenv_static inline int
 feraiseexcept(int __excepts)
 {
@@ -168,6 +184,7 @@ feraiseexcept(int __excepts)
 	__mtfsf(__r);
 	return (0);
 }
+#endif
 
 __fenv_static inline int
 fetestexcept(int __excepts)
