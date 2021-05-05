@@ -49,6 +49,7 @@
  * Modified by Pavlin Radoslavov, USC/ISI, May 1998, August 1999, October 2000
  * Modified by Hitoshi Asaeda, WIDE, August 2000
  * Modified by Pavlin Radoslavov, ICSI, October 2002
+ * Modified by Wojciech Macek, Semihalf, May 2021
  *
  * MROUTING Revision: 3.5
  * and PIM-SMv2 and PIM-DM support, advanced API support,
@@ -202,16 +203,6 @@ VNET_DEFINE_STATIC(struct callout, expire_upcalls_ch);
  * Bandwidth meter variables and constants
  */
 static MALLOC_DEFINE(M_BWMETER, "bwmeter", "multicast upcall bw meters");
-/*
- * Pending timeouts are stored in a hash table, the key being the
- * expiration time. Periodically, the entries are analysed and processed.
- */
-#define	BW_METER_BUCKETS	1024
-VNET_DEFINE_STATIC(struct bw_meter **, bw_meter_timers);
-#define	V_bw_meter_timers	VNET(bw_meter_timers)
-VNET_DEFINE_STATIC(struct callout, bw_meter_ch);
-#define	V_bw_meter_ch		VNET(bw_meter_ch)
-#define	BW_METER_PERIOD (hz)		/* periodical handling of bw meters */
 
 /*
  * Pending upcalls are stored in a vector which is flushed when
@@ -320,14 +311,13 @@ static int	add_mfc(struct mfcctl2 *);
 static int	add_vif(struct vifctl *);
 static void	bw_meter_prepare_upcall(struct bw_meter *, struct timeval *);
 static void	bw_meter_process(void);
-static void	bw_meter_receive_packet(struct bw_meter *, int,
+static void	bw_meter_geq_receive_packet(struct bw_meter *, int,
 		    struct timeval *);
 static void	bw_upcalls_send(void);
 static int	del_bw_upcall(struct bw_upcall *);
 static int	del_mfc(struct mfcctl2 *);
 static int	del_vif(vifi_t);
 static int	del_vif_locked(vifi_t);
-static void	expire_bw_meter_process(void *);
 static void	expire_bw_upcalls_send(void *);
 static void	expire_mfc(struct mfc *);
 static void	expire_upcalls(void *);
@@ -685,8 +675,6 @@ ip_mrouter_init(struct socket *so, int version)
 	curvnet);
     callout_reset(&V_bw_upcalls_ch, BW_UPCALLS_PERIOD, expire_bw_upcalls_send,
 	curvnet);
-    callout_reset(&V_bw_meter_ch, BW_METER_PERIOD, expire_bw_meter_process,
-	curvnet);
 
     V_ip_mrouter = so;
     ip_mrouter_cnt++;
@@ -745,7 +733,6 @@ X_ip_mrouter_done(void)
 
     callout_stop(&V_expire_upcalls_ch);
     callout_stop(&V_bw_upcalls_ch);
-    callout_stop(&V_bw_meter_ch);
 
     MFC_LOCK();
 
@@ -766,7 +753,6 @@ X_ip_mrouter_done(void)
     bzero(V_nexpire, sizeof(V_nexpire[0]) * mfchashsize);
 
     V_bw_upcalls_n = 0;
-    bzero(V_bw_meter_timers, BW_METER_BUCKETS * sizeof(*V_bw_meter_timers));
 
     MFC_UNLOCK();
 
@@ -1036,7 +1022,8 @@ expire_mfc(struct mfc *rt)
 
 	MFC_LOCK_ASSERT();
 
-	free_bw_list(rt->mfc_bw_meter);
+	free_bw_list(rt->mfc_bw_meter_leq);
+	free_bw_list(rt->mfc_bw_meter_geq);
 
 	TAILQ_FOREACH_SAFE(rte, &rt->mfc_stall, rte_link, nrte) {
 		m_freem(rte->m);
@@ -1139,7 +1126,8 @@ add_mfc(struct mfcctl2 *mfccp)
 	    rt->mfc_nstall = 0;
 
 	    rt->mfc_expire     = 0;
-	    rt->mfc_bw_meter = NULL;
+	    rt->mfc_bw_meter_leq = NULL;
+	    rt->mfc_bw_meter_geq = NULL;
 
 	    /* insert new entry at head of hash chain */
 	    LIST_INSERT_HEAD(&V_mfchashtbl[hash], rt, mfc_hash);
@@ -1179,8 +1167,10 @@ del_mfc(struct mfcctl2 *mfccp)
     /*
      * free the bw_meter entries
      */
-    free_bw_list(rt->mfc_bw_meter);
-    rt->mfc_bw_meter = NULL;
+    free_bw_list(rt->mfc_bw_meter_leq);
+    rt->mfc_bw_meter_leq = NULL;
+    free_bw_list(rt->mfc_bw_meter_geq);
+    rt->mfc_bw_meter_geq = NULL;
 
     LIST_REMOVE(rt, mfc_hash);
     free(rt, M_MRTABLE);
@@ -1393,7 +1383,8 @@ fail:
 
 	    /* clear the RP address */
 	    rt->mfc_rp.s_addr = INADDR_ANY;
-	    rt->mfc_bw_meter = NULL;
+	    rt->mfc_bw_meter_leq = NULL;
+	    rt->mfc_bw_meter_geq = NULL;
 
 	    /* initialize pkt counters per src-grp */
 	    rt->mfc_pkt_cnt = 0;
@@ -1458,16 +1449,6 @@ expire_upcalls(void *arg)
 
 		if (rt->mfc_expire == 0 || --rt->mfc_expire > 0)
 			continue;
-
-		/*
-		 * free the bw_meter entries
-		 */
-		while (rt->mfc_bw_meter != NULL) {
-		    struct bw_meter *x = rt->mfc_bw_meter;
-
-		    rt->mfc_bw_meter = x->bm_mfc_next;
-		    free(x, M_BWMETER);
-		}
 
 		MRTSTAT_INC(mrts_cache_cleanups);
 		CTR3(KTR_IPMF, "%s: expire (%lx, %lx)", __func__,
@@ -1602,14 +1583,22 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
     /*
      * Perform upcall-related bw measuring.
      */
-    if (rt->mfc_bw_meter != NULL) {
+    if ((rt->mfc_bw_meter_geq != NULL) || (rt->mfc_bw_meter_leq != NULL)) {
 	struct bw_meter *x;
 	struct timeval now;
 
 	microtime(&now);
 	MFC_LOCK_ASSERT();
-	for (x = rt->mfc_bw_meter; x != NULL; x = x->bm_mfc_next)
-	    bw_meter_receive_packet(x, plen, &now);
+	/* Process meters for Greater-or-EQual case */
+	for (x = rt->mfc_bw_meter_geq; x != NULL; x = x->bm_mfc_next)
+		bw_meter_geq_receive_packet(x, plen, &now);
+
+	/* Process meters for Lower-or-EQual case */
+	for (x = rt->mfc_bw_meter_leq; x != NULL; x = x->bm_mfc_next) {
+		/* Record that a packet is received */
+		x->bm_measured.b_packets++;
+		x->bm_measured.b_bytes += plen;
+	}
     }
 
     return 0;
@@ -1759,84 +1748,139 @@ compute_bw_meter_flags(struct bw_upcall *req)
     return flags;
 }
 
+static void
+expire_bw_meter_leq(void *arg)
+{
+	struct bw_meter *x = arg;
+	struct timeval now;
+	/*
+	 * INFO:
+	 * callout is always executed with MFC_LOCK taken
+	 */
+
+	CURVNET_SET((struct vnet *)x->arg);
+
+	microtime(&now);
+
+	/*
+	 * Test if we should deliver an upcall
+	 */
+	if (((x->bm_flags & BW_METER_UNIT_PACKETS) &&
+	    (x->bm_measured.b_packets <= x->bm_threshold.b_packets)) ||
+	    ((x->bm_flags & BW_METER_UNIT_BYTES) &&
+	    (x->bm_measured.b_bytes <= x->bm_threshold.b_bytes))) {
+		/* Prepare an upcall for delivery */
+		bw_meter_prepare_upcall(x, &now);
+	}
+
+	/* Send all upcalls that are pending delivery */
+	bw_upcalls_send();
+
+	/* Reset counters */
+	x->bm_start_time = now;
+	x->bm_measured.b_bytes = 0;
+	x->bm_measured.b_packets = 0;
+
+	callout_schedule(&x->bm_meter_callout, tvtohz(&x->bm_threshold.b_time));
+
+	CURVNET_RESTORE();
+}
+
 /*
  * Add a bw_meter entry
  */
 static int
 add_bw_upcall(struct bw_upcall *req)
 {
-    struct mfc *mfc;
-    struct timeval delta = { BW_UPCALL_THRESHOLD_INTERVAL_MIN_SEC,
-		BW_UPCALL_THRESHOLD_INTERVAL_MIN_USEC };
-    struct timeval now;
-    struct bw_meter *x;
-    uint32_t flags;
+	struct mfc *mfc;
+	struct timeval delta = { BW_UPCALL_THRESHOLD_INTERVAL_MIN_SEC,
+	BW_UPCALL_THRESHOLD_INTERVAL_MIN_USEC };
+	struct timeval now;
+	struct bw_meter *x, **bwm_ptr;
+	uint32_t flags;
 
-    if (!(V_mrt_api_config & MRT_MFC_BW_UPCALL))
-	return EOPNOTSUPP;
+	if (!(V_mrt_api_config & MRT_MFC_BW_UPCALL))
+		return EOPNOTSUPP;
 
-    /* Test if the flags are valid */
-    if (!(req->bu_flags & (BW_UPCALL_UNIT_PACKETS | BW_UPCALL_UNIT_BYTES)))
-	return EINVAL;
-    if (!(req->bu_flags & (BW_UPCALL_GEQ | BW_UPCALL_LEQ)))
-	return EINVAL;
-    if ((req->bu_flags & (BW_UPCALL_GEQ | BW_UPCALL_LEQ))
-	    == (BW_UPCALL_GEQ | BW_UPCALL_LEQ))
-	return EINVAL;
+	/* Test if the flags are valid */
+	if (!(req->bu_flags & (BW_UPCALL_UNIT_PACKETS | BW_UPCALL_UNIT_BYTES)))
+		return EINVAL;
+	if (!(req->bu_flags & (BW_UPCALL_GEQ | BW_UPCALL_LEQ)))
+		return EINVAL;
+	if ((req->bu_flags & (BW_UPCALL_GEQ | BW_UPCALL_LEQ))
+			== (BW_UPCALL_GEQ | BW_UPCALL_LEQ))
+		return EINVAL;
 
-    /* Test if the threshold time interval is valid */
-    if (BW_TIMEVALCMP(&req->bu_threshold.b_time, &delta, <))
-	return EINVAL;
+	/* Test if the threshold time interval is valid */
+	if (BW_TIMEVALCMP(&req->bu_threshold.b_time, &delta, <))
+		return EINVAL;
 
-    flags = compute_bw_meter_flags(req);
+	flags = compute_bw_meter_flags(req);
 
-    /*
-     * Find if we have already same bw_meter entry
-     */
-    MFC_LOCK();
-    mfc = mfc_find(&req->bu_src, &req->bu_dst);
-    if (mfc == NULL) {
-	MFC_UNLOCK();
-	return EADDRNOTAVAIL;
-    }
-    for (x = mfc->mfc_bw_meter; x != NULL; x = x->bm_mfc_next) {
-	if ((BW_TIMEVALCMP(&x->bm_threshold.b_time,
-			   &req->bu_threshold.b_time, ==)) &&
-	    (x->bm_threshold.b_packets == req->bu_threshold.b_packets) &&
-	    (x->bm_threshold.b_bytes == req->bu_threshold.b_bytes) &&
-	    (x->bm_flags & BW_METER_USER_FLAGS) == flags)  {
-	    MFC_UNLOCK();
-	    return 0;		/* XXX Already installed */
+	/*
+	 * Find if we have already same bw_meter entry
+	 */
+	MFC_LOCK();
+	mfc = mfc_find(&req->bu_src, &req->bu_dst);
+	if (mfc == NULL) {
+		MFC_UNLOCK();
+		return EADDRNOTAVAIL;
 	}
-    }
 
-    /* Allocate the new bw_meter entry */
-    x = (struct bw_meter *)malloc(sizeof(*x), M_BWMETER, M_NOWAIT);
-    if (x == NULL) {
+	/* Choose an appropriate bw_meter list */
+	if (req->bu_flags & BW_UPCALL_GEQ)
+		bwm_ptr = &mfc->mfc_bw_meter_geq;
+	else
+		bwm_ptr = &mfc->mfc_bw_meter_leq;
+
+	for (x = *bwm_ptr; x != NULL; x = x->bm_mfc_next) {
+		if ((BW_TIMEVALCMP(&x->bm_threshold.b_time,
+		    &req->bu_threshold.b_time, ==))
+		    && (x->bm_threshold.b_packets
+		    == req->bu_threshold.b_packets)
+		    && (x->bm_threshold.b_bytes
+		    == req->bu_threshold.b_bytes)
+		    && (x->bm_flags & BW_METER_USER_FLAGS)
+		    == flags) {
+			MFC_UNLOCK();
+			return 0; /* XXX Already installed */
+		}
+	}
+
+	/* Allocate the new bw_meter entry */
+	x = (struct bw_meter*) malloc(sizeof(*x), M_BWMETER, M_NOWAIT);
+	if (x == NULL) {
+		MFC_UNLOCK();
+		return ENOBUFS;
+	}
+
+	/* Set the new bw_meter entry */
+	x->bm_threshold.b_time = req->bu_threshold.b_time;
+	microtime(&now);
+	x->bm_start_time = now;
+	x->bm_threshold.b_packets = req->bu_threshold.b_packets;
+	x->bm_threshold.b_bytes = req->bu_threshold.b_bytes;
+	x->bm_measured.b_packets = 0;
+	x->bm_measured.b_bytes = 0;
+	x->bm_flags = flags;
+	x->bm_time_next = NULL;
+	x->bm_mfc = mfc;
+	x->arg = curvnet;
+
+	/* For LEQ case create periodic callout */
+	if (req->bu_flags & BW_UPCALL_LEQ) {
+		callout_init_mtx(&x->bm_meter_callout, &mfc_mtx,0);
+		callout_reset(&x->bm_meter_callout, tvtohz(&x->bm_threshold.b_time),
+		    expire_bw_meter_leq, x);
+	}
+
+	/* Add the new bw_meter entry to the front of entries for this MFC */
+	x->bm_mfc_next = *bwm_ptr;
+	*bwm_ptr = x;
+
 	MFC_UNLOCK();
-	return ENOBUFS;
-    }
 
-    /* Set the new bw_meter entry */
-    x->bm_threshold.b_time = req->bu_threshold.b_time;
-    microtime(&now);
-    x->bm_start_time = now;
-    x->bm_threshold.b_packets = req->bu_threshold.b_packets;
-    x->bm_threshold.b_bytes = req->bu_threshold.b_bytes;
-    x->bm_measured.b_packets = 0;
-    x->bm_measured.b_bytes = 0;
-    x->bm_flags = flags;
-    x->bm_time_next = NULL;
-    x->bm_time_hash = BW_METER_BUCKETS;
-
-    /* Add the new bw_meter entry to the front of entries for this MFC */
-    x->bm_mfc = mfc;
-    x->bm_mfc_next = mfc->mfc_bw_meter;
-    mfc->mfc_bw_meter = x;
-    schedule_bw_meter(x, &now);
-    MFC_UNLOCK();
-
-    return 0;
+	return 0;
 }
 
 static void
@@ -1845,8 +1889,11 @@ free_bw_list(struct bw_meter *list)
     while (list != NULL) {
 	struct bw_meter *x = list;
 
+	/* MFC_LOCK must be held here */
+	if (x->bm_flags & BW_METER_LEQ)
+		callout_drain(&x->bm_meter_callout);
+
 	list = list->bm_mfc_next;
-	unschedule_bw_meter(x);
 	free(x, M_BWMETER);
     }
 }
@@ -1858,7 +1905,7 @@ static int
 del_bw_upcall(struct bw_upcall *req)
 {
     struct mfc *mfc;
-    struct bw_meter *x;
+    struct bw_meter *x, **bwm_ptr;
 
     if (!(V_mrt_api_config & MRT_MFC_BW_UPCALL))
 	return EOPNOTSUPP;
@@ -1876,8 +1923,14 @@ del_bw_upcall(struct bw_upcall *req)
 	 */
 	struct bw_meter *list;
 
-	list = mfc->mfc_bw_meter;
-	mfc->mfc_bw_meter = NULL;
+	/* Free LEQ list */
+	list = mfc->mfc_bw_meter_leq;
+	mfc->mfc_bw_meter_leq = NULL;
+	free_bw_list(list);
+
+	/* Free GEQ list */
+	list = mfc->mfc_bw_meter_geq;
+	mfc->mfc_bw_meter_geq = NULL;
 	free_bw_list(list);
 	MFC_UNLOCK();
 	return 0;
@@ -1887,8 +1940,14 @@ del_bw_upcall(struct bw_upcall *req)
 
 	flags = compute_bw_meter_flags(req);
 
+	/* Choose an appropriate bw_meter list */
+	if (req->bu_flags & BW_UPCALL_GEQ)
+		bwm_ptr = &mfc->mfc_bw_meter_geq;
+	else
+		bwm_ptr = &mfc->mfc_bw_meter_leq;
+
 	/* Find the bw_meter entry to delete */
-	for (prev = NULL, x = mfc->mfc_bw_meter; x != NULL;
+	for (prev = NULL, x = *bwm_ptr; x != NULL;
 	     prev = x, x = x->bm_mfc_next) {
 	    if ((BW_TIMEVALCMP(&x->bm_threshold.b_time,
 			       &req->bu_threshold.b_time, ==)) &&
@@ -1901,9 +1960,11 @@ del_bw_upcall(struct bw_upcall *req)
 	    if (prev != NULL)
 		prev->bm_mfc_next = x->bm_mfc_next;	/* remove from middle*/
 	    else
-		x->bm_mfc->mfc_bw_meter = x->bm_mfc_next;/* new head of list */
+		*bwm_ptr = x->bm_mfc_next;/* new head of list */
 
-	    unschedule_bw_meter(x);
+	    if (req->bu_flags & BW_UPCALL_LEQ)
+		    callout_stop(&x->bm_meter_callout);
+
 	    MFC_UNLOCK();
 	    /* Free the bw_meter entry */
 	    free(x, M_BWMETER);
@@ -1920,16 +1981,15 @@ del_bw_upcall(struct bw_upcall *req)
  * Perform bandwidth measurement processing that may result in an upcall
  */
 static void
-bw_meter_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
+bw_meter_geq_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
 {
-    struct timeval delta;
+	struct timeval delta;
 
-    MFC_LOCK_ASSERT();
+	MFC_LOCK_ASSERT();
 
-    delta = *nowp;
-    BW_TIMEVALDECR(&delta, &x->bm_start_time);
+	delta = *nowp;
+	BW_TIMEVALDECR(&delta, &x->bm_start_time);
 
-    if (x->bm_flags & BW_METER_GEQ) {
 	/*
 	 * Processing for ">=" type of bw_meter entry
 	 */
@@ -1949,63 +2009,15 @@ bw_meter_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
 	 * Test if we should deliver an upcall
 	 */
 	if (!(x->bm_flags & BW_METER_UPCALL_DELIVERED)) {
-	    if (((x->bm_flags & BW_METER_UNIT_PACKETS) &&
-		 (x->bm_measured.b_packets >= x->bm_threshold.b_packets)) ||
-		((x->bm_flags & BW_METER_UNIT_BYTES) &&
-		 (x->bm_measured.b_bytes >= x->bm_threshold.b_bytes))) {
-		/* Prepare an upcall for delivery */
-		bw_meter_prepare_upcall(x, nowp);
-		x->bm_flags |= BW_METER_UPCALL_DELIVERED;
-	    }
+		if (((x->bm_flags & BW_METER_UNIT_PACKETS) &&
+		    (x->bm_measured.b_packets >= x->bm_threshold.b_packets)) ||
+		    ((x->bm_flags & BW_METER_UNIT_BYTES) &&
+		    (x->bm_measured.b_bytes >= x->bm_threshold.b_bytes))) {
+			/* Prepare an upcall for delivery */
+			bw_meter_prepare_upcall(x, nowp);
+			x->bm_flags |= BW_METER_UPCALL_DELIVERED;
+		}
 	}
-    } else if (x->bm_flags & BW_METER_LEQ) {
-	/*
-	 * Processing for "<=" type of bw_meter entry
-	 */
-	if (BW_TIMEVALCMP(&delta, &x->bm_threshold.b_time, >)) {
-	    /*
-	     * We are behind time with the multicast forwarding table
-	     * scanning for "<=" type of bw_meter entries, so test now
-	     * if we should deliver an upcall.
-	     */
-	    if (((x->bm_flags & BW_METER_UNIT_PACKETS) &&
-		 (x->bm_measured.b_packets <= x->bm_threshold.b_packets)) ||
-		((x->bm_flags & BW_METER_UNIT_BYTES) &&
-		 (x->bm_measured.b_bytes <= x->bm_threshold.b_bytes))) {
-		/* Prepare an upcall for delivery */
-		bw_meter_prepare_upcall(x, nowp);
-	    }
-	    /* Reschedule the bw_meter entry */
-	    unschedule_bw_meter(x);
-	    schedule_bw_meter(x, nowp);
-	}
-
-	/* Record that a packet is received */
-	x->bm_measured.b_packets++;
-	x->bm_measured.b_bytes += plen;
-
-	/*
-	 * Test if we should restart the measuring interval
-	 */
-	if ((x->bm_flags & BW_METER_UNIT_PACKETS &&
-	     x->bm_measured.b_packets <= x->bm_threshold.b_packets) ||
-	    (x->bm_flags & BW_METER_UNIT_BYTES &&
-	     x->bm_measured.b_bytes <= x->bm_threshold.b_bytes)) {
-	    /* Don't restart the measuring interval */
-	} else {
-	    /* Do restart the measuring interval */
-	    /*
-	     * XXX: note that we don't unschedule and schedule, because this
-	     * might be too much overhead per packet. Instead, when we process
-	     * all entries for a given timer hash bin, we check whether it is
-	     * really a timeout. If not, we reschedule at that time.
-	     */
-	    x->bm_start_time = *nowp;
-	    x->bm_measured.b_packets = 0;
-	    x->bm_measured.b_bytes = 0;
-	    x->bm_flags &= ~BW_METER_UPCALL_DELIVERED;
-	}
-    }
 }
 
 /*
@@ -2014,44 +2026,44 @@ bw_meter_receive_packet(struct bw_meter *x, int plen, struct timeval *nowp)
 static void
 bw_meter_prepare_upcall(struct bw_meter *x, struct timeval *nowp)
 {
-    struct timeval delta;
-    struct bw_upcall *u;
+	struct timeval delta;
+	struct bw_upcall *u;
 
-    MFC_LOCK_ASSERT();
+	MFC_LOCK_ASSERT();
 
-    /*
-     * Compute the measured time interval
-     */
-    delta = *nowp;
-    BW_TIMEVALDECR(&delta, &x->bm_start_time);
+	/*
+	 * Compute the measured time interval
+	 */
+	delta = *nowp;
+	BW_TIMEVALDECR(&delta, &x->bm_start_time);
 
-    /*
-     * If there are too many pending upcalls, deliver them now
-     */
-    if (V_bw_upcalls_n >= BW_UPCALLS_MAX)
-	bw_upcalls_send();
+	/*
+	 * If there are too many pending upcalls, deliver them now
+	 */
+	if (V_bw_upcalls_n >= BW_UPCALLS_MAX)
+		bw_upcalls_send();
 
-    /*
-     * Set the bw_upcall entry
-     */
-    u = &V_bw_upcalls[V_bw_upcalls_n++];
-    u->bu_src = x->bm_mfc->mfc_origin;
-    u->bu_dst = x->bm_mfc->mfc_mcastgrp;
-    u->bu_threshold.b_time = x->bm_threshold.b_time;
-    u->bu_threshold.b_packets = x->bm_threshold.b_packets;
-    u->bu_threshold.b_bytes = x->bm_threshold.b_bytes;
-    u->bu_measured.b_time = delta;
-    u->bu_measured.b_packets = x->bm_measured.b_packets;
-    u->bu_measured.b_bytes = x->bm_measured.b_bytes;
-    u->bu_flags = 0;
-    if (x->bm_flags & BW_METER_UNIT_PACKETS)
-	u->bu_flags |= BW_UPCALL_UNIT_PACKETS;
-    if (x->bm_flags & BW_METER_UNIT_BYTES)
-	u->bu_flags |= BW_UPCALL_UNIT_BYTES;
-    if (x->bm_flags & BW_METER_GEQ)
-	u->bu_flags |= BW_UPCALL_GEQ;
-    if (x->bm_flags & BW_METER_LEQ)
-	u->bu_flags |= BW_UPCALL_LEQ;
+	/*
+	 * Set the bw_upcall entry
+	 */
+	u = &V_bw_upcalls[V_bw_upcalls_n++];
+	u->bu_src = x->bm_mfc->mfc_origin;
+	u->bu_dst = x->bm_mfc->mfc_mcastgrp;
+	u->bu_threshold.b_time = x->bm_threshold.b_time;
+	u->bu_threshold.b_packets = x->bm_threshold.b_packets;
+	u->bu_threshold.b_bytes = x->bm_threshold.b_bytes;
+	u->bu_measured.b_time = delta;
+	u->bu_measured.b_packets = x->bm_measured.b_packets;
+	u->bu_measured.b_bytes = x->bm_measured.b_bytes;
+	u->bu_flags = 0;
+	if (x->bm_flags & BW_METER_UNIT_PACKETS)
+		u->bu_flags |= BW_UPCALL_UNIT_PACKETS;
+	if (x->bm_flags & BW_METER_UNIT_BYTES)
+		u->bu_flags |= BW_UPCALL_UNIT_BYTES;
+	if (x->bm_flags & BW_METER_GEQ)
+		u->bu_flags |= BW_UPCALL_GEQ;
+	if (x->bm_flags & BW_METER_LEQ)
+		u->bu_flags |= BW_UPCALL_LEQ;
 }
 
 /*
@@ -2104,183 +2116,6 @@ bw_upcalls_send(void)
 }
 
 /*
- * Compute the timeout hash value for the bw_meter entries
- */
-#define	BW_METER_TIMEHASH(bw_meter, hash)				\
-    do {								\
-	struct timeval next_timeval = (bw_meter)->bm_start_time;	\
-									\
-	BW_TIMEVALADD(&next_timeval, &(bw_meter)->bm_threshold.b_time); \
-	(hash) = next_timeval.tv_sec;					\
-	if (next_timeval.tv_usec)					\
-	    (hash)++; /* XXX: make sure we don't timeout early */	\
-	(hash) %= BW_METER_BUCKETS;					\
-    } while (0)
-
-/*
- * Schedule a timer to process periodically bw_meter entry of type "<="
- * by linking the entry in the proper hash bucket.
- */
-static void
-schedule_bw_meter(struct bw_meter *x, struct timeval *nowp)
-{
-    int time_hash;
-
-    MFC_LOCK_ASSERT();
-
-    if (!(x->bm_flags & BW_METER_LEQ))
-	return;		/* XXX: we schedule timers only for "<=" entries */
-
-    /*
-     * Reset the bw_meter entry
-     */
-    x->bm_start_time = *nowp;
-    x->bm_measured.b_packets = 0;
-    x->bm_measured.b_bytes = 0;
-    x->bm_flags &= ~BW_METER_UPCALL_DELIVERED;
-
-    /*
-     * Compute the timeout hash value and insert the entry
-     */
-    BW_METER_TIMEHASH(x, time_hash);
-    x->bm_time_next = V_bw_meter_timers[time_hash];
-    V_bw_meter_timers[time_hash] = x;
-    x->bm_time_hash = time_hash;
-}
-
-/*
- * Unschedule the periodic timer that processes bw_meter entry of type "<="
- * by removing the entry from the proper hash bucket.
- */
-static void
-unschedule_bw_meter(struct bw_meter *x)
-{
-    int time_hash;
-    struct bw_meter *prev, *tmp;
-
-    MFC_LOCK_ASSERT();
-
-    if (!(x->bm_flags & BW_METER_LEQ))
-	return;		/* XXX: we schedule timers only for "<=" entries */
-
-    /*
-     * Compute the timeout hash value and delete the entry
-     */
-    time_hash = x->bm_time_hash;
-    if (time_hash >= BW_METER_BUCKETS)
-	return;		/* Entry was not scheduled */
-
-    for (prev = NULL, tmp = V_bw_meter_timers[time_hash];
-	     tmp != NULL; prev = tmp, tmp = tmp->bm_time_next)
-	if (tmp == x)
-	    break;
-
-    if (tmp == NULL)
-	panic("unschedule_bw_meter: bw_meter entry not found");
-
-    if (prev != NULL)
-	prev->bm_time_next = x->bm_time_next;
-    else
-	V_bw_meter_timers[time_hash] = x->bm_time_next;
-
-    x->bm_time_next = NULL;
-    x->bm_time_hash = BW_METER_BUCKETS;
-}
-
-/*
- * Process all "<=" type of bw_meter that should be processed now,
- * and for each entry prepare an upcall if necessary. Each processed
- * entry is rescheduled again for the (periodic) processing.
- *
- * This is run periodically (once per second normally). On each round,
- * all the potentially matching entries are in the hash slot that we are
- * looking at.
- */
-static void
-bw_meter_process()
-{
-    uint32_t loops;
-    int i;
-    struct timeval now, process_endtime;
-
-    microtime(&now);
-    if (V_last_tv_sec == now.tv_sec)
-	return;		/* nothing to do */
-
-    loops = now.tv_sec - V_last_tv_sec;
-    V_last_tv_sec = now.tv_sec;
-    if (loops > BW_METER_BUCKETS)
-	loops = BW_METER_BUCKETS;
-
-    MFC_LOCK();
-    /*
-     * Process all bins of bw_meter entries from the one after the last
-     * processed to the current one. On entry, i points to the last bucket
-     * visited, so we need to increment i at the beginning of the loop.
-     */
-    for (i = (now.tv_sec - loops) % BW_METER_BUCKETS; loops > 0; loops--) {
-	struct bw_meter *x, *tmp_list;
-
-	if (++i >= BW_METER_BUCKETS)
-	    i = 0;
-
-	/* Disconnect the list of bw_meter entries from the bin */
-	tmp_list = V_bw_meter_timers[i];
-	V_bw_meter_timers[i] = NULL;
-
-	/* Process the list of bw_meter entries */
-	while (tmp_list != NULL) {
-	    x = tmp_list;
-	    tmp_list = tmp_list->bm_time_next;
-
-	    /* Test if the time interval is over */
-	    process_endtime = x->bm_start_time;
-	    BW_TIMEVALADD(&process_endtime, &x->bm_threshold.b_time);
-	    if (BW_TIMEVALCMP(&process_endtime, &now, >)) {
-		/* Not yet: reschedule, but don't reset */
-		int time_hash;
-
-		BW_METER_TIMEHASH(x, time_hash);
-		if (time_hash == i && process_endtime.tv_sec == now.tv_sec) {
-		    /*
-		     * XXX: somehow the bin processing is a bit ahead of time.
-		     * Put the entry in the next bin.
-		     */
-		    if (++time_hash >= BW_METER_BUCKETS)
-			time_hash = 0;
-		}
-		x->bm_time_next = V_bw_meter_timers[time_hash];
-		V_bw_meter_timers[time_hash] = x;
-		x->bm_time_hash = time_hash;
-
-		continue;
-	    }
-
-	    /*
-	     * Test if we should deliver an upcall
-	     */
-	    if (((x->bm_flags & BW_METER_UNIT_PACKETS) &&
-		 (x->bm_measured.b_packets <= x->bm_threshold.b_packets)) ||
-		((x->bm_flags & BW_METER_UNIT_BYTES) &&
-		 (x->bm_measured.b_bytes <= x->bm_threshold.b_bytes))) {
-		/* Prepare an upcall for delivery */
-		bw_meter_prepare_upcall(x, &now);
-	    }
-
-	    /*
-	     * Reschedule for next processing
-	     */
-	    schedule_bw_meter(x, &now);
-	}
-    }
-
-    /* Send all upcalls that are pending delivery */
-    bw_upcalls_send();
-
-    MFC_UNLOCK();
-}
-
-/*
  * A periodic function for sending all upcalls that are pending delivery
  */
 static void
@@ -2293,23 +2128,6 @@ expire_bw_upcalls_send(void *arg)
     MFC_UNLOCK();
 
     callout_reset(&V_bw_upcalls_ch, BW_UPCALLS_PERIOD, expire_bw_upcalls_send,
-	curvnet);
-    CURVNET_RESTORE();
-}
-
-/*
- * A periodic function for periodic scanning of the multicast forwarding
- * table for processing all "<=" bw_meter entries.
- */
-static void
-expire_bw_meter_process(void *arg)
-{
-    CURVNET_SET((struct vnet *) arg);
-
-    if (V_mrt_api_config & MRT_MFC_BW_UPCALL)
-	bw_meter_process();
-
-    callout_reset(&V_bw_meter_ch, BW_METER_PERIOD, expire_bw_meter_process,
 	curvnet);
     CURVNET_RESTORE();
 }
@@ -2835,14 +2653,11 @@ vnet_mroute_init(const void *unused __unused)
 
 	V_viftable = mallocarray(MAXVIFS, sizeof(*V_viftable),
 	    M_MRTABLE, M_WAITOK|M_ZERO);
-	V_bw_meter_timers = mallocarray(BW_METER_BUCKETS,
-	    sizeof(*V_bw_meter_timers), M_MRTABLE, M_WAITOK|M_ZERO);
 	V_bw_upcalls = mallocarray(BW_UPCALLS_MAX, sizeof(*V_bw_upcalls),
 	    M_MRTABLE, M_WAITOK|M_ZERO);
 
 	callout_init(&V_expire_upcalls_ch, 1);
 	callout_init(&V_bw_upcalls_ch, 1);
-	callout_init(&V_bw_meter_ch, 1);
 }
 
 VNET_SYSINIT(vnet_mroute_init, SI_SUB_PROTO_MC, SI_ORDER_ANY, vnet_mroute_init,
@@ -2853,7 +2668,6 @@ vnet_mroute_uninit(const void *unused __unused)
 {
 
 	free(V_bw_upcalls, M_MRTABLE);
-	free(V_bw_meter_timers, M_MRTABLE);
 	free(V_viftable, M_MRTABLE);
 	free(V_nexpire, M_MRTABLE);
 	V_nexpire = NULL;
