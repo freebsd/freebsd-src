@@ -2938,38 +2938,6 @@ struct ifconf32 {
 };
 #define	SIOCGIFCONF32	_IOWR('i', 36, struct ifconf32)
 #endif
-
-#ifdef COMPAT_FREEBSD32
-static void
-ifmr_init(struct ifmediareq *ifmr, caddr_t data)
-{
-	struct ifmediareq32 *ifmr32;
-
-	ifmr32 = (struct ifmediareq32 *)data;
-	memcpy(ifmr->ifm_name, ifmr32->ifm_name,
-	    sizeof(ifmr->ifm_name));
-	ifmr->ifm_current = ifmr32->ifm_current;
-	ifmr->ifm_mask = ifmr32->ifm_mask;
-	ifmr->ifm_status = ifmr32->ifm_status;
-	ifmr->ifm_active = ifmr32->ifm_active;
-	ifmr->ifm_count = ifmr32->ifm_count;
-	ifmr->ifm_ulist = (int *)(uintptr_t)ifmr32->ifm_ulist;
-}
-
-static void
-ifmr_update(const struct ifmediareq *ifmr, caddr_t data)
-{
-	struct ifmediareq32 *ifmr32;
-
-	ifmr32 = (struct ifmediareq32 *)data;
-	ifmr32->ifm_current = ifmr->ifm_current;
-	ifmr32->ifm_mask = ifmr->ifm_mask;
-	ifmr32->ifm_status = ifmr->ifm_status;
-	ifmr32->ifm_active = ifmr->ifm_active;
-	ifmr32->ifm_count = ifmr->ifm_count;
-}
-#endif
-
 /*
  * Interface ioctls.
  */
@@ -2977,9 +2945,14 @@ int
 ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 {
 #ifdef COMPAT_FREEBSD32
-	caddr_t saved_data = NULL;
-	struct ifmediareq ifmr;
-	struct ifmediareq *ifmrp = NULL;
+	union {
+		struct ifconf ifc;
+		struct ifmediareq ifmr;
+	} thunk;
+	caddr_t saved_data;
+	u_long saved_cmd;
+	struct ifconf32 *ifc32;
+	struct ifmediareq32 *ifmr32;
 #endif
 	struct ifnet *ifp;
 	struct ifreq *ifr;
@@ -2999,40 +2972,39 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	}
 #endif
 
+#ifdef COMPAT_FREEBSD32
+	saved_cmd = cmd;
+	saved_data = data;
+	switch (cmd) {
+	case SIOCGIFCONF32:
+		ifc32 = (struct ifconf32 *)data;
+		thunk.ifc.ifc_len = ifc32->ifc_len;
+		thunk.ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
+		data = (caddr_t)&thunk.ifc;
+		cmd = SIOCGIFCONF;
+		break;
+	case SIOCGIFMEDIA32:
+	case SIOCGIFXMEDIA32:
+		ifmr32 = (struct ifmediareq32 *)data;
+		memcpy(thunk.ifmr.ifm_name, ifmr32->ifm_name,
+		    sizeof(thunk.ifmr.ifm_name));
+		thunk.ifmr.ifm_current = ifmr32->ifm_current;
+		thunk.ifmr.ifm_mask = ifmr32->ifm_mask;
+		thunk.ifmr.ifm_status = ifmr32->ifm_status;
+		thunk.ifmr.ifm_active = ifmr32->ifm_active;
+		thunk.ifmr.ifm_count = ifmr32->ifm_count;
+		thunk.ifmr.ifm_ulist = PTRIN(ifmr32->ifm_ulist);
+		data = (caddr_t)&thunk.ifmr;
+		cmd = _IOC_NEWTYPE(cmd, struct ifmediareq);
+		break;
+	}
+#endif
+
 	switch (cmd) {
 	case SIOCGIFCONF:
 		error = ifconf(cmd, data);
 		goto out_noref;
-
-#ifdef COMPAT_FREEBSD32
-	case SIOCGIFCONF32:
-		{
-			struct ifconf32 *ifc32;
-			struct ifconf ifc;
-
-			ifc32 = (struct ifconf32 *)data;
-			ifc.ifc_len = ifc32->ifc_len;
-			ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
-
-			error = ifconf(SIOCGIFCONF, (void *)&ifc);
-			if (error == 0)
-				ifc32->ifc_len = ifc.ifc_len;
-			goto out_noref;
-		}
-#endif
 	}
-
-#ifdef COMPAT_FREEBSD32
-	switch (cmd) {
-	case SIOCGIFMEDIA32:
-	case SIOCGIFXMEDIA32:
-		ifmrp = &ifmr;
-		ifmr_init(ifmrp, data);
-		cmd = _IOC_NEWTYPE(cmd, struct ifmediareq);
-		saved_data = data;
-		data = (caddr_t)ifmrp;
-	}
-#endif
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -3123,16 +3095,24 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 out_ref:
 	if_rele(ifp);
 out_noref:
+	CURVNET_RESTORE();
 #ifdef COMPAT_FREEBSD32
-	if (ifmrp != NULL) {
-		KASSERT((cmd == SIOCGIFMEDIA || cmd == SIOCGIFXMEDIA),
-		    ("ifmrp non-NULL, but cmd is not an ifmedia req 0x%lx",
-		     cmd));
-		data = saved_data;
-		ifmr_update(ifmrp, data);
+	if (error != 0)
+		return (error);
+	switch (saved_cmd) {
+	case SIOCGIFCONF32:
+		ifc32->ifc_len = thunk.ifc.ifc_len;
+		break;
+	case SIOCGIFMEDIA32:
+	case SIOCGIFXMEDIA32:
+		ifmr32->ifm_current = thunk.ifmr.ifm_current;
+		ifmr32->ifm_mask = thunk.ifmr.ifm_mask;
+		ifmr32->ifm_status = thunk.ifmr.ifm_status;
+		ifmr32->ifm_active = thunk.ifmr.ifm_active;
+		ifmr32->ifm_count = thunk.ifmr.ifm_count;
+		break;
 	}
 #endif
-	CURVNET_RESTORE();
 	return (error);
 }
 
