@@ -127,6 +127,8 @@ mphyp_install()
 {
 
 	moea64_ops = &mmu_phyp_funcs;
+
+	moea64_install();
 }
 
 static void

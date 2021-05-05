@@ -94,6 +94,7 @@ static void
 mps3_install()
 {
 	moea64_ops = &mps3_funcs;
+	moea64_install();
 }
 
 static void

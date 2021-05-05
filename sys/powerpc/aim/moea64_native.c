@@ -308,6 +308,8 @@ moea64_install_native()
 
 	/* Install the MOEA64 ops. */
 	moea64_ops = &moea64_native_funcs;
+
+	moea64_install();
 }
 
 static int64_t

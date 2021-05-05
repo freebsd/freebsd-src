@@ -77,6 +77,9 @@ void		moea64_mid_bootstrap(vm_offset_t kernelstart,
 void		moea64_late_bootstrap(vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
 
+/* "base" install method for initializing moea64 pmap ifuncs */
+void		moea64_install(void);
+
 int64_t		moea64_pte_replace(struct pvo_entry *, int);
 int64_t		moea64_pte_insert(struct pvo_entry *);
 int64_t		moea64_pte_unset(struct pvo_entry *);

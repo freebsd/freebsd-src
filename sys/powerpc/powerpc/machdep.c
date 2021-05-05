@@ -137,7 +137,11 @@ int cacheline_size = 128;
 #else
 int cacheline_size = 32;
 #endif
+#ifdef __powerpc64__
+int hw_direct_map = -1;
+#else
 int hw_direct_map = 1;
+#endif
 
 #ifdef BOOKE
 extern vm_paddr_t kernload;
