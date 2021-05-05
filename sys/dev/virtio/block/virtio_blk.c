@@ -126,6 +126,7 @@ static int	vtblk_detach(device_t);
 static int	vtblk_suspend(device_t);
 static int	vtblk_resume(device_t);
 static int	vtblk_shutdown(device_t);
+static int	vtblk_attach_completed(device_t);
 static int	vtblk_config_change(device_t);
 
 static int	vtblk_open(struct disk *);
@@ -255,6 +256,7 @@ static device_method_t vtblk_methods[] = {
 	DEVMETHOD(device_shutdown,	vtblk_shutdown),
 
 	/* VirtIO methods. */
+	DEVMETHOD(virtio_attach_completed, vtblk_attach_completed),
 	DEVMETHOD(virtio_config_change,	vtblk_config_change),
 
 	DEVMETHOD_END
@@ -378,8 +380,6 @@ vtblk_attach(device_t dev)
 		goto fail;
 	}
 
-	vtblk_create_disk(sc);
-
 	virtqueue_enable_intr(sc->vtblk_vq);
 
 fail:
@@ -458,6 +458,22 @@ static int
 vtblk_shutdown(device_t dev)
 {
 
+	return (0);
+}
+
+static int
+vtblk_attach_completed(device_t dev)
+{
+	struct vtblk_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	/*
+	 * Create disk after attach as VIRTIO_BLK_T_GET_ID can only be
+	 * processed after the device acknowledged
+	 * VIRTIO_CONFIG_STATUS_DRIVER_OK.
+	 */
+	vtblk_create_disk(sc);
 	return (0);
 }
 
