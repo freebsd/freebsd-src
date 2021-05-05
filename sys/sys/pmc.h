@@ -138,7 +138,7 @@ enum pmc_cputype {
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_GENERIC
+#define	PMC_CPU_LAST	PMC_CPU_ARMV8_CORTEX_A76
 
 /*
  * Classes of PMCs
