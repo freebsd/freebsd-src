@@ -4840,11 +4840,12 @@ process_control_chunks:
 			break;
 		case SCTP_SHUTDOWN_ACK:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SHUTDOWN_ACK, stcb %p\n", (void *)stcb);
-			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
+			if ((chk_length == sizeof(struct sctp_shutdown_ack_chunk)) &&
+			    (stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
 				sctp_handle_shutdown_ack((struct sctp_shutdown_ack_chunk *)ch, stcb, *netp);
+				*offset = length;
+				return (NULL);
 			}
-			*offset = length;
-			return (NULL);
 			break;
 		case SCTP_OPERATION_ERROR:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_OP_ERR\n");
@@ -5032,12 +5033,13 @@ process_control_chunks:
 				*offset = length;
 				return (stcb);
 			}
-			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
+			if ((chk_length == sizeof(struct sctp_shutdown_complete_chunk)) &&
+			    (stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
 				sctp_handle_shutdown_complete((struct sctp_shutdown_complete_chunk *)ch,
 				    stcb, *netp);
+				*offset = length;
+				return (NULL);
 			}
-			*offset = length;
-			return (NULL);
 			break;
 		case SCTP_ASCONF:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ASCONF\n");
