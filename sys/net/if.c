@@ -148,6 +148,15 @@ CTASSERT(sizeof(struct ifreq) == sizeof(struct ifreq32));
 CTASSERT(__offsetof(struct ifreq, ifr_ifru) ==
     __offsetof(struct ifreq32, ifr_ifru));
 
+struct ifdrv32 {
+	char		ifd_name[IFNAMSIZ];
+	uint32_t	ifd_cmd;
+	uint32_t	ifd_len;
+	uint32_t	ifd_data;
+};
+#define SIOCSDRVSPEC32	_IOC_NEWTYPE(SIOCSDRVSPEC, struct ifdrv32)
+#define SIOCGDRVSPEC32	_IOC_NEWTYPE(SIOCGDRVSPEC, struct ifdrv32)
+
 struct ifgroupreq32 {
 	char	ifgr_name[IFNAMSIZ];
 	u_int	ifgr_len;
@@ -2947,11 +2956,13 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #ifdef COMPAT_FREEBSD32
 	union {
 		struct ifconf ifc;
+		struct ifdrv ifd;
 		struct ifmediareq ifmr;
 	} thunk;
 	caddr_t saved_data;
 	u_long saved_cmd;
 	struct ifconf32 *ifc32;
+	struct ifdrv32 *ifd32;
 	struct ifmediareq32 *ifmr32;
 #endif
 	struct ifnet *ifp;
@@ -2982,6 +2993,17 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		thunk.ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
 		data = (caddr_t)&thunk.ifc;
 		cmd = SIOCGIFCONF;
+		break;
+	case SIOCGDRVSPEC32:
+	case SIOCSDRVSPEC32:
+		ifd32 = (struct ifdrv32 *)data;
+		memcpy(thunk.ifd.ifd_name, ifd32->ifd_name,
+		    sizeof(thunk.ifd.ifd_name));
+		thunk.ifd.ifd_cmd = ifd32->ifd_cmd;
+		thunk.ifd.ifd_len = ifd32->ifd_len;
+		thunk.ifd.ifd_data = PTRIN(ifd32->ifd_data);
+		data = (caddr_t)&thunk.ifd;
+		cmd = _IOC_NEWTYPE(cmd, struct ifdrv);
 		break;
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
@@ -3102,6 +3124,17 @@ out_noref:
 	switch (saved_cmd) {
 	case SIOCGIFCONF32:
 		ifc32->ifc_len = thunk.ifc.ifc_len;
+		break;
+	case SIOCGDRVSPEC32:
+		/*
+		 * SIOCGDRVSPEC is IOWR, but nothing actually touches
+		 * the struct so just assert that ifd_len (the only
+		 * field it might make sense to update) hasn't
+		 * changed.
+		 */
+		KASSERT(thunk.ifd.ifd_len == ifd32->ifd_len,
+		    ("ifd_len was updated %u -> %zu", ifd32->ifd_len,
+			thunk.ifd.ifd_len));
 		break;
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
