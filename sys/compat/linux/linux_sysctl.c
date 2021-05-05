@@ -75,24 +75,16 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 /**
  * DTrace probes in this module.
  */
-LIN_SDT_PROBE_DEFINE2(sysctl, handle_string, entry, "struct l___sysctl_args *",
-    "char *");
 LIN_SDT_PROBE_DEFINE1(sysctl, handle_string, copyout_error, "int");
-LIN_SDT_PROBE_DEFINE1(sysctl, handle_string, return, "int");
-LIN_SDT_PROBE_DEFINE2(sysctl, linux_sysctl, entry, "struct l___sysctl_args *",
-    "struct thread *");
 LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE2(sysctl, linux_sysctl, wrong_length, "int", "int");
 LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, unsupported_sysctl, "char *");
-LIN_SDT_PROBE_DEFINE1(sysctl, linux_sysctl, return, "int");
 
 #ifdef LINUX_LEGACY_SYSCALLS
 static int
 handle_string(struct l___sysctl_args *la, char *value)
 {
 	int error;
-
-	LIN_SDT_PROBE2(sysctl, handle_string, entry, la, value);
 
 	if (la->oldval != 0) {
 		l_int len = strlen(value);
@@ -102,17 +94,13 @@ handle_string(struct l___sysctl_args *la, char *value)
 		if (error) {
 			LIN_SDT_PROBE1(sysctl, handle_string, copyout_error,
 			    error);
-			LIN_SDT_PROBE1(sysctl, handle_string, return, error);
 			return (error);
 		}
 	}
 
-	if (la->newval != 0) {
-		LIN_SDT_PROBE1(sysctl, handle_string, return, ENOTDIR);
+	if (la->newval != 0)
 		return (ENOTDIR);
-	}
 
-	LIN_SDT_PROBE1(sysctl, handle_string, return, 0);
 	return (0);
 }
 
@@ -125,19 +113,15 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	char *sysctl_string;
 	int error, i;
 
-	LIN_SDT_PROBE2(sysctl, linux_sysctl, entry, td, args->args);
-
 	error = copyin(args->args, &la, sizeof(la));
 	if (error) {
 		LIN_SDT_PROBE1(sysctl, linux_sysctl, copyin_error, error);
-		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 		return (error);
 	}
 
 	if (la.nlen <= 0 || la.nlen > LINUX_CTL_MAXNAME) {
 		LIN_SDT_PROBE2(sysctl, linux_sysctl, wrong_length, la.nlen,
 		    LINUX_CTL_MAXNAME);
-		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 		return (ENOTDIR);
 	}
 
@@ -145,7 +129,6 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	error = copyin(PTRIN(la.name), mib, la.nlen * sizeof(l_int));
 	if (error) {
 		LIN_SDT_PROBE1(sysctl, linux_sysctl, copyin_error, error);
-		LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 		free(mib, M_LINUX);
 		return (error);
 	}
@@ -159,7 +142,6 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		case LINUX_KERN_VERSION:
 			error = handle_string(&la, version);
 			free(mib, M_LINUX);
-			LIN_SDT_PROBE1(sysctl, linux_sysctl, return, error);
 			return (error);
 		default:
 			break;
@@ -189,7 +171,6 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 
 	free(mib, M_LINUX);
 
-	LIN_SDT_PROBE1(sysctl, linux_sysctl, return, ENOTDIR);
 	return (ENOTDIR);
 }
 #endif
