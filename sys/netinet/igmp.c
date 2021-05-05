@@ -382,7 +382,7 @@ sysctl_igmp_stat(SYSCTL_HANDLER_ARGS)
 		 * igps0 must be "all zero".
 		 */
 		p = (char *)&igps0;
-		while (*p == '\0' && p < (char *)&igps0 + sizeof(igps0))
+		while (p < (char *)&igps0 + sizeof(igps0) && *p == '\0')
 			p++;
 		if (p != (char *)&igps0 + sizeof(igps0)) {
 			error = EINVAL;
