@@ -120,6 +120,7 @@ SUBDIR=	\
 	fdc \
 	fdescfs \
 	${_ffec} \
+	${_fib_dxr} \
 	filemon \
 	firewire \
 	firmware \
@@ -474,6 +475,7 @@ _ipfilter=	ipfilter
 
 .if ${MK_INET_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO}
 _dpdk_lpm4=	dpdk_lpm4
+_fib_dxr=	fib_dxr
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO}
