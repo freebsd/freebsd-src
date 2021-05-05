@@ -1,3 +1,5 @@
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\"
 .\" Copyright (c) 1996
 .\"	Mike Pritchard <mpp@FreeBSD.org>.  All rights reserved.
 .\"
@@ -7,6 +9,10 @@
 .\"
 .\" This code is derived from software donated to Berkeley by
 .\" Jan-Simon Pendry.
+.\"
+.\" Parts of this documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -34,7 +40,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2017
+.Dd May 17, 2021
 .Dt FDESCFS 5
 .Os
 .Sh NAME
@@ -62,7 +68,40 @@ through
 .Pa /dev/fd/#
 refer to file descriptors which can be accessed through the file
 system.
-If the file descriptor is open and the mode the file is being opened
+.Pp
+The following mount options can be used when mounting
+.Nm
+filesystem:
+.Bl -tag -width linrdlnk
+.It Cm nodup
+For file descriptors referencing vnodes, instead of the
+.Xr dup 2
+semantic described above, implement re-opening of the referenced vnode.
+See below for more details.
+.It Cm linrdlnk
+Report the type of the
+.Nm
+vnode as
+.Dv VLNK
+instead of
+.Fx
+traditional
+.Dv VCHR .
+For
+.Xr linux 4
+ABI compatibility mount
+.Nm
+volume with the
+.Cm linrdlnk
+option.
+.El
+.Pp
+For
+.Nm
+mounted without the
+.Cm nodup
+mount option,
+if the file descriptor is open and the mode the file is being opened
 with is a subset of the mode of the existing descriptor, the call:
 .Bd -literal -offset indent
 fd = open("/dev/fd/0", mode);
@@ -74,7 +113,6 @@ fd = fcntl(0, F_DUPFD, 0);
 .Ed
 .Pp
 are equivalent.
-.Pp
 Flags to the
 .Xr open 2
 call other than
@@ -84,6 +122,38 @@ and
 .Dv O_RDWR
 are ignored.
 .Pp
+For
+.Nm
+mounted with the
+.Cm nodup
+option, and file descriptor referencing a vnode, the call:
+.Bd -literal -offset indent
+fd = open("/dev/fd/0", mode);
+.Ed
+.Pp
+reopens the referenced vnode with the specified
+.Fa mode .
+In other words, the
+.Fn open
+call above is equivalent to
+.Bd -literal -offset indent
+fd = openat(0, "", O_EMPTY_PATH, mode);
+.Ed
+.Pp
+In particular, if the file descriptor was opened with the
+.Dv O_PATH
+flag, then either
+.Dv O_EMPTY_PATH
+or
+.Fn open
+over
+.Nm
+mount with
+.Cm nodup
+option allows one to convert it to a regularly opened file,
+assuming that the current permissions allow the requested
+.Fa mode .
+.Pp
 .Em "Note:"
 .Pa /dev/fd/0 ,
 .Pa /dev/fd/1
@@ -92,14 +162,6 @@ and
 files are created by default when devfs alone is mounted.
 .Nm
 creates entries for all file descriptors opened by the process.
-.Pp
-For
-.Xr linux 4
-ABI compatibility mount
-.Nm
-volume with
-.Cm linrdlnk
-option.
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
 .It Pa /dev/fd/#
@@ -110,13 +172,19 @@ To mount a
 volume located on
 .Pa /dev/fd :
 .Pp
-.Dl "mount -t fdescfs null /dev/fd"
+.Dl "mount -t fdescfs none /dev/fd"
 .Pp
 For
 .Xr linux 4
 ABI compatibility:
 .Pp
-.Dl "mount -t fdescfs -o linrdlnk null /compat/linux/dev/fd"
+.Dl "mount -t fdescfs -o linrdlnk none /compat/linux/dev/fd"
+.Pp
+For substitute of
+.Dv O_EMPTY_PATH
+flag use:
+.Pp
+.Dl "mount -t fdescfs -o nodup none /dev/fdpath"
 .Sh SEE ALSO
 .Xr devfs 5 ,
 .Xr mount 8
