@@ -326,14 +326,14 @@ struct pfioc_state {
 	struct pfsync_state	state;
 };
 .Ed
-.It Dv DIOCGETSTATE Fa "struct pfioc_state *ps"
+.It Dv DIOCGETSTATENV Fa "struct pfioc_nv *nv"
 Extract the entry identified by the
 .Va id
 and
 .Va creatorid
 fields of the
 .Va state
-structure from the state table.
+nvlist from the state table.
 .It Dv DIOCKILLSTATES Fa "struct pfioc_state_kill *psk"
 Remove matching entries from the state table.
 This ioctl returns the number of killed states in
