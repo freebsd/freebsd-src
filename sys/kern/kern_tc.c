@@ -103,11 +103,17 @@ int tc_min_ticktock_freq = 1;
 volatile time_t time_second = 1;
 volatile time_t time_uptime = 1;
 
+/*
+ * The system time is always computed by summing the estimated boot time and the
+ * system uptime. The timehands track boot time, but it changes when the system
+ * time is set by the user, stepped by ntpd or adjusted when resuming. It
+ * is set to new_time - uptime.
+ */
 static int sysctl_kern_boottime(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern, KERN_BOOTTIME, boottime,
     CTLTYPE_STRUCT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kern_boottime, "S,timeval",
-    "System boottime");
+    "Estimated system boottime");
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "");

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2004
+.Dd May 4, 2021
 .Dt TIME 9
 .Os
 .Sh NAME
@@ -48,7 +48,18 @@
 .Sh DESCRIPTION
 The
 .Va boottime
-variable holds the system boot time.
+variable holds the estimated system boot time.
+This time is initially set when the system boots, either from the RTC, or from a
+time estimated from the system's root filesystem.
+When the current system time is set, stepped by
+.Xr ntpd 8 ,
+or a new time is read from the RTC as the system resumes,
+.Va boottime
+is recomputed as new_time - uptime.
+The
+.Xr sysctl 8
+.Va kern.boottime
+returns this value.
 .Pp
 The
 .Va time_second
@@ -83,6 +94,7 @@ and in an atomic manner.
 The
 .Va boottime
 variable may be read and written without special precautions.
+It is adjusted when the phase of the system time changes.
 .Sh SEE ALSO
 .Xr clock_settime 2 ,
 .Xr ntp_adjtime 2 ,
