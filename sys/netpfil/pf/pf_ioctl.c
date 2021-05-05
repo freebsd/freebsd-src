@@ -209,6 +209,7 @@ static int		 pf_killstates_row(struct pf_kstate_kill *,
 static int		 pf_killstates_nv(struct pfioc_nv *);
 static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_getstate(struct pfioc_nv *);
+static int		 pf_getstates(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
@@ -2948,6 +2949,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCNATLOOK:
 		case DIOCSETDEBUG:
 		case DIOCGETSTATES:
+		case DIOCGETSTATESNV:
 		case DIOCGETTIMEOUT:
 		case DIOCCLRRULECTRS:
 		case DIOCGETLIMIT:
@@ -3000,6 +3002,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETSTATENV:
 		case DIOCGETSTATUS:
 		case DIOCGETSTATES:
+		case DIOCGETSTATESNV:
 		case DIOCGETTIMEOUT:
 		case DIOCGETLIMIT:
 		case DIOCGETALTQSV0:
@@ -3706,6 +3709,11 @@ DIOCGETSTATES_full:
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
 		free(pstore, M_TEMP);
 
+		break;
+	}
+
+	case DIOCGETSTATESNV: {
+		error = pf_getstates((struct pfioc_nv *)addr);
 		break;
 	}
 
@@ -5911,6 +5919,74 @@ pf_getstate(struct pfioc_nv *nv)
 errout:
 	if (s != NULL)
 		PF_STATE_UNLOCK(s);
+	free(nvlpacked, M_TEMP);
+	nvlist_destroy(nvl);
+	return (error);
+}
+
+static int
+pf_getstates(struct pfioc_nv *nv)
+{
+	nvlist_t	*nvl = NULL, *nvls;
+	void		*nvlpacked = NULL;
+	struct pf_state	*s = NULL;
+	int		 error = 0;
+	uint64_t	 count = 0;
+
+#define ERROUT(x)	ERROUT_FUNCTION(errout, x)
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		ERROUT(ENOMEM);
+
+	nvlist_add_number(nvl, "count", uma_zone_get_cur(V_pf_state_z));
+
+	for (int i = 0; i < pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (s->timeout == PFTM_UNLINKED)
+				continue;
+
+			nvls = pf_state_to_nvstate(s);
+			if (nvls == NULL) {
+				PF_HASHROW_UNLOCK(ih);
+				ERROUT(ENOMEM);
+			}
+			if ((nvlist_size(nvl) + nvlist_size(nvls)) > nv->size) {
+				/* We've run out of room for more states. */
+				nvlist_destroy(nvls);
+				PF_HASHROW_UNLOCK(ih);
+				goto DIOCGETSTATESNV_full;
+			}
+			nvlist_append_nvlist_array(nvl, "states", nvls);
+			count++;
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	/* We've managed to put them all the available space. Let's make sure
+	 * 'count' matches our array (that's racy, because we don't hold a lock
+	 * over all states, only over each row individually. */
+	(void)nvlist_take_number(nvl, "count");
+	nvlist_add_number(nvl, "count", count);
+
+DIOCGETSTATESNV_full:
+
+	nvlpacked = nvlist_pack(nvl, &nv->len);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	if (nv->size == 0)
+		ERROUT(0);
+	else if (nv->size < nv->len)
+		ERROUT(ENOSPC);
+
+	error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+errout:
 	free(nvlpacked, M_TEMP);
 	nvlist_destroy(nvl);
 	return (error);

@@ -415,30 +415,65 @@ Set the debug level.
 enum	{ PF_DEBUG_NONE, PF_DEBUG_URGENT, PF_DEBUG_MISC,
 	  PF_DEBUG_NOISY };
 .Ed
-.It Dv DIOCGETSTATES Fa "struct pfioc_states *ps"
+.It Dv DIOCGETSTATESNV Fa "struct pfioc_nv *nv"
 Get state table entries.
 .Bd -literal
-struct pfioc_states {
-	int	ps_len;
-	union {
-		caddr_t		 psu_buf;
-		struct pf_state *psu_states;
-	} ps_u;
-#define ps_buf		ps_u.psu_buf
-#define ps_states	ps_u.psu_states
+nvlist pf_state_key {
+	nvlist pf_addr	addr[2];
+	number		port[2];
+	number		af;
+	number		proto;
+};
+
+nvlist pf_state_scrub {
+	bool	timestamp;
+	number	ttl;
+	number	ts_mod;
+};
+
+nvlist pf_state_peer {
+	nvlist pf_state_scrub	scrub;
+	number			seqlo;
+	number			seqhi;
+	number			seqdiff;
+	number			max_win;
+	number			mss;
+	number			state;
+	number			wscale;
+};
+
+nvlist pf_state {
+	number			id;
+	string			ifname;
+	nvlist pf_state_key	stack_key;
+	nvlist pf_state_key	wire_key;
+	nvlist pf_state_peer	src;
+	nvlist pf_state_peer	dst;
+	nvlist pf_addr		rt_addr;
+	number			rule;
+	number			anchor;
+	number			nat_rule;
+	number			expire;
+	number			packets[2];
+	number			bytes[2];
+	number			creatorid;
+	number			direction;
+	number			log;
+	number			state_flags;
+	number			timeout;
+	number			sync_flags;
+};
+
+nvlist pf_states {
+	number		count;
+	nvlist pf_state	states[];
 };
 .Ed
 .Pp
 If
-.Va ps_len
-is non-zero on entry, as many states as possible that can fit into this
-size will be copied into the supplied buffer
-.Va ps_states .
-On exit,
-.Va ps_len
-is always set to the total size required to hold all state table entries
-(i.e., it is set to
-.Li sizeof(struct pf_state) * nr ) .
+.Va pfioc_nv.size
+is insufficiently large, as many states as possible that can fit into this
+size will be copied into the supplied buffer.
 .It Dv DIOCCHANGERULE Fa "struct pfioc_rule *pcr"
 Add or remove the
 .Va rule
