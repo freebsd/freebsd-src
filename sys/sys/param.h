@@ -64,7 +64,7 @@
  * that's noteworthy. A noteworthy change is any change which changes the
  * kernel's KBI in -CURRENT, one that changes some detail about the system that
  * external software (or the ports system) would want to know about, one that
- * adds a system call, one that adds or deletes a shipped library, a secuirty
+ * adds a system call, one that adds or deletes a shipped library, a security
  * fix, or similar change not specifically noted here. Bumps should be limited
  * to one per day / a couple per week except for security fixes.
  *
@@ -72,7 +72,7 @@
  *	awk '/^\#define[[:space:]]*__FreeBSD_version/ {print $3}'
  * Other methods to parse this file may work, but are not guaranteed against
  * future changes. The above script works back to FreeBSD 3.x when this macro
- * was introduced. This number is propigated to other places needing it that
+ * was introduced. This number is propagated to other places needing it that
  * cannot include sys/param.h and should only be updated here.
  */
 #undef __FreeBSD_version
