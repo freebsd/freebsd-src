@@ -165,6 +165,10 @@ struct ifgroupreq32 {
 		uint32_t	ifgru_groups;
 	} ifgr_ifgru;
 };
+#define	SIOCAIFGROUP32	_IOC_NEWTYPE(SIOCAIFGROUP, struct ifgroupreq32)
+#define	SIOCGIFGROUP32	_IOC_NEWTYPE(SIOCGIFGROUP, struct ifgroupreq32)
+#define	SIOCDIFGROUP32	_IOC_NEWTYPE(SIOCDIFGROUP, struct ifgroupreq32)
+#define	SIOCGIFGMEMB32	_IOC_NEWTYPE(SIOCGIFGMEMB, struct ifgroupreq32)
 
 struct ifmediareq32 {
 	char		ifm_name[IFNAMSIZ];
@@ -177,28 +181,12 @@ struct ifmediareq32 {
 };
 #define	SIOCGIFMEDIA32	_IOC_NEWTYPE(SIOCGIFMEDIA, struct ifmediareq32)
 #define	SIOCGIFXMEDIA32	_IOC_NEWTYPE(SIOCGIFXMEDIA, struct ifmediareq32)
-
-#define	_CASE_IOC_IFGROUPREQ_32(cmd)				\
-    _IOC_NEWTYPE((cmd), struct ifgroupreq32): case
-#else /* !COMPAT_FREEBSD32 */
-#define _CASE_IOC_IFGROUPREQ_32(cmd)
-#endif /* !COMPAT_FREEBSD32 */
-
-#define CASE_IOC_IFGROUPREQ(cmd)	\
-    _CASE_IOC_IFGROUPREQ_32(cmd)	\
-    (cmd)
+#endif /* COMPAT_FREEBSD32 */
 
 union ifreq_union {
 	struct ifreq	ifr;
 #ifdef COMPAT_FREEBSD32
 	struct ifreq32	ifr32;
-#endif
-};
-
-union ifgroupreq_union {
-	struct ifgroupreq ifgr;
-#ifdef COMPAT_FREEBSD32
-	struct ifgroupreq32 ifgr32;
 #endif
 };
 
@@ -1675,33 +1663,6 @@ if_delgroups(struct ifnet *ifp)
 	IFNET_WUNLOCK();
 }
 
-static char *
-ifgr_group_get(void *ifgrp)
-{
-	union ifgroupreq_union *ifgrup;
-
-	ifgrup = ifgrp;
-#ifdef COMPAT_FREEBSD32
-	if (SV_CURPROC_FLAG(SV_ILP32))
-		return (&ifgrup->ifgr32.ifgr_ifgru.ifgru_group[0]);
-#endif
-	return (&ifgrup->ifgr.ifgr_ifgru.ifgru_group[0]);
-}
-
-static struct ifg_req *
-ifgr_groups_get(void *ifgrp)
-{
-	union ifgroupreq_union *ifgrup;
-
-	ifgrup = ifgrp;
-#ifdef COMPAT_FREEBSD32
-	if (SV_CURPROC_FLAG(SV_ILP32))
-		return ((struct ifg_req *)(uintptr_t)
-		    ifgrup->ifgr32.ifgr_ifgru.ifgru_groups);
-#endif
-	return (ifgrup->ifgr.ifgr_ifgru.ifgru_groups);
-}
-
 /*
  * Stores all groups from an interface in memory pointed to by ifgr.
  */
@@ -1721,7 +1682,7 @@ if_getgroup(struct ifgroupreq *ifgr, struct ifnet *ifp)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr_groups_get(ifgr);
+	ifgp = ifgr->ifgr_groups;
 	/* XXX: wire */
 	CK_STAILQ_FOREACH(ifgl, &ifp->if_groups, ifgl_next) {
 		if (len < sizeof(ifgrq))
@@ -1766,7 +1727,7 @@ if_getgroupmembers(struct ifgroupreq *ifgr)
 	}
 
 	len = ifgr->ifgr_len;
-	ifgp = ifgr_groups_get(ifgr);
+	ifgp = ifgr->ifgr_groups;
 	CK_STAILQ_FOREACH(ifgm, &ifg->ifg_members, ifgm_next) {
 		if (len < sizeof(ifgrq)) {
 			IFNET_RUNLOCK();
@@ -2902,16 +2863,17 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = if_gethwaddr(ifp, ifr);
 		break;
 
-	case CASE_IOC_IFGROUPREQ(SIOCAIFGROUP):
+	case SIOCAIFGROUP:
 		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_addgroup(ifp,
-		    ifgr_group_get((struct ifgroupreq *)data))))
+		error = if_addgroup(ifp,
+		    ((struct ifgroupreq *)data)->ifgr_group);
+		if (error != 0)
 			return (error);
 		break;
 
-	case CASE_IOC_IFGROUPREQ(SIOCGIFGROUP):
+	case SIOCGIFGROUP:
 	{
 		struct epoch_tracker et;
 
@@ -2921,12 +2883,13 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 	}
 
-	case CASE_IOC_IFGROUPREQ(SIOCDIFGROUP):
+	case SIOCDIFGROUP:
 		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
-		if ((error = if_delgroup(ifp,
-		    ifgr_group_get((struct ifgroupreq *)data))))
+		error = if_delgroup(ifp,
+		    ((struct ifgroupreq *)data)->ifgr_group);
+		if (error != 0)
 			return (error);
 		break;
 
@@ -2957,12 +2920,14 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	union {
 		struct ifconf ifc;
 		struct ifdrv ifd;
+		struct ifgroupreq ifgr;
 		struct ifmediareq ifmr;
 	} thunk;
 	caddr_t saved_data;
 	u_long saved_cmd;
 	struct ifconf32 *ifc32;
 	struct ifdrv32 *ifd32;
+	struct ifgroupreq32 *ifgr32;
 	struct ifmediareq32 *ifmr32;
 #endif
 	struct ifnet *ifp;
@@ -3004,6 +2969,28 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		thunk.ifd.ifd_data = PTRIN(ifd32->ifd_data);
 		data = (caddr_t)&thunk.ifd;
 		cmd = _IOC_NEWTYPE(cmd, struct ifdrv);
+		break;
+	case SIOCAIFGROUP32:
+	case SIOCGIFGROUP32:
+	case SIOCDIFGROUP32:
+	case SIOCGIFGMEMB32:
+		ifgr32 = (struct ifgroupreq32 *)data;
+		memcpy(thunk.ifgr.ifgr_name, ifgr32->ifgr_name,
+		    sizeof(thunk.ifgr.ifgr_name));
+		thunk.ifgr.ifgr_len = ifgr32->ifgr_len;
+		switch (cmd) {
+		case SIOCAIFGROUP32:
+		case SIOCDIFGROUP32:
+			memcpy(thunk.ifgr.ifgr_group, ifgr32->ifgr_group,
+			    sizeof(thunk.ifgr.ifgr_group));
+			break;
+		case SIOCGIFGROUP32:
+		case SIOCGIFGMEMB32:
+			thunk.ifgr.ifgr_groups = PTRIN(ifgr32->ifgr_groups);
+			break;
+		}
+		data = (caddr_t)&thunk.ifgr;
+		cmd = _IOC_NEWTYPE(cmd, struct ifgroupreq);
 		break;
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
@@ -3060,7 +3047,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = if_clone_list((struct if_clonereq *)data);
 		goto out_noref;
 
-	case CASE_IOC_IFGROUPREQ(SIOCGIFGMEMB):
+	case SIOCGIFGMEMB:
 		error = if_getgroupmembers((struct ifgroupreq *)data);
 		goto out_noref;
 
@@ -3135,6 +3122,10 @@ out_noref:
 		KASSERT(thunk.ifd.ifd_len == ifd32->ifd_len,
 		    ("ifd_len was updated %u -> %zu", ifd32->ifd_len,
 			thunk.ifd.ifd_len));
+		break;
+	case SIOCGIFGROUP32:
+	case SIOCGIFGMEMB32:
+		ifgr32->ifgr_len = thunk.ifgr.ifgr_len;
 		break;
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
