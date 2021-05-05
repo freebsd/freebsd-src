@@ -208,6 +208,7 @@ static int		 pf_killstates_row(struct pf_kstate_kill *,
 			    struct pf_idhash *);
 static int		 pf_killstates_nv(struct pfioc_nv *);
 static int		 pf_clearstates_nv(struct pfioc_nv *);
+static int		 pf_getstate(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
@@ -2608,6 +2609,157 @@ errout:
 	return (error);
 }
 
+static nvlist_t *
+pf_state_key_to_nvstate_key(const struct pf_state_key *key)
+{
+	nvlist_t	*nvl, *tmp;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	for (int i = 0; i < 2; i++) {
+		tmp = pf_addr_to_nvaddr(&key->addr[i]);
+		if (tmp == NULL)
+			goto errout;
+		nvlist_append_nvlist_array(nvl, "addr", tmp);
+		nvlist_append_number_array(nvl, "port", key->port[i]);
+	}
+	nvlist_add_number(nvl, "af", key->af);
+	nvlist_add_number(nvl, "proto", key->proto);
+
+	return (nvl);
+
+errout:
+	nvlist_destroy(nvl);
+	return (NULL);
+}
+
+static nvlist_t *
+pf_state_scrub_to_nvstate_scrub(const struct pf_state_scrub *scrub)
+{
+	nvlist_t *nvl;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	nvlist_add_bool(nvl, "timestamp", scrub->pfss_flags & PFSS_TIMESTAMP);
+	nvlist_add_number(nvl, "ttl", scrub->pfss_ttl);
+	nvlist_add_number(nvl, "ts_mod", scrub->pfss_ts_mod);
+
+	return (nvl);
+}
+
+static nvlist_t *
+pf_state_peer_to_nvstate_peer(const struct pf_state_peer *peer)
+{
+	nvlist_t *nvl, *tmp;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	if (peer->scrub) {
+		tmp = pf_state_scrub_to_nvstate_scrub(peer->scrub);
+		if (tmp == NULL)
+			goto errout;
+		nvlist_add_nvlist(nvl, "scrub", tmp);
+	}
+
+	nvlist_add_number(nvl, "seqlo", peer->seqlo);
+	nvlist_add_number(nvl, "seqhi", peer->seqhi);
+	nvlist_add_number(nvl, "seqdiff", peer->seqdiff);
+	nvlist_add_number(nvl, "max_win", peer->max_win);
+	nvlist_add_number(nvl, "mss", peer->mss);
+	nvlist_add_number(nvl, "state", peer->state);
+	nvlist_add_number(nvl, "wscale", peer->wscale);
+
+	return (nvl);
+
+errout:
+	nvlist_destroy(nvl);
+	return (NULL);
+}
+
+
+static nvlist_t *
+pf_state_to_nvstate(const struct pf_state *s)
+{
+	nvlist_t	*nvl, *tmp;
+	uint32_t	 expire, flags = 0;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	nvlist_add_number(nvl, "id", s->id);
+	nvlist_add_string(nvl, "ifname", s->kif->pfik_name);
+
+	tmp = pf_state_key_to_nvstate_key(s->key[PF_SK_STACK]);
+	if (tmp == NULL)
+		goto errout;
+	nvlist_add_nvlist(nvl, "stack_key", tmp);
+
+	tmp = pf_state_key_to_nvstate_key(s->key[PF_SK_WIRE]);
+	if (tmp == NULL)
+		goto errout;
+	nvlist_add_nvlist(nvl, "wire_key", tmp);
+
+	tmp = pf_state_peer_to_nvstate_peer(&s->src);
+	if (tmp == NULL)
+		goto errout;
+	nvlist_add_nvlist(nvl, "src", tmp);
+
+	tmp = pf_state_peer_to_nvstate_peer(&s->dst);
+	if (tmp == NULL)
+		goto errout;
+	nvlist_add_nvlist(nvl, "dst", tmp);
+
+	tmp = pf_addr_to_nvaddr(&s->rt_addr);
+	if (tmp == NULL)
+		goto errout;
+	nvlist_add_nvlist(nvl, "rt_addr", tmp);
+
+	nvlist_add_number(nvl, "rule", s->rule.ptr ? s->rule.ptr->nr : -1);
+	nvlist_add_number(nvl, "anchor",
+	    s->anchor.ptr ? s->anchor.ptr->nr : -1);
+	nvlist_add_number(nvl, "nat_rule",
+	    s->nat_rule.ptr ? s->nat_rule.ptr->nr : -1);
+	nvlist_add_number(nvl, "creation", s->creation);
+
+	expire = pf_state_expires(s);
+	if (expire <= time_uptime)
+		expire = 0;
+	else
+		expire = expire - time_uptime;
+	nvlist_add_number(nvl, "expire", expire);
+
+	for (int i = 0; i < 2; i++) {
+		nvlist_append_number_array(nvl, "packets",
+		    counter_u64_fetch(s->packets[i]));
+		nvlist_append_number_array(nvl, "bytes",
+		    counter_u64_fetch(s->bytes[i]));
+	}
+
+	nvlist_add_number(nvl, "creatorid", s->creatorid);
+	nvlist_add_number(nvl, "direction", s->direction);
+	nvlist_add_number(nvl, "log", s->log);
+	nvlist_add_number(nvl, "state_flags", s->state_flags);
+	nvlist_add_number(nvl, "timeout", s->timeout);
+	if (s->src_node)
+		flags |= PFSYNC_FLAG_SRCNODE;
+	if (s->nat_src_node)
+		flags |= PFSYNC_FLAG_NATSRCNODE;
+	nvlist_add_number(nvl, "sync_flags", flags);
+
+	return (nvl);
+
+errout:
+	nvlist_destroy(nvl);
+	return (NULL);
+}
+
 static int
 pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
     uint32_t pool_ticket, const char *anchor, const char *anchor_call,
@@ -2789,6 +2941,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETADDRS:
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
+		case DIOCGETSTATENV:
 		case DIOCSETSTATUSIF:
 		case DIOCGETSTATUS:
 		case DIOCCLRSTATUS:
@@ -2844,6 +2997,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETADDRS:
 		case DIOCGETADDR:
 		case DIOCGETSTATE:
+		case DIOCGETSTATENV:
 		case DIOCGETSTATUS:
 		case DIOCGETSTATES:
 		case DIOCGETTIMEOUT:
@@ -3501,6 +3655,11 @@ DIOCCHANGERULE_error:
 
 		pfsync_state_export(&ps->state, s);
 		PF_STATE_UNLOCK(s);
+		break;
+	}
+
+	case DIOCGETSTATENV: {
+		error = pf_getstate((struct pfioc_nv *)addr);
 		break;
 	}
 
@@ -5684,9 +5843,76 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 
 	error = copyout(nvlpacked, nv->data, nv->len);
 
+#undef ERROUT
 on_error:
 	nvlist_destroy(nvl);
 	free(nvlpacked, M_TEMP);
+	return (error);
+}
+
+static int
+pf_getstate(struct pfioc_nv *nv)
+{
+	nvlist_t	*nvl = NULL, *nvls;
+	void		*nvlpacked = NULL;
+	struct pf_state	*s = NULL;
+	int		 error = 0;
+	uint64_t	 id, creatorid;
+
+#define ERROUT(x)	ERROUT_FUNCTION(errout, x)
+
+	if (nv->len > pf_ioctl_maxcount)
+		ERROUT(ENOMEM);
+
+	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	error = copyin(nv->data, nvlpacked, nv->len);
+	if (error)
+		ERROUT(error);
+
+	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+	if (nvl == NULL)
+		ERROUT(EBADMSG);
+
+	PFNV_CHK(pf_nvuint64(nvl, "id", &id));
+	PFNV_CHK(pf_nvuint64(nvl, "creatorid", &creatorid));
+
+	s = pf_find_state_byid(id, creatorid);
+	if (s == NULL)
+		ERROUT(ENOENT);
+
+	free(nvlpacked, M_TEMP);
+	nvlpacked = NULL;
+	nvlist_destroy(nvl);
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		ERROUT(ENOMEM);
+
+	nvls = pf_state_to_nvstate(s);
+	if (nvls == NULL)
+		ERROUT(ENOMEM);
+
+	nvlist_add_nvlist(nvl, "state", nvls);
+
+	nvlpacked = nvlist_pack(nvl, &nv->len);
+	if (nvlpacked == NULL)
+		ERROUT(ENOMEM);
+
+	if (nv->size == 0)
+		ERROUT(0);
+	else if (nv->size < nv->len)
+		ERROUT(ENOSPC);
+
+	error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+errout:
+	if (s != NULL)
+		PF_STATE_UNLOCK(s);
+	free(nvlpacked, M_TEMP);
+	nvlist_destroy(nvl);
 	return (error);
 }
 
