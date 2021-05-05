@@ -42,6 +42,7 @@
 /* Private mount flags for fdescfs. */
 #define FMNT_UNMOUNTF	0x01
 #define FMNT_LINRDLNKF	0x02
+#define	FMNT_NODUP	0x04
 
 struct fdescmount {
 	struct vnode	*f_root;	/* Root node */
