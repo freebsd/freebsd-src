@@ -1024,7 +1024,7 @@ realloc(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	 * Copy over original contents.  For KASAN, the redzone must be marked
 	 * valid before performing the copy.
 	 */
-	kasan_mark(addr, size, size, 0);
+	kasan_mark(addr, alloc, alloc, 0);
 	bcopy(addr, newaddr, min(size, alloc));
 	free(addr, mtp);
 	return (newaddr);
