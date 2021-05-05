@@ -540,6 +540,9 @@ bucket_zone_drain(int domain)
 }
 
 #ifdef KASAN
+_Static_assert(UMA_SMALLEST_UNIT % KASAN_SHADOW_SCALE == 0,
+    "Base UMA allocation size not a multiple of the KASAN scale factor");
+
 static void
 kasan_mark_item_valid(uma_zone_t zone, void *item)
 {
