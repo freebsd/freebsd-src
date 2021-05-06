@@ -141,6 +141,9 @@ typedef	__pid_t		pid_t;
 #endif
 
 #define	O_DSYNC		0x01000000	/* POSIX data sync */
+#if __BSD_VISIBLE
+#define	O_EMPTY_PATH	0x02000000
+#endif
 
 /*
  * XXX missing O_RSYNC.

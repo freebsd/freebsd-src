@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2021
+.Dd May 6, 2021
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -169,6 +169,7 @@ O_CLOEXEC	set FD_CLOEXEC upon open
 O_VERIFY	verify the contents of the file
 O_RESOLVE_BENEATH	path resolution must not cross the fd directory
 O_PATH		record only the target path in the opened descriptor
+O_EMPTY_PATH	openat, open file referenced by fd if path is empty
 .Ed
 .Pp
 Opening a file with
@@ -355,6 +356,21 @@ are not allowed.
 File opened with the
 .Dv O_PATH
 flag does not prevent non-forced unmount of the volume it belongs to.
+.Pp
+A file descriptor created with the
+.Dv O_PATH
+flag can be opened into normal (operable) file descriptor by
+specifying it as the
+.Fa fd
+argument to
+.Fn openat
+with empty
+.Fa path
+and flag
+.Dv O_EMPTY_PATH .
+Such an open behaves as if the current path of the file referenced by
+.Fa fd
+is passed, except that the path walk permissions are not checked.
 See also the description of
 .Dv AT_EMPTY_PATH
 flag for
