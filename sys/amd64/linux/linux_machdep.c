@@ -221,6 +221,7 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 int
 linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 {
+	unsigned long long cet[3];
 	struct pcb *pcb;
 	int error;
 
@@ -254,7 +255,12 @@ linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 		error = copyout(&pcb->pcb_gsbase, PTRIN(args->addr),
 		    sizeof(args->addr));
 		break;
+	case LINUX_ARCH_CET_STATUS:
+		memset(cet, 0, sizeof(cet));
+		error = copyout(&cet, PTRIN(args->addr), sizeof(cet));
+		break;
 	default:
+		linux_msg(td, "unsupported arch_prctl code %#x", args->code);
 		error = EINVAL;
 	}
 	return (error);
