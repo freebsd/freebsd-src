@@ -89,8 +89,18 @@ LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/loader
 FILES+=	${LOADER}
 FILESMODE_${LOADER}= ${BINMODE} -b
 
-# XXX crt0.o needs to be first for pxeboot(8) to work
-OBJS=	${BTXCRT}
+# Note: crt0.o needs to be first for pxeboot(8) to work. It assumes that the
+# startup code is located at the start of the loader and will jump
+# there. Although btx is more flexible than this, the emulated boot2 environment
+# that pxeloader provides has none of that flexibility because it lacks access
+# to the a.out/elf headers and assumes an entry point of 0.
+#
+# We must add it to the LDFLAGS instead of the OBJS becauce the former won't try
+# to clean it. When it is in OBJS, this cleaning can lead to races where
+# btxcrt.o is rebuilt, but boot2 isn't, leading to errors at installation time.
+# LDFLAGS does not have this baggage and will be included first in the list of
+# files.
+LDFLAGS+=	${BTXCRT}
 
 DPADD=	${LDR_INTERP32} ${LIBFIREWIRE} ${LIBI386} ${LIBSA32}
 LDADD=	${LDR_INTERP32} ${LIBFIREWIRE} ${LIBI386} ${LIBSA32}
