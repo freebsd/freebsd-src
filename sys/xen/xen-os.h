@@ -43,50 +43,35 @@
 #include <xen/interface/xen.h>
 
 #ifndef __ASSEMBLY__
+#include <xen/hvm.h>
 #include <xen/interface/event_channel.h>
-
-struct hypervisor_info {
-	vm_paddr_t (*get_xenstore_mfn)(void);
-	evtchn_port_t (*get_xenstore_evtchn)(void);
-	vm_paddr_t (*get_console_mfn)(void);
-	evtchn_port_t (*get_console_evtchn)(void);
-	uint32_t (*get_start_flags)(void);
-};
-extern struct hypervisor_info hypervisor_info;
 
 static inline vm_paddr_t
 xen_get_xenstore_mfn(void)
 {
 
-	return (hypervisor_info.get_xenstore_mfn());
+	return (hvm_get_parameter(HVM_PARAM_STORE_PFN));
 }
 
 static inline evtchn_port_t
 xen_get_xenstore_evtchn(void)
 {
 
-	return (hypervisor_info.get_xenstore_evtchn());
+	return (hvm_get_parameter(HVM_PARAM_STORE_EVTCHN));
 }
 
 static inline vm_paddr_t
 xen_get_console_mfn(void)
 {
 
-	return (hypervisor_info.get_console_mfn());
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_PFN));
 }
 
 static inline evtchn_port_t
 xen_get_console_evtchn(void)
 {
 
-	return (hypervisor_info.get_console_evtchn());
-}
-
-static inline uint32_t
-xen_get_start_flags(void)
-{
-
-	return (hypervisor_info.get_start_flags());
+	return (hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN));
 }
 #endif
 
@@ -132,7 +117,7 @@ static inline bool
 xen_initial_domain(void)
 {
 
-	return (xen_domain() && (xen_get_start_flags() & SIF_INITDOMAIN) != 0);
+	return (xen_domain() && (hvm_start_flags & SIF_INITDOMAIN) != 0);
 }
 
 /*
