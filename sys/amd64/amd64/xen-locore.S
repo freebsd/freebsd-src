@@ -54,7 +54,6 @@
 	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz, "xen-3.0")
 	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .quad,  KERNBASE)
 	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad,  0)
-	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .quad,  xen_start)
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .quad,	 hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .quad,  HYPERVISOR_VIRT_START)
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_descriptor_tables|auto_translated_physmap|supervisor_mode_kernel|hvm_callback_vector")
@@ -71,29 +70,6 @@
 
 ENTRY(hypercall_page)
 	.skip	0x1000, 0x90	/* Fill with "nop"s */
-
-/* Legacy PVH entry point, to be removed. */
-ENTRY(xen_start)
-	/* Don't trust what the loader gives for rflags. */
-	pushq	$PSL_KERNEL
-	popfq
-
-	/* Parameters for the xen init function */
-	movq	%rsi, %rdi		/* shared_info (arg 1) */
-	movq	%rsp, %rsi		/* xenstack    (arg 2) */
-
-	/* Use our own stack */
-	movq	$bootstack,%rsp
-	xorl	%ebp, %ebp
-
-	/* u_int64_t hammer_time_xen(start_info_t *si, u_int64_t xenstack); */
-	call	hammer_time_xen_legacy
-	movq	%rax, %rsp		/* set up kstack for mi_startup() */
-	call	mi_startup		/* autoconfiguration, mountroot etc */
-
-	/* NOTREACHED */
-0:	hlt
-	jmp 	0b
 
 /* PVH entry point. */
 	.code32
