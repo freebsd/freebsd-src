@@ -193,6 +193,16 @@ SYSCTL_INT(_net_inet_tcp_sack_attack, OID_AUTO, sad_low_pps,
     &tcp_sad_low_pps, 100,
     "What is the input pps that below which we do not decay?");
 #endif
+uint32_t tcp_ack_war_time_window = 1000;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, ack_war_timewindow,
+    CTLFLAG_RW,
+    &tcp_ack_war_time_window, 1000,
+   "If the tcp_stack does ack-war prevention how many milliseconds are in its time window?");
+uint32_t tcp_ack_war_cnt = 5;
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, ack_war_cnt,
+    CTLFLAG_RW,
+    &tcp_ack_war_cnt, 5,
+   "If the tcp_stack does ack-war prevention how many acks can be sent in its time window?");
 
 struct rwlock tcp_function_lock;
 
@@ -267,6 +277,18 @@ VNET_DEFINE(int, tcp_ts_offset_per_conn) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, ts_offset_per_conn, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_ts_offset_per_conn), 0,
     "Initialize TCP timestamps per connection instead of per host pair");
+
+/* How many connections are pacing */
+static volatile uint32_t number_of_tcp_connections_pacing = 0;
+static uint32_t shadow_num_connections = 0;
+
+static int tcp_pacing_limit = 10000;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pacing_limit, CTLFLAG_RW,
+    &tcp_pacing_limit, 1000,
+    "If the TCP stack does pacing, is there a limit (-1 = no, 0 = no pacing N = number of connections)");
+
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pacing_count, CTLFLAG_RD,
+    &shadow_num_connections, 0, "Number of TCP connections being paced");
 
 static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
@@ -3511,6 +3533,54 @@ tcp_maxseg(const struct tcpcb *tp)
 	return (tp->t_maxseg - optlen);
 }
 
+
+u_int
+tcp_fixed_maxseg(const struct tcpcb *tp)
+{
+	int optlen;
+
+	if (tp->t_flags & TF_NOOPT)
+		return (tp->t_maxseg);
+
+	/*
+	 * Here we have a simplified code from tcp_addoptions(),
+	 * without a proper loop, and having most of paddings hardcoded.
+	 * We only consider fixed options that we would send every
+	 * time I.e. SACK is not considered. This is important
+	 * for cc modules to figure out what the modulo of the
+	 * cwnd should be.
+	 */
+#define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		if (tp->t_flags & TF_RCVD_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = 0;
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+	} else {
+		if (tp->t_flags & TF_REQ_TSTMP)
+			optlen = TCPOLEN_TSTAMP_APPA;
+		else
+			optlen = PAD(TCPOLEN_MAXSEG);
+		if (tp->t_flags & TF_REQ_SCALE)
+			optlen += PAD(TCPOLEN_WINDOW);
+#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
+		if (tp->t_flags & TF_SIGNATURE)
+			optlen += PAD(TCPOLEN_SIGNATURE);
+#endif
+		if (tp->t_flags & TF_SACK_PERMIT)
+			optlen += PAD(TCPOLEN_SACK_PERMITTED);
+	}
+#undef PAD
+	optlen = min(optlen, TCP_MAXOLEN);
+	return (tp->t_maxseg - optlen);
+}
+
+
+
 static int
 sysctl_drop(SYSCTL_HANDLER_ARGS)
 {
@@ -3969,6 +4039,41 @@ tcp_log_end_status(struct tcpcb *tp, uint8_t status)
 			tp->t_end_info_bytes[i] = status;
 			tp->t_end_info_status |= bit;
 			break;
+		}
+	}
+}
+
+int
+tcp_can_enable_pacing(void)
+{
+
+	if ((tcp_pacing_limit == -1) ||
+	    (tcp_pacing_limit > number_of_tcp_connections_pacing)) {
+		atomic_fetchadd_int(&number_of_tcp_connections_pacing, 1);
+		shadow_num_connections = number_of_tcp_connections_pacing;
+		return (1);
+	} else {
+		return (0);
+	}
+}
+
+static uint8_t tcp_pacing_warning = 0;
+
+void
+tcp_decrement_paced_conn(void)
+{
+	uint32_t ret;
+
+	ret = atomic_fetchadd_int(&number_of_tcp_connections_pacing, -1);
+	shadow_num_connections = number_of_tcp_connections_pacing;
+	KASSERT(ret != 0, ("tcp_paced_connection_exits -1 would cause wrap?"));
+	if (ret == 0) {
+		if (tcp_pacing_limit != -1) {
+			printf("Warning all pacing is now disabled, count decrements invalidly!\n");
+			tcp_pacing_limit = 0;
+		} else if (tcp_pacing_warning == 0) {
+			printf("Warning pacing count is invalid, invalid decrement\n");
+			tcp_pacing_warning = 1;
 		}
 	}
 }

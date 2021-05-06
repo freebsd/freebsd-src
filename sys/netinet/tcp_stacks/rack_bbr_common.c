@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_hpts.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_log_buf.h>
 #ifdef TCPDEBUG
@@ -161,6 +162,130 @@ again:
 }
 #endif
 
+static int
+ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ether_header *eh;
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+#endif
+#ifdef INET
+	struct ip *ip = NULL;		/* Keep compiler happy. */
+#endif
+	int32_t tlen;
+	uint16_t drop_hdrlen;
+	uint16_t etype;
+	uint8_t iptos;
+
+	/* Is it the easy way? */
+	if (m->m_flags & M_LRO_EHDRSTRP)
+		return (m->m_pkthdr.lro_etype);
+	/*
+	 * Ok this is the old style call, the ethernet header is here.
+	 * This also means no checksum or BPF were done. This
+	 * can happen if the race to setup the inp fails and
+	 * LRO sees no INP at packet input, but by the time
+	 * we queue the packets an INP gets there. Its rare
+	 * but it can occur so we will handle it. Note that
+	 * this means duplicated work but with the rarity of it
+	 * its not worth worrying about.
+	 */
+	/* Let the BPF see the packet */
+	if (bpf_peers_present(ifp->if_bpf))
+		ETHER_BPF_MTAP(ifp, m);
+	/* Now the csum */
+	eh = mtod(m, struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	m_adj(m,  sizeof(*eh));
+	switch (etype) {
+#ifdef INET6
+		case ETHERTYPE_IPV6:
+		{
+			if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
+				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
+				if (m == NULL) {
+					KMOD_TCPSTAT_INC(tcps_rcvshort);
+					m_freem(m);
+					return (-1);
+				}
+			}
+			ip6 = (struct ip6_hdr *)(eh + 1);
+			th = (struct tcphdr *)(ip6 + 1);
+			drop_hdrlen = sizeof(*ip6);
+			tlen = ntohs(ip6->ip6_plen);
+			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
+				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+					th->th_sum = m->m_pkthdr.csum_data;
+				else
+					th->th_sum = in6_cksum_pseudo(ip6, tlen,
+								      IPPROTO_TCP,
+								      m->m_pkthdr.csum_data);
+				th->th_sum ^= 0xffff;
+			} else
+				th->th_sum = in6_cksum(m, IPPROTO_TCP, drop_hdrlen, tlen);
+			if (th->th_sum) {
+				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+				m_freem(m);
+				return (-1);
+			}
+			return (etype);
+		}
+#endif
+#ifdef INET
+		case ETHERTYPE_IP:
+		{
+			if (m->m_len < sizeof (struct tcpiphdr)) {
+				m = m_pullup(m, sizeof (struct tcpiphdr));
+				if (m == NULL) {
+					KMOD_TCPSTAT_INC(tcps_rcvshort);
+					m_freem(m);
+					return (-1);
+				}
+			}
+			ip = (struct ip *)(eh + 1);
+			th = (struct tcphdr *)(ip + 1);
+			drop_hdrlen = sizeof(*ip);
+			iptos = ip->ip_tos;
+			tlen = ntohs(ip->ip_len) - sizeof(struct ip);
+			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
+					th->th_sum = m->m_pkthdr.csum_data;
+				else
+					th->th_sum = in_pseudo(ip->ip_src.s_addr,
+							       ip->ip_dst.s_addr,
+							       htonl(m->m_pkthdr.csum_data + tlen + IPPROTO_TCP));
+				th->th_sum ^= 0xffff;
+			} else {
+				int len;
+				struct ipovly *ipov = (struct ipovly *)ip;
+				/*
+				 * Checksum extended TCP header and data.
+				 */
+				len = drop_hdrlen + tlen;
+				bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
+				ipov->ih_len = htons(tlen);
+				th->th_sum = in_cksum(m, len);
+				/* Reset length for SDT probes. */
+				ip->ip_len = htons(len);
+				/* Reset TOS bits */
+				ip->ip_tos = iptos;
+				/* Re-initialization for later version check */
+				ip->ip_v = IPVERSION;
+				ip->ip_hl = sizeof(*ip) >> 2;
+			}
+			if (th->th_sum) {
+				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
+				m_freem(m);
+				return (-1);
+			}
+			break;
+		}
+#endif
+	};
+	return (etype);
+}
+
 /*
  * The function ctf_process_inbound_raw() is used by
  * transport developers to do the steps needed to
@@ -170,6 +295,7 @@ again:
  * - INP_SUPPORTS_MBUFQ
  * - INP_MBUF_QUEUE_READY
  * - INP_DONT_SACK_QUEUE
+ * - INP_MBUF_ACKCMP
  *
  * These flags help control how LRO will deliver
  * packets to the transport. You first set in inp_flags2
@@ -185,6 +311,18 @@ again:
  * the interface card supports that) of the actual ACK/DATA.
  * In some transport designs this is important since knowing
  * the actual time we got the packet is useful information.
+ *
+ * A new special type of mbuf may also be supported by the transport
+ * if it has set the INP_MBUF_ACKCMP flag. If its set, LRO will
+ * possibly create a M_ACKCMP type mbuf. This is a mbuf with
+ * an array of "acks". One thing also to note is that when this
+ * occurs a subsequent LRO may find at the back of the untouched
+ * mbuf queue chain a M_ACKCMP and append on to it. This means
+ * that until the transport pulls in the mbuf chain queued
+ * for it more ack's may get on the mbufs that were already
+ * delivered. There currently is a limit of 6 acks condensed
+ * into 1 mbuf which means often when this is occuring, we
+ * don't get that effect but it does happen.
  *
  * Now there are some interesting Caveats that the transport
  * designer needs to take into account when using this feature.
@@ -247,7 +385,6 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	 *    shipped in, the tcb has been destroyed (or about to be destroyed).
 	 */
 	struct mbuf *m_save;
-	struct ether_header *eh;
 	struct tcphdr *th;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
@@ -257,20 +394,18 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 #endif
 	struct ifnet *ifp;
 	struct timeval tv;
+	struct inpcb *inp;
 	int32_t retval, nxt_pkt, tlen, off;
-	uint16_t etype;
+	int etype = 0;
 	uint16_t drop_hdrlen;
-	uint8_t iptos, no_vn=0, bpf_req=0;
+	uint8_t iptos, no_vn=0;
 
 	NET_EPOCH_ASSERT();
-
-	if (m && m->m_pkthdr.rcvif)
-		ifp = m->m_pkthdr.rcvif;
+	if (m)
+		ifp = m_rcvif(m);
 	else
 		ifp = NULL;
-	if (ifp) {
-		bpf_req = bpf_peers_present(ifp->if_bpf);
-	} else  {
+	if (ifp == NULL) {
 		/*
 		 * We probably should not work around
 		 * but kassert, since lro alwasy sets rcvif.
@@ -280,147 +415,86 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct socket *so, struct mbuf *m, int
 	}
 	CURVNET_SET(ifp->if_vnet);
 skip_vnet:
+	tcp_get_usecs(&tv);
 	while (m) {
 		m_save = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		/* Now lets get the ether header */
-		eh = mtod(m, struct ether_header *);
-		etype = ntohs(eh->ether_type);
-		/* Let the BPF see the packet */
-		if (bpf_req && ifp)
-			ETHER_BPF_MTAP(ifp, m);
-		m_adj(m,  sizeof(*eh));
-		/* Trim off the ethernet header */
-		switch (etype) {
+		if ((m->m_flags & M_ACKCMP) == 0) {
+			/* Now lets get the ether header */
+			etype = ctf_get_enet_type(ifp, m);
+			if (etype == -1) {
+				/* Skip this packet it was freed by checksum */
+				goto skipped_pkt;
+			}
+			KASSERT(((etype == ETHERTYPE_IPV6) || (etype == ETHERTYPE_IP)),
+				("tp:%p m:%p etype:0x%x -- not IP or IPv6", tp, m, etype));
+			/* Trim off the ethernet header */
+			switch (etype) {
 #ifdef INET6
-		case ETHERTYPE_IPV6:
-		{
-			if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
-				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
-				if (m == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
-					goto skipped_pkt;
-				}
-			}
-			ip6 = (struct ip6_hdr *)(eh + 1);
-			th = (struct tcphdr *)(ip6 + 1);
-			tlen = ntohs(ip6->ip6_plen);
-			drop_hdrlen = sizeof(*ip6);
-			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
-				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
-					th->th_sum = m->m_pkthdr.csum_data;
-				else
-					th->th_sum = in6_cksum_pseudo(ip6, tlen,
-								      IPPROTO_TCP, m->m_pkthdr.csum_data);
-				th->th_sum ^= 0xffff;
-			} else
-				th->th_sum = in6_cksum(m, IPPROTO_TCP, drop_hdrlen, tlen);
-			if (th->th_sum) {
-				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
-				m_freem(m);
-				goto skipped_pkt;
-			}
-			/*
-			 * Be proactive about unspecified IPv6 address in source.
-			 * As we use all-zero to indicate unbounded/unconnected pcb,
-			 * unspecified IPv6 address can be used to confuse us.
-			 *
-			 * Note that packets with unspecified IPv6 destination is
-			 * already dropped in ip6_input.
-			 */
-			if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
-				/* XXX stat */
-				m_freem(m);
-				goto skipped_pkt;
-			}
-			iptos = IPV6_TRAFFIC_CLASS(ip6);
-			break;
-		}
+			case ETHERTYPE_IPV6:
+				ip6 = mtod(m, struct ip6_hdr *);
+				th = (struct tcphdr *)(ip6 + 1);
+				tlen = ntohs(ip6->ip6_plen);
+				drop_hdrlen = sizeof(*ip6);
+				iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+				break;
 #endif
 #ifdef INET
-		case ETHERTYPE_IP:
-		{
-			if (m->m_len < sizeof (struct tcpiphdr)) {
-				if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
-				    == NULL) {
-					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
-					goto skipped_pkt;
-				}
-			}
-			ip = (struct ip *)(eh + 1);
-			th = (struct tcphdr *)(ip + 1);
-			drop_hdrlen = sizeof(*ip);
-			iptos = ip->ip_tos;
-			tlen = ntohs(ip->ip_len) - sizeof(struct ip);
-			if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
-				if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
-					th->th_sum = m->m_pkthdr.csum_data;
-				else
-					th->th_sum = in_pseudo(ip->ip_src.s_addr,
-							       ip->ip_dst.s_addr,
-							       htonl(m->m_pkthdr.csum_data + tlen +
-								     IPPROTO_TCP));
-				th->th_sum ^= 0xffff;
-			} else {
-				int len;
-				struct ipovly *ipov = (struct ipovly *)ip;
-				/*
-				 * Checksum extended TCP header and data.
-				 */
-				len = drop_hdrlen + tlen;
-				bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
-				ipov->ih_len = htons(tlen);
-				th->th_sum = in_cksum(m, len);
-				/* Reset length for SDT probes. */
-				ip->ip_len = htons(len);
-				/* Reset TOS bits */
-				ip->ip_tos = iptos;
-				/* Re-initialization for later version check */
-				ip->ip_v = IPVERSION;
-				ip->ip_hl = sizeof(*ip) >> 2;
-			}
-			if (th->th_sum) {
-				KMOD_TCPSTAT_INC(tcps_rcvbadsum);
-				m_freem(m);
-				goto skipped_pkt;
-			}
-			break;
-		}
+			case ETHERTYPE_IP:
+				ip = mtod(m, struct ip *);
+				th = (struct tcphdr *)(ip + 1);
+				drop_hdrlen = sizeof(*ip);
+				iptos = ip->ip_tos;
+				tlen = ntohs(ip->ip_len) - sizeof(struct ip);
+				break;
 #endif
-		}
-		/*
-		 * Convert TCP protocol specific fields to host format.
-		 */
-		tcp_fields_to_host(th);
-
-		off = th->th_off << 2;
-		if (off < sizeof (struct tcphdr) || off > tlen) {
-			KMOD_TCPSTAT_INC(tcps_rcvbadoff);
+			} /* end switch */
+			/*
+			 * Convert TCP protocol specific fields to host format.
+			 */
+			tcp_fields_to_host(th);
+			off = th->th_off << 2;
+			if (off < sizeof (struct tcphdr) || off > tlen) {
+				printf("off:%d < hdrlen:%zu || > tlen:%u -- dump\n",
+				       off,
+				       sizeof(struct tcphdr),
+				       tlen);
+				KMOD_TCPSTAT_INC(tcps_rcvbadoff);
 				m_freem(m);
 				goto skipped_pkt;
-		}
-		tlen -= off;
-		drop_hdrlen += off;
-		/*
-		 * Now lets setup the timeval to be when we should
-		 * have been called (if we can).
-		 */
-		m->m_pkthdr.lro_nsegs = 1;
-		if (m->m_flags & M_TSTMP_LRO) {
-			tv.tv_sec = m->m_pkthdr.rcv_tstmp /1000000000;
-			tv.tv_usec = (m->m_pkthdr.rcv_tstmp % 1000000000)/1000;
+			}
+			tlen -= off;
+			drop_hdrlen += off;
+			/*
+			 * Now lets setup the timeval to be when we should
+			 * have been called (if we can).
+			 */
+			m->m_pkthdr.lro_nsegs = 1;
+			/* Now what about next packet? */
 		} else {
-			/* Should not be should we kassert instead? */
-			tcp_get_usecs(&tv);
+			/*
+			 * This mbuf is an array of acks that have
+			 * been compressed. We assert the inp has
+			 * the flag set to enable this!
+			 */
+			KASSERT((tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP),
+				("tp:%p inp:%p no INP_MBUF_ACKCMP flags?", tp, tp->t_inpcb));
+			tlen = 0;
+			drop_hdrlen = 0;
+			th = NULL;
+			iptos = 0;
 		}
-		/* Now what about next packet? */
+		tcp_get_usecs(&tv);
 		if (m_save || has_pkt)
 			nxt_pkt = 1;
 		else
 			nxt_pkt = 0;
-		KMOD_TCPSTAT_INC(tcps_rcvtotal);
+		if ((m->m_flags & M_ACKCMP) == 0)
+			KMOD_TCPSTAT_INC(tcps_rcvtotal);
+		else
+			KMOD_TCPSTAT_ADD(tcps_rcvtotal, (m->m_len / sizeof(struct tcp_ackent)));
+		inp = tp->t_inpcb;
+		INP_WLOCK_ASSERT(inp);
 		retval = (*tp->t_fb->tfb_do_segment_nounlock)(m, th, so, tp, drop_hdrlen, tlen,
 							      iptos, nxt_pkt, &tv);
 		if (retval) {
@@ -434,6 +508,7 @@ skip_vnet:
 			}
 			if (no_vn == 0)
 				CURVNET_RESTORE();
+			INP_UNLOCK_ASSERT(inp);
 			return(retval);
 		}
 skipped_pkt:
@@ -482,11 +557,6 @@ ctf_flight_size(struct tcpcb *tp, uint32_t rc_sacked)
 	if (rc_sacked <= ctf_outstanding(tp))
 		return(ctf_outstanding(tp) - rc_sacked);
 	else {
-		/* TSNH */
-#ifdef INVARIANTS
-		panic("tp:%p rc_sacked:%d > out:%d",
-		      tp, rc_sacked, ctf_outstanding(tp));
-#endif
 		return (0);
 	}
 }
@@ -502,6 +572,36 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 }
 
+void
+ctf_ack_war_checks(struct tcpcb *tp, uint32_t *ts, uint32_t *cnt)
+{
+	if ((ts != NULL) && (cnt != NULL) &&
+	    (tcp_ack_war_time_window > 0) &&
+	    (tcp_ack_war_cnt > 0)) {
+		/* We are possibly doing ack war prevention */
+		uint32_t cts;
+
+		/*
+		 * We use a msec tick here which gives us
+		 * roughly 49 days. We don't need the
+		 * precision of a microsecond timestamp which
+		 * would only give us hours.
+		 */
+		cts = tcp_ts_getticks();
+		if (TSTMP_LT((*ts), cts)) {
+			/* Timestamp is in the past */
+			*cnt = 0;
+			*ts = (cts + tcp_ack_war_time_window);
+		}
+		if (*cnt < tcp_ack_war_cnt) {
+			*cnt = (*cnt + 1);
+			tp->t_flags |= TF_ACKNOW;
+		} else
+			tp->t_flags &= ~TF_ACKNOW;
+	} else
+		tp->t_flags |= TF_ACKNOW;
+}
+
 /*
  * ctf_drop_checks returns 1 for you should not proceed. It places
  * in ret_val what should be returned 1/0 by the caller. The 1 indicates
@@ -509,7 +609,10 @@ ctf_do_dropwithreset(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
  * TCB is still valid and locked.
  */
 int
-ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * tlenp,  int32_t * thf, int32_t * drop_hdrlen, int32_t * ret_val)
+_ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th,
+		 struct tcpcb *tp, int32_t *tlenp,
+		 int32_t *thf, int32_t *drop_hdrlen, int32_t *ret_val,
+		 uint32_t *ts, uint32_t *cnt)
 {
 	int32_t todrop;
 	int32_t thflags;
@@ -543,7 +646,7 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 			 * Send an ACK to resynchronize and drop any data.
 			 * But keep on processing for RST or ACK.
 			 */
-			tp->t_flags |= TF_ACKNOW;
+			ctf_ack_war_checks(tp, ts, cnt);
 			todrop = tlen;
 			KMOD_TCPSTAT_INC(tcps_rcvduppack);
 			KMOD_TCPSTAT_ADD(tcps_rcvdupbyte, todrop);
@@ -555,13 +658,14 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 		 * DSACK - add SACK block for dropped range
 		 */
 		if ((todrop > 0) && (tp->t_flags & TF_SACK_PERMIT)) {
-			tcp_update_sack_list(tp, th->th_seq,
-			    th->th_seq + todrop);
 			/*
 			 * ACK now, as the next in-sequence segment
 			 * will clear the DSACK block again
 			 */
-			tp->t_flags |= TF_ACKNOW;
+			ctf_ack_war_checks(tp, ts, cnt);
+			if (tp->t_flags & TF_ACKNOW)
+				tcp_update_sack_list(tp, th->th_seq,
+						     th->th_seq + todrop);
 		}
 		*drop_hdrlen += todrop;	/* drop from the top afterwards */
 		th->th_seq += todrop;
@@ -590,10 +694,10 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
 			 * ack.
 			 */
 			if (tp->rcv_wnd == 0 && th->th_seq == tp->rcv_nxt) {
-				tp->t_flags |= TF_ACKNOW;
+				ctf_ack_war_checks(tp, ts, cnt);
 				KMOD_TCPSTAT_INC(tcps_rcvwinprobe);
 			} else {
-				ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val);
+				__ctf_do_dropafterack(m, tp, th, thflags, tlen, ret_val, ts, cnt);
 				return (1);
 			}
 		} else
@@ -614,7 +718,7 @@ ctf_drop_checks(struct tcpopt *to, struct mbuf *m, struct tcphdr *th, struct tcp
  * and valid.
  */
 void
-ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t * ret_val)
+__ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t thflags, int32_t tlen, int32_t *ret_val, uint32_t *ts, uint32_t *cnt)
 {
 	/*
 	 * Generate an ACK dropping incoming segment if it occupies sequence
@@ -638,7 +742,7 @@ ctf_do_dropafterack(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th, int32_t
 		return;
 	} else
 		*ret_val = 0;
-	tp->t_flags |= TF_ACKNOW;
+	ctf_ack_war_checks(tp, ts, cnt);
 	if (m)
 		m_freem(m);
 }
@@ -671,7 +775,7 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 	 */
 	int dropped = 0;
 
-	if ((SEQ_GEQ(th->th_seq, (tp->last_ack_sent - 1)) &&
+	if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
 	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
@@ -680,8 +784,7 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 
 		if (V_tcp_insecure_rst ||
 		    (tp->last_ack_sent == th->th_seq) ||
-		    (tp->rcv_nxt == th->th_seq) ||
-		    ((tp->last_ack_sent - 1) == th->th_seq)) {
+		    (tp->rcv_nxt == th->th_seq)) {
 			KMOD_TCPSTAT_INC(tcps_drops);
 			/* Drop the connection. */
 			switch (tp->t_state) {
@@ -748,7 +851,7 @@ ctf_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t *
 }
 
 /*
- * bbr_ts_check returns 1 for you should not proceed, the state
+ * ctf_ts_check returns 1 for you should not proceed, the state
  * machine should return. It places in ret_val what should
  * be returned 1/0 by the caller (hpts_do_segment). The 1 indicates
  * that the TCB is unlocked and probably dropped. The 0 indicates the
@@ -786,6 +889,32 @@ ctf_ts_check(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 	return (0);
 }
 
+int
+ctf_ts_check_ac(struct tcpcb *tp, int32_t thflags)
+{
+
+	if (tcp_ts_getticks() - tp->ts_recent_age > TCP_PAWS_IDLE) {
+		/*
+		 * Invalidate ts_recent.  If this segment updates ts_recent,
+		 * the age will be reset later and ts_recent will get a
+		 * valid value.  If it does not, setting ts_recent to zero
+		 * will at least satisfy the requirement that zero be placed
+		 * in the timestamp echo reply when ts_recent isn't valid.
+		 * The age isn't reset until we get a valid ts_recent
+		 * because we don't want out-of-order segments to be dropped
+		 * when ts_recent is old.
+		 */
+		tp->ts_recent = 0;
+	} else {
+		KMOD_TCPSTAT_INC(tcps_rcvduppack);
+		KMOD_TCPSTAT_INC(tcps_pawsdrop);
+		return (1);
+	}
+	return (0);
+}
+
+
+
 void
 ctf_calc_rwin(struct socket *so, struct tcpcb *tp)
 {
@@ -817,45 +946,7 @@ ctf_do_dropwithreset_conn(struct mbuf *m, struct tcpcb *tp, struct tcphdr *th,
 uint32_t
 ctf_fixed_maxseg(struct tcpcb *tp)
 {
-	int optlen;
-
-	if (tp->t_flags & TF_NOOPT)
-		return (tp->t_maxseg);
-
-	/*
-	 * Here we have a simplified code from tcp_addoptions(),
-	 * without a proper loop, and having most of paddings hardcoded.
-	 * We only consider fixed options that we would send every
-	 * time I.e. SACK is not considered.
-	 *
-	 */
-#define	PAD(len)	((((len) / 4) + !!((len) % 4)) * 4)
-	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
-		if (tp->t_flags & TF_RCVD_TSTMP)
-			optlen = TCPOLEN_TSTAMP_APPA;
-		else
-			optlen = 0;
-#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
-		if (tp->t_flags & TF_SIGNATURE)
-			optlen += PAD(TCPOLEN_SIGNATURE);
-#endif
-	} else {
-		if (tp->t_flags & TF_REQ_TSTMP)
-			optlen = TCPOLEN_TSTAMP_APPA;
-		else
-			optlen = PAD(TCPOLEN_MAXSEG);
-		if (tp->t_flags & TF_REQ_SCALE)
-			optlen += PAD(TCPOLEN_WINDOW);
-#if defined(IPSEC_SUPPORT) || defined(TCP_SIGNATURE)
-		if (tp->t_flags & TF_SIGNATURE)
-			optlen += PAD(TCPOLEN_SIGNATURE);
-#endif
-		if (tp->t_flags & TF_SACK_PERMIT)
-			optlen += PAD(TCPOLEN_SACK_PERMITTED);
-	}
-#undef PAD
-	optlen = min(optlen, TCP_MAXOLEN);
-	return (tp->t_maxseg - optlen);
+	return (tcp_fixed_maxseg(tp));
 }
 
 void
