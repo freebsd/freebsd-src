@@ -775,7 +775,7 @@ PLIST(uart3_p)= {"clk_uart3_div", "clk_uart3_frac", "xin24m"};
 static struct rk_clk rk3399_clks[] = {
 	/* External clocks */
 	LINK("xin24m"),
-	FRATE(0, "xin32k", 32768),
+	LINK("xin32k"),
 	FFACT(0, "xin12m", "xin24m", 1, 2),
 	FRATE(0, "clkin_i2s", 0),
 	FRATE(0, "pclkin_cif", 0),
