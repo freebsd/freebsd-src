@@ -478,7 +478,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 			tcp_respond(NULL, mtod(m, void *), th, m,
 			    th->th_seq+tlen, (tcp_seq)0, TH_RST|TH_ACK);
 		}
-		INP_WUNLOCK(inp);
+		INP_UNLOCK(inp);
 		return (0);
 	}
 
