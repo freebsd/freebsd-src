@@ -367,11 +367,22 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 				       OID_AUTO, "pacetime", CTLFLAG_RD,
 				       &rs->rs_rlt[i].time_between, 0,
 				       "Time hardware inserts between 1500 byte sends");
-			SYSCTL_ADD_U64(&rs->sysctl_ctx,
+			SYSCTL_ADD_LONG(&rs->sysctl_ctx,
 				       SYSCTL_CHILDREN(rl_rate_num),
 				       OID_AUTO, "rate", CTLFLAG_RD,
-				       &rs->rs_rlt[i].rate, 0,
+				       &rs->rs_rlt[i].rate,
 				       "Rate in bytes per second");
+			SYSCTL_ADD_LONG(&rs->sysctl_ctx,
+				       SYSCTL_CHILDREN(rl_rate_num),
+				       OID_AUTO, "using", CTLFLAG_RD,
+				       &rs->rs_rlt[i].using,
+				       "Number of flows using");
+			SYSCTL_ADD_LONG(&rs->sysctl_ctx,
+				       SYSCTL_CHILDREN(rl_rate_num),
+				       OID_AUTO, "enobufs", CTLFLAG_RD,
+				       &rs->rs_rlt[i].rs_num_enobufs,
+				       "Number of enobufs logged on this rate");
+
 		}
 	}
 #endif
@@ -667,6 +678,8 @@ bail:
 		 */
 		rs->rs_rlt[i].ptbl = rs;
 		rs->rs_rlt[i].tag = NULL;
+		rs->rs_rlt[i].using = 0;
+		rs->rs_rlt[i].rs_num_enobufs = 0;
 		/*
 		 * Calculate the time between.
 		 */
@@ -1063,16 +1076,28 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 static void
 rl_increment_using(const struct tcp_hwrate_limit_table *rte)
 {
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_add_long(&decon_rte->using, 1);
 }
 
 static void
 rl_decrement_using(const struct tcp_hwrate_limit_table *rte)
 {
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_subtract_long(&decon_rte->using, 1);
 }
 
 void
 tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte)
 {
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_add_long(&decon_rte->rs_num_enobufs, 1);
 }
 
 /*
