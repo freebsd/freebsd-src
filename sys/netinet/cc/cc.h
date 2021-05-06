@@ -91,15 +91,20 @@ struct cc_var {
 		struct sctp_nets	*sctp;
 	} ccvc;
 	uint16_t	nsegs; /* # segments coalesced into current chain. */
+	uint8_t		labc;  /* Dont use system abc use passed in */
 };
 
 /* cc_var flags. */
 #define	CCF_ABC_SENTAWND	0x0001	/* ABC counted cwnd worth of bytes? */
 #define	CCF_CWND_LIMITED	0x0002	/* Are we currently cwnd limited? */
-#define	CCF_UNUSED1		0x0004	/* unused */
+#define	CCF_USE_LOCAL_ABC       0x0004  /* Dont use the system l_abc val */
 #define	CCF_ACKNOW		0x0008	/* Will this ack be sent now? */
 #define	CCF_IPHDR_CE		0x0010	/* Does this packet set CE bit? */
 #define	CCF_TCPHDR_CWR		0x0020	/* Does this packet set CWR bit? */
+#define	CCF_MAX_CWND		0x0040	/* Have we reached maximum cwnd? */
+#define	CCF_CHG_MAX_CWND	0x0080	/* Cubic max_cwnd changed, for K */
+#define	CCF_USR_IWND		0x0100	/* User specified initial window */
+#define	CCF_USR_IWND_INIT_NSEG	0x0200	/* Convert segs to bytes on conn init */
 
 /* ACK types passed to the ack_received() hook. */
 #define	CC_ACK		0x0001	/* Regular in sequence ACK. */

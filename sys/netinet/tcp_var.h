@@ -258,6 +258,10 @@ struct tcpcb {
 	tcp_seq gput_seq;		/* Outbound measurement seq */
 	tcp_seq gput_ack;		/* Inbound measurement ack */
 	int32_t t_stats_gput_prev;	/* XXXLAS: Prev gput measurement */
+	uint32_t t_maxpeakrate;		/* max peak rate set by user, in bytes/s */
+	uint32_t t_sndtlppack;		/* tail loss probe packets sent */
+	uint64_t t_sndtlpbyte;		/* total tail loss probe bytes sent */
+
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	uint32_t t_end_info_status;	/* Status flag of end info */
 	unsigned int *t_tfo_pending;	/* TCP Fast Open server pending counter */
@@ -974,6 +978,7 @@ void	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 void 	cc_conn_init(struct tcpcb *tp);
 void 	cc_post_recovery(struct tcpcb *tp, struct tcphdr *th);
 void    cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos);
+void	cc_ecnpkt_handler_flags(struct tcpcb *tp, uint16_t flags, uint8_t iptos);
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 #ifdef TCP_HHOOK
 void	hhook_run_tcp_est_in(struct tcpcb *tp,
@@ -1018,10 +1023,13 @@ extern int32_t tcp_sad_low_pps;
 extern int32_t tcp_map_minimum;
 extern int32_t tcp_attack_on_turns_on_logging;
 #endif
+extern uint32_t tcp_ack_war_time_window;
+extern uint32_t tcp_ack_war_cnt;
 
 uint32_t tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 uint32_t tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 u_int	 tcp_maxseg(const struct tcpcb *);
+u_int	 tcp_fixed_maxseg(const struct tcpcb *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
 	    struct tcp_ifcap *);
 void	 tcp_mss(struct tcpcb *, int);
@@ -1071,6 +1079,7 @@ uint32_t tcp_new_ts_offset(struct in_conninfo *);
 tcp_seq	 tcp_new_isn(struct in_conninfo *);
 
 int	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);
+int	 tcp_dsack_block_exists(struct tcpcb *);
 void	 tcp_update_dsack_list(struct tcpcb *, tcp_seq, tcp_seq);
 void	 tcp_update_sack_list(struct tcpcb *tp, tcp_seq rcv_laststart, tcp_seq rcv_lastend);
 void	 tcp_clean_dsack_blocks(struct tcpcb *tp);
@@ -1086,6 +1095,9 @@ uint32_t tcp_compute_initwnd(uint32_t);
 void	 tcp_sndbuf_autoscale(struct tcpcb *, struct socket *, uint32_t);
 int	 tcp_stats_sample_rollthedice(struct tcpcb *tp, void *seed_bytes,
     size_t seed_len);
+int tcp_can_enable_pacing(void);
+void tcp_decrement_paced_conn(void);
+
 struct mbuf *
 	 tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 	   int32_t seglimit, int32_t segsize, struct sockbuf *sb, bool hw_tls);
