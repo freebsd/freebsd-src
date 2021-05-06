@@ -925,6 +925,8 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_pcie_hp, CTLFLAG_RDTUN,
     &pci_enable_pcie_hp, 0,
     "Enable support for native PCI-express HotPlug.");
 
+TASKQUEUE_DEFINE_THREAD(pci_hp);
+
 static void
 pcib_probe_hotplug(struct pcib_softc *sc)
 {
@@ -1154,7 +1156,7 @@ pcib_pcie_hotplug_update(struct pcib_softc *sc, uint16_t val, uint16_t mask,
 	 */
 	if (schedule_task &&
 	    (pcib_hotplug_present(sc) != 0) != (sc->child != NULL))
-		taskqueue_enqueue(taskqueue_thread, &sc->pcie_hp_task);
+		taskqueue_enqueue(taskqueue_pci_hp, &sc->pcie_hp_task);
 }
 
 static void
@@ -1449,7 +1451,7 @@ pcib_detach_hotplug(struct pcib_softc *sc)
 	error = pcib_release_pcie_irq(sc);
 	if (error)
 		return (error);
-	taskqueue_drain(taskqueue_thread, &sc->pcie_hp_task);
+	taskqueue_drain(taskqueue_pci_hp, &sc->pcie_hp_task);
 	callout_drain(&sc->pcie_ab_timer);
 	callout_drain(&sc->pcie_cc_timer);
 	callout_drain(&sc->pcie_dll_timer);
