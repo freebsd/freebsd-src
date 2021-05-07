@@ -2406,7 +2406,8 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	else
 		ccb->csio.resid = ccb->csio.dxfer_len;
 
-	if (reqp->sense_info_len != 0) {
+	if ((vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID) != 0 &&
+	    reqp->sense_info_len != 0) {
 		csio->sense_resid = csio->sense_len - reqp->sense_info_len;
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}
