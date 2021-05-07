@@ -578,9 +578,9 @@ nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn, int num_nhops,
 }
 
 /*
- * Creates new nexthop group based on @src group with the nexthops defined in bitmask
- *  @nhop_mask removed.
- * Returns referenced nexthop group or NULL on failure.
+ * Creates new nexthop group based on @src group without the nexthops
+ * chosen by @flt_func.
+ * Returns 0 on success, storring the reference nhop group/object in @rnd.
  */
 int
 nhgrp_get_filtered_group(struct rib_head *rh, const struct nhgrp_object *src,
