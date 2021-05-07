@@ -356,6 +356,7 @@ extern int umtx_shm_vnobj_persistent;
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 vm_object_t vm_object_allocate_anon(vm_pindex_t, vm_object_t, struct ucred *,
    vm_size_t);
+vm_object_t vm_object_allocate_dyn(objtype_t, vm_pindex_t, u_short);
 boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
    boolean_t);
 void vm_object_collapse (vm_object_t);
