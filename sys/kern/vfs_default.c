@@ -1177,9 +1177,23 @@ vop_stdset_text(struct vop_set_text_args *ap)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int error;
+	int error, n;
 
 	vp = ap->a_vp;
+
+	/*
+	 * Avoid the interlock if execs are already present.
+	 */
+	n = atomic_load_int(&vp->v_writecount);
+	for (;;) {
+		if (n > -1) {
+			break;
+		}
+		if (atomic_fcmpset_int(&vp->v_writecount, &n, n - 1)) {
+			return (0);
+		}
+	}
+
 	VI_LOCK(vp);
 	if (vp->v_writecount > 0) {
 		error = ETXTBSY;
@@ -1207,10 +1221,24 @@ static int
 vop_stdunset_text(struct vop_unset_text_args *ap)
 {
 	struct vnode *vp;
-	int error;
+	int error, n;
 	bool last;
 
 	vp = ap->a_vp;
+
+	/*
+	 * Avoid the interlock if this is not the last exec.
+	 */
+	n = atomic_load_int(&vp->v_writecount);
+	for (;;) {
+		if (n >= -1) {
+			break;
+		}
+		if (atomic_fcmpset_int(&vp->v_writecount, &n, n + 1)) {
+			return (0);
+		}
+	}
+
 	last = false;
 	VI_LOCK(vp);
 	if (vp->v_writecount < 0) {
