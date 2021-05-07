@@ -1424,7 +1424,10 @@ SQLITE_EXTENSION_INIT1
 #include <assert.h>
 #include <string.h>
 #include <stdarg.h>
+
+#ifndef SQLITE_AMALGAMATION
 /* typedef sqlite3_uint64 u64; */
+#endif /* SQLITE_AMALGAMATION */
 
 /******************************************************************************
 ** The Hash Engine
@@ -3637,24 +3640,23 @@ int sqlite3_completion_init(
 ** appended onto the end of some other file, such as an executable.
 **
 ** A special record must appear at the end of the file that identifies the
-** file as an appended database and provides an offset to page 1.  For
-** best performance page 1 should be located at a disk page boundary, though
-** that is not required.
+** file as an appended database and provides the offset to the first page
+** of the exposed content. (Or, it is the length of the content prefix.)
+** For best performance page 1 should be located at a disk page boundary,
+** though that is not required.
 **
 ** When opening a database using this VFS, the connection might treat
-** the file as an ordinary SQLite database, or it might treat is as a
-** database appended onto some other file.  Here are the rules:
+** the file as an ordinary SQLite database, or it might treat it as a
+** database appended onto some other file.  The decision is made by
+** applying the following rules in order:
 **
-**  (1)  When opening a new empty file, that file is treated as an ordinary
-**       database.
+**  (1)  An empty file is an ordinary database.
 **
-**  (2)  When opening a file that begins with the standard SQLite prefix
-**       string "SQLite format 3", that file is treated as an ordinary
-**       database.
+**  (2)  If the file ends with the appendvfs trailer string
+**       "Start-Of-SQLite3-NNNNNNNN" that file is an appended database.
 **
-**  (3)  When opening a file that ends with the appendvfs trailer string
-**       "Start-Of-SQLite3-NNNNNNNN" that file is treated as an appended
-**       database.
+**  (3)  If the file begins with the standard SQLite prefix string
+**       "SQLite format 3", that file is an ordinary database.
 **
 **  (4)  If none of the above apply and the SQLITE_OPEN_CREATE flag is
 **       set, then a new database is appended to the already existing file.
@@ -3662,13 +3664,13 @@ int sqlite3_completion_init(
 **  (5)  Otherwise, SQLITE_CANTOPEN is returned.
 **
 ** To avoid unnecessary complications with the PENDING_BYTE, the size of
-** the file containing the database is limited to 1GB.  This VFS will refuse
-** to read or write past the 1GB mark.  This restriction might be lifted in
-** future versions.  For now, if you need a large database, then keep the
-** database in a separate file.
+** the file containing the database is limited to 1GiB. (1073741824 bytes)
+** This VFS will not read or write past the 1GiB mark.  This restriction
+** might be lifted in future versions.  For now, if you need a larger
+** database, then keep it in a separate file.
 **
-** If the file being opened is not an appended database, then this shim is
-** a pass-through into the default underlying VFS.
+** If the file being opened is a plain database (not an appended one), then
+** this shim is a pass-through into the default underlying VFS. (rule 3)
 **/
 /* #include "sqlite3ext.h" */
 SQLITE_EXTENSION_INIT1
@@ -3681,17 +3683,27 @@ SQLITE_EXTENSION_INIT1
 **     123456789 123456789 12345
 **
 ** The NNNNNNNN represents a 64-bit big-endian unsigned integer which is
-** the offset to page 1.
+** the offset to page 1, and also the length of the prefix content.
 */
 #define APND_MARK_PREFIX     "Start-Of-SQLite3-"
 #define APND_MARK_PREFIX_SZ  17
-#define APND_MARK_SIZE       25
+#define APND_MARK_FOS_SZ      8
+#define APND_MARK_SIZE       (APND_MARK_PREFIX_SZ+APND_MARK_FOS_SZ)
 
 /*
 ** Maximum size of the combined prefix + database + append-mark.  This
 ** must be less than 0x40000000 to avoid locking issues on Windows.
 */
-#define APND_MAX_SIZE  (65536*15259)
+#define APND_MAX_SIZE  (0x40000000)
+
+/*
+** Try to align the database to an even multiple of APND_ROUNDUP bytes.
+*/
+#ifndef APND_ROUNDUP
+#define APND_ROUNDUP 4096
+#endif
+#define APND_ALIGN_MASK         ((sqlite3_int64)(APND_ROUNDUP-1))
+#define APND_START_ROUNDUP(fsz) (((fsz)+APND_ALIGN_MASK) & ~APND_ALIGN_MASK)
 
 /*
 ** Forward declaration of objects used by this utility
@@ -3705,11 +3717,45 @@ typedef struct ApndFile ApndFile;
 #define ORIGVFS(p)  ((sqlite3_vfs*)((p)->pAppData))
 #define ORIGFILE(p) ((sqlite3_file*)(((ApndFile*)(p))+1))
 
-/* An open file */
+/* An open appendvfs file
+**
+** An instance of this structure describes the appended database file.
+** A separate sqlite3_file object is always appended. The appended
+** sqlite3_file object (which can be accessed using ORIGFILE()) describes
+** the entire file, including the prefix, the database, and the
+** append-mark.
+**
+** The structure of an AppendVFS database is like this:
+**
+**   +-------------+---------+----------+-------------+
+**   | prefix-file | padding | database | append-mark |
+**   +-------------+---------+----------+-------------+
+**                           ^          ^
+**                           |          |
+**                         iPgOne      iMark
+**
+**
+** "prefix file" -  file onto which the database has been appended.
+** "padding"     -  zero or more bytes inserted so that "database"
+**                  starts on an APND_ROUNDUP boundary
+** "database"    -  The SQLite database file
+** "append-mark" -  The 25-byte "Start-Of-SQLite3-NNNNNNNN" that indicates
+**                  the offset from the start of prefix-file to the start
+**                  of "database".
+**
+** The size of the database is iMark - iPgOne.
+**
+** The NNNNNNNN in the "Start-Of-SQLite3-NNNNNNNN" suffix is the value
+** of iPgOne stored as a big-ending 64-bit integer.
+**
+** iMark will be the size of the underlying file minus 25 (APND_MARKSIZE).
+** Or, iMark is -1 to indicate that it has not yet been written.
+*/
 struct ApndFile {
-  sqlite3_file base;              /* IO methods */
-  sqlite3_int64 iPgOne;           /* File offset to page 1 */
-  sqlite3_int64 iMark;            /* Start of the append-mark */
+  sqlite3_file base;        /* Subclass.  MUST BE FIRST! */
+  sqlite3_int64 iPgOne;     /* Offset to the start of the database */
+  sqlite3_int64 iMark;      /* Offset of the append mark.  -1 if unwritten */
+  /* Always followed by another sqlite3_file that describes the whole file */
 };
 
 /*
@@ -3801,8 +3847,6 @@ static const sqlite3_io_methods apnd_io_methods = {
   apndUnfetch                     /* xUnfetch */
 };
 
-
-
 /*
 ** Close an apnd-file.
 */
@@ -3820,22 +3864,37 @@ static int apndRead(
   int iAmt, 
   sqlite_int64 iOfst
 ){
-  ApndFile *p = (ApndFile *)pFile;
+  ApndFile *paf = (ApndFile *)pFile;
   pFile = ORIGFILE(pFile);
-  return pFile->pMethods->xRead(pFile, zBuf, iAmt, iOfst+p->iPgOne);
+  return pFile->pMethods->xRead(pFile, zBuf, iAmt, paf->iPgOne+iOfst);
 }
 
 /*
-** Add the append-mark onto the end of the file.
+** Add the append-mark onto what should become the end of the file.
+*  If and only if this succeeds, internal ApndFile.iMark is updated.
+*  Parameter iWriteEnd is the appendvfs-relative offset of the new mark.
 */
-static int apndWriteMark(ApndFile *p, sqlite3_file *pFile){
-  int i;
+static int apndWriteMark(
+  ApndFile *paf,
+  sqlite3_file *pFile,
+  sqlite_int64 iWriteEnd
+){
+  sqlite_int64 iPgOne = paf->iPgOne;
   unsigned char a[APND_MARK_SIZE];
+  int i = APND_MARK_FOS_SZ;
+  int rc;
+  assert(pFile == ORIGFILE(paf));
   memcpy(a, APND_MARK_PREFIX, APND_MARK_PREFIX_SZ);
-  for(i=0; i<8; i++){
-    a[APND_MARK_PREFIX_SZ+i] = (p->iPgOne >> (56 - i*8)) & 0xff;
+  while( --i >= 0 ){
+    a[APND_MARK_PREFIX_SZ+i] = (unsigned char)(iPgOne & 0xff);
+    iPgOne >>= 8;
   }
-  return pFile->pMethods->xWrite(pFile, a, APND_MARK_SIZE, p->iMark);
+  iWriteEnd += paf->iPgOne;
+  if( SQLITE_OK==(rc = pFile->pMethods->xWrite
+                  (pFile, a, APND_MARK_SIZE, iWriteEnd)) ){
+    paf->iMark = iWriteEnd;
+  }
+  return rc;
 }
 
 /*
@@ -3847,38 +3906,28 @@ static int apndWrite(
   int iAmt,
   sqlite_int64 iOfst
 ){
-  int rc;
-  ApndFile *p = (ApndFile *)pFile;
+  ApndFile *paf = (ApndFile *)pFile;
+  sqlite_int64 iWriteEnd = iOfst + iAmt;
+  if( iWriteEnd>=APND_MAX_SIZE ) return SQLITE_FULL;
   pFile = ORIGFILE(pFile);
-  if( iOfst+iAmt>=APND_MAX_SIZE ) return SQLITE_FULL;
-  rc = pFile->pMethods->xWrite(pFile, zBuf, iAmt, iOfst+p->iPgOne);
-  if( rc==SQLITE_OK &&  iOfst + iAmt + p->iPgOne > p->iMark ){
-    sqlite3_int64 sz = 0;
-    rc = pFile->pMethods->xFileSize(pFile, &sz);
-    if( rc==SQLITE_OK ){
-      p->iMark = sz - APND_MARK_SIZE;
-      if( iOfst + iAmt + p->iPgOne > p->iMark ){
-        p->iMark = p->iPgOne + iOfst + iAmt;
-        rc = apndWriteMark(p, pFile);
-      }
-    }
+  /* If append-mark is absent or will be overwritten, write it. */
+  if( paf->iMark < 0 || paf->iPgOne + iWriteEnd > paf->iMark ){
+    int rc = apndWriteMark(paf, pFile, iWriteEnd);
+    if( SQLITE_OK!=rc ) return rc;
   }
-  return rc;
+  return pFile->pMethods->xWrite(pFile, zBuf, iAmt, paf->iPgOne+iOfst);
 }
 
 /*
 ** Truncate an apnd-file.
 */
 static int apndTruncate(sqlite3_file *pFile, sqlite_int64 size){
-  int rc;
-  ApndFile *p = (ApndFile *)pFile;
+  ApndFile *paf = (ApndFile *)pFile;
   pFile = ORIGFILE(pFile);
-  rc = pFile->pMethods->xTruncate(pFile, size+p->iPgOne+APND_MARK_SIZE);
-  if( rc==SQLITE_OK ){
-    p->iMark = p->iPgOne+size;
-    rc = apndWriteMark(p, pFile);
-  }
-  return rc;
+  /* The append mark goes out first so truncate failure does not lose it. */
+  if( SQLITE_OK!=apndWriteMark(paf, pFile, size) ) return SQLITE_IOERR;
+  /* Truncate underlying file just past append mark */
+  return pFile->pMethods->xTruncate(pFile, paf->iMark+APND_MARK_SIZE);
 }
 
 /*
@@ -3891,16 +3940,12 @@ static int apndSync(sqlite3_file *pFile, int flags){
 
 /*
 ** Return the current file-size of an apnd-file.
+** If the append mark is not yet there, the file-size is 0.
 */
 static int apndFileSize(sqlite3_file *pFile, sqlite_int64 *pSize){
-  ApndFile *p = (ApndFile *)pFile;
-  int rc;
-  pFile = ORIGFILE(p);
-  rc = pFile->pMethods->xFileSize(pFile, pSize);
-  if( rc==SQLITE_OK && p->iPgOne ){
-    *pSize -= p->iPgOne + APND_MARK_SIZE;
-  }
-  return rc;
+  ApndFile *paf = (ApndFile *)pFile;
+  *pSize = ( paf->iMark >= 0 )? (paf->iMark - paf->iPgOne) : 0;
+  return SQLITE_OK;
 }
 
 /*
@@ -3931,12 +3976,13 @@ static int apndCheckReservedLock(sqlite3_file *pFile, int *pResOut){
 ** File control method. For custom operations on an apnd-file.
 */
 static int apndFileControl(sqlite3_file *pFile, int op, void *pArg){
-  ApndFile *p = (ApndFile *)pFile;
+  ApndFile *paf = (ApndFile *)pFile;
   int rc;
   pFile = ORIGFILE(pFile);
+  if( op==SQLITE_FCNTL_SIZE_HINT ) *(sqlite3_int64*)pArg += paf->iPgOne;
   rc = pFile->pMethods->xFileControl(pFile, op, pArg);
   if( rc==SQLITE_OK && op==SQLITE_FCNTL_VFSNAME ){
-    *(char**)pArg = sqlite3_mprintf("apnd(%lld)/%z", p->iPgOne, *(char**)pArg);
+    *(char**)pArg = sqlite3_mprintf("apnd(%lld)/%z", paf->iPgOne,*(char**)pArg);
   }
   return rc;
 }
@@ -3995,6 +4041,9 @@ static int apndFetch(
   void **pp
 ){
   ApndFile *p = (ApndFile *)pFile;
+  if( p->iMark < 0 || iOfst+iAmt > p->iMark ){
+    return SQLITE_IOERR; /* Cannot read what is not yet there. */
+  }
   pFile = ORIGFILE(pFile);
   return pFile->pMethods->xFetch(pFile, iOfst+p->iPgOne, iAmt, pp);
 }
@@ -4007,94 +4056,152 @@ static int apndUnfetch(sqlite3_file *pFile, sqlite3_int64 iOfst, void *pPage){
 }
 
 /*
-** Check to see if the file is an ordinary SQLite database file.
-*/
-static int apndIsOrdinaryDatabaseFile(sqlite3_int64 sz, sqlite3_file *pFile){
-  int rc;
-  char zHdr[16];
-  static const char aSqliteHdr[] = "SQLite format 3";
-  if( sz<512 ) return 0;
-  rc = pFile->pMethods->xRead(pFile, zHdr, sizeof(zHdr), 0);
-  if( rc ) return 0;
-  return memcmp(zHdr, aSqliteHdr, sizeof(zHdr))==0;
-}
-
-/*
 ** Try to read the append-mark off the end of a file.  Return the
-** start of the appended database if the append-mark is present.  If
-** there is no append-mark, return -1;
+** start of the appended database if the append-mark is present.
+** If there is no valid append-mark, return -1;
+**
+** An append-mark is only valid if the NNNNNNNN start-of-database offset
+** indicates that the appended database contains at least one page.  The
+** start-of-database value must be a multiple of 512.
 */
 static sqlite3_int64 apndReadMark(sqlite3_int64 sz, sqlite3_file *pFile){
   int rc, i;
   sqlite3_int64 iMark;
+  int msbs = 8 * (APND_MARK_FOS_SZ-1);
   unsigned char a[APND_MARK_SIZE];
 
-  if( sz<=APND_MARK_SIZE ) return -1;
+  if( APND_MARK_SIZE!=(sz & 0x1ff) ) return -1;
   rc = pFile->pMethods->xRead(pFile, a, APND_MARK_SIZE, sz-APND_MARK_SIZE);
   if( rc ) return -1;
   if( memcmp(a, APND_MARK_PREFIX, APND_MARK_PREFIX_SZ)!=0 ) return -1;
-  iMark = ((sqlite3_int64)(a[APND_MARK_PREFIX_SZ]&0x7f))<<56;
-  for(i=1; i<8; i++){    
-    iMark += (sqlite3_int64)a[APND_MARK_PREFIX_SZ+i]<<(56-8*i);
+  iMark = ((sqlite3_int64)(a[APND_MARK_PREFIX_SZ] & 0x7f)) << msbs;
+  for(i=1; i<8; i++){
+    msbs -= 8;
+    iMark |= (sqlite3_int64)a[APND_MARK_PREFIX_SZ+i]<<msbs;
   }
+  if( iMark > (sz - APND_MARK_SIZE - 512) ) return -1;
+  if( iMark & 0x1ff ) return -1;
   return iMark;
+}
+
+static const char apvfsSqliteHdr[] = "SQLite format 3";
+/*
+** Check to see if the file is an appendvfs SQLite database file.
+** Return true iff it is such. Parameter sz is the file's size.
+*/
+static int apndIsAppendvfsDatabase(sqlite3_int64 sz, sqlite3_file *pFile){
+  int rc;
+  char zHdr[16];
+  sqlite3_int64 iMark = apndReadMark(sz, pFile);
+  if( iMark>=0 ){
+    /* If file has the correct end-marker, the expected odd size, and the
+    ** SQLite DB type marker where the end-marker puts it, then it
+    ** is an appendvfs database.
+    */
+    rc = pFile->pMethods->xRead(pFile, zHdr, sizeof(zHdr), iMark);
+    if( SQLITE_OK==rc
+     && memcmp(zHdr, apvfsSqliteHdr, sizeof(zHdr))==0
+     && (sz & 0x1ff) == APND_MARK_SIZE
+     && sz>=512+APND_MARK_SIZE
+    ){
+      return 1; /* It's an appendvfs database */
+    }
+  }
+  return 0;
+}
+
+/*
+** Check to see if the file is an ordinary SQLite database file.
+** Return true iff so. Parameter sz is the file's size.
+*/
+static int apndIsOrdinaryDatabaseFile(sqlite3_int64 sz, sqlite3_file *pFile){
+  char zHdr[16];
+  if( apndIsAppendvfsDatabase(sz, pFile) /* rule 2 */
+   || (sz & 0x1ff) != 0
+   || SQLITE_OK!=pFile->pMethods->xRead(pFile, zHdr, sizeof(zHdr), 0)
+   || memcmp(zHdr, apvfsSqliteHdr, sizeof(zHdr))!=0
+  ){
+    return 0;
+  }else{
+    return 1;
+  }
 }
 
 /*
 ** Open an apnd file handle.
 */
 static int apndOpen(
-  sqlite3_vfs *pVfs,
+  sqlite3_vfs *pApndVfs,
   const char *zName,
   sqlite3_file *pFile,
   int flags,
   int *pOutFlags
 ){
-  ApndFile *p;
-  sqlite3_file *pSubFile;
-  sqlite3_vfs *pSubVfs;
+  ApndFile *pApndFile = (ApndFile*)pFile;
+  sqlite3_file *pBaseFile = ORIGFILE(pFile);
+  sqlite3_vfs *pBaseVfs = ORIGVFS(pApndVfs);
   int rc;
-  sqlite3_int64 sz;
-  pSubVfs = ORIGVFS(pVfs);
+  sqlite3_int64 sz = 0;
   if( (flags & SQLITE_OPEN_MAIN_DB)==0 ){
-    return pSubVfs->xOpen(pSubVfs, zName, pFile, flags, pOutFlags);
+    /* The appendvfs is not to be used for transient or temporary databases.
+    ** Just use the base VFS open to initialize the given file object and
+    ** open the underlying file. (Appendvfs is then unused for this file.)
+    */
+    return pBaseVfs->xOpen(pBaseVfs, zName, pFile, flags, pOutFlags);
   }
-  p = (ApndFile*)pFile;
-  memset(p, 0, sizeof(*p));
-  pSubFile = ORIGFILE(pFile);
+  memset(pApndFile, 0, sizeof(ApndFile));
   pFile->pMethods = &apnd_io_methods;
-  rc = pSubVfs->xOpen(pSubVfs, zName, pSubFile, flags, pOutFlags);
-  if( rc ) goto apnd_open_done;
-  rc = pSubFile->pMethods->xFileSize(pSubFile, &sz);
-  if( rc ){
-    pSubFile->pMethods->xClose(pSubFile);
-    goto apnd_open_done;
+  pApndFile->iMark = -1;    /* Append mark not yet written */
+
+  rc = pBaseVfs->xOpen(pBaseVfs, zName, pBaseFile, flags, pOutFlags);
+  if( rc==SQLITE_OK ){
+    rc = pBaseFile->pMethods->xFileSize(pBaseFile, &sz);
   }
-  if( apndIsOrdinaryDatabaseFile(sz, pSubFile) ){
-    memmove(pFile, pSubFile, pSubVfs->szOsFile);
+  if( rc ){
+    pBaseFile->pMethods->xClose(pBaseFile);
+    pFile->pMethods = 0;
+    return rc;
+  }
+  if( apndIsOrdinaryDatabaseFile(sz, pBaseFile) ){
+    /* The file being opened appears to be just an ordinary DB. Copy
+    ** the base dispatch-table so this instance mimics the base VFS. 
+    */
+    memmove(pApndFile, pBaseFile, pBaseVfs->szOsFile);
     return SQLITE_OK;
   }
-  p->iMark = 0;
-  p->iPgOne = apndReadMark(sz, pFile);
-  if( p->iPgOne>0 ){
+  pApndFile->iPgOne = apndReadMark(sz, pFile);
+  if( pApndFile->iPgOne>=0 ){
+    pApndFile->iMark = sz - APND_MARK_SIZE; /* Append mark found */
     return SQLITE_OK;
   }
   if( (flags & SQLITE_OPEN_CREATE)==0 ){
-    pSubFile->pMethods->xClose(pSubFile);
+    pBaseFile->pMethods->xClose(pBaseFile);
     rc = SQLITE_CANTOPEN;
+    pFile->pMethods = 0;
+  }else{
+    /* Round newly added appendvfs location to #define'd page boundary. 
+    ** Note that nothing has yet been written to the underlying file.
+    ** The append mark will be written along with first content write.
+    ** Until then, paf->iMark value indicates it is not yet written.
+    */
+    pApndFile->iPgOne = APND_START_ROUNDUP(sz);
   }
-  p->iPgOne = (sz+0xfff) & ~(sqlite3_int64)0xfff;
-apnd_open_done:
-  if( rc ) pFile->pMethods = 0;
   return rc;
+}
+
+/*
+** Delete an apnd file.
+** For an appendvfs, this could mean delete the appendvfs portion,
+** leaving the appendee as it was before it gained an appendvfs.
+** For now, this code deletes the underlying file too.
+*/
+static int apndDelete(sqlite3_vfs *pVfs, const char *zPath, int dirSync){
+  return ORIGVFS(pVfs)->xDelete(ORIGVFS(pVfs), zPath, dirSync);
 }
 
 /*
 ** All other VFS methods are pass-thrus.
 */
-static int apndDelete(sqlite3_vfs *pVfs, const char *zPath, int dirSync){
-  return ORIGVFS(pVfs)->xDelete(ORIGVFS(pVfs), zPath, dirSync);
-}
 static int apndAccess(
   sqlite3_vfs *pVfs, 
   const char *zPath, 
@@ -5201,6 +5308,14 @@ static void ieee754func(
     int isNeg = 0;
     m = sqlite3_value_int64(argv[0]);
     e = sqlite3_value_int64(argv[1]);
+
+    /* Limit the range of e.  Ticket 22dea1cfdb9151e4 2021-03-02 */
+    if( e>10000 ){
+      e = 10000;
+    }else if( e<-10000 ){
+      e = -10000;
+    }
+
     if( m<0 ){
       isNeg = 1;
       m = -m;
@@ -5565,7 +5680,8 @@ static int seriesEof(sqlite3_vtab_cursor *cur){
 **    4:    step=VALUE
 **
 ** Also, if bit 8 is set, that means that the series should be output
-** in descending order rather than in ascending order.
+** in descending order rather than in ascending order.  If bit 16 is
+** set, then output must appear in ascending order.
 **
 ** This routine should initialize the cursor and position it so that it
 ** is pointing at the first row, or pointing off the end of the table
@@ -5591,7 +5707,12 @@ static int seriesFilter(
   }
   if( idxNum & 4 ){
     pCur->iStep = sqlite3_value_int64(argv[i++]);
-    if( pCur->iStep<1 ) pCur->iStep = 1;
+    if( pCur->iStep==0 ){
+      pCur->iStep = 1;
+    }else if( pCur->iStep<0 ){
+      pCur->iStep = -pCur->iStep;
+      if( (idxNum & 16)==0 ) idxNum |= 8;
+    }
   }else{
     pCur->iStep = 1;
   }
@@ -5685,7 +5806,11 @@ static int seriesBestIndex(
     pIdxInfo->estimatedCost = (double)(2 - ((idxNum&4)!=0));
     pIdxInfo->estimatedRows = 1000;
     if( pIdxInfo->nOrderBy==1 ){
-      if( pIdxInfo->aOrderBy[0].desc ) idxNum |= 8;
+      if( pIdxInfo->aOrderBy[0].desc ){
+        idxNum |= 8;
+      }else{
+        idxNum |= 16;
+      }
       pIdxInfo->orderByConsumed = 1;
     }
   }else{
@@ -8936,7 +9061,7 @@ static int idxGetTableInfo(
   char *pCsr = 0;
   int nPk = 0;
 
-  rc = idxPrintfPrepareStmt(db, &p1, pzErrmsg, "PRAGMA table_info=%Q", zTab);
+  rc = idxPrintfPrepareStmt(db, &p1, pzErrmsg, "PRAGMA table_xinfo=%Q", zTab);
   while( rc==SQLITE_OK && SQLITE_ROW==sqlite3_step(p1) ){
     const char *zCol = (const char*)sqlite3_column_text(p1, 1);
     nByte += 1 + STRLEN(zCol);
@@ -11116,12 +11241,12 @@ struct ShellState {
   u8 autoEQP;            /* Run EXPLAIN QUERY PLAN prior to seach SQL stmt */
   u8 autoEQPtest;        /* autoEQP is in test mode */
   u8 autoEQPtrace;       /* autoEQP is in trace mode */
-  u8 statsOn;            /* True to display memory stats before each finalize */
   u8 scanstatsOn;        /* True to display scan stats before each finalize */
   u8 openMode;           /* SHELL_OPEN_NORMAL, _APPENDVFS, or _ZIPFILE */
   u8 doXdgOpen;          /* Invoke start/open/xdg-open in output_reset() */
   u8 nEqpLevel;          /* Depth of the EQP output graph */
   u8 eTraceType;         /* SHELL_TRACE_* value for type of trace */
+  unsigned statsOn;      /* True to display memory stats before each finalize */
   unsigned mEqpLines;    /* Mask of veritical lines in the EQP output graph */
   int outCount;          /* Revert to stdout when reaching zero */
   int cnt;               /* Number of records displayed so far */
@@ -12058,6 +12183,7 @@ static int shell_callback(
       if( azArg==0 ) break;
       for(i=0; i<nArg; i++){
         int w = aExplainWidth[i];
+        if( i==nArg-1 ) w = 0;
         if( azArg[i] && strlenChar(azArg[i])>w ){
           w = strlenChar(azArg[i]);
         }
@@ -12622,7 +12748,7 @@ static int display_stats(
   if( pArg==0 || pArg->out==0 ) return 0;
   out = pArg->out;
 
-  if( pArg->pStmt && (pArg->statsOn & 2) ){
+  if( pArg->pStmt && pArg->statsOn==2 ){
     int nCol, i, x;
     sqlite3_stmt *pStmt = pArg->pStmt;
     char z[100];
@@ -12644,6 +12770,14 @@ static int display_stats(
       utf8_printf(out, "%-36s %s\n", z, sqlite3_column_origin_name(pStmt,i));
 #endif
     }
+  }
+
+  if( pArg->statsOn==3 ){
+    if( pArg->pStmt ){
+      iCur = sqlite3_stmt_status(pArg->pStmt, SQLITE_STMTSTATUS_VM_STEP, bReset);
+      raw_printf(pArg->out, "VM-steps: %d\n", iCur);
+    }
+    return 0;
   }
 
   displayStatLine(pArg, "Memory Used:",
@@ -12912,31 +13046,18 @@ static void explain_data_delete(ShellState *p){
 /*
 ** Disable and restore .wheretrace and .selecttrace settings.
 */
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-extern unsigned int sqlite3_unsupported_selecttrace;
-static int savedSelectTrace;
-#endif
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
-extern int sqlite3WhereTrace;
-static int savedWhereTrace;
-#endif
+static unsigned int savedSelectTrace;
+static unsigned int savedWhereTrace;
 static void disable_debug_trace_modes(void){
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-  savedSelectTrace = sqlite3_unsupported_selecttrace;
-  sqlite3_unsupported_selecttrace = 0;
-#endif
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
-  savedWhereTrace = sqlite3WhereTrace;
-  sqlite3WhereTrace = 0;
-#endif
+  unsigned int zero = 0;
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 0, &savedSelectTrace);
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 1, &zero);
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 2, &savedWhereTrace);
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 3, &zero);
 }
 static void restore_debug_trace_modes(void){
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
-  sqlite3_unsupported_selecttrace = savedSelectTrace;
-#endif
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
-  sqlite3WhereTrace = savedWhereTrace;
-#endif
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 1, &savedSelectTrace);
+  sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 3, &savedWhereTrace);
 }
 
 /* Create the TEMP table used to store parameter bindings */
@@ -13098,6 +13219,7 @@ static void exec_prepared_stmt_columnar(
   if( rc!=SQLITE_ROW ) return;
   nColumn = sqlite3_column_count(pStmt);
   nAlloc = nColumn*4;
+  if( nAlloc<=0 ) nAlloc = 1;
   azData = sqlite3_malloc64( nAlloc*sizeof(char*) );
   if( azData==0 ) shell_out_of_memory();
   for(i=0; i<nColumn; i++){
@@ -13137,6 +13259,7 @@ static void exec_prepared_stmt_columnar(
     if( n>p->actualWidth[j] ) p->actualWidth[j] = n;
   }
   if( seenInterrupt ) goto columnar_end;
+  if( nColumn==0 ) goto columnar_end;
   switch( p->cMode ){
     case MODE_Column: {
       colSep = "  ";
@@ -13926,13 +14049,13 @@ static const char *(azHelp[]) = {
   ".databases               List names and files of attached databases",
   ".dbconfig ?op? ?val?     List or change sqlite3_db_config() options",
   ".dbinfo ?DB?             Show status information about the database",
-  ".dump ?TABLE?            Render database content as SQL",
+  ".dump ?OBJECTS?          Render database content as SQL",
   "   Options:",
   "     --data-only            Output only INSERT statements",
   "     --newlines             Allow unescaped newline characters in output",
   "     --nosys                Omit system tables (ex: \"sqlite_stat1\")",
   "     --preserve-rowids      Include ROWID values in the output",
-  "   TABLE is a LIKE pattern for the tables to dump",
+  "   OBJECTS is a LIKE pattern for tables, indexes, triggers or views to dump",
   "   Additional LIKE patterns can be given in subsequent arguments",
   ".echo on|off             Turn command echo on or off",
   ".eqp on|off|full|...     Enable or disable automatic EXPLAIN QUERY PLAN",
@@ -14091,7 +14214,11 @@ static const char *(azHelp[]) = {
   ".shell CMD ARGS...       Run CMD ARGS... in a system shell",
 #endif
   ".show                    Show the current values for various settings",
-  ".stats ?on|off?          Show stats or turn stats on or off",
+  ".stats ?ARG?             Show stats or turn stats on or off",
+  "   off                      Turn off automatic stat display",
+  "   on                       Turn on automatic stat display",
+  "   stmt                     Show statement stats",
+  "   vmstep                   Show the virtual machine step count only",
 #ifndef SQLITE_NOHAVE_SYSTEM
   ".system CMD ARGS...      Run CMD ARGS... in a system shell",
 #endif
@@ -17907,16 +18034,17 @@ static int do_meta_command(char *zLine, ShellState *p){
        int ctrlCode;            /* Integer code for that option */
        const char *zUsage;      /* Usage notes */
     } aCtrl[] = {
-      { "size_limit",     SQLITE_FCNTL_SIZE_LIMIT,      "[LIMIT]"        },
       { "chunk_size",     SQLITE_FCNTL_CHUNK_SIZE,      "SIZE"           },
-   /* { "win32_av_retry", SQLITE_FCNTL_WIN32_AV_RETRY,  "COUNT DELAY"    },*/
-      { "persist_wal",    SQLITE_FCNTL_PERSIST_WAL,     "[BOOLEAN]"      },
-      { "psow",       SQLITE_FCNTL_POWERSAFE_OVERWRITE, "[BOOLEAN]"      },
-   /* { "pragma",         SQLITE_FCNTL_PRAGMA,          "NAME ARG"       },*/
-      { "tempfilename",   SQLITE_FCNTL_TEMPFILENAME,    ""               },
+      { "data_version",   SQLITE_FCNTL_DATA_VERSION,    ""               },
       { "has_moved",      SQLITE_FCNTL_HAS_MOVED,       ""               },  
       { "lock_timeout",   SQLITE_FCNTL_LOCK_TIMEOUT,    "MILLISEC"       },
+      { "persist_wal",    SQLITE_FCNTL_PERSIST_WAL,     "[BOOLEAN]"      },
+   /* { "pragma",         SQLITE_FCNTL_PRAGMA,          "NAME ARG"       },*/
+      { "psow",       SQLITE_FCNTL_POWERSAFE_OVERWRITE, "[BOOLEAN]"      },
       { "reserve_bytes",  SQLITE_FCNTL_RESERVE_BYTES,   "[N]"            },
+      { "size_limit",     SQLITE_FCNTL_SIZE_LIMIT,      "[LIMIT]"        },
+      { "tempfilename",   SQLITE_FCNTL_TEMPFILENAME,    ""               },
+   /* { "win32_av_retry", SQLITE_FCNTL_WIN32_AV_RETRY,  "COUNT DELAY"    },*/
     };
     int filectrl = -1;
     int iCtrl = -1;
@@ -18003,6 +18131,7 @@ static int do_meta_command(char *zLine, ShellState *p){
           isOk = 1;
           break;
         }
+        case SQLITE_FCNTL_DATA_VERSION:
         case SQLITE_FCNTL_HAS_MOVED: {
           int x;
           if( nArg!=2 ) break;
@@ -18711,9 +18840,9 @@ static int do_meta_command(char *zLine, ShellState *p){
 #endif /* SQLITE_DEBUG */
 
   if( c=='o' && strncmp(azArg[0], "open", n)==0 && n>=2 ){
-    char *zNewFilename;  /* Name of the database file to open */
-    int iName = 1;       /* Index in azArg[] of the filename */
-    int newFlag = 0;     /* True to delete file before opening */
+    char *zNewFilename = 0;  /* Name of the database file to open */
+    int iName = 1;           /* Index in azArg[] of the filename */
+    int newFlag = 0;         /* True to delete file before opening */
     /* Close the existing database */
     session_close_all(p);
     close_db(p->db);
@@ -18725,7 +18854,7 @@ static int do_meta_command(char *zLine, ShellState *p){
     p->openFlags = 0;
     p->szMax = 0;
     /* Check for command-line arguments */
-    for(iName=1; iName<nArg && azArg[iName][0]=='-'; iName++){
+    for(iName=1; iName<nArg; iName++){
       const char *z = azArg[iName];
       if( optionMatch(z,"new") ){
         newFlag = 1;
@@ -18751,10 +18880,15 @@ static int do_meta_command(char *zLine, ShellState *p){
         utf8_printf(stderr, "unknown option: %s\n", z);
         rc = 1;
         goto meta_command_exit;
+      }else if( zNewFilename ){
+        utf8_printf(stderr, "extra argument: \"%s\"\n", z);
+        rc = 1;
+        goto meta_command_exit;
+      }else{
+        zNewFilename = sqlite3_mprintf("%s", z);
       }
     }
     /* If a filename is specified, try to open it first */
-    zNewFilename = nArg>iName ? sqlite3_mprintf("%s", azArg[iName]) : 0;
     if( zNewFilename || p->openMode==SHELL_OPEN_HEXDB ){
       if( newFlag ) shellDeleteFile(zNewFilename);
       p->zDbFilename = zNewFilename;
@@ -18777,7 +18911,7 @@ static int do_meta_command(char *zLine, ShellState *p){
         && (strncmp(azArg[0], "output", n)==0||strncmp(azArg[0], "once", n)==0))
    || (c=='e' && n==5 && strcmp(azArg[0],"excel")==0)
   ){
-    const char *zFile = 0;
+    char *zFile = 0;
     int bTxtMode = 0;
     int i;
     int eMode = 0;
@@ -18807,17 +18941,22 @@ static int do_meta_command(char *zLine, ShellState *p){
           rc = 1;
           goto meta_command_exit;
         }
-      }else if( zFile==0 ){
-        zFile = z;
+      }else if( zFile==0 && eMode!='e' && eMode!='x' ){
+        zFile = sqlite3_mprintf("%s", z);
+        if( zFile[0]=='|' ){
+          while( i+1<nArg ) zFile = sqlite3_mprintf("%z %s", zFile, azArg[++i]);
+          break;
+        }
       }else{
         utf8_printf(p->out,"ERROR: extra parameter: \"%s\".  Usage:\n",
                     azArg[i]);
         showHelp(p->out, azArg[0]);
         rc = 1;
+        sqlite3_free(zFile);
         goto meta_command_exit;
       }
     }
-    if( zFile==0 ) zFile = "stdout";
+    if( zFile==0 ) zFile = sqlite3_mprintf("stdout");
     if( bOnce ){
       p->outCount = 2;
     }else{
@@ -18840,7 +18979,8 @@ static int do_meta_command(char *zLine, ShellState *p){
         newTempFile(p, "txt");
         bTxtMode = 1;
       }
-      zFile = p->zTempFile;
+      sqlite3_free(zFile);
+      zFile = sqlite3_mprintf("%s", p->zTempFile);
     }
 #endif /* SQLITE_NOHAVE_SYSTEM */
     if( zFile[0]=='|' ){
@@ -18872,6 +19012,7 @@ static int do_meta_command(char *zLine, ShellState *p){
         sqlite3_snprintf(sizeof(p->outfile), p->outfile, "%s", zFile);
       }
     }
+    sqlite3_free(zFile);
   }else
 
   if( c=='p' && n>=3 && strncmp(azArg[0], "parameter", n)==0 ){
@@ -19055,6 +19196,11 @@ static int do_meta_command(char *zLine, ShellState *p){
       goto meta_command_exit;
     }
     if( azArg[1][0]=='|' ){
+#ifdef SQLITE_OMIT_POPEN
+      raw_printf(stderr, "Error: pipes are not supported in this OS\n");
+      rc = 1;
+      p->out = stdout;
+#else
       p->in = popen(azArg[1]+1, "r");
       if( p->in==0 ){
         utf8_printf(stderr, "Error: cannot open \"%s\"\n", azArg[1]);
@@ -19063,6 +19209,7 @@ static int do_meta_command(char *zLine, ShellState *p){
         rc = process_input(p);
         pclose(p->in);
       }
+#endif
     }else if( notNormalFile(azArg[1]) || (p->in = fopen(azArg[1], "rb"))==0 ){
       utf8_printf(stderr,"Error: cannot open \"%s\"\n", azArg[1]);
       rc = 1;
@@ -19277,11 +19424,10 @@ static int do_meta_command(char *zLine, ShellState *p){
     }
   }else
 
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_SELECTTRACE)
   if( c=='s' && n==11 && strncmp(azArg[0], "selecttrace", n)==0 ){
-    sqlite3_unsupported_selecttrace = nArg>=2 ? (int)integerValue(azArg[1]) : 0xffff;
+    unsigned int x = nArg>=2 ? (unsigned int)integerValue(azArg[1]) : 0xffffffff;
+    sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 1, &x);
   }else
-#endif
 
 #if defined(SQLITE_ENABLE_SESSION)
   if( c=='s' && strncmp(azArg[0],"session",n)==0 && n>=3 ){
@@ -19762,6 +19908,7 @@ static int do_meta_command(char *zLine, ShellState *p){
 
   if( c=='s' && strncmp(azArg[0], "show", n)==0 ){
     static const char *azBool[] = { "off", "on", "trigger", "full"};
+    const char *zOut;
     int i;
     if( nArg!=1 ){
       raw_printf(stderr, "Usage: .show\n");
@@ -19786,7 +19933,13 @@ static int do_meta_command(char *zLine, ShellState *p){
     utf8_printf(p->out,"%12.12s: ", "rowseparator");
       output_c_string(p->out, p->rowSeparator);
       raw_printf(p->out, "\n");
-    utf8_printf(p->out, "%12.12s: %s\n","stats", azBool[p->statsOn!=0]);
+    switch( p->statsOn ){
+      case 0:  zOut = "off";     break;
+      default: zOut = "on";      break;
+      case 2:  zOut = "stmt";    break;
+      case 3:  zOut = "vmstep";  break;
+    }
+    utf8_printf(p->out, "%12.12s: %s\n","stats", zOut);
     utf8_printf(p->out, "%12.12s: ", "width");
     for (i=0;i<p->nWidth;i++) {
       raw_printf(p->out, "%d ", p->colWidth[i]);
@@ -19798,11 +19951,17 @@ static int do_meta_command(char *zLine, ShellState *p){
 
   if( c=='s' && strncmp(azArg[0], "stats", n)==0 ){
     if( nArg==2 ){
-      p->statsOn = (u8)booleanValue(azArg[1]);
+      if( strcmp(azArg[1],"stmt")==0 ){
+        p->statsOn = 2;
+      }else if( strcmp(azArg[1],"vmstep")==0 ){
+        p->statsOn = 3;
+      }else{
+        p->statsOn = (u8)booleanValue(azArg[1]);
+      }
     }else if( nArg==1 ){
       display_stats(p->db, p, 0);
     }else{
-      raw_printf(stderr, "Usage: .stats ?on|off?\n");
+      raw_printf(stderr, "Usage: .stats ?on|off|stmt|vmstep?\n");
       rc = 1;
     }
   }else
@@ -20007,7 +20166,7 @@ static int do_meta_command(char *zLine, ShellState *p){
         /* sqlite3_test_control(int, db, int) */
         case SQLITE_TESTCTRL_OPTIMIZATIONS:
           if( nArg==3 ){
-            int opt = (int)strtol(azArg[2], 0, 0);
+            unsigned int opt = (unsigned int)strtol(azArg[2], 0, 0);
             rc2 = sqlite3_test_control(testctrl, p->db, opt);
             isOk = 3;
           }
@@ -20336,11 +20495,10 @@ static int do_meta_command(char *zLine, ShellState *p){
     }
   }else
 
-#if defined(SQLITE_DEBUG) && defined(SQLITE_ENABLE_WHERETRACE)
   if( c=='w' && strncmp(azArg[0], "wheretrace", n)==0 ){
-    sqlite3WhereTrace = nArg>=2 ? booleanValue(azArg[1]) : 0xff;
+    unsigned int x = nArg>=2 ? (unsigned int)integerValue(azArg[1]) : 0xffffffff;
+    sqlite3_test_control(SQLITE_TESTCTRL_TRACEFLAGS, 3, &x);
   }else
-#endif
 
   if( c=='w' && strncmp(azArg[0], "width", n)==0 ){
     int j;
@@ -20829,7 +20987,8 @@ static char *cmdline_option_value(int argc, char **argv, int i){
 }
 
 #ifndef SQLITE_SHELL_IS_UTF8
-#  if (defined(_WIN32) || defined(WIN32)) && defined(_MSC_VER)
+#  if (defined(_WIN32) || defined(WIN32)) \
+   && (defined(_MSC_VER) || (defined(UNICODE) && defined(__GNUC__)))
 #    define SQLITE_SHELL_IS_UTF8          (0)
 #  else
 #    define SQLITE_SHELL_IS_UTF8          (1)
