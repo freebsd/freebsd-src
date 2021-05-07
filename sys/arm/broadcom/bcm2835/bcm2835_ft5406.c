@@ -270,7 +270,7 @@ static int
 ft5406ts_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "rpi,rpi-ft5406"))
+	if (!ofw_bus_is_compatible(dev, "raspberrypi,firmware-ts"))
 		return (ENXIO);
 
 	device_set_desc(dev, "FT5406 touchscreen (VC memory interface)");
@@ -332,5 +332,5 @@ static driver_t ft5406ts_driver = {
 	sizeof(struct ft5406ts_softc),
 };
 
-DRIVER_MODULE(ft5406ts, ofwbus, ft5406ts_driver, ft5406ts_devclass, 0, 0);
+DRIVER_MODULE(ft5406ts, simplebus, ft5406ts_driver, ft5406ts_devclass, 0, 0);
 MODULE_DEPEND(ft5406ts, evdev, 1, 1, 1);
