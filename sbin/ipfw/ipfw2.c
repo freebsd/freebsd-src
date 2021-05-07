@@ -4021,56 +4021,53 @@ chkarg:
 
 		NEED1("missing forward address[:port]");
 
-		if (_substrcmp(*av, "tablearg") == 0) {
-			family = PF_INET;
-			((struct sockaddr_in*)&result)->sin_addr.s_addr =
-			    INADDR_ANY;
-		} else {
-			/*
-			 * Are we an bracket-enclosed IPv6 address?
-			 */
-			if (strchr(*av, '['))
-				(*av)++;
+		if (strncmp(*av, "tablearg", 8) == 0)
+			memcpy(++(*av), "0.0.0.0", 7);
 
-			/*
-			 * locate the address-port separator (':' or ',')
-			 */
-			s = strchr(*av, ',');
-			if (s == NULL) {
-				s = strchr(*av, ']');
-				/* Prevent erroneous parsing on brackets. */
-				if (s != NULL)
-					*(s++) = '\0';
-				else
-					s = *av;
+		/*
+		 * Are we an bracket-enclosed IPv6 address?
+		 */
+		if (strchr(*av, '['))
+			(*av)++;
 
-				/* Distinguish between IPv4:port and IPv6 cases. */
-				s = strchr(s, ':');
-				if (s && strchr(s+1, ':'))
-					s = NULL; /* no port */
-			}
-
-			if (s != NULL) {
-				/* Terminate host portion and set s to start of port. */
+		/*
+		 * locate the address-port separator (':' or ',')
+		 */
+		s = strchr(*av, ',');
+		if (s == NULL) {
+			s = strchr(*av, ']');
+			/* Prevent erroneous parsing on brackets. */
+			if (s != NULL)
 				*(s++) = '\0';
-				i = strtoport(s, &end, 0 /* base */, 0 /* proto */);
-				if (s == end)
-					errx(EX_DATAERR,
-					    "illegal forwarding port ``%s''", s);
-				port_number = (u_short)i;
-			}
+			else
+				s = *av;
 
-			/*
-			 * Resolve the host name or address to a family and a
-			 * network representation of the address.
-			 */
-			if (getaddrinfo(*av, NULL, NULL, &res))
-				errx(EX_DATAERR, NULL);
-			/* Just use the first host in the answer. */
-			family = res->ai_family;
-			memcpy(&result, res->ai_addr, res->ai_addrlen);
-			freeaddrinfo(res);
+			/* Distinguish between IPv4:port and IPv6 cases. */
+			s = strchr(s, ':');
+			if (s && strchr(s+1, ':'))
+				s = NULL; /* no port */
 		}
+
+		if (s != NULL) {
+			/* Terminate host portion and set s to start of port. */
+			*(s++) = '\0';
+			i = strtoport(s, &end, 0 /* base */, 0 /* proto */);
+			if (s == end)
+				errx(EX_DATAERR,
+				    "illegal forwarding port ``%s''", s);
+			port_number = (u_short)i;
+		}
+
+		/*
+		 * Resolve the host name or address to a family and a
+		 * network representation of the address.
+		 */
+		if (getaddrinfo(*av, NULL, NULL, &res))
+			errx(EX_DATAERR, NULL);
+		/* Just use the first host in the answer. */
+		family = res->ai_family;
+		memcpy(&result, res->ai_addr, res->ai_addrlen);
+		freeaddrinfo(res);
 
  		if (family == PF_INET) {
 			ipfw_insn_sa *p = (ipfw_insn_sa *)action;
