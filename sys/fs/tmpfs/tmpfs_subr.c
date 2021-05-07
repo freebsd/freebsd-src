@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smr.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 
@@ -78,6 +79,61 @@ static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
 MALLOC_DEFINE(M_TMPFSDIR, "tmpfs dir", "tmpfs dirent structure");
 static uma_zone_t tmpfs_node_pool;
 VFS_SMR_DECLARE;
+
+int tmpfs_pager_type = -1;
+
+static vm_object_t
+tmpfs_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t offset, struct ucred *cred)
+{
+	vm_object_t object;
+
+	MPASS(handle == NULL);
+	MPASS(offset == 0);
+	object = vm_object_allocate_dyn(tmpfs_pager_type, size,
+	    OBJ_COLORED | OBJ_SWAP);
+	if (!swap_pager_init_object(object, NULL, NULL, size, 0)) {
+		vm_object_deallocate(object);
+		object = NULL;
+	}
+	return (object);
+}
+
+static void
+tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
+{
+	struct vnode *vp;
+
+	/*
+	 * Tmpfs VREG node, which was reclaimed, has tmpfs_pager_type
+	 * type, but not OBJ_TMPFS flag.  In this case there is no
+	 * v_writecount to adjust.
+	 */
+	if (vp_heldp != NULL)
+		VM_OBJECT_RLOCK(object);
+	else
+		VM_OBJECT_ASSERT_LOCKED(object);
+	if ((object->flags & OBJ_TMPFS) != 0) {
+		vp = object->un_pager.swp.swp_tmpfs;
+		if (vp != NULL) {
+			*vpp = vp;
+			if (vp_heldp != NULL) {
+				vhold(vp);
+				*vp_heldp = true;
+			}
+		}
+	}
+	if (vp_heldp != NULL)
+		VM_OBJECT_RUNLOCK(object);
+}
+
+struct pagerops tmpfs_pager_ops = {
+	.pgo_kvme_type = KVME_TYPE_VNODE,
+	.pgo_alloc = tmpfs_pager_alloc,
+	.pgo_set_writeable_dirty = vm_object_set_writeable_dirty_,
+	.pgo_mightbedirty = vm_object_mightbedirty_,
+	.pgo_getvp = tmpfs_pager_getvp,
+};
 
 static int
 tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
@@ -126,18 +182,26 @@ tmpfs_node_fini(void *mem, int size)
 	mtx_destroy(&node->tn_interlock);
 }
 
-void
+int
 tmpfs_subr_init(void)
 {
+	tmpfs_pager_type = vm_pager_alloc_dyn_type(&tmpfs_pager_ops,
+	    OBJT_SWAP);
+	if (tmpfs_pager_type == -1)
+		return (EINVAL);
 	tmpfs_node_pool = uma_zcreate("TMPFS node",
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
 	VFS_SMR_ZONE_SET(tmpfs_node_pool);
+	return (0);
 }
 
 void
 tmpfs_subr_uninit(void)
 {
+	if (tmpfs_pager_type != -1)
+		vm_pager_free_dyn_type(tmpfs_pager_type);
+	tmpfs_pager_type = -1;
 	uma_zdestroy(tmpfs_node_pool);
 }
 
@@ -364,7 +428,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 
 	case VREG:
 		obj = nnode->tn_reg.tn_aobj =
-		    vm_pager_allocate(OBJT_SWAP_TMPFS, NULL, 0,
+		    vm_pager_allocate(tmpfs_pager_type, NULL, 0,
 			VM_PROT_DEFAULT, 0,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
 		/* OBJ_TMPFS is set together with the setting of vp->v_object */
@@ -1588,7 +1652,7 @@ tmpfs_check_mtime(struct vnode *vp)
 	if (vp->v_type != VREG)
 		return;
 	obj = vp->v_object;
-	KASSERT(obj->type == OBJT_SWAP_TMPFS &&
+	KASSERT(obj->type == tmpfs_pager_type &&
 	    (obj->flags & (OBJ_SWAP | OBJ_TMPFS)) ==
 	    (OBJ_SWAP | OBJ_TMPFS), ("non-tmpfs obj"));
 	/* unlocked read */
