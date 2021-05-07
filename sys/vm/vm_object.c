@@ -2469,41 +2469,6 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 	(void)blockcount_sleep(&obj->busy, NULL, wmesg, PVM);
 }
 
-/*
- * Return the kvme type of the given object.
- * If vpp is not NULL, set it to the object's vm_object_vnode() or NULL.
- */
-int
-vm_object_kvme_type(vm_object_t object, struct vnode **vpp)
-{
-
-	VM_OBJECT_ASSERT_LOCKED(object);
-	if (vpp != NULL)
-		*vpp = vm_object_vnode(object);
-	switch (object->type) {
-	case OBJT_DEFAULT:
-		return (KVME_TYPE_DEFAULT);
-	case OBJT_VNODE:
-		return (KVME_TYPE_VNODE);
-	case OBJT_SWAP:
-		return (KVME_TYPE_SWAP);
-	case OBJT_SWAP_TMPFS:
-		return (KVME_TYPE_VNODE);
-	case OBJT_DEVICE:
-		return (KVME_TYPE_DEVICE);
-	case OBJT_PHYS:
-		return (KVME_TYPE_PHYS);
-	case OBJT_DEAD:
-		return (KVME_TYPE_DEAD);
-	case OBJT_SG:
-		return (KVME_TYPE_SG);
-	case OBJT_MGTDEVICE:
-		return (KVME_TYPE_MGTDEVICE);
-	default:
-		return (KVME_TYPE_UNKNOWN);
-	}
-}
-
 static int
 sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 {

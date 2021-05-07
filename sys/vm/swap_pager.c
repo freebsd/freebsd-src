@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -442,6 +443,7 @@ static void	swap_pager_freespace(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
 
 const struct pagerops swappagerops = {
+	.pgo_kvme_type = KVME_TYPE_SWAP,
 	.pgo_init =	swap_pager_init,	/* early system initialization of pager	*/
 	.pgo_alloc =	swap_pager_alloc,	/* allocate an OBJT_SWAP object */
 	.pgo_dealloc =	swap_pager_dealloc,	/* deallocate an OBJT_SWAP object */
@@ -456,6 +458,7 @@ const struct pagerops swappagerops = {
 };
 
 const struct pagerops swaptmpfspagerops = {
+	.pgo_kvme_type = KVME_TYPE_VNODE,
 	.pgo_alloc =	swap_tmpfs_pager_alloc,
 	.pgo_dealloc =	swap_pager_dealloc,
 	.pgo_getpages =	swap_pager_getpages,

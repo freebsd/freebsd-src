@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -75,6 +76,7 @@ static struct pagerlst dev_pager_object_list;
 static struct mtx dev_pager_mtx;
 
 const struct pagerops devicepagerops = {
+	.pgo_kvme_type = KVME_TYPE_DEVICE,
 	.pgo_init =	dev_pager_init,
 	.pgo_alloc =	dev_pager_alloc,
 	.pgo_dealloc =	dev_pager_dealloc,
@@ -84,6 +86,7 @@ const struct pagerops devicepagerops = {
 };
 
 const struct pagerops mgtdevicepagerops = {
+	.pgo_kvme_type = KVME_TYPE_MGTDEVICE,
 	.pgo_alloc =	dev_pager_alloc,
 	.pgo_dealloc =	dev_pager_dealloc,
 	.pgo_getpages =	dev_pager_getpages,

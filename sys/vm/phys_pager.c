@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -299,6 +300,7 @@ phys_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 }
 
 const struct pagerops physpagerops = {
+	.pgo_kvme_type = KVME_TYPE_PHYS,
 	.pgo_init =	phys_pager_init,
 	.pgo_alloc =	phys_pager_alloc,
 	.pgo_dealloc = 	phys_pager_dealloc,

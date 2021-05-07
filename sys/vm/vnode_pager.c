@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
 #include <sys/domainset.h>
+#include <sys/user.h>
 
 #include <machine/atomic.h>
 
@@ -108,6 +109,7 @@ static void vnode_pager_release_writecount(vm_object_t, vm_offset_t,
 static void vnode_pager_getvp(vm_object_t, struct vnode **, bool *);
 
 const struct pagerops vnodepagerops = {
+	.pgo_kvme_type = KVME_TYPE_VNODE,
 	.pgo_alloc =	vnode_pager_alloc,
 	.pgo_dealloc =	vnode_pager_dealloc,
 	.pgo_getpages =	vnode_pager_getpages,
