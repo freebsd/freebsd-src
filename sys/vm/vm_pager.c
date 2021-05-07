@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -155,6 +156,7 @@ dead_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 }
 
 static const struct pagerops deadpagerops = {
+	.pgo_kvme_type = KVME_TYPE_DEAD,
 	.pgo_alloc = 	dead_pager_alloc,
 	.pgo_dealloc =	dead_pager_dealloc,
 	.pgo_getpages =	dead_pager_getpages,
@@ -529,4 +531,18 @@ vm_object_mightbedirty(vm_object_t object)
 	if (method == NULL)
 		return (false);
 	return (method(object));
+}
+
+/*
+ * Return the kvme type of the given object.
+ * If vpp is not NULL, set it to the object's vm_object_vnode() or NULL.
+ */
+int
+vm_object_kvme_type(vm_object_t object, struct vnode **vpp)
+{
+	VM_OBJECT_ASSERT_LOCKED(object);
+
+	if (vpp != NULL)
+		*vpp = vm_object_vnode(object);
+	return (pagertab[object->type]->pgo_kvme_type);
 }

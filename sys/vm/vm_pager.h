@@ -71,6 +71,7 @@ typedef void pgo_freespace_t(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
 
 struct pagerops {
+	int			pgo_kvme_type;
 	pgo_init_t		*pgo_init;		/* Initialize pager. */
 	pgo_alloc_t		*pgo_alloc;		/* Allocate pager. */
 	pgo_dealloc_t		*pgo_dealloc;		/* Disassociate. */
