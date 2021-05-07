@@ -99,18 +99,38 @@ static const char *tmpfs_updateopts[] = {
 	"from", "export", "nomtime", "size", NULL
 };
 
-/*
- * Handle updates of time from writes to mmaped regions, if allowed.
- * Use MNT_VNODE_FOREACH_ALL instead of MNT_VNODE_FOREACH_LAZY, since
- * unmap of the tmpfs-backed vnode does not call vinactive(), due to
- * vm object type is basically OBJT_SWAP.  If lazy, only handle
- * delayed update of mtime due to the writes to mapped files.
- */
+static int
+tmpfs_update_mtime_lazy_filter(struct vnode *vp, void *arg)
+{
+	struct vm_object *obj;
+
+	if (vp->v_type != VREG)
+		return (0);
+
+	obj = atomic_load_ptr(&vp->v_object);
+	if (obj == NULL)
+		return (0);
+
+	return (vm_object_mightbedirty_(obj));
+}
+
 static void
-tmpfs_update_mtime(struct mount *mp, bool lazy)
+tmpfs_update_mtime_lazy(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
-	struct vm_object *obj;
+
+	MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, tmpfs_update_mtime_lazy_filter, NULL) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) != 0)
+			continue;
+		tmpfs_check_mtime(vp);
+		vput(vp);
+	}
+}
+
+static void
+tmpfs_update_mtime_all(struct mount *mp)
+{
+	struct vnode *vp, *mvp;
 
 	if (VFS_TO_TMPFS(mp)->tm_nomtime)
 		return;
@@ -119,28 +139,11 @@ tmpfs_update_mtime(struct mount *mp, bool lazy)
 			VI_UNLOCK(vp);
 			continue;
 		}
-		obj = vp->v_object;
-		MPASS(obj->type == tmpfs_pager_type);
-		MPASS((obj->flags & OBJ_TMPFS) != 0);
-
-		/*
-		 * In lazy case, do unlocked read, avoid taking vnode
-		 * lock if not needed.  Lost update will be handled on
-		 * the next call.
-		 * For non-lazy case, we must flush all pending
-		 * metadata changes now.
-		 */
-		if (!lazy || obj->generation != obj->cleangeneration) {
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) != 0)
-				continue;
-			tmpfs_check_mtime(vp);
-			if (!lazy)
-				tmpfs_update(vp);
-			vput(vp);
-		} else {
-			VI_UNLOCK(vp);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) != 0)
 			continue;
-		}
+		tmpfs_check_mtime(vp);
+		tmpfs_update(vp);
+		vput(vp);
 	}
 }
 
@@ -300,7 +303,7 @@ tmpfs_rw_to_ro(struct mount *mp)
 	MNT_IUNLOCK(mp);
 	for (;;) {
 		tmpfs_all_rw_maps(mp, tmpfs_revoke_rw_maps_cb, NULL);
-		tmpfs_update_mtime(mp, false);
+		tmpfs_update_mtime_all(mp);
 		error = vflush(mp, 0, flags, curthread);
 		if (error != 0) {
 			VFS_TO_TMPFS(mp)->tm_ronly = 0;
@@ -653,7 +656,7 @@ tmpfs_sync(struct mount *mp, int waitfor)
 		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);
 	} else if (waitfor == MNT_LAZY) {
-		tmpfs_update_mtime(mp, true);
+		tmpfs_update_mtime_lazy(mp);
 	}
 	return (0);
 }

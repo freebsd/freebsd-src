@@ -46,6 +46,7 @@ MALLOC_DECLARE(M_TMPFSNAME);
 #endif
 
 #define	OBJ_TMPFS	OBJ_PAGERPRIV1	/* has tmpfs vnode allocated */
+#define	OBJ_TMPFS_VREF	OBJ_PAGERPRIV2	/* vnode is referenced */
 
 /*
  * Internal representation of a tmpfs directory entry.
