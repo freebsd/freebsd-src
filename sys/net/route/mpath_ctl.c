@@ -181,10 +181,15 @@ del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
 	if ((info->rti_info[RTAX_GATEWAY] == NULL) && (info->rti_filter == NULL))
 		return (ESRCH);
 
-	error = nhgrp_get_filtered_group(rh, nhg, gw_filter_func, (void *)&ri,
-	    &rnd);
-	if (error == 0)
+	error = nhgrp_get_filtered_group(rh, nhg, gw_filter_func, (void *)&ri, &rnd);
+	if (error == 0) {
+		if (rnd.rnd_nhgrp == nhg) {
+			/* No gateway match, unreference new group and return. */
+			nhop_free_any(rnd.rnd_nhop);
+			return (ESRCH);
+		}
 		error = change_route_nhop(rh, rt, info, &rnd, rc);
+	}
 	return (error);
 }
 
