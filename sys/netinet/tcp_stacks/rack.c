@@ -11875,6 +11875,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 		rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
 		ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
+			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
 			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
@@ -11894,6 +11895,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 		rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct tcpiphdr);
 		ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
 		if (tp->t_port) {
+			rack->r_ctl.fsb.tcp_ip_hdr_len += sizeof(struct udphdr);
 			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
@@ -11914,10 +11916,14 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 static int
 rack_init_fsb(struct tcpcb *tp, struct tcp_rack *rack)
 {
-	/* Allocate the larger of spaces V6 if available else just V4 */
-	rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct tcpiphdr);
+	/* 
+	 * Allocate the larger of spaces V6 if available else just 
+	 * V4 and include udphdr (overbook) 
+	 */
 #ifdef INET6
-	rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr) + sizeof(struct udphdr);
+#else
+	rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct tcpiphdr) + sizeof(struct udphdr);
 #endif
 	rack->r_ctl.fsb.tcp_ip_hdr = malloc(rack->r_ctl.fsb.tcp_ip_hdr_len,
 					    M_TCPFSB, M_NOWAIT|M_ZERO);
@@ -15078,6 +15084,8 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
+	if (udp)
+		hdrlen += sizeof(struct udphdr);
 	if (rack->r_ctl.rc_pace_max_segs)
 		max_val = rack->r_ctl.rc_pace_max_segs;
 	else if (rack->rc_user_set_max_segs)
@@ -15530,6 +15538,8 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 	optlen = tcp_addoptions(&to, opt);
 	hdrlen += optlen;
 	udp = rack->r_ctl.fsb.udp;
+	if (udp)
+		hdrlen += sizeof(struct udphdr);
 	if (rack->r_ctl.rc_pace_max_segs)
 		max_val = rack->r_ctl.rc_pace_max_segs;
 	else if (rack->rc_user_set_max_segs)
