@@ -147,6 +147,20 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 {
 	return;
 }
+
+static uint64_t inline
+tcp_hw_highest_rate(const struct tcp_hwrate_limit_table *rle)
+{
+	return (0);
+}
+
+static uint64_t inline
+tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
+{
+	return (0);
+}
+
+
 #endif
 /*
  * Given a b/w and a segsiz, and optional hardware
