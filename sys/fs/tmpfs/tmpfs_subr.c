@@ -99,6 +99,92 @@ tmpfs_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	return (object);
 }
 
+/*
+ * Make sure tmpfs vnodes with writable mappings can be found on the lazy list.
+ *
+ * This allows for periodic mtime updates while only scanning vnodes which are
+ * plausibly dirty, see tmpfs_update_mtime_lazy.
+ */
+static void
+tmpfs_pager_writecount_recalc(vm_object_t object, vm_offset_t old,
+    vm_offset_t new)
+{
+	struct vnode *vp;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	vp = object->un_pager.swp.swp_tmpfs;
+
+	/*
+	 * Forced unmount?
+	 */
+	if (vp == NULL) {
+		KASSERT((object->flags & OBJ_TMPFS_VREF) == 0,
+		    ("object %p with OBJ_TMPFS_VREF but without vnode", object));
+		VM_OBJECT_WUNLOCK(object);
+		return;
+	}
+
+	if (old == 0) {
+		VNASSERT((object->flags & OBJ_TMPFS_VREF) == 0, vp,
+		    ("object without writable mappings has a reference"));
+		VNPASS(vp->v_usecount > 0, vp);
+	} else {
+		VNASSERT((object->flags & OBJ_TMPFS_VREF) != 0, vp,
+		    ("object with writable mappings does not have a reference"));
+	}
+
+	if (old == new) {
+		VM_OBJECT_WUNLOCK(object);
+		return;
+	}
+
+	if (new == 0) {
+		vm_object_clear_flag(object, OBJ_TMPFS_VREF);
+		VM_OBJECT_WUNLOCK(object);
+		vrele(vp);
+	} else {
+		if ((object->flags & OBJ_TMPFS_VREF) == 0) {
+			vref(vp);
+			vlazy(vp);
+			vm_object_set_flag(object, OBJ_TMPFS_VREF);
+		}
+		VM_OBJECT_WUNLOCK(object);
+	}
+}
+
+static void
+tmpfs_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	vm_offset_t new, old;
+
+	VM_OBJECT_WLOCK(object);
+	KASSERT((object->flags & OBJ_ANON) == 0,
+	    ("%s: object %p with OBJ_ANON", __func__, object));
+	old = object->un_pager.swp.writemappings;
+	object->un_pager.swp.writemappings += (vm_ooffset_t)end - start;
+	new = object->un_pager.swp.writemappings;
+	tmpfs_pager_writecount_recalc(object, old, new);
+	VM_OBJECT_ASSERT_UNLOCKED(object);
+}
+
+static void
+tmpfs_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	vm_offset_t new, old;
+
+	VM_OBJECT_WLOCK(object);
+	KASSERT((object->flags & OBJ_ANON) == 0,
+	    ("%s: object %p with OBJ_ANON", __func__, object));
+	old = object->un_pager.swp.writemappings;
+	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
+	new = object->un_pager.swp.writemappings;
+	tmpfs_pager_writecount_recalc(object, old, new);
+	VM_OBJECT_ASSERT_UNLOCKED(object);
+}
+
 static void
 tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
 {
@@ -131,6 +217,8 @@ struct pagerops tmpfs_pager_ops = {
 	.pgo_kvme_type = KVME_TYPE_VNODE,
 	.pgo_alloc = tmpfs_pager_alloc,
 	.pgo_set_writeable_dirty = vm_object_set_writeable_dirty_,
+	.pgo_update_writecount = tmpfs_pager_update_writecount,
+	.pgo_release_writecount = tmpfs_pager_release_writecount,
 	.pgo_mightbedirty = vm_object_mightbedirty_,
 	.pgo_getvp = tmpfs_pager_getvp,
 };
@@ -643,6 +731,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 void
 tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 {
+	bool want_vrele;
 
 	ASSERT_VOP_ELOCKED(vp, "tmpfs_destroy_vobject");
 	if (vp->v_type != VREG || obj == NULL)
@@ -650,12 +739,24 @@ tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 
 	VM_OBJECT_WLOCK(obj);
 	VI_LOCK(vp);
+	/*
+	 * May be going through forced unmount.
+	 */
+	want_vrele = false;
+	if ((obj->flags & OBJ_TMPFS_VREF) != 0) {
+		vm_object_clear_flag(obj, OBJ_TMPFS_VREF);
+		want_vrele = true;
+	}
+
 	vm_object_clear_flag(obj, OBJ_TMPFS);
 	obj->un_pager.swp.swp_tmpfs = NULL;
 	if (vp->v_writecount < 0)
 		vp->v_writecount = 0;
 	VI_UNLOCK(vp);
 	VM_OBJECT_WUNLOCK(obj);
+	if (want_vrele) {
+		vrele(vp);
+	}
 }
 
 /*
@@ -792,6 +893,12 @@ loop:
 	case VREG:
 		object = node->tn_reg.tn_aobj;
 		VM_OBJECT_WLOCK(object);
+		KASSERT((object->flags & OBJ_TMPFS_VREF) == 0,
+		    ("%s: object %p with OBJ_TMPFS_VREF but without vnode",
+		    __func__, object));
+		KASSERT(object->un_pager.swp.writemappings == 0,
+		    ("%s: object %p has writemappings",
+		    __func__, object));
 		VI_LOCK(vp);
 		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
 		vp->v_object = object;
