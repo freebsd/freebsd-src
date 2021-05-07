@@ -873,12 +873,18 @@
 #define	__no_lock_analysis	__lock_annotate(no_thread_safety_analysis)
 
 /*
- * Function or variable should not be sanitized, i.e. by AddressSanitizer.
+ * Function or variable should not be sanitized, e.g., by AddressSanitizer.
  * GCC has the nosanitize attribute, but as a function attribute only, and
  * warns on use as a variable attribute.
  */
 #if __has_attribute(no_sanitize) && defined(__clang__)
+#ifdef _KERNEL
+#define __nosanitizeaddress	__attribute__((no_sanitize("kernel-address")))
+#define __nosanitizememory	__attribute__((no_sanitize("kernel-memory")))
+#else
 #define __nosanitizeaddress	__attribute__((no_sanitize("address")))
+#define __nosanitizememory	__attribute__((no_sanitize("memory")))
+#endif
 #define __nosanitizethread	__attribute__((no_sanitize("thread")))
 #else
 #define __nosanitizeaddress
