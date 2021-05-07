@@ -392,17 +392,13 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	}
 	NET_EPOCH_EXIT(et);
 
-	if (error != 0)
-		m_freem(m);
-
 	return (error);
 }
 
 /*
  * Sends mbuf @m to the wire via ip[6]_output().
  *
- * Returns 0 on success, @m is consumed.
- * On failure, returns error code. It is caller responsibility to free @m.
+ * Returns 0 on success or an errno value on failure.  @m is always consumed.
  */
 static int
 div_output_outbound(int family, struct socket *so, struct mbuf *m)
@@ -425,6 +421,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		    inp->inp_options != NULL) ||
 		    ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			INP_RUNLOCK(inp);
+			m_freem(m);
 			return (EINVAL);
 		}
 		break;
@@ -436,6 +433,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		/* Don't allow packet length sizes that will crash */
 		if (((u_short)ntohs(ip6->ip6_plen) > m->m_pkthdr.len)) {
 			INP_RUNLOCK(inp);
+			m_freem(m);
 			return (EINVAL);
 		}
 		break;
@@ -475,6 +473,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 		options = m_dup(inp->inp_options, M_NOWAIT);
 		if (options == NULL) {
 			INP_RUNLOCK(inp);
+			m_freem(m);
 			return (ENOBUFS);
 		}
 	}
@@ -502,8 +501,7 @@ div_output_outbound(int family, struct socket *so, struct mbuf *m)
 /*
  * Schedules mbuf @m for local processing via IPv4/IPv6 netisr queue.
  *
- * Returns 0 on success, @m is consumed.
- * Returns error code on failure. It is caller responsibility to free @m.
+ * Returns 0 on success or an errno value on failure.  @m is always consumed.
  */
 static int
 div_output_inbound(int family, struct socket *so, struct mbuf *m,
@@ -523,8 +521,10 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		bzero(sin->sin_zero, sizeof(sin->sin_zero));
 		sin->sin_port = 0;
 		ifa = ifa_ifwithaddr((struct sockaddr *) sin);
-		if (ifa == NULL)
+		if (ifa == NULL) {
+			m_freem(m);
 			return (EADDRNOTAVAIL);
+		}
 		m->m_pkthdr.rcvif = ifa->ifa_ifp;
 	}
 #ifdef MAC
@@ -550,6 +550,7 @@ div_output_inbound(int family, struct socket *so, struct mbuf *m,
 		break;
 #endif
 	default:
+		m_freem(m);
 		return (EINVAL);
 	}
 
