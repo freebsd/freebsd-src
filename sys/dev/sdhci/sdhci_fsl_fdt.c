@@ -108,14 +108,17 @@ struct sdhci_fsl_fdt_softc {
 
 struct sdhci_fsl_fdt_soc_data {
 	int quirks;
+	int baseclk_div;
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_ls1046a_soc_data = {
-	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT | SDHCI_QUIRK_BROKEN_AUTO_STOP
+	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT | SDHCI_QUIRK_BROKEN_AUTO_STOP,
+	.baseclk_div = 2,
 };
 
 static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
 	.quirks = 0,
+	.baseclk_div = 1,
 };
 
 static const struct ofw_compat_data sdhci_fsl_fdt_compat_data[] = {
@@ -511,7 +514,7 @@ sdhci_fsl_fdt_attach(device_t dev)
 		goto err_free_irq;
 	}
 
-	sc->baseclk_hz = clk_hz / 2;
+	sc->baseclk_hz = clk_hz / sc->soc_data->baseclk_div;
 
 	/* Figure out eSDHC block endianness before we touch any HW regs. */
 	if (OF_hasprop(node, "little-endian")) {
@@ -537,8 +540,9 @@ sdhci_fsl_fdt_attach(device_t dev)
 	WR4(sc, SDHCI_FSL_PROT_CTRL, val | buf_order);
 
 	/*
-	 * Gate the SD clock and set its source to peripheral clock / 2.
-	 * The frequency in baseclk_hz is set to match this.
+	 * Gate the SD clock and set its source to
+	 * peripheral clock / baseclk_div. The frequency in baseclk_hz is set
+	 * to match this.
 	 */
 	val = RD4(sc, SDHCI_CLOCK_CONTROL);
 	WR4(sc, SDHCI_CLOCK_CONTROL, val & ~SDHCI_FSL_CLK_SDCLKEN);
