@@ -623,7 +623,7 @@ tmpfs_read_pgcache(struct vop_read_pgcache_args *v)
 	if (object == NULL)
 		goto out_smr;
 
-	MPASS(object->type == OBJT_SWAP_TMPFS);
+	MPASS(object->type == tmpfs_pager_type);
 	MPASS((object->flags & (OBJ_ANON | OBJ_DEAD | OBJ_SWAP)) ==
 	    OBJ_SWAP);
 	if (!VN_IS_DOOMED(vp)) {

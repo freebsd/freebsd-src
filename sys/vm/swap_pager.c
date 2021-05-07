@@ -419,9 +419,6 @@ static uma_zone_t swpctrie_zone;
 static vm_object_t
 		swap_pager_alloc(void *handle, vm_ooffset_t size,
 		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
-static vm_object_t
-		swap_tmpfs_pager_alloc(void *handle, vm_ooffset_t size,
-		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int *,
     int *);
@@ -437,8 +434,6 @@ static void	swap_pager_update_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
 static void	swap_pager_release_writecount(vm_object_t object,
     vm_offset_t start, vm_offset_t end);
-static void	swap_tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp,
-    bool *vp_heldp);
 static void	swap_pager_freespace(vm_object_t object, vm_pindex_t start,
     vm_size_t size);
 
@@ -454,23 +449,6 @@ const struct pagerops swappagerops = {
 	.pgo_pageunswapped = swap_pager_unswapped, /* remove swap related to page */
 	.pgo_update_writecount = swap_pager_update_writecount,
 	.pgo_release_writecount = swap_pager_release_writecount,
-	.pgo_freespace = swap_pager_freespace,
-};
-
-const struct pagerops swaptmpfspagerops = {
-	.pgo_kvme_type = KVME_TYPE_VNODE,
-	.pgo_alloc =	swap_tmpfs_pager_alloc,
-	.pgo_dealloc =	swap_pager_dealloc,
-	.pgo_getpages =	swap_pager_getpages,
-	.pgo_getpages_async = swap_pager_getpages_async,
-	.pgo_putpages =	swap_pager_putpages,
-	.pgo_haspage =	swap_pager_haspage,
-	.pgo_pageunswapped = swap_pager_unswapped,
-	.pgo_update_writecount = swap_pager_update_writecount,
-	.pgo_release_writecount = swap_pager_release_writecount,
-	.pgo_set_writeable_dirty = vm_object_set_writeable_dirty_,
-	.pgo_mightbedirty = vm_object_mightbedirty_,
-	.pgo_getvp = swap_tmpfs_pager_getvp,
 	.pgo_freespace = swap_pager_freespace,
 };
 
@@ -681,17 +659,30 @@ swap_pager_swap_init(void)
 		    "reduce kern.maxswzone.\n");
 }
 
+bool
+swap_pager_init_object(vm_object_t object, void *handle, struct ucred *cred,
+    vm_ooffset_t size, vm_ooffset_t offset)
+{
+	if (cred != NULL) {
+		if (!swap_reserve_by_cred(size, cred))
+			return (false);
+		crhold(cred);
+	}
+
+	object->un_pager.swp.writemappings = 0;
+	object->handle = handle;
+	if (cred != NULL) {
+		object->cred = cred;
+		object->charge = size;
+	}
+	return (true);
+}
+
 static vm_object_t
 swap_pager_alloc_init(objtype_t otype, void *handle, struct ucred *cred,
     vm_ooffset_t size, vm_ooffset_t offset)
 {
 	vm_object_t object;
-
-	if (cred != NULL) {
-		if (!swap_reserve_by_cred(size, cred))
-			return (NULL);
-		crhold(cred);
-	}
 
 	/*
 	 * The un_pager.swp.swp_blks trie is initialized by
@@ -701,11 +692,9 @@ swap_pager_alloc_init(objtype_t otype, void *handle, struct ucred *cred,
 	object = vm_object_allocate(otype, OFF_TO_IDX(offset +
 	    PAGE_MASK + size));
 
-	object->un_pager.swp.writemappings = 0;
-	object->handle = handle;
-	if (cred != NULL) {
-		object->cred = cred;
-		object->charge = size;
+	if (!swap_pager_init_object(object, handle, cred, size, offset)) {
+		vm_object_deallocate(object);
+		return (NULL);
 	}
 	return (object);
 }
@@ -749,18 +738,6 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object = swap_pager_alloc_init(OBJT_SWAP, handle, cred,
 		    size, offset);
 	}
-	return (object);
-}
-
-static vm_object_t
-swap_tmpfs_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-    vm_ooffset_t offset, struct ucred *cred)
-{
-	vm_object_t object;
-
-	MPASS(handle == NULL);
-	object = swap_pager_alloc_init(OBJT_SWAP_TMPFS, handle, cred,
-	    size, offset);
 	return (object);
 }
 
@@ -3167,32 +3144,4 @@ swap_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	    ("Splittable object with writecount"));
 	object->un_pager.swp.writemappings -= (vm_ooffset_t)end - start;
 	VM_OBJECT_WUNLOCK(object);
-}
-
-static void
-swap_tmpfs_pager_getvp(vm_object_t object, struct vnode **vpp, bool *vp_heldp)
-{
-	struct vnode *vp;
-
-	/*
-	 * Tmpfs VREG node, which was reclaimed, has OBJT_SWAP_TMPFS
-	 * type, but not OBJ_TMPFS flag.  In this case there is no
-	 * v_writecount to adjust.
-	 */
-	if (vp_heldp != NULL)
-		VM_OBJECT_RLOCK(object);
-	else
-		VM_OBJECT_ASSERT_LOCKED(object);
-	if ((object->flags & OBJ_TMPFS) != 0) {
-		vp = object->un_pager.swp.swp_tmpfs;
-		if (vp != NULL) {
-			*vpp = vp;
-			if (vp_heldp != NULL) {
-				vhold(vp);
-				*vp_heldp = true;
-			}
-		}
-	}
-	if (vp_heldp != NULL)
-		VM_OBJECT_RUNLOCK(object);
 }
