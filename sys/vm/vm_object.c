@@ -430,10 +430,23 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 		flags = 0;
 		break;
 	default:
-		panic("vm_object_allocate: type %d is undefined", type);
+		panic("vm_object_allocate: type %d is undefined or dynamic",
+		    type);
 	}
 	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
 	_vm_object_allocate(type, size, flags, object, NULL);
+
+	return (object);
+}
+
+vm_object_t
+vm_object_allocate_dyn(objtype_t dyntype, vm_pindex_t size, u_short flags)
+{
+	vm_object_t object;
+
+	MPASS(dyntype >= OBJT_FIRST_DYN /* && dyntype < nitems(pagertab) */);
+	object = (vm_object_t)uma_zalloc(obj_zone, M_WAITOK);
+	_vm_object_allocate(dyntype, size, flags, object, NULL);
 
 	return (object);
 }

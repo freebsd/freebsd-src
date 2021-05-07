@@ -249,6 +249,9 @@ vm_pager_freespace(vm_object_t object, vm_pindex_t start,
 		method(object, start, size);
 }
 
+int vm_pager_alloc_dyn_type(struct pagerops *ops, int base_type);
+void vm_pager_free_dyn_type(objtype_t type);
+
 struct cdev_pager_ops {
 	int (*cdev_pg_fault)(vm_object_t vm_obj, vm_ooffset_t offset,
 	    int prot, vm_page_t *mres);
