@@ -59,12 +59,23 @@
  * Private macros, not to be used outside this header file.
  */
 #ifdef __GNUCLIKE___SECTION
+
+/*
+ * The userspace address sanitizer inserts redzones around global variables,
+ * violating the assumption that linker set elements are packed.
+ */
+#ifdef _KERNEL
+#define	__NOASAN
+#else
+#define	__NOASAN	__nosanitizeaddress
+#endif
+
 #define __MAKE_SET_QV(set, sym, qv)			\
 	__WEAK(__CONCAT(__start_set_,set));		\
 	__WEAK(__CONCAT(__stop_set_,set));		\
 	static void const * qv				\
+	__NOASAN					\
 	__set_##set##_sym_##sym __section("set_" #set)	\
-	__nosanitizeaddress				\
 	__used = &(sym)
 #define __MAKE_SET(set, sym)	__MAKE_SET_QV(set, sym, __MAKE_SET_CONST)
 #else /* !__GNUCLIKE___SECTION */
