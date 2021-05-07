@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2021
+.Dd May 7, 2021
 .Dt MPSUTIL 8
 .Os
 .Sh NAME
@@ -60,6 +60,10 @@
 .Nm
 .Op Fl u Ar unit
 .Cm show iocfacts
+.Nm
+.Op Fl u Ar unit
+.Cm set ncq
+.Op Ar enable Ns | Ns Ar disable
 .Nm
 .Op Fl u Ar unit
 .Cm flash save
@@ -134,6 +138,8 @@ Dump raw config page in hex.
 .Pp
 Controller management commands include:
 .Bl -tag -width indent
+.It Cm set ncq Oo Ar enable Ns | Ns Ar disable Oc
+Enables or disables NCQ in the NVRAM of the card.
 .It Cm flash save Oo Ar firmware Ns | Ns Ar bios Oc Op Ar file
 Save the
 .Ar firmware
