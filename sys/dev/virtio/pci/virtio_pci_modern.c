@@ -1315,13 +1315,15 @@ vtpci_modern_read_common_1(struct vtpci_modern_softc *sc, bus_size_t off)
 static uint16_t
 vtpci_modern_read_common_2(struct vtpci_modern_softc *sc, bus_size_t off)
 {
-	return (bus_read_2(&sc->vtpci_common_res_map.vtrm_map, off));
+	return virtio_htog16(true,
+			bus_read_2(&sc->vtpci_common_res_map.vtrm_map, off));
 }
 
 static uint32_t
 vtpci_modern_read_common_4(struct vtpci_modern_softc *sc, bus_size_t off)
 {
-	return (bus_read_4(&sc->vtpci_common_res_map.vtrm_map, off));
+	return virtio_htog32(true,
+			bus_read_4(&sc->vtpci_common_res_map.vtrm_map, off));
 }
 
 static void
@@ -1335,14 +1337,16 @@ static void
 vtpci_modern_write_common_2(struct vtpci_modern_softc *sc, bus_size_t off,
     uint16_t val)
 {
-	bus_write_2(&sc->vtpci_common_res_map.vtrm_map, off, val);
+	bus_write_2(&sc->vtpci_common_res_map.vtrm_map,
+			off, virtio_gtoh16(true, val));
 }
 
 static void
 vtpci_modern_write_common_4(struct vtpci_modern_softc *sc, bus_size_t off,
     uint32_t val)
 {
-	bus_write_4(&sc->vtpci_common_res_map.vtrm_map, off, val);
+	bus_write_4(&sc->vtpci_common_res_map.vtrm_map,
+			off, virtio_gtoh32(true, val));
 }
 
 static void
