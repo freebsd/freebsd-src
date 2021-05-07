@@ -2585,6 +2585,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_structsize = roundup(kvo->kvo_structsize,
 		    sizeof(uint64_t));
 		error = SYSCTL_OUT(req, kvo, kvo->kvo_structsize);
+		maybe_yield();
 		mtx_lock(&vm_object_list_mtx);
 		if (error)
 			break;
