@@ -62,6 +62,7 @@
 typedef uint32_t e2fs_daddr_t;
 typedef int64_t e2fs_lbn_t;
 typedef int64_t e4fs_daddr_t;
+typedef int64_t ext_time_t;
 
 /*
  * The inode is used to describe each active (or recently active) file in the
@@ -99,10 +100,10 @@ struct inode {
 	uint32_t	i_gid;		/* File group. */
 	uint64_t	i_size;		/* File byte count. */
 	uint64_t	i_blocks;	/* Blocks actually held. */
-	int32_t		i_atime;	/* Last access time. */
-	int32_t		i_mtime;	/* Last modified time. */
-	int32_t		i_ctime;	/* Last inode change time. */
-	int32_t		i_birthtime;	/* Inode creation time. */
+	ext_time_t	i_atime;	/* Last access time. */
+	ext_time_t	i_mtime;	/* Last modified time. */
+	ext_time_t	i_ctime;	/* Last inode change time. */
+	ext_time_t	i_birthtime;	/* Inode creation time. */
 	int32_t		i_mtimensec;	/* Last modified time. */
 	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_ctimensec;	/* Last inode change time. */
