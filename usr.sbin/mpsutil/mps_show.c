@@ -59,12 +59,18 @@ MPS_TABLE(top, show);
 static int
 show_adapter(int ac, char **av)
 {
+	const char* pcie_speed[] = { "2.5", "5.0", "8.0" };
+	const char* temp_units[] = { "", "F", "C" };
+	const char* ioc_speeds[] = { "", "Full", "Half", "Quarter", "Eighth" };
+
 	MPI2_CONFIG_PAGE_SASIOUNIT_0	*sas0;
 	MPI2_CONFIG_PAGE_SASIOUNIT_1	*sas1;
 	MPI2_SAS_IO_UNIT0_PHY_DATA	*phy0;
 	MPI2_SAS_IO_UNIT1_PHY_DATA	*phy1;
 	MPI2_CONFIG_PAGE_MAN_0 *man0;
 	MPI2_CONFIG_PAGE_BIOS_3 *bios3;
+	MPI2_CONFIG_PAGE_IO_UNIT_1 *iounit1;
+	MPI2_CONFIG_PAGE_IO_UNIT_7 *iounit7;
 	MPI2_IOC_FACTS_REPLY *facts;
 	U16 IOCStatus;
 	char *speed, *minspeed, *maxspeed, *isdisabled, *type;
@@ -125,6 +131,34 @@ show_adapter(int ac, char **av)
 	    (facts->IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_INTEGRATED_RAID)
 	    ? "yes" : "no");
 	free(facts);
+
+	iounit1 = mps_read_config_page(fd, MPI2_CONFIG_PAGETYPE_IO_UNIT, 1, 0, NULL);
+	if (iounit1 == NULL) {
+		error = errno;
+		warn("Failed to get IOUNIT page 1 info");
+		return (error);
+	}
+	printf("         SATA NCQ: %s\n",
+		((iounit1->Flags & MPI2_IOUNITPAGE1_NATIVE_COMMAND_Q_DISABLE) == 0) ?
+		"ENABLED" : "DISABLED");
+	free(iounit1);
+
+	iounit7 = mps_read_config_page(fd, MPI2_CONFIG_PAGETYPE_IO_UNIT, 7, 0, NULL);
+	if (iounit7 == NULL) {
+		error = errno;
+		warn("Failed to get IOUNIT page 7 info");
+		return (error);
+	}
+	printf(" PCIe Width/Speed: x%d (%s GB/sec)\n", iounit7->PCIeWidth,
+		pcie_speed[iounit7->PCIeSpeed]);
+	printf("        IOC Speed: %s\n", ioc_speeds[iounit7->IOCSpeed]);
+	printf("      Temperature: ");
+	if (iounit7->IOCTemperatureUnits == MPI2_IOUNITPAGE7_IOC_TEMP_NOT_PRESENT)
+		printf("Unknown/Unsupported\n");
+	else
+		printf("%d %s\n", iounit7->IOCTemperature,
+			temp_units[iounit7->IOCTemperatureUnits]);
+	free(iounit7);
 
 	fd = mps_open(mps_unit);
 	if (fd < 0) {
