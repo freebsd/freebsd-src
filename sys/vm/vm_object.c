@@ -330,24 +330,12 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	switch (object->type) {
-	case OBJT_DEFAULT:
-	case OBJT_DEVICE:
-	case OBJT_MGTDEVICE:
-	case OBJT_PHYS:
-	case OBJT_SG:
-	case OBJT_SWAP:
-	case OBJT_SWAP_TMPFS:
-	case OBJT_VNODE:
-		if (!TAILQ_EMPTY(&object->memq))
-			return (KERN_FAILURE);
-		break;
-	case OBJT_DEAD:
+
+	if (object->type == OBJT_DEAD)
 		return (KERN_INVALID_ARGUMENT);
-	default:
-		panic("vm_object_set_memattr: object %p is of undefined type",
-		    object);
-	}
+	if (!TAILQ_EMPTY(&object->memq))
+		return (KERN_FAILURE);
+
 	object->memattr = memattr;
 	return (KERN_SUCCESS);
 }
