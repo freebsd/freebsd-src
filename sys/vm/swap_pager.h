@@ -82,6 +82,7 @@ int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_status(int *total, int *used);
 u_long swap_pager_swapped_pages(vm_object_t object);
 void swapoff_all(void);
-
+bool swap_pager_init_object(vm_object_t object, void *handle,
+    struct ucred *cred, vm_ooffset_t size, vm_ooffset_t offset);
 #endif				/* _KERNEL */
 #endif				/* _VM_SWAP_PAGER_H_ */

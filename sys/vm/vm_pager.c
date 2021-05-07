@@ -174,7 +174,6 @@ const struct pagerops *pagertab[16] __read_mostly = {
 	[OBJT_DEAD] =		&deadpagerops,
 	[OBJT_SG] = 		&sgpagerops,
 	[OBJT_MGTDEVICE] = 	&mgtdevicepagerops,
-	[OBJT_SWAP_TMPFS] =	&swaptmpfspagerops,
 };
 static struct mtx pagertab_lock;
 
