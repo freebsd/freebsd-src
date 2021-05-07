@@ -669,7 +669,8 @@ vm_object_deallocate(vm_object_t object)
 		umtx_shm_object_terminated(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
-			KASSERT(object->type != OBJT_SWAP_TMPFS,
+			KASSERT(object->type == OBJT_DEFAULT ||
+			    object->type == OBJT_SWAP,
 			    ("shadowed tmpfs v_object 2 %p", object));
 			vm_object_backing_remove(object);
 		}
@@ -950,7 +951,7 @@ vm_object_terminate(vm_object_t object)
 #endif
 
 	KASSERT(object->cred == NULL || object->type == OBJT_DEFAULT ||
-	    object->type == OBJT_SWAP || object->type == OBJT_SWAP_TMPFS,
+	    (object->flags & OBJ_SWAP) != 0,
 	    ("%s: non-swap obj %p has cred", __func__, object));
 
 	/*
