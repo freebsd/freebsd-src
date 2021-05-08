@@ -492,6 +492,15 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		}
 	    }
 	    if (!nd->nd_repstat &&
+		NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE)) {
+		NFSVNO_ATTRINIT(&nva2);
+		NFSVNO_SETATTRVAL(&nva2, btime, nva.na_btime);
+		nd->nd_repstat = nfsvno_setattr(vp, &nva2, nd->nd_cred, p,
+		    exp);
+		if (!nd->nd_repstat)
+		    NFSSETBIT_ATTRBIT(&retbits, NFSATTRBIT_TIMECREATE);
+	    }
+	    if (!nd->nd_repstat &&
 		(NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODE) ||
 		 NFSISSET_ATTRBIT(&attrbits, NFSATTRBIT_MODESETMASKED))) {
 		NFSVNO_ATTRINIT(&nva2);
