@@ -48,8 +48,6 @@ quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
 quota2.sh		panic: dqflush: stray dquot					20120221
 quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
 quota7.sh		panic: dqflush: stray dquot					20120221
-sctp.sh			panic: Queues are not empty when handling ... i386		20201104
-sctp2.sh		panic: soclose: SS_NOFDREF on enter				20200307
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
@@ -72,6 +70,8 @@ syzkaller30.sh		May change policy for random threads to to domainset_fixed	20210
 syzkaller31.sh		panic: Bad tailq NEXT(0xfffffe0079608f00->tqh_last) != NULL	20210322
 syzkaller32.sh		Fatal trap 18: integer divide fault while in kernel mode	20210322
 syzkaller33.sh		Fatal trap 18: integer divide fault while in kernel mode	20210418
+syzkaller35.sh		panic: AEAD without a separate IV				20210508
+syzkaller36.sh		panic: IV outside buffer length					20210508
 truss3.sh		WiP								20200915
 unionfs.sh		insmntque: non-locked vp: xx is not exclusive locked...		20130909
 unionfs2.sh		insmntque: mp-safe fs and non-locked vp is not ...		20111219
