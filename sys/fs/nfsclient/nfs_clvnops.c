@@ -1024,7 +1024,9 @@ nfs_setattr(struct vop_setattr_args *ap)
 	 */
   	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
 	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
-	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
+	    vap->va_mtime.tv_sec != VNOVAL ||
+	    vap->va_birthtime.tv_sec != VNOVAL ||
+	    vap->va_mode != (mode_t)VNOVAL) &&
 	    (vp->v_mount->mnt_flag & MNT_RDONLY))
 		return (EROFS);
 	if (vap->va_size != VNOVAL) {
@@ -1037,6 +1039,7 @@ nfs_setattr(struct vop_setattr_args *ap)
  		case VFIFO:
 			if (vap->va_mtime.tv_sec == VNOVAL &&
 			    vap->va_atime.tv_sec == VNOVAL &&
+			    vap->va_birthtime.tv_sec == VNOVAL &&
 			    vap->va_mode == (mode_t)VNOVAL &&
 			    vap->va_uid == (uid_t)VNOVAL &&
 			    vap->va_gid == (gid_t)VNOVAL)

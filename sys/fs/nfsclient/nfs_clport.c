@@ -415,6 +415,7 @@ ncl_copy_vattr(struct vattr *dst, struct vattr *src)
 	dst->va_atime = src->va_atime;
 	dst->va_mtime = src->va_mtime;
 	dst->va_ctime = src->va_ctime;
+	dst->va_birthtime = src->va_birthtime;
 	dst->va_gen = src->va_gen;
 	dst->va_flags = src->va_flags;
 	dst->va_rdev = src->va_rdev;
@@ -466,6 +467,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		np->n_vattr.na_size = nap->na_size;
 		np->n_vattr.na_mtime = nap->na_mtime;
 		np->n_vattr.na_ctime = nap->na_ctime;
+		np->n_vattr.na_btime = nap->na_btime;
 		np->n_vattr.na_fsid = nap->na_fsid;
 		np->n_vattr.na_mode = nap->na_mode;
 	} else {

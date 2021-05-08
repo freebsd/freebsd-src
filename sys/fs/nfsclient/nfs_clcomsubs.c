@@ -284,6 +284,8 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		fxdr_nfsv3time(&fp->fa3_atime, &nap->na_atime);
 		fxdr_nfsv3time(&fp->fa3_ctime, &nap->na_ctime);
 		fxdr_nfsv3time(&fp->fa3_mtime, &nap->na_mtime);
+		nap->na_btime.tv_sec = -1;
+		nap->na_btime.tv_nsec = 0;
 		nap->na_flags = 0;
 		nap->na_gen = 0;
 		nap->na_filerev = 0;
@@ -315,6 +317,8 @@ nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 		nap->na_ctime.tv_sec = fxdr_unsigned(u_int32_t,
 		    fp->fa2_ctime.nfsv2_sec);
 		nap->na_ctime.tv_nsec = 0;
+		nap->na_btime.tv_sec = -1;
+		nap->na_btime.tv_nsec = 0;
 		nap->na_gen = fxdr_unsigned(u_int32_t,fp->fa2_ctime.nfsv2_usec);
 		nap->na_filerev = 0;
 	}
