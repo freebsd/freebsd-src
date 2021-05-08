@@ -60,6 +60,14 @@ ofw_graph_get_port_by_idx(phandle_t node, uint32_t idx)
 	if (child != 0)
 		return (child);
 
+	/* Now check for 'port' without explicit index. */
+	if (idx == 0) {
+		snprintf(portnode, sizeof(portnode), "port");
+		child = ofw_bus_find_child(node, portnode);
+		if (child != 0)
+			return (child);
+	}
+
 	/* Next try to look under ports */
 	ports = ofw_bus_find_child(node, "ports");
 	if (ports == 0)
