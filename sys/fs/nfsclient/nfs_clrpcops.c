@@ -3548,6 +3548,9 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 		if (gotmnton)
 			NFSSETBIT_ATTRBIT(&attrbits,
 			    NFSATTRBIT_MOUNTEDONFILEID);
+		if (!NFSISSET_ATTRBIT(&dnp->n_vattr.na_suppattr,
+		    NFSATTRBIT_TIMECREATE))
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
 	}
 
 	/*
