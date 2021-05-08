@@ -130,7 +130,7 @@ ext2_new_decode_dev(uint32_t dev)
 	return (makedev(maj, min));
 }
 
-static void
+static inline void
 ext2_decode_extra_time(ext_time_t *sec, int32_t *nsec, uint32_t extra)
 {
 	if (extra & htole32(EXT3_EPOCH_MASK))
@@ -237,7 +237,7 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	return (ext2_ei_csum_verify(ip, ei));
 }
 
-static uint32_t
+static inline uint32_t
 ext2_encode_extra_time(int64_t sec, int32_t nsec)
 {
 	uint32_t extra;
