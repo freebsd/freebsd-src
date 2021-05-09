@@ -2433,28 +2433,24 @@ restart:
 		va = pv->pv_va;
 		l3e = pmap_pml3e(pmap, va);
 		oldl3e = be64toh(*l3e);
-		if ((oldl3e & PG_RW) != 0) {
-			if (pmap_demote_l3e_locked(pmap, l3e, va, &lock)) {
-				if ((oldl3e & PG_W) == 0) {
-					/*
-					 * Write protect the mapping to a
-					 * single page so that a subsequent
-					 * write access may repromote.
-					 */
-					va += VM_PAGE_TO_PHYS(m) - (oldl3e &
-					    PG_PS_FRAME);
-					pte = pmap_l3e_to_pte(l3e, va);
-					oldpte = be64toh(*pte);
-					if ((oldpte & PG_V) != 0) {
-						while (!atomic_cmpset_long(pte,
-						    htobe64(oldpte),
-							htobe64((oldpte | RPTE_EAA_R) & ~(PG_M | PG_RW))))
-							   oldpte = be64toh(*pte);
-						vm_page_dirty(m);
-						pmap_invalidate_page(pmap, va);
-					}
-				}
-			}
+		if ((oldl3e & PG_RW) != 0 &&
+		    pmap_demote_l3e_locked(pmap, l3e, va, &lock) &&
+		    (oldl3e & PG_W) == 0) {
+			/*
+			 * Write protect the mapping to a
+			 * single page so that a subsequent
+			 * write access may repromote.
+			 */
+			va += VM_PAGE_TO_PHYS(m) - (oldl3e &
+			    PG_PS_FRAME);
+			pte = pmap_l3e_to_pte(l3e, va);
+			oldpte = be64toh(*pte);
+			while (!atomic_cmpset_long(pte,
+			    htobe64(oldpte),
+				htobe64((oldpte | RPTE_EAA_R) & ~(PG_M | PG_RW))))
+				   oldpte = be64toh(*pte);
+			vm_page_dirty(m);
+			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
 	}
