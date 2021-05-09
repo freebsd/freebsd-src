@@ -735,7 +735,8 @@ static void
 putf(const char *cp)
 {
 	time_t t;
-	char *slash, db[100];
+	char db[100];
+	const char *slash;
 
 	static struct utsname kerninfo;
 
