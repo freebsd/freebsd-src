@@ -564,8 +564,8 @@ makeenv(char *env[])
 		strlcat(termbuf, TT, sizeof(termbuf));
 		*ep++ = termbuf;
 	}
-	if (EV) {
-		p = EV;
+	if ((p = EV)) {
+		q = p;
 		while ((q = strchr(q, ','))) {
 			*q++ = '\0';
 			*ep++ = p;
