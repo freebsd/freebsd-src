@@ -6564,12 +6564,64 @@ rack_remxt_tmr(struct tcpcb *tp)
 }
 
 static void
+rack_convert_rtts(struct tcpcb *tp)
+{
+	if (tp->t_srtt > 1) {
+		uint32_t val, frac;
+
+		val = tp->t_srtt >> TCP_RTT_SHIFT;
+		frac = tp->t_srtt & 0x1f;
+		tp->t_srtt = TICKS_2_USEC(val);
+		/*
+		 * frac is the fractional part of the srtt (if any)
+		 * but its in ticks and every bit represents
+		 * 1/32nd of a hz.
+		 */
+		if (frac) {
+			if (hz == 1000) {
+				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
+			} else {
+				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
+			}
+			tp->t_srtt += frac;
+		}
+	}
+	if (tp->t_rttvar) {
+		uint32_t val, frac;
+
+		val = tp->t_rttvar >> TCP_RTTVAR_SHIFT;
+		frac = tp->t_rttvar & 0x1f;
+		tp->t_rttvar = TICKS_2_USEC(val);
+		/*
+		 * frac is the fractional part of the srtt (if any)
+		 * but its in ticks and every bit represents
+		 * 1/32nd of a hz.
+		 */
+		if (frac) {
+			if (hz == 1000) {
+				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
+			} else {
+				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
+			}
+			tp->t_rttvar += frac;
+		}
+	}
+	RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
+			   rack_rto_min, rack_rto_max);
+}
+
+static void
 rack_cc_conn_init(struct tcpcb *tp)
 {
 	struct tcp_rack *rack;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
+
 	cc_conn_init(tp);
+	/*
+	 * Now convert to rack's internal format.
+	 */
+	rack_convert_rtts(tp);
 	/*
 	 * We want a chance to stay in slowstart as
 	 * we create a connection. TCP spec says that
@@ -11916,9 +11968,9 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 static int
 rack_init_fsb(struct tcpcb *tp, struct tcp_rack *rack)
 {
-	/* 
-	 * Allocate the larger of spaces V6 if available else just 
-	 * V4 and include udphdr (overbook) 
+	/*
+	 * Allocate the larger of spaces V6 if available else just
+	 * V4 and include udphdr (overbook)
 	 */
 #ifdef INET6
 	rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr) + sizeof(struct udphdr);
@@ -12147,47 +12199,7 @@ rack_init(struct tcpcb *tp)
 	 * bit decimal so we have to carefully convert
 	 * these to get the full precision.
 	 */
-	if (tp->t_srtt > 1) {
-		uint32_t val, frac;
-
-		val = tp->t_srtt >> TCP_RTT_SHIFT;
-		frac = tp->t_srtt & 0x1f;
-		tp->t_srtt = TICKS_2_USEC(val);
-		/*
-		 * frac is the fractional part of the srtt (if any)
-		 * but its in ticks and every bit represents
-		 * 1/32nd of a hz.
-		 */
-		if (frac) {
-			if (hz == 1000) {
-				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
-			} else {
-				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
-			}
-			tp->t_srtt += frac;
-		}
-	}
-	if (tp->t_rttvar) {
-		uint32_t val, frac;
-
-		val = tp->t_rttvar >> TCP_RTTVAR_SHIFT;
-		frac = tp->t_rttvar & 0x1f;
-		tp->t_rttvar = TICKS_2_USEC(val);
-		/*
-		 * frac is the fractional part of the srtt (if any)
-		 * but its in ticks and every bit represents
-		 * 1/32nd of a hz.
-		 */
-		if (frac) {
-			if (hz == 1000) {
-				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_MSEC) / (uint64_t)TCP_RTT_SCALE);
-			} else {
-				frac = (((uint64_t)frac * (uint64_t)HPTS_USEC_IN_SEC) / ((uint64_t)(hz) * (uint64_t)TCP_RTT_SCALE));
-			}
-			tp->t_rttvar += frac;
-		}
-	}
-	tp->t_rxtcur = TICKS_2_USEC(tp->t_rxtcur);
+	rack_convert_rtts(tp);
 	tp->t_rttlow = TICKS_2_USEC(tp->t_rttlow);
 	if (rack_def_profile)
 		rack_set_profile(rack, rack_def_profile);
@@ -12230,7 +12242,7 @@ rack_init(struct tcpcb *tp)
 	rack_stop_all_timers(tp);
 	/* Lets setup the fsb block */
 	rack_start_hpts_timer(rack, tp, tcp_get_usecs(NULL), 0, 0, 0);
-	rack_log_rtt_shrinks(rack,  us_cts,  0,
+	rack_log_rtt_shrinks(rack,  us_cts,  tp->t_rxtcur,
 			     __LINE__, RACK_RTTS_INIT);
 	return (0);
 }
