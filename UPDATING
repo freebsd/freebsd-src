@@ -12,6 +12,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210510:
+	Commit 272f39942254 changed the internal KAPI between the
+	nscl.ko and nfscommon.ko modules, so they both need to be
+	rebuilt from sources.
+
 20210429:
 	Commit 5a45802b3c8c changed the internal KAPI between
 	the krpc and NFS.  As such, the krpc, nfscommon and
