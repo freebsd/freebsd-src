@@ -196,25 +196,27 @@ print_host(struct pf_addr *addr, u_int16_t port, sa_family_t af, int opts)
 }
 
 void
-print_seq(struct pfsync_state_peer *p)
+print_seq(struct pfctl_state_peer *p)
 {
 	if (p->seqdiff)
-		printf("[%u + %u](+%u)", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff));
+		printf("[%u + %u](+%u)", p->seqlo,
+		    p->seqhi - p->seqlo, p->seqdiff);
 	else
-		printf("[%u + %u]", ntohl(p->seqlo),
-		    ntohl(p->seqhi) - ntohl(p->seqlo));
+		printf("[%u + %u]", p->seqlo,
+		    p->seqhi - p->seqlo);
 }
 
 void
-print_state(struct pfsync_state *s, int opts)
+print_state(struct pfctl_state *s, int opts)
 {
-	struct pfsync_state_peer *src, *dst;
-	struct pfsync_state_key *key, *sk, *nk;
+	struct pfctl_state_peer *src, *dst;
+	struct pfctl_state_key *key, *sk, *nk;
 	struct protoent *p;
 	int min, sec;
+	sa_family_t af;
+	uint8_t proto;
 #ifndef __NO_STRICT_ALIGNMENT
-	struct pfsync_state_key aligned_key[2];
+	struct pfctl_state_key aligned_key[2];
 
 	bcopy(&s->key, aligned_key, sizeof(aligned_key));
 	key = aligned_key;
@@ -222,48 +224,51 @@ print_state(struct pfsync_state *s, int opts)
 	key = s->key;
 #endif
 
+	af = s->key[PF_SK_WIRE].af;
+	proto = s->key[PF_SK_WIRE].proto;
+
 	if (s->direction == PF_OUT) {
 		src = &s->src;
 		dst = &s->dst;
 		sk = &key[PF_SK_STACK];
 		nk = &key[PF_SK_WIRE];
-		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6) 
+		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
 			sk->port[0] = nk->port[0];
 	} else {
 		src = &s->dst;
 		dst = &s->src;
 		sk = &key[PF_SK_WIRE];
 		nk = &key[PF_SK_STACK];
-		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6) 
+		if (proto == IPPROTO_ICMP || proto == IPPROTO_ICMPV6)
 			sk->port[1] = nk->port[1];
 	}
 	printf("%s ", s->ifname);
-	if ((p = getprotobynumber(s->proto)) != NULL)
+	if ((p = getprotobynumber(proto)) != NULL)
 		printf("%s ", p->p_name);
 	else
-		printf("%u ", s->proto);
+		printf("%u ", proto);
 
-	print_host(&nk->addr[1], nk->port[1], s->af, opts);
-	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
+	print_host(&nk->addr[1], nk->port[1], af, opts);
+	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], af) ||
 	    nk->port[1] != sk->port[1]) {
 		printf(" (");
-		print_host(&sk->addr[1], sk->port[1], s->af, opts);
+		print_host(&sk->addr[1], sk->port[1], af, opts);
 		printf(")");
 	}
 	if (s->direction == PF_OUT)
 		printf(" -> ");
 	else
 		printf(" <- ");
-	print_host(&nk->addr[0], nk->port[0], s->af, opts);
-	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
+	print_host(&nk->addr[0], nk->port[0], af, opts);
+	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], af) ||
 	    nk->port[0] != sk->port[0]) {
 		printf(" (");
-		print_host(&sk->addr[0], sk->port[0], s->af, opts);
+		print_host(&sk->addr[0], sk->port[0], af, opts);
 		printf(")");
 	}
 
 	printf("    ");
-	if (s->proto == IPPROTO_TCP) {
+	if (proto == IPPROTO_TCP) {
 		if (src->state <= TCPS_TIME_WAIT &&
 		    dst->state <= TCPS_TIME_WAIT)
 			printf("   %s:%s\n", tcpstates[src->state],
@@ -290,16 +295,16 @@ print_state(struct pfsync_state *s, int opts)
 				    dst->wscale & PF_WSCALE_MASK);
 			printf("\n");
 		}
-	} else if (s->proto == IPPROTO_UDP && src->state < PFUDPS_NSTATES &&
+	} else if (proto == IPPROTO_UDP && src->state < PFUDPS_NSTATES &&
 	    dst->state < PFUDPS_NSTATES) {
 		const char *states[] = PFUDPS_NAMES;
 
 		printf("   %s:%s\n", states[src->state], states[dst->state]);
 #ifndef INET6
-	} else if (s->proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
+	} else if (proto != IPPROTO_ICMP && src->state < PFOTHERS_NSTATES &&
 	    dst->state < PFOTHERS_NSTATES) {
 #else
-	} else if (s->proto != IPPROTO_ICMP && s->proto != IPPROTO_ICMPV6 &&
+	} else if (proto != IPPROTO_ICMP && proto != IPPROTO_ICMPV6 &&
 	    src->state < PFOTHERS_NSTATES && dst->state < PFOTHERS_NSTATES) {
 #endif
 		/* XXX ICMP doesn't really have state levels */
@@ -311,10 +316,8 @@ print_state(struct pfsync_state *s, int opts)
 	}
 
 	if (opts & PF_OPT_VERBOSE) {
-		u_int64_t packets[2];
-		u_int64_t bytes[2];
-		u_int32_t creation = ntohl(s->creation);
-		u_int32_t expire = ntohl(s->expire);
+		u_int32_t creation = s->creation;
+		u_int32_t expire = s->expire;
 
 		sec = creation % 60;
 		creation /= 60;
@@ -327,19 +330,15 @@ print_state(struct pfsync_state *s, int opts)
 		expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
-		bcopy(s->packets[0], &packets[0], sizeof(u_int64_t));
-		bcopy(s->packets[1], &packets[1], sizeof(u_int64_t));
-		bcopy(s->bytes[0], &bytes[0], sizeof(u_int64_t));
-		bcopy(s->bytes[1], &bytes[1], sizeof(u_int64_t));
 		printf(", %ju:%ju pkts, %ju:%ju bytes",
-		    (uintmax_t )be64toh(packets[0]),
-		    (uintmax_t )be64toh(packets[1]),
-		    (uintmax_t )be64toh(bytes[0]),
-		    (uintmax_t )be64toh(bytes[1]));
-		if (ntohl(s->anchor) != -1)
-			printf(", anchor %u", ntohl(s->anchor));
-		if (ntohl(s->rule) != -1)
-			printf(", rule %u", ntohl(s->rule));
+		    s->packets[0],
+		    s->packets[1],
+		    s->bytes[0],
+		    s->bytes[1]);
+		if (s->anchor != -1)
+			printf(", anchor %u", s->anchor);
+		if (s->rule != -1)
+			printf(", rule %u", s->rule);
 		if (s->state_flags & PFSTATE_SLOPPY)
 			printf(", sloppy");
 		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
@@ -352,10 +351,9 @@ print_state(struct pfsync_state *s, int opts)
 		u_int64_t id;
 
 		bcopy(&s->id, &id, sizeof(u_int64_t));
-		printf("   id: %016jx creatorid: %08x",
-		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
+		printf("   id: %016jx creatorid: %08x", id, s->creatorid);
 		printf("   gateway: ");
-		print_host(&s->rt_addr, 0, s->af, opts);
+		print_host(&s->rt_addr, 0, af, opts);
 		printf("\n");
 	}
 }
