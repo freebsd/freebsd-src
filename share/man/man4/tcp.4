@@ -547,6 +547,13 @@ This gently reduces the congestion window during periods, where TCP is
 application limited and the network bandwidth is not utilized completely.
 That prevents self-inflicted packet losses once the application starts to
 transmit data at a higher speed.
+.It Va do_lrd
+Enable Lost Retransmission Detection for SACK-enabled sessions, disabled by
+default.
+Under severe congestion, a retransmission can be lost which then leads to a
+mandatory Retransmission Timeout (RTO), followed by slow-start.
+LRD will try to resend the repeatedly lost packet, preventing the time-consuming
+RTO and performance reducing slow-start.
 .It Va do_prr
 Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
 described in RFC6937.

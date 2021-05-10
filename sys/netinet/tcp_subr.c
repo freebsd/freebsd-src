@@ -2171,6 +2171,8 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (V_tcp_perconn_stats_enable == 1)
 		tp->t_stats = stats_blob_alloc(V_tcp_perconn_stats_dflt_tpl, 0);
 #endif
+	if (V_tcp_do_lrd)
+		tp->t_flags |= TF_LRD;
 	return (tp);		/* XXX */
 }
 
