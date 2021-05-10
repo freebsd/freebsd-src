@@ -1237,48 +1237,27 @@ done:
 int
 pfctl_show_states(int dev, const char *iface, int opts)
 {
-	struct pfioc_states ps;
-	struct pfsync_state *p;
-	char *inbuf = NULL, *newinbuf = NULL;
-	unsigned int len = 0;
-	int i, dotitle = (opts & PF_OPT_SHOWALL);
+	struct pfctl_states states;
+	struct pfctl_state *s;
+	int dotitle = (opts & PF_OPT_SHOWALL);
 
-	memset(&ps, 0, sizeof(ps));
-	for (;;) {
-		ps.ps_len = len;
-		if (len) {
-			newinbuf = realloc(inbuf, len);
-			if (newinbuf == NULL)
-				err(1, "realloc");
-			ps.ps_buf = inbuf = newinbuf;
-		}
-		if (ioctl(dev, DIOCGETSTATES, &ps) < 0) {
-			warn("DIOCGETSTATES");
-			free(inbuf);
-			return (-1);
-		}
-		if (ps.ps_len + sizeof(struct pfioc_states) < len)
-			break;
-		if (len == 0 && ps.ps_len == 0)
-			goto done;
-		if (len == 0 && ps.ps_len != 0)
-			len = ps.ps_len;
-		if (ps.ps_len == 0)
-			goto done;	/* no states */
-		len *= 2;
-	}
-	p = ps.ps_states;
-	for (i = 0; i < ps.ps_len; i += sizeof(*p), p++) {
-		if (iface != NULL && strcmp(p->ifname, iface))
+	memset(&states, 0, sizeof(states));
+
+	if (pfctl_get_states(dev, &states))
+		return (-1);
+
+	TAILQ_FOREACH(s, &states.states, entry) {
+		if (iface != NULL && strcmp(s->ifname, iface))
 			continue;
 		if (dotitle) {
 			pfctl_print_title("STATES:");
 			dotitle = 0;
 		}
-		print_state(p, opts);
+		print_state(s, opts);
 	}
-done:
-	free(inbuf);
+
+	pfctl_free_states(&states);
+
 	return (0);
 }
 
