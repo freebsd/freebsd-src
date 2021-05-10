@@ -197,6 +197,64 @@ struct pfctl_kill {
 	bool			kill_match;
 };
 
+struct pfctl_state_scrub {
+	bool		timestamp;
+	uint8_t		ttl;
+	uint32_t	ts_mod;
+};
+
+struct pfctl_state_peer {
+	struct pfctl_state_scrub	*scrub;
+	uint32_t			 seqlo;
+	uint32_t			 seqhi;
+	uint32_t			 seqdiff;
+	uint16_t			 max_win;
+	uint16_t			 mss;
+	uint8_t				 state;
+	uint8_t				 wscale;
+};
+
+struct pfctl_state_key {
+	struct pf_addr	 addr[2];
+	uint16_t	 port[2];
+	sa_family_t	 af;
+	uint8_t	 	 proto;
+};
+
+struct pfctl_state {
+	TAILQ_ENTRY(pfctl_state)	entry;
+
+	uint64_t		 id;
+	uint32_t		 creatorid;
+	uint8_t		 	 direction;
+
+	struct pfctl_state_peer	 src;
+	struct pfctl_state_peer	 dst;
+
+	uint32_t		 rule;
+	uint32_t		 anchor;
+	uint32_t		 nat_rule;
+	struct pf_addr		 rt_addr;
+	struct pfctl_state_key	 key[2];	/* addresses stack and wire  */
+	char			 ifname[IFNAMSIZ];
+	uint64_t		 packets[2];
+	uint64_t		 bytes[2];
+	uint32_t		 creation;
+	uint32_t		 expire;
+	uint32_t		 pfsync_time;
+	uint16_t		 tag;
+	uint8_t			 log;
+	uint8_t			 state_flags;
+	uint8_t			 timeout;
+	uint32_t		 sync_flags;
+};
+
+TAILQ_HEAD(pfctl_statelist, pfctl_state);
+struct pfctl_states {
+	struct pfctl_statelist	states;
+	size_t 			count;
+};
+
 int	pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket,
 	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);
@@ -207,6 +265,8 @@ int	pfctl_add_rule(int dev, const struct pfctl_rule *r,
 	    const char *anchor, const char *anchor_call, u_int32_t ticket,
 	    u_int32_t pool_ticket);
 int	pfctl_set_keepcounters(int dev, bool keep);
+int	pfctl_get_states(int dev, struct pfctl_states *states);
+void	pfctl_free_states(struct pfctl_states *states);
 int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
 int	pfctl_kill_states(int dev, const struct pfctl_kill *kill,
