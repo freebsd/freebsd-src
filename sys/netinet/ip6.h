@@ -106,6 +106,10 @@ struct ip6_hdr {
 #endif
 #define IPV6_FLOWLABEL_LEN	20
 
+#define	IPV6_TRAFFIC_CLASS(ip6)	((ntohl((ip6)->ip6_flow) >> 20) & 0xff)
+#define	IPV6_DSCP(ip6)		((ntohl((ip6)->ip6_flow) >> 20) & 0xfc)
+#define	IPV6_ECN(ip6)		((ntohl((ip6)->ip6_flow) >> 20) & 0x03)
+
 /*
  * Extension Headers
  */

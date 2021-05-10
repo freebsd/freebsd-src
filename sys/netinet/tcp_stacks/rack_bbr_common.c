@@ -334,7 +334,7 @@ skip_vnet:
 				m_freem(m);
 				goto skipped_pkt;
 			}
-			iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+			iptos = IPV6_TRAFFIC_CLASS(ip6);
 			break;
 		}
 #endif
