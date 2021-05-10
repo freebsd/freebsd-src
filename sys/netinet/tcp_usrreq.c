@@ -2001,6 +2001,7 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 
 		case TCP_NODELAY:
 		case TCP_NOOPT:
+		case TCP_LRD:
 			INP_WUNLOCK(inp);
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 			    sizeof optval);
@@ -2014,6 +2015,9 @@ tcp_default_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp
 				break;
 			case TCP_NOOPT:
 				opt = TF_NOOPT;
+				break;
+			case TCP_LRD:
+				opt = TF_LRD;
 				break;
 			default:
 				opt = 0; /* dead code to fool gcc */
@@ -2562,6 +2566,11 @@ unhold:
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 #endif
+		case TCP_LRD:
+			optval = tp->t_flags & TF_LRD;
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;

@@ -809,6 +809,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/SACK option%s (SACK blocks) received}\n");
 	p(tcps_sack_send_blocks, "\t{:sent-option-blocks/%ju} "
 	    "{N:/SACK option%s (SACK blocks) sent}\n");
+	p(tcps_sack_lostrexmit, "\t{:lost-retransmissions/%ju} "
+	    "{N:/SACK retransmission%s lost}\n");
 	p1a(tcps_sack_sboverflow, "\t{:scoreboard-overflows/%ju} "
 	    "{N:/SACK scoreboard overflow}\n");
 

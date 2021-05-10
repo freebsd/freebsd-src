@@ -1264,6 +1264,14 @@ send:
 	} else {
 		th->th_seq = htonl(p->rxmit);
 		p->rxmit += len;
+		/*
+		 * Lost Retransmission Detection
+		 * trigger resending of a (then
+		 * still existing) hole, when
+		 * fack acks recoverypoint.
+		 */
+		if ((tp->t_flags & TF_LRD) && SEQ_GEQ(p->rxmit, p->end))
+			p->rxmit = tp->snd_recover;
 		tp->sackhint.sack_bytes_rexmit += len;
 	}
 	if (IN_RECOVERY(tp->t_flags)) {
