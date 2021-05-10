@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2021
+.Dd June 4, 2021
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -105,6 +105,11 @@ in-kernel NAT.
 .Ar number
 .Cm config
 .Ar config-options
+.Nm
+.Cm nat
+.Ar number
+.Cm show
+.Brq Cm config | log
 .Ss STATEFUL IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
 .Nm
 .Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm create Ar create-options
@@ -922,7 +927,7 @@ This makes the
 .Xr netstat 1
 entry look rather weird but is intended for
 use with transparent proxy servers.
-.It Cm nat Ar nat_nr | tablearg
+.It Cm nat Ar nat_nr | global | tablearg
 Pass packet to a
 nat instance
 (for network address translation, address redirect, etc.):
@@ -3276,8 +3281,9 @@ Set the aliasing ports between the ranges given. Upper port has to be greater
 than lower.
 .El
 .Pp
-Some specials value can be supplied instead of
-.Va nat_number :
+Some special values can be supplied instead of
+.Va nat_number
+in nat rule actions:
 .Bl -tag -width indent
 .It Cm global
 Looks up translation state in all configured nat instances.
@@ -3303,7 +3309,7 @@ For more information about aliasing modes, refer to
 .Xr libalias 3 .
 See Section
 .Sx EXAMPLES
-for some examples about nat usage.
+for some examples of nat usage.
 .Ss REDIRECT AND LSNAT SUPPORT IN IPFW
 Redirect and LSNAT support follow closely the syntax used in
 .Xr natd 8 .
