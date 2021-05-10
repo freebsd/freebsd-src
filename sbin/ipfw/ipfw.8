@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2021
+.Dd May 11, 2021
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -4451,11 +4451,11 @@ Using the
 .Cm fwd
 action, the table entries may include hostnames and IP addresses.
 .Pp
-.Dl "ipfw table T2 create type addr ftype ip"
+.Dl "ipfw table T2 create type addr valtype ipv4"
 .Dl "ipfw table T2 add 192.168.2.0/24 10.23.2.1"
-.Dl "ipfw table T21 add 192.168.0.0/27 router1.dmz"
+.Dl "ipfw table T2 add 192.168.0.0/27 router1.dmz"
 .Dl "..."
-.Dl "ipfw add 100 fwd tablearg ip from any to table(1)"
+.Dl "ipfw add 100 fwd tablearg ip from any to 'table(T2)'"
 .Pp
 In the following example per-interface firewall is created:
 .Pp
