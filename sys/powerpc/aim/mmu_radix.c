@@ -3456,10 +3456,8 @@ mmu_radix_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pml3_entry_t l3e, *l3ep;
 	pt_entry_t pte;
-	vm_paddr_t pa;
 	vm_page_t m;
 
-	pa = 0;
 	m = NULL;
 	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, va, prot);
 	PMAP_LOCK(pmap);
