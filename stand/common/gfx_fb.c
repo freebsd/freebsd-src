@@ -1357,15 +1357,11 @@ isqrt(int num)
 	return (res);
 }
 
-/* set pixel in framebuffer using gfx coordinates */
-void
-gfx_fb_setpixel(uint32_t x, uint32_t y)
+static uint32_t
+gfx_fb_getcolor(void)
 {
 	uint32_t c;
 	const teken_attr_t *ap;
-
-	if (gfx_state.tg_fb_type == FB_TEXT)
-		return;
 
 	ap = teken_get_curattr(&gfx_state.tg_teken);
         if (ap->ta_format & TF_REVERSE) {
@@ -1378,7 +1374,19 @@ gfx_fb_setpixel(uint32_t x, uint32_t y)
 			c |= TC_LIGHT;
 	}
 
-	c = gfx_fb_color_map(c);
+	return (gfx_fb_color_map(c));
+}
+
+/* set pixel in framebuffer using gfx coordinates */
+void
+gfx_fb_setpixel(uint32_t x, uint32_t y)
+{
+	uint32_t c;
+
+	if (gfx_state.tg_fb_type == FB_TEXT)
+		return;
+
+	c = gfx_fb_getcolor();
 
 	if (x >= gfx_state.tg_fb.fb_width ||
 	    y >= gfx_state.tg_fb.fb_height)
@@ -1389,25 +1397,26 @@ gfx_fb_setpixel(uint32_t x, uint32_t y)
 
 /*
  * draw rectangle in framebuffer using gfx coordinates.
- * The function is borrowed from vt_fb.c
  */
 void
 gfx_fb_drawrect(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
     uint32_t fill)
 {
-	uint32_t x, y;
+	uint32_t c;
 
 	if (gfx_state.tg_fb_type == FB_TEXT)
 		return;
 
-	for (y = y1; y <= y2; y++) {
-		if (fill || (y == y1) || (y == y2)) {
-			for (x = x1; x <= x2; x++)
-				gfx_fb_setpixel(x, y);
-		} else {
-			gfx_fb_setpixel(x1, y);
-			gfx_fb_setpixel(x2, y);
-		}
+	c = gfx_fb_getcolor();
+
+	if (fill != 0) {
+		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x1, y1, x2 - x1,
+		    y2 - y1, 0);
+	} else {
+		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x1, y1, x2 - x1, 1, 0);
+		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x1, y2, x2 - x1, 1, 0);
+		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x1, y1, 1, y2 - y1, 0);
+		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x2, y1, 1, y2 - y1, 0);
 	}
 }
 
