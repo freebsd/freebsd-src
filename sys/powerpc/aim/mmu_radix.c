@@ -512,6 +512,7 @@ static struct pmap_funcs mmu_radix_methods = {
 	.dumpsys_map_chunk = mmu_radix_dumpsys_map,
 	.page_is_mapped = mmu_radix_page_is_mapped,
 	.ps_enabled = mmu_radix_ps_enabled,
+	.align_superpage = mmu_radix_align_superpage,
 	.object_init_pt = mmu_radix_object_init_pt,
 	.protect = mmu_radix_protect,
 	/* pmap dispatcher interface */
