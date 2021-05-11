@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <sysexits.h>
@@ -36,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
@@ -122,12 +122,13 @@ skip_get_tokens(char *skip_addr, int *sk_addr, int max_index)
 }
 
 static int
-scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
+scan_bus(const char *dev, int skip, char *skip_addr)
 {
+	struct iiccmd cmd;
 	struct iic_msg rdmsg;
 	struct iic_rdwr_data rdwrdata;
 	struct skip_range addr_range = { 0, 0 };
-	int *tokens, fd, error, i, index, j;
+	int *tokens = NULL, fd, error, i, idx = 0, j;
 	int len = 0, do_skip = 0, no_range = 1, num_found = 0, use_read_xfer = 0;
 	uint8_t rdbyte;
 
@@ -139,6 +140,7 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 	}
 
 	if (skip) {
+		assert(skip_addr != NULL);
 		len = strlen(skip_addr);
 		if (strstr(skip_addr, "..") != NULL) {
 			addr_range = skip_get_range(skip_addr);
@@ -151,7 +153,7 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 				error = -1;
 				goto out;
 			}
-			index = skip_get_tokens(skip_addr, tokens,
+			idx = skip_get_tokens(skip_addr, tokens,
 			    len / 2 + 1);
 		}
 
@@ -166,7 +168,7 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 
 start_over:
 	if (use_read_xfer) {
-		fprintf(stderr, 
+		fprintf(stderr,
 		    "Hardware may not support START/STOP scanning; "
 		    "trying less-reliable read method.\n");
 	}
@@ -177,13 +179,15 @@ start_over:
 			if (i >= addr_range.start && i <= addr_range.end)
 				continue;
 
-		} else if (skip && no_range)
-			for (j = 0; j < index; j++) {
+		} else if (skip && no_range) {
+			assert (tokens != NULL);
+			for (j = 0; j < idx; j++) {
 				if (tokens[j] == i) {
 					do_skip = 1;
 					break;
 				}
 			}
+		}
 
 		if (do_skip) {
 			do_skip = 0;
@@ -241,6 +245,8 @@ out:
 	close(fd);
 	if (skip && no_range)
 		free(tokens);
+	else
+		assert(tokens == NULL);
 
 	if (error) {
 		fprintf(stderr, "Error scanning I2C controller (%s): %s\n",
@@ -251,8 +257,9 @@ out:
 }
 
 static int
-reset_bus(struct iiccmd cmd, char *dev)
+reset_bus(const char *dev)
 {
+	struct iiccmd cmd;
 	int fd, error;
 
 	fd = open(dev, O_RDWR);
@@ -295,11 +302,12 @@ prepare_buf(int size, uint32_t off)
 }
 
 static int
-i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
+i2c_write(const char *dev, struct options i2c_opt, char *i2c_buf)
 {
 	struct iiccmd cmd;
 	int error, fd, bufsize;
-	char *err_msg, *buf;
+	char *buf;
+	const char *err_msg;
 
 	fd = open(dev, O_RDWR);
 	if (fd == -1) {
@@ -404,7 +412,7 @@ i2c_write(char *dev, struct options i2c_opt, char *i2c_buf)
 		break;
 
 	case I2C_MODE_NONE: /* fall through */
-	default:		
+	default:
 		buf = realloc(buf, bufsize + i2c_opt.count);
 		if (buf == NULL) {
 			err_msg = "error: data malloc";
@@ -448,11 +456,12 @@ err2:
 }
 
 static int
-i2c_read(char *dev, struct options i2c_opt, char *i2c_buf)
+i2c_read(const char *dev, struct options i2c_opt, char *i2c_buf)
 {
 	struct iiccmd cmd;
 	int fd, error, bufsize;
-	char *err_msg, data = 0, *buf;
+	char data = 0, *buf;
+	const char *err_msg;
 
 	fd = open(dev, O_RDWR);
 	if (fd == -1)
@@ -556,7 +565,7 @@ err2:
  * driver to be handled as a single transfer.
  */
 static int
-i2c_rdwr_transfer(char *dev, struct options i2c_opt, char *i2c_buf)
+i2c_rdwr_transfer(const char *dev, struct options i2c_opt, char *i2c_buf)
 {
 	struct iic_msg msgs[2];
 	struct iic_rdwr_data xfer;
@@ -613,9 +622,9 @@ i2c_rdwr_transfer(char *dev, struct options i2c_opt, char *i2c_buf)
 int
 main(int argc, char** argv)
 {
-	struct iiccmd cmd;
 	struct options i2c_opt;
-	char *dev, *skip_addr, *i2c_buf;
+	char *skip_addr = NULL, *i2c_buf;
+	const char *dev;
 	int error, chunk_size, i, j, ch;
 
 	errno = 0;
@@ -700,6 +709,10 @@ main(int argc, char** argv)
 	}
 	argc -= optind;
 	argv += optind;
+	if (argc > 0) {
+		fprintf(stderr, "Too many arguments\n");
+		usage();
+	}
 
 	/* Set default mode if option -m is not specified */
 	if (i2c_opt.mode == I2C_MODE_NOTSET) {
@@ -722,20 +735,20 @@ main(int argc, char** argv)
 		if ((i2c_opt.addr_set == 0) ||
 		    !(i2c_opt.width == 0 || i2c_opt.width == 8 ||
 		    i2c_opt.width == 16))
-		usage();
+			usage();
 	}
 
 	if (i2c_opt.verbose)
 		fprintf(stderr, "dev: %s, addr: 0x%x, r/w: %c, "
-		    "offset: 0x%02x, width: %u, count: %u\n", dev,
+		    "offset: 0x%02x, width: %d, count: %d\n", dev,
 		    i2c_opt.addr >> 1, i2c_opt.dir, i2c_opt.off,
 		    i2c_opt.width, i2c_opt.count);
 
 	if (i2c_opt.scan)
-		exit(scan_bus(cmd, dev, i2c_opt.skip, skip_addr));
+		exit(scan_bus(dev, i2c_opt.skip, skip_addr));
 
 	if (i2c_opt.reset)
-		exit(reset_bus(cmd, dev));
+		exit(reset_bus(dev));
 
 	i2c_buf = malloc(i2c_opt.count);
 	if (i2c_buf == NULL)
@@ -746,7 +759,7 @@ main(int argc, char** argv)
 	 */
 	if (i2c_opt.dir == 'w') {
 		if (i2c_opt.verbose && !i2c_opt.binary)
-			fprintf(stderr, "Enter %u bytes of data: ",
+			fprintf(stderr, "Enter %d bytes of data: ",
 			    i2c_opt.count);
 		for (i = 0; i < i2c_opt.count; i++) {
 			ch = getchar();
