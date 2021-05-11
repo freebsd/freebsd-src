@@ -317,9 +317,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	unsigned int vector;
 	int error;
 
-	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn alloc lock not held"));
+	mtx_lock(&xen_intr_isrc_lock);
 	isrc = xen_intr_find_unused_isrc(type);
 	if (isrc != NULL) {
+		mtx_unlock(&xen_intr_isrc_lock);
 		return (isrc);
 	}
 
@@ -328,6 +329,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 			warned = 1;
 			printf("%s: Xen interrupts exhausted.\n", __func__);
 		}
+		mtx_unlock(&xen_intr_isrc_lock);
 		return (NULL);
 	}
 
@@ -346,7 +348,6 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
 		    __func__, vector, error);
-	mtx_lock(&xen_intr_isrc_lock);
 
 	return (isrc);
 }
@@ -427,16 +428,14 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	}
 	*port_handlep = NULL;
 
-	mtx_lock(&xen_intr_isrc_lock);
 	isrc = xen_intr_alloc_isrc(type);
-	if (isrc == NULL) {
-		mtx_unlock(&xen_intr_isrc_lock);
+	if (isrc == NULL)
 		return (ENOSPC);
-	}
 	isrc->xi_port = local_port;
 	isrc->xi_close = false;
-	xen_intr_port_to_isrc[local_port] = isrc;
 	refcount_init(&isrc->xi_refcount, 1);
+	mtx_lock(&xen_intr_isrc_lock);
+	xen_intr_port_to_isrc[isrc->xi_port] = isrc;
 	mtx_unlock(&xen_intr_isrc_lock);
 
 #ifdef SMP
