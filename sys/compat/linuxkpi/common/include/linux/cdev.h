@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2021 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 
 #include <asm/atomic-long.h>
 
+struct device;
 struct file_operations;
 struct inode;
 struct module;
@@ -142,6 +143,14 @@ cdev_del(struct linux_cdev *cdev)
 }
 
 struct linux_cdev *linux_find_cdev(const char *name, unsigned major, unsigned minor);
+
+int linux_cdev_device_add(struct linux_cdev *, struct device *);
+void linux_cdev_device_del(struct linux_cdev *, struct device *);
+
+#define	cdev_device_add(...)		\
+  linux_cdev_device_add(__VA_ARGS__)
+#define	cdev_device_del(...)		\
+  linux_cdev_device_del(__VA_ARGS__)
 
 #define	cdev	linux_cdev
 
