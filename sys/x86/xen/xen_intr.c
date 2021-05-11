@@ -73,6 +73,16 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
+/*
+ * Lock for x86-related structures.  Notably modifying
+ * xen_intr_auto_vector_count, and allocating interrupts require this lock be
+ * held.
+ *
+ * ->xi_type == EVTCHN_TYPE_UNBOUND indicates a xenisrc is under control of
+ * this lock and operations require it be held.
+ */
+static struct mtx	xen_intr_x86_lock;
+
 static u_int first_evtchn_irq;
 
 /**
@@ -160,6 +170,16 @@ struct pic xen_intr_pic = {
 	.pic_assign_cpu     = xen_intr_pic_assign_cpu,
 };
 
+/*
+ * Lock for interrupt core data.
+ *
+ * Modifying xen_intr_port_to_isrc[], or isrc->xi_port (implies the former)
+ * requires this lock be held.  Any time this lock is not held, the condition
+ * `!xen_intr_port_to_isrc[i] || (xen_intr_port_to_isrc[i]->ix_port == i)`
+ * MUST be true for all values of i which are valid indicies of the array.
+ *
+ * Acquire/release operations for isrc->xi_refcount require this lock be held.
+ */
 static struct mtx	 xen_intr_isrc_lock;
 static u_int		 xen_intr_auto_vector_count;
 static struct xenisrc	*xen_intr_port_to_isrc[NR_EVENT_CHANNELS];
@@ -274,7 +294,7 @@ xen_intr_find_unused_isrc(enum evtchn_type type)
 {
 	int isrc_idx;
 
-	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn isrc lock not held"));
+	mtx_assert(&xen_intr_x86_lock, MA_OWNED);
 
 	for (isrc_idx = 0; isrc_idx < xen_intr_auto_vector_count; isrc_idx ++) {
 		struct xenisrc *isrc;
@@ -317,10 +337,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	unsigned int vector;
 	int error;
 
-	mtx_lock(&xen_intr_isrc_lock);
+	mtx_lock(&xen_intr_x86_lock);
 	isrc = xen_intr_find_unused_isrc(type);
 	if (isrc != NULL) {
-		mtx_unlock(&xen_intr_isrc_lock);
+		mtx_unlock(&xen_intr_x86_lock);
 		return (isrc);
 	}
 
@@ -329,7 +349,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 			warned = 1;
 			printf("%s: Xen interrupts exhausted.\n", __func__);
 		}
-		mtx_unlock(&xen_intr_isrc_lock);
+		mtx_unlock(&xen_intr_x86_lock);
 		return (NULL);
 	}
 
@@ -339,7 +359,7 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	KASSERT((intr_lookup_source(vector) == NULL),
 	    ("Trying to use an already allocated vector"));
 
-	mtx_unlock(&xen_intr_isrc_lock);
+	mtx_unlock(&xen_intr_x86_lock);
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
 	isrc->xi_intsrc.is_pic = &xen_intr_pic;
 	isrc->xi_vector = vector;
@@ -383,11 +403,16 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 
 		xen_intr_port_to_isrc[isrc->xi_port] = NULL;
 	}
+	/* not reachable from xen_intr_port_to_isrc[], unlock */
+	mtx_unlock(&xen_intr_isrc_lock);
+
 	isrc->xi_cpu = 0;
-	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
 	isrc->xi_port = INVALID_EVTCHN;
 	isrc->xi_cookie = NULL;
-	mtx_unlock(&xen_intr_isrc_lock);
+
+	mtx_lock(&xen_intr_x86_lock);
+	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
+	mtx_unlock(&xen_intr_x86_lock);
 	return (0);
 }
 
@@ -633,6 +658,8 @@ xen_intr_init(void *dummy __unused)
 	    "is_valid_evtchn(-1) fails (negative are invalid)");
 
 	mtx_init(&xen_intr_isrc_lock, "xen-irq-lock", NULL, MTX_DEF);
+
+	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
 
 	/*
 	 * Set the per-cpu mask of CPU#0 to enable all, since by default all
