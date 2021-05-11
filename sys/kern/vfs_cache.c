@@ -3936,6 +3936,7 @@ struct cache_fpl {
 #endif
 };
 
+static bool cache_fplookup_mp_supported(struct mount *mp);
 static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
 static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
 static int cache_fplookup_partial_setup(struct cache_fpl *fpl);
@@ -5173,6 +5174,19 @@ cache_fplookup_symlink(struct cache_fpl *fpl)
 		fpl->dvp_seqc = vn_seqc_read_any(fpl->dvp);
 		if (seqc_in_modify(fpl->dvp_seqc)) {
 			return (cache_fpl_aborted(fpl));
+		}
+		/*
+		 * The main loop assumes that ->dvp points to a vnode belonging
+		 * to a filesystem which can do lockless lookup, but the absolute
+		 * symlink can be wandering off to one which does not.
+		 */
+		mp = atomic_load_ptr(&fpl->dvp->v_mount);
+		if (__predict_false(mp == NULL)) {
+			return (cache_fpl_aborted(fpl));
+		}
+		if (!cache_fplookup_mp_supported(mp)) {
+			cache_fpl_checkpoint(fpl);
+			return (cache_fpl_partial(fpl));
 		}
 	}
 	return (0);
