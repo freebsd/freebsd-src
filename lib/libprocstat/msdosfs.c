@@ -39,6 +39,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdbool.h>
+
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/time.h>
