@@ -294,13 +294,39 @@ nullfs_root(mp, flags, vpp)
 }
 
 static int
-nullfs_quotactl(mp, cmd, uid, arg)
+nullfs_quotactl(mp, cmd, uid, arg, mp_busy)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
 	void *arg;
+	bool *mp_busy;
 {
-	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg);
+	struct mount *lowermp;
+	struct null_mount *mntdata;
+	int error;
+	bool unbusy;
+
+	mntdata = MOUNTTONULLMOUNT(mp);
+	lowermp = atomic_load_ptr(&mntdata->nullm_vfs);
+	KASSERT(*mp_busy == true, ("upper mount not busy"));
+	/*
+	 * See comment in sys_quotactl() for an explanation of why the
+	 * lower mount needs to be busied by the caller of VFS_QUOTACTL()
+	 * but may be unbusied by the implementation.  We must unbusy
+	 * the upper mount for the same reason; otherwise a namei lookup
+	 * issued by the VFS_QUOTACTL() implementation could traverse the
+	 * upper mount and deadlock.
+	 */
+	vfs_unbusy(mp);
+	*mp_busy = false;
+	unbusy = true;
+	error = vfs_busy(lowermp, 0);
+	if (error == 0)
+		error = VFS_QUOTACTL(lowermp, cmd, uid, arg, &unbusy);
+	if (unbusy)
+		vfs_unbusy(lowermp);
+
+	return (error);
 }
 
 static int
