@@ -3646,9 +3646,9 @@ vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf, char **freebuf,
 		error = vn_fullpath_dir(vp, pwd->pwd_rdir, buf, retbuf, buflen,
 		    addend);
 		pwd_drop(pwd);
-		if (error != 0)
-			goto out_bad;
 	}
+	if (error != 0)
+		goto out_bad;
 
 	*freebuf = buf;
 
