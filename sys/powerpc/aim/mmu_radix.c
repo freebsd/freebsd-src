@@ -2366,28 +2366,28 @@ mmu_radix_cpu_bootstrap(int ap)
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l3e, CTLFLAG_RD, 0,
     "2MB page mapping counters");
 
-static u_long pmap_l3e_demotions;
-SYSCTL_ULONG(_vm_pmap_l3e, OID_AUTO, demotions, CTLFLAG_RD,
-    &pmap_l3e_demotions, 0, "2MB page demotions");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3e_demotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l3e, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_l3e_demotions, "2MB page demotions");
 
-static u_long pmap_l3e_mappings;
-SYSCTL_ULONG(_vm_pmap_l3e, OID_AUTO, mappings, CTLFLAG_RD,
-    &pmap_l3e_mappings, 0, "2MB page mappings");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3e_mappings);
+SYSCTL_COUNTER_U64(_vm_pmap_l3e, OID_AUTO, mappings, CTLFLAG_RD,
+    &pmap_l3e_mappings, "2MB page mappings");
 
-static u_long pmap_l3e_p_failures;
-SYSCTL_ULONG(_vm_pmap_l3e, OID_AUTO, p_failures, CTLFLAG_RD,
-    &pmap_l3e_p_failures, 0, "2MB page promotion failures");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3e_p_failures);
+SYSCTL_COUNTER_U64(_vm_pmap_l3e, OID_AUTO, p_failures, CTLFLAG_RD,
+    &pmap_l3e_p_failures, "2MB page promotion failures");
 
-static u_long pmap_l3e_promotions;
-SYSCTL_ULONG(_vm_pmap_l3e, OID_AUTO, promotions, CTLFLAG_RD,
-    &pmap_l3e_promotions, 0, "2MB page promotions");
+static COUNTER_U64_DEFINE_EARLY(pmap_l3e_promotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l3e, OID_AUTO, promotions, CTLFLAG_RD,
+    &pmap_l3e_promotions, "2MB page promotions");
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2e, CTLFLAG_RD, 0,
     "1GB page mapping counters");
 
-static u_long pmap_l2e_demotions;
-SYSCTL_ULONG(_vm_pmap_l2e, OID_AUTO, demotions, CTLFLAG_RD,
-    &pmap_l2e_demotions, 0, "1GB page demotions");
+static COUNTER_U64_DEFINE_EARLY(pmap_l2e_demotions);
+SYSCTL_COUNTER_U64(_vm_pmap_l2e, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_l2e_demotions, "1GB page demotions");
 
 void
 mmu_radix_clear_modify(vm_page_t m)
@@ -2559,7 +2559,7 @@ mmu_radix_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 				*l3e = htobe64(srcptepaddr & ~PG_W);
 				pmap_resident_count_inc(dst_pmap,
 				    L3_PAGE_SIZE / PAGE_SIZE);
-				atomic_add_long(&pmap_l3e_mappings, 1);
+				counter_u64_add(pmap_l3e_mappings, 1);
 			} else
 				dst_pdpg->ref_count--;
 			continue;
@@ -2784,12 +2784,12 @@ setpte:
 
 	pte_store(pde, PG_PROMOTED | newpde);
 	ptesync();
-	atomic_add_long(&pmap_l3e_promotions, 1);
+	counter_u64_add(pmap_l3e_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l3e: success for va %#lx"
 	    " in pmap %p", va, pmap);
 	return (0);
  fail:
-	atomic_add_long(&pmap_l3e_p_failures, 1);
+	counter_u64_add(pmap_l3e_p_failures, 1);
 	return (KERN_FAILURE);
 }
 #endif /* VM_NRESERVLEVEL > 0 */
@@ -3246,7 +3246,7 @@ pmap_enter_l3e(pmap_t pmap, vm_offset_t va, pml3_entry_t newpde, u_int flags,
 	pte_store(l3e, newpde);
 	ptesync();
 
-	atomic_add_long(&pmap_l3e_mappings, 1);
+	counter_u64_add(pmap_l3e_mappings, 1);
 	CTR2(KTR_PMAP, "pmap_enter_pde: success for va %#lx"
 	    " in pmap %p", va, pmap);
 	return (KERN_SUCCESS);
@@ -4037,7 +4037,7 @@ mmu_radix_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				pa |= PG_M | PG_A | PG_RW;
 				pte_store(l3e, pa);
 				pmap_resident_count_inc(pmap, L3_PAGE_SIZE / PAGE_SIZE);
-				atomic_add_long(&pmap_l3e_mappings, 1);
+				counter_u64_add(pmap_l3e_mappings, 1);
 			} else {
 				/* Continue on if the PDE is already valid. */
 				pdpg->ref_count--;
@@ -4953,7 +4953,7 @@ pmap_demote_l3e_locked(pmap_t pmap, pml3_entry_t *l3e, vm_offset_t va,
 	if ((oldpde & PG_MANAGED) != 0)
 		pmap_pv_demote_l3e(pmap, va, oldpde & PG_PS_FRAME, lockp);
 
-	atomic_add_long(&pmap_l3e_demotions, 1);
+	counter_u64_add(pmap_l3e_demotions, 1);
 	CTR2(KTR_PMAP, "pmap_demote_l3e: success for va %#lx"
 	    " in pmap %p", va, pmap);
 	return (TRUE);
@@ -5950,7 +5950,7 @@ pmap_demote_l2e(pmap_t pmap, pml2_entry_t *l2e, vm_offset_t va)
 	 */
 	pmap_invalidate_all(pmap);
 
-	pmap_l2e_demotions++;
+	counter_u64_add(pmap_l2e_demotions, 1);
 	CTR2(KTR_PMAP, "pmap_demote_pdpe: success for va %#lx"
 	    " in pmap %p", va, pmap);
 	return (TRUE);
