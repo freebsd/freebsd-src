@@ -932,6 +932,11 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 		}
 		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 	} else if (cse->ivsize != 0) {
+		if (crp->crp_payload_length < cse->ivsize) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			error = EINVAL;
+			goto bail;
+		}
 		crp->crp_iv_start = 0;
 		crp->crp_payload_start += cse->ivsize;
 		crp->crp_payload_length -= cse->ivsize;
@@ -1112,6 +1117,11 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 		    cse->ivsize == AES_XTS_IV_LEN)
 			caead->ivlen = AES_XTS_IV_LEN;
 
+		if (cse->ivsize == 0) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			error = EINVAL;
+			goto bail;
+		}
 		if (caead->ivlen != cse->ivsize) {
 			error = EINVAL;
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
@@ -1125,10 +1135,9 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 		}
 		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 	} else {
-		crp->crp_iv_start = crp->crp_payload_start;
-		crp->crp_payload_start += cse->ivsize;
-		crp->crp_payload_length -= cse->ivsize;
-		dst += cse->ivsize;
+		error = EINVAL;
+		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+		goto bail;
 	}
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
