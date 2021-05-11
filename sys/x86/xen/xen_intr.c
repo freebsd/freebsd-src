@@ -318,6 +318,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	int error;
 
 	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn alloc lock not held"));
+	isrc = xen_intr_find_unused_isrc(type);
+	if (isrc != NULL) {
+		return (isrc);
+	}
 
 	if (xen_intr_auto_vector_count >= NR_EVENT_CHANNELS) {
 		if (!warned) {
@@ -424,13 +428,10 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	*port_handlep = NULL;
 
 	mtx_lock(&xen_intr_isrc_lock);
-	isrc = xen_intr_find_unused_isrc(type);
+	isrc = xen_intr_alloc_isrc(type);
 	if (isrc == NULL) {
-		isrc = xen_intr_alloc_isrc(type);
-		if (isrc == NULL) {
-			mtx_unlock(&xen_intr_isrc_lock);
-			return (ENOSPC);
-		}
+		mtx_unlock(&xen_intr_isrc_lock);
+		return (ENOSPC);
 	}
 	isrc->xi_port = local_port;
 	isrc->xi_close = false;
