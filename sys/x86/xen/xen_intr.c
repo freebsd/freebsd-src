@@ -314,10 +314,10 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 
 	KASSERT(mtx_owned(&xen_intr_isrc_lock), ("Evtchn alloc lock not held"));
 
-	if (xen_intr_auto_vector_count > NR_EVENT_CHANNELS) {
+	if (xen_intr_auto_vector_count >= NR_EVENT_CHANNELS) {
 		if (!warned) {
 			warned = 1;
-			printf("%s: Event channels exhausted.\n", __func__);
+			printf("%s: Xen interrupts exhausted.\n", __func__);
 		}
 		return (NULL);
 	}
