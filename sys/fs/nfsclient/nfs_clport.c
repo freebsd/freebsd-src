@@ -1438,6 +1438,14 @@ static moduledata_t nfscl_mod = {
 	nfscl_modevent,
 	NULL,
 };
+/*
+ * This is the main module declaration for the NFS client.  The
+ * nfscl_modevent() function is needed to ensure that the module
+ * cannot be unloaded, among other things.
+ * There is also a module declaration in sys/fs/nfsclient/nfs_clvfsops.c
+ * for the name "nfs" within the VFS_SET() macro that defines the "nfs"
+ * file system type.
+ */
 DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
@@ -1445,3 +1453,4 @@ MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
 MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
+MODULE_DEPEND(nfscl, xdr, 1, 1, 1);
