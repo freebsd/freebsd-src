@@ -1226,7 +1226,7 @@ linux_file_kqfilter(struct file *file, struct knote *kn)
 static int
 linux_file_mmap_single(struct file *fp, const struct file_operations *fop,
     vm_ooffset_t *offset, vm_size_t size, struct vm_object **object,
-    int nprot, struct thread *td)
+    int nprot, bool is_shared, struct thread *td)
 {
 	struct task_struct *task;
 	struct vm_area_struct *vmap;
@@ -1261,6 +1261,8 @@ linux_file_mmap_single(struct file *fp, const struct file_operations *fop,
 	vmap->vm_pgoff = *offset / PAGE_SIZE;
 	vmap->vm_pfn = 0;
 	vmap->vm_flags = vmap->vm_page_prot = (nprot & VM_PROT_ALL);
+	if (is_shared)
+		vmap->vm_flags |= VM_SHARED;
 	vmap->vm_ops = NULL;
 	vmap->vm_file = get_file(filp);
 	vmap->vm_mm = mm;
@@ -1595,21 +1597,21 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 
 static int
 linux_file_mmap_sub(struct thread *td, vm_size_t objsize, vm_prot_t prot,
-    vm_prot_t *maxprotp, int *flagsp, struct file *fp,
+    vm_prot_t maxprot, int flags, struct file *fp,
     vm_ooffset_t *foff, const struct file_operations *fop, vm_object_t *objp)
 {
 	/*
 	 * Character devices do not provide private mappings
 	 * of any kind:
 	 */
-	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	if ((maxprot & VM_PROT_WRITE) == 0 &&
 	    (prot & VM_PROT_WRITE) != 0)
 		return (EACCES);
-	if ((*flagsp & (MAP_PRIVATE | MAP_COPY)) != 0)
+	if ((flags & (MAP_PRIVATE | MAP_COPY)) != 0)
 		return (EINVAL);
 
 	return (linux_file_mmap_single(fp, fop, foff, objsize, objp,
-	    (int)prot, td));
+	    (int)prot, (flags & MAP_SHARED) ? true : false, td));
 }
 
 static int
@@ -1667,7 +1669,7 @@ linux_file_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t size
 	maxprot &= cap_maxprot;
 
 	linux_get_fop(filp, &fop, &ldev);
-	error = linux_file_mmap_sub(td, size, prot, &maxprot, &flags, fp,
+	error = linux_file_mmap_sub(td, size, prot, maxprot, flags, fp,
 	    &foff, fop, &object);
 	if (error != 0)
 		goto out;
