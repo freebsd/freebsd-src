@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2020
+.Dd May 29, 2021
 .Dt VFS_QUOTACTL 9
 .Os
 .Sh NAME
@@ -39,12 +39,38 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "void *arg"
+.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "void *arg" "bool *mp_busy"
 .Sh DESCRIPTION
 Implement file system quotas.
+.Pp
+The
+.Fa mp_busy
+argument is an input/output parameter.
+.Fn VFS_QUOTACTL
+must be called with
+.Fa mp
+marked busy through
+.Xr vfs_busy 9
+and
+.Fa *mp_busy
+set to true.
+The filesystem implementation of
+.Fn VFS_QUOTACTL
+may then unbusy
+.Fa mp
+using
+.Xr vfs_unbusy 9
+prior to performing quota file I/O.
+In this case the implementation must set
+.Fa *mp_busy
+to false to indicate that the caller must not unbusy
+.Fa mp
+upon completion of
+.Fn VFS_QUOTACTL .
+.Pp
 See
 .Xr quotactl 2
-for a description of the arguments.
+for a description of the remaining arguments.
 .Sh SEE ALSO
 .Xr quotactl 2 ,
 .Xr vnode 9

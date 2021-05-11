@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
+
 #include <sys/param.h>
 #define _KERNEL
 #include <sys/mount.h>
