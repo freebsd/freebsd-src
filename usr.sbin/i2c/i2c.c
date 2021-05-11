@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/endian.h>
 #include <sys/ioctl.h>
 
 #include <dev/iicbus/iic.h>
@@ -570,22 +571,18 @@ i2c_rdwr_transfer(const char *dev, struct options i2c_opt, char *i2c_buf)
 	struct iic_msg msgs[2];
 	struct iic_rdwr_data xfer;
 	int fd, i;
-	union {
-		uint8_t  buf[2];
-		uint8_t  off8;
-		uint16_t off16;
-	} off;
+	uint8_t off_buf[2];
 
 	i = 0;
 	if (i2c_opt.width > 0) {
 		msgs[i].flags = IIC_M_WR | IIC_M_NOSTOP;
 		msgs[i].slave = i2c_opt.addr;
-		msgs[i].buf   = off.buf;
+		msgs[i].buf   = off_buf;
 		if (i2c_opt.width == 8) {
-			off.off8 = (uint8_t)i2c_opt.off;
+			off_buf[0] = i2c_opt.off;
 			msgs[i].len = 1;
 		} else {
-			off.off16 = (uint16_t)i2c_opt.off;
+			le16enc(off_buf, i2c_opt.off);
 			msgs[i].len = 2;
 		}
 		++i;
