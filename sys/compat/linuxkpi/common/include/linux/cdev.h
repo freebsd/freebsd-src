@@ -135,13 +135,9 @@ cdev_add_ext(struct linux_cdev *cdev, dev_t dev, uid_t uid, gid_t gid, int mode)
 	return (0);
 }
 
-void linux_destroy_dev(struct linux_cdev *);
-
 static inline void
 cdev_del(struct linux_cdev *cdev)
 {
-
-	linux_destroy_dev(cdev);
 	kobject_put(&cdev->kobj);
 }
 
