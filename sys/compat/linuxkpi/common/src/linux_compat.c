@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2021 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2233,6 +2233,42 @@ linux_cdev_static_release(struct kobject *kobj)
 		ldev->cdev = NULL;
 	}
 	kobject_put(kobj->parent);
+}
+
+int
+linux_cdev_device_add(struct linux_cdev *ldev, struct device *dev)
+{
+	int ret;
+
+	if (dev->devt != 0) {
+		/* Set parent kernel object. */
+		ldev->kobj.parent = &dev->kobj;
+
+		/*
+		 * Unlike Linux we require the kobject of the
+		 * character device structure to have a valid name
+		 * before calling this function:
+		 */
+		if (ldev->kobj.name == NULL)
+			return (-EINVAL);
+
+		ret = cdev_add(ldev, dev->devt, 1);
+		if (ret)
+			return (ret);
+	}
+	ret = device_add(dev);
+	if (ret != 0 && dev->devt != 0)
+		cdev_del(ldev);
+	return (ret);
+}
+
+void
+linux_cdev_device_del(struct linux_cdev *ldev, struct device *dev)
+{
+	device_del(dev);
+
+	if (dev->devt != 0)
+		cdev_del(ldev);
 }
 
 static void
