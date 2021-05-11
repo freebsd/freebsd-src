@@ -1350,13 +1350,13 @@ vfs_stdstatfs (mp, sbp)
 }
 
 int
-vfs_stdquotactl (mp, cmds, uid, arg)
+vfs_stdquotactl (mp, cmds, uid, arg, mp_busy)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
 	void *arg;
+	bool *mp_busy;
 {
-
 	return (EOPNOTSUPP);
 }
 

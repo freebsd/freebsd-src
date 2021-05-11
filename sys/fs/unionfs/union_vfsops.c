@@ -371,16 +371,38 @@ unionfs_root(struct mount *mp, int flags, struct vnode **vpp)
 }
 
 static int
-unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg)
+unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg,
+    bool *mp_busy)
 {
+	struct mount *uppermp;
 	struct unionfs_mount *ump;
+	int error;
+	bool unbusy;
 
 	ump = MOUNTTOUNIONFSMOUNT(mp);
-
+	uppermp = atomic_load_ptr(&ump->um_uppervp->v_mount);
+	KASSERT(*mp_busy == true, ("upper mount not busy"));
+	/*
+	 * See comment in sys_quotactl() for an explanation of why the
+	 * lower mount needs to be busied by the caller of VFS_QUOTACTL()
+	 * but may be unbusied by the implementation.  We must unbusy
+	 * the upper mount for the same reason; otherwise a namei lookup
+	 * issued by the VFS_QUOTACTL() implementation could traverse the
+	 * upper mount and deadlock.
+	 */
+	vfs_unbusy(mp);
+	*mp_busy = false;
+	unbusy = true;
+	error = vfs_busy(uppermp, 0);
 	/*
 	 * Writing is always performed to upper vnode.
 	 */
-	return (VFS_QUOTACTL(ump->um_uppervp->v_mount, cmd, uid, arg));
+	if (error == 0)
+		error = VFS_QUOTACTL(uppermp, cmd, uid, arg, &unbusy);
+	if (unbusy)
+		vfs_unbusy(uppermp);
+
+	return (error);
 }
 
 static int

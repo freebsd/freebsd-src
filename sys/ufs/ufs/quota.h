@@ -232,7 +232,7 @@ int	getinoquota(struct inode *);
 int	qsync(struct mount *);
 int	qsyncvp(struct vnode *);
 int	quotaoff(struct thread *, struct mount *, int);
-int	quotaon(struct thread *, struct mount *, int, void *);
+int	quotaon(struct thread *, struct mount *, int, void *, bool *);
 int	getquota32(struct thread *, struct mount *, u_long, int, void *);
 int	setquota32(struct thread *, struct mount *, u_long, int, void *);
 int	setuse32(struct thread *, struct mount *, u_long, int, void *);
