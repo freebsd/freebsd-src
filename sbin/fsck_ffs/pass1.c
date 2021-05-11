@@ -248,7 +248,7 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
 	mode_t mode;
-	uintmax_t fixsize;
+	intmax_t size, fixsize;
 	int j, ret, offset;
 
 	if ((dp = getnextinode(inumber, rebuildcg)) == NULL)
@@ -429,25 +429,37 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		}
 	}
 	/*
+	 * UFS does not allow files to end with a hole; it requires that
+	 * the last block of a file be allocated. The last allocated block
+	 * in a file is tracked in id_lballoc. Here, we check for a size
+	 * past the last allocated block of the file and if that is found,
+	 * shorten the file to reference the last allocated block to avoid
+	 * having it reference a hole at its end.
+	 * 
 	 * Soft updates will always ensure that the file size is correct
 	 * for files that contain only direct block pointers. However
 	 * soft updates does not roll back sizes for files with indirect
 	 * blocks that it has set to unallocated because their contents
 	 * have not yet been written to disk. Hence, the file can appear
 	 * to have a hole at its end because the block pointer has been
-	 * rolled back to zero. Thus, id_lballoc tracks the last allocated
-	 * block in the file. Here, for files that extend into indirect
-	 * blocks, we check for a size past the last allocated block of
-	 * the file and if that is found, shorten the file to reference
-	 * the last allocated block to avoid having it reference a hole
-	 * at its end.
+	 * rolled back to zero. Thus finding a hole at the end of a file
+	 * that is located in an indirect block receives only a warning
+	 * while finding a hole at the end of a file in a direct block
+	 * receives a fatal error message.
 	 */
-	if (DIP(dp, di_size) > UFS_NDADDR * sblock.fs_bsize &&
-	    idesc->id_lballoc < lblkno(&sblock, DIP(dp, di_size) - 1)) {
-		fixsize = lblktosize(&sblock, idesc->id_lballoc + 1);
-		pwarn("INODE %lu: FILE SIZE %ju BEYOND END OF ALLOCATED FILE, "
-		      "SIZE SHOULD BE %ju", (u_long)inumber,
-		      (uintmax_t)DIP(dp, di_size), fixsize);
+	size = DIP(dp, di_size);
+	if (idesc->id_lballoc < lblkno(&sblock, size - 1) &&
+	    /* exclude embedded symbolic links */
+	    ((mode != IFLNK) || size >= sblock.fs_maxsymlinklen)) {
+ 		fixsize = lblktosize(&sblock, idesc->id_lballoc + 1);
+		if (size > UFS_NDADDR * sblock.fs_bsize)
+			pwarn("INODE %lu: FILE SIZE %ju BEYOND END OF "
+			      "ALLOCATED FILE, SIZE SHOULD BE %ju",
+			      (u_long)inumber, size, fixsize);
+		else
+			pfatal("INODE %lu: FILE SIZE %ju BEYOND END OF "
+			      "ALLOCATED FILE, SIZE SHOULD BE %ju",
+			      (u_long)inumber, size, fixsize);
 		if (preen)
 			printf(" (ADJUSTED)\n");
 		else if (reply("ADJUST") == 0)
