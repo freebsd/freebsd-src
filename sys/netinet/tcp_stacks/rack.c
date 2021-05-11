@@ -6614,14 +6614,17 @@ static void
 rack_cc_conn_init(struct tcpcb *tp)
 {
 	struct tcp_rack *rack;
+	uint32_t srtt;
 
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
-
+	srtt = tp->t_srtt;
 	cc_conn_init(tp);
 	/*
-	 * Now convert to rack's internal format.
+	 * Now convert to rack's internal format,
+	 * if required.
 	 */
-	rack_convert_rtts(tp);
+	if ((srtt == 0) && (tp->t_srtt != 0))
+		rack_convert_rtts(tp);
 	/*
 	 * We want a chance to stay in slowstart as
 	 * we create a connection. TCP spec says that
