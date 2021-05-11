@@ -4021,7 +4021,8 @@ chkarg:
 
 		NEED1("missing forward address[:port]");
 
-		if (strncmp(*av, "tablearg", 8) == 0)
+		if (strncmp(*av, "tablearg", 8) == 0 &&
+		    ((*av)[8] == '\0' || (*av)[8] == ',' || (*av)[8] == ':'))
 			memcpy(++(*av), "0.0.0.0", 7);
 
 		/*
