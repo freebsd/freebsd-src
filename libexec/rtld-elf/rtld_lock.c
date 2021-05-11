@@ -60,7 +60,7 @@ void _rtld_atfork_pre(int *) __exported;
 void _rtld_atfork_post(int *) __exported;
 
 static char def_dlerror_msg[512];
-static int def_dlerror_seen_val;
+static int def_dlerror_seen_val = 1;
 
 static char *
 def_dlerror_loc(void)
