@@ -63,6 +63,7 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	VM_DONTCOPY		(1 << 14)
 #define	VM_DONTEXPAND		(1 << 15)
 #define	VM_DONTDUMP		(1 << 16)
+#define	VM_SHARED		(1 << 17)
 
 #define	VMA_MAX_PREFAULT_RECORD	1
 
