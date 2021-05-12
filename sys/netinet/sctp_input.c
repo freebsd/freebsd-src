@@ -1752,17 +1752,23 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		struct sctpasochead *head;
 
 		if (asoc->peer_supports_nat) {
+			struct sctp_tcb *local_stcb;
+
 			/*
 			 * This is a gross gross hack. Just call the
 			 * cookie_new code since we are allowing a duplicate
 			 * association. I hope this works...
 			 */
-			return (sctp_process_cookie_new(m, iphlen, offset, src, dst,
+			local_stcb = sctp_process_cookie_new(m, iphlen, offset, src, dst,
 			    sh, cookie, cookie_len,
 			    inp, netp, init_src, notification,
 			    auth_skipped, auth_offset, auth_len,
 			    mflowtype, mflowid,
-			    vrf_id, port));
+			    vrf_id, port);
+			if (local_stcb == NULL) {
+				SCTP_TCB_UNLOCK(stcb);
+			}
+			return (local_stcb);
 		}
 		/*
 		 * case A in Section 5.2.4 Table 2: XXMM (peer restarted)
