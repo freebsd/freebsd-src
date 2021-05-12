@@ -27,9 +27,10 @@ SRCS+=  teken.c
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SRCS+=	time.c
-.elif ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "arm" || \
-    ${MACHINE_CPUARCH} == "riscv"
+.elif ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "riscv"
 SRCS+=	time_event.c
+.elif ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=	time_arm64.c
 .endif
 
 # We implement a slightly non-standard %S in that it always takes a
