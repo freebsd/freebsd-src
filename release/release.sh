@@ -221,7 +221,7 @@ chroot_setup() {
 		${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+		git -C ${CHROOTDIR}/usr/ports -b ${PORTBRANCH} clone
 	fi
 
 	if [ -z "${CHROOTBUILD_SKIP}" ]; then
