@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2022
+.Dd December 2, 2022
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2907,10 +2907,19 @@ If not set to
 create a default route to this host name or IP address
 (use an IP address if this router is also required to get to the
 name server!).
+.It Va defaultrouter_fibN
+.Pq Vt str
+If not set to
+.Dq Li NO ,
+create a default route in FIB N to this host name or IP address.
 .It Va ipv6_defaultrouter
 .Pq Vt str
 The IPv6 equivalent of
 .Va defaultrouter .
+.It Va ipv6_defaultrouter_fibN
+.Pq Vt str
+The IPv6 equivalent of
+.Va defaultrouter_fibN .
 .It Va static_arp_pairs
 .Pq Vt str
 Set to the list of static ARP pairs that are to be added at system
