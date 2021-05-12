@@ -993,21 +993,31 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
+
 		/*
 		 * In case of PRUS_NOTREADY, tcp_usr_ready() is responsible
 		 * for freeing memory.
 		 */
-		if (m && (flags & PRUS_NOTREADY) == 0)
+		if ((flags & PRUS_NOTREADY) == 0)
 			m_freem(m);
 		error = ECONNRESET;
 		goto out;
 	}
+	if (control != NULL) {
+		/* TCP doesn't do control messages (rights, creds, etc) */
+		if (control->m_len) {
+			m_freem(control);
+			m_freem(m);
+			error = EINVAL;
+			goto out;
+		}
+		m_freem(control);	/* empty control, just free it */
+		control = NULL;
+	}
 	tp = intotcpcb(inp);
 	if (flags & PRUS_OOB) {
 		if ((error = tcp_pru_options_support(tp, PRUS_OOB)) != 0) {
-			if (control)
-				m_freem(control);
-			if (m && (flags & PRUS_NOTREADY) == 0)
+			if ((flags & PRUS_NOTREADY) == 0)
 				m_freem(m);
 			goto out;
 		}
@@ -1019,33 +1029,28 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		case AF_INET:
 			sinp = (struct sockaddr_in *)nam;
 			if (sinp->sin_len != sizeof(struct sockaddr_in)) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EINVAL;
 				goto out;
 			}
 			if ((inp->inp_vflag & INP_IPV6) != 0) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EACCES;
 				goto out;
 			}
 			if ((error = prison_remote_ip4(td->td_ucred,
 			    &sinp->sin_addr))) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				goto out;
 			}
 #ifdef INET6
@@ -1060,20 +1065,17 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 
 			sin6 = (struct sockaddr_in6 *)nam;
 			if (sin6->sin6_len != sizeof(*sin6)) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EINVAL;
 				goto out;
 			}
 			if ((inp->inp_vflag & INP_IPV6PROTO) == 0) {
-				if (m != NULL)
-					m_freem(m);
+				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
@@ -1081,14 +1083,12 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
 					error = EINVAL;
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					goto out;
 				}
 				if ((inp->inp_vflag & INP_IPV4) == 0) {
 					error = EAFNOSUPPORT;
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					goto out;
 				}
 				restoreflags = true;
@@ -1098,27 +1098,23 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				if (IN_MULTICAST(
 				    ntohl(sinp->sin_addr.s_addr))) {
 					error = EAFNOSUPPORT;
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					goto out;
 				}
 				if ((error = prison_remote_ip4(td->td_ucred,
 				    &sinp->sin_addr))) {
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					goto out;
 				}
 				isipv6 = 0;
 #else /* !INET */
 				error = EAFNOSUPPORT;
-				if (m)
-					m_freem(m);
+				m_freem(m);
 				goto out;
 #endif /* INET */
 			} else {
 				if ((inp->inp_vflag & INP_IPV6) == 0) {
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					error = EAFNOSUPPORT;
 					goto out;
 				}
@@ -1127,8 +1123,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				inp->inp_inc.inc_flags |= INC_ISIPV6;
 				if ((error = prison_remote_ip6(td->td_ucred,
 				    &sin6->sin6_addr))) {
-					if (m)
-						m_freem(m);
+					m_freem(m);
 					goto out;
 				}
 				isipv6 = 1;
@@ -1137,22 +1132,10 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		}
 #endif /* INET6 */
 		default:
-			if (m)
-				m_freem(m);
+			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto out;
 		}
-	}
-	if (control) {
-		/* TCP doesn't do control messages (rights, creds, etc) */
-		if (control->m_len) {
-			m_freem(control);
-			if (m)
-				m_freem(m);
-			error = EINVAL;
-			goto out;
-		}
-		m_freem(control);	/* empty control, just free it */
 	}
 	if (!(flags & PRUS_OOB)) {
 		sbappendstream(&so->so_snd, m, flags);

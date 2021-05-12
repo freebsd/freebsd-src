@@ -677,6 +677,8 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == NULL) {
 		KMOD_IPSTAT_INC(ips_toosmall);
+		if (control != NULL)
+			m_freem(control);
 		m_freem(m);
 		return EINVAL;
 	}
