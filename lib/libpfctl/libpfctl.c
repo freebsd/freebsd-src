@@ -699,6 +699,8 @@ pf_nvstate_to_state(const nvlist_t *nvl, struct pfctl_state *s)
 
 	strlcpy(s->ifname, nvlist_get_string(nvl, "ifname"),
 	    sizeof(s->ifname));
+	strlcpy(s->orig_ifname, nvlist_get_string(nvl, "orig_ifname"),
+	    sizeof(s->orig_ifname));
 
 	pf_nvaddr_to_addr(nvlist_get_nvlist(nvl, "rt_addr"), &s->rt_addr);
 	s->rule = nvlist_get_number(nvl, "rule");
