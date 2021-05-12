@@ -65,17 +65,6 @@ env_setup() {
 		[ ! -z "${VCSCMD}" ] && break 2
 	done
 
-	# Find the Subversion binary to use.  This is a workaround to use
-	# the source of truth for the ports tree, as the conversion to Git
-	# is targeted to occur slightly after the currently-scheduled 13.0
-	# release.
-	for _dir in /usr/bin /usr/local/bin; do
-		for _svn in svn svnlite; do
-			[ -x "${_dir}/${_svn}" ] && SVNCMD="${_dir}/${_svn}"
-			[ ! -z "${SVNCMD}" ] && break 2
-		done
-	done
-
 	if [ -z "${VCSCMD}" -a -z "${NOGIT}" ]; then
 		echo "*** The devel/git port/package is required."
 		exit 1
