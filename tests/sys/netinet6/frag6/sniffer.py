@@ -1,6 +1,8 @@
 # $FreeBSD$
 
 import threading
+import logging
+logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import scapy.all as sp
 
 class Sniffer(threading.Thread):
