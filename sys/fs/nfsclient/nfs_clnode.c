@@ -323,7 +323,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		MNT_ILOCK(mp);
 		if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) == 0) {
 			MNT_IUNLOCK(mp);
-			nfscl_delegreturnvp(vp, td);
+			nfscl_delegreturnvp(vp, ap->a_td);
 		} else
 			MNT_IUNLOCK(mp);
 	}
