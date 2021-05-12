@@ -835,6 +835,8 @@ static void bc_vm_exec(void) {
 #if BC_ENABLE_EXTRA_MATH
 		if (!BC_IS_POSIX) bc_vm_load(bc_lib2_name, bc_lib2);
 #endif // BC_ENABLE_EXTRA_MATH
+
+		bc_program_exec(&vm.prog);
 	}
 #endif // BC_ENABLED
 
