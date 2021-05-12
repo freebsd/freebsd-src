@@ -867,7 +867,7 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	struct inpcb *inp;
 	struct sockaddr_in6 tmp;
 	struct sockaddr_in6 *dst;
-	int ret;
+	int error;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
@@ -876,8 +876,8 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	/* Unlocked read. */
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
-			m_freem(m);
-			return (EISCONN);
+			error = EISCONN;
+			goto release;
 		}
 		/* XXX */
 		bzero(&tmp, sizeof(tmp));
@@ -889,18 +889,15 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		INP_RUNLOCK(inp);
 		dst = &tmp;
 	} else {
-		if (nam == NULL) {
-			m_freem(m);
-			return (ENOTCONN);
-		}
-		if (nam->sa_family != AF_INET6) {
-			m_freem(m);
-			return (EAFNOSUPPORT);
-		}
-		if (nam->sa_len != sizeof(struct sockaddr_in6)) {
-			m_freem(m);
-			return (EINVAL);
-		}
+		error = 0;
+		if (nam == NULL)
+			error = ENOTCONN;
+		else if (nam->sa_family != AF_INET6)
+			error = EAFNOSUPPORT;
+		else if (nam->sa_len != sizeof(struct sockaddr_in6))
+			error = EINVAL;
+		if (error != 0)
+			goto release;
 		tmp = *(struct sockaddr_in6 *)nam;
 		dst = &tmp;
 
@@ -914,12 +911,17 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			    "unspec. Assume AF_INET6\n");
 			dst->sin6_family = AF_INET6;
 		} else if (dst->sin6_family != AF_INET6) {
-			m_freem(m);
-			return(EAFNOSUPPORT);
+			error = EAFNOSUPPORT;
+			goto release;
 		}
 	}
-	ret = rip6_output(m, so, dst, control);
-	return (ret);
+	return (rip6_output(m, so, dst, control));
+
+release:
+	if (control != NULL)
+		m_freem(control);
+	m_freem(m);
+	return (error);
 }
 
 struct pr_usrreqs rip6_usrreqs = {

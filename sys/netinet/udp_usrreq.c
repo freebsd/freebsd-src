@@ -1273,6 +1273,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				break;
 		}
 		m_freem(control);
+		control = NULL;
 	}
 	if (error)
 		goto release;
