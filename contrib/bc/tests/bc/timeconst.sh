@@ -32,6 +32,9 @@
 script="$0"
 testdir=$(dirname "$script")
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir/..}
+
+# Gets the timeconst script, which could be a command-line argument.
 if [ "$#" -gt 0 ]; then
 	timeconst="$1"
 	shift
@@ -39,6 +42,7 @@ else
 	timeconst="$testdir/scripts/timeconst.bc"
 fi
 
+# Gets the executable, which could also be a command-line argument.
 if [ "$#" -gt 0 ]; then
 	bc="$1"
 	shift
@@ -46,17 +50,27 @@ else
 	bc="$testdir/../../bin/bc"
 fi
 
-out1="$testdir/../.log_bc_timeconst.txt"
-out2="$testdir/../.log_bc_timeconst_test.txt"
+#
+out1="$outputdir/bc_outputs/bc_timeconst.txt"
+out2="$outputdir/bc_outputs/bc_timeconst_results.txt"
+
+outdir=$(dirname "$out1")
+
+# Make sure the directory exists.
+if [ ! -d "$outdir" ]; then
+	mkdir -p "$outdir"
+fi
 
 base=$(basename "$timeconst")
 
+# If the script does not exist, just skip. Running this test is not necessary.
 if [ ! -f "$timeconst" ]; then
 	printf 'Warning: %s does not exist\n' "$timeconst"
 	printf 'Skipping...\n'
 	exit 0
 fi
 
+# I use these, so unset them to make the tests work.
 unset BC_ENV_ARGS
 unset BC_LINE_LENGTH
 unset DC_ENV_ARGS
@@ -64,25 +78,31 @@ unset DC_LINE_LENGTH
 
 printf 'Running %s...' "$base"
 
+# Get a list of numbers. Funny how bc can help with that.
 nums=$(printf 'for (i = 0; i <= 1000; ++i) { i }\n' | bc)
 
+# Run each number through the script.
 for i in $nums; do
 
+	# Run the GNU bc on the test.
 	printf '%s\n' "$i" | bc -q "$timeconst" > "$out1"
 
 	err="$?"
 
+	# If the other bc failed, it's not GNU bc, or this bc.
 	if [ "$err" -ne 0 ]; then
 		printf '\nOther bc is not GNU compatible. Skipping...\n'
 		exit 0
 	fi
 
+	# Run the built bc on the test.
 	printf '%s\n' "$i" | "$bc" "$@" -q "$timeconst" > "$out2"
 
 	diff "$out1" "$out2"
 
 	error="$?"
 
+	# If fail, bail.
 	if [ "$error" -ne 0 ]; then
 		printf '\nFailed on input: %s\n' "$i"
 		exit "$error"

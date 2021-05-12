@@ -9,6 +9,10 @@ b
 4 100000|
 _
 ]
+0s
+y
+L
+La
 zp198202389.289374pzp[He World!]xSzpzXfrfxzpfR
 [hello]k
 3 2 0|
@@ -20,6 +24,9 @@ zp198202389.289374pzp[He World!]xSzpzXfrfxzpfR
 3 0~
 0 _251^pR
 .
+ga
+gb
+gd
 @
 0 0< $
 0 0> s e %

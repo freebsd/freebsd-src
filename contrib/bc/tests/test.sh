@@ -33,8 +33,11 @@ script="$0"
 
 testdir=$(dirname "$script")
 
-. "$testdir/../functions.sh"
+. "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
+# Command-line processing.
 if [ "$#" -lt 2 ]; then
 	printf 'usage: %s dir test [generate_tests] [time_tests] [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
@@ -73,18 +76,21 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
-out="$testdir/${d}_outputs/${t}_results.txt"
+out="$outputdir/${d}_outputs/${t}_results.txt"
 outdir=$(dirname "$out")
 
+# Make sure the directory exists.
 if [ ! -d "$outdir" ]; then
 	mkdir -p "$outdir"
 fi
 
+# I use these, so unset them to make the tests work.
 unset BC_ENV_ARGS
 unset BC_LINE_LENGTH
 unset DC_ENV_ARGS
 unset DC_LINE_LENGTH
 
+# Set stuff for the correct calculator.
 if [ "$d" = "bc" ]; then
 	options="-lq"
 	var="BC_LINE_LENGTH"
@@ -95,24 +101,29 @@ else
 	halt="q"
 fi
 
+# If the test does not exist...
 if [ ! -f "$name" ]; then
 
+	# Skip if we can't generate.
 	if [ "$generate_tests" -eq 0 ]; then
 		printf 'Skipping %s %s test\n' "$d" "$t"
 		exit 0
 	fi
 
+	# Generate.
 	printf 'Generating %s %s...' "$d" "$t"
-	"$testdir/$d/scripts/$t.$d" > "$name"
+	"$d" "$testdir/$d/scripts/$t.$d" > "$name"
 	printf 'done\n'
 fi
 
+# If the results do not exist, generate..
 if [ ! -f "$results" ]; then
 	printf 'Generating %s %s results...' "$d" "$t"
 	printf '%s\n' "$halt" | "$d" $options "$name" > "$results"
 	printf 'done\n'
 fi
 
+# We set this here because GNU dc does not have it.
 if [ "$d" = "dc" ]; then
 	options="-x"
 fi

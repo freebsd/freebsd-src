@@ -33,8 +33,11 @@ script="$0"
 
 testdir=$(dirname "$script")
 
-. "$testdir/../functions.sh"
+. "$testdir/../scripts/functions.sh"
 
+outputdir=${BC_TEST_OUTPUT_DIR:-$testdir}
+
+# Command-line processing.
 if [ "$#" -lt 1 ]; then
 	printf 'usage: %s dir [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
@@ -54,35 +57,45 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
-out="$testdir/${d}_outputs/stdin_results.txt"
+out="$outputdir/${d}_outputs/stdin_results.txt"
 outdir=$(dirname "$out")
 
+# Make sure the directory exists.
 if [ ! -d "$outdir" ]; then
 	mkdir -p "$outdir"
 fi
 
+# Set stuff for the correct calculator.
 if [ "$d" = "bc" ]; then
-	options="-ilq"
+	options="-lq"
 else
 	options="-x"
 fi
 
 rm -f "$out"
 
+# I use these, so unset them to make the tests work.
+unset BC_ENV_ARGS
+unset BC_LINE_LENGTH
+unset DC_ENV_ARGS
+unset DC_LINE_LENGTH
+
 set +e
 
 printf 'Running %s stdin tests...' "$d"
 
+# Run the file through stdin.
 cat "$testdir/$d/stdin.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
 checktest "$d" "$?" "stdin" "$testdir/$d/stdin_results.txt" "$out"
 
+# bc has some more tests; run those.
 if [ "$d" = "bc" ]; then
 
 	cat "$testdir/$d/stdin1.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-	checktest "$d" "$?" "stdin" "$testdir/$d/stdin1_results.txt" "$out"
+	checktest "$d" "$?" "stdin1" "$testdir/$d/stdin1_results.txt" "$out"
 
 	cat "$testdir/$d/stdin2.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-	checktest "$d" "$?" "stdin" "$testdir/$d/stdin2_results.txt" "$out"
+	checktest "$d" "$?" "stdin2" "$testdir/$d/stdin2_results.txt" "$out"
 fi
 
 rm -f "$out"

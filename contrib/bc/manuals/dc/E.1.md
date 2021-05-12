@@ -42,23 +42,14 @@ dc(1) is an arbitrary-precision calculator. It uses a stack (reverse Polish
 notation) to store numbers and results of computations. Arithmetic operations
 pop arguments off of the stack and push the results.
 
-If no files are given on the command-line as extra arguments (i.e., not as
-**-f** or **-\-file** arguments), then dc(1) reads from **stdin**. Otherwise,
-those files are processed, and dc(1) will then exit.
+If no files are given on the command-line, then dc(1) reads from **stdin** (see
+the **STDIN** section). Otherwise, those files are processed, and dc(1) will
+then exit.
 
-This is different from the dc(1) on OpenBSD and possibly other dc(1)
-implementations, where **-e** (**-\-expression**) and **-f** (**-\-file**)
-arguments cause dc(1) to execute them and exit. The reason for this is that this
-dc(1) allows users to set arguments in the environment variable **DC_ENV_ARGS**
-(see the **ENVIRONMENT VARIABLES** section). Any expressions given on the
-command-line should be used to set up a standard environment. For example, if a
-user wants the **scale** always set to **10**, they can set **DC_ENV_ARGS** to
-**-e 10k**, and this dc(1) will always start with a **scale** of **10**.
-
-If users want to have dc(1) exit after processing all input from **-e** and
-**-f** arguments (and their equivalents), then they can just simply add **-e q**
-as the last command-line argument or define the environment variable
-**DC_EXPR_EXIT**.
+If a user wants to set up a standard environment, they can use **DC_ENV_ARGS**
+(see the **ENVIRONMENT VARIABLES** section). For example, if a user wants the
+**scale** always set to **10**, they can set **DC_ENV_ARGS** to **-e 10k**, and
+this dc(1) will always start with a **scale** of **10**.
 
 # OPTIONS
 
@@ -78,12 +69,23 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
+**-L**, **-\-no-line-length**
+
+:   Disables line length checking and prints numbers without backslashes and
+    newlines. In other words, this option sets **BC_LINE_LENGTH** to **0** (see
+    the **ENVIRONMENT VARIABLES** section).
+
+    This is a **non-portable extension**.
+
 **-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
     See the **TTY MODE** section.) This is mostly for those users that do not
     want a prompt or are not used to having them in dc(1). Most of those users
     would want to put this option in **DC_ENV_ARGS**.
+
+    These options override the **DC_PROMPT** and **DC_TTY_MODE** environment
+    variables (see the **ENVIRONMENT VARIABLES** section).
 
     This is a **non-portable extension**.
 
@@ -99,12 +101,27 @@ The following are the options that dc(1) accepts.
     This option does not disable the regular prompt because the read prompt is
     only used when the **?** command is used.
 
+    These options *do* override the **DC_PROMPT** and **DC_TTY_MODE**
+    environment variables (see the **ENVIRONMENT VARIABLES** section), but only
+    for the read prompt.
+
     This is a **non-portable extension**.
 
 **-x** **-\-extended-register**
 
 :   Enables extended register mode. See the *Extended Register Mode* subsection
     of the **REGISTERS** section for more information.
+
+    This is a **non-portable extension**.
+
+**-z**, **-\-leading-zeroes**
+
+:   Makes bc(1) print all numbers greater than **-1** and less than **1**, and
+    not equal to **0**, with a leading zero.
+
+    This can be set for individual numbers with the **plz(x)**, plznl(x)**,
+    **pnlz(x)**, and **pnlznl(x)** functions in the extended math library (see
+    the **LIBRARY** section).
 
     This is a **non-portable extension**.
 
@@ -141,6 +158,18 @@ The following are the options that dc(1) accepts.
     This is a **non-portable extension**.
 
 All long options are **non-portable extensions**.
+
+# STDIN
+
+If no files are given on the command-line and no files or expressions are given
+by the **-f**, **-\-file**, **-e**, or **-\-expression** options, then dc(1)
+read from **stdin**.
+
+However, there is a caveat to this.
+
+First, **stdin** is evaluated a line at a time. The only exception to this is if
+a string has been finished, but not ended. This means that, except for escaped
+brackets, all brackets must be balanced before dc(1) parses and executes.
 
 # STDOUT
 
@@ -242,8 +271,8 @@ These commands are used for printing.
 :   Pops a value off the stack.
 
     If the value is a number, it is truncated and the absolute value of the
-    result is printed as though **obase** is **UCHAR_MAX+1** and each digit is
-    interpreted as an ASCII character, making it a byte stream.
+    result is printed as though **obase** is **256** and each digit is
+    interpreted as an 8-bit ASCII character, making it a byte stream.
 
     If the value is a string, it is printed without a trailing newline.
 
@@ -555,9 +584,9 @@ will be printed with a newline after and then popped from the stack.
 :   The value on top of the stack is popped.
 
     If it is a number, it is truncated and its absolute value is taken. The
-    result mod **UCHAR_MAX+1** is calculated. If that result is **0**, push an
-    empty string; otherwise, push a one-character string where the character is
-    the result of the mod interpreted as an ASCII character.
+    result mod **256** is calculated. If that result is **0**, push an empty
+    string; otherwise, push a one-character string where the character is the
+    result of the mod interpreted as an ASCII character.
 
     If it is a string, then a new string is made. If the original string is
     empty, the new string is empty. If it is not, then the first character of
@@ -706,6 +735,13 @@ will be printed with a newline after and then popped from the stack.
     of levels to pop is greater than the number of executing macros, dc(1)
     exits.
 
+**,**
+
+:   Pushes the depth of the execution stack onto the stack. The execution stack
+    is the stack of string executions. The number that is pushed onto the stack
+    is exactly as many as is needed to make dc(1) exit with the **Q** command,
+    so the sequence **,Q** will make dc(1) exit.
+
 ## Status
 
 These commands query status of the stack or its top value.
@@ -715,7 +751,8 @@ These commands query status of the stack or its top value.
 :   Pops a value off of the stack.
 
     If it is a number, calculates the number of significant decimal digits it
-    has and pushes the result.
+    has and pushes the result. It will push **1** if the argument is **0** with
+    no decimal places.
 
     If it is a string, pushes the number of characters the string has.
 
@@ -729,7 +766,20 @@ These commands query status of the stack or its top value.
 
 **z**
 
-:   Pushes the current stack depth (before execution of this command).
+:   Pushes the current depth of the stack (before execution of this command)
+    onto the stack.
+
+**y**_r_
+
+:   Pushes the current stack depth of the register *r* onto the main stack.
+
+    Because each register has a depth of **1** (with the value **0** in the top
+    item) when dc(1) starts, dc(1) requires that each register's stack must
+    always have at least one item; dc(1) will give an error and reset otherwise
+    (see the **RESET** section). This means that this command will never push
+    **0**.
+
+    This is a **non-portable extension**.
 
 ## Arrays
 
@@ -745,6 +795,30 @@ These commands manipulate arrays.
 :   Pops the value on top of the stack and uses it as an index into the array
     *r*. The selected value is then pushed onto the stack.
 
+**Y**_r_
+
+:   Pushes the length of the array *r* onto the stack.
+
+    This is a **non-portable extension**.
+
+## Global Settings
+
+These commands retrieve global settings. These are the only commands that
+require multiple specific characters, and all of them begin with the letter
+**g**. Only the characters below are allowed after the character **g**; any
+other character produces a parse error (see the **ERRORS** section).
+
+**gl**
+
+:   Pushes the line length set by **DC_LINE_LENGTH** (see the **ENVIRONMENT
+    VARIABLES** section) onto the stack.
+
+**gz**
+
+:   Pushes **0** onto the stack if the leading zero setting has not been enabled
+    with the **-z** or **-\-leading-zeroes** options (see the **OPTIONS**
+    section), non-zero otherwise.
+
 # REGISTERS
 
 Registers are names that can store strings, numbers, and arrays. (Number/string
@@ -752,11 +826,13 @@ registers do not interfere with array registers.)
 
 Each register is also its own stack, so the current register value is the top of
 the stack for the register. All registers, when first referenced, have one value
-(**0**) in their stack.
+(**0**) in their stack, and it is a runtime error to attempt to pop that item
+off of the register stack.
 
 In non-extended register mode, a register name is just the single character that
-follows any command that needs a register name. The only exception is a newline
-(**'\\n'**); it is a parse error for a newline to be used as a register name.
+follows any command that needs a register name. The only exceptions are: a
+newline (**'\\n'**) and a left bracket (**'['**); it is a parse error for a
+newline or a left bracket to be used as a register name.
 
 ## Extended Register Mode
 
@@ -904,11 +980,50 @@ dc(1) recognizes the following environment variables:
     lines to that length, including the backslash newline combo. The default
     line length is **70**.
 
-**DC_EXPR_EXIT**
+    The special value of **0** will disable line length checking and print
+    numbers without regard to line length and without backslashes and newlines.
 
-:   If this variable exists (no matter the contents), dc(1) will exit
-    immediately after executing expressions and files given by the **-e** and/or
-    **-f** command-line options (and any equivalents).
+**DC_SIGINT_RESET**
+
+:   If dc(1) is not in interactive mode (see the **INTERACTIVE MODE** section),
+    then this environment variable has no effect because dc(1) exits on
+    **SIGINT** when not in interactive mode.
+
+    However, when dc(1) is in interactive mode, then if this environment
+    variable exists and contains an integer, a non-zero value makes dc(1) reset
+    on **SIGINT**, rather than exit, and zero makes dc(1) exit. If this
+    environment variable exists and is *not* an integer, then dc(1) will exit on
+    **SIGINT**.
+
+    This environment variable overrides the default, which can be queried with
+    the **-h** or **-\-help** options.
+
+**DC_TTY_MODE**
+
+:   If TTY mode is *not* available (see the **TTY MODE** section), then this
+    environment variable has no effect.
+
+    However, when TTY mode is available, then if this environment variable
+    exists and contains an integer, then a non-zero value makes dc(1) use TTY
+    mode, and zero makes dc(1) not use TTY mode.
+
+    This environment variable overrides the default, which can be queried with
+    the **-h** or **-\-help** options.
+
+**DC_PROMPT**
+
+:   If TTY mode is *not* available (see the **TTY MODE** section), then this
+    environment variable has no effect.
+
+    However, when TTY mode is available, then if this environment variable
+    exists and contains an integer, a non-zero value makes dc(1) use a prompt,
+    and zero or a non-integer makes dc(1) not use a prompt. If this environment
+    variable does not exist and **DC_TTY_MODE** does, then the value of the
+    **DC_TTY_MODE** environment variable is used.
+
+    This environment variable and the **DC_TTY_MODE** environment variable
+    override the default, which can be queried with the **-h** or **-\-help**
+    options.
 
 # EXIT STATUS
 
@@ -926,8 +1041,9 @@ dc(1) returns the following exit statuses:
 
     Math errors include divide by **0**, taking the square root of a negative
     number, attempting to convert a negative number to a hardware integer,
-    overflow when converting a number to a hardware integer, and attempting to
-    use a non-integer where an integer is required.
+    overflow when converting a number to a hardware integer, overflow when
+    calculating the size of a number, and attempting to use a non-integer where
+    an integer is required.
 
     Converting to a hardware integer happens for the second operand of the power
     (**\^**) operator.
@@ -944,10 +1060,11 @@ dc(1) returns the following exit statuses:
 
 :   A runtime error occurred.
 
-    Runtime errors include assigning an invalid number to **ibase**, **obase**,
-    or **scale**; give a bad expression to a **read()** call, calling **read()**
-    inside of a **read()** call, type errors, and attempting an operation when
-    the stack has too few elements.
+    Runtime errors include assigning an invalid number to any global (**ibase**,
+    **obase**, or **scale**), giving a bad expression to a **read()** call,
+    calling **read()** inside of a **read()** call, type errors (including
+    attempting to execute a number), and attempting an operation when the stack
+    has too few elements.
 
 **4**
 
@@ -976,37 +1093,78 @@ checking, and its normal behavior can be forced by using the **-i** flag or
 Like bc(1), dc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both **stdin** and **stdout**
 are hooked to a terminal, but the **-i** flag and **-\-interactive** option can
-turn it on in other cases.
+turn it on in other situations.
 
 In interactive mode, dc(1) attempts to recover from errors (see the **RESET**
 section), and in normal execution, flushes **stdout** as soon as execution is
-done for the current input.
+done for the current input. dc(1) may also reset on **SIGINT** instead of exit,
+depending on the contents of, or default for, the **DC_SIGINT_RESET**
+environment variable (see the **ENVIRONMENT VARIABLES** section).
 
 # TTY MODE
 
-If **stdin**, **stdout**, and **stderr** are all connected to a TTY, dc(1) turns
-on "TTY mode."
+If **stdin**, **stdout**, and **stderr** are all connected to a TTY, then "TTY
+mode" is considered to be available, and thus, dc(1) can turn on TTY mode,
+subject to some settings.
 
-TTY mode is required for history to be enabled (see the **COMMAND LINE HISTORY**
-section). It is also required to enable special handling for **SIGINT** signals.
+If there is the environment variable **DC_TTY_MODE** in the environment (see the
+**ENVIRONMENT VARIABLES** section), then if that environment variable contains a
+non-zero integer, dc(1) will turn on TTY mode when **stdin**, **stdout**, and
+**stderr** are all connected to a TTY. If the **DC_TTY_MODE** environment
+variable exists but is *not* a non-zero integer, then dc(1) will not turn TTY
+mode on.
 
-The prompt is enabled in TTY mode.
+If the environment variable **DC_TTY_MODE** does *not* exist, the default
+setting is used. The default setting can be queried with the **-h** or
+**-\-help** options.
 
 TTY mode is different from interactive mode because interactive mode is required
 in the [bc(1) specification][1], and interactive mode requires only **stdin**
 and **stdout** to be connected to a terminal.
 
+## Command-Line History
+
+Command-line history is only enabled if TTY mode is, i.e., that **stdin**,
+**stdout**, and **stderr** are connected to a TTY and the **DC_TTY_MODE**
+environment variable (see the **ENVIRONMENT VARIABLES** section) and its default
+do not disable TTY mode. See the **COMMAND LINE HISTORY** section for more
+information.
+
+## Prompt
+
+If TTY mode is available, then a prompt can be enabled. Like TTY mode itself, it
+can be turned on or off with an environment variable: **DC_PROMPT** (see the
+**ENVIRONMENT VARIABLES** section).
+
+If the environment variable **DC_PROMPT** exists and is a non-zero integer, then
+the prompt is turned on when **stdin**, **stdout**, and **stderr** are connected
+to a TTY and the **-P** and **-\-no-prompt** options were not used. The read
+prompt will be turned on under the same conditions, except that the **-R** and
+**-\-no-read-prompt** options must also not be used.
+
+However, if **DC_PROMPT** does not exist, the prompt can be enabled or disabled
+with the **DC_TTY_MODE** environment variable, the **-P** and **-\-no-prompt**
+options, and the **-R** and **-\-no-read-prompt** options. See the **ENVIRONMENT
+VARIABLES** and **OPTIONS** sections for more details.
+
 # SIGNAL HANDLING
 
-Sending a **SIGINT** will cause dc(1) to stop execution of the current input. If
-dc(1) is in TTY mode (see the **TTY MODE** section), it will reset (see the
-**RESET** section). Otherwise, it will clean up and exit.
+Sending a **SIGINT** will cause dc(1) to do one of two things.
+
+If dc(1) is not in interactive mode (see the **INTERACTIVE MODE** section), or
+the **DC_SIGINT_RESET** environment variable (see the **ENVIRONMENT VARIABLES**
+section), or its default, is either not an integer or it is zero, dc(1) will
+exit.
+
+However, if dc(1) is in interactive mode, and the **DC_SIGINT_RESET** or its
+default is an integer and non-zero, then dc(1) will stop executing the current
+input and reset (see the **RESET** section) upon receiving a **SIGINT**.
 
 Note that "current input" can mean one of two things. If dc(1) is processing
-input from **stdin** in TTY mode, it will ask for more input. If dc(1) is
-processing input from a file in TTY mode, it will stop processing the file and
-start processing the next file, if one exists, or ask for input from **stdin**
-if no other file exists.
+input from **stdin** in interactive mode, it will ask for more input. If dc(1)
+is processing input from a file in interactive mode, it will stop processing the
+file and start processing the next file, if one exists, or ask for input from
+**stdin** if no other file exists.
 
 This means that if a **SIGINT** is sent to dc(1) as it is executing a file, it
 can seem as though dc(1) did not respond to the signal since it will immediately
@@ -1018,21 +1176,26 @@ continue.
 
 **SIGTERM** and **SIGQUIT** cause dc(1) to clean up and exit, and it uses the
 default handler for all other signals. The one exception is **SIGHUP**; in that
-case, when dc(1) is in TTY mode, a **SIGHUP** will cause dc(1) to clean up and
-exit.
+case, and only when dc(1) is in TTY mode (see the **TTY MODE** section), a
+**SIGHUP** will cause dc(1) to clean up and exit.
 
 # COMMAND LINE HISTORY
 
-dc(1) supports interactive command-line editing. If dc(1) is in TTY mode (see
-the **TTY MODE** section), history is enabled. Previous lines can be recalled
-and edited with the arrow keys.
+dc(1) supports interactive command-line editing.
+
+If dc(1) can be in TTY mode (see the **TTY MODE** section), history can be
+enabled. This means that command-line history can only be enabled when
+**stdin**, **stdout**, and **stderr** are all connected to a TTY.
+
+Like TTY mode itself, it can be turned on or off with the environment variable
+**DC_TTY_MODE** (see the **ENVIRONMENT VARIABLES** section).
 
 **Note**: tabs are converted to 8 spaces.
 
 # LOCALES
 
 This dc(1) ships with support for adding error messages for different locales
-and thus, supports **LC_MESSAGS**.
+and thus, supports **LC_MESSAGES**.
 
 # SEE ALSO
 

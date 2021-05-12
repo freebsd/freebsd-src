@@ -1,0 +1,7 @@
+#! /usr/bin/bc -q
+
+for (i = 0; i < 120; ++i) {
+	print "print \qabcdefghijklmnop", i, "\\n\q\n"
+}
+
+halt

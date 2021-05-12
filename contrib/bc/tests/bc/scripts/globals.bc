@@ -1,5 +1,9 @@
 #! /usr/bin/bc -gq
 
+if (!global_stacks()) {
+	sqrt(-1)
+}
+
 define i(x) {
 	ibase=x
 	return ibase

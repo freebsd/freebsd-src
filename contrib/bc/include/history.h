@@ -85,19 +85,30 @@
 
 #if BC_ENABLE_HISTORY
 
-#ifdef _WIN32
-#error History is not supported on Windows.
-#endif // _WIN32
-
 #include <stdbool.h>
 #include <stddef.h>
 
 #include <signal.h>
 
+#ifndef _WIN32
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
 #include <sys/select.h>
+#else // _WIN32
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif // WIN32_LEAN_AND_MEAN
+
+#include <Windows.h>
+#include <io.h>
+#include <conio.h>
+
+#define strncasecmp _strnicmp
+#define strcasecmp  _stricmp
+
+#endif // _WIN32
 
 #include <status.h>
 #include <vector.h>
@@ -107,18 +118,39 @@
 #include <file.h>
 #endif // BC_DEBUG_CODE
 
+/// Default columns.
 #define BC_HIST_DEF_COLS (80)
+
+/// Max number of history entries.
 #define BC_HIST_MAX_LEN (128)
+
+/// Max length of a line.
 #define BC_HIST_MAX_LINE (4095)
+
+/// Max size for cursor position buffer.
 #define BC_HIST_SEQ_SIZE (64)
 
+/**
+ * The number of entries in the history.
+ * @param h  The history data.
+ */
 #define BC_HIST_BUF_LEN(h) ((h)->buf.len - 1)
+
+/**
+ * Read n characters into s and check the error.
+ * @param s  The buffer to read into.
+ * @param n  The number of bytes to read.
+ * @return   True if there was an error, false otherwise.
+ */
 #define BC_HIST_READ(s, n) (bc_history_read((s), (n)) == -1)
 
+/// Markers for direction when using arrow keys.
 #define BC_HIST_NEXT (false)
 #define BC_HIST_PREV (true)
 
 #if BC_DEBUG_CODE
+
+// These are just for debugging.
 
 #define BC_HISTORY_DEBUG_BUF_SIZE (1024)
 
@@ -142,12 +174,8 @@
 #define lndebug(fmt, ...)
 #endif // BC_DEBUG_CODE
 
-#if !BC_ENABLE_PROMPT
-#define bc_history_line(h, vec, prompt) bc_history_line(h, vec)
-#define bc_history_raw(h, prompt) bc_history_raw(h)
-#define bc_history_edit(h, prompt) bc_history_edit(h)
-#endif // BC_ENABLE_PROMPT
-
+/// An enum of useful actions. To understand what these mean, check terminal
+/// emulators for their shortcuts or the VT100 codes.
 typedef enum BcHistoryAction {
 
 	BC_ACTION_NULL = 0,
@@ -165,11 +193,13 @@ typedef enum BcHistoryAction {
 	BC_ACTION_ENTER = 13,
 	BC_ACTION_CTRL_N = 14,
 	BC_ACTION_CTRL_P = 16,
+	BC_ACTION_CTRL_S = 19,
 	BC_ACTION_CTRL_T = 20,
 	BC_ACTION_CTRL_U = 21,
 	BC_ACTION_CTRL_W = 23,
 	BC_ACTION_CTRL_Z = 26,
 	BC_ACTION_ESC = 27,
+	BC_ACTION_CTRL_BSLASH = 28,
 	BC_ACTION_BACKSPACE =  127
 
 } BcHistoryAction;
@@ -189,13 +219,11 @@ typedef struct BcHistory {
 	/// Any material printed without a trailing newline.
 	BcVec extras;
 
-#if BC_ENABLE_PROMPT
 	/// Prompt to display.
 	const char *prompt;
 
 	/// Prompt length.
 	size_t plen;
-#endif // BC_ENABLE_PROMPT
 
 	/// Prompt column length.
 	size_t pcol;
@@ -212,13 +240,18 @@ typedef struct BcHistory {
 	/// The history index we are currently editing.
 	size_t idx;
 
+#ifndef _WIN32
 	/// The original terminal state.
 	struct termios orig_termios;
+#else // _WIN32
+	///  The original input console mode.
+	DWORD orig_in;
 
-	/// These next three are here because pahole found a 4 byte hole here.
+	///  The original output console mode.
+	DWORD orig_out;
+#endif // _WIN32
 
-	/// This is to signal that there is more, so we don't process yet.
-	bool stdin_has_data;
+	/// These next two are here because pahole found a 4 byte hole here.
 
 	/// Whether we are in rawmode.
 	bool rawMode;
@@ -226,6 +259,7 @@ typedef struct BcHistory {
 	/// Whether the terminal is bad.
 	bool badTerm;
 
+#ifndef _WIN32
 	/// This is to check if stdin has more data.
 	fd_set rdset;
 
@@ -234,26 +268,69 @@ typedef struct BcHistory {
 
 	/// This is to check if stdin has more data.
 	sigset_t sigmask;
+#endif // _WIN32
 
 } BcHistory;
 
+/**
+ * Get a line from stdin using history. This returns a status because I don't
+ * want to throw errors while the terminal is in raw mode.
+ * @param h       The history data.
+ * @param vec     A vector to put the line into.
+ * @param prompt  The prompt to display, if desired.
+ * @return        A status indicating an error, if any. Returning a status here
+ *                is better because if we throw an error out of history, we
+ *                leave the terminal in raw mode or in some other half-baked
+ *                state.
+ */
 BcStatus bc_history_line(BcHistory *h, BcVec *vec, const char *prompt);
 
+/**
+ * Initialize history data.
+ * @param h  The struct to initialize.
+ */
 void bc_history_init(BcHistory *h);
+
+/**
+ * Free history data (and recook the terminal).
+ * @param h  The struct to free.
+ */
 void bc_history_free(BcHistory *h);
 
+/**
+ * Frees strings used by history.
+ * @param str  The string to free.
+ */
+void bc_history_string_free(void *str);
+
+// A list of terminals that don't work.
 extern const char *bc_history_bad_terms[];
+
+// A tab in history and its length.
 extern const char bc_history_tab[];
 extern const size_t bc_history_tab_len;
+
+// A ctrl+c string.
 extern const char bc_history_ctrlc[];
+
+// UTF-8 data arrays.
 extern const uint32_t bc_history_wchars[][2];
 extern const size_t bc_history_wchars_len;
 extern const uint32_t bc_history_combo_chars[];
 extern const size_t bc_history_combo_chars_len;
+
 #if BC_DEBUG_CODE
+
+// Debug data.
 extern BcFile bc_history_debug_fp;
 extern char *bc_history_debug_buf;
-void bc_history_printKeyCodes(BcHistory* l);
+
+/**
+ * A function to print keycodes for debugging.
+ * @param h  The history data.
+ */
+void bc_history_printKeyCodes(BcHistory* h);
+
 #endif // BC_DEBUG_CODE
 
 #endif // BC_ENABLE_HISTORY

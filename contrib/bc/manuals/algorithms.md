@@ -25,8 +25,8 @@ Brute force multiplication is used below `BC_NUM_KARATSUBA_LEN` digits. It is
 polynomial (`O(n^2)`), but since Karatsuba requires both more intermediate
 values (which translate to memory allocations) and a few more additions, there
 is a "break even" point in the number of digits where brute force multiplication
-is faster than Karatsuba. There is a script (`$ROOT/karatsuba.py`) that will
-find the break even point on a particular machine.
+is faster than Karatsuba. There is a script (`$ROOT/scripts/karatsuba.py`) that
+will find the break even point on a particular machine.
 
 ***WARNING: The Karatsuba script requires Python 3.***
 
@@ -62,10 +62,12 @@ a complexity of `O((n*log(n))^log_2(3))` which is favorable to the
 
 This `bc` implements the fast algorithm [Newton's Method][4] (also known as the
 Newton-Raphson Method, or the [Babylonian Method][5]) to perform the square root
-operation. Its complexity is `O(log(n)*n^2)` as it requires one division per
-iteration.
+operation.
 
-### Sine and Cosine (`bc` Only)
+Its complexity is `O(log(n)*n^2)` as it requires one division per iteration, and
+it doubles the amount of correct digits per iteration.
+
+### Sine and Cosine (`bc` Math Library Only)
 
 This `bc` uses the series
 
@@ -89,7 +91,7 @@ impossible and unnecessary.) Therefore, I recommend that users do their
 calculations with the precision (`scale`) set to at least 1 greater than is
 needed.
 
-### Exponentiation (`bc` Only)
+### Exponentiation (`bc` Math Library Only)
 
 This `bc` uses the series
 
@@ -103,13 +105,15 @@ to calculate `e^x`. Since this only works when `x` is small, it uses
 e^x = (e^(x/2))^2
 ```
 
-to reduce `x`. It has a complexity of `O(n^3)`.
+to reduce `x`.
+
+It has a complexity of `O(n^3)`.
 
 **Note**: this series can also produce errors of 1 ULP, so I recommend users do
 their calculations with the precision (`scale`) set to at least 1 greater than
 is needed.
 
-### Natural Logarithm (`bc` Only)
+### Natural Logarithm (`bc` Math Library Only)
 
 This `bc` uses the series
 
@@ -124,13 +128,15 @@ and uses the relation
 ln(x^2) = 2 * ln(x)
 ```
 
-to sufficiently reduce `x`. It has a complexity of `O(n^3)`.
+to sufficiently reduce `x`.
+
+It has a complexity of `O(n^3)`.
 
 **Note**: this series can also produce errors of 1 ULP, so I recommend users do
 their calculations with the precision (`scale`) set to at least 1 greater than
 is needed.
 
-### Arctangent (`bc` Only)
+### Arctangent (`bc` Math Library Only)
 
 This `bc` uses the series
 
@@ -150,7 +156,7 @@ to reduce `x` to small enough. It has a complexity of `O(n^3)`.
 their calculations with the precision (`scale`) set to at least 1 greater than
 is needed.
 
-### Bessel (`bc` Only)
+### Bessel (`bc` Math Library Only)
 
 This `bc` uses the series
 
@@ -179,6 +185,137 @@ exponentiation. The complexity is `O(e*n^2)`, which may initially seem
 inefficient, but `n` is kept small by maintaining small numbers. In practice, it
 is extremely fast.
 
+### Non-Integer Exponentiation (`bc` Math Library 2 Only)
+
+This is implemented in the function `p(x,y)`.
+
+The algorithm used is to use the formula `e(y*l(x))`.
+
+It has a complexity of `O(n^3)` because both `e()` and `l()` do.
+
+### Rounding (`bc` Math Library 2 Only)
+
+This is implemented in the function `r(x,p)`.
+
+The algorithm is a simple method to check if rounding away from zero is
+necessary, and if so, adds `1e10^p`.
+
+It has a complexity of `O(n)` because of add.
+
+### Ceiling (`bc` Math Library 2 Only)
+
+This is implemented in the function `ceil(x,p)`.
+
+The algorithm is a simple add of one less decimal place than `p`.
+
+It has a complexity of `O(n)` because of add.
+
+### Factorial (`bc` Math Library 2 Only)
+
+This is implemented in the function `f(n)`.
+
+The algorithm is a simple multiplication loop.
+
+It has a complexity of `O(n^3)` because of linear amount of `O(n^2)`
+multiplications.
+
+### Permutations (`bc` Math Library 2 Only)
+
+This is implemented in the function `perm(n,k)`.
+
+The algorithm is to use the formula `n!/(n-k)!`.
+
+It has a complexity of `O(n^3)` because of the division and factorials.
+
+### Combinations (`bc` Math Library 2 Only)
+
+This is implemented in the function `comb(n,r)`.
+
+The algorithm is to use the formula `n!/r!*(n-r)!`.
+
+It has a complexity of `O(n^3)` because of the division and factorials.
+
+### Logarithm of Any Base (`bc` Math Library 2 Only)
+
+This is implemented in the function `log(x,b)`.
+
+The algorithm is to use the formula `l(x)/l(b)` with double the `scale` because
+there is no good way of knowing how many digits of precision are needed when
+switching bases.
+
+It has a complexity of `O(n^3)` because of the division and `l()`.
+
+### Logarithm of Base 2 (`bc` Math Library 2 Only)
+
+This is implemented in the function `l2(x)`.
+
+This is a convenience wrapper around `log(x,2)`.
+
+### Logarithm of Base 10 (`bc` Math Library 2 Only)
+
+This is implemented in the function `l10(x)`.
+
+This is a convenience wrapper around `log(x,10)`.
+
+### Root (`bc` Math Library 2 Only)
+
+This is implemented in the function `root(x,n)`.
+
+The algorithm is [Newton's method][9]. The initial guess is calculated as
+`10^ceil(length(x)/n)`.
+
+Like square root, its complexity is `O(log(n)*n^2)` as it requires one division
+per iteration, and it doubles the amount of correct digits per iteration.
+
+### Cube Root (`bc` Math Library 2 Only)
+
+This is implemented in the function `cbrt(x)`.
+
+This is a convenience wrapper around `root(x,3)`.
+
+### Greatest Common Divisor (`bc` Math Library 2 Only)
+
+This is implemented in the function `gcd(a,b)`.
+
+The algorithm is an iterative version of the [Euclidean Algorithm][10].
+
+It has a complexity of `O(n^4)` because it has a linear number of divisions.
+
+This function ensures that `a` is always bigger than `b` before starting the
+algorithm.
+
+### Least Common Multiple (`bc` Math Library 2 Only)
+
+This is implemented in the function `lcm(a,b)`.
+
+The algorithm uses the formula `a*b/gcd(a,b)`.
+
+It has a complexity of `O(n^4)` because of `gcd()`.
+
+### Pi (`bc` Math Library 2 Only)
+
+This is implemented in the function `pi(s)`.
+
+The algorithm uses the formula `4*a(1)`.
+
+It has a complexity of `O(n^3)` because of arctangent.
+
+### Tangent (`bc` Math Library 2 Only)
+
+This is implemented in the function `t(x)`.
+
+The algorithm uses the formula `s(x)/c(x)`.
+
+It has a complexity of `O(n^3)` because of sine, cosine, and division.
+
+### Atan2 (`bc` Math Library 2 Only)
+
+This is implemented in the function `a2(y,x)`.
+
+The algorithm uses the [standard formulas][11].
+
+It has a complexity of `O(n^3)` because of arctangent.
+
 [1]: https://en.wikipedia.org/wiki/Karatsuba_algorithm
 [2]: https://en.wikipedia.org/wiki/Long_division
 [3]: https://en.wikipedia.org/wiki/Exponentiation_by_squaring
@@ -187,3 +324,6 @@ is extremely fast.
 [6]: https://en.wikipedia.org/wiki/Unit_in_the_last_place
 [7]: https://people.eecs.berkeley.edu/~wkahan/LOG10HAF.TXT
 [8]: https://en.wikipedia.org/wiki/Modular_exponentiation#Memory-efficient_method
+[9]: https://en.wikipedia.org/wiki/Root-finding_algorithms#Newton's_method_(and_similar_derivative-based_methods)
+[10]: https://en.wikipedia.org/wiki/Euclidean_algorithm
+[11]: https://en.wikipedia.org/wiki/Atan2#Definition_and_computation
