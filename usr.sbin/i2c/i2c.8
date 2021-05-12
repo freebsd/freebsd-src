@@ -36,7 +36,7 @@
 .Cm -a Ar address
 .Op Fl f Ar device
 .Op Fl d Ar r|w
-.Op Fl w Ar 0|8|16
+.Op Fl w Ar 0|8|16|16LE|16BE
 .Op Fl o Ar offset
 .Op Fl c Ar count
 .Op Fl m Ar tr|ss|rs|no
@@ -112,7 +112,7 @@ reset the controller.
 scan the bus for devices.
 .It Fl v
 be verbose.
-.It Fl w Ar 0|8|16
+.It Fl w Ar 0|8|16|16LE|16BE
 device addressing width (in bits).
 This is used to determine how to pass
 .Ar offset
@@ -120,6 +120,7 @@ specified with
 .Fl o
 to the slave.
 Zero means that the offset is ignored and not passed to the slave at all.
+The endianess defaults to little-endian.
 .El
 .Sh WARNINGS
 Great care must be taken when manipulating slave I2C devices with the
