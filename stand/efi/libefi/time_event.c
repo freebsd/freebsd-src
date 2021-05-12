@@ -40,7 +40,7 @@ static void
 time_update(EFI_EVENT event, void *context)
 {
 
-	curtime += 10;
+	curtime++;
 }
 
 void
@@ -50,8 +50,8 @@ efi_time_init(void)
 	/* Create a timer event */
 	BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
 	    time_update, 0, &time_event);
-	/* Use a 10ms timer */
-	BS->SetTimer(time_event, TimerPeriodic, 100000);
+	/* Use a 1s timer */
+	BS->SetTimer(time_event, TimerPeriodic, 10000000);
 }
 
 void
@@ -68,7 +68,7 @@ time(time_t *tloc)
 {
 	time_t t;
 
-	t = curtime / 1000;
+	t = curtime;
 	if (tloc != NULL)
 		*tloc = t;
 
