@@ -648,7 +648,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 ]], funcname, sysnum))
 
 	if #funcargs > 0 then
-		write_line("systracetmp", "\t\tswitch(ndx) {\n")
+		write_line("systracetmp", "\t\tswitch (ndx) {\n")
 		write_line("systrace", string.format(
 		    "\t\tstruct %s *p = params;\n", argalias))
 
@@ -671,7 +671,7 @@ local function handle_noncompat(sysnum, thr_flag, flags, sysflags, rettype,
 
 			if isptrtype(argtype) then
 				write_line("systrace", string.format(
-				    "\t\tuarg[%d] = (%s) p->%s; /* %s */\n",
+				    "\t\tuarg[%d] = (%s)p->%s; /* %s */\n",
 				    idx - 1, config["ptr_intptr_t_cast"],
 				    argname, argtype))
 			elseif argtype == "union l_semun" then
@@ -1285,7 +1285,7 @@ write_line("systrace", string.format([[/*
 static void
 systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 {
-	int64_t *iarg  = (int64_t *) uarg;
+	int64_t *iarg = (int64_t *)uarg;
 	switch (sysnum) {
 ]], generated_tag, config['os_id_keyword']))
 
@@ -1316,7 +1316,7 @@ for _, v in pairs(compat_options) do
 		write_line("sysinc", string.format([[
 
 #ifdef %s
-#define %s(n, name) .sy_narg = n, .sy_call = (sy_call_t *)__CONCAT(%s,name)
+#define %s(n, name) .sy_narg = n, .sy_call = (sy_call_t *)__CONCAT(%s, name)
 #else
 #define %s(n, name) .sy_narg = 0, .sy_call = (sy_call_t *)nosys
 #endif
