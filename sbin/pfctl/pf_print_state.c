@@ -352,9 +352,12 @@ print_state(struct pfctl_state *s, int opts)
 
 		bcopy(&s->id, &id, sizeof(u_int64_t));
 		printf("   id: %016jx creatorid: %08x", id, s->creatorid);
-		printf("   gateway: ");
+		printf(" gateway: ");
 		print_host(&s->rt_addr, 0, af, opts);
 		printf("\n");
+
+		if (strcmp(s->ifname, s->orig_ifname) != 0)
+			printf("   origif: %s\n", s->orig_ifname);
 	}
 }
 
