@@ -86,7 +86,7 @@ env_setup() {
 	# and ports/.
 	GITROOT="https://git.FreeBSD.org/"
 	SRCBRANCH="main"
-	PORTBRANCH="head"
+	PORTBRANCH="main"
 	GITSRC="src.git"
 	GITPORTS="ports.git"
 
@@ -141,8 +141,7 @@ env_check() {
 
 	# Prefix the branches with the GITROOT for the full checkout URL.
 	SRC="${GITROOT}${GITSRC}"
-	#PORT="${GITROOT}${GITPORTS}"
-	PORT="svn://svn.freebsd.org/ports/"
+	PORT="${GITROOT}${GITPORTS}"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
