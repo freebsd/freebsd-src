@@ -213,6 +213,8 @@ chroot_setup() {
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
 			git -C ${CHROOTDIR}/usr/ports pull -q
+		else
+			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
 	fi
 
