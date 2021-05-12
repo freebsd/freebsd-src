@@ -79,7 +79,7 @@ usage(const char *msg)
 	if (msg != NULL)
 		fprintf(stderr, "%s\n", msg);
 	fprintf(stderr, "usage: %s -a addr [-f device] [-d [r|w]] [-o offset] "
-	    "[-w [0|8|16]] [-c count] [-m [tr|ss|rs|no]] [-b] [-v]\n",
+	    "[-w [0|8|16|16LE|16BE]] [-c count] [-m [tr|ss|rs|no]] [-b] [-v]\n",
 	    getprogname());
 	fprintf(stderr, "       %s -s [-f device] [-n skip_addr] -v\n",
 	    getprogname());
