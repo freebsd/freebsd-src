@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+import logging
+logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import scapy.all as sp
 import socket
 import sys
