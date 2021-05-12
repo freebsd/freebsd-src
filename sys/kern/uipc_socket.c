@@ -3741,7 +3741,11 @@ pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *addr, struct mbuf *control, struct thread *td)
 {
 
-	return EOPNOTSUPP;
+	if (control != NULL)
+		m_freem(control);
+	if ((flags & PRUS_NOTREADY) == 0)
+		m_freem(m);
+	return (EOPNOTSUPP);
 }
 
 int

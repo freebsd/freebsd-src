@@ -250,8 +250,11 @@ send_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	m = NULL;
 
 err:
+	if (control != NULL)
+		m_freem(control);
 	if (m != NULL)
 		m_freem(m);
+
 	return (error);
 }
 
