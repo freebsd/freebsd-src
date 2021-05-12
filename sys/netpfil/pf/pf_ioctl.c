@@ -2697,6 +2697,7 @@ pf_state_to_nvstate(const struct pf_state *s)
 
 	nvlist_add_number(nvl, "id", s->id);
 	nvlist_add_string(nvl, "ifname", s->kif->pfik_name);
+	nvlist_add_string(nvl, "orig_ifname", s->orig_kif->pfik_name);
 
 	tmp = pf_state_key_to_nvstate_key(s->key[PF_SK_STACK]);
 	if (tmp == NULL)
