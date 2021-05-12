@@ -138,7 +138,7 @@ else
 
 	set +e
 
-	printf 'three\n' | cut -c1-3 > /dev/null
+	printf 'three\n' | head -c3 > /dev/null
 	err=$?
 
 	if [ "$err" -eq 0 ]; then
@@ -156,7 +156,8 @@ else
 
 		printf '4 April 2021\n' > "$easter_res"
 
-		"$testdir/dc/scripts/easter.sh" "$exe" 2021 | cut -c1-12 > "$easter_out"
+		"$testdir/dc/scripts/easter.sh" "$exe" 2021 | head -c12 > "$easter_out"
+		printf '\n' >> "$easter_out"
 		err="$?"
 
 		checktest "$d" "$err" "Easter script" "$easter_res" "$easter_out"
