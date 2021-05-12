@@ -31,6 +31,8 @@
 
 from functools import partial
 import socket
+import logging
+logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import scapy.all as sc
 import argparse
 import time
