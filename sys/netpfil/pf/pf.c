@@ -1263,8 +1263,8 @@ pf_state_key_clone(struct pf_state_key *orig)
 }
 
 int
-pf_state_insert(struct pfi_kkif *kif, struct pf_state_key *skw,
-    struct pf_state_key *sks, struct pf_state *s)
+pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
+    struct pf_state_key *skw, struct pf_state_key *sks, struct pf_state *s)
 {
 	struct pf_idhash *ih;
 	struct pf_state *cur;
@@ -1277,6 +1277,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pf_state_key *skw,
 	KASSERT(s->refs == 0, ("%s: state not pristine", __func__));
 
 	s->kif = kif;
+	s->orig_kif = orig_kif;
 
 	if (s->id == 0 && s->creatorid == 0) {
 		/* XXX: should be atomic, but probability of collision low */
@@ -3877,7 +3878,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    __func__, nr, sk, nk));
 
 	/* Swap sk/nk for PF_OUT. */
-	if (pf_state_insert(BOUND_IFACE(r, kif),
+	if (pf_state_insert(BOUND_IFACE(r, kif), kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		if (pd->proto == IPPROTO_TCP)

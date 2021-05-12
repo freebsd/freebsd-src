@@ -237,6 +237,7 @@ struct pfctl_state {
 	struct pf_addr		 rt_addr;
 	struct pfctl_state_key	 key[2];	/* addresses stack and wire  */
 	char			 ifname[IFNAMSIZ];
+	char			 orig_ifname[IFNAMSIZ];
 	uint64_t		 packets[2];
 	uint64_t		 bytes[2];
 	uint32_t		 creation;

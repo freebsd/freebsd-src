@@ -593,7 +593,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if (!(flags & PFSYNC_SI_IOCTL))
 		st->state_flags |= PFSTATE_NOSYNC;
 
-	if ((error = pf_state_insert(kif, skw, sks, st)) != 0)
+	if ((error = pf_state_insert(kif, kif, skw, sks, st)) != 0)
 		goto cleanup_state;
 
 	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */

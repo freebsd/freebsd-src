@@ -522,6 +522,7 @@ struct pf_state {
 	struct pf_addr		 rt_addr;
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
 	struct pfi_kkif		*kif;
+	struct pfi_kkif		*orig_kif;	/* The real kif, even if we're a floating state (i.e. if == V_pfi_all). */
 	struct pfi_kkif		*rt_kif;
 	struct pf_ksrc_node	*src_node;
 	struct pf_ksrc_node	*nat_src_node;
@@ -1475,6 +1476,7 @@ extern int			 pf_unlink_state(struct pf_state *, u_int);
 #define	PF_ENTER_LOCKED		0x00000001
 #define	PF_RETURN_LOCKED	0x00000002
 extern int			 pf_state_insert(struct pfi_kkif *,
+				    struct pfi_kkif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
