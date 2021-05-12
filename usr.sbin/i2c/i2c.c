@@ -73,9 +73,11 @@ struct skip_range {
 };
 
 __dead2 static void
-usage(void)
+usage(const char *msg)
 {
 
+	if (msg != NULL)
+		fprintf(stderr, "%s\n", msg);
 	fprintf(stderr, "usage: %s -a addr [-f device] [-d [r|w]] [-o offset] "
 	    "[-w [0|8|16]] [-c count] [-m [tr|ss|rs|no]] [-b] [-v]\n",
 	    getprogname());
@@ -561,147 +563,11 @@ i2c_rdwr_transfer(int fd, struct options i2c_opt, char *i2c_buf)
 	return (0);
 }
 
-int
-main(int argc, char** argv)
+static int
+access_bus(int fd, struct options i2c_opt)
 {
-	struct options i2c_opt;
-	char *skip_addr = NULL, *i2c_buf;
-	const char *dev, *err_msg;
-	int fd, error, chunk_size, i, j, ch;
-
-	errno = 0;
-	error = 0;
-
-	/* Line-break the output every chunk_size bytes */
-	chunk_size = 16;
-
-	dev = I2C_DEV;
-
-	/* Default values */
-	i2c_opt.addr_set = 0;
-	i2c_opt.off = 0;
-	i2c_opt.verbose = 0;
-	i2c_opt.dir = 'r';	/* direction = read */
-	i2c_opt.width = "8";
-	i2c_opt.count = 1;
-	i2c_opt.binary = 0;	/* ASCII text output */
-	i2c_opt.scan = 0;	/* no bus scan */
-	i2c_opt.skip = 0;	/* scan all addresses */
-	i2c_opt.reset = 0;	/* no bus reset */
-	i2c_opt.mode = I2C_MODE_NOTSET;
-
-	while ((ch = getopt(argc, argv, "a:f:d:o:w:c:m:n:sbvrh")) != -1) {
-		switch(ch) {
-		case 'a':
-			i2c_opt.addr = (strtoul(optarg, 0, 16) << 1);
-			if (i2c_opt.addr == 0 && errno == EINVAL)
-				i2c_opt.addr_set = 0;
-			else
-				i2c_opt.addr_set = 1;
-			break;
-		case 'f':
-			dev = optarg;
-			break;
-		case 'd':
-			i2c_opt.dir = optarg[0];
-			break;
-		case 'o':
-			i2c_opt.off = strtoul(optarg, 0, 16);
-			if (i2c_opt.off == 0 && errno == EINVAL)
-				error = 1;
-			break;
-		case 'w':
-			i2c_opt.width = optarg;
-			break;
-		case 'c':
-			i2c_opt.count = atoi(optarg);
-			break;
-		case 'm':
-			if (!strcmp(optarg, "no"))
-				i2c_opt.mode = I2C_MODE_NONE;
-			else if (!strcmp(optarg, "ss"))
-				i2c_opt.mode = I2C_MODE_STOP_START;
-			else if (!strcmp(optarg, "rs"))
-				i2c_opt.mode = I2C_MODE_REPEATED_START;
-			else if (!strcmp(optarg, "tr"))
-				i2c_opt.mode = I2C_MODE_TRANSFER;
-			else
-				usage();
-			break;
-		case 'n':
-			i2c_opt.skip = 1;
-			skip_addr = optarg;
-			break;
-		case 's':
-			i2c_opt.scan = 1;
-			break;
-		case 'b':
-			i2c_opt.binary = 1;
-			break;
-		case 'v':
-			i2c_opt.verbose = 1;
-			break;
-		case 'r':
-			i2c_opt.reset = 1;
-			break;
-		case 'h':
-		default:
-			usage();
-		}
-	}
-	argc -= optind;
-	argv += optind;
-	if (argc > 0) {
-		fprintf(stderr, "Too many arguments\n");
-		usage();
-	}
-
-	/* Set default mode if option -m is not specified */
-	if (i2c_opt.mode == I2C_MODE_NOTSET) {
-		if (i2c_opt.dir == 'r')
-			i2c_opt.mode = I2C_MODE_STOP_START;
-		else if (i2c_opt.dir == 'w')
-			i2c_opt.mode = I2C_MODE_NONE;
-	}
-
-	if (i2c_opt.addr_set) {
-		err_msg = encode_offset(i2c_opt.width, i2c_opt.off,
-		    i2c_opt.off_buf, &i2c_opt.off_len);
-		if (err_msg != NULL) {
-			fprintf(stderr, "%s", err_msg);
-			exit(EX_USAGE);
-		}
-	}
-
-	/* Basic sanity check of command line arguments */
-	if (i2c_opt.scan) {
-		if (i2c_opt.addr_set)
-			usage();
-	} else if (i2c_opt.reset) {
-		if (i2c_opt.addr_set)
-			usage();
-	} else if (error) {
-		usage();
-	}
-
-	if (i2c_opt.verbose)
-		fprintf(stderr, "dev: %s, addr: 0x%x, r/w: %c, "
-		    "offset: 0x%02x, width: %s, count: %d\n", dev,
-		    i2c_opt.addr >> 1, i2c_opt.dir, i2c_opt.off,
-		    i2c_opt.width, i2c_opt.count);
-
-	fd = open(dev, O_RDWR);
-	if (fd == -1) {
-		fprintf(stderr, "Error opening I2C controller (%s): %s\n",
-		    dev, strerror(errno));
-		return (EX_NOINPUT);
-	}
-
-	if (i2c_opt.scan)
-		exit(scan_bus(dev, fd, i2c_opt.skip, skip_addr));
-
-	if (i2c_opt.reset)
-		exit(reset_bus(dev, fd));
+	char *i2c_buf;
+	int error, chunk_size = 16, i, ch;
 
 	i2c_buf = malloc(i2c_opt.count);
 	if (i2c_buf == NULL)
@@ -731,38 +597,165 @@ main(int argc, char** argv)
 	else
 		error = i2c_read(fd, i2c_opt, i2c_buf);
 
-	if (error != 0) {
-		free(i2c_buf);
-		return (1);
-	}
-
-	error = close(fd);
-	assert(error == 0);
-
-	if (i2c_opt.verbose)
-		fprintf(stderr, "\nData %s (hex):\n", i2c_opt.dir == 'r' ?
-		    "read" : "written");
-
-	i = 0;
-	j = 0;
-	while (i < i2c_opt.count) {
-		if (i2c_opt.verbose || (i2c_opt.dir == 'r' &&
-		    !i2c_opt.binary))
-			fprintf (stderr, "%02hhx ", i2c_buf[i++]);
-
+	if (error == 0) {
 		if (i2c_opt.dir == 'r' && i2c_opt.binary) {
-			fprintf(stdout, "%c", i2c_buf[j++]);
-			if(!i2c_opt.verbose)
-				i++;
+			(void)fwrite(i2c_buf, 1, i2c_opt.count, stdout);
+		} else if (i2c_opt.verbose || i2c_opt.dir == 'r') {
+			if (i2c_opt.verbose)
+				fprintf(stderr, "\nData %s (hex):\n",
+				    i2c_opt.dir == 'r' ?  "read" : "written");
+
+			for (i = 0; i < i2c_opt.count; i++) {
+				fprintf (stderr, "%02hhx ", i2c_buf[i]);
+				if ((i % chunk_size) == chunk_size - 1)
+					fprintf(stderr, "\n");
+			}
+			if ((i % chunk_size) != 0)
+				fprintf(stderr, "\n");
 		}
-		if (!i2c_opt.verbose && (i2c_opt.dir == 'w'))
-			break;
-		if ((i % chunk_size) == 0)
-			fprintf(stderr, "\n");
 	}
-	if ((i % chunk_size) != 0)
-		fprintf(stderr, "\n");
 
 	free(i2c_buf);
-	return (0);
+	return (error);
+}
+
+int
+main(int argc, char** argv)
+{
+	struct options i2c_opt;
+	char *skip_addr = NULL;
+	const char *dev, *err_msg;
+	int fd, error, ch;
+
+	errno = 0;
+
+	dev = I2C_DEV;
+
+	/* Default values */
+	i2c_opt.addr_set = 0;
+	i2c_opt.off = 0;
+	i2c_opt.verbose = 0;
+	i2c_opt.dir = 'r';	/* direction = read */
+	i2c_opt.width = "8";
+	i2c_opt.count = 1;
+	i2c_opt.binary = 0;	/* ASCII text output */
+	i2c_opt.scan = 0;	/* no bus scan */
+	i2c_opt.skip = 0;	/* scan all addresses */
+	i2c_opt.reset = 0;	/* no bus reset */
+	i2c_opt.mode = I2C_MODE_NOTSET;
+
+	while ((ch = getopt(argc, argv, "a:f:d:o:w:c:m:n:sbvrh")) != -1) {
+		switch(ch) {
+		case 'a':
+			i2c_opt.addr = (strtoul(optarg, 0, 16) << 1);
+			if (i2c_opt.addr == 0 && errno == EINVAL)
+				usage("Bad -a argument (hex)");
+			i2c_opt.addr_set = 1;
+			break;
+		case 'f':
+			dev = optarg;
+			break;
+		case 'd':
+			i2c_opt.dir = optarg[0];
+			break;
+		case 'o':
+			i2c_opt.off = strtoul(optarg, 0, 16);
+			if (i2c_opt.off == 0 && errno == EINVAL)
+				usage("Bad -o argument (hex)");
+			break;
+		case 'w':
+			i2c_opt.width = optarg;
+			break;
+		case 'c':
+			i2c_opt.count = (strtoul(optarg, 0, 10));
+			if (i2c_opt.count == 0 && errno == EINVAL)
+				usage("Bad -c argument (decimal)");
+			break;
+		case 'm':
+			if (!strcmp(optarg, "no"))
+				i2c_opt.mode = I2C_MODE_NONE;
+			else if (!strcmp(optarg, "ss"))
+				i2c_opt.mode = I2C_MODE_STOP_START;
+			else if (!strcmp(optarg, "rs"))
+				i2c_opt.mode = I2C_MODE_REPEATED_START;
+			else if (!strcmp(optarg, "tr"))
+				i2c_opt.mode = I2C_MODE_TRANSFER;
+			else
+				usage("Bad -m argument ([no|ss|rs|tr])");
+			break;
+		case 'n':
+			i2c_opt.skip = 1;
+			skip_addr = optarg;
+			break;
+		case 's':
+			i2c_opt.scan = 1;
+			break;
+		case 'b':
+			i2c_opt.binary = 1;
+			break;
+		case 'v':
+			i2c_opt.verbose = 1;
+			break;
+		case 'r':
+			i2c_opt.reset = 1;
+			break;
+		case 'h':
+			usage("Help:");
+			break;
+		default:
+			usage("Bad argument");
+		}
+	}
+	argc -= optind;
+	argv += optind;
+	if (argc > 0)
+		usage("Too many arguments");
+
+	/* Set default mode if option -m is not specified */
+	if (i2c_opt.mode == I2C_MODE_NOTSET) {
+		if (i2c_opt.dir == 'r')
+			i2c_opt.mode = I2C_MODE_STOP_START;
+		else if (i2c_opt.dir == 'w')
+			i2c_opt.mode = I2C_MODE_NONE;
+	}
+
+	err_msg = encode_offset(i2c_opt.width, i2c_opt.off,
+	    i2c_opt.off_buf, &i2c_opt.off_len);
+	if (err_msg != NULL) {
+		fprintf(stderr, "%s", err_msg);
+		exit(EX_USAGE);
+	}
+
+	/* Basic sanity check of command line arguments */
+	if (i2c_opt.scan) {
+		if (i2c_opt.addr_set)
+			usage("-s and -a are incompatible");
+	} else if (i2c_opt.reset) {
+		if (i2c_opt.addr_set)
+			usage("-r and -a are incompatible");
+	}
+
+	if (i2c_opt.verbose)
+		fprintf(stderr, "dev: %s, addr: 0x%x, r/w: %c, "
+		    "offset: 0x%02x, width: %s, count: %d\n", dev,
+		    i2c_opt.addr >> 1, i2c_opt.dir, i2c_opt.off,
+		    i2c_opt.width, i2c_opt.count);
+
+	fd = open(dev, O_RDWR);
+	if (fd == -1) {
+		fprintf(stderr, "Error opening I2C controller (%s): %s\n",
+		    dev, strerror(errno));
+		return (EX_NOINPUT);
+	}
+
+	if (i2c_opt.scan)
+		error = scan_bus(dev, fd, i2c_opt.skip, skip_addr);
+	else if (i2c_opt.reset)
+		error = reset_bus(dev, fd);
+	else
+		error = access_bus(fd, i2c_opt);
+
+	ch = close(fd);
+	assert(ch == 0);
+	return (error);
 }
