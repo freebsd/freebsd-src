@@ -233,7 +233,8 @@ restart:
 	first_open = false;
 	fmode = *flagp;
 	if ((fmode & (O_CREAT | O_EXCL | O_DIRECTORY)) == (O_CREAT |
-	    O_EXCL | O_DIRECTORY))
+	    O_EXCL | O_DIRECTORY) ||
+	    (fmode & (O_CREAT | O_EMPTY_PATH)) == (O_CREAT | O_EMPTY_PATH))
 		return (EINVAL);
 	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
