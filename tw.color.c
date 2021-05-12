@@ -146,7 +146,7 @@ enum ansi {
     ANSI_BG_DEFAULT = 49,	/* bg default (black) */
 };
 #define TCSH_BOLD	0x80
-	
+
 typedef struct {
     Str	    extension;	/* file extension */
     Str	    color;	/* color string */
@@ -252,11 +252,13 @@ static void
 makecolor(char **c, int fg, int bg, Str *v)
 {
     int l;
-    if (fg & 0x80)
+    if (fg & 0x80) {
 	l = xsnprintf(*c, 12, "%.2d;%.2d;%.2d;%.2d", ANSI_BOLD_ON,
 	    fg & ~TCSH_BOLD, (10 + bg) & ~TCSH_BOLD, ANSI_BOLD_OFF);
+    } else {
 	l = xsnprintf(*c, 6, "%.2d;%.2d",
 	    fg & ~TCSH_BOLD, (10 + bg) & ~TCSH_BOLD);
+    }
 
     v->s = *c;
     v->len = l;

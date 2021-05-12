@@ -1,4 +1,4 @@
-/* termios.c - fake termios interface using sgtty interface 
+/* termios.c - fake termios interface using sgtty interface
  * 	       by Magnus Doell and Bruce Evans.
  *
  */

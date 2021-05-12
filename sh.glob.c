@@ -470,7 +470,7 @@ libglob(Char **vl)
 	gflgs |= GLOB_APPEND;
     }
     while (*++vl);
-    vl = (globv.gl_pathc == 0 || (magic && !match && !nonomatch)) ? 
+    vl = (globv.gl_pathc == 0 || (magic && !match && !nonomatch)) ?
 	NULL : blk2short(globv.gl_pathv);
     globfree(&globv);
     return (vl);
@@ -522,7 +522,7 @@ globone(Char *str, int action)
 	    xfree(vl);
 	return (Strsave(STRNULL));
     }
-    if (vl && vl[1]) 
+    if (vl && vl[1])
 	return (handleone(str, vl, action));
     else {
 	str = strip(*vl);
@@ -628,7 +628,7 @@ tglob(Char **t)
 		 * use this piece of code anymore.
 		 */
 		p++;
-		while (*p && *p != '`') 
+		while (*p && *p != '`')
 		    if (*p++ == '\\') {
 			if (*p)		/* Quoted chars */
 			    p++;
@@ -643,7 +643,7 @@ tglob(Char **t)
 		gflag |= G_CSH;
 	    else if (isglob(*p))
 		gflag |= G_GLOB;
-	    else if (symlinks == SYM_EXPAND && 
+	    else if (symlinks == SYM_EXPAND &&
 		p[1] && ISDOTDOT(p) && (p == *(t-1) || *(p-1) == '/') )
 	    	gflag |= G_CSH;
 	    p++;
@@ -777,7 +777,7 @@ backeval(struct blk_buf *bb, struct Strbuf *word, Char *cp, int literal)
 
 	    (void) setexit();
 	    justpr = 0;
-	    
+
 	    if (haderr) {
 		/* unwind */
 		doneinp = 0;
@@ -911,7 +911,7 @@ Gnmatch(const Char *string, const Char *pattern, const Char **endstr)
 
     if (endstr == NULL)
 	/* Exact matches only */
-	for (p = *fblk; *p; p++) 
+	for (p = *fblk; *p; p++)
 	    gres |= t_pmatch(string, *p, &tstring, 1) == 2 ? 1 : 0;
     else {
 	const Char *end;
@@ -929,10 +929,10 @@ Gnmatch(const Char *string, const Char *pattern, const Char **endstr)
 
     cleanup_until(fblk);
     return(gres == gpol);
-} 
+}
 
 /* t_pmatch():
- *	Return 2 on exact match, 	
+ *	Return 2 on exact match,
  *	Return 1 on substring match.
  *	Return 0 on no match.
  *	*estr will point to the end of the longest exact or substring match.
@@ -1002,7 +1002,7 @@ t_pmatch(const Char *string, const Char *pattern, const Char **estr, int cs)
 		    match = (globcharcoll(stringc, rangec2, 0) <= 0 &&
 			globcharcoll(rangec, stringc, 0) <= 0);
 		}
-		else 
+		else
 		    match = (stringc == rangec);
 	    }
 	    if (rangec == '\0')

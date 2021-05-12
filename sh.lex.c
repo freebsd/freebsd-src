@@ -333,7 +333,7 @@ loop:
 	    } while (c != '\n');
 	    if (parsehtime) {
 		hbuf[11] = '\0';
-		Htime = a2time_t(hbuf); 
+		Htime = a2time_t(hbuf);
 	    }
 	    if (c1 == '\\')
 		goto loop;
@@ -885,7 +885,7 @@ getsub(struct wordent *en)
 }
 
 /*
- * 
+ *
  * From Beto Appleton (beto@aixwiz.austin.ibm.com)
  *
  * when using history substitution, and the variable
@@ -946,7 +946,7 @@ dosub(Char sc, struct wordent *en, int global)
     if (didsub == 0)
 	seterror(ERR_MODFAIL);
     hp->prev = wdp;
-    /* 
+    /*
      * ANSI mode HP/UX compiler chokes on
      * return &enthist(HIST_PURGE, &lexi, 0)->Hlex;
      */
@@ -994,7 +994,7 @@ subword(Char *cp, Char type, int *adid, size_t *start_pos)
 		    case '\\':
 			if (np[1] == '&')
 			    np++;
-			/* fall into ... */
+			/* FALLTHROUGH */
 
 		    default:
 			Strbuf_append1(&wbuf, *np);
@@ -1205,7 +1205,7 @@ gethent(Char sc)
 	case '-':
 	    back = 1;
 	    c = getC(0);
-	    /* FALLSTHROUGH */
+	    /* FALLTHROUGH */
 
 	default:
 	    if (any("(=~", c)) {
@@ -1579,9 +1579,9 @@ wide_read(int fildes, Char *buf, size_t nchars, int use_fclens)
 
 	if (partial + len >= sizeof(cbuf) / sizeof(*cbuf))
 	    break;
-	
+
 	r = xread(fildes, cbuf + partial, len);
-		  
+
 	if (partial == 0 && r <= 0)
 	    break;
 	partial += r;
@@ -1755,7 +1755,7 @@ bseek(struct Ain *l)
 	xprintf(CGETS(16, 5, "seek to alias %x %x\n"), alvec, alvecp);
 #endif
 	return;
-    case TCSH_F_SEEK:	
+    case TCSH_F_SEEK:
 #ifdef DEBUG_SEEK
 	xprintf(CGETS(16, 6, "seek to file %x\n"), fseekp);
 #endif

@@ -49,10 +49,10 @@
 
 #define ISSPACE(p)	(isspace((unsigned char) (p)) && (p) != '\n')
 
-/* 
+/*
  * We cannot do that, because some compilers like #line and others
  * like # <lineno>
- * #define LINEDIRECTIVE 
+ * #define LINEDIRECTIVE
  */
 
 static const char *keyword[] =
@@ -217,7 +217,7 @@ explode(const char *defs)
 	buf = cat(buf, eptr + 1, 0);
 	return buf;
 }
-	
+
 
 int
 main(int argc, char *argv[])
@@ -357,7 +357,7 @@ main(int argc, char *argv[])
 		    (void) fprintf(stdout, "# if (%s) && !defined(_%s_)\n",
 				   explode(defs), keyword[token]);
 		else
-		    (void) fprintf(stdout, "# if !defined(_%s_)\n", 
+		    (void) fprintf(stdout, "# if !defined(_%s_)\n",
 				   keyword[token]);
 
 		if (gettoken(&ptr, stmt) == NULL) {

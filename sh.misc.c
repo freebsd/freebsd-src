@@ -270,7 +270,7 @@ closem(void)
     num_files = NOFILE;
     for (f = 0; f < num_files; f++)
 	if (f != SHIN && f != SHOUT && f != SHDIAG && f != OLDSTD &&
-	    f != FSHTTY 
+	    f != FSHTTY
 #ifdef MALLOC_TRACE
 	    && f != 25
 #endif /* MALLOC_TRACE */
@@ -282,7 +282,7 @@ closem(void)
 	     * Not closing sockets does not make the cleanup use of closem()
 	     * less reliable because tcsh never creates sockets.
 	     */
-	    && fstat(f, &st) == 0 && !S_ISSOCK(st.st_mode)	
+	    && fstat(f, &st) == 0 && !S_ISSOCK(st.st_mode)
 #endif
 	    )
 	  {
@@ -342,7 +342,7 @@ donefds(void)
 	(void)dcopy(fd, 2);
 	(void)dmove(fd, 0);
     }
-#endif /*NISPLUS*/    
+#endif /*NISPLUS*/
 }
 
 /*

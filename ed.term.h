@@ -181,10 +181,10 @@
 # undef  CKILL
 # undef  CEOF
 # undef  CEOL
-# undef  CEOL2	
-# undef  CSWTCH	
+# undef  CEOL2
+# undef  CSWTCH
 # define CSWTCH		TO_CONTROL('z')
-# undef  CDSWTCH 
+# undef  CDSWTCH
 # undef  CERASE2
 # undef  CSTART
 # undef  CSTOP

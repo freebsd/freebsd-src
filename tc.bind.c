@@ -68,13 +68,13 @@ dobindkey(Char **v, struct command *c)
     map = CcKeyMap;
     ntype = XK_CMD;
     key = removeb = bindk = 0;
-    for (no = 1, par = v[no]; 
+    for (no = 1, par = v[no];
 	 par != NULL && (*par++ & CHAR) == '-'; no++, par = v[no]) {
 	if ((p = (*par & CHAR)) == '-') {
 	    no++;
 	    break;
 	}
-	else 
+	else
 	    switch (p) {
 	    case 'b':
 		bindk = 1;

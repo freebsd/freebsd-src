@@ -35,7 +35,7 @@
 #include "ed.h"
 
 int didsetty = 0;
-ttyperm_t ttylist = {   
+ttyperm_t ttylist = {
     {
 #if defined(POSIX) || defined(TERMIO)
 	{ "iflag:", ICRNL, (INLCR|IGNCR) },
@@ -64,7 +64,7 @@ ttyperm_t ttylist = {
 	{ "chars:", (C_SH(C_MIN)|C_SH(C_TIME)|C_SH(C_SWTCH)|C_SH(C_DSWTCH)|
 		     C_SH(C_WERASE)|C_SH(C_REPRINT)|C_SH(C_SUSP)|C_SH(C_DSUSP)|
 		     C_SH(C_EOF)|C_SH(C_EOL)|C_SH(C_DISCARD)|C_SH(C_PGOFF)|
-		     C_SH(C_KILL2)|C_SH(C_PAGE)|C_SH(C_STATUS)|C_SH(C_LNEXT)), 
+		     C_SH(C_KILL2)|C_SH(C_PAGE)|C_SH(C_STATUS)|C_SH(C_LNEXT)),
 		     0 }
     },
     {
@@ -317,7 +317,7 @@ static const struct tcshmodes {
 # endif /* LCASE */
 # ifdef	ECHO
     { "echo",	ECHO,	M_CONTROL },
-# endif /* ECHO */	
+# endif /* ECHO */
 # ifdef	CRMOD
     { "crmod",	CRMOD,	M_CONTROL },
 # endif /* CRMOD */
@@ -432,7 +432,7 @@ static const struct tcshmodes {
 # endif /* LCRTKIL */
 # ifdef	LPASS8
     { "lpass8",	LPASS8,	M_LOCAL },
-# endif /* LPASS8 */	
+# endif /* LPASS8 */
 # ifdef	LCTLECH
     { "lctlech",LCTLECH,M_LOCAL },
 # endif /* LCTLECH */
@@ -510,7 +510,7 @@ static const struct tcshmodes {
 # if defined(VPGOFF) || defined(TIOCGPAGE)
     { "pgoff",		C_SH(C_PGOFF), 	M_CHAR },
 # endif /* VPGOFF */
-# if defined(VKILL2) 
+# if defined(VKILL2)
     { "kill2",		C_SH(C_KILL2), 	M_CHAR },
 # endif /* VKILL2 */
 # if defined(VBRK) || defined(TIOCGETC)
@@ -528,7 +528,7 @@ static const struct tcshmodes {
 /*
  * If EAGAIN and/or EWOULDBLOCK are defined, we can't just return -1 in all
  * situations where ioctl() does.
- * 
+ *
  * On AIX 4.1.5 (and presumably some other versions and OSes), as you
  * perform the manual test suite in the README, if you 'bg' vi immediately
  * after suspending it, all is well, but if you wait a few seconds,
@@ -537,7 +537,7 @@ static const struct tcshmodes {
  * 0, causing bgetc() to return -1, causing readc() to set doneinp to 1,
  * causing process() to break out of the main loop, causing tcsh to exit
  * prematurely.
- * 
+ *
  * If ioctl()'s errno is EAGAIN/EWOULDBLOCK ("Resource temporarily
  * unavailable"), apparently the tty is being messed with by the OS and we
  * need to try again.  In my testing, ioctl() was never called more than
@@ -595,7 +595,7 @@ dosetty(Char **v, struct command *t)
     cleanup_push(cmdname, xfree);
     setname(cmdname);
 
-    while (v && *v && v[0][0] == '-' && v[0][2] == '\0') 
+    while (v && *v && v[0][0] == '-' && v[0][2] == '\0')
 	switch (v[0][1]) {
 	case 'a':
 	    aflag++;
@@ -641,7 +641,7 @@ dosetty(Char **v, struct command *t)
 		    xprintf("\n%*s", st, "");
 		    len = st + cu;
 		}
-		else 
+		else
 		    len += cu;
 		if (x != '\0')
 		    xprintf("%c%s ", x, m->m_name);
@@ -667,7 +667,7 @@ dosetty(Char **v, struct command *t)
 	for (m = modelist; m->m_name; m++)
 	    if (strcmp(m->m_name, d) == 0)
 		break;
-	if (!m->m_name) 
+	if (!m->m_name)
 	    stderror(ERR_NAME | ERR_SYSTEM, d, CGETS(8, 2, "Invalid argument"));
 
 	switch (x) {
@@ -723,7 +723,7 @@ int
 tty_setty(int fd, ttydata_t *td)
 {
 #ifdef POSIX
-    RETRY(xtcsetattr(fd, TCSADRAIN, &td->d_t)); 
+    RETRY(xtcsetattr(fd, TCSADRAIN, &td->d_t));
 #else
 # ifdef TERMIO
     RETRY(ioctl(fd, TCSETAW,    (ioctl_t) &td->d_t));
@@ -752,7 +752,7 @@ tty_setty(int fd, ttydata_t *td)
 
 void
 tty_getchar(ttydata_t *td, unsigned char *s)
-{   
+{
 #ifdef TIOCGLTC
     {
 	struct ltchars *n = &td->d_ltc;
@@ -888,10 +888,10 @@ tty_getchar(ttydata_t *td, unsigned char *s)
 
 void
 tty_setchar(ttydata_t *td, unsigned char *s)
-{   
+{
 #ifdef TIOCGLTC
     {
-	struct ltchars *n = &td->d_ltc; 
+	struct ltchars *n = &td->d_ltc;
 
 	n->t_suspc 		= s[C_SUSP];
 	n->t_dsuspc		= s[C_DSUSP];
@@ -1035,9 +1035,9 @@ tty_getspeed(ttydata_t *td)
 # ifdef TERMIO
 #  ifdef CBAUD
     spd = td->d_t.c_cflag & CBAUD;
-#  else 
+#  else
     spd = 0;
-#  endif 
+#  endif
 # else /* SGTTY */
     spd = td->d_t.sg_ispeed;
 # endif /* TERMIO */
@@ -1118,7 +1118,7 @@ tty_printchar(unsigned char *s)
     int i;
 
     for (i = 0; i < C_NCC; i++) {
-	for (m = modelist; m->m_name; m++) 
+	for (m = modelist; m->m_name; m++)
 	    if (m->m_type == M_CHAR && C_SH(i) == m->m_value)
 		break;
 	if (m->m_name)

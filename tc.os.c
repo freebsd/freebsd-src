@@ -64,7 +64,7 @@ static Char STRMPATH[] = {'M', 'P', 'A', 'T', 'H', '\0'};
 static Char STREPATH[] = {'E', 'P', 'A', 'T', 'H', '\0'};
 # endif
 #endif /* MACH */
-static Char *syspaths[] = {STRKPATH, STRCPATH, STRLPATH, STRMPATH, 
+static Char *syspaths[] = {STRKPATH, STRCPATH, STRLPATH, STRMPATH,
 
 #if EPATH
 	STREPATH,
@@ -302,11 +302,11 @@ dogetspath(Char **v, struct command *c)
 		    xprintf("%s ", xc);
 		else
 		    xprintf("*cpu %d* ", (int) (p[i] & SPATH_MASK));
-		/* 
+		/*
 		 * BUG in the aix code... needs that cause if
-		 * sfxcode fails once it fails for ever 
+		 * sfxcode fails once it fails for ever
 		 */
-		endsf();	
+		endsf();
 	    }
 	}
 	else {
@@ -552,7 +552,7 @@ catch_sigsys(void)
 
 /*ARGSUSED*/
 void
-dowarp(Char **v, struct command *c) 
+dowarp(Char **v, struct command *c)
 {
     int     warp, oldwarp;
     struct warpent *we;
@@ -619,7 +619,7 @@ setuniverse_cleanup(void *xbuf)
 
 /*ARGSUSED*/
 void
-douniverse(Char **v, struct command *c) 
+douniverse(Char **v, struct command *c)
 {
     Char *cp = v[1];
     Char *cp2;		/* dunno how many elements v comes in with */
@@ -713,7 +713,7 @@ bs2cmdlist(char *str)
             break;
 
         str_beg = str;
-        
+
         for (; *str != '\0'; ++str)
         {
             if (string == outside && *str == ';') /* End of command */
@@ -973,7 +973,7 @@ void *xmemset(void *loc, int value, size_t len)
 #ifndef HAVE_MEMMOVE
 /* memmove():
  * 	This is the ANSI form of bcopy() with the arguments backwards...
- *	Unlike memcpy(), it handles overlaps between source and 
+ *	Unlike memcpy(), it handles overlaps between source and
  *	destination memory
  */
 void *
@@ -986,13 +986,13 @@ xmemmove(void *vdst, const void *vsrc, size_t len)
 	return vdst;
 
     if (src > dst) {
-	while (len--) 
+	while (len--)
 	    *dst++ = *src++;
     }
     else {
 	src += len;
 	dst += len;
-	while (len--) 
+	while (len--)
 	    *--dst = *--src;
     }
     return vdst;
@@ -1062,7 +1062,7 @@ fix_strcoll_bug(void)
      * We have to call this routine every time the locale changes...
      *
      * Of course it also tries to free the constant locale "C" it initially
-     * had allocated, with the sequence 
+     * had allocated, with the sequence
      * > setenv LANG "fr"
      * > ls^D
      * > unsetenv LANG
@@ -1110,7 +1110,7 @@ osinit(void)
 #endif
 
 #ifdef _SX
-    /* 
+    /*
      * kill(SIGCONT) problems, don't know what this syscall does
      * [schott@rzg.mpg.de]
      */
@@ -1135,7 +1135,7 @@ xstrerror(int i)
     }
 }
 #endif /* !HAVE_STRERROR */
-    
+
 #ifndef HAVE_GETHOSTNAME
 # if !defined(_MINIX) && !defined(__EMX__) && !defined(WINNT_NATIVE)
 #  include <sys/utsname.h>
@@ -1182,7 +1182,7 @@ xgethostname(char *name, int namlen)
 #  undef HZ		/* redefined in <minix/const.h> */
 #  include <lib.h>
 # endif /* _MINIX && NICE */
-int 
+int
 xnice(int incr)
 {
 #if defined(_MINIX) && defined(NICE)
@@ -1250,7 +1250,7 @@ xgetcwd(char *pathname, size_t pathlen)
 	}
 	do {
 	    if ((dir = readdir(dirp)) == NULL) {
-		(void) xsnprintf(pathname, pathlen, 
+		(void) xsnprintf(pathname, pathlen,
 		    CGETS(23, 21, "getcwd: Read error in \"..\" (%s)"),
 		    strerror(errno));
 		goto fail;
@@ -1307,7 +1307,7 @@ xgetcwd(char *pathname, size_t pathlen)
 
     /* find the inode of root */
     if (stat("/", &st_root) == -1) {
-	(void) xsnprintf(pathname, pathlen, CGETS(23, 23, 
+	(void) xsnprintf(pathname, pathlen, CGETS(23, 23,
 			"getcwd: Cannot stat \"/\" (%s)"),
 			strerror(errno));
 	return NULL;
@@ -1365,9 +1365,9 @@ xgetcwd(char *pathname, size_t pathlen)
 	    }
 	}
 	else {
-	    /* 
-	     * Parent has a different device. This is a mount point so we 
-	     * need to stat every member 
+	    /*
+	     * Parent has a different device. This is a mount point so we
+	     * need to stat every member
 	     */
 	    for (d = readdir(dp); d != NULL; d = readdir(dp)) {
 		if (ISDOT(d->d_name) || ISDOTDOT(d->d_name))
@@ -1387,7 +1387,7 @@ xgetcwd(char *pathname, size_t pathlen)
 		}
 		/* check if we found it yet */
 		if (st_next.st_ino == st_cur.st_ino &&
-		    DEV_DEV_COMPARE(st_next.st_dev, st_cur.st_dev)) 
+		    DEV_DEV_COMPARE(st_next.st_dev, st_cur.st_dev))
 		    break;
 	    }
 	}
@@ -1461,7 +1461,7 @@ llib(Char *s)
     char *t;
 
     loader_$inlib(t = short2str(s), len, &st);
-    if (st.all != status_$ok) 
+    if (st.all != status_$ok)
 	stderror(ERR_SYSTEM, t, apperr(&st));
 }
 
@@ -1476,7 +1476,7 @@ doinlib(Char **v, struct command *c)
     globbed = v;
     cleanup_push(globbed, blk_cleanup);
 
-    while (v && *v) 
+    while (v && *v)
 	llib(*v++);
     cleanup_until(globbed);
 }
@@ -1488,7 +1488,7 @@ getv(Char *v)
 	return(1);
     else if (eq(v, STRsys53))
 	return(0);
-    else 
+    else
 	stderror(ERR_NAME | ERR_SYSTEM, short2str(v),
 		 CGETS(23, 28, "Invalid system type"));
     /*NOTREACHED*/
@@ -1542,11 +1542,11 @@ dorootnode(Char **v, struct command *c)
     namelen = strlen(name);
 
     name_$resolve(name, &namelen, &uid, &st);
-    if (st.all != status_$ok) 
+    if (st.all != status_$ok)
 	stderror(ERR_SYSTEM, name, apperr(&st));
     namelen = 0;
     name_$set_diru(&uid, "", &namelen, &dirtype, &st);
-    if (st.all != status_$ok) 
+    if (st.all != status_$ok)
 	stderror(ERR_SYSTEM, name, apperr(&st));
     dohash(NULL, NULL);
 }
@@ -1574,7 +1574,7 @@ isapad(void)
 	res = res ? 1 : 0;
     }
     else {
-	if (st.all != status_$ok) 
+	if (st.all != status_$ok)
 	    stderror(ERR_SYSTEM, "stream_$isavt", apperr(&st));
     }
     return(res);
