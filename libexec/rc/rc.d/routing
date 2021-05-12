@@ -140,11 +140,12 @@ get_fibmod()
 
 static_inet()
 {
-	local _action _if _skip _fibmod
+	local _action _if _skip _fibmod _fibs
 	_action=$1
 	_if=$2
 
 	_fibmod=`get_fibmod`
+	_fibs=$((`${SYSCTL_N} net.fibs` - 1))
 
 	# Provide loopback route in all routing tables.  This has to come
 	# first so that any following routes can be added.
@@ -160,6 +161,22 @@ static_inet()
 		route__default="default ${defaultrouter}"
 		;;
 	esac
+
+	# Add default routes for fibs
+	if [ ${_fibs} -gt 0 ]; then
+		for _fibnum in `jot ${_fibs}` ; do
+			eval _fib_gw=\${defaultrouter_fib${_fibnum}}
+			case ${_fib_gw} in
+			[Nn][Oo] | '')
+				;;
+			*)
+				static_routes="${static_routes} _default_fib${_fibnum}"
+				eval route__default_fib${fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
+				;;
+			esac
+		done
+	fi
+
 
 	# Install configured routes.
 	if [ -n "${static_routes}" ]; then
@@ -185,11 +202,12 @@ static_inet()
 
 static_inet6()
 {
-	local _action _if _skip fibmod allfibs
+	local _action _if _skip fibmod _fibs
 	_action=$1
 	_if=$2
 
 	fibmod=`get_fibmod`
+	_fibs=$((`${SYSCTL_N} net.fibs` - 1))
 
 	# Add pre-defined static routes first.
 	ipv6_static_routes="_v4mapped _v4compat ${ipv6_static_routes}"
@@ -220,6 +238,22 @@ static_inet6()
 		ipv6_route__default="default ${ipv6_defaultrouter}"
 		;;
 	esac
+
+	# Add default routes for fibs
+	if [ ${_fibs} -gt 0 ]; then
+		for _fibnum in `jot ${_fibs}` ; do
+			eval _fib_gw=\${ipv6_defaultrouter_fib${_fibnum}}
+			case ${_fib_gw} in
+			[Nn][Oo] | '')
+				;;
+			*)
+				ipv6_static_routes="${static_routes} _default_fib${_fibnum}"
+				eval ipv6_route__default_fib${fibnum}="'default ${_fib_gw} -fib ${_fibnum}'"
+				;;
+			esac
+		done
+	fi
+
 
 	# Install configured routes.
 	if [ -n "${ipv6_static_routes}" ]; then
