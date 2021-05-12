@@ -6606,8 +6606,13 @@ rack_convert_rtts(struct tcpcb *tp)
 			tp->t_rttvar += frac;
 		}
 	}
-	RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-			   rack_rto_min, rack_rto_max);
+	tp->t_rxtcur = RACK_REXMTVAL(tp);
+	if (TCPS_HAVEESTABLISHED(tp->t_state)) {
+		tp->t_rxtcur += TICKS_2_USEC(tcp_rexmit_slop);
+	}
+	if (tp->t_rxtcur > rack_rto_max) {
+		tp->t_rxtcur = rack_rto_max;
+	}
 }
 
 static void
