@@ -28,7 +28,7 @@ SUBDIR.${MK_TESTS}+= tests
 .if ${MK_ZFS} != "no"
 IGNORE_PRAGMA=  YES
 
-WARNS?=	0
+CFLAGS+= -DHAVE_ZFS
 CFLAGS.zfs.c+= -DIN_BASE
 CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS.zfs.c+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
