@@ -2165,7 +2165,6 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	int error = 0;
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct nd_prefix *opr;
-	struct sockaddr_in6 sa6;
 	char ip6buf[INET6_ADDRSTRLEN];
 	uint64_t genid;
 	int a_failure;
@@ -2240,7 +2239,8 @@ restart:
 	}
 
 	if (a_failure)
-		lltable_prefix_free(AF_INET6, (struct sockaddr *)&sa6,
+		lltable_prefix_free(AF_INET6,
+		    (struct sockaddr *)&pr->ndpr_prefix,
 		    (struct sockaddr *)&mask6, LLE_STATIC);
 
 	return (error);
