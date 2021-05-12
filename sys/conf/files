@@ -3545,7 +3545,6 @@ dev/xen/netback/netback.c	optional xenhvm
 dev/xen/netfront/netfront.c	optional xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xenhvm
-dev/xen/pvcpu/pvcpu.c		optional xenhvm
 dev/xen/xenstore/xenstore.c	optional xenhvm
 dev/xen/xenstore/xenstore_dev.c	optional xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xenhvm

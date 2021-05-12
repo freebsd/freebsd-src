@@ -387,8 +387,6 @@ dev/viawd/viawd.c		optional	viawd
 dev/vmd/vmd.c			optional	vmd
 dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
-dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
-dev/xen/pci/xen_pci.c		optional	xenhvm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/imgact_aout.c		optional compat_aout
@@ -461,8 +459,6 @@ x86/x86/mptable.c		optional	mptable
 x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/xen/pv.c			optional	xenhvm
-x86/xen/pvcpu_enum.c		optional	xenhvm
-x86/xen/xen_pci_bus.c		optional	xenhvm
 
 compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"

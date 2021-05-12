@@ -212,9 +212,6 @@ extern struct sysentvec elf32_freebsd_sysvec;
 struct init_ops init_ops = {
 	.early_clock_source_init =	i8254_init,
 	.early_delay =			i8254_delay,
-#ifdef DEV_APIC
-	.msi_init =			msi_init,
-#endif
 };
 
 static void
