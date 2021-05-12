@@ -1979,7 +1979,7 @@ apic_setup_io(void *dummy __unused)
 		lapic_dump("BSP");
 
 	/* Enable the MSI "pic". */
-	init_ops.msi_init();
+	msi_init();
 
 #ifdef XENHVM
 	xen_intr_alloc_irqs();

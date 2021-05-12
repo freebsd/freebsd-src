@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xen_pv.h>
-#include <xen/xen_msi.h>
 
 #include <xen/interface/arch-x86/hvm/start_info.h>
 #include <xen/interface/vcpu.h>
@@ -121,11 +120,6 @@ struct init_ops xen_pvh_init_ops = {
 	.early_clock_source_init	= xen_clock_init,
 	.early_delay			= xen_delay,
 	.parse_memmap			= xen_pvh_parse_memmap,
-#ifdef SMP
-	.mp_bootaddress			= mp_bootaddress,
-	.start_all_aps			= native_start_all_aps,
-#endif
-	.msi_init			= msi_init,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
