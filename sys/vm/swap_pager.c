@@ -2706,11 +2706,14 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 
 	if (arg2 != 1)			/* name length */
 		return (EINVAL);
+
+	memset(&xs, 0, sizeof(xs));
 	error = swap_dev_info(*(int *)arg1, &xs, NULL, 0);
 	if (error != 0)
 		return (error);
 #if defined(__amd64__) && defined(COMPAT_FREEBSD32)
 	if (req->oldlen == sizeof(xs32)) {
+		memset(&xs32, 0, sizeof(xs32));
 		xs32.xsw_version = XSWDEV_VERSION;
 		xs32.xsw_dev1 = xs.xsw_dev;
 		xs32.xsw_dev2 = xs.xsw_dev >> 32;
@@ -2723,6 +2726,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 #endif
 #if defined(COMPAT_FREEBSD11)
 	if (req->oldlen == sizeof(xs11)) {
+		memset(&xs11, 0, sizeof(xs11));
 		xs11.xsw_version = XSWDEV_VERSION_11;
 		xs11.xsw_dev = xs.xsw_dev; /* truncation */
 		xs11.xsw_flags = xs.xsw_flags;
