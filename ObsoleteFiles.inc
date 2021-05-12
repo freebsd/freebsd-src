@@ -5678,7 +5678,7 @@ OLD_FILES+=usr/include/sys/inflate.h
 # 20190722: cap_random(3) removed
 OLD_LIBS+=lib/casper/libcap_random.so.1
 OLD_FILES+=usr/include/casper/cap_random.h
-OLD_LIBS+=usr/lib/casper/libcap_random.so
+OLD_LIBS+=usr/lib/libcap_random.so
 OLD_FILES+=usr/share/man/man3/libcap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random_buf.3.gz
