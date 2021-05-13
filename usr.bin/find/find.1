@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2021
+.Dd May 13, 2021
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -135,6 +135,19 @@ primary specified by
 Refer to its description under
 .Sx PRIMARIES
 for more information.
+.It Fl f Ar path
+Add
+.Ar path
+to the list of paths that will be recursed into.
+This is useful when
+.Ar path
+begins with a character that would otherwise be interpreted as an
+.Ar expression ,
+namely
+.Dq Li "!" ,
+.Dq Li "("
+and
+.Dq Li - .
 .It Fl s
 Cause
 .Nm
