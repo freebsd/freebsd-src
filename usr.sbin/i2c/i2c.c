@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <sysexits.h>
@@ -55,18 +56,13 @@ struct options {
 	int		count;
 	int		verbose;
 	int		binary;
-	char		*skip;
+	const char	*skip;
 	int		mode;
 	char		dir;
 	uint32_t	addr;
 	uint32_t	off;
 	uint8_t		off_buf[2];
 	size_t		off_len;
-};
-
-struct skip_range {
-	int	start;
-	int	end;
 };
 
 __dead2 static void
@@ -84,169 +80,126 @@ usage(const char *msg)
 	exit(EX_USAGE);
 }
 
-static struct skip_range
-skip_get_range(char *skip_addr)
+static void
+parse_skip(const char *skip, char blacklist[128])
 {
-	struct skip_range addr_range;
-	char *token;
+	const char *p;
+	unsigned x, y;
 
-	addr_range.start = 0;
-	addr_range.end = 0;
-
-	token = strsep(&skip_addr, "..");
-	if (token) {
-		addr_range.start = strtoul(token, 0, 16);
-		token = strsep(&skip_addr, "..");
-		if ((token != NULL) && !atoi(token)) {
-			token = strsep(&skip_addr, "..");
-			if (token)
-				addr_range.end = strtoul(token, 0, 16);
+	for (p = skip; *p != '\0';) {
+		if (*p == '0' && p[1] == 'x')
+			p += 2;
+		if (!isxdigit(*p))
+			usage("Bad -n argument, expected (first) hex-digit");
+		x = digittoint(*p++) << 4;
+		if (!isxdigit(*p))
+			usage("Bad -n argument, expected (second) hex-digit");
+		x |= digittoint(*p++);
+		if (x == 0 || x > 0x7f)
+			usage("Bad -n argument, (01..7f)");
+		if (*p == ':' || *p == ',' || *p == '\0') {
+			blacklist[x] = 1;
+			if (*p != '\0')
+				p++;
+			continue;
 		}
+		if (*p == '-') {
+			p++;
+		} else if (*p == '.' && p[1] == '.') {
+			p += 2;
+		} else {
+			usage("Bad -n argument, ([:|,|..|-])");
+		}
+		if (*p == '0' && p[1] == 'x')
+			p += 2;
+		if (!isxdigit(*p))
+			usage("Bad -n argument, expected (first) hex-digit");
+		y = digittoint(*p++) << 4;
+		if (!isxdigit(*p))
+			usage("Bad -n argument, expected (second) hex-digit");
+		y |= digittoint(*p++);
+		if (y == 0 || y > 0x7f)
+			usage("Bad -n argument, (01..7f)");
+		if (y < x)
+			usage("Bad -n argument, (end < start)");
+		for (;x <= y; x++)
+			blacklist[x] = 1;
+		if (*p == ':' || *p == ',')
+			p++;
 	}
-
-	return (addr_range);
 }
 
-/* Parse the string to get hex 7 bits addresses */
 static int
-skip_get_tokens(char *skip_addr, int *sk_addr, int max_index)
-{
-	char *token;
-	int i;
-
-	for (i = 0; i < max_index; i++) {
-		token = strsep(&skip_addr, ":");
-		if (token == NULL)
-			break;
-		sk_addr[i] = strtoul(token, 0, 16);
-	}
-	return (i);
-}
-
-static int
-scan_bus(const char *dev, int fd, char *skip)
+scan_bus(const char *dev, int fd, const char *skip)
 {
 	struct iiccmd cmd;
 	struct iic_msg rdmsg;
 	struct iic_rdwr_data rdwrdata;
-	struct skip_range addr_range = { 0, 0 };
-	int *tokens = NULL, error, i, idx = 0, j;
-	int len = 0, do_skip = 0, no_range = 1, num_found = 0, use_read_xfer = 0;
+	int error;
+	unsigned u;
+	int num_found = 0, use_read_xfer;
 	uint8_t rdbyte;
+	char blacklist[128];
 
-	if (skip != NULL) {
-		len = strlen(skip);
-		if (strstr(skip, "..") != NULL) {
-			addr_range = skip_get_range(skip);
-			no_range = 0;
-		} else {
-			tokens = (int *)malloc((len / 2 + 1) * sizeof(int));
-			if (tokens == NULL) {
-				fprintf(stderr, "Error allocating tokens "
-				    "buffer\n");
-				error = -1;
-				goto out;
+	memset(blacklist, 0, sizeof blacklist);
+
+	if (skip != NULL)
+		parse_skip(skip, blacklist);
+
+	printf("Scanning I2C devices on %s:", dev);
+
+	for (use_read_xfer = 0; use_read_xfer < 2; use_read_xfer++) {
+		for (u = 1; u < 127; u++) {
+			if (blacklist[u])
+				continue;
+
+			cmd.slave = u << 1;
+			cmd.last = 1;
+			cmd.count = 0;
+			error = ioctl(fd, I2CRSTCARD, &cmd);
+			if (error) {
+				fprintf(stderr, "Controller reset failed\n");
+				fprintf(stderr,
+				    "Error scanning I2C controller (%s): %s\n",
+				    dev, strerror(errno));
+				return (EX_NOINPUT);
 			}
-			idx = skip_get_tokens(skip, tokens,
-			    len / 2 + 1);
+			if (use_read_xfer) {
+				rdmsg.buf = &rdbyte;
+				rdmsg.len = 1;
+				rdmsg.flags = IIC_M_RD;
+				rdmsg.slave = u << 1;
+				rdwrdata.msgs = &rdmsg;
+				rdwrdata.nmsgs = 1;
+				error = ioctl(fd, I2CRDWR, &rdwrdata);
+			} else {
+				cmd.slave = u << 1;
+				cmd.last = 1;
+				error = ioctl(fd, I2CSTART, &cmd);
+				if (errno == ENODEV || errno == EOPNOTSUPP)
+					break; /* Try reads instead */
+				(void)ioctl(fd, I2CSTOP);
+			}
+			if (error == 0) {
+				++num_found;
+				printf(" %02x", u);
+			}
 		}
-
-		if (!no_range && (addr_range.start > addr_range.end)) {
-			fprintf(stderr, "Skip address out of range\n");
-			error = -1;
-			goto out;
-		}
-	}
-
-	printf("Scanning I2C devices on %s: ", dev);
-
-start_over:
-	if (use_read_xfer) {
+		if (num_found > 0)
+			break;
 		fprintf(stderr,
 		    "Hardware may not support START/STOP scanning; "
 		    "trying less-reliable read method.\n");
 	}
-
-	for (i = 1; i < 127; i++) {
-
-		if (skip != NULL && ( addr_range.start < addr_range.end)) {
-			if (i >= addr_range.start && i <= addr_range.end)
-				continue;
-
-		} else if (skip != NULL && no_range) {
-			assert (tokens != NULL);
-			for (j = 0; j < idx; j++) {
-				if (tokens[j] == i) {
-					do_skip = 1;
-					break;
-				}
-			}
-		}
-
-		if (do_skip) {
-			do_skip = 0;
-			continue;
-		}
-
-		cmd.slave = i << 1;
-		cmd.last = 1;
-		cmd.count = 0;
-		error = ioctl(fd, I2CRSTCARD, &cmd);
-		if (error) {
-			fprintf(stderr, "Controller reset failed\n");
-			goto out;
-		}
-		if (use_read_xfer) {
-			rdmsg.buf = &rdbyte;
-			rdmsg.len = 1;
-			rdmsg.flags = IIC_M_RD;
-			rdmsg.slave = i << 1;
-			rdwrdata.msgs = &rdmsg;
-			rdwrdata.nmsgs = 1;
-			error = ioctl(fd, I2CRDWR, &rdwrdata);
-		} else {
-			cmd.slave = i << 1;
-			cmd.last = 1;
-			error = ioctl(fd, I2CSTART, &cmd);
-			if (errno == ENODEV || errno == EOPNOTSUPP) {
-				/* If START not supported try reading. */
-				use_read_xfer = 1;
-				goto start_over;
-			}
-			(void)ioctl(fd, I2CSTOP);
-		}
-		if (error == 0) {
-			++num_found;
-			printf("%02x ", i);
-		}
-	}
-
-	/*
-	 * If we found nothing, maybe START is not supported and returns a
-	 * generic error code such as EIO or ENXIO, so try again using reads.
-	 */
-	if (num_found == 0) {
-		if (!use_read_xfer) {
-			use_read_xfer = 1;
-			goto start_over;
-		}
+	if (num_found == 0)
 		printf("<none found>");
-	}
+
 	printf("\n");
 
 	error = ioctl(fd, I2CRSTCARD, &cmd);
-out:
-	if (skip != NULL  && no_range)
-		free(tokens);
-	else
-		assert(tokens == NULL);
-
-	if (error) {
-		fprintf(stderr, "Error scanning I2C controller (%s): %s\n",
-		    dev, strerror(errno));
-		return (EX_NOINPUT);
-	} else
-		return (EX_OK);
+	if (error)
+		fprintf(stderr, "Controller reset failed\n");
+	return (EX_OK);
 }
 
 static int
@@ -671,9 +624,12 @@ main(int argc, char** argv)
 	while ((ch = getopt(argc, argv, optflags)) != -1) {
 		switch(ch) {
 		case 'a':
-			i2c_opt.addr = (strtoul(optarg, 0, 16) << 1);
+			i2c_opt.addr = strtoul(optarg, 0, 16);
 			if (i2c_opt.addr == 0 && errno == EINVAL)
 				usage("Bad -a argument (hex)");
+			if (i2c_opt.addr == 0 || i2c_opt.addr > 0x7f)
+				usage("Bad -a argument (01..7f)");
+			i2c_opt.addr <<= 1;
 			break;
 		case 'f':
 			dev = optarg;
