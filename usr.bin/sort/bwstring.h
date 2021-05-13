@@ -38,6 +38,7 @@
 #include <sysexits.h>
 #include <wchar.h>
 
+#include "sort.h"
 #include "mem.h"
 
 extern bool byte_sort;
@@ -109,7 +110,7 @@ static inline bwstring_iterator
 bws_end(struct bwstring *bws)
 {
 
-	return ((MB_CUR_MAX == 1) ?
+	return ((mb_cur_max == 1) ?
 	    (bwstring_iterator) (bws->data.cstr + bws->len) :
 	    (bwstring_iterator) (bws->data.wstr + bws->len));
 }
@@ -118,7 +119,7 @@ static inline bwstring_iterator
 bws_iterator_inc(bwstring_iterator iter, size_t pos)
 {
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		return ((unsigned char *) iter) + pos;
 	else
 		return ((wchar_t*) iter) + pos;
@@ -128,7 +129,7 @@ static inline wchar_t
 bws_get_iter_value(bwstring_iterator iter)
 {
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		return *((unsigned char *) iter);
 	else
 		return *((wchar_t*) iter);
@@ -137,7 +138,7 @@ bws_get_iter_value(bwstring_iterator iter)
 int
 bws_iterator_cmp(bwstring_iterator iter1, bwstring_iterator iter2, size_t len);
 
-#define	BWS_GET(bws, pos) ((MB_CUR_MAX == 1) ? ((bws)->data.cstr[(pos)]) : (bws)->data.wstr[(pos)])
+#define	BWS_GET(bws, pos) ((mb_cur_max == 1) ? ((bws)->data.cstr[(pos)]) : (bws)->data.wstr[(pos)])
 
 void initialise_months(void);
 
