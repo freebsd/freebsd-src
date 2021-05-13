@@ -127,4 +127,10 @@ extern struct sort_opts sort_opts_vals;
 
 extern struct sort_mods * const default_sort_mods;
 
+/* 
+ * Cached value of MB_CUR_MAX. Because MB_CUR_MAX is used often throughout the program,
+ * this avoids frequent calls to __mb_cur_max.
+ */
+extern size_t mb_cur_max;
+
 #endif /* __BSD_SORT_H__ */
