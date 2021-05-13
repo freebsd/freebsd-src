@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #define MAKE_PROCESS_CPUCLOCK(pid)	\
 	(CPUCLOCK_BIT|CPUCLOCK_PROCESS_BIT|(pid))
 
+#define NS_PER_SEC	1000000000
+
 static struct kclock	posix_clocks[MAX_CLOCKS];
 static uma_zone_t	itimer_zone = NULL;
 
@@ -408,8 +410,7 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		return (error);
 	if (clock_id != CLOCK_REALTIME)
 		return (EINVAL);
-	if (ats->tv_nsec < 0 || ats->tv_nsec >= 1000000000 ||
-	    ats->tv_sec < 0)
+	if (ats->tv_nsec < 0 || ats->tv_nsec >= NS_PER_SEC || ats->tv_sec < 0)
 		return (EINVAL);
 	if (!allow_insane_settime &&
 	    (ats->tv_sec > 8000ULL * 365 * 24 * 60 * 60 ||
@@ -462,12 +463,12 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 		 * Rounding up is especially important if rounding down
 		 * would give 0.  Perfect rounding is unimportant.
 		 */
-		ts->tv_nsec = 1000000000 / tc_getfrequency() + 1;
+		ts->tv_nsec = NS_PER_SEC / tc_getfrequency() + 1;
 		break;
 	case CLOCK_VIRTUAL:
 	case CLOCK_PROF:
 		/* Accurately round up here because we can do so cheaply. */
-		ts->tv_nsec = howmany(1000000000, hz);
+		ts->tv_nsec = howmany(NS_PER_SEC, hz);
 		break;
 	case CLOCK_SECOND:
 		ts->tv_sec = 1;
@@ -509,7 +510,7 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 	int error;
 	bool is_abs_real;
 
-	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
+	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= NS_PER_SEC)
 		return (EINVAL);
 	if ((flags & ~TIMER_ABSTIME) != 0)
 		return (EINVAL);
@@ -1650,7 +1651,9 @@ static int
 itimespecfix(struct timespec *ts)
 {
 
-	if (ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= 1000000000)
+	if (ts->tv_sec < 0 || ts->tv_nsec < 0 || ts->tv_nsec >= NS_PER_SEC)
+		return (EINVAL);
+	if ((UINT64_MAX - ts->tv_nsec) / NS_PER_SEC < ts->tv_sec)
 		return (EINVAL);
 	if (ts->tv_sec == 0 && ts->tv_nsec != 0 && ts->tv_nsec < tick * 1000)
 		ts->tv_nsec = tick * 1000;
@@ -1658,10 +1661,10 @@ itimespecfix(struct timespec *ts)
 }
 
 #define	timespectons(tsp)			\
-	((uint64_t)(tsp)->tv_sec * 1000000000 + (tsp)->tv_nsec)
+	((uint64_t)(tsp)->tv_sec * NS_PER_SEC + (tsp)->tv_nsec)
 #define	timespecfromns(ns) (struct timespec){	\
-	.tv_sec = (ns) / 1000000000,		\
-	.tv_nsec = (ns) % 1000000000		\
+	.tv_sec = (ns) / NS_PER_SEC,		\
+	.tv_nsec = (ns) % NS_PER_SEC		\
 }
 
 static void
