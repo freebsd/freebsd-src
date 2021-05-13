@@ -2447,10 +2447,14 @@ pf_killstates_row(struct pf_kstate_kill *psk, struct pf_idhash *ih)
 	int			 idx, killed = 0;
 	unsigned int		 dir;
 	u_int16_t		 srcport, dstport;
+	struct pfi_kkif		*kif;
 
 relock_DIOCKILLSTATES:
 	PF_HASHROW_LOCK(ih);
 	LIST_FOREACH(s, &ih->states, entry) {
+		/* For floating states look at the original kif. */
+		kif = s->kif == V_pfi_all ? s->orig_kif : s->kif;
+
 		sk = s->key[PF_SK_WIRE];
 		if (s->direction == PF_OUT) {
 			srcaddr = &sk->addr[1];
@@ -2499,7 +2503,7 @@ relock_DIOCKILLSTATES:
 			continue;
 
 		if (psk->psk_ifname[0] && strcmp(psk->psk_ifname,
-		    s->kif->pfik_name))
+		    kif->pfik_name))
 			continue;
 
 		if (psk->psk_kill_match) {
@@ -5677,6 +5681,7 @@ pf_clear_states(const struct pf_kstate_kill *kill)
 {
 	struct pf_state_key_cmp	 match_key;
 	struct pf_state	*s;
+	struct pfi_kkif	*kif;
 	int		 idx;
 	unsigned int	 killed = 0, dir;
 
@@ -5686,9 +5691,12 @@ pf_clear_states(const struct pf_kstate_kill *kill)
 relock_DIOCCLRSTATES:
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
+			/* For floating states look at the original kif. */
+			kif = s->kif == V_pfi_all ? s->orig_kif : s->kif;
+
 			if (kill->psk_ifname[0] &&
 			    strcmp(kill->psk_ifname,
-			    s->kif->pfik_name))
+			    kif->pfik_name))
 				continue;
 
 			if (kill->psk_kill_match) {
