@@ -356,8 +356,11 @@ device		smsc
 device		ure
 
 # Sound support
-device sound
-device a10_codec
+device		sound
+device		a10_codec		# Allwinner A10 codec
+device		aw_i2s			# Allwinner I2S
+device		a33_codec		# Allwinner A33 codec
+device		a64_codec		# Allwinner A64 Analog codec
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
