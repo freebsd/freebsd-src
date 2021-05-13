@@ -54,11 +54,8 @@ struct options {
 	const char	*width;
 	int		count;
 	int		verbose;
-	int		addr_set;
 	int		binary;
-	int		scan;
-	int		skip;
-	int		reset;
+	char		*skip;
 	int		mode;
 	char		dir;
 	uint32_t	addr;
@@ -127,7 +124,7 @@ skip_get_tokens(char *skip_addr, int *sk_addr, int max_index)
 }
 
 static int
-scan_bus(const char *dev, int fd, int skip, char *skip_addr)
+scan_bus(const char *dev, int fd, char *skip)
 {
 	struct iiccmd cmd;
 	struct iic_msg rdmsg;
@@ -137,11 +134,10 @@ scan_bus(const char *dev, int fd, int skip, char *skip_addr)
 	int len = 0, do_skip = 0, no_range = 1, num_found = 0, use_read_xfer = 0;
 	uint8_t rdbyte;
 
-	if (skip) {
-		assert(skip_addr != NULL);
-		len = strlen(skip_addr);
-		if (strstr(skip_addr, "..") != NULL) {
-			addr_range = skip_get_range(skip_addr);
+	if (skip != NULL) {
+		len = strlen(skip);
+		if (strstr(skip, "..") != NULL) {
+			addr_range = skip_get_range(skip);
 			no_range = 0;
 		} else {
 			tokens = (int *)malloc((len / 2 + 1) * sizeof(int));
@@ -151,7 +147,7 @@ scan_bus(const char *dev, int fd, int skip, char *skip_addr)
 				error = -1;
 				goto out;
 			}
-			idx = skip_get_tokens(skip_addr, tokens,
+			idx = skip_get_tokens(skip, tokens,
 			    len / 2 + 1);
 		}
 
@@ -173,11 +169,11 @@ start_over:
 
 	for (i = 1; i < 127; i++) {
 
-		if (skip && ( addr_range.start < addr_range.end)) {
+		if (skip != NULL && ( addr_range.start < addr_range.end)) {
 			if (i >= addr_range.start && i <= addr_range.end)
 				continue;
 
-		} else if (skip && no_range) {
+		} else if (skip != NULL && no_range) {
 			assert (tokens != NULL);
 			for (j = 0; j < idx; j++) {
 				if (tokens[j] == i) {
@@ -240,7 +236,7 @@ start_over:
 
 	error = ioctl(fd, I2CRSTCARD, &cmd);
 out:
-	if (skip && no_range)
+	if (skip != NULL  && no_range)
 		free(tokens);
 	else
 		assert(tokens == NULL);
@@ -308,7 +304,7 @@ write_offset(int fd, struct options i2c_opt, struct iiccmd *cmd)
 
 	if (i2c_opt.off_len > 0) {
 		cmd->count = i2c_opt.off_len;
-		cmd->buf = i2c_opt.off_buf;
+		cmd->buf = (void*)i2c_opt.off_buf;
 		error = ioctl(fd, I2CWRITE, cmd);
 		if (error == -1)
 			return ("ioctl: error writing offset\n");
@@ -623,39 +619,68 @@ int
 main(int argc, char** argv)
 {
 	struct options i2c_opt;
-	char *skip_addr = NULL;
 	const char *dev, *err_msg;
-	int fd, error, ch;
-
-	errno = 0;
+	int fd, error = 0, ch;
+	const char *optflags = "a:f:d:o:w:c:m:n:sbvrh";
+	char do_what = 0;
 
 	dev = I2C_DEV;
 
 	/* Default values */
-	i2c_opt.addr_set = 0;
 	i2c_opt.off = 0;
 	i2c_opt.verbose = 0;
 	i2c_opt.dir = 'r';	/* direction = read */
 	i2c_opt.width = "8";
 	i2c_opt.count = 1;
 	i2c_opt.binary = 0;	/* ASCII text output */
-	i2c_opt.scan = 0;	/* no bus scan */
-	i2c_opt.skip = 0;	/* scan all addresses */
-	i2c_opt.reset = 0;	/* no bus reset */
+	i2c_opt.skip = NULL;	/* scan all addresses */
 	i2c_opt.mode = I2C_MODE_NOTSET;
 
+	/* Find out what we are going to do */
+
 	while ((ch = getopt(argc, argv, "a:f:d:o:w:c:m:n:sbvrh")) != -1) {
+		switch(ch) {
+		case 'a':
+		case 'r':
+		case 's':
+			if (do_what)
+				usage("Only one of [-a|-h|-r|-s]");
+			do_what = ch;
+			break;
+		case 'h':
+			usage("Help:");
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Then handle the legal subset of arguments */
+
+	switch (do_what) {
+	case 0: usage("Pick one of [-a|-h|-r|-s]"); break;
+	case 'a': optflags = "a:f:d:w:o:c:m:bv"; break;
+	case 'r': optflags = "rf:v"; break;
+	case 's': optflags = "sf:n:v"; break;
+	default: assert("Bad do_what");
+	}
+
+	optreset = 1;
+	optind = 1;
+
+	while ((ch = getopt(argc, argv, optflags)) != -1) {
 		switch(ch) {
 		case 'a':
 			i2c_opt.addr = (strtoul(optarg, 0, 16) << 1);
 			if (i2c_opt.addr == 0 && errno == EINVAL)
 				usage("Bad -a argument (hex)");
-			i2c_opt.addr_set = 1;
 			break;
 		case 'f':
 			dev = optarg;
 			break;
 		case 'd':
+			if (strcmp(optarg, "r") && strcmp(optarg, "w"))
+				usage("Bad -d argument ([r|w])");
 			i2c_opt.dir = optarg[0];
 			break;
 		case 'o':
@@ -664,7 +689,7 @@ main(int argc, char** argv)
 				usage("Bad -o argument (hex)");
 			break;
 		case 'w':
-			i2c_opt.width = optarg;
+			i2c_opt.width = optarg;		// checked later.
 			break;
 		case 'c':
 			i2c_opt.count = (strtoul(optarg, 0, 10));
@@ -684,26 +709,19 @@ main(int argc, char** argv)
 				usage("Bad -m argument ([no|ss|rs|tr])");
 			break;
 		case 'n':
-			i2c_opt.skip = 1;
-			skip_addr = optarg;
+			i2c_opt.skip = optarg;
 			break;
-		case 's':
-			i2c_opt.scan = 1;
-			break;
+		case 's': break;
 		case 'b':
 			i2c_opt.binary = 1;
 			break;
 		case 'v':
 			i2c_opt.verbose = 1;
 			break;
-		case 'r':
-			i2c_opt.reset = 1;
-			break;
-		case 'h':
-			usage("Help:");
-			break;
+		case 'r': break;
 		default:
-			usage("Bad argument");
+			fprintf(stderr, "Illegal -%c option", ch);
+			usage(NULL);
 		}
 	}
 	argc -= optind;
@@ -726,15 +744,6 @@ main(int argc, char** argv)
 		exit(EX_USAGE);
 	}
 
-	/* Basic sanity check of command line arguments */
-	if (i2c_opt.scan) {
-		if (i2c_opt.addr_set)
-			usage("-s and -a are incompatible");
-	} else if (i2c_opt.reset) {
-		if (i2c_opt.addr_set)
-			usage("-r and -a are incompatible");
-	}
-
 	if (i2c_opt.verbose)
 		fprintf(stderr, "dev: %s, addr: 0x%x, r/w: %c, "
 		    "offset: 0x%02x, width: %s, count: %d\n", dev,
@@ -748,12 +757,19 @@ main(int argc, char** argv)
 		return (EX_NOINPUT);
 	}
 
-	if (i2c_opt.scan)
-		error = scan_bus(dev, fd, i2c_opt.skip, skip_addr);
-	else if (i2c_opt.reset)
+	switch (do_what) {
+	case 's':
+		error = scan_bus(dev, fd, i2c_opt.skip);
+		break;
+	case 'r':
 		error = reset_bus(dev, fd);
-	else
+		break;
+	case 'a':
 		error = access_bus(fd, i2c_opt);
+		break;
+	default:
+		assert("Bad do_what");
+	}
 
 	ch = close(fd);
 	assert(ch == 0);
