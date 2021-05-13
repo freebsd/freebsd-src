@@ -553,11 +553,9 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		 * COW locally.
 		 */
 		if ((flags & RFMEM) == 0) {
-			if (refcount_load(&p1->p_vmspace->vm_refcnt) > 1) {
-				error = vmspace_unshare(p1);
-				if (error)
-					return (error);
-			}
+			error = vmspace_unshare(p1);
+			if (error)
+				return (error);
 		}
 		cpu_fork(td, p2, td2, flags);
 		return (0);

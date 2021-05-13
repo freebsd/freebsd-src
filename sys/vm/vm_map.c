@@ -4867,6 +4867,10 @@ vmspace_unshare(struct proc *p)
 	struct vmspace *newvmspace;
 	vm_ooffset_t fork_charge;
 
+	/*
+	 * The caller is responsible for ensuring that the reference count
+	 * cannot concurrently transition 1 -> 2.
+	 */
 	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
