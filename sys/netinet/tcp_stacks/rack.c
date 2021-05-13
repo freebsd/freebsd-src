@@ -6054,6 +6054,12 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	for (idx = 0; idx < nrsm->r_rtr_cnt; idx++) {
 		nrsm->r_tim_lastsent[idx] = rsm->r_tim_lastsent[idx];
 	}
+	/* Now if we have SYN flag we keep it on the left edge */
+	if (nrsm->r_flags & RACK_HAS_SYN)
+		nrsm->r_flags &= ~RACK_HAS_SYN;
+	/* Now if we have a FIN flag we keep it on the right edge */
+	if (nrsm->r_flags & RACK_HAS_FIN)
+		nrsm->r_flags &= ~RACK_HAS_FIN;
 	/*
 	 * Now we need to find nrsm's new location in the mbuf chain
 	 * we basically calculate a new offset, which is soff +
@@ -6061,9 +6067,11 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	 * chain to find the righ postion, it may be the same mbuf
 	 * or maybe not.
 	 */
-	KASSERT((rsm->m != NULL),
+	KASSERT(((rsm->m != NULL) ||
+		 (rsm->r_flags & (RACK_HAS_SYN|RACK_HAS_FIN))),
 		("rsm:%p nrsm:%p rack:%p -- rsm->m is NULL?", rsm, nrsm, rack));
-	rack_setup_offset_for_rsm(rsm, nrsm);
+	if (rsm->m)
+		rack_setup_offset_for_rsm(rsm, nrsm);
 }
 
 static struct rack_sendmap *
