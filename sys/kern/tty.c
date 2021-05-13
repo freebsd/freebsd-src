@@ -525,7 +525,7 @@ static int
 ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct tty *tp = dev->si_drv1;
-	int error;
+	int defer, error;
 
 	error = ttydev_enter(tp);
 	if (error)
@@ -549,7 +549,9 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 
 		tp->t_flags |= TF_BUSY_OUT;
+		defer = sigdeferstop(SIGDEFERSTOP_ERESTART);
 		error = ttydisc_write(tp, uio, ioflag);
+		sigallowstop(defer);
 		tp->t_flags &= ~TF_BUSY_OUT;
 		cv_signal(&tp->t_outserwait);
 	}
