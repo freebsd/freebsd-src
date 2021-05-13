@@ -96,10 +96,9 @@ mode creates control structures describing the transfer and submits them
 to the driver as a single complete transaction.
 This mode works on all types of I2C hardware.
 .It Fl n Ar skip_addr
-skip address - address(es) to be skipped during bus scan.
-There are two ways to specify addresses to ignore: by range 'a..b' or
-using selected addresses 'a:b:c'. This option is available only when "-s" is
-used.
+address(es) to be skipped during bus scan.
+One or more addresses ([0x]xx) or ranges of addresses
+([0x]xx-[0x]xx or [0x]xx..[0x]xx) separated by commas or colons.
 .It Fl o Ar offset
 offset within the device for data transfer (hex).
 The default is zero.
@@ -129,15 +128,10 @@ Scan the default bus (/dev/iic0) for devices:
 .Pp
 i2c -s
 .It
-Scan the default bus (/dev/iic0) for devices and skip addresses 0x56 and
-0x45.
+Scan the default bus (/dev/iic0) for devices and skip addresses 
+0x45 to 0x47 (inclusive) and 0x56.
 .Pp
-i2c -s -n 0x56:0x45
-.It
-Scan the default bus (/dev/iic0) for devices and skip address range
-0x34 to 0x56.
-.Pp
-i2c -s -n 0x34..0x56
+i2c -s -n 0x56,45-47
 .It
 Read 8 bytes of data from device at address 0x56 (e.g., an EEPROM):
 .Pp
