@@ -95,7 +95,7 @@ extern struct sysent linux32_sysent[];
 #elif defined(FREEBSD32_SYSTRACE)
 /*
  * The syscall arguments are processed into a DTrace argument array
- * using a generated function. See sys/kern/makesyscalls.sh.
+ * using a generated function. See sys/tools/makesyscalls.lua.
  */
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_util.h>
@@ -109,7 +109,7 @@ extern const char *freebsd32_syscallnames[];
 #else
 /*
  * The syscall arguments are processed into a DTrace argument array
- * using a generated function. See sys/kern/makesyscalls.sh.
+ * using a generated function. See sys/tools/makesyscalls.lua.
  */
 #include <sys/syscall.h>
 #include <kern/systrace_args.c>
