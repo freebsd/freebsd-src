@@ -30,7 +30,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 20210513:
 	Commit ca179c4d74f2 changed the package in which the OpenSSL
 	libraries and utilities are packaged.
-	It is recommanded for pkgbase user to do :
+	It is recommended for pkgbase user to do:
 	pkg install -f FreeBSD-openssl
 	before pkg upgrade otherwise some dependencies might not be met
 	and pkg will stop working as libssl will not be present anymore
