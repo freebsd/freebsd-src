@@ -495,8 +495,10 @@ namei_emptypath(struct nameidata *ndp)
 		goto errout;
 	}
 
+	/*
+	 * Usecount on dp already provided by namei_setup.
+	 */
 	ndp->ni_vp = dp;
-	vref(dp);
 	namei_cleanup_cnp(cnp);
 	pwd_drop(pwd);
 	ndp->ni_resflags |= NIRES_EMPTYPATH;
