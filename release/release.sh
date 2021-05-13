@@ -300,6 +300,7 @@ extra_chroot_setup() {
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
 		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+		UNAME_r=${REVISION}-${BRANCH}
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
