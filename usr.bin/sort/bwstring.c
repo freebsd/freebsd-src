@@ -59,7 +59,7 @@ initialise_months(void)
 	char *tmp;
 	size_t len;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		if (cmonths == NULL) {
 			char *m;
 
@@ -143,7 +143,7 @@ void
 bwsprintf(FILE *f, struct bwstring *bws, const char *prefix, const char *suffix)
 {
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		fprintf(f, "%s%s%s", prefix, bws->data.cstr, suffix);
 	else
 		fprintf(f, "%s%S%s", prefix, bws->data.wstr, suffix);
@@ -158,14 +158,14 @@ const void* bwsrawdata(const struct bwstring *bws)
 size_t bwsrawlen(const struct bwstring *bws)
 {
 
-	return ((MB_CUR_MAX == 1) ? bws->len : SIZEOF_WCHAR_STRING(bws->len));
+	return ((mb_cur_max == 1) ? bws->len : SIZEOF_WCHAR_STRING(bws->len));
 }
 
 size_t
 bws_memsize(const struct bwstring *bws)
 {
 
-	return ((MB_CUR_MAX == 1) ? (bws->len + 2 + sizeof(struct bwstring)) :
+	return ((mb_cur_max == 1) ? (bws->len + 2 + sizeof(struct bwstring)) :
 	    (SIZEOF_WCHAR_STRING(bws->len + 1) + sizeof(struct bwstring)));
 }
 
@@ -175,7 +175,7 @@ bws_setlen(struct bwstring *bws, size_t newlen)
 
 	if (bws && newlen != bws->len && newlen <= bws->len) {
 		bws->len = newlen;
-		if (MB_CUR_MAX == 1)
+		if (mb_cur_max == 1)
 			bws->data.cstr[newlen] = '\0';
 		else
 			bws->data.wstr[newlen] = L'\0';
@@ -190,14 +190,14 @@ bwsalloc(size_t sz)
 {
 	struct bwstring *ret;
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		ret = sort_malloc(sizeof(struct bwstring) + 1 + sz);
 	else
 		ret = sort_malloc(sizeof(struct bwstring) +
 		    SIZEOF_WCHAR_STRING(sz + 1));
 	ret->len = sz;
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		ret->data.cstr[ret->len] = '\0';
 	else
 		ret->data.wstr[ret->len] = L'\0';
@@ -218,7 +218,7 @@ bwsdup(const struct bwstring *s)
 	else {
 		struct bwstring *ret = bwsalloc(s->len);
 
-		if (MB_CUR_MAX == 1)
+		if (mb_cur_max == 1)
 			memcpy(ret->data.cstr, s->data.cstr, (s->len));
 		else
 			memcpy(ret->data.wstr, s->data.wstr,
@@ -242,7 +242,7 @@ bwssbdup(const wchar_t *str, size_t len)
 
 		ret = bwsalloc(len);
 
-		if (MB_CUR_MAX == 1)
+		if (mb_cur_max == 1)
 			for (size_t i = 0; i < len; ++i)
 				ret->data.cstr[i] = (unsigned char) str[i];
 		else
@@ -263,7 +263,7 @@ bwscsbdup(const unsigned char *str, size_t len)
 	ret = bwsalloc(len);
 
 	if (str) {
-		if (MB_CUR_MAX == 1)
+		if (mb_cur_max == 1)
 			memcpy(ret->data.cstr, str, len);
 		else {
 			mbstate_t mbs;
@@ -277,7 +277,7 @@ bwscsbdup(const unsigned char *str, size_t len)
 			memset(&mbs, 0, sizeof(mbs));
 
 			while (cptr < len) {
-				size_t n = MB_CUR_MAX;
+				size_t n = mb_cur_max;
 
 				if (n > len - cptr)
 					n = len - cptr;
@@ -334,7 +334,7 @@ bwscpy(struct bwstring *dst, const struct bwstring *src)
 		nums = dst->len;
 	dst->len = nums;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		memcpy(dst->data.cstr, src->data.cstr, nums);
 		dst->data.cstr[dst->len] = '\0';
 	} else {
@@ -363,7 +363,7 @@ bwsncpy(struct bwstring *dst, const struct bwstring *src, size_t size)
 		nums = size;
 	dst->len = nums;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		memcpy(dst->data.cstr, src->data.cstr, nums);
 		dst->data.cstr[dst->len] = '\0';
 	} else {
@@ -398,7 +398,7 @@ bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset,
 		if (nums > size)
 			nums = size;
 		dst->len = nums;
-		if (MB_CUR_MAX == 1) {
+		if (mb_cur_max == 1) {
 			memcpy(dst->data.cstr, src->data.cstr + offset,
 			    (nums));
 			dst->data.cstr[dst->len] = '\0';
@@ -420,7 +420,7 @@ size_t
 bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 {
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		size_t len = bws->len;
 
 		if (!zero_ended) {
@@ -478,7 +478,7 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 
 	eols = zero_ended ? btowc('\0') : btowc('\n');
 
-	if (!zero_ended && (MB_CUR_MAX > 1)) {
+	if (!zero_ended && (mb_cur_max > 1)) {
 		wchar_t *ret;
 
 		ret = fgetwln(f, len);
@@ -494,7 +494,7 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 		}
 		return (bwssbdup(ret, *len));
 
-	} else if (!zero_ended && (MB_CUR_MAX == 1)) {
+	} else if (!zero_ended && (mb_cur_max == 1)) {
 		char *ret;
 
 		ret = fgetln(f, len);
@@ -523,7 +523,7 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 		}
 		rb->fgetwln_z_buffer[*len] = 0;
 
-		if (MB_CUR_MAX == 1)
+		if (mb_cur_max == 1)
 			while (!feof(f)) {
 				int c;
 
@@ -603,7 +603,7 @@ bwsncmp(const struct bwstring *bws1, const struct bwstring *bws2,
 			if (len < cmp_len)
 				cmp_len = len;
 
-			if (MB_CUR_MAX == 1) {
+			if (mb_cur_max == 1) {
 				const unsigned char *s1, *s2;
 
 				s1 = bws1->data.cstr + offset;
@@ -696,7 +696,7 @@ bwscoll(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset)
 			len1 -= offset;
 			len2 -= offset;
 
-			if (MB_CUR_MAX == 1) {
+			if (mb_cur_max == 1) {
 				const unsigned char *s1, *s2;
 
 				s1 = bws1->data.cstr + offset;
@@ -852,7 +852,7 @@ bwstod(struct bwstring *s0, bool *empty)
 {
 	double ret = 0;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		unsigned char *end, *s;
 		char *ep;
 
@@ -909,7 +909,7 @@ int
 bws_month_score(const struct bwstring *s0)
 {
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		const unsigned char *end, *s;
 
 		s = s0->data.cstr;
@@ -949,7 +949,7 @@ struct bwstring *
 ignore_leading_blanks(struct bwstring *str)
 {
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		unsigned char *dst, *end, *src;
 
 		src = str->data.cstr;
@@ -1005,7 +1005,7 @@ ignore_nonprinting(struct bwstring *str)
 {
 	size_t newlen = str->len;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		unsigned char *dst, *end, *src;
 		unsigned char c;
 
@@ -1058,7 +1058,7 @@ dictionary_order(struct bwstring *str)
 {
 	size_t newlen = str->len;
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		unsigned char *dst, *end, *src;
 		unsigned char c;
 
@@ -1109,7 +1109,7 @@ struct bwstring *
 ignore_case(struct bwstring *str)
 {
 
-	if (MB_CUR_MAX == 1) {
+	if (mb_cur_max == 1) {
 		unsigned char *end, *s;
 
 		s = str->data.cstr;
@@ -1137,7 +1137,7 @@ void
 bws_disorder_warnx(struct bwstring *s, const char *fn, size_t pos)
 {
 
-	if (MB_CUR_MAX == 1)
+	if (mb_cur_max == 1)
 		warnx("%s:%zu: disorder: %s", fn, pos + 1, s->data.cstr);
 	else
 		warnx("%s:%zu: disorder: %ls", fn, pos + 1, s->data.wstr);

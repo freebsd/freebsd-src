@@ -258,7 +258,7 @@ add_leaf(struct sort_level *sl, struct sort_list_item *item)
 static inline int
 get_wc_index(struct sort_list_item *sli, size_t level)
 {
-	const size_t wcfact = (MB_CUR_MAX == 1) ? 1 : sizeof(wchar_t);
+	const size_t wcfact = (mb_cur_max == 1) ? 1 : sizeof(wchar_t);
 	const struct key_value *kv;
 	const struct bwstring *bws;
 
@@ -331,7 +331,7 @@ free_sort_level(struct sort_level *sl)
 static void
 run_sort_level_next(struct sort_level *sl)
 {
-	const size_t wcfact = (MB_CUR_MAX == 1) ? 1 : sizeof(wchar_t);
+	const size_t wcfact = (mb_cur_max == 1) ? 1 : sizeof(wchar_t);
 	struct sort_level *slc;
 	size_t i, sln, tosort_num;
 

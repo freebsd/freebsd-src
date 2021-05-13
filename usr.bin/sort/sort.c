@@ -99,6 +99,8 @@ struct sort_opts sort_opts_vals;
 bool debug_sort;
 bool need_hint;
 
+size_t mb_cur_max;
+
 #if defined(SORT_THREADS)
 unsigned int ncpu = 1;
 size_t nthreads = 1;
@@ -305,7 +307,7 @@ conv_mbtowc(wchar_t *wc, const char *c, const wchar_t def)
 	if (wc && c) {
 		int res;
 
-		res = mbtowc(wc, c, MB_CUR_MAX);
+		res = mbtowc(wc, c, mb_cur_max);
 		if (res < 1)
 			*wc = def;
 	}
@@ -321,6 +323,8 @@ set_locale(void)
 	const char *locale;
 
 	setlocale(LC_ALL, "");
+
+	mb_cur_max = MB_CUR_MAX;
 
 	lc = localeconv();
 
