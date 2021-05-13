@@ -149,6 +149,14 @@ cddl/dev/dtrace/aarch64/dtrace_subr.c		optional dtrace compile-with "${DTRACE_C}
 cddl/dev/fbt/aarch64/fbt_isa.c			optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
 ##
+## ASoC support
+##
+dev/sound/fdt/audio_dai_if.m			optional sound fdt
+dev/sound/fdt/audio_soc.c			optional sound fdt
+dev/sound/fdt/dummy_codec.c			optional sound fdt
+dev/sound/fdt/simple_amplifier.c		optional sound fdt
+
+##
 ## Device drivers
 ##
 
