@@ -2686,29 +2686,6 @@ This is mandatory when
 .Va pppoed_enable
 is set to
 .Dq Li YES .
-.It Va timed_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr timed 8
-service at boot time.
-This command is intended for networks of
-machines where a consistent
-.Dq "network time"
-for all hosts must be established.
-This is often useful in large NFS
-environments where time stamps on files are expected to be consistent
-network-wide.
-.It Va timed_flags
-.Pq Vt str
-If
-.Va timed_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to the
-.Xr timed 8
-service.
 .It Va ntpdate_enable
 .Pq Vt bool
 If set to
@@ -4829,7 +4806,6 @@ The default is 10.
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr sysrc 8 ,
-.Xr timed 8 ,
 .Xr unbound 8 ,
 .Xr usbconfig 8 ,
 .Xr wlandebug 8 ,
