@@ -858,6 +858,11 @@ fix_obsolete_keys(int *argc, char **argv)
 
 		arg1 = argv[i];
 
+		if (strcmp(arg1, "--") == 0) {
+			/* Following arguments are treated as filenames. */
+			break;
+		}
+
 		if (strlen(arg1) > 1 && arg1[0] == '+') {
 			int c1, f1;
 			char sopts1[128];
