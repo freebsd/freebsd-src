@@ -25,6 +25,13 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+# The -S flag in NetBSD sort enables non-stable sorting order. This flag
+# doesn't exist in FreeBSD sort, and instead indicates buffer size, so all
+# instances of this flag should be removed.
+#
+# For tests that expect exact output, but where some lines may compare
+# the same, the flag -s should be added to enforce an expected sorting order.
+
 atf_test_case basic
 basic_head()
 {
@@ -57,9 +64,9 @@ empty_file_head()
 empty_file_body()
 {
 	touch empty
-	atf_check -o empty sort -S empty
-	atf_check sort -S -c empty
-	atf_check sort -S -c -u empty
+	atf_check -o empty sort empty
+	atf_check sort -c empty
+	atf_check sort -c -u empty
 }
 
 atf_test_case end_of_options
@@ -70,8 +77,8 @@ end_of_options_head()
 end_of_options_body()
 {
 	echo x >-k
-	atf_check -o file:-k -x "sort -S -- -k </dev/null"
-	atf_check -s not-exit:1 -e ignore -x "sort -S - -c </dev/null"
+	atf_check -o file:-k -x "sort -- -k </dev/null"
+	atf_check -s not-exit:1 -e ignore -x "sort - -c </dev/null"
 }
 
 atf_test_case missing_newline
@@ -93,7 +100,7 @@ null_bytes_head()
 null_bytes_body()
 {
 	printf '\0b\n\0a\n' >in
-	atf_check -o inline:'\0a\n\0b\n' sort -S in
+	atf_check -o inline:'\0a\n\0b\n' sort in
 }
 
 atf_test_case long_records
@@ -126,7 +133,7 @@ long_file_head()
 long_file_body()
 {
 	awk 'BEGIN { for(i=0; i<20000; i++) print rand() }' >in
-	sort -S -r in | awk '$0 "x" != x { print ; x = $0 "x" }' >out
+	sort -r in | awk '$0 "x" != x { print ; x = $0 "x" }' >out
 	atf_check -o file:out sort -u -r in
 }
 
@@ -155,6 +162,7 @@ bflag_head()
 }
 bflag_body()
 {
+	atf_expect_fail "Behavior differs from NetBSD"
 	cat >in <<EOF
   b
  a
@@ -177,7 +185,7 @@ b
 a
 EOF
 
-	atf_check -s exit:1 -e ignore sort -S -c in
+	atf_check -s exit:1 -e ignore sort -c in
 }
 
 atf_test_case kflag_one_field
@@ -224,7 +232,7 @@ x a n g
 z b m f
 y c o e
 EOF
-	atf_check -o file:expout sort -k2.1,2.0 in
+	atf_check -o file:expout sort -s -k2.1,2.0 in
 }
 
 atf_test_case kflag_many_fields
@@ -319,7 +327,9 @@ a	2
 a	1
 EOF
 
-	atf_check -o file:out sort -r -k1,1 -k2n in
+	# On FreeBSD, key options override global options,
+	# so r is required as an option for the second key.
+	atf_check -o file:out sort -r -k1,1 -k2nr in
 }
 
 atf_test_case kflag_alpha
@@ -356,25 +366,25 @@ kflag_alpha_body()
 24:17:05:07:05:11:05:20    ba
 EOF
 
-	atf_check -x "sort -S -k2b -k2 in >xx"
+	atf_check -x "sort -k2b -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k2n xx
 
-	atf_check -x "sort -S -k2,2.1b -k2 in >xx"
+	atf_check -x "sort -k2,2.1b -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k3n xx
 
-	atf_check -x "sort -S -k2.3 -k2 in >xx"
+	atf_check -x "sort -k2.3 -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k4n xx
 
-	atf_check -x "sort -S -k2b,2.3 -k2 in >xx"
+	atf_check -x "sort -k2b,2.3 -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k5n xx
 
-	atf_check -x "sort -S -k2.3,2.1b -k2 in >xx"
+	atf_check -x "sort -k2.3,2.1b -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k6n xx
 
-	atf_check -x "sort -S -k2,2.1b -k2r in >xx"
+	atf_check -x "sort -k2,2.1b -k2r in >xx"
 	atf_check -e ignore sort -c -t: -k7n xx
 
-	atf_check -x "sort -S -b -k2,2 -k2 in >xx"
+	atf_check -x "sort -b -k2,2 -k2 in >xx"
 	atf_check -e ignore sort -c -t: -k8n xx
 
 	# XXX This test is broken.  The standard is not clear on the behavior.
@@ -442,7 +452,7 @@ c
 ca
 EOF
 
-	atf_check -o file:out sort -S -m in1 in2
+	atf_check -o file:out sort -m in1 in2
 }
 
 atf_test_case mflag_uflag
@@ -585,7 +595,7 @@ oflag_displaced_head()
 }
 oflag_displaced_body()
 {
-	atf_check sort -S /dev/null -o out
+	atf_check sort /dev/null -o out
 	test -f out || atf_fail "File not created"
 }
 
@@ -757,7 +767,7 @@ EOF
  b c
 EOF
 
-	atf_check -o file:out sort -S -k2 in
+	atf_check -o file:out sort -k2 in
 
 	cat >out <<EOF
 	b c
@@ -765,7 +775,7 @@ EOF
  b c
 EOF
 
-	atf_check -o file:out sort -S -k2b in
+	atf_check -o file:out sort -k2b in
 }
 
 atf_test_case uflag
@@ -859,7 +869,7 @@ z b m f
 y c o e
 EOF
 
-	atf_check -o file:expout sort +1 -2 in
+	atf_check -o file:expout sort -s +1 -2 in
 }
 
 atf_test_case plus_zero
@@ -900,6 +910,7 @@ plus_as_path_head()
 }
 plus_as_path_body()
 {
+	atf_expect_fail "Behavior differs from NetBSD"
 	echo 'good contents' >./+0
 	echo 'more contents' >in
 	cat ./+0 in >expout
@@ -926,6 +937,8 @@ plus_rflag_invalid_head()
 }
 plus_rflag_invalid_body()
 {
+	atf_expect_fail "-R flag not available on FreeBSD"
+
 	(
 	    echo 'z b m f'
 	    echo 'y c o e'
