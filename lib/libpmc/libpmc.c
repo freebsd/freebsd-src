@@ -1367,10 +1367,6 @@ pmc_init(void)
 	uint32_t abi_version;
 	struct module_stat pmc_modstat;
 	struct pmc_op_getcpuinfo op_cpu_info;
-#if defined(__amd64__) || defined(__i386__)
-	int cpu_has_iaf_counters;
-	unsigned int t;
-#endif
 
 	if (pmc_syscall != -1) /* already inited */
 		return (0);
@@ -1446,15 +1442,6 @@ pmc_init(void)
 #if defined(__amd64__) || defined(__i386__)
 	if (cpu_info.pm_cputype != PMC_CPU_GENERIC)
 		pmc_class_table[n++] = &tsc_class_table_descr;
-
-	/*
- 	 * Check if this CPU has fixed function counters.
-	 */
-	cpu_has_iaf_counters = 0;
-	for (t = 0; t < cpu_info.pm_nclass; t++)
-		if (cpu_info.pm_classes[t].pm_class == PMC_CLASS_IAF &&
-		    cpu_info.pm_classes[t].pm_num > 0)
-			cpu_has_iaf_counters = 1;
 #endif
 
 #define	PMC_MDEP_INIT(C) do {					\
@@ -1462,15 +1449,6 @@ pmc_init(void)
 		pmc_mdep_class_list  = C##_pmc_classes;		\
 		pmc_mdep_class_list_size =			\
 		    PMC_TABLE_SIZE(C##_pmc_classes);		\
-	} while (0)
-
-#define	PMC_MDEP_INIT_INTEL_V2(C) do {					\
-		PMC_MDEP_INIT(C);					\
-		pmc_class_table[n++] = &iaf_class_table_descr;		\
-		if (!cpu_has_iaf_counters) 				\
-			pmc_mdep_event_aliases =			\
-				C##_aliases_without_iaf;		\
-		pmc_class_table[n] = &C##_class_table_descr;		\
 	} while (0)
 
 	/* Configure the event name parser. */
