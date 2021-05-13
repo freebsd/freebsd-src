@@ -2361,7 +2361,8 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
     struct thread *td)
 {
 
-	if (vp->v_type != VREG || td == NULL)
+	if (vp->v_type != VREG || td == NULL ||
+	    (td->td_pflags2 & TDP2_ACCT) != 0)
 		return (0);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    lim_cur(td, RLIMIT_FSIZE)) {
