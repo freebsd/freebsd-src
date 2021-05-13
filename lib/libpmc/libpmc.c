@@ -989,25 +989,25 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	pmc_config.pm_count = count;
 	if (PMC_IS_SAMPLING_MODE(mode))
 		pmc_config.pm_caps |= PMC_CAP_INTERRUPT;
+
 	/*
-	 * Can we pull this straight from the pmu table?
+	 * Try to pull the raw event ID directly from the pmu-events table. If
+	 * this is unsupported on the platform, or the event is not found,
+	 * continue with searching the regular event tables.
 	 */
 	r = spec_copy = strdup(ctrspec);
 	ctrname = strsep(&r, ",");
 	if (pmc_pmu_enabled()) {
-		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0) {
-			if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0) {
-				goto out;
-			}
-			retval = 0;
-			*pmcid = pmc_config.pm_pmcid;
-			goto out;
-		}
-		errx(EX_USAGE, "ERROR: pmc_pmu_allocate failed, check for ctrname %s\n", ctrname);
-	} else {
-		free(spec_copy);
-		spec_copy = NULL;
+		if (pmc_pmu_pmcallocate(ctrname, &pmc_config) == 0)
+			goto found;
+
+		/* Otherwise, reset any changes */
+		pmc_config.pm_ev = 0;
+		pmc_config.pm_caps = 0;
+		pmc_config.pm_class = 0;
 	}
+	free(spec_copy);
+	spec_copy = NULL;
 
 	/* replace an event alias with the canonical event specifier */
 	if (pmc_mdep_event_aliases)
@@ -1064,14 +1064,12 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 		goto out;
 	}
 
-	if (PMC_CALL(PMCALLOCATE, &pmc_config) < 0)
-		goto out;
-
-	*pmcid = pmc_config.pm_pmcid;
-
-	retval = 0;
-
- out:
+found:
+	if (PMC_CALL(PMCALLOCATE, &pmc_config) == 0) {
+		*pmcid = pmc_config.pm_pmcid;
+		retval = 0;
+	}
+out:
 	if (spec_copy)
 		free(spec_copy);
 
