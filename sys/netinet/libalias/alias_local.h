@@ -89,8 +89,6 @@ struct libalias {
 	/* IP address incoming packets are sent to
 	 * if no aliasing link already exists */
 	struct in_addr	targetAddress;
-	/* Used as a dummy parameter for some function calls */
-	struct in_addr	nullAddress;
 	/* Lookup table of pointers to chains of link records.
 	 * Each link record is doubly indexed into input and
 	 * output lookup tables. */

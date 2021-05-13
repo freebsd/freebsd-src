@@ -224,6 +224,10 @@ static LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
 #define NO_DEST_PORT     1
 #define NO_SRC_PORT      1
 
+/* Dummy address used for FindLinkIn/Out() and AddLink().
+   The value of this variable is never used. */
+static struct in_addr const NO_ADDR;
+
 /* Data Structures
 
     The fundamental data structure used in this program is
@@ -1111,12 +1115,12 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 			lnk = _FindLinkOut(la, src_addr, dst_addr, src_port, 0,
 			    link_type, 0);
 			if (lnk == NULL)
-				lnk = _FindLinkOut(la, src_addr, la->nullAddress, src_port,
+				lnk = _FindLinkOut(la, src_addr, NO_ADDR, src_port,
 				    dst_port, link_type, 0);
 		}
 		if (lnk == NULL &&
 		    (dst_port != 0 || dst_addr.s_addr != INADDR_ANY)) {
-			lnk = _FindLinkOut(la, src_addr, la->nullAddress, src_port, 0,
+			lnk = _FindLinkOut(la, src_addr, NO_ADDR, src_port, 0,
 			    link_type, 0);
 		}
 		if (lnk != NULL) {
@@ -1152,7 +1156,7 @@ FindLinkOut(struct libalias *la, struct in_addr src_addr,
 		 */
 		if (la->aliasAddress.s_addr != INADDR_ANY &&
 		    src_addr.s_addr == la->aliasAddress.s_addr) {
-			lnk = _FindLinkOut(la, la->nullAddress, dst_addr, src_port, dst_port,
+			lnk = _FindLinkOut(la, NO_ADDR, dst_addr, src_port, dst_port,
 			    link_type, replace_partial_links);
 		}
 	}
@@ -1294,7 +1298,7 @@ FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		 */
 		if (la->aliasAddress.s_addr != INADDR_ANY &&
 		    alias_addr.s_addr == la->aliasAddress.s_addr) {
-			lnk = _FindLinkIn(la, dst_addr, la->nullAddress, dst_port, alias_port,
+			lnk = _FindLinkIn(la, dst_addr, NO_ADDR, dst_port, alias_port,
 			    link_type, replace_partial_links);
 		}
 	}
@@ -1376,7 +1380,7 @@ FindFragmentIn1(struct libalias *la, struct in_addr dst_addr,
 	    LINK_FRAGMENT_ID, 0);
 
 	if (lnk == NULL) {
-		lnk = AddLink(la, la->nullAddress, dst_addr, alias_addr,
+		lnk = AddLink(la, NO_ADDR, dst_addr, alias_addr,
 		    NO_SRC_PORT, NO_DEST_PORT, ip_id,
 		    LINK_FRAGMENT_ID);
 	}
@@ -1399,7 +1403,7 @@ AddFragmentPtrLink(struct libalias *la, struct in_addr dst_addr,
     u_short ip_id)
 {
 	LIBALIAS_LOCK_ASSERT(la);
-	return AddLink(la, la->nullAddress, dst_addr, la->nullAddress,
+	return AddLink(la, NO_ADDR, dst_addr, NO_ADDR,
 	    NO_SRC_PORT, NO_DEST_PORT, ip_id,
 	    LINK_FRAGMENT_PTR);
 }
@@ -1409,7 +1413,7 @@ FindFragmentPtr(struct libalias *la, struct in_addr dst_addr,
     u_short ip_id)
 {
 	LIBALIAS_LOCK_ASSERT(la);
-	return FindLinkIn(la, dst_addr, la->nullAddress,
+	return FindLinkIn(la, dst_addr, NO_ADDR,
 	    NO_DEST_PORT, ip_id,
 	    LINK_FRAGMENT_PTR, 0);
 }
@@ -1669,7 +1673,7 @@ FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	lnk = FindLinkIn(la, la->nullAddress, alias_addr,
+	lnk = FindLinkIn(la, NO_ADDR, alias_addr,
 	    0, 0, LINK_ADDR, 0);
 	if (lnk == NULL) {
 		la->newDefaultLink = 1;
@@ -1701,7 +1705,7 @@ FindAliasAddress(struct libalias *la, struct in_addr original_addr)
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	lnk = FindLinkOut(la, original_addr, la->nullAddress,
+	lnk = FindLinkOut(la, original_addr, NO_ADDR,
 	    0, 0, LINK_ADDR, 0);
 	if (lnk == NULL) {
 		return (la->aliasAddress.s_addr != INADDR_ANY) ?
@@ -2317,7 +2321,7 @@ LibAliasRedirectAddr(struct libalias *la, struct in_addr src_addr,
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK(la);
-	lnk = AddLink(la, src_addr, la->nullAddress, alias_addr,
+	lnk = AddLink(la, src_addr, NO_ADDR, alias_addr,
 	    0, 0, 0,
 	    LINK_ADDR);
 
