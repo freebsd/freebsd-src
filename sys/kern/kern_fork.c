@@ -313,8 +313,13 @@ fork_norfproc(struct thread *td, int flags)
 	    ("fork_norfproc called with RFPROC set"));
 	p1 = td->td_proc;
 
-	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-	    (flags & (RFCFDG | RFFDG))) {
+	/*
+	 * Quiesce other threads if necessary.  If RFMEM is not specified we
+	 * must ensure that other threads do not concurrently create a second
+	 * process sharing the vmspace, see vmspace_unshare().
+	 */
+	if ((p1->p_flag & (P_HADTHREADS | P_SYSTEM)) == P_HADTHREADS &&
+	    ((flags & (RFCFDG | RFFDG)) != 0 || (flags & RFMEM) == 0)) {
 		PROC_LOCK(p1);
 		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
@@ -350,8 +355,8 @@ fork_norfproc(struct thread *td, int flags)
 	}
 
 fail:
-	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
-	    (flags & (RFCFDG | RFFDG))) {
+	if ((p1->p_flag & (P_HADTHREADS | P_SYSTEM)) == P_HADTHREADS &&
+	    ((flags & (RFCFDG | RFFDG)) != 0 || (flags & RFMEM) == 0)) {
 		PROC_LOCK(p1);
 		thread_single_end(p1, SINGLE_BOUNDARY);
 		PROC_UNLOCK(p1);
