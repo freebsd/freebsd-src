@@ -31,21 +31,21 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/fnv_hash.h>
 #include <sys/endian.h>
+#include <sys/fnv_hash.h>
+#include <sys/font.h>
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/font.h>
 
 #include <assert.h>
 #include <err.h>
+#include <lz4.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <lz4.h>
 
 #define VFNT_MAXGLYPHS 131072
 #define VFNT_MAXDIMENSION 128
@@ -300,11 +300,11 @@ check_whitelist(unsigned c)
 
 	if (format == VT_C_SOURCE) {
 		w = s_list;
-		n = sizeof (s_list) / sizeof (s_list[0]);
+		n = sizeof(s_list) / sizeof(s_list[0]);
 	}
 	if (format == VT_C_COMPRESSED) {
 		w = c_list;
-		n = sizeof (c_list) / sizeof (c_list[0]);
+		n = sizeof(c_list) / sizeof(c_list[0]);
 	}
 	if (w == NULL)
 		return (true);
@@ -847,7 +847,7 @@ write_fnt_source(bool lz4, const char *filename)
 			goto done;
 	}
 	if (fprintf(fp, "};\n\n") < 0)
-	goto done;
+		goto done;
 
 	/* Write font maps. */
 	if (!TAILQ_EMPTY(&maps[VFNT_MAP_NORMAL])) {
