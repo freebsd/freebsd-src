@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2019
+.Dd May 13, 2021
 .Dt CC_NEWRENO 4
 .Os
 .Sh NAME
@@ -96,8 +96,10 @@ per: cwnd = (cwnd * beta_ecn) / 100.
 Default is 80.
 .El
 .Sh SEE ALSO
+.Xr cc_cdg 4 ,
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,
+.Xr cc_dctcp 4 ,
 .Xr cc_hd 4 ,
 .Xr cc_htcp 4 ,
 .Xr cc_vegas 4 ,
