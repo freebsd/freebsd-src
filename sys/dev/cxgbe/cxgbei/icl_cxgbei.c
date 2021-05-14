@@ -591,6 +591,9 @@ set_ulp_mode_iscsi(struct adapter *sc, struct toepcb *toep, u_int ulp_submode)
 	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_ULP_TYPE,
 	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE) | V_TCB_ULP_RAW(M_TCB_ULP_RAW), val,
 	    0, 0);
+
+	val = V_TF_RX_FLOW_CONTROL_DISABLE(1ULL);
+	t4_set_tcb_field(sc, toep->ctrlq, toep, W_TCB_T_FLAGS, val, val, 0, 0);
 }
 
 /*
