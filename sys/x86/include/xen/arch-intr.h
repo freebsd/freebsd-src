@@ -30,19 +30,28 @@
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
 #include <x86/intr_machdep.h>
+#include <x86/apicvar.h>
 
 typedef struct {
 	struct intsrc		intsrc;		/* @TOP -> *xen_arch_isrc */
 	u_int			vector;		/* Global isrc vector number */
 } xen_arch_isrc_t;
 
-extern struct pic xen_intr_pic;
-
 #include <dev/xen/bus/intr-internal.h>
 
 /******************************* ARCH wrappers *******************************/
 
 extern void xen_arch_intr_init(void);
+
+extern struct xenisrc *xen_arch_intr_alloc(void);
+extern void     xen_arch_intr_release(struct xenisrc *isrc);
+
+static inline u_int
+xen_arch_intr_next_cpu(struct xenisrc *isrc)
+{
+
+	return (apic_cpuid(intr_next_cpu(0)));
+}
 
 static inline u_long
 xen_arch_intr_execute_handlers(struct xenisrc *isrc, struct trapframe *frame)
