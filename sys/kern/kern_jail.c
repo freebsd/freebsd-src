@@ -257,7 +257,7 @@ prison0_init(void)
 			 * non-printable characters to be safe.
 			 */
 			while (size > 0 && data[size - 1] <= 0x20) {
-				data[size--] = '\0';
+				size--;
 			}
 			if (validate_uuid(data, size, NULL, 0) == 0) {
 				(void)strlcpy(prison0.pr_hostuuid, data,
