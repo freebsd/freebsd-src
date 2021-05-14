@@ -1426,7 +1426,7 @@ static int vnlruproc_sig;
 #define VNLRU_FREEVNODES_SLOP 128
 
 static __inline void
-vn_freevnodes_inc(void)
+vfs_freevnodes_inc(void)
 {
 	struct vdbatch *vd;
 
@@ -1437,7 +1437,7 @@ vn_freevnodes_inc(void)
 }
 
 static __inline void
-vn_freevnodes_dec(void)
+vfs_freevnodes_dec(void)
 {
 	struct vdbatch *vd;
 
@@ -3369,7 +3369,7 @@ vhold(struct vnode *vp)
 	VNASSERT(old >= 0 && (old & VHOLD_ALL_FLAGS) == 0, vp,
 	    ("%s: wrong hold count %d", __func__, old));
 	if (old == 0)
-		vn_freevnodes_dec();
+		vfs_freevnodes_dec();
 }
 
 void
@@ -3422,7 +3422,7 @@ vhold_smr(struct vnode *vp)
 		VNASSERT(count >= 0, vp, ("invalid hold count %d\n", count));
 		if (atomic_fcmpset_int(&vp->v_holdcnt, &count, count + 1)) {
 			if (count == 0)
-				vn_freevnodes_dec();
+				vfs_freevnodes_dec();
 			return (true);
 		}
 	}
@@ -3463,7 +3463,7 @@ vhold_recycle_free(struct vnode *vp)
 			return (false);
 		}
 		if (atomic_fcmpset_int(&vp->v_holdcnt, &count, count + 1)) {
-			vn_freevnodes_dec();
+			vfs_freevnodes_dec();
 			return (true);
 		}
 	}
@@ -3624,7 +3624,7 @@ vdropl_final(struct vnode *vp)
 	 * we never got this far, they will vdrop later.
 	 */
 	if (__predict_false(!atomic_cmpset_int(&vp->v_holdcnt, 0, VHOLD_NO_SMR))) {
-		vn_freevnodes_inc();
+		vfs_freevnodes_inc();
 		VI_UNLOCK(vp);
 		/*
 		 * We lost the aforementioned race. Any subsequent access is
@@ -3661,7 +3661,7 @@ vdropl(struct vnode *vp)
 		return;
 	}
 	if (!VN_IS_DOOMED(vp)) {
-		vn_freevnodes_inc();
+		vfs_freevnodes_inc();
 		vdrop_deactivate(vp);
 		/*
 		 * Also unlocks the interlock. We can't assert on it as we
