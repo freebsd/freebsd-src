@@ -79,9 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
-#ifdef KTRACE
 #include <sys/ktrace.h>
-#endif
 
 #include <net/vnet.h>
 
@@ -4384,9 +4382,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/* ktrace vnode */
-	tracevp = p->p_tracevp;
-	if (tracevp != NULL)
-		vrefact(tracevp);
+	tracevp = ktr_get_tracevp(p, true);
 	/* text vnode */
 	textvp = p->p_textvp;
 	if (textvp != NULL)

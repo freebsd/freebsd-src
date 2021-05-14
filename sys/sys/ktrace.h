@@ -265,6 +265,10 @@ struct ktr_struct_array {
 #define	KTRFAC_DROP	0x20000000	/* last event was dropped */
 
 #ifdef	_KERNEL
+struct ktr_io_params;
+
+struct vnode *ktr_get_tracevp(struct proc *, bool);
+void	ktr_io_params_free(struct ktr_io_params *);
 void	ktrnamei(char *);
 void	ktrcsw(int, int, const char *);
 void	ktrpsig(int, sig_t, sigset_t *, int);
@@ -275,7 +279,7 @@ void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
 void	ktrprocctor(struct proc *);
-void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
+struct ktr_io_params *ktrprocexec(struct proc *);
 void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
