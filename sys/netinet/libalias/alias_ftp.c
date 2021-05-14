@@ -109,7 +109,6 @@ AliasHandleFtpIn(struct libalias *, struct ip *, struct alias_link *);
 static int
 fingerprint_out(struct libalias *la, struct alias_data *ah)
 {
-
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
 	    ah->maxpktsize == 0)
 		return (-1);
@@ -122,7 +121,6 @@ fingerprint_out(struct libalias *la, struct alias_data *ah)
 static int
 fingerprint_in(struct libalias *la, struct alias_data *ah)
 {
-
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL)
 		return (-1);
 	if (ntohs(*ah->dport) == FTP_CONTROL_PORT_NUMBER ||
@@ -134,7 +132,6 @@ fingerprint_in(struct libalias *la, struct alias_data *ah)
 static int
 protohandler_out(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-
 	AliasHandleFtpOut(la, pip, ah->lnk, ah->maxpktsize);
 	return (0);
 }
@@ -142,7 +139,6 @@ protohandler_out(struct libalias *la, struct ip *pip, struct alias_data *ah)
 static int
 protohandler_in(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-
 	AliasHandleFtpIn(la, pip, ah->lnk);
 	return (0);
 }
@@ -170,7 +166,7 @@ mod_handler(module_t mod, int type, void *data)
 {
 	int error;
 
-	switch (type) {	  
+	switch (type) {
 	case MOD_LOAD:
 		error = 0;
 		LibAliasAttachHandlers(handlers);
@@ -192,7 +188,7 @@ moduledata_t alias_mod = {
        "alias_ftp", mod_handler, NULL
 };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_ftp, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_ftp, 1);
 MODULE_DEPEND(alias_ftp, libalias, 1, 1, 1);
@@ -224,43 +220,39 @@ AliasHandleFtpOut(
     struct ip *pip,		/* IP packet to examine/patch */
     struct alias_link *lnk,	/* The link to go through (aliased port) */
     int maxpacketsize		/* The maximum size this packet can grow to
-	(including headers) */ )
+				   (including headers) */ )
 {
 	int hlen, tlen, dlen, pflags;
 	char *sptr;
 	struct tcphdr *tc;
 	int ftp_message_type;
 
-/* Calculate data length of TCP packet */
+	/* Calculate data length of TCP packet */
 	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
 
-/* Place string pointer and beginning of data */
+	/* Place string pointer and beginning of data */
 	sptr = (char *)pip;
 	sptr += hlen;
 
-/*
- * Check that data length is not too long and previous message was
- * properly terminated with CRLF.
- */
+	/*
+	 * Check that data length is not too long and previous message was
+	 * properly terminated with CRLF.
+	 */
 	pflags = GetProtocolFlags(lnk);
 	if (dlen <= MAX_MESSAGE_SIZE && !(pflags & WAIT_CRLF)) {
 		ftp_message_type = FTP_UNKNOWN_MESSAGE;
 
 		if (ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER) {
-/*
- * When aliasing a client, check for the PORT/EPRT command.
- */
+			/* When aliasing a client, check for the PORT/EPRT command. */
 			if (ParseFtpPortCommand(la, sptr, dlen))
 				ftp_message_type = FTP_PORT_COMMAND;
 			else if (ParseFtpEprtCommand(la, sptr, dlen))
 				ftp_message_type = FTP_EPRT_COMMAND;
 		} else {
-/*
- * When aliasing a server, check for the 227/229 reply.
- */
+			/* When aliasing a server, check for the 227/229 reply. */
 			if (ParseFtp227Reply(la, sptr, dlen))
 				ftp_message_type = FTP_227_REPLY;
 			else if (ParseFtp229Reply(la, sptr, dlen)) {
@@ -272,12 +264,11 @@ AliasHandleFtpOut(
 		if (ftp_message_type != FTP_UNKNOWN_MESSAGE)
 			NewFtpMessage(la, pip, lnk, maxpacketsize, ftp_message_type);
 	}
-/* Track the msgs which are CRLF term'd for PORT/PASV FW breach */
 
-	if (dlen) {		/* only if there's data */
+	/* Track the msgs which are CRLF term'd for PORT/PASV FW breach */
+	if (dlen) {			/* only if there's data */
 		sptr = (char *)pip;	/* start over at beginning */
-		tlen = ntohs(pip->ip_len);	/* recalc tlen, pkt may
-						 * have grown */
+		tlen = ntohs(pip->ip_len); /* recalc tlen, pkt may have grown */
 		if (sptr[tlen - 2] == '\r' && sptr[tlen - 1] == '\n')
 			pflags &= ~WAIT_CRLF;
 		else
@@ -313,7 +304,7 @@ AliasHandleFtpIn(struct libalias *la,
 	if (dlen <= MAX_MESSAGE_SIZE && (pflags & WAIT_CRLF) == 0 &&
 	    ntohs(tc->th_dport) == FTP_CONTROL_PORT_NUMBER &&
 	    (ParseFtpPortCommand(la, sptr, dlen) != 0 ||
-	     ParseFtpEprtCommand(la, sptr, dlen) != 0)) {
+	        ParseFtpEprtCommand(la, sptr, dlen) != 0)) {
 		/*
 		 * Alias active mode client requesting data from server
 		 * behind NAT.  We need to alias server->client connection
@@ -327,8 +318,7 @@ AliasHandleFtpIn(struct libalias *la,
 	if (dlen) {
 		sptr = (char *)pip;		/* start over at beginning */
 		tlen = ntohs(pip->ip_len);	/* recalc tlen, pkt may
-						 * have grown.
-						 */
+						 * have grown. */
 		if (sptr[tlen - 2] == '\r' && sptr[tlen - 1] == '\n')
 			pflags &= ~WAIT_CRLF;
 		else
@@ -650,7 +640,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 {
 	struct alias_link *ftp_lnk;
 
-/* Security checks. */
+	/* Security checks. */
 	if (pip->ip_src.s_addr != la->true_addr.s_addr)
 		return;
 
@@ -671,13 +661,13 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		PunchFWHole(ftp_lnk);
 #endif
 
-/* Calculate data length of TCP packet */
+		/* Calculate data length of TCP packet */
 		tc = (struct tcphdr *)ip_next(pip);
 		hlen = (pip->ip_hl + tc->th_off) << 2;
 		tlen = ntohs(pip->ip_len);
 		dlen = tlen - hlen;
 
-/* Create new FTP message. */
+		/* Create new FTP message. */
 		{
 			char stemp[MAX_MESSAGE_SIZE + 1];
 			char *sptr;
@@ -686,9 +676,9 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 			int a1, a2, a3, a4, p1, p2;
 			struct in_addr alias_address;
 
-/* Decompose alias address into quad format */
+			/* Decompose alias address into quad format */
 			alias_address = GetAliasAddress(lnk);
-			ptr = (u_char *) & alias_address.s_addr;
+			ptr = (u_char *)&alias_address.s_addr;
 			a1 = *ptr++;
 			a2 = *ptr++;
 			a3 = *ptr++;
@@ -696,7 +686,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 
 			alias_port = GetAliasPort(ftp_lnk);
 
-/* Prepare new command */
+			/* Prepare new command */
 			switch (ftp_message_type) {
 			case FTP_PORT_COMMAND:
 			case FTP_227_REPLY:
@@ -728,27 +718,27 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 				break;
 			}
 
-/* Save string length for IP header modification */
+			/* Save string length for IP header modification */
 			slen = strlen(stemp);
 
-/* Copy modified buffer into IP packet. */
+			/* Copy modified buffer into IP packet. */
 			sptr = (char *)pip;
 			sptr += hlen;
 			strncpy(sptr, stemp, maxpacketsize - hlen);
 		}
 
-/* Save information regarding modified seq and ack numbers */
+		/* Save information regarding modified seq and ack numbers */
 		{
 			int delta;
 
 			SetAckModified(lnk);
-			tc = (struct tcphdr *)ip_next(pip);				
+			tc = (struct tcphdr *)ip_next(pip);
 			delta = GetDeltaSeqOut(tc->th_seq, lnk);
-			AddSeq(lnk, delta + slen - dlen, pip->ip_hl, 
+			AddSeq(lnk, delta + slen - dlen, pip->ip_hl,
 			    pip->ip_len, tc->th_seq, tc->th_off);
 		}
 
-/* Revise IP header */
+		/* Revise IP header */
 		{
 			u_short new_len;
 
@@ -761,7 +751,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 			pip->ip_len = new_len;
 		}
 
-/* Compute TCP checksum for revised packet */
+		/* Compute TCP checksum for revised packet */
 		tc->th_sum = 0;
 #ifdef _KERNEL
 		tc->th_x2 = 1;

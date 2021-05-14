@@ -131,14 +131,13 @@ __FBSDID("$FreeBSD$");
 #define TFTP_PORT_NUMBER 69
 
 static void
-AliasHandleRtspOut(struct libalias *, struct ip *, struct alias_link *,	
-		  int maxpacketsize);
+AliasHandleRtspOut(struct libalias *, struct ip *, struct alias_link *,
+    int maxpacketsize);
 static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
-
 	if (ah->dport != NULL && ah->aport != NULL && ah->sport != NULL &&
-            ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+	    ntohs(*ah->dport) == TFTP_PORT_NUMBER)
 		return (0);
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
 	    ah->maxpktsize == 0)
@@ -154,11 +153,10 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-
 	if (ntohs(*ah->dport) == TFTP_PORT_NUMBER)
 		FindRtspOut(la, pip->ip_src, pip->ip_dst,
- 			    *ah->sport, *ah->aport, IPPROTO_UDP);
-	else AliasHandleRtspOut(la, pip, ah->lnk, ah->maxpktsize);	
+		    *ah->sport, *ah->aport, IPPROTO_UDP);
+	else AliasHandleRtspOut(la, pip, ah->lnk, ah->maxpktsize);
 	return (0);
 }
 
@@ -200,15 +198,15 @@ moduledata_t alias_mod = {
        "alias_smedia", mod_handler, NULL
 };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_smedia, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_smedia, 1);
 MODULE_DEPEND(alias_smedia, libalias, 1, 1, 1);
 #endif
 
-#define RTSP_CONTROL_PORT_NUMBER_1 554
-#define RTSP_CONTROL_PORT_NUMBER_2 7070
-#define RTSP_PORT_GROUP            2
+#define RTSP_CONTROL_PORT_NUMBER_1    554
+#define RTSP_CONTROL_PORT_NUMBER_2   7070
+#define RTSP_PORT_GROUP			2
 
 #define ISDIGIT(a) (((a) >= '0') && ((a) <= '9'))
 
@@ -222,12 +220,10 @@ search_string(char *data, int dlen, const char *search_str)
 	for (i = 0; i < dlen - search_str_len; i++) {
 		for (j = i, k = 0; j < dlen - search_str_len; j++, k++) {
 			if (data[j] != search_str[k] &&
-			    data[j] != search_str[k] - ('a' - 'A')) {
+			    data[j] != search_str[k] - ('a' - 'A'))
 				break;
-			}
-			if (k == search_str_len - 1) {
+			if (k == search_str_len - 1)
 				return (j + 1);
-			}
 		}
 	}
 	return (-1);
@@ -259,9 +255,9 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 
 	/* Find keyword, "Transport: " */
 	pos = search_string(data, dlen, transport_str);
-	if (pos < 0) {
+	if (pos < 0)
 		return (-1);
-	}
+
 	port_data = data + pos;
 	port_dlen = dlen - pos;
 
@@ -271,9 +267,9 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	while (port_dlen > (int)strlen(port_str)) {
 		/* Find keyword, appropriate port string */
 		pos = search_string(port_data, port_dlen, port_str);
-		if (pos < 0) {
+		if (pos < 0)
 			break;
-		}
+
 		memcpy(port_newdata, port_data, pos + 1);
 		port_newdata += (pos + 1);
 
@@ -283,28 +279,22 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 		for (i = pos; i < port_dlen; i++) {
 			switch (state) {
 			case 0:
-				if (port_data[i] == '=') {
+				if (port_data[i] == '=')
 					state++;
-				}
 				break;
 			case 1:
-				if (ISDIGIT(port_data[i])) {
+				if (ISDIGIT(port_data[i]))
 					p[0] = p[0] * 10 + port_data[i] - '0';
-				} else {
-					if (port_data[i] == ';') {
-						state = 3;
-					}
-					if (port_data[i] == '-') {
-						state++;
-					}
-				}
+				else if (port_data[i] == ';')
+					state = 3;
+				else if (port_data[i] == '-')
+					state++;
 				break;
 			case 2:
-				if (ISDIGIT(port_data[i])) {
+				if (ISDIGIT(port_data[i]))
 					p[1] = p[1] * 10 + port_data[i] - '0';
-				} else {
+				else
 					state++;
-				}
 				break;
 			case 3:
 				base_port = p[0];
@@ -409,10 +399,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	    tc->th_seq, tc->th_off);
 
 	new_len = htons(hlen + new_dlen);
-	DifferentialChecksum(&pip->ip_sum,
-	    &new_len,
-	    &pip->ip_len,
-	    1);
+	DifferentialChecksum(&pip->ip_sum, &new_len, &pip->ip_len, 1);
 	pip->ip_len = new_len;
 
 	tc->th_sum = 0;
@@ -445,10 +432,9 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 		work += 2;
 		memcpy(&msg_len, work, 2);
 		work += 2;
-		if (ntohs(msg_id) == 0) {
-			/* end of options */
+		if (ntohs(msg_id) == 0) /* end of options */
 			return (0);
-		}
+
 		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 			memcpy(&port, work, 2);
 			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
@@ -501,17 +487,15 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 	/* When aliasing a client, check for the SETUP request */
 	if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
 	    (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
-		if (dlen >= (int)strlen(setup)) {
-			if (memcmp(data, setup, strlen(setup)) == 0) {
-				alias_rtsp_out(la, pip, lnk, data, client_port_str);
-				return;
-			}
+		if (dlen >= (int)strlen(setup) &&
+		    memcmp(data, setup, strlen(setup)) == 0) {
+			alias_rtsp_out(la, pip, lnk, data, client_port_str);
+			return;
 		}
-		if (dlen >= (int)strlen(pna)) {
-			if (memcmp(data, pna, strlen(pna)) == 0) {
-				alias_pna_out(la, pip, lnk, data, dlen);
-			}
-		}
+
+		if (dlen >= (int)strlen(pna) &&
+		    memcmp(data, pna, strlen(pna)) == 0)
+			alias_pna_out(la, pip, lnk, data, dlen);
 	} else {
 		/*
 		 * When aliasing a server, check for the 200 reply
@@ -521,21 +505,20 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 		if (dlen >= (int)strlen(str200)) {
 			for (parseOk = 0, i = 0;
 			    i <= dlen - (int)strlen(str200);
-			    i++) {
+			    i++)
 				if (memcmp(&data[i], str200, strlen(str200)) == 0) {
 					parseOk = 1;
 					break;
 				}
-			}
+
 			if (parseOk) {
 				i += strlen(str200);	/* skip string found */
 				while (data[i] == ' ')	/* skip blank(s) */
 					i++;
 
-				if ((dlen - i) >= (int)strlen(okstr)) {
+				if ((dlen - i) >= (int)strlen(okstr))
 					if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
 						alias_rtsp_out(la, pip, lnk, data, server_port_str);
-				}
 			}
 		}
 	}

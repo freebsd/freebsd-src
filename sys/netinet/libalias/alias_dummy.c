@@ -64,22 +64,20 @@ AliasHandleDummy(struct libalias *la, struct ip *ip, struct alias_data *ah);
 static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
-
 	/*
 	 * Check here all the data that will be used later, if any field
 	 * is empy/NULL, return a -1 value.
 	 */
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL ||
-		ah->maxpktsize == 0)
+	    ah->maxpktsize == 0)
 		return (-1);
 	/*
 	 * Fingerprint the incoming packet, if it matches any conditions
 	 * return an OK value.
 	 */
-	if (ntohs(*ah->dport) == 123
-	    || ntohs(*ah->sport) == 456)
-		return (0); /* I know how to handle it. */
-	return (-1); /* I don't recognize this packet. */
+	if (ntohs(*ah->dport) == 123 || ntohs(*ah->sport) == 456)
+		return (0);	/* I know how to handle it. */
+	return (-1);		/* I don't recognize this packet. */
 }
 
 /*
@@ -90,7 +88,6 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-
 	AliasHandleDummy(la, pip, ah);
 	return (0);
 }
@@ -119,7 +116,7 @@ mod_handler(module_t mod, int type, void *data)
 {
 	int error;
 
-	switch (type) {	
+	switch (type) {
 	case MOD_LOAD:
 		error = 0;
 		LibAliasAttachHandlers(handlers);
@@ -141,7 +138,7 @@ moduledata_t alias_mod = {
        "alias_dummy", mod_handler, NULL
 };
 
-#ifdef	_KERNEL
+#ifdef _KERNEL
 DECLARE_MODULE(alias_dummy, alias_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
 MODULE_VERSION(alias_dummy, 1);
 MODULE_DEPEND(alias_dummy, libalias, 1, 1, 1);
