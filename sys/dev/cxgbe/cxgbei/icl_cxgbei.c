@@ -324,35 +324,70 @@ int
 icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
     const void *addr, size_t len, int flags)
 {
-	struct mbuf *m;
 #ifdef INVARIANTS
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 #endif
+	struct mbuf *m, *m_tail;
+	const char *src;
 
 	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
 	MPASS(ic == ip->ip_conn);
 	KASSERT(len > 0, ("%s: len is %jd", __func__, (intmax_t)len));
 
-	m = ip->ip_data_mbuf;
-	if (m == NULL) {
+	m_tail = ip->ip_data_mbuf;
+	if (m_tail != NULL)
+		for (; m_tail->m_next != NULL; m_tail = m_tail->m_next)
+			;
+
+	src = (const char *)addr;
+
+	/* Allocate as jumbo mbufs of size MJUM16BYTES. */
+	while (len >= MJUM16BYTES) {
 		m = m_getjcl(M_NOWAIT, MT_DATA, 0, MJUM16BYTES);
+		if (__predict_false(m == NULL)) {
+			if ((flags & M_WAITOK) != 0) {
+				/* Fall back to non-jumbo mbufs. */
+				break;
+			}
+			return (ENOMEM);
+		}
+		memcpy(mtod(m, void *), src, MJUM16BYTES);
+		m->m_len = MJUM16BYTES;
+		if (ip->ip_data_mbuf == NULL) {
+			ip->ip_data_mbuf = m_tail = m;
+			ip->ip_data_len = MJUM16BYTES;
+		} else {
+			m_tail->m_next = m;
+			m_tail = m_tail->m_next;
+			ip->ip_data_len += MJUM16BYTES;
+		}
+		src += MJUM16BYTES;
+		len -= MJUM16BYTES;
+	}
+
+	/* Allocate mbuf chain for the remaining data. */
+	if (len != 0) {
+		m = m_getm2(NULL, len, flags, MT_DATA, 0);
 		if (__predict_false(m == NULL))
 			return (ENOMEM);
-
-		ip->ip_data_mbuf = m;
-	}
-
-	if (__predict_true(m_append(m, len, addr) != 0)) {
-		ip->ip_data_len += len;
-		MPASS(ip->ip_data_len <= ic->ic_max_data_segment_length);
-		return (0);
-	} else {
-		if (flags & M_WAITOK) {
-			CXGBE_UNIMPLEMENTED("fail safe append");
+		if (ip->ip_data_mbuf == NULL) {
+			ip->ip_data_mbuf = m;
+			ip->ip_data_len = len;
+		} else {
+			m_tail->m_next = m;
+			ip->ip_data_len += len;
 		}
-		ip->ip_data_len = m_length(m, NULL);
-		return (1);
+		for (; m != NULL; m = m->m_next) {
+			m->m_len = min(len, M_SIZE(m));
+			memcpy(mtod(m, void *), src, m->m_len);
+			src += m->m_len;
+			len -= m->m_len;
+		}
+		MPASS(len == 0);
 	}
+	MPASS(ip->ip_data_len <= ic->ic_max_data_segment_length);
+
+	return (0);
 }
 
 void
