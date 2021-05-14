@@ -406,10 +406,6 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	/* not reachable from xen_intr_port_to_isrc[], unlock */
 	mtx_unlock(&xen_intr_isrc_lock);
 
-	isrc->xi_cpu = 0;
-	isrc->xi_port = INVALID_EVTCHN;
-	isrc->xi_cookie = NULL;
-
 	mtx_lock(&xen_intr_x86_lock);
 	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
 	mtx_unlock(&xen_intr_x86_lock);
@@ -456,8 +452,11 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	isrc = xen_intr_alloc_isrc(type);
 	if (isrc == NULL)
 		return (ENOSPC);
+
+	isrc->xi_cookie = NULL;
 	isrc->xi_port = local_port;
 	isrc->xi_close = false;
+	isrc->xi_cpu = 0;
 	refcount_init(&isrc->xi_refcount, 1);
 	mtx_lock(&xen_intr_isrc_lock);
 	xen_intr_port_to_isrc[isrc->xi_port] = isrc;
