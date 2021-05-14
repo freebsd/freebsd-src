@@ -1162,6 +1162,7 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *arg)
 
 		t4_free_page_pods(prsv);
 		uma_zfree(prsv_zone, prsv);
+		io_to_ppod_reservation(ctsio) = NULL;
 	}
 }
 
