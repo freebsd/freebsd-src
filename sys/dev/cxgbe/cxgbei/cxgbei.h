@@ -96,6 +96,10 @@ struct icl_cxgbei_pdu {
 	uint32_t icp_signature;
 	uint32_t icp_seq;	/* For debug only */
 	u_int icp_flags;
+
+	u_int ref_cnt;
+	icl_pdu_cb cb;
+	int error;
 };
 
 static inline struct icl_cxgbei_pdu *
