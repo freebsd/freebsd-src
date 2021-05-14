@@ -1819,13 +1819,12 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		SOCKBUF_LOCK(sb);
 		sbu = sbused(sb);
 		if (ulp_mode(toep) == ULP_MODE_ISCSI) {
-
 			if (__predict_false(sbu > 0)) {
 				/*
-				 * The data trasmitted before the tid's ULP mode
-				 * changed to ISCSI is still in so_snd.
-				 * Incoming credits should account for so_snd
-				 * first.
+				 * The data transmitted before the
+				 * tid's ULP mode changed to ISCSI is
+				 * still in so_snd.  Incoming credits
+				 * should account for so_snd first.
 				 */
 				sbdrop_locked(sb, min(sbu, plen));
 				plen -= min(sbu, plen);
