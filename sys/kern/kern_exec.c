@@ -374,8 +374,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	struct pargs *oldargs = NULL, *newargs = NULL;
 	struct sigacts *oldsigacts = NULL, *newsigacts = NULL;
 #ifdef KTRACE
-	struct vnode *tracevp = NULL;
-	struct ucred *tracecred = NULL;
+	struct ktr_io_params *kiop;
 #endif
 	struct vnode *oldtextvp = NULL, *newtextvp;
 	int credential_changing;
@@ -391,6 +390,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	static const char fexecv_proc_title[] = "(fexecv)";
 
 	imgp = &image_params;
+	kiop = NULL;
 
 	/*
 	 * Lock the process and set the P_INEXEC flag to indicate that
@@ -780,11 +780,10 @@ interpret:
 		 * we do not regain any tracing during a possible block.
 		 */
 		setsugid(p);
+		kiop = NULL;
 
 #ifdef KTRACE
-		if (p->p_tracecred != NULL &&
-		    priv_check_cred(p->p_tracecred, PRIV_DEBUG_DIFFCRED))
-			ktrprocexec(p, &tracecred, &tracevp);
+		kiop = ktrprocexec(p);
 #endif
 		/*
 		 * Close any file descriptors 0..2 that reference procfs,
@@ -939,12 +938,7 @@ exec_fail:
 	 */
 	if (oldtextvp != NULL)
 		vrele(oldtextvp);
-#ifdef KTRACE
-	if (tracevp != NULL)
-		vrele(tracevp);
-	if (tracecred != NULL)
-		crfree(tracecred);
-#endif
+	ktr_io_params_free(kiop);
 	pargs_drop(oldargs);
 	pargs_drop(newargs);
 	if (oldsigacts != NULL)

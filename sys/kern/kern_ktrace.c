@@ -145,20 +145,27 @@ static int print_message = 1;
 static struct mtx ktrace_mtx;
 static struct sx ktrace_sx;
 
+struct ktr_io_params {
+	struct vnode	*vp;
+	struct ucred	*cr;
+	u_int		refs;
+};
+
 static void ktrace_init(void *dummy);
 static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
 static u_int ktrace_resize_pool(u_int oldsize, u_int newsize);
 static struct ktr_request *ktr_getrequest_entered(struct thread *td, int type);
 static struct ktr_request *ktr_getrequest(int type);
 static void ktr_submitrequest(struct thread *td, struct ktr_request *req);
-static void ktr_freeproc(struct proc *p, struct ucred **uc,
-    struct vnode **vp);
+static struct ktr_io_params *ktr_freeproc(struct proc *p);
 static void ktr_freerequest(struct ktr_request *req);
 static void ktr_freerequest_locked(struct ktr_request *req);
 static void ktr_writerequest(struct thread *td, struct ktr_request *req);
 static int ktrcanset(struct thread *,struct proc *);
-static int ktrsetchildren(struct thread *,struct proc *,int,int,struct vnode *);
-static int ktrops(struct thread *,struct proc *,int,int,struct vnode *);
+static int ktrsetchildren(struct thread *, struct proc *, int, int,
+    struct ktr_io_params *);
+static int ktrops(struct thread *, struct proc *, int, int,
+    struct ktr_io_params *);
 static void ktrprocctor_entered(struct thread *, struct proc *);
 
 /*
@@ -421,28 +428,85 @@ ktr_freerequest_locked(struct ktr_request *req)
 	STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 }
 
+static void
+ktr_io_params_ref(struct ktr_io_params *kiop)
+{
+	mtx_assert(&ktrace_mtx, MA_OWNED);
+	kiop->refs++;
+}
+
+static struct ktr_io_params *
+ktr_io_params_rele(struct ktr_io_params *kiop)
+{
+	mtx_assert(&ktrace_mtx, MA_OWNED);
+	if (kiop == NULL)
+		return (NULL);
+	KASSERT(kiop->refs > 0, ("kiop ref == 0 %p", kiop));
+	return (--(kiop->refs) == 0 ? kiop : NULL);
+}
+
+void
+ktr_io_params_free(struct ktr_io_params *kiop)
+{
+	if (kiop == NULL)
+		return;
+
+	MPASS(kiop->refs == 0);
+	vn_close(kiop->vp, FWRITE, kiop->cr, curthread);
+	crfree(kiop->cr);
+	free(kiop, M_KTRACE);
+}
+
+static struct ktr_io_params *
+ktr_io_params_alloc(struct thread *td, struct vnode *vp)
+{
+	struct ktr_io_params *res;
+
+	res = malloc(sizeof(struct ktr_io_params), M_KTRACE, M_WAITOK);
+	res->vp = vp;
+	res->cr = crhold(td->td_ucred);
+	res->refs = 1;
+	return (res);
+}
+
 /*
  * Disable tracing for a process and release all associated resources.
  * The caller is responsible for releasing a reference on the returned
  * vnode and credentials.
  */
-static void
-ktr_freeproc(struct proc *p, struct ucred **uc, struct vnode **vp)
+static struct ktr_io_params *
+ktr_freeproc(struct proc *p)
 {
+	struct ktr_io_params *kiop;
 	struct ktr_request *req;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&ktrace_mtx, MA_OWNED);
-	*uc = p->p_tracecred;
-	p->p_tracecred = NULL;
-	if (vp != NULL)
-		*vp = p->p_tracevp;
-	p->p_tracevp = NULL;
+	kiop = ktr_io_params_rele(p->p_ktrioparms);
+	p->p_ktrioparms = NULL;
 	p->p_traceflag = 0;
 	while ((req = STAILQ_FIRST(&p->p_ktr)) != NULL) {
 		STAILQ_REMOVE_HEAD(&p->p_ktr, ktr_list);
 		ktr_freerequest_locked(req);
 	}
+	return (kiop);
+}
+
+struct vnode *
+ktr_get_tracevp(struct proc *p, bool ref)
+{
+	struct vnode *vp;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (p->p_ktrioparms != NULL) {
+		vp = p->p_ktrioparms->vp;
+		if (ref)
+			vrefact(vp);
+	} else {
+		vp = NULL;
+	}
+	return (vp);
 }
 
 void
@@ -501,14 +565,21 @@ ktrsysret(int code, int error, register_t retval)
  *
  * XXX: We toss any pending asynchronous records.
  */
-void
-ktrprocexec(struct proc *p, struct ucred **uc, struct vnode **vp)
+struct ktr_io_params *
+ktrprocexec(struct proc *p)
 {
+	struct ktr_io_params *kiop;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	kiop = p->p_ktrioparms;
+	if (kiop == NULL || priv_check_cred(kiop->cr, PRIV_DEBUG_DIFFCRED))
+		return (NULL);
+
 	mtx_lock(&ktrace_mtx);
-	ktr_freeproc(p, uc, vp);
+	kiop = ktr_freeproc(p);
 	mtx_unlock(&ktrace_mtx);
+	return (kiop);
 }
 
 /*
@@ -520,8 +591,7 @@ ktrprocexit(struct thread *td)
 {
 	struct ktr_request *req;
 	struct proc *p;
-	struct ucred *cred;
-	struct vnode *vp;
+	struct ktr_io_params *kiop;
 
 	p = td->td_proc;
 	if (p->p_traceflag == 0)
@@ -536,13 +606,10 @@ ktrprocexit(struct thread *td)
 	sx_xunlock(&ktrace_sx);
 	PROC_LOCK(p);
 	mtx_lock(&ktrace_mtx);
-	ktr_freeproc(p, &cred, &vp);
+	kiop = ktr_freeproc(p);
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (vp != NULL)
-		vrele(vp);
-	if (cred != NULL)
-		crfree(cred);
+	ktr_io_params_free(kiop);
 	ktrace_exit(td);
 }
 
@@ -583,7 +650,7 @@ void
 ktrprocfork(struct proc *p1, struct proc *p2)
 {
 
-	MPASS(p2->p_tracevp == NULL);
+	MPASS(p2->p_ktrioparms == NULL);
 	MPASS(p2->p_traceflag == 0);
 
 	if (p1->p_traceflag == 0)
@@ -593,12 +660,8 @@ ktrprocfork(struct proc *p1, struct proc *p2)
 	mtx_lock(&ktrace_mtx);
 	if (p1->p_traceflag & KTRFAC_INHERIT) {
 		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracevp = p1->p_tracevp) != NULL) {
-			VREF(p2->p_tracevp);
-			KASSERT(p1->p_tracecred != NULL,
-			    ("ktrace vnode with no cred"));
-			p2->p_tracecred = crhold(p1->p_tracecred);
-		}
+		if ((p2->p_ktrioparms = p1->p_ktrioparms) != NULL)
+			p1->p_ktrioparms->refs++;
 	}
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p1);
@@ -932,7 +995,7 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 	int nfound, ret = 0;
 	int flags, error = 0;
 	struct nameidata nd;
-	struct ucred *cred;
+	struct ktr_io_params *kiop, *old_kiop;
 
 	/*
 	 * Need something to (un)trace.
@@ -940,6 +1003,7 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 	if (ops != KTROP_CLEARFILE && facs == 0)
 		return (EINVAL);
 
+	kiop = NULL;
 	ktrace_enter(td);
 	if (ops != KTROP_CLEAR) {
 		/*
@@ -960,34 +1024,34 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 			ktrace_exit(td);
 			return (EACCES);
 		}
+		kiop = ktr_io_params_alloc(td, vp);
 	}
 	/*
 	 * Clear all uses of the tracefile.
 	 */
 	if (ops == KTROP_CLEARFILE) {
-		int vrele_count;
-
-		vrele_count = 0;
+restart:
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
+			old_kiop = NULL;
 			PROC_LOCK(p);
-			if (p->p_tracevp == vp) {
+			if (p->p_ktrioparms != NULL &&
+			    p->p_ktrioparms->vp == vp) {
 				if (ktrcanset(td, p)) {
 					mtx_lock(&ktrace_mtx);
-					ktr_freeproc(p, &cred, NULL);
+					old_kiop = ktr_freeproc(p);
 					mtx_unlock(&ktrace_mtx);
-					vrele_count++;
-					crfree(cred);
 				} else
 					error = EPERM;
 			}
 			PROC_UNLOCK(p);
+			if (old_kiop != NULL) {
+				sx_sunlock(&allproc_lock);
+				ktr_io_params_free(old_kiop);
+				goto restart;
+			}
 		}
 		sx_sunlock(&allproc_lock);
-		if (vrele_count > 0) {
-			while (vrele_count-- > 0)
-				vrele(vp);
-		}
 		goto done;
 	}
 	/*
@@ -1019,9 +1083,9 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 			}
 			nfound++;
 			if (descend)
-				ret |= ktrsetchildren(td, p, ops, facs, vp);
+				ret |= ktrsetchildren(td, p, ops, facs, kiop);
 			else
-				ret |= ktrops(td, p, ops, facs, vp);
+				ret |= ktrops(td, p, ops, facs, kiop);
 		}
 		if (nfound == 0) {
 			sx_sunlock(&proctree_lock);
@@ -1044,16 +1108,20 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 			goto done;
 		}
 		if (descend)
-			ret |= ktrsetchildren(td, p, ops, facs, vp);
+			ret |= ktrsetchildren(td, p, ops, facs, kiop);
 		else
-			ret |= ktrops(td, p, ops, facs, vp);
+			ret |= ktrops(td, p, ops, facs, kiop);
 	}
 	sx_sunlock(&proctree_lock);
 	if (!ret)
 		error = EPERM;
 done:
-	if (vp != NULL)
-		(void) vn_close(vp, FWRITE, td->td_ucred, td);
+	if (kiop != NULL) {
+		mtx_lock(&ktrace_mtx);
+		kiop = ktr_io_params_rele(kiop);
+		mtx_unlock(&ktrace_mtx);
+		ktr_io_params_free(kiop);
+	}
 	ktrace_exit(td);
 	return (error);
 #else /* !KTRACE */
@@ -1097,10 +1165,10 @@ sys_utrace(struct thread *td, struct utrace_args *uap)
 
 #ifdef KTRACE
 static int
-ktrops(struct thread *td, struct proc *p, int ops, int facs, struct vnode *vp)
+ktrops(struct thread *td, struct proc *p, int ops, int facs,
+    struct ktr_io_params *new_kiop)
 {
-	struct vnode *tracevp = NULL;
-	struct ucred *tracecred = NULL;
+	struct ktr_io_params *old_kiop;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!ktrcanset(td, p)) {
@@ -1112,19 +1180,18 @@ ktrops(struct thread *td, struct proc *p, int ops, int facs, struct vnode *vp)
 		PROC_UNLOCK(p);
 		return (1);
 	}
+	old_kiop = NULL;
 	mtx_lock(&ktrace_mtx);
 	if (ops == KTROP_SET) {
-		if (p->p_tracevp != vp) {
-			/*
-			 * if trace file already in use, relinquish below
-			 */
-			tracevp = p->p_tracevp;
-			VREF(vp);
-			p->p_tracevp = vp;
+		if (p->p_ktrioparms != NULL &&
+		    p->p_ktrioparms->vp != new_kiop->vp) {
+			/* if trace file already in use, relinquish below */
+			old_kiop = ktr_io_params_rele(p->p_ktrioparms);
+			p->p_ktrioparms = NULL;
 		}
-		if (p->p_tracecred != td->td_ucred) {
-			tracecred = p->p_tracecred;
-			p->p_tracecred = crhold(td->td_ucred);
+		if (p->p_ktrioparms == NULL) {
+			p->p_ktrioparms = new_kiop;
+			ktr_io_params_ref(new_kiop);
 		}
 		p->p_traceflag |= facs;
 		if (priv_check(td, PRIV_KTRACE) == 0)
@@ -1133,23 +1200,20 @@ ktrops(struct thread *td, struct proc *p, int ops, int facs, struct vnode *vp)
 		/* KTROP_CLEAR */
 		if (((p->p_traceflag &= ~facs) & KTRFAC_MASK) == 0)
 			/* no more tracing */
-			ktr_freeproc(p, &tracecred, &tracevp);
+			old_kiop = ktr_freeproc(p);
 	}
 	mtx_unlock(&ktrace_mtx);
 	if ((p->p_traceflag & KTRFAC_MASK) != 0)
 		ktrprocctor_entered(td, p);
 	PROC_UNLOCK(p);
-	if (tracevp != NULL)
-		vrele(tracevp);
-	if (tracecred != NULL)
-		crfree(tracecred);
+	ktr_io_params_free(old_kiop);
 
 	return (1);
 }
 
 static int
 ktrsetchildren(struct thread *td, struct proc *top, int ops, int facs,
-    struct vnode *vp)
+    struct ktr_io_params *new_kiop)
 {
 	struct proc *p;
 	int ret = 0;
@@ -1158,7 +1222,7 @@ ktrsetchildren(struct thread *td, struct proc *top, int ops, int facs,
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sx_assert(&proctree_lock, SX_LOCKED);
 	for (;;) {
-		ret |= ktrops(td, p, ops, facs, vp);
+		ret |= ktrops(td, p, ops, facs, new_kiop);
 		/*
 		 * If this process has children, descend to them next,
 		 * otherwise do any siblings, and if done with this level,
@@ -1183,6 +1247,7 @@ ktrsetchildren(struct thread *td, struct proc *top, int ops, int facs,
 static void
 ktr_writerequest(struct thread *td, struct ktr_request *req)
 {
+	struct ktr_io_params *kiop;
 	struct ktr_header *kth;
 	struct vnode *vp;
 	struct proc *p;
@@ -1193,6 +1258,8 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	int datalen, buflen;
 	int error;
 
+	p = td->td_proc;
+
 	/*
 	 * We hold the vnode and credential for use in I/O in case ktrace is
 	 * disabled on the process as we write out the request.
@@ -1201,20 +1268,22 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 * the vnode has been closed.
 	 */
 	mtx_lock(&ktrace_mtx);
-	vp = td->td_proc->p_tracevp;
-	cred = td->td_proc->p_tracecred;
+
+	kiop = p->p_ktrioparms;
 
 	/*
-	 * If vp is NULL, the vp has been cleared out from under this
-	 * request, so just drop it.  Make sure the credential and vnode are
-	 * in sync: we should have both or neither.
+	 * If kiop is NULL, it has been cleared out from under this
+	 * request, so just drop it.
 	 */
-	if (vp == NULL) {
-		KASSERT(cred == NULL, ("ktr_writerequest: cred != NULL"));
+	if (kiop == NULL) {
 		mtx_unlock(&ktrace_mtx);
 		return;
 	}
-	VREF(vp);
+
+	vp = kiop->vp;
+	cred = kiop->cr;
+
+	vrefact(vp);
 	KASSERT(cred != NULL, ("ktr_writerequest: cred == NULL"));
 	crhold(cred);
 	mtx_unlock(&ktrace_mtx);
@@ -1258,7 +1327,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
 	crfree(cred);
-	if (!error) {
+	if (error == 0) {
 		vrele(vp);
 		return;
 	}
@@ -1268,24 +1337,17 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 * process.  Other processes might still be suitable for
 	 * writes to this vnode.
 	 */
-	p = td->td_proc;
 	log(LOG_NOTICE,
 	    "ktrace write failed, errno %d, tracing stopped for pid %d\n",
 	    error, p->p_pid);
-	cred = NULL;
-	sx_slock(&allproc_lock);
+
 	PROC_LOCK(p);
 	mtx_lock(&ktrace_mtx);
-	if (p->p_tracevp == vp)
-		ktr_freeproc(p, &cred, NULL);
+	if (p->p_ktrioparms != NULL && p->p_ktrioparms->vp == vp)
+		kiop = ktr_freeproc(p);
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (cred != NULL) {
-		crfree(cred);
-		cred = NULL;
-	}
-	sx_sunlock(&allproc_lock);
-	vrele(vp);
+	ktr_io_params_free(kiop);
 	vrele(vp);
 }
 

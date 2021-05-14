@@ -662,8 +662,7 @@ struct proc {
 	int		p_profthreads;	/* (c) Num threads in addupc_task. */
 	volatile int	p_exitthreads;	/* (j) Number of threads exiting */
 	int		p_traceflag;	/* (o) Kernel trace points. */
-	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
-	struct ucred	*p_tracecred;	/* (o) Credentials to trace with. */
+	struct ktr_io_params	*p_ktrioparms;	/* (c + o) Params for ktrace. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	u_int		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
