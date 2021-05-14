@@ -1107,6 +1107,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	off_t orig_offset;
 	int error, ioflag, lock_flags;
 	int advice;
+	bool need_finished_write;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -1121,9 +1122,11 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	if ((fp->f_flag & O_FSYNC) ||
-	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
-		ioflag |= IO_SYNC;
+	if (fp->f_flag & O_FSYNC) {
+		mp = atomic_load_ptr(&vp->v_mount);
+		if (mp != NULL && mp->mnt_flag & MNT_SYNCHRONOUS)
+			ioflag |= IO_SYNC;
+	}
 	/*
 	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
 	 * implementations that don't understand IO_DATASYNC fall back to full
@@ -1132,9 +1135,13 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	if (fp->f_flag & O_DSYNC)
 		ioflag |= IO_SYNC | IO_DATASYNC;
 	mp = NULL;
-	if (vp->v_type != VCHR &&
-	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-		goto unlock;
+	need_finished_write = false;
+	if (vp->v_type != VCHR) {
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0)
+			goto unlock;
+		need_finished_write = true;
+	}
 
 	advice = get_advice(fp, uio);
 
@@ -1165,7 +1172,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 		error = VOP_WRITE(vp, uio, ioflag, fp->f_cred);
 	fp->f_nextoff[UIO_WRITE] = uio->uio_offset;
 	VOP_UNLOCK(vp);
-	if (vp->v_type != VCHR)
+	if (need_finished_write)
 		vn_finished_write(mp);
 	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
 	    orig_offset != uio->uio_offset)
