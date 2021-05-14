@@ -3120,6 +3120,31 @@ vlazy(struct vnode *vp)
 	mtx_unlock(&mp->mnt_listmtx);
 }
 
+static void
+vunlazy(struct vnode *vp)
+{
+	struct mount *mp;
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(!VN_IS_DOOMED(vp), vp);
+
+	mp = vp->v_mount;
+	mtx_lock(&mp->mnt_listmtx);
+	VNPASS(vp->v_mflag & VMP_LAZYLIST, vp);
+	/*
+	 * Don't remove the vnode from the lazy list if another thread
+	 * has increased the hold count. It may have re-enqueued the
+	 * vnode to the lazy list and is now responsible for its
+	 * removal.
+	 */
+	if (vp->v_holdcnt == 0) {
+		vp->v_mflag &= ~VMP_LAZYLIST;
+		TAILQ_REMOVE(&mp->mnt_lazyvnodelist, vp, v_lazylist);
+		mp->mnt_lazyvnodelistsize--;
+	}
+	mtx_unlock(&mp->mnt_listmtx);
+}
+
 /*
  * This routine is only meant to be called from vgonel prior to dooming
  * the vnode.
@@ -3575,42 +3600,6 @@ vdbatch_dequeue(struct vnode *vp)
  * there is at least one resident non-cached page, the vnode cannot
  * leave the active list without the page cleanup done.
  */
-static void
-vdrop_deactivate(struct vnode *vp)
-{
-	struct mount *mp;
-
-	ASSERT_VI_LOCKED(vp, __func__);
-	/*
-	 * Mark a vnode as free: remove it from its active list
-	 * and put it up for recycling on the freelist.
-	 */
-	VNASSERT(!VN_IS_DOOMED(vp), vp,
-	    ("vdrop: returning doomed vnode"));
-	VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
-	    ("vnode with VI_OWEINACT set"));
-	VNASSERT((vp->v_iflag & VI_DEFINACT) == 0, vp,
-	    ("vnode with VI_DEFINACT set"));
-	if (vp->v_mflag & VMP_LAZYLIST) {
-		mp = vp->v_mount;
-		mtx_lock(&mp->mnt_listmtx);
-		VNASSERT(vp->v_mflag & VMP_LAZYLIST, vp, ("lost VMP_LAZYLIST"));
-		/*
-		 * Don't remove the vnode from the lazy list if another thread
-		 * has increased the hold count. It may have re-enqueued the
-		 * vnode to the lazy list and is now responsible for its
-		 * removal.
-		 */
-		if (vp->v_holdcnt == 0) {
-			vp->v_mflag &= ~VMP_LAZYLIST;
-			TAILQ_REMOVE(&mp->mnt_lazyvnodelist, vp, v_lazylist);
-			mp->mnt_lazyvnodelistsize--;
-		}
-		mtx_unlock(&mp->mnt_listmtx);
-	}
-	vdbatch_enqueue(vp);
-}
-
 static void __noinline
 vdropl_final(struct vnode *vp)
 {
@@ -3660,17 +3649,23 @@ vdropl(struct vnode *vp)
 		VI_UNLOCK(vp);
 		return;
 	}
-	if (!VN_IS_DOOMED(vp)) {
-		vfs_freevnodes_inc();
-		vdrop_deactivate(vp);
-		/*
-		 * Also unlocks the interlock. We can't assert on it as we
-		 * released our hold and by now the vnode might have been
-		 * freed.
-		 */
+	VNPASS((vp->v_iflag & VI_OWEINACT) == 0, vp);
+	VNPASS((vp->v_iflag & VI_DEFINACT) == 0, vp);
+	if (VN_IS_DOOMED(vp)) {
+		vdropl_final(vp);
 		return;
 	}
-	vdropl_final(vp);
+
+	vfs_freevnodes_inc();
+	if (vp->v_mflag & VMP_LAZYLIST) {
+		vunlazy(vp);
+	}
+	/*
+	 * Also unlocks the interlock. We can't assert on it as we
+	 * released our hold and by now the vnode might have been
+	 * freed.
+	 */
+	vdbatch_enqueue(vp);
 }
 
 /*
