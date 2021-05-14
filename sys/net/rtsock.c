@@ -976,6 +976,7 @@ update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	if ((error = update_rtm_from_info(info, prtm, alloc_len)) != 0)
 		return (error);
 
+	rtm = *prtm;
 	rtm->rtm_flags = rc->rc_rt->rte_flags | nhop_get_rtflags(nh);
 	if (rtm->rtm_flags & RTF_GWFLAG_COMPAT)
 		rtm->rtm_flags = RTF_GATEWAY | 
