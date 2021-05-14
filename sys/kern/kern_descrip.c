@@ -4405,17 +4405,20 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 		/* working directory */
 		if (pwd->pwd_cdir != NULL) {
 			vrefact(pwd->pwd_cdir);
-			export_vnode_to_sb(pwd->pwd_cdir, KF_FD_TYPE_CWD, FREAD, efbuf);
+			export_vnode_to_sb(pwd->pwd_cdir, KF_FD_TYPE_CWD,
+			    FREAD, efbuf);
 		}
 		/* root directory */
 		if (pwd->pwd_rdir != NULL) {
 			vrefact(pwd->pwd_rdir);
-			export_vnode_to_sb(pwd->pwd_rdir, KF_FD_TYPE_ROOT, FREAD, efbuf);
+			export_vnode_to_sb(pwd->pwd_rdir, KF_FD_TYPE_ROOT,
+			    FREAD, efbuf);
 		}
 		/* jail directory */
 		if (pwd->pwd_jdir != NULL) {
 			vrefact(pwd->pwd_jdir);
-			export_vnode_to_sb(pwd->pwd_jdir, KF_FD_TYPE_JAIL, FREAD, efbuf);
+			export_vnode_to_sb(pwd->pwd_jdir, KF_FD_TYPE_JAIL,
+			    FREAD, efbuf);
 		}
 	}
 	PWDDESC_XUNLOCK(pdp);
