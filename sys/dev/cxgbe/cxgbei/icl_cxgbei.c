@@ -873,6 +873,28 @@ icl_cxgbei_conn_task_done(struct icl_conn *ic, void *arg)
 	}
 }
 
+static inline bool
+ddp_sgl_check(struct ctl_sg_entry *sg, int entries, int xferlen)
+{
+	int total_len = 0;
+
+	MPASS(entries > 0);
+	if (((vm_offset_t)sg[--entries].addr & 3U) != 0)
+		return (false);
+
+	total_len += sg[entries].len;
+
+	while (--entries >= 0) {
+		if (((vm_offset_t)sg[entries].addr & PAGE_MASK) != 0 ||
+		    (sg[entries].len % PAGE_SIZE) != 0)
+			return (false);
+		total_len += sg[entries].len;
+	}
+
+	MPASS(total_len == xferlen);
+	return (true);
+}
+
 /* XXXNP: PDU should be passed in as parameter, like on the initiator. */
 #define io_to_request_pdu(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr)
 #define io_to_ppod_reservation(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr)
@@ -888,6 +910,8 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct ppod_region *pr = &ci->pr;
 	struct ppod_reservation *prsv;
+	struct ctl_sg_entry *sgl, sg_entry;
+	int sg_entries = ctsio->kern_sg_entries;
 	uint32_t ttt;
 	int xferlen, rc = 0, alias;
 
@@ -898,7 +922,6 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 	if (ctsio->ext_data_filled == 0) {
 		int first_burst;
 		struct icl_pdu *ip = io_to_request_pdu(io);
-		vm_offset_t buf;
 #ifdef INVARIANTS
 		struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
 
@@ -931,18 +954,16 @@ no_ddp:
 			return (0);
 		}
 
-		if (ctsio->kern_sg_entries == 0)
-			buf = (vm_offset_t)ctsio->kern_data_ptr;
-		else if (ctsio->kern_sg_entries == 1) {
-			struct ctl_sg_entry *sgl = (void *)ctsio->kern_data_ptr;
+		if (sg_entries == 0) {
+			sgl = &sg_entry;
+			sgl->len = xferlen;
+			sgl->addr = (void *)ctsio->kern_data_ptr;
+			sg_entries = 1;
+		} else
+			sgl = (void *)ctsio->kern_data_ptr;
 
-			MPASS(sgl->len == xferlen);
-			buf = (vm_offset_t)sgl->addr;
-		} else {
-			rc = EAGAIN;	/* XXX implement */
+		if (!ddp_sgl_check(sgl, sg_entries, xferlen))
 			goto no_ddp;
-		}
-
 
 		/*
 		 * Reserve resources for DDP, update the ttt that should be used
@@ -956,14 +977,15 @@ no_ddp:
 			goto no_ddp;
 		}
 
-		rc = t4_alloc_page_pods_for_buf(pr, buf, xferlen, prsv);
+		rc = t4_alloc_page_pods_for_sgl(pr, sgl, sg_entries, prsv);
 		if (rc != 0) {
 			uma_zfree(prsv_zone, prsv);
 			goto no_ddp;
 		}
 
-		rc = t4_write_page_pods_for_buf(sc, toep, prsv, buf, xferlen);
-		if (rc != 0) {
+		rc = t4_write_page_pods_for_sgl(sc, toep, prsv, sgl, sg_entries,
+		    xferlen);
+		if (__predict_false(rc != 0)) {
 			t4_free_page_pods(prsv);
 			uma_zfree(prsv_zone, prsv);
 			goto no_ddp;
