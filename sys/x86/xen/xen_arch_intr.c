@@ -111,6 +111,41 @@ xen_arch_intr_handle_upcall(struct trapframe *trap_frame)
 
 /******************************** EVTCHN PIC *********************************/
 
+static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
+
+/*
+ * Lock for x86-related structures.  Notably modifying
+ * xen_intr_auto_vector_count, and allocating interrupts require this lock be
+ * held.
+ */
+static struct mtx	xen_intr_x86_lock;
+
+static u_int		first_evtchn_irq;
+
+static u_int		xen_intr_auto_vector_count;
+
+/*
+ * list of released isrcs
+ * This is meant to overlay struct xenisrc, with only the xen_arch_isrc_t
+ * portion being preserved, everything else can be wiped.
+ */
+struct avail_list {
+	xen_arch_isrc_t preserve;
+	SLIST_ENTRY(avail_list) free;
+};
+static SLIST_HEAD(free, avail_list) avail_list =
+    SLIST_HEAD_INITIALIZER(avail_list);
+
+void
+xen_intr_alloc_irqs(void)
+{
+
+	if (num_io_irqs > UINT_MAX - NR_EVENT_CHANNELS)
+		panic("IRQ allocation overflow (num_msi_irqs too high?)");
+	first_evtchn_irq = num_io_irqs;
+	num_io_irqs += NR_EVENT_CHANNELS;
+}
+
 static void
 xen_intr_pic_enable_source(struct intsrc *isrc)
 {
@@ -244,7 +279,7 @@ xen_intr_pic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 /**
  * PIC interface for all event channel port types except physical IRQs.
  */
-struct pic xen_intr_pic = {
+static struct pic xen_intr_pic = {
 	.pic_enable_source  = xen_intr_pic_enable_source,
 	.pic_disable_source = xen_intr_pic_disable_source,
 	.pic_eoi_source     = xen_intr_pic_eoi_source,
@@ -265,8 +300,86 @@ xen_arch_intr_init(void)
 {
 	int error;
 
+	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
+
 	error = intr_register_pic(&xen_intr_pic);
 	if (error != 0)
 		panic("%s(): failed registering Xen/x86 PIC, error=%d\n",
 		    __func__, error);
+}
+
+/**
+ * Allocate a Xen interrupt source object.
+ *
+ * \param type  The type of interrupt source to create.
+ *
+ * \return  A pointer to a newly allocated Xen interrupt source
+ *          object or NULL.
+ */
+struct xenisrc *
+xen_arch_intr_alloc(void)
+{
+	static int warned;
+	struct xenisrc *isrc;
+	unsigned int vector;
+	int error;
+
+	mtx_lock(&xen_intr_x86_lock);
+	isrc = (struct xenisrc *)SLIST_FIRST(&avail_list);
+	if (isrc != NULL) {
+		SLIST_REMOVE_HEAD(&avail_list, free);
+		mtx_unlock(&xen_intr_x86_lock);
+
+		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
+		    ("interrupt not owned by Xen code?"));
+
+		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
+		    ("Free evtchn still has handlers"));
+
+		return (isrc);
+	}
+
+	if (xen_intr_auto_vector_count >= NR_EVENT_CHANNELS) {
+		if (!warned) {
+			warned = 1;
+			printf("%s: Xen interrupts exhausted.\n", __func__);
+		}
+		mtx_unlock(&xen_intr_x86_lock);
+		return (NULL);
+	}
+
+	vector = first_evtchn_irq + xen_intr_auto_vector_count;
+	xen_intr_auto_vector_count++;
+
+	KASSERT((intr_lookup_source(vector) == NULL),
+	    ("Trying to use an already allocated vector"));
+
+	mtx_unlock(&xen_intr_x86_lock);
+	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
+	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
+	isrc->xi_arch.vector = vector;
+	error = intr_register_source(&isrc->xi_arch.intsrc);
+	if (error != 0)
+		panic("%s(): failed registering interrupt %u, error=%d\n",
+		    __func__, vector, error);
+
+	return (isrc);
+}
+
+void
+xen_arch_intr_release(struct xenisrc *isrc)
+{
+
+	KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
+	    ("Release called, but xenisrc still in use"));
+
+	_Static_assert(sizeof(struct xenisrc) >= sizeof(struct avail_list),
+	    "unused structure MUST be no larger than in-use structure");
+	_Static_assert(offsetof(struct xenisrc, xi_arch) ==
+	    offsetof(struct avail_list, preserve),
+	    "unused structure does not properly overlay in-use structure");
+
+	mtx_lock(&xen_intr_x86_lock);
+	SLIST_INSERT_HEAD(&avail_list, (struct avail_list *)isrc, free);
+	mtx_unlock(&xen_intr_x86_lock);
 }

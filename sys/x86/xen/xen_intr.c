@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -67,17 +66,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
-
-static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
-
-/*
- * Lock for x86-related structures.  Notably modifying
- * xen_intr_auto_vector_count, and allocating interrupts require this lock be
- * held.
- */
-static struct mtx	xen_intr_x86_lock;
-
-static u_int first_evtchn_irq;
 
 /**
  * Per-cpu event channel processing state.
@@ -128,20 +116,7 @@ DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
  * Acquire/release operations for isrc->xi_refcount require this lock be held.
  */
 static struct mtx	 xen_intr_isrc_lock;
-static u_int		 xen_intr_auto_vector_count;
 static struct xenisrc	*xen_intr_port_to_isrc[NR_EVENT_CHANNELS];
-
-/*
- * list of released isrcs
- * This is meant to overlay struct xenisrc, with only the xen_arch_isrc_t
- * portion being preserved, everything else can be wiped.
- */
-struct avail_list {
-	xen_arch_isrc_t preserve;
-	SLIST_ENTRY(avail_list) free;
-};
-static SLIST_HEAD(free, avail_list) avail_list =
-    SLIST_HEAD_INITIALIZER(avail_list);
 
 /*------------------------- Private Functions --------------------------------*/
 
@@ -221,64 +196,6 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
 }
 
 /**
- * Allocate a Xen interrupt source object.
- *
- * \param type  The type of interrupt source to create.
- *
- * \return  A pointer to a newly allocated Xen interrupt source
- *          object or NULL.
- */
-static struct xenisrc *
-xen_intr_alloc_isrc(void)
-{
-	static int warned;
-	struct xenisrc *isrc;
-	unsigned int vector;
-	int error;
-
-	mtx_lock(&xen_intr_x86_lock);
-	isrc = (struct xenisrc *)SLIST_FIRST(&avail_list);
-	if (isrc != NULL) {
-		SLIST_REMOVE_HEAD(&avail_list, free);
-		mtx_unlock(&xen_intr_x86_lock);
-
-		KASSERT(isrc->xi_arch.intsrc.is_pic == &xen_intr_pic,
-		    ("interrupt not owned by Xen code?"));
-
-		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
-		    ("Free evtchn still has handlers"));
-
-		return (isrc);
-	}
-
-	if (xen_intr_auto_vector_count >= NR_EVENT_CHANNELS) {
-		if (!warned) {
-			warned = 1;
-			printf("%s: Xen interrupts exhausted.\n", __func__);
-		}
-		mtx_unlock(&xen_intr_x86_lock);
-		return (NULL);
-	}
-
-	vector = first_evtchn_irq + xen_intr_auto_vector_count;
-	xen_intr_auto_vector_count++;
-
-	KASSERT((intr_lookup_source(vector) == NULL),
-	    ("Trying to use an already allocated vector"));
-
-	mtx_unlock(&xen_intr_x86_lock);
-	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
-	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
-	isrc->xi_arch.vector = vector;
-	error = intr_register_source(&isrc->xi_arch.intsrc);
-	if (error != 0)
-		panic("%s(): failed registering interrupt %u, error=%d\n",
-		    __func__, vector, error);
-
-	return (isrc);
-}
-
-/**
  * Attempt to free an active Xen interrupt source object.
  *
  * \param isrc  The interrupt source object to release.
@@ -289,8 +206,6 @@ static int
 xen_intr_release_isrc(struct xenisrc *isrc)
 {
 
-	KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
-	    ("Release called, but xenisrc still in use"));
 	mtx_lock(&xen_intr_isrc_lock);
 	if (is_valid_evtchn(isrc->xi_port)) {
 		evtchn_mask_port(isrc->xi_port);
@@ -312,15 +227,7 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	/* not reachable from xen_intr_port_to_isrc[], unlock */
 	mtx_unlock(&xen_intr_isrc_lock);
 
-	_Static_assert(sizeof(struct xenisrc) >= sizeof(struct avail_list),
-	    "unused structure MUST be no larger than in-use structure");
-	_Static_assert(offsetof(struct xenisrc, xi_arch) ==
-	    offsetof(struct avail_list, preserve),
-	    "unused structure does not properly overlay in-use structure");
-
-	mtx_lock(&xen_intr_x86_lock);
-	SLIST_INSERT_HEAD(&avail_list, (struct avail_list *)isrc, free);
-	mtx_unlock(&xen_intr_x86_lock);
+	xen_arch_intr_release(isrc);
 	return (0);
 }
 
@@ -361,7 +268,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	}
 	*port_handlep = NULL;
 
-	isrc = xen_intr_alloc_isrc();
+	isrc = xen_arch_intr_alloc();
 	if (isrc == NULL)
 		return (ENOSPC);
 
@@ -382,7 +289,7 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 		 * unless specified otherwise, so shuffle them to balance
 		 * the interrupt load.
 		 */
-		xen_intr_assign_cpu(isrc, apic_cpuid(intr_next_cpu(0)));
+		xen_intr_assign_cpu(isrc, xen_arch_intr_next_cpu(isrc));
 	}
 #endif
 
@@ -561,8 +468,6 @@ xen_intr_init(void *dummy __unused)
 
 	mtx_init(&xen_intr_isrc_lock, "xen-irq-lock", NULL, MTX_DEF);
 
-	mtx_init(&xen_intr_x86_lock, "xen-x86-table-lock", NULL, MTX_DEF);
-
 	/*
 	 * Set the per-cpu mask of CPU#0 to enable all, since by default all
 	 * event channels are bound to CPU#0.
@@ -584,16 +489,6 @@ xen_intr_init(void *dummy __unused)
 	return (0);
 }
 SYSINIT(xen_intr_init, SI_SUB_INTR, SI_ORDER_SECOND, xen_intr_init, NULL);
-
-void
-xen_intr_alloc_irqs(void)
-{
-
-	if (num_io_irqs > UINT_MAX - NR_EVENT_CHANNELS)
-		panic("IRQ allocation overflow (num_msi_irqs too high?)");
-	first_evtchn_irq = num_io_irqs;
-	num_io_irqs += NR_EVENT_CHANNELS;
-}
 
 /*--------------------------- Common PIC Functions ---------------------------*/
 

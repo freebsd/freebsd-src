@@ -77,6 +77,9 @@ extern int	xen_intr_assign_cpu(struct xenisrc *isrc, u_int to_cpu);
  * <machine/xen/arch-intr.h>.  The architecture may implement these as inline.
  */
 void	xen_arch_intr_init(void);
+struct xenisrc *xen_arch_intr_alloc(void);
+void	xen_arch_intr_release(struct xenisrc *isrc);
+u_int	xen_arch_intr_next_cpu(struct xenisrc *isrc);
 u_long	xen_arch_intr_execute_handlers(struct xenisrc *isrc,
 	    struct trapframe *frame);
 int	xen_arch_intr_add_handler(const char *name,
