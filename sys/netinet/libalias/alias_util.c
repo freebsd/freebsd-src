@@ -72,8 +72,8 @@ __FBSDID("$FreeBSD$");
  * purposes);
  */
 u_short
-LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
-	int nbytes)
+LibAliasInternetChecksum(struct libalias *la __unused, u_short *ptr,
+    int nbytes)
 {
 	int sum, oddbyte;
 
@@ -85,8 +85,8 @@ LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	}
 	if (nbytes == 1) {
 		oddbyte = 0;
-		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
-		((u_char *) & oddbyte)[1] = 0;
+		((u_char *)&oddbyte)[0] = *(u_char *)ptr;
+		((u_char *)&oddbyte)[1] = 0;
 		sum += oddbyte;
 	}
 	sum = (sum >> 16) + (sum & 0xffff);
@@ -95,11 +95,11 @@ LibAliasInternetChecksum(struct libalias *la __unused, u_short * ptr,
 	return (~sum);
 }
 
-#ifndef	_KERNEL
+#ifndef _KERNEL
 u_short
 IpChecksum(struct ip *pip)
 {
-	return (LibAliasInternetChecksum(NULL, (u_short *) pip,
+	return (LibAliasInternetChecksum(NULL, (u_short *)pip,
 	    (pip->ip_hl << 2)));
 
 }
@@ -116,7 +116,7 @@ TcpChecksum(struct ip *pip)
 	ntcp = ntohs(pip->ip_len) - nhdr;
 
 	tc = (struct tcphdr *)ip_next(pip);
-	ptr = (u_short *) tc;
+	ptr = (u_short *)tc;
 
 /* Add up TCP header and data */
 	nbytes = ntcp;
@@ -127,8 +127,8 @@ TcpChecksum(struct ip *pip)
 	}
 	if (nbytes == 1) {
 		oddbyte = 0;
-		((u_char *) & oddbyte)[0] = *(u_char *) ptr;
-		((u_char *) & oddbyte)[1] = 0;
+		((u_char *)&oddbyte)[0] = *(u_char *)ptr;
+		((u_char *)&oddbyte)[1] = 0;
 		sum += oddbyte;
 	}
 /* "Pseudo-header" data */
@@ -138,20 +138,20 @@ TcpChecksum(struct ip *pip)
 	ptr = (void *)&pip->ip_src;
 	sum += *ptr++;
 	sum += *ptr;
-	sum += htons((u_short) ntcp);
-	sum += htons((u_short) pip->ip_p);
+	sum += htons((u_short)ntcp);
+	sum += htons((u_short)pip->ip_p);
 
 /* Roll over carry bits */
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
 
 /* Return checksum */
-	return ((u_short) ~ sum);
+	return ((u_short)~sum);
 }
 #endif	/* not _KERNEL */
 
 void
-DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
+DifferentialChecksum(u_short *cksum, void *newp, void *oldp, int n)
 {
 	int i;
 	int accumulate;
@@ -168,10 +168,10 @@ DifferentialChecksum(u_short * cksum, void *newp, void *oldp, int n)
 		accumulate = -accumulate;
 		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
 		accumulate += accumulate >> 16;
-		*cksum = (u_short) ~ accumulate;
+		*cksum = (u_short)~accumulate;
 	} else {
 		accumulate = (accumulate >> 16) + (accumulate & 0xffff);
 		accumulate += accumulate >> 16;
-		*cksum = (u_short) accumulate;
+		*cksum = (u_short)accumulate;
 	}
 }
