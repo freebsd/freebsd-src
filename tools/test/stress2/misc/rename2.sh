@@ -40,7 +40,7 @@ cd $here
 
 rm -rf /tmp/rename.dir.*
 start=`date +%s`
-while [ $((`date +%s` - start -lt 300 ]; do
+while [ $((`date +%s` - start)) -lt 300 ]; do
 	for j in `jot 10`; do
 		/tmp/rename2 &
 	done
