@@ -97,50 +97,6 @@ static struct cxgbei_worker_thread_softc *cwt_softc;
 static struct proc *cxgbei_proc;
 
 static void
-free_ci_counters(struct cxgbei_data *ci)
-{
-
-#define FREE_CI_COUNTER(x) do { \
-	if (ci->x != NULL) { \
-		counter_u64_free(ci->x); \
-		ci->x = NULL; \
-	} \
-} while (0)
-
-	FREE_CI_COUNTER(ddp_setup_ok);
-	FREE_CI_COUNTER(ddp_setup_error);
-	FREE_CI_COUNTER(ddp_bytes);
-	FREE_CI_COUNTER(ddp_pdus);
-	FREE_CI_COUNTER(fl_bytes);
-	FREE_CI_COUNTER(fl_pdus);
-#undef FREE_CI_COUNTER
-}
-
-static int
-alloc_ci_counters(struct cxgbei_data *ci)
-{
-
-#define ALLOC_CI_COUNTER(x) do { \
-	ci->x = counter_u64_alloc(M_WAITOK); \
-	if (ci->x == NULL) \
-		goto fail; \
-} while (0)
-
-	ALLOC_CI_COUNTER(ddp_setup_ok);
-	ALLOC_CI_COUNTER(ddp_setup_error);
-	ALLOC_CI_COUNTER(ddp_bytes);
-	ALLOC_CI_COUNTER(ddp_pdus);
-	ALLOC_CI_COUNTER(fl_bytes);
-	ALLOC_CI_COUNTER(fl_pdus);
-#undef ALLOC_CI_COUNTER
-
-	return (0);
-fail:
-	free_ci_counters(ci);
-	return (ENOMEM);
-}
-
-static void
 read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
     uint32_t *max_rx_pdu_len)
 {
@@ -182,10 +138,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	MPASS(sc->vres.iscsi.size > 0);
 	MPASS(ci != NULL);
 
-	rc = alloc_ci_counters(ci);
-	if (rc != 0)
-		return (rc);
-
 	read_pdu_limits(sc, &ci->max_tx_pdu_len, &ci->max_rx_pdu_len);
 
 	pr = &ci->pr;
@@ -195,7 +147,6 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 		device_printf(sc->dev,
 		    "%s: failed to initialize the iSCSI page pod region: %u.\n",
 		    __func__, rc);
-		free_ci_counters(ci);
 		return (rc);
 	}
 
@@ -219,29 +170,8 @@ cxgbei_init(struct adapter *sc, struct cxgbei_data *ci)
 	children = SYSCTL_CHILDREN(oid);
 
 	oid = SYSCTL_ADD_NODE(&ci->ctx, children, OID_AUTO, "iscsi",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "iSCSI ULP statistics");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "iSCSI ULP settings");
 	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_setup_ok",
-	    CTLFLAG_RD, &ci->ddp_setup_ok,
-	    "# of times DDP buffer was setup successfully.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_setup_error",
-	    CTLFLAG_RD, &ci->ddp_setup_error,
-	    "# of times DDP buffer setup failed.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_bytes",
-	    CTLFLAG_RD, &ci->ddp_bytes, "# of bytes placed directly");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "ddp_pdus",
-	    CTLFLAG_RD, &ci->ddp_pdus, "# of PDUs with data placed directly.");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "fl_bytes",
-	    CTLFLAG_RD, &ci->fl_bytes, "# of data bytes delivered in freelist");
-
-	SYSCTL_ADD_COUNTER_U64(&ci->ctx, children, OID_AUTO, "fl_pdus",
-	    CTLFLAG_RD, &ci->fl_pdus,
-	    "# of PDUs with data delivered in freelist");
 
 	ci->ddp_threshold = 2048;
 	SYSCTL_ADD_UINT(&ci->ctx, children, OID_AUTO, "ddp_threshold",
@@ -291,7 +221,6 @@ static int
 do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct cpl_iscsi_data *cpl =  mtod(m, struct cpl_iscsi_data *);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
@@ -311,8 +240,8 @@ do_rx_iscsi_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m
 
 	icp->icp_flags |= ICPF_RX_FLBUF;
 	icp->ip.ip_data_mbuf = m;
-	counter_u64_add(ci->fl_pdus, 1);
-	counter_u64_add(ci->fl_bytes, m->m_pkthdr.len);
+	toep->ofld_rxq->rx_iscsi_fl_pdus++;
+	toep->ofld_rxq->rx_iscsi_fl_octets += m->m_pkthdr.len;
 
 #if 0
 	CTR3(KTR_CXGBE, "%s: tid %u, cpl->len %u", __func__, tid,
@@ -326,7 +255,6 @@ static int
 do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
-	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	const struct cpl_rx_data_ddp *cpl = (const void *)(rss + 1);
 	u_int tid = GET_TID(cpl);
 	struct toepcb *toep = lookup_tid(sc, tid);
@@ -369,8 +297,8 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		MPASS((icp->icp_flags & ICPF_RX_FLBUF) == 0);
 		MPASS(ip->ip_data_len > 0);
 		icp->icp_flags |= ICPF_RX_DDP;
-		counter_u64_add(ci->ddp_pdus, 1);
-		counter_u64_add(ci->ddp_bytes, ip->ip_data_len);
+		toep->ofld_rxq->rx_iscsi_ddp_pdus++;
+		toep->ofld_rxq->rx_iscsi_ddp_octets += ip->ip_data_len;
 	}
 
 	INP_WLOCK(inp);
@@ -527,7 +455,6 @@ cxgbei_deactivate(struct adapter *sc)
 	if (ci != NULL) {
 		sysctl_ctx_free(&ci->ctx);
 		t4_free_ppod_region(&ci->pr);
-		free_ci_counters(ci);
 		free(ci, M_CXGBE);
 		sc->iscsi_ulp_softc = NULL;
 	}
