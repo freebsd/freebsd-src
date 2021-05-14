@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2018
+.Dd May 14, 2021
 .Dt UGEN 4
 .Os
 .Sh NAME
@@ -304,12 +304,19 @@ debug message verbosity.
 Default is 0.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar E" -compact
-.It Pa /dev/ugen Ns Ar N Ns Pa \&. Ns Ar E
+.Bl -tag -width "/dev/usb/B.D.E" -compact
+.It Pa /dev/usb/B.D.E
 Endpoint
 .Ar E
 of device
-.Ar N .
+.Ar D
+at bus
+.Ar B .
+.It Pa /dev/ugenB.D
+Control endpoint, 0, of device
+.Ar D
+at bus
+.Ar B .
 .El
 .Sh SEE ALSO
 .Xr usb 4
@@ -319,5 +326,3 @@ The
 driver
 appeared in
 .Nx 1.4 .
-.\" .Sh BUGS
-.\" The driver is not yet finished; there is no access to isochronous endpoints.
