@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include "common/common.h"
 #include "common/t4_msg.h"
-#include "common/t4_regs.h"     /* for PCIE_MEM_ACCESS */
+#include "common/t4_regs.h"	/* for PCIE_MEM_ACCESS */
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
 
