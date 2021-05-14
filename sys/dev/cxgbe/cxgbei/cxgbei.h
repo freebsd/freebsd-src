@@ -113,12 +113,6 @@ struct cxgbei_data {
 	struct ppod_region pr;
 
 	struct sysctl_ctx_list ctx;	/* from uld_activate to deactivate */
-	counter_u64_t ddp_setup_ok;
-	counter_u64_t ddp_setup_error;
-	counter_u64_t ddp_bytes;
-	counter_u64_t ddp_pdus;
-	counter_u64_t fl_bytes;
-	counter_u64_t fl_pdus;
 };
 
 /* cxgbei.c */

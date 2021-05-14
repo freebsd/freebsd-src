@@ -11886,6 +11886,14 @@ clear_stats(struct adapter *sc, u_int port_id)
 				ofld_rxq->fl.cl_allocated = 0;
 				ofld_rxq->fl.cl_recycled = 0;
 				ofld_rxq->fl.cl_fast_recycled = 0;
+				counter_u64_zero(
+				    ofld_rxq->rx_iscsi_ddp_setup_ok);
+				counter_u64_zero(
+				    ofld_rxq->rx_iscsi_ddp_setup_error);
+				ofld_rxq->rx_iscsi_ddp_pdus = 0;
+				ofld_rxq->rx_iscsi_ddp_octets = 0;
+				ofld_rxq->rx_iscsi_fl_pdus = 0;
+				ofld_rxq->rx_iscsi_fl_octets = 0;
 				ofld_rxq->rx_toe_tls_records = 0;
 				ofld_rxq->rx_toe_tls_octets = 0;
 			}

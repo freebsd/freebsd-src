@@ -819,7 +819,8 @@ no_ddp:
 		*ittp = htobe32(itt);
 		MPASS(*arg == NULL);	/* State is maintained for DDP only. */
 		if (rc != 0)
-			counter_u64_add(ci->ddp_setup_error, 1);
+			counter_u64_add(
+			    toep->ofld_rxq->rx_iscsi_ddp_setup_error, 1);
 		return (0);
 	}
 
@@ -853,7 +854,7 @@ no_ddp:
 
 	*ittp = htobe32(prsv->prsv_tag);
 	*arg = prsv;
-	counter_u64_add(ci->ddp_setup_ok, 1);
+	counter_u64_add(toep->ofld_rxq->rx_iscsi_ddp_setup_ok, 1);
 	return (0);
 }
 
@@ -922,7 +923,8 @@ no_ddp:
 			*tttp = htobe32(ttt);
 			MPASS(io_to_ppod_reservation(io) == NULL);
 			if (rc != 0)
-				counter_u64_add(ci->ddp_setup_error, 1);
+				counter_u64_add(
+				    toep->ofld_rxq->rx_iscsi_ddp_setup_error, 1);
 			return (0);
 		}
 
@@ -968,7 +970,7 @@ no_ddp:
 		*tttp = htobe32(prsv->prsv_tag);
 		io_to_ppod_reservation(io) = prsv;
 		*arg = ctsio;
-		counter_u64_add(ci->ddp_setup_ok, 1);
+		counter_u64_add(toep->ofld_rxq->rx_iscsi_ddp_setup_ok, 1);
 		return (0);
 	}
 
