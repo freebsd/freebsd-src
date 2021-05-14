@@ -1081,8 +1081,34 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		return;
 	}
 
-	if (drop)
+	if (drop) {
+		struct socket *so = inp->inp_socket;
+		struct sockbuf *sb = &so->so_snd;
+		int sbu;
+
+		/*
+		 * An unlocked read is ok here as the data should only
+		 * transition from a non-zero value to either another
+		 * non-zero value or zero.  Once it is zero it should
+		 * stay zero.
+		 */
+		if (__predict_false(sbused(sb)) > 0) {
+			SOCKBUF_LOCK(sb);
+			sbu = sbused(sb);
+			if (sbu > 0) {
+				/*
+				 * The data transmitted before the
+				 * tid's ULP mode changed to ISCSI is
+				 * still in so_snd.  Incoming credits
+				 * should account for so_snd first.
+				 */
+				sbdrop_locked(sb, min(sbu, drop));
+				drop -= min(sbu, drop);
+			}
+			sowwakeup_locked(so);	/* unlocks so_snd */
+		}
 		rqdrop_locked(&toep->ulp_pdu_reclaimq, drop);
+	}
 
 	while ((sndptr = mbufq_first(pduq)) != NULL) {
 		wr = write_iscsi_mbuf_wr(toep, sndptr);
