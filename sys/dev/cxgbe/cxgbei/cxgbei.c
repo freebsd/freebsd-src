@@ -315,13 +315,13 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 	MPASS(icp->icp_seq == tp->rcv_nxt);
-	MPASS(tp->rcv_wnd >= pdu_len);
 	tp->rcv_nxt += pdu_len;
-	tp->rcv_wnd -= pdu_len;
 	tp->t_rcvtime = ticks;
 
-	/* update rx credits */
-	t4_rcvd(&toep->td->tod, tp);	/* XXX: sc->tom_softc.tod */
+	/*
+	 * Don't update the window size or return credits since RX
+	 * flow control is disabled.
+	 */
 
 	so = inp->inp_socket;
 	sb = &so->so_rcv;
