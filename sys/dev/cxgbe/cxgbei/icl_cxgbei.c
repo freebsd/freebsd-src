@@ -280,7 +280,7 @@ finalize_pdu(struct icl_cxgbei_conn *icc, struct icl_cxgbei_pdu *icp)
 		last = m_last(m);
 
 		/*
-		 * Round up the data segment to a 4B boundary.  Pad with 0 if
+		 * Round up the data segment to a 4B boundary.	Pad with 0 if
 		 * necessary.  There will definitely be room in the mbuf.
 		 */
 		padding = roundup2(ip->ip_data_len, 4) - ip->ip_data_len;
@@ -306,7 +306,7 @@ finalize_pdu(struct icl_cxgbei_conn *icc, struct icl_cxgbei_pdu *icp)
 	bhs->bhs_data_segment_len[1] = ip->ip_data_len >> 8;
 	bhs->bhs_data_segment_len[0] = ip->ip_data_len >> 16;
 
-	/* "Convert" PDU to mbuf chain.  Do not use icp/ip after this. */
+	/* "Convert" PDU to mbuf chain.	 Do not use icp/ip after this. */
 	m->m_pkthdr.len = sizeof(struct iscsi_bhs) + ip->ip_data_len + padding;
 	m->m_next = ip->ip_data_mbuf;
 	set_mbuf_ulp_submode(m, ulp_submode);
@@ -347,7 +347,7 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 		MPASS(ip->ip_data_len <= ic->ic_max_data_segment_length);
 		return (0);
 	} else {
-	    	if (flags & M_WAITOK) {
+		if (flags & M_WAITOK) {
 			CXGBE_UNIMPLEMENTED("fail safe append");
 		}
 		ip->ip_data_len = m_length(m, NULL);
@@ -576,7 +576,7 @@ send_iscsi_flowc_wr(struct adapter *sc, struct toepcb *toep, int maxlen)
 		toep->txsd_pidx = 0;
 	toep->txsd_avail--;
 
-        t4_wrq_tx(sc, wr);
+	t4_wrq_tx(sc, wr);
 }
 
 static void
@@ -813,7 +813,7 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	    csio->dxfer_len < ci->ddp_threshold) {
 no_ddp:
 		/*
-		 * No DDP for this I/O.  Allocate an ITT (based on the one
+		 * No DDP for this I/O.	 Allocate an ITT (based on the one
 		 * passed in) that cannot be a valid hardware DDP tag in the
 		 * iSCSI region.
 		 */
@@ -1049,7 +1049,7 @@ static int
 icl_cxgbei_limits(struct icl_drv_limits *idl)
 {
 
-	/* Maximum allowed by the RFC.  cxgbei_limits will clip them. */
+	/* Maximum allowed by the RFC.	cxgbei_limits will clip them. */
 	idl->idl_max_recv_data_segment_length = (1 << 24) - 1;
 	idl->idl_max_send_data_segment_length = (1 << 24) - 1;
 
