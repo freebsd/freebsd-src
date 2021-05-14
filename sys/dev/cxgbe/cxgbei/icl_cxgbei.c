@@ -1064,10 +1064,15 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 		/*
 		 * Note that ICL calls conn_transfer_setup even if the first
 		 * burst had everything and there's nothing left to transfer.
+		 *
+		 * NB: The CTL frontend might have provided a buffer
+		 * whose length (kern_data_len) is smaller than the
+		 * FirstBurstLength of unsolicited data.  Treat those
+		 * as an empty transfer.
 		 */
-		MPASS(ctsio->kern_data_len >= first_burst);
 		xferlen = ctsio->kern_data_len;
-		if (xferlen - first_burst < ci->ddp_threshold) {
+		if (xferlen < first_burst ||
+		    xferlen - first_burst < ci->ddp_threshold) {
 no_ddp:
 			/*
 			 * No DDP for this transfer.  Allocate a TTT (based on
