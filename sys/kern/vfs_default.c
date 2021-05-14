@@ -1210,7 +1210,7 @@ vop_stdset_text(struct vop_set_text_args *ap)
 			vrefl(vp);
 		}
 
-		vp->v_writecount--;
+		atomic_subtract_int(&vp->v_writecount, 1);
 		error = 0;
 	}
 	VI_UNLOCK(vp);
@@ -1247,7 +1247,7 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 			last = true;
 			vp->v_iflag &= ~VI_TEXT_REF;
 		}
-		vp->v_writecount++;
+		atomic_add_int(&vp->v_writecount, 1);
 		error = 0;
 	} else {
 		error = EINVAL;
