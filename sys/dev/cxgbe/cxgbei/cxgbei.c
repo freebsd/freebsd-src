@@ -114,9 +114,6 @@ read_pdu_limits(struct adapter *sc, uint32_t *max_tx_pdu_len,
 	rx_len = min(rx_len, v);
 	tx_len = min(tx_len, v);
 
-	/* Remove after FW_FLOWC_MNEM_TXDATAPLEN_MAX fix in firmware. */
-	tx_len = min(tx_len, 3 * 4096);
-
 	*max_tx_pdu_len = rounddown2(tx_len, 512);
 	*max_rx_pdu_len = rounddown2(rx_len, 512);
 }
