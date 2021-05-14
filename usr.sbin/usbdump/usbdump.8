@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2012
+.Dd May 14, 2021
 .Dt USBDUMP 8
 .Os
 .Sh NAME
@@ -33,6 +33,9 @@
 .Nd "dump traffic on USB host controller"
 .Sh SYNOPSIS
 .Nm
+.Op Fl d Ar [ugen]B
+.Op Fl d Ar [ugen]B.D
+.Op Fl d Ar [ugen]B.D.E
 .Op Fl i Ar ifname
 .Op Fl r Ar file
 .Op Fl s Ar snaplen
@@ -48,6 +51,31 @@ utility provides a way to dump USB packets on host controllers.
 .Pp
 The following options are accepted:
 .Bl -tag -width ".Fl f Ar file"
+.It Fl d Ar [ugen]bus
+Shortcut for
+.Fl i
+option.
+The argument may be prefixed by "ugen".
+The option may be specified multiple times, but the bus specified must
+be the same.
+.It Fl d Ar [ugen]bus.device
+Shortcut for
+.Fl i
+and
+.Fl f
+options.
+The argument may be prefixed by "ugen".
+The option may be specified multiple times, but the bus specified must
+be the same.
+.It Fl d Ar [ugen]bus.device.endpoint
+Shortcut for
+.Fl i
+and
+.Fl f
+options.
+The argument may be prefixed by "ugen".
+The option may be specified multiple times, but the bus specified must
+be the same.
 .It Fl b Ar file
 Store data part of the USB trace in binary format to the given
 .Ar file .
