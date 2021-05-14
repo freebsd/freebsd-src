@@ -1153,7 +1153,8 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *arg)
 {
 	struct ctl_scsiio *ctsio = arg;
 
-	if (ctsio != NULL && ctsio->kern_data_len == ctsio->ext_data_filled) {
+	if (ctsio != NULL && (ctsio->kern_data_len == ctsio->ext_data_filled ||
+	    ic->ic_disconnecting)) {
 		struct ppod_reservation *prsv;
 
 		prsv = io_to_ppod_reservation(ctsio);
