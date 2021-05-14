@@ -331,6 +331,22 @@ td_adapter(struct tom_data *td)
 }
 
 static inline void
+set_mbuf_raw_wr(struct mbuf *m, bool raw)
+{
+
+	M_ASSERTPKTHDR(m);
+	m->m_pkthdr.PH_per.eight[6] = raw;
+}
+
+static inline bool
+mbuf_raw_wr(struct mbuf *m)
+{
+
+	M_ASSERTPKTHDR(m);
+	return (m->m_pkthdr.PH_per.eight[6]);
+}
+
+static inline void
 set_mbuf_ulp_submode(struct mbuf *m, uint8_t ulp_submode)
 {
 
@@ -423,7 +439,7 @@ int t4_alloc_page_pods_for_buf(struct ppod_region *, vm_offset_t, int,
     struct ppod_reservation *);
 int t4_write_page_pods_for_ps(struct adapter *, struct sge_wrq *, int,
     struct pageset *);
-int t4_write_page_pods_for_buf(struct adapter *, struct sge_wrq *, int,
+int t4_write_page_pods_for_buf(struct adapter *, struct toepcb *,
     struct ppod_reservation *, vm_offset_t, int);
 void t4_free_page_pods(struct ppod_reservation *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
