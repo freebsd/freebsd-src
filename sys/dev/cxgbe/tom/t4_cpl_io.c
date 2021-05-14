@@ -927,10 +927,10 @@ rqdrop_locked(struct mbufq *q, int plen)
 	}
 }
 
-void
-t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
+static struct wrqe *
+write_iscsi_mbuf_wr(struct toepcb *toep, struct mbuf *sndptr)
 {
-	struct mbuf *sndptr, *m;
+	struct mbuf *m;
 	struct fw_ofld_tx_data_wr *txwr;
 	struct wrqe *wr;
 	u_int plen, nsegs, credits, max_imm, max_nsegs, max_nsegs_1mbuf;
@@ -938,9 +938,129 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp = intotcpcb(inp);
 	int tx_credits, shove;
+	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
+
+	M_ASSERTPKTHDR(sndptr);
+
+	tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
+	if (mbuf_raw_wr(sndptr)) {
+		plen = sndptr->m_pkthdr.len;
+		KASSERT(plen <= SGE_MAX_WR_LEN,
+		    ("raw WR len %u is greater than max WR len", plen));
+		if (plen > tx_credits * 16)
+			return (NULL);
+
+		wr = alloc_wrqe(roundup2(plen, 16), &toep->ofld_txq->wrq);
+		if (__predict_false(wr == NULL))
+			return (NULL);
+
+		m_copydata(sndptr, 0, plen, wrtod(wr));
+		return (wr);
+	}
+
+	max_imm = max_imm_payload(tx_credits);
+	max_nsegs = max_dsgl_nsegs(tx_credits);
+
+	plen = 0;
+	nsegs = 0;
+	max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
+	for (m = sndptr; m != NULL; m = m->m_next) {
+		int n = sglist_count(mtod(m, void *), m->m_len);
+
+		nsegs += n;
+		plen += m->m_len;
+
+		/*
+		 * This mbuf would send us _over_ the nsegs limit.
+		 * Suspend tx because the PDU can't be sent out.
+		 */
+		if (plen > max_imm && nsegs > max_nsegs)
+			return (NULL);
+
+		if (max_nsegs_1mbuf < n)
+			max_nsegs_1mbuf = n;
+	}
+
+	if (__predict_false(toep->flags & TPF_FIN_SENT))
+		panic("%s: excess tx.", __func__);
+
+	/*
+	 * We have a PDU to send.  All of it goes out in one WR so 'm'
+	 * is NULL.  A PDU's length is always a multiple of 4.
+	 */
+	MPASS(m == NULL);
+	MPASS((plen & 3) == 0);
+	MPASS(sndptr->m_pkthdr.len == plen);
+
+	shove = !(tp->t_flags & TF_MORETOCOME);
+	ulp_submode = mbuf_ulp_submode(sndptr);
+	MPASS(ulp_submode < nitems(ulp_extra_len));
+
+	/*
+	 * plen doesn't include header and data digests, which are
+	 * generated and inserted in the right places by the TOE, but
+	 * they do occupy TCP sequence space and need to be accounted
+	 * for.
+	 */
+	adjusted_plen = plen + ulp_extra_len[ulp_submode];
+	if (plen <= max_imm) {
+
+		/* Immediate data tx */
+
+		wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
+				&toep->ofld_txq->wrq);
+		if (wr == NULL) {
+			/* XXX: how will we recover from this? */
+			return (NULL);
+		}
+		txwr = wrtod(wr);
+		credits = howmany(wr->wr_len, 16);
+		write_tx_wr(txwr, toep, plen, adjusted_plen, credits,
+		    shove, ulp_submode);
+		m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
+		nsegs = 0;
+	} else {
+		int wr_len;
+
+		/* DSGL tx */
+		wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
+		    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
+		wr = alloc_wrqe(roundup2(wr_len, 16),
+		    &toep->ofld_txq->wrq);
+		if (wr == NULL) {
+			/* XXX: how will we recover from this? */
+			return (NULL);
+		}
+		txwr = wrtod(wr);
+		credits = howmany(wr_len, 16);
+		write_tx_wr(txwr, toep, 0, adjusted_plen, credits,
+		    shove, ulp_submode);
+		write_tx_sgl(txwr + 1, sndptr, m, nsegs, max_nsegs_1mbuf);
+		if (wr_len & 0xf) {
+			uint64_t *pad = (uint64_t *)((uintptr_t)txwr + wr_len);
+			*pad = 0;
+		}
+	}
+
+	tp->snd_nxt += adjusted_plen;
+	tp->snd_max += adjusted_plen;
+
+	counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, 1);
+	counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
+
+	return (wr);
+}
+
+void
+t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
+{
+	struct mbuf *sndptr, *m;
+	struct fw_wr_hdr *wrhdr;
+	struct wrqe *wr;
+	u_int plen, credits;
+	struct inpcb *inp = toep->inp;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 	struct mbufq *pduq = &toep->ulp_pduq;
-	static const u_int ulp_extra_len[] = {0, 4, 4, 8};
 
 	INP_WLOCK_ASSERT(inp);
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
@@ -965,99 +1085,14 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		rqdrop_locked(&toep->ulp_pdu_reclaimq, drop);
 
 	while ((sndptr = mbufq_first(pduq)) != NULL) {
-		M_ASSERTPKTHDR(sndptr);
-
-		tx_credits = min(toep->tx_credits, MAX_OFLD_TX_CREDITS);
-		max_imm = max_imm_payload(tx_credits);
-		max_nsegs = max_dsgl_nsegs(tx_credits);
-
-		plen = 0;
-		nsegs = 0;
-		max_nsegs_1mbuf = 0; /* max # of SGL segments in any one mbuf */
-		for (m = sndptr; m != NULL; m = m->m_next) {
-			int n = sglist_count(mtod(m, void *), m->m_len);
-
-			nsegs += n;
-			plen += m->m_len;
-
-			/*
-			 * This mbuf would send us _over_ the nsegs limit.
-			 * Suspend tx because the PDU can't be sent out.
-			 */
-			if (plen > max_imm && nsegs > max_nsegs) {
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-
-			if (max_nsegs_1mbuf < n)
-				max_nsegs_1mbuf = n;
+		wr = write_iscsi_mbuf_wr(toep, sndptr);
+		if (wr == NULL) {
+			toep->flags |= TPF_TX_SUSPENDED;
+			return;
 		}
 
-		if (__predict_false(toep->flags & TPF_FIN_SENT))
-			panic("%s: excess tx.", __func__);
-
-		/*
-		 * We have a PDU to send.  All of it goes out in one WR so 'm'
-		 * is NULL.  A PDU's length is always a multiple of 4.
-		 */
-		MPASS(m == NULL);
-		MPASS((plen & 3) == 0);
-		MPASS(sndptr->m_pkthdr.len == plen);
-
-		shove = !(tp->t_flags & TF_MORETOCOME);
-		ulp_submode = mbuf_ulp_submode(sndptr);
-		MPASS(ulp_submode < nitems(ulp_extra_len));
-
-		/*
-		 * plen doesn't include header and data digests, which are
-		 * generated and inserted in the right places by the TOE, but
-		 * they do occupy TCP sequence space and need to be accounted
-		 * for.
-		 */
-		adjusted_plen = plen + ulp_extra_len[ulp_submode];
-		if (plen <= max_imm) {
-
-			/* Immediate data tx */
-
-			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
-					&toep->ofld_txq->wrq);
-			if (wr == NULL) {
-				/* XXX: how will we recover from this? */
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-			txwr = wrtod(wr);
-			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, adjusted_plen, credits,
-			    shove, ulp_submode);
-			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
-			nsegs = 0;
-		} else {
-			int wr_len;
-
-			/* DSGL tx */
-			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
-			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup2(wr_len, 16),
-			    &toep->ofld_txq->wrq);
-			if (wr == NULL) {
-				/* XXX: how will we recover from this? */
-				toep->flags |= TPF_TX_SUSPENDED;
-				return;
-			}
-			txwr = wrtod(wr);
-			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, adjusted_plen, credits,
-			    shove, ulp_submode);
-			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
-			    max_nsegs_1mbuf);
-			if (wr_len & 0xf) {
-				uint64_t *pad = (uint64_t *)
-				    ((uintptr_t)txwr + wr_len);
-				*pad = 0;
-			}
-		}
-
+		plen = sndptr->m_pkthdr.len;
+		credits = howmany(wr->wr_len, 16);
 		KASSERT(toep->tx_credits >= credits,
 			("%s: not enough credits", __func__));
 
@@ -1068,15 +1103,18 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 		toep->tx_credits -= credits;
 		toep->tx_nocompl += credits;
 		toep->plen_nocompl += plen;
-		if (toep->tx_credits <= toep->tx_total * 3 / 8 &&
+
+		/*
+		 * Ensure there are enough credits for a full-sized WR
+		 * as page pod WRs can be full-sized.
+		 */
+		if (toep->tx_credits <= SGE_MAX_WR_LEN * 5 / 4 &&
 		    toep->tx_nocompl >= toep->tx_total / 4) {
-			txwr->op_to_immdlen |= htobe32(F_FW_WR_COMPL);
+			wrhdr = wrtod(wr);
+			wrhdr->hi |= htobe32(F_FW_WR_COMPL);
 			toep->tx_nocompl = 0;
 			toep->plen_nocompl = 0;
 		}
-
-		tp->snd_nxt += adjusted_plen;
-		tp->snd_max += adjusted_plen;
 
 		toep->flags |= TPF_TX_DATA_SENT;
 		if (toep->tx_credits < MIN_OFLD_TX_CREDITS)
@@ -1091,9 +1129,6 @@ t4_push_pdus(struct adapter *sc, struct toepcb *toep, int drop)
 			txsd = &toep->txsd[0];
 		}
 		toep->txsd_avail--;
-
-		counter_u64_add(toep->ofld_txq->tx_iscsi_pdus, 1);
-		counter_u64_add(toep->ofld_txq->tx_iscsi_octets, plen);
 
 		t4_l2t_send(sc, wr, toep->l2te);
 	}
