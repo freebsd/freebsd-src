@@ -27,7 +27,7 @@
  */
 
 /*
- * Alias_sctp forms part of the libalias kernel module to handle 
+ * Alias_sctp forms part of the libalias kernel module to handle
  * Network Address Translation (NAT) for the SCTP protocol.
  *
  *  This software was developed by David A. Hayes
@@ -40,7 +40,7 @@
  * proposed by Jason But and Grenville Armitage:
  * http://caia.swin.edu.au/urp/sonata/
  *
- * 
+ *
  * This project has been made possible in part by a grant from
  * the Cisco University Research Program Fund at Community
  * Foundation Silicon Valley.
@@ -53,7 +53,7 @@
 #define _ALIAS_SCTP_H_
 
 #include <sys/param.h>
-#ifdef	_KERNEL 
+#ifdef _KERNEL
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
@@ -61,7 +61,7 @@
 #include <sys/uio.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
-#endif // #ifdef	_KERNEL 
+#endif // #ifdef	_KERNEL
 #include <sys/types.h>
 
 #include <sys/queue.h>
@@ -75,7 +75,7 @@
 /**
  * These are defined in sctp_os_bsd.h, but it can't be included due to its local file
  * inclusion, so I'm defining them here.
- * 
+ *
  */
 #include <machine/cpufunc.h>
 /* The packed define for 64 bit platforms */
@@ -128,18 +128,18 @@ struct sctp_nat_assoc {
 	uint16_t l_port;		/**< local side port number */
 	uint32_t g_vtag;		/**< global side verification tag */
 	uint16_t g_port;		/**< global side port number */
-	struct in_addr l_addr;	/**< local ip address */
-	struct in_addr a_addr;	/**< alias ip address */
+	struct in_addr l_addr;		/**< local ip address */
+	struct in_addr a_addr;		/**< alias ip address */
 	int state;			/**< current state of NAT association */
 	int TableRegister;		/**< stores which look up tables association is registered in */
 	int exp;			/**< timer expiration in seconds from uptime */
 	int exp_loc;			/**< current location in timer_Q */
-	int num_Gaddr;		/**< number of global IP addresses in the list */
+	int num_Gaddr;			/**< number of global IP addresses in the list */
 	LIST_HEAD(sctpGlobalAddresshead,sctp_GlobalAddress) Gaddr; /**< List of global addresses */
 	LIST_ENTRY (sctp_nat_assoc) list_L; /**< Linked list of pointers for Local table*/
 	LIST_ENTRY (sctp_nat_assoc) list_G; /**< Linked list of pointers for Global table */
 	LIST_ENTRY (sctp_nat_assoc) timer_Q; /**< Linked list of pointers for timer Q */
-//Using libalias locking
+	//Using libalias locking
 };
 
 struct sctp_GlobalAddress {
@@ -153,14 +153,14 @@ struct sctp_GlobalAddress {
  * The only chunks whose contents are of any interest are the INIT and ASCONF_AddIP
  */
 union sctpChunkOfInt {
-	struct sctp_init *Init;	/**< Pointer to Init Chunk */
+	struct sctp_init *Init;		/**< Pointer to Init Chunk */
 	struct sctp_init_ack *InitAck;	/**< Pointer to Init Chunk */
-	struct sctp_paramhdr *Asconf; /**< Pointer to ASCONF chunk */
+	struct sctp_paramhdr *Asconf;	/**< Pointer to ASCONF chunk */
 };
 
 /**
  * @brief SCTP message
- * 
+ *
  * Structure containing the relevant information from the SCTP message
  */
 struct sctp_nat_msg {
@@ -177,7 +177,7 @@ struct sctp_nat_msg {
 
 /**
  * @brief sctp nat timer queue structure
- * 
+ *
  */
 
 struct sctp_nat_timer {

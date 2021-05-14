@@ -46,7 +46,7 @@
 #include <netinet/ip.h>
 
 #define LIBALIAS_BUF_SIZE 128
-#ifdef	_KERNEL
+#ifdef _KERNEL
 /*
  * The kernel version of libalias does not support these features.
  */
@@ -89,8 +89,7 @@ void		LibAliasSetAddress(struct libalias *, struct in_addr _addr);
 void		LibAliasSetAliasPortRange(struct libalias *la, u_short port_low, u_short port_hi);
 void		LibAliasSetFWBase(struct libalias *, unsigned int _base, unsigned int _num);
 void		LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
-unsigned int
-		LibAliasSetMode(struct libalias *, unsigned int _flags, unsigned int _mask);
+unsigned int	LibAliasSetMode(struct libalias *, unsigned int _flags, unsigned int _mask);
 void		LibAliasUninit(struct libalias *);
 
 /* Packet Handling functions. */
@@ -101,42 +100,37 @@ int		LibAliasUnaliasOut(struct libalias *, void *_ptr, int _maxpacketsize);
 
 /* Port and address redirection functions. */
 
-int
-LibAliasAddServer(struct libalias *, struct alias_link *_lnk,
-    struct in_addr _addr, unsigned short _port);
-struct alias_link *
-LibAliasRedirectAddr(struct libalias *, struct in_addr _src_addr,
-    struct in_addr _alias_addr);
+int		LibAliasAddServer(struct libalias *, struct alias_link *_lnk,
+		    struct in_addr _addr, unsigned short _port);
+struct alias_link * LibAliasRedirectAddr(struct libalias *, struct in_addr _src_addr,
+		    struct in_addr _alias_addr);
 int		LibAliasRedirectDynamic(struct libalias *, struct alias_link *_lnk);
 void		LibAliasRedirectDelete(struct libalias *, struct alias_link *_lnk);
-struct alias_link *
-LibAliasRedirectPort(struct libalias *, struct in_addr _src_addr,
-    unsigned short _src_port, struct in_addr _dst_addr,
-    unsigned short _dst_port, struct in_addr _alias_addr,
-    unsigned short _alias_port, unsigned char _proto);
-struct alias_link *
-LibAliasRedirectProto(struct libalias *, struct in_addr _src_addr,
-    struct in_addr _dst_addr, struct in_addr _alias_addr,
-    unsigned char _proto);
+struct alias_link * LibAliasRedirectPort(struct libalias *, struct in_addr _src_addr,
+		    unsigned short _src_port, struct in_addr _dst_addr,
+		    unsigned short _dst_port, struct in_addr _alias_addr,
+		    unsigned short _alias_port, unsigned char _proto);
+struct alias_link * LibAliasRedirectProto(struct libalias *, struct in_addr _src_addr,
+		    struct in_addr _dst_addr, struct in_addr _alias_addr,
+		    unsigned char _proto);
 
 /* Fragment Handling functions. */
 void		LibAliasFragmentIn(struct libalias *, void *_ptr, void *_ptr_fragment);
-void           *LibAliasGetFragment(struct libalias *, void *_ptr);
+void	       *LibAliasGetFragment(struct libalias *, void *_ptr);
 int		LibAliasSaveFragment(struct libalias *, void *_ptr);
 
 /* Miscellaneous functions. */
 int		LibAliasCheckNewLink(struct libalias *);
-unsigned short
-		LibAliasInternetChecksum(struct libalias *, unsigned short *_ptr, int _nbytes);
+unsigned short	LibAliasInternetChecksum(struct libalias *, unsigned short *_ptr, int _nbytes);
 void		LibAliasSetTarget(struct libalias *, struct in_addr _target_addr);
 
 /* Transparent proxying routines. */
 int		LibAliasProxyRule(struct libalias *, const char *_cmd);
 
 /* Module handling API */
-int             LibAliasLoadModule(char *);
-int             LibAliasUnLoadAllModule(void);
-int             LibAliasRefreshModules(void);
+int		LibAliasLoadModule(char *);
+int		LibAliasUnLoadAllModule(void);
+int		LibAliasRefreshModules(void);
 
 /* Mbuf helper function. */
 struct mbuf    *m_megapullup(struct mbuf *, int);
@@ -176,7 +170,7 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * require this.  This bit is set after a call to PacketAliasInit(), so it is
  * a default mode of operation.
  */
-#ifndef	NO_USE_SOCKETS
+#ifndef NO_USE_SOCKETS
 #define	PKT_ALIAS_USE_SOCKETS		0x08
 #endif
 /*-

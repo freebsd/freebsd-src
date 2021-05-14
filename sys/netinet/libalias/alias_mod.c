@@ -97,7 +97,6 @@ LibAliasAttachHandlers(struct proto_handler *p)
 int
 LibAliasDetachHandlers(struct proto_handler *p)
 {
-
 	while (p->dir != NODIR) {
 		TAILQ_REMOVE(&handler_chain, p, link);
 		p++;
@@ -123,7 +122,6 @@ find_handler(int8_t dir, int8_t proto, struct libalias *la, struct ip *ip,
 struct proto_handler *
 first_handler(void)
 {
-
 	return (TAILQ_FIRST(&handler_chain));
 }
 
