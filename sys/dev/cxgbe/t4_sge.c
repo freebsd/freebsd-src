@@ -4116,12 +4116,37 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 		return;
 
 	children = SYSCTL_CHILDREN(oid);
-	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
 	    "rx_toe_tls_records", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_records,
 	    "# of TOE TLS records received");
-	SYSCTL_ADD_ULONG(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
 	    "rx_toe_tls_octets", CTLFLAG_RD, &ofld_rxq->rx_toe_tls_octets,
 	    "# of payload octets in received TOE TLS records");
+
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "iscsi",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE iSCSI statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
+	ofld_rxq->rx_iscsi_ddp_setup_error = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_ok",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_setup_ok,
+	    "# of times DDP buffer was setup successfully.");
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_error",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_setup_error,
+	    "# of times DDP buffer setup failed.");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "ddp_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_octets, 0,
+	    "# of octets placed directly");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "ddp_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_pdus, 0,
+	    "# of PDUs with data placed directly.");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fl_octets",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_fl_octets, 0,
+	    "# of data octets delivered in freelist");
+	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fl_pdus",
+	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_fl_pdus, 0,
+	    "# of PDUs with data delivered in freelist");
 }
 #endif
 
