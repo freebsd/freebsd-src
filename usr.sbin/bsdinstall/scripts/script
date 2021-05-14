@@ -111,8 +111,8 @@ if [ "$ZFSBOOT_DISKS" ]; then
 	bsdinstall zfsboot
 else
 	bsdinstall scriptedpart "$PARTITIONS"
-	bsdinstall mount
 fi
+bsdinstall mount
 
 # Unpack distributions
 bsdinstall checksum
@@ -163,9 +163,8 @@ fi
 bsdinstall entropy
 if [ "$ZFSBOOT_DISKS" ]; then
 	zpool export $ZFSBOOT_POOL_NAME
-else
-	bsdinstall umount
 fi
+bsdinstall umount
 
 f_dprintf "Installation Completed at %s" "$( date )"
 
