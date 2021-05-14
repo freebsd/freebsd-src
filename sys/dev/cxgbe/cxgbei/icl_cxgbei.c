@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
 
+static MALLOC_DEFINE(M_CXGBEI, "cxgbei", "cxgbei(4)");
+
 SYSCTL_NODE(_kern_icl, OID_AUTO, cxgbei, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Chelsio iSCSI offload");
 static int coalesce = 1;
@@ -130,6 +132,7 @@ static icl_conn_pdu_data_segment_length_t
 static icl_conn_pdu_append_data_t	icl_cxgbei_conn_pdu_append_data;
 static icl_conn_pdu_get_data_t	icl_cxgbei_conn_pdu_get_data;
 static icl_conn_pdu_queue_t	icl_cxgbei_conn_pdu_queue;
+static icl_conn_pdu_queue_cb_t	icl_cxgbei_conn_pdu_queue_cb;
 static icl_conn_handoff_t	icl_cxgbei_conn_handoff;
 static icl_conn_free_t		icl_cxgbei_conn_free;
 static icl_conn_close_t		icl_cxgbei_conn_close;
@@ -146,6 +149,7 @@ static kobj_method_t icl_cxgbei_methods[] = {
 	KOBJMETHOD(icl_conn_pdu_append_data, icl_cxgbei_conn_pdu_append_data),
 	KOBJMETHOD(icl_conn_pdu_get_data, icl_cxgbei_conn_pdu_get_data),
 	KOBJMETHOD(icl_conn_pdu_queue, icl_cxgbei_conn_pdu_queue),
+	KOBJMETHOD(icl_conn_pdu_queue_cb, icl_cxgbei_conn_pdu_queue_cb),
 	KOBJMETHOD(icl_conn_handoff, icl_cxgbei_conn_handoff),
 	KOBJMETHOD(icl_conn_free, icl_cxgbei_conn_free),
 	KOBJMETHOD(icl_conn_close, icl_cxgbei_conn_close),
@@ -161,22 +165,82 @@ DEFINE_CLASS(icl_cxgbei, icl_cxgbei_methods, sizeof(struct icl_cxgbei_conn));
 void
 icl_cxgbei_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
-#ifdef INVARIANTS
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
-#endif
 
+	KASSERT(icp->ref_cnt != 0, ("freeing deleted PDU"));
 	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
 	MPASS(ic == ip->ip_conn);
-	MPASS(ip->ip_bhs_mbuf != NULL);
 
 	m_freem(ip->ip_ahs_mbuf);
 	m_freem(ip->ip_data_mbuf);
-	m_freem(ip->ip_bhs_mbuf);	/* storage for icl_cxgbei_pdu itself */
+	m_freem(ip->ip_bhs_mbuf);
 
+	KASSERT(ic != NULL || icp->ref_cnt == 1,
+	    ("orphaned PDU has oustanding references"));
+
+	if (atomic_fetchadd_int(&icp->ref_cnt, -1) != 1)
+		return;
+
+	free(icp, M_CXGBEI);
 #ifdef DIAGNOSTIC
 	if (__predict_true(ic != NULL))
 		refcount_release(&ic->ic_outstanding_pdus);
 #endif
+}
+
+static void
+icl_cxgbei_pdu_call_cb(struct icl_pdu *ip)
+{
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+
+	MPASS(icp->icp_signature == CXGBEI_PDU_SIGNATURE);
+
+	if (icp->cb != NULL)
+		icp->cb(ip, icp->error);
+#ifdef DIAGNOSTIC
+	if (__predict_true(ip->ip_conn != NULL))
+		refcount_release(&ip->ip_conn->ic_outstanding_pdus);
+#endif
+	free(icp, M_CXGBEI);
+}
+
+static void
+icl_cxgbei_pdu_done(struct icl_pdu *ip, int error)
+{
+	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
+
+	if (error != 0)
+		icp->error = error;
+
+	m_freem(ip->ip_ahs_mbuf);
+	ip->ip_ahs_mbuf = NULL;
+	m_freem(ip->ip_data_mbuf);
+	ip->ip_data_mbuf = NULL;
+	m_freem(ip->ip_bhs_mbuf);
+	ip->ip_bhs_mbuf = NULL;
+
+	/*
+	 * All other references to this PDU should have been dropped
+	 * by the m_freem() of ip_data_mbuf.
+	 */
+	if (atomic_fetchadd_int(&icp->ref_cnt, -1) == 1)
+		icl_cxgbei_pdu_call_cb(ip);
+	else
+		__assert_unreachable();
+}
+
+static void
+icl_cxgbei_mbuf_done(struct mbuf *mb)
+{
+
+	struct icl_cxgbei_pdu *icp = (struct icl_cxgbei_pdu *)mb->m_ext.ext_arg1;
+
+	/*
+	 * NB: mb_free_mext() might leave ref_cnt as 1 without
+	 * decrementing it if it hits the fast path in the ref_cnt
+	 * check.
+	 */
+	icl_cxgbei_pdu_call_cb(&icp->ip);
 }
 
 struct icl_pdu *
@@ -185,30 +249,24 @@ icl_cxgbei_new_pdu(int flags)
 	struct icl_cxgbei_pdu *icp;
 	struct icl_pdu *ip;
 	struct mbuf *m;
-	uintptr_t a;
 
-	m = m_gethdr(flags, MT_DATA);
-	if (__predict_false(m == NULL))
+	icp = malloc(sizeof(*icp), M_CXGBEI, flags | M_ZERO);
+	if (__predict_false(icp == NULL))
 		return (NULL);
 
-	a = roundup2(mtod(m, uintptr_t), _Alignof(struct icl_cxgbei_pdu));
-	icp = (struct icl_cxgbei_pdu *)a;
-	bzero(icp, sizeof(*icp));
-
 	icp->icp_signature = CXGBEI_PDU_SIGNATURE;
+	icp->ref_cnt = 1;
 	ip = &icp->ip;
+
+	m = m_gethdr(flags, MT_DATA);
+	if (__predict_false(m == NULL)) {
+		free(icp, M_CXGBEI);
+		return (NULL);
+	}
+
 	ip->ip_bhs_mbuf = m;
-
-	a = roundup2((uintptr_t)(icp + 1), _Alignof(struct iscsi_bhs *));
-	ip->ip_bhs = (struct iscsi_bhs *)a;
-#ifdef INVARIANTS
-	/* Everything must fit entirely in the mbuf. */
-	a = (uintptr_t)(ip->ip_bhs + 1);
-	MPASS(a <= (uintptr_t)m + MSIZE);
-#endif
-	bzero(ip->ip_bhs, sizeof(*ip->ip_bhs));
-
-	m->m_data = (void *)ip->ip_bhs;
+	ip->ip_bhs = mtod(m, struct iscsi_bhs *);
+	memset(ip->ip_bhs, 0, sizeof(*ip->ip_bhs));
 	m->m_len = sizeof(struct iscsi_bhs);
 	m->m_pkthdr.len = m->m_len;
 
@@ -306,16 +364,22 @@ finalize_pdu(struct icl_cxgbei_conn *icc, struct icl_cxgbei_pdu *icp)
 	bhs->bhs_data_segment_len[1] = ip->ip_data_len >> 8;
 	bhs->bhs_data_segment_len[0] = ip->ip_data_len >> 16;
 
-	/* "Convert" PDU to mbuf chain.	 Do not use icp/ip after this. */
-	m->m_pkthdr.len = sizeof(struct iscsi_bhs) + ip->ip_data_len + padding;
+	/*
+	 * Extract mbuf chain from PDU.
+	 */
+	m->m_pkthdr.len += ip->ip_data_len + padding;
 	m->m_next = ip->ip_data_mbuf;
 	set_mbuf_ulp_submode(m, ulp_submode);
-#ifdef INVARIANTS
-	bzero(icp, sizeof(*icp));
-#endif
-#ifdef DIAGNOSTIC
-	refcount_release(&icc->ic.ic_outstanding_pdus);
-#endif
+	ip->ip_bhs_mbuf = NULL;
+	ip->ip_data_mbuf = NULL;
+	ip->ip_bhs = NULL;
+
+	/*
+	 * Drop PDU reference on icp.  Additional references might
+	 * still be held by zero-copy PDU buffers (ICL_NOCOPY).
+	 */
+	if (atomic_fetchadd_int(&icp->ref_cnt, -1) == 1)
+		icl_cxgbei_pdu_call_cb(ip);
 
 	return (m);
 }
@@ -324,9 +388,7 @@ int
 icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
     const void *addr, size_t len, int flags)
 {
-#ifdef INVARIANTS
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
-#endif
 	struct mbuf *m, *m_tail;
 	const char *src;
 
@@ -338,6 +400,29 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 	if (m_tail != NULL)
 		for (; m_tail->m_next != NULL; m_tail = m_tail->m_next)
 			;
+
+	if (flags & ICL_NOCOPY) {
+		m = m_get(flags & ~ICL_NOCOPY, MT_DATA);
+		if (m == NULL) {
+			ICL_WARN("failed to allocate mbuf");
+			return (ENOMEM);
+		}
+
+		m->m_flags |= M_RDONLY;
+		m_extaddref(m, __DECONST(char *, addr), len, &icp->ref_cnt,
+		    icl_cxgbei_mbuf_done, icp, NULL);
+		m->m_len = len;
+		if (ip->ip_data_mbuf == NULL) {
+			ip->ip_data_mbuf = m;
+			ip->ip_data_len = len;
+		} else {
+			m_tail->m_next = m;
+			m_tail = m_tail->m_next;
+			ip->ip_data_len += len;
+		}
+
+		return (0);
+	}
 
 	src = (const char *)addr;
 
@@ -404,6 +489,13 @@ icl_cxgbei_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
 void
 icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 {
+	icl_cxgbei_conn_pdu_queue_cb(ic, ip, NULL);
+}
+
+void
+icl_cxgbei_conn_pdu_queue_cb(struct icl_conn *ic, struct icl_pdu *ip,
+			     icl_pdu_cb cb)
+{
 	struct epoch_tracker et;
 	struct icl_cxgbei_conn *icc = ic_to_icc(ic);
 	struct icl_cxgbei_pdu *icp = ip_to_icp(ip);
@@ -418,9 +510,12 @@ icl_cxgbei_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 	MPASS(ip->ip_ahs_mbuf == NULL && ip->ip_ahs_len == 0);
 
 	ICL_CONN_LOCK_ASSERT(ic);
+
+	icp->cb = cb;
+
 	/* NOTE: sowriteable without so_snd lock is a mostly harmless race. */
 	if (ic->ic_disconnecting || so == NULL || !sowriteable(so)) {
-		icl_cxgbei_conn_pdu_free(ic, ip);
+		icl_cxgbei_pdu_done(ip, ENOTCONN);
 		return;
 	}
 
@@ -809,7 +904,7 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 		while (!STAILQ_EMPTY(&icc->rcvd_pdus)) {
 			ip = STAILQ_FIRST(&icc->rcvd_pdus);
 			STAILQ_REMOVE_HEAD(&icc->rcvd_pdus, ip_next);
-			icl_cxgbei_conn_pdu_free(ic, ip);
+			icl_cxgbei_pdu_done(ip, ENOTCONN);
 		}
 		SOCKBUF_UNLOCK(sb);
 	}
