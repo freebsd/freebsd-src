@@ -786,14 +786,15 @@ void ecore_spq_return_entry(struct ecore_hwfn *p_hwfn,
  * @return enum _ecore_status_t
  */
 static enum _ecore_status_t ecore_spq_add_entry(struct ecore_hwfn *p_hwfn,
-						struct ecore_spq_entry *p_ent,
+						struct ecore_spq_entry **p_ent,
 						enum spq_priority priority)
 {
 	struct ecore_spq	*p_spq	= p_hwfn->p_spq;
+	struct ecore_spq_entry p_en1 = *p_ent;
 
-	if (p_ent->queue == &p_spq->unlimited_pending) {
+	if (p_en1->queue == &p_spq->unlimited_pending) {
 		if (OSAL_LIST_IS_EMPTY(&p_spq->free_pool)) {
-			OSAL_LIST_PUSH_TAIL(&p_ent->list,
+			OSAL_LIST_PUSH_TAIL(&p_en1->list,
 					    &p_spq->unlimited_pending);
 			p_spq->unlimited_pending_count++;
 
@@ -811,26 +812,26 @@ static enum _ecore_status_t ecore_spq_add_entry(struct ecore_hwfn *p_hwfn,
 			 * entry, since we are about to override the entire ring
 			 * entry and don't want to lose the pointer.
 			 */
-			p_ent->elem.data_ptr = p_en2->elem.data_ptr;
+			p_en1->elem.data_ptr = p_en2->elem.data_ptr;
 
-			*p_en2 = *p_ent;
+			*p_en2 = *p_en1;
 
 			/* EBLOCK responsible to free the allocated p_ent */
-			if (p_ent->comp_mode != ECORE_SPQ_MODE_EBLOCK)
-				OSAL_FREE(p_hwfn->p_dev, p_ent);
+			if (p_en1->comp_mode != ECORE_SPQ_MODE_EBLOCK)
+				OSAL_FREE(p_hwfn->p_dev, p_en1);
 
-			p_ent = p_en2;
+			*p_ent = p_en2;
 		}
 	}
 
 	/* entry is to be placed in 'pending' queue */
 	switch (priority) {
 	case ECORE_SPQ_PRIORITY_NORMAL:
-		OSAL_LIST_PUSH_TAIL(&p_ent->list, &p_spq->pending);
+		OSAL_LIST_PUSH_TAIL(&p_en1->list, &p_spq->pending);
 		p_spq->normal_count++;
 		break;
 	case ECORE_SPQ_PRIORITY_HIGH:
-		OSAL_LIST_PUSH_HEAD(&p_ent->list, &p_spq->pending);
+		OSAL_LIST_PUSH_HEAD(&p_en1->list, &p_spq->pending);
 		p_spq->high_count++;
 		break;
 	default:
@@ -913,7 +914,7 @@ enum _ecore_status_t ecore_spq_pend_post(struct ecore_hwfn *p_hwfn)
 #endif
 		OSAL_LIST_REMOVE_ENTRY(&p_ent->list, &p_spq->unlimited_pending);
 
-		ecore_spq_add_entry(p_hwfn, p_ent, p_ent->priority);
+		ecore_spq_add_entry(p_hwfn, &p_ent, p_ent->priority);
 	}
 
 	return ecore_spq_post_list(p_hwfn, &p_spq->pending,
@@ -956,7 +957,7 @@ enum _ecore_status_t ecore_spq_post(struct ecore_hwfn		*p_hwfn,
 		goto spq_post_fail;
 
 	/* Add the request to the pending queue */
-	rc = ecore_spq_add_entry(p_hwfn, p_ent, p_ent->priority);
+	rc = ecore_spq_add_entry(p_hwfn, &p_ent, p_ent->priority);
 	if (rc)
 		goto spq_post_fail;
 
