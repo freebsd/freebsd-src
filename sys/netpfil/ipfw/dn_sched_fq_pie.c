@@ -735,7 +735,7 @@ pie_enqueue(struct fq_pie_flow *q, struct mbuf* m, struct fq_pie_si *si)
 				sizeof(aqm_time_t), M_NOWAIT);
 		if (mtag == NULL) {
 			m_freem(m); 
-			t = DROP;
+			return 1;
 		}
 		*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
 		m_tag_prepend(m, mtag);
