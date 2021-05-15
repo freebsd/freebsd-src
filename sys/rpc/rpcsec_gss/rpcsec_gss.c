@@ -592,6 +592,7 @@ rpc_gss_marshal(AUTH *auth, uint32_t xid, XDR *xdrs, struct mbuf *args)
 		verf.oa_length = checksum.length;
 
 		xdr_stat = xdr_opaque_auth(xdrs, &verf);
+		checksum.value = verf.oa_base;
 		gss_release_buffer(&min_stat, &checksum);
 		if (!xdr_stat) {
 			_rpc_gss_set_error(RPC_GSS_ER_SYSTEMERROR, ENOMEM);
