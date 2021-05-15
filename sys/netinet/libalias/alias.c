@@ -290,10 +290,10 @@ static int	TcpAliasOut(struct libalias *, struct ip *, int, int create);
 static int
 IcmpAliasIn1(struct libalias *la, struct ip *pip)
 {
-	LIBALIAS_LOCK_ASSERT(la);
 	struct alias_link *lnk;
 	struct icmp *ic;
 
+	LIBALIAS_LOCK_ASSERT(la);
 	ic = (struct icmp *)ip_next(pip);
 
 	/* Get source address from ICMP data field and restore original data */
@@ -334,13 +334,13 @@ IcmpAliasIn1(struct libalias *la, struct ip *pip)
 static int
 IcmpAliasIn2(struct libalias *la, struct ip *pip)
 {
-	LIBALIAS_LOCK_ASSERT(la);
 	struct ip *ip;
 	struct icmp *ic, *ic2;
 	struct udphdr *ud;
 	struct tcphdr *tc;
 	struct alias_link *lnk;
 
+	LIBALIAS_LOCK_ASSERT(la);
 	ic = (struct icmp *)ip_next(pip);
 	ip = &ic->icmp_ip;
 
