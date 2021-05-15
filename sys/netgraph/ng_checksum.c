@@ -682,9 +682,9 @@ bypass:
 	return (error);
 
 done:
+	NG_FREE_M(m);
 drop:
 	NG_FREE_ITEM(item);
-	NG_FREE_M(m);
 
 	priv->stats.dropped++;
 
