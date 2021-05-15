@@ -258,7 +258,7 @@ aqm_codel_enqueue(struct dn_queue *q, struct mbuf *m)
 			sizeof(aqm_time_t), M_NOWAIT);
 	if (mtag == NULL) {
 		m_freem(m); 
-		goto drop;
+		goto out;
 	}
 
 	*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
@@ -269,8 +269,9 @@ aqm_codel_enqueue(struct dn_queue *q, struct mbuf *m)
 	return (0);
 
 drop:
-	update_stats(q, 0, 1);
 	FREE_PKT(m);
+out:
+	update_stats(q, 0, 1);
 	return (1);
 }
 
