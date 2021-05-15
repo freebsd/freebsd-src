@@ -458,6 +458,7 @@ soalloc(struct vnet *vnet)
 static void
 sodealloc(struct socket *so)
 {
+	struct uidinfo	*cr_uidinfo;
 
 	KASSERT(so->so_count == 0, ("sodealloc(): so_count %d", so->so_count));
 	KASSERT(so->so_pcb == NULL, ("sodealloc(): so_pcb != NULL"));
@@ -476,6 +477,7 @@ sodealloc(struct socket *so)
 #endif
 	hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
 
+	cr_uidinfo = so->so_cred->cr_uidinfo;
 	crfree(so->so_cred);
 	khelp_destroy_osd(&so->osd);
 	if (SOLISTENING(so)) {
@@ -483,10 +485,10 @@ sodealloc(struct socket *so)
 			accept_filt_setopt(so, NULL);
 	} else {
 		if (so->so_rcv.sb_hiwat)
-			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			(void)chgsbsize(cr_uidinfo,
 			    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
 		if (so->so_snd.sb_hiwat)
-			(void)chgsbsize(so->so_cred->cr_uidinfo,
+			(void)chgsbsize(cr_uidinfo,
 			    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 		sx_destroy(&so->so_snd.sb_sx);
 		sx_destroy(&so->so_rcv.sb_sx);
