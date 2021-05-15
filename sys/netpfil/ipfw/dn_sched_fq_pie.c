@@ -82,6 +82,9 @@
 
 #define DN_SCHED_FQ_PIE 7
 
+VNET_DECLARE(unsigned long, io_pkt_drop);
+#define V_io_pkt_drop VNET(io_pkt_drop)
+
 /* list of queues */
 STAILQ_HEAD(fq_pie_list, fq_pie_flow) ;
 
@@ -299,7 +302,7 @@ fq_update_stats(struct fq_pie_flow *q, struct fq_pie_si *si, int len,
 		si->main_q.ni.drops ++;
 		q->stats.drops ++;
 		si->_si.ni.drops ++;
-		dn_cfg.io_pkt_drop ++;
+		V_dn_cfg.io_pkt_drop ++;
 	} 
 
 	if (!drop || (drop && len < 0)) {
@@ -347,7 +350,7 @@ fq_pie_extract_head(struct fq_pie_flow *q, aqm_time_t *pkt_ts,
 	fq_update_stats(q, si, -m->m_pkthdr.len, 0);
 
 	if (si->main_q.ni.length == 0) /* queue is now idle */
-			si->main_q.q_time = dn_cfg.curr_time;
+			si->main_q.q_time = V_dn_cfg.curr_time;
 
 	if (getts) {
 		/* extract packet timestamp*/
@@ -768,7 +771,7 @@ pie_drop_head(struct fq_pie_flow *q, struct fq_pie_si *si)
 	fq_update_stats(q, si, -m->m_pkthdr.len, 1);
 
 	if (si->main_q.ni.length == 0) /* queue is now idle */
-			si->main_q.q_time = dn_cfg.curr_time;
+			si->main_q.q_time = V_dn_cfg.curr_time;
 	/* reset accu_prob after packet drop */
 	q->pst.accu_prob = 0;
 

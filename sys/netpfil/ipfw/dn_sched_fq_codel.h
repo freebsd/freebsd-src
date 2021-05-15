@@ -36,6 +36,9 @@
 #ifndef _IP_DN_SCHED_FQ_CODEL_H
 #define _IP_DN_SCHED_FQ_CODEL_H
 
+VNET_DECLARE(unsigned long, io_pkt_drop);
+#define V_io_pkt_drop VNET(io_pkt_drop)
+
 /* list of queues */
 STAILQ_HEAD(fq_codel_list, fq_codel_flow) ;
 
@@ -104,7 +107,7 @@ fq_update_stats(struct fq_codel_flow *q, struct fq_codel_si *si, int len,
 		si->main_q.ni.drops ++;
 		q->stats.drops ++;
 		si->_si.ni.drops ++;
-		dn_cfg.io_pkt_drop ++;
+		V_dn_cfg.io_pkt_drop ++;
 	} 
 
 	if (!drop || (drop && len < 0)) {
@@ -147,7 +150,7 @@ fq_codel_extract_head(struct fq_codel_flow *q, aqm_time_t *pkt_ts, struct fq_cod
 	fq_update_stats(q, si, -m->m_pkthdr.len, 0);
 
 	if (si->main_q.ni.length == 0) /* queue is now idle */
-			si->main_q.q_time = dn_cfg.curr_time;
+			si->main_q.q_time = V_dn_cfg.curr_time;
 
 	/* extract packet timestamp*/
 	struct m_tag *mtag;
