@@ -1675,7 +1675,6 @@ FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 	lnk = FindLinkIn(la, ANY_ADDR, alias_addr,
 	    0, 0, LINK_ADDR, 0);
 	if (lnk == NULL) {
-		la->newDefaultLink = 1;
 		if (la->targetAddress.s_addr == INADDR_ANY)
 			return (alias_addr);
 		else if (la->targetAddress.s_addr == INADDR_NONE)
@@ -2050,13 +2049,6 @@ SetExpire(struct alias_link *lnk, int expire)
 		fprintf(stderr, "error in expire parameter\n");
 #endif
 	}
-}
-
-void
-ClearCheckNewLink(struct libalias *la)
-{
-	LIBALIAS_LOCK_ASSERT(la);
-	la->newDefaultLink = 0;
 }
 
 void
@@ -2548,15 +2540,12 @@ getout:
 	return (res);
 }
 
+/* never used and never worked, to be removed in FreeBSD 14 */
 int
 LibAliasCheckNewLink(struct libalias *la)
 {
-	int res;
-
-	LIBALIAS_LOCK(la);
-	res = la->newDefaultLink;
-	LIBALIAS_UNLOCK(la);
-	return (res);
+	(void)la;
+	return (0);
 }
 
 #ifndef NO_FW_PUNCH

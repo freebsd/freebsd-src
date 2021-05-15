@@ -118,9 +118,6 @@ struct libalias {
 #else
 	FILE	       *logDesc;
 #endif
-	/* Indicates if a new aliasing link has been created
-	 * after a call to PacketAliasIn/Out(). */
-	int		newDefaultLink;
 
 #ifndef NO_FW_PUNCH
 	/* File descriptor to be able to control firewall.
@@ -323,7 +320,6 @@ int		GetDeltaSeqOut(u_long, struct alias_link *lnk);
 void		AddSeq(struct alias_link *lnk, int delta, u_int ip_hl,
 		    u_short ip_len, u_long th_seq, u_int th_off);
 void		SetExpire (struct alias_link *_lnk, int _expire);
-void		ClearCheckNewLink(struct libalias *la);
 void		SetProtocolFlags(struct alias_link *_lnk, int _pflags);
 int		GetProtocolFlags(struct alias_link *_lnk);
 void		SetDestCallId(struct alias_link *_lnk, u_int16_t _cid);
