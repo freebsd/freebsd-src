@@ -120,9 +120,11 @@ void	       *LibAliasGetFragment(struct libalias *, void *_ptr);
 int		LibAliasSaveFragment(struct libalias *, void *_ptr);
 
 /* Miscellaneous functions. */
-int		LibAliasCheckNewLink(struct libalias *);
 unsigned short	LibAliasInternetChecksum(struct libalias *, unsigned short *_ptr, int _nbytes);
 void		LibAliasSetTarget(struct libalias *, struct in_addr _target_addr);
+
+/* never used and never worked, to be removed in FreeBSD 14 */
+int		LibAliasCheckNewLink(struct libalias *);
 
 /* Transparent proxying routines. */
 int		LibAliasProxyRule(struct libalias *, const char *_cmd);
