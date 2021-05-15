@@ -1330,7 +1330,6 @@ LibAliasInLocked(struct libalias *la, struct ip *pip, int maxpacketsize)
 		goto getout;
 	}
 	HouseKeeping(la);
-	ClearCheckNewLink(la);
 	alias_addr = pip->ip_dst;
 
 	/* Defense against mangled packets */
@@ -1461,7 +1460,6 @@ LibAliasOutLocked(struct libalias *la,
 		goto getout;
 	}
 	HouseKeeping(la);
-	ClearCheckNewLink(la);
 
 	/* Defense against mangled packets */
 	if (ntohs(pip->ip_len) > maxpacketsize
