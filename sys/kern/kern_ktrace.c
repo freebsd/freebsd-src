@@ -1190,7 +1190,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	struct uio auio;
 	struct iovec aiov[3];
 	struct mount *mp;
-	int datalen, buflen, vrele_count;
+	int datalen, buflen;
 	int error;
 
 	/*
@@ -1264,44 +1264,29 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	}
 
 	/*
-	 * If error encountered, give up tracing on this vnode.  We defer
-	 * all the vrele()'s on the vnode until after we are finished walking
-	 * the various lists to avoid needlessly holding locks.
-	 * NB: at this point we still hold the vnode reference that must
-	 * not go away as we need the valid vnode to compare with. Thus let
-	 * vrele_count start at 1 and the reference will be freed
-	 * by the loop at the end after our last use of vp.
+	 * If error encountered, give up tracing on this vnode on this
+	 * process.  Other processes might still be suitable for
+	 * writes to this vnode.
 	 */
-	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
-	    error);
-	vrele_count = 1;
-	/*
-	 * First, clear this vnode from being used by any processes in the
-	 * system.
-	 * XXX - If one process gets an EPERM writing to the vnode, should
-	 * we really do this?  Other processes might have suitable
-	 * credentials for the operation.
-	 */
+	p = td->td_proc;
+	log(LOG_NOTICE,
+	    "ktrace write failed, errno %d, tracing stopped for pid %d\n",
+	    error, p->p_pid);
 	cred = NULL;
 	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
-		PROC_LOCK(p);
-		if (p->p_tracevp == vp) {
-			mtx_lock(&ktrace_mtx);
-			ktr_freeproc(p, &cred, NULL);
-			mtx_unlock(&ktrace_mtx);
-			vrele_count++;
-		}
-		PROC_UNLOCK(p);
-		if (cred != NULL) {
-			crfree(cred);
-			cred = NULL;
-		}
+	PROC_LOCK(p);
+	mtx_lock(&ktrace_mtx);
+	if (p->p_tracevp == vp)
+		ktr_freeproc(p, &cred, NULL);
+	mtx_unlock(&ktrace_mtx);
+	PROC_UNLOCK(p);
+	if (cred != NULL) {
+		crfree(cred);
+		cred = NULL;
 	}
 	sx_sunlock(&allproc_lock);
-
-	while (vrele_count-- > 0)
-		vrele(vp);
+	vrele(vp);
+	vrele(vp);
 }
 
 /*
