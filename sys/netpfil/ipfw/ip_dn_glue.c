@@ -567,10 +567,10 @@ dn_compat_calc_size(void)
 	 * - all flowset queues:	queue_count
 	 * - all pipe queue:		si_count
 	 */
-	need += dn_cfg.schk_count * sizeof(struct dn_pipe8) / 2;
-	need += dn_cfg.fsk_count * sizeof(struct dn_flow_set);
-	need += dn_cfg.si_count * sizeof(struct dn_flow_queue8);
-	need += dn_cfg.queue_count * sizeof(struct dn_flow_queue8);
+	need += V_dn_cfg.schk_count * sizeof(struct dn_pipe8) / 2;
+	need += V_dn_cfg.fsk_count * sizeof(struct dn_flow_set);
+	need += V_dn_cfg.si_count * sizeof(struct dn_flow_queue8);
+	need += V_dn_cfg.queue_count * sizeof(struct dn_flow_queue8);
 
 	return need;
 }

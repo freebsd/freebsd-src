@@ -187,7 +187,7 @@ dn_dequeue(struct dn_queue *q)
 		q->_si->ni.len_bytes -= m->m_pkthdr.len;
 	}
 	if (q->ni.length == 0) /* queue is now idle */
-		q->q_time = dn_cfg.curr_time;
+		q->q_time = V_dn_cfg.curr_time;
 	return m;
 }
 

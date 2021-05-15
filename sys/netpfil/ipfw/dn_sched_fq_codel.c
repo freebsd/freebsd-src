@@ -165,7 +165,7 @@ codel_drop_head(struct fq_codel_flow *q, struct fq_codel_si *si)
 	fq_update_stats(q, si, -m->m_pkthdr.len, 1);
 
 	if (si->main_q.ni.length == 0) /* queue is now idle */
-			si->main_q.q_time = dn_cfg.curr_time;
+			si->main_q.q_time = V_dn_cfg.curr_time;
 
 	FREE_PKT(m);
 }

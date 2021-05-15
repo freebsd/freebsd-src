@@ -37,9 +37,9 @@
 #define _IP_DN_AQM_H
 
 /* NOW is the current time in millisecond*/
-#define NOW ((dn_cfg.curr_time * tick) / 1000)
+#define NOW ((V_dn_cfg.curr_time * tick) / 1000)
 
-#define AQM_UNOW (dn_cfg.curr_time * tick)
+#define AQM_UNOW (V_dn_cfg.curr_time * tick)
 #define AQM_TIME_1US ((aqm_time_t)(1))
 #define AQM_TIME_1MS ((aqm_time_t)(1000))
 #define AQM_TIME_1S ((aqm_time_t)(AQM_TIME_1MS * 1000))
@@ -134,7 +134,7 @@ update_stats(struct dn_queue *q, int len, int drop)
 	if (drop) {
 			qni->drops++;
 			sni->drops++;
-			dn_cfg.io_pkt_drop++;
+			V_dn_cfg.io_pkt_drop++;
 	} else {
 		/*update queue stats */
 		qni->length += inc;
