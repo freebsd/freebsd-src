@@ -1588,6 +1588,9 @@ main(int argc, char *argv[])
 	if (restore_file != NULL)
 		destroy_restore_state(&rstate);
 
+	/* initialize mutex/cond variables */
+	init_snapshot();
+
 	/*
 	 * checkpointing thread for communication with bhyvectl
 	 */
