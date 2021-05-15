@@ -338,7 +338,7 @@ pie_extract_head(struct dn_queue *q, aqm_time_t *pkt_ts, int getts)
 	update_stats(q, -m->m_pkthdr.len, 0);
 
 	if (q->ni.length == 0) /* queue is now idle */
-			q->q_time = dn_cfg.curr_time;
+			q->q_time = V_dn_cfg.curr_time;
 
 	if (getts) {
 		/* extract packet TS*/

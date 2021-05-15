@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
+#include <net/vnet.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/dn_heap.h>
@@ -87,9 +88,16 @@ struct schk_new_arg {
 
 /*---- callout hooks. ----*/
 static struct callout dn_timeout;
+static int dn_tasks_started = 0;
 static int dn_gone;
 static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
+
+/* global scheduler list */
+struct dn_alg_head	schedlist;
+#ifdef NEW_AQM
+struct dn_aqm_head	aqmlist;	/* list of AQMs */
+#endif
 
 static void
 dummynet(void *arg)
@@ -117,7 +125,7 @@ find_aqm_type(int type, char *name)
 {
 	struct dn_aqm *d;
 
-	SLIST_FOREACH(d, &dn_cfg.aqmlist, next) {
+	SLIST_FOREACH(d, &aqmlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -131,7 +139,7 @@ find_sched_type(int type, char *name)
 {
 	struct dn_alg *d;
 
-	SLIST_FOREACH(d, &dn_cfg.schedlist, next) {
+	SLIST_FOREACH(d, &schedlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -354,7 +362,7 @@ q_new(uintptr_t key, int flags, void *arg)
 		if(fs->aqmfp->init(q))
 			D("unable to init AQM for fs %d", fs->fs.fs_nr);
 #endif
-	dn_cfg.queue_count++;
+	V_dn_cfg.queue_count++;
 
 	return q;
 }
@@ -387,7 +395,7 @@ dn_delete_queue(struct dn_queue *q, int flags)
 			dn_free_pkts(q->mq.head);
 		bzero(q, sizeof(*q));	// safety
 		free(q, M_DUMMYNET);
-		dn_cfg.queue_count--;
+		V_dn_cfg.queue_count--;
 	}
 }
 
@@ -527,7 +535,7 @@ si_new(uintptr_t key, int flags, void *arg)
 			}
 #endif
 
-	dn_cfg.si_count++;
+	V_dn_cfg.si_count++;
 	return si;
 
 error:
@@ -552,10 +560,10 @@ si_destroy(void *_si, void *arg)
 	struct delay_line *dl = &si->dline;
 
 	if (dl->oid.subtype) /* remove delay line from event heap */
-		heap_extract(&dn_cfg.evheap, dl);
+		heap_extract(&V_dn_cfg.evheap, dl);
 	dn_free_pkts(dl->mq.head);	/* drain delay line */
 	if (si->kflags & DN_ACTIVE) /* remove si from event heap */
-		heap_extract(&dn_cfg.evheap, si);
+		heap_extract(&V_dn_cfg.evheap, si);
 
 #ifdef NEW_AQM
 	/* clean up AQM status for !DN_MULTIQUEUE sched
@@ -574,7 +582,7 @@ si_destroy(void *_si, void *arg)
 		s->fp->free_sched(si);
 	bzero(si, sizeof(*si));	/* safety */
 	free(si, M_DUMMYNET);
-	dn_cfg.si_count--;
+	V_dn_cfg.si_count--;
 	return DNHT_SCAN_DEL;
 }
 
@@ -605,7 +613,7 @@ si_reset_credit(void *_si, void *arg)
 	struct dn_sch_inst *si = _si;
 	struct dn_link *p = &si->sched->link;
 
-	si->credit = p->burst + (dn_cfg.io_fast ?  p->bandwidth : 0);
+	si->credit = p->burst + (V_dn_cfg.io_fast ?  p->bandwidth : 0);
 	return 0;
 }
 
@@ -651,9 +659,9 @@ fsk_new(uintptr_t key, int flags, void *arg)
 	fs = malloc(sizeof(*fs), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (fs) {
 		set_oid(&fs->fs.oid, DN_FS, sizeof(fs->fs));
-		dn_cfg.fsk_count++;
+		V_dn_cfg.fsk_count++;
 		fs->drain_bucket = 0;
-		SLIST_INSERT_HEAD(&dn_cfg.fsu, fs, sch_chain);
+		SLIST_INSERT_HEAD(&V_dn_cfg.fsu, fs, sch_chain);
 	}
 	return fs;
 }
@@ -737,7 +745,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		(flags & DN_DETACH) ? "DET":"");
 	if (flags & DN_DETACH) { /* detach from the list */
 		struct dn_fsk_head *h;
-		h = fs->sched ? &fs->sched->fsk_list : &dn_cfg.fsu;
+		h = fs->sched ? &fs->sched->fsk_list : &V_dn_cfg.fsu;
 		SLIST_REMOVE(h, fs, dn_fsk, sch_chain);
 	}
 	/* Free the RED parameters, they will be recomputed on
@@ -757,9 +765,9 @@ fsk_detach(struct dn_fsk *fs, int flags)
 	if (flags & DN_DELETE_FS) {
 		bzero(fs, sizeof(*fs));	/* safety */
 		free(fs, M_DUMMYNET);
-		dn_cfg.fsk_count--;
+		V_dn_cfg.fsk_count--;
 	} else {
-		SLIST_INSERT_HEAD(&dn_cfg.fsu, fs, sch_chain);
+		SLIST_INSERT_HEAD(&V_dn_cfg.fsu, fs, sch_chain);
 	}
 }
 
@@ -797,7 +805,7 @@ delete_fs(int i, int locked)
 
 	if (!locked)
 		DN_BH_WLOCK();
-	fs = dn_ht_find(dn_cfg.fshash, i, DNHT_REMOVE, NULL);
+	fs = dn_ht_find(V_dn_cfg.fshash, i, DNHT_REMOVE, NULL);
 	ND("fs %d found %p", i, fs);
 	if (fs) {
 		fsk_detach(fs, DN_DETACH | DN_DELETE_FS);
@@ -866,7 +874,7 @@ schk_new(uintptr_t key, int flags, void *arg)
 		}
 	}
 	s->fp = NULL;	/* mark as a new scheduler */
-	dn_cfg.schk_count++;
+	V_dn_cfg.schk_count++;
 	return s;
 }
 
@@ -905,7 +913,7 @@ schk_delete_cb(void *obj, void *arg)
 		s->fp->destroy(s);
 	bzero(s, sizeof(*s));	// safety
 	free(obj, M_DUMMYNET);
-	dn_cfg.schk_count--;
+	V_dn_cfg.schk_count--;
 	return DNHT_SCAN_DEL;
 }
 
@@ -919,7 +927,7 @@ delete_schk(int i)
 {
 	struct dn_schk *s;
 
-	s = dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
+	s = dn_ht_find(V_dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
 	ND("%d %p", i, s);
 	if (!s)
 		return EINVAL;
@@ -1176,7 +1184,7 @@ copy_data_helper(void *_o, void *_arg)
 static inline struct dn_schk *
 locate_scheduler(int i)
 {
-	return dn_ht_find(dn_cfg.schedhash, i, 0, NULL);
+	return dn_ht_find(V_dn_cfg.schedhash, i, 0, NULL);
 }
 
 /*
@@ -1194,10 +1202,10 @@ config_red(struct dn_fsk *fs)
 	/* Doing stuff that was in userland */
 	i = fs->sched->link.bandwidth;
 	s = (i <= 0) ? 0 :
-		hz * dn_cfg.red_avg_pkt_size * 8 * SCALE(1) / i;
+		hz * V_dn_cfg.red_avg_pkt_size * 8 * SCALE(1) / i;
 
 	idle = div64((s * 3) , fs->w_q); /* s, fs->w_q scaled; idle not scaled */
-	fs->lookup_step = div64(idle , dn_cfg.red_lookup_depth);
+	fs->lookup_step = div64(idle , V_dn_cfg.red_lookup_depth);
 	/* fs->lookup_step not scaled, */
 	if (!fs->lookup_step)
 		fs->lookup_step = 1;
@@ -1227,14 +1235,14 @@ config_red(struct dn_fsk *fs)
 		free(fs->w_q_lookup, M_DUMMYNET);
 		fs->w_q_lookup = NULL;
 	}
-	if (dn_cfg.red_lookup_depth == 0) {
+	if (V_dn_cfg.red_lookup_depth == 0) {
 		printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth"
 		    "must be > 0\n");
 		fs->fs.flags &= ~DN_IS_RED;
 		fs->fs.flags &= ~DN_IS_GENTLE_RED;
 		return (EINVAL);
 	}
-	fs->lookup_depth = dn_cfg.red_lookup_depth;
+	fs->lookup_depth = V_dn_cfg.red_lookup_depth;
 	fs->w_q_lookup = (u_int *)malloc(fs->lookup_depth * sizeof(int),
 	    M_DUMMYNET, M_NOWAIT);
 	if (fs->w_q_lookup == NULL) {
@@ -1251,12 +1259,12 @@ config_red(struct dn_fsk *fs)
 		fs->w_q_lookup[i] =
 		    SCALE_MUL(fs->w_q_lookup[i - 1], fs->lookup_weight);
 
-	if (dn_cfg.red_avg_pkt_size < 1)
-		dn_cfg.red_avg_pkt_size = 512;
-	fs->avg_pkt_size = dn_cfg.red_avg_pkt_size;
-	if (dn_cfg.red_max_pkt_size < 1)
-		dn_cfg.red_max_pkt_size = 1500;
-	fs->max_pkt_size = dn_cfg.red_max_pkt_size;
+	if (V_dn_cfg.red_avg_pkt_size < 1)
+		V_dn_cfg.red_avg_pkt_size = 512;
+	fs->avg_pkt_size = V_dn_cfg.red_avg_pkt_size;
+	if (V_dn_cfg.red_max_pkt_size < 1)
+		V_dn_cfg.red_max_pkt_size = 1500;
+	fs->max_pkt_size = V_dn_cfg.red_max_pkt_size;
 	ND("exit");
 	return 0;
 }
@@ -1278,7 +1286,7 @@ fsk_attach(struct dn_fsk *fs, struct dn_schk *s)
 {
 	ND("remove fs %d from fsunlinked, link to sched %d",
 		fs->fs.fs_nr, s->sch.sched_nr);
-	SLIST_REMOVE(&dn_cfg.fsu, fs, dn_fsk, sch_chain);
+	SLIST_REMOVE(&V_dn_cfg.fsu, fs, dn_fsk, sch_chain);
 	fs->sched = s;
 	SLIST_INSERT_HEAD(&s->fsk_list, fs, sch_chain);
 	if (s->fp->new_fsk)
@@ -1317,7 +1325,7 @@ update_fs(struct dn_schk *s)
 {
 	struct dn_fsk *fs, *tmp;
 
-	SLIST_FOREACH_SAFE(fs, &dn_cfg.fsu, sch_chain, tmp) {
+	SLIST_FOREACH_SAFE(fs, &V_dn_cfg.fsu, sch_chain, tmp) {
 		if (s->sch.sched_nr != fs->fs.sched_nr) {
 			D("fs %d for sch %d not %d still unlinked",
 				fs->fs.fs_nr, fs->fs.sched_nr,
@@ -1362,7 +1370,7 @@ get_aqm_parms(struct sockopt *sopt)
 			break;
 		}
 
-		fs = dn_ht_find(dn_cfg.fshash, ep->nr, 0, NULL);
+		fs = dn_ht_find(V_dn_cfg.fshash, ep->nr, 0, NULL);
 		if (!fs) {
 			D("fs %d not found", ep->nr);
 			err = EINVAL;
@@ -1579,7 +1587,7 @@ config_link(struct dn_link *p, struct dn_id *arg)
 	    s->link.burst = p->burst;
 	    schk_reset_credit(s);
 	}
-	dn_cfg.id++;
+	V_dn_cfg.id++;
 	DN_BH_WUNLOCK();
 	return 0;
 }
@@ -1616,15 +1624,15 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	/* XXX other sanity checks */
         if (nfs->flags & DN_QSIZE_BYTES) {
 		ipdn_bound_var(&nfs->qsize, 16384,
-		    1500, dn_cfg.byte_limit, NULL); // "queue byte size");
+		    1500, V_dn_cfg.byte_limit, NULL); // "queue byte size");
         } else {
 		ipdn_bound_var(&nfs->qsize, 50,
-		    1, dn_cfg.slot_limit, NULL); // "queue slot size");
+		    1, V_dn_cfg.slot_limit, NULL); // "queue slot size");
         }
 	if (nfs->flags & DN_HAVE_MASK) {
 		/* make sure we have some buckets */
-		ipdn_bound_var((int *)&nfs->buckets, dn_cfg.hash_size,
-			1, dn_cfg.max_hash_size, "flowset buckets");
+		ipdn_bound_var((int *)&nfs->buckets, V_dn_cfg.hash_size,
+			1, V_dn_cfg.max_hash_size, "flowset buckets");
 	} else {
 		nfs->buckets = 1;	/* we only need 1 */
 	}
@@ -1634,8 +1642,8 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	    struct dn_schk *s;
 	    int flags = nfs->sched_nr ? DNHT_INSERT : 0;
 	    int j;
-	    int oldc = dn_cfg.fsk_count;
-	    fs = dn_ht_find(dn_cfg.fshash, i, flags, NULL);
+	    int oldc = V_dn_cfg.fsk_count;
+	    fs = dn_ht_find(V_dn_cfg.fshash, i, flags, NULL);
 	    if (fs == NULL) {
 		D("missing sched for flowset %d", i);
 	        break;
@@ -1662,8 +1670,8 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 #endif
 		break; /* no change, nothing to do */
 	    }
-	    if (oldc != dn_cfg.fsk_count)	/* new item */
-		dn_cfg.id++;
+	    if (oldc != V_dn_cfg.fsk_count)	/* new item */
+		V_dn_cfg.id++;
 	    s = locate_scheduler(nfs->sched_nr);
 	    /* detach from old scheduler if needed, preserving
 	     * queues if we need to reattach. Then update the
@@ -1729,8 +1737,8 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 		return EINVAL;
 	/* make sure we have some buckets */
 	if (a.sch->flags & DN_HAVE_MASK)
-		ipdn_bound_var((int *)&a.sch->buckets, dn_cfg.hash_size,
-			1, dn_cfg.max_hash_size, "sched buckets");
+		ipdn_bound_var((int *)&a.sch->buckets, V_dn_cfg.hash_size,
+			1, V_dn_cfg.max_hash_size, "sched buckets");
 	/* XXX other sanity checks */
 	bzero(&p, sizeof(p));
 
@@ -1748,14 +1756,14 @@ again: /* run twice, for wfq and fifo */
 	 * lookup the type. If not supplied, use the previous one
 	 * or default to WF2Q+. Otherwise, return an error.
 	 */
-	dn_cfg.id++;
+	V_dn_cfg.id++;
 	a.fp = find_sched_type(a.sch->oid.subtype, a.sch->name);
 	if (a.fp != NULL) {
 		/* found. Lookup or create entry */
-		s = dn_ht_find(dn_cfg.schedhash, i, DNHT_INSERT, &a);
+		s = dn_ht_find(V_dn_cfg.schedhash, i, DNHT_INSERT, &a);
 	} else if (a.sch->oid.subtype == 0 && !a.sch->name[0]) {
 		/* No type. search existing s* or retry with WF2Q+ */
-		s = dn_ht_find(dn_cfg.schedhash, i, 0, &a);
+		s = dn_ht_find(V_dn_cfg.schedhash, i, 0, &a);
 		if (s != NULL) {
 			a.fp = s->fp;
 			/* Scheduler exists, skip to FIFO scheduler 
@@ -1827,7 +1835,7 @@ again: /* run twice, for wfq and fifo */
 				memcpy(pf, s->profile, sizeof(*pf));
 		}
 		/* remove from the hash */
-		dn_ht_find(dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
+		dn_ht_find(V_dn_cfg.schedhash, i, DNHT_REMOVE, NULL);
 		/* Detach flowsets, preserve queues. */
 		// schk_delete_cb(s, NULL);
 		// XXX temporarily, kill queues
@@ -1845,7 +1853,7 @@ again: /* run twice, for wfq and fifo */
 	 * trying to reuse existing ones if available
 	 */
 	if (!(s->fp->flags & DN_MULTIQUEUE) && !s->fs) {
-	        s->fs = dn_ht_find(dn_cfg.fshash, i, 0, NULL);
+	        s->fs = dn_ht_find(V_dn_cfg.fshash, i, 0, NULL);
 		if (!s->fs) {
 			struct dn_fs fs;
 			bzero(&fs, sizeof(fs));
@@ -1874,7 +1882,7 @@ next:
 			a.sch->flags = new_flags;
 		} else {
 			/* sched config shouldn't modify the FIFO scheduler */
-			if (dn_ht_find(dn_cfg.schedhash, i, 0, &a) != NULL) {
+			if (dn_ht_find(V_dn_cfg.schedhash, i, 0, &a) != NULL) {
 				/* FIFO already exist, don't touch it */
 				err = 0; /* and this is not an error */
 				goto error;
@@ -1918,7 +1926,7 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 			err = EINVAL;
 			break;
 		}
-		dn_cfg.id++;
+		V_dn_cfg.id++;
 		/*
 		 * If we had a profile and the new one does not fit,
 		 * or it is deleted, then we need to free memory.
@@ -1961,14 +1969,14 @@ dummynet_flush(void)
 {
 
 	/* delete all schedulers and related links/queues/flowsets */
-	dn_ht_scan(dn_cfg.schedhash, schk_delete_cb,
+	dn_ht_scan(V_dn_cfg.schedhash, schk_delete_cb,
 		(void *)(uintptr_t)DN_DELETE_FS);
 	/* delete all remaining (unlinked) flowsets */
-	DX(4, "still %d unlinked fs", dn_cfg.fsk_count);
-	dn_ht_free(dn_cfg.fshash, DNHT_REMOVE);
-	fsk_detach_list(&dn_cfg.fsu, DN_DELETE_FS);
+	DX(4, "still %d unlinked fs", V_dn_cfg.fsk_count);
+	dn_ht_free(V_dn_cfg.fshash, DNHT_REMOVE);
+	fsk_detach_list(&V_dn_cfg.fsu, DN_DELETE_FS);
 	/* Reinitialize system heap... */
-	heap_init(&dn_cfg.evheap, 16, offsetof(struct dn_id, id));
+	heap_init(&V_dn_cfg.evheap, 16, offsetof(struct dn_id, id));
 }
 
 /*
@@ -2113,10 +2121,10 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 		ED_MAX_SAMPLES_NO*sizeof(int);
 
 	/* NOTE about compute space:
-	 * NP 	= dn_cfg.schk_count
-	 * NSI 	= dn_cfg.si_count
-	 * NF 	= dn_cfg.fsk_count
-	 * NQ 	= dn_cfg.queue_count
+	 * NP 	= V_dn_cfg.schk_count
+	 * NSI 	= V_dn_cfg.si_count
+	 * NF 	= V_dn_cfg.fsk_count
+	 * NQ 	= V_dn_cfg.queue_count
 	 * - ipfw pipe show
 	 *   (NP/2)*(dn_link + dn_sch + dn_id + dn_fs) only half scheduler
 	 *                             link, scheduler template, flowset
@@ -2145,14 +2153,14 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	 */
 	case DN_LINK:	/* pipe show */
 		x = DN_C_LINK | DN_C_SCH | DN_C_FLOW;
-		need += dn_cfg.schk_count *
+		need += V_dn_cfg.schk_count *
 			(sizeof(struct dn_fs) + profile_size) / 2;
-		need += dn_cfg.fsk_count * sizeof(uint32_t);
+		need += V_dn_cfg.fsk_count * sizeof(uint32_t);
 		break;
 	case DN_SCH:	/* sched show */
-		need += dn_cfg.schk_count *
+		need += V_dn_cfg.schk_count *
 			(sizeof(struct dn_fs) + profile_size) / 2;
-		need += dn_cfg.fsk_count * sizeof(uint32_t);
+		need += V_dn_cfg.fsk_count * sizeof(uint32_t);
 		x = DN_C_SCH | DN_C_LINK | DN_C_FLOW;
 		break;
 	case DN_FS:	/* queue show */
@@ -2164,14 +2172,14 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	}
 	a->flags = x;
 	if (x & DN_C_SCH) {
-		need += dn_cfg.schk_count * sizeof(struct dn_sch) / 2;
+		need += V_dn_cfg.schk_count * sizeof(struct dn_sch) / 2;
 		/* NOT also, each fs might be attached to a sched */
-		need += dn_cfg.schk_count * sizeof(struct dn_id) / 2;
+		need += V_dn_cfg.schk_count * sizeof(struct dn_id) / 2;
 	}
 	if (x & DN_C_FS)
-		need += dn_cfg.fsk_count * sizeof(struct dn_fs);
+		need += V_dn_cfg.fsk_count * sizeof(struct dn_fs);
 	if (x & DN_C_LINK) {
-		need += dn_cfg.schk_count * sizeof(struct dn_link) / 2;
+		need += V_dn_cfg.schk_count * sizeof(struct dn_link) / 2;
 	}
 	/*
 	 * When exporting a queue to userland, only pass up the
@@ -2179,9 +2187,9 @@ compute_space(struct dn_id *cmd, struct copy_args *a)
 	 */
 
 	if (x & DN_C_QUEUE)
-		need += dn_cfg.queue_count * sizeof(struct dn_flow);
+		need += V_dn_cfg.queue_count * sizeof(struct dn_flow);
 	if (x & DN_C_FLOW)
-		need += dn_cfg.si_count * (sizeof(struct dn_flow));
+		need += V_dn_cfg.si_count * (sizeof(struct dn_flow));
 	return need;
 }
 
@@ -2304,11 +2312,11 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	}
 	ND("have %d:%d sched %d, %d:%d links %d, %d:%d flowsets %d, "
 		"%d:%d si %d, %d:%d queues %d",
-		dn_cfg.schk_count, sizeof(struct dn_sch), DN_SCH,
-		dn_cfg.schk_count, sizeof(struct dn_link), DN_LINK,
-		dn_cfg.fsk_count, sizeof(struct dn_fs), DN_FS,
-		dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
-		dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
+		V_dn_cfg.schk_count, sizeof(struct dn_sch), DN_SCH,
+		V_dn_cfg.schk_count, sizeof(struct dn_link), DN_LINK,
+		V_dn_cfg.fsk_count, sizeof(struct dn_fs), DN_FS,
+		V_dn_cfg.si_count, sizeof(struct dn_flow), DN_SCH_I,
+		V_dn_cfg.queue_count, sizeof(struct dn_queue), DN_QUEUE);
 	sopt->sopt_valsize = sopt_valsize;
 	a.type = cmd->subtype;
 
@@ -2323,13 +2331,13 @@ dummynet_get(struct sockopt *sopt, void **compat)
 	/* start copying other objects */
 	if (compat) {
 		a.type = DN_COMPAT_PIPE;
-		dn_ht_scan(dn_cfg.schedhash, copy_data_helper_compat, &a);
+		dn_ht_scan(V_dn_cfg.schedhash, copy_data_helper_compat, &a);
 		a.type = DN_COMPAT_QUEUE;
-		dn_ht_scan(dn_cfg.fshash, copy_data_helper_compat, &a);
+		dn_ht_scan(V_dn_cfg.fshash, copy_data_helper_compat, &a);
 	} else if (a.type == DN_FS) {
-		dn_ht_scan(dn_cfg.fshash, copy_data_helper, &a);
+		dn_ht_scan(V_dn_cfg.fshash, copy_data_helper, &a);
 	} else {
-		dn_ht_scan(dn_cfg.schedhash, copy_data_helper, &a);
+		dn_ht_scan(V_dn_cfg.schedhash, copy_data_helper, &a);
 	}
 	DN_BH_WUNLOCK();
 
@@ -2395,9 +2403,9 @@ drain_scheduler_sch_cb(void *_s, void *arg)
 void
 dn_drain_scheduler(void)
 {
-	dn_ht_scan_bucket(dn_cfg.schedhash, &dn_cfg.drain_sch,
+	dn_ht_scan_bucket(V_dn_cfg.schedhash, &V_dn_cfg.drain_sch,
 			   drain_scheduler_sch_cb, NULL);
-	dn_cfg.drain_sch++;
+	V_dn_cfg.drain_sch++;
 }
 
 /* Callback called on queue to delete if it is idle */
@@ -2442,9 +2450,9 @@ void
 dn_drain_queue(void)
 {
 	/* scan a bucket of flowset */
-	dn_ht_scan_bucket(dn_cfg.fshash, &dn_cfg.drain_fs,
+	dn_ht_scan_bucket(V_dn_cfg.fshash, &V_dn_cfg.drain_fs,
                                drain_queue_fs_cb, NULL);
-	dn_cfg.drain_fs++;
+	V_dn_cfg.drain_fs++;
 }
 
 /*
@@ -2507,64 +2515,84 @@ ip_dn_ctl(struct sockopt *sopt)
 
 
 static void
-ip_dn_init(void)
+ip_dn_vnet_init(void)
 {
-	if (dn_cfg.init_done)
+	if (V_dn_cfg.init_done)
 		return;
-	dn_cfg.init_done = 1;
+	V_dn_cfg.init_done = 1;
 	/* Set defaults here. MSVC does not accept initializers,
 	 * and this is also useful for vimages
 	 */
 	/* queue limits */
-	dn_cfg.slot_limit = 100; /* Foot shooting limit for queues. */
-	dn_cfg.byte_limit = 1024 * 1024;
-	dn_cfg.expire = 1;
+	V_dn_cfg.slot_limit = 100; /* Foot shooting limit for queues. */
+	V_dn_cfg.byte_limit = 1024 * 1024;
+	V_dn_cfg.expire = 1;
 
 	/* RED parameters */
-	dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */
-	dn_cfg.red_avg_pkt_size = 512;	/* default medium packet size */
-	dn_cfg.red_max_pkt_size = 1500;	/* default max packet size */
+	V_dn_cfg.red_lookup_depth = 256;	/* default lookup table depth */
+	V_dn_cfg.red_avg_pkt_size = 512;	/* default medium packet size */
+	V_dn_cfg.red_max_pkt_size = 1500;	/* default max packet size */
 
 	/* hash tables */
-	dn_cfg.max_hash_size = 65536;	/* max in the hash tables */
-	dn_cfg.hash_size = 64;		/* default hash size */
+	V_dn_cfg.max_hash_size = 65536;	/* max in the hash tables */
+	V_dn_cfg.hash_size = 64;		/* default hash size */
 
 	/* create hash tables for schedulers and flowsets.
 	 * In both we search by key and by pointer.
 	 */
-	dn_cfg.schedhash = dn_ht_init(NULL, dn_cfg.hash_size,
+	V_dn_cfg.schedhash = dn_ht_init(NULL, V_dn_cfg.hash_size,
 		offsetof(struct dn_schk, schk_next),
 		schk_hash, schk_match, schk_new);
-	dn_cfg.fshash = dn_ht_init(NULL, dn_cfg.hash_size,
+	V_dn_cfg.fshash = dn_ht_init(NULL, V_dn_cfg.hash_size,
 		offsetof(struct dn_fsk, fsk_next),
 		fsk_hash, fsk_match, fsk_new);
 
 	/* bucket index to drain object */
-	dn_cfg.drain_fs = 0;
-	dn_cfg.drain_sch = 0;
+	V_dn_cfg.drain_fs = 0;
+	V_dn_cfg.drain_sch = 0;
 
-	heap_init(&dn_cfg.evheap, 16, offsetof(struct dn_id, id));
-	SLIST_INIT(&dn_cfg.fsu);
-	SLIST_INIT(&dn_cfg.schedlist);
+	heap_init(&V_dn_cfg.evheap, 16, offsetof(struct dn_id, id));
+	SLIST_INIT(&V_dn_cfg.fsu);
 
 	DN_LOCK_INIT();
 
-	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
+	/* Initialize curr_time adjustment mechanics. */
+	getmicrouptime(&V_dn_cfg.prev_t);
+}
+
+static void
+ip_dn_vnet_destroy(void)
+{
+	DN_BH_WLOCK();
+	dummynet_flush();
+	DN_BH_WUNLOCK();
+
+	dn_ht_free(V_dn_cfg.schedhash, 0);
+	dn_ht_free(V_dn_cfg.fshash, 0);
+	heap_free(&V_dn_cfg.evheap);
+
+	DN_LOCK_DESTROY();
+}
+
+static void
+ip_dn_init(void)
+{
+	if (dn_tasks_started)
+		return;
+	dn_tasks_started = 1;
+	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
 	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
+	SLIST_INIT(&schedlist);
 	callout_init(&dn_timeout, 1);
 	dn_reschedule();
-
-	/* Initialize curr_time adjustment mechanics. */
-	getmicrouptime(&dn_cfg.prev_t);
 }
 
 static void
 ip_dn_destroy(int last)
 {
-	DN_BH_WLOCK();
 	/* ensure no more callouts are started */
 	dn_gone = 1;
 
@@ -2575,18 +2603,9 @@ ip_dn_destroy(int last)
 		ip_dn_io_ptr = NULL;
 	}
 
-	dummynet_flush();
-	DN_BH_WUNLOCK();
-
 	callout_drain(&dn_timeout);
 	taskqueue_drain(dn_tq, &dn_task);
 	taskqueue_free(dn_tq);
-
-	dn_ht_free(dn_cfg.schedhash, 0);
-	dn_ht_free(dn_cfg.fshash, 0);
-	heap_free(&dn_cfg.evheap);
-
-	DN_LOCK_DESTROY();
 }
 
 static int
@@ -2627,14 +2646,14 @@ load_dn_sched(struct dn_alg *d)
 
 	/* Search if scheduler already exists */
 	DN_BH_WLOCK();
-	SLIST_FOREACH(s, &dn_cfg.schedlist, next) {
+	SLIST_FOREACH(s, &schedlist, next) {
 		if (strcmp(s->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* scheduler already exists */
 		}
 	}
 	if (s == NULL)
-		SLIST_INSERT_HEAD(&dn_cfg.schedlist, d, next);
+		SLIST_INSERT_HEAD(&schedlist, d, next);
 	DN_BH_WUNLOCK();
 	D("dn_sched %s %sloaded", d->name, s ? "not ":"");
 	return s ? 1 : 0;
@@ -2649,13 +2668,13 @@ unload_dn_sched(struct dn_alg *s)
 	ND("called for %s", s->name);
 
 	DN_BH_WLOCK();
-	SLIST_FOREACH_SAFE(r, &dn_cfg.schedlist, next, tmp) {
+	SLIST_FOREACH_SAFE(r, &schedlist, next, tmp) {
 		if (strcmp(s->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
-			SLIST_REMOVE(&dn_cfg.schedlist, r, dn_alg, next);
+			SLIST_REMOVE(&schedlist, r, dn_alg, next);
 		break;
 	}
 	DN_BH_WUNLOCK();
@@ -2690,7 +2709,7 @@ MODULE_VERSION(dummynet, 3);
  * Starting up. Done in order after dummynet_modevent() has been called.
  * VNET_SYSINIT is also called for each existing vnet and each new vnet.
  */
-//VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
+VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_vnet_init, NULL);
 
 /*
  * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
@@ -2698,7 +2717,7 @@ MODULE_VERSION(dummynet, 3);
  * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
  * or when the module is unloaded.
  */
-//VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_destroy, NULL);
+VNET_SYSUNINIT(vnet_dn_uninit, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_vnet_destroy, NULL);
 
 #ifdef NEW_AQM
 
@@ -2719,15 +2738,15 @@ load_dn_aqm(struct dn_aqm *d)
 	}
 
 	/* Search if AQM already exists */
-	DN_BH_WLOCK();
-	SLIST_FOREACH(aqm, &dn_cfg.aqmlist, next) {
+	DN_BH_WLOCK(); /* XXX Global lock? */
+	SLIST_FOREACH(aqm, &aqmlist, next) {
 		if (strcmp(aqm->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* AQM already exists */
 		}
 	}
 	if (aqm == NULL)
-		SLIST_INSERT_HEAD(&dn_cfg.aqmlist, d, next);
+		SLIST_INSERT_HEAD(&aqmlist, d, next);
 	DN_BH_WUNLOCK();
 	D("dn_aqm %s %sloaded", d->name, aqm ? "not ":"");
 	return aqm ? 1 : 0;
@@ -2761,15 +2780,15 @@ unload_dn_aqm(struct dn_aqm *aqm)
 	DN_BH_WLOCK();
 
 	/* clean up AQM status and deconfig flowset */
-	dn_ht_scan(dn_cfg.fshash, fs_cleanup, &aqm->type);
+	dn_ht_scan(V_dn_cfg.fshash, fs_cleanup, &aqm->type);
 
-	SLIST_FOREACH_SAFE(r, &dn_cfg.aqmlist, next, tmp) {
+	SLIST_FOREACH_SAFE(r, &aqmlist, next, tmp) {
 		if (strcmp(aqm->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0 || r->cfg_ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
-			SLIST_REMOVE(&dn_cfg.aqmlist, r, dn_aqm, next);
+			SLIST_REMOVE(&aqmlist, r, dn_aqm, next);
 		break;
 	}
 	DN_BH_WUNLOCK();
