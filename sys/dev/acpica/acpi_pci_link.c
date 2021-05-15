@@ -868,6 +868,10 @@ acpi_pci_link_route_irqs(device_t dev)
 	else
 		status = acpi_pci_link_srs_from_crs(sc, &srsbuf);
 
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	/* Write out new resources via _SRS. */
 	status = AcpiSetCurrentResources(acpi_get_handle(dev), &srsbuf);
 	if (ACPI_FAILURE(status)) {
