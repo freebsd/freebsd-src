@@ -94,6 +94,8 @@ struct libalias {
 	 * output lookup tables. */
 	LIST_HEAD     (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
 	LIST_HEAD     (, alias_link) linkTableIn[LINK_TABLE_IN_SIZE];
+	/* HouseKeeping */
+	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */
 	int		icmpLinkCount;
 	int		udpLinkCount;
@@ -103,12 +105,8 @@ struct libalias {
 	int		fragmentIdLinkCount;
 	int		fragmentPtrLinkCount;
 	int		sockCount;
-	/* Index to chain of link table being inspected for old links   */
-	int		cleanupIndex;
 	/* System time in seconds for current packet */
 	int		timeStamp;
-	/* Last time IncrementalCleanup() was called */
-	int		lastCleanupTime;
 	/* If equal to zero, DeleteLink()
 	 * will not remove permanent links */
 	int		deleteAllLinks;
