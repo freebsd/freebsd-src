@@ -1493,6 +1493,22 @@ checkpoint_thread(void *param)
 	return (NULL);
 }
 
+void
+init_snapshot(void)
+{
+	int err;
+
+	err = pthread_mutex_init(&vcpu_lock, NULL);
+	if (err != 0)
+		errc(1, err, "checkpoint mutex init");
+	err = pthread_cond_init(&vcpus_idle, NULL);
+	if (err != 0)
+		errc(1, err, "checkpoint cv init (vcpus_idle)");
+	err = pthread_cond_init(&vcpus_can_run, NULL);
+	if (err != 0)
+		errc(1, err, "checkpoint cv init (vcpus_can_run)");
+}
+
 /*
  * Create the listening socket for IPC with bhyvectl
  */
@@ -1507,15 +1523,6 @@ init_checkpoint_thread(struct vmctx *ctx)
 	int ret, err = 0;
 
 	memset(&addr, 0, sizeof(addr));
-
-	err = pthread_mutex_init(&vcpu_lock, NULL);
-	if (err != 0)
-		errc(1, err, "checkpoint mutex init");
-	err = pthread_cond_init(&vcpus_idle, NULL);
-	if (err == 0)
-		err = pthread_cond_init(&vcpus_can_run, NULL);
-	if (err != 0)
-		errc(1, err, "checkpoint cv init");
 
 	socket_fd = socket(PF_UNIX, SOCK_DGRAM, 0);
 	if (socket_fd < 0) {
