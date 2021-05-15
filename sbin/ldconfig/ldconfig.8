@@ -1,6 +1,11 @@
 .\"
 .\" Copyright (c) 1993 Paul Kranenburg
 .\" All rights reserved.
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
+.\"
+.\" Portions of this documentation were written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,36 +34,40 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2020
+.Dd May 15, 2021
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
 .Nm ldconfig
-.Nd configure the shared library cache
+.Nd configure the dynamic linker search path for shared libraries
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32
-.Op Fl elf
 .Op Fl Rimrsv
 .Op Fl f Ar hints_file
 .Op Ar directory | Ar
 .Sh DESCRIPTION
-The
 .Nm
-utility is used to prepare a set of
-.Dq hints
-for use by the dynamic linker
-to facilitate quick lookup of shared libraries available in multiple
-directories.
-It scans a set of built-in system directories and any
-.Ar directories
-specified on the command line (in the given order) looking for
-shared libraries and stores the results in a system file to forestall
-the overhead that would otherwise result from the directory search
-operations the dynamic linker would have to perform to load the
-required shared libraries.
+utility is used to configure the set of paths used by the dynamic linker
+.Xr ld-elf.so.1 1
+when searching for shared libraries.
+The dynamic linker looks for libraries in a set of built-in system directories
+and any directories specified in the hints file.
+This obviates the need for storing search paths within the executable,
+see the
+.Fl rpath
+option for the static linker
+.Xr ld 1 .
 .Pp
-Alternatively,
+The hints file is maintained by
+.Nm .
+The
+.Ar directories
+list to be stored in the hints file is supplied on the command line.
+.Pp
+Alternatively to the
+.Ar directories
+list on the command line,
 .Ar files
 may be specified; these are expected to contain directories
 to scan for shared libraries.
@@ -67,9 +76,6 @@ line.
 Blank lines and lines starting with the comment character
 .Ql \&#
 are ignored.
-Filenames must conform to the
-.Pa lib*.so.[0-9]
-pattern in order to be added to the hints file.
 .Pp
 For security reasons, directories which are world or group-writable or which
 are not owned by root produce warning messages and are skipped, unless
@@ -77,16 +83,10 @@ the
 .Fl i
 option is present.
 .Pp
-The shared libraries which are found will be automatically available for loading
-if needed by the program being prepared for execution.
-This obviates the need
-for storing search paths within the executable.
-.Pp
 The
 .Ev LD_LIBRARY_PATH
-environment variable can be used to override the use of
-directories (or the order thereof) from the cache or to specify additional
-directories where shared libraries might be found.
+environment variable can be used to specify additional
+shared library search directories.
 .Ev LD_LIBRARY_PATH
 is a
 .Sq \&:
@@ -99,10 +99,6 @@ equivalent of the
 switch of
 .Xr ld 1 .
 .Pp
-The
-.Nm
-utility is typically run as part of the boot sequence.
-.Pp
 The following options are recognized by
 .Nm :
 .Bl -tag -width indent
@@ -112,12 +108,10 @@ on 64-bit systems that support running 32-bit binaries.
 .It Fl elf
 Ignored for backwards compatibility.
 .It Fl R
-Rescan the previously configured directories.
-This opens the previous hints
-file and fetches the directory list from the header.
-Any additional pathnames
-on the command line are also processed.
-This is the default action when no parameters are given.
+Appends pathnames on the command line to the directory list from
+the hints file.
+.Pp
+This is the default action when no options are given.
 .It Fl f Ar hints_file
 Read and/or update the specified hints file, instead of the standard file.
 This option is provided primarily for testing.
@@ -125,19 +119,15 @@ This option is provided primarily for testing.
 Run in insecure mode.
 The security checks will not be performed.
 .It Fl m
-Instead of replacing the contents of the hints file
-with those found in the directories specified,
-.Dq merge
-in new entries.
-Directories recorded in the hints file by previous runs of
-.Nm
-are also rescanned for new shared libraries.
+Instead of replacing the list of the directories to search with the
+directories specified on the command line, merge existing list
+with the specified directories, and write the result to the hints file.
 .It Fl r
-List the current contents of the hints file
+List the current list of the directories from the hints file
 on the standard output.
 The hints file is not modified.
-The list of
-directories stored in the hints file is included.
+.Pp
+Scan and print all libraries found on the directories list.
 .It Fl s
 Do not scan the built-in system directory
 .Pq Dq /usr/lib
@@ -151,40 +141,31 @@ space of
 .Ev set-user-Id
 programs.
 Whenever such a program is run by any user except the owner of the program,
-the dynamic linker
-will only load shared libraries from the hints
-file.
+the dynamic linker will only load shared libraries from paths found in
+the hints file.
 In particular, the
 .Ev LD_LIBRARY_PATH
 is not used to search for libraries.
-Thus, the role of
+Thus,
 .Nm
-is dual.
-In addition to building a set of hints for quick lookup, it also serves to
-specify the trusted collection of directories from which shared objects can
-be safely loaded.
+serves to specify the trusted collection of directories from which
+shared objects can be safely loaded.
 .Sh FILES
 .Bl -tag -width /var/run/ld-elf.so.hintsxxx -compact
-.It Pa /var/run/ld.so.hints
-Standard hints file for the a.out dynamic linker.
 .It Pa /var/run/ld-elf.so.hints
 Standard hints file for the ELF dynamic linker.
-.It Pa /etc/ld.so.conf
-Conventional configuration file containing directory names for
-invocations with
-.Fl aout .
 .It Pa /etc/ld-elf.so.conf
 Conventional configuration file containing directory names for
 invocations with
 .Fl elf .
 .It Pa /var/run/ld-elf32.so.hints
-.It Pa /var/run/ld32.so.hints
 Conventional configuration files containing directory names for
 invocations with
 .Fl 32 .
 .El
 .Sh SEE ALSO
 .Xr ld 1 ,
+.Xr ld-elf.so.1 ,
 .Xr link 5
 .Sh HISTORY
 A
@@ -192,8 +173,7 @@ A
 utility first appeared in SunOS 4.0, it appeared in its current form
 in
 .Fx 1.1 .
-.Sh BUGS
-Some security checks (for example, verifying root ownership of
-added directories) are not performed when
-.Fl aout
-is specified.
+.Pp
+The name 'hints file' is historic from the times when the file also contained
+hints to the dynamic linker.
+This functionality is not provided for ELF.
