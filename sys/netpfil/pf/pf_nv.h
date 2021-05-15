@@ -56,29 +56,22 @@ SDT_PROBE_DECLARE(pf, ioctl, nvchk, error);
 		goto errout;	\
 	} while (0)
 
+#define PF_NV_DEF_UINT(fnname, type, max)				\
+	int pf_nv ## fnname ## _opt(const nvlist_t *, const char *,	\
+	    type *, type);						\
+	int pf_nv ## fnname(const nvlist_t *, const char *, type *);	\
+	int pf_nv ## fnname ## _array(const nvlist_t *, const char *,	\
+	    type *,size_t, size_t *);					\
+	void pf_ ## fnname ## _array_nv(nvlist_t *, const char *,	\
+	    const type *, size_t);
+
+PF_NV_DEF_UINT(uint8, uint8_t, UINT8_MAX);
+PF_NV_DEF_UINT(uint16, uint16_t, UINT16_MAX);
+PF_NV_DEF_UINT(uint32, uint32_t, UINT32_MAX);
+PF_NV_DEF_UINT(uint64, uint64_t, UINT64_MAX);
+
 int	pf_nvbinary(const nvlist_t *, const char *, void *, size_t);
 int	pf_nvint(const nvlist_t *, const char *, int *);
-int	pf_nvuint8(const nvlist_t *, const char *, uint8_t *);
-int	pf_nvuint8_array(const nvlist_t *, const char *, uint8_t *,
-	    size_t, size_t *);
-void	pf_uint8_array_nv(nvlist_t *, const char *, const uint8_t *,
-	    size_t);
-int	pf_nvuint16(const nvlist_t *, const char *, uint16_t *);
-int	pf_nvuint16_array(const nvlist_t *, const char *, uint16_t *,
-	    size_t, size_t *);
-void	pf_uint16_array_nv(nvlist_t *, const char *, const uint16_t *,
-	    size_t);
-int	pf_nvuint32(const nvlist_t *, const char *, uint32_t *);
-int	pf_nvuint32_array(const nvlist_t *, const char *, uint32_t *,
-	    size_t, size_t *);
-void	pf_uint32_array_nv(nvlist_t *, const char *, const uint32_t *,
-	    size_t);
-int	pf_nvuint64(const nvlist_t *, const char *, uint64_t *);
-int	pf_nvuint64_array(const nvlist_t *, const char *, uint64_t *,
-	    size_t, size_t *);
-void	pf_uint64_array_nv(nvlist_t *, const char *, const uint64_t *,
-	    size_t);
-
 int	pf_nvstring(const nvlist_t *, const char *, char *, size_t);
 
 /* Translation functions */
