@@ -41,6 +41,21 @@ __FBSDID("$FreeBSD$");
 
 #define	PF_NV_IMPL_UINT(fnname, type, max)					\
 	int									\
+	pf_nv ## fnname ## _opt(const nvlist_t *nvl, const char *name,		\
+	    type *val, type dflt)						\
+	{									\
+		uint64_t raw;							\
+		if (! nvlist_exists_number(nvl, name)) {			\
+			*val = dflt;						\
+			return (0);						\
+		}								\
+		raw = nvlist_get_number(nvl, name);				\
+		if (raw > max)							\
+			return (ERANGE);					\
+		*val = (type)raw;						\
+		return (0);							\
+	}									\
+	int									\
 	pf_nv ## fnname(const nvlist_t *nvl, const char *name, type *val)	\
 	{									\
 		uint64_t raw;							\
