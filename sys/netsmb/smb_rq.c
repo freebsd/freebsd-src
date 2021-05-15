@@ -556,7 +556,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 	struct mbuf *m;
 	struct smb_rq *rqp;
 	int totpcount, leftpcount, totdcount, leftdcount, len, txmax, i;
-	int error, doff, poff, txdcount, txpcount, nmlen;
+	int error, doff, poff, txdcount, txpcount, nmlen, sr_flags;
 
 	m = t2p->t2_tparam.mb_top;
 	if (m) {
@@ -737,9 +737,10 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 bad:
 	smb_iod_removerq(rqp);
 freerq:
+	sr_flags = rqp->sr_flags;
 	smb_rq_done(rqp);
 	if (error) {
-		if (rqp->sr_flags & SMBR_RESTART)
+		if (sr_flags & SMBR_RESTART)
 			t2p->t2_flags |= SMBT2_RESTART;
 		md_done(&t2p->t2_rparam);
 		md_done(&t2p->t2_rdata);
