@@ -263,8 +263,8 @@ prison0_init(void)
 				(void)strlcpy(prison0.pr_hostuuid, data,
 				    size + 1);
 			} else if (bootverbose) {
-				printf("hostuuid: preload data malformed: '%s'",
-				    data);
+				printf("hostuuid: preload data malformed: '%.*s'\n",
+				    (int)size, data);
 			}
 		}
 	}
