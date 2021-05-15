@@ -182,11 +182,6 @@ static LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
 	      near relevant functions or structs)
 */
 
-/* Parameters used for cleanup of expired links */
-/* NOTE: ALIAS_CLEANUP_INTERVAL_SECS must be less then LINK_TABLE_OUT_SIZE */
-#define ALIAS_CLEANUP_INTERVAL_SECS  64
-#define ALIAS_CLEANUP_MAX_SPOKES     (LINK_TABLE_OUT_SIZE/5)
-
 /* Timeouts (in seconds) for different link types */
 #define ICMP_EXPIRE_TIME             60
 #define UDP_EXPIRE_TIME              60
@@ -329,6 +324,7 @@ struct alias_link {
 	/* Linked list of pointers for input and output lookup tables  */
 	LIST_ENTRY    (alias_link) list_out;
 	LIST_ENTRY    (alias_link) list_in;
+	TAILQ_ENTRY   (alias_link) list_expire;
 	/* Auxiliary data */
 	union {
 		char           *frag_ptr;
@@ -510,7 +506,7 @@ Port Allocation:
 
 Link creation and deletion:
     CleanupAliasData()      - remove all link chains from lookup table
-    IncrementalCleanup()    - look for stale links in a single chain
+    CleanupLink()           - look for a stale link
     DeleteLink()            - remove link
     AddLink()               - add link
     ReLink()                - change link
@@ -529,8 +525,8 @@ static int	GetNewPort(struct libalias *, struct alias_link *, int);
 static u_short	GetSocket(struct libalias *, u_short, int *, int);
 #endif
 static void	CleanupAliasData(struct libalias *);
-static void	IncrementalCleanup(struct libalias *);
-static void	DeleteLink(struct alias_link *);
+static void	CleanupLink(struct libalias *, struct alias_link **);
+static void	DeleteLink(struct alias_link **);
 
 static struct alias_link *
 ReLink(struct alias_link *,
@@ -807,41 +803,38 @@ FindNewPortGroup(struct libalias *la,
 static void
 CleanupAliasData(struct libalias *la)
 {
-	struct alias_link *lnk;
-	int i;
-
-	LIBALIAS_LOCK_ASSERT(la);
-	for (i = 0; i < LINK_TABLE_OUT_SIZE; i++) {
-		lnk = LIST_FIRST(&la->linkTableOut[i]);
-		while (lnk != NULL) {
-			struct alias_link *link_next = LIST_NEXT(lnk, list_out);
-			DeleteLink(lnk);
-			lnk = link_next;
-		}
-	}
-
-	la->cleanupIndex = 0;
-}
-
-static void
-IncrementalCleanup(struct libalias *la)
-{
 	struct alias_link *lnk, *lnk_tmp;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	LIST_FOREACH_SAFE(lnk, &la->linkTableOut[la->cleanupIndex++],
-	    list_out, lnk_tmp) {
-		if (la->timeStamp - lnk->timestamp > lnk->expire_time)
-			DeleteLink(lnk);
-	}
 
-	if (la->cleanupIndex == LINK_TABLE_OUT_SIZE)
-		la->cleanupIndex = 0;
+	/* permanent entries may stay */
+	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, list_expire, lnk_tmp)
+		DeleteLink(&lnk);
 }
 
 static void
-DeleteLink(struct alias_link *lnk)
+CleanupLink(struct libalias *la, struct alias_link **lnk)
 {
+	LIBALIAS_LOCK_ASSERT(la);
+
+	if (lnk == NULL || *lnk == NULL)
+		return;
+
+	if (la->timeStamp - (*lnk)->timestamp > (*lnk)->expire_time) {
+		DeleteLink(lnk);
+		if ((*lnk) == NULL)
+			return;
+	}
+
+	/* move to end, swap may fail on a single entry list */
+	TAILQ_REMOVE(&la->checkExpire, (*lnk), list_expire);
+	TAILQ_INSERT_TAIL(&la->checkExpire, (*lnk), list_expire);
+}
+
+static void
+DeleteLink(struct alias_link **plnk)
+{
+	struct alias_link *lnk = *plnk;
 	struct libalias *la = lnk->la;
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -869,6 +862,10 @@ DeleteLink(struct alias_link *lnk)
 
 	/* Adjust input table pointers */
 	LIST_REMOVE(lnk, list_in);
+
+	/* remove from housekeeping */
+	TAILQ_REMOVE(&la->checkExpire, lnk, list_expire);
+
 #ifndef NO_USE_SOCKETS
 	/* Close socket, if one has been allocated */
 	if (lnk->sockfd != -1) {
@@ -908,6 +905,7 @@ DeleteLink(struct alias_link *lnk)
 
 	/* Free memory */
 	free(lnk);
+	*plnk = NULL;
 
 	/* Write statistics, if logging enabled */
 	if (la->packetAliasMode & PKT_ALIAS_LOG) {
@@ -1039,6 +1037,9 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		/* Set up pointers for input lookup table */
 		start_point = StartPointIn(alias_addr, lnk->alias_port, link_type);
 		LIST_INSERT_HEAD(&la->linkTableIn[start_point], lnk, list_in);
+
+		/* Include the element into the housekeeping list */
+		TAILQ_INSERT_TAIL(&la->checkExpire, lnk, list_expire);
 	} else {
 #ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/AddLink(): ");
@@ -1079,7 +1080,7 @@ ReLink(struct alias_link *old_lnk,
 		PunchFWHole(new_lnk);
 	}
 #endif
-	DeleteLink(old_lnk);
+	DeleteLink(&old_lnk);
 	return (new_lnk);
 }
 
@@ -1102,11 +1103,13 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 		    lnk->src_port == src_port &&
 		    lnk->dst_port == dst_port &&
 		    lnk->link_type == link_type &&
-		    lnk->server == NULL) {
-			lnk->timestamp = la->timeStamp;
+		    lnk->server == NULL)
 			break;
-		}
 	}
+
+	CleanupLink(la, &lnk);
+	if (lnk != NULL)
+		lnk->timestamp = la->timeStamp;
 
 	/* Search for partially specified links. */
 	if (lnk == NULL && replace_partial_links) {
@@ -1235,6 +1238,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		}
 	}
 
+	CleanupLink(la, &lnk_fully_specified);
 	if (lnk_fully_specified != NULL) {
 		lnk_fully_specified->timestamp = la->timeStamp;
 		lnk = lnk_fully_specified;
@@ -1572,6 +1576,7 @@ FindPptpOutByCallId(struct libalias *la, struct in_addr src_addr,
 		    lnk->src_port == src_call_id)
 			break;
 
+	CleanupLink(la, &lnk);
 	return (lnk);
 }
 
@@ -1592,6 +1597,7 @@ FindPptpOutByPeerCallId(struct libalias *la, struct in_addr src_addr,
 		    lnk->dst_port == dst_call_id)
 			break;
 
+	CleanupLink(la, &lnk);
 	return (lnk);
 }
 
@@ -1612,6 +1618,7 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
 		    lnk->dst_port == dst_call_id)
 			break;
 
+	CleanupLink(la, &lnk);
 	return (lnk);
 }
 
@@ -2038,7 +2045,7 @@ SetExpire(struct alias_link *lnk, int expire)
 {
 	if (expire == 0) {
 		lnk->flags &= ~LINK_PERMANENT;
-		DeleteLink(lnk);
+		DeleteLink(&lnk);
 	} else if (expire == -1) {
 		lnk->flags |= LINK_PERMANENT;
 	} else if (expire > 0) {
@@ -2094,7 +2101,7 @@ SetDestCallId(struct alias_link *lnk, u_int16_t cid)
 void
 HouseKeeping(struct libalias *la)
 {
-	int i, n;
+	struct alias_link * lnk = TAILQ_FIRST(&la->checkExpire);
 #ifndef _KERNEL
 	struct timeval tv;
 #endif
@@ -2111,25 +2118,7 @@ HouseKeeping(struct libalias *la)
 	gettimeofday(&tv, NULL);
 	la->timeStamp = tv.tv_sec;
 #endif
-
-	/* Compute number of spokes (output table link chains) to cover */
-	n = LINK_TABLE_OUT_SIZE * (la->timeStamp - la->lastCleanupTime);
-	n /= ALIAS_CLEANUP_INTERVAL_SECS;
-
-	/* Handle different cases */
-	if (n > 0) {
-		if (n > ALIAS_CLEANUP_MAX_SPOKES)
-			n = ALIAS_CLEANUP_MAX_SPOKES;
-		la->lastCleanupTime = la->timeStamp;
-		for (i = 0; i < n; i++)
-			IncrementalCleanup(la);
-	} else if (n < 0) {
-#ifdef LIBALIAS_DEBUG
-		fprintf(stderr, "PacketAlias/HouseKeeping(): ");
-		fprintf(stderr, "something unexpected in time values\n");
-#endif
-		la->lastCleanupTime = la->timeStamp;
-	}
+	CleanupLink(la, &lnk);
 }
 
 /* Init the log file and enable logging */
@@ -2356,7 +2345,7 @@ LibAliasRedirectDelete(struct libalias *la, struct alias_link *lnk)
 {
 	LIBALIAS_LOCK(la);
 	la->deleteAllLinks = 1;
-	DeleteLink(lnk);
+	DeleteLink(&lnk);
 	la->deleteAllLinks = 0;
 	LIBALIAS_UNLOCK(la);
 }
@@ -2426,17 +2415,16 @@ LibAliasInit(struct libalias *la)
 
 #ifdef _KERNEL
 		la->timeStamp = time_uptime;
-		la->lastCleanupTime = time_uptime;
 #else
 		gettimeofday(&tv, NULL);
 		la->timeStamp = tv.tv_sec;
-		la->lastCleanupTime = tv.tv_sec;
 #endif
 
 		for (i = 0; i < LINK_TABLE_OUT_SIZE; i++)
 			LIST_INIT(&la->linkTableOut[i]);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
 			LIST_INIT(&la->linkTableIn[i]);
+		TAILQ_INIT(&la->checkExpire);
 #ifdef _KERNEL
 		AliasSctpInit(la);
 #endif
@@ -2465,8 +2453,6 @@ LibAliasInit(struct libalias *la)
 	la->fragmentIdLinkCount = 0;
 	la->fragmentPtrLinkCount = 0;
 	la->sockCount = 0;
-
-	la->cleanupIndex = 0;
 
 	la->packetAliasMode = PKT_ALIAS_SAME_PORTS
 #ifndef NO_USE_SOCKETS
