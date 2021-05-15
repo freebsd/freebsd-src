@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 1, 2020
+.Dd May 31, 2021
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -861,16 +861,6 @@ address argument, then all new incoming packets go to the address specified
 in the packet.
 This allows external machines to talk directly to internal machines if they
 can route packets to the machine in question.
-.Ed
-.Pp
-.Ft int
-.Fn LibAliasCheckNewLink "struct libalias *"
-.Bd -ragged -offset indent
-This function returns a non-zero value when a new aliasing link is created.
-In circumstances where incoming traffic is being sequentially sent to
-different local servers, this function can be used to trigger when
-.Fn LibAliasSetTarget
-is called to change the default target address.
 .Ed
 .Pp
 .Ft u_short
