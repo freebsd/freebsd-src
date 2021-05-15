@@ -403,6 +403,8 @@ struct da_softc {
 		softc->delete_available &= ~(1 << delete_method);	\
 	}
 
+static uma_zone_t da_ccb_zone;
+
 struct da_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	da_quirks quirks;
@@ -1557,6 +1559,7 @@ static sbintime_t da_default_softtimeout = DA_DEFAULT_SOFTTIMEOUT;
 static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 static int da_disable_wp_detection = 0;
 static int da_enable_biospeedup = 1;
+static int da_enable_uma_ccbs = 0;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CAM Direct Access Disk driver");
@@ -1573,6 +1576,8 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, disable_wp_detection, CTLFLAG_RWTUN,
 	   "Disable detection of write-protected disks");
 SYSCTL_INT(_kern_cam_da, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
 	    &da_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
+SYSCTL_INT(_kern_cam_da, OID_AUTO, enable_uma_ccbs, CTLFLAG_RWTUN,
+	    &da_enable_uma_ccbs, 0, "Use UMA for CCBs");
 
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
     CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
@@ -2011,6 +2016,10 @@ dainit(void)
 					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 		    printf("dainit: shutdown event registration failed!\n");
 	}
+
+	da_ccb_zone = uma_zcreate("da_ccb",
+	    sizeof(struct ccb_scsiio), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
 }
 
 /*
@@ -2847,6 +2856,15 @@ daregister(struct cam_periph *periph, void *arg)
 	}
 
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
+
+	/*
+	 * Let XPT know we can use UMA-allocated CCBs.
+	 */
+	if (da_enable_uma_ccbs) {
+		KASSERT(da_ccb_zone != NULL,
+		    ("%s: NULL da_ccb_zone", __func__));
+		periph->ccb_zone = da_ccb_zone;
+	}
 
 	/*
 	 * Take an exclusive section lock on the periph while dastart is called

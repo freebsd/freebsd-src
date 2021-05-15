@@ -42,6 +42,8 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
+#include <vm/uma.h>
+
 #include <cam/cam_xpt.h>
 
 struct devstat;
@@ -147,6 +149,7 @@ struct cam_periph {
 	ac_callback_t		*deferred_callback; 
 	ac_code			 deferred_ac;
 	struct task		 periph_run_task;
+	uma_zone_t		 ccb_zone;
 };
 
 #define CAM_PERIPH_MAXMAPS	2

@@ -4693,7 +4693,17 @@ xpt_alloc_ccb_nowait(void)
 void
 xpt_free_ccb(union ccb *free_ccb)
 {
-	free(free_ccb, M_CAMCCB);
+	struct cam_periph *periph;
+
+	if (free_ccb->ccb_h.alloc_flags & CAM_CCB_FROM_UMA) {
+		/*
+		 * Looks like a CCB allocated from a periph UMA zone.
+		 */
+		periph = free_ccb->ccb_h.path->periph;
+		uma_zfree(periph->ccb_zone, free_ccb);
+	} else {
+		free(free_ccb, M_CAMCCB);
+	}
 }
 
 /* Private XPT functions */
@@ -4707,10 +4717,18 @@ static union ccb *
 xpt_get_ccb_nowait(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
+	int alloc_flags;
 
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_NOWAIT);
+	if (periph->ccb_zone != NULL) {
+		alloc_flags = CAM_CCB_FROM_UMA;
+		new_ccb = uma_zalloc(periph->ccb_zone, M_ZERO|M_NOWAIT);
+	} else {
+		alloc_flags = 0;
+		new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_NOWAIT);
+	}
 	if (new_ccb == NULL)
 		return (NULL);
+	new_ccb->ccb_h.alloc_flags = alloc_flags;
 	periph->periph_allocated++;
 	cam_ccbq_take_opening(&periph->path->device->ccbq);
 	return (new_ccb);
@@ -4720,9 +4738,17 @@ static union ccb *
 xpt_get_ccb(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
+	int alloc_flags;
 
 	cam_periph_unlock(periph);
-	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_WAITOK);
+	if (periph->ccb_zone != NULL) {
+		alloc_flags = CAM_CCB_FROM_UMA;
+		new_ccb = uma_zalloc(periph->ccb_zone, M_ZERO|M_WAITOK);
+	} else {
+		alloc_flags = 0;
+		new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_ZERO|M_WAITOK);
+	}
+	new_ccb->ccb_h.alloc_flags = alloc_flags;
 	cam_periph_lock(periph);
 	periph->periph_allocated++;
 	cam_ccbq_take_opening(&periph->path->device->ccbq);

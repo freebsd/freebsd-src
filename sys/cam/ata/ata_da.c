@@ -297,6 +297,8 @@ struct ada_softc {
 	char	announce_buffer[ADA_ANNOUNCE_SZ];
 };
 
+static uma_zone_t ada_ccb_zone;
+
 struct ada_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	ada_quirks quirks;
@@ -902,6 +904,7 @@ static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_read_ahead = ADA_DEFAULT_READ_AHEAD;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 static int ada_enable_biospeedup = 1;
+static int ada_enable_uma_ccbs = 0;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CAM Direct Access Disk driver");
@@ -921,6 +924,8 @@ SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RWTUN,
            &ada_write_cache, 0, "Enable disk write cache");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
 	   &ada_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, enable_uma_ccbs, CTLFLAG_RWTUN,
+	    &ada_enable_uma_ccbs, 0, "Use UMA for CCBs");
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -1177,6 +1182,10 @@ static void
 adainit(void)
 {
 	cam_status status;
+
+	ada_ccb_zone = uma_zcreate("ada_ccb",
+	    sizeof(struct ccb_ataio), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -1854,6 +1863,15 @@ adaregister(struct cam_periph *periph, void *arg)
 	snprintf(announce_buf, ADA_ANNOUNCETMP_SZ,
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
+
+	/*
+	 * Let XPT know we can use UMA-allocated CCBs.
+	 */
+	if (ada_enable_uma_ccbs) {
+		KASSERT(ada_ccb_zone != NULL,
+		    ("%s: NULL ada_ccb_zone", __func__));
+		periph->ccb_zone = ada_ccb_zone;
+	}
 
 	/*
 	 * Set support flags based on the Identify data and quirks.
