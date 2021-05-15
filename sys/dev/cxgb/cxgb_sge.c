@@ -2716,6 +2716,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	caddr_t cl;
 	struct mbuf *m;
 	int ret = 0;
+	int m_len,m_pkthdr_len;
 
 	mask = fl->size - 1;
 	prefetch(fl->sdesc[(cidx + 1) & mask].m);
@@ -2757,7 +2758,10 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 			m_cljset(m, cl, fl->type);
 		}
 		m->m_len = len;
-	}		
+	}
+
+	m_len = m->m_len;
+	m_pkthdr_len = m->m_pkthdr.len;
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		ret = 1;
@@ -2765,6 +2769,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	case RSPQ_SOP:
 		mh->mh_head = mh->mh_tail = m;
 		m->m_pkthdr.len = len;
+		m_pkthdr_len = m->m_pkthdr.len;
 		break;
 	case RSPQ_EOP:
 		ret = 1;
@@ -2781,7 +2786,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		break;
 	}
 	if (cxgb_debug)
-		printf("len=%d pktlen=%d\n", m->m_len, m->m_pkthdr.len);
+		printf("len=%d pktlen=%d\n", m_len, m_pkthdr_len);
 done:
 	if (++fl->cidx == fl->size)
 		fl->cidx = 0;
