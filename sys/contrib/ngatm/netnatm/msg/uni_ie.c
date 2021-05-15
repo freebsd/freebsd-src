@@ -654,7 +654,8 @@ uni_encode_ie_hdr(struct uni_msg *msg, enum uni_ietype type,
 {
 	u_char byte;
 
-	(void)uni_msg_ensure(msg, 4 + len);
+	if (uni_msg_ensure(msg, 4 + len))
+		return -1;
 	*msg->b_wptr++ = type;
 
 	byte = 0x80 | (h->coding << 5);
