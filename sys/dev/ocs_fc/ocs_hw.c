@@ -11800,6 +11800,8 @@ ocs_hw_async_call(ocs_hw_t *hw, ocs_hw_async_cb_t callback, void *arg)
 		ocs_free(hw->os, ctx, sizeof(*ctx));
 		rc = -1;
 	}
+	if (rc)
+		return rc;
 
 	if (ocs_hw_command(hw, ctx->cmd, OCS_CMD_NOWAIT, ocs_hw_async_cb, ctx)) {
 		ocs_log_err(hw->os, "COMMON_NOP command failure\n");
