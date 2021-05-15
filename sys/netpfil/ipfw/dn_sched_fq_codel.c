@@ -202,7 +202,6 @@ codel_enqueue(struct fq_codel_flow *q, struct mbuf *m, struct fq_codel_si *si)
 
 drop:
 	fq_update_stats(q, si, len, 1);
-	m_freem(m);
 	return 1;
 }
 
