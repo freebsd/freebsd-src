@@ -213,6 +213,7 @@ void
 ocs_sport_free(ocs_sport_t *sport)
 {
 	ocs_domain_t *domain;
+	ocs_t *ocs;
 	ocs_node_group_dir_t *node_group_dir;
 	ocs_node_group_dir_t *node_group_dir_next;
 	int post_all_free = FALSE;
@@ -255,6 +256,7 @@ ocs_sport_free(ocs_sport_t *sport)
 			ocs_sport_unlock(sport);
 		ocs_domain_unlock(domain);
 
+		ocs = domain->ocs;
 		if (post_all_free) {
 			ocs_domain_post_event(domain, OCS_EVT_ALL_CHILD_NODES_FREE, NULL);
 		}
@@ -263,7 +265,7 @@ ocs_sport_free(ocs_sport_t *sport)
 		ocs_lock_free(&sport->node_group_lock);
 		ocs_scsi_sport_deleted(sport);
 
-		ocs_free(domain->ocs, sport, sizeof(*sport));
+		ocs_free(ocs, sport, sizeof(*sport));
 		
 	}
 }
