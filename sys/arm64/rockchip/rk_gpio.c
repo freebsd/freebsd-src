@@ -209,14 +209,17 @@ static int
 rk_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 {
 	struct rk_gpio_softc *sc;
+	uint32_t bank;
 
 	sc = device_get_softc(dev);
 
 	if (pin >= 32)
 		return (EINVAL);
 
+	bank = pin / 8;
+	pin = pin - (bank * 8);
 	RK_GPIO_LOCK(sc);
-	snprintf(name, GPIOMAXNAME, "gpio%d", pin);
+	snprintf(name, GPIOMAXNAME, "P%c%d", bank + 'A', pin);
 	RK_GPIO_UNLOCK(sc);
 
 	return (0);
