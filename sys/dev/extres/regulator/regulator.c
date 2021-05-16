@@ -985,6 +985,10 @@ regulator_status(regulator_t reg, int *status)
 	KASSERT(regnode->ref_cnt > 0,
 	   ("Attempt to access unreferenced regulator: %s\n", regnode->name));
 
+	if (reg->enable_cnt == 0) {
+		*status = 0;
+		return (0);
+	}
 	REG_TOPO_SLOCK();
 	rv = regnode_status(regnode, status);
 	REG_TOPO_UNLOCK();
