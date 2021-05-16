@@ -1285,6 +1285,8 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	struct mmc_ios *ios;
 	unsigned int clock;
 	uint32_t reg, div = 1;
+	int reg_status;
+	int rv;
 
 	sc = device_get_softc(bus);
 
@@ -1310,10 +1312,16 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 			device_printf(sc->aw_dev, "Powering down sd/mmc\n");
 
-		if (sc->mmc_helper.vmmc_supply)
-			regulator_disable(sc->mmc_helper.vmmc_supply);
-		if (sc->mmc_helper.vqmmc_supply)
-			regulator_disable(sc->mmc_helper.vqmmc_supply);
+		if (sc->mmc_helper.vmmc_supply) {
+			rv = regulator_status(sc->mmc_helper.vmmc_supply, &reg_status);
+			if (rv == 0 && reg_status == REGULATOR_STATUS_ENABLED)
+				regulator_disable(sc->mmc_helper.vmmc_supply);
+		}
+		if (sc->mmc_helper.vqmmc_supply) {
+			rv = regulator_status(sc->mmc_helper.vqmmc_supply, &reg_status);
+			if (rv == 0 && reg_status == REGULATOR_STATUS_ENABLED)
+				regulator_disable(sc->mmc_helper.vqmmc_supply);
+		}
 
 		aw_mmc_reset(sc);
 		break;
@@ -1321,10 +1329,16 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 			device_printf(sc->aw_dev, "Powering up sd/mmc\n");
 
-		if (sc->mmc_helper.vmmc_supply)
-			regulator_enable(sc->mmc_helper.vmmc_supply);
-		if (sc->mmc_helper.vqmmc_supply)
-			regulator_enable(sc->mmc_helper.vqmmc_supply);
+		if (sc->mmc_helper.vmmc_supply) {
+			rv = regulator_status(sc->mmc_helper.vmmc_supply, &reg_status);
+			if (rv == 0 && reg_status != REGULATOR_STATUS_ENABLED)
+				regulator_enable(sc->mmc_helper.vmmc_supply);
+		}
+		if (sc->mmc_helper.vqmmc_supply) {
+			rv = regulator_status(sc->mmc_helper.vqmmc_supply, &reg_status);
+			if (rv == 0 && reg_status != REGULATOR_STATUS_ENABLED)
+				regulator_enable(sc->mmc_helper.vqmmc_supply);
+		}
 		aw_mmc_init(sc);
 		break;
 	};
