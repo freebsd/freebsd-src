@@ -3,6 +3,8 @@
 TESTSDIR=	${TESTSBASE}/sys/netinet
 BINDIR=		${TESTSDIR}
 
+TESTS_SUBDIRS+=	libalias
+
 ATF_TESTS_C=	ip_reass_test \
 		so_reuseport_lb_test
 
