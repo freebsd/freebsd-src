@@ -1558,6 +1558,8 @@ static device_method_t dwmmc_methods[] = {
 	DEVMETHOD(mmc_sim_get_tran_settings,	dwmmc_get_tran_settings),
 	DEVMETHOD(mmc_sim_set_tran_settings,	dwmmc_set_tran_settings),
 	DEVMETHOD(mmc_sim_cam_request,		dwmmc_cam_request),
+
+	DEVMETHOD(bus_add_child,		bus_generic_add_child),
 #endif
 
 	DEVMETHOD_END
