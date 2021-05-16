@@ -100,6 +100,7 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
     struct mmc_host *host)
 {
 	uint32_t bus_width;
+	phandle_t pwrseq_xref;
 
 	if (node <= 0)
 		node = ofw_bus_get_node(dev);
@@ -181,6 +182,13 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 		host->caps |= MMC_CAP_SIGNALING_330;
 #endif
 
+	if (OF_hasprop(node, "mmc-pwrseq")) {
+		if (OF_getencprop(node, "mmc-pwrseq", &pwrseq_xref, sizeof(pwrseq_xref)) == -1) {
+			device_printf(dev, "Cannot get the pwrseq_xref property\n");
+			return (ENXIO);
+		}
+		helper->mmc_pwrseq = OF_device_from_xref(pwrseq_xref);
+	}
 	return (0);
 }
 

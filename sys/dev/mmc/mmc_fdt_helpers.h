@@ -63,6 +63,8 @@ struct mmc_fdt_helper {
 	regulator_t	vmmc_supply;
 	regulator_t	vqmmc_supply;
 #endif
+
+	device_t	mmc_pwrseq;
 };
 
 typedef void (*mmc_fdt_cd_handler)(device_t dev, bool present);
