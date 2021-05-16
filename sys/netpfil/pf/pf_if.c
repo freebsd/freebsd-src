@@ -831,6 +831,14 @@ pf_kkif_to_kif(const struct pfi_kkif *kkif, struct pfi_kif *kif)
 	kif->pfik_flags = kkif->pfik_flags;
 	kif->pfik_tzero = kkif->pfik_tzero;
 	kif->pfik_rulerefs = kkif->pfik_rulerefs;
+	/*
+	 * Userspace relies on this pointer to decide if this is a group or
+	 * not. We don't want to share the actual pointer, because it's
+	 * useless to userspace and leaks kernel memory layout information.
+	 * So instead we provide 0xfeedcode as 'true' and NULL as 'false'.
+	 */
+	kif->pfik_group =
+	    kkif->pfik_group ? (struct ifg_group *)0xfeedc0de : NULL;
 }
 
 void
