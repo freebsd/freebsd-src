@@ -2187,6 +2187,7 @@ ata_announce_periph_sbuf(struct cam_periph *periph, struct sbuf *sb)
 	struct ccb_trans_settings cts;
 	u_int speed, mb;
 
+	bzero(&cts, sizeof(cts));
 	_ata_announce_periph(periph, &cts, &speed);
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
