@@ -3,6 +3,8 @@
 TESTSDIR=	${TESTSBASE}/sys/netinet
 BINDIR=		${TESTSDIR}
 
+TESTS_SUBDIRS+=	libalias
+
 ATF_TESTS_SH=	fibs_test
 
 PROGS=	udp_dontroute tcp_user_cookie
