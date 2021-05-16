@@ -2001,6 +2001,10 @@ dainit(void)
 {
 	cam_status status;
 
+	da_ccb_zone = uma_zcreate("da_ccb",
+	    sizeof(struct ccb_scsiio), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
@@ -2016,10 +2020,6 @@ dainit(void)
 					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 		    printf("dainit: shutdown event registration failed!\n");
 	}
-
-	da_ccb_zone = uma_zcreate("da_ccb",
-	    sizeof(struct ccb_scsiio), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 }
 
 /*
