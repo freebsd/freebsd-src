@@ -130,11 +130,19 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	return (sim);
 }
 
+/**
+ * @brief allocate a new sim and fill in the details with a device_t
+ *
+ * Just like @c cam_sim_alloc, but with an additional paramter.
+ *
+ * @param dev		A newbus device that's associated with the
+ *			sim. Must be non-NULL.
+ */
 struct cam_sim *
 cam_sim_alloc_dev(sim_action_func sim_action, sim_poll_func sim_poll,
-	      const char *sim_name, void *softc, device_t dev,
-	      struct mtx *mtx, int max_dev_transactions,
-	      int max_tagged_dev_transactions, struct cam_devq *queue)
+    const char *sim_name, void *softc, device_t dev, struct mtx *mtx,
+    int max_dev_transactions, int max_tagged_dev_transactions,
+    struct cam_devq *queue)
 {
 	struct cam_sim *sim;
 
