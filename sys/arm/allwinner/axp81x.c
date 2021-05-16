@@ -851,6 +851,22 @@ axp8xx_regnode_voltage_to_reg(struct axp8xx_reg_sc *sc, int min_uvolt,
 }
 
 static int
+axp8xx_regnode_status(struct regnode *regnode, int *status)
+{
+	struct axp8xx_reg_sc *sc;
+	uint8_t val;
+
+	sc = regnode_get_softc(regnode);
+
+	*status = 0;
+	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	if (val & sc->def->enable_mask)
+		*status = REGULATOR_STATUS_ENABLED;
+
+	return (0);
+}
+
+static int
 axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
     int max_uvolt, int *udelay)
 {
@@ -899,6 +915,7 @@ static regnode_method_t axp8xx_regnode_methods[] = {
 	/* Regulator interface */
 	REGNODEMETHOD(regnode_init,		axp8xx_regnode_init),
 	REGNODEMETHOD(regnode_enable,		axp8xx_regnode_enable),
+	REGNODEMETHOD(regnode_status,		axp8xx_regnode_status),
 	REGNODEMETHOD(regnode_set_voltage,	axp8xx_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	axp8xx_regnode_get_voltage),
 	REGNODEMETHOD(regnode_check_voltage,	regnode_method_check_voltage),
