@@ -2474,6 +2474,8 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
 dev/mmc/mmc_fdt_helpers.c	optional mmc fdt | mmccam fdt
+dev/mmc/mmc_pwrseq.c		optional mmc fdt | mmccam fdt
+dev/mmc/mmc_pwrseq_if.m		optional mmc fdt | mmccam fdt
 dev/mmcnull/mmcnull.c		optional mmcnull
 dev/mn/if_mn.c			optional mn pci
 dev/mpr/mpr.c			optional mpr
