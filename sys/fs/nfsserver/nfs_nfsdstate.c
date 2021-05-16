@@ -5292,8 +5292,9 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 * - check to see if the delegation has expired
 	 *   - if so, get the v4root lock and then expire it
 	 */
-	if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0 || stp->ls_lastrecall <
-	    time_uptime) {
+	if ((stp->ls_flags & NFSLCK_DELEGRECALL) == 0 || (stp->ls_lastrecall <
+	    NFSD_MONOSEC && clp->lc_expiry >= NFSD_MONOSEC &&
+	    stp->ls_delegtime >= NFSD_MONOSEC)) {
 		/*
 		 * - do a recall callback, since not yet done
 		 * For now, never allow truncate to be set. To use
