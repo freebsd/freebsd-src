@@ -74,5 +74,6 @@ int mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_fdt_helper *help
 void mmc_fdt_gpio_teardown(struct mmc_fdt_helper *helper);
 bool mmc_fdt_gpio_get_present(struct mmc_fdt_helper *helper);
 bool mmc_fdt_gpio_get_readonly(struct mmc_fdt_helper *helper);
+void mmc_fdt_set_power(struct mmc_fdt_helper *helper, enum mmc_power_mode power_mode);
 
 #endif

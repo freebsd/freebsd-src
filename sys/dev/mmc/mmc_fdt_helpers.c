@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #endif
 
+#include "mmc_pwrseq_if.h"
+
 static inline void
 mmc_fdt_parse_sd_speed(phandle_t node, struct mmc_host *host)
 {
@@ -422,4 +424,44 @@ mmc_fdt_gpio_get_readonly(struct mmc_fdt_helper *helper)
 	gpio_pin_is_active(helper->wp_pin, &pinstate);
 
 	return (pinstate ^ (helper->props & MMC_PROP_WP_INVERTED));
+}
+
+void
+mmc_fdt_set_power(struct mmc_fdt_helper *helper, enum mmc_power_mode power_mode)
+{
+	int reg_status;
+	int rv;
+
+	switch (power_mode) {
+	case power_on:
+		break;
+	case power_off:
+		if (helper->vmmc_supply) {
+			rv = regulator_status(helper->vmmc_supply, &reg_status);
+			if (rv == 0 && reg_status == REGULATOR_STATUS_ENABLED)
+				regulator_disable(helper->vmmc_supply);
+		}
+		if (helper->vqmmc_supply) {
+			rv = regulator_status(helper->vqmmc_supply, &reg_status);
+			if (rv == 0 && reg_status == REGULATOR_STATUS_ENABLED)
+				regulator_disable(helper->vqmmc_supply);
+		}
+		if (helper->mmc_pwrseq)
+			MMC_PWRSEQ_SET_POWER(helper->mmc_pwrseq, false);
+		break;
+	case power_up:
+		if (helper->vmmc_supply) {
+			rv = regulator_status(helper->vmmc_supply, &reg_status);
+			if (rv == 0 && reg_status != REGULATOR_STATUS_ENABLED)
+				regulator_enable(helper->vmmc_supply);
+		}
+		if (helper->vqmmc_supply) {
+			rv = regulator_status(helper->vqmmc_supply, &reg_status);
+			if (rv == 0 && reg_status != REGULATOR_STATUS_ENABLED)
+				regulator_enable(helper->vqmmc_supply);
+		}
+		if (helper->mmc_pwrseq)
+			MMC_PWRSEQ_SET_POWER(helper->mmc_pwrseq, true);
+		break;
+	}
 }
