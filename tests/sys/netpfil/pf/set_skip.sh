@@ -117,9 +117,55 @@ set_skip_dynamic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr255852" "cleanup"
+pr255852_head()
+{
+	atf_set descr "PR 255852"
+	atf_set require.user root
+}
+
+pr255852_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "set skip on { lo0, epair }" \
+		"block"
+	jexec alcatraz pfctl -vsI
+
+	# We're skipping on epair, so this should work
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.2
+
+	# Note: flushing avoid the issue
+	pft_set_rules noflush alcatraz "set skip on { lo0 }" \
+		"block"
+
+	jexec alcatraz pfctl -vsI
+
+	# No longer skipping, so this should fail
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+}
+
+pr255852_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "set_skip_group"
 	atf_add_test_case "set_skip_group_lo"
 	atf_add_test_case "set_skip_dynamic"
+	atf_add_test_case "pr255852"
 }
