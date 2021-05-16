@@ -3154,6 +3154,7 @@ scsi_announce_periph(struct cam_periph *periph)
 	struct	ccb_trans_settings cts;
 	u_int speed, freq, mb;
 
+	memset(&cts, 0, sizeof(cts));
 	_scsi_announce_periph(periph, &speed, &freq, &cts);
 	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
 		return;
