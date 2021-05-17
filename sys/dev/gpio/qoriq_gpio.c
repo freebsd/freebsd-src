@@ -131,23 +131,15 @@ qoriq_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	return (0);
 }
 
-/* Set flags for the pin. */
 static int
-qoriq_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+qoriq_gpio_pin_configure(device_t dev, uint32_t pin, uint32_t flags)
 {
-	struct qoriq_gpio_softc *sc = device_get_softc(dev);
+	struct qoriq_gpio_softc *sc;
 	uint32_t reg;
 
-	if (!VALID_PIN(pin))
-		return (EINVAL);
+	sc = device_get_softc(dev);
 
-	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
-	GPIO_LOCK(sc);
 	if ((flags & sc->sc_pins[pin].gp_caps) != flags) {
-		GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
 
@@ -168,6 +160,26 @@ qoriq_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		bus_write_4(sc->sc_mem, GPIO_GPODR, reg);
 	}
 	sc->sc_pins[pin].gp_flags = flags;
+
+	return (0);
+}
+
+/* Set flags for the pin. */
+static int
+qoriq_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
+{
+	struct qoriq_gpio_softc *sc = device_get_softc(dev);
+	uint32_t ret;
+
+	if (!VALID_PIN(pin))
+		return (EINVAL);
+
+	if ((flags & (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)) ==
+	    (GPIO_PIN_INPUT | GPIO_PIN_OUTPUT))
+		return (EINVAL);
+
+	GPIO_LOCK(sc);
+	ret = qoriq_gpio_pin_configure(dev, pin, flags);
 	GPIO_UNLOCK(sc);
 	return (0);
 }
@@ -356,7 +368,7 @@ qoriq_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 
 	sc = device_get_softc(bus);
 	GPIO_LOCK(sc);
-	err = qoriq_gpio_pin_setflags(bus, gpios[0], gpios[1]);
+	err = qoriq_gpio_pin_configure(bus, gpios[0], gpios[1]);
 	GPIO_UNLOCK(sc);
 
 	if (err == 0) {
