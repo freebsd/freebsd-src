@@ -329,9 +329,7 @@ ffs_truncate(vp, length, flags, cred)
 	}
 	if ((flags & IO_NORMAL) == 0)
 		return (0);
-	if (vp->v_type == VLNK &&
-	    (ip->i_size < vp->v_mount->mnt_maxsymlinklen ||
-	     datablocks == 0)) {
+	if (vp->v_type == VLNK && ip->i_size < vp->v_mount->mnt_maxsymlinklen) {
 #ifdef INVARIANTS
 		if (length != 0)
 			panic("ffs_truncate: partial truncate of symlink");
