@@ -75,6 +75,7 @@ static int
 unionfs_domount(struct mount *mp)
 {
 	int		error;
+	struct mount   *lowermp, *uppermp;
 	struct vnode   *lowerrootvp;
 	struct vnode   *upperrootvp;
 	struct unionfs_mount *ump;
@@ -285,15 +286,28 @@ unionfs_domount(struct mount *mp)
 	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
 	    NULLVP, &(ump->um_rootvp), NULL, td);
 	vrele(upperrootvp);
-	if (error) {
+	if (error != 0) {
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (error);
 	}
 
+	lowermp = vfs_pin_from_vp(ump->um_lowervp);
+	uppermp = vfs_pin_from_vp(ump->um_uppervp);
+
+	if (lowermp == NULL || uppermp == NULL) {
+		if (lowermp != NULL)
+			vfs_unpin(lowermp);
+		if (uppermp != NULL)
+			vfs_unpin(uppermp);
+		free(ump, M_UNIONFSMNT);
+		mp->mnt_data = NULL;
+		return (ENOENT);
+	}
+
 	MNT_ILOCK(mp);
-	if ((ump->um_lowervp->v_mount->mnt_flag & MNT_LOCAL) &&
-	    (ump->um_uppervp->v_mount->mnt_flag & MNT_LOCAL))
+	if ((lowermp->mnt_flag & MNT_LOCAL) != 0 &&
+	    (uppermp->mnt_flag & MNT_LOCAL) != 0)
 		mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_NOMSYNC | MNTK_UNIONFS;
 	MNT_IUNLOCK(mp);
@@ -343,6 +357,8 @@ unionfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		return (error);
 
+	vfs_unpin(ump->um_lowervp->v_mount);
+	vfs_unpin(ump->um_uppervp->v_mount);
 	free(ump, M_UNIONFSMNT);
 	mp->mnt_data = NULL;
 
