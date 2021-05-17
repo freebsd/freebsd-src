@@ -199,7 +199,7 @@ struct bw_upcall {
 };
 
 /* max. number of upcalls to deliver together */
-#define BW_UPCALLS_MAX				128
+#define BW_UPCALLS_MAX				1024
 /* min. threshold time interval for bandwidth measurement */
 #define BW_UPCALL_THRESHOLD_INTERVAL_MIN_SEC	3
 #define BW_UPCALL_THRESHOLD_INTERVAL_MIN_USEC	0
@@ -264,6 +264,10 @@ struct vif {
     u_long		v_pkt_out;	/* # pkts out on interface           */
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
+#ifdef _KERNEL
+    struct mtx		v_spin;		/* Spin mutex for pkt stats          */
+    char		v_spin_name[32];
+#endif
 };
 
 #if defined(_KERNEL) || defined (_NETSTAT)
@@ -287,8 +291,7 @@ struct mfc {
 						   for Lower-or-EQual case   */
 	struct bw_meter *mfc_bw_meter_geq;	/* list of bandwidth meters
 						   for Greater-or-EQual case */
-	u_long		mfc_nstall;		/* # of packets awaiting mfc */
-	TAILQ_HEAD(, rtdetq) mfc_stall;		/* q of packets awaiting mfc */
+	struct buf_ring *mfc_stall_ring;	/* ring of awaiting mfc      */
 };
 #endif /* _KERNEL */
 
@@ -349,6 +352,8 @@ struct bw_meter {
 #ifdef _KERNEL
 	struct callout	bm_meter_callout;	/* Periodic callout          */
 	void*		arg;			/* custom argument           */
+	struct mtx 	bm_spin;		/* meter spin lock           */
+	char		bm_spin_name[32];
 #endif
 };
 
