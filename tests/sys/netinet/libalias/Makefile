@@ -1,15 +1,17 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/netinet/libalias
 BINDIR=		${TESTSDIR}
 
-ATF_TESTS_C+=	1_instance
+ATF_TESTS_C+=	1_instance	\
+		2_natout	\
 
 LIBADD+=	alias
+
+SRCS.1_instance=1_instance.c util.c
+SRCS.2_natout=	2_natout.c util.c
 
 .include <bsd.test.mk>
 

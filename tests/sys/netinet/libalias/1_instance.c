@@ -3,16 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static int randcmp(const void *a, const void *b) {
-	int res, r = rand();
-
-	(void)a;
-	(void)b;
-	res = (r/4 < RAND_MAX/9) ? 1
-	    : (r/5 < RAND_MAX/9) ? 0
-	    : -1;
-	return (res);
-}
+#include "util.h"
 
 ATF_TC(2_destroynull);
 ATF_TC_HEAD(2_destroynull, env)
