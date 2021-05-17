@@ -47,12 +47,25 @@ ipfw_prestart()
 
 ipfw_start()
 {
-	local   _firewall_type
+	local   _firewall_type _module _sysctl_reload
 
 	if [ -n "${1}" ]; then
 		_firewall_type=$1
 	else
 		_firewall_type=${firewall_type}
+	fi
+
+	_sysctl_reload=no
+	for _module in ${required_modules}
+	do
+		if kldstat -qn ${_module}; then
+			_sysctl_reload=yes
+			break
+		fi
+	done
+
+	if [ ${_sysctl_reload} = yes ]; then
+		/etc/rc.d/sysctl reload
 	fi
 
 	# set the firewall rules script if none was specified
