@@ -15,6 +15,8 @@ FPU_EMU
 
 COMPAT_FREEBSD32	opt_global.h
 
+ISA_206_ATOMICS		opt_global.h
+
 MOEA64_STATS		opt_pmap.h
 AMIGAONE		opt_platform.h
 MIKROTIK		opt_platform.h
