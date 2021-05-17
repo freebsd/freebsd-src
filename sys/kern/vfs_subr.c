@@ -831,6 +831,9 @@ vfs_busy(struct mount *mp, int flags)
 	 * valid.
 	 */
 	while (mp->mnt_kern_flag & MNTK_UNMOUNT) {
+		KASSERT(mp->mnt_pinned_count == 0,
+		    ("%s: non-zero pinned count %d with pending unmount",
+		    __func__, mp->mnt_pinned_count));
 		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);

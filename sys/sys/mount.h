@@ -242,6 +242,7 @@ struct mount {
 	struct mtx	mnt_listmtx;
 	struct vnodelst	mnt_lazyvnodelist;	/* (l) list of lazy vnodes */
 	int		mnt_lazyvnodelistsize;	/* (l) # of lazy vnodes */
+	int		mnt_pinned_count;	/* (i) unmount prevented */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
 	TAILQ_ENTRY(mount) mnt_upper_link;	/* (i*) we in the all uppers */
 	TAILQ_HEAD(, mount) mnt_uppers;		/* (i) upper mounts over us */
@@ -1011,6 +1012,8 @@ struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *);
 void	vfs_unmountall(void);
+struct mount *vfs_pin_from_vp(struct vnode *);
+void	vfs_unpin(struct mount *);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx_padalign mountlist_mtx;
 extern	struct nfs_public nfs_pub;

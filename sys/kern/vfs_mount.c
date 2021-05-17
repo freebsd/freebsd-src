@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -504,6 +505,39 @@ vfs_ref(struct mount *mp)
 	MNT_IUNLOCK(mp);
 }
 
+struct mount *
+vfs_pin_from_vp(struct vnode *vp)
+{
+	struct mount *mp;
+
+	mp = atomic_load_ptr(&vp->v_mount);
+	if (mp == NULL)
+		return (NULL);
+	MNT_ILOCK(mp);
+	if (mp != vp->v_mount || (mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
+		MNT_IUNLOCK(mp);
+		return (NULL);
+	}
+	MNT_REF(mp);
+	KASSERT(mp->mnt_pinned_count < INT_MAX,
+	    ("mount pinned count overflow"));
+	++mp->mnt_pinned_count;
+	MNT_IUNLOCK(mp);
+	return (mp);
+}
+
+void
+vfs_unpin(struct mount *mp)
+{
+	MNT_ILOCK(mp);
+	KASSERT(mp->mnt_pinned_count > 0, ("mount pinned count underflow"));
+	KASSERT((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0,
+	    ("mount pinned with pending unmount"));
+	--mp->mnt_pinned_count;
+	MNT_REL(mp);
+	MNT_IUNLOCK(mp);
+}
+
 void
 vfs_rel(struct mount *mp)
 {
@@ -567,6 +601,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
 	TAILQ_INIT(&mp->mnt_uppers);
+	mp->mnt_pinned_count = 0;
 	return (mp);
 }
 
@@ -605,6 +640,8 @@ vfs_mount_destroy(struct mount *mp)
 			vn_printf(vp, "dangling vnode ");
 		panic("unmount: dangling vnode");
 	}
+	KASSERT(mp->mnt_pinned_count == 0,
+	   ("mnt_pinned_count = %d", mp->mnt_pinned_count));
 	KASSERT(TAILQ_EMPTY(&mp->mnt_uppers), ("mnt_uppers"));
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
@@ -1811,7 +1848,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    (mp->mnt_flag & MNT_UPDATE) != 0 ||
-	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
+	    mp->mnt_pinned_count != 0) {
 		dounmount_cleanup(mp, coveredvp, 0);
 		return (EBUSY);
 	}
