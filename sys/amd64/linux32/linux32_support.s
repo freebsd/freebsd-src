@@ -168,8 +168,8 @@ ENTRY(futex_andl_smap)
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rsi
 	ja	futex_fault
-	movl	(%rsi),%eax
 	stac
+	movl	(%rsi),%eax
 1:	movl	%eax,%ecx
 	andl	%edi,%ecx
 #ifdef SMP
