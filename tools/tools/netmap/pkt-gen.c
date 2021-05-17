@@ -1837,6 +1837,7 @@ receiver_body(void *data)
 	struct netmap_ring *rxring;
 	int i;
 	struct my_ctrs cur;
+	uint64_t n = targ->g->npackets / targ->g->nthreads;
 
 	memset(&cur, 0, sizeof(cur));
 
@@ -1864,7 +1865,7 @@ receiver_body(void *data)
 	/* main loop, exit after 1s silence */
 	clock_gettime(CLOCK_REALTIME_PRECISE, &targ->tic);
     if (targ->g->dev_type == DEV_TAP) {
-	while (!targ->cancel) {
+	while (!targ->cancel && (n == 0 || targ->ctr.pkts < n)) {
 		char buf[MAX_BODYSIZE];
 		/* XXX should we poll ? */
 		i = read(targ->g->main_fd, buf, sizeof(buf));
@@ -1876,7 +1877,7 @@ receiver_body(void *data)
 	}
 #ifndef NO_PCAP
     } else if (targ->g->dev_type == DEV_PCAP) {
-	while (!targ->cancel) {
+	while (!targ->cancel && (n == 0 || targ->ctr.pkts < n)) {
 		/* XXX should we poll ? */
 		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap,
 			(u_char *)&targ->ctr);
@@ -1887,7 +1888,7 @@ receiver_body(void *data)
 	int dump = targ->g->options & OPT_DUMP;
 
 	nifp = targ->nmd->nifp;
-	while (!targ->cancel) {
+	while (!targ->cancel && (n == 0 || targ->ctr.pkts < n)) {
 		/* Once we started to receive packets, wait at most 1 seconds
 		   before quitting. */
 #ifdef BUSYWAIT
