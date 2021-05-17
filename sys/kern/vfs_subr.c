@@ -3859,7 +3859,8 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	db_printf("    mnt_activevnodelistsize = %d\n",
 	    mp->mnt_activevnodelistsize);
 	db_printf("    mnt_writeopcount = %d\n", mp->mnt_writeopcount);
-	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
+	db_printf("    mnt_maxsymlinklen = %jd\n",
+	    (uintmax_t)mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
 	db_printf("    mnt_lockref = %d\n", mp->mnt_lockref);
