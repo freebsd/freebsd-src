@@ -756,7 +756,7 @@ appendextdata(union dinode *dp)
 	 * data by the writeextdata() routine.
 	 */
 	tbperdb = sblock->fs_bsize >> tp_bshift;
-	assert(spcl.c_count + blks < TP_NINDIR);
+	assert(spcl.c_count + blks <= TP_NINDIR);
 	for (i = 0; i < blks; i++)
 		if (&dp->dp2.di_extb[i / tbperdb] != 0)
 				spcl.c_addr[spcl.c_count + i] = 1;
