@@ -870,14 +870,6 @@ dummynet_io(struct mbuf **m0, struct ip_fw_args *fwa)
 	/* we could actually tag outside the lock, but who cares... */
 	if (tag_mbuf(m, dir, fwa))
 		goto dropit;
-	if (dn_cfg.busy) {
-		/* if the upper half is busy doing something expensive,
-		 * lets queue the packet and move forward
-		 */
-		mq_append(&dn_cfg.pending, m);
-		m = *m0 = NULL; /* consumed */
-		goto done; /* already active, nothing to do */
-	}
 	/* XXX locate_flowset could be optimised with a direct ref. */
 	fs = dn_ht_find(dn_cfg.fshash, fs_id, 0, NULL);
 	if (fs == NULL)

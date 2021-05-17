@@ -171,13 +171,6 @@ struct dn_parms {
 
 	int init_done;
 
-	/* if the upper half is busy doing something long,
-	 * can set the busy flag and we will enqueue packets in
-	 * a queue for later processing.
-	 */
-	int	busy;
-	struct	mq	pending;
-
 #ifdef _KERNEL
 	/*
 	 * This file is normally used in the kernel, unless we do
