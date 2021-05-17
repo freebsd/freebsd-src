@@ -2458,10 +2458,8 @@ ufs_readlink(ap)
 	doff_t isize;
 
 	isize = ip->i_size;
-	if ((isize < vp->v_mount->mnt_maxsymlinklen) ||
-	    DIP(ip, i_blocks) == 0) { /* XXX - for old fastlink support */
+	if (isize < vp->v_mount->mnt_maxsymlinklen)
 		return (uiomove(SHORTLINK(ip), isize, ap->a_uio));
-	}
 	return (VOP_READ(vp, ap->a_uio, 0, ap->a_cred));
 }
 
