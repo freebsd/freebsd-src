@@ -96,14 +96,6 @@ static caddr_t xen_pvh_parse_preload_data(uint64_t);
 static void xen_pvh_parse_memmap(caddr_t, vm_paddr_t *, int *);
 
 /*---------------------------- Extern Declarations ---------------------------*/
-#ifdef SMP
-/* Variables used by amd64 mp_machdep to start APs */
-extern char *doublefault_stack;
-extern char *mce_stack;
-extern char *nmi_stack;
-extern char *dbg_stack;
-#endif
-
 /*
  * Placed by the linker at the end of the bss section, which is the last
  * section loaded by Xen before loading the symtab and strtab.
