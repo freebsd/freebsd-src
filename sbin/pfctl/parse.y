@@ -5107,7 +5107,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 			}
 
 			if (pa.scheduler == ALTQT_CBQ ||
-			    pa.scheduler == ALTQT_HFSC) {
+			    pa.scheduler == ALTQT_HFSC ||
+			    pa.scheduler == ALTQT_FAIRQ) {
 				/* now create a root queue */
 				memset(&pb, 0, sizeof(struct pf_altq));
 				if (strlcpy(qname, "root_", sizeof(qname)) >=
@@ -5138,7 +5139,8 @@ expand_altq(struct pf_altq *a, struct node_if *interfaces,
 				if (n == NULL)
 					err(1, "expand_altq: calloc");
 				if (pa.scheduler == ALTQT_CBQ ||
-				    pa.scheduler == ALTQT_HFSC)
+				    pa.scheduler == ALTQT_HFSC ||
+				    pa.scheduler == ALTQT_FAIRQ)
 					if (strlcpy(n->parent, qname,
 					    sizeof(n->parent)) >=
 					    sizeof(n->parent))
