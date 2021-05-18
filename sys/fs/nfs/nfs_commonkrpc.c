@@ -767,11 +767,13 @@ tryagain:
 	 * use the same xid.
 	 */
 	if (nmp == NULL) {
-		timo.tv_usec = 0;
-		if (clp == NULL)
+		if (clp == NULL) {
 			timo.tv_sec = NFSV4_UPCALLTIMEO;
-		else
-			timo.tv_sec = NFSV4_CALLBACKTIMEO;
+			timo.tv_usec = 0;
+		} else {
+			timo.tv_sec = NFSV4_CALLBACKTIMEO / 1000;
+			timo.tv_usec = NFSV4_CALLBACKTIMEO * 1000;
+		}
 	} else {
 		if (nrp->nr_sotype != SOCK_DGRAM) {
 			timo.tv_usec = 0;
