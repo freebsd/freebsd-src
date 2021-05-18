@@ -1155,7 +1155,7 @@ ufs_whiteout(ap)
 	switch (ap->a_flags) {
 	case LOOKUP:
 		/* 4.4 format directories support whiteout operations */
-		if (dvp->v_mount->mnt_maxsymlinklen > 0)
+		if (!OFSFMT(dvp))
 			return (0);
 		return (EOPNOTSUPP);
 
@@ -1164,7 +1164,7 @@ ufs_whiteout(ap)
 #ifdef INVARIANTS
 		if ((cnp->cn_flags & SAVENAME) == 0)
 			panic("ufs_whiteout: missing name");
-		if (dvp->v_mount->mnt_maxsymlinklen <= 0)
+		if (OFSFMT(dvp))
 			panic("ufs_whiteout: old format filesystem");
 #endif
 
@@ -1178,7 +1178,7 @@ ufs_whiteout(ap)
 	case DELETE:
 		/* remove an existing directory whiteout */
 #ifdef INVARIANTS
-		if (dvp->v_mount->mnt_maxsymlinklen <= 0)
+		if (OFSFMT(dvp))
 			panic("ufs_whiteout: old format filesystem");
 #endif
 
@@ -2083,7 +2083,7 @@ ufs_mkdir(ap)
 	/*
 	 * Initialize directory with "." and ".." from static template.
 	 */
-	if (dvp->v_mount->mnt_maxsymlinklen > 0)
+	if (!OFSFMT(dvp))
 		dtp = &mastertemplate;
 	else
 		dtp = (struct dirtemplate *)&omastertemplate;
@@ -2287,7 +2287,7 @@ ufs_symlink(ap)
 		return (error);
 	vp = *vpp;
 	len = strlen(ap->a_target);
-	if (len < vp->v_mount->mnt_maxsymlinklen) {
+	if (len < VFSTOUFS(vp->v_mount)->um_maxsymlinklen) {
 		ip = VTOI(vp);
 		bcopy(ap->a_target, SHORTLINK(ip), len);
 		ip->i_size = len;
@@ -2377,7 +2377,7 @@ ufs_readdir(ap)
 			}
 #if BYTE_ORDER == LITTLE_ENDIAN
 			/* Old filesystem format. */
-			if (vp->v_mount->mnt_maxsymlinklen <= 0) {
+			if (OFSFMT(vp)) {
 				dstdp.d_namlen = dp->d_type;
 				dstdp.d_type = dp->d_namlen;
 			} else
@@ -2458,7 +2458,7 @@ ufs_readlink(ap)
 	doff_t isize;
 
 	isize = ip->i_size;
-	if (isize < vp->v_mount->mnt_maxsymlinklen)
+	if (isize < VFSTOUFS(vp->v_mount)->um_maxsymlinklen)
 		return (uiomove(SHORTLINK(ip), isize, ap->a_uio));
 	return (VOP_READ(vp, ap->a_uio, 0, ap->a_cred));
 }

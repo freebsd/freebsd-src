@@ -184,6 +184,7 @@ struct m_ext2fs {
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 	int32_t  e2fs_uhash;	  /* 3 if hash should be signed, 0 if not */
 	uint32_t e2fs_csum_seed;  /* sb checksum seed */
+	uint64_t e2fs_maxsymlinklen; /* max size of short symlink */
 };
 
 /* cluster summary information */

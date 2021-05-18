@@ -675,7 +675,7 @@ ffs_read(ap)
 		panic("ffs_read: mode");
 
 	if (vp->v_type == VLNK) {
-		if ((int)ip->i_size < vp->v_mount->mnt_maxsymlinklen)
+		if ((int)ip->i_size < VFSTOUFS(vp->v_mount)->um_maxsymlinklen)
 			panic("ffs_read: short symlink");
 	} else if (vp->v_type != VREG && vp->v_type != VDIR)
 		panic("ffs_read: type %d",  vp->v_type);
