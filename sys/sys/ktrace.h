@@ -299,6 +299,7 @@ void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
 #define ktrstat_error(s, error) \
 	ktrstruct_error("stat", (s), sizeof(struct stat), error)
 extern u_int ktr_geniosize;
+extern int ktr_filesize_limit_signal;
 #else
 
 #include <sys/cdefs.h>

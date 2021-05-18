@@ -142,6 +142,16 @@ u_int ktr_geniosize = PAGE_SIZE;
 SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RWTUN, &ktr_geniosize,
     0, "Maximum size of genio event payload");
 
+/*
+ * Allow to not to send signal to traced process, in which context the
+ * ktr record is written.  The limit is applied from the process that
+ * set up ktrace, so killing the traced process is not completely fair.
+ */
+int ktr_filesize_limit_signal = 0;
+SYSCTL_INT(_kern_ktrace, OID_AUTO, filesize_limit_signal, CTLFLAG_RWTUN,
+    &ktr_filesize_limit_signal, 0,
+    "Send SIGXFSZ to the traced process when the log size limit is exceeded");
+
 static int print_message = 1;
 static struct mtx ktrace_mtx;
 static struct sx ktrace_sx;
