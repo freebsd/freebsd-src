@@ -562,7 +562,7 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 
 	ip = VTOI(vp);
 	if (vp->v_type == VLNK &&
-	    ip->i_size < vp->v_mount->mnt_maxsymlinklen) {
+	    ip->i_size < VFSTOEXT2(vp->v_mount)->um_e2fs->e2fs_maxsymlinklen) {
 #ifdef INVARIANTS
 		if (length != 0)
 			panic("ext2_truncate: partial truncate of symlink");

@@ -1533,7 +1533,7 @@ ext2_symlink(struct vop_symlink_args *ap)
 		return (error);
 	vp = *vpp;
 	len = strlen(ap->a_target);
-	if (len < vp->v_mount->mnt_maxsymlinklen) {
+	if (len < VFSTOEXT2(vp->v_mount)->um_e2fs->e2fs_maxsymlinklen) {
 		ip = VTOI(vp);
 		bcopy(ap->a_target, (char *)ip->i_shortlink, len);
 		ip->i_size = len;
@@ -1558,7 +1558,7 @@ ext2_readlink(struct vop_readlink_args *ap)
 	int isize;
 
 	isize = ip->i_size;
-	if (isize < vp->v_mount->mnt_maxsymlinklen) {
+	if (isize < VFSTOEXT2(vp->v_mount)->um_e2fs->e2fs_maxsymlinklen) {
 		uiomove((char *)ip->i_shortlink, isize, ap->a_uio);
 		return (0);
 	}
@@ -2075,7 +2075,8 @@ ext2_read(struct vop_read_args *ap)
 		panic("%s: mode", "ext2_read");
 
 	if (vp->v_type == VLNK) {
-		if ((int)ip->i_size < vp->v_mount->mnt_maxsymlinklen)
+		if ((int)ip->i_size <
+		    VFSTOEXT2(vp->v_mount)->um_e2fs->e2fs_maxsymlinklen)
 			panic("%s: short symlink", "ext2_read");
 	} else if (vp->v_type != VREG && vp->v_type != VDIR)
 		panic("%s: type %d", "ext2_read", vp->v_type);

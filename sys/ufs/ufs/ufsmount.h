@@ -100,6 +100,8 @@ struct ufsmount {
 	u_long	um_nindir;			/* (c) indirect ptrs per blk */
 	u_long	um_bptrtodb;			/* (c) indir disk block ptr */
 	u_long	um_seqinc;			/* (c) inc between seq blocks */
+	uint64_t um_maxsymlinklen;		/* (c) max size of short
+						       symlink */
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
 	pid_t	um_fsckpid;			/* (u) PID can do fsck sysctl */
 	struct	mount_softdeps *um_softdep;	/* (c) softdep mgmt structure */
@@ -193,5 +195,8 @@ struct ufsmount {
 #define	MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
+
+/* true if old FS format...*/
+#define OFSFMT(vp)	(VFSTOUFS((vp)->v_mount)->um_maxsymlinklen <= 0)
 
 #endif
