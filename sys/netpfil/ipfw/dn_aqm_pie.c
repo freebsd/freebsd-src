@@ -543,11 +543,11 @@ aqm_pie_enqueue(struct dn_queue *q, struct mbuf* m)
 			mtag = m_tag_alloc(MTAG_ABI_COMPAT, DN_AQM_MTAG_TS,
 				sizeof(aqm_time_t), M_NOWAIT);
 		if (mtag == NULL) {
-			m_freem(m); 
 			t = DROP;
+		} else {
+			*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
+			m_tag_prepend(m, mtag);
 		}
-		*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
-		m_tag_prepend(m, mtag);
 	}
 
 	if (t != DROP) {

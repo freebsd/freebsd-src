@@ -253,10 +253,8 @@ aqm_codel_enqueue(struct dn_queue *q, struct mbuf *m)
 	if (mtag == NULL)
 		mtag = m_tag_alloc(MTAG_ABI_COMPAT, DN_AQM_MTAG_TS,
 			sizeof(aqm_time_t), M_NOWAIT);
-	if (mtag == NULL) {
-		m_freem(m); 
+	if (mtag == NULL)
 		goto drop;
-	}
 
 	*(aqm_time_t *)(mtag + 1) = AQM_UNOW;
 	m_tag_prepend(m, mtag);
