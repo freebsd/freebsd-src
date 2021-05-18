@@ -99,10 +99,10 @@ __FBSDID("$FreeBSD$");
 #define	AP_BOOTPT_SZ		(PAGE_SIZE * 4)
 
 /* Temporary variables for init_secondary()  */
-char *doublefault_stack;
-char *mce_stack;
-char *nmi_stack;
-char *dbg_stack;
+static char *doublefault_stack;
+static char *mce_stack;
+static char *nmi_stack;
+static char *dbg_stack;
 
 extern u_int mptramp_la57;
 
