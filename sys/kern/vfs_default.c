@@ -1300,7 +1300,6 @@ int
 vop_stdset_text(struct vop_set_text_args *ap)
 {
 	struct vnode *vp;
-	struct mount *mp;
 	int error, n;
 
 	vp = ap->a_vp;
@@ -1326,12 +1325,10 @@ vop_stdset_text(struct vop_set_text_args *ap)
 		 * If requested by fs, keep a use reference to the
 		 * vnode until the last text reference is released.
 		 */
-		mp = vp->v_mount;
-		if (mp != NULL && (mp->mnt_kern_flag & MNTK_TEXT_REFS) != 0 &&
-		    vp->v_writecount == 0) {
-			VNPASS((vp->v_iflag & VI_TEXT_REF) == 0, vp);
-			vp->v_iflag |= VI_TEXT_REF;
-			vrefl(vp);
+		if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
+			if (vp->v_writecount == 0) {
+				vrefl(vp);
+			}
 		}
 
 		atomic_subtract_int(&vp->v_writecount, 1);
@@ -1366,11 +1363,12 @@ vop_stdunset_text(struct vop_unset_text_args *ap)
 	last = false;
 	VI_LOCK(vp);
 	if (vp->v_writecount < 0) {
-		if ((vp->v_iflag & VI_TEXT_REF) != 0 &&
-		    vp->v_writecount == -1) {
-			last = true;
-			vp->v_iflag &= ~VI_TEXT_REF;
+		if ((vn_irflag_read(vp) & VIRF_TEXT_REF) != 0) {
+			if (vp->v_writecount == -1) {
+				last = true;
+			}
 		}
+
 		atomic_add_int(&vp->v_writecount, 1);
 		error = 0;
 	} else {

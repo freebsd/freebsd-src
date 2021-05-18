@@ -489,7 +489,7 @@ struct mntoptnames {
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
-#define	MNTK_TEXT_REFS		0x00008000 /* Keep use ref for text */
+#define	MNTK_UNUSED0		0x00008000 /* unused */
 #define	MNTK_VMSETSIZE_BUG	0x00010000
 #define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
 #define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */

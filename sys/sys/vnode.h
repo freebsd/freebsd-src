@@ -251,8 +251,9 @@ struct xvnode {
 #define	VIRF_PGREAD	0x0002	/* Direct reads from the page cache are permitted,
 				   never cleared once set */
 #define	VIRF_MOUNTPOINT	0x0004	/* This vnode is mounted on */
+#define	VIRF_TEXT_REF	0x0008	/* Executable mappings ref the vnode */
 
-#define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
+#define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
 #define	VI_DOINGINACT	0x0004	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x0008	/* Need to call inactive */

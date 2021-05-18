@@ -4122,7 +4122,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VIRF_PGREAD", sizeof(buf));
 	if (irflag & VIRF_MOUNTPOINT)
 		strlcat(buf, "|VIRF_MOUNTPOINT", sizeof(buf));
-	flags = irflag & ~(VIRF_DOOMED | VIRF_PGREAD | VIRF_MOUNTPOINT);
+	if (irflag & VIRF_TEXT_REF)
+		strlcat(buf, "|VIRF_TEXT_REF", sizeof(buf));
+	flags = irflag & ~(VIRF_DOOMED | VIRF_PGREAD | VIRF_MOUNTPOINT | VIRF_TEXT_REF);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VIRF(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -4163,8 +4165,6 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
 	}
-	if (vp->v_iflag & VI_TEXT_REF)
-		strlcat(buf, "|VI_TEXT_REF", sizeof(buf));
 	if (vp->v_iflag & VI_MOUNT)
 		strlcat(buf, "|VI_MOUNT", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
@@ -4175,7 +4175,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DEFINACT", sizeof(buf));
 	if (vp->v_iflag & VI_FOPENING)
 		strlcat(buf, "|VI_FOPENING", sizeof(buf));
-	flags = vp->v_iflag & ~(VI_TEXT_REF | VI_MOUNT | VI_DOINGINACT |
+	flags = vp->v_iflag & ~(VI_MOUNT | VI_DOINGINACT |
 	    VI_OWEINACT | VI_DEFINACT | VI_FOPENING);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);

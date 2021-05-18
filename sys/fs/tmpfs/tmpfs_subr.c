@@ -967,7 +967,7 @@ loop:
 		vp->v_object = object;
 		object->un_pager.swp.swp_tmpfs = vp;
 		vm_object_set_flag(object, OBJ_TMPFS);
-		vn_irflag_set_locked(vp, VIRF_PGREAD);
+		vn_irflag_set_locked(vp, VIRF_PGREAD | VIRF_TEXT_REF);
 		VI_UNLOCK(vp);
 		VM_OBJECT_WUNLOCK(object);
 		break;
