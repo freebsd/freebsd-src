@@ -610,6 +610,19 @@ proc_set_traced(struct proc *p, bool stop)
 	p->p_ptevents = PTRACE_DEFAULT;
 }
 
+void
+ptrace_unsuspend(struct proc *p)
+{
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	PROC_SLOCK(p);
+	p->p_flag &= ~(P_STOPPED_TRACE | P_STOPPED_SIG | P_WAITED);
+	thread_unsuspend(p);
+	PROC_SUNLOCK(p);
+	itimer_proc_continue(p);
+	kqtimer_proc_continue(p);
+}
+
 static int
 proc_can_ptrace(struct thread *td, struct proc *p)
 {
@@ -1164,12 +1177,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 * suspended, use PT_SUSPEND to suspend it before
 		 * continuing the process.
 		 */
-		PROC_SLOCK(p);
-		p->p_flag &= ~(P_STOPPED_TRACE | P_STOPPED_SIG | P_WAITED);
-		thread_unsuspend(p);
-		PROC_SUNLOCK(p);
-		itimer_proc_continue(p);
-		kqtimer_proc_continue(p);
+		ptrace_unsuspend(p);
 		break;
 
 	case PT_WRITE_I:
