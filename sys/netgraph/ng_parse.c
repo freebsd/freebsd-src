@@ -960,9 +960,11 @@ ng_ipaddr_parse(const struct ng_parse_type *type,
 		if ((error = ng_int8_parse(&ng_parse_int8_type,
 		    s, off, start, buf + i, buflen)) != 0)
 			return (error);
-		if (i < 3 && s[*off] != '.')
-			return (EINVAL);
-		(*off)++;
+		if (i < 3) {
+			if (s[*off] != '.')
+				return (EINVAL);
+			(*off)++;
+		}
 	}
 	*buflen = 4;
 	return (0);
