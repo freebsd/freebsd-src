@@ -76,9 +76,6 @@ static int	dirchk = 0;
 
 SYSCTL_INT(_debug, OID_AUTO, dircheck, CTLFLAG_RW, &dirchk, 0, "");
 
-/* true if old FS format...*/
-#define OFSFMT(vp)	((vp)->v_mount->mnt_maxsymlinklen <= 0)
-
 static int
 ufs_delete_denied(struct vnode *vdp, struct vnode *tdp, struct ucred *cred,
     struct thread *td)
@@ -440,8 +437,7 @@ foundentry:
 				 * reclen in ndp->ni_ufs area, and release
 				 * directory buffer.
 				 */
-				if (vdp->v_mount->mnt_maxsymlinklen > 0 &&
-				    ep->d_type == DT_WHT) {
+				if (!OFSFMT(vdp) && ep->d_type == DT_WHT) {
 					slotstatus = FOUND;
 					slotoffset = i_offset;
 					slotsize = ep->d_reclen;
@@ -854,7 +850,7 @@ ufs_makedirentry(ip, cnp, newdirp)
 
 	bcopy(cnp->cn_nameptr, newdirp->d_name, namelen);
 
-	if (ITOV(ip)->v_mount->mnt_maxsymlinklen > 0)
+	if (!OFSFMT(ITOV(ip)))
 		newdirp->d_type = IFTODT(ip->i_mode);
 	else {
 		newdirp->d_type = 0;

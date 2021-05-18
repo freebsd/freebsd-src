@@ -4403,8 +4403,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_lazyvnodelistsize);
 	db_printf("    mnt_writeopcount = %d (with %d in the struct)\n",
 	    vfs_mount_fetch_counter(mp, MNT_COUNT_WRITEOPCOUNT), mp->mnt_writeopcount);
-	db_printf("    mnt_maxsymlinklen = %jd\n",
-	    (uintmax_t)mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
 	db_printf("    mnt_lockref = %d (with %d in the struct)\n",

@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #define WRAPINCR(val, limit)	(((val) + 1 == (limit)) ? 0 : ((val) + 1))
 #define WRAPDECR(val, limit)	(((val) == 0) ? ((limit) - 1) : ((val) - 1))
-#define OFSFMT(vp)		((vp)->v_mount->mnt_maxsymlinklen <= 0)
 #define BLKFREE2IDX(n)		((n) > DH_NFSTATS ? DH_NFSTATS : (n))
 
 static MALLOC_DEFINE(M_DIRHASH, "ufs_dirhash", "UFS directory hash tables");
