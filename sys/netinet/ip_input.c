@@ -738,14 +738,12 @@ passin:
 		IF_ADDR_RUNLOCK(ifp);
 		ia = NULL;
 	}
-	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
-	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
-		IPSTAT_INC(ips_cantforward);
-		m_freem(m);
-		return;
-	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-		if (V_ip_mrouter) {
+		/*
+		 * RFC 3927 2.7: Do not forward multicast packets from
+		 * IN_LINKLOCAL.
+		 */
+		if (V_ip_mrouter && !IN_LINKLOCAL(ntohl(ip->ip_src.s_addr))) {
 			/*
 			 * If we are acting as a multicast router, all
 			 * incoming multicast packets are passed to the
@@ -780,6 +778,13 @@ passin:
 		goto ours;
 	if (ip->ip_dst.s_addr == INADDR_ANY)
 		goto ours;
+	/* RFC 3927 2.7: Do not forward packets to or from IN_LINKLOCAL. */
+	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) ||
+	    IN_LINKLOCAL(ntohl(ip->ip_src.s_addr))) {
+		IPSTAT_INC(ips_cantforward);
+		m_freem(m);
+		return;
+	}
 
 	/*
 	 * Not for us; forward if possible and desirable.
