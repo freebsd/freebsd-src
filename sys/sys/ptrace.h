@@ -240,6 +240,9 @@ int	proc_write_fpregs32(struct thread *_td, struct fpreg32 *_fpreg32);
 int	proc_read_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
 int	proc_write_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
 #endif
+
+void	ptrace_unsuspend(struct proc *p);
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
