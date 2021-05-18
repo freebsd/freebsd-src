@@ -469,7 +469,7 @@ tmpfs_mount(struct mount *mp)
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
-	    MNTK_TEXT_REFS | MNTK_NOMSYNC;
+	    MNTK_NOMSYNC;
 	if (!nonc && (mp->mnt_flag & MNT_UNION) == 0)
 		mp->mnt_kern_flag |= MNTK_FPLOOKUP;
 	MNT_IUNLOCK(mp);
