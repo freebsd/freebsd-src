@@ -1042,7 +1042,7 @@ have_pgsz:
 	npages = 0;
 	while (entries--) {
 		npages++;
-		start_pva = trunc_page(sgl->addr);
+		start_pva = trunc_page((vm_offset_t)sgl->addr);
 		end_pva = trunc_page((vm_offset_t)sgl->addr + sgl->len - 1);
 		npages += (end_pva - start_pva) >> pr->pr_page_shift[idx];
 		sgl = sgl + 1;
@@ -1297,7 +1297,7 @@ t4_write_page_pods_for_sgl(struct adapter *sc, struct toepcb *toep,
 	ddp_pgsz = 1 << pr->pr_page_shift[G_PPOD_PGSZ(prsv->prsv_tag)];
 	offset = (vm_offset_t)sgl->addr & PAGE_MASK;
 	ppod_addr = pr->pr_start + (prsv->prsv_tag & pr->pr_tag_mask);
-	pva = trunc_page(sgl->addr);
+	pva = trunc_page((vm_offset_t)sgl->addr);
 	mbufq_init(&wrq, INT_MAX);
 	for (i = 0; i < prsv->prsv_nppods; ppod_addr += chunk) {
 
