@@ -467,7 +467,6 @@ sodealloc(struct socket *so)
 #endif
 	hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
 
-	crfree(so->so_cred);
 	khelp_destroy_osd(&so->osd);
 	if (SOLISTENING(so)) {
 		if (so->sol_accept_filter != NULL)
@@ -484,6 +483,7 @@ sodealloc(struct socket *so)
 		SOCKBUF_LOCK_DESTROY(&so->so_snd);
 		SOCKBUF_LOCK_DESTROY(&so->so_rcv);
 	}
+	crfree(so->so_cred);
 	mtx_destroy(&so->so_lock);
 	uma_zfree(socket_zone, so);
 }
