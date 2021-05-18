@@ -47,10 +47,11 @@ kernel configuration file:
 .Sh DESCRIPTION
 The ioctl interface provided by
 .Pa /dev/sndstat
-device allows callers to enumeration PCM audio devices available for use.
+device allows callers to enumerate PCM audio devices available for use.
+In other words, it provides means to get the list of all audio devices
+available to the system.
 .Sh IOCTLS
-For all ioctls requiring data exchange between the subsystem and callers,
-the following structures are used to describe a serialized nvlist:
+For ioctl calls that take an argument, the following structure is used:
 .Bd -literal -offset indent
 struct sndstioc_nv_arg {
 	size_t nbytes;
@@ -58,7 +59,7 @@ struct sndstioc_nv_arg {
 };
 .Ed
 .Pp
-Here is an example of an nvlist, with explanations of the common fields:
+Here is an example of an nvlist object with explanations of the common fields:
 .Bd -literal -offset indent
 dsps (NVLIST ARRAY): 1
     from_user (BOOL): FALSE
