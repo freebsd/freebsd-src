@@ -271,6 +271,7 @@ DPCPU_DEFINE_STATIC(struct lock_prof_cpu, lp);
 #define	LP_CPU(cpu)	(DPCPU_ID_PTR((cpu), lp))
 
 volatile int __read_mostly lock_prof_enable;
+int __read_mostly lock_contested_only;
 static volatile int lock_prof_resetting;
 
 #define LPROF_SBUF_SIZE		256
@@ -604,6 +605,8 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	/* don't reset the timer when/if recursing */
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
+	if (lock_contested_only && !contested)
+		return;
 	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	if (spin && lock_prof_skipspin == 1)
 		return;
@@ -728,6 +731,8 @@ SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipspin, CTLFLAG_RW,
     &lock_prof_skipspin, 0, "Skip profiling on spinlocks.");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, rejected, CTLFLAG_RD,
     &lock_prof_rejected, 0, "Number of rejected profiling records");
+SYSCTL_INT(_debug_lock_prof, OID_AUTO, contested_only, CTLFLAG_RW,
+    &lock_contested_only, 0, "Only profile contested acquires");
 SYSCTL_PROC(_debug_lock_prof, OID_AUTO, stats,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     dump_lock_prof_stats, "A",
