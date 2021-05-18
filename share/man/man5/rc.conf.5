@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2021
+.Dd November 30, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -192,24 +192,53 @@ services are enabled that utilize the force_depend check.
 .Pq Vt str
 .Xr chroot 8
 to this directory before running the service.
-.It Ao Ar name Ac Ns Va _user
-.Pq Vt str
-Run the service under this user account.
-.It Ao Ar name Ac Ns Va _group
-.Pq Vt str
-Run the chrooted service under this system group.
-Unlike the _user
-setting, this setting has no effect if the service is not chrooted.
 .It Ao Ar name Ac Ns Va _fib
 .Pq Vt int
 The
 .Xr setfib 1
 value to run the service under.
+.It Ao Ar name Ac Ns Va _group
+.Pq Vt str
+Run the chrooted service under this system group.
+Unlike the
+.Ao Ar name Ac Ns Va _user
+setting, this setting has no effect if the service is not chrooted.
+.It Ao Ar name Ac Ns Va _limits
+.Pq Vt str
+Resource limits to apply to the service using
+.Xr limits 1 .
+By default, resource limits are based on the login class defined in
+.Ao Ar name Ac Ns Va _login_class .
+.It Ao Ar name Ac Ns Va _login_class
+.Pq Vt str
+Login class to be used with
+.Ao Ar name Ac Ns Va _limits .
+Defaults to
+.Dq Li daemon .
 .It Ao Ar name Ac Ns Va _nice
 .Pq Vt int
 The
 .Xr nice 1
 value to run the service under.
+.It Ao Ar name Ac Ns Va _oomprotect
+Use
+.Xr protect 1
+to prevent the service from being killed when swap space
+is exhausted.
+Use
+.Dq Li YES
+to protect only the service itself, and
+.Dq Li ALL
+to protect the service and all child processes.
+.Pp
+Please note rc scripts that redefine
+.Bd
+${name}_cmd
+.Ed
+such as PostgreSQL will not a inherit the OOM killer protection.
+.It Ao Ar name Ac Ns Va _user
+.Pq Vt str
+Run the service under this user account.
 .It Va apm_enable
 .Pq Vt bool
 If set to
@@ -4625,6 +4654,8 @@ it will be made permanently active.
 .Xr gdb 1 ,
 .Xr info 1 ,
 .Xr kbdcontrol 1 ,
+.Xr limits 1 ,
+.Xr protect 1 ,
 .Xr sh 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
@@ -4646,6 +4677,7 @@ it will be made permanently active.
 .Xr ipnat 5 ,
 .Xr jail.conf 5 ,
 .Xr loader.conf 5 ,
+.Xr login.conf 5 ,
 .Xr motd 5 ,
 .Xr newsyslog.conf 5 ,
 .Xr pf.conf 5 ,
@@ -4694,6 +4726,7 @@ it will be made permanently active.
 .Xr quotaon 8 ,
 .Xr rc 8 ,
 .Xr rc.sendmail 8 ,
+.Xr rc.subr 8 ,
 .Xr rcorder 8 ,
 .Xr rfcomm_pppd 8 ,
 .Xr route 8 ,
