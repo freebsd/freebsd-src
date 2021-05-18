@@ -249,71 +249,40 @@ unsigned int usb_extra_power_up_time	= USB_EXTRA_POWER_UP_TIME;
 /*------------------------------------------------------------------------*
  *	usb_timings_sysctl_handler
  *
- * This function updates timings variables, adjusting them where necessary.
+ * This function is used to update USB timing variables.
  *------------------------------------------------------------------------*/
 static int usb_timings_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
-	unsigned int val;
+	unsigned val;
 
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
 	if (arg1)
-		val = *(unsigned int *)arg1;
+		val = *(unsigned *)arg1;
 	else
 		val = arg2;
-	error = SYSCTL_OUT(req, &val, sizeof(int));
+	error = SYSCTL_OUT(req, &val, sizeof(unsigned));
 	if (error || !req->newptr)
 		return (error);
 
 	if (!arg1)
-		return EPERM;
+		return (EPERM);
 
-	error = SYSCTL_IN(req, &val, sizeof(unsigned int));
+	error = SYSCTL_IN(req, &val, sizeof(unsigned));
 	if (error)
 		return (error);
 
 	/*
-	 * Now make sure the values are decent, and certainly no lower than
-	 * what the USB spec prescribes.
+	 * Make sure the specified value is not too big. Accept any
+	 * value from 0 milliseconds to 2 seconds inclusivly for all
+	 * parameters.
 	 */
-	unsigned int *p = (unsigned int *)arg1;
-	if (p == &usb_port_reset_delay) {
-		if (val < USB_PORT_RESET_DELAY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_port_root_reset_delay) {
-		if (val < USB_PORT_ROOT_RESET_DELAY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_port_reset_recovery) {
-		if (val < USB_PORT_RESET_RECOVERY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_port_powerup_delay) {
-		if (val < USB_PORT_POWERUP_DELAY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_port_resume_delay) {
-		if (val < USB_PORT_RESUME_DELAY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_set_address_settle) {
-		if (val < USB_SET_ADDRESS_SETTLE_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_resume_delay) {
-		if (val < USB_RESUME_DELAY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_resume_wait) {
-		if (val < USB_RESUME_WAIT_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_resume_recovery) {
-		if (val < USB_RESUME_RECOVERY_SPEC)
-			return (EINVAL);
-	} else if (p == &usb_extra_power_up_time) {
-		if (val < USB_EXTRA_POWER_UP_TIME_SPEC)
-			return (EINVAL);
-	} else {
-		/* noop */
-	}
+	if (val > 2000)
+		return (EINVAL);
 
-	*p = val;
-	return 0;
+	*(unsigned *)arg1 = val;
+	return (0);
 }
 #endif
