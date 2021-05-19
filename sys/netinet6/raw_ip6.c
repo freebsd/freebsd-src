@@ -419,9 +419,13 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	INP_WLOCK(inp);
 
 	if (control != NULL) {
-		if ((error = ip6_setpktopts(control, &opt,
+		NET_EPOCH_ENTER(et);
+		error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, so->so_cred,
-		    so->so_proto->pr_protocol)) != 0) {
+		    so->so_proto->pr_protocol);
+		NET_EPOCH_EXIT(et);
+
+		if (error != 0) {
 			goto bad;
 		}
 		optp = &opt;

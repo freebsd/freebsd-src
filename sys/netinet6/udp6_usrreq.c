@@ -810,21 +810,16 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 		return (EINVAL);
 	}
 
+	NET_EPOCH_ENTER(et);
 	if (control) {
 		if ((error = ip6_setpktopts(control, &opt,
 		    inp->in6p_outputopts, td->td_ucred, nxt)) != 0) {
-			INP_UNLOCK(inp);
-			ip6_clearpktopts(&opt, -1);
-			if (control)
-				m_freem(control);
-			m_freem(m);
-			return (error);
+			goto release;
 		}
 		optp = &opt;
 	} else
 		optp = inp->in6p_outputopts;
 
-	NET_EPOCH_ENTER(et);
 	if (sin6) {
 		/*
 		 * Since we saw no essential reason for calling in_pcbconnect,
