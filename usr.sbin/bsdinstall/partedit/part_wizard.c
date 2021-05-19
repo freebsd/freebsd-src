@@ -29,7 +29,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/sysctl.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <libutil.h>
