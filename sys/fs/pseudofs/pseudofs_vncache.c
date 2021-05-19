@@ -120,6 +120,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	struct pfs_vncache_head *hash;
 	struct pfs_vdata *pvd, *pvd2;
 	struct vnode *vp;
+	enum vgetstate vs;
 	int error;
 
 	/*
@@ -134,9 +135,9 @@ retry:
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid &&
 		    pvd->pvd_vnode->v_mount == mp) {
 			vp = pvd->pvd_vnode;
-			VI_LOCK(vp);
+			vs = vget_prep(vp);
 			mtx_unlock(&pfs_vncache_mutex);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
+			if (vget_finish(vp, LK_EXCLUSIVE, vs) == 0) {
 				++pfs_vncache_hits;
 				*vpp = vp;
 				/*
