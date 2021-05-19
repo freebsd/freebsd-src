@@ -65,6 +65,9 @@ struct options {
 	size_t		off_len;
 };
 
+#define N_FDCACHE 128
+static int fd_cache[N_FDCACHE];
+
 __dead2 static void
 usage(const char *msg)
 {
@@ -531,6 +534,210 @@ access_bus(int fd, struct options i2c_opt)
 	return (error);
 }
 
+static const char *widths[] = {
+	"0",
+	"8",
+	"16LE",
+	"16BE",
+	"16",
+	NULL,
+};
+
+static int
+command_bus(struct options i2c_opt, char *cmd)
+{
+	int error, fd;
+	char devbuf[64];
+	uint8_t dbuf[BUFSIZ];
+	unsigned bus;
+	const char *width = NULL;
+	const char *err_msg;
+	unsigned offset;
+	unsigned u;
+	size_t length;
+
+	while (isspace(*cmd))
+		cmd++;
+
+	switch(*cmd) {
+	case 0:
+	case '#':
+		return (0);
+	case 'p':
+	case 'P':
+		printf("%s", cmd);
+		return (0);
+	case 'r':
+	case 'R':
+		i2c_opt.dir = 'r';
+		break;
+	case 'w':
+	case 'W':
+		i2c_opt.dir = 'w';
+		break;
+	default:
+		fprintf(stderr,
+		    "Did not understand command: 0x%02x ", *cmd);
+		if (isgraph(*cmd))
+			fprintf(stderr, "'%c'", *cmd);
+		fprintf(stderr, "\n");
+		return(-1);
+	}
+	cmd++;
+
+	bus = strtoul(cmd, &cmd, 0);
+	if (bus == 0 && errno == EINVAL) {
+		fprintf(stderr, "Could not translate bus number\n");
+		return(-1);
+	}
+
+	i2c_opt.addr = strtoul(cmd, &cmd, 0);
+	if (i2c_opt.addr == 0 && errno == EINVAL) {
+		fprintf(stderr, "Could not translate device\n");
+		return(-1);
+	}
+	if (i2c_opt.addr < 1 || i2c_opt.addr > 0x7f) {
+		fprintf(stderr, "Invalid device (0x%x)\n", i2c_opt.addr);
+		return(-1);
+	}
+	i2c_opt.addr <<= 1;
+
+	while(isspace(*cmd))
+		cmd++;
+
+	for(u = 0; widths[u]; u++) {
+		length = strlen(widths[u]);
+		if (memcmp(cmd, widths[u], length))
+			continue;
+		if (!isspace(cmd[length]))
+			continue;
+		width = widths[u];
+		cmd += length;
+		break;
+	}
+	if (width == NULL) {
+		fprintf(stderr, "Invalid width\n");
+		return(-1);
+	}
+
+	offset = strtoul(cmd, &cmd, 0);
+	if (offset == 0 && errno == EINVAL) {
+		fprintf(stderr, "Could not translate offset\n");
+		return(-1);
+	}
+
+	err_msg = encode_offset(width, offset,
+	    i2c_opt.off_buf, &i2c_opt.off_len);
+	if (err_msg) {
+		fprintf(stderr, "%s", err_msg);
+		return(-1);
+	}
+
+	if (i2c_opt.dir == 'r') {
+		i2c_opt.count = strtoul(cmd, &cmd, 0);
+		if (i2c_opt.count == 0 && errno == EINVAL) {
+			fprintf(stderr, "Could not translate length\n");
+			return(-1);
+		}
+	} else {
+		i2c_opt.count = 0;
+		while (1) {
+			while(isspace(*cmd))
+				cmd++;
+			if (!*cmd)
+				break;
+			if (!isxdigit(*cmd)) {
+				fprintf(stderr, "Not a hex digit.\n");
+				return(-1);
+			}
+			dbuf[i2c_opt.count] = digittoint(*cmd++) << 4;
+			while(isspace(*cmd))
+				cmd++;
+			if (!*cmd) {
+				fprintf(stderr,
+				    "Uneven number of hex digits.\n");
+				return(-1);
+			}
+			if (!isxdigit(*cmd)) {
+				fprintf(stderr, "Not a hex digit.\n");
+				return(-1);
+			}
+			dbuf[i2c_opt.count++] |= digittoint(*cmd++);
+		}
+	}
+	assert(bus < N_FDCACHE);
+	fd = fd_cache[bus];
+	if (fd < 0) {
+		(void)sprintf(devbuf, "/dev/iic%u", bus);
+		fd = open(devbuf, O_RDWR);
+		if (fd == -1) {
+			fprintf(stderr, "Error opening I2C controller (%s): %s\n",
+			    devbuf, strerror(errno));
+			return (EX_NOINPUT);
+		}
+		fd_cache[bus] = fd;
+	}
+
+	error = i2c_rdwr_transfer(fd, i2c_opt, dbuf);
+	if (error)
+		return(-1);
+
+	if (i2c_opt.dir == 'r') {
+		for (u = 0; u < i2c_opt.count; u++)
+			printf("%02x", dbuf[u]);
+		printf("\n");
+	}
+	return (0);
+}
+
+static int
+exec_bus(struct options i2c_opt, char *cmd)
+{
+	int error;
+
+	while (isspace(*cmd))
+		cmd++;
+	if (*cmd == '#' || *cmd == '\0')
+		return (0);
+	error = command_bus(i2c_opt, cmd);
+	if (i2c_opt.verbose) {
+		(void)fflush(stderr);
+		printf(error ? "ERROR\n" : "OK\n");
+		error = 0;
+	} else if (error) {
+		fprintf(stderr, "  in: %s", cmd);
+	}
+	(void)fflush(stdout);
+	return (error);
+}
+
+static int
+instruct_bus(struct options i2c_opt, int argc, char **argv)
+{
+	char buf[BUFSIZ];
+	int rd_cmds = (argc == 0);
+	int error;
+
+	while (argc-- > 0) {
+		if (argc == 0 && !strcmp(*argv, "-")) {
+			rd_cmds = 1;
+		} else {
+			error = exec_bus(i2c_opt, *argv);
+			if (error)
+				return (error);
+		}
+		argv++;
+	}
+	if (!rd_cmds)
+		return (0);
+	while (fgets(buf, sizeof buf, stdin) != NULL) {
+		error = exec_bus(i2c_opt, buf);
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -541,6 +748,8 @@ main(int argc, char** argv)
 	char do_what = 0;
 
 	dev = I2C_DEV;
+	for (ch = 0; ch < N_FDCACHE; ch++)
+		fd_cache[ch] = -1;
 
 	/* Default values */
 	i2c_opt.off = 0;
@@ -554,9 +763,10 @@ main(int argc, char** argv)
 
 	/* Find out what we are going to do */
 
-	while ((ch = getopt(argc, argv, "a:f:d:o:w:c:m:n:sbvrh")) != -1) {
+	while ((ch = getopt(argc, argv, "a:f:d:iw:c:m:n:sbvrh")) != -1) {
 		switch(ch) {
 		case 'a':
+		case 'i':
 		case 'r':
 		case 's':
 			if (do_what)
@@ -574,8 +784,9 @@ main(int argc, char** argv)
 	/* Then handle the legal subset of arguments */
 
 	switch (do_what) {
-	case 0: usage("Pick one of [-a|-h|-r|-s]"); break;
+	case 0: usage("Pick one of [-a|-h|-i|-r|-s]"); break;
 	case 'a': optflags = "a:f:d:w:o:c:m:bv"; break;
+	case 'i': optflags = "iv"; break;
 	case 'r': optflags = "rf:v"; break;
 	case 's': optflags = "sf:n:v"; break;
 	default: assert("Bad do_what");
@@ -610,6 +821,7 @@ main(int argc, char** argv)
 		case 'f':
 			dev = optarg;
 			break;
+		case 'i': break;
 		case 'm':
 			if (!strcmp(optarg, "no"))
 				i2c_opt.mode = I2C_MODE_NONE;
@@ -645,6 +857,8 @@ main(int argc, char** argv)
 	}
 	argc -= optind;
 	argv += optind;
+	if (do_what == 'i')
+		return(instruct_bus(i2c_opt, argc, argv));
 	if (argc > 0)
 		usage("Too many arguments");
 
