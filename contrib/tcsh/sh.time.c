@@ -353,9 +353,9 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 
     /*
      * the tms stuff is	not very precise, so we	fudge it.
-     * granularity fix:	can't be more than 100%	
+     * granularity fix:	can't be more than 100%
      * this breaks in multi-processor systems...
-     * maybe I should take it out and let people see more then 100% 
+     * maybe I should take it out and let people see more then 100%
      * utilizations.
      */
 #  if 0
@@ -447,7 +447,7 @@ prusage(struct tms *bs, struct tms *es, clock_t e, clock_t b)
 #endif
 		xprintf("%ld", i);
 		break;
- 
+
 #ifdef convex
 	    case 'X':		/* (average) shared text size */
 		memtmp = (t == 0 ? 0LL : IADJUST((long long)r1->ru_ixrss -

@@ -323,7 +323,7 @@ tw_cmd_sort(void)
     for (i = 0, fwd = 0; i + 1 < tw_cmd.nlist; i++) {
 	if (Strcmp(tw_cmd.list[i], tw_cmd.list[i + 1]) == 0) /* garbage */
 	    fwd++;		/* increase the forward ref. count */
-	else if (fwd) 
+	else if (fwd)
 	    tw_cmd.list[i - fwd] = tw_cmd.list[i];
     }
     /* Fix fencepost error -- Theodore Ts'o <tytso@athena.mit.edu> */
@@ -374,7 +374,7 @@ tw_cmd_start(DIR *dfd, const Char *pat)
 	else
 	    tw_cmd_state.pathv = defpath;
     }
-    else 
+    else
 	tw_cmd_state.pathv = defpath;
 } /* tw_cmd_start */
 
@@ -589,7 +589,7 @@ tw_var_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
  *	Initialize lognames to the beginning of the list
  */
 /*ARGSUSED*/
-void 
+void
 tw_logname_start(DIR *dfd, const Char *pat)
 {
     USE(pat);
@@ -655,7 +655,7 @@ tw_logname_end(void)
  *	Initialize grpnames to the beginning of the list
  */
 /*ARGSUSED*/
-void 
+void
 tw_grpname_start(DIR *dfd, const Char *pat)
 {
     USE(pat);
@@ -736,7 +736,7 @@ tw_file_start(DIR *dfd, const Char *pat)
 
 
 /* tw_file_next():
- *	Return the next file in the directory 
+ *	Return the next file in the directory
  */
 int
 tw_file_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
@@ -783,8 +783,8 @@ tw_item_free(void)
 } /* end tw_item_free */
 
 
-/* tw_item_get(): 
- *	Return the list of items 
+/* tw_item_get():
+ *	Return the list of items
  */
 Char **
 tw_item_get(void)
@@ -807,7 +807,7 @@ tw_item_add(const struct Strbuf *s)
 
 
 /* tw_item_find():
- *      Find the string if it exists in the item list 
+ *      Find the string if it exists in the item list
  *	end return it.
  */
 Char *
@@ -1016,7 +1016,7 @@ tw_job_next(struct Strbuf *res, struct Strbuf *dir, int *flags)
 	for (j = proclist.p_next; j != NULL; j = j->p_next)
 	    if (j->p_index == tw_index && j->p_procid == j->p_jobid)
 		break;
-	if (j == NULL) 
+	if (j == NULL)
 	    continue;
 	Strbuf_append(res, j->p_command);
 	tw_index++;

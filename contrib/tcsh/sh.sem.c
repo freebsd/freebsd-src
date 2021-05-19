@@ -53,7 +53,7 @@
 
 #ifdef VFORK
 static	void		vffree		(int);
-#endif 
+#endif
 static	Char		*splicepipe	(struct command *, Char *);
 static	void		 doio		(struct command *, int *, int *);
 static	void		 chkclob	(const char *);
@@ -72,7 +72,7 @@ static	void		 chkclob	(const char *);
  * mean processes connected by '|'.)  I don't know yet if this causes other
  * problems.
  *
- * All the changes for this are in execute(), and are enclosed in 
+ * All the changes for this are in execute(), and are enclosed in
  * '#ifdef BACKPIPE'
  *
  * David Dawes (dawes@physics.su.oz.au) Oct 1991
@@ -98,7 +98,7 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
     (void) &forked;
     (void) &bifunc;
 
-    if (t == 0) 
+    if (t == 0)
 	return;
 
 #ifdef WINNT_NATIVE
@@ -119,7 +119,7 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
     /*
      * Ed hutchins@sgi.com & Dominic dbg@sgi.com
      * Sat Feb 25 03:13:11 PST 1995
-     * try implicit cd if we have a 1 word command 
+     * try implicit cd if we have a 1 word command
      */
     if (implicit_cd && (intty || intact) && t->t_dcom && t->t_dcom[0] &&
 	 t->t_dcom[0][0] && (blklen(t->t_dcom) == 1) && !noexec) {
@@ -164,7 +164,7 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
 	     )) {
 	    Char *vCD[2];
 	    Char **ot_dcom = t->t_dcom;
-	
+
 	    vCD[0] = Strsave(STRcd);
 	    vCD[1] = NULL;
 	    t->t_dcom = blkspl(vCD, ot_dcom);
@@ -321,11 +321,11 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
 		break;
 	}
 
-	/* 
+	/*
 	 * GrP Executing a command - run jobcmd hook
 	 * Don't run for builtins
 	 * Don't run if we're not in a tty
-	 * Don't run if we're not really executing 
+	 * Don't run if we're not really executing
 	 */
 	/*
 	 * CR  -  Charles Ross Aug 2005
@@ -341,7 +341,7 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
 	    job_cmd(cmd);
 	    cleanup_until(cmd);
 	}
-	   
+
 	/*
 	 * We fork only if we are timed, or are not the end of a parenthesized
 	 * list and not a simple builtin function. Simple meaning one that is
@@ -752,7 +752,7 @@ execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
     }
     /*
      * Fall through for all breaks from switch
-     * 
+     *
      * If there will be no more executions of this command, flush all file
      * descriptors. Places that turn on the F_REPEAT bit are responsible for
      * doing donefds after the last re-execution
@@ -784,7 +784,7 @@ vffree(int snum)
  *
  * I don't know what is best to do. I think that Ambiguous is better
  * than restructuring the command vector, because the user can get
- * unexpected results. In any case, the command vector restructuring 
+ * unexpected results. In any case, the command vector restructuring
  * code is present and the user can choose it by setting noambiguous
  */
 static Char *
@@ -827,7 +827,7 @@ splicepipe(struct command *t, Char *cp)
     }
     return(blk[0]);
 }
-    
+
 /*
  * Perform io redirection.
  * We may or maynot be forked here.

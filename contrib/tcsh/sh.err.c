@@ -1,5 +1,5 @@
 /*
- * sh.err.c: Error printing routines. 
+ * sh.err.c: Error printing routines.
  */
 /*-
  * Copyright (c) 1980, 1991 The Regents of the University of California.

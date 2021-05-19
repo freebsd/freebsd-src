@@ -135,7 +135,7 @@ static const struct {
 #define	T_fs	12
 #define	T_ho	13
 #define	T_ic	14
-#define	T_im	15 
+#define	T_im	15
 #define	T_ip	16
 #define	T_kd	17
 #define T_kh    18
@@ -477,7 +477,7 @@ SetTC(char *what, char *how)
 	    break;
 
     if (tv->name != NULL) {
-	if (tv == &tval[T_pt] || tv == &tval[T_km] || 
+	if (tv == &tval[T_pt] || tv == &tval[T_km] ||
 	    tv == &tval[T_am] || tv == &tval[T_xn]) {
 	    if (strcmp(how, "yes") == 0)
 		tv->val = 1;
@@ -491,7 +491,7 @@ SetTC(char *what, char *how)
 	    T_HasMeta = Val(T_km);
 	    T_Margin = Val(T_am) ? MARGIN_AUTO : 0;
 	    T_Margin |= Val(T_xn) ? MARGIN_MAGIC : 0;
-	    if (tv == &tval[T_am] || tv == &tval[T_xn]) 
+	    if (tv == &tval[T_am] || tv == &tval[T_xn])
 		ChangeSize(Val(T_li), Val(T_co));
 	    return;
 	}
@@ -593,7 +593,7 @@ EchoTC(Char **v)
 	goto end_flush;
     }
 
-    /* 
+    /*
      * Try to use our local definition first
      */
     scap = NULL;
@@ -894,8 +894,8 @@ BindArrowKeys(void)
 	    /*
 	     * Assign the arrow keys only if:
 	     *
-	     * 1. They are multi-character arrow keys and the user 
-	     *    has not re-assigned the leading character, or 
+	     * 1. They are multi-character arrow keys and the user
+	     *    has not re-assigned the leading character, or
 	     *    has re-assigned the leading character to be F_XKEY
 	     * 2. They are single arrow keys pointing to an unassigned key.
 	     */
@@ -1012,7 +1012,7 @@ CanWeTab(void)
 
 /* move to line <where> (first line == 0) as efficiently as possible; */
 void
-MoveToLine(int where)		
+MoveToLine(int where)
 {
     int     del;
 
@@ -1048,7 +1048,7 @@ MoveToLine(int where)
 		    del = 0;
 		}
 		else {
-		    for ( ; del > 0; del--) 
+		    for ( ; del > 0; del--)
 			(void) putraw('\n');
 		    CursorH = 0;	/* because the \n will become \r\n */
 		}
@@ -1415,7 +1415,7 @@ GetTermCaps(void)
     ptr = getenv("TERM");
 
 #ifdef apollo
-    /* 
+    /*
      * If we are on a pad, we pretend that we are dumb. Otherwise the termcap
      * library will put us in a weird screen mode, thinking that we are going
      * to use curses

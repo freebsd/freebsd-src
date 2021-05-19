@@ -1,5 +1,5 @@
 /* The <sys/wait.h> header contains macros related to wait(). The value
- * returned by wait() and waitpid() depends on whether the process 
+ * returned by wait() and waitpid() depends on whether the process
  * terminated by an exit() call, was killed by a signal, or was stopped
  * due to job control, as follows:
  *

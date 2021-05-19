@@ -127,7 +127,7 @@ printprompt(int promptno, const char *str)
 	    cp = ocp;
 	    str = ostr;
 	}
-	else 
+	else
 	    cp = varval(STRprompt);
 	break;
     }
@@ -266,7 +266,7 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		    }		/* else do a 24 hour clock */
 
 		    /* "DING!" stuff by Hans also */
-		    if (t->tm_min || print_prompt_did_ding || 
+		    if (t->tm_min || print_prompt_did_ding ||
 			what != FMT_PROMPT || adrof(STRnoding)) {
 			if (t->tm_min)
 			    print_prompt_did_ding = 0;
@@ -306,7 +306,7 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO)
 		    cz = who_info(info, 'M');
-		else 
+		else
 #endif /* HAVENOUTMP */
 		    cz = getenv("HOST");
 		/*
@@ -462,7 +462,7 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		    tprintf_append_mbs(&buf, cz, attributes);
 		    xfree(cz);
 		}
-		else  
+		else
 #endif /* HAVENOUTMP */
 		{
 		    if ((z = varval(STRuser)) != STRNULL)
@@ -482,7 +482,7 @@ tprintf(int what, const Char *fmt, const char *str, time_t tim, ptr_t info)
 		    tprintf_append_mbs(&buf, cz, attributes);
 		    xfree(cz);
 		}
-		else  
+		else
 #endif /* HAVENOUTMP */
 		{
 		    if ((z = varval(STRtty)) != STRNULL)

@@ -171,7 +171,7 @@ dset(Char *dp)
 {
     /*
      * Don't call set() directly cause if the directory contains ` or
-     * other junk characters glob will fail. 
+     * other junk characters glob will fail.
      */
     setcopy(STRowd, varval(STRcwd), VAR_READWRITE|VAR_NOGLOB);
     setcopy(STRcwd, dp, VAR_READWRITE|VAR_NOGLOB);
@@ -193,7 +193,7 @@ skipargs(Char ***v, const char *dstr, const char *str)
     Char  **n = *v, *s;
 
     int dflag = 0, loop = 1;
-    for (n++; loop && *n != NULL && (*n)[0] == '-'; n++) 
+    for (n++; loop && *n != NULL && (*n)[0] == '-'; n++)
 	if (*(s = &((*n)[1])) == '\0')	/* test for bare "-" argument */
 	    dflag |= DIR_OLD;
 	else if ((*n)[1] == '-' && (*n)[2] == '\0') {   /* test for -- */
@@ -239,7 +239,7 @@ dodirs(Char **v, struct command *c)
 	dhead.di_next = dhead.di_prev = dp;
 	dp->di_next = dp->di_prev = &dhead;
     }
-    if ((dflag & DIR_LOAD) != 0) 
+    if ((dflag & DIR_LOAD) != 0)
 	loaddirs(*v);
     else if ((dflag & DIR_SAVE) != 0)
 	recdirs(*v, 1);
@@ -270,7 +270,7 @@ printdirs(int dflag)
 	    xprintf("%d\t", idx++);
 	    cur = 0;
 	}
-	s = dp->di_name;		
+	s = dp->di_name;
 	user = NULL;
 	if (!(dflag & DIR_LONG) && (user = getusername(&s)) != NULL)
 	    len = (int) (Strlen(user) + Strlen(s) + 2);
@@ -282,7 +282,7 @@ printdirs(int dflag)
 	    xputchar('\n');
 	    cur = len;
 	}
-	if (user) 
+	if (user)
 	    xprintf("~%S", user);
 	xprintf("%-S%c", s, (dflag & DIR_VERT) ? '\n' : ' ');
     } while ((dp = dp->di_prev) != dcwd);
@@ -321,7 +321,7 @@ dtilde(void)
  *	2) or starts with "../",
  *	3) or ends with "/..",
  *	4) or contains the string "/../",
- *	then it will be normalized, unless those strings are quoted. 
+ *	then it will be normalized, unless those strings are quoted.
  *	Otherwise, a copy is made and sent back.
  */
 Char   *
@@ -354,7 +354,7 @@ dnormalize(const Char *cp, int expnd)
 	 */
         if (dotdot == 0)
 	    return (Strsave(start));
-	
+
 # ifdef notdef
 	struct stat sb;
 	/*
@@ -391,7 +391,7 @@ dnormalize(const Char *cp, int expnd)
 	do {
 	    dotdot = 0;
 	    buf.len = 0;
-	    while (*cp) 
+	    while (*cp)
 	        if (IS_DOT(start, cp)) {
 	            if (*++cp)
 	                cp++;
@@ -404,14 +404,14 @@ dnormalize(const Char *cp, int expnd)
 		    if (*cp)
 		        cp++;
 	        }
-	        else 
+	        else
 		    Strbuf_append1(&buf, *cp++);
 
 	    Strbuf_terminate(&buf);
-	    while (dotdot > 0) 
+	    while (dotdot > 0)
 	        if ((dp = Strrchr(cwd, '/')) != NULL) {
 # ifdef HAVE_SLASHSLASH
-		    if (dp == &cwd[1]) 
+		    if (dp == &cwd[1])
 		        slashslash = 1;
 # endif /* HAVE_SLASHSLASH */
 		        *dp = '\0';
@@ -589,7 +589,7 @@ dfollow(Char *cp, int old)
 #ifdef apollo
     if (Strchr(cp, '`')) {
 	char *dptr;
-	if (chdir(dptr = short2str(cp)) < 0) 
+	if (chdir(dptr = short2str(cp)) < 0)
 	    stderror(ERR_SYSTEM, dptr, strerror(errno));
 	dp = agetcwd();
 	cleanup_push(dp, xfree);
@@ -605,7 +605,7 @@ dfollow(Char *cp, int old)
     /*
      * if we are ignoring symlinks, try to fix relatives now.
      * if we are expading symlinks, it should be done by now.
-     */ 
+     */
     dp = dnormalize(cp, symlinks == SYM_IGNORE);
     if (chdir(short2str(dp)) >= 0) {
         cleanup_until(cp);
@@ -646,7 +646,7 @@ dfollow(Char *cp, int old)
 	     * We always want to fix the directory here
 	     * If we are normalizing symlinks
 	     */
-	    dp = dnormalize(buf.s, symlinks == SYM_IGNORE || 
+	    dp = dnormalize(buf.s, symlinks == SYM_IGNORE ||
 				   symlinks == SYM_EXPAND);
 	    if (chdir(short2str(dp)) >= 0) {
 		printd = 1;
@@ -696,7 +696,7 @@ dopushd(Char **v, struct command *c)
     struct directory *dp;
     Char *cp;
     int dflag = skipargs(&v, "plvn", " [-|<dir>|+<n>]");
-    
+
     USE(c);
     printd = 1;
     cp = (dflag & DIR_OLD) ? varval(STRowd) : *v;
@@ -937,7 +937,7 @@ dcanon_internal(Char *cp, Char *p)
 		continue;
 	p = sp;			/* save start of component */
 	slash = 0;
-	if (*p) 
+	if (*p)
 	    while (*++p)	/* find next slash or end of path */
 		if (*p == '/') {
 		    slash = 1;
@@ -950,7 +950,7 @@ dcanon_internal(Char *cp, Char *p)
 	    slashslash = 1;
 #endif /* HAVE_SLASHSLASH */
 	if (*sp == '\0') {	/* if component is null */
-	    if (--sp == cp)	/* if path is one char (i.e. /) */ 
+	    if (--sp == cp)	/* if path is one char (i.e. /) */
 		break;
 	    else
 		*sp = '\0';
@@ -1197,7 +1197,7 @@ dnewcwd(struct directory *dp, int dflag)
     if (adrof(STRdunique)) {
 	struct directory *dn;
 
-	for (dn = dhead.di_prev; dn != &dhead; dn = dn->di_prev) 
+	for (dn = dhead.di_prev; dn != &dhead; dn = dn->di_prev)
 	    if (dn != dp && Strcmp(dn->di_name, dp->di_name) == 0) {
 		dn->di_next->di_prev = dn->di_prev;
 		dn->di_prev->di_next = dn->di_next;
@@ -1262,7 +1262,7 @@ dgetstack(void)
     Char **dblk, **dbp;
     struct directory *dn;
 
-    if (adrof(STRdirstack) == NULL) 
+    if (adrof(STRdirstack) == NULL)
     	return;
 
     for (dn = dhead.di_prev; dn != &dhead; dn = dn->di_prev, i++)
@@ -1366,7 +1366,7 @@ recdirs(Char *fname, int def)
     Char   *snum;
     struct Strbuf qname = Strbuf_INIT;
 
-    if (fname == NULL && !def) 
+    if (fname == NULL && !def)
 	return;
 
     ophup_disabled = phup_disabled;
@@ -1377,7 +1377,7 @@ recdirs(Char *fname, int def)
 	else
 	    fname = Strsave(fname);
     }
-    else 
+    else
 	fname = globone(fname, G_ERROR);
     cleanup_push(fname, xfree);
 
@@ -1387,7 +1387,7 @@ recdirs(Char *fname, int def)
 	return;
     }
 
-    if ((snum = varval(STRsavedirs)) == STRNULL || snum[0] == '\0') 
+    if ((snum = varval(STRsavedirs)) == STRNULL || snum[0] == '\0')
 	num = (unsigned int) ~0;
     else
 	num = (unsigned int) atoi(short2str(snum));

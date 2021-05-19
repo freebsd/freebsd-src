@@ -259,7 +259,7 @@ static void
 qprintf(const char *pre, const Char *s)
 {
     const Char *p;
-	
+
     xprintf("%s", pre);
     for (p = s; *p; p++)
 	xprintf("%c", *p & 0xff);
@@ -334,7 +334,7 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	while ((c = *patnext++) != EOS) {
 #ifdef WIDE_STRINGS
 	    int len;
-	    
+
 	    len = mblen((const char *)(patnext - 1), MB_LEN_MAX);
 	    if (len == -1)
 		TCSH_IGNORE(mblen(NULL, 0));
@@ -401,7 +401,7 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	     * to avoid exponential behavior
 	     */
 	    if (bufnext == patbuf || bufnext[-1] != M_ALL ||
-	       ((flags & GLOB_STAR) != 0 && 
+	       ((flags & GLOB_STAR) != 0 &&
 		 (bufnext - 1 == patbuf || bufnext[-2] != M_ALL ||
 		 bufnext - 2 == patbuf || bufnext[-3] != M_ALL)))
 		*bufnext++ = M_ALL;
@@ -422,13 +422,13 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
     }
 
     /*
-     * If there was no match we are going to append the pattern 
+     * If there was no match we are going to append the pattern
      * if GLOB_NOCHECK was specified or if GLOB_NOMAGIC was specified
      * and the pattern did not contain any magic characters
      * GLOB_NOMAGIC is there just for compatibility with csh.
      */
-    if (pglob->gl_pathc == oldpathc && 
-	((flags & GLOB_NOCHECK) || 
+    if (pglob->gl_pathc == oldpathc &&
+	((flags & GLOB_NOCHECK) ||
 	 ((flags & GLOB_NOMAGIC) && !(pglob->gl_flags & GLOB_MAGCHAR)))) {
 	if (!(flags & GLOB_QUOTE))
 	    globextend(pattern, pglob);
@@ -559,7 +559,7 @@ One_Char_mbtowc(__Char *pwc, const Char *s, size_t n)
     return 1;
 #endif
 }
- 
+
 static int
 glob3(struct strbuf *pathbuf, const Char *pattern, const Char *restpattern,
       const Char *pglobstar, glob_t *pglob, int no_match)
@@ -589,7 +589,7 @@ glob3(struct strbuf *pathbuf, const Char *pattern, const Char *restpattern,
 	    break;
 	}
         pglobstar += width;
-    } 
+    }
 
     if (globstar) {
 	err = pglobstar==pattern && termstar==restpattern ?
@@ -637,7 +637,7 @@ glob3(struct strbuf *pathbuf, const Char *pattern, const Char *restpattern,
 		    continue;
 #endif
 	    if (match(pathbuf->s + orig_len, pattern, termstar,
-		(int)m_not) == no_match) 
+		(int)m_not) == no_match)
 		    continue;
 	    strbuf_append1(pathbuf, SEP);
 	    strbuf_terminate(pathbuf);

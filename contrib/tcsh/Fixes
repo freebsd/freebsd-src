@@ -1,3 +1,4 @@
+ 15. V6.22.04 - 20210426
  14. Don't crash with 'bindkey "^0" clear-screen' (Karl Jeacle)
  13. Fix $x:q:h and $x:q:t return the whole string for strings not containing /
  12. V6.22.03 - 20201118

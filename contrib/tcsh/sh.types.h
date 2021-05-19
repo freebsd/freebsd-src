@@ -5,8 +5,8 @@
  *	       dependent, even between different revisions of OS's...
  *	       Ideally there should be a way in c, to find out if something
  *	       was typedef'ed, but unfortunately we rely in cpp kludges.
- *	       Someday, this file will be removed... 
- *						
+ *	       Someday, this file will be removed...
+ *
  *						christos
  */
 /*-
@@ -51,7 +51,7 @@
 #endif
 
 /***
- *** MachTen 
+ *** MachTen
  ***/
 #ifdef __MACHTEN__
 # ifndef _PID_T
@@ -65,7 +65,7 @@
  ***/
 #if (defined(sun) || defined(__sun__)) && SYSVREL == 0
 # ifndef _PTR_T
-#  define _PTR_T 
+#  define _PTR_T
 #   ifdef __GNUC__
     typedef void * ptr_t;
 #   else
@@ -94,7 +94,7 @@
 #ifdef __hpux
 
 # ifndef _PTR_T
-#  define _PTR_T 
+#  define _PTR_T
     typedef void * ptr_t;
 # endif /* _PTR_T */
 
@@ -152,23 +152,23 @@ typedef char * caddr_t;
 
 /***
  *** BSD RENO advertises itself as POSIX, but
- *** it is missing speed_t 
+ *** it is missing speed_t
  ***/
 #ifdef RENO
 # ifndef _SPEED_T
 #  define _SPEED_T
-   typedef unsigned int speed_t; 
+   typedef unsigned int speed_t;
 # endif /* _SPEED_T */
 #endif /* RENO */
 
 
 /***
  *** NeXT OS 3.x
- ***/ 
+ ***/
 #ifdef NeXT
 # ifndef _SPEED_T
 #  define _SPEED_T
-   typedef unsigned int speed_t; 
+   typedef unsigned int speed_t;
 # endif /* _SPEED_T */
 #endif /* NeXT */
 
@@ -205,7 +205,7 @@ typedef char * caddr_t;
 #  endif /* _PID_T */
 # endif /* !aiws */
 # ifdef _IBMR2
-#  ifndef _SPEED_T 
+#  ifndef _SPEED_T
 #   define _SPEED_T
 #  endif /* _SPEED_T */
 # endif /* _IBMR2 */
@@ -246,7 +246,7 @@ typedef char * caddr_t;
 #endif /* OREO */
 
 /***
- *** Concurrent (Masscomp) running RTU 4.1A & RTU 5.0. 
+ *** Concurrent (Masscomp) running RTU 4.1A & RTU 5.0.
  **** [RTU 6.0 from mike connor]
  *** Added, DAS DEC-90.
  ***/
@@ -261,7 +261,7 @@ typedef char * caddr_t;
 #endif /* RTU6 */
 #endif	/* masscomp */
 
-/* 
+/*
  * Motorola MPC running R32V2 (sysV88)
  */
 #ifdef sysV88
@@ -269,8 +269,8 @@ typedef char * caddr_t;
 #  define _PID_T
 # endif /* _PID_T */
 #endif /* sysV88 */
- 
-/* 
+
+/*
  * Amdahl running UTS (Sys V3)
  */
 #ifdef uts
@@ -279,7 +279,7 @@ typedef char * caddr_t;
 # endif /* _PID_T */
 #endif /* uts */
 
-/* 
+/*
  * Tektronix XD88/10 running UTekV (Sys V3)
  */
 #ifdef UTekV
@@ -308,7 +308,7 @@ typedef char * caddr_t;
    typedef int   pid_t; /* FX-80 */
 # else
    typedef short pid_t;	/* FX-2800 */
-# endif 
+# endif
 #endif /* alliant */
 
 /*
@@ -367,7 +367,7 @@ typedef char * caddr_t;
 # endif /* _SPEED_T */
 
 # ifndef _PTR_T
-#  define _PTR_T 
+#  define _PTR_T
     typedef char * ptr_t;
 #endif /* _PTR_T */
 
@@ -384,7 +384,7 @@ typedef char * caddr_t;
  *** This is our own junk types.
  ***/
 #ifndef _PTR_T
-# define _PTR_T 
+# define _PTR_T
     typedef void * ptr_t;
 #endif /* _PTR_T */
 

@@ -95,7 +95,7 @@ minsec:
     p2dig((int) (l % 100));
 }
 
-static void 
+static void
 p2dig(unsigned i)
 {
 
@@ -123,7 +123,7 @@ putwraw(Char c)
 {
     char buf[MB_LEN_MAX];
     size_t i, len;
-    
+
     len = one_wctomb(buf, c & CHAR);
     for (i = 0; i < len; i++)
 	putraw((unsigned char)buf[i] | (c & ~CHAR));
@@ -134,7 +134,7 @@ xputwchar(Char c)
 {
     char buf[MB_LEN_MAX];
     size_t i, len;
-    
+
     len = one_wctomb(buf, c & CHAR);
     for (i = 0; i < len; i++)
 	xputchar((unsigned char)buf[i] | (c & ~CHAR));

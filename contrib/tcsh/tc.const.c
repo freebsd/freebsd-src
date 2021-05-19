@@ -32,7 +32,7 @@
 #include "sh.h"
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
-Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
+Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't',
 			    '\0' };
 Char STRdefautologout[] = { '6', '0', '\0' };
 #ifdef convex
@@ -74,7 +74,7 @@ Char STRnetwork[]	= { 'n', 'e', 't', 'w', 'o', 'r', 'k', '\0' };
 Char STRdumb[]		= { 'd', 'u', 'm', 'b', '\0' };
 Char STRHOST[]		= { 'H', 'O', 'S', 'T', '\0' };
 #ifdef REMOTEHOST
-Char STRREMOTEHOST[]	= { 'R', 'E', 'M', 'O', 'T', 'E', 'H', 
+Char STRREMOTEHOST[]	= { 'R', 'E', 'M', 'O', 'T', 'E', 'H',
 			    'O', 'S', 'T', '\0' };
 #endif /* REMOTEHOST */
 Char STRHOSTTYPE[]	= { 'H', 'O', 'S', 'T', 'T', 'Y', 'P', 'E', '\0' };
@@ -113,7 +113,7 @@ Char STRmm[]		= { '-', 'm', '\0' };
 Char STRmr[]		= { '-', 'r', '\0' };
 Char STRmerge[]		= { 'm', 'e', 'r', 'g', 'e', '\0' };
 Char STRlock[]		= { 'l', 'o', 'c', 'k', '\0' };
-Char STRtildothist[]	= { '~', '/', '.', 'h', 'i', 's', 't', 'o', 'r', 
+Char STRtildothist[]	= { '~', '/', '.', 'h', 'i', 's', 't', 'o', 'r',
 			    'y', '\0' };
 
 #ifdef NLS_CATALOGS
@@ -254,8 +254,8 @@ Char STRsldtlogout[]	= { '/', '.', 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRjobs[]		= { 'j', 'o', 'b', 's', '\0' };
 Char STRdefprompt[]	= { '%', '#', ' ', '\0' };
 Char STRmquestion[]	= { '%', 'R', (Char)('?' | QUOTE), ' ', '\0' };
-Char STRKCORRECT[]	= { 'C', 'O', 'R', 'R', 'E', 'C', 'T', '>', '%', 'R', 
-			    ' ', '(', 'y', '|', 'n', '|', 'e', '|', 'a', ')', 
+Char STRKCORRECT[]	= { 'C', 'O', 'R', 'R', 'E', 'C', 'T', '>', '%', 'R',
+			    ' ', '(', 'y', '|', 'n', '|', 'e', '|', 'a', ')',
 			    (Char)('?' | QUOTE), ' ', '\0' };
 Char STRunalias[]	= { 'u', 'n', 'a', 'l', 'i', 'a', 's', '\0' };
 Char STRalias[]		= { 'a', 'l', 'i', 'a', 's', '\0' };
@@ -282,7 +282,7 @@ Char STRsymlinks[]	= { 's', 'y', 'm', 'l', 'i', 'n', 'k', 's', '\0' };
 Char STRignore[]	= { 'i', 'g', 'n', 'o', 'r', 'e', '\0' };
 Char STRchase[]		= { 'c', 'h', 'a', 's', 'e', '\0' };
 Char STRexpand[]	= { 'e', 'x', 'p', 'a', 'n', 'd', '\0' };
-Char STRecho_style[]	= { 'e', 'c', 'h', 'o', '_', 's', 't', 'y', 'l', 'e', 
+Char STRecho_style[]	= { 'e', 'c', 'h', 'o', '_', 's', 't', 'y', 'l', 'e',
 			    '\0' };
 Char STRbsd[]		= { 'b', 's', 'd', '\0' };
 Char STRsysv[]		= { 's', 'y', 's', 'v', '\0' };
@@ -313,7 +313,7 @@ Char STRfakecom1[]	= { '`', ' ', '.', '.', '.', ' ', '`', '\0' };
 Char STRampm[]		= { 'a', 'm', 'p', 'm', '\0' };
 Char STRtime[]		= { 't', 'i', 'm', 'e', '\0' };
 Char STRnotify[]	= { 'n', 'o', 't', 'i', 'f', 'y', '\0' };
-Char STRprintexitvalue[] = { 'p', 'r', 'i', 'n', 't', 'e', 'x', 'i', 't', 'v', 
+Char STRprintexitvalue[] = { 'p', 'r', 'i', 'n', 't', 'e', 'x', 'i', 't', 'v',
 			    'a', 'l', 'u', 'e', '\0' };
 Char STRLparensp[]	= { '(', ' ', '\0' };
 Char STRspRparen[]	= { ' ', ')', '\0' };
@@ -371,7 +371,7 @@ Char STRignoreeof[]	= { 'i', 'g', 'n', 'o', 'r', 'e', 'e', 'o', 'f', '\0' };
 Char STRnoclobber[]	= { 'n', 'o', 'c', 'l', 'o', 'b', 'b', 'e', 'r', '\0' };
 Char STRnotempty[]	= { 'n', 'o', 't', 'e', 'm', 'p', 't', 'y', '\0' };
 Char STRask[]		= { 'a', 's', 'k', '\0' };
-Char STRhelpcommand[]	= { 'h', 'e', 'l', 'p', 'c', 'o', 'm', 'm', 'a', 'n', 
+Char STRhelpcommand[]	= { 'h', 'e', 'l', 'p', 'c', 'o', 'm', 'm', 'a', 'n',
 			    'd', '\0' };
 Char STRfignore[]	= { 'f', 'i', 'g', 'n', 'o', 'r', 'e', '\0' };
 Char STRrecexact[]	= { 'r', 'e', 'c', 'e', 'x', 'a', 'c', 't', '\0' };
@@ -406,9 +406,9 @@ Char STRret[]		= { '\n', '\0' };
 Char STRnobeep[]	= { 'n', 'o', 'b', 'e', 'e', 'p', '\0' };
 Char STRnoding[]	= { 'n', 'o', 'd', 'i', 'n', 'g', '\0' };
 Char STRpadhour[]	= { 'p', 'a', 'd', 'h', 'o', 'u', 'r', '\0' };
-Char STRnoambiguous[]	= { 'n', 'o', 'a', 'm', 'b', 'i', 'g', 'u', 'o', 'u', 
+Char STRnoambiguous[]	= { 'n', 'o', 'a', 'm', 'b', 'i', 'g', 'u', 'o', 'u',
 			    's', '\0' };
-Char STRvisiblebell[]	= { 'v', 'i', 's', 'i', 'b', 'l', 'e', 'b', 'e', 'l', 
+Char STRvisiblebell[]	= { 'v', 'i', 's', 'i', 'b', 'l', 'e', 'b', 'e', 'l',
 			    'l', '\0' };
 Char STRrecognize_only_executables[] = { 'r', 'e', 'c', 'o', 'g', 'n', 'i',
 					 'z', 'e', '_', 'o', 'n', 'l', 'y',

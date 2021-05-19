@@ -235,7 +235,7 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 #   define Iscntrl(c) 	(((Char)(c) & QUOTE) ? 0 : iscntrl((tcshuc) (c)))
 #endif /* !defined(DSPMBYTE) */
 #   if SOLARIS2 == 24
-    /* 
+    /*
      * From <casper@fwi.uva.nl> Casper Dik:
      * In Solaris 2.4, isprint('\t') returns true after setlocal(LC_ALL,"").
      * This breaks commandline editing when you include tabs.

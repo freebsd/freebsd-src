@@ -364,7 +364,7 @@ dolist(Char **v, struct command *c)
 		    (*dp != (Char) ('/' | QUOTE))) {
 		    Strbuf_append1(&buf, '/');
 		    Strbuf_terminate(&buf);
-		} else 
+		} else
 		    *dp &= TRIM;
 		(void) t_search(&buf, LIST, TW_ZERO, 0, STRNULL, 0);
 		i = k + 1;
@@ -481,7 +481,7 @@ dowhich(Char **v, struct command *c)
      * we glob here.
      */
 
-    while (*++v) 
+    while (*++v)
 	rv &= cmd_expand(*v, NULL);
 
     if (!rv)
@@ -563,7 +563,7 @@ find_stop_ed(void)
 	    for (cp = p; *cp && !isspace((unsigned char) *cp); cp++)
 		continue;
 	    *cp = '\0';
-		
+
 	    if ((cp = strrchr(p, '/')) != NULL)	/* and it has a path */
 		cp = cp + 1;		/* then we want only the last part */
 	    else
@@ -658,7 +658,7 @@ xgetpass(const char *prm)
     for (;;)  {
 	char c;
 
-	if (xread(fd, &c, 1) < 1 || c == '\n') 
+	if (xread(fd, &c, 1) < 1 || c == '\n')
 	    break;
 	strbuf_append1(&pass, c);
     }
@@ -680,7 +680,7 @@ xgetpass(const char *prm)
 
 /*
  * Ask the user for his login password to continue working
- * On systems that have a shadow password, this will only 
+ * On systems that have a shadow password, this will only
  * work for root, but what can we do?
  *
  * If we fail to get the password, then we log the user out
@@ -889,7 +889,7 @@ leave:
 }
 
 /*
- * Joachim Hoenig  07/16/91  Added beep_cmd, run every time tcsh wishes 
+ * Joachim Hoenig  07/16/91  Added beep_cmd, run every time tcsh wishes
  * to beep the terminal bell. Useful for playing nice sounds instead.
  */
 void
@@ -951,11 +951,11 @@ leave:
 }
 
 
-/* 
+/*
  * GrP Greg Parker May 2001
- * Added job_cmd(), which is run every time a job is started or 
- * foregrounded. The command is passed a single argument, the string 
- * used to start the job originally. With precmd, useful for setting 
+ * Added job_cmd(), which is run every time a job is started or
+ * foregrounded. The command is passed a single argument, the string
+ * used to start the job originally. With precmd, useful for setting
  * xterm titles.
  * Cloned from cwd_cmd().
  */
@@ -1467,7 +1467,7 @@ gethomedir(const Char *us)
     char **res, **res1, *cp;
     Char *rp;
 #endif /* HESIOD */
-    
+
     pp = xgetpwnam(short2str(us));
 #ifdef YPBUGS
     fix_yp_bugs();
@@ -1719,7 +1719,7 @@ fixio(int fd, int e)
 	       FNDELAY|_FNDELAY|FNDLEAY);	/* whew! */
 	if (fcntl(fd, F_SETFL, e) == -1)
 	    return -1;
-	else 
+	else
 	    e = 0;
 # endif /* F_SETFL */
 
@@ -1763,7 +1763,7 @@ collate(const Char *a, const Char *b)
 
     /*
      * We should be checking for errno != 0, but some systems
-     * forget to reset errno to 0. So we only check for the 
+     * forget to reset errno to 0. So we only check for the
      * only documented valid errno value for strcoll [EINVAL]
      */
     if (errno == EINVAL) {
@@ -1858,7 +1858,7 @@ hashbang(int fd, Char ***vp)
 
 	default:
 	    if (!ws)	/* Start a new word? */
-		ws = p; 
+		ws = p;
 	    p++;
 	    break;
 	}
@@ -2102,7 +2102,7 @@ dotermname(Char **v, struct command *c)
     /* try to find which entry we should be looking for */
     termtype = (v[1] == NULL ? getenv("TERM") : short2str(v[1]));
     if (termtype == NULL) {
-	/* no luck - the user didn't provide one and none is 
+	/* no luck - the user didn't provide one and none is
 	 * specified in the environment
 	 */
 	setcopy(STRstatus, STR1, VAR_READWRITE);
@@ -2110,7 +2110,7 @@ dotermname(Char **v, struct command *c)
     }
 
     /*
-     * we use the termcap function - if we are using terminfo we 
+     * we use the termcap function - if we are using terminfo we
      * will end up with it's compatibility function
      * terminfo/termcap will be initialized with the new
      * type but we don't care because tcsh has cached all the things

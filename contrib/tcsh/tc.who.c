@@ -210,7 +210,7 @@ watch_login(int force)
 #if defined(HAVE_STRUCT_UTMP_UT_HOST) && defined(_SEQUENT_)
     char   *host, *ut_find_host();
 #endif
-#ifdef WINNT_NATIVE    
+#ifdef WINNT_NATIVE
     USE(utmp);
     USE(utmpfd);
     USE(sta);
@@ -233,7 +233,7 @@ watch_login(int force)
     }
     else
 	interval = 0;
-	
+
     (void) time(&t);
     if (t - watch_period < interval) {
 	cleanup_until(&pintr_disabled);
@@ -326,7 +326,7 @@ watch_login(int force)
 		wp->who_status = OFFLINE;
 	    }
 	    else if (strncmp(utmp.ut_name, wp->who_name, UTNAMLEN) == 0) {
-		/* someone is logged in */ 
+		/* someone is logged in */
 		wp->who_time = utmp.ut_time;
 		wp->who_status = ONLINE | ANNOUNCE;	/* same guy */
 	    }
@@ -631,7 +631,7 @@ utmphost(void)
     char *host = NULL;
 
     watch_login(1);
-    
+
     for (wp = whohead.who_next; wp->who_next != NULL; wp = wp->who_next) {
 	if (strcmp(tty, wp->who_tty) == 0)
 	    host = wp->who_host;

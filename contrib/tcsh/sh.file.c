@@ -112,7 +112,7 @@ setup_tty(int on)
 	    on = TCSETAF;
 # endif /* POSIX */
 	    tchars.c_lflag |= ICANON;
-    
+
 	}
     }
     else {

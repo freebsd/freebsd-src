@@ -77,7 +77,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "11 Nov 2020" "Astron 6.22.03"
+.TH TCSH 1 "26 Apr 2021" "Astron 6.22.04"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -5355,7 +5355,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.22.03 (Astron) 2020-11-18.
+This manual documents tcsh 6.22.04 (Astron) 2021-04-26.
 .SH AUTHORS
 .PD 0
 .TP 2

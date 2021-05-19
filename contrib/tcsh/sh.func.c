@@ -74,7 +74,7 @@ isbfunc(struct command *t)
 
     /*
      * We never match a builtin that has quoted the first
-     * character; this has been the traditional way to escape 
+     * character; this has been the traditional way to escape
      * builtin commands.
      */
     if (*cp & QUOTE)
@@ -559,7 +559,7 @@ void
 dowhile(Char **v, struct command *c)
 {
     int status;
-    int again = whyles != 0 && 
+    int again = whyles != 0 &&
 			  SEEKEQ(&whyles->w_start, &lineloc) &&
 			  whyles->w_fename == 0;
 
@@ -765,7 +765,7 @@ search(int type, int level, Char *goal)
     }
     cleanup_push(&word, Strbuf_cleanup);
     do {
-	    
+
 	if (intty) {
 	    histent = xmalloc(sizeof(*histent));
 	    ohistent = xmalloc(sizeof(*histent));
@@ -804,7 +804,7 @@ search(int type, int level, Char *goal)
 		}
 		continue;
 	    }
-	    
+
 	    if ((type == TC_IF || type == TC_ELSE) &&
 		eq(word.s, STRthen))
 		level++;
@@ -887,7 +887,7 @@ search(int type, int level, Char *goal)
 	    savehist(ohistent, 0);
 	    freelex(ohistent);
 	    xfree(ohistent);
-	} else 
+	} else
 	    (void) getword(NULL);
     } while (level >= 0);
  end:
@@ -895,7 +895,7 @@ search(int type, int level, Char *goal)
 }
 
 static struct wordent *
-histgetword(struct wordent *histent) 
+histgetword(struct wordent *histent)
 {
     int first;
     eChar c, d;
@@ -918,7 +918,7 @@ histgetword(struct wordent *histent)
 	    while (c != CHAR_ERR && c != '\n');
 	if (c == CHAR_ERR)
 	    goto past;
-	if (c == '\n') 
+	if (c == '\n')
 	    goto nl;
 	unreadc(c);
 	first = 1;
@@ -942,9 +942,9 @@ histgetword(struct wordent *histent)
 	    }
 	    if (c == CHAR_ERR)
 		goto past;
-	    
+
 	    Strbuf_append1(tmp, (Char) c);
-	    
+
 	    if (!first && !d && c == '(' && !e) {
 		break;
 	    }
@@ -967,7 +967,7 @@ histgetword(struct wordent *histent)
 	    return histent;
 	}
     }
-    
+
 past:
     switch (Stype) {
 
@@ -1055,7 +1055,7 @@ getword(struct Strbuf *wp)
 	    if (!first && !d && c == '(') {
 		if (wp)
 		    goto past_word_end;
-		else 
+		else
 		    break;
 	    }
 	    first = 0;
@@ -1152,7 +1152,7 @@ wfree(void)
 
 #ifdef FDEBUG
 	xprintf("start->type %c start->a_seek %d start->f_seek %d\n",
-		foo[wp->w_start.type+1], 
+		foo[wp->w_start.type+1],
 		wp->w_start.a_seek, wp->w_start.f_seek);
 	xprintf("end->type %c end->a_seek %d end->f_seek %d\n",
 		foo[wp->w_end.type + 1], wp->w_end.a_seek, wp->w_end.f_seek);
@@ -1164,12 +1164,12 @@ wfree(void)
 	if (wp->w_end.type != TCSH_I_SEEK && wp->w_start.type == wp->w_end.type &&
 	    wp->w_start.type == o.type) {
 	    if (wp->w_end.type == TCSH_F_SEEK) {
-		if (o.f_seek >= wp->w_start.f_seek && 
+		if (o.f_seek >= wp->w_start.f_seek &&
 		    (wp->w_end.f_seek == 0 || o.f_seek < wp->w_end.f_seek))
 		    break;
 	    }
 	    else {
-		if (o.a_seek >= wp->w_start.a_seek && 
+		if (o.a_seek >= wp->w_start.a_seek &&
 		    (wp->w_end.a_seek == 0 || o.a_seek < wp->w_end.a_seek))
 		    break;
 	    }
@@ -1338,7 +1338,7 @@ xlate_cr_cleanup(void *dummy)
 
 /*ARGSUSED*/
 void
-doprintenv(Char **v, struct command *c) 
+doprintenv(Char **v, struct command *c)
 {
     Char   *e;
 
@@ -1610,7 +1610,7 @@ dounsetenv(Char **v, struct command *c)
     name = xmalloc((maxi + 1) * sizeof(Char));
     cleanup_push(name, xfree);
 
-    while (++v && *v) 
+    while (++v && *v)
 	for (maxi = 1; maxi;)
 	    for (maxi = 0, ep = STR_environ; *ep; ep++) {
 		for (n = name, p = *ep; *p && *p != '='; *n++ = *p++)
@@ -1897,7 +1897,7 @@ doumask(Char **v, struct command *c)
 #  endif
 # endif
 
-struct limits limits[] = 
+struct limits limits[] =
 {
 # ifdef RLIMIT_CPU
     { RLIMIT_CPU, 	"cputime",	1,	"seconds"	},
@@ -1979,37 +1979,37 @@ struct limits limits[] =
     { RLIMIT_SBSIZE,	"sbsize",	1,	""		},
 # endif /* RLIMIT_SBSIZE */
 
-# ifdef RLIMIT_SWAP 
-    { RLIMIT_SWAP,	"swapsize",	1024,	"kbytes"	}, 
-# endif /* RLIMIT_SWAP */ 
+# ifdef RLIMIT_SWAP
+    { RLIMIT_SWAP,	"swapsize",	1024,	"kbytes"	},
+# endif /* RLIMIT_SWAP */
 
-# ifdef RLIMIT_LOCKS 
-    { RLIMIT_LOCKS,	"maxlocks",	1,	""		}, 
-# endif /* RLIMIT_LOCKS */ 
+# ifdef RLIMIT_LOCKS
+    { RLIMIT_LOCKS,	"maxlocks",	1,	""		},
+# endif /* RLIMIT_LOCKS */
 
 # ifdef RLIMIT_POSIXLOCKS
     { RLIMIT_POSIXLOCKS,"posixlocks",	1,	""		},
 # endif /* RLIMIT_POSIXLOCKS */
 
-# ifdef RLIMIT_SIGPENDING 
-    { RLIMIT_SIGPENDING,"maxsignal",	1,	""		}, 
-# endif /* RLIMIT_SIGPENDING */ 
+# ifdef RLIMIT_SIGPENDING
+    { RLIMIT_SIGPENDING,"maxsignal",	1,	""		},
+# endif /* RLIMIT_SIGPENDING */
 
-# ifdef RLIMIT_MSGQUEUE 
-    { RLIMIT_MSGQUEUE,	"maxmessage",	1,	""		}, 
-# endif /* RLIMIT_MSGQUEUE */ 
+# ifdef RLIMIT_MSGQUEUE
+    { RLIMIT_MSGQUEUE,	"maxmessage",	1,	""		},
+# endif /* RLIMIT_MSGQUEUE */
 
-# ifdef RLIMIT_NICE 
-    { RLIMIT_NICE,	"maxnice",	1,	""		}, 
-# endif /* RLIMIT_NICE */ 
+# ifdef RLIMIT_NICE
+    { RLIMIT_NICE,	"maxnice",	1,	""		},
+# endif /* RLIMIT_NICE */
 
-# ifdef RLIMIT_RTPRIO 
-    { RLIMIT_RTPRIO,	"maxrtprio",	1,	""		}, 
-# endif /* RLIMIT_RTPRIO */ 
+# ifdef RLIMIT_RTPRIO
+    { RLIMIT_RTPRIO,	"maxrtprio",	1,	""		},
+# endif /* RLIMIT_RTPRIO */
 
-# ifdef RLIMIT_RTTIME 
-    { RLIMIT_RTTIME,	"maxrttime",	1,	"usec"		}, 
-# endif /* RLIMIT_RTTIME */ 
+# ifdef RLIMIT_RTTIME
+    { RLIMIT_RTTIME,	"maxrttime",	1,	"usec"		},
+# endif /* RLIMIT_RTTIME */
 
     { -1, 		NULL, 		0, 	NULL		}
 };
@@ -2625,11 +2625,11 @@ iconv_catgets(nl_catd ctd, int set_id, int msg_id, const char *s)
 {
     static char *buf = NULL;
     static size_t buf_size = 0;
-  
+
     char *orig, *dest, *p;
     ICONV_CONST char *src;
     size_t src_size, dest_size;
-  
+
     orig = xcatgets(ctd, set_id, msg_id, s);
     if (catgets_iconv == (iconv_t)-1 || orig == s)
         return orig;
@@ -2650,7 +2650,7 @@ iconv_catgets(nl_catd ctd, int set_id, int msg_id, const char *s)
 		dest = p + (dest - buf);
 		buf = p;
 		break;
-		
+
 	    case EILSEQ: case EINVAL: default:
 		return orig;
 	    }
@@ -2735,7 +2735,7 @@ getYN(const char *prompt)
     xprintf("%s", prompt);
     flush();
     (void) force_read(SHIN, &c, sizeof(c));
-    /* 
+    /*
      * Perhaps we should use the yesexpr from the
      * actual locale
      */

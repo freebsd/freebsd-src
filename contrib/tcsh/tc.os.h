@@ -32,9 +32,9 @@
 #ifndef _h_tc_os
 #define _h_tc_os
 
-#ifdef notdef 
+#ifdef notdef
 /*
- * for SVR4 and linux we used to fork pipelines backwards. 
+ * for SVR4 and linux we used to fork pipelines backwards.
  * This should not be needed any more.
  * more info in sh.sem.c
  */
@@ -47,7 +47,7 @@
 #endif
 
 #ifdef   _VMS_POSIX
-# ifndef  NOFILE 
+# ifndef  NOFILE
 #  define  NOFILE 64
 # endif /* NOFILE */
 # define  nice(a)       setprio((getpid()),a)
@@ -79,7 +79,7 @@
 # include <sys/time.h>
 # ifdef notdef
   /* Don't include it, because it defines things we don't really have */
-#  include <sys/resource.h>	
+#  include <sys/resource.h>
 # endif /* notdef */
 # ifdef POSIX
 #  include <sys/tty.h>
@@ -156,7 +156,7 @@ struct ucred {
 #endif /* ISC202 */
 
 /*
- * XXX: This will be changed soon to 
+ * XXX: This will be changed soon to
  * #if (SYSVREL > 0) && defined(TIOCGWINSZ)
  * If that breaks on your machine, let me know.
  *
@@ -181,7 +181,7 @@ struct ucred {
 #endif /* IRIS4D */
 
 /*
- * For some versions of system V software, specially ones that use the 
+ * For some versions of system V software, specially ones that use the
  * Wollongong Software TCP/IP, the FIOCLEX, FIONCLEX, FIONBIO calls
  * might not work correctly for file descriptors [they work only for
  * sockets]. So we try to use first the fcntl() and we only use the
@@ -311,7 +311,7 @@ struct ucred {
 #ifndef S_ISUID
 # define S_ISUID 0004000 	/* setuid */
 #endif /* S_ISUID */
-#ifndef S_ISGID	
+#ifndef S_ISGID
 # define S_ISGID 0002000	/* setgid */
 #endif /* S_ISGID */
 #ifndef S_ISVTX
@@ -406,7 +406,7 @@ struct ucred {
 # define NEEDtcgetpgrp
 #endif /* BSDJOBS && !(POSIX && POSIXJOBS) */
 
-#ifdef RENO 
+#ifdef RENO
 /*
  * RENO has this broken. It is fixed on 4.4BSD
  */
@@ -540,11 +540,11 @@ extern char *getvwd();
 # endif	/* (SUNOS4 && ! __GNUC__) || _IBMR2 || _IBMESA */
 
 # ifdef SCO
-extern char *ttyname();   
+extern char *ttyname();
 # endif /* SCO */
 
 # ifdef __clipper__
-extern char *ttyname();   
+extern char *ttyname();
 # endif /* __clipper__ */
 
 #endif /* !POSIX || SUNOS4 || UTekV || sysV88 */
@@ -565,7 +565,7 @@ extern int getpeername (int, struct sockaddr *, int *);
 # endif /* REMOTEHOST */
 #endif /* SUNOS4 && __GNUC__ == 2 */
 
-#if (defined(BSD) && !defined(BSD4_4)) || defined(SUNOS4) 
+#if (defined(BSD) && !defined(BSD4_4)) || defined(SUNOS4)
 # if defined(__alpha) && defined(__osf__) && DECOSF1 < 200
 extern void bcopy	(const void *, void *, size_t);
 #  define memmove(a, b, c) (bcopy((char *) (b), (char *) (a), (int) (c)), a)

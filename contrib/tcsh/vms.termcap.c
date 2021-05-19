@@ -221,7 +221,7 @@ tgetstr(char *id, char **area)
 				cp++;
 			if (*cp != '=')
 				return(NULL);
-			for (ret = *area, cp++; *cp && *cp != ':' ; 
+			for (ret = *area, cp++; *cp && *cp != ':' ;
 				(*area)++, cp++)
 				switch(*cp) {
 				case '^' :
