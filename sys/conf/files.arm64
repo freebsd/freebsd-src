@@ -176,6 +176,7 @@ dev/dwc/if_dwc.c				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_roc
 dev/dwc/if_dwc_if.m				optional fdt dwc_rk soc_rockchip_rk3328 | fdt dwc_rk soc_rockchip_rk3399 | fdt dwc_socfpga soc_intel_stratix10
 
 dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls
+dev/enetc/enetc_mdio_pci.c			optional enetc pci soc_nxp_ls
 dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
 
 dev/gpio/pl061.c				optional pl061 gpio
