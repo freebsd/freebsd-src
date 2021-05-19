@@ -60,7 +60,6 @@ pass1b(void)
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_func = pass1bcheck;
 	duphead = duplist;
-	inumber = 0;
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		if (got_siginfo) {
 			printf("%s: phase 1b: cyl group %d of %d (%d%%)\n",
@@ -77,6 +76,7 @@ pass1b(void)
 		if (inosused == 0)
 			continue;
 		setinodebuf(c, inosused);
+		inumber = c * sblock.fs_ipg;
 		for (i = 0; i < inosused; i++, inumber++) {
 			if (inumber < UFS_ROOTINO) {
 				(void)getnextinode(inumber, 0);
