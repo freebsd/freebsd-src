@@ -104,13 +104,6 @@ static MALLOC_DEFINE(M_CXGBEI, "cxgbei", "cxgbei(4)");
 
 SYSCTL_NODE(_kern_icl, OID_AUTO, cxgbei, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Chelsio iSCSI offload");
-static int coalesce = 1;
-SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, coalesce, CTLFLAG_RWTUN,
-	&coalesce, 0, "Try to coalesce PDUs before sending");
-static int partial_receive_len = 128 * 1024;
-SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
-    &partial_receive_len, 0, "Minimum read size for partially received "
-    "data segment");
 static int sendspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, sendspace, CTLFLAG_RWTUN,
     &sendspace, 0, "Default send socket buffer size");
