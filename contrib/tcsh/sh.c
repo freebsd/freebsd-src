@@ -276,7 +276,7 @@ main(int argc, char **argv)
     initlex(&paraml);
 
 #ifdef MALLOC_TRACE
-    mal_setstatsfile(fdopen(dmove(xopen("/tmp/tcsh.trace", 
+    mal_setstatsfile(fdopen(dmove(xopen("/tmp/tcsh.trace",
 	O_WRONLY|O_CREAT|O_LARGEFILE, 0666), 25), "w"));
     mal_trace(1);
 #endif /* MALLOC_TRACE */
@@ -303,9 +303,9 @@ main(int argc, char **argv)
      * Otherwise `` jobs will not work... (From knaff@poly.polytechnique.fr)
      */
     {
-	do 
+	do
 	    if ((f = xopen(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE)) == -1 &&
-		(f = xopen("/", O_RDONLY|O_LARGEFILE)) == -1) 
+		(f = xopen("/", O_RDONLY|O_LARGEFILE)) == -1)
 		exit(1);
 	while (f < 3);
 	xclose(f);
@@ -313,7 +313,7 @@ main(int argc, char **argv)
 
     osinit();			/* Os dependent initialization */
 
-    
+
     {
 	char *t;
 
@@ -512,24 +512,24 @@ main(int argc, char **argv)
      * on shells running as root.  Out of these, autologout should NOT be set
      * for any psudo-terminals (this catches most window systems) and not for
      * any terminal running X windows.
-     * 
-     * At Ohio State, we have had problems with a user having his X session 
-     * drop out from under him (on a Sun) because the shell in his master 
+     *
+     * At Ohio State, we have had problems with a user having his X session
+     * drop out from under him (on a Sun) because the shell in his master
      * xterm timed out and exited.
-     * 
+     *
      * Really, this should be done with a program external to the shell, that
      * watches for no activity (and NO running programs, such as dump) on a
      * terminal for a long peroid of time, and then SIGHUPS the shell on that
      * terminal.
-     * 
-     * bugfix by Rich Salz <rsalz@PINEAPPLE.BBN.COM>: For root rsh things 
-     * allways first check to see if loginsh or really root, then do things 
+     *
+     * bugfix by Rich Salz <rsalz@PINEAPPLE.BBN.COM>: For root rsh things
+     * allways first check to see if loginsh or really root, then do things
      * with ttyname()
-     * 
+     *
      * Also by Jean-Francois Lamy <lamy%ai.toronto.edu@RELAY.CS.NET>: check the
      * value of cp before using it! ("root can rsh too")
-     * 
-     * PWP: keep the nested ifs; the order of the tests matters and a good 
+     *
+     * PWP: keep the nested ifs; the order of the tests matters and a good
      * (smart) C compiler might re-arange things wrong.
      */
 #ifdef AUTOLOGOUT
@@ -662,7 +662,7 @@ main(int argc, char **argv)
 	    tsetenv(STRLOGNAME, varval(STRuser));
 	if (cus == NULL)
 	    tsetenv(STRKUSER, varval(STRuser));
-	
+
 	cgr = getenv("GROUP");
 	if (cgr != NULL)
 	    setv(STRgroup, quote(SAVE(cgr)), VAR_READWRITE);
@@ -696,7 +696,7 @@ main(int argc, char **argv)
      */
     remotehost();
 #endif /* REMOTEHOST */
- 
+
 #ifdef apollo
     if ((tcp = getenv("SYSTYPE")) == NULL)
 	tcp = "bsd4.3";
@@ -710,14 +710,14 @@ main(int argc, char **argv)
      * should determine if we should edit or not. $TERM is preserved
      * across rlogin sessions, so we will not get confused if we rlogin
      * under an emacs shell. Another advantage is that if we run an
-     * xterm under an emacs shell, then the $TERM will be set to 
+     * xterm under an emacs shell, then the $TERM will be set to
      * xterm, so we are going to want to edit. Unfortunately emacs
      * does not restore all the tty modes, so xterm is not very well
      * set up. But this is not the shell's fault.
      * Also don't edit if $TERM == wm, for when we're running under an ATK app.
      * Finally, emacs compiled under terminfo, sets the terminal to dumb,
      * so disable editing for that too.
-     * 
+     *
      * Unfortunately, in some cases the initial $TERM setting is "unknown",
      * "dumb", or "network" which is then changed in the user's startup files.
      * We fix this by setting noediting here if $TERM is unknown/dumb and
@@ -735,9 +735,9 @@ main(int argc, char **argv)
 	editing = ((tcp = getenv("EMACS")) == NULL || strcmp(tcp, "t") != 0);
     }
 
-    /* 
-     * The 'edit' variable is either set or unset.  It doesn't 
-     * need a value.  Making it 'emacs' might be confusing. 
+    /*
+     * The 'edit' variable is either set or unset.  It doesn't
+     * need a value.  Making it 'emacs' might be confusing.
      */
     if (editing)
 	setNS(STRedit);
@@ -753,7 +753,7 @@ main(int argc, char **argv)
      * Compatibility with tcsh >= 6.12 by default
      */
     setNS(STRcsubstnonl);
-    
+
     /*
      * Random default kill ring size
      */
@@ -789,7 +789,7 @@ main(int argc, char **argv)
 
 	if ((tcp = getenv("SHELL")) != NULL) {
 	    sh_len = strlen(tcp);
-	    if ((sh_len >= 5 && strcmp(tcp + (sh_len - 5), "/tcsh") == 0) || 
+	    if ((sh_len >= 5 && strcmp(tcp + (sh_len - 5), "/tcsh") == 0) ||
 	        (!tcsh && sh_len >= 4 && strcmp(tcp + (sh_len - 4), "/csh") == 0))
 		setv(STRshell, quote(SAVE(tcp)), VAR_READWRITE);
 	    else
@@ -824,7 +824,7 @@ main(int argc, char **argv)
 	    xfree(tmp);
 	}
 	else {
-	    tmp2 = SAVE(""); 
+	    tmp2 = SAVE("");
 	}
 	shtemp = Strspl(tmp2, doldol);	/* For << */
 	xfree(tmp2);
@@ -875,7 +875,7 @@ main(int argc, char **argv)
       nt_autoset_dspmbyte();
 #endif /* WINNT_NATIVE */
 #endif
-#if defined(AUTOSET_KANJI) 
+#if defined(AUTOSET_KANJI)
 # if defined(NLS) && defined(LC_CTYPE)
     if (setlocale(LC_CTYPE, NULL) != NULL || getenv("LANG") != NULL)
 # else
@@ -896,12 +896,12 @@ main(int argc, char **argv)
     }
     /*
      * Process the arguments.
-     * 
+     *
      * Note that processing of -v/-x is actually delayed till after script
      * processing.
-     * 
-     * We set the first character of our name to be '-' if we are a shell 
-     * running interruptible commands.  Many programs which examine ps'es 
+     *
+     * We set the first character of our name to be '-' if we are a shell
+     * running interruptible commands.  Many programs which examine ps'es
      * use this to filter such shells out.
      */
     argc--, tempv++;
@@ -1024,8 +1024,8 @@ main(int argc, char **argv)
 	    case '\t':
 	    case '\r':
 	    case '\n':
-		/* 
-		 * for O/S's that don't do the argument parsing right in 
+		/*
+		 * for O/S's that don't do the argument parsing right in
 		 * "#!/foo -f " scripts
 		 */
 		break;
@@ -1057,12 +1057,12 @@ main(int argc, char **argv)
 	xfree(ffile);
 	dolzero = 1;
 	ffile = SAVE(tempv[0]);
-	/* 
+	/*
 	 * Replace FSHIN. Handle /dev/std{in,out,err} specially
 	 * since once they are closed we cannot open them again.
 	 * In that case we use our own saved descriptors
 	 */
-	if ((SHIN = dmove(nofile, FSHIN)) < 0) 
+	if ((SHIN = dmove(nofile, FSHIN)) < 0)
 	    switch(nofile) {
 	    case 0:
 		SHIN = FSHIN;
@@ -1082,7 +1082,7 @@ main(int argc, char **argv)
 	 /* argc not used any more */ tempv++;
     }
 
-    /* 
+    /*
      * Call to closem() used to be part of initdesc(). Now called below where
      * the script name argument has become stdin. Kernel may have used a file
      * descriptor to hold the name of the script (setuid case) and this name
@@ -1153,13 +1153,13 @@ main(int argc, char **argv)
 	sigset_interrupting(SIGINT, queue_pintr);
 	(void) signal(SIGTERM, SIG_IGN);
 
-	/* 
+	/*
 	 * No reason I can see not to save history on all these events..
 	 * Most usual occurrence is in a window system, where we're not a login
 	 * shell, but might as well be... (sg)
 	 * But there might be races when lots of shells exit together...
 	 * [this is also incompatible].
-	 * We have to be mre careful here. If the parent wants to 
+	 * We have to be mre careful here. If the parent wants to
 	 * ignore the signals then we leave them untouched...
 	 * We also only setup the handlers for shells that are trully
 	 * interactive.
@@ -1299,10 +1299,10 @@ main(int argc, char **argv)
  */
     sigset_interrupting(SIGCHLD, queue_pchild);
 
-    if (intty && !targinp) 	
+    if (intty && !targinp)
 	(void) ed_Setup(editing);/* Get the tty state, and set defaults */
 				 /* Only alter the tty state if editing */
-    
+
     /*
      * Set an exit here in case of an interrupt or error reading the shell
      * start-up scripts.
@@ -1388,7 +1388,7 @@ main(int argc, char **argv)
 	setNS(STRverbose);
     if (nexececho)
 	setNS(STRecho);
-    
+
 
     if (targinp) {
 	/* If this -c command caused an error before, skip processing */
@@ -1515,7 +1515,7 @@ importpath(Char *cp)
 static int
 srccat(Char *cp, Char *dp)
 {
-    if (cp[0] == '/' && cp[1] == '\0') 
+    if (cp[0] == '/' && cp[1] == '\0')
 	return srcfile(short2str(dp), (mflag ? 0 : 1), 0, NULL);
     else {
 	Char *ep;
@@ -1550,7 +1550,7 @@ srcfile(const char *f, int onlyown, int flag, Char **av)
 {
     int unit;
 
-    if ((unit = xopen(f, O_RDONLY|O_LARGEFILE)) == -1) 
+    if ((unit = xopen(f, O_RDONLY|O_LARGEFILE)) == -1)
 	return 0;
     cleanup_push(&unit, open_cleanup);
     unit = dmove(unit, -1);
@@ -1625,7 +1625,7 @@ st_save(struct saved_state *st, int unit, int hflg, Char **al, Char **av)
     cpybin(st->B, B);
 
     /*
-     * we can now pass arguments to source. 
+     * we can now pass arguments to source.
      * For compatibility we do that only if arguments were really
      * passed, otherwise we keep the old, global $argv like before.
      */
@@ -1854,25 +1854,25 @@ phup(void)
 
     record();
 
-#ifdef POSIXJOBS 
+#ifdef POSIXJOBS
     /*
      * We kill the last foreground process group. It then becomes
-     * responsible to propagate the SIGHUP to its progeny. 
+     * responsible to propagate the SIGHUP to its progeny.
      */
     {
 	struct process *pp, *np;
 
 	for (pp = proclist.p_next; pp; pp = pp->p_next) {
 	    np = pp;
-	    /* 
+	    /*
 	     * Find if this job is in the foreground. It could be that
 	     * the process leader has exited and the foreground flag
 	     * is cleared for it.
 	     */
-	    do 
+	    do
 		/*
 		 * If a process is in the foreground we try to kill
-		 * it's process group. If we succeed, then the 
+		 * it's process group. If we succeed, then the
 		 * whole job is gone. Otherwise we keep going...
 		 * But avoid sending HUP to the shell again.
 		 */
@@ -1951,7 +1951,7 @@ pintr1(int wantnl)
     }
     else if (intty && wantnl) {
 	if (editing) {
-	    /* 
+	    /*
 	     * If we are editing a multi-line input command, and move to
 	     * the beginning of the line, we don't want to trash it when
 	     * we hit ^C
@@ -2095,7 +2095,7 @@ process(int catch)
 	/*
 	 * Save input text on the history list if reading in old history, or it
 	 * is from the terminal at the top level and not in a loop.
-	 * 
+	 *
 	 * PWP: entry of items in the history list while in a while loop is done
 	 * elsewhere...
 	 */
@@ -2320,7 +2320,7 @@ mailchk(void)
 	}
 	else {
 	    char *type;
-	    
+
 	    if (stb.st_size == 0 || stb.st_atime >= stb.st_mtime ||
 		(stb.st_atime <= chktim && stb.st_mtime <= chktim) ||
 		(loginsh && !new))

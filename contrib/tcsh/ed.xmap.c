@@ -17,7 +17,7 @@
  *	      Looks up *ch in map and then reads characters until a
  *	      complete match is found or a mismatch occurs. Returns the
  *	      type of the match found (XK_STR, XK_CMD, or XK_EXE).
- *	      Returns NULL in val.str and XK_STR for no match.  
+ *	      Returns NULL in val.str and XK_STR for no match.
  *	      The last character read is returned in *ch.
  *
  *		void AddXkey(Xkey, val, ntype);
@@ -227,7 +227,7 @@ AddXkey(const CStr *Xkey, XmapVal *val, int ntype)
 	Xmap = GetFreeNode(&cs);	/* it is properly initialized */
 
     /* Now recurse through Xmap */
-    (void) TryNode(Xmap, &cs, val, ntype);	
+    (void) TryNode(Xmap, &cs, val, ntype);
     return;
 }
 
@@ -421,7 +421,7 @@ GetFreeNode(CStr *ch)
     ptr->sibling = NULL;
     return (ptr);
 }
- 
+
 
 /* PrintXKey():
  *	Print the binding associated with Xkey key.
@@ -560,7 +560,7 @@ printOne(const Char *key, const XmapVal *val, int ntype)
 	    for (fp = FuncNames; fp->name; fp++)
 		if (val->cmd == fp->func)
 		    xprintf(fmt, fp->name);
-		break;
+	    break;
 	default:
 	    abort();
 	    break;
@@ -685,7 +685,7 @@ parseescape(const Char **ptr)
 	    break;
 	}
     }
-    else if ((*p & CHAR) == '^' && (Isalpha(p[1] & CHAR) || 
+    else if ((*p & CHAR) == '^' && (Isalpha(p[1] & CHAR) ||
 				    strchr("@^_?\\|[{]}", p[1] & CHAR))) {
 	p++;
 #ifdef IS_ASCII

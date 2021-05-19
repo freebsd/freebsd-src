@@ -77,8 +77,8 @@ out_of_memory (void)
 extern void* sbrk();
 #endif
 /*
- * Lots of os routines are busted and try to free invalid pointers. 
- * Although our free routine is smart enough and it will pick bad 
+ * Lots of os routines are busted and try to free invalid pointers.
+ * Although our free routine is smart enough and it will pick bad
  * pointers most of the time, in cases where we know we are going to get
  * a bad pointer, we'd rather leak.
  */
@@ -190,7 +190,7 @@ malloc(size_t nbytes)
     /*
      * SunOS localtime() overwrites the 9th byte on an 8 byte malloc()....
      * so we get one more...
-     * From Michael Schroeder: This is not true. It depends on the 
+     * From Michael Schroeder: This is not true. It depends on the
      * timezone string. In Europe it can overwrite the 13th byte on a
      * 12 byte malloc.
      * So we punt and we always allocate an extra byte.
@@ -379,7 +379,7 @@ calloc(size_t i, size_t j)
  */
 #ifndef lint
 /* 4 should be plenty, -1 =>'s whole list */
-static int     realloc_srchlen = 4;	
+static int     realloc_srchlen = 4;
 #endif /* lint */
 
 memalign_t
@@ -402,7 +402,7 @@ realloc(ptr_t cp, size_t nbytes)
     else
 	/*
 	 * Already free, doing "compaction".
-	 * 
+	 *
 	 * Search for the old block of memory on the free list.  First, check the
 	 * most common case (last element free'd), then (this failing) the last
 	 * ``realloc_srchlen'' items free'd. If all lookups fail, then assume
@@ -416,7 +416,7 @@ realloc(ptr_t cp, size_t nbytes)
     onb = MEMALIGN(nbytes + MEMALIGN(sizeof(union overhead)) + RSLOP);
 
     /* avoid the copy if same size block */
-    if (was_alloced && (onb <= (U_int) (1 << (i + 3))) && 
+    if (was_alloced && (onb <= (U_int) (1 << (i + 3))) &&
 	(onb > (U_int) (1 << (i + 2)))) {
 #ifdef RCHECK
 	/* JMR: formerly this wasn't updated ! */
@@ -430,8 +430,8 @@ realloc(ptr_t cp, size_t nbytes)
     if ((res = malloc(nbytes)) == NULL)
 	return ((memalign_t) NULL);
     if (cp != res) {		/* common optimization */
-	/* 
-	 * christos: this used to copy nbytes! It should copy the 
+	/*
+	 * christos: this used to copy nbytes! It should copy the
 	 * smaller of the old and new size
 	 */
 	onb = (1 << (i + 3)) - MEMALIGN(sizeof(union overhead)) - RSLOP;
@@ -636,7 +636,7 @@ showall(Char **v, struct command *c)
     memtop = sbrk(0);
 #endif /* USE_SBRK */
     xprintf(CGETS(19, 12, "Allocated memory from 0x%lx to 0x%lx (%ld).\n"),
-	    (unsigned long) membot, (unsigned long) memtop, 
+	    (unsigned long) membot, (unsigned long) memtop,
 	    (unsigned long) (memtop - membot));
 #else /* HAVE_MALLINFO */
     struct mallinfo mi;

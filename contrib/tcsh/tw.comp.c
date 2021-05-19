@@ -132,7 +132,7 @@ x:
 
 
 /* tw_pr():
- *	Pretty print a completion, adding single quotes around 
+ *	Pretty print a completion, adding single quotes around
  *	a completion argument and collapsing multiple spaces to one.
  */
 static void
@@ -158,7 +158,7 @@ tw_pr(Char **cmp)
 
 
 /* tw_find():
- *	Find the first matching completion. 
+ *	Find the first matching completion.
  *	For commands we only look at names that start with -
  */
 static Char **
@@ -199,7 +199,7 @@ tw_pos(Char *ran, int wno)
 
     if (*p == '\0')			/* range == <number> */
 	return wno == getn(ran);
-    
+
     if (ran == p)			/* range = - <number> */
 	return wno <= getn(&ran[1]);
     *p++ = '\0';
@@ -221,7 +221,7 @@ tw_tok(Char *str)
 
     if (str != NULL)
 	bf = str;
-    
+
     /* skip leading spaces */
     for (; *bf && Isspace(*bf); bf++)
 	continue;
@@ -356,7 +356,7 @@ tw_result(const Char *act, Char **pat)
 	res = Strsave(act);
 	if ((p = Strchr(&res[1], '`')) != NULL)
 	    *++p = '\0';
-	
+
 	if (didfds == 0) {
 	    /*
 	     * Make sure that we have some file descriptors to
@@ -504,7 +504,7 @@ tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
 	wordno++;
     }
     wl[wordno] = NULL;
-	
+
 
 #ifdef TDEBUG
     xprintf("\r\n");
@@ -515,7 +515,7 @@ tw_complete(const Char *line, Char **word, Char **pat, int looking, eChar *suf)
     xprintf("last: %s\n", wordno >= 2 ? short2str(wl[wordno-2]) : "n/a");
     xprintf("this: %s\n", wordno >= 1 ? short2str(wl[wordno-1]) : "n/a");
 #endif /* TDEBUG */
-    
+
     for (;vec != NULL && (ptr = vec[0]) != NULL; vec++) {
 	Char  *ran,	        /* The pattern or range X/<range>/XXXX/ */
 	      *com,	        /* The completion X/XXXXX/<completion>/ */
