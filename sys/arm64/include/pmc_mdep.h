@@ -38,6 +38,11 @@
 #include <dev/hwpmc/hwpmc_arm64.h>
 
 union pmc_md_op_pmcallocate {
+	struct {
+		uint32_t	pm_md_config;
+		uint32_t	pm_md_flags;
+#define	PM_MD_RAW_EVENT		0x1
+	};
 	uint64_t		__pad[4];
 };
 
