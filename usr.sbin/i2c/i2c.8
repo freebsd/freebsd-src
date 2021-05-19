@@ -43,19 +43,26 @@
 .Op Fl b
 .Op Fl v
 .Nm
-.Cm -s
-.Op Fl f Ar device
-.Op Fl n Ar skip_addr
+.Cm -h
+.Nm
+.Cm -i
 .Op Fl v
+.Op Ar cmd ...
+.Op Ar -
 .Nm
 .Cm -r
 .Op Fl f Ar device
 .Op Fl v
+.Nm
+.Cm -s
+.Op Fl f Ar device
+.Op Fl n Ar skip_addr
+.Op Fl v
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to perform raw data transfers (read or write) with devices
-on the I2C bus.
+utility can be used to perform raw data transfers (read or write) to devices
+on an I2C bus.
 It can also scan the bus for available devices and reset the I2C controller.
 .Pp
 The options are as follows:
@@ -72,6 +79,10 @@ transfer direction: r - read, w - write.
 Data to be written is read from stdin as binary bytes.
 .It Fl f Ar device
 I2C bus to use (default is /dev/iic0).
+.It Fl i
+Interpreted mode
+.It Fl h
+Help
 .It Fl m Ar tr|ss|rs|no
 addressing mode, i.e., I2C bus operations performed after the offset for the
 transfer has been written to the device and before the actual read/write
@@ -121,6 +132,37 @@ to the slave.
 Zero means that the offset is ignored and not passed to the slave at all.
 The endianess defaults to little-endian.
 .El
+.Sh INTERPRETED MODE
+When started with
+.Fl i
+any remaining arguments are interpreted as commands, and
+if the last argument is '-', or there are no arguments,
+commands will (also) be read from stdin.
+.Pp
+Available commands:
+.Bl -tag -compact
+.It 'r' bus address [0|8|16|16LE|16BE] offset count
+Read command, count bytes are read and hexdumped to stdout.
+.It 'w' bus address [0|8|16|16LE|16BE] offset hexstring
+Write command, hexstring (white-space is allowed) is written to device.
+.It 'p' anything
+Print command, the entire line is printed to stdout.  (This can be used
+for synchronization.)
+.El
+.Pp
+All numeric fields accept canonical decimal/octal/hex notation.
+.Pp
+Without the
+.Fl v
+option, all errors are fatal with non-zero exit status.
+.Pp
+With the
+.Fl v
+option, no errors are fatal, and all commands will return
+either "OK\en" or "ERROR\en" on stdout.
+In case of error, detailed diagnostics will precede that on stderr.
+.Pp
+Blank lines and lines starting with '#' are ignored.
 .Sh EXAMPLES
 .Bl -bullet
 .It
@@ -148,6 +190,14 @@ i2c -a 0x56 -f /dev/iic1 -d r -c 0x4 -b | i2c -a 0x57 -f /dev/iic0 -d w -c 4 -b
 Reset the controller:
 .Pp
 i2c -f /dev/iic1 -r
+.It
+Read 8 bytes at address 24 in an EEPROM:
+.Pp
+i2c -i 'r 0 0x50 16BE 24 8'
+.It
+Read 2x8 bytes at address 24 and 48 in an EEPROM:
+.Pp
+echo 'r 0 0x50 16BE 48 8' | i2c -i 'r 0 0x50 16BE 24 8' -
 .El
 .Sh WARNING
 Many systems store critical low-level information in I2C memories, and
@@ -171,3 +221,6 @@ utility and this manual page were written by
 .An Bartlomiej Sieka Aq Mt tur@semihalf.com
 and
 .An Michal Hajduk Aq Mt mih@semihalf.com .
+.Pp
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
+added interpreted mode.
