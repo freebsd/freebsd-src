@@ -169,7 +169,7 @@ struct opalpci_softc {
 
 static devclass_t	opalpci_devclass;
 DEFINE_CLASS_1(pcib, opalpci_driver, opalpci_methods,
-    sizeof(struct opalpci_softc), ofw_pci_driver);
+    sizeof(struct opalpci_softc), ofw_pcib_driver);
 EARLY_DRIVER_MODULE(opalpci, ofwbus, opalpci_driver, opalpci_devclass, 0, 0,
     BUS_PASS_BUS);
 
@@ -464,7 +464,7 @@ opalpci_attach(device_t dev)
 	/*
 	 * General OFW PCI attach
 	 */
-	err = ofw_pci_init(dev);
+	err = ofw_pcib_init(dev);
 	if (err != 0)
 		return (err);
 
@@ -496,7 +496,7 @@ opalpci_attach(device_t dev)
 		   rp->pci + rp->size - 1);
 	}
 
-	return (ofw_pci_attach(dev));
+	return (ofw_pcib_attach(dev));
 }
 
 static uint32_t

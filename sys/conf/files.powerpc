@@ -90,7 +90,7 @@ dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/ofw/ofwbus.c		standard
-dev/ofw/ofwpci.c		optional 	pci
+dev/ofw/ofw_pcib.c		optional 	pci
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/ofw/ofw_subr.c		standard
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac

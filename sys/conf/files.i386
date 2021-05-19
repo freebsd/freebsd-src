@@ -115,7 +115,7 @@ dev/ntb/ntb_hw/ntb_hw_intel.c	optional ntb_hw_intel | ntb_hw
 dev/ntb/ntb_hw/ntb_hw_plx.c	optional ntb_hw_plx | ntb_hw
 dev/ntb/test/ntb_tool.c		optional ntb_tool
 dev/nvram/nvram.c		optional	nvram isa
-dev/ofw/ofwpci.c		optional fdt pci
+dev/ofw/ofw_pcib.c		optional fdt pci
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional rdrand_rng !random_loadable
 dev/random/nehemiah.c		optional padlock_rng !random_loadable

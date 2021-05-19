@@ -101,7 +101,7 @@ struct rtaspci_softc {
 
 static devclass_t	rtaspci_devclass;
 DEFINE_CLASS_1(pcib, rtaspci_driver, rtaspci_methods,
-    sizeof(struct rtaspci_softc), ofw_pci_driver);
+    sizeof(struct rtaspci_softc), ofw_pcib_driver);
 DRIVER_MODULE(rtaspci, ofwbus, rtaspci_driver, rtaspci_devclass, 0, 0);
 
 static int
@@ -143,7 +143,7 @@ rtaspci_attach(device_t dev)
 	OF_getencprop(ofw_bus_get_node(dev), "ibm,pci-config-space-type",
 	    &sc->sc_extended_config, sizeof(sc->sc_extended_config));
 
-	return (ofw_pci_attach(dev));
+	return (ofw_pcib_attach(dev));
 }
 
 static uint32_t
