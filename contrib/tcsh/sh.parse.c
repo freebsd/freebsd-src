@@ -620,6 +620,7 @@ again:
     savep:
 	    if (!specp)
 		continue;
+	    /* FALLTHROUGH */
 	default:
 	    if (l != 0 && !specp)
 		continue;

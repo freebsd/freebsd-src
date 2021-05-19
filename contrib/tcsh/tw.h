@@ -81,7 +81,7 @@
 #define DEFAULTLIST ":/usr/man/cat1:/usr/man/cat8:/usr/man/cat6:/usr/local/man/cat1:/usr/local/man/cat8:/usr/local/man/cat6"	/* if no HPATH */
 
 typedef enum {
-    LIST, LIST_ALL, RECOGNIZE, RECOGNIZE_ALL, RECOGNIZE_SCROLL, 
+    LIST, LIST_ALL, RECOGNIZE, RECOGNIZE_ALL, RECOGNIZE_SCROLL,
     PRINT_HELP, SPELL, GLOB, GLOB_EXPAND, VARS_EXPAND, PATH_NORMALIZE,
     COMMAND_NORMALIZE
 } COMMAND;

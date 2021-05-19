@@ -61,7 +61,7 @@ static void
 update_vars(Char *vp)
 {
     if (eq(vp, STRpath)) {
-	struct varent *p = adrof(STRpath); 
+	struct varent *p = adrof(STRpath);
 	if (p == NULL)
 	    stderror(ERR_NAME | ERR_UNDVAR);
 	else {
@@ -183,7 +183,7 @@ update_vars(Char *vp)
 	    numeof = numeof * 10 + *cp - '0';
 	}
 	if (numeof <= 0) numeof = 26;	/* Sanity check */
-    } 
+    }
     else if (eq(vp, STRbackslash_quote)) {
 	bslash_quote = 1;
     }
@@ -611,7 +611,7 @@ adrof1(const Char *name, struct varent *v)
     int cmp;
 
     v = v->v_left;
-    while (v && ((cmp = *name - *v->v_name) != 0 || 
+    while (v && ((cmp = *name - *v->v_name) != 0 ||
 		 (cmp = Strcmp(name, v->v_name)) != 0))
 	if (cmp < 0)
 	    v = v->v_left;
@@ -702,7 +702,7 @@ set1(const Char *var, Char **vec, struct varent *head, int flags)
 	    }
 	    /* Compress items - remove empty items */
 	    for (j = i = 0; i < num_items; i++)
-	       if (vec[i]) 
+	       if (vec[i])
 		  vec[j++] = vec[i];
 
 	    /* NULL-fy remaining items */
@@ -711,7 +711,7 @@ set1(const Char *var, Char **vec, struct varent *head, int flags)
 	}
 	/* don't let the attribute propagate */
 	flags &= ~(VAR_FIRST|VAR_LAST);
-    } 
+    }
     setq(var, vec, head, flags);
 }
 
@@ -1153,7 +1153,7 @@ update_dspmbyte_vars(void)
     int lp, iskcode;
     Char *dstr1;
     struct varent *vp;
-    
+
     /* if variable "nokanji" is set, multi-byte display is disabled */
     if ((vp = adrof(CHECK_MBYTEVAR)) && !adrof(STRnokanji)) {
 	_enable_mbdisp = 1;
@@ -1306,7 +1306,7 @@ autoset_dspmbyte(const Char *pcp)
 	}
     }
 #endif
-    
+
     if (*pcp == '\0')
 	return;
 
@@ -1324,7 +1324,7 @@ void
 autoset_kanji(void)
 {
     char *codeset = nl_langinfo(CODESET);
-    
+
     if (*codeset == '\0') {
 	if (adrof(STRnokanji) == NULL)
 	    setNS(STRnokanji);

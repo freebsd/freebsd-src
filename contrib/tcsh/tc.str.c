@@ -276,7 +276,7 @@ s_strncpy(Char *dst, const Char *src, size_t n)
 	return(dst);
 
     sdst = dst;
-    do 
+    do
 	if ((*dst++ = *src++) == '\0') {
 	    while (--n != 0)
 		*dst++ = '\0';
@@ -299,7 +299,7 @@ s_strncat(Char *dst, const Char *src, size_t n)
 {
     Char *sdst;
 
-    if (n == 0) 
+    if (n == 0)
 	return (dst);
 
     sdst = dst;
@@ -307,7 +307,7 @@ s_strncat(Char *dst, const Char *src, size_t n)
     while (*dst)
 	dst++;
 
-    do 
+    do
 	if ((*dst++ = *src++) == '\0')
 	    return(sdst);
     while (--n != 0)
@@ -380,7 +380,7 @@ s_strncmp(const Char *str1, const Char *str2, size_t n)
     do {
 	if (*str1 != *str2) {
 	    /*
-	     * The following case analysis is necessary so that characters 
+	     * The following case analysis is necessary so that characters
 	     * which look negative collate low against normal characters
 	     * but high against the end-of-string NUL.
 	     */
