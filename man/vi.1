@@ -1809,7 +1809,8 @@ Display buffers, Cscope connections, screens or tags.
 .Op Ar +cmd
 .Op Ar file
 .Xc
-Edit a different file.
+Edit a different file. The capitalized command opens a new screen below the
+current screen.
 .Pp
 .It Xo
 .Cm exu Ns Op Cm sage
@@ -1832,7 +1833,8 @@ Display and optionally change the file name.
 .Xc
 .Nm vi
 mode only.
-Foreground the specified screen.
+Foreground the specified screen. The capitalized command opens a new screen
+below the current screen.
 .Pp
 .It Xo
 .Op Ar range
@@ -1919,7 +1921,8 @@ Write the abbreviations, editor options and maps to the specified
 .Op Cm !\&
 .Op Ar
 .Xc
-Edit the next file from the argument list.
+Edit the next file from the argument list. The capitalized command opens a
+new screen below the current screen.
 .\" .Pp
 .\" .It Xo
 .\" .Op Ar line
@@ -1940,7 +1943,8 @@ option.
 .Cm rev Ns Op Cm ious Ns
 .Op Cm !\&
 .Xc
-Edit the previous file from the argument list.
+Edit the previous file from the argument list. The capitalized command opens
+a new screen below the current screen.
 .Pp
 .It Xo
 .Op Ar range
@@ -2103,7 +2107,8 @@ character is usually
 .Op Cm !\&
 .Ar tagstring
 .Xc
-Edit the file containing the specified tag.
+Edit the file containing the specified tag. The capitalized command opens a
+new screen below the current screen.
 .Pp
 .It Xo
 .Cm tagn Ns Op Cm ext Ns
@@ -2166,15 +2171,15 @@ Enter
 .Nm vi .
 .Pp
 .It Xo
-.Op Cm Vi Ns
-.Cm i Ns Op Cm sual Ns
+.Cm Vi Ns
+.Op Cm sual Ns
 .Op Cm !\&
 .Op Ar +cmd
 .Op Ar file
 .Xc
 .Nm vi
-mode only.
-Edit a new file.
+mode only. Edit a different file by opening a new screen below the current
+screen.
 .Pp
 .It Xo
 .Cm viu Ns Op Cm sage
@@ -2183,6 +2188,14 @@ Edit a new file.
 Display usage for a
 .Nm vi
 command.
+.Pp
+.It Xo
+.Cm vs Ns Op Cm plit
+.Op Ar +cmd
+.Op Ar file
+.Xc
+Edit a different file by opening a new screen to the right of the current
+screen.
 .Pp
 .It Xo
 .Op Ar range
@@ -2194,8 +2207,7 @@ command.
 .It Xo
 .Op Ar range
 .Cm w Ns Op Cm rite
-.Op Cm !\&
-.Op Ar file
+.Cm !\& Ns Ar shell-command
 .Xc
 .It Xo
 .Op Ar range
@@ -2209,7 +2221,21 @@ command.
 .Op >>
 .Op Ar file
 .Xc
-Write the file.
+Write the entire file, or
+.Ar range .
+.Sq !\&
+overwrites a different, preexisting file.
+.Sq >>
+appends to a file that may preexist. Whitespace followed by
+.Sq !\&
+pipes the file to
+.Ar shell-command .
+.Cm wn
+moves to the next file if writing succeeds.
+.Cm wq
+exits the editor if writing succeeds, unless there are more files to edit;
+.Sq !\&
+exits regardless.
 .Pp
 .It Xo
 .Op Ar range

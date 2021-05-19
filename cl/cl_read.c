@@ -317,10 +317,10 @@ cl_resize(SCR *sp, size_t lines, size_t columns)
 	argv[0] = &a;
 	argv[1] = &b;
 
-	a.len = SPRINTF(b1, sizeof(b1), L("lines=%lu"), (u_long)lines);
+	a.len = SPRINTF(b1, SIZE(b1), L("lines=%lu"), (u_long)lines);
 	if (opts_set(sp, argv, NULL))
 		return (1);
-	a.len = SPRINTF(b1, sizeof(b1), L("columns=%lu"), (u_long)columns);
+	a.len = SPRINTF(b1, SIZE(b1), L("columns=%lu"), (u_long)columns);
 	if (opts_set(sp, argv, NULL))
 		return (1);
 	return (0);
