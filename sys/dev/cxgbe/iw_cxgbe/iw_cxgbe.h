@@ -56,8 +56,6 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/iw_cm.h>
 
-#undef prefetch
-
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"

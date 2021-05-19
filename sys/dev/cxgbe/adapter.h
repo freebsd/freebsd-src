@@ -68,16 +68,6 @@ MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
 
-#if defined(__i386__) || defined(__amd64__)
-static __inline void
-prefetch(void *x)
-{
-	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-}
-#else
-#define prefetch(x) __builtin_prefetch(x)
-#endif
-
 #ifndef SYSCTL_ADD_UQUAD
 #define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
 #define sysctl_handle_64 sysctl_handle_quad
