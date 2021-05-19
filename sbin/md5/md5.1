@@ -1,10 +1,12 @@
 .\" $FreeBSD$
-.Dd June 19, 2020
+.Dd May 19, 2021
 .Dt MD5 1
 .Os
 .Sh NAME
 .Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
-.Nm skein256 , skein512 , skein1024
+.Nm skein256 , skein512 , skein1024 ,
+.Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum , sha512sum ,
+.Nm sha512t256sum , rmd160sum , skein256sum , skein512sum , skein1024sum
 .Nd calculate a message-digest fingerprint (checksum) for a file
 .Sh SYNOPSIS
 .Nm
@@ -26,6 +28,15 @@ output a
 or
 .Dq message digest
 of the input.
+The
+.Nm md5sum , sha1sum , sha224sum , sha256sum , sha384sum , sha512sum ,
+.Nm sha512t256sum , rmd160sum , skein256sum , skein512sum ,
+and
+.Nm skein1024sum
+utilities do the same, but default to the reversed format of
+the
+.Fl r
+flag.
 It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
@@ -59,9 +70,18 @@ precede any files named on the command line.
 The hexadecimal checksum of each file listed on the command line is printed
 after the options are processed.
 .Bl -tag -width indent
+.It Fl b
+Ignored for compatibility with the coreutils
+.Nm -sum
+programs.
 .It Fl c Ar string
 Compare the digest of the file against this string.
 .Pq Note that this option is not yet useful if multiple files are specified.
+This option causes an error in for the
+.Nm -sum
+programs because it check the checksums listed in a file for the coreutils
+.Nm -sum
+programs that is not yet implemented.
 .It Fl s Ar string
 Print a checksum of the given
 .Ar string .
@@ -81,6 +101,9 @@ when combined with the
 options.
 .It Fl t
 Run a built-in time trial.
+For the
+.Nm -sum
+versions, this is a nop for compatibility with coreutils.
 .It Fl x
 Run a built-in test script.
 .El
@@ -171,6 +194,13 @@ Secure Hash Standard (SHS):
 .Pp
 The RIPEMD-160 page:
 .Pa http://www.esat.kuleuven.ac.be/~bosselae/ripemd160.html .
+.Sh BUGS
+All of the utilities that end in
+.Sq sum
+are intended to be compatible with the GNU coreutils programs.
+However, the long arguments and the
+.Fl -check
+functionality are not provided.
 .Sh ACKNOWLEDGMENTS
 This program is placed in the public domain for free general use by
 RSA Data Security.
