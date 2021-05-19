@@ -1121,6 +1121,14 @@
 #define	MII_EXT_ANEG_NLP78		0x8027
 #define	ANEG_NLP78_120M_DEFAULT		0x8A05
 
+#define ALC_MT_MAGIC			0x1F00
+#define ALC_MT_MODE			0x1F04
+#define ALC_MT_SPEED			0x1F08
+#define ALC_MT_VERSION			0x1F0C
+
+#define MT_MAGIC			0xaabb1234
+#define MT_MODE_4Q			BIT(0)
+
 /* Statistics counters collected by the MAC. */
 struct smb {
 	/* Rx stats. */
