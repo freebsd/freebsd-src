@@ -177,12 +177,31 @@ main(int argc, char *argv[])
 	char	buf[HEX_DIGEST_LENGTH];
 	size_t	len;
  	unsigned	digest;
- 	const char*	progname;
+	char	*progname;
+	bool	gnu_emu = false;
 
  	if ((progname = strrchr(argv[0], '/')) == NULL)
  		progname = argv[0];
  	else
  		progname++;
+
+	/*
+	 * GNU coreutils has a number of programs named *sum. These produce
+	 * similar results to the BSD version, but in a different format,
+	 * similar to BSD's -r flag. We install links to this program with
+	 * ending 'sum' to provide this compatibility. Check here to see if the
+	 * name of the program ends in 'sum', set the flag and drop the 'sum' so
+	 * the digest lookup works. Also, make -t a nop when running in this mode
+	 * since that means 'text file' there (though it's a nop in coreutils
+	 * on unix-like systems). The -c flag conflicts, so it's just disabled
+	 * in this mode (though in the future it might be implemented).
+	 */
+	len = strlen(progname);
+	if (len > 3 && strcmp(progname + len - 3, "sum") == 0) {
+		progname[len - 3] = '\0';
+		rflag = 1;
+		gnu_emu = true;
+	}
 
  	for (digest = 0; digest < sizeof(Algorithm)/sizeof(*Algorithm); digest++)
  		if (strcasecmp(Algorithm[digest].progname, progname) == 0)
@@ -195,9 +214,13 @@ main(int argc, char *argv[])
 	checkAgainst = NULL;
 	checksFailed = 0;
 	skip = 0;
-	while ((ch = getopt(argc, argv, "c:pqrs:tx")) != -1)
+	while ((ch = getopt(argc, argv, "bc:pqrs:tx")) != -1)
 		switch (ch) {
+		case 'b':
+			break;
 		case 'c':
+			if (gnu_emu)
+				errx(1, "-c check option not supported");
 			checkAgainst = optarg;
 			break;
 		case 'p':
@@ -214,8 +237,10 @@ main(int argc, char *argv[])
 			string = optarg;
 			break;
 		case 't':
-			MDTimeTrial(&Algorithm[digest]);
-			skip = 1;
+			if (!gnu_emu) {
+				MDTimeTrial(&Algorithm[digest]);
+				skip = 1;
+			} /* else: text mode is a nop */
 			break;
 		case 'x':
 			MDTestSuite(&Algorithm[digest]);
@@ -348,7 +373,7 @@ MDTimeTrial(const Algorithm_t *alg)
 	printf(" done\n");
 	printf("Digest = %s", p);
 	printf("\nTime = %f seconds\n", seconds);
-	printf("Speed = %f MiB/second\n", (float) TEST_BLOCK_LEN * 
+	printf("Speed = %f MiB/second\n", (float) TEST_BLOCK_LEN *
 		(float) TEST_BLOCK_COUNT / seconds / (1 << 20));
 }
 /*
