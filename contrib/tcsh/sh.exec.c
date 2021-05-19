@@ -451,7 +451,7 @@ texec(Char *sf, Char **st)
 		vp[0] = adrof(STRshell) ? varval(STRshell) : STR_SHELLPATH;
 		vp[1] = NULL;
 #ifdef _PATH_BSHELL
-		if (fd != -1 
+		if (fd != -1
 # ifndef ISC	/* Compatible with ISC's /bin/csh */
 		    && pref[0] != '#'
 # endif /* ISC */
@@ -653,8 +653,8 @@ dohash(Char **vv, struct command *c)
         uhashlength = atoi(short2str(vv[1]));
         if (vv[2]) {
 	    uhashwidth = atoi(short2str(vv[2]));
-	    if ((uhashwidth != sizeof(unsigned char)) && 
-	        (uhashwidth != sizeof(unsigned short)) && 
+	    if ((uhashwidth != sizeof(unsigned char)) &&
+	        (uhashwidth != sizeof(unsigned short)) &&
 	        (uhashwidth != sizeof(unsigned long)))
 	        uhashwidth = 0;
 	    if (vv[3])
@@ -779,7 +779,7 @@ hashstat(Char **v, struct command *c)
 {
     USE(c);
     USE(v);
-#ifdef FASTHASH 
+#ifdef FASTHASH
    if (havhash && hashlength && hashwidth)
       xprintf(CGETS(13, 2, "%d hash buckets of %d bits each\n"),
 	      hashlength, hashwidth*8);
@@ -1167,7 +1167,7 @@ retry:
 	}
     }
     /*
-     * If we are printing, we are being called from dowhere() which it 
+     * If we are printing, we are being called from dowhere() which it
      * has rehashed already
      */
     if (!prt && adrof(STRautorehash) && !rehashed && havhash) {

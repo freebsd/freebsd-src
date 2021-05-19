@@ -41,7 +41,7 @@ int     Tty_raw_mode = 0;	/* Last tty change was to raw mode */
 int     MacroLvl = -1;		/* pointer to current macro nesting level; */
 				/* (-1 == none) */
 static int Tty_quote_mode = 0;	/* Last tty change was to quote mode */
-static unsigned char vdisable;	/* The value of _POSIX_VDISABLE from 
+static unsigned char vdisable;	/* The value of _POSIX_VDISABLE from
 				 * pathconf(2) */
 
 int     Tty_eight_bit = -1;	/* does the tty handle eight bits */
@@ -56,8 +56,8 @@ static ttydata_t extty, edtty, tstty;
 #define uc unsigned char
 static unsigned char ttychars[NN_IO][C_NCC] = {
     {
-	(uc)CINTR,	(uc)CQUIT, 	 (uc)CERASE, 	   (uc)CKILL,	
-	(uc)CEOF, 	(uc)CEOL, 	 (uc)CEOL2, 	   (uc)CSWTCH, 
+	(uc)CINTR,	(uc)CQUIT, 	 (uc)CERASE, 	   (uc)CKILL,
+	(uc)CEOF, 	(uc)CEOL, 	 (uc)CEOL2, 	   (uc)CSWTCH,
 	(uc)CDSWTCH,	(uc)CERASE2,	 (uc)CSTART, 	   (uc)CSTOP,
 	(uc)CWERASE, 	(uc)CSUSP, 	 (uc)CDSUSP, 	   (uc)CREPRINT,
 	(uc)CDISCARD, 	(uc)CLNEXT,	 (uc)CSTATUS,	   (uc)CPAGE,
@@ -65,15 +65,15 @@ static unsigned char ttychars[NN_IO][C_NCC] = {
 	(uc)CTIME
     },
     {
-	CINTR, 		 CQUIT, 	  CERASE, 	   CKILL, 
-	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
-	_POSIX_VDISABLE, CERASE2,	  CSTART, 	   CSTOP, 	   
-	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
-	CDISCARD, 	 _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 
+	CINTR, 		 CQUIT, 	  CERASE, 	   CKILL,
+	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE,
+	_POSIX_VDISABLE, CERASE2,	  CSTART, 	   CSTOP,
+	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE,
+	CDISCARD, 	 _POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE,
 	_POSIX_VDISABLE, _POSIX_VDISABLE, _POSIX_VDISABLE, 1,
 	0
     },
-    {	
+    {
 	0,		 0,		  0,		   0,
 	0,		 0,		  0,		   0,
 	0,		 0,		  0,		   0,
@@ -136,7 +136,7 @@ ed_set_tty_eight_bit(void)
     Tty_eight_bit = tty_geteightbit(&extty);
 }
 
-			
+
 int
 ed_Setup(int rst)
 {
@@ -148,12 +148,12 @@ ed_Setup(int rst)
 
 #if defined(POSIX) && defined(_PC_VDISABLE) && !defined(BSD4_4) && \
     !defined(WINNT_NATIVE)
-    { 
+    {
 	long pcret;
 
 	if ((pcret = fpathconf(SHTTY, _PC_VDISABLE)) == -1L)
 	    vdisable = (unsigned char) _POSIX_VDISABLE;
-	else 
+	else
 	    vdisable = (unsigned char) pcret;
 	if (vdisable != (unsigned char) _POSIX_VDISABLE && rst != 0)
 	    for (rst = 0; rst < C_NCC; rst++) {
@@ -166,7 +166,7 @@ ed_Setup(int rst)
 #else /* ! POSIX || !_PC_VDISABLE || BSD4_4 || WINNT_NATIVE */
     vdisable = (unsigned char) _POSIX_VDISABLE;
 #endif /* POSIX && _PC_VDISABLE && !BSD4_4 && !WINNT_NATIVE */
-	
+
     if ((imode = adrof(STRinputmode)) != NULL && imode->vec != NULL) {
 	if (!Strcmp(*(imode->vec), STRinsert))
 	    inputmode = MODE_INSERT;
@@ -236,11 +236,11 @@ ed_Setup(int rst)
 	    /*
 	     * Don't affect CMIN and CTIME for the editor mode
 	     */
-	    for (rst = 0; rst < C_NCC - 2; rst++) 
+	    for (rst = 0; rst < C_NCC - 2; rst++)
 		if (ttychars[TS_IO][rst] != vdisable &&
 		    ttychars[ED_IO][rst] != vdisable)
 		    ttychars[ED_IO][rst] = ttychars[TS_IO][rst];
-	    for (rst = 0; rst < C_NCC; rst++) 
+	    for (rst = 0; rst < C_NCC; rst++)
 		if (ttychars[TS_IO][rst] != vdisable &&
 		    ttychars[EX_IO][rst] != vdisable)
 		    ttychars[EX_IO][rst] = ttychars[TS_IO][rst];
@@ -303,7 +303,7 @@ ed_Init(void)
 
 #ifdef DEBUG_EDIT
     CheckMaps();		/* do a little error checking on key maps */
-#endif 
+#endif
 
     if (ed_Setup(0) == -1)
 	return;
@@ -355,7 +355,7 @@ ed_Init(void)
 #endif /* WINNT_NATIVE */
 }
 
-/* 
+/*
  * Check and re-init the line. set the terminal into 1 char at a time mode.
  */
 int
@@ -416,12 +416,12 @@ Rawmode(void)
 
     if (tty_cooked_mode(&tstty)) {
 	/*
-	 * re-test for some things here (like maybe the user typed 
+	 * re-test for some things here (like maybe the user typed
 	 * "stty -tabs"
 	 */
 	if (tty_gettabs(&tstty) == 0)
 	    T_Tabs = 0;
-	else 
+	else
 	    T_Tabs = CanWeTab();
 
 # if defined(POSIX) || defined(TERMIO)
@@ -466,7 +466,7 @@ Rawmode(void)
 
 	if (T_Tabs)		/* order of &= and |= is important to XTABS */
 	    extty.d_t.sg_flags &= ~XTABS;
-	else 
+	else
 	    extty.d_t.sg_flags |= XTABS;
 
 	extty.d_lb = tstty.d_lb;
@@ -475,13 +475,13 @@ Rawmode(void)
 
 	edtty.d_t.sg_flags = extty.d_t.sg_flags;
 	if (T_Tabs) {	/* order of &= and |= is important to XTABS */
-	    edtty.d_t.sg_flags &= 
+	    edtty.d_t.sg_flags &=
 		    ~(ttylist[ED_IO][M_CONTROL].t_clrmask|XTABS);
 	    edtty.d_t.sg_flags |=   ttylist[ED_IO][M_CONTROL].t_setmask;
 	}
 	else {
 	    edtty.d_t.sg_flags &= ~ttylist[ED_IO][M_CONTROL].t_clrmask;
-	    edtty.d_t.sg_flags |= 
+	    edtty.d_t.sg_flags |=
 		    (ttylist[ED_IO][M_CONTROL].t_setmask|XTABS);
 	}
 
@@ -503,7 +503,7 @@ Rawmode(void)
 	    for (i = 0; i < C_NCC; i++)
 		if (ttychars[TS_IO][i] != ttychars[EX_IO][i])
 		    break;
-		
+
 	    if (i != C_NCC || didsetty) {
 		didsetty = 0;
 		/*
@@ -605,7 +605,7 @@ Load_input_line(void)
 #ifdef SUNOS4
     long chrs = 0;
 #else /* !SUNOS4 */
-    /* 
+    /*
      * *Everyone* else has an int, but SunOS wants long!
      * This breaks where int != long (alpha)
      */

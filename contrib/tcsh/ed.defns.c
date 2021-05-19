@@ -245,7 +245,7 @@ PFCmd   CcFuncTbl[] = {		/* table of available commands */
 #define		F_PATH_NORM	103
     e_delnext_eof,		/* added by mtk@ari.ncl.omron.co.jp (920818) */
 #define		F_DELNEXT_EOF	104
-    e_stuff_char,		
+    e_stuff_char,
 #define		F_STUFF_CHAR	105
     e_complete_all,
 #define		F_COMPLETE_ALL	106
@@ -899,8 +899,8 @@ KEYCMD  CcViCmdMap[] = {
     F_UNASSIGNED,		/* ) */
     F_EXPAND_GLOB,		/* * */
     F_DOWN_HIST,		/* + */
-    V_RCHAR_BACK,		/* , */	
-    F_UP_HIST,			/* - */	
+    V_RCHAR_BACK,		/* , */
+    F_UP_HIST,			/* - */
     F_UNASSIGNED,		/* . */
     V_DSH_META,			/* / */
     V_ZERO,			/* 0 */
@@ -1416,13 +1416,13 @@ editinit(void)
     f++;
     f->name = "normalize-path";
     f->func = F_PATH_NORM;
-    f->desc = CSAVS(3, 53, 
+    f->desc = CSAVS(3, 53,
 		    "Expand pathnames, eliminating leading .'s and ..'s");
 
     f++;
     f->name = "normalize-command";
     f->func = F_COMMAND_NORM;
-    f->desc = CSAVS(3, 54, 
+    f->desc = CSAVS(3, 54,
 		    "Expand commands to the resulting pathname or alias");
 
     f++;

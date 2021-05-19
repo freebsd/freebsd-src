@@ -205,7 +205,7 @@ int nsrchn = sizeof srchn / sizeof *srchn;
 /*
  * Note: For some machines, (hpux eg.)
  * NSIG = number of signals + 1...
- * so we define 33 or 65 (POSIX) signals for 
+ * so we define 33 or 65 (POSIX) signals for
  * everybody
  */
 
@@ -246,7 +246,7 @@ mesginit(void)
 
 #ifdef SIGHUP
     if (mesg[SIGHUP].pname == NULL) {
-	mesg[SIGHUP].iname = "HUP"; 
+	mesg[SIGHUP].iname = "HUP";
 	mesg[SIGHUP].pname = CSAVS(2, 2, "Hangup");
     }
 #endif /* SIGHUP */
@@ -550,7 +550,7 @@ mesginit(void)
     /* _CRAYCOM */
     if (mesg[SIGTHERR].pname == NULL) {
 	mesg[SIGTHERR].iname = "THERR";
-	mesg[SIGTHERR].pname = CSAVS(2, 43, 
+	mesg[SIGTHERR].pname = CSAVS(2, 43,
 			    "Thread error - (use cord -T for detailed info)");
     }
 #endif /* SIGTHERR */
@@ -730,7 +730,7 @@ mesginit(void)
     /* solaris */
     if (mesg[SIGCANCEL].pname == NULL) {
 	mesg[SIGCANCEL].iname = "CANCEL";
-	mesg[SIGCANCEL].pname = CSAVS(2, 109, 
+	mesg[SIGCANCEL].pname = CSAVS(2, 109,
 	    "Thread cancellation signal used by libthread");
     }
 #endif /* SIGCANCEL */
@@ -738,11 +738,11 @@ mesginit(void)
 /*
  * Careful, some OS's (HP/UX 10.0) define these as -1
  */
-#ifdef SIGRTMIN 
+#ifdef SIGRTMIN
     /*
      * Cannot do this at compile time; Solaris2 uses _sysconf for these
      */
-    if (SIGRTMIN > 0 && SIGRTMIN < NUMSIG) { 
+    if (SIGRTMIN > 0 && SIGRTMIN < NUMSIG) {
 	if (mesg[SIGRTMIN].pname == NULL) {
 	    mesg[SIGRTMIN].iname = "RTMIN";
 	    mesg[SIGRTMIN].pname = CSAVS(2, 68, "First Realtime Signal");

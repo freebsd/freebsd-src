@@ -153,8 +153,8 @@ extern	void		  doucb		(Char **, struct command *);
 #endif /* hcx */
 
 #ifdef _SEQUENT_
-extern	void	 	  pr_stat_sub	(struct process_stats *, 
-					 struct process_stats *, 
+extern	void	 	  pr_stat_sub	(struct process_stats *,
+					 struct process_stats *,
 					 struct process_stats *);
 #endif /* _SEQUENT_ */
 

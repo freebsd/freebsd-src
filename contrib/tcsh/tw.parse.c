@@ -54,25 +54,25 @@
 /*  TW_BINDING,        TW_WORDLIST,    TW_LIMIT,       TW_SIGNAL	*/
 /*  TW_JOB,	       TW_EXPLAIN,     TW_TEXT,	       TW_GRPNAME	*/
 static void (*const tw_start_entry[]) (DIR *, const Char *) = {
-    tw_file_start,     tw_cmd_start,   tw_var_start,   tw_logname_start, 
-    tw_file_start,     tw_file_start,  tw_vl_start,    tw_logname_start, 
-    tw_complete_start, tw_alias_start, tw_var_start,   tw_var_start,     
+    tw_file_start,     tw_cmd_start,   tw_var_start,   tw_logname_start,
+    tw_file_start,     tw_file_start,  tw_vl_start,    tw_logname_start,
+    tw_complete_start, tw_alias_start, tw_var_start,   tw_var_start,
     tw_bind_start,     tw_wl_start,    tw_limit_start, tw_sig_start,
     tw_job_start,      tw_file_start,  tw_file_start,  tw_grpname_start
 };
 
 static int (*const tw_next_entry[]) (struct Strbuf *, struct Strbuf *,
 				     int *) = {
-    tw_file_next,      tw_cmd_next,    tw_var_next,    tw_logname_next,  
-    tw_file_next,      tw_file_next,   tw_var_next,    tw_logname_next,  
-    tw_var_next,       tw_var_next,    tw_shvar_next,  tw_envvar_next,   
+    tw_file_next,      tw_cmd_next,    tw_var_next,    tw_logname_next,
+    tw_file_next,      tw_file_next,   tw_var_next,    tw_logname_next,
+    tw_var_next,       tw_var_next,    tw_shvar_next,  tw_envvar_next,
     tw_bind_next,      tw_wl_next,     tw_limit_next,  tw_sig_next,
     tw_job_next,       tw_file_next,   tw_file_next,   tw_grpname_next
 };
 
 static void (*const tw_end_entry[]) (void) = {
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_logname_end,
-    tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_logname_end, 
+    tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_logname_end,
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_dir_end,
     tw_dir_end,        tw_dir_end,     tw_dir_end,    tw_dir_end,
     tw_dir_end,	       tw_dir_end,     tw_dir_end,    tw_grpname_end
@@ -447,7 +447,7 @@ tenematch(Char *inputline, int num_read, COMMAND command)
 	int found;
 
 	found = cmd_expand(qline.s + wordp, &p);
-	
+
 	if (!found) {
 	    xfree(p);
 	    search_ret = 0;
@@ -527,14 +527,14 @@ t_glob(Char ***v, int cmd)
 	Char **av = *v, *p;
 	int fwd, i;
 
-	for (i = 0, fwd = 0; av[i] != NULL; i++) 
+	for (i = 0, fwd = 0; av[i] != NULL; i++)
 	    if (!executable(NULL, av[i], 0)) {
-		fwd++;		
+		fwd++;
 		p = av[i];
 		av[i] = NULL;
 		xfree(p);
 	    }
-	    else if (fwd) 
+	    else if (fwd)
 		av[i - fwd] = av[i];
 
 	if (fwd)
@@ -714,13 +714,13 @@ is_prefixmatch(Char *check, Char *template, int enhanced)
 	if ((*check & TRIM) != (*template & TRIM)) {
 	    MCH1 = (*check & TRIM);
 	    MCH2 = (*template & TRIM);
-            LCH1 = Isupper(MCH1) ? Tolower(MCH1) : 
+            LCH1 = Isupper(MCH1) ? Tolower(MCH1) :
 		enhanced == 2 && MCH1 == '_' ? '-' : MCH1;
             LCH2 = Isupper(MCH2) ? Tolower(MCH2) :
 		enhanced == 2 && MCH2 == '_' ? '-' : MCH2;
 	    if (MCH1 != MCH2 && MCH1 != LCH2 &&
 		(LCH1 != MCH2 || enhanced == 2)) {
-		if (enhanced && ((*check & TRIM) == '-' || 
+		if (enhanced && ((*check & TRIM) == '-' ||
 				 (*check & TRIM) == '.' ||
 				 (*check & TRIM) == '_')) {
 		    MCH1 = MCH2 = (*check & TRIM);
@@ -814,7 +814,7 @@ starting_a_command(Char *wordstart, Char *inputline)
      * look for the characters previous to this word if we find a command
      * starting delimiter we break. if we find whitespace and another previous
      * word then we are not a command
-     * 
+     *
      * count is our state machine: 0 looking for anything 1 found white-space
      * looking for non-ws
      */
@@ -952,7 +952,7 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
 
     showdots = DOT_NONE;
     if ((ptr = varval(STRlistflags)) != STRNULL)
-	while (*ptr) 
+	while (*ptr)
 	    switch (*ptr++) {
 	    case 'a':
 		showdots = DOT_ALL;
@@ -1159,7 +1159,7 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
 			numitems++;
 		}
 	    }
-		    
+
 	    if (command == RECOGNIZE || command == RECOGNIZE_ALL ||
 		command == RECOGNIZE_SCROLL) {
 		if (ignoring && ignored(item.s)) {
@@ -1220,7 +1220,7 @@ tw_collect_items(COMMAND command, int looking, struct Strbuf *exp_dir,
     if (command == SPELL)
 	return d;
     else {
-	if (ignoring && numitems == 0 && nignored > 0) 
+	if (ignoring && numitems == 0 && nignored > 0)
 	    return -nignored;
 	else
 	    return numitems;
@@ -1252,13 +1252,13 @@ tw_suffix(int looking, struct Strbuf *word, const Char *exp_dir, Char *exp_name)
 	 */
 	if ((vp = adrof(exp_name)) != NULL && vp->vec != NULL) {
 	    if ((ptr = vp->vec[0]) == NULL || *ptr == '\0' ||
-		vp->vec[1] != NULL) 
+		vp->vec[1] != NULL)
 		return ' ';
 	}
 	else if ((ptr = tgetenv(exp_name)) == NULL || *ptr == '\0')
 	    return ' ';
 
-	if ((dol = Strrchr(word->s, '$')) != 0 && 
+	if ((dol = Strrchr(word->s, '$')) != 0 &&
 	    dol[1] == '{' && Strchr(dol, '}') == NULL)
 	  return '}';
 
@@ -1544,7 +1544,7 @@ t_search(struct Strbuf *word, COMMAND command, int looking, int list_max,
 	target = name;
 	gpat = 0;	/* Override pattern mechanism */
     }
-    else if ((target = Strrchr(name, '$')) != 0 && 
+    else if ((target = Strrchr(name, '$')) != 0 &&
 	     (target[1] != '{' || Strchr(target, '}') == NULL) &&
 	     (Strchr(name, '/') == NULL)) {
 	target++;
@@ -1781,7 +1781,7 @@ t_search(struct Strbuf *word, COMMAND command, int looking, int list_max,
     case RECOGNIZE:
     case RECOGNIZE_ALL:
     case RECOGNIZE_SCROLL:
-	if (numitems <= 0) 
+	if (numitems <= 0)
 	    break;
 
 	Strbuf_terminate(&exp_name);
@@ -2164,8 +2164,8 @@ print_by_column(Char *dir, Char *items[], int count, int no_file_suffix)
 
     lbuffed = 0;		/* turn off line buffering */
 
-    
-    across = ((val = varval(STRlistflags)) != STRNULL) && 
+
+    across = ((val = varval(STRlistflags)) != STRNULL) &&
 	     (Strchr(val, 'x') != NULL);
 
     for (i = 0; i < count; i++)	{ /* find widest string */
@@ -2237,7 +2237,7 @@ print_by_column(Char *dir, Char *items[], int count, int no_file_suffix)
 int
 StrQcmp(const Char *str1, const Char *str2)
 {
-    for (; *str1 && samecase(*str1 & TRIM) == samecase(*str2 & TRIM); 
+    for (; *str1 && samecase(*str1 & TRIM) == samecase(*str2 & TRIM);
 	 str1++, str2++)
 	continue;
     /*
