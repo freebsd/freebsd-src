@@ -1996,6 +1996,7 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 	u_int32_t delegtype = NFSV4OPEN_DELEGATEWRITE, mode;
 	int i, igotlock = 0, error, trycnt, firstlock;
 	struct nfscllayout *lyp, *nlyp;
+	bool recovered_one;
 
 	/*
 	 * First, lock the client structure, so everyone else will
@@ -2077,6 +2078,7 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 	 * Now traverse the state lists, doing Open and Lock Reclaims.
 	 */
 	tcred = newnfs_getcred();
+	recovered_one = false;
 	owp = LIST_FIRST(&clp->nfsc_owner);
 	while (owp != NULL) {
 	    nowp = LIST_NEXT(owp, nfsow_list);
@@ -2110,6 +2112,7 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 			op->nfso_mode, op, NULL, 0, &ndp, 1, delegtype,
 			tcred, p);
 		    if (!error) {
+			recovered_one = true;
 			/* Handle any replied delegation */
 			if (ndp != NULL && ((ndp->nfsdl_flags & NFSCLDL_WRITE)
 			    || NFSMNT_RDONLY(nmp->nm_mountp))) {
@@ -2168,6 +2171,21 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 				nfscl_freelockowner(lp, 0);
 			    lp = nlp;
 			}
+		    } else if (error == NFSERR_NOGRACE && !recovered_one &&
+			NFSHASNFSV4N(nmp)) {
+			/*
+			 * For NFSv4.1/4.2, the NFSERR_EXPIRED case will
+			 * actually end up here, since the client will do
+			 * a recovery for NFSERR_BADSESSION, but will get
+			 * an NFSERR_NOGRACE reply for the first "reclaim"
+			 * attempt.
+			 * So, call nfscl_expireclient() to recover the
+			 * opens as best we can and then do a reclaim
+			 * complete and return.
+			 */
+			nfsrpc_reclaimcomplete(nmp, cred, p);
+			nfscl_expireclient(clp, nmp, tcred, p);
+			goto out;
 		    }
 		}
 		if (error != 0 && error != NFSERR_BADSESSION)
@@ -2254,6 +2272,23 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 		if (error) {
 		    if (nop != NULL)
 			free(nop, M_NFSCLOPEN);
+		    if (error == NFSERR_NOGRACE && !recovered_one &&
+			NFSHASNFSV4N(nmp)) {
+			/*
+			 * For NFSv4.1/4.2, the NFSERR_EXPIRED case will
+			 * actually end up here, since the client will do
+			 * a recovery for NFSERR_BADSESSION, but will get
+			 * an NFSERR_NOGRACE reply for the first "reclaim"
+			 * attempt.
+			 * So, call nfscl_expireclient() to recover the
+			 * opens as best we can and then do a reclaim
+			 * complete and return.
+			 */
+			nfsrpc_reclaimcomplete(nmp, cred, p);
+			nfscl_expireclient(clp, nmp, tcred, p);
+			free(nowp, M_NFSCLOWNER);
+			goto out;
+		    }
 		    /*
 		     * Couldn't reclaim it, so throw the state
 		     * away. Ouch!!
@@ -2261,6 +2296,7 @@ nfscl_recover(struct nfsclclient *clp, bool *retokp, struct ucred *cred,
 		    nfscl_cleandeleg(dp);
 		    nfscl_freedeleg(&clp->nfsc_deleg, dp, true);
 		} else {
+		    recovered_one = true;
 		    LIST_INSERT_HEAD(&extra_open, nop, nfso_list);
 		}
 	    }
