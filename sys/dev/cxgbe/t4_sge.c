@@ -4070,6 +4070,9 @@ alloc_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq, int idx,
 			return (rc);
 		}
 		MPASS(ofld_rxq->iq.flags & IQ_SW_ALLOCATED);
+		ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
+		ofld_rxq->rx_iscsi_ddp_setup_error =
+		    counter_u64_alloc(M_WAITOK);
 		add_ofld_rxq_sysctls(&vi->ctx, oid, ofld_rxq);
 	}
 
@@ -4102,6 +4105,8 @@ free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 		MPASS(!(ofld_rxq->iq.flags & IQ_HW_ALLOCATED));
 		free_iq_fl(vi->adapter, &ofld_rxq->iq, &ofld_rxq->fl);
 		MPASS(!(ofld_rxq->iq.flags & IQ_SW_ALLOCATED));
+		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_ok);
+		counter_u64_free(ofld_rxq->rx_iscsi_ddp_setup_error);
 		bzero(ofld_rxq, sizeof(*ofld_rxq));
 	}
 }
@@ -4127,8 +4132,6 @@ add_ofld_rxq_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "TOE iSCSI statistics");
 	children = SYSCTL_CHILDREN(oid);
 
-	ofld_rxq->rx_iscsi_ddp_setup_ok = counter_u64_alloc(M_WAITOK);
-	ofld_rxq->rx_iscsi_ddp_setup_error = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ddp_setup_ok",
 	    CTLFLAG_RD, &ofld_rxq->rx_iscsi_ddp_setup_ok,
 	    "# of times DDP buffer was setup successfully.");
