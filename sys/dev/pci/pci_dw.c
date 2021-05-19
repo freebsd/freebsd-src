@@ -638,7 +638,7 @@ pci_dw_init(device_t dev)
 	if (rv != 0)
 		goto out;
 
-	rv = ofw_pci_init(dev);
+	rv = ofw_pcib_init(dev);
 	if (rv != 0)
 		goto out;
 	rv = pci_dw_decode_ranges(sc, sc->ofw_pci.sc_range,
@@ -686,4 +686,4 @@ static device_method_t pci_dw_methods[] = {
 };
 
 DEFINE_CLASS_1(pcib, pci_dw_driver, pci_dw_methods,
-    sizeof(struct pci_dw_softc), ofw_pci_driver);
+    sizeof(struct pci_dw_softc), ofw_pcib_driver);

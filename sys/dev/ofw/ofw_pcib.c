@@ -66,77 +66,77 @@ __FBSDID("$FreeBSD$");
 /*
  * bus interface.
  */
-static struct resource * ofw_pci_alloc_resource(device_t, device_t,
+static struct resource * ofw_pcib_alloc_resource(device_t, device_t,
     int, int *, rman_res_t, rman_res_t, rman_res_t, u_int);
-static int ofw_pci_release_resource(device_t, device_t, int, int,
+static int ofw_pcib_release_resource(device_t, device_t, int, int,
     struct resource *);
-static int ofw_pci_activate_resource(device_t, device_t, int, int,
+static int ofw_pcib_activate_resource(device_t, device_t, int, int,
     struct resource *);
-static int ofw_pci_deactivate_resource(device_t, device_t, int, int,
+static int ofw_pcib_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
-static int ofw_pci_adjust_resource(device_t, device_t, int,
+static int ofw_pcib_adjust_resource(device_t, device_t, int,
     struct resource *, rman_res_t, rman_res_t);
-static int ofw_pci_translate_resource(device_t bus, int type,
+static int ofw_pcib_translate_resource(device_t bus, int type,
 	rman_res_t start, rman_res_t *newstart);
 
 #ifdef __powerpc__
-static bus_space_tag_t ofw_pci_bus_get_bus_tag(device_t, device_t);
+static bus_space_tag_t ofw_pcib_bus_get_bus_tag(device_t, device_t);
 #endif
 
 /*
  * pcib interface
  */
-static int ofw_pci_maxslots(device_t);
+static int ofw_pcib_maxslots(device_t);
 
 /*
  * ofw_bus interface
  */
-static phandle_t ofw_pci_get_node(device_t, device_t);
+static phandle_t ofw_pcib_get_node(device_t, device_t);
 
 /*
  * local methods
  */
-static int ofw_pci_fill_ranges(phandle_t, struct ofw_pci_range *);
-static struct rman *ofw_pci_get_rman(struct ofw_pci_softc *, int, u_int);
+static int ofw_pcib_fill_ranges(phandle_t, struct ofw_pci_range *);
+static struct rman *ofw_pcib_get_rman(struct ofw_pci_softc *, int, u_int);
 
 /*
  * Driver methods.
  */
-static device_method_t	ofw_pci_methods[] = {
+static device_method_t	ofw_pcib_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_attach,	ofw_pci_attach),
+	DEVMETHOD(device_attach,	ofw_pcib_attach),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_read_ivar,	ofw_pci_read_ivar),
-	DEVMETHOD(bus_write_ivar,	ofw_pci_write_ivar),
+	DEVMETHOD(bus_read_ivar,	ofw_pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar,	ofw_pcib_write_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	ofw_pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	ofw_pci_release_resource),
-	DEVMETHOD(bus_activate_resource,	ofw_pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	ofw_pci_deactivate_resource),
-	DEVMETHOD(bus_adjust_resource,	ofw_pci_adjust_resource),
-	DEVMETHOD(bus_translate_resource,	ofw_pci_translate_resource),
+	DEVMETHOD(bus_alloc_resource,	ofw_pcib_alloc_resource),
+	DEVMETHOD(bus_release_resource,	ofw_pcib_release_resource),
+	DEVMETHOD(bus_activate_resource,	ofw_pcib_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	ofw_pcib_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	ofw_pcib_adjust_resource),
+	DEVMETHOD(bus_translate_resource,	ofw_pcib_translate_resource),
 #ifdef __powerpc__
-	DEVMETHOD(bus_get_bus_tag,	ofw_pci_bus_get_bus_tag),
+	DEVMETHOD(bus_get_bus_tag,	ofw_pcib_bus_get_bus_tag),
 #endif
 
 	/* pcib interface */
-	DEVMETHOD(pcib_maxslots,	ofw_pci_maxslots),
-	DEVMETHOD(pcib_route_interrupt,	ofw_pci_route_interrupt),
+	DEVMETHOD(pcib_maxslots,	ofw_pcib_maxslots),
+	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_route_interrupt),
 	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,	ofw_pci_get_node),
+	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_get_node),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ofw_pci, ofw_pci_driver, ofw_pci_methods, 0);
+DEFINE_CLASS_0(ofw_pcib, ofw_pcib_driver, ofw_pcib_methods, 0);
 
 int
-ofw_pci_init(device_t dev)
+ofw_pcib_init(device_t dev)
 {
 	struct ofw_pci_softc *sc;
 	phandle_t node;
@@ -169,7 +169,7 @@ ofw_pci_init(device_t dev)
 
 		sc->sc_nrange = 0;
 		for (c = OF_child(node); c != 0; c = OF_peer(c)) {
-			n = ofw_pci_nranges(c, cell_info);
+			n = ofw_pcib_nranges(c, cell_info);
 			if (n > 0)
 				sc->sc_nrange += n;
 		}
@@ -181,13 +181,13 @@ ofw_pci_init(device_t dev)
 		    M_DEVBUF, M_WAITOK);
 		i = 0;
 		for (c = OF_child(node); c != 0; c = OF_peer(c)) {
-			n = ofw_pci_fill_ranges(c, &sc->sc_range[i]);
+			n = ofw_pcib_fill_ranges(c, &sc->sc_range[i]);
 			if (n > 0)
 				i += n;
 		}
 		KASSERT(i == sc->sc_nrange, ("range count mismatch"));
 	} else {
-		sc->sc_nrange = ofw_pci_nranges(node, cell_info);
+		sc->sc_nrange = ofw_pcib_nranges(node, cell_info);
 		if (sc->sc_nrange <= 0) {
 			device_printf(dev, "could not getranges\n");
 			error = ENXIO;
@@ -195,7 +195,7 @@ ofw_pci_init(device_t dev)
 		}
 		sc->sc_range = malloc(sc->sc_nrange * sizeof(sc->sc_range[0]),
 		    M_DEVBUF, M_WAITOK);
-		ofw_pci_fill_ranges(node, sc->sc_range);
+		ofw_pcib_fill_ranges(node, sc->sc_range);
 	}
 
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
@@ -272,14 +272,14 @@ out:
 }
 
 int
-ofw_pci_attach(device_t dev)
+ofw_pcib_attach(device_t dev)
 {
 	struct ofw_pci_softc *sc;
 	int error;
 
 	sc = device_get_softc(dev);
 	if (!sc->sc_initialized) {
-		error = ofw_pci_init(dev);
+		error = ofw_pcib_init(dev);
 		if (error != 0)
 			return (error);
 	}
@@ -289,14 +289,14 @@ ofw_pci_attach(device_t dev)
 }
 
 static int
-ofw_pci_maxslots(device_t dev)
+ofw_pcib_maxslots(device_t dev)
 {
 
 	return (PCI_SLOTMAX);
 }
 
 int
-ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
+ofw_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct ofw_pci_softc *sc;
 	struct ofw_pci_register reg;
@@ -333,7 +333,7 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 }
 
 int
-ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+ofw_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct ofw_pci_softc *sc;
 
@@ -354,7 +354,7 @@ ofw_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 }
 
 int
-ofw_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+ofw_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 	struct ofw_pci_softc *sc;
 
@@ -372,7 +372,7 @@ ofw_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 int
-ofw_pci_nranges(phandle_t node, struct ofw_pci_cell_info *info)
+ofw_pcib_nranges(phandle_t node, struct ofw_pci_cell_info *info)
 {
 	ssize_t nbase_ranges;
 
@@ -400,7 +400,7 @@ ofw_pci_nranges(phandle_t node, struct ofw_pci_cell_info *info)
 }
 
 static struct resource *
-ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+ofw_pcib_alloc_resource(device_t bus, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct ofw_pci_softc *sc;
@@ -420,7 +420,7 @@ ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 #endif
 
-	rm = ofw_pci_get_rman(sc, type, flags);
+	rm = ofw_pcib_get_rman(sc, type, flags);
 	if (rm == NULL)  {
 		return (bus_generic_alloc_resource(bus, child, type, rid,
 		    start, end, count, flags | needactivate));
@@ -449,7 +449,7 @@ ofw_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
+ofw_pcib_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	struct ofw_pci_softc *sc;
@@ -464,7 +464,7 @@ ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
 		    res));
 #endif
 
-	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
+	rm = ofw_pcib_get_rman(sc, type, rman_get_flags(res));
 	if (rm == NULL) {
 		return (bus_generic_release_resource(bus, child, type, rid,
 		    res));
@@ -480,7 +480,7 @@ ofw_pci_release_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-ofw_pci_translate_resource(device_t bus, int type, rman_res_t start,
+ofw_pcib_translate_resource(device_t bus, int type, rman_res_t start,
 	rman_res_t *newstart)
 {
 	struct ofw_pci_softc *sc;
@@ -519,7 +519,7 @@ ofw_pci_translate_resource(device_t bus, int type, rman_res_t start,
 }
 
 static int
-ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
+ofw_pcib_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	struct ofw_pci_softc *sc;
@@ -587,7 +587,7 @@ ofw_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 
 #ifdef __powerpc__
 static bus_space_tag_t
-ofw_pci_bus_get_bus_tag(device_t bus, device_t child)
+ofw_pcib_bus_get_bus_tag(device_t bus, device_t child)
 {
 
 	return (&bs_le_tag);
@@ -595,7 +595,7 @@ ofw_pci_bus_get_bus_tag(device_t bus, device_t child)
 #endif
 
 static int
-ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
+ofw_pcib_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	vm_size_t psize;
@@ -612,7 +612,7 @@ ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 }
 
 static int
-ofw_pci_adjust_resource(device_t bus, device_t child, int type,
+ofw_pcib_adjust_resource(device_t bus, device_t child, int type,
     struct resource *res, rman_res_t start, rman_res_t end)
 {
 	struct rman *rm;
@@ -625,7 +625,7 @@ ofw_pci_adjust_resource(device_t bus, device_t child, int type,
 		    start, end));
 #endif
 
-	rm = ofw_pci_get_rman(sc, type, rman_get_flags(res));
+	rm = ofw_pcib_get_rman(sc, type, rman_get_flags(res));
 	if (rm == NULL) {
 		return (bus_generic_adjust_resource(bus, child, type, res,
 		    start, end));
@@ -638,7 +638,7 @@ ofw_pci_adjust_resource(device_t bus, device_t child, int type,
 }
 
 static phandle_t
-ofw_pci_get_node(device_t bus, device_t dev)
+ofw_pcib_get_node(device_t bus, device_t dev)
 {
 	struct ofw_pci_softc *sc;
 
@@ -649,7 +649,7 @@ ofw_pci_get_node(device_t bus, device_t dev)
 }
 
 static int
-ofw_pci_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
+ofw_pcib_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 {
 	int host_address_cells = 1, pci_address_cells = 3, size_cells = 2;
 	cell_t *base_ranges;
@@ -696,7 +696,7 @@ ofw_pci_fill_ranges(phandle_t node, struct ofw_pci_range *ranges)
 }
 
 static struct rman *
-ofw_pci_get_rman(struct ofw_pci_softc *sc, int type, u_int flags)
+ofw_pcib_get_rman(struct ofw_pci_softc *sc, int type, u_int flags)
 {
 
 	switch (type) {

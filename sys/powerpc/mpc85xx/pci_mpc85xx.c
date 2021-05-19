@@ -258,7 +258,7 @@ static device_method_t fsl_pcib_methods[] = {
 static devclass_t fsl_pcib_devclass;
 
 DEFINE_CLASS_1(pcib, fsl_pcib_driver, fsl_pcib_methods,
-    sizeof(struct fsl_pcib_softc), ofw_pci_driver);
+    sizeof(struct fsl_pcib_softc), ofw_pcib_driver);
 EARLY_DRIVER_MODULE(pcib, ofwbus, fsl_pcib_driver, fsl_pcib_devclass, 0, 0,
     BUS_PASS_BUS);
 
@@ -361,7 +361,7 @@ fsl_pcib_attach(device_t dev)
 	 * Initialize generic OF PCI interface (ranges, etc.)
 	 */
 
-	error = ofw_pci_init(dev);
+	error = ofw_pcib_init(dev);
 	if (error)
 		return (error);
 
@@ -429,7 +429,7 @@ fsl_pcib_attach(device_t dev)
 
 	fsl_pcib_err_init(dev);
 
-	return (ofw_pci_attach(dev));
+	return (ofw_pcib_attach(dev));
 
 err:
 	return (ENXIO);

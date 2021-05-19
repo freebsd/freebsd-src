@@ -32,7 +32,7 @@
 /*
  * Export class definition for inheritance purposes
  */
-DECLARE_CLASS(ofw_pci_driver);
+DECLARE_CLASS(ofw_pcib_driver);
 
 struct ofw_pci_cell_info {
 	pcell_t host_address_cells;
@@ -77,11 +77,11 @@ struct ofw_pci_softc {
 	struct ofw_bus_iinfo		sc_pci_iinfo;
 };
 
-int ofw_pci_init(device_t);
-int ofw_pci_attach(device_t);
-int ofw_pci_read_ivar(device_t, device_t, int, uintptr_t *);
-int ofw_pci_write_ivar(device_t, device_t, int, uintptr_t);
-int ofw_pci_route_interrupt(device_t, device_t, int);
-int ofw_pci_nranges(phandle_t, struct ofw_pci_cell_info *);
+int ofw_pcib_init(device_t);
+int ofw_pcib_attach(device_t);
+int ofw_pcib_read_ivar(device_t, device_t, int, uintptr_t *);
+int ofw_pcib_write_ivar(device_t, device_t, int, uintptr_t);
+int ofw_pcib_route_interrupt(device_t, device_t, int);
+int ofw_pcib_nranges(phandle_t, struct ofw_pci_cell_info *);
 
 #endif /* _DEV_OFW_OFWPCI_H_ */

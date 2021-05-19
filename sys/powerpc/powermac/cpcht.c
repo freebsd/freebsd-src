@@ -140,7 +140,7 @@ struct cpcht_softc {
 
 static devclass_t	cpcht_devclass;
 DEFINE_CLASS_1(pcib, cpcht_driver, cpcht_methods, sizeof(struct cpcht_softc),
-    ofw_pci_driver);
+    ofw_pcib_driver);
 EARLY_DRIVER_MODULE(cpcht, ofwbus, cpcht_driver, cpcht_devclass, 0, 0,
     BUS_PASS_BUS);
 
@@ -212,7 +212,7 @@ cpcht_attach(device_t dev)
 	/* Now make the mapping table available to the MPIC */
 	cpcht_irqmap = sc->htirq_map;
 
-	return (ofw_pci_attach(dev));
+	return (ofw_pcib_attach(dev));
 }
 
 static void
