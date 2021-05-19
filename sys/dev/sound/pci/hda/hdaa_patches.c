@@ -808,10 +808,10 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		    subid == 0x834a1043 || subid == 0x83981043 ||
 		    subid == 0x83ce1043) {
 			/*
-			 * The ditital mics on some Asus laptops produce
+			 * The digital mics on some Asus laptops produce
 			 * differential signals instead of expected stereo.
-			 * That results in silence if downmix it to mono.
-			 * To workaround, make codec to handle signal as mono.
+			 * That results in silence if downmixing to mono.
+			 * To workaround, make codec handle the signal as mono.
 			 */
 			val = hdaa_read_coef(dev, 0x20, 0x07);
 			hdaa_write_coef(dev, 0x20, 0x07, val|0x80);
