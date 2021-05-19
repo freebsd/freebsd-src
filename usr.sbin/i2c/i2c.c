@@ -550,7 +550,7 @@ main(int argc, char** argv)
 	i2c_opt.count = 1;
 	i2c_opt.binary = 0;	/* ASCII text output */
 	i2c_opt.skip = NULL;	/* scan all addresses */
-	i2c_opt.mode = I2C_MODE_NOTSET;
+	i2c_opt.mode = I2C_MODE_TRANSFER;
 
 	/* Find out what we are going to do */
 
