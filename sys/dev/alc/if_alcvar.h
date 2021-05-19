@@ -239,6 +239,7 @@ struct alc_softc {
 #define	ALC_FLAG_LINK_WAR	0x4000
 #define	ALC_FLAG_E2X00		0x8000
 #define	ALC_FLAG_LINK		0x10000
+#define	ALC_FLAG_MT		0x20000
 
 	struct callout		alc_tick_ch;
 	struct alc_hw_stats	alc_stats;
@@ -284,6 +285,6 @@ do {									\
 #define	ALC_TX_TIMEOUT		5
 #define	ALC_RESET_TIMEOUT	100
 #define	ALC_TIMEOUT		1000
-#define	ALC_PHY_TIMEOUT		1000
+#define	ALC_PHY_TIMEOUT		10000
 
 #endif	/* _IF_ALCVAR_H */
