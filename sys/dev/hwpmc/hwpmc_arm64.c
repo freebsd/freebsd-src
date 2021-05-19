@@ -359,6 +359,9 @@ arm64_intr(struct trapframe *tf)
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[arm64,%d] CPU %d out of range", __LINE__, cpu));
 
+	PMCDBG3(MDP,INT,1, "cpu=%d tf=%p um=%d", cpu, (void *)tf,
+	    TRAPF_USERMODE(tf));
+
 	retval = 0;
 	pc = arm64_pcpu[cpu];
 
