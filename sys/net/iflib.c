@@ -2604,7 +2604,12 @@ iflib_stop(if_ctx_t ctx)
 			iflib_txsd_free(ctx, txq, j);
 		}
 		txq->ift_processed = txq->ift_cleaned = txq->ift_cidx_processed = 0;
-		txq->ift_in_use = txq->ift_gen = txq->ift_cidx = txq->ift_pidx = txq->ift_no_desc_avail = 0;
+		txq->ift_in_use = txq->ift_gen = txq->ift_no_desc_avail = 0;
+		if (sctx->isc_flags & IFLIB_PRESERVE_TX_INDICES)
+			txq->ift_cidx = txq->ift_pidx;
+		else
+			txq->ift_cidx = txq->ift_pidx = 0;
+
 		txq->ift_closed = txq->ift_mbuf_defrag = txq->ift_mbuf_defrag_failed = 0;
 		txq->ift_no_tx_dma_setup = txq->ift_txd_encap_efbig = txq->ift_map_failed = 0;
 		txq->ift_pullups = 0;
