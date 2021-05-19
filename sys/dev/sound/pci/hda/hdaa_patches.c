@@ -312,6 +312,16 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch_str = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC257 &&
+	    (subid == LENOVO_L5AMD_SUBVENDOR)) {
+		switch (nid) {
+		case 20:
+			patch_str = "as=1 seq=0";
+			break;
+		case 33:
+			patch_str = "as=1 seq=15";
+			break;
+		}
 	} else {
 		/*
 		 * loop over hdaa_model_pin_patch
