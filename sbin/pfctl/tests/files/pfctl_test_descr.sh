@@ -80,3 +80,4 @@ pf1002_descr () { echo "Set timeout interval" ; }
 pf1003_descr () { echo "ALTQ" ; }
 pf1004_descr () { echo "ALTQ with Codel" ; }
 pf1005_descr () { echo "PR 231323" ; }
+pf1006_descr () { echo "pfctl crashes with certain fairq configurations" ; }
