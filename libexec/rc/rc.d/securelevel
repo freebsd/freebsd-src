@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: securelevel
-# REQUIRE: adjkerntz ipfw pf
+# REQUIRE: adjkerntz ipfw pf sysctl_lastload
 
 . /etc/rc.subr
 
@@ -13,10 +13,6 @@ desc="Securelevel configuration"
 rcvar='kern_securelevel_enable'
 start_cmd="securelevel_start"
 stop_cmd=":"
-
-# Last chance to set sysctl variables that failed the first time.
-#
-/etc/rc.d/sysctl lastload
 
 securelevel_start()
 {
