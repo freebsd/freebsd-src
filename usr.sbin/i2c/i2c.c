@@ -281,7 +281,7 @@ reset_bus(const char *dev, int fd, int verbose)
 }
 
 static const char *
-encode_offset(const char *width, unsigned address, uint8_t *dst, size_t *len)
+encode_offset(const char *width, unsigned offset, uint8_t *dst, size_t *len)
 {
 
 	if (!strcmp(width, "0")) {
@@ -289,21 +289,21 @@ encode_offset(const char *width, unsigned address, uint8_t *dst, size_t *len)
 		return (NULL);
 	}
 	if (!strcmp(width, "8")) {
-		if (address > 0xff)
-			return ("Invalid 8-bit address\n");
-		*dst = address;
+		if (offset > 0xff)
+			return ("Invalid 8-bit offset\n");
+		*dst = offset;
 		*len = 1;
 		return (NULL);
 	}
-	if (address > 0xffff)
-		return ("Invalid 16-bit address\n");
+	if (offset > 0xffff)
+		return ("Invalid 16-bit offset\n");
 	if (!strcmp(width, "16LE") || !strcmp(width, "16")) {
-		le16enc(dst, address);
+		le16enc(dst, offset);
 		*len = 2;
 		return (NULL);
 	}
 	if (!strcmp(width, "16BE")) {
-		be16enc(dst, address);
+		be16enc(dst, offset);
 		*len = 2;
 		return (NULL);
 	}
@@ -594,26 +594,21 @@ main(int argc, char** argv)
 				usage("Bad -a argument (01..7f)");
 			i2c_opt.addr <<= 1;
 			break;
-		case 'f':
-			dev = optarg;
+		case 'b':
+			i2c_opt.binary = 1;
+			break;
+		case 'c':
+			i2c_opt.count = (strtoul(optarg, 0, 10));
+			if (i2c_opt.count == 0 && errno == EINVAL)
+				usage("Bad -c argument (decimal)");
 			break;
 		case 'd':
 			if (strcmp(optarg, "r") && strcmp(optarg, "w"))
 				usage("Bad -d argument ([r|w])");
 			i2c_opt.dir = optarg[0];
 			break;
-		case 'o':
-			i2c_opt.off = strtoul(optarg, 0, 16);
-			if (i2c_opt.off == 0 && errno == EINVAL)
-				usage("Bad -o argument (hex)");
-			break;
-		case 'w':
-			i2c_opt.width = optarg;		// checked later.
-			break;
-		case 'c':
-			i2c_opt.count = (strtoul(optarg, 0, 10));
-			if (i2c_opt.count == 0 && errno == EINVAL)
-				usage("Bad -c argument (decimal)");
+		case 'f':
+			dev = optarg;
 			break;
 		case 'm':
 			if (!strcmp(optarg, "no"))
@@ -630,14 +625,19 @@ main(int argc, char** argv)
 		case 'n':
 			i2c_opt.skip = optarg;
 			break;
-		case 's': break;
-		case 'b':
-			i2c_opt.binary = 1;
+		case 'o':
+			i2c_opt.off = strtoul(optarg, 0, 16);
+			if (i2c_opt.off == 0 && errno == EINVAL)
+				usage("Bad -o argument (hex)");
 			break;
+		case 'r': break;
+		case 's': break;
 		case 'v':
 			i2c_opt.verbose = 1;
 			break;
-		case 'r': break;
+		case 'w':
+			i2c_opt.width = optarg;		// checked later.
+			break;
 		default:
 			fprintf(stderr, "Illegal -%c option", ch);
 			usage(NULL);
@@ -660,7 +660,7 @@ main(int argc, char** argv)
 	    i2c_opt.off_buf, &i2c_opt.off_len);
 	if (err_msg != NULL) {
 		fprintf(stderr, "%s", err_msg);
-		exit(EX_USAGE);
+		return(EX_USAGE);
 	}
 
 	if (i2c_opt.verbose)
@@ -677,14 +677,14 @@ main(int argc, char** argv)
 	}
 
 	switch (do_what) {
+	case 'a':
+		error = access_bus(fd, i2c_opt);
+		break;
 	case 's':
 		error = scan_bus(dev, fd, i2c_opt.skip, i2c_opt.verbose);
 		break;
 	case 'r':
 		error = reset_bus(dev, fd, i2c_opt.verbose);
-		break;
-	case 'a':
-		error = access_bus(fd, i2c_opt);
 		break;
 	default:
 		assert("Bad do_what");
