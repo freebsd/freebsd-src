@@ -297,6 +297,13 @@ static int
 		goto fail;
 	}
 
+	rv = clk_set_assigned(dev, ofw_bus_get_node(dev));
+	if (rv != 0 && rv != ENOENT) {
+		device_printf(dev, "clk_set_assigned failed: %d\n", rv);
+		rv = ENXIO;
+		goto fail;
+	}
+
 	rv = clk_get_by_ofw_name(sc->dev, 0, "refclk", &sc->clk_ref);
 	if (rv != 0) {
 		device_printf(sc->dev, "Cannot get 'refclk' clock\n");
