@@ -283,10 +283,7 @@ struct mfc {
 	struct timeval	mfc_last_assert;	/* last time I sent an assert*/
 	uint8_t		mfc_flags[MAXVIFS];	/* the MRT_MFC_FLAGS_* flags */
 	struct in_addr	mfc_rp;			/* the RP address	     */
-	struct bw_meter	*mfc_bw_meter_leq;	/* list of bandwidth meters
-						   for Lower-or-EQual case   */
-	struct bw_meter *mfc_bw_meter_geq;	/* list of bandwidth meters
-						   for Greater-or-EQual case */
+	struct bw_meter	*mfc_bw_meter;		/* list of bandwidth meters  */
 	u_long		mfc_nstall;		/* # of packets awaiting mfc */
 	TAILQ_HEAD(, rtdetq) mfc_stall;		/* q of packets awaiting mfc */
 };
@@ -330,6 +327,7 @@ struct rtdetq {
 struct bw_meter {
 	struct bw_meter	*bm_mfc_next;		/* next bw meter (same mfc)  */
 	struct bw_meter	*bm_time_next;		/* next bw meter (same time) */
+	uint32_t	bm_time_hash;		/* the time hash value       */
 	struct mfc	*bm_mfc;		/* the corresponding mfc     */
 	uint32_t	bm_flags;		/* misc flags (see below)    */
 #define BW_METER_UNIT_PACKETS	(1 << 0)	/* threshold (in packets)    */
@@ -346,10 +344,6 @@ struct bw_meter {
 	struct bw_data	bm_threshold;		/* the upcall threshold	     */
 	struct bw_data	bm_measured;		/* the measured bw	     */
 	struct timeval	bm_start_time;		/* abs. time		     */
-#ifdef _KERNEL
-	struct callout	bm_meter_callout;	/* Periodic callout          */
-	void*		arg;			/* custom argument           */
-#endif
 };
 
 #ifdef _KERNEL
