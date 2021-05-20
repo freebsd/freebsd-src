@@ -111,6 +111,7 @@ CONFS=	DAEMON \
 	swap \
 	swaplate \
 	sysctl \
+	sysctl_lastload \
 	syslogd \
 	sysvipc \
 	tmp \
