@@ -469,7 +469,7 @@ icl_cxgbei_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *ip,
 		}
 		MPASS(len == 0);
 	}
-	MPASS(ip->ip_data_len <= ic->ic_max_data_segment_length);
+	MPASS(ip->ip_data_len <= ic->ic_max_send_data_segment_length);
 
 	return (0);
 }
@@ -565,8 +565,6 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
-	/* This is a stop-gap value that will be corrected during handoff. */
-	ic->ic_max_data_segment_length = 16384;
 	ic->ic_name = name;
 	ic->ic_offload = "cxgbei";
 	ic->ic_unmapped = false;
@@ -806,26 +804,11 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		icc->toep = toep;
 		icc->cwt = cxgbei_select_worker_thread(icc);
 
-		/*
-		 * We maintain the _send_ DSL in this field just to have a
-		 * convenient way to assert that the kernel never sends
-		 * oversized PDUs.  This field is otherwise unused in the driver
-		 * or the kernel.
-		 */
-		ic->ic_max_data_segment_length = ci->max_tx_pdu_len -
-		    ISCSI_BHS_SIZE;
-
 		icc->ulp_submode = 0;
-		if (ic->ic_header_crc32c) {
+		if (ic->ic_header_crc32c)
 			icc->ulp_submode |= ULP_CRC_HEADER;
-			ic->ic_max_data_segment_length -=
-			    ISCSI_HEADER_DIGEST_SIZE;
-		}
-		if (ic->ic_data_crc32c) {
+		if (ic->ic_data_crc32c)
 			icc->ulp_submode |= ULP_CRC_DATA;
-			ic->ic_max_data_segment_length -=
-			    ISCSI_DATA_DIGEST_SIZE;
-		}
 		so->so_options |= SO_NO_DDP;
 		toep->params.ulp_mode = ULP_MODE_ISCSI;
 		toep->ulpcb = icc;

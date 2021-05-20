@@ -109,7 +109,8 @@ struct icl_conn {
 	bool			ic_data_crc32c;
 	bool			ic_send_running;
 	bool			ic_receive_running;
-	size_t			ic_max_data_segment_length;
+	uint32_t		ic_max_recv_data_segment_length;
+	uint32_t		ic_max_send_data_segment_length;
 	size_t			ic_maxtags;
 	bool			ic_disconnecting;
 	bool			ic_iser;
