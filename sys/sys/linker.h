@@ -196,6 +196,15 @@ int linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 /* HWPMC helper */
 void *linker_hwpmc_list_objects(void);
 
+/* kldload/kldunload syscalls blocking */
+#define	LINKER_UB_UNLOCK	0x0001	/* busy: unlock kld_sx locked on
+					   return */
+#define	LINKER_UB_LOCKED	0x0002	/* busy/unbusy: kld_sx locked on
+					   entry */
+#define	LINKER_UB_PCATCH	0x0004	/* busy: sleep interruptible */
+int linker_kldload_busy(int flags);
+void linker_kldload_unbusy(int flags);
+
 #endif	/* _KERNEL */
 
 /*
