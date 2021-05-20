@@ -742,35 +742,13 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
-static pt_entry_t *
-pmap_early_page_idx(vm_offset_t l1pt, vm_offset_t va, u_int *l1_slot,
-    u_int *l2_slot)
-{
-	pt_entry_t *l2;
-	pd_entry_t *l1;
-
-	l1 = (pd_entry_t *)l1pt;
-	*l1_slot = (va >> L1_SHIFT) & Ln_ADDR_MASK;
-
-	/* Check locore has used a table L1 map */
-	KASSERT((l1[*l1_slot] & ATTR_DESCR_MASK) == L1_TABLE,
-	   ("Invalid bootstrap L1 table"));
-	/* Find the address of the L2 table */
-	l2 = (pt_entry_t *)init_pt_va;
-	*l2_slot = pmap_l2_index(va);
-
-	return (l2);
-}
-
 static vm_paddr_t
 pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 {
-	u_int l1_slot, l2_slot;
-	pt_entry_t *l2;
+	vm_paddr_t pa_page;
 
-	l2 = pmap_early_page_idx(l1pt, va, &l1_slot, &l2_slot);
-
-	return ((l2[l2_slot] & ~ATTR_MASK) + (va & L2_OFFSET));
+	pa_page = arm64_address_translate_s1e1r(va) & PAR_PA_MASK;
+	return (pa_page | (va & PAR_LOW_MASK));
 }
 
 static vm_offset_t
