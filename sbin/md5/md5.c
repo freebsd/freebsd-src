@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sha512.h>
 #include <sha512t.h>
 #include <skein.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
