@@ -45,7 +45,6 @@ extern u_int first_msi_irq, num_msi_irqs;
 
 static eventhandler_tag linuxkpi_thread_dtor_tag;
 
-static atomic_t linux_current_allocs;
 static uma_zone_t linux_current_zone;
 static uma_zone_t linux_mm_zone;
 
@@ -147,10 +146,6 @@ linux_alloc_current(struct thread *td, int flags)
 	/* free mm_struct pointer, if any */
 	uma_zfree(linux_mm_zone, mm);
 
-	/* keep track of number of allocations */
-	if (atomic_add_return(1, &linux_current_allocs) == INT_MAX)
-		panic("linux_alloc_current: Refcount too high!");
-
 	return (0);
 }
 
@@ -178,10 +173,6 @@ linux_free_current(struct task_struct *ts)
 {
 	mmput(ts->mm);
 	uma_zfree(linux_current_zone, ts);
-
-	/* keep track of number of allocations */
-	if (atomic_sub_return(1, &linux_current_allocs) < 0)
-		panic("linux_free_current: Negative refcount!");
 }
 
 static void
@@ -306,9 +297,9 @@ linux_current_init(void *arg __unused)
 
 	atomic_thread_fence_seq_cst();
 
-	lkpi_alloc_current = linux_alloc_current;
 	linuxkpi_thread_dtor_tag = EVENTHANDLER_REGISTER(thread_dtor,
 	    linuxkpi_thread_dtor, NULL, EVENTHANDLER_PRI_ANY);
+	lkpi_alloc_current = linux_alloc_current;
 }
 SYSINIT(linux_current, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND,
     linux_current_init, NULL);
@@ -337,17 +328,10 @@ linux_current_uninit(void *arg __unused)
 	}
 	sx_sunlock(&allproc_lock);
 
-	/*
-	 * There is a window where threads are removed from the
-	 * process list and where the thread destructor is invoked.
-	 * Catch that window by waiting for all task_struct
-	 * allocations to be returned before freeing the UMA zone.
-	 */
-	while (atomic_read(&linux_current_allocs) != 0)
-		pause("W", 1);
+	thread_reap_barrier();
 
 	EVENTHANDLER_DEREGISTER(thread_dtor, linuxkpi_thread_dtor_tag);
-	
+
 	uma_zdestroy(linux_current_zone);
 	uma_zdestroy(linux_mm_zone);
 }
