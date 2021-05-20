@@ -716,7 +716,7 @@ main(int argc, char *argv[])
 
 	if (stat(argv[0], &sb) != 0)
 		err(1, "%s", argv[0]);
-	if ((sb.st_mode & S_IFDIR) == 0) {
+	if ((sb.st_mode & S_IFDIR) == 0 && !dflag) {
 		errno = ENOTDIR;
 		err(1, "%s", argv[0]);
 	}
