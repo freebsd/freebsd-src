@@ -11,4 +11,4 @@ we don't want.
 
 Please find instructions for importing new releases and merging to HEAD here:
 
-https://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-primer.html#idp45937784
+https://docs.freebsd.org/en/articles/committers-guide/#vendor-import-git

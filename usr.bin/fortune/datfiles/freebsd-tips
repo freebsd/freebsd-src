@@ -64,8 +64,7 @@ If you need a reminder to leave your terminal, type "leave +hhmm" where
 %
 If you need to ask a question on the FreeBSD-questions mailing list then
 
-	https://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/\
-		freebsd-questions/index.html
+	https://docs.freebsd.org/en/articles/freebsd-questions
 
 contains lots of useful advice to help you get the best results.
 %

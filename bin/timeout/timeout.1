@@ -178,7 +178,7 @@ $ echo $?
 .Pp
 Try to
 .Xr fetch 1
-the single page version of the
+the PDF version of the
 .Fx
 Handbook.
 Send a
@@ -188,7 +188,7 @@ signal after 1 minute and send a
 signal 5 seconds later if the process refuses to stop:
 .Bd -literal -offset indent
 $ timeout -k 5s 1m fetch \\
-> https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/book.html
+> https://download.freebsd.org/ftp/doc/en/books/handbook/book.pdf
 .Ed
 .Sh SEE ALSO
 .Xr kill 1 ,
