@@ -36,7 +36,6 @@
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
-RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
