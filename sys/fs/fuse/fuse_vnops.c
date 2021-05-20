@@ -466,14 +466,14 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fli = fdi.indata;
 	fli->fh = fufh->fh_id;
-	fli->owner = fl->l_pid;
+	fli->owner = td->td_proc->p_pid;
 	fli->lk.start = fl->l_start;
 	if (fl->l_len != 0)
 		fli->lk.end = fl->l_start + fl->l_len - 1;
 	else
 		fli->lk.end = INT64_MAX;
 	fli->lk.type = fl->l_type;
-	fli->lk.pid = fl->l_pid;
+	fli->lk.pid = td->td_proc->p_pid;
 
 	err = fdisp_wait_answ(&fdi);
 	fdisp_destroy(&fdi);
