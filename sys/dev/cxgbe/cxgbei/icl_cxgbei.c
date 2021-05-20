@@ -983,6 +983,8 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	struct ppod_region *pr = &ci->pr;
 	struct cxgbei_ddp_state *ddp;
 	struct ppod_reservation *prsv;
+	struct inpcb *inp;
+	struct mbufq mq;
 	uint32_t itt;
 	int rc = 0;
 
@@ -1028,13 +1030,31 @@ no_ddp:
 		goto no_ddp;
 	}
 
+	mbufq_init(&mq, INT_MAX);
 	rc = t4_write_page_pods_for_buf(sc, toep, prsv,
-	    (vm_offset_t)csio->data_ptr, csio->dxfer_len);
+	    (vm_offset_t)csio->data_ptr, csio->dxfer_len, &mq);
 	if (__predict_false(rc != 0)) {
+		mbufq_drain(&mq);
 		t4_free_page_pods(prsv);
 		free(ddp, M_CXGBEI);
 		goto no_ddp;
 	}
+
+	/*
+	 * Do not get inp from toep->inp as the toepcb might have
+	 * detached already.
+	 */
+	inp = sotoinpcb(ic->ic_socket);
+	INP_WLOCK(inp);
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
+		INP_WUNLOCK(inp);
+		mbufq_drain(&mq);
+		t4_free_page_pods(prsv);
+		free(ddp, M_CXGBEI);
+		return (ECONNRESET);
+	}
+	mbufq_concat(&toep->ulp_pduq, &mq);
+	INP_WUNLOCK(inp);
 
 	ddp->cmp.last_datasn = -1;
 	cxgbei_insert_cmp(icc, &ddp->cmp, prsv->prsv_tag);
@@ -1096,6 +1116,8 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 	struct cxgbei_ddp_state *ddp;
 	struct ppod_reservation *prsv;
 	struct ctl_sg_entry *sgl, sg_entry;
+	struct inpcb *inp;
+	struct mbufq mq;
 	int sg_entries = ctsio->kern_sg_entries;
 	uint32_t ttt;
 	int xferlen, rc = 0, alias;
@@ -1173,13 +1195,31 @@ no_ddp:
 			goto no_ddp;
 		}
 
+		mbufq_init(&mq, INT_MAX);
 		rc = t4_write_page_pods_for_sgl(sc, toep, prsv, sgl, sg_entries,
-		    xferlen);
+		    xferlen, &mq);
 		if (__predict_false(rc != 0)) {
+			mbufq_drain(&mq);
 			t4_free_page_pods(prsv);
 			free(ddp, M_CXGBEI);
 			goto no_ddp;
 		}
+
+		/*
+		 * Do not get inp from toep->inp as the toepcb might
+		 * have detached already.
+		 */
+		inp = sotoinpcb(ic->ic_socket);
+		INP_WLOCK(inp);
+		if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
+			INP_WUNLOCK(inp);
+			mbufq_drain(&mq);
+			t4_free_page_pods(prsv);
+			free(ddp, M_CXGBEI);
+			return (ECONNRESET);
+		}
+		mbufq_concat(&toep->ulp_pduq, &mq);
+		INP_WUNLOCK(inp);
 
 		ddp->cmp.next_buffer_offset = ctsio->kern_rel_offset +
 		    first_burst;

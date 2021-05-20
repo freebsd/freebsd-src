@@ -443,9 +443,9 @@ int t4_alloc_page_pods_for_sgl(struct ppod_region *, struct ctl_sg_entry *, int,
 int t4_write_page_pods_for_ps(struct adapter *, struct sge_wrq *, int,
     struct pageset *);
 int t4_write_page_pods_for_buf(struct adapter *, struct toepcb *,
-    struct ppod_reservation *, vm_offset_t, int);
+    struct ppod_reservation *, vm_offset_t, int, struct mbufq *);
 int t4_write_page_pods_for_sgl(struct adapter *, struct toepcb *,
-    struct ppod_reservation *, struct ctl_sg_entry *, int, int);
+    struct ppod_reservation *, struct ctl_sg_entry *, int, int, struct mbufq *);
 void t4_free_page_pods(struct ppod_reservation *);
 int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
