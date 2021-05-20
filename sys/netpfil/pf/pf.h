@@ -159,7 +159,8 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define LCNT_SRCCONNRATE	4	/* max-src-conn-rate */
 #define LCNT_OVERLOAD_TABLE	5	/* entry added to overload table */
 #define LCNT_OVERLOAD_FLUSH	6	/* state entries flushed */
-#define LCNT_MAX		7	/* total+1 */
+#define LCNT_SYNCOOKIES_VALID	7	/* syncookies validated */ /* XXX TODO: Ensure no API breakage! */
+#define LCNT_MAX		8	/* total+1 */
 
 #define LCNT_NAMES { \
 	"max states per rule", \
