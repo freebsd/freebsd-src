@@ -576,7 +576,7 @@ ckfini(int markclean)
 			rerun = 1;
 		}
 	}
-	if (debug && totalreads > 0)
+	if (debug && cachelookups > 0)
 		printf("cache with %d buffers missed %d of %d (%d%%)\n",
 		    numbufs, cachereads, cachelookups,
 		    (int)(cachereads * 100 / cachelookups));
