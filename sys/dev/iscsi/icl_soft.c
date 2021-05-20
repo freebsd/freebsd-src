@@ -573,7 +573,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, struct mbuf **r, size_t *rs)
 		 */
 
 		len = icl_pdu_data_segment_length(request);
-		if (len > ic->ic_max_data_segment_length) {
+		if (len > ic->ic_max_recv_data_segment_length) {
 			ICL_WARN("received data segment "
 			    "length %zd is larger than negotiated; "
 			    "dropping connection", len);
@@ -1154,7 +1154,6 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
-	ic->ic_max_data_segment_length = max_data_segment_length;
 	ic->ic_name = name;
 	ic->ic_offload = "None";
 	ic->ic_unmapped = false;
@@ -1205,13 +1204,17 @@ icl_conn_start(struct icl_conn *ic)
 	 * send a PDU in pieces; thus, the minimum buffer size is equal
 	 * to the maximum PDU size.  "+4" is to account for possible padding.
 	 */
-	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
+	minspace = sizeof(struct iscsi_bhs) +
+	    ic->ic_max_send_data_segment_length +
 	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
 	if (sendspace < minspace) {
 		ICL_WARN("kern.icl.sendspace too low; must be at least %zd",
 		    minspace);
 		sendspace = minspace;
 	}
+	minspace = sizeof(struct iscsi_bhs) +
+	    ic->ic_max_recv_data_segment_length +
+	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
 	if (recvspace < minspace) {
 		ICL_WARN("kern.icl.recvspace too low; must be at least %zd",
 		    minspace);
