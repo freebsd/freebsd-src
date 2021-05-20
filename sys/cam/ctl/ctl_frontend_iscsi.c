@@ -1112,7 +1112,7 @@ static void
 cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
 	struct cfiscsi_data_wait *cdw;
-	union ctl_io *io;
+	union ctl_io *io, *cdw_io;
 	int error, last, wait;
 
 	if (cs->cs_target == NULL)
@@ -1144,10 +1144,11 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		 * assuming that the data transfer actually succeeded
 		 * and writing uninitialized data to disk.
 		 */
-		cdw->cdw_ctl_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
-		cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 42;
-		ctl_datamove_done(cdw->cdw_ctl_io, false);
+		cdw_io = cdw->cdw_ctl_io;
+		cdw_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
+		cdw_io->scsiio.io_hdr.port_status = 42;
 		cfiscsi_data_wait_free(cs, cdw);
+		ctl_datamove_done(cdw_io, false);
 		CFISCSI_SESSION_LOCK(cs);
 	}
 	CFISCSI_SESSION_UNLOCK(cs);
@@ -2920,6 +2921,7 @@ cfiscsi_task_management_done(union ctl_io *io)
 	struct cfiscsi_data_wait *cdw, *tmpcdw;
 	struct cfiscsi_session *cs, *tcs;
 	struct cfiscsi_softc *softc;
+	union ctl_io *cdw_io;
 	int cold_reset = 0;
 
 	request = PRIV_REQUEST(io);
@@ -2953,10 +2955,11 @@ cfiscsi_task_management_done(union ctl_io *io)
 #endif
 			TAILQ_REMOVE(&cs->cs_waiting_for_data_out,
 			    cdw, cdw_next);
-			io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
-			cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 43;
-			ctl_datamove_done(cdw->cdw_ctl_io, false);
+			cdw_io = cdw->cdw_ctl_io;
+			cdw_io->io_hdr.flags &= ~CTL_FLAG_DMA_INPROG;
+			cdw_io->scsiio.io_hdr.port_status = 43;
 			cfiscsi_data_wait_free(cs, cdw);
+			ctl_datamove_done(cdw_io, false);
 		}
 		CFISCSI_SESSION_UNLOCK(cs);
 	}
