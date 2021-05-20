@@ -43,6 +43,7 @@
 #define	PF_FASTFWD_OURS_PRESENT		0x10
 #define	PF_REASSEMBLED			0x20
 #define	PF_DUPLICATED			0x40
+#define	PF_TAG_SYNCOOKIE_RECREATED	0x80
 
 struct pf_mtag {
 	void		*hdr;		/* saved hdr pos in mbuf, for ECN */
