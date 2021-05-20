@@ -1,0 +1,27 @@
+.include <src.opts.mk>
+
+.include "../../Makefile.inc"
+
+LIB=	wpacommon
+INTERNALLIB=
+
+.PATH:	${WPA_DISTDIR}/src/common
+
+SRCS=	cli.c \
+	ctrl_iface_common.c \
+	gas.c \
+	hw_features_common.c \
+	ieee802_11_common.c \
+	wpa_common.c \
+	wpa_ctrl.c
+
+CFLAGS+=-DCONFIG_SAE \
+	-DCONFIG_SUITE \
+	-DCONFIG_SUITEB
+
+.include "../../Makefile.crypto"
+
+# We are only interested in includes at this point. Not libraries.
+LIBADD=
+
+.include <bsd.lib.mk>

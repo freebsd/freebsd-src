@@ -64,7 +64,22 @@ _INTERNALLIBS=	\
 		smdb \
 		smutil \
 		telnet \
-		vers
+		vers \
+		wpaap \
+		wpacommon \
+		wpacrypto \
+		wpadrivers \
+		wpaeap_common \
+		wpaeap_peer \
+		wpaeap_server \
+		wpaeapol_auth \
+		wpaeapol_supp \
+		wpal2_packet \
+		wparadius \
+		wparsn_supp \
+		wpatls \
+		wpautils \
+		wpawps
 
 _LIBRARIES=	\
 		${_PRIVATELIBS} \
@@ -582,6 +597,51 @@ LIBBE?=		${LIBBEDIR}/libbe${PIE_SUFFIX}.a
 
 LIBPMCSTATDIR=	${_LIB_OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat${PIE_SUFFIX}.a
+
+LIBWPAAPDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/ap
+LIBWPAAP?=	${LIBWPAAPDIR}/libwpaap${PIE_SUFFIX}.a
+
+LIBWPACOMMONDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/common
+LIBWPACOMMON?=	${LIBWPACOMMONDIR}/libwpacommon${PIE_SUFFIX}.a
+
+LIBWPACRYPTODIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/crypto
+LIBWPACRYPTO?=	${LIBWPACRYPTODIR}/libwpacrypto${PIE_SUFFIX}.a
+
+LIBWPADRIVERSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/drivers
+LIBWPADRIVERS?=	${LIBWPADRIVERSDIR}/libwpadrivers${PIE_SUFFIX}.a
+
+LIBWPAEAP_COMMONDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/eap_common
+LIBWPAEAP_COMMON?=	${LIBWPAEAP_COMMONDIR}/libwpaeap_common${PIE_SUFFIX}.a
+
+LIBWPAEAP_PEERDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/eap_peer
+LIBWPAEAP_PEER?=	${LIBWPAEAP_PEERDIR}/libwpaeap_peer${PIE_SUFFIX}.a
+
+LIBWPAEAP_SERVERDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/eap_server
+LIBWPAEAP_SERVER?=	${LIBWPAEAP_SERVERDIR}/libwpaeap_server${PIE_SUFFIX}.a
+
+LIBWPAEAPOL_AUTHDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/eapol_auth
+LIBWPAEAPOL_AUTH?=	${LIBWPAEAPOL_AUTHDIR}/libwpaeapol_auth${PIE_SUFFIX}.a
+
+LIBWPAEAPOL_SUPPDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/eapol_supp
+LIBWPAEAPOL_SUPP?=	${LIBWPAEAPOL_SUPPDIR}/libwpaeapol_supp${PIE_SUFFIX}.a
+
+LIBWPAL2_PACKETDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/l2_packet
+LIBWPAL2_PACKET?=	${LIBWPAL2_PACKETDIR}/libwpal2_packet${PIE_SUFFIX}.a
+
+LIBWPARADIUSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/radius
+LIBWPARADIUS?=	${LIBWPARADIUSDIR}/libwparadius${PIE_SUFFIX}.a
+
+LIBWPARSN_SUPPDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/rsn_supp
+LIBWPARSN_SUPP?=	${LIBWPARSN_SUPPDIR}/libwparsn_supp${PIE_SUFFIX}.a
+
+LIBWPATLSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/tls
+LIBWPATLS?=	${LIBWPATLSDIR}/libwpatls${PIE_SUFFIX}.a
+
+LIBWPAUTILSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/utils
+LIBWPAUTILS?=	${LIBWPAUTILSDIR}/libwpautils${PIE_SUFFIX}.a
+
+LIBWPAWPSDIR=	${_LIB_OBJTOP}/usr.sbin/wpa/src/wps
+LIBWPAWPS?=	${LIBWPAWPSDIR}/libwpawps${PIE_SUFFIX}.a
 
 LIBC_NOSSP_PICDIR=	${_LIB_OBJTOP}/lib/libc
 LIBC_NOSSP_PIC?=	${LIBC_NOSSP_PICDIR}/libc_nossp_pic.a
