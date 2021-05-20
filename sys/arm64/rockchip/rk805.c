@@ -841,12 +841,6 @@ rk805_settime(device_t dev, struct timespec *ts)
 	ctrl &= ~RK805_RTC_CTRL_STOP;
 	rk805_write(dev, RK805_RTC_CTRL, &ctrl, 1);
 
-	if (bootverbose)
-		device_printf(dev,
-		    "Set RTC at %04x-%02x-%02x %02x:%02x:%02x[.%09ld]\n",
-		    bct.year, bct.mon, bct.day, bct.hour, bct.min, bct.sec,
-		    bct.nsec);
-
 	return (error);
 }
 
