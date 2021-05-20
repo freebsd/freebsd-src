@@ -5,26 +5,29 @@
 .include "../Makefile.inc"
 
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
-	${WPA_DISTDIR}/src/eap_peer \
 	${WPA_DISTDIR}/src/drivers
 
 PACKAGE=	wpa
 PROG=	wpa_supplicant
 
-SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
-	config.c config_file.c \
-	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
-	driver_bsd.c driver_common.c \
-	driver_wired.c driver_wired_common.c drivers.c \
-	eap_register.c eloop.c \
-	events.c gas.c gas_query.c \
-	http_client.c http_server.c \
-	httpread.c hw_features_common.c \
-	ieee802_11_common.c l2_packet_freebsd.c main.c \
-	notify.c offchannel.c op_classes.c os_unix.c pmksa_cache.c preauth.c \
-	rrm.c scan.c upnp_xml.c \
-	wmm_ac.c wpa.c wpa_common.c wpa_ctrl.c \
-	wpa_debug.c wpa_ft.c wpa_ie.c wpa_supplicant.c wpabuf.c wpas_glue.c
+SRCS=	blacklist.c \
+	bss.c \
+	config.c \
+	config_file.c \
+	ctrl_iface.c \
+	ctrl_iface_unix.c \
+	eap_register.c \
+	events.c \
+	gas_query.c \
+	main.c \
+	notify.c \
+	op_classes.c \
+	offchannel.c \
+	rrm.c \
+	scan.c \
+	wmm_ac.c \
+	wpa_supplicant.c \
+	wpas_glue.c
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
@@ -34,27 +37,11 @@ FILESDIR= ${SHAREDIR}/examples/etc
 FILES=	wpa_supplicant.conf
 .endif
 
-CFLAGS+=-DCONFIG_BACKEND_FILE \
-	-DCONFIG_DEBUG_SYSLOG \
-	-DCONFIG_DRIVER_BSD \
-	-DCONFIG_DRIVER_WIRED \
-	-DCONFIG_GAS \
-	-DCONFIG_IEEE80211R \
-	-DCONFIG_IEEE80211N \
-	-DCONFIG_IEEE80211W \
-	-DCONFIG_IEEE80211AC \
-	-DCONFIG_IEEE80211AX \
-	-DCONFIG_PEERKEY \
-	-DCONFIG_PRIVSEP \
-	-DCONFIG_SMARTCARD \
-	-DCONFIG_TERMINATE_ONLASTIF \
-	-DCONFIG_TLS=openssl \
-	-DCONFIG_WPS2 \
-	-DCONFIG_WPS_UPNP \
-	-DPKCS12_FUNCS \
-	-DCONFIG_MATCH_IFACE
+CFLAGS+=-DCONFIG_BACKEND_FILE
 #CFLAGS+= -g
-LIBADD=	pcap util
+LIBADD=	pcap util wpaap wpacommon wpacrypto wpadrivers wpaeapol_supp \
+	wpaeap_common wpaeap_server \
+	wpaeap_peer wpal2_packet wparsn_supp wpatls wpautils wpawps
 
 # User customizations to the wpa_supplicant build environment
 CFLAGS+=${WPA_SUPPLICANT_CFLAGS}
@@ -63,10 +50,7 @@ LDADD+=${WPA_SUPPLICANT_LDADD}
 #LDFLAGS+=${WPA_SUPPLICANT_LDFLAGS}
 
 .if ${MK_WPA_SUPPLICANT_EAPOL} != "no"
-CFLAGS+=-DCONFIG_WPS \
-	-DCONFIG_HS20 \
-	-DCONFIG_INTERWORKING \
-	-DEAP_GTC \
+CFLAGS+=-DEAP_GTC \
 	-DEAP_LEAP \
 	-DEAP_MD5 \
 	-DEAP_MSCHAPv2 \
@@ -77,34 +61,9 @@ CFLAGS+=-DCONFIG_WPS \
 	-DEAP_TTLS \
 	-DEAP_WSC \
 	-DIEEE8021X_EAPOL
-SRCS+=	chap.c \
-	eap.c \
-	eap_common.c \
-	eap_gtc.c \
-	eap_leap.c \
-	eap_md5.c \
-	eap_methods.c \
-	eap_mschapv2.c \
-	eap_otp.c \
-	eap_peap.c \
-	eap_peap_common.c \
-	eap_psk.c \
-	eap_psk_common.c \
-	eap_tls.c \
-	eap_tls_common.c \
-	eap_ttls.c \
-	eap_wsc.c \
-	eapol_supp_sm.c \
-	eap_wsc_common.c \
-	hs20_supplicant.c \
+SRCS+=	hs20_supplicant.c \
 	interworking.c \
-	ms_funcs.c \
-	mschapv2.c \
-	uuid.c \
-	wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
-	wps_common.c wps_dev_attr.c wps_enrollee.c wps_registrar.c \
-	wps_supplicant.c wps_upnp.c wps_upnp_ap.c wps_upnp_event.c \
-	wps_upnp_ssdp.c wps_upnp_web.c
+	wps_supplicant.c
 NEED_AES_EAX=y
 NEED_AES_ENCBLOCK=y
 NEED_AES_OMAC1=y
