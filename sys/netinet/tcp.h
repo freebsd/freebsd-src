@@ -105,6 +105,8 @@ struct tcphdr {
 #define	TCPOPT_FAST_OPEN	34
 #define	   TCPOLEN_FAST_OPEN_EMPTY	2
 
+#define	MAX_TCPOPTLEN		40	/* Absolute maximum TCP options len */
+
 /* Miscellaneous constants */
 #define	MAX_SACK_BLKS	6	/* Max # SACK blocks stored at receiver side */
 #define	TCP_MAX_SACK	4	/* MAX # SACKs sent in any segment */
