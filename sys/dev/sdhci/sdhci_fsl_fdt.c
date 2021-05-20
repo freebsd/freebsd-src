@@ -493,14 +493,14 @@ sdhci_fsl_fdt_switch_vccq(device_t brdev, device_t reqdev)
 	struct sdhci_slot *slot;
 	int uvolt, err;
 
-	err = sdhci_generic_switch_vccq(brdev, reqdev);
-	if (err != 0)
-		return (err);
-
 	sc = device_get_softc(brdev);
 
 	if (sc->fdt_helper.vqmmc_supply == NULL)
 		return EOPNOTSUPP;
+
+	err = sdhci_generic_switch_vccq(brdev, reqdev);
+	if (err != 0)
+		return (err);
 
 	slot = device_get_ivars(reqdev);
 	switch (slot->host.ios.vccq) {
