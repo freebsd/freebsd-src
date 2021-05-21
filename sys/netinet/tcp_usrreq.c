@@ -993,13 +993,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
-
-		/*
-		 * In case of PRUS_NOTREADY, tcp_usr_ready() is responsible
-		 * for freeing memory.
-		 */
-		if ((flags & PRUS_NOTREADY) == 0)
-			m_freem(m);
 		error = ECONNRESET;
 		goto out;
 	}
@@ -1007,7 +1000,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		/* TCP doesn't do control messages (rights, creds, etc) */
 		if (control->m_len) {
 			m_freem(control);
-			m_freem(m);
 			error = EINVAL;
 			goto out;
 		}
@@ -1015,13 +1007,10 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		control = NULL;
 	}
 	tp = intotcpcb(inp);
-	if (flags & PRUS_OOB) {
-		if ((error = tcp_pru_options_support(tp, PRUS_OOB)) != 0) {
-			if ((flags & PRUS_NOTREADY) == 0)
-				m_freem(m);
-			goto out;
-		}
-	}
+	if ((flags & PRUS_OOB) != 0 &&
+	    (error = tcp_pru_options_support(tp, PRUS_OOB)) != 0)
+		goto out;
+
 	TCPDEBUG1();
 	if (nam != NULL && tp->t_state < TCPS_SYN_SENT) {
 		switch (nam->sa_family) {
@@ -1029,30 +1018,24 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		case AF_INET:
 			sinp = (struct sockaddr_in *)nam;
 			if (sinp->sin_len != sizeof(struct sockaddr_in)) {
-				m_freem(m);
 				error = EINVAL;
 				goto out;
 			}
 			if ((inp->inp_vflag & INP_IPV6) != 0) {
-				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
-				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST) {
-				m_freem(m);
 				error = EACCES;
 				goto out;
 			}
 			if ((error = prison_remote_ip4(td->td_ucred,
-			    &sinp->sin_addr))) {
-				m_freem(m);
+			    &sinp->sin_addr)))
 				goto out;
-			}
 #ifdef INET6
 			isipv6 = 0;
 #endif
@@ -1065,17 +1048,14 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 
 			sin6 = (struct sockaddr_in6 *)nam;
 			if (sin6->sin6_len != sizeof(*sin6)) {
-				m_freem(m);
 				error = EINVAL;
 				goto out;
 			}
 			if ((inp->inp_vflag & INP_IPV6PROTO) == 0) {
-				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
 			if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-				m_freem(m);
 				error = EAFNOSUPPORT;
 				goto out;
 			}
@@ -1083,12 +1063,10 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
 					error = EINVAL;
-					m_freem(m);
 					goto out;
 				}
 				if ((inp->inp_vflag & INP_IPV4) == 0) {
 					error = EAFNOSUPPORT;
-					m_freem(m);
 					goto out;
 				}
 				restoreflags = true;
@@ -1098,23 +1076,18 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				if (IN_MULTICAST(
 				    ntohl(sinp->sin_addr.s_addr))) {
 					error = EAFNOSUPPORT;
-					m_freem(m);
 					goto out;
 				}
 				if ((error = prison_remote_ip4(td->td_ucred,
-				    &sinp->sin_addr))) {
-					m_freem(m);
+				    &sinp->sin_addr)))
 					goto out;
-				}
 				isipv6 = 0;
 #else /* !INET */
 				error = EAFNOSUPPORT;
-				m_freem(m);
 				goto out;
 #endif /* INET */
 			} else {
 				if ((inp->inp_vflag & INP_IPV6) == 0) {
-					m_freem(m);
 					error = EAFNOSUPPORT;
 					goto out;
 				}
@@ -1122,23 +1095,21 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				inp->inp_vflag &= ~INP_IPV4;
 				inp->inp_inc.inc_flags |= INC_ISIPV6;
 				if ((error = prison_remote_ip6(td->td_ucred,
-				    &sin6->sin6_addr))) {
-					m_freem(m);
+				    &sin6->sin6_addr)))
 					goto out;
-				}
 				isipv6 = 1;
 			}
 			break;
 		}
 #endif /* INET6 */
 		default:
-			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto out;
 		}
 	}
 	if (!(flags & PRUS_OOB)) {
 		sbappendstream(&so->so_snd, m, flags);
+		m = NULL;
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
@@ -1164,8 +1135,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			if (error == 0 || inp->inp_lport != 0)
 				restoreflags = false;
 
-			if (error)
+			if (error) {
+				/* m is freed if PRUS_NOTREADY is unset. */
+				sbflush(&so->so_snd);
 				goto out;
+			}
 			if (IS_FASTOPEN(tp->t_flags))
 				tcp_fastopen_connect(tp);
 			else {
@@ -1206,7 +1180,6 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		SOCKBUF_LOCK(&so->so_snd);
 		if (sbspace(&so->so_snd) < -512) {
 			SOCKBUF_UNLOCK(&so->so_snd);
-			m_freem(m);
 			error = ENOBUFS;
 			goto out;
 		}
@@ -1220,6 +1193,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		 */
 		sbappendstream_locked(&so->so_snd, m, flags);
 		SOCKBUF_UNLOCK(&so->so_snd);
+		m = NULL;
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
@@ -1251,13 +1225,16 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			if (error == 0 || inp->inp_lport != 0)
 				restoreflags = false;
 
-			if (error)
+			if (error != 0) {
+				/* m is freed if PRUS_NOTREADY is unset. */
+				sbflush(&so->so_snd);
 				goto out;
+			}
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
 		}
 		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
-		if (!(flags & PRUS_NOTREADY)) {
+		if ((flags & PRUS_NOTREADY) == 0) {
 			tp->t_flags |= TF_FORCEDATA;
 			error = tp->t_fb->tfb_tcp_output(tp);
 			tp->t_flags &= ~TF_FORCEDATA;
@@ -1268,7 +1245,15 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	    &inp->inp_socket->so_snd,
 	    TCP_LOG_USERSEND, error,
 	    0, NULL, false);
+
 out:
+	/*
+	 * In case of PRUS_NOTREADY, the caller or tcp_usr_ready() is
+	 * responsible for freeing memory.
+	 */
+	if (m != NULL && (flags & PRUS_NOTREADY) == 0)
+		m_freem(m);
+
 	/*
 	 * If the request was unsuccessful and we changed flags,
 	 * restore the original flags.
