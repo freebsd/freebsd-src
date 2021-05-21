@@ -408,7 +408,7 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF_FORCEDATA	0x00800000	/* force out a byte */
 #define	TF_TSO		0x01000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x02000000	/* this connection is offloaded */
-#define	TF_WAKESOW	0x04000000	/* wake up send socket */
+#define	TF_UNUSED0	0x04000000	/* unused */
 #define	TF_UNUSED1	0x08000000	/* unused */
 #define	TF_LRD		0x10000000	/* Lost Retransmission Detection */
 #define	TF_CONGRECOVERY	0x20000000	/* congestion recovery mode */
