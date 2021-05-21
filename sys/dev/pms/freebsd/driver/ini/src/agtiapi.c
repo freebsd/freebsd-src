@@ -470,6 +470,7 @@ int agtiapi_getCardInfo ( struct agtiapi_softc *pCard,
 void agtiapi_adjust_queue_depth(struct cam_path *path, bit32 QueueDepth)
 {
   struct ccb_relsim crs;
+  memset(&crs, 0, sizeof(crs));
   xpt_setup_ccb(&crs.ccb_h, path, 5);
   crs.ccb_h.func_code = XPT_REL_SIMQ;
   crs.ccb_h.flags = CAM_DEV_QFREEZE;
@@ -929,6 +930,7 @@ static int agtiapi_attach( device_t devx )
     return( EIO );
   }
   pmsc->path = ccb->ccb_h.path;
+  memset(&csa, 0, sizeof(csa));
   xpt_setup_ccb(&csa.ccb_h, pmsc->path, 5);
   csa.ccb_h.func_code = XPT_SASYNC_CB;
   csa.event_enable = AC_FOUND_DEVICE;
@@ -6545,6 +6547,7 @@ int agtiapi_ReleaseHBA( device_t dev )
   if (pCard->sim != NULL) 
   {
     mtx_lock(&thisCardInst->pmIOLock);
+      memset(&csa, 0, sizeof(csa));
       xpt_setup_ccb(&csa.ccb_h, pCard->path, 5);
       csa.ccb_h.func_code = XPT_SASYNC_CB;
       csa.event_enable = 0;
