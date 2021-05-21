@@ -836,3 +836,10 @@ $ cu -s 9600 -l /dev/ttyU0
 
 		-- Daniel Ebdrup Jensen <debdrup@FreeBSD.org>
 %
+You can control kernel stack(9) traces on ^T (tty info) by setting
+kern.tty_info_kstacks to 0 (off), 1 (on), or 2 (verbose), e.g.:
+
+# sysctl kern.tty_info_kstacks=2
+
+		-- Michael Gmelin <grembo@FreeBSD.org>
+%
