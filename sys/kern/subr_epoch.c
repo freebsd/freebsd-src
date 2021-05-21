@@ -219,12 +219,14 @@ epoch_trace_enter(struct thread *td, epoch_t epoch, epoch_tracker_t et,
 {
 	epoch_tracker_t iet;
 
-	SLIST_FOREACH(iet, &td->td_epochs, et_tlink)
-		if (iet->et_epoch == epoch)
-			epoch_trace_report("Recursively entering epoch %s "
-			    "at %s:%d, previously entered at %s:%d\n",
-			    epoch->e_name, file, line,
-			    iet->et_file, iet->et_line);
+	SLIST_FOREACH(iet, &td->td_epochs, et_tlink) {
+		if (iet->et_epoch != epoch)
+			continue;
+		epoch_trace_report("Recursively entering epoch %s "
+		    "at %s:%d, previously entered at %s:%d\n",
+		    epoch->e_name, file, line,
+		    iet->et_file, iet->et_line);
+	}
 	et->et_epoch = epoch;
 	et->et_file = file;
 	et->et_line = line;
