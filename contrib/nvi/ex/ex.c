@@ -2266,7 +2266,8 @@ ex_comm_search(CHAR_T *name, size_t len)
 			return (NULL);
 		if (cp->name[0] != name[0])
 			continue;
-		if (!MEMCMP(name, cp->name, len))
+		if (STRLEN(cp->name) >= len &&
+			!MEMCMP(name, cp->name, len))
 			return (cp);
 	}
 	return (NULL);
