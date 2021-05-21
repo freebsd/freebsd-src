@@ -1086,6 +1086,7 @@ static void hpt_final_init(void *dummy)
 		}
 		hpt_unlock_vbus(vbus_ext);
 
+		memset(&ccb, 0, sizeof(ccb));
 		xpt_setup_ccb(&ccb.ccb_h, vbus_ext->path, /*priority*/5);
 		ccb.ccb_h.func_code = XPT_SASYNC_CB;
 		ccb.event_enable = AC_LOST_DEVICE;
