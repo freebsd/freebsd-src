@@ -517,6 +517,7 @@ ffs_reallocblks(ap)
 	} */ *ap;
 {
 	struct ufsmount *ump;
+	int error;
 
 	/*
 	 * We used to skip reallocating the blocks of a file into a
@@ -546,9 +547,11 @@ ffs_reallocblks(ap)
 	if (DOINGSUJ(ap->a_vp))
 		if (softdep_prealloc(ap->a_vp, MNT_NOWAIT) != 0)
 			return (ENOSPC);
-	if (ump->um_fstype == UFS1)
-		return (ffs_reallocblks_ufs1(ap));
-	return (ffs_reallocblks_ufs2(ap));
+	vn_seqc_write_begin(ap->a_vp);
+	error = ump->um_fstype == UFS1 ? ffs_reallocblks_ufs1(ap) :
+	    ffs_reallocblks_ufs2(ap);
+	vn_seqc_write_end(ap->a_vp);
+	return (error);
 }
 
 static int
