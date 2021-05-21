@@ -173,36 +173,6 @@ struct linux_pt_reg {
 	l_ulong	ss;
 };
 
-struct linux_pt_regset {
-	l_ulong	r15;
-	l_ulong	r14;
-	l_ulong	r13;
-	l_ulong	r12;
-	l_ulong	rbp;
-	l_ulong	rbx;
-	l_ulong	r11;
-	l_ulong	r10;
-	l_ulong	r9;
-	l_ulong	r8;
-	l_ulong	rax;
-	l_ulong	rcx;
-	l_ulong	rdx;
-	l_ulong	rsi;
-	l_ulong	rdi;
-	l_ulong	orig_rax;
-	l_ulong	rip;
-	l_ulong	cs;
-	l_ulong	eflags;
-	l_ulong	rsp;
-	l_ulong	ss;
-	l_ulong fs_base;
-	l_ulong gs_base;
-	l_ulong ds;
-	l_ulong es;
-	l_ulong fs;
-	l_ulong gs;
-};
-
 /*
  * Translate amd64 ptrace registers between Linux and FreeBSD formats.
  * The translation is pretty straighforward, for all registers but
@@ -235,9 +205,8 @@ map_regs_to_linux(struct reg *b_reg, struct linux_pt_reg *l_reg)
 	l_reg->ss = b_reg->r_ss;
 }
 
-static void
-map_regs_to_linux_regset(struct reg *b_reg, unsigned long fs_base,
-    unsigned long gs_base, struct linux_pt_regset *l_regset)
+void
+bsd_to_linux_regset(struct reg *b_reg, struct linux_pt_regset *l_regset)
 {
 
 	l_regset->r15 = b_reg->r_r15;
@@ -261,8 +230,8 @@ map_regs_to_linux_regset(struct reg *b_reg, unsigned long fs_base,
 	l_regset->eflags = b_reg->r_rflags;
 	l_regset->rsp = b_reg->r_rsp;
 	l_regset->ss = b_reg->r_ss;
-	l_regset->fs_base = fs_base;
-	l_regset->gs_base = gs_base;
+	l_regset->fs_base = 0;
+	l_regset->gs_base = 0;
 	l_regset->ds = b_reg->r_ds;
 	l_regset->es = b_reg->r_es;
 	l_regset->fs = b_reg->r_fs;
@@ -477,7 +446,6 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	struct linux_pt_regset l_regset;
 	struct iovec iov;
 	struct pcb *pcb;
-	unsigned long fsbase, gsbase;
 	size_t len;
 	int error;
 
@@ -494,10 +462,10 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	pcb = td->td_pcb;
 	if (td == curthread)
 		update_pcb_bases(pcb);
-	fsbase = pcb->pcb_fsbase;
-	gsbase = pcb->pcb_gsbase;
 
-	map_regs_to_linux_regset(&b_reg, fsbase, gsbase, &l_regset);
+	bsd_to_linux_regset(&b_reg, &l_regset);
+	l_regset.fs_base = pcb->pcb_fsbase;
+	l_regset.gs_base = pcb->pcb_gsbase;
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
