@@ -2448,6 +2448,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 				    "XPT_REL_SIMQ");
 				break;
 			}
+			memset(&crs, 0, sizeof(crs));
 			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
 			crs.ccb_h.func_code = XPT_REL_SIMQ;
 			crs.ccb_h.flags = CAM_DEV_QFREEZE;
