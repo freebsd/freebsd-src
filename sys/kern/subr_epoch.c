@@ -457,7 +457,7 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	THREAD_NO_SLEEPING();
 	critical_enter();
 	sched_pin();
-	td->td_pre_epoch_prio = td->td_priority;
+	et->et_old_priority = td->td_priority;
 	er = epoch_currecord(epoch);
 	/* Record-level tracking is reserved for non-preemptible epochs. */
 	MPASS(er->er_td == NULL);
@@ -510,8 +510,8 @@ _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	ck_epoch_end(&er->er_record, &et->et_section);
 	TAILQ_REMOVE(&er->er_tdlist, et, et_link);
 	er->er_gen++;
-	if (__predict_false(td->td_pre_epoch_prio != td->td_priority))
-		epoch_adjust_prio(td, td->td_pre_epoch_prio);
+	if (__predict_false(et->et_old_priority != td->td_priority))
+		epoch_adjust_prio(td, et->et_old_priority);
 	critical_exit();
 #ifdef EPOCH_TRACE
 	epoch_trace_exit(td, epoch, et, file, line);
