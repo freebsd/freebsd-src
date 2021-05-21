@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/ck.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>	/* IFNAMSIZ, struct ifaddr, ifq head, lock.h mutex.h */
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 #include <netinet/ip_fw.h>
@@ -94,9 +96,10 @@ static struct task	dn_task;
 static struct taskqueue	*dn_tq = NULL;
 
 /* global scheduler list */
-struct dn_alg_head	schedlist;
+struct mtx		sched_mtx;
+CK_LIST_HEAD(, dn_alg)	schedlist;
 #ifdef NEW_AQM
-struct dn_aqm_head	aqmlist;	/* list of AQMs */
+CK_LIST_HEAD(, dn_aqm)	aqmlist;	/* list of AQMs */
 #endif
 
 static void
@@ -125,7 +128,9 @@ find_aqm_type(int type, char *name)
 {
 	struct dn_aqm *d;
 
-	SLIST_FOREACH(d, &aqmlist, next) {
+	MPASS(in_epoch(net_epoch_preempt));
+
+	CK_LIST_FOREACH(d, &aqmlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -139,7 +144,9 @@ find_sched_type(int type, char *name)
 {
 	struct dn_alg *d;
 
-	SLIST_FOREACH(d, &schedlist, next) {
+	MPASS(in_epoch(net_epoch_preempt));
+
+	CK_LIST_FOREACH(d, &schedlist, next) {
 		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
@@ -1355,7 +1362,7 @@ get_aqm_parms(struct sockopt *sopt)
 		err = EINVAL;
 		return err;
 	}
-	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	ep = malloc(l, M_DUMMYNET, M_NOWAIT);
 	if(!ep) {
 		err = ENOMEM ;
 		return err;
@@ -1410,7 +1417,7 @@ get_sched_parms(struct sockopt *sopt)
 		err = EINVAL;
 		return err;
 	}
-	ep = malloc(l, M_DUMMYNET, M_WAITOK);
+	ep = malloc(l, M_DUMMYNET, M_NOWAIT);
 	if(!ep) {
 		err = ENOMEM ;
 		return err;
@@ -1454,6 +1461,8 @@ static int
 config_aqm(struct dn_fsk *fs, struct  dn_extra_parms *ep, int busy)
 {
 	int err = 0;
+
+	MPASS(in_epoch(net_epoch_preempt));
 
 	do {
 		/* no configurations */
@@ -1614,7 +1623,7 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 #ifdef NEW_AQM
 	ep = NULL;
 	if (arg != NULL) {
-		ep = malloc(sizeof(*ep), M_TEMP, locked ? M_NOWAIT : M_WAITOK);
+		ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
 		if (ep == NULL)
 			return (NULL);
 		memcpy(ep, arg, sizeof(*ep));
@@ -1726,6 +1735,8 @@ config_sched(struct dn_sch *_nsch, struct dn_id *arg)
 	int new_flags = 0;
 	int pipe_cmd;
 	int err = ENOMEM;
+
+	MPASS(in_epoch(net_epoch_preempt));
 
 	a.sch = _nsch;
 	if (a.sch->oid.len != sizeof(*a.sch)) {
@@ -2070,34 +2081,53 @@ do_config(void *p, int l)
 			DN_BH_WUNLOCK();
 			break;
 		case DN_TEXT:	/* store argument of next block */
-			if (arg != NULL)
-				free(arg, M_TEMP);
-			arg = malloc(o.len, M_TEMP, M_WAITOK);
+			free(arg, M_TEMP);
+			arg = malloc(o.len, M_TEMP, M_NOWAIT);
+			if (arg == NULL) {
+				err = ENOMEM;
+				break;
+			}
 			memcpy(arg, (char *)p + off, o.len);
 			break;
 		case DN_LINK:
 			if (dn == NULL)
-				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
+			if (dn == NULL) {
+				err = ENOMEM;
+				break;
+			}
 			memcpy(&dn->link, (char *)p + off, sizeof(dn->link));
 			err = config_link(&dn->link, arg);
 			break;
 		case DN_PROFILE:
 			if (dn == NULL)
-				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
+			if (dn == NULL) {
+				err = ENOMEM;
+				break;
+			}
 			memcpy(&dn->profile, (char *)p + off,
 			    sizeof(dn->profile));
 			err = config_profile(&dn->profile, arg);
 			break;
 		case DN_SCH:
 			if (dn == NULL)
-				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
+			if (dn == NULL) {
+				err = ENOMEM;
+				break;
+			}
 			memcpy(&dn->sched, (char *)p + off,
 			    sizeof(dn->sched));
 			err = config_sched(&dn->sched, arg);
 			break;
 		case DN_FS:
 			if (dn == NULL)
-				dn = malloc(sizeof(*dn), M_TEMP, M_WAITOK);
+				dn = malloc(sizeof(*dn), M_TEMP, M_NOWAIT);
+			if (dn == NULL) {
+				err = ENOMEM;
+				break;
+			}
 			memcpy(&dn->fs, (char *)p + off, sizeof(dn->fs));
 			err = (NULL == config_fs(&dn->fs, arg, 0));
 			break;
@@ -2230,7 +2260,11 @@ dummynet_get(struct sockopt *sopt, void **compat)
 #endif
 		if (l > sizeof(r)) {
 			/* request larger than default, allocate buffer */
-			cmd = malloc(l,  M_DUMMYNET, M_WAITOK);
+			cmd = malloc(l,  M_DUMMYNET, M_NOWAIT);
+			if (cmd == NULL) {
+				error = ENOMEM;
+				goto done;
+			}
 			error = sooptcopyin(sopt, cmd, l, l);
 			sopt->sopt_valsize = sopt_valsize;
 			if (error)
@@ -2298,7 +2332,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 			break;
 
 		have = need;
-		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
+		start = malloc(have, M_DUMMYNET, M_NOWAIT | M_ZERO);
 	}
 
 	if (start == NULL) {
@@ -2461,6 +2495,7 @@ dn_drain_queue(void)
 static int
 ip_dn_ctl(struct sockopt *sopt)
 {
+	struct epoch_tracker et;
 	void *p = NULL;
 	int error, l;
 
@@ -2474,6 +2509,8 @@ ip_dn_ctl(struct sockopt *sopt)
 		if (error)
 			return (error);
 	}
+
+	NET_EPOCH_ENTER_ET(et);
 
 	switch (sopt->sopt_name) {
 	default :
@@ -2499,7 +2536,11 @@ ip_dn_ctl(struct sockopt *sopt)
 			D("argument len %d invalid", l);
 			break;
 		}
-		p = malloc(l, M_TEMP, M_WAITOK); // XXX can it fail ?
+		p = malloc(l, M_TEMP, M_NOWAIT);
+		if (p == NULL) {
+			error = ENOMEM;
+			break;
+		}
 		error = sooptcopyin(sopt, p, l, l);
 		if (error)
 			break ;
@@ -2509,6 +2550,8 @@ ip_dn_ctl(struct sockopt *sopt)
 
 	if (p != NULL)
 		free(p, M_TEMP);
+
+	NET_EPOCH_EXIT_ET(et);
 
 	return error ;
 }
@@ -2579,13 +2622,16 @@ ip_dn_init(void)
 {
 	if (dn_tasks_started)
 		return;
+
+	mtx_init(&sched_mtx, "dn_sched", NULL, MTX_DEF);
+
 	dn_tasks_started = 1;
 	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
 	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
-	SLIST_INIT(&schedlist);
+	CK_LIST_INIT(&schedlist);
 	callout_init(&dn_timeout, 1);
 	dn_reschedule();
 }
@@ -2645,16 +2691,16 @@ load_dn_sched(struct dn_alg *d)
 	}
 
 	/* Search if scheduler already exists */
-	DN_BH_WLOCK();
-	SLIST_FOREACH(s, &schedlist, next) {
+	mtx_lock(&sched_mtx);
+	CK_LIST_FOREACH(s, &schedlist, next) {
 		if (strcmp(s->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* scheduler already exists */
 		}
 	}
 	if (s == NULL)
-		SLIST_INSERT_HEAD(&schedlist, d, next);
-	DN_BH_WUNLOCK();
+		CK_LIST_INSERT_HEAD(&schedlist, d, next);
+	mtx_unlock(&sched_mtx);
 	D("dn_sched %s %sloaded", d->name, s ? "not ":"");
 	return s ? 1 : 0;
 }
@@ -2667,17 +2713,18 @@ unload_dn_sched(struct dn_alg *s)
 
 	ND("called for %s", s->name);
 
-	DN_BH_WLOCK();
-	SLIST_FOREACH_SAFE(r, &schedlist, next, tmp) {
+	mtx_lock(&sched_mtx);
+	CK_LIST_FOREACH_SAFE(r, &schedlist, next, tmp) {
 		if (strcmp(s->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
-			SLIST_REMOVE(&schedlist, r, dn_alg, next);
+			CK_LIST_REMOVE(r, next);
 		break;
 	}
-	DN_BH_WUNLOCK();
+	mtx_unlock(&sched_mtx);
+	NET_EPOCH_WAIT();
 	D("dn_sched %s %sunloaded", s->name, err ? "not ":"");
 	return err;
 }
@@ -2737,17 +2784,20 @@ load_dn_aqm(struct dn_aqm *d)
 		return 1;
 	}
 
+	mtx_lock(&sched_mtx);
+
 	/* Search if AQM already exists */
-	DN_BH_WLOCK(); /* XXX Global lock? */
-	SLIST_FOREACH(aqm, &aqmlist, next) {
+	CK_LIST_FOREACH(aqm, &aqmlist, next) {
 		if (strcmp(aqm->name, d->name) == 0) {
 			D("%s already loaded", d->name);
 			break; /* AQM already exists */
 		}
 	}
 	if (aqm == NULL)
-		SLIST_INSERT_HEAD(&aqmlist, d, next);
-	DN_BH_WUNLOCK();
+		CK_LIST_INSERT_HEAD(&aqmlist, d, next);
+
+	mtx_unlock(&sched_mtx);
+
 	D("dn_aqm %s %sloaded", d->name, aqm ? "not ":"");
 	return aqm ? 1 : 0;
 }
@@ -2777,21 +2827,24 @@ unload_dn_aqm(struct dn_aqm *aqm)
 	err = 0;
 	ND("called for %s", aqm->name);
 
-	DN_BH_WLOCK();
-
 	/* clean up AQM status and deconfig flowset */
 	dn_ht_scan(V_dn_cfg.fshash, fs_cleanup, &aqm->type);
 
-	SLIST_FOREACH_SAFE(r, &aqmlist, next, tmp) {
+	mtx_lock(&sched_mtx);
+
+	CK_LIST_FOREACH_SAFE(r, &aqmlist, next, tmp) {
 		if (strcmp(aqm->name, r->name) != 0)
 			continue;
 		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0 || r->cfg_ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
-			SLIST_REMOVE(&aqmlist, r, dn_aqm, next);
+			CK_LIST_REMOVE(r, next);
 		break;
 	}
-	DN_BH_WUNLOCK();
+
+	mtx_unlock(&sched_mtx);
+	NET_EPOCH_WAIT();
+
 	D("%s %sunloaded", aqm->name, err ? "not ":"");
 	if (err)
 		D("ref_count=%d, cfg_ref_count=%d", r->ref_count, r->cfg_ref_count);

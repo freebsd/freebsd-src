@@ -817,7 +817,11 @@ ip_dummynet_compat(struct sockopt *sopt)
 		break;
 
 	case IP_DUMMYNET_CONFIGURE:
-		v = malloc(len, M_TEMP, M_WAITOK);
+		v = malloc(len, M_TEMP, M_NOWAIT);
+		if (v == NULL) {
+			error = ENOMEM;
+			break;
+		}
 		error = sooptcopyin(sopt, v, len, len);
 		if (error)
 			break;
