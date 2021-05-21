@@ -3545,6 +3545,7 @@ mprsas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		}
 
 		bzero(&rcap_buf, sizeof(rcap_buf));
+		bzero(&cdai, sizeof(cdai));
 		xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.ccb_h.flags = CAM_DIR_IN;
