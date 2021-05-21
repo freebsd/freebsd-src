@@ -36,6 +36,8 @@
 #ifndef _IP_DN_AQM_H
 #define _IP_DN_AQM_H
 
+#include <sys/ck.h>
+
 /* NOW is the current time in millisecond*/
 #define NOW ((V_dn_cfg.curr_time * tick) / 1000)
 
@@ -107,7 +109,7 @@ typedef int32_t aqm_stime_t;
 
 	int	ref_count; /*Number of queues instances in the system */
 	int	cfg_ref_count;	/*Number of AQM instances in the system */
-	SLIST_ENTRY (dn_aqm) next; /* Next AQM in the list */
+	CK_LIST_ENTRY(dn_aqm) next; /* Next AQM in the list */
 };
 
 /* Helper function to update queue and scheduler statistics.
