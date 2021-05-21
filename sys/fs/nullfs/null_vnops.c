@@ -818,7 +818,7 @@ static int
 null_need_inactive(struct vop_need_inactive_args *ap)
 {
 
-	return (null_want_recycle(ap->a_vp));
+	return (null_want_recycle(ap->a_vp) || vn_need_pageq_flush(ap->a_vp));
 }
 
 /*
