@@ -128,6 +128,8 @@ tasklet_subsystem_uninit(void *arg __unused)
 	struct tasklet_worker *tw;
 	int i;
 
+	taskqgroup_drain_all(qgroup_softirq);
+
 	CPU_FOREACH(i) {
 		if (CPU_ABSENT(i))
 			continue;
