@@ -139,7 +139,7 @@ sdio_set_block_size(struct sdio_func *f, uint16_t bs)
 }
 
 uint8_t
-sdio_readb(struct sdio_func *f, uint32_t addr, int *err)
+sdio_read_1(struct sdio_func *f, uint32_t addr, int *err)
 {
 	int error;
 	uint8_t v;
@@ -157,7 +157,7 @@ sdio_readb(struct sdio_func *f, uint32_t addr, int *err)
 }
 
 void
-sdio_writeb(struct sdio_func *f, uint8_t val, uint32_t addr, int *err)
+sdio_write_1(struct sdio_func *f, uint32_t addr, uint8_t val, int *err)
 {
 	int error;
 
@@ -167,7 +167,7 @@ sdio_writeb(struct sdio_func *f, uint8_t val, uint32_t addr, int *err)
 }
 
 uint32_t
-sdio_readl(struct sdio_func *f, uint32_t addr, int *err)
+sdio_read_4(struct sdio_func *f, uint32_t addr, int *err)
 {
 	int error;
 	uint32_t v;
@@ -186,7 +186,7 @@ sdio_readl(struct sdio_func *f, uint32_t addr, int *err)
 }
 
 void
-sdio_writel(struct sdio_func *f, uint32_t val, uint32_t addr, int *err)
+sdio_write_4(struct sdio_func *f, uint32_t addr, uint32_t val, int *err)
 {
 	int error;
 
@@ -197,7 +197,7 @@ sdio_writel(struct sdio_func *f, uint32_t val, uint32_t addr, int *err)
 }
 
 uint8_t
-sdio_f0_readb(struct sdio_func *f, uint32_t addr, int *err)
+sdio_f0_read_1(struct sdio_func *f, uint32_t addr, int *err)
 {
 	int error;
 	uint8_t v;
@@ -215,7 +215,7 @@ sdio_f0_readb(struct sdio_func *f, uint32_t addr, int *err)
 }
 
 void
-sdio_f0_writeb(struct sdio_func *f, uint8_t val, uint32_t addr, int *err)
+sdio_f0_write_1(struct sdio_func *f, uint32_t addr, uint8_t val, int *err)
 {
 	int error;
 
