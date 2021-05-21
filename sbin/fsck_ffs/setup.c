@@ -298,7 +298,6 @@ setup(char *dev)
 		    (uintmax_t)numdirs * sizeof(struct inoinfo *));
 		goto badsb;
 	}
-	bufinit();
 	if (sblock.fs_flags & FS_DOSOFTDEP)
 		usedsoftdep = 1;
 	else
