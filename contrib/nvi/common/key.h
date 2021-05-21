@@ -22,8 +22,8 @@
     sp->conv.input2int(sp, n, nlen, &(cw), &wlen, &w)
 #define CONST
 #define INTISWIDE(c)        (wctob(c) == EOF)
-#define CHAR_WIDTH(sp, ch)  wcwidth(ch)
-#define CAN_PRINT(sp, ch)   (CHAR_WIDTH(sp, ch) > 0)
+#define XCHAR_WIDTH(sp, ch) wcwidth(ch)
+#define CAN_PRINT(sp, ch)   (XCHAR_WIDTH(sp, ch) > 0)
 #else
 #define FILE2INT5(sp,buf,n,nlen,w,wlen) \
     (w = n, wlen = nlen, 0)
@@ -37,7 +37,7 @@
     (w = n, wlen = nlen, 0)
 #define CONST               const
 #define INTISWIDE(c)        0
-#define CHAR_WIDTH(sp, ch)  1
+#define XCHAR_WIDTH(sp, ch) 1
 #define CAN_PRINT(sp, ch)   isprint(ch)
 #endif
 #define FILE2INT(sp,n,nlen,w,wlen)					    \

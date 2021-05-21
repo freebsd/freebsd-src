@@ -701,7 +701,13 @@ rcv_read(SCR *sp, FREF *frp)
 		/* If we've found more than one, take the most recent. */
 		(void)fstat(fileno(fp), &sb);
 		if (recp == NULL ||
+#if defined HAVE_STRUCT_STAT_ST_MTIMESPEC
+		    timespeccmp(&rec_mtim, &sb.st_mtimespec, <)) {
+#elif defined HAVE_STRUCT_STAT_ST_MTIM
 		    timespeccmp(&rec_mtim, &sb.st_mtim, <)) {
+#else
+		    rec_mtim.tv_sec < sb.st_mtime) {
+#endif
 			p = recp;
 			t = pathp;
 			recp = recpath;
@@ -710,7 +716,13 @@ rcv_read(SCR *sp, FREF *frp)
 				free(p);
 				free(t);
 			}
+#if defined HAVE_STRUCT_STAT_ST_MTIMESPEC
+			rec_mtim = sb.st_mtimespec;
+#elif defined HAVE_STRUCT_STAT_ST_MTIM
 			rec_mtim = sb.st_mtim;
+#else
+			rec_mtim.tv_sec = sb.st_mtime;
+#endif
 			if (sv_fd != -1)
 				(void)close(sv_fd);
 			sv_fd = dup(fileno(fp));
