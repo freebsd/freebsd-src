@@ -55,6 +55,7 @@ struct epoch_tracker {
 	TAILQ_ENTRY(epoch_tracker) et_link;
 	struct thread *et_td;
 	ck_epoch_section_t et_section;
+	uint8_t et_old_priority;
 #ifdef EPOCH_TRACE
 	struct epoch *et_epoch;
 	SLIST_ENTRY(epoch_tracker) et_tlink;
