@@ -1767,18 +1767,13 @@ restart:
 
 #ifdef KERN_TLS
 			if (tls != NULL && tls->mode == TCP_TLS_MODE_SW) {
-				/*
-				 * Note that error is intentionally
-				 * ignored.
-				 *
-				 * Like sendfile(), we rely on the
-				 * completion routine (pru_ready())
-				 * to free the mbufs in the event that
-				 * pru_send() encountered an error and
-				 * did not append them to the sockbuf.
-				 */
-				soref(so);
-				ktls_enqueue(top, so, tls_enq_cnt);
+				if (error != 0) {
+					m_freem(top);
+					top = NULL;
+				} else {
+					soref(so);
+					ktls_enqueue(top, so, tls_enq_cnt);
+				}
 			}
 #endif
 			clen = 0;
