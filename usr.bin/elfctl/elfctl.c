@@ -52,10 +52,10 @@
 __FBSDID("$FreeBSD$");
 
 static bool convert_to_feature_val(char *, uint32_t *);
-static bool edit_file_features(Elf *, int, int, char *);
-static bool get_file_features(Elf *, int, int, uint32_t *, uint64_t *);
+static bool edit_file_features(Elf *, int, int, char *, bool);
+static bool get_file_features(Elf *, int, int, uint32_t *, uint64_t *, bool);
 static void print_features(void);
-static bool print_file_features(Elf *, int, int, char *);
+static bool print_file_features(Elf *, int, int, char *, bool);
 static void usage(void);
 
 struct ControlFeatures {
@@ -83,9 +83,11 @@ static struct option long_opts[] = {
 };
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define SUPPORTED_ENDIAN ELFDATA2LSB
+#define	HOST_ENDIAN	ELFDATA2LSB
+#define	SWAP_ENDIAN	ELFDATA2MSB
 #else
-#define SUPPORTED_ENDIAN ELFDATA2MSB
+#define	HOST_ENDIAN 	ELFDATA2MSB
+#define	SWAP_ENDIAN	ELFDATA2LSB
 #endif
 
 static bool iflag;
@@ -98,7 +100,7 @@ main(int argc, char **argv)
 	Elf_Kind kind;
 	int ch, fd, retval;
 	char *features;
-	bool editfeatures, lflag;
+	bool editfeatures, lflag, endian_swap;
 
 	lflag = 0;
 	editfeatures = false;
@@ -167,24 +169,25 @@ main(int argc, char **argv)
 			retval = 1;
 			goto fail;
 		}
-		/*
-		 * XXX need to support cross-endian operation, but for now
-		 * exit on error rather than misbehaving.
-		 */
-		if (ehdr.e_ident[EI_DATA] != SUPPORTED_ENDIAN) {
-			warnx("file endianness must match host");
+
+		if (ehdr.e_ident[EI_DATA] == HOST_ENDIAN) {
+			endian_swap = false;
+		} else if (ehdr.e_ident[EI_DATA] == SWAP_ENDIAN) {
+			endian_swap = true;
+		} else {
+			warnx("file endianness unknown");
 			retval = 1;
 			goto fail;
 		}
 
 		if (!editfeatures) {
 			if (!print_file_features(elf, ehdr.e_phnum, fd,
-			    argv[0])) {
+			    argv[0], endian_swap)) {
 				retval = 1;
 				goto fail;
 			}
 		} else if (!edit_file_features(elf, ehdr.e_phnum, fd,
-		    features)) {
+		    features, endian_swap)) {
 			retval = 1;
 			goto fail;
 		}
@@ -288,12 +291,13 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 }
 
 static bool
-edit_file_features(Elf *elf, int phcount, int fd, char *val)
+edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap)
 {
 	uint32_t features, prev_features;
 	uint64_t off;
 
-	if (!get_file_features(elf, phcount, fd, &features, &off)) {
+	if (!get_file_features(elf, phcount, fd, &features, &off,
+	    endian_swap)) {
 		warnx("NT_FREEBSD_FEATURE_CTL note not found");
 		return (false);
 	}
@@ -304,6 +308,9 @@ edit_file_features(Elf *elf, int phcount, int fd, char *val)
 	/* Avoid touching file if no change. */
 	if (features == prev_features)
 		return (true);
+
+	if (endian_swap)
+		features = bswap32(features);
 
 	if (lseek(fd, off, SEEK_SET) == -1 ||
 	    write(fd, &features, sizeof(features)) <
@@ -326,12 +333,14 @@ print_features(void)
 }
 
 static bool
-print_file_features(Elf *elf, int phcount, int fd, char *filename)
+print_file_features(Elf *elf, int phcount, int fd, char *filename,
+    bool endian_swap)
 {
 	uint32_t features;
 	unsigned long i;
 
-	if (!get_file_features(elf, phcount, fd, &features, NULL)) {
+	if (!get_file_features(elf, phcount, fd, &features, NULL,
+	    endian_swap)) {
 		return (false);
 	}
 
@@ -350,7 +359,7 @@ print_file_features(Elf *elf, int phcount, int fd, char *filename)
 
 static bool
 get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
-    uint64_t *off)
+    uint64_t *off, bool endian_swap)
 {
 	GElf_Phdr phdr;
 	Elf_Note note;
@@ -384,6 +393,12 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 				return (false);
 			}
 			read_total += sizeof(note);
+
+			if (endian_swap) {
+				note.n_namesz = bswap32(note.n_namesz);
+				note.n_descsz = bswap32(note.n_descsz);
+				note.n_type = bswap32(note.n_type);
+			}
 
 			/*
 			 * XXX: Name and descriptor are 4 byte aligned, however,
@@ -436,6 +451,8 @@ get_file_features(Elf *elf, int phcount, int fd, uint32_t *features,
 				free(name);
 				return (false);
 			}
+			if (endian_swap)
+				*features = bswap32(*features);
 			if (off != NULL)
 				*off = phdr.p_offset + read_total;
 			free(name);
