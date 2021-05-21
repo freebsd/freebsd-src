@@ -757,8 +757,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 	/* Free the RED parameters, they will be recomputed on
 	 * subsequent attach if needed.
 	 */
-	if (fs->w_q_lookup)
-		free(fs->w_q_lookup, M_DUMMYNET);
+	free(fs->w_q_lookup, M_DUMMYNET);
 	fs->w_q_lookup = NULL;
 	qht_delete(fs, flags);
 #ifdef NEW_AQM
@@ -910,10 +909,9 @@ schk_delete_cb(void *obj, void *arg)
 		dn_ht_free(s->siht, 0);
 	} else if (s->siht)
 		si_destroy(s->siht, NULL);
-	if (s->profile) {
-		free(s->profile, M_DUMMYNET);
-		s->profile = NULL;
-	}
+
+	free(s->profile, M_DUMMYNET);
+	s->profile = NULL;
 	s->siht = NULL;
 	if (s->fp->destroy)
 		s->fp->destroy(s);
@@ -1237,10 +1235,8 @@ config_red(struct dn_fsk *fs)
 	}
 
 	/* If the lookup table already exist, free and create it again. */
-	if (fs->w_q_lookup) {
-		free(fs->w_q_lookup, M_DUMMYNET);
-		fs->w_q_lookup = NULL;
-	}
+	free(fs->w_q_lookup, M_DUMMYNET);
+	fs->w_q_lookup = NULL;
 	if (V_dn_cfg.red_lookup_depth == 0) {
 		printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth"
 		    "must be > 0\n");
@@ -1579,10 +1575,9 @@ config_link(struct dn_link *p, struct dn_id *arg)
 		return EINVAL;
 	    }
 	    /* remove profile if exists */
-	    if (s->profile) {
-		free(s->profile, M_DUMMYNET);
-		s->profile = NULL;
-	    }
+	    free(s->profile, M_DUMMYNET);
+	    s->profile = NULL;
+
 	    /* copy all parameters */
 	    s->link.oid = p->oid;
 	    s->link.link_nr = i;
@@ -1706,8 +1701,7 @@ config_fs(struct dn_fs *nfs, struct dn_id *arg, int locked)
 	if (!locked)
 		DN_BH_WUNLOCK();
 #ifdef NEW_AQM
-	if (ep != NULL)
-		free(ep, M_TEMP);
+	free(ep, M_TEMP);
 #endif
 	return fs;
 }
@@ -1906,8 +1900,7 @@ next:
 	err = 0;
 error:
 	DN_BH_WUNLOCK();
-	if (pf)
-		free(pf, M_DUMMYNET);
+	free(pf, M_DUMMYNET);
 	return err;
 }
 
@@ -2135,10 +2128,8 @@ do_config(void *p, int l)
 			break;
 		off += o.len;
 	}
-	if (arg != NULL)
-		free(arg, M_TEMP);
-	if (dn != NULL)
-		free(dn, M_TEMP);
+	free(arg, M_TEMP);
+	free(dn, M_TEMP);
 	return err;
 }
 
@@ -2324,8 +2315,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 			break;
 
 		DN_BH_WUNLOCK();
-		if (start)
-			free(start, M_DUMMYNET);
+		free(start, M_DUMMYNET);
 		start = NULL;
 		if (need > sopt_valsize)
 			break;
@@ -2383,10 +2373,9 @@ dummynet_get(struct sockopt *sopt, void **compat)
 		error = sooptcopyout(sopt, start, buf - start);
 	}
 done:
-	if (cmd && cmd != &r.o)
+	if (cmd != &r.o)
 		free(cmd, M_DUMMYNET);
-	if (start)
-		free(start, M_DUMMYNET);
+	free(start, M_DUMMYNET);
 	return error;
 }
 
@@ -2547,8 +2536,7 @@ ip_dn_ctl(struct sockopt *sopt)
 		break;
 	}
 
-	if (p != NULL)
-		free(p, M_TEMP);
+	free(p, M_TEMP);
 
 	NET_EPOCH_EXIT(et);
 
