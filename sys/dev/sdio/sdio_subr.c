@@ -173,7 +173,7 @@ sdio_readl(struct sdio_func *f, uint32_t addr, int *err)
 	uint32_t v;
 
 	error = SDIO_READ_EXTENDED(device_get_parent(f->dev), f->fn, addr,
-	    sizeof(v), (uint8_t *)&v, false);
+	    sizeof(v), (uint8_t *)&v, true);
 	if (error) {
 		if (err != NULL)
 			*err = error;
@@ -191,7 +191,7 @@ sdio_writel(struct sdio_func *f, uint32_t val, uint32_t addr, int *err)
 	int error;
 
 	error = SDIO_WRITE_EXTENDED(device_get_parent(f->dev), f->fn, addr,
-	    sizeof(val), (uint8_t *)&val, false);
+	    sizeof(val), (uint8_t *)&val, true);
 	if (err != NULL)
 		*err = error;
 }
