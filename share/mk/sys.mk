@@ -210,6 +210,8 @@ ECHODIR		?=	true
 .endif
 .endif
 
+ELFCTL		?=	elfctl
+
 .if ${.MAKEFLAGS:M-N}
 # bmake -N is supposed to skip executing anything but it does not skip
 # exeucting '+' commands.  The '+' feature is used where .MAKE
