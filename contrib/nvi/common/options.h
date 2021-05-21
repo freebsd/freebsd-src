@@ -97,4 +97,8 @@ enum optdisp { NO_DISPLAY, ALL_DISPLAY, CHANGED_DISPLAY, SELECT_DISPLAY };
 /* Options array. */
 extern OPTLIST const optlist[];
 
+#ifdef O_PATH
+#undef O_PATH	/* bits/fcntl-linux.h may have defined O_PATH. */
+#endif
+
 #include "options_def.h"

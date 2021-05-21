@@ -11,10 +11,10 @@
 #define TCSASOFT 0
 #endif
 
-#ifdef __linux__
-#include "/usr/include/db1/db.h"	/* Only include db1. */
+#ifdef DB_H_ABS_PATH
+#include DB_H_ABS_PATH
 #else
-#include <db.h>			/* Only include db1. */
+#include <db.h>
 #endif
 #include <regex.h>		/* May refer to the bundled regex. */
 

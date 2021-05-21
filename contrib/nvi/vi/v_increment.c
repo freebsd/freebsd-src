@@ -198,7 +198,7 @@ nonum:			msgq(sp, M_ERR, "181|Cursor not in a number");
 		/* If we cross 0, signed numbers lose their sign. */
 		if (lval == 0 && ntype == fmt[SDEC])
 			ntype = fmt[DEC];
-		nlen = SPRINTF(nbuf, sizeof(nbuf), ntype, lval);
+		nlen = SPRINTF(nbuf, SIZE(nbuf), ntype, lval);
 	} else {
 		if ((nret = nget_uslong(&ulval, t, NULL, base)) != NUM_OK)
 			goto err;
@@ -220,7 +220,7 @@ nonum:			msgq(sp, M_ERR, "181|Cursor not in a number");
 		if (base == 16)
 			wlen -= 2;
 
-		nlen = SPRINTF(nbuf, sizeof(nbuf), ntype, wlen, ulval);
+		nlen = SPRINTF(nbuf, SIZE(nbuf), ntype, wlen, ulval);
 	}
 
 	/* Build the new line. */

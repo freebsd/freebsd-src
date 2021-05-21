@@ -427,7 +427,7 @@ display:
 				FLUSH;
 
 			/* don't display half a wide character */
-			if (is_partial && CHAR_WIDTH(sp, ch) > 1) {
+			if (is_partial && XCHAR_WIDTH(sp, ch) > 1) {
 				*cbp++ = ' ';
 				break;
 			}
