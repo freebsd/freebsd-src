@@ -4957,6 +4957,7 @@ irqx:
 	/*
 	****************************************************
 	*/
+	memset(&csa, 0, sizeof(csa));
 	xpt_setup_ccb(&csa.ccb_h, acb->ppath, /*priority*/5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_FOUND_DEVICE|AC_LOST_DEVICE;
