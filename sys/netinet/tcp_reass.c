@@ -973,7 +973,6 @@ new_entry:
 		} else {
 			sbappendstream_locked(&so->so_rcv, m, 0);
 		}
-		SOCKBUF_UNLOCK(&so->so_rcv);
 		tp->t_flags |= TF_WAKESOR;
 		return (flags);
 	}
@@ -1122,7 +1121,6 @@ present:
 #ifdef TCP_REASS_LOGGING
 	tcp_reass_log_dump(tp);
 #endif
-	SOCKBUF_UNLOCK(&so->so_rcv);
 	tp->t_flags |= TF_WAKESOR;
 	return (flags);
 }

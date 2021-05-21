@@ -1505,18 +1505,17 @@ tcp_handle_wakeup(struct tcpcb *tp, struct socket *so)
 	 * the TIME_WAIT state before coming here, we need
 	 * to check if the socket is still connected.
 	 */
-	if ((so->so_state & SS_ISCONNECTED) == 0)
+	if (tp == NULL) {
 		return;
+	}
+	if (so == NULL) {
+		return;
+	}
 	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (tp->t_flags & TF_WAKESOR) {
 		tp->t_flags &= ~TF_WAKESOR;
-		SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
-		sorwakeup(so);
-	}
-	if (tp->t_flags & TF_WAKESOW) {
-		tp->t_flags &= ~TF_WAKESOW;
-		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
-		sowwakeup(so);
+		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+		sorwakeup_locked(so);
 	}
 }
 
@@ -1894,7 +1893,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				else if (!tcp_timer_active(tp, TT_PERSIST))
 					tcp_timer_activate(tp, TT_REXMT,
 						      tp->t_rxtcur);
-				tp->t_flags |= TF_WAKESOW;
+				sowwakeup(so);
 				if (sbavail(&so->so_snd))
 					(void) tp->t_fb->tfb_tcp_output(tp);
 				goto check_delack;
@@ -1959,8 +1958,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m, 0);
 			}
-			SOCKBUF_UNLOCK(&so->so_rcv);
-			tp->t_flags |= TF_WAKESOR;
+			/* NB: sorwakeup_locked() does an implicit unlock. */
+			sorwakeup_locked(so);
 			if (DELAY_ACK(tp, tlen)) {
 				tp->t_flags |= TF_DELACK;
 			} else {
@@ -2498,9 +2497,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If segment contains data or ACK, will call tcp_reass()
 		 * later; if not, do so now to pass queued data to user.
 		 */
-		if (tlen == 0 && (thflags & TH_FIN) == 0)
+		if (tlen == 0 && (thflags & TH_FIN) == 0) {
 			(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 			    (struct mbuf *)0);
+			tcp_handle_wakeup(tp, so);
+		}
 		tp->snd_wl1 = th->th_seq - 1;
 		/* FALLTHROUGH */
 
@@ -2952,8 +2953,8 @@ process_ACK:
 				tp->snd_wnd = 0;
 			ourfinisacked = 0;
 		}
-		SOCKBUF_UNLOCK(&so->so_snd);
-		tp->t_flags |= TF_WAKESOW;
+		/* NB: sowwakeup_locked() does an implicit unlock. */
+		sowwakeup_locked(so);
 		m_freem(mfree);
 		/* Detect una wraparound. */
 		if (!IN_RECOVERY(tp->t_flags) &&
@@ -3174,7 +3175,6 @@ dodata:							/* XXX */
 				m_freem(m);
 			else
 				sbappendstream_locked(&so->so_rcv, m, 0);
-			SOCKBUF_UNLOCK(&so->so_rcv);
 			tp->t_flags |= TF_WAKESOR;
 		} else {
 			/*
@@ -3221,6 +3221,7 @@ dodata:							/* XXX */
 				    save_start + tlen);
 			}
 		}
+		tcp_handle_wakeup(tp, so);
 #if 0
 		/*
 		 * Note the amount of data that peer has sent into
@@ -3244,9 +3245,8 @@ dodata:							/* XXX */
 	 */
 	if (thflags & TH_FIN) {
 		if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
-			socantrcvmore(so);
 			/* The socket upcall is handled by socantrcvmore. */
-			tp->t_flags &= ~TF_WAKESOR;
+			socantrcvmore(so);
 			/*
 			 * If connection is half-synchronized
 			 * (ie NEEDSYN flag on) then delay ACK,
@@ -3310,7 +3310,6 @@ check_delack:
 		tp->t_flags &= ~TF_DELACK;
 		tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
 	}
-	tcp_handle_wakeup(tp, so);
 	INP_WUNLOCK(tp->t_inpcb);
 	return;
 
@@ -3344,7 +3343,6 @@ dropafterack:
 	TCP_PROBE3(debug__input, tp, th, m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tp->t_fb->tfb_tcp_output(tp);
-	tcp_handle_wakeup(tp, so);
 	INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
 	return;
@@ -3352,7 +3350,6 @@ dropafterack:
 dropwithreset:
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
-		tcp_handle_wakeup(tp, so);
 		INP_WUNLOCK(tp->t_inpcb);
 	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
@@ -3369,7 +3366,6 @@ drop:
 #endif
 	TCP_PROBE3(debug__input, tp, th, m);
 	if (tp != NULL) {
-		tcp_handle_wakeup(tp, so);
 		INP_WUNLOCK(tp->t_inpcb);
 	}
 	m_freem(m);
