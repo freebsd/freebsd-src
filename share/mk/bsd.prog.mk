@@ -232,7 +232,12 @@ MAN1=	${MAN}
 .if defined(_SKIP_BUILD)
 all:
 .else
+.if target(afterbuild)
+.ORDER: ${PROG} afterbuild
+all: ${PROG} ${SCRIPTS} afterbuild
+.else
 all: ${PROG} ${SCRIPTS}
+.endif
 .if ${MK_MAN} != "no"
 all: all-man
 .endif
