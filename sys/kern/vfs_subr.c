@@ -5184,14 +5184,10 @@ int
 vn_need_pageq_flush(struct vnode *vp)
 {
 	struct vm_object *obj;
-	int need;
 
-	MPASS(mtx_owned(VI_MTX(vp)));
-	need = 0;
-	if ((obj = vp->v_object) != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
-	    vm_object_mightbedirty(obj))
-		need = 1;
-	return (need);
+	obj = vp->v_object;
+	return (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0 &&
+	    vm_object_mightbedirty(obj));
 }
 
 /*
