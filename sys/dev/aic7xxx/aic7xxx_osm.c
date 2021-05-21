@@ -215,6 +215,7 @@ ahc_attach(struct ahc_softc *ahc)
 		goto fail;
 	}
 		
+	memset(&csa, 0, sizeof(csa));
 	xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;

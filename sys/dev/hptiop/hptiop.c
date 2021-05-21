@@ -2046,6 +2046,7 @@ static int hptiop_attach(device_t dev)
 		goto free_hba_path;
 	}
 
+	memset(&ccb, 0, sizeof(ccb));
 	xpt_setup_ccb(&ccb.ccb_h, hba->path, /*priority*/5);
 	ccb.ccb_h.func_code = XPT_SASYNC_CB;
 	ccb.event_enable = (AC_FOUND_DEVICE | AC_LOST_DEVICE);
@@ -2797,6 +2798,7 @@ static void hptiop_release_resource(struct hpt_iop_hba *hba)
 	if (hba->path) {
 		struct ccb_setasync ccb;
 
+		memset(&ccb, 0, sizeof(ccb));
 		xpt_setup_ccb(&ccb.ccb_h, hba->path, /*priority*/5);
 		ccb.ccb_h.func_code = XPT_SASYNC_CB;
 		ccb.event_enable = 0;
