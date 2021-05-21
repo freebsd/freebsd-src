@@ -261,7 +261,14 @@ cscope_add(SCR *sp, EXCMD *cmdp, CHAR_T *dname)
 	csc->dname = csc->buf;
 	csc->dlen = len;
 	memcpy(csc->dname, np, len);
+#if defined HAVE_STRUCT_STAT_ST_MTIMESPEC
+	csc->mtim = sb.st_mtimespec;
+#elif defined HAVE_STRUCT_STAT_ST_MTIM
 	csc->mtim = sb.st_mtim;
+#else
+	csc->mtim.tv_sec = sb.st_mtime;
+	csc->mtim.tv_nsec = 0;
+#endif
 
 	/* Get the search paths for the cscope. */
 	if (get_paths(sp, csc))
@@ -812,8 +819,15 @@ csc_file(SCR *sp, CSC *csc, char *name, char **dirp, size_t *dlenp, int *isolder
 			free(buf);
 			*dirp = *pp;
 			*dlenp = strlen(*pp);
+#if defined HAVE_STRUCT_STAT_ST_MTIMESPEC
+			*isolderp = timespeccmp(
+			    &sb.st_mtimespec, &csc->mtim, <);
+#elif defined HAVE_STRUCT_STAT_ST_MTIM
 			*isolderp = timespeccmp(
 			    &sb.st_mtim, &csc->mtim, <);
+#else
+			*isolderp = sb.st_mtime < csc->mtim.tv_sec;
+#endif
 			return;
 		}
 		free(buf);
