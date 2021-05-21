@@ -35,6 +35,8 @@
 #ifndef _DN_SCHED_H
 #define _DN_SCHED_H
 
+#include <sys/ck.h>
+
 #define	DN_MULTIQUEUE	0x01
 /*
  * Descriptor for a scheduling algorithm.
@@ -141,7 +143,7 @@ struct dn_alg {
 
 	/* run-time fields */
 	int ref_count;      /* XXX number of instances in the system */
-	SLIST_ENTRY(dn_alg) next; /* Next scheduler in the list */
+	CK_LIST_ENTRY(dn_alg) next; /* Next scheduler in the list */
 };
 
 /* MSVC does not support initializers so we need this ugly macro */
