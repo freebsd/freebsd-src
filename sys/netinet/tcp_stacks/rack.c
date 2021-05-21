@@ -9857,8 +9857,8 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (acked_amount && sbavail(&so->so_snd))
 		rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
 	rack_log_wakeup(tp,rack, &so->so_snd, acked, 2);
-	SOCKBUF_UNLOCK(&so->so_snd);
-	tp->t_flags |= TF_WAKESOW;
+	/* NB: sowwakeup_locked() does an implicit unlock. */
+	sowwakeup_locked(so);
 	m_freem(mfree);
 	if (SEQ_GT(tp->snd_una, tp->snd_recover))
 		tp->snd_recover = tp->snd_una;
@@ -10208,7 +10208,6 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					sbappendstream_locked(&so->so_rcv, m, 0);
 
 			rack_log_wakeup(tp,rack, &so->so_rcv, tlen, 1);
-			SOCKBUF_UNLOCK(&so->so_rcv);
 			tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 			if (so->so_rcv.sb_shlim && appended != mcnt)
@@ -10265,6 +10264,7 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    save_start + tlen);
 			}
 		}
+		tcp_handle_wakeup(tp, so);
 	} else {
 		m_freem(m);
 		thflags &= ~TH_FIN;
@@ -10276,9 +10276,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if (thflags & TH_FIN) {
 		if (TCPS_HAVERCVDFIN(tp->t_state) == 0) {
-			socantrcvmore(so);
 			/* The socket upcall is handled by socantrcvmore. */
-			tp->t_flags &= ~TF_WAKESOR;
+			socantrcvmore(so);
 			/*
 			 * If connection is half-synchronized (ie NEEDSYN
 			 * flag on) then delay ACK, so it may be piggybacked
@@ -10471,7 +10470,6 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_calc_rwin(so, tp);
 	}
 	rack_log_wakeup(tp,rack, &so->so_rcv, tlen, 1);
-	SOCKBUF_UNLOCK(&so->so_rcv);
 	tp->t_flags |= TF_WAKESOR;
 #ifdef NETFLIX_SB_LIMITS
 	if (so->so_rcv.sb_shlim && mcnt != appended)
@@ -10631,8 +10629,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
 		/* Wake up the socket if we have room to write more */
 		rack_log_wakeup(tp,rack, &so->so_snd, acked, 2);
-		SOCKBUF_UNLOCK(&so->so_snd);
-		tp->t_flags |= TF_WAKESOW;
+		sowwakeup(so);
 		m_freem(mfree);
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
@@ -11070,9 +11067,11 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * If segment contains data or ACK, will call tcp_reass() later; if
 	 * not, do so now to pass queued data to user.
 	 */
-	if (tlen == 0 && (thflags & TH_FIN) == 0)
+	if (tlen == 0 && (thflags & TH_FIN) == 0) {
 		(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 		    (struct mbuf *)0);
+		tcp_handle_wakeup(tp, so);
+	}
 	tp->snd_wl1 = th->th_seq - 1;
 	/* For syn-recv we need to possibly update the rtt */
 	if ((to->to_flags & TOF_TS) != 0 && to->to_tsecr) {
@@ -13155,8 +13154,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
 			/* Wake up the socket if we have room to write more */
 			rack_log_wakeup(tp,rack, &so->so_snd, acked, 2);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			tp->t_flags |= TF_WAKESOW;
+			sowwakeup(so);
 			m_freem(mfree);
 		}
 		/* update progress */
