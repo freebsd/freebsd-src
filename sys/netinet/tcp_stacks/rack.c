@@ -10629,7 +10629,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
 		/* Wake up the socket if we have room to write more */
 		rack_log_wakeup(tp,rack, &so->so_snd, acked, 2);
-		sowwakeup(so);
+		sowwakeup_locked(so);
 		m_freem(mfree);
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
@@ -13154,7 +13154,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 			rack_adjust_sendmap(rack, &so->so_snd, tp->snd_una);
 			/* Wake up the socket if we have room to write more */
 			rack_log_wakeup(tp,rack, &so->so_snd, acked, 2);
-			sowwakeup(so);
+			sowwakeup_locked(so);
 			m_freem(mfree);
 		}
 		/* update progress */
