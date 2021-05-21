@@ -1154,7 +1154,7 @@ send:
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip6 + ipoptlen + sizeof(struct ip6_hdr));
+			udp = (struct udphdr *)((caddr_t)ip6 + sizeof(struct ip6_hdr));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip6_hdr);
@@ -1172,7 +1172,7 @@ send:
 		ipov = (struct ipovly *)ip;
 #endif
 		if (tp->t_port) {
-			udp = (struct udphdr *)((caddr_t)ip + ipoptlen + sizeof(struct ip));
+			udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
 			udp->uh_sport = htons(V_tcp_udp_tunneling_port);
 			udp->uh_dport = tp->t_port;
 			ulen = hdrlen + len - sizeof(struct ip);
