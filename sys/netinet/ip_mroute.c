@@ -126,9 +126,6 @@ __FBSDID("$FreeBSD$");
 
 #define		VIFI_INVALID	((vifi_t) -1)
 
-VNET_DEFINE_STATIC(uint32_t, last_tv_sec); /* last time we processed this */
-#define	V_last_tv_sec	VNET(last_tv_sec)
-
 static MALLOC_DEFINE(M_MRTABLE, "mroutetbl", "multicast forwarding cache");
 
 /*
@@ -310,7 +307,6 @@ static int	add_bw_upcall(struct bw_upcall *);
 static int	add_mfc(struct mfcctl2 *);
 static int	add_vif(struct vifctl *);
 static void	bw_meter_prepare_upcall(struct bw_meter *, struct timeval *);
-static void	bw_meter_process(void);
 static void	bw_meter_geq_receive_packet(struct bw_meter *, int,
 		    struct timeval *);
 static void	bw_upcalls_send(void);
@@ -338,13 +334,11 @@ static int	pim_register_send_rp(struct ip *, struct vif *,
 		    struct mbuf *, struct mfc *);
 static int	pim_register_send_upcall(struct ip *, struct vif *,
 		    struct mbuf *, struct mfc *);
-static void	schedule_bw_meter(struct bw_meter *, struct timeval *);
 static void	send_packet(struct vif *, struct mbuf *);
 static int	set_api_config(uint32_t *);
 static int	set_assert(int);
 static int	socket_send(struct socket *, struct mbuf *,
 		    struct sockaddr_in *);
-static void	unschedule_bw_meter(struct bw_meter *);
 
 /*
  * Kernel multicast forwarding API capabilities and setup.
