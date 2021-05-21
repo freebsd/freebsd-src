@@ -6,6 +6,7 @@ TESTSDIR=	${TESTSBASE}/sys/netpfil/common
 
 
 ATF_TESTS_SH+=	\
+		dummynet \
 		pass_block \
 		nat \
 		tos \
