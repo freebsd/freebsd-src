@@ -870,7 +870,7 @@ epoch_assert_nocpu(epoch_t epoch, struct thread *td)
 	}
 }
 #else
-#define	epoch_assert_nocpu(e, td)
+#define	epoch_assert_nocpu(e, td) do {} while (0)
 #endif
 
 int
