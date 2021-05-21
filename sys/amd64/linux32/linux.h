@@ -630,4 +630,30 @@ struct linux_robust_list_head {
 	l_uintptr_t			pending_list;
 };
 
+/* This corresponds to 'struct user_regs_struct32' in Linux. */
+struct linux_pt_regset32 {
+	l_uint ebx;
+	l_uint ecx;
+	l_uint edx;
+	l_uint esi;
+	l_uint edi;
+	l_uint ebp;
+	l_uint eax;
+	l_uint ds;
+	l_uint es;
+	l_uint fs;
+	l_uint gs;
+	l_uint orig_eax;
+	l_uint eip;
+	l_uint cs;
+	l_uint eflags;
+	l_uint esp;
+	l_uint ss;
+};
+
+struct reg32;
+
+void	bsd_to_linux_regset32(struct reg32 *b_reg,
+	    struct linux_pt_regset32 *l_regset);
+
 #endif /* !_AMD64_LINUX_H_ */
