@@ -1257,7 +1257,7 @@ ktrsetchildren(struct thread *td, struct proc *top, int ops, int facs,
 static void
 ktr_writerequest(struct thread *td, struct ktr_request *req)
 {
-	struct ktr_io_params *kiop;
+	struct ktr_io_params *kiop, *kiop1;
 	struct ktr_header *kth;
 	struct vnode *vp;
 	struct proc *p;
@@ -1272,14 +1272,10 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	p = td->td_proc;
 
 	/*
-	 * We hold the vnode and credential for use in I/O in case ktrace is
+	 * We reference the kiop for use in I/O in case ktrace is
 	 * disabled on the process as we write out the request.
-	 *
-	 * XXXRW: This is not ideal: we could end up performing a write after
-	 * the vnode has been closed.
 	 */
 	mtx_lock(&ktrace_mtx);
-
 	kiop = p->p_ktrioparms;
 
 	/*
@@ -1291,13 +1287,12 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		return;
 	}
 
+	ktr_io_params_ref(kiop);
 	vp = kiop->vp;
 	cred = kiop->cr;
 	lim = kiop->lim;
 
-	vrefact(vp);
 	KASSERT(cred != NULL, ("ktr_writerequest: cred == NULL"));
-	crhold(cred);
 	mtx_unlock(&ktrace_mtx);
 
 	kth = &req->ktr_header;
@@ -1339,9 +1334,11 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		error = VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, cred);
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
-	crfree(cred);
 	if (error == 0) {
-		vrele(vp);
+		mtx_lock(&ktrace_mtx);
+		kiop = ktr_io_params_rele(kiop);
+		mtx_unlock(&ktrace_mtx);
+		ktr_io_params_free(kiop);
 		return;
 	}
 
@@ -1354,12 +1351,15 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	    "ktrace write failed, errno %d, tracing stopped for pid %d\n",
 	    error, p->p_pid);
 
+	kiop1 = NULL;
 	PROC_LOCK(p);
 	mtx_lock(&ktrace_mtx);
 	if (p->p_ktrioparms != NULL && p->p_ktrioparms->vp == vp)
-		kiop = ktr_freeproc(p);
+		kiop1 = ktr_freeproc(p);
+	kiop = ktr_io_params_rele(kiop);
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
+	ktr_io_params_free(kiop1);
 	ktr_io_params_free(kiop);
 	vrele(vp);
 }
