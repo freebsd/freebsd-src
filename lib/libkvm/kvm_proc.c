@@ -218,7 +218,7 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 		/* kp->ki_kstack = proc.p_thread.td_kstack; XXXKSE */
 		kp->ki_args = proc.p_args;
 		kp->ki_numthreads = proc.p_numthreads;
-		kp->ki_tracep = proc.p_tracevp;
+		kp->ki_tracep = NULL;	/* XXXKIB do not expose ktr_io_params */
 		kp->ki_textvp = proc.p_textvp;
 		kp->ki_fd = proc.p_fd;
 		kp->ki_pd = proc.p_pd;
