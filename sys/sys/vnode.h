@@ -828,7 +828,6 @@ int	vfs_write_suspend(struct mount *mp, int flags);
 int	vfs_write_suspend_umnt(struct mount *mp);
 struct vnode *vnlru_alloc_marker(void);
 void	vnlru_free_marker(struct vnode *);
-void	vnlru_free(int, struct vfsops *);
 void	vnlru_free_vfsops(int, struct vfsops *, struct vnode *);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfdatasync_buf(struct vop_fdatasync_args *);
