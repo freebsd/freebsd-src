@@ -2372,11 +2372,13 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	if ((uoff_t)uio->uio_offset + uio->uio_resid < lim)
 		return (0);
 
+#ifdef KTRACE
 	if (!ktr_write || ktr_filesize_limit_signal) {
 		PROC_LOCK(td->td_proc);
 		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 	}
+#endif
 	return (EFBIG);
 }
 
