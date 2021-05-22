@@ -2368,7 +2368,7 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 		return (0);
 	ktr_write = (td->td_pflags & TDP_INKTRACE) != 0;
 	lim = ktr_write ? td->td_ktr_io_lim : lim_cur(td, RLIMIT_FSIZE);
-	if ((uoff_t)uio->uio_offset + uio->uio_resid < lim)
+	if ((uoff_t)uio->uio_offset + uio->uio_resid <= lim)
 		return (0);
 
 	if (!ktr_write || ktr_filesize_limit_signal) {
