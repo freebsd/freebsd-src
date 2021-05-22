@@ -390,7 +390,9 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	static const char fexecv_proc_title[] = "(fexecv)";
 
 	imgp = &image_params;
+#ifdef KTRACE
 	kiop = NULL;
+#endif
 
 	/*
 	 * Lock the process and set the P_INEXEC flag to indicate that
@@ -780,8 +782,6 @@ interpret:
 		 * we do not regain any tracing during a possible block.
 		 */
 		setsugid(p);
-		kiop = NULL;
-
 #ifdef KTRACE
 		kiop = ktrprocexec(p);
 #endif
@@ -938,7 +938,9 @@ exec_fail:
 	 */
 	if (oldtextvp != NULL)
 		vrele(oldtextvp);
+#ifdef KTRACE
 	ktr_io_params_free(kiop);
+#endif
 	pargs_drop(oldargs);
 	pargs_drop(newargs);
 	if (oldsigacts != NULL)
