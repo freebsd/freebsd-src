@@ -240,9 +240,11 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	 */
 	nowp = malloc(sizeof (struct nfsclowner),
 	    M_NFSCLOWNER, M_WAITOK);
-	if (nfhp != NULL)
+	if (nfhp != NULL) {
 	    nop = malloc(sizeof (struct nfsclopen) +
 		fhlen - 1, M_NFSCLOPEN, M_WAITOK);
+	    nop->nfso_hash.le_prev = NULL;
+	}
 	ret = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 	if (ret != 0) {
 		free(nowp, M_NFSCLOWNER);
@@ -412,6 +414,8 @@ nfscl_newopen(struct nfsclclient *clp, struct nfscldeleg *dp,
 				dp->nfsdl_timestamp = NFSD_MONOSEC + 120;
 				nfsstatsv1.cllocalopens++;
 			} else {
+				LIST_INSERT_HEAD(NFSCLOPENHASH(clp, fhp, fhlen),
+				    nop, nfso_hash);
 				nfsstatsv1.clopens++;
 			}
 			LIST_INSERT_HEAD(&owp->nfsow_open, nop, nfso_list);
@@ -837,6 +841,8 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		LIST_INIT(&clp->nfsc_devinfo);
 		for (i = 0; i < NFSCLDELEGHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_deleghash[i]);
+		for (i = 0; i < NFSCLOPENHASHSIZE; i++)
+			LIST_INIT(&clp->nfsc_openhash[i]);
 		for (i = 0; i < NFSCLLAYOUTHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_layouthash[i]);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
@@ -1475,6 +1481,8 @@ nfscl_freeopen(struct nfsclopen *op, int local)
 {
 
 	LIST_REMOVE(op, nfso_list);
+	if (op->nfso_hash.le_prev != NULL)
+		LIST_REMOVE(op, nfso_hash);
 	nfscl_freealllocks(&op->nfso_lock, local);
 	free(op, M_NFSCLOPEN);
 	if (local)
@@ -1706,6 +1714,8 @@ nfscl_expireclient(struct nfsclclient *clp, struct nfsmount *nmp,
 			    LIST_REMOVE(op, nfso_list);
 			    op->nfso_own = towp;
 			    LIST_INSERT_HEAD(&towp->nfsow_open, op, nfso_list);
+			    LIST_INSERT_HEAD(NFSCLOPENHASH(clp, op->nfso_fh,
+				op->nfso_fhlen), op, nfso_hash);
 			    nfsstatsv1.cllocalopens--;
 			    nfsstatsv1.clopens++;
 			}
@@ -1714,6 +1724,8 @@ nfscl_expireclient(struct nfsclclient *clp, struct nfsmount *nmp,
 			LIST_REMOVE(owp, nfsow_list);
 			owp->nfsow_clp = clp;
 			LIST_INSERT_HEAD(&clp->nfsc_owner, owp, nfsow_list);
+			LIST_INSERT_HEAD(NFSCLOPENHASH(clp, op->nfso_fh,
+			    op->nfso_fhlen), op, nfso_hash);
 			nfsstatsv1.cllocalopenowners--;
 			nfsstatsv1.clopenowners++;
 			nfsstatsv1.cllocalopens--;
@@ -4198,6 +4210,7 @@ nfscl_moveopen(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	np = VTONFS(vp);
 	nop = malloc(sizeof (struct nfsclopen) +
 	    lop->nfso_fhlen - 1, M_NFSCLOPEN, M_WAITOK);
+	nop->nfso_hash.le_prev = NULL;
 	newone = 0;
 	nfscl_newopen(clp, NULL, &owp, NULL, &op, &nop, owp->nfsow_owner,
 	    lop->nfso_fh, lop->nfso_fhlen, cred, &newone);
