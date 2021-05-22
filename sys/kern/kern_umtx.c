@@ -272,7 +272,6 @@ static void umtx_shm_init(void);
 static void umtxq_sysinit(void *);
 static void umtxq_hash(struct umtx_key *key);
 static struct umtxq_chain *umtxq_getchain(struct umtx_key *key);
-static void umtxq_lock(struct umtx_key *key);
 static void umtxq_unlock(struct umtx_key *key);
 static void umtxq_busy(struct umtx_key *key);
 static void umtxq_unbusy(struct umtx_key *key);
@@ -501,15 +500,16 @@ umtxq_getchain(struct umtx_key *key)
 
 /*
  * Lock a chain.
+ *
+ * The code is a macro so that file/line information is taken from the caller.
  */
-static inline void
-umtxq_lock(struct umtx_key *key)
-{
-	struct umtxq_chain *uc;
-
-	uc = umtxq_getchain(key);
-	mtx_lock(&uc->uc_lock);
-}
+#define umtxq_lock(key) do {		\
+	struct umtx_key *_key = (key);	\
+	struct umtxq_chain *_uc;	\
+					\
+	_uc = umtxq_getchain(_key);	\
+	mtx_lock(&_uc->uc_lock);	\
+} while (0)
 
 /*
  * Unlock a chain.
