@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2021
+.Dd May 20, 2021
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -130,12 +130,6 @@ This can be used to send TLS records with a type other than
 application data (for example, handshake messages) or to send
 application data records with specific contents (for example, empty
 fragments).
-.Pp
-TLS transmit requires the use of unmapped mbufs.
-Unmapped mbufs are not enabled by default, but can be enabled by
-setting the
-.Va kern.ipc.mb_use_ext_pgs
-sysctl node to 1.
 .Pp
 The current TLS transmit mode of a socket can be queried via the
 .Dv TCP_TXTLS_MODE
