@@ -42,6 +42,7 @@ LIST_HEAD(nfsclhead, nfsclclient);
 LIST_HEAD(nfsclownerhead, nfsclowner);
 TAILQ_HEAD(nfscldeleghead, nfscldeleg);
 LIST_HEAD(nfscldeleghash, nfscldeleg);
+LIST_HEAD(nfsclopenhash, nfsclopen);
 TAILQ_HEAD(nfscllayouthead, nfscllayout);
 LIST_HEAD(nfscllayouthash, nfscllayout);
 LIST_HEAD(nfsclflayouthead, nfsclflayout);
@@ -50,6 +51,10 @@ LIST_HEAD(nfsclrecalllayouthead, nfsclrecalllayout);
 #define	NFSCLDELEGHASHSIZE	256
 #define	NFSCLDELEGHASH(c, f, l)							\
 	(&((c)->nfsc_deleghash[ncl_hash((f), (l)) % NFSCLDELEGHASHSIZE]))
+#define	NFSCLOPENHASHSIZE	256
+#define	NFSCLOPENHASHFUNC(f, l) (ncl_hash((f), (l)) % NFSCLOPENHASHSIZE)
+#define	NFSCLOPENHASH(c, f, l)							\
+	(&((c)->nfsc_openhash[NFSCLOPENHASHFUNC((f), (l))]))
 #define	NFSCLLAYOUTHASHSIZE	256
 #define	NFSCLLAYOUTHASH(c, f, l)						\
 	(&((c)->nfsc_layouthash[ncl_hash((f), (l)) % NFSCLLAYOUTHASHSIZE]))
@@ -104,6 +109,7 @@ struct nfsclclient {
 	struct nfsclownerhead	nfsc_owner;
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
+	struct nfsclopenhash	nfsc_openhash[NFSCLOPENHASHSIZE];
 	struct nfscllayouthead	nfsc_layout;
 	struct nfscllayouthash	nfsc_layouthash[NFSCLLAYOUTHASHSIZE];
 	struct nfscldevinfohead	nfsc_devinfo;
@@ -183,6 +189,7 @@ struct nfscldeleg {
  */
 struct nfsclopen {
 	LIST_ENTRY(nfsclopen)	nfso_list;
+	LIST_ENTRY(nfsclopen)	nfso_hash;
 	struct nfscllockownerhead nfso_lock;
 	nfsv4stateid_t		nfso_stateid;
 	struct nfsclowner	*nfso_own;
