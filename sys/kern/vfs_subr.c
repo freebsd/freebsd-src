@@ -1349,33 +1349,6 @@ vnlru_free_vfsops(int count, struct vfsops *mnt_op, struct vnode *mvp)
 	mtx_unlock(&vnode_list_mtx);
 }
 
-/*
- * Temporary binary compat, don't use. Call vnlru_free_vfsops instead.
- */
-void
-vnlru_free(int count, struct vfsops *mnt_op)
-{
-	struct vnode *mvp;
-
-	if (count == 0)
-		return;
-	mtx_lock(&vnode_list_mtx);
-	mvp = vnode_list_free_marker;
-	if (vnlru_free_impl(count, mnt_op, mvp) == 0) {
-		/*
-		 * It is possible the marker was moved over eligible vnodes by
-		 * callers which filtered by different ops. If so, start from
-		 * scratch.
-		 */
-		if (vnlru_read_freevnodes() > 0) {
-			TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
-			TAILQ_INSERT_HEAD(&vnode_list, mvp, v_vnodelist);
-		}
-		vnlru_free_impl(count, mnt_op, mvp);
-	}
-	mtx_unlock(&vnode_list_mtx);
-}
-
 struct vnode *
 vnlru_alloc_marker(void)
 {
