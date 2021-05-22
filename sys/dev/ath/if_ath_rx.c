@@ -463,6 +463,7 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			    sc->sc_syncbeacon &&
 			    (!sc->sc_swbmiss) &&
 			    ni == vap->iv_bss &&
+			    ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) &&
 			    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
 				DPRINTF(sc, ATH_DEBUG_BEACON,
 				    "%s: syncbeacon=1; syncing\n",
