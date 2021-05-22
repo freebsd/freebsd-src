@@ -448,9 +448,11 @@ ath_beacon_proc(void *arg, int pending)
 	 * many consecutive beacons reset the device.
 	 */
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
+
 		sc->sc_bmisscount++;
 		sc->sc_stats.ast_be_missed++;
 		ath_beacon_miss(sc);
+
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
@@ -935,15 +937,33 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	u_int32_t nexttbtt_u8, intval_u8;
 	u_int64_t tsf, tsf_beacon;
 
-	if (vap == NULL)
-		vap = TAILQ_FIRST(&ic->ic_vaps);	/* XXX */
 	/*
-	 * Just ensure that we aren't being called when the last
-	 * VAP is destroyed.
+	 * Find the first VAP that we /can/ use a beacon configuration for.
+	 * If it's a STA VAP then if it has SWBMISS set we should ignore it.
+	 *
+	 * Yes, ideally we'd not have a STA without SWBMISS followed by an
+	 * AP STA, and yes this isn't ready for P2P/TSF2 logic on AR9300 and
+	 * later chips.
 	 */
 	if (vap == NULL) {
-		device_printf(sc->sc_dev, "%s: called with no VAPs\n",
-		    __func__);
+		IEEE80211_LOCK(ic);
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			/* A STA VAP w/ SWBMISS set can't be used for beaconing */
+			if ((vap->iv_opmode == IEEE80211_M_STA) &&
+			    ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) != 0))
+				continue;
+			break;
+		}
+		IEEE80211_UNLOCK(ic);
+	}
+
+	if (vap == NULL) {
+		device_printf(sc->sc_dev, "called with no valid vaps?\n");
+		return;
+	}
+
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) != 0) {
+		device_printf(sc->sc_dev, "called on VAP with SWBMISS set?\n");
 		return;
 	}
 
@@ -1004,8 +1024,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	else
 		nexttbtt = roundup(nexttbtt, intval);
 
-	DPRINTF(sc, ATH_DEBUG_BEACON, "%s: nexttbtt %u intval %u (%u)\n",
-		__func__, nexttbtt, intval, ni->ni_intval);
+
 	if (ic->ic_opmode == IEEE80211_M_STA && !sc->sc_swbmiss) {
 		HAL_BEACON_STATE bs;
 		int dtimperiod, dtimcount;
@@ -1196,8 +1215,8 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		 * nexttbtt and intval is TU/8.
 		 */
 		if (sc->sc_isedma) {
-			nexttbtt_u8 = (nexttbtt << 3);
-			intval_u8 = (intval << 3);
+			nexttbtt_u8 = (nexttbtt << 3) & HAL_BEACON_PERIOD_TU8;
+			intval_u8 = (intval << 3) & HAL_BEACON_PERIOD_TU8;
 			if (intval & HAL_BEACON_ENA)
 				intval_u8 |= HAL_BEACON_ENA;
 			if (intval & HAL_BEACON_RESET_TSF)
@@ -1215,6 +1234,15 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 			ath_beacon_start_adhoc(sc, vap);
 	}
 	ieee80211_free_node(ni);
+
+	tsf = ath_hal_gettsf64(ah);
+	DPRINTF(sc, ATH_DEBUG_BEACON,
+	    "%s: nexttbtt %u intval %u (%u), tsf64=%llu tsfbeacon=%llu delta=%lld\n",
+	    __func__, nexttbtt, intval, ni->ni_intval,
+	    (unsigned long long) tsf,
+	    (unsigned long long) tsf_beacon,
+	    (long long) tsf -
+	    (long long) tsf_beacon);
 
 	ATH_LOCK(sc);
 	ath_power_restore_power_state(sc);

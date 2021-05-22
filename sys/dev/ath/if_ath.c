@@ -2450,13 +2450,15 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 	ath_power_setpower(sc, HAL_PM_AWAKE, 0);
 	ath_power_restore_power_state(sc);
 	ATH_UNLOCK(sc);
+
 	DPRINTF(sc, ATH_DEBUG_BEACON,
 	    "%s: forced awake; force syncbeacon=1\n", __func__);
-
-	/*
-	 * Attempt to force a beacon resync.
-	 */
-	sc->sc_syncbeacon = 1;
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) {
+		/*
+		 * Attempt to force a beacon resync.
+		 */
+		sc->sc_syncbeacon = 1;
+	}
 
 	ATH_VAP(vap)->av_bmiss(vap);
 }
@@ -6061,18 +6063,24 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * In that case, we may not receive an actual
 			 * beacon to update the beacon timer and thus we
 			 * won't get notified of the missing beacons.
+			 *
+			 * Also, don't do any of this if we're not running
+			 * with hardware beacon support, as that'll interfere
+			 * with an AP VAP.
 			 */
 			if (ostate != IEEE80211_S_RUN &&
 			    ostate != IEEE80211_S_SLEEP) {
-				DPRINTF(sc, ATH_DEBUG_BEACON,
-				    "%s: STA; syncbeacon=1\n", __func__);
-				sc->sc_syncbeacon = 1;
+
+				if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) {
+					DPRINTF(sc, ATH_DEBUG_BEACON,
+					    "%s: STA; syncbeacon=1\n", __func__);
+					sc->sc_syncbeacon = 1;
+					if (csa_run_transition)
+						ath_beacon_config(sc, vap);
+				}
 
 				/* Quiet time handling - ensure we resync */
 				memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
-
-				if (csa_run_transition)
-					ath_beacon_config(sc, vap);
 
 			/*
 			 * PR: kern/175227
@@ -6086,7 +6094,9 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * timer fires (too often), leading to a STA
 			 * disassociation.
 			 */
-				sc->sc_beacons = 1;
+				if ((vap->iv_flags_ext & IEEE80211_FEXT_SWBMISS) == 0) {
+					sc->sc_beacons = 1;
+				}
 			}
 			break;
 		case IEEE80211_M_MONITOR:
