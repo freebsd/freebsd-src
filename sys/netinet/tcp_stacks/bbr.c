@@ -518,6 +518,10 @@ static void
 bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
     uint32_t cts, uint32_t usecs, uint64_t bw, uint32_t override, int mod);
 
+static int
+bbr_ctloutput(struct socket *so, struct sockopt *sopt, struct inpcb *inp,
+    struct tcpcb *tp);
+
 static inline uint8_t
 bbr_state_val(struct tcp_bbr *bbr)
 {
@@ -14197,6 +14201,33 @@ bbr_mtu_chg(struct tcpcb *tp)
 	}
 }
 
+static int
+bbr_pru_options(struct tcpcb *tp, int flags)
+{
+	if (flags & PRUS_OOB)
+		return (EOPNOTSUPP);
+	return (0);
+}
+
+struct tcp_function_block __tcp_bbr = {
+	.tfb_tcp_block_name = __XSTRING(STACKNAME),
+	.tfb_tcp_output = bbr_output,
+	.tfb_do_queued_segments = ctf_do_queued_segments,
+	.tfb_do_segment_nounlock = bbr_do_segment_nounlock,
+	.tfb_tcp_do_segment = bbr_do_segment,
+	.tfb_tcp_ctloutput = bbr_ctloutput,
+	.tfb_tcp_fb_init = bbr_init,
+	.tfb_tcp_fb_fini = bbr_fini,
+	.tfb_tcp_timer_stop_all = bbr_stopall,
+	.tfb_tcp_timer_activate = bbr_timer_activate,
+	.tfb_tcp_timer_active = bbr_timer_active,
+	.tfb_tcp_timer_stop = bbr_timer_stop,
+	.tfb_tcp_rexmit_tmr = bbr_remxt_tmr,
+	.tfb_tcp_handoff_ok = bbr_handoff_ok,
+	.tfb_tcp_mtu_chg = bbr_mtu_chg,
+	.tfb_pru_options = bbr_pru_options,
+};
+
 /*
  * bbr_ctloutput() must drop the inpcb lock before performing copyin on
  * socket option arguments.  When it re-acquires the lock after the copy, it
@@ -14269,6 +14300,10 @@ bbr_set_sockopt(struct socket *so, struct sockopt *sopt,
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
+	if (tp->t_fb != &__tcp_bbr) {
+		INP_WUNLOCK(inp);
+		return (ENOPROTOOPT);
+	}
 	bbr = (struct tcp_bbr *)tp->t_fb_ptr;
 	switch (sopt->sopt_name) {
 	case TCP_BBR_PACE_PER_SEC:
@@ -14771,33 +14806,6 @@ out:
 	INP_WUNLOCK(inp);
 	return (error);
 }
-
-static int
-bbr_pru_options(struct tcpcb *tp, int flags)
-{
-	if (flags & PRUS_OOB)
-		return (EOPNOTSUPP);
-	return (0);
-}
-
-struct tcp_function_block __tcp_bbr = {
-	.tfb_tcp_block_name = __XSTRING(STACKNAME),
-	.tfb_tcp_output = bbr_output,
-	.tfb_do_queued_segments = ctf_do_queued_segments,
-	.tfb_do_segment_nounlock = bbr_do_segment_nounlock,
-	.tfb_tcp_do_segment = bbr_do_segment,
-	.tfb_tcp_ctloutput = bbr_ctloutput,
-	.tfb_tcp_fb_init = bbr_init,
-	.tfb_tcp_fb_fini = bbr_fini,
-	.tfb_tcp_timer_stop_all = bbr_stopall,
-	.tfb_tcp_timer_activate = bbr_timer_activate,
-	.tfb_tcp_timer_active = bbr_timer_active,
-	.tfb_tcp_timer_stop = bbr_timer_stop,
-	.tfb_tcp_rexmit_tmr = bbr_remxt_tmr,
-	.tfb_tcp_handoff_ok = bbr_handoff_ok,
-	.tfb_tcp_mtu_chg = bbr_mtu_chg,
-	.tfb_pru_options = bbr_pru_options,
-};
 
 static const char *bbr_stack_names[] = {
 	__XSTRING(STACKNAME),
