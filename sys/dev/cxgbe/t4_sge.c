@@ -333,7 +333,9 @@ static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
 #ifdef RATELIMIT
+#if defined(INET) || defined(INET6)
 static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
+#endif
 static int ethofld_fw4_ack(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 #endif
@@ -1497,12 +1499,14 @@ service_iq(struct sge_iq *iq, int budget)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
 static inline int
 sort_before_lro(struct lro_ctrl *lro)
 {
 
 	return (lro->lro_mbuf_max != 0);
 }
+#endif
 
 static inline uint64_t
 last_flit_to_ns(struct adapter *sc, uint64_t lf)
@@ -2311,6 +2315,7 @@ mbuf_eo_nsegs(struct mbuf *m)
 	return (m->m_pkthdr.PH_loc.eight[1]);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_nsegs(struct mbuf *m, uint8_t nsegs)
 {
@@ -2318,6 +2323,7 @@ set_mbuf_eo_nsegs(struct mbuf *m, uint8_t nsegs)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[1] = nsegs;
 }
+#endif
 
 static inline int
 mbuf_eo_len16(struct mbuf *m)
@@ -2331,6 +2337,7 @@ mbuf_eo_len16(struct mbuf *m)
 	return (n);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_len16(struct mbuf *m, uint8_t len16)
 {
@@ -2338,6 +2345,7 @@ set_mbuf_eo_len16(struct mbuf *m, uint8_t len16)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[2] = len16;
 }
+#endif
 
 static inline int
 mbuf_eo_tsclk_tsoff(struct mbuf *m)
@@ -2347,6 +2355,7 @@ mbuf_eo_tsclk_tsoff(struct mbuf *m)
 	return (m->m_pkthdr.PH_loc.eight[3]);
 }
 
+#if defined(INET) || defined(INET6)
 static inline void
 set_mbuf_eo_tsclk_tsoff(struct mbuf *m, uint8_t tsclk_tsoff)
 {
@@ -2354,6 +2363,7 @@ set_mbuf_eo_tsclk_tsoff(struct mbuf *m, uint8_t tsclk_tsoff)
 	M_ASSERTPKTHDR(m);
 	m->m_pkthdr.PH_loc.eight[3] = tsclk_tsoff;
 }
+#endif
 
 static inline int
 needs_eo(struct m_snd_tag *mst)
@@ -2434,6 +2444,7 @@ needs_vxlan_tso(struct mbuf *m)
 	    (m->m_pkthdr.csum_flags & csum_flags) != CSUM_ENCAP_VXLAN);
 }
 
+#if defined(INET) || defined(INET6)
 static inline bool
 needs_inner_tcp_csum(struct mbuf *m)
 {
@@ -2443,6 +2454,7 @@ needs_inner_tcp_csum(struct mbuf *m)
 
 	return (m->m_pkthdr.csum_flags & csum_flags);
 }
+#endif
 
 static inline bool
 needs_l3_csum(struct mbuf *m)
@@ -6421,6 +6433,7 @@ sysctl_bufsizes(SYSCTL_HANDLER_ARGS)
 }
 
 #ifdef RATELIMIT
+#if defined(INET) || defined(INET6)
 /*
  * len16 for a txpkt WR with a GL.  Includes the firmware work request header.
  */
@@ -6444,6 +6457,7 @@ txpkt_eo_len16(u_int nsegs, u_int immhdrs, u_int tso)
 done:
 	return (howmany(n, 16));
 }
+#endif
 
 #define ETID_FLOWC_NPARAMS 6
 #define ETID_FLOWC_LEN (roundup2((sizeof(struct fw_flowc_wr) + \
