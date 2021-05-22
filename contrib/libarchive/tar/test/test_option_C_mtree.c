@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2018 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by Arshan Khanifar <arshankhanifar@gmail.com>
  * under sponsorship from the FreeBSD Foundation.
