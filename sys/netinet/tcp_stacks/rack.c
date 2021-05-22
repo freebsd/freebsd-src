@@ -19409,6 +19409,34 @@ rack_apply_deferred_options(struct tcp_rack *rack)
 	}
 }
 
+static int
+rack_pru_options(struct tcpcb *tp, int flags)
+{
+	if (flags & PRUS_OOB)
+		return (EOPNOTSUPP);
+	return (0);
+}
+
+static struct tcp_function_block __tcp_rack = {
+	.tfb_tcp_block_name = __XSTRING(STACKNAME),
+	.tfb_tcp_output = rack_output,
+	.tfb_do_queued_segments = ctf_do_queued_segments,
+	.tfb_do_segment_nounlock = rack_do_segment_nounlock,
+	.tfb_tcp_do_segment = rack_do_segment,
+	.tfb_tcp_ctloutput = rack_ctloutput,
+	.tfb_tcp_fb_init = rack_init,
+	.tfb_tcp_fb_fini = rack_fini,
+	.tfb_tcp_timer_stop_all = rack_stopall,
+	.tfb_tcp_timer_activate = rack_timer_activate,
+	.tfb_tcp_timer_active = rack_timer_active,
+	.tfb_tcp_timer_stop = rack_timer_stop,
+	.tfb_tcp_rexmit_tmr = rack_remxt_tmr,
+	.tfb_tcp_handoff_ok = rack_handoff_ok,
+	.tfb_tcp_mtu_chg = rack_mtu_change,
+	.tfb_pru_options = rack_pru_options,
+
+};
+
 /*
  * rack_ctloutput() must drop the inpcb lock before performing copyin on
  * socket option arguments.  When it re-acquires the lock after the copy, it
@@ -19497,6 +19525,10 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
+	}
+	if (tp->t_fb != &__tcp_rack) {
+		INP_WUNLOCK(inp);
+		return (ENOPROTOOPT);
 	}
 	if (rack->defer_options && (rack->gp_ready == 0) &&
 	    (sopt->sopt_name != TCP_DEFER_OPTIONS) &&
@@ -19833,34 +19865,6 @@ out:
 	INP_WUNLOCK(inp);
 	return (error);
 }
-
-static int
-rack_pru_options(struct tcpcb *tp, int flags)
-{
-	if (flags & PRUS_OOB)
-		return (EOPNOTSUPP);
-	return (0);
-}
-
-static struct tcp_function_block __tcp_rack = {
-	.tfb_tcp_block_name = __XSTRING(STACKNAME),
-	.tfb_tcp_output = rack_output,
-	.tfb_do_queued_segments = ctf_do_queued_segments,
-	.tfb_do_segment_nounlock = rack_do_segment_nounlock,
-	.tfb_tcp_do_segment = rack_do_segment,
-	.tfb_tcp_ctloutput = rack_ctloutput,
-	.tfb_tcp_fb_init = rack_init,
-	.tfb_tcp_fb_fini = rack_fini,
-	.tfb_tcp_timer_stop_all = rack_stopall,
-	.tfb_tcp_timer_activate = rack_timer_activate,
-	.tfb_tcp_timer_active = rack_timer_active,
-	.tfb_tcp_timer_stop = rack_timer_stop,
-	.tfb_tcp_rexmit_tmr = rack_remxt_tmr,
-	.tfb_tcp_handoff_ok = rack_handoff_ok,
-	.tfb_tcp_mtu_chg = rack_mtu_change,
-	.tfb_pru_options = rack_pru_options,
-
-};
 
 static const char *rack_stack_names[] = {
 	__XSTRING(STACKNAME),
