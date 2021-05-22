@@ -60,6 +60,16 @@ struct ps_strings {
 	unsigned int ps_nenvstr; /* the number of environment strings */
 };
 
+/* Coredump output parameters. */
+struct coredump_params {
+	off_t		offset;
+	struct ucred	*active_cred;
+	struct ucred	*file_cred;
+	struct thread	*td;
+	struct vnode	*vp;
+	struct compressor *comp;
+};
+
 struct image_params;
 
 struct execsw {
@@ -83,6 +93,15 @@ void exec_unmap_first_page(struct image_params *);
 
 int exec_register(const struct execsw *);
 int exec_unregister(const struct execsw *);
+
+enum uio_seg;
+
+#define   CORE_BUF_SIZE   (16 * 1024)
+
+int core_write(struct coredump_params *, const void *, size_t, off_t,
+    enum uio_seg, size_t *);
+int core_output(char *, size_t, off_t, struct coredump_params *, void *);
+int sbuf_drain_core_output(void *, const char *, int);
 
 extern int coredump_pack_fileinfo;
 extern int coredump_pack_vmmapinfo;
