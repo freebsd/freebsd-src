@@ -32,17 +32,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_sim.h>
 #include <cam/cam_queue.h>
+#include <cam/cam_sim.h>
 #include <cam/cam_xpt.h>
 
 #define CAM_PATH_ANY (u_int32_t)-1
