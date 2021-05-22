@@ -698,8 +698,7 @@ ktruserret(struct thread *td)
 }
 
 void
-ktrnamei(path)
-	char *path;
+ktrnamei(const char *path)
 {
 	struct ktr_request *req;
 	int namelen;
@@ -1017,7 +1016,6 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 		return (EINVAL);
 
 	kiop = NULL;
-	ktrace_enter(td);
 	if (ops != KTROP_CLEAR) {
 		/*
 		 * an operation which requires a file argument.
@@ -1025,23 +1023,22 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
-		if (error) {
-			ktrace_exit(td);
+		if (error)
 			return (error);
-		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp);
 		if (vp->v_type != VREG) {
-			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-			ktrace_exit(td);
+			(void)vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
 			return (EACCES);
 		}
 		kiop = ktr_io_params_alloc(td, vp);
 	}
+
 	/*
 	 * Clear all uses of the tracefile.
 	 */
+	ktrace_enter(td);
 	if (ops == KTROP_CLEARFILE) {
 restart:
 		sx_slock(&allproc_lock);

@@ -269,7 +269,7 @@ struct ktr_io_params;
 
 struct vnode *ktr_get_tracevp(struct proc *, bool);
 void	ktr_io_params_free(struct ktr_io_params *);
-void	ktrnamei(char *);
+void	ktrnamei(const char *);
 void	ktrcsw(int, int, const char *);
 void	ktrpsig(int, sig_t, sigset_t *, int);
 void	ktrfault(vm_offset_t, int);
