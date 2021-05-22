@@ -853,9 +853,11 @@ ENTRY(copyin_smap_erms)
 END(copyin_smap_erms)
 
 	ALIGN_TEXT
-	/* Trap entry clears PSL.AC */
 copy_fault:
-	movq	$0,PCB_ONFAULT(%r11)
+	testl	$CPUID_STDEXT_SMAP,cpu_stdext_feature(%rip)
+	je	1f
+	clac
+1:	movq	$0,PCB_ONFAULT(%r11)
 	movl	$EFAULT,%eax
 	POP_FRAME_POINTER
 	ret
@@ -1292,9 +1294,11 @@ ENTRY(subyte_smap)
 END(subyte_smap)
 
 	ALIGN_TEXT
-	/* Fault entry clears PSL.AC */
 fusufault:
-	movq	PCPU(CURPCB),%rcx
+	testl	$CPUID_STDEXT_SMAP,cpu_stdext_feature(%rip)
+	je	1f
+	clac
+1:	movq	PCPU(CURPCB),%rcx
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%rcx)
 	decq	%rax
@@ -1377,8 +1381,10 @@ ENTRY(copyinstr_smap)
 END(copyinstr_smap)
 
 cpystrflt:
-	/* Fault entry clears PSL.AC */
-	movl	$EFAULT,%eax
+	testl	$CPUID_STDEXT_SMAP,cpu_stdext_feature(%rip)
+	je	1f
+	clac
+1:	movl	$EFAULT,%eax
 cpystrflt_x:
 	/* set *lencopied and return %eax */
 	movq	$0,PCB_ONFAULT(%r9)
