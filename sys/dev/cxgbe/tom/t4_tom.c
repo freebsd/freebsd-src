@@ -348,7 +348,7 @@ release_offload_resources(struct toepcb *toep)
 	}
 
 	if (toep->ce)
-		t4_release_lip(sc, toep->ce);
+		t4_release_clip_entry(sc, toep->ce);
 
 	if (toep->params.tc_idx != -1)
 		t4_release_cl_rl(sc, toep->vi->pi->port_id, toep->params.tc_idx);
