@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <arpa/inet.h>
 #include <net/ethernet.h>
@@ -58,7 +59,8 @@ __FBSDID("$FreeBSD$");
 #define	max(x, y) ((x) > (y) ? (x) : (y))
 
 static const char *progname, *nexus;
-static int chip_id;	/* 4 for T4, 5 for T5 */
+static int chip_id;	/* 4 for T4, 5 for T5, and so on. */
+static int inst;	/* instance of nexus device */
 
 struct reg_info {
 	const char *name;
@@ -91,6 +93,8 @@ usage(FILE *fp)
 	fprintf(fp, "Usage: %s <nexus> [operation]\n", progname);
 	fprintf(fp,
 	    "\tclearstats <port>                   clear port statistics\n"
+	    "\tclip hold|release <ip6>             hold/release an address\n"
+	    "\tclip list                           list the CLIP table\n"
 	    "\tcontext <type> <id>                 show an SGE context\n"
 	    "\tdumpstate <dump.bin>                dump chip state\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
@@ -3507,6 +3511,69 @@ load_offload_policy(int argc, const char *argv[])
 }
 
 static int
+display_clip(void)
+{
+	size_t clip_buf_size = 4096;
+	char *buf, name[32];
+	int rc;
+
+	buf = malloc(clip_buf_size);
+	if (buf == NULL) {
+		warn("%s", __func__);
+		return (errno);
+	}
+
+	snprintf(name, sizeof(name), "dev.t%unex.%u.misc.clip", chip_id, inst);
+	rc = sysctlbyname(name, buf, &clip_buf_size, NULL, 0);
+	if (rc != 0) {
+		warn("sysctl %s", name);
+		free(buf);
+		return (errno);
+	}
+
+	printf("%s\n", buf);
+	free(buf);
+	return (0);
+}
+
+static int
+clip_cmd(int argc, const char *argv[])
+{
+	int rc, af = AF_INET6, add;
+	struct t4_clip_addr ca = {0};
+
+	if (argc == 1 && !strcmp(argv[0], "list")) {
+		rc = display_clip();
+		return (rc);
+	}
+
+	if (argc != 2) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	if (!strcmp(argv[0], "hold")) {
+		add = 1;
+	} else if (!strcmp(argv[0], "rel") || !strcmp(argv[0], "release")) {
+		add = 0;
+	} else {
+		warnx("first argument must be \"hold\" or \"release\"");
+		return (EINVAL);
+	}
+
+	rc = parse_ipaddr(argv[0], argv, &af, &ca.addr[0], &ca.mask[0], 1);
+	if (rc != 0)
+		return (rc);
+
+	if (add)
+		rc = doit(CHELSIO_T4_HOLD_CLIP_ADDR, &ca);
+	else
+		rc = doit(CHELSIO_T4_RELEASE_CLIP_ADDR, &ca);
+
+	return (rc);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -3556,6 +3623,8 @@ run_cmd(int argc, const char *argv[])
 		rc = load_offload_policy(argc, argv);
 	else if (!strcmp(cmd, "hashfilter"))
 		rc = filter_cmd(argc, argv, 1);
+	else if (!strcmp(cmd, "clip"))
+		rc = clip_cmd(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
@@ -3609,6 +3678,16 @@ run_cmd_loop(void)
 	return (rc);
 }
 
+static void
+parse_nexus_name(const char *s)
+{
+	char junk;
+
+	if (sscanf(s, "t%unex%u%c", &chip_id, &inst, &junk) != 2)
+		errx(EINVAL, "invalid nexus \"%s\"", s);
+	nexus = s;
+}
+
 int
 main(int argc, const char *argv[])
 {
@@ -3628,8 +3707,7 @@ main(int argc, const char *argv[])
 		exit(EINVAL);
 	}
 
-	nexus = argv[1];
-	chip_id = nexus[1] - '0';
+	parse_nexus_name(argv[1]);
 
 	/* progname and nexus */
 	argc -= 2;
