@@ -2802,9 +2802,11 @@ sys_fchflags(struct thread *td, struct fchflags_args *uap)
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE1(fp->f_vnode);
-	VOP_UNLOCK(fp->f_vnode);
+	if (AUDITING_TD(td)) {
+		vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
+		AUDIT_ARG_VNODE1(fp->f_vnode);
+		VOP_UNLOCK(fp->f_vnode);
+	}
 #endif
 	error = setfflags(td, fp->f_vnode, uap->flags);
 	fdrop(fp, td);
@@ -3303,9 +3305,11 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE1(fp->f_vnode);
-	VOP_UNLOCK(fp->f_vnode);
+	if (AUDITING_TD(td)) {
+		vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
+		AUDIT_ARG_VNODE1(fp->f_vnode);
+		VOP_UNLOCK(fp->f_vnode);
+	}
 #endif
 	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
 	fdrop(fp, td);
@@ -3337,9 +3341,11 @@ kern_futimens(struct thread *td, int fd, struct timespec *tptr,
 	if (error != 0)
 		return (error);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE1(fp->f_vnode);
-	VOP_UNLOCK(fp->f_vnode);
+	if (AUDITING_TD(td)) {
+		vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
+		AUDIT_ARG_VNODE1(fp->f_vnode);
+		VOP_UNLOCK(fp->f_vnode);
+	}
 #endif
 	error = setutimes(td, fp->f_vnode, ts, 2, flags & UTIMENS_NULL);
 	fdrop(fp, td);
