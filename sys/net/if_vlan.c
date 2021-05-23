@@ -1189,15 +1189,15 @@ vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct ifvlan *ifv;
 	struct ifnet *p;
 
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER();
 	ifv = ifp->if_softc;
 	if (TRUNK(ifv) == NULL) {
-		NET_EPOCH_EXIT(et);
+		NET_EPOCH_EXIT();
 		m_freem(m);
 		return (ENETDOWN);
 	}
 	p = PARENT(ifv);
-	NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT();
 	return p->if_output(ifp, m, dst, ro);
 }
 
