@@ -38,6 +38,16 @@
 
 #include "util.h"
 
+/* common ip ranges */
+struct in_addr masq = { htonl(0x01020304) };
+struct in_addr pub  = { htonl(0x0102dead) };
+struct in_addr prv1 = { htonl(0x0a00dead) };
+struct in_addr prv2 = { htonl(0xac10dead) };
+struct in_addr prv3 = { htonl(0xc0a8dead) };
+struct in_addr cgn  = { htonl(0x6440dead) };
+struct in_addr ext  = { htonl(0x12345678) };
+struct in_addr ANY_ADDR = { 0 };
+
 #define REQUIRE(x)	do {				\
 	if (!(x)) {					\
 		fprintf(stderr, "Failed in %s %s:%d.\n",\
@@ -78,7 +88,7 @@ hexdump(void *p, size_t len)
 }
 
 struct ip *
-ip_packet(struct in_addr src, struct in_addr dst, u_char protocol, size_t len)
+ip_packet(u_char protocol, size_t len)
 {
 	struct ip * p;
 
@@ -91,8 +101,6 @@ ip_packet(struct in_addr src, struct in_addr dst, u_char protocol, size_t len)
 	p->ip_hl = sizeof(*p)/4;
 	p->ip_len = htons(len);
 	p->ip_ttl = IPDEFTTL;
-	p->ip_src = src;
-	p->ip_dst = dst;
 	p->ip_p = protocol;
 	REQUIRE(p->ip_hl == 5);
 
