@@ -612,9 +612,6 @@ lock_profile_obtain_lock_success(struct lock_object *lo, bool spin,
 		    lo->lo_name, spin, is_spin);
 #endif
 
-	if (SCHEDULER_STOPPED())
-		return;
-
 	/* don't reset the timer when/if recursing */
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
@@ -622,6 +619,10 @@ lock_profile_obtain_lock_success(struct lock_object *lo, bool spin,
 		return;
 	if (spin && lock_prof_skipspin == 1)
 		return;
+
+	if (SCHEDULER_STOPPED())
+		return;
+
 	critical_enter();
 	/* Recheck enabled now that we're in a critical section. */
 	if (lock_prof_enable == 0)
@@ -687,12 +688,12 @@ lock_profile_release_lock(struct lock_object *lo, bool spin)
 		    lo->lo_name, spin, is_spin);
 #endif
 
-	if (SCHEDULER_STOPPED())
-		return;
 	if (lo->lo_flags & LO_NOPROFILE)
 		return;
 	head = &curthread->td_lprof[spin];
 	if (LIST_FIRST(head) == NULL)
+		return;
+	if (SCHEDULER_STOPPED())
 		return;
 	critical_enter();
 	/* Recheck enabled now that we're in a critical section. */
