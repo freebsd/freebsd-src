@@ -639,7 +639,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
-		lock_profile_obtain_lock_failed(&lk->lock_object,
+		lock_profile_obtain_lock_failed(&lk->lock_object, false,
 		    &contested, &waittime);
 
 		/*
@@ -852,7 +852,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
-		lock_profile_obtain_lock_failed(&lk->lock_object,
+		lock_profile_obtain_lock_failed(&lk->lock_object, false,
 		    &contested, &waittime);
 
 		/*
@@ -1442,7 +1442,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 #ifdef HWPMC_HOOKS
 			PMC_SOFT_CALL( , , lock, failed);
 #endif
-			lock_profile_obtain_lock_failed(&lk->lock_object,
+			lock_profile_obtain_lock_failed(&lk->lock_object, false,
 			    &contested, &waittime);
 
 			/*
@@ -1589,7 +1589,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 		if (error == 0) {
 			lock_profile_obtain_lock_success(&lk->lock_object,
-			    contested, waittime, file, line);
+			    false, contested, waittime, file, line);
 			LOCK_LOG_LOCK("DRAIN", &lk->lock_object, 0,
 			    lk->lk_recurse, file, line);
 			WITNESS_LOCK(&lk->lock_object, LOP_EXCLUSIVE |
@@ -1635,7 +1635,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 */
 	if (LK_HOLDER(lk->lk_lock) != tid)
 		return;
-	lock_profile_release_lock(&lk->lock_object);
+	lock_profile_release_lock(&lk->lock_object, false);
 	LOCKSTAT_RECORD1(lockmgr__disown, lk, LOCKSTAT_WRITER);
 	LOCK_LOG_LOCK("XDISOWN", &lk->lock_object, 0, 0, file, line);
 	WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);

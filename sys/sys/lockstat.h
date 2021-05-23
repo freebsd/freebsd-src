@@ -97,22 +97,32 @@ extern volatile bool lockstat_enabled;
 	SDT_PROBE5(lockstat, , , probe, lp, arg1, arg2, arg3, arg4)
 
 #define	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(probe, lp, c, wt, f, l) do { \
-	lock_profile_obtain_lock_success(&(lp)->lock_object, c, wt, f, l); \
+	lock_profile_obtain_lock_success(&(lp)->lock_object, false, c, wt, f, l); \
+	LOCKSTAT_RECORD0(probe, lp);					\
+} while (0)
+
+#define	LOCKSTAT_PROFILE_OBTAIN_SPIN_LOCK_SUCCESS(probe, lp, c, wt, f, l) do { \
+	lock_profile_obtain_lock_success(&(lp)->lock_object, true, c, wt, f, l); \
 	LOCKSTAT_RECORD0(probe, lp);					\
 } while (0)
 
 #define	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(probe, lp, c, wt, f, l, a) do { \
-	lock_profile_obtain_lock_success(&(lp)->lock_object, c, wt, f, l); \
+	lock_profile_obtain_lock_success(&(lp)->lock_object, false, c, wt, f, l); \
 	LOCKSTAT_RECORD1(probe, lp, a);					\
 } while (0)
 
 #define	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp) do {			\
-	lock_profile_release_lock(&(lp)->lock_object);			\
+	lock_profile_release_lock(&(lp)->lock_object, false);		\
+	LOCKSTAT_RECORD0(probe, lp);					\
+} while (0)
+
+#define	LOCKSTAT_PROFILE_RELEASE_SPIN_LOCK(probe, lp) do {		\
+	lock_profile_release_lock(&(lp)->lock_object, true);		\
 	LOCKSTAT_RECORD0(probe, lp);					\
 } while (0)
 
 #define	LOCKSTAT_PROFILE_RELEASE_RWLOCK(probe, lp, a) do {		\
-	lock_profile_release_lock(&(lp)->lock_object);			\
+	lock_profile_release_lock(&(lp)->lock_object, false);		\
 	LOCKSTAT_RECORD1(probe, lp, a);					\
 } while (0)
 
@@ -130,13 +140,19 @@ uint64_t lockstat_nsecs(struct lock_object *);
 #define	LOCKSTAT_RECORD4(probe, lp, arg1, arg2, arg3, arg4)
 
 #define	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(probe, lp, c, wt, f, l)	\
-	lock_profile_obtain_lock_success(&(lp)->lock_object, c, wt, f, l)
+	lock_profile_obtain_lock_success(&(lp)->lock_object, false, c, wt, f, l)
+
+#define	LOCKSTAT_PROFILE_OBTAIN_SPIN_LOCK_SUCCESS(probe, lp, c, wt, f, l)	\
+	lock_profile_obtain_lock_success(&(lp)->lock_object, true, c, wt, f, l)
 
 #define	LOCKSTAT_PROFILE_OBTAIN_RWLOCK_SUCCESS(probe, lp, c, wt, f, l, a) \
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(probe, lp, c, wt, f, l)
 
 #define	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)  			\
-	lock_profile_release_lock(&(lp)->lock_object)
+	lock_profile_release_lock(&(lp)->lock_object, false)
+
+#define	LOCKSTAT_PROFILE_RELEASE_SPIN_LOCK(probe, lp)  			\
+	lock_profile_release_lock(&(lp)->lock_object, true)
 
 #define	LOCKSTAT_PROFILE_RELEASE_RWLOCK(probe, lp, a)  			\
 	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)
