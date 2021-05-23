@@ -57,6 +57,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 
+/*
+ * Uncomment to validate that spin argument to acquire/release routines matches
+ * the flag in the lock
+ */
+//#define	LOCK_PROFILING_DEBUG_SPIN
+
 SDT_PROVIDER_DEFINE(lock);
 SDT_PROBE_DEFINE1(lock, , , starvation, "u_int");
 
@@ -593,11 +599,17 @@ lock_profile_object_lookup(struct lock_object *lo, int spin, const char *file,
 }
 
 void
-lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
-    uint64_t waittime, const char *file, int line)
+lock_profile_obtain_lock_success(struct lock_object *lo, bool spin,
+    int contested, uint64_t waittime, const char *file, int line)
 {
 	struct lock_profile_object *l;
-	int spin;
+
+#ifdef LOCK_PROFILING_DEBUG_SPIN
+	bool is_spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK);
+	if ((spin && !is_spin) || (!spin && is_spin))
+		printf("%s: lock %s spin mismatch (arg %d, flag %d)\n", __func__,
+		    lo->lo_name, spin, is_spin);
+#endif
 
 	if (SCHEDULER_STOPPED())
 		return;
@@ -607,7 +619,6 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 		return;
 	if (lock_contested_only && !contested)
 		return;
-	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	if (spin && lock_prof_skipspin == 1)
 		return;
 	critical_enter();
@@ -660,20 +671,25 @@ lock_profile_thread_exit(struct thread *td)
 }
 
 void
-lock_profile_release_lock(struct lock_object *lo)
+lock_profile_release_lock(struct lock_object *lo, bool spin)
 {
 	struct lock_profile_object *l;
 	struct lock_prof_type *type;
 	struct lock_prof *lp;
 	uint64_t curtime, holdtime;
 	struct lpohead *head;
-	int spin;
+
+#ifdef LOCK_PROFILING_DEBUG_SPIN
+	bool is_spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK);
+	if ((spin && !is_spin) || (!spin && is_spin))
+		printf("%s: lock %s spin mismatch (arg %d, flag %d)\n", __func__,
+		    lo->lo_name, spin, is_spin);
+#endif
 
 	if (SCHEDULER_STOPPED())
 		return;
 	if (lo->lo_flags & LO_NOPROFILE)
 		return;
-	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
 	head = &curthread->td_lprof[spin];
 	if (LIST_FIRST(head) == NULL)
 		return;

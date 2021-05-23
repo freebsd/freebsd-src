@@ -344,7 +344,7 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	if (!_mtx_obtain_lock_fetch(m, &v, tid))
 		_mtx_lock_spin(m, v, opts, file, line);
 	else
-		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire,
+		LOCKSTAT_PROFILE_OBTAIN_SPIN_LOCK_SUCCESS(spin__acquire,
 		    m, 0, 0, file, line);
 #else
 	__mtx_lock_spin(m, curthread, opts, file, line);
@@ -565,7 +565,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
 #endif
-	lock_profile_obtain_lock_failed(&m->lock_object,
+	lock_profile_obtain_lock_failed(&m->lock_object, false,
 		    &contested, &waittime);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR4(KTR_LOCK,
@@ -756,7 +756,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
 #endif
-	lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
+	lock_profile_obtain_lock_failed(&m->lock_object, true, &contested, &waittime);
 
 	for (;;) {
 		if (v == MTX_UNOWNED) {
@@ -792,7 +792,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
 out_lockstat:
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
+	LOCKSTAT_PROFILE_OBTAIN_SPIN_LOCK_SUCCESS(spin__acquire, m,
 	    contested, waittime, file, line);
 }
 #endif /* SMP */
@@ -912,7 +912,7 @@ retry:
 				continue;
 			}
 			MPASS(v != tid);
-			lock_profile_obtain_lock_failed(&m->lock_object,
+			lock_profile_obtain_lock_failed(&m->lock_object, true,
 			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
@@ -945,7 +945,7 @@ retry:
 #ifdef KDTRACE_HOOKS
 	spin_time += lockstat_nsecs(&m->lock_object);
 #endif
-	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m, contested,
+	LOCKSTAT_PROFILE_OBTAIN_SPIN_LOCK_SUCCESS(spin__acquire, m, contested,
 	    waittime, file, line);
 #ifdef KDTRACE_HOOKS
 	if (lda.spin_cnt != 0)
@@ -1183,12 +1183,14 @@ _mtx_destroy(volatile uintptr_t *c)
 		MPASS((m->mtx_lock & (MTX_RECURSED|MTX_CONTESTED)) == 0);
 
 		/* Perform the non-mtx related part of mtx_unlock_spin(). */
-		if (LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin)
+		if (LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin) {
+			lock_profile_release_lock(&m->lock_object, true);
 			spinlock_exit();
-		else
+		} else {
 			TD_LOCKS_DEC(curthread);
+			lock_profile_release_lock(&m->lock_object, false);
+		}
 
-		lock_profile_release_lock(&m->lock_object);
 		/* Tell witness this isn't locked to make it happy. */
 		WITNESS_UNLOCK(&m->lock_object, LOP_EXCLUSIVE, __FILE__,
 		    __LINE__);
