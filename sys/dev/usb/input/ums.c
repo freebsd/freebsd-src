@@ -380,7 +380,7 @@ tr_setup:
 		/* check if we can put more data into the FIFO */
 		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) == 0) {
 #ifdef EVDEV_SUPPORT
-			if (sc->sc_evflags == 0)
+			if ((sc->sc_evflags & UMS_EVDEV_OPENED) == 0)
 				break;
 #else
 			break;
@@ -858,7 +858,10 @@ ums_fifo_stop_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = usb_fifo_softc(fifo);
 
-	ums_stop_rx(sc);
+#ifdef EVDEV_SUPPORT
+	if ((sc->sc_evflags & UMS_EVDEV_OPENED) == 0)
+#endif
+		ums_stop_rx(sc);
 }
 
 #if ((MOUSE_SYS_PACKETSIZE != 8) || \
@@ -945,7 +948,7 @@ ums_ev_open(struct evdev_dev *evdev)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	sc->sc_evflags = UMS_EVDEV_OPENED;
+	sc->sc_evflags |= UMS_EVDEV_OPENED;
 
 	if (sc->sc_fflags == 0) {
 		ums_reset(sc);
@@ -962,7 +965,7 @@ ums_ev_close(struct evdev_dev *evdev)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	sc->sc_evflags = 0;
+	sc->sc_evflags &= ~UMS_EVDEV_OPENED;
 
 	if (sc->sc_fflags == 0)
 		ums_stop_rx(sc);
@@ -984,7 +987,7 @@ ums_fifo_open(struct usb_fifo *fifo, int fflags)
 
 	/* check for first open */
 #ifdef EVDEV_SUPPORT
-	if (sc->sc_fflags == 0 && sc->sc_evflags == 0)
+	if (sc->sc_fflags == 0 && (sc->sc_evflags & UMS_EVDEV_OPENED) == 0)
 		ums_reset(sc);
 #else
 	if (sc->sc_fflags == 0)
