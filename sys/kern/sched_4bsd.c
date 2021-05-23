@@ -1053,7 +1053,7 @@ sched_switch(struct thread *td, int flags)
 		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
                 /* I feel sleepy */
-		lock_profile_release_lock(&sched_lock.lock_object);
+		lock_profile_release_lock(&sched_lock.lock_object, true);
 #ifdef KDTRACE_HOOKS
 		/*
 		 * If DTrace has set the active vtime enum to anything
@@ -1065,7 +1065,7 @@ sched_switch(struct thread *td, int flags)
 #endif
 
 		cpu_switch(td, newtd, tmtx);
-		lock_profile_obtain_lock_success(&sched_lock.lock_object,
+		lock_profile_obtain_lock_success(&sched_lock.lock_object, true,
 		    0, 0, __FILE__, __LINE__);
 		/*
 		 * Where am I?  What year is it?
@@ -1676,7 +1676,7 @@ sched_throw(struct thread *td)
 		PCPU_SET(switchtime, cpu_ticks());
 		PCPU_SET(switchticks, ticks);
 	} else {
-		lock_profile_release_lock(&sched_lock.lock_object);
+		lock_profile_release_lock(&sched_lock.lock_object, true);
 		MPASS(td->td_lock == &sched_lock);
 		td->td_lastcpu = td->td_oncpu;
 		td->td_oncpu = NOCPU;
@@ -1696,7 +1696,7 @@ sched_fork_exit(struct thread *td)
 	 */
 	td->td_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_lock = (uintptr_t)td;
-	lock_profile_obtain_lock_success(&sched_lock.lock_object,
+	lock_profile_obtain_lock_success(&sched_lock.lock_object, true,
 	    0, 0, __FILE__, __LINE__);
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 

@@ -46,14 +46,14 @@ u_int64_t nanoseconds(void);
 
 extern volatile int lock_prof_enable;
 
-void lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
-    uint64_t waittime, const char *file, int line);
-void lock_profile_release_lock(struct lock_object *lo);
+void lock_profile_obtain_lock_success(struct lock_object *lo, bool spin,
+    int contested, uint64_t waittime, const char *file, int line);
+void lock_profile_release_lock(struct lock_object *lo, bool spin);
 void lock_profile_thread_exit(struct thread *td);
 
 static inline void
-lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
-    uint64_t *waittime)
+lock_profile_obtain_lock_failed(struct lock_object *lo, bool spin,
+    int *contested, uint64_t *waittime)
 {
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE) || *contested)
 		return;
@@ -63,9 +63,9 @@ lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
 
 #else /* !LOCK_PROFILING */
 
-#define	lock_profile_release_lock(lo)					(void)0
-#define lock_profile_obtain_lock_failed(lo, contested, waittime)	(void)0
-#define lock_profile_obtain_lock_success(lo, contested, waittime, file, line)	(void)0
+#define	lock_profile_release_lock(lo, spin)				(void)0
+#define lock_profile_obtain_lock_failed(lo, spin, contested, waittime)	(void)0
+#define lock_profile_obtain_lock_success(lo, spin, contested, waittime, file, line)	(void)0
 #define	lock_profile_thread_exit(td)					(void)0
 
 #endif  /* !LOCK_PROFILING */
