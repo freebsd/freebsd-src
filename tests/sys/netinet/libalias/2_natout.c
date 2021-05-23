@@ -344,7 +344,7 @@ ATF_TC_BODY(7_stress, dummy)
 		struct in_addr src, dst;
 		uint16_t sport, dport, aport;
 	} *batch;
-	size_t const batch_size = 12000;
+	size_t const batch_size = 1200;
 	size_t const rounds = 25;
 	size_t i, j;
 
