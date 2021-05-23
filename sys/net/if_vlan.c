@@ -1185,7 +1185,6 @@ static int
 vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
-	struct epoch_tracker et;
 	struct ifvlan *ifv;
 	struct ifnet *p;
 
