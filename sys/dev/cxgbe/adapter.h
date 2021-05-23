@@ -50,6 +50,7 @@
 #include <machine/bus.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -67,6 +68,15 @@
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
+
+/*
+ * Same as LIST_HEAD from queue.h.  This is to avoid conflict with LinuxKPI's
+ * LIST_HEAD when building iw_cxgbe.
+ */
+#define	CXGBE_LIST_HEAD(name, type)					\
+struct name {								\
+	struct type *lh_first;	/* first element */			\
+}
 
 #ifndef SYSCTL_ADD_UQUAD
 #define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
@@ -886,9 +896,11 @@ struct adapter {
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
 
-	struct mtx clip_table_lock;
-	TAILQ_HEAD(, clip_entry) clip_table;
+	CXGBE_LIST_HEAD(, clip_entry) *clip_table;
+	TAILQ_HEAD(, clip_entry) clip_pending;	/* these need hw update. */
+	u_long clip_mask;
 	int clip_gen;
+	struct timeout_task clip_task;
 
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
