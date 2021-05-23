@@ -15,7 +15,7 @@ static struct in_addr ext  = { htonl(0x12000000) };
 	 ? ((tv).tv_usec cmp (uv).tv_usec)	\
 	 : ((tv).tv_sec cmp (uv).tv_sec))
 
-#define timevaldiff(n, o)			\
+#define timevaldiff(n, o) (float)		\
 	(((n).tv_sec - (o).tv_sec)*1000000l +	\
 	 ((n).tv_usec - (o).tv_usec))
 
@@ -69,7 +69,7 @@ int main(int argc, char ** argv)
 	gettimeofday(&timeout, NULL);
 	timeout.tv_sec += max_seconds;
 
-	printf("RND SEC NAT RND ATT UNA\n");
+	printf("RND SECND NAT RND ATT UNA\n");
 	for (round = 0; ; round++) {
 		int i, res;
 		struct timeval now, start;
@@ -77,7 +77,7 @@ int main(int argc, char ** argv)
 		printf("%3d ", round+1);
 
 		gettimeofday(&start, NULL);
-		printf("%3ld ", max_seconds - (timeout.tv_sec - start.tv_sec));
+		printf("%5.1f ", max_seconds - timevaldiff(timeout, start)/1000000.0f);
 		for (cnt = i = 0; i < batch_size; i++, cnt++) {
 			batch[i].src.s_addr = prv.s_addr | htonl(rand_range(0, 0xffff));
 			batch[i].dst.s_addr = ext.s_addr | htonl(rand_range(0, 0xffff));
@@ -104,7 +104,7 @@ int main(int argc, char ** argv)
 				goto out;
 		}
 		if (cnt > 0)
-			printf("%3lu ", timevaldiff(now, start) / cnt);
+			printf("%3.0f ", timevaldiff(now, start) / cnt);
 
 		start = now;
 		for (cnt = i = 0; i < random_size; i++, cnt++) {
@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
 				goto out;
 		}
 		if (cnt > 0)
-			printf("%3lu ", timevaldiff(now, start) / cnt);
+			printf("%3.0f ", timevaldiff(now, start) / cnt);
 
 		start = now;
 		p->ip_src.s_addr = ext.s_addr & htonl(0xfff00000);
@@ -145,7 +145,7 @@ int main(int argc, char ** argv)
 				goto out;
 		}
 		if (cnt > 0)
-			printf("%3lu ", timevaldiff(now, start) / cnt);
+			printf("%3.0f ", timevaldiff(now, start) / cnt);
 
 		qsort(batch, batch_size, sizeof(*batch), randcmp);
 
@@ -172,7 +172,7 @@ int main(int argc, char ** argv)
 				goto out;
 		}
 		if (cnt > 0)
-			printf("%3lu\n", timevaldiff(now, start) / cnt);
+			printf("%3.0f\n", timevaldiff(now, start) / cnt);
 	}
 out:
 	printf("\n\n");
