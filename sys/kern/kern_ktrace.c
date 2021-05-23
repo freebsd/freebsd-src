@@ -1361,7 +1361,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	PROC_UNLOCK(p);
 	ktr_io_params_free(kiop1);
 	ktr_io_params_free(kiop);
-	vrele(vp);
 }
 
 /*
