@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 21, 2018
+.Dd May 23, 2021
 .Dt CXGBETOOL 8
 .Os
 .Sh NAME
@@ -45,6 +45,10 @@
 .Pp
 .It
 .Nm Ar nexus Cm clearstats Ar port_id
+.It
+.Nm Ar nexus Cm clip Bro Cm hold | release Brc Ar ipv6-address
+.It
+.Nm Ar nexus Cm clip Cm list
 .It
 .Nm Ar nexus Cm context Bro Cm ingress | egress | fl | cong Brc Ar cntxt_id
 .It
@@ -116,6 +120,30 @@ The total number of ports attached to a nexus is listed in
 and the 0 based
 .Ar port_id
 identifies a port within this range.
+.Pp
+.Bl -item -compact
+.It
+.Cm clip hold Ar ipv6-address
+.El
+Install a reference on the given
+.Ar ipv6-address
+in the CLIP (Compressed Local IPv6) table.
+The address is added to the CLIP table if it is not present there already.
+.Pp
+.Bl -item -compact
+.It
+.Cm clip list
+.El
+List the contents of the CLIP table.
+.Pp
+.Bl -item -compact
+.It
+.Cm clip release Ar ipv6-address
+.El
+Release a reference on the given
+.Ar ipv6-address
+in the CLIP table.
+A reference on the address must have been acquired previously.
 .Pp
 .Bl -item -compact
 .It
