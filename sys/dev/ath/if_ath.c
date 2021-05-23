@@ -1083,9 +1083,16 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/*
 	 * Default the maximum queue to 1/4'th the TX buffers, or
-	 * 64, whichever is smaller.
+	 * 128, whichever is smaller.
+	 *
+	 * Set it to 128 instead of the previous default (64) because
+	 * at 64, two full A-MPDU subframes of 32 frames each is
+	 * enough to treat this node queue as full and all subsequent
+	 * traffic is dropped. Setting it to 128 means there'll
+	 * hopefully be another 64 frames in the software queue
+	 * to begin making A-MPDU frames out of.
 	 */
-	sc->sc_txq_node_maxdepth = MIN(64, ath_txbuf / 4);
+	sc->sc_txq_node_maxdepth = MIN(128, ath_txbuf / 4);
 
 	/* Enable CABQ by default */
 	sc->sc_cabq_enable = 1;
