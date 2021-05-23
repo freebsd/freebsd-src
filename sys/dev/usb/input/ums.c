@@ -952,8 +952,8 @@ ums_ev_open(struct evdev_dev *evdev)
 
 	if (sc->sc_fflags == 0) {
 		ums_reset(sc);
-		ums_start_rx(sc);
 	}
+	ums_start_rx(sc);
 
 	return (0);
 }
