@@ -47,6 +47,15 @@
 	(((n).tv_sec - (o).tv_sec)*1000000l +	\
 	 ((n).tv_usec - (o).tv_usec))
 
+#define check_timeout()	do {				\
+	if (check_timeout_cnt++ > 1000) {		\
+		check_timeout_cnt = 0;			\
+		gettimeofday(&now, NULL);		\
+		if (timevalcmp(now, timeout, >=))	\
+		    goto out;				\
+	} } while(0)
+
+
 int main(int argc, char ** argv)
 {
 	struct libalias *la;
@@ -59,8 +68,9 @@ int main(int argc, char ** argv)
 	} *batch;
 	struct {
 		unsigned long ok, fail;
-	} nat, unnat, random, attack;
-	int max_seconds, batch_size, random_size, attack_length, round, cnt;
+	} nat, usenat, unnat, random, attack;
+	int max_seconds, batch_size, random_size, attack_length, round;
+	int check_timeout_cnt = 0;
 
 	if(argc != 5 ||
 	   0 >  (max_seconds = atoi(argv[1])) ||
@@ -76,6 +86,7 @@ int main(int argc, char ** argv)
 	}
 
 	bzero(&nat, sizeof(nat));
+	bzero(&usenat, sizeof(usenat));
 	bzero(&unnat, sizeof(unnat));
 	bzero(&random, sizeof(random));
 	bzero(&attack, sizeof(attack));
@@ -97,15 +108,15 @@ int main(int argc, char ** argv)
 	gettimeofday(&timeout, NULL);
 	timeout.tv_sec += max_seconds;
 
-	printf("RND SECND NAT RND ATT UNA\n");
+	printf("RND SECOND newNAT RANDOM ATTACK useNAT\n");
 	for (round = 0; ; round++) {
-		int i, res;
+		int i, res, cnt;
 		struct timeval now, start;
 
 		printf("%3d ", round+1);
 
 		gettimeofday(&start, NULL);
-		printf("%5.1f ", max_seconds - timevaldiff(timeout, start)/1000000.0f);
+		printf("%6.1f ", max_seconds - timevaldiff(timeout, start)/1000000.0f);
 		for (cnt = i = 0; i < batch_size; i++, cnt++) {
 			batch[i].src.s_addr = prv1.s_addr | htonl(rand_range(0, 0xffff));
 			batch[i].dst.s_addr = ext.s_addr | htonl(rand_range(0, 0xffff));
@@ -127,12 +138,11 @@ int main(int argc, char ** argv)
 			else
 				nat.fail++;
 
-			gettimeofday(&now, NULL);
-			if(timevalcmp(now, timeout, >=))
-				goto out;
+			check_timeout();
 		}
+		gettimeofday(&now, NULL);
 		if (cnt > 0)
-			printf("%3.0f ", timevaldiff(now, start) / cnt);
+			printf("%6.2f ", timevaldiff(now, start) / cnt);
 
 		start = now;
 		for (cnt = i = 0; i < random_size; i++, cnt++) {
@@ -148,12 +158,11 @@ int main(int argc, char ** argv)
 			else
 				random.fail++;
 
-			gettimeofday(&now, NULL);
-			if(timevalcmp(now, timeout, >=))
-				goto out;
+			check_timeout();
 		}
+		gettimeofday(&now, NULL);
 		if (cnt > 0)
-			printf("%3.0f ", timevaldiff(now, start) / cnt);
+			printf("%6.2f ", timevaldiff(now, start) / cnt);
 
 		start = now;
 		p->ip_src.s_addr = ext.s_addr & htonl(0xfff00000);
@@ -168,39 +177,65 @@ int main(int argc, char ** argv)
 			else
 				attack.fail++;
 
-			gettimeofday(&now, NULL);
-			if(timevalcmp(now, timeout, >=))
-				goto out;
+			check_timeout();
 		}
+		gettimeofday(&now, NULL);
 		if (cnt > 0)
-			printf("%3.0f ", timevaldiff(now, start) / cnt);
+			printf("%6.2f ", timevaldiff(now, start) / cnt);
 
 		qsort(batch, batch_size, sizeof(*batch), randcmp);
 
 		gettimeofday(&start, NULL);
-		for (cnt = i = 0; i < batch_size; i++, cnt++) {
-			p->ip_src = batch[i].dst;
-			p->ip_dst = masq;
-			u = set_udp(p, batch[i].dport, batch[i].aport);
+		for (cnt = i = 0; i < batch_size; i++) {
+			int j;
 
-			res = LibAliasIn(la, p, 64);
-			batch[i].aport = htons(u->uh_sport);
+			/* random communication length */
+			for(j = rand_range(1, 150); j-- > 0; cnt++) {
+				int k;
 
-			if (res == PKT_ALIAS_OK &&
-			    u->uh_sport == htons(batch[i].dport) &&
-			    u->uh_dport == htons(batch[i].sport) &&
-			    addr_eq(p->ip_dst, batch[i].src) &&
-			    addr_eq(p->ip_src, batch[i].dst))
-				unnat.ok++;
-			else
-				unnat.fail++;
+				/* a random flow out of rolling window */
+				k = rand_range(i, i + 25);
+				if (k >= batch_size)
+					k = i;
 
-			gettimeofday(&now, NULL);
-			if(timevalcmp(now, timeout, >=))
-				goto out;
+				/* 10% outgoing, 90% incoming */
+				if (rand_range(0, 100) > 10) {
+					p->ip_src = batch[k].dst;
+					p->ip_dst = masq;
+					u = set_udp(p, batch[k].dport, batch[k].aport);
+
+					res = LibAliasIn(la, p, 64);
+					if (res == PKT_ALIAS_OK &&
+					    u->uh_sport == htons(batch[k].dport) &&
+					    u->uh_dport == htons(batch[k].sport) &&
+					    addr_eq(p->ip_dst, batch[k].src) &&
+					    addr_eq(p->ip_src, batch[k].dst))
+						unnat.ok++;
+					else
+						unnat.fail++;
+				} else {
+					p->ip_src = batch[k].src;
+					p->ip_dst = batch[k].dst;
+					u = set_udp(p, batch[k].sport, batch[k].dport);
+
+					res = LibAliasOut(la, p, 64);
+					if (res == PKT_ALIAS_OK &&
+					    u->uh_sport == htons(batch[k].aport) &&
+					    u->uh_dport == htons(batch[k].dport) &&
+					    addr_eq(p->ip_dst, batch[k].dst) &&
+					    addr_eq(p->ip_src, masq))
+						usenat.ok++;
+					else
+						usenat.fail++;
+				}
+				check_timeout();
+			}
 		}
+		gettimeofday(&now, NULL);
 		if (cnt > 0)
-			printf("%3.0f\n", timevaldiff(now, start) / cnt);
+			printf("%6.2f ", timevaldiff(now, start) / cnt);
+
+		printf("\n");
 	}
 out:
 	printf("\n\n");
@@ -209,18 +244,23 @@ out:
 	LibAliasUninit(la);
 
 	printf("Results\n");
-	printf("   Rounds  : %7u\n", round);
-	printf("   NAT ok  : %7lu\n", nat.ok);
-	printf("   NAT fail: %7lu\n", nat.fail);
-	printf(" UNNAT ok  : %7lu\n", unnat.ok);
-	printf(" UNNAT fail: %7lu\n", unnat.fail);
-	printf("RANDOM ok  : %7lu\n", random.ok);
-	printf("RANDOM fail: %7lu\n", random.fail);
-	printf("ATTACK ok  : %7lu\n", attack.ok);
-	printf("ATTACK fail: %7lu\n", attack.fail);
-	printf(" -------------------\n");
-	printf("      Total: %7lu\n",
-	       nat.ok + nat.fail + unnat.ok + unnat.fail +
-	       random.ok + random.fail + attack.ok + attack.fail);
+	printf("   Rounds  : %9u\n", round);
+	printf("newNAT ok  : %9lu\n", nat.ok);
+	printf("newNAT fail: %9lu\n", nat.fail);
+	printf("useNAT ok  : %9lu (out)\n", usenat.ok);
+	printf("useNAT fail: %9lu (out)\n", usenat.fail);
+	printf("useNAT ok  : %9lu (in)\n", unnat.ok);
+	printf("useNAT fail: %9lu (in)\n", unnat.fail);
+	printf("RANDOM ok  : %9lu\n", random.ok);
+	printf("RANDOM fail: %9lu\n", random.fail);
+	printf("ATTACK ok  : %9lu\n", attack.ok);
+	printf("ATTACK fail: %9lu\n", attack.fail);
+	printf("             ---------\n");
+	printf("      Total: %9lu\n",
+	       nat.ok + nat.fail +
+	       unnat.ok + unnat.fail +
+	       usenat.ok + usenat.fail +
+	       random.ok + random.fail +
+	       attack.ok + attack.fail);
 	return (0);
 }
