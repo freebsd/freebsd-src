@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <linux/kobject.h>
+#include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -119,6 +120,7 @@ static void linux_destroy_dev(struct linux_cdev *);
 static void linux_cdev_deref(struct linux_cdev *ldev);
 static struct vm_area_struct *linux_cdev_handle_find(void *handle);
 
+cpumask_t cpu_online_mask;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
@@ -2627,6 +2629,8 @@ linux_compat_init(void *arg)
 		LIST_INIT(&vmmaphead[i]);
 	init_waitqueue_head(&linux_bit_waitq);
 	init_waitqueue_head(&linux_var_waitq);
+
+	CPU_COPY(&all_cpus, &cpu_online_mask);
 }
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
