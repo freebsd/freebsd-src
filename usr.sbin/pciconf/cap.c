@@ -861,8 +861,10 @@ ecap_aer(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t sta, mask;
 
 	printf("AER %d", ver);
-	if (ver < 1)
+	if (ver < 1) {
+		printf("\n");
 		return;
+	}
 	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_STATUS, 4);
 	mask = read_config(fd, &p->pc_sel, ptr + PCIR_AER_UC_SEVERITY, 4);
 	printf(" %d fatal", bitcount32(sta & mask));
@@ -877,8 +879,10 @@ ecap_vc(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t cap1;
 
 	printf("VC %d", ver);
-	if (ver < 1)
+	if (ver < 1) {
+		printf("\n");
 		return;
+	}
 	cap1 = read_config(fd, &p->pc_sel, ptr + PCIR_VC_CAP1, 4);
 	printf(" max VC%d", cap1 & PCIM_VC_CAP1_EXT_COUNT);
 	if ((cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) != 0)
@@ -893,8 +897,10 @@ ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t high, low;
 
 	printf("Serial %d", ver);
-	if (ver < 1)
+	if (ver < 1) {
+		printf("\n");
 		return;
+	}
 	low = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_LOW, 4);
 	high = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_HIGH, 4);
 	printf(" %08x%08x\n", high, low);
@@ -940,8 +946,10 @@ ecap_sec_pcie(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	uint32_t val;
 
 	printf("PCIe Sec %d", ver);
-	if (ver < 1)
+	if (ver < 1) {
+		printf("\n");
 		return;
+	}
 	val = read_config(fd, &p->pc_sel, ptr + 8, 4);
 	printf(" lane errors %#x\n", val);
 }
