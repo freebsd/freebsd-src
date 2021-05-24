@@ -63,6 +63,15 @@ get_random_long(void)
 	return (val);
 }
 
+static __inline uint32_t
+prandom_u32(void)
+{
+	uint32_t val;
+
+	get_random_bytes(&val, sizeof(val));
+	return (val);
+}
+
 static inline u32
 prandom_u32_max(u32 max)
 {
