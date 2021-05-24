@@ -198,6 +198,12 @@ kfree(const void *ptr)
 	free(__DECONST(void *, ptr), M_KMALLOC);
 }
 
+static __inline void
+kfree_sensitive(const void *ptr)
+{
+	zfree(__DECONST(void *, ptr), M_KMALLOC);
+}
+
 static inline size_t
 ksize(const void *ptr)
 {
