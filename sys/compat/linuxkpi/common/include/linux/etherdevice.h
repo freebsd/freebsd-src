@@ -82,10 +82,11 @@ ether_addr_copy(u8 * dst, const u8 * src)
 }
 
 static inline bool
-ether_addr_equal(const u8 *pa, const u8 *pb)
+ether_addr_equal_unaligned(const u8 *pa, const u8 *pb)
 {
 	return (memcmp(pa, pb, 6) == 0);
 }
+#define	ether_addr_equal(_pa, _pb)	ether_addr_equal_unaligned(_pa, _pb)
 
 static inline bool
 ether_addr_equal_64bits(const u8 *pa, const u8 *pb)
