@@ -220,6 +220,13 @@ ktime_get_boottime(void)
 	return (timespec_to_ktime(ts));
 }
 
+static inline uint64_t
+ktime_get_boottime_ns(void)
+{
+
+	return (ktime_to_ns(ktime_get_boottime()));
+}
+
 static inline ktime_t
 ktime_get_real(void)
 {
