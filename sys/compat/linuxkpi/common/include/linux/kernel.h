@@ -45,6 +45,7 @@
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
+#include <linux/stringify.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/types.h>
