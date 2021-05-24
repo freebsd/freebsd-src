@@ -38,11 +38,6 @@
 #include "util.h"
 #include <alias.h>
 
-/* common ip ranges */
-static struct in_addr masq = { htonl(0x01020304) };
-static struct in_addr prv  = { htonl(0x0a000000) };
-static struct in_addr ext  = { htonl(0x12000000) };
-
 #define	timevalcmp(tv, uv, cmp)			\
 	(((tv).tv_sec == (uv).tv_sec)		\
 	 ? ((tv).tv_usec cmp (uv).tv_usec)	\
@@ -88,10 +83,10 @@ int main(int argc, char ** argv)
 	LibAliasSetAddress(la, masq);
 	LibAliasSetMode(la, PKT_ALIAS_DENY_INCOMING, PKT_ALIAS_DENY_INCOMING);
 
-	prv.s_addr &= htonl(0xffff0000);
+	prv1.s_addr &= htonl(0xffff0000);
 	ext.s_addr &= htonl(0xffff0000);
 
-	p = ip_packet(prv, ext, 0, 64);
+	p = ip_packet(0, 64);
 	u = set_udp(p, 0, 0);
 
 	if (NULL == (batch = calloc(batch_size, sizeof(*batch)))) {
@@ -112,7 +107,7 @@ int main(int argc, char ** argv)
 		gettimeofday(&start, NULL);
 		printf("%5.1f ", max_seconds - timevaldiff(timeout, start)/1000000.0f);
 		for (cnt = i = 0; i < batch_size; i++, cnt++) {
-			batch[i].src.s_addr = prv.s_addr | htonl(rand_range(0, 0xffff));
+			batch[i].src.s_addr = prv1.s_addr | htonl(rand_range(0, 0xffff));
 			batch[i].dst.s_addr = ext.s_addr | htonl(rand_range(0, 0xffff));
 			batch[i].sport = rand_range(1000, 60000);
 			batch[i].dport = rand_range(1000, 60000);
