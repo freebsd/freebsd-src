@@ -65,6 +65,8 @@
 #define	__always_inline			inline
 #define	noinline			__noinline
 #define	____cacheline_aligned		__aligned(CACHE_LINE_SIZE)
+#define	____cacheline_aligned_in_smp	__aligned(CACHE_LINE_SIZE)
+#define	fallthrough			/* FALLTHROUGH */ do { } while(0)
 
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
@@ -78,6 +80,7 @@
 #define	__printf(a,b)			__printflike(a,b)
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
+#define	smp_mb()			mb()
 
 #define	lower_32_bits(n)		((u32)(n))
 #define	upper_32_bits(n)		((u32)(((n) >> 16) >> 16))
