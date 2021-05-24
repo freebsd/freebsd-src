@@ -72,6 +72,7 @@ typedef unsigned __poll_t;
 typedef uint64_t phys_addr_t;
 
 typedef size_t __kernel_size_t;
+typedef	unsigned long	kernel_ulong_t;
 
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
