@@ -87,6 +87,9 @@
 #define	rcu_dereference(p)			\
 	rcu_dereference_protected(p, 0)
 
+#define	rcu_dereference_check(p, c)		\
+	rcu_dereference_protected(p, c)
+
 #define	rcu_dereference_raw(p)			\
 	((__typeof(*p) *)READ_ONCE(p))
 
