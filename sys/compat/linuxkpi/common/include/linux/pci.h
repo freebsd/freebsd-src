@@ -86,8 +86,12 @@ struct pci_device_id {
 
 #define	PCI_VENDOR_ID		PCIR_DEVVENDOR
 #define	PCI_COMMAND		PCIR_COMMAND
+#define	PCI_COMMAND_INTX_DISABLE	PCIM_CMD_INTxDIS
 #define	PCI_EXP_DEVCTL		PCIER_DEVICE_CTL		/* Device Control */
 #define	PCI_EXP_LNKCTL		PCIER_LINK_CTL			/* Link Control */
+#define	PCI_EXP_LNKCTL_ASPM_L0S	PCIEM_LINK_CTL_ASPMC_L0S
+#define	PCI_EXP_LNKCTL_ASPM_L1	PCIEM_LINK_CTL_ASPMC_L1
+#define	PCI_EXP_LNKCTL_CLKREQ_EN PCIEM_LINK_CTL_ECPM		/* Enable clock PM */
 #define	PCI_EXP_FLAGS_TYPE	PCIEM_FLAGS_TYPE		/* Device/Port type */
 #define	PCI_EXP_DEVCAP		PCIER_DEVICE_CAP		/* Device capabilities */
 #define	PCI_EXP_DEVSTA		PCIER_DEVICE_STA		/* Device Status */
@@ -101,6 +105,7 @@ struct pci_device_id {
 #define	PCI_EXP_RTSTA		PCIER_ROOT_STA			/* Root Status */
 #define	PCI_EXP_DEVCAP2		PCIER_DEVICE_CAP2		/* Device Capabilities 2 */
 #define	PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2		/* Device Control 2 */
+#define	PCI_EXP_DEVCTL2_LTR_EN	PCIEM_CTL2_LTR_ENABLE
 #define	PCI_EXP_LNKCAP2		PCIER_LINK_CAP2			/* Link Capabilities 2 */
 #define	PCI_EXP_LNKCTL2		PCIER_LINK_CTL2			/* Link Control 2 */
 #define	PCI_EXP_LNKSTA2		PCIER_LINK_STA2			/* Link Status 2 */
@@ -150,6 +155,10 @@ enum pcie_link_width {
 	PCIE_LNK_WIDTH_UNKNOWN	= 0xff,
 };
 
+#define	PCIE_LINK_STATE_L0S		0x00000001
+#define	PCIE_LINK_STATE_L1		0x00000002
+#define	PCIE_LINK_STATE_CLKPM		0x00000004
+
 typedef int pci_power_t;
 
 #define PCI_D0	PCI_POWERSTATE_D0
@@ -159,6 +168,11 @@ typedef int pci_power_t;
 #define PCI_D3cold	4
 
 #define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
+
+#define	PCI_ERR_ROOT_COMMAND		PCIR_AER_ROOTERR_CMD
+#define	PCI_ERR_ROOT_ERR_SRC		PCIR_AER_COR_SOURCE_ID
+
+#define	PCI_EXT_CAP_ID_ERR		PCIZ_AER
 
 struct pci_dev;
 
