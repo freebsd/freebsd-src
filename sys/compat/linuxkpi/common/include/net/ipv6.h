@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 
 #define	IPV6_DEFAULT_HOPLIMIT 64
 
