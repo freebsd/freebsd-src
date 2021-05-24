@@ -31,12 +31,15 @@
 #ifndef	_LINUX_INTERRUPT_H_
 #define	_LINUX_INTERRUPT_H_
 
+#include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/irqreturn.h>
+#include <linux/hardirq.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
@@ -181,6 +184,19 @@ free_irq(unsigned int irq, void *device)
 	bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 	list_del(&irqe->links);
 	kfree(irqe);
+}
+
+static inline int
+irq_set_affinity_hint(int vector, cpumask_t *mask)
+{
+	int error;
+
+	if (mask != NULL)
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, mask);
+	else
+		error = intr_setaffinity(vector, CPU_WHICH_IRQ, cpuset_root);
+
+	return (-error);
 }
 
 /*
