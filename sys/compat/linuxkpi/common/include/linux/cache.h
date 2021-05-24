@@ -31,7 +31,11 @@
 #ifndef	_LINUX_CACHE_H_
 #define _LINUX_CACHE_H_
 
+#include <sys/param.h>
+
 #define	cache_line_size()	CACHE_LINE_SIZE
 #define	L1_CACHE_BYTES		CACHE_LINE_SIZE
+
+#define	SMP_CACHE_BYTES		L1_CACHE_BYTES
 
 #endif	/* _LINUX_CACHE_H_ */
