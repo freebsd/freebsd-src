@@ -1782,6 +1782,7 @@ pf_pool_to_nvpool(const struct pf_kpool *pool)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "counter", tmp);
+	nvlist_destroy(tmp);
 
 	nvlist_add_number(nvl, "tblidx", pool->tblidx);
 	pf_uint16_array_nv(nvl, "proxy_port", pool->proxy_port, 2);
@@ -1791,6 +1792,7 @@ pf_pool_to_nvpool(const struct pf_kpool *pool)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "mape", tmp);
+	nvlist_destroy(tmp);
 
 	return (nvl);
 
@@ -1862,10 +1864,12 @@ pf_addr_wrap_to_nvaddr_wrap(const struct pf_addr_wrap *addr)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "addr", tmp);
+	nvlist_destroy(tmp);
 	tmp = pf_addr_to_nvaddr(&addr->v.a.mask);
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "mask", tmp);
+	nvlist_destroy(tmp);
 
 	return (nvl);
 
@@ -1930,6 +1934,7 @@ pf_rule_addr_to_nvrule_addr(const struct pf_rule_addr *addr)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "addr", tmp);
+	nvlist_destroy(tmp);
 	pf_uint16_array_nv(nvl, "port", addr->port, 2);
 	nvlist_add_number(nvl, "neg", addr->neg);
 	nvlist_add_number(nvl, "port_op", addr->port_op);
@@ -2155,6 +2160,7 @@ pf_divert_to_nvdivert(const struct pf_krule *rule)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "addr", tmp);
+	nvlist_destroy(tmp);
 	nvlist_add_number(nvl, "port", rule->divert.port);
 
 	return (nvl);
@@ -2178,10 +2184,12 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "src", tmp);
+	nvlist_destroy(tmp);
 	tmp = pf_rule_addr_to_nvrule_addr(&rule->dst);
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "dst", tmp);
+	nvlist_destroy(tmp);
 
 	for (int i = 0; i < PF_SKIP_COUNT; i++) {
 		nvlist_append_number_array(nvl, "skip",
@@ -2203,6 +2211,7 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "rpool", tmp);
+	nvlist_destroy(tmp);
 
 	nvlist_add_number(nvl, "evaluations",
 	    counter_u64_fetch(rule->evaluations));
@@ -2248,10 +2257,12 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "uid", tmp);
+	nvlist_destroy(tmp);
 	tmp = pf_rule_uid_to_nvrule_uid((const struct pf_rule_uid *)&rule->gid);
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "gid", tmp);
+	nvlist_destroy(tmp);
 
 	nvlist_add_number(nvl, "rule_flag", rule->rule_flag);
 	nvlist_add_number(nvl, "action", rule->action);
@@ -2288,6 +2299,7 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 	if (tmp == NULL)
 		goto error;
 	nvlist_add_nvlist(nvl, "divert", tmp);
+	nvlist_destroy(tmp);
 
 	return (nvl);
 
@@ -2532,6 +2544,7 @@ pf_state_peer_to_nvstate_peer(const struct pf_state_peer *peer)
 		if (tmp == NULL)
 			goto errout;
 		nvlist_add_nvlist(nvl, "scrub", tmp);
+		nvlist_destroy(tmp);
 	}
 
 	nvlist_add_number(nvl, "seqlo", peer->seqlo);
@@ -2568,26 +2581,31 @@ pf_state_to_nvstate(const struct pf_state *s)
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "stack_key", tmp);
+	nvlist_destroy(tmp);
 
 	tmp = pf_state_key_to_nvstate_key(s->key[PF_SK_WIRE]);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "wire_key", tmp);
+	nvlist_destroy(tmp);
 
 	tmp = pf_state_peer_to_nvstate_peer(&s->src);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "src", tmp);
+	nvlist_destroy(tmp);
 
 	tmp = pf_state_peer_to_nvstate_peer(&s->dst);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "dst", tmp);
+	nvlist_destroy(tmp);
 
 	tmp = pf_addr_to_nvaddr(&s->rt_addr);
 	if (tmp == NULL)
 		goto errout;
 	nvlist_add_nvlist(nvl, "rt_addr", tmp);
+	nvlist_destroy(tmp);
 
 	nvlist_add_number(nvl, "rule", s->rule.ptr ? s->rule.ptr->nr : -1);
 	nvlist_add_number(nvl, "anchor",
@@ -3317,7 +3335,6 @@ DIOCADDRULENV_error:
 		    ruleset->rules[rs_num].active.ticket) {
 			PF_RULES_WUNLOCK();
 			ERROUT(EBUSY);
-			break;
 		}
 
 		if ((error = nvlist_error(nvl))) {
@@ -3331,7 +3348,6 @@ DIOCADDRULENV_error:
 		if (rule == NULL) {
 			PF_RULES_WUNLOCK();
 			ERROUT(EBUSY);
-			break;
 		}
 
 		nvrule = pf_krule_to_nvrule(rule);
@@ -3344,6 +3360,7 @@ DIOCADDRULENV_error:
 		}
 		nvlist_add_number(nvl, "nr", nr);
 		nvlist_add_nvlist(nvl, "rule", nvrule);
+		nvlist_destroy(nvrule);
 		nvrule = NULL;
 		if (pf_kanchor_nvcopyout(ruleset, rule, nvl)) {
 			PF_RULES_WUNLOCK();
@@ -5912,6 +5929,7 @@ pf_getstate(struct pfioc_nv *nv)
 		ERROUT(ENOMEM);
 
 	nvlist_add_nvlist(nvl, "state", nvls);
+	nvlist_destroy(nvls);
 
 	nvlpacked = nvlist_pack(nvl, &nv->len);
 	if (nvlpacked == NULL)
