@@ -181,6 +181,7 @@ show_class_attr_string(struct class *class,
 		_CLASS_ATTR_STRING(_name, _mode, _str)
 
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+#define	dev_crit(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
