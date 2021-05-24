@@ -1,17 +1,19 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * This software was developed by Björn Zeeb under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -28,20 +30,11 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_ACPI_H_
-#define _LINUX_ACPI_H_
+#ifndef	__LKPI_LINUX_UUID_H
+#define	__LKPI_LINUX_UUID_H
 
-#include <linux/device.h>
-#include <linux/uuid.h>
+typedef struct {
+	char	x[16];
+} guid_t;
 
-#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
-
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-
-#define	ACPI_HANDLE(dev)	\
-    ((dev)->bsddev != NULL ? bsd_acpi_get_handle((dev)->bsddev) : NULL)
-
-#endif
-
-#endif /* _LINUX_ACPI_H_ */
+#endif	/* __LKPI_LINUX_UUID_H */
