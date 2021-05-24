@@ -315,6 +315,9 @@ zf_seek(struct open_file *f, off_t offset, int where)
 	    target - zf->zf_zstream.total_out), NULL);
 	if (errno)
 	    return(-1);
+	/* Break out of loop if end of file has been reached. */
+	if (zf->zf_endseen)
+	    break;
     }
     /* This is where we are (be honest if we overshot) */
     return(zf->zf_zstream.total_out);
