@@ -6058,8 +6058,12 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	if (nrsm->r_flags & RACK_HAS_SYN)
 		nrsm->r_flags &= ~RACK_HAS_SYN;
 	/* Now if we have a FIN flag we keep it on the right edge */
-	if (nrsm->r_flags & RACK_HAS_FIN)
-		nrsm->r_flags &= ~RACK_HAS_FIN;
+	if (rsm->r_flags & RACK_HAS_FIN)
+		rsm->r_flags &= ~RACK_HAS_FIN;
+	/* Push bit must go to the right edge as well */
+	if (rsm->r_flags & RACK_HAD_PUSH)
+		rsm->r_flags &= ~RACK_HAD_PUSH;
+	
 	/*
 	 * Now we need to find nrsm's new location in the mbuf chain
 	 * we basically calculate a new offset, which is soff +

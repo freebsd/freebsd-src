@@ -3407,6 +3407,15 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 	tp->snd_recover = tp->snd_max;
 	if (tp->t_flags & TF_SACK_PERMIT)
 		EXIT_FASTRECOVERY(tp->t_flags);
+	if (tp->t_fb->tfb_tcp_mtu_chg != NULL) {
+		/*
+		 * Conceptually the snd_nxt setting
+		 * and freeing sack holes should
+		 * be done by the default stacks
+		 * own tfb_tcp_mtu_chg().
+		 */
+		tp->t_fb->tfb_tcp_mtu_chg(tp);
+	}
 	tp->t_fb->tfb_tcp_output(tp);
 }
 
