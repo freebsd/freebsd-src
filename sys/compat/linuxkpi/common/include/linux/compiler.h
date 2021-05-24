@@ -60,8 +60,6 @@
 #define	__percpu
 #define	__weak __weak_symbol
 #define	__malloc
-#define	___stringify(...)		#__VA_ARGS__
-#define	__stringify(...)		___stringify(__VA_ARGS__)
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline

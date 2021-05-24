@@ -36,6 +36,7 @@
 #include <sys/errno.h>
 
 #include <linux/kobject.h>
+#include <linux/stringify.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
