@@ -36,6 +36,10 @@
 
 #include <asm/types.h>
 
+struct inet6_dev {
+	/* XXX currently unused but in a declaration. */
+};
+
 static inline void ipv6_eth_mc_map(const struct in6_addr *addr, char *buf)
 {
 /*
