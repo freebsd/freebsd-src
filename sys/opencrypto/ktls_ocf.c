@@ -403,11 +403,11 @@ ktls_ocf_tls12_aead_encrypt(struct ktls_session *tls,
 	/* Duplicate iovec and append vector for tag. */
 	memcpy(iov, tag_uio->uio_iov, iovcnt * sizeof(struct iovec));
 	iov[iovcnt].iov_base = trailer;
-	iov[iovcnt].iov_len = AES_GMAC_HASH_LEN;
+	iov[iovcnt].iov_len = tls->params.tls_tlen;
 	tag_uio->uio_iov = iov;
 	tag_uio->uio_iovcnt++;
 	crp.crp_digest_start = tag_uio->uio_resid;
-	tag_uio->uio_resid += AES_GMAC_HASH_LEN;
+	tag_uio->uio_resid += tls->params.tls_tlen;
 
 	crp.crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
@@ -492,7 +492,7 @@ ktls_ocf_tls12_aead_decrypt(struct ktls_session *tls,
 	error = ktls_ocf_dispatch(os, &crp);
 
 	crypto_destroyreq(&crp);
-	*trailer_len = AES_GMAC_HASH_LEN;
+	*trailer_len = tls->params.tls_tlen;
 	return (error);
 }
 
