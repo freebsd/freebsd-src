@@ -191,7 +191,7 @@ SYSINIT(taskqueue_##name, SI_SUB_TASKQ, SI_ORDER_SECOND,		\
 struct __hack
 #define TASKQUEUE_FAST_DEFINE_THREAD(name)				\
 TASKQUEUE_FAST_DEFINE(name, taskqueue_thread_enqueue,			\
-	&taskqueue_##name, taskqueue_start_threads(&taskqueue_##name	\
+	&taskqueue_##name, taskqueue_start_threads(&taskqueue_##name,	\
 	1, PWAIT, "%s taskq", #name))
 
 /*
