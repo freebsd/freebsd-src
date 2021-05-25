@@ -560,6 +560,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 
 		while (vaddr < vendaddr) {
 			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
+			sg_len = MIN(sg_len, dmat->common.maxsegsz);
 			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
 			else
