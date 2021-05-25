@@ -850,6 +850,7 @@ lookup(struct nameidata *ndp)
 {
 	char *cp;			/* pointer into pathname argument */
 	char *prev_ni_next;		/* saved ndp->ni_next */
+	char *nulchar;			/* location of '\0' in cn_pnbuf */
 	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
@@ -909,9 +910,23 @@ dirloop:
 	 * cnp->cn_nameptr for callers that need the name. Callers needing
 	 * the name set the SAVENAME flag. When done, they assume
 	 * responsibility for freeing the pathname buffer.
+	 *
+	 * Store / as a temporary sentinel so that we only have one character
+	 * to test for. Pathnames tend to be short so this should not be
+	 * resulting in cache misses.
 	 */
-	for (cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
+	nulchar = &cnp->cn_nameptr[ndp->ni_pathlen - 1];
+	KASSERT(*nulchar == '\0',
+	    ("%s: expected nul at %p; string [%s]\n", __func__, nulchar,
+	    cnp->cn_pnbuf));
+	*nulchar = '/';
+	for (cp = cnp->cn_nameptr; *cp != '/'; cp++) {
+		KASSERT(*cp != '\0',
+		    ("%s: encountered unexpected nul; string [%s]\n", __func__,
+		    cnp->cn_nameptr));
 		continue;
+	}
+	*nulchar = '\0';
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
 	if (cnp->cn_namelen > NAME_MAX) {
 		error = ENAMETOOLONG;
