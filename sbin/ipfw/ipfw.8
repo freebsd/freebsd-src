@@ -1,11 +1,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2021
+.Dd June 14, 2021
 .Dt IPFW 8
 .Os
 .Sh NAME
-.Nm ipfw
+.Nm ipfw , dnctl
 .Nd User interface for firewall, traffic shaper, packet scheduler,
 in-kernel NAT.
 .Sh SYNOPSIS
@@ -88,12 +88,12 @@ in-kernel NAT.
 .Brq Ar name | all
 .Cm flush
 .Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
-.Nm
+.Nm dnctl
 .Brq Cm pipe | queue | sched
 .Ar number
 .Cm config
 .Ar config-options
-.Nm
+.Nm dnctl
 .Op Fl s Op Ar field
 .Brq Cm pipe | queue | sched
 .Brq Cm delete | list | show
@@ -440,7 +440,7 @@ them on the local hostname) and the use of macros to centralize
 frequently required arguments like IP addresses.
 .Ss TRAFFIC SHAPER CONFIGURATION
 The
-.Nm
+.Nm dnctl
 .Cm pipe , queue
 and
 .Cm sched
@@ -2650,11 +2650,11 @@ Bandwidth, measured in
 A value of 0 (default) means unlimited bandwidth.
 The unit must immediately follow the number, as in
 .Pp
-.Dl "ipfw pipe 1 config bw 300Kbit/s"
+.Dl "dnctl pipe 1 config bw 300Kbit/s"
 .Pp
 If a device name is specified instead of a numeric value, as in
 .Pp
-.Dl "ipfw pipe 1 config bw tun0"
+.Dl "dnctl pipe 1 config bw tun0"
 .Pp
 then the transmit clock is supplied by the specified device.
 At the moment only the
@@ -2731,7 +2731,7 @@ The file format is the following, with whitespace acting as
 a separator and '#' indicating the beginning a comment:
 .Bl -tag -width indent
 .It Cm name Ar identifier
-optional name (listed by "ipfw pipe show")
+optional name (listed by "dnctl pipe show")
 to identify the delay distribution;
 .It Cm bw Ar value
 the bandwidth used for the pipe.
@@ -4356,15 +4356,15 @@ A similar effect can be achieved making use of
 .Nm dummynet
 pipes:
 .Pp
-.Dl "ipfw add pipe 10 ip from any to any"
-.Dl "ipfw pipe 10 config plr 0.05"
+.Dl "dnctl add pipe 10 ip from any to any"
+.Dl "dnctl pipe 10 config plr 0.05"
 .Pp
 We can use pipes to artificially limit bandwidth, e.g.\& on a
 machine acting as a router, if we want to limit traffic from
 local clients on 192.168.2.0/24 we do:
 .Pp
 .Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
-.Dl "ipfw pipe 1 config bw 300Kbit/s queue 50KBytes"
+.Dl "dnctl pipe 1 config bw 300Kbit/s queue 50KBytes"
 .Pp
 note that we use the
 .Cm out
@@ -4378,8 +4378,8 @@ limitations, the correct way is the following:
 .Pp
 .Dl "ipfw add pipe 1 ip from any to any out"
 .Dl "ipfw add pipe 2 ip from any to any in"
-.Dl "ipfw pipe 1 config bw 64Kbit/s queue 10Kbytes"
-.Dl "ipfw pipe 2 config bw 64Kbit/s queue 10Kbytes"
+.Dl "dnctl pipe 1 config bw 64Kbit/s queue 10Kbytes"
+.Dl "dnctl pipe 2 config bw 64Kbit/s queue 10Kbytes"
 .Pp
 The above can be very useful, e.g.\& if you want to see how
 your fancy Web page will look for a residential user who
@@ -4394,7 +4394,7 @@ Should we want to verify network performance with the RED queue
 management algorithm:
 .Pp
 .Dl "ipfw add pipe 1 ip from any to any"
-.Dl "ipfw pipe 1 config bw 500Kbit/s queue 100 red 0.002/30/80/0.1"
+.Dl "dnctl pipe 1 config bw 500Kbit/s queue 100 red 0.002/30/80/0.1"
 .Pp
 Another typical application of the traffic shaper is to
 introduce some delay in the communication.
@@ -4405,8 +4405,8 @@ bandwidth:
 .Pp
 .Dl "ipfw add pipe 1 ip from any to any out"
 .Dl "ipfw add pipe 2 ip from any to any in"
-.Dl "ipfw pipe 1 config delay 250ms bw 1Mbit/s"
-.Dl "ipfw pipe 2 config delay 250ms bw 1Mbit/s"
+.Dl "dnctl pipe 1 config delay 250ms bw 1Mbit/s"
+.Dl "dnctl pipe 2 config delay 250ms bw 1Mbit/s"
 .Pp
 Per-flow queueing can be useful for a variety of purposes.
 A very simple one is counting traffic:
@@ -4414,7 +4414,7 @@ A very simple one is counting traffic:
 .Dl "ipfw add pipe 1 tcp from any to any"
 .Dl "ipfw add pipe 1 udp from any to any"
 .Dl "ipfw add pipe 1 ip from any to any"
-.Dl "ipfw pipe 1 config mask all"
+.Dl "dnctl pipe 1 config mask all"
 .Pp
 The above set of rules will create queues (and collect
 statistics) for all traffic.
@@ -4432,8 +4432,8 @@ on a net with per-host limits, rather than per-network limits:
 .Pp
 .Dl "ipfw add pipe 1 ip from 192.168.2.0/24 to any out"
 .Dl "ipfw add pipe 2 ip from any to 192.168.2.0/24 in"
-.Dl "ipfw pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
-.Dl "ipfw pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Dl "dnctl pipe 1 config mask src-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
+.Dl "dnctl pipe 2 config mask dst-ip 0x000000ff bw 200Kbit/s queue 20Kbytes"
 .Ss LOOKUP TABLES
 In the following example, we need to create several traffic bandwidth
 classes and we need different hosts/networks to fall into different classes.
@@ -4443,8 +4443,8 @@ For each subnet/host we set the argument equal to the number of the pipe
 that it should use.
 Then we classify traffic using a single rule:
 .Pp
-.Dl "ipfw pipe 1 config bw 1000Kbyte/s"
-.Dl "ipfw pipe 4 config bw 4000Kbyte/s"
+.Dl "dnctl pipe 1 config bw 1000Kbyte/s"
+.Dl "dnctl pipe 4 config bw 4000Kbyte/s"
 .Dl "..."
 .Dl "ipfw table T1 create type addr"
 .Dl "ipfw table T1 add 192.168.2.0/24 1"
@@ -4626,7 +4626,7 @@ with
 AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
 rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s codel"
+.Dl "dnctl pipe 1 config bw 1mbits/s codel"
 .Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
 .Pp
 To configure a
@@ -4636,8 +4636,8 @@ with
 AQM using different configurations parameters for traffic from
 192.168.0.0/24 and 1Mbits/s rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s"
-.Dl "ipfw queue 1 config pipe 1 codel target 8ms interval 160ms ecn"
+.Dl "dnctl pipe 1 config bw 1mbits/s"
+.Dl "dnctl queue 1 config pipe 1 codel target 8ms interval 160ms ecn"
 .Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
 .Pp
 To configure a
@@ -4647,7 +4647,7 @@ with
 AQM using default configuration for traffic from 192.168.0.0/24 and 1Mbits/s
 rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s pie"
+.Dl "dnctl pipe 1 config bw 1mbits/s pie"
 .Dl "ipfw add 100 pipe 1 ip from 192.168.0.0/24 to any"
 .Pp
 To configure a
@@ -4657,8 +4657,8 @@ with
 AQM using different configuration parameters for traffic from
 192.168.0.0/24 and 1Mbits/s rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s"
-.Dl "ipfw queue 1 config pipe 1 pie target 20ms tupdate 30ms ecn"
+.Dl "dnctl pipe 1 config bw 1mbits/s"
+.Dl "dnctl queue 1 config pipe 1 pie target 20ms tupdate 30ms ecn"
 .Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
 .Pp
 .Cm fq_codel
@@ -4673,9 +4673,9 @@ To configure
 scheduler using different configurations parameters for traffic from
 192.168.0.0/24 and 1Mbits/s rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s"
-.Dl "ipfw sched 1 config pipe 1 type fq_codel"
-.Dl "ipfw queue 1 config sched 1"
+.Dl "dnctl pipe 1 config bw 1mbits/s"
+.Dl "dnctl sched 1 config pipe 1 type fq_codel"
+.Dl "dnctl queue 1 config sched 1"
 .Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
 .Pp
 To change
@@ -4686,7 +4686,7 @@ such as disable ECN and change the
 .Ar target
 to 10ms, we do:
 .Pp
-.Dl "ipfw sched 1 config pipe 1 type fq_codel target 10ms noecn"
+.Dl "dnctl sched 1 config pipe 1 type fq_codel target 10ms noecn"
 .Pp
 Similar to
 .Cm fq_codel ,
@@ -4695,9 +4695,9 @@ to configure
 scheduler using different configurations parameters for traffic from
 192.168.0.0/24 and 1Mbits/s rate limit, we do:
 .Pp
-.Dl "ipfw pipe 1 config bw 1mbits/s"
-.Dl "ipfw sched 1 config pipe 1 type fq_pie"
-.Dl "ipfw queue 1 config sched 1"
+.Dl "dnctl pipe 1 config bw 1mbits/s"
+.Dl "dnctl sched 1 config pipe 1 type fq_pie"
+.Dl "dnctl queue 1 config sched 1"
 .Dl "ipfw add 100 queue 1 ip from 192.168.0.0/24 to any"
 .Pp
 The configurations of
