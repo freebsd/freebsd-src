@@ -176,6 +176,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
+int LibAliasTime;
 
 /*
    Constants (note: constants are also defined
@@ -820,7 +821,7 @@ CleanupLink(struct libalias *la, struct alias_link **lnk)
 	if (lnk == NULL || *lnk == NULL)
 		return;
 
-	if (la->timeStamp - (*lnk)->timestamp > (*lnk)->expire_time) {
+	if (LibAliasTime - (*lnk)->timestamp > (*lnk)->expire_time) {
 		DeleteLink(lnk);
 		if ((*lnk) == NULL)
 			return;
@@ -940,7 +941,7 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 #endif
 		lnk->flags = 0;
 		lnk->pflags = 0;
-		lnk->timestamp = la->timeStamp;
+		lnk->timestamp = LibAliasTime;
 
 		/* Expiration time */
 		switch (link_type) {
@@ -1109,7 +1110,7 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 
 	CleanupLink(la, &lnk);
 	if (lnk != NULL)
-		lnk->timestamp = la->timeStamp;
+		lnk->timestamp = LibAliasTime;
 
 	/* Search for partially specified links. */
 	if (lnk == NULL && replace_partial_links) {
@@ -1240,7 +1241,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 	CleanupLink(la, &lnk_fully_specified);
 	if (lnk_fully_specified != NULL) {
-		lnk_fully_specified->timestamp = la->timeStamp;
+		lnk_fully_specified->timestamp = LibAliasTime;
 		lnk = lnk_fully_specified;
 	} else if (lnk_unknown_dst_port != NULL)
 		lnk = lnk_unknown_dst_port;
@@ -2101,24 +2102,45 @@ SetDestCallId(struct alias_link *lnk, u_int16_t cid)
 void
 HouseKeeping(struct libalias *la)
 {
-	struct alias_link * lnk = TAILQ_FIRST(&la->checkExpire);
-#ifndef _KERNEL
-	struct timeval tv;
-#endif
+	static unsigned int packets = 0;
+	static unsigned int packet_limit = 1000;
 
 	LIBALIAS_LOCK_ASSERT(la);
+	packets++;
+
 	/*
-	 * Save system time (seconds) in global variable timeStamp for use
-	 * by other functions. This is done so as not to unnecessarily
-	 * waste timeline by making system calls.
+	 * User space time/gettimeofday/... is very expensive.
+	 * Kernel space cache trashing is unnecessary.
+	 *
+	 * Save system time (seconds) in global variable LibAliasTime
+	 * for use by other functions. This is done so as not to
+	 * unnecessarily waste timeline by making system calls.
+	 *
+	 * Reduce the amount of house keeping work substantially by
+	 * sampling over the packets.
 	 */
+	if (packets % packet_limit == 0) {
+		time_t now;
+
 #ifdef _KERNEL
-	la->timeStamp = time_uptime;
+		now = time_uptime;
 #else
-	gettimeofday(&tv, NULL);
-	la->timeStamp = tv.tv_sec;
+		now = time(NULL);
 #endif
-	CleanupLink(la, &lnk);
+		if (now != LibAliasTime) {
+			/* retry three times a second */
+			packet_limit = packets / 3;
+			packets = 0;
+			LibAliasTime = now;
+		}
+
+	}
+	/* Do a cleanup for the first packets of the new second only */
+	if (packets < (la->udpLinkCount + la->tcpLinkCount)) {
+		struct alias_link * lnk = TAILQ_FIRST(&la->checkExpire);
+
+		CleanupLink(la, &lnk);
+	}
 }
 
 /* Init the log file and enable logging */
@@ -2392,9 +2414,6 @@ struct libalias *
 LibAliasInit(struct libalias *la)
 {
 	int i;
-#ifndef _KERNEL
-	struct timeval tv;
-#endif
 
 	if (la == NULL) {
 #ifdef _KERNEL
@@ -2414,10 +2433,9 @@ LibAliasInit(struct libalias *la)
 		LIST_INSERT_HEAD(&instancehead, la, instancelist);
 
 #ifdef _KERNEL
-		la->timeStamp = time_uptime;
+		LibAliasTime = time_uptime;
 #else
-		gettimeofday(&tv, NULL);
-		la->timeStamp = tv.tv_sec;
+		LibAliasTime = time(NULL);
 #endif
 
 		for (i = 0; i < LINK_TABLE_OUT_SIZE; i++)
