@@ -710,6 +710,35 @@ thread_reap_callout_cb(void *arg __unused)
 }
 
 /*
+ * Calling this function guarantees that any thread that exited before
+ * the call is reaped when the function returns.  By 'exited' we mean
+ * a thread removed from the process linkage with thread_unlink().
+ * Practically this means that caller must lock/unlock corresponding
+ * process lock before the call, to synchronize with thread_exit().
+ */
+void
+thread_reap_barrier(void)
+{
+	struct task *t;
+
+	/*
+	 * First do context switches to each CPU to ensure that all
+	 * PCPU pc_deadthreads are moved to zombie list.
+	 */
+	quiesce_all_cpus("", PDROP);
+
+	/*
+	 * Second, fire the task in the same thread as normal
+	 * thread_reap() is done, to serialize reaping.
+	 */
+	t = malloc(sizeof(*t), M_TEMP, M_WAITOK);
+	TASK_INIT(t, 0, thread_reap_task_cb, t);
+	taskqueue_enqueue(taskqueue_thread, t);
+	taskqueue_drain(taskqueue_thread, t);
+	free(t, M_TEMP);
+}
+
+/*
  * Allocate a thread.
  */
 struct thread *

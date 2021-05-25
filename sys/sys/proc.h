@@ -1177,6 +1177,7 @@ int	thread_create(struct thread *td, struct rtprio *rtp,
 void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
+void	thread_reap_barrier(void);
 int	thread_single(struct proc *p, int how);
 void	thread_single_end(struct proc *p, int how);
 void	thread_stash(struct thread *td);
