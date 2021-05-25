@@ -94,6 +94,8 @@
 .Fa "void *dst"
 .Fc
 .Ft void *
+.Fn crypto_cursor_segment "struct crypto_buffer_cursor *cc" "size_t *len"
+.Ft void *
 .Fn crypto_cursor_segbase "struct crypto_buffer_cursor *cc"
 .Ft size_t
 .Fn crypto_cursor_seglen "struct crypto_buffer_cursor *cc"
@@ -293,6 +295,12 @@ is similar to
 except that it does not change the current position of
 .Fa cc .
 .Pp
+.Fn crypto_cursor_segment
+returns the start of the virtually-contiguous segment at the current position of
+.Fa cc .
+The length of the segment is stored in
+.Fa len .
+.Pp
 .Fn crypto_cursor_segbase
 and
 .Fn crypto_cursor_seglen
@@ -307,8 +315,9 @@ return the return value from the caller-supplied callback function.
 .Pp
 .Fn crypto_buffer_contiguous_subsegment ,
 .Fn crypto_contiguous_subsegment ,
-and
 .Fn crypto_cursor_segbase ,
+and
+.Fn crypto_cursor_segment
 return a pointer to a contiguous segment or
 .Dv NULL .
 .Pp
