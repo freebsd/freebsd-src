@@ -80,6 +80,14 @@
 
 struct proxy_entry;
 
+struct group_in {
+	struct in_addr	alias_addr;
+	u_short		alias_port;
+	int		link_type;
+	LIST_ENTRY(group_in)	group_in;
+	LIST_HEAD(, alias_link)	full, partial;
+};
+
 struct libalias {
 	LIST_ENTRY(libalias) instancelist;
 	/* Mode flags documented in alias.h */
@@ -92,8 +100,9 @@ struct libalias {
 	/* Lookup table of pointers to chains of link records.
 	 * Each link record is doubly indexed into input and
 	 * output lookup tables. */
-	LIST_HEAD     (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
-	LIST_HEAD     (, alias_link) linkTableIn[LINK_TABLE_IN_SIZE];
+	LIST_HEAD (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
+	LIST_HEAD (, group_in)   groupTableIn[LINK_TABLE_IN_SIZE];
+	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */
@@ -105,9 +114,6 @@ struct libalias {
 	unsigned int	fragmentIdLinkCount;
 	unsigned int	fragmentPtrLinkCount;
 	unsigned int	sockCount;
-	/* If equal to zero, DeleteLink()
-	 * will not remove permanent links */
-	int		deleteAllLinks;
 	/* log descriptor */
 #ifdef _KERNEL
 	char	       *logDesc;
