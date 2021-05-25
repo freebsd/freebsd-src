@@ -6243,7 +6243,7 @@ ipf_nat_rule_deref(softc, inp)
 
 	if (n->in_tqehead[0] != NULL) {
 		if (ipf_deletetimeoutqueue(n->in_tqehead[0]) == 0) {
-			ipf_freetimeoutqueue(softc, n->in_tqehead[1]);
+			ipf_freetimeoutqueue(softc, n->in_tqehead[0]);
 		}
 	}
 
