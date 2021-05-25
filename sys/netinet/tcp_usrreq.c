@@ -1825,11 +1825,14 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		 * new one already.
 		 */
 		if (tp->t_fb->tfb_tcp_fb_fini) {
+			struct epoch_tracker et;
 			/*
 			 * Tell the stack to cleanup with 0 i.e.
 			 * the tcb is not going away.
 			 */
+			NET_EPOCH_ENTER(et);
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 0);
+			NET_EPOCH_EXIT(et);
 		}
 #ifdef TCPHPTS
 		/* Assure that we are not on any hpts */
