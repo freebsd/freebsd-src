@@ -402,6 +402,13 @@ static void	UninitPacketAliasLog(struct libalias *);
 void		SctpShowAliasStats(struct libalias *la);
 
 static u_int
+StartPartialIn(u_short alias_port, int link_type)
+{
+	return (link_type == LINK_PPTP) ? 0
+	    : (alias_port % LINK_PARTIAL_SIZE);
+}
+
+static u_int
 StartPointIn(struct in_addr alias_addr,
     u_short alias_port,
     int link_type)
@@ -1036,8 +1043,13 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		LIST_INSERT_HEAD(&la->linkTableOut[start_point], lnk, list_out);
 
 		/* Set up pointers for input lookup table */
-		start_point = StartPointIn(alias_addr, lnk->alias_port, link_type);
-		LIST_INSERT_HEAD(&la->linkTableIn[start_point], lnk, list_in);
+		if (lnk->flags & LINK_PARTIALLY_SPECIFIED) {
+			start_point = StartPartialIn(lnk->alias_port, link_type);
+			LIST_INSERT_HEAD(&la->linkPartialIn[start_point], lnk, list_in);
+		} else {
+			start_point = StartPointIn(alias_addr, lnk->alias_port, link_type);
+			LIST_INSERT_HEAD(&la->linkTableIn[start_point], lnk, list_in);
+		}
 
 		/* Include the element into the housekeeping list */
 		TAILQ_INSERT_TAIL(&la->checkExpire, lnk, list_expire);
@@ -1213,8 +1225,6 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	if (!(flags_in & LINK_PARTIALLY_SPECIFIED)) {
 		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
 			INGUARD;
-			if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
-				continue;
 			if (lnk->dst_addr.s_addr == dst_addr.s_addr
 			    && lnk->dst_port == dst_port) {
 				CleanupLink(la, &lnk);
@@ -1224,26 +1234,42 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 				}
 			}
 		}
+	} else {
+		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
+			int flags = flags_in & LINK_PARTIALLY_SPECIFIED;
+
+			INGUARD;
+			if (flags == LINK_PARTIALLY_SPECIFIED &&
+			    lnk_unknown_all == NULL)
+				lnk_unknown_all = lnk;
+			if (flags == LINK_UNKNOWN_DEST_ADDR &&
+			    lnk->dst_port == dst_port &&
+			    lnk_unknown_dst_addr == NULL)
+				lnk_unknown_dst_addr = lnk;
+			if (flags == LINK_UNKNOWN_DEST_PORT &&
+			    lnk->dst_addr.s_addr == dst_addr.s_addr) {
+				lnk_unknown_dst_port = lnk;
+				break;
+			}
+		}
 	}
-	LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
-		int flags;
+
+	start_point = StartPartialIn(alias_port, link_type);
+	LIST_FOREACH(lnk, &la->linkPartialIn[start_point], list_in) {
+		int flags = (flags_in | lnk->flags) & LINK_PARTIALLY_SPECIFIED;
 
 		INGUARD;
-		flags = flags_in | lnk->flags;
-		if ((flags & LINK_UNKNOWN_DEST_ADDR)
-		    && (flags & LINK_UNKNOWN_DEST_PORT)) {
-			if (lnk_unknown_all == NULL)
-				lnk_unknown_all = lnk;
-		} else if (flags & LINK_UNKNOWN_DEST_ADDR) {
-			if (lnk->dst_port == dst_port) {
-				if (lnk_unknown_dst_addr == NULL)
-					lnk_unknown_dst_addr = lnk;
-			}
-		} else if (flags & LINK_UNKNOWN_DEST_PORT) {
-			if (lnk->dst_addr.s_addr == dst_addr.s_addr) {
-				if (lnk_unknown_dst_port == NULL)
-					lnk_unknown_dst_port = lnk;
-			}
+		if (flags == LINK_PARTIALLY_SPECIFIED &&
+		    lnk_unknown_all == NULL)
+			lnk_unknown_all = lnk;
+		if (flags == LINK_UNKNOWN_DEST_ADDR &&
+		    lnk->dst_port == dst_port &&
+		    lnk_unknown_dst_addr == NULL)
+			lnk_unknown_dst_addr = lnk;
+		if (flags == LINK_UNKNOWN_DEST_PORT &&
+		    lnk->dst_addr.s_addr == dst_addr.s_addr) {
+			lnk_unknown_dst_port = lnk;
+			break;
 		}
 	}
 #undef INGUARD
@@ -1612,12 +1638,10 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
     u_int16_t dst_call_id)
 {
-	u_int i;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	i = StartPointIn(alias_addr, 0, LINK_PPTP);
-	LIST_FOREACH(lnk, &la->linkTableIn[i], list_in)
+	LIST_FOREACH(lnk, &la->linkPartialIn[0], list_in)
 		if (lnk->link_type == LINK_PPTP &&
 		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
 		    lnk->alias_addr.s_addr == alias_addr.s_addr &&
@@ -2447,6 +2471,8 @@ LibAliasInit(struct libalias *la)
 			LIST_INIT(&la->linkTableOut[i]);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
 			LIST_INIT(&la->linkTableIn[i]);
+		for (i = 0; i < LINK_PARTIAL_SIZE; i++)
+			LIST_INIT(&la->linkPartialIn[i]);
 		TAILQ_INIT(&la->checkExpire);
 #ifdef _KERNEL
 		AliasSctpInit(la);
