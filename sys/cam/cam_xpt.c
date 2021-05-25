@@ -4607,15 +4607,6 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 	} else
 		devq->send_queue.qfrozen_cnt--;
 	if (devq->send_queue.qfrozen_cnt == 0) {
-		/*
-		 * If there is a timeout scheduled to release this
-		 * sim queue, remove it.  The queue frozen count is
-		 * already at 0.
-		 */
-		if ((sim->flags & CAM_SIM_REL_TIMEOUT_PENDING) != 0){
-			callout_stop(&sim->callout);
-			sim->flags &= ~CAM_SIM_REL_TIMEOUT_PENDING;
-		}
 		if (run_queue) {
 			/*
 			 * Now that we are unfrozen run the send queue.
