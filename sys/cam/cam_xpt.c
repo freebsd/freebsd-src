@@ -3273,28 +3273,6 @@ xpt_pollwait(union ccb *start_ccb, uint32_t timeout)
 	}
 }
 
-void
-xpt_polled_action(union ccb *start_ccb)
-{
-	uint32_t	timeout;
-	struct cam_ed	*dev;
-
-	timeout = start_ccb->ccb_h.timeout * 10;
-	dev = start_ccb->ccb_h.path->device;
-
-	mtx_unlock(&dev->device_mtx);
-
-	timeout = xpt_poll_setup(start_ccb);
-	if (timeout > 0) {
-		xpt_action(start_ccb);
-		xpt_pollwait(start_ccb, timeout);
-	} else {
-		start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-	}
-
-	mtx_lock(&dev->device_mtx);
-}
-
 /*
  * Schedule a peripheral driver to receive a ccb when its
  * target device has space for more transactions.

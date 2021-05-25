@@ -40,7 +40,6 @@
 
 /* Functions accessed by the peripheral drivers */
 #ifdef _KERNEL
-void		xpt_polled_action(union ccb *ccb);
 void		xpt_release_ccb(union ccb *released_ccb);
 void		xpt_schedule(struct cam_periph *perph, u_int32_t new_priority);
 int32_t		xpt_add_periph(struct cam_periph *periph);
