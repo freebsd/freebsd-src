@@ -112,6 +112,7 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 
 	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 	{
 		struct mbuf *m = NULL;
 
@@ -123,6 +124,8 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 				dstseg = nlm_crypto_fill_dst_seg(cmd->paramp,
 				    dstseg, mtod(m,caddr_t), m->m_len);
 			}
+			if (crp->crp_buf.cb_type == CRYPTO_BUF_SINGLE_MBUF)
+				break;
 			m = m->m_next;
 		}
 		break;

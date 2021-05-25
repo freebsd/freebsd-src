@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2020
+.Dd May 25, 2021
 .Dt CRYPTO_BUFFER 9
 .Os
 .Sh NAME
@@ -195,7 +195,10 @@ An array of bytes mapped into the kernel's address space.
 A scatter/gather list of kernel buffers as described in
 .Xr uio 9 .
 .It Dv CRYPTO_BUF_MBUF
-A network memory buffer as described in
+A chain of network memory buffers as described in
+.Xr mbuf 9 .
+.It Dv CRYPTO_BUF_SINGLE_MBUF
+A single network memory buffer as described in
 .Xr mbuf 9 .
 .It Dv CRYPTO_BUF_VMPAGE
 A scatter/gather list of
@@ -220,7 +223,9 @@ data buffer
 A pointer to a
 .Vt struct mbuf
 for
-.Dv CRYPTO_BUF_MBUF .
+.Dv CRYPTO_BUF_MBUF
+and
+.Dv CRYPTO_BUF_SINGLE_MBUF .
 .It Fa cb_uio
 A pointer to a
 .Vt struct uio
