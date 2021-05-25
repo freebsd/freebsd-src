@@ -1139,6 +1139,29 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	return (top);
 }
 
+static void
+m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
+{
+	struct iovec iov;
+	struct uio uio;
+	int error;
+
+	KASSERT(off >= 0, ("m_copytounmapped: negative off %d", off));
+	KASSERT(len >= 0, ("m_copytounmapped: negative len %d", len));
+	KASSERT(off < m->m_len, ("m_copytounmapped: len exceeds mbuf length"));
+	iov.iov_base = __DECONST(caddr_t, cp);
+	iov.iov_len = len;
+	uio.uio_resid = len;
+	uio.uio_iov = &iov;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_rw = UIO_WRITE;
+	error = m_unmappedtouio(m, off, &uio, len);
+	KASSERT(error == 0, ("m_unmappedtouio failed: off %d, len %d", off,
+	   len));
+}
+
 /*
  * Copy data from a buffer back into the indicated mbuf chain,
  * starting "off" bytes from the beginning, extending the mbuf
@@ -1172,7 +1195,10 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 			    M_TRAILINGSPACE(m));
 		}
 		mlen = min (m->m_len - off, len);
-		bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
+		if ((m->m_flags & M_EXTPG) != 0)
+			m_copytounmapped(m, off, mlen, cp);
+		else
+			bcopy(cp, off + mtod(m, caddr_t), (u_int)mlen);
 		cp += mlen;
 		len -= mlen;
 		mlen += off;
@@ -1870,7 +1896,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 }
 
 /*
- * Copy data from an unmapped mbuf into a uio limited by len if set.
+ * Copy data to/from an unmapped mbuf into a uio limited by len if set.
  */
 int
 m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
