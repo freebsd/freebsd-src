@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_output.h>
 #endif
 
-extern register_t fsu_intr_fault;
-
 /* Called from exception.S */
 void do_el1h_sync(struct thread *, struct trapframe *);
 void do_el0_sync(struct thread *, struct trapframe *);
