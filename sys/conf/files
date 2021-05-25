@@ -4932,6 +4932,7 @@ opencrypto/cryptosoft.c		optional crypto | ipsec | ipsec_support
 opencrypto/cryptodeflate.c	optional crypto | ipsec | ipsec_support
 opencrypto/gmac.c		optional crypto | ipsec | ipsec_support
 opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
+opencrypto/ktls_ocf.c		optional kern_tls
 opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support
 opencrypto/xform.c		optional crypto | ipsec | ipsec_support
 opencrypto/xform_cbc_mac.c	optional crypto
