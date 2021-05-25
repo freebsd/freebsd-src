@@ -1198,6 +1198,8 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	struct alias_link *lnk_unknown_all;
 	struct alias_link *lnk_unknown_dst_addr;
 	struct alias_link *lnk_unknown_dst_port;
+	struct in_addr src_addr;
+	u_short src_port;
 
 	LIBALIAS_LOCK_ASSERT(la);
 	/* Initialize pointers */
@@ -1274,34 +1276,26 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	}
 #undef INGUARD
 
-	if (lnk_unknown_dst_port != NULL)
-		lnk = lnk_unknown_dst_port;
-	else if (lnk_unknown_dst_addr != NULL)
-		lnk = lnk_unknown_dst_addr;
-	else if (lnk_unknown_all != NULL)
-		lnk = lnk_unknown_all;
-	else
-		return (NULL);
+	lnk = (lnk_unknown_dst_port != NULL) ? lnk_unknown_dst_port
+	    : (lnk_unknown_dst_addr != NULL) ? lnk_unknown_dst_addr
+	    : lnk_unknown_all;
 
-	if (replace_partial_links &&
-	    (lnk->flags & LINK_PARTIALLY_SPECIFIED || lnk->server != NULL)) {
-		struct in_addr src_addr;
-		u_short src_port;
+	if (lnk == NULL || !replace_partial_links)
+		return (lnk);
 
-		if (lnk->server != NULL) {	/* LSNAT link */
-			src_addr = lnk->server->addr;
-			src_port = lnk->server->port;
-			lnk->server = lnk->server->next;
-		} else {
-			src_addr = lnk->src_addr;
-			src_port = lnk->src_port;
-		}
+	if (lnk->server != NULL) {	/* LSNAT link */
+		src_addr = lnk->server->addr;
+		src_port = lnk->server->port;
+		lnk->server = lnk->server->next;
+	} else {
+		src_addr = lnk->src_addr;
+		src_port = lnk->src_port;
+	}
 
-		if (link_type == LINK_SCTP) {
-			lnk->src_addr = src_addr;
-			lnk->src_port = src_port;
-			return (lnk);
-		}
+	if (link_type == LINK_SCTP) {
+		lnk->src_addr = src_addr;
+		lnk->src_port = src_port;
+	} else {
 		lnk = ReLink(lnk,
 		    src_addr, dst_addr, alias_addr,
 		    src_port, dst_port, alias_port,
