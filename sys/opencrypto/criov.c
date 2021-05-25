@@ -258,78 +258,44 @@ m_epg_pages_extent(struct mbuf *m, int idx, u_int pglen)
 	return (len);
 }
 
-static __inline void *
-m_epg_segbase(struct mbuf *m, size_t offset)
+static void *
+m_epg_segment(struct mbuf *m, size_t offset, size_t *len)
 {
 	u_int i, pglen, pgoff;
 
 	offset += mtod(m, vm_offset_t);
-	if (offset < m->m_epg_hdrlen)
+	if (offset < m->m_epg_hdrlen) {
+		*len = m->m_epg_hdrlen - offset;
 		return (m->m_epg_hdr + offset);
+	}
 	offset -= m->m_epg_hdrlen;
 	pgoff = m->m_epg_1st_off;
 	for (i = 0; i < m->m_epg_npgs; i++) {
 		pglen = m_epg_pagelen(m, i, pgoff);
-		if (offset < pglen)
+		if (offset < pglen) {
+			*len = m_epg_pages_extent(m, i, pglen) - offset;
 			return ((void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff +
 			    offset));
+		}
 		offset -= pglen;
 		pgoff = 0;
 	}
 	KASSERT(offset <= m->m_epg_trllen, ("%s: offset beyond trailer",
 	    __func__));
+	*len = m->m_epg_trllen - offset;
 	return (m->m_epg_trail + offset);
-}
-
-static __inline size_t
-m_epg_seglen(struct mbuf *m, size_t offset)
-{
-	u_int i, pglen, pgoff;
-
-	offset += mtod(m, vm_offset_t);
-	if (offset < m->m_epg_hdrlen)
-		return (m->m_epg_hdrlen - offset);
-	offset -= m->m_epg_hdrlen;
-	pgoff = m->m_epg_1st_off;
-	for (i = 0; i < m->m_epg_npgs; i++) {
-		pglen = m_epg_pagelen(m, i, pgoff);
-		if (offset < pglen)
-			return (m_epg_pages_extent(m, i, pglen) - offset);
-		offset -= pglen;
-		pgoff = 0;
-	}
-	KASSERT(offset <= m->m_epg_trllen, ("%s: offset beyond trailer",
-	    __func__));
-	return (m->m_epg_trllen - offset);
 }
 
 static __inline void *
 m_epg_contiguous_subsegment(struct mbuf *m, size_t skip, size_t len)
 {
-	u_int i, pglen, pgoff;
+	void *base;
+	size_t seglen;
 
-	skip += mtod(m, vm_offset_t);
-	if (skip < m->m_epg_hdrlen) {
-		if (len > m->m_epg_hdrlen - skip)
-			return (NULL);
-		return (m->m_epg_hdr + skip);
-	}
-	skip -= m->m_epg_hdrlen;
-	pgoff = m->m_epg_1st_off;
-	for (i = 0; i < m->m_epg_npgs; i++) {
-		pglen = m_epg_pagelen(m, i, pgoff);
-		if (skip < pglen) {
-			if (len > m_epg_pages_extent(m, i, pglen) - skip)
-				return (NULL);
-			return ((void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff +
-			    skip));
-		}
-		skip -= pglen;
-		pgoff = 0;
-	}
-	KASSERT(skip <= m->m_epg_trllen && len <= m->m_epg_trllen - skip,
-	    ("%s: segment beyond trailer", __func__));
-	return (m->m_epg_trail + skip);
+	base = m_epg_segment(m, skip, &seglen);
+	if (len > seglen)
+		return (NULL);
+	return (base);
 }
 
 void
@@ -435,54 +401,53 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 }
 
 void *
-crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
+crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len)
 {
 	switch (cc->cc_type) {
 	case CRYPTO_BUF_CONTIG:
+		*len = cc->cc_buf_len;
 		return (cc->cc_buf);
 	case CRYPTO_BUF_MBUF:
 	case CRYPTO_BUF_SINGLE_MBUF:
-		if (cc->cc_mbuf == NULL)
+		if (cc->cc_mbuf == NULL) {
+			*len = 0;
 			return (NULL);
+		}
 		if (cc->cc_mbuf->m_flags & M_EXTPG)
-			return (m_epg_segbase(cc->cc_mbuf, cc->cc_offset));
+			return (m_epg_segment(cc->cc_mbuf, cc->cc_offset, len));
+		*len = cc->cc_mbuf->m_len - cc->cc_offset;
 		return (mtod(cc->cc_mbuf, char *) + cc->cc_offset);
 	case CRYPTO_BUF_VMPAGE:
+		*len = PAGE_SIZE - cc->cc_offset;
 		return ((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
 		    *cc->cc_vmpage)) + cc->cc_offset);
 	case CRYPTO_BUF_UIO:
+		*len = cc->cc_iov->iov_len - cc->cc_offset;
 		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
 	default:
 #ifdef INVARIANTS
 		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
 #endif
+		*len = 0;
 		return (NULL);
 	}
+}
+
+void *
+crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
+{
+	size_t len;
+
+	return (crypto_cursor_segment(cc, &len));
 }
 
 size_t
 crypto_cursor_seglen(struct crypto_buffer_cursor *cc)
 {
-	switch (cc->cc_type) {
-	case CRYPTO_BUF_CONTIG:
-		return (cc->cc_buf_len);
-	case CRYPTO_BUF_VMPAGE:
-		return (PAGE_SIZE - cc->cc_offset);
-	case CRYPTO_BUF_MBUF:
-	case CRYPTO_BUF_SINGLE_MBUF:
-		if (cc->cc_mbuf == NULL)
-			return (0);
-		if (cc->cc_mbuf->m_flags & M_EXTPG)
-			return (m_epg_seglen(cc->cc_mbuf, cc->cc_offset));
-		return (cc->cc_mbuf->m_len - cc->cc_offset);
-	case CRYPTO_BUF_UIO:
-		return (cc->cc_iov->iov_len - cc->cc_offset);
-	default:
-#ifdef INVARIANTS
-		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
-#endif
-		return (0);
-	}
+	size_t len;
+
+	crypto_cursor_segment(cc, &len);
+	return (len);
 }
 
 void
