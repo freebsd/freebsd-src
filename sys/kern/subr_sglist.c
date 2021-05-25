@@ -467,6 +467,21 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 }
 
 /*
+ * Append the segments that describe a single mbuf to a scatter/gather
+ * list.  If there are insufficient segments, then this fails with
+ * EFBIG.
+ */
+int
+sglist_append_single_mbuf(struct sglist *sg, struct mbuf *m)
+{
+	if ((m->m_flags & M_EXTPG) != 0)
+		return (sglist_append_mbuf_epg(sg, m,
+		    mtod(m, vm_offset_t), m->m_len));
+	else
+		return (sglist_append(sg, m->m_data, m->m_len));
+}
+
+/*
  * Append the segments that describe a buffer spanning an array of VM
  * pages.  The buffer begins at an offset of 'pgoff' in the first
  * page.

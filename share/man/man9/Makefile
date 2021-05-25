@@ -1941,6 +1941,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append_mbuf_epg.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_sglist.9 \
+	sglist.9 sglist_append_single_mbuf.9 \
 	sglist.9 sglist_append_uio.9 \
 	sglist.9 sglist_append_user.9 \
 	sglist.9 sglist_append_vmpages.9 \
