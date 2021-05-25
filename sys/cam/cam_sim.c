@@ -126,7 +126,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	sim->refcount = 1;
 	sim->devq = queue;
 	sim->mtx = mtx;
-	callout_init(&sim->callout, 1);
 	return (sim);
 }
 
