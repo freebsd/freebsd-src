@@ -186,7 +186,7 @@ is_valid_response(struct rad_handle *h, int srv,
 	MD5_CTX ctx;
 	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
-	int len;
+	int alen, len;
 #ifdef WITH_SSL
 	HMAC_CTX hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
@@ -205,8 +205,8 @@ is_valid_response(struct rad_handle *h, int srv,
 	/* Check the message length */
 	if (h->in_len < POS_ATTRS)
 		return 0;
-	len = h->in[POS_LENGTH] << 8 | h->in[POS_LENGTH+1];
-	if (len > h->in_len)
+	len = (h->in[POS_LENGTH] << 8) | h->in[POS_LENGTH + 1];
+	if (len < POS_ATTRS || len > h->in_len)
 		return 0;
 
 	/* Check the response authenticator */
@@ -231,9 +231,12 @@ is_valid_response(struct rad_handle *h, int srv,
 
 		/* Search and verify the Message-Authenticator */
 		while (pos < len - 2) {
-
 			if (h->in[pos] == RAD_MESSAGE_AUTHENTIC) {
-				/* zero fill the Message-Authenticator */
+				if (h->in[pos + 1] != MD5_DIGEST_LENGTH + 2)
+					return 0;
+				if (len - pos < MD5_DIGEST_LENGTH + 2)
+					return 0;
+
 				memset(&resp[pos + 2], 0, MD5_DIGEST_LENGTH);
 
 				HMAC_CTX_init(&hctx);
@@ -253,7 +256,10 @@ is_valid_response(struct rad_handle *h, int srv,
 					return 0;
 				break;
 			}
-			pos += h->in[pos + 1];
+			alen = h->in[pos + 1];
+			if (alen < 2)
+				return 0;
+			pos += alen;
 		}
 	}
 #endif
@@ -269,7 +275,7 @@ is_valid_request(struct rad_handle *h)
 	MD5_CTX ctx;
 	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
-	int len;
+	int alen, len;
 #ifdef WITH_SSL
 	HMAC_CTX hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
@@ -282,8 +288,8 @@ is_valid_request(struct rad_handle *h)
 	/* Check the message length */
 	if (h->in_len < POS_ATTRS)
 		return (0);
-	len = h->in[POS_LENGTH] << 8 | h->in[POS_LENGTH+1];
-	if (len > h->in_len)
+	len = (h->in[POS_LENGTH] << 8) | h->in[POS_LENGTH + 1];
+	if (len < POS_ATTRS || len > h->in_len)
 		return (0);
 
 	if (h->in[POS_CODE] != RAD_ACCESS_REQUEST) {
@@ -303,7 +309,14 @@ is_valid_request(struct rad_handle *h)
 	/* Search and verify the Message-Authenticator */
 	pos = POS_ATTRS;
 	while (pos < len - 2) {
+		alen = h->in[pos + 1];
+		if (alen < 2)
+			return (0);
 		if (h->in[pos] == RAD_MESSAGE_AUTHENTIC) {
+			if (len - pos < MD5_DIGEST_LENGTH + 2)
+				return (0);
+			if (alen < MD5_DIGEST_LENGTH + 2)
+				return (0);
 			memcpy(resp, h->in, MSGSIZE);
 			/* zero fill the Request-Authenticator */
 			if (h->in[POS_CODE] != RAD_ACCESS_REQUEST)
@@ -323,7 +336,7 @@ is_valid_request(struct rad_handle *h)
 				return (0);
 			break;
 		}
-		pos += h->in[pos + 1];
+		pos += alen;
 	}
 #endif
 	return (1);
@@ -924,9 +937,9 @@ rad_cvt_string(const void *data, size_t len)
  * returns -1.
  */
 int
-rad_get_attr(struct rad_handle *h, const void **value, size_t *len)
+rad_get_attr(struct rad_handle *h, const void **value, size_t *lenp)
 {
-	int type;
+	int len, type;
 
 	if (h->in_pos >= h->in_len)
 		return 0;
@@ -935,13 +948,14 @@ rad_get_attr(struct rad_handle *h, const void **value, size_t *len)
 		return -1;
 	}
 	type = h->in[h->in_pos++];
-	*len = h->in[h->in_pos++] - 2;
-	if (h->in_pos + (int)*len > h->in_len) {
+	len = h->in[h->in_pos++];
+	if (len < 2 || h->in_pos + len > h->in_len) {
 		generr(h, "Malformed attribute in response");
 		return -1;
 	}
+	*lenp = len;
 	*value = &h->in[h->in_pos];
-	h->in_pos += *len;
+	h->in_pos += len;
 	return type;
 }
 
