@@ -628,8 +628,8 @@ m_copyfromunmapped(const struct mbuf *m, int off, int len, caddr_t cp)
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = 0;
 	uio.uio_rw = UIO_READ;
-	error = m_unmappedtouio(m, off, &uio, len);
-	KASSERT(error == 0, ("m_unmappedtouio failed: off %d, len %d", off,
+	error = m_unmapped_uiomove(m, off, &uio, len);
+	KASSERT(error == 0, ("m_unmapped_uiomove failed: off %d, len %d", off,
 	   len));
 }
 
@@ -1157,8 +1157,8 @@ m_copytounmapped(const struct mbuf *m, int off, int len, c_caddr_t cp)
 	uio.uio_iovcnt = 1;
 	uio.uio_offset = 0;
 	uio.uio_rw = UIO_WRITE;
-	error = m_unmappedtouio(m, off, &uio, len);
-	KASSERT(error == 0, ("m_unmappedtouio failed: off %d, len %d", off,
+	error = m_unmapped_uiomove(m, off, &uio, len);
+	KASSERT(error == 0, ("m_unmapped_uiomove failed: off %d, len %d", off,
 	   len));
 }
 
@@ -1899,7 +1899,7 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
  * Copy data to/from an unmapped mbuf into a uio limited by len if set.
  */
 int
-m_unmappedtouio(const struct mbuf *m, int m_off, struct uio *uio, int len)
+m_unmapped_uiomove(const struct mbuf *m, int m_off, struct uio *uio, int len)
 {
 	vm_page_t pg;
 	int error, i, off, pglen, pgoff, seglen, segoff;
@@ -1970,7 +1970,7 @@ m_mbuftouio(struct uio *uio, const struct mbuf *m, int len)
 		length = min(m->m_len, total - progress);
 
 		if ((m->m_flags & M_EXTPG) != 0)
-			error = m_unmappedtouio(m, 0, uio, length);
+			error = m_unmapped_uiomove(m, 0, uio, length);
 		else
 			error = uiomove(mtod(m, void *), length, uio);
 		if (error)
