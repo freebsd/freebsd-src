@@ -291,7 +291,7 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 static bool
 edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap)
 {
-	uint32_t features;
+	uint32_t features, prev_features;
 	uint64_t off;
 
 	if (!get_file_features(elf, phcount, fd, &features, &off,
@@ -300,8 +300,12 @@ edit_file_features(Elf *elf, int phcount, int fd, char *val, bool endian_swap)
 		return (false);
 	}
 
+	prev_features = features;
 	if (!convert_to_feature_val(val, &features))
 		return (false);
+	/* Avoid touching file if no change. */
+	if (features == prev_features)
+		return (true);
 
 	if (endian_swap)
 		features = bswap32(features);
