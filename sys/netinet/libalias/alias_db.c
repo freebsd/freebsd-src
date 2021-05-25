@@ -1096,15 +1096,19 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 	u_int i;
 	struct alias_link *lnk;
 
+#define OUTGUARD					\
+   if (lnk->src_port != src_port ||			\
+       lnk->src_addr.s_addr != src_addr.s_addr ||	\
+       lnk->link_type != link_type ||			\
+       lnk->server != NULL)				\
+	   continue;
+
 	LIBALIAS_LOCK_ASSERT(la);
 	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
 	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out) {
+		OUTGUARD;
 		if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
-		    lnk->src_addr.s_addr == src_addr.s_addr &&
-		    lnk->src_port == src_port &&
-		    lnk->dst_port == dst_port &&
-		    lnk->link_type == link_type &&
-		    lnk->server == NULL)
+		    lnk->dst_port == dst_port)
 			break;
 	}
 
@@ -1133,6 +1137,7 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 			    link_type);
 		}
 	}
+#undef OUTGUARD
 	return (lnk);
 }
 
@@ -1197,47 +1202,42 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	if (dst_port == 0)
 		flags_in |= LINK_UNKNOWN_DEST_PORT;
 
+#define INGUARD						\
+   if (lnk->alias_port != alias_port ||			\
+       lnk->link_type != link_type ||			\
+       lnk->alias_addr.s_addr != alias_addr.s_addr)	\
+	continue;
+
 	/* Search loop */
 	start_point = StartPointIn(alias_addr, alias_port, link_type);
 	LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
 		int flags;
 
+		INGUARD;
 		flags = flags_in | lnk->flags;
 		if (!(flags & LINK_PARTIALLY_SPECIFIED)) {
-			if (lnk->alias_addr.s_addr == alias_addr.s_addr
-			    && lnk->alias_port == alias_port
-			    && lnk->dst_addr.s_addr == dst_addr.s_addr
-			    && lnk->dst_port == dst_port
-			    && lnk->link_type == link_type) {
+			if (lnk->dst_addr.s_addr == dst_addr.s_addr
+			    && lnk->dst_port == dst_port) {
 				lnk_fully_specified = lnk;
 				break;
 			}
 		} else if ((flags & LINK_UNKNOWN_DEST_ADDR)
 		    && (flags & LINK_UNKNOWN_DEST_PORT)) {
-			if (lnk->alias_addr.s_addr == alias_addr.s_addr
-			    && lnk->alias_port == alias_port
-			    && lnk->link_type == link_type) {
-				if (lnk_unknown_all == NULL)
-					lnk_unknown_all = lnk;
-			}
+			if (lnk_unknown_all == NULL)
+				lnk_unknown_all = lnk;
 		} else if (flags & LINK_UNKNOWN_DEST_ADDR) {
-			if (lnk->alias_addr.s_addr == alias_addr.s_addr
-			    && lnk->alias_port == alias_port
-			    && lnk->link_type == link_type
-			    && lnk->dst_port == dst_port) {
+			if (lnk->dst_port == dst_port) {
 				if (lnk_unknown_dst_addr == NULL)
 					lnk_unknown_dst_addr = lnk;
 			}
 		} else if (flags & LINK_UNKNOWN_DEST_PORT) {
-			if (lnk->alias_addr.s_addr == alias_addr.s_addr
-			    && lnk->alias_port == alias_port
-			    && lnk->link_type == link_type
-			    && lnk->dst_addr.s_addr == dst_addr.s_addr) {
+			if (lnk->dst_addr.s_addr == dst_addr.s_addr) {
 				if (lnk_unknown_dst_port == NULL)
 					lnk_unknown_dst_port = lnk;
 			}
 		}
 	}
+#undef INGUARD
 
 	CleanupLink(la, &lnk_fully_specified);
 	if (lnk_fully_specified != NULL) {
