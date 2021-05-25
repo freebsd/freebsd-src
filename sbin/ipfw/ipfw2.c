@@ -411,6 +411,12 @@ static void object_sort_ctlv(ipfw_obj_ctlv *ctlv);
 static char *object_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx,
     uint16_t type);
 
+int
+is_ipfw(void)
+{
+	return (g_co.prog == cmdline_prog_ipfw);
+}
+
 /*
  * Simple string buffer API.
  * Used to simplify buffer passing between function and for
