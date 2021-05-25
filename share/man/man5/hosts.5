@@ -28,7 +28,7 @@
 .\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd May 25, 2021
 .Dt HOSTS 5
 .Os
 .Sh NAME
@@ -64,9 +64,10 @@ These include addresses for the local interfaces that
 .Xr ifconfig 8
 needs at boot time and a few machines on the local network.
 .Pp
-Network addresses are specified in the conventional
-``.'' (dot) notation using the
-.Xr inet_addr 3
+Network addresses are specified in either the conventional
+``.'' (dot) notation for IPv4 or colon hexadecimal notation for IPv6,
+as understood by the
+.Xr inet_pton 3
 routine
 from the Internet address manipulation library,
 .Xr inet 3 .
@@ -83,6 +84,7 @@ file resides in
 .El
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
+.Xr inet 3 ,
 .Xr nsswitch.conf 5 ,
 .Xr ifconfig 8
 .Rs
