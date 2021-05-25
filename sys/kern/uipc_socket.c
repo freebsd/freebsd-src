@@ -2198,7 +2198,8 @@ dontblock:
 			SBLASTMBUFCHK(&so->so_rcv);
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			if ((m->m_flags & M_EXTPG) != 0)
-				error = m_unmappedtouio(m, moff, uio, (int)len);
+				error = m_unmapped_uiomove(m, moff, uio,
+				    (int)len);
 			else
 				error = uiomove(mtod(m, char *) + moff,
 				    (int)len, uio);
