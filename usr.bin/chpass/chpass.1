@@ -28,7 +28,7 @@
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2020
+.Dd May 25, 2021
 .Dt CHPASS 1
 .Os
 .Sh NAME
@@ -456,8 +456,8 @@ operates on NIS entries by default if NIS is enabled.
 the user database
 .It Pa /etc/passwd
 a Version 7 format password file
-.It Pa /etc/chpass.XXXXXX
-temporary copy of the password file
+.It Pa /etc/pw.XXXXXX
+temporary file
 .It Pa /etc/shells
 the list of approved shells
 .El
