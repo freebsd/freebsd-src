@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210525:
+	Commits 17accc08ae15 and de102f870501 add new files to LinuxKPI
+	which break drm-kmod.  In addition various other additions where
+	comitted. Bump __FreeBSD_version to 1400015 to be able to detect this.
+
 20210513:
 	Commit ca179c4d74f2 changed the package in which the OpenSSL
 	libraries and utilities are packaged.
