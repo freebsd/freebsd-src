@@ -873,6 +873,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, pmap_t pmap, bus_dmamap_t map,
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
 	bus_addr_t paddr;
+	bus_size_t sg_len;
 
 	if (map->pagesneeded == 0) {
 		CTR5(KTR_BUSDMA, "lowaddr= %d, boundary= %d, alignment= %d"
@@ -887,16 +888,16 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, pmap_t pmap, bus_dmamap_t map,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
+			sg_len = MIN(vendaddr - vaddr,
+			    (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK)));
+			sg_len = MIN(sg_len, dmat->maxsegsz);
 			if (__predict_true(pmap == kernel_pmap))
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (must_bounce(dmat, map, paddr,
-			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr &
-			    PAGE_MASK)))) != 0) {
+			if (must_bounce(dmat, map, paddr, sg_len) != 0)
 				map->pagesneeded++;
-			}
-			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
+			vaddr += sg_len;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d", map->pagesneeded);
 	}
