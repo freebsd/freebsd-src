@@ -1210,18 +1210,27 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 	/* Search loop */
 	start_point = StartPointIn(alias_addr, alias_port, link_type);
+	if (!(flags_in & LINK_PARTIALLY_SPECIFIED)) {
+		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
+			INGUARD;
+			if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
+				continue;
+			if (lnk->dst_addr.s_addr == dst_addr.s_addr
+			    && lnk->dst_port == dst_port) {
+				CleanupLink(la, &lnk);
+				if (lnk != NULL) {
+					lnk->timestamp = LibAliasTime;
+					return (lnk);
+				}
+			}
+		}
+	}
 	LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
 		int flags;
 
 		INGUARD;
 		flags = flags_in | lnk->flags;
-		if (!(flags & LINK_PARTIALLY_SPECIFIED)) {
-			if (lnk->dst_addr.s_addr == dst_addr.s_addr
-			    && lnk->dst_port == dst_port) {
-				lnk_fully_specified = lnk;
-				break;
-			}
-		} else if ((flags & LINK_UNKNOWN_DEST_ADDR)
+		if ((flags & LINK_UNKNOWN_DEST_ADDR)
 		    && (flags & LINK_UNKNOWN_DEST_PORT)) {
 			if (lnk_unknown_all == NULL)
 				lnk_unknown_all = lnk;
@@ -1239,11 +1248,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	}
 #undef INGUARD
 
-	CleanupLink(la, &lnk_fully_specified);
-	if (lnk_fully_specified != NULL) {
-		lnk_fully_specified->timestamp = LibAliasTime;
-		lnk = lnk_fully_specified;
-	} else if (lnk_unknown_dst_port != NULL)
+	if (lnk_unknown_dst_port != NULL)
 		lnk = lnk_unknown_dst_port;
 	else if (lnk_unknown_dst_addr != NULL)
 		lnk = lnk_unknown_dst_addr;
