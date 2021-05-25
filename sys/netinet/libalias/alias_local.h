@@ -105,8 +105,6 @@ struct libalias {
 	unsigned int	fragmentIdLinkCount;
 	unsigned int	fragmentPtrLinkCount;
 	unsigned int	sockCount;
-	/* System time in seconds for current packet */
-	int		timeStamp;
 	/* If equal to zero, DeleteLink()
 	 * will not remove permanent links */
 	int		deleteAllLinks;
@@ -205,6 +203,9 @@ struct libalias {
 	} while (0)
 
 /* Prototypes */
+
+/* System time in seconds for current packet */
+extern int LibAliasTime;
 
 /*
  * SctpFunction prototypes
