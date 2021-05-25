@@ -1981,14 +1981,16 @@ ktls_enqueue(struct mbuf *m, struct socket *so, int page_count)
 	counter_u64_add(ktls_cnt_tx_queued, 1);
 }
 
+#define	MAX_TLS_PAGES	(1 + btoc(TLS_MAX_MSG_SIZE_V10_2))
+
 static __noinline void
 ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 {
 	struct ktls_session *tls;
 	struct socket *so;
 	struct mbuf *m;
-	vm_paddr_t parray[1 + btoc(TLS_MAX_MSG_SIZE_V10_2)];
-	struct iovec dst_iov[1 + btoc(TLS_MAX_MSG_SIZE_V10_2)];
+	vm_paddr_t parray[MAX_TLS_PAGES + 1];
+	struct iovec dst_iov[MAX_TLS_PAGES + 2];
 	vm_page_t pg;
 	void *cbuf;
 	int error, i, len, npages, off, total_pages;
@@ -2072,8 +2074,12 @@ ktls_encrypt(struct ktls_wq *wq, struct mbuf *top)
 					dst_iov[i].iov_len = len;
 				}
 			}
+			KASSERT(i + 1 <= nitems(dst_iov),
+			    ("dst_iov is too small"));
+			dst_iov[i].iov_base = m->m_epg_trail;
+			dst_iov[i].iov_len = m->m_epg_trllen;
 
-			error = (*tls->sw_encrypt)(tls, m, dst_iov, i);
+			error = (*tls->sw_encrypt)(tls, m, dst_iov, i + 1);
 
 			/* Free the old pages. */
 			m->m_ext.ext_free(m);
