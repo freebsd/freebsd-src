@@ -541,7 +541,8 @@ threadinit(void)
 
 	TASK_INIT(&thread_reap_task, 0, thread_reap_task_cb, NULL);
 	callout_init(&thread_reap_callout, 1);
-	callout_reset(&thread_reap_callout, 5 * hz, thread_reap_callout_cb, NULL);
+	callout_reset(&thread_reap_callout, 5 * hz,
+	    thread_reap_callout_cb, NULL);
 }
 
 /*
@@ -704,7 +705,8 @@ thread_reap_callout_cb(void *arg __unused)
 
 	if (wantreap)
 		taskqueue_enqueue(taskqueue_thread, &thread_reap_task);
-	callout_reset(&thread_reap_callout, 5 * hz, thread_reap_callout_cb, NULL);
+	callout_reset(&thread_reap_callout, 5 * hz,
+	    thread_reap_callout_cb, NULL);
 }
 
 /*
