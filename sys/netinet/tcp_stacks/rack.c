@@ -6017,7 +6017,7 @@ rack_setup_offset_for_rsm(struct rack_sendmap *src_rsm, struct rack_sendmap *rsm
 	struct mbuf *m;
 	uint32_t soff;
 
-	if (src_rsm->orig_m_len != src_rsm->m->m_len) {
+	if (src_rsm->m && (src_rsm->orig_m_len != src_rsm->m->m_len)) {
 		/* Fix up the orig_m_len and possibly the mbuf offset */
 		rack_adjust_orig_mlen(src_rsm);
 	}
@@ -8818,21 +8818,23 @@ more:
 	rack->r_ctl.rc_gp_cumack_ts = rsm->r_tim_lastsent[(rsm->r_rtr_cnt-1)];
 	rack_log_map_chg(tp, rack, NULL, rsm, NULL, MAP_TRIM_HEAD, th_ack, __LINE__);
 	/* Now we need to move our offset forward too */
-	if (rsm->orig_m_len != rsm->m->m_len) {
+	if (rsm->m && (rsm->orig_m_len != rsm->m->m_len)) {
 		/* Fix up the orig_m_len and possibly the mbuf offset */
 		rack_adjust_orig_mlen(rsm);
 	}
 	rsm->soff += (th_ack - rsm->r_start);
 	rsm->r_start = th_ack;
 	/* Now do we need to move the mbuf fwd too? */
-	while (rsm->soff >= rsm->m->m_len) {
-		rsm->soff -= rsm->m->m_len;
-		rsm->m = rsm->m->m_next;
-		KASSERT((rsm->m != NULL),
-			(" nrsm:%p hit at soff:%u null m",
-			 rsm, rsm->soff));
+	if (rsm->m) {
+		while (rsm->soff >= rsm->m->m_len) {
+			rsm->soff -= rsm->m->m_len;
+			rsm->m = rsm->m->m_next;
+			KASSERT((rsm->m != NULL),
+				(" nrsm:%p hit at soff:%u null m",
+				 rsm, rsm->soff));
+		}
+		rsm->orig_m_len = rsm->m->m_len;
 	}
-	rsm->orig_m_len = rsm->m->m_len;
 	if (rack->app_limited_needs_set)
 		rack_need_set_test(tp, rack, rsm, tp->snd_una, __LINE__, RACK_USE_BEG);
 }
@@ -9655,7 +9657,7 @@ rack_adjust_sendmap(struct tcp_rack *rack, struct sockbuf *sb, tcp_seq snd_una)
 		/* Nothing outstanding */
 		return;
 	}
-	while (rsm->m == m) {
+	while (rsm->m && (rsm->m == m)) {
 		/* one to adjust */
 #ifdef INVARIANTS
 		struct mbuf *tm;
@@ -9676,10 +9678,16 @@ rack_adjust_sendmap(struct tcp_rack *rack, struct sockbuf *sb, tcp_seq snd_una)
 		}
 		rsm->m = tm;
 		rsm->soff = soff;
-		rsm->orig_m_len = rsm->m->m_len;
+		if (tm)
+			rsm->orig_m_len = rsm->m->m_len;
+		else
+			rsm->orig_m_len = 0;
 #else
 		rsm->m = sbsndmbuf(sb, (rsm->r_start - snd_una), &rsm->soff);
-		rsm->orig_m_len = rsm->m->m_len;
+		if (rsm->m)
+			rsm->orig_m_len = rsm->m->m_len;
+		else
+			rsm->orig_m_len = 0;
 #endif
 		rsm = RB_NEXT(rack_rb_tree_head, &rack->r_ctl.rc_mtree,
 			      rsm);
@@ -10058,6 +10066,7 @@ rack_validate_fo_sendwin_up(struct tcpcb *tp, struct tcp_rack *rack)
 	}
 }
 
+
 /*
  * Return value of 1, the TCB is unlocked and most
  * likely gone, return value of 0, the TCP is still
@@ -10226,9 +10235,10 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * trimming from the head.
 			 */
 			tcp_seq temp = save_start;
-
-			thflags = tcp_reass(tp, th, &temp, &tlen, m);
-			tp->t_flags |= TF_ACKNOW;
+			if (tlen) {
+				thflags = tcp_reass(tp, th, &temp, &tlen, m);
+				tp->t_flags |= TF_ACKNOW;
+			}
 		}
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (save_tlen > 0) &&
@@ -12190,7 +12200,10 @@ rack_init(struct tcpcb *tp)
 		rsm->r_dupack = 0;
 		if (rack->rc_inp->inp_socket->so_snd.sb_mb != NULL) {
 			rsm->m = sbsndmbuf(&rack->rc_inp->inp_socket->so_snd, 0, &rsm->soff);
-			rsm->orig_m_len = rsm->m->m_len;
+			if (rsm->m)
+				rsm->orig_m_len = rsm->m->m_len;
+			else
+				rsm->orig_m_len = 0;
 		} else {
 			/*
 			 * This can happen if we have a stand-alone FIN or
@@ -15074,6 +15087,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	uint32_t us_cts;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
+
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 
@@ -15183,7 +15197,15 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	}
 	th->th_seq = htonl(rsm->r_start);
 	th->th_ack = htonl(tp->rcv_nxt);
-	if(rsm->r_flags & RACK_HAD_PUSH)
+	/*
+	 * The PUSH bit should only be applied
+	 * if the full retransmission is made. If
+	 * we are sending less than this is the
+	 * left hand edge and should not have
+	 * the PUSH bit.
+	 */
+	if ((rsm->r_flags & RACK_HAD_PUSH) &&
+	    (len == (rsm->r_end - rsm->r_start)))
 		flags |= TH_PUSH;
 	th->th_flags = flags;
 	th->th_win = htons((u_short)(rack->r_ctl.fsb.recwin >> tp->rcv_scale));
