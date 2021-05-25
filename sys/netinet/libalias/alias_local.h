@@ -68,6 +68,7 @@
 /* Sizes of input and output link tables */
 #define LINK_TABLE_OUT_SIZE	4001
 #define LINK_TABLE_IN_SIZE	4001
+#define LINK_PARTIAL_SIZE	401
 
 #define	GET_ALIAS_PORT		-1
 #define	GET_ALIAS_ID		GET_ALIAS_PORT
@@ -94,6 +95,7 @@ struct libalias {
 	 * output lookup tables. */
 	LIST_HEAD     (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
 	LIST_HEAD     (, alias_link) linkTableIn[LINK_TABLE_IN_SIZE];
+	LIST_HEAD     (, alias_link) linkPartialIn[LINK_PARTIAL_SIZE];
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */
