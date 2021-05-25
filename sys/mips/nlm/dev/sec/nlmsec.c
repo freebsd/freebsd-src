@@ -468,12 +468,15 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 
 	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 	{
 		struct mbuf *m = NULL;
 
 		m = crp->crp_buf.cb_mbuf;
 		while (m != NULL) {
 			*nsegs += NLM_CRYPTO_NUM_SEGS_REQD(m->m_len);
+			if (crp->crp_buf.cb_type == CRYPTO_BUF_SINGLE_MBUF)
+				break;
 			m = m->m_next;
 		}
 		break;

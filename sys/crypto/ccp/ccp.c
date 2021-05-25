@@ -101,6 +101,9 @@ ccp_populate_sglist(struct sglist *sg, struct crypto_buffer *cb)
 	case CRYPTO_BUF_MBUF:
 		error = sglist_append_mbuf(sg, cb->cb_mbuf);
 		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		error = sglist_append_single_mbuf(sg, cb->cb_mbuf);
+		break;
 	case CRYPTO_BUF_UIO:
 		error = sglist_append_uio(sg, cb->cb_uio);
 		break;

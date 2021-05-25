@@ -344,6 +344,7 @@ crypto_cursor_init(struct crypto_buffer_cursor *cc,
 		cc->cc_buf_len = cb->cb_buf_len;
 		break;
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		cc->cc_mbuf = cb->cb_mbuf;
 		break;
 	case CRYPTO_BUF_VMPAGE:
@@ -388,6 +389,10 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 			if (amount == 0)
 				break;
 		}
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + amount);
+		cc->cc_offset += amount;
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
@@ -436,6 +441,7 @@ crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
 	case CRYPTO_BUF_CONTIG:
 		return (cc->cc_buf);
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		if (cc->cc_mbuf == NULL)
 			return (NULL);
 		if (cc->cc_mbuf->m_flags & M_EXTPG)
@@ -463,6 +469,7 @@ crypto_cursor_seglen(struct crypto_buffer_cursor *cc)
 	case CRYPTO_BUF_VMPAGE:
 		return (PAGE_SIZE - cc->cc_offset);
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		if (cc->cc_mbuf == NULL)
 			return (0);
 		if (cc->cc_mbuf->m_flags & M_EXTPG)
@@ -515,6 +522,11 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			if (size == 0)
 				break;
 		}
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + size);
+		m_copyback(cc->cc_mbuf, cc->cc_offset, size, src);
+		cc->cc_offset += size;
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
@@ -598,6 +610,11 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 			if (size == 0)
 				break;
 		}
+		break;
+	case CRYPTO_BUF_SINGLE_MBUF:
+		MPASS(cc->cc_mbuf->m_len >= cc->cc_offset + size);
+		m_copydata(cc->cc_mbuf, cc->cc_offset, size, dst);
+		cc->cc_offset += size;
 		break;
 	case CRYPTO_BUF_VMPAGE:
 		for (;;) {
@@ -699,6 +716,7 @@ crypto_copyback(struct cryptop *crp, int off, int size, const void *src)
 		cb = &crp->crp_buf;
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		m_copyback(cb->cb_mbuf, off, size, src);
 		break;
 #if CRYPTO_MAY_HAVE_VMPAGE
@@ -731,6 +749,7 @@ crypto_copydata(struct cryptop *crp, int off, int size, void *dst)
 
 	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		m_copydata(crp->crp_buf.cb_mbuf, off, size, dst);
 		break;
 #if CRYPTO_MAY_HAVE_VMPAGE
@@ -765,6 +784,7 @@ crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
 
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		error = m_apply(cb->cb_mbuf, off, len,
 		    (int (*)(void *, void *, u_int))f, arg);
 		break;
@@ -843,6 +863,7 @@ crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb, size_t skip,
 
 	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
+	case CRYPTO_BUF_SINGLE_MBUF:
 		return (m_contiguous_subsegment(cb->cb_mbuf, skip, len));
 	case CRYPTO_BUF_UIO:
 		return (cuio_contiguous_segment(cb->cb_uio, skip, len));

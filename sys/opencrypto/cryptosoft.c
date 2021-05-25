@@ -1105,6 +1105,7 @@ swcr_compdec(struct swcr_session *ses, struct cryptop *crp)
 	if (result < crp->crp_payload_length) {
 		switch (crp->crp_buf.cb_type) {
 		case CRYPTO_BUF_MBUF:
+		case CRYPTO_BUF_SINGLE_MBUF:
 			adj = result - crp->crp_payload_length;
 			m_adj(crp->crp_buf.cb_mbuf, adj);
 			break;

@@ -1155,6 +1155,8 @@ crypto_buffer_len(struct crypto_buffer *cb)
 		if (cb->cb_mbuf->m_flags & M_PKTHDR)
 			return (cb->cb_mbuf->m_pkthdr.len);
 		return (m_length(cb->cb_mbuf, NULL));
+	case CRYPTO_BUF_SINGLE_MBUF:
+		return (cb->cb_mbuf->m_len);
 	case CRYPTO_BUF_VMPAGE:
 		return (cb->cb_vm_page_len);
 	case CRYPTO_BUF_UIO:
