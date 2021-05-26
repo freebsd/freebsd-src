@@ -239,7 +239,12 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	cwin = CCV(ccv, snd_cwnd);
 	mss = tcp_fixed_maxseg(ccv->ccvc.tcp);
-	nreno = ccv->cc_data;
+	/*
+	 * Other TCP congestion controls use newreno_cong_signal(), but
+	 * with their own private cc_data. Make sure the cc_data is used
+	 * correctly.
+	 */
+	nreno = (CC_ALGO(ccv->ccvc.tcp) == &newreno_cc_algo) ? ccv->cc_data : NULL;
 	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;
 	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
 
@@ -335,6 +340,9 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 
 	if (sopt->sopt_valsize != sizeof(struct cc_newreno_opts))
 		return (EMSGSIZE);
+
+	if (CC_ALGO(ccv->ccvc.tcp) != &newreno_cc_algo)
+		return (ENOPROTOOPT);
 
 	nreno = ccv->cc_data;
 	opt = buf;
