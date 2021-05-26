@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/infiniband.h>
 
+#include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
 
 MODULE_AUTHOR("Roland Dreier");
