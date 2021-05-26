@@ -1440,6 +1440,8 @@ static void bc_program_printStream(BcProgram *p) {
 		size_t idx = (r->t == BC_RESULT_STR) ? r->d.loc.loc : n->scale;
 		bc_program_printChars(*((char**) bc_vec_item(p->strs, idx)));
 	}
+
+	bc_vec_pop(&p->results);
 }
 
 static void bc_program_nquit(BcProgram *p, uchar inst) {
