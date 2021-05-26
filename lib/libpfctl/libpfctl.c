@@ -816,3 +816,60 @@ pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
 {
 	return (_pfctl_clear_states(dev, kill, killed, DIOCKILLSTATESNV));
 }
+
+int
+pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
+{
+	struct pfioc_nv	 nv;
+	nvlist_t	*nvl;
+	int		 ret;
+
+	nvl = nvlist_create(0);
+
+	nvlist_add_bool(nvl, "enabled", s->mode != PFCTL_SYNCOOKIES_NEVER);
+	nvlist_add_bool(nvl, "adaptive", false); /* XXX TODO */
+
+	nv.data = nvlist_pack(nvl, &nv.len);
+	nv.size = nv.len;
+	nvlist_destroy(nvl);
+	nvl = NULL;
+
+	ret = ioctl(dev, DIOCSETSYNCOOKIES, &nv);
+
+	free(nv.data);
+	return (ret);
+}
+
+int
+pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
+{
+	struct pfioc_nv	 nv;
+	nvlist_t	*nvl;
+	bool		enabled, adaptive;
+
+	bzero(s, sizeof(*s));
+
+	nv.data = malloc(128);
+	nv.len = nv.size = 128;
+
+	if (ioctl(dev, DIOCGETSYNCOOKIES, &nv)) {
+		free(nv.data);
+		return (errno);
+	}
+
+	nvl = nvlist_unpack(nv.data, nv.len, 0);
+	free(nv.data);
+	if (nvl == NULL) {
+		free(nv.data);
+		return (EIO);
+	}
+
+	enabled = nvlist_get_bool(nvl, "enabled");
+	adaptive = nvlist_get_bool(nvl, "adaptive");
+
+	s->mode = enabled ? PFCTL_SYNCOOKIES_ALWAYS : PFCTL_SYNCOOKIES_NEVER;
+
+	nvlist_destroy(nvl);
+
+	return (0);
+}
