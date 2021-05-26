@@ -58,7 +58,7 @@ static void usage(void);
 	} } while(0)
 
 static void
-usage() {
+usage(void) {
 	printf("Usage: perf [max_seconds [batch_size [random_size [attack_size [redir_size]]]]]\n");
 	exit(1);
 }
