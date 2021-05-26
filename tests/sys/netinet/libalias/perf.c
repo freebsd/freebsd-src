@@ -38,6 +38,8 @@
 #include "util.h"
 #include <alias.h>
 
+static void usage(void);
+
 #define	timevalcmp(tv, uv, cmp)			\
 	(((tv).tv_sec == (uv).tv_sec)		\
 	 ? ((tv).tv_usec cmp (uv).tv_usec)	\
