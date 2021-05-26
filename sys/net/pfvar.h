@@ -1572,6 +1572,7 @@ struct pf_idhash {
 	struct mtx			lock;
 };
 
+extern u_long		pf_ioctl_maxcount;
 extern u_long		pf_hashmask;
 extern u_long		pf_srchashmask;
 #define	PF_HASHSIZ	(131072)
@@ -1840,7 +1841,6 @@ void		 pf_send_tcp(const struct pf_krule *, sa_family_t,
 			    u_int16_t);
 
 void			 pf_syncookies_init(void);
-int			 pf_syncookies_setmode(u_int8_t);
 int			 pf_get_syncookies(struct pfioc_nv *);
 int			 pf_set_syncookies(struct pfioc_nv *);
 int			 pf_synflood_check(struct pf_pdesc *);
