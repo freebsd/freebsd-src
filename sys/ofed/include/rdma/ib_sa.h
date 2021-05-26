@@ -43,6 +43,7 @@
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
 
+#include <rdma/ib_addr_freebsd.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
 

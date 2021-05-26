@@ -49,7 +49,7 @@
 #include <net/ip.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <net/ipv6.h>
+#include <rdma/ib_addr_freebsd.h>
 
 struct rdma_addr_client {
 	atomic_t refcount;

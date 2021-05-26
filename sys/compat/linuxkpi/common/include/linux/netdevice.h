@@ -40,10 +40,6 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 
-#include <linux/list.h>
-#include <linux/completion.h>
-#include <linux/device.h>
-#include <linux/workqueue.h>
 #include <linux/net.h>
 #include <linux/notifier.h>
 
@@ -57,21 +53,6 @@
 
 #define	net_device	ifnet
 
-static inline struct ifnet *
-dev_get_by_index(struct vnet *vnet, int if_index)
-{
-	struct epoch_tracker et;
-	struct ifnet *retval;
-
-	NET_EPOCH_ENTER(et);
-	CURVNET_SET(vnet);
-	retval = ifnet_byindex_ref(if_index);
-	CURVNET_RESTORE();
-	NET_EPOCH_EXIT(et);
-
-	return (retval);
-}
-
 #define	dev_hold(d)	if_ref(d)
 #define	dev_put(d)	if_rele(d)
 #define	dev_net(d)	((d)->if_vnet)
@@ -79,55 +60,10 @@ dev_get_by_index(struct vnet *vnet, int if_index)
 #define	net_eq(a,b)	((a) == (b))
 
 #define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
-#define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
 #define	netif_carrier_ok(dev)	((dev)->if_link_state == LINK_STATE_UP)
-
-static inline void *
-netdev_priv(const struct net_device *dev)
-{
-	return (dev->if_softc);
-}
 
 #define	rtnl_lock()
 #define	rtnl_unlock()
-
-static inline int
-dev_mc_delete(struct net_device *dev, void *addr, int alen, int all)
-{
-	struct sockaddr_dl sdl;
-
-	if (alen > sizeof(sdl.sdl_data))
-		return (-EINVAL);
-	memset(&sdl, 0, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_alen = alen;
-	memcpy(&sdl.sdl_data, addr, alen);
-
-	return -if_delmulti(dev, (struct sockaddr *)&sdl);
-}
-
-static inline int
-dev_mc_del(struct net_device *dev, void *addr)
-{
-	return (dev_mc_delete(dev, addr, 6, 0));
-}
-
-static inline int
-dev_mc_add(struct net_device *dev, void *addr, int alen, int newonly)
-{
-	struct sockaddr_dl sdl;
-
-	if (alen > sizeof(sdl.sdl_data))
-		return (-EINVAL);
-	memset(&sdl, 0, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_alen = alen;
-	memcpy(&sdl.sdl_data, addr, alen);
-
-	return -if_addmulti(dev, (struct sockaddr *)&sdl, NULL);
-}
 
 /* According to linux::ipoib_main.c. */
 struct netdev_notifier_info {
