@@ -71,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #include "mmc_sim_if.h"
 #endif
 
+#include "mmc_pwrseq_if.h"
+
 #define	AW_MMC_MEMRES		0
 #define	AW_MMC_IRQRES		1
 #define	AW_MMC_RESSZ		2
@@ -1323,6 +1325,9 @@ aw_mmc_update_ios(device_t bus, device_t child)
 				regulator_disable(sc->mmc_helper.vqmmc_supply);
 		}
 
+		if (sc->mmc_helper.mmc_pwrseq)
+			MMC_PWRSEQ_SET_POWER(sc->mmc_helper.mmc_pwrseq, false);
+
 		aw_mmc_reset(sc);
 		break;
 	case power_up:
@@ -1339,6 +1344,9 @@ aw_mmc_update_ios(device_t bus, device_t child)
 			if (rv == 0 && reg_status != REGULATOR_STATUS_ENABLED)
 				regulator_enable(sc->mmc_helper.vqmmc_supply);
 		}
+
+		if (sc->mmc_helper.mmc_pwrseq)
+			MMC_PWRSEQ_SET_POWER(sc->mmc_helper.mmc_pwrseq, true);
 		aw_mmc_init(sc);
 		break;
 	};
