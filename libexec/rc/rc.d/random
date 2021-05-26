@@ -47,7 +47,7 @@ feed_dev_random()
 random_start()
 {
 
-	if [ ${harvest_mask} -gt 0 ]; then
+	if [ -n "${harvest_mask}" ]; then
 		echo -n 'Setting up harvesting: '
 		${SYSCTL} kern.random.harvest.mask=${harvest_mask} > /dev/null
 		${SYSCTL_N} kern.random.harvest.mask_symbolic
