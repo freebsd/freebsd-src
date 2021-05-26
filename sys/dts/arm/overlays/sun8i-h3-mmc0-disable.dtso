@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun8i-h3";
+};
+
+&{/soc/mmc@1c0f000} {
+	status = "disabled";
+};
