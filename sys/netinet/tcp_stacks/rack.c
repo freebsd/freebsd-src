@@ -408,8 +408,8 @@ counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
 
 #define	RACK_REXMTVAL(tp) max(rack_rto_min, ((tp)->t_srtt + ((tp)->t_rttvar << 2)))
 
-#define	RACK_TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
-	(tv) = (value) + TICKS_2_USEC(tcp_rexmit_slop);	 \
+#define	RACK_TCPT_RANGESET(tv, value, tvmin, tvmax, slop) do {	\
+	(tv) = (value) + slop;	 \
 	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
 	if ((u_long)(tv) > (u_long)(tvmax)) \
@@ -2448,7 +2448,7 @@ rack_log_rtt_sample(struct tcp_rack *rack, uint32_t rtt)
 		/* Lets capture all the things that make up t_rtxcur */
 		log.u_bbr.applimited = rack_rto_min;
 		log.u_bbr.epoch = rack_rto_max;
-		log.u_bbr.lt_epoch = rtt;
+		log.u_bbr.lt_epoch = rack->r_ctl.timer_slop;
 		log.u_bbr.lost = rack_rto_min;
 		log.u_bbr.pkt_epoch = TICKS_2_USEC(tcp_rexmit_slop);
 		log.u_bbr.rttProp = RACK_REXMTVAL(rack->rc_tp);
@@ -5260,7 +5260,7 @@ rack_get_persists_timer_val(struct tcpcb *tp, struct tcp_rack *rack)
 
 	t = (tp->t_srtt + (tp->t_rttvar << 2));
 	RACK_TCPT_RANGESET(tt, t * tcp_backoff[tp->t_rxtshift],
-	    rack_persist_min, rack_persist_max);
+ 	    rack_persist_min, rack_persist_max, rack->r_ctl.timer_slop);
 	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
 		tp->t_rxtshift++;
 	rack->r_ctl.rc_hpts_flags |= PACE_TMR_PERSIT;
@@ -5526,7 +5526,7 @@ rack_enter_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 		rack_timer_cancel(tp, rack, cts, __LINE__);
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-			      rack_rto_min, rack_rto_max);
+			      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		rack->rc_in_persist = 1;
 	}
 }
@@ -5581,7 +5581,7 @@ rack_exit_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	rack->r_ctl.rc_went_idle_time = 0;
 	tp->t_rxtshift = 0;
 	RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-	   rack_rto_min, rack_rto_max);
+	   rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 	rack->r_ctl.rc_agg_delayed = 0;
 	rack->r_early = 0;
 	rack->r_late = 0;
@@ -6777,7 +6777,7 @@ drop_it:
 		rexmt = max(rack_rto_min, (tp->t_srtt + (tp->t_rttvar << 2))) * tcp_backoff[tp->t_rxtshift];
 
 	RACK_TCPT_RANGESET(tp->t_rxtcur, rexmt,
-	   max(rack_rto_min, rexmt), rack_rto_max);
+	   max(rack_rto_min, rexmt), rack_rto_max, rack->r_ctl.timer_slop);
 	/*
 	 * We enter the path for PLMTUD if connection is established or, if
 	 * connection is FIN_WAIT_1 status, reason for the last is that if
@@ -7702,7 +7702,7 @@ tcp_rack_xmit_timer_commit(struct tcp_rack *rack, struct tcpcb *tp)
 	 */
 	tp->t_rxtshift = 0;
 	RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-		      max(rack_rto_min, rtt + 2), rack_rto_max);
+		      max(rack_rto_min, rtt + 2), rack_rto_max, rack->r_ctl.timer_slop);
 	rack_log_rtt_sample(rack, rtt);
 	tp->t_softerror = 0;
 }
@@ -7877,7 +7877,7 @@ rack_update_rtt(struct tcpcb *tp, struct tcp_rack *rack,
 	 */
 	tp->t_rxtshift = 0;
 	RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-		      rack_rto_min, rack_rto_max);
+		      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 	tp->t_softerror = 0;
 	if (to && (to->to_flags & TOF_TS) &&
 	    (ack_type == CUM_ACKED) &&
@@ -9735,7 +9735,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (rack->rc_in_persist) {
 			tp->t_rxtshift = 0;
 			RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-				      rack_rto_min, rack_rto_max);
+				      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		}
 		if ((th->th_ack == tp->snd_una) && (tiwin == tp->snd_wnd)) {
 			rack_strike_dupack(rack);
@@ -9798,7 +9798,7 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		/* assure we are not backed off */
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-			      rack_rto_min, rack_rto_max);
+			      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		rack->rc_tlp_in_progress = 0;
 		rack->r_ctl.rc_tlp_cnt_out = 0;
 		/*
@@ -10650,7 +10650,7 @@ rack_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		m_freem(mfree);
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-			      rack_rto_min, rack_rto_max);
+			      rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		rack->rc_tlp_in_progress = 0;
 		rack->r_ctl.rc_tlp_cnt_out = 0;
 		/*
@@ -12089,6 +12089,7 @@ rack_init(struct tcpcb *tp)
 	rack->r_ctl.rc_lowest_us_rtt = 0xffffffff;
 	rack->r_ctl.rc_highest_us_rtt = 0;
 	rack->r_ctl.bw_rate_cap = rack_bw_rate_cap;
+	rack->r_ctl.timer_slop = TICKS_2_USEC(tcp_rexmit_slop);
 	if (rack_use_cmp_acks)
 		rack->r_use_cmp_ack = 1;
 	if (rack_disable_prr)
@@ -13183,7 +13184,7 @@ rack_do_compressed_ack_processing(struct tcpcb *tp, struct socket *so, struct mb
 		/* Clear out shifts and such */
 		tp->t_rxtshift = 0;
 		RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
-				   rack_rto_min, rack_rto_max);
+				   rack_rto_min, rack_rto_max, rack->r_ctl.timer_slop);
 		rack->rc_tlp_in_progress = 0;
 		rack->r_ctl.rc_tlp_cnt_out = 0;
 		/* Send recover and snd_nxt must be dragged along */
@@ -18880,6 +18881,19 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 			rack->r_ctl.rc_saved_beta.beta = optval;
 		}
 		break;
+	case TCP_RACK_TIMER_SLOP:
+		RACK_OPTS_INC(tcp_rack_timer_slop);
+		rack->r_ctl.timer_slop = optval;
+		if (rack->rc_tp->t_srtt) {
+			/*
+			 * If we have an SRTT lets update t_rxtcur
+			 * to have the new slop.
+			 */
+			RACK_TCPT_RANGESET(tp->t_rxtcur, RACK_REXMTVAL(tp),
+					   rack_rto_min, rack_rto_max,
+					   rack->r_ctl.timer_slop);
+		}
+		break;
 	case TCP_RACK_PACING_BETA_ECN:
 		RACK_OPTS_INC(tcp_rack_beta_ecn);
 		if (strcmp(tp->cc_algo->name, CCALGONAME_NEWRENO) != 0) {
@@ -19526,6 +19540,7 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	case TCP_DEFER_OPTIONS:			/*  URL:defer */
 	case TCP_RACK_PACING_BETA:		/*  URL:pacing_beta */
 	case TCP_RACK_PACING_BETA_ECN:		/*  URL:pacing_beta_ecn */
+	case TCP_RACK_TIMER_SLOP:		/*  URL:timer_slop */
 		break;
 	default:
 		/* Filter off all unknown options to the base stack */
@@ -19856,6 +19871,9 @@ rack_get_sockopt(struct socket *so, struct sockopt *sopt,
 		break;
 	case TCP_SHARED_CWND_TIME_LIMIT:
 		optval = rack->r_limit_scw;
+		break;
+	case TCP_RACK_TIMER_SLOP:
+		optval = rack->r_ctl.timer_slop;
 		break;
 	default:
 		return (tcp_default_ctloutput(so, sopt, inp, tp));
