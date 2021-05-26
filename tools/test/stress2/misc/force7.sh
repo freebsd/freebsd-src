@@ -71,5 +71,10 @@ while [ $((`date +%s` - start)) -lt 300 ]; do
 	fsck_ffs -fyR /dev/md$mdstart > $log 2>&1; s=$?
 	[ $s -ne 0 ] && break
 done
-[ $s -eq 0 ] && rm -f $diskimage $log || cat $log
+if [ $s -eq 0 ]; then
+	mdconfig -d -u $mdstart
+	rm -f $diskimage $log
+else
+	cat $log
+fi
 exit $s
