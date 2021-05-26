@@ -404,7 +404,7 @@ typedef uint64_t	pmc_value_t;
  * |   CPU      | PMC MODE | CLASS | ROW INDEX |
  * +-----------------------+-------+-----------+
  *
- * where CPU is 12 bits, MODE 8, CLASS 4, and ROW INDEX 8  Field 'CPU'
+ * where CPU is 12 bits, MODE 4, CLASS 8, and ROW INDEX 8  Field 'CPU'
  * is set to the requested CPU for system-wide PMCs or PMC_CPU_ANY for
  * process-mode PMCs.  Field 'PMC MODE' is the allocated PMC mode.
  * Field 'PMC CLASS' is the class of the PMC.  Field 'ROW INDEX' is the
@@ -415,12 +415,12 @@ typedef uint64_t	pmc_value_t;
  */
 
 #define	PMC_ID_TO_ROWINDEX(ID)	((ID) & 0xFF)
-#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xF00) >> 8)
-#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xFF000) >> 12)
+#define	PMC_ID_TO_CLASS(ID)	(((ID) & 0xFF00) >> 8)
+#define	PMC_ID_TO_MODE(ID)	(((ID) & 0xF0000) >> 16)
 #define	PMC_ID_TO_CPU(ID)	(((ID) & 0xFFF00000) >> 20)
 #define	PMC_ID_MAKE_ID(CPU,MODE,CLASS,ROWINDEX)			\
-	((((CPU) & 0xFFF) << 20) | (((MODE) & 0xFF) << 12) |	\
-	(((CLASS) & 0xF) << 8) | ((ROWINDEX) & 0xFF))
+	((((CPU) & 0xFFF) << 20) | (((MODE) & 0xF) << 16) |	\
+	(((CLASS) & 0xFF) << 8) | ((ROWINDEX) & 0xFF))
 
 /*
  * Data structures for system calls supported by the pmc driver.
