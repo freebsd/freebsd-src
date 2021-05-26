@@ -59,9 +59,6 @@ swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
 systrace2.sh		WiP								20200227
 syzkaller11.sh		WiP								20200721
-syzkaller15.sh		WiP								20200712
-syzkaller16.sh		WiP								20200620
-syzkaller17.sh		WiP								20200630
 syzkaller19.sh		WiP								20200712
 syzkaller25.sh		WiP								20201116
 syzkaller28.sh		WiP								20201120
