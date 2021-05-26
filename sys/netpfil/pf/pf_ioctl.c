@@ -275,6 +275,14 @@ pflog_packet_t			*pflog_packet_ptr = NULL;
 
 extern u_long	pf_ioctl_maxcount;
 
+#define	ERROUT_FUNCTION(target, x)					\
+	do {								\
+		error = (x);						\
+		SDT_PROBE3(pf, ioctl, function, error, __func__, error,	\
+		    __LINE__);						\
+		goto target;						\
+	} while (0)
+
 static void
 pfattach_vnet(void)
 {
@@ -2136,6 +2144,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCOSFPGET:
 		case DIOCGETSRCNODES:
 		case DIOCCLRSRCNODES:
+		case DIOCGETSYNCOOKIES:
 		case DIOCIGETIFACES:
 		case DIOCGIFSPEEDV0:
 		case DIOCGIFSPEEDV1:
@@ -2183,6 +2192,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCRTSTADDRS:
 		case DIOCOSFPGET:
 		case DIOCGETSRCNODES:
+		case DIOCGETSYNCOOKIES:
 		case DIOCIGETIFACES:
 		case DIOCGIFSPEEDV1:
 		case DIOCGIFSPEEDV0:
@@ -4536,6 +4546,14 @@ DIOCCHANGEADDR_error:
 
 	case DIOCKEEPCOUNTERS:
 		error = pf_keepcounters((struct pfioc_nv *)addr);
+		break;
+
+	case DIOCGETSYNCOOKIES:
+		error = pf_get_syncookies((struct pfioc_nv *)addr);
+		break;
+
+	case DIOCSETSYNCOOKIES:
+		error = pf_set_syncookies((struct pfioc_nv *)addr);
 		break;
 
 	case DIOCSETHOSTID: {
