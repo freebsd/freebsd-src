@@ -843,8 +843,10 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 			device_printf(sc->pl_dev,
 			    "Unable to build resources: %s\n",
 			    AcpiFormatException(status));
-			if (srsbuf->Pointer != NULL)
+			if (srsbuf->Pointer != NULL) {
 				AcpiOsFree(srsbuf->Pointer);
+				srsbuf->Pointer = NULL;
+			}
 			return (status);
 		}
 	}
@@ -867,6 +869,8 @@ acpi_pci_link_route_irqs(device_t dev)
 		status = acpi_pci_link_srs_from_links(sc, &srsbuf);
 	else
 		status = acpi_pci_link_srs_from_crs(sc, &srsbuf);
+	if (ACPI_FAILURE(status))
+		return (status);
 
 	/* Write out new resources via _SRS. */
 	status = AcpiSetCurrentResources(acpi_get_handle(dev), &srsbuf);
