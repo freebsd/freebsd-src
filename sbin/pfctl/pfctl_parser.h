@@ -100,6 +100,7 @@ struct pfctl {
 	u_int32_t	 hostid;
 	char		*ifname;
 	bool		 keep_counters;
+	u_int8_t	 syncookies;
 
 	u_int8_t	 timeout_set[PFTM_MAX];
 	u_int8_t	 limit_set[PF_LIMIT_MAX];
@@ -278,7 +279,7 @@ void	print_pool(struct pfctl_pool *, u_int16_t, u_int16_t, sa_family_t, int);
 void	print_src_node(struct pf_src_node *, int);
 void	print_rule(struct pfctl_rule *, const char *, int, int);
 void	print_tabledef(const char *, int, int, struct node_tinithead *);
-void	print_status(struct pf_status *, int);
+void	print_status(struct pf_status *, struct pfctl_syncookies *, int);
 void	print_running(struct pf_status *);
 
 int	eval_pfaltq(struct pfctl *, struct pf_altq *, struct node_queue_bw *,

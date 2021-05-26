@@ -497,7 +497,7 @@ const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
 const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
 
 void
-print_status(struct pf_status *s, int opts)
+print_status(struct pf_status *s, struct pfctl_syncookies *cookies, int opts)
 {
 	char			statline[80], *running;
 	time_t			runtime;
@@ -627,6 +627,11 @@ print_status(struct pf_status *s, int opts)
 			else
 				printf("%14s\n", "");
 		}
+
+		printf("Syncookies\n");
+		printf("  %-25s %s\n", "mode",
+		    cookies->mode == PFCTL_SYNCOOKIES_NEVER ?
+		    "never" : "always");
 	}
 }
 

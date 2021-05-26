@@ -244,6 +244,15 @@ struct pfctl_states {
 	size_t 			count;
 };
 
+enum pfctl_syncookies_mode {
+	PFCTL_SYNCOOKIES_NEVER,
+	PFCTL_SYNCOOKIES_ALWAYS
+};
+
+struct pfctl_syncookies {
+	enum pfctl_syncookies_mode	mode;
+};
+
 int	pfctl_get_rule(int dev, u_int32_t nr, u_int32_t ticket,
 	    const char *anchor, u_int32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);
@@ -260,5 +269,7 @@ int	pfctl_clear_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
 int	pfctl_kill_states(int dev, const struct pfctl_kill *kill,
 	    unsigned int *killed);
+int	pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s);
+int	pfctl_get_syncookies(int dev, struct pfctl_syncookies *s);
 
 #endif

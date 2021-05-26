@@ -93,6 +93,7 @@ int	 pfctl_load_timeout(struct pfctl *, unsigned int, unsigned int);
 int	 pfctl_load_debug(struct pfctl *, unsigned int);
 int	 pfctl_load_logif(struct pfctl *, char *);
 int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
+int	 pfctl_load_syncookies(struct pfctl *, u_int8_t);
 int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    char *);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
@@ -1307,15 +1308,20 @@ pfctl_show_states(int dev, const char *iface, int opts)
 int
 pfctl_show_status(int dev, int opts)
 {
-	struct pf_status status;
+	struct pf_status	status;
+	struct pfctl_syncookies	cookies;
 
 	if (ioctl(dev, DIOCGETSTATUS, &status)) {
 		warn("DIOCGETSTATUS");
 		return (-1);
 	}
+	if (pfctl_get_syncookies(dev, &cookies)) {
+		warn("DIOCGETSYNCOOKIES");
+		return (-1);
+	}
 	if (opts & PF_OPT_SHOWALL)
 		pfctl_print_title("INFO:");
-	print_status(&status, opts);
+	print_status(&status, &cookies, opts);
 	return (0);
 }
 
@@ -1861,6 +1867,10 @@ pfctl_load_options(struct pfctl *pf)
 	if (pfctl_set_keepcounters(pf->dev, pf->keep_counters))
 		error = 1;
 
+	/* load syncookies settings */
+	if (pfctl_load_syncookies(pf, pf->syncookies))
+		error = 1;
+
 	return (error);
 }
 
@@ -2042,6 +2052,22 @@ pfctl_load_hostid(struct pfctl *pf, u_int32_t hostid)
 {
 	if (ioctl(dev, DIOCSETHOSTID, &hostid)) {
 		warnx("DIOCSETHOSTID");
+		return (1);
+	}
+	return (0);
+}
+
+int
+pfctl_load_syncookies(struct pfctl *pf, u_int8_t val)
+{
+	struct pfctl_syncookies	cookies;
+
+	bzero(&cookies, sizeof(cookies));
+
+	cookies.mode = val ? PFCTL_SYNCOOKIES_ALWAYS : PFCTL_SYNCOOKIES_NEVER;
+
+	if (pfctl_set_syncookies(dev, &cookies)) {
+		warnx("DIOCSETSYNCOOKIES");
 		return (1);
 	}
 	return (0);
