@@ -245,6 +245,7 @@ struct rack_opts_stats {
 	uint64_t tcp_rack_fastrsm_hack;
 	uint64_t tcp_rack_beta;
 	uint64_t tcp_rack_beta_ecn;
+	uint64_t tcp_rack_timer_slop;
 };
 
 /* RTT shrink reasons */
@@ -341,6 +342,7 @@ struct rack_control {
 	struct rack_sendmap *rc_resend;	/* something we have been asked to
 					 * resend */
 	struct rack_fast_send_blk fsb;	/* The fast-send block */
+	uint32_t timer_slop;
 	uint32_t input_pkt;
 	uint32_t saved_input_pkt;
 	uint32_t rc_hpts_flags;
