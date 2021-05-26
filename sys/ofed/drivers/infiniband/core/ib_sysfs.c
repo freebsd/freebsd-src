@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/printk.h>
 
+#include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_pma.h>
 

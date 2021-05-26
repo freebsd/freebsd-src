@@ -51,6 +51,13 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_addr_freebsd.h>
 
+/* Linux netdevice.h but for working on an ifnet rather than a net_device. */
+#define	dev_hold(d)	if_ref(d)
+#define	dev_put(d)	if_rele(d)
+#define	dev_net(d)	((d)->if_vnet)
+#define	net_eq(a,b)	((a) == (b))
+
+
 struct rdma_addr_client {
 	atomic_t refcount;
 	struct completion comp;
