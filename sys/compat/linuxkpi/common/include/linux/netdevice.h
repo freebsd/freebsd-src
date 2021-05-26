@@ -53,15 +53,6 @@
 
 #define	net_device	ifnet
 
-#define	dev_hold(d)	if_ref(d)
-#define	dev_put(d)	if_rele(d)
-#define	dev_net(d)	((d)->if_vnet)
-
-#define	net_eq(a,b)	((a) == (b))
-
-#define	netif_running(dev)	!!((dev)->if_drv_flags & IFF_DRV_RUNNING)
-#define	netif_carrier_ok(dev)	((dev)->if_link_state == LINK_STATE_UP)
-
 #define	rtnl_lock()
 #define	rtnl_unlock()
 
