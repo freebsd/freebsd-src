@@ -1097,6 +1097,39 @@ ReLink(struct alias_link *old_lnk,
 	return (new_lnk);
 }
 
+
+#define OUTGUARD					\
+   if (lnk->src_port != src_port ||			\
+       lnk->src_addr.s_addr != src_addr.s_addr ||	\
+       lnk->dst_addr.s_addr != dst_addr.s_addr ||	\
+       lnk->dst_port != dst_port ||			\
+       lnk->link_type != link_type ||			\
+       lnk->server != NULL)				\
+	   continue;
+
+static struct alias_link *
+_SearchLinkOut(struct libalias *la, struct in_addr src_addr,
+    struct in_addr dst_addr,
+    u_short src_port,
+    u_short dst_port,
+    int link_type) {
+	u_int i;
+	struct alias_link *lnk;
+
+	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
+	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out) {
+		OUTGUARD;
+		CleanupLink(la, &lnk);
+		if (lnk != NULL)
+			lnk->timestamp = LibAliasTime;
+		return (lnk);
+	}
+
+	return (NULL);
+}
+
+#undef OUTGUARD
+
 static struct alias_link *
 _FindLinkOut(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1105,42 +1138,24 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
     int link_type,
     int replace_partial_links)
 {
-	u_int i;
 	struct alias_link *lnk;
 
-#define OUTGUARD					\
-   if (lnk->src_port != src_port ||			\
-       lnk->src_addr.s_addr != src_addr.s_addr ||	\
-       lnk->link_type != link_type ||			\
-       lnk->server != NULL)				\
-	   continue;
-
 	LIBALIAS_LOCK_ASSERT(la);
-	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
-	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out) {
-		OUTGUARD;
-		if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
-		    lnk->dst_port == dst_port)
-			break;
-	}
-
-	CleanupLink(la, &lnk);
-	if (lnk != NULL)
-		lnk->timestamp = LibAliasTime;
+	lnk = _SearchLinkOut(la, src_addr, dst_addr, src_port, dst_port, link_type);
 
 	/* Search for partially specified links. */
 	if (lnk == NULL && replace_partial_links) {
 		if (dst_port != 0 && dst_addr.s_addr != INADDR_ANY) {
-			lnk = _FindLinkOut(la, src_addr, dst_addr, src_port, 0,
-			    link_type, 0);
+			lnk = _SearchLinkOut(la, src_addr, dst_addr, src_port, 0,
+			    link_type);
 			if (lnk == NULL)
-				lnk = _FindLinkOut(la, src_addr, ANY_ADDR, src_port,
-				    dst_port, link_type, 0);
+				lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port,
+				    dst_port, link_type);
 		}
 		if (lnk == NULL &&
 		    (dst_port != 0 || dst_addr.s_addr != INADDR_ANY)) {
-			lnk = _FindLinkOut(la, src_addr, ANY_ADDR, src_port, 0,
-			    link_type, 0);
+			lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port, 0,
+			    link_type);
 		}
 		if (lnk != NULL) {
 			lnk = ReLink(lnk,
@@ -1149,7 +1164,6 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 			    link_type);
 		}
 	}
-#undef OUTGUARD
 	return (lnk);
 }
 
@@ -1230,10 +1244,9 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 			if (lnk->dst_addr.s_addr == dst_addr.s_addr
 			    && lnk->dst_port == dst_port) {
 				CleanupLink(la, &lnk);
-				if (lnk != NULL) {
+				if (lnk != NULL)
 					lnk->timestamp = LibAliasTime;
-					return (lnk);
-				}
+				return (lnk);
 			}
 		}
 	} else {
