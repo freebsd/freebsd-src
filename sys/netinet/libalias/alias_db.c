@@ -378,12 +378,10 @@ Miscellaneous:
 */
 
 /* Local prototypes */
-static u_int	StartPointIn(struct in_addr, u_short, int);
-
-static		u_int
-StartPointOut(struct in_addr, struct in_addr,
-    u_short, u_short, int);
-
+static struct group_in *
+StartPointIn(struct libalias *, struct in_addr, u_short, int, int);
+static u_int
+StartPointOut(struct in_addr, struct in_addr, u_short, u_short, int);
 static int	SeqDiff(u_long, u_long);
 
 #ifndef NO_FW_PUNCH
@@ -401,26 +399,47 @@ static void	UninitPacketAliasLog(struct libalias *);
 
 void		SctpShowAliasStats(struct libalias *la);
 
-static u_int
-StartPartialIn(u_short alias_port, int link_type)
-{
-	return (link_type == LINK_PPTP) ? 0
-	    : (alias_port % LINK_PARTIAL_SIZE);
-}
+#define INGUARD						\
+   if (grp->alias_port != alias_port ||			\
+       grp->link_type != link_type ||			\
+       grp->alias_addr.s_addr != alias_addr.s_addr)	\
+	continue;
 
-static u_int
-StartPointIn(struct in_addr alias_addr,
-    u_short alias_port,
-    int link_type)
+static struct group_in *
+StartPointIn(struct libalias *la,
+    struct in_addr alias_addr, u_short alias_port, int link_type,
+    int create)
 {
 	u_int n;
+	struct group_in *grp, *tmp;
 
 	n = alias_addr.s_addr;
 	if (link_type != LINK_PPTP)
 		n += alias_port;
 	n += link_type;
-	return (n % LINK_TABLE_IN_SIZE);
+	n %= LINK_TABLE_IN_SIZE;
+
+	LIST_FOREACH_SAFE(grp, &la->groupTableIn[n], group_in, tmp) {
+		/* Auto cleanup */
+		if (LIST_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
+			LIST_REMOVE(grp, group_in);
+			free(grp);
+		} else {
+			INGUARD;
+			return (grp);
+		}
+	}
+	if (!create || (grp = malloc(sizeof(*grp))) == NULL)
+		return (grp);
+	grp->alias_addr = alias_addr;
+	grp->alias_port = alias_port;
+	grp->link_type = link_type;
+	LIST_INIT(&grp->full);
+	LIST_INIT(&grp->partial);
+	LIST_INSERT_HEAD(&la->groupTableIn[n], grp, group_in);
+	return (grp);
 }
+#undef INGUARD
 
 static u_int
 StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
@@ -814,12 +833,21 @@ static void
 CleanupAliasData(struct libalias *la)
 {
 	struct alias_link *lnk, *lnk_tmp;
+	struct group_in *grp, *grp_tmp;
+	u_int i;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
 	/* permanent entries may stay */
 	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, list_expire, lnk_tmp)
 		DeleteLink(&lnk);
+
+	for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
+		LIST_FOREACH_SAFE(grp, &la->groupTableIn[i], group_in, grp_tmp)
+			if (LIST_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
+				LIST_REMOVE(grp, group_in);
+				free(grp);
+			}
 }
 
 static void
@@ -875,9 +903,10 @@ DeleteLink(struct alias_link **plnk)
 			next = curr->next;
 			free(curr);
 		} while ((curr = next) != head);
+	} else {
+		/* Adjust output table pointers */
+		LIST_REMOVE(lnk, list_out);
 	}
-	/* Adjust output table pointers */
-	LIST_REMOVE(lnk, list_out);
 
 	/* Adjust input table pointers */
 	LIST_REMOVE(lnk, list_in);
@@ -939,8 +968,10 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 {
 	u_int start_point;
 	struct alias_link *lnk;
+	struct group_in *grp_in;
 
 	LIBALIAS_LOCK_ASSERT(la);
+
 	lnk = malloc(sizeof(struct alias_link));
 	if (lnk != NULL) {
 		/* Basic initialization */
@@ -1048,6 +1079,12 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 			break;
 		}
 
+		grp_in = StartPointIn(la, alias_addr, lnk->alias_port, link_type, 1);
+		if (grp_in == NULL) {
+			free(lnk);
+			return (NULL);
+		}
+
 		/* Set up pointers for output lookup table */
 		start_point = StartPointOut(src_addr, dst_addr,
 		    src_port, dst_port, link_type);
@@ -1055,11 +1092,9 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 
 		/* Set up pointers for input lookup table */
 		if (lnk->flags & LINK_PARTIALLY_SPECIFIED) {
-			start_point = StartPartialIn(lnk->alias_port, link_type);
-			LIST_INSERT_HEAD(&la->linkPartialIn[start_point], lnk, list_in);
+			LIST_INSERT_HEAD(&grp_in->partial, lnk, list_in);
 		} else {
-			start_point = StartPointIn(alias_addr, lnk->alias_port, link_type);
-			LIST_INSERT_HEAD(&la->linkTableIn[start_point], lnk, list_in);
+			LIST_INSERT_HEAD(&grp_in->full, lnk, list_in);
 		}
 
 		/* Include the element into the housekeeping list */
@@ -1114,8 +1149,7 @@ ReLink(struct alias_link *old_lnk,
        lnk->src_addr.s_addr != src_addr.s_addr ||	\
        lnk->dst_addr.s_addr != dst_addr.s_addr ||	\
        lnk->dst_port != dst_port ||			\
-       lnk->link_type != link_type ||			\
-       lnk->server != NULL)				\
+       lnk->link_type != link_type)			\
 	   continue;
 
 static struct alias_link *
@@ -1150,27 +1184,27 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 
 	LIBALIAS_LOCK_ASSERT(la);
 	lnk = _SearchLinkOut(la, src_addr, dst_addr, src_port, dst_port, link_type);
+	if (lnk != NULL || !replace_partial_links)
+		return (lnk);
 
 	/* Search for partially specified links. */
-	if (lnk == NULL && replace_partial_links) {
-		if (dst_port != 0 && dst_addr.s_addr != INADDR_ANY) {
-			lnk = _SearchLinkOut(la, src_addr, dst_addr, src_port, 0,
-			    link_type);
-			if (lnk == NULL)
-				lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port,
-				    dst_port, link_type);
-		}
-		if (lnk == NULL &&
-		    (dst_port != 0 || dst_addr.s_addr != INADDR_ANY)) {
-			lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port, 0,
-			    link_type);
-		}
-		if (lnk != NULL) {
-			lnk = ReLink(lnk,
-			    src_addr, dst_addr, lnk->alias_addr,
-			    src_port, dst_port, lnk->alias_port,
-			    link_type);
-		}
+	if (dst_port != 0 && dst_addr.s_addr != INADDR_ANY) {
+		lnk = _SearchLinkOut(la, src_addr, dst_addr, src_port, 0,
+		    link_type);
+		if (lnk == NULL)
+			lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port,
+			    dst_port, link_type);
+	}
+	if (lnk == NULL &&
+	    (dst_port != 0 || dst_addr.s_addr != INADDR_ANY)) {
+		lnk = _SearchLinkOut(la, src_addr, ANY_ADDR, src_port, 0,
+		    link_type);
+	}
+	if (lnk != NULL) {
+		lnk = ReLink(lnk,
+		    src_addr, dst_addr, lnk->alias_addr,
+		    src_port, dst_port, lnk->alias_port,
+		    link_type);
 	}
 	return (lnk);
 }
@@ -1214,9 +1248,8 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
     int replace_partial_links)
 {
 	int flags_in;
-	u_int start_point;
+	struct group_in *grp;
 	struct alias_link *lnk;
-	struct alias_link *lnk_fully_specified;
 	struct alias_link *lnk_unknown_all;
 	struct alias_link *lnk_unknown_dst_addr;
 	struct alias_link *lnk_unknown_dst_port;
@@ -1225,7 +1258,6 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 	LIBALIAS_LOCK_ASSERT(la);
 	/* Initialize pointers */
-	lnk_fully_specified = NULL;
 	lnk_unknown_all = NULL;
 	lnk_unknown_dst_addr = NULL;
 	lnk_unknown_dst_port = NULL;
@@ -1238,26 +1270,44 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	if (dst_port == 0)
 		flags_in |= LINK_UNKNOWN_DEST_PORT;
 
-#define INGUARD						\
-   if (lnk->alias_port != alias_port ||			\
-       lnk->link_type != link_type ||			\
-       lnk->alias_addr.s_addr != alias_addr.s_addr)	\
-	continue;
-
 	/* Search loop */
-	start_point = StartPointIn(alias_addr, alias_port, link_type);
-	if (!(flags_in & LINK_PARTIALLY_SPECIFIED)) {
-		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
-			INGUARD;
-			if (lnk->dst_addr.s_addr == dst_addr.s_addr
-			    && lnk->dst_port == dst_port)
+	grp = StartPointIn(la, alias_addr, alias_port, link_type, 0);
+	if (grp == NULL)
+		return (NULL);
+
+	switch (flags_in) {
+	case 0:
+		LIST_FOREACH(lnk, &grp->full, list_in) {
+			if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
+			    lnk->dst_port == dst_port)
 				return (UseLink(la, lnk));
 		}
-	} else {
-		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
-			int flags = flags_in & LINK_PARTIALLY_SPECIFIED;
+		break;
+	case LINK_UNKNOWN_DEST_PORT:
+		LIST_FOREACH(lnk, &grp->full, list_in) {
+			if(lnk->dst_addr.s_addr == dst_addr.s_addr) {
+				lnk_unknown_dst_port = lnk;
+				break;
+			}
+		}
+		break;
+	case LINK_UNKNOWN_DEST_ADDR:
+		LIST_FOREACH(lnk, &grp->full, list_in) {
+			if(lnk->dst_port == dst_port) {
+				lnk_unknown_dst_addr = lnk;
+				break;
+			}
+		}
+		break;
+	case LINK_PARTIALLY_SPECIFIED:
+		lnk_unknown_all = LIST_FIRST(&grp->full);
+		break;
+	}
 
-			INGUARD;
+	if (lnk_unknown_dst_port == NULL) {
+		LIST_FOREACH(lnk, &grp->partial, list_in) {
+			int flags = (flags_in | lnk->flags) & LINK_PARTIALLY_SPECIFIED;
+
 			if (flags == LINK_PARTIALLY_SPECIFIED &&
 			    lnk_unknown_all == NULL)
 				lnk_unknown_all = lnk;
@@ -1272,26 +1322,6 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 			}
 		}
 	}
-
-	start_point = StartPartialIn(alias_port, link_type);
-	LIST_FOREACH(lnk, &la->linkPartialIn[start_point], list_in) {
-		int flags = (flags_in | lnk->flags) & LINK_PARTIALLY_SPECIFIED;
-
-		INGUARD;
-		if (flags == LINK_PARTIALLY_SPECIFIED &&
-		    lnk_unknown_all == NULL)
-			lnk_unknown_all = lnk;
-		if (flags == LINK_UNKNOWN_DEST_ADDR &&
-		    lnk->dst_port == dst_port &&
-		    lnk_unknown_dst_addr == NULL)
-			lnk_unknown_dst_addr = lnk;
-		if (flags == LINK_UNKNOWN_DEST_PORT &&
-		    lnk->dst_addr.s_addr == dst_addr.s_addr) {
-			lnk_unknown_dst_port = lnk;
-			break;
-		}
-	}
-#undef INGUARD
 
 	lnk = (lnk_unknown_dst_port != NULL) ? lnk_unknown_dst_port
 	    : (lnk_unknown_dst_addr != NULL) ? lnk_unknown_dst_addr
@@ -1647,13 +1677,17 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
     u_int16_t dst_call_id)
 {
+	struct group_in *grp;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	LIST_FOREACH(lnk, &la->linkPartialIn[0], list_in)
-		if (lnk->link_type == LINK_PPTP &&
-		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
-		    lnk->alias_addr.s_addr == alias_addr.s_addr &&
+
+	grp = StartPointIn(la, alias_addr, 0, LINK_PPTP, 0);
+	if (grp == NULL)
+		return (NULL);
+
+	LIST_FOREACH(lnk, &grp->full, list_in)
+		if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
 		    lnk->dst_port == dst_call_id)
 			break;
 
@@ -2304,9 +2338,11 @@ LibAliasAddServer(struct libalias *la, struct alias_link *lnk, struct in_addr ad
 		server->port = port;
 
 		head = lnk->server;
-		if (head == NULL)
+		if (head == NULL) {
 			server->next = server;
-		else {
+			/* not usable for outgoing connections */
+			LIST_REMOVE(lnk, list_out);
+		} else {
 			struct server *s;
 
 			for (s = head; s->next != head; s = s->next)
@@ -2478,9 +2514,7 @@ LibAliasInit(struct libalias *la)
 		for (i = 0; i < LINK_TABLE_OUT_SIZE; i++)
 			LIST_INIT(&la->linkTableOut[i]);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
-			LIST_INIT(&la->linkTableIn[i]);
-		for (i = 0; i < LINK_PARTIAL_SIZE; i++)
-			LIST_INIT(&la->linkPartialIn[i]);
+			LIST_INIT(&la->groupTableIn[i]);
 		TAILQ_INIT(&la->checkExpire);
 #ifdef _KERNEL
 		AliasSctpInit(la);
