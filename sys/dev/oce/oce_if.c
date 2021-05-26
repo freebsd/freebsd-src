@@ -1330,11 +1330,8 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	}
 
 	m = m_pullup(m, total_len);
-	if (!m)
-		return NULL;
 	*mpp = m;
 	return m;
-
 }
 #endif /* INET6 || INET */
 
