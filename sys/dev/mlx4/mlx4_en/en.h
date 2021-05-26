@@ -654,6 +654,12 @@ struct mlx4_mac_entry {
 	u64 reg_id;
 };
 
+static inline void *
+netdev_priv(const struct net_device *dev)
+{
+	return (dev->if_softc);
+}
+
 static inline struct mlx4_cqe *mlx4_en_get_cqe(u8 *buf, int idx, int cqe_sz)
 {
 	return (struct mlx4_cqe *)(buf + idx * cqe_sz);
