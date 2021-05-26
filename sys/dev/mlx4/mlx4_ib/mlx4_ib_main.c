@@ -156,7 +156,7 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_n
 	}
 #endif
 	if (dev)
-		dev_hold(dev);
+		if_ref(dev);
 
 	rcu_read_unlock();
 	return dev;
@@ -415,7 +415,7 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 		return ret;
 
 	if (attr.ndev)
-		dev_put(attr.ndev);
+		if_rele(attr.ndev);
 
 	if (!memcmp(&gid, &zgid, sizeof(gid)))
 		return -EINVAL;
@@ -736,7 +736,8 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	tmp = iboe_get_mtu(ndev->if_mtu);
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
 
-	props->state		= (netif_running(ndev) && netif_carrier_ok(ndev)) ?
+	props->state		= ((ndev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+				   ndev->if_link_state == LINK_STATE_UP) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 out_unlock:
@@ -1356,12 +1357,12 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 	spin_lock_bh(&mdev->iboe.lock);
 	ndev = mdev->iboe.netdevs[mqp->port - 1];
 	if (ndev)
-		dev_hold(ndev);
+		if_ref(ndev);
 	spin_unlock_bh(&mdev->iboe.lock);
 
 	if (ndev) {
 		ret = 1;
-		dev_put(ndev);
+		if_rele(ndev);
 	}
 
 	return ret;
@@ -2002,10 +2003,10 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		spin_lock_bh(&mdev->iboe.lock);
 		ndev = ge->added ? mdev->iboe.netdevs[ge->port - 1] : NULL;
 		if (ndev)
-			dev_hold(ndev);
+			if_ref(ndev);
 		spin_unlock_bh(&mdev->iboe.lock);
 		if (ndev)
-			dev_put(ndev);
+			if_rele(ndev);
 		list_del(&ge->list);
 		kfree(ge);
 	} else
@@ -2372,7 +2373,7 @@ static int mlx4_ib_netdev_event(struct notifier_block *this,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct mlx4_ib_dev *ibdev;
 
-	if (!net_eq(dev_net(dev), &init_net))
+	if (dev->if_vnet != &init_net)
 		return NOTIFY_DONE;
 
 	ibdev = container_of(this, struct mlx4_ib_dev, iboe.nb);
@@ -3111,8 +3112,8 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 			continue;
 
 		curr_port_state =
-			(netif_running(curr_netdev) &&
-			 netif_carrier_ok(curr_netdev)) ?
+			((curr_netdev->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			 curr_netdev->if_link_state == LINK_STATE_UP) ?
 			IB_PORT_ACTIVE : IB_PORT_DOWN;
 
 		bonded_port_state = (bonded_port_state != IB_PORT_ACTIVE) ?

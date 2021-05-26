@@ -1783,7 +1783,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			if (!status && gid_attr.ndev) {
 				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
 				memcpy(smac, IF_LLADDR(gid_attr.ndev), ETH_ALEN);
-				dev_put(gid_attr.ndev);
+				if_rele(gid_attr.ndev);
 			}
 		}
 		if (status)
@@ -2471,7 +2471,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 						&gid_attr);
 			if (!err) {
 				if (gid_attr.ndev)
-					dev_put(gid_attr.ndev);
+					if_rele(gid_attr.ndev);
 				if (!memcmp(&sgid, &zgid, sizeof(sgid)))
 					err = -ENOENT;
 			}
@@ -2962,7 +2962,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 					       ah->av.ib.gid_index, &gid,
 					       &gid_attr)) {
 				if (gid_attr.ndev)
-					dev_put(gid_attr.ndev);
+					if_rele(gid_attr.ndev);
 				qp = (gid_attr.gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) ?
 					to_mqp(sqp->roce_v2_gsi) : qp;
 			} else {
