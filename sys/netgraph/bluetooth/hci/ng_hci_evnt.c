@@ -528,6 +528,7 @@ static int le_connection_complete(ng_hci_unit_p unit, struct mbuf *event)
 		if (error != 0) {
 			ng_hci_con_untimeout(con);
 			ng_hci_free_con(con);
+			goto out;
 		}
 
 	} else if ((error = ng_hci_con_untimeout(con)) != 0)
