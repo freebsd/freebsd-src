@@ -737,13 +737,13 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 bad:
 	smb_iod_removerq(rqp);
 freerq:
-	smb_rq_done(rqp);
 	if (error) {
 		if (rqp->sr_flags & SMBR_RESTART)
 			t2p->t2_flags |= SMBT2_RESTART;
 		md_done(&t2p->t2_rparam);
 		md_done(&t2p->t2_rdata);
 	}
+	smb_rq_done(rqp);
 	return error;
 }
 
