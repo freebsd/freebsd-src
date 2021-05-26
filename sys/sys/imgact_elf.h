@@ -100,6 +100,12 @@ __ElfType(Brandinfo);
 
 #define	MAX_BRANDS	8
 
+/* Closure for __elfN(size_segments)(). */
+struct sseg_closure {
+	int count;              /* Count of writable segments. */
+	size_t size;            /* Total size of all writable segments. */
+};
+
 int	__elfN(brand_inuse)(Elf_Brandinfo *entry);
 int	__elfN(insert_brand_entry)(Elf_Brandinfo *entry);
 int	__elfN(remove_brand_entry)(Elf_Brandinfo *entry);
@@ -108,6 +114,8 @@ int	__elfN(coredump)(struct thread *, struct vnode *, off_t, int);
 size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
 void	__elfN(stackgap)(struct image_params *, uintptr_t *);
 int	__elfN(freebsd_copyout_auxargs)(struct image_params *, uintptr_t);
+void	__elfN(puthdr)(struct thread *, void *, size_t, int, size_t, int);
+void	__elfN(size_segments)(struct thread *, struct sseg_closure *, int);
 
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);

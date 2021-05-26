@@ -1434,12 +1434,6 @@ struct phdr_closure {
 	Elf_Off offset;		/* Offset of segment in core file */
 };
 
-/* Closure for cb_size_segment(). */
-struct sseg_closure {
-	int count;		/* Count of writable segments. */
-	size_t size;		/* Total size of all writable segments. */
-};
-
 typedef void (*outfunc_t)(void *, struct sbuf *, size_t *);
 
 struct note_info {
@@ -1463,7 +1457,6 @@ static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
     struct note_info_list *, size_t, int);
 static void __elfN(prepare_notes)(struct thread *, struct note_info_list *,
     size_t *);
-static void __elfN(puthdr)(struct thread *, void *, size_t, int, size_t, int);
 static void __elfN(putnote)(struct note_info *, struct sbuf *);
 static size_t register_note(struct note_info_list *, int, outfunc_t, void *);
 
@@ -1508,9 +1501,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	TAILQ_INIT(&notelst);
 
 	/* Size the program segments. */
-	seginfo.count = 0;
-	seginfo.size = 0;
-	each_dumpable_segment(td, cb_size_segment, &seginfo, flags);
+	__elfN(size_segments)(td, &seginfo, flags);
 
 	/*
 	 * Collect info about the core file header area.
@@ -1643,6 +1634,16 @@ cb_size_segment(vm_map_entry_t entry, void *closure)
 
 	ssc->count++;
 	ssc->size += entry->end - entry->start;
+}
+
+void
+__elfN(size_segments)(struct thread *td, struct sseg_closure *seginfo,
+    int flags)
+{
+	seginfo->count = 0;
+	seginfo->size = 0;
+
+	each_dumpable_segment(td, cb_size_segment, seginfo, flags);
 }
 
 /*
@@ -1803,7 +1804,7 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 	*sizep = size;
 }
 
-static void
+void
 __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
     size_t notesz, int flags)
 {
