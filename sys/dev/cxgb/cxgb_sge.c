@@ -2773,6 +2773,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		if (mh->mh_tail == NULL) {
 			log(LOG_ERR, "discarding intermediate descriptor entry\n");
 			m_freem(m);
+			m = NULL;
 			break;
 		}
 		mh->mh_tail->m_next = m;
@@ -2780,7 +2781,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		mh->mh_head->m_pkthdr.len += len;
 		break;
 	}
-	if (cxgb_debug)
+	if (cxgb_debug && m != NULL)
 		printf("len=%d pktlen=%d\n", m->m_len, m->m_pkthdr.len);
 done:
 	if (++fl->cidx == fl->size)
