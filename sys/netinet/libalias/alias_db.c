@@ -535,6 +535,8 @@ static u_short	GetSocket(struct libalias *, u_short, int *, int);
 static void	CleanupAliasData(struct libalias *);
 static void	CleanupLink(struct libalias *, struct alias_link **);
 static void	DeleteLink(struct alias_link **);
+static struct alias_link *
+UseLink(struct libalias *, struct alias_link *);
 
 static struct alias_link *
 ReLink(struct alias_link *,
@@ -839,6 +841,15 @@ CleanupLink(struct libalias *la, struct alias_link **lnk)
 	TAILQ_INSERT_TAIL(&la->checkExpire, (*lnk), list_expire);
 }
 
+static struct alias_link *
+UseLink(struct libalias *la, struct alias_link *lnk)
+{
+	CleanupLink(la, &lnk);
+	if (lnk != NULL)
+		lnk->timestamp = LibAliasTime;
+	return (lnk);
+}
+
 static void
 DeleteLink(struct alias_link **plnk)
 {
@@ -1119,10 +1130,7 @@ _SearchLinkOut(struct libalias *la, struct in_addr src_addr,
 	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
 	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out) {
 		OUTGUARD;
-		CleanupLink(la, &lnk);
-		if (lnk != NULL)
-			lnk->timestamp = LibAliasTime;
-		return (lnk);
+		return (UseLink(la, lnk));
 	}
 
 	return (NULL);
@@ -1242,12 +1250,8 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
 			INGUARD;
 			if (lnk->dst_addr.s_addr == dst_addr.s_addr
-			    && lnk->dst_port == dst_port) {
-				CleanupLink(la, &lnk);
-				if (lnk != NULL)
-					lnk->timestamp = LibAliasTime;
-				return (lnk);
-			}
+			    && lnk->dst_port == dst_port)
+				return (UseLink(la, lnk));
 		}
 	} else {
 		LIST_FOREACH(lnk, &la->linkTableIn[start_point], list_in) {
@@ -1615,8 +1619,7 @@ FindPptpOutByCallId(struct libalias *la, struct in_addr src_addr,
 		    lnk->src_port == src_call_id)
 			break;
 
-	CleanupLink(la, &lnk);
-	return (lnk);
+	return (UseLink(la, lnk));
 }
 
 struct alias_link *
@@ -1636,8 +1639,7 @@ FindPptpOutByPeerCallId(struct libalias *la, struct in_addr src_addr,
 		    lnk->dst_port == dst_call_id)
 			break;
 
-	CleanupLink(la, &lnk);
-	return (lnk);
+	return (UseLink(la, lnk));
 }
 
 struct alias_link *
@@ -1655,8 +1657,7 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
 		    lnk->dst_port == dst_call_id)
 			break;
 
-	CleanupLink(la, &lnk);
-	return (lnk);
+	return (UseLink(la, lnk));
 }
 
 struct alias_link *
