@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210526:	p7	FreeBSD-EN-21:11.aesni
+			FreeBSD-EN-21:14.pms
+			FreeBSD-SA-21:11.smap
+			FreeBSD-SA-21:12.libradius
+
+		Race condition in aesni(4) encrypt-then-auth operations [FreeBSD-EN-21:11.aesni]
+
+		pms(4) data corruption [FreeBSD-EN-21:14.pms]
+
+		SMAP bypass [FreeBSD-SA-21:11.smap]
+
+		Missing message validation in libradius(3) [FreeBSD-SA-21:12.libradius]
+
 20210406:	p6	FreeBSD-EN-21:09.pf
 			FreeBSD-EN-21:10.lldb
 			FreeBSD-SA-21:08.vm
