@@ -67,7 +67,9 @@ MLINKS+=getifaddrs.3 freeifaddrs.3
 MLINKS+=getifmaddrs.3 freeifmaddrs.3
 MLINKS+=getipnodebyname.3 getipnodebyaddr.3 getipnodebyname.3 freehostent.3
 MLINKS+=getnetent.3 endnetent.3 getnetent.3 getnetbyaddr.3 \
-	getnetent.3 getnetbyname.3 getnetent.3 setnetent.3
+	getnetent.3 getnetbyaddr_r.3 getnetent.3 getnetbyname.3 \
+	getnetent.3 getnetbyname_r.3 getnetent.3 setnetent.3 \
+	getnetent.3 getnetent_r.3
 MLINKS+=getprotoent.3 endprotoent.3 getprotoent.3 getprotobyname.3 \
 	getprotoent.3 getprotobynumber.3 getprotoent.3 setprotoent.3
 MLINKS+=getservent.3 endservent.3 getservent.3 getservbyname.3 \
