@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <rdma/rdma_sdp.h>
 #include <rdma/ib.h>
 #include <rdma/ib_addr.h>
-#include <rdma/ib_addr_freebsd.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
 #include <rdma/ib_sa.h>

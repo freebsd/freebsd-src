@@ -92,4 +92,19 @@ ip6_ifp_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 }
 #endif
 
+static inline struct ifnet *
+dev_get_by_index(struct vnet *vnet, int if_index)
+{
+	struct epoch_tracker et;
+	struct ifnet *retval;
+
+	NET_EPOCH_ENTER(et);
+	CURVNET_SET(vnet);
+	retval = ifnet_byindex_ref(if_index);
+	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
+
+	return (retval);
+}
+
 #endif	/* _RDMA_IB_ADDR_FREEBSD_H */
