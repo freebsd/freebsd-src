@@ -11,6 +11,29 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210526:
+	13.0-RELEASE-p1	FreeBSD-EN-21:12.divert
+			FreeBSD-EN-21:13.mpt
+			FreeBSD-EN-21:14.pms
+			FreeBSD-EN-21:15.virtio
+			FreeBSD-EN-21:16.bc
+			FreeBSD-SA-21:11.smap
+			FreeBSD-SA-21:12.libradius
+
+	Kernel double free when transmitting on a divert socket [FreeBSD-EN-21:12.divert]
+
+	mpt(4) I/O errors with a large maxphys value [FreeBSD-EN-21:13.mpt]
+
+	pms(4) data corruption [FreeBSD-EN-21:14.pms]
+
+	virtio(4) device probing fails [FreeBSD-EN-21:15.virtio]
+
+	dc update [FreeBSD-EN-21:16.bc]
+
+	SMAP bypass [FreeBSD-SA-21:11.smap]
+
+	Missing message validation in libradius(3) [FreeBSD-SA-21:12.libradius]
+
 20210413:
 	13.0-RELEASE.
 
