@@ -298,6 +298,7 @@ static void
 rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 {
 	uint32_t reg;
+	int transfer_len;
 
 	sc->ipd = RK_I2C_READ(sc, RK_I2C_IPD);
 
@@ -331,11 +332,16 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBRFIEN |
 			    RK_I2C_IEN_NAKRCVIEN);
 
-			reg = RK_I2C_READ(sc, RK_I2C_CON);
-			reg |= RK_I2C_CON_LASTACK;
-			RK_I2C_WRITE(sc, RK_I2C_CON, reg);
+			if ((sc->msg->len - sc->cnt) > 32)
+				transfer_len = 32;
+			else {
+				transfer_len = sc->msg->len - sc->cnt;
+				reg = RK_I2C_READ(sc, RK_I2C_CON);
+				reg |= RK_I2C_CON_LASTACK;
+				RK_I2C_WRITE(sc, RK_I2C_CON, reg);
+			}
 
-			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, sc->msg->len);
+			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, transfer_len);
 		} else {
 			sc->state = STATE_WRITE;
 			RK_I2C_WRITE(sc, RK_I2C_IEN, RK_I2C_IEN_MBTFIEN |
@@ -350,6 +356,23 @@ rk_i2c_intr_locked(struct rk_i2c_softc *sc)
 
 		if (sc->cnt == sc->msg->len)
 			rk_i2c_send_stop(sc);
+		else {
+			sc->mode = RK_I2C_CON_MODE_RX;
+			reg = RK_I2C_READ(sc, RK_I2C_CON) & \
+			    ~RK_I2C_CON_CTRL_MASK;
+			reg |= sc->mode << RK_I2C_CON_MODE_SHIFT;
+			reg |= RK_I2C_CON_EN;
+
+			if ((sc->msg->len - sc->cnt) > 32)
+				transfer_len = 32;
+			else {
+				transfer_len = sc->msg->len - sc->cnt;
+				reg |= RK_I2C_CON_LASTACK;
+			}
+
+			RK_I2C_WRITE(sc, RK_I2C_CON, reg);
+			RK_I2C_WRITE(sc, RK_I2C_MRXCNT, transfer_len);
+		}
 
 		break;
 	case STATE_WRITE:
@@ -520,7 +543,7 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 					sc->mode = RK_I2C_CON_MODE_RX;
 				} else {
 					sc->mode = RK_I2C_CON_MODE_RRX;
-					reg = msgs[i].slave & LSB;
+					reg = msgs[i].slave & ~LSB;
 					reg |= RK_I2C_MRXADDR_VALID(0);
 					RK_I2C_WRITE(sc, RK_I2C_MRXADDR, reg);
 					RK_I2C_WRITE(sc, RK_I2C_MRXRADDR, 0);
