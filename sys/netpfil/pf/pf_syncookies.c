@@ -110,6 +110,7 @@ struct pf_syncookie_status {
 VNET_DEFINE_STATIC(struct pf_syncookie_status, pf_syncookie_status);
 #define V_pf_syncookie_status	VNET(pf_syncookie_status)
 
+static int	pf_syncookies_setmode(u_int8_t);
 void		pf_syncookie_rotate(void *);
 void		pf_syncookie_newkey(void);
 uint32_t	pf_syncookie_mac(struct pf_pdesc *, union pf_syncookie,
@@ -127,6 +128,89 @@ pf_syncookies_init(void)
 }
 
 int
+pf_get_syncookies(struct pfioc_nv *nv)
+{
+	nvlist_t	*nvl = NULL;
+	void		*nvlpacked = NULL;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (ENOMEM);
+
+	nvlist_add_bool(nvl, "enabled",
+	    V_pf_status.syncookies_mode != PF_SYNCOOKIES_NEVER);
+	nvlist_add_bool(nvl, "adaptive", false);
+
+	nvlpacked = nvlist_pack(nvl, &nv->len);
+	if (nvlpacked == NULL) {
+		nvlist_destroy(nvl);
+		return (ENOMEM);
+	}
+	if (nv->size == 0) {
+		nvlist_destroy(nvl);
+		free(nvlpacked, M_TEMP);
+		return (0);
+	} else if (nv->size < nv->len) {
+		nvlist_destroy(nvl);
+		free(nvlpacked, M_TEMP);
+		return (ENOSPC);
+	}
+
+	return (copyout(nvlpacked, nv->data, nv->len));
+}
+
+int
+pf_set_syncookies(struct pfioc_nv *nv)
+{
+	nvlist_t	*nvl = NULL;
+	void		*nvlpacked = NULL;
+	int		 error;
+	bool		 enabled, adaptive;
+
+	if (nv->len > pf_ioctl_maxcount)
+		return (ENOMEM);
+
+	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	if (nvlpacked == NULL)
+		return (ENOMEM);
+
+	error = copyin(nv->data, nvlpacked, nv->len);
+	if (error) {
+		free(nvlpacked, M_TEMP);
+		return (error);
+	}
+
+	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+	if (nvl == NULL) {
+		free(nvlpacked, M_TEMP);
+		return (EBADMSG);
+	}
+
+	if (! nvlist_exists_bool(nvl, "enabled")
+	    || ! nvlist_exists_bool(nvl, "adaptive")) {
+		nvlist_destroy(nvl);
+		free(nvlpacked, M_TEMP);
+		return (EBADMSG);
+	}
+
+	enabled = nvlist_get_bool(nvl, "enabled");
+	adaptive = nvlist_get_bool(nvl, "adaptive");
+
+	if (adaptive) {
+		nvlist_destroy(nvl);
+		free(nvlpacked, M_TEMP);
+		return (ENOTSUP);
+	}
+
+	PF_RULES_WLOCK();
+	error = pf_syncookies_setmode(enabled ?
+	    PF_SYNCOOKIES_ALWAYS : PF_SYNCOOKIES_NEVER);
+	PF_RULES_WUNLOCK();
+
+	return (error);
+}
+
+static int
 pf_syncookies_setmode(u_int8_t mode)
 {
 	if (mode > PF_SYNCOOKIES_MODE_MAX)
