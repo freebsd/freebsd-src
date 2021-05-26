@@ -121,6 +121,9 @@ sdio_set_block_size(struct sdio_func *f, uint16_t bs)
 	uint32_t addr;
 	uint16_t v;
 
+	if (bs > f->max_blksize)
+		return (EOPNOTSUPP);
+
 	if (!sdio_get_support_multiblk(f->dev))
 		return (EOPNOTSUPP);
 
