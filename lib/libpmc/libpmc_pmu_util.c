@@ -2,6 +2,10 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2018, Matthew Macy
+ * Copyright (c) 2021, The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Mitchell Horne
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -133,6 +137,24 @@ pmu_alias_get(const char *name)
 		return (name);
 
 	for (pa = pmu_alias_table; pa->pa_alias != NULL; pa++)
+		if (strcasecmp(name, pa->pa_alias) == 0)
+			return (pa->pa_name);
+
+	return (name);
+}
+
+#elif defined(__aarch64__)
+
+static struct pmu_alias pmu_armv8_alias_table[] = {
+	{NULL, NULL},
+};
+
+static const char *
+pmu_alias_get(const char *name)
+{
+	struct pmu_alias *pa;
+
+	for (pa = pmu_armv8_alias_table; pa->pa_alias != NULL; pa++)
 		if (strcasecmp(name, pa->pa_alias) == 0)
 			return (pa->pa_name);
 
@@ -547,6 +569,28 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 		return (pmc_pmu_intel_pmcallocate(event_name, pm, &ped));
 	else
 		return (pmc_pmu_amd_pmcallocate(event_name, pm, &ped));
+}
+
+#elif defined(__aarch64__)
+
+int
+pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+{
+	const struct pmu_event *pe;
+	int idx = -1;
+
+	event_name = pmu_alias_get(event_name);
+	if ((pe = pmu_event_get(NULL, event_name, &idx)) == NULL)
+		return (ENOENT);
+	if (pe->event == NULL)
+		return (ENOENT);
+
+	assert(idx >= 0);
+	pm->pm_md.pm_md_flags |= PM_MD_RAW_EVENT;
+	pm->pm_class = PMC_CLASS_ARMV8;
+	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+
+	return (0);
 }
 
 #else
