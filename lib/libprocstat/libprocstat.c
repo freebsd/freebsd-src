@@ -2609,7 +2609,8 @@ procstat_getkstack_sysctl(pid_t pid, int *cntp)
 		warn("malloc(%zu)", len);
 		return (NULL);
 	}
-	if (sysctl(name, nitems(name), kkstp, &len, NULL, 0) == -1) {
+	if (sysctl(name, nitems(name), kkstp, &len, NULL, 0) == -1 &&
+	    errno != ENOMEM) {
 		warn("sysctl: kern.proc.pid: %d", pid);
 		free(kkstp);
 		return (NULL);
