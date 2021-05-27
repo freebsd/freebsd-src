@@ -130,6 +130,7 @@ pfctl_nv_add_addr(nvlist_t *nvparent, const char *name,
 	nvlist_add_binary(nvl, "addr", addr, sizeof(*addr));
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -159,6 +160,7 @@ pfctl_nv_add_addr_wrap(nvlist_t *nvparent, const char *name,
 	pfctl_nv_add_addr(nvl, "mask", &addr->v.a.mask);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -192,6 +194,7 @@ pfctl_nv_add_rule_addr(nvlist_t *nvparent, const char *name,
 	nvlist_add_number(nvl, "port_op", addr->port_op);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -214,6 +217,7 @@ pfctl_nv_add_mape(nvlist_t *nvparent, const char *name,
 	nvlist_add_number(nvl, "psidlen", mape->psidlen);
 	nvlist_add_number(nvl, "psid", mape->psid);
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -234,6 +238,7 @@ pfctl_nv_add_pool(nvlist_t *nvparent, const char *name,
 	pfctl_nv_add_mape(nvl, "mape", &pool->mape);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -277,6 +282,7 @@ pfctl_nv_add_uid(nvlist_t *nvparent, const char *name,
 	nvlist_add_number(nvl, "op", uid->op);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -296,6 +302,7 @@ pfctl_nv_add_divert(nvlist_t *nvparent, const char *name,
 	nvlist_add_number(nvl, "port", r->divert.port);
 
 	nvlist_add_nvlist(nvparent, name, nvl);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -511,6 +518,7 @@ pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
 	pfctl_nv_add_divert(nvlr, "divert", r);
 
 	nvlist_add_nvlist(nvl, "rule", nvlr);
+	nvlist_destroy(nvlr);
 
 	/* Now do the call. */
 	nv.data = nvlist_pack(nvl, &nv.len);
@@ -625,6 +633,7 @@ pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
 	nvlist_add_number(nv, "direction", cmp->direction);
 
 	nvlist_add_nvlist(nvl, name, nv);
+	nvlist_destroy(nv);
 }
 
 static void
