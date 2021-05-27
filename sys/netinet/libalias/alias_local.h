@@ -48,6 +48,7 @@
 #ifndef _ALIAS_LOCAL_H_
 #define	_ALIAS_LOCAL_H_
 
+#include <sys/tree.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -66,7 +67,6 @@
 #endif
 
 /* Sizes of input and output link tables */
-#define LINK_TABLE_OUT_SIZE	4001
 #define LINK_TABLE_IN_SIZE	4001
 
 #define	GET_ALIAS_PORT		-1
@@ -100,7 +100,7 @@ struct libalias {
 	/* Lookup table of pointers to chains of link records.
 	 * Each link record is doubly indexed into input and
 	 * output lookup tables. */
-	LIST_HEAD (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
+	SPLAY_HEAD(splay_out, alias_link) linkSplayOut;
 	LIST_HEAD (, group_in)   groupTableIn[LINK_TABLE_IN_SIZE];
 	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
