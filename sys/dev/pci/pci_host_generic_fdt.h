@@ -34,9 +34,13 @@
 #ifndef __PCI_HOST_GENERIC_FDT_H_
 #define	__PCI_HOST_GENERIC_FDT_H_
 
+struct pci_ofw_devinfo;
+
 struct generic_pcie_fdt_softc {
 	struct generic_pcie_core_softc base;
 	struct ofw_bus_iinfo	pci_iinfo;
+
+	STAILQ_HEAD(, pci_ofw_devinfo) pci_ofw_devlist;
 };
 
 DECLARE_CLASS(generic_pcie_fdt_driver);
