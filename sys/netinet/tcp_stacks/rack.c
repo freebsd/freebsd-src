@@ -10235,7 +10235,12 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * trimming from the head.
 			 */
 			tcp_seq temp = save_start;
-			if (tlen) {
+			if (tlen || (th->th_seq != tp->rcv_nxt)) {
+				/*
+				 * We add the th_seq != rcv_nxt to
+				 * catch the case of a stand alone out
+				 * of order FIN.
+				 */
 				thflags = tcp_reass(tp, th, &temp, &tlen, m);
 				tp->t_flags |= TF_ACKNOW;
 			}
