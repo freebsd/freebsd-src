@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2012-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2012-2021 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -196,7 +196,8 @@ hdspechan_enable(struct sc_chinfo *ch, int value)
 	ch->run = value;
 
 	hdspe_write_1(sc, reg + (4 * ch->lslot), value);
-	hdspe_write_1(sc, reg + (4 * ch->rslot), value);
+	if (AFMT_CHANNEL(ch->format) == 2)
+		hdspe_write_1(sc, reg + (4 * ch->rslot), value);
 }
 
 static int
@@ -263,13 +264,16 @@ buffer_copy(struct sc_chinfo *ch)
 	int ssize, dsize;
 	int src, dst;
 	int length;
+	int n;
 	int i;
 
 	scp = ch->parent;
 	sc = scp->sc;
 
+	n = AFMT_CHANNEL(ch->format); /* n channels */
+
 	length = sndbuf_getready(ch->buffer) /
-	    (4 /* Bytes per sample. */ * 2 /* channels */);
+	    (4 /* Bytes per sample. */ * n);
 
 	if (ch->dir == PCMDIR_PLAY) {
 		src = sndbuf_getreadyptr(ch->buffer);
@@ -278,10 +282,10 @@ buffer_copy(struct sc_chinfo *ch)
 	}
 
 	src /= 4; /* Bytes per sample. */
-	dst = src / 2; /* Destination buffer twice smaller. */
+	dst = src / n; /* Destination buffer n-times smaller. */
 
 	ssize = ch->size / 4;
-	dsize = ch->size / 8;
+	dsize = ch->size / (4 * n);
 
 	/*
 	 * Use two fragment buffer to avoid sound clipping.
@@ -303,7 +307,7 @@ buffer_copy(struct sc_chinfo *ch)
 
 		dst+=1;
 		dst %= dsize;
-		src+=2;
+		src += n;
 		src %= ssize;
 	}
 }
@@ -352,7 +356,7 @@ hdspechan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->lvol = 0;
 	ch->rvol = 0;
 
-	ch->size = HDSPE_CHANBUF_SIZE * 2 /* slots */;
+	ch->size = HDSPE_CHANBUF_SIZE * 2; /* max size */
 	ch->data = malloc(ch->size, M_HDSPE, M_NOWAIT);
 
 	ch->buffer = b;
@@ -432,7 +436,8 @@ hdspechan_getptr(kobj_t obj, void *data)
 	snd_mtxunlock(sc->lock);
 
 	pos = ret & HDSPE_BUF_POSITION_MASK;
-	pos *= 2; /* Hardbuf twice bigger. */
+	if (AFMT_CHANNEL(ch->format) == 2)
+		pos *= 2; /* Hardbuf twice bigger. */
 
 	return (pos);
 }
@@ -608,7 +613,8 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	device_printf(scp->dev, "New period=%d\n", sc->period);
 #endif
 
-	sndbuf_resize(ch->buffer, (HDSPE_CHANBUF_SIZE * 2) / (sc->period * 4),
+	sndbuf_resize(ch->buffer,
+	    (HDSPE_CHANBUF_SIZE * AFMT_CHANNEL(ch->format)) / (sc->period * 4),
 	    (sc->period * 4));
 end:
 
@@ -623,6 +629,7 @@ static uint32_t hdspe_rfmt[] = {
 static struct pcmchan_caps hdspe_rcaps = {32000, 192000, hdspe_rfmt, 0};
 
 static uint32_t hdspe_pfmt[] = {
+	SND_FORMAT(AFMT_S32_LE, 1, 0),
 	SND_FORMAT(AFMT_S32_LE, 2, 0),
 	0
 };
