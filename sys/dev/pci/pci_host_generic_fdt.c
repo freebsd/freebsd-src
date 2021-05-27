@@ -71,10 +71,21 @@ __FBSDID("$FreeBSD$");
 #define	PROPS_CELL_SIZE		1
 #define	PCI_ADDR_CELL_SIZE	2
 
+struct pci_ofw_devinfo {
+	STAILQ_ENTRY(pci_ofw_devinfo) pci_ofw_link;
+	struct ofw_bus_devinfo  di_dinfo;
+	uint8_t slot;
+	uint8_t func;
+	uint8_t bus;
+};
+
 /* Forward prototypes */
 
 static int generic_pcie_fdt_probe(device_t dev);
 static int parse_pci_mem_ranges(device_t, struct generic_pcie_core_softc *);
+static int generic_pcie_ofw_bus_attach(device_t);
+static const struct ofw_bus_devinfo *generic_pcie_ofw_get_devinfo(device_t,
+    device_t);
 
 static int
 generic_pcie_fdt_probe(device_t dev)
@@ -104,10 +115,16 @@ pci_host_generic_setup_fdt(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	STAILQ_INIT(&sc->pci_ofw_devlist);
+
 	/* Retrieve 'ranges' property from FDT */
 	if (bootverbose)
 		device_printf(dev, "parsing FDT for ECAM%d:\n", sc->base.ecam);
 	if (parse_pci_mem_ranges(dev, &sc->base))
+		return (ENXIO);
+
+	/* Attach OFW bus */
+	if (generic_pcie_ofw_bus_attach(dev) != 0)
 		return (ENXIO);
 
 	node = ofw_bus_get_node(dev);
@@ -367,7 +384,61 @@ generic_pcie_get_id(device_t pci, device_t child, enum pci_id_type type,
 	return (0);
 }
 
+static const struct ofw_bus_devinfo *
+generic_pcie_ofw_get_devinfo(device_t bus, device_t child)
+{
+	struct generic_pcie_fdt_softc *sc;
+	struct pci_ofw_devinfo *di;
+	uint8_t slot, func, busno;
+
+	sc = device_get_softc(bus);
+	slot = pci_get_slot(child);
+	func = pci_get_function(child);
+	busno = pci_get_bus(child);
+
+	STAILQ_FOREACH(di, &sc->pci_ofw_devlist, pci_ofw_link)
+		if (slot == di->slot && func == di->func && busno == di->bus)
+			return (&di->di_dinfo);
+
+	return (NULL);
+}
+
 /* Helper functions */
+
+static int
+generic_pcie_ofw_bus_attach(device_t dev)
+{
+	struct generic_pcie_fdt_softc *sc;
+	struct pci_ofw_devinfo *di;
+	phandle_t parent, node;
+	pcell_t reg[5];
+	ssize_t len;
+
+	sc = device_get_softc(dev);
+	parent = ofw_bus_get_node(dev);
+	if (parent == 0)
+		return (0);
+
+	/* Iterate through all bus subordinates */
+	for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
+		len = OF_getencprop(node, "reg", reg, sizeof(reg));
+		if (len != 5 * sizeof(pcell_t))
+			continue;
+
+		/* Allocate and populate devinfo. */
+		di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node) != 0) {
+			free(di, M_DEVBUF);
+			continue;
+		}
+		di->func = OFW_PCI_PHYS_HI_FUNCTION(reg[0]);
+		di->slot = OFW_PCI_PHYS_HI_DEVICE(reg[0]);
+		di->bus = OFW_PCI_PHYS_HI_BUS(reg[0]);
+		STAILQ_INSERT_TAIL(&sc->pci_ofw_devlist, di, pci_ofw_link);
+	}
+
+	return (0);
+}
 
 static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(device_probe,		generic_pcie_fdt_probe),
@@ -384,6 +455,13 @@ static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(pcib_map_msi,		generic_pcie_fdt_map_msi),
 	DEVMETHOD(pcib_get_id,		generic_pcie_get_id),
 	DEVMETHOD(pcib_request_feature,	pcib_request_feature_allow),
+
+	DEVMETHOD(ofw_bus_get_devinfo,	generic_pcie_ofw_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	DEVMETHOD_END
 };
