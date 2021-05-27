@@ -17,7 +17,4 @@ LDFLAGS+=	-L${LIBGTESTDIR}
 
 SRCS+=		gtest_main.cc
 
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
-
 .include <bsd.lib.mk>
