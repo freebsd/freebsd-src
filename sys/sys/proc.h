@@ -901,6 +901,7 @@ extern pid_t pid_max;
 #define	PROC_TRYLOCK(p)	mtx_trylock(&(p)->p_mtx)
 #define	PROC_UNLOCK(p)	mtx_unlock(&(p)->p_mtx)
 #define	PROC_LOCKED(p)	mtx_owned(&(p)->p_mtx)
+#define	PROC_WAIT_UNLOCKED(p)	mtx_wait_unlocked(&(p)->p_mtx)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
 /* Lock and unlock a process group. */
