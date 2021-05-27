@@ -141,13 +141,8 @@ sdhci_xenon_read_4(device_t dev, struct sdhci_slot *slot __unused,
     bus_size_t off)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
-	uint32_t val32;
 
-	val32 = bus_read_4(sc->mem_res, off);
-	if (off == SDHCI_CAPABILITIES && sc->no_18v)
-		val32 &= ~SDHCI_CAN_VDD_180;
-
-	return (val32);
+	return bus_read_4(sc->mem_res, off);
 }
 
 static void
@@ -518,6 +513,13 @@ sdhci_xenon_attach(device_t dev)
 
 	if (sdhci_init_slot(dev, sc->slot, 0))
 		goto fail;
+
+	/* 1.2V signaling is not supported. */
+	sc->slot->host.caps &= ~MMC_CAP_SIGNALING_120;
+
+	/* Disable UHS in case of lack of 1.8V VCCQ or the PHY slow mode. */
+	if (sc->no_18v || sc->slow_mode)
+		sc->slot->host.caps &= ~MMC_CAP_SIGNALING_180;
 
 	/* Activate the interrupt */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
