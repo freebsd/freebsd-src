@@ -388,35 +388,87 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 {
 	struct sdhci_xenon_softc *sc;
 	struct sdhci_slot *slot;
+	uint16_t hostctrl2;
 	int uvolt, err;
+
+	slot = device_get_ivars(reqdev);
+
+	if (slot->version < SDHCI_SPEC_300)
+		return (0);
 
 	sc = device_get_softc(brdev);
 
 	if (sc->mmc_helper.vqmmc_supply == NULL)
 		return EOPNOTSUPP;
 
-	slot = device_get_ivars(reqdev);
+	err = 0;
+
+	hostctrl2 = bus_read_2(sc->mem_res, SDHCI_HOST_CONTROL2);
 	switch (slot->host.ios.vccq) {
-	case vccq_180:
-		uvolt = 1800000;
-		break;
 	case vccq_330:
+		if (!(hostctrl2 & SDHCI_CTRL2_S18_ENABLE))
+			return (0);
+		hostctrl2 &= ~SDHCI_CTRL2_S18_ENABLE;
+		bus_write_2(sc->mem_res, SDHCI_HOST_CONTROL2, hostctrl2);
+
 		uvolt = 3300000;
-		break;
+		err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply,
+		    uvolt, uvolt);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "Cannot set vqmmc to %d<->%d\n",
+			    uvolt,
+			    uvolt);
+			return (err);
+		}
+
+		/*
+		 * According to the 'SD Host Controller Simplified
+		 * Specification 4.20 the host driver should take more
+		 * than 5ms for stable time of host voltage regulator
+		 * from changing 1.8V Signaling Enable.
+		 */
+		DELAY(5000);
+		hostctrl2 = bus_read_2(sc->mem_res, SDHCI_HOST_CONTROL2);
+		if (!(hostctrl2 & SDHCI_CTRL2_S18_ENABLE))
+			return (0);
+		return EAGAIN;
+	case vccq_180:
+		if (!(slot->host.caps & MMC_CAP_SIGNALING_180)) {
+			return EINVAL;
+		}
+		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
+			return (0);
+		hostctrl2 |= SDHCI_CTRL2_S18_ENABLE;
+		bus_write_2(sc->mem_res, SDHCI_HOST_CONTROL2, hostctrl2);
+
+		uvolt = 1800000;
+		err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply,
+		    uvolt, uvolt);
+		if (err != 0) {
+			device_printf(sc->dev,
+			    "Cannot set vqmmc to %d<->%d\n",
+			    uvolt,
+			    uvolt);
+			return (err);
+		}
+
+		/*
+		 * According to the 'SD Host Controller Simplified
+		 * Specification 4.20 the host driver should take more
+		 * than 5ms for stable time of host voltage regulator
+		 * from changing 1.8V Signaling Enable.
+		 */
+		DELAY(5000);
+		hostctrl2 = bus_read_2(sc->mem_res, SDHCI_HOST_CONTROL2);
+		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
+			return (0);
+		return EAGAIN;
 	default:
+		device_printf(brdev,
+		    "Attempt to set unsupported signaling voltage\n");
 		return EINVAL;
 	}
-
-	err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply, uvolt, uvolt);
-	if (err != 0) {
-		device_printf(sc->dev,
-		    "Cannot set vqmmc to %d<->%d\n",
-		    uvolt,
-		    uvolt);
-		return (err);
-	}
-
-	return (0);
 }
 
 static int
