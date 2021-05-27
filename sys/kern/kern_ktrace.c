@@ -878,6 +878,8 @@ ktrstructarray(const char *name, enum uio_seg seg, const void *data,
 
 	if (__predict_false(curthread->td_pflags & TDP_INKTRACE))
 		return;
+	if (num_items < 0)
+		return;
 
 	/* Trim array length to genio size. */
 	max_items = ktr_geniosize / struct_size;
