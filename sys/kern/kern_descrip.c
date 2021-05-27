@@ -2200,13 +2200,28 @@ pdinit(struct pwddesc *pdp, bool keeplock)
 	return (newpdp);
 }
 
+/*
+ * Hold either filedesc or pwddesc of the passed process.
+ *
+ * The process lock is used to synchronize against the target exiting and
+ * freeing the data.
+ *
+ * Clearing can be ilustrated in 3 steps:
+ * 1. set the pointer to NULL. Either routine can race against it, hence
+ *   atomic_load_ptr.
+ * 2. observe the process lock as not taken. Until then fdhold/pdhold can
+ *   race to either still see the pointer or find NULL. It is still safe to
+ *   grab a reference as clearing is stalled.
+ * 3. after the lock is observed as not taken, any fdhold/pdhold calls are
+ *   guaranteed to see NULL, making it safe to finish clearing
+ */
 static struct filedesc *
 fdhold(struct proc *p)
 {
 	struct filedesc *fdp;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	fdp = p->p_fd;
+	fdp = atomic_load_ptr(&p->p_fd);
 	if (fdp != NULL)
 		refcount_acquire(&fdp->fd_holdcnt);
 	return (fdp);
@@ -2218,7 +2233,7 @@ pdhold(struct proc *p)
 	struct pwddesc *pdp;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	pdp = p->p_pd;
+	pdp = atomic_load_ptr(&p->p_pd);
 	if (pdp != NULL)
 		refcount_acquire(&pdp->pd_refcount);
 	return (pdp);
@@ -2584,9 +2599,12 @@ fdescfree(struct thread *td)
 	if (p->p_fdtol != NULL)
 		fdclearlocks(td);
 
-	PROC_LOCK(p);
-	p->p_fd = NULL;
-	PROC_UNLOCK(p);
+	/*
+	 * Check fdhold for an explanation.
+	 */
+	atomic_store_ptr(&p->p_fd, NULL);
+	atomic_thread_fence_seq_cst();
+	PROC_WAIT_UNLOCKED(p);
 
 	if (refcount_release(&fdp->fd_refcnt) == 0)
 		return;
@@ -2604,9 +2622,12 @@ pdescfree(struct thread *td)
 	pdp = p->p_pd;
 	MPASS(pdp != NULL);
 
-	PROC_LOCK(p);
-	p->p_pd = NULL;
-	PROC_UNLOCK(p);
+	/*
+	 * Check pdhold for an explanation.
+	 */
+	atomic_store_ptr(&p->p_pd, NULL);
+	atomic_thread_fence_seq_cst();
+	PROC_WAIT_UNLOCKED(p);
 
 	pddrop(pdp);
 }
