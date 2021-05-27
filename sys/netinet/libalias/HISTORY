@@ -146,4 +146,5 @@ Version 3.2: July, 2000 (Erik Salander, erik@whistle.com and
 
 Version 3.3: May 2021 (donner)
     - Dropped LibAliasCheckNewLink
-    - Refactor the database handling, perfomance improvements.
+    - Refactor the database handling
+    - Switch to more effienct SPLAY trees
