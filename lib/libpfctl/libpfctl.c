@@ -731,9 +731,10 @@ int
 pfctl_get_states(int dev, struct pfctl_states *states)
 {
 	struct pfioc_nv		 nv;
-	nvlist_t		*nvl;
+	nvlist_t		*nvl = NULL;
 	const nvlist_t * const	*slist;
 	size_t			 found_count;
+	int			 error = 0;
 
 	bzero(states, sizeof(*states));
 	TAILQ_INIT(&states->states);
@@ -744,14 +745,14 @@ pfctl_get_states(int dev, struct pfctl_states *states)
 
 	for (;;) {
 		if (ioctl(dev, DIOCGETSTATESNV, &nv)) {
-			free(nv.data);
-			return (errno);
+			error = errno;
+			goto out;
 		}
 
 		nvl = nvlist_unpack(nv.data, nv.len, 0);
 		if (nvl == NULL) {
-			free(nv.data);
-			return (EIO);
+			error = EIO;
+			goto out;
 		}
 
 		states->count = nvlist_get_number(nvl, "count");
@@ -776,8 +777,10 @@ pfctl_get_states(int dev, struct pfctl_states *states)
 			nv.data = realloc(nv.data, new_size);
 			nv.size = new_size;
 
-			if (nv.data == NULL)
-				return (ENOMEM);
+			if (nv.data == NULL) {
+				error = ENOMEM;
+				goto out;
+			}
 			continue;
 		}
 
@@ -785,9 +788,8 @@ pfctl_get_states(int dev, struct pfctl_states *states)
 			struct pfctl_state *s = malloc(sizeof(*s));
 			if (s == NULL) {
 				pfctl_free_states(states);
-				nvlist_destroy(nvl);
-				free(nv.data);
-				return (ENOMEM);
+				error = ENOMEM;
+				goto out;
 			}
 
 			pf_nvstate_to_state(slist[i], s);
@@ -796,7 +798,11 @@ pfctl_get_states(int dev, struct pfctl_states *states)
 		break;
 	}
 
-	return (0);
+out:
+	nvlist_destroy(nvl);
+	free(nv.data);
+
+	return (error);
 }
 
 void
