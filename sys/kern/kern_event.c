@@ -1303,6 +1303,9 @@ kqueue_kevent(struct kqueue *kq, struct thread *td, int nchanges, int nevents,
 	struct kevent *kevp, *changes;
 	int i, n, nerrors, error;
 
+	if (nchanges < 0)
+		return (EINVAL);
+
 	nerrors = 0;
 	while (nchanges > 0) {
 		n = nchanges > KQ_NEVENTS ? KQ_NEVENTS : nchanges;
@@ -1887,6 +1890,10 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 
 	if (maxevents == 0)
 		goto done_nl;
+	if (maxevents < 0) {
+		error = EINVAL;
+		goto done_nl;
+	}
 
 	rsbt = 0;
 	if (tsp != NULL) {

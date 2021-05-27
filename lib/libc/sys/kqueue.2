@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2020
+.Dd May 26, 2021
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -762,6 +762,8 @@ events were placed on the kqueue for return.
 A cancellation request was delivered to the thread, but not yet handled.
 .It Bq Er EINVAL
 The specified time limit or filter is invalid.
+.It Bq Er EINVAL
+The specified length of the event or change lists is negative.
 .It Bq Er ENOENT
 The event could not be found to be modified or deleted.
 .It Bq Er ENOMEM
