@@ -4346,7 +4346,8 @@ static void
 free_eq(struct adapter *sc, struct sge_eq *eq)
 {
 	MPASS(eq->flags & EQ_SW_ALLOCATED);
-	MPASS(eq->pidx == eq->cidx);
+	if (eq->type == EQ_ETH)
+		MPASS(eq->pidx == eq->cidx);
 
 	free_ring(sc, eq->desc_tag, eq->desc_map, eq->ba, eq->desc);
 	mtx_destroy(&eq->eq_lock);
@@ -4499,6 +4500,8 @@ free_wrq(struct adapter *sc, struct sge_wrq *wrq)
 {
 	free_eq(sc, &wrq->eq);
 	MPASS(wrq->nwr_pending == 0);
+	MPASS(TAILQ_EMPTY(&wrq->incomplete_wrs));
+	MPASS(STAILQ_EMPTY(&wrq->wr_list));
 	bzero(wrq, sizeof(*wrq));
 }
 
