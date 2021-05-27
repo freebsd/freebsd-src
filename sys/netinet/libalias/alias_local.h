@@ -102,6 +102,7 @@ struct libalias {
 	 * output lookup tables. */
 	LIST_HEAD (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
 	LIST_HEAD (, group_in)   groupTableIn[LINK_TABLE_IN_SIZE];
+	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */

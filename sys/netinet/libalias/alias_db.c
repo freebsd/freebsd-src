@@ -322,8 +322,15 @@ struct alias_link {
 	int		sockfd;		/* socket descriptor */
 #endif
 	/* Linked list of pointers for input and output lookup tables  */
-	LIST_ENTRY    (alias_link) list_out;
-	LIST_ENTRY    (alias_link) list_in;
+	union {
+		struct {
+			LIST_ENTRY(alias_link) in;
+			LIST_ENTRY(alias_link) out;
+		} all;
+		struct {
+			LIST_ENTRY(alias_link) list;
+		} pptp;
+	};
 	struct {
 		TAILQ_ENTRY(alias_link) list;
 		int	time;	/* Expire time for link */
@@ -416,8 +423,7 @@ StartPointIn(struct libalias *la,
 	struct group_in *grp, *tmp;
 
 	n = alias_addr.s_addr;
-	if (link_type != LINK_PPTP)
-		n += alias_port;
+	n += alias_port;
 	n += link_type;
 	n %= LINK_TABLE_IN_SIZE;
 
@@ -451,10 +457,8 @@ StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
 
 	n = src_addr.s_addr;
 	n += dst_addr.s_addr;
-	if (link_type != LINK_PPTP) {
-		n += src_port;
-		n += dst_port;
-	}
+	n += src_port;
+	n += dst_port;
 	n += link_type;
 
 	return (n % LINK_TABLE_OUT_SIZE);
@@ -835,7 +839,6 @@ static void
 CleanupAliasData(struct libalias *la)
 {
 	struct alias_link *lnk, *lnk_tmp;
-	struct group_in *grp, *grp_tmp;
 	u_int i;
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -844,12 +847,15 @@ CleanupAliasData(struct libalias *la)
 	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, expire.list, lnk_tmp)
 		DeleteLink(&lnk);
 
-	for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
+	for (i = 0; i < LINK_TABLE_IN_SIZE; i++) {
+		struct group_in *grp, *grp_tmp;
+
 		LIST_FOREACH_SAFE(grp, &la->groupTableIn[i], group_in, grp_tmp)
 			if (LIST_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
 				LIST_REMOVE(grp, group_in);
 				free(grp);
 			}
+	}
 }
 
 static void
@@ -896,22 +902,29 @@ DeleteLink(struct alias_link **plnk)
 	ClearFWHole(lnk);
 #endif
 
-	/* Free memory allocated for LSNAT server pool */
-	if (lnk->server != NULL) {
-		struct server *head, *curr, *next;
+	switch (lnk->link_type) {
+	case LINK_PPTP:
+		LIST_REMOVE(lnk, pptp.list);
+		break;
+	default:
+		/* Free memory allocated for LSNAT server pool */
+		if (lnk->server != NULL) {
+			struct server *head, *curr, *next;
 
-		head = curr = lnk->server;
-		do {
-			next = curr->next;
-			free(curr);
-		} while ((curr = next) != head);
-	} else {
-		/* Adjust output table pointers */
-		LIST_REMOVE(lnk, list_out);
+			head = curr = lnk->server;
+			do {
+				next = curr->next;
+				free(curr);
+			} while ((curr = next) != head);
+		} else {
+			/* Adjust output table pointers */
+			LIST_REMOVE(lnk, all.out);
+		}
+
+		/* Adjust input table pointers */
+		LIST_REMOVE(lnk, all.in);
+		break;
 	}
-
-	/* Adjust input table pointers */
-	LIST_REMOVE(lnk, list_in);
 
 	/* remove from housekeeping */
 	TAILQ_REMOVE(&la->checkExpire, lnk, expire.list);
@@ -970,119 +983,128 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 {
 	u_int start_point;
 	struct alias_link *lnk;
-	struct group_in *grp_in;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
 	lnk = malloc(sizeof(struct alias_link));
-	if (lnk != NULL) {
-		/* Basic initialization */
-		lnk->la = la;
-		lnk->src_addr = src_addr;
-		lnk->dst_addr = dst_addr;
-		lnk->alias_addr = alias_addr;
-		lnk->proxy_addr.s_addr = INADDR_ANY;
-		lnk->src_port = src_port;
-		lnk->dst_port = dst_port;
-		lnk->proxy_port = 0;
-		lnk->server = NULL;
-		lnk->link_type = link_type;
-#ifndef NO_USE_SOCKETS
-		lnk->sockfd = -1;
+	if (lnk == NULL) {
+#ifdef LIBALIAS_DEBUG
+		fprintf(stderr, "PacketAlias/AddLink(): ");
+		fprintf(stderr, "malloc() call failed.\n");
 #endif
-		lnk->flags = 0;
-		lnk->pflags = 0;
-		lnk->timestamp = LibAliasTime;
+		return (NULL);
+	}
+	/* Basic initialization */
+	lnk->la = la;
+	lnk->src_addr = src_addr;
+	lnk->dst_addr = dst_addr;
+	lnk->alias_addr = alias_addr;
+	lnk->proxy_addr.s_addr = INADDR_ANY;
+	lnk->src_port = src_port;
+	lnk->dst_port = dst_port;
+	lnk->proxy_port = 0;
+	lnk->server = NULL;
+	lnk->link_type = link_type;
+#ifndef NO_USE_SOCKETS
+	lnk->sockfd = -1;
+#endif
+	lnk->flags = 0;
+	lnk->pflags = 0;
+	lnk->timestamp = LibAliasTime;
 
-		/* Expiration time */
-		switch (link_type) {
-		case LINK_ICMP:
-			lnk->expire.time = ICMP_EXPIRE_TIME;
-			break;
-		case LINK_UDP:
-			lnk->expire.time = UDP_EXPIRE_TIME;
-			break;
-		case LINK_TCP:
-			lnk->expire.time = TCP_EXPIRE_INITIAL;
-			break;
-		case LINK_PPTP:
-			lnk->flags |= LINK_PERMANENT;	/* no timeout. */
-			break;
-		case LINK_FRAGMENT_ID:
-			lnk->expire.time = FRAGMENT_ID_EXPIRE_TIME;
-			break;
-		case LINK_FRAGMENT_PTR:
-			lnk->expire.time = FRAGMENT_PTR_EXPIRE_TIME;
-			break;
-		case LINK_ADDR:
-			break;
-		default:
-			lnk->expire.time = PROTO_EXPIRE_TIME;
-			break;
-		}
+	/* Expiration time */
+	switch (link_type) {
+	case LINK_ICMP:
+		lnk->expire.time = ICMP_EXPIRE_TIME;
+		break;
+	case LINK_UDP:
+		lnk->expire.time = UDP_EXPIRE_TIME;
+		break;
+	case LINK_TCP:
+		lnk->expire.time = TCP_EXPIRE_INITIAL;
+		break;
+	case LINK_FRAGMENT_ID:
+		lnk->expire.time = FRAGMENT_ID_EXPIRE_TIME;
+		break;
+	case LINK_FRAGMENT_PTR:
+		lnk->expire.time = FRAGMENT_PTR_EXPIRE_TIME;
+		break;
+	case LINK_ADDR:
+		break;
+	default:
+		lnk->expire.time = PROTO_EXPIRE_TIME;
+		break;
+	}
 
-		/* Determine alias flags */
-		if (dst_addr.s_addr == INADDR_ANY)
-			lnk->flags |= LINK_UNKNOWN_DEST_ADDR;
-		if (dst_port == 0)
-			lnk->flags |= LINK_UNKNOWN_DEST_PORT;
+	/* Determine alias flags */
+	if (dst_addr.s_addr == INADDR_ANY)
+		lnk->flags |= LINK_UNKNOWN_DEST_ADDR;
+	if (dst_port == 0)
+		lnk->flags |= LINK_UNKNOWN_DEST_PORT;
 
-		/* Determine alias port */
-		if (GetNewPort(la, lnk, alias_port_param) != 0) {
+	/* Determine alias port */
+	if (GetNewPort(la, lnk, alias_port_param) != 0) {
+		free(lnk);
+		return (NULL);
+	}
+	/* Link-type dependent initialization */
+	switch (link_type) {
+	case LINK_ICMP:
+		la->icmpLinkCount++;
+		break;
+	case LINK_UDP:
+		la->udpLinkCount++;
+		break;
+	case LINK_TCP: {
+		struct tcp_dat *aux_tcp;
+		int i;
+
+		aux_tcp = malloc(sizeof(struct tcp_dat));
+		if (aux_tcp == NULL) {
+#ifdef LIBALIAS_DEBUG
+			fprintf(stderr, "PacketAlias/AddLink: ");
+			fprintf(stderr, " cannot allocate auxiliary TCP data\n");
+#endif
 			free(lnk);
 			return (NULL);
 		}
-		/* Link-type dependent initialization */
-		switch (link_type) {
-			struct tcp_dat *aux_tcp;
 
-		case LINK_ICMP:
-			la->icmpLinkCount++;
-			break;
-		case LINK_UDP:
-			la->udpLinkCount++;
-			break;
-		case LINK_TCP:
-			aux_tcp = malloc(sizeof(struct tcp_dat));
-			if (aux_tcp != NULL) {
-				int i;
+		la->tcpLinkCount++;
+		aux_tcp->state.in = ALIAS_TCP_STATE_NOT_CONNECTED;
+		aux_tcp->state.out = ALIAS_TCP_STATE_NOT_CONNECTED;
+		aux_tcp->state.index = 0;
+		aux_tcp->state.ack_modified = 0;
+		for (i = 0; i < N_LINK_TCP_DATA; i++)
+			aux_tcp->ack[i].active = 0;
+		aux_tcp->fwhole = -1;
+		lnk->data.tcp = aux_tcp;
+	}
+		break;
+	case LINK_PPTP:
+		la->pptpLinkCount++;
+		break;
+	case LINK_FRAGMENT_ID:
+		la->fragmentIdLinkCount++;
+		break;
+	case LINK_FRAGMENT_PTR:
+		la->fragmentPtrLinkCount++;
+		break;
+	case LINK_ADDR:
+		break;
+	default:
+		la->protoLinkCount++;
+		break;
+	}
 
-				la->tcpLinkCount++;
-				aux_tcp->state.in = ALIAS_TCP_STATE_NOT_CONNECTED;
-				aux_tcp->state.out = ALIAS_TCP_STATE_NOT_CONNECTED;
-				aux_tcp->state.index = 0;
-				aux_tcp->state.ack_modified = 0;
-				for (i = 0; i < N_LINK_TCP_DATA; i++)
-					aux_tcp->ack[i].active = 0;
-				aux_tcp->fwhole = -1;
-				lnk->data.tcp = aux_tcp;
-			} else {
-#ifdef LIBALIAS_DEBUG
-				fprintf(stderr, "PacketAlias/AddLink: ");
-				fprintf(stderr, " cannot allocate auxiliary TCP data\n");
-#endif
-				free(lnk);
-				return (NULL);
-			}
-			break;
-		case LINK_PPTP:
-			la->pptpLinkCount++;
-			break;
-		case LINK_FRAGMENT_ID:
-			la->fragmentIdLinkCount++;
-			break;
-		case LINK_FRAGMENT_PTR:
-			la->fragmentPtrLinkCount++;
-			break;
-		case LINK_ADDR:
-			break;
-		default:
-			la->protoLinkCount++;
-			break;
-		}
+	switch (link_type) {
+	case LINK_PPTP:
+		LIST_INSERT_HEAD(&la->pptpList, lnk, pptp.list);
+		break;
+	default: {
+		struct group_in *grp;
 
-		grp_in = StartPointIn(la, alias_addr, lnk->alias_port, link_type, 1);
-		if (grp_in == NULL) {
+		grp = StartPointIn(la, alias_addr, lnk->alias_port, link_type, 1);
+		if (grp == NULL) {
 			free(lnk);
 			return (NULL);
 		}
@@ -1090,26 +1112,23 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		/* Set up pointers for output lookup table */
 		start_point = StartPointOut(src_addr, dst_addr,
 		    src_port, dst_port, link_type);
-		LIST_INSERT_HEAD(&la->linkTableOut[start_point], lnk, list_out);
+		LIST_INSERT_HEAD(&la->linkTableOut[start_point], lnk, all.out);
 
 		/* Set up pointers for input lookup table */
-		if (lnk->flags & LINK_PARTIALLY_SPECIFIED) {
-			LIST_INSERT_HEAD(&grp_in->partial, lnk, list_in);
-		} else {
-			LIST_INSERT_HEAD(&grp_in->full, lnk, list_in);
-		}
+		if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
+			LIST_INSERT_HEAD(&grp->partial, lnk, all.in);
+		else
+			LIST_INSERT_HEAD(&grp->full, lnk, all.in);
+	}
+		break;
+	}
 
-		/* Include the element into the housekeeping list */
-		TAILQ_INSERT_TAIL(&la->checkExpire, lnk, expire.list);
-	} else {
-#ifdef LIBALIAS_DEBUG
-		fprintf(stderr, "PacketAlias/AddLink(): ");
-		fprintf(stderr, "malloc() call failed.\n");
-#endif
-	}
-	if (la->packetAliasMode & PKT_ALIAS_LOG) {
+	/* Include the element into the housekeeping list */
+	TAILQ_INSERT_TAIL(&la->checkExpire, lnk, expire.list);
+
+	if (la->packetAliasMode & PKT_ALIAS_LOG)
 		ShowAliasStats(la);
-	}
+
 	return (lnk);
 }
 
@@ -1164,7 +1183,7 @@ _SearchLinkOut(struct libalias *la, struct in_addr src_addr,
 	struct alias_link *lnk;
 
 	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
-	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out) {
+	LIST_FOREACH(lnk, &la->linkTableOut[i], all.out) {
 		OUTGUARD;
 		return (UseLink(la, lnk));
 	}
@@ -1279,14 +1298,14 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 	switch (flags_in) {
 	case 0:
-		LIST_FOREACH(lnk, &grp->full, list_in) {
+		LIST_FOREACH(lnk, &grp->full, all.in) {
 			if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
 			    lnk->dst_port == dst_port)
 				return (UseLink(la, lnk));
 		}
 		break;
 	case LINK_UNKNOWN_DEST_PORT:
-		LIST_FOREACH(lnk, &grp->full, list_in) {
+		LIST_FOREACH(lnk, &grp->full, all.in) {
 			if(lnk->dst_addr.s_addr == dst_addr.s_addr) {
 				lnk_unknown_dst_port = lnk;
 				break;
@@ -1294,7 +1313,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		}
 		break;
 	case LINK_UNKNOWN_DEST_ADDR:
-		LIST_FOREACH(lnk, &grp->full, list_in) {
+		LIST_FOREACH(lnk, &grp->full, all.in) {
 			if(lnk->dst_port == dst_port) {
 				lnk_unknown_dst_addr = lnk;
 				break;
@@ -1307,7 +1326,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	}
 
 	if (lnk_unknown_dst_port == NULL) {
-		LIST_FOREACH(lnk, &grp->partial, list_in) {
+		LIST_FOREACH(lnk, &grp->partial, all.in) {
 			int flags = (flags_in | lnk->flags) & LINK_PARTIALLY_SPECIFIED;
 
 			if (flags == LINK_PARTIALLY_SPECIFIED &&
@@ -1639,14 +1658,11 @@ FindPptpOutByCallId(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
     u_int16_t src_call_id)
 {
-	u_int i;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
-	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out)
-		if (lnk->link_type == LINK_PPTP &&
-		    lnk->src_addr.s_addr == src_addr.s_addr &&
+	LIST_FOREACH(lnk, &la->pptpList, pptp.list)
+		if (lnk->src_addr.s_addr == src_addr.s_addr &&
 		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
 		    lnk->src_port == src_call_id)
 			break;
@@ -1659,14 +1675,11 @@ FindPptpOutByPeerCallId(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
     u_int16_t dst_call_id)
 {
-	u_int i;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	i = StartPointOut(src_addr, dst_addr, 0, 0, LINK_PPTP);
-	LIST_FOREACH(lnk, &la->linkTableOut[i], list_out)
-		if (lnk->link_type == LINK_PPTP &&
-		    lnk->src_addr.s_addr == src_addr.s_addr &&
+	LIST_FOREACH(lnk, &la->pptpList, pptp.list)
+		if (lnk->src_addr.s_addr == src_addr.s_addr &&
 		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
 		    lnk->dst_port == dst_call_id)
 			break;
@@ -1679,18 +1692,14 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
     u_int16_t dst_call_id)
 {
-	struct group_in *grp;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
-	grp = StartPointIn(la, alias_addr, 0, LINK_PPTP, 0);
-	if (grp == NULL)
-		return (NULL);
-
-	LIST_FOREACH(lnk, &grp->full, list_in)
-		if (lnk->dst_addr.s_addr == dst_addr.s_addr &&
-		    lnk->dst_port == dst_call_id)
+	LIST_FOREACH(lnk, &la->pptpList, pptp.list)
+		if (lnk->dst_port == dst_call_id &&
+		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
+		    lnk->alias_addr.s_addr == alias_addr.s_addr)
 			break;
 
 	return (UseLink(la, lnk));
@@ -1704,9 +1713,11 @@ FindPptpInByPeerCallId(struct libalias *la, struct in_addr dst_addr,
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	lnk = FindLinkIn(la, dst_addr, alias_addr,
-	    0 /* any */ , alias_call_id,
-	    LINK_PPTP, 0);
+	LIST_FOREACH(lnk, &la->pptpList, pptp.list)
+		if (lnk->alias_port == alias_call_id &&
+		    lnk->dst_addr.s_addr == dst_addr.s_addr &&
+		    lnk->alias_addr.s_addr == alias_addr.s_addr)
+			break;
 
 	return (lnk);
 }
@@ -2331,7 +2342,14 @@ LibAliasAddServer(struct libalias *la, struct alias_link *lnk, struct in_addr ad
 	LIBALIAS_LOCK(la);
 	(void)la;
 
-	server = malloc(sizeof(struct server));
+	switch (lnk->link_type) {
+	case LINK_PPTP:
+		server = NULL;
+		break;
+	default:
+		server = malloc(sizeof(struct server));
+		break;
+	}
 
 	if (server != NULL) {
 		struct server *head;
@@ -2343,7 +2361,7 @@ LibAliasAddServer(struct libalias *la, struct alias_link *lnk, struct in_addr ad
 		if (head == NULL) {
 			server->next = server;
 			/* not usable for outgoing connections */
-			LIST_REMOVE(lnk, list_out);
+			LIST_REMOVE(lnk, all.out);
 		} else {
 			struct server *s;
 
@@ -2517,6 +2535,7 @@ LibAliasInit(struct libalias *la)
 			LIST_INIT(&la->linkTableOut[i]);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
 			LIST_INIT(&la->groupTableIn[i]);
+		LIST_INIT(&la->pptpList);
 		TAILQ_INIT(&la->checkExpire);
 #ifdef _KERNEL
 		AliasSctpInit(la);
