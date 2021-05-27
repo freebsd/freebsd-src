@@ -324,11 +324,11 @@ struct alias_link {
 	/* Linked list of pointers for input and output lookup tables  */
 	union {
 		struct {
-			LIST_ENTRY(alias_link) in;
-			LIST_ENTRY(alias_link) out;
+			SPLAY_ENTRY(alias_link) out;
+			LIST_ENTRY (alias_link) in;
 		} all;
 		struct {
-			LIST_ENTRY(alias_link) list;
+			LIST_ENTRY (alias_link) list;
 		} pptp;
 	};
 	struct {
@@ -389,8 +389,6 @@ Miscellaneous:
 /* Local prototypes */
 static struct group_in *
 StartPointIn(struct libalias *, struct in_addr, u_short, int, int);
-static u_int
-StartPointOut(struct in_addr, struct in_addr, u_short, u_short, int);
 static int	SeqDiff(u_long, u_long);
 
 #ifndef NO_FW_PUNCH
@@ -407,6 +405,24 @@ static int	InitPacketAliasLog(struct libalias *);
 static void	UninitPacketAliasLog(struct libalias *);
 
 void		SctpShowAliasStats(struct libalias *la);
+
+
+/* Splay handling */
+static inline int
+cmp_out(struct alias_link *a, struct alias_link *b) {
+	int i = a->src_port - b->src_port;
+	if (i != 0) return (i);
+	i = a->src_addr.s_addr - b->src_addr.s_addr;
+	if (i != 0) return (i);
+	i = a->dst_addr.s_addr - b->dst_addr.s_addr;
+	if (i != 0) return (i);
+	i = a->dst_port - b->dst_port;
+	if (i != 0) return (i);
+	i = a->link_type - b->link_type;
+	return (i);
+}
+SPLAY_PROTOTYPE(splay_out, alias_link, all.out, cmp_out);
+SPLAY_GENERATE(splay_out, alias_link, all.out, cmp_out);
 
 #define INGUARD						\
    if (grp->alias_port != alias_port ||			\
@@ -448,21 +464,6 @@ StartPointIn(struct libalias *la,
 	return (grp);
 }
 #undef INGUARD
-
-static u_int
-StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
-    u_short src_port, u_short dst_port, int link_type)
-{
-	u_int n;
-
-	n = src_addr.s_addr;
-	n += dst_addr.s_addr;
-	n += src_port;
-	n += dst_port;
-	n += link_type;
-
-	return (n % LINK_TABLE_OUT_SIZE);
-}
 
 static int
 SeqDiff(u_long x, u_long y)
@@ -893,7 +894,7 @@ DeleteLink(struct alias_link **plnk, int deletePermanent)
 			} while ((curr = next) != head);
 		} else {
 			/* Adjust output table pointers */
-			LIST_REMOVE(lnk, all.out);
+			SPLAY_REMOVE(splay_out, &la->linkSplayOut, lnk);
 		}
 
 		/* Adjust input table pointers */
@@ -956,7 +957,6 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
     struct in_addr alias_addr, u_short src_port, u_short dst_port,
     int alias_port_param, int link_type)
 {
-	u_int start_point;
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -1085,9 +1085,7 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		}
 
 		/* Set up pointers for output lookup table */
-		start_point = StartPointOut(src_addr, dst_addr,
-		    src_port, dst_port, link_type);
-		LIST_INSERT_HEAD(&la->linkTableOut[start_point], lnk, all.out);
+		SPLAY_INSERT(splay_out, &la->linkSplayOut, lnk);
 
 		/* Set up pointers for input lookup table */
 		if (lnk->flags & LINK_PARTIALLY_SPECIFIED)
@@ -1140,34 +1138,24 @@ ReLink(struct alias_link *old_lnk,
 	return (new_lnk);
 }
 
-
-#define OUTGUARD					\
-   if (lnk->src_port != src_port ||			\
-       lnk->src_addr.s_addr != src_addr.s_addr ||	\
-       lnk->dst_addr.s_addr != dst_addr.s_addr ||	\
-       lnk->dst_port != dst_port ||			\
-       lnk->link_type != link_type)			\
-	   continue;
-
 static struct alias_link *
 _SearchLinkOut(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
     u_short src_port,
     u_short dst_port,
     int link_type) {
-	u_int i;
 	struct alias_link *lnk;
+	struct alias_link needle = {
+		.src_addr = src_addr,
+		.dst_addr = dst_addr,
+		.src_port = src_port,
+		.dst_port = dst_port,
+		.link_type = link_type
+	};
 
-	i = StartPointOut(src_addr, dst_addr, src_port, dst_port, link_type);
-	LIST_FOREACH(lnk, &la->linkTableOut[i], all.out) {
-		OUTGUARD;
-		return (UseLink(la, lnk));
-	}
-
-	return (NULL);
+	lnk = SPLAY_FIND(splay_out, &la->linkSplayOut, &needle);
+	return (UseLink(la, lnk));
 }
-
-#undef OUTGUARD
 
 static struct alias_link *
 _FindLinkOut(struct libalias *la, struct in_addr src_addr,
@@ -2333,7 +2321,7 @@ LibAliasAddServer(struct libalias *la, struct alias_link *lnk, struct in_addr ad
 		if (head == NULL) {
 			server->next = server;
 			/* not usable for outgoing connections */
-			LIST_REMOVE(lnk, all.out);
+			SPLAY_REMOVE(splay_out, &la->linkSplayOut, lnk);
 		} else {
 			struct server *s;
 
@@ -2502,8 +2490,7 @@ LibAliasInit(struct libalias *la)
 		LibAliasTime = time(NULL);
 #endif
 
-		for (i = 0; i < LINK_TABLE_OUT_SIZE; i++)
-			LIST_INIT(&la->linkTableOut[i]);
+		SPLAY_INIT(&la->linkSplayOut);
 		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
 			LIST_INIT(&la->groupTableIn[i]);
 		LIST_INIT(&la->pptpList);
