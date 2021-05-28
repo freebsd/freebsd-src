@@ -2060,6 +2060,51 @@
 427	AUE_NULL	STD {
 		int linux_io_uring_register(void);
 	}
+428    AUE_NULL		STD {
+		int linux_open_tree(void);
+	}
+429    AUE_NULL		STD {
+		int linux_move_mount(void);
+	}
+430    AUE_NULL		STD {
+		int linux_fsopen(void);
+	}
+431    AUE_NULL		STD {
+		int linux_fsconfig(void);
+	}
+432    AUE_NULL		STD {
+		int linux_fsmount(void);
+	}
+433    AUE_NULL		STD {
+		int linux_fspick(void);
+	}
+434    AUE_NULL		STD {
+		int linux_pidfd_open(void);
+	}
+435    AUE_NULL		STD {
+		int linux_clone3(void);
+	}
+436    AUE_NULL		STD {
+		int linux_close_range(void);
+	}
+437    AUE_NULL		STD {
+		int linux_openat2(void);
+	}
+438    AUE_NULL		STD {
+		int linux_pidfd_getfd(void);
+	}
+439    AUE_NULL		STD {
+		int linux_faccessat2(void);
+	}
+440    AUE_NULL		STD {
+		int linux_process_madvise(void);
+	}
+441    AUE_NULL		STD {
+		int linux_epoll_pwait2(void);
+	}
+442    AUE_NULL		STD {
+		int linux_mount_setattr(void);
+	}
 ; please, keep this line at the end.
-428	AUE_NULL	UNIMPL	nosys
+443    AUE_NULL        UNIMPL  nosys
 ; vim: syntax=off
