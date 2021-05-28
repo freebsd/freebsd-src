@@ -116,6 +116,9 @@ static int	bcm_erom_probe_and_attach(bhnd_erom_class_t **erom_cls,
 extern int	*edata;
 extern int	*end;
 
+/* from sys/mips/mips/machdep.c */
+extern char	cpu_model[];
+
 static struct bcm_platform	 bcm_platform_data;
 static bool			 bcm_platform_data_avail = false;
 
@@ -398,6 +401,12 @@ bcm_init_platform_data(struct bcm_platform *bp)
 		BCM_ERR("error locating chipc core: %d\n", error);
 		return (error);
 	}
+
+	/* All hex formatted IDs are within the range of 0x4000-0x9C3F (40000-1) */
+	if (bp->cid.chip_id >= 0x4000 && bp->cid.chip_id <= 0x9C3F)
+		snprintf(cpu_model, 10, "BCM%hX", bp->cid.chip_id);
+	else
+		snprintf(cpu_model, 10, "BCM%hu", bp->cid.chip_id);
 
 	/* Fetch chipc capability flags */
 	bp->cc_caps = BCM_SOC_READ_4(bp->cc_addr, CHIPC_CAPABILITIES);
