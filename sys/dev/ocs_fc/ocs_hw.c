@@ -11778,7 +11778,6 @@ ocs_hw_async_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 int32_t
 ocs_hw_async_call(ocs_hw_t *hw, ocs_hw_async_cb_t callback, void *arg)
 {
-	int32_t rc = 0;
 	ocs_hw_async_call_ctx_t *ctx;
 
 	/*
@@ -11798,15 +11797,15 @@ ocs_hw_async_call(ocs_hw_t *hw, ocs_hw_async_cb_t callback, void *arg)
 	if (sli_cmd_common_nop(&hw->sli, ctx->cmd, sizeof(ctx->cmd), 0) == 0) {
 		ocs_log_err(hw->os, "COMMON_NOP format failure\n");
 		ocs_free(hw->os, ctx, sizeof(*ctx));
-		rc = -1;
+		return OCS_HW_RTN_ERROR;
 	}
 
 	if (ocs_hw_command(hw, ctx->cmd, OCS_CMD_NOWAIT, ocs_hw_async_cb, ctx)) {
 		ocs_log_err(hw->os, "COMMON_NOP command failure\n");
 		ocs_free(hw->os, ctx, sizeof(*ctx));
-		rc = -1;
+		return OCS_HW_RTN_ERROR;
 	}
-	return rc;
+	return OCS_HW_RTN_SUCCESS;
 }
 
 /**
