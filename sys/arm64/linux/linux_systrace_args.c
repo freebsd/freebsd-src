@@ -2213,6 +2213,132 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* linux_statx */
+	case 291: {
+		struct linux_statx_args *p = params;
+		iarg[0] = p->dirfd; /* l_int */
+		uarg[1] = (intptr_t)p->pathname; /* const char * */
+		iarg[2] = p->flags; /* l_uint */
+		iarg[3] = p->mask; /* l_uint */
+		uarg[4] = (intptr_t)p->statxbuf; /* void * */
+		*n_args = 5;
+		break;
+	}
+	/* linux_io_pgetevents */
+	case 292: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_rseq */
+	case 293: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_kexec_file_load */
+	case 294: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pidfd_send_signal */
+	case 424: {
+		struct linux_pidfd_send_signal_args *p = params;
+		iarg[0] = p->pidfd; /* l_int */
+		iarg[1] = p->sig; /* l_int */
+		uarg[2] = (intptr_t)p->info; /* l_siginfo_t * */
+		iarg[3] = p->flags; /* l_uint */
+		*n_args = 4;
+		break;
+	}
+	/* linux_io_uring_setup */
+	case 425: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_enter */
+	case 426: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_io_uring_register */
+	case 427: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_open_tree */
+	case 428: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_move_mount */
+	case 429: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fsopen */
+	case 430: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fsconfig */
+	case 431: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fsmount */
+	case 432: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_fspick */
+	case 433: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pidfd_open */
+	case 434: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_clone3 */
+	case 435: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_close_range */
+	case 436: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_openat2 */
+	case 437: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_pidfd_getfd */
+	case 438: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_faccessat2 */
+	case 439: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_process_madvise */
+	case 440: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_epoll_pwait2 */
+	case 441: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_mount_setattr */
+	case 442: {
+		*n_args = 0;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -5883,6 +6009,110 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* linux_statx */
+	case 291:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_uint";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_pgetevents */
+	case 292:
+		break;
+	/* linux_rseq */
+	case 293:
+		break;
+	/* linux_kexec_file_load */
+	case 294:
+		break;
+	/* linux_pidfd_send_signal */
+	case 424:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland l_siginfo_t *";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+		break;
+	/* linux_io_uring_enter */
+	case 426:
+		break;
+	/* linux_io_uring_register */
+	case 427:
+		break;
+	/* linux_open_tree */
+	case 428:
+		break;
+	/* linux_move_mount */
+	case 429:
+		break;
+	/* linux_fsopen */
+	case 430:
+		break;
+	/* linux_fsconfig */
+	case 431:
+		break;
+	/* linux_fsmount */
+	case 432:
+		break;
+	/* linux_fspick */
+	case 433:
+		break;
+	/* linux_pidfd_open */
+	case 434:
+		break;
+	/* linux_clone3 */
+	case 435:
+		break;
+	/* linux_close_range */
+	case 436:
+		break;
+	/* linux_openat2 */
+	case 437:
+		break;
+	/* linux_pidfd_getfd */
+	case 438:
+		break;
+	/* linux_faccessat2 */
+	case 439:
+		break;
+	/* linux_process_madvise */
+	case 440:
+		break;
+	/* linux_epoll_pwait2 */
+	case 441:
+		break;
+	/* linux_mount_setattr */
+	case 442:
+		break;
 	default:
 		break;
 	};
@@ -7095,6 +7325,58 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* linux_statx */
+	case 291:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_pgetevents */
+	case 292:
+	/* linux_rseq */
+	case 293:
+	/* linux_kexec_file_load */
+	case 294:
+	/* linux_pidfd_send_signal */
+	case 424:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* linux_io_uring_setup */
+	case 425:
+	/* linux_io_uring_enter */
+	case 426:
+	/* linux_io_uring_register */
+	case 427:
+	/* linux_open_tree */
+	case 428:
+	/* linux_move_mount */
+	case 429:
+	/* linux_fsopen */
+	case 430:
+	/* linux_fsconfig */
+	case 431:
+	/* linux_fsmount */
+	case 432:
+	/* linux_fspick */
+	case 433:
+	/* linux_pidfd_open */
+	case 434:
+	/* linux_clone3 */
+	case 435:
+	/* linux_close_range */
+	case 436:
+	/* linux_openat2 */
+	case 437:
+	/* linux_pidfd_getfd */
+	case 438:
+	/* linux_faccessat2 */
+	case 439:
+	/* linux_process_madvise */
+	case 440:
+	/* linux_epoll_pwait2 */
+	case 441:
+	/* linux_mount_setattr */
+	case 442:
 	default:
 		break;
 	};

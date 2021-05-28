@@ -445,5 +445,20 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_io_uring_setup, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 425 = linux_io_uring_setup */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_io_uring_enter, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 426 = linux_io_uring_enter */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_io_uring_register, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 427 = linux_io_uring_register */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 428 = nosys */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_open_tree, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 428 = linux_open_tree */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_move_mount, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 429 = linux_move_mount */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fsopen, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 430 = linux_fsopen */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fsconfig, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 431 = linux_fsconfig */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fsmount, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 432 = linux_fsmount */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fspick, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 433 = linux_fspick */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_pidfd_open, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 434 = linux_pidfd_open */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clone3, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 435 = linux_clone3 */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_close_range, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 436 = linux_close_range */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_openat2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 437 = linux_openat2 */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_pidfd_getfd, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 438 = linux_pidfd_getfd */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_faccessat2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 439 = linux_faccessat2 */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_process_madvise, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 440 = linux_process_madvise */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_epoll_pwait2, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 441 = linux_epoll_pwait2 */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_mount_setattr, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 442 = linux_mount_setattr */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 443 = nosys */
 };
