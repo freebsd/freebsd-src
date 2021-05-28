@@ -243,11 +243,13 @@ lkpinew_pci_dev_release(struct device *dev)
 	struct pci_dev *pdev;
 
 	pdev = to_pci_dev(dev);
+	if (pdev->root != NULL)
+		pci_dev_put(pdev->root);
 	free(pdev->bus, M_DEVBUF);
 	free(pdev, M_DEVBUF);
 }
 
-static struct pci_dev *
+struct pci_dev *
 lkpinew_pci_dev(device_t dev)
 {
 	struct pci_dev *pdev;
@@ -408,6 +410,8 @@ linux_pci_detach_device(struct pci_dev *pdev)
 	if (pdev->pdrv != NULL)
 		pdev->pdrv->remove(pdev);
 
+	if (pdev->root != NULL)
+		pci_dev_put(pdev->root);
 	free(pdev->bus, M_DEVBUF);
 	linux_pdev_dma_uninit(pdev);
 
