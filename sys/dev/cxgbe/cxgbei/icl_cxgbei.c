@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/uio.h>
 #include <machine/bus.h>
-#include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <netinet/in.h>
@@ -100,6 +99,16 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom.h"
 #include "cxgbei.h"
 
+/*
+ * Use the page pod tag for the TT hash.
+ */
+#define	TT_HASH(icc, tt)	(G_PPOD_TAG(tt) & (icc)->cmp_hash_mask)
+
+struct cxgbei_ddp_state {
+	struct ppod_reservation prsv;
+	struct cxgbei_cmp cmp;
+};
+
 static MALLOC_DEFINE(M_CXGBEI, "cxgbei", "cxgbei(4)");
 
 SYSCTL_NODE(_kern_icl, OID_AUTO, cxgbei, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -117,7 +126,6 @@ static int recvspace = 1048576;
 SYSCTL_INT(_kern_icl_cxgbei, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
-static uma_zone_t prsv_zone;
 static volatile u_int icl_cxgbei_ncons;
 
 #define ICL_CONN_LOCK(X)		mtx_lock(X->ic_lock)
@@ -555,6 +563,9 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 	icc->icc_signature = CXGBEI_CONN_SIGNATURE;
 	STAILQ_INIT(&icc->rcvd_pdus);
 
+	icc->cmp_table = hashinit(64, M_CXGBEI, &icc->cmp_hash_mask);
+	mtx_init(&icc->cmp_lock, "cxgbei_cmp", NULL, MTX_DEF);
+
 	ic = &icc->ic;
 	ic->ic_lock = lock;
 
@@ -586,6 +597,8 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 	cv_destroy(&ic->ic_send_cv);
 	cv_destroy(&ic->ic_receive_cv);
 
+	mtx_destroy(&icc->cmp_lock);
+	hashdestroy(icc->cmp_table, M_CXGBEI, icc->cmp_hash_mask);
 	kobj_delete((struct kobj *)icc, M_CXGBE);
 	refcount_release(&icl_cxgbei_ncons);
 }
@@ -904,6 +917,61 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	soclose(so);
 }
 
+static void
+cxgbei_insert_cmp(struct icl_cxgbei_conn *icc, struct cxgbei_cmp *cmp,
+    uint32_t tt)
+{
+#ifdef INVARIANTS
+	struct cxgbei_cmp *cmp2;
+#endif
+
+	cmp->tt = tt;
+
+	mtx_lock(&icc->cmp_lock);
+#ifdef INVARIANTS
+	LIST_FOREACH(cmp2, &icc->cmp_table[TT_HASH(icc, tt)], link) {
+		KASSERT(cmp2->tt != tt, ("%s: duplicate cmp", __func__));
+	}
+#endif
+	LIST_INSERT_HEAD(&icc->cmp_table[TT_HASH(icc, tt)], cmp, link);
+	mtx_unlock(&icc->cmp_lock);
+}
+
+struct cxgbei_cmp *
+cxgbei_find_cmp(struct icl_cxgbei_conn *icc, uint32_t tt)
+{
+	struct cxgbei_cmp *cmp;
+
+	mtx_lock(&icc->cmp_lock);
+	LIST_FOREACH(cmp, &icc->cmp_table[TT_HASH(icc, tt)], link) {
+		if (cmp->tt == tt)
+			break;
+	}
+	mtx_unlock(&icc->cmp_lock);
+	return (cmp);
+}
+
+static void
+cxgbei_rm_cmp(struct icl_cxgbei_conn *icc, struct cxgbei_cmp *cmp)
+{
+#ifdef INVARIANTS
+	struct cxgbei_cmp *cmp2;
+#endif
+
+	mtx_lock(&icc->cmp_lock);
+
+#ifdef INVARIANTS
+	LIST_FOREACH(cmp2, &icc->cmp_table[TT_HASH(icc, cmp->tt)], link) {
+		if (cmp2 == cmp)
+			goto found;
+	}
+	panic("%s: could not find cmp", __func__);
+found:
+#endif
+	LIST_REMOVE(cmp, link);
+	mtx_unlock(&icc->cmp_lock);
+}
+
 int
 icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
     struct ccb_scsiio *csio, uint32_t *ittp, void **arg)
@@ -913,6 +981,7 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	struct adapter *sc = icc->sc;
 	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct ppod_region *pr = &ci->pr;
+	struct cxgbei_ddp_state *ddp;
 	struct ppod_reservation *prsv;
 	uint32_t itt;
 	int rc = 0;
@@ -943,30 +1012,32 @@ no_ddp:
 	 * Reserve resources for DDP, update the itt that should be used in the
 	 * PDU, and save DDP specific state for this I/O in *arg.
 	 */
-
-	prsv = uma_zalloc(prsv_zone, M_NOWAIT);
-	if (prsv == NULL) {
+	ddp = malloc(sizeof(*ddp), M_CXGBEI, M_NOWAIT | M_ZERO);
+	if (ddp == NULL) {
 		rc = ENOMEM;
 		goto no_ddp;
 	}
+	prsv = &ddp->prsv;
 
 	/* XXX add support for all CAM_DATA_ types */
 	MPASS((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR);
 	rc = t4_alloc_page_pods_for_buf(pr, (vm_offset_t)csio->data_ptr,
 	    csio->dxfer_len, prsv);
 	if (rc != 0) {
-		uma_zfree(prsv_zone, prsv);
+		free(ddp, M_CXGBEI);
 		goto no_ddp;
 	}
 
 	rc = t4_write_page_pods_for_buf(sc, toep, prsv,
 	    (vm_offset_t)csio->data_ptr, csio->dxfer_len);
-	if (rc != 0) {
+	if (__predict_false(rc != 0)) {
 		t4_free_page_pods(prsv);
-		uma_zfree(prsv_zone, prsv);
+		free(ddp, M_CXGBEI);
 		goto no_ddp;
 	}
 
+	ddp->cmp.last_datasn = -1;
+	cxgbei_insert_cmp(icc, &ddp->cmp, prsv->prsv_tag);
 	*ittp = htobe32(prsv->prsv_tag);
 	*arg = prsv;
 	counter_u64_add(toep->ofld_rxq->rx_iscsi_ddp_setup_ok, 1);
@@ -978,10 +1049,11 @@ icl_cxgbei_conn_task_done(struct icl_conn *ic, void *arg)
 {
 
 	if (arg != NULL) {
-		struct ppod_reservation *prsv = arg;
+		struct cxgbei_ddp_state *ddp = arg;
 
-		t4_free_page_pods(prsv);
-		uma_zfree(prsv_zone, prsv);
+		cxgbei_rm_cmp(ic_to_icc(ic), &ddp->cmp);
+		t4_free_page_pods(&ddp->prsv);
+		free(ddp, M_CXGBEI);
 	}
 }
 
@@ -1009,7 +1081,7 @@ ddp_sgl_check(struct ctl_sg_entry *sg, int entries, int xferlen)
 
 /* XXXNP: PDU should be passed in as parameter, like on the initiator. */
 #define io_to_request_pdu(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr)
-#define io_to_ppod_reservation(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr)
+#define io_to_ddp_state(io) ((io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND2].ptr)
 
 int
 icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
@@ -1021,6 +1093,7 @@ icl_cxgbei_conn_transfer_setup(struct icl_conn *ic, union ctl_io *io,
 	struct adapter *sc = icc->sc;
 	struct cxgbei_data *ci = sc->iscsi_ulp_softc;
 	struct ppod_region *pr = &ci->pr;
+	struct cxgbei_ddp_state *ddp;
 	struct ppod_reservation *prsv;
 	struct ctl_sg_entry *sgl, sg_entry;
 	int sg_entries = ctsio->kern_sg_entries;
@@ -1064,7 +1137,7 @@ no_ddp:
 			ttt = *tttp & M_PPOD_TAG;
 			ttt = V_PPOD_TAG(ttt) | pr->pr_invalid_bit;
 			*tttp = htobe32(ttt);
-			MPASS(io_to_ppod_reservation(io) == NULL);
+			MPASS(io_to_ddp_state(io) == NULL);
 			if (rc != 0)
 				counter_u64_add(
 				    toep->ofld_rxq->rx_iscsi_ddp_setup_error, 1);
@@ -1086,17 +1159,17 @@ no_ddp:
 		 * Reserve resources for DDP, update the ttt that should be used
 		 * in the PDU, and save DDP specific state for this I/O.
 		 */
-
-		MPASS(io_to_ppod_reservation(io) == NULL);
-		prsv = uma_zalloc(prsv_zone, M_NOWAIT);
-		if (prsv == NULL) {
+		MPASS(io_to_ddp_state(io) == NULL);
+		ddp = malloc(sizeof(*ddp), M_CXGBEI, M_NOWAIT | M_ZERO);
+		if (ddp == NULL) {
 			rc = ENOMEM;
 			goto no_ddp;
 		}
+		prsv = &ddp->prsv;
 
 		rc = t4_alloc_page_pods_for_sgl(pr, sgl, sg_entries, prsv);
 		if (rc != 0) {
-			uma_zfree(prsv_zone, prsv);
+			free(ddp, M_CXGBEI);
 			goto no_ddp;
 		}
 
@@ -1104,12 +1177,16 @@ no_ddp:
 		    xferlen);
 		if (__predict_false(rc != 0)) {
 			t4_free_page_pods(prsv);
-			uma_zfree(prsv_zone, prsv);
+			free(ddp, M_CXGBEI);
 			goto no_ddp;
 		}
 
+		ddp->cmp.next_buffer_offset = ctsio->kern_rel_offset +
+		    first_burst;
+		ddp->cmp.last_datasn = -1;
+		cxgbei_insert_cmp(icc, &ddp->cmp, prsv->prsv_tag);
 		*tttp = htobe32(prsv->prsv_tag);
-		io_to_ppod_reservation(io) = prsv;
+		io_to_ddp_state(io) = ddp;
 		*arg = ctsio;
 		counter_u64_add(toep->ofld_rxq->rx_iscsi_ddp_setup_ok, 1);
 		return (0);
@@ -1119,16 +1196,19 @@ no_ddp:
 	 * In the middle of an I/O.  A non-NULL page pod reservation indicates
 	 * that a DDP buffer is being used for the I/O.
 	 */
-
-	prsv = io_to_ppod_reservation(ctsio);
-	if (prsv == NULL)
+	ddp = io_to_ddp_state(ctsio);
+	if (ddp == NULL)
 		goto no_ddp;
+	prsv = &ddp->prsv;
 
 	alias = (prsv->prsv_tag & pr->pr_alias_mask) >> pr->pr_alias_shift;
 	alias++;
 	prsv->prsv_tag &= ~pr->pr_alias_mask;
 	prsv->prsv_tag |= alias << pr->pr_alias_shift & pr->pr_alias_mask;
 
+	ddp->cmp.next_datasn = 0;
+	ddp->cmp.last_datasn = -1;
+	cxgbei_insert_cmp(icc, &ddp->cmp, prsv->prsv_tag);
 	*tttp = htobe32(prsv->prsv_tag);
 	*arg = ctsio;
 
@@ -1140,16 +1220,19 @@ icl_cxgbei_conn_transfer_done(struct icl_conn *ic, void *arg)
 {
 	struct ctl_scsiio *ctsio = arg;
 
-	if (ctsio != NULL && (ctsio->kern_data_len == ctsio->ext_data_filled ||
-	    ic->ic_disconnecting)) {
-		struct ppod_reservation *prsv;
+	if (ctsio != NULL) {
+		struct cxgbei_ddp_state *ddp;
 
-		prsv = io_to_ppod_reservation(ctsio);
-		MPASS(prsv != NULL);
+		ddp = io_to_ddp_state(ctsio);
+		MPASS(ddp != NULL);
 
-		t4_free_page_pods(prsv);
-		uma_zfree(prsv_zone, prsv);
-		io_to_ppod_reservation(ctsio) = NULL;
+		cxgbei_rm_cmp(ic_to_icc(ic), &ddp->cmp);
+		if (ctsio->kern_data_len == ctsio->ext_data_filled ||
+		    ic->ic_disconnecting) {
+			t4_free_page_pods(&ddp->prsv);
+			free(ddp, M_CXGBEI);
+			io_to_ddp_state(ctsio) = NULL;
+		}
 	}
 }
 
@@ -1208,13 +1291,6 @@ icl_cxgbei_mod_load(void)
 {
 	int rc;
 
-	/*
-	 * Space to track pagepod reservations.
-	 */
-	prsv_zone = uma_zcreate("Pagepod reservations",
-	    sizeof(struct ppod_reservation), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_CACHE, 0);
-
 	refcount_init(&icl_cxgbei_ncons, 0);
 
 	rc = icl_register("cxgbei", false, -100, icl_cxgbei_limits,
@@ -1231,8 +1307,6 @@ icl_cxgbei_mod_unload(void)
 		return (EBUSY);
 
 	icl_unregister("cxgbei", false);
-
-	uma_zdestroy(prsv_zone);
 
 	return (0);
 }
