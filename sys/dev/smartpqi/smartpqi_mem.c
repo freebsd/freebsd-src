@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +27,7 @@
 
 #include "smartpqi_includes.h"
 
-MALLOC_DEFINE(M_SMARTPQI, "smartpqi", "Buffers for the smartpqi(4) driver");
+MALLOC_DEFINE(M_SMARTPQI, "smartpqi", "Buffers for the smartpqi driver");
 
 /*
  * DMA map load callback function
@@ -40,14 +39,41 @@ os_dma_map(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	*paddr = segs[0].ds_addr;
 }
 
+int
+os_dma_setup(pqisrc_softstate_t *softs)
+{
+	DBG_FUNC("IN\n");
+	DBG_FUNC("OUT\n");
+	return PQI_STATUS_SUCCESS;
+}
+
+int
+os_dma_destroy(pqisrc_softstate_t *softs)
+{
+	DBG_FUNC("IN\n");
+	DBG_FUNC("OUT\n");
+	return PQI_STATUS_SUCCESS;
+}
+
+void
+os_update_dma_attributes(pqisrc_softstate_t *softs)
+{
+	DBG_FUNC("IN\n");
+	DBG_FUNC("OUT\n");
+}
+
 /*
  * DMA mem resource allocation wrapper function
  */
-int os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
+int
+os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 {
-	int ret = 0;
+	int ret = BSD_SUCCESS;
 
 	/* DBG_FUNC("IN\n"); */
+
+	/* Make sure the alignment is at least 4 bytes */
+	ASSERT(dma_mem->align >= 4);
 
 	/* DMA memory needed - allocate it */
 	if ((ret = bus_dma_tag_create(
@@ -65,14 +91,21 @@ int os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 	        DBG_ERR("can't allocate DMA tag with error = 0x%x\n", ret);
 		goto err_out;
 	}
+
+	if (!dma_mem->dma_tag) {
+	        DBG_ERR("dma tag is NULL\n");
+		ret = ENOMEM;
+		goto err_out;
+	}
+
 	if ((ret = bus_dmamem_alloc(dma_mem->dma_tag, (void **)&dma_mem->virt_addr,
-		BUS_DMA_NOWAIT, &dma_mem->dma_map)) != 0) {
+		BUS_DMA_WAITOK, &dma_mem->dma_map)) != 0) {
 		DBG_ERR("can't allocate DMA memory for required object \
 				with error = 0x%x\n", ret);
 		goto err_mem;
 	}
 
-	if((ret = bus_dmamap_load(dma_mem->dma_tag, dma_mem->dma_map, 
+	if((ret = bus_dmamap_load(dma_mem->dma_tag, dma_mem->dma_map,
 		dma_mem->virt_addr, dma_mem->size,
 		os_dma_map, &dma_mem->dma_addr, 0)) != 0) {
 		DBG_ERR("can't load DMA memory for required \
@@ -82,25 +115,31 @@ int os_dma_mem_alloc(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 
 	memset(dma_mem->virt_addr, 0, dma_mem->size);
 
+	ret = bsd_status_to_pqi_status(ret);
+
 	/* DBG_FUNC("OUT\n"); */
 	return ret;
 
 err_load:
 	if(dma_mem->virt_addr)
-		bus_dmamem_free(dma_mem->dma_tag, dma_mem->virt_addr, 
+		bus_dmamem_free(dma_mem->dma_tag, dma_mem->virt_addr,
 				dma_mem->dma_map);
 err_mem:
 	if(dma_mem->dma_tag)
 		bus_dma_tag_destroy(dma_mem->dma_tag);
 err_out:
 	DBG_FUNC("failed OUT\n");
+
+	ret = bsd_status_to_pqi_status(ret);
+
 	return ret;
 }
 
 /*
  * DMA mem resource deallocation wrapper function
  */
-void os_dma_mem_free(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
+void
+os_dma_mem_free(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 {
 	/* DBG_FUNC("IN\n"); */
 
@@ -123,19 +162,21 @@ void os_dma_mem_free(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 	/* DBG_FUNC("OUT\n");  */
 }
 
+
 /*
  * Mem resource allocation wrapper function
  */
-void  *os_mem_alloc(pqisrc_softstate_t *softs, size_t size)
+void
+*os_mem_alloc(pqisrc_softstate_t *softs, size_t size)
 {
 	void *addr  = NULL;
 
-	/* DBG_FUNC("IN\n");  */
+	/* DBG_FUNC("IN\n"); */
 
 	addr = malloc((unsigned long)size, M_SMARTPQI,
 			M_NOWAIT | M_ZERO);
 
-/*	DBG_FUNC("OUT\n"); */
+	/* DBG_FUNC("OUT\n"); */
 
 	return addr;
 }
@@ -143,8 +184,8 @@ void  *os_mem_alloc(pqisrc_softstate_t *softs, size_t size)
 /*
  * Mem resource deallocation wrapper function
  */
-void os_mem_free(pqisrc_softstate_t *softs,
-			char *addr, size_t size)
+void
+os_mem_free(pqisrc_softstate_t *softs, char *addr, size_t size)
 {
 	/* DBG_FUNC("IN\n"); */
 
@@ -156,14 +197,15 @@ void os_mem_free(pqisrc_softstate_t *softs,
 /*
  * dma/bus resource deallocation wrapper function
  */
-void os_resource_free(pqisrc_softstate_t *softs)
+void
+os_resource_free(pqisrc_softstate_t *softs)
 {
 	if(softs->os_specific.pqi_parent_dmat)
 		bus_dma_tag_destroy(softs->os_specific.pqi_parent_dmat);
 
 	if (softs->os_specific.pqi_regs_res0 != NULL)
                 bus_release_resource(softs->os_specific.pqi_dev,
-						SYS_RES_MEMORY,
+				SYS_RES_MEMORY,
 				softs->os_specific.pqi_regs_rid0, 
 				softs->os_specific.pqi_regs_res0);
 }
