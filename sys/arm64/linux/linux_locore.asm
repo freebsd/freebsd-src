@@ -40,7 +40,7 @@
 
 	.globl linux_platform
 linux_platform:
-	.asciz "arm64"
+	.asciz "aarch64"
 
 	.text
 

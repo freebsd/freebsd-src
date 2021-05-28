@@ -172,11 +172,11 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 #if 0	/* LINUXTODO: implement arm64 LINUX_AT_HWCAP */
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, cpu_feature);
 #endif
+	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
-	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
@@ -185,15 +185,14 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_ucred->cr_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_ucred->cr_svgid);
 	AUXARGS_ENTRY(pos, LINUX_AT_SECURE, issetugid);
-#if 0	/* LINUXTODO: implement arm64 LINUX_AT_PLATFORM */
-	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
-#endif
 	AUXARGS_ENTRY_PTR(pos, LINUX_AT_RANDOM, imgp->canary);
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY_PTR(pos, LINUX_AT_EXECFN, imgp->execpathp);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
+	AUXARGS_ENTRY(pos, LINUX_AT_PLATFORM, PTROUT(linux_platform));
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
+
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
@@ -464,13 +463,8 @@ linux_vdso_install(const void *param)
 	    linux_szsigcode);
 	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
 
-	printf("LINUXTODO: %s: fix linux_kplatform\n", __func__);
-#if 0
 	linux_kplatform = linux_shared_page_mapping +
 	    (linux_platform - (caddr_t)elf_linux_sysvec.sv_shared_page_base);
-#else
-	linux_kplatform = "arm64";
-#endif
 }
 SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
     linux_vdso_install, NULL);
