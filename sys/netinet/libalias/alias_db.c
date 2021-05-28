@@ -574,12 +574,20 @@ FindLinkOut(struct libalias *, struct in_addr, struct in_addr, u_short, u_short,
 static struct alias_link *
 FindLinkIn(struct libalias *, struct in_addr, struct in_addr, u_short, u_short, int, int);
 
-#define ALIAS_PORT_BASE            0x08000
-#define ALIAS_PORT_MASK            0x07fff
-#define ALIAS_PORT_MASK_EVEN       0x07ffe
+static u_short _RandomPort(struct libalias *la);
+
 #define GET_NEW_PORT_MAX_ATTEMPTS       20
 
-#define FIND_EVEN_ALIAS_BASE             1
+/* get random port in network byte order */
+static u_short
+_RandomPort(struct libalias *la) {
+	u_short port;
+
+	port = la->aliasPortLower +
+	    arc4random_uniform(la->aliasPortLength);
+
+	return ntohs(port);
+}
 
 /* GetNewPort() allocates port numbers.  Note that if a port number
    is already in use, that does not mean that it cannot be used by
@@ -591,8 +599,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 {
 	int i;
 	int max_trials;
-	u_short port_sys;
-	u_short port_net;
+	u_short port;
 
 	LIBALIAS_LOCK_ASSERT(la);
 	/*
@@ -600,41 +607,18 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 	 * this parameter is zero or positive, it precisely specifies
 	 * the port number.  GetNewPort() will return this number
 	 * without check that it is in use.
-
+	*
+	 * The aliasing port is automatically selected by one of
+	 * two methods below:
+	 *
 	 * When this parameter is GET_ALIAS_PORT, it indicates to get
 	 * a randomly selected port number.
 	 */
-	if (alias_port_param == GET_ALIAS_PORT) {
-		/*
-		 * The aliasing port is automatically selected by one of
-		 * two methods below:
-		 */
-		max_trials = GET_NEW_PORT_MAX_ATTEMPTS;
-
-		if (la->packetAliasMode & PKT_ALIAS_SAME_PORTS) {
-			/*
-			 * When the PKT_ALIAS_SAME_PORTS option is chosen,
-			 * the first try will be the actual source port. If
-			 * this is already in use, the remainder of the
-			 * trials will be random.
-			 */
-			port_net = lnk->src_port;
-			port_sys = ntohs(port_net);
-		} else if (la->aliasPortLower) {
-			/* First trial is a random port in the aliasing range. */
-			port_sys = la->aliasPortLower +
-			    (arc4random() % la->aliasPortLength);
-			port_net = htons(port_sys);
-		} else {
-			/* First trial and all subsequent are random. */
-			port_sys = arc4random() & ALIAS_PORT_MASK;
-			port_sys += ALIAS_PORT_BASE;
-			port_net = htons(port_sys);
-		}
-	} else if (alias_port_param >= 0 && alias_port_param < 0x10000) {
+	if (alias_port_param >= 0 && alias_port_param < 0x10000) {
 		lnk->alias_port = (u_short) alias_port_param;
 		return (0);
-	} else {
+	}
+	if (alias_port_param != GET_ALIAS_PORT) {
 #ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/GetNewPort(): ");
 		fprintf(stderr, "input parameter error\n");
@@ -642,58 +626,57 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 		return (-1);
 	}
 
+	max_trials = GET_NEW_PORT_MAX_ATTEMPTS;
+
+	/*
+	 * When the PKT_ALIAS_SAME_PORTS option is chosen,
+	 * the first try will be the actual source port. If
+	 * this is already in use, the remainder of the
+	 * trials will be random.
+	 */
+	port = (la->packetAliasMode & PKT_ALIAS_SAME_PORTS)
+	    ? lnk->src_port
+	    : _RandomPort(la);
+
 	/* Port number search */
-	for (i = 0; i < max_trials; i++) {
-		int go_ahead;
+	for (i = 0; i < max_trials; i++, port = _RandomPort(la)) {
+		struct group_in *grp;
 		struct alias_link *search_result;
 
-		search_result = FindLinkIn(la, lnk->dst_addr, lnk->alias_addr,
-		    lnk->dst_port, port_net,
-		    lnk->link_type, 0);
+		grp = StartPointIn(la, lnk->alias_addr, port, lnk->link_type, 0);
+		if (grp == NULL)
+			break;
 
+		LIST_FOREACH(search_result, &grp->full, all.in) {
+			if (lnk->dst_addr.s_addr == search_result->dst_addr.s_addr &&
+			    lnk->dst_port == search_result->dst_port)
+			    break;     /* found match */
+		}
 		if (search_result == NULL)
-			go_ahead = 1;
-		else if (!(lnk->flags & LINK_PARTIALLY_SPECIFIED)
-		    && (search_result->flags & LINK_PARTIALLY_SPECIFIED))
-			go_ahead = 1;
-		else
-			go_ahead = 0;
-
-		if (go_ahead) {
-#ifndef NO_USE_SOCKETS
-			if ((la->packetAliasMode & PKT_ALIAS_USE_SOCKETS)
-			    && (lnk->flags & LINK_PARTIALLY_SPECIFIED)
-			    && ((lnk->link_type == LINK_TCP) ||
-			    (lnk->link_type == LINK_UDP))) {
-				if (GetSocket(la, port_net, &lnk->sockfd, lnk->link_type)) {
-					lnk->alias_port = port_net;
-					return (0);
-				}
-			} else {
-#endif
-				lnk->alias_port = port_net;
-				return (0);
-#ifndef NO_USE_SOCKETS
-			}
-#endif
-		}
-		if (la->aliasPortLower) {
-			port_sys = la->aliasPortLower +
-			    (arc4random() % la->aliasPortLength);
-			port_net = htons(port_sys);
-		} else {
-			port_sys = arc4random() & ALIAS_PORT_MASK;
-			port_sys += ALIAS_PORT_BASE;
-			port_net = htons(port_sys);
-		}
+			break;
 	}
 
+	if (i >= max_trials) {
 #ifdef LIBALIAS_DEBUG
-	fprintf(stderr, "PacketAlias/GetNewPort(): ");
-	fprintf(stderr, "could not find free port\n");
+		fprintf(stderr, "PacketAlias/GetNewPort(): ");
+		fprintf(stderr, "could not find free port\n");
 #endif
+		return (-1);
+	}
 
-	return (-1);
+#ifndef NO_USE_SOCKETS
+	if ((la->packetAliasMode & PKT_ALIAS_USE_SOCKETS) &&
+	    (lnk->flags & LINK_PARTIALLY_SPECIFIED) &&
+	    ((lnk->link_type == LINK_TCP) ||
+	     (lnk->link_type == LINK_UDP))) {
+		if (!GetSocket(la, port, &lnk->sockfd, lnk->link_type)) {
+			return (-1);
+		}
+	}
+#endif
+	lnk->alias_port = port;
+
+	return (0);
 }
 
 #ifndef NO_USE_SOCKETS
@@ -760,7 +743,7 @@ FindNewPortGroup(struct libalias *la,
 {
 	int i, j;
 	int max_trials;
-	u_short port_sys;
+	u_short port;
 	int link_type;
 
 	LIBALIAS_LOCK_ASSERT(la);
@@ -792,39 +775,31 @@ FindNewPortGroup(struct libalias *la,
 		 * try will be the actual source port. If this is already
 		 * in use, the remainder of the trials will be random.
 		 */
-		port_sys = ntohs(src_port);
+		port = src_port;
 
 	} else {
-		/* First trial and all subsequent are random. */
-		if (align == FIND_EVEN_ALIAS_BASE)
-			port_sys = arc4random() & ALIAS_PORT_MASK_EVEN;
-		else
-			port_sys = arc4random() & ALIAS_PORT_MASK;
-
-		port_sys += ALIAS_PORT_BASE;
+		port = _RandomPort(la);
 	}
 
 	/* Port number search */
-	for (i = 0; i < max_trials; i++) {
+	for (i = 0; i < max_trials; i++, port = _RandomPort(la)) {
 		struct alias_link *search_result;
 
-		for (j = 0; j < port_count; j++)
+		if (align)
+			port &= htons(0xfffe);
+
+		for (j = 0; j < port_count; j++) {
+			u_short port_j = ntohs(port) + j;
+
 			if ((search_result = FindLinkIn(la, dst_addr,
-			    alias_addr, dst_port, htons(port_sys + j),
+			    alias_addr, dst_port, htons(port_j),
 			    link_type, 0)) != NULL)
 				break;
+		}
 
 		/* Found a good range, return base */
 		if (j == port_count)
-			return (htons(port_sys));
-
-		/* Find a new base to try */
-		if (align == FIND_EVEN_ALIAS_BASE)
-			port_sys = arc4random() & ALIAS_PORT_MASK_EVEN;
-		else
-			port_sys = arc4random() & ALIAS_PORT_MASK;
-
-		port_sys += ALIAS_PORT_BASE;
+			return (port);
 	}
 
 #ifdef LIBALIAS_DEBUG
@@ -2555,6 +2530,8 @@ LibAliasInit(struct libalias *la)
 
 	la->aliasAddress.s_addr = INADDR_ANY;
 	la->targetAddress.s_addr = INADDR_ANY;
+	la->aliasPortLower = 0x8000;
+	la->aliasPortLength = 0x8000;
 
 	la->icmpLinkCount = 0;
 	la->udpLinkCount = 0;
