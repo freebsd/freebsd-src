@@ -634,13 +634,10 @@ bhnd_generic_request_clock(device_t dev, device_t child, bhnd_clock clock)
 int
 bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
 {
-	struct bhnd_softc	*sc;
 	struct bhnd_core_clkctl	*clkctl;
 	uint32_t		 avail;
 	uint32_t		 req;
 	int			 error;
-
-	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
 		return (EINVAL);
@@ -649,8 +646,6 @@ bhnd_generic_enable_clocks(device_t dev, device_t child, uint32_t clocks)
 		panic("no active PMU allocation");
 
 	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
-
-	sc = device_get_softc(dev);
 
 	avail = 0x0;
 	req = 0x0;
