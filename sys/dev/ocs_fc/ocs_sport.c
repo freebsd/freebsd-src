@@ -264,7 +264,7 @@ ocs_sport_free(ocs_sport_t *sport)
 		ocs_lock_free(&sport->node_group_lock);
 		ocs_scsi_sport_deleted(sport);
 
-		ocs_free(domain->ocs, sport, sizeof(*sport));
+		ocs_free(sport->ocs, sport, sizeof(*sport));
 		
 	}
 }
