@@ -1140,6 +1140,7 @@ smartpqi_adjust_queue_depth(struct cam_path *path, uint32_t queue_depth)
 
 	DBG_INFO("IN\n");
 
+	memset(&crs, 0, sizeof(crs));
 	xpt_setup_ccb(&crs.ccb_h, path, 5);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.ccb_h.flags = CAM_DEV_QFREEZE;
@@ -1262,6 +1263,7 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 	 * derived from the FW.
  	 */
 	softs->os_specific.path = ccb->ccb_h.path;
+	memset(&csa, 0, sizeof(csa));
 	xpt_setup_ccb(&csa.ccb_h, softs->os_specific.path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_FOUND_DEVICE;
@@ -1294,6 +1296,7 @@ deregister_sim(struct pqisrc_softstate *softs)
 	}
 
 
+	memset(&csa, 0, sizeof(csa));
 	xpt_setup_ccb(&csa.ccb_h, softs->os_specific.path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = 0;
