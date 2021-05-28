@@ -308,6 +308,22 @@ static const struct usb_config usbhid_config[USBHID_N_TRANSFER] = {
 	},
 };
 
+static inline usb_frlength_t
+usbhid_xfer_max_len(struct usb_xfer *xfer)
+{
+	return (xfer == NULL ? 0 : usbd_xfer_max_len(xfer));
+}
+
+static inline int
+usbhid_xfer_check_len(struct usbhid_softc* sc, int xfer_idx, hid_size_t len)
+{
+	if (sc->sc_xfer[xfer_idx] == NULL)
+		return (ENODEV);
+	if (len > usbd_xfer_max_len(sc->sc_xfer[xfer_idx]))
+		return (ENOBUFS);
+	return (0);
+}
+
 static void
 usbhid_intr_setup(device_t dev, hid_intr_t intr, void *context,
     struct hid_rdesc_info *rdesc)
@@ -320,6 +336,7 @@ usbhid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 	sc->sc_intr_handler = intr;
 	sc->sc_intr_ctx = context;
 	bcopy(usbhid_config, sc->sc_config, sizeof(usbhid_config));
+	bzero(sc->sc_xfer, sizeof(sc->sc_xfer));
 
 	/* Set buffer sizes to match HID report sizes */
 	sc->sc_config[USBHID_INTR_OUT_DT].bufsize = rdesc->osize;
@@ -342,17 +359,15 @@ usbhid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 		    sc->sc_xfer + n, sc->sc_config + n, 1,
 		    (void *)(sc->sc_xfer_ctx + n), &sc->sc_mtx);
 		if (error)
-			break;
+			DPRINTF("xfer %d setup error=%s\n", n,
+			    usbd_errstr(error));
 	}
 
-	if (error)
-		DPRINTF("error=%s\n", usbd_errstr(error));
-
-	rdesc->rdsize = usbd_xfer_max_len(sc->sc_xfer[USBHID_INTR_IN_DT]);
-	rdesc->grsize = usbd_xfer_max_len(sc->sc_xfer[USBHID_CTRL_DT]);
+	rdesc->rdsize = usbhid_xfer_max_len(sc->sc_xfer[USBHID_INTR_IN_DT]);
+	rdesc->grsize = usbhid_xfer_max_len(sc->sc_xfer[USBHID_CTRL_DT]);
 	rdesc->srsize = rdesc->grsize;
 	rdesc->wrsize = nowrite ? rdesc->srsize :
-	    usbd_xfer_max_len(sc->sc_xfer[USBHID_INTR_OUT_DT]);
+	    usbhid_xfer_max_len(sc->sc_xfer[USBHID_INTR_OUT_DT]);
 
 	sc->sc_intr_buf = malloc(rdesc->rdsize, M_USBDEV, M_ZERO | M_WAITOK);
 }
@@ -370,6 +385,9 @@ static int
 usbhid_intr_start(device_t dev)
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
+
+	if (sc->sc_xfer[USBHID_INTR_IN_DT] == NULL)
+		return (ENODEV);
 
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_xfer_ctx[USBHID_INTR_IN_DT] = (struct usbhid_xfer_ctx) {
@@ -493,8 +511,9 @@ usbhid_get_report(device_t dev, void *buf, hid_size_t maxlen,
 	union usbhid_device_request req;
 	int error;
 
-	if (maxlen > usbd_xfer_max_len(sc->sc_xfer[USBHID_CTRL_DT]))
-		return (ENOBUFS);
+	error = usbhid_xfer_check_len(sc, USBHID_CTRL_DT, maxlen);
+	if (error)
+		return (error);
 
 	req.ctrl.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.ctrl.bRequest = UR_GET_REPORT;
@@ -516,9 +535,11 @@ usbhid_set_report(device_t dev, const void *buf, hid_size_t len, uint8_t type,
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
 	union usbhid_device_request req;
+	int error;
 
-	if (len > usbd_xfer_max_len(sc->sc_xfer[USBHID_CTRL_DT]))
-		return (ENOBUFS);
+	error = usbhid_xfer_check_len(sc, USBHID_CTRL_DT, len);
+	if (error)
+		return (error);
 
 	req.ctrl.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 	req.ctrl.bRequest = UR_SET_REPORT;
@@ -538,8 +559,9 @@ usbhid_read(device_t dev, void *buf, hid_size_t maxlen, hid_size_t *actlen)
 	union usbhid_device_request req;
 	int error;
 
-	if (maxlen > usbd_xfer_max_len(sc->sc_xfer[USBHID_INTR_IN_DT]))
-		return (ENOBUFS);
+	error = usbhid_xfer_check_len(sc, USBHID_INTR_IN_DT, maxlen);
+	if (error)
+		return (error);
 
 	req.intr.maxlen = maxlen;
 	error = usbhid_sync_xfer(sc, USBHID_INTR_IN_DT, &req, buf);
@@ -554,9 +576,11 @@ usbhid_write(device_t dev, const void *buf, hid_size_t len)
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
 	union usbhid_device_request req;
+	int error;
 
-	if (len > usbd_xfer_max_len(sc->sc_xfer[USBHID_INTR_OUT_DT]))
-		return (ENOBUFS);
+	error = usbhid_xfer_check_len(sc, USBHID_INTR_OUT_DT, len);
+	if (error)
+		return (error);
 
 	req.intr.maxlen = len;
 	return (usbhid_sync_xfer(sc, USBHID_INTR_OUT_DT, &req,
@@ -568,6 +592,11 @@ usbhid_set_idle(device_t dev, uint16_t duration, uint8_t id)
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
 	union usbhid_device_request req;
+	int error;
+
+	error = usbhid_xfer_check_len(sc, USBHID_CTRL_DT, 0);
+	if (error)
+		return (error);
 
 	/* Duration is measured in 4 milliseconds per unit. */
 	req.ctrl.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -585,6 +614,11 @@ usbhid_set_protocol(device_t dev, uint16_t protocol)
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
 	union usbhid_device_request req;
+	int error;
+
+	error = usbhid_xfer_check_len(sc, USBHID_CTRL_DT, 0);
+	if (error)
+		return (error);
 
 	req.ctrl.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 	req.ctrl.bRequest = UR_SET_PROTOCOL;
