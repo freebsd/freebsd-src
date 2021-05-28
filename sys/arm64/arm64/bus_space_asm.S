@@ -400,7 +400,7 @@ END(generic_bs_wr_8)
 ENTRY(generic_bs_fault)
 	mov	x0, #-1
 	ret
-END(bus_fault)
+END(generic_bs_fault)
 
 ENTRY(generic_bs_peek_1)
 	.globl	generic_bs_peek_1f
