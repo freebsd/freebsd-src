@@ -457,6 +457,9 @@ hidbus_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 		break;
 	case HIDBUS_IVAR_FLAGS:
 		tlc->flags = value;
+		if ((value & HIDBUS_FLAG_CAN_POLL) != 0)
+			HID_INTR_SETUP(
+			    device_get_parent(bus), NULL, NULL, NULL);
 		break;
 	case HIDBUS_IVAR_DRIVER_INFO:
 		tlc->driver_info = value;

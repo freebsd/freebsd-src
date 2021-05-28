@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
+#include <dev/usb/usb_core.h>
 
 #define	USB_DEBUG_VAR usbhid_debug
 #include <dev/usb/usb_debug.h>
@@ -85,6 +86,8 @@ SYSCTL_INT(_hw_usb_usbhid, OID_AUTO, debug, CTLFLAG_RWTUN,
     &usbhid_debug, 0, "Debug level");
 #endif
 
+/* Second set of USB transfers for polling mode */
+#define	POLL_XFER(xfer)	((xfer) + USBHID_N_TRANSFER)
 enum {
 	USBHID_INTR_OUT_DT,
 	USBHID_INTR_IN_DT,
@@ -123,8 +126,9 @@ struct usbhid_softc {
 
 	struct mtx sc_mtx;
 	struct usb_config sc_config[USBHID_N_TRANSFER];
-	struct usb_xfer *sc_xfer[USBHID_N_TRANSFER];
-	struct usbhid_xfer_ctx sc_xfer_ctx[USBHID_N_TRANSFER];
+	struct usb_xfer *sc_xfer[POLL_XFER(USBHID_N_TRANSFER)];
+	struct usbhid_xfer_ctx sc_xfer_ctx[POLL_XFER(USBHID_N_TRANSFER)];
+	bool sc_can_poll;
 
 	struct usb_device *sc_udev;
 	uint8_t	sc_iface_no;
@@ -317,6 +321,8 @@ usbhid_xfer_max_len(struct usb_xfer *xfer)
 static inline int
 usbhid_xfer_check_len(struct usbhid_softc* sc, int xfer_idx, hid_size_t len)
 {
+	if (USB_IN_POLLING_MODE_FUNC())
+		xfer_idx = POLL_XFER(xfer_idx);
 	if (sc->sc_xfer[xfer_idx] == NULL)
 		return (ENODEV);
 	if (len > usbd_xfer_max_len(sc->sc_xfer[xfer_idx]))
@@ -333,6 +339,39 @@ usbhid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 	bool nowrite;
 	int error;
 
+	nowrite = hid_test_quirk(&sc->sc_hw, HQ_NOWRITE);
+
+	/*
+	 * Setup the USB transfers one by one, so they are memory independent
+	 * which allows for handling panics triggered by the HID drivers
+	 * itself, typically by hkbd via CTRL+ALT+ESC sequences. Or if the HID
+	 * keyboard driver was processing a key at the moment of panic.
+	 */
+	if (intr == NULL) {
+		if (sc->sc_can_poll)
+			return;
+		for (n = 0; n != USBHID_N_TRANSFER; n++) {
+			if (nowrite && n == USBHID_INTR_OUT_DT)
+				continue;
+			error = usbd_transfer_setup(sc->sc_udev,
+			    &sc->sc_iface_index, sc->sc_xfer + POLL_XFER(n),
+			    sc->sc_config + n, 1,
+			    (void *)(sc->sc_xfer_ctx + POLL_XFER(n)),
+			    &sc->sc_mtx);
+			if (error)
+				DPRINTF("xfer %d setup error=%s\n", n,
+				    usbd_errstr(error));
+		}
+		mtx_lock(&sc->sc_mtx);
+		if (sc->sc_xfer[USBHID_INTR_IN_DT] != NULL &&
+		    sc->sc_xfer[USBHID_INTR_IN_DT]->flags_int.started)
+			usbd_transfer_start(
+			    sc->sc_xfer[POLL_XFER(USBHID_INTR_IN_DT)]);
+		mtx_unlock(&sc->sc_mtx);
+		sc->sc_can_poll = true;
+		return;
+	}
+
 	sc->sc_intr_handler = intr;
 	sc->sc_intr_ctx = context;
 	bcopy(usbhid_config, sc->sc_config, sizeof(usbhid_config));
@@ -344,14 +383,6 @@ usbhid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 	sc->sc_config[USBHID_CTRL_DT].bufsize =
 	    MAX(rdesc->isize, MAX(rdesc->osize, rdesc->fsize));
 
-	nowrite = hid_test_quirk(&sc->sc_hw, HQ_NOWRITE);
-
-	/*
-	 * Setup the USB transfers one by one, so they are memory independent
-	 * which allows for handling panics triggered by the HID drivers
-	 * itself, typically by hkbd via CTRL+ALT+ESC sequences. Or if the HID
-	 * keyboard driver was processing a key at the moment of panic.
-	 */
 	for (n = 0; n != USBHID_N_TRANSFER; n++) {
 		if (nowrite && n == USBHID_INTR_OUT_DT)
 			continue;
@@ -378,6 +409,10 @@ usbhid_intr_unsetup(device_t dev)
 	struct usbhid_softc* sc = device_get_softc(dev);
 
 	usbd_transfer_unsetup(sc->sc_xfer, USBHID_N_TRANSFER);
+	if (sc->sc_can_poll)
+		usbd_transfer_unsetup(
+		    sc->sc_xfer, POLL_XFER(USBHID_N_TRANSFER));
+	sc->sc_can_poll = false;
 	free(sc->sc_intr_buf, M_USBDEV);
 }
 
@@ -397,7 +432,16 @@ usbhid_intr_start(device_t dev)
 		.cb_ctx = sc,
 		.buf = sc->sc_intr_buf,
 	};
+	sc->sc_xfer_ctx[POLL_XFER(USBHID_INTR_IN_DT)] = (struct usbhid_xfer_ctx) {
+		.req.intr.maxlen =
+		    usbd_xfer_max_len(sc->sc_xfer[USBHID_INTR_IN_DT]),
+		.cb = usbhid_intr_handler_cb,
+		.cb_ctx = sc,
+		.buf = sc->sc_intr_buf,
+	};
 	usbd_transfer_start(sc->sc_xfer[USBHID_INTR_IN_DT]);
+	if (sc->sc_can_poll)
+		usbd_transfer_start(sc->sc_xfer[POLL_XFER(USBHID_INTR_IN_DT)]);
 	mtx_unlock(&sc->sc_mtx);
 
 	return (0);
@@ -410,6 +454,8 @@ usbhid_intr_stop(device_t dev)
 
 	usbd_transfer_drain(sc->sc_xfer[USBHID_INTR_IN_DT]);
 	usbd_transfer_drain(sc->sc_xfer[USBHID_INTR_OUT_DT]);
+	if (sc->sc_can_poll)
+		usbd_transfer_drain(sc->sc_xfer[POLL_XFER(USBHID_INTR_IN_DT)]);
 
 	return (0);
 }
@@ -419,7 +465,9 @@ usbhid_intr_poll(device_t dev)
 {
 	struct usbhid_softc* sc = device_get_softc(dev);
 
+	MPASS(sc->sc_can_poll);
 	usbd_transfer_poll(sc->sc_xfer + USBHID_INTR_IN_DT, 1);
+	usbd_transfer_poll(sc->sc_xfer + POLL_XFER(USBHID_INTR_IN_DT), 1);
 }
 
 /*
@@ -430,12 +478,13 @@ usbhid_sync_xfer(struct usbhid_softc* sc, int xfer_idx,
     union usbhid_device_request *req, void *buf)
 {
 	int error, timeout;
-	struct usbhid_xfer_ctx *xfer_ctx, save;
+	struct usbhid_xfer_ctx *xfer_ctx;
 
 	xfer_ctx = sc->sc_xfer_ctx + xfer_idx;
 
 	if (USB_IN_POLLING_MODE_FUNC()) {
-		save = *xfer_ctx;
+		xfer_ctx = POLL_XFER(xfer_ctx);
+		xfer_idx = POLL_XFER(xfer_idx);
 	} else {
 		mtx_lock(&sc->sc_mtx);
 		++xfer_ctx->waiters;
@@ -473,9 +522,7 @@ usbhid_sync_xfer(struct usbhid_softc* sc, int xfer_idx,
 	if (error == 0)
 		*req = xfer_ctx->req;
 
-	if (USB_IN_POLLING_MODE_FUNC()) {
-		*xfer_ctx = save;
-	} else {
+	if (!USB_IN_POLLING_MODE_FUNC()) {
 		xfer_ctx->influx = false;
 		if (xfer_ctx->waiters != 0)
 			wakeup_one(&xfer_ctx->waiters);
