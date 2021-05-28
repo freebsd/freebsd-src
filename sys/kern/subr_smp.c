@@ -943,25 +943,31 @@ smp_rendezvous_cpus_done(struct smp_rendezvous_cpus_retry_arg *arg)
 }
 
 /*
+ * If (prio & PDROP) == 0:
  * Wait for specified idle threads to switch once.  This ensures that even
  * preempted threads have cycled through the switch function once,
  * exiting their codepaths.  This allows us to change global pointers
  * with no other synchronization.
+ * If (prio & PDROP) != 0:
+ * Force the specified CPUs to switch context at least once.
  */
 int
 quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
 {
 	struct pcpu *pcpu;
-	u_int gen[MAXCPU];
+	u_int *gen;
 	int error;
 	int cpu;
 
 	error = 0;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
-			continue;
-		pcpu = pcpu_find(cpu);
-		gen[cpu] = pcpu->pc_idlethread->td_generation;
+	if ((prio & PDROP) == 0) {
+		gen = malloc(sizeof(u_int) * MAXCPU, M_TEMP, M_WAITOK);
+		for (cpu = 0; cpu <= mp_maxid; cpu++) {
+			if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
+				continue;
+			pcpu = pcpu_find(cpu);
+			gen[cpu] = pcpu->pc_idlethread->td_generation;
+		}
 	}
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
@@ -970,8 +976,10 @@ quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
 		thread_lock(curthread);
 		sched_bind(curthread, cpu);
 		thread_unlock(curthread);
+		if ((prio & PDROP) != 0)
+			continue;
 		while (gen[cpu] == pcpu->pc_idlethread->td_generation) {
-			error = tsleep(quiesce_cpus, prio, wmesg, 1);
+			error = tsleep(quiesce_cpus, prio & ~PDROP, wmesg, 1);
 			if (error != EWOULDBLOCK)
 				goto out;
 			error = 0;
@@ -981,6 +989,8 @@ out:
 	thread_lock(curthread);
 	sched_unbind(curthread);
 	thread_unlock(curthread);
+	if ((prio & PDROP) == 0)
+		free(gen, M_TEMP);
 
 	return (error);
 }
