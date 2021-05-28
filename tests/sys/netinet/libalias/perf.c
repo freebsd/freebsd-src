@@ -66,7 +66,7 @@ usage(void) {
 int main(int argc, char ** argv)
 {
 	struct libalias *la;
-	struct timeval timeout;
+	struct timeval timeout, now, start;
 	struct ip *p;
 	struct udphdr *u;
 	struct {
@@ -141,7 +141,6 @@ int main(int argc, char ** argv)
 	printf("RND SECOND newNAT RANDOM ATTACK useNAT\n");
 	for (round = 0; ; round++) {
 		int res, cnt;
-		struct timeval now, start;
 
 		printf("%3d ", round+1);
 
@@ -279,7 +278,6 @@ out:
 	printf("\n\n");
 	free(batch);
 	free(p);
-	LibAliasUninit(la);
 
 	printf("Results\n");
 	printf("   Rounds  : %9u\n", round);
@@ -300,5 +298,11 @@ out:
 	       usenat.ok + usenat.fail +
 	       random.ok + random.fail +
 	       attack.ok + attack.fail);
+
+	gettimeofday(&start, NULL);
+	printf("\n  Cleanup  : ");
+	LibAliasUninit(la);
+	gettimeofday(&now, NULL);
+	printf("%.2fs\n", timevaldiff(now, start)/1000000l);
 	return (0);
 }
