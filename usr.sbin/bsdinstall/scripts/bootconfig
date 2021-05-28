@@ -83,8 +83,10 @@ if [ -n "$(awk '{if ($2=="/boot/efi") printf("%s\n",$1);}' $PATH_FSTAB)" ]; then
 
 	bootlabel="FreeBSD"
 
-	f_dprintf "Creating UEFI boot entry"
-	efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+	if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
+		f_dprintf "Creating UEFI boot entry"
+		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
+	fi
 
 	f_dprintf "Finished configuring ESP"
 fi
