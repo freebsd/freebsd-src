@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,9 +28,10 @@
 #include "smartpqi_includes.h"
 
 /*
- * Populate hostwell time variables in bcd format from FreeBSD format 
+ * Populate hostwellness time variables in bcd format from FreeBSD format
  */
-void os_get_time(struct bmic_host_wellness_time *host_wellness_time)
+void
+os_get_time(struct bmic_host_wellness_time *host_wellness_time)
 {
 	struct timespec ts;
 	struct clocktime ct;
@@ -49,13 +49,14 @@ void os_get_time(struct bmic_host_wellness_time *host_wellness_time)
 	host_wellness_time->century = (uint8_t)bin2bcd(ct.year / 100);
 	host_wellness_time->year = (uint8_t)bin2bcd(ct.year % 100);
 
-}	
+}
 
 /*
  * Update host time to f/w every 24 hours in a periodic timer.
  */
 
-void os_wellness_periodic(void *data)
+void
+os_wellness_periodic(void *data)
 {
 	struct pqisrc_softstate *softs = (struct pqisrc_softstate *)data;
 	int ret = 0;
@@ -67,14 +68,15 @@ void os_wellness_periodic(void *data)
 	}
 
 	/* reschedule ourselves */
-	callout_schedule(&softs->os_specific.wellness_periodic,
-	    OS_HOST_WELLNESS_TIMEOUT * hz);
+	callout_reset(&softs->os_specific.wellness_periodic,
+			PQI_HOST_WELLNESS_TIMEOUT_SEC * hz, os_wellness_periodic, softs);
 }
 
 /*
  * Routine used to stop the heart-beat timer
  */
-void os_stop_heartbeat_timer(pqisrc_softstate_t *softs)
+void
+os_stop_heartbeat_timer(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
 
@@ -87,7 +89,8 @@ void os_stop_heartbeat_timer(pqisrc_softstate_t *softs)
 /*
  * Routine used to start the heart-beat timer
  */
-void os_start_heartbeat_timer(void *data)
+void
+os_start_heartbeat_timer(void *data)
 {
 	struct pqisrc_softstate *softs = (struct pqisrc_softstate *)data;
 	DBG_FUNC("IN\n");
@@ -95,8 +98,8 @@ void os_start_heartbeat_timer(void *data)
 	pqisrc_heartbeat_timer_handler(softs);
 	if (!pqisrc_ctrl_offline(softs)) {
 		callout_reset(&softs->os_specific.heartbeat_timeout_id,
-			      OS_FW_HEARTBEAT_TIMER_INTERVAL * hz,
-			      os_start_heartbeat_timer, softs);
+				PQI_HEARTBEAT_TIMEOUT_SEC * hz,
+				os_start_heartbeat_timer, softs);
 	}
 
        DBG_FUNC("OUT\n");
@@ -105,48 +108,49 @@ void os_start_heartbeat_timer(void *data)
 /*
  * Mutex initialization function
  */
-int os_init_spinlock(struct pqisrc_softstate *softs, struct mtx *lock, 
+int
+os_init_spinlock(struct pqisrc_softstate *softs, struct mtx *lock,
 			char *lockname)
 {
-    mtx_init(lock, lockname, NULL, MTX_SPIN);
-    return 0;
-
+	mtx_init(lock, lockname, NULL, MTX_SPIN);
+	return 0;
 }
 
 /*
  * Mutex uninitialization function
  */
-void os_uninit_spinlock(struct mtx *lock)
+void
+os_uninit_spinlock(struct mtx *lock)
 {
-    mtx_destroy(lock);
-    return;
-
+	mtx_destroy(lock);
+	return;
 }
 
 /*
  * Semaphore initialization function
  */
-int os_create_semaphore(const char *name, int value, struct sema *sema)
+int
+os_create_semaphore(const char *name, int value, struct sema *sema)
 {
-    sema_init(sema, value, name);
-    return PQI_STATUS_SUCCESS;
-
+	sema_init(sema, value, name);
+	return PQI_STATUS_SUCCESS;
 }
 
 /*
  * Semaphore uninitialization function
  */
-int os_destroy_semaphore(struct sema *sema)
+int
+os_destroy_semaphore(struct sema *sema)
 {
-    sema_destroy(sema);
-    return PQI_STATUS_SUCCESS;
-
+	sema_destroy(sema);
+	return PQI_STATUS_SUCCESS;
 }
 
 /*
  * Semaphore grab function
  */
-void inline os_sema_lock(struct sema *sema)
+void inline
+os_sema_lock(struct sema *sema)
 {
 	sema_post(sema);
 }
@@ -154,7 +158,8 @@ void inline os_sema_lock(struct sema *sema)
 /*
  * Semaphore release function
  */
-void inline os_sema_unlock(struct sema *sema)
+void inline
+os_sema_unlock(struct sema *sema)
 {
 	sema_wait(sema);
 }
@@ -162,7 +167,17 @@ void inline os_sema_unlock(struct sema *sema)
 /*
  * string copy wrapper function
  */
-int os_strlcpy(char *dst, char *src, int size)
+int
+os_strlcpy(char *dst, char *src, int size)
 {
 	return strlcpy(dst, src, size);
+}
+
+int
+bsd_status_to_pqi_status(int bsd_status)
+{
+	if (bsd_status == BSD_SUCCESS)
+		return PQI_STATUS_SUCCESS;
+	else
+		return PQI_STATUS_FAILURE;
 }

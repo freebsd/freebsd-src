@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,8 +27,9 @@
 
 #include "smartpqi_includes.h"
 
-/* */
-void sis_disable_msix(pqisrc_softstate_t *softs)
+/* Function for disabling msix interrupots */
+void
+sis_disable_msix(pqisrc_softstate_t *softs)
 {
 	uint32_t db_reg;
 
@@ -44,25 +44,27 @@ void sis_disable_msix(pqisrc_softstate_t *softs)
 	DBG_FUNC("OUT\n");
 }
 
-void sis_enable_intx(pqisrc_softstate_t *softs)
+void
+sis_enable_intx(pqisrc_softstate_t *softs)
 {
 	uint32_t db_reg;
 
 	DBG_FUNC("IN\n");
 
 	db_reg = PCI_MEM_GET32(softs, &softs->ioa_reg->host_to_ioa_db,
-			LEGACY_SIS_IDBR);
+		LEGACY_SIS_IDBR);
 	db_reg |= SIS_ENABLE_INTX;
 	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, db_reg);
-	if (pqisrc_sis_wait_for_db_bit_to_clear(softs,SIS_ENABLE_INTX) 
-			!= PQI_STATUS_SUCCESS) {
+	if (pqisrc_sis_wait_for_db_bit_to_clear(softs,SIS_ENABLE_INTX)
+		!= PQI_STATUS_SUCCESS) {
 		DBG_ERR("Failed to wait for enable intx db bit to clear\n");
 	}
 	DBG_FUNC("OUT\n");
 }
 
-void sis_disable_intx(pqisrc_softstate_t *softs)
+void
+sis_disable_intx(pqisrc_softstate_t *softs)
 {
 	uint32_t db_reg;
 
@@ -77,7 +79,8 @@ void sis_disable_intx(pqisrc_softstate_t *softs)
 	DBG_FUNC("OUT\n");
 }
 
-void sis_disable_interrupt(pqisrc_softstate_t *softs)
+void
+sis_disable_interrupt(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN");
 
@@ -98,26 +101,29 @@ void sis_disable_interrupt(pqisrc_softstate_t *softs)
 	DBG_FUNC("OUT");
 }
 
+
 /* Trigger a NMI as part of taking controller offline procedure */
-void pqisrc_trigger_nmi_sis(pqisrc_softstate_t *softs)
+void
+pqisrc_trigger_nmi_sis(pqisrc_softstate_t *softs)
 {
 
 	DBG_FUNC("IN\n");
 
-	PCI_MEM_PUT32(softs,  &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs,  &softs->ioa_reg->host_to_ioa_db,
 			LEGACY_SIS_IDBR, LE_32(TRIGGER_NMI_SIS));
 	DBG_FUNC("OUT\n");
 }
 
 /* Switch the adapter back to SIS mode during uninitialization */
-int pqisrc_reenable_sis(pqisrc_softstate_t *softs)
+int
+pqisrc_reenable_sis(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t timeout = SIS_ENABLE_TIMEOUT;
 
 	DBG_FUNC("IN\n");
 
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
         LEGACY_SIS_IDBR, LE_32(REENABLE_SIS));
 
 	COND_WAIT(((PCI_MEM_GET32(softs, &softs->ioa_reg->ioa_to_host_db, LEGACY_SIS_ODBR_R) &
@@ -126,13 +132,14 @@ int pqisrc_reenable_sis(pqisrc_softstate_t *softs)
 		DBG_WARN(" [ %s ] failed to re enable sis\n",__func__);
 		ret = PQI_STATUS_TIMEOUT;
 	}
-		
+
 	DBG_FUNC("OUT\n");
 	return ret;
 }
 
 /* Validate the FW status PQI_CTRL_KERNEL_UP_AND_RUNNING */
-int pqisrc_check_fw_status(pqisrc_softstate_t *softs)
+int
+pqisrc_check_fw_status(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t timeout = SIS_STATUS_OK_TIMEOUT;
@@ -152,8 +159,8 @@ int pqisrc_check_fw_status(pqisrc_softstate_t *softs)
 }
 
 /* Function used to submit a SIS command to the adapter */
-static int pqisrc_send_sis_cmd(pqisrc_softstate_t *softs,
-					uint32_t *mb)
+static int
+pqisrc_send_sis_cmd(pqisrc_softstate_t *softs, uint32_t *mb)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	int i = 0;
@@ -163,16 +170,18 @@ static int pqisrc_send_sis_cmd(pqisrc_softstate_t *softs,
 
 	DBG_FUNC("IN\n");
 
+
 	/* Copy Command to mailbox */
 	for (i = 0; i < 6; i++)
-		PCI_MEM_PUT32(softs, &softs->ioa_reg->mb[i], 
+		PCI_MEM_PUT32(softs, &softs->ioa_reg->mb[i],
             LEGACY_SIS_SRCV_MAILBOX+i*4, LE_32(mb[i]));
-    
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->ioa_to_host_db_clr, 
+
+	/* TODO : Switch to INTX Mode ?*/
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->ioa_to_host_db_clr,
 		LEGACY_SIS_ODBR_R, LE_32(0x1000));
 
 	/* Submit the command */
-	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db, 
+	PCI_MEM_PUT32(softs, &softs->ioa_reg->host_to_ioa_db,
 		LEGACY_SIS_IDBR, LE_32(SIS_CMD_SUBMIT));
 
 #ifdef SIS_POLL_WAIT
@@ -214,7 +223,8 @@ err_out:
 }
 
 /* First SIS command for the adapter to check PQI support */
-int pqisrc_get_adapter_properties(pqisrc_softstate_t *softs,
+int
+pqisrc_get_adapter_properties(pqisrc_softstate_t *softs,
 				uint32_t *prop, uint32_t *ext_prop)
 {
 	int ret = PQI_STATUS_SUCCESS;
@@ -236,7 +246,8 @@ int pqisrc_get_adapter_properties(pqisrc_softstate_t *softs,
 }
 
 /* Second SIS command to the adapter GET_COMM_PREFERRED_SETTINGS */
-int pqisrc_get_preferred_settings(pqisrc_softstate_t *softs)
+int
+pqisrc_get_preferred_settings(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t mb[6] = {0};
@@ -260,7 +271,8 @@ int pqisrc_get_preferred_settings(pqisrc_softstate_t *softs)
 }
 
 /* Get supported PQI capabilities from the adapter */
-int pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
+int
+pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t mb[6] = {0};
@@ -276,6 +288,8 @@ int pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
 		softs->pqi_cap.conf_tab_off = mb[4];
 		softs->pqi_cap.conf_tab_sz =  mb[5];
 
+		os_update_dma_attributes(softs);
+
 		DBG_INIT("max_sg_elem = %x\n",
 					softs->pqi_cap.max_sg_elem);
 		DBG_INIT("max_transfer_size = %x\n",
@@ -289,7 +303,8 @@ int pqisrc_get_sis_pqi_cap(pqisrc_softstate_t *softs)
 }
 
 /* Send INIT STRUCT BASE ADDR - one of the SIS command */
-int pqisrc_init_struct_base(pqisrc_softstate_t *softs)
+int
+pqisrc_init_struct_base(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t elem_size = 0;
@@ -369,7 +384,8 @@ err_out:
  * - GET_PQI_CAPABILITIES
  * - INIT_STRUCT_BASE ADDR
  */
-int pqisrc_sis_init(pqisrc_softstate_t *softs)
+int
+pqisrc_sis_init(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t prop = 0;
@@ -421,34 +437,51 @@ int pqisrc_sis_init(pqisrc_softstate_t *softs)
 		goto err_out;
 	}
 
+	/* We need to allocate DMA memory here ,
+	 * Do any os specific DMA setup.
+	 */
+	ret = os_dma_setup(softs);
+	if (ret) {
+		DBG_ERR("Failed to Setup DMA\n");
+		goto err_out;
+	}
+
 	/* Init struct base addr */
 	ret = pqisrc_init_struct_base(softs);
 	if (ret) {
 		DBG_ERR("Failed to set init struct base addr\n");
-		goto err_out;
+		goto err_dma;
 	}
+
 
 	DBG_FUNC("OUT\n");
 	return ret;
 
+err_dma:
+	os_dma_destroy(softs);
 err_out:
 	DBG_FUNC("OUT failed\n");
 	return ret;
 }
 
 /* Deallocate the resources used during SIS initialization */
-void pqisrc_sis_uninit(pqisrc_softstate_t *softs)
+void
+pqisrc_sis_uninit(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
 
 	os_dma_mem_free(softs, &softs->err_buf_dma_mem);
+
+	os_dma_destroy(softs);
 	os_resource_free(softs);
 	pqi_reset(softs);
+
 
 	DBG_FUNC("OUT\n");
 }
 
-int pqisrc_sis_wait_for_db_bit_to_clear(pqisrc_softstate_t *softs, uint32_t bit)
+int
+pqisrc_sis_wait_for_db_bit_to_clear(pqisrc_softstate_t *softs, uint32_t bit)
 {
 	int rcode = PQI_STATUS_SUCCESS;
 	uint32_t db_reg;

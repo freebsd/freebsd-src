@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +31,7 @@
 /* IOCTL passthrough macros and structures */
 
 #define SENSEINFOBYTES	32              /* note that this value may vary
- 										 between host implementations */
+					   between host implementations */
 
 /* transfer direction */
 #define PQIIOCTL_NONE			0x00
@@ -40,11 +39,13 @@
 #define PQIIOCTL_READ			0x02
 #define PQIIOCTL_BIDIRECTIONAL		(PQIIOCTL_READ | PQIIOCTL_WRITE)
 
+
 /* Type defs used in the following structs */
 #define BYTE  	uint8_t
 #define WORD  	uint16_t
 #define HWORD 	uint16_t
 #define DWORD 	uint32_t
+
 
 /* Command List Structure */
 typedef union _SCSI3Addr_struct {
@@ -72,14 +73,14 @@ typedef struct _PhysDevAddr_struct {
 	 DWORD			   Bus:6;
 	 DWORD			   Mode:2;
 	 SCSI3Addr_struct  Target[2]; 	/* 2 level target device addr */
-    
+
 }OS_ATTRIBUTE_PACKED PhysDevAddr_struct;
 
 typedef struct _LogDevAddr_struct {
 	 DWORD			  VolId:30;
 	 DWORD			  Mode:2;
 	 BYTE			  reserved[4];
-    
+
 }OS_ATTRIBUTE_PACKED LogDevAddr_struct;
 
 typedef union _LUNAddr_struct {
@@ -91,7 +92,7 @@ typedef union _LUNAddr_struct {
 }OS_ATTRIBUTE_PACKED LUNAddr_struct;
 
 typedef struct _RequestBlock_struct {
-    BYTE  CDBLen;
+	BYTE  CDBLen;
     struct {
       BYTE Type:3;
       BYTE Attribute:3;
@@ -100,13 +101,13 @@ typedef struct _RequestBlock_struct {
     HWORD  Timeout;
     BYTE   CDB[16];
 
-}OS_ATTRIBUTE_PACKED RequestBlock_struct; 
+}OS_ATTRIBUTE_PACKED RequestBlock_struct;
 
 typedef union _MoreErrInfo_struct{
    struct {
-    BYTE  Reserved[3];
-    BYTE  Type;
-    DWORD ErrorInfo;
+     BYTE  Reserved[3];
+     BYTE  Type;
+     DWORD ErrorInfo;
    } Common_Info;
    struct{
      BYTE  Reserved[2];
@@ -127,13 +128,15 @@ typedef struct _ErrorInfo_struct {
 
 }OS_ATTRIBUTE_PACKED ErrorInfo_struct;
 
+
 typedef struct pqi_ioctl_passthruCmd_struct {
 	LUNAddr_struct           LUN_info;
 	RequestBlock_struct      Request;
-	ErrorInfo_struct         error_info; 
+	ErrorInfo_struct         error_info;
    	WORD                     buf_size;  /* size in bytes of the buf */
 	passthru_buf_type_t		buf;
 
 }OS_ATTRIBUTE_PACKED IOCTL_Command_struct;
+
 
 #endif  /* _PQI_IOCTL_H_ */

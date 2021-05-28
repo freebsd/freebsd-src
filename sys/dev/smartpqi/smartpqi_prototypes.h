@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,8 +37,8 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *);
 int pqisrc_process_config_table(pqisrc_softstate_t *);
 int pqisrc_flush_cache(pqisrc_softstate_t *, enum pqisrc_flush_cache_event_type);
 int pqisrc_wait_for_pqi_reset_completion(pqisrc_softstate_t *);
-int pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *);
-void pqisrc_complete_internal_cmds(pqisrc_softstate_t *);
+inline boolean_t pqisrc_is_firmware_feature_enabled(pqisrc_softstate_t *,
+		struct pqi_conf_table_firmware_features *, uint16_t );
 
 /* pqi_sis.c*/
 int pqisrc_sis_init(pqisrc_softstate_t *);
@@ -52,6 +51,7 @@ void sis_disable_intx(pqisrc_softstate_t *softs);
 int pqisrc_force_sis(pqisrc_softstate_t *);
 int pqisrc_sis_wait_for_db_bit_to_clear(pqisrc_softstate_t *, uint32_t);
 void sis_disable_interrupt(pqisrc_softstate_t*);
+
 
 /* pqi_queue.c */
 int pqisrc_submit_admin_req(pqisrc_softstate_t *,
@@ -90,11 +90,16 @@ void pqisrc_free_device(pqisrc_softstate_t * softs,pqi_scsi_dev_t *device);
 void pqisrc_init_targetid_pool(pqisrc_softstate_t *softs);
 int pqisrc_alloc_tid(pqisrc_softstate_t *softs);
 void pqisrc_free_tid(pqisrc_softstate_t *softs, int);
+int pqisrc_get_physical_logical_luns(pqisrc_softstate_t *softs, uint8_t cmd,
+                reportlun_data_ext_t **buff, size_t *data_length);
+int pqisrc_send_scsi_inquiry(pqisrc_softstate_t *softs,
+	uint8_t *scsi3addr, uint16_t vpd_page, uint8_t *buff, int buf_len);
 
 /* pqi_helper.c */
 boolean_t pqisrc_ctrl_offline(pqisrc_softstate_t *);
 void pqisrc_heartbeat_timer_handler(pqisrc_softstate_t *);
-int pqisrc_wait_on_condition(pqisrc_softstate_t *, rcb_t *);
+int pqisrc_wait_on_condition(pqisrc_softstate_t *softs, rcb_t *rcb,
+	uint32_t timeout);
 boolean_t pqisrc_device_equal(pqi_scsi_dev_t *, pqi_scsi_dev_t *);
 boolean_t pqisrc_is_hba_lunid(uint8_t *);
 boolean_t pqisrc_is_logical_device(pqi_scsi_dev_t *);
@@ -104,6 +109,14 @@ boolean_t pqisrc_scsi3addr_equal(uint8_t *, uint8_t *);
 void check_struct_sizes(void);
 char *pqisrc_raidlevel_to_string(uint8_t);
 void pqisrc_configure_legacy_intx(pqisrc_softstate_t*, boolean_t);
+void pqisrc_ctrl_diagnostic_options(pqisrc_softstate_t *);
+void pqisrc_wait_for_device_commands_to_complete(pqisrc_softstate_t *,
+		pqi_scsi_dev_t *);
+void check_device_pending_commands_to_complete(pqisrc_softstate_t *,
+		pqi_scsi_dev_t *);
+uint32_t pqisrc_count_num_scsi_active_requests_on_dev(pqisrc_softstate_t *,
+		pqi_scsi_dev_t *);
+
 
 /* pqi_response.c */
 void pqisrc_signal_event(pqisrc_softstate_t *softs, rcb_t *rcb);
@@ -113,32 +126,40 @@ void pqisrc_process_internal_raid_response_error(pqisrc_softstate_t *,
                                           rcb_t *, uint16_t);
 void pqisrc_process_io_response_success(pqisrc_softstate_t *,
 		rcb_t *);
+void pqisrc_show_sense_data_full(pqisrc_softstate_t *, rcb_t *, sense_data_u_t *sense_data);
 void pqisrc_process_aio_response_error(pqisrc_softstate_t *,
 		rcb_t *, uint16_t);
 void pqisrc_process_raid_response_error(pqisrc_softstate_t *,
 		rcb_t *, uint16_t);
 void pqisrc_process_response_queue(pqisrc_softstate_t *, int);
 
+
+
 /* pqi_request.c */
+int pqisrc_build_send_vendor_request(pqisrc_softstate_t*,
+							pqi_vendor_general_request_t *,
+							raid_path_error_info_elem_t *);
 int pqisrc_build_send_io(pqisrc_softstate_t *,rcb_t *);
+
 
 int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 				pqi_scsi_dev_t *device, rcb_t *rcb, uint8_t*);
 
+
 int pqisrc_send_tmf(pqisrc_softstate_t *, pqi_scsi_dev_t *,
-                    rcb_t *, int, int);
+                    rcb_t *, rcb_t *, int);
 int pqisrc_write_current_time_to_host_wellness(pqisrc_softstate_t *softs);
 int pqisrc_write_driver_version_to_host_wellness(pqisrc_softstate_t *softs);
+void pqisrc_print_buffer(pqisrc_softstate_t *softs, char *msg, void *user_buf, uint32_t total_len, uint32_t flags);
+char *io_path_to_ascii(IO_PATH_T path);
 
 /* pqi_event.c*/
 int pqisrc_report_event_config(pqisrc_softstate_t *);
 int pqisrc_set_event_config(pqisrc_softstate_t *);
 int pqisrc_process_event_intr_src(pqisrc_softstate_t *,int);
 void pqisrc_ack_all_events(void *arg);
+void pqisrc_wait_for_rescan_complete(pqisrc_softstate_t *softs);
 
-void pqisrc_event_worker(void *, int);
-int pqisrc_scsi_setup(struct pqisrc_softstate *);
-void pqisrc_scsi_cleanup(struct pqisrc_softstate *);
 boolean_t pqisrc_update_scsi_sense(const uint8_t *, int,
                               struct sense_header_scsi *);
 int pqisrc_build_send_raid_request(pqisrc_softstate_t *,  pqisrc_raid_req_t *,
@@ -188,12 +209,23 @@ int pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *);
 int pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *);
 int pqisrc_process_task_management_response(pqisrc_softstate_t *,
                                 pqi_tmf_resp_t *);
-void pqisrc_wait_for_rescan_complete(pqisrc_softstate_t *softs);
+
+/*Device outstanding Io count*/
+uint64_t pqisrc_increment_device_active_io(pqisrc_softstate_t *,
+				    pqi_scsi_dev_t *);
+uint64_t pqisrc_decrement_device_active_io(pqisrc_softstate_t *,
+				    pqi_scsi_dev_t *);
+void pqisrc_init_device_active_io(pqisrc_softstate_t *,
+				    pqi_scsi_dev_t *);
+uint64_t pqisrc_read_device_active_io(pqisrc_softstate_t *,
+				    pqi_scsi_dev_t *);
 
 /* pqi_ioctl.c*/
 
 int
 pqisrc_passthru_ioctl(struct pqisrc_softstate *, void *, int);
+
+
 
 /* Functions Prototypes */
 /* FreeBSD_mem.c */
@@ -202,6 +234,9 @@ void os_dma_mem_free(pqisrc_softstate_t *,struct dma_mem *);
 void *os_mem_alloc(pqisrc_softstate_t *,size_t);
 void os_mem_free(pqisrc_softstate_t *,char *,size_t);
 void os_resource_free(pqisrc_softstate_t *);
+int os_dma_setup(pqisrc_softstate_t *);
+int os_dma_destroy(pqisrc_softstate_t *);
+void os_update_dma_attributes(pqisrc_softstate_t *);
 
 /* FreeBSD intr.c */
 int os_get_intr_config(pqisrc_softstate_t *);
@@ -217,7 +252,7 @@ int os_copy_from_user(struct pqisrc_softstate *, void *,
                 void *, int, int);
 int create_char_dev(struct pqisrc_softstate *, int);
 void destroy_char_dev(struct pqisrc_softstate *);
-
+ 
 /* FreeBSD_misc.c*/ 
 int os_init_spinlock(struct pqisrc_softstate *, struct mtx *, char *);
 void os_uninit_spinlock(struct mtx *);
@@ -233,16 +268,18 @@ void os_start_heartbeat_timer(void *);
 
 /* FreeBSD_cam.c */
 uint8_t os_get_task_attr(rcb_t *);
-void os_wellness_periodic(void *);
 void smartpqi_target_rescan(struct pqisrc_softstate *);
+void os_rescan_target(struct pqisrc_softstate *, pqi_scsi_dev_t *);
 
 /* FreeBSD_intr.c FreeBSD_main.c */
+void pqisrc_event_worker(void *, int);
 void os_add_device(pqisrc_softstate_t *, pqi_scsi_dev_t *);
 void os_remove_device(pqisrc_softstate_t *, pqi_scsi_dev_t *); 
 void os_io_response_success(rcb_t *);
 void os_aio_response_error(rcb_t *, aio_path_error_info_elem_t *);
 void smartpqi_adjust_queue_depth(struct cam_path *, uint32_t );
 void os_raid_response_error(rcb_t *, raid_path_error_info_elem_t *);
+void os_wellness_periodic(void *);
 void os_reset_rcb( rcb_t *);
 int register_sim(struct pqisrc_softstate *, int);
 void deregister_sim(struct pqisrc_softstate *);
@@ -255,6 +292,8 @@ void deregister_pqi_msix(pqisrc_softstate_t *);
 void os_get_time(struct bmic_host_wellness_time *);
 void os_eventtaskqueue_enqueue(pqisrc_softstate_t *);
 void pqisrc_save_controller_info(struct pqisrc_softstate *);
-int smartpqi_shutdown(void *);
+
+/* Domain status conversion */
+int bsd_status_to_pqi_status(int );
 
 #endif // _SMARTPQI_PROTOTYPES_H
