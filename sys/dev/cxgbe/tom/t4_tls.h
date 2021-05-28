@@ -33,49 +33,7 @@
 #ifndef __T4_TLS_H__
 #define __T4_TLS_H__
 
-#define TLS1_VERSION                    0x0301
-#define TLS1_1_VERSION                  0x0302
-#define TLS1_2_VERSION                  0x0303
-#define TLS_MAX_VERSION                 TLS1_2_VERSION
-
-#define DTLS1_VERSION                   0xFEFF
-#define DTLS1_2_VERSION                 0xFEFD
-#define DTLS_MAX_VERSION                DTLS1_2_VERSION
-#define DTLS1_VERSION_MAJOR             0xFE
-
-/* Custom socket options for TLS+TOE. */
-
-#define MAX_MAC_KSZ		64	/*512 bits */
-#define MAX_CIPHER_KSZ		32	/* 256 bits */
-#define CIPHER_BLOCK_SZ		16
 #define SALT_SIZE		4
-
-/* Can accomodate 16, 11-15 are reserved */
-enum {
-    CHSSL_SHA_NOP,
-    CHSSL_SHA1,
-    CHSSL_SHA224,
-    CHSSL_SHA256,
-    CHSSL_GHASH,
-    CHSSL_SHA512_224,
-    CHSSL_SHA512_256,
-    CHSSL_SHA512_384,
-    CHSSL_SHA512_512,
-    CHSSL_CBCMAC,
-    CHSSL_CMAC,
-};
-
-/* Can accomodate 16, 8-15 are reserved */
-enum {
-    CHSSL_CIPH_NOP,
-    CHSSL_AES_CBC,
-    CHSSL_AES_GCM,
-    CHSSL_AES_CTR,
-    CHSSL_AES_GEN,
-    CHSSL_IPSEC_ESP,
-    CHSSL_AES_XTS,
-    CHSSL_AES_CCM,
-};
 
 /* Key Context Programming Operation type */
 #define KEY_WRITE_RX			0x1
@@ -94,73 +52,6 @@ enum {
 #define V_KEY_GET_LOC(x)        ((x) << S_KEY_GET_LOC)
 #define G_KEY_GET_LOC(x)        (((x) >> S_KEY_GET_LOC) & M_KEY_GET_LOC)
 
-struct tls_ofld_state {
-    unsigned char enc_mode;
-    unsigned char mac_mode;
-    unsigned char key_loc;
-    unsigned char ofld_mode;
-    unsigned char auth_mode;
-    unsigned char resv[3];
-};
-
-struct tls_tx_ctxt {
-    unsigned char   salt[SALT_SIZE];
-    unsigned char key[MAX_CIPHER_KSZ];
-    unsigned char ipad[MAX_MAC_KSZ];
-    unsigned char opad[MAX_MAC_KSZ];
-};
-
-struct tls_rx_ctxt {
-    unsigned char   salt[SALT_SIZE];
-    unsigned char key[MAX_CIPHER_KSZ];
-    unsigned char ipad[MAX_MAC_KSZ];
-    unsigned char opad[MAX_MAC_KSZ];
-};
-
-struct tls_key_context {
-    struct tls_tx_ctxt tx;
-    struct tls_rx_ctxt rx;
-
-    unsigned char l_p_key;
-    unsigned char hmac_ctrl;
-    unsigned char mac_first;
-    unsigned char iv_size;
-    unsigned char iv_ctrl;
-    unsigned char iv_algo;
-    unsigned char tx_seq_no;
-    unsigned char rx_seq_no;
-
-    struct tls_ofld_state state;
-
-    unsigned int tx_key_info_size;
-    unsigned int rx_key_info_size;
-    unsigned int frag_size;
-    unsigned int mac_secret_size;
-    unsigned int cipher_secret_size;
-    int proto_ver;
-    unsigned int sock_fd;
-    unsigned short dtls_epoch;
-    unsigned short rsv;
-};
-
-/* Set with 'struct tls_key_context'. */
-#define	TCP_TLSOM_SET_TLS_CONTEXT	(TCP_VENDOR)
-
-/* Get returns int of enabled (1) / disabled (0). */
-#define	TCP_TLSOM_GET_TLS_TOM		(TCP_VENDOR + 1)
-
-enum {
-	TLS_TOM_NONE = 0,
-	TLS_TOM_TXONLY,
-	TLS_TOM_BOTH
-};
-
-/* Set with no value. */
-#define	TCP_TLSOM_CLR_TLS_TOM		(TCP_VENDOR + 2)
-
-/* Set with no value. */
-#define	TCP_TLSOM_CLR_QUIES		(TCP_VENDOR + 3)
-
 #ifdef _KERNEL
 /* Timeouts for handshake timer in seconds. */
 #define TLS_SRV_HELLO_DONE		9
@@ -175,49 +66,11 @@ enum {
 #define CONTENT_TYPE_KEY_CONTEXT	32
 #define CONTENT_TYPE_ERROR		127
 
-#define GCM_TAG_SIZE			16
-#define AEAD_EXPLICIT_DATA_SIZE		8
 #define TLS_HEADER_LENGTH		5
 #define TP_TX_PG_SZ			65536
 #define FC_TP_PLEN_MAX			17408
 
-#define IPAD_SIZE			64
-#define OPAD_SIZE			64
-#define KEY_SIZE			32
-#define CIPHER_BLOCK_SIZE		16
-#define HDR_KCTX_SIZE   (IPAD_SIZE + OPAD_SIZE + KEY_SIZE)
-
-#define KEY_IN_DDR_SIZE			16
-#define	TLS_KEY_CONTEXT_SZ	roundup2(sizeof(struct tls_tx_ctxt), 32)
-
-/* MAC KEY SIZE */
-#define SHA_NOP				0
-#define SHA_GHASH			16
-#define SHA_224				28
-#define SHA_256				32
-#define SHA_384				48
-#define SHA_512				64
-#define SHA1				20
-
-/* CIPHER KEY SIZE */
-#define AES_NOP				0
-#define AES_128				16
-#define AES_192				24
-#define AES_256				32
-
-enum {
-	TLS_1_2_VERSION,
-	TLS_1_1_VERSION,
-	DTLS_1_2_VERSION,
-	TLS_VERSION_MAX,
-};
-
-enum {
-	CH_EVP_CIPH_STREAM_CIPHER,
-	CH_EVP_CIPH_CBC_MODE,
-	CH_EVP_CIPH_GCM_MODE,
-	CH_EVP_CIPH_CTR_MODE,
-};
+#define	TLS_KEY_CONTEXT_SZ	roundup2(sizeof(struct tls_keyctx), 32)
 
 enum {
 	TLS_SFO_WR_CONTEXTLOC_DSGL,
@@ -233,49 +86,26 @@ enum {
 	CPL_TX_TLS_SFO_TYPE_CUSTOM,
 };
 
-enum {
-	CH_CK_SIZE_128,
-	CH_CK_SIZE_192,
-	CH_CK_SIZE_256,
-	CH_CK_SIZE_NOP,
-};
-
-enum {
-	CH_MK_SIZE_128,
-	CH_MK_SIZE_160,
-	CH_MK_SIZE_192,
-	CH_MK_SIZE_256,
-	CH_MK_SIZE_512,
-	CH_MK_SIZE_NOP,
-};
-
 struct tls_scmd {
 	__be32 seqno_numivs;
 	__be32 ivgen_hdrlen;
 };
 
-enum tls_mode {
-	TLS_MODE_OFF,
-	TLS_MODE_TLSOM,
-	TLS_MODE_KTLS,
-};
-
 struct tls_ofld_info {
-	struct tls_key_context k_ctx;
+	unsigned int frag_size;
 	int key_location;
-	int mac_length;
 	int rx_key_addr;
 	int tx_key_addr;
 	uint64_t tx_seq_no;
+	uint16_t rx_version;
 	unsigned short fcplenmax;
 	unsigned short adjusted_plen;
 	unsigned short expn_per_ulp;
 	unsigned short pdus_per_ulp;
 	struct tls_scmd scmd0;
 	u_int iv_len;
-	enum tls_mode mode;
+	unsigned int tx_key_info_size;
 	struct callout handshake_timer;
-	u_int sb_off;
 };
 
 struct tls_key_req {

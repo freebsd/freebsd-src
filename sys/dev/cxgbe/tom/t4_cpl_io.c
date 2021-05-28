@@ -1265,12 +1265,8 @@ t4_push_data(struct adapter *sc, struct toepcb *toep, int drop)
 
 	if (ulp_mode(toep) == ULP_MODE_ISCSI)
 		t4_push_pdus(sc, toep, drop);
-	else if (tls_tx_key(toep) && toep->tls.mode == TLS_MODE_TLSOM)
-		t4_push_tls_records(sc, toep, drop);
-#ifdef KERN_TLS
 	else if (toep->flags & TPF_KTLS)
 		t4_push_ktls(sc, toep, drop);
-#endif
 	else
 		t4_push_frames(sc, toep, drop);
 }
@@ -1912,10 +1908,6 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		credits -= txsd->tx_credits;
 		toep->tx_credits += txsd->tx_credits;
 		plen += txsd->plen;
-		if (txsd->iv_buffer) {
-			free(txsd->iv_buffer, M_CXGBE);
-			txsd->iv_buffer = NULL;
-		}
 		txsd++;
 		toep->txsd_avail++;
 		KASSERT(toep->txsd_avail <= toep->txsd_total,
@@ -1966,13 +1958,6 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			    tid, plen);
 #endif
 			sbdrop_locked(sb, plen);
-			if (tls_tx_key(toep) &&
-			    toep->tls.mode == TLS_MODE_TLSOM) {
-				struct tls_ofld_info *tls_ofld = &toep->tls;
-
-				MPASS(tls_ofld->sb_off >= plen);
-				tls_ofld->sb_off -= plen;
-			}
 			if (!TAILQ_EMPTY(&toep->aiotx_jobq))
 				t4_aiotx_queue_toep(so, toep);
 			sowwakeup_locked(so);	/* unlocks so_snd */

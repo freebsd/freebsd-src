@@ -122,7 +122,6 @@ struct conn_params {
 struct ofld_tx_sdesc {
 	uint32_t plen;		/* payload length */
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
-	void *iv_buffer;	/* optional buffer holding IVs for TLS */
 };
 
 struct ppod_region {
@@ -524,15 +523,12 @@ const struct offload_settings *lookup_offload_policy(struct adapter *, int,
 /* t4_tls.c */
 bool can_tls_offload(struct adapter *);
 void do_rx_data_tls(const struct cpl_rx_data *, struct toepcb *, struct mbuf *);
-int t4_ctloutput_tls(struct socket *, struct sockopt *);
-void t4_push_tls_records(struct adapter *, struct toepcb *, int);
 void t4_push_ktls(struct adapter *, struct toepcb *, int);
 void t4_tls_mod_load(void);
 void t4_tls_mod_unload(void);
 void tls_detach(struct toepcb *);
 void tls_establish(struct toepcb *);
 void tls_init_toep(struct toepcb *);
-int tls_rx_key(struct toepcb *);
 void tls_stop_handshake_timer(struct toepcb *);
 int tls_tx_key(struct toepcb *);
 void tls_uninit_toep(struct toepcb *);
