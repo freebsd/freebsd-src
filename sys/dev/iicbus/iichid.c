@@ -782,6 +782,9 @@ iichid_intr_setup(device_t dev, hid_intr_t intr, void *context,
 {
 	struct iichid_softc *sc;
 
+	if (intr == NULL)
+		return;
+
 	sc = device_get_softc(dev);
 	/*
 	 * Do not rely on wMaxInputLength, as some devices may set it to
