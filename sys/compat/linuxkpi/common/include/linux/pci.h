@@ -221,6 +221,7 @@ struct pci_dev {
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	struct pci_bus		*bus;
+	struct pci_dev		*root;
 	uint16_t		device;
 	uint16_t		vendor;
 	uint16_t		subsystem_vendor;
@@ -235,6 +236,10 @@ struct pci_dev {
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
+
+/* Internal helper function(s). */
+struct pci_dev *lkpinew_pci_dev(device_t);
+
 
 static inline struct resource_list_entry *
 linux_pci_get_rle(struct pci_dev *pdev, int type, int rid)
@@ -325,6 +330,15 @@ pci_set_drvdata(struct pci_dev *pdev, void *data)
 {
 
 	dev_set_drvdata(&pdev->dev, data);
+}
+
+static inline struct pci_dev *
+pci_dev_get(struct pci_dev *pdev)
+{
+
+	if (pdev != NULL)
+		get_device(&pdev->dev);
+	return (pdev);
 }
 
 static __inline void
@@ -494,6 +508,48 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 static inline int pci_pcie_cap(struct pci_dev *dev)
 {
 	return pci_find_capability(dev, PCI_CAP_ID_EXP);
+}
+
+static inline int
+pci_find_ext_capability(struct pci_dev *pdev, int capid)
+{
+	int reg;
+
+	if (pci_find_extcap(pdev->dev.bsddev, capid, &reg))
+		return (0);
+	return (reg);
+}
+
+#define	PCIM_PCAP_PME_SHIFT	11
+static __inline bool
+pci_pme_capable(struct pci_dev *pdev, uint32_t flag)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	if (flag > (PCIM_PCAP_D3PME_COLD >> PCIM_PCAP_PME_SHIFT))
+		return (false);
+
+	dinfo = device_get_ivars(pdev->dev.bsddev);
+	cfg = &dinfo->cfg;
+
+	if (cfg->pp.pp_cap == 0)
+		return (false);
+
+	if ((cfg->pp.pp_cap & (1 << (PCIM_PCAP_PME_SHIFT + flag))) != 0)
+		return (true);
+
+	return (false);
+}
+
+static inline int
+pci_disable_link_state(struct pci_dev *pdev, uint32_t flags)
+{
+
+	if (!pci_enable_aspm)
+		return (-EPERM);
+
+	return (-ENXIO);
 }
 
 static inline int
@@ -1050,6 +1106,38 @@ pcie_bandwidth_available(struct pci_dev *pdev,
 		*width = nwidth;
 
 	return (nwidth * PCIE_SPEED2MBS_ENC(nspeed));
+}
+
+static inline struct pci_dev *
+pcie_find_root_port(struct pci_dev *pdev)
+{
+	device_t root;
+
+	if (pdev->root != NULL)
+		return (pdev->root);
+
+	root = pci_find_pcie_root_port(pdev->dev.bsddev);
+	if (root == NULL)
+		return (NULL);
+
+	pdev->root = lkpinew_pci_dev(root);
+	return (pdev->root);
+}
+
+/* This is needed when people rip out the device "HotPlug". */
+static inline void
+pci_lock_rescan_remove(void)
+{
+}
+
+static inline void
+pci_unlock_rescan_remove(void)
+{
+}
+
+static __inline void
+pci_stop_and_remove_bus_device(struct pci_dev *pdev)
+{
 }
 
 /*
