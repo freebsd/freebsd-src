@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2021
+.Dd May 29, 2021
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -131,6 +131,7 @@ all the environment variables listed below, but is being prefixed with
 .Ev LD_32_ ,
 for example:
 .Ev LD_32_TRACE_LOADED_OBJECTS .
+If the activated image is setuid or setgid, the variables are ignored.
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
 .It Ev LD_DUMP_REL_POST
 If set,
@@ -313,6 +314,8 @@ The syntax of the direct invocation is
 .Op Fl b Ar exe
 .Op Fl f Ar fd
 .Op Fl p
+.Op Fl t
+.Op Fl v
 .Op Fl -
 .Pa image_path
 .Op Ar image arguments
@@ -353,6 +356,11 @@ character,
 uses the search path provided by the environment variable
 .Dv PATH
 to find the binary to execute.
+.It Fl t
+Ignore all
+.Ev LD_
+environment variables that otherwise affect the dynamic
+linker behavior.
 .It Fl v
 Display information about this run-time linker binary, then exit.
 .It Fl -
