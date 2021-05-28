@@ -5773,6 +5773,8 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp,
 				break;
 			} else if (opt == 'p') {
 				*use_pathp = true;
+			} else if (opt == 't') {
+				trust = false;
 			} else if (opt == 'v') {
 				machine[0] = '\0';
 				mib[0] = CTL_HW;
@@ -5843,6 +5845,7 @@ print_usage(const char *argv0)
 	    "  -b <exe>  Execute <exe> instead of <binary>, arg0 is <binary>\n"
 	    "  -f <FD>   Execute <FD> instead of searching for <binary>\n"
 	    "  -p        Search in PATH for named binary\n"
+	    "  -t        Ignore LD_ environment variables\n"
 	    "  -v        Display identification information\n"
 	    "  --        End of RTLD options\n"
 	    "  <binary>  Name of process to execute\n"
