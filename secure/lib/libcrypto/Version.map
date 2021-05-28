@@ -4450,7 +4450,22 @@ OPENSSL_1_1_1d {
     global:
         X509_get0_authority_issuer;
         X509_get0_authority_serial;
-    local: *;
 } OPENSSL_1_1_1c;
 
+OPENSSL_1_1_1e {
+    global:
+        EVP_PKEY_meth_get_digestsign;
+        EVP_PKEY_meth_get_digestverify;
+        EVP_PKEY_meth_set_digestsign;
+        EVP_PKEY_meth_set_digestverify;
+        RSA_get0_pss_params;
+} OPENSSL_1_1_1d;
 
+OPENSSL_1_1_1h {
+    global:
+        EC_KEY_decoded_from_explicit_params;
+        X509_ALGOR_copy;
+        X509_REQ_set0_signature;
+        X509_REQ_set1_signature_algo;
+    local: *;
+} OPENSSL_1_1_1e;
