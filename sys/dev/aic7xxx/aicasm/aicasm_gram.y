@@ -59,7 +59,7 @@
 #include "aicasm_symbol.h"
 #include "aicasm_insformat.h"
 
-int yylineno;
+extern int yylineno;
 char *yyfilename;
 char stock_prefix[] = "aic_";
 char *prefix = stock_prefix;
