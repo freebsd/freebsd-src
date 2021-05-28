@@ -44,8 +44,8 @@ INTERFACE hid;
 # rdesc is pointer to structire containing requested maximal sizes of input,
 # output and feature reports.  It is used by hardware transport drivers
 # to determine sizes of internal buffers.
-# This function returns zero upon success. A non-zero return value indicates
-# failure.
+# This function can be subsequently called with intr parameter set to NULL
+# to request intr_poll method support for transport driver.
 #
 METHOD void intr_setup {
 	device_t dev;
@@ -76,8 +76,9 @@ METHOD int intr_stop {
 };
 
 #
-# The following function gets called from the HID keyboard driver
-# when the system has paniced.
+# The following function gets called from the HID keyboard driver when
+# the system has paniced. intr_setup method with NULL passed as intr parameter
+# must be called once before to let transport driver to be prepared.
 #
 METHOD void intr_poll {
 	device_t dev;
