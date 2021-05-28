@@ -132,6 +132,21 @@ DUMMY(pwritev2);
 DUMMY(pkey_mprotect);
 DUMMY(pkey_alloc);
 DUMMY(pkey_free);
+DUMMY(open_tree);
+DUMMY(move_mount);
+DUMMY(fsopen);
+DUMMY(fsconfig);
+DUMMY(fsmount);
+DUMMY(fspick);
+DUMMY(pidfd_open);
+DUMMY(clone3);
+DUMMY(close_range);
+DUMMY(openat2);
+DUMMY(pidfd_getfd);
+DUMMY(faccessat2);
+DUMMY(process_madvise);
+DUMMY(epoll_pwait2);
+DUMMY(mount_setattr);
 
 #define DUMMY_XATTR(s)						\
 int								\
