@@ -59,12 +59,19 @@
 /* According to linux::ipoib_main.c. */
 struct netdev_notifier_info {
 	struct net_device	*dev;
+	struct ifnet		*ifp;
 };
 
 static inline struct net_device *
 netdev_notifier_info_to_dev(struct netdev_notifier_info *ni)
 {
 	return (ni->dev);
+}
+
+static inline struct ifnet *
+netdev_notifier_info_to_ifp(struct netdev_notifier_info *ni)
+{
+	return (ni->ifp);
 }
 
 int	register_netdevice_notifier(struct notifier_block *);
