@@ -424,43 +424,39 @@ cmp_out(struct alias_link *a, struct alias_link *b) {
 SPLAY_PROTOTYPE(splay_out, alias_link, all.out, cmp_out);
 SPLAY_GENERATE(splay_out, alias_link, all.out, cmp_out);
 
-#define INGUARD						\
-   if (grp->alias_port != alias_port ||			\
-       grp->link_type != link_type ||			\
-       grp->alias_addr.s_addr != alias_addr.s_addr)	\
-	continue;
+static inline int
+cmp_in(struct group_in *a, struct group_in *b) {
+	int i = a->alias_port - b->alias_port;
+	if (i != 0) return (i);
+	i = a->link_type - b->link_type;
+	if (i != 0) return (i);
+	i = a->alias_addr.s_addr - b->alias_addr.s_addr;
+	return (i);
+}
+SPLAY_PROTOTYPE(splay_in, group_in, in, cmp_in);
+SPLAY_GENERATE(splay_in, group_in, in, cmp_in);
 
 static struct group_in *
 StartPointIn(struct libalias *la,
     struct in_addr alias_addr, u_short alias_port, int link_type,
     int create)
 {
-	u_int n;
-	struct group_in *grp, *tmp;
+	struct group_in *grp;
+	struct group_in needle = {
+		.alias_addr = alias_addr,
+		.alias_port = alias_port,
+		.link_type = link_type
+	};
 
-	n = alias_addr.s_addr;
-	n += alias_port;
-	n += link_type;
-	n %= LINK_TABLE_IN_SIZE;
-
-	LIST_FOREACH_SAFE(grp, &la->groupTableIn[n], group_in, tmp) {
-		/* Auto cleanup */
-		if (LIST_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
-			LIST_REMOVE(grp, group_in);
-			free(grp);
-		} else {
-			INGUARD;
-			return (grp);
-		}
-	}
-	if (!create || (grp = malloc(sizeof(*grp))) == NULL)
+	grp = SPLAY_FIND(splay_in, &la->linkSplayIn, &needle);
+	if (grp != NULL || !create || (grp = malloc(sizeof(*grp))) == NULL)
 		return (grp);
 	grp->alias_addr = alias_addr;
 	grp->alias_port = alias_port;
 	grp->link_type = link_type;
 	LIST_INIT(&grp->full);
 	LIST_INIT(&grp->partial);
-	LIST_INSERT_HEAD(&la->groupTableIn[n], grp, group_in);
+	SPLAY_INSERT(splay_in, &la->linkSplayIn, grp);
 	return (grp);
 }
 #undef INGUARD
@@ -815,25 +811,13 @@ static void
 CleanupAliasData(struct libalias *la, int deletePermanent)
 {
 	struct alias_link *lnk, *lnk_tmp;
-	u_int i;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
 	/* permanent entries may stay */
 	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, expire.list, lnk_tmp)
 		DeleteLink(&lnk, deletePermanent);
-
-	for (i = 0; i < LINK_TABLE_IN_SIZE; i++) {
-		struct group_in *grp, *grp_tmp;
-
-		LIST_FOREACH_SAFE(grp, &la->groupTableIn[i], group_in, grp_tmp)
-			if (LIST_EMPTY(&grp->full) && LIST_EMPTY(&grp->partial)) {
-				LIST_REMOVE(grp, group_in);
-				free(grp);
-			}
-	}
 }
-
 static void
 CleanupLink(struct libalias *la, struct alias_link **lnk, int deletePermanent)
 {
@@ -882,7 +866,9 @@ DeleteLink(struct alias_link **plnk, int deletePermanent)
 	case LINK_PPTP:
 		LIST_REMOVE(lnk, pptp.list);
 		break;
-	default:
+	default: {
+		struct group_in *grp;
+
 		/* Free memory allocated for LSNAT server pool */
 		if (lnk->server != NULL) {
 			struct server *head, *curr, *next;
@@ -899,6 +885,16 @@ DeleteLink(struct alias_link **plnk, int deletePermanent)
 
 		/* Adjust input table pointers */
 		LIST_REMOVE(lnk, all.in);
+
+		/* Remove intermediate node, if empty */
+		grp = StartPointIn(la, lnk->alias_addr, lnk->alias_port, lnk->link_type, 0);
+		if (grp != NULL &&
+		    LIST_EMPTY(&grp->full) &&
+		    LIST_EMPTY(&grp->partial)) {
+			SPLAY_REMOVE(splay_in, &la->linkSplayIn, grp);
+			free(grp);
+		}
+	}
 		break;
 	}
 
@@ -2465,8 +2461,6 @@ finishoff(void)
 struct libalias *
 LibAliasInit(struct libalias *la)
 {
-	int i;
-
 	if (la == NULL) {
 #ifdef _KERNEL
 #undef malloc	/* XXX: ugly */
@@ -2490,9 +2484,8 @@ LibAliasInit(struct libalias *la)
 		LibAliasTime = time(NULL);
 #endif
 
+		SPLAY_INIT(&la->linkSplayIn);
 		SPLAY_INIT(&la->linkSplayOut);
-		for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
-			LIST_INIT(&la->groupTableIn[i]);
 		LIST_INIT(&la->pptpList);
 		TAILQ_INIT(&la->checkExpire);
 #ifdef _KERNEL

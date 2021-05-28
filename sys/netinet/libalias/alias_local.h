@@ -67,8 +67,6 @@
 #endif
 
 /* Sizes of input and output link tables */
-#define LINK_TABLE_IN_SIZE	4001
-
 #define	GET_ALIAS_PORT		-1
 #define	GET_ALIAS_ID		GET_ALIAS_PORT
 
@@ -84,7 +82,7 @@ struct group_in {
 	struct in_addr	alias_addr;
 	u_short		alias_port;
 	int		link_type;
-	LIST_ENTRY(group_in)	group_in;
+	SPLAY_ENTRY(group_in)	in;
 	LIST_HEAD(, alias_link)	full, partial;
 };
 
@@ -101,7 +99,7 @@ struct libalias {
 	 * Each link record is doubly indexed into input and
 	 * output lookup tables. */
 	SPLAY_HEAD(splay_out, alias_link) linkSplayOut;
-	LIST_HEAD (, group_in)   groupTableIn[LINK_TABLE_IN_SIZE];
+	SPLAY_HEAD(splay_in,  group_in)   linkSplayIn;
 	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
