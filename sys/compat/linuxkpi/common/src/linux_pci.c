@@ -997,6 +997,16 @@ linux_dma_pool_destroy(struct dma_pool *pool)
 	kfree(pool);
 }
 
+void
+lkpi_dmam_pool_destroy(struct device *dev, void *p)
+{
+	struct dma_pool *pool;
+
+	pool = *(struct dma_pool **)p;
+	LINUX_DMA_PCTRIE_RECLAIM(&pool->pool_ptree);
+	linux_dma_pool_destroy(pool);
+}
+
 void *
 linux_dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
     dma_addr_t *handle)
