@@ -77,7 +77,6 @@ error()
 	local prompt="${1:+$1\n\n}$msg_an_installation_step_has_been_aborted"
 	local hline="$hline_arrows_tab_space_enter"
 
-	[ "$DISTDIR_IS_UNIONFS" ] && umount -f "$BSDINSTALL_DISTDIR"
 	[ -f "$PATH_FSTAB" ] && bsdinstall umount
 
 	local height width
@@ -170,31 +169,17 @@ if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	done
 fi
 
-LOCAL_DISTRIBUTIONS="MANIFEST"
 FETCH_DISTRIBUTIONS=""
 for dist in $DISTRIBUTIONS; do
 	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
 		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
-	else
-		LOCAL_DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS $dist"
 	fi
 done
-LOCAL_DISTRIBUTIONS=`echo $LOCAL_DISTRIBUTIONS`	# Trim white space
-FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
 
 if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
 	dialog --backtitle "FreeBSD Installer" --title "Network Installation" --msgbox "Some installation files were not found on the boot volume. The next few screens will allow you to configure networking so that they can be downloaded from the Internet." 0 0
 	bsdinstall netconfig || error
 	NETCONFIG_DONE=yes
-fi
-
-if [ -n "$FETCH_DISTRIBUTIONS" ]; then
-	exec 3>&1
-	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&3)
-	MIRROR_BUTTON=$?
-	exec 3>&-
-	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
-	export BSDINSTALL_DISTSITE
 fi
 
 rm -f $PATH_FSTAB
@@ -347,79 +332,14 @@ case "$PARTMODE" in
 	;;
 esac
 
-if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
-	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
-	WANT_DEBUG=
+if [ -n "$FETCH_DISTRIBUTIONS" ]; then
+	exec 3>&1
+	export BSDINSTALL_DISTDIR=$(`dirname $0`/fetchmissingdists 2>&1 1>&3)
+	FETCH_RESULT=$?
+	exec 3>&-
 
-	# Download to a directory in the new system as scratch space
-	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
-	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
-
-	export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
-	# Try to use any existing distfiles
-	if [ -d $BSDINSTALL_DISTDIR ]; then
-		DISTDIR_IS_UNIONFS=1
-		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
-	else
-		export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
-		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
-	fi
-
-	export FTP_PASSIVE_MODE=YES
-	# Iterate through the distribution list and set a flag if debugging
-	# distributions have been selected.
-	for _DISTRIBUTION in $DISTRIBUTIONS; do
-		case $_DISTRIBUTION in
-			*-dbg.*)
-				[ -e $BSDINSTALL_DISTDIR/$_DISTRIBUTION ] \
-					&& continue
-				WANT_DEBUG=1
-				DEBUG_LIST="\n$DEBUG_LIST\n$_DISTRIBUTION"
-				;;
-			*)
-				;;
-		esac
-	done
-
-	# Fetch the distributions.
-	bsdinstall distfetch
-	rc=$?
-
-	if [ $rc -ne 0 ]; then
-		# If unable to fetch the remote distributions, recommend
-		# deselecting the debugging distributions, and retrying the
-		# installation, since failure to fetch *-dbg.txz should not
-		# be considered a fatal installation error.
-		msg="Failed to fetch remote distribution"
-		if [ ! -z "$WANT_DEBUG" ]; then
-			# Trim leading and trailing newlines.
-			DEBUG_LIST="${DEBUG_LIST%%\n}"
-			DEBUG_LIST="${DEBUG_LIST##\n}"
-			msg="$msg\n\nPlease deselect the following distributions"
-			msg="$msg and retry the installation:"
-			msg="$msg\n$DEBUG_LIST"
-		fi
-		error "$msg"
-	fi
-	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
+	[ $FETCH_RESULT -ne 0 ] && error "Could not fetch remote distributions"
 fi
-
-if [ ! -z "$LOCAL_DISTRIBUTIONS" ]; then
-	# Download to a directory in the new system as scratch space
-	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
-	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
-	# Try to use any existing distfiles
-	if [ -d $BSDINSTALL_DISTDIR ]; then
-		DISTDIR_IS_UNIONFS=1
-		mount_nullfs -o union "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
-		export BSDINSTALL_DISTDIR="$BSDINSTALL_FETCHDEST"
-	fi
-	env DISTRIBUTIONS="$LOCAL_DISTRIBUTIONS" \
-		BSDINSTALL_DISTSITE="file:///usr/freebsd-dist" \
-		bsdinstall distfetch || \
-		error "Failed to fetch distribution from local media"
-fi
-
 bsdinstall checksum || error "Distribution checksum failed"
 bsdinstall distextract || error "Distribution extract failed"
 
@@ -497,10 +417,6 @@ finalconfig
 
 trap error SIGINT	# SIGINT is bad again
 bsdinstall config  || error "Failed to save config"
-
-if [ -n "$DISTDIR_IS_UNIONFS" ]; then
-	umount -f $BSDINSTALL_DISTDIR
-fi
 
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 	rm -rf "$BSDINSTALL_FETCHDEST"
