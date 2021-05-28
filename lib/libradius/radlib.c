@@ -964,7 +964,12 @@ rad_get_attr(struct rad_handle *h, const void **value, size_t *lenp)
 	}
 	type = h->in[h->in_pos++];
 	len = h->in[h->in_pos++];
-	if (len < 2 || h->in_pos + len > h->in_len) {
+	if (len < 2) {
+		generr(h, "Malformed attribute in response");
+		return -1;
+	}
+	len -= 2;
+	if (h->in_pos + len > h->in_len) {
 		generr(h, "Malformed attribute in response");
 		return -1;
 	}
