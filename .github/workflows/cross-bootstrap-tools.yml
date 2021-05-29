@@ -18,11 +18,11 @@ jobs:
           - os: ubuntu-20.04
             compiler: clang-9
             cross-bindir: /usr/lib/llvm-9/bin
-            pkgs: bmake libarchive-dev
+            pkgs: bmake libarchive-dev clang-9 lld-9
           - os: ubuntu-20.04
             compiler: clang-10
             cross-bindir: /usr/lib/llvm-10/bin
-            pkgs: bmake libarchive-dev
+            pkgs: bmake libarchive-dev clang-10 lld-10
           - os: macOS-latest
             compiler: clang-11
             pkgs: bmake libarchive
