@@ -43,6 +43,8 @@
 #include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
+#else
+#include <stdbool.h>
 #endif
 
 /*
