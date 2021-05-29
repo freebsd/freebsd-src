@@ -135,7 +135,7 @@ rlim_t	 lim_cur(struct thread *td, int which);
 	int _which = (which);						\
 	if (__builtin_constant_p(which) && which != RLIMIT_DATA &&	\
 	    which != RLIMIT_STACK && which != RLIMIT_VMEM) {		\
-		_rlim = td->td_limit->pl_rlimit[which].rlim_cur;	\
+		_rlim = _td->td_limit->pl_rlimit[_which].rlim_cur;	\
 	} else {							\
 		_rlim = lim_cur(_td, _which);				\
 	}								\
