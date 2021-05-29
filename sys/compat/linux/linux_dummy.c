@@ -147,6 +147,16 @@ DUMMY(faccessat2);
 DUMMY(process_madvise);
 DUMMY(epoll_pwait2);
 DUMMY(mount_setattr);
+/* Linux 4.11: */
+DUMMY(statx);
+/* Linux 4.18: */
+DUMMY(io_pgetevents);
+DUMMY(rseq);
+/* Linux 5.0: */
+DUMMY(pidfd_send_signal);
+DUMMY(io_uring_setup);
+DUMMY(io_uring_enter);
+DUMMY(io_uring_register);
 
 #define DUMMY_XATTR(s)						\
 int								\
