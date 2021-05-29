@@ -1429,9 +1429,20 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	if (nvme_ctrlr_construct_admin_qpair(ctrlr) != 0)
 		return (ENXIO);
 
+	/*
+	 * Create 2 threads for the taskqueue. The reset thread will block when
+	 * it detects that the controller has failed until all I/O has been
+	 * failed up the stack. The fail_req task needs to be able to run in
+	 * this case to finish the request failure for some cases.
+	 *
+	 * We could partially solve this race by draining the failed requeust
+	 * queue before proceding to free the sim, though nothing would stop
+	 * new I/O from coming in after we do that drain, but before we reach
+	 * cam_sim_free, so this big hammer is used instead.
+	 */
 	ctrlr->taskqueue = taskqueue_create("nvme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
-	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_DISK, "nvme taskq");
+	taskqueue_start_threads(&ctrlr->taskqueue, 2, PI_DISK, "nvme taskq");
 
 	ctrlr->is_resetting = 0;
 	ctrlr->is_initialized = 0;
