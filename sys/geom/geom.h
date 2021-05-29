@@ -269,6 +269,9 @@ int g_media_changed(struct g_provider *pp, int flag);
 int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidlelock(void);
+void *g_alloc_event(int flag);
+void g_post_event_storage(g_event_t *func, void *arg, int wuflag,
+    void *ep, ...);
 
 /* geom_subr.c */
 int g_access(struct g_consumer *cp, int nread, int nwrite, int nexcl);

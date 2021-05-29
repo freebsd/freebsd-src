@@ -885,6 +885,7 @@ disk_create(struct disk *dp, int version)
 		    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 		    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	dp->d_geom = NULL;
+	dp->d_event = g_alloc_event(M_WAITOK);
 
 	dp->d_init_level = DISK_INIT_NONE;
 
@@ -901,7 +902,7 @@ disk_destroy(struct disk *dp)
 	g_cancel_event(dp);
 	if (dp->d_devstat != NULL)
 		devstat_remove_entry(dp->d_devstat);
-	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
+	g_post_event_storage(g_disk_destroy, dp, 0, dp->d_event, NULL);
 }
 
 void
