@@ -1436,10 +1436,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	if (parent == NULL)
 		return (ENOENT);
 
-	TMPFS_NODE_LOCK(parent);
 	dent.d_fileno = parent->tn_id;
-	TMPFS_NODE_UNLOCK(parent);
-
 	dent.d_off = next;
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 2;
