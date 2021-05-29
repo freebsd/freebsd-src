@@ -1525,26 +1525,18 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	struct vnode *vp;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
-	bool unlock, tm_locked;
+	bool unlock;
 
 	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-	tm_locked = false;
 
 	if (vp->v_type == VREG)
 		tmpfs_destroy_vobject(vp, node->tn_reg.tn_aobj);
 	vp->v_object = NULL;
 
-relock:
+	TMPFS_LOCK(tmp);
 	TMPFS_NODE_LOCK(node);
-	if (!tm_locked && node->tn_links == 0 &&
-	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
-		TMPFS_NODE_UNLOCK(node);
-		TMPFS_LOCK(tmp);
-		tm_locked = true;
-		goto relock;
-	}
 	tmpfs_free_vp(vp);
 
 	/*
@@ -1552,19 +1544,16 @@ relock:
 	 * we must free its associated data structures (now that the vnode
 	 * is being reclaimed).
 	 */
+	unlock = true;
 	if (node->tn_links == 0 &&
 	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
-		MPASS(tm_locked);
 		node->tn_vpstate = TMPFS_VNODE_DOOMED;
 		unlock = !tmpfs_free_node_locked(tmp, node, true);
-	} else {
-		unlock = true;
 	}
 
 	if (unlock) {
 		TMPFS_NODE_UNLOCK(node);
-		if (tm_locked)
-			TMPFS_UNLOCK(tmp);
+		TMPFS_UNLOCK(tmp);
 	}
 
 	MPASS(vp->v_data == NULL);
