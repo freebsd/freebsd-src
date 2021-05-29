@@ -272,7 +272,6 @@ checkfilesys(char *filesys)
 	 * exit status will cause a foreground check to be run.
 	 */
 	sblock_init();
-	bufinit();
 	if (bkgrdcheck) {
 		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
 			exit(3);	/* Cannot read superblock */
