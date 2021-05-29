@@ -2363,12 +2363,25 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	off_t lim;
 	bool ktr_write;
 
-	if (vp->v_type != VREG || td == NULL ||
-	    (td->td_pflags2 & TDP2_ACCT) != 0)
+	if (td == NULL)
 		return (0);
+
+	/*
+	 * There are conditions where the limit is to be ignored.
+	 * However, since it is almost never reached, check it first.
+	 */
 	ktr_write = (td->td_pflags & TDP_INKTRACE) != 0;
-	lim = ktr_write ? td->td_ktr_io_lim : lim_cur(td, RLIMIT_FSIZE);
-	if ((uoff_t)uio->uio_offset + uio->uio_resid <= lim)
+	lim = lim_cur(td, RLIMIT_FSIZE);
+	if (__predict_false(ktr_write))
+		lim = td->td_ktr_io_lim;
+	if (__predict_true((uoff_t)uio->uio_offset + uio->uio_resid <= lim))
+		return (0);
+
+	/*
+	 * The limit is reached.
+	 */
+	if (vp->v_type != VREG ||
+	    (td->td_pflags2 & TDP2_ACCT) != 0)
 		return (0);
 
 	if (!ktr_write || ktr_filesize_limit_signal) {
