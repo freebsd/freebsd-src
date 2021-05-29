@@ -416,14 +416,14 @@ void
 ginode(ino_t inumber, struct inode *ip)
 {
 	ufs2_daddr_t iblk;
-	static ino_t startinum = -1;
 
 	if (inumber < UFS_ROOTINO || inumber > maxino)
 		errx(EEXIT, "bad inode number %ju to ginode",
 		    (uintmax_t)inumber);
 	ip->i_number = inumber;
-	if (startinum != -1 &&
-	    inumber >= startinum && inumber < startinum + INOPB(&sblock)) {
+	if (icachebp != NULL &&
+	    inumber >= icachebp->b_index &&
+	    inumber < icachebp->b_index + INOPB(&sblock)) {
 		/* take an additional reference for the returned inode */
 		icachebp->b_refcnt++;
 	} else {
@@ -433,14 +433,14 @@ ginode(ino_t inumber, struct inode *ip)
 			brelse(icachebp);
 		icachebp = getdatablk(iblk, sblock.fs_bsize, BT_INODES);
 		if (icachebp->b_errs != 0) {
+			icachebp = NULL;
 			ip->i_bp = NULL;
 			ip->i_dp = &zino;
 			return;
 		}
-		startinum = rounddown(inumber, INOPB(&sblock));
 		/* take a cache-hold reference on new icachebp */
 		icachebp->b_refcnt++;
-		icachebp->b_index = startinum;
+		icachebp->b_index = rounddown(inumber, INOPB(&sblock));
 	}
 	ip->i_bp = icachebp;
 	if (sblock.fs_magic == FS_UFS1_MAGIC) {
