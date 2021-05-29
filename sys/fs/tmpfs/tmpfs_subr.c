@@ -831,7 +831,7 @@ loop:
 		 * Make sure the vnode is still there after
 		 * getting the interlock to avoid racing a free.
 		 */
-		if (node->tn_vnode == NULL || node->tn_vnode != vp) {
+		if (node->tn_vnode != vp) {
 			vput(vp);
 			TMPFS_NODE_LOCK(node);
 			goto loop;
