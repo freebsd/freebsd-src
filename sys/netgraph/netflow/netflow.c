@@ -360,7 +360,7 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 
 			rt_get_inet_prefix_plen(rt, &addr, &plen, &scopeid);
 			fle->f.fle_o_ifx = nh->nh_ifp->if_index;
-			if (nh->gw_sa.sa_len == AF_INET)
+			if (nh->gw_sa.sa_family == AF_INET)
 				fle->f.next_hop = nh->gw4_sa.sin_addr;
 			fle->f.dst_mask = plen;
 		}
@@ -434,7 +434,7 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 
 			rt_get_inet6_prefix_plen(rt, &addr, &plen, &scopeid);
 			fle6->f.fle_o_ifx = nh->nh_ifp->if_index;
-			if (nh->gw_sa.sa_len == AF_INET6)
+			if (nh->gw_sa.sa_family == AF_INET6)
 				fle6->f.n.next_hop6 = nh->gw6_sa.sin6_addr;
 			fle6->f.dst_mask = plen;
 		}
