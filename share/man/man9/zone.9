@@ -119,8 +119,6 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
 .Ft void
 .Fn uma_zone_set_maxaction "uma_zone_t zone" "void (*maxaction)(uma_zone_t)"
-.Ft void
-.Fn uma_reclaim
 .In sys/sysctl.h
 .Fn SYSCTL_UMA_MAX parent nbr name access zone descr
 .Fn SYSCTL_ADD_UMA_MAX ctx parent nbr name access zone descr
