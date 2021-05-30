@@ -806,10 +806,10 @@ TEST_F(WriteCluster, clustering)
  * not panic the system on unmount
  */
 /*
- * Disabled because it panics.
+ * Regression test for bug 238585
  * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=238565
  */
-TEST_F(WriteCluster, DISABLED_cluster_write_err)
+TEST_F(WriteCluster, cluster_write_err)
 {
 	const char FULLPATH[] = "mountpoint/some_file.txt";
 	const char RELPATH[] = "some_file.txt";
