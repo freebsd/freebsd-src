@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/devfs/devfs.h>
 
+#include <ufs/ufs/quota.h>
+
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 static int kern_chflagsat(struct thread *td, int fd, const char *path,
@@ -193,7 +195,6 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	struct mount *mp;
 	struct nameidata nd;
 	int error;
-	bool mp_busy;
 
 	AUDIT_ARG_CMD(uap->cmd);
 	AUDIT_ARG_UID(uap->uid);
@@ -212,21 +213,21 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 		vfs_rel(mp);
 		return (error);
 	}
-	mp_busy = true;
-	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, &mp_busy);
+	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
 
 	/*
-	 * Since quota on/off operations typically need to open quota
-	 * files, the implementation may need to unbusy the mount point
+	 * Since quota on operation typically needs to open quota
+	 * file, the Q_QUOTAON handler needs to unbusy the mount point
 	 * before calling into namei.  Otherwise, unmount might be
-	 * started between two vfs_busy() invocations (first is ours,
+	 * started between two vfs_busy() invocations (first is our,
 	 * second is from mount point cross-walk code in lookup()),
 	 * causing deadlock.
 	 *
-	 * Avoid unbusying mp if the implementation indicates it has
-	 * already done so.
+	 * Require that Q_QUOTAON handles the vfs_busy() reference on
+	 * its own, always returning with ubusied mount point.
 	 */
-	if (mp_busy)
+	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON &&
+	    (uap->cmd >> SUBCMDSHIFT) != Q_QUOTAOFF)
 		vfs_unbusy(mp);
 	vfs_rel(mp);
 	return (error);
