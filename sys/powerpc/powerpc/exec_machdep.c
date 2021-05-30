@@ -1057,8 +1057,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
 #ifdef __SPE__
-	pcb2->pcb_vec.vscr = SPEFSCR_FINVE | SPEFSCR_FDBZE |
-	    SPEFSCR_FUNFE | SPEFSCR_FOVFE;
+	pcb2->pcb_vec.vscr = SPEFSCR_DFLT;
 #endif
 
 	/* Setup to release spin count in fork_exit(). */
@@ -1113,8 +1112,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 
 	td->td_pcb->pcb_flags = 0;
 #ifdef __SPE__
-	td->td_pcb->pcb_vec.vscr = SPEFSCR_FINVE | SPEFSCR_FDBZE |
-	    SPEFSCR_FUNFE | SPEFSCR_FOVFE;
+	td->td_pcb->pcb_vec.vscr = SPEFSCR_DFLT;
 #endif
 
 	td->td_retval[0] = (register_t)entry;

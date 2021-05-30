@@ -224,7 +224,7 @@ ENTRY(fork_trampoline)
 					   does when allocating space for
 					   a frame pointer/saved LR */
 #ifdef __SPE__
-	li	%r3,SPEFSCR_FINVE|SPEFSCR_FDBZE|SPEFSCR_FUNFE|SPEFSCR_FOVFE
+	li	%r3,SPEFSCR_DFLT
 	mtspr	SPR_SPEFSCR, %r3
 #endif
 	b	trapexit

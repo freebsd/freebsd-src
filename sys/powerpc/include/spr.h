@@ -337,6 +337,8 @@
 #define	  SPEFSCR_FUNFE		  0x00000008
 #define	  SPEFSCR_FOVFE		  0x00000004
 #define	  SPEFSCR_FRMC_M	  0x00000003
+#define	  SPEFSCR_DFLT		  (SPEFSCR_FINVE | SPEFSCR_FDBZE | \
+				    SPEFSCR_FUNFE | SPEFSCR_FOVFE)
 #define	SPR_IBAT0U		0x210	/* .6. Instruction BAT Reg 0 Upper */
 #define	SPR_IBAT0L		0x211	/* .6. Instruction BAT Reg 0 Lower */
 #define	SPR_IBAT1U		0x212	/* .6. Instruction BAT Reg 1 Upper */
