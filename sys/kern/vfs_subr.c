@@ -2032,13 +2032,11 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 			} while (error == ERELOOKUP);
 			if (error != 0)
 				return (error);
-			/*
-			 * XXX We could save a lock/unlock if this was only
-			 * enabled under INVARIANTS
-			 */
 			BO_LOCK(bo);
-			if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)
-				panic("vinvalbuf: dirty bufs");
+			if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0) {
+				BO_UNLOCK(bo);
+				return (EBUSY);
+			}
 		}
 	}
 	/*
