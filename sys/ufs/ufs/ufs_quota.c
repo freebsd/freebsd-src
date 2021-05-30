@@ -492,8 +492,7 @@ chkdquot(struct inode *ip)
  * Q_QUOTAON - set up a quota file for a particular filesystem.
  */
 int
-quotaon(struct thread *td, struct mount *mp, int type, void *fname,
-    bool *mp_busy)
+quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 {
 	struct ufsmount *ump;
 	struct vnode *vp, **vpp;
@@ -503,11 +502,15 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 	struct nameidata nd;
 
 	error = priv_check(td, PRIV_UFS_QUOTAON);
-	if (error != 0)
+	if (error != 0) {
+		vfs_unbusy(mp);
 		return (error);
+	}
 
-	if ((mp->mnt_flag & MNT_RDONLY) != 0)
+	if ((mp->mnt_flag & MNT_RDONLY) != 0) {
+		vfs_unbusy(mp);
 		return (EROFS);
+	}
 
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
@@ -515,9 +518,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
 	vfs_ref(mp);
-	KASSERT(*mp_busy, ("%s called without busied mount", __func__));
 	vfs_unbusy(mp);
-	*mp_busy = false;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0) {
 		vfs_rel(mp);
@@ -528,9 +529,10 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 	error = vfs_busy(mp, MBF_NOWAIT);
 	vfs_rel(mp);
 	if (error == 0) {
-		*mp_busy = true;
-		if (vp->v_type != VREG)
+		if (vp->v_type != VREG) {
 			error = EACCES;
+			vfs_unbusy(mp);
+		}
 	}
 	if (error != 0) {
 		VOP_UNLOCK(vp);
@@ -543,6 +545,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 		UFS_UNLOCK(ump);
 		VOP_UNLOCK(vp);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
+		vfs_unbusy(mp);
 		return (EALREADY);
 	}
 	ump->um_qflags[type] |= QTF_OPENING|QTF_CLOSING;
@@ -553,6 +556,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname,
 		ump->um_qflags[type] &= ~(QTF_OPENING|QTF_CLOSING);
 		UFS_UNLOCK(ump);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
+		vfs_unbusy(mp);
 		return (error);
 	}
 	VOP_UNLOCK(vp);
@@ -636,6 +640,7 @@ again:
 		("quotaon: leaking flags"));
 	UFS_UNLOCK(ump);
 
+	vfs_unbusy(mp);
 	return (error);
 }
 

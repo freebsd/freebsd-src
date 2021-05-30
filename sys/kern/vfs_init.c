@@ -212,14 +212,12 @@ vfs_cachedroot_sigdefer(struct mount *mp, int flags, struct vnode **vpp)
 }
 
 static int
-vfs_quotactl_sigdefer(struct mount *mp, int cmd, uid_t uid, void *arg,
-    bool *mp_busy)
+vfs_quotactl_sigdefer(struct mount *mp, int cmd, uid_t uid, void *arg)
 {
 	int prev_stops, rc;
 
 	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
-	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_quotactl)(mp, cmd, uid, arg,
-	    mp_busy);
+	rc = (*mp->mnt_vfc->vfc_vfsops_sd->vfs_quotactl)(mp, cmd, uid, arg);
 	sigallowstop(prev_stops);
 	return (rc);
 }
