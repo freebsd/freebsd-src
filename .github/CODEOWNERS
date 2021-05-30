@@ -82,11 +82,13 @@ vmm/	@bsdjhb @grehan-freebsd
 /sys/dev/sound/usb	@hselasky
 /sys/dev/usb	@hselasky
 /sys/fs/fuse/	@asomers
+/sys/kern/vfs_aio.c	@asomers
 /sys/netinet/ip_carp.c	@glebius
 /sys/netinet/sctp_*	@tuexen
 /sys/netpfil/pf	@kprovost @glebius
 /sys/x86/pci	@bsdimp @bsdjhb
 /tests	@ngie
+/tests/sys/aio/	@asomers
 /tests/sys/fs/fusefs/ @asomers
 /tools/build	@bsdimp
 /tools/tools/nanobsd	@bsdimp
