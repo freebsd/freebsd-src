@@ -35,6 +35,7 @@ makes a commit to the specified subtree.
 
 subsystem	login	notes
 -----------------------------
+aio(4)		asomers	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/atf		ngie,#test		Pre-commit review requested.
 contrib/capsicum-test	ngie,#capsicum,#test	Pre-commit review requested.
