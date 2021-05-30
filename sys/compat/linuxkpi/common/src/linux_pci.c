@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
+ * Copyright (c) 2020-2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -230,6 +234,7 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->bus->domain = pci_get_domain(dev);
 	pdev->dev.bsddev = dev;
 	pdev->dev.parent = &linux_root_device;
+	pdev->dev.release = lkpi_pci_dev_release;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
@@ -294,6 +299,14 @@ lkpi_pci_get_domain_bus_and_slot(int domain, unsigned int bus,
 
 	pdev = lkpinew_pci_dev(dev);
 	return (pdev);
+}
+
+static void
+lkpi_pci_dev_release(struct device *dev)
+{
+
+	lkpi_devres_release_free_list(dev);
+	spin_lock_destroy(&dev->devres_lock);
 }
 
 static int
@@ -423,6 +436,61 @@ linux_pci_detach_device(struct pci_dev *pdev)
 	put_device(&pdev->dev);
 
 	return (0);
+}
+
+static int
+lkpi_pci_disable_dev(struct device *dev)
+{
+
+	(void) pci_disable_io(dev->bsddev, SYS_RES_MEMORY);
+	(void) pci_disable_io(dev->bsddev, SYS_RES_IOPORT);
+	return (0);
+}
+
+void
+lkpi_pci_devres_release(struct device *dev, void *p)
+{
+	struct pci_devres *dr;
+	struct pci_dev *pdev;
+	int bar;
+
+	pdev = to_pci_dev(dev);
+	dr = p;
+
+	if (pdev->msix_enabled)
+		lkpi_pci_disable_msix(pdev);
+        if (pdev->msi_enabled)
+		lkpi_pci_disable_msi(pdev);
+
+	if (dr->enable_io && lkpi_pci_disable_dev(dev) == 0)
+		dr->enable_io = false;
+
+	if (dr->region_mask == 0)
+		return;
+	for (bar = PCIR_MAX_BAR_0; bar >= 0; bar--) {
+
+		if ((dr->region_mask & (1 << bar)) == 0)
+			continue;
+		pci_release_region(pdev, bar);
+	}
+}
+
+void
+lkpi_pcim_iomap_table_release(struct device *dev, void *p)
+{
+	struct pcim_iomap_devres *dr;
+	struct pci_dev *pdev;
+	int bar;
+
+	dr = p;
+	pdev = to_pci_dev(dev);
+	for (bar = PCIR_MAX_BAR_0; bar >= 0; bar--) {
+
+		if (dr->mmio_table[bar] == NULL)
+			continue;
+
+		pci_iounmap(pdev, dr->mmio_table[bar]);
+	}
 }
 
 static int
