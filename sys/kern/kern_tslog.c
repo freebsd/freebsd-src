@@ -28,6 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -74,6 +78,9 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct sbuf *sb;
 	size_t i, limit;
+	caddr_t loader_tslog;
+	void * loader_tslog_buf;
+	size_t loader_tslog_len;
 
 	/*
 	 * This code can race against the code in tslog() which stores
@@ -84,6 +91,16 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 	 * anyone will ever experience this race.
 	 */
 	sb = sbuf_new_for_sysctl(NULL, NULL, 1024, req);
+
+	/* Get data from the boot loader, if it provided any. */
+	loader_tslog = preload_search_by_type("TSLOG data");
+	if (loader_tslog != NULL) {
+		loader_tslog_buf = preload_fetch_addr(loader_tslog);
+		loader_tslog_len = preload_fetch_size(loader_tslog);
+		sbuf_bcat(sb, loader_tslog_buf, loader_tslog_len);
+	}
+
+	/* Add data logged within the kernel. */
 	limit = MIN(nrecs, nitems(timestamps));
 	for (i = 0; i < limit; i++) {
 		sbuf_printf(sb, "%p", timestamps[i].td);
@@ -116,3 +133,87 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_debug, OID_AUTO, tslog, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
     0, 0, sysctl_debug_tslog, "", "Dump recorded event timestamps");
+
+MALLOC_DEFINE(M_TSLOGUSER, "tsloguser", "Strings used by userland tslog");
+static struct procdata {
+	pid_t ppid;
+	uint64_t tsc_forked;
+	uint64_t tsc_exited;
+	char * execname;
+	char * namei;
+	int reused;
+} procs[PID_MAX + 1];
+
+void
+tslog_user(pid_t pid, pid_t ppid, const char * execname, const char * namei)
+{
+	uint64_t tsc = get_cyclecount();
+
+	/* If we wrapped, do nothing. */
+	if (procs[pid].reused)
+		return;
+
+	/* If we have a ppid, we're recording a fork. */
+	if (ppid != (pid_t)(-1)) {
+		/* If we have a ppid already, we wrapped. */
+		if (procs[pid].ppid) {
+			procs[pid].reused = 1;
+			return;
+		}
+
+		/* Fill in some fields. */
+		procs[pid].ppid = ppid;
+		procs[pid].tsc_forked = tsc;
+		return;
+	}
+
+	/* If we have an execname, record it. */
+	if (execname != NULL) {
+		if (procs[pid].execname != NULL)
+			free(procs[pid].execname, M_TSLOGUSER);
+		procs[pid].execname = strdup(execname, M_TSLOGUSER);
+		return;
+	}
+
+	/* Record the first namei for the process. */
+	if (namei != NULL) {
+		if (procs[pid].namei == NULL)
+			procs[pid].namei = strdup(namei, M_TSLOGUSER);
+		return;
+	}
+
+	/* Otherwise we're recording an exit. */
+	procs[pid].tsc_exited = tsc;
+}
+
+static int
+sysctl_debug_tslog_user(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct sbuf *sb;
+	pid_t pid;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 1024, req);
+
+	/* Export the data we logged. */
+	for (pid = 0; pid <= PID_MAX; pid++) {
+		sbuf_printf(sb, "%zu", (size_t)pid);
+		sbuf_printf(sb, " %zu", (size_t)procs[pid].ppid);
+		sbuf_printf(sb, " %llu",
+		    (unsigned long long)procs[pid].tsc_forked);
+		sbuf_printf(sb, " %llu",
+		    (unsigned long long)procs[pid].tsc_exited);
+		sbuf_printf(sb, " \"%s\"", procs[pid].execname ?
+		    procs[pid].execname : "");
+		sbuf_printf(sb, " \"%s\"", procs[pid].namei ?
+		    procs[pid].namei : "");
+		sbuf_printf(sb, "\n");
+	}
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (error);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, tslog_user,
+    CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE, 0, 0, sysctl_debug_tslog_user,
+    "", "Dump recorded userland event timestamps");

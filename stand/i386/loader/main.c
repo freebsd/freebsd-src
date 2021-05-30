@@ -131,6 +131,12 @@ main(void)
 	setheap(heap_bottom, heap_top);
 
 	/*
+	 * Now that malloc is usable, allocate a buffer for tslog and start
+	 * logging timestamps during the boot process.
+	 */
+	tslog_init();
+
+	/*
 	 * detect ACPI for future reference. This may set console to comconsole
 	 * if we do have ACPI SPCR table.
 	 */

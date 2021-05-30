@@ -1042,6 +1042,57 @@ file_removemetadata(struct preloaded_file *fp)
 	fp->f_metadata = NULL;
 }
 
+/*
+ * Add a buffer to the list of preloaded "files".
+ */
+int
+file_addbuf(const char *name, const char *type, size_t len, void *buf)
+{
+	struct preloaded_file	*fp;
+	vm_offset_t dest;
+
+	/* We can't load first */
+	if ((file_findfile(NULL, NULL)) == NULL) {
+		command_errmsg = "can't load file before kernel";
+		return (-1);
+	}
+
+	/* Figure out where to load the data. */
+	dest = loadaddr;
+	if (archsw.arch_loadaddr != NULL)
+		dest = archsw.arch_loadaddr(LOAD_RAW, (void *)name, dest);
+
+	/* Create & populate control structure */
+	fp = file_alloc();
+	if (fp == NULL) {
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "no memory to load %s", name);
+		return (-1);
+	}
+	fp->f_name = strdup(name);
+	fp->f_type = strdup(type);
+	fp->f_args = NULL;
+	fp->f_metadata = NULL;
+	fp->f_loader = -1;
+	fp->f_addr = dest;
+	fp->f_size = len;
+	if ((fp->f_name == NULL) || (fp->f_type == NULL)) {
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "no memory to load %s", name);
+		free(fp->f_name);
+		free(fp->f_type);
+		return (-1);
+	}
+
+	/* Copy the data in. */
+	archsw.arch_copyin(buf, fp->f_addr, len);
+	loadaddr = fp->f_addr + len;
+
+	/* Add to the list of loaded files */
+	file_insert_tail(fp);
+	return(0);
+}
+
 struct file_metadata *
 metadata_next(struct file_metadata *md, int type)
 {

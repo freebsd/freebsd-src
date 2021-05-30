@@ -1006,6 +1006,8 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 {
 	EFI_STATUS status;
 
+	TSENTER();
+
 	if (blkio == NULL)
 		return (ENXIO);
 	if (blk < 0 || blk > blkio->Media->LastBlock)
@@ -1032,6 +1034,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 		printf("%s: rw=%d, blk=%ju size=%ju status=%lu\n", __func__, rw,
 		    blk, nblks, EFI_ERROR_CODE(status));
 	}
+	TSEXIT();
 	return (efi_status_to_errno(status));
 }
 

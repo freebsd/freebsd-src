@@ -477,4 +477,13 @@ caddr_t ptov(uintptr_t);
 /* hexdump.c */
 void	hexdump(caddr_t region, size_t len);
 
+/* tslog.c */
+#define TSRAW(a, b, c) tslog(a, b, c)
+#define TSENTER() TSRAW("ENTER", __func__, NULL)
+#define TSEXIT() TSRAW("EXIT", __func__, NULL)
+#define TSLINE() TSRAW("EVENT", __FILE__, __XSTRING(__LINE__))
+void tslog(const char *, const char *, const char *);
+void tslog_setbuf(void * buf, size_t len);
+void tslog_getbuf(void ** buf, size_t * len);
+
 #endif	/* STAND_H */

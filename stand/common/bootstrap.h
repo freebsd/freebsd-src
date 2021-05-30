@@ -263,6 +263,9 @@ void file_addmetadata(struct preloaded_file *, int, size_t, void *);
 int file_addmodule(struct preloaded_file *, char *, int,
     struct kernel_module **);
 void file_removemetadata(struct preloaded_file *fp);
+int file_addbuf(const char *name, const char *type, size_t len, void *buf);
+int tslog_init(void);
+int tslog_publish(void);
 
 vm_offset_t build_font_module(vm_offset_t);
 

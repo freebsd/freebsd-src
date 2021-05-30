@@ -145,6 +145,8 @@ open(const char *fname, int mode)
 	int fd, i, error, besterror;
 	const char *file;
 
+	TSENTER();
+
 	if ((fd = o_gethandle(&f)) == -1) {
 		errno = EMFILE;
 		return (-1);
@@ -174,6 +176,7 @@ open(const char *fname, int mode)
 	if (file == NULL || *file == '\0') {
 		f->f_flags |= F_RAW;
 		f->f_rabuf = NULL;
+		TSEXIT();
 		return (fd);
 	}
 
@@ -197,10 +200,12 @@ open(const char *fname, int mode)
 err:
 	f->f_flags = 0;
 	errno = error;
+	TSEXIT();
 	return (-1);
 
 ok:
 	f->f_ops = fs;
 	o_rainit(f);
+	TSEXIT();
 	return (fd);
 }

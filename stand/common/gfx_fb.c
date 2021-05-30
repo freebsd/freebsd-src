@@ -2432,6 +2432,8 @@ read_list(char *fonts)
 	char buf[PATH_MAX];
 	int fd, len;
 
+	TSENTER();
+
 	dir = strdup(fonts);
 	if (dir == NULL)
 		return (NULL);
@@ -2479,6 +2481,7 @@ read_list(char *fonts)
 		SLIST_INSERT_HEAD(nl, np, n_entry);
 	}
 	close(fd);
+	TSEXIT();
 	return (nl);
 }
 
@@ -2495,6 +2498,8 @@ insert_font(char *name, FONT_FLAGS flags)
 	ssize_t rv;
 	int fd;
 	char *font_name;
+
+	TSENTER();
 
 	font_name = NULL;
 	if (flags == FONT_BUILTIN) {
@@ -2542,6 +2547,7 @@ insert_font(char *name, FONT_FLAGS flags)
 			free(entry->font_name);
 			entry->font_name = font_name;
 			entry->font_flags = FONT_RELOAD;
+			TSEXIT();
 			return (true);
 		}
 	}
@@ -2565,6 +2571,7 @@ insert_font(char *name, FONT_FLAGS flags)
 
 	if (STAILQ_EMPTY(&fonts)) {
 		STAILQ_INSERT_HEAD(&fonts, fp, font_next);
+		TSEXIT();
 		return (true);
 	}
 
@@ -2583,6 +2590,7 @@ insert_font(char *name, FONT_FLAGS flags)
 				STAILQ_INSERT_AFTER(&fonts, previous, fp,
 				    font_next);
 			}
+			TSEXIT();
 			return (true);
 		}
 		next = STAILQ_NEXT(entry, font_next);
@@ -2590,10 +2598,12 @@ insert_font(char *name, FONT_FLAGS flags)
 		    size > next->font_data->vfbd_width *
 		    next->font_data->vfbd_height) {
 			STAILQ_INSERT_AFTER(&fonts, entry, fp, font_next);
+			TSEXIT();
 			return (true);
 		}
 		previous = entry;
 	}
+	TSEXIT();
 	return (true);
 }
 
@@ -2652,6 +2662,8 @@ autoload_font(bool bios)
 	struct name_list *nl;
 	struct name_entry *np;
 
+	TSENTER();
+
 	nl = read_list("/boot/fonts/INDEX.fonts");
 	if (nl == NULL)
 		return;
@@ -2673,6 +2685,8 @@ autoload_font(bool bios)
 	}
 
 	(void) cons_update_mode(gfx_state.tg_fb_type != FB_TEXT);
+
+	TSEXIT();
 }
 
 COMMAND_SET(load_font, "loadfont", "load console font from file", command_font);
