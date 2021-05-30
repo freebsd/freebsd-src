@@ -100,7 +100,7 @@ fingerprintgre(struct libalias *la, struct alias_data *ah)
 static int
 protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
+
 	AliasHandlePptpIn(la, pip, ah->lnk);
 	return (0);
 }
@@ -108,7 +108,7 @@ protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
 static int
 protohandlerout(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
+
 	AliasHandlePptpOut(la, pip, ah->lnk);
 	return (0);
 }
@@ -294,7 +294,6 @@ struct pptpCallIds {
 typedef struct pptpCallIds *PptpCallId;
 
 static PptpCallId AliasVerifyPptp(struct ip *, u_int16_t *);
-
 
 static void
 AliasHandlePptpOut(struct libalias *la,

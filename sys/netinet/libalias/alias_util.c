@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*
     Alias_util.c contains general utilities used by other functions
     in the packet aliasing module.  At the moment, there are functions

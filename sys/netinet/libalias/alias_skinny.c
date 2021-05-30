@@ -73,7 +73,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
+
         AliasHandleSkinny(la, pip, ah->lnk);
 	return (0);
 }
@@ -206,7 +206,6 @@ typedef enum {
 	ClientToServer = 0,
 	ServerToClient = 1
 } ConvDirection;
-
 
 static int
 alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,

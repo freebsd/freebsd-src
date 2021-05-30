@@ -50,10 +50,8 @@ __FBSDID("$FreeBSD$");
     Rules are stored in a linear linked list, so lookup efficiency
     won't be too good for large lists.
 
-
     Initial development: April, 1998 (cjm)
 */
-
 
 /* System includes */
 #ifdef _KERNEL
@@ -113,13 +111,9 @@ struct proxy_entry {
 	struct proxy_entry *last;
 };
 
-
-
 /*
     File scope variables
 */
-
-
 
 /* Local (static) functions:
 
@@ -452,7 +446,6 @@ ProxyEncodeIpHeader(struct ip *pip,
 #endif
 }
 
-
 /* Functions by other packet alias source files
 
     ProxyCheck()         -- Checks whether an outgoing packet should
@@ -519,7 +512,6 @@ ProxyModify(struct libalias *la, struct alias_link *lnk,
 		break;
 	}
 }
-
 
 /*
     Public API functions
