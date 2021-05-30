@@ -439,6 +439,7 @@ ext2_htree_append_block(struct vnode *vp, char *data,
 	auio.uio_iovcnt = 1;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_SYSSPACE;
+	auio.uio_td = NULL;
 	error = VOP_WRITE(vp, &auio, IO_SYNC, cnp->cn_cred);
 	if (!error)
 		dp->i_size = newsize;
