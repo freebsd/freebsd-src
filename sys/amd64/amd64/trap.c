@@ -236,25 +236,31 @@ trap(struct trapframe *frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		if (TRAPF_USERMODE(frame))
+		if (TRAPF_USERMODE(frame)) {
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
-		else if (type != T_NMI && type != T_BPTFLT &&
-		    type != T_TRCTRAP) {
-			/*
-			 * XXX not quite right, since this may be for a
-			 * multiple fault in user mode.
-			 */
-			printf("kernel trap %d with interrupts disabled\n",
-			    type);
+		} else {
+			switch (type) {
+			case T_NMI:
+			case T_BPTFLT:
+			case T_TRCTRAP:
+			case T_PROTFLT:
+			case T_SEGNPFLT:
+			case T_STKFLT:
+				break;
+			default:
+				printf(
+				    "kernel trap %d with interrupts disabled\n",
+				    type);
 
-			/*
-			 * We shouldn't enable interrupts while holding a
-			 * spin lock.
-			 */
-			if (td->td_md.md_spinlock_count == 0)
-				enable_intr();
+				/*
+				 * We shouldn't enable interrupts while holding a
+				 * spin lock.
+				 */
+				if (td->td_md.md_spinlock_count == 0)
+					enable_intr();
+			}
 		}
 	}
 
@@ -444,6 +450,8 @@ trap(struct trapframe *frame)
 			 * Magic '5' is the number of qwords occupied by
 			 * the hardware trap frame.
 			 */
+			KASSERT((read_rflags() & PSL_I) == 0,
+			    ("interrupts enabled"));
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
 				if ((PCPU_GET(curpmap)->pm_ucr3 !=
