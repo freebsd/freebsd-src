@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/selinfo.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -1524,6 +1526,7 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
+	struct pipe *fpipe;
 	struct file *fp;
 	long arg;
 	int error, result;
@@ -1655,6 +1658,21 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 	case LINUX_F_ADD_SEALS:
 		return (kern_fcntl(td, args->fd, F_ADD_SEALS,
 		    linux_to_bsd_bits(args->arg, seal_bitmap, 0)));
+
+	case LINUX_F_GETPIPE_SZ:
+		error = fget(td, args->fd,
+		    &cap_fcntl_rights, &fp);
+		if (error != 0)
+			return (error);
+		if (fp->f_type != DTYPE_PIPE) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+		fpipe = fp->f_data;
+		td->td_retval[0] = fpipe->pipe_buffer.size;
+		fdrop(fp, td);
+		return (0);
+
 	default:
 		linux_msg(td, "unsupported fcntl cmd %d", args->cmd);
 		return (EINVAL);
