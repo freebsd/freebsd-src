@@ -321,8 +321,15 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in *sinp;
 
 	sinp = (struct sockaddr_in *)nam;
-	if (nam->sa_family != AF_INET)
-		return (EAFNOSUPPORT);
+	if (nam->sa_family != AF_INET) {
+		/*
+		 * Preserve compatibility with old programs.
+		 */
+		if (nam->sa_family != AF_UNSPEC ||
+		    sinp->sin_addr.s_addr != INADDR_ANY)
+			return (EAFNOSUPPORT);
+		nam->sa_family = AF_INET;
+	}
 	if (nam->sa_len != sizeof(*sinp))
 		return (EINVAL);
 
