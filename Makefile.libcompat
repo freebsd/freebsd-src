@@ -51,7 +51,7 @@ _LC_INCDIRS=	\
 .if ${MK_FILE} != "no"
 _libmagic=	lib/libmagic
 .endif
-.if ${MK_PMC} != "no" && ${TARGET_ARCH} == "amd64"
+.if ${MK_PMC} != "no"
 _jevents=	lib/libpmc/pmu-events
 .endif
 
