@@ -2535,9 +2535,7 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
-.if ${MK_PMC} != "no" && \
-    (${TARGET_ARCH} == "aarch64" || ${TARGET_ARCH} == "amd64" || \
-    ${TARGET_ARCH} == "i386")
+.if ${MK_PMC} != "no"
 _jevents=lib/libpmc/pmu-events
 .endif
 

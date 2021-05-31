@@ -8,15 +8,15 @@ INCS=	pmc.h pmclog.h pmcformat.h
 CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
 LDADD+=	-lc++
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
-    ${MACHINE_ARCH} == "i386"
-
 .if ${MACHINE_CPUARCH} == "aarch64"
 EVENT_ARCH="arm64"
 .elif ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 EVENT_ARCH="x86"
 .elif ${MACHINE_ARCH} == "powerpc"
 EVENT_ARCH="powerpc"
+.else
+# This will generate an empty events table
+EVENT_ARCH="none"
 .endif
 
 .if ${MK_DIRDEPS_BUILD} == "yes"
@@ -40,7 +40,6 @@ libpmc_events.c: ${JEVENTS} .META
 	fi
 CLEANFILES+=	libpmc_events.c libpmc_events.c.tmp
 SRCS+=	libpmc_events.c
-.endif
 
 WARNS?=	3
 
