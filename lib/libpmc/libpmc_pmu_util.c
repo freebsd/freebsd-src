@@ -43,12 +43,12 @@
 #include <libpmcstat.h>
 #include "pmu-events/pmu-events.h"
 
-#if defined(__amd64__) || defined(__i386__)
 struct pmu_alias {
 	const char *pa_alias;
 	const char *pa_name;
 };
 
+#if defined(__amd64__) || defined(__i386__)
 typedef enum {
 	PMU_INVALID,
 	PMU_INTEL,
@@ -138,6 +138,16 @@ pmu_alias_get(const char *name)
 
 	return (name);
 }
+
+#else
+
+static const char *
+pmu_alias_get(const char *name)
+{
+
+	return (name);
+}
+#endif
 
 struct pmu_event_desc {
 	uint64_t ped_period;
@@ -417,6 +427,7 @@ pmc_pmu_print_counter_full(const char *ev)
 	}
 }
 
+#if defined(__amd64__) || defined(__i386__)
 static int
 pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	struct pmu_event_desc *ped)
@@ -540,61 +551,9 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 
 #else
 
-uint64_t
-pmc_pmu_sample_rate_get(const char *event_name __unused)
-{
-	return (DEFAULT_SAMPLE_COUNT);
-}
-
-void
-pmc_pmu_print_counters(const char *event_name __unused)
-{
-}
-
-void
-pmc_pmu_print_counter_desc(const char *e __unused)
-{
-}
-
-void
-pmc_pmu_print_counter_desc_long(const char *e __unused)
-{
-}
-
-void
-pmc_pmu_print_counter_full(const char *e __unused)
-{
-
-}
-
-int
-pmc_pmu_enabled(void)
-{
-	return (0);
-}
-
 int
 pmc_pmu_pmcallocate(const char *e __unused, struct pmc_op_pmcallocate *p __unused)
 {
 	return (EOPNOTSUPP);
 }
-
-const char *
-pmc_pmu_event_get_by_idx(const char *c __unused, int idx __unused)
-{
-	return (NULL);
-}
-
-int
-pmc_pmu_stat_mode(const char ***a __unused)
-{
-	return (EOPNOTSUPP);
-}
-
-int
-pmc_pmu_idx_get_by_event(const char *c __unused, const char *e __unused)
-{
-	return (-1);
-}
-
 #endif
