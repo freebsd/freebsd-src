@@ -72,7 +72,7 @@ static struct pmu_alias pmu_intel_alias_table[] = {
 	{"BRANCH-MISSES-RETIRED", "BR_MISP_RETIRED.ALL_BRANCHES"},
 	{"cycles", "tsc-tsc"},
 	{"unhalted-cycles", "CPU_CLK_UNHALTED.THREAD_P_ANY"},
-	{"instructions", "inst-retired.any_p"},
+	{"instructions", "inst_retired.any_p"},
 	{"branch-mispredicts", "br_misp_retired.all_branches"},
 	{"branches", "br_inst_retired.all_branches"},
 	{"interrupts", "hw_interrupts.received"},
