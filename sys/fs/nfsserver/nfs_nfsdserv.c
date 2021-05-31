@@ -3664,7 +3664,8 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	struct nfsrvfh fh;
 	struct nfsexstuff retnes;
 	u_int32_t *sizp;
-	int error = 0, savflag, i;
+	int error = 0, i;
+	uint64_t savflag;
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
@@ -3750,6 +3751,116 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	*sizp = txdr_unsigned(len);
 
 out:
+	NFSEXITCODE2(error, nd);
+	return (error);
+}
+
+/*
+ * nfsv4 security info no name service
+ */
+int
+nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
+    vnode_t dp, struct nfsexstuff *exp)
+{
+	uint32_t *tl, *sizp;
+	struct nameidata named;
+	vnode_t dirp = NULL, vp;
+	struct nfsrvfh fh;
+	struct nfsexstuff retnes;
+	int error = 0, fhstyle, i, len;
+	uint64_t savflag;
+	char *bufp;
+	u_long *hashp;
+	struct thread *p = curthread;
+
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	fhstyle = fxdr_unsigned(int, *tl);
+	switch (fhstyle) {
+	case NFSSECINFONONAME_PARENT:
+		NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
+		    LOCKLEAF | SAVESTART);
+		nfsvno_setpathbuf(&named, &bufp, &hashp);
+		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+		if (error != 0) {
+			vput(dp);
+			nfsvno_relpathbuf(&named);
+			goto nfsmout;
+		}
+		if (nd->nd_repstat == 0)
+			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
+		else
+			vput(dp);
+		if (dirp != NULL)
+			vrele(dirp);
+		vrele(named.ni_startdir);
+		nfsvno_relpathbuf(&named);
+		vp = named.ni_vp;
+		break;
+	case NFSSECINFONONAME_CURFH:
+		vp = dp;
+		break;
+	default:
+		nd->nd_repstat = NFSERR_INVAL;
+		vput(dp);
+	}
+	if (nd->nd_repstat != 0)
+		goto nfsmout;
+	fh.nfsrvfh_len = NFSX_MYFH;
+	nd->nd_repstat = nfsvno_getfh(vp, (fhandle_t *)fh.nfsrvfh_data, p);
+	vput(vp);
+	savflag = nd->nd_flag;
+	if (nd->nd_repstat == 0) {
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0);
+		if (vp != NULL)
+			vput(vp);
+	}
+	nd->nd_flag = savflag;
+	if (nd->nd_repstat != 0)
+		goto nfsmout;
+
+	/*
+	 * Finally have the export flags for fh/parent, so we can create
+	 * the security info.
+	 */
+	len = 0;
+	NFSM_BUILD(sizp, uint32_t *, NFSX_UNSIGNED);
+	for (i = 0; i < retnes.nes_numsecflavor; i++) {
+		if (retnes.nes_secflavors[i] == AUTH_SYS) {
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_UNIX);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5) {
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_GSS);
+			nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCNONE);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5I) {
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_GSS);
+			nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCINTEGRITY);
+			len++;
+		} else if (retnes.nes_secflavors[i] == RPCSEC_GSS_KRB5P) {
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(RPCAUTH_GSS);
+			nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+			    nfsgss_mechlist[KERBV_MECH].len);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+			*tl = txdr_unsigned(RPCAUTHGSS_SVCPRIVACY);
+			len++;
+		}
+	}
+	*sizp = txdr_unsigned(len);
+
+nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
 }
