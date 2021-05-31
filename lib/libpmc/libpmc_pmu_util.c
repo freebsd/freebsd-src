@@ -472,9 +472,7 @@ pmc_pmu_intel_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	struct pmu_event_desc *ped)
 {
 	struct pmc_md_iap_op_pmcallocate *iap;
-	int isfixed;
 
-	isfixed = 0;
 	iap = &pm->pm_md.pm_iap;
 	if (strcasestr(event_name, "UNC_") == event_name ||
 	    strcasestr(event_name, "uncore") != NULL) {
