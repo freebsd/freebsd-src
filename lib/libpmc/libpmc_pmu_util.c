@@ -302,8 +302,6 @@ pmc_pmu_sample_rate_get(const char *event_name)
 	event_name = pmu_alias_get(event_name);
 	if ((pe = pmu_event_get(NULL, event_name, NULL)) == NULL)
 		return (DEFAULT_SAMPLE_COUNT);
-	if (pe->alias && (pe = pmu_event_get(NULL, pe->alias, NULL)) == NULL)
-		return (DEFAULT_SAMPLE_COUNT);
 	if (pe->event == NULL)
 		return (DEFAULT_SAMPLE_COUNT);
 	if (pmu_parse_event(&ped, pe->event))
@@ -525,8 +523,6 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	event_name = pmu_alias_get(event_name);
 	if ((pe = pmu_event_get(NULL, event_name, &idx)) == NULL)
-		return (ENOENT);
-	if (pe->alias && (pe = pmu_event_get(NULL, pe->alias, &idx)) == NULL)
 		return (ENOENT);
 	assert(idx >= 0);
 	pm->pm_ev = idx;
