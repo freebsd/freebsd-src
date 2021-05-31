@@ -441,13 +441,15 @@ main(int argc, char *argv[])
 		/* Download firmware and parse it for magic Intel Reset parameter */
 		r = iwmbt_patch_firmware(hdl, firmware_path);
 		free(firmware_path);
-		if (r < 0)
+		if (r < 0) {
+			(void)iwmbt_exit_manufacturer(hdl, 0x01);
 			goto shutdown;
+		}
 
 		iwmbt_info("Firmware download complete");
 
 		/* Exit manufacturer mode */
-		r = iwmbt_exit_manufacturer(hdl, 0x02);
+		r = iwmbt_exit_manufacturer(hdl, r == 0 ? 0x00 : 0x02);
 		if (r < 0) {
 			iwmbt_debug("iwmbt_exit_manufacturer() failed code %d", r);
 			goto shutdown;
@@ -462,9 +464,12 @@ main(int argc, char *argv[])
 			iwmbt_dump_version(&ver);
 
 		/* Set Intel Event mask */
+		if (iwmbt_enter_manufacturer(hdl) < 0)
+			goto reset;
 		r = iwmbt_set_event_mask(hdl);
 		if (r == 0)
 			iwmbt_info("Intel Event Mask is set");
+		(void)iwmbt_exit_manufacturer(hdl, 0x00);
 
 	} else {
 
