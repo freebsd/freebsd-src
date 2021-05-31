@@ -2064,7 +2064,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 	    }
 	}
 	*tocp = '\0';
-	*outlenp = (size_t)outlen;
+	*outlenp = (size_t)outlen + 1;
 	if (hashp != NULL)
 		*hashp = hash;
 nfsmout:
