@@ -97,14 +97,14 @@ struct libalias {
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */
-	int		icmpLinkCount;
-	int		udpLinkCount;
-	int		tcpLinkCount;
-	int		pptpLinkCount;
-	int		protoLinkCount;
-	int		fragmentIdLinkCount;
-	int		fragmentPtrLinkCount;
-	int		sockCount;
+	unsigned int	icmpLinkCount;
+	unsigned int	udpLinkCount;
+	unsigned int	tcpLinkCount;
+	unsigned int	pptpLinkCount;
+	unsigned int	protoLinkCount;
+	unsigned int	fragmentIdLinkCount;
+	unsigned int	fragmentPtrLinkCount;
+	unsigned int	sockCount;
 	/* System time in seconds for current packet */
 	int		timeStamp;
 	/* If equal to zero, DeleteLink()
