@@ -188,7 +188,7 @@ int (*nfsrv4_ops0[NFSV42_NOPS])(struct nfsrv_descript *,
 	nfsrvd_layoutcommit,
 	nfsrvd_layoutget,
 	nfsrvd_layoutreturn,
-	nfsrvd_notsupp,
+	nfsrvd_secinfononame,
 	nfsrvd_sequence,
 	nfsrvd_notsupp,
 	nfsrvd_teststateid,
@@ -1175,9 +1175,20 @@ tryagain:
 					}
 					break;
 				}
-				if (nd->nd_repstat == 0)
+				if (nd->nd_repstat == 0) {
 					error = (*(nfsrv4_ops0[op]))(nd,
 					    isdgram, vp, &vpnes);
+					if ((op == NFSV4OP_SECINFO ||
+					     op == NFSV4OP_SECINFONONAME) &&
+					    error == 0 && nd->nd_repstat == 0) {
+						/*
+						 * Secinfo and Secinfo_no_name
+						 * consume the current FH.
+						 */
+						vrele(vp);
+						vp = NULL;
+					}
+				}
 				if (nfsv4_opflag[op].modifyfs)
 					vn_finished_write(temp_mp);
 			} else {

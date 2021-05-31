@@ -726,6 +726,10 @@
 #define	NFSCDFS4_BACK		0x2
 #define	NFSCDFS4_BOTH		0x3
 
+/* Enum values for Secinfo_no_name. */
+#define	NFSSECINFONONAME_CURFH	0
+#define	NFSSECINFONONAME_PARENT	1
+
 #if defined(_KERNEL) || defined(KERNEL)
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\

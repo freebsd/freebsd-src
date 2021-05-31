@@ -232,6 +232,8 @@ int nfsrvd_renew(struct nfsrv_descript *, int,
     vnode_t, struct nfsexstuff *);
 int nfsrvd_secinfo(struct nfsrv_descript *, int,
     vnode_t, struct nfsexstuff *);
+int nfsrvd_secinfononame(struct nfsrv_descript *, int,
+    vnode_t, struct nfsexstuff *);
 int nfsrvd_setclientid(struct nfsrv_descript *, int,
     vnode_t, struct nfsexstuff *);
 int nfsrvd_setclientidcfrm(struct nfsrv_descript *, int,
