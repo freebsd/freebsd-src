@@ -258,7 +258,8 @@ struct l_ifmap {
 	u_char		irq;
 	u_char		dma;
 	u_char		port;
-} __packed;
+	/* 3 bytes spare*/
+};
 
 struct l_ifreq {
 	union {
@@ -278,7 +279,7 @@ struct l_ifreq {
 		char		ifru_slave[LINUX_IFNAMSIZ];
 		l_uintptr_t	ifru_data;
 	} ifr_ifru;
-} __packed;
+};
 
 #define	ifr_name	ifr_ifrn.ifrn_name	/* Interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
