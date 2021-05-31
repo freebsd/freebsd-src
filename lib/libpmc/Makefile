@@ -12,7 +12,7 @@ LDADD+=	-lc++
 EVENT_ARCH="arm64"
 .elif ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 EVENT_ARCH="x86"
-.elif ${MACHINE_ARCH} == "powerpc"
+.elif ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH:Mpowerpc64*} != ""
 EVENT_ARCH="powerpc"
 .else
 # This will generate an empty events table
