@@ -3153,9 +3153,9 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
-	if (req->newlen > sizeof cmd)
+	if (req->newptr == NULL || req->newlen > sizeof(cmd))
 		return (EBADRPC);
-	if ((error = SYSCTL_IN(req, &cmd, sizeof cmd)) != 0)
+	if ((error = SYSCTL_IN(req, &cmd, sizeof(cmd))) != 0)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
