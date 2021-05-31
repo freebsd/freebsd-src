@@ -37,7 +37,6 @@
 #include <net/if_var.h>
 #include <net/pfvar.h>
 
-SDT_PROVIDER_DECLARE(pf);
 SDT_PROBE_DECLARE(pf, ioctl, function, error);
 SDT_PROBE_DECLARE(pf, ioctl, nvchk, error);
 
