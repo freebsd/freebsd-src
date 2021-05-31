@@ -719,10 +719,7 @@ thread_reap_callout_cb(void *arg __unused)
 void
 thread_reap_barrier(void)
 {
-	struct thread *td;
 	struct task *t;
-
-	td = curthread;
 
 	/*
 	 * First do context switches to each CPU to ensure that all
