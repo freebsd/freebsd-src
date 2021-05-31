@@ -813,7 +813,7 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 
-	if (args->flags & ~LINUX_AT_SYMLINK_NOFOLLOW)
+	if (args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH))
 		return (EINVAL);
 
 	if (args->times != NULL) {
@@ -863,6 +863,8 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 
 	if (args->flags & LINUX_AT_SYMLINK_NOFOLLOW)
 		flags |= AT_SYMLINK_NOFOLLOW;
+	if (args->flags & LINUX_AT_EMPTY_PATH)
+		flags |= AT_EMPTY_PATH;
 
 	if (!LUSECONVPATH(td)) {
 		if (args->pathname != NULL) {
