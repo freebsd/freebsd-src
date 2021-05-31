@@ -573,7 +573,7 @@ iichid_intr(void *context)
 	 * not allowed and often returns a garbage.  If a HOST needs to
 	 * communicate with the DEVICE it MUST issue a SET POWER command
 	 * (to ON) before any other command. As some hardware requires reads to
-	 * acknoledge interrupts we fetch only length header and discard it.
+	 * acknowledge interrupts we fetch only length header and discard it.
 	 */
 	maxlen = sc->power_on ? sc->intr_bufsize : 0;
 	error = iichid_cmd_read(sc, sc->intr_buf, maxlen, &actual);
@@ -1069,14 +1069,16 @@ iichid_attach(device_t dev)
 	error = iichid_reset(sc);
 	if (error) {
 		device_printf(dev, "failed to reset hardware: %d\n", error);
-		return (ENXIO);
+		error = ENXIO;
+		goto done;
 	}
 
-	sc->power_on = false;
+	sc->power_on = true;
+
 #ifdef IICHID_SAMPLING
 	TASK_INIT(&sc->event_task, 0, iichid_event_task, sc);
 	/* taskqueue_create can't fail with M_WAITOK mflag passed. */
-	sc->taskqueue = taskqueue_create("hmt_tq", M_WAITOK | M_ZERO,
+	sc->taskqueue = taskqueue_create("iichid_tq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &sc->taskqueue);
 	TIMEOUT_TASK_INIT(sc->taskqueue, &sc->periodic_task, 0,
 	    iichid_event_task, sc);
@@ -1144,8 +1146,10 @@ iichid_attach(device_t dev)
 		device_printf(dev, "failed to attach child: error %d\n", error);
 		iichid_detach(dev);
 	}
+
 done:
 	(void)iichid_set_power(sc, I2C_HID_POWER_OFF);
+	sc->power_on = false;
 	return (error);
 }
 
@@ -1178,21 +1182,27 @@ iichid_suspend(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-	DPRINTF(sc, "Suspend called, setting device to power_state 1\n");
 	(void)bus_generic_suspend(dev);
+#ifdef IICHID_SAMPLING
+	if (sc->sampling_rate_slow < 0)
+#endif
+		(void)bus_generic_suspend_intr(device_get_parent(dev), dev,
+		    sc->irq_res);
+
 	/*
 	 * 8.2 - The HOST is going into a deep power optimized state and wishes
 	 * to put all the devices into a low power state also.  The HOST
 	 * is recommended to issue a HIPO command to the DEVICE to force
 	 * the DEVICE in to a lower power state.
 	 */
+	DPRINTF(sc, "Suspend called, setting device to power_state 1\n");
 	error = iichid_set_power_state(sc, IICHID_PS_NULL, IICHID_PS_OFF);
 	if (error != 0)
 		DPRINTF(sc, "Could not set power_state, error: %d\n", error);
 	else
 		DPRINTF(sc, "Successfully set power_state\n");
 
-        return (0);
+	return (0);
 }
 
 static int
@@ -1209,6 +1219,11 @@ iichid_resume(device_t dev)
 	else
 		DPRINTF(sc, "Successfully set power_state\n");
 	(void)bus_generic_resume(dev);
+#ifdef IICHID_SAMPLING
+	if (sc->sampling_rate_slow < 0)
+#endif
+		(void)bus_generic_resume_intr(device_get_parent(dev), dev,
+		    sc->irq_res);
 
 	return (0);
 }
