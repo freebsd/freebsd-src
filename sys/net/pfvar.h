@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/nv.h>
 #include <sys/refcount.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
@@ -59,6 +60,8 @@
 
 SYSCTL_DECL(_net_pf);
 MALLOC_DECLARE(M_PFHASH);
+
+SDT_PROVIDER_DECLARE(pf);
 
 struct pfi_dynaddr {
 	TAILQ_ENTRY(pfi_dynaddr)	 entry;

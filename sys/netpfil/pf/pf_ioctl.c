@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <net/altq/altq.h>
 #endif
 
-SDT_PROVIDER_DECLARE(pf);
 SDT_PROBE_DEFINE3(pf, ioctl, ioctl, error, "int", "int", "int");
 SDT_PROBE_DEFINE3(pf, ioctl, function, error, "char *", "int", "int");
 SDT_PROBE_DEFINE2(pf, ioctl, addrule, error, "int", "int");
