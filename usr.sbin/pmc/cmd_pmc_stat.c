@@ -104,6 +104,16 @@ static const char *pmc_stat_mode_names[] = {
 	"cache-misses",
 };
 
+/* Common aliases for the desired stat counter */
+static const char *pmc_stat_mode_aliases[] = {
+	"unhalted-cycles",
+	"instructions",
+	"branches",
+	"branch-mispredicts",
+	"LLC-REFERENCE",
+	"LLC-MISSES",
+};
+
 static int pmcstat_sockpair[NSOCKPAIRFD];
 
 static void __dead2
@@ -153,7 +163,6 @@ static void
 pmc_stat_setup_stat(int system_mode, const char *arg)
 {
 	const char *new_cntrs[STAT_MODE_NPMCS];
-	static const char **pmc_stat_mode_cntrs;
 	struct pmcstat_ev *ev;
 	char *counters, *counter;
 	int i, c, start, newcnt;
@@ -164,13 +173,11 @@ pmc_stat_setup_stat(int system_mode, const char *arg)
 		err(EX_OSERR, "ERROR: Cannot determine the root set of CPUs");
 	CPU_COPY(&rootmask, &cpumask);
 
-	if (pmc_pmu_stat_mode(&pmc_stat_mode_cntrs) != 0)
-		errx(EX_USAGE, "ERROR: hwmpc.ko not loaded or stat not supported on host.");
 	if (system_mode && geteuid() != 0)
 		errx(EX_USAGE, "ERROR: system mode counters can only be used as root");
 	counters = NULL;
 	for (i = 0; i < STAT_MODE_NPMCS; i++) {
-		stat_mode_cntrs[i] = pmc_stat_mode_cntrs[i];
+		stat_mode_cntrs[i] = pmc_stat_mode_aliases[i];
 		stat_mode_names[i] = pmc_stat_mode_names[i];
 	}
 	if (arg) {
