@@ -99,6 +99,35 @@ __fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 		fp->_r = 0;
 	total = resid;
 	p = buf;
+
+	/*
+	 * If we're unbuffered we know that the buffer in fp is empty so
+	 * we can read directly into buf.  This is much faster than a
+	 * series of one byte reads into fp->_nbuf.
+	 */
+	if ((fp->_flags & __SNBF) != 0 && buf != NULL) {
+		while (resid > 0) {
+			/* set up the buffer */
+			fp->_bf._base = fp->_p = p;
+			fp->_bf._size = resid;
+
+			if (__srefill(fp)) {
+				/* no more input: return partial result */
+				count = (total - resid) / size;
+				break;
+			}
+			p += fp->_r;
+			resid -= fp->_r;
+		}
+
+		/* restore the old buffer (see __smakebuf) */
+		fp->_bf._base = fp->_p = fp->_nbuf;
+		fp->_bf._size = 1;
+		fp->_r = 0;
+
+		return (count);
+	}
+
 	while (resid > (r = fp->_r)) {
 		(void)memcpy((void *)p, (void *)fp->_p, (size_t)r);
 		fp->_p += r;
