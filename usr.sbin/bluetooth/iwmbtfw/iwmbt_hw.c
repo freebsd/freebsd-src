@@ -134,17 +134,18 @@ iwmbt_patch_fwfile(struct libusb_device_handle *hdl,
 	struct iwmbt_firmware fw_job = *fw;
 	uint16_t cmd_opcode;
 	uint8_t cmd_length;
-	uint8_t cmd_buf[IWMBT_HCI_MAX_CMD_SIZE];
+	struct iwmbt_hci_cmd *cmd_buf;
 	uint8_t evt_code;
 	uint8_t evt_length;
 	uint8_t evt_buf[IWMBT_HCI_MAX_EVENT_SIZE];
-	int skip_patch = 0;
+	int activate_patch = 0;
 
-	for (;;) {
-		skip_patch = 0;
-
-		if (fw_job.len < 4)
-			break;
+	while (fw_job.len > 0) {
+		if (fw_job.len < 4) {
+			iwmbt_err("Invalid firmware, unexpected EOF in HCI "
+			    "command header. Remains=%d", fw_job.len);
+			return (-1);
+		}
 
 		if (fw_job.buf[0] != 0x01) {
 			iwmbt_err("Invalid firmware, expected HCI command (%d)",
@@ -159,47 +160,61 @@ iwmbt_patch_fwfile(struct libusb_device_handle *hdl,
 		/* Load in the HCI command to perform. */
 		cmd_opcode = le16dec(fw_job.buf);
 		cmd_length = fw_job.buf[2];
-		memcpy(cmd_buf, fw_job.buf, 3);
+		cmd_buf = (struct iwmbt_hci_cmd *)fw_job.buf;
 
 		iwmbt_debug("opcode=%04x, len=%02x", cmd_opcode, cmd_length);
 
-		/* For some reason the command 0xfc2f hangs up my card. */
-		if (cmd_opcode == 0xfc2f)
-			skip_patch = 1;
+		/*
+		 * If there is a command that loads a patch in the
+		 * firmware file, then activate the patch upon success,
+		 * otherwise just disable the manufacturer mode.
+		 */
+		if (cmd_opcode == 0xfc8e)
+			activate_patch = 1;
 
 		/* Advance by three. */
 		fw_job.buf += 3;
 		fw_job.len -= 3;
 
-		if (fw_job.len < cmd_length)
-			cmd_length = fw_job.len;
-
-		/* Copy data to HCI command buffer. */
-		memcpy(cmd_buf + 3, fw_job.buf,
-		    MIN(cmd_length, IWMBT_HCI_MAX_CMD_SIZE - 3));
+		if (fw_job.len < cmd_length) {
+			iwmbt_err("Invalid firmware, unexpected EOF in HCI "
+			    "command data. len=%d, remains=%d",
+			    cmd_length, fw_job.len);
+			return (-1);
+		}
 
 		/* Advance by data length. */
 		fw_job.buf += cmd_length;
 		fw_job.len -= cmd_length;
 
+		ret = libusb_control_transfer(hdl,
+		    LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_DEVICE,
+		    0,
+		    0,
+		    0,
+		    (uint8_t *)cmd_buf,
+		    IWMBT_HCI_CMD_SIZE(cmd_buf),
+		    IWMBT_HCI_CMD_TIMEOUT);
+
+		if (ret < 0) {
+			iwmbt_err("libusb_control_transfer() failed: err=%s",
+			    libusb_strerror(ret));
+			return (-1);
+		}
+
 		/*
 		 * Every command has its associated event: data must match
 		 * what is recorded in the firmware file. Perform that check
 		 * now.
-		 *
-		 * Some commands are mapped to more than one event sequence,
-		 * in that case we can drop the non-patch commands, as we
-		 * probably don't need them for operation of the card.
-		 *
 		 */
 
-		for (;;) {
+		while (fw_job.len > 0 && fw_job.buf[0] == 0x02) {
 			/* Is this the end of the file? */
-			if (fw_job.len < 3)
-				break;
-
-			if (fw_job.buf[0] != 0x02)
-				break;
+			if (fw_job.len < 3) {
+				iwmbt_err("Invalid firmware, unexpected EOF in"
+				    "event header. remains=%d", fw_job.len);
+				return (-1);
+			}
 
 			/* Advance by one. */
 			fw_job.buf++;
@@ -219,30 +234,39 @@ iwmbt_patch_fwfile(struct libusb_device_handle *hdl,
 			iwmbt_debug("event=%04x, len=%02x",
 					evt_code, evt_length);
 
+			if (fw_job.len < evt_length) {
+				iwmbt_err("Invalid firmware, unexpected EOF in"
+				    " event data. len=%d, remains=%d",
+				    evt_length, fw_job.len);
+				return (-1);
+			}
+
+			ret = libusb_interrupt_transfer(hdl,
+			    IWMBT_INTERRUPT_ENDPOINT_ADDR,
+			    evt_buf,
+			    IWMBT_HCI_MAX_EVENT_SIZE,
+			    &transferred,
+			    IWMBT_HCI_CMD_TIMEOUT);
+
+			if (ret < 0) {
+				iwmbt_err("libusb_interrupt_transfer() failed:"
+				    " err=%s", libusb_strerror(ret));
+				return (-1);
+			}
+
+			if ((int)evt_length + 2 != transferred ||
+			    memcmp(evt_buf + 2, fw_job.buf, evt_length) != 0) {
+				iwmbt_err("event does not match firmware");
+				return (-1);
+			}
+
 			/* Advance by data length. */
 			fw_job.buf += evt_length;
 			fw_job.len -= evt_length;
-
-			if (skip_patch == 0) {
-				ret = iwmbt_hci_command(hdl,
-				    (struct iwmbt_hci_cmd *)cmd_buf,
-				    evt_buf,
-				    IWMBT_HCI_MAX_EVENT_SIZE,
-				    &transferred,
-				    IWMBT_HCI_CMD_TIMEOUT);
-
-				if (ret < 0) {
-					iwmbt_debug("Can't send patch: "
-					    "code=%d, size=%d",
-					    ret,
-					    transferred);
-					 return (-1);
-				}
-			}
 		}
 	}
 
-	return (0);
+	return (activate_patch);
 }
 
 int
