@@ -861,6 +861,9 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 			return (0);
 	}
 
+	if (args->flags & LINUX_AT_SYMLINK_NOFOLLOW)
+		flags |= AT_SYMLINK_NOFOLLOW;
+
 	if (!LUSECONVPATH(td)) {
 		if (args->pathname != NULL) {
 			return (kern_utimensat(td, dfd, args->pathname,
@@ -872,9 +875,6 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
 	else if (args->flags != 0)
 		return (EINVAL);
-
-	if (args->flags & LINUX_AT_SYMLINK_NOFOLLOW)
-		flags |= AT_SYMLINK_NOFOLLOW;
 
 	if (path == NULL)
 		error = kern_futimens(td, dfd, timesp, UIO_SYSSPACE);
