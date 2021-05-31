@@ -146,3 +146,4 @@ Version 3.2: July, 2000 (Erik Salander, erik@whistle.com and
 
 Version 3.3: May 2020 (donner)
     - Dropped LibAliasCheckNewLink
+    - Refactor the database handling, perfomance improvements.
