@@ -48,6 +48,8 @@ interact(void)
 	static char		input[256];		/* big enough? */
 	const char * volatile	interp_identifier;
 
+	TSENTER();
+
 	/*
 	 * Because interp_identifier is volatile, it cannot be optimized out by
 	 * the compiler as it's considered an externally observable event.  This

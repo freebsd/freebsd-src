@@ -107,6 +107,8 @@ interp_init(void)
 	const char *filename;
 	const luaL_Reg *lib;
 
+	TSENTER();
+
 	setenv("script.lang", "lua", 1);
 	LDBG("creating context");
 
@@ -131,6 +133,8 @@ interp_init(void)
 		lua_pop(luap, 1);
 		setenv("autoboot_delay", "NO", 1);
 	}
+
+	TSEXIT();
 }
 
 int
@@ -142,6 +146,7 @@ interp_run(const char *line)
 	struct interp_lua_softc	*softc = &lua_softc;
 	int status, ret;
 
+	TSENTER();
 	luap = softc->luap;
 	LDBG("executing line...");
 	if ((status = luaL_dostring(luap, line)) != 0) {
@@ -186,6 +191,7 @@ interp_run(const char *line)
 		}
 	}
 
+	TSEXIT();
 	return (status == 0 ? CMD_OK : CMD_ERROR);
 }
 

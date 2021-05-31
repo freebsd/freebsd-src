@@ -339,6 +339,8 @@ bd_init(void)
 	int base, unit;
 	bdinfo_t *bd;
 
+	TSENTER();
+
 	base = 0x80;
 	for (unit = 0; unit < *(unsigned char *)PTOV(BIOS_NUMDRIVES); unit++) {
 		/*
@@ -358,6 +360,7 @@ bd_init(void)
 		STAILQ_INSERT_TAIL(&hdinfo, bd, bd_link);
 	}
 	bcache_add_dev(unit);
+	TSEXIT();
 	return (0);
 }
 
@@ -840,6 +843,8 @@ bd_open(struct open_file *f, ...)
 	va_list ap;
 	int rc;
 
+	TSENTER();
+
 	va_start(ap, f);
 	dev = va_arg(ap, struct disk_devdesc *);
 	va_end(ap);
@@ -873,6 +878,7 @@ bd_open(struct open_file *f, ...)
 			}
 		}
 	}
+	TSEXIT();
 	return (rc);
 }
 
@@ -1135,6 +1141,8 @@ bd_edd_io(bdinfo_t *bd, daddr_t dblk, int blks, caddr_t dest,
 {
 	static struct edd_packet packet;
 
+	TSENTER();
+
 	packet.len = sizeof(struct edd_packet);
 	packet.count = blks;
 	packet.off = VTOPOFF(dest);
@@ -1152,6 +1160,8 @@ bd_edd_io(bdinfo_t *bd, daddr_t dblk, int blks, caddr_t dest,
 	v86int();
 	if (V86_CY(v86.efl))
 		return (v86.eax >> 8);
+
+	TSEXIT();
 	return (0);
 }
 
@@ -1160,6 +1170,8 @@ bd_chs_io(bdinfo_t *bd, daddr_t dblk, int blks, caddr_t dest,
     int dowrite)
 {
 	uint32_t x, bpc, cyl, hd, sec;
+
+	TSENTER();
 
 	bpc = bd->bd_sec * bd->bd_hds;	/* blocks per cylinder */
 	x = dblk;
@@ -1189,6 +1201,7 @@ bd_chs_io(bdinfo_t *bd, daddr_t dblk, int blks, caddr_t dest,
 	v86int();
 	if (V86_CY(v86.efl))
 		return (v86.eax >> 8);
+	TSEXIT();
 	return (0);
 }
 
@@ -1205,6 +1218,8 @@ bd_io(struct disk_devdesc *dev, bdinfo_t *bd, daddr_t dblk, int blks,
     caddr_t dest, int dowrite)
 {
 	int result, retry;
+
+	TSENTER();
 
 	/* Just in case some idiot actually tries to read/write -1 blocks... */
 	if (blks < 0)
@@ -1263,6 +1278,8 @@ bd_io(struct disk_devdesc *dev, bdinfo_t *bd, daddr_t dblk, int blks,
 			    result);
 		}
 	}
+
+	TSEXIT();
 
 	return (result);
 }
