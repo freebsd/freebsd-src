@@ -722,18 +722,10 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	struct l_utimbuf lut;
 	char *fname;
 	int error;
-	bool convpath;
-
-	convpath = LUSECONVPATH(td);
-	if (convpath)
-		LCONVPATHEXIST(td, args->fname, &fname);
 
 	if (args->times) {
-		if ((error = copyin(args->times, &lut, sizeof lut))) {
-			if (convpath)
-				LFREEPATH(fname);
+		if ((error = copyin(args->times, &lut, sizeof lut)) != 0)
 			return (error);
-		}
 		tv[0].tv_sec = lut.l_actime;
 		tv[0].tv_usec = 0;
 		tv[1].tv_sec = lut.l_modtime;
@@ -742,10 +734,11 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	} else
 		tvp = NULL;
 
-	if (!convpath) {
+	if (!LUSECONVPATH(td)) {
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
+		LCONVPATHEXIST(td, args->fname, &fname);
 		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
 		    UIO_SYSSPACE);
 		LFREEPATH(fname);
@@ -762,17 +755,10 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	struct timeval tv[2], *tvp = NULL;
 	char *fname;
 	int error;
-	bool convpath;
-
-	convpath = LUSECONVPATH(td);
-	if (convpath)
-		LCONVPATHEXIST(td, args->fname, &fname);
 
 	if (args->tptr != NULL) {
-		if ((error = copyin(args->tptr, ltv, sizeof ltv))) {
-			LFREEPATH(fname);
+		if ((error = copyin(args->tptr, ltv, sizeof ltv)) != 0)
 			return (error);
-		}
 		tv[0].tv_sec = ltv[0].tv_sec;
 		tv[0].tv_usec = ltv[0].tv_usec;
 		tv[1].tv_sec = ltv[1].tv_sec;
@@ -780,10 +766,11 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 		tvp = tv;
 	}
 
-	if (!convpath) {
+	if (!LUSECONVPATH(td)) {
 		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
+		LCONVPATHEXIST(td, args->fname, &fname);
 		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
 		    tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
@@ -897,19 +884,12 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 	struct timeval tv[2], *tvp = NULL;
 	char *fname;
 	int error, dfd;
-	bool convpath;
 
-	convpath = LUSECONVPATH(td);
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	if (convpath)
-		LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
 
 	if (args->utimes != NULL) {
-		if ((error = copyin(args->utimes, ltv, sizeof ltv))) {
-			if (convpath)
-				LFREEPATH(fname);
+		if ((error = copyin(args->utimes, ltv, sizeof ltv)) != 0)
 			return (error);
-		}
 		tv[0].tv_sec = ltv[0].tv_sec;
 		tv[0].tv_usec = ltv[0].tv_usec;
 		tv[1].tv_sec = ltv[1].tv_sec;
@@ -917,11 +897,13 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 		tvp = tv;
 	}
 
-	if (!convpath) {
+	if (!LUSECONVPATH(td)) {
 		error = kern_utimesat(td, dfd, args->filename, UIO_USERSPACE,
 		    tvp, UIO_SYSSPACE);
 	} else {
-		error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+		LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
+		error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE,
+		    tvp, UIO_SYSSPACE);
 		LFREEPATH(fname);
 	}
 	return (error);
