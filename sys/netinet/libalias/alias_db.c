@@ -318,14 +318,16 @@ struct alias_link {
 #define LINK_UNFIREWALLED          0x08
 
 	int		timestamp;	/* Time link was last accessed */
-	int		expire_time;	/* Expire time for link */
 #ifndef NO_USE_SOCKETS
 	int		sockfd;		/* socket descriptor */
 #endif
 	/* Linked list of pointers for input and output lookup tables  */
 	LIST_ENTRY    (alias_link) list_out;
 	LIST_ENTRY    (alias_link) list_in;
-	TAILQ_ENTRY   (alias_link) list_expire;
+	struct {
+		TAILQ_ENTRY(alias_link) list;
+		int	time;	/* Expire time for link */
+	} expire;
 	/* Auxiliary data */
 	union {
 		char           *frag_ptr;
@@ -839,7 +841,7 @@ CleanupAliasData(struct libalias *la)
 	LIBALIAS_LOCK_ASSERT(la);
 
 	/* permanent entries may stay */
-	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, list_expire, lnk_tmp)
+	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, expire.list, lnk_tmp)
 		DeleteLink(&lnk);
 
 	for (i = 0; i < LINK_TABLE_IN_SIZE; i++)
@@ -858,15 +860,15 @@ CleanupLink(struct libalias *la, struct alias_link **lnk)
 	if (lnk == NULL || *lnk == NULL)
 		return;
 
-	if (LibAliasTime - (*lnk)->timestamp > (*lnk)->expire_time) {
+	if (LibAliasTime - (*lnk)->timestamp > (*lnk)->expire.time) {
 		DeleteLink(lnk);
 		if ((*lnk) == NULL)
 			return;
 	}
 
 	/* move to end, swap may fail on a single entry list */
-	TAILQ_REMOVE(&la->checkExpire, (*lnk), list_expire);
-	TAILQ_INSERT_TAIL(&la->checkExpire, (*lnk), list_expire);
+	TAILQ_REMOVE(&la->checkExpire, (*lnk), expire.list);
+	TAILQ_INSERT_TAIL(&la->checkExpire, (*lnk), expire.list);
 }
 
 static struct alias_link *
@@ -912,7 +914,7 @@ DeleteLink(struct alias_link **plnk)
 	LIST_REMOVE(lnk, list_in);
 
 	/* remove from housekeeping */
-	TAILQ_REMOVE(&la->checkExpire, lnk, list_expire);
+	TAILQ_REMOVE(&la->checkExpire, lnk, expire.list);
 
 #ifndef NO_USE_SOCKETS
 	/* Close socket, if one has been allocated */
@@ -995,27 +997,27 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		/* Expiration time */
 		switch (link_type) {
 		case LINK_ICMP:
-			lnk->expire_time = ICMP_EXPIRE_TIME;
+			lnk->expire.time = ICMP_EXPIRE_TIME;
 			break;
 		case LINK_UDP:
-			lnk->expire_time = UDP_EXPIRE_TIME;
+			lnk->expire.time = UDP_EXPIRE_TIME;
 			break;
 		case LINK_TCP:
-			lnk->expire_time = TCP_EXPIRE_INITIAL;
+			lnk->expire.time = TCP_EXPIRE_INITIAL;
 			break;
 		case LINK_PPTP:
 			lnk->flags |= LINK_PERMANENT;	/* no timeout. */
 			break;
 		case LINK_FRAGMENT_ID:
-			lnk->expire_time = FRAGMENT_ID_EXPIRE_TIME;
+			lnk->expire.time = FRAGMENT_ID_EXPIRE_TIME;
 			break;
 		case LINK_FRAGMENT_PTR:
-			lnk->expire_time = FRAGMENT_PTR_EXPIRE_TIME;
+			lnk->expire.time = FRAGMENT_PTR_EXPIRE_TIME;
 			break;
 		case LINK_ADDR:
 			break;
 		default:
-			lnk->expire_time = PROTO_EXPIRE_TIME;
+			lnk->expire.time = PROTO_EXPIRE_TIME;
 			break;
 		}
 
@@ -1098,7 +1100,7 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 		}
 
 		/* Include the element into the housekeeping list */
-		TAILQ_INSERT_TAIL(&la->checkExpire, lnk, list_expire);
+		TAILQ_INSERT_TAIL(&la->checkExpire, lnk, expire.list);
 	} else {
 #ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/AddLink(): ");
@@ -1841,13 +1843,13 @@ SetStateIn(struct alias_link *lnk, int state)
 	switch (state) {
 		case ALIAS_TCP_STATE_DISCONNECTED:
 		if (lnk->data.tcp->state.out != ALIAS_TCP_STATE_CONNECTED)
-			lnk->expire_time = TCP_EXPIRE_DEAD;
+			lnk->expire.time = TCP_EXPIRE_DEAD;
 		else
-			lnk->expire_time = TCP_EXPIRE_SINGLEDEAD;
+			lnk->expire.time = TCP_EXPIRE_SINGLEDEAD;
 		break;
 	case ALIAS_TCP_STATE_CONNECTED:
 		if (lnk->data.tcp->state.out == ALIAS_TCP_STATE_CONNECTED)
-			lnk->expire_time = TCP_EXPIRE_CONNECTED;
+			lnk->expire.time = TCP_EXPIRE_CONNECTED;
 		break;
 	default:
 #ifdef _KERNEL
@@ -1866,13 +1868,13 @@ SetStateOut(struct alias_link *lnk, int state)
 	switch (state) {
 		case ALIAS_TCP_STATE_DISCONNECTED:
 		if (lnk->data.tcp->state.in != ALIAS_TCP_STATE_CONNECTED)
-			lnk->expire_time = TCP_EXPIRE_DEAD;
+			lnk->expire.time = TCP_EXPIRE_DEAD;
 		else
-			lnk->expire_time = TCP_EXPIRE_SINGLEDEAD;
+			lnk->expire.time = TCP_EXPIRE_SINGLEDEAD;
 		break;
 	case ALIAS_TCP_STATE_CONNECTED:
 		if (lnk->data.tcp->state.in == ALIAS_TCP_STATE_CONNECTED)
-			lnk->expire_time = TCP_EXPIRE_CONNECTED;
+			lnk->expire.time = TCP_EXPIRE_CONNECTED;
 		break;
 	default:
 #ifdef _KERNEL
@@ -2121,7 +2123,7 @@ SetExpire(struct alias_link *lnk, int expire)
 	} else if (expire == -1) {
 		lnk->flags |= LINK_PERMANENT;
 	} else if (expire > 0) {
-		lnk->expire_time = expire;
+		lnk->expire.time = expire;
 	} else {
 #ifdef LIBALIAS_DEBUG
 		fprintf(stderr, "PacketAlias/SetExpire(): ");
