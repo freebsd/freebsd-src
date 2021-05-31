@@ -2115,6 +2115,10 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 
 #endif /* SMP */
 
+#ifdef __i386__
+extern uintptr_t setidt_disp;
+#endif
+
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
  * visible.
@@ -2143,6 +2147,9 @@ native_lapic_ipi_alloc(inthand_t *ipifunc)
 	for (idx = IPI_DYN_FIRST; idx <= IPI_DYN_LAST; idx++) {
 		ip = &idt[idx];
 		func = (ip->gd_hioffset << 16) | ip->gd_looffset;
+#ifdef __i386__
+		func -= setidt_disp;
+#endif
 		if ((!pti && func == (uintptr_t)&IDTVEC(rsvd)) ||
 		    (pti && func == (uintptr_t)&IDTVEC(rsvd_pti))) {
 			vector = idx;
@@ -2166,6 +2173,9 @@ native_lapic_ipi_free(int vector)
 	mtx_lock_spin(&icu_lock);
 	ip = &idt[vector];
 	func = (ip->gd_hioffset << 16) | ip->gd_looffset;
+#ifdef __i386__
+	func -= setidt_disp;
+#endif
 	KASSERT(func != (uintptr_t)&IDTVEC(rsvd) &&
 	    func != (uintptr_t)&IDTVEC(rsvd_pti),
 	    ("invalid idtfunc %#lx", func));
