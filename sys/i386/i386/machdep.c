@@ -1514,7 +1514,7 @@ static struct soft_segment_descriptor ldt_segs[] = {
 	.ssd_gran = 1		},
 };
 
-uintptr_t setidt_disp;
+size_t setidt_disp;
 
 void
 setidt(int idx, inthand_t *func, int typ, int dpl, int selec)
