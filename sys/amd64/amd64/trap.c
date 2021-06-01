@@ -173,6 +173,39 @@ SYSCTL_INT(_machdep, OID_AUTO, nmi_flush_l1d_sw, CTLFLAG_RWTUN,
     "Flush L1 Data Cache on NMI exit, software bhyve L1TF mitigation assist");
 
 /*
+ * Table of handlers for various segment load faults.
+ */
+static const struct {
+	uintptr_t	faddr;
+	uintptr_t	fhandler;
+} sfhandlers[] = {
+	{
+		.faddr = (uintptr_t)ld_ds,
+		.fhandler = (uintptr_t)ds_load_fault,
+	},
+	{
+		.faddr = (uintptr_t)ld_es,
+		.fhandler = (uintptr_t)es_load_fault,
+	},
+	{
+		.faddr = (uintptr_t)ld_fs,
+		.fhandler = (uintptr_t)fs_load_fault,
+	},
+	{
+		.faddr = (uintptr_t)ld_gs,
+		.fhandler = (uintptr_t)gs_load_fault,
+	},
+	{
+		.faddr = (uintptr_t)ld_gsbase,
+		.fhandler = (uintptr_t)gsbase_load_fault
+	},
+	{
+		.faddr = (uintptr_t)ld_fsbase,
+		.fhandler = (uintptr_t)fsbase_load_fault,
+	},
+};
+
+/*
  * Exception, fault, and trap interface to the FreeBSD kernel.
  * This common code is called from assembly language IDT gate entry
  * routines that prepare a suitable stack frame, and restore this
@@ -186,6 +219,7 @@ trap(struct trapframe *frame)
 	struct thread *td;
 	struct proc *p;
 	register_t addr, dr6;
+	size_t i;
 	int pf, signo, ucode;
 	u_int type;
 
@@ -450,9 +484,9 @@ trap(struct trapframe *frame)
 			 * Magic '5' is the number of qwords occupied by
 			 * the hardware trap frame.
 			 */
-			KASSERT((read_rflags() & PSL_I) == 0,
-			    ("interrupts enabled"));
 			if (frame->tf_rip == (long)doreti_iret) {
+				KASSERT((read_rflags() & PSL_I) == 0,
+				    ("interrupts enabled"));
 				frame->tf_rip = (long)doreti_iret_fault;
 				if ((PCPU_GET(curpmap)->pm_ucr3 !=
 				    PMAP_NO_CR3) &&
@@ -463,30 +497,16 @@ trap(struct trapframe *frame)
 				}
 				return;
 			}
-			if (frame->tf_rip == (long)ld_ds) {
-				frame->tf_rip = (long)ds_load_fault;
-				return;
+
+			for (i = 0; i < nitems(sfhandlers); i++) {
+				if (frame->tf_rip == sfhandlers[i].faddr) {
+					KASSERT((read_rflags() & PSL_I) == 0,
+					    ("interrupts enabled"));
+					frame->tf_rip = sfhandlers[i].fhandler;
+					return;
+				}
 			}
-			if (frame->tf_rip == (long)ld_es) {
-				frame->tf_rip = (long)es_load_fault;
-				return;
-			}
-			if (frame->tf_rip == (long)ld_fs) {
-				frame->tf_rip = (long)fs_load_fault;
-				return;
-			}
-			if (frame->tf_rip == (long)ld_gs) {
-				frame->tf_rip = (long)gs_load_fault;
-				return;
-			}
-			if (frame->tf_rip == (long)ld_gsbase) {
-				frame->tf_rip = (long)gsbase_load_fault;
-				return;
-			}
-			if (frame->tf_rip == (long)ld_fsbase) {
-				frame->tf_rip = (long)fsbase_load_fault;
-				return;
-			}
+
 			if (curpcb->pcb_onfault != NULL) {
 				frame->tf_rip = (long)curpcb->pcb_onfault;
 				return;
