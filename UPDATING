@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210601:
+	13.0-RELEASE-p2 FreeBSD-EN-21:17.libradius
+
+	Incorrect validation in rad_get_attr(3) [FreeBSD-EN-21:17.libradius]
+
 20210526:
 	13.0-RELEASE-p1	FreeBSD-EN-21:12.divert
 			FreeBSD-EN-21:13.mpt
