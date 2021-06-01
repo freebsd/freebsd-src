@@ -1176,7 +1176,8 @@ ktrops(struct thread *td, struct proc *p, int ops, int facs,
 		PROC_UNLOCK(p);
 		return (0);
 	}
-	if ((ops == KTROP_SET && p->p_state == PRS_NEW) || !p_cansee(td, p)) {
+	if ((ops == KTROP_SET && p->p_state == PRS_NEW) ||
+	    p_cansee(td, p) != 0) {
 		/*
 		 * Disallow setting trace points if the process is being born.
 		 * This avoids races with trace point inheritance in
