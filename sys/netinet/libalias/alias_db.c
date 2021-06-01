@@ -557,16 +557,16 @@ static int	GetNewPort(struct libalias *, struct alias_link *, int);
 #ifndef NO_USE_SOCKETS
 static u_short	GetSocket(struct libalias *, u_short, int *, int);
 #endif
-static void	CleanupAliasData(struct libalias *);
-static void	CleanupLink(struct libalias *, struct alias_link **);
-static void	DeleteLink(struct alias_link **);
+static void	CleanupAliasData(struct libalias *, int);
+static void	CleanupLink(struct libalias *, struct alias_link **, int);
+static void	DeleteLink(struct alias_link **, int);
 static struct alias_link *
 UseLink(struct libalias *, struct alias_link *);
 
 static struct alias_link *
 ReLink(struct alias_link *,
     struct in_addr, struct in_addr, struct in_addr,
-    u_short, u_short, int, int);
+    u_short, u_short, int, int, int);
 
 static struct alias_link *
 FindLinkOut(struct libalias *, struct in_addr, struct in_addr, u_short, u_short, int, int);
@@ -811,7 +811,7 @@ FindNewPortGroup(struct libalias *la,
 }
 
 static void
-CleanupAliasData(struct libalias *la)
+CleanupAliasData(struct libalias *la, int deletePermanent)
 {
 	struct alias_link *lnk, *lnk_tmp;
 	u_int i;
@@ -820,7 +820,7 @@ CleanupAliasData(struct libalias *la)
 
 	/* permanent entries may stay */
 	TAILQ_FOREACH_SAFE(lnk, &la->checkExpire, expire.list, lnk_tmp)
-		DeleteLink(&lnk);
+		DeleteLink(&lnk, deletePermanent);
 
 	for (i = 0; i < LINK_TABLE_IN_SIZE; i++) {
 		struct group_in *grp, *grp_tmp;
@@ -834,7 +834,7 @@ CleanupAliasData(struct libalias *la)
 }
 
 static void
-CleanupLink(struct libalias *la, struct alias_link **lnk)
+CleanupLink(struct libalias *la, struct alias_link **lnk, int deletePermanent)
 {
 	LIBALIAS_LOCK_ASSERT(la);
 
@@ -842,7 +842,7 @@ CleanupLink(struct libalias *la, struct alias_link **lnk)
 		return;
 
 	if (LibAliasTime - (*lnk)->timestamp > (*lnk)->expire.time) {
-		DeleteLink(lnk);
+		DeleteLink(lnk, deletePermanent);
 		if ((*lnk) == NULL)
 			return;
 	}
@@ -855,21 +855,21 @@ CleanupLink(struct libalias *la, struct alias_link **lnk)
 static struct alias_link *
 UseLink(struct libalias *la, struct alias_link *lnk)
 {
-	CleanupLink(la, &lnk);
+	CleanupLink(la, &lnk, 0);
 	if (lnk != NULL)
 		lnk->timestamp = LibAliasTime;
 	return (lnk);
 }
 
 static void
-DeleteLink(struct alias_link **plnk)
+DeleteLink(struct alias_link **plnk, int deletePermanent)
 {
 	struct alias_link *lnk = *plnk;
 	struct libalias *la = lnk->la;
 
 	LIBALIAS_LOCK_ASSERT(la);
 	/* Don't do anything if the link is marked permanent */
-	if (la->deleteAllLinks == 0 && lnk->flags & LINK_PERMANENT)
+	if (!deletePermanent && (lnk->flags & LINK_PERMANENT))
 		return;
 
 #ifndef NO_FW_PUNCH
@@ -1119,7 +1119,8 @@ ReLink(struct alias_link *old_lnk,
     u_short src_port,
     u_short dst_port,
     int alias_port_param,
-    int link_type)
+    int link_type,
+    int deletePermanent)
 {
 	struct alias_link *new_lnk;
 	struct libalias *la = old_lnk->la;
@@ -1135,7 +1136,7 @@ ReLink(struct alias_link *old_lnk,
 		PunchFWHole(new_lnk);
 	}
 #endif
-	DeleteLink(&old_lnk);
+	DeleteLink(&old_lnk, deletePermanent);
 	return (new_lnk);
 }
 
@@ -1200,7 +1201,7 @@ _FindLinkOut(struct libalias *la, struct in_addr src_addr,
 		lnk = ReLink(lnk,
 		    src_addr, dst_addr, lnk->alias_addr,
 		    src_port, dst_port, lnk->alias_port,
-		    link_type);
+		    link_type, 0);
 	}
 	return (lnk);
 }
@@ -1342,7 +1343,7 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		lnk = ReLink(lnk,
 		    src_addr, dst_addr, alias_addr,
 		    src_port, dst_port, alias_port,
-		    link_type);
+		    link_type, 0);
 	}
 	return (lnk);
 }
@@ -2105,7 +2106,7 @@ SetExpire(struct alias_link *lnk, int expire)
 {
 	if (expire == 0) {
 		lnk->flags &= ~LINK_PERMANENT;
-		DeleteLink(&lnk);
+		DeleteLink(&lnk, 0);
 	} else if (expire == -1) {
 		lnk->flags |= LINK_PERMANENT;
 	} else if (expire > 0) {
@@ -2133,13 +2134,9 @@ GetProtocolFlags(struct alias_link *lnk)
 void
 SetDestCallId(struct alias_link *lnk, u_int16_t cid)
 {
-	struct libalias *la = lnk->la;
-
-	LIBALIAS_LOCK_ASSERT(la);
-	la->deleteAllLinks = 1;
+	LIBALIAS_LOCK_ASSERT(lnk->la);
 	ReLink(lnk, lnk->src_addr, lnk->dst_addr, lnk->alias_addr,
-	    lnk->src_port, cid, lnk->alias_port, lnk->link_type);
-	la->deleteAllLinks = 0;
+	    lnk->src_port, cid, lnk->alias_port, lnk->link_type, 1);
 }
 
 /* Miscellaneous Functions
@@ -2198,7 +2195,7 @@ HouseKeeping(struct libalias *la)
 	if (packets < (la->udpLinkCount + la->tcpLinkCount)) {
 		struct alias_link * lnk = TAILQ_FIRST(&la->checkExpire);
 
-		CleanupLink(la, &lnk);
+		CleanupLink(la, &lnk, 0);
 	}
 }
 
@@ -2434,9 +2431,8 @@ void
 LibAliasRedirectDelete(struct libalias *la, struct alias_link *lnk)
 {
 	LIBALIAS_LOCK(la);
-	la->deleteAllLinks = 1;
-	DeleteLink(&lnk);
-	la->deleteAllLinks = 0;
+	(void)la;
+	DeleteLink(&lnk, 1);
 	LIBALIAS_UNLOCK(la);
 }
 
@@ -2446,7 +2442,7 @@ LibAliasSetAddress(struct libalias *la, struct in_addr addr)
 	LIBALIAS_LOCK(la);
 	if (la->packetAliasMode & PKT_ALIAS_RESET_ON_ADDR_CHANGE
 	    && la->aliasAddress.s_addr != addr.s_addr)
-		CleanupAliasData(la);
+		CleanupAliasData(la, 0);
 
 	la->aliasAddress = addr;
 	LIBALIAS_UNLOCK(la);
@@ -2519,9 +2515,7 @@ LibAliasInit(struct libalias *la)
 		LIBALIAS_LOCK(la);
 	} else {
 		LIBALIAS_LOCK(la);
-		la->deleteAllLinks = 1;
-		CleanupAliasData(la);
-		la->deleteAllLinks = 0;
+		CleanupAliasData(la, 1);
 #ifdef _KERNEL
 		AliasSctpTerm(la);
 		AliasSctpInit(la);
@@ -2565,9 +2559,7 @@ LibAliasUninit(struct libalias *la)
 #ifdef _KERNEL
 	AliasSctpTerm(la);
 #endif
-	la->deleteAllLinks = 1;
-	CleanupAliasData(la);
-	la->deleteAllLinks = 0;
+	CleanupAliasData(la, 1);
 	UninitPacketAliasLog(la);
 #ifndef NO_FW_PUNCH
 	UninitPunchFW(la);
