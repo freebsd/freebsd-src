@@ -114,9 +114,6 @@ struct libalias {
 	unsigned int	fragmentIdLinkCount;
 	unsigned int	fragmentPtrLinkCount;
 	unsigned int	sockCount;
-	/* If equal to zero, DeleteLink()
-	 * will not remove permanent links */
-	int		deleteAllLinks;
 	/* log descriptor */
 #ifdef _KERNEL
 	char	       *logDesc;
