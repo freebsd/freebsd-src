@@ -2426,7 +2426,7 @@ DIOCADDRULENV_error:
 			ERROUT(ENOMEM);
 
 		/* Copy the request in */
-		nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+		nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 		if (nvlpacked == NULL)
 			ERROUT(ENOMEM);
 
@@ -2504,7 +2504,7 @@ DIOCADDRULENV_error:
 			ERROUT(EBUSY);
 		}
 
-		free(nvlpacked, M_TEMP);
+		free(nvlpacked, M_NVLIST);
 		nvlpacked = nvlist_pack(nvl, &nv->len);
 		if (nvlpacked == NULL) {
 			PF_RULES_WUNLOCK();
@@ -2534,7 +2534,7 @@ DIOCADDRULENV_error:
 
 #undef ERROUT
 DIOCGETRULENV_error:
-		free(nvlpacked, M_TEMP);
+		free(nvlpacked, M_NVLIST);
 		nvlist_destroy(nvrule);
 		nvlist_destroy(nvl);
 
@@ -4918,7 +4918,7 @@ pf_killstates_nv(struct pfioc_nv *nv)
 	if (nv->len > pf_ioctl_maxcount)
 		ERROUT(ENOMEM);
 
-	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 	if (nvlpacked == NULL)
 		ERROUT(ENOMEM);
 
@@ -4936,7 +4936,7 @@ pf_killstates_nv(struct pfioc_nv *nv)
 
 	error = pf_killstates(&kill, &killed);
 
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
 	nvlist_destroy(nvl);
 	nvl = nvlist_create(0);
@@ -4958,7 +4958,7 @@ pf_killstates_nv(struct pfioc_nv *nv)
 
 on_error:
 	nvlist_destroy(nvl);
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	return (error);
 }
 
@@ -4976,7 +4976,7 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 	if (nv->len > pf_ioctl_maxcount)
 		ERROUT(ENOMEM);
 
-	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 	if (nvlpacked == NULL)
 		ERROUT(ENOMEM);
 
@@ -4994,7 +4994,7 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 
 	killed = pf_clear_states(&kill);
 
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
 	nvlist_destroy(nvl);
 	nvl = nvlist_create(0);
@@ -5017,7 +5017,7 @@ pf_clearstates_nv(struct pfioc_nv *nv)
 #undef ERROUT
 on_error:
 	nvlist_destroy(nvl);
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	return (error);
 }
 
@@ -5035,7 +5035,7 @@ pf_getstate(struct pfioc_nv *nv)
 	if (nv->len > pf_ioctl_maxcount)
 		ERROUT(ENOMEM);
 
-	nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+	nvlpacked = malloc(nv->len, M_NVLIST, M_WAITOK);
 	if (nvlpacked == NULL)
 		ERROUT(ENOMEM);
 
@@ -5054,7 +5054,7 @@ pf_getstate(struct pfioc_nv *nv)
 	if (s == NULL)
 		ERROUT(ENOENT);
 
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
 	nvlist_destroy(nvl);
 	nvl = nvlist_create(0);
@@ -5083,7 +5083,7 @@ pf_getstate(struct pfioc_nv *nv)
 errout:
 	if (s != NULL)
 		PF_STATE_UNLOCK(s);
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	nvlist_destroy(nvl);
 	return (error);
 }
@@ -5125,6 +5125,7 @@ pf_getstates(struct pfioc_nv *nv)
 				goto DIOCGETSTATESNV_full;
 			}
 			nvlist_append_nvlist_array(nvl, "states", nvls);
+			nvlist_destroy(nvls);
 			count++;
 		}
 		PF_HASHROW_UNLOCK(ih);
@@ -5151,7 +5152,7 @@ DIOCGETSTATESNV_full:
 
 #undef ERROUT
 errout:
-	free(nvlpacked, M_TEMP);
+	free(nvlpacked, M_NVLIST);
 	nvlist_destroy(nvl);
 	return (error);
 }

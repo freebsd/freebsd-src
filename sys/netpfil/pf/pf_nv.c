@@ -861,6 +861,7 @@ pf_state_key_to_nvstate_key(const struct pf_state_key *key)
 		if (tmp == NULL)
 			goto errout;
 		nvlist_append_nvlist_array(nvl, "addr", tmp);
+		nvlist_destroy(tmp);
 		nvlist_append_number_array(nvl, "port", key->port[i]);
 	}
 	nvlist_add_number(nvl, "af", key->af);
