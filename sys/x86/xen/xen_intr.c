@@ -729,13 +729,14 @@ xen_rebind_virq(struct xenisrc *isrc)
 	isrc->xi_port = bind_virq.port;
 }
 
-static void
+static struct xenisrc *
 xen_intr_rebind_isrc(struct xenisrc *isrc)
 {
 #ifdef SMP
 	u_int cpu = isrc->xi_cpu;
 	int error;
 #endif
+	struct xenisrc *prev;
 
 	switch (isrc->xi_type) {
 	case EVTCHN_TYPE_IPI:
@@ -745,9 +746,10 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 		xen_rebind_virq(isrc);
 		break;
 	default:
-		return;
+		return (NULL);
 	}
 
+	prev = xen_intr_port_to_isrc[isrc->xi_port];
 	xen_intr_port_to_isrc[isrc->xi_port] = isrc;
 
 #ifdef SMP
@@ -760,6 +762,8 @@ xen_intr_rebind_isrc(struct xenisrc *isrc)
 #endif
 
 	evtchn_unmask_port(isrc->xi_port);
+
+	return (prev);
 }
 
 /**
@@ -769,7 +773,6 @@ static void
 xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
-	struct xenisrc *isrc;
 	u_int isrc_idx;
 	int i;
 
@@ -789,19 +792,29 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 	for (i = 0; i < nitems(s->evtchn_mask); i++)
 		atomic_store_rel_long(&s->evtchn_mask[i], ~0);
 
-	/* Remove port -> isrc mappings */
-	memset(xen_intr_port_to_isrc, 0, sizeof(xen_intr_port_to_isrc));
+	/* Clear existing port mappings */
+	for (isrc_idx = 0; isrc_idx < NR_EVENT_CHANNELS; ++isrc_idx)
+		if (xen_intr_port_to_isrc[isrc_idx] != NULL)
+			xen_intr_port_to_isrc[isrc_idx]->xi_port =
+			    INVALID_EVTCHN;
 
-	/* Free unused isrcs and rebind VIRQs and IPIs */
-	for (isrc_idx = 0; isrc_idx < xen_intr_auto_vector_count; isrc_idx++) {
-		u_int vector;
+	/* Remap in-use isrcs, using xen_intr_port_to_isrc as listing */
+	for (isrc_idx = 0; isrc_idx < NR_EVENT_CHANNELS; ++isrc_idx) {
+		struct xenisrc *cur = xen_intr_port_to_isrc[isrc_idx];
 
-		vector = first_evtchn_irq + isrc_idx;
-		isrc = (struct xenisrc *)intr_lookup_source(vector);
-		if (isrc != NULL) {
-			isrc->xi_port = INVALID_EVTCHN;
-			xen_intr_rebind_isrc(isrc);
-		}
+		/* empty or entry already taken care of */
+		if (cur == NULL || cur->xi_port == isrc_idx)
+			continue;
+
+		xen_intr_port_to_isrc[isrc_idx] = NULL;
+
+		do {
+			KASSERT(!is_valid_evtchn(cur->xi_port),
+			    ("%s(): Multiple channels on single intr?",
+			    __func__));
+
+			cur = xen_intr_rebind_isrc(cur);
+		} while (cur != NULL);
 	}
 }
 
