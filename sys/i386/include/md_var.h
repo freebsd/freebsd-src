@@ -49,7 +49,7 @@ extern	int	sz_lcall_tramp;
 #endif
 extern	uint32_t *vm_page_dump;
 extern  vm_offset_t proc0kstack;
-extern	uintptr_t setidt_disp;
+extern	size_t setidt_disp;
 
 struct	segment_descriptor;
 union savefpu;
