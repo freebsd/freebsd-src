@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2019
+.Dd June 1, 2021
 .Dt DEVCTL 8
 .Os
 .Sh NAME
@@ -66,6 +66,10 @@
 .Cm delete
 .Op Fl f
 .Ar device
+.Nm
+.Cm freeze
+.Nm
+.Cm thaw
 .Nm
 .Cm reset
 .Op Fl d
@@ -170,6 +174,23 @@ the device will be deleted even if it is physically present.
 This command should be used with care as a device that is deleted but present
 can no longer be used unless the parent bus device rediscovers the device via
 a rescan request.
+.It Cm freeze
+Freeze probe and attach processing initiated in response to drivers being
+loaded.
+Drivers are placed on a
+.Do
+frozen list
+.Dc
+and processed when a later
+.Do
+thaw
+.Dc
+occurs.
+.It Cm thaw
+Resume (thaw the freeze) probe and attach initiated in response to drivers
+being loaded.
+In addition to resuming, all pending actions that were frozen during the freeze
+are performed.
 .It Xo Cm reset
 .Op Fl d
 .Ar device
