@@ -1028,6 +1028,7 @@ pfr_copyout_astats(struct pfr_astats *as, const struct pfr_kentry *ke,
 	int dir, op;
 	const struct pfr_kcounters *kc = &ke->pfrke_counters;
 
+	bzero(as, sizeof(*as));
 	pfr_copyout_addr(&as->pfras_a, ke);
 	as->pfras_tzero = kc->pfrkc_tzero;
 
