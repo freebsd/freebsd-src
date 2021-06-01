@@ -714,7 +714,7 @@ static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
 	int pbllen = roundup(mhp->mpl_len * sizeof(u64), 32);
 	int rem;
 
-	if (mhp->mpl_len > t4_max_fr_depth(use_dsgl && dsgl_supported))
+	if (mhp->mpl_len > t4_max_fr_depth(&mhp->rhp->rdev, use_dsgl))
 		return -EINVAL;
 	if (wr->mr->page_size > C4IW_MAX_PAGE_SIZE)
 		return -EINVAL;
