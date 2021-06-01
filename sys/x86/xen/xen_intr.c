@@ -707,16 +707,6 @@ xen_rebind_ipi(struct xenisrc *isrc)
 		panic("unable to rebind xen IPI: %d", error);
 
 	isrc->xi_port = bind_ipi.port;
-	isrc->xi_cpu = 0;
-	xen_intr_port_to_isrc[bind_ipi.port] = isrc;
-
-	error = xen_intr_assign_cpu(&isrc->xi_intsrc,
-	                            cpu_apic_ids[cpu]);
-	if (error)
-		panic("unable to bind xen IPI to CPU#%d: %d",
-		      cpu, error);
-
-	evtchn_unmask_port(bind_ipi.port);
 #else
 	panic("Resume IPI event channel on UP");
 #endif
@@ -737,18 +727,39 @@ xen_rebind_virq(struct xenisrc *isrc)
 		panic("unable to rebind xen VIRQ#%d: %d", isrc->xi_virq, error);
 
 	isrc->xi_port = bind_virq.port;
-	isrc->xi_cpu = 0;
-	xen_intr_port_to_isrc[bind_virq.port] = isrc;
+}
+
+static void
+xen_intr_rebind_isrc(struct xenisrc *isrc)
+{
+#ifdef SMP
+	u_int cpu = isrc->xi_cpu;
+	int error;
+#endif
+
+	switch (isrc->xi_type) {
+	case EVTCHN_TYPE_IPI:
+		xen_rebind_ipi(isrc);
+		break;
+	case EVTCHN_TYPE_VIRQ:
+		xen_rebind_virq(isrc);
+		break;
+	default:
+		return;
+	}
+
+	xen_intr_port_to_isrc[isrc->xi_port] = isrc;
 
 #ifdef SMP
+	isrc->xi_cpu = 0;
 	error = xen_intr_assign_cpu(&isrc->xi_intsrc,
 	                            cpu_apic_ids[cpu]);
 	if (error)
-		panic("unable to bind xen VIRQ#%d to CPU#%d: %d",
-		      isrc->xi_virq, cpu, error);
+		panic("%s(): unable to rebind Xen channel %u to vCPU%u: %d",
+		    __func__, isrc->xi_port, cpu, error);
 #endif
 
-	evtchn_unmask_port(bind_virq.port);
+	evtchn_unmask_port(isrc->xi_port);
 }
 
 /**
@@ -789,16 +800,7 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 		isrc = (struct xenisrc *)intr_lookup_source(vector);
 		if (isrc != NULL) {
 			isrc->xi_port = INVALID_EVTCHN;
-			switch (isrc->xi_type) {
-			case EVTCHN_TYPE_IPI:
-				xen_rebind_ipi(isrc);
-				break;
-			case EVTCHN_TYPE_VIRQ:
-				xen_rebind_virq(isrc);
-				break;
-			default:
-				break;
-			}
+			xen_intr_rebind_isrc(isrc);
 		}
 	}
 }
