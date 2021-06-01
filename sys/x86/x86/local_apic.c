@@ -2127,10 +2127,6 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 
 #endif /* SMP */
 
-#ifdef __i386__
-extern uintptr_t setidt_disp;
-#endif
-
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
  * visible.
