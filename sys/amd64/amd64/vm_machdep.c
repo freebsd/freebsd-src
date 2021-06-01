@@ -189,6 +189,8 @@ copy_thread(struct thread *td1, struct thread *td2)
 	 * pcb2->pcb_[fg]sbase:	cloned above
 	 */
 
+	pcb2->pcb_tssp = NULL;
+
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
