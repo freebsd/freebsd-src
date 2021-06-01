@@ -5222,6 +5222,14 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.fr_nsmr_tpte_wr_support = false;
 
+	/* Support for 512 SGL entries per FR MR. */
+	param[0] = FW_PARAM_DEV(DEV_512SGL_MR);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.dev_512sgl_mr = val[0] != 0;
+	else
+		sc->params.dev_512sgl_mr = false;
+
 	param[0] = FW_PARAM_PFVF(MAX_PKTS_PER_ETH_TX_PKTS_WR);
 	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
 	if (rc == 0)
