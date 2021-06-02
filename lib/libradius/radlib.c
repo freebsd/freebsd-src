@@ -187,8 +187,10 @@ is_valid_response(struct rad_handle *h, int srv,
 	MD5_CTX ctx;
 	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
-	int alen, len;
+
+	int len;
 #ifdef WITH_SSL
+	int alen;
 	HMAC_CTX *hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
 	u_int md_len;
@@ -284,8 +286,9 @@ is_valid_request(struct rad_handle *h)
 	MD5_CTX ctx;
 	unsigned char md5[MD5_DIGEST_LENGTH];
 	const struct rad_server *srvp;
-	int alen, len;
+	int len;
 #ifdef WITH_SSL
+	int alen;
 	HMAC_CTX *hctx;
 	u_char resp[MSGSIZE], md[EVP_MAX_MD_SIZE];
 	u_int md_len;
