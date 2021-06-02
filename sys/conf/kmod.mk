@@ -44,9 +44,11 @@
 #
 # DESTDIR	The tree where the module gets installed. [not set]
 #
-# KERNBUILDDIR
-#		Set to the location of the kernel build directory where
+# KERNBUILDDIR	Set to the location of the kernel build directory where
 #		the opt_*.h files, .o's and kernel winds up.
+#
+# BLOB_OBJS	Prebuilt binary blobs .o's from the src tree to be linked into
+#		the module. These are precious and not removed in make clean.
 #
 # +++ targets +++
 #
@@ -241,14 +243,14 @@ LDSCRIPT_FLAGS?= -T ${SYSDIR}/conf/ldscript.kmod.${MACHINE_ARCH}
 .endif
 
 .if ${__KLD_SHARED} == yes
-${KMOD}.kld: ${OBJS}
+${KMOD}.kld: ${OBJS} ${BLOB_OBJS}
 .else
-${FULLPROG}: ${OBJS}
+${FULLPROG}: ${OBJS} ${BLOB_OBJS}
 .endif
 	${LD} -m ${LD_EMULATION} ${_LDFLAGS} ${LDSCRIPT_FLAGS} -r -d \
-	    -o ${.TARGET} ${OBJS}
+	    -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
 .if ${MK_CTF} != "no"
-	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} ${BLOB_OBJS}
 .endif
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
