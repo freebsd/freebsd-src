@@ -14,6 +14,7 @@ env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
+  name: World and kernel amd64 build and boot smoke test
   timeout_in: 120m
   install_script:
   - pkg install -y qemu uefi-edk2-qemu-x86_64 llvm12
