@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2021
+.Dd June 2, 2021
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -314,7 +314,7 @@ The syntax of the direct invocation is
 .Op Fl b Ar exe
 .Op Fl f Ar fd
 .Op Fl p
-.Op Fl t
+.Op Fl u
 .Op Fl v
 .Op Fl -
 .Pa image_path
@@ -356,7 +356,7 @@ character,
 uses the search path provided by the environment variable
 .Dv PATH
 to find the binary to execute.
-.It Fl t
+.It Fl u
 Ignore all
 .Ev LD_
 environment variables that otherwise affect the dynamic
