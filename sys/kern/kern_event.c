@@ -206,7 +206,7 @@ static struct filterops user_filtops = {
 };
 
 static uma_zone_t	knote_zone;
-static unsigned int	kq_ncallouts = 0;
+static unsigned int __exclusive_cache_line	kq_ncallouts;
 static unsigned int 	kq_calloutmax = 4 * 1024;
 SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
     &kq_calloutmax, 0, "Maximum number of callouts allocated for kqueue");
@@ -813,18 +813,16 @@ filt_timerattach(struct knote *kn)
 {
 	struct kq_timer_cb_data *kc;
 	sbintime_t to;
-	unsigned int ncallouts;
 	int error;
 
 	error = filt_timervalidate(kn, &to);
 	if (error != 0)
 		return (error);
 
-	do {
-		ncallouts = kq_ncallouts;
-		if (ncallouts >= kq_calloutmax)
-			return (ENOMEM);
-	} while (!atomic_cmpset_int(&kq_ncallouts, ncallouts, ncallouts + 1));
+	if (atomic_fetchadd_int(&kq_ncallouts, 1) + 1 > kq_calloutmax) {
+		atomic_subtract_int(&kq_ncallouts, 1);
+		return (ENOMEM);
+	}
 
 	if ((kn->kn_sfflags & NOTE_ABSTIME) == 0)
 		kn->kn_flags |= EV_CLEAR;	/* automatically set */
