@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern u_int32_t newnfs_true, newnfs_false;
+extern int nfs_rootfhset;
 extern int nfs_pubfhset;
 extern struct nfsclienthashhead *nfsclienthash;
 extern int nfsrv_clienthashsize;
@@ -1543,6 +1544,8 @@ nfsd_errmap(struct nfsrv_descript *nd)
 
 	if (!nd->nd_repstat)
 		return (0);
+	if ((nd->nd_repstat & NFSERR_AUTHERR) != 0)
+		return (txdr_unsigned(NFSERR_ACCES));
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4)) {
 		if (nd->nd_procnum == NFSPROC_NOOP)
 			return (txdr_unsigned(nd->nd_repstat & 0xffff));
@@ -2116,6 +2119,8 @@ int
 nfsd_checkrootexp(struct nfsrv_descript *nd)
 {
 
+	if (nfs_rootfhset == 0)
+		return (NFSERR_AUTHERR | AUTH_FAILED);
 	if ((nd->nd_flag & (ND_GSS | ND_EXAUTHSYS)) == ND_EXAUTHSYS)
 		goto checktls;
 	if ((nd->nd_flag & (ND_GSSINTEGRITY | ND_EXGSSINTEGRITY)) ==
@@ -2127,7 +2132,7 @@ nfsd_checkrootexp(struct nfsrv_descript *nd)
 	if ((nd->nd_flag & (ND_GSS | ND_GSSINTEGRITY | ND_GSSPRIVACY |
 	     ND_EXGSS)) == (ND_GSS | ND_EXGSS))
 		goto checktls;
-	return (1);
+	return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 checktls:
 	if ((nd->nd_flag & ND_EXTLS) == 0)
 		return (0);
@@ -2140,7 +2145,9 @@ checktls:
 	if ((nd->nd_flag & (ND_TLS | ND_EXTLSCERTUSER | ND_EXTLSCERT)) ==
 	    ND_TLS)
 		return (0);
-	return (1);
+	if ((nd->nd_flag & ND_TLS) == 0)
+		return (NFSERR_AUTHERR | AUTH_NEEDS_TLS);
+	return (NFSERR_AUTHERR | AUTH_NEEDS_TLS_MUTUAL_HOST);
 }
 
 /*
