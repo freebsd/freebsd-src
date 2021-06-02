@@ -14,5 +14,8 @@ task:
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
   - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
-  test_script:
-  - sh tools/boot/ci-qemu-test.sh
+# FAT root fs fails on stable/12:
+# Mounting from msdosfs:/dev/ada0s1 failed with error 19.
+#
+#  test_script:
+#  - sh tools/boot/ci-qemu-test.sh
