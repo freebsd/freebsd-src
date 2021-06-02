@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wparsn_supp
 INTERNALLIB=
 
@@ -17,8 +19,6 @@ SRCS=	pmksa_cache.c \
 CFLAGS+=-DCONFIG_TDLS \
 	-DCONFIG_WNM \
 	-DIEEE8021X_EAPOL
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

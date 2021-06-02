@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpawps
 INTERNALLIB=
 
@@ -30,8 +32,6 @@ CFLAGS+=-DCONFIG_P2P
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

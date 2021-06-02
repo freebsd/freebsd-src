@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpaap
 INTERNALLIB=
 
@@ -50,8 +52,6 @@ SRCS=	accounting.c \
 CFLAGS+=-DCONFIG_MBO \
 	-DCONFIG_RSN_PREAUTH \
 	-DHOSTAPD
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

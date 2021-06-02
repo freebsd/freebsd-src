@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpadrivers
 INTERNALLIB=
 
@@ -12,8 +14,6 @@ SRCS=	drivers.c \
 	driver_common.c \
 	driver_wired.c \
 	driver_wired_common.c
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=
