@@ -1122,11 +1122,12 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
-	if (fp->f_flag & O_FSYNC) {
-		mp = atomic_load_ptr(&vp->v_mount);
-		if (mp != NULL && mp->mnt_flag & MNT_SYNCHRONOUS)
-			ioflag |= IO_SYNC;
-	}
+
+	mp = atomic_load_ptr(&vp->v_mount);
+	if ((fp->f_flag & O_FSYNC) ||
+	    (mp != NULL && (mp->mnt_flag & MNT_SYNCHRONOUS)))
+		ioflag |= IO_SYNC;
+
 	/*
 	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
 	 * implementations that don't understand IO_DATASYNC fall back to full
