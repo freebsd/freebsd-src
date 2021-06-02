@@ -26,6 +26,7 @@ ATF_TESTS_SH+=	altq \
 		set_skip \
 		set_tos \
 		src_track \
+		syncookie \
 		synproxy \
 		table \
 		tos
