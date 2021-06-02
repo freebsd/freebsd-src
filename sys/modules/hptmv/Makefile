@@ -11,7 +11,7 @@ KMOD= hptmv
 SRCS= opt_scsi.h opt_cam.h
 SRCS+= bus_if.h device_if.h pci_if.h
 SRCS+= mv.c entry.c ioctl.c hptproc.c gui_lib.c
-OBJS+= ${HPTMV}/${MACHINE_CPUARCH}-elf.hptmvraid.o
+BLOB_OBJS+= ${HPTMV}/${MACHINE_CPUARCH}-elf.hptmvraid.o
 
 #
 # Debug Options:
