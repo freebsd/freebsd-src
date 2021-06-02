@@ -45,3 +45,4 @@ arm/allwinner/clkng/aw_clk_nm.c		standard
 arm/allwinner/clkng/aw_clk_np.c		standard
 arm/allwinner/clkng/aw_clk_nmm.c	standard
 arm/allwinner/clkng/aw_clk_prediv_mux.c	standard
+arm/allwinner/clkng/ccu_de2.c		standard
