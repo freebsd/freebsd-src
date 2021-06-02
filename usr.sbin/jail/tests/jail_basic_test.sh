@@ -99,7 +99,7 @@ nested_cleanup()
 	jail -r basejail_nochild
 }
 
-commands_header()
+commands_head()
 {
 	atf_set descr 'Commands jail test'
 	atf_set require.user root
