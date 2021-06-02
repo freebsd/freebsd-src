@@ -134,70 +134,84 @@ static const char *x2apic_sandy_dis[] = {
 };
 
 /*
- * Initialize the local APIC on the BSP.
+ * Automatically detect several configurations where x2APIC mode is
+ * known to cause troubles.  User can override the setting with
+ * hw.x2apic_enable tunable.
  */
-static int
-madt_setup_local(void)
+static const char *
+madt_x2apic_disable_reason(void)
 {
 	ACPI_TABLE_DMAR *dmartbl;
 	vm_paddr_t dmartbl_physaddr;
 	const char *reason;
 	char *hw_vendor;
 	u_int p[4];
-	int i, user_x2apic;
+	int i;
+
+	reason = NULL;
+
+	dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
+	if (dmartbl_physaddr != 0) {
+		dmartbl = acpi_map_table(dmartbl_physaddr, ACPI_SIG_DMAR);
+		if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0)
+			reason = "by DMAR table";
+		acpi_unmap_table(dmartbl);
+		if (reason != NULL)
+			return (reason);
+	}
+
+	if (vm_guest == VM_GUEST_VMWARE) {
+		vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
+		if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
+		    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
+			return ("inside VMWare without intr redirection");
+	}
+
+	if (vm_guest == VM_GUEST_XEN)
+		return ("due to running under XEN");
+
+	if (vm_guest == VM_GUEST_NO &&
+	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+	    CPUID_TO_MODEL(cpu_id) == 0x2a) {
+		hw_vendor = kern_getenv("smbios.planar.maker");
+		/*
+		 * It seems that some SandyBridge-based notebook
+		 * BIOSes have a bug which prevents booting AP in
+		 * x2APIC mode.  Since the only way to detect mobile
+		 * CPU is to check northbridge pci id, which cannot be
+		 * done that early, disable x2APIC for all such
+		 * machines.
+		 */
+		if (hw_vendor != NULL) {
+			for (i = 0; i < nitems(x2apic_sandy_dis); i++) {
+				if (strcmp(hw_vendor, x2apic_sandy_dis[i]) ==
+				    0) {
+					reason =
+				"for a suspected SandyBridge BIOS bug";
+					break;
+				}
+			}
+			freeenv(hw_vendor);
+		}
+		if (reason != NULL)
+			return (reason);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Initialize the local APIC on the BSP.
+ */
+static int
+madt_setup_local(void)
+{
+	const char *reason;
+	int user_x2apic;
 	bool bios_x2apic;
 
 	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
-		reason = NULL;
-
-		/*
-		 * Automatically detect several configurations where
-		 * x2APIC mode is known to cause troubles.  User can
-		 * override the setting with hw.x2apic_enable tunable.
-		 */
-		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
-		if (dmartbl_physaddr != 0) {
-			dmartbl = acpi_map_table(dmartbl_physaddr,
-			    ACPI_SIG_DMAR);
-			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0)
-				reason = "by DMAR table";
-			acpi_unmap_table(dmartbl);
-		}
-		if (reason != NULL) {
-			/* Already disabled */
-		} else if (vm_guest == VM_GUEST_VMWARE) {
-			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
-			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
-			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
-				reason =
-				    "inside VMWare without intr redirection";
-		} else if (vm_guest == VM_GUEST_XEN) {
-			reason = "due to running under XEN";
-		} else if (vm_guest == VM_GUEST_NO &&
-		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-		    CPUID_TO_MODEL(cpu_id) == 0x2a) {
-			hw_vendor = kern_getenv("smbios.planar.maker");
-			/*
-			 * It seems that some SandyBridge-based
-			 * notebook BIOSes have a bug which prevents
-			 * booting AP in x2APIC mode.  Since the only
-			 * way to detect mobile CPU is to check
-			 * northbridge pci id, which cannot be done
-			 * that early, disable x2APIC for all such
-			 * machines.
-			 */
-			if (hw_vendor != NULL) {
-				for (i = 0; i < nitems(x2apic_sandy_dis); i++) {
-					if (strcmp(hw_vendor,
-					    x2apic_sandy_dis[i]) == 0) {
-						reason =
-				    "for a suspected SandyBridge BIOS bug";
-						break;
-					}
-				}
-				freeenv(hw_vendor);
-			}
-		}
+		reason = madt_x2apic_disable_reason();
 		bios_x2apic = lapic_is_x2apic();
 		if (reason != NULL && bios_x2apic) {
 			if (bootverbose)
