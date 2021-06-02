@@ -131,6 +131,7 @@ madt_probe_cpus(void)
 static const char *x2apic_sandy_dis[] = {
 	"LENOVO",
 	"ASUSTeK Computer Inc.",
+	"SAMSUNG ELECTRONICS CO., LTD.",
 };
 
 /*
