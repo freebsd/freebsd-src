@@ -158,7 +158,9 @@ madt_setup_local(void)
 				reason = "by DMAR table";
 			acpi_unmap_table(dmartbl);
 		}
-		if (vm_guest == VM_GUEST_VMWARE) {
+		if (reason != NULL) {
+			/* Already disabled */
+		} else if (vm_guest == VM_GUEST_VMWARE) {
 			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
 			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
 			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0)
