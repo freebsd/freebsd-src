@@ -106,6 +106,7 @@ static struct moea64_funcs mmu_phyp_funcs = {
 MMU_DEF_INHERIT(pseries_mmu, "mmu_phyp", mphyp_methods, oea64_mmu);
 
 static int brokenkvm = 0;
+static uint64_t final_pteg_count = 0;
 
 static void
 print_kvm_bug_warning(void *data)
@@ -125,48 +126,32 @@ SYSINIT(kvmbugwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1, print_kvm_bug_warning,
 static void
 mphyp_install()
 {
-
-	moea64_ops = &mmu_phyp_funcs;
-
-	moea64_install();
-}
-
-static void
-mphyp_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
-{
-	uint64_t final_pteg_count = 0;
 	char buf[8];
 	uint32_t prop[2];
 	uint32_t nptlp, shift = 0, slb_encoding = 0;
 	uint32_t lp_size, lp_encoding;
-	struct lpte old;
-	uint64_t vsid;
 	phandle_t dev, node, root;
 	int idx, len, res;
 	bool has_lp;
 
-	rm_init(&mphyp_eviction_lock, "pte eviction");
-
-	moea64_early_bootstrap(kernelstart, kernelend);
-
 	root = OF_peer(0);
 
-        dev = OF_child(root);
+	dev = OF_child(root);
 	while (dev != 0) {
-                res = OF_getprop(dev, "name", buf, sizeof(buf));
-                if (res > 0 && strcmp(buf, "cpus") == 0)
-                        break;
-                dev = OF_peer(dev);
-        }
+		res = OF_getprop(dev, "name", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpus") == 0)
+			break;
+		dev = OF_peer(dev);
+	}
 
 	node = OF_child(dev);
 
 	while (node != 0) {
-                res = OF_getprop(node, "device_type", buf, sizeof(buf));
-                if (res > 0 && strcmp(buf, "cpu") == 0)
-                        break;
-                node = OF_peer(node);
-        }
+		res = OF_getprop(node, "device_type", buf, sizeof(buf));
+		if (res > 0 && strcmp(buf, "cpu") == 0)
+			break;
+		node = OF_peer(node);
+	}
 
 	res = OF_getencprop(node, "ibm,pft-size", prop, sizeof(prop));
 	if (res <= 0)
@@ -176,20 +161,6 @@ mphyp_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	if (res > 0)
 		n_slbs = prop[0];
 	dprintf0("slb-size=%i\n", n_slbs);
-
-	moea64_pteg_count = final_pteg_count / sizeof(struct lpteg);
-
-	/* Clear any old page table entries */
-	for (idx = 0; idx < moea64_pteg_count*8; idx++) {
-		phyp_pft_hcall(H_READ, 0, idx, 0, 0, &old.pte_hi,
-		    &old.pte_lo, &old.pte_lo);
-		vsid = (old.pte_hi << (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) >> 28;
-		if (vsid == VSID_VRMA || vsid == 0 /* Older VRMA */)
-			continue;
-		
-		if (old.pte_hi & LPTE_VALID)
-			phyp_hcall(H_REMOVE, 0, idx, 0);
-	}
 
 	/*
 	 * Scan the large page size property for PAPR compatible machines.
@@ -262,6 +233,36 @@ mphyp_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 			printf(MMU_PHYP_ID
 			    "Support for hugepages not found\n");
 		}
+	}
+
+	moea64_ops = &mmu_phyp_funcs;
+
+	moea64_install();
+}
+
+static void
+mphyp_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
+{
+	struct lpte old;
+	uint64_t vsid;
+	int idx;
+
+	rm_init(&mphyp_eviction_lock, "pte eviction");
+
+	moea64_early_bootstrap(kernelstart, kernelend);
+
+	moea64_pteg_count = final_pteg_count / sizeof(struct lpteg);
+
+	/* Clear any old page table entries */
+	for (idx = 0; idx < moea64_pteg_count*8; idx++) {
+		phyp_pft_hcall(H_READ, 0, idx, 0, 0, &old.pte_hi,
+		    &old.pte_lo, &old.pte_lo);
+		vsid = (old.pte_hi << (ADDR_API_SHFT64 - ADDR_PIDX_SHFT)) >> 28;
+		if (vsid == VSID_VRMA || vsid == 0 /* Older VRMA */)
+			continue;
+
+		if (old.pte_hi & LPTE_VALID)
+			phyp_hcall(H_REMOVE, 0, idx, 0);
 	}
 
 	moea64_mid_bootstrap(kernelstart, kernelend);
