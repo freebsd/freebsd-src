@@ -25,6 +25,7 @@ ATF_TESTS_SH+=	anchor \
 		set_skip \
 		set_tos \
 		src_track \
+		syncookie \
 		synproxy \
 		table \
 		tos
