@@ -1306,7 +1306,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
  * strip --
  *	Use strip(1) to strip the target file.
  *	Just invoke strip(1) on to_name if from_name is NULL, else try
- *	to run "strip -o to_name -- from_name" and return 0 on failure.
+ *	to run "strip -o to_name from_name" and return 0 on failure.
  *	Return 1 on success and assign result of digest_file(to_name)
  *	to *dresp.
  */
@@ -1314,10 +1314,12 @@ static int
 strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 {
 	const char *stripbin;
-	const char *args[6];
+	const char *args[5];
+	char *prefixed_from_name;
 	pid_t pid;
 	int error, serrno, status;
 
+	prefixed_from_name = NULL;
 	stripbin = getenv("STRIPBIN");
 	if (stripbin == NULL)
 		stripbin = "strip";
@@ -1328,9 +1330,16 @@ strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 	} else {
 		args[1] = "-o";
 		args[2] = to_name;
-		args[3] = "--";
-		args[4] = from_name;
-		args[5] = NULL;
+
+		/* Prepend './' if from_name begins with '-' */
+		if (from_name[0] == '-') {
+			if (asprintf(&prefixed_from_name, "./%s", from_name) == -1)
+				return (0);
+			args[3] = prefixed_from_name;
+		} else {
+			args[3] = from_name;
+		}
+		args[4] = NULL;
 	}
 	error = posix_spawnp(&pid, stripbin, NULL, NULL,
 	    __DECONST(char **, args), environ);
@@ -1339,6 +1348,7 @@ strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 		errc(error == EAGAIN || error == EPROCLIM || error == ENOMEM ?
 		    EX_TEMPFAIL : EX_OSERR, error, "spawn %s", stripbin);
 	}
+	free(prefixed_from_name);
 	if (waitpid(pid, &status, 0) == -1) {
 		error = errno;
 		(void)unlink(to_name);
