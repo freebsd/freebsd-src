@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpacommon
 INTERNALLIB=
 
@@ -18,8 +20,6 @@ SRCS=	cli.c \
 CFLAGS+=-DCONFIG_SAE \
 	-DCONFIG_SUITE \
 	-DCONFIG_SUITEB
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

@@ -3,6 +3,8 @@
 .include <src.opts.mk>
 .include "../Makefile.inc"
 
+.include "../Makefile.crypto"
+
 .PATH.c:${HOSTAPD_DISTDIR}
 
 PACKAGE=	hostapd
@@ -40,8 +42,6 @@ CFLAGS+=${HOSTAPD_CFLAGS}
 LDADD+=${HOSTAPD_LDADD}
 #LDFLAGS+=${HOSTAPD_LDFLAGS}
 
-TLS_FUNCS=y
-
 # For WPS, EAP modes, etc
 NEED_DH_GROUPS=y
 NEED_DH_GROUPS_ALL=y
@@ -66,7 +66,5 @@ NEED_FIPS186_2_PRF=y
 CFLAGS+=-DEAP_GPSK_SHA256
 NEED_AES_OMAC1=y
 .endif
-
-.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>

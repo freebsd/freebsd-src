@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpaeapol_auth
 INTERNALLIB=
 
@@ -9,8 +11,6 @@ INTERNALLIB=
 
 SRCS=	eapol_auth_sm.c \
 	eapol_auth_dump.c
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

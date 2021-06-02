@@ -2,6 +2,8 @@
 
 .include "../Makefile.inc"
 
+.include "../Makefile.crypto"
+
 .PATH.c:${HOSTAPD_DISTDIR}
 
 PACKAGE=	hostapd
@@ -11,7 +13,5 @@ SRCS=	hostapd_cli.c
 LIBADD+=	util wpacommon wpautils
 
 MAN=	hostapd_cli.8
-
-.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>

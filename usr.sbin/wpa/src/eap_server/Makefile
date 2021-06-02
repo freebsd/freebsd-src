@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpaeap_server
 INTERNALLIB=
 
@@ -25,8 +27,6 @@ SRCS=	eap_server.c \
 	eap_server_ttls.c \
 	eap_server_wsc.c \
 	eap_sim_db.c
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=
