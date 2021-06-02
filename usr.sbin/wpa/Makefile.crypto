@@ -24,6 +24,7 @@ NEED_AES_ENC=true
 NEED_AES_CBC=true
 .endif
 NEED_AES_OMAC1=true
+TLS_FUNCS=y
 
 .if defined(TLS_FUNCS)
 NEED_TLS_PRF=y
