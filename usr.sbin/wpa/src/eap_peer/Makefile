@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpaeap_peer
 INTERNALLIB=
 
@@ -24,8 +26,6 @@ SRCS=	eap.c \
 	mschapv2.c
 
 CFLAGS+=-DIEEE8021X_EAPOL
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

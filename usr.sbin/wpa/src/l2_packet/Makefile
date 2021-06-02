@@ -2,6 +2,8 @@
 
 .include "../../Makefile.inc"
 
+.include "../../Makefile.crypto"
+
 LIB=	wpal2_packet
 INTERNALLIB=
 
@@ -10,8 +12,6 @@ INTERNALLIB=
 SRCS=	l2_packet_freebsd.c
 
 CFLAGS+=-DIEEE8021X_EAPOL
-
-.include "../../Makefile.crypto"
 
 # We are only interested in includes at this point. Not libraries.
 LIBADD=

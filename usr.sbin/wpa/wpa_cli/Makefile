@@ -4,6 +4,8 @@
 
 .include "../Makefile.inc"
 
+.include "../Makefile.crypto"
+
 .PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
 PROG=	wpa_cli
@@ -30,9 +32,5 @@ LIBADD+=wpaap \
 	wpatls \
 	wpautils
 LIBADD+=	pcap util
-
-TLS_FUNCS=y
-
-.include "../Makefile.crypto"
 
 .include <bsd.prog.mk>
