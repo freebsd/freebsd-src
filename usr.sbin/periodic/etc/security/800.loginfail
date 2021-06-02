@@ -53,6 +53,8 @@ catmsgs() {
 		case $f in
 		    *.gz)	zcat -f $f;;
 		    *.bz2)	bzcat -f $f;;
+		    *.xz)	xzcat -f $f;;
+		    *.zst)	zstdcat -f $f;;
 		esac
 	    done
 	[ -f ${LOG}/auth.log ] && cat $LOG/auth.log
