@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 extern u_int32_t newnfs_false, newnfs_true;
 extern enum vtype nv34tov_type[8];
 extern struct timeval nfsboottime;
-extern int nfs_rootfhset;
 extern int nfsrv_enable_crossmntpt;
 extern int nfsrv_statehashsize;
 extern int nfsrv_layouthashsize;
@@ -3360,10 +3359,8 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3625,10 +3622,8 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_NOTSUPP;
 		goto nfsmout;
 	}
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -3893,10 +3888,8 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_NOTSUPP;
 		goto nfsmout;
 	}
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto out;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF + NFSX_UNSIGNED);
 	verf = (u_char *)tl;
 	tl += (NFSX_VERF / NFSX_UNSIGNED);
@@ -4048,10 +4041,8 @@ nfsrvd_setclientidcfrm(struct nfsrv_descript *nd,
 		nd->nd_repstat = NFSERR_NOTSUPP;
 		goto nfsmout;
 	}
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_HYPER);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl++;
@@ -4146,10 +4137,8 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_NOTSUPP;
 		goto nfsmout;
 	}
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *(tl + 2));
 	if (len <= 0 || len > NFSV4_OPAQUELIMIT) {
@@ -4213,10 +4202,8 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 #endif
 	struct thread *p = curthread;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF + NFSX_UNSIGNED);
 	verf = (uint8_t *)tl;
 	tl += (NFSX_VERF / NFSX_UNSIGNED);
@@ -4370,10 +4357,8 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 	uint32_t rdmacnt;
 	struct thread *p = curthread;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	sep = (struct nfsdsession *)malloc(sizeof(struct nfsdsession),
 	    M_NFSDSESSION, M_WAITOK | M_ZERO);
 	sep->sess_refcnt = 1;
@@ -4481,10 +4466,8 @@ nfsrvd_sequence(struct nfsrv_descript *nd, __unused int isdgram,
 	int cache_this, error = 0;
 	struct thread *p = curthread;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID);
 	NFSBCOPY(tl, nd->nd_sessionid, NFSX_V4SESSIONID);
 	NFSM_DISSECT(tl, uint32_t *, 4 * NFSX_UNSIGNED);
@@ -4554,10 +4537,8 @@ nfsrvd_destroyclientid(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0;
 	struct thread *p = curthread;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
@@ -4578,10 +4559,8 @@ nfsrvd_bindconnsess(struct nfsrv_descript *nd, __unused int isdgram,
 	uint8_t sessid[NFSX_V4SESSIONID];
 	int error = 0, foreaft;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID + 2 * NFSX_UNSIGNED);
 	NFSBCOPY(tl, sessid, NFSX_V4SESSIONID);
 	tl += (NFSX_V4SESSIONID / NFSX_UNSIGNED);
@@ -4616,10 +4595,8 @@ nfsrvd_destroysession(struct nfsrv_descript *nd, __unused int isdgram,
 	uint8_t *cp, sessid[NFSX_V4SESSIONID];
 	int error = 0;
 
-	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
-		nd->nd_repstat = NFSERR_WRONGSEC;
+	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
-	}
 	NFSM_DISSECT(cp, uint8_t *, NFSX_V4SESSIONID);
 	NFSBCOPY(cp, sessid, NFSX_V4SESSIONID);
 	nd->nd_repstat = nfsrv_destroysession(nd, sessid);
