@@ -21,6 +21,7 @@ ATF_TESTS_SH+=	anchor \
 		src_track \
 		rdr \
 		route_to \
+		syncookie \
 		synproxy \
 		set_skip \
 		pfsync \
