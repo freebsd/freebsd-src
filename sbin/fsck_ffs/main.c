@@ -309,6 +309,7 @@ checkfilesys(char *filesys)
 				exit(0);
 			}
 			if ((sblock.fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0) {
+				bufinit();
 				gjournal_check(filesys);
 				if (chkdoreload(mntp) == 0)
 					exit(0);
