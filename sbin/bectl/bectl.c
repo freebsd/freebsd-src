@@ -233,7 +233,10 @@ bectl_cmd_create(int argc, char *argv[])
 	bootenv = *argv;
 
 	err = BE_ERR_SUCCESS;
-	if ((atpos = strchr(bootenv, '@')) != NULL) {
+	if (strchr(bootenv, ' ') != NULL)
+		/* BE datasets with spaces are not bootable */
+		err = BE_ERR_INVALIDNAME;
+	else if ((atpos = strchr(bootenv, '@')) != NULL) {
 		/*
 		 * This is the "create a snapshot variant". No new boot
 		 * environment is to be created here.
@@ -260,6 +263,10 @@ bectl_cmd_create(int argc, char *argv[])
 
 	switch (err) {
 	case BE_ERR_SUCCESS:
+		break;
+	case BE_ERR_INVALIDNAME:
+		fprintf(stderr,
+		    "bectl create: boot environment name must not contain spaces\n");
 		break;
 	default:
 		if (atpos != NULL)
