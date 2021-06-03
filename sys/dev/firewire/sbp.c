@@ -2273,7 +2273,7 @@ static void
 sbp_action(struct cam_sim *sim, union ccb *ccb)
 {
 
-	struct sbp_softc *sbp = (struct sbp_softc *)sim->softc;
+	struct sbp_softc *sbp = cam_sim_softc(sim);
 	struct sbp_target *target = NULL;
 	struct sbp_dev *sdev = NULL;
 
@@ -2632,7 +2632,7 @@ sbp_poll(struct cam_sim *sim)
 	struct sbp_softc *sbp;
 	struct firewire_comm *fc;
 
-	sbp = (struct sbp_softc *)sim->softc;
+	sbp = cam_sim_softc(sim);
 	fc = sbp->fd.fc;
 
 	fc->poll(fc, 0, -1);
