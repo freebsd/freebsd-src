@@ -145,7 +145,6 @@ static int ignore[] = {
 	SYS_mac_syscall,
 	SYS_sigtimedwait,
 	SYS_sigwaitinfo,
-	SYS_thr_new,		/* Page fault seen */
 };
 
 static int fd[900], fds[2], kq, socketpr[2];
