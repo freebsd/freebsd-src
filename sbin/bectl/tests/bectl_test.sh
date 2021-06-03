@@ -122,6 +122,10 @@ bectl_create_body()
 	atf_check zfs create -o mountpoint=/usr -o canmount=noauto \
 	    ${zpool}/ROOT/default/usr
 
+	# BE datasets with spaces are not bootable, PR 254441.
+	atf_check -e not-empty -s not-exit:0 \
+		bectl -r ${zpool}/ROOT create "foo bar"
+
 	# Test standard creation, creation of a snapshot, and creation from a
 	# snapshot.
 	atf_check bectl -r ${zpool}/ROOT create -e default default2
