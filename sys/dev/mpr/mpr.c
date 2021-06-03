@@ -1141,7 +1141,8 @@ mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 	if (++sc->io_cmds_active > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
-	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("command not busy\n"));
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY,
+	    ("command not busy, state = %u\n", cm->cm_state));
 	cm->cm_state = MPR_CM_STATE_INQUEUE;
 
 	if (sc->atomic_desc_capable) {
@@ -1918,6 +1919,11 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    sc, 0, mpr_dump_reqs, "I", "Dump Active Requests");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "dump_reqs_alltypes", CTLFLAG_RW,
+	    &sc->dump_reqs_alltypes, 0,
+	    "dump all request types not just inqueue");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
 
@@ -2101,7 +2107,7 @@ mpr_dump_reqs(SYSCTL_HANDLER_ARGS)
 	/* Best effort, no locking */
 	for (i = smid; i < numreqs; i++) {
 		cm = &sc->commands[i];
-		if (cm->cm_state != state)
+		if ((sc->dump_reqs_alltypes == 0) && (cm->cm_state != state))
 			continue;
 		hdr.smid = i;
 		hdr.state = cm->cm_state;
@@ -2365,6 +2371,8 @@ mpr_complete_command(struct mpr_softc *sc, struct mpr_command *cm)
 		return;
 	}
 
+	KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
+	    ("command not inqueue, state = %u\n", cm->cm_state));
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	if (cm->cm_flags & MPR_CM_FLAGS_POLLED)
 		cm->cm_flags |= MPR_CM_FLAGS_COMPLETE;
@@ -2544,9 +2552,6 @@ mpr_intr_locked(void *data)
 		case MPI25_RPY_DESCRIPT_FLAGS_FAST_PATH_SCSI_IO_SUCCESS:
 		case MPI26_RPY_DESCRIPT_FLAGS_PCIE_ENCAPSULATED_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
-			KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
-			    ("command not inqueue\n"));
-			cm->cm_state = MPR_CM_STATE_BUSY;
 			cm->cm_reply = NULL;
 			break;
 		case MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY:

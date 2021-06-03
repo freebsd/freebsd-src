@@ -125,6 +125,7 @@ static int mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle,
 static int mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz,
     u32 devinfo);
+static void mprsas_ata_id_complete(struct mpr_softc *, struct mpr_command *);
 static void mprsas_ata_id_timeout(struct mpr_softc *, struct mpr_command *);
 int mprsas_get_sas_address_for_sata_disk(struct mpr_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
@@ -1005,7 +1006,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	 * An Abort Task TM should be used instead of a Target Reset, but that
 	 * would be much more difficult because targets have not been fully
 	 * discovered yet, and LUN's haven't been setup.  So, just reset the
-	 * target instead of the LUN.
+	 * target instead of the LUN.  The commands should complete once
+	 * the target has been reset.
 	 */
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
@@ -1033,16 +1035,6 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 		}
 	}
 out:
-	/*
-	 * Free the commands that may not have been freed from the SATA ID call
-	 */
-	for (i = 1; i < sc->num_reqs; i++) {
-		cm = &sc->commands[i];
-		if (cm->cm_flags & MPR_CM_FLAGS_SATA_ID_TIMEOUT) {
-			free(cm->cm_data, M_MPR);
-			mpr_free_command(sc, cm);
-		}
-	}
 	mprsas_startup_decrement(sassc);
 	return (error);
 }
@@ -1218,14 +1210,30 @@ mprsas_get_sata_identify(struct mpr_softc *sc, u16 handle,
 out:
 	/*
 	 * If the SATA_ID_TIMEOUT flag has been set for this command, don't free
-	 * it.  The command and buffer will be freed after sending an Abort
-	 * Task TM.
+	 * it.  The command and buffer will be freed after we send a Target
+	 * Reset TM and the command comes back from the controller.
 	 */
 	if ((cm->cm_flags & MPR_CM_FLAGS_SATA_ID_TIMEOUT) == 0) {
 		mpr_free_command(sc, cm);
 		free(buffer, M_MPR);
 	}
 	return (error);
+}
+
+/*
+ * This is completion handler to make sure that commands and allocated
+ * buffers get freed when timed out SATA ID commands finally complete after
+ * we've reset the target.  In the normal case, we wait for the command to
+ * complete.
+ */
+static void
+mprsas_ata_id_complete(struct mpr_softc *sc, struct mpr_command *cm)
+{
+	mpr_dprint(sc, MPR_INFO, "%s ATA ID completed late cm %p sc %p\n",
+	    __func__, cm, sc);
+
+	free(cm->cm_data, M_MPR);
+	mpr_free_command(sc, cm);
 }
 
 static void
@@ -1242,7 +1250,12 @@ mprsas_ata_id_timeout(struct mpr_softc *sc, struct mpr_command *cm)
 	 * this command has timed out, it's no longer in the queue.
 	 */
 	cm->cm_flags |= MPR_CM_FLAGS_SATA_ID_TIMEOUT;
-	cm->cm_state = MPR_CM_STATE_BUSY;
+
+	/*
+	 * Since we will no longer be waiting for the command to complete,
+	 * set a completion handler to make sure we free all resources.
+	 */
+	cm->cm_complete = mprsas_ata_id_complete;
 }
 
 static int

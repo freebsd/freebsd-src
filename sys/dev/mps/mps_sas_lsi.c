@@ -123,6 +123,7 @@ static int mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate);
 static int mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz,
     u32 devinfo);
+static void mpssas_ata_id_complete(struct mps_softc *, struct mps_command *);
 static void mpssas_ata_id_timeout(struct mps_softc *, struct mps_command *);
 int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
@@ -780,7 +781,8 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	 * An Abort Task TM should be used instead of a Target Reset, but that
 	 * would be much more difficult because targets have not been fully
 	 * discovered yet, and LUN's haven't been setup.  So, just reset the
-	 * target instead of the LUN.
+	 * target instead of the LUN.  The commands should complete once the
+	 * target has been reset.
 	 */
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
@@ -808,16 +810,6 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		}
 	}
 out:
-	/*
-	 * Free the commands that may not have been freed from the SATA ID call
-	 */
-	for (i = 1; i < sc->num_reqs; i++) {
-		cm = &sc->commands[i];
-		if (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) {
-			free(cm->cm_data, M_MPT2);
-			mps_free_command(sc, cm);
-		}
-	}
 	mpssas_startup_decrement(sassc);
 	return (error);
 }
@@ -993,8 +985,8 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 out:
 	/*
 	 * If the SATA_ID_TIMEOUT flag has been set for this command, don't free
-	 * it.  The command and buffer will be freed after sending an Abort
-	 * Task TM.
+	 * it.  The command and buffer will be freed after we send a Target
+	 * Reset TM and the command comes back from the controller.
 	 */
 	if ((cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0) {
 		mps_free_command(sc, cm);
@@ -1003,21 +995,41 @@ out:
 	return (error);
 }
 
+/*
+ * This is completion handler to make sure that commands and allocated
+ * buffers get freed when timed out SATA ID commands finally complete after
+ * we've reset the target.  In the normal case, we wait for the command to
+ * complete.
+ */
+static void
+mpssas_ata_id_complete(struct mps_softc *sc, struct mps_command *cm)
+{
+	mps_dprint(sc, MPS_INFO, "%s ATA ID completed late cm %p sc %p\n",
+	    __func__, cm, sc);
+
+	free(cm->cm_data, M_MPT2);
+	mps_free_command(sc, cm);
+}
+
+
 static void
 mpssas_ata_id_timeout(struct mps_softc *sc, struct mps_command *cm)
 {
-
 	mps_dprint(sc, MPS_INFO, "%s ATA ID command timeout cm %p sc %p\n",
 	    __func__, cm, sc);
 
 	/*
 	 * The Abort Task cannot be sent from here because the driver has not
 	 * completed setting up targets.  Instead, the command is flagged so
-	 * that special handling will be used to send the abort. Now that
-	 * this command has timed out, it's no longer in the queue.
+	 * that special handling will be used to send a target reset.
 	 */
 	cm->cm_flags |= MPS_CM_FLAGS_SATA_ID_TIMEOUT;
-	cm->cm_state = MPS_CM_STATE_BUSY;
+
+	/*
+	 * Since we will no longer be waiting for the command to complete,
+	 * set a completion handler to make sure we free all resources.
+	 */
+	cm->cm_complete = mpssas_ata_id_complete;
 }
 
 static int
