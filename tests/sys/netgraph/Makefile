@@ -12,9 +12,11 @@ TEST_METADATA.ng_macfilter_test+=	required_programs="perl"
 
 ATF_TESTS_C+=	basic	\
 		bridge	\
+		hub	\
 
 SRCS.basic=	basic.c util.c
 SRCS.bridge=	bridge.c util.c
+SRCS.hub=	hub.c util.c
 
 LIBADD+=	netgraph
 
