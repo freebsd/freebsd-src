@@ -193,7 +193,7 @@ int
 mmc_switch_status(device_t busdev, device_t dev, uint16_t rca, u_int timeout)
 {
 	struct timeval cur, end;
-	int err;
+	int err, crc_timeout;
 	uint32_t status;
 
 	KASSERT(timeout != 0, ("%s: no timeout", __func__));
@@ -205,7 +205,19 @@ mmc_switch_status(device_t busdev, device_t dev, uint16_t rca, u_int timeout)
 	 */
 	end.tv_sec = end.tv_usec = 0;
 	for (;;) {
-		err = mmc_send_status(busdev, dev, rca, &status);
+		crc_timeout=0;
+		do {
+			/*
+			 * CRC errors indicate that the command wasn't accepted
+			 * and executed due to a communications error. Retry
+			 * CRC errors a couple of times to cope with transient
+			 * failures.
+			 *
+			 * This is required for some cheap laptops to boot.
+			 */
+			err = mmc_send_status(busdev, dev, rca, &status);
+			crc_timeout++;
+		} while (err == MMC_ERR_BADCRC && crc_timeout < 10);
 		if (err != MMC_ERR_NONE)
 			break;
 		if (R1_CURRENT_STATE(status) == R1_STATE_TRAN)
