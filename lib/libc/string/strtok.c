@@ -51,7 +51,7 @@ char	*__strtok_r(char * __restrict, const char * __restrict, char ** __restrict)
 __weak_reference(__strtok_r, strtok_r);
 
 char *
-__strtok_r(char * __restrict s, const char * __restrict felon, char ** __restrict last)
+__strtok_r(char * __restrict s, const char * __restrict delim, char ** __restrict last)
 {
 	char *spanp, *tok;
 	int c, sc;
