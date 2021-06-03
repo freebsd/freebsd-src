@@ -246,7 +246,6 @@ closedisk(void)
 		err(1, "sbwrite(%s)", devnam);
 	if (ufs_disk_close(diskp) == -1)
 		err(1, "ufs_disk_close(%s)", devnam);
-	free(diskp);
 	diskp = NULL;
 	fs = NULL;
 }
