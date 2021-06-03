@@ -82,6 +82,7 @@ static void dpp_controller_auth_success(struct dpp_connection *conn,
 					int initiator);
 static void dpp_tcp_build_csr(void *eloop_ctx, void *timeout_ctx);
 static void dpp_tcp_gas_query_comeback(void *eloop_ctx, void *timeout_ctx);
+static void dpp_relay_conn_timeout(void *eloop_ctx, void *timeout_ctx);
 
 
 static void dpp_connection_free(struct dpp_connection *conn)
@@ -97,6 +98,7 @@ static void dpp_connection_free(struct dpp_connection *conn)
 			     conn, NULL);
 	eloop_cancel_timeout(dpp_tcp_build_csr, conn, NULL);
 	eloop_cancel_timeout(dpp_tcp_gas_query_comeback, conn, NULL);
+	eloop_cancel_timeout(dpp_relay_conn_timeout, conn, NULL);
 	wpabuf_free(conn->msg);
 	wpabuf_free(conn->msg_out);
 	dpp_auth_deinit(conn->auth);
@@ -147,6 +149,24 @@ dpp_relay_controller_get(struct dpp_global *dpp, const u8 *pkhash)
 	dl_list_for_each(ctrl, &dpp->controllers, struct dpp_relay_controller,
 			 list) {
 		if (os_memcmp(pkhash, ctrl->pkhash, SHA256_MAC_LEN) == 0)
+			return ctrl;
+	}
+
+	return NULL;
+}
+
+
+static struct dpp_relay_controller *
+dpp_relay_controller_get_ctx(struct dpp_global *dpp, void *cb_ctx)
+{
+	struct dpp_relay_controller *ctrl;
+
+	if (!dpp)
+		return NULL;
+
+	dl_list_for_each(ctrl, &dpp->controllers, struct dpp_relay_controller,
+			 list) {
+		if (cb_ctx == ctrl->cb_ctx)
 			return ctrl;
 	}
 
@@ -352,6 +372,16 @@ static int dpp_ipaddr_to_sockaddr(struct sockaddr *addr, socklen_t *addrlen,
 }
 
 
+static void dpp_relay_conn_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct dpp_connection *conn = eloop_ctx;
+
+	wpa_printf(MSG_DEBUG,
+		   "DPP: Timeout while waiting for relayed connection to complete");
+	dpp_connection_remove(conn);
+}
+
+
 static struct dpp_connection *
 dpp_relay_new_conn(struct dpp_relay_controller *ctrl, const u8 *src,
 		   unsigned int freq)
@@ -412,8 +442,8 @@ dpp_relay_new_conn(struct dpp_relay_controller *ctrl, const u8 *src,
 		goto fail;
 	conn->write_eloop = 1;
 
-	/* TODO: eloop timeout to clear a connection if it does not complete
-	 * properly */
+	eloop_cancel_timeout(dpp_relay_conn_timeout, conn, NULL);
+	eloop_register_timeout(20, 0, dpp_relay_conn_timeout, conn, NULL);
 
 	dl_list_add(&ctrl->conn, &conn->list);
 	return conn;
@@ -465,7 +495,8 @@ static int dpp_relay_tx(struct dpp_connection *conn, const u8 *hdr,
 
 int dpp_relay_rx_action(struct dpp_global *dpp, const u8 *src, const u8 *hdr,
 			const u8 *buf, size_t len, unsigned int freq,
-			const u8 *i_bootstrap, const u8 *r_bootstrap)
+			const u8 *i_bootstrap, const u8 *r_bootstrap,
+			void *cb_ctx)
 {
 	struct dpp_relay_controller *ctrl;
 	struct dpp_connection *conn;
@@ -493,8 +524,7 @@ int dpp_relay_rx_action(struct dpp_global *dpp, const u8 *src, const u8 *hdr,
 	    type == DPP_PA_RECONFIG_ANNOUNCEMENT) {
 		/* TODO: Could send this to all configured Controllers. For now,
 		 * only the first Controller is supported. */
-		ctrl = dl_list_first(&dpp->controllers,
-				     struct dpp_relay_controller, list);
+		ctrl = dpp_relay_controller_get_ctx(dpp, cb_ctx);
 	} else {
 		if (!r_bootstrap)
 			return -1;

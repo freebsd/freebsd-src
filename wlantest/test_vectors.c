@@ -63,7 +63,7 @@ static void test_vector_tkip(void)
 
 	wpa_debug_level = MSG_INFO;
 	plain = tkip_decrypt(tk, (const struct ieee80211_hdr *) enc,
-			     enc + 24, enc_len - 24, &plain_len);
+			     enc + 24, enc_len - 24, &plain_len, NULL, NULL);
 	wpa_debug_level = MSG_EXCESSIVE;
 	os_free(enc);
 

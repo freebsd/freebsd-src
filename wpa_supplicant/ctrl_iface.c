@@ -39,6 +39,7 @@
 #include "driver_i.h"
 #include "wps_supplicant.h"
 #include "ibss_rsn.h"
+#include "wpas_glue.h"
 #include "ap.h"
 #include "p2p_supplicant.h"
 #include "p2p/p2p.h"
@@ -9519,6 +9520,45 @@ static int wpas_ctrl_iface_eapol_rx(struct wpa_supplicant *wpa_s, char *cmd)
 }
 
 
+static int wpas_ctrl_iface_eapol_tx(struct wpa_supplicant *wpa_s, char *cmd)
+{
+	char *pos;
+	u8 dst[ETH_ALEN], *buf;
+	int used, ret;
+	size_t len;
+	unsigned int prev;
+
+	wpa_printf(MSG_DEBUG, "External EAPOL TX: %s", cmd);
+
+	pos = cmd;
+	used = hwaddr_aton2(pos, dst);
+	if (used < 0)
+		return -1;
+	pos += used;
+	while (*pos == ' ')
+		pos++;
+
+	len = os_strlen(pos);
+	if (len & 1)
+		return -1;
+	len /= 2;
+
+	buf = os_malloc(len);
+	if (!buf || hexstr2bin(pos, buf, len) < 0) {
+		os_free(buf);
+		return -1;
+	}
+
+	prev = wpa_s->ext_eapol_frame_io;
+	wpa_s->ext_eapol_frame_io = 0;
+	ret = wpa_ether_send(wpa_s, dst, ETH_P_EAPOL, buf, len);
+	wpa_s->ext_eapol_frame_io = prev;
+	os_free(buf);
+
+	return ret;
+}
+
+
 static u16 ipv4_hdr_checksum(const void *buf, size_t len)
 {
 	size_t i;
@@ -11513,6 +11553,9 @@ char * wpa_supplicant_ctrl_iface_process(struct wpa_supplicant *wpa_s,
 			reply_len = -1;
 	} else if (os_strncmp(buf, "EAPOL_RX ", 9) == 0) {
 		if (wpas_ctrl_iface_eapol_rx(wpa_s, buf + 9) < 0)
+			reply_len = -1;
+	} else if (os_strncmp(buf, "EAPOL_TX ", 9) == 0) {
+		if (wpas_ctrl_iface_eapol_tx(wpa_s, buf + 9) < 0)
 			reply_len = -1;
 	} else if (os_strncmp(buf, "DATA_TEST_CONFIG ", 17) == 0) {
 		if (wpas_ctrl_iface_data_test_config(wpa_s, buf + 17) < 0)

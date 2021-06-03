@@ -9200,6 +9200,28 @@ static int nl80211_start_radar_detection(void *priv,
 
 #ifdef CONFIG_TDLS
 
+static int nl80211_add_peer_capab(struct nl_msg *msg,
+				  enum tdls_peer_capability capa)
+{
+	u32 peer_capab = 0;
+
+	if (!capa)
+		return 0;
+
+	if (capa & TDLS_PEER_HT)
+		peer_capab |= NL80211_TDLS_PEER_HT;
+	if (capa & TDLS_PEER_VHT)
+		peer_capab |= NL80211_TDLS_PEER_VHT;
+	if (capa & TDLS_PEER_WMM)
+		peer_capab |= NL80211_TDLS_PEER_WMM;
+	if (capa & TDLS_PEER_HE)
+		peer_capab |= NL80211_TDLS_PEER_HE;
+
+	return nla_put_u32(msg, NL80211_ATTR_TDLS_PEER_CAPABILITY,
+			   peer_capab);
+}
+
+
 static int nl80211_send_tdls_mgmt(void *priv, const u8 *dst, u8 action_code,
 				  u8 dialog_token, u16 status_code,
 				  u32 peer_capab, int initiator, const u8 *buf,
@@ -9219,21 +9241,9 @@ static int nl80211_send_tdls_mgmt(void *priv, const u8 *dst, u8 action_code,
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, dst) ||
 	    nla_put_u8(msg, NL80211_ATTR_TDLS_ACTION, action_code) ||
 	    nla_put_u8(msg, NL80211_ATTR_TDLS_DIALOG_TOKEN, dialog_token) ||
-	    nla_put_u16(msg, NL80211_ATTR_STATUS_CODE, status_code))
-		goto fail;
-	if (peer_capab) {
-		/*
-		 * The internal enum tdls_peer_capability definition is
-		 * currently identical with the nl80211 enum
-		 * nl80211_tdls_peer_capability, so no conversion is needed
-		 * here.
-		 */
-		if (nla_put_u32(msg, NL80211_ATTR_TDLS_PEER_CAPABILITY,
-				peer_capab))
-			goto fail;
-	}
-	if ((initiator &&
-	     nla_put_flag(msg, NL80211_ATTR_TDLS_INITIATOR)) ||
+	    nla_put_u16(msg, NL80211_ATTR_STATUS_CODE, status_code) ||
+	    nl80211_add_peer_capab(msg, peer_capab) ||
+	    (initiator && nla_put_flag(msg, NL80211_ATTR_TDLS_INITIATOR)) ||
 	    nla_put(msg, NL80211_ATTR_IE, len, buf))
 		goto fail;
 
@@ -10953,7 +10963,8 @@ static int add_acs_ch_list(struct nl_msg *msg, const int *freq_list)
 		 * compatibility.
 		 */
 		if (!(freq >= 2412 && freq <= 2484) &&
-		    !(freq >= 5180 && freq <= 5900))
+		    !(freq >= 5180 && freq <= 5900) &&
+		    !(freq >= 5945 && freq <= 7115))
 			continue;
 		hw_mode = ieee80211_freq_to_chan(freq, &ch_list[num_channels]);
 		if (hw_mode != NUM_HOSTAPD_MODES)

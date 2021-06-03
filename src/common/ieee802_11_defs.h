@@ -22,7 +22,7 @@
 #define WLAN_FC_PWRMGT		0x1000
 #define WLAN_FC_MOREDATA	0x2000
 #define WLAN_FC_ISWEP		0x4000
-#define WLAN_FC_ORDER		0x8000
+#define WLAN_FC_HTC		0x8000
 
 #define WLAN_FC_GET_TYPE(fc)	(((fc) & 0x000c) >> 2)
 #define WLAN_FC_GET_STYPE(fc)	(((fc) & 0x00f0) >> 4)

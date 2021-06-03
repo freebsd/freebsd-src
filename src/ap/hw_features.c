@@ -917,8 +917,14 @@ static int hostapd_is_usable_chans(struct hostapd_iface *iface)
 		return 1;
 
 	if (hostapd_is_usable_chan(iface, iface->freq +
-				   iface->conf->secondary_channel * 20, 0))
-		return 1;
+				   iface->conf->secondary_channel * 20, 0)) {
+		if (iface->conf->secondary_channel == 1 &&
+		    (pri_chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40P))
+			return 1;
+		if (iface->conf->secondary_channel == -1 &&
+		    (pri_chan->allowed_bw & HOSTAPD_CHAN_WIDTH_40M))
+			return 1;
+	}
 	if (!iface->conf->ht40_plus_minus_allowed)
 		return 0;
 

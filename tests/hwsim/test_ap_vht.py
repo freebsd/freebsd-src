@@ -369,6 +369,7 @@ def test_ap_vht160(dev, apdev):
                   'ieee80211d': '1',
                   'ieee80211h': '1'}
         hapd = hostapd.add_ap(apdev[0], params, wait_enabled=False)
+        bssid = apdev[0]['bssid']
 
         ev = wait_dfs_event(hapd, "DFS-CAC-START", 5)
         if "DFS-CAC-START" not in ev:
@@ -407,6 +408,10 @@ def test_ap_vht160(dev, apdev):
             raise Exception("Unexpected SIGNAL_POLL value(1): " + str(sig))
         if "WIDTH=160 MHz" not in sig:
             raise Exception("Unexpected SIGNAL_POLL value(2): " + str(sig))
+
+        est = dev[0].get_bss(bssid)['est_throughput']
+        if est != "780001":
+            raise Exception("Unexpected BSS est_throughput: " + est)
 
         sta = hapd.get_sta(dev[0].own_addr())
         if 'supp_op_classes' not in sta or len(sta['supp_op_classes']) < 2:

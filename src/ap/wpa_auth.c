@@ -1001,6 +1001,18 @@ static int wpa_try_alt_snonce(struct wpa_state_machine *sm, u8 *data,
 }
 
 
+static bool wpa_auth_gtk_rekey_in_process(struct wpa_authenticator *wpa_auth)
+{
+	struct wpa_group *group;
+
+	for (group = wpa_auth->group; group; group = group->next) {
+		if (group->GKeyDoneStations)
+			return true;
+	}
+	return false;
+}
+
+
 void wpa_receive(struct wpa_authenticator *wpa_auth,
 		 struct wpa_state_machine *sm,
 		 u8 *data, size_t data_len)
@@ -1368,7 +1380,11 @@ continue_processing:
 			wpa_auth_logger(wpa_auth, sm->addr, LOGGER_INFO,
 					"received EAPOL-Key Request for GTK rekeying");
 			eloop_cancel_timeout(wpa_rekey_gtk, wpa_auth, NULL);
-			wpa_rekey_gtk(wpa_auth, NULL);
+			if (wpa_auth_gtk_rekey_in_process(wpa_auth))
+				wpa_auth_logger(wpa_auth, NULL, LOGGER_DEBUG,
+						"skip new GTK rekey - already in process");
+			else
+				wpa_rekey_gtk(wpa_auth, NULL);
 		}
 	} else {
 		/* Do not allow the same key replay counter to be reused. */
@@ -3678,6 +3694,8 @@ SM_STATE(WPA_PTK, PTKINITDONE)
 	wpa_auth_vlogger(sm->wpa_auth, sm->addr, LOGGER_INFO,
 			 "pairwise key handshake completed (%s)",
 			 sm->wpa == WPA_VERSION_WPA ? "WPA" : "RSN");
+	wpa_msg(sm->wpa_auth->conf.msg_ctx, MSG_INFO, "EAPOL-4WAY-HS-COMPLETED "
+		MACSTR, MAC2STR(sm->addr));
 
 #ifdef CONFIG_IEEE80211R_AP
 	wpa_ft_push_pmk_r1(sm->wpa_auth, sm->addr);
@@ -5624,6 +5642,18 @@ int wpa_auth_rekey_gtk(struct wpa_authenticator *wpa_auth)
 		return -1;
 	eloop_cancel_timeout(wpa_rekey_gtk, wpa_auth, NULL);
 	return eloop_register_timeout(0, 0, wpa_rekey_gtk, wpa_auth, NULL);
+}
+
+
+int wpa_auth_rekey_ptk(struct wpa_authenticator *wpa_auth,
+		       struct wpa_state_machine *sm)
+{
+	if (!wpa_auth || !sm)
+		return -1;
+	wpa_auth_logger(wpa_auth, sm->addr, LOGGER_DEBUG, "rekeying PTK");
+	wpa_request_new_ptk(sm);
+	wpa_sm_step(sm);
+	return 0;
 }
 
 

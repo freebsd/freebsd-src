@@ -757,7 +757,7 @@ static void hostapd_dpp_rx_auth_req(struct hostapd_data *hapd, const u8 *src,
 	if (!own_bi) {
 		if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
 					src, hdr, buf, len, freq, i_bootstrap,
-					r_bootstrap) == 0)
+					r_bootstrap, hapd) == 0)
 			return;
 	}
 #endif /* CONFIG_DPP2 */
@@ -1276,7 +1276,7 @@ hostapd_dpp_rx_presence_announcement(struct hostapd_data *hapd, const u8 *src,
 	if (!peer_bi) {
 		if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
 					src, hdr, buf, len, freq, NULL,
-					r_bootstrap) == 0)
+					r_bootstrap, hapd) == 0)
 			return;
 		wpa_printf(MSG_DEBUG,
 			   "DPP: No matching bootstrapping information found");
@@ -1366,7 +1366,7 @@ hostapd_dpp_rx_reconfig_announcement(struct hostapd_data *hapd, const u8 *src,
 	if (!conf) {
 		if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
 					src, hdr, buf, len, freq, NULL,
-					NULL) == 0)
+					NULL, hapd) == 0)
 			return;
 		wpa_printf(MSG_DEBUG,
 			   "DPP: No matching Configurator information found");
@@ -1892,7 +1892,8 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 
 #ifdef CONFIG_DPP2
 	if (dpp_relay_rx_action(hapd->iface->interfaces->dpp,
-				src, hdr, buf, len, freq, NULL, NULL) == 0)
+				src, hdr, buf, len, freq, NULL, NULL,
+				hapd) == 0)
 		return;
 #endif /* CONFIG_DPP2 */
 

@@ -1418,6 +1418,8 @@ static int wpa_tdls_send_tpk_m3(struct wpa_sm *sm,
 
 skip_ies:
 
+	if (peer->he_capabilities)
+		peer_capab |= TDLS_PEER_HE;
 	if (peer->vht_capabilities)
 		peer_capab |= TDLS_PEER_VHT;
 	if (peer->ht_capabilities)

@@ -376,7 +376,8 @@ pmksa_cache_clone_entry(struct rsn_pmksa_cache *pmksa,
 	os_time_t old_expiration = old_entry->expiration;
 	const u8 *pmkid = NULL;
 
-	if (wpa_key_mgmt_sae(old_entry->akmp))
+	if (wpa_key_mgmt_sae(old_entry->akmp) ||
+	    wpa_key_mgmt_fils(old_entry->akmp))
 		pmkid = old_entry->pmkid;
 	new_entry = pmksa_cache_add(pmksa, old_entry->pmk, old_entry->pmk_len,
 				    pmkid, NULL, 0,

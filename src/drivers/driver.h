@@ -2392,6 +2392,7 @@ enum tdls_peer_capability {
 	TDLS_PEER_HT = BIT(0),
 	TDLS_PEER_VHT = BIT(1),
 	TDLS_PEER_WMM = BIT(2),
+	TDLS_PEER_HE = BIT(3),
 };
 
 /* valid info in the wmm_params struct */

@@ -1,5 +1,5 @@
 /*
- * Temporal Key Integrity Protocol (CCMP)
+ * Temporal Key Integrity Protocol (TKIP)
  * Copyright (c) 2010, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
@@ -290,7 +290,8 @@ static void michael_mic_hdr(const struct ieee80211_hdr *hdr11, u8 *hdr)
 
 
 u8 * tkip_decrypt(const u8 *tk, const struct ieee80211_hdr *hdr,
-		  const u8 *data, size_t data_len, size_t *decrypted_len)
+		  const u8 *data, size_t data_len, size_t *decrypted_len,
+		  enum michael_mic_result *mic_res, struct tkip_frag *frag)
 {
 	u16 iv16;
 	u32 iv32;
@@ -303,6 +304,11 @@ u8 * tkip_decrypt(const u8 *tk, const struct ieee80211_hdr *hdr,
 	u8 michael_hdr[16];
 	u8 mic[8];
 	u16 fc = le_to_host16(hdr->frame_control);
+	const u8 *full_payload;
+	size_t full_payload_len;
+	u16 sc = le_to_host16(hdr->seq_ctrl);
+	u16 sn;
+	u8 fn;
 
 	if (data_len < 8 + 4)
 		return NULL;
@@ -335,9 +341,57 @@ u8 * tkip_decrypt(const u8 *tk, const struct ieee80211_hdr *hdr,
 	}
 	plain_len -= 4;
 
-	/* TODO: MSDU reassembly */
+	full_payload = plain;
+	full_payload_len = plain_len;
 
-	if (plain_len < 8) {
+	sn = WLAN_GET_SEQ_SEQ(sc);
+	fn = WLAN_GET_SEQ_FRAG(sc);
+
+	if (frag) {
+		/* MSDU reassembly for Michael MIC validation */
+		if (fn == 0 && (fc & WLAN_FC_MOREFRAG)) {
+			/* Start of a new fragmented MSDU */
+			wpabuf_free(frag->buf);
+			frag->buf = NULL;
+			frag->buf = wpabuf_alloc_copy(plain, plain_len);
+			os_memcpy(frag->ra, hdr->addr1, ETH_ALEN);
+			os_memcpy(frag->ta, hdr->addr2, ETH_ALEN);
+			frag->sn = sn;
+			frag->fn = 0;
+		}
+
+		if (frag->buf && (fn || (fc & WLAN_FC_MOREFRAG)) &&
+		    sn == frag->sn && fn == frag->fn + 1 &&
+		    os_memcmp(frag->ra, hdr->addr1, ETH_ALEN) == 0 &&
+		    os_memcmp(frag->ta, hdr->addr2, ETH_ALEN) == 0) {
+			/* Add the next fragment */
+			if (wpabuf_resize(&frag->buf, plain_len) == 0) {
+				wpabuf_put_data(frag->buf, plain, plain_len);
+				frag->fn = fn;
+				if (!(fc & WLAN_FC_MOREFRAG)) {
+					full_payload = wpabuf_head(frag->buf);
+					full_payload_len =
+						wpabuf_len(frag->buf);
+					wpa_hexdump(MSG_MSGDUMP,
+						    "TKIP reassembled full payload",
+						    full_payload,
+						    full_payload_len);
+				}
+			}
+		}
+	}
+
+	if ((fc & WLAN_FC_MOREFRAG) || (fn > 0 && full_payload == plain)) {
+		/* Return the decrypted fragment and do not check the
+		 * Michael MIC value since no reassembled frame is available. */
+		*decrypted_len = plain_len;
+		if (mic_res) {
+			*mic_res = MICHAEL_MIC_NOT_VERIFIED;
+			return plain;
+		}
+	}
+
+	if (full_payload_len < 8) {
 		wpa_printf(MSG_INFO, "TKIP: Not enough room for Michael MIC "
 			   "in a frame from " MACSTR, MAC2STR(hdr->addr2));
 		os_free(plain);
@@ -346,15 +400,23 @@ u8 * tkip_decrypt(const u8 *tk, const struct ieee80211_hdr *hdr,
 
 	michael_mic_hdr(hdr, michael_hdr);
 	mic_key = tk + ((fc & WLAN_FC_FROMDS) ? 16 : 24);
-	michael_mic(mic_key, michael_hdr, plain, plain_len - 8, mic);
-	if (os_memcmp(mic, plain + plain_len - 8, 8) != 0) {
+	michael_mic(mic_key, michael_hdr, full_payload, full_payload_len - 8,
+		    mic);
+	if (os_memcmp(mic, full_payload + full_payload_len - 8, 8) != 0) {
 		wpa_printf(MSG_INFO, "TKIP: Michael MIC mismatch in a frame "
 			   "from " MACSTR, MAC2STR(hdr->addr2));
 		wpa_hexdump(MSG_DEBUG, "TKIP: Calculated MIC", mic, 8);
 		wpa_hexdump(MSG_DEBUG, "TKIP: Received MIC",
-			    plain + plain_len - 8, 8);
+			    full_payload + full_payload_len - 8, 8);
+		if (mic_res) {
+			*decrypted_len = plain_len - 8;
+			*mic_res = MICHAEL_MIC_INCORRECT;
+			return plain;
+		}
 		os_free(plain);
 		return NULL;
+	} else if (mic_res) {
+		*mic_res = MICHAEL_MIC_OK;
 	}
 
 	*decrypted_len = plain_len - 8;

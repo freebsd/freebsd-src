@@ -95,8 +95,8 @@ static u8 * wpa_alloc_eapol(const struct wpa_supplicant *wpa_s, u8 type,
  * @len: Frame payload length
  * Returns: >=0 on success, <0 on failure
  */
-static int wpa_ether_send(struct wpa_supplicant *wpa_s, const u8 *dest,
-			  u16 proto, const u8 *buf, size_t len)
+int wpa_ether_send(struct wpa_supplicant *wpa_s, const u8 *dest,
+		   u16 proto, const u8 *buf, size_t len)
 {
 #ifdef CONFIG_TESTING_OPTIONS
 	if (wpa_s->ext_eapol_frame_io && proto == ETH_P_EAPOL) {

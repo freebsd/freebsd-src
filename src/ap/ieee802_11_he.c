@@ -216,7 +216,10 @@ u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid)
 
 		params |= HE_OPERATION_6GHZ_OPER_INFO;
 
-		/* 6 GHz Operation Information field */
+		/* 6 GHz Operation Information field
+		 * IEEE P802.11ax/D8.0, 9.4.2.249 HE Operation element,
+		 * Figure 9-788k
+		 */
 		*pos++ = hapd->iconf->channel; /* Primary Channel */
 
 		/* Control: Channel Width */
@@ -226,6 +229,18 @@ u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid)
 			*pos++ = center_idx_to_bw_6ghz(seg0);
 
 		/* Channel Center Freq Seg0/Seg1 */
+		if (hapd->iconf->he_oper_chwidth == 2) {
+			/*
+			 * Seg 0 indicates the channel center frequency index of
+			 * the 160 MHz channel.
+			 */
+			seg1 = seg0;
+			if (hapd->iconf->channel < seg0)
+				seg0 -= 8;
+			else
+				seg0 += 8;
+		}
+
 		*pos++ = seg0;
 		*pos++ = seg1;
 		/* Minimum Rate */
@@ -434,8 +449,8 @@ u16 copy_sta_he_capab(struct hostapd_data *hapd, struct sta_info *sta,
 		      enum ieee80211_op_mode opmode, const u8 *he_capab,
 		      size_t he_capab_len)
 {
-	if (!he_capab || !hapd->iconf->ieee80211ax ||
-	    hapd->conf->disable_11ax ||
+	if (!he_capab || !(sta->flags & WLAN_STA_WMM) ||
+	    !hapd->iconf->ieee80211ax || hapd->conf->disable_11ax ||
 	    !check_valid_he_mcs(hapd, he_capab, opmode) ||
 	    ieee80211_invalid_he_cap_size(he_capab, he_capab_len) ||
 	    he_capab_len > sizeof(struct ieee80211_he_capabilities)) {
@@ -499,5 +514,6 @@ int hostapd_get_he_twt_responder(struct hostapd_data *hapd,
 
 	mac_cap = hapd->iface->current_mode->he_capab[mode].mac_cap;
 
-	return !!(mac_cap[HE_MAC_CAPAB_0] & HE_MACCAP_TWT_RESPONDER);
+	return !!(mac_cap[HE_MAC_CAPAB_0] & HE_MACCAP_TWT_RESPONDER) &&
+		hapd->iface->conf->he_op.he_twt_responder;
 }

@@ -35,7 +35,7 @@ static void ccmp_aad_nonce(const struct ieee80211_hdr *hdr, const u8 *data,
 		if (stype & 0x08) {
 			const u8 *qc;
 			qos = 1;
-			fc &= ~WLAN_FC_ORDER;
+			fc &= ~WLAN_FC_HTC;
 			qc = (const u8 *) (hdr + 1);
 			if (addr4)
 				qc += ETH_ALEN;

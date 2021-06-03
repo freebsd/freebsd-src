@@ -1946,6 +1946,52 @@ static int hostapd_ctrl_iface_eapol_rx(struct hostapd_data *hapd, char *cmd)
 }
 
 
+static int hostapd_ctrl_iface_eapol_tx(struct hostapd_data *hapd, char *cmd)
+{
+	char *pos, *pos2;
+	u8 dst[ETH_ALEN], *buf;
+	int used, ret;
+	size_t len;
+	unsigned int prev;
+	int encrypt = 0;
+
+	wpa_printf(MSG_DEBUG, "External EAPOL TX: %s", cmd);
+
+	pos = cmd;
+	used = hwaddr_aton2(pos, dst);
+	if (used < 0)
+		return -1;
+	pos += used;
+	while (*pos == ' ')
+		pos++;
+
+	pos2 = os_strchr(pos, ' ');
+	if (pos2) {
+		len = pos2 - pos;
+		encrypt = os_strstr(pos2, "encrypt=1") != NULL;
+	} else {
+		len = os_strlen(pos);
+	}
+	if (len & 1)
+		return -1;
+	len /= 2;
+
+	buf = os_malloc(len);
+	if (!buf || hexstr2bin(pos, buf, len) < 0) {
+		os_free(buf);
+		return -1;
+	}
+
+	prev = hapd->ext_eapol_frame_io;
+	hapd->ext_eapol_frame_io = 0;
+	ret = hostapd_wpa_auth_send_eapol(hapd, dst, buf, len, encrypt);
+	hapd->ext_eapol_frame_io = prev;
+	os_free(buf);
+
+	return ret;
+}
+
+
 static u16 ipv4_hdr_checksum(const void *buf, size_t len)
 {
 	size_t i;
@@ -2521,6 +2567,22 @@ static int hostapd_ctrl_resend_group_m1(struct hostapd_data *hapd,
 		   MACSTR, MAC2STR(sta->addr));
 	return wpa_auth_resend_group_m1(sta->wpa_sm,
 					plain ? restore_tk : NULL, hapd, sta);
+}
+
+
+static int hostapd_ctrl_rekey_ptk(struct hostapd_data *hapd, const char *cmd)
+{
+	struct sta_info *sta;
+	u8 addr[ETH_ALEN];
+
+	if (hwaddr_aton(cmd, addr))
+		return -1;
+
+	sta = ap_get_sta(hapd, addr);
+	if (!sta || !sta->wpa_sm)
+		return -1;
+
+	return wpa_auth_rekey_ptk(hapd->wpa_auth, sta->wpa_sm);
 }
 
 
@@ -3635,6 +3697,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
 	} else if (os_strncmp(buf, "EAPOL_RX ", 9) == 0) {
 		if (hostapd_ctrl_iface_eapol_rx(hapd, buf + 9) < 0)
 			reply_len = -1;
+	} else if (os_strncmp(buf, "EAPOL_TX ", 9) == 0) {
+		if (hostapd_ctrl_iface_eapol_tx(hapd, buf + 9) < 0)
+			reply_len = -1;
 	} else if (os_strncmp(buf, "DATA_TEST_CONFIG ", 17) == 0) {
 		if (hostapd_ctrl_iface_data_test_config(hapd, buf + 17) < 0)
 			reply_len = -1;
@@ -3669,6 +3734,9 @@ static int hostapd_ctrl_iface_receive_process(struct hostapd_data *hapd,
 			reply_len = -1;
 	} else if (os_strncmp(buf, "RESEND_GROUP_M1 ", 16) == 0) {
 		if (hostapd_ctrl_resend_group_m1(hapd, buf + 16) < 0)
+			reply_len = -1;
+	} else if (os_strncmp(buf, "REKEY_PTK ", 10) == 0) {
+		if (hostapd_ctrl_rekey_ptk(hapd, buf + 10) < 0)
 			reply_len = -1;
 	} else if (os_strcmp(buf, "REKEY_GTK") == 0) {
 		if (wpa_auth_rekey_gtk(hapd->wpa_auth) < 0)

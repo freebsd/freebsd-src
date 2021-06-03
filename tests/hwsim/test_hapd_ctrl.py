@@ -1002,6 +1002,12 @@ def test_hapd_ctrl_update_beacon(dev, apdev):
         if "FAIL" not in hapd.request("UPDATE_BEACON"):
             raise Exception("UPDATE_BEACON succeeded unexpectedly")
     dev[0].connect(ssid, key_mgmt="NONE", scan_freq="2412")
+    dev[0].request("DISCONNECT")
+    if "OK" not in hapd.request("UPDATE_BEACON"):
+        raise Exception("UPDATE_BEACON failed")
+    hapd.disable()
+    if "FAIL" not in hapd.request("UPDATE_BEACON"):
+        raise Exception("UPDATE_BEACON did not indicate failure when disabled")
 
 def test_hapd_ctrl_test_fail(dev, apdev):
     """hostapd and TEST_ALLOC_FAIL/TEST_FAIL"""

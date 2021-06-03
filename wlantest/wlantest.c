@@ -110,6 +110,8 @@ static void wlantest_deinit(struct wlantest *wt)
 	clear_notes(wt);
 	os_free(wt->decrypted);
 	wt->decrypted = NULL;
+	wpabuf_free(wt->tkip_frag.buf);
+	wt->tkip_frag.buf = NULL;
 }
 
 

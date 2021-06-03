@@ -1753,6 +1753,11 @@ int ieee802_11_set_beacon(struct hostapd_data *hapd)
 	struct wpabuf *beacon, *proberesp, *assocresp;
 	int res, ret = -1;
 
+	if (!hapd->drv_priv) {
+		wpa_printf(MSG_ERROR, "Interface is disabled");
+		return -1;
+	}
+
 	if (hapd->csa_in_progress) {
 		wpa_printf(MSG_ERROR, "Cannot set beacons during CSA period");
 		return -1;

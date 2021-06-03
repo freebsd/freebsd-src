@@ -516,7 +516,8 @@ struct rsn_pmksa_cache_entry * pmksa_cache_get_okc(
 	for (entry = pmksa->pmksa; entry; entry = entry->next) {
 		if (os_memcmp(entry->spa, spa, ETH_ALEN) != 0)
 			continue;
-		if (wpa_key_mgmt_sae(entry->akmp)) {
+		if (wpa_key_mgmt_sae(entry->akmp) ||
+		    wpa_key_mgmt_fils(entry->akmp)) {
 			if (os_memcmp(entry->pmkid, pmkid, PMKID_LEN) == 0)
 				return entry;
 			continue;
