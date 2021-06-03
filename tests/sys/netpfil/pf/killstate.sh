@@ -384,6 +384,17 @@ match_head()
 	atf_set require.user root
 }
 
+wait_for_state()
+{
+	jail=$1
+	addr=$2
+
+	while ! jexec $jail pfctl -s s | grep $addr >/dev/null;
+	do
+		sleep .1
+	done
+}
+
 match_body()
 {
 	pft_init
@@ -412,6 +423,7 @@ match_body()
 		"pass all"
 
 	nc 198.51.100.2 7 &
+	wait_for_state alcatraz 192.0.2.1
 
 	# Expect two states
 	states=$(jexec alcatraz pfctl -s s | wc -l)
@@ -432,6 +444,7 @@ match_body()
 	jexec alcatraz pfctl -F states
 
 	nc 198.51.100.2 7 &
+	wait_for_state alcatraz 192.0.2.1
 
 	# Kill matching states, expect all of them to be gone
 	jexec alcatraz pfctl -M -k 192.0.2.1
