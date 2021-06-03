@@ -55,9 +55,9 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft char *
-.Fn strtok "char *str" "const char *sep"
+.Fn strtok "char * __restrict str" "const char * __restrict sep"
 .Ft char *
-.Fn strtok_r "char *str" "const char *sep" "char **last"
+.Fn strtok_r "char * __restrict str" "const char * __restrict sep" "char ** __restrict last"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by

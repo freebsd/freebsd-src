@@ -58,7 +58,7 @@ bzero(void *dst0, size_t length)
 #include <string.h>
 
 #define	RETURN	return (dst0)
-#define	VAL	c0
+#define	VAL	(u_char)c0
 #define	WIDEVAL	c
 
 void *
