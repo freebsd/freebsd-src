@@ -1112,7 +1112,8 @@ mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 	rd.u.high = cm->cm_desc.Words.High;
 	rd.word = htole64(rd.word);
 
-	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY, ("command not busy\n"));
+	KASSERT(cm->cm_state == MPS_CM_STATE_BUSY,
+	    ("command not busy, state = %u\n", cm->cm_state));
 	cm->cm_state = MPS_CM_STATE_INQUEUE;
 
 	/* TODO-We may need to make below regwrite atomic */
@@ -1775,6 +1776,11 @@ mps_setup_sysctl(struct mps_softc *sc)
 	    sc, 0, mps_dump_reqs, "I", "Dump Active Requests");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "dump_reqs_alltypes", CTLFLAG_RW,
+	    &sc->dump_reqs_alltypes, 0,
+	    "dump all request types not just inqueue");
+
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "use_phy_num", CTLFLAG_RD, &sc->use_phynum, 0,
 	    "Use the phy number for enumeration");
 }
@@ -1947,7 +1953,7 @@ mps_dump_reqs(SYSCTL_HANDLER_ARGS)
 	/* Best effort, no locking */
 	for (i = smid; i < numreqs; i++) {
 		cm = &sc->commands[i];
-		if (cm->cm_state != state)
+		if ((sc->dump_reqs_alltypes == 0) && (cm->cm_state != state))
 			continue;
 		hdr.smid = i;
 		hdr.state = cm->cm_state;
@@ -2206,6 +2212,9 @@ mps_complete_command(struct mps_softc *sc, struct mps_command *cm)
 		return;
 	}
 
+	KASSERT(cm->cm_state == MPS_CM_STATE_INQUEUE,
+	    ("command not inqueue, state = %u\n", cm->cm_state));
+	cm->cm_state = MPS_CM_STATE_BUSY; 
 	if (cm->cm_flags & MPS_CM_FLAGS_POLLED)
 		cm->cm_flags |= MPS_CM_FLAGS_COMPLETE;
 
@@ -2382,9 +2391,6 @@ mps_intr_locked(void *data)
 		switch (flags) {
 		case MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS:
 			cm = &sc->commands[le16toh(desc->SCSIIOSuccess.SMID)];
-			KASSERT(cm->cm_state == MPS_CM_STATE_INQUEUE,
-			    ("command not inqueue\n"));
-			cm->cm_state = MPS_CM_STATE_BUSY;
 			cm->cm_reply = NULL;
 			break;
 		case MPI2_RPY_DESCRIPT_FLAGS_ADDRESS_REPLY:
@@ -2460,7 +2466,6 @@ mps_intr_locked(void *data)
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
 				if (cm->cm_state == MPS_CM_STATE_INQUEUE) {
-					cm->cm_state = MPS_CM_STATE_BUSY;
 					cm->cm_reply = reply;
 					cm->cm_reply_data = le32toh(
 					    desc->AddressReply.ReplyFrameAddress);

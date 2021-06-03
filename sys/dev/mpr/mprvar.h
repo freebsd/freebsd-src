@@ -367,6 +367,7 @@ struct mpr_softc {
 	u_int				enable_ssu;
 	int				spinup_wait_time;
 	int				use_phynum;
+	int				dump_reqs_alltypes;
 	uint64_t			chain_alloc_fail;
 	uint64_t			prp_page_alloc_fail;
 	struct sysctl_ctx_list		sysctl_ctx;
@@ -617,7 +618,8 @@ mpr_free_command(struct mpr_softc *sc, struct mpr_command *cm)
 	struct mpr_chain *chain, *chain_temp;
 	struct mpr_prp_page *prp_page, *prp_page_temp;
 
-	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY,
+	    ("state not busy, state = %u\n", cm->cm_state));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -658,7 +660,7 @@ mpr_alloc_command(struct mpr_softc *sc)
 		return (NULL);
 
 	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
-	    ("mpr: Allocating busy command\n"));
+	    ("mpr: Allocating busy command, state = %u\n", cm->cm_state));
 
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
 	cm->cm_state = MPR_CM_STATE_BUSY;
@@ -671,7 +673,8 @@ mpr_free_high_priority_command(struct mpr_softc *sc, struct mpr_command *cm)
 {
 	struct mpr_chain *chain, *chain_temp;
 
-	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY, ("state not busy\n"));
+	KASSERT(cm->cm_state == MPR_CM_STATE_BUSY,
+	    ("state not busy, state = %u\n", cm->cm_state));
 
 	if (cm->cm_reply != NULL)
 		mpr_free_reply(sc, cm->cm_reply_data);
@@ -700,7 +703,7 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 		return (NULL);
 
 	KASSERT(cm->cm_state == MPR_CM_STATE_FREE,
-	    ("mpr: Allocating busy command\n"));
+	    ("mpr: Allocating busy command, state = %u\n", cm->cm_state));
 
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
 	cm->cm_state = MPR_CM_STATE_BUSY;

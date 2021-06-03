@@ -1194,7 +1194,7 @@ mprsas_tm_timeout(void *data)
 	    "out\n", tm);
 
 	KASSERT(tm->cm_state == MPR_CM_STATE_INQUEUE,
-	    ("command not inqueue\n"));
+	    ("command not inqueue, state = %u\n", tm->cm_state));
 
 	tm->cm_state = MPR_CM_STATE_BUSY;
 	mpr_reinit(sc);
@@ -2437,7 +2437,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 	if (cm->cm_flags & MPR_CM_FLAGS_ON_RECOVERY) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
 		KASSERT(cm->cm_state == MPR_CM_STATE_BUSY,
-		    ("Not busy for CM_FLAGS_TIMEDOUT: %d\n", cm->cm_state));
+		    ("Not busy for CM_FLAGS_TIMEDOUT: %u\n", cm->cm_state));
 		cm->cm_flags &= ~MPR_CM_FLAGS_ON_RECOVERY;
 		if (cm->cm_reply != NULL)
 			mprsas_log_command(cm, MPR_RECOVERY,
