@@ -2157,7 +2157,7 @@ umass_cam_detach_sim(struct umass_softc *sc)
 static void
 umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
-	struct umass_softc *sc = (struct umass_softc *)sim->softc;
+	struct umass_softc *sc = cam_sim_softc(sim);
 
 	if (sc == NULL) {
 		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
@@ -2433,7 +2433,7 @@ done:
 static void
 umass_cam_poll(struct cam_sim *sim)
 {
-	struct umass_softc *sc = (struct umass_softc *)sim->softc;
+	struct umass_softc *sc = cam_sim_softc(sim);
 
 	if (sc == NULL)
 		return;
