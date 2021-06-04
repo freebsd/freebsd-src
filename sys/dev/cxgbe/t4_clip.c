@@ -854,8 +854,21 @@ t4_clip_modload(void)
 void
 t4_clip_modunload(void)
 {
+	struct clip_db_entry *cde;
+	int i;
+
 	EVENTHANDLER_DEREGISTER(ifaddr_event_ext, ifaddr_evhandler);
 	taskqueue_drain(taskqueue_thread, &clip_db_task);
+	mtx_lock(&clip_db_lock);
+	for (i = 0; i <= clip_db_mask; i++) {
+		while ((cde = LIST_FIRST(&clip_db[i])) != NULL) {
+			MPASS(cde->tmp_ref == 0);
+			MPASS(cde->adp_ref == 0);
+			LIST_REMOVE(cde, link);
+			free(cde, M_CXGBE);
+		}
+	}
+	mtx_unlock(&clip_db_lock);
 	hashdestroy(clip_db, M_CXGBE, clip_db_mask);
 	mtx_destroy(&clip_db_lock);
 }
