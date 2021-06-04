@@ -520,6 +520,7 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 
 #define	UICLASS_VENDOR		0xff
 #define	UISUBCLASS_XBOX360_CONTROLLER	0x5d
+#define	UISUBCLASS_VENDOR	0xff
 #define	UIPROTO_XBOX360_GAMEPAD	0x01
 
 struct usb_endpoint_descriptor {
