@@ -113,7 +113,7 @@ int setenv(register const char *name, register const char *value, int rewrite);
 #endif
 
 #ifndef HAVE_STRMODE
-void strmode(mode_t mode, char *p);
+void strmode(int mode, char *p);
 #endif
 
 #ifndef HAVE_STRPTIME
