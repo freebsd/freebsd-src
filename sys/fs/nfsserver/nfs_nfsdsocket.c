@@ -705,7 +705,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	int i, lktype, op, op0 = 0, statsinprog = 0;
 	u_int32_t *tl;
 	struct nfsclient *clp, *nclp;
-	int numops, error = 0, igotlock;
+	int error = 0, igotlock, nextop, numops, savefhcnt;
 	u_int32_t retops = 0, *retopsp = NULL, *repp;
 	vnode_t vp, nvp, savevp;
 	struct nfsrvfh fh;
@@ -822,6 +822,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	savevp = vp = NULL;
 	save_fsid.val[0] = save_fsid.val[1] = 0;
 	cur_fsid.val[0] = cur_fsid.val[1] = 0;
+	nextop = -1;
+	savefhcnt = 0;
 
 	/* If taglen < 0, there was a parsing error in nfsd_getminorvers(). */
 	if (taglen < 0) {
@@ -850,10 +852,20 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	 * savevpnes and vpnes - are the export flags for the above.
 	 */
 	for (i = 0; i < numops; i++) {
-		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		NFSM_BUILD(repp, u_int32_t *, 2 * NFSX_UNSIGNED);
-		*repp = *tl;
-		op = fxdr_unsigned(int, *tl);
+		if (savefhcnt > 0) {
+			op = NFSV4OP_SAVEFH;
+			*repp = txdr_unsigned(op);
+			savefhcnt--;
+		} else if (nextop == -1) {
+			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+			*repp = *tl;
+			op = fxdr_unsigned(int, *tl);
+		} else {
+			op = nextop;
+			*repp = txdr_unsigned(op);
+			nextop = -1;
+		}
 		NFSD_DEBUG(4, "op=%d\n", op);
 		if (op < NFSV4OP_ACCESS || op >= NFSV42_NOPS ||
 		    (op >= NFSV4OP_NOPS && (nd->nd_flag & ND_NFSV41) == 0) ||
@@ -950,6 +962,25 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			error = nfsrv_mtofh(nd, &fh);
 			if (error)
 				goto nfsmout;
+			if ((nd->nd_flag & ND_LASTOP) == 0) {
+				/*
+				 * Pre-parse the next op#.  If it is
+				 * SaveFH, count it and skip to the
+				 * next op#, if not the last op#.
+				 * nextop is used to determine if
+				 * NFSERR_WRONGSEC can be returned,
+				 * per RFC5661 Sec. 2.6.
+				 */
+				do {
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_UNSIGNED);
+					nextop = fxdr_unsigned(int, *tl);
+					if (nextop == NFSV4OP_SAVEFH &&
+					    i < numops - 1)
+						savefhcnt++;
+				} while (nextop == NFSV4OP_SAVEFH &&
+				    i < numops - 1);
+			}
 			if (!nd->nd_repstat)
 				nfsd_fhtovp(nd, &fh, LK_SHARED, &nvp, &nes,
 				    NULL, 0);
@@ -964,11 +995,31 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			}
 			break;
 		case NFSV4OP_PUTPUBFH:
-			if (nfs_pubfhset)
-			    nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
-				&nes, NULL, 0);
-			else
-			    nd->nd_repstat = NFSERR_NOFILEHANDLE;
+			if (nfs_pubfhset) {
+				if ((nd->nd_flag & ND_LASTOP) == 0) {
+					/*
+					 * Pre-parse the next op#.  If it is
+					 * SaveFH, count it and skip to the
+					 * next op#, if not the last op#.
+					 * nextop is used to determine if
+					 * NFSERR_WRONGSEC can be returned,
+					 * per RFC5661 Sec. 2.6.
+					 */
+					do {
+						NFSM_DISSECT(tl, uint32_t *,
+						    NFSX_UNSIGNED);
+						nextop = fxdr_unsigned(int,
+						    *tl);
+						if (nextop == NFSV4OP_SAVEFH &&
+						    i < numops - 1)
+							savefhcnt++;
+					} while (nextop == NFSV4OP_SAVEFH &&
+					    i < numops - 1);
+				}
+				nfsd_fhtovp(nd, &nfs_pubfh, LK_SHARED, &nvp,
+				    &nes, NULL, 0);
+			} else
+				nd->nd_repstat = NFSERR_NOFILEHANDLE;
 			if (!nd->nd_repstat) {
 				if (vp)
 					vrele(vp);
@@ -980,6 +1031,26 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			break;
 		case NFSV4OP_PUTROOTFH:
 			if (nfs_rootfhset) {
+				if ((nd->nd_flag & ND_LASTOP) == 0) {
+					/*
+					 * Pre-parse the next op#.  If it is
+					 * SaveFH, count it and skip to the
+					 * next op#, if not the last op#.
+					 * nextop is used to determine if
+					 * NFSERR_WRONGSEC can be returned,
+					 * per RFC5661 Sec. 2.6.
+					 */
+					do {
+						NFSM_DISSECT(tl, uint32_t *,
+						    NFSX_UNSIGNED);
+						nextop = fxdr_unsigned(int,
+						    *tl);
+						if (nextop == NFSV4OP_SAVEFH &&
+						    i < numops - 1)
+							savefhcnt++;
+					} while (nextop == NFSV4OP_SAVEFH &&
+					    i < numops - 1);
+				}
 				nfsd_fhtovp(nd, &nfs_rootfh, LK_SHARED, &nvp,
 				    &nes, NULL, 0);
 				if (!nd->nd_repstat) {
@@ -1016,6 +1087,26 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 			break;
 		case NFSV4OP_RESTOREFH:
 			if (savevp) {
+				if ((nd->nd_flag & ND_LASTOP) == 0) {
+					/*
+					 * Pre-parse the next op#.  If it is
+					 * SaveFH, count it and skip to the
+					 * next op#, if not the last op#.
+					 * nextop is used to determine if
+					 * NFSERR_WRONGSEC can be returned,
+					 * per RFC5661 Sec. 2.6.
+					 */
+					do {
+						NFSM_DISSECT(tl, uint32_t *,
+						    NFSX_UNSIGNED);
+						nextop = fxdr_unsigned(int,
+						    *tl);
+						if (nextop == NFSV4OP_SAVEFH &&
+						    i < numops - 1)
+							savefhcnt++;
+					} while (nextop == NFSV4OP_SAVEFH &&
+					    i < numops - 1);
+				}
 				nd->nd_repstat = 0;
 				/* If vp == savevp, a no-op */
 				if (vp != savevp) {
