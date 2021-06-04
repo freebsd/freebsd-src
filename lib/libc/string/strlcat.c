@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 size_t
 strlcat(char * __restrict dst, const char * __restrict src, size_t dsize)
 {
-	const char *odst = dst;
-	const char *osrc = src;
+	const char * const odst = dst;
+	const char * const osrc = src;
 	size_t n = dsize;
 	size_t dlen;
 
