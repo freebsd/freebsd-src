@@ -3191,15 +3191,9 @@ dodata:							/* XXX */
 			 * when trimming from the head.
 			 */
 			tcp_seq temp = save_start;
-			if (tlen || (th->th_seq != tp->rcv_nxt)) {
-				/*
-				 * We add the th_seq != rcv_nxt to
-				 * catch the case of a stand alone out
-				 * of order FIN.
-				 */
-				thflags = tcp_reass(tp, th, &temp, &tlen, m);
-				tp->t_flags |= TF_ACKNOW;
-			}
+
+			thflags = tcp_reass(tp, th, &temp, &tlen, m);
+			tp->t_flags |= TF_ACKNOW;
 		}
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (save_tlen > 0) &&

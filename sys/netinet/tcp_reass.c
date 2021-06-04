@@ -571,6 +571,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 		 * the rcv_nxt <-> rcv_wnd but thats
 		 * already done for us by the caller.
 		 */
+strip_fin:
 #ifdef TCP_REASS_COUNTERS
 		counter_u64_add(tcp_zero_input, 1);
 #endif
@@ -579,6 +580,19 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 		tcp_reass_log_dump(tp);
 #endif
 		return (0);
+	} else if ((*tlenp == 0) &&
+		   (th->th_flags & TH_FIN) &&
+		   !TCPS_HAVEESTABLISHED(tp->t_state)) {
+		/*
+		 * We have not established, and we
+		 * have a FIN and no data. Lets treat
+		 * this as the same as if the FIN were
+		 * not present. We don't want to save
+		 * the FIN bit in a reassembly buffer
+		 * we want to get established first before
+		 * we do that (the peer will retransmit).
+		 */
+		goto strip_fin;
 	}
 	/*
 	 * Will it fit?
