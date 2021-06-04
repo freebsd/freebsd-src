@@ -834,6 +834,9 @@ main(int argc, char *argv[])
 	optstring = "b:d:hi:r:s:vw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
+		case 'b':
+			b_arg = optarg;
+			break;
 		case 'd':
 			pp = optarg;
 			if (pp[0] == 'u' && pp[1] == 'g' && pp[2] == 'e' && pp[3] == 'n')
@@ -866,6 +869,20 @@ main(int argc, char *argv[])
 				}
 			}
 			break;
+		case 'f':
+			filt_unit = strtol(optarg, &pp, 10);
+			filt_ep = -1;
+			if (pp != NULL) {
+				if (*pp == '.') {
+					filt_ep = strtol(pp + 1, &pp, 10);
+					if (pp != NULL && *pp != 0)
+						usage();
+				} else if (*pp != 0) {
+					usage();
+				}
+			}
+			add_filter(filt_unit, filt_ep);
+			break;
 		case 'i':
 			i_arg = optarg;
 			break;
@@ -884,29 +901,12 @@ main(int argc, char *argv[])
 			if (snapshot == 0)
 				snapshot = -1;
 			break;
-		case 'b':
-			b_arg = optarg;
-			break;
 		case 'v':
 			verbose++;
 			break;
 		case 'w':
 			w_arg = optarg;
 			init_wfile(p);
-			break;
-		case 'f':
-			filt_unit = strtol(optarg, &pp, 10);
-			filt_ep = -1;
-			if (pp != NULL) {
-				if (*pp == '.') {
-					filt_ep = strtol(pp + 1, &pp, 10);
-					if (pp != NULL && *pp != 0)
-						usage();
-				} else if (*pp != 0) {
-					usage();
-				}
-			}
-			add_filter(filt_unit, filt_ep);
 			break;
 		default:
 			usage();
