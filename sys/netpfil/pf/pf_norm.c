@@ -1326,7 +1326,7 @@ pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
     int off, void *h, struct pf_pdesc *pd)
 {
 	struct pf_krule	*r, *rm = NULL;
-	struct tcphdr	*th = pd->hdr.tcp;
+	struct tcphdr	*th = &pd->hdr.tcp;
 	int		 rewrite = 0;
 	u_short		 reason;
 	u_int8_t	 flags;
