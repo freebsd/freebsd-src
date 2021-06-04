@@ -95,7 +95,10 @@ SYSCTL_INT(_hw_usb_ure, OID_AUTO, debug, CTLFLAG_RWTUN, &ure_debug, 0,
  * Various supported device vendors/products.
  */
 static const STRUCT_USB_HOST_ID ure_devs[] = {
-#define	URE_DEV(v,p,i)	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+#define	URE_DEV(v,p,i)	{ \
+  USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i), \
+  USB_IFACE_CLASS(UICLASS_VENDOR), \
+  USB_IFACE_SUBCLASS(UISUBCLASS_VENDOR) }
 	URE_DEV(LENOVO, RTL8153, URE_FLAG_8153),
 	URE_DEV(LENOVO, TBT3LAN, 0),
 	URE_DEV(LENOVO, TBT3LANGEN2, 0),
@@ -487,8 +490,6 @@ ure_probe(device_t dev)
 
 	uaa = device_get_ivars(dev);
 	if (uaa->usb_mode != USB_MODE_HOST)
-		return (ENXIO);
-	if (uaa->info.bConfigIndex != URE_CONFIG_IDX)
 		return (ENXIO);
 	if (uaa->info.bIfaceIndex != URE_IFACE_IDX)
 		return (ENXIO);
