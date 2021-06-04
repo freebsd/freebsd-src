@@ -46,7 +46,7 @@ strcspn(const char *s, const char *charset)
 	const char *s1;
 	u_long bit;
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
-	int idx;
+	unsigned int idx;
 
 	if(*s == '\0')
 		return (0);
@@ -59,15 +59,11 @@ strcspn(const char *s, const char *charset)
 		tbl[idx] = 0;
 #endif
 	for (; *charset != '\0'; charset++) {
-		idx = IDX(*charset);
-		bit = BIT(*charset);
-		tbl[idx] |= bit;
+		tbl[IDX(*charset)] |= BIT(*charset);
 	}
 
 	for(s1 = s; ; s1++) {
-		idx = IDX(*s1);
-		bit = BIT(*s1);
-		if ((tbl[idx] & bit) != 0)
+		if ((tbl[IDX(*s1)] & BIT(*s1)) != 0)
 			break;
 	}
 	return (s1 - s);
