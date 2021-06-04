@@ -56,7 +56,7 @@ enum gid_op_type {
 
 struct roce_netdev_event_work {
 	struct work_struct work;
-	struct net_device *ndev;
+	struct ifnet *ndev;
 };
 
 struct roce_rescan_work {
@@ -91,7 +91,7 @@ unsigned long roce_gid_type_mask_support(struct ib_device *ib_dev, u8 port)
 EXPORT_SYMBOL(roce_gid_type_mask_support);
 
 static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
-    u8 port, union ib_gid *gid, struct net_device *ndev)
+    u8 port, union ib_gid *gid, struct ifnet *ndev)
 {
 	int i;
 	unsigned long gid_type_mask = roce_gid_type_mask_support(ib_dev, port);
@@ -119,9 +119,9 @@ static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
 
 static int
 roce_gid_match_netdev(struct ib_device *ib_dev, u8 port,
-    struct net_device *idev, void *cookie)
+    struct ifnet *idev, void *cookie)
 {
-	struct net_device *ndev = (struct net_device *)cookie;
+	struct ifnet *ndev = (struct ifnet *)cookie;
 	if (idev == NULL)
 		return (0);
 	return (ndev == idev);
@@ -129,7 +129,7 @@ roce_gid_match_netdev(struct ib_device *ib_dev, u8 port,
 
 static int
 roce_gid_match_all(struct ib_device *ib_dev, u8 port,
-    struct net_device *idev, void *cookie)
+    struct ifnet *idev, void *cookie)
 {
 	if (idev == NULL)
 		return (0);
@@ -138,7 +138,7 @@ roce_gid_match_all(struct ib_device *ib_dev, u8 port,
 
 static int
 roce_gid_enum_netdev_default(struct ib_device *ib_dev,
-    u8 port, struct net_device *idev)
+    u8 port, struct ifnet *idev)
 {
 	unsigned long gid_type_mask;
 
@@ -152,7 +152,7 @@ roce_gid_enum_netdev_default(struct ib_device *ib_dev,
 
 static void
 roce_gid_update_addr_callback(struct ib_device *device, u8 port,
-    struct net_device *ndev, void *cookie)
+    struct ifnet *ndev, void *cookie)
 {
 	struct ipx_entry {
 		STAILQ_ENTRY(ipx_entry)	entry;
@@ -161,10 +161,10 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 			struct sockaddr_in v4;
 			struct sockaddr_in6 v6;
 		} ipx_addr;
-		struct net_device *ndev;
+		struct ifnet *ndev;
 	};
 	struct ipx_entry *entry;
-	struct net_device *idev;
+	struct ifnet *idev;
 #if defined(INET) || defined(INET6)
 	struct ifaddr *ifa;
 #endif
@@ -315,7 +315,7 @@ roce_gid_queue_scan_event_handler(struct work_struct *_work)
 }
 
 static void
-roce_gid_queue_scan_event(struct net_device *ndev)
+roce_gid_queue_scan_event(struct ifnet *ndev)
 {
 	struct roce_netdev_event_work *work;
 
@@ -358,7 +358,7 @@ roce_gid_delete_all_event_handler(struct work_struct *_work)
 }
 
 static void
-roce_gid_delete_all_event(struct net_device *ndev)
+roce_gid_delete_all_event(struct ifnet *ndev)
 {
 	struct roce_netdev_event_work *work;
 
@@ -380,7 +380,7 @@ roce_gid_delete_all_event(struct net_device *ndev)
 static int
 inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct ifnet *ndev = netdev_notifier_info_to_ifp(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:

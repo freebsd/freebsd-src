@@ -43,7 +43,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 			     int user_prio, struct mlx4_qp_context *context)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct net_device *dev = priv->dev;
+	struct ifnet *dev = priv->dev;
 
 	memset(context, 0, sizeof *context);
 	context->flags = cpu_to_be32(7 << 16 | rss << MLX4_RSS_QPC_FLAG_OFFSET);

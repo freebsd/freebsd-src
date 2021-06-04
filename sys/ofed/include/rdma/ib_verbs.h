@@ -92,7 +92,7 @@ enum ib_gid_type {
 #define ROCE_V2_UDP_DPORT      4791
 struct ib_gid_attr {
 	enum ib_gid_type	gid_type;
-	struct net_device	*ndev;
+	struct ifnet	*ndev;
 };
 
 enum rdma_node_type {
@@ -1892,7 +1892,7 @@ struct ib_device {
 	 * that this function returns NULL before the net device reaches
 	 * NETDEV_UNREGISTER_FINAL state.
 	 */
-	struct net_device	  *(*get_netdev)(struct ib_device *device,
+	struct ifnet		  *(*get_netdev)(struct ib_device *device,
 						 u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
 						u8 port_num, int index,
@@ -2139,7 +2139,7 @@ struct ib_client {
 	 *
 	 * The caller is responsible for calling dev_put on the returned
 	 * netdev. */
-	struct net_device *(*get_net_dev_by_params)(
+	struct ifnet *(*get_net_dev_by_params)(
 			struct ib_device *dev,
 			u8 port,
 			u16 pkey,
@@ -2564,7 +2564,7 @@ int ib_modify_port(struct ib_device *device,
 		   struct ib_port_modify *port_modify);
 
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		enum ib_gid_type gid_type, struct net_device *ndev,
+		enum ib_gid_type gid_type, struct ifnet *ndev,
 		u8 *port_num, u16 *index);
 
 int ib_find_pkey(struct ib_device *device,
@@ -3341,7 +3341,7 @@ static inline int ib_check_mr_access(int flags)
 int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status);
 
-struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
+struct ifnet *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
 struct ib_wq *ib_create_wq(struct ib_pd *pd,

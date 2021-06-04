@@ -139,7 +139,7 @@ rdma_copy_addr_sub(u8 *dst, const u8 *src, unsigned min, unsigned max)
 	memset(dst + min, 0, max - min);
 }
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		     const unsigned char *dst_dev_addr)
 {
 	/* check for loopback device */
@@ -172,7 +172,7 @@ EXPORT_SYMBOL(rdma_copy_addr);
 int rdma_translate_ip(const struct sockaddr *addr,
 		      struct rdma_dev_addr *dev_addr)
 {
-	struct net_device *dev;
+	struct ifnet *dev;
 	int ret;
 
 	if (dev_addr->bound_dev_if) {
@@ -662,7 +662,7 @@ static int addr_resolve(struct sockaddr *src_in,
 			struct rdma_dev_addr *addr)
 {
 	struct epoch_tracker et;
-	struct net_device *ndev = NULL;
+	struct ifnet *ndev = NULL;
 	u8 edst[MAX_ADDR_LEN];
 	int ret;
 
@@ -852,7 +852,7 @@ static void resolve_cb(int status, struct sockaddr *src_addr,
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, struct net_device *dev,
+				 u8 *dmac, struct ifnet *dev,
 				 int *hoplimit)
 {
 	int ret = 0;

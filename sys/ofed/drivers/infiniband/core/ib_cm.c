@@ -429,7 +429,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av,
 	unsigned long flags;
 	int ret;
 	u8 p;
-	struct net_device *ndev = ib_get_ndev_from_path(path);
+	struct ifnet *ndev = ib_get_ndev_from_path(path);
 
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {

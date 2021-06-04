@@ -308,7 +308,7 @@ done:
 	return (tx_info->nr_txbb);
 }
 
-int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
+int mlx4_en_free_tx_buf(struct ifnet *dev, struct mlx4_en_tx_ring *ring)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int cnt = 0;
@@ -344,7 +344,7 @@ mlx4_en_tx_ring_is_full(struct mlx4_en_tx_ring *ring)
 	return (wqs < (HEADROOM + (2 * MLX4_EN_TX_WQE_MAX_WQEBBS)));
 }
 
-static int mlx4_en_process_tx_cq(struct net_device *dev,
+static int mlx4_en_process_tx_cq(struct ifnet *dev,
 				 struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -604,7 +604,7 @@ static void hashrandom_init(void *arg)
 }
 SYSINIT(hashrandom_init, SI_SUB_RANDOM, SI_ORDER_ANY, &hashrandom_init, NULL);
 
-u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
+u16 mlx4_en_select_queue(struct ifnet *dev, struct mbuf *mb)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u32 rings_p_up = priv->num_tx_rings_p_up;
