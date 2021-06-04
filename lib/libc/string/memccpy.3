@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In string.h
 .Ft void *
-.Fn memccpy "void *dst" "const void *src" "int c" "size_t len"
+.Fn memccpy "void * __restrict dst" "const void * __restrict src" "int c" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn memccpy
