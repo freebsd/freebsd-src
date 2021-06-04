@@ -38,6 +38,7 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+#inckude <sys/types.h>
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
