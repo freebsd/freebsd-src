@@ -21,16 +21,16 @@ CFLAGS+= -D_DIRENT_HAVE_D_TYPE
 CFLAGS+= -DCONFIG_WPA_CLI_EDIT=y
 LIBADD+=wpaap \
 	wpacommon \
-	wpacrypto \
-	wpaeap_common \
 	wpaeap_peer \
 	wpaeap_server \
 	wpaeapol_auth \
 	wpaeapol_supp \
+	wpaeap_common \
 	wpal2_packet \
 	wparadius \
 	wparsn_supp \
 	wpatls \
+	wpacrypto \
 	wpautils
 LIBADD+=	pcap util
 

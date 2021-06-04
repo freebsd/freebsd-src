@@ -31,10 +31,10 @@ CFLAGS+=-I${.CURDIR:H}/wpa_supplicant \
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-LIBADD+=	pcap util wpaap wpacommon wpacrypto \
-		wpadrivers wpal2_packet wpaeap_common wpaeap_server \
-		wpaeapol_auth \
-		wparadius wpatls wpautils wpawps
+LIBADD+=	pcap util \
+		wpadrivers wpaap wpal2_packet wpaeap_server \
+		wpaeapol_auth wpaeap_common \
+		wparadius wpatls wpawps wpacommon wpacrypto wpautils
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}
