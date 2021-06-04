@@ -37,8 +37,6 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *);
 int pqisrc_process_config_table(pqisrc_softstate_t *);
 int pqisrc_flush_cache(pqisrc_softstate_t *, enum pqisrc_flush_cache_event_type);
 int pqisrc_wait_for_pqi_reset_completion(pqisrc_softstate_t *);
-inline boolean_t pqisrc_is_firmware_feature_enabled(pqisrc_softstate_t *,
-		struct pqi_conf_table_firmware_features *, uint16_t );
 
 /* pqi_sis.c*/
 int pqisrc_sis_init(pqisrc_softstate_t *);

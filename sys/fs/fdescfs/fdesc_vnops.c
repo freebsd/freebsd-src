@@ -264,10 +264,20 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
     struct vnode **rvp)
 {
 	struct fdesc_get_ino_args *a;
+	struct fdescmount *fdm;
+	struct vnode *vp;
 	int error;
 
 	a = arg;
-	error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
+	fdm = VFSTOFDESC(mp);
+	if ((fdm->flags & FMNT_NODUP) != 0 && a->fp->f_type == DTYPE_VNODE) {
+		vp = a->fp->f_vnode;
+		vget(vp, lkflags | LK_RETRY);
+		*rvp = vp;
+		error = 0;
+	} else {
+		error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
+	}
 	fdrop(a->fp, a->td);
 	return (error);
 }
