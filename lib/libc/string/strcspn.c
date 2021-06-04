@@ -40,9 +40,7 @@ size_t
 strcspn(const char *s, const char *charset)
 {
 	const char *s1;
-	u_long bit;
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
-	unsigned int idx;
 
 	if(*s == '\0')
 		return (0);
@@ -51,7 +49,8 @@ strcspn(const char *s, const char *charset)
 	tbl[0] = 1;
 	tbl[3] = tbl[2] = tbl[1] = 0;
 #else
-	for (tbl[0] = idx = 1; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
+	unsigned int idx;
+	for (idx = tbl[0] = 1; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
 		tbl[idx] = 0;
 #endif
 	for (; *charset != '\0'; charset++) {
