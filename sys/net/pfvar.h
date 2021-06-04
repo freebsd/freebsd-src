@@ -51,6 +51,13 @@
 
 #include <net/radix.h>
 #include <netinet/in.h>
+#ifdef _KERNEL
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
+#endif
 
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
@@ -907,14 +914,14 @@ struct pf_pdesc {
 		gid_t	 gid;
 	}		 lookup;
 	u_int64_t	 tot_len;	/* Make Mickey money */
-	union {
-		struct tcphdr		*tcp;
-		struct udphdr		*udp;
-		struct icmp		*icmp;
+	union pf_headers {
+		struct tcphdr		tcp;
+		struct udphdr		udp;
+		struct icmp		icmp;
 #ifdef INET6
-		struct icmp6_hdr	*icmp6;
+		struct icmp6_hdr	icmp6;
 #endif /* INET6 */
-		void			*any;
+		char any[0];
 	} hdr;
 
 	struct pf_krule	*nat_rule;	/* nat/rdr rule applied to packet */
