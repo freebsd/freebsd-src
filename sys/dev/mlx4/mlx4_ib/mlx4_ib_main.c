@@ -131,10 +131,10 @@ static int num_ib_ports(struct mlx4_dev *dev)
 	return ib_ports;
 }
 
-static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
+static struct ifnet *mlx4_ib_get_netdev(struct ib_device *device, u8 port_num)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(device);
-	struct net_device *dev;
+	struct ifnet *dev;
 
 	rcu_read_lock();
 	dev = mlx4_get_protocol_dev(ibdev->dev, MLX4_PROT_ETH, port_num);
@@ -142,11 +142,11 @@ static struct net_device *mlx4_ib_get_netdev(struct ib_device *device, u8 port_n
 #if 0
 	if (dev) {
 		if (mlx4_is_bonded(ibdev->dev)) {
-			struct net_device *upper = NULL;
+			struct ifnet *upper = NULL;
 
 			upper = netdev_master_upper_dev_get_rcu(dev);
 			if (upper) {
-				struct net_device *active;
+				struct ifnet *active;
 
 				active = bond_option_active_slave_get_rcu(netdev_priv(upper));
 				if (active)
@@ -693,7 +693,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 
 	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
 	struct mlx4_ib_iboe *iboe = &mdev->iboe;
-	struct net_device *ndev;
+	struct ifnet *ndev;
 	enum ib_mtu tmp;
 	struct mlx4_cmd_mailbox *mailbox;
 	int err = 0;
@@ -1348,7 +1348,7 @@ static void mlx4_ib_delete_counters_table(struct mlx4_ib_dev *ibdev,
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid)
 {
-	struct net_device *ndev;
+	struct ifnet *ndev;
 	int ret = 0;
 
 	if (!mqp->port)
@@ -1960,7 +1960,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_dev *dev = mdev->dev;
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
-	struct net_device *ndev;
+	struct ifnet *ndev;
 	struct mlx4_ib_gid_entry *ge;
 	struct mlx4_flow_reg_id reg_id = {0, 0};
 	enum mlx4_protocol prot =  MLX4_PROT_IB_IPV6;
@@ -2284,7 +2284,7 @@ static void mlx4_ib_diag_cleanup(struct mlx4_ib_dev *ibdev)
 
 #define MLX4_IB_INVALID_MAC	((u64)-1)
 static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
-			       struct net_device *dev,
+			       struct ifnet *dev,
 			       int port)
 {
 	u64 new_smac = 0;
@@ -2339,7 +2339,7 @@ unlock:
 }
 
 static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
-				 struct net_device *dev,
+				 struct ifnet *dev,
 				 unsigned long event)
 
 {
@@ -2370,7 +2370,7 @@ static void mlx4_ib_scan_netdevs(struct mlx4_ib_dev *ibdev,
 static int mlx4_ib_netdev_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct ifnet *dev = netdev_notifier_info_to_ifp(ptr);
 	struct mlx4_ib_dev *ibdev;
 
 	if (dev->if_vnet != &init_net)
@@ -3105,7 +3105,7 @@ static void handle_bonded_port_state_event(struct work_struct *work)
 	kfree(ew);
 	spin_lock_bh(&ibdev->iboe.lock);
 	for (i = 0; i < MLX4_MAX_PORTS; ++i) {
-		struct net_device *curr_netdev = ibdev->iboe.netdevs[i];
+		struct ifnet *curr_netdev = ibdev->iboe.netdevs[i];
 		enum ib_port_state curr_port_state;
 
 		if (!curr_netdev)
