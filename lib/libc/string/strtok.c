@@ -97,7 +97,7 @@ cont:
 }
 
 char *
-strtok(char *s, const char *delim)
+strtok(char * __restrict s, const char * __restrict delim)
 {
 	static char *last;
 
