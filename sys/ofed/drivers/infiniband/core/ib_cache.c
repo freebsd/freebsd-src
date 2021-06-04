@@ -183,7 +183,7 @@ static int write_gid(struct ib_device *ib_dev, u8 port,
 	__releases(&table->rwlock) __acquires(&table->rwlock)
 {
 	int ret = 0;
-	struct net_device *old_net_dev;
+	struct ifnet *old_net_dev;
 	enum ib_gid_type old_gid_type;
 
 	/* in rdma_cap_roce_gid_table, this funciton should be protected by a
@@ -311,7 +311,7 @@ static int find_gid(struct ib_gid_table *table, const union ib_gid *gid,
 	return found;
 }
 
-static void addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
+static void addrconf_ifid_eui48(u8 *eui, struct ifnet *dev)
 {
 	if (dev->if_addrlen != ETH_ALEN)
 		return;
@@ -325,7 +325,7 @@ static void addrconf_ifid_eui48(u8 *eui, struct net_device *dev)
 	eui[0] ^= 2;
 }
 
-static void make_default_gid(struct  net_device *dev, union ib_gid *gid)
+static void make_default_gid(struct ifnet *dev, union ib_gid *gid)
 {
 	gid->global.subnet_prefix = cpu_to_be64(0xfe80000000000000LL);
 	addrconf_ifid_eui48(&gid->raw[8], dev);
@@ -400,7 +400,7 @@ out_unlock:
 }
 
 int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
-				     struct net_device *ndev)
+				     struct ifnet *ndev)
 {
 	struct ib_gid_table **ports_table = ib_dev->cache.gid_cache;
 	struct ib_gid_table *table;
@@ -490,7 +490,7 @@ static int _ib_cache_gid_table_find(struct ib_device *ib_dev,
 static int ib_cache_gid_find(struct ib_device *ib_dev,
 			     const union ib_gid *gid,
 			     enum ib_gid_type gid_type,
-			     struct net_device *ndev, u8 *port,
+			     struct ifnet *ndev, u8 *port,
 			     u16 *index)
 {
 	unsigned long mask = GID_ATTR_FIND_MASK_GID |
@@ -507,7 +507,7 @@ static int ib_cache_gid_find(struct ib_device *ib_dev,
 int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
 			       const union ib_gid *gid,
 			       enum ib_gid_type gid_type,
-			       u8 port, struct net_device *ndev,
+			       u8 port, struct ifnet *ndev,
 			       u16 *index)
 {
 	int local_index;
@@ -672,7 +672,7 @@ static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
 }
 
 void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
-				  struct net_device *ndev,
+				  struct ifnet *ndev,
 				  unsigned long gid_type_mask,
 				  enum ib_cache_gid_default_mode mode)
 {
@@ -899,7 +899,7 @@ EXPORT_SYMBOL(ib_get_cached_gid);
 int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
 		       enum ib_gid_type gid_type,
-		       struct net_device *ndev,
+		       struct ifnet *ndev,
 		       u8               *port_num,
 		       u16              *index)
 {
