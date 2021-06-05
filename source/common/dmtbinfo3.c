@@ -405,6 +405,30 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoStaoStr[] =
 
 /*******************************************************************************
  *
+ * SVKL - Storage Volume Key Location table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSvkl[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_SVKL_OFFSET (Count),                   "Key Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* SVKL subtables */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSvkl0[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_SVKL0_OFFSET (Type),                   "Key Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_SVKL0_OFFSET (Format),                 "Key Format", 0},
+    {ACPI_DMT_UINT32,   ACPI_SVKL0_OFFSET (Size),                   "Key Size", 0},
+    {ACPI_DMT_UINT64,   ACPI_SVKL0_OFFSET (Address),                "Key Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * TCPA - Trusted Computing Platform Alliance table (Client)
  *
  * NOTE: There are two versions of the table with the same signature --

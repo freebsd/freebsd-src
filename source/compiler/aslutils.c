@@ -206,6 +206,46 @@ UtIsBigEndianMachine (
 }
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    UtIsIdInteger
+ *
+ * PARAMETERS:  Pointer to an ACPI ID (HID, CID) string
+ *
+ * RETURN:      TRUE if string is an integer
+ *              FALSE if string is not an integer
+ *
+ * DESCRIPTION: Determine whether the input ACPI ID string can be converted to
+ *              an integer value.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+UtIsIdInteger (
+    UINT8                   *Target)
+{
+    UINT32                  i;
+
+
+    /* The first three characters of the string must be alphabetic */
+
+    for (i = 0; i < 3; i++)
+    {
+        if (!isalpha ((int) Target[i]))
+        {
+            break;
+        }
+    }
+
+    if (i < 3)
+    {
+        return (TRUE);
+    }
+
+    return (FALSE);
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    UtQueryForOverwrite

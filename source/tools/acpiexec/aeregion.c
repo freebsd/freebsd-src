@@ -205,6 +205,7 @@ AeRegionHandler (
     UINT32                  Value1;
     UINT32                  Value2;
     ACPI_RESOURCE           *Resource;
+    char                    Uuid[ACPI_PRM_INPUT_BUFFER_SIZE + 1];
 
 
     ACPI_FUNCTION_NAME (AeRegionHandler);
@@ -446,6 +447,7 @@ AeRegionHandler (
      * default values. Note: ASLTS will depend on these values.
      */
     case ACPI_ADR_SPACE_PLATFORM_COMM: /* ACPI 6.3 */
+
         if (AcpiGbl_DisplayRegionAccess)
         {
             AcpiOsPrintf ("AcpiExec: PCC Write : Addr %.4X Width %X\n",
@@ -456,6 +458,21 @@ AeRegionHandler (
             Buffer[i] = (UINT8) i;
         }
         return (AE_OK);
+
+    case ACPI_ADR_SPACE_PLATFORM_RT:
+
+        AcpiOsPrintf ("Acpiexec: PRM %s invoked\n",
+            (Function & ACPI_IO_MASK) ? "Write" : "Read ");
+
+        if ((Function & ACPI_IO_MASK) == ACPI_WRITE)
+        {
+            AcpiUtConvertUuidToString((char *) Buffer + 10, Uuid);
+            AcpiOsPrintf ("Mode: %u GUID: %s\n", Buffer[0], Uuid);
+        }
+
+        /* Unpack the input buffer and print the contents for debug */
+
+        break;
 
     default:
         break;
