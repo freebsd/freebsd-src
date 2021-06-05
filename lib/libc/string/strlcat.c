@@ -38,8 +38,8 @@ strlcat(char * __restrict dst, const char * __restrict src, size_t dsize)
 	size_t dlen;
 
 	/* Find the end of dst and adjust bytes left but don't go past end. */
-	while (n-- != 0 && *dst != '\0')
-		dst++;
+	while (n != 0 && *dst != '\0')
+		dst++, n--;
 	dlen = dst - odst;
 	n = dsize - dlen;
 
