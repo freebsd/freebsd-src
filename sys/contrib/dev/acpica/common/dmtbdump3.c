@@ -422,6 +422,65 @@ AcpiDmDumpStao (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpSvkl
+ *
+ * PARAMETERS:  Table               - A SVKL table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a SVKL. This is a variable-length
+ *              table that contains an open-ended number of key subtables at
+ *              the end of the header.
+ *
+ * NOTES: SVKL is essentially a flat table, with a small main table and
+ *          a variable number of a single type of subtable.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpSvkl (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_SVKL);
+    ACPI_SVKL_KEY           *Subtable;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoSvkl);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* The rest of the table consists of subtables (single type) */
+
+    Subtable = ACPI_ADD_PTR (ACPI_SVKL_KEY, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Dump the subtable */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            sizeof (ACPI_SVKL_KEY), AcpiDmTableInfoSvkl0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next subtable */
+
+        Offset += sizeof (ACPI_SVKL_KEY);
+        Subtable = ACPI_ADD_PTR (ACPI_SVKL_KEY, Subtable,
+            sizeof (ACPI_SVKL_KEY));
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpTcpa
  *
  * PARAMETERS:  Table               - A TCPA table
@@ -502,6 +561,7 @@ AcpiDmDumpTcpa (
  * DESCRIPTION: Format the contents of a TPM2.
  *
  ******************************************************************************/
+
 static void
 AcpiDmDumpTpm2Rev3 (
     ACPI_TABLE_HEADER       *Table)

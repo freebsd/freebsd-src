@@ -297,6 +297,19 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAsf4[] =
 
 /*******************************************************************************
  *
+ * BDAT -  BIOS Data ACPI Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoBdat[] =
+{
+    {ACPI_DMT_GAS,      ACPI_BDAT_OFFSET (Gas),                     "BDAT Generic Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * BERT -  Boot Error Record table
  *
  ******************************************************************************/

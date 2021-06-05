@@ -1086,9 +1086,9 @@ DtDumpSubtableTree (
 {
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "[%.04X] %24s %*s%p (%.02X) - (%.02X)\n",
+        "[%.04X] %24s %*s%p (%.02X) - (%.02X)        %.02X\n",
         Subtable->Depth, Subtable->Name, (4 * Subtable->Depth), " ",
-        Subtable, Subtable->Length, Subtable->TotalLength);
+        Subtable, Subtable->Length, Subtable->TotalLength, *Subtable->Buffer);
 }
 
 
@@ -1123,7 +1123,7 @@ DtDumpSubtableList (
     DtWalkTableTree (AslGbl_RootTable, DtDumpSubtableInfo, NULL, NULL);
 
     DbgPrint (ASL_DEBUG_OUTPUT,
-        "\nSubtable Tree: (Depth, Name, Subtable, Length, TotalLength)\n\n");
+        "\nSubtable Tree: (Depth, Name, Subtable, Length, TotalLength, Integer Value)\n\n");
     DtWalkTableTree (AslGbl_RootTable, DtDumpSubtableTree, NULL, NULL);
 
     DbgPrint (ASL_DEBUG_OUTPUT, "\n");

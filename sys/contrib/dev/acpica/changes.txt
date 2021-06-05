@@ -1,4 +1,46 @@
 ----------------------------------------
+04 June 2021. Summary of changes for version 20210604:
+
+1) ACPICA kernel-resident subsystem:
+
+Cleaned up (delete) the context mutex during local address handler object 
+deletion.
+
+Fixed a memory leak caused by the _CID repair function.
+
+Added support for PlatformRtMechanism OperationRegion handler. Adds a new 
+utility function, AcpiUtConvertUuidToString. Writing a buffer to a 
+PlatformRtMechanism fieldunit invokes a bidirectional transaction. The 
+input buffer contains 26 bytes containing 9 bytes of status, a command 
+byte and a 16-byte UUID. This change will simply pass this incoming 
+buffer to a handler registered by the OS.
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+Added full support for the PRMT ACPI table (Platform Runtime Mechanism 
+Table). Includes support in the iASL compiler, the disassembler, and the 
+template generator.
+
+Added full support for the BDAT (BIOS Data ACPI Table) ACPI table.
+
+Added full support for the RGRT (Regulatory Graphics Resource Table) ACPI 
+table.
+
+Added full support for the SVKL (Storage Volume Key Location Table) ACPI 
+table. Header file support from Kuppuswamy Sathyanarayanan 
+<sathyanarayanan.kuppuswamy@linux.intel.com>.
+
+Completed full support for the IVRS (I/O Virtualization Reporting 
+Structure) ACPI table. Added compiler support for IVRS, updated 
+disassembler support. Adds a new utility, UtIsIdInteger, to determine if 
+a HID/CID is an integer or a string.
+
+Headers: Added more structs to the CEDT table: CXL fixed memory window 
+structure.
+
+ACPI 6.4: MADT: added Multiprocessor Wakeup Mailbox Structure.
+
+----------------------------------------
 31 March 2021. Summary of changes for version 20210331:
 
 This release is available at https://acpica.org/downloads, and includes 
