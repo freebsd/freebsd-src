@@ -381,8 +381,9 @@ int nfscl_request(struct nfsrv_descript *, vnode_t,
 
 /* nfs_nfsdsubs.c */
 void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *, int,
-    vnode_t *, struct nfsexstuff *, mount_t *, int);
-int nfsd_excred(struct nfsrv_descript *, struct nfsexstuff *, struct ucred *);
+    vnode_t *, struct nfsexstuff *, mount_t *, int, int);
+int nfsd_excred(struct nfsrv_descript *, struct nfsexstuff *, struct ucred *,
+    bool);
 int nfsrv_mtofh(struct nfsrv_descript *, struct nfsrvfh *);
 int nfsrv_putattrbit(struct nfsrv_descript *, nfsattrbit_t *);
 void nfsrv_wcc(struct nfsrv_descript *, int, struct nfsvattr *, int,
@@ -759,6 +760,7 @@ int nfsvno_listxattr(struct vnode *, uint64_t, struct ucred *, struct thread *,
     u_char **, uint32_t *, bool *);
 void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
     int);
+bool nfsrv_checkwrongsec(struct nfsrv_descript *, int, enum vtype);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);

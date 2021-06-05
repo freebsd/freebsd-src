@@ -3103,9 +3103,9 @@ nfsmout:
  */
 int
 nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
-    struct ucred *credanon)
+    struct ucred *credanon, bool testsec)
 {
-	int error = 0;
+	int error;
 
 	/*
 	 * Check/setup credentials.
@@ -3115,18 +3115,12 @@ nfsd_excred(struct nfsrv_descript *nd, struct nfsexstuff *exp,
 
 	/*
 	 * Check to see if the operation is allowed for this security flavor.
-	 * RFC2623 suggests that the NFSv3 Fsinfo RPC be allowed to
-	 * AUTH_NONE or AUTH_SYS for file systems requiring RPCSEC_GSS.
-	 * Also, allow Secinfo, so that it can acquire the correct flavor(s).
 	 */
-	if (nfsvno_testexp(nd, exp) &&
-	    nd->nd_procnum != NFSV4OP_SECINFO &&
-	    nd->nd_procnum != NFSPROC_FSINFO) {
-		if (nd->nd_flag & ND_NFSV4)
-			error = NFSERR_WRONGSEC;
-		else
-			error = (NFSERR_AUTHERR | AUTH_TOOWEAK);
-		goto out;
+	error = 0;
+	if (testsec) {
+		error = nfsvno_testexp(nd, exp);
+		if (error != 0)
+			goto out;
 	}
 
 	/*
@@ -3246,7 +3240,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 void
 nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
     struct vnode **vpp, struct nfsexstuff *exp,
-    struct mount **mpp, int startwrite)
+    struct mount **mpp, int startwrite, int nextop)
 {
 	struct mount *mp, *mpw;
 	struct ucred *credanon;
@@ -3293,19 +3287,6 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	}
 
 	/*
-	 * If TLS is required by the export, check the flags in nd_flag.
-	 */
-	if (nd->nd_repstat == 0 && ((NFSVNO_EXTLS(exp) &&
-	    (nd->nd_flag & ND_TLS) == 0) ||
-	     (NFSVNO_EXTLSCERT(exp) &&
-	      (nd->nd_flag & ND_TLSCERT) == 0) ||
-	     (NFSVNO_EXTLSCERTUSER(exp) &&
-	      (nd->nd_flag & ND_TLSCERTUSER) == 0))) {
-		vput(*vpp);
-		nd->nd_repstat = NFSERR_ACCES;
-	}
-
-	/*
 	 * Personally, I've never seen any point in requiring a
 	 * reserved port#, since only in the rare case where the
 	 * clients are all boxes with secure system privileges,
@@ -3342,7 +3323,8 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	 */
 	if (!nd->nd_repstat) {
 		nd->nd_saveduid = nd->nd_cred->cr_uid;
-		nd->nd_repstat = nfsd_excred(nd, exp, credanon);
+		nd->nd_repstat = nfsd_excred(nd, exp, credanon,
+		    nfsrv_checkwrongsec(nd, nextop, (*vpp)->v_type));
 		if (nd->nd_repstat)
 			vput(*vpp);
 	}
@@ -3982,6 +3964,24 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 	int i;
 
 	/*
+	 * Allow NFSv3 Fsinfo per RFC2623.
+	 */
+	if (((nd->nd_flag & ND_NFSV4) != 0 ||
+	     nd->nd_procnum != NFSPROC_FSINFO) &&
+	    ((NFSVNO_EXTLS(exp) && (nd->nd_flag & ND_TLS) == 0) ||
+	     (NFSVNO_EXTLSCERT(exp) &&
+	      (nd->nd_flag & ND_TLSCERT) == 0) ||
+	     (NFSVNO_EXTLSCERTUSER(exp) &&
+	      (nd->nd_flag & ND_TLSCERTUSER) == 0))) {
+		if ((nd->nd_flag & ND_NFSV4) != 0)
+			return (NFSERR_WRONGSEC);
+		else if ((nd->nd_flag & ND_TLS) == 0)
+			return (NFSERR_AUTHERR | AUTH_NEEDS_TLS);
+		else
+			return (NFSERR_AUTHERR | AUTH_NEEDS_TLS_MUTUAL_HOST);
+	}
+
+	/*
 	 * This seems odd, but allow the case where the security flavor
 	 * list is empty. This happens when NFSv4 is traversing non-exported
 	 * file systems. Exported file systems should always have a non-empty
@@ -4008,7 +4008,9 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 		    (nd->nd_flag & ND_GSS) == 0)
 			return (0);
 	}
-	return (1);
+	if ((nd->nd_flag & ND_NFSV4) != 0)
+		return (NFSERR_WRONGSEC);
+	return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 }
 
 /*
@@ -6614,6 +6616,37 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
 		mb->m_len = bpos - mtod(mb, char *);
 	nd->nd_mb = mb;
 	nd->nd_bpos = bpos;
+}
+
+
+/*
+ * Check to see if a put file handle operation should test for
+ * NFSERR_WRONGSEC, although NFSv3 actually returns NFSERR_AUTHERR.
+ * When Open is the next operation, NFSERR_WRONGSEC cannot be
+ * replied for the Open cases that use a component.  Thia can
+ * be identified by the fact that the file handle's type is VDIR.
+ */
+bool
+nfsrv_checkwrongsec(struct nfsrv_descript *nd, int nextop, enum vtype vtyp)
+{
+
+	if ((nd->nd_flag & ND_NFSV4) == 0) {
+		if (nd->nd_procnum == NFSPROC_FSINFO)
+			return (false);
+		return (true);
+	}
+
+	if ((nd->nd_flag & ND_LASTOP) != 0)
+		return (false);
+
+	if (nextop == NFSV4OP_PUTROOTFH || nextop == NFSV4OP_PUTFH ||
+	    nextop == NFSV4OP_PUTPUBFH || nextop == NFSV4OP_RESTOREFH ||
+	    nextop == NFSV4OP_LOOKUP || nextop == NFSV4OP_LOOKUPP ||
+	    nextop == NFSV4OP_SECINFO || nextop == NFSV4OP_SECINFONONAME)
+		return (false);
+	if (nextop == NFSV4OP_OPEN && vtyp == VDIR)
+		return (false);
+	return (true);
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
