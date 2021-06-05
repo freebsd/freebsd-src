@@ -34,12 +34,12 @@ strlcat(char * __restrict dst, const char * __restrict src, size_t dsize)
 {
 	const char * const odst = dst;
 	const char * const osrc = src;
-	size_t n = dsize;
 	size_t dlen;
+	size_t n;
 
 	/* Find the end of dst and adjust bytes left but don't go past end. */
-	while (n != 0 && *dst != '\0')
-		dst++, n--;
+	for (n = dsize; n != 0 && *dst != '\0'; --n)
+		dst++;
 	dlen = dst - odst;
 	n = dsize - dlen;
 
