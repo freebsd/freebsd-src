@@ -37,8 +37,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
-#include <sys/_types.h>
-#include_next <sys/types.h>
+#include <sys/types.h>
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
