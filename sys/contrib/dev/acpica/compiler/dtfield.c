@@ -434,14 +434,14 @@ DtCompileInteger (
         {
             if (Value != 1)
             {
-                DtError (ASL_WARNING, ASL_MSG_RESERVED_VALUE, Field,
+                DtError (ASL_WARNING, ASL_MSG_RESERVED_FIELD, Field,
                     "Must be one, setting to one");
                 Value = 1;
             }
         }
         else if (Value != 0)
         {
-            DtError (ASL_WARNING, ASL_MSG_RESERVED_VALUE, Field,
+            DtError (ASL_WARNING, ASL_MSG_RESERVED_FIELD, Field,
                 "Must be zero, setting to zero");
             Value = 0;
         }
