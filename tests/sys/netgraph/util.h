@@ -46,6 +46,8 @@ typedef void (*ng_data_handler_t)(void *, size_t, void *ctx);
 void ng_register_data(char const *hook, ng_data_handler_t proc);
 void ng_send_data(char const *hook, void const *, size_t);
 
+typedef void (*ng_msg_handler_t)(char const *, struct ng_mesg *, void *);
+void ng_register_msg(ng_msg_handler_t proc);
 int  ng_send_msg(char const *path, char const *msg);
 
 int  ng_handle_event (unsigned int ms, void *ctx);

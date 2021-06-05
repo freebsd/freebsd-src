@@ -34,7 +34,6 @@
 #include <atf-c.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <sys/select.h>
@@ -59,9 +58,10 @@ struct data_handler {
 	SLIST_ENTRY(data_handler) next;
 };
 static SLIST_HEAD(, data_handler) data_head = SLIST_HEAD_INITIALIZER(data_head);
+static ng_msg_handler_t msg_handler = NULL;
 
 static void handle_data(void *ctx);
-static void handle_msg(void);
+static void handle_msg(void *ctx);
 
 void
 ng_connect(char const *path1, char const *hook1,
@@ -143,14 +143,21 @@ ng_send_data(char const *hook,
 	CHECK(, -1 != NgSendData(ds, hook, data, len));
 }
 
+void
+ng_register_msg(ng_msg_handler_t proc) {
+	msg_handler = proc;
+}
+
 static void
-handle_msg(void) {
+handle_msg(void *ctx) {
 	struct ng_mesg *m;
 	char path[NG_PATHSIZ];
 
 	ATF_REQUIRE(-1 != NgAllocRecvMsg(cs, &m, path));
 
-	printf("Got message from %s\n", path);
+	if(msg_handler != NULL)
+		(*msg_handler)(path, m, ctx);
+
 	free(m);
 }
 
@@ -191,7 +198,7 @@ retry:
 		return 0;
 	default:		       /* something to do */
 		if (FD_ISSET(cs, &fds))
-		    handle_msg();
+		    handle_msg(context);
 		if (FD_ISSET(ds, &fds))
 		    handle_data(context);
 		return 1;
