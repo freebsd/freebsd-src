@@ -219,6 +219,8 @@ DRIVER_MODULE(xen, ofwbus, xen_driver, 0, 0);
 
 
 
+static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
+
 static void
 xen_intr_arch_disable_source(void *arg)
 {
@@ -252,17 +254,42 @@ xen_intr_arch_assign_cpu(void *arg, int cpuid)
 	return (xen_intr_assign_cpu(isrc, cpuid));
 }
 
-int
-xen_arch_intr_setup(struct xenisrc *isrc)
+struct xenisrc *
+xen_arch_intr_alloc(void)
 {
+	static u_int counter = 0;
+	struct xenisrc *isrc;
+	int error;
 
-	return (intr_event_create(&isrc->xi_arch, isrc, 0,
-	    isrc->xi_vector /* IRQ */,
+	if (!(isrc = malloc(sizeof(struct xenisrc), M_XENINTR, M_WAITOK | M_ZERO)))
+		return (NULL);
+
+	error = intr_event_create(&isrc->xi_arch, isrc, 0,
+	    0 /* we're a software PIC */,
 	    xen_intr_arch_disable_source /* mask */,
 	    xen_intr_arch_enable_source /* unmask */,
 	    xen_intr_arch_eoi_source /* EOI */,
 	    xen_intr_arch_assign_cpu /* cpu assign */,
-	    "xen%u", isrc->xi_port));
+	    "xen%u:", ++counter);
+
+	if (error) {
+		free(isrc, M_XENINTR);
+		isrc = NULL;
+	}
+
+	return (isrc);
+}
+
+void
+xen_arch_intr_release(struct xenisrc *isrc)
+{
+
+	KASSERT(CK_SLIST_EMPTY(&isrc->xi_arch->ie_handlers),
+	    ("Release called, but xenisrc still in use"));
+
+	intr_event_destroy(isrc->xi_arch);
+
+	free(isrc, M_XENINTR);
 }
 
 u_long
