@@ -400,14 +400,16 @@ const char                      *AslTableCompilerMsgs [] =
 /*    ASL_MSG_INVALID_FIELD_NAME */         "Invalid Field Name",
 /*    ASL_MSG_INVALID_HEX_INTEGER */        "Invalid hex integer constant",
 /*    ASL_MSG_OEM_TABLE */                  "OEM table - unknown contents",
-/*    ASL_MSG_RESERVED_VALUE */             "Reserved field",
+/*    ASL_MSG_RESERVED_FIELD */             "Reserved field",
 /*    ASL_MSG_UNKNOWN_LABEL */              "Label is undefined",
 /*    ASL_MSG_UNKNOWN_SUBTABLE */           "Unknown subtable type",
 /*    ASL_MSG_UNKNOWN_TABLE */              "Unknown ACPI table signature",
 /*    ASL_MSG_ZERO_VALUE */                 "Value must be non-zero",
 /*    ASL_MSG_INVALID_LABEL */              "Invalid field label detected",
 /*    ASL_MSG_BUFFER_LIST */                "Invalid buffer initializer list",
-/*    ASL_MSG_ENTRY_LIST */                 "Invalid entry initializer list"
+/*    ASL_MSG_ENTRY_LIST */                 "Invalid entry initializer list",
+/*    ASL_MSG_UNKNOWN_FORMAT */             "Unknown format value",
+/*    ASL_MSG_RESERVED_VALUE */             "Value for field is reserved or unknown",
 };
 
 /* Preprocessor */

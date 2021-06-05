@@ -426,6 +426,7 @@ DtGetFieldType (
     case ACPI_DMT_NAME6:
     case ACPI_DMT_NAME8:
     case ACPI_DMT_STRING:
+    case ACPI_DMT_IVRS_UNTERMINATED_STRING:
 
         Type = DT_FIELD_TYPE_STRING;
         break;
@@ -576,11 +577,13 @@ DtGetFieldLength (
     case ACPI_DMT_ACCWIDTH:
     case ACPI_DMT_CEDT:
     case ACPI_DMT_IVRS:
+    case ACPI_DMT_IVRS_DE:
     case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
     case ACPI_DMT_PCCT:
     case ACPI_DMT_PMTT:
     case ACPI_DMT_PPTT:
+    case ACPI_DMT_RGRT:
     case ACPI_DMT_SDEV:
     case ACPI_DMT_SRAT:
     case ACPI_DMT_ASF:
@@ -650,6 +653,22 @@ DtGetFieldLength (
         if (Value)
         {
             ByteLength = strlen (Value) + 1;
+        }
+        else
+        {   /* At this point, this is a fatal error */
+
+            sprintf (AslGbl_MsgBuffer, "Expected \"%s\"", Info->Name);
+            DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, AslGbl_MsgBuffer);
+            return (0);
+        }
+        break;
+
+    case ACPI_DMT_IVRS_UNTERMINATED_STRING:
+
+        Value = DtGetFieldValue (Field);
+        if (Value)
+        {
+            ByteLength = strlen (Value);
         }
         else
         {   /* At this point, this is a fatal error */

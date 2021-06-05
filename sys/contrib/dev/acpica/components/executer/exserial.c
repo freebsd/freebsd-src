@@ -353,6 +353,12 @@ AcpiExReadSerialBus (
         Function = ACPI_READ | (AccessorType << 16);
         break;
 
+    case ACPI_ADR_SPACE_PLATFORM_RT:
+
+        BufferLength = ACPI_PRM_INPUT_BUFFER_SIZE;
+        Function = ACPI_READ;
+        break;
+
     default:
         return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
     }
@@ -470,6 +476,12 @@ AcpiExWriteSerialBus (
 
         BufferLength += ACPI_SERIAL_HEADER_SIZE;
         Function = ACPI_WRITE | (AccessorType << 16);
+        break;
+
+    case ACPI_ADR_SPACE_PLATFORM_RT:
+
+        BufferLength = ACPI_PRM_INPUT_BUFFER_SIZE;
+        Function = ACPI_WRITE;
         break;
 
     default:

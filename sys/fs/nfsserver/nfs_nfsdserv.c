@@ -3709,6 +3709,31 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	 */
 	len = 0;
 	NFSM_BUILD(sizp, u_int32_t *, NFSX_UNSIGNED);
+
+	/* If nes_numsecflavor == 0, all are allowed. */
+	if (retnes.nes_numsecflavor == 0) {
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(RPCAUTH_UNIX);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl++ = txdr_unsigned(RPCAUTHGSS_SVCNONE);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl++ = txdr_unsigned(RPCAUTHGSS_SVCINTEGRITY);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl = txdr_unsigned(RPCAUTHGSS_SVCPRIVACY);
+		len = 4;
+	}
 	for (i = 0; i < retnes.nes_numsecflavor; i++) {
 		if (retnes.nes_secflavors[i] == AUTH_SYS) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -3819,6 +3844,31 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 	 */
 	len = 0;
 	NFSM_BUILD(sizp, uint32_t *, NFSX_UNSIGNED);
+
+	/* If nes_numsecflavor == 0, all are allowed. */
+	if (retnes.nes_numsecflavor == 0) {
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(RPCAUTH_UNIX);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl++ = txdr_unsigned(RPCAUTHGSS_SVCNONE);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl++ = txdr_unsigned(RPCAUTHGSS_SVCINTEGRITY);
+		*tl = txdr_unsigned(RPCAUTH_GSS);
+		nfsm_strtom(nd, nfsgss_mechlist[KERBV_MECH].str,
+		    nfsgss_mechlist[KERBV_MECH].len);
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(GSS_KERBV_QOP);
+		*tl = txdr_unsigned(RPCAUTHGSS_SVCPRIVACY);
+		len = 4;
+	}
 	for (i = 0; i < retnes.nes_numsecflavor; i++) {
 		if (retnes.nes_secflavors[i] == AUTH_SYS) {
 			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);

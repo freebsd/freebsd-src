@@ -109,7 +109,7 @@ fi
 
 zfs=$(df -Tn "/boot/" 2>/dev/null | while read _fs _type _other ; do
 	[ "zfs" = "${_type}" ] || continue
-	echo "${_fs%/ROOT/*}"
+	echo "${_fs%%/*}"
 done)
 
 set -e

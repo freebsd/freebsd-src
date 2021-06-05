@@ -107,6 +107,7 @@ _LIBRARIES=	\
 		cap_fileargs \
 		cap_grp \
 		cap_net \
+		cap_netdb \
 		cap_pwd \
 		cap_sysctl \
 		cap_syslog \
