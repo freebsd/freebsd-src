@@ -44,6 +44,9 @@ xen_arch_intr_init(void)
 	/* Nothing to do */
 }
 
+extern struct xenisrc *_Nullable xen_arch_intr_alloc(void);
+extern void     xen_arch_intr_release(struct xenisrc *_Nonnull isrc);
+
 static inline u_int
 xen_arch_intr_next_cpu(struct xenisrc *_Nonnull isrc)
 {
