@@ -1669,7 +1669,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			NFSVOPUNLOCK(dp);
 			nd->nd_cred->cr_uid = nd->nd_saveduid;
 			nfsd_fhtovp(nd, &tfh, LK_EXCLUSIVE, &tdp, &tnes, NULL,
-			    0);	/* Locks tdp. */
+			    0, -1);	/* Locks tdp. */
 			if (tdp) {
 				tdirfor_ret = nfsvno_getattr(tdp, &tdirfor, nd,
 				    p, 1, NULL);
@@ -1800,7 +1800,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 				/* tovp is always NULL unless NFSv4 */
 				goto out;
 			}
-			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL, 0);
+			nfsd_fhtovp(nd, &dfh, LK_EXCLUSIVE, &dp, &tnes, NULL,
+			    0, -1);
 			if (dp)
 				NFSVOPUNLOCK(dp);
 		}
@@ -3695,7 +3696,12 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	vput(vp);
 	savflag = nd->nd_flag;
 	if (!nd->nd_repstat) {
-		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0);
+		/*
+		 * Pretend the next op is Secinfo, so that no wrongsec
+		 * test will be done.
+		 */
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0,
+		    NFSV4OP_SECINFO);
 		if (vp)
 			vput(vp);
 	}
@@ -3830,7 +3836,12 @@ nfsrvd_secinfononame(struct nfsrv_descript *nd, int isdgram,
 	vput(vp);
 	savflag = nd->nd_flag;
 	if (nd->nd_repstat == 0) {
-		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0);
+		/*
+		 * Pretend the next op is Secinfo, so that no wrongsec
+		 * test will be done.
+		 */
+		nfsd_fhtovp(nd, &fh, LK_SHARED, &vp, &retnes, NULL, 0,
+		    NFSV4OP_SECINFO);
 		if (vp != NULL)
 			vput(vp);
 	}
