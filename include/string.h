@@ -38,7 +38,10 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+
+#if __BSD_VISIBLE
 #include <sys/stat.h>
+#endif
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
