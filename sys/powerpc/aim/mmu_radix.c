@@ -2712,7 +2712,7 @@ pmap_promote_l3e(pmap_t pmap, pml3_entry_t *pde, vm_offset_t va,
 	 */
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(be64toh(*pde) & PG_FRAME);
 setpde:
-	newpde = *firstpte;
+	newpde = be64toh(*firstpte);
 	if ((newpde & ((PG_FRAME & L3_PAGE_MASK) | PG_A | PG_V)) != (PG_A | PG_V)) {
 		CTR2(KTR_PMAP, "pmap_promote_l3e: failure for va %#lx"
 		    " in pmap %p", va, pmap);
