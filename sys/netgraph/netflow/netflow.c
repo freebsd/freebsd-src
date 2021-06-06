@@ -117,6 +117,7 @@ static int hash6_insert(priv_p, struct flow_hash_entry *, struct flow6_rec *,
 
 static void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
 
+#ifdef INET
 /*
  * Generate hash for a given flow record.
  *
@@ -140,6 +141,7 @@ ip_hash(struct flow_rec *r)
 		return ADDR_HASH(r->r_src.s_addr, r->r_dst.s_addr);
 	}
 }
+#endif
 
 #ifdef INET6
 /* Generate hash for a given flow6 record. Use lower 4 octets from v6 addresses */
