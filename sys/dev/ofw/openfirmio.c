@@ -66,7 +66,7 @@ static d_ioctl_t openfirm_ioctl;
 
 static struct cdevsw openfirm_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT | D_GIANTOK,
 	.d_ioctl =	openfirm_ioctl,
 	.d_name =	"openfirm",
 };
