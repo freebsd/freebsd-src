@@ -621,7 +621,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		/*
 		 * Finally, strip the 802.11 header.
 		 */
-		m = ieee80211_decap(vap, m, hdrspace);
+		m = ieee80211_decap(vap, m, hdrspace, qos);
 		if (m == NULL) {
 			/* XXX mask bit to check for both */
 			/* don't count Null data frames as errors */

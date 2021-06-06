@@ -311,7 +311,8 @@ void	ieee80211_deliver_data(struct ieee80211vap *,
 struct mbuf *ieee80211_defrag(struct ieee80211_node *,
 		struct mbuf *, int, int);
 struct mbuf *ieee80211_realign(struct ieee80211vap *, struct mbuf *, size_t);
-struct mbuf *ieee80211_decap(struct ieee80211vap *, struct mbuf *, int);
+struct mbuf *ieee80211_decap(struct ieee80211vap *, struct mbuf *, int,
+		uint8_t);
 struct mbuf *ieee80211_decap1(struct mbuf *, int *);
 int	ieee80211_setup_rates(struct ieee80211_node *ni,
 		const uint8_t *rates, const uint8_t *xrates, int flags);
