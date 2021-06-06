@@ -795,7 +795,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * Next up, any fragmentation.
 		 */
 		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			m = ieee80211_defrag(ni, m, hdrspace);
+			m = ieee80211_defrag(ni, m, hdrspace, has_decrypted);
 			if (m == NULL) {
 				/* Fragment dropped or frame not complete yet */
 				goto out;
