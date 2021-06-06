@@ -2429,6 +2429,7 @@ vxlan_encap_header(struct vxlan_softc *sc, struct mbuf *m, int ipoff,
 }
 #endif
 
+#if defined(INET6) || defined(INET)
 /*
  * Return the CSUM_INNER_* equivalent of CSUM_* caps.
  */
@@ -2470,6 +2471,7 @@ csum_flags_to_inner_flags(uint32_t csum_flags_in, const uint32_t encap)
 
 	return (csum_flags);
 }
+#endif
 
 static int
 vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
