@@ -1168,9 +1168,7 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 	error = kern_sigtimedwait(td, set, &ksi, NULL);
 	if (error) {
 		if (error == EINTR && td->td_proc->p_osrel < P_OSREL_SIGWAIT)
-			error = ERESTART;
-		if (error == ERESTART)
-			return (error);
+			return (ERESTART);
 		td->td_retval[0] = error;
 		return (0);
 	}
@@ -1329,15 +1327,13 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 
 		error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", timo);
 
-		if (timeout != NULL) {
-			if (error == ERESTART) {
-				/* Timeout can not be restarted. */
-				error = EINTR;
-			} else if (error == EAGAIN) {
-				/* We will calculate timeout by ourself. */
-				error = 0;
-			}
-		}
+		/* The syscalls can not be restarted. */
+		if (error == ERESTART)
+			error = EINTR;
+
+		/* We will calculate timeout by ourself. */
+		if (timeout != NULL && error == EAGAIN)
+			error = 0;
 
 		/*
 		 * If PTRACE_SCE or PTRACE_SCX were set after
