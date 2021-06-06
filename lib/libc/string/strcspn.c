@@ -50,8 +50,9 @@ strcspn(const char *s, const char *charset)
 	tbl[3] = tbl[2] = tbl[1] = 0;
 #else
 	unsigned int idx;
-	for (idx = tbl[0] = 1; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
+	for (idx = sizeof(tbl) / sizeof(tbl[0]) - 1; idx != 0; idx--)
 		tbl[idx] = 0;
+	tbl[0] = 1;
 #endif
 	for (; *charset != '\0'; charset++) {
 		tbl[IDX(*charset)] |= BIT(*charset);
