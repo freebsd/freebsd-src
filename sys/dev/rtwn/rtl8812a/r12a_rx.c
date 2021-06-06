@@ -321,8 +321,10 @@ r12a_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 	 */
 #if 0
 	rxs->r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs->r_flags |= IEEE80211_R_BAND;
 	rxs->c_ieee = MS(le16toh(physt->phyw1), R12A_PHYW1_CHAN);
 	rxs->c_freq = ieee80211_ieee2mhz(rxs->c_ieee,
 	    (rxs->c_ieee < 36) ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+	rxs->c_band = (rxs->c_ieee < 36) ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ;
 #endif
 }
