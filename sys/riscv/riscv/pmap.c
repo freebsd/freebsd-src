@@ -2382,7 +2382,7 @@ retryl3:
 }
 
 int
-pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
+pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 {
 	pd_entry_t *l2, l2e;
 	pt_entry_t bits, *pte, oldpte;
