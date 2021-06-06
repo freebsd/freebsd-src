@@ -104,7 +104,7 @@ SYSCTL_BOOL(_compat_linux, OID_AUTO, setid_allowed, CTLFLAG_RWTUN,
     &linux_setid_allowed, 0,
     "Allow setuid/setgid on execve of Linux binary");
 
-bool
+int
 linux_setid_allowed_query(struct thread *td __unused,
     struct image_params *imgp __unused)
 {
