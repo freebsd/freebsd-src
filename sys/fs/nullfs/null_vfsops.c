@@ -163,7 +163,12 @@ nullfs_mount(struct mount *mp)
 	 * Save pointer to underlying FS and the reference to the
 	 * lower root vnode.
 	 */
-	xmp->nullm_vfs = lowerrootvp->v_mount;
+	xmp->nullm_vfs = vfs_pin_from_vp(lowerrootvp);
+	if (xmp->nullm_vfs == NULL) {
+		vput(lowerrootvp);
+		free(xmp, M_NULLFSMNT);
+		return (ENOENT);
+	}
 	vref(lowerrootvp);
 	xmp->nullm_lowerrootvp = lowerrootvp;
 	mp->mnt_data = xmp;
@@ -173,6 +178,7 @@ nullfs_mount(struct mount *mp)
 	 */
 	error = null_nodeget(mp, lowerrootvp, &nullm_rootvp);
 	if (error != 0) {
+		vfs_unpin(xmp->nullm_vfs);
 		vrele(lowerrootvp);
 		free(xmp, M_NULLFSMNT);
 		return (error);
@@ -263,6 +269,7 @@ nullfs_unmount(mp, mntflags)
 		TAILQ_REMOVE(&ump->mnt_uppers, mp, mnt_upper_link);
 		MNT_IUNLOCK(ump);
 	}
+	vfs_unpin(ump);
 	vrele(mntdata->nullm_lowerrootvp);
 	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);
