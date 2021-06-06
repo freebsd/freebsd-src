@@ -39,10 +39,6 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
-#if __BSD_VISIBLE
-#include <sys/stat.h>
-#endif
-
 /*
  * Prototype functions which were historically defined in <string.h>, but
  * are required by POSIX to be prototyped in <strings.h>.
@@ -100,7 +96,7 @@ size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
-void	 strmode(mode_t, char *);
+void	 strmode(int, char *);
 #endif
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
