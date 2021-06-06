@@ -1250,7 +1250,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_rt_sigtimedwait_args *p = params;
 		uarg[0] = (intptr_t)p->mask; /* l_sigset_t * */
 		uarg[1] = (intptr_t)p->ptr; /* l_siginfo_t * */
-		uarg[2] = (intptr_t)p->timeout; /* struct l_timeval * */
+		uarg[2] = (intptr_t)p->timeout; /* struct l_timespec * */
 		iarg[3] = p->sigsetsize; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -3001,12 +3001,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_clock_gettime64 */
 	case 403: {
-		*n_args = 0;
+		struct linux_clock_gettime64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		uarg[1] = (intptr_t)p->tp; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_clock_settime64 */
 	case 404: {
-		*n_args = 0;
+		struct linux_clock_settime64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		uarg[1] = (intptr_t)p->tp; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_clock_adjtime64 */
@@ -3016,12 +3022,20 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_clock_getres_time64 */
 	case 406: {
-		*n_args = 0;
+		struct linux_clock_getres_time64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		uarg[1] = (intptr_t)p->tp; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_clock_nanosleep_time64 */
 	case 407: {
-		*n_args = 0;
+		struct linux_clock_nanosleep_time64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t)p->rqtp; /* struct l_timespec64 * */
+		uarg[3] = (intptr_t)p->rmtp; /* struct l_timespec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timer_gettime64 */
@@ -3046,7 +3060,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_utimensat_time64 */
 	case 412: {
-		*n_args = 0;
+		struct linux_utimensat_time64_args *p = params;
+		iarg[0] = p->dfd; /* l_int */
+		uarg[1] = (intptr_t)p->pathname; /* const char * */
+		uarg[2] = (intptr_t)p->times64; /* const struct l_timespec64 * */
+		iarg[3] = p->flags; /* l_int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_pselect6_time64 */
@@ -5122,7 +5141,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland l_siginfo_t *";
 			break;
 		case 2:
-			p = "userland struct l_timeval *";
+			p = "userland struct l_timespec *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -8063,18 +8082,64 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_gettime64 */
 	case 403:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_clock_settime64 */
 	case 404:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_clock_adjtime64 */
 	case 405:
 		break;
 	/* linux_clock_getres_time64 */
 	case 406:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_clock_nanosleep_time64 */
 	case 407:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 3:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
@@ -8090,6 +8155,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_utimensat_time64 */
 	case 412:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const struct l_timespec64 *";
+			break;
+		case 3:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_pselect6_time64 */
 	case 413:
@@ -9862,14 +9943,26 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_gettime64 */
 	case 403:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_clock_settime64 */
 	case 404:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_clock_adjtime64 */
 	case 405:
 	/* linux_clock_getres_time64 */
 	case 406:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_clock_nanosleep_time64 */
 	case 407:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_gettime64 */
 	case 408:
 	/* linux_timer_settime64 */
@@ -9880,6 +9973,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 411:
 	/* linux_utimensat_time64 */
 	case 412:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_pselect6_time64 */
 	case 413:
 	/* linux_ppoll_time64 */

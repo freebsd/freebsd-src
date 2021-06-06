@@ -949,7 +949,7 @@
 		int linux_rt_sigtimedwait(
 		    l_sigset_t *mask,
 		    l_siginfo_t *ptr,
-		    struct l_timeval *timeout,
+		    struct l_timespec *timeout,
 		    l_size_t sigsetsize
 		);
 	}
@@ -2341,19 +2341,33 @@
 	}
 ; Linux 5.0:
 403	AUE_NULL	STD {
-		int linux_clock_gettime64(void);
+		int linux_clock_gettime64(
+		    clockid_t which,
+		    struct l_timespec64 *tp
+		);
 	}
 404	AUE_NULL	STD {
-		int linux_clock_settime64(void);
+		int linux_clock_settime64(
+		    clockid_t which,
+		    struct l_timespec64 *tp
+		);
 	}
 405	AUE_NULL	STD {
 		int linux_clock_adjtime64(void);
 	}
 406	AUE_NULL	STD {
-		int linux_clock_getres_time64(void);
+		int linux_clock_getres_time64(
+		    clockid_t which,
+		    struct l_timespec64 *tp
+		);
 	}
 407	AUE_NULL	STD {
-		int linux_clock_nanosleep_time64(void);
+		int linux_clock_nanosleep_time64(
+		    clockid_t which,
+		    l_int flags,
+		    struct l_timespec64 *rqtp,
+		    struct l_timespec64 *rmtp
+		);
 	}
 408	AUE_NULL	STD {
 		int linux_timer_gettime64(void);
@@ -2368,7 +2382,12 @@
 		int linux_timerfd_settime64(void);
 	}
 412	AUE_NULL	STD {
-		int linux_utimensat_time64(void);
+		int linux_utimensat_time64(
+		    l_int dfd,
+		    const char *pathname,
+		    const struct l_timespec64 *times64,
+		    l_int flags
+		);
 	}
 413	AUE_NULL	STD {
 		int linux_pselect6_time64(void);

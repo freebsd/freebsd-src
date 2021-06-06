@@ -559,7 +559,7 @@ struct linux_rt_sigpending_args {
 struct linux_rt_sigtimedwait_args {
 	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
 	char ptr_l_[PADL_(l_siginfo_t *)]; l_siginfo_t * ptr; char ptr_r_[PADR_(l_siginfo_t *)];
-	char timeout_l_[PADL_(struct l_timeval *)]; struct l_timeval * timeout; char timeout_r_[PADR_(struct l_timeval *)];
+	char timeout_l_[PADL_(struct l_timespec *)]; struct l_timespec * timeout; char timeout_r_[PADR_(struct l_timespec *)];
 	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
 };
 struct linux_rt_sigqueueinfo_args {
@@ -1512,19 +1512,25 @@ struct linux_msgctl_args {
 	char buf_l_[PADL_(struct l_msqid_ds *)]; struct l_msqid_ds * buf; char buf_r_[PADR_(struct l_msqid_ds *)];
 };
 struct linux_clock_gettime64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_settime64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_adjtime64_args {
 	register_t dummy;
 };
 struct linux_clock_getres_time64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_nanosleep_time64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char rqtp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * rqtp; char rqtp_r_[PADR_(struct l_timespec64 *)];
+	char rmtp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * rmtp; char rmtp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_timer_gettime64_args {
 	register_t dummy;
@@ -1539,7 +1545,10 @@ struct linux_timerfd_settime64_args {
 	register_t dummy;
 };
 struct linux_utimensat_time64_args {
-	register_t dummy;
+	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
+	char pathname_l_[PADL_(const char *)]; const char * pathname; char pathname_r_[PADR_(const char *)];
+	char times64_l_[PADL_(const struct l_timespec64 *)]; const struct l_timespec64 * times64; char times64_r_[PADR_(const struct l_timespec64 *)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_pselect6_time64_args {
 	register_t dummy;

@@ -59,6 +59,7 @@ int	linux_kernver(struct thread *td);
 
 #define	LINUX_KERNVER_2004000	LINUX_KERNVER(2,4,0)
 #define	LINUX_KERNVER_2006000	LINUX_KERNVER(2,6,0)
+#define	LINUX_KERNVER_2006039	LINUX_KERNVER(2,6,39)
 
 #define	linux_use26(t)		(linux_kernver(t) >= LINUX_KERNVER_2006000)
 
