@@ -170,7 +170,8 @@ ieee80211_input_mimo_all(struct ieee80211com *ic, struct mbuf *m)
  * XXX should handle 3 concurrent reassemblies per-spec.
  */
 struct mbuf *
-ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
+ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace,
+	int has_decrypted)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
@@ -188,6 +189,11 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 	/* Quick way out, if there's nothing to defragment */
 	if (!more_frag && fragno == 0 && ni->ni_rxfrag[0] == NULL)
 		return m;
+
+	/* Temporarily set flag to remember if fragment was encrypted. */
+	/* XXX use a non-packet altering storage for this in the future. */
+	if (has_decrypted)
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 
 	/*
 	 * Remove frag to insure it doesn't get reaped by timer.
@@ -219,10 +225,14 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 
 		lwh = mtod(mfrag, struct ieee80211_frame *);
 		last_rxseq = le16toh(*(uint16_t *)lwh->i_seq);
-		/* NB: check seq # and frag together */
+		/*
+		 * NB: check seq # and frag together. Also check that both
+		 * fragments are plaintext or that both are encrypted.
+		 */
 		if (rxseq == last_rxseq+1 &&
 		    IEEE80211_ADDR_EQ(wh->i_addr1, lwh->i_addr1) &&
-		    IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2)) {
+		    IEEE80211_ADDR_EQ(wh->i_addr2, lwh->i_addr2) &&
+		    !((wh->i_fc[1] ^ lwh->i_fc[1]) & IEEE80211_FC1_PROTECTED)) {
 			/* XXX clear MORE_FRAG bit? */
 			/* track last seqnum and fragno */
 			*(uint16_t *) lwh->i_seq = *(uint16_t *) wh->i_seq;
@@ -252,6 +262,11 @@ ieee80211_defrag(struct ieee80211_node *ni, struct mbuf *m, int hdrspace)
 		ni->ni_rxfragstamp = ticks;
 		ni->ni_rxfrag[0] = mfrag;
 		mfrag = NULL;
+	}
+	/* Remember to clear protected flag that was temporarily set. */
+	if (mfrag != NULL) {
+		wh = mtod(mfrag, struct ieee80211_frame *);
+		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 	}
 	return mfrag;
 }
