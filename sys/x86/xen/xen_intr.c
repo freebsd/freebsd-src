@@ -117,9 +117,8 @@ DPCPU_DEFINE_STATIC(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
 
 DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
-#define	XEN_INVALID_EVTCHN	0 /* Invalid event channel */
-
-#define	is_valid_evtchn(x)	((x) != XEN_INVALID_EVTCHN)
+#define	INVALID_EVTCHN		(~(evtchn_port_t)0) /* Invalid event channel */
+#define	is_valid_evtchn(x)	((uintmax_t)(x) < NR_EVENT_CHANNELS)
 
 struct xenisrc {
 	struct intsrc	xi_intsrc;
@@ -372,7 +371,7 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	}
 	isrc->xi_cpu = 0;
 	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
-	isrc->xi_port = 0;
+	isrc->xi_port = INVALID_EVTCHN;
 	isrc->xi_cookie = NULL;
 	mtx_unlock(&xen_intr_isrc_lock);
 	return (0);
@@ -613,6 +612,19 @@ xen_intr_init(void *dummy __unused)
 	if (!xen_domain())
 		return (0);
 
+	_Static_assert(is_valid_evtchn(0),
+	    "is_valid_evtchn(0) fails (unused by Xen, but valid by interface");
+	_Static_assert(is_valid_evtchn(NR_EVENT_CHANNELS - 1),
+	    "is_valid_evtchn(max) fails (is a valid channel)");
+	_Static_assert(!is_valid_evtchn(NR_EVENT_CHANNELS),
+	    "is_valid_evtchn(>max) fails (NOT a valid channel)");
+	_Static_assert(!is_valid_evtchn(~(evtchn_port_t)0),
+	    "is_valid_evtchn(maxint) fails (overflow?)");
+	_Static_assert(!is_valid_evtchn(INVALID_EVTCHN),
+	    "is_valid_evtchn(INVALID_EVTCHN) fails (must be invalid!)");
+	_Static_assert(!is_valid_evtchn(-1),
+	    "is_valid_evtchn(-1) fails (negative are invalid)");
+
 	mtx_init(&xen_intr_isrc_lock, "xen-irq-lock", NULL, MTX_DEF);
 
 	/*
@@ -769,7 +781,7 @@ xen_intr_resume(struct pic *unused, bool suspend_cancelled)
 		vector = first_evtchn_irq + isrc_idx;
 		isrc = (struct xenisrc *)intr_lookup_source(vector);
 		if (isrc != NULL) {
-			isrc->xi_port = 0;
+			isrc->xi_port = INVALID_EVTCHN;
 			switch (isrc->xi_type) {
 			case EVTCHN_TYPE_IPI:
 				xen_rebind_ipi(isrc);
@@ -1292,7 +1304,7 @@ int
 xen_intr_get_evtchn_from_port(evtchn_port_t port, xen_intr_handle_t *handlep)
 {
 
-	if (!is_valid_evtchn(port) || port >= NR_EVENT_CHANNELS)
+	if (!is_valid_evtchn(port))
 		return (EINVAL);
 
 	if (handlep == NULL) {
