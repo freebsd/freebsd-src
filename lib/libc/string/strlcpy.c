@@ -31,19 +31,19 @@ size_t
 strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 {
 	const char * const osrc = src;
-	const size_t odsize = dsize;
+	size_t nleft = dsize;
 
 	/* Copy as many bytes as will fit. */
-	if (dsize != 0) {
-		while (--dsize != 0) {
+	if (nleft != 0) {
+		while (--nleft != 0) {
 			if ((*dst++ = *src++) == '\0')
 				break;
 		}
 	}
 
 	/* Not enough room in dst, add NUL and traverse rest of src. */
-	if (dsize == 0) {
-		if (odsize != 0)
+	if (nleft == 0) {
+		if (dsize != 0)
 			*dst = '\0';		/* NUL-terminate dst */
 		while (*src++)
 			;
