@@ -216,7 +216,8 @@ uni_encode_msg_hdr(struct uni_msg *msg, struct uni_msghdr *h,
 {
 	u_char byte;
 
-	(void)uni_msg_ensure(msg, 9);
+	if (uni_msg_ensure(msg, 9) != 0)
+		return -1;
 
 	APP_BYTE(msg, cx->pnni ? PNNI_PROTO : UNI_PROTO); 
 	APP_BYTE(msg, 3); 
@@ -654,7 +655,8 @@ uni_encode_ie_hdr(struct uni_msg *msg, enum uni_ietype type,
 {
 	u_char byte;
 
-	(void)uni_msg_ensure(msg, 4 + len);
+	if (uni_msg_ensure(msg, 4 + len) != 0)
+		return -1;
 	*msg->b_wptr++ = type;
 
 	byte = 0x80 | (h->coding << 5);
