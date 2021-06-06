@@ -1641,7 +1641,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		hdrspace = ieee80211_hdrspace(ic, wh);
 		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			m = ieee80211_defrag(ni, m, hdrspace);
+			m = ieee80211_defrag(ni, m, hdrspace, 0);
 			if (m == NULL) {
 				/* Fragment dropped or frame not complete yet */
 				goto out;
