@@ -49,8 +49,8 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-size_t strlcpy(char * __restrict dst, const char * __restrict src, size_t siz);
-size_t strlcat(char * __restrict dst, const char * __restrict src, size_t siz);
+size_t strlcpy(char * dst, const char * src, size_t siz);
+size_t strlcat(char * dst, const char * src, size_t siz);
 char *strnstr(const char *str, const char *find, size_t str_len);
 void strmode(/* mode_t*/ int mode, char *str);
 
