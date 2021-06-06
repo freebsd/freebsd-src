@@ -309,7 +309,8 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 }
 
 struct mbuf *
-ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
+ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen,
+	uint8_t qos)
 {
 	struct ieee80211_qosframe_addr4 wh;
 	struct ether_header *eh;
@@ -331,7 +332,9 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0 &&
 	    /* NB: preserve AppleTalk frames that have a native SNAP hdr */
 	    !(llc->llc_snap.ether_type == htons(ETHERTYPE_AARP) ||
-	      llc->llc_snap.ether_type == htons(ETHERTYPE_IPX))) {
+	      llc->llc_snap.ether_type == htons(ETHERTYPE_IPX)) &&
+	    /* Do not want to touch A-MSDU frames. */
+	    !(qos & IEEE80211_QOS_AMSDU)) {
 		m_adj(m, hdrlen + sizeof(struct llc) - sizeof(*eh));
 		llc = NULL;
 	} else {
@@ -379,6 +382,10 @@ ieee80211_decap1(struct mbuf *m, int *framelen)
 #define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
 	struct ether_header *eh;
 	struct llc *llc;
+	const uint8_t llc_hdr_mac[ETHER_ADDR_LEN] = {
+		/* MAC address matching the 802.2 LLC header */
+		LLC_SNAP_LSAP, LLC_SNAP_LSAP, LLC_UI, 0, 0, 0
+	};
 
 	/*
 	 * The frame has an 802.3 header followed by an 802.2
@@ -391,6 +398,15 @@ ieee80211_decap1(struct mbuf *m, int *framelen)
 	if (m->m_len < FF_LLC_SIZE && (m = m_pullup(m, FF_LLC_SIZE)) == NULL)
 		return NULL;
 	eh = mtod(m, struct ether_header *);	/* 802.3 header is first */
+
+	/*
+	 * Detect possible attack where a single 802.11 frame is processed
+	 * as an A-MSDU frame due to an adversary setting the A-MSDU present
+	 * bit in the 802.11 QoS header. [FragAttacks]
+	 */
+	if (memcmp(eh->ether_dhost, llc_hdr_mac, ETHER_ADDR_LEN) == 0)
+		return NULL;
+
 	llc = (struct llc *)&eh[1];		/* 802.2 header follows */
 	*framelen = ntohs(eh->ether_type)	/* encap'd frame size */
 		  + sizeof(struct ether_header) - sizeof(struct llc);
