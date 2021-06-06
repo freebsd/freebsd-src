@@ -49,7 +49,7 @@
 
 #ifndef _MODE_T_DECLARED
 typedef	__mode_t	mode_t;
-#define	_SIZE_T_DECLARED
+#define	_MODE_T_DECLARED
 #endif
 
 #ifndef _SIZE_T_DECLARED
