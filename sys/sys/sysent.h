@@ -148,7 +148,7 @@ struct sysentvec {
 	void		(*sv_onexec)(struct proc *, struct image_params *);
 	void		(*sv_onexit)(struct proc *);
 	void		(*sv_ontdexit)(struct thread *td);
-	bool		(*sv_setid_allowed)(struct thread *td,
+	int		(*sv_setid_allowed)(struct thread *td,
 			    struct image_params *imgp);
 };
 

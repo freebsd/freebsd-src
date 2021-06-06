@@ -71,6 +71,6 @@ extern int linux_preserve_vstatus;
 extern bool linux_map_sched_prio;
 
 struct image_params;
-bool linux_setid_allowed_query(struct thread *td, struct image_params *imgp);
+int linux_setid_allowed_query(struct thread *td, struct image_params *imgp);
 
 #endif /* _LINUX_MIB_H_ */
