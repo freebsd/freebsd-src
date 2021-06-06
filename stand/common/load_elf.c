@@ -893,7 +893,7 @@ nosyms:
 	p_start = sym.st_value + ef->off;
 	if (__elfN(lookup_symbol)(ef, "__stop_set_modmetadata_set", &sym,
 	    STT_NOTYPE) != 0)
-		return ENOENT;
+		return 0;
 	p_end = sym.st_value + ef->off;
 
 	if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) == 0)
