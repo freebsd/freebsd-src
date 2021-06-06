@@ -173,6 +173,7 @@ typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
  */
 #define	D_TRACKCLOSE	0x00080000	/* track all closes */
 #define	D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
+#define	D_GIANTOK	0x00200000	/* suppress warning about using Giant */
 #define	D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
 
