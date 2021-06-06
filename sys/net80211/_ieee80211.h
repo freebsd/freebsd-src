@@ -612,6 +612,9 @@ struct ieee80211_rx_stats {
 	uint8_t c_ieee;			/* Channel */
 	uint8_t c_width;		/* channel width, FW flags above */
 
+	/* 32 bits */
+	uint32_t c_band;		/* Band; XXX we do not have a real band. */
+
 	/* Force alignment to DWORD */
 	union {
 		uint8_t evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];

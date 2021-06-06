@@ -1818,6 +1818,8 @@ ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
 		return (NULL);
 	if ((rxs->r_flags & IEEE80211_R_IEEE) == 0)
 		return (NULL);
+	if ((rxs->r_flags & IEEE80211_R_BAND) == 0)
+		return (NULL);
 
 	/*
 	 * If the rx status contains a valid ieee/freq, then
@@ -1828,11 +1830,20 @@ ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
 	 */
 
 	/* Determine a band */
-	/* XXX should be done by the driver? */
-	if (rxs->c_freq < 3000) {
+	switch (rxs->c_band) {
+	case IEEE80211_CHAN_2GHZ:
 		flags = IEEE80211_CHAN_G;
-	} else {
+		break;
+	case IEEE80211_CHAN_5GHZ:
 		flags = IEEE80211_CHAN_A;
+		break;
+	default:
+		if (rxs->c_freq < 3000) {
+			flags = IEEE80211_CHAN_G;
+		} else {
+			flags = IEEE80211_CHAN_A;
+		}
+		break;
 	}
 
 	/* Channel lookup */

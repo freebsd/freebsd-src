@@ -3303,12 +3303,15 @@ iwm_rx_rx_mpdu(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	 */
 	bzero(&rxs, sizeof(rxs));
 	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs.r_flags |= IEEE80211_R_BAND;
 	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
 	rxs.c_ieee = le16toh(phy_info->channel);
 	if (le16toh(phy_info->phy_flags & IWM_RX_RES_PHY_FLAGS_BAND_24)) {
 		rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_2GHZ);
+		rxs.c_band = IEEE80211_CHAN_2GHZ;
 	} else {
 		rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee, IEEE80211_CHAN_5GHZ);
+		rxs.c_band = IEEE80211_CHAN_5GHZ;
 	}
 
 	/* rssi is in 1/2db units */
@@ -3414,10 +3417,12 @@ iwm_rx_mpdu_mq(struct iwm_softc *sc, struct mbuf *m, uint32_t offset,
 	 */
 	bzero(&rxs, sizeof(rxs));
 	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
+	rxs.r_flags |= IEEE80211_R_BAND;
 	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
 	rxs.c_ieee = channel;
 	rxs.c_freq = ieee80211_ieee2mhz(rxs.c_ieee,
 	    channel <= 14 ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
+	rxs.c_band = channel <= 14 ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ;
 
 	/* rssi is in 1/2db units */
 	rxs.c_rssi = rssi * 2;
