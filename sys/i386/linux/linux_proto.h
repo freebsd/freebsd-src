@@ -1539,7 +1539,10 @@ struct linux_timerfd_settime64_args {
 	register_t dummy;
 };
 struct linux_utimensat_time64_args {
-	register_t dummy;
+	char dfd_l_[PADL_(l_int)]; l_int dfd; char dfd_r_[PADR_(l_int)];
+	char pathname_l_[PADL_(const char *)]; const char * pathname; char pathname_r_[PADR_(const char *)];
+	char times64_l_[PADL_(const struct l_timespec64 *)]; const struct l_timespec64 * times64; char times64_r_[PADR_(const struct l_timespec64 *)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_pselect6_time64_args {
 	register_t dummy;
