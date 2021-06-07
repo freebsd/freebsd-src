@@ -1207,7 +1207,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_rt_sigtimedwait_args *p = params;
 		uarg[0] = (intptr_t)p->mask; /* l_sigset_t * */
 		uarg[1] = (intptr_t)p->ptr; /* l_siginfo_t * */
-		uarg[2] = (intptr_t)p->timeout; /* struct l_timeval * */
+		uarg[2] = (intptr_t)p->timeout; /* struct l_timespec * */
 		iarg[3] = p->sigsetsize; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -5041,7 +5041,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland l_siginfo_t *";
 			break;
 		case 2:
-			p = "userland struct l_timeval *";
+			p = "userland struct l_timespec *";
 			break;
 		case 3:
 			p = "l_size_t";
