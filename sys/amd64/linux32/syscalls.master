@@ -2362,7 +2362,12 @@
 		);
 	}
 407	AUE_NULL	STD {
-		int linux_clock_nanosleep_time64(void);
+		int linux_clock_nanosleep_time64(
+		    clockid_t which,
+		    l_int flags,
+		    struct l_timespec64 *rqtp,
+		    struct l_timespec64 *rmtp
+		);
 	}
 408	AUE_NULL	STD {
 		int linux_timer_gettime64(void);

@@ -68,7 +68,6 @@ DUMMY(mq_getsetattr);
 DUMMY(arch_prctl);
 /* Linux 5.0: */
 DUMMY(clock_adjtime64);
-DUMMY(clock_nanosleep_time64);
 DUMMY(timer_gettime64);
 DUMMY(timer_settime64);
 DUMMY(timerfd_gettime64);
