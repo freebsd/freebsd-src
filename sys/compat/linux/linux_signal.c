@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 #include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
@@ -392,9 +393,8 @@ linux_rt_sigtimedwait(struct thread *td,
 	struct linux_rt_sigtimedwait_args *args)
 {
 	int error, sig;
-	l_timeval ltv;
-	struct timeval tv;
 	struct timespec ts, *tsa;
+	struct l_timespec lts;
 	l_sigset_t lset;
 	sigset_t bset;
 	l_siginfo_t linfo;
@@ -409,27 +409,15 @@ linux_rt_sigtimedwait(struct thread *td,
 
 	tsa = NULL;
 	if (args->timeout) {
-		if ((error = copyin(args->timeout, &ltv, sizeof(ltv))))
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
 			return (error);
-		tv.tv_sec = (long)ltv.tv_sec;
-		tv.tv_usec = (suseconds_t)ltv.tv_usec;
-		if (itimerfix(&tv)) {
-			/*
-			 * The timeout was invalid. Convert it to something
-			 * valid that will act as it does under Linux.
-			 */
-			tv.tv_sec += tv.tv_usec / 1000000;
-			tv.tv_usec %= 1000000;
-			if (tv.tv_usec < 0) {
-				tv.tv_sec -= 1;
-				tv.tv_usec += 1000000;
-			}
-			if (tv.tv_sec < 0)
-				timevalclear(&tv);
-		}
-		TIMEVAL_TO_TIMESPEC(&tv, &ts);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
 		tsa = &ts;
-	}
+	} else
+		tsa = NULL;
+
 	error = kern_sigtimedwait(td, bset, &info, tsa);
 	if (error)
 		return (error);

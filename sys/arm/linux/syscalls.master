@@ -804,7 +804,7 @@
 		int linux_rt_sigtimedwait(
 		    l_sigset_t *mask,
 		    l_siginfo_t *ptr,
-		    struct l_timeval *timeout,
+		    struct l_timespec *timeout,
 		    l_size_t sigsetsize
 		);
 	}
