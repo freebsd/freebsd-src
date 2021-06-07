@@ -520,12 +520,13 @@ sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 		memcpy(p, b, len);
 		sf_buf_free(sf);
 
+		/* We copied so nothing more to skip. */
+		skip = 0;
 		copied += len;
 		/* Either we exactly filled the page, or we are done. */
 		buflen -= len;
 		if (buflen == 0)
 			break;
-		skip -= len;
 		b += len;
 	}
 	sched_unpin();
