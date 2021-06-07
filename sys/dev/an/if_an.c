@@ -661,6 +661,7 @@ an_attach(struct an_softc *sc, int flags)
 	int			i, nrate, mword;
 	u_int8_t		r;
 
+	gone_in(14, "EOL/EOS in 2007");
 	ifp = sc->an_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(sc->an_dev, "can not if_alloc()\n");
