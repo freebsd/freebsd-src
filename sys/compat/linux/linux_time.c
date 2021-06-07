@@ -94,10 +94,13 @@ LIN_SDT_PROBE_DEFINE1(time, linux_clock_settime, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_settime64, conversion_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_settime64, copyin_error, "int");
 #endif
-LIN_SDT_PROBE_DEFINE0(time, linux_clock_getres, nullcall);
-LIN_SDT_PROBE_DEFINE1(time, linux_clock_getres, conversion_error, "int");
-LIN_SDT_PROBE_DEFINE1(time, linux_clock_getres, getres_error, "int");
+LIN_SDT_PROBE_DEFINE0(time, linux_common_clock_getres, nullcall);
+LIN_SDT_PROBE_DEFINE1(time, linux_common_clock_getres, conversion_error, "int");
+LIN_SDT_PROBE_DEFINE1(time, linux_common_clock_getres, getres_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_getres, copyout_error, "int");
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+LIN_SDT_PROBE_DEFINE1(time, linux_clock_getres_time64, copyout_error, "int");
+#endif
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, conversion_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, copyout_error, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_nanosleep, copyin_error, "int");
@@ -110,6 +113,8 @@ LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_clockid, "int");
 static int	linux_common_clock_gettime(struct thread *, clockid_t,
 		    struct timespec *);
 static int	linux_common_clock_settime(struct thread *, clockid_t,
+		    struct timespec *);
+static int	linux_common_clock_getres(struct thread *, clockid_t,
 		    struct timespec *);
 
 int
@@ -486,23 +491,22 @@ linux_clock_settime64(struct thread *td, struct linux_clock_settime64_args *args
 }
 #endif
 
-int
-linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
+static int
+linux_common_clock_getres(struct thread *td, clockid_t which,
+    struct timespec *ts)
 {
 	struct proc *p;
-	struct timespec ts;
-	struct l_timespec lts;
 	int error, clockwhich;
 	clockid_t nwhich;
 	pid_t pid;
 	lwpid_t tid;
 
-	error = linux_to_native_clockid(&nwhich, args->which);
+	error = linux_to_native_clockid(&nwhich, which);
 	if (error != 0) {
 		linux_msg(curthread,
-		    "unsupported clock_getres clockid %d", args->which);
-		LIN_SDT_PROBE1(time, linux_clock_getres, conversion_error,
-		    error);
+		    "unsupported clock_getres clockid %d", which);
+		LIN_SDT_PROBE1(time, linux_common_clock_getres,
+		    conversion_error, error);
 		return (error);
 	}
 
@@ -510,10 +514,10 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	 * Check user supplied clock id in case of per-process
 	 * or thread-specific cpu-time clock.
 	 */
-	if (args->which < 0) {
+	if (which < 0) {
 		switch (nwhich) {
 		case CLOCK_THREAD_CPUTIME_ID:
-			tid = LINUX_CPUCLOCK_ID(args->which);
+			tid = LINUX_CPUCLOCK_ID(which);
 			if (tid != 0) {
 				p = td->td_proc;
 				if (linux_tdfind(td, tid, p->p_pid) == NULL)
@@ -522,7 +526,7 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 			}
 			break;
 		case CLOCK_PROCESS_CPUTIME_ID:
-			pid = LINUX_CPUCLOCK_ID(args->which);
+			pid = LINUX_CPUCLOCK_ID(which);
 			if (pid != 0) {
 				error = pget(pid, PGET_CANSEE, &p);
 				if (error != 0)
@@ -533,15 +537,15 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 		}
 	}
 
-	if (args->tp == NULL) {
-		LIN_SDT_PROBE0(time, linux_clock_getres, nullcall);
+	if (ts == NULL) {
+		LIN_SDT_PROBE0(time, linux_common_clock_getres, nullcall);
 		return (0);
 	}
 
 	switch (nwhich) {
 	case CLOCK_THREAD_CPUTIME_ID:
 	case CLOCK_PROCESS_CPUTIME_ID:
-		clockwhich = LINUX_CPUCLOCK_WHICH(args->which);
+		clockwhich = LINUX_CPUCLOCK_WHICH(which);
 		/*
 		 * In both cases (when the clock id obtained by a call to
 		 * clock_getcpuclockid() or using the clock
@@ -550,9 +554,9 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 		 *
 		 * See Linux posix_cpu_clock_getres() implementation.
 		 */
-		if (args->which > 0 || clockwhich == LINUX_CPUCLOCK_SCHED) {
-			ts.tv_sec = 0;
-			ts.tv_nsec = 1;
+		if (which > 0 || clockwhich == LINUX_CPUCLOCK_SCHED) {
+			ts->tv_sec = 0;
+			ts->tv_nsec = 1;
 			goto out;
 		}
 
@@ -571,22 +575,62 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	default:
 		break;
 	}
-	error = kern_clock_getres(td, nwhich, &ts);
+	error = kern_clock_getres(td, nwhich, ts);
 	if (error != 0) {
-		LIN_SDT_PROBE1(time, linux_clock_getres, getres_error, error);
+		LIN_SDT_PROBE1(time, linux_common_clock_getres,
+		    getres_error, error);
 		return (error);
 	}
 
 out:
+	return (error);
+}
+
+int
+linux_clock_getres(struct thread *td,
+    struct linux_clock_getres_args *args)
+{
+	struct timespec ts;
+	struct l_timespec lts;
+	int error;
+
+	error = linux_common_clock_getres(td, args->which, &ts);
+	if (error != 0 || args->tp == NULL)
+		return (error);
+
 	error = native_to_linux_timespec(&lts, &ts);
 	if (error != 0)
 		return (error);
-	error = copyout(&lts, args->tp, sizeof lts);
+	error = copyout(&lts, args->tp, sizeof(lts));
 	if (error != 0)
-		LIN_SDT_PROBE1(time, linux_clock_getres, copyout_error, error);
-
+		LIN_SDT_PROBE1(time, linux_clock_getres,
+		    copyout_error, error);
 	return (error);
 }
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_clock_getres_time64(struct thread *td,
+    struct linux_clock_getres_time64_args *args)
+{
+	struct timespec ts;
+	struct l_timespec64 lts;
+	int error;
+
+	error = linux_common_clock_getres(td, args->which, &ts);
+	if (error != 0 || args->tp == NULL)
+		return (error);
+
+	error = native_to_linux_timespec64(&lts, &ts);
+	if (error != 0)
+		return (error);
+	error = copyout(&lts, args->tp, sizeof(lts));
+	if (error != 0)
+		LIN_SDT_PROBE1(time, linux_clock_getres_time64,
+		    copyout_error, error);
+	return (error);
+}
+#endif
 
 int
 linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)

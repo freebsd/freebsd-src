@@ -2356,7 +2356,10 @@
 		int linux_clock_adjtime64(void);
 	}
 406	AUE_NULL	STD {
-		int linux_clock_getres_time64(void);
+		int linux_clock_getres_time64(
+		    clockid_t which,
+		    struct l_timespec64 *tp
+		);
 	}
 407	AUE_NULL	STD {
 		int linux_clock_nanosleep_time64(void);
