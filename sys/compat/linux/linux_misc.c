@@ -130,7 +130,14 @@ struct l_pselect6arg {
 	l_size_t	ss_len;
 };
 
-static int	linux_utimensat_nsec_valid(l_long);
+static int	linux_utimensat_lts_to_ts(struct l_timespec *,
+			struct timespec *);
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+static int	linux_utimensat_lts64_to_ts(struct l_timespec64 *,
+			struct timespec *);
+#endif
+static int	linux_common_utimensat(struct thread *, int,
+			const char *, struct timespec *, int);
 
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
@@ -780,89 +787,66 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 #endif
 
 static int
-linux_utimensat_nsec_valid(l_long nsec)
+linux_utimensat_lts_to_ts(struct l_timespec *l_times, struct timespec *times)
 {
 
-	if (nsec == LINUX_UTIME_OMIT || nsec == LINUX_UTIME_NOW)
-		return (0);
-	if (nsec >= 0 && nsec <= 999999999)
-		return (0);
-	return (1);
+	if (l_times->tv_nsec != LINUX_UTIME_OMIT &&
+	    l_times->tv_nsec != LINUX_UTIME_NOW &&
+	    (l_times->tv_nsec < 0 || l_times->tv_nsec > 999999999))
+		return (EINVAL);
+
+	times->tv_sec = l_times->tv_sec;
+	switch (l_times->tv_nsec)
+	{
+	case LINUX_UTIME_OMIT:
+		times->tv_nsec = UTIME_OMIT;
+		break;
+	case LINUX_UTIME_NOW:
+		times->tv_nsec = UTIME_NOW;
+		break;
+	default:
+		times->tv_nsec = l_times->tv_nsec;
+	}
+
+	return (0);
 }
 
-int
-linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
+static int
+linux_common_utimensat(struct thread *td, int ldfd, const char *pathname,
+    struct timespec *timesp, int lflags)
 {
-	struct l_timespec l_times[2];
-	struct timespec times[2], *timesp = NULL;
 	char *path = NULL;
 	int error, dfd, flags = 0;
 
-	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	dfd = (ldfd == LINUX_AT_FDCWD) ? AT_FDCWD : ldfd;
 
-	if (args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH))
+	if (lflags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH))
 		return (EINVAL);
 
-	if (args->times != NULL) {
-		error = copyin(args->times, l_times, sizeof(l_times));
-		if (error != 0)
-			return (error);
-
-		if (linux_utimensat_nsec_valid(l_times[0].tv_nsec) != 0 ||
-		    linux_utimensat_nsec_valid(l_times[1].tv_nsec) != 0)
-			return (EINVAL);
-
-		times[0].tv_sec = l_times[0].tv_sec;
-		switch (l_times[0].tv_nsec)
-		{
-		case LINUX_UTIME_OMIT:
-			times[0].tv_nsec = UTIME_OMIT;
-			break;
-		case LINUX_UTIME_NOW:
-			times[0].tv_nsec = UTIME_NOW;
-			break;
-		default:
-			times[0].tv_nsec = l_times[0].tv_nsec;
-		}
-
-		times[1].tv_sec = l_times[1].tv_sec;
-		switch (l_times[1].tv_nsec)
-		{
-		case LINUX_UTIME_OMIT:
-			times[1].tv_nsec = UTIME_OMIT;
-			break;
-		case LINUX_UTIME_NOW:
-			times[1].tv_nsec = UTIME_NOW;
-			break;
-		default:
-			times[1].tv_nsec = l_times[1].tv_nsec;
-			break;
-		}
-		timesp = times;
-
+	if (timesp != NULL) {
 		/* This breaks POSIX, but is what the Linux kernel does
 		 * _on purpose_ (documented in the man page for utimensat(2)),
 		 * so we must follow that behaviour. */
-		if (times[0].tv_nsec == UTIME_OMIT &&
-		    times[1].tv_nsec == UTIME_OMIT)
+		if (timesp[0].tv_nsec == UTIME_OMIT &&
+		    timesp[1].tv_nsec == UTIME_OMIT)
 			return (0);
 	}
 
-	if (args->flags & LINUX_AT_SYMLINK_NOFOLLOW)
+	if (lflags & LINUX_AT_SYMLINK_NOFOLLOW)
 		flags |= AT_SYMLINK_NOFOLLOW;
-	if (args->flags & LINUX_AT_EMPTY_PATH)
+	if (lflags & LINUX_AT_EMPTY_PATH)
 		flags |= AT_EMPTY_PATH;
 
 	if (!LUSECONVPATH(td)) {
-		if (args->pathname != NULL) {
-			return (kern_utimensat(td, dfd, args->pathname,
+		if (pathname != NULL) {
+			return (kern_utimensat(td, dfd, pathname,
 			    UIO_USERSPACE, timesp, UIO_SYSSPACE, flags));
 		}
 	}
 
-	if (args->pathname != NULL)
-		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
-	else if (args->flags != 0)
+	if (pathname != NULL)
+		LCONVPATHEXIST_AT(td, pathname, &path, dfd);
+	else if (lflags != 0)
 		return (EINVAL);
 
 	if (path == NULL)
@@ -875,6 +859,85 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 
 	return (error);
 }
+
+int
+linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
+{
+	struct l_timespec l_times[2];
+	struct timespec times[2], *timesp;
+	int error;
+
+	if (args->times != NULL) {
+		error = copyin(args->times, l_times, sizeof(l_times));
+		if (error != 0)
+			return (error);
+
+		error = linux_utimensat_lts_to_ts(&l_times[0], &times[0]);
+		if (error != 0)
+			return (error);
+		error = linux_utimensat_lts_to_ts(&l_times[1], &times[1]);
+		if (error != 0)
+			return (error);
+		timesp = times;
+	} else
+		timesp = NULL;
+
+	return (linux_common_utimensat(td, args->dfd, args->pathname,
+	    timesp, args->flags));
+}
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+static int
+linux_utimensat_lts64_to_ts(struct l_timespec64 *l_times, struct timespec *times)
+{
+
+	if (l_times->tv_nsec != LINUX_UTIME_OMIT &&
+	    l_times->tv_nsec != LINUX_UTIME_NOW &&
+	    (l_times->tv_nsec < 0 || l_times->tv_nsec > 999999999))
+		return (EINVAL);
+
+	times->tv_sec = l_times->tv_sec;
+	switch (l_times->tv_nsec)
+	{
+	case LINUX_UTIME_OMIT:
+		times->tv_nsec = UTIME_OMIT;
+		break;
+	case LINUX_UTIME_NOW:
+		times->tv_nsec = UTIME_NOW;
+		break;
+	default:
+		times->tv_nsec = l_times->tv_nsec;
+	}
+
+	return (0);
+}
+
+int
+linux_utimensat_time64(struct thread *td, struct linux_utimensat_time64_args *args)
+{
+	struct l_timespec64 l_times[2];
+	struct timespec times[2], *timesp;
+	int error;
+
+	if (args->times64 != NULL) {
+		error = copyin(args->times64, l_times, sizeof(l_times));
+		if (error != 0)
+			return (error);
+
+		error = linux_utimensat_lts64_to_ts(&l_times[0], &times[0]);
+		if (error != 0)
+			return (error);
+		error = linux_utimensat_lts64_to_ts(&l_times[1], &times[1]);
+		if (error != 0)
+			return (error);
+		timesp = times;
+	} else
+		timesp = NULL;
+
+	return (linux_common_utimensat(td, args->dfd, args->pathname,
+	    timesp, args->flags));
+}
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
