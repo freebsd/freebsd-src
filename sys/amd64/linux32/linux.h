@@ -81,6 +81,7 @@ typedef l_int		l_pid_t;
 typedef l_uint		l_size_t;
 typedef l_long		l_suseconds_t;
 typedef l_long		l_time_t;
+typedef l_longlong	l_time64_t;
 typedef l_uint		l_uid_t;
 typedef l_ushort	l_uid16_t;
 typedef l_int		l_timer_t;
@@ -169,6 +170,12 @@ struct l_mmap_argv {
 struct l_timespec {
 	l_time_t	tv_sec;
 	l_long		tv_nsec;
+};
+
+/* __kernel_timespec */
+struct l_timespec64 {
+	l_time64_t	tv_sec;
+	l_longlong	tv_nsec;
 };
 
 struct l_newstat {

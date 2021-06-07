@@ -124,6 +124,30 @@ linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 	return (0);
 }
 
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+native_to_linux_timespec64(struct l_timespec64 *ltp64, struct timespec *ntp)
+{
+
+	ltp64->tv_sec = ntp->tv_sec;
+	ltp64->tv_nsec = ntp->tv_nsec;
+
+	return (0);
+}
+
+int
+linux_to_native_timespec64(struct timespec *ntp, struct l_timespec64 *ltp64)
+{
+
+	if (ltp64->tv_sec < 0 || ltp64->tv_nsec < 0 || ltp64->tv_nsec > 999999999)
+		return (EINVAL);
+	ntp->tv_sec = ltp64->tv_sec;
+	ntp->tv_nsec = ltp64->tv_nsec;
+
+	return (0);
+}
+#endif
+
 int
 native_to_linux_itimerspec(struct l_itimerspec *ltp, struct itimerspec *ntp)
 {
