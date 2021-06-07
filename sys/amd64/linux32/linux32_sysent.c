@@ -421,7 +421,7 @@ struct sysent linux32_sysent[] = {
 	{ .sy_narg = AS(linux_msgrcv_args), .sy_call = (sy_call_t *)linux_msgrcv, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 401 = linux_msgrcv */
 	{ .sy_narg = AS(linux_msgctl_args), .sy_call = (sy_call_t *)linux_msgctl, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 402 = linux_msgctl */
 	{ .sy_narg = AS(linux_clock_gettime64_args), .sy_call = (sy_call_t *)linux_clock_gettime64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 403 = linux_clock_gettime64 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clock_settime64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 404 = linux_clock_settime64 */
+	{ .sy_narg = AS(linux_clock_settime64_args), .sy_call = (sy_call_t *)linux_clock_settime64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 404 = linux_clock_settime64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clock_adjtime64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 405 = linux_clock_adjtime64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clock_getres_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 406 = linux_clock_getres_time64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clock_nanosleep_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 407 = linux_clock_nanosleep_time64 */
