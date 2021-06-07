@@ -40,6 +40,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210607: remove ancontrol(8) related programs
+OLD_FILES+=usr/sbin/ancontrol
+OLD_FILES+=usr/share/man/man8/ancontrol.8.gz
+
 # 20210607: remove an(4)
 OLD_FILES+=usr/include/dev/an/if_aironet_ieee.h
 OLD_FILES+=usr/include/dev/an/if_anreg.h
