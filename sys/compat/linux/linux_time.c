@@ -701,6 +701,8 @@ linux_common_clock_nanosleep(struct thread *td, clockid_t which,
 		    unsupported_clockid, which);
 		return (error);
 	}
+	if (clockid == CLOCK_THREAD_CPUTIME_ID)
+		return (ENOTSUP);
 
 	return (kern_clock_nanosleep(td, clockid, flags, rqtp, rmtp));
 }
