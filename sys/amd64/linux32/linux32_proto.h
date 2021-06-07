@@ -1519,7 +1519,8 @@ struct linux_msgctl_args {
 	char buf_l_[PADL_(struct l_msqid_ds *)]; struct l_msqid_ds * buf; char buf_r_[PADR_(struct l_msqid_ds *)];
 };
 struct linux_clock_gettime64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_settime64_args {
 	register_t dummy;
