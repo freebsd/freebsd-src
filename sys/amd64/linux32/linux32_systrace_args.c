@@ -2962,7 +2962,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_clock_gettime64 */
 	case 403: {
-		*n_args = 0;
+		struct linux_clock_gettime64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		uarg[1] = (intptr_t)p->tp; /* struct l_timespec64 * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_clock_settime64 */
@@ -7991,6 +7994,16 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_gettime64 */
 	case 403:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_clock_settime64 */
 	case 404:
@@ -9777,6 +9790,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_gettime64 */
 	case 403:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_clock_settime64 */
 	case 404:
 	/* linux_clock_adjtime64 */
