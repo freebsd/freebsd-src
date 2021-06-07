@@ -67,7 +67,6 @@ DUMMY(mq_getsetattr);
 /* Linux 4.11: */
 DUMMY(arch_prctl);
 /* Linux 5.0: */
-DUMMY(clock_gettime64);
 DUMMY(clock_settime64);
 DUMMY(clock_adjtime64);
 DUMMY(clock_getres_time64);
