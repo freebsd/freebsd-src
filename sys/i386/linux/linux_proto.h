@@ -559,7 +559,7 @@ struct linux_rt_sigpending_args {
 struct linux_rt_sigtimedwait_args {
 	char mask_l_[PADL_(l_sigset_t *)]; l_sigset_t * mask; char mask_r_[PADR_(l_sigset_t *)];
 	char ptr_l_[PADL_(l_siginfo_t *)]; l_siginfo_t * ptr; char ptr_r_[PADR_(l_siginfo_t *)];
-	char timeout_l_[PADL_(struct l_timeval *)]; struct l_timeval * timeout; char timeout_r_[PADR_(struct l_timeval *)];
+	char timeout_l_[PADL_(struct l_timespec *)]; struct l_timespec * timeout; char timeout_r_[PADR_(struct l_timespec *)];
 	char sigsetsize_l_[PADL_(l_size_t)]; l_size_t sigsetsize; char sigsetsize_r_[PADR_(l_size_t)];
 };
 struct linux_rt_sigqueueinfo_args {
