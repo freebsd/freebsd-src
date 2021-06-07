@@ -231,6 +231,8 @@ extern int linuxkpi_debug;
 	log(LOG_CRIT, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) \
 	log(LOG_ERR, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_err_once(fmt, ...) \
+	log_once(LOG_ERR, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning(fmt, ...) \
 	log(LOG_WARNING, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn(...) \
