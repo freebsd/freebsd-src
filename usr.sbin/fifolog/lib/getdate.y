@@ -24,9 +24,11 @@
 
 #include "libfifolog.h"
 
+#define yyparse getdate_yyparse
 #define yylex getdate_yylex
 #define yyerror getdate_yyerror
 
+static int yyparse(void);
 static int yylex(void);
 static int yyerror(const char *);
 
