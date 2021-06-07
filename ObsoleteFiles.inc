@@ -40,6 +40,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210607: remove an(4)
+OLD_FILES+=usr/include/dev/an/if_aironet_ieee.h
+OLD_FILES+=usr/include/dev/an/if_anreg.h
+OLD_FILES+=usr/share/man/man4/an.4.gz
+
 # 20210426: remove unused libexec/rc.d/addswap
 OLD_FILES+=etc/rc.d/addswap
 

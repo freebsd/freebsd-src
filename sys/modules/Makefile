@@ -39,7 +39,6 @@ SUBDIR=	\
 	${_amdsmn} \
 	${_amdtemp} \
 	amr \
-	${_an} \
 	${_aout} \
 	${_arcmsr} \
 	${_allwinner} \
@@ -621,7 +620,6 @@ _sdhci_fdt=	sdhci_fdt
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _agp=		agp
-_an=		an
 _aout=		aout
 _bios=		bios
 .if ${MK_SOURCELESS_UCODE} != "no"

@@ -41,7 +41,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 LDIRS=	geom net net80211 netgraph netinet netinet6 \
 	netipsec netsmb nfs nfsclient nfsserver sys vm
 
-LSUBDIRS=	dev/acpica dev/agp dev/an dev/ciss dev/filemon dev/firewire \
+LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
 	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
