@@ -1534,7 +1534,10 @@ struct linux_clock_getres_time64_args {
 	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_nanosleep_time64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
+	char rqtp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * rqtp; char rqtp_r_[PADR_(struct l_timespec64 *)];
+	char rmtp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * rmtp; char rmtp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_timer_gettime64_args {
 	register_t dummy;

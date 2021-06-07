@@ -2991,7 +2991,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_clock_nanosleep_time64 */
 	case 407: {
-		*n_args = 0;
+		struct linux_clock_nanosleep_time64_args *p = params;
+		iarg[0] = p->which; /* clockid_t */
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t)p->rqtp; /* struct l_timespec64 * */
+		uarg[3] = (intptr_t)p->rmtp; /* struct l_timespec64 * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timer_gettime64 */
@@ -8042,6 +8047,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_nanosleep_time64 */
 	case 407:
+		switch (ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 3:
+			p = "userland struct l_timespec64 *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_gettime64 */
 	case 408:
@@ -9833,6 +9854,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_clock_nanosleep_time64 */
 	case 407:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_gettime64 */
 	case 408:
 	/* linux_timer_settime64 */
