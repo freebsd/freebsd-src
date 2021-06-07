@@ -2341,7 +2341,10 @@
 	}
 ; Linux 5.0:
 403	AUE_NULL	STD {
-		int linux_clock_gettime64(void);
+		int linux_clock_gettime64(
+		    clockid_t which,
+		    struct l_timespec64 *tp
+		);
 	}
 404	AUE_NULL	STD {
 		int linux_clock_settime64(void);
