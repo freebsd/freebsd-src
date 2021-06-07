@@ -1167,6 +1167,13 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 
 	error = kern_sigtimedwait(td, set, &ksi, NULL);
 	if (error) {
+		/*
+		 * sigwait() function shall not return EINTR, but
+		 * the syscall does.  Non-ancient libc provides the
+		 * wrapper which hides EINTR.  Otherwise, EINTR return
+		 * is used by libthr to handle required cancellation
+		 * point in the sigwait().
+		 */
 		if (error == EINTR && td->td_proc->p_osrel < P_OSREL_SIGWAIT)
 			return (ERESTART);
 		td->td_retval[0] = error;
