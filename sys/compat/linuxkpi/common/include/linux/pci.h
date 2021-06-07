@@ -230,6 +230,8 @@ struct pci_dev {
 	uint32_t		class;
 	uint8_t			revision;
 	bool			msi_enabled;
+	phys_addr_t		rom;
+	size_t			romlen;
 
 	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
