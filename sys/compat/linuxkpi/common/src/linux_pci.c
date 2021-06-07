@@ -235,6 +235,8 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
 	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
 	    kobject_name(&pdev->dev.kobj));
+	spin_lock_init(&pdev->dev.devres_lock);
+	INIT_LIST_HEAD(&pdev->dev.devres_head);
 }
 
 static void
