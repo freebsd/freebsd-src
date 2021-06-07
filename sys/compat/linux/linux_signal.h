@@ -44,7 +44,6 @@
 #define	LINUX_SI_TKILL		-6	/* sent by tkill system call */
 
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
-void ksiginfo_to_lsiginfo(const ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig);
 void siginfo_to_lsiginfo(const siginfo_t *si, l_siginfo_t *lsi, l_int sig);
 int lsiginfo_to_siginfo(struct thread *td, const l_siginfo_t *lsi,
 		siginfo_t *si, int sig);

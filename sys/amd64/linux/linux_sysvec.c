@@ -666,7 +666,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	sf.sf_handler = catcher;
 	/* Fill in POSIX parts. */
-	ksiginfo_to_lsiginfo(ksi, &sf.sf_si, sig);
+	siginfo_to_lsiginfo(&ksi->ksi_info, &sf.sf_si, sig);
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
