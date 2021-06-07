@@ -2368,7 +2368,12 @@
 		int linux_timerfd_settime64(void);
 	}
 412	AUE_NULL	STD {
-		int linux_utimensat_time64(void);
+		int linux_utimensat_time64(
+		    l_int dfd,
+		    const char *pathname,
+		    const struct l_timespec64 *times64,
+		    l_int flags
+		);
 	}
 413	AUE_NULL	STD {
 		int linux_pselect6_time64(void);

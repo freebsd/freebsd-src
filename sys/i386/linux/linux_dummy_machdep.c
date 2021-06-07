@@ -78,7 +78,6 @@ DUMMY(timer_gettime64);
 DUMMY(timer_settime64);
 DUMMY(timerfd_gettime64);
 DUMMY(timerfd_settime64);
-DUMMY(utimensat_time64);
 DUMMY(pselect6_time64);
 DUMMY(ppoll_time64);
 DUMMY(io_pgetevents_time64);
