@@ -1530,7 +1530,8 @@ struct linux_clock_adjtime64_args {
 	register_t dummy;
 };
 struct linux_clock_getres_time64_args {
-	register_t dummy;
+	char which_l_[PADL_(clockid_t)]; clockid_t which; char which_r_[PADR_(clockid_t)];
+	char tp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tp; char tp_r_[PADR_(struct l_timespec64 *)];
 };
 struct linux_clock_nanosleep_time64_args {
 	register_t dummy;
