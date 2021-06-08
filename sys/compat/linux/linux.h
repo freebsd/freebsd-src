@@ -205,4 +205,46 @@ int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
 int bsd_to_linux_errno(int error);
 void linux_check_errtbl(void);
 
+#define STATX_BASIC_STATS		0x07ff
+#define STATX_BTIME			0x0800
+#define STATX_ALL			0x0fff
+
+#define STATX_ATTR_COMPRESSED		0x0004
+#define STATX_ATTR_IMMUTABLE		0x0010
+#define STATX_ATTR_APPEND		0x0020
+#define STATX_ATTR_NODUMP		0x0040
+#define STATX_ATTR_ENCRYPTED		0x0800
+#define STATX_ATTR_AUTOMOUNT		0x1000
+
+struct l_statx_timestamp {
+	int64_t tv_sec;
+	int32_t tv_nsec;
+	int32_t __spare0;
+};
+
+struct l_statx {
+	uint32_t stx_mask;
+	uint32_t stx_blksize;
+	uint64_t stx_attributes;
+	uint32_t stx_nlink;
+	uint32_t stx_uid;
+	uint32_t stx_gid;
+	uint16_t stx_mode;
+	uint16_t __spare0[1];
+	uint64_t stx_ino;
+	uint64_t stx_size;
+	uint64_t stx_blocks;
+	uint64_t stx_attributes_mask;
+	struct l_statx_timestamp stx_atime;
+	struct l_statx_timestamp stx_btime;
+	struct l_statx_timestamp stx_ctime;
+	struct l_statx_timestamp stx_mtime;
+	uint32_t stx_rdev_major;
+	uint32_t stx_rdev_minor;
+	uint32_t stx_dev_major;
+	uint32_t stx_dev_minor;
+	uint64_t stx_mnt_id;
+	uint64_t __spare2[13];
+};
+
 #endif /* _LINUX_MI_H_ */

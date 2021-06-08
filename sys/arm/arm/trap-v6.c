@@ -70,10 +70,6 @@ __FBSDID("$FreeBSD$");
 
 extern char cachebailout[];
 
-#ifdef DEBUG
-int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
-#endif
-
 struct ksig {
 	int sig;
 	u_long code;
@@ -494,10 +490,6 @@ abort_handler(struct trapframe *tf, int prefetch)
 	ftype = (fsr & FSR_WNR) ? VM_PROT_WRITE : VM_PROT_READ;
 	if (prefetch)
 		ftype |= VM_PROT_EXECUTE;
-
-#ifdef DEBUG
-	last_fault_code = fsr;
-#endif
 
 #ifdef INVARIANTS
 	onfault = pcb->pcb_onfault;

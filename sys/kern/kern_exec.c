@@ -355,6 +355,16 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	return (do_execve(td, args, mac_p, oldvmspace));
 }
 
+static void
+execve_nosetid(struct image_params *imgp)
+{
+	imgp->credential_setid = false;
+	if (imgp->newcred != NULL) {
+		crfree(imgp->newcred);
+		imgp->newcred = NULL;
+	}
+}
+
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
@@ -643,11 +653,7 @@ interpret:
 		vput(newtextvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
-		imgp->credential_setid = false;
-		if (imgp->newcred != NULL) {
-			crfree(imgp->newcred);
-			imgp->newcred = NULL;
-		}
+		execve_nosetid(imgp);
 		imgp->execpath = NULL;
 		free(imgp->freepath, M_TEMP);
 		imgp->freepath = NULL;
@@ -771,6 +777,10 @@ interpret:
 		/* STOPs are no longer ignored, arrange for AST */
 		signotify(td);
 	}
+
+	if (imgp->sysent->sv_setid_allowed != NULL &&
+	    !(*imgp->sysent->sv_setid_allowed)(td, imgp))
+		execve_nosetid(imgp);
 
 	/*
 	 * Implement image setuid/setgid installation.

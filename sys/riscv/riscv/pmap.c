@@ -2382,7 +2382,7 @@ retryl3:
 }
 
 int
-pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
+pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 {
 	pd_entry_t *l2, l2e;
 	pt_entry_t bits, *pte, oldpte;
@@ -2540,7 +2540,7 @@ static void
 pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
     struct rwlock **lockp)
 {
-	pt_entry_t *firstl3, *l3;
+	pt_entry_t *firstl3, firstl3e, *l3, l3e;
 	vm_paddr_t pa;
 	vm_page_t ml3;
 
@@ -2551,7 +2551,8 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	    ("pmap_promote_l2: invalid l2 entry %p", l2));
 
 	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(PTE_TO_PHYS(pmap_load(l2)));
-	pa = PTE_TO_PHYS(pmap_load(firstl3));
+	firstl3e = pmap_load(firstl3);
+	pa = PTE_TO_PHYS(firstl3e);
 	if ((pa & L2_OFFSET) != 0) {
 		CTR2(KTR_PMAP, "pmap_promote_l2: failure for va %#lx pmap %p",
 		    va, pmap);
@@ -2559,17 +2560,40 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		return;
 	}
 
+	/*
+	 * Downgrade a clean, writable mapping to read-only to ensure that the
+	 * hardware does not set PTE_D while we are comparing PTEs.
+	 *
+	 * Upon a write access to a clean mapping, the implementation will
+	 * either atomically check protections and set PTE_D, or raise a page
+	 * fault.  In the latter case, the pmap lock provides atomicity.  Thus,
+	 * we do not issue an sfence.vma here and instead rely on pmap_fault()
+	 * to do so lazily.
+	 */
+	while ((firstl3e & (PTE_W | PTE_D)) == PTE_W) {
+		if (atomic_fcmpset_64(firstl3, &firstl3e, firstl3e & ~PTE_W)) {
+			firstl3e &= ~PTE_W;
+			break;
+		}
+	}
+
 	pa += PAGE_SIZE;
 	for (l3 = firstl3 + 1; l3 < firstl3 + Ln_ENTRIES; l3++) {
-		if (PTE_TO_PHYS(pmap_load(l3)) != pa) {
+		l3e = pmap_load(l3);
+		if (PTE_TO_PHYS(l3e) != pa) {
 			CTR2(KTR_PMAP,
 			    "pmap_promote_l2: failure for va %#lx pmap %p",
 			    va, pmap);
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			return;
 		}
-		if ((pmap_load(l3) & PTE_PROMOTE) !=
-		    (pmap_load(firstl3) & PTE_PROMOTE)) {
+		while ((l3e & (PTE_W | PTE_D)) == PTE_W) {
+			if (atomic_fcmpset_64(l3, &l3e, l3e & ~PTE_W)) {
+				l3e &= ~PTE_W;
+				break;
+			}
+		}
+		if ((l3e & PTE_PROMOTE) != (firstl3e & PTE_PROMOTE)) {
 			CTR2(KTR_PMAP,
 			    "pmap_promote_l2: failure for va %#lx pmap %p",
 			    va, pmap);
@@ -2589,11 +2613,10 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		return;
 	}
 
-	if ((pmap_load(firstl3) & PTE_SW_MANAGED) != 0)
-		pmap_pv_promote_l2(pmap, va, PTE_TO_PHYS(pmap_load(firstl3)),
-		    lockp);
+	if ((firstl3e & PTE_SW_MANAGED) != 0)
+		pmap_pv_promote_l2(pmap, va, PTE_TO_PHYS(firstl3e), lockp);
 
-	pmap_store(l2, pmap_load(firstl3));
+	pmap_store(l2, firstl3e);
 
 	atomic_add_long(&pmap_l2_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,

@@ -820,7 +820,6 @@ _imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
 _itwd.4=	itwd.4
-_linux.4=	linux.4
 _nda.4=		nda.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
@@ -888,6 +887,7 @@ _nvme.4=	nvme.4
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
 	 ${MACHINE_CPUARCH} == "aarch64"
+_linux.4=	linux.4
 _ossl.4=	ossl.4
 .endif
 

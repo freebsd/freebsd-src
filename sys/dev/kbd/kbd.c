@@ -453,7 +453,7 @@ static d_poll_t		genkbdpoll;
 
 static struct cdevsw kbd_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT | D_GIANTOK,
 	.d_open =	genkbdopen,
 	.d_close =	genkbdclose,
 	.d_read =	genkbdread,

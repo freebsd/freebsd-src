@@ -10,9 +10,6 @@ compute_engine_instance:
   memory: 24G
   disk: 40
 
-env:
-  CIRRUS_CLONE_DEPTH: 1
-
 task:
   name: World and kernel amd64 build and boot smoke test
   timeout_in: 120m
