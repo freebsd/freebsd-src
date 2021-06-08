@@ -54,7 +54,7 @@ extern "C" {
 #define	ZNODE_OS_FIELDS                 \
 	struct zfsvfs	*z_zfsvfs;      \
 	vnode_t		*z_vnode;       \
-	char		*z_cached_symlink;      \
+	char		*z_cached_symlink;	\
 	uint64_t		z_uid;          \
 	uint64_t		z_gid;          \
 	uint64_t		z_gen;          \
@@ -77,8 +77,6 @@ typedef struct zfs_soft_state {
 	enum zfs_soft_state_type zss_type;
 	void *zss_data;
 } zfs_soft_state_t;
-
-extern minor_t zfsdev_minor_alloc(void);
 
 /*
  * Range locking rules

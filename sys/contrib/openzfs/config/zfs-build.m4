@@ -34,6 +34,9 @@ dnl # When debugging is enabled:
 dnl # - Enable all ASSERTs (-DDEBUG)
 dnl # - Promote all compiler warnings to errors (-Werror)
 dnl #
+dnl # (If INVARIANTS is detected, we need to force DEBUG, or strange panics
+dnl # can ensue.)
+dnl #
 AC_DEFUN([ZFS_AC_DEBUG], [
 	AC_MSG_CHECKING([whether assertion support will be enabled])
 	AC_ARG_ENABLE([debug],
@@ -48,6 +51,20 @@ AC_DEFUN([ZFS_AC_DEBUG], [
 		["xno"],
 		[ZFS_AC_DEBUG_DISABLE],
 		[AC_MSG_ERROR([Unknown option $enable_debug])])
+
+	AS_CASE(["x$enable_invariants"],
+		["xyes"],
+		[],
+		["xno"],
+		[],
+		[ZFS_AC_DEBUG_INVARIANTS_DETECT])
+
+	AS_CASE(["x$enable_invariants"],
+		["xyes"],
+		[ZFS_AC_DEBUG_ENABLE],
+		["xno"],
+		[],
+		[AC_MSG_ERROR([Unknown option $enable_invariants])])
 
 	AC_SUBST(DEBUG_CFLAGS)
 	AC_SUBST(DEBUG_CPPFLAGS)
@@ -207,6 +224,7 @@ AC_DEFUN([ZFS_AC_CONFIG_ALWAYS], [
 	ZFS_AC_CONFIG_ALWAYS_PYZFS
 	ZFS_AC_CONFIG_ALWAYS_SED
 	ZFS_AC_CONFIG_ALWAYS_CPPCHECK
+	ZFS_AC_CONFIG_ALWAYS_SHELLCHECK
 ])
 
 AC_DEFUN([ZFS_AC_CONFIG], [
@@ -437,6 +455,9 @@ AC_DEFUN([ZFS_AC_ALIEN], [
 	AC_MSG_CHECKING([whether $ALIEN is available])
 	AS_IF([tmp=$($ALIEN --version 2>/dev/null)], [
 		ALIEN_VERSION=$(echo $tmp | $AWK '{ print $[3] }')
+		ALIEN_MAJOR=$(echo ${ALIEN_VERSION} | $AWK -F'.' '{ print $[1] }')
+		ALIEN_MINOR=$(echo ${ALIEN_VERSION} | $AWK -F'.' '{ print $[2] }')
+		ALIEN_POINT=$(echo ${ALIEN_VERSION} | $AWK -F'.' '{ print $[3] }')
 		HAVE_ALIEN=yes
 		AC_MSG_RESULT([$HAVE_ALIEN ($ALIEN_VERSION)])
 	],[
@@ -447,6 +468,9 @@ AC_DEFUN([ZFS_AC_ALIEN], [
 	AC_SUBST(HAVE_ALIEN)
 	AC_SUBST(ALIEN)
 	AC_SUBST(ALIEN_VERSION)
+	AC_SUBST(ALIEN_MAJOR)
+	AC_SUBST(ALIEN_MINOR)
+	AC_SUBST(ALIEN_POINT)
 ])
 
 dnl #
