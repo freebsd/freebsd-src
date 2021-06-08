@@ -69,8 +69,22 @@ vinit(void)
 		if (p->v_type&ENVIRON)
 			if ((cp = getenv(p->v_name)))
 				p->v_value = cp;
-		if (p->v_type&IREMOTE)
-			setnumber(p->v_value, *address(p->v_value));
+		if (p->v_type&IREMOTE) {
+			switch (p->v_type&TMASK) {
+			case STRING:
+				p->v_value = *(char **)p->v_value;
+				break;
+			case NUMBER:
+				setnumber(p->v_value, *(long *)p->v_value);
+				break;
+			case BOOL:
+				setboolean(p->v_value, *(short *)p->v_value);
+				break;
+			case CHAR:
+				setcharacter(p->v_value, *(char *)p->v_value);
+				break;
+			}
+		}
 	}
 	/*
 	 * Read the .tiprc file in the HOME directory
