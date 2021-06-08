@@ -233,7 +233,7 @@ unsigned long zfs_max_nvlist_src_size = 0;
 
 /*
  * When logging the output nvlist of an ioctl in the on-disk history, limit
- * the logged size to this many bytes.  This must be less then DMU_MAX_ACCESS.
+ * the logged size to this many bytes.  This must be less than DMU_MAX_ACCESS.
  * This applies primarily to zfs_ioc_channel_program().
  */
 unsigned long zfs_history_output_max = 1024 * 1024;
@@ -2521,6 +2521,26 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 	return (err);
 }
 
+static boolean_t
+zfs_is_namespace_prop(zfs_prop_t prop)
+{
+	switch (prop) {
+
+	case ZFS_PROP_ATIME:
+	case ZFS_PROP_RELATIME:
+	case ZFS_PROP_DEVICES:
+	case ZFS_PROP_EXEC:
+	case ZFS_PROP_SETUID:
+	case ZFS_PROP_READONLY:
+	case ZFS_PROP_XATTR:
+	case ZFS_PROP_NBMAND:
+		return (B_TRUE);
+
+	default:
+		return (B_FALSE);
+	}
+}
+
 /*
  * This function is best effort. If it fails to set any of the given properties,
  * it continues to set as many as it can and returns the last error
@@ -2540,6 +2560,7 @@ zfs_set_prop_nvlist(const char *dsname, zprop_source_t source, nvlist_t *nvl,
 	int rv = 0;
 	uint64_t intval;
 	const char *strval;
+	boolean_t should_update_mount_cache = B_FALSE;
 
 	nvlist_t *genericnvl = fnvlist_alloc();
 	nvlist_t *retrynvl = fnvlist_alloc();
@@ -2637,6 +2658,9 @@ retry:
 				fnvlist_add_int32(errlist, propname, err);
 			rv = err;
 		}
+
+		if (zfs_is_namespace_prop(prop))
+			should_update_mount_cache = B_TRUE;
 	}
 
 	if (nvl != retrynvl && !nvlist_empty(retrynvl)) {
@@ -2685,6 +2709,9 @@ retry:
 			}
 		}
 	}
+	if (should_update_mount_cache)
+		zfs_ioctl_update_mount_cache(dsname);
+
 	nvlist_free(genericnvl);
 	nvlist_free(retrynvl);
 
@@ -7352,8 +7379,8 @@ zfsdev_getminor(int fd, minor_t *minorp)
 	return (SET_ERROR(EBADF));
 }
 
-static void *
-zfsdev_get_state_impl(minor_t minor, enum zfsdev_state_type which)
+void *
+zfsdev_get_state(minor_t minor, enum zfsdev_state_type which)
 {
 	zfsdev_state_t *zs;
 
@@ -7374,21 +7401,11 @@ zfsdev_get_state_impl(minor_t minor, enum zfsdev_state_type which)
 	return (NULL);
 }
 
-void *
-zfsdev_get_state(minor_t minor, enum zfsdev_state_type which)
-{
-	void *ptr;
-
-	ptr = zfsdev_get_state_impl(minor, which);
-
-	return (ptr);
-}
-
 /*
  * Find a free minor number.  The zfsdev_state_list is expected to
  * be short since it is only a list of currently open file handles.
  */
-minor_t
+static minor_t
 zfsdev_minor_alloc(void)
 {
 	static minor_t last_minor = 0;
@@ -7399,13 +7416,86 @@ zfsdev_minor_alloc(void)
 	for (m = last_minor + 1; m != last_minor; m++) {
 		if (m > ZFSDEV_MAX_MINOR)
 			m = 1;
-		if (zfsdev_get_state_impl(m, ZST_ALL) == NULL) {
+		if (zfsdev_get_state(m, ZST_ALL) == NULL) {
 			last_minor = m;
 			return (m);
 		}
 	}
 
 	return (0);
+}
+
+int
+zfsdev_state_init(void *priv)
+{
+	zfsdev_state_t *zs, *zsprev = NULL;
+	minor_t minor;
+	boolean_t newzs = B_FALSE;
+
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+
+	minor = zfsdev_minor_alloc();
+	if (minor == 0)
+		return (SET_ERROR(ENXIO));
+
+	for (zs = zfsdev_state_list; zs != NULL; zs = zs->zs_next) {
+		if (zs->zs_minor == -1)
+			break;
+		zsprev = zs;
+	}
+
+	if (!zs) {
+		zs = kmem_zalloc(sizeof (zfsdev_state_t), KM_SLEEP);
+		newzs = B_TRUE;
+	}
+
+	zfsdev_private_set_state(priv, zs);
+
+	zfs_onexit_init((zfs_onexit_t **)&zs->zs_onexit);
+	zfs_zevent_init((zfs_zevent_t **)&zs->zs_zevent);
+
+	/*
+	 * In order to provide for lock-free concurrent read access
+	 * to the minor list in zfsdev_get_state(), new entries
+	 * must be completely written before linking them into the
+	 * list whereas existing entries are already linked; the last
+	 * operation must be updating zs_minor (from -1 to the new
+	 * value).
+	 */
+	if (newzs) {
+		zs->zs_minor = minor;
+		membar_producer();
+		zsprev->zs_next = zs;
+	} else {
+		membar_producer();
+		zs->zs_minor = minor;
+	}
+
+	return (0);
+}
+
+void
+zfsdev_state_destroy(void *priv)
+{
+	zfsdev_state_t *zs = zfsdev_private_get_state(priv);
+
+	ASSERT(zs != NULL);
+	ASSERT3S(zs->zs_minor, >, 0);
+
+	/*
+	 * The last reference to this zfsdev file descriptor is being dropped.
+	 * We don't have to worry about lookup grabbing this state object, and
+	 * zfsdev_state_init() will not try to reuse this object until it is
+	 * invalidated by setting zs_minor to -1.  Invalidation must be done
+	 * last, with a memory barrier to ensure ordering.  This lets us avoid
+	 * taking the global zfsdev state lock around destruction.
+	 */
+	zfs_onexit_destroy(zs->zs_onexit);
+	zfs_zevent_destroy(zs->zs_zevent);
+	zs->zs_onexit = NULL;
+	zs->zs_zevent = NULL;
+	membar_producer();
+	zs->zs_minor = -1;
 }
 
 long
