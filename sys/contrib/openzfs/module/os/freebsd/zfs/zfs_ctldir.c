@@ -1223,6 +1223,7 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
  * be covered.
  */
 static struct vop_vector zfsctl_ops_snapshot = {
+	.vop_default =		NULL, /* ensure very restricted access */
 #if __FreeBSD_version >= 1300121
 	.vop_fplookup_vexec =	VOP_EAGAIN,
 #endif
