@@ -60,100 +60,12 @@ __FBSDID("$FreeBSD$");
 
 #if defined(INET) || defined(INET6)
 
-#define SALT_SIZE		4
-
-#define GCM_TAG_SIZE			16
 #define TLS_HEADER_LENGTH		5
-
-#define	TLS_KEY_CONTEXT_SZ	roundup2(sizeof(struct tls_keyctx), 32)
 
 struct tls_scmd {
 	__be32 seqno_numivs;
 	__be32 ivgen_hdrlen;
 };
-
-struct tls_key_req {
-	/* FW_ULPTX_WR */
-	__be32 wr_hi;
-	__be32 wr_mid;
-        __be32 ftid;
-        __u8   reneg_to_write_rx;
-        __u8   protocol;
-        __be16 mfs;
-	/* master command */
-	__be32 cmd;
-	__be32 len16;             /* command length */
-	__be32 dlen;              /* data length in 32-byte units */
-	__be32 kaddr;
-	/* sub-command */
-	__be32 sc_more;
-	__be32 sc_len;
-}__packed;
-
-struct tls_keyctx {
-	struct tx_keyctx_hdr {
-		__u8   ctxlen;
-		__u8   r2;
-		__be16 dualck_to_txvalid;
-		__u8   txsalt[4];
-		__be64 r5;
-	} txhdr;
-        struct keys {
-                __u8   edkey[32];
-                __u8   ipad[64];
-                __u8   opad[64];
-        } keys;
-};
-
-#define S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 11
-#define M_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 0x1
-#define V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
-    ((x) << S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
-#define G_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
-    (((x) >> S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT) & \
-     M_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
-#define F_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT \
-    V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1U)
-
-#define S_TLS_KEYCTX_TX_WR_SALT_PRESENT 10
-#define M_TLS_KEYCTX_TX_WR_SALT_PRESENT 0x1
-#define V_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
-    ((x) << S_TLS_KEYCTX_TX_WR_SALT_PRESENT)
-#define G_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
-    (((x) >> S_TLS_KEYCTX_TX_WR_SALT_PRESENT) & \
-     M_TLS_KEYCTX_TX_WR_SALT_PRESENT)
-#define F_TLS_KEYCTX_TX_WR_SALT_PRESENT \
-    V_TLS_KEYCTX_TX_WR_SALT_PRESENT(1U)
-
-#define S_TLS_KEYCTX_TX_WR_TXCK_SIZE 6
-#define M_TLS_KEYCTX_TX_WR_TXCK_SIZE 0xf
-#define V_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
-    ((x) << S_TLS_KEYCTX_TX_WR_TXCK_SIZE)
-#define G_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
-    (((x) >> S_TLS_KEYCTX_TX_WR_TXCK_SIZE) & \
-     M_TLS_KEYCTX_TX_WR_TXCK_SIZE)
-
-#define S_TLS_KEYCTX_TX_WR_TXMK_SIZE 2
-#define M_TLS_KEYCTX_TX_WR_TXMK_SIZE 0xf
-#define V_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
-    ((x) << S_TLS_KEYCTX_TX_WR_TXMK_SIZE)
-#define G_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
-    (((x) >> S_TLS_KEYCTX_TX_WR_TXMK_SIZE) & \
-     M_TLS_KEYCTX_TX_WR_TXMK_SIZE)
-
-#define S_TLS_KEYCTX_TX_WR_TXVALID   0
-#define M_TLS_KEYCTX_TX_WR_TXVALID   0x1
-#define V_TLS_KEYCTX_TX_WR_TXVALID(x) \
-    ((x) << S_TLS_KEYCTX_TX_WR_TXVALID)
-#define G_TLS_KEYCTX_TX_WR_TXVALID(x) \
-    (((x) >> S_TLS_KEYCTX_TX_WR_TXVALID) & M_TLS_KEYCTX_TX_WR_TXVALID)
-#define F_TLS_KEYCTX_TX_WR_TXVALID   V_TLS_KEYCTX_TX_WR_TXVALID(1U)
-
-/* Key Context Programming Operation type */
-#define KEY_WRITE_RX			0x1
-#define KEY_WRITE_TX			0x2
-#define KEY_DELETE_RX			0x4
-#define KEY_DELETE_TX			0x8
 
 struct tlspcb {
 	struct m_snd_tag com;
@@ -187,15 +99,6 @@ struct tlspcb {
 	struct sge_wrq *ctrlq;
 	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 
-	unsigned char auth_mode;
-	unsigned char hmac_ctrl;
-	unsigned char mac_first;
-	unsigned char iv_size;
-
-	unsigned int frag_size;
-	unsigned int cipher_secret_size;
-	int proto_ver;
-
 	bool open_pending;
 };
 
@@ -206,27 +109,6 @@ static inline struct tlspcb *
 mst_to_tls(struct m_snd_tag *t)
 {
 	return (__containerof(t, struct tlspcb, com));
-}
-
-/* XXX: There are similar versions of these two in tom/t4_tls.c. */
-static int
-get_new_keyid(struct tlspcb *tlsp)
-{
-	vmem_addr_t addr;
-
-	if (vmem_alloc(tlsp->sc->key_map, TLS_KEY_CONTEXT_SZ,
-	    M_NOWAIT | M_FIRSTFIT, &addr) != 0)
-		return (-1);
-
-	return (addr);
-}
-
-static void
-free_keyid(struct tlspcb *tlsp, int keyid)
-{
-
-	CTR3(KTR_CXGBE, "%s: tid %d key addr %#x", __func__, tlsp->tid, keyid);
-	vmem_free(tlsp->sc->key_map, keyid, TLS_KEY_CONTEXT_SZ);
 }
 
 static struct tlspcb *
@@ -248,50 +130,6 @@ alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
 	tlsp->tx_key_addr = -1;
 
 	return (tlsp);
-}
-
-static void
-init_ktls_key_params(struct tlspcb *tlsp, const struct ktls_session *tls)
-{
-	int mac_key_size;
-
-	if (tls->params.tls_vminor == TLS_MINOR_VER_ONE)
-		tlsp->proto_ver = SCMD_PROTO_VERSION_TLS_1_1;
-	else
-		tlsp->proto_ver = SCMD_PROTO_VERSION_TLS_1_2;
-	tlsp->cipher_secret_size = tls->params.cipher_key_len;
-	tlsp->tx_key_info_size = sizeof(struct tx_keyctx_hdr) +
-	    tlsp->cipher_secret_size;
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
-		tlsp->auth_mode = SCMD_AUTH_MODE_GHASH;
-		tlsp->enc_mode = SCMD_CIPH_MODE_AES_GCM;
-		tlsp->iv_size = 4;
-		tlsp->mac_first = 0;
-		tlsp->hmac_ctrl = SCMD_HMAC_CTRL_NOP;
-		tlsp->tx_key_info_size += GMAC_BLOCK_LEN;
-	} else {
-		switch (tls->params.auth_algorithm) {
-		case CRYPTO_SHA1_HMAC:
-			mac_key_size = roundup2(SHA1_HASH_LEN, 16);
-			tlsp->auth_mode = SCMD_AUTH_MODE_SHA1;
-			break;
-		case CRYPTO_SHA2_256_HMAC:
-			mac_key_size = SHA2_256_HASH_LEN;
-			tlsp->auth_mode = SCMD_AUTH_MODE_SHA256;
-			break;
-		case CRYPTO_SHA2_384_HMAC:
-			mac_key_size = SHA2_512_HASH_LEN;
-			tlsp->auth_mode = SCMD_AUTH_MODE_SHA512_384;
-			break;
-		}
-		tlsp->enc_mode = SCMD_CIPH_MODE_AES_CBC;
-		tlsp->iv_size = 8; /* for CBC, iv is 16B, unit of 2B */
-		tlsp->mac_first = 1;
-		tlsp->hmac_ctrl = SCMD_HMAC_CTRL_NO_TRUNC;
-		tlsp->tx_key_info_size += mac_key_size * 2;
-	}
-
-	tlsp->frag_size = tls->params.max_frame_len;
 }
 
 static int
@@ -539,7 +377,7 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	struct sge_txq *txq;
-	int atid, error, keyid;
+	int atid, error, explicit_iv_size, keyid, mac_first;
 
 	tls = params->tls.tls;
 
@@ -569,6 +407,8 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EPROTONOSUPPORT);
 		}
+		explicit_iv_size = AES_BLOCK_LEN;
+		mac_first = 1;
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 		if (tls->params.iv_len != SALT_SIZE)
@@ -581,6 +421,8 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 		default:
 			return (EINVAL);
 		}
+		explicit_iv_size = 8;
+		mac_first = 0;
 		break;
 	default:
 		return (EPROTONOSUPPORT);
@@ -600,7 +442,7 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	if (sc->tlst.inline_keys)
 		keyid = -1;
 	else
-		keyid = get_new_keyid(tlsp);
+		keyid = t4_alloc_tls_keyid(sc);
 	if (keyid < 0) {
 		CTR2(KTR_CXGBE, "%s: atid %d using immediate key ctx", __func__,
 		    atid);
@@ -673,21 +515,22 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	if (error)
 		goto failed;
 
-	init_ktls_key_params(tlsp, tls);
-
 	error = ktls_setup_keys(tlsp, tls, txq);
 	if (error)
 		goto failed;
 
+	tlsp->enc_mode = t4_tls_cipher_mode(tls);
+	tlsp->tx_key_info_size = t4_tls_key_info_size(tls);
+
 	/* The SCMD fields used when encrypting a full TLS record. */
 	tlsp->scmd0.seqno_numivs = htobe32(V_SCMD_SEQ_NO_CTRL(3) |
-	    V_SCMD_PROTO_VERSION(tlsp->proto_ver) |
+	    V_SCMD_PROTO_VERSION(t4_tls_proto_ver(tls)) |
 	    V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
-	    V_SCMD_CIPH_AUTH_SEQ_CTRL((tlsp->mac_first == 0)) |
+	    V_SCMD_CIPH_AUTH_SEQ_CTRL((mac_first == 0)) |
 	    V_SCMD_CIPH_MODE(tlsp->enc_mode) |
-	    V_SCMD_AUTH_MODE(tlsp->auth_mode) |
-	    V_SCMD_HMAC_CTRL(tlsp->hmac_ctrl) |
-	    V_SCMD_IV_SIZE(tlsp->iv_size) | V_SCMD_NUM_IVS(1));
+	    V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
+	    V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
+	    V_SCMD_IV_SIZE(explicit_iv_size / 2) | V_SCMD_NUM_IVS(1));
 
 	tlsp->scmd0.ivgen_hdrlen = V_SCMD_IV_GEN_CTRL(0) |
 	    V_SCMD_TLS_FRAG_ENABLE(0);
@@ -702,7 +545,7 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	tlsp->scmd0_short.seqno_numivs = V_SCMD_SEQ_NO_CTRL(0) |
 	    V_SCMD_PROTO_VERSION(SCMD_PROTO_VERSION_GENERIC) |
 	    V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
-	    V_SCMD_CIPH_AUTH_SEQ_CTRL((tlsp->mac_first == 0)) |
+	    V_SCMD_CIPH_AUTH_SEQ_CTRL((mac_first == 0)) |
 	    V_SCMD_AUTH_MODE(SCMD_AUTH_MODE_NOP) |
 	    V_SCMD_HMAC_CTRL(SCMD_HMAC_CTRL_NOP) |
 	    V_SCMD_IV_SIZE(AES_BLOCK_LEN / 2) | V_SCMD_NUM_IVS(0);
@@ -741,14 +584,11 @@ static int
 ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
     struct sge_txq *txq)
 {
-	struct auth_hash *axf;
-	int error, keyid, kwrlen, kctxlen, len;
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
-	void *items[1], *key;
-	struct tx_keyctx_hdr *khdr;
-	unsigned int ck_size, mk_size, partial_digest_len;
+	void *items[1];
 	struct mbuf *m;
+	int error;
 
 	/*
 	 * Store the salt and keys in the key context.  For
@@ -757,80 +597,12 @@ ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
 	 * storing the key in DDR, a work request is used to store a
 	 * copy of the key context in DDR.
 	 */
-	kctx = &tlsp->keyctx;
-	khdr = &kctx->txhdr;
-
-	switch (tlsp->cipher_secret_size) {
-	case 128 / 8:
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
-		break;
-	case 192 / 8:
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
-		break;
-	case 256 / 8:
-		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_256;
-		break;
-	default:
-		panic("bad key size");
-	}
-	axf = NULL;
-	partial_digest_len = 0;
-	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM)
-		mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_512;
-	else {
-		switch (tlsp->auth_mode) {
-		case SCMD_AUTH_MODE_SHA1:
-			axf = &auth_hash_hmac_sha1;
-			mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_160;
-			partial_digest_len = SHA1_HASH_LEN;
-			break;
-		case SCMD_AUTH_MODE_SHA256:
-			axf = &auth_hash_hmac_sha2_256;
-			mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_256;
-			partial_digest_len = SHA2_256_HASH_LEN;
-			break;
-		case SCMD_AUTH_MODE_SHA512_384:
-			axf = &auth_hash_hmac_sha2_384;
-			mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_512;
-			partial_digest_len = SHA2_512_HASH_LEN;
-			break;
-		default:
-			panic("bad auth mode");
-		}
-	}
-
-	khdr->ctxlen = (tlsp->tx_key_info_size >> 4);
-	khdr->dualck_to_txvalid = V_TLS_KEYCTX_TX_WR_SALT_PRESENT(1) |
-	    V_TLS_KEYCTX_TX_WR_TXCK_SIZE(ck_size) |
-	    V_TLS_KEYCTX_TX_WR_TXMK_SIZE(mk_size) |
-	    V_TLS_KEYCTX_TX_WR_TXVALID(1);
-	if (tlsp->enc_mode != SCMD_CIPH_MODE_AES_GCM)
-		khdr->dualck_to_txvalid |= V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1);
-	khdr->dualck_to_txvalid = htobe16(khdr->dualck_to_txvalid);
-	key = kctx->keys.edkey;
-	memcpy(key, tls->params.cipher_key, tls->params.cipher_key_len);
-	if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
-		memcpy(khdr->txsalt, tls->params.iv, SALT_SIZE);
-		t4_init_gmac_hash(tls->params.cipher_key,
-		    tls->params.cipher_key_len,
-		    (char *)key + tls->params.cipher_key_len);
-	} else {
-		t4_init_hmac_digest(axf, partial_digest_len,
-		    tls->params.auth_key, tls->params.auth_key_len,
-		    (char *)key + tls->params.cipher_key_len);
-	}
-
+	t4_tls_key_ctx(tls, KTLS_TX, &tlsp->keyctx);
 	if (tlsp->inline_key)
 		return (0);
 
-	keyid = tlsp->tx_key_addr;
-
 	/* Populate key work request. */
-	kwrlen = sizeof(*kwr);
-	kctxlen = roundup2(sizeof(*kctx), 32);
-	len = kwrlen + kctxlen;
-
-        m = alloc_wr_mbuf(len, M_NOWAIT);
+        m = alloc_wr_mbuf(TLS_KEY_WR_SZ, M_NOWAIT);
 	if (m == NULL) {
 		CTR2(KTR_CXGBE, "%s: tid %d failed to alloc WR mbuf", __func__,
 		    tlsp->tid);
@@ -839,27 +611,9 @@ ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
 	m->m_pkthdr.snd_tag = m_snd_tag_ref(&tlsp->com);
 	m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 	kwr = mtod(m, void *);
-	memset(kwr, 0, len);
+	memset(kwr, 0, TLS_KEY_WR_SZ);
 
-	kwr->wr_hi = htobe32(V_FW_WR_OP(FW_ULPTX_WR) |
-	    F_FW_WR_ATOMIC);
-	kwr->wr_mid = htobe32(V_FW_WR_LEN16(DIV_ROUND_UP(len, 16)));
-	kwr->protocol = tlsp->proto_ver;
-	kwr->mfs = htons(tlsp->frag_size);
-	kwr->reneg_to_write_rx = KEY_WRITE_TX;
-
-	/* master command */
-	kwr->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-	    V_T5_ULP_MEMIO_ORDER(1) | V_T5_ULP_MEMIO_IMM(1));
-	kwr->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(kctxlen >> 5));
-	kwr->len16 = htobe32((tlsp->tid << 8) |
-	    DIV_ROUND_UP(len - sizeof(struct work_request_hdr), 16));
-	kwr->kaddr = htobe32(V_ULP_MEMIO_ADDR(keyid >> 5));
-
-	/* sub command */
-	kwr->sc_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	kwr->sc_len = htobe32(kctxlen);
-
+	t4_write_tlskey_wr(tls, KTLS_TX, tlsp->tid, 0, tlsp->tx_key_addr, kwr);
 	kctx = (struct tls_keyctx *)(kwr + 1);
 	memcpy(kctx, &tlsp->keyctx, sizeof(*kctx));
 
@@ -2029,7 +1783,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq,
 	if (plen == tlen) {
 		iv = out;
 		if (tlsp->enc_mode == SCMD_CIPH_MODE_AES_GCM) {
-			memcpy(iv, tlsp->keyctx.txhdr.txsalt, SALT_SIZE);
+			memcpy(iv, tlsp->keyctx.u.txhdr.txsalt, SALT_SIZE);
 			memcpy(iv + 4, hdr + 1, 8);
 			*(uint32_t *)(iv + 12) = htobe32(2 +
 			    offset / AES_BLOCK_LEN);
@@ -2335,7 +2089,7 @@ cxgbe_tls_tag_free(struct m_snd_tag *mst)
 	if (tlsp->ce)
 		t4_release_clip_entry(sc, tlsp->ce);
 	if (tlsp->tx_key_addr >= 0)
-		free_keyid(tlsp, tlsp->tx_key_addr);
+		t4_free_tls_keyid(sc, tlsp->tx_key_addr);
 
 	zfree(tlsp, M_CXGBE);
 }
