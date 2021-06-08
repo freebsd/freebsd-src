@@ -1,4 +1,4 @@
-/*
+/*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright 2021 Lutz Donnerhacke
@@ -37,17 +37,18 @@
 
 #include "util.h"
 
-static void get_data(void *data, size_t len, void *ctx);
+static void	get_data(void *data, size_t len, void *ctx);
 
 ATF_TC(send_recv);
 ATF_TC_HEAD(send_recv, conf)
 {
 	atf_tc_set_md_var(conf, "require.user", "root");
 }
+
 ATF_TC_BODY(send_recv, dummy)
 {
-	char msg[] = "test";
-	int received;
+	char		msg[] = "test";
+	int		received;
 
 	ng_init();
 	ng_connect(".", "a", ".", "b");
@@ -64,10 +65,11 @@ ATF_TC_HEAD(node, conf)
 {
 	atf_tc_set_md_var(conf, "require.user", "root");
 }
+
 ATF_TC_BODY(node, dummy)
 {
-	char msg[] = "test";
-	int received;
+	char		msg[] = "test";
+	int		received;
 
 	ng_init();
 	ng_mkpeer(".", "a", "hub", "a");
@@ -99,6 +101,7 @@ ATF_TC_HEAD(message, conf)
 {
 	atf_tc_set_md_var(conf, "require.user", "root");
 }
+
 ATF_TC_BODY(message, dummy)
 {
 	ng_init();
@@ -116,6 +119,7 @@ ATF_TC_HEAD(same_name, conf)
 {
 	atf_tc_set_md_var(conf, "require.user", "root");
 }
+
 ATF_TC_BODY(same_name, dummy)
 {
 	ng_init();
@@ -139,18 +143,20 @@ ATF_TC_HEAD(queuelimit, conf)
 {
 	atf_tc_set_md_var(conf, "require.user", "root");
 }
+
 ATF_TC_BODY(queuelimit, dummy)
 {
-	int received, i;
-	char msg[] = "test";
-	const int MAX = 1000;
+	int		received, i;
+	char		msg[] = "test";
+	const int	MAX = 1000;
 
 	ng_init();
 	ng_connect(".", "a", ".", "b");
 	ng_register_data("b", get_data);
 
 	ng_errors(PASS);
-	for (i = 0; i < MAX; i++) {
+	for (i = 0; i < MAX; i++)
+	{
 		ng_send_data("a", msg, sizeof(msg));
 		if (errno != 0)
 			break;
@@ -183,7 +189,7 @@ ATF_TP_ADD_TCS(basic)
 static void
 get_data(void *data, size_t len, void *ctx)
 {
-	int *cnt = ctx;
+	int	       *cnt = ctx;
 
 	(void)data;
 	printf("Got %zu bytes of data.\n", len);
