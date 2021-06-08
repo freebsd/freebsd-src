@@ -143,274 +143,19 @@ tls_content_type(unsigned char content_type)
 	}
 }
 
-static int
-tls_key_info_size(struct ktls_session *tls)
-{
-	u_int key_info_size, mac_key_size;
-
-	key_info_size = sizeof(struct tx_keyctx_hdr) +
-	    tls->params.cipher_key_len;
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
-		key_info_size += GMAC_BLOCK_LEN;
-	} else {
-		switch (tls->params.auth_algorithm) {
-		case CRYPTO_SHA1_HMAC:
-			mac_key_size = SHA1_HASH_LEN;
-			break;
-		case CRYPTO_SHA2_256_HMAC:
-			mac_key_size = SHA2_256_HASH_LEN;
-			break;
-		case CRYPTO_SHA2_384_HMAC:
-			mac_key_size = SHA2_512_HASH_LEN;
-			break;
-		default:
-			__assert_unreachable();
-		}
-		key_info_size += roundup2(mac_key_size, 16) * 2;
-	}
-	return (key_info_size);
-}
-
-static int
-tls_proto_ver(struct ktls_session *tls)
-{
-	if (tls->params.tls_vminor == TLS_MINOR_VER_ONE)
-		return (SCMD_PROTO_VERSION_TLS_1_1);
-	else
-		return (SCMD_PROTO_VERSION_TLS_1_2);
-}
-
-static int
-tls_cipher_mode(struct ktls_session *tls)
-{
-	switch (tls->params.cipher_algorithm) {
-	case CRYPTO_AES_CBC:
-		return (SCMD_CIPH_MODE_AES_CBC);
-	case CRYPTO_AES_NIST_GCM_16:
-		return (SCMD_CIPH_MODE_AES_GCM);
-	default:
-		return (SCMD_CIPH_MODE_NOP);
-	}
-}
-
-static int
-tls_auth_mode(struct ktls_session *tls)
-{
-	switch (tls->params.cipher_algorithm) {
-	case CRYPTO_AES_CBC:
-		switch (tls->params.auth_algorithm) {
-		case CRYPTO_SHA1_HMAC:
-			return (SCMD_AUTH_MODE_SHA1);
-		case CRYPTO_SHA2_256_HMAC:
-			return (SCMD_AUTH_MODE_SHA256);
-		case CRYPTO_SHA2_384_HMAC:
-			return (SCMD_AUTH_MODE_SHA512_384);
-		default:
-			return (SCMD_AUTH_MODE_NOP);
-		}
-	case CRYPTO_AES_NIST_GCM_16:
-		return (SCMD_AUTH_MODE_GHASH);
-	default:
-		return (SCMD_AUTH_MODE_NOP);
-	}
-}
-
-static int
-tls_hmac_ctrl(struct ktls_session *tls)
-{
-	switch (tls->params.cipher_algorithm) {
-	case CRYPTO_AES_CBC:
-		return (SCMD_HMAC_CTRL_NO_TRUNC);
-	case CRYPTO_AES_NIST_GCM_16:
-		return (SCMD_HMAC_CTRL_NOP);
-	default:
-		return (SCMD_HMAC_CTRL_NOP);
-	}
-}
-
-static int
-tls_cipher_key_size(struct ktls_session *tls)
-{
-	switch (tls->params.cipher_key_len) {
-	case 128 / 8:
-		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_128);
-	case 192 / 8:
-		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_192);
-	case 256 / 8:
-		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_256);
-	default:
-		__assert_unreachable();
-	}
-}
-
-static int
-tls_mac_key_size(struct ktls_session *tls)
-{
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
-		/*
-		 * XXX: This used to use 128 (SHA_NOP) for TOE,
-		 * but NIC TLS has always used 512.
-		 */
-		return (CHCR_KEYCTX_MAC_KEY_SIZE_512);
-	else {
-		switch (tls->params.auth_algorithm) {
-		case CRYPTO_SHA1_HMAC:
-			return (CHCR_KEYCTX_MAC_KEY_SIZE_160);
-		case CRYPTO_SHA2_256_HMAC:
-			return (CHCR_KEYCTX_MAC_KEY_SIZE_256);
-		case CRYPTO_SHA2_384_HMAC:
-			return (CHCR_KEYCTX_MAC_KEY_SIZE_512);
-		default:
-			__assert_unreachable();
-		}
-	}
-}
-
-static void
-prepare_tls_keys(char *key, char *salt, struct ktls_session *tls,
-    int direction)
-{
-	struct auth_hash *axf;
-	u_int mac_key_size;
-	char *hash;
-
-	if (direction == KTLS_RX &&
-	    tls->params.cipher_algorithm == CRYPTO_AES_CBC)
-		t4_aes_getdeckey(key, tls->params.cipher_key,
-		    tls->params.cipher_key_len * 8);
-	else
-		memcpy(key, tls->params.cipher_key,
-		    tls->params.cipher_key_len);
-	hash = key + tls->params.cipher_key_len;
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
-		memcpy(salt, tls->params.iv, SALT_SIZE);
-		t4_init_gmac_hash(tls->params.cipher_key,
-		    tls->params.cipher_key_len, hash);
-	} else {
-		switch (tls->params.auth_algorithm) {
-		case CRYPTO_SHA1_HMAC:
-			axf = &auth_hash_hmac_sha1;
-			mac_key_size = SHA1_HASH_LEN;
-			break;
-		case CRYPTO_SHA2_256_HMAC:
-			axf = &auth_hash_hmac_sha2_256;
-			mac_key_size = SHA2_256_HASH_LEN;
-			break;
-		case CRYPTO_SHA2_384_HMAC:
-			axf = &auth_hash_hmac_sha2_384;
-			mac_key_size = SHA2_512_HASH_LEN;
-			break;
-		default:
-			__assert_unreachable();
-		}
-		t4_init_hmac_digest(axf, mac_key_size, tls->params.auth_key,
-		    tls->params.auth_key_len, hash);
-	}
-}
-
-/* Rx key */
-static void
-prepare_rxkey_wr(struct tls_keyctx *kwr, struct ktls_session *tls)
-{
-
-	kwr->u.rxhdr.flitcnt_hmacctrl =
-		((tls_key_info_size(tls) / 16) << 3) | tls_hmac_ctrl(tls);
-
-	kwr->u.rxhdr.protover_ciphmode =
-		V_TLS_KEYCTX_TX_WR_PROTOVER(tls_proto_ver(tls)) |
-		V_TLS_KEYCTX_TX_WR_CIPHMODE(tls_cipher_mode(tls));
-
-	kwr->u.rxhdr.authmode_to_rxvalid =
-	        V_TLS_KEYCTX_TX_WR_AUTHMODE(tls_auth_mode(tls)) |
-		V_TLS_KEYCTX_TX_WR_SEQNUMCTRL(3) |
-		V_TLS_KEYCTX_TX_WR_RXVALID(1);
-
-	kwr->u.rxhdr.ivpresent_to_rxmk_size =
-		V_TLS_KEYCTX_TX_WR_IVPRESENT(0) |
-		V_TLS_KEYCTX_TX_WR_RXCK_SIZE(tls_cipher_key_size(tls)) |
-		V_TLS_KEYCTX_TX_WR_RXMK_SIZE(tls_mac_key_size(tls));
-
-	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
-		kwr->u.rxhdr.ivinsert_to_authinsrt =
-		    htobe64(V_TLS_KEYCTX_TX_WR_IVINSERT(6ULL) |
-			V_TLS_KEYCTX_TX_WR_AADSTRTOFST(1ULL) |
-			V_TLS_KEYCTX_TX_WR_AADSTOPOFST(5ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHSRTOFST(14ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(16ULL) |
-			V_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(14ULL) |
-			V_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(0ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHINSRT(16ULL));
-	} else {
-		kwr->u.rxhdr.authmode_to_rxvalid |=
-			V_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(1);
-		kwr->u.rxhdr.ivpresent_to_rxmk_size |=
-			V_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(1);
-		kwr->u.rxhdr.ivinsert_to_authinsrt =
-		    htobe64(V_TLS_KEYCTX_TX_WR_IVINSERT(6ULL) |
-			V_TLS_KEYCTX_TX_WR_AADSTRTOFST(1ULL) |
-			V_TLS_KEYCTX_TX_WR_AADSTOPOFST(5ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHSRTOFST(22ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(0ULL) |
-			V_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(22ULL) |
-			V_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(0ULL) |
-			V_TLS_KEYCTX_TX_WR_AUTHINSRT(0ULL));
-	}
-
-	prepare_tls_keys(kwr->keys.edkey, kwr->u.rxhdr.rxsalt, tls, KTLS_RX);
-}
-
-/* Tx key */
-static void
-prepare_txkey_wr(struct tls_keyctx *kwr, struct ktls_session *tls)
-{
-
-	kwr->u.txhdr.ctxlen = tls_key_info_size(tls) / 16;
-	kwr->u.txhdr.dualck_to_txvalid =
-		V_TLS_KEYCTX_TX_WR_SALT_PRESENT(1) |
-		V_TLS_KEYCTX_TX_WR_TXCK_SIZE(tls_cipher_key_size(tls)) |
-		V_TLS_KEYCTX_TX_WR_TXMK_SIZE(tls_mac_key_size(tls)) |
-		V_TLS_KEYCTX_TX_WR_TXVALID(1);
-	if (tls->params.cipher_algorithm == CRYPTO_AES_CBC)
-		kwr->u.txhdr.dualck_to_txvalid |=
-		    V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1);
-	kwr->u.txhdr.dualck_to_txvalid = htons(kwr->u.txhdr.dualck_to_txvalid);
-
-	prepare_tls_keys(kwr->keys.edkey, kwr->u.txhdr.txsalt, tls, KTLS_TX);
-}
-
 /* TLS Key memory management */
-static int
-get_new_keyid(struct toepcb *toep)
-{
-	struct adapter *sc = td_adapter(toep->td);
-	vmem_addr_t addr;
-
-	if (vmem_alloc(sc->key_map, TLS_KEY_CONTEXT_SZ, M_NOWAIT | M_FIRSTFIT,
-	    &addr) != 0)
-		return (-1);
-
-	return (addr);
-}
-
-static void
-free_keyid(struct toepcb *toep, int keyid)
-{
-	struct adapter *sc = td_adapter(toep->td);
-
-	vmem_free(sc->key_map, keyid, TLS_KEY_CONTEXT_SZ);
-}
-
 static void
 clear_tls_keyid(struct toepcb *toep)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
+	struct adapter *sc = td_adapter(toep->td);
 
 	if (tls_ofld->rx_key_addr >= 0) {
-		free_keyid(toep, tls_ofld->rx_key_addr);
+		t4_free_tls_keyid(sc, tls_ofld->rx_key_addr);
 		tls_ofld->rx_key_addr = -1;
 	}
 	if (tls_ofld->tx_key_addr >= 0) {
-		free_keyid(toep, tls_ofld->tx_key_addr);
+		t4_free_tls_keyid(sc, tls_ofld->tx_key_addr);
 		tls_ofld->tx_key_addr = -1;
 	}
 }
@@ -431,64 +176,45 @@ tls_program_key_id(struct toepcb *toep, struct ktls_session *tls,
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	struct adapter *sc = td_adapter(toep->td);
 	struct ofld_tx_sdesc *txsd;
-	int kwrlen, kctxlen, keyid, len;
+	int keyid;
 	struct wrqe *wr;
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
 
+#ifdef INVARIANTS
+	int kwrlen, kctxlen, len;
+
 	kwrlen = sizeof(*kwr);
 	kctxlen = roundup2(sizeof(*kctx), 32);
 	len = roundup2(kwrlen + kctxlen, 16);
-
+	MPASS(TLS_KEY_WR_SZ == len);
+#endif
 	if (toep->txsd_avail == 0)
 		return (EAGAIN);
 
-	if ((keyid = get_new_keyid(toep)) < 0) {
+	if ((keyid = t4_alloc_tls_keyid(sc)) < 0) {
 		return (ENOSPC);
 	}
 
-	wr = alloc_wrqe(len, &toep->ofld_txq->wrq);
+	wr = alloc_wrqe(TLS_KEY_WR_SZ, &toep->ofld_txq->wrq);
 	if (wr == NULL) {
-		free_keyid(toep, keyid);
+		t4_free_tls_keyid(sc, keyid);
 		return (ENOMEM);
 	}
 	kwr = wrtod(wr);
-	memset(kwr, 0, kwrlen);
+	memset(kwr, 0, TLS_KEY_WR_SZ);
 
-	kwr->wr_hi = htobe32(V_FW_WR_OP(FW_ULPTX_WR) | F_FW_WR_COMPL |
-	    F_FW_WR_ATOMIC);
-	kwr->wr_mid = htobe32(V_FW_WR_LEN16(DIV_ROUND_UP(len, 16)) |
-	    V_FW_WR_FLOWID(toep->tid));
-	kwr->protocol = tls_proto_ver(tls);
-	kwr->mfs = htons(tls->params.max_frame_len);
-	kwr->reneg_to_write_rx = V_KEY_GET_LOC(direction == KTLS_TX ?
-	    KEY_WRITE_TX : KEY_WRITE_RX);
-
-	/* master command */
-	kwr->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
-	    V_T5_ULP_MEMIO_ORDER(1) | V_T5_ULP_MEMIO_IMM(1));
-	kwr->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(kctxlen >> 5));
-	kwr->len16 = htobe32((toep->tid << 8) |
-	    DIV_ROUND_UP(len - sizeof(struct work_request_hdr), 16));
-	kwr->kaddr = htobe32(V_ULP_MEMIO_ADDR(keyid >> 5));
-
-	/* sub command */
-	kwr->sc_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
-	kwr->sc_len = htobe32(kctxlen);
-
+	t4_write_tlskey_wr(tls, direction, toep->tid, F_FW_WR_COMPL, keyid,
+	    kwr);
 	kctx = (struct tls_keyctx *)(kwr + 1);
-	memset(kctx, 0, kctxlen);
-
-	if (direction == KTLS_TX) {
+	if (direction == KTLS_TX)
 		tls_ofld->tx_key_addr = keyid;
-		prepare_txkey_wr(kctx, tls);
-	} else {
+	else
 		tls_ofld->rx_key_addr = keyid;
-		prepare_rxkey_wr(kctx, tls);
-	}
+	t4_tls_key_ctx(tls, direction, kctx);
 
 	txsd = &toep->txsd[toep->txsd_pidx];
-	txsd->tx_credits = DIV_ROUND_UP(len, 16);
+	txsd->tx_credits = DIV_ROUND_UP(TLS_KEY_WR_SZ, 16);
 	txsd->plen = 0;
 	toep->tx_credits -= txsd->tx_credits;
 	if (__predict_false(++toep->txsd_pidx == toep->txsd_total))
@@ -657,12 +383,12 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	if (direction == KTLS_TX) {
 		toep->tls.scmd0.seqno_numivs =
 			(V_SCMD_SEQ_NO_CTRL(3) |
-			 V_SCMD_PROTO_VERSION(tls_proto_ver(tls)) |
+			 V_SCMD_PROTO_VERSION(t4_tls_proto_ver(tls)) |
 			 V_SCMD_ENC_DEC_CTRL(SCMD_ENCDECCTRL_ENCRYPT) |
 			 V_SCMD_CIPH_AUTH_SEQ_CTRL((mac_first == 0)) |
-			 V_SCMD_CIPH_MODE(tls_cipher_mode(tls)) |
-			 V_SCMD_AUTH_MODE(tls_auth_mode(tls)) |
-			 V_SCMD_HMAC_CTRL(tls_hmac_ctrl(tls)) |
+			 V_SCMD_CIPH_MODE(t4_tls_cipher_mode(tls)) |
+			 V_SCMD_AUTH_MODE(t4_tls_auth_mode(tls)) |
+			 V_SCMD_HMAC_CTRL(t4_tls_hmac_ctrl(tls)) |
 			 V_SCMD_IV_SIZE(explicit_iv_size / 2));
 
 		toep->tls.scmd0.ivgen_hdrlen =
@@ -682,7 +408,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		toep->tls.pdus_per_ulp = 1;
 		toep->tls.adjusted_plen = toep->tls.expn_per_ulp +
 		    tls->params.max_frame_len;
-		toep->tls.tx_key_info_size = tls_key_info_size(tls);
+		toep->tls.tx_key_info_size = t4_tls_key_info_size(tls);
 	} else {
 		/* Stop timer on handshake completion */
 		tls_stop_handshake_timer(toep);

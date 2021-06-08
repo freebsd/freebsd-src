@@ -1311,11 +1311,28 @@ int t6_ktls_write_wr(struct sge_txq *, void *, struct mbuf *, u_int, u_int);
 /* t4_keyctx.c */
 struct auth_hash;
 union authctx;
+#ifdef KERN_TLS
+struct ktls_session;
+struct tls_key_req;
+struct tls_keyctx;
+#endif
 
 void t4_aes_getdeckey(void *, const void *, unsigned int);
 void t4_copy_partial_hash(int, union authctx *, void *);
 void t4_init_gmac_hash(const char *, int, char *);
 void t4_init_hmac_digest(struct auth_hash *, u_int, const char *, int, char *);
+#ifdef KERN_TLS
+u_int t4_tls_key_info_size(const struct ktls_session *);
+int t4_tls_proto_ver(const struct ktls_session *);
+int t4_tls_cipher_mode(const struct ktls_session *);
+int t4_tls_auth_mode(const struct ktls_session *);
+int t4_tls_hmac_ctrl(const struct ktls_session *);
+void t4_tls_key_ctx(const struct ktls_session *, int, struct tls_keyctx *);
+int t4_alloc_tls_keyid(struct adapter *);
+void t4_free_tls_keyid(struct adapter *, int);
+void t4_write_tlskey_wr(const struct ktls_session *, int, int, int, int,
+    struct tls_key_req *);
+#endif
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */
