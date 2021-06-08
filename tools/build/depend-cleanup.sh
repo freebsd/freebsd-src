@@ -70,3 +70,6 @@ if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
 	echo "Removing stale ncurses objects"
 	rm -rf "$OBJTOP"/lib/ncurses "$OBJTOP"/obj-lib32/lib/ncurses
 fi
+
+# 20210608  f20893853e8e    move from atomic.S to atomic.c
+clean_dep cddl/lib/libspl      atomic S
