@@ -25,6 +25,7 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Klara Inc.
  * Copyright (c) 2019, Allan Jude
+ * Copyright (c) 2021, Datto, Inc.
  */
 
 #include <sys/sysmacros.h>
@@ -247,13 +248,10 @@ zio_init(void)
 void
 zio_fini(void)
 {
-	size_t i, j, n;
-	kmem_cache_t *cache;
-
-	n = SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT;
+	size_t n = SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT;
 
 #if defined(ZFS_DEBUG) && !defined(_KERNEL)
-	for (i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++) {
 		if (zio_buf_cache_allocs[i] != zio_buf_cache_frees[i])
 			(void) printf("zio_fini: [%d] %llu != %llu\n",
 			    (int)((i + 1) << SPA_MINBLOCKSHIFT),
@@ -267,11 +265,11 @@ zio_fini(void)
 	 * and zio_data_buf_cache. Do a wasteful but trivially correct scan to
 	 * sort it out.
 	 */
-	for (i = 0; i < n; i++) {
-		cache = zio_buf_cache[i];
+	for (size_t i = 0; i < n; i++) {
+		kmem_cache_t *cache = zio_buf_cache[i];
 		if (cache == NULL)
 			continue;
-		for (j = i; j < n; j++) {
+		for (size_t j = i; j < n; j++) {
 			if (cache == zio_buf_cache[j])
 				zio_buf_cache[j] = NULL;
 			if (cache == zio_data_buf_cache[j])
@@ -280,22 +278,20 @@ zio_fini(void)
 		kmem_cache_destroy(cache);
 	}
 
-	for (i = 0; i < n; i++) {
-		cache = zio_data_buf_cache[i];
+	for (size_t i = 0; i < n; i++) {
+		kmem_cache_t *cache = zio_data_buf_cache[i];
 		if (cache == NULL)
 			continue;
-		for (j = i; j < n; j++) {
+		for (size_t j = i; j < n; j++) {
 			if (cache == zio_data_buf_cache[j])
 				zio_data_buf_cache[j] = NULL;
 		}
 		kmem_cache_destroy(cache);
 	}
 
-	for (i = 0; i < n; i++) {
-		if (zio_buf_cache[i] != NULL)
-			panic("zio_fini: zio_buf_cache[%zd] != NULL", i);
-		if (zio_data_buf_cache[i] != NULL)
-			panic("zio_fini: zio_data_buf_cache[%zd] != NULL", i);
+	for (size_t i = 0; i < n; i++) {
+		VERIFY3P(zio_buf_cache[i], ==, NULL);
+		VERIFY3P(zio_data_buf_cache[i], ==, NULL);
 	}
 
 	kmem_cache_destroy(zio_link_cache);
@@ -4570,7 +4566,7 @@ zio_done(zio_t *zio)
 			uint64_t asize = P2ROUNDUP(psize, align);
 			abd_t *adata = zio->io_abd;
 
-			if (asize != psize) {
+			if (adata != NULL && asize != psize) {
 				adata = abd_alloc(asize, B_TRUE);
 				abd_copy(adata, zio->io_abd, psize);
 				abd_zero_off(adata, psize, asize - psize);
@@ -4581,7 +4577,7 @@ zio_done(zio_t *zio)
 			zcr->zcr_finish(zcr, adata);
 			zfs_ereport_free_checksum(zcr);
 
-			if (asize != psize)
+			if (adata != NULL && asize != psize)
 				abd_free(adata);
 		}
 	}

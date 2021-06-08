@@ -19,6 +19,10 @@ FILES= \
 	openzfsonosx-1.9.3 \
 	openzfs-2.0-freebsd \
 	openzfs-2.0-linux \
+	openzfs-2.1-freebsd \
+	openzfs-2.1-linux \
+	zol-0.6.1 \
+	zol-0.6.4 \
 	zol-0.6.5 \
 	zol-0.7 \
 	zol-0.8
