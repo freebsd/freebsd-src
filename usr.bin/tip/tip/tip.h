@@ -158,12 +158,10 @@ typedef
 #define	number(v)	((long)(intptr_t)(v))
 #define	boolean(v)	((short)(intptr_t)(v))
 #define	character(v)	((char)(intptr_t)(v))
-#define	address(v)	((long *)(v))
 
 #define	setnumber(v,n)		do { (v) = (char *)(intptr_t)(n); } while (0)
 #define	setboolean(v,n)		do { (v) = (char *)(intptr_t)(n); } while (0)
 #define	setcharacter(v,n)	do { (v) = (char *)(intptr_t)(n); } while (0)
-#define	setaddress(v,n)		do { (v) = (char *)(n); } while (0)
 
 /*
  * Escape command table definitions --
