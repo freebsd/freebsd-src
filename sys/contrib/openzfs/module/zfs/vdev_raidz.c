@@ -269,7 +269,8 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
 		rc->rc_error = 0;
 		rc->rc_tried = 0;
 		rc->rc_skipped = 0;
-		rc->rc_repair = 0;
+		rc->rc_force_repair = 0;
+		rc->rc_allow_repair = 1;
 		rc->rc_need_orig_restore = B_FALSE;
 
 		if (c >= acols)
@@ -1811,8 +1812,10 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 			vdev_t *vd = zio->io_vd;
 			vdev_t *cvd = vd->vdev_child[rc->rc_devidx];
 
-			if ((rc->rc_error == 0 || rc->rc_size == 0) &&
-			    (rc->rc_repair == 0)) {
+			if (!rc->rc_allow_repair) {
+				continue;
+			} else if (!rc->rc_force_repair &&
+			    (rc->rc_error == 0 || rc->rc_size == 0)) {
 				continue;
 			}
 
@@ -1984,7 +1987,7 @@ raidz_reconstruct(zio_t *zio, int *ltgts, int ntgts, int nparity)
  *      2   4 5  first: increment to 3
  *        3 4 5  done
  *
- * This strategy works for dRAID but is less effecient when there are a large
+ * This strategy works for dRAID but is less efficient when there are a large
  * number of child vdevs and therefore permutations to check. Furthermore,
  * since the raidz_map_t rows likely do not overlap reconstruction would be
  * possible as long as there are no more than nparity data errors per row.
