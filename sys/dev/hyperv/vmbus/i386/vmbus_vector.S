@@ -35,6 +35,9 @@
 /*
  * This is the Hyper-V vmbus channel direct callback interrupt.
  * Only used when it is running on Hyper-V.
+ *
+ * Note that this file is not compiled directly, it is included into
+ * i386/exception.s.
  */
 	.text
 	SUPERALIGN_TEXT
@@ -45,6 +48,7 @@ IDTVEC(vmbus_isr)
 	cld
 	KENTER
 	pushl	%esp
-	call	vmbus_handle_intr
+	mov	$vmbus_handle_intr, %eax
+	call	*%eax
 	add	$4, %esp
 	jmp	doreti

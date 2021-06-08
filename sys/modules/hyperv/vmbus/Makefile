@@ -13,8 +13,11 @@ SRCS=	hyperv.c \
 	vmbus_et.c \
 	vmbus_if.c \
 	vmbus_res.c \
-	vmbus_vector.S \
 	vmbus_xact.c
+
+.if ${MACHINE_CPUARCH} != "i386"
+SRCS+=	vmbus_vector.S
+.endif
 SRCS+=	acpi_if.h bus_if.h device_if.h opt_acpi.h pci_if.h pcib_if.h vmbus_if.h
 
 # XXX: for assym.inc

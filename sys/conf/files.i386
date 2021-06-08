@@ -102,7 +102,6 @@ dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
 dev/hyperv/vmbus/i386/hyperv_machdep.c			optional	hyperv
-dev/hyperv/vmbus/i386/vmbus_vector.S			optional	hyperv
 dev/le/if_le_isa.c		optional le isa
 dev/nctgpio/nctgpio.c		optional nctgpio
 dev/nfe/if_nfe.c		optional nfe pci
