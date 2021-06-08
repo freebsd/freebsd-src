@@ -45,11 +45,13 @@
 static int cs = -1, ds = -1;
 static ng_error_t error_handling = FAIL;
 
-#define CHECK(r, x)	do {		\
-	if (error_handling == FAIL)	\
-	    ATF_REQUIRE(x);		\
-	else if(!(x))			\
-	    return r;			\
+#define CHECK(r, x)	do {			\
+	if (!(x)) {				\
+		if (error_handling == PASS)	\
+		    return r;			\
+		atf_tc_fail_requirement(file, line, "%s (%s)", \
+		    #x " not met", strerror(errno));\
+	}					\
 } while(0)
 
 struct data_handler {
@@ -64,8 +66,9 @@ static void handle_data(void *ctx);
 static void handle_msg(void *ctx);
 
 void
-ng_connect(char const *path1, char const *hook1,
-	   char const *path2, char const *hook2)
+_ng_connect(char const *path1, char const *hook1,
+	    char const *path2, char const *hook2,
+	    char const *file, size_t line)
 {
 	struct ngm_connect c;
 
@@ -79,8 +82,9 @@ ng_connect(char const *path1, char const *hook1,
 }
 
 void
-ng_mkpeer(char const *path1, char const *hook1,
-	  char const *type,  char const *hook2)
+_ng_mkpeer(char const *path1, char const *hook1,
+	   char const *type,  char const *hook2,
+	   char const *file, size_t line)
 {
 	struct ngm_mkpeer p;
 
@@ -94,7 +98,8 @@ ng_mkpeer(char const *path1, char const *hook1,
 }
 
 void
-ng_rmhook(char const *path, char const *hook)
+_ng_rmhook(char const *path, char const *hook,
+	   char const *file, size_t line)
 {
 	struct ngm_rmhook h;
 
@@ -106,7 +111,8 @@ ng_rmhook(char const *path, char const *hook)
 }
 
 void
-ng_name(char const *path, char const *name)
+_ng_name(char const *path, char const *name,
+	 char const *file, size_t line)
 {
 	struct ngm_name n;
 
@@ -118,7 +124,8 @@ ng_name(char const *path, char const *name)
 }
 
 void
-ng_shutdown(char const *path)
+_ng_shutdown(char const *path,
+	     char const *file, size_t line)
 {
 	CHECK(, -1 != NgSendMsg(cs, path,
 	    NGM_GENERIC_COOKIE, NGM_SHUTDOWN,
@@ -137,8 +144,9 @@ ng_register_data(char const *hook, ng_data_handler_t proc)
 }
 
 void
-ng_send_data(char const *hook,
-	     void const *data, size_t len)
+_ng_send_data(char const *hook,
+	      void const *data, size_t len,
+	      char const *file, size_t line)
 {
 	CHECK(, -1 != NgSendData(ds, hook, data, len));
 }
@@ -213,7 +221,8 @@ ng_handle_events(unsigned int ms, void *context)
 }
 
 int
-ng_send_msg(char const *path, char const *msg)
+_ng_send_msg(char const *path, char const *msg,
+	     char const *file, size_t line)
 {
 	int res;
 
@@ -231,10 +240,10 @@ ng_errors(ng_error_t n)
 }
 
 void
-ng_init(void) {
+_ng_init(char const *file, size_t line) {
 	if (cs >= 0)		       /* prevent reinit */
 		return;
 
-	ATF_REQUIRE(0 == NgMkSockNode(NULL, &cs, &ds));
+	CHECK(, 0 == NgMkSockNode(NULL, &cs, &ds));
 	NgSetDebug(3);
 }
