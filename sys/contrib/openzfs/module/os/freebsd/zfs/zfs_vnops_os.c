@@ -781,7 +781,9 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 	znode_t *zdp = VTOZ(dvp);
 	znode_t *zp;
 	zfsvfs_t *zfsvfs = zdp->z_zfsvfs;
+#if	__FreeBSD_version > 1300124
 	seqc_t dvp_seqc;
+#endif
 	int	error = 0;
 
 	/*
@@ -807,7 +809,9 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zdp);
 
+#if	__FreeBSD_version > 1300124
 	dvp_seqc = vn_seqc_read_notmodify(dvp);
+#endif
 
 	*vpp = NULL;
 
@@ -978,6 +982,7 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 		}
 	}
 
+#if	__FreeBSD_version > 1300124
 	if ((cnp->cn_flags & ISDOTDOT) != 0) {
 		/*
 		 * FIXME: zfs_lookup_lock relocks vnodes and does nothing to
@@ -995,6 +1000,7 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 			cnp->cn_flags &= ~MAKEENTRY;
 		}
 	}
+#endif
 
 	/* Insert name into cache (as non-existent) if appropriate. */
 	if (zfsvfs->z_use_namecache && !zfsvfs->z_replay &&
@@ -3600,7 +3606,7 @@ zfs_symlink(znode_t *dzp, const char *name, vattr_t *vap,
 
 	/*
 	 * Create a new object for the symlink.
-	 * for version 4 ZPL datsets the symlink will be an SA attribute
+	 * for version 4 ZPL datasets the symlink will be an SA attribute
 	 */
 	zfs_mknode(dzp, vap, tx, cr, 0, &zp, &acl_ids);
 
@@ -4489,6 +4495,7 @@ zfs_freebsd_fplookup_vexec(struct vop_fplookup_vexec_args *v)
 }
 #endif
 
+#if __FreeBSD_version >= 1300139
 static int
 zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 {
@@ -4508,6 +4515,7 @@ zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 	}
 	return (cache_symlink_resolve(v->a_fpl, target, strlen(target)));
 }
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct vop_access_args {
@@ -4996,8 +5004,10 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	vattr_t *vap = ap->a_vap;
 	znode_t *zp = NULL;
+#if __FreeBSD_version >= 1300139
 	char *symlink;
 	size_t symlink_len;
+#endif
 	int rc;
 
 	ASSERT(cnp->cn_flags & SAVENAME);
@@ -5011,6 +5021,7 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 	if (rc == 0) {
 		*ap->a_vpp = ZTOV(zp);
 		ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
+#if __FreeBSD_version >= 1300139
 		MPASS(zp->z_cached_symlink == NULL);
 		symlink_len = strlen(ap->a_target);
 		symlink = cache_symlink_alloc(symlink_len + 1, M_WAITOK);
@@ -5020,6 +5031,7 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 			atomic_store_rel_ptr((uintptr_t *)&zp->z_cached_symlink,
 			    (uintptr_t)symlink);
 		}
+#endif
 	}
 	return (rc);
 }
@@ -5036,13 +5048,16 @@ static int
 zfs_freebsd_readlink(struct vop_readlink_args *ap)
 {
 	zfs_uio_t uio;
+	int error;
+#if __FreeBSD_version >= 1300139
 	znode_t	*zp = VTOZ(ap->a_vp);
 	char *symlink, *base;
 	size_t symlink_len;
-	int error;
 	bool trycache;
+#endif
 
 	zfs_uio_init(&uio, ap->a_uio);
+#if __FreeBSD_version >= 1300139
 	trycache = false;
 	if (zfs_uio_segflg(&uio) == UIO_SYSSPACE &&
 	    zfs_uio_iovcnt(&uio) == 1) {
@@ -5050,7 +5065,9 @@ zfs_freebsd_readlink(struct vop_readlink_args *ap)
 		symlink_len = zfs_uio_iovlen(&uio, 0);
 		trycache = true;
 	}
+#endif
 	error = zfs_readlink(ap->a_vp, &uio, ap->a_cred, NULL);
+#if __FreeBSD_version >= 1300139
 	if (atomic_load_ptr(&zp->z_cached_symlink) != NULL ||
 	    error != 0 || !trycache) {
 		return (error);
@@ -5065,6 +5082,7 @@ zfs_freebsd_readlink(struct vop_readlink_args *ap)
 			cache_symlink_free(symlink, symlink_len + 1);
 		}
 	}
+#endif
 	return (error);
 }
 
@@ -5246,10 +5264,10 @@ zfs_create_attrname(int attrnamespace, const char *name, char *attrname,
 
 	/* We don't allow '/' character in attribute name. */
 	if (strchr(name, '/') != NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	/* We don't allow attribute names that start with "freebsd:" string. */
 	if (strncmp(name, "freebsd:", 8) == 0)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	bzero(attrname, size);
 
@@ -5274,11 +5292,11 @@ zfs_create_attrname(int attrnamespace, const char *name, char *attrname,
 		break;
 	case EXTATTR_NAMESPACE_EMPTY:
 	default:
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 	if (snprintf(attrname, size, "%s%s%s%s", prefix, namespace, suffix,
 	    name) >= size) {
-		return (ENAMETOOLONG);
+		return (SET_ERROR(ENAMETOOLONG));
 	}
 	return (0);
 }
@@ -5828,7 +5846,9 @@ struct vop_vector zfs_vnodeops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
+#if __FreeBSD_version >= 1300139
 	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
+#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_allocate =		VOP_EINVAL,
 	.vop_lookup =		zfs_cache_lookup,
@@ -5878,7 +5898,9 @@ struct vop_vector zfs_fifoops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
+#if __FreeBSD_version >= 1300139
 	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
+#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,
@@ -5902,7 +5924,9 @@ struct vop_vector zfs_shareops = {
 #if __FreeBSD_version >= 1300121
 	.vop_fplookup_vexec =	VOP_EAGAIN,
 #endif
+#if __FreeBSD_version >= 1300139
 	.vop_fplookup_symlink =	VOP_EAGAIN,
+#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_inactive =		zfs_freebsd_inactive,
 	.vop_reclaim =		zfs_freebsd_reclaim,

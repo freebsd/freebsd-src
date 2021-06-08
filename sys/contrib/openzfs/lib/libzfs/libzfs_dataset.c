@@ -32,6 +32,7 @@
  * Copyright 2017-2018 RackTop Systems.
  * Copyright (c) 2019 Datto Inc.
  * Copyright (c) 2019, loli10K <ezomori.nozomu@gmail.com>
+ * Copyright (c) 2021 Matt Fiddaman
  */
 
 #include <ctype.h>
@@ -810,7 +811,7 @@ libzfs_mnttab_update(libzfs_handle_t *hdl)
 	struct mnttab entry;
 
 	/* Reopen MNTTAB to prevent reading stale data from open file */
-	if (freopen(MNTTAB, "r", hdl->libzfs_mnttab) == NULL)
+	if (freopen(MNTTAB, "re", hdl->libzfs_mnttab) == NULL)
 		return (ENOENT);
 
 	while (getmntent(hdl->libzfs_mnttab, &entry) == 0) {
@@ -881,7 +882,7 @@ libzfs_mnttab_find(libzfs_handle_t *hdl, const char *fsname,
 			libzfs_mnttab_fini(hdl);
 
 		/* Reopen MNTTAB to prevent reading stale data from open file */
-		if (freopen(MNTTAB, "r", hdl->libzfs_mnttab) == NULL)
+		if (freopen(MNTTAB, "re", hdl->libzfs_mnttab) == NULL)
 			return (ENOENT);
 
 		srch.mnt_special = (char *)fsname;
@@ -1952,6 +1953,7 @@ zfs_prop_inherit(zfs_handle_t *zhp, const char *propname, boolean_t received)
 		if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_INHERIT_PROP, &zc) != 0)
 			return (zfs_standard_error(hdl, errno, errbuf));
 
+		(void) get_stats(zhp);
 		return (0);
 	}
 
@@ -2385,7 +2387,7 @@ get_clones_string(zfs_handle_t *zhp, char *propbuf, size_t proplen)
 	nvpair_t *pair;
 
 	value = zfs_get_clones_nvl(zhp);
-	if (value == NULL)
+	if (value == NULL || nvlist_empty(value))
 		return (-1);
 
 	propbuf[0] = '\0';
@@ -5334,7 +5336,7 @@ zfs_get_holds(zfs_handle_t *zhp, nvlist_t **nvl)
  * 160k.  Again, 128k is from SPA_OLD_MAXBLOCKSIZE and 160k is as calculated in
  * the 128k block example above.
  *
- * The situtation is slightly different for dRAID since the minimum allocation
+ * The situation is slightly different for dRAID since the minimum allocation
  * size is the full group width.  The same 8K block above would be written as
  * follows in a dRAID group:
  *

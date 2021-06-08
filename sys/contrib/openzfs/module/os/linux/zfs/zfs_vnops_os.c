@@ -3140,7 +3140,7 @@ top:
 
 	/*
 	 * Create a new object for the symlink.
-	 * for version 4 ZPL datsets the symlink will be an SA attribute
+	 * for version 4 ZPL datasets the symlink will be an SA attribute
 	 */
 	zfs_mknode(dzp, vap, tx, cr, 0, &zp, &acl_ids);
 
@@ -3950,6 +3950,13 @@ zfs_fid(struct inode *ip, fid_t *fidp)
 	int		size, i, error;
 
 	ZFS_ENTER(zfsvfs);
+
+	if (fidp->fid_len < SHORT_FID_LEN) {
+		fidp->fid_len = SHORT_FID_LEN;
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(ENOSPC));
+	}
+
 	ZFS_VERIFY_ZP(zp);
 
 	if ((error = sa_lookup(zp->z_sa_hdl, SA_ZPL_GEN(zfsvfs),
