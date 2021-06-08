@@ -329,6 +329,8 @@ Virtio RNG interface.
 Virtio console interface, which exposes multiple ports
 to the guest in the form of simple char devices for simple IO
 between the guest and host userspaces.
+.It Cm virtio-input
+Virtio input interface.
 .It Cm ahci
 AHCI controller attached to arbitrary devices.
 .It Cm ahci-cd
@@ -589,6 +591,14 @@ feature, nor the console port
 resize at present.
 .It
 Emergency write is advertised, but no-op at present.
+.El
+.Pp
+Virtio input device backends:
+.Bl -tag -width 10n
+.It Ar /dev/input/eventX
+Send input events of
+.Ar /dev/input/eventX
+to guest by VirtIO Input Interface.
 .El
 .Pp
 Framebuffer devices backends:

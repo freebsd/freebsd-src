@@ -275,6 +275,8 @@ VirtIO 9p (VirtFS) interface.
 VirtIO block storage interface.
 .It Li virtio-console
 VirtIO console interface.
+.It Li virtio-input
+VirtIO input interface.
 .It Li virtio-net
 VirtIO network interface.
 .It Li virtio-rnd
@@ -630,6 +632,15 @@ Each port supports the following settings:
 The name of the port exposed to the guest.
 .It Va path Ta path Ta Ta
 The path of a UNIX domain socket providing the host connection for the port.
+.El
+.Ss VirtIO Input Interface Settings
+Each VirtIO Input device contains one input event device.
+All input events of the input event device are send to the guest by VirtIO Input interface.
+VirtIO Input Interfaces support the following variables:
+.Bl -column "Name" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va path Ta path Ta Ta
+The path of the input event device exposed to the guest
 .El
 .Ss VirtIO Network Interface Settings
 In addition to the network backend settings,

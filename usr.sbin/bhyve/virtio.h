@@ -171,6 +171,22 @@
 #define	VIRTIO_DEV_SCSI		0x1004
 #define	VIRTIO_DEV_RANDOM	0x1005
 #define	VIRTIO_DEV_9P		0x1009
+#define VIRTIO_DEV_INPUT	0x1052
+
+/*
+ * PCI revision IDs
+ */
+#define VIRTIO_REV_INPUT	1
+
+/*
+ * PCI subvendor IDs
+ */
+#define VIRTIO_SUBVEN_INPUT	0x108E
+
+/*
+ * PCI subdevice IDs
+ */
+#define VIRTIO_SUBDEV_INPUT	0x1100
 
 /* From section 2.3, "Virtqueue Configuration", of the virtio specification */
 static inline int
