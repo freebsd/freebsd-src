@@ -147,8 +147,6 @@ DUMMY(faccessat2);
 DUMMY(process_madvise);
 DUMMY(epoll_pwait2);
 DUMMY(mount_setattr);
-/* Linux 4.11: */
-DUMMY(statx);
 /* Linux 4.18: */
 DUMMY(io_pgetevents);
 DUMMY(rseq);
