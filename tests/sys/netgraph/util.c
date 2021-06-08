@@ -255,3 +255,23 @@ _ng_init(char const *file, size_t line)
 	CHECK(, 0 == NgMkSockNode(NULL, &cs, &ds));
 	NgSetDebug(3);
 }
+
+#define GD(x) void				\
+get_data##x(void *data, size_t len, void *ctx) {\
+	int	       *cnt = ctx;		\
+						\
+	(void)data;				\
+	(void)len;				\
+	cnt[x]++;				\
+}
+
+GD(0)
+GD(1)
+GD(2)
+GD(3)
+GD(4)
+GD(5)
+GD(6)
+GD(7)
+GD(8)
+GD(9)

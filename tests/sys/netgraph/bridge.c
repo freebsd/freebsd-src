@@ -43,11 +43,6 @@
 #include "util.h"
 #include <netgraph/ng_bridge.h>
 
-static void	get_data0(void *data, size_t len, void *ctx);
-static void	get_data1(void *data, size_t len, void *ctx);
-static void	get_data2(void *data, size_t len, void *ctx);
-static void	get_data3(void *data, size_t len, void *ctx);
-
 static void	get_tablesize(char const *source, struct ng_mesg *msg, void *ctx);
 struct gettable
 {
@@ -90,7 +85,7 @@ ATF_TC_HEAD(basic, conf)
 
 ATF_TC_BODY(basic, dummy)
 {
-	int		r[4];
+	ng_counter_t	r;
 	struct gettable	rm;
 
 	ng_init();
@@ -105,7 +100,7 @@ ATF_TC_BODY(basic, dummy)
 
 	/* do not bounce back */
 	ng_register_data("a", get_data0);
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_send_data("a", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -114,26 +109,26 @@ ATF_TC_BODY(basic, dummy)
 	/* send to others */
 	ng_register_data("b", get_data1);
 	ng_register_data("c", get_data2);
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_send_data("a", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1);
 
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 2;
 	ng_send_data("b", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1);
 
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 3;
 	ng_send_data("c", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 1 && r[1] == 1 && r[2] == 0);
 
 	/* send to learned unicast */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[5] = 3;
 	ng_send_data("a", &msg4, sizeof(msg4));
@@ -149,7 +144,7 @@ ATF_TC_BODY(basic, dummy)
 
 	/* remove a link */
 	ng_rmhook(".", "b");
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[5] = 0;
 	ng_send_data("a", &msg4, sizeof(msg4));
@@ -196,7 +191,8 @@ ATF_TC_HEAD(loop, conf)
 
 ATF_TC_BODY(loop, dummy)
 {
-	int		r[4], i;
+	ng_counter_t	r;
+	int		i;
 
 	ng_init();
 	ng_errors(PASS);
@@ -221,7 +217,7 @@ ATF_TC_BODY(loop, dummy)
 	 */
 	ng_connect("bridge1:", "link11", "bridge2:", "link11");
 
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_send_data("a", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -236,7 +232,7 @@ ATF_TC_BODY(loop, dummy)
 	 */
 	ng_connect("bridge1:", "link12", "bridge2:", "link12");
 
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_errors(PASS);
 	ng_send_data("a", &msg4, sizeof(msg4));
@@ -259,7 +255,8 @@ ATF_TC_HEAD(many_unicasts, conf)
 
 ATF_TC_BODY(many_unicasts, dummy)
 {
-	int		r[4], i;
+	ng_counter_t	r;
+	int		i;
 	const int	HOOKS = 1000;
 	struct gettable	rm;
 
@@ -273,7 +270,7 @@ ATF_TC_BODY(many_unicasts, dummy)
 	ng_register_data("a", get_data0);
 
 	/* learn MAC */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[3] = 0xff;
 	ng_send_data("a", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -284,7 +281,7 @@ ATF_TC_BODY(many_unicasts, dummy)
 	msg4.eh.ether_dhost[3] = 0xff;
 
 	/* now send */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	for (i = 1; i <= HOOKS; i++)
 	{
 		char		hook[20];
@@ -330,7 +327,8 @@ ATF_TC_HEAD(many_broadcasts, conf)
 
 ATF_TC_BODY(many_broadcasts, dummy)
 {
-	int		r[4], i;
+	ng_counter_t	r;
+	int		i;
 	const int	HOOKS = 1000;
 
 	ng_init();
@@ -343,7 +341,7 @@ ATF_TC_BODY(many_broadcasts, dummy)
 	ng_register_data("a", get_data0);
 
 	/* learn MAC */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[3] = 0xff;
 	ng_send_data("a", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -354,7 +352,7 @@ ATF_TC_BODY(many_broadcasts, dummy)
 	memset(msg4.eh.ether_dhost, 0xff, sizeof(msg4.eh.ether_dhost));
 
 	/* now send */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	for (i = 1; i <= HOOKS; i++)
 	{
 		char		hook[20];
@@ -389,7 +387,7 @@ ATF_TC_HEAD(uplink_private, conf)
 
 ATF_TC_BODY(uplink_private, dummy)
 {
-	int		r[4];
+	ng_counter_t	r;
 	struct gettable	rm;
 
 	ng_init();
@@ -410,14 +408,14 @@ ATF_TC_BODY(uplink_private, dummy)
 	ng_register_data("l3", get_data3);
 
 	/* unknown unicast 0 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_send_data("u1", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 0 && r[2] == 1 && r[3] == 0);
 
 	/* unknown unicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	msg4.eh.ether_dhost[5] = 2;
 	ng_send_data("l0", &msg4, sizeof(msg4));
@@ -425,7 +423,7 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 0);
 
 	/* known unicast 0 from uplink2 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 2;
 	msg4.eh.ether_dhost[5] = 0;
 	ng_send_data("u2", &msg4, sizeof(msg4));
@@ -433,7 +431,7 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 0 && r[3] == 0);
 
 	/* known unicast 0 from link3 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 3;
 	msg4.eh.ether_dhost[5] = 0;
 	ng_send_data("l3", &msg4, sizeof(msg4));
@@ -441,7 +439,7 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 0 && r[3] == 0);
 
 	/* (un)known unicast 2 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[5] = 2;
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -449,14 +447,14 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 0 && r[1] == 0 && r[2] == 1 && r[3] == 0);
 
 	/* (un)known unicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 0);
 
 	/* unknown multicast 2 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[0] = 0xff;
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -464,14 +462,14 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* unknown multicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 1);
 
 	/* broadcast from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	memset(msg4.eh.ether_dhost, 0xff, sizeof(msg4.eh.ether_dhost));
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -479,7 +477,7 @@ ATF_TC_BODY(uplink_private, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* broadcast from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -503,7 +501,7 @@ ATF_TC_HEAD(uplink_classic, conf)
 
 ATF_TC_BODY(uplink_classic, dummy)
 {
-	int		r[4];
+	ng_counter_t	r;
 	struct gettable	rm;
 
 	ng_init();
@@ -524,14 +522,14 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ng_register_data("l3", get_data3);
 
 	/* unknown unicast 0 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	ng_send_data("u1", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* unknown unicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	msg4.eh.ether_dhost[5] = 2;
 	ng_send_data("l0", &msg4, sizeof(msg4));
@@ -539,7 +537,7 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 1);
 
 	/* known unicast 0 from uplink2 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 2;
 	msg4.eh.ether_dhost[5] = 0;
 	ng_send_data("u2", &msg4, sizeof(msg4));
@@ -547,7 +545,7 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 0 && r[3] == 0);
 
 	/* known unicast 0 from link3 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 3;
 	msg4.eh.ether_dhost[5] = 0;
 	ng_send_data("l3", &msg4, sizeof(msg4));
@@ -555,7 +553,7 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 0 && r[3] == 0);
 
 	/* (un)known unicast 2 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[5] = 2;
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -563,14 +561,14 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* (un)known unicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 1);
 
 	/* unknown multicast 2 from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	msg4.eh.ether_dhost[0] = 0xff;
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -578,14 +576,14 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* unknown multicast 2 from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
 	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1 && r[3] == 1);
 
 	/* broadcast from uplink1 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 1;
 	memset(msg4.eh.ether_dhost, 0xff, sizeof(msg4.eh.ether_dhost));
 	ng_send_data("u1", &msg4, sizeof(msg4));
@@ -593,7 +591,7 @@ ATF_TC_BODY(uplink_classic, dummy)
 	ATF_CHECK(r[0] == 1 && r[1] == 0 && r[2] == 1 && r[3] == 1);
 
 	/* broadcast from link0 */
-	bzero(r, sizeof(r));
+	ng_counter_clear(r);
 	msg4.eh.ether_shost[5] = 0;
 	ng_send_data("l0", &msg4, sizeof(msg4));
 	ng_handle_events(50, &r);
@@ -621,26 +619,6 @@ ATF_TP_ADD_TCS(bridge)
 
 	return atf_no_error();
 }
-
-static inline void
-_get_data(void *data, size_t len, void *ctx, int i)
-{
-	int	       *cnt = ctx;
-
-	(void)data;
-	fprintf(stderr, "[%d] Got %zu bytes of data.\n", i, len);
-	cnt[i]++;
-}
-
-#define GD(x) static void			\
-get_data##x(void *data, size_t len, void *ctx) {\
-	_get_data(data, len, ctx, x);		\
-}
-
-GD(0)
-GD(1)
-GD(2)
-GD(3)
 
 static void
 get_tablesize(char const *source, struct ng_mesg *msg, void *ctx)
