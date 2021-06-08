@@ -95,3 +95,20 @@ ng_error_t	ng_errors(ng_error_t);
 void		_ng_init(char const *file, size_t line);
 #define ng_init()	\
    _ng_init(__FILE__,__LINE__)
+
+/* Helper function to count received data */
+
+typedef int ng_counter_t[10];
+#define ng_counter_clear(x)\
+   bzero((x), sizeof(x))
+
+void		get_data0(void *data, size_t len, void *ctx);
+void		get_data1(void *data, size_t len, void *ctx);
+void		get_data2(void *data, size_t len, void *ctx);
+void		get_data3(void *data, size_t len, void *ctx);
+void		get_data4(void *data, size_t len, void *ctx);
+void		get_data5(void *data, size_t len, void *ctx);
+void		get_data6(void *data, size_t len, void *ctx);
+void		get_data7(void *data, size_t len, void *ctx);
+void		get_data8(void *data, size_t len, void *ctx);
+void		get_data9(void *data, size_t len, void *ctx);
