@@ -25,10 +25,13 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_kern_tls.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/ktls.h>
 #include <sys/malloc.h>
 
 #include <opencrypto/cryptodev.h>
@@ -60,6 +63,234 @@ __FBSDID("$FreeBSD$");
  * | GMAC H                        |  ----- For AES-GCM
  * +-------------------------------+ -
  */
+
+/* Fields in the key context header. */
+#define S_TLS_KEYCTX_TX_WR_DUALCK    12
+#define M_TLS_KEYCTX_TX_WR_DUALCK    0x1
+#define V_TLS_KEYCTX_TX_WR_DUALCK(x) ((x) << S_TLS_KEYCTX_TX_WR_DUALCK)
+#define G_TLS_KEYCTX_TX_WR_DUALCK(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_DUALCK) & M_TLS_KEYCTX_TX_WR_DUALCK)
+#define F_TLS_KEYCTX_TX_WR_DUALCK    V_TLS_KEYCTX_TX_WR_DUALCK(1U)
+
+#define S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 11
+#define M_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT 0x1
+#define V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
+#define G_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT) & \
+     M_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT)
+#define F_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT \
+    V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1U)
+
+#define S_TLS_KEYCTX_TX_WR_SALT_PRESENT 10
+#define M_TLS_KEYCTX_TX_WR_SALT_PRESENT 0x1
+#define V_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_SALT_PRESENT)
+#define G_TLS_KEYCTX_TX_WR_SALT_PRESENT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_SALT_PRESENT) & \
+     M_TLS_KEYCTX_TX_WR_SALT_PRESENT)
+#define F_TLS_KEYCTX_TX_WR_SALT_PRESENT \
+    V_TLS_KEYCTX_TX_WR_SALT_PRESENT(1U)
+
+#define S_TLS_KEYCTX_TX_WR_TXCK_SIZE 6
+#define M_TLS_KEYCTX_TX_WR_TXCK_SIZE 0xf
+#define V_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_TXCK_SIZE)
+#define G_TLS_KEYCTX_TX_WR_TXCK_SIZE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_TXCK_SIZE) & \
+     M_TLS_KEYCTX_TX_WR_TXCK_SIZE)
+
+#define S_TLS_KEYCTX_TX_WR_TXMK_SIZE 2
+#define M_TLS_KEYCTX_TX_WR_TXMK_SIZE 0xf
+#define V_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_TXMK_SIZE)
+#define G_TLS_KEYCTX_TX_WR_TXMK_SIZE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_TXMK_SIZE) & \
+     M_TLS_KEYCTX_TX_WR_TXMK_SIZE)
+
+#define S_TLS_KEYCTX_TX_WR_TXVALID   0
+#define M_TLS_KEYCTX_TX_WR_TXVALID   0x1
+#define V_TLS_KEYCTX_TX_WR_TXVALID(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_TXVALID)
+#define G_TLS_KEYCTX_TX_WR_TXVALID(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_TXVALID) & M_TLS_KEYCTX_TX_WR_TXVALID)
+#define F_TLS_KEYCTX_TX_WR_TXVALID   V_TLS_KEYCTX_TX_WR_TXVALID(1U)
+
+#define S_TLS_KEYCTX_TX_WR_FLITCNT   3
+#define M_TLS_KEYCTX_TX_WR_FLITCNT   0x1f
+#define V_TLS_KEYCTX_TX_WR_FLITCNT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_FLITCNT)
+#define G_TLS_KEYCTX_TX_WR_FLITCNT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_FLITCNT) & M_TLS_KEYCTX_TX_WR_FLITCNT)
+
+#define S_TLS_KEYCTX_TX_WR_HMACCTRL  0
+#define M_TLS_KEYCTX_TX_WR_HMACCTRL  0x7
+#define V_TLS_KEYCTX_TX_WR_HMACCTRL(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_HMACCTRL)
+#define G_TLS_KEYCTX_TX_WR_HMACCTRL(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_HMACCTRL) & M_TLS_KEYCTX_TX_WR_HMACCTRL)
+
+#define S_TLS_KEYCTX_TX_WR_PROTOVER  4
+#define M_TLS_KEYCTX_TX_WR_PROTOVER  0xf
+#define V_TLS_KEYCTX_TX_WR_PROTOVER(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_PROTOVER)
+#define G_TLS_KEYCTX_TX_WR_PROTOVER(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_PROTOVER) & M_TLS_KEYCTX_TX_WR_PROTOVER)
+
+#define S_TLS_KEYCTX_TX_WR_CIPHMODE  0
+#define M_TLS_KEYCTX_TX_WR_CIPHMODE  0xf
+#define V_TLS_KEYCTX_TX_WR_CIPHMODE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_CIPHMODE)
+#define G_TLS_KEYCTX_TX_WR_CIPHMODE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_CIPHMODE) & M_TLS_KEYCTX_TX_WR_CIPHMODE)
+
+#define S_TLS_KEYCTX_TX_WR_AUTHMODE  4
+#define M_TLS_KEYCTX_TX_WR_AUTHMODE  0xf
+#define V_TLS_KEYCTX_TX_WR_AUTHMODE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AUTHMODE)
+#define G_TLS_KEYCTX_TX_WR_AUTHMODE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AUTHMODE) & M_TLS_KEYCTX_TX_WR_AUTHMODE)
+
+#define S_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL 3
+#define M_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL 0x1
+#define V_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL)
+#define G_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL) & \
+     M_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL)
+#define F_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL \
+    V_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(1U)
+
+#define S_TLS_KEYCTX_TX_WR_SEQNUMCTRL 1
+#define M_TLS_KEYCTX_TX_WR_SEQNUMCTRL 0x3
+#define V_TLS_KEYCTX_TX_WR_SEQNUMCTRL(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_SEQNUMCTRL)
+#define G_TLS_KEYCTX_TX_WR_SEQNUMCTRL(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_SEQNUMCTRL) & \
+     M_TLS_KEYCTX_TX_WR_SEQNUMCTRL)
+
+#define S_TLS_KEYCTX_TX_WR_RXVALID   0
+#define M_TLS_KEYCTX_TX_WR_RXVALID   0x1
+#define V_TLS_KEYCTX_TX_WR_RXVALID(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_RXVALID)
+#define G_TLS_KEYCTX_TX_WR_RXVALID(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_RXVALID) & M_TLS_KEYCTX_TX_WR_RXVALID)
+#define F_TLS_KEYCTX_TX_WR_RXVALID   V_TLS_KEYCTX_TX_WR_RXVALID(1U)
+
+#define S_TLS_KEYCTX_TX_WR_IVPRESENT 7
+#define M_TLS_KEYCTX_TX_WR_IVPRESENT 0x1
+#define V_TLS_KEYCTX_TX_WR_IVPRESENT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_IVPRESENT)
+#define G_TLS_KEYCTX_TX_WR_IVPRESENT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_IVPRESENT) & \
+     M_TLS_KEYCTX_TX_WR_IVPRESENT)
+#define F_TLS_KEYCTX_TX_WR_IVPRESENT V_TLS_KEYCTX_TX_WR_IVPRESENT(1U)
+
+#define S_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT 6
+#define M_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT 0x1
+#define V_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT)
+#define G_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT) & \
+     M_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT)
+#define F_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT \
+    V_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(1U)
+
+#define S_TLS_KEYCTX_TX_WR_RXCK_SIZE 3
+#define M_TLS_KEYCTX_TX_WR_RXCK_SIZE 0x7
+#define V_TLS_KEYCTX_TX_WR_RXCK_SIZE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_RXCK_SIZE)
+#define G_TLS_KEYCTX_TX_WR_RXCK_SIZE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_RXCK_SIZE) & \
+     M_TLS_KEYCTX_TX_WR_RXCK_SIZE)
+
+#define S_TLS_KEYCTX_TX_WR_RXMK_SIZE 0
+#define M_TLS_KEYCTX_TX_WR_RXMK_SIZE 0x7
+#define V_TLS_KEYCTX_TX_WR_RXMK_SIZE(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_RXMK_SIZE)
+#define G_TLS_KEYCTX_TX_WR_RXMK_SIZE(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_RXMK_SIZE) & \
+     M_TLS_KEYCTX_TX_WR_RXMK_SIZE)
+
+#define S_TLS_KEYCTX_TX_WR_IVINSERT  55
+#define M_TLS_KEYCTX_TX_WR_IVINSERT  0x1ffULL
+#define V_TLS_KEYCTX_TX_WR_IVINSERT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_IVINSERT)
+#define G_TLS_KEYCTX_TX_WR_IVINSERT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_IVINSERT) & M_TLS_KEYCTX_TX_WR_IVINSERT)
+
+#define S_TLS_KEYCTX_TX_WR_AADSTRTOFST 47
+#define M_TLS_KEYCTX_TX_WR_AADSTRTOFST 0xffULL
+#define V_TLS_KEYCTX_TX_WR_AADSTRTOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AADSTRTOFST)
+#define G_TLS_KEYCTX_TX_WR_AADSTRTOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AADSTRTOFST) & \
+     M_TLS_KEYCTX_TX_WR_AADSTRTOFST)
+
+#define S_TLS_KEYCTX_TX_WR_AADSTOPOFST 39
+#define M_TLS_KEYCTX_TX_WR_AADSTOPOFST 0xffULL
+#define V_TLS_KEYCTX_TX_WR_AADSTOPOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AADSTOPOFST)
+#define G_TLS_KEYCTX_TX_WR_AADSTOPOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AADSTOPOFST) & \
+     M_TLS_KEYCTX_TX_WR_AADSTOPOFST)
+
+#define S_TLS_KEYCTX_TX_WR_CIPHERSRTOFST 30
+#define M_TLS_KEYCTX_TX_WR_CIPHERSRTOFST 0x1ffULL
+#define V_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_CIPHERSRTOFST)
+#define G_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_CIPHERSRTOFST) & \
+     M_TLS_KEYCTX_TX_WR_CIPHERSRTOFST)
+
+#define S_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST 23
+#define M_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST 0x7f
+#define V_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST)
+#define G_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST) & \
+     M_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST)
+
+#define S_TLS_KEYCTX_TX_WR_AUTHSRTOFST 14
+#define M_TLS_KEYCTX_TX_WR_AUTHSRTOFST 0x1ff
+#define V_TLS_KEYCTX_TX_WR_AUTHSRTOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AUTHSRTOFST)
+#define G_TLS_KEYCTX_TX_WR_AUTHSRTOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AUTHSRTOFST) & \
+     M_TLS_KEYCTX_TX_WR_AUTHSRTOFST)
+
+#define S_TLS_KEYCTX_TX_WR_AUTHSTOPOFST 7
+#define M_TLS_KEYCTX_TX_WR_AUTHSTOPOFST 0x7f
+#define V_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AUTHSTOPOFST)
+#define G_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AUTHSTOPOFST) & \
+     M_TLS_KEYCTX_TX_WR_AUTHSTOPOFST)
+
+#define S_TLS_KEYCTX_TX_WR_AUTHINSRT 0
+#define M_TLS_KEYCTX_TX_WR_AUTHINSRT 0x7f
+#define V_TLS_KEYCTX_TX_WR_AUTHINSRT(x) \
+    ((x) << S_TLS_KEYCTX_TX_WR_AUTHINSRT)
+#define G_TLS_KEYCTX_TX_WR_AUTHINSRT(x) \
+    (((x) >> S_TLS_KEYCTX_TX_WR_AUTHINSRT) & \
+     M_TLS_KEYCTX_TX_WR_AUTHINSRT)
+
+/* Key Context Programming Operation type */
+#define KEY_WRITE_RX			0x1
+#define KEY_WRITE_TX			0x2
+#define KEY_DELETE_RX			0x4
+#define KEY_DELETE_TX			0x8
+
+#define S_KEY_CLR_LOC		4
+#define M_KEY_CLR_LOC		0xf
+#define V_KEY_CLR_LOC(x)	((x) << S_KEY_CLR_LOC)
+#define G_KEY_CLR_LOC(x)	(((x) >> S_KEY_CLR_LOC) & M_KEY_CLR_LOC)
+#define F_KEY_CLR_LOC		V_KEY_CLR_LOC(1U)
+
+#define S_KEY_GET_LOC           0
+#define M_KEY_GET_LOC           0xf
+#define V_KEY_GET_LOC(x)        ((x) << S_KEY_GET_LOC)
+#define G_KEY_GET_LOC(x)        (((x) >> S_KEY_GET_LOC) & M_KEY_GET_LOC)
 
 /*
  * Generate the initial GMAC hash state for a AES-GCM key.
@@ -172,3 +403,278 @@ t4_aes_getdeckey(void *dec_key, const void *enc_key, unsigned int kbits)
 	MPASS(dkey == dec_key);
 	explicit_bzero(ek, sizeof(ek));
 }
+
+#ifdef KERN_TLS
+/*
+ * - keyid management
+ * - request to program key?
+ */
+u_int
+t4_tls_key_info_size(const struct ktls_session *tls)
+{
+	u_int key_info_size, mac_key_size;
+
+	key_info_size = sizeof(struct tx_keyctx_hdr) +
+	    tls->params.cipher_key_len;
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+		key_info_size += GMAC_BLOCK_LEN;
+	} else {
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+			mac_key_size = SHA1_HASH_LEN;
+			break;
+		case CRYPTO_SHA2_256_HMAC:
+			mac_key_size = SHA2_256_HASH_LEN;
+			break;
+		case CRYPTO_SHA2_384_HMAC:
+			mac_key_size = SHA2_512_HASH_LEN;
+			break;
+		default:
+			__assert_unreachable();
+		}
+		key_info_size += roundup2(mac_key_size, 16) * 2;
+	}
+	return (key_info_size);
+}
+
+int
+t4_tls_proto_ver(const struct ktls_session *tls)
+{
+	if (tls->params.tls_vminor == TLS_MINOR_VER_ONE)
+		return (SCMD_PROTO_VERSION_TLS_1_1);
+	else
+		return (SCMD_PROTO_VERSION_TLS_1_2);
+}
+
+int
+t4_tls_cipher_mode(const struct ktls_session *tls)
+{
+	switch (tls->params.cipher_algorithm) {
+	case CRYPTO_AES_CBC:
+		return (SCMD_CIPH_MODE_AES_CBC);
+	case CRYPTO_AES_NIST_GCM_16:
+		return (SCMD_CIPH_MODE_AES_GCM);
+	default:
+		return (SCMD_CIPH_MODE_NOP);
+	}
+}
+
+int
+t4_tls_auth_mode(const struct ktls_session *tls)
+{
+	switch (tls->params.cipher_algorithm) {
+	case CRYPTO_AES_CBC:
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+			return (SCMD_AUTH_MODE_SHA1);
+		case CRYPTO_SHA2_256_HMAC:
+			return (SCMD_AUTH_MODE_SHA256);
+		case CRYPTO_SHA2_384_HMAC:
+			return (SCMD_AUTH_MODE_SHA512_384);
+		default:
+			return (SCMD_AUTH_MODE_NOP);
+		}
+	case CRYPTO_AES_NIST_GCM_16:
+		return (SCMD_AUTH_MODE_GHASH);
+	default:
+		return (SCMD_AUTH_MODE_NOP);
+	}
+}
+
+int
+t4_tls_hmac_ctrl(const struct ktls_session *tls)
+{
+	switch (tls->params.cipher_algorithm) {
+	case CRYPTO_AES_CBC:
+		return (SCMD_HMAC_CTRL_NO_TRUNC);
+	case CRYPTO_AES_NIST_GCM_16:
+		return (SCMD_HMAC_CTRL_NOP);
+	default:
+		return (SCMD_HMAC_CTRL_NOP);
+	}
+}
+
+static int
+tls_cipher_key_size(const struct ktls_session *tls)
+{
+	switch (tls->params.cipher_key_len) {
+	case 128 / 8:
+		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_128);
+	case 192 / 8:
+		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_192);
+	case 256 / 8:
+		return (CHCR_KEYCTX_CIPHER_KEY_SIZE_256);
+	default:
+		__assert_unreachable();
+	}
+}
+
+static int
+tls_mac_key_size(const struct ktls_session *tls)
+{
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16)
+		return (CHCR_KEYCTX_MAC_KEY_SIZE_512);
+	else {
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+			return (CHCR_KEYCTX_MAC_KEY_SIZE_160);
+		case CRYPTO_SHA2_256_HMAC:
+			return (CHCR_KEYCTX_MAC_KEY_SIZE_256);
+		case CRYPTO_SHA2_384_HMAC:
+			return (CHCR_KEYCTX_MAC_KEY_SIZE_512);
+		default:
+			__assert_unreachable();
+		}
+	}
+}
+
+void
+t4_tls_key_ctx(const struct ktls_session *tls, int direction,
+    struct tls_keyctx *kctx)
+{
+	struct auth_hash *axf;
+	u_int mac_key_size;
+	char *hash;
+
+	/* Key context header. */
+	if (direction == KTLS_TX) {
+		kctx->u.txhdr.ctxlen = t4_tls_key_info_size(tls) / 16;
+		kctx->u.txhdr.dualck_to_txvalid =
+		    V_TLS_KEYCTX_TX_WR_SALT_PRESENT(1) |
+		    V_TLS_KEYCTX_TX_WR_TXCK_SIZE(tls_cipher_key_size(tls)) |
+		    V_TLS_KEYCTX_TX_WR_TXMK_SIZE(tls_mac_key_size(tls)) |
+		    V_TLS_KEYCTX_TX_WR_TXVALID(1);
+		if (tls->params.cipher_algorithm == CRYPTO_AES_CBC)
+			kctx->u.txhdr.dualck_to_txvalid |=
+			    V_TLS_KEYCTX_TX_WR_TXOPAD_PRESENT(1);
+		kctx->u.txhdr.dualck_to_txvalid =
+		    htobe16(kctx->u.txhdr.dualck_to_txvalid);
+	} else {
+		kctx->u.rxhdr.flitcnt_hmacctrl =
+		    V_TLS_KEYCTX_TX_WR_FLITCNT(t4_tls_key_info_size(tls) / 16) |
+		    V_TLS_KEYCTX_TX_WR_HMACCTRL(t4_tls_hmac_ctrl(tls));
+
+		kctx->u.rxhdr.protover_ciphmode =
+		    V_TLS_KEYCTX_TX_WR_PROTOVER(t4_tls_proto_ver(tls)) |
+		    V_TLS_KEYCTX_TX_WR_CIPHMODE(t4_tls_cipher_mode(tls));
+
+		kctx->u.rxhdr.authmode_to_rxvalid =
+		    V_TLS_KEYCTX_TX_WR_AUTHMODE(t4_tls_auth_mode(tls)) |
+		    V_TLS_KEYCTX_TX_WR_SEQNUMCTRL(3) |
+		    V_TLS_KEYCTX_TX_WR_RXVALID(1);
+
+		kctx->u.rxhdr.ivpresent_to_rxmk_size =
+		    V_TLS_KEYCTX_TX_WR_IVPRESENT(0) |
+		    V_TLS_KEYCTX_TX_WR_RXCK_SIZE(tls_cipher_key_size(tls)) |
+		    V_TLS_KEYCTX_TX_WR_RXMK_SIZE(tls_mac_key_size(tls));
+
+		if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+			kctx->u.rxhdr.ivinsert_to_authinsrt =
+			    htobe64(V_TLS_KEYCTX_TX_WR_IVINSERT(6ULL) |
+				V_TLS_KEYCTX_TX_WR_AADSTRTOFST(1ULL) |
+				V_TLS_KEYCTX_TX_WR_AADSTOPOFST(5ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHSRTOFST(14ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(16ULL) |
+				V_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(14ULL) |
+				V_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(0ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHINSRT(16ULL));
+		} else {
+			kctx->u.rxhdr.authmode_to_rxvalid |=
+			    V_TLS_KEYCTX_TX_WR_CIPHAUTHSEQCTRL(1);
+			kctx->u.rxhdr.ivpresent_to_rxmk_size |=
+			    V_TLS_KEYCTX_TX_WR_RXOPAD_PRESENT(1);
+			kctx->u.rxhdr.ivinsert_to_authinsrt =
+			    htobe64(V_TLS_KEYCTX_TX_WR_IVINSERT(6ULL) |
+				V_TLS_KEYCTX_TX_WR_AADSTRTOFST(1ULL) |
+				V_TLS_KEYCTX_TX_WR_AADSTOPOFST(5ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHSRTOFST(22ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHSTOPOFST(0ULL) |
+				V_TLS_KEYCTX_TX_WR_CIPHERSRTOFST(22ULL) |
+				V_TLS_KEYCTX_TX_WR_CIPHERSTOPOFST(0ULL) |
+				V_TLS_KEYCTX_TX_WR_AUTHINSRT(0ULL));
+		}
+	}
+
+	/* Key. */
+	if (direction == KTLS_RX &&
+	    tls->params.cipher_algorithm == CRYPTO_AES_CBC)
+		t4_aes_getdeckey(kctx->keys.edkey, tls->params.cipher_key,
+		    tls->params.cipher_key_len * 8);
+	else
+		memcpy(kctx->keys.edkey, tls->params.cipher_key,
+		    tls->params.cipher_key_len);
+
+	/* Auth state and implicit IV (salt). */
+	hash = kctx->keys.edkey + tls->params.cipher_key_len;
+	if (tls->params.cipher_algorithm == CRYPTO_AES_NIST_GCM_16) {
+		_Static_assert(offsetof(struct tx_keyctx_hdr, txsalt) ==
+		    offsetof(struct rx_keyctx_hdr, rxsalt),
+		    "salt offset mismatch");
+		memcpy(kctx->u.txhdr.txsalt, tls->params.iv, SALT_SIZE);
+		t4_init_gmac_hash(tls->params.cipher_key,
+		    tls->params.cipher_key_len, hash);
+	} else {
+		switch (tls->params.auth_algorithm) {
+		case CRYPTO_SHA1_HMAC:
+			axf = &auth_hash_hmac_sha1;
+			mac_key_size = SHA1_HASH_LEN;
+			break;
+		case CRYPTO_SHA2_256_HMAC:
+			axf = &auth_hash_hmac_sha2_256;
+			mac_key_size = SHA2_256_HASH_LEN;
+			break;
+		case CRYPTO_SHA2_384_HMAC:
+			axf = &auth_hash_hmac_sha2_384;
+			mac_key_size = SHA2_512_HASH_LEN;
+			break;
+		default:
+			__assert_unreachable();
+		}
+		t4_init_hmac_digest(axf, mac_key_size, tls->params.auth_key,
+		    tls->params.auth_key_len, hash);
+	}
+}
+
+int
+t4_alloc_tls_keyid(struct adapter *sc)
+{
+	vmem_addr_t addr;
+
+	if (vmem_alloc(sc->key_map, TLS_KEY_CONTEXT_SZ, M_NOWAIT | M_FIRSTFIT,
+	    &addr) != 0)
+		return (-1);
+
+	return (addr);
+}
+
+void
+t4_free_tls_keyid(struct adapter *sc, int keyid)
+{
+	vmem_free(sc->key_map, keyid, TLS_KEY_CONTEXT_SZ);
+}
+
+void
+t4_write_tlskey_wr(const struct ktls_session *tls, int direction, int tid,
+    int flags, int keyid, struct tls_key_req *kwr)
+{
+	kwr->wr_hi = htobe32(V_FW_WR_OP(FW_ULPTX_WR) | F_FW_WR_ATOMIC | flags);
+	kwr->wr_mid = htobe32(V_FW_WR_LEN16(DIV_ROUND_UP(TLS_KEY_WR_SZ, 16)) |
+	    V_FW_WR_FLOWID(tid));
+	kwr->protocol = t4_tls_proto_ver(tls);
+	kwr->mfs = htobe16(tls->params.max_frame_len);
+	kwr->reneg_to_write_rx = V_KEY_GET_LOC(direction == KTLS_TX ?
+	    KEY_WRITE_TX : KEY_WRITE_RX);
+
+	/* master command */
+	kwr->cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
+	    V_T5_ULP_MEMIO_ORDER(1) | V_T5_ULP_MEMIO_IMM(1));
+	kwr->dlen = htobe32(V_ULP_MEMIO_DATA_LEN(TLS_KEY_CONTEXT_SZ >> 5));
+	kwr->len16 = htobe32((tid << 8) |
+	    DIV_ROUND_UP(TLS_KEY_WR_SZ - sizeof(struct work_request_hdr), 16));
+	kwr->kaddr = htobe32(V_ULP_MEMIO_ADDR(keyid >> 5));
+
+	/* sub command */
+	kwr->sc_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
+	kwr->sc_len = htobe32(TLS_KEY_CONTEXT_SZ);
+}
+#endif

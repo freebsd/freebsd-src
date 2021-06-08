@@ -191,4 +191,59 @@ struct phys_sge_pairs {
 #define CHCR_HASH_MAX_BLOCK_SIZE_64  64
 #define CHCR_HASH_MAX_BLOCK_SIZE_128 128
 
+/*
+ * TODO: Should coalesce ccr's key context with the TLS key context.
+ * Lookaside requests use the TX context header.
+ */
+
+struct tls_key_req {
+	/* FW_ULPTX_WR */
+	__be32 wr_hi;
+	__be32 wr_mid;
+        __be32 ftid;
+        __u8   reneg_to_write_rx;
+        __u8   protocol;
+        __be16 mfs;
+	/* master command */
+	__be32 cmd;
+	__be32 len16;             /* command length */
+	__be32 dlen;              /* data length in 32-byte units */
+	__be32 kaddr;
+	/* sub-command */
+	__be32 sc_more;
+	__be32 sc_len;
+}__packed;
+
+struct tls_keyctx {
+        union key_ctx {
+                struct tx_keyctx_hdr {
+                        __u8   ctxlen;
+                        __u8   r2;
+                        __be16 dualck_to_txvalid;
+                        __u8   txsalt[4];
+                        __be64 r5;
+                } txhdr;
+                struct rx_keyctx_hdr {
+                        __u8   flitcnt_hmacctrl;
+                        __u8   protover_ciphmode;
+                        __u8   authmode_to_rxvalid;
+                        __u8   ivpresent_to_rxmk_size;
+                        __u8   rxsalt[4];
+                        __be64 ivinsert_to_authinsrt;
+                } rxhdr;
+        } u;
+        struct keys {
+                __u8   edkey[32];
+                __u8   ipad[64];
+                __u8   opad[64];
+        } keys;
+};
+
+#define SALT_SIZE		4
+
+#define	TLS_KEY_CONTEXT_SZ	roundup2(sizeof(struct tls_keyctx), 32)
+
+#define	TLS_KEY_WR_SZ							\
+	roundup2(sizeof(struct tls_key_req) + TLS_KEY_CONTEXT_SZ, 16)
+
 #endif /* !__T4_CRYPTO_H__ */
