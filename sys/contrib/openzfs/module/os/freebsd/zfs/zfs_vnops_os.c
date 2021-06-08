@@ -5116,6 +5116,7 @@ zfs_freebsd_inactive(struct vop_inactive_args *ap)
 #ifndef _SYS_SYSPROTO_H_
 struct vop_need_inactive_args {
 	struct vnode *a_vp;
+	struct thread *a_td;
 };
 #endif
 
