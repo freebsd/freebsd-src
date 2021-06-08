@@ -1,4 +1,4 @@
-/*
+/*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright 2021 Lutz Donnerhacke
@@ -34,54 +34,64 @@
 
 #include <netgraph.h>
 
-void _ng_connect (char const *path1, char const *hook1,
-		  char const *path2, char const *hook2,
-		  char const *file,  size_t line);
+void
+_ng_connect(char const *path1, char const *hook1,
+	    char const *path2, char const *hook2,
+	    char const *file, size_t line);
 #define ng_connect(p1,h1,p2,h2)	\
    _ng_connect(p1,h1,p2,h2,__FILE__,__LINE__)
 
-void _ng_mkpeer  (char const *path1, char const *hook1,
-		  char const *type,  char const *hook2,
-		  char const *file,  size_t line);
+void
+_ng_mkpeer(char const *path1, char const *hook1,
+	   char const *type, char const *hook2,
+	   char const *file, size_t line);
 #define ng_mkpeer(p1,h1,t,h2)	\
    _ng_mkpeer(p1,h1,t,h2,__FILE__,__LINE__)
 
-void _ng_shutdown(char const *path,
-		  char const *file,  size_t line);
+void
+_ng_shutdown(char const *path,
+	     char const *file, size_t line);
 #define ng_shutdown(p)	\
    _ng_shutdown(p,__FILE__,__LINE__)
 
-void _ng_rmhook  (char const *path,  char const *hook,
-		  char const *file,  size_t line);
+void
+_ng_rmhook(char const *path, char const *hook,
+	   char const *file, size_t line);
 #define ng_rmhook(p,h)	\
    _ng_rmhook(p,h,__FILE__,__LINE__)
 
-void _ng_name    (char const *path,  char const *name,
-		  char const *file,  size_t line);
+void
+_ng_name(char const *path, char const *name,
+	 char const *file, size_t line);
 #define ng_name(p,n)	\
    _ng_name(p,n,__FILE__,__LINE__)
 
 
 typedef void (*ng_data_handler_t)(void *, size_t, void *ctx);
-void ng_register_data(char const *hook, ng_data_handler_t proc);
-void _ng_send_data(char const *hook, void const *, size_t,
-		   char const *file,  size_t line);
+void		ng_register_data(char const *hook, ng_data_handler_t proc);
+void
+_ng_send_data(char const *hook, void const *, size_t,
+	      char const *file, size_t line);
 #define ng_send_data(h,d,l)	\
    _ng_send_data(h,d,l,__FILE__,__LINE__)
 
 typedef void (*ng_msg_handler_t)(char const *, struct ng_mesg *, void *);
-void ng_register_msg(ng_msg_handler_t proc);
-int  _ng_send_msg(char const *path, char const *msg,
-		  char const *file,  size_t line);
+void		ng_register_msg(ng_msg_handler_t proc);
+int
+_ng_send_msg(char const *path, char const *msg,
+	     char const *file, size_t line);
 #define ng_send_msg(p,m)	\
    _ng_send_msg(p,m,__FILE__,__LINE__)
 
-int  ng_handle_event (unsigned int ms, void *ctx);
-void ng_handle_events(unsigned int ms, void *ctx);
+int		ng_handle_event(unsigned int ms, void *ctx);
+void		ng_handle_events(unsigned int ms, void *ctx);
 
-typedef enum { FAIL, PASS } ng_error_t;
-ng_error_t ng_errors(ng_error_t);
+typedef enum
+{
+	FAIL, PASS
+} ng_error_t;
+ng_error_t	ng_errors(ng_error_t);
 
-void _ng_init(char const *file,  size_t line);
+void		_ng_init(char const *file, size_t line);
 #define ng_init()	\
    _ng_init(__FILE__,__LINE__)

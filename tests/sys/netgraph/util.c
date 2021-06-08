@@ -1,4 +1,4 @@
-/*
+/*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright 2021 Lutz Donnerhacke
@@ -42,7 +42,7 @@
 #include "util.h"
 
 
-static int cs = -1, ds = -1;
+static int	cs = -1, ds = -1;
 static ng_error_t error_handling = FAIL;
 
 #define CHECK(r, x)	do {			\
@@ -54,16 +54,17 @@ static ng_error_t error_handling = FAIL;
 	}					\
 } while(0)
 
-struct data_handler {
-	char const *hook;
+struct data_handler
+{
+	char const     *hook;
 	ng_data_handler_t handler;
-	SLIST_ENTRY(data_handler) next;
+			SLIST_ENTRY(data_handler) next;
 };
 static SLIST_HEAD(, data_handler) data_head = SLIST_HEAD_INITIALIZER(data_head);
 static ng_msg_handler_t msg_handler = NULL;
 
-static void handle_data(void *ctx);
-static void handle_msg(void *ctx);
+static void	handle_data(void *ctx);
+static void	handle_msg(void *ctx);
 
 void
 _ng_connect(char const *path1, char const *hook1,
@@ -72,29 +73,29 @@ _ng_connect(char const *path1, char const *hook1,
 {
 	struct ngm_connect c;
 
-	strncpy(c.ourhook,  hook1, sizeof(c.ourhook));
+	strncpy(c.ourhook, hook1, sizeof(c.ourhook));
 	strncpy(c.peerhook, hook2, sizeof(c.peerhook));
-	strncpy(c.path,     path2, sizeof(c.path));
+	strncpy(c.path, path2, sizeof(c.path));
 
 	CHECK(, -1 != NgSendMsg(cs, path1,
-	    NGM_GENERIC_COOKIE, NGM_CONNECT,
-	    &c, sizeof(c)));
+				NGM_GENERIC_COOKIE, NGM_CONNECT,
+				&c, sizeof(c)));
 }
 
 void
 _ng_mkpeer(char const *path1, char const *hook1,
-	   char const *type,  char const *hook2,
+	   char const *type, char const *hook2,
 	   char const *file, size_t line)
 {
 	struct ngm_mkpeer p;
 
-	strncpy(p.ourhook,  hook1, sizeof(p.ourhook));
+	strncpy(p.ourhook, hook1, sizeof(p.ourhook));
 	strncpy(p.peerhook, hook2, sizeof(p.peerhook));
-	strncpy(p.type,     type,  sizeof(p.type));
+	strncpy(p.type, type, sizeof(p.type));
 
 	CHECK(, -1 != NgSendMsg(cs, path1,
-	    NGM_GENERIC_COOKIE, NGM_MKPEER,
-	    &p, sizeof(p)));
+				NGM_GENERIC_COOKIE, NGM_MKPEER,
+				&p, sizeof(p)));
 }
 
 void
@@ -106,21 +107,21 @@ _ng_rmhook(char const *path, char const *hook,
 	strncpy(h.ourhook, hook, sizeof(h.ourhook));
 
 	CHECK(, -1 != NgSendMsg(cs, path,
-	    NGM_GENERIC_COOKIE, NGM_RMHOOK,
-	    &h, sizeof(h)));
+				NGM_GENERIC_COOKIE, NGM_RMHOOK,
+				&h, sizeof(h)));
 }
 
 void
 _ng_name(char const *path, char const *name,
 	 char const *file, size_t line)
 {
-	struct ngm_name n;
+	struct ngm_name	n;
 
 	strncpy(n.name, name, sizeof(n.name));
 
 	CHECK(, -1 != NgSendMsg(cs, path,
-	    NGM_GENERIC_COOKIE, NGM_NAME,
-	    &n, sizeof(n)));
+				NGM_GENERIC_COOKIE, NGM_NAME,
+				&n, sizeof(n)));
 }
 
 void
@@ -128,8 +129,8 @@ _ng_shutdown(char const *path,
 	     char const *file, size_t line)
 {
 	CHECK(, -1 != NgSendMsg(cs, path,
-	    NGM_GENERIC_COOKIE, NGM_SHUTDOWN,
-	    NULL, 0));
+				NGM_GENERIC_COOKIE, NGM_SHUTDOWN,
+				NULL, 0));
 }
 
 void
@@ -152,37 +153,42 @@ _ng_send_data(char const *hook,
 }
 
 void
-ng_register_msg(ng_msg_handler_t proc) {
+ng_register_msg(ng_msg_handler_t proc)
+{
 	msg_handler = proc;
 }
 
 static void
-handle_msg(void *ctx) {
+handle_msg(void *ctx)
+{
 	struct ng_mesg *m;
-	char path[NG_PATHSIZ];
+	char		path[NG_PATHSIZ];
 
 	ATF_REQUIRE(-1 != NgAllocRecvMsg(cs, &m, path));
 
-	if(msg_handler != NULL)
-		(*msg_handler)(path, m, ctx);
+	if (msg_handler != NULL)
+		(*msg_handler) (path, m, ctx);
 
 	free(m);
 }
 
 static void
-handle_data(void *ctx) {
-	char hook[NG_HOOKSIZ];
+handle_data(void *ctx)
+{
+	char		hook[NG_HOOKSIZ];
 	struct data_handler *hnd;
-	u_char *data;
-	int len;
+	u_char	       *data;
+	int		len;
 
 	ATF_REQUIRE(0 < (len = NgAllocRecvData(ds, &data, hook)));
 	SLIST_FOREACH(hnd, &data_head, next)
+	{
 		if (0 == strcmp(hnd->hook, hook))
 			break;
+	}
 
 	if (hnd != NULL)
-		(*(hnd->handler))(data, len, ctx);
+		(*(hnd->handler)) (data, len, ctx);
 
 	free(data);
 }
@@ -190,25 +196,26 @@ handle_data(void *ctx) {
 int
 ng_handle_event(unsigned int ms, void *context)
 {
-	fd_set fds;
-	int maxfd = (ds < cs) ? cs : ds;
-	struct timeval timeout = { 0, ms * 1000lu };
+	fd_set		fds;
+	int		maxfd = (ds < cs) ? cs : ds;
+	struct timeval	timeout = {0, ms * 1000lu};
 
 	FD_ZERO(&fds);
 	FD_SET(cs, &fds);
 	FD_SET(ds, &fds);
 retry:
-	switch (select(maxfd+1, &fds, NULL, NULL, &timeout)) {
+	switch (select(maxfd + 1, &fds, NULL, NULL, &timeout))
+	{
 	case -1:
 		ATF_REQUIRE_ERRNO(EINTR, 1);
 		goto retry;
-	case 0:			       /* timeout */
+	case 0:			/* timeout */
 		return 0;
-	default:		       /* something to do */
+	default:		/* something to do */
 		if (FD_ISSET(cs, &fds))
-		    handle_msg(context);
+			handle_msg(context);
 		if (FD_ISSET(ds, &fds))
-		    handle_data(context);
+			handle_data(context);
 		return 1;
 	}
 }
@@ -216,7 +223,7 @@ retry:
 void
 ng_handle_events(unsigned int ms, void *context)
 {
-	while(ng_handle_event(ms, context))
+	while (ng_handle_event(ms, context))
 		;
 }
 
@@ -224,7 +231,7 @@ int
 _ng_send_msg(char const *path, char const *msg,
 	     char const *file, size_t line)
 {
-	int res;
+	int		res;
 
 	CHECK(-1, -1 != (res = NgSendAsciiMsg(cs, path, "%s", msg)));
 	return (res);
@@ -233,15 +240,16 @@ _ng_send_msg(char const *path, char const *msg,
 ng_error_t
 ng_errors(ng_error_t n)
 {
-	ng_error_t o = error_handling;
+	ng_error_t	o = error_handling;
 
 	error_handling = n;
 	return (o);
 }
 
 void
-_ng_init(char const *file, size_t line) {
-	if (cs >= 0)		       /* prevent reinit */
+_ng_init(char const *file, size_t line)
+{
+	if (cs >= 0)		/* prevent reinit */
 		return;
 
 	CHECK(, 0 == NgMkSockNode(NULL, &cs, &ds));
