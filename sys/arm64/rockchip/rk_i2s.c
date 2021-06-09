@@ -195,7 +195,7 @@ rk_i2s_init(struct rk_i2s_softc *sc)
 	val |= I2S_INTCR_RFT(FIFO_SIZE/2);
 	RK_I2S_WRITE_4(sc, I2S_INTCR, val);
 
-	if (sc->grf) {
+	if (sc->grf && ofw_bus_is_compatible(sc->dev, "rockchip,rk3399-i2s")) {
 		val = (I2S_IO_2CH_OUT_8CH_IN << I2S_IO_DIRECTION_SHIFT);
 		val |= (I2S_IO_DIRECTION_MASK << I2S_IO_DIRECTION_SHIFT) << 16;
 		SYSCON_WRITE_4(sc->grf, GRF_SOC_CON8, val);
