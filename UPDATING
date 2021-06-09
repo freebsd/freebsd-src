@@ -28,7 +28,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20210608:
-	The vendor/openzfs branch was renamed to vnedor/openzfs/legacy to
+	The vendor/openzfs branch was renamed to vendor/openzfs/legacy to
 	start tracking OpenZFS upstream more closely. Please see
 https://lists.freebsd.org/archives/freebsd-current/2021-June/000153.html
 	for details on how to correct any errors that might result. The
