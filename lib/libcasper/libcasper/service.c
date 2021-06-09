@@ -386,24 +386,27 @@ stdnull(void)
 }
 
 static void
-service_clean(int sock, int procfd, uint64_t flags)
+service_clean(int *sockp, int *procfdp, uint64_t flags)
 {
 	int fd, maxfd, minfd;
 
-	assert(sock > STDERR_FILENO);
-	assert(procfd > STDERR_FILENO);
-	assert(sock != procfd);
+	fd_fix_environment(sockp);
+	fd_fix_environment(procfdp);
+
+	assert(*sockp > STDERR_FILENO);
+	assert(*procfdp > STDERR_FILENO);
+	assert(*sockp != *procfdp);
 
 	if ((flags & CASPER_SERVICE_STDIO) == 0)
 		stdnull();
 
 	if ((flags & CASPER_SERVICE_FD) == 0) {
-		if (procfd > sock) {
-			maxfd = procfd;
-			minfd = sock;
+		if (*procfdp > *sockp) {
+			maxfd = *procfdp;
+			minfd = *sockp;
 		} else {
-			maxfd = sock;
-			minfd = procfd;
+			maxfd = *sockp;
+			minfd = *procfdp;
 		}
 
 		for (fd = STDERR_FILENO + 1; fd < maxfd; fd++) {
@@ -424,7 +427,7 @@ service_start(struct service *service, int sock, int procfd)
 	assert(service != NULL);
 	assert(service->s_magic == SERVICE_MAGIC);
 	setproctitle("%s", service->s_name);
-	service_clean(sock, procfd, service->s_flags);
+	service_clean(&sock, &procfd, service->s_flags);
 
 	if (service_connection_add(service, sock, NULL) == NULL)
 		_exit(1);

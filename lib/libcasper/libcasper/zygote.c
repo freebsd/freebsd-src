@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 #include <unistd.h>
 
+#include "libcasper_impl.h"
 #include "zygote.h"
 
 /* Zygote info. */
@@ -104,7 +105,7 @@ zygote_clone_service_execute(int *chanfdp, int *procfdp)
  * between sandbox and its owner.
  */
 static void
-zygote_main(int sock)
+zygote_main(int *sockp)
 {
 	int error, procfd;
 	int chanfd[2];
@@ -113,12 +114,14 @@ zygote_main(int sock)
 	zygote_func_t *func;
 	pid_t pid;
 
-	assert(sock > STDERR_FILENO);
+	fd_fix_environment(sockp);
+
+	assert(*sockp > STDERR_FILENO);
 
 	setproctitle("zygote");
 
 	for (;;) {
-		nvlin = nvlist_recv(sock, 0);
+		nvlin = nvlist_recv(*sockp, 0);
 		if (nvlin == NULL) {
 			if (errno == ENOTCONN) {
 				/* Casper exited. */
@@ -157,7 +160,7 @@ zygote_main(int sock)
 			break;
 		case 0:
 			/* Child. */
-			close(sock);
+			close(*sockp);
 			close(chanfd[0]);
 			func(chanfd[1]);
 			/* NOTREACHED */
@@ -179,7 +182,7 @@ send:
 			nvlist_move_descriptor(nvlout, "chanfd", chanfd[0]);
 			nvlist_move_descriptor(nvlout, "procfd", procfd);
 		}
-		(void)nvlist_send(sock, nvlout);
+		(void)nvlist_send(*sockp, nvlout);
 		nvlist_destroy(nvlout);
 	}
 	/* NOTREACHED */
@@ -206,7 +209,7 @@ zygote_init(void)
 	case 0:
 		/* Child. */
 		close(sp[0]);
-		zygote_main(sp[1]);
+		zygote_main(&sp[1]);
 		/* NOTREACHED */
 		abort();
 	default:
