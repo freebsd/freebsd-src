@@ -895,9 +895,7 @@ _cgem.4=	cgem.4
 MLINKS+=cgem.4 if_cgem.4
 .endif
 
-.if empty(MAN_ARCH)
-__arches=	${MACHINE} ${MACHINE_ARCH} ${MACHINE_CPUARCH}
-.elif ${MAN_ARCH} == "all"
+.if empty(MAN_ARCH) || ${MAN_ARCH} == "all"
 __arches=	${:!/bin/sh -c "/bin/ls -d ${.CURDIR}/man4.*"!:E}
 .else
 __arches=	${MAN_ARCH}

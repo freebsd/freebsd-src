@@ -21,6 +21,11 @@ MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
 
+# Link files to the parent directory
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ../${_manpage}
+.endfor
+
 MANSUBDIR=/i386
 
 .include <bsd.prog.mk>

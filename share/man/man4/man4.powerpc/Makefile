@@ -15,6 +15,11 @@ MAN=	adb.4 \
 	snd_davbus.4 \
 	tsec.4
 
+# Link files to the parent directory
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ../${_manpage}
+.endfor
+
 MANSUBDIR=/powerpc
 
 .include <bsd.prog.mk>

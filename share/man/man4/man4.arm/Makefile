@@ -18,6 +18,11 @@ MAN=	\
 MLINKS= imx_wdog.4 imxwdt.4
 MLINKS+= mge.4 if_mge.4
 
+# Link files to the parent directory
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ../${_manpage}
+.endfor
+
 MANSUBDIR=/arm
 
 .include <bsd.prog.mk>

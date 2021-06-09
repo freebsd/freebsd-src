@@ -17,6 +17,11 @@ MAN=	\
 	rk_i2c.4 \
 	rk_pinctrl.4 \
 
+# Link files to the parent directory
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ../${_manpage}
+.endfor
+
 MANSUBDIR=/aarch64
 
 .include <bsd.prog.mk>
