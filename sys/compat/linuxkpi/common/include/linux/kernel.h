@@ -301,6 +301,8 @@ extern int linuxkpi_debug;
 
 #define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
 
+#define _RET_IP_		__builtin_return_address(0)
+
 static inline unsigned long long
 simple_strtoull(const char *cp, char **endp, unsigned int base)
 {
