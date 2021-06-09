@@ -32,8 +32,10 @@
  * $FreeBSD$
  */
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdlib.h>
 
 #include "libcasper_impl.h"
@@ -44,3 +46,28 @@ fd_is_valid(int fd)
 
 	return (fcntl(fd, F_GETFL) != -1 || errno != EBADF);
 }
+
+void
+fd_fix_environment(int *fdp)
+{
+	int nullfd, nfd;
+
+	if (*fdp > STDERR_FILENO)
+		return;
+
+	nullfd = open(_PATH_DEVNULL, O_RDWR);
+	if (nullfd == -1)
+		errx(1, "Unable to open %s", _PATH_DEVNULL);
+
+	while (*fdp <= STDERR_FILENO) {
+		nfd = dup(*fdp);
+		if (nfd == -1)
+			errx(1, "Unable to secure fd");
+		if (dup2(nullfd, *fdp) == -1)
+			errx(1, "Unable to secure fd");
+		*fdp = nfd;
+	}
+
+	close(nullfd);
+}
+
