@@ -719,7 +719,8 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
 device		virtio_console	# VirtIO Console device
 
-device 		hyperv		# HyperV drivers
+options 	HYPERV
+device		hyperv		# HyperV drivers
 
 #####################################################################
 
