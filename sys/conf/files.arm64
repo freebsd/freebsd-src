@@ -179,6 +179,8 @@ dev/enetc/enetc_mdio.c				optional enetc soc_nxp_ls
 dev/enetc/enetc_mdio_pci.c			optional enetc pci soc_nxp_ls
 dev/enetc/if_enetc.c				optional enetc iflib pci fdt soc_nxp_ls
 
+dev/etherswitch/felix/felix.c			optional enetc etherswitch fdt felix pci soc_nxp_ls
+
 dev/gpio/pl061.c				optional pl061 gpio
 dev/gpio/pl061_acpi.c				optional pl061 gpio acpi
 dev/gpio/pl061_fdt.c				optional pl061 gpio fdt

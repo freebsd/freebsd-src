@@ -12,6 +12,7 @@ MAN=	\
 	aw_syscon.4 \
 	bcm283x_pwm.4 \
 	enetc.4 \
+	felix.4 \
 	rk_gpio.4 \
 	rk_grf.4 \
 	rk_i2c.4 \
