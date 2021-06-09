@@ -140,7 +140,7 @@ struct lro_entry {
 	uint16_t		uncompressed;
 	uint16_t		window;
 	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
-	sbintime_t		alloc_time;	/* time when entry was allocated */
+	struct bintime		alloc_time;	/* time when entry was allocated */
 };
 
 LIST_HEAD(lro_head, lro_entry);
@@ -154,7 +154,7 @@ struct lro_mbuf_sort {
 struct lro_ctrl {
 	struct ifnet	*ifp;
 	struct lro_mbuf_sort *lro_mbuf_data;
-	sbintime_t	lro_last_queue_time;	/* last time data was queued */
+	struct bintime	lro_last_queue_time;	/* last time data was queued */
 	uint64_t	lro_queued;
 	uint64_t	lro_flushed;
 	uint64_t	lro_bad_csum;
