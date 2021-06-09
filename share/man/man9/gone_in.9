@@ -1,0 +1,94 @@
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" This document was written by Ed Maste under sponsorhip from
+.\" The FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 16, 2021
+.Dt GONE_IN 9
+.Os
+.Sh NAME
+.Nm gone_in ,
+.Nm gone_in_dev
+.Nd deprecation notice functions
+.Sh SYNOPSIS
+.In sys/systm.h
+.Ft void
+.Fn gone_in "int major" "const char *msg"
+.Ft void
+.Fn gone_in_dev "device_t dev" "int major" "const char *msg"
+.Sh DESCRIPTION
+The
+.Fn gone_in
+functions are used to provide a notice that the kernel is using a driver or
+some other functionality that is deprecated, and will be removed in a future
+.Fx
+release.
+The notice is sent to the kernel
+.Xr dmesg 8
+log and will appear on the console.
+The
+.Fa major
+argument specifies the major version of the
+.Fx
+release that will remove the deprecated functionality.
+.Pp
+In releases before
+.Fa major
+the deprecation notice states
+.Do
+Deprecated code (to be removed in FreeBSD
+.Fa major Ns ):
+.Fa msg
+.Dc .
+In releases equal to and after
+.Fa major
+the notice states
+.Do
+Obsolete code will be removed soon:
+.Fa msg
+.Dc .
+.Sh EXAMPLES
+.Bd -literal -offset indent
+void
+sample_init(void)
+{
+	/* Initializaiton code omitted. */
+
+	gone_in(14, "Giant-locked filesystem");
+}
+
+int
+example_driver_attach(struct example_driver_softc *sc)
+{
+	/* Attach code omitted. */
+
+        gone_in_dev(sc->dev, 14, "Giant-locked driver");
+}
+.Ed
+.Sh HISTORY
+The
+.Nm
+functions first appeared in
+.Fx 11 .
