@@ -118,6 +118,7 @@ SUBDIR=	\
 	ext2fs \
 	fdc \
 	fdescfs \
+	${_felix} \
 	${_ffec} \
 	${_fib_dxr} \
 	filemon \
@@ -611,6 +612,7 @@ _allwinner=	allwinner
 _armv8crypto=	armv8crypto
 _dwwdt=		dwwdt
 _em=		em
+_felix=		felix
 _rockchip=	rockchip
 .endif
 
