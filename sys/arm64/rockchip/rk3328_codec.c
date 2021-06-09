@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #define	 SOC_CON10_GPIOMUT			(1 << 1)
 #define	 SOC_CON10_GPIOMUT_MASK			((1 << 1) << 16)
 #define	 SOC_CON10_GPIOMUT_EN			(1 << 0)
-#define	 SOC_CON10_GPIOMUT_EN_MASK			((1 << 0) << 16)
+#define	 SOC_CON10_GPIOMUT_EN_MASK		((1 << 0) << 16)
 
 #define	CODEC_RESET			0x00
 #define	 RESET_DIG_CORE_RST			(1 << 1)
@@ -247,10 +247,10 @@ rkcodec_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	val = SOC_CON2_I2S_ACODEC_EN_MASK  | (SOC_CON2_I2S_ACODEC_EN << 16);
+	val = SOC_CON2_I2S_ACODEC_EN | SOC_CON2_I2S_ACODEC_EN_MASK;
 	SYSCON_WRITE_4(sc->grf, GRF_SOC_CON2, val);
 
-	val = 0 | (SOC_CON10_GPIOMUT_EN << 16);
+	val = 0 | SOC_CON10_GPIOMUT_EN_MASK;
 	SYSCON_WRITE_4(sc->grf, GRF_SOC_CON10, val);
 
 	error = clk_get_by_ofw_name(dev, 0, "pclk", &sc->pclk);
