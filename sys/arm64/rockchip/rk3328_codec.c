@@ -178,7 +178,10 @@ rkcodec_set_power(struct rkcodec_softc *sc, bool poweron)
 	else
 		val &= ~(DAC_PRECHARGE_CTRL_DAC_CHARGE_PRECHARGE);
 	RKCODEC_WRITE(sc, CODEC_DAC_PRECHARGE_CTRL, val);
-	DELAY(10);
+
+	DELAY(10000);
+
+	val = RKCODEC_READ(sc, CODEC_DAC_PRECHARGE_CTRL);
 	if (poweron)
 		val |= DAC_PRECHARGE_CTRL_DAC_CHARGE_CURRENT_ALL;
 	else
@@ -202,7 +205,7 @@ rkcodec_reset(struct rkcodec_softc *sc)
 {
 
 	RKCODEC_WRITE(sc, CODEC_RESET, 0);
-	DELAY(10);
+	DELAY(10000);
 	RKCODEC_WRITE(sc, CODEC_RESET, RESET_DIG_CORE_RST | RESET_SYS_RST);
 }
 
