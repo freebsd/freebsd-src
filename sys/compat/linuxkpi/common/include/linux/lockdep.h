@@ -77,6 +77,7 @@ lockdep_is_held(void *__m)
 
 #define	might_lock(m)	do { } while (0)
 #define	might_lock_read(m) do { } while (0)
+#define	might_lock_nested(m, n) do { } while (0)
 
 #define	lock_acquire(...) do { } while (0)
 #define	lock_release(...) do { } while (0)
@@ -84,5 +85,9 @@ lockdep_is_held(void *__m)
 
 #define	mutex_acquire(...) do { } while (0)
 #define	mutex_release(...) do { } while (0)
+
+#define	lockdep_pin_lock(l) do { } while (0)
+#define	lockdep_repin_lock(l,c) do { } while (0)
+#define	lockdep_unpin_lock(l,c) do { } while (0)
 
 #endif /* _LINUX_LOCKDEP_H_ */
