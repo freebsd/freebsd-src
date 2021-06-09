@@ -15,7 +15,8 @@ DTS=	\
 	rockchip/rk3399-firefly.dts \
 	rockchip/rk3399-rockpro64.dts
 
-DTSO=	rk3328-dwc3.dtso \
+DTSO=	rk3328-analog-sound.dtso \
+	rk3328-dwc3.dtso \
 	rk3399-mmc0-disable.dtso \
 	rk3399-mmc1-disable.dtso \
 	rk3399-sdhci-disable.dtso
