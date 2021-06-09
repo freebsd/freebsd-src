@@ -438,19 +438,31 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
     int fhlen, struct ucred *cred, NFSPROC_T *p, struct nfscldeleg **dpp)
 {
 	struct nfscldeleg *dp = *dpp, *tdp;
+	struct nfsmount *nmp;
 
+	KASSERT(mp != NULL, ("nfscl_deleg: mp NULL"));
+	nmp = VFSTONFS(mp);
 	/*
 	 * First, if we have received a Read delegation for a file on a
 	 * read/write file system, just return it, because they aren't
 	 * useful, imho.
 	 */
-	if (mp != NULL && dp != NULL && !NFSMNT_RDONLY(mp) &&
+	if (dp != NULL && !NFSMNT_RDONLY(mp) &&
 	    (dp->nfsdl_flags & NFSCLDL_READ)) {
-		(void) nfscl_trydelegreturn(dp, cred, VFSTONFS(mp), p);
+		nfscl_trydelegreturn(dp, cred, nmp, p);
 		free(dp, M_NFSCLDELEG);
 		*dpp = NULL;
 		return (0);
 	}
+
+	/*
+	 * Since a delegation might be added to the mount,
+	 * set NFSMNTP_DELEGISSUED now.  If a delegation already
+	 * exagain ists, setting this flag is harmless.
+	 */
+	NFSLOCKMNT(nmp);
+	nmp->nm_privflag |= NFSMNTP_DELEGISSUED;
+	NFSUNLOCKMNT(nmp);
 
 	/* Look for the correct deleg, based upon FH */
 	NFSLOCKCLSTATE();
@@ -3356,12 +3368,20 @@ nfscl_delegreturnvp(vnode_t vp, NFSPROC_T *p)
 	struct nfscldeleg *dp;
 	struct ucred *cred;
 	struct nfsnode *np;
+	struct nfsmount *nmp;
 
+	nmp = VFSTONFS(vp->v_mount);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return;
+	}
+	NFSUNLOCKMNT(nmp);
 	np = VTONFS(vp);
 	cred = newnfs_getcred();
 	dp = NULL;
 	NFSLOCKCLSTATE();
-	clp = VFSTONFS(vp->v_mount)->nm_clp;
+	clp = nmp->nm_clp;
 	if (clp != NULL)
 		dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
 		    np->n_fhp->nfh_len);
@@ -4500,6 +4520,12 @@ nfscl_nodeleg(vnode_t vp, int writedeleg)
 	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return (1);
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return (1);
+	}
+	NFSUNLOCKMNT(nmp);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
@@ -4856,6 +4882,12 @@ nfscl_delegmodtime(vnode_t vp)
 	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return;
+	}
+	NFSUNLOCKMNT(nmp);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
@@ -4885,6 +4917,12 @@ nfscl_deleggetmodtime(vnode_t vp, struct timespec *mtime)
 	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
+	NFSLOCKMNT(nmp);
+	if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0) {
+		NFSUNLOCKMNT(nmp);
+		return;
+	}
+	NFSUNLOCKMNT(nmp);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
