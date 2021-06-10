@@ -3066,7 +3066,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_rt_sigtimedwait_time64 */
 	case 421: {
-		*n_args = 0;
+		struct linux_rt_sigtimedwait_time64_args *p = params;
+		uarg[0] = (intptr_t)p->mask; /* l_sigset_t * */
+		uarg[1] = (intptr_t)p->ptr; /* l_siginfo_t * */
+		uarg[2] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		iarg[3] = p->sigsetsize; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_sys_futex_time64 */
@@ -8125,6 +8130,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
+		switch (ndx) {
+		case 0:
+			p = "userland l_sigset_t *";
+			break;
+		case 1:
+			p = "userland l_siginfo_t *";
+			break;
+		case 2:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_sys_futex_time64 */
 	case 422:
@@ -9915,6 +9936,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 420:
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_sys_futex_time64 */
 	case 422:
 		if (ndx == 0 || ndx == 1)
