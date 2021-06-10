@@ -1551,7 +1551,12 @@ struct linux_utimensat_time64_args {
 	char flags_l_[PADL_(l_int)]; l_int flags; char flags_r_[PADR_(l_int)];
 };
 struct linux_pselect6_time64_args {
-	register_t dummy;
+	char nfds_l_[PADL_(l_int)]; l_int nfds; char nfds_r_[PADR_(l_int)];
+	char readfds_l_[PADL_(l_fd_set *)]; l_fd_set * readfds; char readfds_r_[PADR_(l_fd_set *)];
+	char writefds_l_[PADL_(l_fd_set *)]; l_fd_set * writefds; char writefds_r_[PADR_(l_fd_set *)];
+	char exceptfds_l_[PADL_(l_fd_set *)]; l_fd_set * exceptfds; char exceptfds_r_[PADR_(l_fd_set *)];
+	char tsp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tsp; char tsp_r_[PADR_(struct l_timespec64 *)];
+	char sig_l_[PADL_(l_uintptr_t *)]; l_uintptr_t * sig; char sig_r_[PADR_(l_uintptr_t *)];
 };
 struct linux_ppoll_time64_args {
 	register_t dummy;
