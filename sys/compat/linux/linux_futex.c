@@ -520,7 +520,8 @@ futex_wake(struct futex *f, int n, uint32_t bitset)
 }
 
 static int
-futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
+futex_requeue(struct futex *f, int nrwake, struct futex *f2,
+    int nrrequeue)
 {
 	struct waiting_proc *wp, *wpt;
 	int count = 0;
@@ -529,7 +530,7 @@ futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
 	FUTEX_ASSERT_LOCKED(f2);
 
 	TAILQ_FOREACH_SAFE(wp, &f->f_waiting_proc, wp_list, wpt) {
-		if (++count <= n) {
+		if (++count <= nrwake) {
 			LINUX_CTR2(sys_futex, "futex_req_wake uaddr %p wp %p",
 			    f->f_uaddr, wp);
 			wp->wp_flags |= FUTEX_WP_REMOVED;
@@ -555,7 +556,7 @@ futex_requeue(struct futex *f, int n, struct futex *f2, int n2)
 			FUTEXES_LOCK;
 			++f2->f_refcount;
 			FUTEXES_UNLOCK;
-			if (count - n >= n2)
+			if (count - nrwake >= nrrequeue)
 				break;
 		}
 	}
@@ -657,7 +658,7 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 int
 linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 {
-	int clockrt, nrwake, op_ret, ret;
+	int clockrt, nrwake, nrrequeue, op_ret, ret;
 	struct linux_pemuldata *pem;
 	struct waiting_proc *wp;
 	struct futex *f, *f2;
@@ -786,6 +787,15 @@ retry0:
 			return (EINVAL);
 		}
 
+		nrrequeue = (int)(unsigned long)args->timeout;
+		nrwake = args->val;
+		/*
+		 * Sanity check to prevent signed integer overflow,
+		 * see Linux CVE-2018-6927
+		 */
+		if (nrwake < 0 || nrrequeue < 0)
+			return (EINVAL);
+
 retry1:
 		error = futex_get(args->uaddr, NULL, &f, flags | FUTEX_DONTLOCK);
 		if (error)
@@ -829,8 +839,7 @@ retry1:
 			return (EAGAIN);
 		}
 
-		nrwake = (int)(unsigned long)args->timeout;
-		td->td_retval[0] = futex_requeue(f, args->val, f2, nrwake);
+		td->td_retval[0] = futex_requeue(f, nrwake, f2, nrrequeue);
 		futex_put(f2, NULL);
 		futex_put(f, NULL);
 		break;
