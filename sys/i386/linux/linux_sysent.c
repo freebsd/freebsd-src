@@ -431,7 +431,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_timerfd_settime64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 411 = linux_timerfd_settime64 */
 	{ .sy_narg = AS(linux_utimensat_time64_args), .sy_call = (sy_call_t *)linux_utimensat_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 412 = linux_utimensat_time64 */
 	{ .sy_narg = AS(linux_pselect6_time64_args), .sy_call = (sy_call_t *)linux_pselect6_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 413 = linux_pselect6_time64 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_ppoll_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 414 = linux_ppoll_time64 */
+	{ .sy_narg = AS(linux_ppoll_time64_args), .sy_call = (sy_call_t *)linux_ppoll_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 414 = linux_ppoll_time64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)nosys, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_ABSENT },			/* 415 = nosys */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_io_pgetevents_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 416 = linux_io_pgetevents_time64 */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_recvmmsg_time64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 417 = linux_recvmmsg_time64 */
