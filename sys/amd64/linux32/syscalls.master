@@ -2412,7 +2412,12 @@
 		int linux_semtimedop_time64(void);
 	}
 421	AUE_NULL	STD {
-		int linux_rt_sigtimedwait_time64(void);
+		int linux_rt_sigtimedwait_time64(
+		    l_sigset_t *mask,
+		    l_siginfo_t *ptr,
+		    struct l_timespec64 *timeout,
+		    l_size_t sigsetsize
+		);
 	}
 422	AUE_NULL	STD {
 		int linux_sys_futex_time64(

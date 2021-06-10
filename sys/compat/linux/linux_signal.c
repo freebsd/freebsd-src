@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 static int	linux_do_tkill(struct thread *td, struct thread *tdt,
 		    ksiginfo_t *ksi);
 static void	sicode_to_lsicode(int si_code, int *lsi_code);
+static int	linux_common_rt_sigtimedwait(struct thread *,
+		    l_sigset_t *, struct timespec *, l_siginfo_t *,
+		    l_size_t);
 
 static void
 linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
@@ -386,29 +389,14 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	return (copyout(&lset, args->set, args->sigsetsize));
 }
 
-/*
- * MPSAFE
- */
 int
 linux_rt_sigtimedwait(struct thread *td,
 	struct linux_rt_sigtimedwait_args *args)
 {
-	int error, sig;
 	struct timespec ts, *tsa;
 	struct l_timespec lts;
-	l_sigset_t lset;
-	sigset_t bset;
-	l_siginfo_t lsi;
-	ksiginfo_t ksi;
+	int error;
 
-	if (args->sigsetsize != sizeof(l_sigset_t))
-		return (EINVAL);
-
-	if ((error = copyin(args->mask, &lset, sizeof(lset))))
-		return (error);
-	linux_to_bsd_sigset(&lset, &bset);
-
-	tsa = NULL;
 	if (args->timeout) {
 		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
 			return (error);
@@ -419,22 +407,68 @@ linux_rt_sigtimedwait(struct thread *td,
 	} else
 		tsa = NULL;
 
+	return (linux_common_rt_sigtimedwait(td, args->mask, tsa,
+	    args->ptr, args->sigsetsize));
+}
+
+static int
+linux_common_rt_sigtimedwait(struct thread *td, l_sigset_t *mask,
+    struct timespec *tsa, l_siginfo_t *ptr, l_size_t sigsetsize)
+{
+	int error, sig;
+	l_sigset_t lset;
+	sigset_t bset;
+	l_siginfo_t lsi;
+	ksiginfo_t ksi;
+
+	if (sigsetsize != sizeof(l_sigset_t))
+		return (EINVAL);
+
+	if ((error = copyin(mask, &lset, sizeof(lset))))
+		return (error);
+	linux_to_bsd_sigset(&lset, &bset);
+
+	ksiginfo_init(&ksi);
 	error = kern_sigtimedwait(td, bset, &ksi, tsa);
 	if (error)
 		return (error);
 
 	sig = bsd_to_linux_signal(ksi.ksi_signo);
 
-	if (args->ptr) {
+	if (ptr) {
 		memset(&lsi, 0, sizeof(lsi));
 		siginfo_to_lsiginfo(&ksi.ksi_info, &lsi, sig);
-		error = copyout(&lsi, args->ptr, sizeof(lsi));
+		error = copyout(&lsi, ptr, sizeof(lsi));
 	}
 	if (error == 0)
 		td->td_retval[0] = sig;
 
 	return (error);
 }
+
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_rt_sigtimedwait_time64(struct thread *td,
+	struct linux_rt_sigtimedwait_time64_args *args)
+{
+	struct timespec ts, *tsa;
+	struct l_timespec64 lts;
+	int error;
+
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &lts, sizeof(lts))))
+			return (error);
+		error = linux_to_native_timespec64(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsa = &ts;
+	} else
+		tsa = NULL;
+
+	return (linux_common_rt_sigtimedwait(td, args->mask, tsa,
+	    args->ptr, args->sigsetsize));
+}
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_kill(struct thread *td, struct linux_kill_args *args)
