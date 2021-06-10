@@ -81,5 +81,4 @@ DUMMY(recvmmsg_time64);
 DUMMY(mq_timedsend_time64);
 DUMMY(mq_timedreceive_time64);
 DUMMY(semtimedop_time64);
-DUMMY(rt_sigtimedwait_time64);
 DUMMY(sched_rr_get_interval_time64);
