@@ -596,12 +596,13 @@
 		int linux_unshare(void);
 	}
 98	AUE_NULL	STD	{
-		int linux_sys_futex(void *uaddr,
-		    int op,
-		    int val,
+		int linux_sys_futex(
+		    uint32_t *uaddr,
+		    l_int op,
+		    uint32_t val,
 		    struct l_timespec *timeout,
-		    void *uaddr2,
-		    int val3
+		    uint32_t *uaddr2,
+		    uint32_t val3
 		);
 	}
 99	AUE_NULL	STD	{
