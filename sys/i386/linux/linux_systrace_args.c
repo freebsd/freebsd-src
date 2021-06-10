@@ -3082,7 +3082,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_ppoll_time64 */
 	case 414: {
-		*n_args = 0;
+		struct linux_ppoll_time64_args *p = params;
+		uarg[0] = (intptr_t)p->fds; /* struct pollfd * */
+		uarg[1] = p->nfds; /* uint32_t */
+		uarg[2] = (intptr_t)p->tsp; /* struct l_timespec64 * */
+		uarg[3] = (intptr_t)p->sset; /* l_sigset_t * */
+		iarg[4] = p->ssize; /* l_size_t */
+		*n_args = 5;
 		break;
 	}
 	/* linux_io_pgetevents_time64 */
@@ -8218,6 +8224,25 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ppoll_time64 */
 	case 414:
+		switch (ndx) {
+		case 0:
+			p = "userland struct pollfd *";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 3:
+			p = "userland l_sigset_t *";
+			break;
+		case 4:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_io_pgetevents_time64 */
 	case 416:
@@ -10062,6 +10087,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_ppoll_time64 */
 	case 414:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_io_pgetevents_time64 */
 	case 416:
 	/* linux_recvmmsg_time64 */

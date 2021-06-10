@@ -1559,7 +1559,11 @@ struct linux_pselect6_time64_args {
 	char sig_l_[PADL_(l_uintptr_t *)]; l_uintptr_t * sig; char sig_r_[PADR_(l_uintptr_t *)];
 };
 struct linux_ppoll_time64_args {
-	register_t dummy;
+	char fds_l_[PADL_(struct pollfd *)]; struct pollfd * fds; char fds_r_[PADR_(struct pollfd *)];
+	char nfds_l_[PADL_(uint32_t)]; uint32_t nfds; char nfds_r_[PADR_(uint32_t)];
+	char tsp_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * tsp; char tsp_r_[PADR_(struct l_timespec64 *)];
+	char sset_l_[PADL_(l_sigset_t *)]; l_sigset_t * sset; char sset_r_[PADR_(l_sigset_t *)];
+	char ssize_l_[PADL_(l_size_t)]; l_size_t ssize; char ssize_r_[PADR_(l_size_t)];
 };
 struct linux_io_pgetevents_time64_args {
 	register_t dummy;
