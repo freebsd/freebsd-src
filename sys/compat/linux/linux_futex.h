@@ -55,6 +55,9 @@
 #define LINUX_FUTEX_PRIVATE_FLAG	128
 #define LINUX_FUTEX_CLOCK_REALTIME	256
 
+#define LINUX_FUTEX_CMD_MASK		~(LINUX_FUTEX_PRIVATE_FLAG | \
+					    LINUX_FUTEX_CLOCK_REALTIME)
+
 #define FUTEX_OP_SET            0	/* *(int *)UADDR2 = OPARG; */
 #define FUTEX_OP_ADD            1	/* *(int *)UADDR2 += OPARG; */
 #define FUTEX_OP_OR             2	/* *(int *)UADDR2 |= OPARG; */

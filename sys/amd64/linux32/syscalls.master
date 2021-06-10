@@ -2415,7 +2415,14 @@
 		int linux_rt_sigtimedwait_time64(void);
 	}
 422	AUE_NULL	STD {
-		int linux_futex_time64(void);
+		int linux_sys_futex_time64(
+		    uint32_t *uaddr,
+		    l_int op,
+		    uint32_t val,
+		    struct l_timespec64 *timeout,
+		    uint32_t *uaddr2,
+		    uint32_t val3
+		);
 	}
 423	AUE_NULL	STD {
 		int linux_sched_rr_get_interval_time64(void);
