@@ -1581,8 +1581,13 @@ struct linux_semtimedop_time64_args {
 struct linux_rt_sigtimedwait_time64_args {
 	register_t dummy;
 };
-struct linux_futex_time64_args {
-	register_t dummy;
+struct linux_sys_futex_time64_args {
+	char uaddr_l_[PADL_(uint32_t *)]; uint32_t * uaddr; char uaddr_r_[PADR_(uint32_t *)];
+	char op_l_[PADL_(l_int)]; l_int op; char op_r_[PADR_(l_int)];
+	char val_l_[PADL_(uint32_t)]; uint32_t val; char val_r_[PADR_(uint32_t)];
+	char timeout_l_[PADL_(struct l_timespec64 *)]; struct l_timespec64 * timeout; char timeout_r_[PADR_(struct l_timespec64 *)];
+	char uaddr2_l_[PADL_(uint32_t *)]; uint32_t * uaddr2; char uaddr2_r_[PADR_(uint32_t *)];
+	char val3_l_[PADL_(uint32_t)]; uint32_t val3; char val3_r_[PADR_(uint32_t)];
 };
 struct linux_sched_rr_get_interval_time64_args {
 	register_t dummy;
@@ -1989,7 +1994,7 @@ int	linux_mq_timedsend_time64(struct thread *, struct linux_mq_timedsend_time64_
 int	linux_mq_timedreceive_time64(struct thread *, struct linux_mq_timedreceive_time64_args *);
 int	linux_semtimedop_time64(struct thread *, struct linux_semtimedop_time64_args *);
 int	linux_rt_sigtimedwait_time64(struct thread *, struct linux_rt_sigtimedwait_time64_args *);
-int	linux_futex_time64(struct thread *, struct linux_futex_time64_args *);
+int	linux_sys_futex_time64(struct thread *, struct linux_sys_futex_time64_args *);
 int	linux_sched_rr_get_interval_time64(struct thread *, struct linux_sched_rr_get_interval_time64_args *);
 int	linux_pidfd_send_signal(struct thread *, struct linux_pidfd_send_signal_args *);
 int	linux_io_uring_setup(struct thread *, struct linux_io_uring_setup_args *);
@@ -2400,7 +2405,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX32_SYS_AUE_linux_mq_timedreceive_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_semtimedop_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_rt_sigtimedwait_time64	AUE_NULL
-#define	LINUX32_SYS_AUE_linux_futex_time64	AUE_NULL
+#define	LINUX32_SYS_AUE_linux_sys_futex_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_sched_rr_get_interval_time64	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_pidfd_send_signal	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_io_uring_setup	AUE_NULL
