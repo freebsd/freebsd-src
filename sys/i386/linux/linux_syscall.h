@@ -390,7 +390,7 @@
 #define	LINUX_SYS_linux_mq_timedreceive_time64	419
 #define	LINUX_SYS_linux_semtimedop_time64	420
 #define	LINUX_SYS_linux_rt_sigtimedwait_time64	421
-#define	LINUX_SYS_linux_futex_time64	422
+#define	LINUX_SYS_linux_sys_futex_time64	422
 #define	LINUX_SYS_linux_sched_rr_get_interval_time64	423
 #define	LINUX_SYS_linux_pidfd_send_signal	424
 #define	LINUX_SYS_linux_io_uring_setup	425
