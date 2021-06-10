@@ -2400,7 +2400,13 @@
 		);
 	}
 414	AUE_NULL	STD {
-		int linux_ppoll_time64(void);
+		int linux_ppoll_time64(
+		    struct pollfd *fds,
+		    uint32_t nfds,
+		    struct l_timespec *tsp,
+		    l_sigset_t *sset,
+		    l_size_t ssize
+		);
 	}
 415	AUE_NULL	UNIMPL	nosys
 416	AUE_NULL	STD {
