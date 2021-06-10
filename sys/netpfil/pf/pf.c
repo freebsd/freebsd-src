@@ -4485,45 +4485,13 @@ pf_tcp_track_sloppy(struct pf_state_peer *src, struct pf_state_peer *dst,
 }
 
 static int
-pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
-    struct mbuf *m, int off, void *h, struct pf_pdesc *pd,
-    u_short *reason)
+pf_synproxy(struct pf_pdesc *pd, struct pf_kstate **state, u_short *reason)
 {
-	struct pf_state_key_cmp	 key;
+	struct pf_state_key	*sk = (*state)->key[pd->didx];
 	struct tcphdr		*th = &pd->hdr.tcp;
-	int			 copyback = 0;
-	struct pf_state_peer	*src, *dst;
-	struct pf_state_key	*sk;
-
-	bzero(&key, sizeof(key));
-	key.af = pd->af;
-	key.proto = IPPROTO_TCP;
-	if (direction == PF_IN)	{	/* wire side, straight */
-		PF_ACPY(&key.addr[0], pd->src, key.af);
-		PF_ACPY(&key.addr[1], pd->dst, key.af);
-		key.port[0] = th->th_sport;
-		key.port[1] = th->th_dport;
-	} else {			/* stack side, reverse */
-		PF_ACPY(&key.addr[1], pd->src, key.af);
-		PF_ACPY(&key.addr[0], pd->dst, key.af);
-		key.port[1] = th->th_sport;
-		key.port[0] = th->th_dport;
-	}
-
-	STATE_LOOKUP(kif, &key, direction, *state, pd);
-
-	if (direction == (*state)->direction) {
-		src = &(*state)->src;
-		dst = &(*state)->dst;
-	} else {
-		src = &(*state)->dst;
-		dst = &(*state)->src;
-	}
-
-	sk = (*state)->key[pd->didx];
 
 	if ((*state)->src.state == PF_TCPS_PROXY_SRC) {
-		if (direction != (*state)->direction) {
+		if (pd->dir != (*state)->direction) {
 			REASON_SET(reason, PFRES_SYNPROXY);
 			return (PF_SYNPROXY_DROP);
 		}
@@ -4551,7 +4519,7 @@ pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
 			(*state)->src.state = PF_TCPS_PROXY_DST;
 	}
 	if ((*state)->src.state == PF_TCPS_PROXY_DST) {
-		if (direction == (*state)->direction) {
+		if (pd->dir == (*state)->direction) {
 			if (((th->th_flags & (TH_SYN|TH_ACK)) != TH_ACK) ||
 			    (ntohl(th->th_ack) != (*state)->src.seqhi + 1) ||
 			    (ntohl(th->th_seq) != (*state)->src.seqlo + 1)) {
@@ -4601,6 +4569,51 @@ pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
 			return (PF_SYNPROXY_DROP);
 		}
 	}
+
+	return (PF_PASS);
+}
+
+static int
+pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
+    struct mbuf *m, int off, void *h, struct pf_pdesc *pd,
+    u_short *reason)
+{
+	struct pf_state_key_cmp	 key;
+	struct tcphdr		*th = &pd->hdr.tcp;
+	int			 copyback = 0;
+	int			 action;
+	struct pf_state_peer	*src, *dst;
+	struct pf_state_key	*sk;
+
+	bzero(&key, sizeof(key));
+	key.af = pd->af;
+	key.proto = IPPROTO_TCP;
+	if (direction == PF_IN)	{	/* wire side, straight */
+		PF_ACPY(&key.addr[0], pd->src, key.af);
+		PF_ACPY(&key.addr[1], pd->dst, key.af);
+		key.port[0] = th->th_sport;
+		key.port[1] = th->th_dport;
+	} else {			/* stack side, reverse */
+		PF_ACPY(&key.addr[1], pd->src, key.af);
+		PF_ACPY(&key.addr[0], pd->dst, key.af);
+		key.port[1] = th->th_sport;
+		key.port[0] = th->th_dport;
+	}
+
+	STATE_LOOKUP(kif, &key, direction, *state, pd);
+
+	if (direction == (*state)->direction) {
+		src = &(*state)->src;
+		dst = &(*state)->dst;
+	} else {
+		src = &(*state)->dst;
+		dst = &(*state)->src;
+	}
+
+	sk = (*state)->key[pd->didx];
+
+	if ((action = pf_synproxy(pd, state, reason)) != PF_PASS)
+		return (action);
 
 	if (((th->th_flags & (TH_SYN|TH_ACK)) == TH_SYN) &&
 	    dst->state >= TCPS_FIN_WAIT_2 &&
