@@ -35,13 +35,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <amd64/linux32/linux.h>
-#include <amd64/linux32/linux32_proto.h>
+#include <i386/linux/linux.h>
+#include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
+
+/*
+ * Before adding new stubs to this file, please check if a stub can be added to
+ * the machine-independent code in sys/compat/linux/linux_dummy.c (or
+ * sys/x86/linux/linux_dummy_x86.c).
+ */
 
 UNIMPLEMENTED(break);
 UNIMPLEMENTED(ftime);
@@ -53,17 +59,13 @@ UNIMPLEMENTED(prof);
 UNIMPLEMENTED(profil);
 UNIMPLEMENTED(ulimit);
 
-DUMMY(stime);
-DUMMY(olduname);
-DUMMY(uname);
 DUMMY(bdflush);
-DUMMY(ptrace);
-DUMMY(mq_open);
-DUMMY(mq_unlink);
-DUMMY(mq_timedsend);
-DUMMY(mq_timedreceive);
-DUMMY(mq_notify);
-DUMMY(mq_getsetattr);
+DUMMY(fstat);
+DUMMY(olduname);
+DUMMY(stime);
+DUMMY(uname);
+DUMMY(vm86);
+DUMMY(vm86old);
 /* Linux 4.11: */
 DUMMY(arch_prctl);
 /* Linux 5.0: */
