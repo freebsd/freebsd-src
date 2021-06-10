@@ -3108,9 +3108,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* linux_futex_time64 */
+	/* linux_sys_futex_time64 */
 	case 422: {
-		*n_args = 0;
+		struct linux_sys_futex_time64_args *p = params;
+		uarg[0] = (intptr_t)p->uaddr; /* uint32_t * */
+		iarg[1] = p->op; /* l_int */
+		uarg[2] = p->val; /* uint32_t */
+		uarg[3] = (intptr_t)p->timeout; /* struct l_timespec64 * */
+		uarg[4] = (intptr_t)p->uaddr2; /* uint32_t * */
+		uarg[5] = p->val3; /* uint32_t */
+		*n_args = 6;
 		break;
 	}
 	/* linux_sched_rr_get_interval_time64 */
@@ -8196,8 +8203,30 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
 		break;
-	/* linux_futex_time64 */
+	/* linux_sys_futex_time64 */
 	case 422:
+		switch (ndx) {
+		case 0:
+			p = "userland uint32_t *";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 4:
+			p = "userland uint32_t *";
+			break;
+		case 5:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
@@ -9992,8 +10021,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 420:
 	/* linux_rt_sigtimedwait_time64 */
 	case 421:
-	/* linux_futex_time64 */
+	/* linux_sys_futex_time64 */
 	case 422:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_sched_rr_get_interval_time64 */
 	case 423:
 	/* linux_pidfd_send_signal */
