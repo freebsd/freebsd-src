@@ -37,8 +37,6 @@
 
 #include "util.h"
 
-static void	get_data(void *data, size_t len, void *ctx);
-
 ATF_TC(send_recv);
 ATF_TC_HEAD(send_recv, conf)
 {
@@ -48,16 +46,16 @@ ATF_TC_HEAD(send_recv, conf)
 ATF_TC_BODY(send_recv, dummy)
 {
 	char		msg[] = "test";
-	int		received;
+	ng_counter_t	r;
 
 	ng_init();
 	ng_connect(".", "a", ".", "b");
-	ng_register_data("b", get_data);
+	ng_register_data("b", get_data0);
 	ng_send_data("a", msg, sizeof(msg));
 
-	received = 0;
-	ng_handle_events(50, &received);
-	ATF_CHECK(received == 1);
+	ng_counter_clear(r);
+	ng_handle_events(50, &r);
+	ATF_CHECK(r[0] == 1);
 }
 
 ATF_TC(node);
@@ -69,7 +67,7 @@ ATF_TC_HEAD(node, conf)
 ATF_TC_BODY(node, dummy)
 {
 	char		msg[] = "test";
-	int		received;
+	ng_counter_t	r;
 
 	ng_init();
 	ng_mkpeer(".", "a", "hub", "a");
@@ -78,20 +76,20 @@ ATF_TC_BODY(node, dummy)
 
 	ng_connect(".", "b", "test hub:", "b");
 	ng_connect(".", "c", "test hub:", "c");
-	ng_register_data("a", get_data);
-	ng_register_data("b", get_data);
-	ng_register_data("c", get_data);
+	ng_register_data("a", get_data0);
+	ng_register_data("b", get_data1);
+	ng_register_data("c", get_data2);
 
-	received = 0;
+	ng_counter_clear(r);
 	ng_send_data("a", msg, sizeof(msg));
-	ng_handle_events(50, &received);
-	ATF_CHECK(received == 2);
+	ng_handle_events(50, &r);
+	ATF_CHECK(r[0] == 0 && r[1] == 1 && r[2] == 1);
 
 	ng_rmhook(".", "b");
-	received = 0;
+	ng_counter_clear(r);
 	ng_send_data("a", msg, sizeof(msg));
-	ng_handle_events(50, &received);
-	ATF_CHECK(received == 1);
+	ng_handle_events(50, &r);
+	ATF_CHECK(r[0] == 0 && r[1] == 0 && r[2] == 1);
 
 	ng_shutdown("test hub:");
 }
@@ -146,13 +144,14 @@ ATF_TC_HEAD(queuelimit, conf)
 
 ATF_TC_BODY(queuelimit, dummy)
 {
-	int		received, i;
+	ng_counter_t	r;
+	int		i;
 	char		msg[] = "test";
 	const int	MAX = 1000;
 
 	ng_init();
 	ng_connect(".", "a", ".", "b");
-	ng_register_data("b", get_data);
+	ng_register_data("b", get_data0);
 
 	ng_errors(PASS);
 	for (i = 0; i < MAX; i++)
@@ -163,15 +162,13 @@ ATF_TC_BODY(queuelimit, dummy)
 		/* no ng_handle_events -> messages stall */
 	}
 	ng_errors(FAIL);
-	printf("queued %d\n", i);
-	sleep(3);
 
-	received = 0;
-	ng_handle_events(50, &received);
-	ATF_CHECK(received > 100);
-	ATF_CHECK(received == i);
+	ng_counter_clear(r);
+	ng_handle_events(50, &r);
+	ATF_CHECK(r[0] > 100);
+	ATF_CHECK(r[0] == i);
 	atf_tc_expect_fail("Queue full (%d)", i);
-	ATF_CHECK(received == MAX);
+	ATF_CHECK(r[0] == MAX);
 	atf_tc_expect_pass();
 }
 
@@ -184,14 +181,4 @@ ATF_TP_ADD_TCS(basic)
 	ATF_TP_ADD_TC(basic, queuelimit);
 
 	return atf_no_error();
-}
-
-static void
-get_data(void *data, size_t len, void *ctx)
-{
-	int	       *cnt = ctx;
-
-	(void)data;
-	printf("Got %zu bytes of data.\n", len);
-	(*cnt)++;
 }
