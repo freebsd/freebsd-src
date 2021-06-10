@@ -73,6 +73,13 @@ ATF_TC_BODY(node, dummy)
 	ng_mkpeer(".", "a", "hub", "a");
 	ng_name("a", "test hub");
 
+	ng_errors(PASS);
+	ng_name("a", "test hub");
+	ng_errors(FAIL);
+	if (errno == EADDRINUSE)
+		atf_tc_expect_fail("PR241954");
+	ATF_CHECK_ERRNO(0, 1);
+	atf_tc_expect_pass();
 
 	ng_connect(".", "b", "test hub:", "b");
 	ng_connect(".", "c", "test hub:", "c");
