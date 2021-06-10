@@ -41,6 +41,6 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
-CFLAGS.atomic.c+=	-Wno-error-atomic-alignment
+CFLAGS.atomic.c+=	-Wno-error=atomic-alignment
 
 .include <bsd.lib.mk>
