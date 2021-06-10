@@ -1214,12 +1214,12 @@
 	}
 202	AUE_NULL	STD {
 		int linux_sys_futex(
-		    void *uaddr,
+		    uint32_t *uaddr,
 		    l_int op,
-		    l_int val,
+		    uint32_t val,
 		    struct l_timespec *timeout,
-		    void *uaddr2,
-		    l_int val3
+		    uint32_t *uaddr2,
+		    uint32_t val3
 		);
 	}
 203	AUE_NULL	STD {
