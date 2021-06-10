@@ -1563,12 +1563,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_sys_futex */
 	case 202: {
 		struct linux_sys_futex_args *p = params;
-		uarg[0] = (intptr_t)p->uaddr; /* void * */
+		uarg[0] = (intptr_t)p->uaddr; /* uint32_t * */
 		iarg[1] = p->op; /* l_int */
-		iarg[2] = p->val; /* l_int */
+		uarg[2] = p->val; /* uint32_t */
 		uarg[3] = (intptr_t)p->timeout; /* struct l_timespec * */
-		uarg[4] = (intptr_t)p->uaddr2; /* void * */
-		iarg[5] = p->val3; /* l_int */
+		uarg[4] = (intptr_t)p->uaddr2; /* uint32_t * */
+		uarg[5] = p->val3; /* uint32_t */
 		*n_args = 6;
 		break;
 	}
@@ -5237,22 +5237,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 202:
 		switch (ndx) {
 		case 0:
-			p = "userland void *";
+			p = "userland uint32_t *";
 			break;
 		case 1:
 			p = "l_int";
 			break;
 		case 2:
-			p = "l_int";
+			p = "uint32_t";
 			break;
 		case 3:
 			p = "userland struct l_timespec *";
 			break;
 		case 4:
-			p = "userland void *";
+			p = "userland uint32_t *";
 			break;
 		case 5:
-			p = "l_int";
+			p = "uint32_t";
 			break;
 		default:
 			break;

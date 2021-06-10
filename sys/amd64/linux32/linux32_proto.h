@@ -782,8 +782,8 @@ struct linux_sendfile64_args {
 	char count_l_[PADL_(l_size_t)]; l_size_t count; char count_r_[PADR_(l_size_t)];
 };
 struct linux_sys_futex_args {
-	char uaddr_l_[PADL_(void *)]; void * uaddr; char uaddr_r_[PADR_(void *)];
-	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
+	char uaddr_l_[PADL_(uint32_t *)]; uint32_t * uaddr; char uaddr_r_[PADR_(uint32_t *)];
+	char op_l_[PADL_(l_int)]; l_int op; char op_r_[PADR_(l_int)];
 	char val_l_[PADL_(uint32_t)]; uint32_t val; char val_r_[PADR_(uint32_t)];
 	char timeout_l_[PADL_(struct l_timespec *)]; struct l_timespec * timeout; char timeout_r_[PADR_(struct l_timespec *)];
 	char uaddr2_l_[PADL_(uint32_t *)]; uint32_t * uaddr2; char uaddr2_r_[PADR_(uint32_t *)];
