@@ -37,7 +37,7 @@
 .for var in ${__DEFAULT_YES_OPTIONS}
 .if !defined(MK_${var})
 .if defined(WITH_${var}) && ${WITH_${var}} == "no"
-.warning "Use WITHOUT_${var}=1 insetad of WITH_${var}=no"
+.warning "Use WITHOUT_${var}=1 instead of WITH_${var}=no"
 .endif
 .if defined(WITHOUT_${var})			# WITHOUT always wins
 MK_${var}:=	no
@@ -58,7 +58,7 @@ MK_${var}:=	yes
 .for var in ${__DEFAULT_NO_OPTIONS}
 .if !defined(MK_${var})
 .if defined(WITH_${var}) && ${WITH_${var}} == "no"
-.warning "Use WITHOUT_${var}=1 insetad of WITH_${var}=no"
+.warning "Use WITHOUT_${var}=1 instead of WITH_${var}=no"
 .endif
 .if defined(WITH_${var}) && !defined(WITHOUT_${var}) # WITHOUT always wins
 MK_${var}:=	yes
