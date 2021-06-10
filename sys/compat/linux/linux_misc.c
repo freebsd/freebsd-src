@@ -138,6 +138,9 @@ static int	linux_utimensat_lts64_to_ts(struct l_timespec64 *,
 #endif
 static int	linux_common_utimensat(struct thread *, int,
 			const char *, struct timespec *, int);
+static int	linux_common_pselect6(struct thread *, l_int,
+			l_fd_set *, l_fd_set *, l_fd_set *,
+			struct timespec *, l_uintptr_t *);
 
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
@@ -2348,18 +2351,49 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 int
 linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 {
+	struct l_timespec lts;
+	struct timespec ts, *tsp;
+	int error;
+
+	if (args->tsp != NULL) {
+		error = copyin(args->tsp, &lts, sizeof(lts));
+		if (error != 0)
+			return (error);
+		error = linux_to_native_timespec(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsp = &ts;
+	} else
+		tsp = NULL;
+
+	error = linux_common_pselect6(td, args->nfds, args->readfds,
+	    args->writefds, args->exceptfds, tsp, args->sig);
+	if (error != 0)
+		return (error);
+
+	if (args->tsp != NULL) {
+		error = native_to_linux_timespec(&lts, tsp);
+		if (error == 0)
+			error = copyout(&lts, args->tsp, sizeof(lts));
+	}
+	return (error);
+}
+
+static int
+linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
+    l_fd_set *writefds, l_fd_set *exceptfds, struct timespec *tsp,
+    l_uintptr_t *sig)
+{
 	struct timeval utv, tv0, tv1, *tvp;
 	struct l_pselect6arg lpse6;
-	struct l_timespec lts;
-	struct timespec uts;
 	l_sigset_t l_ss;
 	sigset_t *ssp;
 	sigset_t ss;
 	int error;
 
 	ssp = NULL;
-	if (args->sig != NULL) {
-		error = copyin(args->sig, &lpse6, sizeof(lpse6));
+	if (sig != NULL) {
+		error = copyin(sig, &lpse6, sizeof(lpse6));
 		if (error != 0)
 			return (error);
 		if (lpse6.ss_len != sizeof(l_ss))
@@ -2372,21 +2406,15 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 			linux_to_bsd_sigset(&l_ss, &ss);
 			ssp = &ss;
 		}
-	}
+	} else
+		ssp = NULL;
 
 	/*
 	 * Currently glibc changes nanosecond number to microsecond.
 	 * This mean losing precision but for now it is hardly seen.
 	 */
-	if (args->tsp != NULL) {
-		error = copyin(args->tsp, &lts, sizeof(lts));
-		if (error != 0)
-			return (error);
-		error = linux_to_native_timespec(&uts, &lts);
-		if (error != 0)
-			return (error);
-
-		TIMESPEC_TO_TIMEVAL(&utv, &uts);
+	if (tsp != NULL) {
+		TIMESPEC_TO_TIMEVAL(&utv, tsp);
 		if (itimerfix(&utv))
 			return (EINVAL);
 
@@ -2395,10 +2423,10 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 	} else
 		tvp = NULL;
 
-	error = kern_pselect(td, args->nfds, args->readfds, args->writefds,
-	    args->exceptfds, tvp, ssp, LINUX_NFDBITS);
+	error = kern_pselect(td, nfds, readfds, writefds,
+	    exceptfds, tvp, ssp, LINUX_NFDBITS);
 
-	if (error == 0 && args->tsp != NULL) {
+	if (error == 0 && tsp != NULL) {
 		if (td->td_retval[0] != 0) {
 			/*
 			 * Compute how much time was left of the timeout,
@@ -2414,16 +2442,44 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 				timevalclear(&utv);
 		} else
 			timevalclear(&utv);
+		TIMEVAL_TO_TIMESPEC(&utv, tsp);
+	}
+	return (error);
+}
 
-		TIMEVAL_TO_TIMESPEC(&utv, &uts);
+#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
+int
+linux_pselect6_time64(struct thread *td,
+    struct linux_pselect6_time64_args *args)
+{
+	struct l_timespec64 lts;
+	struct timespec ts, *tsp;
+	int error;
 
-		error = native_to_linux_timespec(&lts, &uts);
+	if (args->tsp != NULL) {
+		error = copyin(args->tsp, &lts, sizeof(lts));
+		if (error != 0)
+			return (error);
+		error = linux_to_native_timespec64(&ts, &lts);
+		if (error != 0)
+			return (error);
+		tsp = &ts;
+	} else
+		tsp = NULL;
+
+	error = linux_common_pselect6(td, args->nfds, args->readfds,
+	    args->writefds, args->exceptfds, tsp, args->sig);
+	if (error != 0)
+		return (error);
+
+	if (args->tsp != NULL) {
+		error = native_to_linux_timespec64(&lts, tsp);
 		if (error == 0)
 			error = copyout(&lts, args->tsp, sizeof(lts));
 	}
-
 	return (error);
 }
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_ppoll(struct thread *td, struct linux_ppoll_args *args)

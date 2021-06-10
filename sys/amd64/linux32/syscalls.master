@@ -2390,7 +2390,14 @@
 		);
 	}
 413	AUE_NULL	STD {
-		int linux_pselect6_time64(void);
+		int linux_pselect6_time64(
+		    l_int nfds,
+		    l_fd_set *readfds,
+		    l_fd_set *writefds,
+		    l_fd_set *exceptfds,
+		    struct l_timespec64 *tsp,
+		    l_uintptr_t *sig
+		);
 	}
 414	AUE_NULL	STD {
 		int linux_ppoll_time64(void);
