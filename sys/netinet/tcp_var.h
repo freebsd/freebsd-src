@@ -261,6 +261,8 @@ struct tcpcb {
 	uint32_t t_maxpeakrate;		/* max peak rate set by user, in bytes/s */
 	uint32_t t_sndtlppack;		/* tail loss probe packets sent */
 	uint64_t t_sndtlpbyte;		/* total tail loss probe bytes sent */
+	uint64_t t_sndbytes;		/* total bytes sent */
+	uint64_t t_snd_rxt_bytes;	/* total bytes retransmitted */
 
 	uint8_t t_tfo_client_cookie_len; /* TCP Fast Open client cookie length */
 	uint32_t t_end_info_status;	/* Status flag of end info */
@@ -1133,6 +1135,22 @@ tcp_fields_to_net(struct tcphdr *th)
 	th->th_win = htons(th->th_win);
 	th->th_urp = htons(th->th_urp);
 }
+
+static inline void
+tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt, uint8_t is_tlp)
+{
+	if (is_tlp) {
+		tp->t_sndtlppack++;
+		tp->t_sndtlpbyte += len;
+	}
+	/* To get total bytes sent you must add t_snd_rxt_bytes to t_sndbytes */
+	if (is_rxt)
+		tp->t_snd_rxt_bytes += len;
+	else
+		tp->t_sndbytes += len;
+
+}
+
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

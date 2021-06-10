@@ -10221,7 +10221,8 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					sbappendstream_locked(&so->so_rcv, m, 0);
 
 			rack_log_wakeup(tp,rack, &so->so_rcv, tlen, 1);
-			tp->t_flags |= TF_WAKESOR;
+			/* NB: sorwakeup_locked() does an implicit unlock. */
+			sorwakeup_locked(so);
 #ifdef NETFLIX_SB_LIMITS
 			if (so->so_rcv.sb_shlim && appended != mcnt)
 				counter_fo_release(so->so_rcv.sb_shlim,
@@ -10238,7 +10239,11 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 			thflags = tcp_reass(tp, th, &temp, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
-
+			if (tp->t_flags & TF_WAKESOR) {
+				tp->t_flags &= ~TF_WAKESOR;
+				/* NB: sorwakeup_locked() does an implicit unlock. */
+				sorwakeup_locked(so);
+			}
 		}
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (save_tlen > 0) &&
@@ -10278,7 +10283,6 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    save_start + tlen);
 			}
 		}
-		tcp_handle_wakeup(tp, so);
 	} else {
 		m_freem(m);
 		thflags &= ~TH_FIN;
@@ -10484,7 +10488,8 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_calc_rwin(so, tp);
 	}
 	rack_log_wakeup(tp,rack, &so->so_rcv, tlen, 1);
-	tp->t_flags |= TF_WAKESOR;
+	/* NB: sorwakeup_locked() does an implicit unlock. */
+	sorwakeup_locked(so);
 #ifdef NETFLIX_SB_LIMITS
 	if (so->so_rcv.sb_shlim && mcnt != appended)
 		counter_fo_release(so->so_rcv.sb_shlim, mcnt - appended);
@@ -10492,7 +10497,6 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	rack_handle_delayed_ack(tp, rack, tlen, 0);
 	if (tp->snd_una == tp->snd_max)
 		sack_filter_clear(&rack->r_ctl.rack_sf, tp->snd_una);
-	tcp_handle_wakeup(tp, so);
 	return (1);
 }
 
@@ -11085,7 +11089,11 @@ rack_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (tlen == 0 && (thflags & TH_FIN) == 0) {
 		(void) tcp_reass(tp, (struct tcphdr *)0, NULL, 0,
 		    (struct mbuf *)0);
-		tcp_handle_wakeup(tp, so);
+		if (tp->t_flags & TF_WAKESOR) {
+			tp->t_flags &= ~TF_WAKESOR;
+			/* NB: sorwakeup_locked() does an implicit unlock. */
+			sorwakeup_locked(so);
+		}
 	}
 	tp->snd_wl1 = th->th_seq - 1;
 	/* For syn-recv we need to possibly update the rtt */
@@ -12333,29 +12341,23 @@ rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 		rack = (struct tcp_rack *)tp->t_fb_ptr;
 		if (tp->t_in_pkt) {
 			/*
-			 * Since we are switching we need to process any
-			 * inbound packets in case a compressed ack is
-			 * in queue or the new stack does not support
-			 * mbuf queuing. These packets in theory should
-			 * have been handled by the old stack anyway.
+			 * It is unsafe to process the packets since a
+			 * reset may be lurking in them (its rare but it
+			 * can occur). If we were to find a RST, then we
+			 * would end up dropping the connection and the
+			 * INP lock, so when we return the caller (tcp_usrreq)
+			 * will blow up when it trys to unlock the inp.
 			 */
-			if ((rack->rc_inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
-			    (rack->rc_inp->inp_flags2 & INP_FREED)) {
-				/* Kill all the packets */
-				struct mbuf *save, *m;
+			struct mbuf *save, *m;
 
-				m = tp->t_in_pkt;
-				tp->t_in_pkt = NULL;
-				tp->t_tail_pkt = NULL;
-				while (m) {
-					save = m->m_nextpkt;
-					m->m_nextpkt = NULL;
-					m_freem(m);
-					m = save;
-				}
-			} else {
-				/* Process all the packets */
-				ctf_do_queued_segments(rack->rc_inp->inp_socket, rack->rc_tp, 0);
+			m = tp->t_in_pkt;
+			tp->t_in_pkt = NULL;
+			tp->t_tail_pkt = NULL;
+			while (m) {
+				save = m->m_nextpkt;
+				m->m_nextpkt = NULL;
+				m_freem(m);
+				m = save;
 			}
 			if ((tp->t_inpcb) &&
 			    (tp->t_inpcb->inp_flags2 & INP_MBUF_ACKCMP))
@@ -13997,7 +13999,6 @@ rack_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	if (rack_do_segment_nounlock(m, th, so, tp,
 				     drop_hdrlen, tlen, iptos, 0, &tv) == 0) {
-		tcp_handle_wakeup(tp, so);
 		INP_WUNLOCK(tp->t_inpcb);
 	}
 }
@@ -15404,6 +15405,8 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		rack->rc_tlp_in_progress = 1;
 		rack->r_ctl.rc_tlp_cnt_out++;
 	}
+	if (error == 0)
+		tcp_account_for_send(tp, len, 1, doing_tlp);
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
 	if (IN_FASTRECOVERY(tp->t_flags) && rsm)
@@ -15882,6 +15885,9 @@ again:
 		rack_log_progress_event(rack, tp, ticks, PROGRESS_START, __LINE__);
 		tp->t_acktime = ticks;
 	}
+	if (error == 0)
+		tcp_account_for_send(tp, len, 0, 0);
+
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
 	tot_len += len;
 	if ((tp->t_flags & TF_GPUTINPROG) == 0)
@@ -16322,8 +16328,6 @@ again:
 		tlen = rsm->r_end - rsm->r_start;
 		if (tlen > segsiz)
 			tlen = segsiz;
-		tp->t_sndtlppack++;
-		tp->t_sndtlpbyte += tlen;
 		KASSERT(SEQ_LEQ(tp->snd_una, rsm->r_start),
 			("%s:%d: r.start:%u < SND.UNA:%u; tp:%p, rack:%p, rsm:%p",
 			 __func__, __LINE__,
@@ -18107,6 +18111,7 @@ out:
 	 * retransmit.  In persist state, just set snd_max.
 	 */
 	if (error == 0) {
+		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp);
 		rack->forced_ack = 0;	/* If we send something zap the FA flag */
 		if (rsm && (doing_tlp == 0)) {
 			/* Set we retransmitted */
@@ -18151,8 +18156,6 @@ out:
 	if (doing_tlp && (rsm == NULL)) {
 		/* New send doing a TLP */
 		add_flag |= RACK_TLP;
-		tp->t_sndtlppack++;
-		tp->t_sndtlpbyte += len;
 	}
 	rack_log_output(tp, &to, len, rack_seq, (uint8_t) flags, error,
 			rack_to_usec_ts(&tv),
