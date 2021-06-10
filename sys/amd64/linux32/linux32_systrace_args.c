@@ -3031,7 +3031,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_pselect6_time64 */
 	case 413: {
-		*n_args = 0;
+		struct linux_pselect6_time64_args *p = params;
+		iarg[0] = p->nfds; /* l_int */
+		uarg[1] = (intptr_t)p->readfds; /* l_fd_set * */
+		uarg[2] = (intptr_t)p->writefds; /* l_fd_set * */
+		uarg[3] = (intptr_t)p->exceptfds; /* l_fd_set * */
+		uarg[4] = (intptr_t)p->tsp; /* struct l_timespec64 * */
+		uarg[5] = (intptr_t)p->sig; /* l_uintptr_t * */
+		*n_args = 6;
 		break;
 	}
 	/* linux_ppoll_time64 */
@@ -8109,6 +8116,28 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pselect6_time64 */
 	case 413:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland l_fd_set *";
+			break;
+		case 2:
+			p = "userland l_fd_set *";
+			break;
+		case 3:
+			p = "userland l_fd_set *";
+			break;
+		case 4:
+			p = "userland struct l_timespec64 *";
+			break;
+		case 5:
+			p = "userland l_uintptr_t *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_ppoll_time64 */
 	case 414:
@@ -9922,6 +9951,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_pselect6_time64 */
 	case 413:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_ppoll_time64 */
 	case 414:
 	/* linux_io_pgetevents_time64 */
