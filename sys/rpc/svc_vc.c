@@ -474,6 +474,7 @@ static void
 svc_vc_destroy(SVCXPRT *xprt)
 {
 	struct cf_conn *cd = (struct cf_conn *)xprt->xp_p1;
+	CLIENT *cl = (CLIENT *)xprt->xp_p2;
 
 	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
 	if (xprt->xp_upcallset) {
@@ -481,6 +482,9 @@ svc_vc_destroy(SVCXPRT *xprt)
 		soupcall_clear(xprt->xp_socket, SO_RCV);
 	}
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
+
+	if (cl != NULL)
+		CLNT_RELEASE(cl);
 
 	svc_vc_destroy_common(xprt);
 
