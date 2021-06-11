@@ -165,8 +165,16 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 				err = libusb20_dev_process(ppdev[i]);
 
 				if (err) {
-					/* set device is gone */
-					dev->device_is_gone = 1;
+					/*
+					 * When the device is opened
+					 * set the "device_is_gone"
+					 * flag. This prevents the
+					 * client from submitting new
+					 * USB transfers to a detached
+					 * device.
+					 */
+					if (ppdev[i]->is_opened)
+						dev->device_is_gone = 1;
 
 					/* remove USB device from polling loop */
 					libusb10_remove_pollfd(dev->ctx, &dev->dev_poll);

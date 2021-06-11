@@ -529,6 +529,15 @@ libusb_open(libusb_device *dev, libusb_device_handle **devh)
 		libusb_unref_device(dev);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
+
+	/*
+	 * Clear the device gone flag, in case the device was opened
+	 * after a re-attach, to allow new transaction:
+	 */
+	CTX_LOCK(ctx);
+	dev->device_is_gone = 0;
+	CTX_UNLOCK(ctx);
+
 	libusb10_add_pollfd(ctx, &dev->dev_poll, pdev, libusb20_dev_get_fd(pdev), POLLIN |
 	    POLLOUT | POLLRDNORM | POLLWRNORM);
 
