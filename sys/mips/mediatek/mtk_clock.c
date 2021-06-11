@@ -123,6 +123,8 @@ mtk_clock_get_info(device_t dev, int index, struct fdt_clock_info *info)
 	if (index < 0 || index > 31 || info == NULL)
 		return (EINVAL);
 
+	mask = (1u << index);
+
 	if (mtk_sysctl_get(SYSCTL_CLKCFG1) & mask)
 		info->flags = FDT_CIFLAG_RUNNING;
 	else
