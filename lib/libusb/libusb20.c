@@ -608,6 +608,11 @@ libusb20_dev_close(struct libusb20_device *pdev)
 
 	pdev->is_opened = 0;
 
+	/*
+	 * Make sure libusb20_tr_get_pointer() fails:
+	 */
+	pdev->nTransfer = 0;
+
 	/* 
 	 * The following variable is only used by the libusb v0.1
 	 * compat layer:
