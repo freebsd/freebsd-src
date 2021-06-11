@@ -1,8 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.init.mk>
+.include <bsd.compiler.mk>
+
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libspl
 .PATH: ${SRCTOP}/sys/contrib/openzfs/include
-
 
 LIB=	spl
 LIBADD=
@@ -41,6 +43,8 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+.if ${COMPILER_TYPE} == "clang"
 CFLAGS.atomic.c+=	-Wno-error=atomic-alignment
+.endif
 
 .include <bsd.lib.mk>
