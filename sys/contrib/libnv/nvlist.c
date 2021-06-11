@@ -99,6 +99,7 @@ struct nvlist {
 	int		 nvl_magic;
 	int		 nvl_error;
 	int		 nvl_flags;
+	size_t		 nvl_datasize;
 	nvpair_t	*nvl_parent;
 	nvpair_t	*nvl_array_next;
 	struct nvl_head	 nvl_head;
@@ -139,6 +140,7 @@ nvlist_create(int flags)
 	nvl->nvl_flags = flags;
 	nvl->nvl_parent = NULL;
 	nvl->nvl_array_next = NULL;
+	nvl->nvl_datasize = sizeof(struct nvlist_header);
 	TAILQ_INIT(&nvl->nvl_head);
 	nvl->nvl_magic = NVLIST_MAGIC;
 
@@ -245,6 +247,51 @@ nvlist_set_array_next(nvlist_t *nvl, nvpair_t *ele)
 	}
 
 	nvl->nvl_array_next = ele;
+}
+
+static void
+nvlist_update_size(nvlist_t *nvl, nvpair_t *new, ssize_t mul)
+{
+	ssize_t size;
+	size_t nitems;
+	const nvlist_t *nvlistnew;
+	const nvlist_t * const *nvlarray;
+	nvlist_t *parent;
+	unsigned int ii;
+
+	NVLIST_ASSERT(nvl);
+	NVPAIR_ASSERT(new);
+	PJDLOG_ASSERT(mul == 1 || mul == -1);
+
+	size = nvpair_header_size();
+	size += strlen(nvpair_name(new)) + 1;
+
+	if (nvpair_type(new) == NV_TYPE_NVLIST) {
+		nvlistnew = nvpair_get_nvlist(new);
+		size += nvlistnew->nvl_datasize;
+		size += nvpair_header_size() + 1;
+	} else if (nvpair_type(new) == NV_TYPE_NVLIST_ARRAY) {
+		nvlarray = nvpair_get_nvlist_array(new, &nitems);
+		PJDLOG_ASSERT(nitems > 0);
+
+		size += (nvpair_header_size() + 1) * nitems;
+		for (ii = 0; ii < nitems; ii++) {
+			PJDLOG_ASSERT(nvlarray[ii]->nvl_error == 0);
+			size += nvlarray[ii]->nvl_datasize;
+		}
+	} else {
+		size += nvpair_size(new);
+	}
+
+	size *= mul;
+
+	nvl->nvl_datasize += size;
+
+	parent = nvl;
+	while ((parent = __DECONST(nvlist_t *,
+	    nvlist_get_parent(parent, NULL))) != NULL) {
+		parent->nvl_datasize += size;
+	}
 }
 
 nvpair_t *
@@ -640,78 +687,8 @@ nvlist_fdump(const nvlist_t *nvl, FILE *fp)
 size_t
 nvlist_size(const nvlist_t *nvl)
 {
-	const nvlist_t *tmpnvl;
-	const nvlist_t * const *nvlarray;
-	const nvpair_t *nvp, *tmpnvp;
-	void *cookie;
-	size_t size, nitems;
-	unsigned int ii;
 
-	NVLIST_ASSERT(nvl);
-	PJDLOG_ASSERT(nvl->nvl_error == 0);
-
-	size = sizeof(struct nvlist_header);
-	nvp = nvlist_first_nvpair(nvl);
-	while (nvp != NULL) {
-		size += nvpair_header_size();
-		size += strlen(nvpair_name(nvp)) + 1;
-		if (nvpair_type(nvp) == NV_TYPE_NVLIST) {
-			size += sizeof(struct nvlist_header);
-			size += nvpair_header_size() + 1;
-			tmpnvl = nvpair_get_nvlist(nvp);
-			PJDLOG_ASSERT(tmpnvl->nvl_error == 0);
-			tmpnvp = nvlist_first_nvpair(tmpnvl);
-			if (tmpnvp != NULL) {
-				nvl = tmpnvl;
-				nvp = tmpnvp;
-				continue;
-			}
-		} else if (nvpair_type(nvp) == NV_TYPE_NVLIST_ARRAY) {
-			nvlarray = nvpair_get_nvlist_array(nvp, &nitems);
-			PJDLOG_ASSERT(nitems > 0);
-
-			size += (nvpair_header_size() + 1) * nitems;
-			size += sizeof(struct nvlist_header) * nitems;
-
-			tmpnvl = NULL;
-			tmpnvp = NULL;
-			for (ii = 0; ii < nitems; ii++) {
-				PJDLOG_ASSERT(nvlarray[ii]->nvl_error == 0);
-				tmpnvp = nvlist_first_nvpair(nvlarray[ii]);
-				if (tmpnvp != NULL) {
-					tmpnvl = nvlarray[ii];
-					break;
-				}
-			}
-			if (tmpnvp != NULL) {
-				nvp = tmpnvp;
-				nvl = tmpnvl;
-				continue;
-			}
-
-		} else {
-			size += nvpair_size(nvp);
-		}
-
-		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			do {
-				cookie = NULL;
-				nvl = nvlist_get_pararr(nvl, &cookie);
-				if (nvl == NULL)
-					goto out;
-				if (nvlist_in_array(nvl) && cookie == NULL) {
-					nvp = nvlist_first_nvpair(nvl);
-				} else {
-					nvp = cookie;
-				}
-			} while (nvp == NULL);
-			if (nvlist_in_array(nvl) && cookie == NULL)
-				break;
-		}
-	}
-
-out:
-	return (size);
+	return (nvl->nvl_datasize);
 }
 
 #ifndef _KERNEL
@@ -1483,6 +1460,7 @@ nvlist_add_nvpair(nvlist_t *nvl, const nvpair_t *nvp)
 	}
 
 	nvpair_insert(&nvl->nvl_head, newnvp, nvl);
+	nvlist_update_size(nvl, newnvp, 1);
 }
 
 void
@@ -1631,10 +1609,12 @@ nvlist_append_##type##_array(nvlist_t *nvl, const char *name, vtype value)\
 		nvlist_add_##type##_array(nvl, name, &value, 1);	\
 		return;							\
 	}								\
+	nvlist_update_size(nvl, nvp, -1);				\
 	if (nvpair_append_##type##_array(nvp, value) == -1) {		\
 		nvl->nvl_error = ERRNO_OR_DEFAULT(ENOMEM);		\
 		ERRNO_SET(nvl->nvl_error);				\
 	}								\
+	nvlist_update_size(nvl, nvp, 1);				\
 }
 
 NVLIST_APPEND_ARRAY(const bool, bool, BOOL)
@@ -1669,6 +1649,7 @@ nvlist_move_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 	}
 
 	nvpair_insert(&nvl->nvl_head, nvp, nvl);
+	nvlist_update_size(nvl, nvp, 1);
 	return (true);
 }
 
@@ -2020,6 +2001,7 @@ nvlist_remove_nvpair(nvlist_t *nvl, nvpair_t *nvp)
 	PJDLOG_ASSERT(nvpair_nvlist(nvp) == nvl);
 
 	nvpair_remove(&nvl->nvl_head, nvp, nvl);
+	nvlist_update_size(nvl, nvp, -1);
 }
 
 void
