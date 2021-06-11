@@ -2447,6 +2447,7 @@ product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
 product HP EV2200		0x1b1d  ev2200 HSDPA (aka MC5720)
 product HP HS2300		0x1e1d  hs2300 HSDPA (aka MC8775)
+product HP LT4132		0xa31d  lt4132 LTEHSPA+ (aka ME906s)
 
 /* HTC products */
 product HTC WINMOBILE		0x00ce	HTC USB Sync
