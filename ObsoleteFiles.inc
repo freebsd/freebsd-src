@@ -40,6 +40,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210611: Remove svn and svnlite
+OLD_FILES+=usr/bin/svn
+OLD_FILES+=usr/bin/svnadmin
+OLD_FILES+=usr/bin/svnbench
+OLD_FILES+=usr/bin/svndumpfilter
+OLD_FILES+=usr/bin/svnfsfs
+OLD_FILES+=usr/bin/svnlite
+OLD_FILES+=usr/bin/svnliteadmin
+OLD_FILES+=usr/bin/svnlitebench
+OLD_FILES+=usr/bin/svnlitedumpfilter
+OLD_FILES+=usr/bin/svnlitefsfs
+OLD_FILES+=usr/bin/svnlitelook
+OLD_FILES+=usr/bin/svnlitemucc
+OLD_FILES+=usr/bin/svnliterdump
+OLD_FILES+=usr/bin/svnliteserve
+OLD_FILES+=usr/bin/svnlitesync
+OLD_FILES+=usr/bin/svnliteversion
+OLD_FILES+=usr/bin/svnlook
+OLD_FILES+=usr/bin/svnmucc
+OLD_FILES+=usr/bin/svnrdump
+OLD_FILES+=usr/bin/svnserve
+OLD_FILES+=usr/bin/svnsync
+OLD_FILES+=usr/bin/svnversion
+OLD_FILES+=usr/share/man/man1/svnlite.1.gz
+
 # 20210607: remove ancontrol(8) related programs
 OLD_FILES+=usr/sbin/ancontrol
 OLD_FILES+=usr/share/man/man8/ancontrol.8.gz

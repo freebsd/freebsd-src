@@ -334,17 +334,6 @@ DIRDEPS+= \
 	usr.bin/stat \
 	usr.bin/stdbuf \
 	usr.bin/su \
-	usr.bin/svn/svn \
-	usr.bin/svn/svnadmin \
-	usr.bin/svn/svnbench \
-	usr.bin/svn/svndumpfilter \
-	usr.bin/svn/svnfsfs \
-	usr.bin/svn/svnlook \
-	usr.bin/svn/svnmucc \
-	usr.bin/svn/svnrdump \
-	usr.bin/svn/svnserve \
-	usr.bin/svn/svnsync \
-	usr.bin/svn/svnversion \
 	usr.bin/systat \
 	usr.bin/tabs \
 	usr.bin/tail \

@@ -281,8 +281,6 @@ SUBDIR.${MK_UTMPX}+=	last
 SUBDIR.${MK_UTMPX}+=	users
 .endif
 SUBDIR.${MK_UTMPX}+=	who
-SUBDIR.${MK_SVN}+=	svn
-SUBDIR.${MK_SVNLITE}+=	svn
 SUBDIR.${MK_OFED}+=	ofed
 
 # These are normally only handled for build-tools.
