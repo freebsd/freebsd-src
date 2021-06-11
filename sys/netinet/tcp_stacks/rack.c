@@ -17673,9 +17673,11 @@ send:
 		th = rack->r_ctl.fsb.th;
 		udp = rack->r_ctl.fsb.udp;
 		if (udp) {
+#ifdef INET6
 			if (isipv6)
 				ulen = hdrlen + len - sizeof(struct ip6_hdr);
 			else
+#endif				/* INET6 */
 				ulen = hdrlen + len - sizeof(struct ip);
 			udp->uh_ulen = htons(ulen);
 		}
