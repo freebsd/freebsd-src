@@ -9655,35 +9655,6 @@ OLD_FILES+=usr/share/snmp/defs/wlan_tree.def
 OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-WIRELESS-MIB.txt
 .endif
 
-.if ${MK_SVNLITE} == no || ${MK_SVN} == yes
-OLD_FILES+=usr/bin/svnlite
-OLD_FILES+=usr/bin/svnliteadmin
-OLD_FILES+=usr/bin/svnlitebench
-OLD_FILES+=usr/bin/svnlitedumpfilter
-OLD_FILES+=usr/bin/svnlitefsfs
-OLD_FILES+=usr/bin/svnlitelook
-OLD_FILES+=usr/bin/svnlitemucc
-OLD_FILES+=usr/bin/svnliterdump
-OLD_FILES+=usr/bin/svnliteserve
-OLD_FILES+=usr/bin/svnlitesync
-OLD_FILES+=usr/bin/svnliteversion
-OLD_FILES+=usr/share/man/man1/svnlite.1.gz
-.endif
-
-.if ${MK_SVN} == no
-OLD_FILES+=usr/bin/svn
-OLD_FILES+=usr/bin/svnadmin
-OLD_FILES+=usr/bin/svnbench
-OLD_FILES+=usr/bin/svndumpfilter
-OLD_FILES+=usr/bin/svnfsfs
-OLD_FILES+=usr/bin/svnlook
-OLD_FILES+=usr/bin/svnmucc
-OLD_FILES+=usr/bin/svnrdump
-OLD_FILES+=usr/bin/svnserve
-OLD_FILES+=usr/bin/svnsync
-OLD_FILES+=usr/bin/svnversion
-.endif
-
 .if ${MK_HYPERV} == no
 OLD_FILES+=etc/devd/hyperv.conf
 OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
