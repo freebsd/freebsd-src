@@ -566,15 +566,26 @@ clnt_bck_destroy(CLIENT *cl)
 /*
  * This call is done by the svc code when a backchannel RPC reply is
  * received.
+ * For the server end, where callback RPCs to the client are performed,
+ * xp_p2 points to the "CLIENT" and not the associated "struct ct_data"
+ * so that svc_vc_destroy() can CLNT_RELEASE() the reference count on it.
  */
 void
 clnt_bck_svccall(void *arg, struct mbuf *mrep, uint32_t xid)
 {
-	struct ct_data *ct = (struct ct_data *)arg;
+	CLIENT *cl = (CLIENT *)arg;
+	struct ct_data *ct;
 	struct ct_request *cr;
 	int foundreq;
 
+	ct = (struct ct_data *)cl->cl_private;
 	mtx_lock(&ct->ct_lock);
+	if (ct->ct_closing || ct->ct_closed) {
+		mtx_unlock(&ct->ct_lock);
+		m_freem(mrep);
+		return;
+	}
+
 	ct->ct_upcallrefs++;
 	/*
 	 * See if we can match this reply to a request.
