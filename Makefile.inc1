@@ -11,9 +11,7 @@
 #	-DNO_KERNELCONFIG do not run config in ${MAKE} buildkernel
 #	-DNO_KERNELCLEAN do not run ${MAKE} clean in ${MAKE} buildkernel
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
-#	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_ROOT install without using root privilege
-#	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DWITHOUT_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_ITOOLS="list of tools" to add additional tools to the ITOOLS list
@@ -491,17 +489,6 @@ BUILDENV_SHELL?=/bin/sh
 .endif
 
 .if !defined(_MKSHOWCONFIG)
-.if !defined(SVN_CMD) || empty(SVN_CMD)
-. for _P in /usr/bin /usr/local/bin
-.  for _S in svn svnlite
-.   if exists(${_P}/${_S})
-SVN_CMD=   ${_P}/${_S}
-.   endif
-.  endfor
-. endfor
-.export SVN_CMD
-.endif
-SVNFLAGS?=	-r HEAD
 .if !defined(VCS_REVISION) || empty(VCS_REVISION)
 .if !defined(SVNVERSION_CMD) || empty(SVNVERSION_CMD)
 . for _D in ${PATH:S,:, ,g}
@@ -2112,20 +2099,6 @@ doxygen: .PHONY
 		exit 1; \
 	fi
 	${_+_}cd ${.CURDIR}/tools/kerneldoc/subsys; ${MAKE} obj all
-
-#
-# update
-#
-# Update the source tree(s), by running svn/svnup to update to the
-# latest copy.
-#
-update: .PHONY
-.if defined(SVN_UPDATE)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} using Subversion"
-	@echo "--------------------------------------------------------------"
-	@(cd ${.CURDIR}; ${SVN_CMD} update ${SVNFLAGS})
-.endif
 
 #
 # ------------------------------------------------------------------------
