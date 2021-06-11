@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 This directory contains tools intended to help committers use git when
-interacting with standard FreeBSD project resources like Differential or svn.
+interacting with standard FreeBSD project resources like Differential.
 
 I. arcgit
 
@@ -113,54 +113,3 @@ commits.  The intended workflow is:
 
   At this point, you are ready to commit your changes to head.  The importgit
   script can be used to import your commits directly into git.
-
-II. importgit
-
-importgit is a script that can take a series of commits from git and commit them
-to a svn repository.  The script uses the git commit messages for the svn commit
-message, which allows importgit to be fully automated.  This does mean that once
-you start importgit, it will start commit things to svn without giving any
-further chance to sanity check what it's doing.
-
-importgit only supports importing commits that add or modify files.  It does not
-support importing commits that rename or delete files, to ensure that git's
-rename detection heuristics do not introduce an error in the import process.
-importgit also does not support importing merge commits.  Only linear history
-can be imported into svn.
-
-importgit must be run from a clean subversion checkout.  You should ensure that
-the working tree is up-to-date with "svn up" before running importgit.
-importgit will run svn directly, so make sure that your ssh-agent is running
-and has your ssh key loaded already.  Run importgit as follows:
-
-  $ importgit -r D1~..D2 -g /path/to/git/repo
-
-This will import every commit between D1 and D2, including both D1 and D2.  The
-invocation is very similar to the invocation given to arcgit but there is an
-important point to note.  When you rebased your commits as you followed steps 4
-and 5, the commit hashes of all of your commits changed, including C1 and C2.
-You must go back and find the new commit hashes of your commits to pass to
-importgit.  Passing -r C1~..C2 would import your commits as they were *before*
-your code review fixes were applied.
-
-III. git-svn-rebase
-
-git-svn-rebase is a script that helps you keep current when using git 
-plus subversion as outline in https://wiki.freebsd.org/GitWorkflow/GitSvn
-since it's otherwise a pain to have many branches active. It will rebase
-those branches that haven't been merged yet. Some tweaking may be needed
-if you have other, weird branches in your tree (including any stable
-branches). To run it just cd into the git subversion tree somewhere and
-type
-    $ git-svn-rebase
-and it will do its thing and leave the tree on the master branch.
-
-Your tree must be clean to start this, and while it tries to catch
-some failures, not all of them have been allowed for.
-
-IV. git-svn-init
-git-svn-init is a script that initializes the right git-svn connection as
-outlined in https://wiki.freebsd.org/GitWorkflow/GitSvn. It would be a precursor
-to the script git-svn-rebase. The script contains help, but generally you can
-run the script with no arguments and it will attempt to set up both src and
-ports repositories.
