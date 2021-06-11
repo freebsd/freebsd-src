@@ -721,8 +721,8 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 				    cbprogram, NFSV4_CBVERS);
 			    if (clp->lc_req.nr_client != NULL) {
 				SVC_ACQUIRE(nd->nd_xprt);
-				nd->nd_xprt->xp_p2 =
-				    clp->lc_req.nr_client->cl_private;
+				CLNT_ACQUIRE(clp->lc_req.nr_client);
+				nd->nd_xprt->xp_p2 = clp->lc_req.nr_client;
 				/* Disable idle timeout. */
 				nd->nd_xprt->xp_idletimeout = 0;
 				nsep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
@@ -6464,8 +6464,8 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 				    "backchannel\n");
 				savxprt = sep->sess_cbsess.nfsess_xprt;
 				SVC_ACQUIRE(nd->nd_xprt);
-				nd->nd_xprt->xp_p2 =
-				    clp->lc_req.nr_client->cl_private;
+				CLNT_ACQUIRE(clp->lc_req.nr_client);
+				nd->nd_xprt->xp_p2 = clp->lc_req.nr_client;
 				/* Disable idle timeout. */
 				nd->nd_xprt->xp_idletimeout = 0;
 				sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;

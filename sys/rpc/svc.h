@@ -148,6 +148,11 @@ struct __rpc_svcthread;
  * reference count which tracks the number of currently assigned
  * worker threads plus one for the service pool's reference.
  * For NFSv4.1 sessions, a reference is also held for a backchannel.
+ * xp_p2 - Points to the CLIENT structure for the RPC server end
+ *         (the client end for callbacks).
+ *         Points to the private structure (cl_private) for the
+ *         CLIENT structure for the RPC client end (the server
+ *         end for callbacks).
  */
 typedef struct __rpc_svcxprt {
 #ifdef _KERNEL
