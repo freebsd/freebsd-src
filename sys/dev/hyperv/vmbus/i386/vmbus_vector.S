@@ -36,7 +36,7 @@
  * This is the Hyper-V vmbus channel direct callback interrupt.
  * Only used when it is running on Hyper-V.
  *
- * Note that this file is not compiled directly, it is included into
+ * Note that this file is not assembled directly, it is included into
  * i386/exception.s.
  */
 	.text
