@@ -36,6 +36,10 @@ This file specifies the preferred style for kernel source files in the
 .Fx
 source tree.
 It is also a guide for the preferred userland code style.
+The preferred line width is 80 characters, but some exceptions are
+made when a slightly longer line is clearer or easier to read.
+Anything that is frequently grepped for, such as diagnostic, error or panic
+messages, should not be broken up over multiple lines despite this rule.
 Many of the style rules are implicit in the examples.
 Be careful to check the examples before assuming that
 .Nm
