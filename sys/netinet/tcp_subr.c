@@ -268,7 +268,14 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc1323), 0,
     "Enable rfc1323 (high performance TCP) extensions");
 
-VNET_DEFINE(int, tcp_tolerate_missing_ts) = 0;
+/*
+ * As of June 2021, several TCP stacks violate RFC 7323 from September 2014.
+ * Some stacks negotiate TS, but never send them after connection setup. Some
+ * stacks negotiate TS, but don't send them when sending keep-alive segments.
+ * These include modern widely deployed TCP stacks.
+ * Therefore tolerating violations for now...
+ */
+VNET_DEFINE(int, tcp_tolerate_missing_ts) = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tolerate_missing_ts, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_tolerate_missing_ts), 0,
     "Tolerate missing TCP timestamps");
