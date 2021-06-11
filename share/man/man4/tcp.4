@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2021
+.Dd June 27, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -382,7 +382,9 @@ segments belonging to
 connections for which support of
 .Tn TCP
 timestamps has been negotiated.
-(default is 0, i.e., the missing of timestamps is not tolerated).
+As of June 2021, several TCP stacks are known to violate RFC 7323, including
+modern widely deployed ones.
+Therefore the default is 1, i.e., the missing of timestamps is tolerated.
 .It Dv TCPCTL_MSSDFLT
 .Pq Va mssdflt
 The default value used for the maximum segment size
