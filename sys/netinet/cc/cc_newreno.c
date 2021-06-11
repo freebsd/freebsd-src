@@ -111,6 +111,7 @@ newreno_malloc(struct cc_var *ccv)
 		/* NB: nreno is not zeroed, so initialise all fields. */
 		nreno->beta = V_newreno_beta;
 		nreno->beta_ecn = V_newreno_beta_ecn;
+		nreno->newreno_flags = 0;
 		ccv->cc_data = nreno;
 	}
 
@@ -254,8 +255,9 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 	 * has set a flag in our newreno_flags (due to pacing) telling
 	 * us to use the lower valued back-off.
 	 */
-	if (V_cc_do_abe ||
-	    (nreno && (nreno->newreno_flags & CC_NEWRENO_BETA_ECN) && (type == CC_ECN)))
+	if ((type == CC_ECN) &&
+	    (V_cc_do_abe ||
+	    ((nreno != NULL) && (nreno->newreno_flags & CC_NEWRENO_BETA_ECN))))
 		factor = beta_ecn;
 	else
 		factor = beta;
