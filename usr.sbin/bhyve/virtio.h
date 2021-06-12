@@ -348,22 +348,33 @@ vq_has_descs(struct vqueue_info *vq)
 }
 
 /*
- * Deliver an interrupt to guest on the given virtual queue
- * (if possible, or a generic MSI interrupt if not using MSI-X).
+ * Deliver an interrupt to the guest for a specific MSI-X queue or
+ * event.
+ */
+static inline void
+vi_interrupt(struct virtio_softc *vs, uint8_t isr, uint16_t msix_idx)
+{
+
+	if (pci_msix_enabled(vs->vs_pi))
+		pci_generate_msix(vs->vs_pi, msix_idx);
+	else {
+		VS_LOCK(vs);
+		vs->vs_isr |= isr;
+		pci_generate_msi(vs->vs_pi, 0);
+		pci_lintr_assert(vs->vs_pi);
+		VS_UNLOCK(vs);
+	}
+}
+
+/*
+ * Deliver an interrupt to the guest on the given virtual queue (if
+ * possible, or a generic MSI interrupt if not using MSI-X).
  */
 static inline void
 vq_interrupt(struct virtio_softc *vs, struct vqueue_info *vq)
 {
 
-	if (pci_msix_enabled(vs->vs_pi))
-		pci_generate_msix(vs->vs_pi, vq->vq_msix_idx);
-	else {
-		VS_LOCK(vs);
-		vs->vs_isr |= VIRTIO_PCI_ISR_INTR;
-		pci_generate_msi(vs->vs_pi, 0);
-		pci_lintr_assert(vs->vs_pi);
-		VS_UNLOCK(vs);
-	}
+	vi_interrupt(vs, VIRTIO_PCI_ISR_INTR, vq->vq_msix_idx);
 }
 
 static inline void
