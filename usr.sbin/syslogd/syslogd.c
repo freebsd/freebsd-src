@@ -1861,8 +1861,10 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			dprintf("\n");
 		}
 
+#if defined(INET) || defined(INET6)
 		/* Truncate messages to maximum forward length. */
 		iovlist_truncate(il, MaxForwardLen);
+#endif
 
 		lsent = 0;
 		for (r = f->fu_forw_addr; r; r = r->ai_next) {
