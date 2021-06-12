@@ -53,6 +53,8 @@
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/resourcevar.h>
 
 #include <security/mac/mac_framework.h>
@@ -67,6 +69,18 @@ static MALLOC_DEFINE(M_UNIONFSHASH, "UNIONFS hash", "UNIONFS hash table");
 MALLOC_DEFINE(M_UNIONFSNODE, "UNIONFS node", "UNIONFS vnode private part");
 MALLOC_DEFINE(M_UNIONFSPATH, "UNIONFS path", "UNIONFS path private part");
 
+static struct task unionfs_deferred_rele_task;
+static struct mtx unionfs_deferred_rele_lock;
+static STAILQ_HEAD(, unionfs_node) unionfs_deferred_rele_list =
+    STAILQ_HEAD_INITIALIZER(unionfs_deferred_rele_list);
+static TASKQUEUE_DEFINE_THREAD(unionfs_rele);
+
+unsigned int unionfs_ndeferred = 0;
+SYSCTL_UINT(_vfs, OID_AUTO, unionfs_ndeferred, CTLFLAG_RD,
+    &unionfs_ndeferred, 0, "unionfs deferred vnode release");
+
+static void unionfs_deferred_rele(void *, int);
+
 /*
  * Initialize
  */
@@ -74,6 +88,8 @@ int
 unionfs_init(struct vfsconf *vfsp)
 {
 	UNIONFSDEBUG("unionfs_init\n");	/* printed during system boot */
+	TASK_INIT(&unionfs_deferred_rele_task, 0, unionfs_deferred_rele, NULL);
+	mtx_init(&unionfs_deferred_rele_lock, "uniondefr", NULL, MTX_DEF); 
 	return (0);
 }
 
@@ -83,7 +99,33 @@ unionfs_init(struct vfsconf *vfsp)
 int 
 unionfs_uninit(struct vfsconf *vfsp)
 {
+	taskqueue_quiesce(taskqueue_unionfs_rele);
+	taskqueue_free(taskqueue_unionfs_rele);
+	mtx_destroy(&unionfs_deferred_rele_lock);
 	return (0);
+}
+
+static void
+unionfs_deferred_rele(void *arg __unused, int pending __unused)
+{
+	STAILQ_HEAD(, unionfs_node) local_rele_list;
+	struct unionfs_node *unp, *tunp;
+	unsigned int ndeferred;
+
+	ndeferred = 0;
+	STAILQ_INIT(&local_rele_list);
+	mtx_lock(&unionfs_deferred_rele_lock);
+	STAILQ_CONCAT(&local_rele_list, &unionfs_deferred_rele_list);
+	mtx_unlock(&unionfs_deferred_rele_lock);
+	STAILQ_FOREACH_SAFE(unp, &local_rele_list, un_rele, tunp) {
+		++ndeferred;
+		MPASS(unp->un_dvp != NULL);
+		vrele(unp->un_dvp);
+		free(unp, M_UNIONFSNODE);
+	}
+
+	/* We expect this function to be single-threaded, thus no atomic */
+	unionfs_ndeferred += ndeferred;
 }
 
 static struct unionfs_node_hashhead *
@@ -375,10 +417,6 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		vrele(lvp);
 	if (uvp != NULLVP)
 		vrele(uvp);
-	if (dvp != NULLVP) {
-		vrele(dvp);
-		unp->un_dvp = NULLVP;
-	}
 	if (unp->un_path != NULL) {
 		free(unp->un_path, M_UNIONFSPATH);
 		unp->un_path = NULL;
@@ -400,7 +438,14 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		LIST_REMOVE(unsp, uns_list);
 		free(unsp, M_TEMP);
 	}
-	free(unp, M_UNIONFSNODE);
+	if (dvp != NULLVP) {
+		mtx_lock(&unionfs_deferred_rele_lock);
+		STAILQ_INSERT_TAIL(&unionfs_deferred_rele_list, unp, un_rele);
+		mtx_unlock(&unionfs_deferred_rele_lock);
+		taskqueue_enqueue(taskqueue_unionfs_rele,
+		    &unionfs_deferred_rele_task);
+	} else
+		free(unp, M_UNIONFSNODE);
 }
 
 /*
