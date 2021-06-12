@@ -41,7 +41,7 @@ FILES=	wpa_supplicant.conf
 
 CFLAGS+=-DCONFIG_BACKEND_FILE
 #CFLAGS+= -g
-LIBADD+=pcap util wpadrivers wpaap wpaeapol_supp \
+LIBADD+=pcap util wpadrivers wpaeapol_supp \
 	wpaeap_server \
 	wpaeap_peer wpaeap_common wpal2_packet wparsn_supp wpatls wpawps \
 	wpacommon wpacrypto wpautils

@@ -19,8 +19,7 @@ CFLAGS+= -DCONFIG_TLS=openssl
 CFLAGS+= -D_DIRENT_HAVE_D_TYPE
 
 CFLAGS+= -DCONFIG_WPA_CLI_EDIT=y
-LIBADD+=wpaap \
-	wpacommon \
+LIBADD+=wpacommon \
 	wpaeap_peer \
 	wpaeap_server \
 	wpaeapol_auth \
