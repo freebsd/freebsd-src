@@ -1821,8 +1821,6 @@ device  	tdkphy		# TDK 89Q2120
 device  	truephy		# LSI TruePHY
 device		xmphy		# XaQti XMAC II
 
-# an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
-#       PCI and ISA varieties.
 # ae:   Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
@@ -1927,10 +1925,6 @@ device		xmphy		# XaQti XMAC II
 #       Precision desktop machines and the integrated 3c905-TX chips
 #       in Dell Latitude laptop docking stations.
 #       Also supported: 3Com 3c980(C)-TX, 3Com 3cSOHO100-TX, 3Com 3c450-TX
-
-# Order for ISA devices is important here
-
-device		an
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
