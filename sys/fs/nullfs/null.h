@@ -45,6 +45,8 @@ struct null_mount {
 	struct mount	*nullm_vfs;
 	struct vnode	*nullm_lowerrootvp;	/* Ref to lower root vnode */
 	uint64_t	nullm_flags;
+	struct mount_upper_node upper_node;
+	struct mount_upper_node notify_node;
 };
 
 #ifdef _KERNEL

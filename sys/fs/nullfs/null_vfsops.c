@@ -163,7 +163,8 @@ nullfs_mount(struct mount *mp)
 	 * Save pointer to underlying FS and the reference to the
 	 * lower root vnode.
 	 */
-	xmp->nullm_vfs = vfs_pin_from_vp(lowerrootvp);
+	xmp->nullm_vfs = vfs_register_upper_from_vp(lowerrootvp, mp,
+	    &xmp->upper_node);
 	if (xmp->nullm_vfs == NULL) {
 		vput(lowerrootvp);
 		free(xmp, M_NULLFSMNT);
@@ -178,7 +179,7 @@ nullfs_mount(struct mount *mp)
 	 */
 	error = null_nodeget(mp, lowerrootvp, &nullm_rootvp);
 	if (error != 0) {
-		vfs_unpin(xmp->nullm_vfs);
+		vfs_unregister_upper(xmp->nullm_vfs, &xmp->upper_node);
 		vrele(lowerrootvp);
 		free(xmp, M_NULLFSMNT);
 		return (error);
@@ -195,6 +196,11 @@ nullfs_mount(struct mount *mp)
 	    (xmp->nullm_vfs->mnt_kern_flag & MNTK_NULL_NOCACHE) != 0)
 		xmp->nullm_flags &= ~NULLM_CACHE;
 
+	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
+		vfs_register_for_notification(xmp->nullm_vfs, mp,
+		    &xmp->notify_node);
+	}
+
 	MNT_ILOCK(mp);
 	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
 		mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
@@ -206,13 +212,6 @@ nullfs_mount(struct mount *mp)
 	    (MNTK_USES_BCACHE | MNTK_NO_IOPF | MNTK_UNMAPPED_BUFS);
 	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
-	if ((xmp->nullm_flags & NULLM_CACHE) != 0) {
-		MNT_ILOCK(xmp->nullm_vfs);
-		TAILQ_INSERT_TAIL(&xmp->nullm_vfs->mnt_uppers, mp,
-		    mnt_upper_link);
-		MNT_IUNLOCK(xmp->nullm_vfs);
-	}
-
 	vfs_mountedfrom(mp, target);
 	vput(nullm_rootvp);
 
@@ -230,7 +229,6 @@ nullfs_unmount(mp, mntflags)
 	int mntflags;
 {
 	struct null_mount *mntdata;
-	struct mount *ump;
 	int error, flags;
 
 	NULLFSDEBUG("nullfs_unmount: mp = %p\n", (void *)mp);
@@ -259,17 +257,11 @@ nullfs_unmount(mp, mntflags)
 	 * Finally, throw away the null_mount structure
 	 */
 	mntdata = mp->mnt_data;
-	ump = mntdata->nullm_vfs;
 	if ((mntdata->nullm_flags & NULLM_CACHE) != 0) {
-		MNT_ILOCK(ump);
-		while ((ump->mnt_kern_flag & MNTK_VGONE_UPPER) != 0) {
-			ump->mnt_kern_flag |= MNTK_VGONE_WAITER;
-			msleep(&ump->mnt_uppers, &ump->mnt_mtx, 0, "vgnupw", 0);
-		}
-		TAILQ_REMOVE(&ump->mnt_uppers, mp, mnt_upper_link);
-		MNT_IUNLOCK(ump);
+		vfs_unregister_for_notification(mntdata->nullm_vfs,
+		    &mntdata->notify_node);
 	}
-	vfs_unpin(ump);
+	vfs_unregister_upper(mntdata->nullm_vfs, &mntdata->upper_node);
 	vrele(mntdata->nullm_lowerrootvp);
 	mp->mnt_data = NULL;
 	free(mntdata, M_NULLFSMNT);

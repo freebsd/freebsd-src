@@ -292,14 +292,16 @@ unionfs_domount(struct mount *mp)
 		return (error);
 	}
 
-	lowermp = vfs_pin_from_vp(ump->um_lowervp);
-	uppermp = vfs_pin_from_vp(ump->um_uppervp);
+	lowermp = vfs_register_upper_from_vp(ump->um_lowervp, mp,
+	    &ump->um_lower_link);
+	uppermp = vfs_register_upper_from_vp(ump->um_uppervp, mp,
+	    &ump->um_upper_link);
 
 	if (lowermp == NULL || uppermp == NULL) {
 		if (lowermp != NULL)
-			vfs_unpin(lowermp);
+			vfs_unregister_upper(lowermp, &ump->um_lower_link);
 		if (uppermp != NULL)
-			vfs_unpin(uppermp);
+			vfs_unregister_upper(uppermp, &ump->um_upper_link);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (ENOENT);
@@ -357,8 +359,8 @@ unionfs_unmount(struct mount *mp, int mntflags)
 	if (error)
 		return (error);
 
-	vfs_unpin(ump->um_lowervp->v_mount);
-	vfs_unpin(ump->um_uppervp->v_mount);
+	vfs_unregister_upper(ump->um_lowervp->v_mount, &ump->um_lower_link);
+	vfs_unregister_upper(ump->um_uppervp->v_mount, &ump->um_upper_link);
 	free(ump, M_UNIONFSMNT);
 	mp->mnt_data = NULL;
 

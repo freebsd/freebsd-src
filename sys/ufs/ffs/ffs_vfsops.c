@@ -297,7 +297,7 @@ ffs_fsfail_unmount(void *v, int pending)
 	 */
 	mp = vfs_getvfs(&etp->fsid);
 	if (mp != NULL)
-		dounmount(mp, MNT_FORCE, curthread);
+		dounmount(mp, MNT_FORCE | MNT_RECURSE, curthread);
 	free(etp, M_UFSMNT);
 }
 
