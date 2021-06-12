@@ -80,6 +80,7 @@ struct mevent {
 	int	me_cq;
 	int	me_state; /* Desired kevent flags. */
 	int	me_closefd;
+	int	me_fflags;
 	LIST_ENTRY(mevent) me_list;
 };
 
@@ -165,6 +166,9 @@ mevent_kq_filter(struct mevent *mevp)
 	if (mevp->me_type == EVF_SIGNAL)
 		retval = EVFILT_SIGNAL;
 
+	if (mevp->me_type == EVF_VNODE)
+		retval = EVFILT_VNODE;
+
 	return (retval);
 }
 
@@ -177,8 +181,18 @@ mevent_kq_flags(struct mevent *mevp)
 static int
 mevent_kq_fflags(struct mevent *mevp)
 {
-	/* XXX nothing yet, perhaps EV_EOF for reads ? */
-	return (0);
+	int retval;
+
+	retval = 0;
+
+	switch (mevp->me_type) {
+	case EVF_VNODE:
+		if ((mevp->me_fflags & EVFF_ATTRIB) != 0)
+			retval |= NOTE_ATTRIB;
+		break;
+	}
+
+	return (retval);
 }
 
 static void
@@ -255,7 +269,7 @@ mevent_handle(struct kevent *kev, int numev)
 static struct mevent *
 mevent_add_state(int tfd, enum ev_type type,
 	   void (*func)(int, enum ev_type, void *), void *param,
-	   int state)
+	   int state, int fflags)
 {
 	struct kevent kev;
 	struct mevent *lp, *mevp;
@@ -305,6 +319,7 @@ mevent_add_state(int tfd, enum ev_type type,
 	mevp->me_func = func;
 	mevp->me_param = param;
 	mevp->me_state = state;
+	mevp->me_fflags = fflags;
 
 	/*
 	 * Try to add the event.  If this fails, report the failure to
@@ -332,7 +347,15 @@ mevent_add(int tfd, enum ev_type type,
 	   void (*func)(int, enum ev_type, void *), void *param)
 {
 
-	return (mevent_add_state(tfd, type, func, param, EV_ADD));
+	return (mevent_add_state(tfd, type, func, param, EV_ADD, 0));
+}
+
+struct mevent *
+mevent_add_flags(int tfd, enum ev_type type, int fflags,
+		 void (*func)(int, enum ev_type, void *), void *param)
+{
+
+	return (mevent_add_state(tfd, type, func, param, EV_ADD, fflags));
 }
 
 struct mevent *
@@ -340,7 +363,7 @@ mevent_add_disabled(int tfd, enum ev_type type,
 		    void (*func)(int, enum ev_type, void *), void *param)
 {
 
-	return (mevent_add_state(tfd, type, func, param, EV_ADD | EV_DISABLE));
+	return (mevent_add_state(tfd, type, func, param, EV_ADD | EV_DISABLE, 0));
 }
 
 static int
