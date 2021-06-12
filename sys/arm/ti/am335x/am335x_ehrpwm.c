@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/pwm/pwmc.h>
+
 #include "pwmbus_if.h"
 
 #include "am335x_pwm.h"
@@ -72,7 +74,12 @@ __FBSDID("$FreeBSD$");
     bus_write_2((_sc)->sc_mem_res, reg, value)
 
 #define	EPWM_TBCTL		0x00
-#define		TBCTL_FREERUN		(2 << 14)
+/* see 15.2.2.11 for the first two, used in debug situations */
+#define		TBCTL_FREERUN_STOP_NEXT_TBC_INCREMENT	(0 << 14)
+#define		TBCTL_FREERUN_STOP_COMPLETE_CYCLE	(1 << 14)
+/* ignore suspend control signal */
+#define		TBCTL_FREERUN				(2 << 14)
+
 #define		TBCTL_PHDIR_UP		(1 << 13)
 #define		TBCTL_PHDIR_DOWN	(0 << 13)
 #define		TBCTL_CLKDIV(x)		((x) << 10)
@@ -81,9 +88,9 @@ __FBSDID("$FreeBSD$");
 #define		TBCTL_HSPCLKDIV_MASK	(3 << 7)
 #define		TBCTL_SYNCOSEL_DISABLED	(3 << 4)
 #define		TBCTL_PRDLD_SHADOW	(0 << 3)
-#define		TBCTL_PRDLD_IMMEDIATE	(0 << 3)
-#define		TBCTL_PHSEN_ENABLED	(1 << 2)
+#define		TBCTL_PRDLD_IMMEDIATE	(1 << 3)
 #define		TBCTL_PHSEN_DISABLED	(0 << 2)
+#define		TBCTL_PHSEN_ENABLED	(1 << 2)
 #define		TBCTL_CTRMODE_MASK	(3)
 #define		TBCTL_CTRMODE_UP	(0 << 0)
 #define		TBCTL_CTRMODE_DOWN	(1 << 0)
@@ -136,8 +143,24 @@ __FBSDID("$FreeBSD$");
 #define		AQCSFRC(chan, hilo)	((hilo) << (2 * chan))
 
 /* Trip-Zone module */
+#define	EPWM_TZSEL		0x24
 #define	EPWM_TZCTL		0x28
 #define	EPWM_TZFLG		0x2C
+
+/* Dead band */
+#define EPWM_DBCTL		0x1E
+#define		DBCTL_MASK		(3 << 0)
+#define		DBCTL_BYPASS		0
+#define		DBCTL_RISING_EDGE	1
+#define		DBCTL_FALLING_EDGE	2
+#define		DBCTL_BOTH_EDGE		3
+
+/* PWM-chopper */
+#define EPWM_PCCTL		0x3C
+#define		PCCTL_CHPEN_MASK	(1 << 0)
+#define		PCCTL_CHPEN_DISABLE	0
+#define		PCCTL_CHPEN_ENABLE	1
+
 /* High-Resolution PWM */
 #define	EPWM_HRCTL		0x40
 #define		HRCTL_DELMODE_BOTH	3
@@ -330,6 +353,60 @@ am335x_ehrpwm_channel_get_config(device_t dev, u_int channel,
 }
 
 static int
+am335x_ehrpwm_channel_set_flags(device_t dev, u_int channel,
+       uint32_t flags)
+{
+	struct am335x_ehrpwm_softc *sc;
+
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	PWM_LOCK(sc);
+	if (flags & PWM_POLARITY_INVERTED) {
+		sc->sc_channels[channel].inverted = true;
+		/* Action-Qualifier 15.2.2.5 */
+		if (channel == 0)
+			EPWM_WRITE2(sc, EPWM_AQCTLA,
+			    (AQCTL_ZRO_CLEAR | AQCTL_CAU_SET));
+		else
+			EPWM_WRITE2(sc, EPWM_AQCTLB,
+			    (AQCTL_ZRO_CLEAR | AQCTL_CBU_SET));
+	} else {
+		sc->sc_channels[channel].inverted = false;
+		if (channel == 0)
+			EPWM_WRITE2(sc, EPWM_AQCTLA,
+			    (AQCTL_ZRO_SET | AQCTL_CAU_CLEAR));
+		else
+			EPWM_WRITE2(sc, EPWM_AQCTLB,
+			    (AQCTL_ZRO_SET | AQCTL_CBU_CLEAR));
+	}
+	PWM_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+am335x_ehrpwm_channel_get_flags(device_t dev, u_int channel,
+    uint32_t *flags)
+{
+	struct am335x_ehrpwm_softc *sc;
+	if (channel >= NUM_CHANNELS)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	if (sc->sc_channels[channel].inverted == true)
+		*flags = PWM_POLARITY_INVERTED;
+	else
+		*flags = 0;
+
+	return (0);
+}
+
+
+static int
 am335x_ehrpwm_channel_enable(device_t dev, u_int channel, bool enable)
 {
 	struct am335x_ehrpwm_softc *sc;
@@ -380,7 +457,7 @@ static int
 am335x_ehrpwm_attach(device_t dev)
 {
 	struct am335x_ehrpwm_softc *sc;
-	uint32_t reg;
+	uint16_t reg;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -394,7 +471,7 @@ am335x_ehrpwm_attach(device_t dev)
 		goto fail;
 	}
 
-	/* CONFIGURE EPWM1 */
+	/* CONFIGURE EPWM */
 	reg = EPWM_READ2(sc, EPWM_TBCTL);
 	reg &= ~(TBCTL_CLKDIV_MASK | TBCTL_HSPCLKDIV_MASK);
 	EPWM_WRITE2(sc, EPWM_TBCTL, reg);
@@ -403,16 +480,39 @@ am335x_ehrpwm_attach(device_t dev)
 	EPWM_WRITE2(sc, EPWM_CMPA, 0);
 	EPWM_WRITE2(sc, EPWM_CMPB, 0);
 
+	/* Action-Qualifier 15.2.2.5 */
 	EPWM_WRITE2(sc, EPWM_AQCTLA, (AQCTL_ZRO_SET | AQCTL_CAU_CLEAR));
 	EPWM_WRITE2(sc, EPWM_AQCTLB, (AQCTL_ZRO_SET | AQCTL_CBU_CLEAR));
+
+	/* Dead band 15.2.2.6 */
+	reg = EPWM_READ2(sc, EPWM_DBCTL);
+	reg &= ~DBCTL_MASK;
+	reg |= DBCTL_BYPASS;
+	EPWM_WRITE2(sc, EPWM_DBCTL, reg);
+
+	/* PWM-chopper described in 15.2.2.7 */
+	/* Acc. TRM used in pulse transformerbased gate drivers
+	 * to control the power switching-elements
+	 */
+	reg = EPWM_READ2(sc, EPWM_PCCTL);
+	reg &= ~PCCTL_CHPEN_MASK;
+	reg |= PCCTL_CHPEN_DISABLE;
+	EPWM_WRITE2(sc, EPWM_PCCTL, PCCTL_CHPEN_DISABLE);
+
+	/* Trip zone are described in 15.2.2.8.
+	 * Essential its used to detect faults and can be configured
+	 * to react on such faults..
+	 */
+	/* disable TZn as one-shot / CVC trip source 15.2.4.18 */
+	EPWM_WRITE2(sc, EPWM_TZSEL, 0x0);
+	/* reg described in 15.2.4.19 */
+	EPWM_WRITE2(sc, EPWM_TZCTL, 0xf);
+	reg = EPWM_READ2(sc, EPWM_TZFLG);
 
 	/* START EPWM */
 	reg &= ~TBCTL_CTRMODE_MASK;
 	reg |= TBCTL_CTRMODE_UP | TBCTL_FREERUN;
 	EPWM_WRITE2(sc, EPWM_TBCTL, reg);
-
-	EPWM_WRITE2(sc, EPWM_TZCTL, 0xf);
-	reg = EPWM_READ2(sc, EPWM_TZFLG);
 
 	if ((sc->sc_busdev = device_add_child(dev, "pwmbus", -1)) == NULL) {
 		device_printf(dev, "Cannot add child pwmbus\n");
@@ -480,6 +580,8 @@ static device_method_t am335x_ehrpwm_methods[] = {
 	DEVMETHOD(pwmbus_channel_count,		am335x_ehrpwm_channel_count),
 	DEVMETHOD(pwmbus_channel_config,	am335x_ehrpwm_channel_config),
 	DEVMETHOD(pwmbus_channel_get_config,	am335x_ehrpwm_channel_get_config),
+	DEVMETHOD(pwmbus_channel_set_flags,	am335x_ehrpwm_channel_set_flags),
+	DEVMETHOD(pwmbus_channel_get_flags,	am335x_ehrpwm_channel_get_flags),
 	DEVMETHOD(pwmbus_channel_enable,	am335x_ehrpwm_channel_enable),
 	DEVMETHOD(pwmbus_channel_is_enabled,	am335x_ehrpwm_channel_is_enabled),
 
