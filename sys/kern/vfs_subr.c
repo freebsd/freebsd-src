@@ -831,9 +831,9 @@ vfs_busy(struct mount *mp, int flags)
 	 * valid.
 	 */
 	while (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		KASSERT(mp->mnt_pinned_count == 0,
-		    ("%s: non-zero pinned count %d with pending unmount",
-		    __func__, mp->mnt_pinned_count));
+		KASSERT(TAILQ_EMPTY(&mp->mnt_uppers),
+		    ("%s: non-empty upper mount list with pending unmount",
+		    __func__));
 		if (flags & MBF_NOWAIT || mp->mnt_kern_flag & MNTK_REFEXPIRE) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
@@ -3897,6 +3897,11 @@ notify_lowervp_vfs_dummy(struct mount *mp __unused,
 {
 }
 
+struct notify_mount {
+	struct mount mp;
+	struct mount_upper_node upper;
+};
+
 /*
  * Notify upper mounts about reclaimed or unlinked vnode.
  */
@@ -3907,45 +3912,52 @@ vfs_notify_upper(struct vnode *vp, int event)
 		.vfs_reclaim_lowervp = notify_lowervp_vfs_dummy,
 		.vfs_unlink_lowervp = notify_lowervp_vfs_dummy,
 	};
-	struct mount *mp, *ump, *mmp;
+	struct mount *mp;
+	struct mount_upper_node *ump;
+	struct notify_mount *mmp;
 
 	mp = vp->v_mount;
 	if (mp == NULL)
 		return;
-	if (TAILQ_EMPTY(&mp->mnt_uppers))
+	if (TAILQ_EMPTY(&mp->mnt_notify))
 		return;
 
-	mmp = malloc(sizeof(struct mount), M_TEMP, M_WAITOK | M_ZERO);
-	mmp->mnt_op = &vgonel_vfsops;
-	mmp->mnt_kern_flag |= MNTK_MARKER;
+	mmp = malloc(sizeof(*mmp), M_TEMP, M_WAITOK | M_ZERO);
+	mmp->mp.mnt_op = &vgonel_vfsops;
+	mmp->mp.mnt_kern_flag |= MNTK_MARKER;
+	mmp->upper.mp = &mmp->mp;
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_VGONE_UPPER;
-	for (ump = TAILQ_FIRST(&mp->mnt_uppers); ump != NULL;) {
-		if ((ump->mnt_kern_flag & MNTK_MARKER) != 0) {
+	mp->mnt_upper_pending++;
+	KASSERT(mp->mnt_upper_pending > 0,
+	    ("%s: mnt_upper_pending %d", __func__, mp->mnt_upper_pending));
+	for (ump = TAILQ_FIRST(&mp->mnt_notify); ump != NULL;) {
+		if ((ump->mp->mnt_kern_flag & MNTK_MARKER) != 0) {
 			ump = TAILQ_NEXT(ump, mnt_upper_link);
 			continue;
 		}
-		TAILQ_INSERT_AFTER(&mp->mnt_uppers, ump, mmp, mnt_upper_link);
+		TAILQ_INSERT_AFTER(&mp->mnt_notify, ump, &mmp->upper,
+		    mnt_upper_link);
 		MNT_IUNLOCK(mp);
 		switch (event) {
 		case VFS_NOTIFY_UPPER_RECLAIM:
-			VFS_RECLAIM_LOWERVP(ump, vp);
+			VFS_RECLAIM_LOWERVP(ump->mp, vp);
 			break;
 		case VFS_NOTIFY_UPPER_UNLINK:
-			VFS_UNLINK_LOWERVP(ump, vp);
+			VFS_UNLINK_LOWERVP(ump->mp, vp);
 			break;
 		default:
 			KASSERT(0, ("invalid event %d", event));
 			break;
 		}
 		MNT_ILOCK(mp);
-		ump = TAILQ_NEXT(mmp, mnt_upper_link);
-		TAILQ_REMOVE(&mp->mnt_uppers, mmp, mnt_upper_link);
+		ump = TAILQ_NEXT(&mmp->upper, mnt_upper_link);
+		TAILQ_REMOVE(&mp->mnt_notify, &mmp->upper, mnt_upper_link);
 	}
 	free(mmp, M_TEMP);
-	mp->mnt_kern_flag &= ~MNTK_VGONE_UPPER;
-	if ((mp->mnt_kern_flag & MNTK_VGONE_WAITER) != 0) {
-		mp->mnt_kern_flag &= ~MNTK_VGONE_WAITER;
+	mp->mnt_upper_pending--;
+	if ((mp->mnt_kern_flag & MNTK_UPPER_WAITER) != 0 &&
+	    mp->mnt_upper_pending == 0) {
+		mp->mnt_kern_flag &= ~MNTK_UPPER_WAITER;
 		wakeup(&mp->mnt_uppers);
 	}
 	MNT_IUNLOCK(mp);
@@ -4376,12 +4388,13 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
 	MNT_KERN_FLAG(MNTK_NO_IOPF);
-	MNT_KERN_FLAG(MNTK_VGONE_UPPER);
-	MNT_KERN_FLAG(MNTK_VGONE_WAITER);
+	MNT_KERN_FLAG(MNTK_RECURSE);
+	MNT_KERN_FLAG(MNTK_UPPER_WAITER);
 	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
 	MNT_KERN_FLAG(MNTK_MARKER);
 	MNT_KERN_FLAG(MNTK_USES_BCACHE);
 	MNT_KERN_FLAG(MNTK_FPLOOKUP);
+	MNT_KERN_FLAG(MNTK_TASKQUEUE_WAITER);
 	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
