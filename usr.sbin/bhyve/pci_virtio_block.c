@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2011 NetApp, Inc.
  * All rights reserved.
- * Copyright 2020 Joyent, Inc.
+ * Copyright 2020-2021 Joyent, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -436,6 +436,18 @@ pci_vtblk_notify(void *vsc, struct vqueue_info *vq)
 		pci_vtblk_proc(sc, vq);
 }
 
+static void
+pci_vtblk_resized(struct blockif_ctxt *bctxt, void *arg, size_t new_size)
+{
+	struct pci_vtblk_softc *sc;
+
+	sc = arg;
+
+	sc->vbsc_cfg.vbc_capacity = new_size / VTBLK_BSIZE; /* 512-byte units */
+	vi_interrupt(&sc->vbsc_vs, VIRTIO_PCI_ISR_CONFIG,
+	    sc->vbsc_vs.vs_msix_cfg_idx);
+}
+
 static int
 pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 {
@@ -541,6 +553,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 		return (1);
 	}
 	vi_set_io_bar(&sc->vbsc_vs, 0);
+	blockif_register_resize_callback(sc->bc, pci_vtblk_resized, sc);
 	return (0);
 }
 
