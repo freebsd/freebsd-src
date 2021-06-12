@@ -35,12 +35,19 @@ enum ev_type {
 	EVF_READ,
 	EVF_WRITE,
 	EVF_TIMER,
-	EVF_SIGNAL
+	EVF_SIGNAL,
+	EVF_VNODE,
 };
+
+/* Filter flags for EVF_VNODE */
+#define	EVFF_ATTRIB	0x0001
 
 struct mevent;
 
 struct mevent *mevent_add(int fd, enum ev_type type, 
+			  void (*func)(int, enum ev_type, void *),
+			  void *param);
+struct mevent *mevent_add_flags(int fd, enum ev_type type, int fflags,
 			  void (*func)(int, enum ev_type, void *),
 			  void *param);
 struct mevent *mevent_add_disabled(int fd, enum ev_type type,
