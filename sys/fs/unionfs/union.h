@@ -89,7 +89,11 @@ struct unionfs_node {
 						/* unionfs status head */
 	LIST_HEAD(unionfs_node_hashhead, unionfs_node) *un_hashtbl;
 						/* dir vnode hash table */
-	LIST_ENTRY(unionfs_node)   un_hash;	/* hash list entry */
+	union {
+		LIST_ENTRY(unionfs_node) un_hash; /* hash list entry */
+		STAILQ_ENTRY(unionfs_node) un_rele; /* deferred release list */
+	};
+
 	u_long		un_hashmask;		/* bit mask */
 	char           *un_path;		/* path */
 	int		un_flag;		/* unionfs node flag */
