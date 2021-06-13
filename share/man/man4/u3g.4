@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2018
+.Dd June 13, 2021
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -75,6 +75,8 @@ Huawei B190, E180v, E220 ('<Huawei Mobile>')
 Novatel U740, MC950D, X950D, etc.
 .It
 Sierra MC875U, MC8775U, etc.
+.It
+Panasonic CF-F9 GOBI
 .El
 .Pp
 (See
@@ -147,3 +149,7 @@ Hardware for testing was provided by AnyWi Technologies, Leiden, NL.
 The automatic mode switch from disk mode to modem mode does not work unless
 the driver is either built into the kernel or loaded before the device is
 connected.
+.Pp
+The Panasonic CF-F9 requires the gobi loader available from
+.Pa https://github.com/cederom/gobi_loader
+and loading of the firmware before it will function.
