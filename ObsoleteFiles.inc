@@ -40,6 +40,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210613: Rename OpenZFS manual pages
+OLD_FILES+=usr/share/man/man5/spl-module-parameters.5.gz
+OLD_FILES+=usr/share/man/man5/zfs-events.5.gz
+OLD_FILES+=usr/share/man/man5/zfs-module-parameters.5.gz
+OLD_FILES+=usr/share/man/man8/zfsconcepts.8
+OLD_FILES+=usr/share/man/man8/zfsprops.8
+OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
+OLD_FILES+=usr/share/man/man8/zpoolconcepts.8
+OLD_FILES+=usr/share/man/man8/zpoolprops.8
+
 # 20210611: Remove svn and svnlite
 OLD_FILES+=usr/bin/svn
 OLD_FILES+=usr/bin/svnadmin

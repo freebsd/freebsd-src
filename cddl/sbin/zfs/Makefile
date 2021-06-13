@@ -3,6 +3,7 @@
 ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
 .PATH: ${ZFSTOP}/cmd/zfs
+.PATH: ${ZFSTOP}/man/man7
 .PATH: ${ZFSTOP}/man/man8
 .PATH: ${ZFSTOP}/module/os/freebsd/spl
 
@@ -34,8 +35,8 @@ MAN= \
 	zfs-upgrade.8 \
 	zfs-userspace.8 \
 	zfs-wait.8 \
-	zfsconcepts.8 \
-	zfsprops.8
+	zfsconcepts.7 \
+	zfsprops.7
 MLINKS= \
 	zfs-allow.8 zfs-unallow.8 \
 	zfs-hold.8 zfs-release.8 \
