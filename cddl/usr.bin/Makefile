@@ -8,7 +8,6 @@ SUBDIR= \
 	ctfmerge \
 	${_zinject} \
 	${_zstream} \
-	${_zstreamdump} \
 	${_ztest}
 
 SUBDIR.${MK_TESTS}+= tests
@@ -17,7 +16,6 @@ SUBDIR.${MK_TESTS}+= tests
 _zinject= zinject
 _ztest=	ztest
 _zstream = zstream
-_zstreamdump = zstreamdump
 .endif
 
 SUBDIR_PARALLEL=

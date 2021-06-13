@@ -7,12 +7,15 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
 PROG=	zstream
 MAN=	zstream.8
+MLINKS=	zstream.8 zstreamdump.8
 INCS=	zstream.h
 SRCS= \
 	zstream.c \
 	zstream_dump.c \
 	zstream_redup.c \
 	zstream_token.c
+
+SYMLINKS=	${BINDIR}/zstream ${BINDIR}/zstreamdump
 
 WARNS?=	2
 CFLAGS+= \
