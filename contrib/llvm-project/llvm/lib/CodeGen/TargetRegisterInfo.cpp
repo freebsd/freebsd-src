@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
@@ -68,7 +69,7 @@ bool TargetRegisterInfo::shouldRegionSplitForVirtReg(
     const MachineFunction &MF, const LiveInterval &VirtReg) const {
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
-  MachineInstr *MI = MRI.getUniqueVRegDef(VirtReg.reg);
+  MachineInstr *MI = MRI.getUniqueVRegDef(VirtReg.reg());
   if (MI && TII->isTriviallyReMaterializable(*MI) &&
       VirtReg.size() > HugeSizeForSplit)
     return false;
@@ -530,6 +531,56 @@ TargetRegisterInfo::lookThruCopyLike(Register SrcReg,
 
     SrcReg = CopySrcReg;
   }
+}
+
+Register TargetRegisterInfo::lookThruSingleUseCopyChain(
+    Register SrcReg, const MachineRegisterInfo *MRI) const {
+  while (true) {
+    const MachineInstr *MI = MRI->getVRegDef(SrcReg);
+    // Found the real definition, return it if it has a single use.
+    if (!MI->isCopyLike())
+      return MRI->hasOneNonDBGUse(SrcReg) ? SrcReg : Register();
+
+    Register CopySrcReg;
+    if (MI->isCopy())
+      CopySrcReg = MI->getOperand(1).getReg();
+    else {
+      assert(MI->isSubregToReg() && "Bad opcode for lookThruCopyLike");
+      CopySrcReg = MI->getOperand(2).getReg();
+    }
+
+    // Continue only if the next definition in the chain is for a virtual
+    // register that has a single use.
+    if (!CopySrcReg.isVirtual() || !MRI->hasOneNonDBGUse(CopySrcReg))
+      return Register();
+
+    SrcReg = CopySrcReg;
+  }
+}
+
+void TargetRegisterInfo::getOffsetOpcodes(
+    const StackOffset &Offset, SmallVectorImpl<uint64_t> &Ops) const {
+  assert(!Offset.getScalable() && "Scalable offsets are not handled");
+  DIExpression::appendOffset(Ops, Offset.getFixed());
+}
+
+DIExpression *
+TargetRegisterInfo::prependOffsetExpression(const DIExpression *Expr,
+                                            unsigned PrependFlags,
+                                            const StackOffset &Offset) const {
+  assert((PrependFlags &
+          ~(DIExpression::DerefBefore | DIExpression::DerefAfter |
+            DIExpression::StackValue | DIExpression::EntryValue)) == 0 &&
+         "Unsupported prepend flag");
+  SmallVector<uint64_t, 16> OffsetExpr;
+  if (PrependFlags & DIExpression::DerefBefore)
+    OffsetExpr.push_back(dwarf::DW_OP_deref);
+  getOffsetOpcodes(Offset, OffsetExpr);
+  if (PrependFlags & DIExpression::DerefAfter)
+    OffsetExpr.push_back(dwarf::DW_OP_deref);
+  return DIExpression::prependOpcodes(Expr, OffsetExpr,
+                                      PrependFlags & DIExpression::StackValue,
+                                      PrependFlags & DIExpression::EntryValue);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)

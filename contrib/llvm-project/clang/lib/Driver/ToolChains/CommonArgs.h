@@ -49,7 +49,7 @@ void AddRunTimeLibs(const ToolChain &TC, const Driver &D,
                     llvm::opt::ArgStringList &CmdArgs,
                     const llvm::opt::ArgList &Args);
 
-const char *SplitDebugName(const llvm::opt::ArgList &Args,
+const char *SplitDebugName(const JobAction &JA, const llvm::opt::ArgList &Args,
                            const InputInfo &Input, const InputInfo &Output);
 
 void SplitDebugInfo(const ToolChain &TC, Compilation &C, const Tool &T,
@@ -137,6 +137,14 @@ void addMultilibFlag(bool Enabled, const char *const Flag,
 
 void addX86AlignBranchArgs(const Driver &D, const llvm::opt::ArgList &Args,
                            llvm::opt::ArgStringList &CmdArgs, bool IsLTO);
+
+unsigned getOrCheckAMDGPUCodeObjectVersion(const Driver &D,
+                                           const llvm::opt::ArgList &Args,
+                                           bool Diagnose = false);
+
+void addMachineOutlinerArgs(const Driver &D, const llvm::opt::ArgList &Args,
+                            llvm::opt::ArgStringList &CmdArgs,
+                            const llvm::Triple &Triple, bool IsLTO);
 } // end namespace tools
 } // end namespace driver
 } // end namespace clang

@@ -18,6 +18,13 @@
 #include <memory>
 #include <set>
 
+namespace llvm {
+namespace json {
+class Object;
+class Value;
+}
+} // namespace llvm
+
 namespace lldb_private {
 typedef lldb::ABISP (*ABICreateInstance)(lldb::ProcessSP process_sp,
                                          const ArchSpec &arch);
@@ -69,7 +76,7 @@ typedef lldb::PlatformSP (*PlatformCreateInstance)(bool force,
                                                    const ArchSpec *arch);
 typedef lldb::ProcessSP (*ProcessCreateInstance)(
     lldb::TargetSP target_sp, lldb::ListenerSP listener_sp,
-    const FileSpec *crash_file_path);
+    const FileSpec *crash_file_path, bool can_connect);
 typedef lldb::ScriptInterpreterSP (*ScriptInterpreterCreateInstance)(
     Debugger &debugger);
 typedef SymbolFile *(*SymbolFileCreateInstance)(lldb::ObjectFileSP objfile_sp);
@@ -104,6 +111,11 @@ typedef lldb::REPLSP (*REPLCreateInstance)(Status &error,
                                            const char *repl_options);
 typedef int (*ComparisonFunction)(const void *, const void *);
 typedef void (*DebuggerInitializeCallback)(Debugger &debugger);
+typedef llvm::Expected<lldb::TraceSP> (*TraceCreateInstance)(
+    const llvm::json::Value &trace_session_file,
+    llvm::StringRef session_file_dir, lldb_private::Debugger &debugger);
+typedef lldb::CommandObjectSP (*TraceGetStartCommand)(
+    CommandInterpreter &interpreter);
 
 } // namespace lldb_private
 

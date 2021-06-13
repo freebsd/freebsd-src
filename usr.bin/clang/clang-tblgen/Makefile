@@ -17,6 +17,7 @@ SRCS+=		ClangOpcodesEmitter.cpp
 SRCS+=		ClangOpenCLBuiltinEmitter.cpp
 SRCS+=		ClangOptionDocEmitter.cpp
 SRCS+=		ClangSACheckersEmitter.cpp
+SRCS+=		ClangSyntaxEmitter.cpp
 SRCS+=		ClangTypeNodesEmitter.cpp
 SRCS+=		MveEmitter.cpp
 SRCS+=		NeonEmitter.cpp

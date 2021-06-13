@@ -66,7 +66,8 @@ NSDictionary_Additionals::GetAdditionalSynthetics() {
 static CompilerType GetLLDBNSPairType(TargetSP target_sp) {
   CompilerType compiler_type;
 
-  TypeSystemClang *target_ast_context = TypeSystemClang::GetScratch(*target_sp);
+  TypeSystemClang *target_ast_context =
+      ScratchTypeSystemClang::GetForTarget(*target_sp);
 
   if (target_ast_context) {
     ConstString g___lldb_autogen_nspair("__lldb_autogen_nspair");
@@ -388,7 +389,7 @@ bool lldb_private::formatters::NSDictionarySummaryProvider(
     return false;
 
   ObjCLanguageRuntime::ClassDescriptorSP descriptor(
-      runtime->GetClassDescriptor(valobj));
+      runtime->GetNonKVOClassDescriptor(valobj));
 
   if (!descriptor || !descriptor->IsValid())
     return false;

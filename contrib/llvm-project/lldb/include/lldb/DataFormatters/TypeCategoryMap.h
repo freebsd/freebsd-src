@@ -84,7 +84,8 @@ private:
     lldb::TypeCategoryImplSP ptr;
 
   public:
-    delete_matching_categories(lldb::TypeCategoryImplSP p) : ptr(p) {}
+    delete_matching_categories(lldb::TypeCategoryImplSP p)
+        : ptr(std::move(p)) {}
 
     bool operator()(const lldb::TypeCategoryImplSP &other) {
       return ptr.get() == other.get();
@@ -103,7 +104,7 @@ private:
 
   std::recursive_mutex &mutex() { return m_map_mutex; }
 
-  friend class FormattersContainer<KeyType, ValueType>;
+  friend class FormattersContainer<ValueType>;
   friend class FormatManager;
 };
 } // namespace lldb_private

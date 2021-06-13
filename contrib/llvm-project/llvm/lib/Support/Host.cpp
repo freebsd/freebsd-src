@@ -161,11 +161,14 @@ StringRef sys::detail::getHostCPUNameForARM(StringRef ProcCpuinfoContent) {
   // Look for the CPU implementer line.
   StringRef Implementer;
   StringRef Hardware;
+  StringRef Part;
   for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
     if (Lines[I].startswith("CPU implementer"))
       Implementer = Lines[I].substr(15).ltrim("\t :");
     if (Lines[I].startswith("Hardware"))
       Hardware = Lines[I].substr(8).ltrim("\t :");
+    if (Lines[I].startswith("CPU part"))
+      Part = Lines[I].substr(8).ltrim("\t :");
   }
 
   if (Implementer == "0x41") { // ARM Ltd.
@@ -175,110 +178,89 @@ StringRef sys::detail::getHostCPUNameForARM(StringRef ProcCpuinfoContent) {
       return "cortex-a53";
 
 
-    // Look for the CPU part line.
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
-      if (Lines[I].startswith("CPU part"))
-        // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
-        // values correspond to the "Part number" in the CP15/c0 register. The
-        // contents are specified in the various processor manuals.
-        // This corresponds to the Main ID Register in Technical Reference Manuals.
-        // and is used in programs like sys-utils
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-            .Case("0x926", "arm926ej-s")
-            .Case("0xb02", "mpcore")
-            .Case("0xb36", "arm1136j-s")
-            .Case("0xb56", "arm1156t2-s")
-            .Case("0xb76", "arm1176jz-s")
-            .Case("0xc08", "cortex-a8")
-            .Case("0xc09", "cortex-a9")
-            .Case("0xc0f", "cortex-a15")
-            .Case("0xc20", "cortex-m0")
-            .Case("0xc23", "cortex-m3")
-            .Case("0xc24", "cortex-m4")
-            .Case("0xd22", "cortex-m55")
-            .Case("0xd02", "cortex-a34")
-            .Case("0xd04", "cortex-a35")
-            .Case("0xd03", "cortex-a53")
-            .Case("0xd07", "cortex-a57")
-            .Case("0xd08", "cortex-a72")
-            .Case("0xd09", "cortex-a73")
-            .Case("0xd0a", "cortex-a75")
-            .Case("0xd0b", "cortex-a76")
-            .Case("0xd0d", "cortex-a77")
-            .Case("0xd41", "cortex-a78")
-            .Case("0xd44", "cortex-x1")
-            .Case("0xd0c", "neoverse-n1")
-            .Default("generic");
+    // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
+    // values correspond to the "Part number" in the CP15/c0 register. The
+    // contents are specified in the various processor manuals.
+    // This corresponds to the Main ID Register in Technical Reference Manuals.
+    // and is used in programs like sys-utils
+    return StringSwitch<const char *>(Part)
+        .Case("0x926", "arm926ej-s")
+        .Case("0xb02", "mpcore")
+        .Case("0xb36", "arm1136j-s")
+        .Case("0xb56", "arm1156t2-s")
+        .Case("0xb76", "arm1176jz-s")
+        .Case("0xc08", "cortex-a8")
+        .Case("0xc09", "cortex-a9")
+        .Case("0xc0f", "cortex-a15")
+        .Case("0xc20", "cortex-m0")
+        .Case("0xc23", "cortex-m3")
+        .Case("0xc24", "cortex-m4")
+        .Case("0xd22", "cortex-m55")
+        .Case("0xd02", "cortex-a34")
+        .Case("0xd04", "cortex-a35")
+        .Case("0xd03", "cortex-a53")
+        .Case("0xd07", "cortex-a57")
+        .Case("0xd08", "cortex-a72")
+        .Case("0xd09", "cortex-a73")
+        .Case("0xd0a", "cortex-a75")
+        .Case("0xd0b", "cortex-a76")
+        .Case("0xd0d", "cortex-a77")
+        .Case("0xd41", "cortex-a78")
+        .Case("0xd44", "cortex-x1")
+        .Case("0xd0c", "neoverse-n1")
+        .Case("0xd49", "neoverse-n2")
+        .Default("generic");
   }
 
   if (Implementer == "0x42" || Implementer == "0x43") { // Broadcom | Cavium.
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
-      if (Lines[I].startswith("CPU part")) {
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-          .Case("0x516", "thunderx2t99")
-          .Case("0x0516", "thunderx2t99")
-          .Case("0xaf", "thunderx2t99")
-          .Case("0x0af", "thunderx2t99")
-          .Case("0xa1", "thunderxt88")
-          .Case("0x0a1", "thunderxt88")
-          .Default("generic");
-      }
-    }
+    return StringSwitch<const char *>(Part)
+      .Case("0x516", "thunderx2t99")
+      .Case("0x0516", "thunderx2t99")
+      .Case("0xaf", "thunderx2t99")
+      .Case("0x0af", "thunderx2t99")
+      .Case("0xa1", "thunderxt88")
+      .Case("0x0a1", "thunderxt88")
+      .Default("generic");
   }
 
   if (Implementer == "0x46") { // Fujitsu Ltd.
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
-      if (Lines[I].startswith("CPU part")) {
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-          .Case("0x001", "a64fx")
-          .Default("generic");
-      }
-    }
+    return StringSwitch<const char *>(Part)
+      .Case("0x001", "a64fx")
+      .Default("generic");
   }
 
   if (Implementer == "0x4e") { // NVIDIA Corporation
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I) {
-      if (Lines[I].startswith("CPU part")) {
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-            .Case("0x004", "carmel")
-            .Default("generic");
-      }
-    }
+    return StringSwitch<const char *>(Part)
+        .Case("0x004", "carmel")
+        .Default("generic");
   }
 
   if (Implementer == "0x48") // HiSilicon Technologies, Inc.
-    // Look for the CPU part line.
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
-      if (Lines[I].startswith("CPU part"))
-        // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
-        // values correspond to the "Part number" in the CP15/c0 register. The
-        // contents are specified in the various processor manuals.
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-          .Case("0xd01", "tsv110")
-          .Default("generic");
+    // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
+    // values correspond to the "Part number" in the CP15/c0 register. The
+    // contents are specified in the various processor manuals.
+    return StringSwitch<const char *>(Part)
+      .Case("0xd01", "tsv110")
+      .Default("generic");
 
   if (Implementer == "0x51") // Qualcomm Technologies, Inc.
-    // Look for the CPU part line.
-    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
-      if (Lines[I].startswith("CPU part"))
-        // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
-        // values correspond to the "Part number" in the CP15/c0 register. The
-        // contents are specified in the various processor manuals.
-        return StringSwitch<const char *>(Lines[I].substr(8).ltrim("\t :"))
-            .Case("0x06f", "krait") // APQ8064
-            .Case("0x201", "kryo")
-            .Case("0x205", "kryo")
-            .Case("0x211", "kryo")
-            .Case("0x800", "cortex-a73")
-            .Case("0x801", "cortex-a73")
-            .Case("0x802", "cortex-a73")
-            .Case("0x803", "cortex-a73")
-            .Case("0x804", "cortex-a73")
-            .Case("0x805", "cortex-a73")
-            .Case("0xc00", "falkor")
-            .Case("0xc01", "saphira")
-            .Default("generic");
-
+    // The CPU part is a 3 digit hexadecimal number with a 0x prefix. The
+    // values correspond to the "Part number" in the CP15/c0 register. The
+    // contents are specified in the various processor manuals.
+    return StringSwitch<const char *>(Part)
+        .Case("0x06f", "krait") // APQ8064
+        .Case("0x201", "kryo")
+        .Case("0x205", "kryo")
+        .Case("0x211", "kryo")
+        .Case("0x800", "cortex-a73") // Kryo 2xx Gold
+        .Case("0x801", "cortex-a73") // Kryo 2xx Silver
+        .Case("0x802", "cortex-a75") // Kryo 3xx Gold
+        .Case("0x803", "cortex-a75") // Kryo 3xx Silver
+        .Case("0x804", "cortex-a76") // Kryo 4xx Gold
+        .Case("0x805", "cortex-a76") // Kryo 4xx/5xx Silver
+        .Case("0xc00", "falkor")
+        .Case("0xc01", "saphira")
+        .Default("generic");
   if (Implementer == "0x53") { // Samsung Electronics Co., Ltd.
     // The Exynos chips have a convoluted ID scheme that doesn't seem to follow
     // any predictive pattern across variants and parts.
@@ -323,7 +305,7 @@ StringRef sys::detail::getHostCPUNameForS390x(StringRef ProcCpuinfoContent) {
   SmallVector<StringRef, 32> CPUFeatures;
   for (unsigned I = 0, E = Lines.size(); I != E; ++I)
     if (Lines[I].startswith("features")) {
-      size_t Pos = Lines[I].find(":");
+      size_t Pos = Lines[I].find(':');
       if (Pos != StringRef::npos) {
         Lines[I].drop_front(Pos + 1).split(CPUFeatures, ' ');
         break;
@@ -730,6 +712,13 @@ getIntelProcessorTypeAndSubtype(unsigned Family, unsigned Model,
       *Subtype = X86::INTEL_COREI7_ICELAKE_SERVER;
       break;
 
+    // Sapphire Rapids:
+    case 0x8f:
+      CPU = "sapphirerapids";
+      *Type = X86::INTEL_COREI7;
+      *Subtype = X86::INTEL_COREI7_SAPPHIRERAPIDS;
+      break;
+
     case 0x1c: // Most 45 nm Intel Atom processors
     case 0x26: // 45 nm Atom Lincroft
     case 0x27: // 32 nm Atom Medfield
@@ -954,6 +943,14 @@ getAMDProcessorTypeAndSubtype(unsigned Family, unsigned Model,
     if (Model <= 0x0f) {
       *Subtype = X86::AMDFAM17H_ZNVER1;
       break; // 00h-0Fh: Zen1
+    }
+    break;
+  case 25:
+    CPU = "znver3";
+    *Type = X86::AMDFAM19H;
+    if (Model <= 0x0f) {
+      *Subtype = X86::AMDFAM19H_ZNVER3;
+      break; // 00h-0Fh: Zen3
     }
     break;
   default:
@@ -1272,6 +1269,27 @@ int computeHostNumPhysicalCores() {
   }
   return CPU_COUNT(&Enabled);
 }
+#elif defined(__linux__) && defined(__powerpc__)
+int computeHostNumPhysicalCores() {
+  cpu_set_t Affinity;
+  if (sched_getaffinity(0, sizeof(Affinity), &Affinity) == 0)
+    return CPU_COUNT(&Affinity);
+
+  // The call to sched_getaffinity() may have failed because the Affinity
+  // mask is too small for the number of CPU's on the system (i.e. the
+  // system has more than 1024 CPUs). Allocate a mask large enough for
+  // twice as many CPUs.
+  cpu_set_t *DynAffinity;
+  DynAffinity = CPU_ALLOC(2048);
+  if (sched_getaffinity(0, CPU_ALLOC_SIZE(2048), DynAffinity) == 0) {
+    int NumCPUs = CPU_COUNT(DynAffinity);
+    CPU_FREE(DynAffinity);
+    return NumCPUs;
+  }
+  return -1;
+}
+#elif defined(__linux__) && defined(__s390x__)
+int computeHostNumPhysicalCores() { return sysconf(_SC_NPROCESSORS_ONLN); }
 #elif defined(__APPLE__) && defined(__x86_64__)
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -1290,6 +1308,28 @@ int computeHostNumPhysicalCores() {
       return -1;
   }
   return count;
+}
+#elif defined(__MVS__)
+int computeHostNumPhysicalCores() {
+  enum {
+    // Byte offset of the pointer to the Communications Vector Table (CVT) in
+    // the Prefixed Save Area (PSA). The table entry is a 31-bit pointer and
+    // will be zero-extended to uintptr_t.
+    FLCCVT = 16,
+    // Byte offset of the pointer to the Common System Data Area (CSD) in the
+    // CVT. The table entry is a 31-bit pointer and will be zero-extended to
+    // uintptr_t.
+    CVTCSD = 660,
+    // Byte offset to the number of live CPs in the LPAR, stored as a signed
+    // 32-bit value in the table.
+    CSD_NUMBER_ONLINE_STANDARD_CPS = 264,
+  };
+  char *PSA = 0;
+  char *CVT = reinterpret_cast<char *>(
+      static_cast<uintptr_t>(reinterpret_cast<unsigned int &>(PSA[FLCCVT])));
+  char *CSD = reinterpret_cast<char *>(
+      static_cast<uintptr_t>(reinterpret_cast<unsigned int &>(CVT[CVTCSD])));
+  return reinterpret_cast<int &>(CSD[CSD_NUMBER_ONLINE_STANDARD_CPS]);
 }
 #elif defined(_WIN32) && LLVM_ENABLE_THREADS != 0
 // Defined in llvm/lib/Support/Windows/Threading.inc
@@ -1420,11 +1460,13 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   Features["avx512bitalg"]    = HasLeaf7 && ((ECX >> 12) & 1) && HasAVX512Save;
   Features["avx512vpopcntdq"] = HasLeaf7 && ((ECX >> 14) & 1) && HasAVX512Save;
   Features["rdpid"]           = HasLeaf7 && ((ECX >> 22) & 1);
+  Features["kl"]              = HasLeaf7 && ((ECX >> 23) & 1); // key locker
   Features["cldemote"]        = HasLeaf7 && ((ECX >> 25) & 1);
   Features["movdiri"]         = HasLeaf7 && ((ECX >> 27) & 1);
   Features["movdir64b"]       = HasLeaf7 && ((ECX >> 28) & 1);
   Features["enqcmd"]          = HasLeaf7 && ((ECX >> 29) & 1);
 
+  Features["uintr"]           = HasLeaf7 && ((EDX >> 5) & 1);
   Features["avx512vp2intersect"] =
       HasLeaf7 && ((EDX >> 8) & 1) && HasAVX512Save;
   Features["serialize"]       = HasLeaf7 && ((EDX >> 14) & 1);
@@ -1445,7 +1487,9 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
   Features["amx-int8"]   = HasLeaf7 && ((EDX >> 25) & 1) && HasAMXSave;
   bool HasLeaf7Subleaf1 =
       MaxLevel >= 7 && !getX86CpuIDAndInfoEx(0x7, 0x1, &EAX, &EBX, &ECX, &EDX);
+  Features["avxvnni"]    = HasLeaf7Subleaf1 && ((EAX >> 4) & 1) && HasAVXSave;
   Features["avx512bf16"] = HasLeaf7Subleaf1 && ((EAX >> 5) & 1) && HasAVX512Save;
+  Features["hreset"]     = HasLeaf7Subleaf1 && ((EAX >> 22) & 1);
 
   bool HasLeafD = MaxLevel >= 0xd &&
                   !getX86CpuIDAndInfoEx(0xd, 0x1, &EAX, &EBX, &ECX, &EDX);
@@ -1459,6 +1503,10 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
                   !getX86CpuIDAndInfoEx(0x14, 0x0, &EAX, &EBX, &ECX, &EDX);
 
   Features["ptwrite"] = HasLeaf14 && ((EBX >> 4) & 1);
+
+  bool HasLeaf19 =
+      MaxLevel >= 0x19 && !getX86CpuIDAndInfo(0x19, &EAX, &EBX, &ECX, &EDX);
+  Features["widekl"] = HasLeaf7 && HasLeaf19 && ((EBX >> 2) & 1);
 
   return true;
 }

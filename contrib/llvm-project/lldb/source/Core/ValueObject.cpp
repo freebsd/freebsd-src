@@ -337,7 +337,6 @@ const char *ValueObject::GetLocationAsCStringImpl(const Value &value,
 
       switch (value_type) {
       case Value::eValueTypeScalar:
-      case Value::eValueTypeVector:
         if (value.GetContextType() == Value::eContextTypeRegisterInfo) {
           RegisterInfo *reg_info = value.GetRegisterInfo();
           if (reg_info) {
@@ -352,8 +351,7 @@ const char *ValueObject::GetLocationAsCStringImpl(const Value &value,
           }
         }
         if (m_location_str.empty())
-          m_location_str =
-              (value_type == Value::eValueTypeVector) ? "vector" : "scalar";
+          m_location_str = "scalar";
         break;
 
       case Value::eValueTypeLoadAddress:
@@ -849,7 +847,7 @@ bool ValueObject::SetData(DataExtractor &data, Status &error) {
   uint64_t count = 0;
   const Encoding encoding = GetCompilerType().GetEncoding(count);
 
-  const size_t byte_size = GetByteSize();
+  const size_t byte_size = GetByteSize().getValueOr(0);
 
   Value::ValueType value_type = m_value.GetValueType();
 
@@ -892,7 +890,6 @@ bool ValueObject::SetData(DataExtractor &data, Status &error) {
     m_value.GetScalar() = (uintptr_t)m_data.GetDataStart();
   } break;
   case Value::eValueTypeFileAddress:
-  case Value::eValueTypeVector:
     break;
   }
 
@@ -1459,7 +1456,6 @@ addr_t ValueObject::GetAddressOf(bool scalar_is_load_address,
 
   switch (m_value.GetValueType()) {
   case Value::eValueTypeScalar:
-  case Value::eValueTypeVector:
     if (scalar_is_load_address) {
       if (address_type)
         *address_type = eAddressTypeLoad;
@@ -1494,7 +1490,6 @@ addr_t ValueObject::GetPointerValue(AddressType *address_type) {
 
   switch (m_value.GetValueType()) {
   case Value::eValueTypeScalar:
-  case Value::eValueTypeVector:
     address = m_value.GetScalar().ULongLong(LLDB_INVALID_ADDRESS);
     break;
 
@@ -1524,7 +1519,7 @@ bool ValueObject::SetValueFromCString(const char *value_str, Status &error) {
   uint64_t count = 0;
   const Encoding encoding = GetCompilerType().GetEncoding(count);
 
-  const size_t byte_size = GetByteSize();
+  const size_t byte_size = GetByteSize().getValueOr(0);
 
   Value::ValueType value_type = m_value.GetValueType();
 
@@ -1577,7 +1572,6 @@ bool ValueObject::SetValueFromCString(const char *value_str, Status &error) {
       } break;
       case Value::eValueTypeFileAddress:
       case Value::eValueTypeScalar:
-      case Value::eValueTypeVector:
         break;
       }
     } else {
@@ -1702,8 +1696,7 @@ ValueObjectSP ValueObject::GetSyntheticArrayMember(size_t index,
                                                    bool can_create) {
   ValueObjectSP synthetic_child_sp;
   if (IsPointerType() || IsArrayType()) {
-    char index_str[64];
-    snprintf(index_str, sizeof(index_str), "[%" PRIu64 "]", (uint64_t)index);
+    std::string index_str = llvm::formatv("[{0}]", index);
     ConstString index_const_str(index_str);
     // Check if we have already created a synthetic array member in this valid
     // object. If we have we will re-use it.
@@ -1730,8 +1723,7 @@ ValueObjectSP ValueObject::GetSyntheticBitFieldChild(uint32_t from, uint32_t to,
                                                      bool can_create) {
   ValueObjectSP synthetic_child_sp;
   if (IsScalarType()) {
-    char index_str[64];
-    snprintf(index_str, sizeof(index_str), "[%i-%i]", from, to);
+    std::string index_str = llvm::formatv("[{0}-{1}]", from, to);
     ConstString index_const_str(index_str);
     // Check if we have already created a synthetic array member in this valid
     // object. If we have we will re-use it.
@@ -1741,13 +1733,13 @@ ValueObjectSP ValueObject::GetSyntheticBitFieldChild(uint32_t from, uint32_t to,
       uint32_t bit_field_offset = from;
       if (GetDataExtractor().GetByteOrder() == eByteOrderBig)
         bit_field_offset =
-            GetByteSize() * 8 - bit_field_size - bit_field_offset;
+            GetByteSize().getValueOr(0) * 8 - bit_field_size - bit_field_offset;
       // We haven't made a synthetic array member for INDEX yet, so lets make
       // one and cache it for any future reference.
       ValueObjectChild *synthetic_child = new ValueObjectChild(
-          *this, GetCompilerType(), index_const_str, GetByteSize(), 0,
-          bit_field_size, bit_field_offset, false, false, eAddressTypeInvalid,
-          0);
+          *this, GetCompilerType(), index_const_str,
+          GetByteSize().getValueOr(0), 0, bit_field_size, bit_field_offset,
+          false, false, eAddressTypeInvalid, 0);
 
       // Cache the value if we got one back...
       if (synthetic_child) {
@@ -1768,9 +1760,7 @@ ValueObjectSP ValueObject::GetSyntheticChildAtOffset(
   ValueObjectSP synthetic_child_sp;
 
   if (name_const_str.IsEmpty()) {
-    char name_str[64];
-    snprintf(name_str, sizeof(name_str), "@%i", offset);
-    name_const_str.SetCString(name_str);
+    name_const_str.SetString("@" + std::to_string(offset));
   }
 
   // Check if we have already created a synthetic array member in this valid
@@ -3215,7 +3205,7 @@ bool ValueObject::CanProvideValue() {
   // we need to support invalid types as providers of values because some bare-
   // board debugging scenarios have no notion of types, but still manage to
   // have raw numeric values for things like registers. sigh.
-  const CompilerType &type(GetCompilerType());
+  CompilerType type = GetCompilerType();
   return (!type.IsValid()) || (0 != (type.GetTypeInfo() & eTypeHasValue));
 }
 

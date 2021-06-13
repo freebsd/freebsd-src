@@ -96,8 +96,10 @@ static unsigned getDropOpcode(const TargetRegisterClass *RC) {
     return WebAssembly::DROP_F64;
   if (RC == &WebAssembly::V128RegClass)
     return WebAssembly::DROP_V128;
-  if (RC == &WebAssembly::EXNREFRegClass)
-    return WebAssembly::DROP_EXNREF;
+  if (RC == &WebAssembly::FUNCREFRegClass)
+    return WebAssembly::DROP_FUNCREF;
+  if (RC == &WebAssembly::EXTERNREFRegClass)
+    return WebAssembly::DROP_EXTERNREF;
   llvm_unreachable("Unexpected register class");
 }
 
@@ -113,8 +115,10 @@ static unsigned getLocalGetOpcode(const TargetRegisterClass *RC) {
     return WebAssembly::LOCAL_GET_F64;
   if (RC == &WebAssembly::V128RegClass)
     return WebAssembly::LOCAL_GET_V128;
-  if (RC == &WebAssembly::EXNREFRegClass)
-    return WebAssembly::LOCAL_GET_EXNREF;
+  if (RC == &WebAssembly::FUNCREFRegClass)
+    return WebAssembly::LOCAL_GET_FUNCREF;
+  if (RC == &WebAssembly::EXTERNREFRegClass)
+    return WebAssembly::LOCAL_GET_EXTERNREF;
   llvm_unreachable("Unexpected register class");
 }
 
@@ -130,8 +134,10 @@ static unsigned getLocalSetOpcode(const TargetRegisterClass *RC) {
     return WebAssembly::LOCAL_SET_F64;
   if (RC == &WebAssembly::V128RegClass)
     return WebAssembly::LOCAL_SET_V128;
-  if (RC == &WebAssembly::EXNREFRegClass)
-    return WebAssembly::LOCAL_SET_EXNREF;
+  if (RC == &WebAssembly::FUNCREFRegClass)
+    return WebAssembly::LOCAL_SET_FUNCREF;
+  if (RC == &WebAssembly::EXTERNREFRegClass)
+    return WebAssembly::LOCAL_SET_EXTERNREF;
   llvm_unreachable("Unexpected register class");
 }
 
@@ -147,8 +153,10 @@ static unsigned getLocalTeeOpcode(const TargetRegisterClass *RC) {
     return WebAssembly::LOCAL_TEE_F64;
   if (RC == &WebAssembly::V128RegClass)
     return WebAssembly::LOCAL_TEE_V128;
-  if (RC == &WebAssembly::EXNREFRegClass)
-    return WebAssembly::LOCAL_TEE_EXNREF;
+  if (RC == &WebAssembly::FUNCREFRegClass)
+    return WebAssembly::LOCAL_TEE_FUNCREF;
+  if (RC == &WebAssembly::EXTERNREFRegClass)
+    return WebAssembly::LOCAL_TEE_EXTERNREF;
   llvm_unreachable("Unexpected register class");
 }
 
@@ -164,8 +172,10 @@ static MVT typeForRegClass(const TargetRegisterClass *RC) {
     return MVT::f64;
   if (RC == &WebAssembly::V128RegClass)
     return MVT::v16i8;
-  if (RC == &WebAssembly::EXNREFRegClass)
-    return MVT::exnref;
+  if (RC == &WebAssembly::FUNCREFRegClass)
+    return MVT::funcref;
+  if (RC == &WebAssembly::EXTERNREFRegClass)
+    return MVT::externref;
   llvm_unreachable("unrecognized register class");
 }
 
@@ -221,6 +231,10 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
     auto Local = static_cast<unsigned>(MI.getOperand(1).getImm());
     Reg2Local[Reg] = Local;
     checkFrameBase(MFI, Local, Reg);
+
+    // Update debug value to point to the local before removing.
+    WebAssemblyDebugValueManager(&MI).replaceWithLocal(Local);
+
     MI.eraseFromParent();
     Changed = true;
   }

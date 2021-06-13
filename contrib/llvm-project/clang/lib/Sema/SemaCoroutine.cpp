@@ -398,39 +398,54 @@ static Expr *maybeTailCall(Sema &S, QualType RetType, Expr *E,
            diag::warn_coroutine_handle_address_invalid_return_type)
         << JustAddress->getType();
 
+  // Clean up temporary objects so that they don't live across suspension points
+  // unnecessarily. We choose to clean up before the call to
+  // __builtin_coro_resume so that the cleanup code are not inserted in-between
+  // the resume call and return instruction, which would interfere with the
+  // musttail call contract.
+  JustAddress = S.MaybeCreateExprWithCleanups(JustAddress);
   return buildBuiltinCall(S, Loc, Builtin::BI__builtin_coro_resume,
                           JustAddress);
 }
 
 /// Build calls to await_ready, await_suspend, and await_resume for a co_await
 /// expression.
+/// The generated AST tries to clean up temporary objects as early as
+/// possible so that they don't live across suspension points if possible.
+/// Having temporary objects living across suspension points unnecessarily can
+/// lead to large frame size, and also lead to memory corruptions if the
+/// coroutine frame is destroyed after coming back from suspension. This is done
+/// by wrapping both the await_ready call and the await_suspend call with
+/// ExprWithCleanups. In the end of this function, we also need to explicitly
+/// set cleanup state so that the CoawaitExpr is also wrapped with an
+/// ExprWithCleanups to clean up the awaiter associated with the co_await
+/// expression.
 static ReadySuspendResumeResult buildCoawaitCalls(Sema &S, VarDecl *CoroPromise,
                                                   SourceLocation Loc, Expr *E) {
   OpaqueValueExpr *Operand = new (S.Context)
       OpaqueValueExpr(Loc, E->getType(), VK_LValue, E->getObjectKind(), E);
 
-  // Assume invalid until we see otherwise.
-  ReadySuspendResumeResult Calls = {{}, Operand, /*IsInvalid=*/true};
-
-  ExprResult CoroHandleRes = buildCoroutineHandle(S, CoroPromise->getType(), Loc);
-  if (CoroHandleRes.isInvalid())
-    return Calls;
-  Expr *CoroHandle = CoroHandleRes.get();
-
-  const StringRef Funcs[] = {"await_ready", "await_suspend", "await_resume"};
-  MultiExprArg Args[] = {None, CoroHandle, None};
-  for (size_t I = 0, N = llvm::array_lengthof(Funcs); I != N; ++I) {
-    ExprResult Result = buildMemberCall(S, Operand, Loc, Funcs[I], Args[I]);
-    if (Result.isInvalid())
-      return Calls;
-    Calls.Results[I] = Result.get();
-  }
-
-  // Assume the calls are valid; all further checking should make them invalid.
-  Calls.IsInvalid = false;
+  // Assume valid until we see otherwise.
+  // Further operations are responsible for setting IsInalid to true.
+  ReadySuspendResumeResult Calls = {{}, Operand, /*IsInvalid=*/false};
 
   using ACT = ReadySuspendResumeResult::AwaitCallType;
-  CallExpr *AwaitReady = cast<CallExpr>(Calls.Results[ACT::ACT_Ready]);
+
+  auto BuildSubExpr = [&](ACT CallType, StringRef Func,
+                          MultiExprArg Arg) -> Expr * {
+    ExprResult Result = buildMemberCall(S, Operand, Loc, Func, Arg);
+    if (Result.isInvalid()) {
+      Calls.IsInvalid = true;
+      return nullptr;
+    }
+    Calls.Results[CallType] = Result.get();
+    return Result.get();
+  };
+
+  CallExpr *AwaitReady =
+      cast_or_null<CallExpr>(BuildSubExpr(ACT::ACT_Ready, "await_ready", None));
+  if (!AwaitReady)
+    return Calls;
   if (!AwaitReady->getType()->isDependentType()) {
     // [expr.await]p3 [...]
     // — await-ready is the expression e.await_ready(), contextually converted
@@ -442,18 +457,36 @@ static ReadySuspendResumeResult buildCoawaitCalls(Sema &S, VarDecl *CoroPromise,
       S.Diag(Loc, diag::note_coroutine_promise_call_implicitly_required)
           << AwaitReady->getDirectCallee() << E->getSourceRange();
       Calls.IsInvalid = true;
-    }
-    Calls.Results[ACT::ACT_Ready] = Conv.get();
+    } else
+      Calls.Results[ACT::ACT_Ready] = S.MaybeCreateExprWithCleanups(Conv.get());
   }
-  CallExpr *AwaitSuspend = cast<CallExpr>(Calls.Results[ACT::ACT_Suspend]);
+
+  ExprResult CoroHandleRes =
+      buildCoroutineHandle(S, CoroPromise->getType(), Loc);
+  if (CoroHandleRes.isInvalid()) {
+    Calls.IsInvalid = true;
+    return Calls;
+  }
+  Expr *CoroHandle = CoroHandleRes.get();
+  CallExpr *AwaitSuspend = cast_or_null<CallExpr>(
+      BuildSubExpr(ACT::ACT_Suspend, "await_suspend", CoroHandle));
+  if (!AwaitSuspend)
+    return Calls;
   if (!AwaitSuspend->getType()->isDependentType()) {
     // [expr.await]p3 [...]
     //   - await-suspend is the expression e.await_suspend(h), which shall be
-    //     a prvalue of type void or bool.
+    //     a prvalue of type void, bool, or std::coroutine_handle<Z> for some
+    //     type Z.
     QualType RetType = AwaitSuspend->getCallReturnType(S.Context);
 
     // Experimental support for coroutine_handle returning await_suspend.
-    if (Expr *TailCallSuspend = maybeTailCall(S, RetType, AwaitSuspend, Loc))
+    if (Expr *TailCallSuspend =
+            maybeTailCall(S, RetType, AwaitSuspend, Loc))
+      // Note that we don't wrap the expression with ExprWithCleanups here
+      // because that might interfere with tailcall contract (e.g. inserting
+      // clean up instructions in-between tailcall and return). Instead
+      // ExprWithCleanups is wrapped within maybeTailCall() prior to the resume
+      // call.
       Calls.Results[ACT::ACT_Suspend] = TailCallSuspend;
     else {
       // non-class prvalues always have cv-unqualified types
@@ -465,9 +498,16 @@ static ReadySuspendResumeResult buildCoawaitCalls(Sema &S, VarDecl *CoroPromise,
         S.Diag(Loc, diag::note_coroutine_promise_call_implicitly_required)
             << AwaitSuspend->getDirectCallee();
         Calls.IsInvalid = true;
-      }
+      } else
+        Calls.Results[ACT::ACT_Suspend] =
+            S.MaybeCreateExprWithCleanups(AwaitSuspend);
     }
   }
+
+  BuildSubExpr(ACT::ACT_Resume, "await_resume", None);
+
+  // Make sure the awaiter object gets a chance to be cleaned up.
+  S.Cleanup.setExprNeedsCleanups(true);
 
   return Calls;
 }
@@ -504,6 +544,7 @@ VarDecl *Sema::buildCoroutinePromise(SourceLocation Loc) {
   auto *VD = VarDecl::Create(Context, FD, FD->getLocation(), FD->getLocation(),
                              &PP.getIdentifierTable().get("__promise"), T,
                              Context.getTrivialTypeSourceInfo(T, Loc), SC_None);
+  VD->setImplicit();
   CheckVariableDeclarationType(VD);
   if (VD->isInvalidDecl())
     return nullptr;
@@ -865,8 +906,8 @@ ExprResult Sema::BuildResolvedCoawaitExpr(SourceLocation Loc, Expr *E,
   SourceLocation CallLoc = E->getExprLoc();
 
   // Build the await_ready, await_suspend, await_resume calls.
-  ReadySuspendResumeResult RSS =
-      buildCoawaitCalls(*this, Coroutine->CoroutinePromise, CallLoc, E);
+  ReadySuspendResumeResult RSS = buildCoawaitCalls(
+      *this, Coroutine->CoroutinePromise, CallLoc, E);
   if (RSS.IsInvalid)
     return ExprError();
 
@@ -920,8 +961,8 @@ ExprResult Sema::BuildCoyieldExpr(SourceLocation Loc, Expr *E) {
     E = CreateMaterializeTemporaryExpr(E->getType(), E, true);
 
   // Build the await_ready, await_suspend, await_resume calls.
-  ReadySuspendResumeResult RSS =
-      buildCoawaitCalls(*this, Coroutine->CoroutinePromise, Loc, E);
+  ReadySuspendResumeResult RSS = buildCoawaitCalls(
+      *this, Coroutine->CoroutinePromise, Loc, E);
   if (RSS.IsInvalid)
     return ExprError();
 
@@ -1537,6 +1578,7 @@ bool CoroutineStmtBuilder::makeGroDeclAndReturnStmt() {
       S.Context, &FD, FD.getLocation(), FD.getLocation(),
       &S.PP.getIdentifierTable().get("__coro_gro"), GroType,
       S.Context.getTrivialTypeSourceInfo(GroType, Loc), SC_None);
+  GroDecl->setImplicit();
 
   S.CheckVariableDeclarationType(GroDecl);
   if (GroDecl->isInvalidDecl())

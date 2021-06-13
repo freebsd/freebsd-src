@@ -24,10 +24,8 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils/MisExpect.h"
 
 using namespace llvm;
 
@@ -48,10 +46,10 @@ STATISTIC(ExpectIntrinsicsHandled,
 // 'select' instructions. It may be worthwhile to hoist these values to some
 // shared space, so they can be used directly by other passes.
 
-static cl::opt<uint32_t> LikelyBranchWeight(
+cl::opt<uint32_t> llvm::LikelyBranchWeight(
     "likely-branch-weight", cl::Hidden, cl::init(2000),
     cl::desc("Weight of the branch likely to be taken (default = 2000)"));
-static cl::opt<uint32_t> UnlikelyBranchWeight(
+cl::opt<uint32_t> llvm::UnlikelyBranchWeight(
     "unlikely-branch-weight", cl::Hidden, cl::init(1),
     cl::desc("Weight of the branch unlikely to be taken (default = 1)"));
 
@@ -102,13 +100,7 @@ static bool handleSwitchExpect(SwitchInst &SI) {
   uint64_t Index = (Case == *SI.case_default()) ? 0 : Case.getCaseIndex() + 1;
   Weights[Index] = LikelyBranchWeightVal;
 
-  SI.setMetadata(LLVMContext::MD_misexpect,
-                 MDBuilder(CI->getContext())
-                     .createMisExpect(Index, LikelyBranchWeightVal,
-                                      UnlikelyBranchWeightVal));
-
   SI.setCondition(ArgValue);
-  misexpect::checkFrontendInstrumentation(SI);
 
   SI.setMetadata(LLVMContext::MD_prof,
                  MDBuilder(CI->getContext()).createBranchWeights(Weights));
@@ -317,7 +309,6 @@ template <class BrSelInst> static bool handleBrSelExpect(BrSelInst &BSI) {
 
   MDBuilder MDB(CI->getContext());
   MDNode *Node;
-  MDNode *ExpNode;
 
   uint32_t LikelyBranchWeightVal, UnlikelyBranchWeightVal;
   std::tie(LikelyBranchWeightVal, UnlikelyBranchWeightVal) =
@@ -327,23 +318,15 @@ template <class BrSelInst> static bool handleBrSelExpect(BrSelInst &BSI) {
       (Predicate == CmpInst::ICMP_EQ)) {
     Node =
         MDB.createBranchWeights(LikelyBranchWeightVal, UnlikelyBranchWeightVal);
-    ExpNode =
-        MDB.createMisExpect(0, LikelyBranchWeightVal, UnlikelyBranchWeightVal);
   } else {
     Node =
         MDB.createBranchWeights(UnlikelyBranchWeightVal, LikelyBranchWeightVal);
-    ExpNode =
-        MDB.createMisExpect(1, LikelyBranchWeightVal, UnlikelyBranchWeightVal);
   }
-
-  BSI.setMetadata(LLVMContext::MD_misexpect, ExpNode);
 
   if (CmpI)
     CmpI->setOperand(0, ArgValue);
   else
     BSI.setCondition(ArgValue);
-
-  misexpect::checkFrontendInstrumentation(BSI);
 
   BSI.setMetadata(LLVMContext::MD_prof, Node);
 

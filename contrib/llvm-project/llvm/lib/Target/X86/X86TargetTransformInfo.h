@@ -22,6 +22,8 @@
 
 namespace llvm {
 
+class InstCombiner;
+
 class X86TTIImpl : public BasicTTIImplBase<X86TTIImpl> {
   typedef BasicTTIImplBase<X86TTIImpl> BaseT;
   typedef TargetTransformInfo TTI;
@@ -60,7 +62,6 @@ class X86TTIImpl : public BasicTTIImplBase<X86TTIImpl> {
       X86::FeatureLZCNTFalseDeps,
       X86::FeatureBranchFusion,
       X86::FeatureMacroFusion,
-      X86::FeatureMergeToThreeWayBranch,
       X86::FeaturePadShortFunctions,
       X86::FeaturePOPCNTFalseDeps,
       X86::FeatureSSEUnalignedMem,
@@ -129,9 +130,10 @@ public:
   int getShuffleCost(TTI::ShuffleKind Kind, VectorType *Tp, int Index,
                      VectorType *SubTp);
   int getCastInstrCost(unsigned Opcode, Type *Dst, Type *Src,
-                       TTI::TargetCostKind CostKind,
+                       TTI::CastContextHint CCH, TTI::TargetCostKind CostKind,
                        const Instruction *I = nullptr);
   int getCmpSelInstrCost(unsigned Opcode, Type *ValTy, Type *CondTy,
+                         CmpInst::Predicate VecPred,
                          TTI::TargetCostKind CostKind,
                          const Instruction *I = nullptr);
   int getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index);
@@ -150,6 +152,18 @@ public:
                              const Instruction *I);
   int getAddressComputationCost(Type *PtrTy, ScalarEvolution *SE,
                                 const SCEV *Ptr);
+
+  Optional<Instruction *> instCombineIntrinsic(InstCombiner &IC,
+                                               IntrinsicInst &II) const;
+  Optional<Value *>
+  simplifyDemandedUseBitsIntrinsic(InstCombiner &IC, IntrinsicInst &II,
+                                   APInt DemandedMask, KnownBits &Known,
+                                   bool &KnownBitsComputed) const;
+  Optional<Value *> simplifyDemandedVectorEltsIntrinsic(
+      InstCombiner &IC, IntrinsicInst &II, APInt DemandedElts, APInt &UndefElts,
+      APInt &UndefElts2, APInt &UndefElts3,
+      std::function<void(Instruction *, unsigned, APInt, APInt &)>
+          SimplifyAndSetOp) const;
 
   unsigned getAtomicMemIntrinsicMaxElementSize() const;
 
@@ -190,8 +204,9 @@ public:
 
   unsigned getCFInstrCost(unsigned Opcode, TTI::TargetCostKind CostKind);
 
-  int getIntImmCostInst(unsigned Opcode, unsigned Idx, const APInt &Imm, Type *Ty,
-                        TTI::TargetCostKind CostKind);
+  int getIntImmCostInst(unsigned Opcode, unsigned Idx, const APInt &Imm,
+                        Type *Ty, TTI::TargetCostKind CostKind,
+                        Instruction *Inst = nullptr);
   int getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
                           Type *Ty, TTI::TargetCostKind CostKind);
   bool isLSRCostLess(TargetTransformInfo::LSRCost &C1,
@@ -229,6 +244,9 @@ private:
                       Align Alignment, unsigned AddressSpace);
   int getGSVectorCost(unsigned Opcode, Type *DataTy, const Value *Ptr,
                       Align Alignment, unsigned AddressSpace);
+
+  int getGatherOverhead() const;
+  int getScatterOverhead() const;
 
   /// @}
 };

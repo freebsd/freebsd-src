@@ -329,6 +329,8 @@ namespace {
         // empty string but are then recorded as a nullptr.
         OS << "\" << (get" << getUpperName() << "() ? get" << getUpperName()
            << "()->getName() : \"\") << \"";
+      else if (type == "VarDecl *")
+        OS << "\" << get" << getUpperName() << "()->getName() << \"";
       else if (type == "TypeSourceInfo *")
         OS << "\" << get" << getUpperName() << "().getAsString() << \"";
       else if (type == "ParamIdx")
@@ -1147,8 +1149,9 @@ namespace {
          << "Unevaluated(S, Sema::ExpressionEvaluationContext::Unevaluated);\n";
       OS << "        ExprResult " << "Result = S.SubstExpr("
          << "A->get" << getUpperName() << "(), TemplateArgs);\n";
-      OS << "        tempInst" << getUpperName() << " = "
-         << "Result.getAs<Expr>();\n";
+      OS << "        if (Result.isInvalid())\n";
+      OS << "          return nullptr;\n";
+      OS << "        tempInst" << getUpperName() << " = Result.get();\n";
       OS << "      }\n";
     }
 
@@ -1200,7 +1203,9 @@ namespace {
          << "_end();\n";
       OS << "        for (; I != E; ++I, ++TI) {\n";
       OS << "          ExprResult Result = S.SubstExpr(*I, TemplateArgs);\n";
-      OS << "          *TI = Result.getAs<Expr>();\n";
+      OS << "          if (Result.isInvalid())\n";
+      OS << "            return nullptr;\n";
+      OS << "          *TI = Result.get();\n";
       OS << "        }\n";
       OS << "      }\n";
     }
@@ -1271,8 +1276,16 @@ namespace {
       OS << "      return false;\n";
     }
 
+    void writeTemplateInstantiation(raw_ostream &OS) const override {
+      OS << "      " << getType() << " tempInst" << getUpperName() << " =\n";
+      OS << "        S.SubstType(A->get" << getUpperName() << "Loc(), "
+         << "TemplateArgs, A->getLoc(), A->getAttrName());\n";
+      OS << "      if (!tempInst" << getUpperName() << ")\n";
+      OS << "        return nullptr;\n";
+    }
+
     void writeTemplateInstantiationArgs(raw_ostream &OS) const override {
-      OS << "A->get" << getUpperName() << "Loc()";
+      OS << "tempInst" << getUpperName();
     }
 
     void writePCHWrite(raw_ostream &OS) const override {
@@ -2365,7 +2378,7 @@ static void emitAttributes(RecordKeeper &Records, raw_ostream &OS,
         ai->writeCtorParameters(OS);
       }
       OS << ", const AttributeCommonInfo &CommonInfo";
-      if (Header)
+      if (Header && Implicit)
         OS << " = {SourceRange{}}";
       OS << ")";
       if (Header) {
@@ -2680,6 +2693,7 @@ static const AttrClassDescriptor AttrClassDescriptors[] = {
   { "ATTR", "Attr" },
   { "TYPE_ATTR", "TypeAttr" },
   { "STMT_ATTR", "StmtAttr" },
+  { "DECL_OR_STMT_ATTR", "DeclOrStmtAttr" },
   { "INHERITABLE_ATTR", "InheritableAttr" },
   { "DECL_OR_TYPE_ATTR", "DeclOrTypeAttr" },
   { "INHERITABLE_PARAM_ATTR", "InheritableParamAttr" },
@@ -3064,18 +3078,22 @@ static void GenerateHasAttrSpellingStringSwitch(
     // attribute version information should be taken from the SD-6 standing
     // document, which can be found at:
     // https://isocpp.org/std/standing-documents/sd-6-sg10-feature-test-recommendations
+    //
+    // C2x-style attributes have the same kind of version information
+    // associated with them. The unscoped attribute version information should
+    // be taken from the specification of the attribute in the C Standard.
     int Version = 1;
 
-    if (Variety == "CXX11") {
-        std::vector<Record *> Spellings = Attr->getValueAsListOfDefs("Spellings");
-        for (const auto &Spelling : Spellings) {
-          if (Spelling->getValueAsString("Variety") == "CXX11") {
-            Version = static_cast<int>(Spelling->getValueAsInt("Version"));
-            if (Scope.empty() && Version == 1)
-              PrintError(Spelling->getLoc(), "C++ standard attributes must "
-              "have valid version information.");
-            break;
-          }
+    if (Variety == "CXX11" || Variety == "C2x") {
+      std::vector<Record *> Spellings = Attr->getValueAsListOfDefs("Spellings");
+      for (const auto &Spelling : Spellings) {
+        if (Spelling->getValueAsString("Variety") == Variety) {
+          Version = static_cast<int>(Spelling->getValueAsInt("Version"));
+          if (Scope.empty() && Version == 1)
+            PrintError(Spelling->getLoc(), "Standard attributes must have "
+                                           "valid version information.");
+          break;
+        }
       }
     }
 
@@ -3313,12 +3331,13 @@ void EmitClangAttrTemplateInstantiateHelper(const std::vector<Record *> &Attrs,
     for (auto const &ai : Args)
       ai->writeTemplateInstantiation(OS);
 
-    OS << "        return new (C) " << R.getName() << "Attr(C, *A";
+    OS << "      return new (C) " << R.getName() << "Attr(C, *A";
     for (auto const &ai : Args) {
       OS << ", ";
       ai->writeTemplateInstantiationArgs(OS);
     }
-    OS << ");\n    }\n";
+    OS << ");\n"
+       << "    }\n";
   }
   OS << "  } // end switch\n"
      << "  llvm_unreachable(\"Unknown attribute!\");\n"
@@ -3761,7 +3780,8 @@ void EmitClangAttrParsedAttrImpl(RecordKeeper &Records, raw_ostream &OS) {
     OS << (Attr.isSubClassOf("TypeAttr") ||
            Attr.isSubClassOf("DeclOrTypeAttr")) << ";\n";
     OS << "    IsStmt = ";
-    OS << Attr.isSubClassOf("StmtAttr") << ";\n";
+    OS << (Attr.isSubClassOf("StmtAttr") || Attr.isSubClassOf("DeclOrStmtAttr"))
+       << ";\n";
     OS << "    IsKnownToGCC = ";
     OS << IsKnownToGCC(Attr) << ";\n";
     OS << "    IsSupportedByPragmaAttribute = ";

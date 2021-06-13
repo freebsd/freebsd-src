@@ -215,7 +215,7 @@ public:
       : m_addr(addr), m_buff(buff), m_size(size), m_error(error),
         m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::addr_t m_addr;
@@ -240,7 +240,7 @@ public:
       : m_addr(addr), m_buff(buff), m_size(size), m_error(error),
         m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::addr_t m_addr;
@@ -303,7 +303,7 @@ public:
                     const RegisterValue &value, bool &result)
       : m_tid(tid), m_offset(offset), m_value(value), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -336,7 +336,7 @@ public:
       : m_tid(tid), m_offset(offset), m_size(size), m_value(value),
         m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -369,7 +369,7 @@ public:
                          const RegisterValue &value, bool &result)
       : m_tid(tid), m_offset(offset), m_value(value), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -400,7 +400,7 @@ public:
   ReadGPROperation(lldb::tid_t tid, void *buf, bool &result)
       : m_tid(tid), m_buf(buf), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -426,7 +426,7 @@ public:
   ReadFPROperation(lldb::tid_t tid, void *buf, bool &result)
       : m_tid(tid), m_buf(buf), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -448,7 +448,7 @@ public:
   WriteGPROperation(lldb::tid_t tid, void *buf, bool &result)
       : m_tid(tid), m_buf(buf), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -470,7 +470,7 @@ public:
   WriteFPROperation(lldb::tid_t tid, void *buf, bool &result)
       : m_tid(tid), m_buf(buf), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -492,7 +492,7 @@ public:
   ResumeOperation(uint32_t signo, bool &result)
       : m_signo(signo), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   uint32_t m_signo;
@@ -522,7 +522,7 @@ public:
   SingleStepOperation(uint32_t signo, bool &result)
       : m_signo(signo), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   uint32_t m_signo;
@@ -549,7 +549,7 @@ public:
   LwpInfoOperation(lldb::tid_t tid, void *info, bool &result, int &ptrace_err)
       : m_tid(tid), m_info(info), m_result(result), m_err(ptrace_err) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -577,7 +577,7 @@ public:
   ThreadSuspendOperation(lldb::tid_t tid, bool suspend, bool &result)
       : m_tid(tid), m_suspend(suspend), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -596,7 +596,7 @@ public:
   EventMessageOperation(lldb::tid_t tid, unsigned long *message, bool &result)
       : m_tid(tid), m_message(message), m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   lldb::tid_t m_tid;
@@ -624,7 +624,7 @@ class KillOperation : public Operation {
 public:
   KillOperation(bool &result) : m_result(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   bool &m_result;
@@ -645,7 +645,7 @@ class DetachOperation : public Operation {
 public:
   DetachOperation(Status &result) : m_error(result) {}
 
-  void Execute(ProcessMonitor *monitor);
+  void Execute(ProcessMonitor *monitor) override;
 
 private:
   Status &m_error;
@@ -821,17 +821,14 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
   const FileSpec &working_dir = args->m_working_dir;
 
   PseudoTerminal terminal;
-  const size_t err_len = 1024;
-  char err_str[err_len];
-  ::pid_t pid;
 
   // Propagate the environment if one is not supplied.
   Environment::Envp envp =
       (args->m_env.empty() ? Host::GetEnvironment() : args->m_env).getEnvp();
 
-  if ((pid = terminal.Fork(err_str, err_len)) == -1) {
-    args->m_error.SetErrorToGenericError();
-    args->m_error.SetErrorString("Process fork failed.");
+  llvm::Expected<lldb::pid_t> pid = terminal.Fork();
+  if (!pid) {
+    args->m_error = pid.takeError();
     goto FINISH;
   }
 
@@ -847,7 +844,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
   };
 
   // Child process.
-  if (pid == 0) {
+  if (*pid == 0) {
     // Trace this process.
     if (PTRACE(PT_TRACE_ME, 0, NULL, 0) < 0)
       exit(ePtraceFailed);
@@ -892,7 +889,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
   // Wait for the child process to to trap on its call to execve.
   ::pid_t wpid;
   int status;
-  if ((wpid = waitpid(pid, &status, 0)) < 0) {
+  if ((wpid = waitpid(*pid, &status, 0)) < 0) {
     args->m_error.SetErrorToErrno();
     goto FINISH;
   } else if (WIFEXITED(status)) {
@@ -926,13 +923,13 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
     }
     goto FINISH;
   }
-  assert(WIFSTOPPED(status) && wpid == (::pid_t)pid &&
+  assert(WIFSTOPPED(status) && wpid == (::pid_t)*pid &&
          "Could not sync with inferior process.");
 
 #ifdef notyet
   // Have the child raise an event on exit.  This is used to keep the child in
   // limbo until it is destroyed.
-  if (PTRACE(PTRACE_SETOPTIONS, pid, NULL, PTRACE_O_TRACEEXIT) < 0) {
+  if (PTRACE(PTRACE_SETOPTIONS, *pid, NULL, PTRACE_O_TRACEEXIT) < 0) {
     args->m_error.SetErrorToErrno();
     goto FINISH;
   }
@@ -940,7 +937,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
   // Release the master terminal descriptor and pass it off to the
   // ProcessMonitor instance.  Similarly stash the inferior pid.
   monitor->m_terminal_fd = terminal.ReleasePrimaryFileDescriptor();
-  monitor->m_pid = pid;
+  monitor->m_pid = *pid;
 
   // Set the terminal fd to be in non blocking mode (it simplifies the
   // implementation of ProcessFreeBSD::GetSTDOUT to have a non-blocking
@@ -948,7 +945,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
   if (!EnsureFDFlags(monitor->m_terminal_fd, O_NONBLOCK, args->m_error))
     goto FINISH;
 
-  process.SendMessage(ProcessMessage::Attach(pid));
+  process.SendMessage(ProcessMessage::Attach(*pid));
 
 FINISH:
   return args->m_error.Success();

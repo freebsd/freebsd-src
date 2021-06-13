@@ -2872,24 +2872,24 @@ SWIG_Lua_dostring(lua_State *L, const char *str) {
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t swig_types[172]
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__StackFrame_t swig_types[173]
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__StopInfo_t swig_types[174]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StoppointLocation_t swig_types[175]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[176]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[177]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[178]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[179]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[180]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[181]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFile_t swig_types[182]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[183]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[184]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SystemRuntime_t swig_types[185]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TargetProperties_t swig_types[186]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[187]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[188]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[189]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[190]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[191]
-#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceOptions_t swig_types[192]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StreamFile_t swig_types[175]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Stream_t swig_types[176]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t swig_types[177]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__StructuredDataPlugin_t swig_types[178]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolContextSpecifier_t swig_types[179]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFileType_t swig_types[180]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SymbolFile_t swig_types[181]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildrenFrontEnd_t swig_types[182]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SyntheticChildren_t swig_types[183]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__SystemRuntime_t swig_types[184]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TargetProperties_t swig_types[185]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Target_t swig_types[186]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadCollection_t swig_types[187]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlanTracer_t swig_types[188]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__ThreadPlan_t swig_types[189]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Thread_t swig_types[190]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__TraceOptions_t swig_types[191]
+#define SWIGTYPE_p_std__shared_ptrT_lldb_private__Trace_t swig_types[192]
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t swig_types[193]
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t swig_types[194]
 #define SWIGTYPE_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t swig_types[195]
@@ -2923,38 +2923,40 @@ SWIG_Lua_dostring(lua_State *L, const char *str) {
 #define SWIGTYPE_p_std__unique_ptrT_lldb_private__ScriptInterpreter_t swig_types[223]
 #define SWIGTYPE_p_std__unique_ptrT_lldb_private__SectionList_t swig_types[224]
 #define SWIGTYPE_p_std__unique_ptrT_lldb_private__SourceManager_t swig_types[225]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrame_t swig_types[226]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[227]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[228]
-#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[229]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[230]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointSite_t swig_types[231]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[232]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[233]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[234]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[235]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[236]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[237]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFile_t swig_types[238]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[239]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[240]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[241]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[242]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[243]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Stream_t swig_types[244]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[245]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__SymbolFileType_t swig_types[246]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[247]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[248]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[249]
-#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[250]
-#define SWIGTYPE_p_unsigned_char swig_types[251]
-#define SWIGTYPE_p_unsigned_int swig_types[252]
-#define SWIGTYPE_p_unsigned_long_long swig_types[253]
-#define SWIGTYPE_p_unsigned_short swig_types[254]
-#define SWIGTYPE_p_void swig_types[255]
-static swig_type_info *swig_types[257];
-static swig_module_info swig_module = {swig_types, 256, 0, 0, 0, 0};
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t swig_types[226]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StackFrame_t swig_types[227]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t swig_types[228]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SymbolVendor_t swig_types[229]
+#define SWIGTYPE_p_std__unique_ptrT_lldb_private__SystemRuntime_t swig_types[230]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointLocation_t swig_types[231]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BreakpointSite_t swig_types[232]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Breakpoint_t swig_types[233]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__BroadcasterManager_t swig_types[234]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Debugger_t swig_types[235]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Listener_t swig_types[236]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Module_t swig_types[237]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFileJITDelegate_t swig_types[238]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ObjectFile_t swig_types[239]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__OptionValue_t swig_types[240]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Process_t swig_types[241]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Queue_t swig_types[242]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Section_t swig_types[243]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StackFrame_t swig_types[244]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Stream_t swig_types[245]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t swig_types[246]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__SymbolFileType_t swig_types[247]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Target_t swig_types[248]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__ThreadPlan_t swig_types[249]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Thread_t swig_types[250]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__Type_t swig_types[251]
+#define SWIGTYPE_p_std__weak_ptrT_lldb_private__UnixSignals_t swig_types[252]
+#define SWIGTYPE_p_unsigned_char swig_types[253]
+#define SWIGTYPE_p_unsigned_int swig_types[254]
+#define SWIGTYPE_p_unsigned_long_long swig_types[255]
+#define SWIGTYPE_p_unsigned_short swig_types[256]
+#define SWIGTYPE_p_void swig_types[257]
+static swig_type_info *swig_types[259];
+static swig_module_info swig_module = {swig_types, 258, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -3215,6 +3217,9 @@ SWIGINTERN void SWIG_write_ptr_array(lua_State* L,void **array,int size,swig_typ
 #include "lldb/API/SBWatchpoint.h"
 
 
+#include "llvm/Support/Error.h"
+#include "llvm/Support/FormatVariadic.h"
+#include "../bindings/lua/lua-swigsafecast.swig"
 using namespace lldb_private;
 using namespace lldb;
 
@@ -3669,6 +3674,13 @@ SWIGINTERN std::string lldb_SBWatchpoint___str__(lldb::SBWatchpoint *self){
     }
     return std::string(desc, desc_len);
   }
+
+
+template <typename T>
+void
+PushSBClass(lua_State* L, T* obj);
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -3986,14 +3998,14 @@ static int _wrap_new_SBAddress__SWIG_2(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAddress::SBAddress",2,2)
   if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBAddress::SBAddress",1,"lldb::SBSection");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAddress::SBAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::SBAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&argp1,SWIGTYPE_p_lldb__SBSection,0))){
     SWIG_fail_ptr("new_SBAddress",1,SWIGTYPE_p_lldb__SBSection);
   }
   arg1 = *argp1;
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (lldb::SBAddress *)new lldb::SBAddress(arg1,arg2);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBAddress,1); SWIG_arg++; 
   return SWIG_arg;
@@ -4013,9 +4025,9 @@ static int _wrap_new_SBAddress__SWIG_3(lua_State* L) {
   lldb::SBAddress *result = 0 ;
   
   SWIG_check_num_args("lldb::SBAddress::SBAddress",2,2)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBAddress::SBAddress",1,"lldb::addr_t");
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBAddress::SBAddress",1,"lldb::addr_t");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAddress::SBAddress",2,"lldb::SBTarget &");
-  arg1 = (lldb::addr_t)lua_tonumber(L, 1);
+  arg1 = (unsigned long long)lua_tointeger(L, 1); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("new_SBAddress",2,SWIGTYPE_p_lldb__SBTarget);
@@ -4166,7 +4178,7 @@ static int _wrap_SBAddress_GetFileAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBAddress const *)arg1)->GetFileAddress();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -4197,7 +4209,7 @@ static int _wrap_SBAddress_GetLoadAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBAddress const *)arg1)->GetLoadAddress((lldb::SBTarget const &)*arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -4216,14 +4228,14 @@ static int _wrap_SBAddress_SetLoadAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAddress::SetLoadAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::SetLoadAddress",1,"lldb::SBAddress *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAddress::SetLoadAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::SetLoadAddress",2,"lldb::addr_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBAddress::SetLoadAddress",3,"lldb::SBTarget &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
     SWIG_fail_ptr("SBAddress_SetLoadAddress",1,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBAddress_SetLoadAddress",3,SWIGTYPE_p_lldb__SBTarget);
@@ -4249,13 +4261,13 @@ static int _wrap_SBAddress_OffsetAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAddress::OffsetAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::OffsetAddress",1,"lldb::SBAddress *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAddress::OffsetAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::OffsetAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
     SWIG_fail_ptr("SBAddress_OffsetAddress",1,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (bool)(arg1)->OffsetAddress(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -4339,7 +4351,7 @@ static int _wrap_SBAddress_GetOffset(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetOffset();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -4360,7 +4372,7 @@ static int _wrap_SBAddress_SetAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBAddress::SetAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::SetAddress",1,"lldb::SBAddress *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBAddress::SetAddress",2,"lldb::SBSection");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBAddress::SetAddress",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBAddress::SetAddress",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
     SWIG_fail_ptr("SBAddress_SetAddress",1,SWIGTYPE_p_lldb__SBAddress);
@@ -4372,7 +4384,7 @@ static int _wrap_SBAddress_SetAddress(lua_State* L) {
   }
   arg2 = *argp2;
   
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   (arg1)->SetAddress(arg2,arg3);
   
   return SWIG_arg;
@@ -4393,14 +4405,13 @@ static int _wrap_SBAddress_GetSymbolContext(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAddress::GetSymbolContext",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",1,"lldb::SBAddress *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAddress::GetSymbolContext",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAddress,0))){
     SWIG_fail_ptr("SBAddress_GetSymbolContext",1,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetSymbolContext(arg2);
   {
     lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext((const lldb::SBSymbolContext &) result);
@@ -4691,8 +4702,8 @@ static int _wrap_new_SBAttachInfo__SWIG_1(lua_State* L) {
   lldb::SBAttachInfo *result = 0 ;
   
   SWIG_check_num_args("lldb::SBAttachInfo::SBAttachInfo",1,1)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SBAttachInfo",1,"lldb::pid_t");
-  arg1 = (lldb::pid_t)lua_tonumber(L, 1);
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SBAttachInfo",1,"lldb::pid_t");
+  arg1 = (unsigned long long)lua_tointeger(L, 1); 
   result = (lldb::SBAttachInfo *)new lldb::SBAttachInfo(arg1);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBAttachInfo,1); SWIG_arg++; 
   return SWIG_arg;
@@ -4869,7 +4880,7 @@ static int _wrap_SBAttachInfo_GetProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -4887,13 +4898,13 @@ static int _wrap_SBAttachInfo_SetProcessID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetProcessID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetProcessID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetProcessID",2,"lldb::pid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetProcessID",2,"lldb::pid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetProcessID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  arg2 = (lldb::pid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetProcessID(arg2);
   
   return SWIG_arg;
@@ -5224,7 +5235,7 @@ static int _wrap_SBAttachInfo_GetResumeCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetResumeCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5242,14 +5253,13 @@ static int _wrap_SBAttachInfo_SetResumeCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetResumeCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetResumeCount",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetResumeCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetResumeCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetResumeCount",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetResumeCount(arg2);
   
   return SWIG_arg;
@@ -5325,7 +5335,7 @@ static int _wrap_SBAttachInfo_GetUserID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetUserID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5349,7 +5359,7 @@ static int _wrap_SBAttachInfo_GetGroupID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetGroupID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5415,14 +5425,13 @@ static int _wrap_SBAttachInfo_SetUserID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetUserID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetUserID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetUserID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetUserID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetUserID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetUserID(arg2);
   
   return SWIG_arg;
@@ -5442,14 +5451,13 @@ static int _wrap_SBAttachInfo_SetGroupID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetGroupID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetGroupID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetGroupID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetGroupID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetGroupID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetGroupID(arg2);
   
   return SWIG_arg;
@@ -5475,7 +5483,7 @@ static int _wrap_SBAttachInfo_GetEffectiveUserID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetEffectiveUserID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5499,7 +5507,7 @@ static int _wrap_SBAttachInfo_GetEffectiveGroupID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetEffectiveGroupID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5565,14 +5573,13 @@ static int _wrap_SBAttachInfo_SetEffectiveUserID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetEffectiveUserID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveUserID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveUserID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveUserID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetEffectiveUserID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetEffectiveUserID(arg2);
   
   return SWIG_arg;
@@ -5592,14 +5599,13 @@ static int _wrap_SBAttachInfo_SetEffectiveGroupID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetEffectiveGroupID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveGroupID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveGroupID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetEffectiveGroupID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetEffectiveGroupID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetEffectiveGroupID(arg2);
   
   return SWIG_arg;
@@ -5625,7 +5631,7 @@ static int _wrap_SBAttachInfo_GetParentProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetParentProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -5643,13 +5649,13 @@ static int _wrap_SBAttachInfo_SetParentProcessID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBAttachInfo::SetParentProcessID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBAttachInfo::SetParentProcessID",1,"lldb::SBAttachInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetParentProcessID",2,"lldb::pid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBAttachInfo::SetParentProcessID",2,"lldb::pid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBAttachInfo,0))){
     SWIG_fail_ptr("SBAttachInfo_SetParentProcessID",1,SWIGTYPE_p_lldb__SBAttachInfo);
   }
   
-  arg2 = (lldb::pid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetParentProcessID(arg2);
   
   return SWIG_arg;
@@ -6004,7 +6010,7 @@ static int _wrap_SBBlock_GetInlinedCallSiteLine(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBlock const *)arg1)->GetInlinedCallSiteLine();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6028,7 +6034,7 @@ static int _wrap_SBBlock_GetInlinedCallSiteColumn(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBlock const *)arg1)->GetInlinedCallSiteColumn();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6160,7 +6166,7 @@ static int _wrap_SBBlock_GetNumRanges(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumRanges();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6179,14 +6185,13 @@ static int _wrap_SBBlock_GetRangeStartAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBlock::GetRangeStartAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetRangeStartAddress",1,"lldb::SBBlock *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBlock::GetRangeStartAddress",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBlock::GetRangeStartAddress",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
     SWIG_fail_ptr("SBBlock_GetRangeStartAddress",1,SWIGTYPE_p_lldb__SBBlock);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetRangeStartAddress(arg2);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -6210,14 +6215,13 @@ static int _wrap_SBBlock_GetRangeEndAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBlock::GetRangeEndAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBlock::GetRangeEndAddress",1,"lldb::SBBlock *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBlock::GetRangeEndAddress",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBlock::GetRangeEndAddress",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBlock,0))){
     SWIG_fail_ptr("SBBlock_GetRangeEndAddress",1,SWIGTYPE_p_lldb__SBBlock);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetRangeEndAddress(arg2);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -6255,7 +6259,7 @@ static int _wrap_SBBlock_GetRangeIndexForBlockAddress(lua_State* L) {
   arg2 = *argp2;
   
   result = (uint32_t)(arg1)->GetRangeIndexForBlockAddress(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6692,7 +6696,7 @@ static int _wrap_SBBreakpoint_GetID(lua_State* L) {
   }
   
   result = (lldb::break_id_t)((lldb::SBBreakpoint const *)arg1)->GetID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6750,6 +6754,33 @@ fail:
 }
 
 
+static int _wrap_SBBreakpoint_GetTarget(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
+  lldb::SBTarget result;
+  
+  SWIG_check_num_args("lldb::SBBreakpoint::GetTarget",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::GetTarget",1,"lldb::SBBreakpoint const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
+    SWIG_fail_ptr("SBBreakpoint_GetTarget",1,SWIGTYPE_p_lldb__SBBreakpoint);
+  }
+  
+  result = ((lldb::SBBreakpoint const *)arg1)->GetTarget();
+  {
+    lldb::SBTarget * resultptr = new lldb::SBTarget((const lldb::SBTarget &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTarget,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBBreakpoint_FindLocationByAddress(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
@@ -6758,13 +6789,13 @@ static int _wrap_SBBreakpoint_FindLocationByAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::FindLocationByAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByAddress",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_FindLocationByAddress",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->FindLocationByAddress(arg2);
   {
     lldb::SBBreakpointLocation * resultptr = new lldb::SBBreakpointLocation((const lldb::SBBreakpointLocation &) result);
@@ -6788,15 +6819,15 @@ static int _wrap_SBBreakpoint_FindLocationIDByAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::FindLocationIDByAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationIDByAddress",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationIDByAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationIDByAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_FindLocationIDByAddress",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (lldb::break_id_t)(arg1)->FindLocationIDByAddress(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -6815,13 +6846,13 @@ static int _wrap_SBBreakpoint_FindLocationByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::FindLocationByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByID",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByID",2,"lldb::break_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::FindLocationByID",2,"lldb::break_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_FindLocationByID",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  arg2 = (lldb::break_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (arg1)->FindLocationByID(arg2);
   {
     lldb::SBBreakpointLocation * resultptr = new lldb::SBBreakpointLocation((const lldb::SBBreakpointLocation &) result);
@@ -6845,14 +6876,13 @@ static int _wrap_SBBreakpoint_GetLocationAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::GetLocationAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::GetLocationAtIndex",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::GetLocationAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::GetLocationAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_GetLocationAtIndex",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetLocationAtIndex(arg2);
   {
     lldb::SBBreakpointLocation * resultptr = new lldb::SBBreakpointLocation((const lldb::SBBreakpointLocation &) result);
@@ -7005,7 +7035,7 @@ static int _wrap_SBBreakpoint_GetHitCount(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpoint const *)arg1)->GetHitCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7023,14 +7053,13 @@ static int _wrap_SBBreakpoint_SetIgnoreCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::SetIgnoreCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SetIgnoreCount",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetIgnoreCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetIgnoreCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_SetIgnoreCount",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetIgnoreCount(arg2);
   
   return SWIG_arg;
@@ -7056,7 +7085,7 @@ static int _wrap_SBBreakpoint_GetIgnoreCount(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpoint const *)arg1)->GetIgnoreCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7174,13 +7203,13 @@ static int _wrap_SBBreakpoint_SetThreadID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::SetThreadID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadID",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_SetThreadID",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetThreadID(arg2);
   
   return SWIG_arg;
@@ -7206,7 +7235,7 @@ static int _wrap_SBBreakpoint_GetThreadID(lua_State* L) {
   }
   
   result = (lldb::tid_t)(arg1)->GetThreadID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7224,14 +7253,13 @@ static int _wrap_SBBreakpoint_SetThreadIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpoint::SetThreadIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadIndex",1,"lldb::SBBreakpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::SetThreadIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
     SWIG_fail_ptr("SBBreakpoint_SetThreadIndex",1,SWIGTYPE_p_lldb__SBBreakpoint);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetThreadIndex(arg2);
   
   return SWIG_arg;
@@ -7257,7 +7285,7 @@ static int _wrap_SBBreakpoint_GetThreadIndex(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpoint const *)arg1)->GetThreadIndex();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7739,7 +7767,7 @@ static int _wrap_SBBreakpoint_GetNumResolvedLocations(lua_State* L) {
   }
   
   result = ((lldb::SBBreakpoint const *)arg1)->GetNumResolvedLocations();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7763,7 +7791,7 @@ static int _wrap_SBBreakpoint_GetNumLocations(lua_State* L) {
   }
   
   result = ((lldb::SBBreakpoint const *)arg1)->GetNumLocations();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -7942,6 +7970,33 @@ fail:
 }
 
 
+static int _wrap_SBBreakpoint_SerializeToStructuredData(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBBreakpoint *arg1 = (lldb::SBBreakpoint *) 0 ;
+  lldb::SBStructuredData result;
+  
+  SWIG_check_num_args("lldb::SBBreakpoint::SerializeToStructuredData",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::SerializeToStructuredData",1,"lldb::SBBreakpoint *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpoint,0))){
+    SWIG_fail_ptr("SBBreakpoint_SerializeToStructuredData",1,SWIGTYPE_p_lldb__SBBreakpoint);
+  }
+  
+  result = (arg1)->SerializeToStructuredData();
+  {
+    lldb::SBStructuredData * resultptr = new lldb::SBStructuredData((const lldb::SBStructuredData &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBStructuredData,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBBreakpoint_EventIsBreakpointEvent(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBEvent *arg1 = 0 ;
@@ -8025,14 +8080,13 @@ static int _wrap_SBBreakpoint_GetBreakpointLocationAtIndexFromEvent(lua_State* L
   
   SWIG_check_num_args("lldb::SBBreakpoint::GetBreakpointLocationAtIndexFromEvent",2,2)
   if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBBreakpoint::GetBreakpointLocationAtIndexFromEvent",1,"lldb::SBEvent const &");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::GetBreakpointLocationAtIndexFromEvent",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpoint::GetBreakpointLocationAtIndexFromEvent",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBBreakpoint_GetBreakpointLocationAtIndexFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBBreakpoint::GetBreakpointLocationAtIndexFromEvent((lldb::SBEvent const &)*arg1,arg2);
   {
     lldb::SBBreakpointLocation * resultptr = new lldb::SBBreakpointLocation((const lldb::SBBreakpointLocation &) result);
@@ -8061,7 +8115,7 @@ static int _wrap_SBBreakpoint_GetNumBreakpointLocationsFromEvent(lua_State* L) {
   }
   
   result = (uint32_t)lldb::SBBreakpoint::GetNumBreakpointLocationsFromEvent((lldb::SBEvent const &)*arg1);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8140,6 +8194,7 @@ static swig_lua_method swig_SBBreakpoint_methods[]= {
     { "GetID", _wrap_SBBreakpoint_GetID},
     { "IsValid", _wrap_SBBreakpoint_IsValid},
     { "ClearAllBreakpointSites", _wrap_SBBreakpoint_ClearAllBreakpointSites},
+    { "GetTarget", _wrap_SBBreakpoint_GetTarget},
     { "FindLocationByAddress", _wrap_SBBreakpoint_FindLocationByAddress},
     { "FindLocationIDByAddress", _wrap_SBBreakpoint_FindLocationIDByAddress},
     { "FindLocationByID", _wrap_SBBreakpoint_FindLocationByID},
@@ -8177,6 +8232,7 @@ static swig_lua_method swig_SBBreakpoint_methods[]= {
     { "GetNumLocations", _wrap_SBBreakpoint_GetNumLocations},
     { "GetDescription", _wrap_SBBreakpoint_GetDescription},
     { "AddLocation", _wrap_SBBreakpoint_AddLocation},
+    { "SerializeToStructuredData", _wrap_SBBreakpoint_SerializeToStructuredData},
     { "IsHardware", _wrap_SBBreakpoint_IsHardware},
     { "__tostring", _wrap_SBBreakpoint___tostring},
     {0,0}
@@ -8254,7 +8310,7 @@ static int _wrap_SBBreakpointList_GetSize(lua_State* L) {
   }
   
   result = ((lldb::SBBreakpointList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8273,14 +8329,13 @@ static int _wrap_SBBreakpointList_GetBreakpointAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointList::GetBreakpointAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointList::GetBreakpointAtIndex",1,"lldb::SBBreakpointList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::GetBreakpointAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::GetBreakpointAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointList,0))){
     SWIG_fail_ptr("SBBreakpointList_GetBreakpointAtIndex",1,SWIGTYPE_p_lldb__SBBreakpointList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetBreakpointAtIndex(arg2);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -8304,13 +8359,13 @@ static int _wrap_SBBreakpointList_FindBreakpointByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointList::FindBreakpointByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointList::FindBreakpointByID",1,"lldb::SBBreakpointList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::FindBreakpointByID",2,"lldb::break_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::FindBreakpointByID",2,"lldb::break_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointList,0))){
     SWIG_fail_ptr("SBBreakpointList_FindBreakpointByID",1,SWIGTYPE_p_lldb__SBBreakpointList);
   }
   
-  arg2 = (lldb::break_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (arg1)->FindBreakpointByID(arg2);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -8394,13 +8449,13 @@ static int _wrap_SBBreakpointList_AppendByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointList::AppendByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointList::AppendByID",1,"lldb::SBBreakpointList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::AppendByID",2,"lldb::break_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointList::AppendByID",2,"lldb::break_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointList,0))){
     SWIG_fail_ptr("SBBreakpointList_AppendByID",1,SWIGTYPE_p_lldb__SBBreakpointList);
   }
   
-  arg2 = (lldb::break_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   (arg1)->AppendByID(arg2);
   
   return SWIG_arg;
@@ -8577,7 +8632,7 @@ static int _wrap_SBBreakpointLocation_GetID(lua_State* L) {
   }
   
   result = (lldb::break_id_t)(arg1)->GetID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8652,7 +8707,7 @@ static int _wrap_SBBreakpointLocation_GetLoadAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetLoadAddress();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8726,7 +8781,7 @@ static int _wrap_SBBreakpointLocation_GetHitCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetHitCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8750,7 +8805,7 @@ static int _wrap_SBBreakpointLocation_GetIgnoreCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetIgnoreCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -8768,14 +8823,13 @@ static int _wrap_SBBreakpointLocation_SetIgnoreCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointLocation::SetIgnoreCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetIgnoreCount",1,"lldb::SBBreakpointLocation *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetIgnoreCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetIgnoreCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointLocation,0))){
     SWIG_fail_ptr("SBBreakpointLocation_SetIgnoreCount",1,SWIGTYPE_p_lldb__SBBreakpointLocation);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetIgnoreCount(arg2);
   
   return SWIG_arg;
@@ -9113,13 +9167,13 @@ static int _wrap_SBBreakpointLocation_SetThreadID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointLocation::SetThreadID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadID",1,"lldb::SBBreakpointLocation *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointLocation,0))){
     SWIG_fail_ptr("SBBreakpointLocation_SetThreadID",1,SWIGTYPE_p_lldb__SBBreakpointLocation);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetThreadID(arg2);
   
   return SWIG_arg;
@@ -9145,7 +9199,7 @@ static int _wrap_SBBreakpointLocation_GetThreadID(lua_State* L) {
   }
   
   result = (lldb::tid_t)(arg1)->GetThreadID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -9163,14 +9217,13 @@ static int _wrap_SBBreakpointLocation_SetThreadIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointLocation::SetThreadIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadIndex",1,"lldb::SBBreakpointLocation *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointLocation::SetThreadIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointLocation,0))){
     SWIG_fail_ptr("SBBreakpointLocation_SetThreadIndex",1,SWIGTYPE_p_lldb__SBBreakpointLocation);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetThreadIndex(arg2);
   
   return SWIG_arg;
@@ -9196,7 +9249,7 @@ static int _wrap_SBBreakpointLocation_GetThreadIndex(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpointLocation const *)arg1)->GetThreadIndex();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -9847,14 +9900,13 @@ static int _wrap_SBBreakpointName_SetIgnoreCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointName::SetIgnoreCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointName::SetIgnoreCount",1,"lldb::SBBreakpointName *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetIgnoreCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetIgnoreCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointName,0))){
     SWIG_fail_ptr("SBBreakpointName_SetIgnoreCount",1,SWIGTYPE_p_lldb__SBBreakpointName);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetIgnoreCount(arg2);
   
   return SWIG_arg;
@@ -9880,7 +9932,7 @@ static int _wrap_SBBreakpointName_GetIgnoreCount(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpointName const *)arg1)->GetIgnoreCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -9998,13 +10050,13 @@ static int _wrap_SBBreakpointName_SetThreadID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointName::SetThreadID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadID",1,"lldb::SBBreakpointName *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointName,0))){
     SWIG_fail_ptr("SBBreakpointName_SetThreadID",1,SWIGTYPE_p_lldb__SBBreakpointName);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetThreadID(arg2);
   
   return SWIG_arg;
@@ -10030,7 +10082,7 @@ static int _wrap_SBBreakpointName_GetThreadID(lua_State* L) {
   }
   
   result = (lldb::tid_t)(arg1)->GetThreadID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -10048,14 +10100,13 @@ static int _wrap_SBBreakpointName_SetThreadIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBreakpointName::SetThreadIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadIndex",1,"lldb::SBBreakpointName *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBreakpointName::SetThreadIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBreakpointName,0))){
     SWIG_fail_ptr("SBBreakpointName_SetThreadIndex",1,SWIGTYPE_p_lldb__SBBreakpointName);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetThreadIndex(arg2);
   
   return SWIG_arg;
@@ -10081,7 +10132,7 @@ static int _wrap_SBBreakpointName_GetThreadIndex(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBBreakpointName const *)arg1)->GetThreadIndex();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -10908,15 +10959,14 @@ static int _wrap_SBBroadcaster_BroadcastEventByType__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBroadcaster::BroadcastEventByType",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",1,"lldb::SBBroadcaster *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",2,"uint32_t");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_BroadcastEventByType",1,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   (arg1)->BroadcastEventByType(arg2,arg3);
   
@@ -10937,14 +10987,13 @@ static int _wrap_SBBroadcaster_BroadcastEventByType__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBroadcaster::BroadcastEventByType",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",1,"lldb::SBBroadcaster *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::BroadcastEventByType",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_BroadcastEventByType",1,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->BroadcastEventByType(arg2);
   
   return SWIG_arg;
@@ -11157,7 +11206,7 @@ static int _wrap_SBBroadcaster_AddInitialEventsToListener(lua_State* L) {
   SWIG_check_num_args("lldb::SBBroadcaster::AddInitialEventsToListener",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::AddInitialEventsToListener",1,"lldb::SBBroadcaster *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::AddInitialEventsToListener",2,"lldb::SBListener const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::AddInitialEventsToListener",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::AddInitialEventsToListener",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_AddInitialEventsToListener",1,SWIGTYPE_p_lldb__SBBroadcaster);
@@ -11168,8 +11217,7 @@ static int _wrap_SBBroadcaster_AddInitialEventsToListener(lua_State* L) {
     SWIG_fail_ptr("SBBroadcaster_AddInitialEventsToListener",2,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   (arg1)->AddInitialEventsToListener((lldb::SBListener const &)*arg2,arg3);
   
   return SWIG_arg;
@@ -11192,7 +11240,7 @@ static int _wrap_SBBroadcaster_AddListener(lua_State* L) {
   SWIG_check_num_args("lldb::SBBroadcaster::AddListener",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::AddListener",1,"lldb::SBBroadcaster *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::AddListener",2,"lldb::SBListener const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::AddListener",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::AddListener",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_AddListener",1,SWIGTYPE_p_lldb__SBBroadcaster);
@@ -11203,10 +11251,9 @@ static int _wrap_SBBroadcaster_AddListener(lua_State* L) {
     SWIG_fail_ptr("SBBroadcaster_AddListener",2,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (uint32_t)(arg1)->AddListener((lldb::SBListener const &)*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -11249,14 +11296,13 @@ static int _wrap_SBBroadcaster_EventTypeHasListeners(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBBroadcaster::EventTypeHasListeners",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::EventTypeHasListeners",1,"lldb::SBBroadcaster *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::EventTypeHasListeners",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::EventTypeHasListeners",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_EventTypeHasListeners",1,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (bool)(arg1)->EventTypeHasListeners(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -11279,7 +11325,7 @@ static int _wrap_SBBroadcaster_RemoveListener__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBBroadcaster::RemoveListener",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBBroadcaster::RemoveListener",1,"lldb::SBBroadcaster *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBBroadcaster::RemoveListener",2,"lldb::SBListener const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::RemoveListener",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBBroadcaster::RemoveListener",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBBroadcaster_RemoveListener",1,SWIGTYPE_p_lldb__SBBroadcaster);
@@ -11290,8 +11336,7 @@ static int _wrap_SBBroadcaster_RemoveListener__SWIG_0(lua_State* L) {
     SWIG_fail_ptr("SBBroadcaster_RemoveListener",2,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (bool)(arg1)->RemoveListener((lldb::SBListener const &)*arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -11745,7 +11790,7 @@ static int _wrap_SBCommandInterpreter_GetQuitStatus(lua_State* L) {
   }
   
   result = (int)(arg1)->GetQuitStatus();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -12459,9 +12504,9 @@ static int _wrap_SBCommandInterpreter_HandleCompletion(lua_State* L) {
   SWIG_check_num_args("lldb::SBCommandInterpreter::HandleCompletion",6,6)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",1,"lldb::SBCommandInterpreter *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",4,"int");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",5,"int");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",4,"int");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",5,"int");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletion",6,"lldb::SBStringList &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandInterpreter,0))){
@@ -12469,17 +12514,16 @@ static int _wrap_SBCommandInterpreter_HandleCompletion(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  arg4 = (int)lua_tonumber(L, 4);
-  arg5 = (int)lua_tonumber(L, 5);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (signed int)lua_tointeger(L, 4); 
+  arg5 = (signed int)lua_tointeger(L, 5); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBStringList,0))){
     SWIG_fail_ptr("SBCommandInterpreter_HandleCompletion",6,SWIGTYPE_p_lldb__SBStringList);
   }
   
   result = (int)(arg1)->HandleCompletion((char const *)arg2,arg3,arg4,arg5,*arg6);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -12504,9 +12548,9 @@ static int _wrap_SBCommandInterpreter_HandleCompletionWithDescriptions(lua_State
   SWIG_check_num_args("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",7,7)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",1,"lldb::SBCommandInterpreter *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",4,"int");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",5,"int");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",4,"int");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",5,"int");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",6,"lldb::SBStringList &");
   if(!lua_isuserdata(L,7)) SWIG_fail_arg("lldb::SBCommandInterpreter::HandleCompletionWithDescriptions",7,"lldb::SBStringList &");
   
@@ -12515,10 +12559,9 @@ static int _wrap_SBCommandInterpreter_HandleCompletionWithDescriptions(lua_State
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  arg4 = (int)lua_tonumber(L, 4);
-  arg5 = (int)lua_tonumber(L, 5);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (signed int)lua_tointeger(L, 4); 
+  arg5 = (signed int)lua_tointeger(L, 5); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBStringList,0))){
     SWIG_fail_ptr("SBCommandInterpreter_HandleCompletionWithDescriptions",6,SWIGTYPE_p_lldb__SBStringList);
@@ -12530,7 +12573,7 @@ static int _wrap_SBCommandInterpreter_HandleCompletionWithDescriptions(lua_State
   }
   
   result = (int)(arg1)->HandleCompletionWithDescriptions((char const *)arg2,arg3,arg4,arg5,*arg6,*arg7);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13204,7 +13247,7 @@ static int _wrap_SBCommandReturnObject_GetOutputSize(lua_State* L) {
   }
   
   result = (arg1)->GetOutputSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13228,7 +13271,7 @@ static int _wrap_SBCommandReturnObject_GetErrorSize(lua_State* L) {
   }
   
   result = (arg1)->GetErrorSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13413,7 +13456,7 @@ static int _wrap_SBCommandReturnObject_PutOutput__SWIG_0(lua_State* L) {
   arg2 = *argp2;
   
   result = (arg1)->PutOutput(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13446,7 +13489,7 @@ static int _wrap_SBCommandReturnObject_PutError__SWIG_0(lua_State* L) {
   arg2 = *argp2;
   
   result = (arg1)->PutError(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13479,7 +13522,7 @@ static int _wrap_SBCommandReturnObject_PutOutput__SWIG_1(lua_State* L) {
   arg2 = *argp2;
   
   result = (arg1)->PutOutput(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -13576,7 +13619,7 @@ static int _wrap_SBCommandReturnObject_PutError__SWIG_1(lua_State* L) {
   arg2 = *argp2;
   
   result = (arg1)->PutError(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -14452,14 +14495,14 @@ static int _wrap_SBCommandReturnObject_PutCString(lua_State* L) {
   SWIG_check_num_args("lldb::SBCommandReturnObject::PutCString",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",1,"lldb::SBCommandReturnObject *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",3,"int");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCommandReturnObject::PutCString",3,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommandReturnObject,0))){
     SWIG_fail_ptr("SBCommandReturnObject_PutCString",1,SWIGTYPE_p_lldb__SBCommandReturnObject);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  arg3 = (int)lua_tonumber(L, 3);
+  arg3 = (signed int)lua_tointeger(L, 3); 
   (arg1)->PutCString((char const *)arg2,arg3);
   
   return SWIG_arg;
@@ -14709,14 +14752,14 @@ static int _wrap_SBCommunication_AdoptFileDesriptor(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCommunication::AdoptFileDesriptor",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommunication::AdoptFileDesriptor",1,"lldb::SBCommunication *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCommunication::AdoptFileDesriptor",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCommunication::AdoptFileDesriptor",2,"int");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBCommunication::AdoptFileDesriptor",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommunication,0))){
     SWIG_fail_ptr("SBCommunication_AdoptFileDesriptor",1,SWIGTYPE_p_lldb__SBCommunication);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (lldb::ConnectionStatus)(arg1)->AdoptFileDesriptor(arg2,arg3);
   lua_pushnumber(L, (lua_Number)(int)(result)); SWIG_arg++;
@@ -14867,8 +14910,8 @@ static int _wrap_SBCommunication_Read(lua_State* L) {
   SWIG_check_num_args("lldb::SBCommunication::Read",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommunication::Read",1,"lldb::SBCommunication *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBCommunication::Read",2,"void *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCommunication::Read",3,"size_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBCommunication::Read",4,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCommunication::Read",3,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBCommunication::Read",4,"uint32_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBCommunication::Read",5,"lldb::ConnectionStatus &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommunication,0))){
@@ -14876,17 +14919,15 @@ static int _wrap_SBCommunication_Read(lua_State* L) {
   }
   
   arg2=(void *)SWIG_MustGetPtr(L,2,0,0,2,"SBCommunication_Read");
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__ConnectionStatus,0))){
     SWIG_fail_ptr("SBCommunication_Read",5,SWIGTYPE_p_lldb__ConnectionStatus);
   }
   
   result = (arg1)->Read(arg2,arg3,arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -14908,7 +14949,7 @@ static int _wrap_SBCommunication_Write(lua_State* L) {
   SWIG_check_num_args("lldb::SBCommunication::Write",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCommunication::Write",1,"lldb::SBCommunication *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBCommunication::Write",2,"void const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCommunication::Write",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCommunication::Write",3,"size_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBCommunication::Write",4,"lldb::ConnectionStatus &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCommunication,0))){
@@ -14916,15 +14957,14 @@ static int _wrap_SBCommunication_Write(lua_State* L) {
   }
   
   arg2=(void *)SWIG_MustGetPtr(L,2,0,0,2,"SBCommunication_Write");
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__ConnectionStatus,0))){
     SWIG_fail_ptr("SBCommunication_Write",4,SWIGTYPE_p_lldb__ConnectionStatus);
   }
   
   result = (arg1)->Write((void const *)arg2,arg3,*arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15247,7 +15287,7 @@ static int _wrap_SBCompileUnit_GetNumLineEntries(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBCompileUnit const *)arg1)->GetNumLineEntries();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15266,14 +15306,13 @@ static int _wrap_SBCompileUnit_GetLineEntryAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::GetLineEntryAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::GetLineEntryAtIndex",1,"lldb::SBCompileUnit const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetLineEntryAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetLineEntryAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
     SWIG_fail_ptr("SBCompileUnit_GetLineEntryAtIndex",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBCompileUnit const *)arg1)->GetLineEntryAtIndex(arg2);
   {
     lldb::SBLineEntry * resultptr = new lldb::SBLineEntry((const lldb::SBLineEntry &) result);
@@ -15299,25 +15338,23 @@ static int _wrap_SBCompileUnit_FindLineEntryIndex__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::FindLineEntryIndex",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",1,"lldb::SBCompileUnit const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",2,"uint32_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",3,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",2,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",3,"uint32_t");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",4,"lldb::SBFileSpec *");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
     SWIG_fail_ptr("SBCompileUnit_FindLineEntryIndex",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBFileSpec,0))){
     SWIG_fail_ptr("SBCompileUnit_FindLineEntryIndex",4,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
   result = (uint32_t)((lldb::SBCompileUnit const *)arg1)->FindLineEntryIndex(arg2,arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15339,8 +15376,8 @@ static int _wrap_SBCompileUnit_FindLineEntryIndex__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::FindLineEntryIndex",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",1,"lldb::SBCompileUnit const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",2,"uint32_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",3,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",2,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",3,"uint32_t");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",4,"lldb::SBFileSpec *");
   if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBCompileUnit::FindLineEntryIndex",5,"bool");
   
@@ -15348,10 +15385,8 @@ static int _wrap_SBCompileUnit_FindLineEntryIndex__SWIG_1(lua_State* L) {
     SWIG_fail_ptr("SBCompileUnit_FindLineEntryIndex",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBFileSpec,0))){
     SWIG_fail_ptr("SBCompileUnit_FindLineEntryIndex",4,SWIGTYPE_p_lldb__SBFileSpec);
@@ -15359,7 +15394,7 @@ static int _wrap_SBCompileUnit_FindLineEntryIndex__SWIG_1(lua_State* L) {
   
   arg5 = (lua_toboolean(L, 5)!=0);
   result = (uint32_t)((lldb::SBCompileUnit const *)arg1)->FindLineEntryIndex(arg2,arg3,arg4,arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15467,14 +15502,13 @@ static int _wrap_SBCompileUnit_GetSupportFileAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::GetSupportFileAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::GetSupportFileAtIndex",1,"lldb::SBCompileUnit const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetSupportFileAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetSupportFileAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
     SWIG_fail_ptr("SBCompileUnit_GetSupportFileAtIndex",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBCompileUnit const *)arg1)->GetSupportFileAtIndex(arg2);
   {
     lldb::SBFileSpec * resultptr = new lldb::SBFileSpec((const lldb::SBFileSpec &) result);
@@ -15503,7 +15537,7 @@ static int _wrap_SBCompileUnit_GetNumSupportFiles(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBCompileUnit const *)arg1)->GetNumSupportFiles();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15524,7 +15558,7 @@ static int _wrap_SBCompileUnit_FindSupportFileIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::FindSupportFileIndex",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::FindSupportFileIndex",1,"lldb::SBCompileUnit *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindSupportFileIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::FindSupportFileIndex",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBCompileUnit::FindSupportFileIndex",3,"lldb::SBFileSpec const &");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBCompileUnit::FindSupportFileIndex",4,"bool");
   
@@ -15532,8 +15566,7 @@ static int _wrap_SBCompileUnit_FindSupportFileIndex(lua_State* L) {
     SWIG_fail_ptr("SBCompileUnit_FindSupportFileIndex",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
     SWIG_fail_ptr("SBCompileUnit_FindSupportFileIndex",3,SWIGTYPE_p_lldb__SBFileSpec);
@@ -15541,7 +15574,7 @@ static int _wrap_SBCompileUnit_FindSupportFileIndex(lua_State* L) {
   
   arg4 = (lua_toboolean(L, 4)!=0);
   result = (uint32_t)(arg1)->FindSupportFileIndex(arg2,(lldb::SBFileSpec const &)*arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15560,14 +15593,13 @@ static int _wrap_SBCompileUnit_GetTypes__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBCompileUnit::GetTypes",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBCompileUnit::GetTypes",1,"lldb::SBCompileUnit *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetTypes",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBCompileUnit::GetTypes",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBCompileUnit,0))){
     SWIG_fail_ptr("SBCompileUnit_GetTypes",1,SWIGTYPE_p_lldb__SBCompileUnit);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypes(arg2);
   {
     lldb::SBTypeList * resultptr = new lldb::SBTypeList((const lldb::SBTypeList &) result);
@@ -15918,7 +15950,7 @@ static int _wrap_SBData_GetAddressByteSize(lua_State* L) {
   }
   
   result = (uint8_t)(arg1)->GetAddressByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -15936,14 +15968,13 @@ static int _wrap_SBData_SetAddressByteSize(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::SetAddressByteSize",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetAddressByteSize",1,"lldb::SBData *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::SetAddressByteSize",2,"uint8_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::SetAddressByteSize",2,"uint8_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetAddressByteSize",1,SWIGTYPE_p_lldb__SBData);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint8_t)lua_tonumber(L, 2);
+  arg2 = (unsigned char)lua_tointeger(L, 2); 
   (arg1)->SetAddressByteSize(arg2);
   
   return SWIG_arg;
@@ -16016,7 +16047,7 @@ static int _wrap_SBData_GetByteSize(lua_State* L) {
   }
   
   result = (arg1)->GetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16087,7 +16118,7 @@ static int _wrap_SBData_GetFloat(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetFloat",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetFloat",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetFloat",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetFloat",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetFloat",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetFloat",1,SWIGTYPE_p_lldb__SBData);
@@ -16098,7 +16129,7 @@ static int _wrap_SBData_GetFloat(lua_State* L) {
     SWIG_fail_ptr("SBData_GetFloat",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (float)(arg1)->GetFloat(*arg2,arg3);
   lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
   return SWIG_arg;
@@ -16121,7 +16152,7 @@ static int _wrap_SBData_GetDouble(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetDouble",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetDouble",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetDouble",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetDouble",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetDouble",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetDouble",1,SWIGTYPE_p_lldb__SBData);
@@ -16132,7 +16163,7 @@ static int _wrap_SBData_GetDouble(lua_State* L) {
     SWIG_fail_ptr("SBData_GetDouble",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (double)(arg1)->GetDouble(*arg2,arg3);
   lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
   return SWIG_arg;
@@ -16155,7 +16186,7 @@ static int _wrap_SBData_GetLongDouble(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetLongDouble",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetLongDouble",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetLongDouble",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetLongDouble",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetLongDouble",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetLongDouble",1,SWIGTYPE_p_lldb__SBData);
@@ -16166,7 +16197,7 @@ static int _wrap_SBData_GetLongDouble(lua_State* L) {
     SWIG_fail_ptr("SBData_GetLongDouble",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (long double)(arg1)->GetLongDouble(*arg2,arg3);
   {
     long double * resultptr = new long double((const long double &) result);
@@ -16192,7 +16223,7 @@ static int _wrap_SBData_GetAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetAddress",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetAddress",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetAddress",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetAddress",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetAddress",1,SWIGTYPE_p_lldb__SBData);
@@ -16203,9 +16234,9 @@ static int _wrap_SBData_GetAddress(lua_State* L) {
     SWIG_fail_ptr("SBData_GetAddress",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (lldb::addr_t)(arg1)->GetAddress(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16226,7 +16257,7 @@ static int _wrap_SBData_GetUnsignedInt8(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetUnsignedInt8",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt8",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt8",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt8",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt8",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetUnsignedInt8",1,SWIGTYPE_p_lldb__SBData);
@@ -16237,9 +16268,9 @@ static int _wrap_SBData_GetUnsignedInt8(lua_State* L) {
     SWIG_fail_ptr("SBData_GetUnsignedInt8",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (uint8_t)(arg1)->GetUnsignedInt8(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16260,7 +16291,7 @@ static int _wrap_SBData_GetUnsignedInt16(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetUnsignedInt16",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt16",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt16",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt16",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt16",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetUnsignedInt16",1,SWIGTYPE_p_lldb__SBData);
@@ -16271,9 +16302,9 @@ static int _wrap_SBData_GetUnsignedInt16(lua_State* L) {
     SWIG_fail_ptr("SBData_GetUnsignedInt16",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (uint16_t)(arg1)->GetUnsignedInt16(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16294,7 +16325,7 @@ static int _wrap_SBData_GetUnsignedInt32(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetUnsignedInt32",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt32",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt32",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt32",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt32",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetUnsignedInt32",1,SWIGTYPE_p_lldb__SBData);
@@ -16305,9 +16336,9 @@ static int _wrap_SBData_GetUnsignedInt32(lua_State* L) {
     SWIG_fail_ptr("SBData_GetUnsignedInt32",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (uint32_t)(arg1)->GetUnsignedInt32(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16328,7 +16359,7 @@ static int _wrap_SBData_GetUnsignedInt64(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetUnsignedInt64",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt64",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt64",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt64",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetUnsignedInt64",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetUnsignedInt64",1,SWIGTYPE_p_lldb__SBData);
@@ -16339,9 +16370,9 @@ static int _wrap_SBData_GetUnsignedInt64(lua_State* L) {
     SWIG_fail_ptr("SBData_GetUnsignedInt64",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (uint64_t)(arg1)->GetUnsignedInt64(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16362,7 +16393,7 @@ static int _wrap_SBData_GetSignedInt8(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetSignedInt8",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetSignedInt8",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetSignedInt8",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt8",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt8",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetSignedInt8",1,SWIGTYPE_p_lldb__SBData);
@@ -16373,9 +16404,9 @@ static int _wrap_SBData_GetSignedInt8(lua_State* L) {
     SWIG_fail_ptr("SBData_GetSignedInt8",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (int8_t)(arg1)->GetSignedInt8(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16396,7 +16427,7 @@ static int _wrap_SBData_GetSignedInt16(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetSignedInt16",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetSignedInt16",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetSignedInt16",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt16",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt16",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetSignedInt16",1,SWIGTYPE_p_lldb__SBData);
@@ -16407,9 +16438,9 @@ static int _wrap_SBData_GetSignedInt16(lua_State* L) {
     SWIG_fail_ptr("SBData_GetSignedInt16",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (int16_t)(arg1)->GetSignedInt16(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16430,7 +16461,7 @@ static int _wrap_SBData_GetSignedInt32(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetSignedInt32",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetSignedInt32",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetSignedInt32",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt32",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt32",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetSignedInt32",1,SWIGTYPE_p_lldb__SBData);
@@ -16441,9 +16472,9 @@ static int _wrap_SBData_GetSignedInt32(lua_State* L) {
     SWIG_fail_ptr("SBData_GetSignedInt32",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (int32_t)(arg1)->GetSignedInt32(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16464,7 +16495,7 @@ static int _wrap_SBData_GetSignedInt64(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetSignedInt64",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetSignedInt64",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetSignedInt64",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt64",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetSignedInt64",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetSignedInt64",1,SWIGTYPE_p_lldb__SBData);
@@ -16475,9 +16506,9 @@ static int _wrap_SBData_GetSignedInt64(lua_State* L) {
     SWIG_fail_ptr("SBData_GetSignedInt64",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (int64_t)(arg1)->GetSignedInt64(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16498,7 +16529,7 @@ static int _wrap_SBData_GetString(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetString",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetString",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetString",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetString",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetString",3,"lldb::offset_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetString",1,SWIGTYPE_p_lldb__SBData);
@@ -16509,7 +16540,7 @@ static int _wrap_SBData_GetString(lua_State* L) {
     SWIG_fail_ptr("SBData_GetString",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (char *)(arg1)->GetString(*arg2,arg3);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -16532,7 +16563,7 @@ static int _wrap_SBData_GetDescription(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::GetDescription",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::GetDescription",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::GetDescription",2,"lldb::SBStream &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::GetDescription",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::GetDescription",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_GetDescription",1,SWIGTYPE_p_lldb__SBData);
@@ -16543,7 +16574,7 @@ static int _wrap_SBData_GetDescription(lua_State* L) {
     SWIG_fail_ptr("SBData_GetDescription",2,SWIGTYPE_p_lldb__SBStream);
   }
   
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->GetDescription(*arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -16568,9 +16599,9 @@ static int _wrap_SBData_ReadRawData(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::ReadRawData",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::ReadRawData",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::ReadRawData",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::ReadRawData",3,"lldb::offset_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::ReadRawData",3,"lldb::offset_t");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBData::ReadRawData",4,"void *");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBData::ReadRawData",5,"size_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBData::ReadRawData",5,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_ReadRawData",1,SWIGTYPE_p_lldb__SBData);
@@ -16581,12 +16612,11 @@ static int _wrap_SBData_ReadRawData(lua_State* L) {
     SWIG_fail_ptr("SBData_ReadRawData",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::offset_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   arg4=(void *)SWIG_MustGetPtr(L,4,0,0,4,"SBData_ReadRawData");
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (size_t)lua_tonumber(L, 5);
+  arg5 = (unsigned long)lua_tointeger(L, 5); 
   result = (arg1)->ReadRawData(*arg2,arg3,arg4,arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -16610,9 +16640,9 @@ static int _wrap_SBData_SetData(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetData",1,"lldb::SBData *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBData::SetData",2,"lldb::SBError &");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::SetData",3,"void const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::SetData",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::SetData",4,"size_t");
   if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBData::SetData",5,"lldb::ByteOrder");
-  if(!lua_isnumber(L,6)) SWIG_fail_arg("lldb::SBData::SetData",6,"uint8_t");
+  if(!lua_isinteger(L,6)) SWIG_fail_arg("lldb::SBData::SetData",6,"uint8_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetData",1,SWIGTYPE_p_lldb__SBData);
@@ -16624,11 +16654,9 @@ static int _wrap_SBData_SetData(lua_State* L) {
   }
   
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBData_SetData");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   arg5 = (lldb::ByteOrder)(int)lua_tonumber(L, 5);
-  SWIG_contract_assert((lua_tonumber(L,6)>=0),"number must not be negative")
-  arg6 = (uint8_t)lua_tonumber(L, 6);
+  arg6 = (unsigned char)lua_tointeger(L, 6); 
   (arg1)->SetData(*arg2,(void const *)arg3,arg4,arg5,arg6);
   
   return SWIG_arg;
@@ -16681,11 +16709,10 @@ static int _wrap_SBData_CreateDataFromCString(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromCString",3,3)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromCString",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromCString",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromCString",2,"uint32_t");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromCString",3,"char const *");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (char *)lua_tostring(L, 3);
   result = lldb::SBData::CreateDataFromCString(arg1,arg2,(char const *)arg3);
   {
@@ -16712,19 +16739,17 @@ static int _wrap_SBData_CreateDataFromUInt64Array(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromUInt64Array",4,4)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",2,"uint32_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",3,"uint64_t *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt64Array",4,"size_t");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_unsigned_long_long,0))){
     SWIG_fail_ptr("SBData_CreateDataFromUInt64Array",3,SWIGTYPE_p_unsigned_long_long);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = lldb::SBData::CreateDataFromUInt64Array(arg1,arg2,arg3,arg4);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -16750,19 +16775,17 @@ static int _wrap_SBData_CreateDataFromUInt32Array(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromUInt32Array",4,4)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",2,"uint32_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",3,"uint32_t *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromUInt32Array",4,"size_t");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_unsigned_int,0))){
     SWIG_fail_ptr("SBData_CreateDataFromUInt32Array",3,SWIGTYPE_p_unsigned_int);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = lldb::SBData::CreateDataFromUInt32Array(arg1,arg2,arg3,arg4);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -16788,19 +16811,17 @@ static int _wrap_SBData_CreateDataFromSInt64Array(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromSInt64Array",4,4)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",2,"uint32_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",3,"int64_t *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt64Array",4,"size_t");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_long_long,0))){
     SWIG_fail_ptr("SBData_CreateDataFromSInt64Array",3,SWIGTYPE_p_long_long);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = lldb::SBData::CreateDataFromSInt64Array(arg1,arg2,arg3,arg4);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -16826,19 +16847,17 @@ static int _wrap_SBData_CreateDataFromSInt32Array(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromSInt32Array",4,4)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",2,"uint32_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",3,"int32_t *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromSInt32Array",4,"size_t");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_int,0))){
     SWIG_fail_ptr("SBData_CreateDataFromSInt32Array",3,SWIGTYPE_p_int);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = lldb::SBData::CreateDataFromSInt32Array(arg1,arg2,arg3,arg4);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -16864,19 +16883,17 @@ static int _wrap_SBData_CreateDataFromDoubleArray(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBData::CreateDataFromDoubleArray",4,4)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",1,"lldb::ByteOrder");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",2,"uint32_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",3,"double *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBData::CreateDataFromDoubleArray",4,"size_t");
   arg1 = (lldb::ByteOrder)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_double,0))){
     SWIG_fail_ptr("SBData_CreateDataFromDoubleArray",3,SWIGTYPE_p_double);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = lldb::SBData::CreateDataFromDoubleArray(arg1,arg2,arg3,arg4);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -16929,7 +16946,7 @@ static int _wrap_SBData_SetDataFromUInt64Array(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::SetDataFromUInt64Array",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt64Array",1,"lldb::SBData *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt64Array",2,"uint64_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt64Array",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt64Array",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetDataFromUInt64Array",1,SWIGTYPE_p_lldb__SBData);
@@ -16940,8 +16957,7 @@ static int _wrap_SBData_SetDataFromUInt64Array(lua_State* L) {
     SWIG_fail_ptr("SBData_SetDataFromUInt64Array",2,SWIGTYPE_p_unsigned_long_long);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetDataFromUInt64Array(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -16964,7 +16980,7 @@ static int _wrap_SBData_SetDataFromUInt32Array(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::SetDataFromUInt32Array",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt32Array",1,"lldb::SBData *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt32Array",2,"uint32_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt32Array",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromUInt32Array",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetDataFromUInt32Array",1,SWIGTYPE_p_lldb__SBData);
@@ -16975,8 +16991,7 @@ static int _wrap_SBData_SetDataFromUInt32Array(lua_State* L) {
     SWIG_fail_ptr("SBData_SetDataFromUInt32Array",2,SWIGTYPE_p_unsigned_int);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetDataFromUInt32Array(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -16999,7 +17014,7 @@ static int _wrap_SBData_SetDataFromSInt64Array(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::SetDataFromSInt64Array",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt64Array",1,"lldb::SBData *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt64Array",2,"int64_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt64Array",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt64Array",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetDataFromSInt64Array",1,SWIGTYPE_p_lldb__SBData);
@@ -17010,8 +17025,7 @@ static int _wrap_SBData_SetDataFromSInt64Array(lua_State* L) {
     SWIG_fail_ptr("SBData_SetDataFromSInt64Array",2,SWIGTYPE_p_long_long);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetDataFromSInt64Array(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -17034,7 +17048,7 @@ static int _wrap_SBData_SetDataFromSInt32Array(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::SetDataFromSInt32Array",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt32Array",1,"lldb::SBData *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt32Array",2,"int32_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt32Array",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromSInt32Array",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetDataFromSInt32Array",1,SWIGTYPE_p_lldb__SBData);
@@ -17045,8 +17059,7 @@ static int _wrap_SBData_SetDataFromSInt32Array(lua_State* L) {
     SWIG_fail_ptr("SBData_SetDataFromSInt32Array",2,SWIGTYPE_p_int);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetDataFromSInt32Array(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -17069,7 +17082,7 @@ static int _wrap_SBData_SetDataFromDoubleArray(lua_State* L) {
   SWIG_check_num_args("lldb::SBData::SetDataFromDoubleArray",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBData::SetDataFromDoubleArray",1,"lldb::SBData *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBData::SetDataFromDoubleArray",2,"double *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromDoubleArray",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBData::SetDataFromDoubleArray",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBData,0))){
     SWIG_fail_ptr("SBData_SetDataFromDoubleArray",1,SWIGTYPE_p_lldb__SBData);
@@ -17080,8 +17093,7 @@ static int _wrap_SBData_SetDataFromDoubleArray(lua_State* L) {
     SWIG_fail_ptr("SBData_SetDataFromDoubleArray",2,SWIGTYPE_p_double);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetDataFromDoubleArray(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -18796,14 +18808,13 @@ static int _wrap_SBDebugger_GetTargetAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::GetTargetAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetTargetAtIndex",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetTargetAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetTargetAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_GetTargetAtIndex",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTargetAtIndex(arg2);
   {
     lldb::SBTarget * resultptr = new lldb::SBTarget((const lldb::SBTarget &) result);
@@ -18841,7 +18852,7 @@ static int _wrap_SBDebugger_GetIndexOfTarget(lua_State* L) {
   arg2 = *argp2;
   
   result = (uint32_t)(arg1)->GetIndexOfTarget(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -18860,13 +18871,13 @@ static int _wrap_SBDebugger_FindTargetWithProcessID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::FindTargetWithProcessID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::FindTargetWithProcessID",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::FindTargetWithProcessID",2,"lldb::pid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::FindTargetWithProcessID",2,"lldb::pid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_FindTargetWithProcessID",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  arg2 = (lldb::pid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->FindTargetWithProcessID(arg2);
   {
     lldb::SBTarget * resultptr = new lldb::SBTarget((const lldb::SBTarget &) result);
@@ -18928,7 +18939,7 @@ static int _wrap_SBDebugger_GetNumTargets(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumTargets();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -19066,7 +19077,7 @@ static int _wrap_SBDebugger_GetNumPlatforms(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumPlatforms();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -19085,14 +19096,13 @@ static int _wrap_SBDebugger_GetPlatformAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::GetPlatformAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetPlatformAtIndex",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetPlatformAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetPlatformAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_GetPlatformAtIndex",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetPlatformAtIndex(arg2);
   {
     lldb::SBPlatform * resultptr = new lldb::SBPlatform((const lldb::SBPlatform &) result);
@@ -19121,7 +19131,7 @@ static int _wrap_SBDebugger_GetNumAvailablePlatforms(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumAvailablePlatforms();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -19140,14 +19150,13 @@ static int _wrap_SBDebugger_GetAvailablePlatformInfoAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::GetAvailablePlatformInfoAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetAvailablePlatformInfoAtIndex",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetAvailablePlatformInfoAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetAvailablePlatformInfoAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_GetAvailablePlatformInfoAtIndex",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetAvailablePlatformInfoAtIndex(arg2);
   {
     lldb::SBStructuredData * resultptr = new lldb::SBStructuredData((const lldb::SBStructuredData &) result);
@@ -19357,10 +19366,9 @@ static int _wrap_SBDebugger_GetDefaultArchitecture(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::GetDefaultArchitecture",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetDefaultArchitecture",1,"char *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetDefaultArchitecture",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetDefaultArchitecture",2,"size_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (bool)lldb::SBDebugger::GetDefaultArchitecture(arg1,arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -19593,15 +19601,14 @@ static int _wrap_SBDebugger_DispatchInput(lua_State* L) {
   SWIG_check_num_args("lldb::SBDebugger::DispatchInput",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::DispatchInput",1,"lldb::SBDebugger *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBDebugger::DispatchInput",2,"void const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBDebugger::DispatchInput",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBDebugger::DispatchInput",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_DispatchInput",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
   arg2=(void *)SWIG_MustGetPtr(L,2,0,0,2,"SBDebugger_DispatchInput");
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   (arg1)->DispatchInput((void const *)arg2,arg3);
   
   return SWIG_arg;
@@ -19690,8 +19697,8 @@ static int _wrap_SBDebugger_FindDebuggerWithID(lua_State* L) {
   lldb::SBDebugger result;
   
   SWIG_check_num_args("lldb::SBDebugger::FindDebuggerWithID",1,1)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBDebugger::FindDebuggerWithID",1,"int");
-  arg1 = (int)lua_tonumber(L, 1);
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBDebugger::FindDebuggerWithID",1,"int");
+  arg1 = (signed int)lua_tointeger(L, 1); 
   result = lldb::SBDebugger::FindDebuggerWithID(arg1);
   {
     lldb::SBDebugger * resultptr = new lldb::SBDebugger((const lldb::SBDebugger &) result);
@@ -19806,7 +19813,7 @@ static int _wrap_SBDebugger_GetTerminalWidth(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBDebugger const *)arg1)->GetTerminalWidth();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -19824,14 +19831,13 @@ static int _wrap_SBDebugger_SetTerminalWidth(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::SetTerminalWidth",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::SetTerminalWidth",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetTerminalWidth",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::SetTerminalWidth",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_SetTerminalWidth",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetTerminalWidth(arg2);
   
   return SWIG_arg;
@@ -19857,7 +19863,7 @@ static int _wrap_SBDebugger_GetID(lua_State* L) {
   }
   
   result = (lldb::user_id_t)(arg1)->GetID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -20226,7 +20232,7 @@ static int _wrap_SBDebugger_GetNumCategories(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumCategories();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -20245,14 +20251,13 @@ static int _wrap_SBDebugger_GetCategoryAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDebugger::GetCategoryAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDebugger::GetCategoryAtIndex",1,"lldb::SBDebugger *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetCategoryAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDebugger::GetCategoryAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDebugger,0))){
     SWIG_fail_ptr("SBDebugger_GetCategoryAtIndex",1,SWIGTYPE_p_lldb__SBDebugger);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetCategoryAtIndex(arg2);
   {
     lldb::SBTypeCategory * resultptr = new lldb::SBTypeCategory((const lldb::SBTypeCategory &) result);
@@ -20481,7 +20486,7 @@ static int _wrap_SBDebugger_RunCommandInterpreter(lua_State* L) {
   if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",2,"bool");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",3,"bool");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",4,"lldb::SBCommandInterpreterRunOptions &");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",5,"int &");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",5,"int &");
   if(!lua_isboolean(L,6)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",6,"bool &");
   if(!lua_isboolean(L,7)) SWIG_fail_arg("lldb::SBDebugger::RunCommandInterpreter",7,"bool &");
   
@@ -20496,7 +20501,7 @@ static int _wrap_SBDebugger_RunCommandInterpreter(lua_State* L) {
     SWIG_fail_ptr("SBDebugger_RunCommandInterpreter",4,SWIGTYPE_p_lldb__SBCommandInterpreterRunOptions);
   }
   
-  temp5 = (int)lua_tonumber(L,5);
+  temp5 = (int)lua_tointeger(L,5);
   arg5 = &temp5; 
   temp6 = (lua_toboolean(L,6)!=0);
   arg6 = &temp6; 
@@ -20504,7 +20509,7 @@ static int _wrap_SBDebugger_RunCommandInterpreter(lua_State* L) {
   arg7 = &temp7; 
   (arg1)->RunCommandInterpreter(arg2,arg3,*arg4,*arg5,*arg6,*arg7);
   
-  lua_pushnumber(L, (lua_Number) *arg5); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) *arg5); SWIG_arg++;
   lua_pushboolean(L, (int)((*arg6)!=0)); SWIG_arg++;
   lua_pushboolean(L, (int)((*arg7)!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -20826,7 +20831,7 @@ static int _wrap_SBDeclaration_GetLine(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBDeclaration const *)arg1)->GetLine();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -20850,7 +20855,7 @@ static int _wrap_SBDeclaration_GetColumn(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBDeclaration const *)arg1)->GetColumn();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -20931,14 +20936,13 @@ static int _wrap_SBDeclaration_SetLine(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDeclaration::SetLine",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDeclaration::SetLine",1,"lldb::SBDeclaration *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDeclaration::SetLine",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDeclaration::SetLine",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDeclaration,0))){
     SWIG_fail_ptr("SBDeclaration_SetLine",1,SWIGTYPE_p_lldb__SBDeclaration);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetLine(arg2);
   
   return SWIG_arg;
@@ -20958,14 +20962,13 @@ static int _wrap_SBDeclaration_SetColumn(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBDeclaration::SetColumn",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBDeclaration::SetColumn",1,"lldb::SBDeclaration *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBDeclaration::SetColumn",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBDeclaration::SetColumn",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBDeclaration,0))){
     SWIG_fail_ptr("SBDeclaration_SetColumn",1,SWIGTYPE_p_lldb__SBDeclaration);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetColumn(arg2);
   
   return SWIG_arg;
@@ -21274,7 +21277,7 @@ static int _wrap_SBError_GetError(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBError const *)arg1)->GetError();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21317,15 +21320,14 @@ static int _wrap_SBError_SetError(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBError::SetError",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBError::SetError",1,"lldb::SBError *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBError::SetError",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBError::SetError",2,"uint32_t");
   if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBError::SetError",3,"lldb::ErrorType");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBError_SetError",1,SWIGTYPE_p_lldb__SBError);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (lldb::ErrorType)(int)lua_tonumber(L, 3);
   (arg1)->SetError(arg2,arg3);
   
@@ -21436,7 +21438,7 @@ static int _wrap_SBError_SetErrorStringWithFormat__SWIG_0(lua_State* L) {
   arg4 = (char *)lua_tostring(L, 4);
   arg5 = (char *)lua_tostring(L, 5);
   result = (int)(arg1)->SetErrorStringWithFormat((char const *)arg2,arg3,arg4,arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21469,7 +21471,7 @@ static int _wrap_SBError_SetErrorStringWithFormat__SWIG_1(lua_State* L) {
   arg3 = (char *)lua_tostring(L, 3);
   arg4 = (char *)lua_tostring(L, 4);
   result = (int)(arg1)->SetErrorStringWithFormat((char const *)arg2,arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21499,7 +21501,7 @@ static int _wrap_SBError_SetErrorStringWithFormat__SWIG_2(lua_State* L) {
   arg2 = (char *)lua_tostring(L, 2);
   arg3 = (char *)lua_tostring(L, 3);
   result = (int)(arg1)->SetErrorStringWithFormat((char const *)arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21526,7 +21528,7 @@ static int _wrap_SBError_SetErrorStringWithFormat__SWIG_3(lua_State* L) {
   
   arg2 = (char *)lua_tostring(L, 2);
   result = (int)(arg1)->SetErrorStringWithFormat((char const *)arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21889,7 +21891,7 @@ static int _wrap_SBEnvironment_GetNumValues(lua_State* L) {
   }
   
   result = (arg1)->GetNumValues();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -21935,14 +21937,13 @@ static int _wrap_SBEnvironment_GetNameAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBEnvironment::GetNameAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBEnvironment::GetNameAtIndex",1,"lldb::SBEnvironment *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBEnvironment::GetNameAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBEnvironment::GetNameAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEnvironment,0))){
     SWIG_fail_ptr("SBEnvironment_GetNameAtIndex",1,SWIGTYPE_p_lldb__SBEnvironment);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetNameAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -21963,14 +21964,13 @@ static int _wrap_SBEnvironment_GetValueAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBEnvironment::GetValueAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBEnvironment::GetValueAtIndex",1,"lldb::SBEnvironment *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBEnvironment::GetValueAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBEnvironment::GetValueAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEnvironment,0))){
     SWIG_fail_ptr("SBEnvironment_GetValueAtIndex",1,SWIGTYPE_p_lldb__SBEnvironment);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetValueAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -22258,14 +22258,12 @@ static int _wrap_new_SBEvent__SWIG_2(lua_State* L) {
   lldb::SBEvent *result = 0 ;
   
   SWIG_check_num_args("lldb::SBEvent::SBEvent",3,3)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBEvent::SBEvent",1,"uint32_t");
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBEvent::SBEvent",1,"uint32_t");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBEvent::SBEvent",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBEvent::SBEvent",3,"uint32_t");
-  SWIG_contract_assert((lua_tonumber(L,1)>=0),"number must not be negative")
-  arg1 = (uint32_t)lua_tonumber(L, 1);
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBEvent::SBEvent",3,"uint32_t");
+  arg1 = (unsigned int)lua_tointeger(L, 1); 
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (lldb::SBEvent *)new lldb::SBEvent(arg1,(char const *)arg2,arg3);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBEvent,1); SWIG_arg++; 
   return SWIG_arg;
@@ -22392,7 +22390,7 @@ static int _wrap_SBEvent_GetType(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBEvent const *)arg1)->GetType();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -23585,7 +23583,7 @@ static int _wrap_SBExpressionOptions_GetTimeoutInMicroSeconds(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBExpressionOptions const *)arg1)->GetTimeoutInMicroSeconds();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -23603,14 +23601,13 @@ static int _wrap_SBExpressionOptions_SetTimeoutInMicroSeconds__SWIG_0(lua_State*
   
   SWIG_check_num_args("lldb::SBExpressionOptions::SetTimeoutInMicroSeconds",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBExpressionOptions::SetTimeoutInMicroSeconds",1,"lldb::SBExpressionOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetTimeoutInMicroSeconds",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetTimeoutInMicroSeconds",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBExpressionOptions,0))){
     SWIG_fail_ptr("SBExpressionOptions_SetTimeoutInMicroSeconds",1,SWIGTYPE_p_lldb__SBExpressionOptions);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetTimeoutInMicroSeconds(arg2);
   
   return SWIG_arg;
@@ -23708,7 +23705,7 @@ static int _wrap_SBExpressionOptions_GetOneThreadTimeoutInMicroSeconds(lua_State
   }
   
   result = (uint32_t)((lldb::SBExpressionOptions const *)arg1)->GetOneThreadTimeoutInMicroSeconds();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -23726,14 +23723,13 @@ static int _wrap_SBExpressionOptions_SetOneThreadTimeoutInMicroSeconds__SWIG_0(l
   
   SWIG_check_num_args("lldb::SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds",1,"lldb::SBExpressionOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBExpressionOptions,0))){
     SWIG_fail_ptr("SBExpressionOptions_SetOneThreadTimeoutInMicroSeconds",1,SWIGTYPE_p_lldb__SBExpressionOptions);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetOneThreadTimeoutInMicroSeconds(arg2);
   
   return SWIG_arg;
@@ -24633,13 +24629,13 @@ static int _wrap_SBExpressionOptions_SetRetriesWithFixIts(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBExpressionOptions::SetRetriesWithFixIts",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBExpressionOptions::SetRetriesWithFixIts",1,"lldb::SBExpressionOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetRetriesWithFixIts",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBExpressionOptions::SetRetriesWithFixIts",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBExpressionOptions,0))){
     SWIG_fail_ptr("SBExpressionOptions_SetRetriesWithFixIts",1,SWIGTYPE_p_lldb__SBExpressionOptions);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->SetRetriesWithFixIts(arg2);
   
   return SWIG_arg;
@@ -24665,7 +24661,7 @@ static int _wrap_SBExpressionOptions_GetRetriesWithFixIts(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetRetriesWithFixIts();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -24953,10 +24949,10 @@ static int _wrap_new_SBFile__SWIG_1(lua_State* L) {
   lldb::SBFile *result = 0 ;
   
   SWIG_check_num_args("lldb::SBFile::SBFile",3,3)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBFile::SBFile",1,"int");
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBFile::SBFile",1,"int");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFile::SBFile",2,"char const *");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBFile::SBFile",3,"bool");
-  arg1 = (int)lua_tonumber(L, 1);
+  arg1 = (signed int)lua_tointeger(L, 1); 
   arg2 = (char *)lua_tostring(L, 2);
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (lldb::SBFile *)new lldb::SBFile(arg1,(char const *)arg2,arg3);
@@ -25148,7 +25144,7 @@ static int _wrap_SBFile_Read(lua_State* L) {
   SWIG_check_num_args("lldb::SBFile::Read",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFile::Read",1,"lldb::SBFile *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBFile::Read",2,"uint8_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBFile::Read",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBFile::Read",3,"size_t");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBFile::Read",4,"size_t *");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFile,0))){
@@ -25160,8 +25156,7 @@ static int _wrap_SBFile_Read(lua_State* L) {
     SWIG_fail_ptr("SBFile_Read",2,SWIGTYPE_p_unsigned_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_size_t,0))){
     SWIG_fail_ptr("SBFile_Read",4,SWIGTYPE_p_size_t);
@@ -25193,7 +25188,7 @@ static int _wrap_SBFile_Write(lua_State* L) {
   SWIG_check_num_args("lldb::SBFile::Write",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFile::Write",1,"lldb::SBFile *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBFile::Write",2,"uint8_t const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBFile::Write",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBFile::Write",3,"size_t");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBFile::Write",4,"size_t *");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFile,0))){
@@ -25205,8 +25200,7 @@ static int _wrap_SBFile_Write(lua_State* L) {
     SWIG_fail_ptr("SBFile_Write",2,SWIGTYPE_p_unsigned_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_size_t,0))){
     SWIG_fail_ptr("SBFile_Write",4,SWIGTYPE_p_size_t);
@@ -25739,17 +25733,16 @@ static int _wrap_SBFileSpec_GetPath(lua_State* L) {
   SWIG_check_num_args("lldb::SBFileSpec::GetPath",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFileSpec::GetPath",1,"lldb::SBFileSpec const *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFileSpec::GetPath",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBFileSpec::GetPath",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBFileSpec::GetPath",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFileSpec,0))){
     SWIG_fail_ptr("SBFileSpec_GetPath",1,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (uint32_t)((lldb::SBFileSpec const *)arg1)->GetPath(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -25770,13 +25763,12 @@ static int _wrap_SBFileSpec_ResolvePath(lua_State* L) {
   SWIG_check_num_args("lldb::SBFileSpec::ResolvePath",3,3)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBFileSpec::ResolvePath",1,"char const *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBFileSpec::ResolvePath",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBFileSpec::ResolvePath",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBFileSpec::ResolvePath",3,"size_t");
   arg1 = (char *)lua_tostring(L, 1);
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (int)lldb::SBFileSpec::ResolvePath((char const *)arg1,arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26017,7 +26009,7 @@ static int _wrap_SBFileSpecList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBFileSpecList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26153,7 +26145,7 @@ static int _wrap_SBFileSpecList_FindFileIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBFileSpecList::FindFileIndex",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFileSpecList::FindFileIndex",1,"lldb::SBFileSpecList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBFileSpecList::FindFileIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBFileSpecList::FindFileIndex",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBFileSpecList::FindFileIndex",3,"lldb::SBFileSpec const &");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBFileSpecList::FindFileIndex",4,"bool");
   
@@ -26161,8 +26153,7 @@ static int _wrap_SBFileSpecList_FindFileIndex(lua_State* L) {
     SWIG_fail_ptr("SBFileSpecList_FindFileIndex",1,SWIGTYPE_p_lldb__SBFileSpecList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBFileSpec,0))){
     SWIG_fail_ptr("SBFileSpecList_FindFileIndex",3,SWIGTYPE_p_lldb__SBFileSpec);
@@ -26170,7 +26161,7 @@ static int _wrap_SBFileSpecList_FindFileIndex(lua_State* L) {
   
   arg4 = (lua_toboolean(L, 4)!=0);
   result = (uint32_t)(arg1)->FindFileIndex(arg2,(lldb::SBFileSpec const &)*arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26189,14 +26180,13 @@ static int _wrap_SBFileSpecList_GetFileSpecAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBFileSpecList::GetFileSpecAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFileSpecList::GetFileSpecAtIndex",1,"lldb::SBFileSpecList const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBFileSpecList::GetFileSpecAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBFileSpecList::GetFileSpecAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBFileSpecList_GetFileSpecAtIndex",1,SWIGTYPE_p_lldb__SBFileSpecList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBFileSpecList const *)arg1)->GetFileSpecAtIndex(arg2);
   {
     lldb::SBFileSpec * resultptr = new lldb::SBFileSpec((const lldb::SBFileSpec &) result);
@@ -26408,7 +26398,7 @@ static int _wrap_SBFrame_GetFrameID(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBFrame const *)arg1)->GetFrameID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26432,7 +26422,7 @@ static int _wrap_SBFrame_GetCFA(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBFrame const *)arg1)->GetCFA();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26456,7 +26446,7 @@ static int _wrap_SBFrame_GetPC(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBFrame const *)arg1)->GetPC();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26475,13 +26465,13 @@ static int _wrap_SBFrame_SetPC(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBFrame::SetPC",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::SetPC",1,"lldb::SBFrame *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBFrame::SetPC",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBFrame::SetPC",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
     SWIG_fail_ptr("SBFrame_SetPC",1,SWIGTYPE_p_lldb__SBFrame);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (bool)(arg1)->SetPC(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -26507,7 +26497,7 @@ static int _wrap_SBFrame_GetSP(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBFrame const *)arg1)->GetSP();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26531,7 +26521,7 @@ static int _wrap_SBFrame_GetFP(lua_State* L) {
   }
   
   result = (lldb::addr_t)((lldb::SBFrame const *)arg1)->GetFP();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -26577,14 +26567,13 @@ static int _wrap_SBFrame_GetSymbolContext(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBFrame::GetSymbolContext",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFrame::GetSymbolContext",1,"lldb::SBFrame const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBFrame::GetSymbolContext",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBFrame::GetSymbolContext",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFrame,0))){
     SWIG_fail_ptr("SBFrame_GetSymbolContext",1,SWIGTYPE_p_lldb__SBFrame);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBFrame const *)arg1)->GetSymbolContext(arg2);
   {
     lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext((const lldb::SBSymbolContext &) result);
@@ -28656,14 +28645,13 @@ static int _wrap_SBFunction_GetArgumentName(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBFunction::GetArgumentName",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBFunction::GetArgumentName",1,"lldb::SBFunction *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBFunction::GetArgumentName",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBFunction::GetArgumentName",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBFunction,0))){
     SWIG_fail_ptr("SBFunction_GetArgumentName",1,SWIGTYPE_p_lldb__SBFunction);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetArgumentName(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -28689,7 +28677,7 @@ static int _wrap_SBFunction_GetPrologueByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetPrologueByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -29547,7 +29535,7 @@ static int _wrap_SBInstruction_GetByteSize(lua_State* L) {
   }
   
   result = (arg1)->GetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -29799,7 +29787,7 @@ static int _wrap_SBInstruction_EmulateWithFrame(lua_State* L) {
   SWIG_check_num_args("lldb::SBInstruction::EmulateWithFrame",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBInstruction::EmulateWithFrame",1,"lldb::SBInstruction *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBInstruction::EmulateWithFrame",2,"lldb::SBFrame &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBInstruction::EmulateWithFrame",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBInstruction::EmulateWithFrame",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBInstruction,0))){
     SWIG_fail_ptr("SBInstruction_EmulateWithFrame",1,SWIGTYPE_p_lldb__SBInstruction);
@@ -29810,8 +29798,7 @@ static int _wrap_SBInstruction_EmulateWithFrame(lua_State* L) {
     SWIG_fail_ptr("SBInstruction_EmulateWithFrame",2,SWIGTYPE_p_lldb__SBFrame);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (bool)(arg1)->EmulateWithFrame(*arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -30084,7 +30071,7 @@ static int _wrap_SBInstructionList_GetSize(lua_State* L) {
   }
   
   result = (arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30103,14 +30090,13 @@ static int _wrap_SBInstructionList_GetInstructionAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBInstructionList::GetInstructionAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionAtIndex",1,"lldb::SBInstructionList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBInstructionList::GetInstructionAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBInstructionList,0))){
     SWIG_fail_ptr("SBInstructionList_GetInstructionAtIndex",1,SWIGTYPE_p_lldb__SBInstructionList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetInstructionAtIndex(arg2);
   {
     lldb::SBInstruction * resultptr = new lldb::SBInstruction((const lldb::SBInstruction &) result);
@@ -30156,7 +30142,7 @@ static int _wrap_SBInstructionList_GetInstructionsCount(lua_State* L) {
   
   arg4 = (lua_toboolean(L, 4)!=0);
   result = (arg1)->GetInstructionsCount((lldb::SBAddress const &)*arg2,(lldb::SBAddress const &)*arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30633,7 +30619,7 @@ static int _wrap_SBLaunchInfo_GetProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30657,7 +30643,7 @@ static int _wrap_SBLaunchInfo_GetUserID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetUserID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30681,7 +30667,7 @@ static int _wrap_SBLaunchInfo_GetGroupID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetGroupID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30747,14 +30733,13 @@ static int _wrap_SBLaunchInfo_SetUserID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::SetUserID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::SetUserID",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetUserID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetUserID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_SetUserID",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetUserID(arg2);
   
   return SWIG_arg;
@@ -30774,14 +30759,13 @@ static int _wrap_SBLaunchInfo_SetGroupID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::SetGroupID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::SetGroupID",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetGroupID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetGroupID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_SetGroupID",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetGroupID(arg2);
   
   return SWIG_arg;
@@ -30926,7 +30910,7 @@ static int _wrap_SBLaunchInfo_GetNumArguments(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumArguments();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -30945,14 +30929,13 @@ static int _wrap_SBLaunchInfo_GetArgumentAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::GetArgumentAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::GetArgumentAtIndex",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::GetArgumentAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::GetArgumentAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_GetArgumentAtIndex",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetArgumentAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -31011,7 +30994,7 @@ static int _wrap_SBLaunchInfo_GetNumEnvironmentEntries(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumEnvironmentEntries();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -31030,14 +31013,13 @@ static int _wrap_SBLaunchInfo_GetEnvironmentEntryAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::GetEnvironmentEntryAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::GetEnvironmentEntryAtIndex",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::GetEnvironmentEntryAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::GetEnvironmentEntryAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_GetEnvironmentEntryAtIndex",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetEnvironmentEntryAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -31229,7 +31211,7 @@ static int _wrap_SBLaunchInfo_GetLaunchFlags(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetLaunchFlags();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -31247,14 +31229,13 @@ static int _wrap_SBLaunchInfo_SetLaunchFlags(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::SetLaunchFlags",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::SetLaunchFlags",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetLaunchFlags",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetLaunchFlags",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_SetLaunchFlags",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetLaunchFlags(arg2);
   
   return SWIG_arg;
@@ -31430,7 +31411,7 @@ static int _wrap_SBLaunchInfo_GetResumeCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetResumeCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -31448,14 +31429,13 @@ static int _wrap_SBLaunchInfo_SetResumeCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::SetResumeCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::SetResumeCount",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetResumeCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::SetResumeCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_SetResumeCount",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetResumeCount(arg2);
   
   return SWIG_arg;
@@ -31476,13 +31456,13 @@ static int _wrap_SBLaunchInfo_AddCloseFileAction(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::AddCloseFileAction",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::AddCloseFileAction",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddCloseFileAction",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddCloseFileAction",2,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_AddCloseFileAction",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)(arg1)->AddCloseFileAction(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -31504,15 +31484,15 @@ static int _wrap_SBLaunchInfo_AddDuplicateFileAction(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::AddDuplicateFileAction",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::AddDuplicateFileAction",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddDuplicateFileAction",2,"int");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBLaunchInfo::AddDuplicateFileAction",3,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddDuplicateFileAction",2,"int");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBLaunchInfo::AddDuplicateFileAction",3,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLaunchInfo,0))){
     SWIG_fail_ptr("SBLaunchInfo_AddDuplicateFileAction",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
-  arg3 = (int)lua_tonumber(L, 3);
+  arg2 = (signed int)lua_tointeger(L, 2); 
+  arg3 = (signed int)lua_tointeger(L, 3); 
   result = (bool)(arg1)->AddDuplicateFileAction(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -31536,7 +31516,7 @@ static int _wrap_SBLaunchInfo_AddOpenFileAction(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::AddOpenFileAction",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",2,"int");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",3,"char const *");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",4,"bool");
   if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBLaunchInfo::AddOpenFileAction",5,"bool");
@@ -31545,7 +31525,7 @@ static int _wrap_SBLaunchInfo_AddOpenFileAction(lua_State* L) {
     SWIG_fail_ptr("SBLaunchInfo_AddOpenFileAction",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (char *)lua_tostring(L, 3);
   arg4 = (lua_toboolean(L, 4)!=0);
   arg5 = (lua_toboolean(L, 5)!=0);
@@ -31571,7 +31551,7 @@ static int _wrap_SBLaunchInfo_AddSuppressFileAction(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLaunchInfo::AddSuppressFileAction",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLaunchInfo::AddSuppressFileAction",1,"lldb::SBLaunchInfo *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddSuppressFileAction",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLaunchInfo::AddSuppressFileAction",2,"int");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBLaunchInfo::AddSuppressFileAction",3,"bool");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBLaunchInfo::AddSuppressFileAction",4,"bool");
   
@@ -31579,7 +31559,7 @@ static int _wrap_SBLaunchInfo_AddSuppressFileAction(lua_State* L) {
     SWIG_fail_ptr("SBLaunchInfo_AddSuppressFileAction",1,SWIGTYPE_p_lldb__SBLaunchInfo);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   arg4 = (lua_toboolean(L, 4)!=0);
   result = (bool)(arg1)->AddSuppressFileAction(arg2,arg3,arg4);
@@ -31973,7 +31953,7 @@ static int _wrap_SBLineEntry_GetLine(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBLineEntry const *)arg1)->GetLine();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -31997,7 +31977,7 @@ static int _wrap_SBLineEntry_GetColumn(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBLineEntry const *)arg1)->GetColumn();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -32078,14 +32058,13 @@ static int _wrap_SBLineEntry_SetLine(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLineEntry::SetLine",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLineEntry::SetLine",1,"lldb::SBLineEntry *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLineEntry::SetLine",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLineEntry::SetLine",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLineEntry,0))){
     SWIG_fail_ptr("SBLineEntry_SetLine",1,SWIGTYPE_p_lldb__SBLineEntry);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetLine(arg2);
   
   return SWIG_arg;
@@ -32105,14 +32084,13 @@ static int _wrap_SBLineEntry_SetColumn(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBLineEntry::SetColumn",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBLineEntry::SetColumn",1,"lldb::SBLineEntry *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBLineEntry::SetColumn",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBLineEntry::SetColumn",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBLineEntry,0))){
     SWIG_fail_ptr("SBLineEntry_SetColumn",1,SWIGTYPE_p_lldb__SBLineEntry);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetColumn(arg2);
   
   return SWIG_arg;
@@ -32434,7 +32412,7 @@ static int _wrap_SBListener_StartListeningForEventClass(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::StartListeningForEventClass",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::StartListeningForEventClass",2,"lldb::SBDebugger &");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBListener::StartListeningForEventClass",3,"char const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBListener::StartListeningForEventClass",4,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBListener::StartListeningForEventClass",4,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_StartListeningForEventClass",1,SWIGTYPE_p_lldb__SBListener);
@@ -32446,10 +32424,9 @@ static int _wrap_SBListener_StartListeningForEventClass(lua_State* L) {
   }
   
   arg3 = (char *)lua_tostring(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   result = (uint32_t)(arg1)->StartListeningForEventClass(*arg2,(char const *)arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -32472,7 +32449,7 @@ static int _wrap_SBListener_StopListeningForEventClass(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",2,"lldb::SBDebugger &");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",3,"char const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",4,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBListener::StopListeningForEventClass",4,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_StopListeningForEventClass",1,SWIGTYPE_p_lldb__SBListener);
@@ -32484,10 +32461,9 @@ static int _wrap_SBListener_StopListeningForEventClass(lua_State* L) {
   }
   
   arg3 = (char *)lua_tostring(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   result = (uint32_t)(arg1)->StopListeningForEventClass(*arg2,(char const *)arg3,arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -32508,7 +32484,7 @@ static int _wrap_SBListener_StartListeningForEvents(lua_State* L) {
   SWIG_check_num_args("lldb::SBListener::StartListeningForEvents",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::StartListeningForEvents",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::StartListeningForEvents",2,"lldb::SBBroadcaster const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBListener::StartListeningForEvents",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBListener::StartListeningForEvents",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_StartListeningForEvents",1,SWIGTYPE_p_lldb__SBListener);
@@ -32519,10 +32495,9 @@ static int _wrap_SBListener_StartListeningForEvents(lua_State* L) {
     SWIG_fail_ptr("SBListener_StartListeningForEvents",2,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (uint32_t)(arg1)->StartListeningForEvents((lldb::SBBroadcaster const &)*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -32543,7 +32518,7 @@ static int _wrap_SBListener_StopListeningForEvents(lua_State* L) {
   SWIG_check_num_args("lldb::SBListener::StopListeningForEvents",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::StopListeningForEvents",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::StopListeningForEvents",2,"lldb::SBBroadcaster const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBListener::StopListeningForEvents",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBListener::StopListeningForEvents",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_StopListeningForEvents",1,SWIGTYPE_p_lldb__SBListener);
@@ -32554,8 +32529,7 @@ static int _wrap_SBListener_StopListeningForEvents(lua_State* L) {
     SWIG_fail_ptr("SBListener_StopListeningForEvents",2,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (bool)(arg1)->StopListeningForEvents((lldb::SBBroadcaster const &)*arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -32577,15 +32551,14 @@ static int _wrap_SBListener_WaitForEvent(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBListener::WaitForEvent",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::WaitForEvent",1,"lldb::SBListener *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEvent",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEvent",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBListener::WaitForEvent",3,"lldb::SBEvent &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_WaitForEvent",1,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBListener_WaitForEvent",3,SWIGTYPE_p_lldb__SBEvent);
@@ -32613,7 +32586,7 @@ static int _wrap_SBListener_WaitForEventForBroadcaster(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBListener::WaitForEventForBroadcaster",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcaster",1,"lldb::SBListener *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcaster",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcaster",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcaster",3,"lldb::SBBroadcaster const &");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcaster",4,"lldb::SBEvent &");
   
@@ -32621,8 +32594,7 @@ static int _wrap_SBListener_WaitForEventForBroadcaster(lua_State* L) {
     SWIG_fail_ptr("SBListener_WaitForEventForBroadcaster",1,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBListener_WaitForEventForBroadcaster",3,SWIGTYPE_p_lldb__SBBroadcaster);
@@ -32656,24 +32628,22 @@ static int _wrap_SBListener_WaitForEventForBroadcasterWithType(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBListener::WaitForEventForBroadcasterWithType",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",1,"lldb::SBListener *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",3,"lldb::SBBroadcaster const &");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",4,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",4,"uint32_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBListener::WaitForEventForBroadcasterWithType",5,"lldb::SBEvent &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
     SWIG_fail_ptr("SBListener_WaitForEventForBroadcasterWithType",1,SWIGTYPE_p_lldb__SBListener);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBBroadcaster,0))){
     SWIG_fail_ptr("SBListener_WaitForEventForBroadcasterWithType",3,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBListener_WaitForEventForBroadcasterWithType",5,SWIGTYPE_p_lldb__SBEvent);
@@ -32771,7 +32741,7 @@ static int _wrap_SBListener_PeekAtNextEventForBroadcasterWithType(lua_State* L) 
   SWIG_check_num_args("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",2,"lldb::SBBroadcaster const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBListener::PeekAtNextEventForBroadcasterWithType",4,"lldb::SBEvent &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
@@ -32783,8 +32753,7 @@ static int _wrap_SBListener_PeekAtNextEventForBroadcasterWithType(lua_State* L) 
     SWIG_fail_ptr("SBListener_PeekAtNextEventForBroadcasterWithType",2,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBListener_PeekAtNextEventForBroadcasterWithType",4,SWIGTYPE_p_lldb__SBEvent);
@@ -32882,7 +32851,7 @@ static int _wrap_SBListener_GetNextEventForBroadcasterWithType(lua_State* L) {
   SWIG_check_num_args("lldb::SBListener::GetNextEventForBroadcasterWithType",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBListener::GetNextEventForBroadcasterWithType",1,"lldb::SBListener *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBListener::GetNextEventForBroadcasterWithType",2,"lldb::SBBroadcaster const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBListener::GetNextEventForBroadcasterWithType",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBListener::GetNextEventForBroadcasterWithType",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBListener::GetNextEventForBroadcasterWithType",4,"lldb::SBEvent &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBListener,0))){
@@ -32894,8 +32863,7 @@ static int _wrap_SBListener_GetNextEventForBroadcasterWithType(lua_State* L) {
     SWIG_fail_ptr("SBListener_GetNextEventForBroadcasterWithType",2,SWIGTYPE_p_lldb__SBBroadcaster);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBListener_GetNextEventForBroadcasterWithType",4,SWIGTYPE_p_lldb__SBEvent);
@@ -33118,7 +33086,7 @@ static int _wrap_SBMemoryRegionInfo_GetRegionBase(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetRegionBase();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -33142,7 +33110,7 @@ static int _wrap_SBMemoryRegionInfo_GetRegionEnd(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetRegionEnd();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -33506,7 +33474,7 @@ static int _wrap_SBMemoryRegionInfoList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBMemoryRegionInfoList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -33526,15 +33494,14 @@ static int _wrap_SBMemoryRegionInfoList_GetMemoryRegionAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBMemoryRegionInfoList::GetMemoryRegionAtIndex",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBMemoryRegionInfoList::GetMemoryRegionAtIndex",1,"lldb::SBMemoryRegionInfoList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBMemoryRegionInfoList::GetMemoryRegionAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBMemoryRegionInfoList::GetMemoryRegionAtIndex",2,"uint32_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBMemoryRegionInfoList::GetMemoryRegionAtIndex",3,"lldb::SBMemoryRegionInfo &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBMemoryRegionInfoList,0))){
     SWIG_fail_ptr("SBMemoryRegionInfoList_GetMemoryRegionAtIndex",1,SWIGTYPE_p_lldb__SBMemoryRegionInfoList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBMemoryRegionInfo,0))){
     SWIG_fail_ptr("SBMemoryRegionInfoList_GetMemoryRegionAtIndex",3,SWIGTYPE_p_lldb__SBMemoryRegionInfo);
@@ -33823,13 +33790,13 @@ static int _wrap_new_SBModule__SWIG_3(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::SBModule",2,2)
   if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBModule::SBModule",1,"lldb::SBProcess &");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::SBModule",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::SBModule",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("new_SBModule",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (lldb::SBModule *)new lldb::SBModule(*arg1,arg2);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBModule,1); SWIG_arg++; 
   return SWIG_arg;
@@ -34193,13 +34160,13 @@ static int _wrap_SBModule_ResolveFileAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::ResolveFileAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::ResolveFileAddress",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::ResolveFileAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::ResolveFileAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_ResolveFileAddress",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->ResolveFileAddress(arg2);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -34225,7 +34192,7 @@ static int _wrap_SBModule_ResolveSymbolContextForAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBModule::ResolveSymbolContextForAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::ResolveSymbolContextForAddress",1,"lldb::SBModule *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::ResolveSymbolContextForAddress",2,"lldb::SBAddress const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBModule::ResolveSymbolContextForAddress",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBModule::ResolveSymbolContextForAddress",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_ResolveSymbolContextForAddress",1,SWIGTYPE_p_lldb__SBModule);
@@ -34236,8 +34203,7 @@ static int _wrap_SBModule_ResolveSymbolContextForAddress(lua_State* L) {
     SWIG_fail_ptr("SBModule_ResolveSymbolContextForAddress",2,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->ResolveSymbolContextForAddress((lldb::SBAddress const &)*arg2,arg3);
   {
     lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext((const lldb::SBSymbolContext &) result);
@@ -34297,7 +34263,7 @@ static int _wrap_SBModule_GetNumCompileUnits(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumCompileUnits();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -34316,14 +34282,13 @@ static int _wrap_SBModule_GetCompileUnitAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetCompileUnitAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetCompileUnitAtIndex",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::GetCompileUnitAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::GetCompileUnitAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetCompileUnitAtIndex",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetCompileUnitAtIndex(arg2);
   {
     lldb::SBCompileUnit * resultptr = new lldb::SBCompileUnit((const lldb::SBCompileUnit &) result);
@@ -34386,7 +34351,7 @@ static int _wrap_SBModule_GetNumSymbols(lua_State* L) {
   }
   
   result = (arg1)->GetNumSymbols();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -34405,14 +34370,13 @@ static int _wrap_SBModule_GetSymbolAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetSymbolAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetSymbolAtIndex",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::GetSymbolAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::GetSymbolAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetSymbolAtIndex",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetSymbolAtIndex(arg2);
   {
     lldb::SBSymbol * resultptr = new lldb::SBSymbol((const lldb::SBSymbol &) result);
@@ -34685,7 +34649,7 @@ static int _wrap_SBModule_GetNumSections(lua_State* L) {
   }
   
   result = (arg1)->GetNumSections();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -34704,14 +34668,13 @@ static int _wrap_SBModule_GetSectionAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetSectionAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetSectionAtIndex",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::GetSectionAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::GetSectionAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetSectionAtIndex",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetSectionAtIndex(arg2);
   {
     lldb::SBSection * resultptr = new lldb::SBSection((const lldb::SBSection &) result);
@@ -34737,15 +34700,14 @@ static int _wrap_SBModule_FindFunctions__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBModule::FindFunctions",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindFunctions",1,"lldb::SBModule *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBModule::FindFunctions",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBModule::FindFunctions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBModule::FindFunctions",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_FindFunctions",1,SWIGTYPE_p_lldb__SBModule);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->FindFunctions((char const *)arg2,arg3);
   {
     lldb::SBSymbolContextList * resultptr = new lldb::SBSymbolContextList((const lldb::SBSymbolContextList &) result);
@@ -34918,13 +34880,13 @@ static int _wrap_SBModule_GetTypeByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetTypeByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetTypeByID",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::GetTypeByID",2,"lldb::user_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::GetTypeByID",2,"lldb::user_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetTypeByID",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  arg2 = (lldb::user_id_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeByID(arg2);
   {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
@@ -34978,14 +34940,13 @@ static int _wrap_SBModule_GetTypes__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetTypes",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetTypes",1,"lldb::SBModule *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModule::GetTypes",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModule::GetTypes",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetTypes",1,SWIGTYPE_p_lldb__SBModule);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypes(arg2);
   {
     lldb::SBTypeList * resultptr = new lldb::SBTypeList((const lldb::SBTypeList &) result);
@@ -35089,7 +35050,7 @@ static int _wrap_SBModule_FindGlobalVariables(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",1,"lldb::SBModule *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",2,"lldb::SBTarget &");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",3,"char const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",4,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBModule::FindGlobalVariables",4,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_FindGlobalVariables",1,SWIGTYPE_p_lldb__SBModule);
@@ -35101,8 +35062,7 @@ static int _wrap_SBModule_FindGlobalVariables(lua_State* L) {
   }
   
   arg3 = (char *)lua_tostring(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   result = (arg1)->FindGlobalVariables(*arg2,(char const *)arg3,arg4);
   {
     lldb::SBValueList * resultptr = new lldb::SBValueList((const lldb::SBValueList &) result);
@@ -35192,7 +35152,7 @@ static int _wrap_SBModule_GetAddressByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetAddressByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -35237,7 +35197,7 @@ static int _wrap_SBModule_GetVersion(lua_State* L) {
   SWIG_check_num_args("lldb::SBModule::GetVersion",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModule::GetVersion",1,"lldb::SBModule *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBModule::GetVersion",2,"uint32_t *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBModule::GetVersion",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBModule::GetVersion",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModule,0))){
     SWIG_fail_ptr("SBModule_GetVersion",1,SWIGTYPE_p_lldb__SBModule);
@@ -35248,10 +35208,9 @@ static int _wrap_SBModule_GetVersion(lua_State* L) {
     SWIG_fail_ptr("SBModule_GetVersion",2,SWIGTYPE_p_unsigned_int);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (uint32_t)(arg1)->GetVersion(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -35349,7 +35308,23 @@ static int _wrap_SBModule_GetNumberAllocatedModules(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModule::GetNumberAllocatedModules",0,0)
   result = (uint32_t)lldb::SBModule::GetNumberAllocatedModules();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBModule_GarbageCollectAllocatedModules(lua_State* L) {
+  int SWIG_arg = 0;
+  
+  SWIG_check_num_args("lldb::SBModule::GarbageCollectAllocatedModules",0,0)
+  lldb::SBModule::GarbageCollectAllocatedModules();
+  
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -35454,6 +35429,7 @@ static swig_lua_const_info swig_SBModule_Sf_SwigStatic_constants[]= {
 };
 static swig_lua_method swig_SBModule_Sf_SwigStatic_methods[]= {
     { "GetNumberAllocatedModules", _wrap_SBModule_GetNumberAllocatedModules},
+    { "GarbageCollectAllocatedModules", _wrap_SBModule_GarbageCollectAllocatedModules},
     {0,0}
 };
 static swig_lua_class* swig_SBModule_Sf_SwigStatic_classes[]= {
@@ -35901,7 +35877,7 @@ static int _wrap_SBModuleSpec_GetUUIDLength(lua_State* L) {
   }
   
   result = (arg1)->GetUUIDLength();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -35922,7 +35898,7 @@ static int _wrap_SBModuleSpec_SetUUIDBytes(lua_State* L) {
   SWIG_check_num_args("lldb::SBModuleSpec::SetUUIDBytes",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpec::SetUUIDBytes",1,"lldb::SBModuleSpec *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBModuleSpec::SetUUIDBytes",2,"uint8_t const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBModuleSpec::SetUUIDBytes",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBModuleSpec::SetUUIDBytes",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpec,0))){
     SWIG_fail_ptr("SBModuleSpec_SetUUIDBytes",1,SWIGTYPE_p_lldb__SBModuleSpec);
@@ -35933,8 +35909,7 @@ static int _wrap_SBModuleSpec_SetUUIDBytes(lua_State* L) {
     SWIG_fail_ptr("SBModuleSpec_SetUUIDBytes",2,SWIGTYPE_p_unsigned_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (bool)(arg1)->SetUUIDBytes((uint8_t const *)arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -36369,7 +36344,7 @@ static int _wrap_SBModuleSpecList_GetSize(lua_State* L) {
   }
   
   result = (arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -36388,14 +36363,13 @@ static int _wrap_SBModuleSpecList_GetSpecAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBModuleSpecList::GetSpecAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBModuleSpecList::GetSpecAtIndex",1,"lldb::SBModuleSpecList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBModuleSpecList::GetSpecAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBModuleSpecList::GetSpecAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBModuleSpecList,0))){
     SWIG_fail_ptr("SBModuleSpecList_GetSpecAtIndex",1,SWIGTYPE_p_lldb__SBModuleSpecList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetSpecAtIndex(arg2);
   {
     lldb::SBModuleSpec * resultptr = new lldb::SBModuleSpec((const lldb::SBModuleSpec &) result);
@@ -36841,6 +36815,29 @@ static swig_lua_class _wrap_class_SBPlatformConnectOptions = { "SBPlatformConnec
 static int _wrap_new_SBPlatformShellCommand__SWIG_0(lua_State* L) {
   int SWIG_arg = 0;
   char *arg1 = (char *) 0 ;
+  char *arg2 = (char *) 0 ;
+  lldb::SBPlatformShellCommand *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBPlatformShellCommand::SBPlatformShellCommand",2,2)
+  if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SBPlatformShellCommand",1,"char const *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SBPlatformShellCommand",2,"char const *");
+  arg1 = (char *)lua_tostring(L, 1);
+  arg2 = (char *)lua_tostring(L, 2);
+  result = (lldb::SBPlatformShellCommand *)new lldb::SBPlatformShellCommand((char const *)arg1,(char const *)arg2);
+  SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBPlatformShellCommand,1); SWIG_arg++; 
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_new_SBPlatformShellCommand__SWIG_1(lua_State* L) {
+  int SWIG_arg = 0;
+  char *arg1 = (char *) 0 ;
   lldb::SBPlatformShellCommand *result = 0 ;
   
   SWIG_check_num_args("lldb::SBPlatformShellCommand::SBPlatformShellCommand",1,1)
@@ -36858,7 +36855,7 @@ fail:
 }
 
 
-static int _wrap_new_SBPlatformShellCommand__SWIG_1(lua_State* L) {
+static int _wrap_new_SBPlatformShellCommand__SWIG_2(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBPlatformShellCommand *arg1 = 0 ;
   lldb::SBPlatformShellCommand *result = 0 ;
@@ -36884,8 +36881,8 @@ fail:
 
 static int _wrap_new_SBPlatformShellCommand(lua_State* L) {
   int argc;
-  int argv[2]={
-    1,2
+  int argv[3]={
+    1,2,3
   };
   
   argc = lua_gettop(L);
@@ -36900,7 +36897,7 @@ static int _wrap_new_SBPlatformShellCommand(lua_State* L) {
       }
     }
     if (_v) {
-      return _wrap_new_SBPlatformShellCommand__SWIG_1(L);
+      return _wrap_new_SBPlatformShellCommand__SWIG_2(L);
     }
   }
   if (argc == 1) {
@@ -36909,12 +36906,27 @@ static int _wrap_new_SBPlatformShellCommand(lua_State* L) {
       _v = SWIG_lua_isnilstring(L,argv[0]);
     }
     if (_v) {
-      return _wrap_new_SBPlatformShellCommand__SWIG_0(L);
+      return _wrap_new_SBPlatformShellCommand__SWIG_1(L);
+    }
+  }
+  if (argc == 2) {
+    int _v;
+    {
+      _v = SWIG_lua_isnilstring(L,argv[0]);
+    }
+    if (_v) {
+      {
+        _v = SWIG_lua_isnilstring(L,argv[1]);
+      }
+      if (_v) {
+        return _wrap_new_SBPlatformShellCommand__SWIG_0(L);
+      }
     }
   }
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'new_SBPlatformShellCommand'\n"
     "  Possible C/C++ prototypes are:\n"
+    "    lldb::SBPlatformShellCommand::SBPlatformShellCommand(char const *,char const *)\n"
     "    lldb::SBPlatformShellCommand::SBPlatformShellCommand(char const *)\n"
     "    lldb::SBPlatformShellCommand::SBPlatformShellCommand(lldb::SBPlatformShellCommand const &)\n");
   lua_error(L);return 0;
@@ -36933,6 +36945,56 @@ static int _wrap_SBPlatformShellCommand_Clear(lua_State* L) {
   }
   
   (arg1)->Clear();
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBPlatformShellCommand_GetShell(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBPlatformShellCommand *arg1 = (lldb::SBPlatformShellCommand *) 0 ;
+  char *result = 0 ;
+  
+  SWIG_check_num_args("lldb::SBPlatformShellCommand::GetShell",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatformShellCommand::GetShell",1,"lldb::SBPlatformShellCommand *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatformShellCommand,0))){
+    SWIG_fail_ptr("SBPlatformShellCommand_GetShell",1,SWIGTYPE_p_lldb__SBPlatformShellCommand);
+  }
+  
+  result = (char *)(arg1)->GetShell();
+  lua_pushstring(L,(const char *)result); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBPlatformShellCommand_SetShell(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBPlatformShellCommand *arg1 = (lldb::SBPlatformShellCommand *) 0 ;
+  char *arg2 = (char *) 0 ;
+  
+  SWIG_check_num_args("lldb::SBPlatformShellCommand::SetShell",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SetShell",1,"lldb::SBPlatformShellCommand *");
+  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SetShell",2,"char const *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatformShellCommand,0))){
+    SWIG_fail_ptr("SBPlatformShellCommand_SetShell",1,SWIGTYPE_p_lldb__SBPlatformShellCommand);
+  }
+  
+  arg2 = (char *)lua_tostring(L, 2);
+  (arg1)->SetShell((char const *)arg2);
   
   return SWIG_arg;
   
@@ -37057,7 +37119,7 @@ static int _wrap_SBPlatformShellCommand_GetTimeoutSeconds(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetTimeoutSeconds();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37075,14 +37137,13 @@ static int _wrap_SBPlatformShellCommand_SetTimeoutSeconds(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBPlatformShellCommand::SetTimeoutSeconds",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SetTimeoutSeconds",1,"lldb::SBPlatformShellCommand *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SetTimeoutSeconds",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBPlatformShellCommand::SetTimeoutSeconds",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatformShellCommand,0))){
     SWIG_fail_ptr("SBPlatformShellCommand_SetTimeoutSeconds",1,SWIGTYPE_p_lldb__SBPlatformShellCommand);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetTimeoutSeconds(arg2);
   
   return SWIG_arg;
@@ -37108,7 +37169,7 @@ static int _wrap_SBPlatformShellCommand_GetSignal(lua_State* L) {
   }
   
   result = (int)(arg1)->GetSignal();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37132,7 +37193,7 @@ static int _wrap_SBPlatformShellCommand_GetStatus(lua_State* L) {
   }
   
   result = (int)(arg1)->GetStatus();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37184,6 +37245,8 @@ static swig_lua_attribute swig_SBPlatformShellCommand_attributes[] = {
 };
 static swig_lua_method swig_SBPlatformShellCommand_methods[]= {
     { "Clear", _wrap_SBPlatformShellCommand_Clear},
+    { "GetShell", _wrap_SBPlatformShellCommand_GetShell},
+    { "SetShell", _wrap_SBPlatformShellCommand_SetShell},
     { "GetCommand", _wrap_SBPlatformShellCommand_GetCommand},
     { "SetCommand", _wrap_SBPlatformShellCommand_SetCommand},
     { "GetWorkingDirectory", _wrap_SBPlatformShellCommand_GetWorkingDirectory},
@@ -37621,7 +37684,7 @@ static int _wrap_SBPlatform_GetOSMajorVersion(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOSMajorVersion();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37645,7 +37708,7 @@ static int _wrap_SBPlatform_GetOSMinorVersion(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOSMinorVersion();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37669,7 +37732,7 @@ static int _wrap_SBPlatform_GetOSUpdateVersion(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOSUpdateVersion();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -37879,13 +37942,13 @@ static int _wrap_SBPlatform_Kill(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBPlatform::Kill",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::Kill",1,"lldb::SBPlatform *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBPlatform::Kill",2,"lldb::pid_t const");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBPlatform::Kill",2,"lldb::pid_t const");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
     SWIG_fail_ptr("SBPlatform_Kill",1,SWIGTYPE_p_lldb__SBPlatform);
   }
   
-  arg2 = (lldb::pid_t const)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->Kill(arg2);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -37911,15 +37974,14 @@ static int _wrap_SBPlatform_MakeDirectory__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBPlatform::MakeDirectory",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::MakeDirectory",1,"lldb::SBPlatform *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBPlatform::MakeDirectory",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBPlatform::MakeDirectory",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBPlatform::MakeDirectory",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
     SWIG_fail_ptr("SBPlatform_MakeDirectory",1,SWIGTYPE_p_lldb__SBPlatform);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->MakeDirectory((char const *)arg2,arg3);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -38040,7 +38102,7 @@ static int _wrap_SBPlatform_GetFilePermissions(lua_State* L) {
   
   arg2 = (char *)lua_tostring(L, 2);
   result = (uint32_t)(arg1)->GetFilePermissions((char const *)arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38061,15 +38123,14 @@ static int _wrap_SBPlatform_SetFilePermissions(lua_State* L) {
   SWIG_check_num_args("lldb::SBPlatform::SetFilePermissions",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBPlatform::SetFilePermissions",1,"lldb::SBPlatform *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBPlatform::SetFilePermissions",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBPlatform::SetFilePermissions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBPlatform::SetFilePermissions",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBPlatform,0))){
     SWIG_fail_ptr("SBPlatform_SetFilePermissions",1,SWIGTYPE_p_lldb__SBPlatform);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->SetFilePermissions((char const *)arg2,arg3);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -38460,17 +38521,16 @@ static int _wrap_SBProcess_PutSTDIN(lua_State* L) {
   SWIG_check_num_args("lldb::SBProcess::PutSTDIN",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::PutSTDIN",1,"lldb::SBProcess *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBProcess::PutSTDIN",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::PutSTDIN",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBProcess::PutSTDIN",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_PutSTDIN",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (arg1)->PutSTDIN((char const *)arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38488,20 +38548,32 @@ static int _wrap_SBProcess_GetSTDOUT(lua_State* L) {
   size_t arg3 ;
   size_t result;
   
-  SWIG_check_num_args("lldb::SBProcess::GetSTDOUT",3,3)
+  SWIG_check_num_args("lldb::SBProcess::GetSTDOUT",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetSTDOUT",1,"lldb::SBProcess const *");
-  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBProcess::GetSTDOUT",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::GetSTDOUT",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetSTDOUT",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  {
+    arg3 = luaL_checkinteger(L, 2);
+    if (arg3 <= 0) {
+      return luaL_error(L, "Positive integer expected");
+    }
+    arg2 = (char *) malloc(arg3);
+  }
   result = ((lldb::SBProcess const *)arg1)->GetSTDOUT(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  {
+    lua_pop(L, 1); // Blow away the previous result
+    if (result == 0) {
+      lua_pushliteral(L, "");
+    } else {
+      lua_pushlstring(L, (const char *)arg2, result);
+    }
+    free(arg2);
+    // SWIG_arg was already incremented
+  }
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38519,20 +38591,32 @@ static int _wrap_SBProcess_GetSTDERR(lua_State* L) {
   size_t arg3 ;
   size_t result;
   
-  SWIG_check_num_args("lldb::SBProcess::GetSTDERR",3,3)
+  SWIG_check_num_args("lldb::SBProcess::GetSTDERR",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetSTDERR",1,"lldb::SBProcess const *");
-  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBProcess::GetSTDERR",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::GetSTDERR",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetSTDERR",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  {
+    arg3 = luaL_checkinteger(L, 2);
+    if (arg3 <= 0) {
+      return luaL_error(L, "Positive integer expected");
+    }
+    arg2 = (char *) malloc(arg3);
+  }
   result = ((lldb::SBProcess const *)arg1)->GetSTDERR(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  {
+    lua_pop(L, 1); // Blow away the previous result
+    if (result == 0) {
+      lua_pushliteral(L, "");
+    } else {
+      lua_pushlstring(L, (const char *)arg2, result);
+    }
+    free(arg2);
+    // SWIG_arg was already incremented
+  }
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38550,20 +38634,32 @@ static int _wrap_SBProcess_GetAsyncProfileData(lua_State* L) {
   size_t arg3 ;
   size_t result;
   
-  SWIG_check_num_args("lldb::SBProcess::GetAsyncProfileData",3,3)
+  SWIG_check_num_args("lldb::SBProcess::GetAsyncProfileData",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetAsyncProfileData",1,"lldb::SBProcess const *");
-  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBProcess::GetAsyncProfileData",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::GetAsyncProfileData",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetAsyncProfileData",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  {
+    arg3 = luaL_checkinteger(L, 2);
+    if (arg3 <= 0) {
+      return luaL_error(L, "Positive integer expected");
+    }
+    arg2 = (char *) malloc(arg3);
+  }
   result = ((lldb::SBProcess const *)arg1)->GetAsyncProfileData(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  {
+    lua_pop(L, 1); // Blow away the previous result
+    if (result == 0) {
+      lua_pushliteral(L, "");
+    } else {
+      lua_pushlstring(L, (const char *)arg2, result);
+    }
+    free(arg2);
+    // SWIG_arg was already incremented
+  }
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38782,14 +38878,14 @@ static int _wrap_SBProcess_RemoteAttachToProcessWithID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::RemoteAttachToProcessWithID",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::RemoteAttachToProcessWithID",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::RemoteAttachToProcessWithID",2,"lldb::pid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::RemoteAttachToProcessWithID",2,"lldb::pid_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBProcess::RemoteAttachToProcessWithID",3,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_RemoteAttachToProcessWithID",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::pid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_RemoteAttachToProcessWithID",3,SWIGTYPE_p_lldb__SBError);
@@ -38829,7 +38925,7 @@ static int _wrap_SBProcess_RemoteLaunch(lua_State* L) {
   if(!SWIG_lua_isnilstring(L,5)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",5,"char const *");
   if(!SWIG_lua_isnilstring(L,6)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",6,"char const *");
   if(!SWIG_lua_isnilstring(L,7)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",7,"char const *");
-  if(!lua_isnumber(L,8)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",8,"uint32_t");
+  if(!lua_isinteger(L,8)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",8,"uint32_t");
   if(!lua_isboolean(L,9)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",9,"bool");
   if(!lua_isuserdata(L,10)) SWIG_fail_arg("lldb::SBProcess::RemoteLaunch",10,"lldb::SBError &");
   
@@ -38851,8 +38947,7 @@ static int _wrap_SBProcess_RemoteLaunch(lua_State* L) {
   arg5 = (char *)lua_tostring(L, 5);
   arg6 = (char *)lua_tostring(L, 6);
   arg7 = (char *)lua_tostring(L, 7);
-  SWIG_contract_assert((lua_tonumber(L,8)>=0),"number must not be negative")
-  arg8 = (uint32_t)lua_tonumber(L, 8);
+  arg8 = (unsigned int)lua_tointeger(L, 8); 
   arg9 = (lua_toboolean(L, 9)!=0);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,10,(void**)&arg10,SWIGTYPE_p_lldb__SBError,0))){
@@ -38884,7 +38979,7 @@ static int _wrap_SBProcess_GetNumThreads(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumThreads();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -38903,14 +38998,13 @@ static int _wrap_SBProcess_GetThreadAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetThreadAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetThreadAtIndex",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetThreadAtIndex",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetThreadAtIndex(arg2);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -38934,13 +39028,13 @@ static int _wrap_SBProcess_GetThreadByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetThreadByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetThreadByID",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadByID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadByID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetThreadByID",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->GetThreadByID(arg2);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -38964,14 +39058,13 @@ static int _wrap_SBProcess_GetThreadByIndexID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetThreadByIndexID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetThreadByIndexID",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadByIndexID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetThreadByIndexID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetThreadByIndexID",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetThreadByIndexID(arg2);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -39023,15 +39116,15 @@ static int _wrap_SBProcess_CreateOSPluginThread(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::CreateOSPluginThread",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::CreateOSPluginThread",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::CreateOSPluginThread",2,"lldb::tid_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::CreateOSPluginThread",3,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::CreateOSPluginThread",2,"lldb::tid_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBProcess::CreateOSPluginThread",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_CreateOSPluginThread",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->CreateOSPluginThread(arg2,arg3);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -39086,13 +39179,13 @@ static int _wrap_SBProcess_SetSelectedThreadByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::SetSelectedThreadByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByID",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_SetSelectedThreadByID",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (bool)(arg1)->SetSelectedThreadByID(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -39113,14 +39206,13 @@ static int _wrap_SBProcess_SetSelectedThreadByIndexID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::SetSelectedThreadByIndexID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByIndexID",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByIndexID",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::SetSelectedThreadByIndexID",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_SetSelectedThreadByIndexID",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (bool)(arg1)->SetSelectedThreadByIndexID(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -39146,7 +39238,7 @@ static int _wrap_SBProcess_GetNumQueues(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumQueues();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39165,14 +39257,13 @@ static int _wrap_SBProcess_GetQueueAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetQueueAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetQueueAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetQueueAtIndex",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetQueueAtIndex(arg2);
   {
     lldb::SBQueue * resultptr = new lldb::SBQueue((const lldb::SBQueue &) result);
@@ -39225,7 +39316,7 @@ static int _wrap_SBProcess_GetExitStatus(lua_State* L) {
   }
   
   result = (int)(arg1)->GetExitStatus();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39273,7 +39364,7 @@ static int _wrap_SBProcess_GetProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39297,7 +39388,7 @@ static int _wrap_SBProcess_GetUniqueID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetUniqueID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39321,7 +39412,7 @@ static int _wrap_SBProcess_GetAddressByteSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBProcess const *)arg1)->GetAddressByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39475,13 +39566,13 @@ static int _wrap_SBProcess_Signal(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::Signal",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::Signal",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::Signal",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::Signal",2,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_Signal",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (arg1)->Signal(arg2);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -39540,7 +39631,7 @@ static int _wrap_SBProcess_GetStopID__SWIG_0(lua_State* L) {
   
   arg2 = (lua_toboolean(L, 2)!=0);
   result = (uint32_t)(arg1)->GetStopID(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39564,7 +39655,7 @@ static int _wrap_SBProcess_GetStopID__SWIG_1(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetStopID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39658,26 +39749,25 @@ static int _wrap_SBProcess_ReadMemory(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::ReadMemory",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",2,"lldb::addr_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",3,"void *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",4,"size_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBProcess::ReadMemory",5,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_ReadMemory",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBProcess_ReadMemory");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_ReadMemory",5,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (arg1)->ReadMemory(arg2,arg3,arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39699,26 +39789,25 @@ static int _wrap_SBProcess_WriteMemory(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::WriteMemory",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",2,"lldb::addr_t");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",3,"void const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",4,"size_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBProcess::WriteMemory",5,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_WriteMemory",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBProcess_WriteMemory");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_WriteMemory",5,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (arg1)->WriteMemory(arg2,(void const *)arg3,arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39738,28 +39827,40 @@ static int _wrap_SBProcess_ReadCStringFromMemory(lua_State* L) {
   lldb::SBError *arg5 = 0 ;
   size_t result;
   
-  SWIG_check_num_args("lldb::SBProcess::ReadCStringFromMemory",5,5)
+  SWIG_check_num_args("lldb::SBProcess::ReadCStringFromMemory",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",2,"lldb::addr_t");
-  if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",3,"void *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",4,"size_t");
-  if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",5,"lldb::SBError &");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",2,"lldb::addr_t");
+  if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBProcess::ReadCStringFromMemory",4,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_ReadCStringFromMemory",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
-  arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBProcess_ReadCStringFromMemory");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
+  {
+    arg4 = luaL_checkinteger(L, 3);
+    if (arg4 <= 0) {
+      return luaL_error(L, "Positive integer expected");
+    }
+    arg3 = (char *) malloc(arg4);
+  }
   
-  if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_ReadCStringFromMemory",5,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (arg1)->ReadCStringFromMemory(arg2,arg3,arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  {
+    lua_pop(L, 1); // Blow away the previous result
+    if (result == 0) {
+      lua_pushliteral(L, "");
+    } else {
+      lua_pushlstring(L, (const char *)arg3, result);
+    }
+    free(arg3);
+    // SWIG_arg was already incremented
+  }
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39780,24 +39881,23 @@ static int _wrap_SBProcess_ReadUnsignedFromMemory(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::ReadUnsignedFromMemory",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",2,"lldb::addr_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",3,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",2,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBProcess::ReadUnsignedFromMemory",4,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_ReadUnsignedFromMemory",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_ReadUnsignedFromMemory",4,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (uint64_t)(arg1)->ReadUnsignedFromMemory(arg2,arg3,*arg4);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39817,21 +39917,21 @@ static int _wrap_SBProcess_ReadPointerFromMemory(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::ReadPointerFromMemory",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::ReadPointerFromMemory",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadPointerFromMemory",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::ReadPointerFromMemory",2,"lldb::addr_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBProcess::ReadPointerFromMemory",3,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_ReadPointerFromMemory",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBProcess_ReadPointerFromMemory",3,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (lldb::addr_t)(arg1)->ReadPointerFromMemory(arg2,*arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39903,7 +40003,7 @@ static int _wrap_SBProcess_GetNumRestartedReasonsFromEvent(lua_State* L) {
   }
   
   result = lldb::SBProcess::GetNumRestartedReasonsFromEvent((lldb::SBEvent const &)*arg1);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -39922,14 +40022,13 @@ static int _wrap_SBProcess_GetRestartedReasonAtIndexFromEvent(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetRestartedReasonAtIndexFromEvent",2,2)
   if(!lua_isuserdata(L,1)) SWIG_fail_arg("lldb::SBProcess::GetRestartedReasonAtIndexFromEvent",1,"lldb::SBEvent const &");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetRestartedReasonAtIndexFromEvent",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetRestartedReasonAtIndexFromEvent",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBProcess_GetRestartedReasonAtIndexFromEvent",1,SWIGTYPE_p_lldb__SBEvent);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (char *)lldb::SBProcess::GetRestartedReasonAtIndexFromEvent((lldb::SBEvent const &)*arg1,arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -40173,7 +40272,7 @@ static int _wrap_SBProcess_GetNumSupportedHardwareWatchpoints(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBProcess const *)arg1)->GetNumSupportedHardwareWatchpoints(*arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40211,7 +40310,7 @@ static int _wrap_SBProcess_LoadImage(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->LoadImage(*arg2,*arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40263,7 +40362,7 @@ static int _wrap_SBProcess_LoadImageUsingPaths(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->LoadImageUsingPaths((lldb::SBFileSpec const &)*arg2,*arg3,*arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40282,14 +40381,13 @@ static int _wrap_SBProcess_UnloadImage(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::UnloadImage",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::UnloadImage",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::UnloadImage",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::UnloadImage",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_UnloadImage",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->UnloadImage(arg2);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -40348,7 +40446,7 @@ static int _wrap_SBProcess_GetNumExtendedBacktraceTypes(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumExtendedBacktraceTypes();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40367,14 +40465,13 @@ static int _wrap_SBProcess_GetExtendedBacktraceTypeAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetExtendedBacktraceTypeAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetExtendedBacktraceTypeAtIndex",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetExtendedBacktraceTypeAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetExtendedBacktraceTypeAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetExtendedBacktraceTypeAtIndex",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetExtendedBacktraceTypeAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -40395,13 +40492,13 @@ static int _wrap_SBProcess_GetHistoryThreads(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetHistoryThreads",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetHistoryThreads",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetHistoryThreads",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetHistoryThreads",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetHistoryThreads",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->GetHistoryThreads(arg2);
   {
     lldb::SBThreadCollection * resultptr = new lldb::SBThreadCollection((const lldb::SBThreadCollection &) result);
@@ -40524,14 +40621,14 @@ static int _wrap_SBProcess_GetMemoryRegionInfo(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBProcess::GetMemoryRegionInfo",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBProcess::GetMemoryRegionInfo",1,"lldb::SBProcess *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBProcess::GetMemoryRegionInfo",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBProcess::GetMemoryRegionInfo",2,"lldb::addr_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBProcess::GetMemoryRegionInfo",3,"lldb::SBMemoryRegionInfo &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBProcess,0))){
     SWIG_fail_ptr("SBProcess_GetMemoryRegionInfo",1,SWIGTYPE_p_lldb__SBProcess);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBMemoryRegionInfo,0))){
     SWIG_fail_ptr("SBProcess_GetMemoryRegionInfo",3,SWIGTYPE_p_lldb__SBMemoryRegionInfo);
@@ -40919,7 +41016,7 @@ static int _wrap_SBProcessInfo_GetProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40943,7 +41040,7 @@ static int _wrap_SBProcessInfo_GetUserID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetUserID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -40967,7 +41064,7 @@ static int _wrap_SBProcessInfo_GetGroupID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetGroupID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41039,7 +41136,7 @@ static int _wrap_SBProcessInfo_GetEffectiveUserID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetEffectiveUserID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41063,7 +41160,7 @@ static int _wrap_SBProcessInfo_GetEffectiveGroupID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetEffectiveGroupID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41135,7 +41232,7 @@ static int _wrap_SBProcessInfo_GetParentProcessID(lua_State* L) {
   }
   
   result = (lldb::pid_t)(arg1)->GetParentProcessID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41367,7 +41464,7 @@ static int _wrap_SBQueue_GetQueueID(lua_State* L) {
   }
   
   result = (lldb::queue_id_t)((lldb::SBQueue const *)arg1)->GetQueueID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41439,7 +41536,7 @@ static int _wrap_SBQueue_GetIndexID(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBQueue const *)arg1)->GetIndexID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41463,7 +41560,7 @@ static int _wrap_SBQueue_GetNumThreads(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumThreads();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41482,14 +41579,13 @@ static int _wrap_SBQueue_GetThreadAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBQueue::GetThreadAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBQueue::GetThreadAtIndex",1,"lldb::SBQueue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBQueue::GetThreadAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBQueue::GetThreadAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueue,0))){
     SWIG_fail_ptr("SBQueue_GetThreadAtIndex",1,SWIGTYPE_p_lldb__SBQueue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetThreadAtIndex(arg2);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -41518,7 +41614,7 @@ static int _wrap_SBQueue_GetNumPendingItems(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumPendingItems();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -41537,14 +41633,13 @@ static int _wrap_SBQueue_GetPendingItemAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBQueue::GetPendingItemAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBQueue::GetPendingItemAtIndex",1,"lldb::SBQueue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBQueue::GetPendingItemAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBQueue::GetPendingItemAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBQueue,0))){
     SWIG_fail_ptr("SBQueue_GetPendingItemAtIndex",1,SWIGTYPE_p_lldb__SBQueue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetPendingItemAtIndex(arg2);
   {
     lldb::SBQueueItem * resultptr = new lldb::SBQueueItem((const lldb::SBQueueItem &) result);
@@ -41573,7 +41668,7 @@ static int _wrap_SBQueue_GetNumRunningItems(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumRunningItems();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42327,7 +42422,7 @@ static int _wrap_SBSection_GetNumSubSections(lua_State* L) {
   }
   
   result = (arg1)->GetNumSubSections();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42346,14 +42441,13 @@ static int _wrap_SBSection_GetSubSectionAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBSection::GetSubSectionAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSection::GetSubSectionAtIndex",1,"lldb::SBSection *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBSection::GetSubSectionAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBSection::GetSubSectionAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSection,0))){
     SWIG_fail_ptr("SBSection_GetSubSectionAtIndex",1,SWIGTYPE_p_lldb__SBSection);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetSubSectionAtIndex(arg2);
   {
     lldb::SBSection * resultptr = new lldb::SBSection((const lldb::SBSection &) result);
@@ -42382,7 +42476,7 @@ static int _wrap_SBSection_GetFileAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetFileAddress();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42413,7 +42507,7 @@ static int _wrap_SBSection_GetLoadAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetLoadAddress(*arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42437,7 +42531,7 @@ static int _wrap_SBSection_GetByteSize(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42461,7 +42555,7 @@ static int _wrap_SBSection_GetFileOffset(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetFileOffset();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42485,7 +42579,7 @@ static int _wrap_SBSection_GetFileByteSize(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetFileByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42532,15 +42626,15 @@ static int _wrap_SBSection_GetSectionData__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBSection::GetSectionData",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSection::GetSectionData",1,"lldb::SBSection *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBSection::GetSectionData",2,"uint64_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBSection::GetSectionData",3,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBSection::GetSectionData",2,"uint64_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBSection::GetSectionData",3,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSection,0))){
     SWIG_fail_ptr("SBSection_GetSectionData",1,SWIGTYPE_p_lldb__SBSection);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
-  arg3 = (uint64_t)lua_tonumber(L, 3);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->GetSectionData(arg2,arg3);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -42647,7 +42741,7 @@ static int _wrap_SBSection_GetPermissions(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBSection const *)arg1)->GetPermissions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42671,7 +42765,7 @@ static int _wrap_SBSection_GetTargetByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetTargetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42873,9 +42967,9 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbers(lua_State* L)
   SWIG_check_num_args("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",7,7)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",1,"lldb::SBSourceManager *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",4,"uint32_t");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",5,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",4,"uint32_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",5,"uint32_t");
   if(!SWIG_lua_isnilstring(L,6)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",6,"char const *");
   if(!lua_isuserdata(L,7)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbers",7,"lldb::SBStream &");
   
@@ -42888,12 +42982,9 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbers(lua_State* L)
     SWIG_fail_ptr("SBSourceManager_DisplaySourceLinesWithLineNumbers",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (uint32_t)lua_tonumber(L, 5);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
+  arg5 = (unsigned int)lua_tointeger(L, 5); 
   arg6 = (char *)lua_tostring(L, 6);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,7,(void**)&arg7,SWIGTYPE_p_lldb__SBStream,0))){
@@ -42901,7 +42992,7 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbers(lua_State* L)
   }
   
   result = (arg1)->DisplaySourceLinesWithLineNumbers((lldb::SBFileSpec const &)*arg2,arg3,arg4,arg5,(char const *)arg6,*arg7);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -42927,10 +43018,10 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbersAndColumn(lua_
   SWIG_check_num_args("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",8,8)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",1,"lldb::SBSourceManager *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",4,"uint32_t");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",5,"uint32_t");
-  if(!lua_isnumber(L,6)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",6,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",4,"uint32_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",5,"uint32_t");
+  if(!lua_isinteger(L,6)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",6,"uint32_t");
   if(!SWIG_lua_isnilstring(L,7)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",7,"char const *");
   if(!lua_isuserdata(L,8)) SWIG_fail_arg("lldb::SBSourceManager::DisplaySourceLinesWithLineNumbersAndColumn",8,"lldb::SBStream &");
   
@@ -42943,14 +43034,10 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbersAndColumn(lua_
     SWIG_fail_ptr("SBSourceManager_DisplaySourceLinesWithLineNumbersAndColumn",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (uint32_t)lua_tonumber(L, 5);
-  SWIG_contract_assert((lua_tonumber(L,6)>=0),"number must not be negative")
-  arg6 = (uint32_t)lua_tonumber(L, 6);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
+  arg5 = (unsigned int)lua_tointeger(L, 5); 
+  arg6 = (unsigned int)lua_tointeger(L, 6); 
   arg7 = (char *)lua_tostring(L, 7);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,8,(void**)&arg8,SWIGTYPE_p_lldb__SBStream,0))){
@@ -42958,7 +43045,7 @@ static int _wrap_SBSourceManager_DisplaySourceLinesWithLineNumbersAndColumn(lua_
   }
   
   result = (arg1)->DisplaySourceLinesWithLineNumbersAndColumn((lldb::SBFileSpec const &)*arg2,arg3,arg4,arg5,arg6,(char const *)arg7,*arg8);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -43096,7 +43183,7 @@ static int _wrap_SBStream_GetSize(lua_State* L) {
   }
   
   result = (arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -43358,14 +43445,14 @@ static int _wrap_SBStream_RedirectToFileDescriptor(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBStream::RedirectToFileDescriptor",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStream::RedirectToFileDescriptor",1,"lldb::SBStream *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBStream::RedirectToFileDescriptor",2,"int");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStream::RedirectToFileDescriptor",2,"int");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBStream::RedirectToFileDescriptor",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStream,0))){
     SWIG_fail_ptr("SBStream_RedirectToFileDescriptor",1,SWIGTYPE_p_lldb__SBStream);
   }
   
-  arg2 = (int)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   (arg1)->RedirectToFileDescriptor(arg2,arg3);
   
@@ -43590,7 +43677,7 @@ static int _wrap_SBStringList_AppendList__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBStringList::AppendList",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStringList::AppendList",1,"lldb::SBStringList *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBStringList::AppendList",2,"char const **");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBStringList::AppendList",3,"int");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBStringList::AppendList",3,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStringList,0))){
     SWIG_fail_ptr("SBStringList_AppendList",1,SWIGTYPE_p_lldb__SBStringList);
@@ -43601,7 +43688,7 @@ static int _wrap_SBStringList_AppendList__SWIG_0(lua_State* L) {
     SWIG_fail_ptr("SBStringList_AppendList",2,SWIGTYPE_p_p_char);
   }
   
-  arg3 = (int)lua_tonumber(L, 3);
+  arg3 = (signed int)lua_tointeger(L, 3); 
   (arg1)->AppendList((char const **)arg2,arg3);
   
   return SWIG_arg;
@@ -43726,7 +43813,7 @@ static int _wrap_SBStringList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBStringList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -43745,14 +43832,13 @@ static int _wrap_SBStringList_GetStringAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBStringList::GetStringAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStringList::GetStringAtIndex",1,"lldb::SBStringList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBStringList::GetStringAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStringList::GetStringAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStringList,0))){
     SWIG_fail_ptr("SBStringList_GetStringAtIndex",1,SWIGTYPE_p_lldb__SBStringList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetStringAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -44038,7 +44124,7 @@ static int _wrap_SBStructuredData_GetSize(lua_State* L) {
   }
   
   result = ((lldb::SBStructuredData const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -44118,14 +44204,13 @@ static int _wrap_SBStructuredData_GetItemAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBStructuredData::GetItemAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetItemAtIndex",1,"lldb::SBStructuredData const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetItemAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetItemAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
     SWIG_fail_ptr("SBStructuredData_GetItemAtIndex",1,SWIGTYPE_p_lldb__SBStructuredData);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = ((lldb::SBStructuredData const *)arg1)->GetItemAtIndex(arg2);
   {
     lldb::SBStructuredData * resultptr = new lldb::SBStructuredData((const lldb::SBStructuredData &) result);
@@ -44149,15 +44234,15 @@ static int _wrap_SBStructuredData_GetIntegerValue__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBStructuredData::GetIntegerValue",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetIntegerValue",1,"lldb::SBStructuredData const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetIntegerValue",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetIntegerValue",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
     SWIG_fail_ptr("SBStructuredData_GetIntegerValue",1,SWIGTYPE_p_lldb__SBStructuredData);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (uint64_t)((lldb::SBStructuredData const *)arg1)->GetIntegerValue(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -44181,7 +44266,7 @@ static int _wrap_SBStructuredData_GetIntegerValue__SWIG_1(lua_State* L) {
   }
   
   result = (uint64_t)((lldb::SBStructuredData const *)arg1)->GetIntegerValue();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -44448,20 +44533,32 @@ static int _wrap_SBStructuredData_GetStringValue(lua_State* L) {
   size_t arg3 ;
   size_t result;
   
-  SWIG_check_num_args("lldb::SBStructuredData::GetStringValue",3,3)
+  SWIG_check_num_args("lldb::SBStructuredData::GetStringValue",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBStructuredData::GetStringValue",1,"lldb::SBStructuredData const *");
-  if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBStructuredData::GetStringValue",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBStructuredData::GetStringValue",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBStructuredData,0))){
     SWIG_fail_ptr("SBStructuredData_GetStringValue",1,SWIGTYPE_p_lldb__SBStructuredData);
   }
   
-  arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  {
+    arg3 = luaL_checkinteger(L, 2);
+    if (arg3 <= 0) {
+      return luaL_error(L, "Positive integer expected");
+    }
+    arg2 = (char *) malloc(arg3);
+  }
   result = ((lldb::SBStructuredData const *)arg1)->GetStringValue(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
+  {
+    lua_pop(L, 1); // Blow away the previous result
+    if (result == 0) {
+      lua_pushliteral(L, "");
+    } else {
+      lua_pushlstring(L, (const char *)arg2, result);
+    }
+    free(arg2);
+    // SWIG_arg was already incremented
+  }
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -45016,7 +45113,7 @@ static int _wrap_SBSymbol_GetPrologueByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetPrologueByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -45971,7 +46068,7 @@ static int _wrap_SBSymbolContextList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBSymbolContextList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -45990,14 +46087,13 @@ static int _wrap_SBSymbolContextList_GetContextAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBSymbolContextList::GetContextAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBSymbolContextList::GetContextAtIndex",1,"lldb::SBSymbolContextList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBSymbolContextList::GetContextAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBSymbolContextList::GetContextAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBSymbolContextList,0))){
     SWIG_fail_ptr("SBSymbolContextList_GetContextAtIndex",1,SWIGTYPE_p_lldb__SBSymbolContextList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetContextAtIndex(arg2);
   {
     lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext((const lldb::SBSymbolContext &) result);
@@ -46449,7 +46545,7 @@ static int _wrap_SBTarget_GetNumModulesFromEvent(lua_State* L) {
   }
   
   result = (uint32_t)lldb::SBTarget::GetNumModulesFromEvent((lldb::SBEvent const &)*arg1);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -46467,10 +46563,9 @@ static int _wrap_SBTarget_GetModuleAtIndexFromEvent(lua_State* L) {
   lldb::SBModule result;
   
   SWIG_check_num_args("lldb::SBTarget::GetModuleAtIndexFromEvent",2,2)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndexFromEvent",1,"uint32_t const");
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndexFromEvent",1,"uint32_t const");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndexFromEvent",2,"lldb::SBEvent const &");
-  SWIG_contract_assert((lua_tonumber(L,1)>=0),"number must not be negative")
-  arg1 = (uint32_t const)lua_tonumber(L, 1);
+  arg1 = (unsigned int)lua_tointeger(L, 1); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBEvent,0))){
     SWIG_fail_ptr("SBTarget_GetModuleAtIndexFromEvent",2,SWIGTYPE_p_lldb__SBEvent);
@@ -46596,7 +46691,7 @@ static int _wrap_SBTarget_Launch__SWIG_0(lua_State* L) {
   if(!SWIG_lua_isnilstring(L,6)) SWIG_fail_arg("lldb::SBTarget::Launch",6,"char const *");
   if(!SWIG_lua_isnilstring(L,7)) SWIG_fail_arg("lldb::SBTarget::Launch",7,"char const *");
   if(!SWIG_lua_isnilstring(L,8)) SWIG_fail_arg("lldb::SBTarget::Launch",8,"char const *");
-  if(!lua_isnumber(L,9)) SWIG_fail_arg("lldb::SBTarget::Launch",9,"uint32_t");
+  if(!lua_isinteger(L,9)) SWIG_fail_arg("lldb::SBTarget::Launch",9,"uint32_t");
   if(!lua_isboolean(L,10)) SWIG_fail_arg("lldb::SBTarget::Launch",10,"bool");
   if(!lua_isuserdata(L,11)) SWIG_fail_arg("lldb::SBTarget::Launch",11,"lldb::SBError &");
   
@@ -46623,8 +46718,7 @@ static int _wrap_SBTarget_Launch__SWIG_0(lua_State* L) {
   arg6 = (char *)lua_tostring(L, 6);
   arg7 = (char *)lua_tostring(L, 7);
   arg8 = (char *)lua_tostring(L, 8);
-  SWIG_contract_assert((lua_tonumber(L,9)>=0),"number must not be negative")
-  arg9 = (uint32_t)lua_tonumber(L, 9);
+  arg9 = (unsigned int)lua_tointeger(L, 9); 
   arg10 = (lua_toboolean(L, 10)!=0);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,11,(void**)&arg11,SWIGTYPE_p_lldb__SBError,0))){
@@ -47048,7 +47142,7 @@ static int _wrap_SBTarget_AttachToProcessWithID(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::AttachToProcessWithID",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::AttachToProcessWithID",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::AttachToProcessWithID",2,"lldb::SBListener &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::AttachToProcessWithID",3,"lldb::pid_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::AttachToProcessWithID",3,"lldb::pid_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBTarget::AttachToProcessWithID",4,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -47060,7 +47154,7 @@ static int _wrap_SBTarget_AttachToProcessWithID(lua_State* L) {
     SWIG_fail_ptr("SBTarget_AttachToProcessWithID",2,SWIGTYPE_p_lldb__SBListener);
   }
   
-  arg3 = (lldb::pid_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBTarget_AttachToProcessWithID",4,SWIGTYPE_p_lldb__SBError);
@@ -47520,7 +47614,7 @@ static int _wrap_SBTarget_GetNumModules(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBTarget const *)arg1)->GetNumModules();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -47539,14 +47633,13 @@ static int _wrap_SBTarget_GetModuleAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::GetModuleAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndex",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetModuleAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_GetModuleAtIndex",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetModuleAtIndex(arg2);
   {
     lldb::SBModule * resultptr = new lldb::SBModule((const lldb::SBModule &) result);
@@ -47727,7 +47820,7 @@ static int _wrap_SBTarget_GetAddressByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetAddressByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -47775,7 +47868,7 @@ static int _wrap_SBTarget_GetDataByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetDataByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -47799,7 +47892,7 @@ static int _wrap_SBTarget_GetCodeByteSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetCodeByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -47821,7 +47914,7 @@ static int _wrap_SBTarget_SetSectionLoadAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::SetSectionLoadAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetSectionLoadAddress",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::SetSectionLoadAddress",2,"lldb::SBSection");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::SetSectionLoadAddress",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::SetSectionLoadAddress",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_SetSectionLoadAddress",1,SWIGTYPE_p_lldb__SBTarget);
@@ -47833,7 +47926,7 @@ static int _wrap_SBTarget_SetSectionLoadAddress(lua_State* L) {
   }
   arg2 = *argp2;
   
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->SetSectionLoadAddress(arg2,arg3);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -47896,7 +47989,7 @@ static int _wrap_SBTarget_SetModuleLoadAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::SetModuleLoadAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",2,"lldb::SBModule");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",3,"int64_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::SetModuleLoadAddress",3,"int64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_SetModuleLoadAddress",1,SWIGTYPE_p_lldb__SBTarget);
@@ -47908,7 +48001,7 @@ static int _wrap_SBTarget_SetModuleLoadAddress(lua_State* L) {
   }
   arg2 = *argp2;
   
-  arg3 = (int64_t)lua_tonumber(L, 3);
+  arg3 = (signed long long)lua_tointeger(L, 3); 
   result = (arg1)->SetModuleLoadAddress(arg2,arg3);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -47970,15 +48063,14 @@ static int _wrap_SBTarget_FindFunctions__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::FindFunctions",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindFunctions",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindFunctions",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::FindFunctions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::FindFunctions",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_FindFunctions",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->FindFunctions((char const *)arg2,arg3);
   {
     lldb::SBSymbolContextList * resultptr = new lldb::SBSymbolContextList((const lldb::SBSymbolContextList &) result);
@@ -48210,15 +48302,14 @@ static int _wrap_SBTarget_FindGlobalVariables__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::FindGlobalVariables",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_FindGlobalVariables",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->FindGlobalVariables((char const *)arg2,arg3);
   {
     lldb::SBValueList * resultptr = new lldb::SBValueList((const lldb::SBValueList &) result);
@@ -48275,7 +48366,7 @@ static int _wrap_SBTarget_FindGlobalVariables__SWIG_1(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::FindGlobalVariables",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",3,"uint32_t");
   if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::FindGlobalVariables",4,"lldb::MatchType");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -48283,8 +48374,7 @@ static int _wrap_SBTarget_FindGlobalVariables__SWIG_1(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   arg4 = (lldb::MatchType)(int)lua_tonumber(L, 4);
   result = (arg1)->FindGlobalVariables((char const *)arg2,arg3,arg4);
   {
@@ -48381,7 +48471,7 @@ static int _wrap_SBTarget_FindGlobalFunctions(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::FindGlobalFunctions",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindGlobalFunctions",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::FindGlobalFunctions",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalFunctions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::FindGlobalFunctions",3,"uint32_t");
   if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::FindGlobalFunctions",4,"lldb::MatchType");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -48389,8 +48479,7 @@ static int _wrap_SBTarget_FindGlobalFunctions(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   arg4 = (lldb::MatchType)(int)lua_tonumber(L, 4);
   result = (arg1)->FindGlobalFunctions((char const *)arg2,arg3,arg4);
   {
@@ -48438,13 +48527,13 @@ static int _wrap_SBTarget_ResolveFileAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::ResolveFileAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ResolveFileAddress",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolveFileAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolveFileAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_ResolveFileAddress",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->ResolveFileAddress(arg2);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -48468,13 +48557,13 @@ static int _wrap_SBTarget_ResolveLoadAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::ResolveLoadAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ResolveLoadAddress",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolveLoadAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolveLoadAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_ResolveLoadAddress",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->ResolveLoadAddress(arg2);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -48499,16 +48588,15 @@ static int _wrap_SBTarget_ResolvePastLoadAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::ResolvePastLoadAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ResolvePastLoadAddress",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolvePastLoadAddress",2,"uint32_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::ResolvePastLoadAddress",3,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolvePastLoadAddress",2,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::ResolvePastLoadAddress",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_ResolvePastLoadAddress",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->ResolvePastLoadAddress(arg2,arg3);
   {
     lldb::SBAddress * resultptr = new lldb::SBAddress((const lldb::SBAddress &) result);
@@ -48534,7 +48622,7 @@ static int _wrap_SBTarget_ResolveSymbolContextForAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::ResolveSymbolContextForAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ResolveSymbolContextForAddress",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::ResolveSymbolContextForAddress",2,"lldb::SBAddress const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::ResolveSymbolContextForAddress",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::ResolveSymbolContextForAddress",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_ResolveSymbolContextForAddress",1,SWIGTYPE_p_lldb__SBTarget);
@@ -48545,8 +48633,7 @@ static int _wrap_SBTarget_ResolveSymbolContextForAddress(lua_State* L) {
     SWIG_fail_ptr("SBTarget_ResolveSymbolContextForAddress",2,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->ResolveSymbolContextForAddress((lldb::SBAddress const &)*arg2,arg3);
   {
     lldb::SBSymbolContext * resultptr = new lldb::SBSymbolContext((const lldb::SBSymbolContext &) result);
@@ -48576,7 +48663,7 @@ static int _wrap_SBTarget_ReadMemory(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",2,"lldb::SBAddress const");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",3,"void *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",4,"size_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBTarget::ReadMemory",5,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -48590,15 +48677,14 @@ static int _wrap_SBTarget_ReadMemory(lua_State* L) {
   arg2 = *argp2;
   
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBTarget_ReadMemory");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBTarget_ReadMemory",5,SWIGTYPE_p_lldb__SBError);
   }
   
   result = (arg1)->ReadMemory(arg2,arg3,arg4,*arg5);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -48619,15 +48705,14 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->BreakpointCreateByLocation((char const *)arg2,arg3);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -48653,7 +48738,7 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_1(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",1,SWIGTYPE_p_lldb__SBTarget);
@@ -48664,8 +48749,7 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_1(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->BreakpointCreateByLocation((lldb::SBFileSpec const &)*arg2,arg3);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -48692,8 +48776,8 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_2(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",1,SWIGTYPE_p_lldb__SBTarget);
@@ -48704,9 +48788,8 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_2(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  arg4 = (lldb::addr_t)lua_tonumber(L, 4);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned long long)lua_tointeger(L, 4); 
   result = (arg1)->BreakpointCreateByLocation((lldb::SBFileSpec const &)*arg2,arg3,arg4);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -48734,8 +48817,8 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_3(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"lldb::addr_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",5,"lldb::SBFileSpecList &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -48747,9 +48830,8 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_3(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  arg4 = (lldb::addr_t)lua_tonumber(L, 4);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned long long)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",5,SWIGTYPE_p_lldb__SBFileSpecList);
@@ -48783,9 +48865,9 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_4(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",6,6)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"lldb::SBFileSpec const &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"uint32_t");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",5,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"uint32_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",5,"lldb::addr_t");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",6,"lldb::SBFileSpecList &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -48797,11 +48879,9 @@ static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_4(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
-  arg5 = (lldb::addr_t)lua_tonumber(L, 5);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
+  arg5 = (unsigned long long)lua_tointeger(L, 5); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",6,SWIGTYPE_p_lldb__SBFileSpecList);
@@ -48822,10 +48902,63 @@ fail:
 }
 
 
+static int _wrap_SBTarget_BreakpointCreateByLocation__SWIG_5(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBTarget *arg1 = (lldb::SBTarget *) 0 ;
+  lldb::SBFileSpec *arg2 = 0 ;
+  uint32_t arg3 ;
+  uint32_t arg4 ;
+  lldb::addr_t arg5 ;
+  lldb::SBFileSpecList *arg6 = 0 ;
+  bool arg7 ;
+  lldb::SBBreakpoint result;
+  
+  SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByLocation",7,7)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",1,"lldb::SBTarget *");
+  if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",2,"lldb::SBFileSpec const &");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",4,"uint32_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",5,"lldb::addr_t");
+  if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",6,"lldb::SBFileSpecList &");
+  if(!lua_isboolean(L,7)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByLocation",7,"bool");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
+    SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",1,SWIGTYPE_p_lldb__SBTarget);
+  }
+  
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,2,(void**)&arg2,SWIGTYPE_p_lldb__SBFileSpec,0))){
+    SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",2,SWIGTYPE_p_lldb__SBFileSpec);
+  }
+  
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
+  arg5 = (unsigned long long)lua_tointeger(L, 5); 
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBFileSpecList,0))){
+    SWIG_fail_ptr("SBTarget_BreakpointCreateByLocation",6,SWIGTYPE_p_lldb__SBFileSpecList);
+  }
+  
+  arg7 = (lua_toboolean(L, 7)!=0);
+  result = (arg1)->BreakpointCreateByLocation((lldb::SBFileSpec const &)*arg2,arg3,arg4,arg5,*arg6,arg7);
+  {
+    lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBBreakpoint,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBTarget_BreakpointCreateByLocation(lua_State* L) {
   int argc;
-  int argv[7]={
-    1,2,3,4,5,6,7
+  int argv[8]={
+    1,2,3,4,5,6,7,8
   };
   
   argc = lua_gettop(L);
@@ -49009,6 +49142,60 @@ static int _wrap_SBTarget_BreakpointCreateByLocation(lua_State* L) {
       }
     }
   }
+  if (argc == 7) {
+    int _v;
+    {
+      void *ptr;
+      if (SWIG_isptrtype(L,argv[0])==0 || SWIG_ConvertPtr(L,argv[0], (void **) &ptr, SWIGTYPE_p_lldb__SBTarget, 0)) {
+        _v = 0;
+      } else {
+        _v = 1;
+      }
+    }
+    if (_v) {
+      {
+        void *ptr;
+        if (lua_isuserdata(L,argv[1])==0 || SWIG_ConvertPtr(L,argv[1], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpec, SWIG_POINTER_NO_NULL)) {
+          _v = 0;
+        } else {
+          _v = 1;
+        }
+      }
+      if (_v) {
+        {
+          _v = lua_isnumber(L,argv[2]);
+        }
+        if (_v) {
+          {
+            _v = lua_isnumber(L,argv[3]);
+          }
+          if (_v) {
+            {
+              _v = lua_isnumber(L,argv[4]);
+            }
+            if (_v) {
+              {
+                void *ptr;
+                if (lua_isuserdata(L,argv[5])==0 || SWIG_ConvertPtr(L,argv[5], (void **) &ptr, SWIGTYPE_p_lldb__SBFileSpecList, SWIG_POINTER_NO_NULL)) {
+                  _v = 0;
+                } else {
+                  _v = 1;
+                }
+              }
+              if (_v) {
+                {
+                  _v = lua_isboolean(L,argv[6]);
+                }
+                if (_v) {
+                  return _wrap_SBTarget_BreakpointCreateByLocation__SWIG_5(L);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
   
   SWIG_Lua_pusherrstring(L,"Wrong arguments for overloaded function 'SBTarget_BreakpointCreateByLocation'\n"
     "  Possible C/C++ prototypes are:\n"
@@ -49016,7 +49203,8 @@ static int _wrap_SBTarget_BreakpointCreateByLocation(lua_State* L) {
     "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t)\n"
     "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t,lldb::addr_t)\n"
     "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t,lldb::addr_t,lldb::SBFileSpecList &)\n"
-    "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t,uint32_t,lldb::addr_t,lldb::SBFileSpecList &)\n");
+    "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t,uint32_t,lldb::addr_t,lldb::SBFileSpecList &)\n"
+    "    lldb::SBTarget::BreakpointCreateByLocation(lldb::SBFileSpec const &,uint32_t,uint32_t,lldb::addr_t,lldb::SBFileSpecList &,bool)\n");
   lua_error(L);return 0;
 }
 
@@ -49096,7 +49284,7 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_2(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByName",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",4,"lldb::SBFileSpecList const &");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",5,"lldb::SBFileSpecList const &");
   
@@ -49105,8 +49293,7 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_2(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByName",4,SWIGTYPE_p_lldb__SBFileSpecList);
@@ -49145,7 +49332,7 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_3(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByName",6,6)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",1,"lldb::SBTarget *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",3,"uint32_t");
   if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",4,"lldb::LanguageType");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",5,"lldb::SBFileSpecList const &");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByName",6,"lldb::SBFileSpecList const &");
@@ -49155,8 +49342,7 @@ static int _wrap_SBTarget_BreakpointCreateByName__SWIG_3(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   arg4 = (lldb::LanguageType)(int)lua_tonumber(L, 4);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBFileSpecList,0))){
@@ -49350,8 +49536,8 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByNames",6,6)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",1,"lldb::SBTarget *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",2,"char const **");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
   if(!lua_isuserdata(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",5,"lldb::SBFileSpecList const &");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",6,"lldb::SBFileSpecList const &");
   
@@ -49364,10 +49550,8 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_0(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByNames",2,SWIGTYPE_p_p_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,5,(void**)&arg5,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByNames",5,SWIGTYPE_p_lldb__SBFileSpecList);
@@ -49407,8 +49591,8 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_1(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByNames",7,7)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",1,"lldb::SBTarget *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",2,"char const **");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
   if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",5,"lldb::LanguageType");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",6,"lldb::SBFileSpecList const &");
   if(!lua_isuserdata(L,7)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",7,"lldb::SBFileSpecList const &");
@@ -49422,10 +49606,8 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_1(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByNames",2,SWIGTYPE_p_p_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   arg5 = (lldb::LanguageType)(int)lua_tonumber(L, 5);
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,6,(void**)&arg6,SWIGTYPE_p_lldb__SBFileSpecList,0))){
@@ -49467,10 +49649,10 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_2(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByNames",8,8)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",1,"lldb::SBTarget *");
   if(!SWIG_isptrtype(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",2,"char const **");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",3,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",4,"uint32_t");
   if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",5,"lldb::LanguageType");
-  if(!lua_isnumber(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",6,"lldb::addr_t");
+  if(!lua_isinteger(L,6)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",6,"lldb::addr_t");
   if(!lua_isuserdata(L,7)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",7,"lldb::SBFileSpecList const &");
   if(!lua_isuserdata(L,8)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByNames",8,"lldb::SBFileSpecList const &");
   
@@ -49483,12 +49665,10 @@ static int _wrap_SBTarget_BreakpointCreateByNames__SWIG_2(lua_State* L) {
     SWIG_fail_ptr("SBTarget_BreakpointCreateByNames",2,SWIGTYPE_p_p_char);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   arg5 = (lldb::LanguageType)(int)lua_tonumber(L, 5);
-  arg6 = (lldb::addr_t)lua_tonumber(L, 6);
+  arg6 = (unsigned long long)lua_tointeger(L, 6); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,7,(void**)&arg7,SWIGTYPE_p_lldb__SBFileSpecList,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByNames",7,SWIGTYPE_p_lldb__SBFileSpecList);
@@ -50307,13 +50487,13 @@ static int _wrap_SBTarget_BreakpointCreateByAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::BreakpointCreateByAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByAddress",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointCreateByAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_BreakpointCreateByAddress",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->BreakpointCreateByAddress(arg2);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -50627,7 +50807,7 @@ static int _wrap_SBTarget_GetNumBreakpoints(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBTarget const *)arg1)->GetNumBreakpoints();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -50646,14 +50826,13 @@ static int _wrap_SBTarget_GetBreakpointAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::GetBreakpointAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",1,"lldb::SBTarget const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetBreakpointAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_GetBreakpointAtIndex",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBTarget const *)arg1)->GetBreakpointAtIndex(arg2);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -50677,13 +50856,13 @@ static int _wrap_SBTarget_BreakpointDelete(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::BreakpointDelete",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",2,"lldb::break_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::BreakpointDelete",2,"lldb::break_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_BreakpointDelete",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::break_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)(arg1)->BreakpointDelete(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -50704,13 +50883,13 @@ static int _wrap_SBTarget_FindBreakpointByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::FindBreakpointByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",2,"lldb::break_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::FindBreakpointByID",2,"lldb::break_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_FindBreakpointByID",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::break_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (arg1)->FindBreakpointByID(arg2);
   {
     lldb::SBBreakpoint * resultptr = new lldb::SBBreakpoint((const lldb::SBBreakpoint &) result);
@@ -51317,7 +51496,7 @@ static int _wrap_SBTarget_GetNumWatchpoints(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBTarget const *)arg1)->GetNumWatchpoints();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -51336,14 +51515,13 @@ static int _wrap_SBTarget_GetWatchpointAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::GetWatchpointAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetWatchpointAtIndex",1,"lldb::SBTarget const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::GetWatchpointAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::GetWatchpointAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_GetWatchpointAtIndex",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBTarget const *)arg1)->GetWatchpointAtIndex(arg2);
   {
     lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint((const lldb::SBWatchpoint &) result);
@@ -51367,13 +51545,13 @@ static int _wrap_SBTarget_DeleteWatchpoint(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::DeleteWatchpoint",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::DeleteWatchpoint",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::DeleteWatchpoint",2,"lldb::watch_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::DeleteWatchpoint",2,"lldb::watch_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_DeleteWatchpoint",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::watch_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)(arg1)->DeleteWatchpoint(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -51394,13 +51572,13 @@ static int _wrap_SBTarget_FindWatchpointByID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::FindWatchpointByID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::FindWatchpointByID",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::FindWatchpointByID",2,"lldb::watch_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::FindWatchpointByID",2,"lldb::watch_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_FindWatchpointByID",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::watch_id_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (arg1)->FindWatchpointByID(arg2);
   {
     lldb::SBWatchpoint * resultptr = new lldb::SBWatchpoint((const lldb::SBWatchpoint &) result);
@@ -51500,8 +51678,8 @@ static int _wrap_SBTarget_WatchAddress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTarget::WatchAddress",6,6)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",1,"lldb::SBTarget *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",2,"lldb::addr_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",3,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",3,"size_t");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",4,"bool");
   if(!lua_isboolean(L,5)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",5,"bool");
   if(!lua_isuserdata(L,6)) SWIG_fail_arg("lldb::SBTarget::WatchAddress",6,"lldb::SBError &");
@@ -51510,9 +51688,8 @@ static int _wrap_SBTarget_WatchAddress(lua_State* L) {
     SWIG_fail_ptr("SBTarget_WatchAddress",1,SWIGTYPE_p_lldb__SBTarget);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   arg4 = (lua_toboolean(L, 4)!=0);
   arg5 = (lua_toboolean(L, 5)!=0);
   
@@ -51702,7 +51879,7 @@ static int _wrap_SBTarget_ReadInstructions__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::ReadInstructions",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",2,"lldb::SBAddress");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_ReadInstructions",1,SWIGTYPE_p_lldb__SBTarget);
@@ -51714,8 +51891,7 @@ static int _wrap_SBTarget_ReadInstructions__SWIG_0(lua_State* L) {
   }
   arg2 = *argp2;
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->ReadInstructions(arg2,arg3);
   {
     lldb::SBInstructionList * resultptr = new lldb::SBInstructionList((const lldb::SBInstructionList &) result);
@@ -51743,7 +51919,7 @@ static int _wrap_SBTarget_ReadInstructions__SWIG_1(lua_State* L) {
   SWIG_check_num_args("lldb::SBTarget::ReadInstructions",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",2,"lldb::SBAddress");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",3,"uint32_t");
   if(!SWIG_lua_isnilstring(L,4)) SWIG_fail_arg("lldb::SBTarget::ReadInstructions",4,"char const *");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
@@ -51756,8 +51932,7 @@ static int _wrap_SBTarget_ReadInstructions__SWIG_1(lua_State* L) {
   }
   arg2 = *argp2;
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   arg4 = (char *)lua_tostring(L, 4);
   result = (arg1)->ReadInstructions(arg2,arg3,(char const *)arg4);
   {
@@ -51866,7 +52041,7 @@ static int _wrap_SBTarget_GetInstructions(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTarget::GetInstructions",1,"lldb::SBTarget *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::GetInstructions",2,"lldb::SBAddress");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBTarget::GetInstructions",3,"void const *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTarget::GetInstructions",4,"size_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTarget::GetInstructions",4,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_GetInstructions",1,SWIGTYPE_p_lldb__SBTarget);
@@ -51879,8 +52054,7 @@ static int _wrap_SBTarget_GetInstructions(lua_State* L) {
   arg2 = *argp2;
   
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBTarget_GetInstructions");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
   result = (arg1)->GetInstructions(arg2,(void const *)arg3,arg4);
   {
     lldb::SBInstructionList * resultptr = new lldb::SBInstructionList((const lldb::SBInstructionList &) result);
@@ -51911,7 +52085,7 @@ static int _wrap_SBTarget_GetInstructionsWithFlavor(lua_State* L) {
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTarget::GetInstructionsWithFlavor",2,"lldb::SBAddress");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBTarget::GetInstructionsWithFlavor",3,"char const *");
   if(!SWIG_isptrtype(L,4)) SWIG_fail_arg("lldb::SBTarget::GetInstructionsWithFlavor",4,"void const *");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTarget::GetInstructionsWithFlavor",5,"size_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBTarget::GetInstructionsWithFlavor",5,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTarget,0))){
     SWIG_fail_ptr("SBTarget_GetInstructionsWithFlavor",1,SWIGTYPE_p_lldb__SBTarget);
@@ -51925,8 +52099,7 @@ static int _wrap_SBTarget_GetInstructionsWithFlavor(lua_State* L) {
   
   arg3 = (char *)lua_tostring(L, 3);
   arg4=(void *)SWIG_MustGetPtr(L,4,0,0,4,"SBTarget_GetInstructionsWithFlavor");
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (size_t)lua_tonumber(L, 5);
+  arg5 = (unsigned long)lua_tointeger(L, 5); 
   result = (arg1)->GetInstructionsWithFlavor(arg2,(char const *)arg3,(void const *)arg4,arg5);
   {
     lldb::SBInstructionList * resultptr = new lldb::SBInstructionList((const lldb::SBInstructionList &) result);
@@ -52111,7 +52284,7 @@ static int _wrap_SBTarget_GetStackRedZoneSize(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetStackRedZoneSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -52845,7 +53018,7 @@ static int _wrap_SBThread_GetStopReasonDataCount(lua_State* L) {
   }
   
   result = (arg1)->GetStopReasonDataCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -52864,16 +53037,15 @@ static int _wrap_SBThread_GetStopReasonDataAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThread::GetStopReasonDataAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetStopReasonDataAtIndex",1,"lldb::SBThread *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThread::GetStopReasonDataAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThread::GetStopReasonDataAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_GetStopReasonDataAtIndex",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (uint64_t)(arg1)->GetStopReasonDataAtIndex(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -52955,17 +53127,16 @@ static int _wrap_SBThread_GetStopDescription(lua_State* L) {
   SWIG_check_num_args("lldb::SBThread::GetStopDescription",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetStopDescription",1,"lldb::SBThread *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBThread::GetStopDescription",2,"char *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThread::GetStopDescription",3,"size_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThread::GetStopDescription",3,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_GetStopDescription",1,SWIGTYPE_p_lldb__SBThread);
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (size_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long)lua_tointeger(L, 3); 
   result = (arg1)->GetStopDescription(arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -53016,7 +53187,7 @@ static int _wrap_SBThread_GetThreadID(lua_State* L) {
   }
   
   result = (lldb::tid_t)((lldb::SBThread const *)arg1)->GetThreadID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -53040,7 +53211,7 @@ static int _wrap_SBThread_GetIndexID(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBThread const *)arg1)->GetIndexID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -53112,7 +53283,7 @@ static int _wrap_SBThread_GetQueueID(lua_State* L) {
   }
   
   result = (lldb::queue_id_t)((lldb::SBThread const *)arg1)->GetQueueID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -53460,7 +53631,7 @@ static int _wrap_SBThread_StepInto__SWIG_4(lua_State* L) {
   SWIG_check_num_args("lldb::SBThread::StepInto",5,5)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::StepInto",1,"lldb::SBThread *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBThread::StepInto",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThread::StepInto",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThread::StepInto",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBThread::StepInto",4,"lldb::SBError &");
   if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBThread::StepInto",5,"lldb::RunMode");
   
@@ -53469,8 +53640,7 @@ static int _wrap_SBThread_StepInto__SWIG_4(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBThread_StepInto",4,SWIGTYPE_p_lldb__SBError);
@@ -53499,7 +53669,7 @@ static int _wrap_SBThread_StepInto__SWIG_5(lua_State* L) {
   SWIG_check_num_args("lldb::SBThread::StepInto",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::StepInto",1,"lldb::SBThread *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBThread::StepInto",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThread::StepInto",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThread::StepInto",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBThread::StepInto",4,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
@@ -53507,8 +53677,7 @@ static int _wrap_SBThread_StepInto__SWIG_5(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&arg4,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBThread_StepInto",4,SWIGTYPE_p_lldb__SBError);
@@ -54078,7 +54247,7 @@ static int _wrap_SBThread_StepOverUntil(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::StepOverUntil",1,"lldb::SBThread *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::StepOverUntil",2,"lldb::SBFrame &");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBThread::StepOverUntil",3,"lldb::SBFileSpec &");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBThread::StepOverUntil",4,"uint32_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBThread::StepOverUntil",4,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_StepOverUntil",1,SWIGTYPE_p_lldb__SBThread);
@@ -54094,8 +54263,7 @@ static int _wrap_SBThread_StepOverUntil(lua_State* L) {
     SWIG_fail_ptr("SBThread_StepOverUntil",3,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (uint32_t)lua_tonumber(L, 4);
+  arg4 = (unsigned int)lua_tointeger(L, 4); 
   result = (arg1)->StepOverUntil(*arg2,*arg3,arg4);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -54318,7 +54486,7 @@ static int _wrap_SBThread_JumpToLine(lua_State* L) {
   SWIG_check_num_args("lldb::SBThread::JumpToLine",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::JumpToLine",1,"lldb::SBThread *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThread::JumpToLine",2,"lldb::SBFileSpec &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThread::JumpToLine",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThread::JumpToLine",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_JumpToLine",1,SWIGTYPE_p_lldb__SBThread);
@@ -54329,8 +54497,7 @@ static int _wrap_SBThread_JumpToLine(lua_State* L) {
     SWIG_fail_ptr("SBThread_JumpToLine",2,SWIGTYPE_p_lldb__SBFileSpec);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->JumpToLine(*arg2,arg3);
   {
     lldb::SBError * resultptr = new lldb::SBError((const lldb::SBError &) result);
@@ -54353,13 +54520,13 @@ static int _wrap_SBThread_RunToAddress__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThread::RunToAddress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::RunToAddress",1,"lldb::SBThread *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThread::RunToAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThread::RunToAddress",2,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_RunToAddress",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->RunToAddress(arg2);
   
   return SWIG_arg;
@@ -54380,14 +54547,14 @@ static int _wrap_SBThread_RunToAddress__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThread::RunToAddress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::RunToAddress",1,"lldb::SBThread *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThread::RunToAddress",2,"lldb::addr_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThread::RunToAddress",2,"lldb::addr_t");
   if(!lua_isuserdata(L,3)) SWIG_fail_arg("lldb::SBThread::RunToAddress",3,"lldb::SBError &");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_RunToAddress",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  arg2 = (lldb::addr_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,3,(void**)&arg3,SWIGTYPE_p_lldb__SBError,0))){
     SWIG_fail_ptr("SBThread_RunToAddress",3,SWIGTYPE_p_lldb__SBError);
@@ -54816,7 +54983,7 @@ static int _wrap_SBThread_GetNumFrames(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumFrames();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -54835,14 +55002,13 @@ static int _wrap_SBThread_GetFrameAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThread::GetFrameAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::GetFrameAtIndex",1,"lldb::SBThread *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThread::GetFrameAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThread::GetFrameAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_GetFrameAtIndex",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetFrameAtIndex(arg2);
   {
     lldb::SBFrame * resultptr = new lldb::SBFrame((const lldb::SBFrame &) result);
@@ -54893,14 +55059,13 @@ static int _wrap_SBThread_SetSelectedFrame(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThread::SetSelectedFrame",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThread::SetSelectedFrame",1,"lldb::SBThread *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThread::SetSelectedFrame",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThread::SetSelectedFrame",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThread,0))){
     SWIG_fail_ptr("SBThread_SetSelectedFrame",1,SWIGTYPE_p_lldb__SBThread);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->SetSelectedFrame(arg2);
   {
     lldb::SBFrame * resultptr = new lldb::SBFrame((const lldb::SBFrame &) result);
@@ -55182,7 +55347,7 @@ static int _wrap_SBThread_GetExtendedBacktraceOriginatingIndexID(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetExtendedBacktraceOriginatingIndexID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -55509,7 +55674,7 @@ static int _wrap_SBThreadCollection_GetSize(lua_State* L) {
   }
   
   result = (arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -55528,14 +55693,13 @@ static int _wrap_SBThreadCollection_GetThreadAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThreadCollection::GetThreadAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadCollection::GetThreadAtIndex",1,"lldb::SBThreadCollection *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThreadCollection::GetThreadAtIndex",2,"size_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThreadCollection::GetThreadAtIndex",2,"size_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadCollection,0))){
     SWIG_fail_ptr("SBThreadCollection_GetThreadAtIndex",1,SWIGTYPE_p_lldb__SBThreadCollection);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (size_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long)lua_tointeger(L, 2); 
   result = (arg1)->GetThreadAtIndex(arg2);
   {
     lldb::SBThread * resultptr = new lldb::SBThread((const lldb::SBThread &) result);
@@ -55913,7 +56077,7 @@ static int _wrap_SBThreadPlan_GetStopReasonDataCount(lua_State* L) {
   }
   
   result = (arg1)->GetStopReasonDataCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -55932,16 +56096,15 @@ static int _wrap_SBThreadPlan_GetStopReasonDataAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThreadPlan::GetStopReasonDataAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::GetStopReasonDataAtIndex",1,"lldb::SBThreadPlan *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::GetStopReasonDataAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::GetStopReasonDataAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
     SWIG_fail_ptr("SBThreadPlan_GetStopReasonDataAtIndex",1,SWIGTYPE_p_lldb__SBThreadPlan);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (uint64_t)(arg1)->GetStopReasonDataAtIndex(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -56084,6 +56247,56 @@ fail:
 }
 
 
+static int _wrap_SBThreadPlan_GetStopOthers(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBThreadPlan::GetStopOthers",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::GetStopOthers",1,"lldb::SBThreadPlan *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+    SWIG_fail_ptr("SBThreadPlan_GetStopOthers",1,SWIGTYPE_p_lldb__SBThreadPlan);
+  }
+  
+  result = (bool)(arg1)->GetStopOthers();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBThreadPlan_SetStopOthers(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
+  bool arg2 ;
+  
+  SWIG_check_num_args("lldb::SBThreadPlan::SetStopOthers",2,2)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::SetStopOthers",1,"lldb::SBThreadPlan *");
+  if(!lua_isboolean(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::SetStopOthers",2,"bool");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
+    SWIG_fail_ptr("SBThreadPlan_SetStopOthers",1,SWIGTYPE_p_lldb__SBThreadPlan);
+  }
+  
+  arg2 = (lua_toboolean(L, 2)!=0);
+  (arg1)->SetStopOthers(arg2);
+  
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBThreadPlan *arg1 = (lldb::SBThreadPlan *) 0 ;
@@ -56094,7 +56307,7 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
   SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",1,"lldb::SBThreadPlan *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",2,"lldb::SBAddress &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOverRange",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOverRange",1,SWIGTYPE_p_lldb__SBThreadPlan);
@@ -56105,7 +56318,7 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange(lua_State* L) {
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOverRange",2,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->QueueThreadPlanForStepOverRange(*arg2,arg3);
   {
     lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan((const lldb::SBThreadPlan &) result);
@@ -56131,7 +56344,7 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange(lua_State* L) {
   SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",1,"lldb::SBThreadPlan *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",2,"lldb::SBAddress &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepInRange",3,"lldb::addr_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepInRange",1,SWIGTYPE_p_lldb__SBThreadPlan);
@@ -56142,7 +56355,7 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepInRange(lua_State* L) {
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepInRange",2,SWIGTYPE_p_lldb__SBAddress);
   }
   
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (arg1)->QueueThreadPlanForStepInRange(*arg2,arg3);
   {
     lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan((const lldb::SBThreadPlan &) result);
@@ -56167,15 +56380,14 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepOut",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",1,"lldb::SBThreadPlan *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,"uint32_t");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOut",1,SWIGTYPE_p_lldb__SBThreadPlan);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (arg1)->QueueThreadPlanForStepOut(arg2,arg3);
   {
@@ -56200,14 +56412,13 @@ static int _wrap_SBThreadPlan_QueueThreadPlanForStepOut__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",1,"lldb::SBThreadPlan *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBThreadPlan::QueueThreadPlanForStepOut",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBThreadPlan,0))){
     SWIG_fail_ptr("SBThreadPlan_QueueThreadPlanForStepOut",1,SWIGTYPE_p_lldb__SBThreadPlan);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->QueueThreadPlanForStepOut(arg2);
   {
     lldb::SBThreadPlan * resultptr = new lldb::SBThreadPlan((const lldb::SBThreadPlan &) result);
@@ -56559,6 +56770,8 @@ static swig_lua_method swig_SBThreadPlan_methods[]= {
     { "SetPlanComplete", _wrap_SBThreadPlan_SetPlanComplete},
     { "IsPlanComplete", _wrap_SBThreadPlan_IsPlanComplete},
     { "IsPlanStale", _wrap_SBThreadPlan_IsPlanStale},
+    { "GetStopOthers", _wrap_SBThreadPlan_GetStopOthers},
+    { "SetStopOthers", _wrap_SBThreadPlan_SetStopOthers},
     { "QueueThreadPlanForStepOverRange", _wrap_SBThreadPlan_QueueThreadPlanForStepOverRange},
     { "QueueThreadPlanForStepInRange", _wrap_SBThreadPlan_QueueThreadPlanForStepInRange},
     { "QueueThreadPlanForStepOut", _wrap_SBThreadPlan_QueueThreadPlanForStepOut},
@@ -56626,9 +56839,9 @@ static int _wrap_SBTrace_GetTraceData(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",1,"lldb::SBTrace *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",2,"lldb::SBError &");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",3,"void *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",4,"size_t");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",5,"size_t");
-  if(!lua_isnumber(L,6)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",6,"lldb::tid_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",4,"size_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",5,"size_t");
+  if(!lua_isinteger(L,6)) SWIG_fail_arg("lldb::SBTrace::GetTraceData",6,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
     SWIG_fail_ptr("SBTrace_GetTraceData",1,SWIGTYPE_p_lldb__SBTrace);
@@ -56640,13 +56853,11 @@ static int _wrap_SBTrace_GetTraceData(lua_State* L) {
   }
   
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBTrace_GetTraceData");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (size_t)lua_tonumber(L, 5);
-  arg6 = (lldb::tid_t)lua_tonumber(L, 6);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
+  arg5 = (unsigned long)lua_tointeger(L, 5); 
+  arg6 = (unsigned long long)lua_tointeger(L, 6); 
   result = (arg1)->GetTraceData(*arg2,arg3,arg4,arg5,arg6);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -56671,9 +56882,9 @@ static int _wrap_SBTrace_GetMetaData(lua_State* L) {
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",1,"lldb::SBTrace *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",2,"lldb::SBError &");
   if(!SWIG_isptrtype(L,3)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",3,"void *");
-  if(!lua_isnumber(L,4)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",4,"size_t");
-  if(!lua_isnumber(L,5)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",5,"size_t");
-  if(!lua_isnumber(L,6)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",6,"lldb::tid_t");
+  if(!lua_isinteger(L,4)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",4,"size_t");
+  if(!lua_isinteger(L,5)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",5,"size_t");
+  if(!lua_isinteger(L,6)) SWIG_fail_arg("lldb::SBTrace::GetMetaData",6,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
     SWIG_fail_ptr("SBTrace_GetMetaData",1,SWIGTYPE_p_lldb__SBTrace);
@@ -56685,13 +56896,11 @@ static int _wrap_SBTrace_GetMetaData(lua_State* L) {
   }
   
   arg3=(void *)SWIG_MustGetPtr(L,3,0,0,3,"SBTrace_GetMetaData");
-  SWIG_contract_assert((lua_tonumber(L,4)>=0),"number must not be negative")
-  arg4 = (size_t)lua_tonumber(L, 4);
-  SWIG_contract_assert((lua_tonumber(L,5)>=0),"number must not be negative")
-  arg5 = (size_t)lua_tonumber(L, 5);
-  arg6 = (lldb::tid_t)lua_tonumber(L, 6);
+  arg4 = (unsigned long)lua_tointeger(L, 4); 
+  arg5 = (unsigned long)lua_tointeger(L, 5); 
+  arg6 = (unsigned long long)lua_tointeger(L, 6); 
   result = (arg1)->GetMetaData(*arg2,arg3,arg4,arg5,arg6);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -56711,7 +56920,7 @@ static int _wrap_SBTrace_StopTrace(lua_State* L) {
   SWIG_check_num_args("lldb::SBTrace::StopTrace",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTrace::StopTrace",1,"lldb::SBTrace *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBTrace::StopTrace",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBTrace::StopTrace",3,"lldb::tid_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBTrace::StopTrace",3,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTrace,0))){
     SWIG_fail_ptr("SBTrace_StopTrace",1,SWIGTYPE_p_lldb__SBTrace);
@@ -56722,7 +56931,7 @@ static int _wrap_SBTrace_StopTrace(lua_State* L) {
     SWIG_fail_ptr("SBTrace_StopTrace",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (lldb::tid_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   (arg1)->StopTrace(*arg2,arg3);
   
   return SWIG_arg;
@@ -56785,7 +56994,7 @@ static int _wrap_SBTrace_GetTraceUID(lua_State* L) {
   }
   
   result = (lldb::user_id_t)(arg1)->GetTraceUID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -56927,7 +57136,7 @@ static int _wrap_SBTraceOptions_getTraceBufferSize(lua_State* L) {
   }
   
   result = (uint64_t)((lldb::SBTraceOptions const *)arg1)->getTraceBufferSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -56985,7 +57194,7 @@ static int _wrap_SBTraceOptions_getMetaDataBufferSize(lua_State* L) {
   }
   
   result = (uint64_t)((lldb::SBTraceOptions const *)arg1)->getMetaDataBufferSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57059,13 +57268,13 @@ static int _wrap_SBTraceOptions_setTraceBufferSize(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTraceOptions::setTraceBufferSize",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceOptions::setTraceBufferSize",1,"lldb::SBTraceOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setTraceBufferSize",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setTraceBufferSize",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceOptions,0))){
     SWIG_fail_ptr("SBTraceOptions_setTraceBufferSize",1,SWIGTYPE_p_lldb__SBTraceOptions);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->setTraceBufferSize(arg2);
   
   return SWIG_arg;
@@ -57085,13 +57294,13 @@ static int _wrap_SBTraceOptions_setMetaDataBufferSize(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTraceOptions::setMetaDataBufferSize",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceOptions::setMetaDataBufferSize",1,"lldb::SBTraceOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setMetaDataBufferSize",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setMetaDataBufferSize",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceOptions,0))){
     SWIG_fail_ptr("SBTraceOptions_setMetaDataBufferSize",1,SWIGTYPE_p_lldb__SBTraceOptions);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->setMetaDataBufferSize(arg2);
   
   return SWIG_arg;
@@ -57111,13 +57320,13 @@ static int _wrap_SBTraceOptions_setThreadID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTraceOptions::setThreadID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTraceOptions::setThreadID",1,"lldb::SBTraceOptions *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setThreadID",2,"lldb::tid_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTraceOptions::setThreadID",2,"lldb::tid_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTraceOptions,0))){
     SWIG_fail_ptr("SBTraceOptions_setThreadID",1,SWIGTYPE_p_lldb__SBTraceOptions);
   }
   
-  arg2 = (lldb::tid_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   (arg1)->setThreadID(arg2);
   
   return SWIG_arg;
@@ -57143,7 +57352,7 @@ static int _wrap_SBTraceOptions_getThreadID(lua_State* L) {
   }
   
   result = (lldb::tid_t)(arg1)->getThreadID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57398,7 +57607,7 @@ static int _wrap_SBTypeMember_GetOffsetInBytes(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetOffsetInBytes();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57422,7 +57631,7 @@ static int _wrap_SBTypeMember_GetOffsetInBits(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetOffsetInBits();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57470,7 +57679,7 @@ static int _wrap_SBTypeMember_GetBitfieldSizeInBits(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetBitfieldSizeInBits();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57798,7 +58007,7 @@ static int _wrap_SBTypeMemberFunction_GetNumberOfArguments(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfArguments();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -57817,14 +58026,13 @@ static int _wrap_SBTypeMemberFunction_GetArgumentTypeAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeMemberFunction::GetArgumentTypeAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeMemberFunction::GetArgumentTypeAtIndex",1,"lldb::SBTypeMemberFunction *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeMemberFunction::GetArgumentTypeAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeMemberFunction::GetArgumentTypeAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeMemberFunction,0))){
     SWIG_fail_ptr("SBTypeMemberFunction_GetArgumentTypeAtIndex",1,SWIGTYPE_p_lldb__SBTypeMemberFunction);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetArgumentTypeAtIndex(arg2);
   {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
@@ -58092,7 +58300,7 @@ static int _wrap_SBType_GetByteSize(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -58295,6 +58503,30 @@ fail:
 }
 
 
+static int _wrap_SBType_IsScopedEnumerationType(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+  bool result;
+  
+  SWIG_check_num_args("lldb::SBType::IsScopedEnumerationType",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::IsScopedEnumerationType",1,"lldb::SBType *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+    SWIG_fail_ptr("SBType_IsScopedEnumerationType",1,SWIGTYPE_p_lldb__SBType);
+  }
+  
+  result = (bool)(arg1)->IsScopedEnumerationType();
+  lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBType_GetPointerType(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBType *arg1 = (lldb::SBType *) 0 ;
@@ -58484,6 +58716,33 @@ fail:
 }
 
 
+static int _wrap_SBType_GetEnumerationIntegerType(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+  lldb::SBType result;
+  
+  SWIG_check_num_args("lldb::SBType::GetEnumerationIntegerType",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetEnumerationIntegerType",1,"lldb::SBType *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+    SWIG_fail_ptr("SBType_GetEnumerationIntegerType",1,SWIGTYPE_p_lldb__SBType);
+  }
+  
+  result = (arg1)->GetEnumerationIntegerType();
+  {
+    lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBType,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
 static int _wrap_SBType_GetArrayElementType(lua_State* L) {
   int SWIG_arg = 0;
   lldb::SBType *arg1 = (lldb::SBType *) 0 ;
@@ -58519,13 +58778,13 @@ static int _wrap_SBType_GetArrayType(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetArrayType",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetArrayType",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetArrayType",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetArrayType",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetArrayType",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->GetArrayType(arg2);
   {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
@@ -58684,7 +58943,7 @@ static int _wrap_SBType_GetNumberOfFields(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfFields();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -58708,7 +58967,7 @@ static int _wrap_SBType_GetNumberOfDirectBaseClasses(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfDirectBaseClasses();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -58732,7 +58991,7 @@ static int _wrap_SBType_GetNumberOfVirtualBaseClasses(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfVirtualBaseClasses();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -58751,14 +59010,13 @@ static int _wrap_SBType_GetFieldAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetFieldAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetFieldAtIndex",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetFieldAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetFieldAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetFieldAtIndex",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetFieldAtIndex(arg2);
   {
     lldb::SBTypeMember * resultptr = new lldb::SBTypeMember((const lldb::SBTypeMember &) result);
@@ -58782,14 +59040,13 @@ static int _wrap_SBType_GetDirectBaseClassAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetDirectBaseClassAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetDirectBaseClassAtIndex",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetDirectBaseClassAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetDirectBaseClassAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetDirectBaseClassAtIndex",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetDirectBaseClassAtIndex(arg2);
   {
     lldb::SBTypeMember * resultptr = new lldb::SBTypeMember((const lldb::SBTypeMember &) result);
@@ -58813,14 +59070,13 @@ static int _wrap_SBType_GetVirtualBaseClassAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetVirtualBaseClassAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetVirtualBaseClassAtIndex",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetVirtualBaseClassAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetVirtualBaseClassAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetVirtualBaseClassAtIndex",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetVirtualBaseClassAtIndex(arg2);
   {
     lldb::SBTypeMember * resultptr = new lldb::SBTypeMember((const lldb::SBTypeMember &) result);
@@ -58852,6 +59108,33 @@ static int _wrap_SBType_GetEnumMembers(lua_State* L) {
   {
     lldb::SBTypeEnumMemberList * resultptr = new lldb::SBTypeEnumMemberList((const lldb::SBTypeEnumMemberList &) result);
     SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBTypeEnumMemberList,1); SWIG_arg++;
+  }
+  return SWIG_arg;
+  
+  if(0) SWIG_fail;
+  
+fail:
+  lua_error(L);
+  return SWIG_arg;
+}
+
+
+static int _wrap_SBType_GetModule(lua_State* L) {
+  int SWIG_arg = 0;
+  lldb::SBType *arg1 = (lldb::SBType *) 0 ;
+  lldb::SBModule result;
+  
+  SWIG_check_num_args("lldb::SBType::GetModule",1,1)
+  if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetModule",1,"lldb::SBType *");
+  
+  if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
+    SWIG_fail_ptr("SBType_GetModule",1,SWIGTYPE_p_lldb__SBType);
+  }
+  
+  result = (arg1)->GetModule();
+  {
+    lldb::SBModule * resultptr = new lldb::SBModule((const lldb::SBModule &) result);
+    SWIG_NewPointerObj(L,(void *) resultptr,SWIGTYPE_p_lldb__SBModule,1); SWIG_arg++;
   }
   return SWIG_arg;
   
@@ -58948,7 +59231,7 @@ static int _wrap_SBType_GetNumberOfTemplateArguments(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfTemplateArguments();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -58967,14 +59250,13 @@ static int _wrap_SBType_GetTemplateArgumentType(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetTemplateArgumentType",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentType",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentType",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentType",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetTemplateArgumentType",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTemplateArgumentType(arg2);
   {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
@@ -58998,14 +59280,13 @@ static int _wrap_SBType_GetTemplateArgumentKind(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetTemplateArgumentKind",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentKind",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentKind",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetTemplateArgumentKind",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetTemplateArgumentKind",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (lldb::TemplateArgumentKind)(arg1)->GetTemplateArgumentKind(arg2);
   lua_pushnumber(L, (lua_Number)(int)(result)); SWIG_arg++;
   return SWIG_arg;
@@ -59085,7 +59366,7 @@ static int _wrap_SBType_GetNumberOfMemberFunctions(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfMemberFunctions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59104,14 +59385,13 @@ static int _wrap_SBType_GetMemberFunctionAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBType::GetMemberFunctionAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBType::GetMemberFunctionAtIndex",1,"lldb::SBType *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBType::GetMemberFunctionAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBType::GetMemberFunctionAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBType_GetMemberFunctionAtIndex",1,SWIGTYPE_p_lldb__SBType);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetMemberFunctionAtIndex(arg2);
   {
     lldb::SBTypeMemberFunction * resultptr = new lldb::SBTypeMemberFunction((const lldb::SBTypeMemberFunction &) result);
@@ -59164,7 +59444,7 @@ static int _wrap_SBType_GetTypeFlags(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetTypeFlags();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59256,6 +59536,7 @@ static swig_lua_method swig_SBType_methods[]= {
     { "IsVectorType", _wrap_SBType_IsVectorType},
     { "IsTypedefType", _wrap_SBType_IsTypedefType},
     { "IsAnonymousType", _wrap_SBType_IsAnonymousType},
+    { "IsScopedEnumerationType", _wrap_SBType_IsScopedEnumerationType},
     { "GetPointerType", _wrap_SBType_GetPointerType},
     { "GetPointeeType", _wrap_SBType_GetPointeeType},
     { "GetReferenceType", _wrap_SBType_GetReferenceType},
@@ -59263,6 +59544,7 @@ static swig_lua_method swig_SBType_methods[]= {
     { "GetDereferencedType", _wrap_SBType_GetDereferencedType},
     { "GetUnqualifiedType", _wrap_SBType_GetUnqualifiedType},
     { "GetCanonicalType", _wrap_SBType_GetCanonicalType},
+    { "GetEnumerationIntegerType", _wrap_SBType_GetEnumerationIntegerType},
     { "GetArrayElementType", _wrap_SBType_GetArrayElementType},
     { "GetArrayType", _wrap_SBType_GetArrayType},
     { "GetVectorElementType", _wrap_SBType_GetVectorElementType},
@@ -59274,6 +59556,7 @@ static swig_lua_method swig_SBType_methods[]= {
     { "GetDirectBaseClassAtIndex", _wrap_SBType_GetDirectBaseClassAtIndex},
     { "GetVirtualBaseClassAtIndex", _wrap_SBType_GetVirtualBaseClassAtIndex},
     { "GetEnumMembers", _wrap_SBType_GetEnumMembers},
+    { "GetModule", _wrap_SBType_GetModule},
     { "GetName", _wrap_SBType_GetName},
     { "GetDisplayTypeName", _wrap_SBType_GetDisplayTypeName},
     { "GetTypeClass", _wrap_SBType_GetTypeClass},
@@ -59402,14 +59685,13 @@ static int _wrap_SBTypeList_GetTypeAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeList::GetTypeAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeList::GetTypeAtIndex",1,"lldb::SBTypeList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeList::GetTypeAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeList::GetTypeAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeList,0))){
     SWIG_fail_ptr("SBTypeList_GetTypeAtIndex",1,SWIGTYPE_p_lldb__SBTypeList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeAtIndex(arg2);
   {
     lldb::SBType * resultptr = new lldb::SBType((const lldb::SBType &) result);
@@ -59438,7 +59720,7 @@ static int _wrap_SBTypeList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59680,14 +59962,13 @@ static int _wrap_SBTypeCategory_GetLanguageAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetLanguageAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetLanguageAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetLanguageAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetLanguageAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetLanguageAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (lldb::LanguageType)(arg1)->GetLanguageAtIndex(arg2);
   lua_pushnumber(L, (lua_Number)(int)(result)); SWIG_arg++;
   return SWIG_arg;
@@ -59713,7 +59994,7 @@ static int _wrap_SBTypeCategory_GetNumLanguages(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumLanguages();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59797,7 +60078,7 @@ static int _wrap_SBTypeCategory_GetNumFormats(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumFormats();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59821,7 +60102,7 @@ static int _wrap_SBTypeCategory_GetNumSummaries(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumSummaries();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59845,7 +60126,7 @@ static int _wrap_SBTypeCategory_GetNumFilters(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumFilters();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59869,7 +60150,7 @@ static int _wrap_SBTypeCategory_GetNumSynthetics(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumSynthetics();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -59888,14 +60169,13 @@ static int _wrap_SBTypeCategory_GetTypeNameSpecifierForFilterAtIndex(lua_State* 
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFilterAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetTypeNameSpecifierForFilterAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeNameSpecifierForFilterAtIndex(arg2);
   {
     lldb::SBTypeNameSpecifier * resultptr = new lldb::SBTypeNameSpecifier((const lldb::SBTypeNameSpecifier &) result);
@@ -59919,14 +60199,13 @@ static int _wrap_SBTypeCategory_GetTypeNameSpecifierForFormatAtIndex(lua_State* 
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForFormatAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetTypeNameSpecifierForFormatAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeNameSpecifierForFormatAtIndex(arg2);
   {
     lldb::SBTypeNameSpecifier * resultptr = new lldb::SBTypeNameSpecifier((const lldb::SBTypeNameSpecifier &) result);
@@ -59950,14 +60229,13 @@ static int _wrap_SBTypeCategory_GetTypeNameSpecifierForSummaryAtIndex(lua_State*
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetTypeNameSpecifierForSummaryAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSummaryAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSummaryAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSummaryAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetTypeNameSpecifierForSummaryAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeNameSpecifierForSummaryAtIndex(arg2);
   {
     lldb::SBTypeNameSpecifier * resultptr = new lldb::SBTypeNameSpecifier((const lldb::SBTypeNameSpecifier &) result);
@@ -59981,14 +60259,13 @@ static int _wrap_SBTypeCategory_GetTypeNameSpecifierForSyntheticAtIndex(lua_Stat
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetTypeNameSpecifierForSyntheticAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSyntheticAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSyntheticAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetTypeNameSpecifierForSyntheticAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetTypeNameSpecifierForSyntheticAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeNameSpecifierForSyntheticAtIndex(arg2);
   {
     lldb::SBTypeNameSpecifier * resultptr = new lldb::SBTypeNameSpecifier((const lldb::SBTypeNameSpecifier &) result);
@@ -60156,14 +60433,13 @@ static int _wrap_SBTypeCategory_GetFilterAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetFilterAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetFilterAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetFilterAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetFilterAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetFilterAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetFilterAtIndex(arg2);
   {
     lldb::SBTypeFilter * resultptr = new lldb::SBTypeFilter((const lldb::SBTypeFilter &) result);
@@ -60187,14 +60463,13 @@ static int _wrap_SBTypeCategory_GetFormatAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetFormatAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetFormatAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetFormatAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetFormatAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetFormatAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetFormatAtIndex(arg2);
   {
     lldb::SBTypeFormat * resultptr = new lldb::SBTypeFormat((const lldb::SBTypeFormat &) result);
@@ -60218,14 +60493,13 @@ static int _wrap_SBTypeCategory_GetSummaryAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetSummaryAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetSummaryAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetSummaryAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetSummaryAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetSummaryAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetSummaryAtIndex(arg2);
   {
     lldb::SBTypeSummary * resultptr = new lldb::SBTypeSummary((const lldb::SBTypeSummary &) result);
@@ -60249,14 +60523,13 @@ static int _wrap_SBTypeCategory_GetSyntheticAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeCategory::GetSyntheticAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeCategory::GetSyntheticAtIndex",1,"lldb::SBTypeCategory *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetSyntheticAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeCategory::GetSyntheticAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeCategory,0))){
     SWIG_fail_ptr("SBTypeCategory_GetSyntheticAtIndex",1,SWIGTYPE_p_lldb__SBTypeCategory);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetSyntheticAtIndex(arg2);
   {
     lldb::SBTypeSynthetic * resultptr = new lldb::SBTypeSynthetic((const lldb::SBTypeSynthetic &) result);
@@ -60788,7 +61061,7 @@ static int _wrap_SBTypeEnumMember_GetValueAsSigned(lua_State* L) {
   }
   
   result = (int64_t)(arg1)->GetValueAsSigned();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -60812,7 +61085,7 @@ static int _wrap_SBTypeEnumMember_GetValueAsUnsigned(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetValueAsUnsigned();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -61125,14 +61398,13 @@ static int _wrap_SBTypeEnumMemberList_GetTypeEnumMemberAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeEnumMemberList::GetTypeEnumMemberAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeEnumMemberList::GetTypeEnumMemberAtIndex",1,"lldb::SBTypeEnumMemberList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeEnumMemberList::GetTypeEnumMemberAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeEnumMemberList::GetTypeEnumMemberAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeEnumMemberList,0))){
     SWIG_fail_ptr("SBTypeEnumMemberList_GetTypeEnumMemberAtIndex",1,SWIGTYPE_p_lldb__SBTypeEnumMemberList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetTypeEnumMemberAtIndex(arg2);
   {
     lldb::SBTypeEnumMember * resultptr = new lldb::SBTypeEnumMember((const lldb::SBTypeEnumMember &) result);
@@ -61161,7 +61433,7 @@ static int _wrap_SBTypeEnumMemberList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -61246,9 +61518,8 @@ static int _wrap_new_SBTypeFilter__SWIG_1(lua_State* L) {
   lldb::SBTypeFilter *result = 0 ;
   
   SWIG_check_num_args("lldb::SBTypeFilter::SBTypeFilter",1,1)
-  if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::SBTypeFilter",1,"uint32_t");
-  SWIG_contract_assert((lua_tonumber(L,1)>=0),"number must not be negative")
-  arg1 = (uint32_t)lua_tonumber(L, 1);
+  if(!lua_isinteger(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::SBTypeFilter",1,"uint32_t");
+  arg1 = (unsigned int)lua_tointeger(L, 1); 
   result = (lldb::SBTypeFilter *)new lldb::SBTypeFilter(arg1);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTypeFilter,1); SWIG_arg++; 
   return SWIG_arg;
@@ -61396,7 +61667,7 @@ static int _wrap_SBTypeFilter_GetNumberOfExpressionPaths(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumberOfExpressionPaths();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -61415,14 +61686,13 @@ static int _wrap_SBTypeFilter_GetExpressionPathAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFilter::GetExpressionPathAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::GetExpressionPathAtIndex",1,"lldb::SBTypeFilter *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::GetExpressionPathAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::GetExpressionPathAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFilter,0))){
     SWIG_fail_ptr("SBTypeFilter_GetExpressionPathAtIndex",1,SWIGTYPE_p_lldb__SBTypeFilter);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (char *)(arg1)->GetExpressionPathAtIndex(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -61444,15 +61714,14 @@ static int _wrap_SBTypeFilter_ReplaceExpressionPathAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFilter::ReplaceExpressionPathAtIndex",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::ReplaceExpressionPathAtIndex",1,"lldb::SBTypeFilter *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::ReplaceExpressionPathAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::ReplaceExpressionPathAtIndex",2,"uint32_t");
   if(!SWIG_lua_isnilstring(L,3)) SWIG_fail_arg("lldb::SBTypeFilter::ReplaceExpressionPathAtIndex",3,"char const *");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFilter,0))){
     SWIG_fail_ptr("SBTypeFilter_ReplaceExpressionPathAtIndex",1,SWIGTYPE_p_lldb__SBTypeFilter);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (char *)lua_tostring(L, 3);
   result = (bool)(arg1)->ReplaceExpressionPathAtIndex(arg2,(char const *)arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
@@ -61528,7 +61797,7 @@ static int _wrap_SBTypeFilter_GetOptions(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOptions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -61546,14 +61815,13 @@ static int _wrap_SBTypeFilter_SetOptions(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFilter::SetOptions",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFilter::SetOptions",1,"lldb::SBTypeFilter *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::SetOptions",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFilter::SetOptions",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFilter,0))){
     SWIG_fail_ptr("SBTypeFilter_SetOptions",1,SWIGTYPE_p_lldb__SBTypeFilter);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetOptions(arg2);
   
   return SWIG_arg;
@@ -61741,10 +62009,9 @@ static int _wrap_new_SBTypeFormat__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFormat::SBTypeFormat",2,2)
   if(!lua_isnumber(L,1)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",1,"lldb::Format");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",2,"uint32_t");
   arg1 = (lldb::Format)(int)lua_tonumber(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (lldb::SBTypeFormat *)new lldb::SBTypeFormat(arg1,arg2);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTypeFormat,1); SWIG_arg++; 
   return SWIG_arg;
@@ -61785,10 +62052,9 @@ static int _wrap_new_SBTypeFormat__SWIG_3(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFormat::SBTypeFormat",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SBTypeFormat",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (lldb::SBTypeFormat *)new lldb::SBTypeFormat((char const *)arg1,arg2);
   SWIG_NewPointerObj(L,result,SWIGTYPE_p_lldb__SBTypeFormat,1); SWIG_arg++; 
   return SWIG_arg;
@@ -62044,7 +62310,7 @@ static int _wrap_SBTypeFormat_GetOptions(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOptions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -62114,14 +62380,13 @@ static int _wrap_SBTypeFormat_SetOptions(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeFormat::SetOptions",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeFormat::SetOptions",1,"lldb::SBTypeFormat *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SetOptions",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeFormat::SetOptions",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeFormat,0))){
     SWIG_fail_ptr("SBTypeFormat_SetOptions",1,SWIGTYPE_p_lldb__SBTypeFormat);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetOptions(arg2);
   
   return SWIG_arg;
@@ -63017,10 +63282,9 @@ static int _wrap_SBTypeSummary_CreateWithSummaryString__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSummary::CreateWithSummaryString",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithSummaryString",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithSummaryString",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithSummaryString",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBTypeSummary::CreateWithSummaryString((char const *)arg1,arg2);
   {
     lldb::SBTypeSummary * resultptr = new lldb::SBTypeSummary((const lldb::SBTypeSummary &) result);
@@ -63106,10 +63370,9 @@ static int _wrap_SBTypeSummary_CreateWithFunctionName__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSummary::CreateWithFunctionName",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithFunctionName",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithFunctionName",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithFunctionName",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBTypeSummary::CreateWithFunctionName((char const *)arg1,arg2);
   {
     lldb::SBTypeSummary * resultptr = new lldb::SBTypeSummary((const lldb::SBTypeSummary &) result);
@@ -63195,10 +63458,9 @@ static int _wrap_SBTypeSummary_CreateWithScriptCode__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSummary::CreateWithScriptCode",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithScriptCode",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithScriptCode",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::CreateWithScriptCode",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBTypeSummary::CreateWithScriptCode((char const *)arg1,arg2);
   {
     lldb::SBTypeSummary * resultptr = new lldb::SBTypeSummary((const lldb::SBTypeSummary &) result);
@@ -63575,7 +63837,7 @@ static int _wrap_SBTypeSummary_GetOptions(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOptions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -63593,14 +63855,13 @@ static int _wrap_SBTypeSummary_SetOptions(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSummary::SetOptions",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSummary::SetOptions",1,"lldb::SBTypeSummary *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::SetOptions",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSummary::SetOptions",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSummary,0))){
     SWIG_fail_ptr("SBTypeSummary_SetOptions",1,SWIGTYPE_p_lldb__SBTypeSummary);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetOptions(arg2);
   
   return SWIG_arg;
@@ -63793,10 +64054,9 @@ static int _wrap_SBTypeSynthetic_CreateWithClassName__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSynthetic::CreateWithClassName",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithClassName",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithClassName",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithClassName",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBTypeSynthetic::CreateWithClassName((char const *)arg1,arg2);
   {
     lldb::SBTypeSynthetic * resultptr = new lldb::SBTypeSynthetic((const lldb::SBTypeSynthetic &) result);
@@ -63882,10 +64142,9 @@ static int _wrap_SBTypeSynthetic_CreateWithScriptCode__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSynthetic::CreateWithScriptCode",2,2)
   if(!SWIG_lua_isnilstring(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithScriptCode",1,"char const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithScriptCode",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::CreateWithScriptCode",2,"uint32_t");
   arg1 = (char *)lua_tostring(L, 1);
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = lldb::SBTypeSynthetic::CreateWithScriptCode((char const *)arg1,arg2);
   {
     lldb::SBTypeSynthetic * resultptr = new lldb::SBTypeSynthetic((const lldb::SBTypeSynthetic &) result);
@@ -64188,7 +64447,7 @@ static int _wrap_SBTypeSynthetic_GetOptions(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetOptions();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -64206,14 +64465,13 @@ static int _wrap_SBTypeSynthetic_SetOptions(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBTypeSynthetic::SetOptions",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBTypeSynthetic::SetOptions",1,"lldb::SBTypeSynthetic *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::SetOptions",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBTypeSynthetic::SetOptions",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBTypeSynthetic,0))){
     SWIG_fail_ptr("SBTypeSynthetic_SetOptions",1,SWIGTYPE_p_lldb__SBTypeSynthetic);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetOptions(arg2);
   
   return SWIG_arg;
@@ -64506,13 +64764,13 @@ static int _wrap_SBUnixSignals_GetSignalAsCString(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::GetSignalAsCString",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAsCString",1,"lldb::SBUnixSignals const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAsCString",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAsCString",2,"int32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_GetSignalAsCString",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (char *)((lldb::SBUnixSignals const *)arg1)->GetSignalAsCString(arg2);
   lua_pushstring(L,(const char *)result); SWIG_arg++;
   return SWIG_arg;
@@ -64541,7 +64799,7 @@ static int _wrap_SBUnixSignals_GetSignalNumberFromName(lua_State* L) {
   
   arg2 = (char *)lua_tostring(L, 2);
   result = (int32_t)((lldb::SBUnixSignals const *)arg1)->GetSignalNumberFromName((char const *)arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -64560,13 +64818,13 @@ static int _wrap_SBUnixSignals_GetShouldSuppress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::GetShouldSuppress",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldSuppress",1,"lldb::SBUnixSignals const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldSuppress",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldSuppress",2,"int32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_GetShouldSuppress",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)((lldb::SBUnixSignals const *)arg1)->GetShouldSuppress(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -64588,14 +64846,14 @@ static int _wrap_SBUnixSignals_SetShouldSuppress(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::SetShouldSuppress",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldSuppress",1,"lldb::SBUnixSignals *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldSuppress",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldSuppress",2,"int32_t");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldSuppress",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_SetShouldSuppress",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (bool)(arg1)->SetShouldSuppress(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
@@ -64617,13 +64875,13 @@ static int _wrap_SBUnixSignals_GetShouldStop(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::GetShouldStop",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldStop",1,"lldb::SBUnixSignals const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldStop",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldStop",2,"int32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_GetShouldStop",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)((lldb::SBUnixSignals const *)arg1)->GetShouldStop(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -64645,14 +64903,14 @@ static int _wrap_SBUnixSignals_SetShouldStop(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::SetShouldStop",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldStop",1,"lldb::SBUnixSignals *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldStop",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldStop",2,"int32_t");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldStop",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_SetShouldStop",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (bool)(arg1)->SetShouldStop(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
@@ -64674,13 +64932,13 @@ static int _wrap_SBUnixSignals_GetShouldNotify(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::GetShouldNotify",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldNotify",1,"lldb::SBUnixSignals const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldNotify",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetShouldNotify",2,"int32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_GetShouldNotify",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (bool)((lldb::SBUnixSignals const *)arg1)->GetShouldNotify(arg2);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
   return SWIG_arg;
@@ -64702,14 +64960,14 @@ static int _wrap_SBUnixSignals_SetShouldNotify(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::SetShouldNotify",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldNotify",1,"lldb::SBUnixSignals *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldNotify",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldNotify",2,"int32_t");
   if(!lua_isboolean(L,3)) SWIG_fail_arg("lldb::SBUnixSignals::SetShouldNotify",3,"bool");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_SetShouldNotify",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   arg3 = (lua_toboolean(L, 3)!=0);
   result = (bool)(arg1)->SetShouldNotify(arg2,arg3);
   lua_pushboolean(L,(int)(result!=0)); SWIG_arg++;
@@ -64736,7 +64994,7 @@ static int _wrap_SBUnixSignals_GetNumSignals(lua_State* L) {
   }
   
   result = (int32_t)((lldb::SBUnixSignals const *)arg1)->GetNumSignals();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -64755,15 +65013,15 @@ static int _wrap_SBUnixSignals_GetSignalAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBUnixSignals::GetSignalAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAtIndex",1,"lldb::SBUnixSignals const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAtIndex",2,"int32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBUnixSignals::GetSignalAtIndex",2,"int32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBUnixSignals,0))){
     SWIG_fail_ptr("SBUnixSignals_GetSignalAtIndex",1,SWIGTYPE_p_lldb__SBUnixSignals);
   }
   
-  arg2 = (int32_t)lua_tonumber(L, 2);
+  arg2 = (signed int)lua_tointeger(L, 2); 
   result = (int32_t)((lldb::SBUnixSignals const *)arg1)->GetSignalAtIndex(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -64994,7 +65252,7 @@ static int _wrap_SBValue_GetID(lua_State* L) {
   }
   
   result = (lldb::user_id_t)(arg1)->GetID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65090,7 +65348,7 @@ static int _wrap_SBValue_GetByteSize(lua_State* L) {
   }
   
   result = (arg1)->GetByteSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65209,7 +65467,7 @@ static int _wrap_SBValue_GetValueAsSigned__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBValue::GetValueAsSigned",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",1,"lldb::SBValue *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",3,"int64_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",3,"int64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetValueAsSigned",1,SWIGTYPE_p_lldb__SBValue);
@@ -65220,9 +65478,9 @@ static int _wrap_SBValue_GetValueAsSigned__SWIG_0(lua_State* L) {
     SWIG_fail_ptr("SBValue_GetValueAsSigned",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (int64_t)lua_tonumber(L, 3);
+  arg3 = (signed long long)lua_tointeger(L, 3); 
   result = (int64_t)(arg1)->GetValueAsSigned(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65253,7 +65511,7 @@ static int _wrap_SBValue_GetValueAsSigned__SWIG_1(lua_State* L) {
   }
   
   result = (int64_t)(arg1)->GetValueAsSigned(*arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65274,7 +65532,7 @@ static int _wrap_SBValue_GetValueAsUnsigned__SWIG_0(lua_State* L) {
   SWIG_check_num_args("lldb::SBValue::GetValueAsUnsigned",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",1,"lldb::SBValue *");
   if(!lua_isuserdata(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",2,"lldb::SBError &");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",3,"uint64_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",3,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetValueAsUnsigned",1,SWIGTYPE_p_lldb__SBValue);
@@ -65285,9 +65543,9 @@ static int _wrap_SBValue_GetValueAsUnsigned__SWIG_0(lua_State* L) {
     SWIG_fail_ptr("SBValue_GetValueAsUnsigned",2,SWIGTYPE_p_lldb__SBError);
   }
   
-  arg3 = (uint64_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   result = (uint64_t)(arg1)->GetValueAsUnsigned(*arg2,arg3);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65318,7 +65576,7 @@ static int _wrap_SBValue_GetValueAsUnsigned__SWIG_1(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetValueAsUnsigned(*arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65337,15 +65595,15 @@ static int _wrap_SBValue_GetValueAsSigned__SWIG_2(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetValueAsSigned",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",2,"int64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsSigned",2,"int64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetValueAsSigned",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  arg2 = (int64_t)lua_tonumber(L, 2);
+  arg2 = (signed long long)lua_tointeger(L, 2); 
   result = (int64_t)(arg1)->GetValueAsSigned(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65369,7 +65627,7 @@ static int _wrap_SBValue_GetValueAsSigned__SWIG_3(lua_State* L) {
   }
   
   result = (int64_t)(arg1)->GetValueAsSigned();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65492,15 +65750,15 @@ static int _wrap_SBValue_GetValueAsUnsigned__SWIG_2(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetValueAsUnsigned",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",2,"uint64_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetValueAsUnsigned",2,"uint64_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetValueAsUnsigned",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  arg2 = (uint64_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (uint64_t)(arg1)->GetValueAsUnsigned(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -65524,7 +65782,7 @@ static int _wrap_SBValue_GetValueAsUnsigned__SWIG_3(lua_State* L) {
   }
   
   result = (uint64_t)(arg1)->GetValueAsUnsigned();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -66384,14 +66642,13 @@ static int _wrap_SBValue_GetChildAtIndex__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetChildAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetChildAtIndex",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetChildAtIndex(arg2);
   {
     lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
@@ -66417,7 +66674,7 @@ static int _wrap_SBValue_GetChildAtIndex__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetChildAtIndex",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",2,"uint32_t");
   if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",3,"lldb::DynamicValueType");
   if(!lua_isboolean(L,4)) SWIG_fail_arg("lldb::SBValue::GetChildAtIndex",4,"bool");
   
@@ -66425,8 +66682,7 @@ static int _wrap_SBValue_GetChildAtIndex__SWIG_1(lua_State* L) {
     SWIG_fail_ptr("SBValue_GetChildAtIndex",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   arg3 = (lldb::DynamicValueType)(int)lua_tonumber(L, 3);
   arg4 = (lua_toboolean(L, 4)!=0);
   result = (arg1)->GetChildAtIndex(arg2,arg3,arg4);
@@ -66520,7 +66776,7 @@ static int _wrap_SBValue_CreateChildAtOffset(lua_State* L) {
   SWIG_check_num_args("lldb::SBValue::CreateChildAtOffset",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::CreateChildAtOffset",1,"lldb::SBValue *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBValue::CreateChildAtOffset",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::CreateChildAtOffset",3,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::CreateChildAtOffset",3,"uint32_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBValue::CreateChildAtOffset",4,"lldb::SBType");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
@@ -66528,8 +66784,7 @@ static int _wrap_SBValue_CreateChildAtOffset(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&argp4,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBValue_CreateChildAtOffset",4,SWIGTYPE_p_lldb__SBType);
@@ -66746,7 +67001,7 @@ static int _wrap_SBValue_CreateValueFromAddress(lua_State* L) {
   SWIG_check_num_args("lldb::SBValue::CreateValueFromAddress",4,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::CreateValueFromAddress",1,"lldb::SBValue *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("lldb::SBValue::CreateValueFromAddress",2,"char const *");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::CreateValueFromAddress",3,"lldb::addr_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::CreateValueFromAddress",3,"lldb::addr_t");
   if(!lua_isuserdata(L,4)) SWIG_fail_arg("lldb::SBValue::CreateValueFromAddress",4,"lldb::SBType");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
@@ -66754,7 +67009,7 @@ static int _wrap_SBValue_CreateValueFromAddress(lua_State* L) {
   }
   
   arg2 = (char *)lua_tostring(L, 2);
-  arg3 = (lldb::addr_t)lua_tonumber(L, 3);
+  arg3 = (unsigned long long)lua_tointeger(L, 3); 
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,4,(void**)&argp4,SWIGTYPE_p_lldb__SBType,0))){
     SWIG_fail_ptr("SBValue_CreateValueFromAddress",4,SWIGTYPE_p_lldb__SBType);
@@ -66867,7 +67122,7 @@ static int _wrap_SBValue_GetIndexOfChildWithName(lua_State* L) {
   
   arg2 = (char *)lua_tostring(L, 2);
   result = (uint32_t)(arg1)->GetIndexOfChildWithName((char const *)arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -67118,7 +67373,7 @@ static int _wrap_SBValue_GetNumChildren__SWIG_0(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetNumChildren();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -67137,16 +67392,15 @@ static int _wrap_SBValue_GetNumChildren__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetNumChildren",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetNumChildren",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetNumChildren",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (uint32_t)(arg1)->GetNumChildren(arg2);
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -67573,17 +67827,15 @@ static int _wrap_SBValue_GetPointeeData__SWIG_0(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetPointeeData",3,3)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",2,"uint32_t");
-  if(!lua_isnumber(L,3)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",3,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",2,"uint32_t");
+  if(!lua_isinteger(L,3)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",3,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetPointeeData",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
-  SWIG_contract_assert((lua_tonumber(L,3)>=0),"number must not be negative")
-  arg3 = (uint32_t)lua_tonumber(L, 3);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
+  arg3 = (unsigned int)lua_tointeger(L, 3); 
   result = (arg1)->GetPointeeData(arg2,arg3);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -67607,14 +67859,13 @@ static int _wrap_SBValue_GetPointeeData__SWIG_1(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValue::GetPointeeData",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",1,"lldb::SBValue *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValue::GetPointeeData",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValue,0))){
     SWIG_fail_ptr("SBValue_GetPointeeData",1,SWIGTYPE_p_lldb__SBValue);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = (arg1)->GetPointeeData(arg2);
   {
     lldb::SBData * resultptr = new lldb::SBData((const lldb::SBData &) result);
@@ -67809,7 +68060,7 @@ static int _wrap_SBValue_GetLoadAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetLoadAddress();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -68582,7 +68833,7 @@ static int _wrap_SBValueList_GetSize(lua_State* L) {
   }
   
   result = (uint32_t)((lldb::SBValueList const *)arg1)->GetSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -68601,14 +68852,13 @@ static int _wrap_SBValueList_GetValueAtIndex(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValueList::GetValueAtIndex",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValueList::GetValueAtIndex",1,"lldb::SBValueList const *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValueList::GetValueAtIndex",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValueList::GetValueAtIndex",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValueList,0))){
     SWIG_fail_ptr("SBValueList_GetValueAtIndex",1,SWIGTYPE_p_lldb__SBValueList);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   result = ((lldb::SBValueList const *)arg1)->GetValueAtIndex(arg2);
   {
     lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
@@ -68632,13 +68882,13 @@ static int _wrap_SBValueList_FindValueObjectByUID(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBValueList::FindValueObjectByUID",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",1,"lldb::SBValueList *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",2,"lldb::user_id_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBValueList::FindValueObjectByUID",2,"lldb::user_id_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBValueList,0))){
     SWIG_fail_ptr("SBValueList_FindValueObjectByUID",1,SWIGTYPE_p_lldb__SBValueList);
   }
   
-  arg2 = (lldb::user_id_t)lua_tonumber(L, 2);
+  arg2 = (unsigned long long)lua_tointeger(L, 2); 
   result = (arg1)->FindValueObjectByUID(arg2);
   {
     lldb::SBValue * resultptr = new lldb::SBValue((const lldb::SBValue &) result);
@@ -69450,7 +69700,7 @@ static int _wrap_SBWatchpoint_GetID(lua_State* L) {
   }
   
   result = (lldb::watch_id_t)(arg1)->GetID();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69474,7 +69724,7 @@ static int _wrap_SBWatchpoint_GetHardwareIndex(lua_State* L) {
   }
   
   result = (int32_t)(arg1)->GetHardwareIndex();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69498,7 +69748,7 @@ static int _wrap_SBWatchpoint_GetWatchAddress(lua_State* L) {
   }
   
   result = (lldb::addr_t)(arg1)->GetWatchAddress();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69522,7 +69772,7 @@ static int _wrap_SBWatchpoint_GetWatchSize(lua_State* L) {
   }
   
   result = (arg1)->GetWatchSize();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69596,7 +69846,7 @@ static int _wrap_SBWatchpoint_GetHitCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetHitCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69620,7 +69870,7 @@ static int _wrap_SBWatchpoint_GetIgnoreCount(lua_State* L) {
   }
   
   result = (uint32_t)(arg1)->GetIgnoreCount();
-  lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
+  lua_pushinteger(L, (lua_Integer) result); SWIG_arg++;
   return SWIG_arg;
   
   if(0) SWIG_fail;
@@ -69638,14 +69888,13 @@ static int _wrap_SBWatchpoint_SetIgnoreCount(lua_State* L) {
   
   SWIG_check_num_args("lldb::SBWatchpoint::SetIgnoreCount",2,2)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("lldb::SBWatchpoint::SetIgnoreCount",1,"lldb::SBWatchpoint *");
-  if(!lua_isnumber(L,2)) SWIG_fail_arg("lldb::SBWatchpoint::SetIgnoreCount",2,"uint32_t");
+  if(!lua_isinteger(L,2)) SWIG_fail_arg("lldb::SBWatchpoint::SetIgnoreCount",2,"uint32_t");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_lldb__SBWatchpoint,0))){
     SWIG_fail_ptr("SBWatchpoint_SetIgnoreCount",1,SWIGTYPE_p_lldb__SBWatchpoint);
   }
   
-  SWIG_contract_assert((lua_tonumber(L,2)>=0),"number must not be negative")
-  arg2 = (uint32_t)lua_tonumber(L, 2);
+  arg2 = (unsigned int)lua_tointeger(L, 2); 
   (arg1)->SetIgnoreCount(arg2);
   
   return SWIG_arg;
@@ -69909,6 +70158,55 @@ static swig_lua_class *swig_SBWatchpoint_bases[] = {0};
 static const char *swig_SBWatchpoint_base_names[] = {0};
 static swig_lua_class _wrap_class_SBWatchpoint = { "SBWatchpoint", "SBWatchpoint", &SWIGTYPE_p_lldb__SBWatchpoint,_proxy__wrap_new_SBWatchpoint, swig_delete_SBWatchpoint, swig_SBWatchpoint_methods, swig_SBWatchpoint_attributes, &swig_SBWatchpoint_Sf_SwigStatic, swig_SBWatchpoint_meta, swig_SBWatchpoint_bases, swig_SBWatchpoint_base_names };
 
+
+
+// This function is called from Lua::CallBreakpointCallback
+SWIGEXPORT llvm::Expected<bool>
+LLDBSwigLuaBreakpointCallbackFunction
+(
+   lua_State *L,
+   lldb::StackFrameSP stop_frame_sp,
+   lldb::BreakpointLocationSP bp_loc_sp,
+   StructuredDataImpl *extra_args_impl
+)
+{
+   lldb::SBFrame sb_frame(stop_frame_sp);
+   lldb::SBBreakpointLocation sb_bp_loc(bp_loc_sp);
+   int nargs = 2;
+
+   llvm::Optional<lldb::SBStructuredData> extra_args;
+   if (extra_args_impl)
+      extra_args = lldb::SBStructuredData(extra_args_impl);
+
+   // Push the Lua wrappers
+   PushSBClass(L, &sb_frame);
+   PushSBClass(L, &sb_bp_loc);
+
+   if (extra_args.hasValue()) {
+      PushSBClass(L, extra_args.getPointer());
+      nargs++;
+   }
+
+   // Call into the Lua callback passing 'sb_frame' and 'sb_bp_loc'.
+   // Expects a boolean return.
+   if (lua_pcall(L, nargs, 1, 0) != LUA_OK) {
+      llvm::Error E = llvm::make_error<llvm::StringError>(
+            llvm::formatv("{0}\n", lua_tostring(L, -1)),
+            llvm::inconvertibleErrorCode());
+      // Pop error message from the stack.
+      lua_pop(L, 1);
+      return std::move(E);
+   }
+
+   // Boolean return from the callback
+   bool stop = lua_toboolean(L, -1);
+   lua_pop(L, 1);
+
+   return stop;
+}
+
+
+
 static swig_lua_attribute swig_SwigModule_attributes[] = {
     {0,0,0}
 };
@@ -69948,6 +70246,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_SIGNAL_NUMBER", 2147483647)},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_INVALID_OFFSET", "18446744073709551615ULL")},
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_LINE_NUMBER", 4294967295U)},
+    {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_COLUMN_NUMBER", 0)},
     {SWIG_LUA_CONSTTAB_INT("LLDB_INVALID_QUEUE_ID", 0)},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_ARCH_DEFAULT", "systemArch")},
     {SWIG_LUA_CONSTTAB_STRING("LLDB_ARCH_DEFAULT_32BIT", "systemArch32")},
@@ -69966,6 +70265,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("LLDB_OPT_SET_9", (1U << 8))},
     {SWIG_LUA_CONSTTAB_INT("LLDB_OPT_SET_10", (1U << 9))},
     {SWIG_LUA_CONSTTAB_INT("LLDB_OPT_SET_11", (1U << 10))},
+    {SWIG_LUA_CONSTTAB_INT("LLDB_OPT_SET_12", (1U << 11))},
     {SWIG_LUA_CONSTTAB_INT("eStateInvalid", lldb::eStateInvalid)},
     {SWIG_LUA_CONSTTAB_INT("eStateUnloaded", lldb::eStateUnloaded)},
     {SWIG_LUA_CONSTTAB_INT("eStateConnected", lldb::eStateConnected)},
@@ -69992,6 +70292,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eLaunchFlagDetachOnError", lldb::eLaunchFlagDetachOnError)},
     {SWIG_LUA_CONSTTAB_INT("eLaunchFlagShellExpandArguments", lldb::eLaunchFlagShellExpandArguments)},
     {SWIG_LUA_CONSTTAB_INT("eLaunchFlagCloseTTYOnExit", lldb::eLaunchFlagCloseTTYOnExit)},
+    {SWIG_LUA_CONSTTAB_INT("eLaunchFlagInheritTCCFromParent", lldb::eLaunchFlagInheritTCCFromParent)},
     {SWIG_LUA_CONSTTAB_INT("eOnlyThisThread", lldb::eOnlyThisThread)},
     {SWIG_LUA_CONSTTAB_INT("eAllThreads", lldb::eAllThreads)},
     {SWIG_LUA_CONSTTAB_INT("eOnlyDuringStepping", lldb::eOnlyDuringStepping)},
@@ -70247,6 +70548,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eArgTypeExpression", lldb::eArgTypeExpression)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeExpressionPath", lldb::eArgTypeExpressionPath)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeExprFormat", lldb::eArgTypeExprFormat)},
+    {SWIG_LUA_CONSTTAB_INT("eArgTypeFileLineColumn", lldb::eArgTypeFileLineColumn)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeFilename", lldb::eArgTypeFilename)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeFormat", lldb::eArgTypeFormat)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeFrameIndex", lldb::eArgTypeFrameIndex)},
@@ -70313,6 +70615,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eArgRawInput", lldb::eArgRawInput)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeCommand", lldb::eArgTypeCommand)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeColumnNum", lldb::eArgTypeColumnNum)},
+    {SWIG_LUA_CONSTTAB_INT("eArgTypeModuleUUID", lldb::eArgTypeModuleUUID)},
     {SWIG_LUA_CONSTTAB_INT("eArgTypeLastArg", lldb::eArgTypeLastArg)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeAny", lldb::eSymbolTypeAny)},
     {SWIG_LUA_CONSTTAB_INT("eSymbolTypeInvalid", lldb::eSymbolTypeInvalid)},
@@ -70597,6 +70900,7 @@ static swig_lua_const_info swig_SwigModule_constants[]= {
     {SWIG_LUA_CONSTTAB_INT("eCommandTryTargetAPILock", lldb::eCommandTryTargetAPILock)},
     {SWIG_LUA_CONSTTAB_INT("eCommandProcessMustBeLaunched", lldb::eCommandProcessMustBeLaunched)},
     {SWIG_LUA_CONSTTAB_INT("eCommandProcessMustBePaused", lldb::eCommandProcessMustBePaused)},
+    {SWIG_LUA_CONSTTAB_INT("eCommandProcessMustBeTraced", lldb::eCommandProcessMustBeTraced)},
     {SWIG_LUA_CONSTTAB_INT("eTypeSummaryCapped", lldb::eTypeSummaryCapped)},
     {SWIG_LUA_CONSTTAB_INT("eTypeSummaryUncapped", lldb::eTypeSummaryUncapped)},
     {SWIG_LUA_CONSTTAB_INT("eCommandInterpreterResultSuccess", lldb::eCommandInterpreterResultSuccess)},
@@ -70682,6 +70986,7 @@ static swig_lua_method swig_SwigModule_methods[]= {
     { "SBLanguageRuntime_GetLanguageTypeFromString", _wrap_SBLanguageRuntime_GetLanguageTypeFromString},
     { "SBLanguageRuntime_GetNameForLanguageType", _wrap_SBLanguageRuntime_GetNameForLanguageType},
     { "SBModule_GetNumberAllocatedModules", _wrap_SBModule_GetNumberAllocatedModules},
+    { "SBModule_GarbageCollectAllocatedModules", _wrap_SBModule_GarbageCollectAllocatedModules},
     { "SBModuleSpecList_GetModuleSpecifications", _wrap_SBModuleSpecList_GetModuleSpecifications},
     { "SBPlatform_GetHostPlatform", _wrap_SBPlatform_GetHostPlatform},
     { "SBProcess_GetBroadcasterClassName", _wrap_SBProcess_GetBroadcasterClassName},
@@ -70992,7 +71297,6 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StackFrameList_t 
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t = {"_p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t", "std::shared_ptr< lldb_private::StackFrameRecognizer > *|lldb::StackFrameRecognizerSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StackFrame_t = {"_p_std__shared_ptrT_lldb_private__StackFrame_t", "std::shared_ptr< lldb_private::StackFrame > *|lldb::StackFrameSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StopInfo_t = {"_p_std__shared_ptrT_lldb_private__StopInfo_t", "lldb::StopInfoSP *|std::shared_ptr< lldb_private::StopInfo > *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StoppointLocation_t = {"_p_std__shared_ptrT_lldb_private__StoppointLocation_t", "std::shared_ptr< lldb_private::StoppointLocation > *|lldb::StoppointLocationSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StreamFile_t = {"_p_std__shared_ptrT_lldb_private__StreamFile_t", "lldb::StreamFileSP *|std::shared_ptr< lldb_private::StreamFile > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Stream_t = {"_p_std__shared_ptrT_lldb_private__Stream_t", "std::shared_ptr< lldb_private::Stream > *|lldb::StreamSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__StringSummaryFormat_t = {"_p_std__shared_ptrT_lldb_private__StringSummaryFormat_t", "lldb::StringTypeSummaryImplSP *|std::shared_ptr< lldb_private::StringSummaryFormat > *", 0, 0, (void*)0, 0};
@@ -71010,6 +71314,7 @@ static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ThreadPlanTracer_
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t = {"_p_std__shared_ptrT_lldb_private__ThreadPlan_t", "lldb::ThreadPlanSP *|std::shared_ptr< lldb_private::ThreadPlan > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Thread_t = {"_p_std__shared_ptrT_lldb_private__Thread_t", "std::shared_ptr< lldb_private::Thread > *|lldb::ThreadSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TraceOptions_t = {"_p_std__shared_ptrT_lldb_private__TraceOptions_t", "std::shared_ptr< lldb_private::TraceOptions > *|lldb::TraceOptionsSP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__Trace_t = {"_p_std__shared_ptrT_lldb_private__Trace_t", "std::shared_ptr< lldb_private::Trace > *|lldb::TraceSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t", "std::shared_ptr< lldb_private::TypeCategoryImpl > *|lldb::TypeCategoryImplSP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t", "lldb::TypeEnumMemberImplSP *|std::shared_ptr< lldb_private::TypeEnumMemberImpl > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__shared_ptrT_lldb_private__TypeFilterImpl_t = {"_p_std__shared_ptrT_lldb_private__TypeFilterImpl_t", "lldb::TypeFilterImplSP *|std::shared_ptr< lldb_private::TypeFilterImpl > *", 0, 0, (void*)0, 0};
@@ -71043,6 +71348,7 @@ static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__OperatingSystem_t
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__ScriptInterpreter_t = {"_p_std__unique_ptrT_lldb_private__ScriptInterpreter_t", "std::unique_ptr< lldb_private::ScriptInterpreter > *|lldb::ScriptInterpreterUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SectionList_t = {"_p_std__unique_ptrT_lldb_private__SectionList_t", "lldb::SectionListUP *|std::unique_ptr< lldb_private::SectionList > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SourceManager_t = {"_p_std__unique_ptrT_lldb_private__SourceManager_t", "std::unique_ptr< lldb_private::SourceManager > *|lldb::SourceManagerUP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t = {"_p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t", "std::unique_ptr< lldb_private::StackFrameRecognizerManager > *|lldb::StackFrameRecognizerManagerUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__StackFrame_t = {"_p_std__unique_ptrT_lldb_private__StackFrame_t", "std::unique_ptr< lldb_private::StackFrame > *|lldb::StackFrameUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t = {"_p_std__unique_ptrT_lldb_private__StructuredDataImpl_t", "std::unique_ptr< lldb_private::StructuredDataImpl > *|lldb::StructuredDataImplUP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t = {"_p_std__unique_ptrT_lldb_private__SymbolVendor_t", "std::unique_ptr< lldb_private::SymbolVendor > *|lldb::SymbolVendorUP *", 0, 0, (void*)0, 0};
@@ -71065,6 +71371,7 @@ static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Stream_t = {"_p_std
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t = {"_p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t", "lldb::StructuredDataPluginWP *|std::weak_ptr< lldb_private::StructuredDataPlugin > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__SymbolFileType_t = {"_p_std__weak_ptrT_lldb_private__SymbolFileType_t", "std::weak_ptr< lldb_private::SymbolFileType > *|lldb::SymbolFileTypeWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Target_t = {"_p_std__weak_ptrT_lldb_private__Target_t", "std::weak_ptr< lldb_private::Target > *|lldb::TargetWP *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t = {"_p_std__weak_ptrT_lldb_private__ThreadPlan_t", "std::weak_ptr< lldb_private::ThreadPlan > *|lldb::ThreadPlanWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Thread_t = {"_p_std__weak_ptrT_lldb_private__Thread_t", "std::weak_ptr< lldb_private::Thread > *|lldb::ThreadWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__Type_t = {"_p_std__weak_ptrT_lldb_private__Type_t", "std::weak_ptr< lldb_private::Type > *|lldb::TypeWP *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t = {"_p_std__weak_ptrT_lldb_private__UnixSignals_t", "std::weak_ptr< lldb_private::UnixSignals > *|lldb::UnixSignalsWP *", 0, 0, (void*)0, 0};
@@ -71250,7 +71557,6 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t,
   &_swigt__p_std__shared_ptrT_lldb_private__StackFrame_t,
   &_swigt__p_std__shared_ptrT_lldb_private__StopInfo_t,
-  &_swigt__p_std__shared_ptrT_lldb_private__StoppointLocation_t,
   &_swigt__p_std__shared_ptrT_lldb_private__StreamFile_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Stream_t,
   &_swigt__p_std__shared_ptrT_lldb_private__StringSummaryFormat_t,
@@ -71268,6 +71574,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t,
   &_swigt__p_std__shared_ptrT_lldb_private__Thread_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TraceOptions_t,
+  &_swigt__p_std__shared_ptrT_lldb_private__Trace_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t,
   &_swigt__p_std__shared_ptrT_lldb_private__TypeFilterImpl_t,
@@ -71301,6 +71608,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__unique_ptrT_lldb_private__ScriptInterpreter_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SectionList_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SourceManager_t,
+  &_swigt__p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t,
   &_swigt__p_std__unique_ptrT_lldb_private__StackFrame_t,
   &_swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t,
   &_swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t,
@@ -71323,6 +71631,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t,
   &_swigt__p_std__weak_ptrT_lldb_private__SymbolFileType_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Target_t,
+  &_swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Thread_t,
   &_swigt__p_std__weak_ptrT_lldb_private__Type_t,
   &_swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t,
@@ -71508,7 +71817,6 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StackFrameList_t[
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StackFrame_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StackFrame_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StopInfo_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StopInfo_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StoppointLocation_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StoppointLocation_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StreamFile_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StreamFile_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Stream_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Stream_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__StringSummaryFormat_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__StringSummaryFormat_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -71526,6 +71834,7 @@ static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ThreadPlanTracer_
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__ThreadPlan_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__ThreadPlan_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Thread_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Thread_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TraceOptions_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TraceOptions_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__Trace_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__Trace_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__shared_ptrT_lldb_private__TypeFilterImpl_t[] = {  {&_swigt__p_std__shared_ptrT_lldb_private__TypeFilterImpl_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -71559,6 +71868,7 @@ static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__OperatingSystem_t
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__ScriptInterpreter_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__ScriptInterpreter_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SectionList_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SectionList_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SourceManager_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SourceManager_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__StackFrame_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__StackFrame_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__unique_ptrT_lldb_private__SymbolVendor_t[] = {  {&_swigt__p_std__unique_ptrT_lldb_private__SymbolVendor_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -71581,6 +71891,7 @@ static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Stream_t[] = {  {&_
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__SymbolFileType_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__SymbolFileType_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Target_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Target_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__ThreadPlan_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__ThreadPlan_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Thread_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Thread_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__Type_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__Type_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__weak_ptrT_lldb_private__UnixSignals_t[] = {  {&_swigt__p_std__weak_ptrT_lldb_private__UnixSignals_t, 0, 0, 0},{0, 0, 0, 0}};
@@ -71766,7 +72077,6 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__StackFrameRecognizer_t,
   _swigc__p_std__shared_ptrT_lldb_private__StackFrame_t,
   _swigc__p_std__shared_ptrT_lldb_private__StopInfo_t,
-  _swigc__p_std__shared_ptrT_lldb_private__StoppointLocation_t,
   _swigc__p_std__shared_ptrT_lldb_private__StreamFile_t,
   _swigc__p_std__shared_ptrT_lldb_private__Stream_t,
   _swigc__p_std__shared_ptrT_lldb_private__StringSummaryFormat_t,
@@ -71784,6 +72094,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__shared_ptrT_lldb_private__ThreadPlan_t,
   _swigc__p_std__shared_ptrT_lldb_private__Thread_t,
   _swigc__p_std__shared_ptrT_lldb_private__TraceOptions_t,
+  _swigc__p_std__shared_ptrT_lldb_private__Trace_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeCategoryImpl_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeEnumMemberImpl_t,
   _swigc__p_std__shared_ptrT_lldb_private__TypeFilterImpl_t,
@@ -71817,6 +72128,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__unique_ptrT_lldb_private__ScriptInterpreter_t,
   _swigc__p_std__unique_ptrT_lldb_private__SectionList_t,
   _swigc__p_std__unique_ptrT_lldb_private__SourceManager_t,
+  _swigc__p_std__unique_ptrT_lldb_private__StackFrameRecognizerManager_t,
   _swigc__p_std__unique_ptrT_lldb_private__StackFrame_t,
   _swigc__p_std__unique_ptrT_lldb_private__StructuredDataImpl_t,
   _swigc__p_std__unique_ptrT_lldb_private__SymbolVendor_t,
@@ -71839,6 +72151,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__weak_ptrT_lldb_private__StructuredDataPlugin_t,
   _swigc__p_std__weak_ptrT_lldb_private__SymbolFileType_t,
   _swigc__p_std__weak_ptrT_lldb_private__Target_t,
+  _swigc__p_std__weak_ptrT_lldb_private__ThreadPlan_t,
   _swigc__p_std__weak_ptrT_lldb_private__Thread_t,
   _swigc__p_std__weak_ptrT_lldb_private__Type_t,
   _swigc__p_std__weak_ptrT_lldb_private__UnixSignals_t,

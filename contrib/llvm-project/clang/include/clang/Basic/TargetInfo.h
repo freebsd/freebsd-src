@@ -100,8 +100,8 @@ struct TransferrableTargetInfo {
   unsigned char MinGlobalAlign;
 
   unsigned short NewAlign;
-  unsigned short MaxVectorAlign;
-  unsigned short MaxTLSAlign;
+  unsigned MaxVectorAlign;
+  unsigned MaxTLSAlign;
 
   const llvm::fltSemantics *HalfFormat, *BFloat16Format, *FloatFormat,
     *DoubleFormat, *LongDoubleFormat, *Float128Format;
@@ -217,6 +217,8 @@ protected:
   unsigned IsRenderScriptTarget : 1;
 
   unsigned HasAArch64SVETypes : 1;
+
+  unsigned AllowAMDGPUUnsafeFPAtomics : 1;
 
   unsigned ARMCDECoprocMask : 8;
 
@@ -581,8 +583,9 @@ public:
   /// Determine whether constrained floating point is supported on this target.
   virtual bool hasStrictFP() const { return HasStrictFP; }
 
-  /// Return the alignment that is suitable for storing any
-  /// object with a fundamental alignment requirement.
+  /// Return the alignment that is the largest alignment ever used for any
+  /// scalar/SIMD data type on the target machine you are compiling for
+  /// (including types with an extended alignment requirement).
   unsigned getSuitableAlign() const { return SuitableAlign; }
 
   /// Return the default alignment for __attribute__((aligned)) on
@@ -856,6 +859,10 @@ public:
   /// available on this target.
   bool hasAArch64SVETypes() const { return HasAArch64SVETypes; }
 
+  /// Returns whether or not the AMDGPU unsafe floating point atomics are
+  /// allowed.
+  bool allowAMDGPUUnsafeFPAtomics() const { return AllowAMDGPUUnsafeFPAtomics; }
+
   /// For ARM targets returns a mask defining which coprocessors are configured
   /// as Custom Datapath.
   uint32_t getARMCDECoprocMask() const { return ARMCDECoprocMask; }
@@ -1061,6 +1068,9 @@ public:
     return Triple;
   }
 
+  /// Returns the target ID if supported.
+  virtual llvm::Optional<std::string> getTargetID() const { return llvm::None; }
+
   const llvm::DataLayout &getDataLayout() const {
     assert(DataLayout && "Uninitialized DataLayout!");
     return *DataLayout;
@@ -1087,6 +1097,13 @@ public:
   /// consistent target-independent semantics for "default" visibility
   /// either; the entire thing is pretty badly mangled.
   virtual bool hasProtectedVisibility() const { return true; }
+
+  /// Does this target aim for semantic compatibility with
+  /// Microsoft C++ code using dllimport/export attributes?
+  virtual bool shouldDLLImportComdatSymbols() const {
+    return getTriple().isWindowsMSVCEnvironment() ||
+           getTriple().isWindowsItaniumEnvironment() || getTriple().isPS4CPU();
+  }
 
   /// An optional hook that targets can implement to perform semantic
   /// checking on attribute((section("foo"))) specifiers.
@@ -1140,9 +1157,25 @@ public:
   /// Fill a SmallVectorImpl with the valid values to setCPU.
   virtual void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {}
 
+  /// Fill a SmallVectorImpl with the valid values for tuning CPU.
+  virtual void fillValidTuneCPUList(SmallVectorImpl<StringRef> &Values) const {
+    fillValidCPUList(Values);
+  }
+
   /// brief Determine whether this TargetInfo supports the given CPU name.
   virtual bool isValidCPUName(StringRef Name) const {
     return true;
+  }
+
+  /// brief Determine whether this TargetInfo supports the given CPU name for
+  // tuning.
+  virtual bool isValidTuneCPUName(StringRef Name) const {
+    return isValidCPUName(Name);
+  }
+
+  /// brief Determine whether this TargetInfo supports tune in target attribute.
+  virtual bool supportsTargetAttributeTune() const {
+    return false;
   }
 
   /// Use the specified ABI.
@@ -1271,9 +1304,7 @@ public:
   ///
   /// Gets the maximum alignment (in bits) of a TLS variable on this target.
   /// Returns zero if there is no such constraint.
-  unsigned short getMaxTLSAlign() const {
-    return MaxTLSAlign;
-  }
+  unsigned getMaxTLSAlign() const { return MaxTLSAlign; }
 
   /// Whether target supports variable-length arrays.
   bool isVLASupported() const { return VLASupported; }
@@ -1401,24 +1432,45 @@ public:
   /// Whether target allows to overalign ABI-specified preferred alignment
   virtual bool allowsLargerPreferedTypeAlignment() const { return true; }
 
+  /// Whether target defaults to the `power` alignment rules of AIX.
+  virtual bool defaultsToAIXPowerAlignment() const { return false; }
+
   /// Set supported OpenCL extensions and optional core features.
   virtual void setSupportedOpenCLOpts() {}
 
+  virtual void supportAllOpenCLOpts(bool V = true) {
+#define OPENCLEXTNAME(Ext) getTargetOpts().OpenCLFeaturesMap[#Ext] = V;
+#include "clang/Basic/OpenCLExtensions.def"
+  }
+
   /// Set supported OpenCL extensions as written on command line
-  virtual void setOpenCLExtensionOpts() {
+  virtual void setCommandLineOpenCLOpts() {
     for (const auto &Ext : getTargetOpts().OpenCLExtensionsAsWritten) {
-      getTargetOpts().SupportedOpenCLOptions.support(Ext);
+      bool IsPrefixed = (Ext[0] == '+' || Ext[0] == '-');
+      std::string Name = IsPrefixed ? Ext.substr(1) : Ext;
+      bool V = IsPrefixed ? Ext[0] == '+' : true;
+
+      if (Name == "all") {
+        supportAllOpenCLOpts(V);
+        continue;
+      }
+
+      getTargetOpts().OpenCLFeaturesMap[Name] = V;
     }
   }
 
+  /// Define OpenCL macros based on target settings and language version
+  void getOpenCLFeatureDefines(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+
   /// Get supported OpenCL extensions and optional core features.
-  OpenCLOptions &getSupportedOpenCLOpts() {
-    return getTargetOpts().SupportedOpenCLOptions;
+  llvm::StringMap<bool> &getSupportedOpenCLOpts() {
+    return getTargetOpts().OpenCLFeaturesMap;
   }
 
   /// Get const supported OpenCL extensions and optional core features.
-  const OpenCLOptions &getSupportedOpenCLOpts() const {
-      return getTargetOpts().SupportedOpenCLOptions;
+  const llvm::StringMap<bool> &getSupportedOpenCLOpts() const {
+    return getTargetOpts().OpenCLFeaturesMap;
   }
 
   /// Get address space for OpenCL type.

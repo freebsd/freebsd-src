@@ -60,6 +60,7 @@ private:
   WasmYAML::Object &Obj;
   uint32_t NumImportedFunctions = 0;
   uint32_t NumImportedGlobals = 0;
+  uint32_t NumImportedTables = 0;
   uint32_t NumImportedEvents = 0;
 
   bool HasError = false;
@@ -187,6 +188,7 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
       switch (Info.Kind) {
       case wasm::WASM_SYMBOL_TYPE_FUNCTION:
       case wasm::WASM_SYMBOL_TYPE_GLOBAL:
+      case wasm::WASM_SYMBOL_TYPE_TABLE:
       case wasm::WASM_SYMBOL_TYPE_EVENT:
         encodeULEB128(Info.ElementIndex, SubSection.getStream());
         if ((Info.Flags & wasm::WASM_SYMBOL_UNDEFINED) == 0 ||
@@ -262,6 +264,32 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
 
     encodeULEB128(Section.FunctionNames.size(), SubSection.getStream());
     for (const WasmYAML::NameEntry &NameEntry : Section.FunctionNames) {
+      encodeULEB128(NameEntry.Index, SubSection.getStream());
+      writeStringRef(NameEntry.Name, SubSection.getStream());
+    }
+
+    SubSection.done();
+  }
+  if (Section.GlobalNames.size()) {
+    writeUint8(OS, wasm::WASM_NAMES_GLOBAL);
+
+    SubSectionWriter SubSection(OS);
+
+    encodeULEB128(Section.GlobalNames.size(), SubSection.getStream());
+    for (const WasmYAML::NameEntry &NameEntry : Section.GlobalNames) {
+      encodeULEB128(NameEntry.Index, SubSection.getStream());
+      writeStringRef(NameEntry.Name, SubSection.getStream());
+    }
+
+    SubSection.done();
+  }
+  if (Section.DataSegmentNames.size()) {
+    writeUint8(OS, wasm::WASM_NAMES_DATA_SEGMENT);
+
+    SubSectionWriter SubSection(OS);
+
+    encodeULEB128(Section.DataSegmentNames.size(), SubSection.getStream());
+    for (const WasmYAML::NameEntry &NameEntry : Section.DataSegmentNames) {
       encodeULEB128(NameEntry.Index, SubSection.getStream());
       writeStringRef(NameEntry.Name, SubSection.getStream());
     }
@@ -360,7 +388,7 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
     case wasm::WASM_EXTERNAL_EVENT:
       writeUint32(OS, Import.EventImport.Attribute);
       writeUint32(OS, Import.EventImport.SigIndex);
-      NumImportedGlobals++;
+      NumImportedEvents++;
       break;
     case wasm::WASM_EXTERNAL_MEMORY:
       writeLimits(Import.Memory, OS);
@@ -368,6 +396,7 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
     case wasm::WASM_EXTERNAL_TABLE:
       writeUint8(OS, Import.TableImport.ElemType);
       writeLimits(Import.TableImport.TableLimits, OS);
+      NumImportedTables++;
       break;
     default:
       reportError("unknown import type: " +Twine(Import.Kind));
@@ -401,7 +430,13 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
 void WasmWriter::writeSectionContent(raw_ostream &OS,
                                      WasmYAML::TableSection &Section) {
   encodeULEB128(Section.Tables.size(), OS);
+  uint32_t ExpectedIndex = NumImportedTables;
   for (auto &Table : Section.Tables) {
+    if (Table.Index != ExpectedIndex) {
+      reportError("unexpected table index: " + Twine(Table.Index));
+      return;
+    }
+    ++ExpectedIndex;
     writeUint8(OS, Table.ElemType);
     writeLimits(Table.TableLimits, OS);
   }
@@ -491,9 +526,9 @@ void WasmWriter::writeSectionContent(raw_ostream &OS,
   encodeULEB128(Section.Segments.size(), OS);
   for (auto &Segment : Section.Segments) {
     encodeULEB128(Segment.InitFlags, OS);
-    if (Segment.InitFlags & wasm::WASM_SEGMENT_HAS_MEMINDEX)
+    if (Segment.InitFlags & wasm::WASM_DATA_SEGMENT_HAS_MEMINDEX)
       encodeULEB128(Segment.MemoryIndex, OS);
-    if ((Segment.InitFlags & wasm::WASM_SEGMENT_IS_PASSIVE) == 0)
+    if ((Segment.InitFlags & wasm::WASM_DATA_SEGMENT_IS_PASSIVE) == 0)
       writeInitExpr(OS, Segment.Offset);
     encodeULEB128(Segment.Content.binary_size(), OS);
     Segment.Content.writeAsBinary(OS);
@@ -538,6 +573,7 @@ void WasmWriter::writeRelocSection(raw_ostream &OS, WasmYAML::Section &Sec,
     case wasm::R_WASM_MEMORY_ADDR_I32:
     case wasm::R_WASM_MEMORY_ADDR_I64:
     case wasm::R_WASM_FUNCTION_OFFSET_I32:
+    case wasm::R_WASM_FUNCTION_OFFSET_I64:
     case wasm::R_WASM_SECTION_OFFSET_I32:
       encodeULEB128(Reloc.Addend, OS);
     }

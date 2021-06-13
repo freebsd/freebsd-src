@@ -18,8 +18,8 @@ namespace lldb {
 %feature("docstring",
 "Represents a plan for the execution control of a given thread.
 
-See also SBThread and SBFrame."
-) SBThread;
+See also :py:class:`SBThread` and :py:class:`SBFrame`."
+) SBThreadPlan;
 
 class SBThreadPlan
 {
@@ -91,6 +91,14 @@ public:
 
     bool
     IsPlanStale();
+
+    %feature("docstring", "Return whether this plan will ask to stop other threads when it runs.") GetStopOthers;
+    bool
+    GetStopOthers();
+
+    %feature("docstring", "Set whether this plan will ask to stop other threads when it runs.")	GetStopOthers;
+    void
+    SetStopOthers(bool stop_others);
 
     SBThreadPlan
     QueueThreadPlanForStepOverRange (SBAddress &start_address,

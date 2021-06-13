@@ -59,7 +59,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/TypeMetadataUtils.h"
@@ -470,7 +470,7 @@ CallSiteInfo &VTableSlotInfo::findCallSiteInfo(CallBase &CB) {
   auto *CBType = dyn_cast<IntegerType>(CB.getType());
   if (!CBType || CBType->getBitWidth() > 64 || CB.arg_empty())
     return CSInfo;
-  for (auto &&Arg : make_range(CB.arg_begin() + 1, CB.arg_end())) {
+  for (auto &&Arg : drop_begin(CB.args())) {
     auto *CI = dyn_cast<ConstantInt>(Arg);
     if (!CI || CI->getBitWidth() > 64)
       return CSInfo;
@@ -753,6 +753,11 @@ PreservedAnalyses WholeProgramDevirtPass::run(Module &M,
   auto LookupDomTree = [&FAM](Function &F) -> DominatorTree & {
     return FAM.getResult<DominatorTreeAnalysis>(F);
   };
+  if (UseCommandLine) {
+    if (DevirtModule::runForTesting(M, AARGetter, OREGetter, LookupDomTree))
+      return PreservedAnalyses::all();
+    return PreservedAnalyses::none();
+  }
   if (!DevirtModule(M, AARGetter, OREGetter, LookupDomTree, ExportSummary,
                     ImportSummary)
            .run())
@@ -1025,6 +1030,10 @@ bool DevirtIndex::tryFindVirtualCallTargets(
 
 void DevirtModule::applySingleImplDevirt(VTableSlotInfo &SlotInfo,
                                          Constant *TheFn, bool &IsExported) {
+  // Don't devirtualize function if we're told to skip it
+  // in -wholeprogramdevirt-skip.
+  if (FunctionsToSkip.match(TheFn->stripPointerCasts()->getName()))
+    return;
   auto Apply = [&](CallSiteInfo &CSInfo) {
     for (auto &&VCallSite : CSInfo.CallSites) {
       if (RemarksEnabled)
@@ -1258,7 +1267,7 @@ void DevirtModule::applyICallBranchFunnel(VTableSlotInfo &SlotInfo,
 
       // Jump tables are only profitable if the retpoline mitigation is enabled.
       Attribute FSAttr = CB.getCaller()->getFnAttribute("target-features");
-      if (FSAttr.hasAttribute(Attribute::None) ||
+      if (!FSAttr.isValid() ||
           !FSAttr.getValueAsString().contains("+retpoline"))
         continue;
 
@@ -1270,8 +1279,7 @@ void DevirtModule::applyICallBranchFunnel(VTableSlotInfo &SlotInfo,
       // x86_64.
       std::vector<Type *> NewArgs;
       NewArgs.push_back(Int8PtrTy);
-      for (Type *T : CB.getFunctionType()->params())
-        NewArgs.push_back(T);
+      append_range(NewArgs, CB.getFunctionType()->params());
       FunctionType *NewFT =
           FunctionType::get(CB.getFunctionType()->getReturnType(), NewArgs,
                             CB.getFunctionType()->isVarArg());
@@ -1280,7 +1288,7 @@ void DevirtModule::applyICallBranchFunnel(VTableSlotInfo &SlotInfo,
       IRBuilder<> IRB(&CB);
       std::vector<Value *> Args;
       Args.push_back(IRB.CreateBitCast(VCallSite.VTable, Int8PtrTy));
-      Args.insert(Args.end(), CB.arg_begin(), CB.arg_end());
+      llvm::append_range(Args, CB.args());
 
       CallBase *NewCS = nullptr;
       if (isa<CallInst>(CB))
@@ -2205,6 +2213,4 @@ void DevirtIndex::run() {
   if (PrintSummaryDevirt)
     for (const auto &DT : DevirtTargets)
       errs() << "Devirtualized call to " << DT << "\n";
-
-  return;
 }

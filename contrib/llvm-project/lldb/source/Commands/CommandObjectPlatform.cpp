@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectPlatform.h"
+#include "CommandOptionsProcessLaunch.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
@@ -392,7 +393,8 @@ public:
                             "or for a platform by name.",
                             "platform settings", 0),
         m_options(),
-        m_option_working_dir(LLDB_OPT_SET_1, false, "working-dir", 'w', 0,
+        m_option_working_dir(LLDB_OPT_SET_1, false, "working-dir", 'w',
+                             CommandCompletions::eRemoteDiskDirectoryCompletion,
                              eArgTypePath,
                              "The working directory for the platform.") {
     m_options.Append(&m_option_working_dir, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
@@ -484,6 +486,15 @@ public:
         m_options() {}
 
   ~CommandObjectPlatformFOpen() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex() == 0)
+      CommandCompletions::InvokeCommonCompletionCallbacks(
+          GetCommandInterpreter(),
+          CommandCompletions::eRemoteDiskFileCompletion, request, nullptr);
+  }
 
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     PlatformSP platform_sp(
@@ -817,6 +828,19 @@ public:
 
   ~CommandObjectPlatformGetFile() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex() == 0)
+      CommandCompletions::InvokeCommonCompletionCallbacks(
+          GetCommandInterpreter(),
+          CommandCompletions::eRemoteDiskFileCompletion, request, nullptr);
+    else if (request.GetCursorIndex() == 1)
+      CommandCompletions::InvokeCommonCompletionCallbacks(
+          GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
+          request, nullptr);
+  }
+
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     // If the number of arguments is incorrect, issue an error message.
     if (args.GetArgumentCount() != 2) {
@@ -882,6 +906,17 @@ public:
 
   ~CommandObjectPlatformGetSize() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex() != 0)
+      return;
+
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eRemoteDiskFileCompletion,
+        request, nullptr);
+  }
+
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     // If the number of arguments is incorrect, issue an error message.
     if (args.GetArgumentCount() != 1) {
@@ -926,6 +961,19 @@ public:
   }
 
   ~CommandObjectPlatformPutFile() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex() == 0)
+      CommandCompletions::InvokeCommonCompletionCallbacks(
+          GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
+          request, nullptr);
+    else if (request.GetCursorIndex() == 1)
+      CommandCompletions::InvokeCommonCompletionCallbacks(
+          GetCommandInterpreter(),
+          CommandCompletions::eRemoteDiskFileCompletion, request, nullptr);
+  }
 
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     const char *src = args.GetArgumentAtIndex(0);
@@ -1036,7 +1084,7 @@ protected:
     return result.Succeeded();
   }
 
-  ProcessLaunchCommandOptions m_options;
+  CommandOptionsProcessLaunch m_options;
 };
 
 // "platform process list"
@@ -1331,6 +1379,14 @@ public:
 
   ~CommandObjectPlatformProcessInfo() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eProcessIDCompletion,
+        request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     Target *target = GetDebugger().GetSelectedTarget().get();
@@ -1447,46 +1503,6 @@ public:
       return llvm::makeArrayRef(g_platform_process_attach_options);
     }
 
-    void HandleOptionArgumentCompletion(
-        CompletionRequest &request, OptionElementVector &opt_element_vector,
-        int opt_element_index, CommandInterpreter &interpreter) override {
-      int opt_arg_pos = opt_element_vector[opt_element_index].opt_arg_pos;
-      int opt_defs_index = opt_element_vector[opt_element_index].opt_defs_index;
-
-      // We are only completing the name option for now...
-
-      // Are we in the name?
-      if (GetDefinitions()[opt_defs_index].short_option != 'n')
-        return;
-
-      // Look to see if there is a -P argument provided, and if so use that
-      // plugin, otherwise use the default plugin.
-
-      const char *partial_name = nullptr;
-      partial_name = request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos);
-
-      PlatformSP platform_sp(interpreter.GetPlatform(true));
-      if (!platform_sp)
-        return;
-
-      ProcessInstanceInfoList process_infos;
-      ProcessInstanceInfoMatch match_info;
-      if (partial_name) {
-        match_info.GetProcessInfo().GetExecutableFile().SetFile(
-            partial_name, FileSpec::Style::native);
-        match_info.SetNameMatchType(NameMatch::StartsWith);
-      }
-      platform_sp->FindProcesses(match_info, process_infos);
-      const uint32_t num_matches = process_infos.size();
-      if (num_matches == 0)
-        return;
-
-      for (uint32_t i = 0; i < num_matches; ++i) {
-        request.AddCompletion(process_infos[i].GetNameAsStringRef());
-      }
-      return;
-    }
-
     // Options table: Required for subclasses of Options.
 
     static OptionDefinition g_option_table[];
@@ -1596,6 +1612,16 @@ public:
         else
           m_timeout = std::chrono::seconds(timeout_sec);
         break;
+      case 's': {
+        if (option_arg.empty()) {
+          error.SetErrorStringWithFormat(
+              "missing shell interpreter path for option -i|--interpreter.");
+          return error;
+        }
+
+        m_shell_interpreter = option_arg.str();
+        break;
+      }
       default:
         llvm_unreachable("Unimplemented option");
       }
@@ -1606,10 +1632,12 @@ public:
     void OptionParsingStarting(ExecutionContext *execution_context) override {
       m_timeout.reset();
       m_use_host_platform = false;
+      m_shell_interpreter.clear();
     }
 
     Timeout<std::micro> m_timeout = std::chrono::seconds(10);
     bool m_use_host_platform;
+    std::string m_shell_interpreter;
   };
 
   CommandObjectPlatformShell(CommandInterpreter &interpreter)
@@ -1635,7 +1663,6 @@ public:
 
     const bool is_alias = !raw_command_line.contains("platform");
     OptionsWithRaw args(raw_command_line);
-    const char *expr = args.GetRawPart().c_str();
 
     if (args.HasArgs())
       if (!ParseOptions(args.GetArgs(), result))
@@ -1647,6 +1674,8 @@ public:
       return false;
     }
 
+    llvm::StringRef cmd = args.GetRawPart();
+
     PlatformSP platform_sp(
         m_options.m_use_host_platform
             ? Platform::GetHostPlatform()
@@ -1657,7 +1686,8 @@ public:
       std::string output;
       int status = -1;
       int signo = -1;
-      error = (platform_sp->RunShellCommand(expr, working_dir, &status, &signo,
+      error = (platform_sp->RunShellCommand(m_options.m_shell_interpreter, cmd,
+                                            working_dir, &status, &signo,
                                             &output, m_options.m_timeout));
       if (!output.empty())
         result.GetOutputStream().PutCString(output);
@@ -1705,6 +1735,16 @@ public:
             "platform target-install <local-thing> <remote-sandbox>", 0) {}
 
   ~CommandObjectPlatformInstall() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex())
+      return;
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
+        request, nullptr);
+  }
 
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     if (args.GetArgumentCount() != 2) {

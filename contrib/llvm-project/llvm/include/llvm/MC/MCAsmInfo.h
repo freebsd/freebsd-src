@@ -54,6 +54,15 @@ enum LCOMMType { NoAlignment, ByteAlignment, Log2Alignment };
 /// This class is intended to be used as a base class for asm
 /// properties and features specific to the target.
 class MCAsmInfo {
+public:
+  /// Assembly character literal syntax types.
+  enum AsmCharLiteralSyntax {
+    ACLS_Unknown, /// Unknown; character literals not used by LLVM for this
+                  /// target.
+    ACLS_SingleQuotePrefix, /// The desired character is prefixed by a single
+                            /// quote, e.g., `'A`.
+  };
+
 protected:
   //===------------------------------------------------------------------===//
   // Properties to be set by the target writer, used to configure asm printer.
@@ -177,6 +186,9 @@ protected:
   /// alignment is supported.
   bool UseDotAlignForAlignment = false;
 
+  /// True if the target supports LEB128 directives.
+  bool HasLEB128Directives = true;
+
   //===--- Data Emission Directives -------------------------------------===//
 
   /// This should be set to the directive used to get some number of zero (and
@@ -200,6 +212,16 @@ protected:
   /// doesn't support this, it can be set to null.  Defaults to "\t.asciz\t"
   const char *AscizDirective;
 
+  /// This directive accepts a comma-separated list of bytes for emission as a
+  /// string of bytes.  For targets that do not support this, it shall be set to
+  /// null.  Defaults to null.
+  const char *ByteListDirective = nullptr;
+
+  /// Form used for character literals in the assembly syntax.  Useful for
+  /// producing strings as byte lists.  If a target does not use or support
+  /// this, it shall be set to ACLS_Unknown.  Defaults to ACLS_Unknown.
+  AsmCharLiteralSyntax CharacterLiteralSyntax = ACLS_Unknown;
+
   /// These directives are used to output some unit of integer data to the
   /// current section.  If a data directive is set to null, smaller data
   /// directives will be used to emit the large sizes.  Defaults to "\t.byte\t",
@@ -208,6 +230,9 @@ protected:
   const char *Data16bitsDirective;
   const char *Data32bitsDirective;
   const char *Data64bitsDirective;
+
+  /// True if data directives support signed values
+  bool SupportsSignedData = true;
 
   /// If non-null, a directive that is used to emit a word which should be
   /// relocated as a 64-bit GP-relative offset, e.g. .gpdword on Mips.  Defaults
@@ -381,6 +406,12 @@ protected:
 
   //===--- Integrated Assembler Information ----------------------------===//
 
+  // Generated object files can use all ELF features supported by GNU ld of
+  // this binutils version and later. INT_MAX means all features can be used,
+  // regardless of GNU ld support. The default value is referenced by
+  // clang/Driver/Options.td.
+  std::pair<int, int> BinutilsVersion = {2, 26};
+
   /// Should we use the integrated assembler?
   /// The integrated assembler should be enabled by default (by the
   /// constructors) when failing to parse a valid piece of assembly (inline
@@ -436,6 +467,7 @@ public:
   const char *getData16bitsDirective() const { return Data16bitsDirective; }
   const char *getData32bitsDirective() const { return Data32bitsDirective; }
   const char *getData64bitsDirective() const { return Data64bitsDirective; }
+  bool supportsSignedData() const { return SupportsSignedData; }
   const char *getGPRel64Directive() const { return GPRel64Directive; }
   const char *getGPRel32Directive() const { return GPRel32Directive; }
   const char *getDTPRel64Directive() const { return DTPRel64Directive; }
@@ -552,12 +584,18 @@ public:
     return UseDotAlignForAlignment;
   }
 
+  bool hasLEB128Directives() const { return HasLEB128Directives; }
+
   const char *getZeroDirective() const { return ZeroDirective; }
   bool doesZeroDirectiveSupportNonZeroValue() const {
     return ZeroDirectiveSupportsNonZeroValue;
   }
   const char *getAsciiDirective() const { return AsciiDirective; }
   const char *getAscizDirective() const { return AscizDirective; }
+  const char *getByteListDirective() const { return ByteListDirective; }
+  AsmCharLiteralSyntax characterLiteralSyntax() const {
+    return CharacterLiteralSyntax;
+  }
   bool getAlignmentIsInBytes() const { return AlignmentIsInBytes; }
   unsigned getTextAlignFillValue() const { return TextAlignFillValue; }
   const char *getGlobalDirective() const { return GlobalDirective; }
@@ -604,10 +642,6 @@ public:
 
   bool doesSupportDebugInformation() const { return SupportsDebugInformation; }
 
-  bool doesSupportExceptionHandling() const {
-    return ExceptionsType != ExceptionHandling::None;
-  }
-
   ExceptionHandling getExceptionHandlingType() const { return ExceptionsType; }
   WinEH::EncodingType getWinEHEncodingType() const { return WinEHEncodingType; }
 
@@ -645,8 +679,16 @@ public:
     return InitialFrameState;
   }
 
+  void setBinutilsVersion(std::pair<int, int> Value) {
+    BinutilsVersion = Value;
+  }
+
   /// Return true if assembly (inline or otherwise) should be parsed.
   bool useIntegratedAssembler() const { return UseIntegratedAssembler; }
+
+  bool binutilsIsAtLeast(int Major, int Minor) const {
+    return BinutilsVersion >= std::make_pair(Major, Minor);
+  }
 
   /// Set whether assembly (inline or otherwise) should be parsed.
   virtual void setUseIntegratedAssembler(bool Value) {

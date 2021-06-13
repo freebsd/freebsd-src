@@ -15,10 +15,14 @@
 #ifndef LLVM_LIB_TARGET_WEBASSEMBLY_WEBASSEMBLYUTILITIES_H
 #define LLVM_LIB_TARGET_WEBASSEMBLY_WEBASSEMBLYUTILITIES_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
-
 namespace llvm {
 
+class MachineBasicBlock;
+class MachineInstr;
+class MachineOperand;
+class MCContext;
+class MCSymbolWasm;
+class StringRef;
 class WebAssemblyFunctionInfo;
 
 namespace WebAssembly {
@@ -33,20 +37,18 @@ extern const char *const CxaRethrowFn;
 extern const char *const StdTerminateFn;
 extern const char *const PersonalityWrapperFn;
 
-/// Return the "bottom" block of an entity, which can be either a MachineLoop or
-/// WebAssemblyException. This differs from MachineLoop::getBottomBlock in that
-/// it works even if the entity is discontiguous.
-template <typename T> MachineBasicBlock *getBottom(const T *Unit) {
-  MachineBasicBlock *Bottom = Unit->getHeader();
-  for (MachineBasicBlock *MBB : Unit->blocks())
-    if (MBB->getNumber() > Bottom->getNumber())
-      Bottom = MBB;
-  return Bottom;
-}
-
 /// Returns the operand number of a callee, assuming the argument is a call
 /// instruction.
 const MachineOperand &getCalleeOp(const MachineInstr &MI);
+
+/// Returns the operand number of a callee, assuming the argument is a call
+/// instruction.
+MCSymbolWasm *getOrCreateFunctionTableSymbol(MCContext &Ctx,
+                                             const StringRef &Name);
+
+/// Find a catch instruction from an EH pad. Returns null if no catch
+/// instruction found or the catch is in an invalid location.
+MachineInstr *findCatch(MachineBasicBlock *EHPad);
 
 } // end namespace WebAssembly
 

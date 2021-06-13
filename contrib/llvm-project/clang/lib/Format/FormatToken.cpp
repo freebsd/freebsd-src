@@ -62,6 +62,7 @@ bool FormatToken::isSimpleTypeSpecifier() const {
   case tok::kw_char32_t:
   case tok::kw_typeof:
   case tok::kw_decltype:
+  case tok::kw__Atomic:
     return true;
   default:
     return false;
@@ -85,8 +86,8 @@ unsigned CommaSeparatedList::formatAfterToken(LineState &State,
   const FormatToken *LBrace =
       State.NextToken->Previous->getPreviousNonComment();
   if (!LBrace || !LBrace->isOneOf(tok::l_brace, TT_ArrayInitializerLSquare) ||
-      LBrace->BlockKind == BK_Block || LBrace->getType() == TT_DictLiteral ||
-      LBrace->Next->getType() == TT_DesignatedInitializerPeriod)
+      LBrace->is(BK_Block) || LBrace->is(TT_DictLiteral) ||
+      LBrace->Next->is(TT_DesignatedInitializerPeriod))
     return 0;
 
   // Calculate the number of code points we have to format this list. As the

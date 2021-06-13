@@ -327,6 +327,7 @@ public:
   virtual StringRef getFileFormatName() const = 0;
   virtual Triple::ArchType getArch() const = 0;
   virtual SubtargetFeatures getFeatures() const = 0;
+  virtual Optional<StringRef> tryGetCPUName() const { return None; };
   virtual void setARMSubArch(Triple &TheTriple) const { }
   virtual Expected<uint64_t> getStartAddress() const {
     return errorCodeToError(object_error::parse_failed);
@@ -349,7 +350,8 @@ public:
   createObjectFile(StringRef ObjectPath);
 
   static Expected<std::unique_ptr<ObjectFile>>
-  createObjectFile(MemoryBufferRef Object, llvm::file_magic Type);
+  createObjectFile(MemoryBufferRef Object, llvm::file_magic Type,
+                   bool InitContent = true);
   static Expected<std::unique_ptr<ObjectFile>>
   createObjectFile(MemoryBufferRef Object) {
     return createObjectFile(Object, llvm::file_magic::unknown);
@@ -366,7 +368,7 @@ public:
   createXCOFFObjectFile(MemoryBufferRef Object, unsigned FileType);
 
   static Expected<std::unique_ptr<ObjectFile>>
-  createELFObjectFile(MemoryBufferRef Object);
+  createELFObjectFile(MemoryBufferRef Object, bool InitContent = true);
 
   static Expected<std::unique_ptr<MachOObjectFile>>
   createMachOObjectFile(MemoryBufferRef Object,

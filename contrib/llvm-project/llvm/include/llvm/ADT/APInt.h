@@ -31,6 +31,7 @@ class raw_ostream;
 template <typename T> class SmallVectorImpl;
 template <typename T> class ArrayRef;
 template <typename T> class Optional;
+template <typename T> struct DenseMapInfo;
 
 class APInt;
 
@@ -96,7 +97,7 @@ private:
 
   unsigned BitWidth; ///< The number of bits in this APInt.
 
-  friend struct DenseMapAPIntKeyInfo;
+  friend struct DenseMapInfo<APInt>;
 
   friend class APSInt;
 
@@ -764,8 +765,8 @@ public:
 
   /// Move assignment operator.
   APInt &operator=(APInt &&that) {
-#ifdef _MSC_VER
-    // The MSVC std::shuffle implementation still does self-assignment.
+#ifdef EXPENSIVE_CHECKS
+    // Some std::shuffle implementations still do self-assignment.
     if (this == &that)
       return *this;
 #endif
@@ -793,11 +794,10 @@ public:
   APInt &operator=(uint64_t RHS) {
     if (isSingleWord()) {
       U.VAL = RHS;
-      clearUnusedBits();
-    } else {
-      U.pVal[0] = RHS;
-      memset(U.pVal+1, 0, (getNumWords() - 1) * APINT_WORD_SIZE);
+      return clearUnusedBits();
     }
+    U.pVal[0] = RHS;
+    memset(U.pVal + 1, 0, (getNumWords() - 1) * APINT_WORD_SIZE);
     return *this;
   }
 
@@ -854,10 +854,9 @@ public:
   APInt &operator|=(uint64_t RHS) {
     if (isSingleWord()) {
       U.VAL |= RHS;
-      clearUnusedBits();
-    } else {
-      U.pVal[0] |= RHS;
+      return clearUnusedBits();
     }
+    U.pVal[0] |= RHS;
     return *this;
   }
 
@@ -884,10 +883,9 @@ public:
   APInt &operator^=(uint64_t RHS) {
     if (isSingleWord()) {
       U.VAL ^= RHS;
-      clearUnusedBits();
-    } else {
-      U.pVal[0] ^= RHS;
+      return clearUnusedBits();
     }
+    U.pVal[0] ^= RHS;
     return *this;
   }
 
@@ -1405,6 +1403,12 @@ public:
   /// extended, truncated, or left alone to make it that width.
   APInt zextOrTrunc(unsigned width) const;
 
+  /// Truncate to width
+  ///
+  /// Make this APInt have the bit width given by \p width. The value is
+  /// truncated or left alone to make it that width.
+  APInt truncOrSelf(unsigned width) const;
+
   /// Sign extend or truncate to width
   ///
   /// Make this APInt have the bit width given by \p width. The value is sign
@@ -1447,6 +1451,14 @@ public:
   /// Set the sign bit to 1.
   void setSignBit() {
     setBit(BitWidth - 1);
+  }
+
+  /// Set a given bit to a given value.
+  void setBitVal(unsigned BitPosition, bool BitValue) {
+    if (BitValue)
+      setBit(BitPosition);
+    else
+      clearBit(BitPosition);
   }
 
   /// Set the bits from loBit (inclusive) to hiBit (exclusive) to 1.
@@ -1609,11 +1621,7 @@ public:
   /// returns the smallest bit width that will retain the negative value. For
   /// example, -1 can be written as 0b1 or 0xFFFFFFFFFF. 0b1 is shorter and so
   /// for -1, this function will always return 1.
-  unsigned getMinSignedBits() const {
-    if (isNegative())
-      return BitWidth - countLeadingOnes() + 1;
-    return getActiveBits() + 1;
-  }
+  unsigned getMinSignedBits() const { return BitWidth - getNumSignBits() + 1; }
 
   /// Get zero extended value
   ///

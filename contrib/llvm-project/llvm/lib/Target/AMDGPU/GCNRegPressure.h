@@ -17,21 +17,15 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_GCNREGPRESSURE_H
 #define LLVM_LIB_TARGET_AMDGPU_GCNREGPRESSURE_H
 
-#include "AMDGPUSubtarget.h"
-#include "llvm/ADT/DenseMap.h"
+#include "GCNSubtarget.h"
 #include "llvm/CodeGen/LiveIntervals.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/MC/LaneBitmask.h"
-#include "llvm/Support/Debug.h"
 #include <algorithm>
-#include <limits>
 
 namespace llvm {
 
 class MachineRegisterInfo;
 class raw_ostream;
+class SlotIndex;
 
 struct GCNRegPressure {
   enum RegKind {
@@ -90,7 +84,7 @@ struct GCNRegPressure {
 private:
   unsigned Value[TOTAL_KINDS];
 
-  static unsigned getRegKind(unsigned Reg, const MachineRegisterInfo &MRI);
+  static unsigned getRegKind(Register Reg, const MachineRegisterInfo &MRI);
 
   friend GCNRegPressure max(const GCNRegPressure &P1,
                             const GCNRegPressure &P2);

@@ -85,7 +85,7 @@ void CompilerInstance::setDiagnostics(DiagnosticsEngine *Value) {
 }
 
 void CompilerInstance::setVerboseOutputStream(raw_ostream &Value) {
-  OwnedVerboseOutputStream.release();
+  OwnedVerboseOutputStream.reset();
   VerboseOutputStream = &Value;
 }
 
@@ -346,10 +346,16 @@ static void InitializeFileRemapping(DiagnosticsEngine &Diags,
       continue;
     }
 
-    // Override the contents of the "from" file with the contents of
-    // the "to" file.
-    SourceMgr.overrideFileContents(FromFile, RB.second,
-                                   InitOpts.RetainRemappedFileBuffers);
+    // Override the contents of the "from" file with the contents of the
+    // "to" file. If the caller owns the buffers, then pass a MemoryBufferRef;
+    // otherwise, pass as a std::unique_ptr<MemoryBuffer> to transfer ownership
+    // to the SourceManager.
+    if (InitOpts.RetainRemappedFileBuffers)
+      SourceMgr.overrideFileContents(FromFile, RB.second->getMemBufferRef());
+    else
+      SourceMgr.overrideFileContents(
+          FromFile, std::unique_ptr<llvm::MemoryBuffer>(
+                        const_cast<llvm::MemoryBuffer *>(RB.second)));
   }
 
   // Remap files in the source manager (with other files).
@@ -422,8 +428,12 @@ void CompilerInstance::createPreprocessor(TranslationUnitKind TUKind) {
 
   PP->setPreprocessedOutput(getPreprocessorOutputOpts().ShowCPP);
 
-  if (PP->getLangOpts().Modules && PP->getLangOpts().ImplicitModules)
-    PP->getHeaderSearchInfo().setModuleCachePath(getSpecificModuleCachePath());
+  if (PP->getLangOpts().Modules && PP->getLangOpts().ImplicitModules) {
+    std::string ModuleHash = getInvocation().getModuleHash();
+    PP->getHeaderSearchInfo().setModuleHash(ModuleHash);
+    PP->getHeaderSearchInfo().setModuleCachePath(
+        getSpecificModuleCachePath(ModuleHash));
+  }
 
   // Handle generating dependencies, if requested.
   const DependencyOutputOptions &DepOpts = getDependencyOutputOpts();
@@ -471,13 +481,11 @@ void CompilerInstance::createPreprocessor(TranslationUnitKind TUKind) {
   }
 }
 
-std::string CompilerInstance::getSpecificModuleCachePath() {
-  // Set up the module path, including the hash for the
-  // module-creation options.
+std::string CompilerInstance::getSpecificModuleCachePath(StringRef ModuleHash) {
+  // Set up the module path, including the hash for the module-creation options.
   SmallString<256> SpecificModuleCache(getHeaderSearchOpts().ModuleCachePath);
   if (!SpecificModuleCache.empty() && !getHeaderSearchOpts().DisableModuleHash)
-    llvm::sys::path::append(SpecificModuleCache,
-                            getInvocation().getModuleHash());
+    llvm::sys::path::append(SpecificModuleCache, ModuleHash);
   return std::string(SpecificModuleCache.str());
 }
 
@@ -495,11 +503,12 @@ void CompilerInstance::createASTContext() {
 // ExternalASTSource
 
 void CompilerInstance::createPCHExternalASTSource(
-    StringRef Path, bool DisablePCHValidation, bool AllowPCHWithCompilerErrors,
-    void *DeserializationListener, bool OwnDeserializationListener) {
+    StringRef Path, DisableValidationForModuleKind DisableValidation,
+    bool AllowPCHWithCompilerErrors, void *DeserializationListener,
+    bool OwnDeserializationListener) {
   bool Preamble = getPreprocessorOpts().PrecompiledPreambleBytes.first != 0;
   TheASTReader = createPCHExternalASTSource(
-      Path, getHeaderSearchOpts().Sysroot, DisablePCHValidation,
+      Path, getHeaderSearchOpts().Sysroot, DisableValidation,
       AllowPCHWithCompilerErrors, getPreprocessor(), getModuleCache(),
       getASTContext(), getPCHContainerReader(),
       getFrontendOpts().ModuleFileExtensions, DependencyCollectors,
@@ -508,7 +517,8 @@ void CompilerInstance::createPCHExternalASTSource(
 }
 
 IntrusiveRefCntPtr<ASTReader> CompilerInstance::createPCHExternalASTSource(
-    StringRef Path, StringRef Sysroot, bool DisablePCHValidation,
+    StringRef Path, StringRef Sysroot,
+    DisableValidationForModuleKind DisableValidation,
     bool AllowPCHWithCompilerErrors, Preprocessor &PP,
     InMemoryModuleCache &ModuleCache, ASTContext &Context,
     const PCHContainerReader &PCHContainerRdr,
@@ -520,7 +530,7 @@ IntrusiveRefCntPtr<ASTReader> CompilerInstance::createPCHExternalASTSource(
 
   IntrusiveRefCntPtr<ASTReader> Reader(new ASTReader(
       PP, ModuleCache, &Context, PCHContainerRdr, Extensions,
-      Sysroot.empty() ? "" : Sysroot.data(), DisablePCHValidation,
+      Sysroot.empty() ? "" : Sysroot.data(), DisableValidation,
       AllowPCHWithCompilerErrors, /*AllowConfigurationMismatch*/ false,
       HSOpts.ModulesValidateSystemHeaders, HSOpts.ValidateASTInputFilesContent,
       UseGlobalModuleIndex));
@@ -636,31 +646,32 @@ void CompilerInstance::createSema(TranslationUnitKind TUKind,
 
 // Output Files
 
-void CompilerInstance::addOutputFile(OutputFile &&OutFile) {
-  OutputFiles.push_back(std::move(OutFile));
-}
-
 void CompilerInstance::clearOutputFiles(bool EraseFiles) {
   for (OutputFile &OF : OutputFiles) {
-    if (!OF.TempFilename.empty()) {
-      if (EraseFiles) {
+    if (EraseFiles) {
+      if (!OF.TempFilename.empty()) {
         llvm::sys::fs::remove(OF.TempFilename);
-      } else {
-        SmallString<128> NewOutFile(OF.Filename);
-
-        // If '-working-directory' was passed, the output filename should be
-        // relative to that.
-        FileMgr->FixupRelativePath(NewOutFile);
-        if (std::error_code ec =
-                llvm::sys::fs::rename(OF.TempFilename, NewOutFile)) {
-          getDiagnostics().Report(diag::err_unable_to_rename_temp)
-            << OF.TempFilename << OF.Filename << ec.message();
-
-          llvm::sys::fs::remove(OF.TempFilename);
-        }
+        continue;
       }
-    } else if (!OF.Filename.empty() && EraseFiles)
-      llvm::sys::fs::remove(OF.Filename);
+      if (!OF.Filename.empty())
+        llvm::sys::fs::remove(OF.Filename);
+      continue;
+    }
+
+    if (OF.TempFilename.empty())
+      continue;
+
+    // If '-working-directory' was passed, the output filename should be
+    // relative to that.
+    SmallString<128> NewOutFile(OF.Filename);
+    FileMgr->FixupRelativePath(NewOutFile);
+    std::error_code EC = llvm::sys::fs::rename(OF.TempFilename, NewOutFile);
+    if (!EC)
+      continue;
+    getDiagnostics().Report(diag::err_unable_to_rename_temp)
+        << OF.TempFilename << OF.Filename << EC.message();
+
+    llvm::sys::fs::remove(OF.TempFilename);
   }
   OutputFiles.clear();
   if (DeleteBuiltModules) {
@@ -668,15 +679,29 @@ void CompilerInstance::clearOutputFiles(bool EraseFiles) {
       llvm::sys::fs::remove(Module.second);
     BuiltModules.clear();
   }
-  NonSeekStream.reset();
 }
 
 std::unique_ptr<raw_pwrite_stream>
 CompilerInstance::createDefaultOutputFile(bool Binary, StringRef InFile,
-                                          StringRef Extension) {
-  return createOutputFile(getFrontendOpts().OutputFile, Binary,
-                          /*RemoveFileOnSignal=*/true, InFile, Extension,
-                          getFrontendOpts().UseTemporary);
+                                          StringRef Extension,
+                                          bool RemoveFileOnSignal,
+                                          bool CreateMissingDirectories) {
+  StringRef OutputPath = getFrontendOpts().OutputFile;
+  Optional<SmallString<128>> PathStorage;
+  if (OutputPath.empty()) {
+    if (InFile == "-" || Extension.empty()) {
+      OutputPath = "-";
+    } else {
+      PathStorage.emplace(InFile);
+      llvm::sys::path::replace_extension(*PathStorage, Extension);
+      OutputPath = *PathStorage;
+    }
+  }
+
+  // Force a temporary file if RemoveFileOnSignal was disabled.
+  return createOutputFile(OutputPath, Binary, RemoveFileOnSignal,
+                          getFrontendOpts().UseTemporary || !RemoveFileOnSignal,
+                          CreateMissingDirectories);
 }
 
 std::unique_ptr<raw_pwrite_stream> CompilerInstance::createNullOutputFile() {
@@ -685,64 +710,40 @@ std::unique_ptr<raw_pwrite_stream> CompilerInstance::createNullOutputFile() {
 
 std::unique_ptr<raw_pwrite_stream>
 CompilerInstance::createOutputFile(StringRef OutputPath, bool Binary,
-                                   bool RemoveFileOnSignal, StringRef InFile,
-                                   StringRef Extension, bool UseTemporary,
+                                   bool RemoveFileOnSignal, bool UseTemporary,
                                    bool CreateMissingDirectories) {
-  std::string OutputPathName, TempPathName;
-  std::error_code EC;
-  std::unique_ptr<raw_pwrite_stream> OS = createOutputFile(
-      OutputPath, EC, Binary, RemoveFileOnSignal, InFile, Extension,
-      UseTemporary, CreateMissingDirectories, &OutputPathName, &TempPathName);
-  if (!OS) {
-    getDiagnostics().Report(diag::err_fe_unable_to_open_output) << OutputPath
-                                                                << EC.message();
-    return nullptr;
-  }
-
-  // Add the output file -- but don't try to remove "-", since this means we are
-  // using stdin.
-  addOutputFile(
-      OutputFile((OutputPathName != "-") ? OutputPathName : "", TempPathName));
-
-  return OS;
+  Expected<std::unique_ptr<raw_pwrite_stream>> OS =
+      createOutputFileImpl(OutputPath, Binary, RemoveFileOnSignal, UseTemporary,
+                           CreateMissingDirectories);
+  if (OS)
+    return std::move(*OS);
+  getDiagnostics().Report(diag::err_fe_unable_to_open_output)
+      << OutputPath << errorToErrorCode(OS.takeError()).message();
+  return nullptr;
 }
 
-std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::createOutputFile(
-    StringRef OutputPath, std::error_code &Error, bool Binary,
-    bool RemoveFileOnSignal, StringRef InFile, StringRef Extension,
-    bool UseTemporary, bool CreateMissingDirectories,
-    std::string *ResultPathName, std::string *TempPathName) {
+Expected<std::unique_ptr<llvm::raw_pwrite_stream>>
+CompilerInstance::createOutputFileImpl(StringRef OutputPath, bool Binary,
+                                       bool RemoveFileOnSignal,
+                                       bool UseTemporary,
+                                       bool CreateMissingDirectories) {
   assert((!CreateMissingDirectories || UseTemporary) &&
          "CreateMissingDirectories is only allowed when using temporary files");
 
-  std::string OutFile, TempFile;
-  if (!OutputPath.empty()) {
-    OutFile = std::string(OutputPath);
-  } else if (InFile == "-") {
-    OutFile = "-";
-  } else if (!Extension.empty()) {
-    SmallString<128> Path(InFile);
-    llvm::sys::path::replace_extension(Path, Extension);
-    OutFile = std::string(Path.str());
-  } else {
-    OutFile = "-";
-  }
-
   std::unique_ptr<llvm::raw_fd_ostream> OS;
-  std::string OSFile;
+  Optional<StringRef> OSFile;
 
   if (UseTemporary) {
-    if (OutFile == "-")
+    if (OutputPath == "-")
       UseTemporary = false;
     else {
       llvm::sys::fs::file_status Status;
       llvm::sys::fs::status(OutputPath, Status);
       if (llvm::sys::fs::exists(Status)) {
         // Fail early if we can't write to the final destination.
-        if (!llvm::sys::fs::can_write(OutputPath)) {
-          Error = make_error_code(llvm::errc::operation_not_permitted);
-          return nullptr;
-        }
+        if (!llvm::sys::fs::can_write(OutputPath))
+          return llvm::errorCodeToError(
+              make_error_code(llvm::errc::operation_not_permitted));
 
         // Don't use a temporary if the output is a special file. This handles
         // things like '-o /dev/null'
@@ -752,14 +753,15 @@ std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::createOutputFile(
     }
   }
 
+  std::string TempFile;
   if (UseTemporary) {
     // Create a temporary file.
     // Insert -%%%%%%%% before the extension (if any), and because some tools
     // (noticeable, clang's own GlobalModuleIndex.cpp) glob for build
     // artifacts, also append .tmp.
-    StringRef OutputExtension = llvm::sys::path::extension(OutFile);
+    StringRef OutputExtension = llvm::sys::path::extension(OutputPath);
     SmallString<128> TempPath =
-        StringRef(OutFile).drop_back(OutputExtension.size());
+        StringRef(OutputPath).drop_back(OutputExtension.size());
     TempPath += "-%%%%%%%%";
     TempPath += OutputExtension;
     TempPath += ".tmp";
@@ -786,30 +788,28 @@ std::unique_ptr<llvm::raw_pwrite_stream> CompilerInstance::createOutputFile(
   }
 
   if (!OS) {
-    OSFile = OutFile;
+    OSFile = OutputPath;
+    std::error_code EC;
     OS.reset(new llvm::raw_fd_ostream(
-        OSFile, Error,
+        *OSFile, EC,
         (Binary ? llvm::sys::fs::OF_None : llvm::sys::fs::OF_Text)));
-    if (Error)
-      return nullptr;
+    if (EC)
+      return llvm::errorCodeToError(EC);
   }
 
   // Make sure the out stream file gets removed if we crash.
   if (RemoveFileOnSignal)
-    llvm::sys::RemoveFileOnSignal(OSFile);
+    llvm::sys::RemoveFileOnSignal(*OSFile);
 
-  if (ResultPathName)
-    *ResultPathName = OutFile;
-  if (TempPathName)
-    *TempPathName = TempFile;
+  // Add the output file -- but don't try to remove "-", since this means we are
+  // using stdin.
+  OutputFiles.emplace_back(((OutputPath != "-") ? OutputPath : "").str(),
+                           std::move(TempFile));
 
   if (!Binary || OS->supportsSeeking())
     return std::move(OS);
 
-  auto B = std::make_unique<llvm::buffer_ostream>(*OS);
-  assert(!NonSeekStream);
-  NonSeekStream = std::move(OS);
-  return std::move(B);
+  return std::make_unique<llvm::buffer_unique_ostream>(std::move(OS));
 }
 
 // Initialization Utilities
@@ -831,8 +831,7 @@ bool CompilerInstance::InitializeSourceManager(const FrontendInputFile &Input,
           : Input.isSystem() ? SrcMgr::C_System : SrcMgr::C_User;
 
   if (Input.isBuffer()) {
-    SourceMgr.setMainFileID(SourceMgr.createFileID(SourceManager::Unowned,
-                                                   Input.getBuffer(), Kind));
+    SourceMgr.setMainFileID(SourceMgr.createFileID(Input.getBuffer(), Kind));
     assert(SourceMgr.getMainFileID().isValid() &&
            "Couldn't establish MainFileID!");
     return true;
@@ -841,55 +840,21 @@ bool CompilerInstance::InitializeSourceManager(const FrontendInputFile &Input,
   StringRef InputFile = Input.getFile();
 
   // Figure out where to get and map in the main file.
-  if (InputFile != "-") {
-    auto FileOrErr = FileMgr.getFileRef(InputFile, /*OpenFile=*/true);
-    if (!FileOrErr) {
-      // FIXME: include the error in the diagnostic.
-      consumeError(FileOrErr.takeError());
+  auto FileOrErr = InputFile == "-"
+                       ? FileMgr.getSTDIN()
+                       : FileMgr.getFileRef(InputFile, /*OpenFile=*/true);
+  if (!FileOrErr) {
+    // FIXME: include the error in the diagnostic even when it's not stdin.
+    auto EC = llvm::errorToErrorCode(FileOrErr.takeError());
+    if (InputFile != "-")
       Diags.Report(diag::err_fe_error_reading) << InputFile;
-      return false;
-    }
-    FileEntryRef File = *FileOrErr;
-
-    // The natural SourceManager infrastructure can't currently handle named
-    // pipes, but we would at least like to accept them for the main
-    // file. Detect them here, read them with the volatile flag so FileMgr will
-    // pick up the correct size, and simply override their contents as we do for
-    // STDIN.
-    if (File.getFileEntry().isNamedPipe()) {
-      auto MB =
-          FileMgr.getBufferForFile(&File.getFileEntry(), /*isVolatile=*/true);
-      if (MB) {
-        // Create a new virtual file that will have the correct size.
-        const FileEntry *FE =
-            FileMgr.getVirtualFile(InputFile, (*MB)->getBufferSize(), 0);
-        SourceMgr.overrideFileContents(FE, std::move(*MB));
-        SourceMgr.setMainFileID(
-            SourceMgr.createFileID(FE, SourceLocation(), Kind));
-      } else {
-        Diags.Report(diag::err_cannot_open_file) << InputFile
-                                                 << MB.getError().message();
-        return false;
-      }
-    } else {
-      SourceMgr.setMainFileID(
-          SourceMgr.createFileID(File, SourceLocation(), Kind));
-    }
-  } else {
-    llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> SBOrErr =
-        llvm::MemoryBuffer::getSTDIN();
-    if (std::error_code EC = SBOrErr.getError()) {
+    else
       Diags.Report(diag::err_fe_error_reading_stdin) << EC.message();
-      return false;
-    }
-    std::unique_ptr<llvm::MemoryBuffer> SB = std::move(SBOrErr.get());
-
-    const FileEntry *File = FileMgr.getVirtualFile(SB->getBufferIdentifier(),
-                                                   SB->getBufferSize(), 0);
-    SourceMgr.setMainFileID(
-        SourceMgr.createFileID(File, SourceLocation(), Kind));
-    SourceMgr.overrideFileContents(File, std::move(SB));
+    return false;
   }
+
+  SourceMgr.setMainFileID(
+      SourceMgr.createFileID(*FileOrErr, SourceLocation(), Kind));
 
   assert(SourceMgr.getMainFileID().isValid() &&
          "Couldn't establish MainFileID!");
@@ -968,7 +933,7 @@ bool CompilerInstance::ExecuteAction(FrontendAction &Act) {
        << " based upon " << BACKEND_PACKAGE_STRING
        << " default target " << llvm::sys::getDefaultTargetTriple() << "\n";
 
-  if (getFrontendOpts().ShowTimers)
+  if (getCodeGenOpts().TimePasses)
     createFrontendTimer();
 
   if (getFrontendOpts().ShowStats || !getFrontendOpts().StatsFile.empty())
@@ -1175,10 +1140,8 @@ compileModuleImpl(CompilerInstance &ImportingInstance, SourceLocation ImportLoc,
                                             diag::remark_module_build_done)
     << ModuleName;
 
-  // Delete the temporary module map file.
-  // FIXME: Even though we're executing under crash protection, it would still
-  // be nice to do this with RemoveFileOnSignal when we can. However, that
-  // doesn't make sense for all clients, so clean this up manually.
+  // Delete any remaining temporary files related to Instance, in case the
+  // module generation thread crashed.
   Instance.clearOutputFiles(/*EraseFiles=*/true);
 
   return !Instance.getDiagnostics().hasErrorOccurred();
@@ -1516,7 +1479,9 @@ void CompilerInstance::createASTReader() {
   HeaderSearchOptions &HSOpts = getHeaderSearchOpts();
   std::string Sysroot = HSOpts.Sysroot;
   const PreprocessorOptions &PPOpts = getPreprocessorOpts();
+  const FrontendOptions &FEOpts = getFrontendOpts();
   std::unique_ptr<llvm::Timer> ReadTimer;
+
   if (FrontendTimerGroup)
     ReadTimer = std::make_unique<llvm::Timer>("reading_modules",
                                                 "Reading modules",
@@ -1524,8 +1489,9 @@ void CompilerInstance::createASTReader() {
   TheASTReader = new ASTReader(
       getPreprocessor(), getModuleCache(), &getASTContext(),
       getPCHContainerReader(), getFrontendOpts().ModuleFileExtensions,
-      Sysroot.empty() ? "" : Sysroot.c_str(), PPOpts.DisablePCHValidation,
-      /*AllowASTWithCompilerErrors=*/false,
+      Sysroot.empty() ? "" : Sysroot.c_str(),
+      PPOpts.DisablePCHOrModuleValidation,
+      /*AllowASTWithCompilerErrors=*/FEOpts.AllowPCMWithCompilerErrors,
       /*AllowConfigurationMismatch=*/false, HSOpts.ModulesValidateSystemHeaders,
       HSOpts.ValidateASTInputFilesContent,
       getFrontendOpts().UseGlobalModuleIndex, std::move(ReadTimer));
@@ -1668,6 +1634,8 @@ static ModuleSource selectModuleSource(
   if (!HSOpts.PrebuiltModuleFiles.empty() ||
       !HSOpts.PrebuiltModulePaths.empty()) {
     ModuleFilename = HS.getPrebuiltModuleFileName(ModuleName);
+    if (HSOpts.EnablePrebuiltImplicitModules && ModuleFilename.empty())
+      ModuleFilename = HS.getPrebuiltImplicitModuleFileName(M);
     if (!ModuleFilename.empty())
       return MS_PrebuiltModulePath;
   }

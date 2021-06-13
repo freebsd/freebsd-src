@@ -12,30 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
-#include "AMDGPUTargetMachine.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Analysis/Loads.h"
-#include "llvm/CodeGen/Passes.h"
+#include "GCNSubtarget.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/MDBuilder.h"
-#include "llvm/IR/Metadata.h"
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
-
+#include "llvm/Target/TargetMachine.h"
 #define DEBUG_TYPE "amdgpu-lower-kernel-arguments"
 
 using namespace llvm;
@@ -108,16 +89,33 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
   uint64_t ExplicitArgOffset = 0;
 
   for (Argument &Arg : F.args()) {
-    Type *ArgTy = Arg.getType();
-    Align ABITypeAlign = DL.getABITypeAlign(ArgTy);
-    unsigned Size = DL.getTypeSizeInBits(ArgTy);
-    unsigned AllocSize = DL.getTypeAllocSize(ArgTy);
+    const bool IsByRef = Arg.hasByRefAttr();
+    Type *ArgTy = IsByRef ? Arg.getParamByRefType() : Arg.getType();
+    MaybeAlign ABITypeAlign = IsByRef ? Arg.getParamAlign() : None;
+    if (!ABITypeAlign)
+      ABITypeAlign = DL.getABITypeAlign(ArgTy);
+
+    uint64_t Size = DL.getTypeSizeInBits(ArgTy);
+    uint64_t AllocSize = DL.getTypeAllocSize(ArgTy);
 
     uint64_t EltOffset = alignTo(ExplicitArgOffset, ABITypeAlign) + BaseOffset;
     ExplicitArgOffset = alignTo(ExplicitArgOffset, ABITypeAlign) + AllocSize;
 
     if (Arg.use_empty())
       continue;
+
+    // If this is byval, the loads are already explicit in the function. We just
+    // need to rewrite the pointer values.
+    if (IsByRef) {
+      Value *ArgOffsetPtr = Builder.CreateConstInBoundsGEP1_64(
+          Builder.getInt8Ty(), KernArgSegment, EltOffset,
+          Arg.getName() + ".byval.kernarg.offset");
+
+      Value *CastOffsetPtr = Builder.CreatePointerBitCastOrAddrSpaceCast(
+          ArgOffsetPtr, Arg.getType());
+      Arg.replaceAllUsesWith(CastOffsetPtr);
+      continue;
+    }
 
     if (PointerType *PT = dyn_cast<PointerType>(ArgTy)) {
       // FIXME: Hack. We rely on AssertZext to be able to fold DS addressing
@@ -224,8 +222,7 @@ bool AMDGPULowerKernelArguments::runOnFunction(Function &F) {
                                             Arg.getName() + ".load");
       Arg.replaceAllUsesWith(NewVal);
     } else if (IsV3) {
-      Value *Shuf = Builder.CreateShuffleVector(Load, UndefValue::get(V4Ty),
-                                                ArrayRef<int>{0, 1, 2},
+      Value *Shuf = Builder.CreateShuffleVector(Load, ArrayRef<int>{0, 1, 2},
                                                 Arg.getName() + ".load");
       Arg.replaceAllUsesWith(Shuf);
     } else {

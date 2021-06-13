@@ -26,7 +26,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <unwind.h>
-#include <execinfo.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -142,7 +141,7 @@ bool InitShadow(bool init_origins) {
     if (map) {
       if (!CheckMemoryRangeAvailability(start, size))
         return false;
-      if (!MmapFixedNoReserve(start, size, kMemoryLayout[i].name))
+      if (!MmapFixedSuperNoReserve(start, size, kMemoryLayout[i].name))
         return false;
       if (common_flags()->use_madv_dontdump)
         DontDumpShadowMemory(start, size);

@@ -32,6 +32,12 @@ bool arm::isARMMProfile(const llvm::Triple &Triple) {
   return llvm::ARM::parseArchProfile(Arch) == llvm::ARM::ProfileKind::M;
 }
 
+// True if A-profile.
+bool arm::isARMAProfile(const llvm::Triple &Triple) {
+  llvm::StringRef Arch = Triple.getArchName();
+  return llvm::ARM::parseArchProfile(Arch) == llvm::ARM::ProfileKind::A;
+}
+
 // Get Arch/CPU from args.
 void arm::getARMArchCPUFromArgs(const ArgList &Args, llvm::StringRef &Arch,
                                 llvm::StringRef &CPU, bool FromAs) {
@@ -73,14 +79,15 @@ static unsigned getARMFPUFeatures(const Driver &D, const Arg *A,
 }
 
 // Decode ARM features from string like +[no]featureA+[no]featureB+...
-static bool DecodeARMFeatures(const Driver &D, StringRef text,
-                              StringRef CPU, llvm::ARM::ArchKind ArchKind,
-                              std::vector<StringRef> &Features) {
+static bool DecodeARMFeatures(const Driver &D, StringRef text, StringRef CPU,
+                              llvm::ARM::ArchKind ArchKind,
+                              std::vector<StringRef> &Features,
+                              unsigned &ArgFPUID) {
   SmallVector<StringRef, 8> Split;
   text.split(Split, StringRef("+"), -1, false);
 
   for (StringRef Feature : Split) {
-    if (!appendArchExtFeatures(CPU, ArchKind, Feature, Features))
+    if (!appendArchExtFeatures(CPU, ArchKind, Feature, Features, ArgFPUID))
       return false;
   }
   return true;
@@ -102,14 +109,14 @@ static void DecodeARMFeaturesFromCPU(const Driver &D, StringRef CPU,
 static void checkARMArchName(const Driver &D, const Arg *A, const ArgList &Args,
                              llvm::StringRef ArchName, llvm::StringRef CPUName,
                              std::vector<StringRef> &Features,
-                             const llvm::Triple &Triple) {
+                             const llvm::Triple &Triple, unsigned &ArgFPUID) {
   std::pair<StringRef, StringRef> Split = ArchName.split("+");
 
   std::string MArch = arm::getARMArch(ArchName, Triple);
   llvm::ARM::ArchKind ArchKind = llvm::ARM::parseArch(MArch);
   if (ArchKind == llvm::ARM::ArchKind::INVALID ||
-      (Split.second.size() && !DecodeARMFeatures(
-        D, Split.second, CPUName, ArchKind, Features)))
+      (Split.second.size() && !DecodeARMFeatures(D, Split.second, CPUName,
+                                                 ArchKind, Features, ArgFPUID)))
     D.Diag(clang::diag::err_drv_clang_unsupported) << A->getAsString(Args);
 }
 
@@ -117,15 +124,15 @@ static void checkARMArchName(const Driver &D, const Arg *A, const ArgList &Args,
 static void checkARMCPUName(const Driver &D, const Arg *A, const ArgList &Args,
                             llvm::StringRef CPUName, llvm::StringRef ArchName,
                             std::vector<StringRef> &Features,
-                            const llvm::Triple &Triple) {
+                            const llvm::Triple &Triple, unsigned &ArgFPUID) {
   std::pair<StringRef, StringRef> Split = CPUName.split("+");
 
   std::string CPU = arm::getARMTargetCPU(CPUName, ArchName, Triple);
   llvm::ARM::ArchKind ArchKind =
     arm::getLLVMArchKindForARM(CPU, ArchName, Triple);
   if (ArchKind == llvm::ARM::ArchKind::INVALID ||
-      (Split.second.size() && !DecodeARMFeatures(
-        D, Split.second, CPU, ArchKind, Features)))
+      (Split.second.size() &&
+       !DecodeARMFeatures(D, Split.second, CPU, ArchKind, Features, ArgFPUID)))
     D.Diag(clang::diag::err_drv_clang_unsupported) << A->getAsString(Args);
 }
 
@@ -133,6 +140,7 @@ bool arm::useAAPCSForMachO(const llvm::Triple &T) {
   // The backend is hardwired to assume AAPCS for M-class processors, ensure
   // the frontend matches that.
   return T.getEnvironment() == llvm::Triple::EABI ||
+         T.getEnvironment() == llvm::Triple::EABIHF ||
          T.getOS() == llvm::Triple::UnknownOS || isARMMProfile(T);
 }
 
@@ -159,11 +167,73 @@ arm::FloatABI arm::getARMFloatABI(const ToolChain &TC, const ArgList &Args) {
   return arm::getARMFloatABI(TC.getDriver(), TC.getEffectiveTriple(), Args);
 }
 
+arm::FloatABI arm::getDefaultFloatABI(const llvm::Triple &Triple) {
+  auto SubArch = getARMSubArchVersionNumber(Triple);
+  switch (Triple.getOS()) {
+  case llvm::Triple::Darwin:
+  case llvm::Triple::MacOSX:
+  case llvm::Triple::IOS:
+  case llvm::Triple::TvOS:
+    // Darwin defaults to "softfp" for v6 and v7.
+    if (Triple.isWatchABI())
+      return FloatABI::Hard;
+    else
+      return (SubArch == 6 || SubArch == 7) ? FloatABI::SoftFP : FloatABI::Soft;
+
+  case llvm::Triple::WatchOS:
+    return FloatABI::Hard;
+
+  // FIXME: this is invalid for WindowsCE
+  case llvm::Triple::Win32:
+    return FloatABI::Hard;
+
+  case llvm::Triple::NetBSD:
+    switch (Triple.getEnvironment()) {
+    case llvm::Triple::EABIHF:
+    case llvm::Triple::GNUEABIHF:
+      return FloatABI::Hard;
+    default:
+      return FloatABI::Soft;
+    }
+    break;
+
+  case llvm::Triple::FreeBSD:
+    switch (Triple.getEnvironment()) {
+    case llvm::Triple::GNUEABIHF:
+      return FloatABI::Hard;
+    default:
+      // FreeBSD defaults to soft float
+      return FloatABI::Soft;
+    }
+    break;
+
+  case llvm::Triple::OpenBSD:
+    return FloatABI::SoftFP;
+
+  default:
+    switch (Triple.getEnvironment()) {
+    case llvm::Triple::GNUEABIHF:
+    case llvm::Triple::MuslEABIHF:
+    case llvm::Triple::EABIHF:
+      return FloatABI::Hard;
+    case llvm::Triple::GNUEABI:
+    case llvm::Triple::MuslEABI:
+    case llvm::Triple::EABI:
+      // EABI is always AAPCS, and if it was not marked 'hard', it's softfp
+      return FloatABI::SoftFP;
+    case llvm::Triple::Android:
+      return (SubArch >= 7) ? FloatABI::SoftFP : FloatABI::Soft;
+    default:
+      return FloatABI::Invalid;
+    }
+  }
+  return FloatABI::Invalid;
+}
+
 // Select the float ABI as determined by -msoft-float, -mhard-float, and
 // -mfloat-abi=.
 arm::FloatABI arm::getARMFloatABI(const Driver &D, const llvm::Triple &Triple,
                                   const ArgList &Args) {
-  auto SubArch = getARMSubArchVersionNumber(Triple);
   arm::FloatABI ABI = FloatABI::Invalid;
   if (Arg *A =
           Args.getLastArg(options::OPT_msoft_float, options::OPT_mhard_float,
@@ -183,95 +253,23 @@ arm::FloatABI arm::getARMFloatABI(const Driver &D, const llvm::Triple &Triple,
         ABI = FloatABI::Soft;
       }
     }
-
-    // It is incorrect to select hard float ABI on MachO platforms if the ABI is
-    // "apcs-gnu".
-    if (Triple.isOSBinFormatMachO() && !useAAPCSForMachO(Triple) &&
-        ABI == FloatABI::Hard) {
-      D.Diag(diag::err_drv_unsupported_opt_for_target) << A->getAsString(Args)
-                                                       << Triple.getArchName();
-    }
   }
 
   // If unspecified, choose the default based on the platform.
+  if (ABI == FloatABI::Invalid)
+    ABI = arm::getDefaultFloatABI(Triple);
+
   if (ABI == FloatABI::Invalid) {
-    switch (Triple.getOS()) {
-    case llvm::Triple::Darwin:
-    case llvm::Triple::MacOSX:
-    case llvm::Triple::IOS:
-    case llvm::Triple::TvOS: {
-      // Darwin defaults to "softfp" for v6 and v7.
-      ABI = (SubArch == 6 || SubArch == 7) ? FloatABI::SoftFP : FloatABI::Soft;
-      ABI = Triple.isWatchABI() ? FloatABI::Hard : ABI;
-      break;
-    }
-    case llvm::Triple::WatchOS:
+    // Assume "soft", but warn the user we are guessing.
+    if (Triple.isOSBinFormatMachO() &&
+        Triple.getSubArch() == llvm::Triple::ARMSubArch_v7em)
       ABI = FloatABI::Hard;
-      break;
+    else
+      ABI = FloatABI::Soft;
 
-    // FIXME: this is invalid for WindowsCE
-    case llvm::Triple::Win32:
-      ABI = FloatABI::Hard;
-      break;
-
-    case llvm::Triple::NetBSD:
-      switch (Triple.getEnvironment()) {
-      case llvm::Triple::EABIHF:
-      case llvm::Triple::GNUEABIHF:
-        ABI = FloatABI::Hard;
-        break;
-      default:
-        ABI = FloatABI::Soft;
-        break;
-      }
-      break;
-
-    case llvm::Triple::FreeBSD:
-      switch (Triple.getEnvironment()) {
-      case llvm::Triple::GNUEABIHF:
-        ABI = FloatABI::Hard;
-        break;
-      default:
-        // FreeBSD defaults to soft float
-        ABI = FloatABI::Soft;
-        break;
-      }
-      break;
-
-    case llvm::Triple::OpenBSD:
-      ABI = FloatABI::SoftFP;
-      break;
-
-    default:
-      switch (Triple.getEnvironment()) {
-      case llvm::Triple::GNUEABIHF:
-      case llvm::Triple::MuslEABIHF:
-      case llvm::Triple::EABIHF:
-        ABI = FloatABI::Hard;
-        break;
-      case llvm::Triple::GNUEABI:
-      case llvm::Triple::MuslEABI:
-      case llvm::Triple::EABI:
-        // EABI is always AAPCS, and if it was not marked 'hard', it's softfp
-        ABI = FloatABI::SoftFP;
-        break;
-      case llvm::Triple::Android:
-        ABI = (SubArch >= 7) ? FloatABI::SoftFP : FloatABI::Soft;
-        break;
-      default:
-        // Assume "soft", but warn the user we are guessing.
-        if (Triple.isOSBinFormatMachO() &&
-            Triple.getSubArch() == llvm::Triple::ARMSubArch_v7em)
-          ABI = FloatABI::Hard;
-        else
-          ABI = FloatABI::Soft;
-
-        if (Triple.getOS() != llvm::Triple::UnknownOS ||
-            !Triple.isOSBinFormatMachO())
-          D.Diag(diag::warn_drv_assuming_mfloat_abi_is) << "soft";
-        break;
-      }
-    }
+    if (Triple.getOS() != llvm::Triple::UnknownOS ||
+        !Triple.isOSBinFormatMachO())
+      D.Diag(diag::warn_drv_assuming_mfloat_abi_is) << "soft";
   }
 
   assert(ABI != FloatABI::Invalid && "must select an ABI");
@@ -347,6 +345,8 @@ void arm::getARMTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   const Arg *CPUArg = Args.getLastArg(options::OPT_mcpu_EQ);
   StringRef ArchName;
   StringRef CPUName;
+  unsigned ArchArgFPUID = llvm::ARM::FK_INVALID;
+  unsigned CPUArgFPUID = llvm::ARM::FK_INVALID;
 
   // Check -mcpu. ClangAs gives preference to -Wa,-mcpu=.
   if (WaCPU) {
@@ -364,14 +364,14 @@ void arm::getARMTargetFeatures(const Driver &D, const llvm::Triple &Triple,
       D.Diag(clang::diag::warn_drv_unused_argument)
           << ArchArg->getAsString(Args);
     ArchName = StringRef(WaArch->getValue()).substr(7);
-    checkARMArchName(D, WaArch, Args, ArchName, CPUName,
-                     ExtensionFeatures, Triple);
+    checkARMArchName(D, WaArch, Args, ArchName, CPUName, ExtensionFeatures,
+                     Triple, ArchArgFPUID);
     // FIXME: Set Arch.
     D.Diag(clang::diag::warn_drv_unused_argument) << WaArch->getAsString(Args);
   } else if (ArchArg) {
     ArchName = ArchArg->getValue();
-    checkARMArchName(D, ArchArg, Args, ArchName, CPUName,
-                     ExtensionFeatures, Triple);
+    checkARMArchName(D, ArchArg, Args, ArchName, CPUName, ExtensionFeatures,
+                     Triple, ArchArgFPUID);
   }
 
   // Add CPU features for generic CPUs
@@ -390,8 +390,8 @@ void arm::getARMTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   }
 
   if (CPUArg)
-    checkARMCPUName(D, CPUArg, Args, CPUName, ArchName,
-                    ExtensionFeatures, Triple);
+    checkARMCPUName(D, CPUArg, Args, CPUName, ArchName, ExtensionFeatures,
+                    Triple, CPUArgFPUID);
   // Honor -mfpu=. ClangAs gives preference to -Wa,-mfpu=.
   unsigned FPUID = llvm::ARM::FK_INVALID;
   const Arg *FPUArg = Args.getLastArg(options::OPT_mfpu_EQ);
@@ -455,20 +455,26 @@ fp16_fml_fallthrough:
       Features.push_back("+fullfp16");
   }
 
-  // Setting -msoft-float/-mfloat-abi=soft effectively disables the FPU (GCC
-  // ignores the -mfpu options in this case).
-  // Note that the ABI can also be set implicitly by the target selected.
+  // Setting -msoft-float/-mfloat-abi=soft, -mfpu=none, or adding +nofp to
+  // -march/-mcpu effectively disables the FPU (GCC ignores the -mfpu options in
+  // this case). Note that the ABI can also be set implicitly by the target
+  // selected.
   if (ABI == arm::FloatABI::Soft) {
     llvm::ARM::getFPUFeatures(llvm::ARM::FK_NONE, Features);
 
     // Disable all features relating to hardware FP, not already disabled by the
     // above call.
+    Features.insert(Features.end(), {"-dotprod", "-fp16fml", "-bf16", "-mve",
+                                     "-mve.fp", "-fpregs"});
+  } else if (FPUID == llvm::ARM::FK_NONE ||
+             ArchArgFPUID == llvm::ARM::FK_NONE ||
+             CPUArgFPUID == llvm::ARM::FK_NONE) {
+    // -mfpu=none, -march=armvX+nofp or -mcpu=X+nofp is *very* similar to
+    // -mfloat-abi=soft, only that it should not disable MVE-I. They disable the
+    // FPU, but not the FPU registers, thus MVE-I, which depends only on the
+    // latter, is still supported.
     Features.insert(Features.end(),
-                    {"-dotprod", "-fp16fml", "-mve", "-mve.fp", "-fpregs"});
-  } else if (FPUID == llvm::ARM::FK_NONE) {
-    // -mfpu=none is *very* similar to -mfloat-abi=soft, only that it should not
-    // disable MVE-I.
-    Features.insert(Features.end(), {"-dotprod", "-fp16fml", "-mve.fp"});
+                    {"-dotprod", "-fp16fml", "-bf16", "-mve.fp"});
     if (!hasIntegerMVE(Features))
       Features.emplace_back("-fpregs");
   }
@@ -606,6 +612,45 @@ fp16_fml_fallthrough:
 
   if (Args.hasArg(options::OPT_mno_neg_immediates))
     Features.push_back("+no-neg-immediates");
+
+  // Enable/disable straight line speculation hardening.
+  if (Arg *A = Args.getLastArg(options::OPT_mharden_sls_EQ)) {
+    StringRef Scope = A->getValue();
+    bool EnableRetBr = false;
+    bool EnableBlr = false;
+    if (Scope != "none" && Scope != "all") {
+      SmallVector<StringRef, 4> Opts;
+      Scope.split(Opts, ",");
+      for (auto Opt : Opts) {
+        Opt = Opt.trim();
+        if (Opt == "retbr") {
+          EnableRetBr = true;
+          continue;
+        }
+        if (Opt == "blr") {
+          EnableBlr = true;
+          continue;
+        }
+        D.Diag(diag::err_invalid_sls_hardening)
+            << Scope << A->getAsString(Args);
+        break;
+      }
+    } else if (Scope == "all") {
+      EnableRetBr = true;
+      EnableBlr = true;
+    }
+
+    if (EnableRetBr || EnableBlr)
+      if (!(isARMAProfile(Triple) && getARMSubArchVersionNumber(Triple) >= 7))
+        D.Diag(diag::err_sls_hardening_arm_not_supported)
+            << Scope << A->getAsString(Args);
+
+    if (EnableRetBr)
+      Features.push_back("+harden-sls-retbr");
+    if (EnableBlr)
+      Features.push_back("+harden-sls-blr");
+  }
+
 }
 
 const std::string arm::getARMArch(StringRef Arch, const llvm::Triple &Triple) {

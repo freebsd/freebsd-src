@@ -200,8 +200,9 @@ const char *ProcessMinidump::GetPluginDescriptionStatic() {
 
 lldb::ProcessSP ProcessMinidump::CreateInstance(lldb::TargetSP target_sp,
                                                 lldb::ListenerSP listener_sp,
-                                                const FileSpec *crash_file) {
-  if (!crash_file)
+                                                const FileSpec *crash_file,
+                                                bool can_connect) {
+  if (!crash_file || can_connect)
     return nullptr;
 
   lldb::ProcessSP process_sp;
@@ -234,7 +235,7 @@ ProcessMinidump::ProcessMinidump(lldb::TargetSP target_sp,
                                  lldb::ListenerSP listener_sp,
                                  const FileSpec &core_file,
                                  DataBufferSP core_data)
-    : Process(target_sp, listener_sp), m_core_file(core_file),
+    : PostMortemProcess(target_sp, listener_sp), m_core_file(core_file),
       m_core_data(std::move(core_data)), m_is_wow64(false) {}
 
 ProcessMinidump::~ProcessMinidump() {
@@ -404,32 +405,6 @@ ArchSpec ProcessMinidump::GetArchitecture() {
   return ArchSpec(triple);
 }
 
-static MemoryRegionInfo GetMemoryRegionInfo(const MemoryRegionInfos &regions,
-                                            lldb::addr_t load_addr) {
-  MemoryRegionInfo region;
-  auto pos = llvm::upper_bound(regions, load_addr);
-  if (pos != regions.begin() &&
-      std::prev(pos)->GetRange().Contains(load_addr)) {
-    return *std::prev(pos);
-  }
-
-  if (pos == regions.begin())
-    region.GetRange().SetRangeBase(0);
-  else
-    region.GetRange().SetRangeBase(std::prev(pos)->GetRange().GetRangeEnd());
-
-  if (pos == regions.end())
-    region.GetRange().SetRangeEnd(UINT64_MAX);
-  else
-    region.GetRange().SetRangeEnd(pos->GetRange().GetRangeBase());
-
-  region.SetReadable(MemoryRegionInfo::eNo);
-  region.SetWritable(MemoryRegionInfo::eNo);
-  region.SetExecutable(MemoryRegionInfo::eNo);
-  region.SetMapped(MemoryRegionInfo::eNo);
-  return region;
-}
-
 void ProcessMinidump::BuildMemoryRegions() {
   if (m_memory_regions)
     return;
@@ -454,7 +429,7 @@ void ProcessMinidump::BuildMemoryRegions() {
       MemoryRegionInfo::RangeType section_range(load_addr,
                                                 section_sp->GetByteSize());
       MemoryRegionInfo region =
-          ::GetMemoryRegionInfo(*m_memory_regions, load_addr);
+          MinidumpParser::GetMemoryRegionInfo(*m_memory_regions, load_addr);
       if (region.GetMapped() != MemoryRegionInfo::eYes &&
           region.GetRange().GetRangeBase() <= section_range.GetRangeBase() &&
           section_range.GetRangeEnd() <= region.GetRange().GetRangeEnd()) {
@@ -475,7 +450,7 @@ void ProcessMinidump::BuildMemoryRegions() {
 Status ProcessMinidump::GetMemoryRegionInfo(lldb::addr_t load_addr,
                                             MemoryRegionInfo &region) {
   BuildMemoryRegions();
-  region = ::GetMemoryRegionInfo(*m_memory_regions, load_addr);
+  region = MinidumpParser::GetMemoryRegionInfo(*m_memory_regions, load_addr);
   return Status();
 }
 
@@ -487,8 +462,8 @@ Status ProcessMinidump::GetMemoryRegions(MemoryRegionInfos &region_list) {
 
 void ProcessMinidump::Clear() { Process::m_thread_list.Clear(); }
 
-bool ProcessMinidump::UpdateThreadList(ThreadList &old_thread_list,
-                                       ThreadList &new_thread_list) {
+bool ProcessMinidump::DoUpdateThreadList(ThreadList &old_thread_list,
+                                         ThreadList &new_thread_list) {
   for (const minidump::Thread &thread : m_thread_list) {
     LocationDescriptor context_location = thread.Context;
 

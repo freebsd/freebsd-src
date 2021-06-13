@@ -6,15 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringRef.h"
-
 #include "CommandObjectCommands.h"
 #include "CommandObjectHelp.h"
+#include "CommandObjectRegexCommand.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/IOHandler.h"
 #include "lldb/Interpreter/CommandHistory.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
-#include "lldb/Interpreter/CommandObjectRegexCommand.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionValueBoolean.h"
@@ -24,158 +22,10 @@
 #include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/StringList.h"
+#include "llvm/ADT/StringRef.h"
 
 using namespace lldb;
 using namespace lldb_private;
-
-// CommandObjectCommandsSource
-
-#define LLDB_OPTIONS_history
-#include "CommandOptions.inc"
-
-class CommandObjectCommandsHistory : public CommandObjectParsed {
-public:
-  CommandObjectCommandsHistory(CommandInterpreter &interpreter)
-      : CommandObjectParsed(interpreter, "command history",
-                            "Dump the history of commands in this session.\n"
-                            "Commands in the history list can be run again "
-                            "using \"!<INDEX>\".   \"!-<OFFSET>\" will re-run "
-                            "the command that is <OFFSET> commands from the end"
-                            " of the list (counting the current command).",
-                            nullptr),
-        m_options() {}
-
-  ~CommandObjectCommandsHistory() override = default;
-
-  Options *GetOptions() override { return &m_options; }
-
-protected:
-  class CommandOptions : public Options {
-  public:
-    CommandOptions()
-        : Options(), m_start_idx(0), m_stop_idx(0), m_count(0), m_clear(false) {
-    }
-
-    ~CommandOptions() override = default;
-
-    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
-                          ExecutionContext *execution_context) override {
-      Status error;
-      const int short_option = m_getopt_table[option_idx].val;
-
-      switch (short_option) {
-      case 'c':
-        error = m_count.SetValueFromString(option_arg, eVarSetOperationAssign);
-        break;
-      case 's':
-        if (option_arg == "end") {
-          m_start_idx.SetCurrentValue(UINT64_MAX);
-          m_start_idx.SetOptionWasSet();
-        } else
-          error = m_start_idx.SetValueFromString(option_arg,
-                                                 eVarSetOperationAssign);
-        break;
-      case 'e':
-        error =
-            m_stop_idx.SetValueFromString(option_arg, eVarSetOperationAssign);
-        break;
-      case 'C':
-        m_clear.SetCurrentValue(true);
-        m_clear.SetOptionWasSet();
-        break;
-      default:
-        llvm_unreachable("Unimplemented option");
-      }
-
-      return error;
-    }
-
-    void OptionParsingStarting(ExecutionContext *execution_context) override {
-      m_start_idx.Clear();
-      m_stop_idx.Clear();
-      m_count.Clear();
-      m_clear.Clear();
-    }
-
-    llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_history_options);
-    }
-
-    // Instance variables to hold the values for command options.
-
-    OptionValueUInt64 m_start_idx;
-    OptionValueUInt64 m_stop_idx;
-    OptionValueUInt64 m_count;
-    OptionValueBoolean m_clear;
-  };
-
-  bool DoExecute(Args &command, CommandReturnObject &result) override {
-    if (m_options.m_clear.GetCurrentValue() &&
-        m_options.m_clear.OptionWasSet()) {
-      m_interpreter.GetCommandHistory().Clear();
-      result.SetStatus(lldb::eReturnStatusSuccessFinishNoResult);
-    } else {
-      if (m_options.m_start_idx.OptionWasSet() &&
-          m_options.m_stop_idx.OptionWasSet() &&
-          m_options.m_count.OptionWasSet()) {
-        result.AppendError("--count, --start-index and --end-index cannot be "
-                           "all specified in the same invocation");
-        result.SetStatus(lldb::eReturnStatusFailed);
-      } else {
-        std::pair<bool, uint64_t> start_idx(
-            m_options.m_start_idx.OptionWasSet(),
-            m_options.m_start_idx.GetCurrentValue());
-        std::pair<bool, uint64_t> stop_idx(
-            m_options.m_stop_idx.OptionWasSet(),
-            m_options.m_stop_idx.GetCurrentValue());
-        std::pair<bool, uint64_t> count(m_options.m_count.OptionWasSet(),
-                                        m_options.m_count.GetCurrentValue());
-
-        const CommandHistory &history(m_interpreter.GetCommandHistory());
-
-        if (start_idx.first && start_idx.second == UINT64_MAX) {
-          if (count.first) {
-            start_idx.second = history.GetSize() - count.second;
-            stop_idx.second = history.GetSize() - 1;
-          } else if (stop_idx.first) {
-            start_idx.second = stop_idx.second;
-            stop_idx.second = history.GetSize() - 1;
-          } else {
-            start_idx.second = 0;
-            stop_idx.second = history.GetSize() - 1;
-          }
-        } else {
-          if (!start_idx.first && !stop_idx.first && !count.first) {
-            start_idx.second = 0;
-            stop_idx.second = history.GetSize() - 1;
-          } else if (start_idx.first) {
-            if (count.first) {
-              stop_idx.second = start_idx.second + count.second - 1;
-            } else if (!stop_idx.first) {
-              stop_idx.second = history.GetSize() - 1;
-            }
-          } else if (stop_idx.first) {
-            if (count.first) {
-              if (stop_idx.second >= count.second)
-                start_idx.second = stop_idx.second - count.second + 1;
-              else
-                start_idx.second = 0;
-            }
-          } else /* if (count.first) */
-          {
-            start_idx.second = 0;
-            stop_idx.second = count.second - 1;
-          }
-        }
-        history.Dump(result.GetOutputStream(), start_idx.second,
-                     stop_idx.second);
-      }
-    }
-    return result.Succeeded();
-  }
-
-  CommandOptions m_options;
-};
 
 // CommandObjectCommandsSource
 
@@ -614,7 +464,7 @@ protected:
         OptionArgVectorSP(new OptionArgVector);
 
     if (CommandObjectSP cmd_obj_sp =
-            m_interpreter.GetCommandSPExact(cmd_obj.GetCommandName(), false)) {
+            m_interpreter.GetCommandSPExact(cmd_obj.GetCommandName())) {
       if (m_interpreter.AliasExists(alias_command) ||
           m_interpreter.UserCommandExists(alias_command)) {
         result.AppendWarningWithFormat(
@@ -708,10 +558,9 @@ protected:
 
     if (!args.empty()) {
       CommandObjectSP tmp_sp =
-          m_interpreter.GetCommandSPExact(cmd_obj->GetCommandName(), false);
+          m_interpreter.GetCommandSPExact(cmd_obj->GetCommandName());
       if (use_subcommand)
-        tmp_sp = m_interpreter.GetCommandSPExact(sub_cmd_obj->GetCommandName(),
-                                                 false);
+        tmp_sp = m_interpreter.GetCommandSPExact(sub_cmd_obj->GetCommandName());
 
       args.GetCommandString(args_string);
     }
@@ -766,6 +615,17 @@ public:
   }
 
   ~CommandObjectCommandsUnalias() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_interpreter.HasCommands() || request.GetCursorIndex() != 0)
+      return;
+
+    for (const auto &ent : m_interpreter.GetAliases()) {
+      request.TryCompleteCurrentArg(ent.first, ent.second->GetHelp());
+    }
+  }
 
 protected:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
@@ -847,6 +707,18 @@ public:
   }
 
   ~CommandObjectCommandsDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_interpreter.HasCommands() || request.GetCursorIndex() != 0)
+      return;
+
+    for (const auto &ent : m_interpreter.GetCommands()) {
+      if (ent.second->IsRemovable())
+        request.TryCompleteCurrentArg(ent.first, ent.second->GetHelp());
+    }
+  }
 
 protected:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
@@ -1119,7 +991,7 @@ protected:
       std::string subst(std::string(regex_sed.substr(
           second_separator_char_pos + 1,
           third_separator_char_pos - second_separator_char_pos - 1)));
-      m_regex_cmd_up->AddRegexCommand(regex.c_str(), subst.c_str());
+      m_regex_cmd_up->AddRegexCommand(regex, subst);
     }
     return error;
   }
@@ -1399,6 +1271,9 @@ protected:
       case 'r':
         // NO-OP
         break;
+      case 'c':
+        relative_to_command_file = true;
+        break;
       default:
         llvm_unreachable("Unimplemented option");
       }
@@ -1407,11 +1282,13 @@ protected:
     }
 
     void OptionParsingStarting(ExecutionContext *execution_context) override {
+      relative_to_command_file = false;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
       return llvm::makeArrayRef(g_script_import_options);
     }
+    bool relative_to_command_file = false;
   };
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -1419,6 +1296,17 @@ protected:
       result.AppendError("command script import needs one or more arguments");
       result.SetStatus(eReturnStatusFailed);
       return false;
+    }
+
+    FileSpec source_dir = {};
+    if (m_options.relative_to_command_file) {
+      source_dir = GetDebugger().GetCommandInterpreter().GetCurrentSourceDir();
+      if (!source_dir) {
+        result.AppendError("command script import -c can only be specified "
+                           "from a command file");
+        result.SetStatus(eReturnStatusFailed);
+        return false;
+      }
     }
 
     for (auto &entry : command.entries()) {
@@ -1435,7 +1323,7 @@ protected:
       // more)
       m_exe_ctx.Clear();
       if (GetDebugger().GetScriptInterpreter()->LoadScriptingModule(
-              entry.c_str(), init_session, error)) {
+              entry.c_str(), init_session, error, nullptr, source_dir)) {
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
       } else {
         result.AppendErrorWithFormat("module importing failed: %s",
@@ -1850,8 +1738,6 @@ CommandObjectMultiwordCommands::CommandObjectMultiwordCommands(
                  CommandObjectSP(new CommandObjectCommandsDelete(interpreter)));
   LoadSubCommand(
       "regex", CommandObjectSP(new CommandObjectCommandsAddRegex(interpreter)));
-  LoadSubCommand("history", CommandObjectSP(
-                                new CommandObjectCommandsHistory(interpreter)));
   LoadSubCommand(
       "script",
       CommandObjectSP(new CommandObjectMultiwordCommandsScript(interpreter)));

@@ -10,6 +10,7 @@
 #define SCUDO_INTERFACE_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 extern "C" {
 
@@ -39,10 +40,11 @@ typedef void (*iterate_callback)(uintptr_t base, size_t size, void *arg);
 // the version in the process that analyzes the crash.
 //
 // fault_addr is the fault address. On aarch64 this is available in the system
-// register FAR_ELx, or far_context.far in an upcoming release of the Linux
-// kernel. This address must include the pointer tag; note that the kernel
-// strips the tag from the fields siginfo.si_addr and sigcontext.fault_address,
-// so these addresses are not suitable to be passed as fault_addr.
+// register FAR_ELx, or siginfo.si_addr in Linux 5.11 or above. This address
+// must include the pointer tag; this is available if SA_EXPOSE_TAGBITS was set
+// in sigaction.sa_flags when the signal handler was registered. Note that the
+// kernel strips the tag from the field sigcontext.fault_address, so this
+// address is not suitable to be passed as fault_addr.
 //
 // stack_depot is a pointer to the stack depot data structure, which may be
 // obtained by calling the function __scudo_get_stack_depot_addr() in the
@@ -104,6 +106,49 @@ size_t __scudo_get_stack_depot_size();
 
 const char *__scudo_get_region_info_addr();
 size_t __scudo_get_region_info_size();
+
+#ifndef M_DECAY_TIME
+#define M_DECAY_TIME -100
+#endif
+
+#ifndef M_PURGE
+#define M_PURGE -101
+#endif
+
+// Tune the allocator's choice of memory tags to make it more likely that
+// a certain class of memory errors will be detected. The value argument should
+// be one of the enumerators of the scudo_memtag_tuning enum below.
+#ifndef M_MEMTAG_TUNING
+#define M_MEMTAG_TUNING -102
+#endif
+
+// Per-thread memory initialization tuning. The value argument should be one of:
+// 1: Disable automatic heap initialization and, where possible, memory tagging,
+//    on this thread.
+// 0: Normal behavior.
+#ifndef M_THREAD_DISABLE_MEM_INIT
+#define M_THREAD_DISABLE_MEM_INIT -103
+#endif
+
+#ifndef M_CACHE_COUNT_MAX
+#define M_CACHE_COUNT_MAX -200
+#endif
+
+#ifndef M_CACHE_SIZE_MAX
+#define M_CACHE_SIZE_MAX -201
+#endif
+
+#ifndef M_TSDS_COUNT_MAX
+#define M_TSDS_COUNT_MAX -202
+#endif
+
+enum scudo_memtag_tuning {
+  // Tune for buffer overflows.
+  M_MEMTAG_TUNING_BUFFER_OVERFLOW,
+
+  // Tune for use-after-free.
+  M_MEMTAG_TUNING_UAF,
+};
 
 } // extern "C"
 

@@ -7,21 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIMachineFunctionInfo.h"
-#include "AMDGPUArgumentUsageInfo.h"
 #include "AMDGPUTargetMachine.h"
-#include "AMDGPUSubtarget.h"
-#include "SIRegisterInfo.h"
-#include "MCTargetDesc/AMDGPUMCTargetDesc.h"
-#include "Utils/AMDGPUBaseInfo.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/CallingConv.h"
-#include "llvm/IR/Function.h"
-#include <cassert>
-#include <vector>
 
 #define MAX_LANES 64
 
@@ -75,16 +61,18 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   }
 
   if (!isEntryFunction()) {
-    // Non-entry functions have no special inputs for now, other registers
-    // required for scratch access.
-    ScratchRSrcReg = AMDGPU::SGPR0_SGPR1_SGPR2_SGPR3;
-
     // TODO: Pick a high register, and shift down, similar to a kernel.
     FrameOffsetReg = AMDGPU::SGPR33;
     StackPtrOffsetReg = AMDGPU::SGPR32;
 
-    ArgInfo.PrivateSegmentBuffer =
-      ArgDescriptor::createRegister(ScratchRSrcReg);
+    if (!ST.enableFlatScratch()) {
+      // Non-entry functions have no special inputs for now, other registers
+      // required for scratch access.
+      ScratchRSrcReg = AMDGPU::SGPR0_SGPR1_SGPR2_SGPR3;
+
+      ArgInfo.PrivateSegmentBuffer =
+        ArgDescriptor::createRegister(ScratchRSrcReg);
+    }
 
     if (F.hasFnAttribute("amdgpu-implicitarg-ptr"))
       ImplicitArgPtr = true;
@@ -142,7 +130,8 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
 
   bool isAmdHsaOrMesa = ST.isAmdHsaOrMesa(F);
   if (isAmdHsaOrMesa) {
-    PrivateSegmentBuffer = true;
+    if (!ST.enableFlatScratch())
+      PrivateSegmentBuffer = true;
 
     if (UseFixedABI) {
       DispatchPtr = true;
@@ -167,11 +156,12 @@ SIMachineFunctionInfo::SIMachineFunctionInfo(const MachineFunction &MF)
   if (UseFixedABI || F.hasFnAttribute("amdgpu-kernarg-segment-ptr"))
     KernargSegmentPtr = true;
 
-  if (ST.hasFlatAddressSpace() && isEntryFunction() && isAmdHsaOrMesa) {
+  if (ST.hasFlatAddressSpace() && isEntryFunction() &&
+      (isAmdHsaOrMesa || ST.enableFlatScratch())) {
     // TODO: This could be refined a lot. The attribute is a poor way of
     // detecting calls or stack objects that may require it before argument
     // lowering.
-    if (HasCalls || HasStackObjects)
+    if (HasCalls || HasStackObjects || ST.enableFlatScratch())
       FlatScratchInit = true;
   }
 
@@ -352,6 +342,8 @@ bool SIMachineFunctionInfo::reserveVGPRforSGPRSpills(MachineFunction &MF) {
 
   Register LaneVGPR = TRI->findUnusedRegister(
       MF.getRegInfo(), &AMDGPU::VGPR_32RegClass, MF, true);
+  if (LaneVGPR == Register())
+    return false;
   SpillVGPRs.push_back(SGPRSpillVGPRCSR(LaneVGPR, None));
   FuncInfo->VGPRReservedForSGPRSpill = LaneVGPR;
   return true;
@@ -537,21 +529,21 @@ convertArgumentInfo(const AMDGPUFunctionArgInfo &ArgInfo,
 }
 
 yaml::SIMachineFunctionInfo::SIMachineFunctionInfo(
-  const llvm::SIMachineFunctionInfo& MFI,
-  const TargetRegisterInfo &TRI)
-  : ExplicitKernArgSize(MFI.getExplicitKernArgSize()),
-    MaxKernArgAlign(MFI.getMaxKernArgAlign()),
-    LDSSize(MFI.getLDSSize()),
-    IsEntryFunction(MFI.isEntryFunction()),
-    NoSignedZerosFPMath(MFI.hasNoSignedZerosFPMath()),
-    MemoryBound(MFI.isMemoryBound()),
-    WaveLimiter(MFI.needsWaveLimiter()),
-    HighBitsOf32BitAddress(MFI.get32BitAddressHighBits()),
-    ScratchRSrcReg(regToString(MFI.getScratchRSrcReg(), TRI)),
-    FrameOffsetReg(regToString(MFI.getFrameOffsetReg(), TRI)),
-    StackPtrOffsetReg(regToString(MFI.getStackPtrOffsetReg(), TRI)),
-    ArgInfo(convertArgumentInfo(MFI.getArgInfo(), TRI)),
-    Mode(MFI.getMode()) {}
+    const llvm::SIMachineFunctionInfo &MFI, const TargetRegisterInfo &TRI)
+    : ExplicitKernArgSize(MFI.getExplicitKernArgSize()),
+      MaxKernArgAlign(MFI.getMaxKernArgAlign()), LDSSize(MFI.getLDSSize()),
+      DynLDSAlign(MFI.getDynLDSAlign()), IsEntryFunction(MFI.isEntryFunction()),
+      NoSignedZerosFPMath(MFI.hasNoSignedZerosFPMath()),
+      MemoryBound(MFI.isMemoryBound()), WaveLimiter(MFI.needsWaveLimiter()),
+      HasSpilledSGPRs(MFI.hasSpilledSGPRs()),
+      HasSpilledVGPRs(MFI.hasSpilledVGPRs()),
+      HighBitsOf32BitAddress(MFI.get32BitAddressHighBits()),
+      Occupancy(MFI.getOccupancy()),
+      ScratchRSrcReg(regToString(MFI.getScratchRSrcReg(), TRI)),
+      FrameOffsetReg(regToString(MFI.getFrameOffsetReg(), TRI)),
+      StackPtrOffsetReg(regToString(MFI.getStackPtrOffsetReg(), TRI)),
+      ArgInfo(convertArgumentInfo(MFI.getArgInfo(), TRI)), Mode(MFI.getMode()) {
+}
 
 void yaml::SIMachineFunctionInfo::mappingImpl(yaml::IO &YamlIO) {
   MappingTraits<SIMachineFunctionInfo>::mapping(YamlIO, *this);
@@ -562,11 +554,15 @@ bool SIMachineFunctionInfo::initializeBaseYamlFields(
   ExplicitKernArgSize = YamlMFI.ExplicitKernArgSize;
   MaxKernArgAlign = assumeAligned(YamlMFI.MaxKernArgAlign);
   LDSSize = YamlMFI.LDSSize;
+  DynLDSAlign = YamlMFI.DynLDSAlign;
   HighBitsOf32BitAddress = YamlMFI.HighBitsOf32BitAddress;
+  Occupancy = YamlMFI.Occupancy;
   IsEntryFunction = YamlMFI.IsEntryFunction;
   NoSignedZerosFPMath = YamlMFI.NoSignedZerosFPMath;
   MemoryBound = YamlMFI.MemoryBound;
   WaveLimiter = YamlMFI.WaveLimiter;
+  HasSpilledSGPRs = YamlMFI.HasSpilledSGPRs;
+  HasSpilledVGPRs = YamlMFI.HasSpilledVGPRs;
   return false;
 }
 

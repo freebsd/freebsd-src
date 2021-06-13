@@ -220,7 +220,7 @@ RValue CodeGenFunction::EmitCXXMemberOrOperatorMemberCallExpr(
     DevirtualizedMethod = MD->getCorrespondingMethodInClass(BestDynamicDecl);
     assert(DevirtualizedMethod);
     const CXXRecordDecl *DevirtualizedClass = DevirtualizedMethod->getParent();
-    const Expr *Inner = Base->ignoreParenBaseCasts();
+    const Expr *Inner = Base->IgnoreParenBaseCasts();
     if (DevirtualizedMethod->getReturnType().getCanonicalType() !=
         MD->getReturnType().getCanonicalType())
       // If the return types are not the same, this might be a case where more
@@ -1329,7 +1329,7 @@ RValue CodeGenFunction::EmitBuiltinNewDeleteCall(const FunctionProtoType *Type,
                                                  const CallExpr *TheCall,
                                                  bool IsDelete) {
   CallArgList Args;
-  EmitCallArgs(Args, Type->getParamTypes(), TheCall->arguments());
+  EmitCallArgs(Args, Type, TheCall->arguments());
   // Find the allocation or deallocation function that we're calling.
   ASTContext &Ctx = getContext();
   DeclarationName Name = Ctx.DeclarationNames
@@ -1570,7 +1570,7 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   llvm::Value *allocSize =
     EmitCXXNewAllocSize(*this, E, minElements, numElements,
                         allocSizeWithoutCookie);
-  CharUnits allocAlign = getContext().getTypeAlignInChars(allocType);
+  CharUnits allocAlign = getContext().getPreferredTypeAlignInChars(allocType);
 
   // Emit the allocation call.  If the allocator is a global placement
   // operator, just "inline" it directly.
@@ -1788,11 +1788,14 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
   DeleteArgs.add(RValue::get(DeletePtr), ArgTy);
 
   // Pass the std::destroying_delete tag if present.
+  llvm::AllocaInst *DestroyingDeleteTag = nullptr;
   if (Params.DestroyingDelete) {
     QualType DDTag = *ParamTypeIt++;
-    // Just pass an 'undef'. We expect the tag type to be an empty struct.
-    auto *V = llvm::UndefValue::get(getTypes().ConvertType(DDTag));
-    DeleteArgs.add(RValue::get(V), DDTag);
+    llvm::Type *Ty = getTypes().ConvertType(DDTag);
+    CharUnits Align = CGM.getNaturalTypeAlignment(DDTag);
+    DestroyingDeleteTag = CreateTempAlloca(Ty, "destroying.delete.tag");
+    DestroyingDeleteTag->setAlignment(Align.getAsAlign());
+    DeleteArgs.add(RValue::getAggregate(Address(DestroyingDeleteTag, Align)), DDTag);
   }
 
   // Pass the size if the delete function has a size_t parameter.
@@ -1817,8 +1820,9 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
   // Pass the alignment if the delete function has an align_val_t parameter.
   if (Params.Alignment) {
     QualType AlignValType = *ParamTypeIt++;
-    CharUnits DeleteTypeAlign = getContext().toCharUnitsFromBits(
-        getContext().getTypeAlignIfKnown(DeleteTy));
+    CharUnits DeleteTypeAlign =
+        getContext().toCharUnitsFromBits(getContext().getTypeAlignIfKnown(
+            DeleteTy, true /* NeedsPreferredAlignment */));
     llvm::Value *Align = llvm::ConstantInt::get(ConvertType(AlignValType),
                                                 DeleteTypeAlign.getQuantity());
     DeleteArgs.add(RValue::get(Align), AlignValType);
@@ -1829,6 +1833,11 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
 
   // Emit the call to delete.
   EmitNewDeleteCall(*this, DeleteFD, DeleteFTy, DeleteArgs);
+
+  // If call argument lowering didn't use the destroying_delete_t alloca,
+  // remove it again.
+  if (DestroyingDeleteTag && DestroyingDeleteTag->use_empty())
+    DestroyingDeleteTag->eraseFromParent();
 }
 
 namespace {
@@ -2191,7 +2200,8 @@ llvm::Value *CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
   //   polymorphic class type, the result refers to a std::type_info object
   //   representing the type of the most derived object (that is, the dynamic
   //   type) to which the glvalue refers.
-  if (E->isPotentiallyEvaluated())
+  // If the operand is already most derived object, no need to look up vtable.
+  if (E->isPotentiallyEvaluated() && !E->isMostDerived(getContext()))
     return EmitTypeidFromVTable(*this, E->getExprOperand(),
                                 StdTypeInfoPtrTy);
 

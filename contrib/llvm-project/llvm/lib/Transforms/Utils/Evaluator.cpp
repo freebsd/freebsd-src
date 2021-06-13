@@ -183,11 +183,11 @@ evaluateBitcastFromPtr(Constant *Ptr, const DataLayout &DL,
                        std::function<Constant *(Constant *)> Func) {
   Constant *Val;
   while (!(Val = Func(Ptr))) {
-    // If Ty is a struct, we can convert the pointer to the struct
+    // If Ty is a non-opaque struct, we can convert the pointer to the struct
     // into a pointer to its first member.
     // FIXME: This could be extended to support arrays as well.
     Type *Ty = cast<PointerType>(Ptr->getType())->getElementType();
-    if (!isa<StructType>(Ty))
+    if (!isa<StructType>(Ty) || cast<StructType>(Ty)->isOpaque())
       break;
 
     IntegerType *IdxTy = IntegerType::get(Ty->getContext(), 32);
@@ -210,11 +210,7 @@ static Constant *getInitializer(Constant *C) {
 Constant *Evaluator::ComputeLoadResult(Constant *P) {
   // If this memory location has been recently stored, use the stored value: it
   // is the most up-to-date.
-  auto findMemLoc = [this](Constant *Ptr) {
-    DenseMap<Constant *, Constant *>::const_iterator I =
-        MutatedMemory.find(Ptr);
-    return I != MutatedMemory.end() ? I->second : nullptr;
-  };
+  auto findMemLoc = [this](Constant *Ptr) { return MutatedMemory.lookup(Ptr); };
 
   if (Constant *Val = findMemLoc(P))
     return Val;
@@ -549,6 +545,10 @@ bool Evaluator::EvaluateBlock(BasicBlock::iterator CurInst,
           continue;
         } else if (II->getIntrinsicID() == Intrinsic::sideeffect) {
           LLVM_DEBUG(dbgs() << "Skipping sideeffect intrinsic.\n");
+          ++CurInst;
+          continue;
+        } else if (II->getIntrinsicID() == Intrinsic::pseudoprobe) {
+          LLVM_DEBUG(dbgs() << "Skipping pseudoprobe intrinsic.\n");
           ++CurInst;
           continue;
         }

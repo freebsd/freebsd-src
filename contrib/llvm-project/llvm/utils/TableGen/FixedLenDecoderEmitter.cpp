@@ -226,6 +226,8 @@ typedef std::vector<bit_value_t> insn_t;
 
 namespace {
 
+static const uint64_t NO_FIXED_SEGMENTS_SENTINEL = -1ULL;
+
 class FilterChooser;
 
 /// Filter - Filter works with FilterChooser to produce the decoding tree for
@@ -279,7 +281,7 @@ protected:
   std::vector<EncodingIDAndOpcode> VariableInstructions;
 
   // Map of well-known segment value to its delegate.
-  std::map<unsigned, std::unique_ptr<const FilterChooser>> FilterChooserMap;
+  std::map<uint64_t, std::unique_ptr<const FilterChooser>> FilterChooserMap;
 
   // Number of instructions which fall under FilteredInstructions category.
   unsigned NumFiltered;
@@ -305,7 +307,7 @@ public:
   const FilterChooser &getVariableFC() const {
     assert(NumFiltered == 1);
     assert(FilterChooserMap.size() == 1);
-    return *(FilterChooserMap.find((unsigned)-1)->second);
+    return *(FilterChooserMap.find(NO_FIXED_SEGMENTS_SENTINEL)->second);
   }
 
   // Divides the decoding task into sub tasks and delegates them to the
@@ -602,10 +604,9 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
-    FilterChooserMap.insert(
-        std::make_pair(-1U, std::make_unique<FilterChooser>(
-                                Owner->AllInstructions, VariableInstructions,
-                                Owner->Operands, BitValueArray, *Owner)));
+    FilterChooserMap.insert(std::make_pair(NO_FIXED_SEGMENTS_SENTINEL,
+        std::make_unique<FilterChooser>(Owner->AllInstructions,
+            VariableInstructions, Owner->Operands, BitValueArray, *Owner)));
   }
 
   // No need to recurse for a singleton filtered instruction.
@@ -674,7 +675,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   for (auto &Filter : FilterChooserMap) {
     // Field value -1 implies a non-empty set of variable instructions.
     // See also recurse().
-    if (Filter.first == (unsigned)-1) {
+    if (Filter.first == NO_FIXED_SEGMENTS_SENTINEL) {
       HasFallthrough = true;
 
       // Each scope should always have at least one filter value to check
@@ -721,7 +722,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   assert(TableInfo.FixupStack.size() > 1 && "fixup stack underflow!");
   FixupScopeList::iterator Source = TableInfo.FixupStack.end() - 1;
   FixupScopeList::iterator Dest = Source - 1;
-  Dest->insert(Dest->end(), Source->begin(), Source->end());
+  llvm::append_range(*Dest, *Source);
   TableInfo.FixupStack.pop_back();
 
   // If there is no fallthrough, then the final filter should get fixed
@@ -941,7 +942,7 @@ emitPredicateFunction(formatted_raw_ostream &OS, PredicateSet &Predicates,
   // The predicate function is just a big switch statement based on the
   // input predicate index.
   OS.indent(Indentation) << "static bool checkDecoderPredicate(unsigned Idx, "
-    << "const FeatureBitset& Bits) {\n";
+    << "const FeatureBitset &Bits) {\n";
   Indentation += 2;
   if (!Predicates.empty()) {
     OS.indent(Indentation) << "switch (Idx) {\n";
@@ -965,7 +966,7 @@ emitDecoderFunction(formatted_raw_ostream &OS, DecoderSet &Decoders,
                     unsigned Indentation) const {
   // The decoder function is just a big switch statement based on the
   // input decoder index.
-  OS.indent(Indentation) << "template<typename InsnType>\n";
+  OS.indent(Indentation) << "template <typename InsnType>\n";
   OS.indent(Indentation) << "static DecodeStatus decodeToMCInst(DecodeStatus S,"
     << " unsigned Idx, InsnType insn, MCInst &MI,\n";
   OS.indent(Indentation) << "                                   uint64_t "
@@ -1192,7 +1193,7 @@ bool FilterChooser::emitPredicateMatch(raw_ostream &o, unsigned &Indentation,
     if (!Pred->getValue("AssemblerMatcherPredicate"))
       continue;
 
-    if (!dyn_cast<DagInit>(Pred->getValue("AssemblerCondDag")->getValue()))
+    if (!isa<DagInit>(Pred->getValue("AssemblerCondDag")->getValue()))
       continue;
 
     const DagInit *D = Pred->getValueAsDag("AssemblerCondDag");
@@ -1886,7 +1887,7 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
     for (unsigned i = 0, e = Vals.size(); i != e; ++i) {
       // Ignore fixed fields in the record, we're looking for values like:
       //    bits<5> RST = { ?, ?, ?, ?, ? };
-      if (Vals[i].getPrefix() || Vals[i].getValue()->isComplete())
+      if (Vals[i].isNonconcreteOK() || Vals[i].getValue()->isComplete())
         continue;
 
       // Determine if Vals[i] actually contributes to the Inst encoding.
@@ -2009,9 +2010,8 @@ populateInstruction(CodeGenTarget &Target, const Record &EncodingDef,
   // For each operand, see if we can figure out where it is encoded.
   for (const auto &Op : InOutOperands) {
     if (!NumberedInsnOperands[std::string(Op.second)].empty()) {
-      InsnOperands.insert(InsnOperands.end(),
-                          NumberedInsnOperands[std::string(Op.second)].begin(),
-                          NumberedInsnOperands[std::string(Op.second)].end());
+      llvm::append_range(InsnOperands,
+                         NumberedInsnOperands[std::string(Op.second)]);
       continue;
     }
     if (!NumberedInsnOperands[TiedNames[std::string(Op.second)]].empty()) {
@@ -2162,7 +2162,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "// * Support shift (<<, >>) with signed and unsigned integers on the "
         "RHS\n"
      << "// * Support put (<<) to raw_ostream&\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "#if defined(_MSC_VER) && !defined(__clang__)\n"
      << "__declspec(noinline)\n"
      << "#endif\n"
@@ -2182,7 +2182,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "  return (insn & fieldMask) >> startBit;\n"
      << "}\n"
      << "\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "static InsnType fieldFromInstruction(InsnType insn, unsigned "
         "startBit,\n"
      << "                                     unsigned numBits, "
@@ -2193,7 +2193,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "  return (insn >> startBit) & fieldMask;\n"
      << "}\n"
      << "\n"
-     << "template<typename InsnType>\n"
+     << "template <typename InsnType>\n"
      << "static InsnType fieldFromInstruction(InsnType insn, unsigned "
         "startBit,\n"
      << "                                     unsigned numBits) {\n"
@@ -2205,14 +2205,14 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
 // emitDecodeInstruction - Emit the templated helper function
 // decodeInstruction().
 static void emitDecodeInstruction(formatted_raw_ostream &OS) {
-  OS << "template<typename InsnType>\n"
+  OS << "template <typename InsnType>\n"
      << "static DecodeStatus decodeInstruction(const uint8_t DecodeTable[], "
         "MCInst &MI,\n"
      << "                                      InsnType insn, uint64_t "
         "Address,\n"
      << "                                      const void *DisAsm,\n"
      << "                                      const MCSubtargetInfo &STI) {\n"
-     << "  const FeatureBitset& Bits = STI.getFeatureBits();\n"
+     << "  const FeatureBitset &Bits = STI.getFeatureBits();\n"
      << "\n"
      << "  const uint8_t *Ptr = DecodeTable;\n"
      << "  InsnType CurFieldValue = 0;\n"
@@ -2374,7 +2374,7 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
      << "      if (Fail)\n"
      << "        S = MCDisassembler::SoftFail;\n"
      << "      LLVM_DEBUG(dbgs() << Loc << \": OPC_SoftFail: \" << (Fail ? "
-        "\"FAIL\\n\":\"PASS\\n\"));\n"
+        "\"FAIL\\n\" : \"PASS\\n\"));\n"
      << "      break;\n"
      << "    }\n"
      << "    case MCD::OPC_Fail: {\n"
@@ -2392,8 +2392,8 @@ static void emitDecodeInstruction(formatted_raw_ostream &OS) {
 void FixedLenDecoderEmitter::run(raw_ostream &o) {
   formatted_raw_ostream OS(o);
   OS << "#include \"llvm/MC/MCInst.h\"\n";
-  OS << "#include \"llvm/Support/Debug.h\"\n";
   OS << "#include \"llvm/Support/DataTypes.h\"\n";
+  OS << "#include \"llvm/Support/Debug.h\"\n";
   OS << "#include \"llvm/Support/LEB128.h\"\n";
   OS << "#include \"llvm/Support/raw_ostream.h\"\n";
   OS << "#include <assert.h>\n";

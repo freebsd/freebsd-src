@@ -86,20 +86,17 @@ bool GetAssertLocation(llvm::Triple::OSType os, SymbolLocation &location) {
 }
 
 void RegisterAssertFrameRecognizer(Process *process) {
-  static llvm::once_flag g_once_flag;
-  llvm::call_once(g_once_flag, [process]() {
-    Target &target = process->GetTarget();
-    llvm::Triple::OSType os = target.GetArchitecture().GetTriple().getOS();
-    SymbolLocation location;
+  Target &target = process->GetTarget();
+  llvm::Triple::OSType os = target.GetArchitecture().GetTriple().getOS();
+  SymbolLocation location;
 
-    if (!GetAbortLocation(os, location))
-      return;
+  if (!GetAbortLocation(os, location))
+    return;
 
-    StackFrameRecognizerManager::AddRecognizer(
-        StackFrameRecognizerSP(new AssertFrameRecognizer()),
-        location.module_spec.GetFilename(), location.symbols,
-        /*first_instruction_only*/ false);
-  });
+  target.GetFrameRecognizerManager().AddRecognizer(
+      StackFrameRecognizerSP(new AssertFrameRecognizer()),
+      location.module_spec.GetFilename(), location.symbols,
+      /*first_instruction_only*/ false);
 }
 
 } // namespace lldb_private
@@ -133,7 +130,8 @@ AssertFrameRecognizer::RecognizeFrame(lldb::StackFrameSP frame_sp) {
     SymbolContext sym_ctx =
         prev_frame_sp->GetSymbolContext(eSymbolContextEverything);
 
-    if (!sym_ctx.module_sp->GetFileSpec().FileEquals(location.module_spec))
+    if (!sym_ctx.module_sp ||
+        !sym_ctx.module_sp->GetFileSpec().FileEquals(location.module_spec))
       continue;
 
     ConstString func_name = sym_ctx.GetFunctionName();

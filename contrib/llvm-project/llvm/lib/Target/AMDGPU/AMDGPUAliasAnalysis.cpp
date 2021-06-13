@@ -10,26 +10,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPUAliasAnalysis.h"
-#include "AMDGPU.h"
-#include "llvm/ADT/Triple.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/IR/Argument.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/CallingConv.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/ErrorHandling.h"
-#include <cassert>
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "amdgpu-aa"
+
+AnalysisKey AMDGPUAA::Key;
 
 // Register this pass...
 char AMDGPUAAWrapperPass::ID = 0;
@@ -85,6 +73,44 @@ AliasResult AMDGPUAAResult::alias(const MemoryLocation &LocA,
   if (Result == NoAlias)
     return Result;
 
+  // In general, FLAT (generic) pointers could be aliased to LOCAL or PRIVATE
+  // pointers. However, as LOCAL or PRIVATE pointers point to local objects, in
+  // certain cases, it's still viable to check whether a FLAT pointer won't
+  // alias to a LOCAL or PRIVATE pointer.
+  MemoryLocation A = LocA;
+  MemoryLocation B = LocB;
+  // Canonicalize the location order to simplify the following alias check.
+  if (asA != AMDGPUAS::FLAT_ADDRESS) {
+    std::swap(asA, asB);
+    std::swap(A, B);
+  }
+  if (asA == AMDGPUAS::FLAT_ADDRESS &&
+      (asB == AMDGPUAS::LOCAL_ADDRESS || asB == AMDGPUAS::PRIVATE_ADDRESS)) {
+    const auto *ObjA =
+        getUnderlyingObject(A.Ptr->stripPointerCastsAndInvariantGroups());
+    if (const LoadInst *LI = dyn_cast<LoadInst>(ObjA)) {
+      // If a generic pointer is loaded from the constant address space, it
+      // could only be a GLOBAL or CONSTANT one as that address space is soley
+      // prepared on the host side, where only GLOBAL or CONSTANT variables are
+      // visible. Note that this even holds for regular functions.
+      if (LI->getPointerAddressSpace() == AMDGPUAS::CONSTANT_ADDRESS)
+        return NoAlias;
+    } else if (const Argument *Arg = dyn_cast<Argument>(ObjA)) {
+      const Function *F = Arg->getParent();
+      switch (F->getCallingConv()) {
+      case CallingConv::AMDGPU_KERNEL:
+        // In the kernel function, kernel arguments won't alias to (local)
+        // variables in shared or private address space.
+        return NoAlias;
+      default:
+        // TODO: In the regular function, if that local variable in the
+        // location B is not captured, that argument pointer won't alias to it
+        // as well.
+        break;
+      }
+    }
+  }
+
   // Forward the query to the next alias analysis.
   return AAResultBase::alias(LocA, LocB, AAQI);
 }
@@ -96,7 +122,7 @@ bool AMDGPUAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
       AS == AMDGPUAS::CONSTANT_ADDRESS_32BIT)
     return true;
 
-  const Value *Base = GetUnderlyingObject(Loc.Ptr, DL);
+  const Value *Base = getUnderlyingObject(Loc.Ptr);
   AS = Base->getType()->getPointerAddressSpace();
   if (AS == AMDGPUAS::CONSTANT_ADDRESS ||
       AS == AMDGPUAS::CONSTANT_ADDRESS_32BIT)

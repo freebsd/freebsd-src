@@ -20,6 +20,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/Module.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCStreamer.h"
@@ -49,10 +50,21 @@ void TargetLoweringObjectFile::Initialize(MCContext &ctx,
   // Reset various EH DWARF encodings.
   PersonalityEncoding = LSDAEncoding = TTypeEncoding = dwarf::DW_EH_PE_absptr;
   CallSiteEncoding = dwarf::DW_EH_PE_uleb128;
+
+  this->TM = &TM;
 }
 
 TargetLoweringObjectFile::~TargetLoweringObjectFile() {
   delete Mang;
+}
+
+unsigned TargetLoweringObjectFile::getCallSiteEncoding() const {
+  // If target does not have LEB128 directives, we would need the
+  // call site encoding to be udata4 so that the alternative path
+  // for not having LEB128 directives could work.
+  if (!getContext().getAsmInfo()->hasLEB128Directives())
+    return dwarf::DW_EH_PE_udata4;
+  return CallSiteEncoding;
 }
 
 static bool isNullOrUndef(const Constant *C) {
@@ -136,6 +148,52 @@ void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
                                                     const MCSymbol *Sym) const {
 }
 
+void TargetLoweringObjectFile::emitCGProfileMetadata(MCStreamer &Streamer,
+                                                     Module &M) const {
+  MCContext &C = getContext();
+  SmallVector<Module::ModuleFlagEntry, 8> ModuleFlags;
+  M.getModuleFlagsMetadata(ModuleFlags);
+
+  MDNode *CFGProfile = nullptr;
+
+  for (const auto &MFE : ModuleFlags) {
+    StringRef Key = MFE.Key->getString();
+    if (Key == "CG Profile") {
+      CFGProfile = cast<MDNode>(MFE.Val);
+      break;
+    }
+  }
+
+  if (!CFGProfile)
+    return;
+
+  auto GetSym = [this](const MDOperand &MDO) -> MCSymbol * {
+    if (!MDO)
+      return nullptr;
+    auto *V = cast<ValueAsMetadata>(MDO);
+    const Function *F = cast<Function>(V->getValue()->stripPointerCasts());
+    if (F->hasDLLImportStorageClass())
+      return nullptr;
+    return TM->getSymbol(F);
+  };
+
+  for (const auto &Edge : CFGProfile->operands()) {
+    MDNode *E = cast<MDNode>(Edge);
+    const MCSymbol *From = GetSym(E->getOperand(0));
+    const MCSymbol *To = GetSym(E->getOperand(1));
+    // Skip null functions. This can happen if functions are dead stripped after
+    // the CGProfile pass has been run.
+    if (!From || !To)
+      continue;
+    uint64_t Count = cast<ConstantAsMetadata>(E->getOperand(2))
+                         ->getValue()
+                         ->getUniqueInteger()
+                         .getZExtValue();
+    Streamer.emitCGProfileEntry(
+        MCSymbolRefExpr::create(From, MCSymbolRefExpr::VK_None, C),
+        MCSymbolRefExpr::create(To, MCSymbolRefExpr::VK_None, C), Count);
+  }
+}
 
 /// getKindForGlobal - This is a top-level target-independent classifier for
 /// a global object.  Given a global variable and information from the TM, this

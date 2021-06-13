@@ -28,6 +28,8 @@ static const unsigned SPIRAddrSpaceMap[] = {
     2, // opencl_constant
     0, // opencl_private
     4, // opencl_generic
+    5, // opencl_global_device
+    6, // opencl_global_host
     0, // cuda_device
     0, // cuda_constant
     0, // cuda_shared
@@ -98,10 +100,12 @@ public:
   void setSupportedOpenCLOpts() override {
     // Assume all OpenCL extensions and optional core features are supported
     // for SPIR since it is a generic target.
-    getSupportedOpenCLOpts().supportAll();
+    supportAllOpenCLOpts();
   }
 
   bool hasExtIntType() const override { return true; }
+
+  bool hasInt128Type() const override { return false; }
 };
 class LLVM_LIBRARY_VISIBILITY SPIR32TargetInfo : public SPIRTargetInfo {
 public:

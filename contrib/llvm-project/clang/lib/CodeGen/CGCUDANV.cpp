@@ -21,6 +21,7 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/ReplaceConstant.h"
 #include "llvm/Support/Format.h"
 
 using namespace clang;
@@ -128,13 +129,15 @@ public:
     DeviceVars.push_back({&Var,
                           VD,
                           {DeviceVarFlags::Variable, Extern, Constant,
-                           /*Normalized*/ false, /*Type*/ 0}});
+                           VD->hasAttr<HIPManagedAttr>(),
+                           /*Normalized*/ false, 0}});
   }
   void registerDeviceSurf(const VarDecl *VD, llvm::GlobalVariable &Var,
                           bool Extern, int Type) override {
     DeviceVars.push_back({&Var,
                           VD,
                           {DeviceVarFlags::Surface, Extern, /*Constant*/ false,
+                           /*Managed*/ false,
                            /*Normalized*/ false, Type}});
   }
   void registerDeviceTex(const VarDecl *VD, llvm::GlobalVariable &Var,
@@ -142,7 +145,7 @@ public:
     DeviceVars.push_back({&Var,
                           VD,
                           {DeviceVarFlags::Texture, Extern, /*Constant*/ false,
-                           Normalized, Type}});
+                           /*Managed*/ false, Normalized, Type}});
   }
 
   /// Creates module constructor function
@@ -354,14 +357,12 @@ void CGNVCUDARuntime::emitDeviceStubBodyLegacy(CodeGenFunction &CGF,
   llvm::BasicBlock *EndBlock = CGF.createBasicBlock("setup.end");
   CharUnits Offset = CharUnits::Zero();
   for (const VarDecl *A : Args) {
-    CharUnits TyWidth, TyAlign;
-    std::tie(TyWidth, TyAlign) =
-        CGM.getContext().getTypeInfoInChars(A->getType());
-    Offset = Offset.alignTo(TyAlign);
+    auto TInfo = CGM.getContext().getTypeInfoInChars(A->getType());
+    Offset = Offset.alignTo(TInfo.Align);
     llvm::Value *Args[] = {
         CGF.Builder.CreatePointerCast(CGF.GetAddrOfLocalVar(A).getPointer(),
                                       VoidPtrTy),
-        llvm::ConstantInt::get(SizeTy, TyWidth.getQuantity()),
+        llvm::ConstantInt::get(SizeTy, TInfo.Width.getQuantity()),
         llvm::ConstantInt::get(SizeTy, Offset.getQuantity()),
     };
     llvm::CallBase *CB = CGF.EmitRuntimeCallOrInvoke(cudaSetupArgFn, Args);
@@ -370,7 +371,7 @@ void CGNVCUDARuntime::emitDeviceStubBodyLegacy(CodeGenFunction &CGF,
     llvm::BasicBlock *NextBlock = CGF.createBasicBlock("setup.next");
     CGF.Builder.CreateCondBr(CBZero, NextBlock, EndBlock);
     CGF.EmitBlock(NextBlock);
-    Offset += TyWidth;
+    Offset += TInfo.Width;
   }
 
   // Emit the call to cudaLaunch
@@ -380,6 +381,47 @@ void CGNVCUDARuntime::emitDeviceStubBodyLegacy(CodeGenFunction &CGF,
   CGF.EmitBranch(EndBlock);
 
   CGF.EmitBlock(EndBlock);
+}
+
+// Replace the original variable Var with the address loaded from variable
+// ManagedVar populated by HIP runtime.
+static void replaceManagedVar(llvm::GlobalVariable *Var,
+                              llvm::GlobalVariable *ManagedVar) {
+  SmallVector<SmallVector<llvm::User *, 8>, 8> WorkList;
+  for (auto &&VarUse : Var->uses()) {
+    WorkList.push_back({VarUse.getUser()});
+  }
+  while (!WorkList.empty()) {
+    auto &&WorkItem = WorkList.pop_back_val();
+    auto *U = WorkItem.back();
+    if (isa<llvm::ConstantExpr>(U)) {
+      for (auto &&UU : U->uses()) {
+        WorkItem.push_back(UU.getUser());
+        WorkList.push_back(WorkItem);
+        WorkItem.pop_back();
+      }
+      continue;
+    }
+    if (auto *I = dyn_cast<llvm::Instruction>(U)) {
+      llvm::Value *OldV = Var;
+      llvm::Instruction *NewV =
+          new llvm::LoadInst(Var->getType(), ManagedVar, "ld.managed", false,
+                             llvm::Align(Var->getAlignment()), I);
+      WorkItem.pop_back();
+      // Replace constant expressions directly or indirectly using the managed
+      // variable with instructions.
+      for (auto &&Op : WorkItem) {
+        auto *CE = cast<llvm::ConstantExpr>(Op);
+        auto *NewInst = llvm::createReplacementInstr(CE, I);
+        NewInst->replaceUsesOfWith(OldV, NewV);
+        OldV = CE;
+        NewV = NewInst;
+      }
+      I->replaceUsesOfWith(OldV, NewV);
+    } else {
+      llvm_unreachable("Invalid use of managed variable");
+    }
+  }
 }
 
 /// Creates a function that sets up state on the host side for CUDA objects that
@@ -454,6 +496,13 @@ llvm::Function *CGNVCUDARuntime::makeRegisterGlobalsFn() {
   llvm::FunctionCallee RegisterVar = CGM.CreateRuntimeFunction(
       llvm::FunctionType::get(VoidTy, RegisterVarParams, false),
       addUnderscoredPrefixToName("RegisterVar"));
+  // void __hipRegisterManagedVar(void **, char *, char *, const char *,
+  //                              size_t, unsigned)
+  llvm::Type *RegisterManagedVarParams[] = {VoidPtrPtrTy, CharPtrTy, CharPtrTy,
+                                            CharPtrTy,    VarSizeTy, IntTy};
+  llvm::FunctionCallee RegisterManagedVar = CGM.CreateRuntimeFunction(
+      llvm::FunctionType::get(VoidTy, RegisterManagedVarParams, false),
+      addUnderscoredPrefixToName("RegisterManagedVar"));
   // void __cudaRegisterSurface(void **, const struct surfaceReference *,
   //                            const void **, const char *, int, int);
   llvm::FunctionCallee RegisterSurf = CGM.CreateRuntimeFunction(
@@ -476,16 +525,34 @@ llvm::Function *CGNVCUDARuntime::makeRegisterGlobalsFn() {
     case DeviceVarFlags::Variable: {
       uint64_t VarSize =
           CGM.getDataLayout().getTypeAllocSize(Var->getValueType());
-      llvm::Value *Args[] = {
-          &GpuBinaryHandlePtr,
-          Builder.CreateBitCast(Var, VoidPtrTy),
-          VarName,
-          VarName,
-          llvm::ConstantInt::get(IntTy, Info.Flags.isExtern()),
-          llvm::ConstantInt::get(VarSizeTy, VarSize),
-          llvm::ConstantInt::get(IntTy, Info.Flags.isConstant()),
-          llvm::ConstantInt::get(IntTy, 0)};
-      Builder.CreateCall(RegisterVar, Args);
+      if (Info.Flags.isManaged()) {
+        auto ManagedVar = new llvm::GlobalVariable(
+            CGM.getModule(), Var->getType(),
+            /*isConstant=*/false, Var->getLinkage(),
+            /*Init=*/llvm::ConstantPointerNull::get(Var->getType()),
+            Twine(Var->getName() + ".managed"), /*InsertBefore=*/nullptr,
+            llvm::GlobalVariable::NotThreadLocal);
+        replaceManagedVar(Var, ManagedVar);
+        llvm::Value *Args[] = {
+            &GpuBinaryHandlePtr,
+            Builder.CreateBitCast(ManagedVar, VoidPtrTy),
+            Builder.CreateBitCast(Var, VoidPtrTy),
+            VarName,
+            llvm::ConstantInt::get(VarSizeTy, VarSize),
+            llvm::ConstantInt::get(IntTy, Var->getAlignment())};
+        Builder.CreateCall(RegisterManagedVar, Args);
+      } else {
+        llvm::Value *Args[] = {
+            &GpuBinaryHandlePtr,
+            Builder.CreateBitCast(Var, VoidPtrTy),
+            VarName,
+            VarName,
+            llvm::ConstantInt::get(IntTy, Info.Flags.isExtern()),
+            llvm::ConstantInt::get(VarSizeTy, VarSize),
+            llvm::ConstantInt::get(IntTy, Info.Flags.isConstant()),
+            llvm::ConstantInt::get(IntTy, 0)};
+        Builder.CreateCall(RegisterVar, Args);
+      }
       break;
     }
     case DeviceVarFlags::Surface:
@@ -597,8 +664,10 @@ llvm::Function *CGNVCUDARuntime::makeModuleCtorFunction() {
     if (CudaGpuBinary) {
       // If fatbin is available from early finalization, create a string
       // literal containing the fat binary loaded from the given file.
-      FatBinStr = makeConstantString(std::string(CudaGpuBinary->getBuffer()),
-                                     "", FatbinConstantName, 8);
+      const unsigned HIPCodeObjectAlign = 4096;
+      FatBinStr =
+          makeConstantString(std::string(CudaGpuBinary->getBuffer()), "",
+                             FatbinConstantName, HIPCodeObjectAlign);
     } else {
       // If fatbin is not available, create an external symbol
       // __hip_fatbin in section .hip_fatbin. The external symbol is supposed

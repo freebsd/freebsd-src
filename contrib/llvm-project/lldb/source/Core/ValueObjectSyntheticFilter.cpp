@@ -46,7 +46,7 @@ public:
 
 ValueObjectSynthetic::ValueObjectSynthetic(ValueObject &parent,
                                            lldb::SyntheticChildrenSP filter)
-    : ValueObject(parent), m_synth_sp(filter), m_children_byindex(),
+    : ValueObject(parent), m_synth_sp(std::move(filter)), m_children_byindex(),
       m_name_toindex(), m_synthetic_children_cache(),
       m_synthetic_children_count(UINT32_MAX),
       m_parent_type_name(parent.GetTypeName()),
@@ -121,7 +121,9 @@ bool ValueObjectSynthetic::MightHaveChildren() {
   return (m_might_have_children != eLazyBoolNo);
 }
 
-uint64_t ValueObjectSynthetic::GetByteSize() { return m_parent->GetByteSize(); }
+llvm::Optional<uint64_t> ValueObjectSynthetic::GetByteSize() {
+  return m_parent->GetByteSize();
+}
 
 lldb::ValueType ValueObjectSynthetic::GetValueType() const {
   return m_parent->GetValueType();

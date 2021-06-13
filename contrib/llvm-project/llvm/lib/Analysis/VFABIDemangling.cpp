@@ -290,9 +290,9 @@ bool verifyAllVectorsHaveSameWidth(FunctionType *Signature) {
 
   assert(VecTys.size() > 1 && "Invalid number of elements.");
   const ElementCount EC = VecTys[0]->getElementCount();
-  return llvm::all_of(
-      llvm::make_range(VecTys.begin() + 1, VecTys.end()),
-      [&EC](VectorType *VTy) { return (EC == VTy->getElementCount()); });
+  return llvm::all_of(llvm::drop_begin(VecTys), [&EC](VectorType *VTy) {
+    return (EC == VTy->getElementCount());
+  });
 }
 
 #endif // NDEBUG
@@ -310,7 +310,7 @@ ElementCount getECFromSignature(FunctionType *Signature) {
     if (auto *VTy = dyn_cast<VectorType>(Ty))
       return VTy->getElementCount();
 
-  return ElementCount(/*Min=*/1, /*Scalable=*/false);
+  return ElementCount::getFixed(/*Min=*/1);
 }
 } // namespace
 
@@ -442,7 +442,7 @@ Optional<VFInfo> VFABI::tryDemangleForVFABI(StringRef MangledName,
     if (!F)
       return None;
     const ElementCount EC = getECFromSignature(F->getFunctionType());
-    VF = EC.Min;
+    VF = EC.getKnownMinValue();
   }
 
   // Sanity checks.

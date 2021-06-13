@@ -418,6 +418,8 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
       case CK_ZeroToOCLOpaqueType:
       case CK_IntToOCLSampler:
       case CK_LValueBitCast:
+      case CK_FloatingToFixedPoint:
+      case CK_FixedPointToFloating:
       case CK_FixedPointCast:
       case CK_FixedPointToBoolean:
       case CK_FixedPointToIntegral:
@@ -991,10 +993,11 @@ void ExprEngine::VisitUnaryOperator(const UnaryOperator* U, ExplodedNode *Pred,
       if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(Ex)) {
         const ValueDecl *VD = DRE->getDecl();
 
-        if (isa<CXXMethodDecl>(VD) || isa<FieldDecl>(VD)) {
+        if (isa<CXXMethodDecl>(VD) || isa<FieldDecl>(VD) ||
+            isa<IndirectFieldDecl>(VD)) {
           ProgramStateRef State = (*I)->getState();
           const LocationContext *LCtx = (*I)->getLocationContext();
-          SVal SV = svalBuilder.getMemberPointer(cast<DeclaratorDecl>(VD));
+          SVal SV = svalBuilder.getMemberPointer(cast<NamedDecl>(VD));
           Bldr.generateNode(U, *I, State->BindExpr(U, LCtx, SV));
           break;
         }

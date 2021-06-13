@@ -71,13 +71,6 @@ bool ParseCommandLineOptions(int argc, const char *const *argv,
                              const char *EnvVar = nullptr,
                              bool LongOptionsUseDoubleDash = false);
 
-//===----------------------------------------------------------------------===//
-// ParseEnvironmentOptions - Environment variable option processing alternate
-//                           entry point.
-//
-void ParseEnvironmentOptions(const char *progName, const char *envvar,
-                             const char *Overview = "");
-
 // Function pointer type for printing version information.
 using VersionPrinterTy = std::function<void(raw_ostream &)>;
 
@@ -679,7 +672,7 @@ public:
       : Values(Options) {}
 
   template <class Opt> void apply(Opt &O) const {
-    for (auto Value : Values)
+    for (const auto &Value : Values)
       O.getParser().addLiteralOption(Value.Name, Value.Value,
                                      Value.Description);
   }
@@ -1488,7 +1481,7 @@ public:
 
   template <class... Mods>
   explicit opt(const Mods &... Ms)
-      : Option(Optional, NotHidden), Parser(*this) {
+      : Option(llvm::cl::Optional, NotHidden), Parser(*this) {
     apply(this, Ms...);
     done();
   }
@@ -2091,6 +2084,14 @@ bool ExpandResponseFiles(
     bool RelativeNames = false,
     llvm::vfs::FileSystem &FS = *llvm::vfs::getRealFileSystem(),
     llvm::Optional<llvm::StringRef> CurrentDir = llvm::None);
+
+/// A convenience helper which concatenates the options specified by the
+/// environment variable EnvVar and command line options, then expands response
+/// files recursively. The tokenizer is a predefined GNU or Windows one.
+/// \return true if all @files were expanded successfully or there were none.
+bool expandResponseFiles(int Argc, const char *const *Argv, const char *EnvVar,
+                         StringSaver &Saver,
+                         SmallVectorImpl<const char *> &NewArgv);
 
 /// Mark all options not part of this category as cl::ReallyHidden.
 ///

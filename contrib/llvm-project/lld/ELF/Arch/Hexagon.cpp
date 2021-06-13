@@ -66,7 +66,7 @@ uint32_t Hexagon::calcEFlags() const {
   // greatest revision in the list of inputs.
   uint32_t ret = 0;
   for (InputFile *f : objectFiles) {
-    uint32_t eflags = cast<ObjFile<ELF32LE>>(f)->getObj().getHeader()->e_flags;
+    uint32_t eflags = cast<ObjFile<ELF32LE>>(f)->getObj().getHeader().e_flags;
     if (eflags > ret)
       ret = eflags;
   }
@@ -154,7 +154,7 @@ RelExpr Hexagon::getRelExpr(RelType type, const Symbol &s,
   case R_HEX_TPREL_32_6_X:
   case R_HEX_TPREL_HI16:
   case R_HEX_TPREL_LO16:
-    return R_TLS;
+    return R_TPREL;
   default:
     error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
           ") against symbol " + toString(s));

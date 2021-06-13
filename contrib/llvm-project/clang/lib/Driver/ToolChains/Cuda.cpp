@@ -326,13 +326,13 @@ void CudaInstallationDetector::AddCudaIncludeArgs(
 void CudaInstallationDetector::CheckCudaVersionSupportsArch(
     CudaArch Arch) const {
   if (Arch == CudaArch::UNKNOWN || Version == CudaVersion::UNKNOWN ||
-      ArchsWithBadVersion.count(Arch) > 0)
+      ArchsWithBadVersion[(int)Arch])
     return;
 
   auto MinVersion = MinVersionForCudaArch(Arch);
   auto MaxVersion = MaxVersionForCudaArch(Arch);
   if (Version < MinVersion || Version > MaxVersion) {
-    ArchsWithBadVersion.insert(Arch);
+    ArchsWithBadVersion[(int)Arch] = true;
     D.Diag(diag::err_drv_cuda_version_unsupported)
         << CudaArchToString(Arch) << CudaVersionToString(MinVersion)
         << CudaVersionToString(MaxVersion) << InstallPath
@@ -384,7 +384,7 @@ static DeviceDebugInfoLevel mustEmitDebugInfo(const ArgList &Args) {
     }
     return IsDebugEnabled ? EmitSameDebugInfoAsHost : DebugDirectivesOnly;
   }
-  return DisableDebugInfo;
+  return willEmitRemarks(Args) ? DebugDirectivesOnly : DisableDebugInfo;
 }
 
 void NVPTX::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
@@ -494,7 +494,7 @@ void NVPTX::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
       JA, *this,
       ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
                           "--options-file"},
-      Exec, CmdArgs, Inputs));
+      Exec, CmdArgs, Inputs, Output));
 }
 
 static bool shouldIncludePTX(const ArgList &Args, const char *gpu_arch) {
@@ -563,7 +563,7 @@ void NVPTX::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       JA, *this,
       ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
                           "--options-file"},
-      Exec, CmdArgs, Inputs));
+      Exec, CmdArgs, Inputs, Output));
 }
 
 void NVPTX::OpenMPLinker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -600,11 +600,6 @@ void NVPTX::OpenMPLinker::ConstructJob(Compilation &C, const JobAction &JA,
   CmdArgs.push_back("-arch");
   CmdArgs.push_back(Args.MakeArgString(GPUArch));
 
-  // Assume that the directory specified with --libomptarget_nvptx_path
-  // contains the static library libomptarget-nvptx.a.
-  if (const Arg *A = Args.getLastArg(options::OPT_libomptarget_nvptx_path_EQ))
-    CmdArgs.push_back(Args.MakeArgString(Twine("-L") + A->getValue()));
-
   // Add paths specified in LIBRARY_PATH environment variable as -L options.
   addDirectoryList(Args, CmdArgs, "-L", "LIBRARY_PATH");
 
@@ -613,9 +608,6 @@ void NVPTX::OpenMPLinker::ConstructJob(Compilation &C, const JobAction &JA,
       llvm::sys::path::parent_path(TC.getDriver().Dir);
   llvm::sys::path::append(DefaultLibPath, "lib" CLANG_LIBDIR_SUFFIX);
   CmdArgs.push_back(Args.MakeArgString(Twine("-L") + DefaultLibPath));
-
-  // Add linking against library implementing OpenMP calls on NVPTX target.
-  CmdArgs.push_back("-lomptarget-nvptx");
 
   for (const auto &II : Inputs) {
     if (II.getType() == types::TY_LLVM_IR ||
@@ -644,7 +636,7 @@ void NVPTX::OpenMPLinker::ConstructJob(Compilation &C, const JobAction &JA,
       JA, *this,
       ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
                           "--options-file"},
-      Exec, CmdArgs, Inputs));
+      Exec, CmdArgs, Inputs, Output));
 }
 
 /// CUDA toolchain.  Our assembler is ptxas, and our "linker" is fatbinary,
@@ -720,33 +712,30 @@ void CudaToolChain::addClangTargetOptions(
   CC1Args.push_back("-mlink-builtin-bitcode");
   CC1Args.push_back(DriverArgs.MakeArgString(LibDeviceFile));
 
+  std::string CudaVersionStr;
+
   // New CUDA versions often introduce new instructions that are only supported
   // by new PTX version, so we need to raise PTX level to enable them in NVPTX
   // back-end.
   const char *PtxFeature = nullptr;
   switch (CudaInstallation.version()) {
-  case CudaVersion::CUDA_110:
-    PtxFeature = "+ptx70";
+#define CASE_CUDA_VERSION(CUDA_VER, PTX_VER)                                   \
+  case CudaVersion::CUDA_##CUDA_VER:                                           \
+    CudaVersionStr = #CUDA_VER;                                                \
+    PtxFeature = "+ptx" #PTX_VER;                                              \
     break;
-  case CudaVersion::CUDA_102:
-    PtxFeature = "+ptx65";
-    break;
-  case CudaVersion::CUDA_101:
-    PtxFeature = "+ptx64";
-    break;
-  case CudaVersion::CUDA_100:
-    PtxFeature = "+ptx63";
-    break;
-  case CudaVersion::CUDA_92:
-    PtxFeature = "+ptx61";
-    break;
-  case CudaVersion::CUDA_91:
-    PtxFeature = "+ptx61";
-    break;
-  case CudaVersion::CUDA_90:
-    PtxFeature = "+ptx60";
-    break;
+    CASE_CUDA_VERSION(110, 70);
+    CASE_CUDA_VERSION(102, 65);
+    CASE_CUDA_VERSION(101, 64);
+    CASE_CUDA_VERSION(100, 63);
+    CASE_CUDA_VERSION(92, 61);
+    CASE_CUDA_VERSION(91, 61);
+    CASE_CUDA_VERSION(90, 60);
+#undef CASE_CUDA_VERSION
   default:
+    // If unknown CUDA version, we take it as CUDA 8.0. Same assumption is also
+    // made in libomptarget/deviceRTLs.
+    CudaVersionStr = "80";
     PtxFeature = "+ptx42";
   }
   CC1Args.append({"-target-feature", PtxFeature});
@@ -761,9 +750,6 @@ void CudaToolChain::addClangTargetOptions(
 
   if (DeviceOffloadingKind == Action::OFK_OpenMP) {
     SmallVector<StringRef, 8> LibraryPaths;
-    if (const Arg *A = DriverArgs.getLastArg(options::OPT_libomptarget_nvptx_path_EQ))
-      LibraryPaths.push_back(A->getValue());
-
     // Add user defined library paths from LIBRARY_PATH.
     llvm::Optional<std::string> LibPath =
         llvm::sys::Process::GetEnv("LIBRARY_PATH");
@@ -781,22 +767,38 @@ void CudaToolChain::addClangTargetOptions(
     llvm::sys::path::append(DefaultLibPath, Twine("lib") + CLANG_LIBDIR_SUFFIX);
     LibraryPaths.emplace_back(DefaultLibPath.c_str());
 
-    std::string LibOmpTargetName =
-      "libomptarget-nvptx-" + GpuArch.str() + ".bc";
-    bool FoundBCLibrary = false;
-    for (StringRef LibraryPath : LibraryPaths) {
-      SmallString<128> LibOmpTargetFile(LibraryPath);
-      llvm::sys::path::append(LibOmpTargetFile, LibOmpTargetName);
-      if (llvm::sys::fs::exists(LibOmpTargetFile)) {
+    // First check whether user specifies bc library
+    if (const Arg *A =
+            DriverArgs.getLastArg(options::OPT_libomptarget_nvptx_bc_path_EQ)) {
+      std::string LibOmpTargetName(A->getValue());
+      if (llvm::sys::fs::exists(LibOmpTargetName)) {
         CC1Args.push_back("-mlink-builtin-bitcode");
-        CC1Args.push_back(DriverArgs.MakeArgString(LibOmpTargetFile));
-        FoundBCLibrary = true;
-        break;
+        CC1Args.push_back(DriverArgs.MakeArgString(LibOmpTargetName));
+      } else {
+        getDriver().Diag(diag::err_drv_omp_offload_target_bcruntime_not_found)
+            << LibOmpTargetName;
       }
+    } else {
+      bool FoundBCLibrary = false;
+
+      std::string LibOmpTargetName = "libomptarget-nvptx-cuda_" +
+                                     CudaVersionStr + "-" + GpuArch.str() +
+                                     ".bc";
+
+      for (StringRef LibraryPath : LibraryPaths) {
+        SmallString<128> LibOmpTargetFile(LibraryPath);
+        llvm::sys::path::append(LibOmpTargetFile, LibOmpTargetName);
+        if (llvm::sys::fs::exists(LibOmpTargetFile)) {
+          CC1Args.push_back("-mlink-builtin-bitcode");
+          CC1Args.push_back(DriverArgs.MakeArgString(LibOmpTargetFile));
+          FoundBCLibrary = true;
+          break;
+        }
+      }
+      if (!FoundBCLibrary)
+        getDriver().Diag(diag::err_drv_omp_offload_target_missingbcruntime)
+            << LibOmpTargetName;
     }
-    if (!FoundBCLibrary)
-      getDriver().Diag(diag::warn_drv_omp_offload_target_missingbcruntime)
-          << LibOmpTargetName;
   }
 }
 

@@ -10,13 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/EvaluatedExprVisitor.h"
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/StringExtras.h"
 
 using namespace clang;
@@ -139,10 +140,18 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                        LoopHintAttr::PipelineInitiationInterval)
                  .Case("distribute", LoopHintAttr::Distribute)
                  .Default(LoopHintAttr::Vectorize);
-    if (Option == LoopHintAttr::VectorizeWidth ||
-        Option == LoopHintAttr::InterleaveCount ||
-        Option == LoopHintAttr::UnrollCount ||
-        Option == LoopHintAttr::PipelineInitiationInterval) {
+    if (Option == LoopHintAttr::VectorizeWidth) {
+      assert((ValueExpr || (StateLoc && StateLoc->Ident)) &&
+             "Attribute must have a valid value expression or argument.");
+      if (ValueExpr && S.CheckLoopHintExpr(ValueExpr, St->getBeginLoc()))
+        return nullptr;
+      if (StateLoc && StateLoc->Ident && StateLoc->Ident->isStr("scalable"))
+        State = LoopHintAttr::ScalableWidth;
+      else
+        State = LoopHintAttr::FixedWidth;
+    } else if (Option == LoopHintAttr::InterleaveCount ||
+               Option == LoopHintAttr::UnrollCount ||
+               Option == LoopHintAttr::PipelineInitiationInterval) {
       assert(ValueExpr && "Attribute must have a valid value expression.");
       if (S.CheckLoopHintExpr(ValueExpr, St->getBeginLoc()))
         return nullptr;
@@ -183,6 +192,7 @@ public:
   bool foundCallExpr() { return FoundCallExpr; }
 
   void VisitCallExpr(const CallExpr *E) { FoundCallExpr = true; }
+  void VisitAsmStmt(const AsmStmt *S) { FoundCallExpr = true; }
 
   void Visit(const Stmt *St) {
     if (!St)
@@ -207,6 +217,24 @@ static Attr *handleNoMergeAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   }
 
   return ::new (S.Context) NoMergeAttr(S.Context, A);
+}
+
+static Attr *handleLikely(Sema &S, Stmt *St, const ParsedAttr &A,
+                          SourceRange Range) {
+
+  if (!S.getLangOpts().CPlusPlus20 && A.isCXX11Attribute() && !A.getScopeName())
+    S.Diag(A.getLoc(), diag::ext_cxx20_attr) << A << Range;
+
+  return ::new (S.Context) LikelyAttr(S.Context, A);
+}
+
+static Attr *handleUnlikely(Sema &S, Stmt *St, const ParsedAttr &A,
+                            SourceRange Range) {
+
+  if (!S.getLangOpts().CPlusPlus20 && A.isCXX11Attribute() && !A.getScopeName())
+    S.Diag(A.getLoc(), diag::ext_cxx20_attr) << A << Range;
+
+  return ::new (S.Context) UnlikelyAttr(S.Context, A);
 }
 
 static void
@@ -314,6 +342,32 @@ CheckForIncompatibleAttributes(Sema &S,
           << CategoryState.NumericAttr->getDiagnosticName(Policy);
     }
   }
+
+  // C++20 [dcl.attr.likelihood]p1 The attribute-token likely shall not appear
+  // in an attribute-specifier-seq that contains the attribute-token unlikely.
+  const LikelyAttr *Likely = nullptr;
+  const UnlikelyAttr *Unlikely = nullptr;
+  for (const auto *I : Attrs) {
+    if (const auto *Attr = dyn_cast<LikelyAttr>(I)) {
+      if (Unlikely) {
+        S.Diag(Attr->getLocation(), diag::err_attributes_are_not_compatible)
+            << Attr << Unlikely << Attr->getRange();
+        S.Diag(Unlikely->getLocation(), diag::note_conflicting_attribute)
+            << Unlikely->getRange();
+        return;
+      }
+      Likely = Attr;
+    } else if (const auto *Attr = dyn_cast<UnlikelyAttr>(I)) {
+      if (Likely) {
+        S.Diag(Attr->getLocation(), diag::err_attributes_are_not_compatible)
+            << Attr << Likely << Attr->getRange();
+        S.Diag(Likely->getLocation(), diag::note_conflicting_attribute)
+            << Likely->getRange();
+        return;
+      }
+      Unlikely = Attr;
+    }
+  }
 }
 
 static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
@@ -335,15 +389,15 @@ static Attr *handleOpenCLUnrollHint(Sema &S, Stmt *St, const ParsedAttr &A,
 
   if (NumArgs == 1) {
     Expr *E = A.getArgAsExpr(0);
-    llvm::APSInt ArgVal(32);
+    Optional<llvm::APSInt> ArgVal;
 
-    if (!E->isIntegerConstantExpr(ArgVal, S.Context)) {
+    if (!(ArgVal = E->getIntegerConstantExpr(S.Context))) {
       S.Diag(A.getLoc(), diag::err_attribute_argument_type)
           << A << AANT_ArgumentIntegerConstant << E->getSourceRange();
       return nullptr;
     }
 
-    int Val = ArgVal.getSExtValue();
+    int Val = ArgVal->getSExtValue();
 
     if (Val <= 0) {
       S.Diag(A.getRange().getBegin(),
@@ -364,7 +418,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     S.Diag(A.getLoc(), A.isDeclspecAttribute()
                            ? (unsigned)diag::warn_unhandled_ms_attribute_ignored
                            : (unsigned)diag::warn_unknown_attribute_ignored)
-        << A;
+        << A << A.getRange();
     return nullptr;
   case ParsedAttr::AT_FallThrough:
     return handleFallThroughAttr(S, St, A, Range);
@@ -376,6 +430,10 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     return handleSuppressAttr(S, St, A, Range);
   case ParsedAttr::AT_NoMerge:
     return handleNoMergeAttr(S, St, A, Range);
+  case ParsedAttr::AT_Likely:
+    return handleLikely(S, St, A, Range);
+  case ParsedAttr::AT_Unlikely:
+    return handleUnlikely(S, St, A, Range);
   default:
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute

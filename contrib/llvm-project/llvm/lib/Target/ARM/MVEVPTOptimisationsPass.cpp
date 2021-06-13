@@ -6,34 +6,39 @@
 //
 //===----------------------------------------------------------------------===//
 //
-/// \file This pass does a few optimisations related to MVE VPT blocks before
-/// register allocation is performed. The goal is to maximize the sizes of the
-/// blocks that will be created by the MVE VPT Block Insertion pass (which runs
-/// after register allocation). The first optimisation done by this pass is the
-/// replacement of "opposite" VCMPs with VPNOTs, so the Block Insertion pass
-/// can delete them later to create larger VPT blocks.
-/// The second optimisation replaces re-uses of old VCCR values with VPNOTs when
-/// inside a block of predicated instructions. This is done to avoid
-/// spill/reloads of VPR in the middle of a block, which prevents the Block
-/// Insertion pass from creating large blocks.
-//
+/// \file This pass does a few optimisations related to Tail predicated loops
+/// and MVE VPT blocks before register allocation is performed. For VPT blocks
+/// the goal is to maximize the sizes of the blocks that will be created by the
+/// MVE VPT Block Insertion pass (which runs after register allocation). For
+/// tail predicated loops we transform the loop into something that will
+/// hopefully make the backend ARMLowOverheadLoops pass's job easier.
+///
 //===----------------------------------------------------------------------===//
 
 #include "ARM.h"
 #include "ARMSubtarget.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
+#include "MVETailPredUtils.h"
 #include "Thumb2InstrInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include <cassert>
 
 using namespace llvm;
 
 #define DEBUG_TYPE "arm-mve-vpt-opts"
+
+static cl::opt<bool>
+MergeEndDec("arm-enable-merge-loopenddec", cl::Hidden,
+    cl::desc("Enable merging Loop End and Dec instructions."),
+    cl::init(true));
 
 namespace {
 class MVEVPTOptimisations : public MachineFunctionPass {
@@ -46,25 +51,314 @@ public:
 
   bool runOnMachineFunction(MachineFunction &Fn) override;
 
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineLoopInfo>();
+    AU.addPreserved<MachineLoopInfo>();
+    AU.addRequired<MachineDominatorTree>();
+    AU.addPreserved<MachineDominatorTree>();
+    MachineFunctionPass::getAnalysisUsage(AU);
+  }
+
   StringRef getPassName() const override {
-    return "ARM MVE VPT Optimisation Pass";
+    return "ARM MVE TailPred and VPT Optimisation Pass";
   }
 
 private:
+  bool MergeLoopEnd(MachineLoop *ML);
+  bool ConvertTailPredLoop(MachineLoop *ML, MachineDominatorTree *DT);
   MachineInstr &ReplaceRegisterUseWithVPNOT(MachineBasicBlock &MBB,
                                             MachineInstr &Instr,
                                             MachineOperand &User,
                                             Register Target);
   bool ReduceOldVCCRValueUses(MachineBasicBlock &MBB);
   bool ReplaceVCMPsByVPNOTs(MachineBasicBlock &MBB);
+  bool ReplaceConstByVPNOTs(MachineBasicBlock &MBB, MachineDominatorTree *DT);
+  bool ConvertVPSEL(MachineBasicBlock &MBB);
 };
 
 char MVEVPTOptimisations::ID = 0;
 
 } // end anonymous namespace
 
-INITIALIZE_PASS(MVEVPTOptimisations, DEBUG_TYPE,
-                "ARM MVE VPT Optimisations pass", false, false)
+INITIALIZE_PASS_BEGIN(MVEVPTOptimisations, DEBUG_TYPE,
+                      "ARM MVE TailPred and VPT Optimisations pass", false,
+                      false)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_END(MVEVPTOptimisations, DEBUG_TYPE,
+                    "ARM MVE TailPred and VPT Optimisations pass", false, false)
+
+static MachineInstr *LookThroughCOPY(MachineInstr *MI,
+                                     MachineRegisterInfo *MRI) {
+  while (MI && MI->getOpcode() == TargetOpcode::COPY &&
+         MI->getOperand(1).getReg().isVirtual())
+    MI = MRI->getVRegDef(MI->getOperand(1).getReg());
+  return MI;
+}
+
+// Given a loop ML, this attempts to find the t2LoopEnd, t2LoopDec and
+// corresponding PHI that make up a low overhead loop. Only handles 'do' loops
+// at the moment, returning a t2DoLoopStart in LoopStart.
+static bool findLoopComponents(MachineLoop *ML, MachineRegisterInfo *MRI,
+                               MachineInstr *&LoopStart, MachineInstr *&LoopPhi,
+                               MachineInstr *&LoopDec, MachineInstr *&LoopEnd) {
+  MachineBasicBlock *Header = ML->getHeader();
+  MachineBasicBlock *Latch = ML->getLoopLatch();
+  if (!Header || !Latch) {
+    LLVM_DEBUG(dbgs() << "  no Loop Latch or Header\n");
+    return false;
+  }
+
+  // Find the loop end from the terminators.
+  LoopEnd = nullptr;
+  for (auto &T : Latch->terminators()) {
+    if (T.getOpcode() == ARM::t2LoopEnd && T.getOperand(1).getMBB() == Header) {
+      LoopEnd = &T;
+      break;
+    }
+    if (T.getOpcode() == ARM::t2LoopEndDec &&
+        T.getOperand(2).getMBB() == Header) {
+      LoopEnd = &T;
+      break;
+    }
+  }
+  if (!LoopEnd) {
+    LLVM_DEBUG(dbgs() << "  no LoopEnd\n");
+    return false;
+  }
+  LLVM_DEBUG(dbgs() << "  found loop end: " << *LoopEnd);
+
+  // Find the dec from the use of the end. There may be copies between
+  // instructions. We expect the loop to loop like:
+  //   $vs = t2DoLoopStart ...
+  // loop:
+  //   $vp = phi [ $vs ], [ $vd ]
+  //   ...
+  //   $vd = t2LoopDec $vp
+  //   ...
+  //   t2LoopEnd $vd, loop
+  if (LoopEnd->getOpcode() == ARM::t2LoopEndDec)
+    LoopDec = LoopEnd;
+  else {
+    LoopDec =
+        LookThroughCOPY(MRI->getVRegDef(LoopEnd->getOperand(0).getReg()), MRI);
+    if (!LoopDec || LoopDec->getOpcode() != ARM::t2LoopDec) {
+      LLVM_DEBUG(dbgs() << "  didn't find LoopDec where we expected!\n");
+      return false;
+    }
+  }
+  LLVM_DEBUG(dbgs() << "  found loop dec: " << *LoopDec);
+
+  LoopPhi =
+      LookThroughCOPY(MRI->getVRegDef(LoopDec->getOperand(1).getReg()), MRI);
+  if (!LoopPhi || LoopPhi->getOpcode() != TargetOpcode::PHI ||
+      LoopPhi->getNumOperands() != 5 ||
+      (LoopPhi->getOperand(2).getMBB() != Latch &&
+       LoopPhi->getOperand(4).getMBB() != Latch)) {
+    LLVM_DEBUG(dbgs() << "  didn't find PHI where we expected!\n");
+    return false;
+  }
+  LLVM_DEBUG(dbgs() << "  found loop phi: " << *LoopPhi);
+
+  Register StartReg = LoopPhi->getOperand(2).getMBB() == Latch
+                          ? LoopPhi->getOperand(3).getReg()
+                          : LoopPhi->getOperand(1).getReg();
+  LoopStart = LookThroughCOPY(MRI->getVRegDef(StartReg), MRI);
+  if (!LoopStart || LoopStart->getOpcode() != ARM::t2DoLoopStart) {
+    LLVM_DEBUG(dbgs() << "  didn't find Start where we expected!\n");
+    return false;
+  }
+  LLVM_DEBUG(dbgs() << "  found loop start: " << *LoopStart);
+
+  return true;
+}
+
+// This function converts loops with t2LoopEnd and t2LoopEnd instructions into
+// a single t2LoopEndDec instruction. To do that it needs to make sure that LR
+// will be valid to be used for the low overhead loop, which means nothing else
+// is using LR (especially calls) and there are no superfluous copies in the
+// loop. The t2LoopEndDec is a branching terminator that produces a value (the
+// decrement) around the loop edge, which means we need to be careful that they
+// will be valid to allocate without any spilling.
+bool MVEVPTOptimisations::MergeLoopEnd(MachineLoop *ML) {
+  if (!MergeEndDec)
+    return false;
+
+  LLVM_DEBUG(dbgs() << "MergeLoopEnd on loop " << ML->getHeader()->getName()
+                    << "\n");
+
+  MachineInstr *LoopEnd, *LoopPhi, *LoopStart, *LoopDec;
+  if (!findLoopComponents(ML, MRI, LoopStart, LoopPhi, LoopDec, LoopEnd))
+    return false;
+
+  // Check if there is an illegal instruction (a call) in the low overhead loop
+  // and if so revert it now before we get any further.
+  for (MachineBasicBlock *MBB : ML->blocks()) {
+    for (MachineInstr &MI : *MBB) {
+      if (MI.isCall()) {
+        LLVM_DEBUG(dbgs() << "Found call in loop, reverting: " << MI);
+        RevertDoLoopStart(LoopStart, TII);
+        RevertLoopDec(LoopDec, TII);
+        RevertLoopEnd(LoopEnd, TII);
+        return true;
+      }
+    }
+  }
+
+  // Remove any copies from the loop, to ensure the phi that remains is both
+  // simpler and contains no extra uses. Because t2LoopEndDec is a terminator
+  // that cannot spill, we need to be careful what remains in the loop.
+  Register PhiReg = LoopPhi->getOperand(0).getReg();
+  Register DecReg = LoopDec->getOperand(0).getReg();
+  Register StartReg = LoopStart->getOperand(0).getReg();
+  // Ensure the uses are expected, and collect any copies we want to remove.
+  SmallVector<MachineInstr *, 4> Copies;
+  auto CheckUsers = [&Copies](Register BaseReg,
+                              ArrayRef<MachineInstr *> ExpectedUsers,
+                              MachineRegisterInfo *MRI) {
+    SmallVector<Register, 4> Worklist;
+    Worklist.push_back(BaseReg);
+    while (!Worklist.empty()) {
+      Register Reg = Worklist.pop_back_val();
+      for (MachineInstr &MI : MRI->use_nodbg_instructions(Reg)) {
+        if (count(ExpectedUsers, &MI))
+          continue;
+        if (MI.getOpcode() != TargetOpcode::COPY ||
+            !MI.getOperand(0).getReg().isVirtual()) {
+          LLVM_DEBUG(dbgs() << "Extra users of register found: " << MI);
+          return false;
+        }
+        Worklist.push_back(MI.getOperand(0).getReg());
+        Copies.push_back(&MI);
+      }
+    }
+    return true;
+  };
+  if (!CheckUsers(PhiReg, {LoopDec}, MRI) ||
+      !CheckUsers(DecReg, {LoopPhi, LoopEnd}, MRI) ||
+      !CheckUsers(StartReg, {LoopPhi}, MRI))
+    return false;
+
+  MRI->constrainRegClass(StartReg, &ARM::GPRlrRegClass);
+  MRI->constrainRegClass(PhiReg, &ARM::GPRlrRegClass);
+  MRI->constrainRegClass(DecReg, &ARM::GPRlrRegClass);
+
+  if (LoopPhi->getOperand(2).getMBB() == ML->getLoopLatch()) {
+    LoopPhi->getOperand(3).setReg(StartReg);
+    LoopPhi->getOperand(1).setReg(DecReg);
+  } else {
+    LoopPhi->getOperand(1).setReg(StartReg);
+    LoopPhi->getOperand(3).setReg(DecReg);
+  }
+
+  // Replace the loop dec and loop end as a single instruction.
+  MachineInstrBuilder MI =
+      BuildMI(*LoopEnd->getParent(), *LoopEnd, LoopEnd->getDebugLoc(),
+              TII->get(ARM::t2LoopEndDec), DecReg)
+          .addReg(PhiReg)
+          .add(LoopEnd->getOperand(1));
+  (void)MI;
+  LLVM_DEBUG(dbgs() << "Merged LoopDec and End into: " << *MI.getInstr());
+
+  LoopDec->eraseFromParent();
+  LoopEnd->eraseFromParent();
+  for (auto *MI : Copies)
+    MI->eraseFromParent();
+  return true;
+}
+
+// Convert t2DoLoopStart to t2DoLoopStartTP if the loop contains VCTP
+// instructions. This keeps the VCTP count reg operand on the t2DoLoopStartTP
+// instruction, making the backend ARMLowOverheadLoops passes job of finding the
+// VCTP operand much simpler.
+bool MVEVPTOptimisations::ConvertTailPredLoop(MachineLoop *ML,
+                                              MachineDominatorTree *DT) {
+  LLVM_DEBUG(dbgs() << "ConvertTailPredLoop on loop "
+                    << ML->getHeader()->getName() << "\n");
+
+  // Find some loop components including the LoopEnd/Dec/Start, and any VCTP's
+  // in the loop.
+  MachineInstr *LoopEnd, *LoopPhi, *LoopStart, *LoopDec;
+  if (!findLoopComponents(ML, MRI, LoopStart, LoopPhi, LoopDec, LoopEnd))
+    return false;
+  if (LoopDec != LoopEnd)
+    return false;
+
+  SmallVector<MachineInstr *, 4> VCTPs;
+  for (MachineBasicBlock *BB : ML->blocks())
+    for (MachineInstr &MI : *BB)
+      if (isVCTP(&MI))
+        VCTPs.push_back(&MI);
+
+  if (VCTPs.empty()) {
+    LLVM_DEBUG(dbgs() << "  no VCTPs\n");
+    return false;
+  }
+
+  // Check all VCTPs are the same.
+  MachineInstr *FirstVCTP = *VCTPs.begin();
+  for (MachineInstr *VCTP : VCTPs) {
+    LLVM_DEBUG(dbgs() << "  with VCTP " << *VCTP);
+    if (VCTP->getOpcode() != FirstVCTP->getOpcode() ||
+        VCTP->getOperand(0).getReg() != FirstVCTP->getOperand(0).getReg()) {
+      LLVM_DEBUG(dbgs() << "  VCTP's are not identical\n");
+      return false;
+    }
+  }
+
+  // Check for the register being used can be setup before the loop. We expect
+  // this to be:
+  //   $vx = ...
+  // loop:
+  //   $vp = PHI [ $vx ], [ $vd ]
+  //   ..
+  //   $vpr = VCTP $vp
+  //   ..
+  //   $vd = t2SUBri $vp, #n
+  //   ..
+  Register CountReg = FirstVCTP->getOperand(1).getReg();
+  if (!CountReg.isVirtual()) {
+    LLVM_DEBUG(dbgs() << "  cannot determine VCTP PHI\n");
+    return false;
+  }
+  MachineInstr *Phi = LookThroughCOPY(MRI->getVRegDef(CountReg), MRI);
+  if (!Phi || Phi->getOpcode() != TargetOpcode::PHI ||
+      Phi->getNumOperands() != 5 ||
+      (Phi->getOperand(2).getMBB() != ML->getLoopLatch() &&
+       Phi->getOperand(4).getMBB() != ML->getLoopLatch())) {
+    LLVM_DEBUG(dbgs() << "  cannot determine VCTP Count\n");
+    return false;
+  }
+  CountReg = Phi->getOperand(2).getMBB() == ML->getLoopLatch()
+                 ? Phi->getOperand(3).getReg()
+                 : Phi->getOperand(1).getReg();
+
+  // Replace the t2DoLoopStart with the t2DoLoopStartTP, move it to the end of
+  // the preheader and add the new CountReg to it. We attempt to place it late
+  // in the preheader, but may need to move that earlier based on uses.
+  MachineBasicBlock *MBB = LoopStart->getParent();
+  MachineBasicBlock::iterator InsertPt = MBB->getFirstTerminator();
+  for (MachineInstr &Use :
+       MRI->use_instructions(LoopStart->getOperand(0).getReg()))
+    if ((InsertPt != MBB->end() && !DT->dominates(&*InsertPt, &Use)) ||
+        !DT->dominates(ML->getHeader(), Use.getParent())) {
+      LLVM_DEBUG(dbgs() << "  InsertPt could not be a terminator!\n");
+      return false;
+    }
+
+  MachineInstrBuilder MI = BuildMI(*MBB, InsertPt, LoopStart->getDebugLoc(),
+                                   TII->get(ARM::t2DoLoopStartTP))
+                               .add(LoopStart->getOperand(0))
+                               .add(LoopStart->getOperand(1))
+                               .addReg(CountReg);
+  (void)MI;
+  LLVM_DEBUG(dbgs() << "Replacing " << *LoopStart << "  with "
+                    << *MI.getInstr());
+  MRI->constrainRegClass(CountReg, &ARM::rGPRRegClass);
+  LoopStart->eraseFromParent();
+
+  return true;
+}
 
 // Returns true if Opcode is any VCMP Opcode.
 static bool IsVCMP(unsigned Opcode) { return VCMPOpcodeToVPT(Opcode) != 0; }
@@ -356,7 +650,7 @@ bool MVEVPTOptimisations::ReduceOldVCCRValueUses(MachineBasicBlock &MBB) {
   }
 
   for (MachineInstr *DeadInstruction : DeadInstructions)
-    DeadInstruction->removeFromParent();
+    DeadInstruction->eraseFromParent();
 
   return Modified;
 }
@@ -430,7 +724,130 @@ bool MVEVPTOptimisations::ReplaceVCMPsByVPNOTs(MachineBasicBlock &MBB) {
   }
 
   for (MachineInstr *DeadInstruction : DeadInstructions)
-    DeadInstruction->removeFromParent();
+    DeadInstruction->eraseFromParent();
+
+  return !DeadInstructions.empty();
+}
+
+bool MVEVPTOptimisations::ReplaceConstByVPNOTs(MachineBasicBlock &MBB,
+                                               MachineDominatorTree *DT) {
+  // Scan through the block, looking for instructions that use constants moves
+  // into VPR that are the negative of one another. These are expected to be
+  // COPY's to VCCRRegClass, from a t2MOVi or t2MOVi16. The last seen constant
+  // mask is kept it or and VPNOT's of it are added or reused as we scan through
+  // the function.
+  unsigned LastVPTImm = 0;
+  Register LastVPTReg = 0;
+  SmallSet<MachineInstr *, 4> DeadInstructions;
+
+  for (MachineInstr &Instr : MBB.instrs()) {
+    // Look for predicated MVE instructions.
+    int PIdx = llvm::findFirstVPTPredOperandIdx(Instr);
+    if (PIdx == -1)
+      continue;
+    Register VPR = Instr.getOperand(PIdx + 1).getReg();
+    if (!VPR.isVirtual())
+      continue;
+
+    // From that we are looking for an instruction like %11:vccr = COPY %9:rgpr.
+    MachineInstr *Copy = MRI->getVRegDef(VPR);
+    if (!Copy || Copy->getOpcode() != TargetOpcode::COPY ||
+        !Copy->getOperand(1).getReg().isVirtual() ||
+        MRI->getRegClass(Copy->getOperand(1).getReg()) == &ARM::VCCRRegClass) {
+      LastVPTReg = 0;
+      continue;
+    }
+    Register GPR = Copy->getOperand(1).getReg();
+
+    // Find the Immediate used by the copy.
+    auto getImm = [&](Register GPR) -> unsigned {
+      MachineInstr *Def = MRI->getVRegDef(GPR);
+      if (Def && (Def->getOpcode() == ARM::t2MOVi ||
+                  Def->getOpcode() == ARM::t2MOVi16))
+        return Def->getOperand(1).getImm();
+      return -1U;
+    };
+    unsigned Imm = getImm(GPR);
+    if (Imm == -1U) {
+      LastVPTReg = 0;
+      continue;
+    }
+
+    unsigned NotImm = ~Imm & 0xffff;
+    if (LastVPTReg != 0 && LastVPTReg != VPR && LastVPTImm == Imm) {
+      Instr.getOperand(PIdx + 1).setReg(LastVPTReg);
+      if (MRI->use_empty(VPR)) {
+        DeadInstructions.insert(Copy);
+        if (MRI->hasOneUse(GPR))
+          DeadInstructions.insert(MRI->getVRegDef(GPR));
+      }
+      LLVM_DEBUG(dbgs() << "Reusing predicate: in  " << Instr);
+    } else if (LastVPTReg != 0 && LastVPTImm == NotImm) {
+      // We have found the not of a previous constant. Create a VPNot of the
+      // earlier predicate reg and use it instead of the copy.
+      Register NewVPR = MRI->createVirtualRegister(&ARM::VCCRRegClass);
+      auto VPNot = BuildMI(MBB, &Instr, Instr.getDebugLoc(),
+                           TII->get(ARM::MVE_VPNOT), NewVPR)
+                       .addReg(LastVPTReg);
+      addUnpredicatedMveVpredNOp(VPNot);
+
+      // Use the new register and check if the def is now dead.
+      Instr.getOperand(PIdx + 1).setReg(NewVPR);
+      if (MRI->use_empty(VPR)) {
+        DeadInstructions.insert(Copy);
+        if (MRI->hasOneUse(GPR))
+          DeadInstructions.insert(MRI->getVRegDef(GPR));
+      }
+      LLVM_DEBUG(dbgs() << "Adding VPNot: " << *VPNot << "  to replace use at "
+                        << Instr);
+      VPR = NewVPR;
+    }
+
+    LastVPTImm = Imm;
+    LastVPTReg = VPR;
+  }
+
+  for (MachineInstr *DI : DeadInstructions)
+    DI->eraseFromParent();
+
+  return !DeadInstructions.empty();
+}
+
+// Replace VPSEL with a predicated VMOV in blocks with a VCTP. This is a
+// somewhat blunt approximation to allow tail predicated with vpsel
+// instructions. We turn a vselect into a VPSEL in ISEL, but they have slightly
+// different semantics under tail predication. Until that is modelled we just
+// convert to a VMOVT (via a predicated VORR) instead.
+bool MVEVPTOptimisations::ConvertVPSEL(MachineBasicBlock &MBB) {
+  bool HasVCTP = false;
+  SmallVector<MachineInstr *, 4> DeadInstructions;
+
+  for (MachineInstr &MI : MBB.instrs()) {
+    if (isVCTP(&MI)) {
+      HasVCTP = true;
+      continue;
+    }
+
+    if (!HasVCTP || MI.getOpcode() != ARM::MVE_VPSEL)
+      continue;
+
+    MachineInstrBuilder MIBuilder =
+        BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(ARM::MVE_VORR))
+            .add(MI.getOperand(0))
+            .add(MI.getOperand(1))
+            .add(MI.getOperand(1))
+            .addImm(ARMVCC::Then)
+            .add(MI.getOperand(4))
+            .add(MI.getOperand(2));
+    // Silence unused variable warning in release builds.
+    (void)MIBuilder;
+    LLVM_DEBUG(dbgs() << "Replacing VPSEL: "; MI.dump();
+               dbgs() << "     with VMOVT: "; MIBuilder.getInstr()->dump());
+    DeadInstructions.push_back(&MI);
+  }
+
+  for (MachineInstr *DeadInstruction : DeadInstructions)
+    DeadInstruction->eraseFromParent();
 
   return !DeadInstructions.empty();
 }
@@ -439,19 +856,28 @@ bool MVEVPTOptimisations::runOnMachineFunction(MachineFunction &Fn) {
   const ARMSubtarget &STI =
       static_cast<const ARMSubtarget &>(Fn.getSubtarget());
 
-  if (!STI.isThumb2() || !STI.hasMVEIntegerOps())
+  if (!STI.isThumb2() || !STI.hasLOB())
     return false;
 
   TII = static_cast<const Thumb2InstrInfo *>(STI.getInstrInfo());
   MRI = &Fn.getRegInfo();
+  MachineLoopInfo *MLI = &getAnalysis<MachineLoopInfo>();
+  MachineDominatorTree *DT = &getAnalysis<MachineDominatorTree>();
 
   LLVM_DEBUG(dbgs() << "********** ARM MVE VPT Optimisations **********\n"
                     << "********** Function: " << Fn.getName() << '\n');
 
   bool Modified = false;
+  for (MachineLoop *ML : MLI->getBase().getLoopsInPreorder()) {
+    Modified |= MergeLoopEnd(ML);
+    Modified |= ConvertTailPredLoop(ML, DT);
+  }
+
   for (MachineBasicBlock &MBB : Fn) {
+    Modified |= ReplaceConstByVPNOTs(MBB, DT);
     Modified |= ReplaceVCMPsByVPNOTs(MBB);
     Modified |= ReduceOldVCCRValueUses(MBB);
+    Modified |= ConvertVPSEL(MBB);
   }
 
   LLVM_DEBUG(dbgs() << "**************************************\n");

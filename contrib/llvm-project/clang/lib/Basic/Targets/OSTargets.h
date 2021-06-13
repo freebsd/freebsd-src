@@ -154,7 +154,8 @@ public:
       MinVersion = llvm::VersionTuple(5U);
       break;
     default:
-      llvm_unreachable("Unexpected OS");
+      // Conservatively return 8 bytes if OS is unknown.
+      return 64;
     }
 
     unsigned Major, Minor, Micro;
@@ -252,6 +253,7 @@ public:
     case llvm::Triple::mips:
     case llvm::Triple::mipsel:
     case llvm::Triple::ppc:
+    case llvm::Triple::ppcle:
     case llvm::Triple::ppc64:
     case llvm::Triple::ppc64le:
       this->MCountName = "_mcount";
@@ -382,8 +384,12 @@ protected:
       Triple.getEnvironmentVersion(Maj, Min, Rev);
       this->PlatformName = "android";
       this->PlatformMinVersion = VersionTuple(Maj, Min, Rev);
-      if (Maj)
-        Builder.defineMacro("__ANDROID_API__", Twine(Maj));
+      if (Maj) {
+        Builder.defineMacro("__ANDROID_MIN_SDK_VERSION__", Twine(Maj));
+        // This historical but ambiguous name for the minSdkVersion macro. Keep
+        // defined for compatibility.
+        Builder.defineMacro("__ANDROID_API__", "__ANDROID_MIN_SDK_VERSION__");
+      }
     } else {
         Builder.defineMacro("__gnu_linux__");
     }
@@ -408,6 +414,7 @@ public:
     case llvm::Triple::mips64:
     case llvm::Triple::mips64el:
     case llvm::Triple::ppc:
+    case llvm::Triple::ppcle:
     case llvm::Triple::ppc64:
     case llvm::Triple::ppc64le:
       this->MCountName = "_mcount";
@@ -673,6 +680,9 @@ protected:
 
     Builder.defineMacro("_AIX");
 
+    if (Opts.EnableAIXExtendedAltivecABI)
+      Builder.defineMacro("__EXTABI__");
+
     unsigned Major, Minor, Micro;
     Triple.getOSVersion(Major, Minor, Micro);
 
@@ -724,6 +734,66 @@ public:
   // AIX sets FLT_EVAL_METHOD to be 1.
   unsigned getFloatEvalMethod() const override { return 1; }
   bool hasInt128Type() const override { return false; }
+
+  bool defaultsToAIXPowerAlignment() const override { return true; }
+};
+
+// z/OS target
+template <typename Target>
+class LLVM_LIBRARY_VISIBILITY ZOSTargetInfo : public OSTargetInfo<Target> {
+protected:
+  void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
+                    MacroBuilder &Builder) const override {
+    // FIXME: _LONG_LONG should not be defined under -std=c89.
+    Builder.defineMacro("_LONG_LONG");
+    Builder.defineMacro("_OPEN_DEFAULT");
+    // _UNIX03_WITHDRAWN is required to build libcxx.
+    Builder.defineMacro("_UNIX03_WITHDRAWN");
+    Builder.defineMacro("__370__");
+    Builder.defineMacro("__BFP__");
+    // FIXME: __BOOL__ should not be defined under -std=c89.
+    Builder.defineMacro("__BOOL__");
+    Builder.defineMacro("__LONGNAME__");
+    Builder.defineMacro("__MVS__");
+    Builder.defineMacro("__THW_370__");
+    Builder.defineMacro("__THW_BIG_ENDIAN__");
+    Builder.defineMacro("__TOS_390__");
+    Builder.defineMacro("__TOS_MVS__");
+    Builder.defineMacro("__XPLINK__");
+
+    if (this->PointerWidth == 64)
+      Builder.defineMacro("__64BIT__");
+
+    if (Opts.CPlusPlus) {
+      Builder.defineMacro("__DLL__");
+      // _XOPEN_SOURCE=600 is required to build libcxx.
+      Builder.defineMacro("_XOPEN_SOURCE", "600");
+    }
+
+    if (Opts.GNUMode) {
+      Builder.defineMacro("_MI_BUILTIN");
+      Builder.defineMacro("_EXT");
+    }
+
+    if (Opts.CPlusPlus && Opts.WChar) {
+      // Macro __wchar_t is defined so that the wchar_t data
+      // type is not declared as a typedef in system headers.
+      Builder.defineMacro("__wchar_t");
+    }
+
+    this->PlatformName = llvm::Triple::getOSTypeName(Triple.getOS());
+  }
+
+public:
+  ZOSTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts)
+      : OSTargetInfo<Target>(Triple, Opts) {
+    this->WCharType = TargetInfo::UnsignedInt;
+    this->UseBitFieldTypeAlignment = false;
+    this->UseZeroLengthBitfieldAlignment = true;
+    this->ZeroLengthBitfieldBoundary = 32;
+    this->MinGlobalAlign = 0;
+    this->DefaultAlignForAttributeAligned = 128;
+  }
 };
 
 void addWindowsDefines(const llvm::Triple &Triple, const LangOptions &Opts,

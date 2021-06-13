@@ -9,6 +9,7 @@ SRCS+=		PipelinePrinter.cpp
 SRCS+=		Views/BottleneckAnalysis.cpp
 SRCS+=		Views/DispatchStatistics.cpp
 SRCS+=		Views/InstructionInfoView.cpp
+SRCS+=		Views/InstructionView.cpp
 SRCS+=		Views/RegisterFileStatistics.cpp
 SRCS+=		Views/ResourcePressureView.cpp
 SRCS+=		Views/RetireControlUnitStatistics.cpp

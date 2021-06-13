@@ -59,10 +59,8 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
@@ -309,10 +307,8 @@ struct InstructionMapper {
       // repeated substring.
       mapToIllegalUnsigned(It, CanOutlineWithPrevInstr, UnsignedVecForMBB,
                            InstrListForMBB);
-      InstrList.insert(InstrList.end(), InstrListForMBB.begin(),
-                       InstrListForMBB.end());
-      UnsignedVec.insert(UnsignedVec.end(), UnsignedVecForMBB.begin(),
-                         UnsignedVecForMBB.end());
+      llvm::append_range(InstrList, InstrListForMBB);
+      llvm::append_range(UnsignedVec, UnsignedVecForMBB);
     }
   }
 
@@ -549,11 +545,10 @@ void MachineOutliner::findCandidates(
       // That is, one must either
       // * End before the other starts
       // * Start after the other ends
-      if (std::all_of(
-              CandidatesForRepeatedSeq.begin(), CandidatesForRepeatedSeq.end(),
-              [&StartIdx, &EndIdx](const Candidate &C) {
-                return (EndIdx < C.getStartIdx() || StartIdx > C.getEndIdx());
-              })) {
+      if (llvm::all_of(CandidatesForRepeatedSeq, [&StartIdx,
+                                                  &EndIdx](const Candidate &C) {
+            return (EndIdx < C.getStartIdx() || StartIdx > C.getEndIdx());
+          })) {
         // It doesn't overlap with anything, so we can outline it.
         // Each sequence is over [StartIt, EndIt].
         // Save the candidate and its location.
@@ -656,6 +651,8 @@ MachineFunction *MachineOutliner::createOutlinedFunction(
       OriginalMF->getFrameInstructions();
   for (auto I = FirstCand.front(), E = std::next(FirstCand.back()); I != E;
        ++I) {
+    if (I->isDebugInstr())
+      continue;
     MachineInstr *NewMI = MF.CloneMachineInstr(&*I);
     if (I->isCFIInstruction()) {
       unsigned CFIIndex = NewMI->getOperand(0).getCFIIndex();
@@ -691,7 +688,7 @@ MachineFunction *MachineOutliner::createOutlinedFunction(
 
     // The live-in set for the outlined function is the union of the live-ins
     // from all the outlining points.
-    for (MCPhysReg Reg : make_range(CandLiveIns.begin(), CandLiveIns.end()))
+    for (MCPhysReg Reg : CandLiveIns)
       LiveIns.addReg(Reg);
   }
   addLiveIns(MBB, LiveIns);

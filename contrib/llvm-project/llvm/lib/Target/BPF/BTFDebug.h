@@ -16,7 +16,8 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/DebugHandlerBase.h"
-#include "llvm/CodeGen/MachineInstr.h"
+#include <cstdint>
+#include <map>
 #include <set>
 #include <unordered_map>
 #include "BTF.h"
@@ -27,9 +28,12 @@ class AsmPrinter;
 class BTFDebug;
 class DIType;
 class GlobalVariable;
+class MachineFunction;
+class MachineInstr;
+class MachineOperand;
+class MCInst;
 class MCStreamer;
 class MCSymbol;
-class MachineFunction;
 
 /// The base class for BTF type generation.
 class BTFTypeBase {
@@ -251,7 +255,7 @@ class BTFDebug : public DebugHandlerBase {
   StringMap<std::vector<std::string>> FileContent;
   std::map<std::string, std::unique_ptr<BTFKindDataSec>> DataSecEntries;
   std::vector<BTFTypeStruct *> StructTypes;
-  std::map<const GlobalVariable *, uint32_t> PatchImms;
+  std::map<const GlobalVariable *, std::pair<int64_t, uint32_t>> PatchImms;
   std::map<StringRef, std::pair<bool, std::vector<BTFTypeDerived *>>>
       FixupDerivedTypes;
   std::set<const Function *>ProtoFunctions;

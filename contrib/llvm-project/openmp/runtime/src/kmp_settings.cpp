@@ -397,7 +397,7 @@ static void __kmp_stg_parse_int(
     KMP_INFORM(Using_uint64_Value, name, buf.str);
     __kmp_str_buf_free(&buf);
   }
-  *out = uint;
+  __kmp_type_convert(uint, out);
 } // __kmp_stg_parse_int
 
 #if KMP_DEBUG_ADAPTIVE_LOCKS
@@ -503,6 +503,11 @@ int __kmp_initial_threads_capacity(int req_nproc) {
   if (nth < (4 * __kmp_xproc))
     nth = (4 * __kmp_xproc);
 
+  // If hidden helper task is enabled, we initialize the thread capacity with
+  // extra
+  // __kmp_hidden_helper_threads_num.
+  nth += __kmp_hidden_helper_threads_num;
+
   if (nth > __kmp_max_nth)
     nth = __kmp_max_nth;
 
@@ -549,7 +554,6 @@ static void __kmp_stg_print_int(kmp_str_buf_t *buffer, char const *name,
   }
 } // __kmp_stg_print_int
 
-#if USE_ITT_BUILD && USE_ITT_NOTIFY
 static void __kmp_stg_print_uint64(kmp_str_buf_t *buffer, char const *name,
                                    kmp_uint64 value) {
   if (__kmp_env_format) {
@@ -558,7 +562,6 @@ static void __kmp_stg_print_uint64(kmp_str_buf_t *buffer, char const *name,
     __kmp_str_buf_print(buffer, "   %s=%" KMP_UINT64_SPEC "\n", name, value);
   }
 } // __kmp_stg_print_uint64
-#endif
 
 static void __kmp_stg_print_str(kmp_str_buf_t *buffer, char const *name,
                                 char const *value) {
@@ -1163,6 +1166,39 @@ static void __kmp_stg_parse_num_threads(char const *name, char const *value,
   K_DIAG(1, ("__kmp_dflt_team_nth == %d\n", __kmp_dflt_team_nth));
 } // __kmp_stg_parse_num_threads
 
+static void __kmp_stg_parse_num_hidden_helper_threads(char const *name,
+                                                      char const *value,
+                                                      void *data) {
+  __kmp_stg_parse_int(name, value, 0, 16, &__kmp_hidden_helper_threads_num);
+  // If the number of hidden helper threads is zero, we disable hidden helper
+  // task
+  if (__kmp_hidden_helper_threads_num == 0) {
+    __kmp_enable_hidden_helper = FALSE;
+  }
+} // __kmp_stg_parse_num_hidden_helper_threads
+
+static void __kmp_stg_print_num_hidden_helper_threads(kmp_str_buf_t *buffer,
+                                                      char const *name,
+                                                      void *data) {
+  __kmp_stg_print_int(buffer, name, __kmp_hidden_helper_threads_num);
+} // __kmp_stg_print_num_hidden_helper_threads
+
+static void __kmp_stg_parse_use_hidden_helper(char const *name,
+                                              char const *value, void *data) {
+  __kmp_stg_parse_bool(name, value, &__kmp_enable_hidden_helper);
+#if !KMP_OS_LINUX
+  __kmp_enable_hidden_helper = FALSE;
+  K_DIAG(1,
+         ("__kmp_stg_parse_use_hidden_helper: Disable hidden helper task on "
+          "non-Linux platform although it is enabled by user explicitly.\n"));
+#endif
+} // __kmp_stg_parse_use_hidden_helper
+
+static void __kmp_stg_print_use_hidden_helper(kmp_str_buf_t *buffer,
+                                              char const *name, void *data) {
+  __kmp_stg_print_bool(buffer, name, __kmp_enable_hidden_helper);
+} // __kmp_stg_print_use_hidden_helper
+
 static void __kmp_stg_print_num_threads(kmp_str_buf_t *buffer, char const *name,
                                         void *data) {
   if (__kmp_env_format) {
@@ -1225,7 +1261,7 @@ static void __kmp_stg_parse_max_active_levels(char const *name,
       msg = KMP_I18N_STR(ValueTooLarge);
       KMP_WARNING(ParseSizeIntWarn, name, value, msg);
     } else { // valid setting
-      __kmp_dflt_max_active_levels = tmp_dflt;
+      __kmp_type_convert(tmp_dflt, &(__kmp_dflt_max_active_levels));
       __kmp_dflt_max_active_levels_set = true;
     }
   }
@@ -1315,7 +1351,7 @@ static void __kmp_stg_parse_taskloop_min_tasks(char const *name,
 
 static void __kmp_stg_print_taskloop_min_tasks(kmp_str_buf_t *buffer,
                                                char const *name, void *data) {
-  __kmp_stg_print_int(buffer, name, __kmp_taskloop_min_tasks);
+  __kmp_stg_print_uint64(buffer, name, __kmp_taskloop_min_tasks);
 } // __kmp_stg_print_taskloop_min_tasks
 
 // -----------------------------------------------------------------------------
@@ -1986,7 +2022,7 @@ static int __kmp_parse_affinity_proc_id_list(const char *var, const char *env,
   *nextEnv = next;
 
   {
-    int len = next - env;
+    ptrdiff_t len = next - env;
     char *retlist = (char *)__kmp_allocate((len + 1) * sizeof(char));
     KMP_MEMCPY_S(retlist, (len + 1) * sizeof(char), env, len * sizeof(char));
     retlist[len] = '\0';
@@ -2769,7 +2805,7 @@ static int __kmp_parse_place_list(const char *var, const char *env,
   }
 
   {
-    int len = scan - env;
+    ptrdiff_t len = scan - env;
     char *retlist = (char *)__kmp_allocate((len + 1) * sizeof(char));
     KMP_MEMCPY_S(retlist, (len + 1) * sizeof(char), env, len * sizeof(char));
     retlist[len] = '\0';
@@ -3274,122 +3310,337 @@ static void __kmp_stg_print_affinity_format(kmp_str_buf_t *buffer,
   }
   __kmp_str_buf_print(buffer, "%s'\n", __kmp_affinity_format);
 }
-// OMP_ALLOCATOR sets default allocator
+
+/*-----------------------------------------------------------------------------
+OMP_ALLOCATOR sets default allocator. Here is the grammar:
+
+<allocator>        |= <predef-allocator> | <predef-mem-space> |
+                      <predef-mem-space>:<traits>
+<traits>           |= <trait>=<value> | <trait>=<value>,<traits>
+<predef-allocator> |= omp_default_mem_alloc | omp_large_cap_mem_alloc |
+                      omp_const_mem_alloc | omp_high_bw_mem_alloc |
+                      omp_low_lat_mem_alloc | omp_cgroup_mem_alloc |
+                      omp_pteam_mem_alloc | omp_thread_mem_alloc
+<predef-mem-space> |= omp_default_mem_space | omp_large_cap_mem_space |
+                      omp_const_mem_space | omp_high_bw_mem_space |
+                      omp_low_lat_mem_space
+<trait>            |= sync_hint | alignment | access | pool_size | fallback |
+                      fb_data | pinned | partition
+<value>            |= one of the allowed values of trait |
+                      non-negative integer | <predef-allocator>
+-----------------------------------------------------------------------------*/
+
 static void __kmp_stg_parse_allocator(char const *name, char const *value,
                                       void *data) {
-  /*
-    The value can be any predefined allocator:
-    omp_default_mem_alloc = 1;
-    omp_large_cap_mem_alloc = 2;
-    omp_const_mem_alloc = 3;
-    omp_high_bw_mem_alloc = 4;
-    omp_low_lat_mem_alloc = 5;
-    omp_cgroup_mem_alloc = 6;
-    omp_pteam_mem_alloc = 7;
-    omp_thread_mem_alloc = 8;
-    Acceptable value is either a digit or a string.
-  */
   const char *buf = value;
-  const char *next;
-  int num;
+  const char *next, *scan, *start;
+  char *key;
+  omp_allocator_handle_t al;
+  omp_memspace_handle_t ms = omp_default_mem_space;
+  bool is_memspace = false;
+  int ntraits = 0, count = 0;
+
   SKIP_WS(buf);
-  if ((*buf > '0') && (*buf < '9')) {
-    next = buf;
-    SKIP_DIGITS(next);
-    num = __kmp_str_to_int(buf, *next);
-    KMP_ASSERT(num > 0);
-    switch (num) {
-    case 4:
-      if (__kmp_memkind_available) {
-        __kmp_def_allocator = omp_high_bw_mem_alloc;
-      } else {
-        __kmp_msg(kmp_ms_warning,
-                  KMP_MSG(OmpNoAllocator, "omp_high_bw_mem_alloc"),
-                  __kmp_msg_null);
-        __kmp_def_allocator = omp_default_mem_alloc;
-      }
-      break;
-    case 1:
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 2:
-      __kmp_msg(kmp_ms_warning,
-                KMP_MSG(OmpNoAllocator, "omp_large_cap_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 3:
-      __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_const_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 5:
-      __kmp_msg(kmp_ms_warning,
-                KMP_MSG(OmpNoAllocator, "omp_low_lat_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 6:
-      __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_cgroup_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 7:
-      __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_pteam_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    case 8:
-      __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_thread_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
-      break;
-    }
-    return;
-  }
   next = buf;
-  if (__kmp_match_str("omp_high_bw_mem_alloc", buf, &next)) {
-    if (__kmp_memkind_available) {
-      __kmp_def_allocator = omp_high_bw_mem_alloc;
-    } else {
-      __kmp_msg(kmp_ms_warning,
-                KMP_MSG(OmpNoAllocator, "omp_high_bw_mem_alloc"),
-                __kmp_msg_null);
-      __kmp_def_allocator = omp_default_mem_alloc;
+  const char *delim = strchr(buf, ':');
+  const char *predef_mem_space = strstr(buf, "mem_space");
+
+  bool is_memalloc = (!predef_mem_space && !delim) ? true : false;
+
+  // Count the number of traits in the env var string
+  if (delim) {
+    ntraits = 1;
+    for (scan = buf; *scan != '\0'; scan++) {
+      if (*scan == ',')
+        ntraits++;
     }
-  } else if (__kmp_match_str("omp_default_mem_alloc", buf, &next)) {
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_large_cap_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning,
-              KMP_MSG(OmpNoAllocator, "omp_large_cap_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_const_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_const_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_low_lat_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_low_lat_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_cgroup_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_cgroup_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_pteam_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_pteam_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
-  } else if (__kmp_match_str("omp_thread_mem_alloc", buf, &next)) {
-    __kmp_msg(kmp_ms_warning, KMP_MSG(OmpNoAllocator, "omp_thread_mem_alloc"),
-              __kmp_msg_null);
-    __kmp_def_allocator = omp_default_mem_alloc;
   }
-  buf = next;
-  SKIP_WS(buf);
-  if (*buf != '\0') {
-    KMP_WARNING(ParseExtraCharsWarn, name, buf);
+  omp_alloctrait_t traits[ntraits];
+
+// Helper macros
+#define IS_POWER_OF_TWO(n) (((n) & ((n)-1)) == 0)
+
+#define GET_NEXT(sentinel)                                                     \
+  {                                                                            \
+    SKIP_WS(next);                                                             \
+    if (*next == sentinel)                                                     \
+      next++;                                                                  \
+    SKIP_WS(next);                                                             \
+    scan = next;                                                               \
   }
+
+#define SKIP_PAIR(key)                                                         \
+  {                                                                            \
+    char const str_delimiter[] = {',', 0};                                     \
+    char *value = __kmp_str_token(CCAST(char *, scan), str_delimiter,          \
+                                  CCAST(char **, &next));                      \
+    KMP_WARNING(StgInvalidValue, key, value);                                  \
+    ntraits--;                                                                 \
+    SKIP_WS(next);                                                             \
+    scan = next;                                                               \
+  }
+
+#define SET_KEY()                                                              \
+  {                                                                            \
+    char const str_delimiter[] = {'=', 0};                                     \
+    key = __kmp_str_token(CCAST(char *, start), str_delimiter,                 \
+                          CCAST(char **, &next));                              \
+    scan = next;                                                               \
+  }
+
+  scan = next;
+  while (*next != '\0') {
+    if (is_memalloc ||
+        __kmp_match_str("fb_data", scan, &next)) { // allocator check
+      start = scan;
+      GET_NEXT('=');
+      // check HBW and LCAP first as the only non-default supported
+      if (__kmp_match_str("omp_high_bw_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          if (__kmp_memkind_available) {
+            __kmp_def_allocator = omp_high_bw_mem_alloc;
+            return;
+          } else {
+            KMP_WARNING(OmpNoAllocator, "omp_high_bw_mem_alloc");
+          }
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_high_bw_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_large_cap_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          if (__kmp_memkind_available) {
+            __kmp_def_allocator = omp_large_cap_mem_alloc;
+            return;
+          } else {
+            KMP_WARNING(OmpNoAllocator, "omp_large_cap_mem_alloc");
+          }
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_large_cap_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_default_mem_alloc", scan, &next)) {
+        // default requested
+        SKIP_WS(next);
+        if (!is_memalloc) {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_default_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_const_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          KMP_WARNING(OmpNoAllocator, "omp_const_mem_alloc");
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_const_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_low_lat_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          KMP_WARNING(OmpNoAllocator, "omp_low_lat_mem_alloc");
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_low_lat_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_cgroup_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          KMP_WARNING(OmpNoAllocator, "omp_cgroup_mem_alloc");
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_cgroup_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_pteam_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          KMP_WARNING(OmpNoAllocator, "omp_pteam_mem_alloc");
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_pteam_mem_alloc);
+        }
+      } else if (__kmp_match_str("omp_thread_mem_alloc", scan, &next)) {
+        SKIP_WS(next);
+        if (is_memalloc) {
+          KMP_WARNING(OmpNoAllocator, "omp_thread_mem_alloc");
+        } else {
+          traits[count].key = omp_atk_fb_data;
+          traits[count].value = RCAST(omp_uintptr_t, omp_thread_mem_alloc);
+        }
+      } else {
+        if (!is_memalloc) {
+          SET_KEY();
+          SKIP_PAIR(key);
+          continue;
+        }
+      }
+      if (is_memalloc) {
+        __kmp_def_allocator = omp_default_mem_alloc;
+        if (next == buf || *next != '\0') {
+          // either no match or extra symbols present after the matched token
+          KMP_WARNING(StgInvalidValue, name, value);
+        }
+        return;
+      } else {
+        ++count;
+        if (count == ntraits)
+          break;
+        GET_NEXT(',');
+      }
+    } else { // memspace
+      if (!is_memspace) {
+        if (__kmp_match_str("omp_default_mem_space", scan, &next)) {
+          SKIP_WS(next);
+          ms = omp_default_mem_space;
+        } else if (__kmp_match_str("omp_large_cap_mem_space", scan, &next)) {
+          SKIP_WS(next);
+          ms = omp_large_cap_mem_space;
+        } else if (__kmp_match_str("omp_const_mem_space", scan, &next)) {
+          SKIP_WS(next);
+          ms = omp_const_mem_space;
+        } else if (__kmp_match_str("omp_high_bw_mem_space", scan, &next)) {
+          SKIP_WS(next);
+          ms = omp_high_bw_mem_space;
+        } else if (__kmp_match_str("omp_low_lat_mem_space", scan, &next)) {
+          SKIP_WS(next);
+          ms = omp_low_lat_mem_space;
+        } else {
+          __kmp_def_allocator = omp_default_mem_alloc;
+          if (next == buf || *next != '\0') {
+            // either no match or extra symbols present after the matched token
+            KMP_WARNING(StgInvalidValue, name, value);
+          }
+          return;
+        }
+        is_memspace = true;
+      }
+      if (delim) { // traits
+        GET_NEXT(':');
+        start = scan;
+        if (__kmp_match_str("sync_hint", scan, &next)) {
+          GET_NEXT('=');
+          traits[count].key = omp_atk_sync_hint;
+          if (__kmp_match_str("contended", scan, &next)) {
+            traits[count].value = omp_atv_contended;
+          } else if (__kmp_match_str("uncontended", scan, &next)) {
+            traits[count].value = omp_atv_uncontended;
+          } else if (__kmp_match_str("serialized", scan, &next)) {
+            traits[count].value = omp_atv_serialized;
+          } else if (__kmp_match_str("private", scan, &next)) {
+            traits[count].value = omp_atv_private;
+          } else {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+        } else if (__kmp_match_str("alignment", scan, &next)) {
+          GET_NEXT('=');
+          if (!isdigit(*next)) {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+          SKIP_DIGITS(next);
+          int n = __kmp_str_to_int(scan, ',');
+          if (n < 0 || !IS_POWER_OF_TWO(n)) {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+          traits[count].key = omp_atk_alignment;
+          traits[count].value = n;
+        } else if (__kmp_match_str("access", scan, &next)) {
+          GET_NEXT('=');
+          traits[count].key = omp_atk_access;
+          if (__kmp_match_str("all", scan, &next)) {
+            traits[count].value = omp_atv_all;
+          } else if (__kmp_match_str("cgroup", scan, &next)) {
+            traits[count].value = omp_atv_cgroup;
+          } else if (__kmp_match_str("pteam", scan, &next)) {
+            traits[count].value = omp_atv_pteam;
+          } else if (__kmp_match_str("thread", scan, &next)) {
+            traits[count].value = omp_atv_thread;
+          } else {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+        } else if (__kmp_match_str("pool_size", scan, &next)) {
+          GET_NEXT('=');
+          if (!isdigit(*next)) {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+          SKIP_DIGITS(next);
+          int n = __kmp_str_to_int(scan, ',');
+          if (n < 0) {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+          traits[count].key = omp_atk_pool_size;
+          traits[count].value = n;
+        } else if (__kmp_match_str("fallback", scan, &next)) {
+          GET_NEXT('=');
+          traits[count].key = omp_atk_fallback;
+          if (__kmp_match_str("default_mem_fb", scan, &next)) {
+            traits[count].value = omp_atv_default_mem_fb;
+          } else if (__kmp_match_str("null_fb", scan, &next)) {
+            traits[count].value = omp_atv_null_fb;
+          } else if (__kmp_match_str("abort_fb", scan, &next)) {
+            traits[count].value = omp_atv_abort_fb;
+          } else if (__kmp_match_str("allocator_fb", scan, &next)) {
+            traits[count].value = omp_atv_allocator_fb;
+          } else {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+        } else if (__kmp_match_str("pinned", scan, &next)) {
+          GET_NEXT('=');
+          traits[count].key = omp_atk_pinned;
+          if (__kmp_str_match_true(next)) {
+            traits[count].value = omp_atv_true;
+          } else if (__kmp_str_match_false(next)) {
+            traits[count].value = omp_atv_false;
+          } else {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+        } else if (__kmp_match_str("partition", scan, &next)) {
+          GET_NEXT('=');
+          traits[count].key = omp_atk_partition;
+          if (__kmp_match_str("environment", scan, &next)) {
+            traits[count].value = omp_atv_environment;
+          } else if (__kmp_match_str("nearest", scan, &next)) {
+            traits[count].value = omp_atv_nearest;
+          } else if (__kmp_match_str("blocked", scan, &next)) {
+            traits[count].value = omp_atv_blocked;
+          } else if (__kmp_match_str("interleaved", scan, &next)) {
+            traits[count].value = omp_atv_interleaved;
+          } else {
+            SET_KEY();
+            SKIP_PAIR(key);
+            continue;
+          }
+        } else {
+          SET_KEY();
+          SKIP_PAIR(key);
+          continue;
+        }
+        SKIP_WS(next);
+        ++count;
+        if (count == ntraits)
+          break;
+        GET_NEXT(',');
+      } // traits
+    } // memspace
+  } // while
+  al = __kmpc_init_allocator(__kmp_get_gtid(), ms, ntraits, traits);
+  __kmp_def_allocator = (al == omp_null_allocator) ? omp_default_mem_alloc : al;
 }
 
 static void __kmp_stg_print_allocator(kmp_str_buf_t *buffer, char const *name,
@@ -4102,13 +4353,22 @@ static void __kmp_stg_parse_lock_kind(char const *name, char const *value,
   }
 #endif // KMP_USE_ADAPTIVE_LOCKS
 #if KMP_USE_DYNAMIC_LOCK && KMP_USE_TSX
-  else if (__kmp_str_match("rtm", 1, value)) {
+  else if (__kmp_str_match("rtm_queuing", 1, value)) {
     if (__kmp_cpuinfo.rtm) {
-      __kmp_user_lock_kind = lk_rtm;
-      KMP_STORE_LOCK_SEQ(rtm);
+      __kmp_user_lock_kind = lk_rtm_queuing;
+      KMP_STORE_LOCK_SEQ(rtm_queuing);
     } else {
       KMP_WARNING(AdaptiveNotSupported, name, value);
       __kmp_user_lock_kind = lk_queuing;
+      KMP_STORE_LOCK_SEQ(queuing);
+    }
+  } else if (__kmp_str_match("rtm_spin", 1, value)) {
+    if (__kmp_cpuinfo.rtm) {
+      __kmp_user_lock_kind = lk_rtm_spin;
+      KMP_STORE_LOCK_SEQ(rtm_spin);
+    } else {
+      KMP_WARNING(AdaptiveNotSupported, name, value);
+      __kmp_user_lock_kind = lk_tas;
       KMP_STORE_LOCK_SEQ(queuing);
     }
   } else if (__kmp_str_match("hle", 1, value)) {
@@ -4141,8 +4401,12 @@ static void __kmp_stg_print_lock_kind(kmp_str_buf_t *buffer, char const *name,
 #endif
 
 #if KMP_USE_DYNAMIC_LOCK && KMP_USE_TSX
-  case lk_rtm:
-    value = "rtm";
+  case lk_rtm_queuing:
+    value = "rtm_queuing";
+    break;
+
+  case lk_rtm_spin:
+    value = "rtm_spin";
     break;
 
   case lk_hle:
@@ -4425,7 +4689,7 @@ static void __kmp_stg_parse_hw_subset(char const *name, char const *value,
       if (len == 0 && *pos == ':') {
         __kmp_hws_abs_flag = 1; // if the first symbol is ":", skip it
       } else {
-        input[len] = toupper(*pos);
+        input[len] = (char)(toupper(*pos));
         if (input[len] == 'X')
           input[len] = ','; // unify delimiters of levels
         if (input[len] == 'O' && strchr(digits, *(pos + 1)))
@@ -4621,6 +4885,35 @@ static void __kmp_stg_print_task_throttling(kmp_str_buf_t *buffer,
   __kmp_stg_print_bool(buffer, name, __kmp_enable_task_throttling);
 } // __kmp_stg_print_task_throttling
 
+#if KMP_HAVE_MWAIT || KMP_HAVE_UMWAIT
+// -----------------------------------------------------------------------------
+// KMP_USER_LEVEL_MWAIT
+
+static void __kmp_stg_parse_user_level_mwait(char const *name,
+                                             char const *value, void *data) {
+  __kmp_stg_parse_bool(name, value, &__kmp_user_level_mwait);
+} // __kmp_stg_parse_user_level_mwait
+
+static void __kmp_stg_print_user_level_mwait(kmp_str_buf_t *buffer,
+                                             char const *name, void *data) {
+  __kmp_stg_print_bool(buffer, name, __kmp_user_level_mwait);
+} // __kmp_stg_print_user_level_mwait
+
+// -----------------------------------------------------------------------------
+// KMP_MWAIT_HINTS
+
+static void __kmp_stg_parse_mwait_hints(char const *name, char const *value,
+                                        void *data) {
+  __kmp_stg_parse_int(name, value, 0, INT_MAX, &__kmp_mwait_hints);
+} // __kmp_stg_parse_mwait_hints
+
+static void __kmp_stg_print_mwait_hints(kmp_str_buf_t *buffer, char const *name,
+                                        void *data) {
+  __kmp_stg_print_int(buffer, name, __kmp_mwait_hints);
+} // __kmp_stg_print_mwait_hints
+
+#endif // KMP_HAVE_MWAIT || KMP_HAVE_UMWAIT
+
 // -----------------------------------------------------------------------------
 // OMP_DISPLAY_ENV
 
@@ -4694,6 +4987,27 @@ static void __kmp_stg_print_omp_tool_libraries(kmp_str_buf_t *buffer,
     __kmp_str_buf_print(buffer, ": %s\n", KMP_I18N_STR(NotDefined));
   }
 } // __kmp_stg_print_omp_tool_libraries
+
+static char *__kmp_tool_verbose_init = NULL;
+
+static void __kmp_stg_parse_omp_tool_verbose_init(char const *name,
+                                                  char const *value, void *data) {
+  __kmp_stg_parse_str(name, value, &__kmp_tool_verbose_init);
+} // __kmp_stg_parse_omp_tool_libraries
+
+static void __kmp_stg_print_omp_tool_verbose_init(kmp_str_buf_t *buffer,
+                                                  char const *name, void *data) {
+  if (__kmp_tool_verbose_init)
+    __kmp_stg_print_str(buffer, name, __kmp_tool_libraries);
+  else {
+    if (__kmp_env_format) {
+      KMP_STR_BUF_PRINT_NAME;
+    } else {
+      __kmp_str_buf_print(buffer, "   %s", name);
+    }
+    __kmp_str_buf_print(buffer, ": %s\n", KMP_I18N_STR(NotDefined));
+  }
+} // __kmp_stg_print_omp_tool_verbose_init
 
 #endif
 
@@ -4931,14 +5245,27 @@ static kmp_setting_t __kmp_stg_table[] = {
      __kmp_stg_print_omp_cancellation, NULL, 0, 0},
     {"OMP_ALLOCATOR", __kmp_stg_parse_allocator, __kmp_stg_print_allocator,
      NULL, 0, 0},
+    {"LIBOMP_USE_HIDDEN_HELPER_TASK", __kmp_stg_parse_use_hidden_helper,
+     __kmp_stg_print_use_hidden_helper, NULL, 0, 0},
+    {"LIBOMP_NUM_HIDDEN_HELPER_THREADS",
+     __kmp_stg_parse_num_hidden_helper_threads,
+     __kmp_stg_print_num_hidden_helper_threads, NULL, 0, 0},
 
 #if OMPT_SUPPORT
     {"OMP_TOOL", __kmp_stg_parse_omp_tool, __kmp_stg_print_omp_tool, NULL, 0,
      0},
     {"OMP_TOOL_LIBRARIES", __kmp_stg_parse_omp_tool_libraries,
      __kmp_stg_print_omp_tool_libraries, NULL, 0, 0},
+    {"OMP_TOOL_VERBOSE_INIT", __kmp_stg_parse_omp_tool_verbose_init,
+     __kmp_stg_print_omp_tool_verbose_init, NULL, 0, 0},
 #endif
 
+#if KMP_HAVE_MWAIT || KMP_HAVE_UMWAIT
+    {"KMP_USER_LEVEL_MWAIT", __kmp_stg_parse_user_level_mwait,
+     __kmp_stg_print_user_level_mwait, NULL, 0, 0},
+    {"KMP_MWAIT_HINTS", __kmp_stg_parse_mwait_hints,
+     __kmp_stg_print_mwait_hints, NULL, 0, 0},
+#endif
     {"", NULL, NULL, NULL, 0, 0}}; // settings
 
 static int const __kmp_stg_count =

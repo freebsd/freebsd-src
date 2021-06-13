@@ -42,8 +42,6 @@ public:
     return GetStaticBroadcasterClass();
   }
 
-  ~TargetList() override;
-
   /// Create a new Target.
   ///
   /// Clients must use this function to create a Target. This allows
@@ -175,7 +173,9 @@ public:
 
   uint32_t SignalIfRunning(lldb::pid_t pid, int signo);
 
-  uint32_t SetSelectedTarget(Target *target);
+  void SetSelectedTarget(uint32_t index);
+
+  void SetSelectedTarget(const lldb::TargetSP &target);
 
   lldb::TargetSP GetSelectedTarget();
 
@@ -183,28 +183,25 @@ protected:
   typedef std::vector<lldb::TargetSP> collection;
   // Member variables.
   collection m_target_list;
-  lldb::TargetSP m_dummy_target_sp;
   mutable std::recursive_mutex m_target_list_mutex;
   uint32_t m_selected_target_idx;
 
 private:
-  lldb::TargetSP GetDummyTarget(lldb_private::Debugger &debugger);
+  static Status CreateTargetInternal(
+      Debugger &debugger, llvm::StringRef user_exe_path,
+      llvm::StringRef triple_str, LoadDependentFiles load_dependent_files,
+      const OptionGroupPlatform *platform_options, lldb::TargetSP &target_sp);
 
-  Status CreateDummyTarget(Debugger &debugger,
-                           llvm::StringRef specified_arch_name,
-                           lldb::TargetSP &target_sp);
+  static Status CreateTargetInternal(Debugger &debugger,
+                                     llvm::StringRef user_exe_path,
+                                     const ArchSpec &arch,
+                                     LoadDependentFiles get_dependent_modules,
+                                     lldb::PlatformSP &platform_sp,
+                                     lldb::TargetSP &target_sp);
 
-  Status CreateTargetInternal(Debugger &debugger, llvm::StringRef user_exe_path,
-                              llvm::StringRef triple_str,
-                              LoadDependentFiles load_dependent_files,
-                              const OptionGroupPlatform *platform_options,
-                              lldb::TargetSP &target_sp, bool is_dummy_target);
+  void AddTargetInternal(lldb::TargetSP target_sp, bool do_select);
 
-  Status CreateTargetInternal(Debugger &debugger, llvm::StringRef user_exe_path,
-                              const ArchSpec &arch,
-                              LoadDependentFiles get_dependent_modules,
-                              lldb::PlatformSP &platform_sp,
-                              lldb::TargetSP &target_sp, bool is_dummy_target);
+  void SetSelectedTargetInternal(uint32_t index);
 
   TargetList(const TargetList &) = delete;
   const TargetList &operator=(const TargetList &) = delete;

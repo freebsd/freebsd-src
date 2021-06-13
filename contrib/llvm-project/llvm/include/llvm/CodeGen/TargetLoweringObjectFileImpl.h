@@ -21,6 +21,7 @@ namespace llvm {
 
 class GlobalValue;
 class MachineModuleInfo;
+class MachineFunction;
 class MCContext;
 class MCExpr;
 class MCSection;
@@ -35,10 +36,9 @@ class TargetLoweringObjectFileELF : public TargetLoweringObjectFile {
 protected:
   MCSymbolRefExpr::VariantKind PLTRelativeVariantKind =
       MCSymbolRefExpr::VK_None;
-  const TargetMachine *TM = nullptr;
 
 public:
-  TargetLoweringObjectFileELF() = default;
+  TargetLoweringObjectFileELF();
   ~TargetLoweringObjectFileELF() override = default;
 
   void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
@@ -63,6 +63,8 @@ public:
 
   MCSection *getSectionForJumpTable(const Function &F,
                                     const TargetMachine &TM) const override;
+  MCSection *getSectionForLSDA(const Function &F,
+                               const TargetMachine &TM) const override;
 
   MCSection *
   getSectionForMachineBasicBlock(const Function &F,
@@ -94,6 +96,9 @@ public:
   const MCExpr *lowerRelativeReference(const GlobalValue *LHS,
                                        const GlobalValue *RHS,
                                        const TargetMachine &TM) const override;
+
+  const MCExpr *lowerDSOLocalEquivalent(const DSOLocalEquivalent *Equiv,
+                                        const TargetMachine &TM) const override;
 
   MCSection *getSectionForCommandLines() const override;
 };
@@ -143,6 +148,7 @@ public:
 
 class TargetLoweringObjectFileCOFF : public TargetLoweringObjectFile {
   mutable unsigned NextUniqueID = 0;
+  const TargetMachine *TM = nullptr;
 
 public:
   ~TargetLoweringObjectFileCOFF() override = default;
@@ -168,12 +174,6 @@ public:
   MCSection *getStaticDtorSection(unsigned Priority,
                                   const MCSymbol *KeySym) const override;
 
-  void emitLinkerFlagsForGlobal(raw_ostream &OS,
-                                const GlobalValue *GV) const override;
-
-  void emitLinkerFlagsForUsed(raw_ostream &OS,
-                              const GlobalValue *GV) const override;
-
   const MCExpr *lowerRelativeReference(const GlobalValue *LHS,
                                        const GlobalValue *RHS,
                                        const TargetMachine &TM) const override;
@@ -183,6 +183,9 @@ public:
   MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
                                    const Constant *C,
                                    Align &Alignment) const override;
+
+private:
+  void emitLinkerDirectives(MCStreamer &Streamer, Module &M) const;
 };
 
 class TargetLoweringObjectFileWasm : public TargetLoweringObjectFile {
@@ -217,6 +220,10 @@ public:
   TargetLoweringObjectFileXCOFF() = default;
   ~TargetLoweringObjectFileXCOFF() override = default;
 
+  static bool ShouldEmitEHBlock(const MachineFunction *MF);
+
+  static MCSymbol *getEHInfoTableSymbol(const MachineFunction *MF);
+
   void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
   bool shouldPutJumpTableInFunctionSection(bool UsesLabelDifference,
@@ -246,12 +253,13 @@ public:
                                    const Constant *C,
                                    Align &Alignment) const override;
 
-  static XCOFF::StorageClass getStorageClassForGlobal(const GlobalObject *GO);
+  static XCOFF::StorageClass getStorageClassForGlobal(const GlobalValue *GV);
 
   MCSection *
   getSectionForFunctionDescriptor(const Function *F,
                                   const TargetMachine &TM) const override;
-  MCSection *getSectionForTOCEntry(const MCSymbol *Sym) const override;
+  MCSection *getSectionForTOCEntry(const MCSymbol *Sym,
+                                   const TargetMachine &TM) const override;
 
   /// For external functions, this will always return a function descriptor
   /// csect.
@@ -263,7 +271,7 @@ public:
   MCSymbol *getTargetSymbol(const GlobalValue *GV,
                             const TargetMachine &TM) const override;
 
-  MCSymbol *getFunctionEntryPointSymbol(const Function *F,
+  MCSymbol *getFunctionEntryPointSymbol(const GlobalValue *Func,
                                         const TargetMachine &TM) const override;
 };
 

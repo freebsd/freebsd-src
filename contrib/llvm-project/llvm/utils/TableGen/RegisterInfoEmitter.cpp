@@ -127,7 +127,7 @@ void RegisterInfoEmitter::runEnums(raw_ostream &OS,
     OS << "  " << Reg.getName() << " = " << Reg.EnumValue << ",\n";
   assert(Registers.size() == Registers.back().EnumValue &&
          "Register enum value mismatch!");
-  OS << "  NUM_TARGET_REGS \t// " << Registers.size()+1 << "\n";
+  OS << "  NUM_TARGET_REGS // " << Registers.size()+1 << "\n";
   OS << "};\n";
   if (!Namespace.empty())
     OS << "} // end namespace " << Namespace << "\n";
@@ -146,7 +146,7 @@ void RegisterInfoEmitter::runEnums(raw_ostream &OS,
     for (const auto &RC : RegisterClasses)
       OS << "  " << RC.getName() << "RegClassID"
          << " = " << RC.EnumValue << ",\n";
-    OS << "\n  };\n";
+    OS << "\n};\n";
     if (!Namespace.empty())
       OS << "} // end namespace " << Namespace << "\n\n";
   }
@@ -323,7 +323,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
   OS << "/// Get the dimensions of register pressure impacted by this "
      << "register class.\n"
      << "/// Returns a -1 terminated array of pressure set IDs\n"
-     << "const int* " << ClassName << "::\n"
+     << "const int *" << ClassName << "::\n"
      << "getRegClassPressureSets(const TargetRegisterClass *RC) const {\n";
   OS << "  static const " << getMinimalTypeForRange(PSetsSeqs.size() - 1, 32)
      << " RCSetStartTable[] = {\n    ";
@@ -337,7 +337,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
   OS << "/// Get the dimensions of register pressure impacted by this "
      << "register unit.\n"
      << "/// Returns a -1 terminated array of pressure set IDs\n"
-     << "const int* " << ClassName << "::\n"
+     << "const int *" << ClassName << "::\n"
      << "getRegUnitPressureSets(unsigned RegUnit) const {\n"
      << "  assert(RegUnit < " << RegBank.getNumNativeRegUnits()
      << " && \"invalid register unit\");\n";
@@ -356,11 +356,10 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
 using DwarfRegNumsMapPair = std::pair<Record*, std::vector<int64_t>>;
 using DwarfRegNumsVecTy = std::vector<DwarfRegNumsMapPair>;
 
-void finalizeDwarfRegNumsKeys(DwarfRegNumsVecTy &DwarfRegNums) {
+static void finalizeDwarfRegNumsKeys(DwarfRegNumsVecTy &DwarfRegNums) {
   // Sort and unique to get a map-like vector. We want the last assignment to
   // match previous behaviour.
-  std::stable_sort(DwarfRegNums.begin(), DwarfRegNums.end(),
-                   on_first<LessRecordRegister>());
+  llvm::stable_sort(DwarfRegNums, on_first<LessRecordRegister>());
   // Warn about duplicate assignments.
   const Record *LastSeenReg = nullptr;
   for (const auto &X : DwarfRegNums) {
@@ -462,18 +461,16 @@ void RegisterInfoEmitter::EmitRegMappingTables(
 
     DefInit *DI = cast<DefInit>(V->getValue());
     Record *Alias = DI->getDef();
-    const auto &AliasIter =
-        std::lower_bound(DwarfRegNums.begin(), DwarfRegNums.end(), Alias,
-                         [](const DwarfRegNumsMapPair &A, const Record *B) {
-                           return LessRecordRegister()(A.first, B);
-                         });
+    const auto &AliasIter = llvm::lower_bound(
+        DwarfRegNums, Alias, [](const DwarfRegNumsMapPair &A, const Record *B) {
+          return LessRecordRegister()(A.first, B);
+        });
     assert(AliasIter != DwarfRegNums.end() && AliasIter->first == Alias &&
            "Expected Alias to be present in map");
-    const auto &RegIter =
-        std::lower_bound(DwarfRegNums.begin(), DwarfRegNums.end(), Reg,
-                         [](const DwarfRegNumsMapPair &A, const Record *B) {
-                           return LessRecordRegister()(A.first, B);
-                         });
+    const auto &RegIter = llvm::lower_bound(
+        DwarfRegNums, Reg, [](const DwarfRegNumsMapPair &A, const Record *B) {
+          return LessRecordRegister()(A.first, B);
+        });
     assert(RegIter != DwarfRegNums.end() && RegIter->first == Reg &&
            "Expected Reg to be present in map");
     RegIter->second = AliasIter->second;
@@ -960,7 +957,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
     const auto &RUMasks = Reg.getRegUnitLaneMasks();
     MaskVec &LaneMaskVec = RegUnitLaneMasks[i];
     assert(LaneMaskVec.empty());
-    LaneMaskVec.insert(LaneMaskVec.begin(), RUMasks.begin(), RUMasks.end());
+    llvm::append_range(LaneMaskVec, RUMasks);
     // Terminator mask should not be used inside of the list.
 #ifndef NDEBUG
     for (LaneBitmask M : LaneMaskVec) {
@@ -1167,7 +1164,7 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
        << "  LaneBitmask reverseComposeSubRegIndexLaneMaskImpl"
        << "(unsigned, LaneBitmask) const override;\n"
        << "  const TargetRegisterClass *getSubClassWithSubReg"
-       << "(const TargetRegisterClass*, unsigned) const override;\n";
+       << "(const TargetRegisterClass *, unsigned) const override;\n";
   }
   OS << "  const RegClassWeight &getRegClassWeight("
      << "const TargetRegisterClass *RC) const override;\n"
@@ -1288,7 +1285,8 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
         OS << CGH.getMode(M).Name;
       OS << ")\n";
       for (const auto &RC : RegisterClasses) {
-        assert(RC.EnumValue == EV++ && "Unexpected order of register classes");
+        assert(RC.EnumValue == EV && "Unexpected order of register classes");
+        ++EV;
         (void)EV;
         const RegSizeInfo &RI = RC.RSI.get(M);
         OS << "  { " << RI.RegSize << ", " << RI.SpillSize << ", "
@@ -1435,7 +1433,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   }
 
   OS << "\nnamespace {\n";
-  OS << "  const TargetRegisterClass* const RegisterClasses[] = {\n";
+  OS << "  const TargetRegisterClass *const RegisterClasses[] = {\n";
   for (const auto &RC : RegisterClasses)
     OS << "    &" << RC.getQualifiedName() << "RegClass,\n";
   OS << "  };\n";
@@ -1615,9 +1613,16 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
 
 void RegisterInfoEmitter::run(raw_ostream &OS) {
   CodeGenRegBank &RegBank = Target.getRegBank();
+  Records.startTimer("Print enums");
   runEnums(OS, Target, RegBank);
+
+  Records.startTimer("Print MC registers");
   runMCDesc(OS, Target, RegBank);
+
+  Records.startTimer("Print header fragment");
   runTargetHeader(OS, Target, RegBank);
+
+  Records.startTimer("Print target registers");
   runTargetDesc(OS, Target, RegBank);
 
   if (RegisterInfoDebug)

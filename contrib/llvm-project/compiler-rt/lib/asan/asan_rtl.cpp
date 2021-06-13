@@ -45,7 +45,8 @@ static void AsanDie() {
     // Don't die twice - run a busy loop.
     while (1) { }
   }
-  if (common_flags()->print_module_map >= 1) PrintModuleMap();
+  if (common_flags()->print_module_map >= 1)
+    DumpProcessMap();
   if (flags()->sleep_before_dying) {
     Report("Sleeping for %d second(s)\n", flags()->sleep_before_dying);
     SleepForSeconds(flags()->sleep_before_dying);
@@ -319,7 +320,7 @@ static void InitializeHighMemEnd() {
   kHighMemEnd = GetMaxUserVirtualAddress();
   // Increase kHighMemEnd to make sure it's properly
   // aligned together with kHighMemBeg:
-  kHighMemEnd |= SHADOW_GRANULARITY * GetMmapGranularity() - 1;
+  kHighMemEnd |= (GetMmapGranularity() << SHADOW_SCALE) - 1;
 #endif  // !ASAN_FIXED_MAPPING
   CHECK_EQ((kHighMemBeg % GetMmapGranularity()), 0);
 #endif  // !SANITIZER_MYRIAD2

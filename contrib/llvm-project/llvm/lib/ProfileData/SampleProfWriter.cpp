@@ -19,6 +19,7 @@
 
 #include "llvm/ProfileData/SampleProfWriter.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ProfileData/ProfileCommon.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/Compression.h"
@@ -73,19 +74,16 @@ SampleProfileWriter::write(const StringMap<FunctionSamples> &ProfileMap) {
   return sampleprof_error::success;
 }
 
-SecHdrTableEntry &
-SampleProfileWriterExtBinaryBase::getEntryInLayout(SecType Type) {
-  auto SecIt = std::find_if(
-      SectionHdrLayout.begin(), SectionHdrLayout.end(),
-      [=](const auto &Entry) -> bool { return Entry.Type == Type; });
-  return *SecIt;
-}
-
 /// Return the current position and prepare to use it as the start
-/// position of a section.
-uint64_t SampleProfileWriterExtBinaryBase::markSectionStart(SecType Type) {
+/// position of a section given the section type \p Type and its position
+/// \p LayoutIdx in SectionHdrLayout.
+uint64_t
+SampleProfileWriterExtBinaryBase::markSectionStart(SecType Type,
+                                                   uint32_t LayoutIdx) {
   uint64_t SectionStart = OutputStream->tell();
-  auto &Entry = getEntryInLayout(Type);
+  assert(LayoutIdx < SectionHdrLayout.size() && "LayoutIdx out of range");
+  const auto &Entry = SectionHdrLayout[LayoutIdx];
+  assert(Entry.Type == Type && "Unexpected section type");
   // Use LocalBuf as a temporary output for writting data.
   if (hasSecFlag(Entry, SecCommonFlags::SecFlagCompress))
     LocalBufStream.swap(OutputStream);
@@ -112,18 +110,21 @@ std::error_code SampleProfileWriterExtBinaryBase::compressAndOutput() {
   return sampleprof_error::success;
 }
 
-/// Add a new section into section header table.
-std::error_code
-SampleProfileWriterExtBinaryBase::addNewSection(SecType Type,
-                                                uint64_t SectionStart) {
-  auto Entry = getEntryInLayout(Type);
+/// Add a new section into section header table given the section type
+/// \p Type, its position \p LayoutIdx in SectionHdrLayout and the
+/// location \p SectionStart where the section should be written to.
+std::error_code SampleProfileWriterExtBinaryBase::addNewSection(
+    SecType Type, uint32_t LayoutIdx, uint64_t SectionStart) {
+  assert(LayoutIdx < SectionHdrLayout.size() && "LayoutIdx out of range");
+  const auto &Entry = SectionHdrLayout[LayoutIdx];
+  assert(Entry.Type == Type && "Unexpected section type");
   if (hasSecFlag(Entry, SecCommonFlags::SecFlagCompress)) {
     LocalBufStream.swap(OutputStream);
     if (std::error_code EC = compressAndOutput())
       return EC;
   }
   SecHdrTable.push_back({Type, Entry.Flags, SectionStart - FileStart,
-                         OutputStream->tell() - SectionStart});
+                         OutputStream->tell() - SectionStart, LayoutIdx});
   return sampleprof_error::success;
 }
 
@@ -144,7 +145,7 @@ std::error_code SampleProfileWriterExtBinaryBase::write(
 }
 
 std::error_code
-SampleProfileWriterExtBinary::writeSample(const FunctionSamples &S) {
+SampleProfileWriterExtBinaryBase::writeSample(const FunctionSamples &S) {
   uint64_t Offset = OutputStream->tell();
   StringRef Name = S.getName();
   FuncOffsetTable[Name] = Offset - SecLBRProfileStart;
@@ -152,7 +153,7 @@ SampleProfileWriterExtBinary::writeSample(const FunctionSamples &S) {
   return writeBody(S);
 }
 
-std::error_code SampleProfileWriterExtBinary::writeFuncOffsetTable() {
+std::error_code SampleProfileWriterExtBinaryBase::writeFuncOffsetTable() {
   auto &OS = *OutputStream;
 
   // Write out the table size.
@@ -163,10 +164,23 @@ std::error_code SampleProfileWriterExtBinary::writeFuncOffsetTable() {
     writeNameIdx(entry.first);
     encodeULEB128(entry.second, OS);
   }
+  FuncOffsetTable.clear();
   return sampleprof_error::success;
 }
 
-std::error_code SampleProfileWriterExtBinary::writeNameTable() {
+std::error_code SampleProfileWriterExtBinaryBase::writeFuncMetadata(
+    const StringMap<FunctionSamples> &Profiles) {
+  if (!FunctionSamples::ProfileIsProbeBased)
+    return sampleprof_error::success;
+  auto &OS = *OutputStream;
+  for (const auto &Entry : Profiles) {
+    writeNameIdx(Entry.first());
+    encodeULEB128(Entry.second.getFunctionHash(), OS);
+  }
+  return sampleprof_error::success;
+}
+
+std::error_code SampleProfileWriterExtBinaryBase::writeNameTable() {
   if (!UseMD5)
     return SampleProfileWriterBinary::writeNameTable();
 
@@ -174,57 +188,157 @@ std::error_code SampleProfileWriterExtBinary::writeNameTable() {
   std::set<StringRef> V;
   stablizeNameTable(V);
 
-  // Write out the name table.
+  // Write out the MD5 name table. We wrote unencoded MD5 so reader can
+  // retrieve the name using the name index without having to read the
+  // whole name table.
   encodeULEB128(NameTable.size(), OS);
-  for (auto N : V) {
-    encodeULEB128(MD5Hash(N), OS);
+  support::endian::Writer Writer(OS, support::little);
+  for (auto N : V)
+    Writer.write(MD5Hash(N));
+  return sampleprof_error::success;
+}
+
+std::error_code SampleProfileWriterExtBinaryBase::writeNameTableSection(
+    const StringMap<FunctionSamples> &ProfileMap) {
+  for (const auto &I : ProfileMap) {
+    addName(I.first());
+    addNames(I.second);
   }
+  if (auto EC = writeNameTable())
+    return EC;
+  return sampleprof_error::success;
+}
+
+std::error_code
+SampleProfileWriterExtBinaryBase::writeProfileSymbolListSection() {
+  if (ProfSymList && ProfSymList->size() > 0)
+    if (std::error_code EC = ProfSymList->write(*OutputStream))
+      return EC;
+
+  return sampleprof_error::success;
+}
+
+std::error_code SampleProfileWriterExtBinaryBase::writeOneSection(
+    SecType Type, uint32_t LayoutIdx,
+    const StringMap<FunctionSamples> &ProfileMap) {
+  // The setting of SecFlagCompress should happen before markSectionStart.
+  if (Type == SecProfileSymbolList && ProfSymList && ProfSymList->toCompress())
+    setToCompressSection(SecProfileSymbolList);
+  if (Type == SecFuncMetadata && FunctionSamples::ProfileIsProbeBased)
+    addSectionFlag(SecFuncMetadata, SecFuncMetadataFlags::SecFlagIsProbeBased);
+
+  uint64_t SectionStart = markSectionStart(Type, LayoutIdx);
+  switch (Type) {
+  case SecProfSummary:
+    computeSummary(ProfileMap);
+    if (auto EC = writeSummary())
+      return EC;
+    break;
+  case SecNameTable:
+    if (auto EC = writeNameTableSection(ProfileMap))
+      return EC;
+    break;
+  case SecLBRProfile:
+    SecLBRProfileStart = OutputStream->tell();
+    if (std::error_code EC = writeFuncProfiles(ProfileMap))
+      return EC;
+    break;
+  case SecFuncOffsetTable:
+    if (auto EC = writeFuncOffsetTable())
+      return EC;
+    break;
+  case SecFuncMetadata:
+    if (std::error_code EC = writeFuncMetadata(ProfileMap))
+      return EC;
+    break;
+  case SecProfileSymbolList:
+    if (auto EC = writeProfileSymbolListSection())
+      return EC;
+    break;
+  default:
+    if (auto EC = writeCustomSection(Type))
+      return EC;
+    break;
+  }
+  if (std::error_code EC = addNewSection(Type, LayoutIdx, SectionStart))
+    return EC;
+  return sampleprof_error::success;
+}
+
+std::error_code SampleProfileWriterExtBinary::writeDefaultLayout(
+    const StringMap<FunctionSamples> &ProfileMap) {
+  // The const indices passed to writeOneSection below are specifying the
+  // positions of the sections in SectionHdrLayout. Look at
+  // initSectionHdrLayout to find out where each section is located in
+  // SectionHdrLayout.
+  if (auto EC = writeOneSection(SecProfSummary, 0, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecNameTable, 1, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecLBRProfile, 3, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecProfileSymbolList, 4, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecFuncOffsetTable, 2, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecFuncMetadata, 5, ProfileMap))
+    return EC;
+  return sampleprof_error::success;
+}
+
+static void
+splitProfileMapToTwo(const StringMap<FunctionSamples> &ProfileMap,
+                     StringMap<FunctionSamples> &ContextProfileMap,
+                     StringMap<FunctionSamples> &NoContextProfileMap) {
+  for (const auto &I : ProfileMap) {
+    if (I.second.getCallsiteSamples().size())
+      ContextProfileMap.insert({I.first(), I.second});
+    else
+      NoContextProfileMap.insert({I.first(), I.second});
+  }
+}
+
+std::error_code SampleProfileWriterExtBinary::writeCtxSplitLayout(
+    const StringMap<FunctionSamples> &ProfileMap) {
+  StringMap<FunctionSamples> ContextProfileMap, NoContextProfileMap;
+  splitProfileMapToTwo(ProfileMap, ContextProfileMap, NoContextProfileMap);
+
+  if (auto EC = writeOneSection(SecProfSummary, 0, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecNameTable, 1, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecLBRProfile, 3, ContextProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecFuncOffsetTable, 2, ContextProfileMap))
+    return EC;
+  // Mark the section to have no context. Note section flag needs to be set
+  // before writing the section.
+  addSectionFlag(5, SecCommonFlags::SecFlagFlat);
+  if (auto EC = writeOneSection(SecLBRProfile, 5, NoContextProfileMap))
+    return EC;
+  // Mark the section to have no context. Note section flag needs to be set
+  // before writing the section.
+  addSectionFlag(4, SecCommonFlags::SecFlagFlat);
+  if (auto EC = writeOneSection(SecFuncOffsetTable, 4, NoContextProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecProfileSymbolList, 6, ProfileMap))
+    return EC;
+  if (auto EC = writeOneSection(SecFuncMetadata, 7, ProfileMap))
+    return EC;
+
   return sampleprof_error::success;
 }
 
 std::error_code SampleProfileWriterExtBinary::writeSections(
     const StringMap<FunctionSamples> &ProfileMap) {
-  uint64_t SectionStart = markSectionStart(SecProfSummary);
-  computeSummary(ProfileMap);
-  if (auto EC = writeSummary())
-    return EC;
-  if (std::error_code EC = addNewSection(SecProfSummary, SectionStart))
-    return EC;
-
-  // Generate the name table for all the functions referenced in the profile.
-  SectionStart = markSectionStart(SecNameTable);
-  for (const auto &I : ProfileMap) {
-    addName(I.first());
-    addNames(I.second);
-  }
-  writeNameTable();
-  if (std::error_code EC = addNewSection(SecNameTable, SectionStart))
-    return EC;
-
-  SectionStart = markSectionStart(SecLBRProfile);
-  SecLBRProfileStart = OutputStream->tell();
-  if (std::error_code EC = writeFuncProfiles(ProfileMap))
-    return EC;
-  if (std::error_code EC = addNewSection(SecLBRProfile, SectionStart))
-    return EC;
-
-  if (ProfSymList && ProfSymList->toCompress())
-    setToCompressSection(SecProfileSymbolList);
-
-  SectionStart = markSectionStart(SecProfileSymbolList);
-  if (ProfSymList && ProfSymList->size() > 0)
-    if (std::error_code EC = ProfSymList->write(*OutputStream))
-      return EC;
-  if (std::error_code EC = addNewSection(SecProfileSymbolList, SectionStart))
-    return EC;
-
-  SectionStart = markSectionStart(SecFuncOffsetTable);
-  if (std::error_code EC = writeFuncOffsetTable())
-    return EC;
-  if (std::error_code EC = addNewSection(SecFuncOffsetTable, SectionStart))
-    return EC;
-
-  return sampleprof_error::success;
+  std::error_code EC;
+  if (SecLayout == DefaultLayout)
+    EC = writeDefaultLayout(ProfileMap);
+  else if (SecLayout == CtxSplitLayout)
+    EC = writeCtxSplitLayout(ProfileMap);
+  else
+    llvm_unreachable("Unsupported layout");
+  return EC;
 }
 
 std::error_code SampleProfileWriterCompactBinary::write(
@@ -246,7 +360,10 @@ std::error_code SampleProfileWriterCompactBinary::write(
 /// it needs to be parsed by the SampleProfileReaderText class.
 std::error_code SampleProfileWriterText::writeSample(const FunctionSamples &S) {
   auto &OS = *OutputStream;
-  OS << S.getName() << ":" << S.getTotalSamples();
+  if (FunctionSamples::ProfileIsCS)
+    OS << "[" << S.getNameWithContext() << "]:" << S.getTotalSamples();
+  else
+    OS << S.getName() << ":" << S.getTotalSamples();
   if (Indent == 0)
     OS << ":" << S.getHeadSamples();
   OS << "\n";
@@ -284,6 +401,13 @@ std::error_code SampleProfileWriterText::writeSample(const FunctionSamples &S) {
         return EC;
     }
   Indent -= 1;
+
+  if (Indent == 0) {
+    if (FunctionSamples::ProfileIsProbeBased) {
+      OS.indent(Indent + 1);
+      OS << "!CFGChecksum: " << S.getFunctionHash() << "\n";
+    }
+  }
 
   return sampleprof_error::success;
 }
@@ -435,24 +559,31 @@ std::error_code SampleProfileWriterExtBinaryBase::writeSecHdrTable() {
     return sampleprof_error::ostream_seek_unsupported;
   support::endian::Writer Writer(*OutputStream, support::little);
 
-  DenseMap<uint32_t, uint32_t> IndexMap;
-  for (uint32_t i = 0; i < SecHdrTable.size(); i++) {
-    IndexMap.insert({static_cast<uint32_t>(SecHdrTable[i].Type), i});
+  assert(SecHdrTable.size() == SectionHdrLayout.size() &&
+         "SecHdrTable entries doesn't match SectionHdrLayout");
+  SmallVector<uint32_t, 16> IndexMap(SecHdrTable.size(), -1);
+  for (uint32_t TableIdx = 0; TableIdx < SecHdrTable.size(); TableIdx++) {
+    IndexMap[SecHdrTable[TableIdx].LayoutIndex] = TableIdx;
   }
 
   // Write the section header table in the order specified in
-  // SectionHdrLayout. That is the sections order Reader will see.
-  // Note that the sections order in which Reader expects to read
-  // may be different from the order in which Writer is able to
-  // write, so we need to adjust the order in SecHdrTable to be
-  // consistent with SectionHdrLayout when we write SecHdrTable
-  // to the memory.
-  for (uint32_t i = 0; i < SectionHdrLayout.size(); i++) {
-    uint32_t idx = IndexMap[static_cast<uint32_t>(SectionHdrLayout[i].Type)];
-    Writer.write(static_cast<uint64_t>(SecHdrTable[idx].Type));
-    Writer.write(static_cast<uint64_t>(SecHdrTable[idx].Flags));
-    Writer.write(static_cast<uint64_t>(SecHdrTable[idx].Offset));
-    Writer.write(static_cast<uint64_t>(SecHdrTable[idx].Size));
+  // SectionHdrLayout. SectionHdrLayout specifies the sections
+  // order in which profile reader expect to read, so the section
+  // header table should be written in the order in SectionHdrLayout.
+  // Note that the section order in SecHdrTable may be different
+  // from the order in SectionHdrLayout, for example, SecFuncOffsetTable
+  // needs to be computed after SecLBRProfile (the order in SecHdrTable),
+  // but it needs to be read before SecLBRProfile (the order in
+  // SectionHdrLayout). So we use IndexMap above to switch the order.
+  for (uint32_t LayoutIdx = 0; LayoutIdx < SectionHdrLayout.size();
+       LayoutIdx++) {
+    assert(IndexMap[LayoutIdx] < SecHdrTable.size() &&
+           "Incorrect LayoutIdx in SecHdrTable");
+    auto Entry = SecHdrTable[IndexMap[LayoutIdx]];
+    Writer.write(static_cast<uint64_t>(Entry.Type));
+    Writer.write(static_cast<uint64_t>(Entry.Flags));
+    Writer.write(static_cast<uint64_t>(Entry.Offset));
+    Writer.write(static_cast<uint64_t>(Entry.Size));
   }
 
   // Reset OutputStream.

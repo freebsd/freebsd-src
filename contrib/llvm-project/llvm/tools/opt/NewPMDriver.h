@@ -21,12 +21,17 @@
 #define LLVM_TOOLS_OPT_NEWPMDRIVER_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/CommandLine.h"
 
 namespace llvm {
 class StringRef;
 class Module;
 class TargetMachine;
 class ToolOutputFile;
+class TargetLibraryInfoImpl;
+
+extern cl::opt<bool> DebugifyEach;
+extern cl::opt<std::string> DebugifyExport;
 
 namespace opt_tool {
 enum OutputKind {
@@ -59,10 +64,10 @@ enum CSPGOKind { NoCSPGO, CSInstrGen, CSInstrUse };
 /// ThinLTOLinkOut is only used when OK is OK_OutputThinLTOBitcode, and can be
 /// nullptr.
 bool runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
-                     ToolOutputFile *Out, ToolOutputFile *ThinLinkOut,
-                     ToolOutputFile *OptRemarkFile, StringRef PassPipeline,
-                     ArrayRef<StringRef> PassInfos, opt_tool::OutputKind OK,
-                     opt_tool::VerifierKind VK,
+                     TargetLibraryInfoImpl *TLII, ToolOutputFile *Out,
+                     ToolOutputFile *ThinLinkOut, ToolOutputFile *OptRemarkFile,
+                     StringRef PassPipeline, ArrayRef<StringRef> PassInfos,
+                     opt_tool::OutputKind OK, opt_tool::VerifierKind VK,
                      bool ShouldPreserveAssemblyUseListOrder,
                      bool ShouldPreserveBitcodeUseListOrder,
                      bool EmitSummaryIndex, bool EmitModuleHash,

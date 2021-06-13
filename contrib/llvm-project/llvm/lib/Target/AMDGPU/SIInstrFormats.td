@@ -33,6 +33,7 @@ class InstSI <dag outs, dag ins, string asm = "",
   field bit VINTRP = 0;
   field bit SDWA = 0;
   field bit DPP = 0;
+  field bit TRANS = 0;
 
   // Memory instruction formats.
   field bit MUBUF = 0;
@@ -110,9 +111,9 @@ class InstSI <dag outs, dag ins, string asm = "",
   // This bit indicates that this is a D16 buffer instruction.
   field bit D16Buf = 0;
 
-  // This field indicates that FLAT instruction accesses FLAT_GLBL or
-  // FLAT_SCRATCH segment. Must be 0 for non-FLAT instructions.
-  field bit IsNonFlatSeg = 0;
+  // This field indicates that FLAT instruction accesses FLAT_GLBL segment.
+  // Must be 0 for non-FLAT instructions.
+  field bit IsFlatGlobal = 0;
 
   // Reads the mode register, usually for FP environment.
   field bit ReadsModeReg = 0;
@@ -129,6 +130,10 @@ class InstSI <dag outs, dag ins, string asm = "",
 
   // This bit indicates that this is one of DOT instructions.
   field bit IsDOT = 0;
+
+  // This field indicates that FLAT instruction accesses FLAT_SCRATCH segment.
+  // Must be 0 for non-FLAT instructions.
+  field bit IsFlatScratch = 0;
 
   // These need to be kept in sync with the enum in SIInstrFlags.
   let TSFlags{0} = SALU;
@@ -149,17 +154,18 @@ class InstSI <dag outs, dag ins, string asm = "",
   let TSFlags{13} = VINTRP;
   let TSFlags{14} = SDWA;
   let TSFlags{15} = DPP;
+  let TSFlags{16} = TRANS;
 
-  let TSFlags{16} = MUBUF;
-  let TSFlags{17} = MTBUF;
-  let TSFlags{18} = SMRD;
-  let TSFlags{19} = MIMG;
-  let TSFlags{20} = EXP;
-  let TSFlags{21} = FLAT;
-  let TSFlags{22} = DS;
+  let TSFlags{17} = MUBUF;
+  let TSFlags{18} = MTBUF;
+  let TSFlags{19} = SMRD;
+  let TSFlags{20} = MIMG;
+  let TSFlags{21} = EXP;
+  let TSFlags{22} = FLAT;
+  let TSFlags{23} = DS;
 
-  let TSFlags{23} = VGPRSpill;
-  let TSFlags{24} = SGPRSpill;
+  let TSFlags{24} = VGPRSpill;
+  let TSFlags{25} = SGPRSpill;
 
   let TSFlags{32} = VM_CNT;
   let TSFlags{33} = EXP_CNT;
@@ -187,7 +193,7 @@ class InstSI <dag outs, dag ins, string asm = "",
 
   let TSFlags{50} = D16Buf;
 
-  let TSFlags{51} = IsNonFlatSeg;
+  let TSFlags{51} = IsFlatGlobal;
 
   let TSFlags{52} = FPDPRounding;
 
@@ -197,17 +203,14 @@ class InstSI <dag outs, dag ins, string asm = "",
 
   let TSFlags{55} = IsDOT;
 
+  let TSFlags{56} = IsFlatScratch;
+
   let SchedRW = [Write32Bit];
 
-  field bits<1> DisableSIDecoder = 0;
-  field bits<1> DisableVIDecoder = 0;
-  field bits<1> DisableDecoder = 0;
-
-  let isAsmParserOnly = !if(!eq(DisableDecoder{0}, {0}), 0, 1);
   let AsmVariantName = AMDGPUAsmVariants.Default;
 
   // Avoid changing source registers in a way that violates constant bus read limitations.
-  let hasExtraSrcRegAllocReq = !if(VOP1,1,!if(VOP2,1,!if(VOP3,1,!if(VOPC,1,!if(SDWA,1, !if(VALU,1,0))))));
+  let hasExtraSrcRegAllocReq = !or(VOP1, VOP2, VOP3, VOPC, SDWA, VALU);
 }
 
 class PseudoInstSI<dag outs, dag ins, list<dag> pattern = [], string asm = "">
@@ -360,17 +363,6 @@ class VINTRPCommon <dag outs, dag ins, string asm, list<dag> pattern> :
   let mayStore = 0;
   let hasSideEffects = 0;
   let VALU = 1;
-}
-
-class EXPCommon<dag outs, dag ins, string asm, list<dag> pattern> :
-  InstSI<outs, ins, asm, pattern> {
-  let EXP = 1;
-  let EXP_CNT = 1;
-  let mayLoad = 0; // Set to 1 if done bit is set.
-  let mayStore = 1;
-  let UseNamedOperandTable = 1;
-  let Uses = [EXEC];
-  let SchedRW = [WriteExport];
 }
 
 } // End Uses = [EXEC]

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCVTargetTransformInfo.h"
-#include "Utils/RISCVMatInt.h"
+#include "MCTargetDesc/RISCVMatInt.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -30,8 +30,10 @@ int RISCVTTIImpl::getIntImmCost(const APInt &Imm, Type *Ty,
                                     getST()->is64Bit());
 }
 
-int RISCVTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx, const APInt &Imm,
-                                Type *Ty, TTI::TargetCostKind CostKind) {
+int RISCVTTIImpl::getIntImmCostInst(unsigned Opcode, unsigned Idx,
+                                    const APInt &Imm, Type *Ty,
+                                    TTI::TargetCostKind CostKind,
+                                    Instruction *Inst) {
   assert(Ty->isIntegerTy() &&
          "getIntImmCost can only estimate cost of materialising integers");
 

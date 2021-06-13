@@ -14,8 +14,9 @@
 #include "llvm/Analysis/InlineAdvisor.h"
 #include "llvm/Analysis/InlineCost.h"
 #include "llvm/Analysis/LazyCallGraph.h"
+#include "llvm/Analysis/ReplayInlineAdvisor.h"
+#include "llvm/Analysis/Utils/ImportedFunctionsInliningStatistics.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Transforms/Utils/ImportedFunctionsInliningStatistics.h"
 #include <utility>
 
 namespace llvm {
@@ -96,10 +97,8 @@ protected:
 /// passes be composed to achieve the same end result.
 class InlinerPass : public PassInfoMixin<InlinerPass> {
 public:
-  InlinerPass() = default;
-  ~InlinerPass();
-  InlinerPass(InlinerPass &&Arg)
-      : ImportedFunctionsStats(std::move(Arg.ImportedFunctionsStats)) {}
+  InlinerPass(bool OnlyMandatory = false) : OnlyMandatory(OnlyMandatory) {}
+  InlinerPass(InlinerPass &&Arg) = default;
 
   PreservedAnalyses run(LazyCallGraph::SCC &C, CGSCCAnalysisManager &AM,
                         LazyCallGraph &CG, CGSCCUpdateResult &UR);
@@ -107,8 +106,8 @@ public:
 private:
   InlineAdvisor &getAdvisor(const ModuleAnalysisManagerCGSCCProxy::Result &MAM,
                             FunctionAnalysisManager &FAM, Module &M);
-  std::unique_ptr<ImportedFunctionsInliningStatistics> ImportedFunctionsStats;
-  Optional<DefaultInlineAdvisor> OwnedDefaultAdvisor;
+  std::unique_ptr<InlineAdvisor> OwnedAdvisor;
+  const bool OnlyMandatory;
 };
 
 /// Module pass, wrapping the inliner pass. This works in conjunction with the
@@ -121,6 +120,7 @@ class ModuleInlinerWrapperPass
 public:
   ModuleInlinerWrapperPass(
       InlineParams Params = getInlineParams(), bool Debugging = false,
+      bool MandatoryFirst = true,
       InliningAdvisorMode Mode = InliningAdvisorMode::Default,
       unsigned MaxDevirtIterations = 0);
   ModuleInlinerWrapperPass(ModuleInlinerWrapperPass &&Arg) = default;

@@ -41,6 +41,8 @@ IRBuilder<> *EscapeEnumerator::Next() {
     if (!isa<ReturnInst>(TI) && !isa<ResumeInst>(TI))
       continue;
 
+    if (CallInst *CI = CurBB->getTerminatingMustTailCall())
+      TI = CI;
     Builder.SetInsertPoint(TI);
     return &Builder;
   }
@@ -54,11 +56,12 @@ IRBuilder<> *EscapeEnumerator::Next() {
     return nullptr;
 
   // Find all 'call' instructions that may throw.
+  // We cannot tranform calls with musttail tag.
   SmallVector<Instruction *, 16> Calls;
   for (BasicBlock &BB : F)
     for (Instruction &II : BB)
       if (CallInst *CI = dyn_cast<CallInst>(&II))
-        if (!CI->doesNotThrow())
+        if (!CI->doesNotThrow() && !CI->isMustTailCall())
           Calls.push_back(CI);
 
   if (Calls.empty())

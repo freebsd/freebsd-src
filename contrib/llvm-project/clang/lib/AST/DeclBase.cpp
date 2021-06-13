@@ -230,11 +230,11 @@ bool Decl::isTemplateDecl() const {
 TemplateDecl *Decl::getDescribedTemplate() const {
   if (auto *FD = dyn_cast<FunctionDecl>(this))
     return FD->getDescribedFunctionTemplate();
-  else if (auto *RD = dyn_cast<CXXRecordDecl>(this))
+  if (auto *RD = dyn_cast<CXXRecordDecl>(this))
     return RD->getDescribedClassTemplate();
-  else if (auto *VD = dyn_cast<VarDecl>(this))
+  if (auto *VD = dyn_cast<VarDecl>(this))
     return VD->getDescribedVarTemplate();
-  else if (auto *AD = dyn_cast<TypeAliasDecl>(this))
+  if (auto *AD = dyn_cast<TypeAliasDecl>(this))
     return AD->getDescribedAliasTemplate();
 
   return nullptr;
@@ -695,24 +695,23 @@ bool Decl::canBeWeakImported(bool &IsDefinition) const {
       return false;
     }
     return true;
-
+  }
   // Functions, if they aren't definitions.
-  } else if (const auto *FD = dyn_cast<FunctionDecl>(this)) {
+  if (const auto *FD = dyn_cast<FunctionDecl>(this)) {
     if (FD->hasBody()) {
       IsDefinition = true;
       return false;
     }
     return true;
 
+  }
   // Objective-C classes, if this is the non-fragile runtime.
-  } else if (isa<ObjCInterfaceDecl>(this) &&
+  if (isa<ObjCInterfaceDecl>(this) &&
              getASTContext().getLangOpts().ObjCRuntime.hasWeakClassImport()) {
     return true;
-
-  // Nothing else.
-  } else {
-    return false;
   }
+  // Nothing else.
+  return false;
 }
 
 bool Decl::isWeakImported() const {
@@ -720,7 +719,7 @@ bool Decl::isWeakImported() const {
   if (!canBeWeakImported(IsDefinition))
     return false;
 
-  for (const auto *A : attrs()) {
+  for (const auto *A : getMostRecentDecl()->attrs()) {
     if (isa<WeakImportAttr>(A))
       return true;
 
@@ -835,6 +834,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ExternCContext:
     case Decomposition:
     case MSGuid:
+    case TemplateParamObject:
 
     case UsingDirective:
     case BuiltinTemplate:
@@ -970,21 +970,19 @@ bool Decl::AccessDeclContextSanity() const {
   // 5. it's invalid
   // 6. it's a C++0x static_assert.
   // 7. it's a block literal declaration
-  if (isa<TranslationUnitDecl>(this) ||
-      isa<TemplateTypeParmDecl>(this) ||
-      isa<NonTypeTemplateParmDecl>(this) ||
-      !getDeclContext() ||
-      !isa<CXXRecordDecl>(getDeclContext()) ||
-      isInvalidDecl() ||
-      isa<StaticAssertDecl>(this) ||
-      isa<BlockDecl>(this) ||
+  // 8. it's a temporary with lifetime extended due to being default value.
+  if (isa<TranslationUnitDecl>(this) || isa<TemplateTypeParmDecl>(this) ||
+      isa<NonTypeTemplateParmDecl>(this) || !getDeclContext() ||
+      !isa<CXXRecordDecl>(getDeclContext()) || isInvalidDecl() ||
+      isa<StaticAssertDecl>(this) || isa<BlockDecl>(this) ||
       // FIXME: a ParmVarDecl can have ClassTemplateSpecialization
       // as DeclContext (?).
       isa<ParmVarDecl>(this) ||
       // FIXME: a ClassTemplateSpecialization or CXXRecordDecl can have
       // AS_none as access specifier.
       isa<CXXRecordDecl>(this) ||
-      isa<ClassScopeFunctionSpecializationDecl>(this))
+      isa<ClassScopeFunctionSpecializationDecl>(this) ||
+      isa<LifetimeExtendedTemporaryDecl>(this))
     return true;
 
   assert(Access != AS_none &&
@@ -1028,16 +1026,16 @@ template <class T> static Decl *getNonClosureContext(T *D) {
         MD->getParent()->isLambda())
       return getNonClosureContext(MD->getParent()->getParent());
     return MD;
-  } else if (auto *FD = dyn_cast<FunctionDecl>(D))
+  }
+  if (auto *FD = dyn_cast<FunctionDecl>(D))
     return FD;
-  else if (auto *MD = dyn_cast<ObjCMethodDecl>(D))
+  if (auto *MD = dyn_cast<ObjCMethodDecl>(D))
     return MD;
-  else if (auto *BD = dyn_cast<BlockDecl>(D))
+  if (auto *BD = dyn_cast<BlockDecl>(D))
     return getNonClosureContext(BD->getParent());
-  else if (auto *CD = dyn_cast<CapturedDecl>(D))
+  if (auto *CD = dyn_cast<CapturedDecl>(D))
     return getNonClosureContext(CD->getParent());
-  else
-    return nullptr;
+  return nullptr;
 }
 
 Decl *Decl::getNonClosureContext() {
@@ -1172,10 +1170,8 @@ bool DeclContext::isDependentContext() const {
 bool DeclContext::isTransparentContext() const {
   if (getDeclKind() == Decl::Enum)
     return !cast<EnumDecl>(this)->isScoped();
-  else if (getDeclKind() == Decl::LinkageSpec || getDeclKind() == Decl::Export)
-    return true;
 
-  return false;
+  return getDeclKind() == Decl::LinkageSpec || getDeclKind() == Decl::Export;
 }
 
 static bool isLinkageSpecContext(const DeclContext *DC,
@@ -2027,9 +2023,9 @@ DependentDiagnostic *DependentDiagnostic::Create(ASTContext &C,
 
   // Allocate the copy of the PartialDiagnostic via the ASTContext's
   // BumpPtrAllocator, rather than the ASTContext itself.
-  PartialDiagnostic::Storage *DiagStorage = nullptr;
+  DiagnosticStorage *DiagStorage = nullptr;
   if (PDiag.hasStorage())
-    DiagStorage = new (C) PartialDiagnostic::Storage;
+    DiagStorage = new (C) DiagnosticStorage;
 
   auto *DD = new (C) DependentDiagnostic(PDiag, DiagStorage);
 

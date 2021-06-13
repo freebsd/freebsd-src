@@ -33,12 +33,14 @@ FormatTokenLexer::FormatTokenLexer(
       Encoding(Encoding), Allocator(Allocator), FirstInLineIndex(0),
       FormattingDisabled(false), MacroBlockBeginRegex(Style.MacroBlockBegin),
       MacroBlockEndRegex(Style.MacroBlockEnd) {
-  Lex.reset(new Lexer(ID, SourceMgr.getBuffer(ID), SourceMgr,
+  Lex.reset(new Lexer(ID, SourceMgr.getBufferOrFake(ID), SourceMgr,
                       getFormattingLangOpts(Style)));
   Lex->SetKeepWhitespaceMode(true);
 
   for (const std::string &ForEachMacro : Style.ForEachMacros)
     Macros.insert({&IdentTable.get(ForEachMacro), TT_ForEachMacro});
+  for (const std::string &AttributeMacro : Style.AttributeMacros)
+    Macros.insert({&IdentTable.get(AttributeMacro), TT_AttributeMacro});
   for (const std::string &StatementMacro : Style.StatementMacros)
     Macros.insert({&IdentTable.get(StatementMacro), TT_StatementMacro});
   for (const std::string &TypenameMacro : Style.TypenameMacros)
@@ -50,6 +52,10 @@ FormatTokenLexer::FormatTokenLexer(
     Macros.insert(
         {&IdentTable.get(WhitespaceSensitiveMacro), TT_UntouchableMacroFunc});
   }
+  for (const std::string &StatementAttributeLikeMacro :
+       Style.StatementAttributeLikeMacros)
+    Macros.insert({&IdentTable.get(StatementAttributeLikeMacro),
+                   TT_StatementAttributeLikeMacro});
 }
 
 ArrayRef<FormatToken *> FormatTokenLexer::lex() {
@@ -119,6 +125,10 @@ void FormatTokenLexer::tryMergePreviousTokens() {
                                                                tok::period};
     static const tok::TokenKind JSNullishOperator[] = {tok::question,
                                                        tok::question};
+    static const tok::TokenKind JSNullishEqual[] = {tok::question,
+                                                    tok::question, tok::equal};
+    static const tok::TokenKind JSPipePipeEqual[] = {tok::pipepipe, tok::equal};
+    static const tok::TokenKind JSAndAndEqual[] = {tok::ampamp, tok::equal};
 
     // FIXME: Investigate what token type gives the correct operator priority.
     if (tryMergeTokens(JSIdentity, TT_BinaryOperator))
@@ -144,6 +154,13 @@ void FormatTokenLexer::tryMergePreviousTokens() {
                        TT_JsNullPropagatingOperator)) {
       // Treat like a regular "." access.
       Tokens.back()->Tok.setKind(tok::period);
+      return;
+    }
+    if (tryMergeTokens(JSAndAndEqual, TT_JsAndAndEqual) ||
+        tryMergeTokens(JSPipePipeEqual, TT_JsPipePipeEqual) ||
+        tryMergeTokens(JSNullishEqual, TT_JsNullishCoalescingEqual)) {
+      // Treat like the "=" assignment operator.
+      Tokens.back()->Tok.setKind(tok::equal);
       return;
     }
     if (tryMergeJSPrivateIdentifier())
@@ -399,7 +416,7 @@ bool FormatTokenLexer::tryTransformTryUsageForC() {
   if (!Try->is(tok::kw_try))
     return false;
   auto &Next = *(Tokens.end() - 1);
-  if (Next->isOneOf(tok::l_brace, tok::colon))
+  if (Next->isOneOf(tok::l_brace, tok::colon, tok::hash, tok::comment))
     return false;
 
   if (Tokens.size() > 2) {
@@ -761,7 +778,7 @@ bool FormatTokenLexer::tryMergeConflictMarkers() {
   unsigned FirstInLineOffset;
   std::tie(ID, FirstInLineOffset) = SourceMgr.getDecomposedLoc(
       Tokens[FirstInLineIndex]->getStartOfNonWhitespace());
-  StringRef Buffer = SourceMgr.getBuffer(ID)->getBuffer();
+  StringRef Buffer = SourceMgr.getBufferOrFake(ID).getBuffer();
   // Calculate the offset of the start of the current line.
   auto LineOffset = Buffer.rfind('\n', FirstInLineOffset);
   if (LineOffset == StringRef::npos) {

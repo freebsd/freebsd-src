@@ -811,19 +811,10 @@ private:
   SourceLocation getEndLocPrivate() const;
 };
 
-/// Insertion operator for diagnostics.  This allows sending DeclarationName's
-/// into a diagnostic with <<.
-inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                           DeclarationName N) {
-  DB.AddTaggedVal(N.getAsOpaqueInteger(),
-                  DiagnosticsEngine::ak_declarationname);
-  return DB;
-}
-
 /// Insertion operator for partial diagnostics.  This allows binding
 /// DeclarationName's into a partial diagnostic with <<.
-inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                           DeclarationName N) {
+inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &PD,
+                                             DeclarationName N) {
   PD.AddTaggedVal(N.getAsOpaqueInteger(),
                   DiagnosticsEngine::ak_declarationname);
   return PD;
@@ -855,6 +846,16 @@ struct DenseMapInfo<clang::DeclarationName> {
   isEqual(clang::DeclarationName LHS, clang::DeclarationName RHS) {
     return LHS == RHS;
   }
+};
+
+template <> struct PointerLikeTypeTraits<clang::DeclarationName> {
+  static inline void *getAsVoidPointer(clang::DeclarationName P) {
+    return P.getAsOpaquePtr();
+  }
+  static inline clang::DeclarationName getFromVoidPointer(void *P) {
+    return clang::DeclarationName::getFromOpaquePtr(P);
+  }
+  static constexpr int NumLowBitsAvailable = 0;
 };
 
 } // namespace llvm

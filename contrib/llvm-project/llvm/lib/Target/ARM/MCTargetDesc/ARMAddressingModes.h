@@ -205,6 +205,20 @@ namespace ARM_AM {
     return V;
   }
 
+  /// isSOImmTwoPartValNeg - Return true if the specified value can be obtained
+  /// by two SOImmVal, that -V = First + Second.
+  /// "R+V" can be optimized to (sub (sub R, First), Second).
+  /// "R=V" can be optimized to (sub (mvn R, ~(-First)), Second).
+  inline bool isSOImmTwoPartValNeg(unsigned V) {
+    unsigned First;
+    if (!isSOImmTwoPartVal(-V))
+      return false;
+    // Return false if ~(-First) is not a SoImmval.
+    First = getSOImmTwoPartFirst(-V);
+    First = ~(-First);
+    return !(rotr32(~255U, getSOImmValRotate(First)) & First);
+  }
+
   /// getThumbImmValShift - Try to handle Imm with a 8-bit immediate followed
   /// by a left shift. Returns the shift amount to use.
   inline unsigned getThumbImmValShift(unsigned Imm) {
@@ -671,6 +685,18 @@ namespace ARM_AM {
 
   inline int getFP16Imm(const APFloat &FPImm) {
     return getFP16Imm(FPImm.bitcastToAPInt());
+  }
+
+  /// If this is a FP16Imm encoded as a fp32 value, return the 8-bit encoding
+  /// for it. Otherwise return -1 like getFP16Imm.
+  inline int getFP32FP16Imm(const APInt &Imm) {
+    if (Imm.getActiveBits() > 16)
+      return -1;
+    return ARM_AM::getFP16Imm(Imm.trunc(16));
+  }
+
+  inline int getFP32FP16Imm(const APFloat &FPImm) {
+    return getFP32FP16Imm(FPImm.bitcastToAPInt());
   }
 
   /// getFP32Imm - Return an 8-bit floating-point version of the 32-bit

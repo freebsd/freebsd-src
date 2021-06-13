@@ -82,14 +82,18 @@ std::string getThinLTOOutputFile(const std::string &Path,
                                  const std::string &NewPrefix);
 
 /// Setup optimization remarks.
-Expected<std::unique_ptr<ToolOutputFile>>
-setupLLVMOptimizationRemarks(LLVMContext &Context, StringRef RemarksFilename,
-                             StringRef RemarksPasses, StringRef RemarksFormat,
-                             bool RemarksWithHotness, int Count = -1);
+Expected<std::unique_ptr<ToolOutputFile>> setupLLVMOptimizationRemarks(
+    LLVMContext &Context, StringRef RemarksFilename, StringRef RemarksPasses,
+    StringRef RemarksFormat, bool RemarksWithHotness,
+    Optional<uint64_t> RemarksHotnessThreshold = 0, int Count = -1);
 
 /// Setups the output file for saving statistics.
 Expected<std::unique_ptr<ToolOutputFile>>
 setupStatsFile(StringRef StatsFilename);
+
+/// Produces a container ordering for optimal multi-threaded processing. Returns
+/// ordered indices to elements in the input array.
+std::vector<int> generateModulesOrdering(ArrayRef<BitcodeModule *> R);
 
 class LTO;
 struct SymbolResolution;

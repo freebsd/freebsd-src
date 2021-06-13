@@ -37,6 +37,7 @@ public:
     FT_Data,
     FT_CompactEncodedInst,
     FT_Fill,
+    FT_Nops,
     FT_Relaxable,
     FT_Org,
     FT_Dwarf,
@@ -46,6 +47,7 @@ public:
     FT_SymbolId,
     FT_CVInlineLines,
     FT_CVDefRange,
+    FT_PseudoProbe,
     FT_Dummy
   };
 
@@ -62,6 +64,10 @@ private:
 
   /// The layout order of this fragment.
   unsigned LayoutOrder;
+
+  /// The subsection this fragment belongs to. This is 0 if the fragment is not
+  // in any subsection.
+  unsigned SubsectionNumber = 0;
 
   FragmentType Kind;
 
@@ -101,6 +107,9 @@ public:
   bool hasInstructions() const { return HasInstructions; }
 
   void dump() const;
+
+  void setSubsectionNumber(unsigned Value) { SubsectionNumber = Value; }
+  unsigned getSubsectionNumber() const { return SubsectionNumber; }
 };
 
 class MCDummyFragment : public MCFragment {
@@ -139,6 +148,7 @@ public:
     case MCFragment::FT_Data:
     case MCFragment::FT_Dwarf:
     case MCFragment::FT_DwarfFrame:
+    case MCFragment::FT_PseudoProbe:
       return true;
     }
   }
@@ -350,6 +360,31 @@ public:
   }
 };
 
+class MCNopsFragment : public MCFragment {
+  /// The number of bytes to insert.
+  int64_t Size;
+  /// Maximum number of bytes allowed in each NOP instruction.
+  int64_t ControlledNopLength;
+
+  /// Source location of the directive that this fragment was created for.
+  SMLoc Loc;
+
+public:
+  MCNopsFragment(int64_t NumBytes, int64_t ControlledNopLength, SMLoc L,
+                 MCSection *Sec = nullptr)
+      : MCFragment(FT_Nops, false, Sec), Size(NumBytes),
+        ControlledNopLength(ControlledNopLength), Loc(L) {}
+
+  int64_t getNumBytes() const { return Size; }
+  int64_t getControlledNopLength() const { return ControlledNopLength; }
+
+  SMLoc getLoc() const { return Loc; }
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_Nops;
+  }
+};
+
 class MCOrgFragment : public MCFragment {
   /// Value to use for filling bytes.
   int8_t Value;
@@ -556,6 +591,23 @@ public:
 
   static bool classof(const MCFragment *F) {
     return F->getKind() == MCFragment::FT_BoundaryAlign;
+  }
+};
+
+class MCPseudoProbeAddrFragment : public MCEncodedFragmentWithFixups<8, 1> {
+  /// The expression for the difference of the two symbols that
+  /// make up the address delta between two .pseudoprobe directives.
+  const MCExpr *AddrDelta;
+
+public:
+  MCPseudoProbeAddrFragment(const MCExpr *AddrDelta, MCSection *Sec = nullptr)
+      : MCEncodedFragmentWithFixups<8, 1>(FT_PseudoProbe, false, Sec),
+        AddrDelta(AddrDelta) {}
+
+  const MCExpr &getAddrDelta() const { return *AddrDelta; }
+
+  static bool classof(const MCFragment *F) {
+    return F->getKind() == MCFragment::FT_PseudoProbe;
   }
 };
 } // end namespace llvm

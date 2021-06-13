@@ -20,8 +20,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/BinaryFormat/ELF.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDwarf.h"
@@ -30,6 +30,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSectionXCOFF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
@@ -77,7 +78,17 @@ static MCRegisterInfo *createPPCMCRegisterInfo(const Triple &TT) {
 
 static MCSubtargetInfo *createPPCMCSubtargetInfo(const Triple &TT,
                                                  StringRef CPU, StringRef FS) {
-  return createPPCMCSubtargetInfoImpl(TT, CPU, FS);
+  // Set some default feature to MC layer.
+  std::string FullFS = std::string(FS);
+
+  if (TT.isOSAIX()) {
+    if (!FullFS.empty())
+      FullFS = "+aix," + FullFS;
+    else
+      FullFS = "+aix";
+  }
+
+  return createPPCMCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FullFS);
 }
 
 static MCAsmInfo *createPPCMCAsmInfo(const MCRegisterInfo &MRI,
@@ -122,11 +133,12 @@ public:
   void emitTCEntry(const MCSymbol &S) override {
     if (const MCSymbolXCOFF *XSym = dyn_cast<MCSymbolXCOFF>(&S)) {
       MCSymbolXCOFF *TCSym =
-          cast<MCSymbolXCOFF>(Streamer.getContext().getOrCreateSymbol(
-              XSym->getSymbolTableName() + "[TC]"));
+          cast<MCSectionXCOFF>(Streamer.getCurrentSectionOnly())
+              ->getQualNameSymbol();
+      OS << "\t.tc " << TCSym->getName() << "," << XSym->getName() << '\n';
+
       if (TCSym->hasRename())
         Streamer.emitXCOFFRenameDirective(TCSym, TCSym->getSymbolTableName());
-      OS << "\t.tc " << TCSym->getName() << "," << XSym->getName() << '\n';
       return;
     }
 
@@ -334,8 +346,8 @@ static MCInstPrinter *createPPCMCInstPrinter(const Triple &T,
 }
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializePowerPCTargetMC() {
-  for (Target *T :
-       {&getThePPC32Target(), &getThePPC64Target(), &getThePPC64LETarget()}) {
+  for (Target *T : {&getThePPC32Target(), &getThePPC32LETarget(),
+                    &getThePPC64Target(), &getThePPC64LETarget()}) {
     // Register the MC asm info.
     RegisterMCAsmInfoFn C(*T, createPPCMCAsmInfo);
 
