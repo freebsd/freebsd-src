@@ -395,9 +395,7 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	if(NG_PEER_NODE(hook) == node)
 	        return (ELOOP);
 
-	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_ZERO);
-	if (link == NULL)
-		return (ENOMEM);
+	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 
 	link->stats.recvOctets = counter_u64_alloc(M_WAITOK);
 	link->stats.recvPackets = counter_u64_alloc(M_WAITOK);
