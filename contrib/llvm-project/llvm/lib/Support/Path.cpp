@@ -354,10 +354,9 @@ StringRef root_path(StringRef path, Style style) {
       if ((++pos != e) && is_separator((*pos)[0], style)) {
         // {C:/,//net/}, so get the first two components.
         return path.substr(0, b->size() + pos->size());
-      } else {
-        // just {C:,//net}, return the first component.
-        return *b;
       }
+      // just {C:,//net}, return the first component.
+      return *b;
     }
 
     // POSIX style root directory.
@@ -467,8 +466,7 @@ StringRef parent_path(StringRef path, Style style) {
   size_t end_pos = parent_path_end(path, style);
   if (end_pos == StringRef::npos)
     return StringRef();
-  else
-    return path.substr(0, end_pos);
+  return path.substr(0, end_pos);
 }
 
 void remove_filename(SmallVectorImpl<char> &path, Style style) {
@@ -581,12 +579,10 @@ StringRef stem(StringRef path, Style style) {
   size_t pos = fname.find_last_of('.');
   if (pos == StringRef::npos)
     return fname;
-  else
-    if ((fname.size() == 1 && fname == ".") ||
-        (fname.size() == 2 && fname == ".."))
-      return fname;
-    else
-      return fname.substr(0, pos);
+  if ((fname.size() == 1 && fname == ".") ||
+      (fname.size() == 2 && fname == ".."))
+    return fname;
+  return fname.substr(0, pos);
 }
 
 StringRef extension(StringRef path, Style style) {
@@ -594,12 +590,10 @@ StringRef extension(StringRef path, Style style) {
   size_t pos = fname.find_last_of('.');
   if (pos == StringRef::npos)
     return StringRef();
-  else
-    if ((fname.size() == 1 && fname == ".") ||
-        (fname.size() == 2 && fname == ".."))
-      return StringRef();
-    else
-      return fname.substr(pos);
+  if ((fname.size() == 1 && fname == ".") ||
+      (fname.size() == 2 && fname == ".."))
+    return StringRef();
+  return fname.substr(pos);
 }
 
 bool is_separator(char value, Style style) {
@@ -681,6 +675,24 @@ bool is_absolute(const Twine &path, Style style) {
       (real_style(style) != Style::windows) || has_root_name(p, style);
 
   return rootDir && rootName;
+}
+
+bool is_absolute_gnu(const Twine &path, Style style) {
+  SmallString<128> path_storage;
+  StringRef p = path.toStringRef(path_storage);
+
+  // Handle '/' which is absolute for both Windows and POSIX systems.
+  // Handle '\\' on Windows.
+  if (!p.empty() && is_separator(p.front(), style))
+    return true;
+
+  if (real_style(style) == Style::windows) {
+    // Handle drive letter pattern (a character followed by ':') on Windows.
+    if (p.size() >= 2 && (p[0] && p[1] == ':'))
+      return true;
+  }
+
+  return false;
 }
 
 bool is_relative(const Twine &path, Style style) {
@@ -1281,7 +1293,7 @@ Expected<TempFile> TempFile::create(const Twine &Model, unsigned Mode) {
 #endif
   return std::move(Ret);
 }
-}
+} // namespace fs
 
-} // end namsspace sys
-} // end namespace llvm
+} // namespace sys
+} // namespace llvm

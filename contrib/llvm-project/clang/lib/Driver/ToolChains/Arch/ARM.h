@@ -47,6 +47,7 @@ enum class FloatABI {
   Hard,
 };
 
+FloatABI getDefaultFloatABI(const llvm::Triple &Triple);
 FloatABI getARMFloatABI(const ToolChain &TC, const llvm::opt::ArgList &Args);
 FloatABI getARMFloatABI(const Driver &D, const llvm::Triple &Triple,
                         const llvm::opt::ArgList &Args);
@@ -62,6 +63,7 @@ void getARMTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                           std::vector<llvm::StringRef> &Features, bool ForAS);
 int getARMSubArchVersionNumber(const llvm::Triple &Triple);
 bool isARMMProfile(const llvm::Triple &Triple);
+bool isARMAProfile(const llvm::Triple &Triple);
 
 } // end namespace arm
 } // end namespace tools

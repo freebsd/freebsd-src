@@ -662,7 +662,8 @@ public:
          const DataLayout &DL)
       : F(F), DT(DT), TLI(TLI), AA(AA), MSSA(MSSA), AC(AC), DL(DL),
         PredInfo(std::make_unique<PredicateInfo>(F, *DT, *AC)),
-        SQ(DL, TLI, DT, AC, /*CtxI=*/nullptr, /*UseInstrInfo=*/false) {}
+        SQ(DL, TLI, DT, AC, /*CtxI=*/nullptr, /*UseInstrInfo=*/false,
+           /*CanUseUndef=*/false) {}
 
   bool runGVN();
 
@@ -800,12 +801,7 @@ private:
   Value *findPHIOfOpsLeader(const Expression *, const Instruction *,
                             const BasicBlock *) const;
 
-  // New instruction creation.
-  void handleNewInstruction(Instruction *) {}
-
   // Various instruction touch utilities
-  template <typename Map, typename KeyType, typename Func>
-  void for_each_found(Map &, const KeyType &, Func);
   template <typename Map, typename KeyType>
   void touchAndErase(Map &, const KeyType &);
   void markUsersTouched(Value *);
@@ -834,7 +830,6 @@ private:
   BasicBlock *getBlockForValue(Value *V) const;
   void deleteExpression(const Expression *E) const;
   MemoryUseOrDef *getMemoryAccess(const Instruction *) const;
-  MemoryAccess *getDefiningAccess(const MemoryAccess *) const;
   MemoryPhi *getMemoryAccess(const BasicBlock *) const;
   template <class T, class Range> T *getMinDFSOfRange(const Range &) const;
 
@@ -1253,6 +1248,7 @@ const UnknownExpression *NewGVN::createUnknownExpression(Instruction *I) const {
 const CallExpression *
 NewGVN::createCallExpression(CallInst *CI, const MemoryAccess *MA) const {
   // FIXME: Add operand bundles for calls.
+  // FIXME: Allow commutative matching for intrinsics.
   auto *E =
       new (ExpressionAllocator) CallExpression(CI->getNumOperands(), CI, MA);
   setBasicExpressionInfo(CI, E);
@@ -1539,90 +1535,39 @@ NewGVN::performSymbolicPredicateInfoEvaluation(Instruction *I) const {
 
   LLVM_DEBUG(dbgs() << "Found predicate info from instruction !\n");
 
-  auto *PWC = dyn_cast<PredicateWithCondition>(PI);
-  if (!PWC)
+  const Optional<PredicateConstraint> &Constraint = PI->getConstraint();
+  if (!Constraint)
     return nullptr;
 
-  auto *CopyOf = I->getOperand(0);
-  auto *Cond = PWC->Condition;
+  CmpInst::Predicate Predicate = Constraint->Predicate;
+  Value *CmpOp0 = I->getOperand(0);
+  Value *CmpOp1 = Constraint->OtherOp;
 
-  // If this a copy of the condition, it must be either true or false depending
-  // on the predicate info type and edge.
-  if (CopyOf == Cond) {
-    // We should not need to add predicate users because the predicate info is
-    // already a use of this operand.
-    if (isa<PredicateAssume>(PI))
-      return createConstantExpression(ConstantInt::getTrue(Cond->getType()));
-    if (auto *PBranch = dyn_cast<PredicateBranch>(PI)) {
-      if (PBranch->TrueEdge)
-        return createConstantExpression(ConstantInt::getTrue(Cond->getType()));
-      return createConstantExpression(ConstantInt::getFalse(Cond->getType()));
-    }
-    if (auto *PSwitch = dyn_cast<PredicateSwitch>(PI))
-      return createConstantExpression(cast<Constant>(PSwitch->CaseValue));
-  }
+  Value *FirstOp = lookupOperandLeader(CmpOp0);
+  Value *SecondOp = lookupOperandLeader(CmpOp1);
+  Value *AdditionallyUsedValue = CmpOp0;
 
-  // Not a copy of the condition, so see what the predicates tell us about this
-  // value.  First, though, we check to make sure the value is actually a copy
-  // of one of the condition operands. It's possible, in certain cases, for it
-  // to be a copy of a predicateinfo copy. In particular, if two branch
-  // operations use the same condition, and one branch dominates the other, we
-  // will end up with a copy of a copy.  This is currently a small deficiency in
-  // predicateinfo.  What will end up happening here is that we will value
-  // number both copies the same anyway.
-
-  // Everything below relies on the condition being a comparison.
-  auto *Cmp = dyn_cast<CmpInst>(Cond);
-  if (!Cmp)
-    return nullptr;
-
-  if (CopyOf != Cmp->getOperand(0) && CopyOf != Cmp->getOperand(1)) {
-    LLVM_DEBUG(dbgs() << "Copy is not of any condition operands!\n");
-    return nullptr;
-  }
-  Value *FirstOp = lookupOperandLeader(Cmp->getOperand(0));
-  Value *SecondOp = lookupOperandLeader(Cmp->getOperand(1));
-  bool SwappedOps = false;
   // Sort the ops.
   if (shouldSwapOperands(FirstOp, SecondOp)) {
     std::swap(FirstOp, SecondOp);
-    SwappedOps = true;
+    Predicate = CmpInst::getSwappedPredicate(Predicate);
+    AdditionallyUsedValue = CmpOp1;
   }
-  CmpInst::Predicate Predicate =
-      SwappedOps ? Cmp->getSwappedPredicate() : Cmp->getPredicate();
 
-  if (isa<PredicateAssume>(PI)) {
-    // If we assume the operands are equal, then they are equal.
-    if (Predicate == CmpInst::ICMP_EQ) {
-      addPredicateUsers(PI, I);
-      addAdditionalUsers(SwappedOps ? Cmp->getOperand(1) : Cmp->getOperand(0),
-                         I);
-      return createVariableOrConstant(FirstOp);
-    }
+  if (Predicate == CmpInst::ICMP_EQ) {
+    addPredicateUsers(PI, I);
+    addAdditionalUsers(AdditionallyUsedValue, I);
+    return createVariableOrConstant(FirstOp);
   }
-  if (const auto *PBranch = dyn_cast<PredicateBranch>(PI)) {
-    // If we are *not* a copy of the comparison, we may equal to the other
-    // operand when the predicate implies something about equality of
-    // operations.  In particular, if the comparison is true/false when the
-    // operands are equal, and we are on the right edge, we know this operation
-    // is equal to something.
-    if ((PBranch->TrueEdge && Predicate == CmpInst::ICMP_EQ) ||
-        (!PBranch->TrueEdge && Predicate == CmpInst::ICMP_NE)) {
-      addPredicateUsers(PI, I);
-      addAdditionalUsers(SwappedOps ? Cmp->getOperand(1) : Cmp->getOperand(0),
-                         I);
-      return createVariableOrConstant(FirstOp);
-    }
-    // Handle the special case of floating point.
-    if (((PBranch->TrueEdge && Predicate == CmpInst::FCMP_OEQ) ||
-         (!PBranch->TrueEdge && Predicate == CmpInst::FCMP_UNE)) &&
-        isa<ConstantFP>(FirstOp) && !cast<ConstantFP>(FirstOp)->isZero()) {
-      addPredicateUsers(PI, I);
-      addAdditionalUsers(SwappedOps ? Cmp->getOperand(1) : Cmp->getOperand(0),
-                         I);
-      return createConstantExpression(cast<Constant>(FirstOp));
-    }
+
+  // Handle the special case of floating point.
+  if (Predicate == CmpInst::FCMP_OEQ && isa<ConstantFP>(FirstOp) &&
+      !cast<ConstantFP>(FirstOp)->isZero()) {
+    addPredicateUsers(PI, I);
+    addAdditionalUsers(AdditionallyUsedValue, I);
+    return createConstantExpression(cast<Constant>(FirstOp));
   }
+
   return nullptr;
 }
 
@@ -2042,16 +1987,6 @@ NewGVN::performSymbolicEvaluation(Value *V,
     }
   }
   return E;
-}
-
-// Look up a container in a map, and then call a function for each thing in the
-// found container.
-template <typename Map, typename KeyType, typename Func>
-void NewGVN::for_each_found(Map &M, const KeyType &Key, Func F) {
-  const auto Result = M.find_as(Key);
-  if (Result != M.end())
-    for (typename Map::mapped_type::value_type Mapped : Result->second)
-      F(Mapped);
 }
 
 // Look up a container of values/instructions in a map, and touch all the
@@ -2941,8 +2876,7 @@ void NewGVN::cleanupTables() {
   }
 
   while (!TempInst.empty()) {
-    auto *I = TempInst.back();
-    TempInst.pop_back();
+    auto *I = TempInst.pop_back_val();
     I->deleteValue();
   }
 
@@ -3437,10 +3371,9 @@ bool NewGVN::runGVN() {
   for (auto &B : RPOT) {
     auto *Node = DT->getNode(B);
     if (Node->getNumChildren() > 1)
-      llvm::sort(Node->begin(), Node->end(),
-                 [&](const DomTreeNode *A, const DomTreeNode *B) {
-                   return RPOOrdering[A] < RPOOrdering[B];
-                 });
+      llvm::sort(*Node, [&](const DomTreeNode *A, const DomTreeNode *B) {
+        return RPOOrdering[A] < RPOOrdering[B];
+      });
   }
 
   // Now a standard depth first ordering of the domtree is equivalent to RPO.

@@ -32,8 +32,7 @@ bool DomTreeUpdater::isUpdateValid(
   // Since isUpdateValid() must be called *after* the Terminator of From is
   // altered we can determine if the update is unnecessary for batch updates
   // or invalid for a single update.
-  const bool HasEdge = llvm::any_of(
-      successors(From), [To](const BasicBlock *B) { return B == To; });
+  const bool HasEdge = llvm::is_contained(successors(From), To);
 
   // If the IR does not match the update,
   // 1. In batch updates, this update is unnecessary.
@@ -167,7 +166,7 @@ bool DomTreeUpdater::hasPendingPostDomTreeUpdates() const {
 bool DomTreeUpdater::isBBPendingDeletion(llvm::BasicBlock *DelBB) const {
   if (Strategy == UpdateStrategy::Eager || DeletedBBs.empty())
     return false;
-  return DeletedBBs.count(DelBB) != 0;
+  return DeletedBBs.contains(DelBB);
 }
 
 // The DT and PDT require the nodes related to updates

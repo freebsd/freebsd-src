@@ -54,6 +54,8 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializePowerPCDisassembler() {
   // Register the disassembler for each target.
   TargetRegistry::RegisterMCDisassembler(getThePPC32Target(),
                                          createPPCDisassembler);
+  TargetRegistry::RegisterMCDisassembler(getThePPC32LETarget(),
+                                         createPPCLEDisassembler);
   TargetRegistry::RegisterMCDisassembler(getThePPC64Target(),
                                          createPPCDisassembler);
   TargetRegistry::RegisterMCDisassembler(getThePPC64LETarget(),
@@ -167,16 +169,22 @@ static DecodeStatus DecodeG8RC_NOX0RegisterClass(MCInst &Inst, uint64_t RegNo,
 #define DecodePointerLikeRegClass0 DecodeGPRCRegisterClass
 #define DecodePointerLikeRegClass1 DecodeGPRC_NOR0RegisterClass
 
-static DecodeStatus DecodeQFRCRegisterClass(MCInst &Inst, uint64_t RegNo,
-                                            uint64_t Address,
-                                            const void *Decoder) {
-  return decodeRegisterClass(Inst, RegNo, QFRegs);
-}
-
 static DecodeStatus DecodeSPERCRegisterClass(MCInst &Inst, uint64_t RegNo,
                                             uint64_t Address,
                                             const void *Decoder) {
   return decodeRegisterClass(Inst, RegNo, SPERegs);
+}
+
+static DecodeStatus DecodeACCRCRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                             uint64_t Address,
+                                             const void *Decoder) {
+  return decodeRegisterClass(Inst, RegNo, ACCRegs);
+}
+
+static DecodeStatus DecodeVSRpRCRegisterClass(MCInst &Inst, uint64_t RegNo,
+                                              uint64_t Address,
+                                              const void *Decoder) {
+  return decodeRegisterClass(Inst, RegNo, VSRpRegs);
 }
 
 #define DecodeQSRCRegisterClass DecodeQFRCRegisterClass
@@ -203,6 +211,15 @@ static DecodeStatus decodeImmZeroOperand(MCInst &Inst, uint64_t Imm,
   if (Imm != 0)
     return MCDisassembler::Fail;
   Inst.addOperand(MCOperand::createImm(Imm));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus decodeVSRpEvenOperands(MCInst &Inst, uint64_t RegNo,
+                                           uint64_t Address,
+                                           const void *Decoder) {
+  if (RegNo & 1)
+    return MCDisassembler::Fail;
+  Inst.addOperand(MCOperand::createReg(VSRpRegs[RegNo >> 1]));
   return MCDisassembler::Success;
 }
 
@@ -401,14 +418,9 @@ DecodeStatus PPCDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
   // Read the instruction in the proper endianness.
   uint64_t Inst = ReadFunc(Bytes.data());
 
-  if (STI.getFeatureBits()[PPC::FeatureQPX]) {
+  if (STI.getFeatureBits()[PPC::FeatureSPE]) {
     DecodeStatus result =
-      decodeInstruction(DecoderTableQPX32, MI, Inst, Address, this, STI);
-    if (result != MCDisassembler::Fail)
-      return result;
-  } else if (STI.getFeatureBits()[PPC::FeatureSPE]) {
-    DecodeStatus result =
-      decodeInstruction(DecoderTableSPE32, MI, Inst, Address, this, STI);
+        decodeInstruction(DecoderTableSPE32, MI, Inst, Address, this, STI);
     if (result != MCDisassembler::Fail)
       return result;
   }

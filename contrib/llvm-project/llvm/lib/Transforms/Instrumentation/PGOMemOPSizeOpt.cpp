@@ -22,6 +22,7 @@
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/GlobalsModRef.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
@@ -38,6 +39,8 @@
 #include "llvm/Pass.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/ProfileData/InstrProf.h"
+#define INSTR_PROF_VALUE_PROF_MEMOP_API
+#include "llvm/ProfileData/InstrProfData.inc"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -89,16 +92,14 @@ static cl::opt<bool>
                     cl::desc("Scale the memop size counts using the basic "
                              " block count value"));
 
-// This option sets the rangge of precise profile memop sizes.
-extern cl::opt<std::string> MemOPSizeRange;
-
-// This option sets the value that groups large memop sizes
-extern cl::opt<unsigned> MemOPSizeLarge;
-
 cl::opt<bool>
     MemOPOptMemcmpBcmp("pgo-memop-optimize-memcmp-bcmp", cl::init(true),
                        cl::Hidden,
                        cl::desc("Size-specialize memcmp and bcmp calls"));
+
+static cl::opt<unsigned>
+    MemOpMaxOptSize("memop-value-prof-max-opt-size", cl::Hidden, cl::init(128),
+                    cl::desc("Optimize the memop size <= this value"));
 
 namespace {
 class PGOMemOPSizeOptLegacyPass : public FunctionPass {
@@ -224,9 +225,6 @@ public:
       : Func(Func), BFI(BFI), ORE(ORE), DT(DT), TLI(TLI), Changed(false) {
     ValueDataArray =
         std::make_unique<InstrProfValueData[]>(MemOPMaxVersion + 2);
-    // Get the MemOPSize range information from option MemOPSizeRange,
-    getMemOPSizeRangeFromOption(MemOPSizeRange, PreciseRangeStart,
-                                PreciseRangeLast);
   }
   bool isChanged() const { return Changed; }
   void perform() {
@@ -256,7 +254,7 @@ public:
     LibFunc Func;
     if (TLI.getLibFunc(CI, Func) &&
         (Func == LibFunc_memcmp || Func == LibFunc_bcmp) &&
-        !dyn_cast<ConstantInt>(CI.getArgOperand(2))) {
+        !isa<ConstantInt>(CI.getArgOperand(2))) {
       WorkList.push_back(MemOp(&CI));
     }
   }
@@ -269,26 +267,9 @@ private:
   TargetLibraryInfo &TLI;
   bool Changed;
   std::vector<MemOp> WorkList;
-  // Start of the previse range.
-  int64_t PreciseRangeStart;
-  // Last value of the previse range.
-  int64_t PreciseRangeLast;
   // The space to read the profile annotation.
   std::unique_ptr<InstrProfValueData[]> ValueDataArray;
   bool perform(MemOp MO);
-
-  // This kind shows which group the value falls in. For PreciseValue, we have
-  // the profile count for that value. LargeGroup groups the values that are in
-  // range [LargeValue, +inf). NonLargeGroup groups the rest of values.
-  enum MemOPSizeKind { PreciseValue, NonLargeGroup, LargeGroup };
-
-  MemOPSizeKind getMemOPSizeKind(int64_t Value) const {
-    if (Value == MemOPSizeLarge && MemOPSizeLarge != 0)
-      return LargeGroup;
-    if (Value == PreciseRangeLast + 1)
-      return NonLargeGroup;
-    return PreciseValue;
-  }
 };
 
 static bool isProfitable(uint64_t Count, uint64_t TotalCount) {
@@ -365,8 +346,7 @@ bool MemOPSizeOpt::perform(MemOp MO) {
     if (MemOPScaleCount)
       C = getScaledCount(C, ActualCount, SavedTotalCount);
 
-    // Only care precise value here.
-    if (getMemOPSizeKind(V) != PreciseValue)
+    if (!InstrProfIsSingleValRange(V) || V > MemOpMaxOptSize)
       continue;
 
     // ValueCounts are sorted on the count. Break at the first un-profitable

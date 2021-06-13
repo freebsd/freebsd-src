@@ -16,6 +16,7 @@
 #include "llvm/Analysis/InlineCost.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ProfileSummaryInfo.h"
+#include "llvm/Analysis/ReplayInlineAdvisor.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -48,45 +49,33 @@ static cl::opt<int>
                         cl::desc("Scale to limit the cost of inline deferral"),
                         cl::init(2), cl::Hidden);
 
-namespace {
-class DefaultInlineAdvice : public InlineAdvice {
-public:
-  DefaultInlineAdvice(DefaultInlineAdvisor *Advisor, CallBase &CB,
-                      Optional<InlineCost> OIC, OptimizationRemarkEmitter &ORE)
-      : InlineAdvice(Advisor, CB, ORE, OIC.hasValue()), OriginalCB(&CB),
-        OIC(OIC) {}
+extern cl::opt<InlinerFunctionImportStatsOpts> InlinerFunctionImportStats;
 
-private:
-  void recordUnsuccessfulInliningImpl(const InlineResult &Result) override {
-    using namespace ore;
-    llvm::setInlineRemark(*OriginalCB, std::string(Result.getFailureReason()) +
-                                           "; " + inlineCostStr(*OIC));
-    ORE.emit([&]() {
-      return OptimizationRemarkMissed(DEBUG_TYPE, "NotInlined", DLoc, Block)
-             << NV("Callee", Callee) << " will not be inlined into "
-             << NV("Caller", Caller) << ": "
-             << NV("Reason", Result.getFailureReason());
-    });
-  }
+void DefaultInlineAdvice::recordUnsuccessfulInliningImpl(
+    const InlineResult &Result) {
+  using namespace ore;
+  llvm::setInlineRemark(*OriginalCB, std::string(Result.getFailureReason()) +
+                                         "; " + inlineCostStr(*OIC));
+  ORE.emit([&]() {
+    return OptimizationRemarkMissed(DEBUG_TYPE, "NotInlined", DLoc, Block)
+           << NV("Callee", Callee) << " will not be inlined into "
+           << NV("Caller", Caller) << ": "
+           << NV("Reason", Result.getFailureReason());
+  });
+}
 
-  void recordInliningWithCalleeDeletedImpl() override {
+void DefaultInlineAdvice::recordInliningWithCalleeDeletedImpl() {
+  if (EmitRemarks)
     emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, *OIC);
-  }
+}
 
-  void recordInliningImpl() override {
+void DefaultInlineAdvice::recordInliningImpl() {
+  if (EmitRemarks)
     emitInlinedInto(ORE, DLoc, Block, *Callee, *Caller, *OIC);
-  }
+}
 
-private:
-  CallBase *const OriginalCB;
-  Optional<InlineCost> OIC;
-};
-
-} // namespace
-
-llvm::Optional<llvm::InlineCost>
-getDefaultInlineAdvice(CallBase &CB, FunctionAnalysisManager &FAM,
-                       const InlineParams &Params) {
+llvm::Optional<llvm::InlineCost> static getDefaultInlineAdvice(
+    CallBase &CB, FunctionAnalysisManager &FAM, const InlineParams &Params) {
   Function &Caller = *CB.getCaller();
   ProfileSummaryInfo *PSI =
       FAM.getResult<ModuleAnalysisManagerFunctionProxy>(Caller)
@@ -114,11 +103,11 @@ getDefaultInlineAdvice(CallBase &CB, FunctionAnalysisManager &FAM,
                          GetBFI, PSI, RemarksEnabled ? &ORE : nullptr);
   };
   return llvm::shouldInline(CB, GetInlineCost, ORE,
-                            Params.EnableDeferral.hasValue() &&
-                                Params.EnableDeferral.getValue());
+                            Params.EnableDeferral.getValueOr(false));
 }
 
-std::unique_ptr<InlineAdvice> DefaultInlineAdvisor::getAdvice(CallBase &CB) {
+std::unique_ptr<InlineAdvice>
+DefaultInlineAdvisor::getAdviceImpl(CallBase &CB) {
   auto OIC = getDefaultInlineAdvice(CB, FAM, Params);
   return std::make_unique<DefaultInlineAdvice>(
       this, CB, OIC,
@@ -144,8 +133,20 @@ void InlineAdvisor::freeDeletedFunctions() {
   DeletedFunctions.clear();
 }
 
+void InlineAdvice::recordInlineStatsIfNeeded() {
+  if (Advisor->ImportedFunctionsStats)
+    Advisor->ImportedFunctionsStats->recordInline(*Caller, *Callee);
+}
+
+void InlineAdvice::recordInlining() {
+  markRecorded();
+  recordInlineStatsIfNeeded();
+  recordInliningImpl();
+}
+
 void InlineAdvice::recordInliningWithCalleeDeleted() {
   markRecorded();
+  recordInlineStatsIfNeeded();
   Advisor->markFunctionAsDeleted(Callee);
   recordInliningWithCalleeDeletedImpl();
 }
@@ -153,14 +154,28 @@ void InlineAdvice::recordInliningWithCalleeDeleted() {
 AnalysisKey InlineAdvisorAnalysis::Key;
 
 bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
-                                              InliningAdvisorMode Mode) {
+                                              InliningAdvisorMode Mode,
+                                              StringRef ReplayFile) {
   auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
   switch (Mode) {
   case InliningAdvisorMode::Default:
-    Advisor.reset(new DefaultInlineAdvisor(FAM, Params));
+    Advisor.reset(new DefaultInlineAdvisor(M, FAM, Params));
+    // Restrict replay to default advisor, ML advisors are stateful so
+    // replay will need augmentations to interleave with them correctly.
+    if (!ReplayFile.empty()) {
+      Advisor = std::make_unique<ReplayInlineAdvisor>(
+          M, FAM, M.getContext(), std::move(Advisor), ReplayFile,
+          /* EmitRemarks =*/true);
+    }
     break;
   case InliningAdvisorMode::Development:
-    // To be added subsequently under conditional compilation.
+#ifdef LLVM_HAVE_TF_API
+    Advisor =
+        llvm::getDevelopmentModeAdvisor(M, MAM, [&FAM, Params](CallBase &CB) {
+          auto OIC = getDefaultInlineAdvice(CB, FAM, Params);
+          return OIC.hasValue();
+        });
+#endif
     break;
   case InliningAdvisorMode::Release:
 #ifdef LLVM_HAVE_TF_AOT
@@ -168,6 +183,7 @@ bool InlineAdvisorAnalysis::Result::tryCreate(InlineParams Params,
 #endif
     break;
   }
+
   return !!Advisor;
 }
 
@@ -366,9 +382,35 @@ llvm::shouldInline(CallBase &CB,
   return IC;
 }
 
+std::string llvm::getCallSiteLocation(DebugLoc DLoc) {
+  std::ostringstream CallSiteLoc;
+  bool First = true;
+  for (DILocation *DIL = DLoc.get(); DIL; DIL = DIL->getInlinedAt()) {
+    if (!First)
+      CallSiteLoc << " @ ";
+    // Note that negative line offset is actually possible, but we use
+    // unsigned int to match line offset representation in remarks so
+    // it's directly consumable by relay advisor.
+    uint32_t Offset =
+        DIL->getLine() - DIL->getScope()->getSubprogram()->getLine();
+    uint32_t Discriminator = DIL->getBaseDiscriminator();
+    StringRef Name = DIL->getScope()->getSubprogram()->getLinkageName();
+    if (Name.empty())
+      Name = DIL->getScope()->getSubprogram()->getName();
+    CallSiteLoc << Name.str() << ":" << llvm::utostr(Offset) << ":"
+                << llvm::utostr(DIL->getColumn());
+    if (Discriminator)
+      CallSiteLoc << "." << llvm::utostr(Discriminator);
+    First = false;
+  }
+
+  return CallSiteLoc.str();
+}
+
 void llvm::addLocationToRemarks(OptimizationRemark &Remark, DebugLoc DLoc) {
-  if (!DLoc.get())
+  if (!DLoc.get()) {
     return;
+  }
 
   bool First = true;
   Remark << " at callsite ";
@@ -381,11 +423,14 @@ void llvm::addLocationToRemarks(OptimizationRemark &Remark, DebugLoc DLoc) {
     StringRef Name = DIL->getScope()->getSubprogram()->getLinkageName();
     if (Name.empty())
       Name = DIL->getScope()->getSubprogram()->getName();
-    Remark << Name << ":" << ore::NV("Line", Offset);
+    Remark << Name << ":" << ore::NV("Line", Offset) << ":"
+           << ore::NV("Column", DIL->getColumn());
     if (Discriminator)
       Remark << "." << ore::NV("Disc", Discriminator);
     First = false;
   }
+
+  Remark << ";";
 }
 
 void llvm::emitInlinedInto(OptimizationRemarkEmitter &ORE, DebugLoc DLoc,
@@ -405,4 +450,65 @@ void llvm::emitInlinedInto(OptimizationRemarkEmitter &ORE, DebugLoc DLoc,
     addLocationToRemarks(Remark, DLoc);
     return Remark;
   });
+}
+
+InlineAdvisor::InlineAdvisor(Module &M, FunctionAnalysisManager &FAM)
+    : M(M), FAM(FAM) {
+  if (InlinerFunctionImportStats != InlinerFunctionImportStatsOpts::No) {
+    ImportedFunctionsStats =
+        std::make_unique<ImportedFunctionsInliningStatistics>();
+    ImportedFunctionsStats->setModuleInfo(M);
+  }
+}
+
+InlineAdvisor::~InlineAdvisor() {
+  if (ImportedFunctionsStats) {
+    assert(InlinerFunctionImportStats != InlinerFunctionImportStatsOpts::No);
+    ImportedFunctionsStats->dump(InlinerFunctionImportStats ==
+                                 InlinerFunctionImportStatsOpts::Verbose);
+  }
+
+  freeDeletedFunctions();
+}
+
+std::unique_ptr<InlineAdvice> InlineAdvisor::getMandatoryAdvice(CallBase &CB,
+                                                                bool Advice) {
+  return std::make_unique<InlineAdvice>(this, CB, getCallerORE(CB), Advice);
+}
+
+InlineAdvisor::MandatoryInliningKind
+InlineAdvisor::getMandatoryKind(CallBase &CB, FunctionAnalysisManager &FAM,
+                                OptimizationRemarkEmitter &ORE) {
+  auto &Callee = *CB.getCalledFunction();
+
+  auto GetTLI = [&](Function &F) -> const TargetLibraryInfo & {
+    return FAM.getResult<TargetLibraryAnalysis>(F);
+  };
+
+  auto &TIR = FAM.getResult<TargetIRAnalysis>(Callee);
+
+  auto TrivialDecision =
+      llvm::getAttributeBasedInliningDecision(CB, &Callee, TIR, GetTLI);
+
+  if (TrivialDecision.hasValue()) {
+    if (TrivialDecision->isSuccess())
+      return MandatoryInliningKind::Always;
+    else
+      return MandatoryInliningKind::Never;
+  }
+  return MandatoryInliningKind::NotMandatory;
+}
+
+std::unique_ptr<InlineAdvice> InlineAdvisor::getAdvice(CallBase &CB,
+                                                       bool MandatoryOnly) {
+  if (!MandatoryOnly)
+    return getAdviceImpl(CB);
+  bool Advice = CB.getCaller() != CB.getCalledFunction() &&
+                MandatoryInliningKind::Always ==
+                    getMandatoryKind(CB, FAM, getCallerORE(CB));
+  return getMandatoryAdvice(CB, Advice);
+}
+
+OptimizationRemarkEmitter &InlineAdvisor::getCallerORE(CallBase &CB) {
+  return FAM.getResult<OptimizationRemarkEmitterAnalysis>(*CB.getCaller());
 }

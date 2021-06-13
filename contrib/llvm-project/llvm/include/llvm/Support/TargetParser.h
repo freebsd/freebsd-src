@@ -62,17 +62,20 @@ enum GPUKind : uint32_t {
   // AMDGCN-based processors.
   GK_GFX600 = 32,
   GK_GFX601 = 33,
+  GK_GFX602 = 34,
 
   GK_GFX700 = 40,
   GK_GFX701 = 41,
   GK_GFX702 = 42,
   GK_GFX703 = 43,
   GK_GFX704 = 44,
+  GK_GFX705 = 45,
 
   GK_GFX801 = 50,
   GK_GFX802 = 51,
   GK_GFX803 = 52,
-  GK_GFX810 = 53,
+  GK_GFX805 = 53,
+  GK_GFX810 = 54,
 
   GK_GFX900 = 60,
   GK_GFX902 = 61,
@@ -80,14 +83,18 @@ enum GPUKind : uint32_t {
   GK_GFX906 = 63,
   GK_GFX908 = 64,
   GK_GFX909 = 65,
+  GK_GFX90C = 66,
 
   GK_GFX1010 = 71,
   GK_GFX1011 = 72,
   GK_GFX1012 = 73,
   GK_GFX1030 = 75,
+  GK_GFX1031 = 76,
+  GK_GFX1032 = 77,
+  GK_GFX1033 = 78,
 
   GK_AMDGCN_FIRST = GK_GFX600,
-  GK_AMDGCN_LAST = GK_GFX1030,
+  GK_AMDGCN_LAST = GK_GFX1033,
 };
 
 /// Instruction set architecture version.
@@ -112,12 +119,18 @@ enum ArchFeatureKind : uint32_t {
   FEATURE_FAST_DENORMAL_F32 = 1 << 5,
 
   // Wavefront 32 is available.
-  FEATURE_WAVE32 = 1 << 6
+  FEATURE_WAVE32 = 1 << 6,
+
+  // Xnack is available.
+  FEATURE_XNACK = 1 << 7,
+
+  // Sram-ecc is available.
+  FEATURE_SRAMECC = 1 << 8,
 };
 
 StringRef getArchNameAMDGCN(GPUKind AK);
 StringRef getArchNameR600(GPUKind AK);
-StringRef getCanonicalArchName(StringRef Arch);
+StringRef getCanonicalArchName(const Triple &T, StringRef Arch);
 GPUKind parseArchAMDGCN(StringRef CPU);
 GPUKind parseArchR600(StringRef CPU);
 unsigned getArchAttrAMDGCN(GPUKind AK);
@@ -149,10 +162,14 @@ enum FeatureKind : unsigned {
 };
 
 bool checkCPUKind(CPUKind Kind, bool IsRV64);
+bool checkTuneCPUKind(CPUKind Kind, bool IsRV64);
 CPUKind parseCPUKind(StringRef CPU);
+CPUKind parseTuneCPUKind(StringRef CPU, bool IsRV64);
 StringRef getMArchFromMcpu(StringRef CPU);
 void fillValidCPUArchList(SmallVectorImpl<StringRef> &Values, bool IsRV64);
+void fillValidTuneCPUArchList(SmallVectorImpl<StringRef> &Values, bool IsRV64);
 bool getCPUFeaturesExceptStdExt(CPUKind Kind, std::vector<StringRef> &Features);
+StringRef resolveTuneCPUAlias(StringRef TuneCPU, bool IsRV64);
 
 } // namespace RISCV
 

@@ -101,6 +101,43 @@ public:
   InstallNameToolOptTable() : OptTable(InstallNameToolInfoTable) {}
 };
 
+enum BitcodeStripID {
+  BITCODE_STRIP_INVALID = 0, // This is not an option ID.
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
+               HELPTEXT, METAVAR, VALUES)                                      \
+  BITCODE_STRIP_##ID,
+#include "BitcodeStripOpts.inc"
+#undef OPTION
+};
+
+#define PREFIX(NAME, VALUE) const char *const BITCODE_STRIP_##NAME[] = VALUE;
+#include "BitcodeStripOpts.inc"
+#undef PREFIX
+
+static const opt::OptTable::Info BitcodeStripInfoTable[] = {
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
+               HELPTEXT, METAVAR, VALUES)                                      \
+  {BITCODE_STRIP_##PREFIX,                                                     \
+   NAME,                                                                       \
+   HELPTEXT,                                                                   \
+   METAVAR,                                                                    \
+   BITCODE_STRIP_##ID,                                                         \
+   opt::Option::KIND##Class,                                                   \
+   PARAM,                                                                      \
+   FLAGS,                                                                      \
+   BITCODE_STRIP_##GROUP,                                                      \
+   BITCODE_STRIP_##ALIAS,                                                      \
+   ALIASARGS,                                                                  \
+   VALUES},
+#include "BitcodeStripOpts.inc"
+#undef OPTION
+};
+
+class BitcodeStripOptTable : public opt::OptTable {
+public:
+  BitcodeStripOptTable() : OptTable(BitcodeStripInfoTable) {}
+};
+
 enum StripID {
   STRIP_INVALID = 0, // This is not an option ID.
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
@@ -395,7 +432,7 @@ template <class T> static ErrorOr<T> getAsInteger(StringRef Val) {
 
 namespace {
 
-enum class ToolType { Objcopy, Strip, InstallNameTool };
+enum class ToolType { Objcopy, Strip, InstallNameTool, BitcodeStrip };
 
 } // anonymous namespace
 
@@ -413,6 +450,10 @@ static void printHelp(const opt::OptTable &OptTable, raw_ostream &OS,
     break;
   case ToolType::InstallNameTool:
     ToolName = "llvm-install-name-tool";
+    HelpText = " [options] input";
+    break;
+  case ToolType::BitcodeStrip:
+    ToolName = "llvm-bitcode-strip";
     HelpText = " [options] input";
     break;
   }
@@ -854,6 +895,9 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
   for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_add_rpath))
     Config.RPathToAdd.push_back(Arg->getValue());
 
+  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_prepend_rpath))
+    Config.RPathToPrepend.push_back(Arg->getValue());
+
   for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_delete_rpath)) {
     StringRef RPath = Arg->getValue();
 
@@ -861,7 +905,12 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
     if (is_contained(Config.RPathToAdd, RPath))
       return createStringError(
           errc::invalid_argument,
-          "cannot specify both -add_rpath %s and -delete_rpath %s",
+          "cannot specify both -add_rpath '%s' and -delete_rpath '%s'",
+          RPath.str().c_str(), RPath.str().c_str());
+    if (is_contained(Config.RPathToPrepend, RPath))
+      return createStringError(
+          errc::invalid_argument,
+          "cannot specify both -prepend_rpath '%s' and -delete_rpath '%s'",
           RPath.str().c_str(), RPath.str().c_str());
 
     Config.RPathsToRemove.insert(RPath);
@@ -881,33 +930,46 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
         });
     if (It1 != Config.RPathsToUpdate.end())
       return createStringError(errc::invalid_argument,
-                               "cannot specify both -rpath " + It1->getFirst() +
-                                   " " + It1->getSecond() + " and -rpath " +
-                                   Old + " " + New);
+                               "cannot specify both -rpath '" +
+                                   It1->getFirst() + "' '" + It1->getSecond() +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
 
     // Cannot specify the same rpath under both -delete_rpath and -rpath
     auto It2 = find_if(Config.RPathsToRemove, Match);
     if (It2 != Config.RPathsToRemove.end())
       return createStringError(errc::invalid_argument,
-                               "cannot specify both -delete_rpath " + *It2 +
-                                   " and -rpath " + Old + " " + New);
+                               "cannot specify both -delete_rpath '" + *It2 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
 
     // Cannot specify the same rpath under both -add_rpath and -rpath
     auto It3 = find_if(Config.RPathToAdd, Match);
     if (It3 != Config.RPathToAdd.end())
       return createStringError(errc::invalid_argument,
-                               "cannot specify both -add_rpath " + *It3 +
-                                   " and -rpath " + Old + " " + New);
+                               "cannot specify both -add_rpath '" + *It3 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
+
+    // Cannot specify the same rpath under both -prepend_rpath and -rpath.
+    auto It4 = find_if(Config.RPathToPrepend, Match);
+    if (It4 != Config.RPathToPrepend.end())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify both -prepend_rpath '" + *It4 +
+                                   "' and -rpath '" + Old + "' '" + New + "'");
 
     Config.RPathsToUpdate.insert({Old, New});
   }
 
-  if (auto *Arg = InputArgs.getLastArg(INSTALL_NAME_TOOL_id))
+  if (auto *Arg = InputArgs.getLastArg(INSTALL_NAME_TOOL_id)) {
     Config.SharedLibId = Arg->getValue();
-
-  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_change)) {
-    Config.InstallNamesToUpdate.insert({Arg->getValue(0), Arg->getValue(1)});
+    if (Config.SharedLibId->empty())
+      return createStringError(errc::invalid_argument,
+                               "cannot specify an empty id");
   }
+
+  for (auto *Arg : InputArgs.filtered(INSTALL_NAME_TOOL_change))
+    Config.InstallNamesToUpdate.insert({Arg->getValue(0), Arg->getValue(1)});
+
+  Config.RemoveAllRpaths =
+      InputArgs.hasArg(INSTALL_NAME_TOOL_delete_all_rpaths);
 
   SmallVector<StringRef, 2> Positional;
   for (auto Arg : InputArgs.filtered(INSTALL_NAME_TOOL_UNKNOWN))
@@ -921,6 +983,50 @@ parseInstallNameToolOptions(ArrayRef<const char *> ArgsArr) {
     return createStringError(
         errc::invalid_argument,
         "llvm-install-name-tool expects a single input file");
+  Config.InputFilename = Positional[0];
+  Config.OutputFilename = Positional[0];
+
+  DC.CopyConfigs.push_back(std::move(Config));
+  return std::move(DC);
+}
+
+Expected<DriverConfig>
+parseBitcodeStripOptions(ArrayRef<const char *> ArgsArr) {
+  DriverConfig DC;
+  CopyConfig Config;
+  BitcodeStripOptTable T;
+  unsigned MissingArgumentIndex, MissingArgumentCount;
+  opt::InputArgList InputArgs =
+      T.ParseArgs(ArgsArr, MissingArgumentIndex, MissingArgumentCount);
+
+  if (InputArgs.size() == 0) {
+    printHelp(T, errs(), ToolType::BitcodeStrip);
+    exit(1);
+  }
+
+  if (InputArgs.hasArg(BITCODE_STRIP_help)) {
+    printHelp(T, outs(), ToolType::BitcodeStrip);
+    exit(0);
+  }
+
+  if (InputArgs.hasArg(BITCODE_STRIP_version)) {
+    outs() << "llvm-bitcode-strip, compatible with cctools "
+              "bitcode_strip\n";
+    cl::PrintVersionMessage();
+    exit(0);
+  }
+
+  for (auto *Arg : InputArgs.filtered(BITCODE_STRIP_UNKNOWN))
+    return createStringError(errc::invalid_argument, "unknown argument '%s'",
+                             Arg->getAsString(InputArgs).c_str());
+
+  SmallVector<StringRef, 2> Positional;
+  for (auto *Arg : InputArgs.filtered(BITCODE_STRIP_INPUT))
+    Positional.push_back(Arg->getValue());
+  if (Positional.size() > 1)
+    return createStringError(errc::invalid_argument,
+                             "llvm-bitcode-strip expects a single input file");
+  assert(!Positional.empty());
   Config.InputFilename = Positional[0];
   Config.OutputFilename = Positional[0];
 

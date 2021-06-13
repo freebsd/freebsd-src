@@ -57,7 +57,7 @@ enum { KMP_DEPHASH_OTHER_SIZE = 97, KMP_DEPHASH_MASTER_SIZE = 997 };
 size_t sizes[] = { 997, 2003, 4001, 8191, 16001, 32003, 64007, 131071, 270029 };
 const size_t MAX_GEN = 8;
 
-static inline kmp_int32 __kmp_dephash_hash(kmp_intptr_t addr, size_t hsize) {
+static inline size_t __kmp_dephash_hash(kmp_intptr_t addr, size_t hsize) {
   // TODO alternate to try: set = (((Addr64)(addrUsefulBits * 9.618)) %
   // m_num_sets );
   return ((addr >> 6) ^ (addr >> 2)) % hsize;
@@ -72,7 +72,7 @@ static kmp_dephash_t *__kmp_dephash_extend(kmp_info_t *thread,
     return current_dephash;
   size_t new_size = sizes[gen];
 
-  kmp_int32 size_to_allocate =
+  size_t size_to_allocate =
       new_size * sizeof(kmp_dephash_entry_t *) + sizeof(kmp_dephash_t);
 
 #if USE_FAST_MEMORY
@@ -86,6 +86,12 @@ static kmp_dephash_t *__kmp_dephash_extend(kmp_info_t *thread,
   h->buckets = (kmp_dephash_entry **)(h + 1);
   h->generation = gen;
   h->nconflicts = 0;
+
+  // make sure buckets are properly initialized
+  for (size_t i = 0; i < new_size; i++) {
+    h->buckets[i] = NULL;
+  }
+
   // insert existing elements in the new table
   for (size_t i = 0; i < current_dephash->size; i++) {
     kmp_dephash_entry_t *next, *entry;
@@ -93,7 +99,7 @@ static kmp_dephash_t *__kmp_dephash_extend(kmp_info_t *thread,
       next = entry->next_in_bucket;
       // Compute the new hash using the new size, and insert the entry in
       // the new bucket.
-      kmp_int32 new_bucket = __kmp_dephash_hash(entry->addr, h->size);
+      size_t new_bucket = __kmp_dephash_hash(entry->addr, h->size);
       entry->next_in_bucket = h->buckets[new_bucket];
       if (entry->next_in_bucket) {
         h->nconflicts++;
@@ -123,8 +129,7 @@ static kmp_dephash_t *__kmp_dephash_create(kmp_info_t *thread,
   else
     h_size = KMP_DEPHASH_OTHER_SIZE;
 
-  kmp_int32 size =
-      h_size * sizeof(kmp_dephash_entry_t *) + sizeof(kmp_dephash_t);
+  size_t size = h_size * sizeof(kmp_dephash_entry_t *) + sizeof(kmp_dephash_t);
 
 #if USE_FAST_MEMORY
   h = (kmp_dephash_t *)__kmp_fast_allocate(thread, size);
@@ -155,7 +160,7 @@ __kmp_dephash_find(kmp_info_t *thread, kmp_dephash_t **hash, kmp_intptr_t addr) 
     *hash = __kmp_dephash_extend(thread, h);
     h = *hash;
   }
-  kmp_int32 bucket = __kmp_dephash_hash(addr, h->size);
+  size_t bucket = __kmp_dephash_hash(addr, h->size);
 
   kmp_dephash_entry_t *entry;
   for (entry = h->buckets[bucket]; entry; entry = entry->next_in_bucket)
@@ -514,24 +519,22 @@ kmp_int32 __kmpc_omp_task_with_deps(ident_t *loc_ref, kmp_int32 gtid,
   kmp_taskdata_t *new_taskdata = KMP_TASK_TO_TASKDATA(new_task);
   KA_TRACE(10, ("__kmpc_omp_task_with_deps(enter): T#%d loc=%p task=%p\n", gtid,
                 loc_ref, new_taskdata));
-
+  __kmp_assert_valid_gtid(gtid);
   kmp_info_t *thread = __kmp_threads[gtid];
   kmp_taskdata_t *current_task = thread->th.th_current_task;
 
 #if OMPT_SUPPORT
   if (ompt_enabled.enabled) {
-    OMPT_STORE_RETURN_ADDRESS(gtid);
     if (!current_task->ompt_task_info.frame.enter_frame.ptr)
       current_task->ompt_task_info.frame.enter_frame.ptr =
           OMPT_GET_FRAME_ADDRESS(0);
     if (ompt_enabled.ompt_callback_task_create) {
-      ompt_data_t task_data = ompt_data_none;
       ompt_callbacks.ompt_callback(ompt_callback_task_create)(
-          current_task ? &(current_task->ompt_task_info.task_data) : &task_data,
-          current_task ? &(current_task->ompt_task_info.frame) : NULL,
+          &(current_task->ompt_task_info.task_data),
+          &(current_task->ompt_task_info.frame),
           &(new_taskdata->ompt_task_info.task_data),
           ompt_task_explicit | TASK_TYPE_DETAILS_FORMAT(new_taskdata), 1,
-          OMPT_LOAD_RETURN_ADDRESS(gtid));
+          OMPT_LOAD_OR_GET_RETURN_ADDRESS(gtid));
     }
 
     new_taskdata->ompt_task_info.frame.enter_frame.ptr = OMPT_GET_FRAME_ADDRESS(0);
@@ -585,7 +588,9 @@ kmp_int32 __kmpc_omp_task_with_deps(ident_t *loc_ref, kmp_int32 gtid,
                 current_task->td_flags.tasking_ser ||
                 current_task->td_flags.final;
   kmp_task_team_t *task_team = thread->th.th_task_team;
-  serial = serial && !(task_team && task_team->tt.tt_found_proxy_tasks);
+  serial = serial &&
+           !(task_team && (task_team->tt.tt_found_proxy_tasks ||
+                           task_team->tt.tt_hidden_helper_task_encountered));
 
   if (!serial && (ndeps > 0 || ndeps_noalias > 0)) {
     /* if no dependencies have been tracked yet, create the dependence hash */
@@ -642,13 +647,12 @@ kmp_int32 __kmpc_omp_task_with_deps(ident_t *loc_ref, kmp_int32 gtid,
 void __ompt_taskwait_dep_finish(kmp_taskdata_t *current_task,
                                 ompt_data_t *taskwait_task_data) {
   if (ompt_enabled.ompt_callback_task_schedule) {
-    ompt_data_t task_data = ompt_data_none;
     ompt_callbacks.ompt_callback(ompt_callback_task_schedule)(
-        current_task ? &(current_task->ompt_task_info.task_data) : &task_data,
-        ompt_task_switch, taskwait_task_data);
+        &(current_task->ompt_task_info.task_data), ompt_task_switch,
+        taskwait_task_data);
     ompt_callbacks.ompt_callback(ompt_callback_task_schedule)(
         taskwait_task_data, ompt_task_complete,
-        current_task ? &(current_task->ompt_task_info.task_data) : &task_data);
+        &(current_task->ompt_task_info.task_data));
   }
   current_task->ompt_task_info.frame.enter_frame.ptr = NULL;
   *taskwait_task_data = ompt_data_none;
@@ -677,7 +681,7 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
                   gtid, loc_ref));
     return;
   }
-
+  __kmp_assert_valid_gtid(gtid);
   kmp_info_t *thread = __kmp_threads[gtid];
   kmp_taskdata_t *current_task = thread->th.th_current_task;
 
@@ -694,13 +698,11 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
       current_task->ompt_task_info.frame.enter_frame.ptr =
           OMPT_GET_FRAME_ADDRESS(0);
     if (ompt_enabled.ompt_callback_task_create) {
-      ompt_data_t task_data = ompt_data_none;
       ompt_callbacks.ompt_callback(ompt_callback_task_create)(
-          current_task ? &(current_task->ompt_task_info.task_data) : &task_data,
-          current_task ? &(current_task->ompt_task_info.frame) : NULL,
-          taskwait_task_data,
+          &(current_task->ompt_task_info.task_data),
+          &(current_task->ompt_task_info.frame), taskwait_task_data,
           ompt_task_explicit | ompt_task_undeferred | ompt_task_mergeable, 1,
-          OMPT_GET_RETURN_ADDRESS(0));
+          OMPT_LOAD_OR_GET_RETURN_ADDRESS(gtid));
     }
   }
 
@@ -771,6 +773,8 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
 
   kmp_depnode_t node = {0};
   __kmp_init_node(&node);
+  // the stack owns the node
+  __kmp_node_ref(&node);
 
   if (!__kmp_check_deps(gtid, &node, NULL, &current_task->td_dephash,
                         DEP_BARRIER, ndeps, dep_list, ndeps_noalias,
@@ -785,7 +789,8 @@ void __kmpc_omp_wait_deps(ident_t *loc_ref, kmp_int32 gtid, kmp_int32 ndeps,
   }
 
   int thread_finished = FALSE;
-  kmp_flag_32 flag((std::atomic<kmp_uint32> *)&node.dn.npredecessors, 0U);
+  kmp_flag_32<false, false> flag(
+      (std::atomic<kmp_uint32> *)&node.dn.npredecessors, 0U);
   while (node.dn.npredecessors > 0) {
     flag.execute_tasks(thread, gtid, FALSE,
                        &thread_finished USE_ITT_BUILD_ARG(NULL),

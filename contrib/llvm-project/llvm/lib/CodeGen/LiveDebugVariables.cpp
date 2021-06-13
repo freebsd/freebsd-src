@@ -54,7 +54,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -96,6 +95,7 @@ LiveDebugVariables::LiveDebugVariables() : MachineFunctionPass(ID) {
 
 enum : unsigned { UndefLocNo = ~0U };
 
+namespace {
 /// Describes a debug variable value by location number and expression along
 /// with some flags about the original usage of the location.
 class DbgVariableValue {
@@ -136,6 +136,7 @@ private:
   unsigned WasIndirect : 1;
   const DIExpression *Expression = nullptr;
 };
+} // namespace
 
 /// Map of where a user value is live to that value.
 using LocMap = IntervalMap<SlotIndex, DbgVariableValue, 4>;
@@ -394,6 +395,11 @@ class LDVImpl {
   LiveIntervals *LIS;
   const TargetRegisterInfo *TRI;
 
+  using StashedInstrRef =
+      std::tuple<unsigned, unsigned, const DILocalVariable *,
+                 const DIExpression *, DebugLoc>;
+  std::map<SlotIndex, std::vector<StashedInstrRef>> StashedInstrReferences;
+
   /// Whether emitDebugValues is called.
   bool EmitDone = false;
 
@@ -430,6 +436,16 @@ class LDVImpl {
   /// \returns True if the DBG_VALUE instruction should be deleted.
   bool handleDebugValue(MachineInstr &MI, SlotIndex Idx);
 
+  /// Track a DBG_INSTR_REF. This needs to be removed from the MachineFunction
+  /// during regalloc -- but there's no need to maintain live ranges, as we
+  /// refer to a value rather than a location.
+  ///
+  /// \param MI DBG_INSTR_REF instruction
+  /// \param Idx Last valid SlotIndex before instruction
+  ///
+  /// \returns True if the DBG_VALUE instruction should be deleted.
+  bool handleDebugInstrRef(MachineInstr &MI, SlotIndex Idx);
+
   /// Add DBG_LABEL instruction to UserLabel.
   ///
   /// \param MI DBG_LABEL instruction
@@ -458,6 +474,7 @@ public:
   /// Release all memory.
   void clear() {
     MF = nullptr;
+    StashedInstrReferences.clear();
     userValues.clear();
     userLabels.clear();
     virtRegToEqClass.clear();
@@ -665,6 +682,19 @@ bool LDVImpl::handleDebugValue(MachineInstr &MI, SlotIndex Idx) {
   return true;
 }
 
+bool LDVImpl::handleDebugInstrRef(MachineInstr &MI, SlotIndex Idx) {
+  assert(MI.isDebugRef());
+  unsigned InstrNum = MI.getOperand(0).getImm();
+  unsigned OperandNum = MI.getOperand(1).getImm();
+  auto *Var = MI.getDebugVariable();
+  auto *Expr = MI.getDebugExpression();
+  auto &DL = MI.getDebugLoc();
+  StashedInstrRef Stashed =
+      std::make_tuple(InstrNum, OperandNum, Var, Expr, DL);
+  StashedInstrReferences[Idx].push_back(Stashed);
+  return true;
+}
+
 bool LDVImpl::handleDebugLabel(MachineInstr &MI, SlotIndex Idx) {
   // DBG_LABEL label
   if (MI.getNumOperands() != 1 || !MI.getOperand(0).isMetadata()) {
@@ -712,6 +742,7 @@ bool LDVImpl::collectDebugValues(MachineFunction &mf) {
         // Only handle DBG_VALUE in handleDebugValue(). Skip all other
         // kinds of debug instructions.
         if ((MBBI->isDebugValue() && handleDebugValue(*MBBI, Idx)) ||
+            (MBBI->isDebugRef() && handleDebugInstrRef(*MBBI, Idx)) ||
             (MBBI->isDebugLabel() && handleDebugLabel(*MBBI, Idx))) {
           MBBI = MBB->erase(MBBI);
           Changed = true;
@@ -775,12 +806,12 @@ void UserValue::addDefsFromCopies(
   if (Kills.empty())
     return;
   // Don't track copies from physregs, there are too many uses.
-  if (!Register::isVirtualRegister(LI->reg))
+  if (!Register::isVirtualRegister(LI->reg()))
     return;
 
   // Collect all the (vreg, valno) pairs that are copies of LI.
   SmallVector<std::pair<LiveInterval*, const VNInfo*>, 8> CopyValues;
-  for (MachineOperand &MO : MRI.use_nodbg_operands(LI->reg)) {
+  for (MachineOperand &MO : MRI.use_nodbg_operands(LI->reg())) {
     MachineInstr *MI = MO.getParent();
     // Copies of the full value.
     if (MO.getSubReg() || !MI->isCopy())
@@ -991,10 +1022,10 @@ bool LDVImpl::runOnMachineFunction(MachineFunction &mf) {
   return Changed;
 }
 
-static void removeDebugValues(MachineFunction &mf) {
+static void removeDebugInstrs(MachineFunction &mf) {
   for (MachineBasicBlock &MBB : mf) {
     for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ) {
-      if (!MBBI->isDebugValue()) {
+      if (!MBBI->isDebugInstr()) {
         ++MBBI;
         continue;
       }
@@ -1007,7 +1038,7 @@ bool LiveDebugVariables::runOnMachineFunction(MachineFunction &mf) {
   if (!EnableLDV)
     return false;
   if (!mf.getFunction().getSubprogram()) {
-    removeDebugValues(mf);
+    removeDebugInstrs(mf);
     return false;
   }
   if (!pImpl)
@@ -1064,7 +1095,7 @@ UserValue::splitLocation(unsigned OldLocNo, ArrayRef<Register> NewRegs,
           LII->start < LocMapI.stop()) {
         // Overlapping correct location. Allocate NewLocNo now.
         if (NewLocNo == UndefLocNo) {
-          MachineOperand MO = MachineOperand::CreateReg(LI->reg, false);
+          MachineOperand MO = MachineOperand::CreateReg(LI->reg(), false);
           MO.setSubReg(locations[OldLocNo].getSubReg());
           NewLocNo = getLocationNo(MO);
           DidChange = true;
@@ -1434,16 +1465,34 @@ void LDVImpl::emitDebugValues(VirtRegMap *VRM) {
     LLVM_DEBUG(userLabel->print(dbgs(), TRI));
     userLabel->emitDebugLabel(*LIS, *TII);
   }
+
+  LLVM_DEBUG(dbgs() << "********** EMITTING INSTR REFERENCES **********\n");
+
+  // Re-insert any DBG_INSTR_REFs back in the position they were. Ordering
+  // is preserved by vector.
+  auto Slots = LIS->getSlotIndexes();
+  const MCInstrDesc &RefII = TII->get(TargetOpcode::DBG_INSTR_REF);
+  for (auto &P : StashedInstrReferences) {
+    const SlotIndex &Idx = P.first;
+    auto *MBB = Slots->getMBBFromIndex(Idx);
+    MachineBasicBlock::iterator insertPos = findInsertLocation(MBB, Idx, *LIS);
+    for (auto &Stashed : P.second) {
+      auto MIB = BuildMI(*MF, std::get<4>(Stashed), RefII);
+      MIB.addImm(std::get<0>(Stashed));
+      MIB.addImm(std::get<1>(Stashed));
+      MIB.addMetadata(std::get<2>(Stashed));
+      MIB.addMetadata(std::get<3>(Stashed));
+      MachineInstr *New = MIB;
+      MBB->insert(insertPos, New);
+    }
+  }
+
   EmitDone = true;
 }
 
 void LiveDebugVariables::emitDebugValues(VirtRegMap *VRM) {
   if (pImpl)
     static_cast<LDVImpl*>(pImpl)->emitDebugValues(VRM);
-}
-
-bool LiveDebugVariables::doInitialization(Module &M) {
-  return Pass::doInitialization(M);
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)

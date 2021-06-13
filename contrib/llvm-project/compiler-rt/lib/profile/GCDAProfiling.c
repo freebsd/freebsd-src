@@ -128,11 +128,6 @@ struct fn_list {
 struct fn_list writeout_fn_list;
 
 /*
- *  A list of flush functions that our __gcov_flush() function should call, shared between all dynamic objects.
- */
-struct fn_list flush_fn_list;
-
-/*
  *  A list of reset functions, shared between all dynamic objects.
  */
 struct fn_list reset_fn_list;
@@ -308,16 +303,11 @@ static void unmap_file() {
 
   mmap_handle = NULL;
 #else
-  if (msync(write_buffer, file_size, MS_SYNC) == -1) {
+  if (munmap(write_buffer, file_size) == -1) {
     int errnum = errno;
-    fprintf(stderr, "profiling: %s: cannot msync: %s\n", filename,
+    fprintf(stderr, "profiling: %s: cannot munmap: %s\n", filename,
             strerror(errnum));
   }
-
-  /* We explicitly ignore errors from unmapping because at this point the data
-   * is written and we don't care.
-   */
-  (void)munmap(write_buffer, file_size);
 #endif
 
   write_buffer = NULL;
@@ -403,32 +393,6 @@ void llvm_gcda_start_file(const char *orig_filename, uint32_t version,
 
 #ifdef DEBUG_GCDAPROFILING
   fprintf(stderr, "llvmgcda: [%s]\n", orig_filename);
-#endif
-}
-
-/* Given an array of pointers to counters (counters), increment the n-th one,
- * where we're also given a pointer to n (predecessor).
- */
-COMPILER_RT_VISIBILITY
-void llvm_gcda_increment_indirect_counter(uint32_t *predecessor,
-                                          uint64_t **counters) {
-  uint64_t *counter;
-  uint32_t pred;
-
-  pred = *predecessor;
-  if (pred == 0xffffffff)
-    return;
-  counter = counters[pred];
-
-  /* Don't crash if the pred# is out of sync. This can happen due to threads,
-     or because of a TODO in GCOVProfiling.cpp buildEdgeLookupTable(). */
-  if (counter)
-    ++*counter;
-#ifdef DEBUG_GCDAPROFILING
-  else
-    fprintf(stderr,
-            "llvmgcda: increment_indirect_counter counters=%08llx, pred=%u\n",
-            *counter, *predecessor);
 #endif
 }
 
@@ -627,25 +591,6 @@ static void llvm_writeout_and_clear(void) {
 }
 
 COMPILER_RT_VISIBILITY
-void llvm_register_flush_function(fn_ptr fn) {
-  fn_list_insert(&flush_fn_list, fn);
-}
-
-void __gcov_flush() {
-  struct fn_node* curr = flush_fn_list.head;
-
-  while (curr) {
-    curr->fn();
-    curr = curr->next;
-  }
-}
-
-COMPILER_RT_VISIBILITY
-void llvm_delete_flush_function_list(void) {
-  fn_list_remove(&flush_fn_list);
-}
-
-COMPILER_RT_VISIBILITY
 void llvm_register_reset_function(fn_ptr fn) {
   fn_list_insert(&reset_fn_list, fn);
 }
@@ -685,14 +630,11 @@ pid_t __gcov_fork() {
 #endif
 
 COMPILER_RT_VISIBILITY
-void llvm_gcov_init(fn_ptr wfn, fn_ptr ffn, fn_ptr rfn) {
+void llvm_gcov_init(fn_ptr wfn, fn_ptr rfn) {
   static int atexit_ran = 0;
 
   if (wfn)
     llvm_register_writeout_function(wfn);
-
-  if (ffn)
-    llvm_register_flush_function(ffn);
 
   if (rfn)
     llvm_register_reset_function(rfn);
@@ -702,11 +644,20 @@ void llvm_gcov_init(fn_ptr wfn, fn_ptr ffn, fn_ptr rfn) {
 
     /* Make sure we write out the data and delete the data structures. */
     atexit(llvm_delete_reset_function_list);
-    atexit(llvm_delete_flush_function_list);
 #ifdef _WIN32
     atexit(llvm_writeout_and_clear);
 #endif
   }
+}
+
+void __gcov_dump(void) {
+  for (struct fn_node *f = writeout_fn_list.head; f; f = f->next)
+    f->fn();
+}
+
+void __gcov_reset(void) {
+  for (struct fn_node *f = reset_fn_list.head; f; f = f->next)
+    f->fn();
 }
 
 #endif

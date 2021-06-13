@@ -74,9 +74,10 @@ inline StringRef getInstrProfValueProfFuncName() {
   return INSTR_PROF_VALUE_PROF_FUNC_STR;
 }
 
-/// Return the name profile runtime entry point to do value range profiling.
-inline StringRef getInstrProfValueRangeProfFuncName() {
-  return INSTR_PROF_VALUE_RANGE_PROF_FUNC_STR;
+/// Return the name profile runtime entry point to do memop size value
+/// profiling.
+inline StringRef getInstrProfValueProfMemOpFuncName() {
+  return INSTR_PROF_VALUE_PROF_MEMOP_FUNC_STR;
 }
 
 /// Return the name prefix of variables containing instrumented function names.
@@ -561,10 +562,9 @@ StringRef InstrProfSymtab::getFuncNameOrExternalSymbol(uint64_t FuncMD5Hash) {
 
 StringRef InstrProfSymtab::getFuncName(uint64_t FuncMD5Hash) {
   finalizeSymtab();
-  auto Result =
-      std::lower_bound(MD5NameMap.begin(), MD5NameMap.end(), FuncMD5Hash,
-                       [](const std::pair<uint64_t, StringRef> &LHS,
-                          uint64_t RHS) { return LHS.first < RHS; });
+  auto Result = llvm::lower_bound(MD5NameMap, FuncMD5Hash,
+                                  [](const std::pair<uint64_t, StringRef> &LHS,
+                                     uint64_t RHS) { return LHS.first < RHS; });
   if (Result != MD5NameMap.end() && Result->first == FuncMD5Hash)
     return Result->second;
   return StringRef();
@@ -572,10 +572,9 @@ StringRef InstrProfSymtab::getFuncName(uint64_t FuncMD5Hash) {
 
 Function* InstrProfSymtab::getFunction(uint64_t FuncMD5Hash) {
   finalizeSymtab();
-  auto Result =
-      std::lower_bound(MD5FuncMap.begin(), MD5FuncMap.end(), FuncMD5Hash,
-                       [](const std::pair<uint64_t, Function*> &LHS,
-                          uint64_t RHS) { return LHS.first < RHS; });
+  auto Result = llvm::lower_bound(MD5FuncMap, FuncMD5Hash,
+                                  [](const std::pair<uint64_t, Function *> &LHS,
+                                     uint64_t RHS) { return LHS.first < RHS; });
   if (Result != MD5FuncMap.end() && Result->first == FuncMD5Hash)
     return Result->second;
   return nullptr;
@@ -678,8 +677,8 @@ struct InstrProfValueSiteRecord {
   /// Optionally scale merged counts by \p Weight.
   void merge(InstrProfValueSiteRecord &Input, uint64_t Weight,
              function_ref<void(instrprof_error)> Warn);
-  /// Scale up value profile data counts.
-  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
+  /// Scale up value profile data counts by N (Numerator) / D (Denominator).
+  void scale(uint64_t N, uint64_t D, function_ref<void(instrprof_error)> Warn);
 
   /// Compute the overlap b/w this record and Input record.
   void overlap(InstrProfValueSiteRecord &Input, uint32_t ValueKind,
@@ -753,8 +752,8 @@ struct InstrProfRecord {
              function_ref<void(instrprof_error)> Warn);
 
   /// Scale up profile counts (including value profile data) by
-  /// \p Weight.
-  void scale(uint64_t Weight, function_ref<void(instrprof_error)> Warn);
+  /// a factor of (N / D).
+  void scale(uint64_t N, uint64_t D, function_ref<void(instrprof_error)> Warn);
 
   /// Sort value profile data (per site) by count.
   void sortValueData() {
@@ -839,8 +838,8 @@ private:
                           uint64_t Weight,
                           function_ref<void(instrprof_error)> Warn);
 
-  // Scale up value profile data count.
-  void scaleValueProfData(uint32_t ValueKind, uint64_t Weight,
+  // Scale up value profile data count by N (Numerator) / D (Denominator).
+  void scaleValueProfData(uint32_t ValueKind, uint64_t N, uint64_t D,
                           function_ref<void(instrprof_error)> Warn);
 };
 
@@ -982,7 +981,9 @@ enum ProfVersion {
   // In this version, the frontend PGO stable hash algorithm got fixed and
   // may produce hashes different from Version5.
   Version6 = 6,
-  // The current version is 5.
+  // An additional counter is added around logical operators.
+  Version7 = 7,
+  // The current version is 7.
   CurrentVersion = INSTR_PROF_INDEX_VERSION
 };
 const uint64_t Version = ProfVersion::CurrentVersion;
@@ -1138,7 +1139,8 @@ void getMemOPSizeRangeFromOption(StringRef Str, int64_t &RangeStart,
 
 // Create a COMDAT variable INSTR_PROF_RAW_VERSION_VAR to make the runtime
 // aware this is an ir_level profile so it can set the version flag.
-void createIRLevelProfileFlagVar(Module &M, bool IsCS);
+void createIRLevelProfileFlagVar(Module &M, bool IsCS,
+                                 bool InstrEntryBBEnabled);
 
 // Create the variable for the profile file name.
 void createProfileFileNameVar(Module &M, StringRef InstrProfileOutput);

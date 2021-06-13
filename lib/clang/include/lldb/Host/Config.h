@@ -21,6 +21,8 @@
 
 #define HAVE_PPOLL 1
 
+#define HAVE_PTSNAME_R 1
+
 #define HAVE_SIGACTION 1
 
 #define HAVE_PROCESS_VM_READV 0
@@ -38,6 +40,8 @@
 #define LLDB_ENABLE_LZMA 1
 
 #define LLDB_ENABLE_CURSES 1
+
+#define CURSES_HAVE_NCURSES_CURSES_H 0
 
 #define LLDB_ENABLE_LIBEDIT 1
 

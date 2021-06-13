@@ -54,10 +54,11 @@ AliasResult ObjCARCAAResult::alias(const MemoryLocation &LocA,
 
   // If that failed, climb to the underlying object, including climbing through
   // ObjC-specific no-ops, and try making an imprecise alias query.
-  const Value *UA = GetUnderlyingObjCPtr(SA, DL);
-  const Value *UB = GetUnderlyingObjCPtr(SB, DL);
+  const Value *UA = GetUnderlyingObjCPtr(SA);
+  const Value *UB = GetUnderlyingObjCPtr(SB);
   if (UA != SA || UB != SB) {
-    Result = AAResultBase::alias(MemoryLocation(UA), MemoryLocation(UB), AAQI);
+    Result = AAResultBase::alias(MemoryLocation::getBeforeOrAfter(UA),
+                                 MemoryLocation::getBeforeOrAfter(UB), AAQI);
     // We can't use MustAlias or PartialAlias results here because
     // GetUnderlyingObjCPtr may return an offsetted pointer value.
     if (Result == NoAlias)
@@ -83,10 +84,10 @@ bool ObjCARCAAResult::pointsToConstantMemory(const MemoryLocation &Loc,
 
   // If that failed, climb to the underlying object, including climbing through
   // ObjC-specific no-ops, and try making an imprecise alias query.
-  const Value *U = GetUnderlyingObjCPtr(S, DL);
+  const Value *U = GetUnderlyingObjCPtr(S);
   if (U != S)
-    return AAResultBase::pointsToConstantMemory(MemoryLocation(U), AAQI,
-                                                OrLocal);
+    return AAResultBase::pointsToConstantMemory(
+        MemoryLocation::getBeforeOrAfter(U), AAQI, OrLocal);
 
   // If that failed, fail. We don't need to chain here, since that's covered
   // by the earlier precise query.
@@ -132,6 +133,8 @@ ModRefInfo ObjCARCAAResult::getModRefInfo(const CallBase *Call,
 
   return AAResultBase::getModRefInfo(Call, Loc, AAQI);
 }
+
+AnalysisKey ObjCARCAA::Key;
 
 ObjCARCAAResult ObjCARCAA::run(Function &F, FunctionAnalysisManager &AM) {
   return ObjCARCAAResult(F.getParent()->getDataLayout());

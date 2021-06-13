@@ -42,8 +42,7 @@ static bool checkLoopsStructure(const Loop &OuterLoop, const Loop &InnerLoop,
 
 LoopNest::LoopNest(Loop &Root, ScalarEvolution &SE)
     : MaxPerfectDepth(getMaxPerfectDepth(Root, SE)) {
-  for (Loop *L : breadth_first(&Root))
-    Loops.push_back(L);
+  append_range(Loops, breadth_first(&Root));
 }
 
 std::unique_ptr<LoopNest> LoopNest::getLoopNest(Loop &Root,
@@ -53,8 +52,8 @@ std::unique_ptr<LoopNest> LoopNest::getLoopNest(Loop &Root,
 
 bool LoopNest::arePerfectlyNested(const Loop &OuterLoop, const Loop &InnerLoop,
                                   ScalarEvolution &SE) {
-  assert(!OuterLoop.getSubLoops().empty() && "Outer loop should have subloops");
-  assert(InnerLoop.getParentLoop() && "Inner loop should have a parent");
+  assert(!OuterLoop.isInnermost() && "Outer loop should have subloops");
+  assert(!InnerLoop.isOutermost() && "Inner loop should have a parent");
   LLVM_DEBUG(dbgs() << "Checking whether loop '" << OuterLoop.getName()
                     << "' and '" << InnerLoop.getName()
                     << "' are perfectly nested.\n");
@@ -206,6 +205,31 @@ unsigned LoopNest::getMaxPerfectDepth(const Loop &Root, ScalarEvolution &SE) {
   return CurrentDepth;
 }
 
+const BasicBlock &LoopNest::skipEmptyBlockUntil(const BasicBlock *From,
+                                                const BasicBlock *End) {
+  assert(From && "Expecting valid From");
+  assert(End && "Expecting valid End");
+
+  if (From == End || !From->getSingleSuccessor())
+    return *From;
+
+  auto IsEmpty = [](const BasicBlock *BB) {
+    return (BB->getInstList().size() == 1);
+  };
+
+  // Visited is used to avoid running into an infinite loop.
+  SmallPtrSet<const BasicBlock *, 4> Visited;
+  const BasicBlock *BB = From->getSingleSuccessor();
+  const BasicBlock *PredBB = BB;
+  while (BB && BB != End && IsEmpty(BB) && !Visited.count(BB)) {
+    Visited.insert(BB);
+    PredBB = BB;
+    BB = BB->getSingleSuccessor();
+  }
+
+  return (BB == End) ? *End : *PredBB;
+}
+
 static bool checkLoopsStructure(const Loop &OuterLoop, const Loop &InnerLoop,
                                 ScalarEvolution &SE) {
   // The inner loop must be the only outer loop's child.
@@ -228,34 +252,92 @@ static bool checkLoopsStructure(const Loop &OuterLoop, const Loop &InnerLoop,
       InnerLoop.getExitingBlock() != InnerLoopLatch || !InnerLoopExit)
     return false;
 
+  // Returns whether the block `ExitBlock` contains at least one LCSSA Phi node.
+  auto ContainsLCSSAPhi = [](const BasicBlock &ExitBlock) {
+    return any_of(ExitBlock.phis(), [](const PHINode &PN) {
+      return PN.getNumIncomingValues() == 1;
+    });
+  };
+
+  // Returns whether the block `BB` qualifies for being an extra Phi block. The
+  // extra Phi block is the additional block inserted after the exit block of an
+  // "guarded" inner loop which contains "only" Phi nodes corresponding to the
+  // LCSSA Phi nodes in the exit block.
+  auto IsExtraPhiBlock = [&](const BasicBlock &BB) {
+    return BB.getFirstNonPHI() == BB.getTerminator() &&
+           all_of(BB.phis(), [&](const PHINode &PN) {
+             return all_of(PN.blocks(), [&](const BasicBlock *IncomingBlock) {
+               return IncomingBlock == InnerLoopExit ||
+                      IncomingBlock == OuterLoopHeader;
+             });
+           });
+  };
+
+  const BasicBlock *ExtraPhiBlock = nullptr;
   // Ensure the only branch that may exist between the loops is the inner loop
   // guard.
   if (OuterLoopHeader != InnerLoopPreHeader) {
-    const BranchInst *BI =
-        dyn_cast<BranchInst>(OuterLoopHeader->getTerminator());
+    const BasicBlock &SingleSucc =
+        LoopNest::skipEmptyBlockUntil(OuterLoopHeader, InnerLoopPreHeader);
 
-    if (!BI || BI != InnerLoop.getLoopGuardBranch())
-      return false;
+    // no conditional branch present
+    if (&SingleSucc != InnerLoopPreHeader) {
+      const BranchInst *BI = dyn_cast<BranchInst>(SingleSucc.getTerminator());
 
-    // The successors of the inner loop guard should be the inner loop
-    // preheader and the outer loop latch.
-    for (const BasicBlock *Succ : BI->successors()) {
-      if (Succ == InnerLoopPreHeader)
-        continue;
-      if (Succ == OuterLoopLatch)
-        continue;
+      if (!BI || BI != InnerLoop.getLoopGuardBranch())
+        return false;
 
-      DEBUG_WITH_TYPE(VerboseDebug, {
-        dbgs() << "Inner loop guard successor " << Succ->getName()
-               << " doesn't lead to inner loop preheader or "
-                  "outer loop latch.\n";
-      });
-      return false;
+      bool InnerLoopExitContainsLCSSA = ContainsLCSSAPhi(*InnerLoopExit);
+
+      // The successors of the inner loop guard should be the inner loop
+      // preheader or the outer loop latch possibly through empty blocks.
+      for (const BasicBlock *Succ : BI->successors()) {
+        const BasicBlock *PotentialInnerPreHeader = Succ;
+        const BasicBlock *PotentialOuterLatch = Succ;
+
+        // Ensure the inner loop guard successor is empty before skipping
+        // blocks.
+        if (Succ->getInstList().size() == 1) {
+          PotentialInnerPreHeader =
+              &LoopNest::skipEmptyBlockUntil(Succ, InnerLoopPreHeader);
+          PotentialOuterLatch =
+              &LoopNest::skipEmptyBlockUntil(Succ, OuterLoopLatch);
+        }
+
+        if (PotentialInnerPreHeader == InnerLoopPreHeader)
+          continue;
+        if (PotentialOuterLatch == OuterLoopLatch)
+          continue;
+
+        // If `InnerLoopExit` contains LCSSA Phi instructions, additional block
+        // may be inserted before the `OuterLoopLatch` to which `BI` jumps. The
+        // loops are still considered perfectly nested if the extra block only
+        // contains Phi instructions from InnerLoopExit and OuterLoopHeader.
+        if (InnerLoopExitContainsLCSSA && IsExtraPhiBlock(*Succ) &&
+            Succ->getSingleSuccessor() == OuterLoopLatch) {
+          // Points to the extra block so that we can reference it later in the
+          // final check. We can also conclude that the inner loop is
+          // guarded and there exists LCSSA Phi node in the exit block later if
+          // we see a non-null `ExtraPhiBlock`.
+          ExtraPhiBlock = Succ;
+          continue;
+        }
+
+        DEBUG_WITH_TYPE(VerboseDebug, {
+          dbgs() << "Inner loop guard successor " << Succ->getName()
+                 << " doesn't lead to inner loop preheader or "
+                    "outer loop latch.\n";
+        });
+        return false;
+      }
     }
   }
 
-  // Ensure the inner loop exit block leads to the outer loop latch.
-  if (InnerLoopExit->getSingleSuccessor() != OuterLoopLatch) {
+  // Ensure the inner loop exit block lead to the outer loop latch possibly
+  // through empty blocks.
+  const BasicBlock &SuccInner =
+      LoopNest::skipEmptyBlockUntil(InnerLoop.getExitBlock(), OuterLoopLatch);
+  if (&SuccInner != OuterLoopLatch && &SuccInner != ExtraPhiBlock) {
     DEBUG_WITH_TYPE(
         VerboseDebug,
         dbgs() << "Inner loop exit block " << *InnerLoopExit
@@ -265,6 +347,8 @@ static bool checkLoopsStructure(const Loop &OuterLoop, const Loop &InnerLoop,
 
   return true;
 }
+
+AnalysisKey LoopNestAnalysis::Key;
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, const LoopNest &LN) {
   OS << "IsPerfect=";

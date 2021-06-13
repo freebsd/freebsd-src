@@ -21,12 +21,14 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Operator.h"
 #include <cassert>
 #include <cstdint>
 
 namespace llvm {
 
 class AddOperator;
+class AllocaInst;
 class APInt;
 class AssumptionCache;
 class DominatorTree;
@@ -42,6 +44,8 @@ class OptimizationRemarkEmitter;
 class StringRef;
 class TargetLibraryInfo;
 class Value;
+
+constexpr unsigned MaxAnalysisRecursionDepth = 6;
 
   /// Determine which bits of V are known to be either zero or one and return
   /// them in the KnownZero/KnownOne bit sets.
@@ -366,14 +370,13 @@ class Value;
   /// that the returned value has pointer type if the specified value does. If
   /// the MaxLookup value is non-zero, it limits the number of instructions to
   /// be stripped off.
-  Value *GetUnderlyingObject(Value *V, const DataLayout &DL,
-                             unsigned MaxLookup = 6);
-  inline const Value *GetUnderlyingObject(const Value *V, const DataLayout &DL,
+  Value *getUnderlyingObject(Value *V, unsigned MaxLookup = 6);
+  inline const Value *getUnderlyingObject(const Value *V,
                                           unsigned MaxLookup = 6) {
-    return GetUnderlyingObject(const_cast<Value *>(V), DL, MaxLookup);
+    return getUnderlyingObject(const_cast<Value *>(V), MaxLookup);
   }
 
-  /// This method is similar to GetUnderlyingObject except that it can
+  /// This method is similar to getUnderlyingObject except that it can
   /// look through phi and select instructions and return multiple objects.
   ///
   /// If LoopInfo is passed, loop phis are further analyzed.  If a pointer
@@ -401,19 +404,29 @@ class Value;
   /// Since A[i] and A[i-1] are independent pointers, getUnderlyingObjects
   /// should not assume that Curr and Prev share the same underlying object thus
   /// it shouldn't look through the phi above.
-  void GetUnderlyingObjects(const Value *V,
+  void getUnderlyingObjects(const Value *V,
                             SmallVectorImpl<const Value *> &Objects,
-                            const DataLayout &DL, LoopInfo *LI = nullptr,
-                            unsigned MaxLookup = 6);
+                            LoopInfo *LI = nullptr, unsigned MaxLookup = 6);
 
-  /// This is a wrapper around GetUnderlyingObjects and adds support for basic
+  /// This is a wrapper around getUnderlyingObjects and adds support for basic
   /// ptrtoint+arithmetic+inttoptr sequences.
   bool getUnderlyingObjectsForCodeGen(const Value *V,
-                            SmallVectorImpl<Value *> &Objects,
-                            const DataLayout &DL);
+                                      SmallVectorImpl<Value *> &Objects);
+
+  /// Returns unique alloca where the value comes from, or nullptr.
+  /// If OffsetZero is true check that V points to the begining of the alloca.
+  AllocaInst *findAllocaForValue(Value *V, bool OffsetZero = false);
+  inline const AllocaInst *findAllocaForValue(const Value *V,
+                                              bool OffsetZero = false) {
+    return findAllocaForValue(const_cast<Value *>(V), OffsetZero);
+  }
 
   /// Return true if the only users of this pointer are lifetime markers.
   bool onlyUsedByLifetimeMarkers(const Value *V);
+
+  /// Return true if the only users of this pointer are lifetime markers or
+  /// droppable instructions.
+  bool onlyUsedByLifetimeMarkersOrDroppableInsts(const Value *V);
 
   /// Return true if speculation of the given load must be suppressed to avoid
   /// ordering or interfering with an active sanitizer.  If not suppressed,
@@ -571,45 +584,65 @@ class Value;
   /// if, for all i, r is evaluated to poison or op raises UB if vi = poison.
   /// To filter out operands that raise UB on poison, you can use
   /// getGuaranteedNonPoisonOp.
-  bool propagatesPoison(const Instruction *I);
+  bool propagatesPoison(const Operator *I);
 
-  /// Return either nullptr or an operand of I such that I will trigger
-  /// undefined behavior if I is executed and that operand has a poison
-  /// value.
-  const Value *getGuaranteedNonPoisonOp(const Instruction *I);
+  /// Insert operands of I into Ops such that I will trigger undefined behavior
+  /// if I is executed and that operand has a poison value.
+  void getGuaranteedNonPoisonOps(const Instruction *I,
+                                 SmallPtrSetImpl<const Value *> &Ops);
 
-  /// Return true if the given instruction must trigger undefined behavior.
+  /// Return true if the given instruction must trigger undefined behavior
   /// when I is executed with any operands which appear in KnownPoison holding
   /// a poison value at the point of execution.
   bool mustTriggerUB(const Instruction *I,
                      const SmallSet<const Value *, 16>& KnownPoison);
 
-  /// Return true if this function can prove that if PoisonI is executed
-  /// and yields a poison value, then that will trigger undefined behavior.
+  /// Return true if this function can prove that if Inst is executed
+  /// and yields a poison value or undef bits, then that will trigger
+  /// undefined behavior.
   ///
   /// Note that this currently only considers the basic block that is
-  /// the parent of I.
-  bool programUndefinedIfPoison(const Instruction *PoisonI);
+  /// the parent of Inst.
+  bool programUndefinedIfUndefOrPoison(const Instruction *Inst);
+  bool programUndefinedIfPoison(const Instruction *Inst);
 
-  /// Return true if I can create poison from non-poison operands.
-  /// For vectors, canCreatePoison returns true if there is potential poison in
-  /// any element of the result when vectors without poison are given as
+  /// canCreateUndefOrPoison returns true if Op can create undef or poison from
+  /// non-undef & non-poison operands.
+  /// For vectors, canCreateUndefOrPoison returns true if there is potential
+  /// poison or undef in any element of the result when vectors without
+  /// undef/poison poison are given as operands.
+  /// For example, given `Op = shl <2 x i32> %x, <0, 32>`, this function returns
+  /// true. If Op raises immediate UB but never creates poison or undef
+  /// (e.g. sdiv I, 0), canCreatePoison returns false.
+  ///
+  /// canCreatePoison returns true if Op can create poison from non-poison
   /// operands.
-  /// For example, given `I = shl <2 x i32> %x, <0, 32>`, this function returns
-  /// true. If I raises immediate UB but never creates poison (e.g. sdiv I, 0),
-  /// canCreatePoison returns false.
-  bool canCreatePoison(const Instruction *I);
+  bool canCreateUndefOrPoison(const Operator *Op);
+  bool canCreatePoison(const Operator *Op);
 
-  /// Return true if this function can prove that V is never undef value
-  /// or poison value.
-  //
+  /// Return true if V is poison given that ValAssumedPoison is already poison.
+  /// For example, if ValAssumedPoison is `icmp X, 10` and V is `icmp X, 5`,
+  /// impliesPoison returns true.
+  bool impliesPoison(const Value *ValAssumedPoison, const Value *V);
+
+  /// Return true if this function can prove that V does not have undef bits
+  /// and is never poison. If V is an aggregate value or vector, check whether
+  /// all elements (except padding) are not undef or poison.
+  /// Note that this is different from canCreateUndefOrPoison because the
+  /// function assumes Op's operands are not poison/undef.
+  ///
   /// If CtxI and DT are specified this method performs flow-sensitive analysis
   /// and returns true if it is guaranteed to be never undef or poison
   /// immediately before the CtxI.
   bool isGuaranteedNotToBeUndefOrPoison(const Value *V,
+                                        AssumptionCache *AC = nullptr,
                                         const Instruction *CtxI = nullptr,
                                         const DominatorTree *DT = nullptr,
                                         unsigned Depth = 0);
+  bool isGuaranteedNotToBePoison(const Value *V, AssumptionCache *AC = nullptr,
+                                 const Instruction *CtxI = nullptr,
+                                 const DominatorTree *DT = nullptr,
+                                 unsigned Depth = 0);
 
   /// Specific patterns of select instructions we can match.
   enum SelectPatternFlavor {
@@ -699,6 +732,14 @@ class Value;
   /// Return the canonical inverse comparison predicate for the specified
   /// minimum/maximum flavor.
   CmpInst::Predicate getInverseMinMaxPred(SelectPatternFlavor SPF);
+
+  /// Check if the values in \p VL are select instructions that can be converted
+  /// to a min or max (vector) intrinsic. Returns the intrinsic ID, if such a
+  /// conversion is possible, together with a bool indicating whether all select
+  /// conditions are only used by the selects. Otherwise return
+  /// Intrinsic::not_intrinsic.
+  std::pair<Intrinsic::ID, bool>
+  canConvertToMinOrMaxIntrinsic(ArrayRef<Value *> VL);
 
   /// Return true if RHS is known to be implied true by LHS.  Return false if
   /// RHS is known to be implied false by LHS.  Otherwise, return None if no

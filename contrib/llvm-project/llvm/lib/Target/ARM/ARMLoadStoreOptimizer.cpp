@@ -1268,6 +1268,7 @@ findIncDecAfter(MachineBasicBlock::iterator MBBI, Register Reg,
 bool ARMLoadStoreOpt::MergeBaseUpdateLSMultiple(MachineInstr *MI) {
   // Thumb1 is already using updating loads/stores.
   if (isThumb1) return false;
+  LLVM_DEBUG(dbgs() << "Attempting to merge update of: " << *MI);
 
   const MachineOperand &BaseOP = MI->getOperand(0);
   Register Base = BaseOP.getReg();
@@ -1319,8 +1320,10 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSMultiple(MachineInstr *MI) {
         return false;
     }
   }
-  if (MergeInstr != MBB.end())
+  if (MergeInstr != MBB.end()) {
+    LLVM_DEBUG(dbgs() << "  Erasing old increment: " << *MergeInstr);
     MBB.erase(MergeInstr);
+  }
 
   unsigned NewOpc = getUpdatingLSMultipleOpcode(Opcode, Mode);
   MachineInstrBuilder MIB = BuildMI(MBB, MBBI, DL, TII->get(NewOpc))
@@ -1335,6 +1338,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSMultiple(MachineInstr *MI) {
   // Transfer memoperands.
   MIB.setMemRefs(MI->memoperands());
 
+  LLVM_DEBUG(dbgs() << "  Added new load/store: " << *MIB);
   MBB.erase(MBBI);
   return true;
 }
@@ -1382,9 +1386,27 @@ static unsigned getPostIndexedLoadStoreOpcode(unsigned Opc,
   case ARM::t2LDRi8:
   case ARM::t2LDRi12:
     return ARM::t2LDR_POST;
+  case ARM::t2LDRBi8:
+  case ARM::t2LDRBi12:
+    return ARM::t2LDRB_POST;
+  case ARM::t2LDRSBi8:
+  case ARM::t2LDRSBi12:
+    return ARM::t2LDRSB_POST;
+  case ARM::t2LDRHi8:
+  case ARM::t2LDRHi12:
+    return ARM::t2LDRH_POST;
+  case ARM::t2LDRSHi8:
+  case ARM::t2LDRSHi12:
+    return ARM::t2LDRSH_POST;
   case ARM::t2STRi8:
   case ARM::t2STRi12:
     return ARM::t2STR_POST;
+  case ARM::t2STRBi8:
+  case ARM::t2STRBi12:
+    return ARM::t2STRB_POST;
+  case ARM::t2STRHi8:
+  case ARM::t2STRHi12:
+    return ARM::t2STRH_POST;
 
   case ARM::MVE_VLDRBS16:
     return ARM::MVE_VLDRBS16_post;
@@ -1427,6 +1449,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineInstr *MI) {
   // Thumb1 doesn't have updating LDR/STR.
   // FIXME: Use LDM/STM with single register instead.
   if (isThumb1) return false;
+  LLVM_DEBUG(dbgs() << "Attempting to merge update of: " << *MI);
 
   Register Base = getLoadStoreBaseOp(*MI).getReg();
   bool BaseKill = getLoadStoreBaseOp(*MI).isKill();
@@ -1468,6 +1491,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineInstr *MI) {
     } else
       return false;
   }
+  LLVM_DEBUG(dbgs() << "  Erasing old increment: " << *MergeInstr);
   MBB.erase(MergeInstr);
 
   ARM_AM::AddrOpc AddSub = Offset < 0 ? ARM_AM::sub : ARM_AM::add;
@@ -1479,39 +1503,54 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineInstr *MI) {
     // updating load/store-multiple instructions can be used with only one
     // register.)
     MachineOperand &MO = MI->getOperand(0);
-    BuildMI(MBB, MBBI, DL, TII->get(NewOpc))
-      .addReg(Base, getDefRegState(true)) // WB base register
-      .addReg(Base, getKillRegState(isLd ? BaseKill : false))
-      .addImm(Pred).addReg(PredReg)
-      .addReg(MO.getReg(), (isLd ? getDefRegState(true) :
-                            getKillRegState(MO.isKill())))
-      .cloneMemRefs(*MI);
+    auto MIB = BuildMI(MBB, MBBI, DL, TII->get(NewOpc))
+                   .addReg(Base, getDefRegState(true)) // WB base register
+                   .addReg(Base, getKillRegState(isLd ? BaseKill : false))
+                   .addImm(Pred)
+                   .addReg(PredReg)
+                   .addReg(MO.getReg(), (isLd ? getDefRegState(true)
+                                              : getKillRegState(MO.isKill())))
+                   .cloneMemRefs(*MI);
+    (void)MIB;
+    LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
   } else if (isLd) {
     if (isAM2) {
       // LDR_PRE, LDR_POST
       if (NewOpc == ARM::LDR_PRE_IMM || NewOpc == ARM::LDRB_PRE_IMM) {
-        BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
-          .addReg(Base, RegState::Define)
-          .addReg(Base).addImm(Offset).addImm(Pred).addReg(PredReg)
-          .cloneMemRefs(*MI);
+        auto MIB =
+            BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
+                .addReg(Base, RegState::Define)
+                .addReg(Base)
+                .addImm(Offset)
+                .addImm(Pred)
+                .addReg(PredReg)
+                .cloneMemRefs(*MI);
+        (void)MIB;
+        LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
       } else {
         int Imm = ARM_AM::getAM2Opc(AddSub, Bytes, ARM_AM::no_shift);
-        BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
-            .addReg(Base, RegState::Define)
-            .addReg(Base)
-            .addReg(0)
-            .addImm(Imm)
-            .add(predOps(Pred, PredReg))
-            .cloneMemRefs(*MI);
+        auto MIB =
+            BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
+                .addReg(Base, RegState::Define)
+                .addReg(Base)
+                .addReg(0)
+                .addImm(Imm)
+                .add(predOps(Pred, PredReg))
+                .cloneMemRefs(*MI);
+        (void)MIB;
+        LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
       }
     } else {
       // t2LDR_PRE, t2LDR_POST
-      BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
-          .addReg(Base, RegState::Define)
-          .addReg(Base)
-          .addImm(Offset)
-          .add(predOps(Pred, PredReg))
-          .cloneMemRefs(*MI);
+      auto MIB =
+          BuildMI(MBB, MBBI, DL, TII->get(NewOpc), MI->getOperand(0).getReg())
+              .addReg(Base, RegState::Define)
+              .addReg(Base)
+              .addImm(Offset)
+              .add(predOps(Pred, PredReg))
+              .cloneMemRefs(*MI);
+      (void)MIB;
+      LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
     }
   } else {
     MachineOperand &MO = MI->getOperand(0);
@@ -1521,21 +1560,25 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLoadStore(MachineInstr *MI) {
     if (isAM2 && NewOpc == ARM::STR_POST_IMM) {
       int Imm = ARM_AM::getAM2Opc(AddSub, Bytes, ARM_AM::no_shift);
       // STR_PRE, STR_POST
-      BuildMI(MBB, MBBI, DL, TII->get(NewOpc), Base)
-          .addReg(MO.getReg(), getKillRegState(MO.isKill()))
-          .addReg(Base)
-          .addReg(0)
-          .addImm(Imm)
-          .add(predOps(Pred, PredReg))
-          .cloneMemRefs(*MI);
+      auto MIB = BuildMI(MBB, MBBI, DL, TII->get(NewOpc), Base)
+                     .addReg(MO.getReg(), getKillRegState(MO.isKill()))
+                     .addReg(Base)
+                     .addReg(0)
+                     .addImm(Imm)
+                     .add(predOps(Pred, PredReg))
+                     .cloneMemRefs(*MI);
+      (void)MIB;
+      LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
     } else {
       // t2STR_PRE, t2STR_POST
-      BuildMI(MBB, MBBI, DL, TII->get(NewOpc), Base)
-          .addReg(MO.getReg(), getKillRegState(MO.isKill()))
-          .addReg(Base)
-          .addImm(Offset)
-          .add(predOps(Pred, PredReg))
-          .cloneMemRefs(*MI);
+      auto MIB = BuildMI(MBB, MBBI, DL, TII->get(NewOpc), Base)
+                     .addReg(MO.getReg(), getKillRegState(MO.isKill()))
+                     .addReg(Base)
+                     .addImm(Offset)
+                     .add(predOps(Pred, PredReg))
+                     .cloneMemRefs(*MI);
+      (void)MIB;
+      LLVM_DEBUG(dbgs() << "  Added new instruction: " << *MIB);
     }
   }
   MBB.erase(MBBI);
@@ -1549,6 +1592,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSDouble(MachineInstr &MI) const {
          "Must have t2STRDi8 or t2LDRDi8");
   if (MI.getOperand(3).getImm() != 0)
     return false;
+  LLVM_DEBUG(dbgs() << "Attempting to merge update of: " << MI);
 
   // Behaviour for writeback is undefined if base register is the same as one
   // of the others.
@@ -1576,6 +1620,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSDouble(MachineInstr &MI) const {
     } else
       return false;
   }
+  LLVM_DEBUG(dbgs() << "  Erasing old increment: " << *MergeInstr);
   MBB.erase(MergeInstr);
 
   DebugLoc DL = MI.getDebugLoc();
@@ -1597,6 +1642,7 @@ bool ARMLoadStoreOpt::MergeBaseUpdateLSDouble(MachineInstr &MI) const {
     MIB.add(MO);
   MIB.cloneMemRefs(MI);
 
+  LLVM_DEBUG(dbgs() << "  Added new load/store: " << *MIB);
   MBB.erase(MBBI);
   return true;
 }
@@ -2539,9 +2585,167 @@ static int getBaseOperandIndex(MachineInstr &MI) {
   case ARM::MVE_VSTRBU8:
   case ARM::MVE_VSTRHU16:
   case ARM::MVE_VSTRWU32:
+  case ARM::t2LDRHi8:
+  case ARM::t2LDRHi12:
+  case ARM::t2LDRSHi8:
+  case ARM::t2LDRSHi12:
+  case ARM::t2LDRBi8:
+  case ARM::t2LDRBi12:
+  case ARM::t2LDRSBi8:
+  case ARM::t2LDRSBi12:
+  case ARM::t2STRBi8:
+  case ARM::t2STRBi12:
+  case ARM::t2STRHi8:
+  case ARM::t2STRHi12:
     return 1;
+  case ARM::MVE_VLDRBS16_post:
+  case ARM::MVE_VLDRBS32_post:
+  case ARM::MVE_VLDRBU16_post:
+  case ARM::MVE_VLDRBU32_post:
+  case ARM::MVE_VLDRHS32_post:
+  case ARM::MVE_VLDRHU32_post:
+  case ARM::MVE_VLDRBU8_post:
+  case ARM::MVE_VLDRHU16_post:
+  case ARM::MVE_VLDRWU32_post:
+  case ARM::MVE_VSTRB16_post:
+  case ARM::MVE_VSTRB32_post:
+  case ARM::MVE_VSTRH32_post:
+  case ARM::MVE_VSTRBU8_post:
+  case ARM::MVE_VSTRHU16_post:
+  case ARM::MVE_VSTRWU32_post:
+  case ARM::MVE_VLDRBS16_pre:
+  case ARM::MVE_VLDRBS32_pre:
+  case ARM::MVE_VLDRBU16_pre:
+  case ARM::MVE_VLDRBU32_pre:
+  case ARM::MVE_VLDRHS32_pre:
+  case ARM::MVE_VLDRHU32_pre:
+  case ARM::MVE_VLDRBU8_pre:
+  case ARM::MVE_VLDRHU16_pre:
+  case ARM::MVE_VLDRWU32_pre:
+  case ARM::MVE_VSTRB16_pre:
+  case ARM::MVE_VSTRB32_pre:
+  case ARM::MVE_VSTRH32_pre:
+  case ARM::MVE_VSTRBU8_pre:
+  case ARM::MVE_VSTRHU16_pre:
+  case ARM::MVE_VSTRWU32_pre:
+    return 2;
   }
   return -1;
+}
+
+static bool isPostIndex(MachineInstr &MI) {
+  switch (MI.getOpcode()) {
+  case ARM::MVE_VLDRBS16_post:
+  case ARM::MVE_VLDRBS32_post:
+  case ARM::MVE_VLDRBU16_post:
+  case ARM::MVE_VLDRBU32_post:
+  case ARM::MVE_VLDRHS32_post:
+  case ARM::MVE_VLDRHU32_post:
+  case ARM::MVE_VLDRBU8_post:
+  case ARM::MVE_VLDRHU16_post:
+  case ARM::MVE_VLDRWU32_post:
+  case ARM::MVE_VSTRB16_post:
+  case ARM::MVE_VSTRB32_post:
+  case ARM::MVE_VSTRH32_post:
+  case ARM::MVE_VSTRBU8_post:
+  case ARM::MVE_VSTRHU16_post:
+  case ARM::MVE_VSTRWU32_post:
+    return true;
+  }
+  return false;
+}
+
+static bool isPreIndex(MachineInstr &MI) {
+  switch (MI.getOpcode()) {
+  case ARM::MVE_VLDRBS16_pre:
+  case ARM::MVE_VLDRBS32_pre:
+  case ARM::MVE_VLDRBU16_pre:
+  case ARM::MVE_VLDRBU32_pre:
+  case ARM::MVE_VLDRHS32_pre:
+  case ARM::MVE_VLDRHU32_pre:
+  case ARM::MVE_VLDRBU8_pre:
+  case ARM::MVE_VLDRHU16_pre:
+  case ARM::MVE_VLDRWU32_pre:
+  case ARM::MVE_VSTRB16_pre:
+  case ARM::MVE_VSTRB32_pre:
+  case ARM::MVE_VSTRH32_pre:
+  case ARM::MVE_VSTRBU8_pre:
+  case ARM::MVE_VSTRHU16_pre:
+  case ARM::MVE_VSTRWU32_pre:
+    return true;
+  }
+  return false;
+}
+
+// Given a memory access Opcode, check that the give Imm would be a valid Offset
+// for this instruction (same as isLegalAddressImm), Or if the instruction
+// could be easily converted to one where that was valid. For example converting
+// t2LDRi12 to t2LDRi8 for negative offsets. Works in conjunction with
+// AdjustBaseAndOffset below.
+static bool isLegalOrConvertableAddressImm(unsigned Opcode, int Imm,
+                                           const TargetInstrInfo *TII,
+                                           int &CodesizeEstimate) {
+  if (isLegalAddressImm(Opcode, Imm, TII))
+    return true;
+
+  // We can convert AddrModeT2_i12 to AddrModeT2_i8.
+  const MCInstrDesc &Desc = TII->get(Opcode);
+  unsigned AddrMode = (Desc.TSFlags & ARMII::AddrModeMask);
+  switch (AddrMode) {
+  case ARMII::AddrModeT2_i12:
+    CodesizeEstimate += 1;
+    return std::abs(Imm) < (((1 << 8) * 1) - 1);
+  }
+  return false;
+}
+
+// Given an MI adjust its address BaseReg to use NewBaseReg and address offset
+// by -Offset. This can either happen in-place or be a replacement as MI is
+// converted to another instruction type.
+static void AdjustBaseAndOffset(MachineInstr *MI, Register NewBaseReg,
+                                int Offset, const TargetInstrInfo *TII) {
+  unsigned BaseOp = getBaseOperandIndex(*MI);
+  MI->getOperand(BaseOp).setReg(NewBaseReg);
+  int OldOffset = MI->getOperand(BaseOp + 1).getImm();
+  if (isLegalAddressImm(MI->getOpcode(), OldOffset - Offset, TII))
+    MI->getOperand(BaseOp + 1).setImm(OldOffset - Offset);
+  else {
+    unsigned ConvOpcode;
+    switch (MI->getOpcode()) {
+    case ARM::t2LDRHi12:
+      ConvOpcode = ARM::t2LDRHi8;
+      break;
+    case ARM::t2LDRSHi12:
+      ConvOpcode = ARM::t2LDRSHi8;
+      break;
+    case ARM::t2LDRBi12:
+      ConvOpcode = ARM::t2LDRBi8;
+      break;
+    case ARM::t2LDRSBi12:
+      ConvOpcode = ARM::t2LDRSBi8;
+      break;
+    case ARM::t2STRHi12:
+      ConvOpcode = ARM::t2STRHi8;
+      break;
+    case ARM::t2STRBi12:
+      ConvOpcode = ARM::t2STRBi8;
+      break;
+    default:
+      llvm_unreachable("Unhandled convertable opcode");
+    }
+    assert(isLegalAddressImm(ConvOpcode, OldOffset - Offset, TII) &&
+           "Illegal Address Immediate after convert!");
+
+    const MCInstrDesc &MCID = TII->get(ConvOpcode);
+    BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), MCID)
+        .add(MI->getOperand(0))
+        .add(MI->getOperand(1))
+        .addImm(OldOffset - Offset)
+        .add(MI->getOperand(3))
+        .add(MI->getOperand(4))
+        .cloneMemRefs(*MI);
+    MI->eraseFromParent();
+  }
 }
 
 static MachineInstr *createPostIncLoadStore(MachineInstr *MI, int Offset,
@@ -2562,34 +2766,70 @@ static MachineInstr *createPostIncLoadStore(MachineInstr *MI, int Offset,
   TRC = TII->getRegClass(MCID, 2, TRI, *MF);
   MRI.constrainRegClass(MI->getOperand(1).getReg(), TRC);
 
-  return BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), MCID)
-      .addReg(NewReg, RegState::Define)
-      .add(MI->getOperand(0))
-      .add(MI->getOperand(1))
-      .addImm(Offset)
-      .add(MI->getOperand(3))
-      .add(MI->getOperand(4))
-      .cloneMemRefs(*MI);
+  unsigned AddrMode = (MCID.TSFlags & ARMII::AddrModeMask);
+  switch (AddrMode) {
+  case ARMII::AddrModeT2_i7:
+  case ARMII::AddrModeT2_i7s2:
+  case ARMII::AddrModeT2_i7s4:
+    // Any MVE load/store
+    return BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), MCID)
+        .addReg(NewReg, RegState::Define)
+        .add(MI->getOperand(0))
+        .add(MI->getOperand(1))
+        .addImm(Offset)
+        .add(MI->getOperand(3))
+        .add(MI->getOperand(4))
+        .cloneMemRefs(*MI);
+  case ARMII::AddrModeT2_i8:
+    if (MI->mayLoad()) {
+      return BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), MCID)
+          .add(MI->getOperand(0))
+          .addReg(NewReg, RegState::Define)
+          .add(MI->getOperand(1))
+          .addImm(Offset)
+          .add(MI->getOperand(3))
+          .add(MI->getOperand(4))
+          .cloneMemRefs(*MI);
+    } else {
+      return BuildMI(*MI->getParent(), MI, MI->getDebugLoc(), MCID)
+          .addReg(NewReg, RegState::Define)
+          .add(MI->getOperand(0))
+          .add(MI->getOperand(1))
+          .addImm(Offset)
+          .add(MI->getOperand(3))
+          .add(MI->getOperand(4))
+          .cloneMemRefs(*MI);
+    }
+  default:
+    llvm_unreachable("Unhandled createPostIncLoadStore");
+  }
 }
 
 // Given a Base Register, optimise the load/store uses to attempt to create more
-// post-inc accesses. We do this by taking zero offset loads/stores with an add,
-// and convert them to a postinc load/store of the same type. Any subsequent
-// accesses will be adjusted to use and account for the post-inc value.
+// post-inc accesses and less register moves. We do this by taking zero offset
+// loads/stores with an add, and convert them to a postinc load/store of the
+// same type. Any subsequent accesses will be adjusted to use and account for
+// the post-inc value.
 // For example:
 // LDR #0            LDR_POSTINC #16
 // LDR #4            LDR #-12
 // LDR #8            LDR #-8
 // LDR #12           LDR #-4
 // ADD #16
+//
+// At the same time if we do not find an increment but do find an existing
+// pre/post inc instruction, we can still adjust the offsets of subsequent
+// instructions to save the register move that would otherwise be needed for the
+// in-place increment.
 bool ARMPreAllocLoadStoreOpt::DistributeIncrements(Register Base) {
   // We are looking for:
   // One zero offset load/store that can become postinc
   MachineInstr *BaseAccess = nullptr;
+  MachineInstr *PrePostInc = nullptr;
   // An increment that can be folded in
   MachineInstr *Increment = nullptr;
   // Other accesses after BaseAccess that will need to be updated to use the
-  // postinc value
+  // postinc value.
   SmallPtrSet<MachineInstr *, 8> OtherAccesses;
   for (auto &Use : MRI->use_nodbg_instructions(Base)) {
     if (!Increment && getAddSubImmediate(Use) != 0) {
@@ -2604,53 +2844,81 @@ bool ARMPreAllocLoadStoreOpt::DistributeIncrements(Register Base) {
     if (!Use.getOperand(BaseOp).isReg() ||
         Use.getOperand(BaseOp).getReg() != Base)
       return false;
-    if (Use.getOperand(BaseOp + 1).getImm() == 0)
+    if (isPreIndex(Use) || isPostIndex(Use))
+      PrePostInc = &Use;
+    else if (Use.getOperand(BaseOp + 1).getImm() == 0)
       BaseAccess = &Use;
     else
       OtherAccesses.insert(&Use);
   }
 
-  if (!BaseAccess || !Increment ||
-      BaseAccess->getParent() != Increment->getParent())
-    return false;
-  Register PredReg;
-  if (Increment->definesRegister(ARM::CPSR) ||
-      getInstrPredicate(*Increment, PredReg) != ARMCC::AL)
-    return false;
+  int IncrementOffset;
+  Register NewBaseReg;
+  if (BaseAccess && Increment) {
+    if (PrePostInc || BaseAccess->getParent() != Increment->getParent())
+      return false;
+    Register PredReg;
+    if (Increment->definesRegister(ARM::CPSR) ||
+        getInstrPredicate(*Increment, PredReg) != ARMCC::AL)
+      return false;
 
-  LLVM_DEBUG(dbgs() << "\nAttempting to distribute increments on VirtualReg "
-                    << Base.virtRegIndex() << "\n");
+    LLVM_DEBUG(dbgs() << "\nAttempting to distribute increments on VirtualReg "
+                      << Base.virtRegIndex() << "\n");
 
-  // Make sure that Increment has no uses before BaseAccess.
-  for (MachineInstr &Use :
-       MRI->use_nodbg_instructions(Increment->getOperand(0).getReg())) {
-    if (!DT->dominates(BaseAccess, &Use) || &Use == BaseAccess) {
-      LLVM_DEBUG(dbgs() << "  BaseAccess doesn't dominate use of increment\n");
+    // Make sure that Increment has no uses before BaseAccess.
+    for (MachineInstr &Use :
+        MRI->use_nodbg_instructions(Increment->getOperand(0).getReg())) {
+      if (!DT->dominates(BaseAccess, &Use) || &Use == BaseAccess) {
+        LLVM_DEBUG(dbgs() << "  BaseAccess doesn't dominate use of increment\n");
+        return false;
+      }
+    }
+
+    // Make sure that Increment can be folded into Base
+    IncrementOffset = getAddSubImmediate(*Increment);
+    unsigned NewPostIncOpcode = getPostIndexedLoadStoreOpcode(
+        BaseAccess->getOpcode(), IncrementOffset > 0 ? ARM_AM::add : ARM_AM::sub);
+    if (!isLegalAddressImm(NewPostIncOpcode, IncrementOffset, TII)) {
+      LLVM_DEBUG(dbgs() << "  Illegal addressing mode immediate on postinc\n");
       return false;
     }
   }
+  else if (PrePostInc) {
+    // If we already have a pre/post index load/store then set BaseAccess,
+    // IncrementOffset and NewBaseReg to the values it already produces,
+    // allowing us to update and subsequent uses of BaseOp reg with the
+    // incremented value.
+    if (Increment)
+      return false;
 
-  // Make sure that Increment can be folded into Base
-  int IncrementOffset = getAddSubImmediate(*Increment);
-  unsigned NewPostIncOpcode = getPostIndexedLoadStoreOpcode(
-      BaseAccess->getOpcode(), IncrementOffset > 0 ? ARM_AM::add : ARM_AM::sub);
-  if (!isLegalAddressImm(NewPostIncOpcode, IncrementOffset, TII)) {
-    LLVM_DEBUG(dbgs() << "  Illegal addressing mode immediate on postinc\n");
-    return false;
+    LLVM_DEBUG(dbgs() << "\nAttempting to distribute increments on already "
+                      << "indexed VirtualReg " << Base.virtRegIndex() << "\n");
+    int BaseOp = getBaseOperandIndex(*PrePostInc);
+    IncrementOffset = PrePostInc->getOperand(BaseOp+1).getImm();
+    BaseAccess = PrePostInc;
+    NewBaseReg = PrePostInc->getOperand(0).getReg();
   }
+  else
+    return false;
 
   // And make sure that the negative value of increment can be added to all
   // other offsets after the BaseAccess. We rely on either
   // dominates(BaseAccess, OtherAccess) or dominates(OtherAccess, BaseAccess)
   // to keep things simple.
+  // This also adds a simple codesize metric, to detect if an instruction (like
+  // t2LDRBi12) which can often be shrunk to a thumb1 instruction (tLDRBi)
+  // cannot because it is converted to something else (t2LDRBi8). We start this
+  // at -1 for the gain from removing the increment.
   SmallPtrSet<MachineInstr *, 4> SuccessorAccesses;
+  int CodesizeEstimate = -1;
   for (auto *Use : OtherAccesses) {
     if (DT->dominates(BaseAccess, Use)) {
       SuccessorAccesses.insert(Use);
       unsigned BaseOp = getBaseOperandIndex(*Use);
-      if (!isLegalAddressImm(
-              Use->getOpcode(),
-              Use->getOperand(BaseOp + 1).getImm() - IncrementOffset, TII)) {
+      if (!isLegalOrConvertableAddressImm(Use->getOpcode(),
+                                          Use->getOperand(BaseOp + 1).getImm() -
+                                              IncrementOffset,
+                                          TII, CodesizeEstimate)) {
         LLVM_DEBUG(dbgs() << "  Illegal addressing mode immediate on use\n");
         return false;
       }
@@ -2660,24 +2928,27 @@ bool ARMPreAllocLoadStoreOpt::DistributeIncrements(Register Base) {
       return false;
     }
   }
+  if (STI->hasMinSize() && CodesizeEstimate > 0) {
+    LLVM_DEBUG(dbgs() << "  Expected to grow instructions under minsize\n");
+    return false;
+  }
 
-  // Replace BaseAccess with a post inc
-  LLVM_DEBUG(dbgs() << "Changing: "; BaseAccess->dump());
-  LLVM_DEBUG(dbgs() << "  And   : "; Increment->dump());
-  Register NewBaseReg = Increment->getOperand(0).getReg();
-  MachineInstr *BaseAccessPost =
-      createPostIncLoadStore(BaseAccess, IncrementOffset, NewBaseReg, TII, TRI);
-  BaseAccess->eraseFromParent();
-  Increment->eraseFromParent();
-  (void)BaseAccessPost;
-  LLVM_DEBUG(dbgs() << "  To    : "; BaseAccessPost->dump());
+  if (!PrePostInc) {
+    // Replace BaseAccess with a post inc
+    LLVM_DEBUG(dbgs() << "Changing: "; BaseAccess->dump());
+    LLVM_DEBUG(dbgs() << "  And   : "; Increment->dump());
+    NewBaseReg = Increment->getOperand(0).getReg();
+    MachineInstr *BaseAccessPost =
+        createPostIncLoadStore(BaseAccess, IncrementOffset, NewBaseReg, TII, TRI);
+    BaseAccess->eraseFromParent();
+    Increment->eraseFromParent();
+    (void)BaseAccessPost;
+    LLVM_DEBUG(dbgs() << "  To    : "; BaseAccessPost->dump());
+  }
 
   for (auto *Use : SuccessorAccesses) {
     LLVM_DEBUG(dbgs() << "Changing: "; Use->dump());
-    unsigned BaseOp = getBaseOperandIndex(*Use);
-    Use->getOperand(BaseOp).setReg(NewBaseReg);
-    int OldOffset = Use->getOperand(BaseOp + 1).getImm();
-    Use->getOperand(BaseOp + 1).setImm(OldOffset - IncrementOffset);
+    AdjustBaseAndOffset(Use, NewBaseReg, IncrementOffset, TII);
     LLVM_DEBUG(dbgs() << "  To    : "; Use->dump());
   }
 

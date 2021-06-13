@@ -249,6 +249,11 @@ SectionChunk *ObjFile::readSection(uint32_t sectionNumber,
     return nullptr;
   }
 
+  if (name == ".llvm.call-graph-profile") {
+    callgraphSec = sec;
+    return nullptr;
+  }
+
   // Object files may have DWARF debug info or MS CodeView debug info
   // (or both).
   //
@@ -275,6 +280,8 @@ SectionChunk *ObjFile::readSection(uint32_t sectionNumber,
     debugChunks.push_back(c);
   else if (name == ".gfids$y")
     guardFidChunks.push_back(c);
+  else if (name == ".giats$y")
+    guardIATChunks.push_back(c);
   else if (name == ".gljmp$y")
     guardLJmpChunks.push_back(c);
   else if (name == ".sxdata")
@@ -467,8 +474,23 @@ Symbol *ObjFile::createUndefined(COFFSymbolRef sym) {
   return symtab->addUndefined(name, this, sym.isWeakExternal());
 }
 
-void ObjFile::handleComdatSelection(COFFSymbolRef sym, COMDATType &selection,
-                                    bool &prevailing, DefinedRegular *leader) {
+static const coff_aux_section_definition *findSectionDef(COFFObjectFile *obj,
+                                                         int32_t section) {
+  uint32_t numSymbols = obj->getNumberOfSymbols();
+  for (uint32_t i = 0; i < numSymbols; ++i) {
+    COFFSymbolRef sym = check(obj->getSymbol(i));
+    if (sym.getSectionNumber() != section)
+      continue;
+    if (const coff_aux_section_definition *def = sym.getSectionDefinition())
+      return def;
+  }
+  return nullptr;
+}
+
+void ObjFile::handleComdatSelection(
+    COFFSymbolRef sym, COMDATType &selection, bool &prevailing,
+    DefinedRegular *leader,
+    const llvm::object::coff_aux_section_definition *def) {
   if (prevailing)
     return;
   // There's already an existing comdat for this symbol: `Leader`.
@@ -535,8 +557,16 @@ void ObjFile::handleComdatSelection(COFFSymbolRef sym, COMDATType &selection,
     break;
 
   case IMAGE_COMDAT_SELECT_SAME_SIZE:
-    if (leaderChunk->getSize() != getSection(sym)->SizeOfRawData)
-      symtab->reportDuplicate(leader, this);
+    if (leaderChunk->getSize() != getSection(sym)->SizeOfRawData) {
+      if (!config->mingw) {
+        symtab->reportDuplicate(leader, this);
+      } else {
+        const coff_aux_section_definition *leaderDef = findSectionDef(
+            leaderChunk->file->getCOFFObj(), leaderChunk->getSectionNumber());
+        if (!leaderDef || leaderDef->Length != def->Length)
+          symtab->reportDuplicate(leader, this);
+      }
+    }
     break;
 
   case IMAGE_COMDAT_SELECT_EXACT_MATCH: {
@@ -652,7 +682,7 @@ Optional<Symbol *> ObjFile::createDefined(
     COMDATType selection = (COMDATType)def->Selection;
 
     if (leader->isCOMDAT)
-      handleComdatSelection(sym, selection, prevailing, leader);
+      handleComdatSelection(sym, selection, prevailing, leader, def);
 
     if (prevailing) {
       SectionChunk *c = readSection(sectionNumber, def, getName());
@@ -757,8 +787,14 @@ void ObjFile::initializeDependencies() {
   else
     data = getDebugSection(".debug$T");
 
-  if (data.empty())
+  // Don't make a TpiSource for objects with no debug info. If the object has
+  // symbols but no types, make a plain, empty TpiSource anyway, because it
+  // simplifies adding the symbols later.
+  if (data.empty()) {
+    if (!debugChunks.empty())
+      debugTypesObj = makeTpiSource(this);
     return;
+  }
 
   // Get the first type record. It will indicate if this object uses a type
   // server (/Zi) or a PCH file (/Yu).
@@ -793,6 +829,8 @@ void ObjFile::initializeDependencies() {
     PrecompRecord precomp = cantFail(
         TypeDeserializer::deserializeAs<PrecompRecord>(firstType->data()));
     debugTypesObj = makeUsePrecompSource(this, precomp);
+    // Drop the LF_PRECOMP record from the input stream.
+    debugTypes = debugTypes.drop_front(firstType->RecordData.size());
     return;
   }
 

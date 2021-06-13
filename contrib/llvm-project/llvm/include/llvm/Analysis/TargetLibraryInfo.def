@@ -262,6 +262,12 @@ TLI_DEFINE_STRING_INTERNAL("__atanhf_finite")
 /// long double __atanhl_finite(long double x);
 TLI_DEFINE_ENUM_INTERNAL(atanhl_finite)
 TLI_DEFINE_STRING_INTERNAL("__atanhl_finite")
+/// void __atomic_load(size_t size, void *mptr, void *vptr, int smodel);
+TLI_DEFINE_ENUM_INTERNAL(atomic_load)
+TLI_DEFINE_STRING_INTERNAL("__atomic_load")
+/// void __atomic_store(size_t size, void *mptr, void *vptr, int smodel);
+TLI_DEFINE_ENUM_INTERNAL(atomic_store)
+TLI_DEFINE_STRING_INTERNAL("__atomic_store")
 /// double __cosh_finite(double x);
 TLI_DEFINE_ENUM_INTERNAL(cosh_finite)
 TLI_DEFINE_STRING_INTERNAL("__cosh_finite")
@@ -360,6 +366,9 @@ TLI_DEFINE_STRING_INTERNAL("__memcpy_chk")
 /// void *__memmove_chk(void *s1, const void *s2, size_t n, size_t s1size);
 TLI_DEFINE_ENUM_INTERNAL(memmove_chk)
 TLI_DEFINE_STRING_INTERNAL("__memmove_chk")
+/// void *__mempcpy_chk(void *s1, const void *s2, size_t n, size_t s1size);
+TLI_DEFINE_ENUM_INTERNAL(mempcpy_chk)
+TLI_DEFINE_STRING_INTERNAL("__mempcpy_chk")
 /// void *__memset_chk(void *s, char v, size_t n, size_t s1size);
 TLI_DEFINE_ENUM_INTERNAL(memset_chk)
 TLI_DEFINE_STRING_INTERNAL("__memset_chk")
@@ -1411,6 +1420,18 @@ TLI_DEFINE_STRING_INTERNAL("utimes")
 /// void *valloc(size_t size);
 TLI_DEFINE_ENUM_INTERNAL(valloc)
 TLI_DEFINE_STRING_INTERNAL("valloc")
+/// void *vec_calloc(size_t count, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(vec_calloc)
+TLI_DEFINE_STRING_INTERNAL("vec_calloc")
+/// void vec_free(void *ptr);
+TLI_DEFINE_ENUM_INTERNAL(vec_free)
+TLI_DEFINE_STRING_INTERNAL("vec_free")
+/// void *vec_malloc(size_t size);
+TLI_DEFINE_ENUM_INTERNAL(vec_malloc)
+TLI_DEFINE_STRING_INTERNAL("vec_malloc")
+/// void *vec_realloc(void *ptr, size_t size);
+TLI_DEFINE_ENUM_INTERNAL(vec_realloc)
+TLI_DEFINE_STRING_INTERNAL("vec_realloc")
 /// int vfprintf(FILE *stream, const char *format, va_list ap);
 TLI_DEFINE_ENUM_INTERNAL(vfprintf)
 TLI_DEFINE_STRING_INTERNAL("vfprintf")

@@ -215,11 +215,10 @@ Retry:
       DeclGroupPtrTy Decl;
       if (GNUAttributeLoc.isValid()) {
         DeclStart = GNUAttributeLoc;
-        Decl = ParseDeclaration(DeclaratorContext::BlockContext, DeclEnd, Attrs,
+        Decl = ParseDeclaration(DeclaratorContext::Block, DeclEnd, Attrs,
                                 &GNUAttributeLoc);
       } else {
-        Decl =
-            ParseDeclaration(DeclaratorContext::BlockContext, DeclEnd, Attrs);
+        Decl = ParseDeclaration(DeclaratorContext::Block, DeclEnd, Attrs);
       }
       if (Attrs.Range.getBegin().isValid())
         DeclStart = Attrs.Range.getBegin();
@@ -366,8 +365,15 @@ Retry:
 
   case tok::annot_pragma_fenv_access:
     ProhibitAttributes(Attrs);
-    HandlePragmaFEnvAccess();
+    Diag(Tok, diag::err_pragma_stdc_fenv_access_scope);
+    ConsumeAnnotationToken();
     return StmtEmpty();
+
+  case tok::annot_pragma_fenv_round:
+    ProhibitAttributes(Attrs);
+    Diag(Tok, diag::err_pragma_file_or_compound_scope) << "STDC FENV_ROUND";
+    ConsumeAnnotationToken();
+    return StmtError();
 
   case tok::annot_pragma_float_control:
     ProhibitAttributes(Attrs);
@@ -943,6 +949,9 @@ void Parser::ParseCompoundStatementLeadingPragmas() {
     case tok::annot_pragma_fenv_access:
       HandlePragmaFEnvAccess();
       break;
+    case tok::annot_pragma_fenv_round:
+      HandlePragmaFEnvRound();
+      break;
     case tok::annot_pragma_float_control:
       HandlePragmaFloatControl();
       break;
@@ -1024,9 +1033,9 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
                                 Tok.getLocation(),
                                 "in compound statement ('{}')");
 
-  // Record the state of the FPFeatures, restore on leaving the
+  // Record the current FPFeatures, restore on leaving the
   // compound statement.
-  Sema::FPFeaturesStateRAII SaveFPContractState(Actions);
+  Sema::FPFeaturesStateRAII SaveFPFeatures(Actions);
 
   InMessageExpressionRAIIObject InMessage(*this, false);
   BalancedDelimiterTracker T(*this, tok::l_brace);
@@ -1037,6 +1046,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
 
   // Parse any pragmas at the beginning of the compound statement.
   ParseCompoundStatementLeadingPragmas();
+  Actions.ActOnAfterCompoundStatementLeadingPragmas();
 
   StmtVector Stmts;
 
@@ -1108,7 +1118,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
 
         SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
         DeclGroupPtrTy Res =
-            ParseDeclaration(DeclaratorContext::BlockContext, DeclEnd, attrs);
+            ParseDeclaration(DeclaratorContext::Block, DeclEnd, attrs);
         R = Actions.ActOnDeclStmt(Res, DeclStart, DeclEnd);
       } else {
         // Otherwise this was a unary __extension__ marker.
@@ -1135,9 +1145,17 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   SourceLocation CloseLoc = Tok.getLocation();
 
   // We broke out of the while loop because we found a '}' or EOF.
-  if (!T.consumeClose())
+  if (!T.consumeClose()) {
+    // If this is the '})' of a statement expression, check that it's written
+    // in a sensible way.
+    if (isStmtExpr && Tok.is(tok::r_paren))
+      checkCompoundToken(CloseLoc, tok::r_brace, CompoundToken::StmtExprEnd);
+  } else {
     // Recover by creating a compound statement with what we parsed so far,
-    // instead of dropping everything and returning StmtError();
+    // instead of dropping everything and returning StmtError().
+  }
+
+  if (T.getCloseLocation().isValid())
     CloseLoc = T.getCloseLocation();
 
   return Actions.ActOnCompoundStmt(T.getOpenLocation(), CloseLoc,
@@ -1350,9 +1368,12 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   // Parse the condition.
   StmtResult InitStmt;
   Sema::ConditionResult Cond;
+  SourceLocation LParen;
+  SourceLocation RParen;
   if (ParseParenExprOrCondition(&InitStmt, Cond, IfLoc,
                                 IsConstexpr ? Sema::ConditionKind::ConstexprIf
-                                            : Sema::ConditionKind::Boolean))
+                                            : Sema::ConditionKind::Boolean,
+                                &LParen, &RParen))
     return StmtError();
 
   llvm::Optional<bool> ConstexprCondition;
@@ -1465,8 +1486,8 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   if (ElseStmt.isInvalid())
     ElseStmt = Actions.ActOnNullStmt(ElseStmtLoc);
 
-  return Actions.ActOnIfStmt(IfLoc, IsConstexpr, InitStmt.get(), Cond,
-                             ThenStmt.get(), ElseLoc, ElseStmt.get());
+  return Actions.ActOnIfStmt(IfLoc, IsConstexpr, LParen, InitStmt.get(), Cond,
+                             RParen, ThenStmt.get(), ElseLoc, ElseStmt.get());
 }
 
 /// ParseSwitchStatement
@@ -1505,12 +1526,14 @@ StmtResult Parser::ParseSwitchStatement(SourceLocation *TrailingElseLoc) {
   // Parse the condition.
   StmtResult InitStmt;
   Sema::ConditionResult Cond;
+  SourceLocation LParen;
+  SourceLocation RParen;
   if (ParseParenExprOrCondition(&InitStmt, Cond, SwitchLoc,
-                                Sema::ConditionKind::Switch))
+                                Sema::ConditionKind::Switch, &LParen, &RParen))
     return StmtError();
 
-  StmtResult Switch =
-      Actions.ActOnStartOfSwitchStmt(SwitchLoc, InitStmt.get(), Cond);
+  StmtResult Switch = Actions.ActOnStartOfSwitchStmt(
+      SwitchLoc, LParen, InitStmt.get(), Cond, RParen);
 
   if (Switch.isInvalid()) {
     // Skip the switch body.
@@ -1848,7 +1871,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
 
     SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
     DeclGroupPtrTy DG = ParseSimpleDeclaration(
-        DeclaratorContext::ForContext, DeclEnd, attrs, false,
+        DeclaratorContext::ForInit, DeclEnd, attrs, false,
         MightBeForRangeStmt ? &ForRangeInfo : nullptr);
     FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
     if (ForRangeInfo.ParsedForRangeDecl()) {
@@ -2447,7 +2470,7 @@ StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
     if (ParseCXXTypeSpecifierSeq(DS))
       return StmtError();
 
-    Declarator ExDecl(DS, DeclaratorContext::CXXCatchContext);
+    Declarator ExDecl(DS, DeclaratorContext::CXXCatch);
     ParseDeclarator(ExDecl);
     ExceptionDecl = Actions.ActOnExceptionDeclarator(getCurScope(), ExDecl);
   } else

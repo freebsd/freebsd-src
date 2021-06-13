@@ -198,6 +198,7 @@ MCDisassembler::DecodeStatus WebAssemblyDisassembler::getInstruction(
     case WebAssembly::OPERAND_LOCAL:
     case WebAssembly::OPERAND_GLOBAL:
     case WebAssembly::OPERAND_FUNCTION32:
+    case WebAssembly::OPERAND_TABLE:
     case WebAssembly::OPERAND_OFFSET32:
     case WebAssembly::OPERAND_OFFSET64:
     case WebAssembly::OPERAND_P2ALIGN:
@@ -237,6 +238,28 @@ MCDisassembler::DecodeStatus WebAssemblyDisassembler::getInstruction(
         const MCExpr *Expr = MCSymbolRefExpr::create(
             WasmSym, MCSymbolRefExpr::VK_WASM_TYPEINDEX, getContext());
         MI.addOperand(MCOperand::createExpr(Expr));
+      }
+      break;
+    }
+    // heap_type operands, for e.g. ref.null:
+    case WebAssembly::OPERAND_HEAPTYPE: {
+      int64_t Val;
+      uint64_t PrevSize = Size;
+      if (!nextLEB(Val, Bytes, Size, true))
+        return MCDisassembler::Fail;
+      if (Val < 0 && Size == PrevSize + 1) {
+        // The HeapType encoding is like BlockType, in that encodings that
+        // decode as negative values indicate ValTypes.  In practice we expect
+        // either wasm::ValType::EXTERNREF or wasm::ValType::FUNCREF here.
+        //
+        // The positive SLEB values are reserved for future expansion and are
+        // expected to be type indices in the typed function references
+        // proposal, and should disassemble as MCSymbolRefExpr as in BlockType
+        // above.
+        MI.addOperand(MCOperand::createImm(Val & 0x7f));
+      } else {
+        MI.addOperand(
+            MCOperand::createImm(int64_t(WebAssembly::HeapType::Invalid)));
       }
       break;
     }

@@ -495,12 +495,10 @@ lldb::ProcessSP PlatformRemoteGDBServer::DebugProcess(
           error.Clear();
 
         if (target && error.Success()) {
-          debugger.GetTargetList().SetSelectedTarget(target);
-
           // The darwin always currently uses the GDB remote debugger plug-in
           // so even when debugging locally we are debugging remotely!
           process_sp = target->CreateProcess(launch_info.GetListener(),
-                                             "gdb-remote", nullptr);
+                                             "gdb-remote", nullptr, true);
 
           if (process_sp) {
             error = process_sp->ConnectRemote(connect_url.c_str());
@@ -581,13 +579,11 @@ lldb::ProcessSP PlatformRemoteGDBServer::Attach(
           error.Clear();
 
         if (target && error.Success()) {
-          debugger.GetTargetList().SetSelectedTarget(target);
-
           // The darwin always currently uses the GDB remote debugger plug-in
           // so even when debugging locally we are debugging remotely!
           process_sp =
               target->CreateProcess(attach_info.GetListenerForProcess(debugger),
-                                    "gdb-remote", nullptr);
+                                    "gdb-remote", nullptr, true);
           if (process_sp) {
             error = process_sp->ConnectRemote(connect_url.c_str());
             if (error.Success()) {
@@ -661,6 +657,11 @@ PlatformRemoteGDBServer::GetFileSize(const FileSpec &file_spec) {
   return m_gdb_client.GetFileSize(file_spec);
 }
 
+void PlatformRemoteGDBServer::AutoCompleteDiskFileOrDirectory(
+    CompletionRequest &request, bool only_dir) {
+  m_gdb_client.AutoCompleteDiskFileOrDirectory(request, only_dir);
+}
+
 uint64_t PlatformRemoteGDBServer::ReadFile(lldb::user_id_t fd, uint64_t offset,
                                            void *dst, uint64_t dst_len,
                                            Status &error) {
@@ -706,7 +707,7 @@ bool PlatformRemoteGDBServer::GetFileExists(const FileSpec &file_spec) {
 }
 
 Status PlatformRemoteGDBServer::RunShellCommand(
-    const char *command, // Shouldn't be NULL
+    llvm::StringRef shell, llvm::StringRef command,
     const FileSpec &
         working_dir, // Pass empty FileSpec to use the current working directory
     int *status_ptr, // Pass NULL if you don't want the process exit status
@@ -824,24 +825,12 @@ std::string PlatformRemoteGDBServer::MakeUrl(const char *scheme,
                                              const char *hostname,
                                              uint16_t port, const char *path) {
   StreamString result;
-  result.Printf("%s://%s", scheme, hostname);
+  result.Printf("%s://[%s]", scheme, hostname);
   if (port != 0)
     result.Printf(":%u", port);
   if (path)
     result.Write(path, strlen(path));
   return std::string(result.GetString());
-}
-
-lldb::ProcessSP PlatformRemoteGDBServer::ConnectProcess(
-    llvm::StringRef connect_url, llvm::StringRef plugin_name,
-    lldb_private::Debugger &debugger, lldb_private::Target *target,
-    lldb_private::Status &error) {
-  if (!IsRemote() || !IsConnected()) {
-    error.SetErrorString("Not connected to remote gdb server");
-    return nullptr;
-  }
-  return Platform::ConnectProcess(connect_url, plugin_name, debugger, target,
-                                  error);
 }
 
 size_t PlatformRemoteGDBServer::ConnectToWaitingProcesses(Debugger &debugger,

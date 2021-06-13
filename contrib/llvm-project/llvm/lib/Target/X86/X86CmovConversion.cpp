@@ -439,7 +439,7 @@ bool X86CmovConverterPass::checkForProfitableCmovCandidates(
           if (!MO.isReg() || !MO.isUse())
             continue;
           Register Reg = MO.getReg();
-          auto &RDM = RegDefMaps[Register::isVirtualRegister(Reg)];
+          auto &RDM = RegDefMaps[Reg.isVirtual()];
           if (MachineInstr *DefMI = RDM.lookup(Reg)) {
             OperandToDefMap[&MO] = DefMI;
             DepthInfo Info = DepthMap.lookup(DefMI);
@@ -459,7 +459,7 @@ bool X86CmovConverterPass::checkForProfitableCmovCandidates(
           if (!MO.isReg() || !MO.isDef())
             continue;
           Register Reg = MO.getReg();
-          RegDefMaps[Register::isVirtualRegister(Reg)][Reg] = &MI;
+          RegDefMaps[Reg.isVirtual()][Reg] = &MI;
         }
 
         unsigned Latency = TSchedModel.computeInstrLatency(&MI);
@@ -537,7 +537,7 @@ bool X86CmovConverterPass::checkForProfitableCmovCandidates(
       // This is another conservative check to avoid converting CMOV instruction
       // used with tree-search like algorithm, where the branch is unpredicted.
       auto UIs = MRI->use_instructions(MI->defs().begin()->getReg());
-      if (UIs.begin() != UIs.end() && ++UIs.begin() == UIs.end()) {
+      if (!UIs.empty() && ++UIs.begin() == UIs.end()) {
         unsigned Op = UIs.begin()->getOpcode();
         if (Op == X86::MOV64rm || Op == X86::MOV32rm) {
           WorthOpGroup = false;

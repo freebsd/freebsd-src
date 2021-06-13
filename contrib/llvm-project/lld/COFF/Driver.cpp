@@ -26,6 +26,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/BinaryFormat/Magic.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/LTO/LTO.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/COFFImportFile.h"
@@ -34,6 +35,7 @@
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
+#include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/LEB128.h"
@@ -67,6 +69,17 @@ bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &stdoutOS,
   lld::stdoutOS = &stdoutOS;
   lld::stderrOS = &stderrOS;
 
+  errorHandler().cleanupCallback = []() {
+    TpiSource::clear();
+    freeArena();
+    ObjFile::instances.clear();
+    PDBInputFile::instances.clear();
+    ImportFile::instances.clear();
+    BitcodeFile::instances.clear();
+    memset(MergeChunk::instances, 0, sizeof(MergeChunk::instances));
+    OutputSection::clear();
+  };
+
   errorHandler().logName = args::getFilenameWithoutExe(args[0]);
   errorHandler().errorLimitExceededMsg =
       "too many errors emitted, stopping now"
@@ -78,20 +91,16 @@ bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &stdoutOS,
   symtab = make<SymbolTable>();
   driver = make<LinkerDriver>();
 
-  driver->link(args);
+  driver->linkerMain(args);
 
   // Call exit() if we can to avoid calling destructors.
   if (canExitEarly)
     exitLld(errorCount() ? 1 : 0);
 
-  freeArena();
-  ObjFile::instances.clear();
-  ImportFile::instances.clear();
-  BitcodeFile::instances.clear();
-  memset(MergeChunk::instances, 0, sizeof(MergeChunk::instances));
-  TpiSource::clear();
-
-  return !errorCount();
+  bool ret = errorCount() == 0;
+  if (!canExitEarly)
+    errorHandler().reset();
+  return ret;
 }
 
 // Parse options of the form "old;new".
@@ -400,10 +409,17 @@ void LinkerDriver::parseDirectives(InputFile *file) {
     case OPT_section:
       parseSection(arg->getValue());
       break;
-    case OPT_subsystem:
+    case OPT_subsystem: {
+      bool gotVersion = false;
       parseSubsystem(arg->getValue(), &config->subsystem,
-                     &config->majorOSVersion, &config->minorOSVersion);
+                     &config->majorSubsystemVersion,
+                     &config->minorSubsystemVersion, &gotVersion);
+      if (gotVersion) {
+        config->majorOSVersion = config->majorSubsystemVersion;
+        config->minorOSVersion = config->minorSubsystemVersion;
+      }
       break;
+    }
     // Only add flags here that link.exe accepts in
     // `#pragma comment(linker, "/flag")`-generated sections.
     case OPT_editandcontinue:
@@ -924,6 +940,75 @@ static void parseOrderFile(StringRef arg) {
   }
 }
 
+static void parseCallGraphFile(StringRef path) {
+  std::unique_ptr<MemoryBuffer> mb = CHECK(
+      MemoryBuffer::getFile(path, -1, false, true), "could not open " + path);
+
+  // Build a map from symbol name to section.
+  DenseMap<StringRef, Symbol *> map;
+  for (ObjFile *file : ObjFile::instances)
+    for (Symbol *sym : file->getSymbols())
+      if (sym)
+        map[sym->getName()] = sym;
+
+  auto findSection = [&](StringRef name) -> SectionChunk * {
+    Symbol *sym = map.lookup(name);
+    if (!sym) {
+      if (config->warnMissingOrderSymbol)
+        warn(path + ": no such symbol: " + name);
+      return nullptr;
+    }
+
+    if (DefinedCOFF *dr = dyn_cast_or_null<DefinedCOFF>(sym))
+      return dyn_cast_or_null<SectionChunk>(dr->getChunk());
+    return nullptr;
+  };
+
+  for (StringRef line : args::getLines(*mb)) {
+    SmallVector<StringRef, 3> fields;
+    line.split(fields, ' ');
+    uint64_t count;
+
+    if (fields.size() != 3 || !to_integer(fields[2], count)) {
+      error(path + ": parse error");
+      return;
+    }
+
+    if (SectionChunk *from = findSection(fields[0]))
+      if (SectionChunk *to = findSection(fields[1]))
+        config->callGraphProfile[{from, to}] += count;
+  }
+}
+
+static void readCallGraphsFromObjectFiles() {
+  for (ObjFile *obj : ObjFile::instances) {
+    if (obj->callgraphSec) {
+      ArrayRef<uint8_t> contents;
+      cantFail(
+          obj->getCOFFObj()->getSectionContents(obj->callgraphSec, contents));
+      BinaryStreamReader reader(contents, support::little);
+      while (!reader.empty()) {
+        uint32_t fromIndex, toIndex;
+        uint64_t count;
+        if (Error err = reader.readInteger(fromIndex))
+          fatal(toString(obj) + ": Expected 32-bit integer");
+        if (Error err = reader.readInteger(toIndex))
+          fatal(toString(obj) + ": Expected 32-bit integer");
+        if (Error err = reader.readInteger(count))
+          fatal(toString(obj) + ": Expected 64-bit integer");
+        auto *fromSym = dyn_cast_or_null<Defined>(obj->getSymbol(fromIndex));
+        auto *toSym = dyn_cast_or_null<Defined>(obj->getSymbol(toIndex));
+        if (!fromSym || !toSym)
+          continue;
+        auto *from = dyn_cast_or_null<SectionChunk>(fromSym->getChunk());
+        auto *to = dyn_cast_or_null<SectionChunk>(toSym->getChunk());
+        if (from && to)
+          config->callGraphProfile[{from, to}] += count;
+      }
+    }
+  }
+}
+
 static void markAddrsig(Symbol *s) {
   if (auto *d = dyn_cast_or_null<Defined>(s))
     if (SectionChunk *c = dyn_cast_or_null<SectionChunk>(d->getChunk()))
@@ -1104,10 +1189,15 @@ Optional<std::string> getReproduceFile(const opt::InputArgList &args) {
     return std::string(path);
   }
 
+  // This is intentionally not guarded by OPT_lldignoreenv since writing
+  // a repro tar file doesn't affect the main output.
+  if (auto *path = getenv("LLD_REPRODUCE"))
+    return std::string(path);
+
   return None;
 }
 
-void LinkerDriver::link(ArrayRef<const char *> argsArr) {
+void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
   ScopedTimer rootTimer(Timer::root());
 
   // Needed for LTO.
@@ -1134,6 +1224,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   v.push_back("lld-link (LLVM option parsing)");
   for (auto *arg : args.filtered(OPT_mllvm))
     v.push_back(arg->getValue());
+  cl::ResetAllOptionOccurrences();
   cl::ParseCommandLineOptions(v.size(), v.data());
 
   // Handle /errorlimit early, because error() depends on it.
@@ -1172,7 +1263,7 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // because it doesn't start with "/", but we deliberately chose "--" to
   // avoid conflict with /version and for compatibility with clang-cl.
   if (args.hasArg(OPT_dash_dash_version)) {
-    lld::outs() << getLLDVersion() << "\n";
+    message(getLLDVersion());
     return;
   }
 
@@ -1381,8 +1472,18 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
 
   // Handle /subsystem
   if (auto *arg = args.getLastArg(OPT_subsystem))
-    parseSubsystem(arg->getValue(), &config->subsystem, &config->majorOSVersion,
-                   &config->minorOSVersion);
+    parseSubsystem(arg->getValue(), &config->subsystem,
+                   &config->majorSubsystemVersion,
+                   &config->minorSubsystemVersion);
+
+  // Handle /osversion
+  if (auto *arg = args.getLastArg(OPT_osversion)) {
+    parseVersion(arg->getValue(), &config->majorOSVersion,
+                 &config->minorOSVersion);
+  } else {
+    config->majorOSVersion = config->majorSubsystemVersion;
+    config->minorOSVersion = config->minorSubsystemVersion;
+  }
 
   // Handle /timestamp
   if (llvm::opt::Arg *arg = args.getLastArg(OPT_timestamp, OPT_repro)) {
@@ -1418,6 +1519,8 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   unsigned icfLevel =
       args.hasArg(OPT_profile) ? 0 : 1; // 0: off, 1: limited, 2: on
   unsigned tailMerge = 1;
+  bool ltoNewPM = LLVM_ENABLE_NEW_PASS_MANAGER;
+  bool ltoDebugPM = false;
   for (auto *arg : args.filtered(OPT_opt)) {
     std::string str = StringRef(arg->getValue()).lower();
     SmallVector<StringRef, 1> vec;
@@ -1435,6 +1538,14 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
         tailMerge = 2;
       } else if (s == "nolldtailmerge") {
         tailMerge = 0;
+      } else if (s == "ltonewpassmanager") {
+        ltoNewPM = true;
+      } else if (s == "noltonewpassmanager") {
+        ltoNewPM = false;
+      } else if (s == "ltodebugpassmanager") {
+        ltoDebugPM = true;
+      } else if (s == "noltodebugpassmanager") {
+        ltoDebugPM = false;
       } else if (s.startswith("lldlto=")) {
         StringRef optLevel = s.substr(7);
         if (optLevel.getAsInteger(10, config->ltoo) || config->ltoo > 3)
@@ -1464,6 +1575,8 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   config->doGC = doGC;
   config->doICF = icfLevel > 0;
   config->tailMerge = (tailMerge == 1 && config->doICF) || tailMerge == 2;
+  config->ltoNewPassManager = ltoNewPM;
+  config->ltoDebugPassManager = ltoDebugPM;
 
   // Handle /lldsavetemps
   if (args.hasArg(OPT_lldsavetemps))
@@ -1587,9 +1700,11 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
       args.hasFlag(OPT_auto_import, OPT_auto_import_no, config->mingw);
   config->pseudoRelocs = args.hasFlag(
       OPT_runtime_pseudo_reloc, OPT_runtime_pseudo_reloc_no, config->mingw);
+  config->callGraphProfileSort = args.hasFlag(
+      OPT_call_graph_profile_sort, OPT_call_graph_profile_sort_no, true);
 
-  // Don't warn about long section names, such as .debug_info, for mingw or when
-  // -debug:dwarf is requested.
+  // Don't warn about long section names, such as .debug_info, for mingw or
+  // when -debug:dwarf is requested.
   if (config->mingw || config->debugDwarf)
     config->warnLongSectionNames = false;
 
@@ -1911,6 +2026,12 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
     while (run());
   }
 
+  // Create wrapped symbols for -wrap option.
+  std::vector<WrappedSymbol> wrapped = addWrappedSymbols(args);
+  // Load more object files that might be needed for wrapped symbols.
+  if (!wrapped.empty())
+    while (run());
+
   if (config->autoImport) {
     // MinGW specific.
     // Load any further object files that might be needed for doing automatic
@@ -1953,6 +2074,10 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // If we generated native object files from bitcode files, this resolves
   // references to the symbols we use from them.
   run();
+
+  // Apply symbol renames for -wrap.
+  if (!wrapped.empty())
+    wrapSymbols(wrapped);
 
   // Resolve remaining undefined symbols and warn about imported locals.
   symtab->resolveRemainingUndefines();
@@ -2024,8 +2149,24 @@ void LinkerDriver::link(ArrayRef<const char *> argsArr) {
   // Handle /order. We want to do this at this moment because we
   // need a complete list of comdat sections to warn on nonexistent
   // functions.
-  if (auto *arg = args.getLastArg(OPT_order))
+  if (auto *arg = args.getLastArg(OPT_order)) {
+    if (args.hasArg(OPT_call_graph_ordering_file))
+      error("/order and /call-graph-order-file may not be used together");
     parseOrderFile(arg->getValue());
+    config->callGraphProfileSort = false;
+  }
+
+  // Handle /call-graph-ordering-file and /call-graph-profile-sort (default on).
+  if (config->callGraphProfileSort) {
+    if (auto *arg = args.getLastArg(OPT_call_graph_ordering_file)) {
+      parseCallGraphFile(arg->getValue());
+    }
+    readCallGraphsFromObjectFiles();
+  }
+
+  // Handle /print-symbol-order.
+  if (auto *arg = args.getLastArg(OPT_print_symbol_order))
+    config->printSymbolOrder = arg->getValue();
 
   // Identify unreferenced COMDAT sections.
   if (config->doGC)

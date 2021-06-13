@@ -127,6 +127,9 @@ public:
   /// Whether there is a fallthrough statement in this function.
   bool HasFallthroughStmt : 1;
 
+  /// Whether this function uses constrained floating point intrinsics
+  bool UsesFPIntrin : 1;
+
   /// Whether we make reference to a declaration that could be
   /// unavailable.
   bool HasPotentialAvailabilityViolations : 1;
@@ -369,7 +372,8 @@ public:
       : Kind(SK_Function), HasBranchProtectedScope(false),
         HasBranchIntoScope(false), HasIndirectGoto(false),
         HasDroppedStmt(false), HasOMPDeclareReductionCombiner(false),
-        HasFallthroughStmt(false), HasPotentialAvailabilityViolations(false),
+        HasFallthroughStmt(false), UsesFPIntrin(false),
+        HasPotentialAvailabilityViolations(false),
         ObjCShouldCallSuper(false), ObjCIsDesignatedInit(false),
         ObjCWarnForNoDesignatedInitChain(false), ObjCIsSecondaryInit(false),
         ObjCWarnForNoInitDelegation(false), NeedsCoroutineSuspends(true),
@@ -429,6 +433,10 @@ public:
 
   void setHasFallthroughStmt() {
     HasFallthroughStmt = true;
+  }
+
+  void setUsesFPIntrin() {
+    UsesFPIntrin = true;
   }
 
   void setHasCXXTry(SourceLocation TryLoc) {
@@ -840,6 +848,11 @@ public:
 
   /// Source range covering the explicit template parameter list (if it exists).
   SourceRange ExplicitTemplateParamsRange;
+
+  /// The requires-clause immediately following the explicit template parameter
+  /// list, if any. (Note that there may be another requires-clause included as
+  /// part of the lambda-declarator.)
+  ExprResult RequiresClause;
 
   /// If this is a generic lambda, and the template parameter
   /// list has been created (from the TemplateParams) then store

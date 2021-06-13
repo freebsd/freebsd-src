@@ -193,9 +193,15 @@ public:
   template <typename Callable>
   function_ref(
       Callable &&callable,
+      // This is not the copy-constructor.
       std::enable_if_t<
           !std::is_same<std::remove_cv_t<std::remove_reference_t<Callable>>,
-                        function_ref>::value> * = nullptr)
+                        function_ref>::value> * = nullptr,
+      // Functor must be callable and return a suitable type.
+      std::enable_if_t<std::is_void<Ret>::value ||
+                       std::is_convertible<decltype(std::declval<Callable>()(
+                                               std::declval<Params>()...)),
+                                           Ret>::value> * = nullptr)
       : callback(callback_fn<typename std::remove_reference<Callable>::type>),
         callable(reinterpret_cast<intptr_t>(&callable)) {}
 
@@ -205,15 +211,6 @@ public:
 
   explicit operator bool() const { return callback; }
 };
-
-// deleter - Very very very simple method that is used to invoke operator
-// delete on something.  It is used like this:
-//
-//   for_each(V.begin(), B.end(), deleter<Interval>);
-template <class T>
-inline void deleter(T *Ptr) {
-  delete Ptr;
-}
 
 //===----------------------------------------------------------------------===//
 //     Extra additions to <iterator>
@@ -275,7 +272,7 @@ template <typename ContainerTy> bool hasSingleElement(ContainerTy &&C) {
 
 /// Return a range covering \p RangeOrContainer with the first N elements
 /// excluded.
-template <typename T> auto drop_begin(T &&RangeOrContainer, size_t N) {
+template <typename T> auto drop_begin(T &&RangeOrContainer, size_t N = 1) {
   return make_range(std::next(adl_begin(RangeOrContainer), N),
                     adl_end(RangeOrContainer));
 }
@@ -541,7 +538,7 @@ public:
   early_inc_iterator_impl(WrappedIteratorT I) : BaseT(I) {}
 
   using BaseT::operator*;
-  typename BaseT::reference operator*() {
+  decltype(*std::declval<WrappedIteratorT>()) operator*() {
 #if LLVM_ENABLE_ABI_BREAKING_CHECKS
     assert(!IsEarlyIncremented && "Cannot dereference twice!");
     IsEarlyIncremented = true;
@@ -558,12 +555,12 @@ public:
     return *this;
   }
 
-  using BaseT::operator==;
-  bool operator==(const early_inc_iterator_impl &RHS) const {
+  friend bool operator==(const early_inc_iterator_impl &LHS,
+                         const early_inc_iterator_impl &RHS) {
 #if LLVM_ENABLE_ABI_BREAKING_CHECKS
-    assert(!IsEarlyIncremented && "Cannot compare after dereferencing!");
+    assert(!LHS.IsEarlyIncremented && "Cannot compare after dereferencing!");
 #endif
-    return BaseT::operator==(RHS);
+    return (const BaseT &)LHS == (const BaseT &)RHS;
   }
 };
 
@@ -1246,6 +1243,15 @@ public:
   }
 };
 
+/// Given a container of pairs, return a range over the first elements.
+template <typename ContainerTy> auto make_first_range(ContainerTy &&c) {
+  return llvm::map_range(
+      std::forward<ContainerTy>(c),
+      [](decltype((*std::begin(c))) elt) -> decltype((elt.first)) {
+        return elt.first;
+      });
+}
+
 /// Given a container of pairs, return a range over the second elements.
 template <typename ContainerTy> auto make_second_range(ContainerTy &&c) {
   return llvm::map_range(
@@ -1422,7 +1428,7 @@ template <typename T>
 // is trivially copyable.
 using sort_trivially_copyable = conjunction<
     std::is_pointer<T>,
-    is_trivially_copyable<typename std::iterator_traits<T>::value_type>>;
+    std::is_trivially_copyable<typename std::iterator_traits<T>::value_type>>;
 } // namespace detail
 
 // Provide wrappers to std::sort which shuffle the elements before sorting
@@ -1471,18 +1477,19 @@ inline void sort(Container &&C, Compare Comp) {
 /// which is only enabled when the operation is O(1).
 template <typename R>
 auto size(R &&Range,
-          std::enable_if_t<std::is_same<typename std::iterator_traits<decltype(
-                                            Range.begin())>::iterator_category,
-                                        std::random_access_iterator_tag>::value,
-                           void> * = nullptr) {
+          std::enable_if_t<
+              std::is_base_of<std::random_access_iterator_tag,
+                              typename std::iterator_traits<decltype(
+                                  Range.begin())>::iterator_category>::value,
+              void> * = nullptr) {
   return std::distance(Range.begin(), Range.end());
 }
 
 /// Provide wrappers to std::for_each which take ranges instead of having to
 /// pass begin/end explicitly.
-template <typename R, typename UnaryPredicate>
-UnaryPredicate for_each(R &&Range, UnaryPredicate P) {
-  return std::for_each(adl_begin(Range), adl_end(Range), P);
+template <typename R, typename UnaryFunction>
+UnaryFunction for_each(R &&Range, UnaryFunction F) {
+  return std::for_each(adl_begin(Range), adl_end(Range), F);
 }
 
 /// Provide wrappers to std::all_of which take ranges instead of having to pass
@@ -1543,6 +1550,13 @@ OutputIt copy(R &&Range, OutputIt Out) {
   return std::copy(adl_begin(Range), adl_end(Range), Out);
 }
 
+/// Provide wrappers to std::move which take ranges instead of having to
+/// pass begin/end explicitly.
+template <typename R, typename OutputIt>
+OutputIt move(R &&Range, OutputIt Out) {
+  return std::move(adl_begin(Range), adl_end(Range), Out);
+}
+
 /// Wrapper function around std::find to detect if an element exists
 /// in a container.
 template <typename R, typename E>
@@ -1577,9 +1591,9 @@ auto count_if(R &&Range, UnaryPredicate P) {
 
 /// Wrapper function around std::transform to apply a function to a range and
 /// store the result elsewhere.
-template <typename R, typename OutputIt, typename UnaryPredicate>
-OutputIt transform(R &&Range, OutputIt d_first, UnaryPredicate P) {
-  return std::transform(adl_begin(Range), adl_end(Range), d_first, P);
+template <typename R, typename OutputIt, typename UnaryFunction>
+OutputIt transform(R &&Range, OutputIt d_first, UnaryFunction F) {
+  return std::transform(adl_begin(Range), adl_end(Range), d_first, F);
 }
 
 /// Provide wrappers to std::partition which take ranges instead of having to
@@ -1652,6 +1666,22 @@ bool is_splat(R &&Range) {
 template <typename Container, typename UnaryPredicate>
 void erase_if(Container &C, UnaryPredicate P) {
   C.erase(remove_if(C, P), C.end());
+}
+
+/// Wrapper function to remove a value from a container:
+///
+/// C.erase(remove(C.begin(), C.end(), V), C.end());
+template <typename Container, typename ValueType>
+void erase_value(Container &C, ValueType V) {
+  C.erase(std::remove(C.begin(), C.end(), V), C.end());
+}
+
+/// Wrapper function to append a range to a container.
+///
+/// C.insert(C.end(), R.begin(), R.end());
+template <typename Container, typename Range>
+inline void append_range(Container &C, Range &&R) {
+  C.insert(C.end(), R.begin(), R.end());
 }
 
 /// Given a sequence container Cont, replace the range [ContIt, ContEnd) with
@@ -1911,16 +1941,16 @@ decltype(auto) apply_tuple(F &&f, Tuple &&t) {
 /// Return true if the sequence [Begin, End) has exactly N items. Runs in O(N)
 /// time. Not meant for use with random-access iterators.
 /// Can optionally take a predicate to filter lazily some items.
-template<typename IterTy,
-         typename Pred = bool (*)(const decltype(*std::declval<IterTy>()) &)>
+template <typename IterTy,
+          typename Pred = bool (*)(const decltype(*std::declval<IterTy>()) &)>
 bool hasNItems(
     IterTy &&Begin, IterTy &&End, unsigned N,
     Pred &&ShouldBeCounted =
         [](const decltype(*std::declval<IterTy>()) &) { return true; },
     std::enable_if_t<
-        !std::is_same<typename std::iterator_traits<std::remove_reference_t<
-                          decltype(Begin)>>::iterator_category,
-                      std::random_access_iterator_tag>::value,
+        !std::is_base_of<std::random_access_iterator_tag,
+                         typename std::iterator_traits<std::remove_reference_t<
+                             decltype(Begin)>>::iterator_category>::value,
         void> * = nullptr) {
   for (; N; ++Begin) {
     if (Begin == End)
@@ -1936,16 +1966,16 @@ bool hasNItems(
 /// Return true if the sequence [Begin, End) has N or more items. Runs in O(N)
 /// time. Not meant for use with random-access iterators.
 /// Can optionally take a predicate to lazily filter some items.
-template<typename IterTy,
-         typename Pred = bool (*)(const decltype(*std::declval<IterTy>()) &)>
+template <typename IterTy,
+          typename Pred = bool (*)(const decltype(*std::declval<IterTy>()) &)>
 bool hasNItemsOrMore(
     IterTy &&Begin, IterTy &&End, unsigned N,
     Pred &&ShouldBeCounted =
         [](const decltype(*std::declval<IterTy>()) &) { return true; },
     std::enable_if_t<
-        !std::is_same<typename std::iterator_traits<std::remove_reference_t<
-                          decltype(Begin)>>::iterator_category,
-                      std::random_access_iterator_tag>::value,
+        !std::is_base_of<std::random_access_iterator_tag,
+                         typename std::iterator_traits<std::remove_reference_t<
+                             decltype(Begin)>>::iterator_category>::value,
         void> * = nullptr) {
   for (; N; ++Begin) {
     if (Begin == End)

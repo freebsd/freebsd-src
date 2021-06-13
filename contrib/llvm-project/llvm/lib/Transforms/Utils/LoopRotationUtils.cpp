@@ -12,7 +12,6 @@
 
 #include "llvm/Transforms/Utils/LoopRotationUtils.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/CodeMetrics.h"
@@ -36,6 +35,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
@@ -44,6 +44,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "loop-rotate"
 
+STATISTIC(NumNotRotatedDueToHeaderSize,
+          "Number of loops not rotated due to the header size");
 STATISTIC(NumRotated, "Number of loops rotated");
 
 static cl::opt<bool>
@@ -64,15 +66,17 @@ class LoopRotate {
   const SimplifyQuery &SQ;
   bool RotationOnly;
   bool IsUtilMode;
+  bool PrepareForLTO;
 
 public:
   LoopRotate(unsigned MaxHeaderSize, LoopInfo *LI,
              const TargetTransformInfo *TTI, AssumptionCache *AC,
              DominatorTree *DT, ScalarEvolution *SE, MemorySSAUpdater *MSSAU,
-             const SimplifyQuery &SQ, bool RotationOnly, bool IsUtilMode)
+             const SimplifyQuery &SQ, bool RotationOnly, bool IsUtilMode,
+             bool PrepareForLTO)
       : MaxHeaderSize(MaxHeaderSize), LI(LI), TTI(TTI), AC(AC), DT(DT), SE(SE),
         MSSAU(MSSAU), SQ(SQ), RotationOnly(RotationOnly),
-        IsUtilMode(IsUtilMode) {}
+        IsUtilMode(IsUtilMode), PrepareForLTO(PrepareForLTO) {}
   bool processLoop(Loop *L);
 
 private:
@@ -300,7 +304,7 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       CodeMetrics::collectEphemeralValues(L, AC, EphValues);
 
       CodeMetrics Metrics;
-      Metrics.analyzeBasicBlock(OrigHeader, *TTI, EphValues);
+      Metrics.analyzeBasicBlock(OrigHeader, *TTI, EphValues, PrepareForLTO);
       if (Metrics.notDuplicatable) {
         LLVM_DEBUG(
                    dbgs() << "LoopRotation: NOT rotating - contains non-duplicatable"
@@ -320,8 +324,14 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
                           << " instructions, which is more than the threshold ("
                           << MaxHeaderSize << " instructions): ";
                    L->dump());
+        ++NumNotRotatedDueToHeaderSize;
         return Rotated;
       }
+
+      // When preparing for LTO, avoid rotating loops with calls that could be
+      // inlined during the LTO stage.
+      if (PrepareForLTO && Metrics.NumInlineCandidates > 0)
+        return Rotated;
     }
 
     // Now, this loop is suitable for rotation.
@@ -391,6 +401,14 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
         break;
     }
 
+    // Remember the local noalias scope declarations in the header. After the
+    // rotation, they must be duplicated and the scope must be cloned. This
+    // avoids unwanted interaction across iterations.
+    SmallVector<NoAliasScopeDeclInst *, 6> NoAliasDeclInstructions;
+    for (Instruction &I : *OrigHeader)
+      if (auto *Decl = dyn_cast<NoAliasScopeDeclInst>(&I))
+        NoAliasDeclInstructions.push_back(Decl);
+
     while (I != E) {
       Instruction *Inst = &*I++;
 
@@ -451,6 +469,69 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       }
     }
 
+    if (!NoAliasDeclInstructions.empty()) {
+      // There are noalias scope declarations:
+      // (general):
+      // Original:    OrigPre              { OrigHeader NewHeader ... Latch }
+      // after:      (OrigPre+OrigHeader') { NewHeader ... Latch OrigHeader }
+      //
+      // with D: llvm.experimental.noalias.scope.decl,
+      //      U: !noalias or !alias.scope depending on D
+      //       ... { D U1 U2 }   can transform into:
+      // (0) : ... { D U1 U2 }        // no relevant rotation for this part
+      // (1) : ... D' { U1 U2 D }     // D is part of OrigHeader
+      // (2) : ... D' U1' { U2 D U1 } // D, U1 are part of OrigHeader
+      //
+      // We now want to transform:
+      // (1) -> : ... D' { D U1 U2 D'' }
+      // (2) -> : ... D' U1' { D U2 D'' U1'' }
+      // D: original llvm.experimental.noalias.scope.decl
+      // D', U1': duplicate with replaced scopes
+      // D'', U1'': different duplicate with replaced scopes
+      // This ensures a safe fallback to 'may_alias' introduced by the rotate,
+      // as U1'' and U1' scopes will not be compatible wrt to the local restrict
+
+      // Clone the llvm.experimental.noalias.decl again for the NewHeader.
+      Instruction *NewHeaderInsertionPoint = &(*NewHeader->getFirstNonPHI());
+      for (NoAliasScopeDeclInst *NAD : NoAliasDeclInstructions) {
+        LLVM_DEBUG(dbgs() << "  Cloning llvm.experimental.noalias.scope.decl:"
+                          << *NAD << "\n");
+        Instruction *NewNAD = NAD->clone();
+        NewNAD->insertBefore(NewHeaderInsertionPoint);
+      }
+
+      // Scopes must now be duplicated, once for OrigHeader and once for
+      // OrigPreHeader'.
+      {
+        auto &Context = NewHeader->getContext();
+
+        SmallVector<MDNode *, 8> NoAliasDeclScopes;
+        for (NoAliasScopeDeclInst *NAD : NoAliasDeclInstructions)
+          NoAliasDeclScopes.push_back(NAD->getScopeList());
+
+        LLVM_DEBUG(dbgs() << "  Updating OrigHeader scopes\n");
+        cloneAndAdaptNoAliasScopes(NoAliasDeclScopes, {OrigHeader}, Context,
+                                   "h.rot");
+        LLVM_DEBUG(OrigHeader->dump());
+
+        // Keep the compile time impact low by only adapting the inserted block
+        // of instructions in the OrigPreHeader. This might result in slightly
+        // more aliasing between these instructions and those that were already
+        // present, but it will be much faster when the original PreHeader is
+        // large.
+        LLVM_DEBUG(dbgs() << "  Updating part of OrigPreheader scopes\n");
+        auto *FirstDecl =
+            cast<Instruction>(ValueMap[*NoAliasDeclInstructions.begin()]);
+        auto *LastInst = &OrigPreheader->back();
+        cloneAndAdaptNoAliasScopes(NoAliasDeclScopes, FirstDecl, LastInst,
+                                   Context, "pre.rot");
+        LLVM_DEBUG(OrigPreheader->dump());
+
+        LLVM_DEBUG(dbgs() << "  Updated NewHeader:\n");
+        LLVM_DEBUG(NewHeader->dump());
+      }
+    }
+
     // Along with all the other instructions, we just cloned OrigHeader's
     // terminator into OrigPreHeader. Fix up the PHI nodes in each of OrigHeader's
     // successors by duplicating their incoming values for OrigHeader.
@@ -496,12 +577,13 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
       Updates.push_back({DominatorTree::Insert, OrigPreheader, Exit});
       Updates.push_back({DominatorTree::Insert, OrigPreheader, NewHeader});
       Updates.push_back({DominatorTree::Delete, OrigPreheader, OrigHeader});
-      DT->applyUpdates(Updates);
 
       if (MSSAU) {
-        MSSAU->applyUpdates(Updates, *DT);
+        MSSAU->applyUpdates(Updates, *DT, /*UpdateDT=*/true);
         if (VerifyMemorySSA)
           MSSAU->getMemorySSA()->verifyMemorySSA();
+      } else {
+        DT->applyUpdates(Updates);
       }
     }
 
@@ -575,7 +657,10 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
     // connected by an unconditional branch.  This is just a cleanup so the
     // emitted code isn't too gross in this common case.
     DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
-    MergeBlockIntoPredecessor(OrigHeader, &DTU, LI, MSSAU);
+    BasicBlock *PredBB = OrigHeader->getUniquePredecessor();
+    bool DidMerge = MergeBlockIntoPredecessor(OrigHeader, &DTU, LI, MSSAU);
+    if (DidMerge)
+      RemoveRedundantDbgInstrs(PredBB);
 
     if (MSSAU && VerifyMemorySSA)
       MSSAU->getMemorySSA()->verifyMemorySSA();
@@ -739,13 +824,8 @@ bool llvm::LoopRotation(Loop *L, LoopInfo *LI, const TargetTransformInfo *TTI,
                         ScalarEvolution *SE, MemorySSAUpdater *MSSAU,
                         const SimplifyQuery &SQ, bool RotationOnly = true,
                         unsigned Threshold = unsigned(-1),
-                        bool IsUtilMode = true) {
-  if (MSSAU && VerifyMemorySSA)
-    MSSAU->getMemorySSA()->verifyMemorySSA();
+                        bool IsUtilMode = true, bool PrepareForLTO) {
   LoopRotate LR(Threshold, LI, TTI, AC, DT, SE, MSSAU, SQ, RotationOnly,
-                IsUtilMode);
-  if (MSSAU && VerifyMemorySSA)
-    MSSAU->getMemorySSA()->verifyMemorySSA();
-
+                IsUtilMode, PrepareForLTO);
   return LR.processLoop(L);
 }

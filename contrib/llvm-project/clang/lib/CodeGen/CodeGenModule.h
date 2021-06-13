@@ -396,10 +396,6 @@ private:
   /// emitted when the translation unit is complete.
   CtorList GlobalDtors;
 
-  /// A unique trailing identifier as a part of sinit/sterm function when
-  /// UseSinitAndSterm of CXXABI is set as true.
-  std::string GlobalUniqueModuleId;
-
   /// An ordered map of canonical GlobalDecls to their mangled names.
   llvm::MapVector<GlobalDecl, StringRef> MangledDeclNames;
   llvm::StringMap<GlobalDecl, llvm::BumpPtrAllocator> Manglings;
@@ -416,6 +412,9 @@ private:
 
   /// Map used to get unique annotation strings.
   llvm::StringMap<llvm::Constant*> AnnotationStrings;
+
+  /// Used for uniquing of annotation arguments.
+  llvm::DenseMap<unsigned, llvm::Constant *> AnnotationArgs;
 
   llvm::StringMap<llvm::GlobalVariable *> CFConstantStringMap;
 
@@ -607,9 +606,11 @@ public:
     return *ObjCData;
   }
 
-  // Version checking function, used to implement ObjC's @available:
+  // Version checking functions, used to implement ObjC's @available:
   // i32 @__isOSVersionAtLeast(i32, i32, i32)
   llvm::FunctionCallee IsOSVersionAtLeastFn = nullptr;
+  // i32 @__isPlatformVersionAtLeast(i32, i32, i32, i32)
+  llvm::FunctionCallee IsPlatformVersionAtLeastFn = nullptr;
 
   InstrProfStats &getPGOStats() { return PGOStats; }
   llvm::IndexedInstrProfReader *getPGOReader() const { return PGOReader.get(); }
@@ -819,8 +820,7 @@ public:
 
   llvm::Function *CreateGlobalInitOrCleanUpFunction(
       llvm::FunctionType *ty, const Twine &name, const CGFunctionInfo &FI,
-      SourceLocation Loc = SourceLocation(), bool TLS = false,
-      bool IsExternalLinkage = false);
+      SourceLocation Loc = SourceLocation(), bool TLS = false);
 
   /// Return the AST address space of the underlying global variable for D, as
   /// determined by its declaration. Normally this is the same as the address
@@ -863,6 +863,10 @@ public:
 
   /// Get the address of a GUID.
   ConstantAddress GetAddrOfMSGuidDecl(const MSGuidDecl *GD);
+
+  /// Get the address of a template parameter object.
+  ConstantAddress
+  GetAddrOfTemplateParamObject(const TemplateParamObjectDecl *TPO);
 
   /// Get the address of the thunk for the given global decl.
   llvm::Constant *GetAddrOfThunk(StringRef Name, llvm::Type *FnTy,
@@ -1059,6 +1063,12 @@ public:
                                                  DtorFn.getCallee(), nullptr);
   }
 
+  /// Add an sterm finalizer to its own llvm.global_dtors entry.
+  void AddCXXStermFinalizerToGlobalDtor(llvm::Function *StermFinalizer,
+                                        int Priority) {
+    AddGlobalDtor(StermFinalizer, Priority);
+  }
+
   /// Create or return a runtime function declaration with the specified type
   /// and name. If \p AssumeConvergent is true, the call will have the
   /// convergent attribute added.
@@ -1066,16 +1076,6 @@ public:
   CreateRuntimeFunction(llvm::FunctionType *Ty, StringRef Name,
                         llvm::AttributeList ExtraAttrs = llvm::AttributeList(),
                         bool Local = false, bool AssumeConvergent = false);
-
-  /// Create or return a runtime function declaration with the specified type
-  /// and name. This will automatically add the convergent attribute to the
-  /// function declaration.
-  llvm::FunctionCallee CreateConvergentRuntimeFunction(
-      llvm::FunctionType *Ty, StringRef Name,
-      llvm::AttributeList ExtraAttrs = llvm::AttributeList(),
-      bool Local = false) {
-    return CreateRuntimeFunction(Ty, Name, ExtraAttrs, Local, true);
-  }
 
   /// Create a new runtime global variable with the specified type and name.
   llvm::Constant *CreateRuntimeVariable(llvm::Type *Ty,
@@ -1135,6 +1135,10 @@ public:
   /// Set the LLVM function attributes which only apply to a function
   /// definition.
   void SetLLVMFunctionAttributesForDefinition(const Decl *D, llvm::Function *F);
+
+  /// Set the LLVM function attributes that represent floating point
+  /// environment.
+  void setLLVMFunctionFEnvAttributes(const FunctionDecl *D, llvm::Function *F);
 
   /// Return true iff the given type uses 'sret' when used as a return type.
   bool ReturnTypeUsesSRet(const CGFunctionInfo &FI);
@@ -1242,6 +1246,9 @@ public:
   /// Emit the annotation line number.
   llvm::Constant *EmitAnnotationLineNo(SourceLocation L);
 
+  /// Emit additional args of the annotation.
+  llvm::Constant *EmitAnnotationArgs(const AnnotateAttr *Attr);
+
   /// Generate the llvm::ConstantStruct which contains the annotation
   /// information for a given GlobalValue. The annotation struct is
   /// {i8 *, i8 *, i8 *, i32}. The first field is a constant expression, the
@@ -1269,6 +1276,10 @@ public:
   /// false otherwise.
   bool imbueXRayAttrs(llvm::Function *Fn, SourceLocation Loc,
                       StringRef Category = StringRef()) const;
+
+  /// Returns true if function at the given location should be excluded from
+  /// profile instrumentation.
+  bool isProfileInstrExcluded(llvm::Function *Fn, SourceLocation Loc) const;
 
   SanitizerMetadata *getSanitizerMetadata() {
     return SanitizerMD.get();
@@ -1326,8 +1337,11 @@ public:
   /// a virtual function call could be made which ends up being dispatched to a
   /// member function of this class. This scope can be wider than the visibility
   /// of the class itself when the class has a more-visible dynamic base class.
+  /// The client should pass in an empty Visited set, which is used to prevent
+  /// redundant recursive processing.
   llvm::GlobalObject::VCallVisibility
-  GetVCallVisibilityLevel(const CXXRecordDecl *RD);
+  GetVCallVisibilityLevel(const CXXRecordDecl *RD,
+                          llvm::DenseSet<const CXXRecordDecl *> &Visited);
 
   /// Emit type metadata for the given vtable using the given layout.
   void EmitVTableTypeMetadata(const CXXRecordDecl *RD,
@@ -1471,7 +1485,8 @@ private:
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(llvm::Function *Ctor, int Priority = 65535,
                      llvm::Constant *AssociatedData = nullptr);
-  void AddGlobalDtor(llvm::Function *Dtor, int Priority = 65535);
+  void AddGlobalDtor(llvm::Function *Dtor, int Priority = 65535,
+                     bool IsDtorAttrFunc = false);
 
   /// EmitCtorList - Generates a global array of functions and priorities using
   /// the given list and name. This array will have appending linkage and is
@@ -1500,6 +1515,11 @@ private:
   /// Register functions annotated with __attribute__((destructor)) using
   /// __cxa_atexit, if it is available, or atexit otherwise.
   void registerGlobalDtorsWithAtExit();
+
+  // When using sinit and sterm functions, unregister
+  // __attribute__((destructor)) annotated functions which were previously
+  // registered by the atexit subroutine using unatexit.
+  void unregisterGlobalDtorsWithUnAtExit();
 
   void emitMultiVersionFunctions();
 

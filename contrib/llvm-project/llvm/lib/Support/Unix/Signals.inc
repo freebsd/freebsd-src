@@ -36,6 +36,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/Support/ExitCodes.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Format.h"
@@ -46,7 +47,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <string>
-#include <sysexits.h>
 #ifdef HAVE_BACKTRACE
 # include BACKTRACE_HEADER         // For backtrace().
 #endif
@@ -331,7 +331,7 @@ static void RegisterHandlers() { // Not signal-safe.
     registerHandler(S, SignalKind::IsInfo);
 }
 
-static void UnregisterHandlers() {
+void sys::unregisterHandlers() {
   // Restore all of the signal handlers to how they were before we showed up.
   for (unsigned i = 0, e = NumRegisteredSignals.load(); i != e; ++i) {
     sigaction(RegisteredSignalInfo[i].SigNo,
@@ -367,7 +367,7 @@ static RETSIGTYPE SignalHandler(int Sig) {
   // crashes when we return and the signal reissues.  This also ensures that if
   // we crash in our signal handler that the program will terminate immediately
   // instead of recursing in the signal handler.
-  UnregisterHandlers();
+  sys::unregisterHandlers();
 
   // Unmask all potentially blocked kill signals.
   sigset_t SigMask;
@@ -382,14 +382,15 @@ static RETSIGTYPE SignalHandler(int Sig) {
               OneShotPipeSignalFunction.exchange(nullptr))
         return OldOneShotPipeFunction();
 
-    if (std::find(std::begin(IntSigs), std::end(IntSigs), Sig)
-        != std::end(IntSigs)) {
+    bool IsIntSig = llvm::is_contained(IntSigs, Sig);
+    if (IsIntSig)
       if (auto OldInterruptFunction = InterruptFunction.exchange(nullptr))
         return OldInterruptFunction();
 
-      raise(Sig);   // Execute the default handler.
+    if (Sig == SIGPIPE || IsIntSig) {
+      raise(Sig); // Execute the default handler.
       return;
-   }
+    }
   }
 
   // Otherwise if it is a fault (like SEGV) run any handler.
@@ -554,7 +555,7 @@ static int unwindBacktrace(void **StackTrace, int MaxEntries) {
 //
 // On glibc systems we have the 'backtrace' function, which works nicely, but
 // doesn't demangle symbols.
-void llvm::sys::PrintStackTrace(raw_ostream &OS) {
+void llvm::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
 #if ENABLE_BACKTRACES
   static void *StackTrace[256];
   int depth = 0;
@@ -571,9 +572,15 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
 #endif
   if (!depth)
     return;
-
-  if (printSymbolizedStackTrace(Argv0, StackTrace, depth, OS))
+  // If "Depth" is not provided by the caller, use the return value of
+  // backtrace() for printing a symbolized stack trace.
+  if (!Depth)
+    Depth = depth;
+  if (printSymbolizedStackTrace(Argv0, StackTrace, Depth, OS))
     return;
+  OS << "Stack dump without symbol names (ensure you have llvm-symbolizer in "
+        "your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point "
+        "to it):\n";
 #if HAVE_DLFCN_H && HAVE_DLADDR
   int width = 0;
   for (int i = 0; i < depth; ++i) {
@@ -615,7 +622,7 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
     OS << '\n';
   }
 #elif defined(HAVE_BACKTRACE)
-  backtrace_symbols_fd(StackTrace, depth, STDERR_FILENO);
+  backtrace_symbols_fd(StackTrace, Depth, STDERR_FILENO);
 #endif
 #endif
 }

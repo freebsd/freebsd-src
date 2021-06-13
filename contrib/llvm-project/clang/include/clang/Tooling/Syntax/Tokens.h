@@ -275,6 +275,10 @@ public:
   /// macro expands to.
   llvm::Optional<Expansion>
   expansionStartingAt(const syntax::Token *Spelled) const;
+  /// Returns all expansions (partially) expanded from the specified tokens.
+  /// This is the expansions whose Spelled range intersects \p Spelled.
+  std::vector<Expansion>
+  expansionsOverlapping(llvm::ArrayRef<syntax::Token> Spelled) const;
 
   /// Lexed tokens of a file before preprocessing. E.g. for the following input
   ///     #define DECL(name) int name = 10
@@ -352,6 +356,12 @@ private:
   mappingStartingBeforeSpelled(const MarkedFile &F,
                                const syntax::Token *Spelled);
 
+  /// Convert a private Mapping to a public Expansion.
+  Expansion makeExpansion(const MarkedFile &, const Mapping &) const;
+  /// Returns the file that the Spelled tokens are taken from.
+  /// Asserts that they are non-empty, from a tracked file, and in-bounds.
+  const MarkedFile &fileForSpelled(llvm::ArrayRef<syntax::Token> Spelled) const;
+
   /// Token stream produced after preprocessing, conceputally this captures the
   /// same stream as 'clang -E' (excluding the preprocessor directives like
   /// #file, etc.).
@@ -428,7 +438,7 @@ private:
   /// the stack) and not when they end (when we pop a macro from the stack).
   /// To workaround this limitation, we rely on source location information
   /// stored in this map.
-  using PPExpansions = llvm::DenseMap</*SourceLocation*/ int, SourceLocation>;
+  using PPExpansions = llvm::DenseMap<SourceLocation, SourceLocation>;
   class Builder;
   class CollectPPExpansions;
 

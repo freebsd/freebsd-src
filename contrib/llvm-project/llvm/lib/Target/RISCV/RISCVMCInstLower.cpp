@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RISCV.h"
+#include "RISCVSubtarget.h"
 #include "MCTargetDesc/RISCVMCExpr.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -121,17 +122,114 @@ bool llvm::LowerRISCVMachineOperandToMCOperand(const MachineOperand &MO,
   case MachineOperand::MO_ConstantPoolIndex:
     MCOp = lowerSymbolOperand(MO, AP.GetCPISymbol(MO.getIndex()), AP);
     break;
+  case MachineOperand::MO_JumpTableIndex:
+    MCOp = lowerSymbolOperand(MO, AP.GetJTISymbol(MO.getIndex()), AP);
+    break;
   }
+  return true;
+}
+
+static bool lowerRISCVVMachineInstrToMCInst(const MachineInstr *MI,
+                                            MCInst &OutMI) {
+  const RISCVVPseudosTable::PseudoInfo *RVV =
+      RISCVVPseudosTable::getPseudoInfo(MI->getOpcode());
+  if (!RVV)
+    return false;
+
+  OutMI.setOpcode(RVV->BaseInstr);
+
+  const MachineBasicBlock *MBB = MI->getParent();
+  assert(MBB && "MI expected to be in a basic block");
+  const MachineFunction *MF = MBB->getParent();
+  assert(MF && "MBB expected to be in a machine function");
+
+  const TargetRegisterInfo *TRI =
+      MF->getSubtarget<RISCVSubtarget>().getRegisterInfo();
+  assert(TRI && "TargetRegisterInfo expected");
+
+  uint64_t TSFlags = MI->getDesc().TSFlags;
+  int NumOps = MI->getNumExplicitOperands();
+
+  for (const MachineOperand &MO : MI->explicit_operands()) {
+    int OpNo = (int)MI->getOperandNo(&MO);
+    assert(OpNo >= 0 && "Operand number doesn't fit in an 'int' type");
+
+    // Skip VL and SEW operands which are the last two operands if present.
+    if ((TSFlags & RISCVII::HasVLOpMask) && OpNo == (NumOps - 2))
+      continue;
+    if ((TSFlags & RISCVII::HasSEWOpMask) && OpNo == (NumOps - 1))
+      continue;
+
+    // Skip merge op. It should be the first operand after the result.
+    if ((TSFlags & RISCVII::HasMergeOpMask) && OpNo == 1) {
+      assert(MI->getNumExplicitDefs() == 1);
+      continue;
+    }
+
+    MCOperand MCOp;
+    switch (MO.getType()) {
+    default:
+      llvm_unreachable("Unknown operand type");
+    case MachineOperand::MO_Register: {
+      unsigned Reg = MO.getReg();
+
+      if (RISCV::VRM2RegClass.contains(Reg) ||
+          RISCV::VRM4RegClass.contains(Reg) ||
+          RISCV::VRM8RegClass.contains(Reg)) {
+        Reg = TRI->getSubReg(Reg, RISCV::sub_vrm1_0);
+        assert(Reg && "Subregister does not exist");
+      } else if (RISCV::FPR16RegClass.contains(Reg)) {
+        Reg = TRI->getMatchingSuperReg(Reg, RISCV::sub_16, &RISCV::FPR32RegClass);
+        assert(Reg && "Subregister does not exist");
+      } else if (RISCV::FPR64RegClass.contains(Reg)) {
+        Reg = TRI->getSubReg(Reg, RISCV::sub_32);
+        assert(Reg && "Superregister does not exist");
+      }
+
+      MCOp = MCOperand::createReg(Reg);
+      break;
+    }
+    case MachineOperand::MO_Immediate:
+      MCOp = MCOperand::createImm(MO.getImm());
+      break;
+    }
+    OutMI.addOperand(MCOp);
+  }
+
+  // Unmasked pseudo instructions need to append dummy mask operand to
+  // V instructions. All V instructions are modeled as the masked version.
+  if (TSFlags & RISCVII::HasDummyMaskOpMask)
+    OutMI.addOperand(MCOperand::createReg(RISCV::NoRegister));
+
   return true;
 }
 
 void llvm::LowerRISCVMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                           const AsmPrinter &AP) {
+  if (lowerRISCVVMachineInstrToMCInst(MI, OutMI))
+    return;
+
   OutMI.setOpcode(MI->getOpcode());
 
   for (const MachineOperand &MO : MI->operands()) {
     MCOperand MCOp;
     if (LowerRISCVMachineOperandToMCOperand(MO, MCOp, AP))
       OutMI.addOperand(MCOp);
+  }
+
+  if (OutMI.getOpcode() == RISCV::PseudoReadVLENB) {
+    OutMI.setOpcode(RISCV::CSRRS);
+    OutMI.addOperand(MCOperand::createImm(
+        RISCVSysReg::lookupSysRegByName("VLENB")->Encoding));
+    OutMI.addOperand(MCOperand::createReg(RISCV::X0));
+    return;
+  }
+
+  if (OutMI.getOpcode() == RISCV::PseudoReadVL) {
+    OutMI.setOpcode(RISCV::CSRRS);
+    OutMI.addOperand(MCOperand::createImm(
+        RISCVSysReg::lookupSysRegByName("VL")->Encoding));
+    OutMI.addOperand(MCOperand::createReg(RISCV::X0));
+    return;
   }
 }

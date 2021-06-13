@@ -245,6 +245,13 @@ static unsigned ComputeSpeculationCost(const Instruction *I,
     case Instruction::FNeg:
     case Instruction::ICmp:
     case Instruction::FCmp:
+    case Instruction::Trunc:
+    case Instruction::Freeze:
+    case Instruction::ExtractElement:
+    case Instruction::InsertElement:
+    case Instruction::ShuffleVector:
+    case Instruction::ExtractValue:
+    case Instruction::InsertValue:
       return TTI.getUserCost(I, TargetTransformInfo::TCK_SizeAndLatency);
 
     default:
@@ -274,7 +281,7 @@ bool SpeculativeExecutionPass::considerHoistingFromTo(
 
     for (const Value *V : U->operand_values()) {
       if (const Instruction *I = dyn_cast<Instruction>(V)) {
-        if (NotHoisted.count(I) > 0)
+        if (NotHoisted.contains(I))
           return false;
       }
     }

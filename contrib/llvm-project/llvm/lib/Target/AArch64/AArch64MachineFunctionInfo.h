@@ -20,7 +20,6 @@
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include <cassert>
@@ -36,6 +35,9 @@ class MachineInstr;
 /// AArch64FunctionInfo - This class is derived from MachineFunctionInfo and
 /// contains private AArch64-specific information for each MachineFunction.
 class AArch64FunctionInfo final : public MachineFunctionInfo {
+  /// Backreference to the machine function.
+  MachineFunction &MF;
+
   /// Number of bytes of arguments this function has on the stack. If the callee
   /// is expected to restore the argument stack this should be a multiple of 16,
   /// all usable during a tail call.
@@ -126,26 +128,40 @@ class AArch64FunctionInfo final : public MachineFunctionInfo {
   /// that must be forwarded to every musttail call.
   SmallVector<ForwardedRegister, 1> ForwardedMustTailRegParms;
 
-  // Offset from SP-at-entry to the tagged base pointer.
-  // Tagged base pointer is set up to point to the first (lowest address) tagged
-  // stack slot.
-  unsigned TaggedBasePointerOffset = 0;
+  /// FrameIndex for the tagged base pointer.
+  Optional<int> TaggedBasePointerIndex;
+
+  /// Offset from SP-at-entry to the tagged base pointer.
+  /// Tagged base pointer is set up to point to the first (lowest address)
+  /// tagged stack slot.
+  unsigned TaggedBasePointerOffset;
 
   /// OutliningStyle denotes, if a function was outined, how it was outlined,
   /// e.g. Tail Call, Thunk, or Function if none apply.
   Optional<std::string> OutliningStyle;
 
+  // Offset from SP-after-callee-saved-spills (i.e. SP-at-entry minus
+  // CalleeSavedStackSize) to the address of the frame record.
+  int CalleeSaveBaseToFrameRecordOffset = 0;
+
+  /// SignReturnAddress is true if PAC-RET is enabled for the function with
+  /// defaults being sign non-leaf functions only, with the B key.
+  bool SignReturnAddress = false;
+
+  /// SignReturnAddressAll modifies the default PAC-RET mode to signing leaf
+  /// functions as well.
+  bool SignReturnAddressAll = false;
+
+  /// SignWithBKey modifies the default PAC-RET mode to signing with the B key.
+  bool SignWithBKey = false;
+
+  /// BranchTargetEnforcement enables placing BTI instructions at potential
+  /// indirect branch destinations.
+  bool BranchTargetEnforcement = false;
+
 public:
-  AArch64FunctionInfo() = default;
+  explicit AArch64FunctionInfo(MachineFunction &MF);
 
-  explicit AArch64FunctionInfo(MachineFunction &MF) {
-    (void)MF;
-
-    // If we already know that the function doesn't have a redzone, set
-    // HasRedZone here.
-    if (MF.getFunction().hasFnAttribute(Attribute::NoRedZone))
-      HasRedZone = false;
-  }
   void initializeBaseYamlFields(const yaml::AArch64FunctionInfo &YamlMFI);
 
   unsigned getBytesInStackArgArea() const { return BytesInStackArgArea; }
@@ -281,15 +297,14 @@ public:
   void setSRetReturnReg(unsigned Reg) { SRetReturnReg = Reg; }
 
   unsigned getJumpTableEntrySize(int Idx) const {
-    auto It = JumpTableEntryInfo.find(Idx);
-    if (It != JumpTableEntryInfo.end())
-      return It->second.first;
-    return 4;
+    return JumpTableEntryInfo[Idx].first;
   }
   MCSymbol *getJumpTableEntryPCRelSymbol(int Idx) const {
-    return JumpTableEntryInfo.find(Idx)->second.second;
+    return JumpTableEntryInfo[Idx].second;
   }
   void setJumpTableEntryInfo(int Idx, unsigned Size, MCSymbol *PCRelSym) {
+    if ((unsigned)Idx >= JumpTableEntryInfo.size())
+      JumpTableEntryInfo.resize(Idx+1);
     JumpTableEntryInfo[Idx] = std::make_pair(Size, PCRelSym);
   }
 
@@ -331,6 +346,11 @@ public:
     return ForwardedMustTailRegParms;
   }
 
+  Optional<int> getTaggedBasePointerIndex() const {
+    return TaggedBasePointerIndex;
+  }
+  void setTaggedBasePointerIndex(int Index) { TaggedBasePointerIndex = Index; }
+
   unsigned getTaggedBasePointerOffset() const {
     return TaggedBasePointerOffset;
   }
@@ -338,12 +358,26 @@ public:
     TaggedBasePointerOffset = Offset;
   }
 
+  int getCalleeSaveBaseToFrameRecordOffset() const {
+    return CalleeSaveBaseToFrameRecordOffset;
+  }
+  void setCalleeSaveBaseToFrameRecordOffset(int Offset) {
+    CalleeSaveBaseToFrameRecordOffset = Offset;
+  }
+
+  bool shouldSignReturnAddress() const;
+  bool shouldSignReturnAddress(bool SpillsLR) const;
+
+  bool shouldSignWithBKey() const { return SignWithBKey; }
+
+  bool branchTargetEnforcement() const { return BranchTargetEnforcement; }
+
 private:
   // Hold the lists of LOHs.
   MILOHContainer LOHContainerSet;
   SetOfInstructions LOHRelated;
 
-  DenseMap<int, std::pair<unsigned, MCSymbol *>> JumpTableEntryInfo;
+  SmallVector<std::pair<unsigned, MCSymbol *>, 2> JumpTableEntryInfo;
 };
 
 namespace yaml {

@@ -789,6 +789,12 @@ struct ShuffleMask {
     OS << " }";
   }
 };
+
+LLVM_ATTRIBUTE_UNUSED
+raw_ostream &operator<<(raw_ostream &OS, const ShuffleMask &SM) {
+  SM.print(OS);
+  return OS;
+}
 } // namespace
 
 // --------------------------------------------------------------------
@@ -828,6 +834,7 @@ namespace llvm {
     void selectVAlign(SDNode *N);
 
   private:
+    void select(SDNode *ISelN);
     void materialize(const ResultStack &Results);
 
     SDValue getVectorConstant(ArrayRef<uint8_t> Data, const SDLoc &dl);
@@ -931,46 +938,19 @@ bool HvxSelector::selectVectorConstants(SDNode *N) {
   SmallVector<SDNode*,4> Nodes;
   SetVector<SDNode*> WorkQ;
 
-  // The one-use test for VSPLATW's operand may fail due to dead nodes
-  // left over in the DAG.
-  DAG.RemoveDeadNodes();
-
   // The DAG can change (due to CSE) during selection, so cache all the
   // unselected nodes first to avoid traversing a mutating DAG.
-
-  auto IsNodeToSelect = [] (SDNode *N) {
-    if (N->isMachineOpcode())
-      return false;
-    switch (N->getOpcode()) {
-      case HexagonISD::VZERO:
-      case HexagonISD::VSPLATW:
-        return true;
-      case ISD::LOAD: {
-        SDValue Addr = cast<LoadSDNode>(N)->getBasePtr();
-        unsigned AddrOpc = Addr.getOpcode();
-        if (AddrOpc == HexagonISD::AT_PCREL || AddrOpc == HexagonISD::CP)
-          if (Addr.getOperand(0).getOpcode() == ISD::TargetConstantPool)
-            return true;
-      }
-      break;
-    }
-    // Make sure to select the operand of VSPLATW.
-    bool IsSplatOp = N->hasOneUse() &&
-                     N->use_begin()->getOpcode() == HexagonISD::VSPLATW;
-    return IsSplatOp;
-  };
-
   WorkQ.insert(N);
   for (unsigned i = 0; i != WorkQ.size(); ++i) {
     SDNode *W = WorkQ[i];
-    if (IsNodeToSelect(W))
+    if (!W->isMachineOpcode() && W->getOpcode() == HexagonISD::ISEL)
       Nodes.push_back(W);
     for (unsigned j = 0, f = W->getNumOperands(); j != f; ++j)
       WorkQ.insert(W->getOperand(j).getNode());
   }
 
   for (SDNode *L : Nodes)
-    ISel.Select(L);
+    select(L);
 
   return !Nodes.empty();
 }
@@ -1358,6 +1338,82 @@ namespace {
   };
 }
 
+void HvxSelector::select(SDNode *ISelN) {
+  // What's important here is to select the right set of nodes. The main
+  // selection algorithm loops over nodes in a topological order, i.e. users
+  // are visited before their operands.
+  //
+  // It is an error to have an unselected node with a selected operand, and
+  // there is an assertion in the main selector code to enforce that.
+  //
+  // Such a situation could occur if we selected a node, which is both a
+  // subnode of ISelN, and a subnode of an unrelated (and yet unselected)
+  // node in the DAG.
+  assert(ISelN->getOpcode() == HexagonISD::ISEL);
+  SDNode *N0 = ISelN->getOperand(0).getNode();
+  if (N0->isMachineOpcode()) {
+    ISel.ReplaceNode(ISelN, N0);
+    return;
+  }
+
+  // There could have been nodes created (i.e. inserted into the DAG)
+  // that are now dead. Remove them, in case they use any of the nodes
+  // to select (and make them look shared).
+  DAG.RemoveDeadNodes();
+
+  SetVector<SDNode*> SubNodes, TmpQ;
+  std::map<SDNode*,unsigned> NumOps;
+
+  // Don't want to select N0 if it's shared with another node, except if
+  // it's shared with other ISELs.
+  auto IsISelN = [](SDNode *T) { return T->getOpcode() == HexagonISD::ISEL; };
+  if (llvm::all_of(N0->uses(), IsISelN))
+    SubNodes.insert(N0);
+
+  auto InSubNodes = [&SubNodes](SDNode *T) { return SubNodes.count(T); };
+  for (unsigned I = 0; I != SubNodes.size(); ++I) {
+    SDNode *S = SubNodes[I];
+    unsigned OpN = 0;
+    // Only add subnodes that are only reachable from N0.
+    for (SDValue Op : S->ops()) {
+      SDNode *O = Op.getNode();
+      if (llvm::all_of(O->uses(), InSubNodes)) {
+        SubNodes.insert(O);
+        ++OpN;
+      }
+    }
+    NumOps.insert({S, OpN});
+    if (OpN == 0)
+      TmpQ.insert(S);
+  }
+
+  for (unsigned I = 0; I != TmpQ.size(); ++I) {
+    SDNode *S = TmpQ[I];
+    for (SDNode *U : S->uses()) {
+      if (U == ISelN)
+        continue;
+      auto F = NumOps.find(U);
+      assert(F != NumOps.end());
+      if (F->second > 0 && !--F->second)
+        TmpQ.insert(F->first);
+    }
+  }
+
+  // Remove the marker.
+  ISel.ReplaceNode(ISelN, N0);
+
+  assert(SubNodes.size() == TmpQ.size());
+  NullifyingVector<decltype(TmpQ)::vector_type> Queue(TmpQ.takeVector());
+
+  Deleter DUQ(DAG, Queue);
+  for (SDNode *S : reverse(Queue)) {
+    if (S == nullptr)
+      continue;
+    DEBUG_WITH_TYPE("isel", {dbgs() << "HVX selecting: "; S->dump(&DAG);});
+    ISel.Select(S);
+  }
+}
+
 bool HvxSelector::scalarizeShuffle(ArrayRef<int> Mask, const SDLoc &dl,
                                    MVT ResTy, SDValue Va, SDValue Vb,
                                    SDNode *N) {
@@ -1379,12 +1435,7 @@ bool HvxSelector::scalarizeShuffle(ArrayRef<int> Mask, const SDLoc &dl,
   // nodes, these nodes would not be selected (since the "local" selection
   // only visits nodes that are not in AllNodes).
   // To avoid this issue, remove all dead nodes from the DAG now.
-  DAG.RemoveDeadNodes();
-  DenseSet<SDNode*> AllNodes;
-  for (SDNode &S : DAG.allnodes())
-    AllNodes.insert(&S);
-
-  Deleter DUA(DAG, AllNodes);
+//  DAG.RemoveDeadNodes();
 
   SmallVector<SDValue,128> Ops;
   LLVMContext &Ctx = *DAG.getContext();
@@ -1434,57 +1485,9 @@ bool HvxSelector::scalarizeShuffle(ArrayRef<int> Mask, const SDLoc &dl,
   }
 
   assert(!N->use_empty());
-  ISel.ReplaceNode(N, LV.getNode());
-
-  if (AllNodes.count(LV.getNode())) {
-    DAG.RemoveDeadNodes();
-    return true;
-  }
-
-  // The lowered build-vector node will now need to be selected. It needs
-  // to be done here because this node and its submodes are not included
-  // in the main selection loop.
-  // Implement essentially the same topological ordering algorithm as is
-  // used in SelectionDAGISel.
-
-  SetVector<SDNode*> SubNodes, TmpQ;
-  std::map<SDNode*,unsigned> NumOps;
-
-  SubNodes.insert(LV.getNode());
-  for (unsigned I = 0; I != SubNodes.size(); ++I) {
-    unsigned OpN = 0;
-    SDNode *S = SubNodes[I];
-    for (SDValue Op : S->ops()) {
-      if (AllNodes.count(Op.getNode()))
-        continue;
-      SubNodes.insert(Op.getNode());
-      ++OpN;
-    }
-    NumOps.insert({S, OpN});
-    if (OpN == 0)
-      TmpQ.insert(S);
-  }
-
-  for (unsigned I = 0; I != TmpQ.size(); ++I) {
-    SDNode *S = TmpQ[I];
-    for (SDNode *U : S->uses()) {
-      if (!SubNodes.count(U))
-        continue;
-      auto F = NumOps.find(U);
-      assert(F != NumOps.end());
-      assert(F->second > 0);
-      if (!--F->second)
-        TmpQ.insert(F->first);
-    }
-  }
-  assert(SubNodes.size() == TmpQ.size());
-  NullifyingVector<decltype(TmpQ)::vector_type> Queue(TmpQ.takeVector());
-
-  Deleter DUQ(DAG, Queue);
-  for (SDNode *S : reverse(Queue))
-    if (S != nullptr)
-      ISel.Select(S);
-
+  SDValue IS = DAG.getNode(HexagonISD::ISEL, dl, ResTy, LV);
+  ISel.ReplaceNode(N, IS.getNode());
+  select(IS.getNode());
   DAG.RemoveDeadNodes();
   return true;
 }
@@ -1683,7 +1686,7 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
   // The result length must be the same as the length of a single vector,
   // or a vector pair.
   assert(LogLen == HwLog || LogLen == HwLog+1);
-  bool Extend = (LogLen == HwLog);
+  bool HavePairs = LogLen == HwLog+1;
 
   if (!isPermutation(SM.Mask))
     return OpRef::fail();
@@ -1767,6 +1770,22 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
   //  E  1 1 1 0      7  0 1 1 1      7  0 1 1 1      7  0 1 1 1
   //  F  1 1 1 1      F  1 1 1 1      F  1 1 1 1      F  1 1 1 1
 
+  // There is one special case that is not a perfect shuffle, but
+  // can be turned into one easily: when the shuffle operates on
+  // a vector pair, but the two vectors in the pair are swapped.
+  // The code below that identifies perfect shuffles will reject
+  // it, unless the order is reversed.
+  SmallVector<int,128> MaskStorage(SM.Mask.begin(), SM.Mask.end());
+  bool InvertedPair = false;
+  if (HavePairs && SM.Mask[0] >= int(HwLen)) {
+    for (int i = 0, e = SM.Mask.size(); i != e; ++i) {
+      int M = SM.Mask[i];
+      MaskStorage[i] = M >= int(HwLen) ? M-HwLen : M+HwLen;
+    }
+    InvertedPair = true;
+  }
+  ArrayRef<int> LocalMask(MaskStorage);
+
   auto XorPow2 = [] (ArrayRef<int> Mask, unsigned Num) {
     unsigned X = Mask[0] ^ Mask[Num/2];
     // Check that the first half has the X's bits clear.
@@ -1786,12 +1805,12 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
   assert(VecLen > 2);
   for (unsigned I = VecLen; I >= 2; I >>= 1) {
     // Examine the initial segment of Mask of size I.
-    unsigned X = XorPow2(SM.Mask, I);
+    unsigned X = XorPow2(LocalMask, I);
     if (!isPowerOf2_32(X))
       return OpRef::fail();
     // Check the other segments of Mask.
     for (int J = I; J < VecLen; J += I) {
-      if (XorPow2(SM.Mask.slice(J, I), I) != X)
+      if (XorPow2(LocalMask.slice(J, I), I) != X)
         return OpRef::fail();
     }
     Perm[Log2_32(X)] = Log2_32(I)-1;
@@ -1895,20 +1914,40 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
     }
   }
 
+  // From the cycles, construct the sequence of values that will
+  // then form the control values for vdealvdd/vshuffvdd, i.e.
+  // (M a1 a2)(M a3 a4 a5)... -> a1 a2 a3 a4 a5
+  // This essentially strips the M value from the cycles where
+  // it's present, and performs the insertion of M (then stripping)
+  // for cycles without M (as described in an earlier comment).
   SmallVector<unsigned,8> SwapElems;
-  if (HwLen == unsigned(VecLen))
+  // When the input is extended (i.e. single vector becomes a pair),
+  // this is done by using an "undef" vector as the second input.
+  // However, then we get
+  //   input 1: GOODBITS
+  //   input 2: ........
+  // but we need
+  //   input 1: ....BITS
+  //   input 2: ....GOOD
+  // Then at the end, this needs to be undone. To accomplish this,
+  // artificially add "LogLen-1" at both ends of the sequence.
+  if (!HavePairs)
     SwapElems.push_back(LogLen-1);
-
   for (const CycleType &C : Cycles) {
+    // Do the transformation: (a1..an) -> (M a1..an)(M a1).
     unsigned First = (C[0] == LogLen-1) ? 1 : 0;
     SwapElems.append(C.begin()+First, C.end());
     if (First == 0)
       SwapElems.push_back(C[0]);
   }
+  if (!HavePairs)
+    SwapElems.push_back(LogLen-1);
 
   const SDLoc &dl(Results.InpNode);
-  OpRef Arg = !Extend ? Va
-                      : concat(Va, OpRef::undef(SingleTy), Results);
+  OpRef Arg = HavePairs ? Va
+                        : concat(Va, OpRef::undef(SingleTy), Results);
+  if (InvertedPair)
+    Arg = concat(OpRef::hi(Arg), OpRef::lo(Arg), Results);
 
   for (unsigned I = 0, E = SwapElems.size(); I != E; ) {
     bool IsInc = I == E-1 || SwapElems[I] < SwapElems[I+1];
@@ -1932,7 +1971,7 @@ OpRef HvxSelector::perfect(ShuffleMask SM, OpRef Va, ResultStack &Results) {
     Arg = OpRef::res(Results.top());
   }
 
-  return !Extend ? Arg : OpRef::lo(Arg);
+  return HavePairs ? Arg : OpRef::lo(Arg);
 }
 
 OpRef HvxSelector::butterfly(ShuffleMask SM, OpRef Va, ResultStack &Results) {
@@ -1996,7 +2035,7 @@ SDValue HvxSelector::getVectorConstant(ArrayRef<uint8_t> Data,
   SDValue BV = DAG.getBuildVector(VecTy, dl, Elems);
   SDValue LV = Lower.LowerOperation(BV, DAG);
   DAG.RemoveDeadNode(BV.getNode());
-  return LV;
+  return DAG.getNode(HexagonISD::ISEL, dl, VecTy, LV);
 }
 
 void HvxSelector::selectShuffle(SDNode *N) {

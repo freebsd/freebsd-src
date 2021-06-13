@@ -16,7 +16,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/Register.h"
 #include "llvm/CodeGen/TargetCallingConv.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -25,6 +25,7 @@
 namespace llvm {
 
 class CCState;
+class MachineFunction;
 class MVT;
 class TargetRegisterInfo;
 
@@ -339,6 +340,11 @@ public:
     return Regs.size();
   }
 
+  void DeallocateReg(MCPhysReg Reg) {
+    assert(isAllocated(Reg) && "Trying to deallocate an unallocated register");
+    MarkUnallocated(Reg);
+  }
+
   /// AllocateReg - Attempt to allocate one register.  If it is not available,
   /// return zero.  Otherwise, return the register, marking it and any aliases
   /// as allocated.
@@ -432,10 +438,7 @@ public:
     return AllocateStack(Size, Align(Alignment));
   }
 
-  void ensureMaxAlignment(Align Alignment) {
-    if (!AnalyzingMustTailForwardedRegs)
-      MF.getFrameInfo().ensureMaxAlignment(Alignment);
-  }
+  void ensureMaxAlignment(Align Alignment);
 
   /// Version of AllocateStack with extra register to be shadowed.
   LLVM_ATTRIBUTE_DEPRECATED(unsigned AllocateStack(unsigned Size,
@@ -572,6 +575,8 @@ public:
 private:
   /// MarkAllocated - Mark a register and all of its aliases as allocated.
   void MarkAllocated(MCPhysReg Reg);
+
+  void MarkUnallocated(MCPhysReg Reg);
 };
 
 } // end namespace llvm

@@ -47,6 +47,8 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI, bool InParens) const {
     auto Value = cast<MCConstantExpr>(*this).getValue();
     auto PrintInHex = cast<MCConstantExpr>(*this).useHexFormat();
     auto SizeInBytes = cast<MCConstantExpr>(*this).getSizeInBytes();
+    if (Value < 0 && MAI && !MAI->supportsSignedData())
+      PrintInHex = true;
     if (PrintInHex)
       switch (SizeInBytes) {
       default:
@@ -83,8 +85,13 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI, bool InParens) const {
     } else
       Sym.print(OS, MAI);
 
-    if (SRE.getKind() != MCSymbolRefExpr::VK_None)
-      SRE.printVariantKind(OS);
+    const MCSymbolRefExpr::VariantKind Kind = SRE.getKind();
+    if (Kind != MCSymbolRefExpr::VK_None) {
+      if (MAI && MAI->useParensForSymbolVariant()) // ARM
+        OS << '(' << MCSymbolRefExpr::getVariantKindName(Kind) << ')';
+      else
+        OS << '@' << MCSymbolRefExpr::getVariantKindName(Kind);
+    }
 
     return;
   }
@@ -143,6 +150,7 @@ void MCExpr::print(raw_ostream &OS, const MCAsmInfo *MAI, bool InParens) const {
     case MCBinaryExpr::Mul:  OS <<  '*'; break;
     case MCBinaryExpr::NE:   OS << "!="; break;
     case MCBinaryExpr::Or:   OS <<  '|'; break;
+    case MCBinaryExpr::OrNot: OS << '!'; break;
     case MCBinaryExpr::Shl:  OS << "<<"; break;
     case MCBinaryExpr::Sub:  OS <<  '-'; break;
     case MCBinaryExpr::Xor:  OS <<  '^'; break;
@@ -194,8 +202,7 @@ const MCConstantExpr *MCConstantExpr::create(int64_t Value, MCContext &Ctx,
 MCSymbolRefExpr::MCSymbolRefExpr(const MCSymbol *Symbol, VariantKind Kind,
                                  const MCAsmInfo *MAI, SMLoc Loc)
     : MCExpr(MCExpr::SymbolRef, Loc,
-             encodeSubclassData(Kind, MAI->useParensForSymbolVariant(),
-                                MAI->hasSubsectionsViaSymbols())),
+             encodeSubclassData(Kind, MAI->hasSubsectionsViaSymbols())),
       Symbol(Symbol) {
   assert(Symbol);
 }
@@ -246,6 +253,7 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_SIZE: return "SIZE";
   case VK_WEAKREF: return "WEAKREF";
   case VK_X86_ABS8: return "ABS8";
+  case VK_X86_PLTOFF: return "PLTOFF";
   case VK_ARM_NONE: return "none";
   case VK_ARM_GOT_PREL: return "GOT_PREL";
   case VK_ARM_TARGET1: return "target1";
@@ -319,9 +327,18 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_PPC_GOT_TLSLD_HA: return "got@tlsld@ha";
   case VK_PPC_GOT_PCREL:
     return "got@pcrel";
+  case VK_PPC_GOT_TLSGD_PCREL:
+    return "got@tlsgd@pcrel";
+  case VK_PPC_GOT_TLSLD_PCREL:
+    return "got@tlsld@pcrel";
+  case VK_PPC_GOT_TPREL_PCREL:
+    return "got@tprel@pcrel";
+  case VK_PPC_TLS_PCREL:
+    return "tls@pcrel";
   case VK_PPC_TLSLD: return "tlsld";
   case VK_PPC_LOCAL: return "local";
   case VK_PPC_NOTOC: return "notoc";
+  case VK_PPC_PCREL_OPT: return "<<invalid>>";
   case VK_COFF_IMGREL32: return "IMGREL";
   case VK_Hexagon_LO16: return "LO16";
   case VK_Hexagon_HI16: return "HI16";
@@ -334,6 +351,7 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_Hexagon_IE_GOT: return "IEGOT";
   case VK_WASM_TYPEINDEX: return "TYPEINDEX";
   case VK_WASM_MBREL: return "MBREL";
+  case VK_WASM_TLSREL: return "TLSREL";
   case VK_WASM_TBREL: return "TBREL";
   case VK_AMDGPU_GOTPCREL32_LO: return "gotpcrel32@lo";
   case VK_AMDGPU_GOTPCREL32_HI: return "gotpcrel32@hi";
@@ -393,6 +411,7 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("secrel32", VK_SECREL)
     .Case("size", VK_SIZE)
     .Case("abs8", VK_X86_ABS8)
+    .Case("pltoff", VK_X86_PLTOFF)
     .Case("l", VK_PPC_LO)
     .Case("h", VK_PPC_HI)
     .Case("ha", VK_PPC_HA)
@@ -450,6 +469,10 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("got@tlsld@h", VK_PPC_GOT_TLSLD_HI)
     .Case("got@tlsld@ha", VK_PPC_GOT_TLSLD_HA)
     .Case("got@pcrel", VK_PPC_GOT_PCREL)
+    .Case("got@tlsgd@pcrel", VK_PPC_GOT_TLSGD_PCREL)
+    .Case("got@tlsld@pcrel", VK_PPC_GOT_TLSLD_PCREL)
+    .Case("got@tprel@pcrel", VK_PPC_GOT_TPREL_PCREL)
+    .Case("tls@pcrel", VK_PPC_TLS_PCREL)
     .Case("notoc", VK_PPC_NOTOC)
     .Case("gdgot", VK_Hexagon_GD_GOT)
     .Case("gdplt", VK_Hexagon_GD_PLT)
@@ -470,6 +493,7 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("typeindex", VK_WASM_TYPEINDEX)
     .Case("tbrel", VK_WASM_TBREL)
     .Case("mbrel", VK_WASM_MBREL)
+    .Case("tlsrel", VK_WASM_TLSREL)
     .Case("gotpcrel32@lo", VK_AMDGPU_GOTPCREL32_LO)
     .Case("gotpcrel32@hi", VK_AMDGPU_GOTPCREL32_HI)
     .Case("rel32@lo", VK_AMDGPU_REL32_LO)
@@ -492,13 +516,6 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("tpoff_hi", VK_VE_TPOFF_HI32)
     .Case("tpoff_lo", VK_VE_TPOFF_LO32)
     .Default(VK_Invalid);
-}
-
-void MCSymbolRefExpr::printVariantKind(raw_ostream &OS) const {
-  if (useParensForSymbolVariant())
-    OS << '(' << MCSymbolRefExpr::getVariantKindName(getKind()) << ')';
-  else
-    OS << '@' << MCSymbolRefExpr::getVariantKindName(getKind());
 }
 
 /* *** */
@@ -575,12 +592,7 @@ static void AttemptToFoldSymbolOffsetDifference(
   if (!Asm->getWriter().isSymbolRefDifferenceFullyResolved(*Asm, A, B, InSet))
     return;
 
-  MCFragment *FA = SA.getFragment();
-  MCFragment *FB = SB.getFragment();
-  if (FA == FB && !SA.isVariable() && !SA.isUnset() && !SB.isVariable() &&
-      !SB.isUnset()) {
-    Addend += (SA.getOffset() - SB.getOffset());
-
+  auto FinalizeFolding = [&]() {
     // Pointers to Thumb symbols need to have their low-bit set to allow
     // for interworking.
     if (Asm->isThumbFunc(&SA))
@@ -594,11 +606,17 @@ static void AttemptToFoldSymbolOffsetDifference(
     // Clear the symbol expr pointers to indicate we have folded these
     // operands.
     A = B = nullptr;
-    return;
-  }
+  };
 
-  if (!Layout)
-    return;
+  const MCFragment *FA = SA.getFragment();
+  const MCFragment *FB = SB.getFragment();
+  // If both symbols are in the same fragment, return the difference of their
+  // offsets
+  if (FA == FB && !SA.isVariable() && !SA.isUnset() && !SB.isVariable() &&
+      !SB.isUnset()) {
+    Addend += SA.getOffset() - SB.getOffset();
+    return FinalizeFolding();
+  }
 
   const MCSection &SecA = *FA->getParent();
   const MCSection &SecB = *FB->getParent();
@@ -606,30 +624,46 @@ static void AttemptToFoldSymbolOffsetDifference(
   if ((&SecA != &SecB) && !Addrs)
     return;
 
-  // One of the symbol involved is part of a fragment being laid out. Quit now
-  // to avoid a self loop.
-  if (!Layout->canGetFragmentOffset(FA) || !Layout->canGetFragmentOffset(FB))
-    return;
+  if (Layout) {
+    // One of the symbol involved is part of a fragment being laid out. Quit now
+    // to avoid a self loop.
+    if (!Layout->canGetFragmentOffset(FA) || !Layout->canGetFragmentOffset(FB))
+      return;
 
-  // Eagerly evaluate.
-  Addend += Layout->getSymbolOffset(A->getSymbol()) -
-            Layout->getSymbolOffset(B->getSymbol());
-  if (Addrs && (&SecA != &SecB))
-    Addend += (Addrs->lookup(&SecA) - Addrs->lookup(&SecB));
+    // Eagerly evaluate when layout is finalized.
+    Addend += Layout->getSymbolOffset(A->getSymbol()) -
+              Layout->getSymbolOffset(B->getSymbol());
+    if (Addrs && (&SecA != &SecB))
+      Addend += (Addrs->lookup(&SecA) - Addrs->lookup(&SecB));
 
-  // Pointers to Thumb symbols need to have their low-bit set to allow
-  // for interworking.
-  if (Asm->isThumbFunc(&SA))
-    Addend |= 1;
+    FinalizeFolding();
+  } else {
+    // When layout is not finalized, our ability to resolve differences between
+    // symbols is limited to specific cases where the fragments between two
+    // symbols (including the fragments the symbols are defined in) are
+    // fixed-size fragments so the difference can be calculated. For example,
+    // this is important when the Subtarget is changed and a new MCDataFragment
+    // is created in the case of foo: instr; .arch_extension ext; instr .if . -
+    // foo.
+    if (SA.isVariable() || SA.isUnset() || SB.isVariable() || SB.isUnset() ||
+        FA->getKind() != MCFragment::FT_Data ||
+        FB->getKind() != MCFragment::FT_Data ||
+        FA->getSubsectionNumber() != FB->getSubsectionNumber())
+      return;
+    // Try to find a constant displacement from FA to FB, add the displacement
+    // between the offset in FA of SA and the offset in FB of SB.
+    int64_t Displacement = SA.getOffset() - SB.getOffset();
+    for (auto FI = FB->getIterator(), FE = SecA.end(); FI != FE; ++FI) {
+      if (&*FI == FA) {
+        Addend += Displacement;
+        return FinalizeFolding();
+      }
 
-  // If symbol is labeled as micromips, we set low-bit to ensure
-  // correct offset in .gcc_except_table
-  if (Asm->getBackend().isMicroMips(&SA))
-    Addend |= 1;
-
-  // Clear the symbol expr pointers to indicate we have folded these
-  // operands.
-  A = B = nullptr;
+      if (FI->getKind() != MCFragment::FT_Data)
+        return;
+      Displacement += cast<MCDataFragment>(FI)->getContents().size();
+    }
+  }
 }
 
 static bool canFold(const MCAssembler *Asm, const MCSymbolRefExpr *A,
@@ -770,13 +804,30 @@ bool MCExpr::evaluateAsRelocatableImpl(MCValue &Res, const MCAssembler *Asm,
   case SymbolRef: {
     const MCSymbolRefExpr *SRE = cast<MCSymbolRefExpr>(this);
     const MCSymbol &Sym = SRE->getSymbol();
+    const auto Kind = SRE->getKind();
 
     // Evaluate recursively if this is a variable.
-    if (Sym.isVariable() && SRE->getKind() == MCSymbolRefExpr::VK_None &&
+    if (Sym.isVariable() && (Kind == MCSymbolRefExpr::VK_None || Layout) &&
         canExpand(Sym, InSet)) {
       bool IsMachO = SRE->hasSubsectionsViaSymbols();
       if (Sym.getVariableValue()->evaluateAsRelocatableImpl(
               Res, Asm, Layout, Fixup, Addrs, InSet || IsMachO)) {
+        if (Kind != MCSymbolRefExpr::VK_None) {
+          if (Res.isAbsolute()) {
+            Res = MCValue::get(SRE, nullptr, 0);
+            return true;
+          }
+          // If the reference has a variant kind, we can only handle expressions
+          // which evaluate exactly to a single unadorned symbol. Attach the
+          // original VariantKind to SymA of the result.
+          if (Res.getRefKind() != MCSymbolRefExpr::VK_None || !Res.getSymA() ||
+              Res.getSymB() || Res.getConstant())
+            return false;
+          Res =
+              MCValue::get(MCSymbolRefExpr::create(&Res.getSymA()->getSymbol(),
+                                                   Kind, Asm->getContext()),
+                           Res.getSymB(), Res.getConstant(), Res.getRefKind());
+        }
         if (!IsMachO)
           return true;
 
@@ -917,6 +968,7 @@ bool MCExpr::evaluateAsRelocatableImpl(MCValue &Res, const MCAssembler *Asm,
     case MCBinaryExpr::Mul:  Result = LHS * RHS; break;
     case MCBinaryExpr::NE:   Result = LHS != RHS; break;
     case MCBinaryExpr::Or:   Result = LHS | RHS; break;
+    case MCBinaryExpr::OrNot: Result = LHS | ~RHS; break;
     case MCBinaryExpr::Shl:  Result = uint64_t(LHS) << uint64_t(RHS); break;
     case MCBinaryExpr::Sub:  Result = LHS - RHS; break;
     case MCBinaryExpr::Xor:  Result = LHS ^ RHS; break;

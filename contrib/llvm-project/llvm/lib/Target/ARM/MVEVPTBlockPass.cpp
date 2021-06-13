@@ -270,24 +270,31 @@ bool MVEVPTBlock::InsertVPTBlocks(MachineBasicBlock &Block) {
       MIBuilder.add(VCMP->getOperand(1));
       MIBuilder.add(VCMP->getOperand(2));
       MIBuilder.add(VCMP->getOperand(3));
+
+      // We need to remove any kill flags between the original VCMP and the new
+      // insertion point.
+      for (MachineInstr &MII :
+           make_range(VCMP->getIterator(), MI->getIterator())) {
+        MII.clearRegisterKills(VCMP->getOperand(1).getReg(), TRI);
+        MII.clearRegisterKills(VCMP->getOperand(2).getReg(), TRI);
+      }
+
       VCMP->eraseFromParent();
     } else {
       MIBuilder = BuildMI(Block, MI, DL, TII->get(ARM::MVE_VPST));
       MIBuilder.addImm((uint64_t)BlockMask);
     }
 
+    // Erase all dead instructions (VPNOT's). Do that now so that they do not
+    // mess with the bundle creation.
+    for (MachineInstr *DeadMI : DeadInstructions)
+      DeadMI->eraseFromParent();
+    DeadInstructions.clear();
+
     finalizeBundle(
         Block, MachineBasicBlock::instr_iterator(MIBuilder.getInstr()), MBIter);
 
     Modified = true;
-  }
-
-  // Erase all dead instructions
-  for (MachineInstr *DeadMI : DeadInstructions) {
-    if (DeadMI->isInsideBundle())
-      DeadMI->eraseFromBundle();
-    else
-      DeadMI->eraseFromParent();
   }
 
   return Modified;

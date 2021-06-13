@@ -15,12 +15,10 @@
 //
 
 #include "AMDGPUPALMetadata.h"
-#include "AMDGPU.h"
-#include "AMDGPUAsmPrinter.h"
-#include "MCTargetDesc/AMDGPUTargetStreamer.h"
+#include "AMDGPUPTNote.h"
 #include "SIDefines.h"
 #include "llvm/BinaryFormat/ELF.h"
-#include "llvm/IR/CallingConv.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/AMDGPUMetadata.h"
@@ -45,8 +43,11 @@ void AMDGPUPALMetadata::readFromIR(Module &M) {
   }
   BlobType = ELF::NT_AMD_AMDGPU_PAL_METADATA;
   NamedMD = M.getNamedMetadata("amdgpu.pal.metadata");
-  if (!NamedMD || !NamedMD->getNumOperands())
+  if (!NamedMD || !NamedMD->getNumOperands()) {
+    // Emit msgpack metadata by default
+    BlobType = ELF::NT_AMDGPU_METADATA;
     return;
+  }
   // This is the old reg=value pair format for metadata. It is a NamedMD
   // containing an MDTuple containing a number of MDNodes each of which is an
   // integer value, and each two integer values forms a key=value pair that we
@@ -233,6 +234,13 @@ void AMDGPUPALMetadata::setScratchSize(CallingConv::ID CC, unsigned Val) {
   }
   // Msgpack format.
   getHwStage(CC)[".scratch_memory_size"] = MsgPackDoc.getNode(Val);
+}
+
+// Set the stack frame size of a function in the metadata.
+void AMDGPUPALMetadata::setFunctionScratchSize(const MachineFunction &MF,
+                                               unsigned Val) {
+  auto Node = getShaderFunction(MF.getFunction().getName());
+  Node[".stack_frame_size_in_bytes"] = MsgPackDoc.getNode(Val);
 }
 
 // Set the hardware register bit in PAL metadata to enable wave32 on the
@@ -718,6 +726,30 @@ msgpack::MapDocNode AMDGPUPALMetadata::getRegisters() {
   return Registers.getMap();
 }
 
+// Reference (create if necessary) the node for the shader functions map.
+msgpack::DocNode &AMDGPUPALMetadata::refShaderFunctions() {
+  auto &N =
+      MsgPackDoc.getRoot()
+          .getMap(/*Convert=*/true)[MsgPackDoc.getNode("amdpal.pipelines")]
+          .getArray(/*Convert=*/true)[0]
+          .getMap(/*Convert=*/true)[MsgPackDoc.getNode(".shader_functions")];
+  N.getMap(/*Convert=*/true);
+  return N;
+}
+
+// Get (create if necessary) the shader functions map.
+msgpack::MapDocNode AMDGPUPALMetadata::getShaderFunctions() {
+  if (ShaderFunctions.isEmpty())
+    ShaderFunctions = refShaderFunctions();
+  return ShaderFunctions.getMap();
+}
+
+// Get (create if necessary) a function in the shader functions map.
+msgpack::MapDocNode AMDGPUPALMetadata::getShaderFunction(StringRef Name) {
+  auto Functions = getShaderFunctions();
+  return Functions[Name].getMap(/*Convert=*/true);
+}
+
 // Return the PAL metadata hardware shader stage name.
 static const char *getStageName(CallingConv::ID CC) {
   switch (CC) {
@@ -733,6 +765,8 @@ static const char *getStageName(CallingConv::ID CC) {
     return ".hs";
   case CallingConv::AMDGPU_LS:
     return ".ls";
+  case CallingConv::AMDGPU_Gfx:
+    llvm_unreachable("Callable shader has no hardware stage");
   default:
     return ".cs";
   }
@@ -773,3 +807,9 @@ void AMDGPUPALMetadata::setLegacy() {
   BlobType = ELF::NT_AMD_AMDGPU_PAL_METADATA;
 }
 
+// Erase all PAL metadata.
+void AMDGPUPALMetadata::reset() {
+  MsgPackDoc.clear();
+  Registers = MsgPackDoc.getEmptyNode();
+  HwStages = MsgPackDoc.getEmptyNode();
+}

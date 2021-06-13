@@ -104,11 +104,6 @@ def SDT_ARMIntShiftParts : SDTypeProfile<2, 3, [SDTCisSameAs<0, 1>,
                                               SDTCisInt<0>,
                                               SDTCisInt<4>]>;
 
-// TODO Add another operand for 'Size' so that we can re-use this node when we
-// start supporting *TP versions.
-def SDT_ARMLoLoop : SDTypeProfile<0, 2, [SDTCisVT<0, i32>,
-                                         SDTCisVT<1, OtherVT>]>;
-
 def ARMSmlald        : SDNode<"ARMISD::SMLALD", SDT_LongMac>;
 def ARMSmlaldx       : SDNode<"ARMISD::SMLALDX", SDT_LongMac>;
 def ARMSmlsld        : SDNode<"ARMISD::SMLSLD", SDT_LongMac>;
@@ -167,9 +162,9 @@ def ARMcmov          : SDNode<"ARMISD::CMOV", SDT_ARMCMov,
                               [SDNPInGlue]>;
 def ARMsubs          : SDNode<"ARMISD::SUBS", SDTIntBinOp, [SDNPOutGlue]>;
 
-def ARMssatnoshift   : SDNode<"ARMISD::SSAT", SDTIntSatNoShOp, []>;
+def ARMssat   : SDNode<"ARMISD::SSAT", SDTIntSatNoShOp, []>;
 
-def ARMusatnoshift   : SDNode<"ARMISD::USAT", SDTIntSatNoShOp, []>;
+def ARMusat   : SDNode<"ARMISD::USAT", SDTIntSatNoShOp, []>;
 
 def ARMbrcond        : SDNode<"ARMISD::BRCOND", SDT_ARMBrcond,
                               [SDNPHasChain, SDNPInGlue, SDNPOutGlue]>;
@@ -303,10 +298,6 @@ def SDTARMVCMPZ   : SDTypeProfile<1, 2, [SDTCisInt<2>]>;
 def ARMvcmp      : SDNode<"ARMISD::VCMP", SDTARMVCMP>;
 def ARMvcmpz     : SDNode<"ARMISD::VCMPZ", SDTARMVCMPZ>;
 
-def ARMWLS      : SDNode<"ARMISD::WLS", SDT_ARMLoLoop, [SDNPHasChain]>;
-def ARMLE       : SDNode<"ARMISD::LE", SDT_ARMLoLoop, [SDNPHasChain]>;
-def ARMLoopDec  : SDNode<"ARMISD::LOOP_DEC", SDTIntBinOp, [SDNPHasChain]>;
-
 // 'VECTOR_REG_CAST' is an operation that reinterprets the contents of a
 // vector register as a different vector type, without changing the contents of
 // the register. It differs from 'bitconvert' in that bitconvert reinterprets
@@ -380,6 +371,11 @@ def imm_not_XFORM : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(~(int)N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>;
 
+// asr_imm_XFORM - Returns a shift immediate with bit {5} set to 1
+def asr_imm_XFORM : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(0x20 | N->getZExtValue(), SDLoc(N), MVT:: i32);
+}]>;
+
 /// imm16_31 predicate - True if the 32-bit immediate is in the range [16,31].
 def imm16_31 : ImmLeaf<i32, [{
   return (int32_t)Imm >= 16 && (int32_t)Imm < 32;
@@ -446,6 +442,8 @@ def fsub_mlx : PatFrag<(ops node:$lhs, node:$rhs),(fsub node:$lhs, node:$rhs),[{
 def imm_even : ImmLeaf<i32, [{ return (Imm & 1) == 0; }]>;
 def imm_odd : ImmLeaf<i32, [{ return (Imm & 1) == 1; }]>;
 
+def asr_imm : ImmLeaf<i32, [{ return Imm > 0 && Imm <= 32; }], asr_imm_XFORM>;
+
 //===----------------------------------------------------------------------===//
 // NEON/MVE pattern fragments
 //
@@ -497,6 +495,18 @@ def SubReg_i32_lane : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(N->getZExtValue() & 1, SDLoc(N), MVT::i32);
 }]>;
 
+
+def ARMimmAllZerosV: PatLeaf<(bitconvert (v4i32 (ARMvmovImm (i32 0))))>;
+def ARMimmAllZerosD: PatLeaf<(bitconvert (v2i32 (ARMvmovImm (i32 0))))>;
+def ARMimmAllOnesV: PatLeaf<(bitconvert (v16i8 (ARMvmovImm (i32 0xEFF))))>;
+def ARMimmAllOnesD: PatLeaf<(bitconvert (v8i8 (ARMvmovImm (i32 0xEFF))))>;
+
+def ARMimmOneV: PatLeaf<(ARMvmovImm (i32 timm)), [{
+  ConstantSDNode *ConstVal = cast<ConstantSDNode>(N->getOperand(0));
+  unsigned EltBits = 0;
+  uint64_t EltVal = ARM_AM::decodeVMOVModImm(ConstVal->getZExtValue(), EltBits);
+  return (EltBits == N->getValueType(0).getScalarSizeInBits() && EltVal == 0x01);
+}]>;
 
 
 //===----------------------------------------------------------------------===//
@@ -812,7 +822,9 @@ def mod_imm_neg : Operand<i32>, PatLeaf<(imm), [{
 def arm_i32imm : IntImmLeaf<i32, [{
   if (Subtarget->useMovt())
     return true;
-  return ARM_AM::isSOImmTwoPartVal(Imm.getZExtValue());
+  if (ARM_AM::isSOImmTwoPartVal(Imm.getZExtValue()))
+    return true;
+  return ARM_AM::isSOImmTwoPartValNeg(Imm.getZExtValue());
 }]>;
 
 /// imm0_1 predicate - Immediate in the range [0,1].
@@ -2480,23 +2492,29 @@ let isCall = 1,
   }
 
   // ARMv5T and above
-  def BLX : AXI<(outs), (ins GPR:$func), BrMiscFrm,
-                IIC_Br, "blx\t$func",
-                [(ARMcall GPR:$func)]>,
+  def BLX : AXI<(outs), (ins GPR:$func), BrMiscFrm, IIC_Br, "blx\t$func", []>,
             Requires<[IsARM, HasV5T]>, Sched<[WriteBrL]> {
     bits<4> func;
     let Inst{31-4} = 0b1110000100101111111111110011;
     let Inst{3-0}  = func;
   }
+  def BLX_noip :  ARMPseudoExpand<(outs), (ins GPRnoip:$func),
+                   4, IIC_Br, [], (BLX GPR:$func)>,
+                  Requires<[IsARM, HasV5T]>, Sched<[WriteBrL]>;
+
 
   def BLX_pred : AI<(outs), (ins GPR:$func), BrMiscFrm,
-                    IIC_Br, "blx", "\t$func",
-                    [(ARMcall_pred GPR:$func)]>,
+                    IIC_Br, "blx", "\t$func", []>,
                  Requires<[IsARM, HasV5T]>, Sched<[WriteBrL]> {
     bits<4> func;
     let Inst{27-4} = 0b000100101111111111110011;
     let Inst{3-0}  = func;
   }
+  def BLX_pred_noip :  ARMPseudoExpand<(outs), (ins GPRnoip:$func),
+                   4, IIC_Br, [],
+                   (BLX_pred GPR:$func, (ops 14, zero_reg))>,
+                   Requires<[IsARM, HasV5T]>, Sched<[WriteBrL]>;
+
 
   // ARMv4T
   // Note: Restrict $func to the tGPR regclass to prevent it being in LR.
@@ -2521,6 +2539,16 @@ let isCall = 1,
                   []>,
              Requires<[IsARM]>, Sched<[WriteBr]>;
 }
+
+def : ARMPat<(ARMcall GPR:$func), (BLX $func)>,
+      Requires<[IsARM, HasV5T, NoSLSBLRMitigation]>;
+def : ARMPat<(ARMcall GPRnoip:$func), (BLX_noip $func)>,
+      Requires<[IsARM, HasV5T, SLSBLRMitigation]>;
+def : ARMPat<(ARMcall_pred GPR:$func), (BLX_pred $func)>,
+      Requires<[IsARM, HasV5T, NoSLSBLRMitigation]>;
+def : ARMPat<(ARMcall_pred GPRnoip:$func), (BLX_pred_noip $func)>,
+      Requires<[IsARM, HasV5T, SLSBLRMitigation]>;
+
 
 let isBranch = 1, isTerminator = 1 in {
   // FIXME: should be able to write a pattern for ARMBrcond, but can't use
@@ -4061,14 +4089,31 @@ def : ARMV6Pat<(int_arm_ssat GPRnopc:$a, imm1_32:$pos),
                (SSAT imm1_32:$pos, GPRnopc:$a, 0)>;
 def : ARMV6Pat<(int_arm_usat GPRnopc:$a, imm0_31:$pos),
                (USAT imm0_31:$pos, GPRnopc:$a, 0)>;
-def : ARMPat<(ARMssatnoshift GPRnopc:$Rn, imm0_31:$imm),
+def : ARMPat<(ARMssat GPRnopc:$Rn, imm0_31:$imm),
              (SSAT imm0_31:$imm, GPRnopc:$Rn, 0)>;
-def : ARMPat<(ARMusatnoshift GPRnopc:$Rn, imm0_31:$imm),
+def : ARMPat<(ARMusat GPRnopc:$Rn, imm0_31:$imm),
              (USAT imm0_31:$imm, GPRnopc:$Rn, 0)>;
 def : ARMV6Pat<(int_arm_ssat16 GPRnopc:$a, imm1_16:$pos),
                (SSAT16 imm1_16:$pos, GPRnopc:$a)>;
 def : ARMV6Pat<(int_arm_usat16 GPRnopc:$a, imm0_15:$pos),
                (USAT16 imm0_15:$pos, GPRnopc:$a)>;
+def : ARMV6Pat<(int_arm_ssat (shl GPRnopc:$a, imm0_31:$shft), imm1_32:$pos),
+               (SSAT imm1_32:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : ARMV6Pat<(int_arm_ssat (sra GPRnopc:$a, asr_imm:$shft), imm1_32:$pos),
+               (SSAT imm1_32:$pos, GPRnopc:$a, asr_imm:$shft)>;
+def : ARMV6Pat<(int_arm_usat (shl GPRnopc:$a, imm0_31:$shft), imm0_31:$pos),
+               (USAT imm0_31:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : ARMV6Pat<(int_arm_usat (sra GPRnopc:$a, asr_imm:$shft), imm0_31:$pos),
+               (USAT imm0_31:$pos, GPRnopc:$a, asr_imm:$shft)>;
+def : ARMPat<(ARMssat (shl GPRnopc:$Rn, imm0_31:$shft), imm0_31:$pos),
+               (SSAT imm0_31:$pos, GPRnopc:$Rn, imm0_31:$shft)>;                            
+def : ARMPat<(ARMssat (sra GPRnopc:$Rn, asr_imm:$shft), imm0_31:$pos),
+               (SSAT imm0_31:$pos, GPRnopc:$Rn, asr_imm:$shft)>;
+def : ARMPat<(ARMusat (shl GPRnopc:$Rn, imm0_31:$shft), imm0_31:$pos),
+               (USAT imm0_31:$pos, GPRnopc:$Rn, imm0_31:$shft)>;  
+def : ARMPat<(ARMusat (sra GPRnopc:$Rn, asr_imm:$shft), imm0_31:$pos),
+               (USAT imm0_31:$pos, GPRnopc:$Rn, asr_imm:$shft)>;
+
 
 //===----------------------------------------------------------------------===//
 //  Bitwise Instructions.
@@ -6335,6 +6380,15 @@ let mayLoad = 1, mayStore =1, hasSideEffects = 1, hasNoSchedulingInfo = 1 in
 def SPACE : PseudoInst<(outs GPR:$Rd), (ins i32imm:$size, GPR:$Rn),
                        NoItinerary,
                        [(set GPR:$Rd, (int_arm_space timm:$size, GPR:$Rn))]>;
+
+// SpeculationBarrierEndBB must only be used after an unconditional control
+// flow, i.e. after a terminator for which isBarrier is True.
+let hasSideEffects = 1, isCodeGenOnly = 1, isTerminator = 1, isBarrier = 1 in {
+  def SpeculationBarrierISBDSBEndBB
+      : PseudoInst<(outs), (ins), NoItinerary, []>, Sched<[]>;
+  def SpeculationBarrierSBEndBB
+      : PseudoInst<(outs), (ins), NoItinerary, []>, Sched<[]>;
+}
 
 //===----------------------------------
 // Atomic cmpxchg for -O0

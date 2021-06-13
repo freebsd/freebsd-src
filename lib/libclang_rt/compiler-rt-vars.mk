@@ -1,4 +1,4 @@
-CLANG_SUBDIR=clang/11.0.1
+CLANG_SUBDIR=clang/12.0.0
 CLANGDIR=	/usr/lib/${CLANG_SUBDIR}
 SANITIZER_LIBDIR=		${CLANGDIR}/lib/freebsd
 

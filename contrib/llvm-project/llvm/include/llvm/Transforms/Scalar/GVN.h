@@ -46,11 +46,12 @@ class FunctionPass;
 class IntrinsicInst;
 class LoadInst;
 class LoopInfo;
+class MemorySSA;
+class MemorySSAUpdater;
 class OptimizationRemarkEmitter;
 class PHINode;
 class TargetLibraryInfo;
 class Value;
-
 /// A private "module" namespace for types and utilities used by GVN. These
 /// are implementation details and should not be used by clients.
 namespace gvn LLVM_LIBRARY_VISIBILITY {
@@ -72,6 +73,7 @@ struct GVNOptions {
   Optional<bool> AllowPRE = None;
   Optional<bool> AllowLoadPRE = None;
   Optional<bool> AllowLoadInLoopPRE = None;
+  Optional<bool> AllowLoadPRESplitBackedge = None;
   Optional<bool> AllowMemDep = None;
 
   GVNOptions() = default;
@@ -90,6 +92,12 @@ struct GVNOptions {
 
   GVNOptions &setLoadInLoopPRE(bool LoadInLoopPRE) {
     AllowLoadInLoopPRE = LoadInLoopPRE;
+    return *this;
+  }
+
+  /// Enables or disables PRE of loads in GVN.
+  GVNOptions &setLoadPRESplitBackedge(bool LoadPRESplitBackedge) {
+    AllowLoadPRESplitBackedge = LoadPRESplitBackedge;
     return *this;
   }
 
@@ -129,6 +137,7 @@ public:
   bool isPREEnabled() const;
   bool isLoadPREEnabled() const;
   bool isLoadInLoopPREEnabled() const;
+  bool isLoadPRESplitBackedgeEnabled() const;
   bool isMemDepEnabled() const;
 
   /// This class holds the mapping between values and value numbers.  It is used
@@ -211,6 +220,7 @@ private:
   OptimizationRemarkEmitter *ORE = nullptr;
   ImplicitControlFlowTracking *ICF = nullptr;
   LoopInfo *LI = nullptr;
+  MemorySSAUpdater *MSSAU = nullptr;
 
   ValueTable VN;
 
@@ -246,7 +256,7 @@ private:
   bool runImpl(Function &F, AssumptionCache &RunAC, DominatorTree &RunDT,
                const TargetLibraryInfo &RunTLI, AAResults &RunAA,
                MemoryDependenceResults *RunMD, LoopInfo *LI,
-               OptimizationRemarkEmitter *ORE);
+               OptimizationRemarkEmitter *ORE, MemorySSA *MSSA = nullptr);
 
   /// Push a new Value to the LeaderTable onto the list for its value number.
   void addToLeaderTable(uint32_t N, Value *V, const BasicBlock *BB) {
@@ -328,7 +338,6 @@ private:
                                  BasicBlock *Curr, unsigned int ValNo);
   Value *findLeader(const BasicBlock *BB, uint32_t num);
   void cleanupGlobalSets();
-  void fillImplicitControlFlowInfo(BasicBlock *BB);
   void verifyRemoved(const Instruction *I) const;
   bool splitCriticalEdges();
   BasicBlock *splitCriticalEdges(BasicBlock *Pred, BasicBlock *Succ);

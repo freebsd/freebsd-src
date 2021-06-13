@@ -52,7 +52,9 @@ public:
   /// Return true if this argument has the nonnull attribute. Also returns true
   /// if at least one byte is known to be dereferenceable and the pointer is in
   /// addrspace(0).
-  bool hasNonNullAttr() const;
+  /// If AllowUndefOrPoison is true, respect the semantics of nonnull attribute
+  /// and return true even if the argument can be undef or poison.
+  bool hasNonNullAttr(bool AllowUndefOrPoison = true) const;
 
   /// If this argument has the dereferenceable attribute, return the number of
   /// bytes known to be dereferenceable. Otherwise, zero is returned.
@@ -65,6 +67,9 @@ public:
   /// Return true if this argument has the byval attribute.
   bool hasByValAttr() const;
 
+  /// Return true if this argument has the byref attribute.
+  bool hasByRefAttr() const;
+
   /// Return true if this argument has the swiftself attribute.
   bool hasSwiftSelfAttr() const;
 
@@ -72,12 +77,22 @@ public:
   bool hasSwiftErrorAttr() const;
 
   /// Return true if this argument has the byval, inalloca, or preallocated
-  /// attribute. These attributes represent arguments being passed by value.
-  bool hasPassPointeeByValueAttr() const;
+  /// attribute. These attributes represent arguments being passed by value,
+  /// with an associated copy between the caller and callee
+  bool hasPassPointeeByValueCopyAttr() const;
 
   /// If this argument satisfies has hasPassPointeeByValueAttr, return the
   /// in-memory ABI size copied to the stack for the call. Otherwise, return 0.
   uint64_t getPassPointeeByValueCopySize(const DataLayout &DL) const;
+
+  /// Return true if this argument has the byval, sret, inalloca, preallocated,
+  /// or byref attribute. These attributes represent arguments being passed by
+  /// value (which may or may not involve a stack copy)
+  bool hasPointeeInMemoryValueAttr() const;
+
+  /// If hasPointeeInMemoryValueAttr returns true, the in-memory ABI type is
+  /// returned. Otherwise, nullptr.
+  Type *getPointeeInMemoryValueType() const;
 
   /// If this is a byval or inalloca argument, return its alignment.
   /// FIXME: Remove this function once transition to Align is over.
@@ -89,6 +104,12 @@ public:
 
   /// If this is a byval argument, return its type.
   Type *getParamByValType() const;
+
+  /// If this is an sret argument, return its type.
+  Type *getParamStructRetType() const;
+
+  /// If this is a byref argument, return its type.
+  Type *getParamByRefType() const;
 
   /// Return true if this argument has the nest attribute.
   bool hasNestAttr() const;

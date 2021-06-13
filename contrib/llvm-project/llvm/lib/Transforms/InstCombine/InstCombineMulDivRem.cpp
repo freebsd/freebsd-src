@@ -32,6 +32,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/InstCombine/InstCombineWorklist.h"
+#include "llvm/Transforms/InstCombine/InstCombiner.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include <cassert>
 #include <cstddef>
@@ -46,7 +47,7 @@ using namespace PatternMatch;
 /// The specific integer value is used in a context where it is known to be
 /// non-zero.  If this allows us to simplify the computation, do so and return
 /// the new operand, otherwise return null.
-static Value *simplifyValueKnownNonZero(Value *V, InstCombiner &IC,
+static Value *simplifyValueKnownNonZero(Value *V, InstCombinerImpl &IC,
                                         Instruction &CxtI) {
   // If V has multiple uses, then we would have to do more analysis to determine
   // if this is safe.  For example, the use could be in dynamically unreached
@@ -94,39 +95,6 @@ static Value *simplifyValueKnownNonZero(Value *V, InstCombiner &IC,
   return MadeChange ? V : nullptr;
 }
 
-/// A helper routine of InstCombiner::visitMul().
-///
-/// If C is a scalar/fixed width vector of known powers of 2, then this
-/// function returns a new scalar/fixed width vector obtained from logBase2
-/// of C.
-/// Return a null pointer otherwise.
-static Constant *getLogBase2(Type *Ty, Constant *C) {
-  const APInt *IVal;
-  if (match(C, m_APInt(IVal)) && IVal->isPowerOf2())
-    return ConstantInt::get(Ty, IVal->logBase2());
-
-  // FIXME: We can extract pow of 2 of splat constant for scalable vectors.
-  if (!isa<FixedVectorType>(Ty))
-    return nullptr;
-
-  SmallVector<Constant *, 4> Elts;
-  for (unsigned I = 0, E = cast<FixedVectorType>(Ty)->getNumElements(); I != E;
-       ++I) {
-    Constant *Elt = C->getAggregateElement(I);
-    if (!Elt)
-      return nullptr;
-    if (isa<UndefValue>(Elt)) {
-      Elts.push_back(UndefValue::get(Ty->getScalarType()));
-      continue;
-    }
-    if (!match(Elt, m_APInt(IVal)) || !IVal->isPowerOf2())
-      return nullptr;
-    Elts.push_back(ConstantInt::get(Ty->getScalarType(), IVal->logBase2()));
-  }
-
-  return ConstantVector::get(Elts);
-}
-
 // TODO: This is a specific form of a much more general pattern.
 //       We could detect a select with any binop identity constant, or we
 //       could use SimplifyBinOp to see if either arm of the select reduces.
@@ -171,7 +139,7 @@ static Value *foldMulSelectToNegate(BinaryOperator &I,
   return nullptr;
 }
 
-Instruction *InstCombiner::visitMul(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitMul(BinaryOperator &I) {
   if (Value *V = SimplifyMulInst(I.getOperand(0), I.getOperand(1),
                                  SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
@@ -185,8 +153,10 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
   if (Value *V = SimplifyUsingDistributiveLaws(I))
     return replaceInstUsesWith(I, V);
 
-  // X * -1 == 0 - X
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  unsigned BitWidth = I.getType()->getScalarSizeInBits();
+
+  // X * -1 == 0 - X
   if (match(Op1, m_AllOnes())) {
     BinaryOperator *BO = BinaryOperator::CreateNeg(Op0, I.getName());
     if (I.hasNoSignedWrap())
@@ -216,11 +186,7 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
 
     if (match(&I, m_Mul(m_Value(NewOp), m_Constant(C1)))) {
       // Replace X*(2^C) with X << C, where C is either a scalar or a vector.
-      // Note that we need to sanitize undef multipliers to 1,
-      // to avoid introducing poison.
-      Constant *SafeC1 = Constant::replaceUndefsWith(
-          C1, ConstantInt::get(C1->getType()->getScalarType(), 1));
-      if (Constant *NewCst = getLogBase2(NewOp->getType(), SafeC1)) {
+      if (Constant *NewCst = ConstantExpr::getExactLogBase2(C1)) {
         BinaryOperator *Shl = BinaryOperator::CreateShl(NewOp, NewCst);
 
         if (I.hasNoUnsignedWrap())
@@ -236,29 +202,12 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
     }
   }
 
-  if (ConstantInt *CI = dyn_cast<ConstantInt>(Op1)) {
-    // (Y - X) * (-(2**n)) -> (X - Y) * (2**n), for positive nonzero n
-    // (Y + const) * (-(2**n)) -> (-constY) * (2**n), for positive nonzero n
-    // The "* (2**n)" thus becomes a potential shifting opportunity.
-    {
-      const APInt &   Val = CI->getValue();
-      const APInt &PosVal = Val.abs();
-      if (Val.isNegative() && PosVal.isPowerOf2()) {
-        Value *X = nullptr, *Y = nullptr;
-        if (Op0->hasOneUse()) {
-          ConstantInt *C1;
-          Value *Sub = nullptr;
-          if (match(Op0, m_Sub(m_Value(Y), m_Value(X))))
-            Sub = Builder.CreateSub(X, Y, "suba");
-          else if (match(Op0, m_Add(m_Value(Y), m_ConstantInt(C1))))
-            Sub = Builder.CreateSub(Builder.CreateNeg(C1), Y, "subc");
-          if (Sub)
-            return
-              BinaryOperator::CreateMul(Sub,
-                                        ConstantInt::get(Y->getType(), PosVal));
-        }
-      }
-    }
+  if (Op0->hasOneUse() && match(Op1, m_NegatedPower2())) {
+    // Interpret  X * (-1<<C)  as  (-X) * (1<<C)  and try to sink the negation.
+    // The "* (1<<C)" thus becomes a potential shifting opportunity.
+    if (Value *NegOp0 = Negator::Negate(/*IsNegation*/ true, Op0, *this))
+      return BinaryOperator::CreateMul(
+          NegOp0, ConstantExpr::getNeg(cast<Constant>(Op1)), I.getName());
   }
 
   if (Instruction *FoldedMul = foldBinOpIntoSelectOrPhi(I))
@@ -287,6 +236,9 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
     Value *X, *Y;
     SelectPatternFlavor SPF = matchSelectPattern(Op0, X, Y).Flavor;
     if (SPF == SPF_ABS || SPF == SPF_NABS)
+      return BinaryOperator::CreateMul(X, X);
+
+    if (match(Op0, m_Intrinsic<Intrinsic::abs>(m_Value(X))))
       return BinaryOperator::CreateMul(X, X);
   }
 
@@ -410,6 +362,19 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
   if (match(Op1, m_LShr(m_Value(X), m_APInt(C))) && *C == C->getBitWidth() - 1)
     return BinaryOperator::CreateAnd(Builder.CreateAShr(X, *C), Op0);
 
+  // ((ashr X, 31) | 1) * X --> abs(X)
+  // X * ((ashr X, 31) | 1) --> abs(X)
+  if (match(&I, m_c_BinOp(m_Or(m_AShr(m_Value(X),
+                                    m_SpecificIntAllowUndef(BitWidth - 1)),
+                             m_One()),
+                        m_Deferred(X)))) {
+    Value *Abs = Builder.CreateBinaryIntrinsic(
+        Intrinsic::abs, X,
+        ConstantInt::getBool(I.getContext(), I.hasNoSignedWrap()));
+    Abs->takeName(&I);
+    return replaceInstUsesWith(I, Abs);
+  }
+
   if (Instruction *Ext = narrowMathIfNoOverflow(I))
     return Ext;
 
@@ -427,7 +392,7 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
   return Changed ? &I : nullptr;
 }
 
-Instruction *InstCombiner::foldFPSignBitOps(BinaryOperator &I) {
+Instruction *InstCombinerImpl::foldFPSignBitOps(BinaryOperator &I) {
   BinaryOperator::BinaryOps Opcode = I.getOpcode();
   assert((Opcode == Instruction::FMul || Opcode == Instruction::FDiv) &&
          "Expected fmul or fdiv");
@@ -442,13 +407,12 @@ Instruction *InstCombiner::foldFPSignBitOps(BinaryOperator &I) {
 
   // fabs(X) * fabs(X) -> X * X
   // fabs(X) / fabs(X) -> X / X
-  if (Op0 == Op1 && match(Op0, m_Intrinsic<Intrinsic::fabs>(m_Value(X))))
+  if (Op0 == Op1 && match(Op0, m_FAbs(m_Value(X))))
     return BinaryOperator::CreateWithCopiedFlags(Opcode, X, X, &I);
 
   // fabs(X) * fabs(Y) --> fabs(X * Y)
   // fabs(X) / fabs(Y) --> fabs(X / Y)
-  if (match(Op0, m_Intrinsic<Intrinsic::fabs>(m_Value(X))) &&
-      match(Op1, m_Intrinsic<Intrinsic::fabs>(m_Value(Y))) &&
+  if (match(Op0, m_FAbs(m_Value(X))) && match(Op1, m_FAbs(m_Value(Y))) &&
       (Op0->hasOneUse() || Op1->hasOneUse())) {
     IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
     Builder.setFastMathFlags(I.getFastMathFlags());
@@ -461,7 +425,7 @@ Instruction *InstCombiner::foldFPSignBitOps(BinaryOperator &I) {
   return nullptr;
 }
 
-Instruction *InstCombiner::visitFMul(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitFMul(BinaryOperator &I) {
   if (Value *V = SimplifyFMulInst(I.getOperand(0), I.getOperand(1),
                                   I.getFastMathFlags(),
                                   SQ.getWithInstruction(&I)))
@@ -557,6 +521,21 @@ Instruction *InstCombiner::visitFMul(BinaryOperator &I) {
       return replaceInstUsesWith(I, Sqrt);
     }
 
+    // The following transforms are done irrespective of the number of uses
+    // for the expression "1.0/sqrt(X)".
+    //  1) 1.0/sqrt(X) * X -> X/sqrt(X)
+    //  2) X * 1.0/sqrt(X) -> X/sqrt(X)
+    // We always expect the backend to reduce X/sqrt(X) to sqrt(X), if it
+    // has the necessary (reassoc) fast-math-flags.
+    if (I.hasNoSignedZeros() &&
+        match(Op0, (m_FDiv(m_SpecificFP(1.0), m_Value(Y)))) &&
+        match(Y, m_Intrinsic<Intrinsic::sqrt>(m_Value(X))) && Op1 == X)
+      return BinaryOperator::CreateFDivFMF(X, Y, &I);
+    if (I.hasNoSignedZeros() &&
+        match(Op1, (m_FDiv(m_SpecificFP(1.0), m_Value(Y)))) &&
+        match(Y, m_Intrinsic<Intrinsic::sqrt>(m_Value(X))) && Op0 == X)
+      return BinaryOperator::CreateFDivFMF(X, Y, &I);
+
     // Like the similar transform in instsimplify, this requires 'nsz' because
     // sqrt(-0.0) = -0.0, and -0.0 * -0.0 does not simplify to -0.0.
     if (I.hasNoNaNs() && I.hasNoSignedZeros() && Op0 == Op1 &&
@@ -641,7 +620,7 @@ Instruction *InstCombiner::visitFMul(BinaryOperator &I) {
 /// Fold a divide or remainder with a select instruction divisor when one of the
 /// select operands is zero. In that case, we can use the other select operand
 /// because div/rem by zero is undefined.
-bool InstCombiner::simplifyDivRemOfSelectWithZeroOp(BinaryOperator &I) {
+bool InstCombinerImpl::simplifyDivRemOfSelectWithZeroOp(BinaryOperator &I) {
   SelectInst *SI = dyn_cast<SelectInst>(I.getOperand(1));
   if (!SI)
     return false;
@@ -742,7 +721,7 @@ static bool isMultiple(const APInt &C1, const APInt &C2, APInt &Quotient,
 /// instructions (udiv and sdiv). It is called by the visitors to those integer
 /// division instructions.
 /// Common integer divide transforms
-Instruction *InstCombiner::commonIDivTransforms(BinaryOperator &I) {
+Instruction *InstCombinerImpl::commonIDivTransforms(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   bool IsSigned = I.getOpcode() == Instruction::SDiv;
   Type *Ty = I.getType();
@@ -878,7 +857,7 @@ namespace {
 
 using FoldUDivOperandCb = Instruction *(*)(Value *Op0, Value *Op1,
                                            const BinaryOperator &I,
-                                           InstCombiner &IC);
+                                           InstCombinerImpl &IC);
 
 /// Used to maintain state for visitUDivOperand().
 struct UDivFoldAction {
@@ -907,8 +886,9 @@ struct UDivFoldAction {
 
 // X udiv 2^C -> X >> C
 static Instruction *foldUDivPow2Cst(Value *Op0, Value *Op1,
-                                    const BinaryOperator &I, InstCombiner &IC) {
-  Constant *C1 = getLogBase2(Op0->getType(), cast<Constant>(Op1));
+                                    const BinaryOperator &I,
+                                    InstCombinerImpl &IC) {
+  Constant *C1 = ConstantExpr::getExactLogBase2(cast<Constant>(Op1));
   if (!C1)
     llvm_unreachable("Failed to constant fold udiv -> logbase2");
   BinaryOperator *LShr = BinaryOperator::CreateLShr(Op0, C1);
@@ -920,7 +900,7 @@ static Instruction *foldUDivPow2Cst(Value *Op0, Value *Op1,
 // X udiv (C1 << N), where C1 is "1<<C2"  -->  X >> (N+C2)
 // X udiv (zext (C1 << N)), where C1 is "1<<C2"  -->  X >> (N+C2)
 static Instruction *foldUDivShl(Value *Op0, Value *Op1, const BinaryOperator &I,
-                                InstCombiner &IC) {
+                                InstCombinerImpl &IC) {
   Value *ShiftLeft;
   if (!match(Op1, m_ZExt(m_Value(ShiftLeft))))
     ShiftLeft = Op1;
@@ -929,7 +909,7 @@ static Instruction *foldUDivShl(Value *Op0, Value *Op1, const BinaryOperator &I,
   Value *N;
   if (!match(ShiftLeft, m_Shl(m_Constant(CI), m_Value(N))))
     llvm_unreachable("match should never fail here!");
-  Constant *Log2Base = getLogBase2(N->getType(), CI);
+  Constant *Log2Base = ConstantExpr::getExactLogBase2(CI);
   if (!Log2Base)
     llvm_unreachable("getLogBase2 should never fail here!");
   N = IC.Builder.CreateAdd(N, Log2Base);
@@ -948,6 +928,8 @@ static Instruction *foldUDivShl(Value *Op0, Value *Op1, const BinaryOperator &I,
 static size_t visitUDivOperand(Value *Op0, Value *Op1, const BinaryOperator &I,
                                SmallVectorImpl<UDivFoldAction> &Actions,
                                unsigned Depth = 0) {
+  // FIXME: assert that Op1 isn't/doesn't contain undef.
+
   // Check to see if this is an unsigned division with an exact power of 2,
   // if so, convert to a right shift.
   if (match(Op1, m_Power2())) {
@@ -967,6 +949,9 @@ static size_t visitUDivOperand(Value *Op0, Value *Op1, const BinaryOperator &I,
     return 0;
 
   if (SelectInst *SI = dyn_cast<SelectInst>(Op1))
+    // FIXME: missed optimization: if one of the hands of select is/contains
+    //        undef, just directly pick the other one.
+    // FIXME: can both hands contain undef?
     if (size_t LHSIdx =
             visitUDivOperand(Op0, SI->getOperand(1), I, Actions, Depth))
       if (visitUDivOperand(Op0, SI->getOperand(2), I, Actions, Depth)) {
@@ -1014,7 +999,7 @@ static Instruction *narrowUDivURem(BinaryOperator &I,
   return nullptr;
 }
 
-Instruction *InstCombiner::visitUDiv(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitUDiv(BinaryOperator &I) {
   if (Value *V = SimplifyUDivInst(I.getOperand(0), I.getOperand(1),
                                   SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
@@ -1108,7 +1093,7 @@ Instruction *InstCombiner::visitUDiv(BinaryOperator &I) {
   return nullptr;
 }
 
-Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitSDiv(BinaryOperator &I) {
   if (Value *V = SimplifySDivInst(I.getOperand(0), I.getOperand(1),
                                   SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
@@ -1121,6 +1106,7 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
     return Common;
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  Type *Ty = I.getType();
   Value *X;
   // sdiv Op0, -1 --> -Op0
   // sdiv Op0, (sext i1 X) --> -Op0 (because if X is 0, the op is undefined)
@@ -1130,16 +1116,26 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
 
   // X / INT_MIN --> X == INT_MIN
   if (match(Op1, m_SignMask()))
-    return new ZExtInst(Builder.CreateICmpEQ(Op0, Op1), I.getType());
+    return new ZExtInst(Builder.CreateICmpEQ(Op0, Op1), Ty);
+
+  // sdiv exact X,  1<<C  -->    ashr exact X, C   iff  1<<C  is non-negative
+  // sdiv exact X, -1<<C  -->  -(ashr exact X, C)
+  if (I.isExact() && ((match(Op1, m_Power2()) && match(Op1, m_NonNegative())) ||
+                      match(Op1, m_NegatedPower2()))) {
+    bool DivisorWasNegative = match(Op1, m_NegatedPower2());
+    if (DivisorWasNegative)
+      Op1 = ConstantExpr::getNeg(cast<Constant>(Op1));
+    auto *AShr = BinaryOperator::CreateExactAShr(
+        Op0, ConstantExpr::getExactLogBase2(cast<Constant>(Op1)), I.getName());
+    if (!DivisorWasNegative)
+      return AShr;
+    Builder.Insert(AShr);
+    AShr->setName(I.getName() + ".neg");
+    return BinaryOperator::CreateNeg(AShr, I.getName());
+  }
 
   const APInt *Op1C;
   if (match(Op1, m_APInt(Op1C))) {
-    // sdiv exact X, C  -->  ashr exact X, log2(C)
-    if (I.isExact() && Op1C->isNonNegative() && Op1C->isPowerOf2()) {
-      Value *ShAmt = ConstantInt::get(Op1->getType(), Op1C->exactLogBase2());
-      return BinaryOperator::CreateExactAShr(Op0, ShAmt, I.getName());
-    }
-
     // If the dividend is sign-extended and the constant divisor is small enough
     // to fit in the source type, shrink the division to the narrower type:
     // (sext X) sdiv C --> sext (X sdiv C)
@@ -1154,7 +1150,7 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
       Constant *NarrowDivisor =
           ConstantExpr::getTrunc(cast<Constant>(Op1), Op0Src->getType());
       Value *NarrowOp = Builder.CreateSDiv(Op0Src, NarrowDivisor);
-      return new SExtInst(NarrowOp, Op0->getType());
+      return new SExtInst(NarrowOp, Ty);
     }
 
     // -X / C --> X / -C (if the negation doesn't overflow).
@@ -1162,7 +1158,7 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
     //       checking if all elements are not the min-signed-val.
     if (!Op1C->isMinSignedValue() &&
         match(Op0, m_NSWSub(m_Zero(), m_Value(X)))) {
-      Constant *NegC = ConstantInt::get(I.getType(), -(*Op1C));
+      Constant *NegC = ConstantInt::get(Ty, -(*Op1C));
       Instruction *BO = BinaryOperator::CreateSDiv(X, NegC);
       BO->setIsExact(I.isExact());
       return BO;
@@ -1175,15 +1171,32 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
     return BinaryOperator::CreateNSWNeg(
         Builder.CreateSDiv(X, Y, I.getName(), I.isExact()));
 
+  // abs(X) / X --> X > -1 ? 1 : -1
+  // X / abs(X) --> X > -1 ? 1 : -1
+  if (match(&I, m_c_BinOp(
+                    m_OneUse(m_Intrinsic<Intrinsic::abs>(m_Value(X), m_One())),
+                    m_Deferred(X)))) {
+    Constant *NegOne = ConstantInt::getAllOnesValue(Ty);
+    Value *Cond = Builder.CreateICmpSGT(X, NegOne);
+    return SelectInst::Create(Cond, ConstantInt::get(Ty, 1), NegOne);
+  }
+
   // If the sign bits of both operands are zero (i.e. we can prove they are
   // unsigned inputs), turn this into a udiv.
-  APInt Mask(APInt::getSignMask(I.getType()->getScalarSizeInBits()));
+  APInt Mask(APInt::getSignMask(Ty->getScalarSizeInBits()));
   if (MaskedValueIsZero(Op0, Mask, 0, &I)) {
     if (MaskedValueIsZero(Op1, Mask, 0, &I)) {
       // X sdiv Y -> X udiv Y, iff X and Y don't have sign bit set
       auto *BO = BinaryOperator::CreateUDiv(Op0, Op1, I.getName());
       BO->setIsExact(I.isExact());
       return BO;
+    }
+
+    if (match(Op1, m_NegatedPower2())) {
+      // X sdiv (-(1 << C)) -> -(X sdiv (1 << C)) ->
+      //                    -> -(X udiv (1 << C)) -> -(X u>> C)
+      return BinaryOperator::CreateNeg(Builder.Insert(foldUDivPow2Cst(
+          Op0, ConstantExpr::getNeg(cast<Constant>(Op1)), I, *this)));
     }
 
     if (isKnownToBeAPowerOfTwo(Op1, /*OrZero*/ true, 0, &I)) {
@@ -1262,7 +1275,7 @@ static Instruction *foldFDivConstantDividend(BinaryOperator &I) {
   return BinaryOperator::CreateFDivFMF(NewC, X, &I);
 }
 
-Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitFDiv(BinaryOperator &I) {
   if (Value *V = SimplifyFDivInst(I.getOperand(0), I.getOperand(1),
                                   I.getFastMathFlags(),
                                   SQ.getWithInstruction(&I)))
@@ -1354,10 +1367,8 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
   // X / fabs(X) -> copysign(1.0, X)
   // fabs(X) / X -> copysign(1.0, X)
   if (I.hasNoNaNs() && I.hasNoInfs() &&
-      (match(&I,
-             m_FDiv(m_Value(X), m_Intrinsic<Intrinsic::fabs>(m_Deferred(X)))) ||
-       match(&I, m_FDiv(m_Intrinsic<Intrinsic::fabs>(m_Value(X)),
-                        m_Deferred(X))))) {
+      (match(&I, m_FDiv(m_Value(X), m_FAbs(m_Deferred(X)))) ||
+       match(&I, m_FDiv(m_FAbs(m_Value(X)), m_Deferred(X))))) {
     Value *V = Builder.CreateBinaryIntrinsic(
         Intrinsic::copysign, ConstantFP::get(I.getType(), 1.0), X, &I);
     return replaceInstUsesWith(I, V);
@@ -1369,7 +1380,7 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
 /// instructions (urem and srem). It is called by the visitors to those integer
 /// remainder instructions.
 /// Common integer remainder transforms
-Instruction *InstCombiner::commonIRemTransforms(BinaryOperator &I) {
+Instruction *InstCombinerImpl::commonIRemTransforms(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
   // The RHS is known non-zero.
@@ -1407,7 +1418,7 @@ Instruction *InstCombiner::commonIRemTransforms(BinaryOperator &I) {
   return nullptr;
 }
 
-Instruction *InstCombiner::visitURem(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitURem(BinaryOperator &I) {
   if (Value *V = SimplifyURemInst(I.getOperand(0), I.getOperand(1),
                                   SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
@@ -1458,7 +1469,7 @@ Instruction *InstCombiner::visitURem(BinaryOperator &I) {
   return nullptr;
 }
 
-Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitSRem(BinaryOperator &I) {
   if (Value *V = SimplifySRemInst(I.getOperand(0), I.getOperand(1),
                                   SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
@@ -1481,7 +1492,7 @@ Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
   // -X srem Y --> -(X srem Y)
   Value *X, *Y;
   if (match(&I, m_SRem(m_OneUse(m_NSWSub(m_Zero(), m_Value(X))), m_Value(Y))))
-    return BinaryOperator::CreateNSWNeg(Builder.CreateSRem(X, Y)); 
+    return BinaryOperator::CreateNSWNeg(Builder.CreateSRem(X, Y));
 
   // If the sign bits of both operands are zero (i.e. we can prove they are
   // unsigned inputs), turn this into a urem.
@@ -1495,7 +1506,7 @@ Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
   // If it's a constant vector, flip any negative values positive.
   if (isa<ConstantVector>(Op1) || isa<ConstantDataVector>(Op1)) {
     Constant *C = cast<Constant>(Op1);
-    unsigned VWidth = cast<VectorType>(C->getType())->getNumElements();
+    unsigned VWidth = cast<FixedVectorType>(C->getType())->getNumElements();
 
     bool hasNegative = false;
     bool hasMissing = false;
@@ -1530,7 +1541,7 @@ Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
   return nullptr;
 }
 
-Instruction *InstCombiner::visitFRem(BinaryOperator &I) {
+Instruction *InstCombinerImpl::visitFRem(BinaryOperator &I) {
   if (Value *V = SimplifyFRemInst(I.getOperand(0), I.getOperand(1),
                                   I.getFastMathFlags(),
                                   SQ.getWithInstruction(&I)))

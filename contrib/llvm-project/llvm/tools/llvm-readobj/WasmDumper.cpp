@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Error.h"
 #include "ObjDumper.h"
 #include "llvm-readobj.h"
 #include "llvm/Object/Wasm.h"
@@ -25,7 +24,7 @@ static const EnumEntry<unsigned> WasmSymbolTypes[] = {
 #define ENUM_ENTRY(X)                                                          \
   { #X, wasm::WASM_SYMBOL_TYPE_##X }
     ENUM_ENTRY(FUNCTION), ENUM_ENTRY(DATA),  ENUM_ENTRY(GLOBAL),
-    ENUM_ENTRY(SECTION),  ENUM_ENTRY(EVENT),
+    ENUM_ENTRY(SECTION),  ENUM_ENTRY(EVENT), ENUM_ENTRY(TABLE),
 #undef ENUM_ENTRY
 };
 
@@ -58,7 +57,7 @@ static const EnumEntry<unsigned> WasmSymbolFlags[] = {
 class WasmDumper : public ObjDumper {
 public:
   WasmDumper(const WasmObjectFile *Obj, ScopedPrinter &Writer)
-      : ObjDumper(Writer), Obj(Obj) {}
+      : ObjDumper(Writer, Obj->getFileName()), Obj(Obj) {}
 
   void printFileHeaders() override;
   void printSectionHeaders() override;
@@ -241,14 +240,9 @@ void WasmDumper::printSymbol(const SymbolRef &Sym) {
 
 namespace llvm {
 
-std::error_code createWasmDumper(const object::ObjectFile *Obj,
-                                 ScopedPrinter &Writer,
-                                 std::unique_ptr<ObjDumper> &Result) {
-  const auto *WasmObj = dyn_cast<WasmObjectFile>(Obj);
-  assert(WasmObj && "createWasmDumper called with non-wasm object");
-
-  Result.reset(new WasmDumper(WasmObj, Writer));
-  return readobj_error::success;
+std::unique_ptr<ObjDumper> createWasmDumper(const object::WasmObjectFile &Obj,
+                                            ScopedPrinter &Writer) {
+  return std::make_unique<WasmDumper>(&Obj, Writer);
 }
 
 } // namespace llvm

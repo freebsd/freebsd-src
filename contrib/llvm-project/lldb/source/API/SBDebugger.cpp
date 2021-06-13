@@ -220,7 +220,7 @@ SBDebugger SBDebugger::Create(bool source_init_files,
     interp.get()->SkipLLDBInitFiles(false);
     interp.get()->SkipAppInitFiles(false);
     SBCommandReturnObject result;
-    interp.SourceInitFileInHomeDirectory(result);
+    interp.SourceInitFileInHomeDirectory(result, false);
   } else {
     interp.get()->SkipLLDBInitFiles(true);
     interp.get()->SkipAppInitFiles(true);
@@ -804,23 +804,33 @@ SBTarget SBDebugger::CreateTargetWithFileAndArch(const char *filename,
   TargetSP target_sp;
   if (m_opaque_sp) {
     Status error;
-    const bool add_dependent_modules = true;
-
-    error = m_opaque_sp->GetTargetList().CreateTarget(
-        *m_opaque_sp, filename, arch_cstr,
-        add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo, nullptr,
-        target_sp);
-
-    if (error.Success()) {
-      m_opaque_sp->GetTargetList().SetSelectedTarget(target_sp.get());
-      sb_target.SetSP(target_sp);
+    if (arch_cstr == nullptr) {
+      // The version of CreateTarget that takes an ArchSpec won't accept an
+      // empty ArchSpec, so when the arch hasn't been specified, we need to
+      // call the target triple version.
+      error = m_opaque_sp->GetTargetList().CreateTarget(*m_opaque_sp, filename, 
+          arch_cstr, eLoadDependentsYes, nullptr, target_sp);
+    } else {
+      PlatformSP platform_sp = m_opaque_sp->GetPlatformList()
+          .GetSelectedPlatform();
+      ArchSpec arch = Platform::GetAugmentedArchSpec(platform_sp.get(), 
+          arch_cstr);
+      if (arch.IsValid())
+        error = m_opaque_sp->GetTargetList().CreateTarget(*m_opaque_sp, filename, 
+            arch, eLoadDependentsYes, platform_sp, target_sp);
+      else
+        error.SetErrorStringWithFormat("invalid arch_cstr: %s", arch_cstr);
     }
+    if (error.Success())
+      sb_target.SetSP(target_sp);
   }
-
+  
   LLDB_LOGF(log,
             "SBDebugger(%p)::CreateTargetWithFileAndArch (filename=\"%s\", "
             "arch=%s) => SBTarget(%p)",
-            static_cast<void *>(m_opaque_sp.get()), filename, arch_cstr,
+            static_cast<void *>(m_opaque_sp.get()),
+            filename ? filename : "<unspecified>",
+            arch_cstr ? arch_cstr : "<unspecified>",
             static_cast<void *>(target_sp.get()));
 
   return LLDB_RECORD_RESULT(sb_target);
@@ -840,10 +850,8 @@ SBTarget SBDebugger::CreateTarget(const char *filename) {
         add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo, nullptr,
         target_sp);
 
-    if (error.Success()) {
-      m_opaque_sp->GetTargetList().SetSelectedTarget(target_sp.get());
+    if (error.Success())
       sb_target.SetSP(target_sp);
-    }
   }
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
   LLDB_LOGF(log,
@@ -858,7 +866,7 @@ SBTarget SBDebugger::GetDummyTarget() {
 
   SBTarget sb_target;
   if (m_opaque_sp) {
-    sb_target.SetSP(m_opaque_sp->GetDummyTarget()->shared_from_this());
+    sb_target.SetSP(m_opaque_sp->GetDummyTarget().shared_from_this());
   }
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
   LLDB_LOGF(log, "SBDebugger(%p)::GetDummyTarget() => SBTarget(%p)",
@@ -879,8 +887,6 @@ bool SBDebugger::DeleteTarget(lldb::SBTarget &target) {
       result = m_opaque_sp->GetTargetList().DeleteTarget(target_sp);
       target_sp->Destroy();
       target.Clear();
-      const bool mandatory = true;
-      ModuleList::RemoveOrphanSharedModules(mandatory);
     }
   }
 
@@ -1000,7 +1006,7 @@ void SBDebugger::SetSelectedTarget(SBTarget &sb_target) {
 
   TargetSP target_sp(sb_target.GetSP());
   if (m_opaque_sp) {
-    m_opaque_sp->GetTargetList().SetSelectedTarget(target_sp.get());
+    m_opaque_sp->GetTargetList().SetSelectedTarget(target_sp);
   }
   if (log) {
     SBStream sstr;

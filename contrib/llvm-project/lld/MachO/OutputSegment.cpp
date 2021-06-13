@@ -31,9 +31,9 @@ static uint32_t initProt(StringRef name) {
 }
 
 static uint32_t maxProt(StringRef name) {
-  if (name == segment_names::pageZero)
-    return 0;
-  return VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
+  assert(config->arch != AK_i386 &&
+         "TODO: i386 has different maxProt requirements");
+  return initProt(name);
 }
 
 size_t OutputSegment::numNonHiddenSections() const {
@@ -49,12 +49,12 @@ void OutputSegment::addOutputSection(OutputSection *osec) {
   sections.push_back(osec);
 }
 
-static llvm::DenseMap<StringRef, OutputSegment *> nameToOutputSegment;
+static DenseMap<StringRef, OutputSegment *> nameToOutputSegment;
 std::vector<OutputSegment *> macho::outputSegments;
 
 OutputSegment *macho::getOrCreateOutputSegment(StringRef name) {
   OutputSegment *&segRef = nameToOutputSegment[name];
-  if (segRef != nullptr)
+  if (segRef)
     return segRef;
 
   segRef = make<OutputSegment>();

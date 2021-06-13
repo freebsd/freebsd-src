@@ -15,6 +15,7 @@
 #include "llvm/Analysis/RegionPass.h"
 #include "llvm/IR/OptBisect.h"
 #include "llvm/IR/PassTimingInfo.h"
+#include "llvm/IR/StructuralHash.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
@@ -30,8 +31,6 @@ char RGPassManager::ID = 0;
 
 RGPassManager::RGPassManager()
   : FunctionPass(ID), PMDataManager() {
-  skipThisRegion = false;
-  redoThisRegion = false;
   RI = nullptr;
   CurrentRegion = nullptr;
 }
@@ -75,8 +74,6 @@ bool RGPassManager::runOnFunction(Function &F) {
   while (!RQ.empty()) {
 
     CurrentRegion  = RQ.back();
-    skipThisRegion = false;
-    redoThisRegion = false;
 
     // Run all passes on the current Region.
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
@@ -90,62 +87,59 @@ bool RGPassManager::runOnFunction(Function &F) {
 
       initializeAnalysisImpl(P);
 
+      bool LocalChanged = false;
       {
         PassManagerPrettyStackEntry X(P, *CurrentRegion->getEntry());
 
         TimeRegion PassTimer(getPassTimer(P));
-        Changed |= P->runOnRegion(CurrentRegion, *this);
+#ifdef EXPENSIVE_CHECKS
+        uint64_t RefHash = StructuralHash(F);
+#endif
+        LocalChanged = P->runOnRegion(CurrentRegion, *this);
+
+#ifdef EXPENSIVE_CHECKS
+        if (!LocalChanged && (RefHash != StructuralHash(F))) {
+          llvm::errs() << "Pass modifies its input and doesn't report it: "
+                       << P->getPassName() << "\n";
+          llvm_unreachable("Pass modifies its input and doesn't report it");
+        }
+#endif
+
+        Changed |= LocalChanged;
       }
 
       if (isPassDebuggingExecutionsOrMore()) {
-        if (Changed)
+        if (LocalChanged)
           dumpPassInfo(P, MODIFICATION_MSG, ON_REGION_MSG,
-                       skipThisRegion ? "<deleted>" :
                                       CurrentRegion->getNameStr());
         dumpPreservedSet(P);
       }
 
-      if (!skipThisRegion) {
-        // Manually check that this region is still healthy. This is done
-        // instead of relying on RegionInfo::verifyRegion since RegionInfo
-        // is a function pass and it's really expensive to verify every
-        // Region in the function every time. That level of checking can be
-        // enabled with the -verify-region-info option.
-        {
-          TimeRegion PassTimer(getPassTimer(P));
-          CurrentRegion->verifyRegion();
-        }
-
-        // Then call the regular verifyAnalysis functions.
-        verifyPreservedAnalysis(P);
+      // Manually check that this region is still healthy. This is done
+      // instead of relying on RegionInfo::verifyRegion since RegionInfo
+      // is a function pass and it's really expensive to verify every
+      // Region in the function every time. That level of checking can be
+      // enabled with the -verify-region-info option.
+      {
+        TimeRegion PassTimer(getPassTimer(P));
+        CurrentRegion->verifyRegion();
       }
 
-      removeNotPreservedAnalysis(P);
+      // Then call the regular verifyAnalysis functions.
+      verifyPreservedAnalysis(P);
+
+      if (LocalChanged)
+        removeNotPreservedAnalysis(P);
       recordAvailableAnalysis(P);
       removeDeadPasses(P,
-                       (!isPassDebuggingExecutionsOrMore() || skipThisRegion) ?
-                       "<deleted>" :  CurrentRegion->getNameStr(),
+                       (!isPassDebuggingExecutionsOrMore())
+                           ? "<deleted>"
+                           : CurrentRegion->getNameStr(),
                        ON_REGION_MSG);
-
-      if (skipThisRegion)
-        // Do not run other passes on this region.
-        break;
     }
-
-    // If the region was deleted, release all the region passes. This frees up
-    // some memory, and avoids trouble with the pass manager trying to call
-    // verifyAnalysis on them.
-    if (skipThisRegion)
-      for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
-        Pass *P = getContainedPass(Index);
-        freePass(P, "<deleted>", ON_REGION_MSG);
-      }
 
     // Pop the region from queue after running all passes.
     RQ.pop_back();
-
-    if (redoThisRegion)
-      RQ.push_back(CurrentRegion);
 
     // Free all region nodes created in region passes.
     RI->clearNodeCache();

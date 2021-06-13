@@ -151,7 +151,8 @@ class ScopedInErrorReport {
     if (common_flags()->print_cmdline)
       PrintCmdline();
 
-    if (common_flags()->print_module_map == 2) PrintModuleMap();
+    if (common_flags()->print_module_map == 2)
+      DumpProcessMap();
 
     // Copy the message buffer so that we could start logging without holding a
     // lock that gets aquired during printing.
@@ -411,7 +412,7 @@ static bool IsInvalidPointerPair(uptr a1, uptr a2) {
   return false;
 }
 
-static INLINE void CheckForInvalidPointerPair(void *p1, void *p2) {
+static inline void CheckForInvalidPointerPair(void *p1, void *p2) {
   switch (flags()->detect_invalid_pointer_pairs) {
     case 0:
       return;

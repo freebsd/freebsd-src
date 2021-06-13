@@ -44,6 +44,9 @@ static cl::opt<bool, true>
                          cl::desc("Disable symbolizing crash backtraces."),
                          cl::location(DisableSymbolicationFlag), cl::Hidden);
 
+constexpr char DisableSymbolizationEnv[] = "LLVM_DISABLE_SYMBOLIZATION";
+constexpr char LLVMSymbolizerPathEnv[] = "LLVM_SYMBOLIZER_PATH";
+
 // Callbacks to run in signal handler must be lock-free because a signal handler
 // could be running as we add new callbacks. We don't add unbounded numbers of
 // callbacks, an array is therefore sufficient.
@@ -105,7 +108,7 @@ static FormattedNumber format_ptr(void *PC) {
 LLVM_ATTRIBUTE_USED
 static bool printSymbolizedStackTrace(StringRef Argv0, void **StackTrace,
                                       int Depth, llvm::raw_ostream &OS) {
-  if (DisableSymbolicationFlag)
+  if (DisableSymbolicationFlag || getenv(DisableSymbolizationEnv))
     return false;
 
   // Don't recursively invoke the llvm-symbolizer binary.
@@ -117,7 +120,9 @@ static bool printSymbolizedStackTrace(StringRef Argv0, void **StackTrace,
   // Use llvm-symbolizer tool to symbolize the stack traces. First look for it
   // alongside our binary, then in $PATH.
   ErrorOr<std::string> LLVMSymbolizerPathOrErr = std::error_code();
-  if (!Argv0.empty()) {
+  if (const char *Path = getenv(LLVMSymbolizerPathEnv)) {
+    LLVMSymbolizerPathOrErr = sys::findProgramByName(Path);
+  } else if (!Argv0.empty()) {
     StringRef Parent = llvm::sys::path::parent_path(Argv0);
     if (!Parent.empty())
       LLVMSymbolizerPathOrErr = sys::findProgramByName("llvm-symbolizer", Parent);

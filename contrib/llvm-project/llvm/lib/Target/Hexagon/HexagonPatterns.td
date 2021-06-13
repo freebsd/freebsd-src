@@ -1,4 +1,4 @@
-//==- HexagonPatterns.td - Target Description for Hexagon -*- tablegen -*-===//
+//===- HexagonPatterns.td - Selection Patterns for Hexagon -*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -229,6 +229,21 @@ def NegImm32: SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(NV, SDLoc(N), MVT::i32);
 }]>;
 
+def SplatB: SDNodeXForm<imm, [{
+  uint32_t V = N->getZExtValue();
+  assert(isUInt<8>(V) || V >> 8 == 0xFFFFFF);
+  V &= 0xFF;
+  uint32_t S = V << 24 | V << 16 | V << 8 | V;
+  return CurDAG->getTargetConstant(S, SDLoc(N), MVT::i32);
+}]>;
+
+def SplatH: SDNodeXForm<imm, [{
+  uint32_t V = N->getZExtValue();
+  assert(isUInt<16>(V) || V >> 16 == 0xFFFF);
+  V &= 0xFFFF;
+  return CurDAG->getTargetConstant(V << 16 | V, SDLoc(N), MVT::i32);
+}]>;
+
 
 // Helpers for type promotions/contractions.
 def I1toI32:  OutPatFrag<(ops node:$Rs), (C2_muxii (i1 $Rs), 1, 0)>;
@@ -351,11 +366,13 @@ multiclass NopCast_pat<ValueType Ty1, ValueType Ty2, RegisterClass RC> {
   def: Pat<(Ty2 (bitconvert (Ty1 RC:$Val))), (Ty2 RC:$Val)>;
 }
 
-
 // Frags for commonly used SDNodes.
 def Add: pf2<add>;    def And: pf2<and>;    def Sra: pf2<sra>;
 def Sub: pf2<sub>;    def Or:  pf2<or>;     def Srl: pf2<srl>;
 def Mul: pf2<mul>;    def Xor: pf2<xor>;    def Shl: pf2<shl>;
+
+def Smin: pf2<smin>;  def Smax: pf2<smax>;
+def Umin: pf2<umin>;  def Umax: pf2<umax>;
 
 def Rol: pf2<rotl>;
 
@@ -909,25 +926,14 @@ let AddedComplexity = 200 in {
   defm: SelMinMax16_pats<setult, A2_minu, A2_maxu>;
 }
 
-let AddedComplexity = 200 in {
-  defm: MinMax_pats<A2_min,   A2_max,   select,  setgt, i1, I32>;
-  defm: MinMax_pats<A2_min,   A2_max,   select,  setge, i1, I32>;
-  defm: MinMax_pats<A2_max,   A2_min,   select,  setlt, i1, I32>;
-  defm: MinMax_pats<A2_max,   A2_min,   select,  setle, i1, I32>;
-  defm: MinMax_pats<A2_minu,  A2_maxu,  select, setugt, i1, I32>;
-  defm: MinMax_pats<A2_minu,  A2_maxu,  select, setuge, i1, I32>;
-  defm: MinMax_pats<A2_maxu,  A2_minu,  select, setult, i1, I32>;
-  defm: MinMax_pats<A2_maxu,  A2_minu,  select, setule, i1, I32>;
-
-  defm: MinMax_pats<A2_minp,  A2_maxp,  select,  setgt, i1, I64>;
-  defm: MinMax_pats<A2_minp,  A2_maxp,  select,  setge, i1, I64>;
-  defm: MinMax_pats<A2_maxp,  A2_minp,  select,  setlt, i1, I64>;
-  defm: MinMax_pats<A2_maxp,  A2_minp,  select,  setle, i1, I64>;
-  defm: MinMax_pats<A2_minup, A2_maxup, select, setugt, i1, I64>;
-  defm: MinMax_pats<A2_minup, A2_maxup, select, setuge, i1, I64>;
-  defm: MinMax_pats<A2_maxup, A2_minup, select, setult, i1, I64>;
-  defm: MinMax_pats<A2_maxup, A2_minup, select, setule, i1, I64>;
-}
+def: OpR_RR_pat<A2_min,   Smin, i32, I32, I32>;
+def: OpR_RR_pat<A2_max,   Smax, i32, I32, I32>;
+def: OpR_RR_pat<A2_minu,  Umin, i32, I32, I32>;
+def: OpR_RR_pat<A2_maxu,  Umax, i32, I32, I32>;
+def: OpR_RR_pat<A2_minp,  Smin, i64, I64, I64>;
+def: OpR_RR_pat<A2_maxp,  Smax, i64, I64, I64>;
+def: OpR_RR_pat<A2_minup, Umin, i64, I64, I64>;
+def: OpR_RR_pat<A2_maxup, Umax, i64, I64, I64>;
 
 let AddedComplexity = 100 in {
   defm: MinMax_pats<F2_sfmin, F2_sfmax, select, setogt, i1, F32>;
@@ -943,18 +949,20 @@ let AddedComplexity = 100, Predicates = [HasV67] in {
   defm: MinMax_pats<F2_dfmax, F2_dfmin, select, setole, i1, F64>;
 }
 
-defm: MinMax_pats<A2_vminb,  A2_vmaxb,  vselect,  setgt,  v8i1,  V8I8>;
-defm: MinMax_pats<A2_vminb,  A2_vmaxb,  vselect,  setge,  v8i1,  V8I8>;
-defm: MinMax_pats<A2_vminh,  A2_vmaxh,  vselect,  setgt,  v4i1, V4I16>;
-defm: MinMax_pats<A2_vminh,  A2_vmaxh,  vselect,  setge,  v4i1, V4I16>;
-defm: MinMax_pats<A2_vminw,  A2_vmaxw,  vselect,  setgt,  v2i1, V2I32>;
-defm: MinMax_pats<A2_vminw,  A2_vmaxw,  vselect,  setge,  v2i1, V2I32>;
-defm: MinMax_pats<A2_vminub, A2_vmaxub, vselect, setugt,  v8i1,  V8I8>;
-defm: MinMax_pats<A2_vminub, A2_vmaxub, vselect, setuge,  v8i1,  V8I8>;
-defm: MinMax_pats<A2_vminuh, A2_vmaxuh, vselect, setugt,  v4i1, V4I16>;
-defm: MinMax_pats<A2_vminuh, A2_vmaxuh, vselect, setuge,  v4i1, V4I16>;
-defm: MinMax_pats<A2_vminuw, A2_vmaxuw, vselect, setugt,  v2i1, V2I32>;
-defm: MinMax_pats<A2_vminuw, A2_vmaxuw, vselect, setuge,  v2i1, V2I32>;
+def: OpR_RR_pat<A2_vminb,  Smin, v8i8,  V8I8>;
+def: OpR_RR_pat<A2_vmaxb,  Smax, v8i8,  V8I8>;
+def: OpR_RR_pat<A2_vminub, Umin, v8i8,  V8I8>;
+def: OpR_RR_pat<A2_vmaxub, Umax, v8i8,  V8I8>;
+
+def: OpR_RR_pat<A2_vminh,  Smin, v4i16, V4I16>;
+def: OpR_RR_pat<A2_vmaxh,  Smax, v4i16, V4I16>;
+def: OpR_RR_pat<A2_vminuh, Umin, v4i16, V4I16>;
+def: OpR_RR_pat<A2_vmaxuh, Umax, v4i16, V4I16>;
+
+def: OpR_RR_pat<A2_vminw,  Smin, v2i32, V2I32>;
+def: OpR_RR_pat<A2_vmaxw,  Smax, v2i32, V2I32>;
+def: OpR_RR_pat<A2_vminuw, Umin, v2i32, V2I32>;
+def: OpR_RR_pat<A2_vmaxuw, Umax, v2i32, V2I32>;
 
 // --(7) Insert/extract --------------------------------------------------
 //
@@ -991,21 +999,26 @@ def: Pat<(HexagonEXTRACTU I32:$Rs, I32:$Width, I32:$Off),
 def: Pat<(HexagonEXTRACTU I64:$Rs, I32:$Width, I32:$Off),
          (S2_extractup_rp I64:$Rs, (Combinew $Width, $Off))>;
 
-def SDTHexagonVSPLAT:
-  SDTypeProfile<1, 1, [SDTCisVec<0>, SDTCisVT<1, i32>]>;
-
-def HexagonVSPLAT: SDNode<"HexagonISD::VSPLAT", SDTHexagonVSPLAT>;
-
-def: Pat<(v4i8  (HexagonVSPLAT I32:$Rs)), (S2_vsplatrb I32:$Rs)>;
-def: Pat<(v4i16 (HexagonVSPLAT I32:$Rs)), (S2_vsplatrh I32:$Rs)>;
-def: Pat<(v2i32 (HexagonVSPLAT s8_0ImmPred:$s8)),
+def: Pat<(v4i8  (splat_vector anyint:$V)), (ToI32 (SplatB $V))>;
+def: Pat<(v2i16 (splat_vector anyint:$V)), (ToI32 (SplatH $V))>;
+def: Pat<(v8i8  (splat_vector anyint:$V)),
+          (Combinew (ToI32 (SplatB $V)), (ToI32 (SplatB $V)))>;
+def: Pat<(v4i16 (splat_vector anyint:$V)),
+          (Combinew (ToI32 (SplatH $V)), (ToI32 (SplatH $V)))>;
+let AddedComplexity = 10 in
+def: Pat<(v2i32 (splat_vector s8_0ImmPred:$s8)),
          (A2_combineii imm:$s8, imm:$s8)>;
-def: Pat<(v2i32 (HexagonVSPLAT I32:$Rs)), (Combinew I32:$Rs, I32:$Rs)>;
+def: Pat<(v2i32 (splat_vector anyimm:$V)), (Combinew (ToI32 $V), (ToI32 $V))>;
+
+def: Pat<(v4i8  (splat_vector I32:$Rs)), (S2_vsplatrb I32:$Rs)>;
+def: Pat<(v2i16 (splat_vector I32:$Rs)), (LoReg (S2_vsplatrh I32:$Rs))>;
+def: Pat<(v4i16 (splat_vector I32:$Rs)), (S2_vsplatrh I32:$Rs)>;
+def: Pat<(v2i32 (splat_vector I32:$Rs)), (Combinew I32:$Rs, I32:$Rs)>;
 
 let AddedComplexity = 10 in
-def: Pat<(v8i8 (HexagonVSPLAT I32:$Rs)), (S6_vsplatrbp I32:$Rs)>,
+def: Pat<(v8i8 (splat_vector I32:$Rs)), (S6_vsplatrbp I32:$Rs)>,
      Requires<[HasV62]>;
-def: Pat<(v8i8 (HexagonVSPLAT I32:$Rs)),
+def: Pat<(v8i8 (splat_vector I32:$Rs)),
          (Combinew (S2_vsplatrb I32:$Rs), (S2_vsplatrb I32:$Rs))>;
 
 
@@ -1082,9 +1095,9 @@ def FShl32r: OutPatFrag<(ops node:$Rs, node:$Rt, node:$Ru),
   (HiReg (S2_asl_r_p (Combinew $Rs, $Rt), $Ru))>;
 
 def FShl64i: OutPatFrag<(ops node:$Rs, node:$Rt, node:$S),
-  (S2_lsr_i_p_or (S2_asl_i_p $Rt, $S),  $Rs, (Subi<64> $S))>;
+  (S2_lsr_i_p_or (S2_asl_i_p $Rs, $S),  $Rt, (Subi<64> $S))>;
 def FShl64r: OutPatFrag<(ops node:$Rs, node:$Rt, node:$Ru),
-  (S2_lsr_r_p_or (S2_asl_r_p $Rt, $Ru), $Rs, (A2_subri 64, $Ru))>;
+  (S2_lsr_r_p_or (S2_asl_r_p $Rs, $Ru), $Rt, (A2_subri 64, $Ru))>;
 
 // Combined SDNodeXForm: (Divu8 (Subi<64> $S))
 def Divu64_8: SDNodeXForm<imm, [{
@@ -1307,17 +1320,17 @@ def: OpR_RR_pat<S2_asr_r_vh, pf2<HexagonVASR>, v4i16, V4I16, I32>;
 def: OpR_RR_pat<S2_lsr_r_vw, pf2<HexagonVLSR>, v2i32, V2I32, I32>;
 def: OpR_RR_pat<S2_lsr_r_vh, pf2<HexagonVLSR>, v4i16, V4I16, I32>;
 
-def: Pat<(sra V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c))),
+def: Pat<(sra V2I32:$b, (v2i32 (splat_vector u5_0ImmPred:$c))),
          (S2_asr_i_vw V2I32:$b, imm:$c)>;
-def: Pat<(srl V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c))),
+def: Pat<(srl V2I32:$b, (v2i32 (splat_vector u5_0ImmPred:$c))),
          (S2_lsr_i_vw V2I32:$b, imm:$c)>;
-def: Pat<(shl V2I32:$b, (v2i32 (HexagonVSPLAT u5_0ImmPred:$c))),
+def: Pat<(shl V2I32:$b, (v2i32 (splat_vector u5_0ImmPred:$c))),
          (S2_asl_i_vw V2I32:$b, imm:$c)>;
-def: Pat<(sra V4I16:$b, (v4i16 (HexagonVSPLAT u4_0ImmPred:$c))),
+def: Pat<(sra V4I16:$b, (v4i16 (splat_vector u4_0ImmPred:$c))),
          (S2_asr_i_vh V4I16:$b, imm:$c)>;
-def: Pat<(srl V4I16:$b, (v4i16 (HexagonVSPLAT u4_0ImmPred:$c))),
+def: Pat<(srl V4I16:$b, (v4i16 (splat_vector u4_0ImmPred:$c))),
          (S2_lsr_i_vh V4I16:$b, imm:$c)>;
-def: Pat<(shl V4I16:$b, (v4i16 (HexagonVSPLAT u4_0ImmPred:$c))),
+def: Pat<(shl V4I16:$b, (v4i16 (splat_vector u4_0ImmPred:$c))),
          (S2_asl_i_vh V4I16:$b, imm:$c)>;
 
 def: Pat<(HexagonVASR V2I16:$Rs, u4_0ImmPred:$S),
@@ -1687,8 +1700,6 @@ let Predicates = [UseCompound] in {
 def: Pat<(fma F32:$Rs, F32:$Rt, F32:$Rx),
          (F2_sffma F32:$Rx, F32:$Rs, F32:$Rt)>;
 def: Pat<(fma (fneg F32:$Rs), F32:$Rt, F32:$Rx),
-         (F2_sffms F32:$Rx, F32:$Rs, F32:$Rt)>;
-def: Pat<(fma F32:$Rs, (fneg F32:$Rt), F32:$Rx),
          (F2_sffms F32:$Rx, F32:$Rs, F32:$Rt)>;
 
 def: Pat<(mul V2I32:$Rs, V2I32:$Rt),

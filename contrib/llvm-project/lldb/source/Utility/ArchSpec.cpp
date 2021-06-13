@@ -99,8 +99,10 @@ static const CoreDefinition g_core_definitions[] = {
      ArchSpec::eCore_arm_arm64, "arm64"},
     {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
      ArchSpec::eCore_arm_armv8, "armv8"},
-    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm,
-     ArchSpec::eCore_arm_armv8l, "armv8l"},
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::arm, ArchSpec::eCore_arm_armv8l,
+     "armv8l"},
+    {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
+     ArchSpec::eCore_arm_arm64e, "arm64e"},
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::aarch64_32,
      ArchSpec::eCore_arm_arm64_32, "arm64_32"},
     {eByteOrderLittle, 8, 4, 4, llvm::Triple::aarch64,
@@ -212,6 +214,11 @@ static const CoreDefinition g_core_definitions[] = {
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::hexagon,
      ArchSpec::eCore_hexagon_hexagonv5, "hexagonv5"},
 
+    {eByteOrderLittle, 4, 2, 4, llvm::Triple::riscv32, ArchSpec::eCore_riscv32,
+     "riscv32"},
+    {eByteOrderLittle, 8, 2, 4, llvm::Triple::riscv64, ArchSpec::eCore_riscv64,
+     "riscv64"},
+
     {eByteOrderLittle, 4, 4, 4, llvm::Triple::UnknownArch,
      ArchSpec::eCore_uknownMach32, "unknown-mach-32"},
     {eByteOrderLittle, 8, 4, 4, llvm::Triple::UnknownArch,
@@ -265,130 +272,72 @@ void ArchSpec::AutoComplete(CompletionRequest &request) {
 // allows the precedence to be set when the table is built.
 #define SUBTYPE_MASK 0x00FFFFFFu
 
+// clang-format off
 static const ArchDefinitionEntry g_macho_arch_entries[] = {
-    {ArchSpec::eCore_arm_generic, llvm::MachO::CPU_TYPE_ARM, CPU_ANY,
-     UINT32_MAX, UINT32_MAX},
-    {ArchSpec::eCore_arm_generic, llvm::MachO::CPU_TYPE_ARM, 0, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv4, llvm::MachO::CPU_TYPE_ARM, 5, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv4t, llvm::MachO::CPU_TYPE_ARM, 5, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv6, llvm::MachO::CPU_TYPE_ARM, 6, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv6m, llvm::MachO::CPU_TYPE_ARM, 14, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv5, llvm::MachO::CPU_TYPE_ARM, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv5e, llvm::MachO::CPU_TYPE_ARM, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv5t, llvm::MachO::CPU_TYPE_ARM, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_xscale, llvm::MachO::CPU_TYPE_ARM, 8, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7, llvm::MachO::CPU_TYPE_ARM, 9, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7f, llvm::MachO::CPU_TYPE_ARM, 10, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7s, llvm::MachO::CPU_TYPE_ARM, 11, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7k, llvm::MachO::CPU_TYPE_ARM, 12, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7m, llvm::MachO::CPU_TYPE_ARM, 15, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_armv7em, llvm::MachO::CPU_TYPE_ARM, 16, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64, llvm::MachO::CPU_TYPE_ARM64, 1, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64, llvm::MachO::CPU_TYPE_ARM64, 0, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64, llvm::MachO::CPU_TYPE_ARM64, 13, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64_32, llvm::MachO::CPU_TYPE_ARM64_32, 0,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64_32, llvm::MachO::CPU_TYPE_ARM64_32, 1,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_arm_arm64, llvm::MachO::CPU_TYPE_ARM64, CPU_ANY,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_thumb, llvm::MachO::CPU_TYPE_ARM, 0, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv4t, llvm::MachO::CPU_TYPE_ARM, 5, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv5, llvm::MachO::CPU_TYPE_ARM, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv5e, llvm::MachO::CPU_TYPE_ARM, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv6, llvm::MachO::CPU_TYPE_ARM, 6, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv6m, llvm::MachO::CPU_TYPE_ARM, 14, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7, llvm::MachO::CPU_TYPE_ARM, 9, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7f, llvm::MachO::CPU_TYPE_ARM, 10, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7s, llvm::MachO::CPU_TYPE_ARM, 11, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7k, llvm::MachO::CPU_TYPE_ARM, 12, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7m, llvm::MachO::CPU_TYPE_ARM, 15, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_thumbv7em, llvm::MachO::CPU_TYPE_ARM, 16, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_generic, llvm::MachO::CPU_TYPE_POWERPC, CPU_ANY,
-     UINT32_MAX, UINT32_MAX},
-    {ArchSpec::eCore_ppc_generic, llvm::MachO::CPU_TYPE_POWERPC, 0, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc601, llvm::MachO::CPU_TYPE_POWERPC, 1, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc602, llvm::MachO::CPU_TYPE_POWERPC, 2, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc603, llvm::MachO::CPU_TYPE_POWERPC, 3, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc603e, llvm::MachO::CPU_TYPE_POWERPC, 4, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc603ev, llvm::MachO::CPU_TYPE_POWERPC, 5, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc604, llvm::MachO::CPU_TYPE_POWERPC, 6, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc604e, llvm::MachO::CPU_TYPE_POWERPC, 7, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc620, llvm::MachO::CPU_TYPE_POWERPC, 8, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc750, llvm::MachO::CPU_TYPE_POWERPC, 9, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc7400, llvm::MachO::CPU_TYPE_POWERPC, 10, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc7450, llvm::MachO::CPU_TYPE_POWERPC, 11, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc_ppc970, llvm::MachO::CPU_TYPE_POWERPC, 100, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc64_generic, llvm::MachO::CPU_TYPE_POWERPC64, 0,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc64le_generic, llvm::MachO::CPU_TYPE_POWERPC64, CPU_ANY,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_ppc64_ppc970_64, llvm::MachO::CPU_TYPE_POWERPC64, 100,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_32_i386, llvm::MachO::CPU_TYPE_I386, 3, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_32_i486, llvm::MachO::CPU_TYPE_I386, 4, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_32_i486sx, llvm::MachO::CPU_TYPE_I386, 0x84,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_32_i386, llvm::MachO::CPU_TYPE_I386, CPU_ANY,
-     UINT32_MAX, UINT32_MAX},
-    {ArchSpec::eCore_x86_64_x86_64, llvm::MachO::CPU_TYPE_X86_64, 3, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_64_x86_64, llvm::MachO::CPU_TYPE_X86_64, 4, UINT32_MAX,
-     SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_64_x86_64h, llvm::MachO::CPU_TYPE_X86_64, 8,
-     UINT32_MAX, SUBTYPE_MASK},
-    {ArchSpec::eCore_x86_64_x86_64, llvm::MachO::CPU_TYPE_X86_64, CPU_ANY,
-     UINT32_MAX, UINT32_MAX},
-    // Catch any unknown mach architectures so we can always use the object and
-    // symbol mach-o files
-    {ArchSpec::eCore_uknownMach32, 0, 0, 0xFF000000u, 0x00000000u},
-    {ArchSpec::eCore_uknownMach64, llvm::MachO::CPU_ARCH_ABI64, 0, 0xFF000000u,
-     0x00000000u}};
+    {ArchSpec::eCore_arm_generic,     llvm::MachO::CPU_TYPE_ARM,        CPU_ANY,                                UINT32_MAX, UINT32_MAX},
+    {ArchSpec::eCore_arm_generic,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_ALL,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv4,       llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V4T,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv4t,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V4T,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv6,       llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V6,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv6m,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V6M,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv5,       llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V5TEJ,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv5e,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V5TEJ,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv5t,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V5TEJ,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_xscale,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_XSCALE,    UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7,       llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7f,      llvm::MachO::CPU_TYPE_ARM,        10,                                     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7s,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7S,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7k,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7K,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7m,      llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7M,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_armv7em,     llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7EM,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64e,      llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64E,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64_V8,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      llvm::MachO::CPU_SUBTYPE_ARM64_ALL,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      13,                                     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64_32,    llvm::MachO::CPU_TYPE_ARM64_32,   0,                                      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64_32,    llvm::MachO::CPU_TYPE_ARM64_32,   1,                                      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_arm_arm64,       llvm::MachO::CPU_TYPE_ARM64,      CPU_ANY,                                UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumb,           llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_ALL,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv4t,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V4T,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv5,         llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V5,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv5e,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V5,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv6,         llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V6,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv6m,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V6M,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7,         llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7,        UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7f,        llvm::MachO::CPU_TYPE_ARM,        10,                                     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7s,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7S,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7k,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7K,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7m,        llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7M,       UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_thumbv7em,       llvm::MachO::CPU_TYPE_ARM,        llvm::MachO::CPU_SUBTYPE_ARM_V7EM,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_generic,     llvm::MachO::CPU_TYPE_POWERPC,    CPU_ANY,                                UINT32_MAX, UINT32_MAX},
+    {ArchSpec::eCore_ppc_generic,     llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_ALL,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc601,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_601,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc602,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_602,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc603,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_603,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc603e,     llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_603e,  UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc603ev,    llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_603ev, UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc604,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_604,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc604e,     llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_604e,  UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc620,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_620,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc750,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_750,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc7400,     llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_7400,  UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc7450,     llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_7450,  UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc_ppc970,      llvm::MachO::CPU_TYPE_POWERPC,    llvm::MachO::CPU_SUBTYPE_POWERPC_970,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc64_generic,   llvm::MachO::CPU_TYPE_POWERPC64,  llvm::MachO::CPU_SUBTYPE_POWERPC_ALL,   UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc64le_generic, llvm::MachO::CPU_TYPE_POWERPC64,  CPU_ANY,                                UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_ppc64_ppc970_64, llvm::MachO::CPU_TYPE_POWERPC64,  100,                                    UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_32_i386,     llvm::MachO::CPU_TYPE_I386,       llvm::MachO::CPU_SUBTYPE_I386_ALL,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_32_i486,     llvm::MachO::CPU_TYPE_I386,       llvm::MachO::CPU_SUBTYPE_486,           UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_32_i486sx,   llvm::MachO::CPU_TYPE_I386,       llvm::MachO::CPU_SUBTYPE_486SX,         UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_32_i386,     llvm::MachO::CPU_TYPE_I386,       CPU_ANY,                                UINT32_MAX, UINT32_MAX},
+    {ArchSpec::eCore_x86_64_x86_64,   llvm::MachO::CPU_TYPE_X86_64,     llvm::MachO::CPU_SUBTYPE_X86_64_ALL,    UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_64_x86_64,   llvm::MachO::CPU_TYPE_X86_64,     llvm::MachO::CPU_SUBTYPE_X86_ARCH1,     UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_64_x86_64h,  llvm::MachO::CPU_TYPE_X86_64,     llvm::MachO::CPU_SUBTYPE_X86_64_H,      UINT32_MAX, SUBTYPE_MASK},
+    {ArchSpec::eCore_x86_64_x86_64,   llvm::MachO::CPU_TYPE_X86_64,     CPU_ANY, UINT32_MAX, UINT32_MAX},
+    // Catch any unknown mach architectures so we can always use the object and symbol mach-o files
+    {ArchSpec::eCore_uknownMach32,    0,                                0,                                      0xFF000000u, 0x00000000u},
+    {ArchSpec::eCore_uknownMach64,    llvm::MachO::CPU_ARCH_ABI64,      0,                                      0xFF000000u, 0x00000000u}};
+// clang-format on
 
 static const ArchDefinition g_macho_arch_def = {
     eArchTypeMachO, llvm::array_lengthof(g_macho_arch_entries),
@@ -452,6 +401,10 @@ static const ArchDefinitionEntry g_elf_arch_entries[] = {
      0xFFFFFFFFu, 0xFFFFFFFFu}, // ARC
     {ArchSpec::eCore_avr, llvm::ELF::EM_AVR, LLDB_INVALID_CPUTYPE,
      0xFFFFFFFFu, 0xFFFFFFFFu}, // AVR
+    {ArchSpec::eCore_riscv32, llvm::ELF::EM_RISCV,
+     ArchSpec::eRISCVSubType_riscv32, 0xFFFFFFFFu, 0xFFFFFFFFu}, // riscv32
+    {ArchSpec::eCore_riscv64, llvm::ELF::EM_RISCV,
+     ArchSpec::eRISCVSubType_riscv64, 0xFFFFFFFFu, 0xFFFFFFFFu}, // riscv64
 };
 
 static const ArchDefinition g_elf_arch_def = {
@@ -613,7 +566,7 @@ std::string ArchSpec::GetTargetABI() const {
   return abi;
 }
 
-void ArchSpec::SetFlags(std::string elf_abi) {
+void ArchSpec::SetFlags(const std::string &elf_abi) {
 
   uint32_t flag = GetFlags();
   if (IsMIPS()) {
@@ -846,6 +799,15 @@ bool ArchSpec::ContainsOnlyArch(const llvm::Triple &normalized_triple) {
 }
 
 void ArchSpec::MergeFrom(const ArchSpec &other) {
+  // ios-macabi always wins over macosx.
+  if ((GetTriple().getOS() == llvm::Triple::MacOSX ||
+       GetTriple().getOS() == llvm::Triple::UnknownOS) &&
+      other.GetTriple().getOS() == llvm::Triple::IOS &&
+      other.GetTriple().getEnvironment() == llvm::Triple::MacABI) {
+    (*this) = other;
+    return;
+  }
+
   if (!TripleVendorWasSpecified() && other.TripleVendorWasSpecified())
     GetTriple().setVendor(other.GetTriple().getVendor());
   if (!TripleOSWasSpecified() && other.TripleOSWasSpecified())
@@ -978,6 +940,12 @@ static bool IsCompatibleEnvironment(llvm::Triple::EnvironmentType lhs,
   if (lhs == rhs)
     return true;
 
+  // Apple simulators are a different platform than what they simulate.
+  // As the environments are different at this point, if one of them is a
+  // simulator, then they are different.
+  if (lhs == llvm::Triple::Simulator || rhs == llvm::Triple::Simulator)
+    return false;
+
   // If any of the environment is unknown then they are compatible
   if (lhs == llvm::Triple::UnknownEnvironment ||
       rhs == llvm::Triple::UnknownEnvironment)
@@ -1001,58 +969,69 @@ static bool IsCompatibleEnvironment(llvm::Triple::EnvironmentType lhs,
 bool ArchSpec::IsEqualTo(const ArchSpec &rhs, bool exact_match) const {
   // explicitly ignoring m_distribution_id in this method.
 
-  if (GetByteOrder() != rhs.GetByteOrder())
+  if (GetByteOrder() != rhs.GetByteOrder() ||
+      !cores_match(GetCore(), rhs.GetCore(), true, exact_match))
     return false;
 
-  const ArchSpec::Core lhs_core = GetCore();
-  const ArchSpec::Core rhs_core = rhs.GetCore();
+  const llvm::Triple &lhs_triple = GetTriple();
+  const llvm::Triple &rhs_triple = rhs.GetTriple();
 
-  const bool core_match = cores_match(lhs_core, rhs_core, true, exact_match);
+  const llvm::Triple::VendorType lhs_triple_vendor = lhs_triple.getVendor();
+  const llvm::Triple::VendorType rhs_triple_vendor = rhs_triple.getVendor();
+  if (lhs_triple_vendor != rhs_triple_vendor) {
+    const bool rhs_vendor_specified = rhs.TripleVendorWasSpecified();
+    const bool lhs_vendor_specified = TripleVendorWasSpecified();
+    // Both architectures had the vendor specified, so if they aren't equal
+    // then we return false
+    if (rhs_vendor_specified && lhs_vendor_specified)
+      return false;
 
-  if (core_match) {
-    const llvm::Triple &lhs_triple = GetTriple();
-    const llvm::Triple &rhs_triple = rhs.GetTriple();
-
-    const llvm::Triple::VendorType lhs_triple_vendor = lhs_triple.getVendor();
-    const llvm::Triple::VendorType rhs_triple_vendor = rhs_triple.getVendor();
-    if (lhs_triple_vendor != rhs_triple_vendor) {
-      const bool rhs_vendor_specified = rhs.TripleVendorWasSpecified();
-      const bool lhs_vendor_specified = TripleVendorWasSpecified();
-      // Both architectures had the vendor specified, so if they aren't equal
-      // then we return false
-      if (rhs_vendor_specified && lhs_vendor_specified)
-        return false;
-
-      // Only fail if both vendor types are not unknown
-      if (lhs_triple_vendor != llvm::Triple::UnknownVendor &&
-          rhs_triple_vendor != llvm::Triple::UnknownVendor)
-        return false;
-    }
-
-    const llvm::Triple::OSType lhs_triple_os = lhs_triple.getOS();
-    const llvm::Triple::OSType rhs_triple_os = rhs_triple.getOS();
-    if (lhs_triple_os != rhs_triple_os) {
-      const bool rhs_os_specified = rhs.TripleOSWasSpecified();
-      const bool lhs_os_specified = TripleOSWasSpecified();
-      // Both architectures had the OS specified, so if they aren't equal then
-      // we return false
-      if (rhs_os_specified && lhs_os_specified)
-        return false;
-
-      // Only fail if both os types are not unknown
-      if (lhs_triple_os != llvm::Triple::UnknownOS &&
-          rhs_triple_os != llvm::Triple::UnknownOS)
-        return false;
-    }
-
-    const llvm::Triple::EnvironmentType lhs_triple_env =
-        lhs_triple.getEnvironment();
-    const llvm::Triple::EnvironmentType rhs_triple_env =
-        rhs_triple.getEnvironment();
-
-    return IsCompatibleEnvironment(lhs_triple_env, rhs_triple_env);
+    // Only fail if both vendor types are not unknown
+    if (lhs_triple_vendor != llvm::Triple::UnknownVendor &&
+        rhs_triple_vendor != llvm::Triple::UnknownVendor)
+      return false;
   }
-  return false;
+
+  const llvm::Triple::OSType lhs_triple_os = lhs_triple.getOS();
+  const llvm::Triple::OSType rhs_triple_os = rhs_triple.getOS();
+  const llvm::Triple::EnvironmentType lhs_triple_env =
+      lhs_triple.getEnvironment();
+  const llvm::Triple::EnvironmentType rhs_triple_env =
+      rhs_triple.getEnvironment();
+
+  if (!exact_match) {
+    // x86_64-apple-ios-macabi, x86_64-apple-macosx are compatible, no match.
+    if ((lhs_triple_os == llvm::Triple::IOS &&
+         lhs_triple_env == llvm::Triple::MacABI &&
+         rhs_triple_os == llvm::Triple::MacOSX) ||
+        (lhs_triple_os == llvm::Triple::MacOSX &&
+         rhs_triple_os == llvm::Triple::IOS &&
+         rhs_triple_env == llvm::Triple::MacABI))
+      return true;
+  }
+
+  // x86_64-apple-ios-macabi and x86_64-apple-ios are not compatible.
+  if (lhs_triple_os == llvm::Triple::IOS &&
+      rhs_triple_os == llvm::Triple::IOS &&
+      (lhs_triple_env == llvm::Triple::MacABI ||
+       rhs_triple_env == llvm::Triple::MacABI) &&
+      lhs_triple_env != rhs_triple_env)
+    return false;
+
+  if (lhs_triple_os != rhs_triple_os) {
+    const bool lhs_os_specified = TripleOSWasSpecified();
+    const bool rhs_os_specified = rhs.TripleOSWasSpecified();
+    // If both OS types are specified and different, fail.
+    if (lhs_os_specified && rhs_os_specified)
+      return false;
+
+    // If the pair of os+env is both unspecified, match any other os+env combo.
+    if (!exact_match && ((!lhs_os_specified && !lhs_triple.hasEnvironment()) ||
+                         (!rhs_os_specified && !rhs_triple.hasEnvironment())))
+      return true;
+  }
+
+  return IsCompatibleEnvironment(lhs_triple_env, rhs_triple_env);
 }
 
 void ArchSpec::UpdateCore() {
@@ -1220,15 +1199,30 @@ static bool cores_match(const ArchSpec::Core core1, const ArchSpec::Core core2,
         return true;
       if (core2 == ArchSpec::eCore_arm_aarch64)
         return true;
+      if (core2 == ArchSpec::eCore_arm_arm64e)
+        return true;
       try_inverse = false;
     }
     break;
 
+  case ArchSpec::eCore_arm_arm64e:
+    if (!enforce_exact_match) {
+      if (core2 == ArchSpec::eCore_arm_arm64)
+        return true;
+      if (core2 == ArchSpec::eCore_arm_aarch64)
+        return true;
+      if (core2 == ArchSpec::eCore_arm_armv8)
+        return true;
+      try_inverse = false;
+    }
+    break;
   case ArchSpec::eCore_arm_aarch64:
     if (!enforce_exact_match) {
       if (core2 == ArchSpec::eCore_arm_arm64)
         return true;
       if (core2 == ArchSpec::eCore_arm_armv8)
+        return true;
+      if (core2 == ArchSpec::eCore_arm_arm64e)
         return true;
       try_inverse = false;
     }
@@ -1239,6 +1233,8 @@ static bool cores_match(const ArchSpec::Core core1, const ArchSpec::Core core2,
       if (core2 == ArchSpec::eCore_arm_aarch64)
         return true;
       if (core2 == ArchSpec::eCore_arm_armv8)
+        return true;
+      if (core2 == ArchSpec::eCore_arm_arm64e)
         return true;
       try_inverse = false;
     }
@@ -1400,7 +1396,8 @@ bool ArchSpec::IsFullySpecifiedTriple() const {
     if ((user_specified_triple.getVendor() != llvm::Triple::UnknownVendor) ||
         TripleVendorWasSpecified()) {
       const unsigned unspecified = 0;
-      if (user_specified_triple.getOSMajorVersion() != unspecified) {
+      if (!user_specified_triple.isOSDarwin() ||
+          user_specified_triple.getOSMajorVersion() != unspecified) {
         user_triple_fully_specified = true;
       }
     }

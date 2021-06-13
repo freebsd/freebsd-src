@@ -46,8 +46,7 @@ public:
   bool usesOnlyLowPageBits(RelType type) const override;
   void relocate(uint8_t *loc, const Relocation &rel,
                 uint64_t val) const override;
-  RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
-                          RelExpr expr) const override;
+  RelExpr adjustTlsExpr(RelType type, RelExpr expr) const override;
   void relaxTlsGdToLe(uint8_t *loc, const Relocation &rel,
                       uint64_t val) const override;
   void relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
@@ -71,6 +70,7 @@ AArch64::AArch64() {
   pltEntrySize = 16;
   ipltEntrySize = 16;
   defaultMaxPageSize = 65536;
+  gotBaseSymInGotPlt = false;
 
   // Align to the 2 MiB page size (known as a superpage or huge page).
   // FreeBSD automatically promotes 2 MiB-aligned allocations.
@@ -121,7 +121,7 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   case R_AARCH64_TLSLE_MOVW_TPREL_G1:
   case R_AARCH64_TLSLE_MOVW_TPREL_G1_NC:
   case R_AARCH64_TLSLE_MOVW_TPREL_G2:
-    return R_TLS;
+    return R_TPREL;
   case R_AARCH64_CALL26:
   case R_AARCH64_CONDBR19:
   case R_AARCH64_JUMP26:
@@ -147,6 +147,8 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   case R_AARCH64_LD64_GOT_LO12_NC:
   case R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC:
     return R_GOT;
+  case R_AARCH64_LD64_GOTPAGE_LO15:
+    return R_AARCH64_GOT_PAGE;
   case R_AARCH64_ADR_GOT_PAGE:
   case R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21:
     return R_AARCH64_GOT_PAGE_PC;
@@ -159,8 +161,7 @@ RelExpr AArch64::getRelExpr(RelType type, const Symbol &s,
   }
 }
 
-RelExpr AArch64::adjustRelaxExpr(RelType type, const uint8_t *data,
-                                 RelExpr expr) const {
+RelExpr AArch64::adjustTlsExpr(RelType type, RelExpr expr) const {
   if (expr == R_RELAX_TLS_GD_TO_IE) {
     if (type == R_AARCH64_TLSDESC_ADR_PAGE21)
       return R_AARCH64_RELAX_TLS_GD_TO_IE_PAGE_PC;
@@ -399,6 +400,10 @@ void AArch64::relocate(uint8_t *loc, const Relocation &rel,
   case R_AARCH64_TLSLE_LDST128_TPREL_LO12_NC:
     checkAlignment(loc, val, 16, rel);
     or32AArch64Imm(loc, getBits(val, 4, 11));
+    break;
+  case R_AARCH64_LD64_GOTPAGE_LO15:
+    checkAlignment(loc, val, 8, rel);
+    or32AArch64Imm(loc, getBits(val, 3, 14));
     break;
   case R_AARCH64_MOVW_UABS_G0:
     checkUInt(loc, val, 16, rel);

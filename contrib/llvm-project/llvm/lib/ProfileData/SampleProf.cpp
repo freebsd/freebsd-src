@@ -14,6 +14,8 @@
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/PseudoProbe.h"
+#include "llvm/ProfileData/SampleProfReader.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Error.h"
@@ -30,6 +32,8 @@ using namespace sampleprof;
 namespace llvm {
 namespace sampleprof {
 SampleProfileFormat FunctionSamples::Format;
+bool FunctionSamples::ProfileIsProbeBased = false;
+bool FunctionSamples::ProfileIsCS = false;
 bool FunctionSamples::UseMD5;
 } // namespace sampleprof
 } // namespace llvm
@@ -75,6 +79,8 @@ class SampleProfErrorCategoryType : public std::error_category {
       return "Uncompress failure";
     case sampleprof_error::zlib_unavailable:
       return "Zlib is unavailable";
+    case sampleprof_error::hash_mismatch:
+      return "Function hash mismatch";
     }
     llvm_unreachable("A value of sampleprof_error has no message.");
   }
@@ -127,6 +133,9 @@ raw_ostream &llvm::sampleprof::operator<<(raw_ostream &OS,
 
 /// Print the samples collected for a function on stream \p OS.
 void FunctionSamples::print(raw_ostream &OS, unsigned Indent) const {
+  if (getFunctionHash())
+    OS << "CFG checksum " << getFunctionHash() << "\n";
+
   OS << TotalSamples << ", " << TotalHeadSamples << ", " << BodySamples.size()
      << " sampled lines\n";
 
@@ -174,8 +183,22 @@ unsigned FunctionSamples::getOffset(const DILocation *DIL) {
       0xffff;
 }
 
-const FunctionSamples *
-FunctionSamples::findFunctionSamples(const DILocation *DIL) const {
+LineLocation FunctionSamples::getCallSiteIdentifier(const DILocation *DIL) {
+  if (FunctionSamples::ProfileIsProbeBased)
+    // In a pseudo-probe based profile, a callsite is simply represented by the
+    // ID of the probe associated with the call instruction. The probe ID is
+    // encoded in the Discriminator field of the call instruction's debug
+    // metadata.
+    return LineLocation(PseudoProbeDwarfDiscriminator::extractProbeIndex(
+                            DIL->getDiscriminator()),
+                        0);
+  else
+    return LineLocation(FunctionSamples::getOffset(DIL),
+                        DIL->getBaseDiscriminator());
+}
+
+const FunctionSamples *FunctionSamples::findFunctionSamples(
+    const DILocation *DIL, SampleProfileReaderItaniumRemapper *Remapper) const {
   assert(DIL);
   SmallVector<std::pair<LineLocation, StringRef>, 10> S;
 
@@ -190,9 +213,57 @@ FunctionSamples::findFunctionSamples(const DILocation *DIL) const {
     return this;
   const FunctionSamples *FS = this;
   for (int i = S.size() - 1; i >= 0 && FS != nullptr; i--) {
-    FS = FS->findFunctionSamplesAt(S[i].first, S[i].second);
+    FS = FS->findFunctionSamplesAt(S[i].first, S[i].second, Remapper);
   }
   return FS;
+}
+
+void FunctionSamples::findAllNames(DenseSet<StringRef> &NameSet) const {
+  NameSet.insert(Name);
+  for (const auto &BS : BodySamples)
+    for (const auto &TS : BS.second.getCallTargets())
+      NameSet.insert(TS.getKey());
+
+  for (const auto &CS : CallsiteSamples) {
+    for (const auto &NameFS : CS.second) {
+      NameSet.insert(NameFS.first);
+      NameFS.second.findAllNames(NameSet);
+    }
+  }
+}
+
+const FunctionSamples *FunctionSamples::findFunctionSamplesAt(
+    const LineLocation &Loc, StringRef CalleeName,
+    SampleProfileReaderItaniumRemapper *Remapper) const {
+  std::string CalleeGUID;
+  CalleeName = getRepInFormat(CalleeName, UseMD5, CalleeGUID);
+
+  auto iter = CallsiteSamples.find(Loc);
+  if (iter == CallsiteSamples.end())
+    return nullptr;
+  auto FS = iter->second.find(CalleeName);
+  if (FS != iter->second.end())
+    return &FS->second;
+  if (Remapper) {
+    if (auto NameInProfile = Remapper->lookUpNameInProfile(CalleeName)) {
+      auto FS = iter->second.find(*NameInProfile);
+      if (FS != iter->second.end())
+        return &FS->second;
+    }
+  }
+  // If we cannot find exact match of the callee name, return the FS with
+  // the max total count. Only do this when CalleeName is not provided,
+  // i.e., only for indirect calls.
+  if (!CalleeName.empty())
+    return nullptr;
+  uint64_t MaxTotalSamples = 0;
+  const FunctionSamples *R = nullptr;
+  for (const auto &NameFS : iter->second)
+    if (NameFS.second.getTotalSamples() >= MaxTotalSamples) {
+      MaxTotalSamples = NameFS.second.getTotalSamples();
+      R = &NameFS.second;
+    }
+  return R;
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -216,8 +287,7 @@ std::error_code ProfileSymbolList::read(const uint8_t *Data,
 std::error_code ProfileSymbolList::write(raw_ostream &OS) {
   // Sort the symbols before output. If doing compression.
   // It will make the compression much more effective.
-  std::vector<StringRef> SortedList;
-  SortedList.insert(SortedList.begin(), Syms.begin(), Syms.end());
+  std::vector<StringRef> SortedList(Syms.begin(), Syms.end());
   llvm::sort(SortedList);
 
   std::string OutputString;
@@ -232,8 +302,7 @@ std::error_code ProfileSymbolList::write(raw_ostream &OS) {
 
 void ProfileSymbolList::dump(raw_ostream &OS) const {
   OS << "======== Dump profile symbol list ========\n";
-  std::vector<StringRef> SortedList;
-  SortedList.insert(SortedList.begin(), Syms.begin(), Syms.end());
+  std::vector<StringRef> SortedList(Syms.begin(), Syms.end());
   llvm::sort(SortedList);
 
   for (auto &Sym : SortedList)

@@ -14,11 +14,13 @@
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Strings.h"
 #include "llvm/Object/Archive.h"
+#include "llvm/Support/MathExtras.h"
 
 namespace lld {
 namespace macho {
 
 class InputSection;
+class MachHeaderSection;
 class DylibFile;
 class ArchiveFile;
 
@@ -35,55 +37,174 @@ public:
   enum Kind {
     DefinedKind,
     UndefinedKind,
+    CommonKind,
     DylibKind,
     LazyKind,
+    DSOHandleKind,
   };
+
+  virtual ~Symbol() {}
 
   Kind kind() const { return static_cast<Kind>(symbolKind); }
 
-  StringRef getName() const { return {name.data, name.size}; }
+  StringRef getName() const {
+    if (nameSize == (uint32_t)-1)
+      nameSize = strlen(nameData);
+    return {nameData, nameSize};
+  }
 
-  uint64_t getVA() const;
+  virtual uint64_t getVA() const { return 0; }
 
-  uint64_t getFileOffset() const;
+  virtual uint64_t getFileOffset() const {
+    llvm_unreachable("attempt to get an offset from a non-defined symbol");
+  }
 
+  virtual bool isWeakDef() const { llvm_unreachable("cannot be weak def"); }
+
+  // Only undefined or dylib symbols can be weak references. A weak reference
+  // need not be satisfied at runtime, e.g. due to the symbol not being
+  // available on a given target platform.
+  virtual bool isWeakRef() const { llvm_unreachable("cannot be a weak ref"); }
+
+  virtual bool isTlv() const { llvm_unreachable("cannot be TLV"); }
+
+  // Whether this symbol is in the GOT or TLVPointer sections.
+  bool isInGot() const { return gotIndex != UINT32_MAX; }
+
+  // Whether this symbol is in the StubsSection.
+  bool isInStubs() const { return stubsIndex != UINT32_MAX; }
+
+  // The index of this symbol in the GOT or the TLVPointer section, depending
+  // on whether it is a thread-local. A given symbol cannot be referenced by
+  // both these sections at once.
   uint32_t gotIndex = UINT32_MAX;
 
+  uint32_t stubsIndex = UINT32_MAX;
+
+  uint32_t symtabIndex = UINT32_MAX;
+
 protected:
-  Symbol(Kind k, StringRefZ name) : symbolKind(k), name(name) {}
+  Symbol(Kind k, StringRefZ name)
+      : symbolKind(k), nameData(name.data), nameSize(name.size) {}
 
   Kind symbolKind;
-  StringRefZ name;
+  const char *nameData;
+  mutable uint32_t nameSize;
 };
 
 class Defined : public Symbol {
 public:
-  Defined(StringRefZ name, InputSection *isec, uint32_t value)
-      : Symbol(DefinedKind, name), isec(isec), value(value) {}
+  Defined(StringRefZ name, InputSection *isec, uint32_t value, bool isWeakDef,
+          bool isExternal, bool isPrivateExtern)
+      : Symbol(DefinedKind, name), isec(isec), value(value),
+        overridesWeakDef(false), privateExtern(isPrivateExtern),
+        weakDef(isWeakDef), external(isExternal) {}
+
+  bool isWeakDef() const override { return weakDef; }
+  bool isExternalWeakDef() const {
+    return isWeakDef() && isExternal() && !privateExtern;
+  }
+  bool isTlv() const override {
+    return !isAbsolute() && isThreadLocalVariables(isec->flags);
+  }
+
+  bool isExternal() const { return external; }
+  bool isAbsolute() const { return isec == nullptr; }
+
+  uint64_t getVA() const override;
+  uint64_t getFileOffset() const override;
+
+  static bool classof(const Symbol *s) { return s->kind() == DefinedKind; }
 
   InputSection *isec;
   uint32_t value;
 
-  static bool classof(const Symbol *s) { return s->kind() == DefinedKind; }
+  bool overridesWeakDef : 1;
+  bool privateExtern : 1;
+
+private:
+  const bool weakDef : 1;
+  const bool external : 1;
 };
+
+// This enum does double-duty: as a symbol property, it indicates whether & how
+// a dylib symbol is referenced. As a DylibFile property, it indicates the kind
+// of referenced symbols contained within the file. If there are both weak
+// and strong references to the same file, we will count the file as
+// strongly-referenced.
+enum class RefState : uint8_t { Unreferenced = 0, Weak = 1, Strong = 2 };
 
 class Undefined : public Symbol {
 public:
-  Undefined(StringRefZ name) : Symbol(UndefinedKind, name) {}
+  Undefined(StringRefZ name, RefState refState)
+      : Symbol(UndefinedKind, name), refState(refState) {
+    assert(refState != RefState::Unreferenced);
+  }
+
+  bool isWeakRef() const override { return refState == RefState::Weak; }
 
   static bool classof(const Symbol *s) { return s->kind() == UndefinedKind; }
+
+  RefState refState : 2;
+};
+
+// On Unix, it is traditionally allowed to write variable definitions without
+// initialization expressions (such as "int foo;") to header files. These are
+// called tentative definitions.
+//
+// Using tentative definitions is usually considered a bad practice; you should
+// write only declarations (such as "extern int foo;") to header files.
+// Nevertheless, the linker and the compiler have to do something to support
+// bad code by allowing duplicate definitions for this particular case.
+//
+// The compiler creates common symbols when it sees tentative definitions.
+// (You can suppress this behavior and let the compiler create a regular
+// defined symbol by passing -fno-common. -fno-common is the default in clang
+// as of LLVM 11.0.) When linking the final binary, if there are remaining
+// common symbols after name resolution is complete, the linker converts them
+// to regular defined symbols in a __common section.
+class CommonSymbol : public Symbol {
+public:
+  CommonSymbol(StringRefZ name, InputFile *file, uint64_t size, uint32_t align,
+               bool isPrivateExtern)
+      : Symbol(CommonKind, name), file(file), size(size),
+        align(align != 1 ? align : llvm::PowerOf2Ceil(size)),
+        privateExtern(isPrivateExtern) {
+    // TODO: cap maximum alignment
+  }
+
+  static bool classof(const Symbol *s) { return s->kind() == CommonKind; }
+
+  InputFile *const file;
+  const uint64_t size;
+  const uint32_t align;
+  const bool privateExtern;
 };
 
 class DylibSymbol : public Symbol {
 public:
-  DylibSymbol(DylibFile *file, StringRefZ name)
-      : Symbol(DylibKind, name), file(file) {}
+  DylibSymbol(DylibFile *file, StringRefZ name, bool isWeakDef,
+              RefState refState, bool isTlv)
+      : Symbol(DylibKind, name), file(file), refState(refState),
+        weakDef(isWeakDef), tlv(isTlv) {}
+
+  bool isWeakDef() const override { return weakDef; }
+  bool isWeakRef() const override { return refState == RefState::Weak; }
+  bool isReferenced() const { return refState != RefState::Unreferenced; }
+  bool isTlv() const override { return tlv; }
+  bool hasStubsHelper() const { return stubsHelperIndex != UINT32_MAX; }
 
   static bool classof(const Symbol *s) { return s->kind() == DylibKind; }
 
   DylibFile *file;
-  uint32_t stubsIndex = UINT32_MAX;
+  uint32_t stubsHelperIndex = UINT32_MAX;
   uint32_t lazyBindOffset = UINT32_MAX;
+
+  RefState refState : 2;
+
+private:
+  const bool weakDef : 1;
+  const bool tlv : 1;
 };
 
 class LazySymbol : public Symbol {
@@ -100,39 +221,62 @@ private:
   const llvm::object::Archive::Symbol sym;
 };
 
-inline uint64_t Symbol::getVA() const {
-  if (auto *d = dyn_cast<Defined>(this))
-    return d->isec->getVA() + d->value;
-  return 0;
-}
+// The Itanium C++ ABI requires dylibs to pass a pointer to __cxa_atexit which
+// does e.g. cleanup of static global variables. The ABI document says that the
+// pointer can point to any address in one of the dylib's segments, but in
+// practice ld64 seems to set it to point to the header, so that's what's
+// implemented here.
+//
+// The ARM C++ ABI uses __dso_handle similarly, but I (int3) have not yet
+// tested this on an ARM platform.
+//
+// DSOHandle effectively functions like a Defined symbol, but it doesn't belong
+// to an InputSection.
+class DSOHandle : public Symbol {
+public:
+  DSOHandle(const MachHeaderSection *header)
+      : Symbol(DSOHandleKind, name), header(header) {}
 
-inline uint64_t Symbol::getFileOffset() const {
-  if (auto *d = dyn_cast<Defined>(this))
-    return d->isec->getFileOffset() + d->value;
-  llvm_unreachable("attempt to get an offset from an undefined symbol");
-}
+  const MachHeaderSection *header;
+
+  uint64_t getVA() const override;
+
+  uint64_t getFileOffset() const override;
+
+  bool isWeakDef() const override { return false; }
+
+  bool isTlv() const override { return false; }
+
+  static constexpr StringRef name = "___dso_handle";
+
+  static bool classof(const Symbol *s) { return s->kind() == DSOHandleKind; }
+};
 
 union SymbolUnion {
   alignas(Defined) char a[sizeof(Defined)];
   alignas(Undefined) char b[sizeof(Undefined)];
-  alignas(DylibSymbol) char c[sizeof(DylibSymbol)];
-  alignas(LazySymbol) char d[sizeof(LazySymbol)];
+  alignas(CommonSymbol) char c[sizeof(CommonSymbol)];
+  alignas(DylibSymbol) char d[sizeof(DylibSymbol)];
+  alignas(LazySymbol) char e[sizeof(LazySymbol)];
+  alignas(DSOHandle) char f[sizeof(DSOHandle)];
 };
 
 template <typename T, typename... ArgT>
-void replaceSymbol(Symbol *s, ArgT &&... arg) {
+T *replaceSymbol(Symbol *s, ArgT &&... arg) {
   static_assert(sizeof(T) <= sizeof(SymbolUnion), "SymbolUnion too small");
   static_assert(alignof(T) <= alignof(SymbolUnion),
                 "SymbolUnion not aligned enough");
   assert(static_cast<Symbol *>(static_cast<T *>(nullptr)) == nullptr &&
          "Not a Symbol");
 
-  new (s) T(std::forward<ArgT>(arg)...);
+  return new (s) T(std::forward<ArgT>(arg)...);
 }
 
 } // namespace macho
 
 std::string toString(const macho::Symbol &);
+std::string toMachOString(const llvm::object::Archive::Symbol &);
+
 } // namespace lld
 
 #endif

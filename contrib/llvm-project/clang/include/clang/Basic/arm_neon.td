@@ -786,9 +786,6 @@ def VMUL_N_A64 : IOpInst<"vmul_n", "..1", "Qd", OP_MUL_N>;
 def FMLA_N : SOpInst<"vfma_n", "...1", "dQd", OP_FMLA_N>;
 def FMLS_N : SOpInst<"vfms_n", "...1", "fdQfQd", OP_FMLS_N>;
 
-def MLA_N : SOpInst<"vmla_n", "...1", "Qd", OP_MLA_N>;
-def MLS_N : SOpInst<"vmls_n", "...1", "Qd", OP_MLS_N>;
-
 ////////////////////////////////////////////////////////////////////////////////
 // Logical operations
 def BSL : SInst<"vbsl", ".U..", "dPlQdQPl">;
@@ -830,7 +827,7 @@ def XTN2 : SOpInst<"vmovn_high", "(<Q)<Q", "silUsUiUl", OP_XTN>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Signed integer saturating extract and unsigned narrow to high
-def SQXTUN2 : SOpInst<"vqmovun_high", "(<U)(<q).", "HsHiHl", OP_SQXTUN>;
+def SQXTUN2 : SOpInst<"vqmovun_high", "(<U)(<Uq).", "HsHiHl", OP_SQXTUN>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Integer saturating extract and narrow to high
@@ -868,7 +865,7 @@ def CFMGT  : SOpInst<"vcgt", "U..", "lUldQdQlQUl", OP_GT>;
 def CFMLT  : SOpInst<"vclt", "U..", "lUldQdQlQUl", OP_LT>;
 
 def CMEQ  : SInst<"vceqz", "U.",
-                  "csilfUcUsUiUlPcPsPlQcQsQiQlQfQUcQUsQUiQUlQPcQPsdQdQPl">;
+                  "csilfUcUsUiUlPcPlQcQsQiQlQfQUcQUsQUiQUlQPcdQdQPl">;
 def CMGE  : SInst<"vcgez", "U.", "csilfdQcQsQiQlQfQd">;
 def CMLE  : SInst<"vclez", "U.", "csilfdQcQsQiQlQfQd">;
 def CMGT  : SInst<"vcgtz", "U.", "csilfdQcQsQiQlQfQd">;
@@ -1263,13 +1260,13 @@ def VGET_LOW_A64  : NoTestOpInst<"vget_low", ".Q", "dPl", OP_LO>;
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Shift
 // Scalar Shift Left
-def SCALAR_SHL: SInst<"vshl", "111", "SlSUl">;
+def SCALAR_SHL: SInst<"vshl", "11(S1)", "SlSUl">;
 // Scalar Saturating Shift Left
-def SCALAR_QSHL: SInst<"vqshl", "111", "ScSsSiSlSUcSUsSUiSUl">;
+def SCALAR_QSHL: SInst<"vqshl", "11(S1)", "ScSsSiSlSUcSUsSUiSUl">;
 // Scalar Saturating Rounding Shift Left
-def SCALAR_QRSHL: SInst<"vqrshl", "111", "ScSsSiSlSUcSUsSUiSUl">;
+def SCALAR_QRSHL: SInst<"vqrshl", "11(S1)", "ScSsSiSlSUcSUsSUiSUl">;
 // Scalar Shift Rounding Left
-def SCALAR_RSHL: SInst<"vrshl", "111", "SlSUl">;
+def SCALAR_RSHL: SInst<"vrshl", "11(S1)", "SlSUl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Shift (Immediate)
@@ -1419,19 +1416,19 @@ def SCALAR_FRSQRTE : IInst<"vrsqrte", "11", "SfSd">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Integer Comparison
-def SCALAR_CMEQ : SInst<"vceq", "111", "SlSUl">;
-def SCALAR_CMEQZ : SInst<"vceqz", "11", "SlSUl">;
-def SCALAR_CMGE : SInst<"vcge", "111", "Sl">;
-def SCALAR_CMGEZ : SInst<"vcgez", "11", "Sl">;
-def SCALAR_CMHS : SInst<"vcge", "111", "SUl">;
-def SCALAR_CMLE : SInst<"vcle", "111", "SlSUl">;
-def SCALAR_CMLEZ : SInst<"vclez", "11", "Sl">;
-def SCALAR_CMLT : SInst<"vclt", "111", "SlSUl">;
-def SCALAR_CMLTZ : SInst<"vcltz", "11", "Sl">;
-def SCALAR_CMGT : SInst<"vcgt", "111", "Sl">;
-def SCALAR_CMGTZ : SInst<"vcgtz", "11", "Sl">;
-def SCALAR_CMHI : SInst<"vcgt", "111", "SUl">;
-def SCALAR_CMTST : SInst<"vtst", "111", "SlSUl">;
+def SCALAR_CMEQ : SInst<"vceq", "(U1)11", "SlSUl">;
+def SCALAR_CMEQZ : SInst<"vceqz", "(U1)1", "SlSUl">;
+def SCALAR_CMGE : SInst<"vcge", "(U1)11", "Sl">;
+def SCALAR_CMGEZ : SInst<"vcgez", "(U1)1", "Sl">;
+def SCALAR_CMHS : SInst<"vcge", "(U1)11", "SUl">;
+def SCALAR_CMLE : SInst<"vcle", "(U1)11", "SlSUl">;
+def SCALAR_CMLEZ : SInst<"vclez", "(U1)1", "Sl">;
+def SCALAR_CMLT : SInst<"vclt", "(U1)11", "SlSUl">;
+def SCALAR_CMLTZ : SInst<"vcltz", "(U1)1", "Sl">;
+def SCALAR_CMGT : SInst<"vcgt", "(U1)11", "Sl">;
+def SCALAR_CMGTZ : SInst<"vcgtz", "(U1)1", "Sl">;
+def SCALAR_CMHI : SInst<"vcgt", "(U1)11", "SUl">;
+def SCALAR_CMTST : SInst<"vtst", "(U1)11", "SlSUl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Floating-point Comparison
@@ -1498,7 +1495,7 @@ def SCALAR_SQDMULL : SInst<"vqdmull", "(1>)11", "SsSi">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Signed Saturating Extract Unsigned Narrow
-def SCALAR_SQXTUN : SInst<"vqmovun", "(1<)1", "SsSiSl">;
+def SCALAR_SQXTUN : SInst<"vqmovun", "(U1<)1", "SsSiSl">;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scalar Signed Saturating Extract Narrow
@@ -1902,22 +1899,52 @@ let ArchGuard = "defined(__ARM_FEATURE_BF16_VECTOR_ARITHMETIC)" in {
   def VFMLALT_LANEQ_BF : SOpInst<"vbfmlalt_laneq", "..B(BQ)I", "Qf", OP_BFMLALT_LN>;
 }
 
+multiclass VCMLA_ROTS<string type, string lanety, string laneqty> {
+  foreach ROT = ["", "_rot90", "_rot180", "_rot270" ] in {
+    def   : SInst<"vcmla" # ROT, "....", type # "Q" # type>;
+
+    // vcmla{ROT}_lane
+    def : SOpInst<"vcmla" # ROT # "_lane", "...qI", type, Op<(call "vcmla" # ROT, $p0, $p1,
+           (bitcast $p0, (dup_typed lanety , (call "vget_lane", (bitcast lanety, $p2), $p3))))>>;
+
+    // vcmlaq{ROT}_lane
+    def : SOpInst<"vcmla" # ROT # "_lane", "...qI", "Q" # type, Op<(call "vcmla" # ROT, $p0, $p1,
+           (bitcast $p0, (dup_typed laneqty , (call "vget_lane", (bitcast lanety, $p2), $p3))))>>;
+
+    let isLaneQ = 1 in  {
+      // vcmla{ROT}_laneq
+      def : SOpInst<"vcmla" # ROT # "_laneq", "...QI", type,  Op<(call "vcmla" # ROT, $p0, $p1,
+              (bitcast $p0, (dup_typed lanety, (call "vget_lane", (bitcast laneqty, $p2), $p3))))>>;
+
+      // vcmlaq{ROT}_laneq
+      def : SOpInst<"vcmla" # ROT # "_laneq", "...QI", "Q" # type, Op<(call "vcmla" # ROT, $p0, $p1,
+             (bitcast $p0, (dup_typed laneqty , (call "vget_lane", (bitcast laneqty, $p2), $p3))))>>;
+    }
+  }
+}
+
 // v8.3-A Vector complex addition intrinsics
 let ArchGuard = "defined(__ARM_FEATURE_COMPLEX) && defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)" in {
   def VCADD_ROT90_FP16   : SInst<"vcadd_rot90", "...", "h">;
   def VCADD_ROT270_FP16  : SInst<"vcadd_rot270", "...", "h">;
   def VCADDQ_ROT90_FP16  : SInst<"vcaddq_rot90", "QQQ", "h">;
   def VCADDQ_ROT270_FP16 : SInst<"vcaddq_rot270", "QQQ", "h">;
+
+  defm VCMLA_FP16  : VCMLA_ROTS<"h", "uint32x2_t", "uint32x4_t">;
 }
 let ArchGuard = "defined(__ARM_FEATURE_COMPLEX)" in {
   def VCADD_ROT90   : SInst<"vcadd_rot90", "...", "f">;
   def VCADD_ROT270  : SInst<"vcadd_rot270", "...", "f">;
   def VCADDQ_ROT90  : SInst<"vcaddq_rot90", "QQQ", "f">;
   def VCADDQ_ROT270 : SInst<"vcaddq_rot270", "QQQ", "f">;
+
+  defm VCMLA_F32        : VCMLA_ROTS<"f", "uint64x1_t", "uint64x2_t">;
 }
 let ArchGuard = "defined(__ARM_FEATURE_COMPLEX) && defined(__aarch64__)" in {
   def VCADDQ_ROT90_FP64  : SInst<"vcaddq_rot90", "QQQ", "d">;
   def VCADDQ_ROT270_FP64 : SInst<"vcaddq_rot270", "QQQ", "d">;
+
+  defm VCMLA_FP64 : VCMLA_ROTS<"d", "uint64x2_t", "uint64x2_t">;
 }
 
 // V8.2-A BFloat intrinsics

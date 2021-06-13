@@ -121,6 +121,8 @@ public:
 
     bool hasFileAtIndex(uint64_t FileIndex) const;
 
+    Optional<uint64_t> getLastValidFileIndex() const;
+
     bool
     getFileNameByIndex(uint64_t FileIndex, StringRef CompDir,
                        DILineInfoSpecifier::FileLineInfoKind Kind,
@@ -251,6 +253,10 @@ public:
       return Prologue.hasFileAtIndex(FileIndex);
     }
 
+    Optional<uint64_t> getLastValidFileIndex() const {
+      return Prologue.getLastValidFileIndex();
+    }
+
     /// Extracts filename by its index in filename table in prologue.
     /// In Dwarf 4, the files are 1-indexed and the current compilation file
     /// name is not represented in the list. In DWARF v5, the files are
@@ -309,12 +315,10 @@ public:
   /// Helper to allow for parsing of an entire .debug_line section in sequence.
   class SectionParser {
   public:
-    using cu_range = DWARFUnitVector::iterator_range;
-    using tu_range = DWARFUnitVector::iterator_range;
     using LineToUnitMap = std::map<uint64_t, DWARFUnit *>;
 
-    SectionParser(DWARFDataExtractor &Data, const DWARFContext &C, cu_range CUs,
-                  tu_range TUs);
+    SectionParser(DWARFDataExtractor &Data, const DWARFContext &C,
+                  DWARFUnitVector::iterator_range Units);
 
     /// Get the next line table from the section. Report any issues via the
     /// handlers.

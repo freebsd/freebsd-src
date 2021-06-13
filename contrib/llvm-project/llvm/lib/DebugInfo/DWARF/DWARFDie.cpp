@@ -80,7 +80,7 @@ static void dumpLocation(raw_ostream &OS, DWARFFormValue &FormValue,
     DataExtractor Data(StringRef((const char *)Expr.data(), Expr.size()),
                        Ctx.isLittleEndian(), 0);
     DWARFExpression(Data, U->getAddressByteSize(), U->getFormParams().Format)
-        .print(OS, MRI, U);
+        .print(OS, DumpOpts, MRI, U);
     return;
   }
 
@@ -113,7 +113,6 @@ static void dumpTypeTagName(raw_ostream &OS, dwarf::Tag T) {
 }
 
 static void dumpArrayType(raw_ostream &OS, const DWARFDie &D) {
-  Optional<uint64_t> Bound;
   for (const DWARFDie &C : D.children())
     if (C.getTag() == DW_TAG_subrange_type) {
       Optional<uint64_t> LB;
@@ -269,13 +268,23 @@ static void dumpAttribute(raw_ostream &OS, const DWARFDie &Die,
     WithColor(OS, Color) << Name;
   else if (Attr == DW_AT_decl_line || Attr == DW_AT_call_line)
     OS << *FormValue.getAsUnsignedConstant();
-  else if (Attr == DW_AT_high_pc && !DumpOpts.ShowForm && !DumpOpts.Verbose &&
-           FormValue.getAsUnsignedConstant()) {
+  else if (Attr == DW_AT_low_pc &&
+           (FormValue.getAsAddress() ==
+            dwarf::computeTombstoneAddress(U->getAddressByteSize()))) {
+    if (DumpOpts.Verbose) {
+      FormValue.dump(OS, DumpOpts);
+      OS << " (";
+    }
+    OS << "dead code";
+    if (DumpOpts.Verbose)
+      OS << ')';
+  } else if (Attr == DW_AT_high_pc && !DumpOpts.ShowForm && !DumpOpts.Verbose &&
+             FormValue.getAsUnsignedConstant()) {
     if (DumpOpts.ShowAddresses) {
       // Print the actual address rather than the offset.
       uint64_t LowPC, HighPC, Index;
       if (Die.getLowAndHighPC(LowPC, HighPC, Index))
-        OS << format("0x%016" PRIx64, HighPC);
+        DWARFFormValue::dumpAddress(OS, U->getAddressByteSize(), HighPC);
       else
         FormValue.dump(OS, DumpOpts);
     }
@@ -368,8 +377,7 @@ DWARFDie::findRecursively(ArrayRef<dwarf::Attribute> Attrs) const {
   Seen.insert(*this);
 
   while (!Worklist.empty()) {
-    DWARFDie Die = Worklist.back();
-    Worklist.pop_back();
+    DWARFDie Die = Worklist.pop_back_val();
 
     if (!Die.isValid())
       continue;
@@ -416,6 +424,9 @@ Optional<uint64_t> DWARFDie::getLocBaseAttribute() const {
 }
 
 Optional<uint64_t> DWARFDie::getHighPC(uint64_t LowPC) const {
+  uint64_t Tombstone = dwarf::computeTombstoneAddress(U->getAddressByteSize());
+  if (LowPC == Tombstone)
+    return None;
   if (auto FormValue = find(DW_AT_high_pc)) {
     if (auto Address = FormValue->getAsAddress()) {
       // High PC is an address.
@@ -467,8 +478,7 @@ void DWARFDie::collectChildrenAddressRanges(
     return;
   if (isSubprogramDIE()) {
     if (auto DIERangesOrError = getAddressRanges())
-      Ranges.insert(Ranges.end(), DIERangesOrError.get().begin(),
-                    DIERangesOrError.get().end());
+      llvm::append_range(Ranges, DIERangesOrError.get());
     else
       llvm::consumeError(DIERangesOrError.takeError());
   }
@@ -556,6 +566,17 @@ const char *DWARFDie::getLinkageName() const {
 
 uint64_t DWARFDie::getDeclLine() const {
   return toUnsigned(findRecursively(DW_AT_decl_line), 0);
+}
+
+std::string
+DWARFDie::getDeclFile(DILineInfoSpecifier::FileLineInfoKind Kind) const {
+  std::string FileName;
+  if (auto DeclFile = toUnsigned(findRecursively(DW_AT_decl_file))) {
+    if (const auto *LT = U->getContext().getLineTableForUnit(U)) {
+      LT->getFileNameByIndex(*DeclFile, U->getCompilationDir(), Kind, FileName);
+    }
+  }
+  return FileName;
 }
 
 void DWARFDie::getCallerFrame(uint32_t &CallFile, uint32_t &CallLine,

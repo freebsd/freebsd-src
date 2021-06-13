@@ -27,7 +27,7 @@
 
 namespace llvm {
 
-class MemoryBuffer;
+class MemoryBufferRef;
 
 } // namespace llvm
 
@@ -128,6 +128,10 @@ class Lexer : public PreprocessorLexer {
 
   bool HasLeadingEmptyMacro;
 
+  // NewLinePtr - A pointer to new line character '\n' being lexed. For '\r\n',
+  // it also points to '\n.'
+  const char *NewLinePtr;
+
   // CurrentConflictMarkerState - The kind of conflict marker we are handling.
   ConflictMarkerKind CurrentConflictMarkerState;
 
@@ -138,7 +142,7 @@ public:
   /// with the specified preprocessor managing the lexing process.  This lexer
   /// assumes that the associated file buffer and Preprocessor objects will
   /// outlive it, so it doesn't take ownership of either of them.
-  Lexer(FileID FID, const llvm::MemoryBuffer *InputFile, Preprocessor &PP);
+  Lexer(FileID FID, const llvm::MemoryBufferRef &InputFile, Preprocessor &PP);
 
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
@@ -149,7 +153,7 @@ public:
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
   /// text range will outlive it, so it doesn't take ownership of it.
-  Lexer(FileID FID, const llvm::MemoryBuffer *FromFile,
+  Lexer(FileID FID, const llvm::MemoryBufferRef &FromFile,
         const SourceManager &SM, const LangOptions &LangOpts);
 
   Lexer(const Lexer &) = delete;

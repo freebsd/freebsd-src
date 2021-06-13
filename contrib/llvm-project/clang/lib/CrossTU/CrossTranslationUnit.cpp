@@ -157,13 +157,12 @@ parseCrossTUIndex(StringRef IndexPath) {
   unsigned LineNo = 1;
   while (std::getline(ExternalMapFile, Line)) {
     StringRef LineRef{Line};
-    const size_t Delimiter = LineRef.find(" ");
+    const size_t Delimiter = LineRef.find(' ');
     if (Delimiter > 0 && Delimiter != std::string::npos) {
       StringRef LookupName = LineRef.substr(0, Delimiter);
 
       // Store paths with posix-style directory separator.
-      SmallVector<char, 32> FilePath;
-      llvm::Twine{LineRef.substr(Delimiter + 1)}.toVector(FilePath);
+      SmallString<32> FilePath(LineRef.substr(Delimiter + 1));
       llvm::sys::path::native(FilePath, llvm::sys::path::Style::posix);
 
       bool InsertionOccured;
@@ -624,15 +623,14 @@ parseInvocationList(StringRef FileContent, llvm::sys::path::Style PathStyle) {
       return llvm::make_error<IndexError>(
           index_error_code::invocation_list_wrong_format);
 
-    SmallVector<char, 32> ValueStorage;
+    SmallString<32> ValueStorage;
     StringRef SourcePath = Key->getValue(ValueStorage);
 
     // Store paths with PathStyle directory separator.
-    SmallVector<char, 32> NativeSourcePath;
-    llvm::Twine{SourcePath}.toVector(NativeSourcePath);
+    SmallString<32> NativeSourcePath(SourcePath);
     llvm::sys::path::native(NativeSourcePath, PathStyle);
 
-    StringRef InvocationKey{NativeSourcePath.begin(), NativeSourcePath.size()};
+    StringRef InvocationKey(NativeSourcePath);
 
     if (InvocationList.find(InvocationKey) != InvocationList.end())
       return llvm::make_error<IndexError>(

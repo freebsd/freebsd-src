@@ -1128,8 +1128,7 @@ class MDTuple : public MDNode {
                           StorageType Storage, bool ShouldCreate = true);
 
   TempMDTuple cloneImpl() const {
-    return getTemporary(getContext(),
-                        SmallVector<Metadata *, 4>(op_begin(), op_end()));
+    return getTemporary(getContext(), SmallVector<Metadata *, 4>(operands()));
   }
 
 public:
@@ -1189,6 +1188,33 @@ TempMDTuple MDNode::getTemporary(LLVMContext &Context,
 void TempMDNodeDeleter::operator()(MDNode *Node) const {
   MDNode::deleteTemporary(Node);
 }
+
+/// This is a simple wrapper around an MDNode which provides a higher-level
+/// interface by hiding the details of how alias analysis information is encoded
+/// in its operands.
+class AliasScopeNode {
+  const MDNode *Node = nullptr;
+
+public:
+  AliasScopeNode() = default;
+  explicit AliasScopeNode(const MDNode *N) : Node(N) {}
+
+  /// Get the MDNode for this AliasScopeNode.
+  const MDNode *getNode() const { return Node; }
+
+  /// Get the MDNode for this AliasScopeNode's domain.
+  const MDNode *getDomain() const {
+    if (Node->getNumOperands() < 2)
+      return nullptr;
+    return dyn_cast_or_null<MDNode>(Node->getOperand(1));
+  }
+  StringRef getName() const {
+    if (Node->getNumOperands() > 2)
+      if (MDString *N = dyn_cast_or_null<MDString>(Node->getOperand(2)))
+        return N->getString();
+    return StringRef();
+  }
+};
 
 /// Typed iterator through MDNode operands.
 ///
