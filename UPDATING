@@ -28,9 +28,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20210611:
+	svnlite has been removed from base. Should you need svn for any reason
+	please install the svn package or port.
+
+20210611:
 	Commit e1a907a25cfa changed the internal KAPI between the krpc
 	and nfsserver.  As such, both modules must be rebuilt from
 	sources.  Bump __FreeBSD_version to 1400022.
+
+20210610:
+	The an(4) driver has been removed from FreeBSD.
 
 20210608:
 	The vendor/openzfs branch was renamed to vendor/openzfs/legacy to
