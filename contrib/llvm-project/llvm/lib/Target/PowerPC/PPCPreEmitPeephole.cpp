@@ -21,8 +21,8 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -39,10 +39,54 @@ STATISTIC(NumFrameOffFoldInPreEmit,
           "Number of folding frame offset by using r+r in pre-emit peephole");
 
 static cl::opt<bool>
+EnablePCRelLinkerOpt("ppc-pcrel-linker-opt", cl::Hidden, cl::init(true),
+                     cl::desc("enable PC Relative linker optimization"));
+
+static cl::opt<bool>
 RunPreEmitPeephole("ppc-late-peephole", cl::Hidden, cl::init(true),
                    cl::desc("Run pre-emit peephole optimizations."));
 
 namespace {
+
+static bool hasPCRelativeForm(MachineInstr &Use) {
+  switch (Use.getOpcode()) {
+  default:
+    return false;
+  case PPC::LBZ:
+  case PPC::LBZ8:
+  case PPC::LHA:
+  case PPC::LHA8:
+  case PPC::LHZ:
+  case PPC::LHZ8:
+  case PPC::LWZ:
+  case PPC::LWZ8:
+  case PPC::STB:
+  case PPC::STB8:
+  case PPC::STH:
+  case PPC::STH8:
+  case PPC::STW:
+  case PPC::STW8:
+  case PPC::LD:
+  case PPC::STD:
+  case PPC::LWA:
+  case PPC::LXSD:
+  case PPC::LXSSP:
+  case PPC::LXV:
+  case PPC::STXSD:
+  case PPC::STXSSP:
+  case PPC::STXV:
+  case PPC::LFD:
+  case PPC::LFS:
+  case PPC::STFD:
+  case PPC::STFS:
+  case PPC::DFLOADf32:
+  case PPC::DFLOADf64:
+  case PPC::DFSTOREf32:
+  case PPC::DFSTOREf64:
+    return true;
+  }
+}
+
   class PPCPreEmitPeephole : public MachineFunctionPass {
   public:
     static char ID;
@@ -77,7 +121,7 @@ namespace {
       for (auto BBI = MBB.instr_begin(); BBI != MBB.instr_end(); ++BBI) {
         // Skip load immediate that is marked to be erased later because it
         // cannot be used to replace any other instructions.
-        if (InstrsToErase.find(&*BBI) != InstrsToErase.end())
+        if (InstrsToErase.contains(&*BBI))
           continue;
         // Skip non-load immediate.
         unsigned Opc = BBI->getOpcode();
@@ -172,6 +216,196 @@ namespace {
       return !InstrsToErase.empty();
     }
 
+    // Check if this instruction is a PLDpc that is part of a GOT indirect
+    // access.
+    bool isGOTPLDpc(MachineInstr &Instr) {
+      if (Instr.getOpcode() != PPC::PLDpc)
+        return false;
+
+      // The result must be a register.
+      const MachineOperand &LoadedAddressReg = Instr.getOperand(0);
+      if (!LoadedAddressReg.isReg())
+        return false;
+
+      // Make sure that this is a global symbol.
+      const MachineOperand &SymbolOp = Instr.getOperand(1);
+      if (!SymbolOp.isGlobal())
+        return false;
+
+      // Finally return true only if the GOT flag is present.
+      return (SymbolOp.getTargetFlags() & PPCII::MO_GOT_FLAG);
+    }
+
+    bool addLinkerOpt(MachineBasicBlock &MBB, const TargetRegisterInfo *TRI) {
+      MachineFunction *MF = MBB.getParent();
+      // If the linker opt is disabled then just return.
+      if (!EnablePCRelLinkerOpt)
+        return false;
+
+      // Add this linker opt only if we are using PC Relative memops.
+      if (!MF->getSubtarget<PPCSubtarget>().isUsingPCRelativeCalls())
+        return false;
+
+      // Struct to keep track of one def/use pair for a GOT indirect access.
+      struct GOTDefUsePair {
+        MachineBasicBlock::iterator DefInst;
+        MachineBasicBlock::iterator UseInst;
+        Register DefReg;
+        Register UseReg;
+        bool StillValid;
+      };
+      // Vector of def/ues pairs in this basic block.
+      SmallVector<GOTDefUsePair, 4> CandPairs;
+      SmallVector<GOTDefUsePair, 4> ValidPairs;
+      bool MadeChange = false;
+
+      // Run through all of the instructions in the basic block and try to
+      // collect potential pairs of GOT indirect access instructions.
+      for (auto BBI = MBB.instr_begin(); BBI != MBB.instr_end(); ++BBI) {
+        // Look for the initial GOT indirect load.
+        if (isGOTPLDpc(*BBI)) {
+          GOTDefUsePair CurrentPair{BBI, MachineBasicBlock::iterator(),
+                                    BBI->getOperand(0).getReg(),
+                                    PPC::NoRegister, true};
+          CandPairs.push_back(CurrentPair);
+          continue;
+        }
+
+        // We haven't encountered any new PLD instructions, nothing to check.
+        if (CandPairs.empty())
+          continue;
+
+        // Run through the candidate pairs and see if any of the registers
+        // defined in the PLD instructions are used by this instruction.
+        // Note: the size of CandPairs can change in the loop.
+        for (unsigned Idx = 0; Idx < CandPairs.size(); Idx++) {
+          GOTDefUsePair &Pair = CandPairs[Idx];
+          // The instruction does not use or modify this PLD's def reg,
+          // ignore it.
+          if (!BBI->readsRegister(Pair.DefReg, TRI) &&
+              !BBI->modifiesRegister(Pair.DefReg, TRI))
+            continue;
+
+          // The use needs to be used in the address compuation and not
+          // as the register being stored for a store.
+          const MachineOperand *UseOp =
+              hasPCRelativeForm(*BBI) ? &BBI->getOperand(2) : nullptr;
+
+          // Check for a valid use.
+          if (UseOp && UseOp->isReg() && UseOp->getReg() == Pair.DefReg &&
+              UseOp->isUse() && UseOp->isKill()) {
+            Pair.UseInst = BBI;
+            Pair.UseReg = BBI->getOperand(0).getReg();
+            ValidPairs.push_back(Pair);
+          }
+          CandPairs.erase(CandPairs.begin() + Idx);
+        }
+      }
+
+      // Go through all of the pairs and check for any more valid uses.
+      for (auto Pair = ValidPairs.begin(); Pair != ValidPairs.end(); Pair++) {
+        // We shouldn't be here if we don't have a valid pair.
+        assert(Pair->UseInst.isValid() && Pair->StillValid &&
+               "Kept an invalid def/use pair for GOT PCRel opt");
+        // We have found a potential pair. Search through the instructions
+        // between the def and the use to see if it is valid to mark this as a
+        // linker opt.
+        MachineBasicBlock::iterator BBI = Pair->DefInst;
+        ++BBI;
+        for (; BBI != Pair->UseInst; ++BBI) {
+          if (BBI->readsRegister(Pair->UseReg, TRI) ||
+              BBI->modifiesRegister(Pair->UseReg, TRI)) {
+            Pair->StillValid = false;
+            break;
+          }
+        }
+
+        if (!Pair->StillValid)
+          continue;
+
+        // The load/store instruction that uses the address from the PLD will
+        // either use a register (for a store) or define a register (for the
+        // load). That register will be added as an implicit def to the PLD
+        // and as an implicit use on the second memory op. This is a precaution
+        // to prevent future passes from using that register between the two
+        // instructions.
+        MachineOperand ImplDef =
+            MachineOperand::CreateReg(Pair->UseReg, true, true);
+        MachineOperand ImplUse =
+            MachineOperand::CreateReg(Pair->UseReg, false, true);
+        Pair->DefInst->addOperand(ImplDef);
+        Pair->UseInst->addOperand(ImplUse);
+
+        // Create the symbol.
+        MCContext &Context = MF->getContext();
+        MCSymbol *Symbol = Context.createNamedTempSymbol("pcrel");
+        MachineOperand PCRelLabel =
+            MachineOperand::CreateMCSymbol(Symbol, PPCII::MO_PCREL_OPT_FLAG);
+        Pair->DefInst->addOperand(*MF, PCRelLabel);
+        Pair->UseInst->addOperand(*MF, PCRelLabel);
+        MadeChange |= true;
+      }
+      return MadeChange;
+    }
+
+    // This function removes redundant pairs of accumulator prime/unprime
+    // instructions. In some situations, it's possible the compiler inserts an
+    // accumulator prime instruction followed by an unprime instruction (e.g.
+    // when we store an accumulator after restoring it from a spill). If the
+    // accumulator is not used between the two, they can be removed. This
+    // function removes these redundant pairs from basic blocks.
+    // The algorithm is quite straightforward - every time we encounter a prime
+    // instruction, the primed register is added to a candidate set. Any use
+    // other than a prime removes the candidate from the set and any de-prime
+    // of a current candidate marks both the prime and de-prime for removal.
+    // This way we ensure we only remove prime/de-prime *pairs* with no
+    // intervening uses.
+    bool removeAccPrimeUnprime(MachineBasicBlock &MBB) {
+      DenseSet<MachineInstr *> InstrsToErase;
+      // Initially, none of the acc registers are candidates.
+      SmallVector<MachineInstr *, 8> Candidates(
+          PPC::UACCRCRegClass.getNumRegs(), nullptr);
+
+      for (MachineInstr &BBI : MBB.instrs()) {
+        unsigned Opc = BBI.getOpcode();
+        // If we are visiting a xxmtacc instruction, we add it and its operand
+        // register to the candidate set.
+        if (Opc == PPC::XXMTACC) {
+          Register Acc = BBI.getOperand(0).getReg();
+          assert(PPC::ACCRCRegClass.contains(Acc) &&
+                 "Unexpected register for XXMTACC");
+          Candidates[Acc - PPC::ACC0] = &BBI;
+        }
+        // If we are visiting a xxmfacc instruction and its operand register is
+        // in the candidate set, we mark the two instructions for removal.
+        else if (Opc == PPC::XXMFACC) {
+          Register Acc = BBI.getOperand(0).getReg();
+          assert(PPC::ACCRCRegClass.contains(Acc) &&
+                 "Unexpected register for XXMFACC");
+          if (!Candidates[Acc - PPC::ACC0])
+            continue;
+          InstrsToErase.insert(&BBI);
+          InstrsToErase.insert(Candidates[Acc - PPC::ACC0]);
+        }
+        // If we are visiting an instruction using an accumulator register
+        // as operand, we remove it from the candidate set.
+        else {
+          for (MachineOperand &Operand : BBI.operands()) {
+            if (!Operand.isReg())
+              continue;
+            Register Reg = Operand.getReg();
+            if (PPC::ACCRCRegClass.contains(Reg))
+              Candidates[Reg - PPC::ACC0] = nullptr;
+          }
+        }
+      }
+
+      for (MachineInstr *MI : InstrsToErase)
+        MI->eraseFromParent();
+      NumRemovedInPreEmit += InstrsToErase.size();
+      return !InstrsToErase.empty();
+    }
+
     bool runOnMachineFunction(MachineFunction &MF) override {
       if (skipFunction(MF.getFunction()) || !RunPreEmitPeephole) {
         // Remove UNENCODED_NOP even when this pass is disabled.
@@ -192,6 +426,8 @@ namespace {
       SmallVector<MachineInstr *, 4> InstrsToErase;
       for (MachineBasicBlock &MBB : MF) {
         Changed |= removeRedundantLIs(MBB, TRI);
+        Changed |= addLinkerOpt(MBB, TRI);
+        Changed |= removeAccPrimeUnprime(MBB);
         for (MachineInstr &MI : MBB) {
           unsigned Opc = MI.getOpcode();
           if (Opc == PPC::UNENCODED_NOP) {

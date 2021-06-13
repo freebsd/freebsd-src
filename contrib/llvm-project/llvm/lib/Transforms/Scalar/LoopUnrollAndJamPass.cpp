@@ -41,6 +41,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/LoopPeel.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
@@ -287,6 +288,13 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
                                  None, None, None, None, None);
   TargetTransformInfo::PeelingPreferences PP =
       gatherPeelingPreferences(L, SE, TTI, None, None);
+
+  TransformationMode EnableMode = hasUnrollAndJamTransformation(L);
+  if (EnableMode & TM_Disable)
+    return LoopUnrollResult::Unmodified;
+  if (EnableMode & TM_ForcedByUser)
+    UP.UnrollAndJam = true;
+
   if (AllowUnrollAndJam.getNumOccurrences() > 0)
     UP.UnrollAndJam = AllowUnrollAndJam;
   if (UnrollAndJamThreshold.getNumOccurrences() > 0)
@@ -298,10 +306,6 @@ tryToUnrollAndJamLoop(Loop *L, DominatorTree &DT, LoopInfo *LI,
   LLVM_DEBUG(dbgs() << "Loop Unroll and Jam: F["
                     << L->getHeader()->getParent()->getName() << "] Loop %"
                     << L->getHeader()->getName() << "\n");
-
-  TransformationMode EnableMode = hasUnrollAndJamTransformation(L);
-  if (EnableMode & TM_Disable)
-    return LoopUnrollResult::Unmodified;
 
   // A loop with any unroll pragma (enabling/disabling/count/etc) is left for
   // the unroller, so long as it does not explicitly have unroll_and_jam

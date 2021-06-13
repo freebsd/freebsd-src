@@ -75,6 +75,21 @@ MaxCRBitSpillDist("ppc-max-crbit-spill-dist",
                            "spill on ppc"),
                   cl::Hidden, cl::init(100));
 
+// Copies/moves of physical accumulators are expensive operations
+// that should be avoided whenever possible. MMA instructions are
+// meant to be used in performance-sensitive computational kernels.
+// This option is provided, at least for the time being, to give the
+// user a tool to detect this expensive operation and either rework
+// their code or report a compiler bug if that turns out to be the
+// cause.
+#ifndef NDEBUG
+static cl::opt<bool>
+ReportAccMoves("ppc-report-acc-moves",
+               cl::desc("Emit information about accumulator register spills "
+                        "and copies"),
+               cl::Hidden, cl::init(false));
+#endif
+
 static unsigned offsetMinAlignForOpcode(unsigned OpC);
 
 PPCRegisterInfo::PPCRegisterInfo(const PPCTargetMachine &TM)
@@ -141,6 +156,10 @@ PPCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
 const MCPhysReg*
 PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   const PPCSubtarget &Subtarget = MF->getSubtarget<PPCSubtarget>();
+  if (Subtarget.isAIXABI() &&
+      (Subtarget.hasAltivec() && !TM.getAIXExtendedAltivecABI()))
+    report_fatal_error("the default AIX Altivec ABI is not yet "
+                       "supported.");
   if (MF->getFunction().getCallingConv() == CallingConv::AnyReg) {
     if (!TM.isPPC64() && Subtarget.isAIXABI())
       report_fatal_error("AnyReg unimplemented on 32-bit AIX.");
@@ -187,8 +206,11 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     return SaveR2 ? CSR_PPC64_R2_SaveList : CSR_PPC64_SaveList;
   }
   // 32-bit targets.
-  if (Subtarget.isAIXABI())
+  if (Subtarget.isAIXABI()) {
+    if (Subtarget.hasAltivec())
+      return CSR_AIX32_Altivec_SaveList;
     return CSR_AIX32_SaveList;
+  }
   if (Subtarget.hasAltivec())
     return CSR_SVR432_Altivec_SaveList;
   else if (Subtarget.hasSPE())
@@ -209,8 +231,10 @@ PPCRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
   }
 
   if (Subtarget.isAIXABI()) {
-    assert(!Subtarget.hasAltivec() && "Altivec is not implemented on AIX yet.");
-    return TM.isPPC64() ? CSR_PPC64_RegMask : CSR_AIX32_RegMask;
+    return TM.isPPC64() ? (Subtarget.hasAltivec() ? CSR_PPC64_Altivec_RegMask
+                                                  : CSR_PPC64_RegMask)
+                        : (Subtarget.hasAltivec() ? CSR_AIX32_Altivec_RegMask
+                                                  : CSR_AIX32_RegMask);
   }
 
   if (CC == CallingConv::Cold) {
@@ -404,9 +428,6 @@ unsigned PPCRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   }
   case PPC::F8RCRegClassID:
   case PPC::F4RCRegClassID:
-  case PPC::QFRCRegClassID:
-  case PPC::QSRCRegClassID:
-  case PPC::QBRCRegClassID:
   case PPC::VRRCRegClassID:
   case PPC::VFRCRegClassID:
   case PPC::VSLRCRegClassID:
@@ -830,6 +851,16 @@ void PPCRegisterInfo::lowerCRBitSpilling(MachineBasicBlock::iterator II,
     SpillsKnownBit = true;
     break;
   default:
+    // On Power10, we can use SETNBC to spill all CR bits. SETNBC will set all
+    // bits (specifically, it produces a -1 if the CR bit is set). Ultimately,
+    // the bit that is of importance to us is bit 32 (bit 0 of a 32-bit
+    // register), and SETNBC will set this.
+    if (Subtarget.isISA3_1()) {
+      BuildMI(MBB, II, dl, TII.get(LP64 ? PPC::SETNBC8 : PPC::SETNBC), Reg)
+          .addReg(SrcReg, RegState::Undef);
+      break;
+    }
+
     // On Power9, we can use SETB to extract the LT bit. This only works for
     // the LT bit since SETB produces -1/1/0 for LT/GT/<neither>. So the value
     // of the bit we care about (32-bit sign bit) will be set to the value of
@@ -929,54 +960,104 @@ void PPCRegisterInfo::lowerCRBitRestore(MachineBasicBlock::iterator II,
   MBB.erase(II);
 }
 
-void PPCRegisterInfo::lowerVRSAVESpilling(MachineBasicBlock::iterator II,
-                                          unsigned FrameIndex) const {
-  // Get the instruction.
-  MachineInstr &MI = *II;       // ; SPILL_VRSAVE <SrcReg>, <offset>
-  // Get the instruction's basic block.
+void PPCRegisterInfo::emitAccCopyInfo(MachineBasicBlock &MBB,
+                                      MCRegister DestReg, MCRegister SrcReg) {
+#ifdef NDEBUG
+  return;
+#else
+  if (ReportAccMoves) {
+    std::string Dest = PPC::ACCRCRegClass.contains(DestReg) ? "acc" : "uacc";
+    std::string Src = PPC::ACCRCRegClass.contains(SrcReg) ? "acc" : "uacc";
+    dbgs() << "Emitting copy from " << Src << " to " << Dest << ":\n";
+    MBB.dump();
+  }
+#endif
+}
+
+static void emitAccSpillRestoreInfo(MachineBasicBlock &MBB, bool IsPrimed,
+                                    bool IsRestore) {
+#ifdef NDEBUG
+  return;
+#else
+  if (ReportAccMoves) {
+    dbgs() << "Emitting " << (IsPrimed ? "acc" : "uacc") << " register "
+           << (IsRestore ? "restore" : "spill") << ":\n";
+    MBB.dump();
+  }
+#endif
+}
+
+/// lowerACCSpilling - Generate the code for spilling the accumulator register.
+/// Similarly to other spills/reloads that use pseudo-ops, we do not actually
+/// eliminate the FrameIndex here nor compute the stack offset. We simply
+/// create a real instruction with an FI and rely on eliminateFrameIndex to
+/// handle the FI elimination.
+void PPCRegisterInfo::lowerACCSpilling(MachineBasicBlock::iterator II,
+                                       unsigned FrameIndex) const {
+  MachineInstr &MI = *II; // SPILL_ACC <SrcReg>, <offset>
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
   const PPCSubtarget &Subtarget = MF.getSubtarget<PPCSubtarget>();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
-  DebugLoc dl = MI.getDebugLoc();
-
-  const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
-  Register Reg = MF.getRegInfo().createVirtualRegister(GPRC);
+  DebugLoc DL = MI.getDebugLoc();
   Register SrcReg = MI.getOperand(0).getReg();
+  bool IsKilled = MI.getOperand(0).isKill();
 
-  BuildMI(MBB, II, dl, TII.get(PPC::MFVRSAVEv), Reg)
-      .addReg(SrcReg, getKillRegState(MI.getOperand(0).isKill()));
+  bool IsPrimed = PPC::ACCRCRegClass.contains(SrcReg);
+  Register Reg =
+      PPC::VSRp0 + (SrcReg - (IsPrimed ? PPC::ACC0 : PPC::UACC0)) * 2;
+  bool IsLittleEndian = Subtarget.isLittleEndian();
 
-  addFrameReference(
-      BuildMI(MBB, II, dl, TII.get(PPC::STW)).addReg(Reg, RegState::Kill),
-      FrameIndex);
+  emitAccSpillRestoreInfo(MBB, IsPrimed, false);
+
+  // De-prime the register being spilled, create two stores for the pair
+  // subregisters accounting for endianness and then re-prime the register if
+  // it isn't killed.  This uses the Offset parameter to addFrameReference() to
+  // adjust the offset of the store that is within the 64-byte stack slot.
+  if (IsPrimed)
+    BuildMI(MBB, II, DL, TII.get(PPC::XXMFACC), SrcReg).addReg(SrcReg);
+  addFrameReference(BuildMI(MBB, II, DL, TII.get(PPC::STXVP))
+                        .addReg(Reg, getKillRegState(IsKilled)),
+                    FrameIndex, IsLittleEndian ? 32 : 0);
+  addFrameReference(BuildMI(MBB, II, DL, TII.get(PPC::STXVP))
+                        .addReg(Reg + 1, getKillRegState(IsKilled)),
+                    FrameIndex, IsLittleEndian ? 0 : 32);
+  if (IsPrimed && !IsKilled)
+    BuildMI(MBB, II, DL, TII.get(PPC::XXMTACC), SrcReg).addReg(SrcReg);
 
   // Discard the pseudo instruction.
   MBB.erase(II);
 }
 
-void PPCRegisterInfo::lowerVRSAVERestore(MachineBasicBlock::iterator II,
-                                         unsigned FrameIndex) const {
-  // Get the instruction.
-  MachineInstr &MI = *II;       // ; <DestReg> = RESTORE_VRSAVE <offset>
-  // Get the instruction's basic block.
+/// lowerACCRestore - Generate the code to restore the accumulator register.
+void PPCRegisterInfo::lowerACCRestore(MachineBasicBlock::iterator II,
+                                      unsigned FrameIndex) const {
+  MachineInstr &MI = *II; // <DestReg> = RESTORE_ACC <offset>
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
   const PPCSubtarget &Subtarget = MF.getSubtarget<PPCSubtarget>();
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
-  DebugLoc dl = MI.getDebugLoc();
+  DebugLoc DL = MI.getDebugLoc();
 
-  const TargetRegisterClass *GPRC = &PPC::GPRCRegClass;
-  Register Reg = MF.getRegInfo().createVirtualRegister(GPRC);
   Register DestReg = MI.getOperand(0).getReg();
   assert(MI.definesRegister(DestReg) &&
-    "RESTORE_VRSAVE does not define its destination");
+         "RESTORE_ACC does not define its destination");
 
-  addFrameReference(BuildMI(MBB, II, dl, TII.get(PPC::LWZ),
-                              Reg), FrameIndex);
+  bool IsPrimed = PPC::ACCRCRegClass.contains(DestReg);
+  Register Reg =
+      PPC::VSRp0 + (DestReg - (IsPrimed ? PPC::ACC0 : PPC::UACC0)) * 2;
+  bool IsLittleEndian = Subtarget.isLittleEndian();
 
-  BuildMI(MBB, II, dl, TII.get(PPC::MTVRSAVEv), DestReg)
-             .addReg(Reg, RegState::Kill);
+  emitAccSpillRestoreInfo(MBB, IsPrimed, true);
+
+  // Create two loads for the pair subregisters accounting for endianness and
+  // then prime the accumulator register being restored.
+  addFrameReference(BuildMI(MBB, II, DL, TII.get(PPC::LXVP), Reg),
+                    FrameIndex, IsLittleEndian ? 32 : 0);
+  addFrameReference(BuildMI(MBB, II, DL, TII.get(PPC::LXVP), Reg + 1),
+                    FrameIndex, IsLittleEndian ? 0 : 32);
+  if (IsPrimed)
+    BuildMI(MBB, II, DL, TII.get(PPC::XXMTACC), DestReg).addReg(DestReg);
 
   // Discard the pseudo instruction.
   MBB.erase(II);
@@ -1113,11 +1194,11 @@ PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   } else if (OpC == PPC::RESTORE_CRBIT) {
     lowerCRBitRestore(II, FrameIndex);
     return;
-  } else if (OpC == PPC::SPILL_VRSAVE) {
-    lowerVRSAVESpilling(II, FrameIndex);
+  } else if (OpC == PPC::SPILL_ACC || OpC == PPC::SPILL_UACC) {
+    lowerACCSpilling(II, FrameIndex);
     return;
-  } else if (OpC == PPC::RESTORE_VRSAVE) {
-    lowerVRSAVERestore(II, FrameIndex);
+  } else if (OpC == PPC::RESTORE_ACC || OpC == PPC::RESTORE_UACC) {
+    lowerACCRestore(II, FrameIndex);
     return;
   }
 
@@ -1294,10 +1375,9 @@ needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const {
 
 /// Insert defining instruction(s) for BaseReg to
 /// be a pointer to FrameIdx at the beginning of the basic block.
-void PPCRegisterInfo::materializeFrameBaseRegister(MachineBasicBlock *MBB,
-                                                   Register BaseReg,
-                                                   int FrameIdx,
-                                                   int64_t Offset) const {
+Register PPCRegisterInfo::materializeFrameBaseRegister(MachineBasicBlock *MBB,
+                                                       int FrameIdx,
+                                                       int64_t Offset) const {
   unsigned ADDriOpc = TM.isPPC64() ? PPC::ADDI8 : PPC::ADDI;
 
   MachineBasicBlock::iterator Ins = MBB->begin();
@@ -1310,10 +1390,14 @@ void PPCRegisterInfo::materializeFrameBaseRegister(MachineBasicBlock *MBB,
   const TargetInstrInfo &TII = *Subtarget.getInstrInfo();
   const MCInstrDesc &MCID = TII.get(ADDriOpc);
   MachineRegisterInfo &MRI = MBB->getParent()->getRegInfo();
+  const TargetRegisterClass *RC = getPointerRegClass(MF);
+  Register BaseReg = MRI.createVirtualRegister(RC);
   MRI.constrainRegClass(BaseReg, TII.getRegClass(MCID, 0, this, MF));
 
   BuildMI(*MBB, Ins, DL, MCID, BaseReg)
     .addFrameIndex(FrameIdx).addImm(Offset);
+
+  return BaseReg;
 }
 
 void PPCRegisterInfo::resolveFrameIndex(MachineInstr &MI, Register BaseReg,

@@ -28,8 +28,7 @@ void ManualDWARFIndex::Index() {
   SymbolFileDWARF &main_dwarf = *m_dwarf;
   m_dwarf = nullptr;
 
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, "%p", static_cast<void *>(&main_dwarf));
+  LLDB_SCOPED_TIMERF("%p", static_cast<void *>(&main_dwarf));
 
   DWARFDebugInfo &main_info = main_dwarf.DebugInfo();
   SymbolFileDWARFDwo *dwp_dwarf = main_dwarf.GetDwpSymbolFile().get();
@@ -73,7 +72,7 @@ void ManualDWARFIndex::Index() {
 
   // Share one thread pool across operations to avoid the overhead of
   // recreating the threads.
-  llvm::ThreadPool pool;
+  llvm::ThreadPool pool(llvm::optimal_concurrency(units_to_index.size()));
 
   // Create a task runner that extracts dies for each DWARF unit in a
   // separate thread.

@@ -174,6 +174,10 @@ protected:
   /// Section containing metadata on function stack sizes.
   MCSection *StackSizesSection = nullptr;
 
+  /// Section for pseudo probe information used by AutoFDO
+  MCSection *PseudoProbeSection = nullptr;
+  MCSection *PseudoProbeDescSection = nullptr;
+
   // ELF specific sections.
   MCSection *DataRelROSection = nullptr;
   MCSection *MergeableConst4Section = nullptr;
@@ -215,6 +219,7 @@ protected:
   MCSection *XDataSection = nullptr;
   MCSection *SXDataSection = nullptr;
   MCSection *GFIDsSection = nullptr;
+  MCSection *GIATsSection = nullptr;
   MCSection *GLJMPSection = nullptr;
 
   // XCOFF specific sections
@@ -249,7 +254,6 @@ public:
   MCSection *getDataSection() const { return DataSection; }
   MCSection *getBSSSection() const { return BSSSection; }
   MCSection *getReadOnlySection() const { return ReadOnlySection; }
-  MCSection *getLSDASection() const { return LSDASection; }
   MCSection *getCompactUnwindSection() const { return CompactUnwindSection; }
   MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
@@ -338,6 +342,12 @@ public:
 
   MCSection *getStackSizesSection(const MCSection &TextSec) const;
 
+  MCSection *getBBAddrMapSection(const MCSection &TextSec) const;
+
+  MCSection *getPseudoProbeSection(const MCSection *TextSec) const;
+
+  MCSection *getPseudoProbeDescSection(StringRef FuncName) const;
+
   // ELF specific sections.
   MCSection *getDataRelROSection() const { return DataRelROSection; }
   const MCSection *getMergeableConst4Section() const {
@@ -396,14 +406,13 @@ public:
   MCSection *getXDataSection() const { return XDataSection; }
   MCSection *getSXDataSection() const { return SXDataSection; }
   MCSection *getGFIDsSection() const { return GFIDsSection; }
+  MCSection *getGIATsSection() const { return GIATsSection; }
   MCSection *getGLJMPSection() const { return GLJMPSection; }
 
   // XCOFF specific sections
   MCSection *getTOCBaseSection() const { return TOCBaseSection; }
 
-  MCSection *getEHFrameSection() {
-    return EHFrameSection;
-  }
+  MCSection *getEHFrameSection() const { return EHFrameSection; }
 
   enum Environment { IsMachO, IsELF, IsCOFF, IsWasm, IsXCOFF };
   Environment getObjectFileType() const { return Env; }

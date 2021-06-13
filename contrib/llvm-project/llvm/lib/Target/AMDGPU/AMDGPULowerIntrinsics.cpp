@@ -8,12 +8,16 @@
 
 #include "AMDGPU.h"
 #include "AMDGPUSubtarget.h"
-#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/IntrinsicsR600.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils/LowerMemIntrinsics.h"
 
 #define DEBUG_TYPE "amdgpu-lower-intrinsics"
@@ -131,7 +135,9 @@ bool AMDGPULowerIntrinsics::makeLIDRangeMetadata(Function &F) const {
     if (!CI)
       continue;
 
-    Changed |= AMDGPUSubtarget::get(TM, F).makeLIDRangeMetadata(CI);
+    Function *Caller = CI->getParent()->getParent();
+    const AMDGPUSubtarget &ST = AMDGPUSubtarget::get(TM, *Caller);
+    Changed |= ST.makeLIDRangeMetadata(CI);
   }
   return Changed;
 }

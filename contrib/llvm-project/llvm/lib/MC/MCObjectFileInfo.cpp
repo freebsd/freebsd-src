@@ -497,6 +497,10 @@ void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
       Ctx->getELFSection(".eh_frame", EHSectionType, EHSectionFlags);
 
   StackSizesSection = Ctx->getELFSection(".stack_sizes", ELF::SHT_PROGBITS, 0);
+
+  PseudoProbeSection = Ctx->getELFSection(".pseudo_probe", DebugSecType, 0);
+  PseudoProbeDescSection =
+      Ctx->getELFSection(".pseudo_probe_desc", DebugSecType, 0);
 }
 
 void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
@@ -754,6 +758,11 @@ void MCObjectFileInfo::initCOFFMCObjectFileInfo(const Triple &T) {
                                          COFF::IMAGE_SCN_MEM_READ,
                                      SectionKind::getMetadata());
 
+  GIATsSection = Ctx->getCOFFSection(".giats$y",
+                                     COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                                         COFF::IMAGE_SCN_MEM_READ,
+                                     SectionKind::getMetadata());
+
   GLJMPSection = Ctx->getCOFFSection(".gljmp$y",
                                      COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
                                          COFF::IMAGE_SCN_MEM_READ,
@@ -798,6 +807,10 @@ void MCObjectFileInfo::initWasmMCObjectFileInfo(const Triple &T) {
   DwarfFrameSection = Ctx->getWasmSection(".debug_frame", SectionKind::getMetadata());
   DwarfPubNamesSection = Ctx->getWasmSection(".debug_pubnames", SectionKind::getMetadata());
   DwarfPubTypesSection = Ctx->getWasmSection(".debug_pubtypes", SectionKind::getMetadata());
+  DwarfGnuPubNamesSection =
+      Ctx->getWasmSection(".debug_gnu_pubnames", SectionKind::getMetadata());
+  DwarfGnuPubTypesSection =
+      Ctx->getWasmSection(".debug_gnu_pubtypes", SectionKind::getMetadata());
 
   DwarfDebugNamesSection =
       Ctx->getWasmSection(".debug_names", SectionKind::getMetadata());
@@ -809,6 +822,37 @@ void MCObjectFileInfo::initWasmMCObjectFileInfo(const Triple &T) {
       Ctx->getWasmSection(".debug_rnglists", SectionKind::getMetadata());
   DwarfLoclistsSection =
       Ctx->getWasmSection(".debug_loclists", SectionKind::getMetadata());
+
+  // Fission Sections
+  DwarfInfoDWOSection =
+      Ctx->getWasmSection(".debug_info.dwo", SectionKind::getMetadata());
+  DwarfTypesDWOSection =
+      Ctx->getWasmSection(".debug_types.dwo", SectionKind::getMetadata());
+  DwarfAbbrevDWOSection =
+      Ctx->getWasmSection(".debug_abbrev.dwo", SectionKind::getMetadata());
+  DwarfStrDWOSection =
+      Ctx->getWasmSection(".debug_str.dwo", SectionKind::getMetadata());
+  DwarfLineDWOSection =
+      Ctx->getWasmSection(".debug_line.dwo", SectionKind::getMetadata());
+  DwarfLocDWOSection =
+      Ctx->getWasmSection(".debug_loc.dwo", SectionKind::getMetadata());
+  DwarfStrOffDWOSection =
+      Ctx->getWasmSection(".debug_str_offsets.dwo", SectionKind::getMetadata());
+  DwarfRnglistsDWOSection =
+      Ctx->getWasmSection(".debug_rnglists.dwo", SectionKind::getMetadata());
+  DwarfMacinfoDWOSection =
+      Ctx->getWasmSection(".debug_macinfo.dwo", SectionKind::getMetadata());
+  DwarfMacroDWOSection =
+      Ctx->getWasmSection(".debug_macro.dwo", SectionKind::getMetadata());
+
+  DwarfLoclistsDWOSection =
+      Ctx->getWasmSection(".debug_loclists.dwo", SectionKind::getMetadata());
+
+  // DWP Sections
+  DwarfCUIndexSection =
+      Ctx->getWasmSection(".debug_cu_index", SectionKind::getMetadata(), 0);
+  DwarfTUIndexSection =
+      Ctx->getWasmSection(".debug_tu_index", SectionKind::getMetadata(), 0);
 
   // Wasm use data section for LSDA.
   // TODO Consider putting each function's exception table in a separate
@@ -826,22 +870,30 @@ void MCObjectFileInfo::initXCOFFMCObjectFileInfo(const Triple &T) {
   // csect for program code.
   TextSection = Ctx->getXCOFFSection(
       ".text", XCOFF::StorageMappingClass::XMC_PR, XCOFF::XTY_SD,
-      XCOFF::C_HIDEXT, SectionKind::getText());
+      SectionKind::getText(), /* MultiSymbolsAllowed*/ true);
 
   DataSection = Ctx->getXCOFFSection(
       ".data", XCOFF::StorageMappingClass::XMC_RW, XCOFF::XTY_SD,
-      XCOFF::C_HIDEXT, SectionKind::getData());
+      SectionKind::getData(), /* MultiSymbolsAllowed*/ true);
 
   ReadOnlySection = Ctx->getXCOFFSection(
       ".rodata", XCOFF::StorageMappingClass::XMC_RO, XCOFF::XTY_SD,
-      XCOFF::C_HIDEXT, SectionKind::getReadOnly());
+      SectionKind::getReadOnly(), /* MultiSymbolsAllowed*/ true);
 
-  TOCBaseSection = Ctx->getXCOFFSection(
-      "TOC", XCOFF::StorageMappingClass::XMC_TC0, XCOFF::XTY_SD,
-      XCOFF::C_HIDEXT, SectionKind::getData());
+  TOCBaseSection =
+      Ctx->getXCOFFSection("TOC", XCOFF::StorageMappingClass::XMC_TC0,
+                           XCOFF::XTY_SD, SectionKind::getData());
 
   // The TOC-base always has 0 size, but 4 byte alignment.
   TOCBaseSection->setAlignment(Align(4));
+
+  LSDASection = Ctx->getXCOFFSection(".gcc_except_table",
+                                     XCOFF::StorageMappingClass::XMC_RO,
+                                     XCOFF::XTY_SD, SectionKind::getReadOnly());
+
+  CompactUnwindSection =
+      Ctx->getXCOFFSection(".eh_info_table", XCOFF::StorageMappingClass::XMC_RW,
+                           XCOFF::XTY_SD, SectionKind::getData());
 
   // DWARF sections for XCOFF are not csects. They are special STYP_DWARF
   // sections, and the individual DWARF sections are distinguished by their
@@ -906,6 +958,9 @@ void MCObjectFileInfo::InitMCObjectFileInfo(const Triple &TheTriple, bool PIC,
     Env = IsWasm;
     initWasmMCObjectFileInfo(TT);
     break;
+  case Triple::GOFF:
+    report_fatal_error("Cannot initialize MC for GOFF object file format");
+    break;
   case Triple::XCOFF:
     Env = IsXCOFF;
     initXCOFFMCObjectFileInfo(TT);
@@ -922,9 +977,12 @@ MCSection *MCObjectFileInfo::getDwarfComdatSection(const char *Name,
   case Triple::ELF:
     return Ctx->getELFSection(Name, ELF::SHT_PROGBITS, ELF::SHF_GROUP, 0,
                               utostr(Hash));
+  case Triple::Wasm:
+    return Ctx->getWasmSection(Name, SectionKind::getMetadata(), utostr(Hash),
+                               MCContext::GenericSectionID);
   case Triple::MachO:
   case Triple::COFF:
-  case Triple::Wasm:
+  case Triple::GOFF:
   case Triple::XCOFF:
   case Triple::UnknownObjectFormat:
     report_fatal_error("Cannot get DWARF comdat section for this object file "
@@ -948,6 +1006,64 @@ MCObjectFileInfo::getStackSizesSection(const MCSection &TextSec) const {
   }
 
   return Ctx->getELFSection(".stack_sizes", ELF::SHT_PROGBITS, Flags, 0,
-                            GroupName, MCSection::NonUniqueID,
+                            GroupName, ElfSec.getUniqueID(),
                             cast<MCSymbolELF>(TextSec.getBeginSymbol()));
+}
+
+MCSection *
+MCObjectFileInfo::getBBAddrMapSection(const MCSection &TextSec) const {
+  if (Env != IsELF)
+    return nullptr;
+
+  const MCSectionELF &ElfSec = static_cast<const MCSectionELF &>(TextSec);
+  unsigned Flags = ELF::SHF_LINK_ORDER;
+  StringRef GroupName;
+  if (const MCSymbol *Group = ElfSec.getGroup()) {
+    GroupName = Group->getName();
+    Flags |= ELF::SHF_GROUP;
+  }
+
+  // Use the text section's begin symbol and unique ID to create a separate
+  // .llvm_bb_addr_map section associated with every unique text section.
+  return Ctx->getELFSection(".llvm_bb_addr_map", ELF::SHT_LLVM_BB_ADDR_MAP,
+                            Flags, 0, GroupName, ElfSec.getUniqueID(),
+                            cast<MCSymbolELF>(TextSec.getBeginSymbol()));
+}
+
+MCSection *
+MCObjectFileInfo::getPseudoProbeSection(const MCSection *TextSec) const {
+  if (Env == IsELF) {
+    const auto *ElfSec = static_cast<const MCSectionELF *>(TextSec);
+    // Create a separate section for probes that comes with a comdat function.
+    if (const MCSymbol *Group = ElfSec->getGroup()) {
+      auto *S = static_cast<MCSectionELF *>(PseudoProbeSection);
+      auto Flags = S->getFlags() | ELF::SHF_GROUP;
+      return Ctx->getELFSection(S->getName(), S->getType(), Flags,
+                                S->getEntrySize(), Group->getName());
+    }
+  }
+  return PseudoProbeSection;
+}
+
+MCSection *
+MCObjectFileInfo::getPseudoProbeDescSection(StringRef FuncName) const {
+  if (Env == IsELF) {
+    // Create a separate comdat group for each function's descriptor in order
+    // for the linker to deduplicate. The duplication, must be from different
+    // tranlation unit, can come from:
+    //  1. Inline functions defined in header files;
+    //  2. ThinLTO imported funcions;
+    //  3. Weak-linkage definitions.
+    // Use a concatenation of the section name and the function name as the
+    // group name so that descriptor-only groups won't be folded with groups of
+    // code.
+    if (TT.supportsCOMDAT() && !FuncName.empty()) {
+      auto *S = static_cast<MCSectionELF *>(PseudoProbeDescSection);
+      auto Flags = S->getFlags() | ELF::SHF_GROUP;
+      return Ctx->getELFSection(S->getName(), S->getType(), Flags,
+                                S->getEntrySize(),
+                                S->getName() + "_" + FuncName);
+    }
+  }
+  return PseudoProbeDescSection;
 }

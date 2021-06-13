@@ -582,7 +582,7 @@ void Module::setProfileSummary(Metadata *M, ProfileSummary::Kind Kind) {
     setModuleFlag(ModFlagBehavior::Error, "ProfileSummary", M);
 }
 
-Metadata *Module::getProfileSummary(bool IsCS) {
+Metadata *Module::getProfileSummary(bool IsCS) const {
   return (IsCS ? getModuleFlag("CSProfileSummary")
                : getModuleFlag("ProfileSummary"));
 }
@@ -599,13 +599,6 @@ bool Module::getSemanticInterposition() const {
 
 void Module::setSemanticInterposition(bool SI) {
   addModuleFlag(ModFlagBehavior::Error, "SemanticInterposition", SI);
-}
-
-bool Module::noSemanticInterposition() const {
-  // Conservatively require an explicit zero value for now.
-  Metadata *MF = getModuleFlag("SemanticInterposition");
-  auto *Val = cast_or_null<ConstantAsMetadata>(MF);
-  return Val && cast<ConstantInt>(Val->getValue())->getZExtValue() == 0;
 }
 
 void Module::setOwnedMemoryBuffer(std::unique_ptr<MemoryBuffer> MB) {

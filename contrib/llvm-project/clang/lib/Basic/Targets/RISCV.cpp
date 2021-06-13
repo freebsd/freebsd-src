@@ -109,13 +109,18 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (ABIName == "ilp32e")
     Builder.defineMacro("__riscv_abi_rve");
 
+  Builder.defineMacro("__riscv_arch_test");
+  Builder.defineMacro("__riscv_i", "2000000");
+
   if (HasM) {
+    Builder.defineMacro("__riscv_m", "2000000");
     Builder.defineMacro("__riscv_mul");
     Builder.defineMacro("__riscv_div");
     Builder.defineMacro("__riscv_muldiv");
   }
 
   if (HasA) {
+    Builder.defineMacro("__riscv_a", "2000000");
     Builder.defineMacro("__riscv_atomic");
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1");
     Builder.defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2");
@@ -125,16 +130,71 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
   }
 
   if (HasF || HasD) {
+    Builder.defineMacro("__riscv_f", "2000000");
     Builder.defineMacro("__riscv_flen", HasD ? "64" : "32");
     Builder.defineMacro("__riscv_fdiv");
     Builder.defineMacro("__riscv_fsqrt");
   }
 
-  if (HasC)
-    Builder.defineMacro("__riscv_compressed");
+  if (HasD)
+    Builder.defineMacro("__riscv_d", "2000000");
 
-  if (HasB)
+  if (HasC) {
+    Builder.defineMacro("__riscv_c", "2000000");
+    Builder.defineMacro("__riscv_compressed");
+  }
+
+  if (HasB) {
+    Builder.defineMacro("__riscv_b", "93000");
     Builder.defineMacro("__riscv_bitmanip");
+  }
+
+  if (HasV) {
+    Builder.defineMacro("__riscv_v", "1000000");
+    Builder.defineMacro("__riscv_vector");
+  }
+
+  if (HasZba)
+    Builder.defineMacro("__riscv_zba", "93000");
+
+  if (HasZbb)
+    Builder.defineMacro("__riscv_zbb", "93000");
+
+  if (HasZbc)
+    Builder.defineMacro("__riscv_zbc", "93000");
+
+  if (HasZbe)
+    Builder.defineMacro("__riscv_zbe", "93000");
+
+  if (HasZbf)
+    Builder.defineMacro("__riscv_zbf", "93000");
+
+  if (HasZbm)
+    Builder.defineMacro("__riscv_zbm", "93000");
+
+  if (HasZbp)
+    Builder.defineMacro("__riscv_zbp", "93000");
+
+  if (HasZbproposedc)
+    Builder.defineMacro("__riscv_zbproposedc", "93000");
+
+  if (HasZbr)
+    Builder.defineMacro("__riscv_zbr", "93000");
+
+  if (HasZbs)
+    Builder.defineMacro("__riscv_zbs", "93000");
+
+  if (HasZbt)
+    Builder.defineMacro("__riscv_zbt", "93000");
+
+  if (HasZfh)
+    Builder.defineMacro("__riscv_zfh", "1000");
+
+  if (HasZvamo)
+    Builder.defineMacro("__riscv_zvamo", "1000000");
+
+  if (HasZvlsseg)
+    Builder.defineMacro("__riscv_zvlsseg", "1000000");
 }
 
 /// Return true if has this feature, need to sync with handleTargetFeatures.
@@ -150,6 +210,21 @@ bool RISCVTargetInfo::hasFeature(StringRef Feature) const {
       .Case("d", HasD)
       .Case("c", HasC)
       .Case("experimental-b", HasB)
+      .Case("experimental-v", HasV)
+      .Case("experimental-zba", HasZba)
+      .Case("experimental-zbb", HasZbb)
+      .Case("experimental-zbc", HasZbc)
+      .Case("experimental-zbe", HasZbe)
+      .Case("experimental-zbf", HasZbf)
+      .Case("experimental-zbm", HasZbm)
+      .Case("experimental-zbp", HasZbp)
+      .Case("experimental-zbproposedc", HasZbproposedc)
+      .Case("experimental-zbr", HasZbr)
+      .Case("experimental-zbs", HasZbs)
+      .Case("experimental-zbt", HasZbt)
+      .Case("experimental-zfh", HasZfh)
+      .Case("experimental-zvamo", HasZvamo)
+      .Case("experimental-zvlsseg", HasZvlsseg)
       .Default(false);
 }
 
@@ -169,6 +244,36 @@ bool RISCVTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasC = true;
     else if (Feature == "+experimental-b")
       HasB = true;
+    else if (Feature == "+experimental-v")
+      HasV = true;
+    else if (Feature == "+experimental-zba")
+      HasZba = true;
+    else if (Feature == "+experimental-zbb")
+      HasZbb = true;
+    else if (Feature == "+experimental-zbc")
+      HasZbc = true;
+    else if (Feature == "+experimental-zbe")
+      HasZbe = true;
+    else if (Feature == "+experimental-zbf")
+      HasZbf = true;
+    else if (Feature == "+experimental-zbm")
+      HasZbm = true;
+    else if (Feature == "+experimental-zbp")
+      HasZbp = true;
+    else if (Feature == "+experimental-zbproposedc")
+      HasZbproposedc = true;
+    else if (Feature == "+experimental-zbr")
+      HasZbr = true;
+    else if (Feature == "+experimental-zbs")
+      HasZbs = true;
+    else if (Feature == "+experimental-zbt")
+      HasZbt = true;
+    else if (Feature == "+experimental-zfh")
+      HasZfh = true;
+    else if (Feature == "+experimental-zvamo")
+      HasZvamo = true;
+    else if (Feature == "+experimental-zvlsseg")
+      HasZvlsseg = true;
   }
 
   return true;
@@ -184,6 +289,17 @@ void RISCV32TargetInfo::fillValidCPUList(
   llvm::RISCV::fillValidCPUArchList(Values, false);
 }
 
+bool RISCV32TargetInfo::isValidTuneCPUName(StringRef Name) const {
+  return llvm::RISCV::checkTuneCPUKind(
+      llvm::RISCV::parseTuneCPUKind(Name, false),
+      /*Is64Bit=*/false);
+}
+
+void RISCV32TargetInfo::fillValidTuneCPUList(
+    SmallVectorImpl<StringRef> &Values) const {
+  llvm::RISCV::fillValidTuneCPUArchList(Values, false);
+}
+
 bool RISCV64TargetInfo::isValidCPUName(StringRef Name) const {
   return llvm::RISCV::checkCPUKind(llvm::RISCV::parseCPUKind(Name),
                                    /*Is64Bit=*/true);
@@ -192,4 +308,15 @@ bool RISCV64TargetInfo::isValidCPUName(StringRef Name) const {
 void RISCV64TargetInfo::fillValidCPUList(
     SmallVectorImpl<StringRef> &Values) const {
   llvm::RISCV::fillValidCPUArchList(Values, true);
+}
+
+bool RISCV64TargetInfo::isValidTuneCPUName(StringRef Name) const {
+  return llvm::RISCV::checkTuneCPUKind(
+      llvm::RISCV::parseTuneCPUKind(Name, true),
+      /*Is64Bit=*/true);
+}
+
+void RISCV64TargetInfo::fillValidTuneCPUList(
+    SmallVectorImpl<StringRef> &Values) const {
+  llvm::RISCV::fillValidTuneCPUArchList(Values, true);
 }

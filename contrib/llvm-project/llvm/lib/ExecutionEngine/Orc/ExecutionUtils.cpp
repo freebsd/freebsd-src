@@ -21,32 +21,6 @@
 namespace llvm {
 namespace orc {
 
-int runAsMain(int (*Main)(int, char *[]), ArrayRef<std::string> Args,
-              Optional<StringRef> ProgramName) {
-  std::vector<std::unique_ptr<char[]>> ArgVStorage;
-  std::vector<char *> ArgV;
-
-  ArgVStorage.reserve(Args.size() + (ProgramName ? 1 : 0));
-  ArgV.reserve(Args.size() + 1 + (ProgramName ? 1 : 0));
-
-  if (ProgramName) {
-    ArgVStorage.push_back(std::make_unique<char[]>(ProgramName->size() + 1));
-    llvm::copy(*ProgramName, &ArgVStorage.back()[0]);
-    ArgVStorage.back()[ProgramName->size()] = '\0';
-    ArgV.push_back(ArgVStorage.back().get());
-  }
-
-  for (auto &Arg : Args) {
-    ArgVStorage.push_back(std::make_unique<char[]>(Arg.size() + 1));
-    llvm::copy(Arg, &ArgVStorage.back()[0]);
-    ArgVStorage.back()[Arg.size()] = '\0';
-    ArgV.push_back(ArgVStorage.back().get());
-  }
-  ArgV.push_back(nullptr);
-
-  return Main(Args.size() + !!ProgramName, ArgV.data());
-}
-
 CtorDtorIterator::CtorDtorIterator(const GlobalVariable *GV, bool End)
   : InitList(
       GV ? dyn_cast_or_null<ConstantArray>(GV->getInitializer()) : nullptr),
@@ -261,8 +235,8 @@ DynamicLibrarySearchGenerator::Load(const char *FileName, char GlobalPrefix,
 }
 
 Error DynamicLibrarySearchGenerator::tryToGenerate(
-    LookupKind K, JITDylib &JD, JITDylibLookupFlags JDLookupFlags,
-    const SymbolLookupSet &Symbols) {
+    LookupState &LS, LookupKind K, JITDylib &JD,
+    JITDylibLookupFlags JDLookupFlags, const SymbolLookupSet &Symbols) {
   orc::SymbolMap NewSymbols;
 
   bool HasGlobalPrefix = (GlobalPrefix != '\0');
@@ -322,7 +296,8 @@ StaticLibraryDefinitionGenerator::Load(ObjectLayer &L, const char *FileName,
       auto ObjTT = Obj.getTriple();
       if (ObjTT.getArch() == TT.getArch() &&
           ObjTT.getSubArch() == TT.getSubArch() &&
-          ObjTT.getVendor() == TT.getVendor()) {
+          (TT.getVendor() == Triple::UnknownVendor ||
+           ObjTT.getVendor() == TT.getVendor())) {
         // We found a match. Create an instance from a buffer covering this
         // slice.
         auto SliceBuffer = MemoryBuffer::getFileSlice(FileName, Obj.getSize(),
@@ -364,8 +339,8 @@ StaticLibraryDefinitionGenerator::Create(
 }
 
 Error StaticLibraryDefinitionGenerator::tryToGenerate(
-    LookupKind K, JITDylib &JD, JITDylibLookupFlags JDLookupFlags,
-    const SymbolLookupSet &Symbols) {
+    LookupState &LS, LookupKind K, JITDylib &JD,
+    JITDylibLookupFlags JDLookupFlags, const SymbolLookupSet &Symbols) {
 
   // Don't materialize symbols from static archives unless this is a static
   // lookup.
@@ -396,8 +371,7 @@ Error StaticLibraryDefinitionGenerator::tryToGenerate(
     MemoryBufferRef ChildBufferRef(ChildBufferInfo.first,
                                    ChildBufferInfo.second);
 
-    if (auto Err = L.add(JD, MemoryBuffer::getMemBuffer(ChildBufferRef, false),
-                         VModuleKey()))
+    if (auto Err = L.add(JD, MemoryBuffer::getMemBuffer(ChildBufferRef, false)))
       return Err;
   }
 

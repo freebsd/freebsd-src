@@ -16,10 +16,10 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
+#include "llvm/Object/MachO.h"
 
 #include "EHFrameSupportImpl.h"
 #include "JITLinkGeneric.h"
-#include "llvm/Object/MachO.h"
 
 #include <list>
 
@@ -81,7 +81,7 @@ protected:
 
   using SectionParserFunction = std::function<Error(NormalizedSection &S)>;
 
-  MachOLinkGraphBuilder(const object::MachOObjectFile &Obj);
+  MachOLinkGraphBuilder(const object::MachOObjectFile &Obj, Triple TT);
 
   LinkGraph &getGraph() const { return *G; }
 

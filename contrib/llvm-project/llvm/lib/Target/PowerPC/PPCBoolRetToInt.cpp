@@ -59,7 +59,7 @@ using namespace llvm;
 
 namespace {
 
-#define DEBUG_TYPE "bool-ret-to-int"
+#define DEBUG_TYPE "ppc-bool-ret-to-int"
 
 STATISTIC(NumBoolRetPromotion,
           "Number of times a bool feeding a RetInst was promoted to an int");
@@ -75,8 +75,7 @@ class PPCBoolRetToInt : public FunctionPass {
     WorkList.push_back(V);
     Defs.insert(V);
     while (!WorkList.empty()) {
-      Value *Curr = WorkList.back();
-      WorkList.pop_back();
+      Value *Curr = WorkList.pop_back_val();
       auto *CurrUser = dyn_cast<User>(Curr);
       // Operands of CallInst/Constant are skipped because they may not be Bool
       // type. For CallInst, their positions are defined by ABI.
@@ -283,8 +282,8 @@ private:
 } // end anonymous namespace
 
 char PPCBoolRetToInt::ID = 0;
-INITIALIZE_PASS(PPCBoolRetToInt, "bool-ret-to-int",
-                "Convert i1 constants to i32/i64 if they are returned",
-                false, false)
+INITIALIZE_PASS(PPCBoolRetToInt, "ppc-bool-ret-to-int",
+                "Convert i1 constants to i32/i64 if they are returned", false,
+                false)
 
 FunctionPass *llvm::createPPCBoolRetToIntPass() { return new PPCBoolRetToInt(); }

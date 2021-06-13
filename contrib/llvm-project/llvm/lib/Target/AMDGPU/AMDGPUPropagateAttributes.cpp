@@ -27,16 +27,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-#include <string>
 
 #define DEBUG_TYPE "amdgpu-propagate-attributes"
 
@@ -56,8 +54,10 @@ static constexpr const FeatureBitset TargetFeatures = {
 };
 
 // Attributes to propagate.
+// TODO: Support conservative min/max merging instead of cloning.
 static constexpr const char* AttributeNames[] = {
-  "amdgpu-waves-per-eu"
+  "amdgpu-waves-per-eu",
+  "amdgpu-flat-work-group-size"
 };
 
 static constexpr unsigned NumAttr =
@@ -371,15 +371,28 @@ AMDGPUPropagateAttributes::getFeatureString(const FeatureBitset &Features) const
 }
 
 bool AMDGPUPropagateAttributesEarly::runOnFunction(Function &F) {
-  if (!TM || !AMDGPU::isEntryFunctionCC(F.getCallingConv()))
+  if (!TM) {
+    auto *TPC = getAnalysisIfAvailable<TargetPassConfig>();
+    if (!TPC)
+      return false;
+
+    TM = &TPC->getTM<TargetMachine>();
+  }
+
+  if (!AMDGPU::isEntryFunctionCC(F.getCallingConv()))
     return false;
 
   return AMDGPUPropagateAttributes(TM, false).process(F);
 }
 
 bool AMDGPUPropagateAttributesLate::runOnModule(Module &M) {
-  if (!TM)
-    return false;
+  if (!TM) {
+    auto *TPC = getAnalysisIfAvailable<TargetPassConfig>();
+    if (!TPC)
+      return false;
+
+    TM = &TPC->getTM<TargetMachine>();
+  }
 
   return AMDGPUPropagateAttributes(TM, true).process(M);
 }
@@ -392,4 +405,22 @@ FunctionPass
 ModulePass
 *llvm::createAMDGPUPropagateAttributesLatePass(const TargetMachine *TM) {
   return new AMDGPUPropagateAttributesLate(TM);
+}
+
+PreservedAnalyses
+AMDGPUPropagateAttributesEarlyPass::run(Function &F,
+                                        FunctionAnalysisManager &AM) {
+  if (!AMDGPU::isEntryFunctionCC(F.getCallingConv()))
+    return PreservedAnalyses::all();
+
+  return AMDGPUPropagateAttributes(&TM, false).process(F)
+             ? PreservedAnalyses::none()
+             : PreservedAnalyses::all();
+}
+
+PreservedAnalyses
+AMDGPUPropagateAttributesLatePass::run(Module &M, ModuleAnalysisManager &AM) {
+  return AMDGPUPropagateAttributes(&TM, true).process(M)
+             ? PreservedAnalyses::none()
+             : PreservedAnalyses::all();
 }

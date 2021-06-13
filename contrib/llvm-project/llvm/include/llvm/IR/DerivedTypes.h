@@ -87,12 +87,6 @@ public:
   /// Get a bit mask for this type.
   APInt getMask() const;
 
-  /// This method determines if the width of this IntegerType is a power-of-2
-  /// in terms of 8 bit bytes.
-  /// @returns true if this is a power-of-2 byte width.
-  /// Is this a power-of-2 byte-width IntegerType ?
-  bool isPowerOf2ByteWidth() const;
-
   /// Methods for support type inquiry through isa, cast, and dyn_cast.
   static bool classof(const Type *T) {
     return T->getTypeID() == IntegerTyID;
@@ -273,6 +267,10 @@ public:
     return llvm::StructType::get(Ctx, StructFields);
   }
 
+  /// Return the type with the specified name, or null if there is none by that
+  /// name.
+  static StructType *getTypeByName(LLVMContext &C, StringRef Name);
+
   bool isPacked() const { return (getSubclassData() & SCDB_Packed) != 0; }
 
   /// Return true if this type is uniqued by structural equivalence, false if it
@@ -285,6 +283,9 @@ public:
 
   /// isSized - Return true if this is a sized type.
   bool isSized(SmallPtrSetImpl<Type *> *Visited = nullptr) const;
+
+  /// Returns true if this struct contains a scalable vector.
+  bool containsScalableVectorType() const;
 
   /// Return true if this is a named struct that has a non-empty name.
   bool hasName() const { return SymbolTableEntry != nullptr; }
@@ -423,41 +424,21 @@ public:
   /// Get the number of elements in this vector. It does not make sense to call
   /// this function on a scalable vector, and this will be moved into
   /// FixedVectorType in a future commit
-  unsigned getNumElements() const {
-    ElementCount EC = getElementCount();
-#ifdef STRICT_FIXED_SIZE_VECTORS
-    assert(!EC.Scalable &&
-           "Request for fixed number of elements from scalable vector");
-    return EC.Min;
-#else
-    if (EC.Scalable)
-      WithColor::warning()
-          << "The code that requested the fixed number of elements has made "
-             "the assumption that this vector is not scalable. This assumption "
-             "was not correct, and this may lead to broken code\n";
-    return EC.Min;
-#endif
-  }
+  LLVM_ATTRIBUTE_DEPRECATED(
+      inline unsigned getNumElements() const,
+      "Calling this function via a base VectorType is deprecated. Either call "
+      "getElementCount() and handle the case where Scalable is true or cast to "
+      "FixedVectorType.");
 
   Type *getElementType() const { return ContainedType; }
 
   /// This static method is the primary way to construct an VectorType.
   static VectorType *get(Type *ElementType, ElementCount EC);
 
-  /// Base class getter that specifically constructs a FixedVectorType. This
-  /// function is deprecated, and will be removed after LLVM 11 ships. Since
-  /// this always returns a FixedVectorType via a base VectorType pointer,
-  /// FixedVectorType::get(Type *, unsigned) is strictly better since no cast is
-  /// required to call getNumElements() on the result.
-  LLVM_ATTRIBUTE_DEPRECATED(
-      inline static VectorType *get(Type *ElementType, unsigned NumElements),
-      "The base class version of get with the scalable argument defaulted to "
-      "false is deprecated. Either call VectorType::get(Type *, unsigned, "
-      "bool) and pass false, or call FixedVectorType::get(Type *, unsigned).");
-
   static VectorType *get(Type *ElementType, unsigned NumElements,
                          bool Scalable) {
-    return VectorType::get(ElementType, {NumElements, Scalable});
+    return VectorType::get(ElementType,
+                           ElementCount::get(NumElements, Scalable));
   }
 
   static VectorType *get(Type *ElementType, const VectorType *Other) {
@@ -522,16 +503,18 @@ public:
   /// input type and the same element type.
   static VectorType *getHalfElementsVectorType(VectorType *VTy) {
     auto EltCnt = VTy->getElementCount();
-    assert ((EltCnt.Min & 1) == 0 &&
-            "Cannot halve vector with odd number of elements.");
-    return VectorType::get(VTy->getElementType(), EltCnt/2);
+    assert(EltCnt.isKnownEven() &&
+           "Cannot halve vector with odd number of elements.");
+    return VectorType::get(VTy->getElementType(),
+                           EltCnt.divideCoefficientBy(2));
   }
 
   /// This static method returns a VectorType with twice as many elements as the
   /// input type and the same element type.
   static VectorType *getDoubleElementsVectorType(VectorType *VTy) {
     auto EltCnt = VTy->getElementCount();
-    assert((EltCnt.Min * 2ull) <= UINT_MAX && "Too many elements in vector");
+    assert((EltCnt.getKnownMinValue() * 2ull) <= UINT_MAX &&
+           "Too many elements in vector");
     return VectorType::get(VTy->getElementType(), EltCnt * 2);
   }
 
@@ -549,8 +532,19 @@ public:
   }
 };
 
-inline VectorType *VectorType::get(Type *ElementType, unsigned NumElements) {
-  return VectorType::get(ElementType, NumElements, false);
+unsigned VectorType::getNumElements() const {
+  ElementCount EC = getElementCount();
+#ifdef STRICT_FIXED_SIZE_VECTORS
+  assert(!EC.isScalable() &&
+         "Request for fixed number of elements from scalable vector");
+#else
+  if (EC.isScalable())
+    WithColor::warning()
+        << "The code that requested the fixed number of elements has made the "
+           "assumption that this vector is not scalable. This assumption was "
+           "not correct, and this may lead to broken code\n";
+#endif
+  return EC.getKnownMinValue();
 }
 
 /// Class to represent fixed width SIMD vectors
@@ -596,6 +590,8 @@ public:
   static bool classof(const Type *T) {
     return T->getTypeID() == FixedVectorTyID;
   }
+
+  unsigned getNumElements() const { return ElementQuantity; }
 };
 
 /// Class to represent scalable SIMD vectors
@@ -655,7 +651,7 @@ public:
 };
 
 inline ElementCount VectorType::getElementCount() const {
-  return ElementCount(ElementQuantity, isa<ScalableVectorType>(this));
+  return ElementCount::get(ElementQuantity, isa<ScalableVectorType>(this));
 }
 
 /// Class to represent pointers.

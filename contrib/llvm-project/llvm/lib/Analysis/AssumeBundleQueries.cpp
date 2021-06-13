@@ -108,10 +108,17 @@ llvm::getKnowledgeFromBundle(CallInst &Assume,
   Result.AttrKind = Attribute::getAttrKindFromName(BOI.Tag->getKey());
   if (bundleHasArgument(BOI, ABA_WasOn))
     Result.WasOn = getValueFromBundleOpInfo(Assume, BOI, ABA_WasOn);
+  auto GetArgOr1 = [&](unsigned Idx) -> unsigned {
+    if (auto *ConstInt = dyn_cast<ConstantInt>(
+            getValueFromBundleOpInfo(Assume, BOI, ABA_Argument + Idx)))
+      return ConstInt->getZExtValue();
+    return 1;
+  };
   if (BOI.End - BOI.Begin > ABA_Argument)
-    Result.ArgValue =
-        cast<ConstantInt>(getValueFromBundleOpInfo(Assume, BOI, ABA_Argument))
-            ->getZExtValue();
+    Result.ArgValue = GetArgOr1(0);
+  if (Result.AttrKind == Attribute::Alignment)
+    if (BOI.End - BOI.Begin > ABA_Argument + 1)
+      Result.ArgValue = MinAlign(Result.ArgValue, GetArgOr1(1));
   return Result;
 }
 
@@ -172,12 +179,15 @@ llvm::getKnowledgeForValue(const Value *V,
       if (!II || Elem.Index == AssumptionCache::ExprResultIdx)
         continue;
       if (RetainedKnowledge RK = getKnowledgeFromBundle(
-              *II, II->bundle_op_info_begin()[Elem.Index]))
+              *II, II->bundle_op_info_begin()[Elem.Index])) {
+        if (V != RK.WasOn)
+          continue;
         if (is_contained(AttrKinds, RK.AttrKind) &&
             Filter(RK, II, &II->bundle_op_info_begin()[Elem.Index])) {
           NumUsefullAssumeQueries++;
           return RK;
         }
+      }
     }
     return RetainedKnowledge::none();
   }

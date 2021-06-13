@@ -26,7 +26,7 @@ namespace {
 class MachOLinkGraphBuilder_arm64 : public MachOLinkGraphBuilder {
 public:
   MachOLinkGraphBuilder_arm64(const object::MachOObjectFile &Obj)
-      : MachOLinkGraphBuilder(Obj),
+      : MachOLinkGraphBuilder(Obj, Triple("arm64-apple-darwin")),
         NumSymbols(Obj.getSymtabLoadCommand().nsyms) {}
 
 private:
@@ -148,10 +148,11 @@ private:
       else
         return ToSymbolOrErr.takeError();
     } else {
-      if (auto ToSymbolOrErr = findSymbolByAddress(FixupValue))
-        ToSymbol = &*ToSymbolOrErr;
-      else
-        return ToSymbolOrErr.takeError();
+      auto ToSymbolSec = findSectionByIndex(UnsignedRI.r_symbolnum - 1);
+      if (!ToSymbolSec)
+        return ToSymbolSec.takeError();
+      ToSymbol = getSymbolByAddress(ToSymbolSec->Address);
+      assert(ToSymbol && "No symbol for section");
       FixupValue -= ToSymbol->getAddress();
     }
 
@@ -181,6 +182,8 @@ private:
     using namespace support;
     auto &Obj = getObject();
 
+    LLVM_DEBUG(dbgs() << "Processing relocations:\n");
+
     for (auto &S : Obj.sections()) {
 
       JITTargetAddress SectionAddress = S.getAddress();
@@ -199,8 +202,8 @@ private:
             getSectionByIndex(Obj.getSectionIndex(S.getRawDataRefImpl()));
         if (!NSec.GraphSection) {
           LLVM_DEBUG({
-            dbgs() << "Skipping relocations for MachO section " << NSec.SegName
-                   << "/" << NSec.SectName
+            dbgs() << "  Skipping relocations for MachO section "
+                   << NSec.SegName << "/" << NSec.SectName
                    << " which has no associated graph section\n";
           });
           continue;
@@ -221,9 +224,10 @@ private:
         JITTargetAddress FixupAddress = SectionAddress + (uint32_t)RI.r_address;
 
         LLVM_DEBUG({
-          dbgs() << "Processing " << getMachOARM64RelocationKindName(*Kind)
-                 << " relocation at " << format("0x%016" PRIx64, FixupAddress)
-                 << "\n";
+          auto &NSec =
+              getSectionByIndex(Obj.getSectionIndex(S.getRawDataRefImpl()));
+          dbgs() << "  " << NSec.SectName << " + "
+                 << formatv("{0:x8}", RI.r_address) << ":\n";
         });
 
         // Find the block that the fixup points to.
@@ -252,7 +256,7 @@ private:
           // If this is an Addend relocation then process it and move to the
           // paired reloc.
 
-          Addend = RI.r_symbolnum;
+          Addend = SignExtend64(RI.r_symbolnum, 24);
 
           if (RelItr == RelEnd)
             return make_error<JITLinkError>("Unpaired Addend reloc at " +
@@ -268,11 +272,12 @@ private:
             return make_error<JITLinkError>(
                 "Invalid relocation pair: Addend + " +
                 getMachOARM64RelocationKindName(*Kind));
-          else
-            LLVM_DEBUG({
-              dbgs() << "  pair is " << getMachOARM64RelocationKindName(*Kind)
-                     << "`\n";
-            });
+
+          LLVM_DEBUG({
+            dbgs() << "    Addend: value = " << formatv("{0:x6}", Addend)
+                   << ", pair is " << getMachOARM64RelocationKindName(*Kind)
+                   << "\n";
+          });
 
           // Find the address of the value to fix up.
           JITTargetAddress PairedFixupAddress =
@@ -335,6 +340,11 @@ private:
             TargetSymbol = TargetSymbolOrErr->GraphSymbol;
           else
             return TargetSymbolOrErr.takeError();
+          uint32_t Instr = *(const ulittle32_t *)FixupContent;
+          uint32_t EncodedAddend = (Instr & 0x003FFC00) >> 10;
+          if (EncodedAddend != 0)
+            return make_error<JITLinkError>("GOTPAGEOFF12 target has non-zero "
+                                            "encoded addend");
           break;
         }
         case GOTPageOffset12: {
@@ -377,6 +387,7 @@ private:
         }
 
         LLVM_DEBUG({
+          dbgs() << "    ";
           Edge GE(*Kind, FixupAddress - BlockToFix->getAddress(), *TargetSymbol,
                   Addend);
           printEdge(dbgs(), *BlockToFix, GE,
@@ -490,20 +501,13 @@ class MachOJITLinker_arm64 : public JITLinker<MachOJITLinker_arm64> {
 
 public:
   MachOJITLinker_arm64(std::unique_ptr<JITLinkContext> Ctx,
+                       std::unique_ptr<LinkGraph> G,
                        PassConfiguration PassConfig)
-      : JITLinker(std::move(Ctx), std::move(PassConfig)) {}
+      : JITLinker(std::move(Ctx), std::move(G), std::move(PassConfig)) {}
 
 private:
   StringRef getEdgeKindName(Edge::Kind R) const override {
     return getMachOARM64RelocationKindName(R);
-  }
-
-  Expected<std::unique_ptr<LinkGraph>>
-  buildGraph(MemoryBufferRef ObjBuffer) override {
-    auto MachOObj = object::ObjectFile::createMachOObjectFile(ObjBuffer);
-    if (!MachOObj)
-      return MachOObj.takeError();
-    return MachOLinkGraphBuilder_arm64(**MachOObj).buildGraph();
   }
 
   static Error targetOutOfRangeError(const Block &B, const Edge &E) {
@@ -518,23 +522,17 @@ private:
   }
 
   static unsigned getPageOffset12Shift(uint32_t Instr) {
-    constexpr uint32_t LDRLiteralMask = 0x3ffffc00;
+    constexpr uint32_t LoadStoreImm12Mask = 0x3b000000;
+    constexpr uint32_t Vec128Mask = 0x04800000;
 
-    // Check for a GPR LDR immediate with a zero embedded literal.
-    // If found, the top two bits contain the shift.
-    if ((Instr & LDRLiteralMask) == 0x39400000)
-      return Instr >> 30;
+    if ((Instr & LoadStoreImm12Mask) == 0x39000000) {
+      uint32_t ImplicitShift = Instr >> 30;
+      if (ImplicitShift == 0)
+        if ((Instr & Vec128Mask) == Vec128Mask)
+          ImplicitShift = 4;
 
-    // Check for a Neon LDR immediate of size 64-bit or less with a zero
-    // embedded literal. If found, the top two bits contain the shift.
-    if ((Instr & LDRLiteralMask) == 0x3d400000)
-      return Instr >> 30;
-
-    // Check for a Neon LDR immediate of size 128-bit with a zero embedded
-    // literal.
-    constexpr uint32_t SizeBitsMask = 0xc0000000;
-    if ((Instr & (LDRLiteralMask | SizeBitsMask)) == 0x3dc00000)
-      return 4;
+      return ImplicitShift;
+    }
 
     return 0;
   }
@@ -581,10 +579,12 @@ private:
     }
     case Page21:
     case GOTPage21: {
-      assert(E.getAddend() == 0 && "PAGE21/GOTPAGE21 with non-zero addend");
+      assert((E.getKind() != GOTPage21 || E.getAddend() == 0) &&
+             "GOTPAGE21 with non-zero addend");
       uint64_t TargetPage =
-          E.getTarget().getAddress() & ~static_cast<uint64_t>(4096 - 1);
-      uint64_t PCPage = B.getAddress() & ~static_cast<uint64_t>(4096 - 1);
+          (E.getTarget().getAddress() + E.getAddend()) &
+            ~static_cast<uint64_t>(4096 - 1);
+      uint64_t PCPage = FixupAddress & ~static_cast<uint64_t>(4096 - 1);
 
       int64_t PageDelta = TargetPage - PCPage;
       if (PageDelta < -(1 << 30) || PageDelta > ((1 << 30) - 1))
@@ -600,8 +600,8 @@ private:
       break;
     }
     case PageOffset12: {
-      assert(E.getAddend() == 0 && "PAGEOFF12 with non-zero addend");
-      uint64_t TargetOffset = E.getTarget().getAddress() & 0xfff;
+      uint64_t TargetOffset =
+        (E.getTarget().getAddress() + E.getAddend()) & 0xfff;
 
       uint32_t RawInstr = *(ulittle32_t *)FixupPtr;
       unsigned ImmShift = getPageOffset12Shift(RawInstr);
@@ -674,13 +674,22 @@ private:
   uint64_t NullValue = 0;
 };
 
-void jitLink_MachO_arm64(std::unique_ptr<JITLinkContext> Ctx) {
-  PassConfiguration Config;
-  Triple TT("arm64-apple-ios");
+Expected<std::unique_ptr<LinkGraph>>
+createLinkGraphFromMachOObject_arm64(MemoryBufferRef ObjectBuffer) {
+  auto MachOObj = object::ObjectFile::createMachOObjectFile(ObjectBuffer);
+  if (!MachOObj)
+    return MachOObj.takeError();
+  return MachOLinkGraphBuilder_arm64(**MachOObj).buildGraph();
+}
 
-  if (Ctx->shouldAddDefaultTargetPasses(TT)) {
+void link_MachO_arm64(std::unique_ptr<LinkGraph> G,
+                      std::unique_ptr<JITLinkContext> Ctx) {
+
+  PassConfiguration Config;
+
+  if (Ctx->shouldAddDefaultTargetPasses(G->getTargetTriple())) {
     // Add a mark-live pass.
-    if (auto MarkLive = Ctx->getMarkLivePass(TT))
+    if (auto MarkLive = Ctx->getMarkLivePass(G->getTargetTriple()))
       Config.PrePrunePasses.push_back(std::move(MarkLive));
     else
       Config.PrePrunePasses.push_back(markAllSymbolsLive);
@@ -692,11 +701,11 @@ void jitLink_MachO_arm64(std::unique_ptr<JITLinkContext> Ctx) {
     });
   }
 
-  if (auto Err = Ctx->modifyPassConfig(TT, Config))
+  if (auto Err = Ctx->modifyPassConfig(G->getTargetTriple(), Config))
     return Ctx->notifyFailed(std::move(Err));
 
   // Construct a JITLinker and run the link function.
-  MachOJITLinker_arm64::link(std::move(Ctx), std::move(Config));
+  MachOJITLinker_arm64::link(std::move(Ctx), std::move(G), std::move(Config));
 }
 
 StringRef getMachOARM64RelocationKindName(Edge::Kind R) {

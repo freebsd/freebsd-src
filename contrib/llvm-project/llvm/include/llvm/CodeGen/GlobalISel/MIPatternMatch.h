@@ -39,11 +39,25 @@ inline OneUse_match<SubPat> m_OneUse(const SubPat &SP) {
   return SP;
 }
 
+template <typename SubPatternT> struct OneNonDBGUse_match {
+  SubPatternT SubPat;
+  OneNonDBGUse_match(const SubPatternT &SP) : SubPat(SP) {}
+
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    return MRI.hasOneNonDBGUse(Reg) && SubPat.match(MRI, Reg);
+  }
+};
+
+template <typename SubPat>
+inline OneNonDBGUse_match<SubPat> m_OneNonDBGUse(const SubPat &SP) {
+  return SP;
+}
+
 struct ConstantMatch {
   int64_t &CR;
   ConstantMatch(int64_t &C) : CR(C) {}
   bool match(const MachineRegisterInfo &MRI, Register Reg) {
-    if (auto MaybeCst = getConstantVRegVal(Reg, MRI)) {
+    if (auto MaybeCst = getConstantVRegSExtVal(Reg, MRI)) {
       CR = *MaybeCst;
       return true;
     }
@@ -52,6 +66,29 @@ struct ConstantMatch {
 };
 
 inline ConstantMatch m_ICst(int64_t &Cst) { return ConstantMatch(Cst); }
+
+/// Matcher for a specific constant value.
+struct SpecificConstantMatch {
+  int64_t RequestedVal;
+  SpecificConstantMatch(int64_t RequestedVal) : RequestedVal(RequestedVal) {}
+  bool match(const MachineRegisterInfo &MRI, Register Reg) {
+    int64_t MatchedVal;
+    return mi_match(Reg, MRI, m_ICst(MatchedVal)) && MatchedVal == RequestedVal;
+  }
+};
+
+/// Matches a constant equal to \p RequestedValue.
+inline SpecificConstantMatch m_SpecificICst(int64_t RequestedValue) {
+  return SpecificConstantMatch(RequestedValue);
+}
+
+///{
+/// Convenience matchers for specific integer values.
+inline SpecificConstantMatch m_ZeroInt() { return SpecificConstantMatch(0); }
+inline SpecificConstantMatch m_AllOnesInt() {
+  return SpecificConstantMatch(-1);
+}
+///}
 
 // TODO: Rework this for different kinds of MachineOperand.
 // Currently assumes the Src for a match is a register.
@@ -198,6 +235,12 @@ m_GAdd(const LHS &L, const RHS &R) {
 }
 
 template <typename LHS, typename RHS>
+inline BinaryOp_match<LHS, RHS, TargetOpcode::G_PTR_ADD, true>
+m_GPtrAdd(const LHS &L, const RHS &R) {
+  return BinaryOp_match<LHS, RHS, TargetOpcode::G_PTR_ADD, true>(L, R);
+}
+
+template <typename LHS, typename RHS>
 inline BinaryOp_match<LHS, RHS, TargetOpcode::G_SUB> m_GSub(const LHS &L,
                                                             const RHS &R) {
   return BinaryOp_match<LHS, RHS, TargetOpcode::G_SUB>(L, R);
@@ -234,6 +277,12 @@ m_GAnd(const LHS &L, const RHS &R) {
 }
 
 template <typename LHS, typename RHS>
+inline BinaryOp_match<LHS, RHS, TargetOpcode::G_XOR, true>
+m_GXor(const LHS &L, const RHS &R) {
+  return BinaryOp_match<LHS, RHS, TargetOpcode::G_XOR, true>(L, R);
+}
+
+template <typename LHS, typename RHS>
 inline BinaryOp_match<LHS, RHS, TargetOpcode::G_OR, true> m_GOr(const LHS &L,
                                                                 const RHS &R) {
   return BinaryOp_match<LHS, RHS, TargetOpcode::G_OR, true>(L, R);
@@ -249,6 +298,12 @@ template <typename LHS, typename RHS>
 inline BinaryOp_match<LHS, RHS, TargetOpcode::G_LSHR, false>
 m_GLShr(const LHS &L, const RHS &R) {
   return BinaryOp_match<LHS, RHS, TargetOpcode::G_LSHR, false>(L, R);
+}
+
+template <typename LHS, typename RHS>
+inline BinaryOp_match<LHS, RHS, TargetOpcode::G_ASHR, false>
+m_GAShr(const LHS &L, const RHS &R) {
+  return BinaryOp_match<LHS, RHS, TargetOpcode::G_ASHR, false>(L, R);
 }
 
 // Helper for unary instructions (G_[ZSA]EXT/G_TRUNC) etc
@@ -383,6 +438,51 @@ struct CheckType {
 };
 
 inline CheckType m_SpecificType(LLT Ty) { return Ty; }
+
+template <typename Src0Ty, typename Src1Ty, typename Src2Ty, unsigned Opcode>
+struct TernaryOp_match {
+  Src0Ty Src0;
+  Src1Ty Src1;
+  Src2Ty Src2;
+
+  TernaryOp_match(const Src0Ty &Src0, const Src1Ty &Src1, const Src2Ty &Src2)
+      : Src0(Src0), Src1(Src1), Src2(Src2) {}
+  template <typename OpTy>
+  bool match(const MachineRegisterInfo &MRI, OpTy &&Op) {
+    MachineInstr *TmpMI;
+    if (mi_match(Op, MRI, m_MInstr(TmpMI))) {
+      if (TmpMI->getOpcode() == Opcode && TmpMI->getNumOperands() == 4) {
+        return (Src0.match(MRI, TmpMI->getOperand(1).getReg()) &&
+                Src1.match(MRI, TmpMI->getOperand(2).getReg()) &&
+                Src2.match(MRI, TmpMI->getOperand(3).getReg()));
+      }
+    }
+    return false;
+  }
+};
+template <typename Src0Ty, typename Src1Ty, typename Src2Ty>
+inline TernaryOp_match<Src0Ty, Src1Ty, Src2Ty,
+                       TargetOpcode::G_INSERT_VECTOR_ELT>
+m_GInsertVecElt(const Src0Ty &Src0, const Src1Ty &Src1, const Src2Ty &Src2) {
+  return TernaryOp_match<Src0Ty, Src1Ty, Src2Ty,
+                         TargetOpcode::G_INSERT_VECTOR_ELT>(Src0, Src1, Src2);
+}
+
+/// Matches a register negated by a G_SUB.
+/// G_SUB 0, %negated_reg
+template <typename SrcTy>
+inline BinaryOp_match<SpecificConstantMatch, SrcTy, TargetOpcode::G_SUB>
+m_Neg(const SrcTy &&Src) {
+  return m_GSub(m_ZeroInt(), Src);
+}
+
+/// Matches a register not-ed by a G_XOR.
+/// G_XOR %not_reg, -1
+template <typename SrcTy>
+inline BinaryOp_match<SrcTy, SpecificConstantMatch, TargetOpcode::G_XOR, true>
+m_Not(const SrcTy &&Src) {
+  return m_GXor(Src, m_AllOnesInt());
+}
 
 } // namespace GMIPatternMatch
 } // namespace llvm

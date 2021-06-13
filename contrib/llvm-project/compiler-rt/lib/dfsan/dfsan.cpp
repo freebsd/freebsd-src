@@ -18,14 +18,16 @@
 // prefixed __dfsan_.
 //===----------------------------------------------------------------------===//
 
+#include "dfsan/dfsan.h"
+
 #include "sanitizer_common/sanitizer_atomic.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_file.h"
-#include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_flag_parser.h"
+#include "sanitizer_common/sanitizer_flags.h"
+#include "sanitizer_common/sanitizer_internal_defs.h"
 #include "sanitizer_common/sanitizer_libc.h"
-
-#include "dfsan/dfsan.h"
+#include "sanitizer_common/sanitizer_stacktrace.h"
 
 using namespace __dfsan;
 
@@ -39,8 +41,15 @@ static dfsan_label_info __dfsan_label_info[kNumLabels];
 
 Flags __dfsan::flags_data;
 
-SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL dfsan_label __dfsan_retval_tls;
-SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL dfsan_label __dfsan_arg_tls[64];
+// The size of TLS variables. These constants must be kept in sync with the ones
+// in DataFlowSanitizer.cpp.
+static const int kDFsanArgTlsSize = 800;
+static const int kDFsanRetvalTlsSize = 800;
+
+SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u64
+    __dfsan_retval_tls[kDFsanRetvalTlsSize / sizeof(u64)];
+SANITIZER_INTERFACE_ATTRIBUTE THREADLOCAL u64
+    __dfsan_arg_tls[kDFsanArgTlsSize / sizeof(u64)];
 
 SANITIZER_INTERFACE_ATTRIBUTE uptr __dfsan_shadow_ptr_mask;
 
@@ -142,8 +151,7 @@ int __dfsan::vmaSize;
 #endif
 
 static uptr UnusedAddr() {
-  return MappingArchImpl<MAPPING_UNION_TABLE_ADDR>()
-         + sizeof(dfsan_union_table_t);
+  return UnionTableAddr() + sizeof(dfsan_union_table_t);
 }
 
 static atomic_dfsan_label *union_table(dfsan_label l1, dfsan_label l2) {
@@ -162,14 +170,17 @@ static void dfsan_check_label(dfsan_label label) {
 // this function (the instrumentation pass inlines the equality test).
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE
 dfsan_label __dfsan_union(dfsan_label l1, dfsan_label l2) {
-  if (flags().fast16labels)
-    return l1 | l2;
   DCHECK_NE(l1, l2);
 
   if (l1 == 0)
     return l2;
   if (l2 == 0)
     return l1;
+
+  // If no labels have been created, yet l1 and l2 are non-zero, we are using
+  // fast16labels mode.
+  if (atomic_load(&__dfsan_last_label, memory_order_relaxed) == 0)
+    return l1 | l2;
 
   if (l1 > l2)
     Swap(l1, l2);
@@ -219,6 +230,14 @@ dfsan_label __dfsan_union_load(const dfsan_label *ls, uptr n) {
 }
 
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE
+dfsan_label __dfsan_union_load_fast16labels(const dfsan_label *ls, uptr n) {
+  dfsan_label label = ls[0];
+  for (uptr i = 1; i != n; ++i)
+    label |= ls[i];
+  return label;
+}
+
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE
 void __dfsan_unimplemented(char *fname) {
   if (flags().warn_unimplemented)
     Report("WARNING: DataFlowSanitizer: call to uninstrumented function %s\n",
@@ -254,7 +273,7 @@ dfsan_union(dfsan_label l1, dfsan_label l2) {
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE
 dfsan_label dfsan_create_label(const char *desc, void *userdata) {
   dfsan_label label =
-    atomic_fetch_add(&__dfsan_last_label, 1, memory_order_relaxed) + 1;
+      atomic_fetch_add(&__dfsan_last_label, 1, memory_order_relaxed) + 1;
   dfsan_check_label(label);
   __dfsan_label_info[label].l1 = __dfsan_label_info[label].l2 = 0;
   __dfsan_label_info[label].desc = desc;
@@ -262,9 +281,10 @@ dfsan_label dfsan_create_label(const char *desc, void *userdata) {
   return label;
 }
 
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE
-void __dfsan_set_label(dfsan_label label, void *addr, uptr size) {
-  for (dfsan_label *labelp = shadow_for(addr); size != 0; --size, ++labelp) {
+static void WriteShadowIfDifferent(dfsan_label label, uptr shadow_addr,
+                                   uptr size) {
+  dfsan_label *labelp = (dfsan_label *)shadow_addr;
+  for (; size != 0; --size, ++labelp) {
     // Don't write the label if it is already the value we need it to be.
     // In a program where most addresses are not labeled, it is common that
     // a page of shadow memory is entirely zeroed.  The Linux copy-on-write
@@ -278,6 +298,38 @@ void __dfsan_set_label(dfsan_label label, void *addr, uptr size) {
 
     *labelp = label;
   }
+}
+
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE void __dfsan_set_label(
+    dfsan_label label, void *addr, uptr size) {
+  const uptr beg_shadow_addr = (uptr)__dfsan::shadow_for(addr);
+
+  if (0 != label) {
+    WriteShadowIfDifferent(label, beg_shadow_addr, size);
+    return;
+  }
+
+  // If label is 0, releases the pages within the shadow address range, and sets
+  // the shadow addresses not on the pages to be 0.
+  const void *end_addr = (void *)((uptr)addr + size);
+  const uptr end_shadow_addr = (uptr)__dfsan::shadow_for(end_addr);
+  const uptr page_size = GetPageSizeCached();
+  const uptr beg_aligned = RoundUpTo(beg_shadow_addr, page_size);
+  const uptr end_aligned = RoundDownTo(end_shadow_addr, page_size);
+
+  // dfsan_set_label can be called from the following cases
+  // 1) mapped ranges by new/delete and malloc/free. This case has shadow memory
+  // size > 100k, and happens less frequently.
+  // 2) zero-filling internal data structures by utility libraries. This case
+  // has shadow memory size < 32k, and happens more often.
+  // Set kNumPagesThreshold to be 8 to avoid releasing small pages.
+  const int kNumPagesThreshold = 8;
+  if (beg_aligned + kNumPagesThreshold * page_size >= end_aligned)
+    return WriteShadowIfDifferent(label, beg_shadow_addr, size);
+
+  WriteShadowIfDifferent(label, beg_shadow_addr, beg_aligned - beg_shadow_addr);
+  ReleaseMemoryPagesToOS(beg_aligned, end_aligned);
+  WriteShadowIfDifferent(label, end_aligned, end_shadow_addr - end_aligned);
 }
 
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -349,7 +401,6 @@ extern "C" SANITIZER_INTERFACE_ATTRIBUTE void
 dfsan_dump_labels(int fd) {
   dfsan_label last_label =
       atomic_load(&__dfsan_last_label, memory_order_relaxed);
-
   for (uptr l = 1; l <= last_label; ++l) {
     char buf[64];
     internal_snprintf(buf, sizeof(buf), "%u %u %u ", l,
@@ -361,6 +412,22 @@ dfsan_dump_labels(int fd) {
     }
     WriteToFile(fd, "\n", 1);
   }
+}
+
+#define GET_FATAL_STACK_TRACE_PC_BP(pc, bp) \
+  BufferedStackTrace stack;                 \
+  stack.Unwind(pc, bp, nullptr, common_flags()->fast_unwind_on_fatal);
+
+void __sanitizer::BufferedStackTrace::UnwindImpl(uptr pc, uptr bp,
+                                                 void *context,
+                                                 bool request_fast,
+                                                 u32 max_depth) {
+  Unwind(max_depth, pc, bp, context, 0, 0, false);
+}
+
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_print_stack_trace() {
+  GET_FATAL_STACK_TRACE_PC_BP(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME());
+  stack.Print();
 }
 
 void Flags::SetDefaults() {
@@ -422,7 +489,6 @@ static void dfsan_fini() {
 }
 
 extern "C" void dfsan_flush() {
-  UnmapOrDie((void*)ShadowAddr(), UnusedAddr() - ShadowAddr());
   if (!MmapFixedNoReserve(ShadowAddr(), UnusedAddr() - ShadowAddr()))
     Die();
 }
@@ -432,8 +498,10 @@ static void dfsan_init(int argc, char **argv, char **envp) {
 
   ::InitializePlatformEarly();
 
-  if (!MmapFixedNoReserve(ShadowAddr(), UnusedAddr() - ShadowAddr()))
+  if (!MmapFixedSuperNoReserve(ShadowAddr(), UnusedAddr() - ShadowAddr()))
     Die();
+  if (common_flags()->use_madv_dontdump)
+    DontDumpShadowMemory(ShadowAddr(), UnusedAddr() - ShadowAddr());
 
   // Protect the region of memory we don't use, to preserve the one-to-one
   // mapping from application to shadow memory. But if ASLR is disabled, Linux

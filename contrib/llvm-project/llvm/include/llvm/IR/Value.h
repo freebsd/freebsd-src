@@ -15,6 +15,7 @@
 
 #include "llvm-c/Types.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/IR/Use.h"
 #include "llvm/Support/Alignment.h"
@@ -43,11 +44,11 @@ class GlobalVariable;
 class InlineAsm;
 class Instruction;
 class LLVMContext;
+class MDNode;
 class Module;
 class ModuleSlotTracker;
 class raw_ostream;
 template<typename ValueTy> class StringMapEntry;
-class StringRef;
 class Twine;
 class Type;
 class User;
@@ -110,12 +111,13 @@ protected:
   ///
   /// Note, this should *NOT* be used directly by any class other than User.
   /// User uses this value to find the Use list.
-  enum : unsigned { NumUserOperandsBits = 28 };
+  enum : unsigned { NumUserOperandsBits = 27 };
   unsigned NumUserOperands : NumUserOperandsBits;
 
   // Use the same type as the bitfield above so that MSVC will pack them.
   unsigned IsUsedByMD : 1;
   unsigned HasName : 1;
+  unsigned HasMetadata : 1; // Has metadata attached to this?
   unsigned HasHungOffUses : 1;
   unsigned HasDescriptor : 1;
 
@@ -279,6 +281,10 @@ public:
   /// \note It is an error to call V->takeName(V).
   void takeName(Value *V);
 
+#ifndef NDEBUG
+  std::string getNameOrAsOperand() const;
+#endif
+
   /// Change all uses of this to point to a new Value.
   ///
   /// Go through the uses list for this definition and make each use point to
@@ -424,25 +430,31 @@ public:
     return materialized_users();
   }
 
-  /// Return true if there is exactly one user of this value.
+  /// Return true if there is exactly one use of this value.
   ///
   /// This is specialized because it is a common request and does not require
   /// traversing the whole use list.
-  bool hasOneUse() const {
-    const_use_iterator I = use_begin(), E = use_end();
-    if (I == E) return false;
-    return ++I == E;
-  }
+  bool hasOneUse() const { return hasSingleElement(uses()); }
 
-  /// Return true if this Value has exactly N users.
+  /// Return true if this Value has exactly N uses.
   bool hasNUses(unsigned N) const;
 
-  /// Return true if this value has N users or more.
+  /// Return true if this value has N uses or more.
   ///
   /// This is logically equivalent to getNumUses() >= N.
   bool hasNUsesOrMore(unsigned N) const;
 
-  /// Return true if there is exactly one user of this value that cannot be
+  /// Return true if there is exactly one user of this value.
+  ///
+  /// Note that this is not the same as "has one use". If a value has one use,
+  /// then there certainly is a single user. But if value has several uses,
+  /// it is possible that all uses are in a single user, or not.
+  ///
+  /// This check is potentially costly, since it requires traversing,
+  /// in the worst case, the whole use list of a value.
+  bool hasOneUser() const;
+
+  /// Return true if there is exactly one use of this value that cannot be
   /// dropped.
   ///
   /// This is specialized because it is a common request and does not require
@@ -455,7 +467,7 @@ public:
   /// traversing the whole use list.
   bool hasNUndroppableUses(unsigned N) const;
 
-  /// Return true if this value has N users or more.
+  /// Return true if this value has N uses or more.
   ///
   /// This is logically equivalent to getNumUses() >= N.
   bool hasNUndroppableUsesOrMore(unsigned N) const;
@@ -469,6 +481,12 @@ public:
   /// uses.
   void dropDroppableUses(llvm::function_ref<bool(const Use *)> ShouldDrop =
                              [](const Use *) { return true; });
+
+  /// Remove every use of this value in \p User that can safely be removed.
+  void dropDroppableUsesIn(User &Usr);
+
+  /// Remove the droppable use \p U.
+  static void dropDroppableUse(Use &U);
 
   /// Check if this value is used in the specified basic block.
   bool isUsedInBasicBlock(const BasicBlock *BB) const;
@@ -534,6 +552,68 @@ public:
   /// Return true if there is metadata referencing this value.
   bool isUsedByMetadata() const { return IsUsedByMD; }
 
+protected:
+  /// Get the current metadata attachments for the given kind, if any.
+  ///
+  /// These functions require that the value have at most a single attachment
+  /// of the given kind, and return \c nullptr if such an attachment is missing.
+  /// @{
+  MDNode *getMetadata(unsigned KindID) const;
+  MDNode *getMetadata(StringRef Kind) const;
+  /// @}
+
+  /// Appends all attachments with the given ID to \c MDs in insertion order.
+  /// If the Value has no attachments with the given ID, or if ID is invalid,
+  /// leaves MDs unchanged.
+  /// @{
+  void getMetadata(unsigned KindID, SmallVectorImpl<MDNode *> &MDs) const;
+  void getMetadata(StringRef Kind, SmallVectorImpl<MDNode *> &MDs) const;
+  /// @}
+
+  /// Appends all metadata attached to this value to \c MDs, sorting by
+  /// KindID. The first element of each pair returned is the KindID, the second
+  /// element is the metadata value. Attachments with the same ID appear in
+  /// insertion order.
+  void
+  getAllMetadata(SmallVectorImpl<std::pair<unsigned, MDNode *>> &MDs) const;
+
+  /// Return true if this value has any metadata attached to it.
+  bool hasMetadata() const { return (bool)HasMetadata; }
+
+  /// Return true if this value has the given type of metadata attached.
+  /// @{
+  bool hasMetadata(unsigned KindID) const {
+    return getMetadata(KindID) != nullptr;
+  }
+  bool hasMetadata(StringRef Kind) const {
+    return getMetadata(Kind) != nullptr;
+  }
+  /// @}
+
+  /// Set a particular kind of metadata attachment.
+  ///
+  /// Sets the given attachment to \c MD, erasing it if \c MD is \c nullptr or
+  /// replacing it if it already exists.
+  /// @{
+  void setMetadata(unsigned KindID, MDNode *Node);
+  void setMetadata(StringRef Kind, MDNode *Node);
+  /// @}
+
+  /// Add a metadata attachment.
+  /// @{
+  void addMetadata(unsigned KindID, MDNode &MD);
+  void addMetadata(StringRef Kind, MDNode &MD);
+  /// @}
+
+  /// Erase all metadata attachments with the given kind.
+  ///
+  /// \returns true if any metadata was removed.
+  bool eraseMetadata(unsigned KindID);
+
+  /// Erase all metadata attached to this Value.
+  void clearMetadata();
+
+public:
   /// Return true if this value is a swifterror value.
   ///
   /// swifterror values can be either a function argument or an alloca with a

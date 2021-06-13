@@ -60,8 +60,7 @@ static const SanitizerMask AlwaysRecoverable =
     SanitizerKind::KernelAddress | SanitizerKind::KernelHWAddress;
 static const SanitizerMask NeedsLTO = SanitizerKind::CFI;
 static const SanitizerMask TrappingSupported =
-    (SanitizerKind::Undefined & ~SanitizerKind::Vptr) |
-    SanitizerKind::UnsignedIntegerOverflow | SanitizerKind::ImplicitConversion |
+    (SanitizerKind::Undefined & ~SanitizerKind::Vptr) | SanitizerKind::Integer |
     SanitizerKind::Nullability | SanitizerKind::LocalBounds |
     SanitizerKind::CFI | SanitizerKind::FloatDivideByZero |
     SanitizerKind::ObjCCast;
@@ -238,6 +237,10 @@ static SanitizerMask parseSanitizeTrapArgs(const Driver &D,
   TrappingKinds |= TrappingDefault & ~TrapRemove;
 
   return TrappingKinds;
+}
+
+bool SanitizerArgs::needsFuzzerInterceptors() const {
+  return needsFuzzer() && !needsAsanRt() && !needsTsanRt() && !needsMsanRt();
 }
 
 bool SanitizerArgs::needsUbsanRt() const {
@@ -491,8 +494,10 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
         << lastArgumentForMask(D, Args, Kinds & NeedsLTO) << "-flto";
   }
 
-  if ((Kinds & SanitizerKind::ShadowCallStack) && TC.getTriple().isAArch64() &&
-      !llvm::AArch64::isX18ReservedByDefault(TC.getTriple()) &&
+  if ((Kinds & SanitizerKind::ShadowCallStack) &&
+      ((TC.getTriple().isAArch64() &&
+        !llvm::AArch64::isX18ReservedByDefault(TC.getTriple())) ||
+       TC.getTriple().isRISCV()) &&
       !Args.hasArg(options::OPT_ffixed_x18)) {
     D.Diag(diag::err_drv_argument_only_allowed_with)
         << lastArgumentForMask(D, Args, Kinds & SanitizerKind::ShadowCallStack)
@@ -862,6 +867,10 @@ SanitizerArgs::SanitizerArgs(const ToolChain &TC,
                                 LinkCXXRuntimes) ||
                     D.CCCIsCXX();
 
+  NeedsMemProfRt = Args.hasFlag(options::OPT_fmemory_profile,
+                                options::OPT_fmemory_profile_EQ,
+                                options::OPT_fno_memory_profile, false);
+
   // Finally, initialize the set of available and recoverable sanitizers.
   Sanitizers.Mask |= Kinds;
   RecoverableSanitizers.Mask |= RecoverableKinds;
@@ -922,10 +931,10 @@ static bool hasTargetFeatureMTE(const llvm::opt::ArgStringList &CmdArgs) {
 void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
                             llvm::opt::ArgStringList &CmdArgs,
                             types::ID InputType) const {
-  // NVPTX doesn't currently support sanitizers.  Bailing out here means that
-  // e.g. -fsanitize=address applies only to host code, which is what we want
-  // for now.
-  if (TC.getTriple().isNVPTX())
+  // NVPTX/AMDGPU doesn't currently support sanitizers.  Bailing out here means
+  // that e.g. -fsanitize=address applies only to host code, which is what we
+  // want for now.
+  if (TC.getTriple().isNVPTX() || TC.getTriple().isAMDGPU())
     return;
 
   // Translate available CoverageFeatures to corresponding clang-cc1 flags.
@@ -1083,6 +1092,23 @@ void SanitizerArgs::addArgs(const ToolChain &TC, const llvm::opt::ArgList &Args,
   if (Sanitizers.has(SanitizerKind::Memory) ||
       Sanitizers.has(SanitizerKind::Address))
     CmdArgs.push_back("-fno-assume-sane-operator-new");
+
+  // libFuzzer wants to intercept calls to certain library functions, so the
+  // following -fno-builtin-* flags force the compiler to emit interposable
+  // libcalls to these functions. Other sanitizers effectively do the same thing
+  // by marking all library call sites with NoBuiltin attribute in their LLVM
+  // pass. (see llvm::maybeMarkSanitizerLibraryCallNoBuiltin)
+  if (Sanitizers.has(SanitizerKind::FuzzerNoLink)) {
+    CmdArgs.push_back("-fno-builtin-bcmp");
+    CmdArgs.push_back("-fno-builtin-memcmp");
+    CmdArgs.push_back("-fno-builtin-strncmp");
+    CmdArgs.push_back("-fno-builtin-strcmp");
+    CmdArgs.push_back("-fno-builtin-strncasecmp");
+    CmdArgs.push_back("-fno-builtin-strcasecmp");
+    CmdArgs.push_back("-fno-builtin-strstr");
+    CmdArgs.push_back("-fno-builtin-strcasestr");
+    CmdArgs.push_back("-fno-builtin-memmem");
+  }
 
   // Require -fvisibility= flag on non-Windows when compiling if vptr CFI is
   // enabled.

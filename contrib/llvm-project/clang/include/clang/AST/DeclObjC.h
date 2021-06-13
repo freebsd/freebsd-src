@@ -320,6 +320,13 @@ public:
     return const_cast<ObjCMethodDecl*>(this)->getClassInterface();
   }
 
+  /// If this method is declared or implemented in a category, return
+  /// that category.
+  ObjCCategoryDecl *getCategory();
+  const ObjCCategoryDecl *getCategory() const {
+    return const_cast<ObjCMethodDecl*>(this)->getCategory();
+  }
+
   Selector getSelector() const { return getDeclName().getObjCSelector(); }
 
   QualType getReturnType() const { return MethodDeclType; }
@@ -649,20 +656,8 @@ public:
 /// \endcode
 class ObjCTypeParamList final
     : private llvm::TrailingObjects<ObjCTypeParamList, ObjCTypeParamDecl *> {
-  /// Stores the components of a SourceRange as a POD.
-  struct PODSourceRange {
-    unsigned Begin;
-    unsigned End;
-  };
-
-  union {
-    /// Location of the left and right angle brackets.
-    PODSourceRange Brackets;
-
-    // Used only for alignment.
-    ObjCTypeParamDecl *AlignmentHack;
-  };
-
+  /// Location of the left and right angle brackets.
+  SourceRange Brackets;
   /// The number of parameters in the list, which are tail-allocated.
   unsigned NumParams;
 
@@ -710,17 +705,9 @@ public:
     return *(end() - 1);
   }
 
-  SourceLocation getLAngleLoc() const {
-    return SourceLocation::getFromRawEncoding(Brackets.Begin);
-  }
-
-  SourceLocation getRAngleLoc() const {
-    return SourceLocation::getFromRawEncoding(Brackets.End);
-  }
-
-  SourceRange getSourceRange() const {
-    return SourceRange(getLAngleLoc(), getRAngleLoc());
-  }
+  SourceLocation getLAngleLoc() const { return Brackets.getBegin(); }
+  SourceLocation getRAngleLoc() const { return Brackets.getEnd(); }
+  SourceRange getSourceRange() const { return Brackets; }
 
   /// Gather the default set of type arguments to be substituted for
   /// these type parameters when dealing with an unspecialized type.
@@ -2170,6 +2157,14 @@ public:
     assert(hasDefinition() && "Protocol is not defined");
     data().ReferencedProtocols.set(List, Num, Locs, C);
   }
+
+  /// This is true iff the protocol is tagged with the
+  /// `objc_non_runtime_protocol` attribute.
+  bool isNonRuntimeProtocol() const;
+
+  /// Get the set of all protocols implied by this protocols inheritance
+  /// hierarchy.
+  void getImpliedProtocols(llvm::DenseSet<const ObjCProtocolDecl *> &IPs) const;
 
   ObjCProtocolDecl *lookupProtocolNamed(IdentifierInfo *PName);
 

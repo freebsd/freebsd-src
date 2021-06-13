@@ -55,13 +55,14 @@ class ASTRecordWriter
 
 public:
   /// Construct a ASTRecordWriter that uses the default encoding scheme.
-  ASTRecordWriter(ASTWriter &Writer, ASTWriter::RecordDataImpl &Record)
-      : Writer(&Writer), Record(&Record) {}
+  ASTRecordWriter(ASTWriter &W, ASTWriter::RecordDataImpl &Record)
+      : DataStreamBasicWriter(W.getASTContext()), Writer(&W), Record(&Record) {}
 
   /// Construct a ASTRecordWriter that uses the same encoding scheme as another
   /// ASTRecordWriter.
   ASTRecordWriter(ASTRecordWriter &Parent, ASTWriter::RecordDataImpl &Record)
-      : Writer(Parent.Writer), Record(&Record) {}
+      : DataStreamBasicWriter(Parent.getASTContext()), Writer(Parent.Writer),
+        Record(&Record) {}
 
   /// Copying an ASTRecordWriter is almost certainly a bug.
   ASTRecordWriter(const ASTRecordWriter &) = delete;
@@ -165,7 +166,7 @@ public:
   void AddAPFloat(const llvm::APFloat &Value);
 
   /// Emit an APvalue.
-  void AddAPValue(const APValue &Value);
+  void AddAPValue(const APValue &Value) { writeAPValue(Value); }
 
   /// Emit a reference to an identifier.
   void AddIdentifierRef(const IdentifierInfo *II) {
@@ -266,10 +267,16 @@ public:
 
   void AddCXXDefinitionData(const CXXRecordDecl *D);
 
+  /// Emit information about the initializer of a VarDecl.
+  void AddVarDeclInit(const VarDecl *VD);
+
   /// Write an OMPTraitInfo object.
   void writeOMPTraitInfo(const OMPTraitInfo *TI);
 
   void writeOMPClause(OMPClause *C);
+
+  /// Writes data related to the OpenMP directives.
+  void writeOMPChildren(OMPChildren *Data);
 
   /// Emit a string.
   void AddString(StringRef Str) {

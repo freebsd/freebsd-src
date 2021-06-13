@@ -24,12 +24,18 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/CodeGen/GlobalISel/IRTranslator.h"
+#include "llvm/CodeGen/GlobalISel/InstructionSelect.h"
+#include "llvm/CodeGen/GlobalISel/Legalizer.h"
+#include "llvm/CodeGen/GlobalISel/Localizer.h"
+#include "llvm/CodeGen/GlobalISel/RegBankSelect.h"
+#include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/CommandLine.h"
@@ -64,10 +70,6 @@ opt<bool> DisableVSXSwapRemoval("disable-ppc-vsx-swap-removal", cl::Hidden,
                                 cl::desc("Disable VSX Swap Removal for PPC"));
 
 static cl::
-opt<bool> DisableQPXLoadSplat("disable-ppc-qpx-load-splat", cl::Hidden,
-                              cl::desc("Disable QPX load splat simplification"));
-
-static cl::
 opt<bool> DisableMIPeephole("disable-ppc-peephole", cl::Hidden,
                             cl::desc("Disable machine peepholes for PPC"));
 
@@ -98,8 +100,9 @@ static cl::opt<bool>
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializePowerPCTarget() {
   // Register the targets
   RegisterTargetMachine<PPCTargetMachine> A(getThePPC32Target());
-  RegisterTargetMachine<PPCTargetMachine> B(getThePPC64Target());
-  RegisterTargetMachine<PPCTargetMachine> C(getThePPC64LETarget());
+  RegisterTargetMachine<PPCTargetMachine> B(getThePPC32LETarget());
+  RegisterTargetMachine<PPCTargetMachine> C(getThePPC64Target());
+  RegisterTargetMachine<PPCTargetMachine> D(getThePPC64LETarget());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
 #ifndef NDEBUG
@@ -114,13 +117,13 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializePowerPCTarget() {
   initializePPCReduceCRLogicalsPass(PR);
   initializePPCBSelPass(PR);
   initializePPCBranchCoalescingPass(PR);
-  initializePPCQPXLoadSplatPass(PR);
   initializePPCBoolRetToIntPass(PR);
   initializePPCExpandISELPass(PR);
   initializePPCPreEmitPeepholePass(PR);
   initializePPCTLSDynamicCallPass(PR);
   initializePPCMIPeepholePass(PR);
   initializePPCLowerMASSVEntriesPass(PR);
+  initializeGlobalISel(PR);
 }
 
 /// Return the datalayout string of a subtarget.
@@ -128,8 +131,8 @@ static std::string getDataLayoutString(const Triple &T) {
   bool is64Bit = T.getArch() == Triple::ppc64 || T.getArch() == Triple::ppc64le;
   std::string Ret;
 
-  // Most PPC* platforms are big endian, PPC64LE is little endian.
-  if (T.getArch() == Triple::ppc64le)
+  // Most PPC* platforms are big endian, PPC(64)LE is little endian.
+  if (T.getArch() == Triple::ppc64le || T.getArch() == Triple::ppcle)
     Ret = "e";
   else
     Ret = "E";
@@ -143,16 +146,20 @@ static std::string getDataLayoutString(const Triple &T) {
 
   // Note, the alignment values for f64 and i64 on ppc64 in Darwin
   // documentation are wrong; these are correct (i.e. "what gcc does").
-  if (is64Bit || !T.isOSDarwin())
-    Ret += "-i64:64";
-  else
-    Ret += "-f64:32:64";
+  Ret += "-i64:64";
 
   // PPC64 has 32 and 64 bit registers, PPC32 has only 32 bit ones.
   if (is64Bit)
     Ret += "-n32:64";
   else
     Ret += "-n32";
+
+  // Specify the vector alignment explicitly. For v256i1 and v512i1, the
+  // calculated alignment would be 256*alignment(i1) and 512*alignment(i1),
+  // which is 256 and 512 bytes - way over aligned.
+  if ((T.getArch() == Triple::ppc64le || T.getArch() == Triple::ppc64) &&
+      (T.isOSAIX() || T.isOSLinux()))
+    Ret += "-v256:256:256-v512:512:512";
 
   return Ret;
 }
@@ -183,13 +190,17 @@ static std::string computeFSAdditions(StringRef FS, CodeGenOpt::Level OL,
       FullFS = "+invariant-function-descriptors";
   }
 
+  if (TT.isOSAIX()) {
+    if (!FullFS.empty())
+      FullFS = "+aix," + FullFS;
+    else
+      FullFS = "+aix";
+  }
+
   return FullFS;
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
-  if (TT.isOSDarwin())
-    return std::make_unique<TargetLoweringObjectFileMachO>();
-
   if (TT.isOSAIX())
     return std::make_unique<TargetLoweringObjectFileXCOFF>();
 
@@ -198,9 +209,6 @@ static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
 
 static PPCTargetMachine::PPCABI computeTargetABI(const Triple &TT,
                                                  const TargetOptions &Options) {
-  if (TT.isOSDarwin())
-    report_fatal_error("Darwin is no longer supported for PowerPC");
-  
   if (Options.MCOptions.getABIName().startswith("elfv1"))
     return PPCTargetMachine::PPC_ABI_ELFv1;
   else if (Options.MCOptions.getABIName().startswith("elfv2"))
@@ -229,10 +237,6 @@ static Reloc::Model getEffectiveRelocModel(const Triple &TT,
 
   if (RM.hasValue())
     return *RM;
-
-  // Darwin defaults to dynamic-no-pic.
-  if (TT.isOSDarwin())
-    return Reloc::DynamicNoPIC;
 
   // Big Endian PPC and AIX default to PIC.
   if (TT.getArch() == Triple::ppc64 || TT.isOSAIX())
@@ -276,6 +280,8 @@ static ScheduleDAGInstrs *createPPCMachineScheduler(MachineSchedContext *C) {
                           std::make_unique<GenericScheduler>(C));
   // add DAG Mutations here.
   DAG->addMutation(createCopyConstrainDAGMutation(DAG->TII, DAG->TRI));
+  if (ST.hasStoreFusion())
+    DAG->addMutation(createStoreClusterDAGMutation(DAG->TII, DAG->TRI));
   if (ST.hasFusion())
     DAG->addMutation(createPowerPCMacroFusionDAGMutation());
 
@@ -290,6 +296,8 @@ static ScheduleDAGInstrs *createPPCPostMachineScheduler(
                       std::make_unique<PPCPostRASchedStrategy>(C) :
                       std::make_unique<PostGenericScheduler>(C), true);
   // add DAG Mutations here.
+  if (ST.hasStoreFusion())
+    DAG->addMutation(createStoreClusterDAGMutation(DAG->TII, DAG->TRI));
   if (ST.hasFusion())
     DAG->addMutation(createPowerPCMacroFusionDAGMutation());
   return DAG;
@@ -321,12 +329,10 @@ PPCTargetMachine::getSubtargetImpl(const Function &F) const {
   Attribute CPUAttr = F.getFnAttribute("target-cpu");
   Attribute FSAttr = F.getFnAttribute("target-features");
 
-  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
-                        ? CPUAttr.getValueAsString().str()
-                        : TargetCPU;
-  std::string FS = !FSAttr.hasAttribute(Attribute::None)
-                       ? FSAttr.getValueAsString().str()
-                       : TargetFS;
+  std::string CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString().str() : TargetCPU;
+  std::string FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString().str() : TargetFS;
 
   // FIXME: This is related to the code below to reset the target options,
   // we need to know whether or not the soft float flag is set on the
@@ -388,6 +394,12 @@ public:
   void addPreRegAlloc() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
+  // GlobalISEL
+  bool addIRTranslator() override;
+  bool addLegalizeMachineIR() override;
+  bool addRegBankSelect() override;
+  bool addGlobalInstructionSelect() override;
+
   ScheduleDAGInstrs *
   createMachineScheduler(MachineSchedContext *C) const override {
     return createPPCMachineScheduler(C);
@@ -411,14 +423,9 @@ void PPCPassConfig::addIRPasses() {
 
   // Lower generic MASSV routines to PowerPC subtarget-specific entries.
   addPass(createPPCLowerMASSVEntriesPass());
-  
-  // For the BG/Q (or if explicitly requested), add explicit data prefetch
-  // intrinsics.
-  bool UsePrefetching = TM->getTargetTriple().getVendor() == Triple::BGQ &&
-                        getOptLevel() != CodeGenOpt::None;
+
+  // If explicitly requested, add explicit data prefetch intrinsics.
   if (EnablePrefetch.getNumOccurrences() > 0)
-    UsePrefetching = EnablePrefetch;
-  if (UsePrefetching)
     addPass(createLoopDataPrefetchPass());
 
   if (TM->getOptLevel() >= CodeGenOpt::Default && EnableGEPOpt) {
@@ -515,15 +522,8 @@ void PPCPassConfig::addPreRegAlloc() {
 }
 
 void PPCPassConfig::addPreSched2() {
-  if (getOptLevel() != CodeGenOpt::None) {
+  if (getOptLevel() != CodeGenOpt::None)
     addPass(&IfConverterID);
-
-    // This optimization must happen after anything that might do store-to-load
-    // forwarding. Here we're after RA (and, thus, when spills are inserted)
-    // but before post-RA scheduling.
-    if (!DisableQPXLoadSplat)
-      addPass(createPPCQPXLoadSplatPass());
-  }
 }
 
 void PPCPassConfig::addPreEmitPass() {
@@ -550,3 +550,24 @@ static MachineSchedRegistry
 PPCPostRASchedRegistry("ppc-postra",
                        "Run PowerPC PostRA specific scheduler",
                        createPPCPostMachineScheduler);
+
+// Global ISEL
+bool PPCPassConfig::addIRTranslator() {
+  addPass(new IRTranslator());
+  return false;
+}
+
+bool PPCPassConfig::addLegalizeMachineIR() {
+  addPass(new Legalizer());
+  return false;
+}
+
+bool PPCPassConfig::addRegBankSelect() {
+  addPass(new RegBankSelect());
+  return false;
+}
+
+bool PPCPassConfig::addGlobalInstructionSelect() {
+  addPass(new InstructionSelect());
+  return false;
+}

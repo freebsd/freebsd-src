@@ -81,7 +81,9 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicsBPF.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
@@ -93,26 +95,30 @@
 
 namespace llvm {
 constexpr StringRef BPFCoreSharedInfo::AmaAttr;
+uint32_t BPFCoreSharedInfo::SeqNum;
+
+Instruction *BPFCoreSharedInfo::insertPassThrough(Module *M, BasicBlock *BB,
+                                                  Instruction *Input,
+                                                  Instruction *Before) {
+  Function *Fn = Intrinsic::getDeclaration(
+      M, Intrinsic::bpf_passthrough, {Input->getType(), Input->getType()});
+  Constant *SeqNumVal = ConstantInt::get(Type::getInt32Ty(BB->getContext()),
+                                         BPFCoreSharedInfo::SeqNum++);
+
+  auto *NewInst = CallInst::Create(Fn, {SeqNumVal, Input});
+  BB->getInstList().insert(Before->getIterator(), NewInst);
+  return NewInst;
+}
 } // namespace llvm
 
 using namespace llvm;
 
 namespace {
-
-class BPFAbstractMemberAccess final : public ModulePass {
-  StringRef getPassName() const override {
-    return "BPF Abstract Member Access";
-  }
-
-  bool runOnModule(Module &M) override;
-
+class BPFAbstractMemberAccess final {
 public:
-  static char ID;
-  TargetMachine *TM;
-  // Add optional BPFTargetMachine parameter so that BPF backend can add the phase
-  // with target machine to find out the endianness. The default constructor (without
-  // parameters) is used by the pass manager for managing purposes.
-  BPFAbstractMemberAccess(BPFTargetMachine *TM = nullptr) : ModulePass(ID), TM(TM) {}
+  BPFAbstractMemberAccess(BPFTargetMachine *TM) : TM(TM) {}
+
+  bool run(Function &F);
 
   struct CallInfo {
     uint32_t Kind;
@@ -131,9 +137,11 @@ private:
     BPFPreserveFieldInfoAI = 4,
   };
 
+  TargetMachine *TM;
   const DataLayout *DL = nullptr;
+  Module *M = nullptr;
 
-  std::map<std::string, GlobalVariable *> GEPGlobals;
+  static std::map<std::string, GlobalVariable *> GEPGlobals;
   // A map to link preserve_*_access_index instrinsic calls.
   std::map<CallInst *, std::pair<CallInst *, CallInfo>> AIChain;
   // A map to hold all the base preserve_*_access_index instrinsic calls.
@@ -141,19 +149,19 @@ private:
   // intrinsics.
   std::map<CallInst *, CallInfo> BaseAICalls;
 
-  bool doTransformation(Module &M);
+  bool doTransformation(Function &F);
 
   void traceAICall(CallInst *Call, CallInfo &ParentInfo);
   void traceBitCast(BitCastInst *BitCast, CallInst *Parent,
                     CallInfo &ParentInfo);
   void traceGEP(GetElementPtrInst *GEP, CallInst *Parent,
                 CallInfo &ParentInfo);
-  void collectAICallChains(Module &M, Function &F);
+  void collectAICallChains(Function &F);
 
   bool IsPreserveDIAccessIndexCall(const CallInst *Call, CallInfo &Cinfo);
   bool IsValidAIChain(const MDNode *ParentMeta, uint32_t ParentAI,
                       const MDNode *ChildMeta);
-  bool removePreserveAccessIndexIntrinsic(Module &M);
+  bool removePreserveAccessIndexIntrinsic(Function &F);
   void replaceWithGEP(std::vector<CallInst *> &CallList,
                       uint32_t NumOfZerosIndex, uint32_t DIIndex);
   bool HasPreserveFieldInfoCall(CallInfoStack &CallStack);
@@ -165,28 +173,55 @@ private:
 
   Value *computeBaseAndAccessKey(CallInst *Call, CallInfo &CInfo,
                                  std::string &AccessKey, MDNode *&BaseMeta);
+  MDNode *computeAccessKey(CallInst *Call, CallInfo &CInfo,
+                           std::string &AccessKey, bool &IsInt32Ret);
   uint64_t getConstant(const Value *IndexValue);
-  bool transformGEPChain(Module &M, CallInst *Call, CallInfo &CInfo);
+  bool transformGEPChain(CallInst *Call, CallInfo &CInfo);
 };
+
+std::map<std::string, GlobalVariable *> BPFAbstractMemberAccess::GEPGlobals;
+
+class BPFAbstractMemberAccessLegacyPass final : public FunctionPass {
+  BPFTargetMachine *TM;
+
+  bool runOnFunction(Function &F) override {
+    return BPFAbstractMemberAccess(TM).run(F);
+  }
+
+public:
+  static char ID;
+
+  // Add optional BPFTargetMachine parameter so that BPF backend can add the
+  // phase with target machine to find out the endianness. The default
+  // constructor (without parameters) is used by the pass manager for managing
+  // purposes.
+  BPFAbstractMemberAccessLegacyPass(BPFTargetMachine *TM = nullptr)
+      : FunctionPass(ID), TM(TM) {}
+};
+
 } // End anonymous namespace
 
-char BPFAbstractMemberAccess::ID = 0;
-INITIALIZE_PASS(BPFAbstractMemberAccess, DEBUG_TYPE,
-                "abstracting struct/union member accessees", false, false)
+char BPFAbstractMemberAccessLegacyPass::ID = 0;
+INITIALIZE_PASS(BPFAbstractMemberAccessLegacyPass, DEBUG_TYPE,
+                "BPF Abstract Member Access", false, false)
 
-ModulePass *llvm::createBPFAbstractMemberAccess(BPFTargetMachine *TM) {
-  return new BPFAbstractMemberAccess(TM);
+FunctionPass *llvm::createBPFAbstractMemberAccess(BPFTargetMachine *TM) {
+  return new BPFAbstractMemberAccessLegacyPass(TM);
 }
 
-bool BPFAbstractMemberAccess::runOnModule(Module &M) {
+bool BPFAbstractMemberAccess::run(Function &F) {
   LLVM_DEBUG(dbgs() << "********** Abstract Member Accesses **********\n");
 
-  // Bail out if no debug info.
-  if (M.debug_compile_units().empty())
+  M = F.getParent();
+  if (!M)
     return false;
 
-  DL = &M.getDataLayout();
-  return doTransformation(M);
+  // Bail out if no debug info.
+  if (M->debug_compile_units().empty())
+    return false;
+
+  DL = &M->getDataLayout();
+  return doTransformation(F);
 }
 
 static bool SkipDIDerivedTag(unsigned Tag, bool skipTypedef) {
@@ -285,6 +320,34 @@ bool BPFAbstractMemberAccess::IsPreserveDIAccessIndexCall(const CallInst *Call,
     CInfo.AccessIndex = InfoKind;
     return true;
   }
+  if (GV->getName().startswith("llvm.bpf.preserve.type.info")) {
+    CInfo.Kind = BPFPreserveFieldInfoAI;
+    CInfo.Metadata = Call->getMetadata(LLVMContext::MD_preserve_access_index);
+    if (!CInfo.Metadata)
+      report_fatal_error("Missing metadata for llvm.preserve.type.info intrinsic");
+    uint64_t Flag = getConstant(Call->getArgOperand(1));
+    if (Flag >= BPFCoreSharedInfo::MAX_PRESERVE_TYPE_INFO_FLAG)
+      report_fatal_error("Incorrect flag for llvm.bpf.preserve.type.info intrinsic");
+    if (Flag == BPFCoreSharedInfo::PRESERVE_TYPE_INFO_EXISTENCE)
+      CInfo.AccessIndex = BPFCoreSharedInfo::TYPE_EXISTENCE;
+    else
+      CInfo.AccessIndex = BPFCoreSharedInfo::TYPE_SIZE;
+    return true;
+  }
+  if (GV->getName().startswith("llvm.bpf.preserve.enum.value")) {
+    CInfo.Kind = BPFPreserveFieldInfoAI;
+    CInfo.Metadata = Call->getMetadata(LLVMContext::MD_preserve_access_index);
+    if (!CInfo.Metadata)
+      report_fatal_error("Missing metadata for llvm.preserve.enum.value intrinsic");
+    uint64_t Flag = getConstant(Call->getArgOperand(2));
+    if (Flag >= BPFCoreSharedInfo::MAX_PRESERVE_ENUM_VALUE_FLAG)
+      report_fatal_error("Incorrect flag for llvm.bpf.preserve.enum.value intrinsic");
+    if (Flag == BPFCoreSharedInfo::PRESERVE_ENUM_VALUE_EXISTENCE)
+      CInfo.AccessIndex = BPFCoreSharedInfo::ENUM_VALUE_EXISTENCE;
+    else
+      CInfo.AccessIndex = BPFCoreSharedInfo::ENUM_VALUE;
+    return true;
+  }
 
   return false;
 }
@@ -311,28 +374,27 @@ void BPFAbstractMemberAccess::replaceWithGEP(std::vector<CallInst *> &CallList,
   }
 }
 
-bool BPFAbstractMemberAccess::removePreserveAccessIndexIntrinsic(Module &M) {
+bool BPFAbstractMemberAccess::removePreserveAccessIndexIntrinsic(Function &F) {
   std::vector<CallInst *> PreserveArrayIndexCalls;
   std::vector<CallInst *> PreserveUnionIndexCalls;
   std::vector<CallInst *> PreserveStructIndexCalls;
   bool Found = false;
 
-  for (Function &F : M)
-    for (auto &BB : F)
-      for (auto &I : BB) {
-        auto *Call = dyn_cast<CallInst>(&I);
-        CallInfo CInfo;
-        if (!IsPreserveDIAccessIndexCall(Call, CInfo))
-          continue;
+  for (auto &BB : F)
+    for (auto &I : BB) {
+      auto *Call = dyn_cast<CallInst>(&I);
+      CallInfo CInfo;
+      if (!IsPreserveDIAccessIndexCall(Call, CInfo))
+        continue;
 
-        Found = true;
-        if (CInfo.Kind == BPFPreserveArrayAI)
-          PreserveArrayIndexCalls.push_back(Call);
-        else if (CInfo.Kind == BPFPreserveUnionAI)
-          PreserveUnionIndexCalls.push_back(Call);
-        else
-          PreserveStructIndexCalls.push_back(Call);
-      }
+      Found = true;
+      if (CInfo.Kind == BPFPreserveArrayAI)
+        PreserveArrayIndexCalls.push_back(Call);
+      else if (CInfo.Kind == BPFPreserveUnionAI)
+        PreserveUnionIndexCalls.push_back(Call);
+      else
+        PreserveStructIndexCalls.push_back(Call);
+    }
 
   // do the following transformation:
   // . addr = preserve_array_access_index(base, dimension, index)
@@ -498,7 +560,7 @@ void BPFAbstractMemberAccess::traceGEP(GetElementPtrInst *GEP, CallInst *Parent,
   }
 }
 
-void BPFAbstractMemberAccess::collectAICallChains(Module &M, Function &F) {
+void BPFAbstractMemberAccess::collectAICallChains(Function &F) {
   AIChain.clear();
   BaseAICalls.clear();
 
@@ -847,28 +909,94 @@ Value *BPFAbstractMemberAccess::computeBaseAndAccessKey(CallInst *Call,
   return Base;
 }
 
+MDNode *BPFAbstractMemberAccess::computeAccessKey(CallInst *Call,
+                                                  CallInfo &CInfo,
+                                                  std::string &AccessKey,
+                                                  bool &IsInt32Ret) {
+  DIType *Ty = stripQualifiers(cast<DIType>(CInfo.Metadata), false);
+  assert(!Ty->getName().empty());
+
+  int64_t PatchImm;
+  std::string AccessStr("0");
+  if (CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_EXISTENCE) {
+    PatchImm = 1;
+  } else if (CInfo.AccessIndex == BPFCoreSharedInfo::TYPE_SIZE) {
+    // typedef debuginfo type has size 0, get the eventual base type.
+    DIType *BaseTy = stripQualifiers(Ty, true);
+    PatchImm = BaseTy->getSizeInBits() / 8;
+  } else {
+    // ENUM_VALUE_EXISTENCE and ENUM_VALUE
+    IsInt32Ret = false;
+
+    const auto *CE = cast<ConstantExpr>(Call->getArgOperand(1));
+    const GlobalVariable *GV = cast<GlobalVariable>(CE->getOperand(0));
+    assert(GV->hasInitializer());
+    const ConstantDataArray *DA = cast<ConstantDataArray>(GV->getInitializer());
+    assert(DA->isString());
+    StringRef ValueStr = DA->getAsString();
+
+    // ValueStr format: <EnumeratorStr>:<Value>
+    size_t Separator = ValueStr.find_first_of(':');
+    StringRef EnumeratorStr = ValueStr.substr(0, Separator);
+
+    // Find enumerator index in the debuginfo
+    DIType *BaseTy = stripQualifiers(Ty, true);
+    const auto *CTy = cast<DICompositeType>(BaseTy);
+    assert(CTy->getTag() == dwarf::DW_TAG_enumeration_type);
+    int EnumIndex = 0;
+    for (const auto Element : CTy->getElements()) {
+      const auto *Enum = cast<DIEnumerator>(Element);
+      if (Enum->getName() == EnumeratorStr) {
+        AccessStr = std::to_string(EnumIndex);
+        break;
+      }
+      EnumIndex++;
+    }
+
+    if (CInfo.AccessIndex == BPFCoreSharedInfo::ENUM_VALUE) {
+      StringRef EValueStr = ValueStr.substr(Separator + 1);
+      PatchImm = std::stoll(std::string(EValueStr));
+    } else {
+      PatchImm = 1;
+    }
+  }
+
+  AccessKey = "llvm." + Ty->getName().str() + ":" +
+              std::to_string(CInfo.AccessIndex) + std::string(":") +
+              std::to_string(PatchImm) + std::string("$") + AccessStr;
+
+  return Ty;
+}
+
 /// Call/Kind is the base preserve_*_access_index() call. Attempts to do
 /// transformation to a chain of relocable GEPs.
-bool BPFAbstractMemberAccess::transformGEPChain(Module &M, CallInst *Call,
+bool BPFAbstractMemberAccess::transformGEPChain(CallInst *Call,
                                                 CallInfo &CInfo) {
   std::string AccessKey;
   MDNode *TypeMeta;
-  Value *Base =
-      computeBaseAndAccessKey(Call, CInfo, AccessKey, TypeMeta);
-  if (!Base)
-    return false;
+  Value *Base = nullptr;
+  bool IsInt32Ret;
+
+  IsInt32Ret = CInfo.Kind == BPFPreserveFieldInfoAI;
+  if (CInfo.Kind == BPFPreserveFieldInfoAI && CInfo.Metadata) {
+    TypeMeta = computeAccessKey(Call, CInfo, AccessKey, IsInt32Ret);
+  } else {
+    Base = computeBaseAndAccessKey(Call, CInfo, AccessKey, TypeMeta);
+    if (!Base)
+      return false;
+  }
 
   BasicBlock *BB = Call->getParent();
   GlobalVariable *GV;
 
   if (GEPGlobals.find(AccessKey) == GEPGlobals.end()) {
     IntegerType *VarType;
-    if (CInfo.Kind == BPFPreserveFieldInfoAI)
+    if (IsInt32Ret)
       VarType = Type::getInt32Ty(BB->getContext()); // 32bit return value
     else
-      VarType = Type::getInt64Ty(BB->getContext()); // 64bit ptr arith
+      VarType = Type::getInt64Ty(BB->getContext()); // 64bit ptr or enum value
 
-    GV = new GlobalVariable(M, VarType, false, GlobalVariable::ExternalLinkage,
+    GV = new GlobalVariable(*M, VarType, false, GlobalVariable::ExternalLinkage,
                             NULL, AccessKey);
     GV->addAttribute(BPFCoreSharedInfo::AmaAttr);
     GV->setMetadata(LLVMContext::MD_preserve_access_index, TypeMeta);
@@ -879,9 +1007,15 @@ bool BPFAbstractMemberAccess::transformGEPChain(Module &M, CallInst *Call,
 
   if (CInfo.Kind == BPFPreserveFieldInfoAI) {
     // Load the global variable which represents the returned field info.
-    auto *LDInst = new LoadInst(Type::getInt32Ty(BB->getContext()), GV, "",
-                                Call);
-    Call->replaceAllUsesWith(LDInst);
+    LoadInst *LDInst;
+    if (IsInt32Ret)
+      LDInst = new LoadInst(Type::getInt32Ty(BB->getContext()), GV, "", Call);
+    else
+      LDInst = new LoadInst(Type::getInt64Ty(BB->getContext()), GV, "", Call);
+
+    Instruction *PassThroughInst =
+        BPFCoreSharedInfo::insertPassThrough(M, BB, LDInst, Call);
+    Call->replaceAllUsesWith(PassThroughInst);
     Call->eraseFromParent();
     return true;
   }
@@ -889,7 +1023,7 @@ bool BPFAbstractMemberAccess::transformGEPChain(Module &M, CallInst *Call,
   // For any original GEP Call and Base %2 like
   //   %4 = bitcast %struct.net_device** %dev1 to i64*
   // it is transformed to:
-  //   %6 = load sk_buff:50:$0:0:0:2:0
+  //   %6 = load llvm.sk_buff:0:50$0:0:0:2:0
   //   %7 = bitcast %struct.sk_buff* %2 to i8*
   //   %8 = getelementptr i8, i8* %7, %6
   //   %9 = bitcast i8* %8 to i64*
@@ -912,24 +1046,75 @@ bool BPFAbstractMemberAccess::transformGEPChain(Module &M, CallInst *Call,
   auto *BCInst2 = new BitCastInst(GEP, Call->getType());
   BB->getInstList().insert(Call->getIterator(), BCInst2);
 
-  Call->replaceAllUsesWith(BCInst2);
+  // For the following code,
+  //    Block0:
+  //      ...
+  //      if (...) goto Block1 else ...
+  //    Block1:
+  //      %6 = load llvm.sk_buff:0:50$0:0:0:2:0
+  //      %7 = bitcast %struct.sk_buff* %2 to i8*
+  //      %8 = getelementptr i8, i8* %7, %6
+  //      ...
+  //      goto CommonExit
+  //    Block2:
+  //      ...
+  //      if (...) goto Block3 else ...
+  //    Block3:
+  //      %6 = load llvm.bpf_map:0:40$0:0:0:2:0
+  //      %7 = bitcast %struct.sk_buff* %2 to i8*
+  //      %8 = getelementptr i8, i8* %7, %6
+  //      ...
+  //      goto CommonExit
+  //    CommonExit
+  // SimplifyCFG may generate:
+  //    Block0:
+  //      ...
+  //      if (...) goto Block_Common else ...
+  //     Block2:
+  //       ...
+  //      if (...) goto Block_Common else ...
+  //    Block_Common:
+  //      PHI = [llvm.sk_buff:0:50$0:0:0:2:0, llvm.bpf_map:0:40$0:0:0:2:0]
+  //      %6 = load PHI
+  //      %7 = bitcast %struct.sk_buff* %2 to i8*
+  //      %8 = getelementptr i8, i8* %7, %6
+  //      ...
+  //      goto CommonExit
+  //  For the above code, we cannot perform proper relocation since
+  //  "load PHI" has two possible relocations.
+  //
+  // To prevent above tail merging, we use __builtin_bpf_passthrough()
+  // where one of its parameters is a seq_num. Since two
+  // __builtin_bpf_passthrough() funcs will always have different seq_num,
+  // tail merging cannot happen. The __builtin_bpf_passthrough() will be
+  // removed in the beginning of Target IR passes.
+  //
+  // This approach is also used in other places when global var
+  // representing a relocation is used.
+  Instruction *PassThroughInst =
+      BPFCoreSharedInfo::insertPassThrough(M, BB, BCInst2, Call);
+  Call->replaceAllUsesWith(PassThroughInst);
   Call->eraseFromParent();
 
   return true;
 }
 
-bool BPFAbstractMemberAccess::doTransformation(Module &M) {
+bool BPFAbstractMemberAccess::doTransformation(Function &F) {
   bool Transformed = false;
 
-  for (Function &F : M) {
-    // Collect PreserveDIAccessIndex Intrinsic call chains.
-    // The call chains will be used to generate the access
-    // patterns similar to GEP.
-    collectAICallChains(M, F);
+  // Collect PreserveDIAccessIndex Intrinsic call chains.
+  // The call chains will be used to generate the access
+  // patterns similar to GEP.
+  collectAICallChains(F);
 
-    for (auto &C : BaseAICalls)
-      Transformed = transformGEPChain(M, C.first, C.second) || Transformed;
-  }
+  for (auto &C : BaseAICalls)
+    Transformed = transformGEPChain(C.first, C.second) || Transformed;
 
-  return removePreserveAccessIndexIntrinsic(M) || Transformed;
+  return removePreserveAccessIndexIntrinsic(F) || Transformed;
+}
+
+PreservedAnalyses
+BPFAbstractMemberAccessPass::run(Function &F, FunctionAnalysisManager &AM) {
+  return BPFAbstractMemberAccess(TM).run(F) ? PreservedAnalyses::none()
+                                            : PreservedAnalyses::all();
 }

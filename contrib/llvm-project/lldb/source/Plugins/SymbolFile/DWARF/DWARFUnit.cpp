@@ -34,7 +34,8 @@ DWARFUnit::DWARFUnit(SymbolFileDWARF &dwarf, lldb::user_id_t uid,
                      const DWARFAbbreviationDeclarationSet &abbrevs,
                      DIERef::Section section, bool is_dwo)
     : UserID(uid), m_dwarf(dwarf), m_header(header), m_abbrevs(&abbrevs),
-      m_cancel_scopes(false), m_section(section), m_is_dwo(is_dwo) {}
+      m_cancel_scopes(false), m_section(section), m_is_dwo(is_dwo),
+      m_dwo_id(header.GetDWOId()) {}
 
 DWARFUnit::~DWARFUnit() = default;
 
@@ -49,9 +50,7 @@ void DWARFUnit::ExtractUnitDIEIfNeeded() {
   if (m_first_die)
     return; // Already parsed
 
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, "%8.8x: DWARFUnit::ExtractUnitDIEIfNeeded()",
-                     GetOffset());
+  LLDB_SCOPED_TIMERF("%8.8x: DWARFUnit::ExtractUnitDIEIfNeeded()", GetOffset());
 
   // Set the offset to that of the first DIE and calculate the start of the
   // next compilation unit header.
@@ -145,9 +144,7 @@ DWARFUnit::ScopedExtractDIEs &DWARFUnit::ScopedExtractDIEs::operator=(
 void DWARFUnit::ExtractDIEsRWLocked() {
   llvm::sys::ScopedWriter first_die_lock(m_first_die_mutex);
 
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, "%8.8x: DWARFUnit::ExtractDIEsIfNeeded()",
-                     GetOffset());
+  LLDB_SCOPED_TIMERF("%8.8x: DWARFUnit::ExtractDIEsIfNeeded()", GetOffset());
 
   // Set the offset to that of the first DIE and calculate the start of the
   // next compilation unit header.
@@ -288,6 +285,11 @@ void DWARFUnit::SetDwoStrOffsetsBase() {
   SetStrOffsetsBase(baseOffset);
 }
 
+uint64_t DWARFUnit::GetDWOId() {
+  ExtractUnitDIEIfNeeded();
+  return m_dwo_id;
+}
+
 // m_die_array_mutex must be already held as read/write.
 void DWARFUnit::AddUnitDIE(const DWARFDebugInfoEntry &cu_die) {
   llvm::Optional<uint64_t> addr_base, gnu_addr_base, ranges_base,
@@ -341,6 +343,9 @@ void DWARFUnit::AddUnitDIE(const DWARFDebugInfoEntry &cu_die) {
     case DW_AT_GNU_ranges_base:
       gnu_ranges_base = form_value.Unsigned();
       break;
+    case DW_AT_GNU_dwo_id:
+      m_dwo_id = form_value.Unsigned();
+      break;
     }
   }
 
@@ -354,9 +359,8 @@ void DWARFUnit::AddUnitDIE(const DWARFDebugInfoEntry &cu_die) {
   if (!dwo_symbol_file)
     return;
 
-  uint64_t main_dwo_id =
-      cu_die.GetAttributeValueAsUnsigned(this, DW_AT_GNU_dwo_id, 0);
-  DWARFUnit *dwo_cu = dwo_symbol_file->GetDWOCompileUnitForHash(main_dwo_id);
+  DWARFUnit *dwo_cu = dwo_symbol_file->GetDWOCompileUnitForHash(m_dwo_id);
+
   if (!dwo_cu)
     return; // Can't fetch the compile unit from the dwo file.
   dwo_cu->SetUserData(this);
@@ -390,17 +394,6 @@ void DWARFUnit::AddUnitDIE(const DWARFDebugInfoEntry &cu_die) {
   dwo_cu->SetBaseAddress(GetBaseAddress());
 
   m_dwo = std::shared_ptr<DWARFUnit>(std::move(dwo_symbol_file), dwo_cu);
-}
-
-DWARFDIE DWARFUnit::LookupAddress(const dw_addr_t address) {
-  if (DIE()) {
-    const DWARFDebugAranges &func_aranges = GetFunctionAranges();
-
-    // Re-check the aranges auto pointer contents in case it was created above
-    if (!func_aranges.IsEmpty())
-      return GetDIE(func_aranges.FindAddress(address));
-  }
-  return DWARFDIE();
 }
 
 size_t DWARFUnit::GetDebugInfoSize() const {
@@ -536,21 +529,23 @@ static bool CompareDIEOffset(const DWARFDebugInfoEntry &die,
 // DIE from this compile unit. Otherwise we grab the DIE from the DWARF file.
 DWARFDIE
 DWARFUnit::GetDIE(dw_offset_t die_offset) {
-  if (die_offset != DW_INVALID_OFFSET) {
-    if (ContainsDIEOffset(die_offset)) {
-      ExtractDIEsIfNeeded();
-      DWARFDebugInfoEntry::const_iterator end = m_die_array.cend();
-      DWARFDebugInfoEntry::const_iterator pos =
-          lower_bound(m_die_array.cbegin(), end, die_offset, CompareDIEOffset);
-      if (pos != end) {
-        if (die_offset == (*pos).GetOffset())
-          return DWARFDIE(this, &(*pos));
-      }
-    } else
-      GetSymbolFileDWARF().GetObjectFile()->GetModule()->ReportError(
-          "GetDIE for DIE 0x%" PRIx32 " is outside of its CU 0x%" PRIx32,
-          die_offset, GetOffset());
+  if (die_offset == DW_INVALID_OFFSET)
+    return DWARFDIE(); // Not found
+
+  if (!ContainsDIEOffset(die_offset)) {
+    GetSymbolFileDWARF().GetObjectFile()->GetModule()->ReportError(
+        "GetDIE for DIE 0x%" PRIx32 " is outside of its CU 0x%" PRIx32,
+        die_offset, GetOffset());
+    return DWARFDIE(); // Not found
   }
+
+  ExtractDIEsIfNeeded();
+  DWARFDebugInfoEntry::const_iterator end = m_die_array.cend();
+  DWARFDebugInfoEntry::const_iterator pos =
+      lower_bound(m_die_array.cbegin(), end, die_offset, CompareDIEOffset);
+
+  if (pos != end && die_offset == (*pos).GetOffset())
+    return DWARFDIE(this, &(*pos));
   return DWARFDIE(); // Not found
 }
 
@@ -801,7 +796,8 @@ DWARFUnitHeader::extract(const DWARFDataExtractor &data,
     header.m_unit_type = data.GetU8(offset_ptr);
     header.m_addr_size = data.GetU8(offset_ptr);
     header.m_abbr_offset = data.GetDWARFOffset(offset_ptr);
-    if (header.m_unit_type == llvm::dwarf::DW_UT_skeleton)
+    if (header.m_unit_type == llvm::dwarf::DW_UT_skeleton ||
+        header.m_unit_type == llvm::dwarf::DW_UT_split_compile)
       header.m_dwo_id = data.GetU64(offset_ptr);
   } else {
     header.m_abbr_offset = data.GetDWARFOffset(offset_ptr);
@@ -946,7 +942,7 @@ DWARFUnit::FindRnglistFromOffset(dw_offset_t offset) {
   llvm::Expected<llvm::DWARFAddressRangesVector> llvm_ranges =
       range_list_or_error->getAbsoluteRanges(
           llvm::object::SectionedAddress{GetBaseAddress()},
-          [&](uint32_t index) {
+          GetAddressByteSize(), [&](uint32_t index) {
             uint32_t index_size = GetAddressByteSize();
             dw_offset_t addr_base = GetAddrBase();
             lldb::offset_t offset = addr_base + index * index_size;

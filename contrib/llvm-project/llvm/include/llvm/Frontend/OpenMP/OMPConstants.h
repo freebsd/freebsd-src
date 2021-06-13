@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/BitmaskEnum.h"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Frontend/OpenMP/OMP.h.inc"
 
 namespace llvm {
@@ -41,12 +42,12 @@ enum class InternalControlVar {
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
 
 enum class ICVInitValue {
-#define ICV_DATA_ENV(Enum, Name, EnvVar, Init) Init,
+#define ICV_INIT_VALUE(Enum, Name) Enum,
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
 };
 
-#define ICV_DATA_ENV(Enum, Name, EnvVar, Init)                                 \
-  constexpr auto Init = omp::ICVInitValue::Init;
+#define ICV_INIT_VALUE(Enum, Name)                                             \
+  constexpr auto Enum = omp::ICVInitValue::Enum;
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
 
 /// IDs for all omp runtime library (RTL) functions.
@@ -68,16 +69,6 @@ enum class DefaultKind {
   constexpr auto Enum = omp::DefaultKind::Enum;
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
 
-/// IDs for the different proc bind kinds.
-enum class ProcBindKind {
-#define OMP_PROC_BIND_KIND(Enum, Str, Value) Enum = Value,
-#include "llvm/Frontend/OpenMP/OMPKinds.def"
-};
-
-#define OMP_PROC_BIND_KIND(Enum, ...)                                          \
-  constexpr auto Enum = omp::ProcBindKind::Enum;
-#include "llvm/Frontend/OpenMP/OMPKinds.def"
-
 /// IDs for all omp runtime library ident_t flag encodings (see
 /// their defintion in openmp/runtime/src/kmp.h).
 enum class IdentFlag {
@@ -88,6 +79,33 @@ enum class IdentFlag {
 
 #define OMP_IDENT_FLAG(Enum, ...) constexpr auto Enum = omp::IdentFlag::Enum;
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
+
+/// Helper to describe assume clauses.
+struct AssumptionClauseMappingInfo {
+  /// The identifier describing the (beginning of the) clause.
+  llvm::StringLiteral Identifier;
+  /// Flag to determine if the identifier is a full name or the start of a name.
+  bool StartsWith;
+  /// Flag to determine if a directive lists follows.
+  bool HasDirectiveList;
+  /// Flag to determine if an expression follows.
+  bool HasExpression;
+};
+
+/// All known assume clauses.
+static constexpr AssumptionClauseMappingInfo AssumptionClauseMappings[] = {
+#define OMP_ASSUME_CLAUSE(Identifier, StartsWith, HasDirectiveList,            \
+                          HasExpression)                                       \
+  {Identifier, StartsWith, HasDirectiveList, HasExpression},
+#include "llvm/Frontend/OpenMP/OMPKinds.def"
+};
+
+inline std::string getAllAssumeClauseOptions() {
+  std::string S;
+  for (const AssumptionClauseMappingInfo &ACMI : AssumptionClauseMappings)
+    S += (S.empty() ? "'" : "', '") + ACMI.Identifier.str();
+  return S + "'";
+}
 
 } // end namespace omp
 

@@ -34,6 +34,7 @@
 #include "llvm/Analysis/ScopedNoAliasAA.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/MemoryLocation.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
@@ -49,31 +50,6 @@ using namespace llvm;
 // this option is sometimes more convenient.
 static cl::opt<bool> EnableScopedNoAlias("enable-scoped-noalias",
                                          cl::init(true), cl::Hidden);
-
-namespace {
-
-/// This is a simple wrapper around an MDNode which provides a higher-level
-/// interface by hiding the details of how alias analysis information is encoded
-/// in its operands.
-class AliasScopeNode {
-  const MDNode *Node = nullptr;
-
-public:
-  AliasScopeNode() = default;
-  explicit AliasScopeNode(const MDNode *N) : Node(N) {}
-
-  /// Get the MDNode for this AliasScopeNode.
-  const MDNode *getNode() const { return Node; }
-
-  /// Get the MDNode for this AliasScopeNode's domain.
-  const MDNode *getDomain() const {
-    if (Node->getNumOperands() < 2)
-      return nullptr;
-    return dyn_cast_or_null<MDNode>(Node->getOperand(1));
-  }
-};
-
-} // end anonymous namespace
 
 AliasResult ScopedNoAliasAAResult::alias(const MemoryLocation &LocA,
                                          const MemoryLocation &LocB,
@@ -185,7 +161,7 @@ ScopedNoAliasAAResult ScopedNoAliasAA::run(Function &F,
 
 char ScopedNoAliasAAWrapperPass::ID = 0;
 
-INITIALIZE_PASS(ScopedNoAliasAAWrapperPass, "scoped-noalias",
+INITIALIZE_PASS(ScopedNoAliasAAWrapperPass, "scoped-noalias-aa",
                 "Scoped NoAlias Alias Analysis", false, true)
 
 ImmutablePass *llvm::createScopedNoAliasAAWrapperPass() {

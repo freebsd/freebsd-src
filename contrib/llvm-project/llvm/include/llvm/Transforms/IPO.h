@@ -31,6 +31,13 @@ class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 //
+// This pass adds !annotation metadata to entries in the
+// @llvm.global.annotations global constant.
+//
+ModulePass *createAnnotation2MetadataLegacyPass();
+
+//===----------------------------------------------------------------------===//
+//
 // These functions removes symbols from functions and modules.  If OnlyDebugInfo
 // is true, only debugging information is removed from the module.
 //
@@ -156,12 +163,6 @@ Pass *createArgumentPromotionPass(unsigned maxElements = 3);
 Pass *createOpenMPOptLegacyPass();
 
 //===----------------------------------------------------------------------===//
-/// createIPConstantPropagationPass - This pass propagates constants from call
-/// sites into the bodies of functions.
-///
-ModulePass *createIPConstantPropagationPass();
-
-//===----------------------------------------------------------------------===//
 /// createIPSCCPPass - This pass propagates constants from call sites into the
 /// bodies of functions, and keeps track of whether basic blocks are executable
 /// in the process.
@@ -213,6 +214,11 @@ ModulePass *createMergeFunctionsPass();
 /// createHotColdSplittingPass - This pass outlines cold blocks into a separate
 /// function(s).
 ModulePass *createHotColdSplittingPass();
+
+//===----------------------------------------------------------------------===//
+/// createIROutlinerPass - This pass finds similar code regions and factors
+/// those regions out into functions.
+ModulePass *createIROutlinerPass();
 
 //===----------------------------------------------------------------------===//
 /// createPartialInliningPass - This pass inlines parts of functions.

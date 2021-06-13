@@ -85,8 +85,8 @@ LiveIntervalUnion::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
     return;
   }
   for (LiveSegments::const_iterator SI = Segments.begin(); SI.valid(); ++SI) {
-    OS << " [" << SI.start() << ' ' << SI.stop() << "):"
-       << printReg(SI.value()->reg, TRI);
+    OS << " [" << SI.start() << ' ' << SI.stop()
+       << "):" << printReg(SI.value()->reg(), TRI);
   }
   OS << '\n';
 }
@@ -95,9 +95,19 @@ LiveIntervalUnion::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
 // Verify the live intervals in this union and add them to the visited set.
 void LiveIntervalUnion::verify(LiveVirtRegBitSet& VisitedVRegs) {
   for (SegmentIter SI = Segments.begin(); SI.valid(); ++SI)
-    VisitedVRegs.set(SI.value()->reg);
+    VisitedVRegs.set(SI.value()->reg());
 }
 #endif //!NDEBUG
+
+LiveInterval *LiveIntervalUnion::getOneVReg() const {
+  if (empty())
+    return nullptr;
+  for (LiveSegments::const_iterator SI = Segments.begin(); SI.valid(); ++SI) {
+    // return the first valid live interval
+    return SI.value();
+  }
+  return nullptr;
+}
 
 // Scan the vector of interfering virtual registers in this union. Assume it's
 // quite small.

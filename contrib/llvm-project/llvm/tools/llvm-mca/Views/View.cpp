@@ -12,10 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "Views/View.h"
+#include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 
 namespace llvm {
 namespace mca {
 
 void View::anchor() {}
+
 } // namespace mca
 } // namespace llvm

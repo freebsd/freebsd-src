@@ -28,7 +28,7 @@ MCSection::MCSection(SectionVariant V, StringRef Name, SectionKind K,
 
 MCSymbol *MCSection::getEndSymbol(MCContext &Ctx) {
   if (!End)
-    End = Ctx.createTempSymbol("sec_end", true);
+    End = Ctx.createTempSymbol("sec_end");
   return End;
 }
 
@@ -82,6 +82,7 @@ MCSection::getSubsectionInsertionPoint(unsigned Subsection) {
     SubsectionFragmentMap.insert(MI, std::make_pair(Subsection, F));
     getFragmentList().insert(IP, F);
     F->setParent(this);
+    F->setSubsectionNumber(Subsection);
   }
 
   return IP;

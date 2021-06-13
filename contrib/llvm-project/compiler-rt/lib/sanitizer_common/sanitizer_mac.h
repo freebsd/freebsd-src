@@ -44,6 +44,7 @@ struct VersionBase {
     return major > other.major ||
            (major == other.major && minor >= other.minor);
   }
+  bool operator<(const VersionType &other) const { return !(*this >= other); }
 };
 
 struct MacosVersion : VersionBase<MacosVersion> {
@@ -74,7 +75,7 @@ asm(".desc ___crashreporter_info__, 0x10");
 namespace __sanitizer {
 static BlockingMutex crashreporter_info_mutex(LINKER_INITIALIZED);
 
-INLINE void CRAppendCrashLogMessage(const char *msg) {
+inline void CRAppendCrashLogMessage(const char *msg) {
   BlockingMutexLock l(&crashreporter_info_mutex);
   internal_strlcat(__crashreporter_info_buff__, msg,
                    sizeof(__crashreporter_info_buff__)); }

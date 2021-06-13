@@ -262,6 +262,7 @@ public:
   /// for this subprogram by resolving DW_AT_sepcification or
   /// DW_AT_abstract_origin references if necessary.
   uint64_t getDeclLine() const;
+  std::string getDeclFile(DILineInfoSpecifier::FileLineInfoKind Kind) const;
 
   /// Retrieves values of DW_AT_call_file, DW_AT_call_line and DW_AT_call_column
   /// from DIE (or zeroes if they are missing). This function looks for
@@ -379,11 +380,6 @@ public:
 inline bool operator==(const DWARFDie::iterator &LHS,
                        const DWARFDie::iterator &RHS) {
   return LHS.Die == RHS.Die;
-}
-
-inline bool operator!=(const DWARFDie::iterator &LHS,
-                       const DWARFDie::iterator &RHS) {
-  return !(LHS == RHS);
 }
 
 // These inline functions must follow the DWARFDie::iterator definition above

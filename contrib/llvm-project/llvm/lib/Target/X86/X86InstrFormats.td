@@ -216,6 +216,7 @@ class T8XS : T8 { Prefix OpPrefix = XS; }
 class TAPS : TA { Prefix OpPrefix = PS; }
 class TAPD : TA { Prefix OpPrefix = PD; }
 class TAXD : TA { Prefix OpPrefix = XD; }
+class TAXS : TA { Prefix OpPrefix = XS; }
 class VEX    { Encoding OpEnc = EncVEX; }
 class VEX_W    { bit HasVEX_W = 1; }
 class VEX_WIG  { bit IgnoresVEX_W = 1; }
@@ -262,6 +263,9 @@ class NotMemoryFoldable { bit isMemoryFoldable = 0; }
 
 // Prevent EVEX->VEX conversion from considering this instruction.
 class NotEVEX2VEXConvertible { bit notEVEX2VEXConvertible = 1; }
+
+// Force the instruction to use VEX encoding.
+class ExplicitVEXPrefix { bit ExplicitVEXPrefix = 1; }
 
 class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
               string AsmStr, Domain d = GenericDomain>
@@ -347,6 +351,7 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
 
   bit isMemoryFoldable = 1;     // Is it allowed to memory fold/unfold this instruction?
   bit notEVEX2VEXConvertible = 0; // Prevent EVEX->VEX conversion.
+  bit ExplicitVEXPrefix = 0; // Force the instruction to use VEX encoding.
 
   // TSFlags layout should be kept in sync with X86BaseInfo.h.
   let TSFlags{6-0}   = FormBits;
@@ -375,6 +380,7 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   let TSFlags{51-45} = CD8_Scale;
   let TSFlags{52}    = hasEVEX_RC;
   let TSFlags{53}    = hasNoTrackPrefix;
+  let TSFlags{54}    = ExplicitVEXPrefix;
 }
 
 class PseudoI<dag oops, dag iops, list<dag> pattern>

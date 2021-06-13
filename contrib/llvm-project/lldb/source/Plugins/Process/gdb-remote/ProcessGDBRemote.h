@@ -55,7 +55,8 @@ public:
 
   static lldb::ProcessSP CreateInstance(lldb::TargetSP target_sp,
                                         lldb::ListenerSP listener_sp,
-                                        const FileSpec *crash_file_path);
+                                        const FileSpec *crash_file_path,
+                                        bool can_connect);
 
   static void Initialize();
 
@@ -175,6 +176,8 @@ public:
                      llvm::MutableArrayRef<uint8_t> &buffer,
                      size_t offset = 0) override;
 
+  llvm::Expected<TraceTypeInfo> GetSupportedTraceType() override;
+
   Status GetTraceConfig(lldb::user_id_t uid, TraceOptions &options) override;
 
   Status GetWatchpointSupportInfo(uint32_t &num, bool &after) override;
@@ -251,7 +254,7 @@ protected:
                                                              // the last stop
                                                              // packet variable
   std::recursive_mutex m_last_stop_packet_mutex;
-  GDBRemoteDynamicRegisterInfo m_register_info;
+  GDBRemoteDynamicRegisterInfoSP m_register_info_sp;
   Broadcaster m_async_broadcaster;
   lldb::ListenerSP m_async_listener_sp;
   HostThread m_async_thread;
@@ -309,8 +312,8 @@ protected:
 
   void Clear();
 
-  bool UpdateThreadList(ThreadList &old_thread_list,
-                        ThreadList &new_thread_list) override;
+  bool DoUpdateThreadList(ThreadList &old_thread_list,
+                          ThreadList &new_thread_list) override;
 
   Status ConnectToReplayServer();
 
@@ -388,8 +391,8 @@ protected:
 
   bool GetGDBServerRegisterInfoXMLAndProcess(ArchSpec &arch_to_use,
                                              std::string xml_filename,
-                                             uint32_t &cur_reg_num,
-                                             uint32_t &reg_offset);
+                                             uint32_t &cur_reg_remote,
+                                             uint32_t &cur_reg_local);
 
   // Query remote GDBServer for register information
   bool GetGDBServerRegisterInfo(ArchSpec &arch);

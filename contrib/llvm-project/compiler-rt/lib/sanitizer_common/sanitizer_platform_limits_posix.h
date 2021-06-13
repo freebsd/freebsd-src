@@ -99,9 +99,9 @@ const unsigned struct_kernel_stat64_sz = 144;
 const unsigned struct___old_kernel_stat_sz = 0;
 const unsigned struct_kernel_stat_sz = 64;
 const unsigned struct_kernel_stat64_sz = 104;
-#elif defined(__riscv) && __riscv_xlen == 64
+#elif SANITIZER_RISCV64
 const unsigned struct_kernel_stat_sz = 128;
-const unsigned struct_kernel_stat64_sz = 104;
+const unsigned struct_kernel_stat64_sz = 0;  // RISCV64 does not use stat64
 #endif
 struct __sanitizer_perf_event_attr {
   unsigned type;
@@ -443,6 +443,8 @@ struct __sanitizer_cmsghdr {
   int cmsg_type;
 };
 #else
+// In POSIX, int msg_iovlen; socklen_t msg_controllen; socklen_t cmsg_len; but
+// many implementations don't conform to the standard.
 struct __sanitizer_msghdr {
   void *msg_name;
   unsigned msg_namelen;
@@ -804,7 +806,7 @@ typedef void __sanitizer_FILE;
 #if SANITIZER_LINUX && !SANITIZER_ANDROID &&                               \
     (defined(__i386) || defined(__x86_64) || defined(__mips64) ||          \
      defined(__powerpc64__) || defined(__aarch64__) || defined(__arm__) || \
-     defined(__s390__))
+     defined(__s390__) || SANITIZER_RISCV64)
 extern unsigned struct_user_regs_struct_sz;
 extern unsigned struct_user_fpregs_struct_sz;
 extern unsigned struct_user_fpxregs_struct_sz;

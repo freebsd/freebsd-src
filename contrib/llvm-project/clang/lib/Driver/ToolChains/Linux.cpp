@@ -142,6 +142,10 @@ std::string Linux::getMultiarchTriple(const Driver &D,
     if (D.getVFS().exists(SysRoot + "/lib/powerpc-linux-gnu"))
       return "powerpc-linux-gnu";
     break;
+  case llvm::Triple::ppcle:
+    if (D.getVFS().exists(SysRoot + "/lib/powerpcle-linux-gnu"))
+      return "powerpcle-linux-gnu";
+    break;
   case llvm::Triple::ppc64:
     if (D.getVFS().exists(SysRoot + "/lib/powerpc64-linux-gnu"))
       return "powerpc64-linux-gnu";
@@ -185,17 +189,17 @@ static StringRef getOSLibDir(const llvm::Triple &Triple, const ArgList &Args) {
     return Triple.isArch32Bit() ? "lib" : "lib64";
   }
 
-  // It happens that only x86 and PPC use the 'lib32' variant of oslibdir, and
-  // using that variant while targeting other architectures causes problems
-  // because the libraries are laid out in shared system roots that can't cope
-  // with a 'lib32' library search path being considered. So we only enable
-  // them when we know we may need it.
+  // It happens that only x86, PPC and SPARC use the 'lib32' variant of
+  // oslibdir, and using that variant while targeting other architectures causes
+  // problems because the libraries are laid out in shared system roots that
+  // can't cope with a 'lib32' library search path being considered. So we only
+  // enable them when we know we may need it.
   //
   // FIXME: This is a bit of a hack. We should really unify this code for
   // reasoning about oslibdir spellings with the lib dir spellings in the
   // GCCInstallationDetector, but that is a more significant refactoring.
-  if (Triple.getArch() == llvm::Triple::x86 ||
-      Triple.getArch() == llvm::Triple::ppc)
+  if (Triple.getArch() == llvm::Triple::x86 || Triple.isPPC32() ||
+      Triple.getArch() == llvm::Triple::sparc)
     return "lib32";
 
   if (Triple.getArch() == llvm::Triple::x86_64 &&
@@ -230,6 +234,15 @@ Linux::Linux(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
       Triple.isAndroid()) {
     ExtraOpts.push_back("-z");
     ExtraOpts.push_back("relro");
+  }
+
+  if (Triple.isAndroid() && Triple.isAndroidVersionLT(29)) {
+    // https://github.com/android/ndk/issues/1196
+    // The unwinder used by the crash handler on versions of Android prior to
+    // API 29 did not correctly handle binaries built with rosegment, which is
+    // enabled by default for LLD. Android only supports LLD, so it's not an
+    // issue that this flag is not accepted by other linkers.
+    ExtraOpts.push_back("--no-rosegment");
   }
 
   // Android ARM/AArch64 use max-page-size=4096 to reduce VMA usage. Note, lld
@@ -495,6 +508,10 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
     LibDir = "lib";
     Loader = "ld.so.1";
     break;
+  case llvm::Triple::ppcle:
+    LibDir = "lib";
+    Loader = "ld.so.1";
+    break;
   case llvm::Triple::ppc64:
     LibDir = "lib64";
     Loader =
@@ -642,6 +659,8 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   const StringRef PPCMultiarchIncludeDirs[] = {
       "/usr/include/powerpc-linux-gnu",
       "/usr/include/powerpc-linux-gnuspe"};
+  const StringRef PPCLEMultiarchIncludeDirs[] = {
+      "/usr/include/powerpcle-linux-gnu"};
   const StringRef PPC64MultiarchIncludeDirs[] = {
       "/usr/include/powerpc64-linux-gnu"};
   const StringRef PPC64LEMultiarchIncludeDirs[] = {
@@ -714,6 +733,9 @@ void Linux::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     break;
   case llvm::Triple::ppc:
     MultiarchIncludeDirs = PPCMultiarchIncludeDirs;
+    break;
+  case llvm::Triple::ppcle:
+    MultiarchIncludeDirs = PPCLEMultiarchIncludeDirs;
     break;
   case llvm::Triple::ppc64:
     MultiarchIncludeDirs = PPC64MultiarchIncludeDirs;

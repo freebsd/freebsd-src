@@ -113,10 +113,9 @@ static struct private_data *__kmp_init_common_data(void *pc_addr,
 // Initialize the data area from the template.
 static void __kmp_copy_common_data(void *pc_addr, struct private_data *d) {
   char *addr = (char *)pc_addr;
-  int i, offset;
 
-  for (offset = 0; d != 0; d = d->next) {
-    for (i = d->more; i > 0; --i) {
+  for (size_t offset = 0; d != 0; d = d->next) {
+    for (int i = d->more; i > 0; --i) {
       if (d->data == 0)
         memset(&addr[offset], '\0', d->size);
       else
@@ -244,9 +243,8 @@ void __kmp_common_destroy_gtid(int gtid) {
 
         d_tn = __kmp_find_shared_task_common(&__kmp_threadprivate_d_table, gtid,
                                              tn->gbl_addr);
-
-        KMP_DEBUG_ASSERT(d_tn);
-
+        if (d_tn == NULL)
+          continue;
         if (d_tn->is_vec) {
           if (d_tn->dt.dtorv != 0) {
             (void)(*d_tn->dt.dtorv)(tn->par_addr, d_tn->vec_len);

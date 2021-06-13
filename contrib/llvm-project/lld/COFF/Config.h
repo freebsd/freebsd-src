@@ -9,6 +9,7 @@
 #ifndef LLD_COFF_CONFIG_H
 #define LLD_COFF_CONFIG_H
 
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/COFF.h"
@@ -29,6 +30,7 @@ class DefinedRelative;
 class StringChunk;
 class Symbol;
 class InputFile;
+class SectionChunk;
 
 // Short aliases.
 static const auto AMD64 = llvm::COFF::IMAGE_FILE_MACHINE_AMD64;
@@ -155,6 +157,11 @@ struct Configuration {
   // Used for /opt:lldltocachepolicy=policy
   llvm::CachePruningPolicy ltoCachePolicy;
 
+  // Used for /opt:[no]ltonewpassmanager
+  bool ltoNewPassManager = false;
+  // Used for /opt:[no]ltodebugpassmanager
+  bool ltoDebugPassManager = false;
+
   // Used for /merge:from=to (e.g. /merge:.rdata=.text)
   std::map<StringRef, StringRef> merge;
 
@@ -201,6 +208,15 @@ struct Configuration {
   // Used for /lto-obj-path:
   llvm::StringRef ltoObjPath;
 
+  // Used for /call-graph-ordering-file:
+  llvm::MapVector<std::pair<const SectionChunk *, const SectionChunk *>,
+                  uint64_t>
+      callGraphProfile;
+  bool callGraphProfileSort = false;
+
+  // Used for /print-symbol-order:
+  StringRef printSymbolOrder;
+
   uint64_t align = 4096;
   uint64_t imageBase = -1;
   uint64_t fileAlign = 512;
@@ -210,8 +226,12 @@ struct Configuration {
   uint64_t heapCommit = 4096;
   uint32_t majorImageVersion = 0;
   uint32_t minorImageVersion = 0;
+  // If changing the default os/subsys version here, update the default in
+  // the MinGW driver accordingly.
   uint32_t majorOSVersion = 6;
   uint32_t minorOSVersion = 0;
+  uint32_t majorSubsystemVersion = 6;
+  uint32_t minorSubsystemVersion = 0;
   uint32_t timestamp = 0;
   uint32_t functionPadMin = 0;
   bool dynamicBase = true;

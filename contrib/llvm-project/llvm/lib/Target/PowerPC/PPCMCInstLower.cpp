@@ -74,7 +74,9 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
       RefKind = MCSymbolRefExpr::VK_PPC_TOC_LO;
       break;
     case PPCII::MO_TLS:
-      RefKind = MCSymbolRefExpr::VK_PPC_TLS;
+      bool IsPCRel = (MO.getTargetFlags() & ~access) == PPCII::MO_PCREL_FLAG;
+      RefKind = IsPCRel ? MCSymbolRefExpr::VK_PPC_TLS_PCREL
+                        : MCSymbolRefExpr::VK_PPC_TLS;
       break;
   }
 
@@ -84,6 +86,14 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
     RefKind = MCSymbolRefExpr::VK_PCREL;
   else if (MO.getTargetFlags() == (PPCII::MO_PCREL_FLAG | PPCII::MO_GOT_FLAG))
     RefKind = MCSymbolRefExpr::VK_PPC_GOT_PCREL;
+  else if (MO.getTargetFlags() == (PPCII::MO_PCREL_FLAG | PPCII::MO_TPREL_FLAG))
+    RefKind = MCSymbolRefExpr::VK_TPREL;
+  else if (MO.getTargetFlags() == PPCII::MO_GOT_TLSGD_PCREL_FLAG)
+    RefKind = MCSymbolRefExpr::VK_PPC_GOT_TLSGD_PCREL;
+  else if (MO.getTargetFlags() == PPCII::MO_GOT_TLSLD_PCREL_FLAG)
+    RefKind = MCSymbolRefExpr::VK_PPC_GOT_TLSLD_PCREL;
+  else if (MO.getTargetFlags() == PPCII::MO_GOT_TPREL_PCREL_FLAG)
+    RefKind = MCSymbolRefExpr::VK_PPC_GOT_TPREL_PCREL;
 
   const MachineInstr *MI = MO.getParent();
   const MachineFunction *MF = MI->getMF();
@@ -100,6 +110,8 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
         MIOpcode == PPC::BL8_NOTOC) {
       RefKind = MCSymbolRefExpr::VK_PPC_NOTOC;
     }
+    if (MO.getTargetFlags() == PPCII::MO_PCREL_OPT_FLAG)
+      RefKind = MCSymbolRefExpr::VK_PPC_PCREL_OPT;
   }
 
   const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, RefKind, Ctx);

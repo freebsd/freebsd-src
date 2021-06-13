@@ -150,6 +150,14 @@ public:
                                              const APInt &Other,
                                              unsigned NoWrapKind);
 
+  /// Returns true if ConstantRange calculations are supported for intrinsic
+  /// with \p IntrinsicID.
+  static bool isIntrinsicSupported(Intrinsic::ID IntrinsicID);
+
+  /// Compute range of intrinsic result for the given operand ranges.
+  static ConstantRange intrinsic(Intrinsic::ID IntrinsicID,
+                                 ArrayRef<ConstantRange> Ops);
+
   /// Set up \p Pred and \p RHS such that
   /// ConstantRange::makeExactICmpRegion(Pred, RHS) == *this.  Return true if
   /// successful.
@@ -252,6 +260,14 @@ public:
   bool operator!=(const ConstantRange &CR) const {
     return !operator==(CR);
   }
+
+  /// Compute the maximal number of active bits needed to represent every value
+  /// in this range.
+  unsigned getActiveBits() const;
+
+  /// Compute the maximal number of bits needed to represent every value
+  /// in this signed range.
+  unsigned getMinSignedBits() const;
 
   /// Subtract the specified constant from the endpoints of this constant range.
   ConstantRange subtract(const APInt &CI) const;
@@ -401,6 +417,11 @@ public:
   /// value in \p Other.
   ConstantRange srem(const ConstantRange &Other) const;
 
+  /// Return a new range representing the possible values resulting from
+  /// a binary-xor of a value in this range by an all-one value,
+  /// aka bitwise complement operation.
+  ConstantRange binaryNot() const;
+
   /// Return a new range representing the possible values resulting
   /// from a binary-and of a value in this range by a value in \p Other.
   ConstantRange binaryAnd(const ConstantRange &Other) const;
@@ -456,8 +477,9 @@ public:
   ConstantRange inverse() const;
 
   /// Calculate absolute value range. If the original range contains signed
-  /// min, then the resulting range will also contain signed min.
-  ConstantRange abs() const;
+  /// min, then the resulting range will contain signed min if and only if
+  /// \p IntMinIsPoison is false.
+  ConstantRange abs(bool IntMinIsPoison = false) const;
 
   /// Represents whether an operation on the given constant range is known to
   /// always or never overflow.

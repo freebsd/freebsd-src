@@ -13,28 +13,28 @@
 
 #include "llvm/ObjectYAML/DWARFYAML.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/Support/Errc.h"
+#include "llvm/Support/Error.h"
 
 namespace llvm {
 
 bool DWARFYAML::Data::isEmpty() const {
-  return DebugStrings.empty() && AbbrevDecls.empty() && ARanges.empty() &&
-         DebugRanges.empty() && !PubNames && !PubTypes && !GNUPubNames &&
-         !GNUPubTypes && CompileUnits.empty() && DebugLines.empty();
+  return getNonEmptySectionNames().empty();
 }
 
-SetVector<StringRef> DWARFYAML::Data::getUsedSectionNames() const {
+SetVector<StringRef> DWARFYAML::Data::getNonEmptySectionNames() const {
   SetVector<StringRef> SecNames;
-  if (!DebugStrings.empty())
+  if (DebugStrings)
     SecNames.insert("debug_str");
-  if (!ARanges.empty())
+  if (DebugAranges)
     SecNames.insert("debug_aranges");
-  if (!DebugRanges.empty())
+  if (DebugRanges)
     SecNames.insert("debug_ranges");
   if (!DebugLines.empty())
     SecNames.insert("debug_line");
-  if (!DebugAddr.empty())
+  if (DebugAddr)
     SecNames.insert("debug_addr");
-  if (!AbbrevDecls.empty())
+  if (!DebugAbbrev.empty())
     SecNames.insert("debug_abbrev");
   if (!CompileUnits.empty())
     SecNames.insert("debug_info");
@@ -46,7 +46,44 @@ SetVector<StringRef> DWARFYAML::Data::getUsedSectionNames() const {
     SecNames.insert("debug_gnu_pubnames");
   if (GNUPubTypes)
     SecNames.insert("debug_gnu_pubtypes");
+  if (DebugStrOffsets)
+    SecNames.insert("debug_str_offsets");
+  if (DebugRnglists)
+    SecNames.insert("debug_rnglists");
+  if (DebugLoclists)
+    SecNames.insert("debug_loclists");
   return SecNames;
+}
+
+Expected<DWARFYAML::Data::AbbrevTableInfo>
+DWARFYAML::Data::getAbbrevTableInfoByID(uint64_t ID) const {
+  if (AbbrevTableInfoMap.empty()) {
+    uint64_t AbbrevTableOffset = 0;
+    for (auto &AbbrevTable : enumerate(DebugAbbrev)) {
+      // If the abbrev table's ID isn't specified, we use the index as its ID.
+      uint64_t AbbrevTableID =
+          AbbrevTable.value().ID.getValueOr(AbbrevTable.index());
+      auto It = AbbrevTableInfoMap.insert(
+          {AbbrevTableID, AbbrevTableInfo{/*Index=*/AbbrevTable.index(),
+                                          /*Offset=*/AbbrevTableOffset}});
+      if (!It.second)
+        return createStringError(
+            errc::invalid_argument,
+            "the ID (%" PRIu64 ") of abbrev table with index %zu has been used "
+            "by abbrev table with index %" PRIu64,
+            AbbrevTableID, AbbrevTable.index(), It.first->second.Index);
+
+      AbbrevTableOffset +=
+          getAbbrevTableContentByIndex(AbbrevTable.index()).size();
+    }
+  }
+
+  auto It = AbbrevTableInfoMap.find(ID);
+  if (It == AbbrevTableInfoMap.end())
+    return createStringError(errc::invalid_argument,
+                             "cannot find abbrev table whose ID is %" PRIu64,
+                             ID);
+  return It->second;
 }
 
 namespace yaml {
@@ -56,11 +93,9 @@ void MappingTraits<DWARFYAML::Data>::mapping(IO &IO, DWARFYAML::Data &DWARF) {
   DWARFYAML::DWARFContext DWARFCtx;
   IO.setContext(&DWARFCtx);
   IO.mapOptional("debug_str", DWARF.DebugStrings);
-  IO.mapOptional("debug_abbrev", DWARF.AbbrevDecls);
-  if (!DWARF.ARanges.empty() || !IO.outputting())
-    IO.mapOptional("debug_aranges", DWARF.ARanges);
-  if (!DWARF.DebugRanges.empty() || !IO.outputting())
-    IO.mapOptional("debug_ranges", DWARF.DebugRanges);
+  IO.mapOptional("debug_abbrev", DWARF.DebugAbbrev);
+  IO.mapOptional("debug_aranges", DWARF.DebugAranges);
+  IO.mapOptional("debug_ranges", DWARF.DebugRanges);
   IO.mapOptional("debug_pubnames", DWARF.PubNames);
   IO.mapOptional("debug_pubtypes", DWARF.PubTypes);
   DWARFCtx.IsGNUPubSec = true;
@@ -69,7 +104,16 @@ void MappingTraits<DWARFYAML::Data>::mapping(IO &IO, DWARFYAML::Data &DWARF) {
   IO.mapOptional("debug_info", DWARF.CompileUnits);
   IO.mapOptional("debug_line", DWARF.DebugLines);
   IO.mapOptional("debug_addr", DWARF.DebugAddr);
+  IO.mapOptional("debug_str_offsets", DWARF.DebugStrOffsets);
+  IO.mapOptional("debug_rnglists", DWARF.DebugRnglists);
+  IO.mapOptional("debug_loclists", DWARF.DebugLoclists);
   IO.setContext(OldContext);
+}
+
+void MappingTraits<DWARFYAML::AbbrevTable>::mapping(
+    IO &IO, DWARFYAML::AbbrevTable &AbbrevTable) {
+  IO.mapOptional("ID", AbbrevTable.ID);
+  IO.mapOptional("Table", AbbrevTable.Table);
 }
 
 void MappingTraits<DWARFYAML::Abbrev>::mapping(IO &IO,
@@ -77,7 +121,7 @@ void MappingTraits<DWARFYAML::Abbrev>::mapping(IO &IO,
   IO.mapOptional("Code", Abbrev.Code);
   IO.mapRequired("Tag", Abbrev.Tag);
   IO.mapRequired("Children", Abbrev.Children);
-  IO.mapRequired("Attributes", Abbrev.Attributes);
+  IO.mapOptional("Attributes", Abbrev.Attributes);
 }
 
 void MappingTraits<DWARFYAML::AttributeAbbrev>::mapping(
@@ -97,12 +141,12 @@ void MappingTraits<DWARFYAML::ARangeDescriptor>::mapping(
 void MappingTraits<DWARFYAML::ARange>::mapping(IO &IO,
                                                DWARFYAML::ARange &ARange) {
   IO.mapOptional("Format", ARange.Format, dwarf::DWARF32);
-  IO.mapRequired("Length", ARange.Length);
+  IO.mapOptional("Length", ARange.Length);
   IO.mapRequired("Version", ARange.Version);
   IO.mapRequired("CuOffset", ARange.CuOffset);
-  IO.mapRequired("AddrSize", ARange.AddrSize);
-  IO.mapRequired("SegSize", ARange.SegSize);
-  IO.mapRequired("Descriptors", ARange.Descriptors);
+  IO.mapOptional("AddressSize", ARange.AddrSize);
+  IO.mapOptional("SegmentSelectorSize", ARange.SegSize, 0);
+  IO.mapOptional("Descriptors", ARange.Descriptors);
 }
 
 void MappingTraits<DWARFYAML::RangeEntry>::mapping(
@@ -128,6 +172,7 @@ void MappingTraits<DWARFYAML::PubEntry>::mapping(IO &IO,
 
 void MappingTraits<DWARFYAML::PubSection>::mapping(
     IO &IO, DWARFYAML::PubSection &Section) {
+  IO.mapOptional("Format", Section.Format, dwarf::DWARF32);
   IO.mapRequired("Length", Section.Length);
   IO.mapRequired("Version", Section.Version);
   IO.mapRequired("UnitOffset", Section.UnitOffset);
@@ -137,18 +182,19 @@ void MappingTraits<DWARFYAML::PubSection>::mapping(
 
 void MappingTraits<DWARFYAML::Unit>::mapping(IO &IO, DWARFYAML::Unit &Unit) {
   IO.mapOptional("Format", Unit.Format, dwarf::DWARF32);
-  IO.mapRequired("Length", Unit.Length);
+  IO.mapOptional("Length", Unit.Length);
   IO.mapRequired("Version", Unit.Version);
   if (Unit.Version >= 5)
     IO.mapRequired("UnitType", Unit.Type);
-  IO.mapRequired("AbbrOffset", Unit.AbbrOffset);
-  IO.mapRequired("AddrSize", Unit.AddrSize);
+  IO.mapOptional("AbbrevTableID", Unit.AbbrevTableID);
+  IO.mapOptional("AbbrOffset", Unit.AbbrOffset);
+  IO.mapOptional("AddrSize", Unit.AddrSize);
   IO.mapOptional("Entries", Unit.Entries);
 }
 
 void MappingTraits<DWARFYAML::Entry>::mapping(IO &IO, DWARFYAML::Entry &Entry) {
   IO.mapRequired("AbbrCode", Entry.AbbrCode);
-  IO.mapRequired("Values", Entry.Values);
+  IO.mapOptional("Values", Entry.Values);
 }
 
 void MappingTraits<DWARFYAML::FormValue>::mapping(
@@ -171,7 +217,7 @@ void MappingTraits<DWARFYAML::LineTableOpcode>::mapping(
     IO &IO, DWARFYAML::LineTableOpcode &LineTableOpcode) {
   IO.mapRequired("Opcode", LineTableOpcode.Opcode);
   if (LineTableOpcode.Opcode == dwarf::DW_LNS_extended_op) {
-    IO.mapRequired("ExtLen", LineTableOpcode.ExtLen);
+    IO.mapOptional("ExtLen", LineTableOpcode.ExtLen);
     IO.mapRequired("SubOpcode", LineTableOpcode.SubOpcode);
   }
 
@@ -189,20 +235,20 @@ void MappingTraits<DWARFYAML::LineTableOpcode>::mapping(
 void MappingTraits<DWARFYAML::LineTable>::mapping(
     IO &IO, DWARFYAML::LineTable &LineTable) {
   IO.mapOptional("Format", LineTable.Format, dwarf::DWARF32);
-  IO.mapRequired("Length", LineTable.Length);
+  IO.mapOptional("Length", LineTable.Length);
   IO.mapRequired("Version", LineTable.Version);
-  IO.mapRequired("PrologueLength", LineTable.PrologueLength);
+  IO.mapOptional("PrologueLength", LineTable.PrologueLength);
   IO.mapRequired("MinInstLength", LineTable.MinInstLength);
   if(LineTable.Version >= 4)
     IO.mapRequired("MaxOpsPerInst", LineTable.MaxOpsPerInst);
   IO.mapRequired("DefaultIsStmt", LineTable.DefaultIsStmt);
   IO.mapRequired("LineBase", LineTable.LineBase);
   IO.mapRequired("LineRange", LineTable.LineRange);
-  IO.mapRequired("OpcodeBase", LineTable.OpcodeBase);
-  IO.mapRequired("StandardOpcodeLengths", LineTable.StandardOpcodeLengths);
-  IO.mapRequired("IncludeDirs", LineTable.IncludeDirs);
-  IO.mapRequired("Files", LineTable.Files);
-  IO.mapRequired("Opcodes", LineTable.Opcodes);
+  IO.mapOptional("OpcodeBase", LineTable.OpcodeBase);
+  IO.mapOptional("StandardOpcodeLengths", LineTable.StandardOpcodeLengths);
+  IO.mapOptional("IncludeDirs", LineTable.IncludeDirs);
+  IO.mapOptional("Files", LineTable.Files);
+  IO.mapOptional("Opcodes", LineTable.Opcodes);
 }
 
 void MappingTraits<DWARFYAML::SegAddrPair>::mapping(
@@ -221,11 +267,61 @@ void MappingTraits<DWARFYAML::AddrTableEntry>::mapping(
   IO.mapOptional("Entries", AddrTable.SegAddrPairs);
 }
 
-void MappingTraits<DWARFYAML::InitialLength>::mapping(
-    IO &IO, DWARFYAML::InitialLength &InitialLength) {
-  IO.mapRequired("TotalLength", InitialLength.TotalLength);
-  if (InitialLength.isDWARF64())
-    IO.mapRequired("TotalLength64", InitialLength.TotalLength64);
+void MappingTraits<DWARFYAML::StringOffsetsTable>::mapping(
+    IO &IO, DWARFYAML::StringOffsetsTable &StrOffsetsTable) {
+  IO.mapOptional("Format", StrOffsetsTable.Format, dwarf::DWARF32);
+  IO.mapOptional("Length", StrOffsetsTable.Length);
+  IO.mapOptional("Version", StrOffsetsTable.Version, 5);
+  IO.mapOptional("Padding", StrOffsetsTable.Padding, 0);
+  IO.mapOptional("Offsets", StrOffsetsTable.Offsets);
+}
+
+void MappingTraits<DWARFYAML::DWARFOperation>::mapping(
+    IO &IO, DWARFYAML::DWARFOperation &DWARFOperation) {
+  IO.mapRequired("Operator", DWARFOperation.Operator);
+  IO.mapOptional("Values", DWARFOperation.Values);
+}
+
+void MappingTraits<DWARFYAML::RnglistEntry>::mapping(
+    IO &IO, DWARFYAML::RnglistEntry &RnglistEntry) {
+  IO.mapRequired("Operator", RnglistEntry.Operator);
+  IO.mapOptional("Values", RnglistEntry.Values);
+}
+
+void MappingTraits<DWARFYAML::LoclistEntry>::mapping(
+    IO &IO, DWARFYAML::LoclistEntry &LoclistEntry) {
+  IO.mapRequired("Operator", LoclistEntry.Operator);
+  IO.mapOptional("Values", LoclistEntry.Values);
+  IO.mapOptional("DescriptionsLength", LoclistEntry.DescriptionsLength);
+  IO.mapOptional("Descriptions", LoclistEntry.Descriptions);
+}
+
+template <typename EntryType>
+void MappingTraits<DWARFYAML::ListEntries<EntryType>>::mapping(
+    IO &IO, DWARFYAML::ListEntries<EntryType> &ListEntries) {
+  IO.mapOptional("Entries", ListEntries.Entries);
+  IO.mapOptional("Content", ListEntries.Content);
+}
+
+template <typename EntryType>
+std::string MappingTraits<DWARFYAML::ListEntries<EntryType>>::validate(
+    IO &IO, DWARFYAML::ListEntries<EntryType> &ListEntries) {
+  if (ListEntries.Entries && ListEntries.Content)
+    return "Entries and Content can't be used together";
+  return "";
+}
+
+template <typename EntryType>
+void MappingTraits<DWARFYAML::ListTable<EntryType>>::mapping(
+    IO &IO, DWARFYAML::ListTable<EntryType> &ListTable) {
+  IO.mapOptional("Format", ListTable.Format, dwarf::DWARF32);
+  IO.mapOptional("Length", ListTable.Length);
+  IO.mapOptional("Version", ListTable.Version, 5);
+  IO.mapOptional("AddressSize", ListTable.AddrSize);
+  IO.mapOptional("SegmentSelectorSize", ListTable.SegSelectorSize, 0);
+  IO.mapOptional("OffsetEntryCount", ListTable.OffsetEntryCount);
+  IO.mapOptional("Offsets", ListTable.Offsets);
+  IO.mapOptional("Lists", ListTable.Lists);
 }
 
 } // end namespace yaml

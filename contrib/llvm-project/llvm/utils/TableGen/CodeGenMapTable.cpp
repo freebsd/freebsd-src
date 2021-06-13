@@ -144,25 +144,15 @@ public:
     }
   }
 
-  std::string getName() const {
-    return Name;
-  }
+  const std::string &getName() const { return Name; }
 
-  std::string getFilterClass() {
-    return FilterClass;
-  }
+  const std::string &getFilterClass() const { return FilterClass; }
 
-  ListInit *getRowFields() const {
-    return RowFields;
-  }
+  ListInit *getRowFields() const { return RowFields; }
 
-  ListInit *getColFields() const {
-    return ColFields;
-  }
+  ListInit *getColFields() const { return ColFields; }
 
-  ListInit *getKeyCol() const {
-    return KeyCol;
-  }
+  ListInit *getKeyCol() const { return KeyCol; }
 
   const std::vector<ListInit*> &getValueCols() const {
     return ValueCols;
@@ -200,7 +190,7 @@ private:
 public:
   MapTableEmitter(CodeGenTarget &Target, RecordKeeper &Records, Record *IMRec):
                   Target(Target), InstrMapDesc(IMRec) {
-    const std::string FilterClass = InstrMapDesc.getFilterClass();
+    const std::string &FilterClass = InstrMapDesc.getFilterClass();
     InstrDefs = Records.getAllDerivedDefinitions(FilterClass);
   }
 
@@ -384,7 +374,7 @@ unsigned MapTableEmitter::emitBinSearchTable(raw_ostream &OS) {
   for (unsigned i = 0; i < TotalNumInstr; i++) {
     Record *CurInstr = NumberedInstructions[i]->TheDef;
     std::vector<Record*> ColInstrs = MapTable[CurInstr];
-    std::string OutStr("");
+    std::string OutStr;
     unsigned RelExists = 0;
     if (!ColInstrs.empty()) {
       for (unsigned j = 0; j < NumCol; j++) {
@@ -422,7 +412,7 @@ void MapTableEmitter::emitBinSearch(raw_ostream &OS, unsigned TableSize) {
   OS << "  unsigned start = 0;\n";
   OS << "  unsigned end = " << TableSize << ";\n";
   OS << "  while (start < end) {\n";
-  OS << "    mid = start + (end - start)/2;\n";
+  OS << "    mid = start + (end - start) / 2;\n";
   OS << "    if (Opcode == " << InstrMapDesc.getName() << "Table[mid][0]) {\n";
   OS << "      break;\n";
   OS << "    }\n";

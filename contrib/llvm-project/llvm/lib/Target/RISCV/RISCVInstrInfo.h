@@ -83,6 +83,9 @@ public:
 
   bool isAsCheapAsAMove(const MachineInstr &MI) const override;
 
+  Optional<DestSourcePair>
+  isCopyInstrImpl(const MachineInstr &MI) const override;
+
   bool verifyInstruction(const MachineInstr &MI,
                          StringRef &ErrInfo) const override;
 
@@ -133,24 +136,6 @@ public:
 protected:
   const RISCVSubtarget &STI;
 };
-
-namespace RISCV {
-// Match with the definitions in RISCVInstrFormatsV.td
-enum RVVConstraintType {
-  NoConstraint = 0,
-  WidenV = 1,
-  WidenW = 2,
-  WidenCvt = 3,
-  Narrow = 4,
-  Iota = 5,
-  SlideUp = 6,
-  Vrgather = 7,
-  Vcompress = 8,
-
-  ConstraintOffset = 5,
-  ConstraintMask = 0b1111
-};
-} // end namespace RISCV
 
 } // end namespace llvm
 #endif

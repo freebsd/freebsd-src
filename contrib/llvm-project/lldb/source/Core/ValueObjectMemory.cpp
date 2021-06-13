@@ -139,10 +139,11 @@ size_t ValueObjectMemory::CalculateNumChildren(uint32_t max) {
   return child_count <= max ? child_count : max;
 }
 
-uint64_t ValueObjectMemory::GetByteSize() {
+llvm::Optional<uint64_t> ValueObjectMemory::GetByteSize() {
+  ExecutionContext exe_ctx(GetExecutionContextRef());
   if (m_type_sp)
-    return m_type_sp->GetByteSize().getValueOr(0);
-  return m_compiler_type.GetByteSize(nullptr).getValueOr(0);
+    return m_type_sp->GetByteSize(exe_ctx.GetBestExecutionContextScope());
+  return m_compiler_type.GetByteSize(exe_ctx.GetBestExecutionContextScope());
 }
 
 lldb::ValueType ValueObjectMemory::GetValueType() const {
@@ -167,9 +168,6 @@ bool ValueObjectMemory::UpdateValue() {
     Value::ValueType value_type = m_value.GetValueType();
 
     switch (value_type) {
-    default:
-      llvm_unreachable("Unhandled expression result value kind...");
-
     case Value::eValueTypeScalar:
       // The variable value is in the Scalar value inside the m_value. We can
       // point our m_data right to it.

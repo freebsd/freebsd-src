@@ -151,10 +151,8 @@ DynamicRegisterInfo::SetRegisterInfo(const StructuredData::Dictionary &dict,
               const uint32_t msbyte = msbit / 8;
               const uint32_t lsbyte = lsbit / 8;
 
-              ConstString containing_reg_name(reg_name_str);
-
               const RegisterInfo *containing_reg_info =
-                  GetRegisterInfo(containing_reg_name);
+                  GetRegisterInfo(reg_name_str);
               if (containing_reg_info) {
                 const uint32_t max_bit = containing_reg_info->byte_size * 8;
                 if (msbit < max_bit && lsbit < max_bit) {
@@ -189,7 +187,7 @@ DynamicRegisterInfo::SetRegisterInfo(const StructuredData::Dictionary &dict,
                 }
               } else {
                 printf("error: invalid concrete register \"%s\"\n",
-                       containing_reg_name.GetCString());
+                       reg_name_str.c_str());
               }
             } else {
               printf("error: msbit (%u) must be greater than lsbit (%u)\n",
@@ -217,7 +215,7 @@ DynamicRegisterInfo::SetRegisterInfo(const StructuredData::Dictionary &dict,
               if (composite_reg_list->GetItemAtIndexAsString(
                       composite_idx, composite_reg_name, nullptr)) {
                 const RegisterInfo *composite_reg_info =
-                    GetRegisterInfo(composite_reg_name);
+                    GetRegisterInfo(composite_reg_name.GetStringRef());
                 if (composite_reg_info) {
                   composite_offset = std::min(composite_offset,
                                               composite_reg_info->byte_offset);
@@ -357,7 +355,7 @@ DynamicRegisterInfo::SetRegisterInfo(const StructuredData::Dictionary &dict,
           if (invalidate_reg_list->GetItemAtIndexAsString(
                   idx, invalidate_reg_name)) {
             const RegisterInfo *invalidate_reg_info =
-                GetRegisterInfo(invalidate_reg_name);
+                GetRegisterInfo(invalidate_reg_name.GetStringRef());
             if (invalidate_reg_info) {
               m_invalidate_regs_map[i].push_back(
                   invalidate_reg_info->kinds[eRegisterKindLLDB]);
@@ -430,9 +428,6 @@ void DynamicRegisterInfo::AddRegister(RegisterInfo &reg_info,
   assert(set < m_set_reg_nums.size());
   assert(set < m_set_names.size());
   m_set_reg_nums[set].push_back(reg_num);
-  size_t end_reg_offset = reg_info.byte_offset + reg_info.byte_size;
-  if (m_reg_data_byte_size < end_reg_offset)
-    m_reg_data_byte_size = end_reg_offset;
 }
 
 void DynamicRegisterInfo::Finalize(const ArchSpec &arch) {
@@ -617,7 +612,69 @@ void DynamicRegisterInfo::Finalize(const ArchSpec &arch) {
       break;
     }
   }
+
+  // At this stage call ConfigureOffsets to calculate register offsets for
+  // targets supporting dynamic offset calculation. It also calculates
+  // total byte size of register data.
+  ConfigureOffsets();
+
+  // Check if register info is reconfigurable
+  // AArch64 SVE register set has configurable register sizes
+  if (arch.GetTriple().isAArch64()) {
+    for (const auto &reg : m_regs) {
+      if (strcmp(reg.name, "vg") == 0) {
+        m_is_reconfigurable = true;
+        break;
+      }
+    }
+  }
 }
+
+void DynamicRegisterInfo::ConfigureOffsets() {
+  // We are going to create a map between remote (eRegisterKindProcessPlugin)
+  // and local (eRegisterKindLLDB) register numbers. This map will give us
+  // remote register numbers in increasing order for offset calculation.
+  std::map<uint32_t, uint32_t> remote_to_local_regnum_map;
+  for (const auto &reg : m_regs)
+    remote_to_local_regnum_map[reg.kinds[eRegisterKindProcessPlugin]] =
+        reg.kinds[eRegisterKindLLDB];
+
+  // At this stage we manually calculate g/G packet offsets of all primary
+  // registers, only if target XML or qRegisterInfo packet did not send
+  // an offset explicitly.
+  uint32_t reg_offset = 0;
+  for (auto const &regnum_pair : remote_to_local_regnum_map) {
+    if (m_regs[regnum_pair.second].byte_offset == LLDB_INVALID_INDEX32 &&
+        m_regs[regnum_pair.second].value_regs == nullptr) {
+      m_regs[regnum_pair.second].byte_offset = reg_offset;
+
+      reg_offset = m_regs[regnum_pair.second].byte_offset +
+                   m_regs[regnum_pair.second].byte_size;
+    }
+  }
+
+  // Now update all value_regs with each register info as needed
+  for (auto &reg : m_regs) {
+    if (reg.value_regs != nullptr) {
+      // Assign a valid offset to all pseudo registers if not assigned by stub.
+      // Pseudo registers with value_regs list populated will share same offset
+      // as that of their corresponding primary register in value_regs list.
+      if (reg.byte_offset == LLDB_INVALID_INDEX32) {
+        uint32_t value_regnum = reg.value_regs[0];
+        if (value_regnum != LLDB_INVALID_INDEX32)
+          reg.byte_offset =
+              GetRegisterInfoAtIndex(remote_to_local_regnum_map[value_regnum])
+                  ->byte_offset;
+      }
+    }
+
+    reg_offset = reg.byte_offset + reg.byte_size;
+    if (m_reg_data_byte_size < reg_offset)
+      m_reg_data_byte_size = reg_offset;
+  }
+}
+
+bool DynamicRegisterInfo::IsReconfigurable() { return m_is_reconfigurable; }
 
 size_t DynamicRegisterInfo::GetNumRegisters() const { return m_regs.size(); }
 
@@ -737,16 +794,10 @@ void DynamicRegisterInfo::Dump() const {
   }
 }
 
-const lldb_private::RegisterInfo *DynamicRegisterInfo::GetRegisterInfo(
-    lldb_private::ConstString reg_name) const {
-  for (auto &reg_info : m_regs) {
-    // We can use pointer comparison since we used a ConstString to set the
-    // "name" member in AddRegister()
-    assert(ConstString(reg_info.name).GetCString() == reg_info.name &&
-           "reg_info.name not from a ConstString?");
-    if (reg_info.name == reg_name.GetCString()) {
+const lldb_private::RegisterInfo *
+DynamicRegisterInfo::GetRegisterInfo(llvm::StringRef reg_name) const {
+  for (auto &reg_info : m_regs)
+    if (reg_info.name == reg_name)
       return &reg_info;
-    }
-  }
   return nullptr;
 }

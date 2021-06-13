@@ -12,6 +12,7 @@
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Path.h"
 
 namespace clang {
 namespace tooling {
@@ -42,7 +43,7 @@ unsigned getOffsetAfterTokenSequence(
         GetOffsetAfterSequence) {
   SourceManagerForFile VirtualSM(FileName, Code);
   SourceManager &SM = VirtualSM.get();
-  Lexer Lex(SM.getMainFileID(), SM.getBuffer(SM.getMainFileID()), SM,
+  Lexer Lex(SM.getMainFileID(), SM.getBufferOrFake(SM.getMainFileID()), SM,
             createLangOpts());
   Token Tok;
   // Get the first token.
@@ -100,7 +101,8 @@ unsigned getOffsetAfterHeaderGuardsAndComments(StringRef FileName,
           [](const SourceManager &SM, Lexer &Lex, Token Tok) -> unsigned {
             if (checkAndConsumeDirectiveWithName(Lex, "ifndef", Tok)) {
               skipComments(Lex, Tok);
-              if (checkAndConsumeDirectiveWithName(Lex, "define", Tok))
+              if (checkAndConsumeDirectiveWithName(Lex, "define", Tok) &&
+                  Tok.isAtStartOfLine())
                 return SM.getFileOffset(Tok.getLocation());
             }
             return 0;
@@ -173,14 +175,26 @@ inline StringRef trimInclude(StringRef IncludeName) {
 const char IncludeRegexPattern[] =
     R"(^[\t\ ]*#[\t\ ]*(import|include)[^"<]*(["<][^">]*[">]))";
 
+// The filename of Path excluding extension.
+// Used to match implementation with headers, this differs from sys::path::stem:
+//  - in names with multiple dots (foo.cu.cc) it terminates at the *first*
+//  - an empty stem is never returned: /foo/.bar.x => .bar
+//  - we don't bother to handle . and .. specially
+StringRef matchingStem(llvm::StringRef Path) {
+  StringRef Name = llvm::sys::path::filename(Path);
+  return Name.substr(0, Name.find('.', 1));
+}
+
 } // anonymous namespace
 
 IncludeCategoryManager::IncludeCategoryManager(const IncludeStyle &Style,
                                                StringRef FileName)
     : Style(Style), FileName(FileName) {
-  FileStem = llvm::sys::path::stem(FileName);
-  for (const auto &Category : Style.IncludeCategories)
-    CategoryRegexs.emplace_back(Category.Regex, llvm::Regex::IgnoreCase);
+  for (const auto &Category : Style.IncludeCategories) {
+    CategoryRegexs.emplace_back(Category.Regex, Category.RegexIsCaseSensitive
+                                                    ? llvm::Regex::NoFlags
+                                                    : llvm::Regex::IgnoreCase);
+  }
   IsMainFile = FileName.endswith(".c") || FileName.endswith(".cc") ||
                FileName.endswith(".cpp") || FileName.endswith(".c++") ||
                FileName.endswith(".cxx") || FileName.endswith(".m") ||
@@ -221,13 +235,31 @@ int IncludeCategoryManager::getSortIncludePriority(StringRef IncludeName,
 bool IncludeCategoryManager::isMainHeader(StringRef IncludeName) const {
   if (!IncludeName.startswith("\""))
     return false;
-  StringRef HeaderStem =
-      llvm::sys::path::stem(IncludeName.drop_front(1).drop_back(1));
-  if (FileStem.startswith(HeaderStem) ||
-      FileStem.startswith_lower(HeaderStem)) {
+
+  IncludeName =
+      IncludeName.drop_front(1).drop_back(1); // remove the surrounding "" or <>
+  // Not matchingStem: implementation files may have compound extensions but
+  // headers may not.
+  StringRef HeaderStem = llvm::sys::path::stem(IncludeName);
+  StringRef FileStem = llvm::sys::path::stem(FileName); // foo.cu for foo.cu.cc
+  StringRef MatchingFileStem = matchingStem(FileName);  // foo for foo.cu.cc
+  // main-header examples:
+  //  1) foo.h => foo.cc
+  //  2) foo.h => foo.cu.cc
+  //  3) foo.proto.h => foo.proto.cc
+  //
+  // non-main-header examples:
+  //  1) foo.h => bar.cc
+  //  2) foo.proto.h => foo.cc
+  StringRef Matching;
+  if (MatchingFileStem.startswith_lower(HeaderStem))
+    Matching = MatchingFileStem; // example 1), 2)
+  else if (FileStem.equals_lower(HeaderStem))
+    Matching = FileStem; // example 3)
+  if (!Matching.empty()) {
     llvm::Regex MainIncludeRegex(HeaderStem.str() + Style.IncludeIsMainRegex,
                                  llvm::Regex::IgnoreCase);
-    if (MainIncludeRegex.match(FileStem))
+    if (MainIncludeRegex.match(Matching))
       return true;
   }
   return false;

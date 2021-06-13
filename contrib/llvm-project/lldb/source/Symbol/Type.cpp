@@ -170,7 +170,7 @@ Type::Type()
 }
 
 void Type::GetDescription(Stream *s, lldb::DescriptionLevel level,
-                          bool show_name) {
+                          bool show_name, ExecutionContextScope *exe_scope) {
   *s << "id = " << (const UserID &)*this;
 
   // Call the name accessor to make sure we resolve the type name
@@ -186,7 +186,7 @@ void Type::GetDescription(Stream *s, lldb::DescriptionLevel level,
   }
 
   // Call the get byte size accesor so we resolve our byte size
-  if (GetByteSize())
+  if (GetByteSize(exe_scope))
     s->Printf(", byte-size = %" PRIu64, m_byte_size);
   bool show_fullpaths = (level == lldb::eDescriptionLevelVerbose);
   m_decl.Dump(s, show_fullpaths);
@@ -323,7 +323,9 @@ void Type::DumpValue(ExecutionContext *exe_ctx, Stream *s,
 
     GetForwardCompilerType().DumpValue(
         exe_ctx, s, format == lldb::eFormatDefault ? GetFormat() : format, data,
-        data_byte_offset, GetByteSize().getValueOr(0),
+        data_byte_offset,
+        GetByteSize(exe_ctx ? exe_ctx->GetBestExecutionContextScope() : nullptr)
+            .getValueOr(0),
         0, // Bitfield bit size
         0, // Bitfield bit offset
         show_types, show_summary, verbose, 0);
@@ -336,7 +338,7 @@ Type *Type::GetEncodingType() {
   return m_encoding_type;
 }
 
-llvm::Optional<uint64_t> Type::GetByteSize() {
+llvm::Optional<uint64_t> Type::GetByteSize(ExecutionContextScope *exe_scope) {
   if (m_byte_size_has_value)
     return m_byte_size;
 
@@ -352,14 +354,14 @@ llvm::Optional<uint64_t> Type::GetByteSize() {
   case eEncodingIsTypedefUID: {
     Type *encoding_type = GetEncodingType();
     if (encoding_type)
-      if (llvm::Optional<uint64_t> size = encoding_type->GetByteSize()) {
+      if (llvm::Optional<uint64_t> size = encoding_type->GetByteSize(exe_scope)) {
         m_byte_size = *size;
         m_byte_size_has_value = true;
         return m_byte_size;
       }
 
     if (llvm::Optional<uint64_t> size =
-            GetLayoutCompilerType().GetByteSize(nullptr)) {
+            GetLayoutCompilerType().GetByteSize(exe_scope)) {
       m_byte_size = *size;
       m_byte_size_has_value = true;
         return m_byte_size;
@@ -373,6 +375,7 @@ llvm::Optional<uint64_t> Type::GetByteSize() {
       if (ArchSpec arch = m_symbol_file->GetObjectFile()->GetArchitecture()) {
         m_byte_size = arch.GetAddressByteSize();
         m_byte_size_has_value = true;
+        return m_byte_size;
       }
     } break;
   }
@@ -430,7 +433,9 @@ bool Type::ReadFromMemory(ExecutionContext *exe_ctx, lldb::addr_t addr,
     return false;
   }
 
-  const uint64_t byte_size = GetByteSize().getValueOr(0);
+  const uint64_t byte_size =
+      GetByteSize(exe_ctx ? exe_ctx->GetBestExecutionContextScope() : nullptr)
+          .getValueOr(0);
   if (data.GetByteSize() < byte_size) {
     lldb::DataBufferSP data_sp(new DataBufferHeap(byte_size, '\0'));
     data.SetData(data_sp);
@@ -722,6 +727,14 @@ ModuleSP Type::GetModule() {
   return ModuleSP();
 }
 
+ModuleSP Type::GetExeModule() {
+  if (m_compiler_type) {
+    SymbolFile *symbol_file = m_compiler_type.GetTypeSystem()->GetSymbolFile();
+    return symbol_file->GetObjectFile()->GetModule();
+  }
+  return ModuleSP();
+}
+
 TypeAndOrName::TypeAndOrName(TypeSP &in_type_sp) {
   if (in_type_sp) {
     m_compiler_type = in_type_sp->GetForwardCompilerType();
@@ -816,6 +829,7 @@ TypeImpl::TypeImpl(const CompilerType &static_type,
 void TypeImpl::SetType(const lldb::TypeSP &type_sp) {
   if (type_sp) {
     m_static_type = type_sp->GetForwardCompilerType();
+    m_exe_module_wp = type_sp->GetExeModule();
     m_module_wp = type_sp->GetModule();
   } else {
     m_static_type.Clear();
@@ -842,6 +856,15 @@ void TypeImpl::SetType(const CompilerType &compiler_type,
 }
 
 bool TypeImpl::CheckModule(lldb::ModuleSP &module_sp) const {
+  return CheckModuleCommon(m_module_wp, module_sp);
+}
+
+bool TypeImpl::CheckExeModule(lldb::ModuleSP &module_sp) const {
+  return CheckModuleCommon(m_exe_module_wp, module_sp);
+}
+
+bool TypeImpl::CheckModuleCommon(const lldb::ModuleWP &input_module_wp,
+                                 lldb::ModuleSP &module_sp) const {
   // Check if we have a module for this type. If we do and the shared pointer
   // is can be successfully initialized with m_module_wp, return true. Else
   // return false if we didn't have a module, or if we had a module and it has
@@ -850,7 +873,7 @@ bool TypeImpl::CheckModule(lldb::ModuleSP &module_sp) const {
   // this function returns true. If we have a module, the "module_sp" will be
   // filled in with a strong reference to the module so that the module will at
   // least stay around long enough for the type query to succeed.
-  module_sp = m_module_wp.lock();
+  module_sp = input_module_wp.lock();
   if (!module_sp) {
     lldb::ModuleWP empty_module_wp;
     // If either call to "std::weak_ptr::owner_before(...) value returns true,
@@ -858,9 +881,9 @@ bool TypeImpl::CheckModule(lldb::ModuleSP &module_sp) const {
     // reference to a valid shared pointer. This helps us know if we had a
     // valid reference to a section which is now invalid because the module it
     // was in was deleted
-    if (empty_module_wp.owner_before(m_module_wp) ||
-        m_module_wp.owner_before(empty_module_wp)) {
-      // m_module_wp had a valid reference to a module, but all strong
+    if (empty_module_wp.owner_before(input_module_wp) ||
+        input_module_wp.owner_before(empty_module_wp)) {
+      // input_module_wp had a valid reference to a module, but all strong
       // references have been released and the module has been deleted
       return false;
     }
@@ -892,6 +915,13 @@ void TypeImpl::Clear() {
   m_module_wp = lldb::ModuleWP();
   m_static_type.Clear();
   m_dynamic_type.Clear();
+}
+
+ModuleSP TypeImpl::GetModule() const {
+  lldb::ModuleSP module_sp;
+  if (CheckExeModule(module_sp))
+    return module_sp;
+  return nullptr;
 }
 
 ConstString TypeImpl::GetName() const {

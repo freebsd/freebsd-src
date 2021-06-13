@@ -18,6 +18,8 @@
 #include "X86Subtarget.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/CodeGen/LiveRegMatrix.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -664,13 +666,6 @@ bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
   return true;
 }
 
-bool X86RegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
-                                           Register Reg, int &FrameIdx) const {
-  // Since X86 defines assignCalleeSavedSpillSlots which always return true
-  // this function neither used nor tested.
-  llvm_unreachable("Unused function on X86. Otherwise need a test case.");
-}
-
 // tryOptimizeLEAtoMOV - helper function that tries to replace a LEA instruction
 // of the form 'lea (%esp), %ebx' --> 'mov %esp, %ebx'.
 // TODO: In this case we should be really trying first to entirely eliminate
@@ -731,11 +726,12 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     assert((!needsStackRealignment(MF) ||
            MF.getFrameInfo().isFixedObjectIndex(FrameIndex)) &&
            "Return instruction can only reference SP relative frame objects");
-    FIOffset = TFI->getFrameIndexReferenceSP(MF, FrameIndex, BasePtr, 0);
+    FIOffset =
+        TFI->getFrameIndexReferenceSP(MF, FrameIndex, BasePtr, 0).getFixed();
   } else if (TFI->Is64Bit && (MBB.isEHFuncletEntry() || IsEHFuncletEpilogue)) {
     FIOffset = TFI->getWin64EHFrameIndexRef(MF, FrameIndex, BasePtr);
   } else {
-    FIOffset = TFI->getFrameIndexReference(MF, FrameIndex, BasePtr);
+    FIOffset = TFI->getFrameIndexReference(MF, FrameIndex, BasePtr).getFixed();
   }
 
   // LOCAL_ESCAPE uses a single offset, with no register. It only works in the
@@ -790,6 +786,55 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
 }
 
+unsigned X86RegisterInfo::findDeadCallerSavedReg(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI) const {
+  const MachineFunction *MF = MBB.getParent();
+  if (MF->callsEHReturn())
+    return 0;
+
+  const TargetRegisterClass &AvailableRegs = *getGPRsForTailCall(*MF);
+
+  if (MBBI == MBB.end())
+    return 0;
+
+  switch (MBBI->getOpcode()) {
+  default:
+    return 0;
+  case TargetOpcode::PATCHABLE_RET:
+  case X86::RET:
+  case X86::RETL:
+  case X86::RETQ:
+  case X86::RETIL:
+  case X86::RETIQ:
+  case X86::TCRETURNdi:
+  case X86::TCRETURNri:
+  case X86::TCRETURNmi:
+  case X86::TCRETURNdi64:
+  case X86::TCRETURNri64:
+  case X86::TCRETURNmi64:
+  case X86::EH_RETURN:
+  case X86::EH_RETURN64: {
+    SmallSet<uint16_t, 8> Uses;
+    for (unsigned I = 0, E = MBBI->getNumOperands(); I != E; ++I) {
+      MachineOperand &MO = MBBI->getOperand(I);
+      if (!MO.isReg() || MO.isDef())
+        continue;
+      Register Reg = MO.getReg();
+      if (!Reg)
+        continue;
+      for (MCRegAliasIterator AI(Reg, this, true); AI.isValid(); ++AI)
+        Uses.insert(*AI);
+    }
+
+    for (auto CS : AvailableRegs)
+      if (!Uses.count(CS) && CS != X86::RIP && CS != X86::RSP && CS != X86::ESP)
+        return CS;
+  }
+  }
+
+  return 0;
+}
+
 Register X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const X86FrameLowering *TFI = getFrameLowering(MF);
   return TFI->hasFP(MF) ? FramePtr : StackPtr;
@@ -811,4 +856,80 @@ X86RegisterInfo::getPtrSizedStackRegister(const MachineFunction &MF) const {
   if (Subtarget.isTarget64BitILP32())
     StackReg = getX86SubSuperRegister(StackReg, 32);
   return StackReg;
+}
+
+static ShapeT getTileShape(Register VirtReg, VirtRegMap *VRM,
+                           const MachineRegisterInfo *MRI) {
+  if (VRM->hasShape(VirtReg))
+    return VRM->getShape(VirtReg);
+
+  const MachineOperand &Def = *MRI->def_begin(VirtReg);
+  MachineInstr *MI = const_cast<MachineInstr *>(Def.getParent());
+  unsigned OpCode = MI->getOpcode();
+  switch (OpCode) {
+  default:
+    llvm_unreachable("Unexpected machine instruction on tile register!");
+    break;
+  // We only collect the tile shape that is defined.
+  case X86::PTILELOADDV:
+  case X86::PTDPBSSDV:
+  case X86::PTILEZEROV:
+    MachineOperand &MO1 = MI->getOperand(1);
+    MachineOperand &MO2 = MI->getOperand(2);
+    ShapeT Shape(&MO1, &MO2, MRI);
+    VRM->assignVirt2Shape(VirtReg, Shape);
+    return Shape;
+  }
+}
+
+bool X86RegisterInfo::getRegAllocationHints(Register VirtReg,
+                                            ArrayRef<MCPhysReg> Order,
+                                            SmallVectorImpl<MCPhysReg> &Hints,
+                                            const MachineFunction &MF,
+                                            const VirtRegMap *VRM,
+                                            const LiveRegMatrix *Matrix) const {
+  const MachineRegisterInfo *MRI = &MF.getRegInfo();
+  const TargetRegisterClass &RC = *MRI->getRegClass(VirtReg);
+  bool BaseImplRetVal = TargetRegisterInfo::getRegAllocationHints(
+      VirtReg, Order, Hints, MF, VRM, Matrix);
+
+  if (RC.getID() != X86::TILERegClassID)
+    return BaseImplRetVal;
+
+  ShapeT VirtShape = getTileShape(VirtReg, const_cast<VirtRegMap *>(VRM), MRI);
+  auto AddHint = [&](MCPhysReg PhysReg) {
+    Register VReg = Matrix->getOneVReg(PhysReg);
+    if (VReg == MCRegister::NoRegister) { // Not allocated yet
+      Hints.push_back(PhysReg);
+      return;
+    }
+    ShapeT PhysShape = getTileShape(VReg, const_cast<VirtRegMap *>(VRM), MRI);
+    if (PhysShape == VirtShape)
+      Hints.push_back(PhysReg);
+  };
+
+  SmallSet<MCPhysReg, 4> CopyHints;
+  CopyHints.insert(Hints.begin(), Hints.end());
+  Hints.clear();
+  for (auto Hint : CopyHints) {
+    if (RC.contains(Hint) && !MRI->isReserved(Hint))
+      AddHint(Hint);
+  }
+  for (MCPhysReg PhysReg : Order) {
+    if (!CopyHints.count(PhysReg) && RC.contains(PhysReg) &&
+        !MRI->isReserved(PhysReg))
+      AddHint(PhysReg);
+  }
+
+#define DEBUG_TYPE "tile-hint"
+  LLVM_DEBUG({
+    dbgs() << "Hints for virtual register " << format_hex(VirtReg, 8) << "\n";
+    for (auto Hint : Hints) {
+      dbgs() << "tmm" << Hint << ",";
+    }
+    dbgs() << "\n";
+  });
+#undef DEBUG_TYPE
+
+  return true;
 }

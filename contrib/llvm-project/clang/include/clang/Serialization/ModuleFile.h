@@ -67,13 +67,13 @@ class InputFile {
     OutOfDate = 2,
     NotFound = 3
   };
-  llvm::PointerIntPair<const FileEntry *, 2, unsigned> Val;
+  llvm::PointerIntPair<const FileEntryRef::MapEntry *, 2, unsigned> Val;
 
 public:
   InputFile() = default;
 
-  InputFile(const FileEntry *File,
-            bool isOverridden = false, bool isOutOfDate = false) {
+  InputFile(FileEntryRef File, bool isOverridden = false,
+            bool isOutOfDate = false) {
     assert(!(isOverridden && isOutOfDate) &&
            "an overridden cannot be out-of-date");
     unsigned intVal = 0;
@@ -81,7 +81,7 @@ public:
       intVal = Overridden;
     else if (isOutOfDate)
       intVal = OutOfDate;
-    Val.setPointerAndInt(File, intVal);
+    Val.setPointerAndInt(&File.getMapEntry(), intVal);
   }
 
   static InputFile getNotFound() {
@@ -90,7 +90,11 @@ public:
     return File;
   }
 
-  const FileEntry *getFile() const { return Val.getPointer(); }
+  OptionalFileEntryRefDegradesToFileEntryPtr getFile() const {
+    if (auto *P = Val.getPointer())
+      return FileEntryRef(*P);
+    return None;
+  }
   bool isOverridden() const { return Val.getInt() == Overridden; }
   bool isOutOfDate() const { return Val.getInt() == OutOfDate; }
   bool isNotFound() const { return Val.getInt() == NotFound; }
@@ -155,14 +159,11 @@ public:
   /// Whether timestamps are included in this module file.
   bool HasTimestamps = false;
 
-  /// Whether the PCH has a corresponding object file.
-  bool PCHHasObjectFile = false;
-
   /// Whether the top-level module has been read from the AST file.
   bool DidReadTopLevelSubmodule = false;
 
   /// The file entry for the module file.
-  const FileEntry *File = nullptr;
+  OptionalFileEntryRefDegradesToFileEntryPtr File;
 
   /// The signature of the module file, which may be used instead of the size
   /// and modification time to identify this particular file.

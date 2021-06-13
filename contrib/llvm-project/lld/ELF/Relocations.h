@@ -41,7 +41,6 @@ enum RelExpr {
   R_GOTPLT,
   R_GOTPLTREL,
   R_GOTREL,
-  R_NEG_TLS,
   R_NONE,
   R_PC,
   R_PLT,
@@ -58,7 +57,8 @@ enum RelExpr {
   R_RELAX_TLS_LD_TO_LE,
   R_RELAX_TLS_LD_TO_LE_ABS,
   R_SIZE,
-  R_TLS,
+  R_TPREL,
+  R_TPREL_NEG,
   R_TLSDESC,
   R_TLSDESC_CALL,
   R_TLSDESC_PC,
@@ -78,6 +78,7 @@ enum RelExpr {
   // of a relocation type, there are some relocations whose semantics are
   // unique to a target. Such relocation are marked with R_<TARGET_NAME>.
   R_AARCH64_GOT_PAGE_PC,
+  R_AARCH64_GOT_PAGE,
   R_AARCH64_PAGE_PC,
   R_AARCH64_RELAX_TLS_GD_TO_IE_PAGE_PC,
   R_AARCH64_TLSDESC_PAGE,
@@ -96,6 +97,7 @@ enum RelExpr {
   R_PPC64_CALL_PLT,
   R_PPC64_RELAX_TOC,
   R_PPC64_TOCBASE,
+  R_PPC64_RELAX_GOT_PC,
   R_RISCV_ADD,
   R_RISCV_PC_INDIRECT,
 };
@@ -130,7 +132,7 @@ bool hexagonNeedsTLSSymbol(ArrayRef<OutputSection *> outputSections);
 
 class ThunkSection;
 class Thunk;
-struct InputSectionDescription;
+class InputSectionDescription;
 
 class ThunkCreator {
 public:

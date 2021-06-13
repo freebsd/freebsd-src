@@ -146,7 +146,7 @@ RelExpr MIPS<ELFT>::getRelExpr(RelType type, const Symbol &s,
   case R_MIPS_TLS_TPREL64:
   case R_MICROMIPS_TLS_TPREL_HI16:
   case R_MICROMIPS_TLS_TPREL_LO16:
-    return R_TLS;
+    return R_TPREL;
   case R_MIPS_PC32:
   case R_MIPS_PC16:
   case R_MIPS_PC19_S2:
@@ -372,7 +372,7 @@ bool MIPS<ELFT>::needsThunk(RelExpr expr, RelType type, const InputFile *file,
   if (!f)
     return false;
   // If current file has PIC code, LA25 stub is not required.
-  if (f->getObj().getHeader()->e_flags & EF_MIPS_PIC)
+  if (f->getObj().getHeader().e_flags & EF_MIPS_PIC)
     return false;
   auto *d = dyn_cast<Defined>(&s);
   // LA25 is required if target file has PIC code
@@ -749,7 +749,7 @@ template <class ELFT> bool elf::isMipsPIC(const Defined *sym) {
   if (!file)
     return false;
 
-  return file->getObj().getHeader()->e_flags & EF_MIPS_PIC;
+  return file->getObj().getHeader().e_flags & EF_MIPS_PIC;
 }
 
 template <class ELFT> TargetInfo *elf::getMipsTargetInfo() {

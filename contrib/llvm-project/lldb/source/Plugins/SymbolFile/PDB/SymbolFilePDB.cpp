@@ -52,8 +52,6 @@
 #include "Plugins/Language/CPlusPlus/MSVCUndecoratedNameParser.h"
 #include "Plugins/SymbolFile/NativePDB/SymbolFileNativePDB.h"
 
-#include <regex>
-
 using namespace lldb;
 using namespace lldb_private;
 using namespace llvm::pdb;
@@ -1020,8 +1018,8 @@ VariableSP SymbolFilePDB::ParseVariableForPDBData(
 
   var_sp = std::make_shared<Variable>(
       var_uid, var_name.c_str(), mangled_cstr, type_sp, scope, context_scope,
-      ranges, &decl, location, is_external, is_artificial, is_static_member);
-  var_sp->SetLocationIsConstantValueData(is_constant);
+      ranges, &decl, location, is_external, is_artificial, is_constant,
+      is_static_member);
 
   m_variables.insert(std::make_pair(var_uid, var_sp));
   return var_sp;

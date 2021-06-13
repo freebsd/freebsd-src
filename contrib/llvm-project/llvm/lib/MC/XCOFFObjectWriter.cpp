@@ -138,12 +138,13 @@ struct Section {
       Group->clear();
   }
 
-  Section(const char *N, XCOFF::SectionTypeFlags Flags, bool IsVirtual,
+  Section(StringRef N, XCOFF::SectionTypeFlags Flags, bool IsVirtual,
           CsectGroups Groups)
-      : Address(0), Size(0), FileOffsetToData(0), FileOffsetToRelocations(0),
-        RelocationCount(0), Flags(Flags), Index(UninitializedIndex),
-        IsVirtual(IsVirtual), Groups(Groups) {
-    strncpy(Name, N, XCOFF::NameSize);
+      : Name(), Address(0), Size(0), FileOffsetToData(0),
+        FileOffsetToRelocations(0), RelocationCount(0), Flags(Flags),
+        Index(UninitializedIndex), IsVirtual(IsVirtual), Groups(Groups) {
+    assert(N.size() <= XCOFF::NameSize && "section name too long");
+    memcpy(Name, N.data(), N.size());
   }
 };
 
@@ -304,6 +305,7 @@ CsectGroup &XCOFFObjectWriter::getCsectGroup(const MCSectionXCOFF *MCSec) {
            "in this CsectGroup.");
     return TOCCsects;
   case XCOFF::XMC_TC:
+  case XCOFF::XMC_TE:
     assert(XCOFF::XTY_SD == MCSec->getCSectType() &&
            "Only an initialized csect can contain TC entry.");
     assert(!TOCCsects.empty() &&
@@ -427,9 +429,18 @@ void XCOFFObjectWriter::recordRelocation(MCAssembler &Asm,
     // The FixedValue should be symbol's virtual address in this object file
     // plus any constant value that we might get.
     FixedValue = getVirtualAddress(SymA, SymASec) + Target.getConstant();
-  else if (Type == XCOFF::RelocationType::R_TOC)
-    // The FixedValue should be the TC entry offset from TOC-base.
-    FixedValue = SectionMap[SymASec]->Address - TOCCsects.front().Address;
+  else if (Type == XCOFF::RelocationType::R_TOC ||
+           Type == XCOFF::RelocationType::R_TOCL) {
+    // The FixedValue should be the TOC entry offset from the TOC-base plus any
+    // constant offset value.
+    const int64_t TOCEntryOffset = SectionMap[SymASec]->Address -
+                                   TOCCsects.front().Address +
+                                   Target.getConstant();
+    if (Type == XCOFF::RelocationType::R_TOC && !isInt<16>(TOCEntryOffset))
+      report_fatal_error("TOCEntryOffset overflows in small code model mode");
+
+    FixedValue = TOCEntryOffset;
+  }
 
   assert(
       (TargetObjectWriter->is64Bit() ||

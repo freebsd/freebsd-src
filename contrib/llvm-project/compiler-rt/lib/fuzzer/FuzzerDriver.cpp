@@ -33,7 +33,11 @@
 // binary can test for its existence.
 #if LIBFUZZER_MSVC
 extern "C" void __libfuzzer_is_present() {}
+#if defined(_M_IX86) || defined(__i386__)
+#pragma comment(linker, "/include:___libfuzzer_is_present")
+#else
 #pragma comment(linker, "/include:__libfuzzer_is_present")
+#endif
 #else
 extern "C" __attribute__((used)) void __libfuzzer_is_present() {}
 #endif  // LIBFUZZER_MSVC
@@ -246,6 +250,28 @@ static void WorkerThread(const Command &BaseCmd, std::atomic<unsigned> *Counter,
   }
 }
 
+static void ValidateDirectoryExists(const std::string &Path,
+                                    bool CreateDirectory) {
+  if (Path.empty()) {
+    Printf("ERROR: Provided directory path is an empty string\n");
+    exit(1);
+  }
+
+  if (IsDirectory(Path))
+    return;
+
+  if (CreateDirectory) {
+    if (!MkDirRecursive(Path)) {
+      Printf("ERROR: Failed to create directory \"%s\"\n", Path.c_str());
+      exit(1);
+    }
+    return;
+  }
+
+  Printf("ERROR: The required directory \"%s\" does not exist\n", Path.c_str());
+  exit(1);
+}
+
 std::string CloneArgsWithoutX(const Vector<std::string> &Args,
                               const char *X1, const char *X2) {
   std::string Cmd;
@@ -295,7 +321,12 @@ int RunOneTest(Fuzzer *F, const char *InputFilePath, size_t MaxLen) {
   if (MaxLen && MaxLen < U.size())
     U.resize(MaxLen);
   F->ExecuteCallback(U.data(), U.size());
-  F->TryDetectingAMemoryLeak(U.data(), U.size(), true);
+  if (Flags.print_full_coverage) {
+    // Leak detection is not needed when collecting full coverage data.
+    F->TPCUpdateObservedPCs();
+  } else {
+    F->TryDetectingAMemoryLeak(U.data(), U.size(), true);
+  }
   return 0;
 }
 
@@ -645,6 +676,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   Options.Verbosity = Flags.verbosity;
   Options.MaxLen = Flags.max_len;
   Options.LenControl = Flags.len_control;
+  Options.KeepSeed = Flags.keep_seed;
   Options.UnitTimeoutSec = Flags.timeout;
   Options.ErrorExitCode = Flags.error_exitcode;
   Options.TimeoutExitCode = Flags.timeout_exitcode;
@@ -653,6 +685,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   Options.IgnoreCrashes = Flags.ignore_crashes;
   Options.MaxTotalTimeSec = Flags.max_total_time;
   Options.DoCrossOver = Flags.cross_over;
+  Options.CrossOverUniformDist = Flags.cross_over_uniform_dist;
   Options.MutateDepth = Flags.mutate_depth;
   Options.ReduceDepth = Flags.reduce_depth;
   Options.UseCounters = Flags.use_counters;
@@ -674,13 +707,33 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
     Options.MallocLimitMb = Options.RssLimitMb;
   if (Flags.runs >= 0)
     Options.MaxNumberOfRuns = Flags.runs;
-  if (!Inputs->empty() && !Flags.minimize_crash_internal_step)
-    Options.OutputCorpus = (*Inputs)[0];
+  if (!Inputs->empty() && !Flags.minimize_crash_internal_step) {
+    // Ensure output corpus assumed to be the first arbitrary argument input
+    // is not a path to an existing file.
+    std::string OutputCorpusDir = (*Inputs)[0];
+    if (!IsFile(OutputCorpusDir)) {
+      Options.OutputCorpus = OutputCorpusDir;
+      ValidateDirectoryExists(Options.OutputCorpus, Flags.create_missing_dirs);
+    }
+  }
   Options.ReportSlowUnits = Flags.report_slow_units;
-  if (Flags.artifact_prefix)
+  if (Flags.artifact_prefix) {
     Options.ArtifactPrefix = Flags.artifact_prefix;
-  if (Flags.exact_artifact_path)
+
+    // Since the prefix could be a full path to a file name prefix, assume
+    // that if the path ends with the platform's separator that a directory
+    // is desired
+    std::string ArtifactPathDir = Options.ArtifactPrefix;
+    if (!IsSeparator(ArtifactPathDir[ArtifactPathDir.length() - 1])) {
+      ArtifactPathDir = DirName(ArtifactPathDir);
+    }
+    ValidateDirectoryExists(ArtifactPathDir, Flags.create_missing_dirs);
+  }
+  if (Flags.exact_artifact_path) {
     Options.ExactArtifactPath = Flags.exact_artifact_path;
+    ValidateDirectoryExists(DirName(Options.ExactArtifactPath),
+                            Flags.create_missing_dirs);
+  }
   Vector<Unit> Dictionary;
   if (Flags.dict)
     if (!ParseDictionaryFile(FileToString(Flags.dict), &Dictionary))
@@ -695,6 +748,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   Options.PrintFinalStats = Flags.print_final_stats;
   Options.PrintCorpusStats = Flags.print_corpus_stats;
   Options.PrintCoverage = Flags.print_coverage;
+  Options.PrintFullCoverage = Flags.print_full_coverage;
   if (Flags.exit_on_src_pos)
     Options.ExitOnSrcPos = Flags.exit_on_src_pos;
   if (Flags.exit_on_item)
@@ -703,8 +757,12 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
     Options.FocusFunction = Flags.focus_function;
   if (Flags.data_flow_trace)
     Options.DataFlowTrace = Flags.data_flow_trace;
-  if (Flags.features_dir)
+  if (Flags.features_dir) {
     Options.FeaturesDir = Flags.features_dir;
+    ValidateDirectoryExists(Options.FeaturesDir, Flags.create_missing_dirs);
+  }
+  if (Flags.mutation_graph_file)
+    Options.MutationGraphFile = Flags.mutation_graph_file;
   if (Flags.collect_data_flow)
     Options.CollectDataFlow = Flags.collect_data_flow;
   if (Flags.stop_file)
@@ -714,21 +772,19 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
       (size_t)Flags.entropic_feature_frequency_threshold;
   Options.EntropicNumberOfRarestFeatures =
       (size_t)Flags.entropic_number_of_rarest_features;
-  if (Options.Entropic) {
-    if (!Options.FocusFunction.empty()) {
-      Printf("ERROR: The parameters `--entropic` and `--focus_function` cannot "
-             "be used together.\n");
-      exit(1);
-    }
+  Options.EntropicScalePerExecTime = Flags.entropic_scale_per_exec_time;
+  if (!Options.FocusFunction.empty())
+    Options.Entropic = false; // FocusFunction overrides entropic scheduling.
+  if (Options.Entropic)
     Printf("INFO: Running with entropic power schedule (0x%X, %d).\n",
            Options.EntropicFeatureFrequencyThreshold,
            Options.EntropicNumberOfRarestFeatures);
-  }
   struct EntropicOptions Entropic;
   Entropic.Enabled = Options.Entropic;
   Entropic.FeatureFrequencyThreshold =
       Options.EntropicFeatureFrequencyThreshold;
   Entropic.NumberOfRarestFeatures = Options.EntropicNumberOfRarestFeatures;
+  Entropic.ScalePerExecTime = Options.EntropicScalePerExecTime;
 
   unsigned Seed = Flags.seed;
   // Initialize Seed.
@@ -763,6 +819,7 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
 #endif // LIBFUZZER_EMSCRIPTEN
 
   Options.HandleAbrt = Flags.handle_abrt;
+  Options.HandleAlrm = !Flags.minimize_crash;
   Options.HandleBus = Flags.handle_bus;
   Options.HandleFpe = Flags.handle_fpe;
   Options.HandleIll = Flags.handle_ill;
@@ -772,6 +829,8 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   Options.HandleXfsz = Flags.handle_xfsz;
   Options.HandleUsr1 = Flags.handle_usr1;
   Options.HandleUsr2 = Flags.handle_usr2;
+  Options.HandleWinExcept = Flags.handle_winexcept;
+
   SetSignalHandler(Options);
 
   std::atexit(Fuzzer::StaticExitCallback);
@@ -852,6 +911,12 @@ int FuzzerDriver(int *argc, char ***argv, UserCallback Callback) {
   F->PrintFinalStats();
 
   exit(0);  // Don't let F destroy itself.
+}
+
+extern "C" ATTRIBUTE_INTERFACE int
+LLVMFuzzerRunDriver(int *argc, char ***argv,
+                    int (*UserCb)(const uint8_t *Data, size_t Size)) {
+  return FuzzerDriver(argc, argv, UserCb);
 }
 
 // Storage for global ExternalFunctions object.

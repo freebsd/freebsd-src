@@ -123,8 +123,11 @@ public:
   void mangleBlock(const DeclContext *DC, const BlockDecl *BD,
                    raw_ostream &Out);
 
-  void mangleObjCMethodNameWithoutSize(const ObjCMethodDecl *MD, raw_ostream &);
-  void mangleObjCMethodName(const ObjCMethodDecl *MD, raw_ostream &);
+  void mangleObjCMethodName(const ObjCMethodDecl *MD, raw_ostream &OS,
+                            bool includePrefixByte = true,
+                            bool includeCategoryNamespace = true);
+  void mangleObjCMethodNameAsSourceName(const ObjCMethodDecl *MD,
+                                        raw_ostream &);
 
   virtual void mangleStaticGuardVariable(const VarDecl *D, raw_ostream &) = 0;
 
@@ -149,14 +152,9 @@ public:
 };
 
 class ItaniumMangleContext : public MangleContext {
-  bool IsUniqueNameMangler = false;
 public:
   explicit ItaniumMangleContext(ASTContext &C, DiagnosticsEngine &D)
       : MangleContext(C, D, MK_Itanium) {}
-  explicit ItaniumMangleContext(ASTContext &C, DiagnosticsEngine &D,
-                                bool IsUniqueNameMangler)
-      : MangleContext(C, D, MK_Itanium),
-        IsUniqueNameMangler(IsUniqueNameMangler) {}
 
   virtual void mangleCXXVTable(const CXXRecordDecl *RD, raw_ostream &) = 0;
   virtual void mangleCXXVTT(const CXXRecordDecl *RD, raw_ostream &) = 0;
@@ -177,15 +175,12 @@ public:
 
   virtual void mangleDynamicStermFinalizer(const VarDecl *D, raw_ostream &) = 0;
 
-  bool isUniqueNameMangler() { return IsUniqueNameMangler; }
-
   static bool classof(const MangleContext *C) {
     return C->getKind() == MK_Itanium;
   }
 
   static ItaniumMangleContext *create(ASTContext &Context,
-                                      DiagnosticsEngine &Diags,
-                                      bool IsUniqueNameMangler = false);
+                                      DiagnosticsEngine &Diags);
 };
 
 class MicrosoftMangleContext : public MangleContext {

@@ -1,4 +1,4 @@
-//===-- crash_handler_interface.cpp -----------------------------*- C++ -*-===//
+//===-- crash_handler.cpp ---------------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,6 +10,8 @@
 #include "gwp_asan/stack_trace_compressor.h"
 
 #include <assert.h>
+#include <stdint.h>
+#include <string.h>
 
 using AllocationMetadata = gwp_asan::AllocationMetadata;
 using Error = gwp_asan::Error;
@@ -112,9 +114,15 @@ uint64_t __gwp_asan_get_allocation_thread_id(
 size_t __gwp_asan_get_allocation_trace(
     const gwp_asan::AllocationMetadata *AllocationMeta, uintptr_t *Buffer,
     size_t BufferLen) {
-  return gwp_asan::compression::unpack(
+  uintptr_t UncompressedBuffer[AllocationMetadata::kMaxTraceLengthToCollect];
+  size_t UnpackedLength = gwp_asan::compression::unpack(
       AllocationMeta->AllocationTrace.CompressedTrace,
-      AllocationMeta->AllocationTrace.TraceSize, Buffer, BufferLen);
+      AllocationMeta->AllocationTrace.TraceSize, UncompressedBuffer,
+      AllocationMetadata::kMaxTraceLengthToCollect);
+  if (UnpackedLength < BufferLen)
+    BufferLen = UnpackedLength;
+  memcpy(Buffer, UncompressedBuffer, BufferLen * sizeof(*Buffer));
+  return UnpackedLength;
 }
 
 bool __gwp_asan_is_deallocated(
@@ -130,9 +138,15 @@ uint64_t __gwp_asan_get_deallocation_thread_id(
 size_t __gwp_asan_get_deallocation_trace(
     const gwp_asan::AllocationMetadata *AllocationMeta, uintptr_t *Buffer,
     size_t BufferLen) {
-  return gwp_asan::compression::unpack(
+  uintptr_t UncompressedBuffer[AllocationMetadata::kMaxTraceLengthToCollect];
+  size_t UnpackedLength = gwp_asan::compression::unpack(
       AllocationMeta->DeallocationTrace.CompressedTrace,
-      AllocationMeta->DeallocationTrace.TraceSize, Buffer, BufferLen);
+      AllocationMeta->DeallocationTrace.TraceSize, UncompressedBuffer,
+      AllocationMetadata::kMaxTraceLengthToCollect);
+  if (UnpackedLength < BufferLen)
+    BufferLen = UnpackedLength;
+  memcpy(Buffer, UncompressedBuffer, BufferLen * sizeof(*Buffer));
+  return UnpackedLength;
 }
 
 #ifdef __cplusplus

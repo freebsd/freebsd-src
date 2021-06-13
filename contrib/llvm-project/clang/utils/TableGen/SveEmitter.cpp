@@ -207,7 +207,7 @@ public:
   /// a short form without the type-specifiers, e.g. 'svld1(..)' instead of
   /// 'svld1_u32(..)'.
   static bool isOverloadedIntrinsic(StringRef Name) {
-    auto BrOpen = Name.find("[");
+    auto BrOpen = Name.find('[');
     auto BrClose = Name.find(']');
     return BrOpen != std::string::npos && BrClose != std::string::npos;
   }
@@ -416,10 +416,10 @@ std::string SVEType::builtin_str() const {
 
 std::string SVEType::str() const {
   if (isPredicatePattern())
-    return "sv_pattern";
+    return "enum svpattern";
 
   if (isPrefetchOp())
-    return "sv_prfop";
+    return "enum svprfop";
 
   std::string S;
   if (Void)
@@ -893,14 +893,14 @@ std::string Intrinsic::mangleName(ClassKind LocalCK) const {
 
   if (LocalCK == ClassG) {
     // Remove the square brackets and everything in between.
-    while (S.find("[") != std::string::npos) {
-      auto Start = S.find("[");
+    while (S.find('[') != std::string::npos) {
+      auto Start = S.find('[');
       auto End = S.find(']');
       S.erase(Start, (End-Start)+1);
     }
   } else {
     // Remove the square brackets.
-    while (S.find("[") != std::string::npos) {
+    while (S.find('[') != std::string::npos) {
       auto BrPos = S.find('[');
       if (BrPos != std::string::npos)
         S.erase(BrPos, 1);
@@ -1163,7 +1163,7 @@ void SVEEmitter::createHeader(raw_ostream &OS) {
   OS << "typedef __clang_svbfloat16x4_t svbfloat16x4_t;\n";
   OS << "#endif\n";
 
-  OS << "typedef enum\n";
+  OS << "enum svpattern\n";
   OS << "{\n";
   OS << "  SV_POW2 = 0,\n";
   OS << "  SV_VL1 = 1,\n";
@@ -1182,9 +1182,9 @@ void SVEEmitter::createHeader(raw_ostream &OS) {
   OS << "  SV_MUL4 = 29,\n";
   OS << "  SV_MUL3 = 30,\n";
   OS << "  SV_ALL = 31\n";
-  OS << "} sv_pattern;\n\n";
+  OS << "};\n\n";
 
-  OS << "typedef enum\n";
+  OS << "enum svprfop\n";
   OS << "{\n";
   OS << "  SV_PLDL1KEEP = 0,\n";
   OS << "  SV_PLDL1STRM = 1,\n";
@@ -1198,7 +1198,7 @@ void SVEEmitter::createHeader(raw_ostream &OS) {
   OS << "  SV_PSTL2STRM = 11,\n";
   OS << "  SV_PSTL3KEEP = 12,\n";
   OS << "  SV_PSTL3STRM = 13\n";
-  OS << "} sv_prfop;\n\n";
+  OS << "};\n\n";
 
   OS << "/* Function attributes */\n";
   OS << "#define __aio static inline __attribute__((__always_inline__, "

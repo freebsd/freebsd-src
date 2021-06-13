@@ -258,7 +258,6 @@ public:
     iterator begin() { return iterator(Edges.begin(), Edges.end()); }
     iterator end() { return iterator(Edges.end(), Edges.end()); }
 
-    Edge &operator[](int i) { return Edges[i]; }
     Edge &operator[](Node &N) {
       assert(EdgeIndexMap.find(&N) != EdgeIndexMap.end() && "No such edge!");
       auto &E = Edges[EdgeIndexMap.find(&N)->second];
@@ -305,13 +304,6 @@ public:
 
     /// Internal helper to remove the edge to the given function.
     bool removeEdgeInternal(Node &ChildN);
-
-    /// Internal helper to replace an edge key with a new one.
-    ///
-    /// This should be used when the function for a particular node in the
-    /// graph gets replaced and we are updating all of the edges to that node
-    /// to use the new function as the key.
-    void replaceEdgeKey(Function &OldTarget, Function &NewTarget);
   };
 
   /// A node in the call graph.
@@ -605,10 +597,6 @@ public:
     /// - The SCCs list is in fact in post-order.
     void verify();
 #endif
-
-    /// Handle any necessary parent set updates after inserting a trivial ref
-    /// or call edge.
-    void handleTrivialEdgeInsertion(Node &SourceN, Node &TargetN);
 
   public:
     using iterator = pointee_iterator<SmallVectorImpl<SCC *>::const_iterator>;
@@ -1058,12 +1046,29 @@ public:
   /// fully visited by the DFS prior to calling this routine.
   void removeDeadFunction(Function &F);
 
-  /// Introduce a node for the function \p NewF in the SCC \p C.
-  void addNewFunctionIntoSCC(Function &NewF, SCC &C);
+  /// Add a new function split/outlined from an existing function.
+  ///
+  /// The new function may only reference other functions that the original
+  /// function did.
+  ///
+  /// The original function must reference (either directly or indirectly) the
+  /// new function.
+  ///
+  /// The new function may also reference the original function.
+  /// It may end up in a parent SCC in the case that the original function's
+  /// edge to the new function is a ref edge, and the edge back is a call edge.
+  void addSplitFunction(Function &OriginalFunction, Function &NewFunction);
 
-  /// Introduce a node for the function \p NewF, as a single node in a
-  /// new SCC, in the RefSCC \p RC.
-  void addNewFunctionIntoRefSCC(Function &NewF, RefSCC &RC);
+  /// Add new ref-recursive functions split/outlined from an existing function.
+  ///
+  /// The new functions may only reference other functions that the original
+  /// function did. The new functions may reference (not call) the original
+  /// function.
+  ///
+  /// The original function must reference (not call) all new functions.
+  /// All new functions must reference (not call) each other.
+  void addSplitRefRecursiveFunctions(Function &OriginalFunction,
+                                     ArrayRef<Function *> NewFunctions);
 
   ///@}
 
@@ -1168,15 +1173,13 @@ private:
   /// the NodeMap.
   Node &insertInto(Function &F, Node *&MappedN);
 
+  /// Helper to initialize a new node created outside of creating SCCs and add
+  /// it to the NodeMap if necessary. For example, useful when a function is
+  /// split.
+  Node &initNode(Function &F);
+
   /// Helper to update pointers back to the graph object during moves.
   void updateGraphPtrs();
-
-  /// Helper to insert a new function, add it to the NodeMap, and populate its
-  /// node.
-  Node &createNode(Function &F);
-
-  /// Helper to add the given Node \p N to the SCCMap, mapped to the SCC \p C.
-  void addNodeToSCC(SCC &C, Node &N);
 
   /// Allocates an SCC and constructs it using the graph allocator.
   ///

@@ -27,6 +27,9 @@
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
+#include "llvm/ADT/Triple.h"
+#include "llvm/Support/Host.h"
+
 // Define these constants from FreeBSD mman.h for use when targeting remote
 // FreeBSD systems even when host has different values.
 #define MAP_PRIVATE 0x0002
@@ -124,8 +127,6 @@ void PlatformFreeBSD::Terminate() {
 PlatformFreeBSD::PlatformFreeBSD(bool is_host)
     : PlatformPOSIX(is_host) // This is the local host platform
 {}
-
-PlatformFreeBSD::~PlatformFreeBSD() = default;
 
 bool PlatformFreeBSD::GetSupportedArchitectureAtIndex(uint32_t idx,
                                                       ArchSpec &arch) {
@@ -246,59 +247,26 @@ PlatformFreeBSD::GetSoftwareBreakpointTrapOpcode(Target &target,
   }
 }
 
-Status PlatformFreeBSD::LaunchProcess(ProcessLaunchInfo &launch_info) {
-  Status error;
-  if (IsHost()) {
-    error = Platform::LaunchProcess(launch_info);
-  } else {
-    if (m_remote_platform_sp)
-      error = m_remote_platform_sp->LaunchProcess(launch_info);
-    else
-      error.SetErrorString("the platform is not currently connected");
-  }
-  return error;
-}
-
-lldb::ProcessSP PlatformFreeBSD::Attach(ProcessAttachInfo &attach_info,
-                                        Debugger &debugger, Target *target,
-                                        Status &error) {
-  lldb::ProcessSP process_sp;
-  if (IsHost()) {
-    if (target == nullptr) {
-      TargetSP new_target_sp;
-      ArchSpec emptyArchSpec;
-
-      error = debugger.GetTargetList().CreateTarget(
-          debugger, "", emptyArchSpec, eLoadDependentsNo, m_remote_platform_sp,
-          new_target_sp);
-      target = new_target_sp.get();
-    } else
-      error.Clear();
-
-    if (target && error.Success()) {
-      debugger.GetTargetList().SetSelectedTarget(target);
-      // The freebsd always currently uses the GDB remote debugger plug-in so
-      // even when debugging locally we are debugging remotely! Just like the
-      // darwin plugin.
-      process_sp = target->CreateProcess(
-          attach_info.GetListenerForProcess(debugger), "gdb-remote", nullptr);
-
-      if (process_sp)
-        error = process_sp->Attach(attach_info);
-    }
-  } else {
-    if (m_remote_platform_sp)
-      process_sp =
-          m_remote_platform_sp->Attach(attach_info, debugger, target, error);
-    else
-      error.SetErrorString("the platform is not currently connected");
-  }
-  return process_sp;
-}
-
-// FreeBSD processes cannot yet be launched by spawning and attaching.
 bool PlatformFreeBSD::CanDebugProcess() {
-  return false;
+  if (IsHost()) {
+    llvm::Triple host_triple{llvm::sys::getProcessTriple()};
+    bool use_legacy_plugin;
+
+    switch (host_triple.getArch()) {
+      case llvm::Triple::x86:
+      case llvm::Triple::x86_64:
+        // FreeBSDRemote plugin supports x86 only at the moment
+        use_legacy_plugin = !!getenv("FREEBSD_LEGACY_PLUGIN");
+        break;
+      default:
+        use_legacy_plugin = true;
+    }
+
+    return !use_legacy_plugin;
+  } else {
+    // If we're connected, we can debug.
+    return IsConnected();
+  }
 }
 
 void PlatformFreeBSD::CalculateTrapHandlerSymbolNames() {

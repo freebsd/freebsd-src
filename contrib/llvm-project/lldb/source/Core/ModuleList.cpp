@@ -82,8 +82,9 @@ ModuleListProperties::ModuleListProperties() {
                                            [this] { UpdateSymlinkMappings(); });
 
   llvm::SmallString<128> path;
-  clang::driver::Driver::getDefaultModuleCachePath(path);
-  SetClangModulesCachePath(path);
+  if (clang::driver::Driver::getDefaultModuleCachePath(path)) {
+    lldbassert(SetClangModulesCachePath(FileSpec(path)));
+  }
 }
 
 bool ModuleListProperties::GetEnableExternalLookup() const {
@@ -104,8 +105,8 @@ FileSpec ModuleListProperties::GetClangModulesCachePath() const {
       ->GetCurrentValue();
 }
 
-bool ModuleListProperties::SetClangModulesCachePath(llvm::StringRef path) {
-  return m_collection_sp->SetPropertyAtIndexAsString(
+bool ModuleListProperties::SetClangModulesCachePath(const FileSpec &path) {
+  return m_collection_sp->SetPropertyAtIndexAsFileSpec(
       nullptr, ePropertyClangModulesCachePath, path);
 }
 
@@ -296,14 +297,24 @@ size_t ModuleList::RemoveOrphans(bool mandatory) {
     if (!lock.try_lock())
       return 0;
   }
-  collection::iterator pos = m_modules.begin();
   size_t remove_count = 0;
-  while (pos != m_modules.end()) {
-    if (pos->unique()) {
-      pos = RemoveImpl(pos);
-      ++remove_count;
-    } else {
-      ++pos;
+  // Modules might hold shared pointers to other modules, so removing one
+  // module might make other other modules orphans. Keep removing modules until
+  // there are no further modules that can be removed.
+  bool made_progress = true;
+  while (made_progress) {
+    // Keep track if we make progress this iteration.
+    made_progress = false;
+    collection::iterator pos = m_modules.begin();
+    while (pos != m_modules.end()) {
+      if (pos->unique()) {
+        pos = RemoveImpl(pos);
+        ++remove_count;
+        // We did make progress.
+        made_progress = true;
+      } else {
+        ++pos;
+      }
     }
   }
   return remove_count;
@@ -335,10 +346,6 @@ void ModuleList::ClearImpl(bool use_notifier) {
 
 Module *ModuleList::GetModulePointerAtIndex(size_t idx) const {
   std::lock_guard<std::recursive_mutex> guard(m_modules_mutex);
-  return GetModulePointerAtIndexUnlocked(idx);
-}
-
-Module *ModuleList::GetModulePointerAtIndexUnlocked(size_t idx) const {
   if (idx < m_modules.size())
     return m_modules[idx].get();
   return nullptr;
@@ -971,7 +978,7 @@ ModuleList::GetSharedModule(const ModuleSpec &module_spec, ModuleSP &module_sp,
             error.SetErrorStringWithFormat(
                 "cannot locate a module for UUID '%s'", uuid_str.c_str());
           else
-            error.SetErrorStringWithFormat("cannot locate a module");
+            error.SetErrorString("cannot locate a module");
         }
       }
     }

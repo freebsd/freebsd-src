@@ -181,6 +181,19 @@ Maximum number of errors to emit before stopping.
 A value of zero indicates that there is no limit.
 .It Fl -error-unresolved-symbols
 Report unresolved symbols as errors.
+.It Fl -error-handing-script Ns = Ns Ar script_path
+Call script
+.Ar script_path
+upon some error, with
+.Ar tag
+as first argument, and an extra parameter as second argument. The script is
+expected to return 0 on success. Any other value is considered a generic error.
+.Ar tag
+may be
+.Cm missing-lib
+followed by the name of the missing library.
+.Cm undefined-symbol
+followed by the name of the undefined symbol.
 .It Fl -execute-only
 Mark executable sections unreadable.
 This option is currently only supported on AArch64.
@@ -298,6 +311,8 @@ Do not demangle symbol names.
 Inhibit output of an
 .Li .interp
 section.
+.It Fl -no-fortran-common
+Do not search archive members for definitions to override COMMON symbols.
 .It Fl -no-gc-sections
 Disable garbage collection of unused sections.
 .It Fl -no-gnu-unique
@@ -620,7 +635,14 @@ Report unresolved symbols as warnings.
 .It Fl -whole-archive
 Force load of all members in a static library.
 .It Fl -wrap Ns = Ns Ar symbol
-Use wrapper functions for symbol.
+Redirect
+.Ar symbol
+references to
+.Ar __wrap_symbol
+and
+.Ar __real_symbol
+references to
+.Ar symbol.
 .It Fl z Ar option
 Linker option extensions.
 .Bl -tag -width indent -compact
