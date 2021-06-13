@@ -148,8 +148,9 @@ public:
   // non-split-stack callee this will return true. Otherwise returns false.
   bool needsMoreStackNonSplit = true;
 
-  virtual RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
-                                  RelExpr expr) const;
+  virtual RelExpr adjustTlsExpr(RelType type, RelExpr expr) const;
+  virtual RelExpr adjustGotPcExpr(RelType type, int64_t addend,
+                                  const uint8_t *loc) const;
   virtual void relaxGot(uint8_t *loc, const Relocation &rel,
                         uint64_t val) const;
   virtual void relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
@@ -213,6 +214,11 @@ unsigned getPPC64GlobalEntryToLocalEntryOffset(uint8_t stOther);
 // the .toc section.
 bool isPPC64SmallCodeModelTocReloc(RelType type);
 
+// Write a prefixed instruction, which is a 4-byte prefix followed by a 4-byte
+// instruction (regardless of endianness). Therefore, the prefix is always in
+// lower memory than the instruction.
+void writePrefixedInstruction(uint8_t *loc, uint64_t insn);
+
 void addPPC64SaveRestore();
 uint64_t getPPC64TocBase();
 uint64_t getAArch64Page(uint64_t expr);
@@ -224,6 +230,8 @@ template <class ELFT> bool isMipsPIC(const Defined *sym);
 
 void reportRangeError(uint8_t *loc, const Relocation &rel, const Twine &v,
                       int64_t min, uint64_t max);
+void reportRangeError(uint8_t *loc, int64_t v, int n, const Symbol &sym,
+                      const Twine &msg);
 
 // Make sure that V can be represented as an N bit signed integer.
 inline void checkInt(uint8_t *loc, int64_t v, int n, const Relocation &rel) {

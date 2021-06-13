@@ -907,6 +907,24 @@ bool Sema::LookupBuiltin(LookupResult &R) {
   return false;
 }
 
+/// Looks up the declaration of "struct objc_super" and
+/// saves it for later use in building builtin declaration of
+/// objc_msgSendSuper and objc_msgSendSuper_stret.
+static void LookupPredefedObjCSuperType(Sema &Sema, Scope *S) {
+  ASTContext &Context = Sema.Context;
+  LookupResult Result(Sema, &Context.Idents.get("objc_super"), SourceLocation(),
+                      Sema::LookupTagName);
+  Sema.LookupName(Result, S);
+  if (Result.getResultKind() == LookupResult::Found)
+    if (const TagDecl *TD = Result.getAsSingle<TagDecl>())
+      Context.setObjCSuperType(Context.getTagDeclType(TD));
+}
+
+void Sema::LookupNecessaryTypesForBuiltin(Scope *S, unsigned ID) {
+  if (ID == Builtin::BIobjc_msgSendSuper)
+    LookupPredefedObjCSuperType(*this, S);
+}
+
 /// Determine whether we can declare a special member function within
 /// the class at this point.
 static bool CanDeclareSpecialMemberFunction(const CXXRecordDecl *Class) {
@@ -2067,47 +2085,6 @@ static bool LookupQualifiedNameInUsingDirectives(Sema &S, LookupResult &R,
   return Found;
 }
 
-/// Callback that looks for any member of a class with the given name.
-static bool LookupAnyMember(const CXXBaseSpecifier *Specifier,
-                            CXXBasePath &Path, DeclarationName Name) {
-  RecordDecl *BaseRecord = Specifier->getType()->castAs<RecordType>()->getDecl();
-
-  Path.Decls = BaseRecord->lookup(Name);
-  return !Path.Decls.empty();
-}
-
-/// Determine whether the given set of member declarations contains only
-/// static members, nested types, and enumerators.
-template<typename InputIterator>
-static bool HasOnlyStaticMembers(InputIterator First, InputIterator Last) {
-  Decl *D = (*First)->getUnderlyingDecl();
-  if (isa<VarDecl>(D) || isa<TypeDecl>(D) || isa<EnumConstantDecl>(D))
-    return true;
-
-  if (isa<CXXMethodDecl>(D)) {
-    // Determine whether all of the methods are static.
-    bool AllMethodsAreStatic = true;
-    for(; First != Last; ++First) {
-      D = (*First)->getUnderlyingDecl();
-
-      if (!isa<CXXMethodDecl>(D)) {
-        assert(isa<TagDecl>(D) && "Non-function must be a tag decl");
-        break;
-      }
-
-      if (!cast<CXXMethodDecl>(D)->isStatic()) {
-        AllMethodsAreStatic = false;
-        break;
-      }
-    }
-
-    if (AllMethodsAreStatic)
-      return true;
-  }
-
-  return false;
-}
-
 /// Perform qualified name lookup into a given context.
 ///
 /// Qualified name lookup (C++ [basic.lookup.qual]) is used to find
@@ -2185,6 +2162,13 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   if (!LookupRec || !LookupRec->getDefinition())
     return false;
 
+  // We're done for lookups that can never succeed for C++ classes.
+  if (R.getLookupKind() == LookupOperatorName ||
+      R.getLookupKind() == LookupNamespaceName ||
+      R.getLookupKind() == LookupObjCProtocolName ||
+      R.getLookupKind() == LookupLabel)
+    return false;
+
   // If we're performing qualified name lookup into a dependent class,
   // then we are actually looking into a current instantiation. If we have any
   // dependent base classes, then we either have to delay lookup until
@@ -2197,59 +2181,27 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   }
 
   // Perform lookup into our base classes.
-  CXXBasePaths Paths;
-  Paths.setOrigin(LookupRec);
-
-  // Look for this member in our base classes
-  bool (*BaseCallback)(const CXXBaseSpecifier *Specifier, CXXBasePath &Path,
-                       DeclarationName Name) = nullptr;
-  switch (R.getLookupKind()) {
-    case LookupObjCImplicitSelfParam:
-    case LookupOrdinaryName:
-    case LookupMemberName:
-    case LookupRedeclarationWithLinkage:
-    case LookupLocalFriendName:
-    case LookupDestructorName:
-      BaseCallback = &CXXRecordDecl::FindOrdinaryMember;
-      break;
-
-    case LookupTagName:
-      BaseCallback = &CXXRecordDecl::FindTagMember;
-      break;
-
-    case LookupAnyName:
-      BaseCallback = &LookupAnyMember;
-      break;
-
-    case LookupOMPReductionName:
-      BaseCallback = &CXXRecordDecl::FindOMPReductionMember;
-      break;
-
-    case LookupOMPMapperName:
-      BaseCallback = &CXXRecordDecl::FindOMPMapperMember;
-      break;
-
-    case LookupUsingDeclName:
-      // This lookup is for redeclarations only.
-
-    case LookupOperatorName:
-    case LookupNamespaceName:
-    case LookupObjCProtocolName:
-    case LookupLabel:
-      // These lookups will never find a member in a C++ class (or base class).
-      return false;
-
-    case LookupNestedNameSpecifierName:
-      BaseCallback = &CXXRecordDecl::FindNestedNameSpecifierMember;
-      break;
-  }
 
   DeclarationName Name = R.getLookupName();
-  if (!LookupRec->lookupInBases(
-          [=](const CXXBaseSpecifier *Specifier, CXXBasePath &Path) {
-            return BaseCallback(Specifier, Path, Name);
-          },
-          Paths))
+  unsigned IDNS = R.getIdentifierNamespace();
+
+  // Look for this member in our base classes.
+  auto BaseCallback = [Name, IDNS](const CXXBaseSpecifier *Specifier,
+                                   CXXBasePath &Path) -> bool {
+    CXXRecordDecl *BaseRecord = Specifier->getType()->getAsCXXRecordDecl();
+    // Drop leading non-matching lookup results from the declaration list so
+    // we don't need to consider them again below.
+    for (Path.Decls = BaseRecord->lookup(Name); !Path.Decls.empty();
+         Path.Decls = Path.Decls.slice(1)) {
+      if (Path.Decls.front()->isInIdentifierNamespace(IDNS))
+        return true;
+    }
+    return false;
+  };
+
+  CXXBasePaths Paths;
+  Paths.setOrigin(LookupRec);
+  if (!LookupRec->lookupInBases(BaseCallback, Paths))
     return false;
 
   R.setNamingClass(LookupRec);
@@ -2263,6 +2215,85 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   QualType SubobjectType;
   int SubobjectNumber = 0;
   AccessSpecifier SubobjectAccess = AS_none;
+
+  // Check whether the given lookup result contains only static members.
+  auto HasOnlyStaticMembers = [&](DeclContextLookupResult Result) {
+    for (NamedDecl *ND : Result)
+      if (ND->isInIdentifierNamespace(IDNS) && ND->isCXXInstanceMember())
+        return false;
+    return true;
+  };
+
+  bool TemplateNameLookup = R.isTemplateNameLookup();
+
+  // Determine whether two sets of members contain the same members, as
+  // required by C++ [class.member.lookup]p6.
+  auto HasSameDeclarations = [&](DeclContextLookupResult A,
+                                 DeclContextLookupResult B) {
+    using Iterator = DeclContextLookupResult::iterator;
+    using Result = const void *;
+
+    auto Next = [&](Iterator &It, Iterator End) -> Result {
+      while (It != End) {
+        NamedDecl *ND = *It++;
+        if (!ND->isInIdentifierNamespace(IDNS))
+          continue;
+
+        // C++ [temp.local]p3:
+        //   A lookup that finds an injected-class-name (10.2) can result in
+        //   an ambiguity in certain cases (for example, if it is found in
+        //   more than one base class). If all of the injected-class-names
+        //   that are found refer to specializations of the same class
+        //   template, and if the name is used as a template-name, the
+        //   reference refers to the class template itself and not a
+        //   specialization thereof, and is not ambiguous.
+        if (TemplateNameLookup)
+          if (auto *TD = getAsTemplateNameDecl(ND))
+            ND = TD;
+
+        // C++ [class.member.lookup]p3:
+        //   type declarations (including injected-class-names) are replaced by
+        //   the types they designate
+        if (const TypeDecl *TD = dyn_cast<TypeDecl>(ND->getUnderlyingDecl())) {
+          QualType T = Context.getTypeDeclType(TD);
+          return T.getCanonicalType().getAsOpaquePtr();
+        }
+
+        return ND->getUnderlyingDecl()->getCanonicalDecl();
+      }
+      return nullptr;
+    };
+
+    // We'll often find the declarations are in the same order. Handle this
+    // case (and the special case of only one declaration) efficiently.
+    Iterator AIt = A.begin(), BIt = B.begin(), AEnd = A.end(), BEnd = B.end();
+    while (true) {
+      Result AResult = Next(AIt, AEnd);
+      Result BResult = Next(BIt, BEnd);
+      if (!AResult && !BResult)
+        return true;
+      if (!AResult || !BResult)
+        return false;
+      if (AResult != BResult) {
+        // Found a mismatch; carefully check both lists, accounting for the
+        // possibility of declarations appearing more than once.
+        llvm::SmallDenseMap<Result, bool, 32> AResults;
+        for (; AResult; AResult = Next(AIt, AEnd))
+          AResults.insert({AResult, /*FoundInB*/false});
+        unsigned Found = 0;
+        for (; BResult; BResult = Next(BIt, BEnd)) {
+          auto It = AResults.find(BResult);
+          if (It == AResults.end())
+            return false;
+          if (!It->second) {
+            It->second = true;
+            ++Found;
+          }
+        }
+        return AResults.size() == Found;
+      }
+    }
+  };
 
   for (CXXBasePaths::paths_iterator Path = Paths.begin(), PathEnd = Paths.end();
        Path != PathEnd; ++Path) {
@@ -2280,51 +2311,25 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
       continue;
     }
 
-    if (SubobjectType
-                 != Context.getCanonicalType(PathElement.Base->getType())) {
+    if (SubobjectType !=
+        Context.getCanonicalType(PathElement.Base->getType())) {
       // We found members of the given name in two subobjects of
       // different types. If the declaration sets aren't the same, this
       // lookup is ambiguous.
-      if (HasOnlyStaticMembers(Path->Decls.begin(), Path->Decls.end())) {
-        CXXBasePaths::paths_iterator FirstPath = Paths.begin();
-        DeclContext::lookup_iterator FirstD = FirstPath->Decls.begin();
-        DeclContext::lookup_iterator CurrentD = Path->Decls.begin();
-
-        // Get the decl that we should use for deduplicating this lookup.
-        auto GetRepresentativeDecl = [&](NamedDecl *D) -> Decl * {
-          // C++ [temp.local]p3:
-          //   A lookup that finds an injected-class-name (10.2) can result in
-          //   an ambiguity in certain cases (for example, if it is found in
-          //   more than one base class). If all of the injected-class-names
-          //   that are found refer to specializations of the same class
-          //   template, and if the name is used as a template-name, the
-          //   reference refers to the class template itself and not a
-          //   specialization thereof, and is not ambiguous.
-          if (R.isTemplateNameLookup())
-            if (auto *TD = getAsTemplateNameDecl(D))
-              D = TD;
-          return D->getUnderlyingDecl()->getCanonicalDecl();
-        };
-
-        while (FirstD != FirstPath->Decls.end() &&
-               CurrentD != Path->Decls.end()) {
-          if (GetRepresentativeDecl(*FirstD) !=
-              GetRepresentativeDecl(*CurrentD))
-            break;
-
-          ++FirstD;
-          ++CurrentD;
-        }
-
-        if (FirstD == FirstPath->Decls.end() &&
-            CurrentD == Path->Decls.end())
-          continue;
-      }
+      //
+      // FIXME: The language rule says that this applies irrespective of
+      // whether the sets contain only static members.
+      if (HasOnlyStaticMembers(Path->Decls) &&
+          HasSameDeclarations(Paths.begin()->Decls, Path->Decls))
+        continue;
 
       R.setAmbiguousBaseSubobjectTypes(Paths);
       return true;
     }
 
+    // FIXME: This language rule no longer exists. Checking for ambiguous base
+    // subobjects should be done as part of formation of a class member access
+    // expression (when converting the object parameter to the member's type).
     if (SubobjectNumber != PathElement.SubobjectNumber) {
       // We have a different subobject of the same type.
 
@@ -2332,7 +2337,7 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
       //   A static member, a nested type or an enumerator defined in
       //   a base class T can unambiguously be found even if an object
       //   has more than one base class subobject of type T.
-      if (HasOnlyStaticMembers(Path->Decls.begin(), Path->Decls.end()))
+      if (HasOnlyStaticMembers(Path->Decls))
         continue;
 
       // We have found a nonstatic member name in multiple, distinct
@@ -2347,7 +2352,8 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   for (auto *D : Paths.front().Decls) {
     AccessSpecifier AS = CXXRecordDecl::MergeAccess(SubobjectAccess,
                                                     D->getAccess());
-    R.addDecl(D, AS);
+    if (NamedDecl *ND = R.getAcceptableDecl(D))
+      R.addDecl(ND, AS);
   }
   R.resolveKind();
   return true;
@@ -2503,13 +2509,23 @@ void Sema::DiagnoseAmbiguousLookup(LookupResult &Result) {
       << Name << LookupRange;
 
     CXXBasePaths *Paths = Result.getBasePaths();
-    std::set<Decl *> DeclsPrinted;
+    std::set<const NamedDecl *> DeclsPrinted;
     for (CXXBasePaths::paths_iterator Path = Paths->begin(),
                                       PathEnd = Paths->end();
          Path != PathEnd; ++Path) {
-      Decl *D = Path->Decls.front();
-      if (DeclsPrinted.insert(D).second)
-        Diag(D->getLocation(), diag::note_ambiguous_member_found);
+      const NamedDecl *D = Path->Decls.front();
+      if (!D->isInIdentifierNamespace(Result.getIdentifierNamespace()))
+        continue;
+      if (DeclsPrinted.insert(D).second) {
+        if (const auto *TD = dyn_cast<TypedefNameDecl>(D->getUnderlyingDecl()))
+          Diag(D->getLocation(), diag::note_ambiguous_member_type_found)
+              << TD->getUnderlyingType();
+        else if (const auto *TD = dyn_cast<TypeDecl>(D->getUnderlyingDecl()))
+          Diag(D->getLocation(), diag::note_ambiguous_member_type_found)
+              << Context.getTypeDeclType(TD);
+        else
+          Diag(D->getLocation(), diag::note_ambiguous_member_found);
+      }
     }
     break;
   }
@@ -2980,7 +2996,6 @@ ObjCProtocolDecl *Sema::LookupProtocol(IdentifierInfo *II,
 }
 
 void Sema::LookupOverloadedOperatorName(OverloadedOperatorKind Op, Scope *S,
-                                        QualType T1, QualType T2,
                                         UnresolvedSetImpl &Functions) {
   // C++ [over.match.oper]p3:
   //     -- The set of non-member candidates is the result of the
@@ -3318,9 +3333,9 @@ CXXDestructorDecl *Sema::LookupDestructor(CXXRecordDecl *Class) {
 /// and filter the results to the appropriate set for the given argument types.
 Sema::LiteralOperatorLookupResult
 Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
-                            ArrayRef<QualType> ArgTys,
-                            bool AllowRaw, bool AllowTemplate,
-                            bool AllowStringTemplate, bool DiagnoseMissing) {
+                            ArrayRef<QualType> ArgTys, bool AllowRaw,
+                            bool AllowTemplate, bool AllowStringTemplatePack,
+                            bool DiagnoseMissing, StringLiteral *StringLit) {
   LookupName(R, S);
   assert(R.getResultKind() != LookupResult::Ambiguous &&
          "literal operator lookup can't be ambiguous");
@@ -3328,10 +3343,11 @@ Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
   // Filter the lookup results appropriately.
   LookupResult::Filter F = R.makeFilter();
 
+  bool AllowCooked = true;
   bool FoundRaw = false;
   bool FoundTemplate = false;
-  bool FoundStringTemplate = false;
-  bool FoundExactMatch = false;
+  bool FoundStringTemplatePack = false;
+  bool FoundCooked = false;
 
   while (F.hasNext()) {
     Decl *D = F.next();
@@ -3346,19 +3362,19 @@ Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
 
     bool IsRaw = false;
     bool IsTemplate = false;
-    bool IsStringTemplate = false;
-    bool IsExactMatch = false;
+    bool IsStringTemplatePack = false;
+    bool IsCooked = false;
 
     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
       if (FD->getNumParams() == 1 &&
           FD->getParamDecl(0)->getType()->getAs<PointerType>())
         IsRaw = true;
       else if (FD->getNumParams() == ArgTys.size()) {
-        IsExactMatch = true;
+        IsCooked = true;
         for (unsigned ArgIdx = 0; ArgIdx != ArgTys.size(); ++ArgIdx) {
           QualType ParamTy = FD->getParamDecl(ArgIdx)->getType();
           if (!Context.hasSameUnqualifiedType(ArgTys[ArgIdx], ParamTy)) {
-            IsExactMatch = false;
+            IsCooked = false;
             break;
           }
         }
@@ -3366,29 +3382,59 @@ Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
     }
     if (FunctionTemplateDecl *FD = dyn_cast<FunctionTemplateDecl>(D)) {
       TemplateParameterList *Params = FD->getTemplateParameters();
-      if (Params->size() == 1)
+      if (Params->size() == 1) {
         IsTemplate = true;
-      else
-        IsStringTemplate = true;
+        if (!Params->getParam(0)->isTemplateParameterPack() && !StringLit) {
+          // Implied but not stated: user-defined integer and floating literals
+          // only ever use numeric literal operator templates, not templates
+          // taking a parameter of class type.
+          F.erase();
+          continue;
+        }
+
+        // A string literal template is only considered if the string literal
+        // is a well-formed template argument for the template parameter.
+        if (StringLit) {
+          SFINAETrap Trap(*this);
+          SmallVector<TemplateArgument, 1> Checked;
+          TemplateArgumentLoc Arg(TemplateArgument(StringLit), StringLit);
+          if (CheckTemplateArgument(Params->getParam(0), Arg, FD,
+                                    R.getNameLoc(), R.getNameLoc(), 0,
+                                    Checked) ||
+              Trap.hasErrorOccurred())
+            IsTemplate = false;
+        }
+      } else {
+        IsStringTemplatePack = true;
+      }
     }
 
-    if (IsExactMatch) {
-      FoundExactMatch = true;
+    if (AllowTemplate && StringLit && IsTemplate) {
+      FoundTemplate = true;
       AllowRaw = false;
-      AllowTemplate = false;
-      AllowStringTemplate = false;
-      if (FoundRaw || FoundTemplate || FoundStringTemplate) {
+      AllowCooked = false;
+      AllowStringTemplatePack = false;
+      if (FoundRaw || FoundCooked || FoundStringTemplatePack) {
+        F.restart();
+        FoundRaw = FoundCooked = FoundStringTemplatePack = false;
+      }
+    } else if (AllowCooked && IsCooked) {
+      FoundCooked = true;
+      AllowRaw = false;
+      AllowTemplate = StringLit;
+      AllowStringTemplatePack = false;
+      if (FoundRaw || FoundTemplate || FoundStringTemplatePack) {
         // Go through again and remove the raw and template decls we've
         // already found.
         F.restart();
-        FoundRaw = FoundTemplate = FoundStringTemplate = false;
+        FoundRaw = FoundTemplate = FoundStringTemplatePack = false;
       }
     } else if (AllowRaw && IsRaw) {
       FoundRaw = true;
     } else if (AllowTemplate && IsTemplate) {
       FoundTemplate = true;
-    } else if (AllowStringTemplate && IsStringTemplate) {
-      FoundStringTemplate = true;
+    } else if (AllowStringTemplatePack && IsStringTemplatePack) {
+      FoundStringTemplatePack = true;
     } else {
       F.erase();
     }
@@ -3396,10 +3442,15 @@ Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
 
   F.done();
 
+  // Per C++20 [lex.ext]p5, we prefer the template form over the non-template
+  // form for string literal operator templates.
+  if (StringLit && FoundTemplate)
+    return LOLR_Template;
+
   // C++11 [lex.ext]p3, p4: If S contains a literal operator with a matching
   // parameter type, that is used in preference to a raw literal operator
   // or literal operator template.
-  if (FoundExactMatch)
+  if (FoundCooked)
     return LOLR_Cooked;
 
   // C++11 [lex.ext]p3, p4: S shall contain a raw literal operator or a literal
@@ -3417,15 +3468,15 @@ Sema::LookupLiteralOperator(Scope *S, LookupResult &R,
   if (FoundTemplate)
     return LOLR_Template;
 
-  if (FoundStringTemplate)
-    return LOLR_StringTemplate;
+  if (FoundStringTemplatePack)
+    return LOLR_StringTemplatePack;
 
   // Didn't find anything we could use.
   if (DiagnoseMissing) {
     Diag(R.getNameLoc(), diag::err_ovl_no_viable_literal_operator)
         << R.getLookupName() << (int)ArgTys.size() << ArgTys[0]
         << (ArgTys.size() == 2 ? ArgTys[1] : QualType()) << AllowRaw
-        << (AllowTemplate || AllowStringTemplate);
+        << (AllowTemplate || AllowStringTemplatePack);
     return LOLR_Error;
   }
 

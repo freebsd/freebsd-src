@@ -23,8 +23,10 @@
 #include "clang/Lex/ExternalPreprocessorSource.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/PreprocessingRecord.h"
+#include "clang/Lex/PreprocessorOptions.h"
 #include "clang/Sema/ExternalSemaSource.h"
 #include "clang/Sema/IdentifierResolver.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ContinuousRangeMap.h"
 #include "clang/Serialization/ModuleFile.h"
@@ -439,6 +441,9 @@ private:
   /// The location where the module file will be considered as
   /// imported from. For non-module AST types it should be invalid.
   SourceLocation CurrentImportLoc;
+
+  /// The module kind that is currently deserializing.
+  Optional<ModuleKind> CurrentDeserializingModuleKind;
 
   /// The global module index, if loaded.
   std::unique_ptr<GlobalModuleIndex> GlobalIndex;
@@ -858,10 +863,10 @@ private:
   SourceLocation PointersToMembersPragmaLocation;
 
   /// The pragma float_control state.
-  Optional<unsigned> FpPragmaCurrentValue;
+  Optional<FPOptionsOverride> FpPragmaCurrentValue;
   SourceLocation FpPragmaCurrentLocation;
   struct FpPragmaStackEntry {
-    unsigned Value;
+    FPOptionsOverride Value;
     SourceLocation Location;
     SourceLocation PushLocation;
     StringRef SlotLabel;
@@ -869,17 +874,17 @@ private:
   llvm::SmallVector<FpPragmaStackEntry, 2> FpPragmaStack;
   llvm::SmallVector<std::string, 2> FpPragmaStrings;
 
-  /// The pragma pack state.
-  Optional<unsigned> PragmaPackCurrentValue;
-  SourceLocation PragmaPackCurrentLocation;
-  struct PragmaPackStackEntry {
-    unsigned Value;
+  /// The pragma align/pack state.
+  Optional<Sema::AlignPackInfo> PragmaAlignPackCurrentValue;
+  SourceLocation PragmaAlignPackCurrentLocation;
+  struct PragmaAlignPackStackEntry {
+    Sema::AlignPackInfo Value;
     SourceLocation Location;
     SourceLocation PushLocation;
     StringRef SlotLabel;
   };
-  llvm::SmallVector<PragmaPackStackEntry, 2> PragmaPackStack;
-  llvm::SmallVector<std::string, 2> PragmaPackStrings;
+  llvm::SmallVector<PragmaAlignPackStackEntry, 2> PragmaAlignPackStack;
+  llvm::SmallVector<std::string, 2> PragmaAlignPackStrings;
 
   /// The OpenCL extension settings.
   OpenCLOptions OpenCLExtensions;
@@ -900,8 +905,9 @@ private:
   /// Delete expressions to analyze at the end of translation unit.
   SmallVector<uint64_t, 8> DelayedDeleteExprs;
 
-  // A list of late parsed template function data.
-  SmallVector<uint64_t, 1> LateParsedTemplates;
+  // A list of late parsed template function data with their module files.
+  SmallVector<std::pair<ModuleFile *, SmallVector<uint64_t, 1>>, 4>
+      LateParsedTemplates;
 
   /// The IDs of all decls to be checked for deferred diags.
   ///
@@ -929,8 +935,8 @@ private:
   std::string isysroot;
 
   /// Whether to disable the normal validation performed on precompiled
-  /// headers when they are loaded.
-  bool DisableValidation;
+  /// headers and module files when they are loaded.
+  DisableValidationForModuleKind DisableValidationKind;
 
   /// Whether to accept an AST file with compiler errors.
   bool AllowASTWithCompilerErrors;
@@ -1213,6 +1219,8 @@ private:
 
   llvm::DenseMap<const Decl *, bool> DefinitionSource;
 
+  bool shouldDisableValidationForFile(const serialization::ModuleFile &M) const;
+
   /// Reads a statement from the specified cursor.
   Stmt *ReadStmtFromStream(ModuleFile &F);
 
@@ -1449,8 +1457,6 @@ private:
   void Error(StringRef Msg) const;
   void Error(unsigned DiagID, StringRef Arg1 = StringRef(),
              StringRef Arg2 = StringRef(), StringRef Arg3 = StringRef()) const;
-  void Error(unsigned DiagID, StringRef Arg1, StringRef Arg2,
-             unsigned Select) const;
   void Error(llvm::Error &&Err) const;
 
 public:
@@ -1473,9 +1479,9 @@ public:
   /// user. This is only used with relocatable PCH files. If non-NULL,
   /// a relocatable PCH file will use the default path "/".
   ///
-  /// \param DisableValidation If true, the AST reader will suppress most
+  /// \param DisableValidationKind If set, the AST reader will suppress most
   /// of its regular consistency checking, allowing the use of precompiled
-  /// headers that cannot be determined to be compatible.
+  /// headers and module files that cannot be determined to be compatible.
   ///
   /// \param AllowASTWithCompilerErrors If true, the AST reader will accept an
   /// AST file the was created out of an AST with compiler errors,
@@ -1496,7 +1502,9 @@ public:
   ASTReader(Preprocessor &PP, InMemoryModuleCache &ModuleCache,
             ASTContext *Context, const PCHContainerReader &PCHContainerRdr,
             ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
-            StringRef isysroot = "", bool DisableValidation = false,
+            StringRef isysroot = "",
+            DisableValidationForModuleKind DisableValidationKind =
+                DisableValidationForModuleKind::None,
             bool AllowASTWithCompilerErrors = false,
             bool AllowConfigurationMismatch = false,
             bool ValidateSystemInputs = false,
@@ -2085,8 +2093,6 @@ public:
   /// Note: overrides method in ExternalASTSource
   Module *getModule(unsigned ID) override;
 
-  bool DeclIsFromPCHWithObjectFile(const Decl *D) override;
-
   /// Retrieve the module file with a given local ID within the specified
   /// ModuleFile.
   ModuleFile *getLocalModuleFile(ModuleFile &M, unsigned ID);
@@ -2119,6 +2125,11 @@ public:
 
   /// Read the contents of a CXXCtorInitializer array.
   CXXCtorInitializer **GetExternalCXXCtorInitializers(uint64_t Offset) override;
+
+  /// Read a AlignPackInfo from raw form.
+  Sema::AlignPackInfo ReadAlignPackInfo(uint32_t Raw) const {
+    return Sema::AlignPackInfo::getFromRawEncoding(Raw);
+  }
 
   /// Read a source location from raw form and return it in its
   /// originating module file's source location space.

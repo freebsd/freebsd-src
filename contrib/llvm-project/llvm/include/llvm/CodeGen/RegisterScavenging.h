@@ -89,15 +89,6 @@ public:
     while (MBBI != I) forward();
   }
 
-  /// Invert the behavior of forward() on the current instruction (undo the
-  /// changes to the available registers made by forward()).
-  void unprocess();
-
-  /// Unprocess instructions until you reach the provided iterator.
-  void unprocess(MachineBasicBlock::iterator I) {
-    while (MBBI != I) unprocess();
-  }
-
   /// Update internal register state and move MBB iterator backwards.
   /// Contrary to unprocess() this method gives precise results even in the
   /// absence of kill flags.
@@ -203,10 +194,10 @@ private:
   void determineKillsAndDefs();
 
   /// Add all Reg Units that Reg contains to BV.
-  void addRegUnits(BitVector &BV, Register Reg);
+  void addRegUnits(BitVector &BV, MCRegister Reg);
 
   /// Remove all Reg Units that \p Reg contains from \p BV.
-  void removeRegUnits(BitVector &BV, Register Reg);
+  void removeRegUnits(BitVector &BV, MCRegister Reg);
 
   /// Return the candidate register that is unused for the longest after
   /// StartMI. UseMI is set to the instruction where the search stopped.

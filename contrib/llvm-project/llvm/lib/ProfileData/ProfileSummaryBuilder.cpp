@@ -18,8 +18,13 @@
 #include "llvm/ProfileData/ProfileCommon.h"
 #include "llvm/ProfileData/SampleProf.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
+
+cl::opt<bool> UseContextLessSummary(
+    "profile-summary-contextless", cl::Hidden, cl::init(false), cl::ZeroOrMore,
+    cl::desc("Merge context profiles before calculating thresholds."));
 
 // A set of cutoff values. Each value, when divided by ProfileSummary::Scale
 // (which is 1000000) is a desired percentile of total counts.
@@ -111,6 +116,35 @@ std::unique_ptr<ProfileSummary> SampleProfileSummaryBuilder::getSummary() {
       MaxFunctionCount, NumCounts, NumFunctions);
 }
 
+std::unique_ptr<ProfileSummary>
+SampleProfileSummaryBuilder::computeSummaryForProfiles(
+    const StringMap<sampleprof::FunctionSamples> &Profiles) {
+  assert(NumFunctions == 0 &&
+         "This can only be called on an empty summary builder");
+  StringMap<sampleprof::FunctionSamples> ContextLessProfiles;
+  const StringMap<sampleprof::FunctionSamples> *ProfilesToUse = &Profiles;
+  // For CSSPGO, context-sensitive profile effectively split a function profile
+  // into many copies each representing the CFG profile of a particular calling
+  // context. That makes the count distribution looks more flat as we now have
+  // more function profiles each with lower counts, which in turn leads to lower
+  // hot thresholds. To compensate for that, by defauly we merge context
+  // profiles before coumputing profile summary.
+  if (UseContextLessSummary || (sampleprof::FunctionSamples::ProfileIsCS &&
+                                !UseContextLessSummary.getNumOccurrences())) {
+    for (const auto &I : Profiles) {
+      ContextLessProfiles[I.second.getName()].merge(I.second);
+    }
+    ProfilesToUse = &ContextLessProfiles;
+  }
+
+  for (const auto &I : *ProfilesToUse) {
+    const sampleprof::FunctionSamples &Profile = I.second;
+    addRecord(Profile);
+  }
+
+  return getSummary();
+}
+
 std::unique_ptr<ProfileSummary> InstrProfSummaryBuilder::getSummary() {
   computeDetailedSummary();
   return std::make_unique<ProfileSummary>(
@@ -119,13 +153,22 @@ std::unique_ptr<ProfileSummary> InstrProfSummaryBuilder::getSummary() {
 }
 
 void InstrProfSummaryBuilder::addEntryCount(uint64_t Count) {
-  addCount(Count);
   NumFunctions++;
+
+  // Skip invalid count.
+  if (Count == (uint64_t)-1)
+    return;
+
+  addCount(Count);
   if (Count > MaxFunctionCount)
     MaxFunctionCount = Count;
 }
 
 void InstrProfSummaryBuilder::addInternalCount(uint64_t Count) {
+  // Skip invalid count.
+  if (Count == (uint64_t)-1)
+    return;
+
   addCount(Count);
   if (Count > MaxInternalBlockCount)
     MaxInternalBlockCount = Count;

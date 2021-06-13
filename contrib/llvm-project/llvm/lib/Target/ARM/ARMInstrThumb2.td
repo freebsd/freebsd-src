@@ -1724,7 +1724,7 @@ def t2STRH_preidx: t2PseudoInst<(outs GPRnopc:$Rn_wb),
 // only.
 // Ref: A8.6.193 STR (immediate, Thumb) Encoding T4
 class T2IstT<bits<2> type, string opc, InstrItinClass ii>
-  : T2Ii8<(outs rGPR:$Rt), (ins t2addrmode_imm8:$addr), ii, opc,
+  : T2Ii8<(outs), (ins rGPR:$Rt, t2addrmode_imm8:$addr), ii, opc,
           "\t$Rt, $addr", []>, Sched<[WriteST]> {
   let Inst{31-27} = 0b11111;
   let Inst{26-25} = 0b00;
@@ -2575,7 +2575,6 @@ def t2USADA8  : T2FourReg_mac<0, 0b111, 0b0000, (outs rGPR:$Rd),
           Requires<[IsThumb2, HasDSP]>;
 
 // Signed/Unsigned saturate.
-let hasSideEffects = 1 in
 class T2SatI<dag iops, string opc, string asm>
   : T2I<(outs rGPR:$Rd), iops, NoItinerary, opc, asm, []> {
   bits<4> Rd;
@@ -2624,9 +2623,9 @@ def t2USAT16: T2SatI<(ins imm0_15:$sat_imm, rGPR:$Rn),
   let Inst{4} = 0;
 }
 
-def : T2Pat<(ARMssatnoshift GPRnopc:$Rn, imm0_31:$imm),
+def : T2Pat<(ARMssat GPRnopc:$Rn, imm0_31:$imm),
              (t2SSAT imm0_31:$imm, GPRnopc:$Rn, 0)>;
-def : T2Pat<(ARMusatnoshift GPRnopc:$Rn, imm0_31:$imm),
+def : T2Pat<(ARMusat GPRnopc:$Rn, imm0_31:$imm),
              (t2USAT imm0_31:$imm, GPRnopc:$Rn, 0)>;
 def : T2Pat<(int_arm_ssat GPR:$a, imm1_32:$pos),
             (t2SSAT imm1_32:$pos, GPR:$a, 0)>;
@@ -2636,6 +2635,23 @@ def : T2Pat<(int_arm_ssat16 GPR:$a, imm1_16:$pos),
             (t2SSAT16 imm1_16:$pos, GPR:$a)>;
 def : T2Pat<(int_arm_usat16 GPR:$a, imm0_15:$pos),
             (t2USAT16 imm0_15:$pos, GPR:$a)>;
+def : T2Pat<(int_arm_ssat (shl GPRnopc:$a, imm0_31:$shft), imm1_32:$pos),
+            (t2SSAT imm1_32:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : T2Pat<(int_arm_ssat (sra GPRnopc:$a, asr_imm:$shft), imm1_32:$pos),
+            (t2SSAT imm1_32:$pos, GPRnopc:$a, asr_imm:$shft)>;
+def : T2Pat<(int_arm_usat (shl GPRnopc:$a, imm0_31:$shft), imm0_31:$pos),
+            (t2USAT imm0_31:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : T2Pat<(int_arm_usat (sra GPRnopc:$a, asr_imm:$shft), imm0_31:$pos),
+            (t2USAT imm0_31:$pos, GPRnopc:$a, asr_imm:$shft)>;
+def : T2Pat<(ARMssat (shl GPRnopc:$a, imm0_31:$shft), imm0_31:$pos),
+            (t2SSAT imm0_31:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : T2Pat<(ARMssat (sra GPRnopc:$Rn, asr_imm:$shft), imm0_31:$pos),
+            (t2SSAT imm0_31:$pos, GPRnopc:$Rn, asr_imm:$shft)>;
+def : T2Pat<(ARMusat (shl GPRnopc:$a, imm0_31:$shft), imm0_31:$pos),
+            (t2USAT imm0_31:$pos, GPRnopc:$a, imm0_31:$shft)>;
+def : T2Pat<(ARMusat (sra GPRnopc:$Rn, asr_imm:$shft), imm0_31:$pos),
+            (t2USAT imm0_31:$pos, GPRnopc:$Rn, asr_imm:$shft)>;
+
 
 //===----------------------------------------------------------------------===//
 //  Shift and rotate Instructions.
@@ -4919,6 +4935,15 @@ def : InstAlias<"pssbb", (t2DSB 0x4, 14, 0), 1>, Requires<[HasDB, IsThumb2]>;
 // Armv8-R 'Data Full Barrier'
 def : InstAlias<"dfb${p}", (t2DSB 0xc, pred:$p), 1>, Requires<[HasDFB]>;
 
+// SpeculationBarrierEndBB must only be used after an unconditional control
+// flow, i.e. after a terminator for which isBarrier is True.
+let hasSideEffects = 1, isCodeGenOnly = 1, isTerminator = 1, isBarrier = 1 in {
+  def t2SpeculationBarrierISBDSBEndBB
+      : PseudoInst<(outs), (ins), NoItinerary, []>, Sched<[]>;
+  def t2SpeculationBarrierSBEndBB
+      : PseudoInst<(outs), (ins), NoItinerary, []>, Sched<[]>;
+}
+
 // Alias for LDR, LDRB, LDRH, LDRSB, and LDRSH without the ".w" optional
 // width specifier.
 def : t2InstAlias<"ldr${p} $Rt, $addr",
@@ -5404,9 +5429,16 @@ def t2LE : t2LOL<(outs ), (ins lelabel_u11:$label), "le", "$label"> {
   let isTerminator = 1;
 }
 
+let Predicates = [IsThumb2, HasV8_1MMainline, HasLOB] in {
+
+let usesCustomInserter = 1 in
 def t2DoLoopStart :
-  t2PseudoInst<(outs), (ins rGPR:$elts), 4, IIC_Br,
-  [(int_set_loop_iterations rGPR:$elts)]>, Sched<[WriteBr]>;
+  t2PseudoInst<(outs GPRlr:$X), (ins rGPR:$elts), 4, IIC_Br,
+  [(set GPRlr:$X, (int_start_loop_iterations rGPR:$elts))]>;
+
+let isTerminator = 1, hasSideEffects = 1 in
+def t2DoLoopStartTP :
+  t2PseudoInst<(outs GPRlr:$X), (ins rGPR:$elts, rGPR:$count), 4, IIC_Br, []>;
 
 let hasSideEffects = 0 in
 def t2LoopDec :
@@ -5426,7 +5458,13 @@ def t2LoopEnd :
   t2PseudoInst<(outs), (ins GPRlr:$elts, brtarget:$target),
   8, IIC_Br, []>, Sched<[WriteBr]>;
 
+def t2LoopEndDec :
+  t2PseudoInst<(outs GPRlr:$Rm), (ins GPRlr:$elts, brtarget:$target),
+  8, IIC_Br, []>, Sched<[WriteBr]>;
+
 } // end isBranch, isTerminator, hasSideEffects
+
+}
 
 } // end isNotDuplicable
 
@@ -5446,6 +5484,7 @@ class CS<string iname, bits<4> opcode, list<dag> pattern=[]>
   let Inst{3-0} = Rm{3-0};
 
   let Uses = [CPSR];
+  let hasSideEffects = 0;
 }
 
 def t2CSEL  : CS<"csel",  0b1000>;

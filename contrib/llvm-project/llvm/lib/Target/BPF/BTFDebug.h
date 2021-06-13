@@ -16,7 +16,8 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/DebugHandlerBase.h"
-#include "llvm/CodeGen/MachineInstr.h"
+#include <cstdint>
+#include <map>
 #include <set>
 #include <unordered_map>
 #include "BTF.h"
@@ -27,9 +28,12 @@ class AsmPrinter;
 class BTFDebug;
 class DIType;
 class GlobalVariable;
+class MachineFunction;
+class MachineInstr;
+class MachineOperand;
+class MCInst;
 class MCStreamer;
 class MCSymbol;
-class MachineFunction;
 
 /// The base class for BTF type generation.
 class BTFTypeBase {
@@ -183,12 +187,21 @@ public:
   uint32_t getSize() override {
     return BTFTypeBase::getSize() + BTF::BTFDataSecVarSize * Vars.size();
   }
-  void addVar(uint32_t Id, const MCSymbol *Sym, uint32_t Size) {
+  void addDataSecEntry(uint32_t Id, const MCSymbol *Sym, uint32_t Size) {
     Vars.push_back(std::make_tuple(Id, Sym, Size));
   }
   std::string getName() { return Name; }
   void completeType(BTFDebug &BDebug) override;
   void emitType(MCStreamer &OS) override;
+};
+
+/// Handle binary floating point type.
+class BTFTypeFloat : public BTFTypeBase {
+  StringRef Name;
+
+public:
+  BTFTypeFloat(uint32_t SizeInBits, StringRef TypeName);
+  void completeType(BTFDebug &BDebug) override;
 };
 
 /// String table.
@@ -251,7 +264,7 @@ class BTFDebug : public DebugHandlerBase {
   StringMap<std::vector<std::string>> FileContent;
   std::map<std::string, std::unique_ptr<BTFKindDataSec>> DataSecEntries;
   std::vector<BTFTypeStruct *> StructTypes;
-  std::map<const GlobalVariable *, uint32_t> PatchImms;
+  std::map<const GlobalVariable *, std::pair<int64_t, uint32_t>> PatchImms;
   std::map<StringRef, std::pair<bool, std::vector<BTFTypeDerived *>>>
       FixupDerivedTypes;
   std::set<const Function *>ProtoFunctions;

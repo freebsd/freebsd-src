@@ -13,40 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
 #include "AMDGPUTargetMachine.h"
-#include "llvm/ADT/FloatingPointMode.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/LegacyDivergenceAnalysis.h"
-#include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/Attributes.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Operator.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
+#include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Casting.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Transforms/Utils/IntegerDivision.h"
-#include <cassert>
-#include <iterator>
 
 #define DEBUG_TYPE "amdgpu-codegenprepare"
 
@@ -59,6 +38,12 @@ static cl::opt<bool> WidenLoads(
   cl::desc("Widen sub-dword constant address space loads in AMDGPUCodeGenPrepare"),
   cl::ReallyHidden,
   cl::init(false));
+
+static cl::opt<bool> Widen16BitOps(
+  "amdgpu-codegenprepare-widen-16-bit-ops",
+  cl::desc("Widen uniform 16-bit instructions to 32-bit in AMDGPUCodeGenPrepare"),
+  cl::ReallyHidden,
+  cl::init(true));
 
 static cl::opt<bool> UseMul24Intrin(
   "amdgpu-codegenprepare-mul24",
@@ -269,6 +254,9 @@ bool AMDGPUCodeGenPrepare::isSigned(const SelectInst &I) const {
 }
 
 bool AMDGPUCodeGenPrepare::needsPromotionToI32(const Type *T) const {
+  if (!Widen16BitOps)
+    return false;
+
   const IntegerType *IntTy = dyn_cast<IntegerType>(T);
   if (IntTy && IntTy->getBitWidth() > 1 && IntTy->getBitWidth() <= 16)
     return true;
@@ -750,6 +738,11 @@ static Value *optimizeWithFDivFast(Value *Num, Value *Den, float ReqdAccuracy,
 bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
 
   Type *Ty = FDiv.getType()->getScalarType();
+
+  // The f64 rcp/rsq approximations are pretty inaccurate. We can do an
+  // expansion around them in codegen.
+  if (Ty->isDoubleTy())
+    return false;
 
   // No intrinsic for fdiv16 if target does not support f16.
   if (Ty->isHalfTy() && !ST->has16BitInsts())

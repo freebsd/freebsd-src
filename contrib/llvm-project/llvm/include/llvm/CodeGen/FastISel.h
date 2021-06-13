@@ -224,10 +224,6 @@ protected:
   /// makes sense (for example, on function calls)
   MachineInstr *EmitStartPt;
 
-  /// Last local value flush point. On a subsequent flush, no local value will
-  /// sink past this point.
-  MachineBasicBlock::iterator LastFlushPoint;
-
 public:
   virtual ~FastISel();
 
@@ -246,7 +242,7 @@ public:
   /// be appended.
   void startNewBlock();
 
-  /// Flush the local value map and sink local values if possible.
+  /// Flush the local value map.
   void finishBasicBlock();
 
   /// Return current debug location information.
@@ -313,10 +309,7 @@ public:
   void removeDeadCode(MachineBasicBlock::iterator I,
                       MachineBasicBlock::iterator E);
 
-  struct SavePoint {
-    MachineBasicBlock::iterator InsertPt;
-    DebugLoc DL;
-  };
+  using SavePoint = MachineBasicBlock::iterator;
 
   /// Prepare InsertPt to begin inserting instructions into the local
   /// value area and return the old insert position.
@@ -497,7 +490,10 @@ protected:
   /// - \c Add has a constant operand.
   bool canFoldAddIntoGEP(const User *GEP, const Value *Add);
 
-  /// Test whether the given value has exactly one use.
+  /// Test whether the register associated with this value has exactly one use,
+  /// in which case that single use is killing. Note that multiple IR values
+  /// may map onto the same register, in which case this is not the same as
+  /// checking that an IR value has one use.
   bool hasTrivialKill(const Value *V);
 
   /// Create a machine mem operand from the given instruction.
@@ -509,18 +505,6 @@ protected:
   bool lowerCallTo(const CallInst *CI, const char *SymName,
                    unsigned NumArgs);
   bool lowerCallTo(CallLoweringInfo &CLI);
-
-  bool isCommutativeIntrinsic(IntrinsicInst const *II) {
-    switch (II->getIntrinsicID()) {
-    case Intrinsic::sadd_with_overflow:
-    case Intrinsic::uadd_with_overflow:
-    case Intrinsic::smul_with_overflow:
-    case Intrinsic::umul_with_overflow:
-      return true;
-    default:
-      return false;
-    }
-  }
 
   bool lowerCall(const CallInst *I);
   /// Select and emit code for a binary operator instruction, which has
@@ -536,7 +520,6 @@ protected:
   bool selectFreeze(const User *I);
   bool selectCast(const User *I, unsigned Opcode);
   bool selectExtractValue(const User *U);
-  bool selectInsertValue(const User *I);
   bool selectXRayCustomEvent(const CallInst *II);
   bool selectXRayTypedEvent(const CallInst *II);
 
@@ -571,20 +554,6 @@ private:
 
   /// Removes dead local value instructions after SavedLastLocalvalue.
   void removeDeadLocalValueCode(MachineInstr *SavedLastLocalValue);
-
-  struct InstOrderMap {
-    DenseMap<MachineInstr *, unsigned> Orders;
-    MachineInstr *FirstTerminator = nullptr;
-    unsigned FirstTerminatorOrder = std::numeric_limits<unsigned>::max();
-
-    void initialize(MachineBasicBlock *MBB,
-                    MachineBasicBlock::iterator LastFlushPoint);
-  };
-
-  /// Sinks the local value materialization instruction LocalMI to its first use
-  /// in the basic block, or deletes it if it is not used.
-  void sinkLocalValueMaterialization(MachineInstr &LocalMI, Register DefReg,
-                                     InstOrderMap &OrderMap);
 
   /// Insertion point before trying to select the current instruction.
   MachineBasicBlock::iterator SavedInsertPt;

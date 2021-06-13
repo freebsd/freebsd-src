@@ -42,7 +42,16 @@ std::string LoopHintAttr::getValueString(const PrintingPolicy &Policy) const {
   OS << "(";
   if (state == Numeric)
     value->printPretty(OS, nullptr, Policy);
-  else if (state == Enable)
+  else if (state == FixedWidth || state == ScalableWidth) {
+    if (value) {
+      value->printPretty(OS, nullptr, Policy);
+      if (state == ScalableWidth)
+        OS << ", scalable";
+    } else if (state == ScalableWidth)
+      OS << "scalable";
+    else
+      OS << "fixed";
+  } else if (state == Enable)
     OS << "enable";
   else if (state == Full)
     OS << "full";
@@ -136,8 +145,16 @@ llvm::Optional<OMPDeclareTargetDeclAttr::MapTypeTy>
 OMPDeclareTargetDeclAttr::isDeclareTargetDeclaration(const ValueDecl *VD) {
   if (!VD->hasAttrs())
     return llvm::None;
-  if (const auto *Attr = VD->getAttr<OMPDeclareTargetDeclAttr>())
-    return Attr->getMapType();
+  unsigned Level = 0;
+  const OMPDeclareTargetDeclAttr *FoundAttr = nullptr;
+  for (const auto *Attr : VD->specific_attrs<OMPDeclareTargetDeclAttr>()) {
+    if (Level < Attr->getLevel()) {
+      Level = Attr->getLevel();
+      FoundAttr = Attr;
+    }
+  }
+  if (FoundAttr)
+    return FoundAttr->getMapType();
 
   return llvm::None;
 }
@@ -146,8 +163,34 @@ llvm::Optional<OMPDeclareTargetDeclAttr::DevTypeTy>
 OMPDeclareTargetDeclAttr::getDeviceType(const ValueDecl *VD) {
   if (!VD->hasAttrs())
     return llvm::None;
-  if (const auto *Attr = VD->getAttr<OMPDeclareTargetDeclAttr>())
-    return Attr->getDevType();
+  unsigned Level = 0;
+  const OMPDeclareTargetDeclAttr *FoundAttr = nullptr;
+  for (const auto *Attr : VD->specific_attrs<OMPDeclareTargetDeclAttr>()) {
+    if (Level < Attr->getLevel()) {
+      Level = Attr->getLevel();
+      FoundAttr = Attr;
+    }
+  }
+  if (FoundAttr)
+    return FoundAttr->getDevType();
+
+  return llvm::None;
+}
+
+llvm::Optional<SourceLocation>
+OMPDeclareTargetDeclAttr::getLocation(const ValueDecl *VD) {
+  if (!VD->hasAttrs())
+    return llvm::None;
+  unsigned Level = 0;
+  const OMPDeclareTargetDeclAttr *FoundAttr = nullptr;
+  for (const auto *Attr : VD->specific_attrs<OMPDeclareTargetDeclAttr>()) {
+    if (Level < Attr->getLevel()) {
+      Level = Attr->getLevel();
+      FoundAttr = Attr;
+    }
+  }
+  if (FoundAttr)
+    return FoundAttr->getRange().getBegin();
 
   return llvm::None;
 }

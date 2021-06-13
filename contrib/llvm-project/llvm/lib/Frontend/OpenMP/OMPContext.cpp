@@ -14,7 +14,9 @@
 
 #include "llvm/Frontend/OpenMP/OMPContext.h"
 #include "llvm/ADT/SetOperations.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -40,6 +42,7 @@ OMPContext::OMPContext(bool IsDeviceCompilation, Triple TargetTriple) {
   case Triple::mips64:
   case Triple::mips64el:
   case Triple::ppc:
+  case Triple::ppcle:
   case Triple::ppc64:
   case Triple::ppc64le:
   case Triple::x86:
@@ -57,9 +60,13 @@ OMPContext::OMPContext(bool IsDeviceCompilation, Triple TargetTriple) {
 
   // Add the appropriate device architecture trait based on the triple.
 #define OMP_TRAIT_PROPERTY(Enum, TraitSetEnum, TraitSelectorEnum, Str)         \
-  if (TraitSelector::TraitSelectorEnum == TraitSelector::device_arch)          \
+  if (TraitSelector::TraitSelectorEnum == TraitSelector::device_arch) {        \
     if (TargetTriple.getArch() == TargetTriple.getArchTypeForLLVMName(Str))    \
-      ActiveTraits.set(unsigned(TraitProperty::Enum));
+      ActiveTraits.set(unsigned(TraitProperty::Enum));                         \
+    if (StringRef(Str) == StringRef("x86_64") &&                               \
+        TargetTriple.getArch() == Triple::x86_64)                              \
+      ActiveTraits.set(unsigned(TraitProperty::Enum));                         \
+  }
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
 
   // TODO: What exactly do we want to see as device ISA trait?
@@ -175,11 +182,11 @@ static int isVariantApplicableInContextHelper(
     LLVM_DEBUG({
       if (MK == MK_ALL)
         dbgs() << "[" << DEBUG_TYPE << "] Property "
-               << getOpenMPContextTraitPropertyName(Property)
+               << getOpenMPContextTraitPropertyName(Property, "")
                << " was not in the OpenMP context but match kind is all.\n";
       if (MK == MK_NONE)
         dbgs() << "[" << DEBUG_TYPE << "] Property "
-               << getOpenMPContextTraitPropertyName(Property)
+               << getOpenMPContextTraitPropertyName(Property, "")
                << " was in the OpenMP context but match kind is none.\n";
     });
     return false;
@@ -198,6 +205,14 @@ static int isVariantApplicableInContextHelper(
       continue;
 
     bool IsActiveTrait = Ctx.ActiveTraits.test(unsigned(Property));
+
+    // We overwrite the isa trait as it is actually up to the OMPContext hook to
+    // check the raw string(s).
+    if (Property == TraitProperty::device_isa___ANY)
+      IsActiveTrait = llvm::all_of(VMI.ISATraits, [&](StringRef RawString) {
+        return Ctx.matchesISATrait(RawString);
+      });
+
     Optional<bool> Result = HandleTrait(Property, IsActiveTrait);
     if (Result.hasValue())
       return Result.getValue();
@@ -225,7 +240,7 @@ static int isVariantApplicableInContextHelper(
 
       if (!FoundInOrder) {
         LLVM_DEBUG(dbgs() << "[" << DEBUG_TYPE << "] Construct property "
-                          << getOpenMPContextTraitPropertyName(Property)
+                          << getOpenMPContextTraitPropertyName(Property, "")
                           << " was not nested properly.\n");
         return false;
       }
@@ -425,8 +440,12 @@ StringRef llvm::omp::getOpenMPContextTraitSelectorName(TraitSelector Kind) {
   llvm_unreachable("Unknown trait selector!");
 }
 
-TraitProperty llvm::omp::getOpenMPContextTraitPropertyKind(TraitSet Set,
-                                                           StringRef S) {
+TraitProperty llvm::omp::getOpenMPContextTraitPropertyKind(
+    TraitSet Set, TraitSelector Selector, StringRef S) {
+  // Special handling for `device={isa(...)}` as we accept anything here. It is
+  // up to the target to decide if the feature is available.
+  if (Set == TraitSet::device && Selector == TraitSelector::device_isa)
+    return TraitProperty::device_isa___ANY;
 #define OMP_TRAIT_PROPERTY(Enum, TraitSetEnum, TraitSelectorEnum, Str)         \
   if (Set == TraitSet::TraitSetEnum && Str == S)                               \
     return TraitProperty::Enum;
@@ -444,7 +463,10 @@ llvm::omp::getOpenMPContextTraitPropertyForSelector(TraitSelector Selector) {
 #include "llvm/Frontend/OpenMP/OMPKinds.def"
       .Default(TraitProperty::invalid);
 }
-StringRef llvm::omp::getOpenMPContextTraitPropertyName(TraitProperty Kind) {
+StringRef llvm::omp::getOpenMPContextTraitPropertyName(TraitProperty Kind,
+                                                       StringRef RawString) {
+  if (Kind == TraitProperty::device_isa___ANY)
+    return RawString;
   switch (Kind) {
 #define OMP_TRAIT_PROPERTY(Enum, TraitSetEnum, TraitSelectorEnum, Str)         \
   case TraitProperty::Enum:                                                    \

@@ -54,6 +54,16 @@ def vfp_f16imm : Operand<f16>,
   let ParserMatchClass = FPImmOperand;
 }
 
+def vfp_f32f16imm_xform : SDNodeXForm<fpimm, [{
+      APFloat InVal = N->getValueAPF();
+      uint32_t enc = ARM_AM::getFP32FP16Imm(InVal);
+      return CurDAG->getTargetConstant(enc, SDLoc(N), MVT::i32);
+    }]>;
+
+def vfp_f32f16imm : PatLeaf<(f32 fpimm), [{
+      return ARM_AM::getFP32FP16Imm(N->getValueAPF()) != -1;
+    }], vfp_f32f16imm_xform>;
+
 def vfp_f32imm_xform : SDNodeXForm<fpimm, [{
       APFloat InVal = N->getValueAPF();
       uint32_t enc = ARM_AM::getFP32Imm(InVal);
@@ -1551,6 +1561,8 @@ class AVConv1InsS_Encode<bits<5> opcod1, bits<2> opcod2, bits<4> opcod3,
   let Inst{5}     = Sm{0};
   let Inst{15-12} = Sd{4-1};
   let Inst{22}    = Sd{0};
+
+  let hasSideEffects = 0;
 }
 
 class AVConv1IsH_Encode<bits<5> opcod1, bits<2> opcod2, bits<4> opcod3,
@@ -2252,16 +2264,6 @@ def : Pat<(f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin)),
 def : Pat<(f16 (fma (fneg (f16 HPR:$Sn)), (f16 HPR:$Sm), (f16 HPR:$Sdin))),
           (VFMSH (f16 HPR:$Sdin), (f16 HPR:$Sn), (f16 HPR:$Sm))>,
       Requires<[HasFullFP16]>;
-// (fma x, (fneg y), z) -> (vfms z, x, y)
-def : Pat<(f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin)),
-          (VFMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
-      Requires<[HasVFP4,HasDPVFP]>;
-def : Pat<(f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin)),
-          (VFMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
-      Requires<[HasVFP4]>;
-def : Pat<(f16 (fma (f16 HPR:$Sn), (fneg (f16 HPR:$Sm)), (f16 HPR:$Sdin))),
-          (VFMSH (f16 HPR:$Sdin), (f16 HPR:$Sn), (f16 HPR:$Sm))>,
-      Requires<[HasFullFP16]>;
 
 def VFNMAD : ADbI<0b11101, 0b01, 1, 0,
                   (outs DPR:$Dd), (ins DPR:$Ddin, DPR:$Dn, DPR:$Dm),
@@ -2377,16 +2379,6 @@ def : Pat<(fneg (f32 (fma (fneg SPR:$Sn), SPR:$Sm, SPR:$Sdin))),
           (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
       Requires<[HasVFP4]>;
 def : Pat<(fneg (f16 (fma (fneg (f16 HPR:$Sn)), (f16 HPR:$Sm), (f16 HPR:$Sdin)))),
-          (VFNMSH (f16 HPR:$Sdin), (f16 HPR:$Sn), (f16 HPR:$Sm))>,
-      Requires<[HasFullFP16]>;
-// (fneg (fma x, (fneg y), z) -> (vfnms z, x, y)
-def : Pat<(fneg (f64 (fma DPR:$Dn, (fneg DPR:$Dm), DPR:$Ddin))),
-          (VFNMSD DPR:$Ddin, DPR:$Dn, DPR:$Dm)>,
-      Requires<[HasVFP4,HasDPVFP]>;
-def : Pat<(fneg (f32 (fma SPR:$Sn, (fneg SPR:$Sm), SPR:$Sdin))),
-          (VFNMSS SPR:$Sdin, SPR:$Sn, SPR:$Sm)>,
-      Requires<[HasVFP4]>;
-def : Pat<(fneg (f16 (fma (f16 HPR:$Sn), (fneg (f16 HPR:$Sm)), (f16 HPR:$Sdin)))),
           (VFNMSH (f16 HPR:$Sdin), (f16 HPR:$Sn), (f16 HPR:$Sm))>,
       Requires<[HasFullFP16]>;
 
@@ -2634,6 +2626,11 @@ def FCONSTH : VFPAI<(outs HPR:$Sd), (ins vfp_f16imm:$imm),
 }
 }
 
+def : Pat<(f32 (vfp_f32f16imm:$imm)),
+          (f32 (COPY_TO_REGCLASS (f16 (FCONSTH (vfp_f32f16imm_xform (f32 $imm)))), SPR))> {
+  let Predicates = [HasFullFP16];
+}
+
 //===----------------------------------------------------------------------===//
 // Assembler aliases.
 //
@@ -2849,6 +2846,12 @@ let Predicates = [HasV8_1MMainline, HasMVEInt] in {
   }
   defm VSTR_P0             : vfp_vstrldr_sysreg<0b0,0b1101, "p0",
                                                 (outs), (ins VCCR:$P0)>;
+
+  let Defs = [VPR] in {
+    defm VLDR_VPR          : vfp_vstrldr_sysreg<0b1,0b1100, "vpr">;
+  }
+  defm VLDR_P0             : vfp_vstrldr_sysreg<0b1,0b1101, "p0",
+                                                (outs VCCR:$P0), (ins)>;
 }
 
 let Uses = [FPSCR] in {
@@ -2859,12 +2862,4 @@ let Uses = [FPSCR] in {
     defm VLDR_FPCXTNS      : vfp_vstrldr_sysreg<0b1,0b1110, "fpcxtns">;
     defm VLDR_FPCXTS       : vfp_vstrldr_sysreg<0b1,0b1111, "fpcxts">;
   }
-}
-
-let Predicates = [HasV8_1MMainline, HasMVEInt] in {
-  let Defs = [VPR] in {
-    defm VLDR_VPR          : vfp_vstrldr_sysreg<0b1,0b1100, "vpr">;
-  }
-  defm VLDR_P0             : vfp_vstrldr_sysreg<0b1,0b1101, "p0",
-                                                (outs VCCR:$P0), (ins)>;
 }

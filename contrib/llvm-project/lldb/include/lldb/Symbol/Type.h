@@ -56,6 +56,7 @@ public:
   Type *operator->() { return GetType(); }
 
   Type *GetType();
+  SymbolFile &GetSymbolFile() const { return m_symbol_file; }
 
 protected:
   SymbolFile &m_symbol_file;
@@ -108,20 +109,27 @@ public:
 
   void DumpTypeName(Stream *s);
 
-  // Since Type instances only keep a "SymbolFile *" internally, other classes
-  // like TypeImpl need make sure the module is still around before playing
-  // with
-  // Type instances. They can store a weak pointer to the Module;
+  /// Since Type instances only keep a "SymbolFile *" internally, other classes
+  /// like TypeImpl need make sure the module is still around before playing
+  /// with
+  /// Type instances. They can store a weak pointer to the Module;
   lldb::ModuleSP GetModule();
 
-  void GetDescription(Stream *s, lldb::DescriptionLevel level, bool show_name);
+  /// GetModule may return module for compile unit's object file.
+  /// GetExeModule returns module for executable object file that contains
+  /// compile unit where type was actualy defined.
+  /// GetModule and GetExeModule may return the same value.
+  lldb::ModuleSP GetExeModule();
+
+  void GetDescription(Stream *s, lldb::DescriptionLevel level, bool show_name,
+                      ExecutionContextScope *exe_scope);
 
   SymbolFile *GetSymbolFile() { return m_symbol_file; }
   const SymbolFile *GetSymbolFile() const { return m_symbol_file; }
 
   ConstString GetName();
 
-  llvm::Optional<uint64_t> GetByteSize();
+  llvm::Optional<uint64_t> GetByteSize(ExecutionContextScope *exe_scope);
 
   uint32_t GetNumChildren(bool omit_empty_base_classes);
 
@@ -259,6 +267,8 @@ public:
 
   void Clear();
 
+  lldb::ModuleSP GetModule() const;
+
   ConstString GetName() const;
 
   ConstString GetDisplayTypeName() const;
@@ -286,8 +296,12 @@ public:
 
 private:
   bool CheckModule(lldb::ModuleSP &module_sp) const;
+  bool CheckExeModule(lldb::ModuleSP &module_sp) const;
+  bool CheckModuleCommon(const lldb::ModuleWP &input_module_wp,
+                         lldb::ModuleSP &module_sp) const;
 
   lldb::ModuleWP m_module_wp;
+  lldb::ModuleWP m_exe_module_wp;
   CompilerType m_static_type;
   CompilerType m_dynamic_type;
 };

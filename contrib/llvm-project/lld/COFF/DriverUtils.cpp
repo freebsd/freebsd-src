@@ -32,6 +32,7 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/WindowsManifest/WindowsManifestMerger.h"
+#include <limits>
 #include <memory>
 
 using namespace llvm::COFF;
@@ -87,10 +88,10 @@ void parseNumbers(StringRef arg, uint64_t *addr, uint64_t *size) {
 void parseVersion(StringRef arg, uint32_t *major, uint32_t *minor) {
   StringRef s1, s2;
   std::tie(s1, s2) = arg.split('.');
-  if (s1.getAsInteger(0, *major))
+  if (s1.getAsInteger(10, *major))
     fatal("invalid number: " + s1);
   *minor = 0;
-  if (!s2.empty() && s2.getAsInteger(0, *minor))
+  if (!s2.empty() && s2.getAsInteger(10, *minor))
     fatal("invalid number: " + s2);
 }
 
@@ -111,7 +112,7 @@ void parseGuard(StringRef fullArg) {
 
 // Parses a string in the form of "<subsystem>[,<integer>[.<integer>]]".
 void parseSubsystem(StringRef arg, WindowsSubsystem *sys, uint32_t *major,
-                    uint32_t *minor) {
+                    uint32_t *minor, bool *gotVersion) {
   StringRef sysStr, ver;
   std::tie(sysStr, ver) = arg.split(',');
   std::string sysStrLower = sysStr.lower();
@@ -131,6 +132,8 @@ void parseSubsystem(StringRef arg, WindowsSubsystem *sys, uint32_t *major,
     fatal("unknown subsystem: " + sysStr);
   if (!ver.empty())
     parseVersion(ver, major, minor);
+  if (gotVersion)
+    *gotVersion = !ver.empty();
 }
 
 // Parse a string of the form of "<from>=<to>".
@@ -673,12 +676,15 @@ void fixupExports() {
 
 void assignExportOrdinals() {
   // Assign unique ordinals if default (= 0).
-  uint16_t max = 0;
+  uint32_t max = 0;
   for (Export &e : config->exports)
-    max = std::max(max, e.ordinal);
+    max = std::max(max, (uint32_t)e.ordinal);
   for (Export &e : config->exports)
     if (e.ordinal == 0)
       e.ordinal = ++max;
+  if (max > std::numeric_limits<uint16_t>::max())
+    fatal("too many exported symbols (max " +
+          Twine(std::numeric_limits<uint16_t>::max()) + ")");
 }
 
 // Parses a string in the form of "key=value" and check
@@ -846,7 +852,7 @@ opt::InputArgList ArgParser::parse(ArrayRef<const char *> argv) {
 
   handleColorDiagnostics(args);
 
-  for (auto *arg : args.filtered(OPT_UNKNOWN)) {
+  for (opt::Arg *arg : args.filtered(OPT_UNKNOWN)) {
     std::string nearest;
     if (optTable.findNearest(arg->getAsString(args), nearest) > 1)
       warn("ignoring unknown argument '" + arg->getAsString(args) + "'");
@@ -877,8 +883,10 @@ ParsedDirectives ArgParser::parseDirectives(StringRef s) {
              tok.startswith_lower("-include:"))
       result.includes.push_back(tok.substr(strlen("/include:")));
     else {
-      // Save non-null-terminated strings to make proper C strings.
-      bool HasNul = tok.data()[tok.size()] == '\0';
+      // Copy substrings that are not valid C strings. The tokenizer may have
+      // already copied quoted arguments for us, so those do not need to be
+      // copied again.
+      bool HasNul = tok.end() != s.end() && tok.data()[tok.size()] == '\0';
       rest.push_back(HasNul ? tok.data() : saver.save(tok).data());
     }
   }

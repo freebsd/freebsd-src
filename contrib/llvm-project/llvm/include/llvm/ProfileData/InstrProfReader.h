@@ -50,8 +50,12 @@ public:
   InstrProfIterator(InstrProfReader *Reader) : Reader(Reader) { Increment(); }
 
   InstrProfIterator &operator++() { Increment(); return *this; }
-  bool operator==(const InstrProfIterator &RHS) { return Reader == RHS.Reader; }
-  bool operator!=(const InstrProfIterator &RHS) { return Reader != RHS.Reader; }
+  bool operator==(const InstrProfIterator &RHS) const {
+    return Reader == RHS.Reader;
+  }
+  bool operator!=(const InstrProfIterator &RHS) const {
+    return Reader != RHS.Reader;
+  }
   value_type &operator*() { return Record; }
   value_type *operator->() { return &Record; }
 };
@@ -78,6 +82,8 @@ public:
   virtual bool isIRLevelProfile() const = 0;
 
   virtual bool hasCSIRLevelProfile() const = 0;
+
+  virtual bool instrEntryBBEnabled() const = 0;
 
   /// Return the PGO symtab. There are three different readers:
   /// Raw, Text, and Indexed profile readers. The first two types
@@ -148,6 +154,7 @@ private:
   line_iterator Line;
   bool IsIRLevelProfile = false;
   bool HasCSIRLevelProfile = false;
+  bool InstrEntryBBEnabled = false;
 
   Error readValueProfileData(InstrProfRecord &Record);
 
@@ -163,6 +170,8 @@ public:
   bool isIRLevelProfile() const override { return IsIRLevelProfile; }
 
   bool hasCSIRLevelProfile() const override { return HasCSIRLevelProfile; }
+
+  bool instrEntryBBEnabled() const override { return InstrEntryBBEnabled; }
 
   /// Read the header.
   Error readHeader() override;
@@ -222,6 +231,10 @@ public:
 
   bool hasCSIRLevelProfile() const override {
     return (Version & VARIANT_MASK_CSIR_PROF) != 0;
+  }
+
+  bool instrEntryBBEnabled() const override {
+    return (Version & VARIANT_MASK_INSTR_ENTRY) != 0;
   }
 
   InstrProfSymtab &getSymtab() override {
@@ -360,6 +373,7 @@ struct InstrProfReaderIndexBase {
   virtual uint64_t getVersion() const = 0;
   virtual bool isIRLevelProfile() const = 0;
   virtual bool hasCSIRLevelProfile() const = 0;
+  virtual bool instrEntryBBEnabled() const = 0;
   virtual Error populateSymtab(InstrProfSymtab &) = 0;
 };
 
@@ -406,6 +420,10 @@ public:
 
   bool hasCSIRLevelProfile() const override {
     return (FormatVersion & VARIANT_MASK_CSIR_PROF) != 0;
+  }
+
+  bool instrEntryBBEnabled() const override {
+    return (FormatVersion & VARIANT_MASK_INSTR_ENTRY) != 0;
   }
 
   Error populateSymtab(InstrProfSymtab &Symtab) override {
@@ -460,6 +478,10 @@ public:
   bool isIRLevelProfile() const override { return Index->isIRLevelProfile(); }
   bool hasCSIRLevelProfile() const override {
     return Index->hasCSIRLevelProfile();
+  }
+
+  bool instrEntryBBEnabled() const override {
+    return Index->instrEntryBBEnabled();
   }
 
   /// Return true if the given buffer is in an indexed instrprof format.

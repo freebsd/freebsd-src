@@ -129,8 +129,8 @@ void __msan_set_keep_going(int keep_going);
 SANITIZER_INTERFACE_ATTRIBUTE
 int __msan_set_poison_in_malloc(int do_poison);
 
-SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
-/* OPTIONAL */ const char* __msan_default_options();
+SANITIZER_INTERFACE_ATTRIBUTE
+const char *__msan_default_options();
 
 // For testing.
 SANITIZER_INTERFACE_ATTRIBUTE
@@ -187,6 +187,12 @@ void __msan_scoped_disable_interceptor_checks();
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __msan_scoped_enable_interceptor_checks();
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __msan_start_switch_fiber(const void *bottom, uptr size);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __msan_finish_switch_fiber(const void **bottom_old, uptr *size_old);
 }  // extern "C"
 
 #endif  // MSAN_INTERFACE_INTERNAL_H

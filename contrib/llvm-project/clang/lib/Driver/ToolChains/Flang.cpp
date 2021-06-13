@@ -19,22 +19,36 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
+void Flang::AddPreprocessingOptions(const ArgList &Args,
+                                    ArgStringList &CmdArgs) const {
+  Args.AddAllArgs(CmdArgs, {options::OPT_D, options::OPT_U, options::OPT_I});
+}
+
 void Flang::ConstructJob(Compilation &C, const JobAction &JA,
                          const InputInfo &Output, const InputInfoList &Inputs,
                          const ArgList &Args, const char *LinkingOutput) const {
   const auto &TC = getToolChain();
-  const llvm::Triple &Triple = TC.getEffectiveTriple();
-  const std::string &TripleStr = Triple.getTriple();
+  // TODO: Once code-generation is available, this will need to be commented
+  // out.
+  // const llvm::Triple &Triple = TC.getEffectiveTriple();
+  // const std::string &TripleStr = Triple.getTriple();
 
   ArgStringList CmdArgs;
 
+  // Invoke ourselves in -fc1 mode.
   CmdArgs.push_back("-fc1");
 
-  CmdArgs.push_back("-triple");
-  CmdArgs.push_back(Args.MakeArgString(TripleStr));
+  // TODO: Once code-generation is available, this will need to be commented
+  // out.
+  // Add the "effective" target triple.
+  // CmdArgs.push_back("-triple");
+  // CmdArgs.push_back(Args.MakeArgString(TripleStr));
 
   if (isa<PreprocessJobAction>(JA)) {
-    CmdArgs.push_back("-E");
+    if (C.getArgs().hasArg(options::OPT_test_io))
+      CmdArgs.push_back("-test-io");
+    else
+      CmdArgs.push_back("-E");
   } else if (isa<CompileJobAction>(JA) || isa<BackendJobAction>(JA)) {
     if (JA.getType() == types::TY_Nothing) {
       CmdArgs.push_back("-fsyntax-only");
@@ -57,6 +71,14 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
     assert(false && "Unexpected action class for Flang tool.");
   }
 
+  const InputInfo &Input = Inputs[0];
+  types::ID InputType = Input.getType();
+
+  // Add preprocessing options like -I, -D, etc. if we are using the
+  // preprocessor (i.e. skip when dealing with e.g. binary files).
+  if (types::getPreprocessedType(InputType) != types::TY_INVALID)
+    AddPreprocessingOptions(Args, CmdArgs);
+
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");
     CmdArgs.push_back(Output.getFilename());
@@ -64,16 +86,18 @@ void Flang::ConstructJob(Compilation &C, const JobAction &JA,
     assert(Output.isNothing() && "Invalid output.");
   }
 
-  const InputInfo &Input = Inputs[0];
   assert(Input.isFilename() && "Invalid input.");
   CmdArgs.push_back(Input.getFilename());
 
   const auto& D = C.getDriver();
-  const char* Exec = Args.MakeArgString(D.GetProgramPath("flang", TC));
-  C.addCommand(std::make_unique<Command>(
-      JA, *this, ResponseFileSupport::AtFileUTF8(), Exec, CmdArgs, Inputs));
+  // TODO: Replace flang-new with flang once the new driver replaces the
+  // throwaway driver
+  const char *Exec = Args.MakeArgString(D.GetProgramPath("flang-new", TC));
+  C.addCommand(std::make_unique<Command>(JA, *this,
+                                         ResponseFileSupport::AtFileUTF8(),
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
-Flang::Flang(const ToolChain &TC) : Tool("flang", "flang frontend", TC) {}
+Flang::Flang(const ToolChain &TC) : Tool("flang-new", "flang frontend", TC) {}
 
 Flang::~Flang() {}

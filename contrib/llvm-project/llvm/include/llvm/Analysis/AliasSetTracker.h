@@ -20,9 +20,10 @@
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Casting.h"
 #include <cassert>
@@ -33,6 +34,7 @@
 
 namespace llvm {
 
+class AAResults;
 class AliasSetTracker;
 class BasicBlock;
 class LoadInst;
@@ -44,6 +46,8 @@ class raw_ostream;
 class StoreInst;
 class VAArgInst;
 class Value;
+
+enum AliasResult : uint8_t;
 
 class AliasSet : public ilist_node<AliasSet> {
   friend class AliasSetTracker;
@@ -293,7 +297,7 @@ private:
   void addPointer(AliasSetTracker &AST, PointerRec &Entry, LocationSize Size,
                   const AAMDNodes &AAInfo, bool KnownMustAlias = false,
                   bool SkipSizeUpdate = false);
-  void addUnknownInst(Instruction *I, AliasAnalysis &AA);
+  void addUnknownInst(Instruction *I, AAResults &AA);
 
   void removeUnknownInst(AliasSetTracker &AST, Instruction *I) {
     bool WasEmpty = UnknownInsts.empty();
@@ -311,8 +315,8 @@ public:
   /// If the specified pointer "may" (or must) alias one of the members in the
   /// set return the appropriate AliasResult. Otherwise return NoAlias.
   AliasResult aliasesPointer(const Value *Ptr, LocationSize Size,
-                             const AAMDNodes &AAInfo, AliasAnalysis &AA) const;
-  bool aliasesUnknownInst(const Instruction *Inst, AliasAnalysis &AA) const;
+                             const AAMDNodes &AAInfo, AAResults &AA) const;
+  bool aliasesUnknownInst(const Instruction *Inst, AAResults &AA) const;
 };
 
 inline raw_ostream& operator<<(raw_ostream &OS, const AliasSet &AS) {
@@ -338,7 +342,7 @@ class AliasSetTracker {
   /// handle.
   struct ASTCallbackVHDenseMapInfo : public DenseMapInfo<Value *> {};
 
-  AliasAnalysis &AA;
+  AAResults &AA;
   MemorySSA *MSSA = nullptr;
   Loop *L = nullptr;
   ilist<AliasSet> AliasSets;
@@ -352,9 +356,9 @@ class AliasSetTracker {
 public:
   /// Create an empty collection of AliasSets, and use the specified alias
   /// analysis object to disambiguate load and store addresses.
-  explicit AliasSetTracker(AliasAnalysis &aa) : AA(aa) {}
-  explicit AliasSetTracker(AliasAnalysis &aa, MemorySSA *mssa, Loop *l)
-      : AA(aa), MSSA(mssa), L(l) {}
+  explicit AliasSetTracker(AAResults &AA) : AA(AA) {}
+  explicit AliasSetTracker(AAResults &AA, MemorySSA *MSSA, Loop *L)
+      : AA(AA), MSSA(MSSA), L(L) {}
   ~AliasSetTracker() { clear(); }
 
   /// These methods are used to add different types of instructions to the alias
@@ -393,7 +397,7 @@ public:
   AliasSet &getAliasSetFor(const MemoryLocation &MemLoc);
 
   /// Return the underlying alias analysis object used by this tracker.
-  AliasAnalysis &getAliasAnalysis() const { return AA; }
+  AAResults &getAliasAnalysis() const { return AA; }
 
   /// This method is used to remove a pointer value from the AliasSetTracker
   /// entirely. It should be used when an instruction is deleted from the
@@ -456,6 +460,14 @@ inline raw_ostream& operator<<(raw_ostream &OS, const AliasSetTracker &AST) {
   AST.print(OS);
   return OS;
 }
+
+class AliasSetsPrinterPass : public PassInfoMixin<AliasSetsPrinterPass> {
+  raw_ostream &OS;
+
+public:
+  explicit AliasSetsPrinterPass(raw_ostream &OS);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+};
 
 } // end namespace llvm
 

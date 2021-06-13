@@ -279,6 +279,9 @@ void MCFragment::destroy() {
     case FT_Fill:
       delete cast<MCFillFragment>(this);
       return;
+    case FT_Nops:
+      delete cast<MCNopsFragment>(this);
+      return;
     case FT_Relaxable:
       delete cast<MCRelaxableFragment>(this);
       return;
@@ -305,6 +308,9 @@ void MCFragment::destroy() {
       return;
     case FT_CVDefRange:
       delete cast<MCCVDefRangeFragment>(this);
+      return;
+    case FT_PseudoProbe:
+      delete cast<MCPseudoProbeAddrFragment>(this);
       return;
     case FT_Dummy:
       delete cast<MCDummyFragment>(this);
@@ -336,6 +342,9 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
   case MCFragment::FT_CompactEncodedInst:
     OS << "MCCompactEncodedInstFragment"; break;
   case MCFragment::FT_Fill:  OS << "MCFillFragment"; break;
+  case MCFragment::FT_Nops:
+    OS << "MCFNopsFragment";
+    break;
   case MCFragment::FT_Relaxable:  OS << "MCRelaxableFragment"; break;
   case MCFragment::FT_Org:   OS << "MCOrgFragment"; break;
   case MCFragment::FT_Dwarf: OS << "MCDwarfFragment"; break;
@@ -345,6 +354,9 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
   case MCFragment::FT_SymbolId:    OS << "MCSymbolIdFragment"; break;
   case MCFragment::FT_CVInlineLines: OS << "MCCVInlineLineTableFragment"; break;
   case MCFragment::FT_CVDefRange: OS << "MCCVDefRangeTableFragment"; break;
+  case MCFragment::FT_PseudoProbe:
+    OS << "MCPseudoProbe";
+    break;
   case MCFragment::FT_Dummy: OS << "MCDummyFragment"; break;
   }
 
@@ -406,6 +418,12 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
     OS << " Value:" << static_cast<unsigned>(FF->getValue())
        << " ValueSize:" << static_cast<unsigned>(FF->getValueSize())
        << " NumValues:" << FF->getNumValues();
+    break;
+  }
+  case MCFragment::FT_Nops: {
+    const auto *NF = cast<MCNopsFragment>(this);
+    OS << " NumBytes:" << NF->getNumBytes()
+       << " ControlledNopLength:" << NF->getControlledNopLength();
     break;
   }
   case MCFragment::FT_Relaxable:  {
@@ -470,6 +488,12 @@ LLVM_DUMP_METHOD void MCFragment::dump() const {
       OS << " RangeStart:" << RangeStartEnd.first;
       OS << " RangeEnd:" << RangeStartEnd.second;
     }
+    break;
+  }
+  case MCFragment::FT_PseudoProbe: {
+    const auto *OF = cast<MCPseudoProbeAddrFragment>(this);
+    OS << "\n       ";
+    OS << " AddrDelta:" << OF->getAddrDelta();
     break;
   }
   case MCFragment::FT_Dummy:

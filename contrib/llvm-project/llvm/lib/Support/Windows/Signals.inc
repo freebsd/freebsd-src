@@ -552,7 +552,8 @@ static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C) {
                            StackFrame, C);
 }
 
-void llvm::sys::PrintStackTrace(raw_ostream &OS) {
+void llvm::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
+  // FIXME: Handle "Depth" parameter to print stack trace upto specified Depth
   LocalPrintStackTrace(OS, nullptr);
 }
 
@@ -868,3 +869,5 @@ static BOOL WINAPI LLVMConsoleCtrlHandler(DWORD dwCtrlType) {
  #pragma GCC diagnostic warning "-Wformat"
  #pragma GCC diagnostic warning "-Wformat-extra-args"
 #endif
+
+void sys::unregisterHandlers() {}

@@ -15,10 +15,8 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_AMDGPUISELLOWERING_H
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUISELLOWERING_H
 
-#include "AMDGPU.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -90,7 +88,6 @@ protected:
   SDValue performMulCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performMulhsCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performMulhuCombine(SDNode *N, DAGCombinerInfo &DCI) const;
-  SDValue performMulLoHi24Combine(SDNode *N, DAGCombinerInfo &DCI) const;
   SDValue performCtlz_CttzCombine(const SDLoc &SL, SDValue Cond, SDValue LHS,
                              SDValue RHS, DAGCombinerInfo &DCI) const;
   SDValue performSelectCombine(SDNode *N, DAGCombinerInfo &DCI) const;
@@ -125,8 +122,9 @@ protected:
   /// Split a vector load into 2 loads of half the vector.
   SDValue SplitVectorLoad(SDValue Op, SelectionDAG &DAG) const;
 
-  /// Widen a vector load from vec3 to vec4.
-  SDValue WidenVectorLoad(SDValue Op, SelectionDAG &DAG) const;
+  /// Widen a suitably aligned v3 load. For all other cases, split the input
+  /// vector load.
+  SDValue WidenOrSplitVectorLoad(SDValue Op, SelectionDAG &DAG) const;
 
   /// Split a vector store into 2 stores of half the vector.
   SDValue SplitVectorStore(SDValue Op, SelectionDAG &DAG) const;
@@ -145,16 +143,7 @@ protected:
 public:
   AMDGPUTargetLowering(const TargetMachine &TM, const AMDGPUSubtarget &STI);
 
-  bool mayIgnoreSignedZero(SDValue Op) const {
-    if (getTargetMachine().Options.NoSignedZerosFPMath)
-      return true;
-
-    const auto Flags = Op.getNode()->getFlags();
-    if (Flags.isDefined())
-      return Flags.hasNoSignedZeros();
-
-    return false;
-  }
+  bool mayIgnoreSignedZero(SDValue Op) const;
 
   static inline SDValue stripBitcast(SDValue Val) {
     return Val.getOpcode() == ISD::BITCAST ? Val.getOperand(0) : Val;
@@ -440,8 +429,6 @@ enum NodeType : unsigned {
   MAD_I24,
   MAD_U64_U32,
   MAD_I64_I32,
-  MUL_LOHI_I24,
-  MUL_LOHI_U24,
   PERM,
   TEXTURE_FETCH,
   R600_EXPORT,
@@ -508,7 +495,6 @@ enum NodeType : unsigned {
   ATOMIC_DEC,
   ATOMIC_LOAD_FMIN,
   ATOMIC_LOAD_FMAX,
-  ATOMIC_LOAD_CSUB,
   BUFFER_LOAD,
   BUFFER_LOAD_UBYTE,
   BUFFER_LOAD_USHORT,
@@ -537,8 +523,6 @@ enum NodeType : unsigned {
   BUFFER_ATOMIC_CMPSWAP,
   BUFFER_ATOMIC_CSUB,
   BUFFER_ATOMIC_FADD,
-  BUFFER_ATOMIC_PK_FADD,
-  ATOMIC_PK_FADD,
 
   LAST_AMDGPU_ISD_NUMBER
 };

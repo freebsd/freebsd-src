@@ -369,22 +369,14 @@ ThreadPlan *ThreadPlanStack::GetInnermostExpression() const {
   return nullptr;
 }
 
+void ThreadPlanStack::ClearThreadCache() {
+  for (lldb::ThreadPlanSP thread_plan_sp : m_plans)
+    thread_plan_sp->ClearThreadCache();
+}
+
 void ThreadPlanStack::WillResume() {
   m_completed_plans.clear();
   m_discarded_plans.clear();
-}
-
-const ThreadPlanStack::PlanStack &
-ThreadPlanStack::GetStackOfKind(ThreadPlanStack::StackKind kind) const {
-  switch (kind) {
-  case ePlans:
-    return m_plans;
-  case eCompletedPlans:
-    return m_completed_plans;
-  case eDiscardedPlans:
-    return m_discarded_plans;
-  }
-  llvm_unreachable("Invalid StackKind value");
 }
 
 void ThreadPlanStackMap::Update(ThreadList &current_threads,

@@ -144,6 +144,23 @@ static cl::opt<bool>
                      cl::desc("If set, changes formatting warnings to errors"),
                      cl::cat(ClangFormatCategory));
 
+namespace {
+enum class WNoError { Unknown };
+}
+
+static cl::bits<WNoError> WNoErrorList(
+    "Wno-error",
+    cl::desc("If set don't error out on the specified warning type."),
+    cl::values(
+        clEnumValN(WNoError::Unknown, "unknown",
+                   "If set, unknown format options are only warned about.\n"
+                   "This can be used to enable formatting, even if the\n"
+                   "configuration contains unknown (newer) options.\n"
+                   "Use with caution, as this might lead to dramatically\n"
+                   "differing format depending on an option being\n"
+                   "supported or not.")),
+    cl::cat(ClangFormatCategory));
+
 static cl::opt<bool>
     ShowColors("fcolor-diagnostics",
                cl::desc("If set, and on a color-capable terminal controls "
@@ -162,13 +179,13 @@ static cl::list<std::string> FileNames(cl::Positional, cl::desc("[<file> ...]"),
 namespace clang {
 namespace format {
 
-static FileID createInMemoryFile(StringRef FileName, MemoryBuffer *Source,
+static FileID createInMemoryFile(StringRef FileName, MemoryBufferRef Source,
                                  SourceManager &Sources, FileManager &Files,
                                  llvm::vfs::InMemoryFileSystem *MemFS) {
   MemFS->addFileNoOwn(FileName, 0, Source);
-  auto File = Files.getFile(FileName);
-  return Sources.createFileID(File ? *File : nullptr, SourceLocation(),
-                              SrcMgr::C_User);
+  auto File = Files.getOptionalFileRef(FileName);
+  assert(File && "File not added to MemFS?");
+  return Sources.createFileID(*File, SourceLocation(), SrcMgr::C_User);
 }
 
 // Parses <start line>:<end line> input to a pair of line numbers.
@@ -189,7 +206,7 @@ static bool fillRanges(MemoryBuffer *Code,
       IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
       new DiagnosticOptions);
   SourceManager Sources(Diagnostics, Files);
-  FileID ID = createInMemoryFile("<irrelevant>", Code, Sources, Files,
+  FileID ID = createInMemoryFile("<irrelevant>", *Code, Sources, Files,
                                  InMemoryFileSystem.get());
   if (!LineRanges.empty()) {
     if (!Offsets.empty() || !Lengths.empty()) {
@@ -378,7 +395,8 @@ static bool format(StringRef FileName) {
   }
 
   llvm::Expected<FormatStyle> FormatStyle =
-      getStyle(Style, AssumedFileName, FallbackStyle, Code->getBuffer());
+      getStyle(Style, AssumedFileName, FallbackStyle, Code->getBuffer(),
+               nullptr, WNoErrorList.isSet(WNoError::Unknown));
   if (!FormatStyle) {
     llvm::errs() << llvm::toString(FormatStyle.takeError()) << "\n";
     return true;
@@ -414,7 +432,7 @@ static bool format(StringRef FileName) {
         IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
         new DiagnosticOptions);
     SourceManager Sources(Diagnostics, Files);
-    FileID ID = createInMemoryFile(AssumedFileName, Code.get(), Sources, Files,
+    FileID ID = createInMemoryFile(AssumedFileName, *Code, Sources, Files,
                                    InMemoryFileSystem.get());
     Rewriter Rewrite(Sources, LangOptions());
     tooling::applyAllReplacements(Replaces, Rewrite);

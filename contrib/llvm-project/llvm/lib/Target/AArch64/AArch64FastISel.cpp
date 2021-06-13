@@ -3409,8 +3409,7 @@ bool AArch64FastISel::foldXALUIntrinsic(AArch64CC::CondCode &CC,
   const Value *RHS = II->getArgOperand(1);
 
   // Canonicalize immediate to the RHS.
-  if (isa<ConstantInt>(LHS) && !isa<ConstantInt>(RHS) &&
-      isCommutativeIntrinsic(II))
+  if (isa<ConstantInt>(LHS) && !isa<ConstantInt>(RHS) && II->isCommutative())
     std::swap(LHS, RHS);
 
   // Simplify multiplies.
@@ -3652,14 +3651,10 @@ bool AArch64FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(AArch64::BRK))
         .addImm(1);
     return true;
-  case Intrinsic::debugtrap: {
-    if (Subtarget->isTargetWindows()) {
-      BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(AArch64::BRK))
-          .addImm(0xF000);
-      return true;
-    }
-    break;
-  }
+  case Intrinsic::debugtrap:
+    BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(AArch64::BRK))
+        .addImm(0xF000);
+    return true;
 
   case Intrinsic::sqrt: {
     Type *RetTy = II->getCalledFunction()->getReturnType();
@@ -3701,8 +3696,7 @@ bool AArch64FastISel::fastLowerIntrinsicCall(const IntrinsicInst *II) {
     const Value *LHS = II->getArgOperand(0);
     const Value *RHS = II->getArgOperand(1);
     // Canonicalize immediate to the RHS.
-    if (isa<ConstantInt>(LHS) && !isa<ConstantInt>(RHS) &&
-        isCommutativeIntrinsic(II))
+    if (isa<ConstantInt>(LHS) && !isa<ConstantInt>(RHS) && II->isCommutative())
       std::swap(LHS, RHS);
 
     // Simplify multiplies.

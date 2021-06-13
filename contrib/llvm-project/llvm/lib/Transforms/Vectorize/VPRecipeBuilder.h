@@ -61,17 +61,19 @@ class VPRecipeBuilder {
   /// Check if the load or store instruction \p I should widened for \p
   /// Range.Start and potentially masked. Such instructions are handled by a
   /// recipe that takes an additional VPInstruction for the mask.
-  VPWidenMemoryInstructionRecipe *
-  tryToWidenMemory(Instruction *I, VFRange &Range, VPlanPtr &Plan);
+  VPRecipeBase *tryToWidenMemory(Instruction *I, VFRange &Range,
+                                 VPlanPtr &Plan);
 
   /// Check if an induction recipe should be constructed for \I. If so build and
   /// return it. If not, return null.
-  VPWidenIntOrFpInductionRecipe *tryToOptimizeInductionPHI(PHINode *Phi) const;
+  VPWidenIntOrFpInductionRecipe *tryToOptimizeInductionPHI(PHINode *Phi,
+                                                           VPlan &Plan) const;
 
   /// Optimize the special case where the operand of \p I is a constant integer
   /// induction variable.
   VPWidenIntOrFpInductionRecipe *
-  tryToOptimizeInductionTruncate(TruncInst *I, VFRange &Range) const;
+  tryToOptimizeInductionTruncate(TruncInst *I, VFRange &Range,
+                                 VPlan &Plan) const;
 
   /// Handle non-loop phi nodes. Currently all such phi nodes are turned into
   /// a sequence of select instructions as the vectorizer currently performs

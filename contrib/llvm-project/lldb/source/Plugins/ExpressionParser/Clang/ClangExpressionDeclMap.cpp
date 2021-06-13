@@ -19,6 +19,7 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectVariable.h"
+#include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/Materializer.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/CompilerDecl.h"
@@ -109,7 +110,7 @@ bool ClangExpressionDeclMap::WillParse(ExecutionContext &exe_ctx,
     m_parser_vars->m_persistent_vars = llvm::cast<ClangPersistentVariables>(
         target->GetPersistentExpressionStateForLanguage(eLanguageTypeC));
 
-    if (!TypeSystemClang::GetScratch(*target))
+    if (!ScratchTypeSystemClang::GetForTarget(*target))
       return false;
   }
 
@@ -123,6 +124,12 @@ void ClangExpressionDeclMap::InstallCodeGenerator(
     clang::ASTConsumer *code_gen) {
   assert(m_parser_vars);
   m_parser_vars->m_code_gen = code_gen;
+}
+
+void ClangExpressionDeclMap::InstallDiagnosticManager(
+    DiagnosticManager &diag_manager) {
+  assert(m_parser_vars);
+  m_parser_vars->m_diagnostics = &diag_manager;
 }
 
 void ClangExpressionDeclMap::DidParse() {
@@ -177,7 +184,7 @@ ClangExpressionDeclMap::TargetInfo ClangExpressionDeclMap::GetTargetInfo() {
 TypeFromUser ClangExpressionDeclMap::DeportType(TypeSystemClang &target,
                                                 TypeSystemClang &source,
                                                 TypeFromParser parser_type) {
-  assert(&target == TypeSystemClang::GetScratch(*m_target));
+  assert(&target == GetScratchContext(*m_target));
   assert((TypeSystem *)&source == parser_type.GetTypeSystem());
   assert(&source.getASTContext() == m_ast_context);
 
@@ -196,6 +203,17 @@ bool ClangExpressionDeclMap::AddPersistentVariable(const NamedDecl *decl,
   if (ast == nullptr)
     return false;
 
+  // Check if we already declared a persistent variable with the same name.
+  if (lldb::ExpressionVariableSP conflicting_var =
+          m_parser_vars->m_persistent_vars->GetVariable(name)) {
+    std::string msg = llvm::formatv("redefinition of persistent variable '{0}'",
+                                    name).str();
+    m_parser_vars->m_diagnostics->AddDiagnostic(
+        msg, DiagnosticSeverity::eDiagnosticSeverityError,
+        DiagnosticOrigin::eDiagnosticOriginLLDB);
+    return false;
+  }
+
   if (m_parser_vars->m_materializer && is_result) {
     Status err;
 
@@ -204,7 +222,7 @@ bool ClangExpressionDeclMap::AddPersistentVariable(const NamedDecl *decl,
     if (target == nullptr)
       return false;
 
-    auto *clang_ast_context = TypeSystemClang::GetScratch(*target);
+    auto *clang_ast_context = GetScratchContext(*target);
     if (!clang_ast_context)
       return false;
 
@@ -242,7 +260,7 @@ bool ClangExpressionDeclMap::AddPersistentVariable(const NamedDecl *decl,
   if (target == nullptr)
     return false;
 
-  TypeSystemClang *context = TypeSystemClang::GetScratch(*target);
+  TypeSystemClang *context = GetScratchContext(*target);
   if (!context)
     return false;
 
@@ -703,7 +721,7 @@ clang::NamedDecl *ClangExpressionDeclMap::GetPersistentDecl(ConstString name) {
   if (!target)
     return nullptr;
 
-  TypeSystemClang::GetScratch(*target);
+  ScratchTypeSystemClang::GetForTarget(*target);
 
   if (!m_parser_vars->m_persistent_vars)
     return nullptr;
@@ -1620,7 +1638,7 @@ void ClangExpressionDeclMap::AddOneGenericVariable(NameSearchContext &context,
   if (target == nullptr)
     return;
 
-  TypeSystemClang *scratch_ast_context = TypeSystemClang::GetScratch(*target);
+  TypeSystemClang *scratch_ast_context = GetScratchContext(*target);
   if (!scratch_ast_context)
     return;
 

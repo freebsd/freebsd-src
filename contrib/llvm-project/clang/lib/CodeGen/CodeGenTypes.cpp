@@ -52,20 +52,26 @@ void CodeGenTypes::addRecordTypeName(const RecordDecl *RD,
   llvm::raw_svector_ostream OS(TypeName);
   OS << RD->getKindName() << '.';
 
+  // FIXME: We probably want to make more tweaks to the printing policy. For
+  // example, we should probably enable PrintCanonicalTypes and
+  // FullyQualifiedNames.
+  PrintingPolicy Policy = RD->getASTContext().getPrintingPolicy();
+  Policy.SuppressInlineNamespace = false;
+
   // Name the codegen type after the typedef name
   // if there is no tag type name available
   if (RD->getIdentifier()) {
     // FIXME: We should not have to check for a null decl context here.
     // Right now we do it because the implicit Obj-C decls don't have one.
     if (RD->getDeclContext())
-      RD->printQualifiedName(OS);
+      RD->printQualifiedName(OS, Policy);
     else
       RD->printName(OS);
   } else if (const TypedefNameDecl *TDD = RD->getTypedefNameForAnonDecl()) {
     // FIXME: We should not have to check for a null decl context here.
     // Right now we do it because the implicit Obj-C decls don't have one.
     if (TDD->getDeclContext())
-      TDD->printQualifiedName(OS);
+      TDD->printQualifiedName(OS, Policy);
     else
       TDD->printName(OS);
   } else
@@ -93,7 +99,8 @@ llvm::Type *CodeGenTypes::ConvertTypeForMem(QualType T, bool ForBitField) {
 
   // If this is a bool type, or an ExtIntType in a bitfield representation,
   // map this integer to the target-specified size.
-  if ((ForBitField && T->isExtIntType()) || R->isIntegerTy(1))
+  if ((ForBitField && T->isExtIntType()) ||
+      (!T->isExtIntType() && R->isIntegerTy(1)))
     return llvm::IntegerType::get(getLLVMContext(),
                                   (unsigned)Context.getTypeSize(T));
 
@@ -585,8 +592,15 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       ASTContext::BuiltinVectorTypeInfo Info =
           Context.getBuiltinVectorTypeInfo(cast<BuiltinType>(Ty));
       return llvm::ScalableVectorType::get(ConvertType(Info.ElementType),
-                                           Info.EC.Min * Info.NumVectors);
+                                           Info.EC.getKnownMinValue() *
+                                               Info.NumVectors);
     }
+#define PPC_VECTOR_TYPE(Name, Id, Size) \
+    case BuiltinType::Id: \
+      ResultType = \
+        llvm::FixedVectorType::get(ConvertType(Context.BoolTy), Size); \
+      break;
+#include "clang/Basic/PPCTypes.def"
     case BuiltinType::Dependent:
 #define BUILTIN_TYPE(Id, SingletonId)
 #define PLACEHOLDER_TYPE(Id, SingletonId) \

@@ -1,9 +1,6 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "TBLGEN" "1" "2020-06-26" "10" "LLVM"
-.SH NAME
-tblgen \- Target Description To C++ Code Generator
 .
 .nr rst2man-indent-level 0
 .
@@ -31,32 +28,58 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
+.TH "XXX-TBLGEN" "1" "2021-06-07" "12" "LLVM"
+.SH NAME
+xxx-tblgen \- Target Description to C++ Code
 .SH SYNOPSIS
 .sp
-\fBtblgen\fP [\fIoptions\fP] [\fIfilename\fP]
+\fBxxx\-tblgen\fP [\fIoptions\fP] [\fIfilename\fP]
 .SH DESCRIPTION
 .sp
-\fBtblgen\fP translates from target description (\fB\&.td\fP) files into C++
-code that can be included in the definition of an LLVM target library.  Most
-users of LLVM will not need to use this program.  It is only for assisting with
-writing an LLVM target backend.
+\fBxxx\-tblgen\fP is a family of programs that translates target
+description (\fB\&.td\fP) files into C++ code and other output formats. Most
+users of LLVM will not need to use this program. It is used only for
+writing parts of the compiler or LLVM target backends.
 .sp
-The input and output of \fBtblgen\fP is beyond the scope of this short
-introduction; please see the introduction to TableGen\&.
+The details of the input and output of \fBxxx\-tblgen\fP is beyond the
+scope of this short introduction; please see the TableGen Overview for an introduction and for references to additional
+TableGen documents.
 .sp
-The \fIfilename\fP argument specifies the name of a Target Description (\fB\&.td\fP)
-file to read as input.
+The \fIfilename\fP argument specifies the name of the Target Description (\fB\&.td\fP)
+file that TableGen processes.
 .SH OPTIONS
+.SS General Options
 .INDENT 0.0
 .TP
 .B \-help
-Print a summary of command line options.
+Print a description of the command line options.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-o filename
-Specify the output file name.  If \fBfilename\fP is \fB\-\fP, then
-\fBtblgen\fP sends its output to standard output.
+.B \-help\-list
+Print a description of the command line options in a simple list format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-D=macroname
+Specify the name of a macro to be defined. The name is defined, but it
+has no particular value.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-d=filename
+Specify the name of the dependency filename.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-debug
+Enable debug output.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-dump\-json
+Print a JSON representation of all records, suitable for further
+automated processing.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -67,79 +90,117 @@ contains target description files.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-asmparsernum N
-Make \-gen\-asm\-parser emit assembly writer number \fBN\fP\&.
+.B \-null\-backend
+Parse the source files and build the records, but do not run any
+backend. This is useful for timing the frontend.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-asmwriternum N
-Make \-gen\-asm\-writer emit assembly writer number \fBN\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-class className
-Print the enumeration list for this class.
+.B \-o filename
+Specify the output file name.  If \fBfilename\fP is \fB\-\fP, then
+\fBxxx\-tblgen\fP sends its output to standard output.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-print\-records
-Print all records to standard output (default).
+Print all classes and records to standard output (default backend option).
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-dump\-json
-Print a JSON representation of all records, suitable for further
-automated processing.
+.B \-print\-detailed\-records
+Print a detailed report of all global variables, classes, and records
+to standard output.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-print\-enums
-Print enumeration values for a class.
+.B \-stats
+Print a report with any statistics collected by the backend.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-print\-sets
-Print expanded sets for testing DAG exprs.
+.B \-time\-phases
+Time the parser and backend phases and print a report.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-emitter
-Generate machine code emitter.
+.B \-version
+Show the version number of the program.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-register\-info
-Generate registers and register classes info.
+.B \-write\-if\-changed
+Write the output file only if it is new or has changed.
 .UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-instr\-info
-Generate instruction descriptions.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-asm\-writer
-Generate the assembly writer.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-disassembler
-Generate disassembler.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-pseudo\-lowering
-Generate pseudo instruction lowering.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-dag\-isel
-Generate a DAG (Directed Acycle Graph) instruction selector.
-.UNINDENT
+.SS llvm\-tblgen Options
 .INDENT 0.0
 .TP
 .B \-gen\-asm\-matcher
 Generate assembly instruction matcher.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-match\-prefix=prefix
+Make \-gen\-asm\-matcher match only instructions with the given \fIprefix\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-asm\-parser
+Generate assembly instruction parser.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-asmparsernum=n
+Make \-gen\-asm\-parser emit assembly parser number \fIn\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-asm\-writer
+Generate assembly writer.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-asmwriternum=n
+Make \-gen\-asm\-writer emit assembly writer number \fIn\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-attrs
+Geneerate attributes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-automata
+Generate generic automata.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-callingconv
+Generate calling convention descriptions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-compress\-inst\-emitter
+Generate RISCV compressed instructions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-ctags
+Generate ctags\-compatible index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-dag\-isel
+Generate a DAG (directed acyclic graph) instruction selector.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-instrument\-coverage
+Make \-gen\-dag\-isel generate tables to help identify the patterns matched.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-omit\-comments
+Make \-gen\-dag\-isel omit comments. The default is false.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -148,33 +209,28 @@ Generate DFA Packetizer for VLIW targets.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-fast\-isel
-Generate a "fast" instruction selector.
+.B \-gen\-directive\-decl
+Generate directive related declaration code (header file).
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-subtarget
-Generate subtarget enumerations.
+.B \-gen\-directive\-gen
+Generate directive related implementation code part.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-intrinsic\-enums
-Generate intrinsic enums.
+.B \-gen\-directive\-impl
+Generate directive related implementation code.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-intrinsic\-impl
-Generate intrinsic implementation.
+.B \-gen\-disassembler
+Generate disassembler.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-gen\-tgt\-intrinsic
-Generate target intrinsic information.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B \-gen\-enhanced\-disassembly\-info
-Generate enhanced disassembly info.
+.B \-gen\-emitter
+Generate machine code emitter.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -183,16 +239,650 @@ Generate llvm\-exegesis tables.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-version
-Show the version number of this program.
+.B \-gen\-fast\-isel
+Generate a "fast" instruction selector.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-global\-isel
+Generate GlobalISel selector.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gisel\-coverage\-file=filename
+Specify the file from which to retrieve coverage information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-instrument\-gisel\-coverage
+Make \-gen\-global\-isel generate coverage instrumentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-optimize\-match\-table
+Make \-gen\-global\-isel generate an optimized version of the match table.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-warn\-on\-skipped\-patterns
+Make \-gen\-global\-isel explain why a pattern was skipped for inclusion.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-global\-isel\-combiner
+Generate GlobalISel combiner.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-combiners=list
+Make \-gen\-global\-isel\-combiner emit the specified combiners.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gicombiner\-show\-expansions
+Make \-gen\-global\-isel\-combiner use C++ comments to indicate occurences
+of code expansion.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gicombiner\-stop\-after\-build
+Make \-gen\-global\-isel\-combiner stop processing after building the match tree.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gicombiner\-stop\-after\-parse
+Make \-gen\-global\-isel\-combiner stop processing after parsing rules
+and dump state.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-instr\-info
+Generate instruction descriptions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-instr\-docs
+Generate instruction documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-intrinsic\-enums
+Generate intrinsic enums.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-intrinsic\-prefix=prefix
+Make \-gen\-intrinsic\-enums generate intrinsics with this target \fIprefix\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-intrinsic\-impl
+Generate intrinsic information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-opt\-parser\-defs
+Generate options definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-opt\-rst
+Generate option RST.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-pseudo\-lowering
+Generate pseudo instruction lowering.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-register\-bank
+Generate register bank descriptions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-register\-info
+Generate registers and register classes info.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-register\-info\-debug
+Make \-gen\-register\-info dump register information for debugging.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-searchable\-tables
+Generate generic searchable tables. See TableGen BackEnds
+for a detailed description.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-subtarget
+Generate subtarget enumerations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-x86\-EVEX2VEX\-tables
+Generate X86 EVEX to VEX compress tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-x86\-fold\-tables
+Generate X86 fold tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-long\-string\-literals
+When emitting large string tables, prefer string literals over
+comma\-separated char literals. This can be a readability and
+compile\-time performance win, but upsets some compilers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-enums
+Print enumeration values for a class.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-class=classname
+Make \-print\-enums print the enumeration list for the specified class.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-print\-sets
+Print expanded sets for testing DAG exprs.
+.UNINDENT
+.SS clang\-tblgen Options
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-classes
+Generate Clang attribute clases.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-parser\-string\-switches
+Generate all parser\-related attribute string switches.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-subject\-match\-rules\-parser\-string\-switches
+Generate all parser\-related attribute subject match rule string switches.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-impl
+Generate Clang attribute implementations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-list"
+Generate a Clang attribute list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-subject\-match\-rule\-list
+Generate a Clang attribute subject match rule list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-pch\-read
+Generate Clang PCH attribute reader.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-pch\-write
+Generate Clang PCH attribute writer.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-has\-attribute\-impl
+Generate a Clang attribute spelling list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-spelling\-index
+Generate a Clang attribute spelling index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-ast\-visitor
+Generate a recursive AST visitor for Clang attributes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-template\-instantiate
+Generate a Clang template instantiate code.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-parsed\-attr\-list
+Generate a Clang parsed attribute list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-parsed\-attr\-impl
+Generate the Clang parsed attribute helpers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-parsed\-attr\-kinds
+Generate a Clang parsed attribute kinds.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-text\-node\-dump
+Generate Clang attribute text node dumper.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-attr\-node\-traverse
+Generate Clang attribute traverser.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-diags\-defs
+Generate Clang diagnostics definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-clang\-component component
+Only use warnings from specified component.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-diag\-groups
+Generate Clang diagnostic groups.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-diags\-index\-name
+Generate Clang diagnostic name index.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-basic\-reader
+Generate Clang BasicReader classes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-basic\-writer
+Generate Clang BasicWriter classes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-nodes
+Generate Clang AST comment nodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-decl\-nodes
+Generate Clang AST declaration nodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-stmt\-nodes
+Generate Clang AST statement nodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-type\-nodes
+Generate Clang AST type nodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-type\-reader
+Generate Clang AbstractTypeReader class.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-type\-writer
+Generate Clang AbstractTypeWriter class.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-opcodes
+Generate Clang constexpr interpreter opcodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-sa\-checkers
+Generate Clang static analyzer checkers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-html\-tags
+Generate efficient matchers for HTML tag names that are used in
+documentation comments.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-html\-tags\-properties
+Generate efficient matchers for HTML tag properties.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-html\-named\-character\-references
+Generate function to translate named character references to UTF\-8 sequences.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-command\-info
+Generate command properties for commands that are used in documentation comments.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-comment\-command\-list
+Generate list of commands that are used in documentation comments.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-opencl\-builtins
+Generate OpenCL builtin declaration handlers.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-neon
+Generate \fBarm_neon.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-fp16
+Generate \fBarm_fp16.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-bf16
+Generate \fBarm_bf16.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-neon\-sema
+Generate ARM NEON sema support for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-neon\-test
+Generate ARM NEON tests for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-sve\-header
+Generate \fBarm_sve.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-sve\-builtins
+Generate \fBarm_sve_builtins.inc\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-sve\-builtin\-codegen
+Generate \fBarm_sve_builtin_cg_map.inc\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-sve\-typeflags
+Generate \fBarm_sve_typeflags.inc\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-sve\-sema\-rangechecks
+Generate \fBarm_sve_sema_rangechecks.inc\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-mve\-header
+Generate \fBarm_mve.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-mve\-builtin\-def
+Generate ARM MVE builtin definitions for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-mve\-builtin\-sema
+Generate ARM MVE builtin sema checks for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-mve\-builtin\-codegen
+Generate ARM MVE builtin code\-generator for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-mve\-builtin\-aliases
+Generate list of valid ARM MVE builtin aliases for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-cde\-header
+Generate \fBarm_cde.h\fP for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-cde\-builtin\-def
+Generate ARM CDE builtin definitions for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-cde\-builtin\-sema
+Generate ARM CDE builtin sema checks for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-cde\-builtin\-codegen
+Generate ARM CDE builtin code\-generator for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-arm\-cde\-builtin\-aliases
+Generate list of valid ARM CDE builtin aliases for Clang.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-attr\-docs
+Generate attribute documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-diag\-docs
+Generate diagnostic documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-opt\-docs
+Generate option documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-data\-collectors
+Generate data collectors for AST nodes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-clang\-test\-pragma\-attribute\-supported\-attributes
+Generate a list of attributes supported by \fB#pragma\fP Clang attribute for
+testing purposes.
+.UNINDENT
+.SS mlir\-tblgen Options
+.INDENT 0.0
+.TP
+.B \-gen\-avail\-interface\-decls
+Generate availability interface declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-avail\-interface\-defs
+Generate op interface definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-dialect\-doc
+Generate dialect documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-dialect
+The dialect to generate.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-directive\-decl
+Generate declarations for directives (OpenMP, etc.).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-enum\-decls
+Generate enum utility declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-enum\-defs
+Generate enum utility definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-enum\-from\-llvmir\-conversions
+Generate conversions of EnumAttrs from LLVM IR.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-enum\-to\-llvmir\-conversions
+Generate conversions of EnumAttrs to LLVM IR.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-llvmir\-conversions
+Generate LLVM IR conversions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-llvmir\-intrinsics
+Generate LLVM IR intrinsics.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-llvmir\-intrinsics\-filter
+Only keep the intrinsics with the specified substring in their record name.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-dialect\-opclass\-base
+The base class for the ops in the dialect we are to emit.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-op\-decls
+Generate operation declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-op\-defs
+Generate operation definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-asmformat\-error\-is\-fatal
+Emit a fatal error if format parsing fails.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-op\-exclude\-regex
+Regular expression of name of ops to exclude (no filter if empty).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-op\-include\-regex
+Regular expression of name of ops to include (no filter if empty).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-op\-doc
+Generate operation documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-pass\-decls
+Generate operation documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-name namestring
+The name of this group of passes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-pass\-doc
+Generate pass documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-rewriters
+Generate pattern rewriters.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-avail\-impls
+Generate SPIR\-V operation utility definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-capability\-implication
+Generate utility function to return implied capabilities for a given capability.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-enum\-avail\-decls
+Generate SPIR\-V enum availability declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-enum\-avail\-defs
+Generate SPIR\-V enum availability definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-op\-utils
+Generate SPIR\-V operation utility definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-spirv\-serialization
+Generate SPIR\-V (de)serialization utilities and functions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-struct\-attr\-decls
+Generate struct utility declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-struct\-attr\-defs
+Generate struct utility definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-typedef\-decls
+Generate TypeDef declarations.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-gen\-typedef\-defs
+Generate TypeDef definitions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-typedefs\-dialect name
+Generate types for this dialect.
 .UNINDENT
 .SH EXIT STATUS
 .sp
-If \fBtblgen\fP succeeds, it will exit with 0.  Otherwise, if an error
+If \fBxxx\-tblgen\fP succeeds, it will exit with 0.  Otherwise, if an error
 occurs, it will exit with a non\-zero value.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2020, LLVM Project
+2003-2021, LLVM Project
 .\" Generated by docutils manpage writer.
 .

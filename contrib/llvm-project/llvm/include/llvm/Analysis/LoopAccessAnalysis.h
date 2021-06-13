@@ -171,7 +171,8 @@ public:
 
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L)
       : PSE(PSE), InnermostLoop(L), AccessIdx(0), MaxSafeDepDistBytes(0),
-        MaxSafeRegisterWidth(-1U), FoundNonConstantDistanceDependence(false),
+        MaxSafeVectorWidthInBits(-1U),
+        FoundNonConstantDistanceDependence(false),
         Status(VectorizationSafetyStatus::Safe), RecordDependences(true) {}
 
   /// Register the location (instructions are given increasing numbers)
@@ -204,13 +205,21 @@ public:
     return Status == VectorizationSafetyStatus::Safe;
   }
 
+  /// Return true if the number of elements that are safe to operate on
+  /// simultaneously is not bounded.
+  bool isSafeForAnyVectorWidth() const {
+    return MaxSafeVectorWidthInBits == UINT_MAX;
+  }
+
   /// The maximum number of bytes of a vector register we can vectorize
   /// the accesses safely with.
   uint64_t getMaxSafeDepDistBytes() { return MaxSafeDepDistBytes; }
 
   /// Return the number of elements that are safe to operate on
   /// simultaneously, multiplied by the size of the element in bits.
-  uint64_t getMaxSafeRegisterWidth() const { return MaxSafeRegisterWidth; }
+  uint64_t getMaxSafeVectorWidthInBits() const {
+    return MaxSafeVectorWidthInBits;
+  }
 
   /// In same cases when the dependency check fails we can still
   /// vectorize the loop with a dynamic array access check.
@@ -275,7 +284,7 @@ private:
   /// operate on simultaneously, multiplied by the size of the element in bits.
   /// The size of the element is taken from the memory access that is most
   /// restrictive.
-  uint64_t MaxSafeRegisterWidth;
+  uint64_t MaxSafeVectorWidthInBits;
 
   /// If we see a non-constant dependence distance we can still try to
   /// vectorize this loop with runtime checks.
@@ -418,7 +427,7 @@ public:
                       bool UseDependencies);
 
   /// Returns the checks that generateChecks created.
-  const SmallVector<RuntimePointerCheck, 4> &getChecks() const {
+  const SmallVectorImpl<RuntimePointerCheck> &getChecks() const {
     return Checks;
   }
 

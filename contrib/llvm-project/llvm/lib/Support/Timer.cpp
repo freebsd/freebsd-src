@@ -53,6 +53,11 @@ namespace {
   InfoOutputFilename("info-output-file", cl::value_desc("filename"),
                      cl::desc("File to append -stats and -timer output to"),
                    cl::Hidden, cl::location(getLibSupportInfoOutputFilename()));
+
+  static cl::opt<bool>
+  SortTimers("sort-timers", cl::desc("In the report, sort the timers in each group "
+                                     "in wall clock time order"),
+             cl::init(true), cl::Hidden);
 }
 
 std::unique_ptr<raw_fd_ostream> llvm::CreateInfoOutputFile() {
@@ -138,7 +143,7 @@ TimeRecord TimeRecord::getCurrentTime(bool Start) {
 void Timer::startTimer() {
   assert(!Running && "Cannot start a running timer");
   Running = Triggered = true;
-  Signposts->startTimerInterval(this);
+  Signposts->startInterval(this, getName());
   StartTime = TimeRecord::getCurrentTime(true);
 }
 
@@ -147,7 +152,7 @@ void Timer::stopTimer() {
   Running = false;
   Time += TimeRecord::getCurrentTime(false);
   Time -= StartTime;
-  Signposts->endTimerInterval(this);
+  Signposts->endInterval(this, getName());
 }
 
 void Timer::clear() {
@@ -301,8 +306,9 @@ void TimerGroup::addTimer(Timer &T) {
 }
 
 void TimerGroup::PrintQueuedTimers(raw_ostream &OS) {
-  // Sort the timers in descending order by amount of time taken.
-  llvm::sort(TimersToPrint);
+  // Perhaps sort the timers in descending order by amount of time taken.
+  if (SortTimers)
+    llvm::sort(TimersToPrint);
 
   TimeRecord Total;
   for (const PrintRecord &Record : TimersToPrint)

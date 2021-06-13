@@ -22,8 +22,8 @@ using namespace llvm::ELF;
 using namespace lld;
 using namespace lld::elf;
 
-static uint64_t ppc64TocOffset = 0x8000;
-static uint64_t dynamicThreadPointerOffset = 0x8000;
+constexpr uint64_t ppc64TocOffset = 0x8000;
+constexpr uint64_t dynamicThreadPointerOffset = 0x8000;
 
 // The instruction encoding of bits 21-30 from the ISA for the Xform and Dform
 // instructions that can be used as part of the initial exec TLS sequence.
@@ -60,6 +60,92 @@ enum DFormOpcd {
   STFDU = 55,
   STD = 62,
   ADDI = 14
+};
+
+constexpr uint32_t NOP = 0x60000000;
+
+enum class PPCLegacyInsn : uint32_t {
+  NOINSN = 0,
+  // Loads.
+  LBZ = 0x88000000,
+  LHZ = 0xa0000000,
+  LWZ = 0x80000000,
+  LHA = 0xa8000000,
+  LWA = 0xe8000002,
+  LD = 0xe8000000,
+  LFS = 0xC0000000,
+  LXSSP = 0xe4000003,
+  LFD = 0xc8000000,
+  LXSD = 0xe4000002,
+  LXV = 0xf4000001,
+  LXVP = 0x18000000,
+
+  // Stores.
+  STB = 0x98000000,
+  STH = 0xb0000000,
+  STW = 0x90000000,
+  STD = 0xf8000000,
+  STFS = 0xd0000000,
+  STXSSP = 0xf4000003,
+  STFD = 0xd8000000,
+  STXSD = 0xf4000002,
+  STXV = 0xf4000005,
+  STXVP = 0x18000001
+};
+enum class PPCPrefixedInsn : uint64_t {
+  NOINSN = 0,
+  PREFIX_MLS = 0x0610000000000000,
+  PREFIX_8LS = 0x0410000000000000,
+
+  // Loads.
+  PLBZ = PREFIX_MLS,
+  PLHZ = PREFIX_MLS,
+  PLWZ = PREFIX_MLS,
+  PLHA = PREFIX_MLS,
+  PLWA = PREFIX_8LS | 0xa4000000,
+  PLD = PREFIX_8LS | 0xe4000000,
+  PLFS = PREFIX_MLS,
+  PLXSSP = PREFIX_8LS | 0xac000000,
+  PLFD = PREFIX_MLS,
+  PLXSD = PREFIX_8LS | 0xa8000000,
+  PLXV = PREFIX_8LS | 0xc8000000,
+  PLXVP = PREFIX_8LS | 0xe8000000,
+
+  // Stores.
+  PSTB = PREFIX_MLS,
+  PSTH = PREFIX_MLS,
+  PSTW = PREFIX_MLS,
+  PSTD = PREFIX_8LS | 0xf4000000,
+  PSTFS = PREFIX_MLS,
+  PSTXSSP = PREFIX_8LS | 0xbc000000,
+  PSTFD = PREFIX_MLS,
+  PSTXSD = PREFIX_8LS | 0xb8000000,
+  PSTXV = PREFIX_8LS | 0xd8000000,
+  PSTXVP = PREFIX_8LS | 0xf8000000
+};
+static bool checkPPCLegacyInsn(uint32_t encoding) {
+  PPCLegacyInsn insn = static_cast<PPCLegacyInsn>(encoding);
+  if (insn == PPCLegacyInsn::NOINSN)
+    return false;
+#define PCREL_OPT(Legacy, PCRel, InsnMask)                                     \
+  if (insn == PPCLegacyInsn::Legacy)                                           \
+    return true;
+#include "PPCInsns.def"
+#undef PCREL_OPT
+  return false;
+}
+
+// Masks to apply to legacy instructions when converting them to prefixed,
+// pc-relative versions. For the most part, the primary opcode is shared
+// between the legacy instruction and the suffix of its prefixed version.
+// However, there are some instances where that isn't the case (DS-Form and
+// DQ-form instructions).
+enum class LegacyToPrefixMask : uint64_t {
+  NOMASK = 0x0,
+  OPC_AND_RST = 0xffe00000, // Primary opc (0-5) and R[ST] (6-10).
+  ONLY_RST = 0x3e00000,     // [RS]T (6-10).
+  ST_STX28_TO5 =
+      0x8000000003e00000, // S/T (6-10) - The [S/T]X bit moves from 28 to 5.
 };
 
 uint64_t elf::getPPC64TocBase() {
@@ -104,6 +190,11 @@ unsigned elf::getPPC64GlobalEntryToLocalEntryOffset(uint8_t stOther) {
 bool elf::isPPC64SmallCodeModelTocReloc(RelType type) {
   // The only small code model relocations that access the .toc section.
   return type == R_PPC64_TOC16 || type == R_PPC64_TOC16_DS;
+}
+
+void elf::writePrefixedInstruction(uint8_t *loc, uint64_t insn) {
+  insn = config->isLE ? insn << 32 | insn >> 32 : insn;
+  write64(loc, insn);
 }
 
 static bool addOptional(StringRef name, uint64_t value,
@@ -291,8 +382,9 @@ public:
                   int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
-  RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
-                          RelExpr expr) const override;
+  RelExpr adjustTlsExpr(RelType type, RelExpr expr) const override;
+  RelExpr adjustGotPcExpr(RelType type, int64_t addend,
+                          const uint8_t *loc) const override;
   void relaxGot(uint8_t *loc, const Relocation &rel,
                 uint64_t val) const override;
   void relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
@@ -315,7 +407,7 @@ public:
 // document.
 static uint16_t lo(uint64_t v) { return v; }
 static uint16_t hi(uint64_t v) { return v >> 16; }
-static uint16_t ha(uint64_t v) { return (v + 0x8000) >> 16; }
+static uint64_t ha(uint64_t v) { return (v + 0x8000) >> 16; }
 static uint16_t higher(uint64_t v) { return v >> 32; }
 static uint16_t highera(uint64_t v) { return (v + 0x8000) >> 32; }
 static uint16_t highest(uint64_t v) { return v >> 48; }
@@ -328,6 +420,7 @@ static bool isDQFormInstruction(uint32_t encoding) {
   switch (getPrimaryOpCode(encoding)) {
   default:
     return false;
+  case 6: // Power10 paired loads/stores (lxvp, stxvp).
   case 56:
     // The only instruction with a primary opcode of 56 is `lq`.
     return true;
@@ -337,6 +430,78 @@ static bool isDQFormInstruction(uint32_t encoding) {
     // The DS 'XO' bits being set to 01 is restricted to DQ form.
     return (encoding & 3) == 0x1;
   }
+}
+
+static bool isDSFormInstruction(PPCLegacyInsn insn) {
+  switch (insn) {
+  default:
+    return false;
+  case PPCLegacyInsn::LWA:
+  case PPCLegacyInsn::LD:
+  case PPCLegacyInsn::LXSD:
+  case PPCLegacyInsn::LXSSP:
+  case PPCLegacyInsn::STD:
+  case PPCLegacyInsn::STXSD:
+  case PPCLegacyInsn::STXSSP:
+    return true;
+  }
+}
+
+static PPCLegacyInsn getPPCLegacyInsn(uint32_t encoding) {
+  uint32_t opc = encoding & 0xfc000000;
+
+  // If the primary opcode is shared between multiple instructions, we need to
+  // fix it up to match the actual instruction we are after.
+  if ((opc == 0xe4000000 || opc == 0xe8000000 || opc == 0xf4000000 ||
+       opc == 0xf8000000) &&
+      !isDQFormInstruction(encoding))
+    opc = encoding & 0xfc000003;
+  else if (opc == 0xf4000000)
+    opc = encoding & 0xfc000007;
+  else if (opc == 0x18000000)
+    opc = encoding & 0xfc00000f;
+
+  // If the value is not one of the enumerators in PPCLegacyInsn, we want to
+  // return PPCLegacyInsn::NOINSN.
+  if (!checkPPCLegacyInsn(opc))
+    return PPCLegacyInsn::NOINSN;
+  return static_cast<PPCLegacyInsn>(opc);
+}
+
+static PPCPrefixedInsn getPCRelativeForm(PPCLegacyInsn insn) {
+  switch (insn) {
+#define PCREL_OPT(Legacy, PCRel, InsnMask)                                     \
+  case PPCLegacyInsn::Legacy:                                                  \
+    return PPCPrefixedInsn::PCRel
+#include "PPCInsns.def"
+#undef PCREL_OPT
+  }
+  return PPCPrefixedInsn::NOINSN;
+}
+
+static LegacyToPrefixMask getInsnMask(PPCLegacyInsn insn) {
+  switch (insn) {
+#define PCREL_OPT(Legacy, PCRel, InsnMask)                                     \
+  case PPCLegacyInsn::Legacy:                                                  \
+    return LegacyToPrefixMask::InsnMask
+#include "PPCInsns.def"
+#undef PCREL_OPT
+  }
+  return LegacyToPrefixMask::NOMASK;
+}
+static uint64_t getPCRelativeForm(uint32_t encoding) {
+  PPCLegacyInsn origInsn = getPPCLegacyInsn(encoding);
+  PPCPrefixedInsn pcrelInsn = getPCRelativeForm(origInsn);
+  if (pcrelInsn == PPCPrefixedInsn::NOINSN)
+    return UINT64_C(-1);
+  LegacyToPrefixMask origInsnMask = getInsnMask(origInsn);
+  uint64_t pcrelEncoding =
+      (uint64_t)pcrelInsn | (encoding & (uint64_t)origInsnMask);
+
+  // If the mask requires moving bit 28 to bit 5, do that now.
+  if (origInsnMask == LegacyToPrefixMask::ST_STX28_TO5)
+    pcrelEncoding |= (encoding & 0x8) << 23;
+  return pcrelEncoding;
 }
 
 static bool isInstructionUpdateForm(uint32_t encoding) {
@@ -363,6 +528,25 @@ static bool isInstructionUpdateForm(uint32_t encoding) {
   }
 }
 
+// Compute the total displacement between the prefixed instruction that gets
+// to the start of the data and the load/store instruction that has the offset
+// into the data structure.
+// For example:
+// paddi 3, 0, 1000, 1
+// lwz 3, 20(3)
+// Should add up to 1020 for total displacement.
+static int64_t getTotalDisp(uint64_t prefixedInsn, uint32_t accessInsn) {
+  int64_t disp34 = llvm::SignExtend64(
+      ((prefixedInsn & 0x3ffff00000000) >> 16) | (prefixedInsn & 0xffff), 34);
+  int32_t disp16 = llvm::SignExtend32(accessInsn & 0xffff, 16);
+  // For DS and DQ form instructions, we need to mask out the XO bits.
+  if (isDQFormInstruction(accessInsn))
+    disp16 &= ~0xf;
+  else if (isDSFormInstruction(getPPCLegacyInsn(accessInsn)))
+    disp16 &= ~0x3;
+  return disp34 + disp16;
+}
+
 // There are a number of places when we either want to read or write an
 // instruction when handling a half16 relocation type. On big-endian the buffer
 // pointer is pointing into the middle of the word we want to extract, and on
@@ -374,15 +558,6 @@ static void writeFromHalf16(uint8_t *loc, uint32_t insn) {
 
 static uint32_t readFromHalf16(const uint8_t *loc) {
   return read32(config->isLE ? loc : loc - 2);
-}
-
-// The prefixed instruction is always a 4 byte prefix followed by a 4 byte
-// instruction. Therefore, the prefix is always in lower memory than the
-// instruction (regardless of endianness).
-// As a result, we need to shift the pieces around on little endian machines.
-static void writePrefixedInstruction(uint8_t *loc, uint64_t insn) {
-  insn = config->isLE ? insn << 32 | insn >> 32 : insn;
-  write64(loc, insn);
 }
 
 static uint64_t readPrefixedInstruction(const uint8_t *loc) {
@@ -446,8 +621,8 @@ int PPC64::getTlsGdRelaxSkip(RelType type) const {
 
 static uint32_t getEFlags(InputFile *file) {
   if (config->ekind == ELF64BEKind)
-    return cast<ObjFile<ELF64BE>>(file)->getObj().getHeader()->e_flags;
-  return cast<ObjFile<ELF64LE>>(file)->getObj().getHeader()->e_flags;
+    return cast<ObjFile<ELF64BE>>(file)->getObj().getHeader().e_flags;
+  return cast<ObjFile<ELF64LE>>(file)->getObj().getHeader().e_flags;
 }
 
 // This file implements v2 ABI. This function makes sure that all
@@ -479,6 +654,49 @@ void PPC64::relaxGot(uint8_t *loc, const Relocation &rel, uint64_t val) const {
     relocateNoSym(loc, R_PPC64_TOC16_LO, val);
     break;
   }
+  case R_PPC64_GOT_PCREL34: {
+    // Clear the first 8 bits of the prefix and the first 6 bits of the
+    // instruction (the primary opcode).
+    uint64_t insn = readPrefixedInstruction(loc);
+    if ((insn & 0xfc000000) != 0xe4000000)
+      error("expected a 'pld' for got-indirect to pc-relative relaxing");
+    insn &= ~0xff000000fc000000;
+
+    // Replace the cleared bits with the values for PADDI (0x600000038000000);
+    insn |= 0x600000038000000;
+    writePrefixedInstruction(loc, insn);
+    relocate(loc, rel, val);
+    break;
+  }
+  case R_PPC64_PCREL_OPT: {
+    // We can only relax this if the R_PPC64_GOT_PCREL34 at this offset can
+    // be relaxed. The eligibility for the relaxation needs to be determined
+    // on that relocation since this one does not relocate a symbol.
+    uint64_t insn = readPrefixedInstruction(loc);
+    uint32_t accessInsn = read32(loc + rel.addend);
+    uint64_t pcRelInsn = getPCRelativeForm(accessInsn);
+
+    // This error is not necessary for correctness but is emitted for now
+    // to ensure we don't miss these opportunities in real code. It can be
+    // removed at a later date.
+    if (pcRelInsn == UINT64_C(-1)) {
+      errorOrWarn(
+          "unrecognized instruction for R_PPC64_PCREL_OPT relaxation: 0x" +
+          Twine::utohexstr(accessInsn));
+      break;
+    }
+
+    int64_t totalDisp = getTotalDisp(insn, accessInsn);
+    if (!isInt<34>(totalDisp))
+      break; // Displacement doesn't fit.
+    // Convert the PADDI to the prefixed version of accessInsn and convert
+    // accessInsn to a nop.
+    writePrefixedInstruction(loc, pcRelInsn |
+                                      ((totalDisp & 0x3ffff0000) << 16) |
+                                      (totalDisp & 0xffff));
+    write32(loc + rel.addend, NOP); // nop accessInsn.
+    break;
+  }
   default:
     llvm_unreachable("unexpected relocation type");
   }
@@ -503,22 +721,45 @@ void PPC64::relaxTlsGdToLe(uint8_t *loc, const Relocation &rel,
 
   switch (rel.type) {
   case R_PPC64_GOT_TLSGD16_HA:
-    writeFromHalf16(loc, 0x60000000); // nop
+    writeFromHalf16(loc, NOP);
     break;
   case R_PPC64_GOT_TLSGD16:
   case R_PPC64_GOT_TLSGD16_LO:
     writeFromHalf16(loc, 0x3c6d0000); // addis r3, r13
     relocateNoSym(loc, R_PPC64_TPREL16_HA, val);
     break;
-  case R_PPC64_TLSGD:
-    write32(loc, 0x60000000);     // nop
-    write32(loc + 4, 0x38630000); // addi r3, r3
-    // Since we are relocating a half16 type relocation and Loc + 4 points to
-    // the start of an instruction we need to advance the buffer by an extra
-    // 2 bytes on BE.
-    relocateNoSym(loc + 4 + (config->ekind == ELF64BEKind ? 2 : 0),
-                  R_PPC64_TPREL16_LO, val);
+  case R_PPC64_GOT_TLSGD_PCREL34:
+    // Relax from paddi r3, 0, x@got@tlsgd@pcrel, 1 to
+    //            paddi r3, r13, x@tprel, 0
+    writePrefixedInstruction(loc, 0x06000000386d0000);
+    relocateNoSym(loc, R_PPC64_TPREL34, val);
     break;
+  case R_PPC64_TLSGD: {
+    // PC Relative Relaxation:
+    // Relax from bl __tls_get_addr@notoc(x@tlsgd) to
+    //            nop
+    // TOC Relaxation:
+    // Relax from bl __tls_get_addr(x@tlsgd)
+    //            nop
+    // to
+    //            nop
+    //            addi r3, r3, x@tprel@l
+    const uintptr_t locAsInt = reinterpret_cast<uintptr_t>(loc);
+    if (locAsInt % 4 == 0) {
+      write32(loc, NOP);            // nop
+      write32(loc + 4, 0x38630000); // addi r3, r3
+      // Since we are relocating a half16 type relocation and Loc + 4 points to
+      // the start of an instruction we need to advance the buffer by an extra
+      // 2 bytes on BE.
+      relocateNoSym(loc + 4 + (config->ekind == ELF64BEKind ? 2 : 0),
+                    R_PPC64_TPREL16_LO, val);
+    } else if (locAsInt % 4 == 1) {
+      write32(loc - 1, NOP);
+    } else {
+      errorOrWarn("R_PPC64_TLSGD has unexpected byte alignment");
+    }
+    break;
+  }
   default:
     llvm_unreachable("unsupported relocation for TLS GD to LE relaxation");
   }
@@ -543,21 +784,45 @@ void PPC64::relaxTlsLdToLe(uint8_t *loc, const Relocation &rel,
 
   switch (rel.type) {
   case R_PPC64_GOT_TLSLD16_HA:
-    writeFromHalf16(loc, 0x60000000); // nop
+    writeFromHalf16(loc, NOP);
     break;
   case R_PPC64_GOT_TLSLD16_LO:
     writeFromHalf16(loc, 0x3c6d0000); // addis r3, r13, 0
     break;
-  case R_PPC64_TLSLD:
-    write32(loc, 0x60000000);     // nop
-    write32(loc + 4, 0x38631000); // addi r3, r3, 4096
+  case R_PPC64_GOT_TLSLD_PCREL34:
+    // Relax from paddi r3, 0, x1@got@tlsld@pcrel, 1 to
+    //            paddi r3, r13, 0x1000, 0
+    writePrefixedInstruction(loc, 0x06000000386d1000);
     break;
+  case R_PPC64_TLSLD: {
+    // PC Relative Relaxation:
+    // Relax from bl __tls_get_addr@notoc(x@tlsld)
+    // to
+    //            nop
+    // TOC Relaxation:
+    // Relax from bl __tls_get_addr(x@tlsld)
+    //            nop
+    // to
+    //            nop
+    //            addi r3, r3, 4096
+    const uintptr_t locAsInt = reinterpret_cast<uintptr_t>(loc);
+    if (locAsInt % 4 == 0) {
+      write32(loc, NOP);
+      write32(loc + 4, 0x38631000); // addi r3, r3, 4096
+    } else if (locAsInt % 4 == 1) {
+      write32(loc - 1, NOP);
+    } else {
+      errorOrWarn("R_PPC64_TLSLD has unexpected byte alignment");
+    }
+    break;
+  }
   case R_PPC64_DTPREL16:
   case R_PPC64_DTPREL16_HA:
   case R_PPC64_DTPREL16_HI:
   case R_PPC64_DTPREL16_DS:
   case R_PPC64_DTPREL16_LO:
   case R_PPC64_DTPREL16_LO_DS:
+  case R_PPC64_DTPREL34:
     relocate(loc, rel, val);
     break;
   default:
@@ -614,7 +879,7 @@ void PPC64::relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
   unsigned offset = (config->ekind == ELF64BEKind) ? 2 : 0;
   switch (rel.type) {
   case R_PPC64_GOT_TPREL16_HA:
-    write32(loc - offset, 0x60000000); // nop
+    write32(loc - offset, NOP);
     break;
   case R_PPC64_GOT_TPREL16_LO_DS:
   case R_PPC64_GOT_TPREL16_DS: {
@@ -623,16 +888,49 @@ void PPC64::relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
     relocateNoSym(loc, R_PPC64_TPREL16_HA, val);
     break;
   }
+  case R_PPC64_GOT_TPREL_PCREL34: {
+    const uint64_t pldRT = readPrefixedInstruction(loc) & 0x0000000003e00000;
+    // paddi RT(from pld), r13, symbol@tprel, 0
+    writePrefixedInstruction(loc, 0x06000000380d0000 | pldRT);
+    relocateNoSym(loc, R_PPC64_TPREL34, val);
+    break;
+  }
   case R_PPC64_TLS: {
-    uint32_t primaryOp = getPrimaryOpCode(read32(loc));
-    if (primaryOp != 31)
-      error("unrecognized instruction for IE to LE R_PPC64_TLS");
-    uint32_t secondaryOp = (read32(loc) & 0x000007FE) >> 1; // bits 21-30
-    uint32_t dFormOp = getPPCDFormOp(secondaryOp);
-    if (dFormOp == 0)
-      error("unrecognized instruction for IE to LE R_PPC64_TLS");
-    write32(loc, ((dFormOp << 26) | (read32(loc) & 0x03FFFFFF)));
-    relocateNoSym(loc + offset, R_PPC64_TPREL16_LO, val);
+    const uintptr_t locAsInt = reinterpret_cast<uintptr_t>(loc);
+    if (locAsInt % 4 == 0) {
+      uint32_t primaryOp = getPrimaryOpCode(read32(loc));
+      if (primaryOp != 31)
+        error("unrecognized instruction for IE to LE R_PPC64_TLS");
+      uint32_t secondaryOp = (read32(loc) & 0x000007FE) >> 1; // bits 21-30
+      uint32_t dFormOp = getPPCDFormOp(secondaryOp);
+      if (dFormOp == 0)
+        error("unrecognized instruction for IE to LE R_PPC64_TLS");
+      write32(loc, ((dFormOp << 26) | (read32(loc) & 0x03FFFFFF)));
+      relocateNoSym(loc + offset, R_PPC64_TPREL16_LO, val);
+    } else if (locAsInt % 4 == 1) {
+      // If the offset is not 4 byte aligned then we have a PCRel type reloc.
+      // This version of the relocation is offset by one byte from the
+      // instruction it references.
+      uint32_t tlsInstr = read32(loc - 1);
+      uint32_t primaryOp = getPrimaryOpCode(tlsInstr);
+      if (primaryOp != 31)
+        errorOrWarn("unrecognized instruction for IE to LE R_PPC64_TLS");
+      uint32_t secondaryOp = (tlsInstr & 0x000007FE) >> 1; // bits 21-30
+      // The add is a special case and should be turned into a nop. The paddi
+      // that comes before it will already have computed the address of the
+      // symbol.
+      if (secondaryOp == 266) {
+        write32(loc - 1, NOP);
+      } else {
+        uint32_t dFormOp = getPPCDFormOp(secondaryOp);
+        if (dFormOp == 0)
+          errorOrWarn("unrecognized instruction for IE to LE R_PPC64_TLS");
+        write32(loc - 1, ((dFormOp << 26) | (tlsInstr & 0x03FF0000)));
+      }
+    } else {
+      errorOrWarn("R_PPC64_TLS must be either 4 byte aligned or one byte "
+                  "offset from 4 byte aligned");
+    }
     break;
   }
   default:
@@ -650,6 +948,7 @@ RelExpr PPC64::getRelExpr(RelType type, const Symbol &s,
   case R_PPC64_ADDR16_DS:
   case R_PPC64_ADDR16_HA:
   case R_PPC64_ADDR16_HI:
+  case R_PPC64_ADDR16_HIGH:
   case R_PPC64_ADDR16_HIGHER:
   case R_PPC64_ADDR16_HIGHERA:
   case R_PPC64_ADDR16_HIGHEST:
@@ -672,6 +971,8 @@ RelExpr PPC64::getRelExpr(RelType type, const Symbol &s,
   case R_PPC64_TOC16_LO:
     return R_GOTREL;
   case R_PPC64_GOT_PCREL34:
+  case R_PPC64_GOT_TPREL_PCREL34:
+  case R_PPC64_PCREL_OPT:
     return R_GOT_PC;
   case R_PPC64_TOC16_HA:
   case R_PPC64_TOC16_LO_DS:
@@ -695,11 +996,15 @@ RelExpr PPC64::getRelExpr(RelType type, const Symbol &s,
   case R_PPC64_GOT_TLSGD16_HI:
   case R_PPC64_GOT_TLSGD16_LO:
     return R_TLSGD_GOT;
+  case R_PPC64_GOT_TLSGD_PCREL34:
+    return R_TLSGD_PC;
   case R_PPC64_GOT_TLSLD16:
   case R_PPC64_GOT_TLSLD16_HA:
   case R_PPC64_GOT_TLSLD16_HI:
   case R_PPC64_GOT_TLSLD16_LO:
     return R_TLSLD_GOT;
+  case R_PPC64_GOT_TLSLD_PCREL34:
+    return R_TLSLD_PC;
   case R_PPC64_GOT_TPREL16_HA:
   case R_PPC64_GOT_TPREL16_LO_DS:
   case R_PPC64_GOT_TPREL16_DS:
@@ -720,7 +1025,8 @@ RelExpr PPC64::getRelExpr(RelType type, const Symbol &s,
   case R_PPC64_TPREL16_HIGHERA:
   case R_PPC64_TPREL16_HIGHEST:
   case R_PPC64_TPREL16_HIGHESTA:
-    return R_TLS;
+  case R_PPC64_TPREL34:
+    return R_TPREL;
   case R_PPC64_DTPREL16:
   case R_PPC64_DTPREL16_DS:
   case R_PPC64_DTPREL16_HA:
@@ -732,6 +1038,7 @@ RelExpr PPC64::getRelExpr(RelType type, const Symbol &s,
   case R_PPC64_DTPREL16_LO:
   case R_PPC64_DTPREL16_LO_DS:
   case R_PPC64_DTPREL64:
+  case R_PPC64_DTPREL34:
     return R_DTPREL;
   case R_PPC64_TLSGD:
     return R_TLSDESC_CALL;
@@ -912,13 +1219,19 @@ void PPC64::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_PPC64_REL16_HA:
   case R_PPC64_TPREL16_HA:
     if (config->tocOptimize && shouldTocOptimize && ha(val) == 0)
-      writeFromHalf16(loc, 0x60000000);
-    else
+      writeFromHalf16(loc, NOP);
+    else {
+      checkInt(loc, val + 0x8000, 32, rel);
       write16(loc, ha(val));
+    }
     break;
   case R_PPC64_ADDR16_HI:
   case R_PPC64_REL16_HI:
   case R_PPC64_TPREL16_HI:
+    checkInt(loc, val, 32, rel);
+    write16(loc, hi(val));
+    break;
+  case R_PPC64_ADDR16_HIGH:
     write16(loc, hi(val));
     break;
   case R_PPC64_ADDR16_HIGHER:
@@ -1006,7 +1319,18 @@ void PPC64::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   case R_PPC64_DTPREL64:
     write64(loc, val - dynamicThreadPointerOffset);
     break;
-  case R_PPC64_PCREL34: {
+  case R_PPC64_DTPREL34:
+    // The Dynamic Thread Vector actually points 0x8000 bytes past the start
+    // of the TLS block. Therefore, in the case of R_PPC64_DTPREL34 we first
+    // need to subtract that value then fallthrough to the general case.
+    val -= dynamicThreadPointerOffset;
+    LLVM_FALLTHROUGH;
+  case R_PPC64_PCREL34:
+  case R_PPC64_GOT_PCREL34:
+  case R_PPC64_GOT_TLSGD_PCREL34:
+  case R_PPC64_GOT_TLSLD_PCREL34:
+  case R_PPC64_GOT_TPREL_PCREL34:
+  case R_PPC64_TPREL34: {
     const uint64_t si0Mask = 0x00000003ffff0000;
     const uint64_t si1Mask = 0x000000000000ffff;
     const uint64_t fullMask = 0x0003ffff0000ffff;
@@ -1017,17 +1341,9 @@ void PPC64::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
                              (val & si1Mask));
     break;
   }
-  case R_PPC64_GOT_PCREL34: {
-    const uint64_t si0Mask = 0x00000003ffff0000;
-    const uint64_t si1Mask = 0x000000000000ffff;
-    const uint64_t fullMask = 0x0003ffff0000ffff;
-    checkInt(loc, val, 34, rel);
-
-    uint64_t instr = readPrefixedInstruction(loc) & ~fullMask;
-    writePrefixedInstruction(loc, instr | ((val & si0Mask) << 16) |
-                             (val & si1Mask));
+  // If we encounter a PCREL_OPT relocation that we won't optimize.
+  case R_PPC64_PCREL_OPT:
     break;
-  }
   default:
     llvm_unreachable("unknown relocation");
   }
@@ -1039,24 +1355,17 @@ bool PPC64::needsThunk(RelExpr expr, RelType type, const InputFile *file,
       type != R_PPC64_REL24_NOTOC)
     return false;
 
-  // FIXME: Remove the fatal error once the call protocol is implemented.
-  if (type == R_PPC64_REL24_NOTOC && s.isInPlt())
-    fatal("unimplemented feature: external function call with the reltype"
-          " R_PPC64_REL24_NOTOC");
-
   // If a function is in the Plt it needs to be called with a call-stub.
   if (s.isInPlt())
     return true;
-
-  // FIXME: Remove the fatal error once the call protocol is implemented.
-  if (type == R_PPC64_REL24_NOTOC && (s.stOther >> 5) > 1)
-    fatal("unimplemented feature: local function call with the reltype"
-          " R_PPC64_REL24_NOTOC and the callee needs toc-pointer setup");
 
   // This check looks at the st_other bits of the callee with relocation
   // R_PPC64_REL14 or R_PPC64_REL24. If the value is 1, then the callee
   // clobbers the TOC and we need an R2 save stub.
   if (type != R_PPC64_REL24_NOTOC && (s.stOther >> 5) == 1)
+    return true;
+
+  if (type == R_PPC64_REL24_NOTOC && (s.stOther >> 5) > 1)
     return true;
 
   // If a symbol is a weak undefined and we are compiling an executable
@@ -1089,13 +1398,24 @@ bool PPC64::inBranchRange(RelType type, uint64_t src, uint64_t dst) const {
   llvm_unreachable("unsupported relocation type used in branch");
 }
 
-RelExpr PPC64::adjustRelaxExpr(RelType type, const uint8_t *data,
-                               RelExpr expr) const {
-  if (expr == R_RELAX_TLS_GD_TO_IE)
+RelExpr PPC64::adjustTlsExpr(RelType type, RelExpr expr) const {
+  if (type != R_PPC64_GOT_TLSGD_PCREL34 && expr == R_RELAX_TLS_GD_TO_IE)
     return R_RELAX_TLS_GD_TO_IE_GOT_OFF;
   if (expr == R_RELAX_TLS_LD_TO_LE)
     return R_RELAX_TLS_LD_TO_LE_ABS;
   return expr;
+}
+
+RelExpr PPC64::adjustGotPcExpr(RelType type, int64_t addend,
+                               const uint8_t *loc) const {
+  if ((type == R_PPC64_GOT_PCREL34 || type == R_PPC64_PCREL_OPT) &&
+      config->pcRelOptimize) {
+    // It only makes sense to optimize pld since paddi means that the address
+    // of the object in the GOT is required rather than the object itself.
+    if ((readPrefixedInstruction(loc) & 0xfc000000) == 0xe4000000)
+      return R_PPC64_RELAX_GOT_PC;
+  }
+  return R_GOT_PC;
 }
 
 // Reference: 3.7.4.1 of the 64-bit ELF V2 abi supplement.
@@ -1132,10 +1452,35 @@ void PPC64::relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
     relocateNoSym(loc, R_PPC64_GOT_TPREL16_LO_DS, val);
     return;
   }
-  case R_PPC64_TLSGD:
-    write32(loc, 0x60000000);     // bl __tls_get_addr(sym@tlsgd) --> nop
-    write32(loc + 4, 0x7c636A14); // nop --> add r3, r3, r13
+  case R_PPC64_GOT_TLSGD_PCREL34: {
+    // Relax from paddi r3, 0, sym@got@tlsgd@pcrel, 1 to
+    //            pld r3, sym@got@tprel@pcrel
+    writePrefixedInstruction(loc, 0x04100000e4600000);
+    relocateNoSym(loc, R_PPC64_GOT_TPREL_PCREL34, val);
     return;
+  }
+  case R_PPC64_TLSGD: {
+    // PC Relative Relaxation:
+    // Relax from bl __tls_get_addr@notoc(x@tlsgd) to
+    //            nop
+    // TOC Relaxation:
+    // Relax from bl __tls_get_addr(x@tlsgd)
+    //            nop
+    // to
+    //            nop
+    //            add r3, r3, r13
+    const uintptr_t locAsInt = reinterpret_cast<uintptr_t>(loc);
+    if (locAsInt % 4 == 0) {
+      write32(loc, NOP);            // bl __tls_get_addr(sym@tlsgd) --> nop
+      write32(loc + 4, 0x7c636A14); // nop --> add r3, r3, r13
+    } else if (locAsInt % 4 == 1) {
+      // bl __tls_get_addr(sym@tlsgd) --> add r3, r3, r13
+      write32(loc - 1, 0x7c636a14);
+    } else {
+      errorOrWarn("R_PPC64_TLSGD has unexpected byte alignment");
+    }
+    return;
+  }
   default:
     llvm_unreachable("unsupported relocation for TLS GD to IE relaxation");
   }
@@ -1204,7 +1549,7 @@ bool PPC64::adjustPrologueForCrossSplitStack(uint8_t *loc, uint8_t *end,
   uint32_t secondInstr = read32(loc + 8);
   if (!loImm && getPrimaryOpCode(secondInstr) == 14) {
     loImm = secondInstr & 0xFFFF;
-  } else if (secondInstr != 0x60000000) {
+  } else if (secondInstr != NOP) {
     return false;
   }
 
@@ -1218,7 +1563,7 @@ bool PPC64::adjustPrologueForCrossSplitStack(uint8_t *loc, uint8_t *end,
   };
   if (!checkRegOperands(firstInstr, 12, 1))
     return false;
-  if (secondInstr != 0x60000000 && !checkRegOperands(secondInstr, 12, 12))
+  if (secondInstr != NOP && !checkRegOperands(secondInstr, 12, 12))
     return false;
 
   int32_t stackFrameSize = (hiImm * 65536) + loImm;
@@ -1237,12 +1582,12 @@ bool PPC64::adjustPrologueForCrossSplitStack(uint8_t *loc, uint8_t *end,
   if (hiImm) {
     write32(loc + 4, 0x3D810000 | (uint16_t)hiImm);
     // If the low immediate is zero the second instruction will be a nop.
-    secondInstr = loImm ? 0x398C0000 | (uint16_t)loImm : 0x60000000;
+    secondInstr = loImm ? 0x398C0000 | (uint16_t)loImm : NOP;
     write32(loc + 8, secondInstr);
   } else {
     // addi r12, r1, imm
     write32(loc + 4, (0x39810000) | (uint16_t)loImm);
-    write32(loc + 8, 0x60000000);
+    write32(loc + 8, NOP);
   }
 
   return true;

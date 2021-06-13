@@ -625,11 +625,11 @@ void InstrProfValueSiteRecord::merge(InstrProfValueSiteRecord &Input,
   }
 }
 
-void InstrProfValueSiteRecord::scale(uint64_t Weight,
+void InstrProfValueSiteRecord::scale(uint64_t N, uint64_t D,
                                      function_ref<void(instrprof_error)> Warn) {
   for (auto I = ValueData.begin(), IE = ValueData.end(); I != IE; ++I) {
     bool Overflowed;
-    I->Count = SaturatingMultiply(I->Count, Weight, &Overflowed);
+    I->Count = SaturatingMultiply(I->Count, N, &Overflowed) / D;
     if (Overflowed)
       Warn(instrprof_error::counter_overflow);
   }
@@ -678,22 +678,23 @@ void InstrProfRecord::merge(InstrProfRecord &Other, uint64_t Weight,
 }
 
 void InstrProfRecord::scaleValueProfData(
-    uint32_t ValueKind, uint64_t Weight,
+    uint32_t ValueKind, uint64_t N, uint64_t D,
     function_ref<void(instrprof_error)> Warn) {
   for (auto &R : getValueSitesForKind(ValueKind))
-    R.scale(Weight, Warn);
+    R.scale(N, D, Warn);
 }
 
-void InstrProfRecord::scale(uint64_t Weight,
+void InstrProfRecord::scale(uint64_t N, uint64_t D,
                             function_ref<void(instrprof_error)> Warn) {
+  assert(D != 0 && "D cannot be 0");
   for (auto &Count : this->Counts) {
     bool Overflowed;
-    Count = SaturatingMultiply(Count, Weight, &Overflowed);
+    Count = SaturatingMultiply(Count, N, &Overflowed) / D;
     if (Overflowed)
       Warn(instrprof_error::counter_overflow);
   }
   for (uint32_t Kind = IPVK_First; Kind <= IPVK_Last; ++Kind)
-    scaleValueProfData(Kind, Weight, Warn);
+    scaleValueProfData(Kind, N, D, Warn);
 }
 
 // Map indirect call target name hash to name string.
@@ -1111,35 +1112,17 @@ bool canRenameComdatFunc(const Function &F, bool CheckAddressTaken) {
   return true;
 }
 
-// Parse the value profile options.
-void getMemOPSizeRangeFromOption(StringRef MemOPSizeRange, int64_t &RangeStart,
-                                 int64_t &RangeLast) {
-  static const int64_t DefaultMemOPSizeRangeStart = 0;
-  static const int64_t DefaultMemOPSizeRangeLast = 8;
-  RangeStart = DefaultMemOPSizeRangeStart;
-  RangeLast = DefaultMemOPSizeRangeLast;
-
-  if (!MemOPSizeRange.empty()) {
-    auto Pos = MemOPSizeRange.find(':');
-    if (Pos != std::string::npos) {
-      if (Pos > 0)
-        MemOPSizeRange.substr(0, Pos).getAsInteger(10, RangeStart);
-      if (Pos < MemOPSizeRange.size() - 1)
-        MemOPSizeRange.substr(Pos + 1).getAsInteger(10, RangeLast);
-    } else
-      MemOPSizeRange.getAsInteger(10, RangeLast);
-  }
-  assert(RangeLast >= RangeStart);
-}
-
 // Create a COMDAT variable INSTR_PROF_RAW_VERSION_VAR to make the runtime
 // aware this is an ir_level profile so it can set the version flag.
-void createIRLevelProfileFlagVar(Module &M, bool IsCS) {
+void createIRLevelProfileFlagVar(Module &M, bool IsCS,
+                                 bool InstrEntryBBEnabled) {
   const StringRef VarName(INSTR_PROF_QUOTE(INSTR_PROF_RAW_VERSION_VAR));
   Type *IntTy64 = Type::getInt64Ty(M.getContext());
   uint64_t ProfileVersion = (INSTR_PROF_RAW_VERSION | VARIANT_MASK_IR_PROF);
   if (IsCS)
     ProfileVersion |= VARIANT_MASK_CSIR_PROF;
+  if (InstrEntryBBEnabled)
+    ProfileVersion |= VARIANT_MASK_INSTR_ENTRY;
   auto IRLevelVersionVariable = new GlobalVariable(
       M, IntTy64, true, GlobalValue::WeakAnyLinkage,
       Constant::getIntegerValue(IntTy64, APInt(64, ProfileVersion)), VarName);

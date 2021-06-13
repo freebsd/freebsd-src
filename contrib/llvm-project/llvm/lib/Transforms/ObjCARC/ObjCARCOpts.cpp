@@ -65,6 +65,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/ObjCARC.h"
 #include <cassert>
 #include <iterator>
 #include <utility>
@@ -480,123 +481,133 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, BBState &BBInfo) {
 namespace {
 
   /// The main ARC optimization pass.
-  class ObjCARCOpt : public FunctionPass {
-    bool Changed;
-    ProvenanceAnalysis PA;
+class ObjCARCOpt {
+  bool Changed;
+  ProvenanceAnalysis PA;
 
-    /// A cache of references to runtime entry point constants.
-    ARCRuntimeEntryPoints EP;
+  /// A cache of references to runtime entry point constants.
+  ARCRuntimeEntryPoints EP;
 
-    /// A cache of MDKinds that can be passed into other functions to propagate
-    /// MDKind identifiers.
-    ARCMDKindCache MDKindCache;
+  /// A cache of MDKinds that can be passed into other functions to propagate
+  /// MDKind identifiers.
+  ARCMDKindCache MDKindCache;
 
-    /// A flag indicating whether this optimization pass should run.
-    bool Run;
+  /// A flag indicating whether this optimization pass should run.
+  bool Run;
 
-    /// A flag indicating whether the optimization that removes or moves
-    /// retain/release pairs should be performed.
-    bool DisableRetainReleasePairing = false;
+  /// A flag indicating whether the optimization that removes or moves
+  /// retain/release pairs should be performed.
+  bool DisableRetainReleasePairing = false;
 
-    /// Flags which determine whether each of the interesting runtime functions
-    /// is in fact used in the current function.
-    unsigned UsedInThisFunction;
+  /// Flags which determine whether each of the interesting runtime functions
+  /// is in fact used in the current function.
+  unsigned UsedInThisFunction;
 
-    bool OptimizeRetainRVCall(Function &F, Instruction *RetainRV);
-    void OptimizeAutoreleaseRVCall(Function &F, Instruction *AutoreleaseRV,
-                                   ARCInstKind &Class);
-    void OptimizeIndividualCalls(Function &F);
+  bool OptimizeRetainRVCall(Function &F, Instruction *RetainRV);
+  void OptimizeAutoreleaseRVCall(Function &F, Instruction *AutoreleaseRV,
+                                 ARCInstKind &Class);
+  void OptimizeIndividualCalls(Function &F);
 
-    /// Optimize an individual call, optionally passing the
-    /// GetArgRCIdentityRoot if it has already been computed.
-    void OptimizeIndividualCallImpl(
-        Function &F, DenseMap<BasicBlock *, ColorVector> &BlockColors,
-        Instruction *Inst, ARCInstKind Class, const Value *Arg);
+  /// Optimize an individual call, optionally passing the
+  /// GetArgRCIdentityRoot if it has already been computed.
+  void OptimizeIndividualCallImpl(
+      Function &F, DenseMap<BasicBlock *, ColorVector> &BlockColors,
+      Instruction *Inst, ARCInstKind Class, const Value *Arg);
 
-    /// Try to optimize an AutoreleaseRV with a RetainRV or ClaimRV.  If the
-    /// optimization occurs, returns true to indicate that the caller should
-    /// assume the instructions are dead.
-    bool OptimizeInlinedAutoreleaseRVCall(
-        Function &F, DenseMap<BasicBlock *, ColorVector> &BlockColors,
-        Instruction *Inst, const Value *&Arg, ARCInstKind Class,
-        Instruction *AutoreleaseRV, const Value *&AutoreleaseRVArg);
+  /// Try to optimize an AutoreleaseRV with a RetainRV or ClaimRV.  If the
+  /// optimization occurs, returns true to indicate that the caller should
+  /// assume the instructions are dead.
+  bool OptimizeInlinedAutoreleaseRVCall(
+      Function &F, DenseMap<BasicBlock *, ColorVector> &BlockColors,
+      Instruction *Inst, const Value *&Arg, ARCInstKind Class,
+      Instruction *AutoreleaseRV, const Value *&AutoreleaseRVArg);
 
-    void CheckForCFGHazards(const BasicBlock *BB,
-                            DenseMap<const BasicBlock *, BBState> &BBStates,
-                            BBState &MyStates) const;
-    bool VisitInstructionBottomUp(Instruction *Inst, BasicBlock *BB,
-                                  BlotMapVector<Value *, RRInfo> &Retains,
-                                  BBState &MyStates);
-    bool VisitBottomUp(BasicBlock *BB,
-                       DenseMap<const BasicBlock *, BBState> &BBStates,
-                       BlotMapVector<Value *, RRInfo> &Retains);
-    bool VisitInstructionTopDown(Instruction *Inst,
-                                 DenseMap<Value *, RRInfo> &Releases,
-                                 BBState &MyStates);
-    bool VisitTopDown(BasicBlock *BB,
-                      DenseMap<const BasicBlock *, BBState> &BBStates,
-                      DenseMap<Value *, RRInfo> &Releases);
-    bool Visit(Function &F, DenseMap<const BasicBlock *, BBState> &BBStates,
-               BlotMapVector<Value *, RRInfo> &Retains,
-               DenseMap<Value *, RRInfo> &Releases);
+  void CheckForCFGHazards(const BasicBlock *BB,
+                          DenseMap<const BasicBlock *, BBState> &BBStates,
+                          BBState &MyStates) const;
+  bool VisitInstructionBottomUp(Instruction *Inst, BasicBlock *BB,
+                                BlotMapVector<Value *, RRInfo> &Retains,
+                                BBState &MyStates);
+  bool VisitBottomUp(BasicBlock *BB,
+                     DenseMap<const BasicBlock *, BBState> &BBStates,
+                     BlotMapVector<Value *, RRInfo> &Retains);
+  bool VisitInstructionTopDown(Instruction *Inst,
+                               DenseMap<Value *, RRInfo> &Releases,
+                               BBState &MyStates);
+  bool VisitTopDown(BasicBlock *BB,
+                    DenseMap<const BasicBlock *, BBState> &BBStates,
+                    DenseMap<Value *, RRInfo> &Releases);
+  bool Visit(Function &F, DenseMap<const BasicBlock *, BBState> &BBStates,
+             BlotMapVector<Value *, RRInfo> &Retains,
+             DenseMap<Value *, RRInfo> &Releases);
 
-    void MoveCalls(Value *Arg, RRInfo &RetainsToMove, RRInfo &ReleasesToMove,
-                   BlotMapVector<Value *, RRInfo> &Retains,
-                   DenseMap<Value *, RRInfo> &Releases,
-                   SmallVectorImpl<Instruction *> &DeadInsts, Module *M);
+  void MoveCalls(Value *Arg, RRInfo &RetainsToMove, RRInfo &ReleasesToMove,
+                 BlotMapVector<Value *, RRInfo> &Retains,
+                 DenseMap<Value *, RRInfo> &Releases,
+                 SmallVectorImpl<Instruction *> &DeadInsts, Module *M);
 
-    bool
-    PairUpRetainsAndReleases(DenseMap<const BasicBlock *, BBState> &BBStates,
-                             BlotMapVector<Value *, RRInfo> &Retains,
-                             DenseMap<Value *, RRInfo> &Releases, Module *M,
-                             Instruction * Retain,
-                             SmallVectorImpl<Instruction *> &DeadInsts,
-                             RRInfo &RetainsToMove, RRInfo &ReleasesToMove,
-                             Value *Arg, bool KnownSafe,
-                             bool &AnyPairsCompletelyEliminated);
+  bool PairUpRetainsAndReleases(DenseMap<const BasicBlock *, BBState> &BBStates,
+                                BlotMapVector<Value *, RRInfo> &Retains,
+                                DenseMap<Value *, RRInfo> &Releases, Module *M,
+                                Instruction *Retain,
+                                SmallVectorImpl<Instruction *> &DeadInsts,
+                                RRInfo &RetainsToMove, RRInfo &ReleasesToMove,
+                                Value *Arg, bool KnownSafe,
+                                bool &AnyPairsCompletelyEliminated);
 
-    bool PerformCodePlacement(DenseMap<const BasicBlock *, BBState> &BBStates,
-                              BlotMapVector<Value *, RRInfo> &Retains,
-                              DenseMap<Value *, RRInfo> &Releases, Module *M);
+  bool PerformCodePlacement(DenseMap<const BasicBlock *, BBState> &BBStates,
+                            BlotMapVector<Value *, RRInfo> &Retains,
+                            DenseMap<Value *, RRInfo> &Releases, Module *M);
 
-    void OptimizeWeakCalls(Function &F);
+  void OptimizeWeakCalls(Function &F);
 
-    bool OptimizeSequences(Function &F);
+  bool OptimizeSequences(Function &F);
 
-    void OptimizeReturns(Function &F);
+  void OptimizeReturns(Function &F);
 
 #ifndef NDEBUG
-    void GatherStatistics(Function &F, bool AfterOptimization = false);
+  void GatherStatistics(Function &F, bool AfterOptimization = false);
 #endif
 
-    void getAnalysisUsage(AnalysisUsage &AU) const override;
-    bool doInitialization(Module &M) override;
-    bool runOnFunction(Function &F) override;
-    void releaseMemory() override;
-
   public:
-    static char ID;
+    void init(Module &M);
+    bool run(Function &F, AAResults &AA);
+    void releaseMemory();
+};
 
-    ObjCARCOpt() : FunctionPass(ID) {
-      initializeObjCARCOptPass(*PassRegistry::getPassRegistry());
-    }
-  };
+/// The main ARC optimization pass.
+class ObjCARCOptLegacyPass : public FunctionPass {
+public:
+  ObjCARCOptLegacyPass() : FunctionPass(ID) {
+    initializeObjCARCOptLegacyPassPass(*PassRegistry::getPassRegistry());
+  }
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool doInitialization(Module &M) override {
+    OCAO.init(M);
+    return false;
+  }
+  bool runOnFunction(Function &F) override {
+    return OCAO.run(F, getAnalysis<AAResultsWrapperPass>().getAAResults());
+  }
+  void releaseMemory() override { OCAO.releaseMemory(); }
+  static char ID;
 
+private:
+  ObjCARCOpt OCAO;
+};
 } // end anonymous namespace
 
-char ObjCARCOpt::ID = 0;
+char ObjCARCOptLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(ObjCARCOpt,
-                      "objc-arc", "ObjC ARC optimization", false, false)
+INITIALIZE_PASS_BEGIN(ObjCARCOptLegacyPass, "objc-arc", "ObjC ARC optimization",
+                      false, false)
 INITIALIZE_PASS_DEPENDENCY(ObjCARCAAWrapperPass)
-INITIALIZE_PASS_END(ObjCARCOpt,
-                    "objc-arc", "ObjC ARC optimization", false, false)
+INITIALIZE_PASS_END(ObjCARCOptLegacyPass, "objc-arc", "ObjC ARC optimization",
+                    false, false)
 
-Pass *llvm::createObjCARCOptPass() {
-  return new ObjCARCOpt();
-}
+Pass *llvm::createObjCARCOptPass() { return new ObjCARCOptLegacyPass(); }
 
-void ObjCARCOpt::getAnalysisUsage(AnalysisUsage &AU) const {
+void ObjCARCOptLegacyPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<ObjCARCAAWrapperPass>();
   AU.addRequired<AAResultsWrapperPass>();
   // ARC optimization doesn't currently split critical edges.
@@ -664,7 +675,7 @@ bool ObjCARCOpt::OptimizeInlinedAutoreleaseRVCall(
 
     SmallVector<const Value *, 4> ArgUsers;
     getEquivalentPHIs(*PN, ArgUsers);
-    if (llvm::find(ArgUsers, AutoreleaseRVArg) == ArgUsers.end())
+    if (!llvm::is_contained(ArgUsers, AutoreleaseRVArg))
       return false;
   }
 
@@ -1114,8 +1125,7 @@ void ObjCARCOpt::OptimizeIndividualCallImpl(
     if (!HasNull)
       continue;
 
-    SmallPtrSet<Instruction *, 4> DependingInstructions;
-    SmallPtrSet<const BasicBlock *, 4> Visited;
+    Instruction *DepInst = nullptr;
 
     // Check that there is nothing that cares about the reference
     // count between the call and the phi.
@@ -1127,13 +1137,13 @@ void ObjCARCOpt::OptimizeIndividualCallImpl(
     case ARCInstKind::Release:
       // These can't be moved across things that care about the retain
       // count.
-      FindDependencies(NeedsPositiveRetainCount, Arg, Inst->getParent(), Inst,
-                       DependingInstructions, Visited, PA);
+      DepInst = findSingleDependency(NeedsPositiveRetainCount, Arg,
+                                     Inst->getParent(), Inst, PA);
       break;
     case ARCInstKind::Autorelease:
       // These can't be moved across autorelease pool scope boundaries.
-      FindDependencies(AutoreleasePoolBoundary, Arg, Inst->getParent(), Inst,
-                       DependingInstructions, Visited, PA);
+      DepInst = findSingleDependency(AutoreleasePoolBoundary, Arg,
+                                     Inst->getParent(), Inst, PA);
       break;
     case ARCInstKind::ClaimRV:
     case ARCInstKind::RetainRV:
@@ -1147,9 +1157,7 @@ void ObjCARCOpt::OptimizeIndividualCallImpl(
       llvm_unreachable("Invalid dependence flavor");
     }
 
-    if (DependingInstructions.size() != 1)
-      continue;
-    if (*DependingInstructions.begin() != PN)
+    if (DepInst != PN)
       continue;
 
     Changed = true;
@@ -2223,25 +2231,21 @@ bool ObjCARCOpt::OptimizeSequences(Function &F) {
 /// Check if there is a dependent call earlier that does not have anything in
 /// between the Retain and the call that can affect the reference count of their
 /// shared pointer argument. Note that Retain need not be in BB.
-static bool
-HasSafePathToPredecessorCall(const Value *Arg, Instruction *Retain,
-                             SmallPtrSetImpl<Instruction *> &DepInsts,
-                             SmallPtrSetImpl<const BasicBlock *> &Visited,
-                             ProvenanceAnalysis &PA) {
-  FindDependencies(CanChangeRetainCount, Arg, Retain->getParent(), Retain,
-                   DepInsts, Visited, PA);
-  if (DepInsts.size() != 1)
-    return false;
-
-  auto *Call = dyn_cast_or_null<CallInst>(*DepInsts.begin());
+static CallInst *HasSafePathToPredecessorCall(const Value *Arg,
+                                              Instruction *Retain,
+                                              ProvenanceAnalysis &PA) {
+  auto *Call = dyn_cast_or_null<CallInst>(findSingleDependency(
+      CanChangeRetainCount, Arg, Retain->getParent(), Retain, PA));
 
   // Check that the pointer is the return value of the call.
   if (!Call || Arg != Call)
-    return false;
+    return nullptr;
 
   // Check that the call is a regular call.
   ARCInstKind Class = GetBasicARCInstKind(Call);
-  return Class == ARCInstKind::CallOrUser || Class == ARCInstKind::Call;
+  return Class == ARCInstKind::CallOrUser || Class == ARCInstKind::Call
+             ? Call
+             : nullptr;
 }
 
 /// Find a dependent retain that precedes the given autorelease for which there
@@ -2250,15 +2254,9 @@ HasSafePathToPredecessorCall(const Value *Arg, Instruction *Retain,
 static CallInst *
 FindPredecessorRetainWithSafePath(const Value *Arg, BasicBlock *BB,
                                   Instruction *Autorelease,
-                                  SmallPtrSetImpl<Instruction *> &DepInsts,
-                                  SmallPtrSetImpl<const BasicBlock *> &Visited,
                                   ProvenanceAnalysis &PA) {
-  FindDependencies(CanChangeRetainCount, Arg,
-                   BB, Autorelease, DepInsts, Visited, PA);
-  if (DepInsts.size() != 1)
-    return nullptr;
-
-  auto *Retain = dyn_cast_or_null<CallInst>(*DepInsts.begin());
+  auto *Retain = dyn_cast_or_null<CallInst>(
+      findSingleDependency(CanChangeRetainCount, Arg, BB, Autorelease, PA));
 
   // Check that we found a retain with the same argument.
   if (!Retain || !IsRetain(GetBasicARCInstKind(Retain)) ||
@@ -2275,15 +2273,11 @@ FindPredecessorRetainWithSafePath(const Value *Arg, BasicBlock *BB,
 static CallInst *
 FindPredecessorAutoreleaseWithSafePath(const Value *Arg, BasicBlock *BB,
                                        ReturnInst *Ret,
-                                       SmallPtrSetImpl<Instruction *> &DepInsts,
-                                       SmallPtrSetImpl<const BasicBlock *> &V,
                                        ProvenanceAnalysis &PA) {
-  FindDependencies(NeedsPositiveRetainCount, Arg,
-                   BB, Ret, DepInsts, V, PA);
-  if (DepInsts.size() != 1)
-    return nullptr;
+  SmallPtrSet<Instruction *, 4> DepInsts;
+  auto *Autorelease = dyn_cast_or_null<CallInst>(
+      findSingleDependency(NeedsPositiveRetainCount, Arg, BB, Ret, PA));
 
-  auto *Autorelease = dyn_cast_or_null<CallInst>(*DepInsts.begin());
   if (!Autorelease)
     return nullptr;
   ARCInstKind AutoreleaseClass = GetBasicARCInstKind(Autorelease);
@@ -2309,8 +2303,6 @@ void ObjCARCOpt::OptimizeReturns(Function &F) {
 
   LLVM_DEBUG(dbgs() << "\n== ObjCARCOpt::OptimizeReturns ==\n");
 
-  SmallPtrSet<Instruction *, 4> DependingInstructions;
-  SmallPtrSet<const BasicBlock *, 4> Visited;
   for (BasicBlock &BB: F) {
     ReturnInst *Ret = dyn_cast<ReturnInst>(&BB.back());
     if (!Ret)
@@ -2323,40 +2315,27 @@ void ObjCARCOpt::OptimizeReturns(Function &F) {
     // Look for an ``autorelease'' instruction that is a predecessor of Ret and
     // dependent on Arg such that there are no instructions dependent on Arg
     // that need a positive ref count in between the autorelease and Ret.
-    CallInst *Autorelease = FindPredecessorAutoreleaseWithSafePath(
-        Arg, &BB, Ret, DependingInstructions, Visited, PA);
-    DependingInstructions.clear();
-    Visited.clear();
+    CallInst *Autorelease =
+        FindPredecessorAutoreleaseWithSafePath(Arg, &BB, Ret, PA);
 
     if (!Autorelease)
       continue;
 
     CallInst *Retain = FindPredecessorRetainWithSafePath(
-        Arg, Autorelease->getParent(), Autorelease, DependingInstructions,
-        Visited, PA);
-    DependingInstructions.clear();
-    Visited.clear();
+        Arg, Autorelease->getParent(), Autorelease, PA);
 
     if (!Retain)
       continue;
 
     // Check that there is nothing that can affect the reference count
     // between the retain and the call.  Note that Retain need not be in BB.
-    bool HasSafePathToCall = HasSafePathToPredecessorCall(Arg, Retain,
-                                                          DependingInstructions,
-                                                          Visited, PA);
+    CallInst *Call = HasSafePathToPredecessorCall(Arg, Retain, PA);
 
     // Don't remove retainRV/autoreleaseRV pairs if the call isn't a tail call.
-    if (HasSafePathToCall &&
-        GetBasicARCInstKind(Retain) == ARCInstKind::RetainRV &&
-        GetBasicARCInstKind(Autorelease) == ARCInstKind::AutoreleaseRV &&
-        !cast<CallInst>(*DependingInstructions.begin())->isTailCall())
-      continue;
-
-    DependingInstructions.clear();
-    Visited.clear();
-
-    if (!HasSafePathToCall)
+    if (!Call ||
+        (!Call->isTailCall() &&
+         GetBasicARCInstKind(Retain) == ARCInstKind::RetainRV &&
+         GetBasicARCInstKind(Autorelease) == ARCInstKind::AutoreleaseRV))
       continue;
 
     // If so, we can zap the retain and autorelease.
@@ -2393,14 +2372,14 @@ ObjCARCOpt::GatherStatistics(Function &F, bool AfterOptimization) {
 }
 #endif
 
-bool ObjCARCOpt::doInitialization(Module &M) {
+void ObjCARCOpt::init(Module &M) {
   if (!EnableARCOpts)
-    return false;
+    return;
 
   // If nothing in the Module uses ARC, don't do anything.
   Run = ModuleHasARC(M);
   if (!Run)
-    return false;
+    return;
 
   // Intuitively, objc_retain and others are nocapture, however in practice
   // they are not, because they return their argument value. And objc_release
@@ -2409,11 +2388,9 @@ bool ObjCARCOpt::doInitialization(Module &M) {
 
   // Initialize our runtime entry point cache.
   EP.init(&M);
-
-  return false;
 }
 
-bool ObjCARCOpt::runOnFunction(Function &F) {
+bool ObjCARCOpt::run(Function &F, AAResults &AA) {
   if (!EnableARCOpts)
     return false;
 
@@ -2427,7 +2404,7 @@ bool ObjCARCOpt::runOnFunction(Function &F) {
                     << " >>>"
                        "\n");
 
-  PA.setAA(&getAnalysis<AAResultsWrapperPass>().getAAResults());
+  PA.setAA(&AA);
 
 #ifndef NDEBUG
   if (AreStatisticsEnabled()) {
@@ -2484,3 +2461,17 @@ void ObjCARCOpt::releaseMemory() {
 
 /// @}
 ///
+
+PreservedAnalyses ObjCARCOptPass::run(Function &F,
+                                      FunctionAnalysisManager &AM) {
+  ObjCARCOpt OCAO;
+  OCAO.init(*F.getParent());
+
+  bool Changed = OCAO.run(F, AM.getResult<AAManager>(F));
+  if (Changed) {
+    PreservedAnalyses PA;
+    PA.preserveSet<CFGAnalyses>();
+    return PA;
+  }
+  return PreservedAnalyses::all();
+}

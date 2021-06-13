@@ -24,7 +24,6 @@ class CallInst;
 class DataLayout;
 class Instruction;
 class IRBuilderBase;
-class TargetLibraryInfo;
 class Function;
 class OptimizationRemarkEmitter;
 class BlockFrequencyInfo;
@@ -60,6 +59,7 @@ private:
   Value *optimizeStrpCpyChk(CallInst *CI, IRBuilderBase &B, LibFunc Func);
   Value *optimizeStrpNCpyChk(CallInst *CI, IRBuilderBase &B, LibFunc Func);
   Value *optimizeStrLenChk(CallInst *CI, IRBuilderBase &B);
+  Value *optimizeMemPCpyChk(CallInst *CI, IRBuilderBase &B);
   Value *optimizeMemCCpyChk(CallInst *CI, IRBuilderBase &B);
   Value *optimizeSNPrintfChk(CallInst *CI, IRBuilderBase &B);
   Value *optimizeSPrintfChk(CallInst *CI,IRBuilderBase &B);

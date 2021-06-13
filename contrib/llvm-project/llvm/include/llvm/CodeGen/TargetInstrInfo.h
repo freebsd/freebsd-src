@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineOutliner.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/BranchProbability.h"
@@ -78,6 +79,15 @@ struct RegImmPair {
   int64_t Imm;
 
   RegImmPair(Register Reg, int64_t Imm) : Reg(Reg), Imm(Imm) {}
+};
+
+/// Used to describe addressing mode similar to ExtAddrMode in CodeGenPrepare.
+/// It holds the register values, the scale value and the displacement.
+struct ExtAddrMode {
+  Register BaseReg;
+  Register ScaledReg;
+  int64_t Scale;
+  int64_t Displacement;
 };
 
 //---------------------------------------------------------------------------
@@ -338,6 +348,12 @@ public:
   virtual bool getStackSlotRange(const TargetRegisterClass *RC, unsigned SubIdx,
                                  unsigned &Size, unsigned &Offset,
                                  const MachineFunction &MF) const;
+
+  /// Return true if the given instruction is terminator that is unspillable,
+  /// according to isUnspillableTerminatorImpl.
+  bool isUnspillableTerminator(const MachineInstr *MI) const {
+    return MI->isTerminator() && isUnspillableTerminatorImpl(MI);
+  }
 
   /// Returns the size in bytes of the specified MachineInstr, or ~0U
   /// when this function is not implemented by a target.
@@ -724,7 +740,7 @@ public:
     return nullptr;
   }
 
-  /// Analyze the loop code, return true if it cannot be understoo. Upon
+  /// Analyze the loop code, return true if it cannot be understood. Upon
   /// success, this function returns false and returns information about the
   /// induction variable and compare instruction used at the end.
   virtual bool analyzeLoop(MachineLoop &L, MachineInstr *&IndVarInst,
@@ -771,7 +787,7 @@ public:
 
   /// Second variant of isProfitableToIfCvt. This one
   /// checks for the case where two basic blocks from true and false path
-  /// of a if-then-else (diamond) are predicated on mutally exclusive
+  /// of a if-then-else (diamond) are predicated on mutually exclusive
   /// predicates, where the probability of the true path being taken is given
   /// by Probability, and Confidence is a measure of our confidence that it
   /// will be properly predicted.
@@ -945,6 +961,17 @@ protected:
     return None;
   }
 
+  /// Return true if the given terminator MI is not expected to spill. This
+  /// sets the live interval as not spillable and adjusts phi node lowering to
+  /// not introduce copies after the terminator. Use with care, these are
+  /// currently used for hardware loop intrinsics in very controlled situations,
+  /// created prior to registry allocation in loops that only have single phi
+  /// users for the terminators value. They may run out of registers if not used
+  /// carefully.
+  virtual bool isUnspillableTerminatorImpl(const MachineInstr *MI) const {
+    return false;
+  }
+
 public:
   /// If the specific machine instruction is a instruction that moves/copies
   /// value from one register to another register return destination and source
@@ -966,6 +993,15 @@ public:
   virtual Optional<RegImmPair> isAddImmediate(const MachineInstr &MI,
                                               Register Reg) const {
     return None;
+  }
+
+  /// Returns true if MI is an instruction that defines Reg to have a constant
+  /// value and the value is recorded in ImmVal. The ImmVal is a result that
+  /// should be interpreted as modulo size of Reg.
+  virtual bool getConstValDefinedInReg(const MachineInstr &MI,
+                                       const Register Reg,
+                                       int64_t &ImmVal) const {
+    return false;
   }
 
   /// Store the specified register of the given register class to the specified
@@ -1041,9 +1077,23 @@ public:
   /// faster sequence.
   /// \param Root - Instruction that could be combined with one of its operands
   /// \param Patterns - Vector of possible combination patterns
-  virtual bool getMachineCombinerPatterns(
-      MachineInstr &Root,
-      SmallVectorImpl<MachineCombinerPattern> &Patterns) const;
+  virtual bool
+  getMachineCombinerPatterns(MachineInstr &Root,
+                             SmallVectorImpl<MachineCombinerPattern> &Patterns,
+                             bool DoRegPressureReduce) const;
+
+  /// Return true if target supports reassociation of instructions in machine
+  /// combiner pass to reduce register pressure for a given BB.
+  virtual bool
+  shouldReduceRegisterPressure(MachineBasicBlock *MBB,
+                               RegisterClassInfo *RegClassInfo) const {
+    return false;
+  }
+
+  /// Fix up the placeholder we may add in genAlternativeCodeSequence().
+  virtual void
+  finalizeInsInstrs(MachineInstr &Root, MachineCombinerPattern &P,
+                    SmallVectorImpl<MachineInstr *> &InsInstrs) const {}
 
   /// Return true when a code sequence can improve throughput. It
   /// should be called only for instructions in loops.
@@ -1248,10 +1298,11 @@ public:
                                bool &OffsetIsScalable,
                                const TargetRegisterInfo *TRI) const;
 
-  /// Get the base operands and byte offset of an instruction that reads/writes
-  /// memory.
+  /// Get zero or more base operands and the byte offset of an instruction that
+  /// reads/writes memory. Note that there may be zero base operands if the
+  /// instruction accesses a constant address.
   /// It returns false if MI does not read/write memory.
-  /// It returns false if no base operands and offset was found.
+  /// It returns false if base operands and offset could not be determined.
   /// It is not guaranteed to always recognize base operands and offsets in all
   /// cases.
   virtual bool getMemOperandsWithOffsetWidth(
@@ -1267,6 +1318,27 @@ public:
   virtual bool getBaseAndOffsetPosition(const MachineInstr &MI,
                                         unsigned &BasePos,
                                         unsigned &OffsetPos) const {
+    return false;
+  }
+
+  /// Target dependent implementation to get the values constituting the address
+  /// MachineInstr that is accessing memory. These values are returned as a
+  /// struct ExtAddrMode which contains all relevant information to make up the
+  /// address.
+  virtual Optional<ExtAddrMode>
+  getAddrModeFromMemoryOp(const MachineInstr &MemI,
+                          const TargetRegisterInfo *TRI) const {
+    return None;
+  }
+
+  /// Returns true if MI's Def is NullValueReg, and the MI
+  /// does not change the Zero value. i.e. cases such as rax = shr rax, X where
+  /// NullValueReg = rax. Note that if the NullValueReg is non-zero, this
+  /// function can return true even if becomes zero. Specifically cases such as
+  /// NullValueReg = shl NullValueReg, 63.
+  virtual bool preservesZeroValueInReg(const MachineInstr *MI,
+                                       const Register NullValueReg,
+                                       const TargetRegisterInfo *TRI) const {
     return false;
   }
 
@@ -1303,6 +1375,11 @@ public:
   /// Insert a noop into the instruction stream at the specified point.
   virtual void insertNoop(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator MI) const;
+
+  /// Insert noops into the instruction stream at the specified point.
+  virtual void insertNoops(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MI,
+                           unsigned Quantity) const;
 
   /// Return the noop instruction to use for a noop.
   virtual void getNoop(MCInst &NopInst) const;
@@ -1355,8 +1432,13 @@ public:
   /// If the specified instruction defines any predicate
   /// or condition code register(s) used for predication, returns true as well
   /// as the definition predicate(s) by reference.
-  virtual bool DefinesPredicate(MachineInstr &MI,
-                                std::vector<MachineOperand> &Pred) const {
+  /// SkipDead should be set to false at any point that dead
+  /// predicate instructions should be considered as being defined.
+  /// A dead predicate instruction is one that is guaranteed to be removed
+  /// after a call to PredicateInstruction.
+  virtual bool ClobbersPredicate(MachineInstr &MI,
+                                 std::vector<MachineOperand> &Pred,
+                                 bool SkipDead) const {
     return false;
   }
 
@@ -1442,7 +1524,7 @@ public:
   /// the machine instruction generated due to folding.
   virtual MachineInstr *optimizeLoadInstr(MachineInstr &MI,
                                           const MachineRegisterInfo *MRI,
-                                          unsigned &FoldAsLoadDefReg,
+                                          Register &FoldAsLoadDefReg,
                                           MachineInstr *&DefMI) const {
     return nullptr;
   }
@@ -1627,7 +1709,7 @@ public:
   /// This hook works similarly to getPartialRegUpdateClearance, except that it
   /// does not take an operand index. Instead sets \p OpNum to the index of the
   /// unused register.
-  virtual unsigned getUndefRegClearance(const MachineInstr &MI, unsigned &OpNum,
+  virtual unsigned getUndefRegClearance(const MachineInstr &MI, unsigned OpNum,
                                         const TargetRegisterInfo *TRI) const {
     // The default implementation returns 0 for no undef register dependency.
     return 0;
@@ -1687,6 +1769,21 @@ public:
     // behavior.
     return 5;
   }
+
+  /// Return the maximal number of alias checks on memory operands. For
+  /// instructions with more than one memory operands, the alias check on a
+  /// single MachineInstr pair has quadratic overhead and results in
+  /// unacceptable performance in the worst case. The limit here is to clamp
+  /// that maximal checks performed. Usually, that's the product of memory
+  /// operand numbers from that pair of MachineInstr to be checked. For
+  /// instance, with two MachineInstrs with 4 and 5 memory operands
+  /// correspondingly, a total of 20 checks are required. With this limit set to
+  /// 16, their alias check is skipped. We choose to limit the product instead
+  /// of the individual instruction as targets may have special MachineInstrs
+  /// with a considerably high number of memory operands, such as `ldm` in ARM.
+  /// Setting this limit per MachineInstr would result in either too high
+  /// overhead or too rigid restriction.
+  virtual unsigned getMemOperandAACheckLimit() const { return 16; }
 
   /// Return an array that contains the ids of the target indices (used for the
   /// TargetIndex machine operand) and their names.

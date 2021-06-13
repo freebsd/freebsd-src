@@ -247,6 +247,7 @@ public:
   unsigned SizeOf(const AsmPrinter *AP, dwarf::Form Form) const;
 
   void print(raw_ostream &O) const;
+  uint64_t getIndex() const { return Index; }
 };
 
 //===--------------------------------------------------------------------===//
@@ -382,12 +383,12 @@ private:
     static_assert(std::is_standard_layout<T>::value ||
                       std::is_pointer<T>::value,
                   "Expected standard layout or pointer");
-    new (reinterpret_cast<void *>(Val.buffer)) T(V);
+    new (reinterpret_cast<void *>(&Val)) T(V);
   }
 
-  template <class T> T *get() { return reinterpret_cast<T *>(Val.buffer); }
+  template <class T> T *get() { return reinterpret_cast<T *>(&Val); }
   template <class T> const T *get() const {
-    return reinterpret_cast<const T *>(Val.buffer);
+    return reinterpret_cast<const T *>(&Val);
   }
   template <class T> void destruct() { get<T>()->~T(); }
 
@@ -589,7 +590,6 @@ public:
     T &operator*() const { return *static_cast<T *>(N); }
 
     bool operator==(const iterator &X) const { return N == X.N; }
-    bool operator!=(const iterator &X) const { return N != X.N; }
   };
 
   class const_iterator
@@ -612,7 +612,6 @@ public:
     const T &operator*() const { return *static_cast<const T *>(N); }
 
     bool operator==(const const_iterator &X) const { return N == X.N; }
-    bool operator!=(const const_iterator &X) const { return N != X.N; }
   };
 
   iterator begin() {
@@ -788,7 +787,7 @@ public:
 
   /// Get the absolute offset within the .debug_info or .debug_types section
   /// for this DIE.
-  unsigned getDebugSectionOffset() const;
+  uint64_t getDebugSectionOffset() const;
 
   /// Compute the offset of this DIE and all its children.
   ///
@@ -864,14 +863,11 @@ class DIEUnit {
   /// a valid section depending on the client that is emitting DWARF.
   MCSection *Section;
   uint64_t Offset; /// .debug_info or .debug_types absolute section offset.
-  uint32_t Length; /// The length in bytes of all of the DIEs in this unit.
-  const uint16_t Version; /// The Dwarf version number for this unit.
-  const uint8_t AddrSize; /// The size in bytes of an address for this unit.
 protected:
   virtual ~DIEUnit() = default;
 
 public:
-  DIEUnit(uint16_t Version, uint8_t AddrSize, dwarf::Tag UnitTag);
+  explicit DIEUnit(dwarf::Tag UnitTag);
   DIEUnit(const DIEUnit &RHS) = delete;
   DIEUnit(DIEUnit &&RHS) = delete;
   void operator=(const DIEUnit &RHS) = delete;
@@ -893,19 +889,14 @@ public:
   ///
   /// \returns Section pointer which can be NULL.
   MCSection *getSection() const { return Section; }
-  void setDebugSectionOffset(unsigned O) { Offset = O; }
-  unsigned getDebugSectionOffset() const { return Offset; }
-  void setLength(uint64_t L) { Length = L; }
-  uint64_t getLength() const { return Length; }
-  uint16_t getDwarfVersion() const { return Version; }
-  uint16_t getAddressSize() const { return AddrSize; }
+  void setDebugSectionOffset(uint64_t O) { Offset = O; }
+  uint64_t getDebugSectionOffset() const { return Offset; }
   DIE &getUnitDie() { return Die; }
   const DIE &getUnitDie() const { return Die; }
 };
 
 struct BasicDIEUnit final : DIEUnit {
-  BasicDIEUnit(uint16_t Version, uint8_t AddrSize, dwarf::Tag UnitTag)
-      : DIEUnit(Version, AddrSize, UnitTag) {}
+  explicit BasicDIEUnit(dwarf::Tag UnitTag) : DIEUnit(UnitTag) {}
 };
 
 //===--------------------------------------------------------------------===//

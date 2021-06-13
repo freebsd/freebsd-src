@@ -522,6 +522,9 @@ static Constant *getFoldedOffsetOf(Type *Ty, Constant *FieldNo, Type *DestTy,
 
 Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
                                             Type *DestTy) {
+  if (isa<PoisonValue>(V))
+    return PoisonValue::get(DestTy);
+
   if (isa<UndefValue>(V)) {
     // zext(undef) = 0, because the top bits will be zero.
     // sext(undef) = 0, because the top bits will all be the same.
@@ -532,7 +535,7 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     return UndefValue::get(DestTy);
   }
 
-  if (V->isNullValue() && !DestTy->isX86_MMXTy() &&
+  if (V->isNullValue() && !DestTy->isX86_MMXTy() && !DestTy->isX86_AMXTy() &&
       opc != Instruction::AddrSpaceCast)
     return Constant::getNullValue(DestTy);
 
@@ -759,7 +762,9 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
       Constant *V2Element = ConstantExpr::getExtractElement(V2,
                                                     ConstantInt::get(Ty, i));
       auto *Cond = cast<Constant>(CondV->getOperand(i));
-      if (V1Element == V2Element) {
+      if (isa<PoisonValue>(Cond)) {
+        V = PoisonValue::get(V1Element->getType());
+      } else if (V1Element == V2Element) {
         V = V1Element;
       } else if (isa<UndefValue>(Cond)) {
         V = isa<UndefValue>(V1Element) ? V1Element : V2Element;
@@ -775,13 +780,44 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
       return ConstantVector::get(Result);
   }
 
+  if (isa<PoisonValue>(Cond))
+    return PoisonValue::get(V1->getType());
+
   if (isa<UndefValue>(Cond)) {
     if (isa<UndefValue>(V1)) return V1;
     return V2;
   }
-  if (isa<UndefValue>(V1)) return V2;
-  if (isa<UndefValue>(V2)) return V1;
+
   if (V1 == V2) return V1;
+
+  if (isa<PoisonValue>(V1))
+    return V2;
+  if (isa<PoisonValue>(V2))
+    return V1;
+
+  // If the true or false value is undef, we can fold to the other value as
+  // long as the other value isn't poison.
+  auto NotPoison = [](Constant *C) {
+    if (isa<PoisonValue>(C))
+      return false;
+
+    // TODO: We can analyze ConstExpr by opcode to determine if there is any
+    //       possibility of poison.
+    if (isa<ConstantExpr>(C))
+      return false;
+
+    if (isa<ConstantInt>(C) || isa<GlobalVariable>(C) || isa<ConstantFP>(C) ||
+        isa<ConstantPointerNull>(C) || isa<Function>(C))
+      return true;
+
+    if (C->getType()->isVectorTy())
+      return !C->containsPoisonElement() && !C->containsConstantExpression();
+
+    // TODO: Recursively analyze aggregates or other constants.
+    return false;
+  };
+  if (isa<UndefValue>(V1) && NotPoison(V2)) return V2;
+  if (isa<UndefValue>(V2) && NotPoison(V1)) return V1;
 
   if (ConstantExpr *TrueVal = dyn_cast<ConstantExpr>(V1)) {
     if (TrueVal->getOpcode() == Instruction::Select)
@@ -801,9 +837,13 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
                                                       Constant *Idx) {
   auto *ValVTy = cast<VectorType>(Val->getType());
 
+  // extractelt poison, C -> poison
+  // extractelt C, undef -> poison
+  if (isa<PoisonValue>(Val) || isa<UndefValue>(Idx))
+    return PoisonValue::get(ValVTy->getElementType());
+
   // extractelt undef, C -> undef
-  // extractelt C, undef -> undef
-  if (isa<UndefValue>(Val) || isa<UndefValue>(Idx))
+  if (isa<UndefValue>(Val))
     return UndefValue::get(ValVTy->getElementType());
 
   auto *CIdx = dyn_cast<ConstantInt>(Idx);
@@ -811,9 +851,9 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
     return nullptr;
 
   if (auto *ValFVTy = dyn_cast<FixedVectorType>(Val->getType())) {
-    // ee({w,x,y,z}, wrong_value) -> undef
+    // ee({w,x,y,z}, wrong_value) -> poison
     if (CIdx->uge(ValFVTy->getNumElements()))
-      return UndefValue::get(ValFVTy->getElementType());
+      return PoisonValue::get(ValFVTy->getElementType());
   }
 
   // ee (gep (ptr, idx0, ...), idx) -> gep (ee (ptr, idx), ee (idx0, idx), ...)
@@ -833,6 +873,15 @@ Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
       }
       return CE->getWithOperands(Ops, ValVTy->getElementType(), false,
                                  Ops[0]->getType()->getPointerElementType());
+    } else if (CE->getOpcode() == Instruction::InsertElement) {
+      if (const auto *IEIdx = dyn_cast<ConstantInt>(CE->getOperand(2))) {
+        if (APSInt::isSameValue(APSInt(IEIdx->getValue()),
+                                APSInt(CIdx->getValue()))) {
+          return CE->getOperand(1);
+        } else {
+          return ConstantExpr::getExtractElement(CE->getOperand(0), CIdx);
+        }
+      }
     }
   }
 
@@ -853,7 +902,7 @@ Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
                                                      Constant *Elt,
                                                      Constant *Idx) {
   if (isa<UndefValue>(Idx))
-    return UndefValue::get(Val->getType());
+    return PoisonValue::get(Val->getType());
 
   ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx);
   if (!CIdx) return nullptr;
@@ -890,7 +939,8 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
                                                      ArrayRef<int> Mask) {
   auto *V1VTy = cast<VectorType>(V1->getType());
   unsigned MaskNumElts = Mask.size();
-  ElementCount MaskEltCount = {MaskNumElts, isa<ScalableVectorType>(V1VTy)};
+  auto MaskEltCount =
+      ElementCount::get(MaskNumElts, isa<ScalableVectorType>(V1VTy));
   Type *EltTy = V1VTy->getElementType();
 
   // Undefined shuffle mask -> undefined value.
@@ -901,7 +951,7 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
   // If the mask is all zeros this is a splat, no need to go through all
   // elements.
   if (all_of(Mask, [](int Elt) { return Elt == 0; }) &&
-      !MaskEltCount.Scalable) {
+      !MaskEltCount.isScalable()) {
     Type *Ty = IntegerType::get(V1->getContext(), 32);
     Constant *Elt =
         ConstantExpr::getExtractElement(V1, ConstantInt::get(Ty, 0));
@@ -912,7 +962,7 @@ Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
   if (isa<ScalableVectorType>(V1VTy))
     return nullptr;
 
-  unsigned SrcNumElts = V1VTy->getElementCount().Min;
+  unsigned SrcNumElts = V1VTy->getElementCount().getKnownMinValue();
 
   // Loop over the shuffle mask, evaluating each element.
   SmallVector<Constant*, 32> Result;
@@ -1053,6 +1103,17 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
     if (C2 == Identity)
       return C1;
   }
+
+  // Binary operations propagate poison.
+  // FIXME: Currently, or/and i1 poison aren't folded into poison because
+  // it causes miscompilation when combined with another optimization in
+  // InstCombine (select i1 -> and/or). The select fold is wrong, but
+  // fixing it requires an effort, so temporarily disable this until it is
+  // fixed.
+  bool PoisonFold = !C1->getType()->isIntegerTy(1) ||
+                    (Opcode != Instruction::Or && Opcode != Instruction::And);
+  if (PoisonFold && (isa<PoisonValue>(C1) || isa<PoisonValue>(C2)))
+    return PoisonValue::get(C1->getType());
 
   // Handle scalar UndefValue and scalable vector UndefValue. Fixed-length
   // vectors are always evaluated per element.
@@ -1378,12 +1439,7 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
         return ConstantFP::get(C1->getContext(), C3V);
       }
     }
-  } else if (IsScalableVector) {
-    // Do not iterate on scalable vector. The number of elements is unknown at
-    // compile-time.
-    // FIXME: this branch can potentially be removed
-    return nullptr;
-  } else if (auto *VTy = dyn_cast<FixedVectorType>(C1->getType())) {
+  } else if (auto *VTy = dyn_cast<VectorType>(C1->getType())) {
     // Fast path for splatted constants.
     if (Constant *C2Splat = C2->getSplatValue()) {
       if (Instruction::isIntDivRem(Opcode) && C2Splat->isNullValue())
@@ -1395,22 +1451,24 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode, Constant *C1,
       }
     }
 
-    // Fold each element and create a vector constant from those constants.
-    SmallVector<Constant*, 16> Result;
-    Type *Ty = IntegerType::get(VTy->getContext(), 32);
-    for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-      Constant *ExtractIdx = ConstantInt::get(Ty, i);
-      Constant *LHS = ConstantExpr::getExtractElement(C1, ExtractIdx);
-      Constant *RHS = ConstantExpr::getExtractElement(C2, ExtractIdx);
+    if (auto *FVTy = dyn_cast<FixedVectorType>(VTy)) {
+      // Fold each element and create a vector constant from those constants.
+      SmallVector<Constant*, 16> Result;
+      Type *Ty = IntegerType::get(FVTy->getContext(), 32);
+      for (unsigned i = 0, e = FVTy->getNumElements(); i != e; ++i) {
+        Constant *ExtractIdx = ConstantInt::get(Ty, i);
+        Constant *LHS = ConstantExpr::getExtractElement(C1, ExtractIdx);
+        Constant *RHS = ConstantExpr::getExtractElement(C2, ExtractIdx);
 
-      // If any element of a divisor vector is zero, the whole op is undef.
-      if (Instruction::isIntDivRem(Opcode) && RHS->isNullValue())
-        return UndefValue::get(VTy);
+        // If any element of a divisor vector is zero, the whole op is undef.
+        if (Instruction::isIntDivRem(Opcode) && RHS->isNullValue())
+          return UndefValue::get(VTy);
 
-      Result.push_back(ConstantExpr::get(Opcode, LHS, RHS));
+        Result.push_back(ConstantExpr::get(Opcode, LHS, RHS));
+      }
+
+      return ConstantVector::get(Result);
     }
-
-    return ConstantVector::get(Result);
   }
 
   if (ConstantExpr *CE1 = dyn_cast<ConstantExpr>(C1)) {
@@ -1724,9 +1782,15 @@ static ICmpInst::Predicate evaluateICmpRelation(Constant *V1, Constant *V2,
     case Instruction::FPToSI:
       break; // We can't evaluate floating point casts or truncations.
 
+    case Instruction::BitCast:
+      // If this is a global value cast, check to see if the RHS is also a
+      // GlobalValue.
+      if (const GlobalValue *GV = dyn_cast<GlobalValue>(CE1Op0))
+        if (const GlobalValue *GV2 = dyn_cast<GlobalValue>(V2))
+          return areGlobalsPotentiallyEqual(GV, GV2);
+      LLVM_FALLTHROUGH;
     case Instruction::UIToFP:
     case Instruction::SIToFP:
-    case Instruction::BitCast:
     case Instruction::ZExt:
     case Instruction::SExt:
       // We can't evaluate floating point casts or truncations.
@@ -1889,6 +1953,9 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     return Constant::getAllOnesValue(ResultTy);
 
   // Handle some degenerate cases first
+  if (isa<PoisonValue>(C1) || isa<PoisonValue>(C2))
+    return PoisonValue::get(ResultTy);
+
   if (isa<UndefValue>(C1) || isa<UndefValue>(C2)) {
     CmpInst::Predicate Predicate = CmpInst::Predicate(pred);
     bool isIntegerPredicate = ICmpInst::isIntPredicate(Predicate);
@@ -2009,11 +2076,6 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     }
   } else if (auto *C1VTy = dyn_cast<VectorType>(C1->getType())) {
 
-    // Do not iterate on scalable vector. The number of elements is unknown at
-    // compile-time.
-    if (isa<ScalableVectorType>(C1VTy))
-      return nullptr;
-
     // Fast path for splatted constants.
     if (Constant *C1Splat = C1->getSplatValue())
       if (Constant *C2Splat = C2->getSplatValue())
@@ -2021,16 +2083,22 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
             C1VTy->getElementCount(),
             ConstantExpr::getCompare(pred, C1Splat, C2Splat));
 
+    // Do not iterate on scalable vector. The number of elements is unknown at
+    // compile-time.
+    if (isa<ScalableVectorType>(C1VTy))
+      return nullptr;
+
     // If we can constant fold the comparison of each element, constant fold
     // the whole vector comparison.
     SmallVector<Constant*, 4> ResElts;
     Type *Ty = IntegerType::get(C1->getContext(), 32);
     // Compare the elements, producing an i1 result or constant expr.
-    for (unsigned i = 0, e = C1VTy->getElementCount().Min; i != e; ++i) {
+    for (unsigned I = 0, E = C1VTy->getElementCount().getKnownMinValue();
+         I != E; ++I) {
       Constant *C1E =
-        ConstantExpr::getExtractElement(C1, ConstantInt::get(Ty, i));
+          ConstantExpr::getExtractElement(C1, ConstantInt::get(Ty, I));
       Constant *C2E =
-        ConstantExpr::getExtractElement(C2, ConstantInt::get(Ty, i));
+          ConstantExpr::getExtractElement(C2, ConstantInt::get(Ty, I));
 
       ResElts.push_back(ConstantExpr::getCompare(pred, C1E, C2E));
     }
@@ -2272,6 +2340,9 @@ Constant *llvm::ConstantFoldGetElementPtr(Type *PointeeTy, Constant *C,
 
   Type *GEPTy = GetElementPtrInst::getGEPReturnType(
       PointeeTy, C, makeArrayRef((Value *const *)Idxs.data(), Idxs.size()));
+
+  if (isa<PoisonValue>(C))
+    return PoisonValue::get(GEPTy);
 
   if (isa<UndefValue>(C))
     return UndefValue::get(GEPTy);

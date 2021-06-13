@@ -64,7 +64,7 @@ const char *getGenericEdgeKindName(Edge::Kind K) {
   case Edge::KeepAlive:
     return "Keep-Alive";
   default:
-    llvm_unreachable("Unrecognized relocation kind");
+    return "<Unrecognized edge kind>";
   }
 }
 
@@ -93,6 +93,7 @@ const char *getScopeName(Scope S) {
 raw_ostream &operator<<(raw_ostream &OS, const Block &B) {
   return OS << formatv("{0:x16}", B.getAddress()) << " -- "
             << formatv("{0:x16}", B.getAddress() + B.getSize()) << ": "
+            << "size = " << formatv("{0:x}", B.getSize()) << ", "
             << (B.isZeroFill() ? "zero-fill" : "content")
             << ", align = " << B.getAlignment()
             << ", align-ofs = " << B.getAlignmentOffset()
@@ -126,10 +127,10 @@ raw_ostream &operator<<(raw_ostream &OS, const Symbol &Sym) {
     break;
   }
   OS << (Sym.isLive() ? '+' : '-')
-     << ", size = " << formatv("{0:x8}", Sym.getSize())
+     << ", size = " << formatv("{0:x}", Sym.getSize())
      << ", addr = " << formatv("{0:x16}", Sym.getAddress()) << " ("
      << formatv("{0:x16}", Sym.getAddressable().getAddress()) << " + "
-     << formatv("{0:x8}", Sym.getOffset());
+     << formatv("{0:x}", Sym.getOffset());
   if (Sym.isDefined())
     OS << " " << Sym.getBlock().getSection().getName();
   OS << ")>";
@@ -139,8 +140,33 @@ raw_ostream &operator<<(raw_ostream &OS, const Symbol &Sym) {
 void printEdge(raw_ostream &OS, const Block &B, const Edge &E,
                StringRef EdgeKindName) {
   OS << "edge@" << formatv("{0:x16}", B.getAddress() + E.getOffset()) << ": "
-     << formatv("{0:x16}", B.getAddress()) << " + " << E.getOffset() << " -- "
-     << EdgeKindName << " -> " << E.getTarget() << " + " << E.getAddend();
+     << formatv("{0:x16}", B.getAddress()) << " + "
+     << formatv("{0:x}", E.getOffset()) << " -- " << EdgeKindName << " -> ";
+
+  auto &TargetSym = E.getTarget();
+  if (TargetSym.hasName())
+    OS << TargetSym.getName();
+  else {
+    auto &TargetBlock = TargetSym.getBlock();
+    auto &TargetSec = TargetBlock.getSection();
+    JITTargetAddress SecAddress = ~JITTargetAddress(0);
+    for (auto *B : TargetSec.blocks())
+      if (B->getAddress() < SecAddress)
+        SecAddress = B->getAddress();
+
+    JITTargetAddress SecDelta = TargetSym.getAddress() - SecAddress;
+    OS << formatv("{0:x16}", TargetSym.getAddress()) << " (section "
+       << TargetSec.getName();
+    if (SecDelta)
+      OS << " + " << formatv("{0:x}", SecDelta);
+    OS << " / block " << formatv("{0:x16}", TargetBlock.getAddress());
+    if (TargetSym.getOffset())
+      OS << " + " << formatv("{0:x}", TargetSym.getOffset());
+    OS << ")";
+  }
+
+  if (E.getAddend() != 0)
+    OS << " + " << E.getAddend();
 }
 
 Section::~Section() {
@@ -296,15 +322,27 @@ Error markAllSymbolsLive(LinkGraph &G) {
   return Error::success();
 }
 
-void jitLink(std::unique_ptr<JITLinkContext> Ctx) {
-  auto Magic = identify_magic(Ctx->getObjectBuffer().getBuffer());
+Expected<std::unique_ptr<LinkGraph>>
+createLinkGraphFromObject(MemoryBufferRef ObjectBuffer) {
+  auto Magic = identify_magic(ObjectBuffer.getBuffer());
   switch (Magic) {
   case file_magic::macho_object:
-    return jitLink_MachO(std::move(Ctx));
+    return createLinkGraphFromMachOObject(std::move(ObjectBuffer));
   case file_magic::elf_relocatable:
-    return jitLink_ELF(std::move(Ctx));
+    return createLinkGraphFromELFObject(std::move(ObjectBuffer));
   default:
-    Ctx->notifyFailed(make_error<JITLinkError>("Unsupported file format"));
+    return make_error<JITLinkError>("Unsupported file format");
+  };
+}
+
+void link(std::unique_ptr<LinkGraph> G, std::unique_ptr<JITLinkContext> Ctx) {
+  switch (G->getTargetTriple().getObjectFormat()) {
+  case Triple::MachO:
+    return link_MachO(std::move(G), std::move(Ctx));
+  case Triple::ELF:
+    return link_ELF(std::move(G), std::move(Ctx));
+  default:
+    Ctx->notifyFailed(make_error<JITLinkError>("Unsupported object format"));
   };
 }
 

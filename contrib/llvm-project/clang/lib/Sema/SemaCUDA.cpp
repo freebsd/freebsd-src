@@ -123,7 +123,8 @@ Sema::CUDAFunctionTarget Sema::IdentifyCUDATarget(const FunctionDecl *D,
     return CFT_Device;
   } else if (hasAttr<CUDAHostAttr>(D, IgnoreImplicitHDAttr)) {
     return CFT_Host;
-  } else if (D->isImplicit() && !IgnoreImplicitHDAttr) {
+  } else if ((D->isImplicit() || !D->isUserProvided()) &&
+             !IgnoreImplicitHDAttr) {
     // Some implicit declarations (like intrinsic functions) are not marked.
     // Set the most lenient target on them for maximal flexibility.
     return CFT_HostDevice;
@@ -519,7 +520,6 @@ void Sema::checkAllowedCUDAInitializer(VarDecl *VD) {
       VD->hasAttr<CUDASharedAttr>()) {
     if (LangOpts.GPUAllowDeviceInit)
       return;
-    assert(!VD->isStaticLocal() || VD->hasAttr<CUDASharedAttr>());
     bool AllowedInit = false;
     if (const CXXConstructExpr *CE = dyn_cast<CXXConstructExpr>(Init))
       AllowedInit =
@@ -639,58 +639,63 @@ void Sema::MaybeAddCUDAConstantAttr(VarDecl *VD) {
   }
 }
 
-Sema::DeviceDiagBuilder Sema::CUDADiagIfDeviceCode(SourceLocation Loc,
-                                                   unsigned DiagID) {
+Sema::SemaDiagnosticBuilder Sema::CUDADiagIfDeviceCode(SourceLocation Loc,
+                                                       unsigned DiagID) {
   assert(getLangOpts().CUDA && "Should only be called during CUDA compilation");
-  DeviceDiagBuilder::Kind DiagKind = [this] {
+  SemaDiagnosticBuilder::Kind DiagKind = [&] {
+    if (!isa<FunctionDecl>(CurContext))
+      return SemaDiagnosticBuilder::K_Nop;
     switch (CurrentCUDATarget()) {
     case CFT_Global:
     case CFT_Device:
-      return DeviceDiagBuilder::K_Immediate;
+      return SemaDiagnosticBuilder::K_Immediate;
     case CFT_HostDevice:
       // An HD function counts as host code if we're compiling for host, and
       // device code if we're compiling for device.  Defer any errors in device
       // mode until the function is known-emitted.
-      if (getLangOpts().CUDAIsDevice) {
-        return (getEmissionStatus(cast<FunctionDecl>(CurContext)) ==
-                FunctionEmissionStatus::Emitted)
-                   ? DeviceDiagBuilder::K_ImmediateWithCallStack
-                   : DeviceDiagBuilder::K_Deferred;
-      }
-      return DeviceDiagBuilder::K_Nop;
-
+      if (!getLangOpts().CUDAIsDevice)
+        return SemaDiagnosticBuilder::K_Nop;
+      if (IsLastErrorImmediate && Diags.getDiagnosticIDs()->isBuiltinNote(DiagID))
+        return SemaDiagnosticBuilder::K_Immediate;
+      return (getEmissionStatus(cast<FunctionDecl>(CurContext)) ==
+              FunctionEmissionStatus::Emitted)
+                 ? SemaDiagnosticBuilder::K_ImmediateWithCallStack
+                 : SemaDiagnosticBuilder::K_Deferred;
     default:
-      return DeviceDiagBuilder::K_Nop;
+      return SemaDiagnosticBuilder::K_Nop;
     }
   }();
-  return DeviceDiagBuilder(DiagKind, Loc, DiagID,
-                           dyn_cast<FunctionDecl>(CurContext), *this);
+  return SemaDiagnosticBuilder(DiagKind, Loc, DiagID,
+                               dyn_cast<FunctionDecl>(CurContext), *this);
 }
 
-Sema::DeviceDiagBuilder Sema::CUDADiagIfHostCode(SourceLocation Loc,
-                                                 unsigned DiagID) {
+Sema::SemaDiagnosticBuilder Sema::CUDADiagIfHostCode(SourceLocation Loc,
+                                                     unsigned DiagID) {
   assert(getLangOpts().CUDA && "Should only be called during CUDA compilation");
-  DeviceDiagBuilder::Kind DiagKind = [this] {
+  SemaDiagnosticBuilder::Kind DiagKind = [&] {
+    if (!isa<FunctionDecl>(CurContext))
+      return SemaDiagnosticBuilder::K_Nop;
     switch (CurrentCUDATarget()) {
     case CFT_Host:
-      return DeviceDiagBuilder::K_Immediate;
+      return SemaDiagnosticBuilder::K_Immediate;
     case CFT_HostDevice:
       // An HD function counts as host code if we're compiling for host, and
       // device code if we're compiling for device.  Defer any errors in device
       // mode until the function is known-emitted.
       if (getLangOpts().CUDAIsDevice)
-        return DeviceDiagBuilder::K_Nop;
-
+        return SemaDiagnosticBuilder::K_Nop;
+      if (IsLastErrorImmediate && Diags.getDiagnosticIDs()->isBuiltinNote(DiagID))
+        return SemaDiagnosticBuilder::K_Immediate;
       return (getEmissionStatus(cast<FunctionDecl>(CurContext)) ==
               FunctionEmissionStatus::Emitted)
-                 ? DeviceDiagBuilder::K_ImmediateWithCallStack
-                 : DeviceDiagBuilder::K_Deferred;
+                 ? SemaDiagnosticBuilder::K_ImmediateWithCallStack
+                 : SemaDiagnosticBuilder::K_Deferred;
     default:
-      return DeviceDiagBuilder::K_Nop;
+      return SemaDiagnosticBuilder::K_Nop;
     }
   }();
-  return DeviceDiagBuilder(DiagKind, Loc, DiagID,
-                           dyn_cast<FunctionDecl>(CurContext), *this);
+  return SemaDiagnosticBuilder(DiagKind, Loc, DiagID,
+                               dyn_cast<FunctionDecl>(CurContext), *this);
 }
 
 bool Sema::CheckCUDACall(SourceLocation Loc, FunctionDecl *Callee) {
@@ -711,24 +716,24 @@ bool Sema::CheckCUDACall(SourceLocation Loc, FunctionDecl *Callee) {
   // Otherwise, mark the call in our call graph so we can traverse it later.
   bool CallerKnownEmitted =
       getEmissionStatus(Caller) == FunctionEmissionStatus::Emitted;
-  DeviceDiagBuilder::Kind DiagKind = [this, Caller, Callee,
-                                      CallerKnownEmitted] {
+  SemaDiagnosticBuilder::Kind DiagKind = [this, Caller, Callee,
+                                          CallerKnownEmitted] {
     switch (IdentifyCUDAPreference(Caller, Callee)) {
     case CFP_Never:
-      return DeviceDiagBuilder::K_Immediate;
     case CFP_WrongSide:
-      assert(Caller && "WrongSide calls require a non-null caller");
+      assert(Caller && "Never/wrongSide calls require a non-null caller");
       // If we know the caller will be emitted, we know this wrong-side call
       // will be emitted, so it's an immediate error.  Otherwise, defer the
       // error until we know the caller is emitted.
-      return CallerKnownEmitted ? DeviceDiagBuilder::K_ImmediateWithCallStack
-                                : DeviceDiagBuilder::K_Deferred;
+      return CallerKnownEmitted
+                 ? SemaDiagnosticBuilder::K_ImmediateWithCallStack
+                 : SemaDiagnosticBuilder::K_Deferred;
     default:
-      return DeviceDiagBuilder::K_Nop;
+      return SemaDiagnosticBuilder::K_Nop;
     }
   }();
 
-  if (DiagKind == DeviceDiagBuilder::K_Nop)
+  if (DiagKind == SemaDiagnosticBuilder::K_Nop)
     return true;
 
   // Avoid emitting this error twice for the same location.  Using a hashtable
@@ -738,13 +743,15 @@ bool Sema::CheckCUDACall(SourceLocation Loc, FunctionDecl *Callee) {
   if (!LocsWithCUDACallDiags.insert({Caller, Loc}).second)
     return true;
 
-  DeviceDiagBuilder(DiagKind, Loc, diag::err_ref_bad_target, Caller, *this)
-      << IdentifyCUDATarget(Callee) << Callee << IdentifyCUDATarget(Caller);
-  DeviceDiagBuilder(DiagKind, Callee->getLocation(), diag::note_previous_decl,
-                    Caller, *this)
-      << Callee;
-  return DiagKind != DeviceDiagBuilder::K_Immediate &&
-         DiagKind != DeviceDiagBuilder::K_ImmediateWithCallStack;
+  SemaDiagnosticBuilder(DiagKind, Loc, diag::err_ref_bad_target, Caller, *this)
+      << IdentifyCUDATarget(Callee) << /*function*/ 0 << Callee
+      << IdentifyCUDATarget(Caller);
+  if (!Callee->getBuiltinID())
+    SemaDiagnosticBuilder(DiagKind, Callee->getLocation(),
+                          diag::note_previous_decl, Caller, *this)
+        << Callee;
+  return DiagKind != SemaDiagnosticBuilder::K_Immediate &&
+         DiagKind != SemaDiagnosticBuilder::K_ImmediateWithCallStack;
 }
 
 // Check the wrong-sided reference capture of lambda for CUDA/HIP.
@@ -781,14 +788,14 @@ void Sema::CUDACheckLambdaCapture(CXXMethodDecl *Callee,
   bool ShouldCheck = CalleeIsDevice && CallerIsHost;
   if (!ShouldCheck || !Capture.isReferenceCapture())
     return;
-  auto DiagKind = DeviceDiagBuilder::K_Deferred;
+  auto DiagKind = SemaDiagnosticBuilder::K_Deferred;
   if (Capture.isVariableCapture()) {
-    DeviceDiagBuilder(DiagKind, Capture.getLocation(),
-                      diag::err_capture_bad_target, Callee, *this)
+    SemaDiagnosticBuilder(DiagKind, Capture.getLocation(),
+                          diag::err_capture_bad_target, Callee, *this)
         << Capture.getVariable();
   } else if (Capture.isThisCapture()) {
-    DeviceDiagBuilder(DiagKind, Capture.getLocation(),
-                      diag::err_capture_bad_target_this_ptr, Callee, *this);
+    SemaDiagnosticBuilder(DiagKind, Capture.getLocation(),
+                          diag::err_capture_bad_target_this_ptr, Callee, *this);
   }
   return;
 }

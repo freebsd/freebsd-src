@@ -18,6 +18,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Bitcode/BitcodeWriterPass.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Dominators.h"
@@ -29,16 +30,27 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Passes/StandardInstrumentations.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/ThinLTOBitcodeWriter.h"
+#include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 
 using namespace llvm;
 using namespace opt_tool;
+
+namespace llvm {
+cl::opt<bool> DebugifyEach(
+    "debugify-each",
+    cl::desc("Start each pass with debugify and end it with check-debugify"));
+
+cl::opt<std::string>
+    DebugifyExport("debugify-export",
+                   cl::desc("Export per-pass debugify statistics to this file"),
+                   cl::value_desc("filename"));
+} // namespace llvm
 
 static cl::opt<bool>
     DebugPM("debug-pass-manager", cl::Hidden,
@@ -55,7 +67,7 @@ static cl::opt<std::string>
     AAPipeline("aa-pipeline",
                cl::desc("A textual description of the alias analysis "
                         "pipeline for handling managed aliasing queries"),
-               cl::Hidden);
+               cl::Hidden, cl::init("default"));
 
 /// {{@ These options accept textual pipeline descriptions which will be
 /// inserted into default pipelines at the respective extension points
@@ -92,12 +104,17 @@ static cl::opt<std::string> VectorizerStartEPPipeline(
     cl::Hidden);
 static cl::opt<std::string> PipelineStartEPPipeline(
     "passes-ep-pipeline-start",
-    cl::desc("A textual description of the function pass pipeline inserted at "
+    cl::desc("A textual description of the module pass pipeline inserted at "
              "the PipelineStart extension point into default pipelines"),
+    cl::Hidden);
+static cl::opt<std::string> PipelineEarlySimplificationEPPipeline(
+    "passes-ep-pipeline-early-simplification",
+    cl::desc("A textual description of the module pass pipeline inserted at "
+             "the EarlySimplification extension point into default pipelines"),
     cl::Hidden);
 static cl::opt<std::string> OptimizerLastEPPipeline(
     "passes-ep-optimizer-last",
-    cl::desc("A textual description of the function pass pipeline inserted at "
+    cl::desc("A textual description of the module pass pipeline inserted at "
              "the OptimizerLast extension point into default pipelines"),
     cl::Hidden);
 
@@ -108,6 +125,7 @@ extern cl::opt<PGOKind> PGOKindFlag;
 extern cl::opt<std::string> ProfileFile;
 extern cl::opt<CSPGOKind> CSPGOKindFlag;
 extern cl::opt<std::string> CSProfileGenFile;
+extern cl::opt<bool> DisableBasicAA;
 
 static cl::opt<std::string>
     ProfileRemappingFile("profile-remapping-file",
@@ -116,6 +134,13 @@ static cl::opt<std::string>
 static cl::opt<bool> DebugInfoForProfiling(
     "new-pm-debug-info-for-profiling", cl::init(false), cl::Hidden,
     cl::desc("Emit special debug info to enable PGO profile generation."));
+static cl::opt<bool> PseudoProbeForProfiling(
+    "new-pm-pseudo-probe-for-profiling", cl::init(false), cl::Hidden,
+    cl::desc("Emit pseudo probes to enable PGO profile generation."));
+static cl::opt<bool> UniqueInternalLinkageNames(
+    "new-pm-unique-internal-linkage-names", cl::init(false), cl::Hidden,
+    cl::desc("Uniqueify Internal Linkage Symbol Names by appending the MD5 "
+             "hash of the module path."));
 /// @}}
 
 template <typename PassManagerT>
@@ -137,72 +162,63 @@ bool tryParsePipelineText(PassBuilder &PB,
 
 /// If one of the EPPipeline command line options was given, register callbacks
 /// for parsing and inserting the given pipeline
-static void registerEPCallbacks(PassBuilder &PB, bool VerifyEachPass,
-                                bool DebugLogging) {
+static void registerEPCallbacks(PassBuilder &PB) {
   if (tryParsePipelineText<FunctionPassManager>(PB, PeepholeEPPipeline))
     PB.registerPeepholeEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse PeepholeEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, PeepholeEPPipeline, VerifyEachPass,
-                                   DebugLogging));
+          Err(PB.parsePassPipeline(PM, PeepholeEPPipeline));
         });
   if (tryParsePipelineText<LoopPassManager>(PB,
                                             LateLoopOptimizationsEPPipeline))
     PB.registerLateLoopOptimizationsEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse LateLoopOptimizationsEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, LateLoopOptimizationsEPPipeline,
-                                   VerifyEachPass, DebugLogging));
+          Err(PB.parsePassPipeline(PM, LateLoopOptimizationsEPPipeline));
         });
   if (tryParsePipelineText<LoopPassManager>(PB, LoopOptimizerEndEPPipeline))
     PB.registerLoopOptimizerEndEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](LoopPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse LoopOptimizerEndEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, LoopOptimizerEndEPPipeline,
-                                   VerifyEachPass, DebugLogging));
+          Err(PB.parsePassPipeline(PM, LoopOptimizerEndEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB,
                                                 ScalarOptimizerLateEPPipeline))
     PB.registerScalarOptimizerLateEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse ScalarOptimizerLateEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, ScalarOptimizerLateEPPipeline,
-                                   VerifyEachPass, DebugLogging));
+          Err(PB.parsePassPipeline(PM, ScalarOptimizerLateEPPipeline));
         });
   if (tryParsePipelineText<CGSCCPassManager>(PB, CGSCCOptimizerLateEPPipeline))
     PB.registerCGSCCOptimizerLateEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            CGSCCPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](CGSCCPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse CGSCCOptimizerLateEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, CGSCCOptimizerLateEPPipeline,
-                                   VerifyEachPass, DebugLogging));
+          Err(PB.parsePassPipeline(PM, CGSCCOptimizerLateEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB, VectorizerStartEPPipeline))
     PB.registerVectorizerStartEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](
-            FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
+        [&PB](FunctionPassManager &PM, PassBuilder::OptimizationLevel Level) {
           ExitOnError Err("Unable to parse VectorizerStartEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, VectorizerStartEPPipeline,
-                                   VerifyEachPass, DebugLogging));
+          Err(PB.parsePassPipeline(PM, VectorizerStartEPPipeline));
         });
   if (tryParsePipelineText<ModulePassManager>(PB, PipelineStartEPPipeline))
     PB.registerPipelineStartEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](ModulePassManager &PM) {
+        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
           ExitOnError Err("Unable to parse PipelineStartEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, PipelineStartEPPipeline, VerifyEachPass,
-                                   DebugLogging));
+          Err(PB.parsePassPipeline(PM, PipelineStartEPPipeline));
+        });
+  if (tryParsePipelineText<ModulePassManager>(
+          PB, PipelineEarlySimplificationEPPipeline))
+    PB.registerPipelineEarlySimplificationEPCallback(
+        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
+          ExitOnError Err("Unable to parse EarlySimplification pipeline: ");
+          Err(PB.parsePassPipeline(PM, PipelineEarlySimplificationEPPipeline));
         });
   if (tryParsePipelineText<FunctionPassManager>(PB, OptimizerLastEPPipeline))
     PB.registerOptimizerLastEPCallback(
-        [&PB, VerifyEachPass, DebugLogging](ModulePassManager &PM,
-                                            PassBuilder::OptimizationLevel) {
+        [&PB](ModulePassManager &PM, PassBuilder::OptimizationLevel) {
           ExitOnError Err("Unable to parse OptimizerLastEP pipeline: ");
-          Err(PB.parsePassPipeline(PM, OptimizerLastEPPipeline, VerifyEachPass,
-                                   DebugLogging));
+          Err(PB.parsePassPipeline(PM, OptimizerLastEPPipeline));
         });
 }
 
@@ -211,7 +227,8 @@ static void registerEPCallbacks(PassBuilder &PB, bool VerifyEachPass,
 #include "llvm/Support/Extension.def"
 
 bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
-                           ToolOutputFile *Out, ToolOutputFile *ThinLTOLinkOut,
+                           TargetLibraryInfoImpl *TLII, ToolOutputFile *Out,
+                           ToolOutputFile *ThinLTOLinkOut,
                            ToolOutputFile *OptRemarkFile,
                            StringRef PassPipeline, ArrayRef<StringRef> Passes,
                            OutputKind OK, VerifierKind VK,
@@ -237,6 +254,9 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
     if (DebugInfoForProfiling)
       P = PGOOptions("", "", "", PGOOptions::NoAction, PGOOptions::NoCSAction,
                      true);
+    else if (PseudoProbeForProfiling)
+      P = PGOOptions("", "", "", PGOOptions::NoAction, PGOOptions::NoCSAction,
+                     false, true);
     else
       P = None;
   }
@@ -260,8 +280,11 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
     }
   }
   PassInstrumentationCallbacks PIC;
-  StandardInstrumentations SI;
+  StandardInstrumentations SI(DebugPM, VerifyEachPass);
   SI.registerCallbacks(PIC);
+  DebugifyEachInstrumentation Debugify;
+  if (DebugifyEach)
+    Debugify.registerCallbacks(PIC);
 
   PipelineTuningOptions PTO;
   // LoopUnrolling defaults on to true and DisableLoopUnrolling is initialized
@@ -269,8 +292,9 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
   // option has been enabled.
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.Coroutines = Coroutines;
-  PassBuilder PB(TM, PTO, P, &PIC);
-  registerEPCallbacks(PB, VerifyEachPass, DebugPM);
+  PTO.UniqueLinkageNames = UniqueInternalLinkageNames;
+  PassBuilder PB(DebugPM, TM, PTO, P, &PIC);
+  registerEPCallbacks(PB);
 
   // Load requested pass plugins and let them register pass builder callbacks
   for (auto &PluginFN : PassPlugins) {
@@ -297,6 +321,25 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
         }
         return false;
       });
+  PB.registerPipelineParsingCallback(
+      [](StringRef Name, ModulePassManager &MPM,
+         ArrayRef<PassBuilder::PipelineElement>) {
+        if (Name == "asan-pipeline") {
+          MPM.addPass(
+              RequireAnalysisPass<ASanGlobalsMetadataAnalysis, Module>());
+          MPM.addPass(
+              createModuleToFunctionPassAdaptor(AddressSanitizerPass()));
+          MPM.addPass(ModuleAddressSanitizerPass());
+          return true;
+        } else if (Name == "asan-function-pipeline") {
+          MPM.addPass(
+              RequireAnalysisPass<ASanGlobalsMetadataAnalysis, Module>());
+          MPM.addPass(
+              createModuleToFunctionPassAdaptor(AddressSanitizerPass()));
+          return true;
+        }
+        return false;
+      });
 
 #define HANDLE_EXTENSION(Ext)                                                  \
   get##Ext##PluginInfo().RegisterPassBuilderCallbacks(PB);
@@ -305,25 +348,33 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
   // Specially handle the alias analysis manager so that we can register
   // a custom pipeline of AA passes with it.
   AAManager AA;
-  if (!AAPipeline.empty()) {
-    assert(Passes.empty() &&
-           "--aa-pipeline and -foo-pass should not both be specified");
+  if (Passes.empty()) {
     if (auto Err = PB.parseAAPipeline(AA, AAPipeline)) {
       errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
       return false;
     }
   }
+
+  // For compatibility with the legacy PM AA pipeline.
+  // AAResultsWrapperPass by default provides basic-aa in the legacy PM
+  // unless -disable-basic-aa is specified.
+  // TODO: remove this once tests implicitly requiring basic-aa use -passes= and
+  // -aa-pipeline=basic-aa.
+  if (!Passes.empty() && !DisableBasicAA) {
+    if (auto Err = PB.parseAAPipeline(AA, "basic-aa")) {
+      errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
+      return false;
+    }
+  }
+
   // For compatibility with legacy pass manager.
   // Alias analyses are not specially specified when using the legacy PM.
-  SmallVector<StringRef, 4> NonAAPasses;
   for (auto PassName : Passes) {
     if (PB.isAAPassName(PassName)) {
       if (auto Err = PB.parseAAPipeline(AA, PassName)) {
         errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
         return false;
       }
-    } else {
-      NonAAPasses.push_back(PassName);
     }
   }
 
@@ -334,6 +385,8 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
 
   // Register the AA manager first so that our version is the one used.
   FAM.registerPass([&] { return std::move(AA); });
+  // Register our TargetLibraryInfoImpl.
+  FAM.registerPass([&] { return TargetLibraryAnalysis(*TLII); });
 
   // Register all the basic analyses with the managers.
   PB.registerModuleAnalyses(MAM);
@@ -351,18 +404,16 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
   if (!PassPipeline.empty()) {
     assert(Passes.empty() &&
            "PassPipeline and Passes should not both contain passes");
-    if (auto Err =
-            PB.parsePassPipeline(MPM, PassPipeline, VerifyEachPass, DebugPM)) {
+    if (auto Err = PB.parsePassPipeline(MPM, PassPipeline)) {
       errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
       return false;
     }
   }
-  for (auto PassName : NonAAPasses) {
+  for (auto PassName : Passes) {
     std::string ModifiedPassName(PassName.begin(), PassName.end());
     if (PB.isAnalysisPassName(PassName))
       ModifiedPassName = "require<" + ModifiedPassName + ">";
-    if (auto Err = PB.parsePassPipeline(MPM, ModifiedPassName, VerifyEachPass,
-                                        DebugPM)) {
+    if (auto Err = PB.parsePassPipeline(MPM, ModifiedPassName)) {
       errs() << Arg0 << ": " << toString(std::move(Err)) << "\n";
       return false;
     }
@@ -406,6 +457,9 @@ bool llvm::runPassPipeline(StringRef Arg0, Module &M, TargetMachine *TM,
 
   if (OptRemarkFile)
     OptRemarkFile->keep();
+
+  if (DebugifyEach && !DebugifyExport.empty())
+    exportDebugifyStats(DebugifyExport, Debugify.StatsMap);
 
   return true;
 }

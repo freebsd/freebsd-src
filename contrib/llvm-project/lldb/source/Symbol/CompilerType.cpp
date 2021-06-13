@@ -40,6 +40,12 @@ bool CompilerType::IsAnonymousType() const {
   return false;
 }
 
+bool CompilerType::IsScopedEnumerationType() const {
+  if (IsValid())
+    return m_type_system->IsScopedEnumerationType(m_type);
+  return false;
+}
+
 bool CompilerType::IsArrayType(CompilerType *element_type_ptr, uint64_t *size,
                                bool *is_incomplete) const {
   if (IsValid())
@@ -92,9 +98,9 @@ bool CompilerType::IsCStringType(uint32_t &length) const {
   return false;
 }
 
-bool CompilerType::IsFunctionType(bool *is_variadic_ptr) const {
+bool CompilerType::IsFunctionType() const {
   if (IsValid())
-    return m_type_system->IsFunctionType(m_type, is_variadic_ptr);
+    return m_type_system->IsFunctionType(m_type);
   return false;
 }
 
@@ -317,9 +323,10 @@ unsigned CompilerType::GetTypeQualifiers() const {
 
 // Creating related types
 
-CompilerType CompilerType::GetArrayElementType(uint64_t *stride) const {
+CompilerType
+CompilerType::GetArrayElementType(ExecutionContextScope *exe_scope) const {
   if (IsValid()) {
-    return m_type_system->GetArrayElementType(m_type, stride);
+    return m_type_system->GetArrayElementType(m_type, exe_scope);
   }
   return CompilerType();
 }
@@ -340,6 +347,12 @@ CompilerType CompilerType::GetCanonicalType() const {
 CompilerType CompilerType::GetFullyUnqualifiedType() const {
   if (IsValid())
     return m_type_system->GetFullyUnqualifiedType(m_type);
+  return CompilerType();
+}
+
+CompilerType CompilerType::GetEnumerationIntegerType() const {
+  if (IsValid())
+    return m_type_system->GetEnumerationIntegerType(m_type);
   return CompilerType();
 }
 
@@ -766,8 +779,8 @@ LLVM_DUMP_METHOD void CompilerType::dump() const {
 
 bool CompilerType::GetValueAsScalar(const lldb_private::DataExtractor &data,
                                     lldb::offset_t data_byte_offset,
-                                    size_t data_byte_size,
-                                    Scalar &value) const {
+                                    size_t data_byte_size, Scalar &value,
+                                    ExecutionContextScope *exe_scope) const {
   if (!IsValid())
     return false;
 
@@ -780,7 +793,7 @@ bool CompilerType::GetValueAsScalar(const lldb_private::DataExtractor &data,
     if (encoding == lldb::eEncodingInvalid || count != 1)
       return false;
 
-    llvm::Optional<uint64_t> byte_size = GetByteSize(nullptr);
+    llvm::Optional<uint64_t> byte_size = GetByteSize(exe_scope);
     if (!byte_size)
       return false;
     lldb::offset_t offset = data_byte_offset;

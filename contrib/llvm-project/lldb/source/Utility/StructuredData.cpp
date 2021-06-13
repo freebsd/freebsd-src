@@ -21,7 +21,8 @@ static StructuredData::ObjectSP ParseJSONValue(json::Value &value);
 static StructuredData::ObjectSP ParseJSONObject(json::Object *object);
 static StructuredData::ObjectSP ParseJSONArray(json::Array *array);
 
-StructuredData::ObjectSP StructuredData::ParseJSON(std::string json_text) {
+StructuredData::ObjectSP
+StructuredData::ParseJSON(const std::string &json_text) {
   llvm::Expected<json::Value> value = json::parse(json_text);
   if (!value) {
     llvm::consumeError(value.takeError());
@@ -41,7 +42,12 @@ StructuredData::ParseJSONFromFile(const FileSpec &input_spec, Status &error) {
                                     buffer_or_error.getError().message());
     return return_sp;
   }
-  return ParseJSON(buffer_or_error.get()->getBuffer().str());
+  llvm::Expected<json::Value> value =
+      json::parse(buffer_or_error.get()->getBuffer().str());
+  if (value)
+    return ParseJSONValue(*value);
+  error.SetErrorString(toString(value.takeError()));
+  return StructuredData::ObjectSP();
 }
 
 static StructuredData::ObjectSP ParseJSONValue(json::Value &value) {
@@ -51,21 +57,17 @@ static StructuredData::ObjectSP ParseJSONValue(json::Value &value) {
   if (json::Array *A = value.getAsArray())
     return ParseJSONArray(A);
 
-  std::string s;
-  if (json::fromJSON(value, s))
-    return std::make_shared<StructuredData::String>(s);
+  if (auto s = value.getAsString())
+    return std::make_shared<StructuredData::String>(*s);
 
-  bool b;
-  if (json::fromJSON(value, b))
-    return std::make_shared<StructuredData::Boolean>(b);
+  if (auto b = value.getAsBoolean())
+    return std::make_shared<StructuredData::Boolean>(*b);
 
-  int64_t i;
-  if (json::fromJSON(value, i))
-    return std::make_shared<StructuredData::Integer>(i);
+  if (auto i = value.getAsInteger())
+    return std::make_shared<StructuredData::Integer>(*i);
 
-  double d;
-  if (json::fromJSON(value, d))
-    return std::make_shared<StructuredData::Float>(d);
+  if (auto d = value.getAsNumber())
+    return std::make_shared<StructuredData::Float>(*d);
 
   return StructuredData::ObjectSP();
 }

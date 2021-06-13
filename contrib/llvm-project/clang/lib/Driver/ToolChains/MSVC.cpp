@@ -11,6 +11,7 @@
 #include "Darwin.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Version.h"
+#include "clang/Config/config.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
@@ -65,6 +66,20 @@ using namespace llvm::opt;
 // Forward declare this so there aren't too many things above the constructor.
 static bool getSystemRegistryString(const char *keyPath, const char *valueName,
                                     std::string &value, std::string *phValue);
+
+// Check command line arguments to try and find a toolchain.
+static bool
+findVCToolChainViaCommandLine(const ArgList &Args, std::string &Path,
+                              MSVCToolChain::ToolsetLayout &VSLayout) {
+  // Don't validate the input; trust the value supplied by the user.
+  // The primary motivation is to prevent unnecessary file and registry access.
+  if (Arg *A = Args.getLastArg(options::OPT__SLASH_vctoolsdir)) {
+    Path = A->getValue();
+    VSLayout = MSVCToolChain::ToolsetLayout::VS2017OrNewer;
+    return true;
+  }
+  return false;
+}
 
 // Check various environment variables to try and find a toolchain.
 static bool findVCToolChainViaEnvironment(std::string &Path,
@@ -319,8 +334,10 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         Args.MakeArgString(std::string("-out:") + Output.getFilename()));
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles) &&
-      !C.getDriver().IsCLMode())
+      !C.getDriver().IsCLMode()) {
     CmdArgs.push_back("-defaultlib:libcmt");
+    CmdArgs.push_back("-defaultlib:oldnames");
+  }
 
   if (!llvm::sys::Process::GetEnv("LIB")) {
     // If the VC environment hasn't been configured (perhaps because the user
@@ -366,8 +383,7 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   CmdArgs.push_back("-nologo");
 
-  if (Args.hasArg(options::OPT_g_Group, options::OPT__SLASH_Z7,
-                  options::OPT__SLASH_Zd))
+  if (Args.hasArg(options::OPT_g_Group, options::OPT__SLASH_Z7))
     CmdArgs.push_back("-debug");
 
   // Pass on /Brepro if it was passed to the compiler.
@@ -505,7 +521,10 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // translate 'lld' into 'lld-link', and in the case of the regular msvc
   // linker, we need to use a special search algorithm.
   llvm::SmallString<128> linkPath;
-  StringRef Linker = Args.getLastArgValue(options::OPT_fuse_ld_EQ, "link");
+  StringRef Linker
+    = Args.getLastArgValue(options::OPT_fuse_ld_EQ, CLANG_DEFAULT_LINKER);
+  if (Linker.empty())
+    Linker = "link";
   if (Linker.equals_lower("lld"))
     Linker = "lld-link";
 
@@ -592,9 +611,9 @@ void visualstudio::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     linkPath = TC.GetProgramPath(Linker.str().c_str());
   }
 
-  auto LinkCmd =
-      std::make_unique<Command>(JA, *this, ResponseFileSupport::AtFileUTF16(),
-                                Args.MakeArgString(linkPath), CmdArgs, Inputs);
+  auto LinkCmd = std::make_unique<Command>(
+      JA, *this, ResponseFileSupport::AtFileUTF16(),
+      Args.MakeArgString(linkPath), CmdArgs, Inputs, Output);
   if (!Environment.empty())
     LinkCmd->setEnvironment(Environment);
   C.addCommand(std::move(LinkCmd));
@@ -734,9 +753,9 @@ std::unique_ptr<Command> visualstudio::Compiler::GetCommand(
   CmdArgs.push_back(Fo);
 
   std::string Exec = FindVisualStudioExecutable(getToolChain(), "cl.exe");
-  return std::make_unique<Command>(JA, *this,
-                                   ResponseFileSupport::AtFileUTF16(),
-                                   Args.MakeArgString(Exec), CmdArgs, Inputs);
+  return std::make_unique<Command>(
+      JA, *this, ResponseFileSupport::AtFileUTF16(), Args.MakeArgString(Exec),
+      CmdArgs, Inputs, Output);
 }
 
 MSVCToolChain::MSVCToolChain(const Driver &D, const llvm::Triple &Triple,
@@ -747,11 +766,12 @@ MSVCToolChain::MSVCToolChain(const Driver &D, const llvm::Triple &Triple,
   if (getDriver().getInstalledDir() != getDriver().Dir)
     getProgramPaths().push_back(getDriver().Dir);
 
-  // Check the environment first, since that's probably the user telling us
-  // what they want to use.
-  // Failing that, just try to find the newest Visual Studio version we can
-  // and use its default VC toolchain.
-  findVCToolChainViaEnvironment(VCToolChainPath, VSLayout) ||
+  // Check the command line first, that's the user explicitly telling us what to
+  // use. Check the environment next, in case we're being invoked from a VS
+  // command prompt. Failing that, just try to find the newest Visual Studio
+  // version we can and use its default VC toolchain.
+  findVCToolChainViaCommandLine(Args, VCToolChainPath, VSLayout) ||
+      findVCToolChainViaEnvironment(VCToolChainPath, VSLayout) ||
       findVCToolChainViaSetupConfig(VCToolChainPath, VSLayout) ||
       findVCToolChainViaRegistry(VCToolChainPath, VSLayout);
 }
@@ -1263,15 +1283,18 @@ void MSVCToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
     return;
 
   // Honor %INCLUDE%. It should know essential search paths with vcvarsall.bat.
-  if (llvm::Optional<std::string> cl_include_dir =
-          llvm::sys::Process::GetEnv("INCLUDE")) {
-    SmallVector<StringRef, 8> Dirs;
-    StringRef(*cl_include_dir)
-        .split(Dirs, ";", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
-    for (StringRef Dir : Dirs)
-      addSystemInclude(DriverArgs, CC1Args, Dir);
-    if (!Dirs.empty())
-      return;
+  // Skip if the user expressly set a vctoolsdir
+  if (!DriverArgs.getLastArg(options::OPT__SLASH_vctoolsdir)) {
+    if (llvm::Optional<std::string> cl_include_dir =
+            llvm::sys::Process::GetEnv("INCLUDE")) {
+      SmallVector<StringRef, 8> Dirs;
+      StringRef(*cl_include_dir)
+          .split(Dirs, ";", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+      for (StringRef Dir : Dirs)
+        addSystemInclude(DriverArgs, CC1Args, Dir);
+      if (!Dirs.empty())
+        return;
+    }
   }
 
   // When built with access to the proper Windows APIs, try to actually find

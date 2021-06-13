@@ -69,7 +69,7 @@ static void dumpRanges(const DWARFObject &Obj, raw_ostream &OS,
   }
 }
 
-static void dumpLocation(raw_ostream &OS, DWARFFormValue &FormValue,
+static void dumpLocation(raw_ostream &OS, const DWARFFormValue &FormValue,
                          DWARFUnit *U, unsigned Indent,
                          DIDumpOptions DumpOpts) {
   DWARFContext &Ctx = U->getContext();
@@ -80,7 +80,7 @@ static void dumpLocation(raw_ostream &OS, DWARFFormValue &FormValue,
     DataExtractor Data(StringRef((const char *)Expr.data(), Expr.size()),
                        Ctx.isLittleEndian(), 0);
     DWARFExpression(Data, U->getAddressByteSize(), U->getFormParams().Format)
-        .print(OS, MRI, U);
+        .print(OS, DumpOpts, MRI, U);
     return;
   }
 
@@ -113,7 +113,6 @@ static void dumpTypeTagName(raw_ostream &OS, dwarf::Tag T) {
 }
 
 static void dumpArrayType(raw_ostream &OS, const DWARFDie &D) {
-  Optional<uint64_t> Bound;
   for (const DWARFDie &C : D.children())
     if (C.getTag() == DW_TAG_subrange_type) {
       Optional<uint64_t> LB;
@@ -231,21 +230,22 @@ static void dumpTypeName(raw_ostream &OS, const DWARFDie &D) {
 }
 
 static void dumpAttribute(raw_ostream &OS, const DWARFDie &Die,
-                          uint64_t *OffsetPtr, dwarf::Attribute Attr,
-                          dwarf::Form Form, unsigned Indent,
+                          const DWARFAttribute &AttrValue, unsigned Indent,
                           DIDumpOptions DumpOpts) {
   if (!Die.isValid())
     return;
   const char BaseIndent[] = "            ";
   OS << BaseIndent;
   OS.indent(Indent + 2);
+  dwarf::Attribute Attr = AttrValue.Attr;
   WithColor(OS, HighlightColor::Attribute) << formatv("{0}", Attr);
 
+  dwarf::Form Form = AttrValue.Value.getForm();
   if (DumpOpts.Verbose || DumpOpts.ShowForm)
     OS << formatv(" [{0}]", Form);
 
   DWARFUnit *U = Die.getDwarfUnit();
-  DWARFFormValue FormValue = DWARFFormValue::createFromUnit(Form, U, OffsetPtr);
+  const DWARFFormValue &FormValue = AttrValue.Value;
 
   OS << "\t(";
 
@@ -269,13 +269,23 @@ static void dumpAttribute(raw_ostream &OS, const DWARFDie &Die,
     WithColor(OS, Color) << Name;
   else if (Attr == DW_AT_decl_line || Attr == DW_AT_call_line)
     OS << *FormValue.getAsUnsignedConstant();
-  else if (Attr == DW_AT_high_pc && !DumpOpts.ShowForm && !DumpOpts.Verbose &&
-           FormValue.getAsUnsignedConstant()) {
+  else if (Attr == DW_AT_low_pc &&
+           (FormValue.getAsAddress() ==
+            dwarf::computeTombstoneAddress(U->getAddressByteSize()))) {
+    if (DumpOpts.Verbose) {
+      FormValue.dump(OS, DumpOpts);
+      OS << " (";
+    }
+    OS << "dead code";
+    if (DumpOpts.Verbose)
+      OS << ')';
+  } else if (Attr == DW_AT_high_pc && !DumpOpts.ShowForm && !DumpOpts.Verbose &&
+             FormValue.getAsUnsignedConstant()) {
     if (DumpOpts.ShowAddresses) {
       // Print the actual address rather than the offset.
       uint64_t LowPC, HighPC, Index;
       if (Die.getLowAndHighPC(LowPC, HighPC, Index))
-        OS << format("0x%016" PRIx64, HighPC);
+        DWARFFormValue::dumpAddress(OS, U->getAddressByteSize(), HighPC);
       else
         FormValue.dump(OS, DumpOpts);
     }
@@ -368,8 +378,7 @@ DWARFDie::findRecursively(ArrayRef<dwarf::Attribute> Attrs) const {
   Seen.insert(*this);
 
   while (!Worklist.empty()) {
-    DWARFDie Die = Worklist.back();
-    Worklist.pop_back();
+    DWARFDie Die = Worklist.pop_back_val();
 
     if (!Die.isValid())
       continue;
@@ -416,6 +425,9 @@ Optional<uint64_t> DWARFDie::getLocBaseAttribute() const {
 }
 
 Optional<uint64_t> DWARFDie::getHighPC(uint64_t LowPC) const {
+  uint64_t Tombstone = dwarf::computeTombstoneAddress(U->getAddressByteSize());
+  if (LowPC == Tombstone)
+    return None;
   if (auto FormValue = find(DW_AT_high_pc)) {
     if (auto Address = FormValue->getAsAddress()) {
       // High PC is an address.
@@ -467,8 +479,7 @@ void DWARFDie::collectChildrenAddressRanges(
     return;
   if (isSubprogramDIE()) {
     if (auto DIERangesOrError = getAddressRanges())
-      Ranges.insert(Ranges.end(), DIERangesOrError.get().begin(),
-                    DIERangesOrError.get().end());
+      llvm::append_range(Ranges, DIERangesOrError.get());
     else
       llvm::consumeError(DIERangesOrError.takeError());
   }
@@ -558,6 +569,17 @@ uint64_t DWARFDie::getDeclLine() const {
   return toUnsigned(findRecursively(DW_AT_decl_line), 0);
 }
 
+std::string
+DWARFDie::getDeclFile(DILineInfoSpecifier::FileLineInfoKind Kind) const {
+  std::string FileName;
+  if (auto DeclFile = toUnsigned(findRecursively(DW_AT_decl_file))) {
+    if (const auto *LT = U->getContext().getLineTableForUnit(U)) {
+      LT->getFileNameByIndex(*DeclFile, U->getCompilationDir(), Kind, FileName);
+    }
+  }
+  return FileName;
+}
+
 void DWARFDie::getCallerFrame(uint32_t &CallFile, uint32_t &CallLine,
                               uint32_t &CallColumn,
                               uint32_t &CallDiscriminator) const {
@@ -610,16 +632,8 @@ void DWARFDie::dump(raw_ostream &OS, unsigned Indent,
         OS << '\n';
 
         // Dump all data in the DIE for the attributes.
-        for (const auto &AttrSpec : AbbrevDecl->attributes()) {
-          if (AttrSpec.Form == DW_FORM_implicit_const) {
-            // We are dumping .debug_info section ,
-            // implicit_const attribute values are not really stored here,
-            // but in .debug_abbrev section. So we just skip such attrs.
-            continue;
-          }
-          dumpAttribute(OS, *this, &offset, AttrSpec.Attr, AttrSpec.Form,
-                        Indent, DumpOpts);
-        }
+        for (const DWARFAttribute &AttrValue : attributes())
+          dumpAttribute(OS, *this, AttrValue, Indent, DumpOpts);
 
         DWARFDie child = getFirstChild();
         if (DumpOpts.ShowChildren && DumpOpts.ChildRecurseDepth > 0 && child) {
@@ -702,10 +716,16 @@ void DWARFDie::attribute_iterator::updateForIndex(
     // Add the previous byte size of any previous attribute value.
     AttrValue.Offset += AttrValue.ByteSize;
     uint64_t ParseOffset = AttrValue.Offset;
-    auto U = Die.getDwarfUnit();
-    assert(U && "Die must have valid DWARF unit");
-    AttrValue.Value = DWARFFormValue::createFromUnit(
-        AbbrDecl.getFormByIndex(Index), U, &ParseOffset);
+    if (AbbrDecl.getAttrIsImplicitConstByIndex(Index))
+      AttrValue.Value = DWARFFormValue::createFromSValue(
+          AbbrDecl.getFormByIndex(Index),
+          AbbrDecl.getAttrImplicitConstValueByIndex(Index));
+    else {
+      auto U = Die.getDwarfUnit();
+      assert(U && "Die must have valid DWARF unit");
+      AttrValue.Value = DWARFFormValue::createFromUnit(
+          AbbrDecl.getFormByIndex(Index), U, &ParseOffset);
+    }
     AttrValue.ByteSize = ParseOffset - AttrValue.Offset;
   } else {
     assert(Index == NumAttrs && "Indexes should be [0, NumAttrs) only");

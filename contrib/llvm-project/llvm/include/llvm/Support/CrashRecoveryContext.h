@@ -44,11 +44,11 @@ class CrashRecoveryContextCleanup;
 /// executed in any case, whether crash occurs or not. These actions may be used
 /// to reclaim resources in the case of crash.
 class CrashRecoveryContext {
-  void *Impl;
-  CrashRecoveryContextCleanup *head;
+  void *Impl = nullptr;
+  CrashRecoveryContextCleanup *head = nullptr;
 
 public:
-  CrashRecoveryContext() : Impl(nullptr), head(nullptr) {}
+  CrashRecoveryContext();
   ~CrashRecoveryContext();
 
   /// Register cleanup handler, which is used when the recovery context is
@@ -101,6 +101,10 @@ public:
   /// return failure from RunSafely(). This function does not return.
   LLVM_ATTRIBUTE_NORETURN
   void HandleExit(int RetCode);
+
+  /// Throw again a signal or an exception, after it was catched once by a
+  /// CrashRecoveryContext.
+  static bool throwIfCrash(int RetCode);
 
   /// In case of a crash, this is the crash identifier.
   int RetCode = 0;
@@ -181,7 +185,7 @@ public:
       : CrashRecoveryContextCleanupBase<
             CrashRecoveryContextDestructorCleanup<T>, T>(context, resource) {}
 
-  virtual void recoverResources() {
+  void recoverResources() override {
     this->resource->~T();
   }
 };

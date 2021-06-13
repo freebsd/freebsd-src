@@ -43,10 +43,10 @@ STATISTIC(ObjectSizeIntrinsicsHandled,
           "Number of 'objectsize' intrinsic calls handled");
 
 static Value *lowerIsConstantIntrinsic(IntrinsicInst *II) {
-  Value *Op = II->getOperand(0);
-
-  return isa<Constant>(Op) ? ConstantInt::getTrue(II->getType())
-                           : ConstantInt::getFalse(II->getType());
+  if (auto *C = dyn_cast<Constant>(II->getOperand(0)))
+    if (C->isManifestConstant())
+      return ConstantInt::getTrue(II->getType());
+  return ConstantInt::getFalse(II->getType());
 }
 
 static bool replaceConditionalBranchesOnConstant(Instruction *II,
@@ -78,7 +78,7 @@ static bool replaceConditionalBranchesOnConstant(Instruction *II,
       Other->removePredecessor(Source);
       BI->eraseFromParent();
       BranchInst::Create(Target, Source);
-      if (pred_begin(Other) == pred_end(Other))
+      if (pred_empty(Other))
         HasDeadBlocks = true;
     }
   }

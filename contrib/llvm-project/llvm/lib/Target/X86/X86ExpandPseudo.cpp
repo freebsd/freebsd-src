@@ -334,32 +334,28 @@ bool X86ExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     MBB.erase(MBBI);
     return true;
   }
-  case X86::LCMPXCHG8B_SAVE_EBX:
   case X86::LCMPXCHG16B_SAVE_RBX: {
     // Perform the following transformation.
     // SaveRbx = pseudocmpxchg Addr, <4 opds for the address>, InArg, SaveRbx
     // =>
-    // [E|R]BX = InArg
+    // RBX = InArg
     // actualcmpxchg Addr
-    // [E|R]BX = SaveRbx
+    // RBX = SaveRbx
     const MachineOperand &InArg = MBBI->getOperand(6);
     Register SaveRbx = MBBI->getOperand(7).getReg();
 
-    unsigned ActualInArg =
-        Opcode == X86::LCMPXCHG8B_SAVE_EBX ? X86::EBX : X86::RBX;
     // Copy the input argument of the pseudo into the argument of the
     // actual instruction.
-    TII->copyPhysReg(MBB, MBBI, DL, ActualInArg, InArg.getReg(),
-                     InArg.isKill());
+    // NOTE: We don't copy the kill flag since the input might be the same reg
+    // as one of the other operands of LCMPXCHG16B.
+    TII->copyPhysReg(MBB, MBBI, DL, X86::RBX, InArg.getReg(), false);
     // Create the actual instruction.
-    unsigned ActualOpc =
-        Opcode == X86::LCMPXCHG8B_SAVE_EBX ? X86::LCMPXCHG8B : X86::LCMPXCHG16B;
-    MachineInstr *NewInstr = BuildMI(MBB, MBBI, DL, TII->get(ActualOpc));
+    MachineInstr *NewInstr = BuildMI(MBB, MBBI, DL, TII->get(X86::LCMPXCHG16B));
     // Copy the operands related to the address.
     for (unsigned Idx = 1; Idx < 6; ++Idx)
       NewInstr->addOperand(MBBI->getOperand(Idx));
     // Finally, restore the value of RBX.
-    TII->copyPhysReg(MBB, MBBI, DL, ActualInArg, SaveRbx,
+    TII->copyPhysReg(MBB, MBBI, DL, X86::RBX, SaveRbx,
                      /*SrcIsKill*/ true);
 
     // Delete the pseudo.
@@ -442,9 +438,68 @@ bool X86ExpandPseudo::ExpandMI(MachineBasicBlock &MBB,
     MBB.erase(MBBI);
     return true;
   }
+  case X86::MWAITX_SAVE_RBX: {
+    // Perform the following transformation.
+    // SaveRbx = pseudomwaitx InArg, SaveRbx
+    // =>
+    // [E|R]BX = InArg
+    // actualmwaitx
+    // [E|R]BX = SaveRbx
+    const MachineOperand &InArg = MBBI->getOperand(1);
+    // Copy the input argument of the pseudo into the argument of the
+    // actual instruction.
+    TII->copyPhysReg(MBB, MBBI, DL, X86::EBX, InArg.getReg(), InArg.isKill());
+    // Create the actual instruction.
+    BuildMI(MBB, MBBI, DL, TII->get(X86::MWAITXrrr));
+    // Finally, restore the value of RBX.
+    Register SaveRbx = MBBI->getOperand(2).getReg();
+    TII->copyPhysReg(MBB, MBBI, DL, X86::RBX, SaveRbx, /*SrcIsKill*/ true);
+    // Delete the pseudo.
+    MBBI->eraseFromParent();
+    return true;
+  }
   case TargetOpcode::ICALL_BRANCH_FUNNEL:
     ExpandICallBranchFunnel(&MBB, MBBI);
     return true;
+  case X86::PLDTILECFG: {
+    MI.RemoveOperand(0);
+    MI.setDesc(TII->get(X86::LDTILECFG));
+    return true;
+  }
+  case X86::PSTTILECFG: {
+    MI.RemoveOperand(MI.getNumOperands() - 1); // Remove $tmmcfg
+    MI.setDesc(TII->get(X86::STTILECFG));
+    return true;
+  }
+  case X86::PTILELOADDV: {
+    MI.RemoveOperand(8); // Remove $tmmcfg
+    for (unsigned i = 2; i > 0; --i)
+      MI.RemoveOperand(i);
+    MI.setDesc(TII->get(X86::TILELOADD));
+    return true;
+  }
+  case X86::PTDPBSSDV: {
+    MI.RemoveOperand(7); // Remove $tmmcfg
+    MI.untieRegOperand(4);
+    for (unsigned i = 3; i > 0; --i)
+      MI.RemoveOperand(i);
+    MI.setDesc(TII->get(X86::TDPBSSD));
+    MI.tieOperands(0, 1);
+    return true;
+  }
+  case X86::PTILESTOREDV: {
+    MI.RemoveOperand(8); // Remove $tmmcfg
+    for (int i = 1; i >= 0; --i)
+      MI.RemoveOperand(i);
+    MI.setDesc(TII->get(X86::TILESTORED));
+    return true;
+  }
+  case X86::PTILEZEROV: {
+    for (int i = 3; i > 0; --i) // Remove row, col, $tmmcfg
+      MI.RemoveOperand(i);
+    MI.setDesc(TII->get(X86::TILEZERO));
+    return true;
+  }
   }
   llvm_unreachable("Previous switch has a fallthrough?");
 }

@@ -151,6 +151,8 @@ StringRef llvm::dwarf::OperationEncodingString(unsigned Encoding) {
     return "DW_OP_LLVM_tag_offset";
   case DW_OP_LLVM_entry_value:
     return "DW_OP_LLVM_entry_value";
+  case DW_OP_LLVM_implicit_pointer:
+    return "DW_OP_LLVM_implicit_pointer";
   }
 }
 
@@ -163,6 +165,7 @@ unsigned llvm::dwarf::getOperationEncoding(StringRef OperationEncodingString) {
       .Case("DW_OP_LLVM_fragment", DW_OP_LLVM_fragment)
       .Case("DW_OP_LLVM_tag_offset", DW_OP_LLVM_tag_offset)
       .Case("DW_OP_LLVM_entry_value", DW_OP_LLVM_entry_value)
+      .Case("DW_OP_LLVM_implicit_pointer", DW_OP_LLVM_implicit_pointer)
       .Default(0);
 }
 
@@ -488,6 +491,17 @@ StringRef llvm::dwarf::MacroString(unsigned Encoding) {
   }
 }
 
+StringRef llvm::dwarf::GnuMacroString(unsigned Encoding) {
+  switch (Encoding) {
+  default:
+    return StringRef();
+#define HANDLE_DW_MACRO_GNU(ID, NAME)                                          \
+  case DW_MACRO_GNU_##NAME:                                                    \
+    return "DW_MACRO_GNU_" #NAME;
+#include "llvm/BinaryFormat/Dwarf.def"
+  }
+}
+
 unsigned llvm::dwarf::getMacro(StringRef MacroString) {
   return StringSwitch<unsigned>(MacroString)
 #define HANDLE_DW_MACRO(ID, NAME) .Case("DW_MACRO_" #NAME, ID)
@@ -782,6 +796,17 @@ StringRef llvm::dwarf::FormatString(DwarfFormat Format) {
 
 StringRef llvm::dwarf::FormatString(bool IsDWARF64) {
   return FormatString(IsDWARF64 ? DWARF64 : DWARF32);
+}
+
+StringRef llvm::dwarf::RLEString(unsigned RLE) {
+  switch (RLE) {
+  default:
+    return StringRef();
+#define HANDLE_DW_RLE(ID, NAME)                                                \
+  case DW_RLE_##NAME:                                                          \
+    return "DW_RLE_" #NAME;
+#include "llvm/BinaryFormat/Dwarf.def"
+  }
 }
 
 constexpr char llvm::dwarf::EnumTraits<Attribute>::Type[];

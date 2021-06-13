@@ -45,10 +45,12 @@ Expected<std::unique_ptr<LinkGraph>> MachOLinkGraphBuilder::buildGraph() {
   return std::move(G);
 }
 
-MachOLinkGraphBuilder::MachOLinkGraphBuilder(const object::MachOObjectFile &Obj)
+MachOLinkGraphBuilder::MachOLinkGraphBuilder(const object::MachOObjectFile &Obj,
+                                             Triple TT)
     : Obj(Obj),
       G(std::make_unique<LinkGraph>(std::string(Obj.getFileName()),
-                                    getPointerSize(Obj), getEndianness(Obj))) {}
+                                    std::move(TT), getPointerSize(Obj),
+                                    getEndianness(Obj))) {}
 
 void MachOLinkGraphBuilder::addCustomSectionParser(
     StringRef SectionName, SectionParserFunction Parser) {
@@ -64,10 +66,8 @@ Linkage MachOLinkGraphBuilder::getLinkage(uint16_t Desc) {
 }
 
 Scope MachOLinkGraphBuilder::getScope(StringRef Name, uint8_t Type) {
-  if (Type & MachO::N_PEXT)
-    return Scope::Hidden;
   if (Type & MachO::N_EXT) {
-    if (Name.startswith("l"))
+    if ((Type & MachO::N_PEXT) || Name.startswith("l"))
       return Scope::Hidden;
     else
       return Scope::Default;

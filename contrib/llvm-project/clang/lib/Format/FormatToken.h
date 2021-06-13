@@ -29,6 +29,7 @@ namespace format {
   TYPE(ArrayInitializerLSquare)                                                \
   TYPE(ArraySubscriptLSquare)                                                  \
   TYPE(AttributeColon)                                                         \
+  TYPE(AttributeMacro)                                                         \
   TYPE(AttributeParen)                                                         \
   TYPE(AttributeSquare)                                                        \
   TYPE(BinaryOperator)                                                         \
@@ -39,6 +40,7 @@ namespace format {
   TYPE(ConflictAlternative)                                                    \
   TYPE(ConflictEnd)                                                            \
   TYPE(ConflictStart)                                                          \
+  TYPE(ConstraintJunctions)                                                    \
   TYPE(CtorInitializerColon)                                                   \
   TYPE(CtorInitializerComma)                                                   \
   TYPE(DesignatedInitializerLSquare)                                           \
@@ -67,6 +69,9 @@ namespace format {
   TYPE(JsTypeColon)                                                            \
   TYPE(JsTypeOperator)                                                         \
   TYPE(JsTypeOptionalQuestion)                                                 \
+  TYPE(JsAndAndEqual)                                                          \
+  TYPE(JsPipePipeEqual)                                                        \
+  TYPE(JsNullishCoalescingEqual)                                               \
   TYPE(LambdaArrow)                                                            \
   TYPE(LambdaLBrace)                                                           \
   TYPE(LambdaLSquare)                                                          \
@@ -91,6 +96,7 @@ namespace format {
   TYPE(RegexLiteral)                                                           \
   TYPE(SelectorName)                                                           \
   TYPE(StartOfName)                                                            \
+  TYPE(StatementAttributeLikeMacro)                                            \
   TYPE(StatementMacro)                                                         \
   TYPE(StructuredBindingLSquare)                                               \
   TYPE(TemplateCloser)                                                         \
@@ -100,6 +106,7 @@ namespace format {
   TYPE(TrailingAnnotation)                                                     \
   TYPE(TrailingReturnArrow)                                                    \
   TYPE(TrailingUnaryOperator)                                                  \
+  TYPE(TypeDeclarationParen)                                                   \
   TYPE(TypenameMacro)                                                          \
   TYPE(UnaryOperator)                                                          \
   TYPE(UntouchableMacroFunc)                                                   \
@@ -116,7 +123,7 @@ namespace format {
 
 /// Determines the semantic type of a syntactic token, e.g. whether "<" is a
 /// template opener or binary operator.
-enum TokenType {
+enum TokenType : uint8_t {
 #define TYPE(X) TT_##X,
   LIST_TOKEN_TYPES
 #undef TYPE
@@ -134,29 +141,200 @@ enum ParameterPackingKind { PPK_BinPacked, PPK_OnePerLine, PPK_Inconclusive };
 
 enum FormatDecision { FD_Unformatted, FD_Continue, FD_Break };
 
+/// Roles a token can take in a configured macro expansion.
+enum MacroRole {
+  /// The token was expanded from a macro argument when formatting the expanded
+  /// token sequence.
+  MR_ExpandedArg,
+  /// The token is part of a macro argument that was previously formatted as
+  /// expansion when formatting the unexpanded macro call.
+  MR_UnexpandedArg,
+  /// The token was expanded from a macro definition, and is not visible as part
+  /// of the macro call.
+  MR_Hidden,
+};
+
+struct FormatToken;
+
+/// Contains information on the token's role in a macro expansion.
+///
+/// Given the following definitions:
+/// A(X) = [ X ]
+/// B(X) = < X >
+/// C(X) = X
+///
+/// Consider the macro call:
+/// A({B(C(C(x)))}) -> [{<x>}]
+///
+/// In this case, the tokens of the unexpanded macro call will have the
+/// following relevant entries in their macro context (note that formatting
+/// the unexpanded macro call happens *after* formatting the expanded macro
+/// call):
+///                   A( { B( C( C(x) ) ) } )
+/// Role:             NN U NN NN NNUN N N U N  (N=None, U=UnexpandedArg)
+///
+///                   [  { <       x    > } ]
+/// Role:             H  E H       E    H E H  (H=Hidden, E=ExpandedArg)
+/// ExpandedFrom[0]:  A  A A       A    A A A
+/// ExpandedFrom[1]:       B       B    B
+/// ExpandedFrom[2]:               C
+/// ExpandedFrom[3]:               C
+/// StartOfExpansion: 1  0 1       2    0 0 0
+/// EndOfExpansion:   0  0 0       2    1 0 1
+struct MacroExpansion {
+  MacroExpansion(MacroRole Role) : Role(Role) {}
+
+  /// The token's role in the macro expansion.
+  /// When formatting an expanded macro, all tokens that are part of macro
+  /// arguments will be MR_ExpandedArg, while all tokens that are not visible in
+  /// the macro call will be MR_Hidden.
+  /// When formatting an unexpanded macro call, all tokens that are part of
+  /// macro arguments will be MR_UnexpandedArg.
+  MacroRole Role;
+
+  /// The stack of macro call identifier tokens this token was expanded from.
+  llvm::SmallVector<FormatToken *, 1> ExpandedFrom;
+
+  /// The number of expansions of which this macro is the first entry.
+  unsigned StartOfExpansion = 0;
+
+  /// The number of currently open expansions in \c ExpandedFrom this macro is
+  /// the last token in.
+  unsigned EndOfExpansion = 0;
+};
+
 class TokenRole;
 class AnnotatedLine;
 
 /// A wrapper around a \c Token storing information about the
 /// whitespace characters preceding it.
 struct FormatToken {
-  FormatToken() {}
+  FormatToken()
+      : HasUnescapedNewline(false), IsMultiline(false), IsFirst(false),
+        MustBreakBefore(false), IsUnterminatedLiteral(false),
+        CanBreakBefore(false), ClosesTemplateDeclaration(false),
+        StartsBinaryExpression(false), EndsBinaryExpression(false),
+        PartOfMultiVariableDeclStmt(false), ContinuesLineCommentSection(false),
+        Finalized(false), BlockKind(BK_Unknown), Decision(FD_Unformatted),
+        PackingKind(PPK_Inconclusive), Type(TT_Unknown) {}
 
   /// The \c Token.
   Token Tok;
+
+  /// The raw text of the token.
+  ///
+  /// Contains the raw token text without leading whitespace and without leading
+  /// escaped newlines.
+  StringRef TokenText;
+
+  /// A token can have a special role that can carry extra information
+  /// about the token's formatting.
+  /// FIXME: Make FormatToken for parsing and AnnotatedToken two different
+  /// classes and make this a unique_ptr in the AnnotatedToken class.
+  std::shared_ptr<TokenRole> Role;
+
+  /// The range of the whitespace immediately preceding the \c Token.
+  SourceRange WhitespaceRange;
+
+  /// Whether there is at least one unescaped newline before the \c
+  /// Token.
+  unsigned HasUnescapedNewline : 1;
+
+  /// Whether the token text contains newlines (escaped or not).
+  unsigned IsMultiline : 1;
+
+  /// Indicates that this is the first token of the file.
+  unsigned IsFirst : 1;
+
+  /// Whether there must be a line break before this token.
+  ///
+  /// This happens for example when a preprocessor directive ended directly
+  /// before the token.
+  unsigned MustBreakBefore : 1;
+
+  /// Set to \c true if this token is an unterminated literal.
+  unsigned IsUnterminatedLiteral : 1;
+
+  /// \c true if it is allowed to break before this token.
+  unsigned CanBreakBefore : 1;
+
+  /// \c true if this is the ">" of "template<..>".
+  unsigned ClosesTemplateDeclaration : 1;
+
+  /// \c true if this token starts a binary expression, i.e. has at least
+  /// one fake l_paren with a precedence greater than prec::Unknown.
+  unsigned StartsBinaryExpression : 1;
+  /// \c true if this token ends a binary expression.
+  unsigned EndsBinaryExpression : 1;
+
+  /// Is this token part of a \c DeclStmt defining multiple variables?
+  ///
+  /// Only set if \c Type == \c TT_StartOfName.
+  unsigned PartOfMultiVariableDeclStmt : 1;
+
+  /// Does this line comment continue a line comment section?
+  ///
+  /// Only set to true if \c Type == \c TT_LineComment.
+  unsigned ContinuesLineCommentSection : 1;
+
+  /// If \c true, this token has been fully formatted (indented and
+  /// potentially re-formatted inside), and we do not allow further formatting
+  /// changes.
+  unsigned Finalized : 1;
+
+private:
+  /// Contains the kind of block if this token is a brace.
+  unsigned BlockKind : 2;
+
+public:
+  BraceBlockKind getBlockKind() const {
+    return static_cast<BraceBlockKind>(BlockKind);
+  }
+  void setBlockKind(BraceBlockKind BBK) {
+    BlockKind = BBK;
+    assert(getBlockKind() == BBK && "BraceBlockKind overflow!");
+  }
+
+private:
+  /// Stores the formatting decision for the token once it was made.
+  unsigned Decision : 2;
+
+public:
+  FormatDecision getDecision() const {
+    return static_cast<FormatDecision>(Decision);
+  }
+  void setDecision(FormatDecision D) {
+    Decision = D;
+    assert(getDecision() == D && "FormatDecision overflow!");
+  }
+
+private:
+  /// If this is an opening parenthesis, how are the parameters packed?
+  unsigned PackingKind : 2;
+
+public:
+  ParameterPackingKind getPackingKind() const {
+    return static_cast<ParameterPackingKind>(PackingKind);
+  }
+  void setPackingKind(ParameterPackingKind K) {
+    PackingKind = K;
+    assert(getPackingKind() == K && "ParameterPackingKind overflow!");
+  }
+
+private:
+  TokenType Type;
+
+public:
+  /// Returns the token's type, e.g. whether "<" is a template opener or
+  /// binary operator.
+  TokenType getType() const { return Type; }
+  void setType(TokenType T) { Type = T; }
 
   /// The number of newlines immediately before the \c Token.
   ///
   /// This can be used to determine what the user wrote in the original code
   /// and thereby e.g. leave an empty line between two function definitions.
   unsigned NewlinesBefore = 0;
-
-  /// Whether there is at least one unescaped newline before the \c
-  /// Token.
-  bool HasUnescapedNewline = false;
-
-  /// The range of the whitespace immediately preceding the \c Token.
-  SourceRange WhitespaceRange;
 
   /// The offset just past the last '\n' in this token's leading
   /// whitespace (relative to \c WhiteSpaceStart). 0 if there is no '\n'.
@@ -171,43 +349,8 @@ struct FormatToken {
   /// token.
   unsigned LastLineColumnWidth = 0;
 
-  /// Whether the token text contains newlines (escaped or not).
-  bool IsMultiline = false;
-
-  /// Indicates that this is the first token of the file.
-  bool IsFirst = false;
-
-  /// Whether there must be a line break before this token.
-  ///
-  /// This happens for example when a preprocessor directive ended directly
-  /// before the token.
-  bool MustBreakBefore = false;
-
-  /// The raw text of the token.
-  ///
-  /// Contains the raw token text without leading whitespace and without leading
-  /// escaped newlines.
-  StringRef TokenText;
-
-  /// Set to \c true if this token is an unterminated literal.
-  bool IsUnterminatedLiteral = 0;
-
-  /// Contains the kind of block if this token is a brace.
-  BraceBlockKind BlockKind = BK_Unknown;
-
-  /// Returns the token's type, e.g. whether "<" is a template opener or
-  /// binary operator.
-  TokenType getType() const { return Type; }
-  void setType(TokenType T) { Type = T; }
-
   /// The number of spaces that should be inserted before this token.
   unsigned SpacesRequiredBefore = 0;
-
-  /// \c true if it is allowed to break before this token.
-  bool CanBreakBefore = false;
-
-  /// \c true if this is the ">" of "template<..>".
-  bool ClosesTemplateDeclaration = false;
 
   /// Number of parameters, if this is "(", "[" or "<".
   unsigned ParameterCount = 0;
@@ -219,13 +362,6 @@ struct FormatToken {
   /// If this is a bracket ("<", "(", "[" or "{"), contains the kind of
   /// the surrounding bracket.
   tok::TokenKind ParentBracket = tok::unknown;
-
-  /// A token can have a special role that can carry extra information
-  /// about the token's formatting.
-  std::unique_ptr<TokenRole> Role;
-
-  /// If this is an opening parenthesis, how are the parameters packed?
-  ParameterPackingKind PackingKind = PPK_Inconclusive;
 
   /// The total length of the unwrapped line up to and including this
   /// token.
@@ -280,12 +416,6 @@ struct FormatToken {
   /// Insert this many fake ) after this token for correct indentation.
   unsigned FakeRParens = 0;
 
-  /// \c true if this token starts a binary expression, i.e. has at least
-  /// one fake l_paren with a precedence greater than prec::Unknown.
-  bool StartsBinaryExpression = false;
-  /// \c true if this token ends a binary expression.
-  bool EndsBinaryExpression = false;
-
   /// If this is an operator (or "."/"->") in a sequence of operators
   /// with the same precedence, contains the 0-based operator index.
   unsigned OperatorIndex = 0;
@@ -293,16 +423,6 @@ struct FormatToken {
   /// If this is an operator (or "."/"->") in a sequence of operators
   /// with the same precedence, points to the next operator.
   FormatToken *NextOperator = nullptr;
-
-  /// Is this token part of a \c DeclStmt defining multiple variables?
-  ///
-  /// Only set if \c Type == \c TT_StartOfName.
-  bool PartOfMultiVariableDeclStmt = false;
-
-  /// Does this line comment continue a line comment section?
-  ///
-  /// Only set to true if \c Type == \c TT_LineComment.
-  bool ContinuesLineCommentSection = false;
 
   /// If this is a bracket, this points to the matching one.
   FormatToken *MatchingParen = nullptr;
@@ -317,16 +437,12 @@ struct FormatToken {
   /// in it.
   SmallVector<AnnotatedLine *, 1> Children;
 
-  /// Stores the formatting decision for the token once it was made.
-  FormatDecision Decision = FD_Unformatted;
-
-  /// If \c true, this token has been fully formatted (indented and
-  /// potentially re-formatted inside), and we do not allow further formatting
-  /// changes.
-  bool Finalized = false;
+  // Contains all attributes related to how this token takes part
+  // in a configured macro expansion.
+  llvm::Optional<MacroExpansion> MacroCtx;
 
   bool is(tok::TokenKind Kind) const { return Tok.is(Kind); }
-  bool is(TokenType TT) const { return Type == TT; }
+  bool is(TokenType TT) const { return getType() == TT; }
   bool is(const IdentifierInfo *II) const {
     return II && II == Tok.getIdentifierInfo();
   }
@@ -334,6 +450,9 @@ struct FormatToken {
     return Tok.getIdentifierInfo() &&
            Tok.getIdentifierInfo()->getPPKeywordID() == Kind;
   }
+  bool is(BraceBlockKind BBK) const { return getBlockKind() == BBK; }
+  bool is(ParameterPackingKind PPK) const { return getPackingKind() == PPK; }
+
   template <typename A, typename B> bool isOneOf(A K1, B K2) const {
     return is(K1) || is(K2);
   }
@@ -349,7 +468,7 @@ struct FormatToken {
   }
 
   bool closesScopeAfterBlock() const {
-    if (BlockKind == BK_Block)
+    if (getBlockKind() == BK_Block)
       return true;
     if (closesScope())
       return Previous->closesScopeAfterBlock();
@@ -383,6 +502,13 @@ struct FormatToken {
   bool isAccessSpecifier(bool ColonRequired = true) const {
     return isOneOf(tok::kw_public, tok::kw_protected, tok::kw_private) &&
            (!ColonRequired || (Next && Next->is(tok::colon)));
+  }
+
+  bool canBePointerOrReferenceQualifier() const {
+    return isOneOf(tok::kw_const, tok::kw_restrict, tok::kw_volatile,
+                   tok::kw___attribute, tok::kw__Nonnull, tok::kw__Nullable,
+                   tok::kw__Null_unspecified, tok::kw___ptr32, tok::kw___ptr64,
+                   TT_AttributeMacro);
   }
 
   /// Determine whether the token is a simple-type-specifier.
@@ -463,7 +589,10 @@ struct FormatToken {
     case tok::kw_decltype:
     case tok::kw_noexcept:
     case tok::kw_static_assert:
+    case tok::kw__Atomic:
     case tok::kw___attribute:
+    case tok::kw___underlying_type:
+    case tok::kw_requires:
       return true;
     default:
       return false;
@@ -519,13 +648,13 @@ struct FormatToken {
   /// list that should be indented with a block indent.
   bool opensBlockOrBlockTypeList(const FormatStyle &Style) const {
     // C# Does not indent object initialisers as continuations.
-    if (is(tok::l_brace) && BlockKind == BK_BracedInit && Style.isCSharp())
+    if (is(tok::l_brace) && getBlockKind() == BK_BracedInit && Style.isCSharp())
       return true;
     if (is(TT_TemplateString) && opensScope())
       return true;
     return is(TT_ArrayInitializerLSquare) || is(TT_ProtoExtensionLSquare) ||
            (is(tok::l_brace) &&
-            (BlockKind == BK_Block || is(TT_DictLiteral) ||
+            (getBlockKind() == BK_Block || is(TT_DictLiteral) ||
              (!Style.Cpp11BracedListStyle && NestingLevel == 0))) ||
            (is(tok::less) && (Style.Language == FormatStyle::LK_Proto ||
                               Style.Language == FormatStyle::LK_TextProto));
@@ -566,10 +695,12 @@ struct FormatToken {
                : nullptr;
   }
 
+  void copyFrom(const FormatToken &Tok) { *this = Tok; }
+
 private:
-  // Disallow copying.
+  // Only allow copying via the explicit copyFrom method.
   FormatToken(const FormatToken &) = delete;
-  void operator=(const FormatToken &) = delete;
+  FormatToken &operator=(const FormatToken &) = default;
 
   template <typename A, typename... Ts>
   bool startsSequenceInternal(A K1, Ts... Tokens) const {
@@ -596,8 +727,6 @@ private:
       return Previous->endsSequenceInternal(K1, Tokens...);
     return is(K1) && Previous && Previous->endsSequenceInternal(Tokens...);
   }
-
-  TokenType Type = TT_Unknown;
 };
 
 class ContinuationIndenter;

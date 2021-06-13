@@ -17,13 +17,13 @@
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/Register.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
-#include <cassert>
-#include <cstdint>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "dwarfdebug"
 
 void DwarfExpression::emitConstu(uint64_t Value) {
   if (Value < 32)
@@ -97,7 +97,8 @@ void DwarfExpression::addAnd(unsigned Mask) {
 }
 
 bool DwarfExpression::addMachineReg(const TargetRegisterInfo &TRI,
-                                    unsigned MachineReg, unsigned MaxSize) {
+                                    llvm::Register MachineReg,
+                                    unsigned MaxSize) {
   if (!llvm::Register::isPhysicalRegister(MachineReg)) {
     if (isFrameRegister(TRI, MachineReg)) {
       DwarfRegs.push_back(Register::createRegister(-1, nullptr));
@@ -219,9 +220,36 @@ void DwarfExpression::addUnsignedConstant(const APInt &Value) {
   }
 }
 
+void DwarfExpression::addConstantFP(const APFloat &APF, const AsmPrinter &AP) {
+  assert(isImplicitLocation() || isUnknownLocation());
+  APInt API = APF.bitcastToAPInt();
+  int NumBytes = API.getBitWidth() / 8;
+  if (NumBytes == 4 /*float*/ || NumBytes == 8 /*double*/) {
+    // FIXME: Add support for `long double`.
+    emitOp(dwarf::DW_OP_implicit_value);
+    emitUnsigned(NumBytes /*Size of the block in bytes*/);
+
+    // The loop below is emitting the value starting at least significant byte,
+    // so we need to perform a byte-swap to get the byte order correct in case
+    // of a big-endian target.
+    if (AP.getDataLayout().isBigEndian())
+      API = API.byteSwap();
+
+    for (int i = 0; i < NumBytes; ++i) {
+      emitData1(API.getZExtValue() & 0xFF);
+      API = API.lshr(8);
+    }
+
+    return;
+  }
+  LLVM_DEBUG(
+      dbgs() << "Skipped DW_OP_implicit_value creation for ConstantFP of size: "
+             << API.getBitWidth() << " bits\n");
+}
+
 bool DwarfExpression::addMachineRegExpression(const TargetRegisterInfo &TRI,
                                               DIExpressionCursor &ExprCursor,
-                                              unsigned MachineReg,
+                                              llvm::Register MachineReg,
                                               unsigned FragmentOffsetInBits) {
   auto Fragment = ExprCursor.getFragmentInfo();
   if (!addMachineReg(TRI, MachineReg, Fragment ? Fragment->SizeInBits : ~1U)) {
@@ -498,6 +526,7 @@ void DwarfExpression::addExpression(DIExpressionCursor &&ExprCursor,
     case dwarf::DW_OP_not:
     case dwarf::DW_OP_dup:
     case dwarf::DW_OP_push_object_address:
+    case dwarf::DW_OP_over:
       emitOp(OpNum);
       break;
     case dwarf::DW_OP_deref:
@@ -513,10 +542,15 @@ void DwarfExpression::addExpression(DIExpressionCursor &&ExprCursor,
       assert(!isRegisterLocation());
       emitConstu(Op->getArg(0));
       break;
+    case dwarf::DW_OP_consts:
+      assert(!isRegisterLocation());
+      emitOp(dwarf::DW_OP_consts);
+      emitSigned(Op->getArg(0));
+      break;
     case dwarf::DW_OP_LLVM_convert: {
       unsigned BitSize = Op->getArg(0);
       dwarf::TypeKind Encoding = static_cast<dwarf::TypeKind>(Op->getArg(1));
-      if (DwarfVersion >= 5) {
+      if (DwarfVersion >= 5 && CU.getDwarfDebug().useOpConvert()) {
         emitOp(dwarf::DW_OP_convert);
         // If targeting a location-list; simply emit the index into the raw
         // byte stream as ULEB128, DwarfDebug::emitDebugLocEntry has been

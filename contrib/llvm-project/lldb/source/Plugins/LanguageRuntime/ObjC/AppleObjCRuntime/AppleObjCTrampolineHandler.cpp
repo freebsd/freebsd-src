@@ -452,15 +452,11 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::InitializeVTableSymbols() {
   if (process_sp) {
     Target &target = process_sp->GetTarget();
 
-    const ModuleList &target_modules = target.GetImages();
-    std::lock_guard<std::recursive_mutex> guard(target_modules.GetMutex());
-    size_t num_modules = target_modules.GetSize();
     if (!m_objc_module_sp) {
-      for (size_t i = 0; i < num_modules; i++) {
+      for (ModuleSP module_sp : target.GetImages().Modules()) {
         if (ObjCLanguageRuntime::Get(*process_sp)
-                ->IsModuleObjCLibrary(
-                    target_modules.GetModuleAtIndexUnlocked(i))) {
-          m_objc_module_sp = target_modules.GetModuleAtIndexUnlocked(i);
+                ->IsModuleObjCLibrary(module_sp)) {
+          m_objc_module_sp = module_sp;
           break;
         }
       }
@@ -521,7 +517,7 @@ bool AppleObjCTrampolineHandler::AppleObjCVTables::RefreshTrampolines(
     const ABI *abi = process->GetABI().get();
 
     TypeSystemClang *clang_ast_context =
-        TypeSystemClang::GetScratch(process->GetTarget());
+        ScratchTypeSystemClang::GetForTarget(process->GetTarget());
     if (!clang_ast_context)
       return false;
 
@@ -798,7 +794,6 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
                                                   ValueList &dispatch_values) {
   ThreadSP thread_sp(thread.shared_from_this());
   ExecutionContext exe_ctx(thread_sp);
-  DiagnosticManager diagnostics;
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
 
   lldb::addr_t args_addr = LLDB_INVALID_ADDRESS;
@@ -812,35 +807,24 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
 
     if (!m_impl_code) {
       if (m_lookup_implementation_function_code != nullptr) {
-        Status error;
-        m_impl_code.reset(exe_ctx.GetTargetRef().GetUtilityFunctionForLanguage(
-            m_lookup_implementation_function_code, eLanguageTypeObjC,
-            g_lookup_implementation_function_name, error));
-        if (error.Fail()) {
-          LLDB_LOGF(
-              log,
-              "Failed to get Utility Function for implementation lookup: %s.",
-              error.AsCString());
-          m_impl_code.reset();
+        auto utility_fn_or_error = exe_ctx.GetTargetRef().CreateUtilityFunction(
+            m_lookup_implementation_function_code,
+            g_lookup_implementation_function_name, eLanguageTypeC, exe_ctx);
+        if (!utility_fn_or_error) {
+          LLDB_LOG_ERROR(
+              log, utility_fn_or_error.takeError(),
+              "Failed to get Utility Function for implementation lookup: {0}.");
           return args_addr;
         }
-
-        if (!m_impl_code->Install(diagnostics, exe_ctx)) {
-          if (log) {
-            LLDB_LOGF(log, "Failed to install implementation lookup.");
-            diagnostics.Dump(log);
-          }
-          m_impl_code.reset();
-          return args_addr;
-        }
+        m_impl_code = std::move(*utility_fn_or_error);
       } else {
         LLDB_LOGF(log, "No method lookup implementation code.");
         return LLDB_INVALID_ADDRESS;
       }
 
       // Next make the runner function for our implementation utility function.
-      TypeSystemClang *clang_ast_context =
-          TypeSystemClang::GetScratch(thread.GetProcess()->GetTarget());
+      TypeSystemClang *clang_ast_context = ScratchTypeSystemClang::GetForTarget(
+          thread.GetProcess()->GetTarget());
       if (!clang_ast_context)
         return LLDB_INVALID_ADDRESS;
 
@@ -861,14 +845,13 @@ AppleObjCTrampolineHandler::SetupDispatchFunction(Thread &thread,
     }
   }
 
-  diagnostics.Clear();
-
   // Now write down the argument values for this particular call.
   // This looks like it might be a race condition if other threads
   // were calling into here, but actually it isn't because we allocate
   // a new args structure for this call by passing args_addr =
   // LLDB_INVALID_ADDRESS...
 
+  DiagnosticManager diagnostics;
   if (!impl_function_caller->WriteFunctionArguments(
           exe_ctx, args_addr, dispatch_values, diagnostics)) {
     if (log) {
@@ -944,7 +927,8 @@ AppleObjCTrampolineHandler::GetStepThroughDispatchPlan(Thread &thread,
 
     TargetSP target_sp(thread.CalculateTarget());
 
-    TypeSystemClang *clang_ast_context = TypeSystemClang::GetScratch(*target_sp);
+    TypeSystemClang *clang_ast_context =
+        ScratchTypeSystemClang::GetForTarget(*target_sp);
     if (!clang_ast_context)
       return ret_plan_sp;
 

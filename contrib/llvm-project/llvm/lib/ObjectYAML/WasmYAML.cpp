@@ -61,6 +61,8 @@ static void sectionMapping(IO &IO, WasmYAML::NameSection &Section) {
   commonSectionMapping(IO, Section);
   IO.mapRequired("Name", Section.Name);
   IO.mapOptional("FunctionNames", Section.FunctionNames);
+  IO.mapOptional("GlobalNames", Section.GlobalNames);
+  IO.mapOptional("DataSegmentNames", Section.DataSegmentNames);
 }
 
 static void sectionMapping(IO &IO, WasmYAML::LinkingSection &Section) {
@@ -300,6 +302,7 @@ void MappingTraits<WasmYAML::Signature>::mapping(
 }
 
 void MappingTraits<WasmYAML::Table>::mapping(IO &IO, WasmYAML::Table &Table) {
+  IO.mapRequired("Index", Table.Index);
   IO.mapRequired("ElemType", Table.ElemType);
   IO.mapRequired("Limits", Table.TableLimits);
 }
@@ -445,12 +448,12 @@ void MappingTraits<WasmYAML::DataSegment>::mapping(
     IO &IO, WasmYAML::DataSegment &Segment) {
   IO.mapOptional("SectionOffset", Segment.SectionOffset);
   IO.mapRequired("InitFlags", Segment.InitFlags);
-  if (Segment.InitFlags & wasm::WASM_SEGMENT_HAS_MEMINDEX) {
+  if (Segment.InitFlags & wasm::WASM_DATA_SEGMENT_HAS_MEMINDEX) {
     IO.mapRequired("MemoryIndex", Segment.MemoryIndex);
   } else {
     Segment.MemoryIndex = 0;
   }
-  if ((Segment.InitFlags & wasm::WASM_SEGMENT_IS_PASSIVE) == 0) {
+  if ((Segment.InitFlags & wasm::WASM_DATA_SEGMENT_IS_PASSIVE) == 0) {
     IO.mapRequired("Offset", Segment.Offset);
   } else {
     Segment.Offset.Opcode = wasm::WASM_OPCODE_I32_CONST;
@@ -470,6 +473,7 @@ void ScalarEnumerationTraits<WasmYAML::ComdatKind>::enumeration(
 #define ECase(X) IO.enumCase(Kind, #X, wasm::WASM_COMDAT_##X);
   ECase(FUNCTION);
   ECase(DATA);
+  ECase(SECTION);
 #undef ECase
 }
 
@@ -496,6 +500,8 @@ void MappingTraits<WasmYAML::SymbolInfo>::mapping(IO &IO,
     IO.mapRequired("Function", Info.ElementIndex);
   } else if (Info.Kind == wasm::WASM_SYMBOL_TYPE_GLOBAL) {
     IO.mapRequired("Global", Info.ElementIndex);
+  } else if (Info.Kind == wasm::WASM_SYMBOL_TYPE_TABLE) {
+    IO.mapRequired("Table", Info.ElementIndex);
   } else if (Info.Kind == wasm::WASM_SYMBOL_TYPE_EVENT) {
     IO.mapRequired("Event", Info.ElementIndex);
   } else if (Info.Kind == wasm::WASM_SYMBOL_TYPE_DATA) {
@@ -551,6 +557,7 @@ void ScalarEnumerationTraits<WasmYAML::SymbolKind>::enumeration(
   ECase(FUNCTION);
   ECase(DATA);
   ECase(GLOBAL);
+  ECase(TABLE);
   ECase(SECTION);
   ECase(EVENT);
 #undef ECase
@@ -565,7 +572,6 @@ void ScalarEnumerationTraits<WasmYAML::ValueType>::enumeration(
   ECase(F64);
   ECase(V128);
   ECase(FUNCREF);
-  ECase(EXNREF);
   ECase(EXTERNREF);
   ECase(FUNC);
 #undef ECase
@@ -599,6 +605,7 @@ void ScalarEnumerationTraits<WasmYAML::TableType>::enumeration(
     IO &IO, WasmYAML::TableType &Type) {
 #define ECase(X) IO.enumCase(Type, #X, wasm::WASM_TYPE_##X);
   ECase(FUNCREF);
+  ECase(EXTERNREF);
 #undef ECase
 }
 

@@ -106,6 +106,14 @@ public:
       StructuredData::GenericSP implementor_sp) override;
 
   StructuredData::GenericSP
+  CreateScriptedStopHook(lldb::TargetSP target_sp, const char *class_name,
+                         StructuredDataImpl *args_data, Status &error) override;
+
+  bool ScriptedStopHookHandleStop(StructuredData::GenericSP implementor_sp,
+                                  ExecutionContext &exc_ctx,
+                                  lldb::StreamSP stream_sp) override;
+
+  StructuredData::GenericSP
   CreateFrameRecognizer(const char *class_name) override;
 
   lldb::ValueObjectListSP
@@ -223,10 +231,10 @@ public:
   bool RunScriptFormatKeyword(const char *impl_function, ValueObject *value,
                               std::string &output, Status &error) override;
 
-  bool
-  LoadScriptingModule(const char *filename, bool init_session,
-                      lldb_private::Status &error,
-                      StructuredData::ObjectSP *module_sp = nullptr) override;
+  bool LoadScriptingModule(const char *filename, bool init_session,
+                           lldb_private::Status &error,
+                           StructuredData::ObjectSP *module_sp = nullptr,
+                           FileSpec extra_search_dir = {}) override;
 
   bool IsReservedWord(const char *word) override;
 

@@ -550,8 +550,8 @@ lldb::TypeSP PDBASTParser::CreateLLDBTypeFromPDBType(const PDBSymbol &type) {
     if (!ast_typedef.IsValid()) {
       CompilerType target_ast_type = target_type->GetFullCompilerType();
 
-      ast_typedef = m_ast.CreateTypedefType(
-          target_ast_type, name.c_str(), m_ast.CreateDeclContext(decl_ctx), 0);
+      ast_typedef = target_ast_type.CreateTypedef(
+          name.c_str(), m_ast.CreateDeclContext(decl_ctx), 0);
       if (!ast_typedef)
         return nullptr;
 
@@ -928,7 +928,7 @@ PDBASTParser::GetDeclForSymbol(const llvm::pdb::PDBSymbol &symbol) {
                                     : clang::StorageClass::SC_None;
 
     auto decl = m_ast.CreateFunctionDeclaration(
-        decl_context, OptionalClangModuleID(), name.c_str(),
+        decl_context, OptionalClangModuleID(), name,
         type->GetForwardCompilerType(), storage, func->hasInlineAttribute());
 
     std::vector<clang::ParmVarDecl *> params;

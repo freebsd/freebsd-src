@@ -151,8 +151,8 @@ static DivRemWorklistTy getWorklist(Function &F) {
   // rare than division.
   for (auto &RemPair : RemMap) {
     // Find the matching division instruction from the division map.
-    Instruction *DivInst = DivMap[RemPair.first];
-    if (!DivInst)
+    auto It = DivMap.find(RemPair.first);
+    if (It == DivMap.end())
       continue;
 
     // We have a matching pair of div/rem instructions.
@@ -160,7 +160,7 @@ static DivRemWorklistTy getWorklist(Function &F) {
     Instruction *RemInst = RemPair.second;
 
     // Place it in the worklist.
-    Worklist.emplace_back(DivInst, RemInst);
+    Worklist.emplace_back(It->second, RemInst);
   }
 
   return Worklist;
@@ -315,14 +315,14 @@ static bool optimizeDivRem(Function &F, const TargetTransformInfo &TTI,
       //   %rem = sub %x, %mul  // %rem = undef - undef = undef
       // If X is not frozen, %rem becomes undef after transformation.
       // TODO: We need a undef-specific checking function in ValueTracking
-      if (!isGuaranteedNotToBeUndefOrPoison(X, DivInst, &DT)) {
+      if (!isGuaranteedNotToBeUndefOrPoison(X, nullptr, DivInst, &DT)) {
         auto *FrX = new FreezeInst(X, X->getName() + ".frozen", DivInst);
         DivInst->setOperand(0, FrX);
         Sub->setOperand(0, FrX);
       }
       // Same for Y. If X = 1 and Y = (undef | 1), %rem in src is either 1 or 0,
       // but %rem in tgt can be one of many integer values.
-      if (!isGuaranteedNotToBeUndefOrPoison(Y, DivInst, &DT)) {
+      if (!isGuaranteedNotToBeUndefOrPoison(Y, nullptr, DivInst, &DT)) {
         auto *FrY = new FreezeInst(Y, Y->getName() + ".frozen", DivInst);
         DivInst->setOperand(1, FrY);
         Mul->setOperand(1, FrY);

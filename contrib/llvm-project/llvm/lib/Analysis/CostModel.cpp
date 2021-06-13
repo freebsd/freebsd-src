@@ -35,7 +35,10 @@ static cl::opt<TargetTransformInfo::TargetCostKind> CostKind(
                clEnumValN(TargetTransformInfo::TCK_Latency,
                           "latency", "Instruction latency"),
                clEnumValN(TargetTransformInfo::TCK_CodeSize,
-                          "code-size", "Code size")));
+                          "code-size", "Code size"),
+               clEnumValN(TargetTransformInfo::TCK_SizeAndLatency,
+                          "size-latency", "Code size and latency")));
+
 
 #define CM_NAME "cost-model"
 #define DEBUG_TYPE CM_NAME
@@ -54,7 +57,7 @@ namespace {
     /// Returns -1 if the cost is unknown.
     /// Note, this method does not cache the cost calculation and it
     /// can be expensive in some cases.
-    unsigned getInstructionCost(const Instruction *I) const {
+    InstructionCost getInstructionCost(const Instruction *I) const {
       return TTI->getInstructionCost(I, TargetTransformInfo::TCK_RecipThroughput);
     }
 
@@ -100,9 +103,9 @@ void CostModelAnalysis::print(raw_ostream &OS, const Module*) const {
 
   for (BasicBlock &B : *F) {
     for (Instruction &Inst : B) {
-      unsigned Cost = TTI->getInstructionCost(&Inst, CostKind);
-      if (Cost != (unsigned)-1)
-        OS << "Cost Model: Found an estimated cost of " << Cost;
+      InstructionCost Cost = TTI->getInstructionCost(&Inst, CostKind);
+      if (auto CostVal = Cost.getValue())
+        OS << "Cost Model: Found an estimated cost of " << *CostVal;
       else
         OS << "Cost Model: Unknown cost";
 

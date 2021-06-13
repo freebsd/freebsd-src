@@ -277,6 +277,8 @@ public:
   uint32_t size() override { return 20; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
+  bool isCompatibleWith(const InputSection &isec,
+                        const Relocation &rel) const override;
 };
 
 // PPC64 R2 Save Stub
@@ -287,15 +289,67 @@ public:
 // 2) Tail calls the callee.
 class PPC64R2SaveStub final : public Thunk {
 public:
-  PPC64R2SaveStub(Symbol &dest) : Thunk(dest, 0) {}
-  uint32_t size() override { return 8; }
+  PPC64R2SaveStub(Symbol &dest, int64_t addend) : Thunk(dest, addend) {
+    alignment = 16;
+  }
+
+  // To prevent oscillations in layout when moving from short to long thunks
+  // we make sure that once a thunk has been set to long it cannot go back.
+  bool getMayUseShortThunk() {
+    if (!mayUseShortThunk)
+      return false;
+    if (!isInt<26>(computeOffset())) {
+      mayUseShortThunk = false;
+      return false;
+    }
+    return true;
+  }
+  uint32_t size() override { return getMayUseShortThunk() ? 8 : 20; }
+  void writeTo(uint8_t *buf) override;
+  void addSymbols(ThunkSection &isec) override;
+
+private:
+  // Transitioning from long to short can create layout oscillations in
+  // certain corner cases which would prevent the layout from converging.
+  // This is similar to the handling for ARMThunk.
+  bool mayUseShortThunk = true;
+  int64_t computeOffset() const {
+    return destination.getVA() - (getThunkTargetSym()->getVA() + 4);
+  }
+};
+
+// PPC64 R12 Setup Stub
+// When a caller that does not maintain a toc-pointer performs a local call to
+// a callee which requires a toc-pointer then we need this stub to place the
+// callee's global entry point into r12 without a save of R2.
+class PPC64R12SetupStub final : public Thunk {
+public:
+  PPC64R12SetupStub(Symbol &dest) : Thunk(dest, 0) { alignment = 16; }
+  uint32_t size() override { return 16; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
 };
 
+// PPC64 PC-relative PLT Stub
+// When a caller that does not maintain a toc-pointer performs an extern call
+// then this stub is needed for:
+// 1) Loading the target functions address from the procedure linkage table into
+//    r12 for use by the target functions global entry point, and into the count
+//    register with pc-relative instructions.
+// 2) Transferring control to the target function through an indirect branch.
+class PPC64PCRelPLTStub final : public Thunk {
+public:
+  PPC64PCRelPLTStub(Symbol &dest) : Thunk(dest, 0) { alignment = 16; }
+  uint32_t size() override { return 16; }
+  void writeTo(uint8_t *buf) override;
+  void addSymbols(ThunkSection &isec) override;
+  bool isCompatibleWith(const InputSection &isec,
+                        const Relocation &rel) const override;
+};
+
 // A bl instruction uses a signed 24 bit offset, with an implicit 4 byte
 // alignment. This gives a possible 26 bits of 'reach'. If the call offset is
-// larger then that we need to emit a long-branch thunk. The target address
+// larger than that we need to emit a long-branch thunk. The target address
 // of the callee is stored in a table to be accessed TOC-relative. Since the
 // call must be local (a non-local call will have a PltCallStub instead) the
 // table stores the address of the callee's local entry point. For
@@ -306,6 +360,8 @@ public:
   uint32_t size() override { return 16; }
   void writeTo(uint8_t *buf) override;
   void addSymbols(ThunkSection &isec) override;
+  bool isCompatibleWith(const InputSection &isec,
+                        const Relocation &rel) const override;
 
 protected:
   PPC64LongBranchThunk(Symbol &dest, int64_t addend) : Thunk(dest, addend) {}
@@ -332,6 +388,24 @@ public:
       : PPC64LongBranchThunk(dest, addend) {
     in.ppc64LongBranchTarget->addEntry(&dest, addend);
   }
+};
+
+// A bl instruction uses a signed 24 bit offset, with an implicit 4 byte
+// alignment. This gives a possible 26 bits of 'reach'. If the caller and
+// callee do not use toc and the call offset is larger than 26 bits,
+// we need to emit a pc-rel based long-branch thunk. The target address of
+// the callee is computed with a PC-relative offset.
+class PPC64PCRelLongBranchThunk final : public Thunk {
+public:
+  PPC64PCRelLongBranchThunk(Symbol &dest, int64_t addend)
+      : Thunk(dest, addend) {
+    alignment = 16;
+  }
+  uint32_t size() override { return 16; }
+  void writeTo(uint8_t *buf) override;
+  void addSymbols(ThunkSection &isec) override;
+  bool isCompatibleWith(const InputSection &isec,
+                        const Relocation &rel) const override;
 };
 
 } // end anonymous namespace
@@ -836,19 +910,77 @@ void PPC64PltCallStub::addSymbols(ThunkSection &isec) {
   s->file = destination.file;
 }
 
+bool PPC64PltCallStub::isCompatibleWith(const InputSection &isec,
+                                        const Relocation &rel) const {
+  return rel.type == R_PPC64_REL24 || rel.type == R_PPC64_REL14;
+}
+
 void PPC64R2SaveStub::writeTo(uint8_t *buf) {
-  int64_t offset = destination.getVA() - (getThunkTargetSym()->getVA() + 4);
-  // The branch offset needs to fit in 26 bits.
-  if (!isInt<26>(offset))
-    fatal("R2 save stub branch offset is too large: " + Twine(offset));
+  const int64_t offset = computeOffset();
   write32(buf + 0, 0xf8410018);                         // std  r2,24(r1)
-  write32(buf + 4, 0x48000000 | (offset & 0x03fffffc)); // b    <offset>
+  // The branch offset needs to fit in 26 bits.
+  if (getMayUseShortThunk()) {
+    write32(buf + 4, 0x48000000 | (offset & 0x03fffffc)); // b    <offset>
+  } else if (isInt<34>(offset)) {
+    const uint64_t paddi = PADDI_R12_NO_DISP |
+                           (((offset >> 16) & 0x3ffff) << 32) |
+                           (offset & 0xffff);
+    writePrefixedInstruction(buf + 4, paddi); // paddi r12, 0, func@pcrel, 1
+    write32(buf + 12, MTCTR_R12);             // mtctr r12
+    write32(buf + 16, BCTR);                  // bctr
+  } else {
+    in.ppc64LongBranchTarget->addEntry(&destination, addend);
+    const int64_t offsetFromTOC =
+        in.ppc64LongBranchTarget->getEntryVA(&destination, addend) -
+        getPPC64TocBase();
+    writePPC64LoadAndBranch(buf + 4, offsetFromTOC);
+  }
 }
 
 void PPC64R2SaveStub::addSymbols(ThunkSection &isec) {
   Defined *s = addSymbol(saver.save("__toc_save_" + destination.getName()),
                          STT_FUNC, 0, isec);
   s->needsTocRestore = true;
+}
+
+void PPC64R12SetupStub::writeTo(uint8_t *buf) {
+  int64_t offset = destination.getVA() - getThunkTargetSym()->getVA();
+  if (!isInt<34>(offset))
+    reportRangeError(buf, offset, 34, destination, "R12 setup stub offset");
+  uint64_t paddi = PADDI_R12_NO_DISP | (((offset >> 16) & 0x3ffff) << 32) |
+                   (offset & 0xffff);
+
+  writePrefixedInstruction(buf + 0, paddi); // paddi r12, 0, func@pcrel, 1
+  write32(buf + 8, MTCTR_R12);              // mtctr r12
+  write32(buf + 12, BCTR);                  // bctr
+}
+
+void PPC64R12SetupStub::addSymbols(ThunkSection &isec) {
+  addSymbol(saver.save("__gep_setup_" + destination.getName()), STT_FUNC, 0,
+            isec);
+}
+
+void PPC64PCRelPLTStub::writeTo(uint8_t *buf) {
+  int64_t offset = destination.getGotPltVA() - getThunkTargetSym()->getVA();
+  if (!isInt<34>(offset))
+    reportRangeError(buf, offset, 34, destination,
+                     "PC-relative PLT stub offset");
+  uint64_t pld =
+      PLD_R12_NO_DISP | (((offset >> 16) & 0x3ffff) << 32) | (offset & 0xffff);
+
+  writePrefixedInstruction(buf + 0, pld); // pld r12, func@plt@pcrel
+  write32(buf + 8, MTCTR_R12);            // mtctr r12
+  write32(buf + 12, BCTR);                // bctr
+}
+
+void PPC64PCRelPLTStub::addSymbols(ThunkSection &isec) {
+  addSymbol(saver.save("__plt_pcrel_" + destination.getName()), STT_FUNC, 0,
+            isec);
+}
+
+bool PPC64PCRelPLTStub::isCompatibleWith(const InputSection &isec,
+                                         const Relocation &rel) const {
+  return rel.type == R_PPC64_REL24_NOTOC;
 }
 
 void PPC64LongBranchThunk::writeTo(uint8_t *buf) {
@@ -860,6 +992,34 @@ void PPC64LongBranchThunk::writeTo(uint8_t *buf) {
 void PPC64LongBranchThunk::addSymbols(ThunkSection &isec) {
   addSymbol(saver.save("__long_branch_" + destination.getName()), STT_FUNC, 0,
             isec);
+}
+
+bool PPC64LongBranchThunk::isCompatibleWith(const InputSection &isec,
+                                            const Relocation &rel) const {
+  return rel.type == R_PPC64_REL24 || rel.type == R_PPC64_REL14;
+}
+
+void PPC64PCRelLongBranchThunk::writeTo(uint8_t *buf) {
+  int64_t offset = destination.getVA() - getThunkTargetSym()->getVA();
+  if (!isInt<34>(offset))
+    reportRangeError(buf, offset, 34, destination,
+                     "PC-relative long branch stub offset");
+  uint64_t paddi = PADDI_R12_NO_DISP | (((offset >> 16) & 0x3ffff) << 32) |
+                   (offset & 0xffff);
+
+  writePrefixedInstruction(buf + 0, paddi); // paddi r12, 0, func@pcrel, 1
+  write32(buf + 8, MTCTR_R12);              // mtctr r12
+  write32(buf + 12, BCTR);                  // bctr
+}
+
+void PPC64PCRelLongBranchThunk::addSymbols(ThunkSection &isec) {
+  addSymbol(saver.save("__long_branch_pcrel_" + destination.getName()),
+            STT_FUNC, 0, isec);
+}
+
+bool PPC64PCRelLongBranchThunk::isCompatibleWith(const InputSection &isec,
+                                                 const Relocation &rel) const {
+  return rel.type == R_PPC64_REL24_NOTOC;
 }
 
 Thunk::Thunk(Symbol &d, int64_t a) : destination(d), addend(a), offset(0) {}
@@ -974,15 +1134,23 @@ static Thunk *addThunkPPC32(const InputSection &isec, const Relocation &rel,
 }
 
 static Thunk *addThunkPPC64(RelType type, Symbol &s, int64_t a) {
-  assert((type == R_PPC64_REL14 || type == R_PPC64_REL24) &&
+  assert((type == R_PPC64_REL14 || type == R_PPC64_REL24 ||
+          type == R_PPC64_REL24_NOTOC) &&
          "unexpected relocation type for thunk");
   if (s.isInPlt())
-    return make<PPC64PltCallStub>(s);
+    return type == R_PPC64_REL24_NOTOC ? (Thunk *)make<PPC64PCRelPLTStub>(s)
+                                       : (Thunk *)make<PPC64PltCallStub>(s);
 
   // This check looks at the st_other bits of the callee. If the value is 1
-  // then the callee clobbers the TOC and we need an R2 save stub.
-  if ((s.stOther >> 5) == 1)
-    return make<PPC64R2SaveStub>(s);
+  // then the callee clobbers the TOC and we need an R2 save stub when RelType
+  // is R_PPC64_REL14 or R_PPC64_REL24.
+  if ((type == R_PPC64_REL14 || type == R_PPC64_REL24) && (s.stOther >> 5) == 1)
+    return make<PPC64R2SaveStub>(s, a);
+
+  if (type == R_PPC64_REL24_NOTOC)
+    return (s.stOther >> 5) > 1
+               ? (Thunk *)make<PPC64R12SetupStub>(s)
+               : (Thunk *)make<PPC64PCRelLongBranchThunk>(s, a);
 
   if (config->picThunk)
     return make<PPC64PILongBranchThunk>(s, a);

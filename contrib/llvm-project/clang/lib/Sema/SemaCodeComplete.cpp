@@ -2294,6 +2294,29 @@ static void AddOrdinaryNameResults(Sema::ParserCompletionContext CCC, Scope *S,
       Builder.AddChunk(CodeCompletionString::CK_VerticalSpace);
       Builder.AddChunk(CodeCompletionString::CK_RightBrace);
       Results.AddResult(Result(Builder.TakeString()));
+
+      if (SemaRef.getLangOpts().CPlusPlus11 || SemaRef.getLangOpts().ObjC) {
+        // for ( range_declaration (:|in) range_expression ) { statements }
+        Builder.AddTypedTextChunk("for");
+        Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Builder.AddChunk(CodeCompletionString::CK_LeftParen);
+        Builder.AddPlaceholderChunk("range-declaration");
+        Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        if (SemaRef.getLangOpts().ObjC)
+          Builder.AddTextChunk("in");
+        else
+          Builder.AddChunk(CodeCompletionString::CK_Colon);
+        Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Builder.AddPlaceholderChunk("range-expression");
+        Builder.AddChunk(CodeCompletionString::CK_RightParen);
+        Builder.AddChunk(CodeCompletionString::CK_HorizontalSpace);
+        Builder.AddChunk(CodeCompletionString::CK_LeftBrace);
+        Builder.AddChunk(CodeCompletionString::CK_VerticalSpace);
+        Builder.AddPlaceholderChunk("statements");
+        Builder.AddChunk(CodeCompletionString::CK_VerticalSpace);
+        Builder.AddChunk(CodeCompletionString::CK_RightBrace);
+        Results.AddResult(Result(Builder.TakeString()));
+      }
     }
 
     if (S->getContinueParent()) {
@@ -2699,6 +2722,10 @@ static std::string formatObjCParamQualifiers(unsigned ObjCQuals,
 
       case NullabilityKind::Unspecified:
         Result += "null_unspecified ";
+        break;
+
+      case NullabilityKind::NullableResult:
+        llvm_unreachable("Not supported as a context-sensitive keyword!");
         break;
       }
     }
@@ -3502,9 +3529,11 @@ CodeCompletionString *CodeCompletionResult::createCodeCompletionStringForDecl(
         Result.AddTypedTextChunk("");
     }
     unsigned Idx = 0;
+    // The extra Idx < Sel.getNumArgs() check is needed due to legacy C-style
+    // method parameters.
     for (ObjCMethodDecl::param_const_iterator P = Method->param_begin(),
                                               PEnd = Method->param_end();
-         P != PEnd; (void)++P, ++Idx) {
+         P != PEnd && Idx < Sel.getNumArgs(); (void)++P, ++Idx) {
       if (Idx > 0) {
         std::string Keyword;
         if (Idx > StartParameter)
@@ -4256,7 +4285,7 @@ void Sema::CodeCompleteDeclSpec(Scope *S, DeclSpec &DS,
       DS.getParsedSpecifiers() == DeclSpec::PQ_TypeSpecifier &&
       DS.getTypeSpecType() == DeclSpec::TST_typename &&
       DS.getTypeSpecComplex() == DeclSpec::TSC_unspecified &&
-      DS.getTypeSpecSign() == DeclSpec::TSS_unspecified &&
+      DS.getTypeSpecSign() == TypeSpecifierSign::Unspecified &&
       !DS.isTypeAltiVecVector() && S &&
       (S->getFlags() & Scope::DeclScope) != 0 &&
       (S->getFlags() & (Scope::ClassScope | Scope::TemplateParamScope |
@@ -5129,6 +5158,20 @@ private:
 
   llvm::DenseMap<const IdentifierInfo *, Member> Results;
 };
+
+// If \p Base is ParenListExpr, assume a chain of comma operators and pick the
+// last expr. We expect other ParenListExprs to be resolved to e.g. constructor
+// calls before here. (So the ParenListExpr should be nonempty, but check just
+// in case)
+Expr *unwrapParenList(Expr *Base) {
+  if (auto *PLE = llvm::dyn_cast_or_null<ParenListExpr>(Base)) {
+    if (PLE->getNumExprs() == 0)
+      return nullptr;
+    Base = PLE->getExpr(PLE->getNumExprs() - 1);
+  }
+  return Base;
+}
+
 } // namespace
 
 void Sema::CodeCompleteMemberReferenceExpr(Scope *S, Expr *Base,
@@ -5136,6 +5179,8 @@ void Sema::CodeCompleteMemberReferenceExpr(Scope *S, Expr *Base,
                                            SourceLocation OpLoc, bool IsArrow,
                                            bool IsBaseExprStatement,
                                            QualType PreferredType) {
+  Base = unwrapParenList(Base);
+  OtherOpBase = unwrapParenList(OtherOpBase);
   if (!Base || !CodeCompleter)
     return;
 
@@ -5395,8 +5440,8 @@ void Sema::CodeCompleteFunctionQualifiers(DeclSpec &DS, Declarator &D,
   AddTypeQualifierResults(DS, Results, LangOpts);
   if (LangOpts.CPlusPlus11) {
     Results.AddResult("noexcept");
-    if (D.getContext() == DeclaratorContext::MemberContext &&
-        !D.isCtorOrDtor() && !D.isStaticMember()) {
+    if (D.getContext() == DeclaratorContext::Member && !D.isCtorOrDtor() &&
+        !D.isStaticMember()) {
       if (!VS || !VS->isFinalSpecified())
         Results.AddResult("final");
       if (!VS || !VS->isOverrideSpecified())
@@ -5500,7 +5545,7 @@ typedef CodeCompleteConsumer::OverloadCandidate ResultCandidate;
 
 static void mergeCandidatesWithResults(
     Sema &SemaRef, SmallVectorImpl<ResultCandidate> &Results,
-    OverloadCandidateSet &CandidateSet, SourceLocation Loc) {
+    OverloadCandidateSet &CandidateSet, SourceLocation Loc, size_t ArgSize) {
   // Sort the overload candidate set by placing the best overloads first.
   llvm::stable_sort(CandidateSet, [&](const OverloadCandidate &X,
                                       const OverloadCandidate &Y) {
@@ -5510,8 +5555,19 @@ static void mergeCandidatesWithResults(
 
   // Add the remaining viable overload candidates as code-completion results.
   for (OverloadCandidate &Candidate : CandidateSet) {
-    if (Candidate.Function && Candidate.Function->isDeleted())
-      continue;
+    if (Candidate.Function) {
+      if (Candidate.Function->isDeleted())
+        continue;
+      if (!Candidate.Function->isVariadic() &&
+          Candidate.Function->getNumParams() <= ArgSize &&
+          // Having zero args is annoying, normally we don't surface a function
+          // with 2 params, if you already have 2 params, because you are
+          // inserting the 3rd now. But with zero, it helps the user to figure
+          // out there are no overloads that take any arguments. Hence we are
+          // keeping the overload.
+          ArgSize > 0)
+        continue;
+    }
     if (Candidate.Viable)
       Results.push_back(ResultCandidate(Candidate.Function));
   }
@@ -5557,27 +5613,31 @@ ProduceSignatureHelp(Sema &SemaRef, Scope *S,
 QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
                                         ArrayRef<Expr *> Args,
                                         SourceLocation OpenParLoc) {
-  if (!CodeCompleter)
+  Fn = unwrapParenList(Fn);
+  if (!CodeCompleter || !Fn)
     return QualType();
 
   // FIXME: Provide support for variadic template functions.
   // Ignore type-dependent call expressions entirely.
-  if (!Fn || Fn->isTypeDependent() || anyNullArguments(Args) ||
-      Expr::hasAnyTypeDependentArguments(Args)) {
+  if (Fn->isTypeDependent() || anyNullArguments(Args))
     return QualType();
-  }
-
-  // Build an overload candidate set based on the functions we find.
-  SourceLocation Loc = Fn->getExprLoc();
-  OverloadCandidateSet CandidateSet(Loc, OverloadCandidateSet::CSK_Normal);
+  // In presence of dependent args we surface all possible signatures using the
+  // non-dependent args in the prefix. Afterwards we do a post filtering to make
+  // sure provided candidates satisfy parameter count restrictions.
+  auto ArgsWithoutDependentTypes =
+      Args.take_while([](Expr *Arg) { return !Arg->isTypeDependent(); });
 
   SmallVector<ResultCandidate, 8> Results;
 
   Expr *NakedFn = Fn->IgnoreParenCasts();
-  if (auto ULE = dyn_cast<UnresolvedLookupExpr>(NakedFn))
-    AddOverloadedCallCandidates(ULE, Args, CandidateSet,
+  // Build an overload candidate set based on the functions we find.
+  SourceLocation Loc = Fn->getExprLoc();
+  OverloadCandidateSet CandidateSet(Loc, OverloadCandidateSet::CSK_Normal);
+
+  if (auto ULE = dyn_cast<UnresolvedLookupExpr>(NakedFn)) {
+    AddOverloadedCallCandidates(ULE, ArgsWithoutDependentTypes, CandidateSet,
                                 /*PartialOverloading=*/true);
-  else if (auto UME = dyn_cast<UnresolvedMemberExpr>(NakedFn)) {
+  } else if (auto UME = dyn_cast<UnresolvedMemberExpr>(NakedFn)) {
     TemplateArgumentListInfo TemplateArgsBuffer, *TemplateArgs = nullptr;
     if (UME->hasExplicitTemplateArgs()) {
       UME->copyTemplateArgumentsInto(TemplateArgsBuffer);
@@ -5587,7 +5647,8 @@ QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
     // Add the base as first argument (use a nullptr if the base is implicit).
     SmallVector<Expr *, 12> ArgExprs(
         1, UME->isImplicitAccess() ? nullptr : UME->getBase());
-    ArgExprs.append(Args.begin(), Args.end());
+    ArgExprs.append(ArgsWithoutDependentTypes.begin(),
+                    ArgsWithoutDependentTypes.end());
     UnresolvedSet<8> Decls;
     Decls.append(UME->decls_begin(), UME->decls_end());
     const bool FirstArgumentIsBase = !UME->isImplicitAccess() && UME->getBase();
@@ -5606,7 +5667,7 @@ QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
         Results.push_back(ResultCandidate(FD));
       else
         AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
-                             Args, CandidateSet,
+                             ArgsWithoutDependentTypes, CandidateSet,
                              /*SuppressUserConversions=*/false,
                              /*PartialOverloading=*/true);
 
@@ -5621,7 +5682,8 @@ QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
         LookupQualifiedName(R, DC);
         R.suppressDiagnostics();
         SmallVector<Expr *, 12> ArgExprs(1, NakedFn);
-        ArgExprs.append(Args.begin(), Args.end());
+        ArgExprs.append(ArgsWithoutDependentTypes.begin(),
+                        ArgsWithoutDependentTypes.end());
         AddFunctionCandidates(R.asUnresolvedSet(), ArgExprs, CandidateSet,
                               /*ExplicitArgs=*/nullptr,
                               /*SuppressUserConversions=*/false,
@@ -5635,7 +5697,8 @@ QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
         T = T->getPointeeType();
 
       if (auto FP = T->getAs<FunctionProtoType>()) {
-        if (!TooManyArguments(FP->getNumParams(), Args.size(),
+        if (!TooManyArguments(FP->getNumParams(),
+                              ArgsWithoutDependentTypes.size(),
                               /*PartialOverloading=*/true) ||
             FP->isVariadic())
           Results.push_back(ResultCandidate(FP));
@@ -5644,7 +5707,7 @@ QualType Sema::ProduceCallSignatureHelp(Scope *S, Expr *Fn,
         Results.push_back(ResultCandidate(FT));
     }
   }
-  mergeCandidatesWithResults(*this, Results, CandidateSet, Loc);
+  mergeCandidatesWithResults(*this, Results, CandidateSet, Loc, Args.size());
   QualType ParamType =
       ProduceSignatureHelp(*this, S, Results, Args.size(), OpenParLoc);
   return !CandidateSet.empty() ? ParamType : QualType();
@@ -5685,7 +5748,7 @@ QualType Sema::ProduceConstructorSignatureHelp(Scope *S, QualType Type,
   }
 
   SmallVector<ResultCandidate, 8> Results;
-  mergeCandidatesWithResults(*this, Results, CandidateSet, Loc);
+  mergeCandidatesWithResults(*this, Results, CandidateSet, Loc, Args.size());
   return ProduceSignatureHelp(*this, S, Results, Args.size(), OpenParLoc);
 }
 

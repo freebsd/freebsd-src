@@ -1,9 +1,6 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "LLVM-SYMBOLIZER" "1" "2020-06-26" "10" "LLVM"
-.SH NAME
-llvm-symbolizer \- convert addresses into source code locations
 .
 .nr rst2man-indent-level 0
 .
@@ -31,6 +28,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
+.TH "LLVM-SYMBOLIZER" "1" "2021-06-07" "12" "LLVM"
+.SH NAME
+llvm-symbolizer \- convert addresses into source code locations
 .SH SYNOPSIS
 .sp
 \fBllvm\-symbolizer\fP [\fIoptions\fP] [\fIaddresses...\fP]
@@ -211,6 +211,34 @@ bar
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+Example 5 \- path\-style options:
+.sp
+This example uses the same source file as above, but the source file\(aqs
+full path is /tmp/foo/test.cpp and is compiled as follows. The first case
+shows the default absolute path, the second \-\-basenames, and the third
+shows \-\-relativenames.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pwd
+/tmp
+$ clang \-g foo/test.cpp \-o test.elf
+$ llvm\-symbolizer \-\-obj=test.elf 0x4004a0
+main
+/tmp/foo/test.cpp:15:0
+$ llvm\-symbolizer \-\-obj=test.elf 0x4004a0 \-\-basenames
+main
+test.cpp:15:0
+$ llvm\-symbolizer \-\-obj=test.elf 0x4004a0 \-\-relativenames
+main
+foo/test.cpp:15:0
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
 .SH OPTIONS
 .INDENT 0.0
 .TP
@@ -222,7 +250,8 @@ offset.
 .INDENT 0.0
 .TP
 .B \-\-basenames, \-s
-Strip directories when printing the file path.
+Print just the file\(aqs name without any directories, instead of the
+absolute path.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -246,7 +275,7 @@ it cannot be found relative to the object.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-functions [<none|short|linkage>], \-f
+.B \-\-functions [=<none|short|linkage>], \-f
 Specify the way function names are printed (omit function name, print short
 function name, or print full linkage name, respectively). Defaults to
 \fBlinkage\fP\&.
@@ -258,14 +287,14 @@ Show help and usage for this command.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-help\-list
-Show help and usage for this command without grouping the options into categories.
+.B \-\-inlining, \-\-inlines, \-i
+If a source code location is in an inlined function, prints all the inlined
+frames. This is the default.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-inlining, \-\-inlines, \-i
-If a source code location is in an inlined function, prints all the inlined
-frames. Defaults to true.
+.B \-\-no\-inlines
+Don\(aqt print inlined frames.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -293,6 +322,9 @@ Does not add an empty line after the report for an address.
 Does not replace the name of an inlined function with the name of the
 topmost caller when inlined frames are not shown and \fI\%\-\-use\-symbol\-table\fP
 is on.
+.IP \(bu 2
+Prints an address\(aqs debug\-data discriminator when it is non\-zero. One way to
+produce discriminators is to compile with clang\(aqs \-fdebug\-info\-for\-profiling.
 .UNINDENT
 .INDENT 7.0
 .INDENT 3.5
@@ -305,14 +337,18 @@ baz() at /tmp/test.cpp:11:18
 
 foo() at /tmp/test.cpp:6:3
 
-$ llvm\-symbolizer \-\-output\-style=LLVM \-\-obj=inlined.elf 0x4004be 0x400486 \-p \-i=0
+$ llvm\-symbolizer \-\-output\-style=LLVM \-\-obj=inlined.elf 0x4004be 0x400486 \-p \-\-no\-inlines
 main at /tmp/test.cpp:11:18
 
 foo() at /tmp/test.cpp:6:3
 
-$ llvm\-symbolizer \-\-output\-style=GNU \-\-obj=inlined.elf 0x4004be 0x400486 \-p \-i=0
+$ llvm\-symbolizer \-\-output\-style=GNU \-\-obj=inlined.elf 0x4004be 0x400486 \-p \-\-no\-inlines
 baz() at /tmp/test.cpp:11
 foo() at /tmp/test.cpp:6
+
+$ clang \-g \-fdebug\-info\-for\-profiling test.cpp \-o profiling.elf
+$ llvm\-symbolizer \-\-output\-style=GNU \-\-obj=profiling.elf 0x401167 \-p \-\-no\-inlines
+main at /tmp/test.cpp:15 (discriminator 2)
 .ft P
 .fi
 .UNINDENT
@@ -323,8 +359,7 @@ foo() at /tmp/test.cpp:6
 .B \-\-pretty\-print, \-p
 Print human readable output. If \fI\%\-\-inlining\fP is specified, the
 enclosing scope is prefixed by (inlined by).
-.UNINDENT
-.INDENT 0.0
+.INDENT 7.0
 .INDENT 3.5
 .sp
 .nf
@@ -336,12 +371,12 @@ baz() at /tmp/test.cpp:11:18
 .fi
 .UNINDENT
 .UNINDENT
+.UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-print\-address, \-\-addresses, \-a
 Print address before the source code location. Defaults to false.
-.UNINDENT
-.INDENT 0.0
+.INDENT 7.0
 .INDENT 3.5
 .sp
 .nf
@@ -360,12 +395,12 @@ $ llvm\-symbolizer \-\-obj=inlined.elf 0x4004be \-\-pretty\-print \-\-print\-add
 .fi
 .UNINDENT
 .UNINDENT
+.UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-print\-source\-context\-lines <N>
 Print \fBN\fP lines of source context for each symbolized address.
-.UNINDENT
-.INDENT 0.0
+.INDENT 7.0
 .INDENT 3.5
 .sp
 .nf
@@ -380,6 +415,14 @@ baz()
 .fi
 .UNINDENT
 .UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-relativenames
+Print the file\(aqs path relative to the compilation directory, instead
+of the absolute path. If the command\-line to the compiler included
+the full path, this will be the same as the default.
+.UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-use\-symbol\-table
@@ -390,8 +433,7 @@ sections. Defaults to true.
 .TP
 .B \-\-verbose
 Print verbose line and column information.
-.UNINDENT
-.INDENT 0.0
+.INDENT 7.0
 .INDENT 3.5
 .sp
 .nf
@@ -411,15 +453,23 @@ Function start line: 14
 .fi
 .UNINDENT
 .UNINDENT
+.UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-version
+.B \-\-version, \-v
 Print version information for the tool.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B @<FILE>
 Read command\-line options from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH WINDOWS/PDB SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-dia
+Use the Windows DIA SDK for symbolization. If the DIA SDK is not found,
+llvm\-symbolizer will fall back to the native implementation.
 .UNINDENT
 .SH MACH-O SPECIFIC OPTIONS
 .INDENT 0.0
@@ -430,8 +480,7 @@ Mach\-O universal binary), symbolize the object file for a given architecture.
 You can also specify the architecture by writing \fBbinary_name:arch_name\fP in
 the input (see example below). If the architecture is not specified in either
 way, the address will not be symbolized. Defaults to empty string.
-.UNINDENT
-.INDENT 0.0
+.INDENT 7.0
 .INDENT 3.5
 .sp
 .nf
@@ -448,6 +497,7 @@ _main
 /tmp/source_x86_64.cc:8
 .ft P
 .fi
+.UNINDENT
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -467,6 +517,6 @@ error.
 .SH AUTHOR
 Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2020, LLVM Project
+2003-2021, LLVM Project
 .\" Generated by docutils manpage writer.
 .

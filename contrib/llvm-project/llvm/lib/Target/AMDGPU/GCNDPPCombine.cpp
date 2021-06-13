@@ -38,22 +38,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPU.h"
-#include "AMDGPUSubtarget.h"
-#include "SIInstrInfo.h"
+#include "GCNSubtarget.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/Pass.h"
-#include <cassert>
 
 using namespace llvm;
 
@@ -274,14 +262,14 @@ static bool isIdentityValue(unsigned OrigMIOp, MachineOperand *OldOpnd) {
   default: break;
   case AMDGPU::V_ADD_U32_e32:
   case AMDGPU::V_ADD_U32_e64:
-  case AMDGPU::V_ADD_I32_e32:
-  case AMDGPU::V_ADD_I32_e64:
+  case AMDGPU::V_ADD_CO_U32_e32:
+  case AMDGPU::V_ADD_CO_U32_e64:
   case AMDGPU::V_OR_B32_e32:
   case AMDGPU::V_OR_B32_e64:
   case AMDGPU::V_SUBREV_U32_e32:
   case AMDGPU::V_SUBREV_U32_e64:
-  case AMDGPU::V_SUBREV_I32_e32:
-  case AMDGPU::V_SUBREV_I32_e64:
+  case AMDGPU::V_SUBREV_CO_U32_e32:
+  case AMDGPU::V_SUBREV_CO_U32_e64:
   case AMDGPU::V_MAX_U32_e32:
   case AMDGPU::V_MAX_U32_e64:
   case AMDGPU::V_XOR_B32_e32:

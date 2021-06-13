@@ -9,94 +9,68 @@
 #ifndef LLDB_UTILITY_SCALAR_H
 #define LLDB_UTILITY_SCALAR_H
 
+#include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-private-types.h"
-#include "lldb/Utility/LLDBAssert.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/APSInt.h"
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 namespace lldb_private {
+
 class DataExtractor;
 class Stream;
-} // namespace lldb_private
 
 #define NUM_OF_WORDS_INT128 2
 #define BITWIDTH_INT128 128
-#define NUM_OF_WORDS_INT256 4
-#define BITWIDTH_INT256 256
-#define NUM_OF_WORDS_INT512 8
-#define BITWIDTH_INT512 512
-
-namespace lldb_private {
 
 // A class designed to hold onto values and their corresponding types.
 // Operators are defined and Scalar objects will correctly promote their types
 // and values before performing these operations. Type promotion currently
 // follows the ANSI C type promotion rules.
 class Scalar {
+  template<typename T>
+  static llvm::APSInt MakeAPSInt(T v) {
+    static_assert(std::is_integral<T>::value, "");
+    static_assert(sizeof(T) <= sizeof(uint64_t), "Conversion loses precision!");
+    return llvm::APSInt(
+        llvm::APInt(sizeof(T) * 8, uint64_t(v), std::is_signed<T>::value),
+        std::is_unsigned<T>::value);
+  }
+
 public:
-  // FIXME: These are host types which seems to be an odd choice.
   enum Type {
     e_void = 0,
-    e_sint,
-    e_uint,
-    e_slong,
-    e_ulong,
-    e_slonglong,
-    e_ulonglong,
-    e_sint128,
-    e_uint128,
-    e_sint256,
-    e_uint256,
-    e_sint512,
-    e_uint512,
+    e_int,
     e_float,
-    e_double,
-    e_long_double
   };
 
   // Constructors and Destructors
-  Scalar();
-  Scalar(int v) : m_type(e_sint), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(int) * 8, v, true);
-  }
-  Scalar(unsigned int v) : m_type(e_uint), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(int) * 8, v);
-  }
-  Scalar(long v) : m_type(e_slong), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(long) * 8, v, true);
-  }
-  Scalar(unsigned long v) : m_type(e_ulong), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(long) * 8, v);
-  }
-  Scalar(long long v) : m_type(e_slonglong), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(long long) * 8, v, true);
-  }
+  Scalar() : m_type(e_void), m_float(0.0f) {}
+  Scalar(int v) : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
+  Scalar(unsigned int v)
+      : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
+  Scalar(long v) : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
+  Scalar(unsigned long v)
+      : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
+  Scalar(long long v)
+      : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
   Scalar(unsigned long long v)
-      : m_type(e_ulonglong), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(sizeof(long long) * 8, v);
+      : m_type(e_int), m_integer(MakeAPSInt(v)), m_float(0.0f) {}
+  Scalar(float v) : m_type(e_float), m_float(v) {}
+  Scalar(double v) : m_type(e_float), m_float(v) {}
+  Scalar(long double v) : m_type(e_float), m_float(double(v)) {
+    bool ignore;
+    m_float.convert(llvm::APFloat::x87DoubleExtended(),
+                    llvm::APFloat::rmNearestTiesToEven, &ignore);
   }
-  Scalar(float v) : m_type(e_float), m_float(v) { m_float = llvm::APFloat(v); }
-  Scalar(double v) : m_type(e_double), m_float(v) {
-    m_float = llvm::APFloat(v);
-  }
-  Scalar(long double v)
-      : m_type(e_long_double),
-        m_float(llvm::APFloat::x87DoubleExtended(),
-                llvm::APInt(BITWIDTH_INT128, NUM_OF_WORDS_INT128,
-                            (reinterpret_cast<type128 *>(&v))->x)) {}
-  Scalar(llvm::APInt v) : m_type(), m_float(static_cast<float>(0)) {
-    m_integer = llvm::APInt(v);
-    m_type = GetBestTypeForBitSize(m_integer.getBitWidth(), true);
-  }
-  // Scalar(const RegisterValue& reg_value);
-  virtual ~Scalar();
-
-  /// Return the most efficient Scalar::Type for the requested bit size.
-  static Type GetBestTypeForBitSize(size_t bit_size, bool sign);
+  Scalar(llvm::APInt v)
+      : m_type(e_int), m_integer(std::move(v), false), m_float(0.0f) {}
+  Scalar(llvm::APSInt v)
+      : m_type(e_int), m_integer(std::move(v)), m_float(0.0f) {}
 
   bool SignExtend(uint32_t bit_pos);
 
@@ -129,34 +103,26 @@ public:
 
   void GetValue(Stream *s, bool show_type) const;
 
-  bool IsValid() const {
-    return (m_type >= e_sint) && (m_type <= e_long_double);
-  }
+  bool IsValid() const { return (m_type >= e_int) && (m_type <= e_float); }
 
   /// Convert to an integer with \p bits and the given signedness.
   void TruncOrExtendTo(uint16_t bits, bool sign);
 
-  bool Promote(Scalar::Type type);
+  bool IntegralPromote(uint16_t bits, bool sign);
+  bool FloatPromote(const llvm::fltSemantics &semantics);
 
+  bool IsSigned() const;
   bool MakeSigned();
 
   bool MakeUnsigned();
 
   static const char *GetValueTypeAsCString(Scalar::Type value_type);
 
-  static Scalar::Type
-  GetValueTypeForSignedIntegerWithByteSize(size_t byte_size);
-
-  static Scalar::Type
-  GetValueTypeForUnsignedIntegerWithByteSize(size_t byte_size);
-
-  static Scalar::Type GetValueTypeForFloatWithByteSize(size_t byte_size);
-
   // All operators can benefits from the implicit conversions that will happen
   // automagically by the compiler, so no temporary objects will need to be
   // created. As a result, we currently don't need a variety of overloaded set
   // value accessors.
-  Scalar &operator+=(const Scalar &rhs);
+  Scalar &operator+=(Scalar rhs);
   Scalar &operator<<=(const Scalar &rhs); // Shift left
   Scalar &operator>>=(const Scalar &rhs); // Shift right (arithmetic)
   Scalar &operator&=(const Scalar &rhs);
@@ -217,72 +183,37 @@ public:
   Status SetValueFromCString(const char *s, lldb::Encoding encoding,
                              size_t byte_size);
 
-  Status SetValueFromData(DataExtractor &data, lldb::Encoding encoding,
+  Status SetValueFromData(const DataExtractor &data, lldb::Encoding encoding,
                           size_t byte_size);
 
-  static bool UIntValueIsValidForSize(uint64_t uval64, size_t total_byte_size) {
-    if (total_byte_size > 8)
-      return false;
-
-    if (total_byte_size == 8)
-      return true;
-
-    const uint64_t max = (static_cast<uint64_t>(1)
-                          << static_cast<uint64_t>(total_byte_size * 8)) -
-                         1;
-    return uval64 <= max;
-  }
-
-  static bool SIntValueIsValidForSize(int64_t sval64, size_t total_byte_size) {
-    if (total_byte_size > 8)
-      return false;
-
-    if (total_byte_size == 8)
-      return true;
-
-    const int64_t max = (static_cast<int64_t>(1)
-                         << static_cast<uint64_t>(total_byte_size * 8 - 1)) -
-                        1;
-    const int64_t min = ~(max);
-    return min <= sval64 && sval64 <= max;
-  }
-
 protected:
-  typedef char schar_t;
-  typedef unsigned char uchar_t;
-  typedef short sshort_t;
-  typedef unsigned short ushort_t;
-  typedef int sint_t;
-  typedef unsigned int uint_t;
-  typedef long slong_t;
-  typedef unsigned long ulong_t;
-  typedef long long slonglong_t;
-  typedef unsigned long long ulonglong_t;
-  typedef float float_t;
-  typedef double double_t;
-  typedef long double long_double_t;
-
-  // Classes that inherit from Scalar can see and modify these
   Scalar::Type m_type;
-  llvm::APInt m_integer;
+  llvm::APSInt m_integer;
   llvm::APFloat m_float;
 
   template <typename T> T GetAs(T fail_value) const;
 
+  static Type PromoteToMaxType(Scalar &lhs, Scalar &rhs);
+
+  using PromotionKey = std::tuple<Type, unsigned, bool>;
+  PromotionKey GetPromoKey() const;
+
+  static PromotionKey GetFloatPromoKey(const llvm::fltSemantics &semantics);
+
 private:
   friend const Scalar operator+(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator-(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator/(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator*(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator&(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator|(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator%(const Scalar &lhs, const Scalar &rhs);
-  friend const Scalar operator^(const Scalar &lhs, const Scalar &rhs);
+  friend const Scalar operator-(Scalar lhs, Scalar rhs);
+  friend const Scalar operator/(Scalar lhs, Scalar rhs);
+  friend const Scalar operator*(Scalar lhs, Scalar rhs);
+  friend const Scalar operator&(Scalar lhs, Scalar rhs);
+  friend const Scalar operator|(Scalar lhs, Scalar rhs);
+  friend const Scalar operator%(Scalar lhs, Scalar rhs);
+  friend const Scalar operator^(Scalar lhs, Scalar rhs);
   friend const Scalar operator<<(const Scalar &lhs, const Scalar &rhs);
   friend const Scalar operator>>(const Scalar &lhs, const Scalar &rhs);
-  friend bool operator==(const Scalar &lhs, const Scalar &rhs);
+  friend bool operator==(Scalar lhs, Scalar rhs);
   friend bool operator!=(const Scalar &lhs, const Scalar &rhs);
-  friend bool operator<(const Scalar &lhs, const Scalar &rhs);
+  friend bool operator<(Scalar lhs, Scalar rhs);
   friend bool operator<=(const Scalar &lhs, const Scalar &rhs);
   friend bool operator>(const Scalar &lhs, const Scalar &rhs);
   friend bool operator>=(const Scalar &lhs, const Scalar &rhs);
@@ -302,18 +233,18 @@ private:
 //  Differentiate among members functions, non-member functions, and
 //  friend functions
 const Scalar operator+(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator-(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator/(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator*(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator&(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator|(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator%(const Scalar &lhs, const Scalar &rhs);
-const Scalar operator^(const Scalar &lhs, const Scalar &rhs);
+const Scalar operator-(Scalar lhs, Scalar rhs);
+const Scalar operator/(Scalar lhs, Scalar rhs);
+const Scalar operator*(Scalar lhs, Scalar rhs);
+const Scalar operator&(Scalar lhs, Scalar rhs);
+const Scalar operator|(Scalar lhs, Scalar rhs);
+const Scalar operator%(Scalar lhs, Scalar rhs);
+const Scalar operator^(Scalar lhs, Scalar rhs);
 const Scalar operator<<(const Scalar &lhs, const Scalar &rhs);
 const Scalar operator>>(const Scalar &lhs, const Scalar &rhs);
-bool operator==(const Scalar &lhs, const Scalar &rhs);
+bool operator==(Scalar lhs, Scalar rhs);
 bool operator!=(const Scalar &lhs, const Scalar &rhs);
-bool operator<(const Scalar &lhs, const Scalar &rhs);
+bool operator<(Scalar lhs, Scalar rhs);
 bool operator<=(const Scalar &lhs, const Scalar &rhs);
 bool operator>(const Scalar &lhs, const Scalar &rhs);
 bool operator>=(const Scalar &lhs, const Scalar &rhs);

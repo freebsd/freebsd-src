@@ -827,7 +827,7 @@ INTERCEPTOR(int, prlimit64, int pid, int resource, void *new_rlimit,
 INTERCEPTOR(int, gethostname, char *name, SIZE_T len) {
   ENSURE_MSAN_INITED();
   int res = REAL(gethostname)(name, len);
-  if (!res) {
+  if (!res || (res == -1 && errno == errno_ENAMETOOLONG)) {
     SIZE_T real_len = REAL(strnlen)(name, len);
     if (real_len < len)
       ++real_len;
@@ -1245,10 +1245,10 @@ int OnExit() {
       CHECK_UNPOISONED_0(x, n);                                 \
   } while (0)
 
-#define MSAN_INTERCEPT_FUNC(name)                                        \
-  do {                                                                   \
-    if (!INTERCEPT_FUNCTION(name))                                       \
-      VReport(1, "MemorySanitizer: failed to intercept '%s'\n'", #name); \
+#define MSAN_INTERCEPT_FUNC(name)                                       \
+  do {                                                                  \
+    if (!INTERCEPT_FUNCTION(name))                                      \
+      VReport(1, "MemorySanitizer: failed to intercept '%s'\n", #name); \
   } while (0)
 
 #define MSAN_INTERCEPT_FUNC_VER(name, ver)                                 \

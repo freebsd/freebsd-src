@@ -25,14 +25,13 @@ namespace lldb_private {
 
 template <typename FormatterImpl> class FormatterContainerPair {
 public:
-  typedef FormattersContainer<ConstString, FormatterImpl> ExactMatchContainer;
-  typedef FormattersContainer<RegularExpression, FormatterImpl>
-      RegexMatchContainer;
+  typedef FormattersContainer<FormatterImpl> ExactMatchContainer;
+  typedef FormattersContainer<FormatterImpl> RegexMatchContainer;
 
-  typedef typename ExactMatchContainer::MapType ExactMatchMap;
-  typedef typename RegexMatchContainer::MapType RegexMatchMap;
+  typedef TypeMatcher ExactMatchMap;
+  typedef TypeMatcher RegexMatchMap;
 
-  typedef typename ExactMatchContainer::MapValueType MapValueType;
+  typedef typename ExactMatchContainer::ValueSP MapValueType;
 
   typedef typename ExactMatchContainer::SharedPointer ExactMatchContainerSP;
   typedef typename RegexMatchContainer::SharedPointer RegexMatchContainerSP;
@@ -42,10 +41,9 @@ public:
   typedef
       typename RegexMatchContainer::ForEachCallback RegexMatchForEachCallback;
 
-  FormatterContainerPair(const char *exact_name, const char *regex_name,
-                         IFormatChangeListener *clist)
-      : m_exact_sp(new ExactMatchContainer(std::string(exact_name), clist)),
-        m_regex_sp(new RegexMatchContainer(std::string(regex_name), clist)) {}
+  FormatterContainerPair(IFormatChangeListener *clist)
+      : m_exact_sp(new ExactMatchContainer(clist)),
+        m_regex_sp(new RegexMatchContainer(clist)) {}
 
   ~FormatterContainerPair() = default;
 
@@ -93,52 +91,52 @@ public:
     template <typename U = TypeFormatImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetExact(FormatContainer::ExactMatchForEachCallback callback) {
-      m_format_exact = callback;
+      m_format_exact = std::move(callback);
       return *this;
     }
     template <typename U = TypeFormatImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetWithRegex(FormatContainer::RegexMatchForEachCallback callback) {
-      m_format_regex = callback;
+      m_format_regex = std::move(callback);
       return *this;
     }
 
     template <typename U = TypeSummaryImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetExact(SummaryContainer::ExactMatchForEachCallback callback) {
-      m_summary_exact = callback;
+      m_summary_exact = std::move(callback);
       return *this;
     }
     template <typename U = TypeSummaryImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetWithRegex(SummaryContainer::RegexMatchForEachCallback callback) {
-      m_summary_regex = callback;
+      m_summary_regex = std::move(callback);
       return *this;
     }
 
     template <typename U = TypeFilterImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetExact(FilterContainer::ExactMatchForEachCallback callback) {
-      m_filter_exact = callback;
+      m_filter_exact = std::move(callback);
       return *this;
     }
     template <typename U = TypeFilterImpl>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetWithRegex(FilterContainer::RegexMatchForEachCallback callback) {
-      m_filter_regex = callback;
+      m_filter_regex = std::move(callback);
       return *this;
     }
 
     template <typename U = SyntheticChildren>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetExact(SynthContainer::ExactMatchForEachCallback callback) {
-      m_synth_exact = callback;
+      m_synth_exact = std::move(callback);
       return *this;
     }
     template <typename U = SyntheticChildren>
     typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
     SetWithRegex(SynthContainer::RegexMatchForEachCallback callback) {
-      m_synth_regex = callback;
+      m_synth_regex = std::move(callback);
       return *this;
     }
 
@@ -349,19 +347,13 @@ private:
   friend class LanguageCategory;
   friend class TypeCategoryMap;
 
-  friend class FormattersContainer<ConstString, TypeFormatImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeFormatImpl>;
+  friend class FormattersContainer<TypeFormatImpl>;
 
-  friend class FormattersContainer<ConstString, TypeSummaryImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeSummaryImpl>;
+  friend class FormattersContainer<TypeSummaryImpl>;
 
-  friend class FormattersContainer<ConstString, TypeFilterImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeFilterImpl>;
+  friend class FormattersContainer<TypeFilterImpl>;
 
-  friend class FormattersContainer<ConstString, ScriptedSyntheticChildren>;
-  friend class FormattersContainer<lldb::RegularExpressionSP,
-                                   ScriptedSyntheticChildren>;
-
+  friend class FormattersContainer<ScriptedSyntheticChildren>;
 };
 
 } // namespace lldb_private

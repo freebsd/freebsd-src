@@ -61,35 +61,36 @@ ELFObjectFileBase::ELFObjectFileBase(unsigned int Type, MemoryBufferRef Source)
 
 template <class ELFT>
 static Expected<std::unique_ptr<ELFObjectFile<ELFT>>>
-createPtr(MemoryBufferRef Object) {
-  auto Ret = ELFObjectFile<ELFT>::create(Object);
+createPtr(MemoryBufferRef Object, bool InitContent) {
+  auto Ret = ELFObjectFile<ELFT>::create(Object, InitContent);
   if (Error E = Ret.takeError())
     return std::move(E);
   return std::make_unique<ELFObjectFile<ELFT>>(std::move(*Ret));
 }
 
 Expected<std::unique_ptr<ObjectFile>>
-ObjectFile::createELFObjectFile(MemoryBufferRef Obj) {
+ObjectFile::createELFObjectFile(MemoryBufferRef Obj, bool InitContent) {
   std::pair<unsigned char, unsigned char> Ident =
       getElfArchType(Obj.getBuffer());
   std::size_t MaxAlignment =
-      1ULL << countTrailingZeros(uintptr_t(Obj.getBufferStart()));
+      1ULL << countTrailingZeros(
+          reinterpret_cast<uintptr_t>(Obj.getBufferStart()));
 
   if (MaxAlignment < 2)
     return createError("Insufficient alignment");
 
   if (Ident.first == ELF::ELFCLASS32) {
     if (Ident.second == ELF::ELFDATA2LSB)
-      return createPtr<ELF32LE>(Obj);
+      return createPtr<ELF32LE>(Obj, InitContent);
     else if (Ident.second == ELF::ELFDATA2MSB)
-      return createPtr<ELF32BE>(Obj);
+      return createPtr<ELF32BE>(Obj, InitContent);
     else
       return createError("Invalid ELF data");
   } else if (Ident.first == ELF::ELFCLASS64) {
     if (Ident.second == ELF::ELFDATA2LSB)
-      return createPtr<ELF64LE>(Obj);
+      return createPtr<ELF64LE>(Obj, InitContent);
     else if (Ident.second == ELF::ELFDATA2MSB)
-      return createPtr<ELF64BE>(Obj);
+      return createPtr<ELF64BE>(Obj, InitContent);
     else
       return createError("Invalid ELF data");
   }
@@ -355,6 +356,130 @@ SubtargetFeatures ELFObjectFileBase::getFeatures() const {
   }
 }
 
+Optional<StringRef> ELFObjectFileBase::tryGetCPUName() const {
+  switch (getEMachine()) {
+  case ELF::EM_AMDGPU:
+    return getAMDGPUCPUName();
+  default:
+    return None;
+  }
+}
+
+StringRef ELFObjectFileBase::getAMDGPUCPUName() const {
+  assert(getEMachine() == ELF::EM_AMDGPU);
+  unsigned CPU = getPlatformFlags() & ELF::EF_AMDGPU_MACH;
+
+  switch (CPU) {
+  // Radeon HD 2000/3000 Series (R600).
+  case ELF::EF_AMDGPU_MACH_R600_R600:
+    return "r600";
+  case ELF::EF_AMDGPU_MACH_R600_R630:
+    return "r630";
+  case ELF::EF_AMDGPU_MACH_R600_RS880:
+    return "rs880";
+  case ELF::EF_AMDGPU_MACH_R600_RV670:
+    return "rv670";
+
+  // Radeon HD 4000 Series (R700).
+  case ELF::EF_AMDGPU_MACH_R600_RV710:
+    return "rv710";
+  case ELF::EF_AMDGPU_MACH_R600_RV730:
+    return "rv730";
+  case ELF::EF_AMDGPU_MACH_R600_RV770:
+    return "rv770";
+
+  // Radeon HD 5000 Series (Evergreen).
+  case ELF::EF_AMDGPU_MACH_R600_CEDAR:
+    return "cedar";
+  case ELF::EF_AMDGPU_MACH_R600_CYPRESS:
+    return "cypress";
+  case ELF::EF_AMDGPU_MACH_R600_JUNIPER:
+    return "juniper";
+  case ELF::EF_AMDGPU_MACH_R600_REDWOOD:
+    return "redwood";
+  case ELF::EF_AMDGPU_MACH_R600_SUMO:
+    return "sumo";
+
+  // Radeon HD 6000 Series (Northern Islands).
+  case ELF::EF_AMDGPU_MACH_R600_BARTS:
+    return "barts";
+  case ELF::EF_AMDGPU_MACH_R600_CAICOS:
+    return "caicos";
+  case ELF::EF_AMDGPU_MACH_R600_CAYMAN:
+    return "cayman";
+  case ELF::EF_AMDGPU_MACH_R600_TURKS:
+    return "turks";
+
+  // AMDGCN GFX6.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX600:
+    return "gfx600";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX601:
+    return "gfx601";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX602:
+    return "gfx602";
+
+  // AMDGCN GFX7.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX700:
+    return "gfx700";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX701:
+    return "gfx701";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX702:
+    return "gfx702";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX703:
+    return "gfx703";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX704:
+    return "gfx704";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX705:
+    return "gfx705";
+
+  // AMDGCN GFX8.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX801:
+    return "gfx801";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX802:
+    return "gfx802";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX803:
+    return "gfx803";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX805:
+    return "gfx805";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX810:
+    return "gfx810";
+
+  // AMDGCN GFX9.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX900:
+    return "gfx900";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX902:
+    return "gfx902";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX904:
+    return "gfx904";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX906:
+    return "gfx906";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX908:
+    return "gfx908";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX909:
+    return "gfx909";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX90C:
+    return "gfx90c";
+
+  // AMDGCN GFX10.
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1010:
+    return "gfx1010";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1011:
+    return "gfx1011";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1012:
+    return "gfx1012";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1030:
+    return "gfx1030";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1031:
+    return "gfx1031";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1032:
+    return "gfx1032";
+  case ELF::EF_AMDGPU_MACH_AMDGCN_GFX1033:
+    return "gfx1033";
+  default:
+    llvm_unreachable("Unknown EF_AMDGPU_MACH value");
+  }
+}
+
 // FIXME Encode from a tablegen description or target parser.
 void ELFObjectFileBase::setARMSubArch(Triple &TheTriple) const {
   if (TheTriple.getSubArch() != Triple::NoSubArch)
@@ -440,7 +565,7 @@ void ELFObjectFileBase::setARMSubArch(Triple &TheTriple) const {
   TheTriple.setArchName(Triple);
 }
 
-std::vector<std::pair<DataRefImpl, uint64_t>>
+std::vector<std::pair<Optional<DataRefImpl>, uint64_t>>
 ELFObjectFileBase::getPltAddresses() const {
   std::string Err;
   const auto Triple = makeTriple();
@@ -498,14 +623,18 @@ ELFObjectFileBase::getPltAddresses() const {
     GotToPlt.insert(std::make_pair(Entry.second, Entry.first));
   // Find the relocations in the dynamic relocation table that point to
   // locations in the GOT for which we know the corresponding PLT entry.
-  std::vector<std::pair<DataRefImpl, uint64_t>> Result;
+  std::vector<std::pair<Optional<DataRefImpl>, uint64_t>> Result;
   for (const auto &Relocation : RelaPlt->relocations()) {
     if (Relocation.getType() != JumpSlotReloc)
       continue;
     auto PltEntryIter = GotToPlt.find(Relocation.getOffset());
-    if (PltEntryIter != GotToPlt.end())
-      Result.push_back(std::make_pair(
-          Relocation.getSymbol()->getRawDataRefImpl(), PltEntryIter->second));
+    if (PltEntryIter != GotToPlt.end()) {
+      symbol_iterator Sym = Relocation.getSymbol();
+      if (Sym == symbol_end())
+        Result.emplace_back(None, PltEntryIter->second);
+      else
+        Result.emplace_back(Sym->getRawDataRefImpl(), PltEntryIter->second);
+    }
   }
   return Result;
 }

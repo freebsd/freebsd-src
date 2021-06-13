@@ -119,12 +119,8 @@ Preprocessor::Preprocessor(std::shared_ptr<PreprocessorOptions> PPOpts,
   // a macro. They get unpoisoned where it is allowed.
   (Ident__VA_ARGS__ = getIdentifierInfo("__VA_ARGS__"))->setIsPoisoned();
   SetPoisonReason(Ident__VA_ARGS__,diag::ext_pp_bad_vaargs_use);
-  if (getLangOpts().CPlusPlus20) {
-    (Ident__VA_OPT__ = getIdentifierInfo("__VA_OPT__"))->setIsPoisoned();
-    SetPoisonReason(Ident__VA_OPT__,diag::ext_pp_bad_vaopt_use);
-  } else {
-    Ident__VA_OPT__ = nullptr;
-  }
+  (Ident__VA_OPT__ = getIdentifierInfo("__VA_OPT__"))->setIsPoisoned();
+  SetPoisonReason(Ident__VA_OPT__,diag::ext_pp_bad_vaopt_use);
 
   // Initialize the pragma handlers.
   RegisterBuiltinPragmas();
@@ -395,12 +391,10 @@ bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File,
   assert(CompleteLine && CompleteColumn && "Starts from 1:1");
   assert(!CodeCompletionFile && "Already set");
 
-  using llvm::MemoryBuffer;
-
   // Load the actual file's contents.
-  bool Invalid = false;
-  const MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File, &Invalid);
-  if (Invalid)
+  Optional<llvm::MemoryBufferRef> Buffer =
+      SourceMgr.getMemoryBufferForFileOrNone(File);
+  if (!Buffer)
     return true;
 
   // Find the byte position of the truncation point.
@@ -969,8 +963,10 @@ void Preprocessor::Lex(Token &Result) {
   LastTokenWasAt = Result.is(tok::at);
   --LexLevel;
 
-  if (LexLevel == 0 && !Result.getFlag(Token::IsReinjected)) {
-    ++TokenCount;
+  if ((LexLevel == 0 || PreprocessToken) &&
+      !Result.getFlag(Token::IsReinjected)) {
+    if (LexLevel == 0)
+      ++TokenCount;
     if (OnToken)
       OnToken(Result);
   }
@@ -1414,6 +1410,8 @@ bool Preprocessor::HandleComment(Token &result, SourceRange Comment) {
 ModuleLoader::~ModuleLoader() = default;
 
 CommentHandler::~CommentHandler() = default;
+
+EmptylineHandler::~EmptylineHandler() = default;
 
 CodeCompletionHandler::~CodeCompletionHandler() = default;
 

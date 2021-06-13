@@ -663,8 +663,7 @@ void DAGTypeLegalizer::ReplaceValueWith(SDValue From, SDValue To) {
 
     // Process the list of nodes that need to be reanalyzed.
     while (!NodesToAnalyze.empty()) {
-      SDNode *N = NodesToAnalyze.back();
-      NodesToAnalyze.pop_back();
+      SDNode *N = NodesToAnalyze.pop_back_val();
       if (N->getNodeId() != DAGTypeLegalizer::NewNode)
         // The node was analyzed while reanalyzing an earlier node - it is safe
         // to skip.  Note that this is not a morphing node - otherwise it would
@@ -753,7 +752,10 @@ void DAGTypeLegalizer::SetScalarizedVector(SDValue Op, SDValue Result) {
   // Note that in some cases vector operation operands may be greater than
   // the vector element type. For example BUILD_VECTOR of type <1 x i1> with
   // a constant i8 operand.
-  assert(Result.getValueSizeInBits() >= Op.getScalarValueSizeInBits() &&
+
+  // We don't currently support the scalarization of scalable vector types.
+  assert(Result.getValueSizeInBits().getFixedSize() >=
+             Op.getScalarValueSizeInBits() &&
          "Invalid type for scalarized vector");
   AnalyzeNewValue(Result);
 
@@ -955,11 +957,12 @@ bool DAGTypeLegalizer::CustomWidenLowerNode(SDNode *N, EVT VT) {
   assert(Results.size() == N->getNumValues() &&
          "Custom lowering returned the wrong number of results!");
   for (unsigned i = 0, e = Results.size(); i != e; ++i) {
-    // If this is a chain output just replace it.
-    if (Results[i].getValueType() == MVT::Other)
-      ReplaceValueWith(SDValue(N, i), Results[i]);
-    else
+    // If this is a chain output or already widened just replace it.
+    bool WasWidened = SDValue(N, i).getValueType() != Results[i].getValueType();
+    if (WasWidened)
       SetWidenedVector(SDValue(N, i), Results[i]);
+    else
+      ReplaceValueWith(SDValue(N, i), Results[i]);
   }
   return true;
 }

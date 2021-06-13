@@ -12,13 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "GCNSchedStrategy.h"
-#include "AMDGPUSubtarget.h"
-#include "SIInstrInfo.h"
 #include "SIMachineFunctionInfo.h"
-#include "SIRegisterInfo.h"
-#include "Utils/AMDGPUBaseInfo.h"
-#include "llvm/CodeGen/RegisterClassInfo.h"
-#include "llvm/Support/MathExtras.h"
 
 #define DEBUG_TYPE "machine-scheduler"
 
@@ -567,8 +561,10 @@ void GCNScheduleDAGMILive::finalizeSchedule() {
       SavedMutations.swap(Mutations);
 
     for (auto Region : Regions) {
-      if (Stage == UnclusteredReschedule && !RescheduleRegions[RegionIdx])
+      if (Stage == UnclusteredReschedule && !RescheduleRegions[RegionIdx]) {
+        ++RegionIdx;
         continue;
+      }
 
       RegionBegin = Region.first;
       RegionEnd = Region.second;
