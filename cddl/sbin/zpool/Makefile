@@ -2,7 +2,9 @@
 
 ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 
+.PATH: ${ZFSTOP}/man/man4
 .PATH: ${ZFSTOP}/man/man5
+.PATH: ${ZFSTOP}/man/man7
 .PATH: ${ZFSTOP}/man/man8
 .PATH: ${ZFSTOP}/cmd/zpool
 .PATH: ${ZFSTOP}/cmd/zpool/os/freebsd
@@ -11,9 +13,8 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 PACKAGE=	runtime
 PROG=	zpool
 MAN= \
-	spl-module-parameters.5 \
-	zfs-events.5 \
-	zfs-module-parameters.5 \
+	spl.4 \
+	zfs.4 \
 	zpool.8 \
 	zpool-add.8 \
 	zpool-attach.8 \
@@ -24,7 +25,7 @@ MAN= \
 	zpool-detach.8 \
 	zpool-events.8 \
 	zpool-export.8 \
-	zpool-features.5 \
+	zpool-features.7 \
 	zpool-get.8 \
 	zpool-history.8 \
 	zpool-import.8 \
@@ -45,8 +46,8 @@ MAN= \
 	zpool-trim.8 \
 	zpool-upgrade.8 \
 	zpool-wait.8 \
-	zpoolconcepts.8 \
-	zpoolprops.8
+	zpoolconcepts.7 \
+	zpoolprops.7
 MLINKS= \
 	zpool-offline.8 zpool-online.8 \
 	zpool-get.8 zpool-set.8
