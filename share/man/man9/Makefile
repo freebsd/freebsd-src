@@ -289,6 +289,7 @@ MAN=	accept_filter.9 \
 	ratecheck.9 \
 	redzone.9 \
 	refcount.9 \
+	regulator.9 \
 	resettodr.9 \
 	resource_int_value.9 \
 	rijndael.9 \
