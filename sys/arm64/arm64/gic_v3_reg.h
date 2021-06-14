@@ -57,13 +57,33 @@
 #define	 GICD_CTLR_G1A		(1 << 1)
 #define	 GICD_CTLR_ARE_NS	(1 << 4)
 #define	 GICD_CTLR_RWP		(1 << 31)
+
 /* GICD_TYPER */
+#define	 GICD_TYPER_SECURITYEXTN (1 << 10)
+#define	 GICD_TYPER_MBIS	(1 << 16)
+#define	 GICD_TYPER_LPIS	(1 << 17)
+#define	 GICD_TYPER_DVIS	(1 << 18)
+#define	 GICD_TYPER_IDBITS_SHIFT 19
 #define	 GICD_TYPER_IDBITS(n)	((((n) >> 19) & 0x1F) + 1)
 
 /*
  * Registers (v3)
  */
+#define	GICD_STATUSR		0x0010
+
+#define	GICD_SETSPI_NSR		0x0040
+#define	GICD_CLRSPI_NSR		0x0048
+#define	GICD_SETSPI_SR		0x0050
+#define	GICD_CLRSPI_SR		0x0058
+#define	 GICD_SPI_INTID_MASK	0x3ff
+
 #define	GICD_IROUTER(n)		(0x6000 + ((n) * 8))
+#define	 GICD_AFF3		(0xfful << 32)
+#define	 GICD_IROUTER_IRM	(1ul << 31)
+#define	 GICD_AFF2		(0xfful << 16)
+#define	 GICD_AFF1		(0xfful << 8)
+#define	 GICD_AFF0		(0xfful << 0)
+#define	 GICD_AFF		(GICD_AFF0 | GICD_AFF1 | GICD_AFF1 | GICD_AFF3)
 
 #define	GICD_PIDR4		0xFFD0
 #define	GICD_PIDR5		0xFFD4
@@ -72,6 +92,8 @@
 #define	GICD_PIDR0		0xFFE0
 #define	GICD_PIDR1		0xFFE4
 #define	GICD_PIDR2		0xFFE8
+
+#define	GICD_SIZE		0x10000
 
 #define	GICR_PIDR2_ARCH_SHIFT	4
 #define	GICR_PIDR2_ARCH_MASK	0xF0
@@ -82,27 +104,44 @@
 
 #define	GICD_PIDR3		0xFFEC
 
-/* Redistributor registers */
-#define	GICR_CTLR		GICD_CTLR
-#define		GICR_CTLR_LPI_ENABLE	(1 << 0)
+/*
+ * Redistributor registers
+ */
 
-#define	GICR_PIDR2		GICD_PIDR2
+/* RD_base registers */
+#define	GICR_CTLR		0x0000
+#define	 GICR_CTLR_LPI_ENABLE	(1 << 0)
+#define	 GICR_CTLR_RWP		(1 << 3)
+#define	 GICR_CTLR_DPG0		(1 << 24)
+#define	 GICR_CTLR_DPG1NS	(1 << 25)
+#define	 GICR_CTLR_DPG1S	(1 << 26)
+#define	 GICR_CTLR_UWP		(1 << 31)
 
-#define	GICR_TYPER		(0x0008)
-#define	GICR_TYPER_PLPIS	(1 << 0)
-#define	GICR_TYPER_VLPIS	(1 << 1)
-#define	GICR_TYPER_LAST		(1 << 4)
-#define	GICR_TYPER_CPUNUM_SHIFT	(8)
-#define	GICR_TYPER_CPUNUM_MASK	(0xFFFUL << GICR_TYPER_CPUNUM_SHIFT)
-#define	GICR_TYPER_CPUNUM(x)	\
+#define	GICR_IIDR		0x0004
+
+#define	GICR_TYPER		0x0008
+#define	 GICR_TYPER_PLPIS	(1 << 0)
+#define	 GICR_TYPER_VLPIS	(1 << 1)
+#define	 GICR_TYPER_LAST	(1 << 4)
+#define	 GICR_TYPER_CPUNUM_SHIFT (8)
+#define	 GICR_TYPER_CPUNUM_MASK	(0xFFFUL << GICR_TYPER_CPUNUM_SHIFT)
+#define	 GICR_TYPER_CPUNUM(x)	\
 	    (((x) & GICR_TYPER_CPUNUM_MASK) >> GICR_TYPER_CPUNUM_SHIFT)
-#define	GICR_TYPER_AFF_SHIFT	(32)
+#define	 GICR_TYPER_AFF_SHIFT	32
+#define	 GICR_TYPER_AFF_MASK	(0xfffffffful << GICR_TYPER_AFF_SHIFT)
+#define	GICR_TYPER_AFF(x)					\
+    (((x) & GICR_TYPER_AFF_MASK) >> GICR_TYPER_AFF_SHIFT)
 
-#define	GICR_WAKER		(0x0014)
+#define	GICR_STATUSR		0x0010
+
+#define	GICR_WAKER		0x0014
 #define	GICR_WAKER_PS		(1 << 1) /* Processor sleep */
 #define	GICR_WAKER_CA		(1 << 2) /* Children asleep */
 
-#define	GICR_PROPBASER		(0x0070)
+#define	GICR_SETLPIR		0x0040
+#define	GICR_CLRLPIR		0x0048
+
+#define	GICR_PROPBASER		0x0070
 #define		GICR_PROPBASER_IDBITS_MASK	0x1FUL
 /*
  * Cacheability
@@ -142,7 +181,11 @@
 #define		GICR_PROPBASER_SHARE_MASK	\
 		    (0x3UL << GICR_PROPBASER_SHARE_SHIFT)
 
-#define	GICR_PENDBASER		(0x0078)
+#define		GICR_PROPBASER_OUTER_CACHE_SHIFT	56
+#define		GICR_PROPBASER_OUTER_CACHE_MASK		\
+		    (0x7UL << GICR_PROPBASER_OUTER_CACHE_SHIFT)
+
+#define	GICR_PENDBASER		0x0078
 /*
  * Cacheability
  * 0x0 - Device-nGnRnE
@@ -181,12 +224,17 @@
 #define		GICR_PENDBASER_SHARE_MASK	\
 		    (0x3UL << GICR_PENDBASER_SHARE_SHIFT)
 
-/* Re-distributor registers for SGIs and PPIs */
-#define	GICR_RD_BASE_SIZE	PAGE_SIZE_64K
-#define	GICR_SGI_BASE_SIZE	PAGE_SIZE_64K
-#define	GICR_VLPI_BASE_SIZE	PAGE_SIZE_64K
-#define	GICR_RESERVED_SIZE	PAGE_SIZE_64K
+#define		GICR_PENDBASER_OUTER_CACHE_SHIFT	56
+#define		GICR_PENDBASER_OUTER_CACHE_MASK		\
+		    (0x7UL << GICR_PENDBASER_OUTER_CACHE_SHIFT)
 
+#define	GICR_INVLPIR		0x00a0
+#define	GICR_INVALLR		0x00b0
+#define	GICR_SYNCR		0x00c0
+
+#define	GICR_PIDR2		GICD_PIDR2
+
+/* SGI_base registers */
 #define	GICR_IGROUPR0				(0x0080)
 #define	GICR_ISENABLER0				(0x0100)
 #define	GICR_ICENABLER0				(0x0180)
@@ -195,7 +243,28 @@
 
 #define		GICR_I_PER_IPRIORITYn		(GICD_I_PER_IPRIORITYn)
 
-/* ITS registers */
+#define	GICR_ISPENDR0				0x0200
+#define	GICR_ICPENDR0				0x0280
+#define	GICR_ISACTIVER0				0x0300
+#define	GICR_ICACTIVER0				0x0380
+#define	GICR_IPRIORITYR(n)			(0x0400 + (((n) >> 2) * 4))
+#define	GICR_ICFGR0				0x0c00
+#define	GICR_ICFGR1				0x0c04
+#define	GICR_IGRPMODR0				0x0d00
+#define	GICR_NSACR				0x0e00
+
+/* Re-distributor registers for SGIs and PPIs */
+#define	GICR_RD_BASE		0
+#define	GICR_RD_BASE_SIZE	PAGE_SIZE_64K
+#define	GICR_SGI_BASE		(1 * PAGE_SIZE_64K)
+#define	GICR_SGI_BASE_SIZE	PAGE_SIZE_64K
+#define	GICR_VLPI_BASE		(2 * PAGE_SIZE_64K)
+#define	GICR_VLPI_BASE_SIZE	PAGE_SIZE_64K
+#define	GICR_RESERVED_SIZE	PAGE_SIZE_64K
+
+/*
+ * ITS registers
+ */
 #define	GITS_PIDR2		GICR_PIDR2
 #define	GITS_PIDR2_ARCH_MASK	GICR_PIDR2_ARCH_MASK
 #define	GITS_PIDR2_ARCH_GICv3	GICR_PIDR2_ARCH_GICv3
@@ -266,9 +335,17 @@
 
 #define		GITS_CBASER_PA_SHIFT	12
 #define		GITS_CBASER_PA_MASK	(0xFFFFFFFFFUL << GITS_CBASER_PA_SHIFT)
+#define		GITS_CBASER_SIZE_SHIFT	0
+#define		GITS_CBASER_SIZE_MASK	(0xFF << GITS_CBASER_SIZE_SHIFT)
+#define		GITS_CBASER_SIZE(x)	\
+		    (4096 * (((x) & GITS_CBASER_SIZE_MASK) + 1))
 
 #define	GITS_CWRITER		(0x0088)
 #define	GITS_CREADR		(0x0090)
+#define	 GITS_CREADR_STALL	1ul
+
+#define	 GITS_CMD_OFFSET(reg)	((reg) & 0xfffe0ul)
+#define	 GITS_CMD_SIZE		0x20
 
 #define	GITS_BASER_BASE		(0x0100)
 #define	GITS_BASER(x)		(GITS_BASER_BASE + (x) * 8)
@@ -342,6 +419,7 @@
 #define		GITS_BASER_NUM		8
 
 #define	GITS_TYPER		(0x0008)
+#define		GITS_TYPER_HCC_SHIFT	24
 #define		GITS_TYPER_PTA		(1UL << 19)
 #define		GITS_TYPER_DEVB_SHIFT	13
 #define		GITS_TYPER_DEVB_MASK	(0x1FUL << GITS_TYPER_DEVB_SHIFT)
