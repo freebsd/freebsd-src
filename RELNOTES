@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d575e81fbcfa
+	Support to appending additional devices in gconcact has been
+	added.
+
 76681661be28
 	Remove support for asymmetric cryptographic operations from
 	the kernel open cryptographic framework (OCF).
