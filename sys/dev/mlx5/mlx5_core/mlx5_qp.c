@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
 
 #include <linux/gfp.h>
 #include <dev/mlx5/qp.h>
