@@ -982,8 +982,8 @@ struct mlx5e_xmit_args {
 	u16 ihs;
 };
 
-#include "en_rl.h"
-#include "en_hw_tls.h"
+#include <dev/mlx5/mlx5_en/en_rl.h>
+#include <dev/mlx5/mlx5_en/en_hw_tls.h>
 
 #define	MLX5E_TSTMP_PREC 10
 
