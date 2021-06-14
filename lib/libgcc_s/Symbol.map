@@ -148,3 +148,32 @@ GCC_4.3.0 {
 	__bswapdi2;
 	__bswapsi2;
 };
+
+GCC_4.6.0 {
+	__addtf3;
+	__cmptf2;
+	__divtf3;
+	__eqtf2;
+	__extenddftf2;
+	__extendsftf2;
+	__fixtfdi;
+	__fixtfsi;
+	__fixtfti;
+	__fixunstfdi;
+	__fixunstfsi;
+	__fixunstfti;
+	__floatsitf;
+	__floattitf;
+	__floatunsitf;
+	__floatuntitf;
+	__getf2;
+	__gttf2;
+	__letf2;
+	__lttf2;
+	__multf3;
+	__netf2;
+	__subtf3;
+	__trunctfdf2;
+	__trunctfsf2;
+	__unordtf2;
+};
