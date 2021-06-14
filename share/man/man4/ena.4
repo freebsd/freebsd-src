@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2017
+.Dd June 4, 2021
 .Dt ENA 4
 .Os
 .Sh NAME
@@ -86,7 +86,13 @@ debug logs.
 .Pp
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
-This feature will be implemented for driver in future releases.
+.Pp
+Support for the
+.Xr netmap 4
+framework is provided by the
+.Nm
+driver.
+Kernel must be built with the DEV_NETMAP option to be able to use this feature.
 .Sh HARDWARE
 Supported PCI vendor ID/device IDs:
 .Pp
@@ -100,8 +106,172 @@ Supported PCI vendor ID/device IDs:
 .It
 1d0f:ec21 - ENA VF with LLQ support
 .El
+.Sh LOADER TUNABLES
+The
+.Nm
+driver's behavior can be changed using run-time or boot-time sysctl
+arguments.
+The boot-time arguments can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in the
+.Xr loader.conf 5 .
+The run-time arguments can be set using the
+.Xr sysctl 8
+command.
+.Pp
+Boot-time tunables:
+.Bl -tag -width indent
+.It Va hw.ena.enable_9k_mbufs
+Use 9k mbufs for the Rx descriptors.
+The default is 0.
+If the node value is set to 1, 9k mbufs will be used for the Rx buffers.
+If set to 0, page size mbufs will be used instead.
+.Pp
+Using 9k buffers for Rx can improve Rx throughput, but in low memory conditions
+it might increase allocation time, as the system has to look for 3 contiguous
+pages.
+This can further lead to OS instability, together with ENA driver reset and NVMe
+timeouts.
+If network performance is critical and memory capacity is sufficient, the 9k
+mbufs can be used.
+.It Va hw.ena.force_large_llq_headers
+Force the driver to use large LLQ headers (224 bytes).
+The default is 0.
+If the node value is set to 0, the regular size LLQ header will be used, which
+is 96B.
+In some cases, the packet header can be bigger than this (for example -
+IPv6 with multiple extensions).
+In such a situation, the large LLQ headers should be used by setting this node
+value to 1.
+This will take effect only if the device supports both LLQ and large LLQ
+headers.
+Otherwise, it will fallback to the no LLQ mode or regular header size.
+.Pp
+Increasing LLQ header size reduces the size of the Tx queue by half, so it may
+affect the number of dropped Tx packets.
+.El
+.Pp
+Run-time tunables:
+.Bl -tag -width indent
+.It Va hw.ena.log_level
+Controls extra logging verbosity of the driver.
+The default is 2.
+The higher the logging level, the more logs will be printed out. 0 means all
+extra logs are disabled and only error logs will be printed out.
+Default value (2) reports errors, warnings and is verbose about driver
+operation.
+.Pp
+The possible flags are:
+.Pp
+.Bl -bullet -compact
+.It
+0 - ENA_ERR  - Enable driver error messages and ena_com error logs.
+.It
+1 - ENA_WARN - Enable logs for non-critical errors.
+.It
+2 - ENA_INFO - Make the driver more verbose about its actions.
+.It
+3 - ENA_DBG  - Enable debug logs.
+.El
+.Pp
+NOTE: In order to enable logging on the Tx/Rx data path, driver must be compiled
+with ENA_LOG_IO_ENABLE compilation flag.
+.Pp
+Example:
+To enable logs for errors and warnings, the following command should be used:
+.Bd -literal -offset indent
+sysctl hw.ena.log_level=1
+.Ed
+.It Va dev.ena.X.io_queues_nb
+Number of the currently allocated and used IO queues.
+The default is max_num_io_queues.
+Controls the number of IO queue pairs (Tx/Rx). As this call has to reallocate
+the queues, it will reset the interface and restart all the queues - this means
+that everything, which was currently held in the queue, will be lost, leading to
+potential packet drops.
+.Pp
+This call can fail if the system isn't able to provide the driver with enough
+resources.
+In that situation, the driver will try to revert the previous number of the IO
+queues.
+If this also fails, the device reset will be triggered.
+.Pp
+Example:
+To use only 2 Tx and Rx queues for the device ena1, the following command should
+be used:
+.Bd -literal -offset indent
+sysctl dev.ena.1.io_queues_nb=2
+.Ed
+.It Va dev.ena.X.rx_queue_size
+Size of the Rx queue.
+The default is 1024.
+Controls the number of IO descriptors for each Rx queue.
+The user may want to increase the Rx queue size if they observe a high number of
+Rx drops in the driver's statistics.
+For performance reasons, the Rx queue size must be a power of 2.
+.Pp
+This call can fail if the system isn't able to provide the driver with enough
+resources.
+In that situation, the driver will try to revert to the previous number of the
+descriptors.
+If this also fails, the device reset will be triggered.
+.Pp
+Example:
+To increase Rx ring size to 8K descriptors for the device ena0, the following
+command should be used:
+.Bd -literal -offset indent
+sysctl dev.ena.0.rx_queue_size=8192
+.Ed
+.It Va dev.ena.X.buf_ring_size
+Size of the Tx buffer ring (drbr).
+The default is 4096.
+Input must be a power of 2.
+Controls the number of mbufs that can be held in the Tx buffer ring.
+The drbr is used as a multiple-producer, single-consumer lockless ring for
+buffering extra mbufs coming from the stack in case the Tx procedure is busy
+sending the packets, or the Tx ring is full.
+Increasing the size of the buffer ring may reduce the number of Tx packets being
+dropped in case of a big Tx burst, which cannot be handled by the IO queue
+immediately.
+Each Tx queue has its own drbr.
+.Pp
+It is recommended to keep the drbr with at least the default value, but in case
+the system lacks the resources, it can be reduced.
+This call can fail if the system is not able to provide the driver with enough
+resources.
+In that situation, the driver will try to revert to the previous number of the
+drbr and trigger the device reset.
+.Pp
+Example:
+To set drbr size for interface ena0 to 2048, the following command should
+be used:
+.Bd -literal -offset indent
+sysctl dev.ena.0.buf_ring_size=2048
+.Ed
+.It Va dev.ena.X.eni_metrics.sample_interval
+Interval in seconds for updating ENI metrics.
+The default is 0.
+Determines how often (if ever) the ENI metrics should be updated.
+The ENI metrics are being updated asynchronously in a timer service in order to
+avoid admin queue overload by sysctl node reading.
+The value in this node controls the interval between issuing admin commands to
+the device, which will update the ENI metrics values.
+.Pp
+If some application is periodically monitoring the eni_metrics, then the ENI
+metrics interval can be adjusted accordingly.
+Value 0 turns off the update completely.
+Value 1 is the minimum interval and is equal to 1 second.
+The maximum allowed update interval is 1 hour.
+.Pp
+Example:
+To update ENI metrics for the device ena1 every 10 seconds, the following
+command should be used:
+.Bd -literal -offset indent
+sysctl dev.ena.1.eni_metrics.sample_interval=10
+.Ed
+.El
 .Sh DIAGNOSTICS
-.Ss Device initialization phase:
+.Ss Device initialization phase
 .Bl -diag
 .It ena%d: failed to init mmio read less
 .Pp
@@ -116,7 +286,7 @@ Device may not be responding or is already during reset.
 Version of the controller is too old and it is not supported by the driver.
 .It ena%d: Invalid dma width value %d
 .Pp
-The controller is able to request dma transaction width.
+The controller is unable to request dma transaction width.
 .br
 Device stopped responding or it demanded invalid value.
 .It ena%d: Can not initialize ena admin queue with device
@@ -132,33 +302,30 @@ Failed to get attributes of the device from the controller.
 .Pp
 Errors occurred when trying to configure AENQ groups.
 .El
-.Ss Driver initialisation/shutdown phase:
+.Ss Driver initialization/shutdown phase
 .Bl -diag
 .It ena%d: PCI resource allocation failed!
-.It ena%d: allocating ena_dev failed
 .It ena%d: failed to pmap registers bar
-.It ena%d: Error while setting up bufring
-.It ena%d: Error with initialization of IO rings
 .It ena%d: can not allocate ifnet structure
 .It ena%d: Error with network interface setup
 .It ena%d: Failed to enable and set the admin interrupts
-.It ena%d: Failed to allocate %d, vectors %d
+.It ena%d: Error, MSI-X is already enabled
 .It ena%d: Failed to enable MSIX, vectors %d rc %d
+.It ena%d: Not enough number of MSI-X allocated: %d
 .It ena%d: Error with MSI-X enablement
 .It ena%d: could not allocate irq vector: %d
-.It ena%d: Unable to allocate bus resource: registers
+.It ena%d: unable to allocate bus resource: registers!
+.It ena%d: unable to allocate bus resource: msix!
 .Pp
 Resource allocation failed when initializing the device.
 .br
 Driver will not be attached.
 .It ena%d: ENA device init failed (err: %d)
+.It ena%d: Cannot initialize device
 .Pp
 Device initialization failed.
 .br
 Driver will not be attached.
-.It ena%d: could not activate irq vector: %d
-.Pp
-Error occurred when trying to activate interrupt vectors for Admin Queue.
 .It ena%d: failed to register interrupt handler for irq %ju: %d
 .Pp
 Error occurred when trying to register Admin Queue interrupt handler.
@@ -181,8 +348,7 @@ VLANs must be detached first and then detach routine have to be called again.
 .It ena%d: Unmapped TX DMA tag associations
 .Pp
 Error occurred when trying to destroy RX/TX DMA tag.
-.It ena%d: Cannot init RSS
-.It ena%d: Cannot fill indirect table
+.It ena%d: Cannot init indirect table
 .It ena%d: Cannot fill indirect table
 .It ena%d: Cannot fill hash function
 .It ena%d: Cannot fill hash control
@@ -192,20 +358,30 @@ Error occurred during initialization of one of RSS resources.
 .br
 The device will work with reduced performance because all RX packets will be
 passed to queue 0 and there will be no hash information.
+.It ena%d: LLQ is not supported. Fallback to host mode policy.
+.It ena%d: Failed to configure the device mode. Fallback to host mode policy.
+.It ena%d: unable to allocate LLQ bar resource. Fallback to host mode policy.
+.Pp
+Error occured during Low-latency Queue mode setup.
+.br
+The device will work, but without the LLQ performance gain.
+.It ena%d: failed to enable write combining.
+.Pp
+Error occured while setting the Write Combining mode, required for the LLQ.
 .It ena%d: failed to tear down irq: %d
 .It ena%d: dev has no parent while releasing res for irq: %d
 Release of the interrupts failed.
 .El
-.Ss Additional diagnostic:
+.Ss Additional diagnostic
 .Bl -diag
-.It ena%d: Cannot get attribute for ena device
-.Pp
-This message appears when trying to change MTU and driver is unable to get
-attributes from the device.
-.It ena%d: Invalid MTU setting. new_mtu: %d
+.It ena%d: Invalid MTU setting. new_mtu: %d max_mtu: %d min mtu: %d
 .Pp
 Requested MTU value is not supported and will not be set.
-.It ena%d: keep alive watchdog timeout
+.It ena%d: Failed to set MTU to %d
+.Pp
+This message appears when either MTU change feature is not supported, or device
+communication error has occured.
+.It ena%d: Keep alive watchdog timeout.
 .Pp
 Device stopped responding and will be reset.
 .It ena%d: Found a Tx that wasn't completed on time, qid %d, index %d.
@@ -215,18 +391,35 @@ Packet was pushed to the NIC but not sent within given time limit.
 It may be caused by hang of the IO queue.
 .It ena%d: The number of lost tx completion is aboce the threshold (%d > %d). Reset the device
 .Pp
-If too many Tx wasn't completed on time the device is going to be reset.
+If too many Tx weren't completed on time the device is going to be reset.
 .br
 It may be caused by hanged queue or device.
-.It ena%d: trigger reset is on
+.It ena%d: Trigger reset is on
 .Pp
 Device will be reset.
 .br
 Reset is triggered either by watchdog or if too many TX packets were not
 completed on time.
-.It ena%d: invalid value recvd
+.It ena%d: device reset scheduled but trigger_reset is off
 .Pp
-Link status received from the device in the AENQ handler is invalid.
+Reset task has been triggered, but the driver did not request it.
+.br
+Device reset will not be performed.
+.It ena%d: Device reset failed
+.Pp
+Error occured while trying to reset the device.
+.It ena%d: Cannot initialize device
+.It ena%d: Error, mac address are different
+.It ena%d: Error, device max mtu is smaller than ifp MTU
+.It ena%d: Validation of device parameters failed
+.It ena%d: Enable MSI-X failed
+.It ena%d: Failed to create I/O queues
+.It ena%d: Reset attempt failed. Can not reset the device
+.Pp
+Error occured while trying to restore the device after reset.
+.It ena%d: Device reset completed successfully, Driver info: %s
+.Pp
+Device has been correctly restored after reset and is ready to use.
 .It ena%d: Allocation for Tx Queue %u failed
 .It ena%d: Allocation for Rx Queue %u failed
 .It ena%d: Unable to create Rx DMA map for buffer %d
@@ -234,7 +427,6 @@ Link status received from the device in the AENQ handler is invalid.
 .It ena%d: Failed to get TX queue handlers. TX queue num %d rc: %d
 .It ena%d: Failed to create io RX queue[%d] rc: %d
 .It ena%d: Failed to get RX queue handlers. RX queue num %d rc: %d
-.It ena%d: failed to request irq
 .It ena%d: could not allocate irq vector: %d
 .It ena%d: failed to register interrupt handler for irq %ju: %d
 .Pp
@@ -246,12 +438,20 @@ Interface will not be brought up.
 Initialization of the LRO for the RX ring failed.
 .It ena%d: failed to alloc buffer for rx queue
 .It ena%d: failed to add buffer for rx queue %d
-.It ena%d: refilled rx queue %d with %d pages only
+.It ena%d: refilled rx qid %d with only %d mbufs (from %d)
 .Pp
 Allocation of resources used on RX path failed.
 .br
 If happened during initialization of the IO queue, the interface will not be
 brought up.
+.It ena%d: NULL mbuf in rx_info
+.Pp
+Error occured while assembling mbuf from descriptors.
+.It ena%d: tx_info doesn't have valid mbuf
+.It ena%d: Invalid req_id: %hu
+.It ena%d: failed to prepare tx bufs
+.Pp
+Error occured while preparing a packet for transmission.
 .It ena%d: ioctl promisc/allmulti
 .Pp
 IOCTL request for the device to work in promiscuous/allmulti mode.
@@ -259,22 +459,23 @@ IOCTL request for the device to work in promiscuous/allmulti mode.
 See
 .Xr ifconfig 8
 for more details.
-.It ena%d: too many fragments. Last fragment: %d!
-.Pp
-Packet with unsupported number of segments was queued for sending to the
-device.
-.br
-Packet will be dropped.
 .El
 .Sh SUPPORT
 If an issue is identified with the released source code with a supported
 adapter, please email the specific information related to the issue to
-.Aq Mt mk@semihalf.com
+.Aq Mt mk@semihalf.com ,
+.Aq Mt ar@semihalf.com
 and
 .Aq Mt mw@semihalf.com .
 .Sh SEE ALSO
+.Xr netmap 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 11.1 .
 .Sh AUTHORS
 The
 .Nm
