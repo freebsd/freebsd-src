@@ -650,7 +650,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
 		    ("Non-userspace FPU flags set in get_fpcontext"));
 		memcpy(mcp->mc_fpregs.fp_q, curpcb->pcb_fpustate.vfp_regs,
-		    sizeof(mcp->mc_fpregs));
+		    sizeof(mcp->mc_fpregs.fp_q));
 		mcp->mc_fpregs.fp_cr = curpcb->pcb_fpustate.vfp_fpcr;
 		mcp->mc_fpregs.fp_sr = curpcb->pcb_fpustate.vfp_fpsr;
 		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
@@ -681,7 +681,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		KASSERT(curpcb->pcb_fpusaved == &curpcb->pcb_fpustate,
 		    ("Called set_fpcontext while the kernel is using the VFP"));
 		memcpy(curpcb->pcb_fpustate.vfp_regs, mcp->mc_fpregs.fp_q,
-		    sizeof(mcp->mc_fpregs));
+		    sizeof(mcp->mc_fpregs.fp_q));
 		curpcb->pcb_fpustate.vfp_fpcr = mcp->mc_fpregs.fp_cr;
 		curpcb->pcb_fpustate.vfp_fpsr = mcp->mc_fpregs.fp_sr;
 		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
