@@ -262,8 +262,8 @@ no_table:
 			    (flags & ext_table[i].cpu_flags) != 0)
 				goto matched;
 		}
-	} else
-		goto fail;
+	}
+	goto fail;
 
 matched:
 	if (revision >= fw_header->revision) {
