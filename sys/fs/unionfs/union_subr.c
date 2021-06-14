@@ -760,7 +760,7 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	struct vnode   *uvp;
 	struct vattr	va;
 	struct vattr	lva;
-	struct componentname cn;
+	struct nameidata nd;
 	struct mount   *mp;
 	struct ucred   *cred;
 	struct ucred   *credbk;
@@ -787,12 +787,14 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 	uifree(rootinfo);
 	cnp->cn_cred = cred;
 
-	memset(&cn, 0, sizeof(cn));
+	memset(&nd.ni_cnd, 0, sizeof(struct componentname));
+	NDPREINIT(&nd);
 
 	if ((error = VOP_GETATTR(lvp, &lva, cnp->cn_cred)))
 		goto unionfs_mkshadowdir_abort;
 
-	if ((error = unionfs_relookup(udvp, &uvp, cnp, &cn, td, cnp->cn_nameptr, cnp->cn_namelen, CREATE)))
+	if ((error = unionfs_relookup(udvp, &uvp, cnp, &nd.ni_cnd, td,
+	    cnp->cn_nameptr, cnp->cn_namelen, CREATE)))
 		goto unionfs_mkshadowdir_abort;
 	if (uvp != NULLVP) {
 		if (udvp == uvp)
@@ -808,7 +810,7 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 		goto unionfs_mkshadowdir_free_out;
 	unionfs_create_uppervattr_core(ump, &lva, &va, td);
 
-	error = VOP_MKDIR(udvp, &uvp, &cn, &va);
+	error = VOP_MKDIR(udvp, &uvp, &nd.ni_cnd, &va);
 
 	if (!error) {
 		unionfs_node_update(unp, uvp, td);
@@ -818,14 +820,14 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 		 * Ignore errors.
 		 */
 		va.va_type = VNON;
-		VOP_SETATTR(uvp, &va, cn.cn_cred);
+		VOP_SETATTR(uvp, &va, nd.ni_cnd.cn_cred);
 	}
 	vn_finished_write(mp);
 
 unionfs_mkshadowdir_free_out:
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
+	if (nd.ni_cnd.cn_flags & HASBUF) {
+		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
+		nd.ni_cnd.cn_flags &= ~HASBUF;
 	}
 
 unionfs_mkshadowdir_abort:
@@ -847,19 +849,21 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 {
 	int		error;
 	struct vnode   *wvp;
-	struct componentname cn;
+	struct nameidata nd;
 	struct mount   *mp;
 
 	if (path == NULL)
 		path = cnp->cn_nameptr;
 
 	wvp = NULLVP;
-	if ((error = unionfs_relookup(dvp, &wvp, cnp, &cn, td, path, strlen(path), CREATE)))
+	NDPREINIT(&nd);
+	if ((error = unionfs_relookup(dvp, &wvp, cnp, &nd.ni_cnd, td, path,
+	    strlen(path), CREATE)))
 		return (error);
 	if (wvp != NULLVP) {
-		if (cn.cn_flags & HASBUF) {
-			uma_zfree(namei_zone, cn.cn_pnbuf);
-			cn.cn_flags &= ~HASBUF;
+		if (nd.ni_cnd.cn_flags & HASBUF) {
+			uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
+			nd.ni_cnd.cn_flags &= ~HASBUF;
 		}
 		if (dvp == wvp)
 			vrele(wvp);
@@ -871,14 +875,14 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 
 	if ((error = vn_start_write(dvp, &mp, V_WAIT | PCATCH)))
 		goto unionfs_mkwhiteout_free_out;
-	error = VOP_WHITEOUT(dvp, &cn, CREATE);
+	error = VOP_WHITEOUT(dvp, &nd.ni_cnd, CREATE);
 
 	vn_finished_write(mp);
 
 unionfs_mkwhiteout_free_out:
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
+	if (nd.ni_cnd.cn_flags & HASBUF) {
+		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
+		nd.ni_cnd.cn_flags &= ~HASBUF;
 	}
 
 	return (error);
@@ -904,7 +908,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	struct vattr	lva;
 	int		fmode;
 	int		error;
-	struct componentname cn;
+	struct nameidata nd;
 
 	ump = MOUNTTOUNIONFSMOUNT(UNIONFSTOV(unp)->v_mount);
 	vp = NULLVP;
@@ -920,18 +924,20 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	if (unp->un_path == NULL)
 		panic("unionfs: un_path is null");
 
-	cn.cn_namelen = strlen(unp->un_path);
-	cn.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
-	bcopy(unp->un_path, cn.cn_pnbuf, cn.cn_namelen + 1);
-	cn.cn_nameiop = CREATE;
-	cn.cn_flags = (LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME | ISLASTCN);
-	cn.cn_lkflags = LK_EXCLUSIVE;
-	cn.cn_thread = td;
-	cn.cn_cred = cred;
-	cn.cn_nameptr = cn.cn_pnbuf;
+	nd.ni_cnd.cn_namelen = strlen(unp->un_path);
+	nd.ni_cnd.cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+	bcopy(unp->un_path, nd.ni_cnd.cn_pnbuf, nd.ni_cnd.cn_namelen + 1);
+	nd.ni_cnd.cn_nameiop = CREATE;
+	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | HASBUF | SAVENAME |
+	    ISLASTCN;
+	nd.ni_cnd.cn_lkflags = LK_EXCLUSIVE;
+	nd.ni_cnd.cn_thread = td;
+	nd.ni_cnd.cn_cred = cred;
+	nd.ni_cnd.cn_nameptr = nd.ni_cnd.cn_pnbuf;
+	NDPREINIT(&nd);
 
 	vref(udvp);
-	if ((error = relookup(udvp, &vp, &cn)) != 0)
+	if ((error = relookup(udvp, &vp, &nd.ni_cnd)) != 0)
 		goto unionfs_vn_create_on_upper_free_out2;
 	vrele(udvp);
 
@@ -944,7 +950,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
 
-	if ((error = VOP_CREATE(udvp, &vp, &cn, uvap)) != 0)
+	if ((error = VOP_CREATE(udvp, &vp, &nd.ni_cnd, uvap)) != 0)
 		goto unionfs_vn_create_on_upper_free_out1;
 
 	if ((error = VOP_OPEN(vp, fmode, cred, td, NULL)) != 0) {
@@ -964,9 +970,9 @@ unionfs_vn_create_on_upper_free_out1:
 	VOP_UNLOCK(udvp);
 
 unionfs_vn_create_on_upper_free_out2:
-	if (cn.cn_flags & HASBUF) {
-		uma_zfree(namei_zone, cn.cn_pnbuf);
-		cn.cn_flags &= ~HASBUF;
+	if (nd.ni_cnd.cn_flags & HASBUF) {
+		uma_zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
+		nd.ni_cnd.cn_flags &= ~HASBUF;
 	}
 
 	return (error);
