@@ -70,6 +70,50 @@ pipe_cleanup()
 	firewall_cleanup $1
 }
 
+pipe_v6_head()
+{
+	atf_set descr 'Basic IPv6 pipe test'
+	atf_set require.user root
+}
+
+pipe_v6_body()
+{
+	fw=$1
+	firewall_init $fw
+	dummynet_init $fw
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}b
+
+	ifconfig ${epair}a inet6 2001:db8:42::1/64 up no_dad
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -i .1 -c 3 -s 1200 2001:db8:42::2
+
+	jexec alcatraz dnctl pipe 1 config bw 100Byte/s
+
+	firewall_config alcatraz ${fw} \
+		"ipfw"	\
+			"ipfw add 1000 pipe 1 ip6 from any to any"
+
+	# Single ping succeeds
+	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:42::2
+
+	# Saturate the link
+	ping6 -i .1 -c 5 -s 1200 2001:db8:42::2
+
+	# We should now be hitting the limit and get this packet dropped.
+	atf_check -s exit:2 -o ignore ping6 -c 1 -s 1200 2001:db8:42::2
+}
+
+pipe_v6_cleanup()
+{
+	firewall_cleanup $1
+}
+
 setup_tests		\
 	pipe		\
+		ipfw	\
+	pipe_v6		\
 		ipfw
