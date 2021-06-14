@@ -1015,7 +1015,7 @@ solisten_dequeue(struct socket *head, struct socket **ret, int flags)
 
 	while (!(head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->sol_comp) &&
 	    head->so_error == 0) {
-		error = msleep(&head->sol_comp, &head->so_lock, PSOCK | PCATCH,
+		error = msleep(&head->sol_comp, SOCK_MTX(head), PSOCK | PCATCH,
 		    "accept", 0);
 		if (error != 0) {
 			SOLISTEN_UNLOCK(head);
