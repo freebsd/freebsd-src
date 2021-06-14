@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ratelimit.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -1399,7 +1400,6 @@ ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate)
 	};
 	struct m_snd_tag *mst;
 	struct ifnet *ifp;
-	int error;
 
 	/* Can't get to the inp, but it should be locked. */
 	/* INP_LOCK_ASSERT(inp); */
