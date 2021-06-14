@@ -30,14 +30,15 @@ __FBSDID("$FreeBSD$");
 size_t
 strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 {
-	const char *osrc = src;
+	const char * const osrc = src;
 	size_t nleft = dsize;
 
 	/* Copy as many bytes as will fit. */
 	if (nleft != 0) {
 		while (--nleft != 0) {
-			if ((*dst++ = *src++) == '\0')
+			if ((*dst = *src) == '\0')
 				break;
+			dst++, src++;
 		}
 	}
 
@@ -45,9 +46,9 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 	if (nleft == 0) {
 		if (dsize != 0)
 			*dst = '\0';		/* NUL-terminate dst */
-		while (*src++)
-			;
+		while (*src != '\0')
+			src++;
 	}
 
-	return(src - osrc - 1);	/* count does not include NUL */
+	return(src - osrc);	/* count does not include NUL */
 }

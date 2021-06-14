@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 char *
 stpncpy(char * __restrict dst, const char * __restrict src, size_t n)
 {
-
-	for (; n--; dst++, src++) {
-		if (!(*dst = *src)) {
-			char *ret = dst;
-			while (n--)
+	for (; n; dst++, src++) {
+		n--;
+		if ((*dst = *src) == '\0') {
+			char * const ret = dst;
+			for (; n; n--)
 				*++dst = '\0';
 			return (ret);
 		}

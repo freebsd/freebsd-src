@@ -49,14 +49,15 @@ char *
 strnstr(const char *s, const char *find, size_t slen)
 {
 	char c, sc;
-	size_t len;
 
 	if ((c = *find++) != '\0') {
-		len = strlen(find);
+		const size_t len = strlen(find);
 		do {
 			do {
-				if (slen-- < 1 || (sc = *s++) == '\0')
+				if (slen < len || (sc = *s) == '\0')
 					return (NULL);
+
+				slen--, s++;
 			} while (sc != c);
 			if (len > slen)
 				return (NULL);

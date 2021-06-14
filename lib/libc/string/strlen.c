@@ -120,5 +120,4 @@ strlen(const char *str)
 	}
 
 	/* NOTREACHED */
-	return (0);
 }

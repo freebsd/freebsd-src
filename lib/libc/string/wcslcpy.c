@@ -46,27 +46,28 @@ __FBSDID("$FreeBSD$");
  * Returns wcslen(src); if retval >= siz, truncation occurred.
  */
 size_t
-wcslcpy(wchar_t *dst, const wchar_t *src, size_t siz)
+wcslcpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;
 	size_t n = siz;
 
 	/* Copy as many bytes as will fit */
-	if (n != 0 && --n != 0) {
-		do {
-			if ((*d++ = *s++) == 0)
+	if (n != 0) {
+		while (--n != 0) {
+			if ((*d = *s) == '\0')
 				break;
-		} while (--n != 0);
+			d++, s++;
+		}
 	}
 
 	/* Not enough room in dst, add NUL and traverse rest of src */
 	if (n == 0) {
 		if (siz != 0)
 			*d = '\0';		/* NUL-terminate dst */
-		while (*s++)
-			;
+		while (*s)
+			s++;
 	}
 
-	return(s - src - 1);	/* count does not include NUL */
+	return(s - src);
 }

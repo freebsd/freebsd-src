@@ -39,14 +39,8 @@ __FBSDID("$FreeBSD$");
 size_t
 strcspn(const char *s, const char *charset)
 {
-	/*
-	 * NB: idx and bit are temporaries whose use causes gcc 3.4.2 to
-	 * generate better code.  Without them, gcc gets a little confused.
-	 */
 	const char *s1;
-	u_long bit;
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
-	int idx;
 
 	if(*s == '\0')
 		return (0);
@@ -55,19 +49,17 @@ strcspn(const char *s, const char *charset)
 	tbl[0] = 1;
 	tbl[3] = tbl[2] = tbl[1] = 0;
 #else
-	for (tbl[0] = idx = 1; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
+	size_t idx;
+	for (idx = sizeof(tbl) / sizeof(tbl[0]) - 1; idx != 0; idx--)
 		tbl[idx] = 0;
+	tbl[0] = 1;
 #endif
 	for (; *charset != '\0'; charset++) {
-		idx = IDX(*charset);
-		bit = BIT(*charset);
-		tbl[idx] |= bit;
+		tbl[IDX(*charset)] |= BIT(*charset);
 	}
 
 	for(s1 = s; ; s1++) {
-		idx = IDX(*s1);
-		bit = BIT(*s1);
-		if ((tbl[idx] & bit) != 0)
+		if ((tbl[IDX(*s1)] & BIT(*s1)) != 0)
 			break;
 	}
 	return (s1 - s);
