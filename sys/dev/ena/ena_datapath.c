@@ -431,7 +431,7 @@ ena_rx_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_buf_info *ena_bufs,
 	mbuf->m_flags |= M_PKTHDR;
 	mbuf->m_pkthdr.len = len;
 	mbuf->m_len = len;
-	// Only for the first segment the data starts at specific offset
+	/* Only for the first segment the data starts at specific offset */
 	mbuf->m_data = mtodo(mbuf, ena_rx_ctx->pkt_offset);
 	ena_trace(NULL, ENA_DBG | ENA_RXPTH,
 		"Mbuf data offset=%u\n", ena_rx_ctx->pkt_offset);
