@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include "mlx5_ib.h"
 
 #include <dev/mlx5/cmd.h>

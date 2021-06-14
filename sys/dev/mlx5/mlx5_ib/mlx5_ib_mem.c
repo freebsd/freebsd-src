@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <linux/module.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>

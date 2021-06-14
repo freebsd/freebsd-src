@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <dev/mlx5/vport.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>
