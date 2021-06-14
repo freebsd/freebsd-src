@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include "port_buffer.h"
 
 #define MLX5E_MAX_PORT_MTU  9216
