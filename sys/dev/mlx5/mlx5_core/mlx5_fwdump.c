@@ -23,6 +23,9 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
