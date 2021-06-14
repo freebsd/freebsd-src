@@ -55,9 +55,8 @@ wcslcpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t siz)
 	/* Copy as many bytes as will fit */
 	if (n != 0) {
 		while (--n != 0) {
-			if ((*d = *s) == '\0')
+			if ((*d++ = *s++) == '\0')
 				break;
-			d++, s++;
 		}
 	}
 
@@ -65,9 +64,9 @@ wcslcpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t siz)
 	if (n == 0) {
 		if (siz != 0)
 			*d = '\0';		/* NUL-terminate dst */
-		while (*s)
-			s++;
+		while (*s++)
+			;
 	}
 
-	return(s - src);
+	return(s - src - 1);
 }
