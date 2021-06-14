@@ -2521,8 +2521,6 @@ DIOCADDRULENV_error:
 			ERROUT(ENOSPC);
 		}
 
-		error = copyout(nvlpacked, nv->data, nv->len);
-
 		if (clear_counter) {
 			counter_u64_zero(rule->evaluations);
 			for (int i = 0; i < 2; i++) {
@@ -2532,6 +2530,8 @@ DIOCADDRULENV_error:
 			counter_u64_zero(rule->states_tot);
 		}
 		PF_RULES_WUNLOCK();
+
+		error = copyout(nvlpacked, nv->data, nv->len);
 
 #undef ERROUT
 DIOCGETRULENV_error:
