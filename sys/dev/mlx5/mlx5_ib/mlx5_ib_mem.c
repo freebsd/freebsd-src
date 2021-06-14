@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
-#include "mlx5_ib.h"
+#include <dev/mlx5/mlx5_ib/mlx5_ib.h>
 
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
