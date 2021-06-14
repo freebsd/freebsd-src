@@ -188,7 +188,7 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	PMCDBG2(MDP, ALL, 2, "arm64-allocate ri=%d -> config=0x%x", ri, config);
 
-	return 0;
+	return (0);
 }
 
 
@@ -231,7 +231,7 @@ arm64_read_pmc(int cpu, int ri, pmc_value_t *v)
 	else
 		*v = tmp;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -254,7 +254,7 @@ arm64_write_pmc(int cpu, int ri, pmc_value_t v)
 	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
 	arm64_pmcn_write(ri, v);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -277,7 +277,7 @@ arm64_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	phw->phw_pmc = pm;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -305,7 +305,7 @@ arm64_start_pmc(int cpu, int ri)
 	arm64_interrupt_enable(ri);
 	arm64_counter_enable(ri);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -323,7 +323,7 @@ arm64_stop_pmc(int cpu, int ri)
 	arm64_counter_disable(ri);
 	arm64_interrupt_disable(ri);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -340,7 +340,7 @@ arm64_release_pmc(int cpu, int ri, struct pmc *pmc)
 	KASSERT(phw->phw_pmc == NULL,
 	    ("[arm64,%d] PHW pmc %p non-NULL", __LINE__, phw->phw_pmc));
 
-	return 0;
+	return (0);
 }
 
 static int
