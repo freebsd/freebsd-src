@@ -48,7 +48,7 @@ strspn(const char *s, const char *charset)
 #if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
 	tbl[3] = tbl[2] = tbl[1] = tbl[0] = 0;
 #else
-	for (unsigned int idx = 0; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
+	for (size_t idx = 0; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
 		tbl[idx] = 0;
 #endif
 	for (; *charset != '\0'; charset++) {
