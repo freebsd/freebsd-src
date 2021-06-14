@@ -376,9 +376,9 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 	}
 	sctp_clog.x.lock.info_lock = rw_wowned(&SCTP_BASE_INFO(ipi_ep_mtx));
 	if (inp && (inp->sctp_socket)) {
-		sctp_clog.x.lock.sock_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
-		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
-		sctp_clog.x.lock.socksndbuf_lock = mtx_owned(&(inp->sctp_socket->so_snd.sb_mtx));
+		sctp_clog.x.lock.sock_lock = mtx_owned(SOCK_MTX(inp->sctp_socket));
+		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(SOCKBUF_MTX(&inp->sctp_socket->so_rcv));
+		sctp_clog.x.lock.socksndbuf_lock = mtx_owned(SOCKBUF_MTX(&inp->sctp_socket->so_snd));
 	} else {
 		sctp_clog.x.lock.sock_lock = SCTP_LOCK_UNKNOWN;
 		sctp_clog.x.lock.sockrcvbuf_lock = SCTP_LOCK_UNKNOWN;
