@@ -1482,7 +1482,7 @@ hvsock_open_conn_passive(struct vmbus_channel *chan, struct socket *so,
 	int error;
 
 	/* Do nothing if socket is not listening */
-	if ((so->so_options & SO_ACCEPTCONN) == 0) {
+	if (!SOLISTENING(so)) {
 		HVSOCK_DBG(HVSOCK_DBG_ERR,
 		    "%s: socket is not a listening one\n", __func__);
 		return;

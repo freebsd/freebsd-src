@@ -2733,8 +2733,7 @@ ng_btsocket_l2cap_pcb_by_addr(bdaddr_p bdaddr, int psm)
 	mtx_assert(&ng_btsocket_l2cap_sockets_mtx, MA_OWNED);
 
 	LIST_FOREACH(p, &ng_btsocket_l2cap_sockets, next) {
-		if (p->so == NULL || !(p->so->so_options & SO_ACCEPTCONN) || 
-		    p->psm != psm) 
+		if (p->so == NULL || !SOLISTENING(p->so) || p->psm != psm)
 			continue;
 
 		if (bcmp(&p->src, bdaddr, sizeof(p->src)) == 0)

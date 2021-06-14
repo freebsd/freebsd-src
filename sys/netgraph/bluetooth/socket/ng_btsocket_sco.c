@@ -1829,7 +1829,7 @@ ng_btsocket_sco_pcb_by_addr(bdaddr_p bdaddr)
 	LIST_FOREACH(p, &ng_btsocket_sco_sockets, next) {
 		mtx_lock(&p->pcb_mtx);
 
-		if (p->so == NULL || !(p->so->so_options & SO_ACCEPTCONN)) {
+		if (p->so == NULL || !SOLISTENING(p->so)) {
 			mtx_unlock(&p->pcb_mtx);
 			continue;
 		}
