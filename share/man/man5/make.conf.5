@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2021
+.Dd June 14, 2021
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -613,20 +613,16 @@ The value assigned is the highest optimization value used.
 The following list provides a name and short description for variables
 that are used when building documentation.
 .Bl -tag -width ".Va PRINTERDEVICE"
-.It Va DISTDIR
-.Pq Vt str
-Where distfiles are kept.
-Normally, this is
-.Pa distfiles
-in
-.Va PORTSDIR .
 .It Va DOC_LANG
 .Pq Vt str
-The list of languages and encodings to build and install.
+The list of languages to build and install when building documentation
+in
+.Pa /usr/doc .
 .It Va PRINTERDEVICE
 .Pq Vt str
-The default format for system documentation, depends on your
-printer.
+The default format for system documentation in
+.Pa /usr/src/share/doc ,
+depends on your printer.
 This can be set to
 .Dq Li ascii
 for simple printers, or
