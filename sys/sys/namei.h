@@ -265,6 +265,9 @@ do {										\
 	_ndp->ni_startdir = NULL;						\
 } while (0)
 
+#define	NDPREINIT(ndp) do {							\
+} while (0)
+
 #define NDF_NO_DVP_RELE		0x00000001
 #define NDF_NO_DVP_UNLOCK	0x00000002
 #define NDF_NO_DVP_PUT		0x00000003
