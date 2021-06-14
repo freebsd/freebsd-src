@@ -1898,8 +1898,7 @@ ena_disable_msix(struct ena_adapter *adapter)
 	}
 
 	adapter->msix_vecs = 0;
-	if (adapter->msix_entries != NULL)
-		free(adapter->msix_entries, M_DEVBUF);
+	free(adapter->msix_entries, M_DEVBUF);
 	adapter->msix_entries = NULL;
 }
 
@@ -3863,11 +3862,9 @@ ena_detach(device_t pdev)
 
 	if_free(adapter->ifp);
 
-	if (ena_dev->bus != NULL)
-		free(ena_dev->bus, M_DEVBUF);
+	free(ena_dev->bus, M_DEVBUF);
 
-	if (ena_dev != NULL)
-		free(ena_dev, M_DEVBUF);
+	free(ena_dev, M_DEVBUF);
 
 	return (bus_generic_detach(pdev));
 }
