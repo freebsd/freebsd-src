@@ -54,8 +54,6 @@
 #include <sys/kthread.h>
 #include <sys/counter.h>
 
-#include "opt_rss.h"
-
 #ifdef	RSS
 #include <net/rss_config.h>
 #include <netinet/in_rss.h>
