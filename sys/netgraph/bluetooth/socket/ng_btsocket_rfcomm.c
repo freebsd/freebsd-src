@@ -3398,8 +3398,7 @@ ng_btsocket_rfcomm_pcb_listener(bdaddr_p src, int channel)
 	mtx_lock(&ng_btsocket_rfcomm_sockets_mtx);
 
 	LIST_FOREACH(pcb, &ng_btsocket_rfcomm_sockets, next) {
-		if (pcb->channel != channel ||
-		    !(pcb->so->so_options & SO_ACCEPTCONN))
+		if (pcb->channel != channel || !SOLISTENING(pcb->so))
 			continue;
 
 		if (bcmp(&pcb->src, src, sizeof(*src)) == 0)
