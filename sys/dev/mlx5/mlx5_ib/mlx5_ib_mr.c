@@ -35,7 +35,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 #include <rdma/ib_verbs.h>
-#include "mlx5_ib.h"
+#include <dev/mlx5/mlx5_ib/mlx5_ib.h>
 
 enum {
 	MAX_PENDING_REG_MR = 8,

@@ -52,7 +52,7 @@
 #include <linux/in.h>
 #include <linux/etherdevice.h>
 #include <dev/mlx5/fs.h>
-#include "mlx5_ib.h"
+#include <dev/mlx5/mlx5_ib/mlx5_ib.h>
 
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
