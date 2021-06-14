@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include "mlx5_ib.h"
 
 static void create_ib_ah(struct mlx5_ib_dev *dev,
