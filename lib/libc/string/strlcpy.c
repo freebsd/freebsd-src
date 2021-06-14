@@ -45,7 +45,7 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 	if (nleft == 0) {
 		if (dsize != 0)
 			*dst = '\0';		/* NUL-terminate dst */
-		while (*src++ != '\0')
+		while (*src++)
 			;
 	}
 
