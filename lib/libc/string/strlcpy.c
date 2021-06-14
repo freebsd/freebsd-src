@@ -36,9 +36,8 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 	/* Copy as many bytes as will fit. */
 	if (nleft != 0) {
 		while (--nleft != 0) {
-			if ((*dst = *src) == '\0')
+			if ((*dst++ = *src++) == '\0')
 				break;
-			dst++, src++;
 		}
 	}
 
@@ -46,9 +45,9 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 	if (nleft == 0) {
 		if (dsize != 0)
 			*dst = '\0';		/* NUL-terminate dst */
-		while (*src != '\0')
-			src++;
+		while (*src++ != '\0')
+			;
 	}
 
-	return(src - osrc);	/* count does not include NUL */
+	return(src - osrc - 1);	/* count does not include NUL */
 }
