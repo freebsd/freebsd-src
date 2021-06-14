@@ -26,6 +26,8 @@
  */
 
 #include "opt_kern_tls.h"
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
 
 #include "en.h"
 #include <machine/atomic.h>
