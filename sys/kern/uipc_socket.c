@@ -1180,7 +1180,6 @@ int
 soclose(struct socket *so)
 {
 	struct accept_queue lqueue;
-	bool listening;
 	int error = 0;
 
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
@@ -1216,7 +1215,7 @@ drop:
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
 
 	SOCK_LOCK(so);
-	if ((listening = (so->so_options & SO_ACCEPTCONN))) {
+	if (SOLISTENING(so)) {
 		struct socket *sp;
 
 		TAILQ_INIT(&lqueue);
@@ -1237,7 +1236,7 @@ drop:
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
 	sorele(so);
-	if (listening) {
+	if (SOLISTENING(so)) {
 		struct socket *sp, *tsp;
 
 		TAILQ_FOREACH_SAFE(sp, &lqueue, so_list, tsp) {
@@ -1317,7 +1316,8 @@ soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	int error;
 
-	if (so->so_options & SO_ACCEPTCONN)
+	/* XXXMJ racy */
+	if (SOLISTENING(so))
 		return (EOPNOTSUPP);
 
 	CURVNET_SET(so->so_vnet);

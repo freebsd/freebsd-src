@@ -338,7 +338,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	if (error != 0)
 		return (error);
 	head = headfp->f_data;
-	if ((head->so_options & SO_ACCEPTCONN) == 0) {
+	if (!SOLISTENING(head)) {
 		error = EINVAL;
 		goto done;
 	}

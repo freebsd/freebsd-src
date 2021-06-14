@@ -3696,8 +3696,8 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 				tcp_twclose(tw, 0);
 			else
 				INP_WUNLOCK(inp);
-		} else if (!(inp->inp_flags & INP_DROPPED) &&
-			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
+		} else if ((inp->inp_flags & INP_DROPPED) == 0 &&
+		    !SOLISTENING(inp->inp_socket)) {
 			tp = intotcpcb(inp);
 			tp = tcp_drop(tp, ECONNABORTED);
 			if (tp != NULL)

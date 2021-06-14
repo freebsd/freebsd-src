@@ -1603,7 +1603,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		goto bad2;
 	}
 	if (connreq) {
-		if (so2->so_options & SO_ACCEPTCONN) {
+		if (SOLISTENING(so2)) {
 			CURVNET_SET(so2->so_vnet);
 			so2 = sonewconn(so2, 0);
 			CURVNET_RESTORE();

@@ -955,8 +955,7 @@ findpcb:
 	}
 	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
 	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
-	    ((inp->inp_socket == NULL) ||
-	    (inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
+	    ((inp->inp_socket == NULL) || !SOLISTENING(inp->inp_socket))) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
@@ -1055,9 +1054,9 @@ findpcb:
 	 * state) we look into the SYN cache if this is a new connection
 	 * attempt or the completion of a previous one.
 	 */
-	KASSERT(tp->t_state == TCPS_LISTEN || !(so->so_options & SO_ACCEPTCONN),
+	KASSERT(tp->t_state == TCPS_LISTEN || !SOLISTENING(so),
 	    ("%s: so accepting but tp %p not listening", __func__, tp));
-	if (tp->t_state == TCPS_LISTEN && (so->so_options & SO_ACCEPTCONN)) {
+	if (tp->t_state == TCPS_LISTEN && SOLISTENING(so)) {
 		struct in_conninfo inc;
 
 		bzero(&inc, sizeof(inc));

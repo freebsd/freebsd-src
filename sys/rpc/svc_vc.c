@@ -329,7 +329,7 @@ svc_vc_accept(struct socket *head, struct socket **sop)
 	short nbio;
 
 	/* XXXGL: shouldn't that be an assertion? */
-	if ((head->so_options & SO_ACCEPTCONN) == 0) {
+	if (!SOLISTENING(head)) {
 		error = EINVAL;
 		goto done;
 	}
