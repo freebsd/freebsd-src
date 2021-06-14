@@ -54,5 +54,5 @@ strlcat(char * __restrict dst, const char * __restrict src, size_t dsize)
 	}
 	*dst = '\0';
 
-	return(dlen + src - osrc);	/* count does not include NUL */
+	return(dlen + (src - osrc));	/* count does not include NUL */
 }
