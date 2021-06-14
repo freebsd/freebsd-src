@@ -28,7 +28,7 @@
 #include "opt_rss.h"
 #include "opt_ratelimit.h"
 
-#include "en.h"
+#include <dev/mlx5/mlx5_en/en.h>
 
 #ifdef RATELIMIT
 

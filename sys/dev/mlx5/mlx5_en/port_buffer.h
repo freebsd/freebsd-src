@@ -28,7 +28,7 @@
 #ifndef __MLX5_EN_PORT_BUFFER_H__
 #define __MLX5_EN_PORT_BUFFER_H__
 
-#include "en.h"
+#include <dev/mlx5/mlx5_en/en.h>
 #include <dev/mlx5/port.h>
 
 #define MLX5E_MAX_BUFFER 8
