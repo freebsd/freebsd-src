@@ -729,7 +729,7 @@ icl_receive_thread(void *arg)
 		available = sbavail(&so->so_rcv);
 		if (read + available < ic->ic_receive_len) {
 			so->so_rcv.sb_lowat = ic->ic_receive_len - read;
-			cv_wait(&ic->ic_receive_cv, &so->so_rcv.sb_mtx);
+			cv_wait(&ic->ic_receive_cv, SOCKBUF_MTX(&so->so_rcv));
 			so->so_rcv.sb_lowat = so->so_rcv.sb_hiwat + 1;
 			available = sbavail(&so->so_rcv);
 		}
