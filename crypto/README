@@ -1,5 +1,4 @@
 $FreeBSD$
-
 This directory is for the EXACT same use as src/contrib, except it
 holds crypto sources.  In other words, this holds raw sources obtained
 from various third party vendors, with FreeBSD patches applied.  No
