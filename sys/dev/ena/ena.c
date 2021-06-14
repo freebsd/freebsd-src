@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2606,14 +2606,25 @@ ena_set_queues_placement_policy(device_t pdev, struct ena_com_dev *ena_dev,
 }
 
 static inline
-void set_default_llq_configurations(struct ena_llq_configurations *llq_config)
+void set_default_llq_configurations(struct ena_llq_configurations *llq_config,
+	struct ena_admin_feature_llq_desc *llq)
 {
+
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
-	llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
 	llq_config->llq_num_decs_before_header =
 	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
-	llq_config->llq_ring_entry_size_value = 128;
+	if ((llq->entry_size_ctrl_supported &
+	     ENA_ADMIN_LIST_ENTRY_SIZE_256B) != 0 &&
+	    ena_force_large_llq_header) {
+		llq_config->llq_ring_entry_size =
+		    ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+		llq_config->llq_ring_entry_size_value = 256;
+	} else {
+		llq_config->llq_ring_entry_size =
+		    ENA_ADMIN_LIST_ENTRY_SIZE_128B;
+		llq_config->llq_ring_entry_size_value = 128;
+	}
 }
 
 static int
@@ -2671,6 +2682,26 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 	/* round down to the nearest power of 2 */
 	max_tx_queue_size = 1 << (flsl(max_tx_queue_size) - 1);
 	max_rx_queue_size = 1 << (flsl(max_rx_queue_size) - 1);
+
+	/*
+	 * When forcing large headers, we multiply the entry size by 2,
+	 * and therefore divide the queue size by 2, leaving the amount
+	 * of memory used by the queues unchanged.
+	 */
+	if (ena_force_large_llq_header) {
+		if ((llq->entry_size_ctrl_supported &
+		     ENA_ADMIN_LIST_ENTRY_SIZE_256B) != 0 &&
+		    ena_dev->tx_mem_queue_type ==
+		     ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+			max_tx_queue_size /= 2;
+			device_printf(ctx->pdev,
+			    "Forcing large headers and decreasing maximum Tx queue size to %d\n",
+			    max_tx_queue_size);
+		} else {
+			device_printf(ctx->pdev,
+			    "Forcing large headers failed: LLQ is disabled or device does not support large headers\n");
+		}
+	}
 
 	tx_queue_size = clamp_val(tx_queue_size, ENA_MIN_RING_SIZE,
 	    max_tx_queue_size);
@@ -3618,7 +3649,7 @@ ena_attach(device_t pdev)
 		goto err_bus_free;
 	}
 
-	set_default_llq_configurations(&llq_config);
+	set_default_llq_configurations(&llq_config, &get_feat_ctx.llq);
 
 	rc = ena_set_queues_placement_policy(pdev, ena_dev, &get_feat_ctx.llq,
 	     &llq_config);

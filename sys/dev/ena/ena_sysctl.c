@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,19 @@ SYSCTL_CONST_STRING(_hw_ena, OID_AUTO, driver_version, CTLFLAG_RD,
 int ena_enable_9k_mbufs = 0;
 SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
     &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
+
+/*
+ * Force the driver to use large LLQ (Low Latency Queue) header. Defaults to
+ * false. This option may be important for platforms, which often handle packet
+ * headers on Tx with total header size greater than 96B, as it may
+ * reduce the latency.
+ * It also reduces the maximum Tx queue size by half, so it may cause more Tx
+ * packet drops.
+ */
+bool ena_force_large_llq_header = false;
+SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
+    &ena_force_large_llq_header, 0,
+    "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum Tx queue size by half.\n");
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
