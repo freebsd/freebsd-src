@@ -1462,7 +1462,6 @@ gic_v3_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 	struct gic_v3_softc *sc = device_get_softc(dev);
 	struct gic_v3_irqsrc *gi = (struct gic_v3_irqsrc *)isrc;
 
-#define GICD_SETSPI_NSR 0x40
 	*addr = vtophys(rman_get_virtual(sc->gic_dist)) + GICD_SETSPI_NSR;
 	*data = gi->gi_irq;
 
