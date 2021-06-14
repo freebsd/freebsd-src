@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2021
+.Dd June 14, 2021
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -150,6 +150,6 @@ The automatic mode switch from disk mode to modem mode does not work unless
 the driver is either built into the kernel or loaded before the device is
 connected.
 .Pp
-The Panasonic CF-F9 requires the gobi loader available from
-.Pa https://github.com/cederom/gobi_loader
-and loading of the firmware before it will function.
+The Panasonic CF-F9 requires the gobi loader available from the
+.Pa sysutils/gobi_loader
+port.
