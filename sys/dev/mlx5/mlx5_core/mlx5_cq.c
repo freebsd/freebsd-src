@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>

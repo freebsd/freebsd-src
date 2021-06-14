@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/mlx5_core/mlx5_core.h>

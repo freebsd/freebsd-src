@@ -25,6 +25,9 @@
  * $FreeBSD$
  */
 
+#include "opt_rss.h"
+#include "opt_ratelimit.h"
+
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
