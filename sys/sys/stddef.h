@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
-#include <machine/_types.h>
+#include <sys/_types.h>
 
 #ifndef _PTRDIFF_T_DECLARED
 typedef	__ptrdiff_t	ptrdiff_t;

@@ -32,6 +32,84 @@
 #define _SYS__TYPES_H_
 
 #include <sys/cdefs.h>
+
+/*
+ * Basic types upon which most other types are built.
+ *
+ * Note: It would be nice to simply use the compiler-provided __FOO_TYPE__
+ * macros. However, in order to do so we have to check that those match the
+ * previous typedefs exactly (not just that they have the same size) since any
+ * change would be an ABI break. For example, changing `long` to `long long`
+ * results in different C++ name mangling.
+ */
+typedef	signed char		__int8_t;
+typedef	unsigned char		__uint8_t;
+typedef	short			__int16_t;
+typedef	unsigned short		__uint16_t;
+typedef	int			__int32_t;
+typedef	unsigned int		__uint32_t;
+#if __SIZEOF_LONG__ == 8
+typedef	long			__int64_t;
+typedef	unsigned long		__uint64_t;
+#elif __SIZEOF_LONG__ == 4
+__extension__
+typedef	long long		__int64_t;
+__extension__
+typedef	unsigned long long	__uint64_t;
+#else
+#error unsupported long size
+#endif
+
+typedef	__int8_t	__int_least8_t;
+typedef	__int16_t	__int_least16_t;
+typedef	__int32_t	__int_least32_t;
+typedef	__int64_t	__int_least64_t;
+typedef	__int64_t	__intmax_t;
+typedef	__uint8_t	__uint_least8_t;
+typedef	__uint16_t	__uint_least16_t;
+typedef	__uint32_t	__uint_least32_t;
+typedef	__uint64_t	__uint_least64_t;
+typedef	__uint64_t	__uintmax_t;
+
+#if __SIZEOF_POINTER__ == 8
+typedef	__int64_t	__intptr_t;
+typedef	__int64_t	__intfptr_t;
+typedef	__uint64_t	__uintptr_t;
+typedef	__uint64_t	__uintfptr_t;
+typedef	__uint64_t	__vm_offset_t;
+typedef	__uint64_t	__vm_size_t;
+#elif __SIZEOF_POINTER__ == 4
+typedef	__int32_t	__intptr_t;
+typedef	__int32_t	__intfptr_t;
+typedef	__uint32_t	__uintptr_t;
+typedef	__uint32_t	__uintfptr_t;
+typedef	__uint32_t	__vm_offset_t;
+typedef	__uint32_t	__vm_size_t;
+#else
+#error unsupported pointer size
+#endif
+
+#if __SIZEOF_SIZE_T__ == 8
+typedef	__uint64_t	__size_t;	/* sizeof() */
+typedef	__int64_t	__ssize_t;	/* byte count or error */
+#elif __SIZEOF_SIZE_T__ == 4
+typedef	__uint32_t	__size_t;	/* sizeof() */
+typedef	__int32_t	__ssize_t;	/* byte count or error */
+#else
+#error unsupported size_t size
+#endif
+
+#if __SIZEOF_PTRDIFF_T__ == 8
+typedef	__int64_t	__ptrdiff_t;	/* ptr1 - ptr2 */
+#elif __SIZEOF_PTRDIFF_T__ == 4
+typedef	__int32_t	__ptrdiff_t;	/* ptr1 - ptr2 */
+#else
+#error unsupported ptrdiff_t size
+#endif
+
+/*
+ * Target-dependent type definitions.
+ */
 #include <machine/_types.h>
 
 /*

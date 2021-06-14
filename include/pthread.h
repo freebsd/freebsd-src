@@ -43,7 +43,7 @@
 #include <sys/cdefs.h>
 #include <sys/_pthreadtypes.h>
 #include <machine/_limits.h>
-#include <machine/_types.h>
+#include <sys/_types.h>
 #include <sys/_sigset.h>
 #include <sched.h>
 #include <time.h>

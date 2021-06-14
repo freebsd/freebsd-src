@@ -41,33 +41,8 @@
 #ifndef _MACHINE__TYPES_H_
 #define	_MACHINE__TYPES_H_
 
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
-
-/*
- * Basic types upon which most other types are built.
- */
-typedef	signed char		__int8_t;
-typedef	unsigned char		__uint8_t;
-typedef	short			__int16_t;
-typedef	unsigned short		__uint16_t;
-typedef	int			__int32_t;
-typedef	unsigned int		__uint32_t;
-#ifdef __LP64__
-typedef	long			__int64_t;
-typedef	unsigned long		__uint64_t;
-#else
-#ifndef lint
-__extension__
-#endif
-/* LONGLONG */
-typedef	long long		__int64_t;
-#ifndef lint
-__extension__
-#endif
-/* LONGLONG */
-typedef	unsigned long long	__uint64_t;
+#ifndef _SYS__TYPES_H_
+#error do not include this header, use sys/_types.h
 #endif
 
 /*
@@ -80,66 +55,35 @@ typedef	float		__float_t;
 #endif
 #ifdef __LP64__
 typedef	__int64_t	__critical_t;
-typedef	__int64_t	__intfptr_t;
-typedef	__int64_t	__intptr_t;
 #else
 typedef	__int32_t	__critical_t;
-typedef	__int32_t	__intfptr_t;
-typedef	__int32_t	__intptr_t;
 #endif
-typedef	__int64_t	__intmax_t;
 typedef	__int32_t	__int_fast8_t;
 typedef	__int32_t	__int_fast16_t;
 typedef	__int32_t	__int_fast32_t;
 typedef	__int64_t	__int_fast64_t;
-typedef	__int8_t	__int_least8_t;
-typedef	__int16_t	__int_least16_t;
-typedef	__int32_t	__int_least32_t;
-typedef	__int64_t	__int_least64_t;
 #ifdef __LP64__
-typedef	__int64_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int64_t	__register_t;
 typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
-typedef	__uint64_t	__size_t;		/* sizeof() */
-typedef	__int64_t	__ssize_t;		/* byte count or error */
 #else
-typedef	__int32_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int32_t	__register_t;
 typedef	__int32_t	__segsz_t;		/* segment size (in pages) */
-typedef	__uint32_t	__size_t;		/* sizeof() */
-typedef	__int32_t	__ssize_t;		/* byte count or error */
 #endif
 typedef	__int64_t	__time_t;		/* time()... */
-#ifdef __LP64__
-typedef	__uint64_t	__uintfptr_t;
-typedef	__uint64_t	__uintptr_t;
-#else
-typedef	__uint32_t	__uintfptr_t;
-typedef	__uint32_t	__uintptr_t;
-#endif
-typedef	__uint64_t	__uintmax_t;
 typedef	__uint32_t	__uint_fast8_t;
 typedef	__uint32_t	__uint_fast16_t;
 typedef	__uint32_t	__uint_fast32_t;
 typedef	__uint64_t	__uint_fast64_t;
-typedef	__uint8_t	__uint_least8_t;
-typedef	__uint16_t	__uint_least16_t;
-typedef	__uint32_t	__uint_least32_t;
-typedef	__uint64_t	__uint_least64_t;
 #ifdef __LP64__
 typedef	__uint64_t	__u_register_t;
-typedef	__uint64_t	__vm_offset_t;
 typedef	__uint64_t	__vm_paddr_t;
-typedef	__uint64_t	__vm_size_t;
 #else
 typedef	__uint32_t	__u_register_t;
-typedef	__uint32_t	__vm_offset_t;
 #ifdef BOOKE
 typedef	__uint64_t	__vm_paddr_t;
 #else
 typedef	__uint32_t	__vm_paddr_t;
 #endif
-typedef	__uint32_t	__vm_size_t;
 #endif
 typedef	int		___wchar_t;
 

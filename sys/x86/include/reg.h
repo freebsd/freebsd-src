@@ -39,7 +39,7 @@
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
-#include <machine/_types.h>
+#include <sys/_types.h>
 
 #ifdef __i386__
 /*
