@@ -3830,6 +3830,10 @@ ena_detach(device_t pdev)
 	ena_destroy_device(adapter, true);
 	ENA_LOCK_UNLOCK(adapter);
 
+	/* Restore unregistered sysctl queue nodes. */
+	ena_sysctl_update_queue_node_nb(adapter, adapter->num_io_queues,
+	    adapter->max_num_io_queues);
+
 #ifdef DEV_NETMAP
 	netmap_detach(adapter->ifp);
 #endif /* DEV_NETMAP */

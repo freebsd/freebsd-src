@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include "ena_sysctl.h"
@@ -187,6 +188,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
 		    namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		adapter->que[i].oid = queue_node;
 
 		/* TX specific stats */
 		tx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
@@ -396,6 +399,42 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 }
 
 
+/*
+ * ena_sysctl_update_queue_node_nb - Register/unregister sysctl queue nodes.
+ *
+ * Whether the nodes are registered or unregistered depends on a delta between
+ * the `old` and `new` parameters, representing the number of queues.
+ *
+ * This function is used to hide sysctl attributes for queue nodes which aren't
+ * currently used by the HW (e.g. after a call to `ena_sysctl_io_queues_nb`).
+ *
+ * NOTE:
+ * All unregistered nodes must be registered again at detach, i.e. by a call to
+ * this function.
+ */
+void
+ena_sysctl_update_queue_node_nb(struct ena_adapter *adapter, int old, int new)
+{
+	device_t dev;
+	struct sysctl_oid *oid;
+	int min, max, i;
+
+	dev = adapter->pdev;
+	min = MIN(old, new);
+	max = MIN(MAX(old, new), adapter->max_num_io_queues);
+
+	for (i = min; i < max; ++i) {
+		oid = adapter->que[i].oid;
+
+		sysctl_wlock();
+		if (old > new)
+			sysctl_unregister_oid(oid);
+		else
+			sysctl_register_oid(oid);
+		sysctl_wunlock();
+	}
+}
+
 static int
 ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 {
@@ -488,7 +527,7 @@ static int
 ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	uint32_t tmp = 0;
+	uint32_t old_num_queues, tmp = 0;
 	int error;
 
 	error = sysctl_wire_old_buffer(req, sizeof(tmp));
@@ -527,7 +566,12 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 		    "Requested new number of IO queues: %u, current value: "
 		    "%u\n", tmp, adapter->num_io_queues);
 
+		old_num_queues = adapter->num_io_queues;
 		error = ena_update_io_queue_nb(adapter, tmp);
+		if (error != 0)
+			return (error);
+
+		ena_sysctl_update_queue_node_nb(adapter, old_num_queues, tmp);
 	}
 
 	return (error);
