@@ -30,5 +30,45 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define	ENA_GEN_DATE	"Tue Jan 19 12:45:09 STD 2021"
-#define	ENA_GEN_COMMIT	"f023ae8f"
+
+#ifndef ENA_FBSD_LOG_H
+#define ENA_FBSD_LOG_H
+
+enum ena_log_t {
+	ENA_ERR = 0,
+	ENA_WARN,
+	ENA_INFO,
+	ENA_DBG,
+};
+
+extern int ena_log_level;
+
+#define ena_log(dev, level, fmt, args...)			\
+	do {							\
+		if (ENA_ ## level <= ena_log_level)		\
+			device_printf((dev), fmt, ##args);	\
+	} while (0)
+
+#define ena_log_raw(level, fmt, args...)			\
+	do {							\
+		if (ENA_ ## level <= ena_log_level)		\
+			printf(fmt, ##args);			\
+	} while (0)
+
+#define ena_log_unused(dev, level, fmt, args...)		\
+	do {							\
+		(void)(dev);					\
+	} while (0)
+
+#ifdef ENA_LOG_IO_ENABLE
+#define ena_log_io(dev, level, fmt, args...)			\
+	ena_log((dev), level, fmt, ##args)
+#else
+#define ena_log_io(dev, level, fmt, args...)			\
+	ena_log_unused((dev), level, fmt, ##args)
+#endif
+
+#define ena_log_nm(dev, level, fmt, args...)			\
+	ena_log((dev), level, "[nm] " fmt, ##args)
+
+#endif /* !(ENA_FBSD_LOG_H) */
