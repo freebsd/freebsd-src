@@ -215,6 +215,7 @@ struct ena_que {
 
 	uint32_t id;
 	int cpu;
+	struct sysctl_oid *oid;
 };
 
 struct ena_calc_queue_size_ctx {
