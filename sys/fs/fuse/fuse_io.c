@@ -576,16 +576,16 @@ retry:
 			fvdat->flag &= ~FN_SIZECHANGE;
 
 		if (diff < 0) {
-			printf("WARNING: misbehaving FUSE filesystem "
-				"wrote more data than we provided it\n");
+			fuse_warn(data, FSESS_WARN_WROTE_LONG,
+				"wrote more data than we provided it.");
 			err = EINVAL;
 			break;
 		} else if (diff > 0) {
 			/* Short write */
 			if (!direct_io) {
-				printf("WARNING: misbehaving FUSE filesystem: "
+				fuse_warn(data, FSESS_WARN_SHORT_WRITE,
 					"short writes are only allowed with "
-					"direct_io\n");
+					"direct_io.");
 			}
 			if (ioflag & IO_DIRECT) {
 				/* Return early */

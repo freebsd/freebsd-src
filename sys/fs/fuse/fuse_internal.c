@@ -870,9 +870,6 @@ fuse_internal_forget_send(struct mount *mp,
 	fdisp_destroy(&fdi);
 }
 
-SDT_PROBE_DEFINE2(fusefs, , internal, getattr_cache_incoherent,
-	"struct vnode*", "struct fuse_attr_out*");
-
 /* Fetch the vnode's attributes from the daemon*/
 int
 fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
@@ -922,14 +919,14 @@ fuse_internal_do_getattr(struct vnode *vp, struct vattr *vap,
 		 * The server changed the file's size even though we had it
 		 * cached!  That's a server bug.
 		 */
-		SDT_PROBE2(fusefs, , internal, getattr_cache_incoherent, vp,
-		    fao);
-		printf("%s: cache incoherent on %s!  "
-		    "Buggy FUSE server detected.  To prevent data corruption, "
-		    "disable the data cache by mounting with -o direct_io, or "
-		    "as directed otherwise by your FUSE server's "
-		    "documentation\n", __func__,
-		    vnode_mount(vp)->mnt_stat.f_mntonname);
+		struct mount *mp = vnode_mount(vp);
+		struct fuse_data *data = fuse_get_mpdata(mp);
+
+		fuse_warn(data, FSESS_WARN_CACHE_INCOHERENT,
+		    "cache incoherent!  "
+		    "To prevent data corruption, disable the data cache "
+		    "by mounting with -o direct_io, or as directed "
+		    "otherwise by your FUSE server's documentation.");
 		int iosize = fuse_iosize(vp);
 		v_inval_buf_range(vp, 0, INT64_MAX, iosize);
 	}

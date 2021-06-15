@@ -592,9 +592,26 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	if (vnode_isreg(*vpp) &&
 	    filesize != fvdat->cached_attrs.va_size &&
 	    fvdat->flag & FN_SIZECHANGE) {
-		printf("%s: WB cache incoherent on %s!\n", __func__,
-		    vnode_mount(*vpp)->mnt_stat.f_mntonname);
+		if (data->cache_mode == fuse_data_cache_mode) {
+			const char *msg;
 
+			if (fuse_libabi_geq(data, 7, 23)) {
+				msg = "writeback cache incoherent!."
+				    "To prevent data corruption, disable "
+				    "the writeback cache according to your "
+				    "FUSE server's documentation.";
+			} else {
+				msg = "writeback cache incoherent!."
+				    "To prevent data corruption, disable "
+				    "the writeback cache by setting "
+				    "vfs.fusefs.data_cache_mode to 0 or 1.";
+			}
+			fuse_warn(data, FSESS_WARN_WB_CACHE_INCOHERENT, msg);
+		} else {
+			/* If we get here, it's likely a fusefs kernel bug */
+			printf("%s: WB cache incoherent on %s!\n", __func__,
+			    vnode_mount(*vpp)->mnt_stat.f_mntonname);
+		}
 		fvdat->flag &= ~FN_SIZECHANGE;
 	}
 

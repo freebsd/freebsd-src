@@ -1073,3 +1073,17 @@ fuse_ipc_destroy(void)
 	counter_u64_free(fuse_ticket_count);
 	uma_zdestroy(ticket_zone);
 }
+
+SDT_PROBE_DEFINE3(fusefs,, ipc, warn, "struct fuse_data*", "unsigned", "char*");
+void
+fuse_warn(struct fuse_data *data, unsigned flag, const char *msg)
+{
+	SDT_PROBE3(fusefs, , ipc, warn, data, flag, msg);
+	if (!(data->dataflags & flag)) {
+		printf("WARNING: FUSE protocol violation for server mounted at "
+		    "%s: %s  "
+		    "This warning will not be repeated.\n",
+		    data->mp->mnt_stat.f_mntonname, msg);
+		data->dataflags |= flag;
+	}
+}
