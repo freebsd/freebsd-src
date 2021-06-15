@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2008
+.Dd June 15, 2021
 .Dt VN_FULLPATH 9
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .In sys/vnode.h
 .Ft int
 .Fo vn_fullpath
-.Fa "struct thread *td" "struct vnode *vp" "char **retbuf" "char **freebuf"
+.Fa "struct vnode *vp" "char **retbuf" "char **freebuf"
 .Fc
 .Sh DESCRIPTION
 The
@@ -68,10 +68,6 @@ properly handle) failure.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa freebuf"
-.It Fa td
-The thread performing the call; this pointer will be dereferenced to find
-the process and its file descriptor structure, in order to identify the
-root vnode to use.
 .It Fa vp
 The vnode to search for.
 No need to be locked by the caller.
