@@ -663,11 +663,12 @@ int
 linux_fstatat64(struct thread *td, struct linux_fstatat64_args *args)
 {
 	char *path;
-	int error, dfd, flag;
+	int error, dfd, flag, unsupported;
 	struct stat buf;
 
-	if (args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
-		linux_msg(td, "fstatat64 unsupported flag 0x%x", args->flag);
+	unsupported = args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
+	if (unsupported != 0) {
+		linux_msg(td, "fstatat64 unsupported flag 0x%x", unsupported);
 		return (EINVAL);
 	}
 	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) ?
@@ -696,11 +697,12 @@ int
 linux_newfstatat(struct thread *td, struct linux_newfstatat_args *args)
 {
 	char *path;
-	int error, dfd, flag;
+	int error, dfd, flag, unsupported;
 	struct stat buf;
 
-	if (args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
-		linux_msg(td, "fstatat unsupported flag 0x%x", args->flag);
+	unsupported = args->flag & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
+	if (unsupported != 0) {
+		linux_msg(td, "fstatat unsupported flag 0x%x", unsupported);
 		return (EINVAL);
 	}
 
@@ -769,11 +771,12 @@ int
 linux_statx(struct thread *td, struct linux_statx_args *args)
 {
 	char *path;
-	int error, dirfd, flags;
+	int error, dirfd, flags, unsupported;
 	struct stat buf;
 
-	if (args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH)) {
-		linux_msg(td, "statx unsupported flags 0x%x", args->flags);
+	unsupported = args->flags & ~(LINUX_AT_SYMLINK_NOFOLLOW | LINUX_AT_EMPTY_PATH);
+	if (unsupported != 0) {
+		linux_msg(td, "statx unsupported flags 0x%x", unsupported);
 		return (EINVAL);
 	}
 
