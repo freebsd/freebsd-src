@@ -1049,8 +1049,10 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	so->so_rcv.sb_flags |= SB_TLS_RX;
 
 	/* Mark existing data as not ready until it can be decrypted. */
-	sb_mark_notready(&so->so_rcv);
-	ktls_check_rx(&so->so_rcv);
+	if (tls->mode != TCP_TLS_MODE_TOE) {
+		sb_mark_notready(&so->so_rcv);
+		ktls_check_rx(&so->so_rcv);
+	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	counter_u64_add(ktls_offload_total, 1);
