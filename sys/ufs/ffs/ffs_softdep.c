@@ -3226,10 +3226,17 @@ static void
 journal_check_space(ump)
 	struct ufsmount *ump;
 {
+	struct mount *mp;
+
 	LOCK_OWNED(ump);
 
 	if (journal_space(ump, 0) == 0) {
 		softdep_speedup(ump);
+		mp = UFSTOVFS(ump);
+		FREE_LOCK(ump);
+		VFS_SYNC(mp, MNT_NOWAIT);
+		ffs_sbupdate(ump, MNT_WAIT, 0);
+		ACQUIRE_LOCK(ump);
 		if (journal_space(ump, 1) == 0)
 			journal_suspend(ump);
 	}
