@@ -1844,7 +1844,7 @@ receiver_body(void *data)
 	/* main loop, exit after 1s silence */
 	clock_gettime(CLOCK_REALTIME_PRECISE, &targ->tic);
     if (targ->g->dev_type == DEV_TAP) {
-	while (!targ->cancel && (n == 0 || targ->ctr.pkts < n)) {) {
+	while (!targ->cancel && (n == 0 || targ->ctr.pkts < n)) {
 		char buf[MAX_BODYSIZE];
 		/* XXX should we poll ? */
 		i = read(targ->g->main_fd, buf, sizeof(buf));
