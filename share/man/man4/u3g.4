@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2021
+.Dd June 15, 2021
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -69,6 +69,8 @@ Vodafone Mobile Connect Card 3G
 Vodafone Mobile Broadband K3772-Z
 .It
 Qualcomm Inc. CDMA MSM
+.It
+Qualcomm Inc. GOBI 1000, 2000 and 3000 devices with MDM1000 or MDM2000 chipsets
 .It
 Huawei B190, E180v, E220 ('<Huawei Mobile>')
 .It
@@ -150,6 +152,6 @@ The automatic mode switch from disk mode to modem mode does not work unless
 the driver is either built into the kernel or loaded before the device is
 connected.
 .Pp
-The Panasonic CF-F9 requires the gobi loader available from the
+The GOBI-based devices require the gobi loader available from the
 .Pa sysutils/gobi_loader
 port.
