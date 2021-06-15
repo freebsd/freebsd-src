@@ -211,8 +211,6 @@ struct fuse_data {
 	uint32_t			max_readahead_blocks;
 	uint32_t			max_write;
 	uint32_t			max_read;
-	uint32_t			subtype;
-	char				volname[MAXPATHLEN];
 
 	struct selinfo			ks_rsel;
 
