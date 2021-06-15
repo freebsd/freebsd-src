@@ -119,12 +119,18 @@ static struct cdevsw fuse_device_cdevsw = {
 };
 
 static int fuse_device_filt_read(struct knote *kn, long hint);
+static int fuse_device_filt_write(struct knote *kn, long hint);
 static void fuse_device_filt_detach(struct knote *kn);
 
 struct filterops fuse_device_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = fuse_device_filt_detach,
 	.f_event = fuse_device_filt_read,
+};
+
+struct filterops fuse_device_wfiltops = {
+	.f_isfd = 1,
+	.f_event = fuse_device_filt_write,
 };
 
 /****************************
@@ -180,11 +186,13 @@ fuse_device_filter(struct cdev *dev, struct knote *kn)
 
 	error = devfs_get_cdevpriv((void **)&data);
 
-	/* EVFILT_WRITE is not supported; the device is always ready to write */
 	if (error == 0 && kn->kn_filter == EVFILT_READ) {
 		kn->kn_fop = &fuse_device_rfiltops;
 		kn->kn_hook = data;
 		knlist_add(&data->ks_rsel.si_note, kn, 0);
+		error = 0;
+	} else if (error == 0 && kn->kn_filter == EVFILT_WRITE) {
+		kn->kn_fop = &fuse_device_wfiltops;
 		error = 0;
 	} else if (error == 0) {
 		error = EINVAL;
@@ -229,6 +237,16 @@ fuse_device_filt_read(struct knote *kn, long hint)
 	}
 
 	return (ready);
+}
+
+static int
+fuse_device_filt_write(struct knote *kn, long hint)
+{
+
+	kn->kn_data = 0;
+
+	/* The device is always ready to write, so we return 1*/
+	return (1);
 }
 
 /*
