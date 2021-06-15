@@ -867,8 +867,8 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 		timeout_ts.tv_sec = 0;
 		timeout_ts.tv_nsec = timeout_ms * 1'000'000;
 		while (nready == 0) {
-			EV_SET(&changes[0], m_fuse_fd, EVFILT_READ, EV_ADD, 0,
-				0, 0);
+			EV_SET(&changes[0], m_fuse_fd, EVFILT_READ,
+				EV_ADD | EV_ONESHOT, 0, 0, 0);
 			nready = kevent(m_kq, &changes[0], 1, &events[0], 1,
 				&timeout_ts);
 			if (m_quit)
@@ -930,12 +930,26 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 void MockFS::write_response(const mockfs_buf_out &out) {
 	fd_set writefds;
 	pollfd fds[1];
+	struct kevent changes[1];
+	struct kevent events[1];
 	int nready, nfds;
 	ssize_t r;
 
 	switch (m_pm) {
 	case BLOCKING:
-	case KQ:	/* EVFILT_WRITE is not supported */
+		break;
+	case KQ:
+		EV_SET(&changes[0], m_fuse_fd, EVFILT_WRITE,
+			EV_ADD | EV_ONESHOT, 0, 0, 0);
+		nready = kevent(m_kq, &changes[0], 1, &events[0], 1,
+			NULL);
+		ASSERT_LE(0, nready) << strerror(errno);
+		ASSERT_EQ(events[0].ident, (uintptr_t)m_fuse_fd);
+		if (events[0].flags & EV_ERROR)
+			FAIL() << strerror(events[0].data);
+		else if (events[0].flags & EV_EOF)
+			FAIL() << strerror(events[0].fflags);
+		m_nready = events[0].data;
 		break;
 	case POLL:
 		fds[0].fd = m_fuse_fd;
