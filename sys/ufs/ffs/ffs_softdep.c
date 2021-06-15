@@ -3222,6 +3222,19 @@ journal_unsuspend(struct ufsmount *ump)
 	return (0);
 }
 
+static void
+journal_check_space(ump)
+	struct ufsmount *ump;
+{
+	LOCK_OWNED(ump);
+
+	if (journal_space(ump, 0) == 0) {
+		softdep_speedup(ump);
+		if (journal_space(ump, 1) == 0)
+			journal_suspend(ump);
+	}
+}
+
 /*
  * Called before any allocation function to be certain that there is
  * sufficient space in the journal prior to creating any new records.
@@ -3272,11 +3285,7 @@ softdep_prealloc(vp, waitok)
 	ACQUIRE_LOCK(ump);
 	process_removes(vp);
 	process_truncates(vp);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 
 	return (0);
@@ -3363,11 +3372,7 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
 	ACQUIRE_LOCK(ump);
 	softdep_speedup(ump);
 	process_worklist_item(UFSTOVFS(ump), 2, LK_NOWAIT);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 	return (ERELOOKUP);
 }
@@ -3460,11 +3465,7 @@ softdep_prelink(dvp, vp, cnp)
 	softdep_speedup(ump);
 
 	process_worklist_item(UFSTOVFS(ump), 2, LK_NOWAIT);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 
 	vn_lock_pair(dvp, false, vp, false);
