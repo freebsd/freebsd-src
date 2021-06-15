@@ -794,7 +794,7 @@ ffs_rdfs(daddr_t bno, int size, void *bf, const fsinfo_t *fsopts)
 	int n;
 	off_t offset;
 
-	offset = bno * fsopts->sectorsize + fsopts->offset;
+	offset = (off_t)bno * fsopts->sectorsize + fsopts->offset;
 	if (lseek(fsopts->fd, offset, SEEK_SET) < 0)
 		err(1, "%s: seek error for sector %lld", __func__,
 		    (long long)bno);
@@ -818,7 +818,7 @@ ffs_wtfs(daddr_t bno, int size, void *bf, const fsinfo_t *fsopts)
 	int n;
 	off_t offset;
 
-	offset = bno * fsopts->sectorsize + fsopts->offset;
+	offset = (off_t)bno * fsopts->sectorsize + fsopts->offset;
 	if (lseek(fsopts->fd, offset, SEEK_SET) < 0)
 		err(1, "%s: seek error for sector %lld", __func__,
 		    (long long)bno);
