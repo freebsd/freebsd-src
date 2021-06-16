@@ -4715,6 +4715,16 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 		pause("W", hz);
 	}
 #endif
+
+#ifdef KERN_TLS
+	/* wait for all TLS tags to get freed */
+	while (priv->tls.init != 0 &&
+	    uma_zone_get_cur(priv->tls.zone) != 0)  {
+		mlx5_en_err(priv->ifp,
+		    "Waiting for all TLS connections to terminate\n");
+		pause("W", hz);
+	}
+#endif
 	/* wait for all unlimited send tags to complete */
 	mlx5e_priv_wait_for_completion(priv, mdev->priv.eq_table.num_comp_vectors);
 
