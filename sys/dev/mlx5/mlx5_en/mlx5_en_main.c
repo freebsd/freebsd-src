@@ -1875,7 +1875,8 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc &&
 	    (sq->priv->media_status_last & IFM_ACTIVE) != 0 &&
-	    mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	    mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR &&
+	    pci_channel_offline(mdev->pdev) == 0) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
 		sq->cq.mcq.comp(&sq->cq.mcq, NULL);
@@ -1893,7 +1894,8 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	/* wait till SQ is empty */
 	mtx_lock(&sq->lock);
 	while (sq->cc != sq->pc &&
-	       mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	       mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR &&
+	       pci_channel_offline(mdev->pdev) == 0) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
 		sq->cq.mcq.comp(&sq->cq.mcq, NULL);
