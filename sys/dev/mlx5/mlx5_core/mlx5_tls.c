@@ -116,5 +116,5 @@ int mlx5_tls_open_tis(struct mlx5_core_dev *mdev, int tc, int tdn, int pdn, u32 
 void mlx5_tls_close_tis(struct mlx5_core_dev *mdev, u32 tisn)
 {
 
-	mlx5_core_destroy_tis(mdev, tisn);
+	mlx5_core_destroy_tis(mdev, tisn, 0);
 }

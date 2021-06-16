@@ -42,6 +42,7 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_mad.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include <dev/mlx4/cmd.h>
 #include <dev/mlx4/qp.h>
@@ -1022,7 +1023,7 @@ static void get_cqs(struct mlx4_ib_qp *qp,
 }
 
 static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
-			      int is_user)
+			      struct ib_udata *udata)
 {
 	struct mlx4_ib_cq *send_cq, *recv_cq;
 	unsigned long flags;
@@ -1064,7 +1065,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	list_del(&qp->qps_list);
 	list_del(&qp->cq_send_list);
 	list_del(&qp->cq_recv_list);
-	if (!is_user) {
+	if (!udata) {
 		__mlx4_ib_cq_clean(recv_cq, qp->mqp.qpn,
 				 qp->ibqp.srq ? to_msrq(qp->ibqp.srq): NULL);
 		if (send_cq != recv_cq)
@@ -1087,11 +1088,16 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
-	if (is_user) {
-		if (qp->rq.wqe_cnt)
-			mlx4_ib_db_unmap_user(to_mucontext(qp->ibqp.uobject->context),
-					      &qp->db);
-		ib_umem_release(qp->umem);
+	if (udata) {
+		if (qp->rq.wqe_cnt) {
+			struct mlx4_ib_ucontext *mcontext =
+				rdma_udata_to_drv_context(
+					udata,
+					struct mlx4_ib_ucontext,
+					ibucontext);
+
+			mlx4_ib_db_unmap_user(mcontext, &qp->db);
+		}
 	} else {
 		kvfree(qp->sq.wrid);
 		kvfree(qp->rq.wrid);
@@ -1102,6 +1108,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 		if (qp->rq.wqe_cnt)
 			mlx4_db_free(dev->dev, &qp->db);
 	}
+	ib_umem_release(qp->umem);
 
 	del_gid_entries(qp);
 }
@@ -1273,7 +1280,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	return ibqp;
 }
 
-static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
+static int _mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(qp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
@@ -1292,7 +1299,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 		mlx4_ib_free_qp_counter(dev, mqp);
 
 	pd = get_pd(mqp);
-	destroy_qp_common(dev, mqp, !!pd->ibpd.uobject);
+	destroy_qp_common(dev, mqp, udata);
 
 	if (is_sqp(dev, mqp))
 		kfree(to_msqp(mqp));
@@ -1302,7 +1309,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int mlx4_ib_destroy_qp(struct ib_qp *qp)
+int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
 
@@ -1313,7 +1320,7 @@ int mlx4_ib_destroy_qp(struct ib_qp *qp)
 			ib_destroy_qp(sqp->roce_v2_gsi);
 	}
 
-	return _mlx4_ib_destroy_qp(qp);
+	return _mlx4_ib_destroy_qp(qp, udata);
 }
 
 static int to_mlx4_st(struct mlx4_ib_dev *dev, enum mlx4_ib_qp_type type)
@@ -1618,12 +1625,16 @@ static u8 gid_type_to_qpc(enum ib_gid_type gid_type)
 
 static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			       const struct ib_qp_attr *attr, int attr_mask,
-			       enum ib_qp_state cur_state, enum ib_qp_state new_state)
+			       enum ib_qp_state cur_state,
+			       enum ib_qp_state new_state,
+			       struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_ib_pd *pd;
 	struct mlx4_ib_cq *send_cq, *recv_cq;
+	struct mlx4_ib_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct mlx4_ib_ucontext, ibucontext);
 	struct mlx4_qp_context *context;
 	enum mlx4_qp_optpar optpar = 0;
 	int sqd_event;
@@ -1699,10 +1710,9 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			context->param3 |= cpu_to_be32(1 << 30);
 	}
 
-	if (qp->ibqp.uobject)
+	if (ucontext)
 		context->usr_page = cpu_to_be32(
-			mlx4_to_hw_uar_index(dev->dev,
-					     to_mucontext(ibqp->uobject->context)->uar.index));
+			mlx4_to_hw_uar_index(dev->dev, ucontext->uar.index));
 	else
 		context->usr_page = cpu_to_be32(
 			mlx4_to_hw_uar_index(dev->dev, dev->priv_uar.index));
@@ -2242,7 +2252,7 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 	}
 
-	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
+	err = __mlx4_ib_modify_qp(ibqp, attr, attr_mask, cur_state, new_state, udata);
 
 	if (mlx4_is_bonded(dev->dev) && (attr_mask & IB_QP_PORT))
 		attr->port_num = 1;

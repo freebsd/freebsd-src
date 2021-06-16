@@ -65,6 +65,7 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_sa.h>
+#include <rdma/uverbs_ioctl.h>
 
 #if __FreeBSD_version < 1100000
 #undef MODULE_VERSION

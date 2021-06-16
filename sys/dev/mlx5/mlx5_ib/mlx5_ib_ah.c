@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 
 #include "mlx5_ib.h"
 
-static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
+static void create_ib_ah(struct mlx5_ib_dev *dev,
 				  struct mlx5_ib_ah *ah,
 				  struct ib_ah_attr *ah_attr,
 				  enum rdma_link_layer ll)
@@ -55,22 +55,20 @@ static struct ib_ah *create_ib_ah(struct mlx5_ib_dev *dev,
 		ah->av.fl_mlid = ah_attr->src_path_bits & 0x7f;
 		ah->av.stat_rate_sl |= (ah_attr->sl & 0xf);
 	}
-
-	return &ah->ibah;
 }
 
-struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-				struct ib_udata *udata)
+int mlx5_ib_create_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr,
+		      u32 flags, struct ib_udata *udata)
 
 {
-	struct mlx5_ib_ah *ah;
-	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_ib_ah *ah = to_mah(ibah);
+	struct mlx5_ib_dev *dev = to_mdev(ibah->device);
 	enum rdma_link_layer ll;
 
-	ll = pd->device->get_link_layer(pd->device, ah_attr->port_num);
+	ll = dev->ib_dev.get_link_layer(&dev->ib_dev, ah_attr->port_num);
 
 	if (ll == IB_LINK_LAYER_ETHERNET && !(ah_attr->ah_flags & IB_AH_GRH))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (ll == IB_LINK_LAYER_ETHERNET && udata) {
 		int err;
@@ -79,25 +77,22 @@ struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 				   sizeof(resp.dmac);
 
 		if (udata->outlen < min_resp_len)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 
 		resp.response_length = min_resp_len;
 
-		err = ib_resolve_eth_dmac(pd->device, ah_attr);
+		err = ib_resolve_eth_dmac(&dev->ib_dev, ah_attr);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 
 		memcpy(resp.dmac, ah_attr->dmac, ETH_ALEN);
 		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 	}
 
-	ah = kzalloc(sizeof(*ah), GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
-
-	return create_ib_ah(dev, ah, ah_attr, ll); /* never fails */
+	create_ib_ah(dev, ah, ah_attr, ll);
+	return 0;
 }
 
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
@@ -123,8 +118,7 @@ int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx5_ib_destroy_ah(struct ib_ah *ah)
+void mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
-	kfree(to_mah(ah));
-	return 0;
+	return;
 }

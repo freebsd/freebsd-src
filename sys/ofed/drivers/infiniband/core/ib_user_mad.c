@@ -201,7 +201,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
 	dequeue_send(file, packet);
-	ib_destroy_ah(packet->msg->ah);
+	ib_destroy_ah(packet->msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
@@ -509,7 +509,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 		ah_attr.grh.traffic_class  = packet->mad.hdr.traffic_class;
 	}
 
-	ah = ib_create_ah(agent->qp->pd, &ah_attr);
+	ah = ib_create_user_ah(agent->qp->pd, &ah_attr, NULL);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_up;
@@ -603,7 +603,7 @@ err_send:
 err_msg:
 	ib_free_send_mad(packet->msg);
 err_ah:
-	ib_destroy_ah(ah);
+	ib_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 err_up:
 	mutex_unlock(&file->mutex);
 err:

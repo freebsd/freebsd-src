@@ -156,6 +156,13 @@ qlnxr_register_device(qlnxr_dev_t *dev)
 
 	ibdev = &dev->ibdev;
 
+#define qlnxr_ib_ah qlnxr_ah
+#define qlnxr_ib_cq qlnxr_cq
+#define qlnxr_ib_pd qlnxr_pd
+#define qlnxr_ib_qp qlnxr_qp
+#define qlnxr_ib_srq qlnxr_srq
+#define qlnxr_ib_ucontext qlnxr_ucontext
+	INIT_IB_DEVICE_OPS(&ibdev->ops, qlnxr, QLNXR);
 	strlcpy(ibdev->name, "qlnxr%d", IB_DEVICE_NAME_MAX);
 
 	memset(&ibdev->node_guid, 0, sizeof(ibdev->node_guid));

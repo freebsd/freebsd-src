@@ -299,6 +299,7 @@ enum {
 	MLX5_EVENT_QUEUE_TYPE_QP = 0,
 	MLX5_EVENT_QUEUE_TYPE_RQ = 1,
 	MLX5_EVENT_QUEUE_TYPE_SQ = 2,
+	MLX5_EVENT_QUEUE_TYPE_DCT = 6,
 };
 
 enum {
@@ -502,7 +503,9 @@ struct mlx5_eqe_comp {
 };
 
 struct mlx5_eqe_qp_srq {
-	__be32	reserved[6];
+	__be32	reserved1[5];
+	u8	type;
+	u8	reserved2[3];
 	__be32	qp_srq_n;
 };
 
@@ -510,6 +513,12 @@ struct mlx5_eqe_cq_err {
 	__be32	cqn;
 	u8	reserved1[7];
 	u8	syndrome;
+};
+
+struct mlx5_eqe_xrq_err {
+	__be32	reserved1[5];
+	__be32	type_xrqn;
+	__be32	reserved2;
 };
 
 struct mlx5_eqe_port_state {
@@ -595,6 +604,11 @@ struct mlx5_eqe_general_notification_event {
 	u32       rsvd0[6];
 };
 
+struct mlx5_eqe_dct {
+	__be32  reserved[6];
+	__be32  dctn;
+};
+
 struct mlx5_eqe_temp_warning {
 	__be64 sensor_warning_msb;
 	__be64 sensor_warning_lsb;
@@ -614,7 +628,9 @@ union ev_data {
 	struct mlx5_eqe_port_module_event port_module_event;
 	struct mlx5_eqe_vport_change	vport_change;
 	struct mlx5_eqe_general_notification_event general_notifications;
+	struct mlx5_eqe_dct             dct;
 	struct mlx5_eqe_temp_warning	temp_warning;
+	struct mlx5_eqe_xrq_err		xrq_err;
 } __packed;
 
 struct mlx5_eqe {
@@ -957,6 +973,7 @@ enum mlx5_cap_type {
 	MLX5_CAP_DMC,
 	MLX5_CAP_DEC,
 	MLX5_CAP_TLS,
+	MLX5_CAP_DEV_EVENT = 0x14,
 	/* NUM OF CAP Types */
 	MLX5_CAP_NUM
 };
@@ -1119,6 +1136,9 @@ enum mlx5_mcam_feature_groups {
 
 #define	MLX5_CAP_TLS(mdev, cap) \
 	MLX5_GET(tls_capabilities, (mdev)->hca_caps_cur[MLX5_CAP_TLS], cap)
+
+#define	MLX5_CAP_DEV_EVENT(mdev, cap)\
+	MLX5_ADDR_OF(device_event_cap, (mdev)->hca_caps_cur[MLX5_CAP_DEV_EVENT], cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

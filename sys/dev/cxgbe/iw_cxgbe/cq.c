@@ -883,7 +883,7 @@ int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return !err || err == -ENODATA ? npolled : err;
 }
 
-int c4iw_destroy_cq(struct ib_cq *ib_cq)
+void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
@@ -895,22 +895,20 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	atomic_dec(&chp->refcnt);
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
-	ucontext = ib_cq->uobject ? to_c4iw_ucontext(ib_cq->uobject->context)
-				  : NULL;
+	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
+	    ibucontext);
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx);
-	kfree(chp);
-	return 0;
 }
 
-struct ib_cq *
-c4iw_create_cq(struct ib_device *ibdev, const struct ib_cq_init_attr *attr,
-    struct ib_ucontext *ib_context, struct ib_udata *udata)
+int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
 	struct c4iw_dev *rhp;
-	struct c4iw_cq *chp;
+	struct c4iw_cq *chp = to_c4iw_cq(ibcq);
 	struct c4iw_create_cq_resp uresp;
 	struct c4iw_ucontext *ucontext = NULL;
 	int ret;
@@ -919,17 +917,12 @@ c4iw_create_cq(struct ib_device *ibdev, const struct ib_cq_init_attr *attr,
 
 	CTR3(KTR_IW_CXGBE, "%s ib_dev %p entries %d", __func__, ibdev, entries);
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	rhp = to_c4iw_dev(ibdev);
 
-	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
-	if (!chp)
-		return ERR_PTR(-ENOMEM);
-
-
-	if (ib_context)
-		ucontext = to_c4iw_ucontext(ib_context);
+	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
+	    ibucontext);
 
 	/* account for the status page. */
 	entries++;
@@ -1020,7 +1013,7 @@ c4iw_create_cq(struct ib_device *ibdev, const struct ib_cq_init_attr *attr,
 	    "%s cqid 0x%0x chp %p size %u memsize %zu, dma_addr 0x%0llx",
 	    __func__, chp->cq.cqid, chp, chp->cq.size, chp->cq.memsize,
 	    (unsigned long long) chp->cq.dma_addr);
-	return &chp->ibcq;
+	return 0;
 err5:
 	kfree(mm2);
 err4:
@@ -1031,8 +1024,7 @@ err2:
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
 err1:
-	kfree(chp);
-	return ERR_PTR(ret);
+	return ret;
 }
 
 int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata)

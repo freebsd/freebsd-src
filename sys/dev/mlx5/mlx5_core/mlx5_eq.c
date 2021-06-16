@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -244,7 +244,11 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 
 		mlx5_core_dbg(eq->dev, "eqn %d, eqe type %s\n",
 			      eq->eqn, eqe_type_str(eqe->type));
-		switch (eqe->type) {
+
+		if (dev->priv.eq_table.cb != NULL &&
+		    dev->priv.eq_table.cb(dev, eqe->type, &eqe->data)) {
+			/* FALLTHROUGH */
+		} else switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
 			mlx5_cq_completion(dev, eqe);
 			break;

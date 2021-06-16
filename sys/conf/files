@@ -4628,6 +4628,8 @@ ofed/drivers/infiniband/core/ib_cm.c			optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_cma.c			optional ofed	\
 	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_core_uverbs.c		optional ofed	\
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_cq.c			optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_device.c		optional ofed	\
@@ -4647,6 +4649,8 @@ ofed/drivers/infiniband/core/ib_mad_rmpp.c		optional ofed	\
 ofed/drivers/infiniband/core/ib_multicast.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_packer.c		optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_rdma_core.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_roce_gid_mgmt.c		optional ofed	\
 	compile-with "${OFED_C}"
@@ -4668,9 +4672,29 @@ ofed/drivers/infiniband/core/ib_user_mad.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_uverbs_cmd.c		optional ofed	\
 	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_ioctl.c		optional ofed	\
+	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_uverbs_main.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_uverbs_marshall.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_async_fd.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_counters.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_cq.c		optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_device.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_dm.c		optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_flow_action.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_std_types_mr.c	optional ofed	\
+	compile-with "${OFED_C}"
+ofed/drivers/infiniband/core/ib_uverbs_uapi.c		optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_verbs.c			optional ofed	\
 	compile-with "${OFED_C}"
@@ -4826,6 +4850,8 @@ dev/mlx5/mlx5_ib/mlx5_ib_ah.c			optional mlx5ib pci ofed \
 dev/mlx5/mlx5_ib/mlx5_ib_cong.c			optional mlx5ib pci ofed \
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_ib/mlx5_ib_cq.c			optional mlx5ib pci ofed \
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_ib/mlx5_ib_devx.c			optional mlx5ib pci ofed \
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_ib/mlx5_ib_doorbell.c		optional mlx5ib pci ofed \
 	compile-with "${OFED_C}"

@@ -42,10 +42,11 @@
 
 #include "mlx4_ib.h"
 
-static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-				  struct mlx4_ib_ah *ah)
+static int create_ib_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
 {
-	struct mlx4_dev *dev = to_mdev(pd->device)->dev;
+	struct ib_pd *pd = ib_ah->pd;
+	struct mlx4_ib_ah *ah = to_mah(ib_ah);
+	struct mlx4_dev *dev = to_mdev(ib_ah->device)->dev;
 
 	ah->av.ib.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
 	ah->av.ib.g_slid  = ah_attr->src_path_bits;
@@ -67,14 +68,14 @@ static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 		       !(1 << ah->av.ib.stat_rate & dev->caps.stat_rate_support))
 			--ah->av.ib.stat_rate;
 	}
-
-	return &ah->ibah;
+	return 0;
 }
 
-static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-				    struct mlx4_ib_ah *ah)
+static int create_iboe_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
 {
-	struct mlx4_ib_dev *ibdev = to_mdev(pd->device);
+	struct ib_pd *pd = ib_ah->pd;
+	struct mlx4_ib_dev *ibdev = to_mdev(ib_ah->device);
+	struct mlx4_ib_ah *ah = to_mah(ib_ah);
 	struct mlx4_dev *dev = ibdev->dev;
 	int is_mcast = 0;
 	struct in6_addr in6;
@@ -93,7 +94,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	ret = ib_get_cached_gid(pd->device, ah_attr->port_num,
 				ah_attr->grh.sgid_index, &sgid, &gid_attr);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 	eth_zero_addr(ah->av.eth.s_mac);
 	if (gid_attr.ndev) {
 		vlan_tag = rdma_vlan_dev_vlan_id(gid_attr.ndev);
@@ -105,7 +106,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
 	ret = mlx4_ib_gid_index_to_real_index(ibdev, ah_attr->port_num, ah_attr->grh.sgid_index);
 	if (ret < 0)
-		return ERR_PTR(ret);
+		return ret;
 	ah->av.eth.gid_index = ret;
 	ah->av.eth.vlan = cpu_to_be16(vlan_tag);
 	ah->av.eth.hop_limit = ah_attr->grh.hop_limit;
@@ -125,23 +126,15 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 	memcpy(ah->av.eth.dgid, ah_attr->grh.dgid.raw, 16);
 	ah->av.eth.sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 29);
 
-	return &ah->ibah;
+	return 0;
 }
 
-struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-				struct ib_udata *udata)
-
+int mlx4_ib_create_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr,
+		      u32 flags, struct ib_udata *udata)
 {
-	struct mlx4_ib_ah *ah;
-	struct ib_ah *ret;
-
-	ah = kzalloc(sizeof *ah, GFP_ATOMIC);
-	if (!ah)
-		return ERR_PTR(-ENOMEM);
-
-	if (rdma_port_get_link_layer(pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET) {
+	if (rdma_port_get_link_layer(ib_ah->pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET) {
 		if (!(ah_attr->ah_flags & IB_AH_GRH)) {
-			ret = ERR_PTR(-EINVAL);
+			return -EINVAL;
 		} else {
 			/*
 			 * TBD: need to handle the case when we get
@@ -151,15 +144,35 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 			 * local addresses which we can translate
 			 * without going to sleep.
 			 */
-			ret = create_iboe_ah(pd, ah_attr, ah);
+			return create_iboe_ah(ib_ah, ah_attr);
 		}
+	}
+	return create_ib_ah(ib_ah, ah_attr);
+}
 
-		if (IS_ERR(ret))
-			kfree(ah);
+int mlx4_ib_create_ah_slave(struct ib_ah *ah, struct ib_ah_attr *ah_attr,
+			    int slave_sgid_index, u8 *s_mac, u16 vlan_tag)
+{
+	struct ib_ah_attr slave_attr = *ah_attr;
+	struct mlx4_ib_ah *mah = to_mah(ah);
+	int ret;
 
+	slave_attr.grh.sgid_index = slave_sgid_index;
+	ret = mlx4_ib_create_ah(ah, &slave_attr, 0, NULL);
+	if (ret)
 		return ret;
-	} else
-		return create_ib_ah(pd, ah_attr, ah); /* never fails */
+
+	/* get rid of force-loopback bit */
+	mah->av.ib.port_pd &= cpu_to_be32(0x7FFFFFFF);
+
+	if (rdma_port_get_link_layer(ah->pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET)
+		memcpy(mah->av.eth.s_mac, s_mac, 6);
+
+	if (vlan_tag < 0x1000)
+		vlan_tag |= (ah_attr->sl & 7) << 13;
+	mah->av.eth.vlan = cpu_to_be16(vlan_tag);
+
+	return 0;
 }
 
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
@@ -195,8 +208,7 @@ int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx4_ib_destroy_ah(struct ib_ah *ah)
+void mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags)
 {
-	kfree(to_mah(ah));
-	return 0;
+	return;
 }
