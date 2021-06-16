@@ -65,7 +65,7 @@ __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restric
 	 */
 cont:
 	c = *s++;
-	for (spanp = delim; (sc = *spanp++) != 0;) {
+	for (spanp = delim; (sc = *spanp) != 0; spanp++) {
 		if (c == sc)
 			goto cont;
 	}
@@ -84,7 +84,7 @@ cont:
 		c = *s++;
 		spanp = delim;
 		do {
-			if ((sc = *spanp++) == c) {
+			if ((sc = *spanp) == c) {
 				if (c == '\0')
 					s = NULL;
 				else
@@ -92,6 +92,8 @@ cont:
 				*last = s;
 				return tok;
 			}
+
+			spanp++;
 		} while (sc != '\0');
 	}
 	/* NOTREACHED */
