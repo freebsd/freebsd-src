@@ -288,7 +288,7 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 
 	priv = ifp->if_softc;
 
-	if (priv->tls.init == 0)
+	if (priv->gone != 0 || priv->tls.init == 0)
 		return (EOPNOTSUPP);
 
 	/* allocate new tag from zone, if any */
