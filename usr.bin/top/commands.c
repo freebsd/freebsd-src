@@ -59,6 +59,7 @@ const struct command all_commands[] =
 	{'H', "toggle the displaying of threads", false, CMD_thrtog},
 	{'h', "show this help text", true, CMD_help},
 	{'?', NULL, true, CMD_help},
+	{'/', "filter on command name (+ selects all commands)", false, CMD_grep},
 	{'i', "toggle the displaying of idle processes", false, CMD_idletog},
 	{'I', NULL, false, CMD_idletog},
 	{'j', "toggle the displaying of jail ID", false, CMD_jidtog},
