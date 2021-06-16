@@ -1287,8 +1287,7 @@ static int cmd_exec_helper(struct mlx5_core_dev *dev,
 	u8 status = 0;
 	u32 drv_synd;
 
-	if (pci_channel_offline(dev->pdev) ||
-	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		u16 opcode = MLX5_GET(mbox_in, in, opcode);
 		err = mlx5_internal_err_ret_value(dev, opcode, &drv_synd, &status);
 		MLX5_SET(mbox_out, out, status, status);
