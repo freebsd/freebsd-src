@@ -1101,7 +1101,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	mlx5_start_health_poll(dev);
 
-	if (boot && mlx5_init_once(dev, priv)) {
+	if (boot && (err = mlx5_init_once(dev, priv))) {
 		mlx5_core_err(dev, "sw objs init failed\n");
 		goto err_stop_poll;
 	}
