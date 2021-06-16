@@ -254,11 +254,9 @@ void ipoib_transport_dev_cleanup(struct ipoib_dev_priv *priv)
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 	}
 
-	if (ib_destroy_cq(priv->send_cq))
-		ipoib_warn(priv, "ib_cq_destroy (send) failed\n");
+	ib_destroy_cq(priv->send_cq);
 
-	if (ib_destroy_cq(priv->recv_cq))
-		ipoib_warn(priv, "ib_cq_destroy (recv) failed\n");
+	ib_destroy_cq(priv->recv_cq);
 
 	ipoib_cm_dev_cleanup(priv);
 
