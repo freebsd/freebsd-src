@@ -51,7 +51,7 @@ strspn(const char *s, const char *charset)
 	const char * const s1 = s;
 
 	while (tbl[IDX(*s)] & BIT(*charset))
-		s++
+		s++;
 
 	return s - s1;
 }
