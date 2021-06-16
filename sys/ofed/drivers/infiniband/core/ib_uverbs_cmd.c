@@ -365,6 +365,7 @@ ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,
 	ucontext->tgid = get_pid(task_pid_group_leader(current));
 	rcu_read_unlock();
 	ucontext->closing = 0;
+	ucontext->cleanup_retryable = false;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	ucontext->umem_tree = RB_ROOT;
