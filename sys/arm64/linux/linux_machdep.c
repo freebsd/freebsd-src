@@ -55,7 +55,6 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_mmap2, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_rt_sigsuspend, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_sigaltstack, todo);
-LIN_SDT_PROBE_DEFINE0(machdep, linux_set_cloned_tls, todo);
 
 /*
  * LINUXTODO: deduplicate; linux_execve is common across archs, except that on
@@ -141,11 +140,12 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	return (EDOOFUS);
 }
 
-/* LINUXTODO: implement arm64 linux_set_cloned_tls */
 int
 linux_set_cloned_tls(struct thread *td, void *desc)
 {
 
-	LIN_SDT_PROBE0(machdep, linux_set_cloned_tls, todo);
-	return (EDOOFUS);
+	if ((uint64_t)desc >= VM_MAXUSER_ADDRESS)
+		return (EPERM);
+
+	return (cpu_set_user_tls(td, desc));
 }
