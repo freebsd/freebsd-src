@@ -82,7 +82,7 @@ cont:
 	 */
 	for (;;) {
 		c = *s++;
-		spanp = (char *)delim;
+		spanp = delim;
 		do {
 			if ((sc = *spanp++) == c) {
 				if (c == '\0')
