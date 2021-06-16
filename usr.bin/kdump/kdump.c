@@ -1638,7 +1638,7 @@ visdump(char *dp, int datalen, int screenwidth)
 	printf("       \"");
 	col = 8;
 	for (;datalen > 0; datalen--, dp++) {
-		 vis(visbuf, *dp, VIS_CSTYLE, *(dp+1));
+		vis(visbuf, *dp, VIS_CSTYLE | VIS_NOLOCALE, *(dp+1));
 		cp = visbuf;
 		/*
 		 * Keep track of printables and
