@@ -51,5 +51,5 @@ memccpy(void * __restrict t, const void * __restrict f, int c, size_t n)
 			fp++;
 		} while (--n != 0);
 	}
-	return 0;
+	return NULL;
 }
