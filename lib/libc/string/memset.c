@@ -57,7 +57,7 @@ bzero(void *dst0, size_t length)
 #else
 #include <string.h>
 
-#define	RETURN	return (dst0)
+#define	RETURN	return dst0
 #define	VAL	(u_char)c0
 #define	WIDEVAL	c
 
@@ -69,9 +69,7 @@ memset(void *dst0, int c0, size_t length)
 #ifndef BZERO
 	u_long c;
 #endif
-	u_char *dst;
-
-	dst = dst0;
+	u_char *dst = (u_char *)dst0;
 	/*
 	 * If not enough words, just fill bytes.  A length >= 2 words
 	 * guarantees that at least one of them is `complete' after
@@ -108,7 +106,7 @@ memset(void *dst0, int c0, size_t length)
 	}
 #endif
 	/* Align destination by filling in bytes. */
-	if ((t = (long)dst & wmask) != 0) {
+	if ((t = (ulong)dst & wmask) != 0) {
 		t = wsize - t;
 		length -= t;
 		do {
@@ -119,7 +117,7 @@ memset(void *dst0, int c0, size_t length)
 	/* Fill words.  Length was >= 2*words so we know t >= 1 here. */
 	t = length / wsize;
 	do {
-		*(u_long *)(void *)dst = WIDEVAL;
+		*(u_long *)dst = WIDEVAL;
 		dst += wsize;
 	} while (--t != 0);
 
