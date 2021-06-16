@@ -40,8 +40,8 @@ stpncpy(char * __restrict dst, const char * __restrict src, size_t n)
 			char * const ret = dst;
 			for (; n; n--)
 				*++dst = '\0';
-			return (ret);
+			return ret;
 		}
 	}
-	return (dst);
+	return dst;
 }
