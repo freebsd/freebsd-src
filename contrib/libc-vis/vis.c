@@ -465,7 +465,8 @@ istrsenvisx(char **mbdstp, size_t *dlen, const char *mbsrc, size_t mblength,
 	while (mbslength > 0) {
 		/* Convert one multibyte character to wchar_t. */
 		if (!cerr)
-			clen = mbrtowc(src, mbsrc, MB_LEN_MAX, &mbstate);
+			clen = mbrtowc(src, mbsrc, MIN(mbslength, MB_LEN_MAX),
+			    &mbstate);
 		if (cerr || clen < 0) {
 			/* Conversion error, process as a byte instead. */
 			*src = (wint_t)(u_char)*mbsrc;
