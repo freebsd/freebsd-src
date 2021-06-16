@@ -371,6 +371,8 @@ again:
 	}
 
 	ipfw = ipfw_chk(&args);
+	if (!mem)
+		*p.m = args.m;
 
 	ret = PFIL_PASS;
 	switch (ipfw) {
