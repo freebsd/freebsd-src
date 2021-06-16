@@ -55,5 +55,5 @@ wcspbrk(const wchar_t *s, const wchar_t *set)
 			}
 		}
 	}
-	return (NULL);
+	return NULL;
 }
