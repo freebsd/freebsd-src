@@ -809,6 +809,9 @@ void ib_cache_gid_del_all_by_netdev(struct ifnet *ndev)
 int ib_query_pkey(struct ib_device *device,
 		  u8 port_num, u16 index, u16 *pkey)
 {
+	if (!rdma_is_port_valid(device, port_num))
+		return -EINVAL;
+
 	return device->query_pkey(device, port_num, index, pkey);
 }
 EXPORT_SYMBOL(ib_query_pkey);
