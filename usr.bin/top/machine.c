@@ -224,6 +224,7 @@ static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 static void update_layout(void);
 static int find_uid(uid_t needle, int *haystack);
+static int cmd_matches(struct kinfo_proc *, const char *);
 
 static int
 find_uid(uid_t needle, int *haystack)
@@ -869,6 +870,10 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		if (sel->pid != -1 && pp->ki_pid != sel->pid)
 			continue;
 
+		if (!cmd_matches(pp, sel->command))
+			/* skip proc. that doesn't match grep string */
+			continue;
+
 		*prefp++ = pp;
 		active_procs++;
 	}
@@ -885,6 +890,36 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	handle.next_proc = pref;
 	handle.remaining = active_procs;
 	return (&handle);
+}
+
+static int
+cmd_matches(struct kinfo_proc *proc, const char *term)
+{
+	extern int show_args;
+	char **args = NULL;
+
+	if (!term) {
+		/* No command filter set */
+		return 1;
+	} else {
+		/* Filter set, does process name contain term? */
+		if (strstr(proc->ki_comm, term))
+			return 1;
+		/* Search arguments only if arguments are displayed */
+		if (show_args) {
+			args = kvm_getargv(kd, proc, 1024);
+			if (args == NULL) {
+				/* Failed to get arguments so can't search them */
+				return 0;
+			}
+			while (*args != NULL) {
+				if (strstr(*args, term))
+					return 1;
+				args++;
+			}
+		}
+	}
+	return 0;
 }
 
 char *

@@ -37,6 +37,8 @@ extern pid_t mypid;
 
 extern int (*compares[])(const void*, const void*);
 
+extern int show_args;
+
 const char* kill_procs(char *);
 const char* renice_procs(char *);
 
