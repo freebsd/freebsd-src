@@ -43,7 +43,7 @@ strcspn(const char *s, const char *charset)
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
 
 	if(*s == '\0')
-		return (0);
+		return 0;
 
 #if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
 	tbl[0] = 1;
@@ -61,5 +61,5 @@ strcspn(const char *s, const char *charset)
 		if ((tbl[IDX(*s1)] & BIT(*s1)) != 0)
 			break;
 	}
-	return (s1 - s);
+	return s1 - s;
 }
