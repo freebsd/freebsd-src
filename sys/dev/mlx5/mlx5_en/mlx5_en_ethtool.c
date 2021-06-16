@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1250,6 +1250,15 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		}
 		break;
 
+	case MLX5_PARAM_OFFSET(irq_cpu_base):
+	case MLX5_PARAM_OFFSET(irq_cpu_stride):
+		if (was_opened) {
+			/* network interface must toggled */
+			mlx5e_close_locked(priv->ifp);
+			mlx5e_open_locked(priv->ifp);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -1413,6 +1422,8 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	int i;
 
 	/* set some defaults */
+	priv->params_ethtool.irq_cpu_base = -1;	/* disabled */
+	priv->params_ethtool.irq_cpu_stride = 1;
 	priv->params_ethtool.tx_queue_size_max = 1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE;
 	priv->params_ethtool.rx_queue_size_max = 1 << MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE;
 	priv->params_ethtool.tx_queue_size = 1 << priv->params.log_sq_size;

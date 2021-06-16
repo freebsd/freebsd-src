@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -710,7 +710,9 @@ struct mlx5e_params {
   m(+1, u64, diag_general_enable, "diag_general_enable", "0: Disabled 1: Enabled") \
   m(+1, u64, hw_mtu, "hw_mtu", "Current hardware MTU value") \
   m(+1, u64, mc_local_lb, "mc_local_lb", "0: Local multicast loopback enabled 1: Disabled") \
-  m(+1, u64, uc_local_lb, "uc_local_lb", "0: Local unicast loopback enabled 1: Disabled")
+  m(+1, u64, uc_local_lb, "uc_local_lb", "0: Local unicast loopback enabled 1: Disabled") \
+  m(+1, s64, irq_cpu_base, "irq_cpu_base", "-1: Don't bind IRQ 0..NCPU-1: select this base CPU when binding IRQs") \
+  m(+1, s64, irq_cpu_stride, "irq_cpu_stride", "0..NCPU-1: Distance between IRQ vectors when binding them")
 
 #define	MLX5E_PARAMS_NUM (0 MLX5E_PARAMS(MLX5E_STATS_COUNT))
 
