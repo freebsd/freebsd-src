@@ -55,8 +55,8 @@ extern int qlnxr_query_srq(struct ib_srq *,
 			struct ib_srq_attr *);
 
 extern int qlnxr_post_srq_recv(struct ib_srq *,
-			struct ib_recv_wr *,
-			struct ib_recv_wr **bad_recv_wr);
+			const struct ib_recv_wr *,
+			const struct ib_recv_wr **bad_recv_wr);
 
 #if __FreeBSD_version < 1102000
 extern int qlnxr_query_device(struct ib_device *, struct ib_device_attr *);
@@ -174,12 +174,12 @@ extern int qlnxr_process_mad(struct ib_device *ibdev,
 #endif /* #if __FreeBSD_version >= 1102000 */
 
 extern int qlnxr_post_send(struct ib_qp *,
-			struct ib_send_wr *,
-			struct ib_send_wr **bad_wr);
+			const struct ib_send_wr *,
+			const struct ib_send_wr **bad_wr);
 
 extern int qlnxr_post_recv(struct ib_qp *,
-			struct ib_recv_wr *,
-			struct ib_recv_wr **bad_wr);
+			const struct ib_recv_wr *,
+			const struct ib_recv_wr **bad_wr);
 
 extern int qlnxr_arm_cq(struct ib_cq *,
 			enum ib_cq_notify_flags flags);
