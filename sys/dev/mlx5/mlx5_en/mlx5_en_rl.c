@@ -116,9 +116,6 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	    &sq->dma_tag)))
 		goto done;
 
-	/* use shared UAR */
-	sq->uar_map = priv->bfreg.map;
-
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 	    &sq->wq_ctrl);
 	if (err)
@@ -165,7 +162,7 @@ mlx5e_rl_open_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	if (err)
 		return (err);
 
-	err = mlx5e_enable_sq(sq, param, priv->rl.tisn);
+	err = mlx5e_enable_sq(sq, param, &priv->channel[ix].bfreg, priv->rl.tisn);
 	if (err)
 		goto err_destroy_sq;
 

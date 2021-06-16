@@ -870,6 +870,7 @@ mlx5e_sq_queue_level(struct mlx5e_sq *sq)
 struct mlx5e_channel {
 	struct mlx5e_rq rq;
 	struct m_snd_tag tag;
+	struct mlx5_sq_bfreg bfreg;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
 	struct mlx5e_priv *priv;
 	struct completion completion;
@@ -1073,8 +1074,6 @@ struct mlx5e_priv {
 	struct mlx5e_dcbx dcbx;
 	bool	sw_is_port_buf_owner;
 
-	struct mlx5_sq_bfreg bfreg;
-
 	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
 };
@@ -1201,7 +1200,8 @@ int	mlx5e_open_cq(struct mlx5e_priv *, struct mlx5e_cq_param *,
 void	mlx5e_close_cq(struct mlx5e_cq *);
 void	mlx5e_free_sq_db(struct mlx5e_sq *);
 int	mlx5e_alloc_sq_db(struct mlx5e_sq *);
-int	mlx5e_enable_sq(struct mlx5e_sq *, struct mlx5e_sq_param *, int tis_num);
+int	mlx5e_enable_sq(struct mlx5e_sq *, struct mlx5e_sq_param *,
+    const struct mlx5_sq_bfreg *, int tis_num);
 int	mlx5e_modify_sq(struct mlx5e_sq *, int curr_state, int next_state);
 void	mlx5e_disable_sq(struct mlx5e_sq *);
 void	mlx5e_drain_sq(struct mlx5e_sq *);
