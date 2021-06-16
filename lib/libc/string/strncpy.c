@@ -70,5 +70,5 @@ strncpy
 			d++, src++;
 		} while (--n != 0);
 	}
-	return (dst);
+	return dst;
 }
