@@ -50,16 +50,15 @@ strnstr(const char *s, const char *find, size_t slen)
 {
 	char c, sc;
 
-	if ((c = *find++) != '\0') {
-		const size_t len = strlen(find);
+	if ((c = *find) != '\0') {
+		const size_t len = strlen(++find);
 		do {
 			do {
 				if (slen < len || (sc = *s) == '\0')
 					return (NULL);
-
 				slen--, s++;
 			} while (sc != c);
-			if (len > slen)
+			if (slen < len)
 				return (NULL);
 		} while (strncmp(s, find, len) != 0);
 		s--;
