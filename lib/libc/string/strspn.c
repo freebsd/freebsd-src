@@ -42,13 +42,13 @@ strspn(const char *s, const char *charset)
 	if(*s == '\0')
 		return 0;
 
-	const char * const s1 = s;
-
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {0};
 
 	for (; *charset != '\0'; charset++) {
 		tbl[IDX(*charset)] |= BIT(*charset);
 	}
+
+	const char * const s1 = s;
 
 	while (tbl[IDX(*s)] & BIT(*charset))
 		s++
