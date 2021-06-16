@@ -1263,7 +1263,7 @@ struct ib_rdma_wr {
 	u32			rkey;
 };
 
-static inline struct ib_rdma_wr *rdma_wr(struct ib_send_wr *wr)
+static inline const struct ib_rdma_wr *rdma_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_rdma_wr, wr);
 }
@@ -1278,7 +1278,7 @@ struct ib_atomic_wr {
 	u32			rkey;
 };
 
-static inline struct ib_atomic_wr *atomic_wr(struct ib_send_wr *wr)
+static inline const struct ib_atomic_wr *atomic_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_atomic_wr, wr);
 }
@@ -1295,7 +1295,7 @@ struct ib_ud_wr {
 	u8			port_num;   /* valid for DR SMPs on switch only */
 };
 
-static inline struct ib_ud_wr *ud_wr(struct ib_send_wr *wr)
+static inline const struct ib_ud_wr *ud_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_ud_wr, wr);
 }
@@ -1307,7 +1307,7 @@ struct ib_reg_wr {
 	int			access;
 };
 
-static inline struct ib_reg_wr *reg_wr(struct ib_send_wr *wr)
+static inline const struct ib_reg_wr *reg_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_reg_wr, wr);
 }
@@ -1320,7 +1320,7 @@ struct ib_sig_handover_wr {
 	struct ib_sge	       *prot;
 };
 
-static inline struct ib_sig_handover_wr *sig_handover_wr(struct ib_send_wr *wr)
+static inline const struct ib_sig_handover_wr *sig_handover_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_sig_handover_wr, wr);
 }
@@ -1979,8 +1979,8 @@ struct ib_device {
 						struct ib_srq_attr *srq_attr);
 	int                        (*destroy_srq)(struct ib_srq *srq);
 	int                        (*post_srq_recv)(struct ib_srq *srq,
-						    struct ib_recv_wr *recv_wr,
-						    struct ib_recv_wr **bad_recv_wr);
+						    const struct ib_recv_wr *recv_wr,
+						    const struct ib_recv_wr **bad_recv_wr);
 	struct ib_qp *             (*create_qp)(struct ib_pd *pd,
 						struct ib_qp_init_attr *qp_init_attr,
 						struct ib_udata *udata);
@@ -1994,11 +1994,11 @@ struct ib_device {
 					       struct ib_qp_init_attr *qp_init_attr);
 	int                        (*destroy_qp)(struct ib_qp *qp);
 	int                        (*post_send)(struct ib_qp *qp,
-						struct ib_send_wr *send_wr,
-						struct ib_send_wr **bad_send_wr);
+						const struct ib_send_wr *send_wr,
+						const struct ib_send_wr **bad_send_wr);
 	int                        (*post_recv)(struct ib_qp *qp,
-						struct ib_recv_wr *recv_wr,
-						struct ib_recv_wr **bad_recv_wr);
+						const struct ib_recv_wr *recv_wr,
+						const struct ib_recv_wr **bad_recv_wr);
 	struct ib_cq *             (*create_cq)(struct ib_device *device,
 						const struct ib_cq_init_attr *attr,
 						struct ib_ucontext *context,
@@ -2723,8 +2723,8 @@ int ib_destroy_srq(struct ib_srq *srq);
  *   the work request that failed to be posted on the QP.
  */
 static inline int ib_post_srq_recv(struct ib_srq *srq,
-				   struct ib_recv_wr *recv_wr,
-				   struct ib_recv_wr **bad_recv_wr)
+				   const struct ib_recv_wr *recv_wr,
+				   const struct ib_recv_wr **bad_recv_wr)
 {
 	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr);
 }
@@ -2808,8 +2808,8 @@ int ib_close_qp(struct ib_qp *qp);
  * earlier work requests in the list.
  */
 static inline int ib_post_send(struct ib_qp *qp,
-			       struct ib_send_wr *send_wr,
-			       struct ib_send_wr **bad_send_wr)
+			       const struct ib_send_wr *send_wr,
+			       const struct ib_send_wr **bad_send_wr)
 {
 	return qp->device->post_send(qp, send_wr, bad_send_wr);
 }
@@ -2823,8 +2823,8 @@ static inline int ib_post_send(struct ib_qp *qp,
  *   the work request that failed to be posted on the QP.
  */
 static inline int ib_post_recv(struct ib_qp *qp,
-			       struct ib_recv_wr *recv_wr,
-			       struct ib_recv_wr **bad_recv_wr)
+			       const struct ib_recv_wr *recv_wr,
+			       const struct ib_recv_wr **bad_recv_wr)
 {
 	return qp->device->post_recv(qp, recv_wr, bad_recv_wr);
 }

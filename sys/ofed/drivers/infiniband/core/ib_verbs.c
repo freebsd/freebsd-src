@@ -1981,7 +1981,7 @@ static void __ib_drain_sq(struct ib_qp *qp)
 {
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe sdrain;
-	struct ib_send_wr *bad_swr;
+	const struct ib_send_wr *bad_swr;
 	struct ib_rdma_wr swr = {
 		.wr = {
 			.opcode	= IB_WR_RDMA_WRITE,
@@ -2021,7 +2021,8 @@ static void __ib_drain_rq(struct ib_qp *qp)
 {
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe rdrain;
-	struct ib_recv_wr rwr = {}, *bad_rwr;
+	struct ib_recv_wr rwr = {};
+	const struct ib_recv_wr *bad_rwr;
 	int ret;
 
 	if (qp->recv_cq->poll_ctx == IB_POLL_DIRECT) {

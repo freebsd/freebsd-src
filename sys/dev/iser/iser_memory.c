@@ -159,7 +159,8 @@ iser_fast_reg_mr(struct icl_iser_pdu *iser_pdu,
 	struct ib_mr *mr = rsc->mr;
 	struct ib_reg_wr fastreg_wr;
 	struct ib_send_wr inv_wr;
-	struct ib_send_wr *bad_wr, *wr = NULL;
+	const struct ib_send_wr *bad_wr;
+	struct ib_send_wr *wr = NULL;
 	int ret, n;
 
 	/* if there a single dma entry, dma mr suffices */

@@ -393,8 +393,8 @@ qlnxr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
 #endif
 
 int
-qlnxr_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-	struct ib_recv_wr **bad_wr)
+qlnxr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+	const struct ib_recv_wr **bad_wr)
 {
 	struct qlnxr_dev	*dev;
 	struct qlnxr_srq	*srq;
@@ -4100,8 +4100,8 @@ static u32
 qlnxr_prepare_sq_inline_data(struct qlnxr_dev *dev,
 	struct qlnxr_qp		*qp,
 	u8			*wqe_size,
-	struct ib_send_wr	*wr,
-	struct ib_send_wr	**bad_wr,
+	const struct ib_send_wr	*wr,
+	const struct ib_send_wr	**bad_wr,
 	u8			*bits,
 	u8			bit)
 {
@@ -4175,7 +4175,7 @@ qlnxr_prepare_sq_inline_data(struct qlnxr_dev *dev,
 
 static u32
 qlnxr_prepare_sq_sges(struct qlnxr_dev *dev, struct qlnxr_qp *qp,
-	u8 *wqe_size, struct ib_send_wr *wr)
+	u8 *wqe_size, const struct ib_send_wr *wr)
 {
 	int i;
 	u32 data_size = 0;
@@ -4206,8 +4206,8 @@ qlnxr_prepare_sq_rdma_data(struct qlnxr_dev *dev,
 	struct qlnxr_qp *qp,
 	struct rdma_sq_rdma_wqe_1st *rwqe,
 	struct rdma_sq_rdma_wqe_2nd *rwqe2,
-	struct ib_send_wr *wr,
-	struct ib_send_wr **bad_wr)
+	const struct ib_send_wr *wr,
+	const struct ib_send_wr **bad_wr)
 {
 	qlnx_host_t	*ha;
 	u32             ret = 0;
@@ -4238,8 +4238,8 @@ qlnxr_prepare_sq_send_data(struct qlnxr_dev *dev,
 	struct qlnxr_qp *qp,
 	struct rdma_sq_send_wqe *swqe,
 	struct rdma_sq_send_wqe *swqe2,
-	struct ib_send_wr *wr,
-	struct ib_send_wr **bad_wr)
+	const struct ib_send_wr *wr,
+	const struct ib_send_wr **bad_wr)
 {
 	qlnx_host_t	*ha;
 	u32             ret = 0;
@@ -4299,7 +4299,7 @@ qlnx_handle_completed_mrs(struct qlnxr_dev *dev, struct mr_info *info)
 
 static int qlnxr_prepare_reg(struct qlnxr_qp *qp,
 		struct rdma_sq_fmr_wqe_1st *fwqe1,
-		struct ib_reg_wr *wr)
+		const struct ib_reg_wr *wr)
 {
 	struct qlnxr_mr *mr = get_qlnxr_mr(wr->mr);
 	struct rdma_sq_fmr_wqe_2nd *fwqe2;
@@ -4338,7 +4338,7 @@ static int qlnxr_prepare_reg(struct qlnxr_qp *qp,
 #else
 
 static void
-build_frmr_pbes(struct qlnxr_dev *dev, struct ib_send_wr *wr,
+build_frmr_pbes(struct qlnxr_dev *dev, const struct ib_send_wr *wr,
 	struct mr_info *info)
 {
 	int i;
@@ -4423,7 +4423,7 @@ qlnxr_prepare_safe_pbl(struct qlnxr_dev *dev, struct mr_info *info)
 static inline int
 qlnxr_prepare_fmr(struct qlnxr_qp *qp,
 	struct rdma_sq_fmr_wqe_1st *fwqe1,
-	struct ib_send_wr *wr)
+	const struct ib_send_wr *wr)
 {
 	struct qlnxr_dev *dev = qp->dev;
 	u64 fbo;
@@ -4525,7 +4525,7 @@ qlnxr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 	}
 }
 static inline bool
-qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
+qlnxr_can_post_send(struct qlnxr_qp *qp, const struct ib_send_wr *wr)
 {
 	int wq_is_full, err_wr, pbl_is_full;
 	struct qlnxr_dev *dev = qp->dev;
@@ -4581,8 +4581,8 @@ qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
 
 int
 qlnxr_post_send(struct ib_qp *ibqp,
-	struct ib_send_wr *wr,
-	struct ib_send_wr **bad_wr)
+	const struct ib_send_wr *wr,
+	const struct ib_send_wr **bad_wr)
 {
 	struct qlnxr_dev	*dev = get_qlnxr_dev(ibqp->device);
 	struct qlnxr_qp		*qp = get_qlnxr_qp(ibqp);
@@ -4972,8 +4972,8 @@ qlnxr_srq_elem_left(struct qlnxr_srq_hwq_info *hw_srq)
 
 int
 qlnxr_post_recv(struct ib_qp *ibqp,
-	struct ib_recv_wr *wr,
-	struct ib_recv_wr **bad_wr)
+	const struct ib_recv_wr *wr,
+	const struct ib_recv_wr **bad_wr)
 {
  	struct qlnxr_qp		*qp = get_qlnxr_qp(ibqp);
 	struct qlnxr_dev	*dev = qp->dev;

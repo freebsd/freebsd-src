@@ -149,7 +149,7 @@ error:
 static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 {
 	struct ipoib_rx_buf *rx_req;
-	struct ib_recv_wr *bad_wr;
+	const struct ib_recv_wr *bad_wr;
 	struct mbuf *m;
 	int ret;
 	int i;
@@ -452,7 +452,7 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
     struct ib_ah *address, u32 qpn, struct ipoib_tx_buf *tx_req, void *head,
     int hlen)
 {
-	struct ib_send_wr *bad_wr;
+	const struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
 	struct mbuf *m;
