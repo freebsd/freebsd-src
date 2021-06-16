@@ -33,6 +33,10 @@ static const char *mlx5_ib_cong_params_desc[] = {
 	MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_DESC)
 };
 
+static const char *mlx5_ib_cong_status_desc[] = {
+	MLX5_IB_CONG_STATUS(MLX5_IB_STATS_DESC)
+};
+
 static const char *mlx5_ib_cong_stats_desc[] = {
 	MLX5_IB_CONG_STATS(MLX5_IB_STATS_DESC)
 };
@@ -346,6 +350,72 @@ done:
 	return (error);
 }
 
+static int
+mlx5_ib_get_all_cc_status(struct mlx5_ib_dev *dev)
+{
+	const int outlen = MLX5_ST_SZ_BYTES(query_cong_status_out);
+	uint32_t out[MLX5_ST_SZ_DW(query_cong_status_out)] = {};
+	int error;
+
+#define	MLX5_IB_CONG_STATUS_READ(a,b,c,d,e,node,prio,field) do { \
+	error = mlx5_cmd_query_cong_status(dev->mdev, node, prio, out, outlen); \
+	if (error)							\
+		goto done;						\
+	dev->congestion.c = MLX5_GET(query_cong_status_out, out, field); \
+} while (0);
+
+	MLX5_IB_CONG_STATUS(MLX5_IB_CONG_STATUS_READ);
+done:
+	return (error);
+}
+
+static int
+mlx5_ib_cong_status_handler(SYSCTL_HANDLER_ARGS)
+{
+	const int inlen = MLX5_ST_SZ_BYTES(modify_cong_status_in);
+	uint32_t in[MLX5_ST_SZ_DW(modify_cong_status_in)] = {};
+	struct mlx5_ib_dev *dev = arg1;
+	u64 value;
+	int error;
+
+	CONG_LOCK(dev);
+	value = dev->congestion.arg[arg2];
+	if (req != NULL) {
+		error = sysctl_handle_64(oidp, &value, 0, req);
+		/* convert value into a boolean */
+		value = value ? 1 : 0;
+		if (error || req->newptr == NULL ||
+		    value == dev->congestion.arg[arg2])
+			goto done;
+
+		/* assign new binary value */
+		dev->congestion.arg[arg2] = value;
+	} else {
+		error = 0;
+	}
+	if (!MLX5_CAP_GEN(dev->mdev, cc_modify_allowed))
+		error = EPERM;
+	else switch (arg2) {
+#define	MLX5_IB_CONG_STATUS_WRITE(a,b,c,d,e,node,prio,field)	\
+	case MLX5_IB_INDEX(c):					\
+		MLX5_SET(modify_cong_status_in, in, opcode,	\
+		    MLX5_CMD_OP_MODIFY_CONG_STATUS);		\
+		MLX5_SET(modify_cong_status_in, in, priority, prio); \
+		MLX5_SET(modify_cong_status_in, in, cong_protocol, node); \
+		MLX5_SET(modify_cong_status_in, in, field, value); \
+		error = -mlx5_cmd_modify_cong_status(dev->mdev, in, inlen); \
+		break;
+	MLX5_IB_CONG_STATUS(MLX5_IB_CONG_STATUS_WRITE)
+	default:
+		error = EINVAL;
+		break;
+	}
+done:
+	CONG_UNLOCK(dev);
+
+	return (error);
+}
+
 #define	MLX5_GET_UNALIGNED_64(t,p,f) \
     (((u64)MLX5_GET(t,p,f##_high) << 32) | MLX5_GET(t,p,f##_low))
 
@@ -422,6 +492,10 @@ mlx5_ib_init_congestion(struct mlx5_ib_dev *dev)
 	if (err)
 		return (err);
 
+	err = mlx5_ib_get_all_cc_status(dev);
+	if (err)
+		return (err);
+
 	parent = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(dev->ib_dev.dev.kobj.oidp),
 	    OID_AUTO, "cong", CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
 	    "Congestion control");
@@ -443,6 +517,16 @@ mlx5_ib_init_congestion(struct mlx5_ib_dev *dev)
 		    CTLTYPE_U64 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		    dev, x, &mlx5_ib_cong_params_handler, "QU",
 		    mlx5_ib_cong_params_desc[2 * x + 1]);
+	}
+
+	for (x = 0; x != MLX5_IB_CONG_STATUS_NUM; x++) {
+		SYSCTL_ADD_PROC(ctx,
+		    SYSCTL_CHILDREN(node), OID_AUTO,
+		    mlx5_ib_cong_status_desc[2 * x],
+		    CTLTYPE_U64 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    dev, x + MLX5_IB_CONG_PARAMS_NUM + MLX5_IB_CONG_STATS_NUM,
+		    &mlx5_ib_cong_status_handler, "QU",
+		    mlx5_ib_cong_status_desc[2 * x + 1]);
 	}
 
 	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(parent),

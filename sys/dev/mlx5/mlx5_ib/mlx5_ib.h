@@ -678,6 +678,44 @@ struct mlx5_roce {
 
 #define	MLX5_IB_CONG_STATS_NUM (0 MLX5_IB_CONG_STATS(MLX5_IB_STATS_COUNT))
 
+#define	MLX5_IB_CONG_STATUS(m) \
+  /* ECN RP */ \
+  m(+1, u64, rp_0_enable, "rp_0_enable", "Enable reaction point, priority 0", MLX5_IB_RROCE_ECN_RP, 0, enable) \
+  m(+1, u64, rp_1_enable, "rp_1_enable", "Enable reaction point, priority 1", MLX5_IB_RROCE_ECN_RP, 1, enable) \
+  m(+1, u64, rp_2_enable, "rp_2_enable", "Enable reaction point, priority 2", MLX5_IB_RROCE_ECN_RP, 2, enable) \
+  m(+1, u64, rp_3_enable, "rp_3_enable", "Enable reaction point, priority 3", MLX5_IB_RROCE_ECN_RP, 3, enable) \
+  m(+1, u64, rp_4_enable, "rp_4_enable", "Enable reaction point, priority 4", MLX5_IB_RROCE_ECN_RP, 4, enable) \
+  m(+1, u64, rp_5_enable, "rp_5_enable", "Enable reaction point, priority 5", MLX5_IB_RROCE_ECN_RP, 5, enable) \
+  m(+1, u64, rp_6_enable, "rp_6_enable", "Enable reaction point, priority 6", MLX5_IB_RROCE_ECN_RP, 6, enable) \
+  m(+1, u64, rp_7_enable, "rp_7_enable", "Enable reaction point, priority 7", MLX5_IB_RROCE_ECN_RP, 7, enable) \
+  m(+1, u64, rp_8_enable, "rp_8_enable", "Enable reaction point, priority 8", MLX5_IB_RROCE_ECN_RP, 8, enable) \
+  m(+1, u64, rp_9_enable, "rp_9_enable", "Enable reaction point, priority 9", MLX5_IB_RROCE_ECN_RP, 9, enable) \
+  m(+1, u64, rp_10_enable, "rp_10_enable", "Enable reaction point, priority 10", MLX5_IB_RROCE_ECN_RP, 10, enable) \
+  m(+1, u64, rp_11_enable, "rp_11_enable", "Enable reaction point, priority 11", MLX5_IB_RROCE_ECN_RP, 11, enable) \
+  m(+1, u64, rp_12_enable, "rp_12_enable", "Enable reaction point, priority 12", MLX5_IB_RROCE_ECN_RP, 12, enable) \
+  m(+1, u64, rp_13_enable, "rp_13_enable", "Enable reaction point, priority 13", MLX5_IB_RROCE_ECN_RP, 13, enable) \
+  m(+1, u64, rp_14_enable, "rp_14_enable", "Enable reaction point, priority 14", MLX5_IB_RROCE_ECN_RP, 14, enable) \
+  m(+1, u64, rp_15_enable, "rp_15_enable", "Enable reaction point, priority 15", MLX5_IB_RROCE_ECN_RP, 15, enable) \
+  /* ECN NP */ \
+  m(+1, u64, np_0_enable, "np_0_enable", "Enable notification point, priority 0", MLX5_IB_RROCE_ECN_NP, 0, enable) \
+  m(+1, u64, np_1_enable, "np_1_enable", "Enable notification point, priority 1", MLX5_IB_RROCE_ECN_NP, 1, enable) \
+  m(+1, u64, np_2_enable, "np_2_enable", "Enable notification point, priority 2", MLX5_IB_RROCE_ECN_NP, 2, enable) \
+  m(+1, u64, np_3_enable, "np_3_enable", "Enable notification point, priority 3", MLX5_IB_RROCE_ECN_NP, 3, enable) \
+  m(+1, u64, np_4_enable, "np_4_enable", "Enable notification point, priority 4", MLX5_IB_RROCE_ECN_NP, 4, enable) \
+  m(+1, u64, np_5_enable, "np_5_enable", "Enable notification point, priority 5", MLX5_IB_RROCE_ECN_NP, 5, enable) \
+  m(+1, u64, np_6_enable, "np_6_enable", "Enable notification point, priority 6", MLX5_IB_RROCE_ECN_NP, 6, enable) \
+  m(+1, u64, np_7_enable, "np_7_enable", "Enable notification point, priority 7", MLX5_IB_RROCE_ECN_NP, 7, enable) \
+  m(+1, u64, np_8_enable, "np_8_enable", "Enable notification point, priority 8", MLX5_IB_RROCE_ECN_NP, 8, enable) \
+  m(+1, u64, np_9_enable, "np_9_enable", "Enable notification point, priority 9", MLX5_IB_RROCE_ECN_NP, 9, enable) \
+  m(+1, u64, np_10_enable, "np_10_enable", "Enable notification point, priority 10", MLX5_IB_RROCE_ECN_NP, 10, enable) \
+  m(+1, u64, np_11_enable, "np_11_enable", "Enable notification point, priority 11", MLX5_IB_RROCE_ECN_NP, 11, enable) \
+  m(+1, u64, np_12_enable, "np_12_enable", "Enable notification point, priority 12", MLX5_IB_RROCE_ECN_NP, 12, enable) \
+  m(+1, u64, np_13_enable, "np_13_enable", "Enable notification point, priority 13", MLX5_IB_RROCE_ECN_NP, 13, enable) \
+  m(+1, u64, np_14_enable, "np_14_enable", "Enable notification point, priority 14", MLX5_IB_RROCE_ECN_NP, 14, enable) \
+  m(+1, u64, np_15_enable, "np_15_enable", "Enable notification point, priority 15", MLX5_IB_RROCE_ECN_NP, 15, enable) \
+
+#define	MLX5_IB_CONG_STATUS_NUM (0 MLX5_IB_CONG_STATUS(MLX5_IB_STATS_COUNT))
+
 struct mlx5_ib_congestion {
 	struct sysctl_ctx_list ctx;
 	struct sx lock;
@@ -687,6 +725,7 @@ struct mlx5_ib_congestion {
 		struct {
 			MLX5_IB_CONG_PARAMS(MLX5_IB_STATS_VAR)
 			MLX5_IB_CONG_STATS(MLX5_IB_STATS_VAR)
+			MLX5_IB_CONG_STATUS(MLX5_IB_STATS_VAR)
 		};
 	};
 };
