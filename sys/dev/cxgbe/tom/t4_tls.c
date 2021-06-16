@@ -777,23 +777,6 @@ tls_uninit_toep(struct toepcb *toep)
 	    sizeof(struct ulptx_sc_memrd) +				\
 	    AES_BLOCK_LEN + 1, 16))
 
-static inline u_int
-max_imm_tls_space(int tx_credits)
-{
-	const int n = 2;	/* Use only up to 2 desc for imm. data WR */
-	int space;
-
-	KASSERT(tx_credits >= 0 &&
-		tx_credits <= MAX_OFLD_TX_CREDITS,
-		("%s: %d credits", __func__, tx_credits));
-
-	if (tx_credits >= (n * EQ_ESIZE) / 16)
-		space = (n * EQ_ESIZE);
-	else
-		space = tx_credits * 16;
-	return (space);
-}
-
 static void
 write_tlstx_wr(struct fw_tlstx_data_wr *txwr, struct toepcb *toep,
     unsigned int immdlen, unsigned int plen, unsigned int expn,
