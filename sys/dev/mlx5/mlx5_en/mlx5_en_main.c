@@ -2446,6 +2446,30 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 		err = mlx5e_open_channel(priv, cparam, &priv->channel[i]);
 		if (err)
 			goto err_close_channels;
+
+		/* Bind interrupt vectors, if any. */
+		if (priv->params_ethtool.irq_cpu_base > -1) {
+			cpuset_t cpuset;
+			int cpu;
+			int irq;
+			int eqn;
+			int nirq;
+
+			err = mlx5_vector2eqn(priv->mdev, i,
+			    &eqn, &nirq);
+
+			/* error here is non-fatal */
+			if (err != 0)
+				continue;
+
+			irq = priv->mdev->priv.msix_arr[nirq].vector;
+			cpu = (unsigned)(priv->params_ethtool.irq_cpu_base +
+			    i * priv->params_ethtool.irq_cpu_stride) % (unsigned)mp_ncpus;
+
+			CPU_ZERO(&cpuset);
+			CPU_SET(cpu, &cpuset);
+			intr_setaffinity(irq, CPU_WHICH_INTRHANDLER, &cpuset);
+		}
 	}
 
 	for (j = 0; j < priv->params.num_channels; j++) {
