@@ -40,5 +40,5 @@ strnlen(const char *s, size_t maxlen)
 	while (*s && s != es) {
 		s++;
 	}
-	return (s - p);
+	return s - p;
 }
