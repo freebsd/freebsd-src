@@ -55,13 +55,13 @@ strnstr(const char *s, const char *find, size_t slen)
 		do {
 			do {
 				if (slen < len || (sc = *s) == '\0')
-					return (NULL);
+					return NULL;
 				slen--, s++;
 			} while (sc != c);
 			if (slen < len)
-				return (NULL);
+				return NULL;
 		} while (strncmp(s, find, len) != 0);
 		s--;
 	}
-	return ((char *)s);
+	return (char *)s;
 }
