@@ -460,6 +460,32 @@ static void cm_set_private_data(struct cm_id_private *cm_id_priv,
 	cm_id_priv->private_data_len = private_data_len;
 }
 
+static int cm_init_av_for_lap(struct cm_port *port, struct ib_wc *wc,
+			      struct ib_grh *grh, struct cm_av *av)
+{
+	struct ib_ah_attr new_ah_attr;
+	int ret;
+
+	av->port = port;
+	av->pkey_index = wc->pkey_index;
+
+	/*
+	 * av->ah_attr might be initialized based on past wc during incoming
+	 * connect request or while sending out connect request. So initialize
+	 * a new ah_attr on stack. If initialization fails, old ah_attr is
+	 * used for sending any responses. If initialization is successful,
+	 * than new ah_attr is used by overwriting old one.
+	 */
+	ret = ib_init_ah_from_wc(port->cm_dev->ib_device,
+				 port->port_num, wc,
+				 grh, &new_ah_attr);
+	if (ret)
+		return ret;
+
+	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	return 0;
+}
+
 static int cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 				   struct ib_grh *grh, struct cm_av *av)
 {
@@ -3253,9 +3279,9 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	wc = work->mad_recv_wc->wc;
 	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
-	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
-				      work->mad_recv_wc->recv_buf.grh,
-				      &cm_id_priv->av);
+	ret = cm_init_av_for_lap(work->port, work->mad_recv_wc->wc,
+				 work->mad_recv_wc->recv_buf.grh,
+				 &cm_id_priv->av);
 	if (ret)
 		goto out;
 	cm_id_priv->id.remote_id = sidr_req_msg->request_id;
