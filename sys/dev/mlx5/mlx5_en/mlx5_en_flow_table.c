@@ -2252,34 +2252,28 @@ mlx5e_open_flow_table(struct mlx5e_priv *priv)
 		err = mlx5e_create_main_flow_table(priv, true);
 		if (err)
 			goto err_destroy_main_flow_table;
-	}
 
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
 		err = mlx5e_create_inner_rss_flow_table(priv);
 		if (err)
 			goto err_destroy_main_vxlan_flow_table;
-	}
 
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
 		err = mlx5e_add_vxlan_catchall_rule(priv);
 		if (err != 0)
 			goto err_destroy_inner_rss_flow_table;
-	}
 
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0) {
 		err = mlx5e_add_main_vxlan_rules(priv);
 		if (err != 0)
-			goto err_destroy_inner_rss_flow_table;
+			goto err_destroy_vxlan_catchall_rule;
 	}
 
 	return (0);
 
+err_destroy_vxlan_catchall_rule:
+	mlx5e_del_vxlan_catchall_rule(priv);
 err_destroy_inner_rss_flow_table:
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
-		mlx5e_destroy_inner_rss_flow_table(priv);
+	mlx5e_destroy_inner_rss_flow_table(priv);
 err_destroy_main_vxlan_flow_table:
-	if ((priv->ifp->if_capenable & IFCAP_VXLAN_HWCSUM) != 0)
-		mlx5e_destroy_main_vxlan_flow_table(priv);
+	mlx5e_destroy_main_vxlan_flow_table(priv);
 err_destroy_main_flow_table:
 	mlx5e_destroy_main_flow_table(priv);
 err_destroy_vxlan_flow_table:
