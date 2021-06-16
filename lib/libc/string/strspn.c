@@ -40,10 +40,12 @@ size_t
 strspn(const char *s, const char *charset)
 {
 	const char *s1;
-	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {0};
+	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
 
 	if(*s == '\0')
 		return 0;
+
+	tbl = {0};
 
 	for (; *charset != '\0'; charset++) {
 		tbl[IDX(*charset)] |= BIT(*charset);
