@@ -336,8 +336,10 @@ struct rdma_id_private {
 	u32			options;
 	u8			srq;
 	u8			tos;
+	u8			timeout_set:1;
 	u8			reuseaddr;
 	u8			afonly;
+	u8			timeout;
 	enum ib_gid_type	gid_type;
 };
 
@@ -775,6 +777,7 @@ struct rdma_cm_id *rdma_create_id(struct vnet *net,
 	id_priv->id.event_handler = event_handler;
 	id_priv->id.ps = ps;
 	id_priv->id.qp_type = qp_type;
+	id_priv->timeout_set = false;
 	spin_lock_init(&id_priv->lock);
 	mutex_init(&id_priv->qp_mutex);
 	init_completion(&id_priv->comp);
@@ -1020,6 +1023,9 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
 		*qp_attr_mask |= IB_QP_PORT;
 	} else
 		ret = -ENOSYS;
+
+	if ((*qp_attr_mask & IB_QP_TIMEOUT) && id_priv->timeout_set)
+		qp_attr->timeout = id_priv->timeout;
 
 	return ret;
 }
@@ -2494,6 +2500,34 @@ void rdma_set_service_type(struct rdma_cm_id *id, int tos)
 	id_priv->tos = (u8) tos;
 }
 EXPORT_SYMBOL(rdma_set_service_type);
+
+/**
+ * rdma_set_ack_timeout() - Set the ack timeout of QP associated
+ *                          with a connection identifier.
+ * @id: Communication identifier to associated with service type.
+ * @timeout: Ack timeout to set a QP, expressed as 4.096 * 2^(timeout) usec.
+ *
+ * This function should be called before rdma_connect() on active side,
+ * and on passive side before rdma_accept(). It is applicable to primary
+ * path only. The timeout will affect the local side of the QP, it is not
+ * negotiated with remote side and zero disables the timer.
+ *
+ * Return: 0 for success
+ */
+int rdma_set_ack_timeout(struct rdma_cm_id *id, u8 timeout)
+{
+	struct rdma_id_private *id_priv;
+
+	if (id->qp_type != IB_QPT_RC)
+		return -EINVAL;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	id_priv->timeout = timeout;
+	id_priv->timeout_set = true;
+
+	return 0;
+}
+EXPORT_SYMBOL(rdma_set_ack_timeout);
 
 static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
 			      void *context)
