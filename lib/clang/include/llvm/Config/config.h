@@ -59,11 +59,13 @@
 /* Define if dladdr() is available on this platform. */
 #define HAVE_DLADDR 1
 
+#if !defined(__arm__) || defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__)
 /* Define to 1 if we can register EH frames on this platform. */
 #define HAVE_REGISTER_FRAME 1
 
 /* Define to 1 if we can deregister EH frames on this platform. */
 #define HAVE_DEREGISTER_FRAME 1
+#endif // !arm || USING_SJLJ_EXCEPTIONS || ARM_DWARF_EH_
 
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
