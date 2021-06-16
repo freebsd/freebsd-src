@@ -59,5 +59,5 @@ memchr(const void *src, int c, size_t n)
 		     return (void *)s;
 		s++;
 	}
-	return NULL;
+	return (NULL);
 }
