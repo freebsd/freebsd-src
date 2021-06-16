@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2020, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -962,6 +962,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 
 	qpc = MLX5_ADDR_OF(create_qp_in, *in, qpc);
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
+	MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(dev->mdev));
 	MLX5_SET(qpc, qpc, log_page_size, qp->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
 	/* Set "fast registration enabled" for all kernel QPs */
@@ -1075,6 +1076,9 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 	int npages;
 	int ncont = 0;
 	u32 offset = 0;
+	u8 ts_format;
+
+	ts_format = mlx5_get_sq_default_ts(dev->mdev);
 
 	err = mlx5_ib_umem_get(dev, pd, ubuffer->buf_addr, ubuffer->buf_size,
 			       &sq->ubuffer.umem, &npages, &page_shift,
@@ -1092,6 +1096,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
+	MLX5_SET(sqc, sqc, ts_format, ts_format);
 	MLX5_SET(sqc, sqc, user_index, MLX5_GET(qpc, qpc, user_index));
 	MLX5_SET(sqc, sqc, cqn, MLX5_GET(qpc, qpc, cqn_snd));
 	MLX5_SET(sqc, sqc, tis_lst_sz, 1);
@@ -1161,6 +1166,9 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	int inlen;
 	int err;
 	u32 rq_pas_size = get_rq_pas_size(qpc);
+	u8 ts_format;
+
+	ts_format = mlx5_get_rq_default_ts(dev->mdev);
 
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) + rq_pas_size;
 	in = mlx5_vzalloc(inlen);
@@ -1171,6 +1179,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	MLX5_SET(rqc, rqc, vlan_strip_disable, 1);
 	MLX5_SET(rqc, rqc, mem_rq_type, MLX5_RQC_RQ_TYPE_MEMORY_RQ_INLINE);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RST);
+	MLX5_SET(rqc, rqc, ts_format, ts_format);
 	MLX5_SET(rqc, rqc, flush_in_error_en, 1);
 	MLX5_SET(rqc, rqc, user_index, MLX5_GET(qpc, qpc, user_index));
 	MLX5_SET(rqc, rqc, cqn, MLX5_GET(qpc, qpc, cqn_rcv));
@@ -1753,6 +1762,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		MLX5_SET(qpc, qpc, log_rq_stride, qp->rq.wqe_shift - 4);
 		MLX5_SET(qpc, qpc, log_rq_size, ilog2(qp->rq.wqe_cnt));
 	}
+
+	if (init_attr->qp_type != IB_QPT_RAW_PACKET)
+		MLX5_SET(qpc, qpc, ts_format, mlx5_get_qp_default_ts(dev->mdev));
 
 	MLX5_SET(qpc, qpc, rq_type, get_rx_type(qp, init_attr));
 
