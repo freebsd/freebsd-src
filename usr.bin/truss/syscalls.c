@@ -1908,32 +1908,29 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		fputs(" ]", fp);
 		break;
 	}
-#ifdef __LP64__
-	case Quad:
-		fprintf(fp, "%ld", args[sc->offset]);
-		break;
-	case QuadHex:
-		fprintf(fp, "0x%lx", args[sc->offset]);
-		break;
-#else
 	case Quad:
 	case QuadHex: {
-		unsigned long long ll;
+		uint64_t value;
+		size_t pointer_size =
+		    trussinfo->curthread->proc->abi->pointer_size;
 
+		if (pointer_size == 4) {
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-		ll = (unsigned long long)args[sc->offset + 1] << 32 |
-		    args[sc->offset];
+			value = (uint64_t)args[sc->offset + 1] << 32 |
+			    args[sc->offset];
 #else
-		ll = (unsigned long long)args[sc->offset] << 32 |
-		    args[sc->offset + 1];
+			value = (uint64_t)args[sc->offset] << 32 |
+			    args[sc->offset + 1];
 #endif
+		} else {
+			value = (uint64_t)args[sc->offset];
+		}
 		if ((sc->type & ARG_MASK) == Quad)
-			fprintf(fp, "%lld", ll);
+			fprintf(fp, "%jd", (intmax_t)value);
 		else
-			fprintf(fp, "0x%llx", ll);
+			fprintf(fp, "0x%jx", (intmax_t)value);
 		break;
 	}
-#endif
 	case PQuadHex: {
 		uint64_t val;
 
@@ -3015,11 +3012,9 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 		fprintf(trussinfo->outfile, " ERR#%d '%s'\n",
 		    sysdecode_freebsd_to_abi_errno(t->proc->abi->abi, error),
 		    strerror(error));
-	}
-#ifndef __LP64__
-	else if (sc->decode.ret_type == 2) {
+	} else if (sc->decode.ret_type == 2 &&
+	    t->proc->abi->pointer_size == 4) {
 		off_t off;
-
 #if _BYTE_ORDER == _LITTLE_ENDIAN
 		off = (off_t)retval[1] << 32 | retval[0];
 #else
@@ -3027,11 +3022,10 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 #endif
 		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n", (intmax_t)off,
 		    (intmax_t)off);
-	}
-#endif
-	else
+	} else {
 		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n",
 		    (intmax_t)retval[0], (intmax_t)retval[0]);
+	}
 }
 
 void
