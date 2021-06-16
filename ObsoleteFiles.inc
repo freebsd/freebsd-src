@@ -40,6 +40,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210616: Remove crypto_cursor_seg{base,len}
+OLD_FILES+=usr/share/man/man9/crypto_cursor_segbase.9.gz
+OLD_FILES+=usr/share/man/man9/crypto_cursor_seglen.9.gz
+
 # 20210613: new clang import which bumps version from 11.0.1 to 12.0.0.
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/complex
