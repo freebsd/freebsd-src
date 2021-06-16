@@ -15,6 +15,7 @@ TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		kqueue
 TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
+TESTS_SUBDIRS+=		netgraph
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		opencrypto
