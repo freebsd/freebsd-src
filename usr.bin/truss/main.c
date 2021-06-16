@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "syscall.h"
 
-static void
+static __dead2 void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n",
@@ -118,7 +118,8 @@ main(int ac, char **av)
 			fname = optarg;
 			break;
 		case 's':	/* Specified string size */
-			trussinfo->strsize = strtonum(optarg, 0, INT_MAX, &errstr);
+			trussinfo->strsize = (int)strtonum(optarg, 0, INT_MAX,
+			    &errstr);
 			if (errstr)
 				errx(1, "maximum string size is %s: %s", errstr, optarg);
 			break;
