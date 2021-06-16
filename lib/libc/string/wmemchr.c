@@ -44,7 +44,7 @@ wmemchr(const wchar_t *s, wchar_t c, size_t n)
 	for (; n; n--) {
 		if (*s == c) {
 			/* LINTED const castaway */
-			return (wchar_t *)s;
+			return ((wchar_t *)s);
 		}
 		s++;
 	}
