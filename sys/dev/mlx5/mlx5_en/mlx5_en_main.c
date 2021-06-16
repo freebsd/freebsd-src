@@ -3707,6 +3707,18 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	return (0);
 }
 
+static void
+mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
+{
+	bool ro_pci_enable =
+	    pci_get_relaxed_ordering_enabled(mdev->pdev->dev.bsddev);
+	bool ro_write = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
+	bool ro_read = MLX5_CAP_GEN(mdev, relaxed_ordering_read);
+
+	MLX5_SET(mkc, mkc, relaxed_ordering_read, ro_pci_enable && ro_read);
+	MLX5_SET(mkc, mkc, relaxed_ordering_write, ro_pci_enable && ro_write);
+}
+
 static int
 mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 		  struct mlx5_core_mr *mkey)
@@ -3729,7 +3741,7 @@ mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 	MLX5_SET(mkc, mkc, umr_en, 1);	/* used by HW TLS */
 	MLX5_SET(mkc, mkc, lw, 1);
 	MLX5_SET(mkc, mkc, lr, 1);
-
+	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
 	MLX5_SET(mkc, mkc, pd, pdn);
 	MLX5_SET(mkc, mkc, length64, 1);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
