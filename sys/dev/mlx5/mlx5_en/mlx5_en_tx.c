@@ -1038,6 +1038,9 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 	while (budget > 0) {
 		struct mlx5_cqe64 *cqe;
 		struct mbuf *mb;
+		bool match;
+		u16 sqcc_this;
+		u16 delta;
 		u16 x;
 		u16 ci;
 
@@ -1047,11 +1050,28 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 
 		mlx5_cqwq_pop(&sq->cq.wq);
 
+		/* check if the completion event indicates an error */
+		if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_REQ))
+			sq->stats.cqe_err++;
+
+		/* setup local variables */
+		sqcc_this = be16toh(cqe->wqe_counter);
+		match = false;
+
 		/* update budget according to the event factor */
 		budget -= sq->cev_factor;
 
-		for (x = 0; x != sq->cev_factor; x++) {
+		for (x = 0;; x++) {
+			if (unlikely(match != false)) {
+				break;
+			} else if (unlikely(x == sq->cev_factor)) {
+				/* WQE counter match not found */
+				sq->stats.cqe_err++;
+				break;
+			}
 			ci = sqcc & sq->wq.sz_m1;
+			delta = sqcc_this - sqcc;
+			match = (delta < sq->mbuf[ci].num_wqebbs);
 			mb = sq->mbuf[ci].mbuf;
 			sq->mbuf[ci].mbuf = NULL;
 
@@ -1061,10 +1081,8 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 			}
 
 			if (mb == NULL) {
-				if (sq->mbuf[ci].num_bytes == 0) {
-					/* NOP */
+				if (unlikely(sq->mbuf[ci].num_bytes == 0))
 					sq->stats.nop++;
-				}
 			} else {
 				bus_dmamap_sync(sq->dma_tag, sq->mbuf[ci].dma_map,
 				    BUS_DMASYNC_POSTWRITE);
