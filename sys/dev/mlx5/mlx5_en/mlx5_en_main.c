@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2021 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,355 +57,300 @@ struct media {
 	u64	baudrate;
 };
 
-static const struct media mlx5e_mode_table[MLX5E_LINK_SPEEDS_NUMBER][MLX5E_LINK_MODES_NUMBER] = {
-
-	[MLX5E_1000BASE_CX_SGMII][MLX5E_SGMII] = {
+static const struct media mlx5e_mode_table[MLX5E_LINK_SPEEDS_NUMBER] =
+{
+	[MLX5E_1000BASE_CX_SGMII] = {
 		.subtype = IFM_1000_CX_SGMII,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_1000BASE_KX][MLX5E_KX] = {
+	[MLX5E_1000BASE_KX] = {
 		.subtype = IFM_1000_KX,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_10GBASE_CX4][MLX5E_CX4] = {
+	[MLX5E_10GBASE_CX4] = {
 		.subtype = IFM_10G_CX4,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_KX4][MLX5E_KX4] = {
+	[MLX5E_10GBASE_KX4] = {
 		.subtype = IFM_10G_KX4,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_KR][MLX5E_KR] = {
+	[MLX5E_10GBASE_KR] = {
 		.subtype = IFM_10G_KR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_20GBASE_KR2][MLX5E_KR2] = {
+	[MLX5E_20GBASE_KR2] = {
 		.subtype = IFM_20G_KR2,
 		.baudrate = IF_Gbps(20ULL),
 	},
-	[MLX5E_40GBASE_CR4][MLX5E_CR4] = {
+	[MLX5E_40GBASE_CR4] = {
 		.subtype = IFM_40G_CR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_KR4][MLX5E_KR4] = {
+	[MLX5E_40GBASE_KR4] = {
 		.subtype = IFM_40G_KR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_56GBASE_R4][MLX5E_R] = {
+	[MLX5E_56GBASE_R4] = {
 		.subtype = IFM_56G_R4,
 		.baudrate = IF_Gbps(56ULL),
 	},
-	[MLX5E_10GBASE_CR][MLX5E_CR1] = {
+	[MLX5E_10GBASE_CR] = {
 		.subtype = IFM_10G_CR1,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_SR][MLX5E_SR] = {
+	[MLX5E_10GBASE_SR] = {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_ER_LR][MLX5E_ER] = {
+	[MLX5E_10GBASE_ER_LR] = {
 		.subtype = IFM_10G_ER,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_ER_LR][MLX5E_LR] = {
-		.subtype = IFM_10G_LR,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_40GBASE_SR4][MLX5E_SR4] = {
+	[MLX5E_40GBASE_SR4] = {
 		.subtype = IFM_40G_SR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_LR4_ER4][MLX5E_LR4] = {
+	[MLX5E_40GBASE_LR4_ER4] = {
 		.subtype = IFM_40G_LR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_LR4_ER4][MLX5E_ER4] = {
-		.subtype = IFM_40G_ER4,
-		.baudrate = IF_Gbps(40ULL),
-	},
-	[MLX5E_100GBASE_CR4][MLX5E_CR4] = {
+	[MLX5E_100GBASE_CR4] = {
 		.subtype = IFM_100G_CR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_SR4][MLX5E_SR4] = {
+	[MLX5E_100GBASE_SR4] = {
 		.subtype = IFM_100G_SR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_KR4][MLX5E_KR4] = {
+	[MLX5E_100GBASE_KR4] = {
 		.subtype = IFM_100G_KR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GBASE_LR4][MLX5E_LR4] = {
+	[MLX5E_100GBASE_LR4] = {
 		.subtype = IFM_100G_LR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100BASE_TX][MLX5E_TX] = {
+	[MLX5E_100BASE_TX] = {
 		.subtype = IFM_100_TX,
 		.baudrate = IF_Mbps(100ULL),
 	},
-	[MLX5E_1000BASE_T][MLX5E_T] = {
+	[MLX5E_1000BASE_T] = {
 		.subtype = IFM_1000_T,
 		.baudrate = IF_Mbps(1000ULL),
 	},
-	[MLX5E_10GBASE_T][MLX5E_T] = {
+	[MLX5E_10GBASE_T] = {
 		.subtype = IFM_10G_T,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_25GBASE_CR][MLX5E_CR] = {
+	[MLX5E_25GBASE_CR] = {
 		.subtype = IFM_25G_CR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GBASE_KR][MLX5E_KR] = {
+	[MLX5E_25GBASE_KR] = {
 		.subtype = IFM_25G_KR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GBASE_SR][MLX5E_SR] = {
+	[MLX5E_25GBASE_SR] = {
 		.subtype = IFM_25G_SR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_50GBASE_CR2][MLX5E_CR2] = {
+	[MLX5E_50GBASE_CR2] = {
 		.subtype = IFM_50G_CR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GBASE_KR2][MLX5E_KR2] = {
+	[MLX5E_50GBASE_KR2] = {
 		.subtype = IFM_50G_KR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GBASE_KR4][MLX5E_KR4] = {
+	[MLX5E_50GBASE_KR4] = {
 		.subtype = IFM_50G_KR4,
 		.baudrate = IF_Gbps(50ULL),
 	},
 };
 
-static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_LINK_MODES_NUMBER] = {
-	[MLX5E_SGMII_100M][MLX5E_SGMII] = {
+static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_CABLE_TYPE_NUMBER] =
+{
+	/**/
+	[MLX5E_SGMII_100M][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_100_SGMII,
 		.baudrate = IF_Mbps(100),
 	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_KX] = {
-		.subtype = IFM_1000_KX,
-		.baudrate = IF_Mbps(1000),
-	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_CX_SGMII] = {
-		.subtype = IFM_1000_CX_SGMII,
-		.baudrate = IF_Mbps(1000),
-	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_CX] = {
+
+	/**/
+	[MLX5E_1000BASE_X_SGMII][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_1000_CX,
 		.baudrate = IF_Mbps(1000),
 	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_LX] = {
-		.subtype = IFM_1000_LX,
-		.baudrate = IF_Mbps(1000),
-	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_SX] = {
+	[MLX5E_1000BASE_X_SGMII][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
 		.subtype = IFM_1000_SX,
 		.baudrate = IF_Mbps(1000),
 	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_T] = {
-		.subtype = IFM_1000_T,
-		.baudrate = IF_Mbps(1000),
-	},
-	[MLX5E_5GBASE_R][MLX5E_T] = {
-		.subtype = IFM_5000_T,
-		.baudrate = IF_Mbps(5000),
-	},
-	[MLX5E_5GBASE_R][MLX5E_KR] = {
+
+	/**/
+	[MLX5E_5GBASE_R][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_5000_KR,
 		.baudrate = IF_Mbps(5000),
 	},
-	[MLX5E_5GBASE_R][MLX5E_KR1] = {
-		.subtype = IFM_5000_KR1,
+	[MLX5E_5GBASE_R][MLX5E_CABLE_TYPE_TWISTED_PAIR] = {
+		.subtype = IFM_5000_T,
 		.baudrate = IF_Mbps(5000),
 	},
-	[MLX5E_5GBASE_R][MLX5E_KR_S] = {
-		.subtype = IFM_5000_KR_S,
-		.baudrate = IF_Mbps(5000),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_ER] = {
-		.subtype = IFM_10G_ER,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_KR] = {
+
+	/**/
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_10G_KR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_LR] = {
-		.subtype = IFM_10G_LR,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_SR] = {
-		.subtype = IFM_10G_SR,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_T] = {
-		.subtype = IFM_10G_T,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_AOC] = {
-		.subtype = IFM_10G_AOC,
-		.baudrate = IF_Gbps(10ULL),
-	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CR1] = {
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
 		.subtype = IFM_10G_CR1,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CR4] = {
-		.subtype = IFM_40G_CR4,
-		.baudrate = IF_Gbps(40ULL),
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_10G_SR,
+		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_KR4] = {
+
+	/**/
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_40G_KR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_LR4] = {
-		.subtype = IFM_40G_LR4,
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_40G_CR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_SR4] = {
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
 		.subtype = IFM_40G_SR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_ER4] = {
-		.subtype = IFM_40G_ER4,
-		.baudrate = IF_Gbps(40ULL),
-	},
 
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR] = {
-		.subtype = IFM_25G_CR,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR] = {
+	/**/
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_25G_KR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_SR] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_25G_CR,
+		.baudrate = IF_Gbps(25ULL),
+	},
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
 		.subtype = IFM_25G_SR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_ACC] = {
-		.subtype = IFM_25G_ACC,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_AOC] = {
-		.subtype = IFM_25G_AOC,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR1] = {
-		.subtype = IFM_25G_CR1,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CR_S] = {
-		.subtype = IFM_25G_CR_S,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR1] = {
-		.subtype = IFM_5000_KR1,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_KR_S] = {
-		.subtype = IFM_25G_KR_S,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_LR] = {
-		.subtype = IFM_25G_LR,
-		.baudrate = IF_Gbps(25ULL),
-	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_T] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_TWISTED_PAIR] = {
 		.subtype = IFM_25G_T,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CR2] = {
-		.subtype = IFM_50G_CR2,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_KR2] = {
+
+	/**/
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_50G_KR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_KR4] = {
-		.subtype = IFM_50G_KR4,
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_50G_CR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_SR2] = {
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
 		.subtype = IFM_50G_SR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_LR2] = {
-		.subtype = IFM_50G_LR2,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_LR] = {
-		.subtype = IFM_50G_LR,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_SR] = {
-		.subtype = IFM_50G_SR,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CP] = {
-		.subtype = IFM_50G_CP,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_FR] = {
-		.subtype = IFM_50G_FR,
-		.baudrate = IF_Gbps(50ULL),
-	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_KR_PAM4] = {
+
+	/**/
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_50G_KR_PAM4,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CR4] = {
-		.subtype = IFM_100G_CR4,
-		.baudrate = IF_Gbps(100ULL),
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_50G_CP,
+		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_KR4] = {
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_50G_SR,
+		.baudrate = IF_Gbps(50ULL),
+	},
+
+	/**/
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
 		.subtype = IFM_100G_KR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_LR4] = {
-		.subtype = IFM_100G_LR4,
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_100G_CR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_SR4] = {
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
 		.subtype = IFM_100G_SR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_SR2] = {
-		.subtype = IFM_100G_SR2,
+
+	/**/
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_100G_KR_PAM4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CP2] = {
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_100G_CR_PAM4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_100G_SR2,	/* XXX */
+		.baudrate = IF_Gbps(100ULL),
+	},
+
+	/**/
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_100G_KR4,
+		.baudrate = IF_Gbps(100ULL),
+	},
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
 		.subtype = IFM_100G_CP2,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_KR2_PAM4] = {
-		.subtype = IFM_100G_KR2_PAM4,
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_100G_SR2,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_DR4] = {
-		.subtype = IFM_200G_DR4,
+
+	/**/
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_200G_KR4_PAM4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_LR4] = {
-		.subtype = IFM_200G_LR4,
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+		.subtype = IFM_200G_CR4_PAM4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_SR4] = {
-		.subtype = IFM_200G_SR4,
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_200G_SR4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_FR4] = {
-		.subtype = IFM_200G_FR4,
+
+	/**/
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_200G_KR4_PAM4,
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CR4_PAM4] = {
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
 		.subtype = IFM_200G_CR4_PAM4,
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_KR4_PAM4] = {
-		.subtype = IFM_200G_KR4_PAM4,
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+		.subtype = IFM_200G_SR4,
 		.baudrate = IF_Gbps(200ULL),
+	},
+
+	/**/
+	[MLX5E_400GAUI_8][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_400G_LR8,	/* XXX */
+		.baudrate = IF_Gbps(400ULL),
+	},
+
+	/**/
+	[MLX5E_400GAUI_4_400GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+		.subtype = IFM_400G_LR8,	/* XXX */
+		.baudrate = IF_Gbps(400ULL),
 	},
 };
 
@@ -420,9 +365,10 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
 	u32 eth_proto_oper;
 	int error;
+	u8 i;
+	u8 cable_type;
 	u8 port_state;
 	u8 is_er_type;
-	u8 i, j;
 	bool ext;
 	struct media media_entry = {};
 
@@ -454,11 +400,23 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 
 	i = ilog2(eth_proto_oper);
 
-	for (j = 0; j != MLX5E_LINK_MODES_NUMBER; j++) {
-		media_entry = ext ? mlx5e_ext_mode_table[i][j] :
-		    mlx5e_mode_table[i][j];
-		if (media_entry.baudrate != 0)
-			break;
+	if (ext) {
+		error = mlx5_query_pddr_cable_type(mdev, 1, &cable_type);
+		if (error != 0) {
+			/* use fallback entry */
+			media_entry = mlx5e_ext_mode_table[i][MLX5E_CABLE_TYPE_UNKNOWN];
+
+			mlx5_en_err(priv->ifp,
+			    "query port pddr failed: %d\n", error);
+		} else {
+			media_entry = mlx5e_ext_mode_table[i][cable_type];
+
+			/* check if we should use fallback entry */
+			if (media_entry.subtype == 0)
+				media_entry = mlx5e_ext_mode_table[i][MLX5E_CABLE_TYPE_UNKNOWN];
+		}
+	} else {
+		media_entry = mlx5e_mode_table[i];
 	}
 
 	if (media_entry.subtype == 0) {
@@ -508,36 +466,35 @@ mlx5e_media_status(struct ifnet *dev, struct ifmediareq *ifmr)
 static u32
 mlx5e_find_link_mode(u32 subtype, bool ext)
 {
-	u32 i;
-	u32 j;
 	u32 link_mode = 0;
-	u32 speeds_num = 0;
-	struct media media_entry = {};
 
 	switch (subtype) {
+	case 0:
+		goto done;
 	case IFM_10G_LR:
 		subtype = IFM_10G_ER;
 		break;
 	case IFM_40G_ER4:
 		subtype = IFM_40G_LR4;
 		break;
+	default:
+		break;
 	}
 
-	speeds_num = ext ? MLX5E_EXT_LINK_SPEEDS_NUMBER :
-	    MLX5E_LINK_SPEEDS_NUMBER;
-
-	for (i = 0; i != speeds_num; i++) {
-		for (j = 0; j < MLX5E_LINK_MODES_NUMBER ; ++j) {
-			media_entry = ext ? mlx5e_ext_mode_table[i][j] :
-			    mlx5e_mode_table[i][j];
-			if (media_entry.baudrate == 0)
-				continue;
-			if (media_entry.subtype == subtype) {
-				link_mode |= MLX5E_PROT_MASK(i);
+	if (ext) {
+		for (unsigned i = 0; i != MLX5E_EXT_LINK_SPEEDS_NUMBER; i++) {
+			for (unsigned j = 0; j != MLX5E_CABLE_TYPE_NUMBER; j++) {
+				if (mlx5e_ext_mode_table[i][j].subtype == subtype)
+					link_mode |= MLX5E_PROT_MASK(i);
 			}
 		}
+	} else {
+		for (unsigned i = 0; i != MLX5E_LINK_SPEEDS_NUMBER; i++) {
+			if (mlx5e_mode_table[i].subtype == subtype)
+				link_mode |= MLX5E_PROT_MASK(i);
+		}
 	}
-
+done:
 	return (link_mode);
 }
 
@@ -4393,17 +4350,14 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	struct ifnet *ifp;
 	struct mlx5e_priv *priv;
 	u8 dev_addr[ETHER_ADDR_LEN] __aligned(4);
-	u8 connector_type;
 	struct sysctl_oid_list *child;
 	int ncv = mdev->priv.eq_table.num_comp_vectors;
 	char unit[16];
 	struct pfil_head_args pa;
 	int err;
-	int i,j;
 	u32 eth_proto_cap;
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
-	bool ext = 0;
-	u32 speeds_num;
+	bool ext;
 	struct media media_entry = {};
 
 	if (mlx5e_check_required_hca_cap(mdev)) {
@@ -4572,16 +4526,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	mlx5e_setup_pauseframes(priv);
 
 	/* Setup supported medias */
-	//TODO: If we failed to query ptys is it ok to proceed??
 	if (!mlx5_query_port_ptys(mdev, out, sizeof(out), MLX5_PTYS_EN, 1)) {
 		ext = MLX5_CAP_PCAM_FEATURE(mdev,
 		    ptys_extended_ethernet);
 		eth_proto_cap = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 		    eth_proto_capability);
-		if (MLX5_CAP_PCAM_FEATURE(mdev, ptys_connector_type))
-			connector_type = MLX5_GET(ptys_reg, out,
-			    connector_type);
 	} else {
+		ext = false;
 		eth_proto_cap = 0;
 		mlx5_en_err(ifp, "Query port media capability failed, %d\n", err);
 	}
@@ -4589,15 +4540,47 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifmedia_init(&priv->media, IFM_IMASK,
 	    mlx5e_media_change, mlx5e_media_status);
 
-	speeds_num = ext ? MLX5E_EXT_LINK_SPEEDS_NUMBER : MLX5E_LINK_SPEEDS_NUMBER;
-	for (i = 0; i != speeds_num; i++) {
-		for (j = 0; j < MLX5E_LINK_MODES_NUMBER ; ++j) {
-			media_entry = ext ? mlx5e_ext_mode_table[i][j] :
-			    mlx5e_mode_table[i][j];
-			if (media_entry.baudrate == 0)
+	if (ext) {
+		for (unsigned i = 0; i != MLX5E_EXT_LINK_SPEEDS_NUMBER; i++) {
+			/* check if hardware has the right capability */
+			if (MLX5E_PROT_MASK(i) & ~eth_proto_cap)
 				continue;
-			if (MLX5E_PROT_MASK(i) & eth_proto_cap)
+			for (unsigned j = 0; j != MLX5E_CABLE_TYPE_NUMBER; j++) {
+				media_entry = mlx5e_ext_mode_table[i][j];
+				if (media_entry.subtype == 0)
+					continue;
+				/* check if this subtype was already added */
+				for (unsigned k = 0; k != i; k++) {
+					/* check if hardware has the right capability */
+					if (MLX5E_PROT_MASK(k) & ~eth_proto_cap)
+						continue;
+					for (unsigned m = 0; m != MLX5E_CABLE_TYPE_NUMBER; m++) {
+						if (media_entry.subtype == mlx5e_ext_mode_table[k][m].subtype)
+							goto skip_ext_media;
+					}
+				}
 				mlx5e_ifm_add(priv, media_entry.subtype);
+			skip_ext_media:;
+			}
+		}
+	} else {
+		for (unsigned i = 0; i != MLX5E_LINK_SPEEDS_NUMBER; i++) {
+			media_entry = mlx5e_mode_table[i];
+			if (media_entry.subtype == 0)
+				continue;
+			if (MLX5E_PROT_MASK(i) & ~eth_proto_cap)
+				continue;
+			/* check if this subtype was already added */
+			for (unsigned k = 0; k != i; k++) {
+				if (media_entry.subtype == mlx5e_mode_table[k].subtype)
+					goto skip_media;
+			}
+			mlx5e_ifm_add(priv, media_entry.subtype);
+
+			/* NOTE: 10G ER and LR shares the same entry */
+			if (media_entry.subtype == IFM_10G_ER)
+				mlx5e_ifm_add(priv, IFM_10G_LR);
+		skip_media:;
 		}
 	}
 
