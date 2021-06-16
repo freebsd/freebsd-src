@@ -624,6 +624,7 @@ struct mlx4_caps {
 	u32			dmfs_high_rate_qpn_range;
 	u32			vf_caps;
 	struct mlx4_rate_limit_caps rl_caps;
+	bool			map_clock_to_user;
 };
 
 struct mlx4_buf_list {
