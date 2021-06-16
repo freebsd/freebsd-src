@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/poll.h>
+#include <sys/procfs.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/sched.h>
@@ -863,18 +864,17 @@ lookup(struct xlat *xlat, int val, int base)
 		if (xlat->val == val)
 			return (xlat->str);
 	switch (base) {
-		case 8:
-			sprintf(tmp, "0%o", val);
-			break;
-		case 16:
-			sprintf(tmp, "0x%x", val);
-			break;
-		case 10:
-			sprintf(tmp, "%u", val);
-			break;
-		default:
-			errx(1,"Unknown lookup base");
-			break;
+	case 8:
+		sprintf(tmp, "0%o", val);
+		break;
+	case 16:
+		sprintf(tmp, "0x%x", val);
+		break;
+	case 10:
+		sprintf(tmp, "%u", val);
+		break;
+	default:
+		errx(1, "Unknown lookup base");
 	}
 	return (tmp);
 }
@@ -1116,12 +1116,12 @@ get_syscall(struct threadinfo *t, u_int number, u_int nargs)
  * Copy a fixed amount of bytes from the process.
  */
 static int
-get_struct(pid_t pid, uintptr_t offset, void *buf, int len)
+get_struct(pid_t pid, psaddr_t offset, void *buf, size_t len)
 {
 	struct ptrace_io_desc iorequest;
 
 	iorequest.piod_op = PIOD_READ_D;
-	iorequest.piod_offs = (void *)offset;
+	iorequest.piod_offs = (void *)(uintptr_t)offset;
 	iorequest.piod_addr = buf;
 	iorequest.piod_len = len;
 	if (ptrace(PT_IO, pid, (caddr_t)&iorequest, 0) < 0)
@@ -1137,7 +1137,7 @@ get_struct(pid_t pid, uintptr_t offset, void *buf, int len)
  * only get that much.
  */
 static char *
-get_string(pid_t pid, uintptr_t addr, int max)
+get_string(pid_t pid, psaddr_t addr, int max)
 {
 	struct ptrace_io_desc iorequest;
 	char *buf, *nbuf;
@@ -1148,7 +1148,7 @@ get_string(pid_t pid, uintptr_t addr, int max)
 		size = max + 1;
 	else {
 		/* Read up to the end of the current page. */
-		size = PAGE_SIZE - ((uintptr_t)addr % PAGE_SIZE);
+		size = PAGE_SIZE - (addr % PAGE_SIZE);
 		if (size > MAXSIZE)
 			size = MAXSIZE;
 	}
@@ -1158,7 +1158,7 @@ get_string(pid_t pid, uintptr_t addr, int max)
 		return (NULL);
 	for (;;) {
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (void *)(addr + offset);
+		iorequest.piod_offs = (void *)((uintptr_t)addr + offset);
 		iorequest.piod_addr = buf + offset;
 		iorequest.piod_len = size;
 		if (ptrace(PT_IO, pid, (caddr_t)&iorequest, 0) < 0) {
@@ -1719,6 +1719,20 @@ print_sysctl(FILE *fp, int *oid, size_t len)
 }
 
 /*
+ * Convert a 32-bit user-space pointer to psaddr_t. Currently, this
+ * sign-extends on MIPS and zero-extends on all other architectures.
+ */
+static psaddr_t
+user_ptr32_to_psaddr(int32_t user_pointer)
+{
+#if defined(__mips__)
+	return ((psaddr_t)(intptr_t)user_pointer);
+#else
+	return ((psaddr_t)(uintptr_t)user_pointer);
+#endif
+}
+
+/*
  * Converts a syscall argument into a string.  Said string is
  * allocated via malloc(), so needs to be free()'d.  sc is
  * a pointer to the syscall description (see above); args is
@@ -1769,7 +1783,7 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		break;
 	case ShmName:
 		/* Handle special SHM_ANON value. */
-		if ((char *)args[sc->offset] == SHM_ANON) {
+		if ((char *)(uintptr_t)args[sc->offset] == SHM_ANON) {
 			fprintf(fp, "SHM_ANON");
 			break;
 		}
@@ -1829,7 +1843,7 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 	case ExecArgs:
 	case ExecEnv:
 	case StringArray: {
-		uintptr_t addr;
+		psaddr_t addr;
 		union {
 			int32_t strarray32[PAGE_SIZE / sizeof(int32_t)];
 			int64_t strarray64[PAGE_SIZE / sizeof(int64_t)];
@@ -1859,7 +1873,7 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		 * a partial page.
 		 */
 		addr = args[sc->offset];
-		if (addr % pointer_size != 0) {
+		if (!__is_aligned(addr, pointer_size)) {
 			print_pointer(fp, args[sc->offset]);
 			break;
 		}
@@ -1875,20 +1889,19 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		first = 1;
 		i = 0;
 		for (;;) {
-			uintptr_t straddr;
+			psaddr_t straddr;
 			if (pointer_size == 4) {
-				if (u.strarray32[i] == 0)
-					break;
-				/* sign-extend 32-bit pointers */
-				straddr = (intptr_t)u.strarray32[i];
+				straddr = user_ptr32_to_psaddr(u.strarray32[i]);
 			} else if (pointer_size == 8) {
-				if (u.strarray64[i] == 0)
-					break;
-				straddr = (intptr_t)u.strarray64[i];
+				straddr = (psaddr_t)u.strarray64[i];
 			} else {
 				errx(1, "Unsupported pointer size: %zu",
 				    pointer_size);
 			}
+
+			/* Stop once we read the first NULL pointer. */
+			if (straddr == 0)
+				break;
 			string = get_string(pid, straddr, 0);
 			fprintf(fp, "%s \"%s\"", first ? "" : ",", string);
 			free(string);
@@ -1908,32 +1921,29 @@ print_arg(struct syscall_arg *sc, unsigned long *args, register_t *retval,
 		fputs(" ]", fp);
 		break;
 	}
-#ifdef __LP64__
-	case Quad:
-		fprintf(fp, "%ld", args[sc->offset]);
-		break;
-	case QuadHex:
-		fprintf(fp, "0x%lx", args[sc->offset]);
-		break;
-#else
 	case Quad:
 	case QuadHex: {
-		unsigned long long ll;
+		uint64_t value;
+		size_t pointer_size =
+		    trussinfo->curthread->proc->abi->pointer_size;
 
+		if (pointer_size == 4) {
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-		ll = (unsigned long long)args[sc->offset + 1] << 32 |
-		    args[sc->offset];
+			value = (uint64_t)args[sc->offset + 1] << 32 |
+			    args[sc->offset];
 #else
-		ll = (unsigned long long)args[sc->offset] << 32 |
-		    args[sc->offset + 1];
+			value = (uint64_t)args[sc->offset] << 32 |
+			    args[sc->offset + 1];
 #endif
+		} else {
+			value = (uint64_t)args[sc->offset];
+		}
 		if ((sc->type & ARG_MASK) == Quad)
-			fprintf(fp, "%lld", ll);
+			fprintf(fp, "%jd", (intmax_t)value);
 		else
-			fprintf(fp, "0x%llx", ll);
+			fprintf(fp, "0x%jx", (intmax_t)value);
 		break;
 	}
-#endif
 	case PQuadHex: {
 		uint64_t val;
 
@@ -3015,11 +3025,9 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 		fprintf(trussinfo->outfile, " ERR#%d '%s'\n",
 		    sysdecode_freebsd_to_abi_errno(t->proc->abi->abi, error),
 		    strerror(error));
-	}
-#ifndef __LP64__
-	else if (sc->decode.ret_type == 2) {
+	} else if (sc->decode.ret_type == 2 &&
+	    t->proc->abi->pointer_size == 4) {
 		off_t off;
-
 #if _BYTE_ORDER == _LITTLE_ENDIAN
 		off = (off_t)retval[1] << 32 | retval[0];
 #else
@@ -3027,11 +3035,10 @@ print_syscall_ret(struct trussinfo *trussinfo, int error, register_t *retval)
 #endif
 		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n", (intmax_t)off,
 		    (intmax_t)off);
-	}
-#endif
-	else
+	} else {
 		fprintf(trussinfo->outfile, " = %jd (0x%jx)\n",
 		    (intmax_t)retval[0], (intmax_t)retval[0]);
+	}
 }
 
 void
