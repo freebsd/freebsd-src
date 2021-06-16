@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2021
+.Dd June 16, 2021
 .Dt CRYPTO_BUFFER 9
 .Os
 .Sh NAME
@@ -95,10 +95,6 @@
 .Fc
 .Ft void *
 .Fn crypto_cursor_segment "struct crypto_buffer_cursor *cc" "size_t *len"
-.Ft void *
-.Fn crypto_cursor_segbase "struct crypto_buffer_cursor *cc"
-.Ft size_t
-.Fn crypto_cursor_seglen "struct crypto_buffer_cursor *cc"
 .Ft bool
 .Fn CRYPTO_HAS_OUTPUT_BUFFER "struct cryptop *crp"
 .Sh DESCRIPTION
@@ -300,13 +296,6 @@ returns the start of the virtually-contiguous segment at the current position of
 .Fa cc .
 The length of the segment is stored in
 .Fa len .
-.Pp
-.Fn crypto_cursor_segbase
-and
-.Fn crypto_cursor_seglen
-return the start and length, respectively,
-of the virtually-contiguous segment at the current position of
-.Fa cc .
 .Sh RETURN VALUES
 .Fn crypto_apply
 and
@@ -315,7 +304,6 @@ return the return value from the caller-supplied callback function.
 .Pp
 .Fn crypto_buffer_contiguous_subsegment ,
 .Fn crypto_contiguous_subsegment ,
-.Fn crypto_cursor_segbase ,
 and
 .Fn crypto_cursor_segment
 return a pointer to a contiguous segment or
