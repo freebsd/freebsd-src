@@ -46,9 +46,10 @@ memccpy(void * __restrict t, const void * __restrict f, int c, size_t n)
 		const unsigned char *fp = f;
 		const unsigned char uc = (unsigned char)c;
 		do {
-			if ((*tp++ = *fp++) == uc)
-				return (tp);
+			if ((*tp++ = *fp) == uc)
+				return tp;
+			fp++;
 		} while (--n != 0);
 	}
-	return (0);
+	return 0;
 }
