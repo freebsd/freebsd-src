@@ -634,7 +634,7 @@ mlx5e_rl_open_tis(struct mlx5e_priv *priv)
 static void
 mlx5e_rl_close_tis(struct mlx5e_priv *priv)
 {
-	mlx5_core_destroy_tis(priv->mdev, priv->rl.tisn);
+	mlx5_core_destroy_tis(priv->mdev, priv->rl.tisn, 0);
 }
 
 static void

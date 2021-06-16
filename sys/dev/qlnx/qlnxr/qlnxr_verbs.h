@@ -40,11 +40,12 @@ extern int qlnxr_query_gid(struct ib_device *,
 			int index,
 			union ib_gid *gid);
 
-extern struct ib_srq *qlnxr_create_srq(struct ib_pd *,
+extern int qlnxr_create_srq(struct ib_srq *ibsrq,
 			struct ib_srq_init_attr *,
 			struct ib_udata *);
 
-extern int qlnxr_destroy_srq(struct ib_srq *);
+extern void qlnxr_destroy_srq(struct ib_srq *,
+			struct ib_udata *);
 
 extern int qlnxr_modify_srq(struct ib_srq *,
 			struct ib_srq_attr *,
@@ -79,33 +80,15 @@ extern int qlnxr_modify_port(struct ib_device *,
 extern enum rdma_link_layer qlnxr_link_layer(struct ib_device *device,
 			uint8_t port_num);
 
-struct ib_pd *qlnxr_alloc_pd(struct ib_device *,
-			struct ib_ucontext *,
-			struct ib_udata *);
+extern int qlnxr_alloc_pd(struct ib_pd *ibpd, struct ib_udata *);
 
-extern int qlnxr_dealloc_pd(struct ib_pd *pd);
+extern void qlnxr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
-#if __FreeBSD_version >= 1102000
-extern struct ib_cq *qlnxr_create_cq(struct ib_device *ibdev,
-			const struct ib_cq_init_attr *attr,
-			struct ib_ucontext *ib_ctx,
-			struct ib_udata *udata);
-#else
-#if __FreeBSD_version >= 1100000
-extern struct ib_cq *qlnxr_create_cq(struct ib_device *ibdev,
-			struct ib_cq_init_attr *attr,
-			struct ib_ucontext *ib_ctx,
-			struct ib_udata *udata);
-#else
-extern struct ib_cq *qlnxr_create_cq(struct ib_device *ibdev,
-			int cqe,
-			int comp_vector,
-			struct ib_ucontext *ib_ctx,
-			struct ib_udata *udata);
-#endif
-#endif /* #if __FreeBSD_version >= 1102000 */
+extern int qlnxr_create_cq(struct ib_cq *ibcq,
+		   const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata);
 
-extern int qlnxr_destroy_cq(struct ib_cq *);
+extern void qlnxr_destroy_cq(struct ib_cq *, struct ib_udata *);
 
 extern int qlnxr_resize_cq(struct ib_cq *,
 			int cqe,
@@ -129,22 +112,17 @@ extern int qlnxr_query_qp(struct ib_qp *,
 			int qp_attr_mask,
 			struct ib_qp_init_attr *);
 
-extern int qlnxr_destroy_qp(struct ib_qp *);
+extern int qlnxr_destroy_qp(struct ib_qp *, struct ib_udata *);
 
 extern int qlnxr_query_pkey(struct ib_device *,
 			u8 port,
 			u16 index,
 			u16 *pkey);
 
-#if __FreeBSD_version >= 1102000
-extern struct ib_ah *qlnxr_create_ah(struct ib_pd *ibpd,
-			struct ib_ah_attr *attr, struct ib_udata *udata);
-#else
-extern struct ib_ah *qlnxr_create_ah(struct ib_pd *ibpd,
-			struct ib_ah_attr *attr);
-#endif /* #if __FreeBSD_version >= 1102000 */
-
-extern int qlnxr_destroy_ah(struct ib_ah *ibah);
+extern int qlnxr_create_ah(struct ib_ah *ibah,
+			struct ib_ah_attr *attr, u32 flags,
+			struct ib_udata *udata);
+extern void qlnxr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
 extern int qlnxr_query_ah(struct ib_ah *ibah,
 			struct ib_ah_attr *attr);
@@ -195,7 +173,7 @@ extern struct ib_mr *qlnxr_reg_kernel_mr(struct ib_pd *,
 			u64 *iova_start);
 #endif /* #if __FreeBSD_version < 1102000 */
 
-extern int qlnxr_dereg_mr(struct ib_mr *);
+extern int qlnxr_dereg_mr(struct ib_mr *, struct ib_udata *);
 
 #if __FreeBSD_version >= 1102000
 extern struct ib_mr *qlnxr_reg_user_mr(struct ib_pd *,
@@ -217,7 +195,9 @@ extern struct ib_mr *qlnxr_reg_user_mr(struct ib_pd *,
 #if __FreeBSD_version >= 1102000
 
 extern struct ib_mr *qlnxr_alloc_mr(struct ib_pd *pd,
-			enum ib_mr_type mr_type, u32 max_num_sg);
+			enum ib_mr_type mr_type, u32 max_num_sg,
+			struct ib_udata *udata);
+
 extern int qlnxr_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg,
 			int sg_nents, unsigned int *sg_offset);
 #else
@@ -233,10 +213,10 @@ extern void qlnxr_free_frmr_page_list(struct ib_fast_reg_page_list *page_list);
 
 #endif /* #if  __FreeBSD_version >= 1102000 */
 
-extern struct ib_ucontext *qlnxr_alloc_ucontext(struct ib_device *ibdev,
-                struct ib_udata *udata);
+extern int qlnxr_alloc_ucontext(struct ib_ucontext *uctx,
+				struct ib_udata *udata);
 
-extern int qlnxr_dealloc_ucontext(struct ib_ucontext *ibctx);
+extern void qlnxr_dealloc_ucontext(struct ib_ucontext *ibctx);
 
 extern int qlnxr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 

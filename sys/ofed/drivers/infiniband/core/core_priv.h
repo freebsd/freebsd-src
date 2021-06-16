@@ -44,6 +44,9 @@
 
 #include <net/if_vlan_var.h>
 
+/* Total number of ports combined across all struct ib_devices's */
+#define RDMA_MAX_PORTS 8192
+
 #ifdef CONFIG_INFINIBAND_ADDR_TRANS_CONFIGFS
 int cma_configfs_init(void);
 void cma_configfs_exit(void);
@@ -128,6 +131,8 @@ int ib_cache_setup_one(struct ib_device *device);
 void ib_cache_cleanup_one(struct ib_device *device);
 void ib_cache_release_one(struct ib_device *device);
 
+#define	ib_rdmacg_try_charge(...) ({ 0; })
+
 int addr_init(void);
 void addr_cleanup(void);
 
@@ -141,5 +146,49 @@ int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
 				 struct kobject *kobj, struct kobj_type *ktype,
 				 const char *name);
 void ib_port_unregister_module_stat(struct kobject *kobj);
+
+static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
+					  struct ib_pd *pd,
+					  struct ib_qp_init_attr *attr,
+					  struct ib_udata *udata,
+					  struct ib_uqp_object *uobj)
+{
+	struct ib_qp *qp;
+
+	if (!dev->create_qp)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	qp = dev->create_qp(pd, attr, udata);
+	if (IS_ERR(qp))
+		return qp;
+
+	qp->device = dev;
+	qp->pd = pd;
+	qp->uobject = uobj;
+	qp->real_qp = qp;
+
+	qp->qp_type = attr->qp_type;
+	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
+	qp->send_cq = attr->send_cq;
+	qp->recv_cq = attr->recv_cq;
+	qp->srq = attr->srq;
+	qp->rwq_ind_tbl = attr->rwq_ind_tbl;
+	qp->event_handler = attr->event_handler;
+
+	atomic_set(&qp->usecnt, 0);
+	spin_lock_init(&qp->mr_lock);
+
+	return qp;
+}
+
+struct rdma_umap_priv {
+	struct vm_area_struct *vma;
+	struct list_head list;
+	struct rdma_user_mmap_entry *entry;
+};
+
+void rdma_umap_priv_init(struct rdma_umap_priv *priv,
+			 struct vm_area_struct *vma,
+			 struct rdma_user_mmap_entry *entry);
 
 #endif /* _CORE_PRIV_H */

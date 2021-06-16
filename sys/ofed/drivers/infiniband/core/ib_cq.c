@@ -86,14 +86,17 @@ ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
 }
 
 struct ib_cq *
-ib_alloc_cq(struct ib_device *dev, void *private,
-    int nr_cqe, int comp_vector, enum ib_poll_context poll_ctx)
+__ib_alloc_cq_user(struct ib_device *dev, void *private,
+		   int nr_cqe, int comp_vector,
+		   enum ib_poll_context poll_ctx,
+		   const char *caller, struct ib_udata *udata)
 {
 	struct ib_cq_init_attr cq_attr = {
 		.cqe = nr_cqe,
 		.comp_vector = comp_vector,
 	};
 	struct ib_cq *cq;
+	int ret;
 
 	/*
 	 * Check for invalid parameters early on to avoid
@@ -108,16 +111,18 @@ ib_alloc_cq(struct ib_device *dev, void *private,
 		return (ERR_PTR(-EINVAL));
 	}
 
-	cq = dev->create_cq(dev, &cq_attr, NULL, NULL);
-	if (IS_ERR(cq))
-		return (cq);
+	cq = rdma_zalloc_drv_obj(dev, ib_cq);
+	if (!cq)
+		return ERR_PTR(-ENOMEM);
 
 	cq->device = dev;
-	cq->uobject = NULL;
-	cq->event_handler = NULL;
 	cq->cq_context = private;
 	cq->poll_ctx = poll_ctx;
 	atomic_set(&cq->usecnt, 0);
+
+	ret = dev->create_cq(cq, &cq_attr, NULL);
+	if (ret)
+		goto out_free_cq;
 
 	switch (poll_ctx) {
 	case IB_POLL_DIRECT:
@@ -133,11 +138,15 @@ ib_alloc_cq(struct ib_device *dev, void *private,
 		break;
 	}
 	return (cq);
+
+out_free_cq:
+	kfree(cq);
+	return (ERR_PTR(ret));
 }
-EXPORT_SYMBOL(ib_alloc_cq);
+EXPORT_SYMBOL(__ib_alloc_cq_user);
 
 void
-ib_free_cq(struct ib_cq *cq)
+ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {
 
 	if (WARN_ON_ONCE(atomic_read(&cq->usecnt) != 0))
@@ -154,6 +163,7 @@ ib_free_cq(struct ib_cq *cq)
 		break;
 	}
 
-	(void)cq->device->destroy_cq(cq);
+	cq->device->destroy_cq(cq, udata);
+	kfree(cq);
 }
-EXPORT_SYMBOL(ib_free_cq);
+EXPORT_SYMBOL(ib_free_cq_user);

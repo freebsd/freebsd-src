@@ -70,7 +70,7 @@ struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
-	ah->ah = ib_create_ah(pd, attr);
+	ah->ah = ib_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
 	if (IS_ERR(ah->ah)) {
 		kfree(ah);
 		ah = NULL;
@@ -572,7 +572,7 @@ static void __ipoib_reap_ah(struct ipoib_dev_priv *priv)
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			ib_destroy_ah(ah->ah);
+			ib_destroy_ah(ah->ah, 0);
 			kfree(ah);
 		}
 

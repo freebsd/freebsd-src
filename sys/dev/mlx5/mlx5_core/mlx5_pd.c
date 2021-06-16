@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,13 +30,14 @@
 #include <dev/mlx5/driver.h>
 #include "mlx5_core.h"
 
-int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn)
+int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn, u16 uid)
 {
 	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(alloc_pd_out)] = {0};
 	int err;
 
 	MLX5_SET(alloc_pd_in, in, opcode, MLX5_CMD_OP_ALLOC_PD);
+	MLX5_SET(alloc_pd_in, in, uid, uid);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
@@ -47,12 +48,13 @@ int mlx5_core_alloc_pd(struct mlx5_core_dev *dev, u32 *pdn)
 }
 EXPORT_SYMBOL(mlx5_core_alloc_pd);
 
-int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn)
+int mlx5_core_dealloc_pd(struct mlx5_core_dev *dev, u32 pdn, u16 uid)
 {
 	u32 in[MLX5_ST_SZ_DW(dealloc_pd_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(dealloc_pd_out)] = {0};
 
 	MLX5_SET(dealloc_pd_in, in, opcode, MLX5_CMD_OP_DEALLOC_PD);
+	MLX5_SET(dealloc_pd_in, in, uid, uid);
 	MLX5_SET(dealloc_pd_in, in, pd, pdn);
 
 	return mlx5_cmd_exec(dev, in,  sizeof(in), out, sizeof(out));

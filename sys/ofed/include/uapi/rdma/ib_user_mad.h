@@ -38,13 +38,7 @@
 #ifndef IB_USER_MAD_H
 #define IB_USER_MAD_H
 
-#ifdef _KERNEL
-#include <linux/types.h>
-#include <linux/ioctl.h>
-#else
-#include <infiniband/types.h>
-#include <sys/ioccom.h>
-#endif
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -238,17 +232,5 @@ struct ib_user_mad_reg_req2 {
 	__u8	rmpp_version;
 	__u8	reserved[3];
 };
-
-#define IB_IOCTL_MAGIC		0x1b
-
-#define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
-					      struct ib_user_mad_reg_req)
-
-#define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, __u32)
-
-#define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
-
-#define IB_USER_MAD_REGISTER_AGENT2     _IOWR(IB_IOCTL_MAGIC, 4, \
-					      struct ib_user_mad_reg_req2)
 
 #endif /* IB_USER_MAD_H */

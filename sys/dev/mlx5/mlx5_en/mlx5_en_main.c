@@ -2636,7 +2636,7 @@ mlx5e_open_tis(struct mlx5e_priv *priv, int tc)
 static void
 mlx5e_close_tis(struct mlx5e_priv *priv, int tc)
 {
-	mlx5_core_destroy_tis(priv->mdev, priv->tisn[tc]);
+	mlx5_core_destroy_tis(priv->mdev, priv->tisn[tc], 0);
 }
 
 static int
@@ -2965,7 +2965,7 @@ static void
 mlx5e_close_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
 {
 	mlx5_core_destroy_tir(priv->mdev, inner_vxlan ?
-	    priv->tirn_inner_vxlan[tt] : priv->tirn[tt]);
+	    priv->tirn_inner_vxlan[tt] : priv->tirn[tt], 0);
 }
 
 static int
@@ -3740,7 +3740,7 @@ mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
 
 static int
 mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
-		  struct mlx5_core_mr *mkey)
+		  struct mlx5_core_mkey *mkey)
 {
 	struct ifnet *ifp = priv->ifp;
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -4538,12 +4538,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/* reuse mlx5core's watchdog workqueue */
 	priv->wq = mdev->priv.health.wq_watchdog;
 
-	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
+	err = mlx5_core_alloc_pd(mdev, &priv->pdn, 0);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5_core_alloc_pd failed, %d\n", err);
 		goto err_free_wq;
 	}
-	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
+	err = mlx5_alloc_transport_domain(mdev, &priv->tdn, 0);
 	if (err) {
 		mlx5_en_err(ifp,
 		    "mlx5_alloc_transport_domain failed, %d\n", err);
@@ -4709,10 +4709,10 @@ err_create_mkey:
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
 
 err_dealloc_transport_domain:
-	mlx5_dealloc_transport_domain(mdev, priv->tdn);
+	mlx5_dealloc_transport_domain(mdev, priv->tdn, 0);
 
 err_dealloc_pd:
-	mlx5_core_dealloc_pd(mdev, priv->pdn);
+	mlx5_core_dealloc_pd(mdev, priv->pdn, 0);
 
 err_free_wq:
 	flush_workqueue(priv->wq);
@@ -4808,8 +4808,8 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	sysctl_ctx_free(&priv->sysctl_ctx);
 
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
-	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn);
-	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
+	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn, 0);
+	mlx5_core_dealloc_pd(priv->mdev, priv->pdn, 0);
 	mlx5e_disable_async_events(priv);
 	flush_workqueue(priv->wq);
 	mlx5e_priv_static_destroy(priv, mdev, mdev->priv.eq_table.num_comp_vectors);

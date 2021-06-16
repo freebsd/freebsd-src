@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/wait.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -267,16 +268,23 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 {
 	struct ib_pd *pd;
 	int mr_access_flags = 0;
+	int ret;
 
-	pd = device->alloc_pd(device, NULL, NULL);
-	if (IS_ERR(pd))
-		return pd;
+	pd = rdma_zalloc_drv_obj(device, ib_pd);
+	if (!pd)
+		return ERR_PTR(-ENOMEM);
 
 	pd->device = device;
 	pd->uobject = NULL;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
+
+	ret = device->alloc_pd(pd, NULL);
+	if (ret) {
+		kfree(pd);
+		return ERR_PTR(ret);
+	}
 
 	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
@@ -299,6 +307,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 		mr->device	= pd->device;
 		mr->pd		= pd;
+		mr->type        = IB_MR_TYPE_DMA;
 		mr->uobject	= NULL;
 		mr->need_inval	= false;
 
@@ -316,19 +325,20 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 EXPORT_SYMBOL(__ib_alloc_pd);
 
 /**
- * ib_dealloc_pd - Deallocates a protection domain.
+ * ib_dealloc_pd_user - Deallocates a protection domain.
  * @pd: The protection domain to deallocate.
+ * @udata: Valid user data or NULL for kernel object
  *
  * It is an error to call this function while any resources in the pd still
  * exist.  The caller is responsible to synchronously destroy them and
  * guarantee no new allocations will happen.
  */
-void ib_dealloc_pd(struct ib_pd *pd)
+void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 {
 	int ret;
 
 	if (pd->__internal_mr) {
-		ret = pd->device->dereg_mr(pd->__internal_mr);
+		ret = pd->device->dereg_mr(pd->__internal_mr, NULL);
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
@@ -337,31 +347,97 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	   requires the caller to guarantee we can't race here. */
 	WARN_ON(atomic_read(&pd->usecnt));
 
-	/* Making delalloc_pd a void return is a WIP, no driver should return
-	   an error here. */
-	ret = pd->device->dealloc_pd(pd);
-	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
+	pd->device->dealloc_pd(pd, udata);
+	kfree(pd);
 }
-EXPORT_SYMBOL(ib_dealloc_pd);
+EXPORT_SYMBOL(ib_dealloc_pd_user);
 
 /* Address handles */
 
-struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
+static struct ib_ah *_ib_create_ah(struct ib_pd *pd,
+				     struct ib_ah_attr *ah_attr,
+				     u32 flags,
+				     struct ib_udata *udata)
+{
+	struct ib_device *device = pd->device;
+	struct ib_ah *ah;
+	int ret;
+
+	might_sleep_if(flags & RDMA_CREATE_AH_SLEEPABLE);
+
+	if (!device->create_ah)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	ah = rdma_zalloc_drv_obj_gfp(
+		device, ib_ah,
+		(flags & RDMA_CREATE_AH_SLEEPABLE) ? GFP_KERNEL : GFP_ATOMIC);
+	if (!ah)
+		return ERR_PTR(-ENOMEM);
+
+	ah->device = device;
+	ah->pd = pd;
+
+	ret = device->create_ah(ah, ah_attr, flags, udata);
+	if (ret) {
+		kfree(ah);
+		return ERR_PTR(ret);
+	}
+
+	atomic_inc(&pd->usecnt);
+	return ah;
+}
+
+/**
+ * rdma_create_ah - Creates an address handle for the
+ * given address vector.
+ * @pd: The protection domain associated with the address handle.
+ * @ah_attr: The attributes of the address vector.
+ * @flags: Create address handle flags (see enum rdma_create_ah_flags).
+ *
+ * It returns 0 on success and returns appropriate error code on error.
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
+			   u32 flags)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr, NULL);
-
-	if (!IS_ERR(ah)) {
-		ah->device  = pd->device;
-		ah->pd      = pd;
-		ah->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-	}
+	ah = _ib_create_ah(pd, ah_attr, flags, NULL);
 
 	return ah;
 }
 EXPORT_SYMBOL(ib_create_ah);
+
+/**
+ * ib_create_user_ah - Creates an address handle for the
+ * given address vector.
+ * It resolves destination mac address for ah attribute of RoCE type.
+ * @pd: The protection domain associated with the address handle.
+ * @ah_attr: The attributes of the address vector.
+ * @udata: pointer to user's input output buffer information need by
+ *         provider driver.
+ *
+ * It returns a valid address handle pointer on success and
+ * returns appropriate error code on error.
+ * The address handle is used to reference a local or global destination
+ * in all UD QP post sends.
+ */
+struct ib_ah *ib_create_user_ah(struct ib_pd *pd,
+				struct ib_ah_attr *ah_attr,
+				struct ib_udata *udata)
+{
+	int err;
+
+	if (rdma_protocol_roce(pd->device, ah_attr->port_num)) {
+		err = ib_resolve_eth_dmac(pd->device, ah_attr);
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	return _ib_create_ah(pd, ah_attr, RDMA_CREATE_AH_SLEEPABLE, udata);
+}
+EXPORT_SYMBOL(ib_create_user_ah);
 
 static int ib_get_header_version(const union rdma_network_hdr *hdr)
 {
@@ -589,7 +665,7 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 	if (ret)
 		return ERR_PTR(ret);
 
-	return ib_create_ah(pd, &ah_attr);
+	return ib_create_ah(pd, &ah_attr, RDMA_CREATE_AH_SLEEPABLE);
 }
 EXPORT_SYMBOL(ib_create_ah_from_wc);
 
@@ -609,19 +685,20 @@ int ib_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_query_ah);
 
-int ib_destroy_ah(struct ib_ah *ah)
+int ib_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	struct ib_pd *pd;
-	int ret;
+
+	might_sleep_if(flags & RDMA_DESTROY_AH_SLEEPABLE);
 
 	pd = ah->pd;
-	ret = ah->device->destroy_ah(ah);
-	if (!ret)
-		atomic_dec(&pd->usecnt);
+	ah->device->destroy_ah(ah, flags);
+	atomic_dec(&pd->usecnt);
 
-	return ret;
+	kfree(ah);
+	return 0;
 }
-EXPORT_SYMBOL(ib_destroy_ah);
+EXPORT_SYMBOL(ib_destroy_ah_user);
 
 /* Shared receive queues */
 
@@ -629,27 +706,40 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 			     struct ib_srq_init_attr *srq_init_attr)
 {
 	struct ib_srq *srq;
+	int ret;
 
 	if (!pd->device->create_srq)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
-	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
+	srq = rdma_zalloc_drv_obj(pd->device, ib_srq);
+	if (!srq)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(srq)) {
-		srq->device    	   = pd->device;
-		srq->pd        	   = pd;
-		srq->uobject       = NULL;
-		srq->event_handler = srq_init_attr->event_handler;
-		srq->srq_context   = srq_init_attr->srq_context;
-		srq->srq_type      = srq_init_attr->srq_type;
-		if (srq->srq_type == IB_SRQT_XRC) {
-			srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
-			srq->ext.xrc.cq   = srq_init_attr->ext.xrc.cq;
-			atomic_inc(&srq->ext.xrc.xrcd->usecnt);
-			atomic_inc(&srq->ext.xrc.cq->usecnt);
-		}
-		atomic_inc(&pd->usecnt);
-		atomic_set(&srq->usecnt, 0);
+	srq->device = pd->device;
+	srq->pd = pd;
+	srq->event_handler = srq_init_attr->event_handler;
+	srq->srq_context = srq_init_attr->srq_context;
+	srq->srq_type = srq_init_attr->srq_type;
+
+	if (ib_srq_has_cq(srq->srq_type)) {
+		srq->ext.cq = srq_init_attr->ext.cq;
+		atomic_inc(&srq->ext.cq->usecnt);
+	}
+	if (srq->srq_type == IB_SRQT_XRC) {
+		srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
+		atomic_inc(&srq->ext.xrc.xrcd->usecnt);
+	}
+	atomic_inc(&pd->usecnt);
+
+	ret = pd->device->create_srq(srq, srq_init_attr, NULL);
+	if (ret) {
+		atomic_dec(&srq->pd->usecnt);
+		if (srq->srq_type == IB_SRQT_XRC)
+			atomic_dec(&srq->ext.xrc.xrcd->usecnt);
+		if (ib_srq_has_cq(srq->srq_type))
+			atomic_dec(&srq->ext.cq->usecnt);
+		kfree(srq);
+		return ERR_PTR(ret);
 	}
 
 	return srq;
@@ -674,36 +764,23 @@ int ib_query_srq(struct ib_srq *srq,
 }
 EXPORT_SYMBOL(ib_query_srq);
 
-int ib_destroy_srq(struct ib_srq *srq)
+int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata)
 {
-	struct ib_pd *pd;
-	enum ib_srq_type srq_type;
-	struct ib_xrcd *uninitialized_var(xrcd);
-	struct ib_cq *uninitialized_var(cq);
-	int ret;
-
 	if (atomic_read(&srq->usecnt))
 		return -EBUSY;
 
-	pd = srq->pd;
-	srq_type = srq->srq_type;
-	if (srq_type == IB_SRQT_XRC) {
-		xrcd = srq->ext.xrc.xrcd;
-		cq = srq->ext.xrc.cq;
-	}
+	srq->device->destroy_srq(srq, udata);
 
-	ret = srq->device->destroy_srq(srq);
-	if (!ret) {
-		atomic_dec(&pd->usecnt);
-		if (srq_type == IB_SRQT_XRC) {
-			atomic_dec(&xrcd->usecnt);
-			atomic_dec(&cq->usecnt);
-		}
-	}
+	atomic_dec(&srq->pd->usecnt);
+	if (srq->srq_type == IB_SRQT_XRC)
+		atomic_dec(&srq->ext.xrc.xrcd->usecnt);
+	if (ib_srq_has_cq(srq->srq_type))
+		atomic_dec(&srq->ext.cq->usecnt);
+	kfree(srq);
 
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(ib_destroy_srq);
+EXPORT_SYMBOL(ib_destroy_srq_user);
 
 /* Queue pairs */
 
@@ -793,7 +870,7 @@ static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
 	if (!IS_ERR(qp))
 		__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
 	else
-		real_qp->device->destroy_qp(real_qp);
+		real_qp->device->destroy_qp(real_qp, NULL);
 	return qp;
 }
 
@@ -809,7 +886,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	    qp_init_attr->cap.max_recv_sge))
 		return ERR_PTR(-EINVAL);
 
-	qp = device->create_qp(pd, qp_init_attr, NULL);
+	qp = _ib_create_qp(device, pd, qp_init_attr, NULL, NULL);
 	if (IS_ERR(qp))
 		return qp;
 
@@ -1243,6 +1320,95 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
+static bool is_qp_type_connected(const struct ib_qp *qp)
+{
+	return (qp->qp_type == IB_QPT_UC ||
+		qp->qp_type == IB_QPT_RC ||
+		qp->qp_type == IB_QPT_XRC_INI ||
+		qp->qp_type == IB_QPT_XRC_TGT);
+}
+
+/**
+ * IB core internal function to perform QP attributes modification.
+ */
+static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
+			 int attr_mask, struct ib_udata *udata)
+{
+	u8 port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
+	int ret;
+
+	if (port < rdma_start_port(qp->device) ||
+	    port > rdma_end_port(qp->device))
+		return -EINVAL;
+
+	if (attr_mask & IB_QP_ALT_PATH) {
+		/*
+		 * Today the core code can only handle alternate paths and APM
+		 * for IB. Ban them in roce mode.
+		 */
+		if (!(rdma_protocol_ib(qp->device,
+		      attr->alt_ah_attr.port_num) &&
+		      rdma_protocol_ib(qp->device, port))) {
+			ret = EINVAL;
+			goto out;
+		}
+	}
+
+	/*
+	 * If the user provided the qp_attr then we have to resolve it. Kernel
+	 * users have to provide already resolved rdma_ah_attr's
+	 */
+	if (udata && (attr_mask & IB_QP_AV) &&
+	    rdma_protocol_roce(qp->device, port) &&
+	    is_qp_type_connected(qp)) {
+		ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
+		if (ret)
+			goto out;
+	}
+
+	if (rdma_ib_or_roce(qp->device, port)) {
+		if (attr_mask & IB_QP_RQ_PSN && attr->rq_psn & ~0xffffff) {
+			dev_warn(&qp->device->dev,
+				 "%s rq_psn overflow, masking to 24 bits\n",
+				 __func__);
+			attr->rq_psn &= 0xffffff;
+		}
+
+		if (attr_mask & IB_QP_SQ_PSN && attr->sq_psn & ~0xffffff) {
+			dev_warn(&qp->device->dev,
+				 " %s sq_psn overflow, masking to 24 bits\n",
+				 __func__);
+			attr->sq_psn &= 0xffffff;
+		}
+	}
+
+	ret = qp->device->modify_qp(qp, attr, attr_mask, udata);
+	if (ret)
+		goto out;
+
+	if (attr_mask & IB_QP_PORT)
+		qp->port = attr->port_num;
+out:
+	return ret;
+}
+
+/**
+ * ib_modify_qp_with_udata - Modifies the attributes for the specified QP.
+ * @ib_qp: The QP to modify.
+ * @attr: On input, specifies the QP attributes to modify.  On output,
+ *   the current values of selected QP attributes are returned.
+ * @attr_mask: A bit-mask used to specify which attributes of the QP
+ *   are being modified.
+ * @udata: pointer to user's input output buffer information
+ *   are being modified.
+ * It returns 0 on success and returns appropriate error code on error.
+ */
+int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
+			    int attr_mask, struct ib_udata *udata)
+{
+	return _ib_modify_qp(ib_qp->real_qp, attr, attr_mask, udata);
+}
+EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
@@ -1319,7 +1485,7 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int ib_destroy_qp(struct ib_qp *qp)
+int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct ib_pd *pd;
 	struct ib_cq *scq, *rcq;
@@ -1339,7 +1505,7 @@ int ib_destroy_qp(struct ib_qp *qp)
 	srq  = qp->srq;
 	ind_tbl = qp->rwq_ind_tbl;
 
-	ret = qp->device->destroy_qp(qp);
+	ret = qp->device->destroy_qp(qp, udata);
 	if (!ret) {
 		if (pd)
 			atomic_dec(&pd->usecnt);
@@ -1355,32 +1521,40 @@ int ib_destroy_qp(struct ib_qp *qp)
 
 	return ret;
 }
-EXPORT_SYMBOL(ib_destroy_qp);
+EXPORT_SYMBOL(ib_destroy_qp_user);
 
 /* Completion queues */
 
-struct ib_cq *ib_create_cq(struct ib_device *device,
-			   ib_comp_handler comp_handler,
-			   void (*event_handler)(struct ib_event *, void *),
-			   void *cq_context,
-			   const struct ib_cq_init_attr *cq_attr)
+struct ib_cq *__ib_create_cq(struct ib_device *device,
+			     ib_comp_handler comp_handler,
+			     void (*event_handler)(struct ib_event *, void *),
+			     void *cq_context,
+			     const struct ib_cq_init_attr *cq_attr,
+			     const char *caller)
 {
 	struct ib_cq *cq;
+	int ret;
 
-	cq = device->create_cq(device, cq_attr, NULL, NULL);
+	cq = rdma_zalloc_drv_obj(device, ib_cq);
+	if (!cq)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(cq)) {
-		cq->device        = device;
-		cq->uobject       = NULL;
-		cq->comp_handler  = comp_handler;
-		cq->event_handler = event_handler;
-		cq->cq_context    = cq_context;
-		atomic_set(&cq->usecnt, 0);
+	cq->device = device;
+	cq->uobject = NULL;
+	cq->comp_handler = comp_handler;
+	cq->event_handler = event_handler;
+	cq->cq_context = cq_context;
+	atomic_set(&cq->usecnt, 0);
+
+	ret = device->create_cq(cq, cq_attr, NULL);
+	if (ret) {
+		kfree(cq);
+		return ERR_PTR(ret);
 	}
 
 	return cq;
 }
-EXPORT_SYMBOL(ib_create_cq);
+EXPORT_SYMBOL(__ib_create_cq);
 
 int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
@@ -1389,14 +1563,16 @@ int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 }
 EXPORT_SYMBOL(ib_modify_cq);
 
-int ib_destroy_cq(struct ib_cq *cq)
+int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {
 	if (atomic_read(&cq->usecnt))
 		return -EBUSY;
 
-	return cq->device->destroy_cq(cq);
+	cq->device->destroy_cq(cq, udata);
+	kfree(cq);
+	return 0;
 }
-EXPORT_SYMBOL(ib_destroy_cq);
+EXPORT_SYMBOL(ib_destroy_cq_user);
 
 int ib_resize_cq(struct ib_cq *cq, int cqe)
 {
@@ -1407,24 +1583,31 @@ EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
 
-int ib_dereg_mr(struct ib_mr *mr)
+int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata)
 {
 	struct ib_pd *pd = mr->pd;
+	struct ib_dm *dm = mr->dm;
+	struct ib_sig_attrs *sig_attrs = mr->sig_attrs;
 	int ret;
 
-	ret = mr->device->dereg_mr(mr);
-	if (!ret)
+	ret = mr->device->dereg_mr(mr, udata);
+	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		if (dm)
+			atomic_dec(&dm->usecnt);
+		kfree(sig_attrs);
+	}
 
 	return ret;
 }
-EXPORT_SYMBOL(ib_dereg_mr);
+EXPORT_SYMBOL(ib_dereg_mr_user);
 
 /**
- * ib_alloc_mr() - Allocates a memory region
+ * ib_alloc_mr_user() - Allocates a memory region
  * @pd:            protection domain associated with the region
  * @mr_type:       memory region type
  * @max_num_sg:    maximum sg entries available for registration.
+ * @udata:	   user data or null for kernel objects
  *
  * Notes:
  * Memory registeration page/sg lists must not exceed max_num_sg.
@@ -1432,27 +1615,38 @@ EXPORT_SYMBOL(ib_dereg_mr);
  * max_num_sg * used_page_size.
  *
  */
-struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
-			  enum ib_mr_type mr_type,
-			  u32 max_num_sg)
+struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
+			       u32 max_num_sg, struct ib_udata *udata)
 {
 	struct ib_mr *mr;
 
-	if (!pd->device->alloc_mr)
-		return ERR_PTR(-ENOSYS);
+	if (!pd->device->alloc_mr) {
+		mr = ERR_PTR(-EOPNOTSUPP);
+		goto out;
+	}
 
-	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
+	if (mr_type == IB_MR_TYPE_INTEGRITY) {
+		WARN_ON_ONCE(1);
+		mr = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg, udata);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
+		mr->dm      = NULL;
 		mr->uobject = NULL;
 		atomic_inc(&pd->usecnt);
 		mr->need_inval = false;
+		mr->type = mr_type;
+		mr->sig_attrs = NULL;
 	}
 
+out:
 	return mr;
 }
-EXPORT_SYMBOL(ib_alloc_mr);
+EXPORT_SYMBOL(ib_alloc_mr_user);
 
 /* "Fast" memory regions */
 
@@ -1578,14 +1772,14 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 }
 EXPORT_SYMBOL(ib_detach_mcast);
 
-struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
+struct ib_xrcd *__ib_alloc_xrcd(struct ib_device *device, const char *caller)
 {
 	struct ib_xrcd *xrcd;
 
 	if (!device->alloc_xrcd)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
-	xrcd = device->alloc_xrcd(device, NULL, NULL);
+	xrcd = device->alloc_xrcd(device, NULL);
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
 		xrcd->inode = NULL;
@@ -1596,9 +1790,9 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 
 	return xrcd;
 }
-EXPORT_SYMBOL(ib_alloc_xrcd);
+EXPORT_SYMBOL(__ib_alloc_xrcd);
 
-int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
+int ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	struct ib_qp *qp;
 	int ret;
@@ -1612,8 +1806,9 @@ int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 		if (ret)
 			return ret;
 	}
+	mutex_destroy(&xrcd->tgt_qp_mutex);
 
-	return xrcd->device->dealloc_xrcd(xrcd);
+	return xrcd->device->dealloc_xrcd(xrcd, udata);
 }
 EXPORT_SYMBOL(ib_dealloc_xrcd);
 
@@ -1657,24 +1852,23 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 EXPORT_SYMBOL(ib_create_wq);
 
 /**
- * ib_destroy_wq - Destroys the specified WQ.
+ * ib_destroy_wq - Destroys the specified user WQ.
  * @wq: The WQ to destroy.
+ * @udata: Valid user data
  */
-int ib_destroy_wq(struct ib_wq *wq)
+int ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata)
 {
-	int err;
 	struct ib_cq *cq = wq->cq;
 	struct ib_pd *pd = wq->pd;
 
 	if (atomic_read(&wq->usecnt))
 		return -EBUSY;
 
-	err = wq->device->destroy_wq(wq);
-	if (!err) {
-		atomic_dec(&pd->usecnt);
-		atomic_dec(&cq->usecnt);
-	}
-	return err;
+	wq->device->destroy_wq(wq, udata);
+	atomic_dec(&pd->usecnt);
+	atomic_dec(&cq->usecnt);
+
+	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_wq);
 
@@ -1760,33 +1954,6 @@ int ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *rwq_ind_table)
 	return err;
 }
 EXPORT_SYMBOL(ib_destroy_rwq_ind_table);
-
-struct ib_flow *ib_create_flow(struct ib_qp *qp,
-			       struct ib_flow_attr *flow_attr,
-			       int domain)
-{
-	struct ib_flow *flow_id;
-	if (!qp->device->create_flow)
-		return ERR_PTR(-ENOSYS);
-
-	flow_id = qp->device->create_flow(qp, flow_attr, domain);
-	if (!IS_ERR(flow_id))
-		atomic_inc(&qp->usecnt);
-	return flow_id;
-}
-EXPORT_SYMBOL(ib_create_flow);
-
-int ib_destroy_flow(struct ib_flow *flow_id)
-{
-	int err;
-	struct ib_qp *qp = flow_id->qp;
-
-	err = qp->device->destroy_flow(flow_id);
-	if (!err)
-		atomic_dec(&qp->usecnt);
-	return err;
-}
-EXPORT_SYMBOL(ib_destroy_flow);
 
 int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status)

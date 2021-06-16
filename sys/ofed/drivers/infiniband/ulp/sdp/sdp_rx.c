@@ -750,12 +750,8 @@ sdp_rx_ring_destroy(struct sdp_sock *ssk)
 	}
 
 	if (ssk->rx_ring.cq) {
-		if (ib_destroy_cq(ssk->rx_ring.cq)) {
-			sdp_warn(ssk->socket, "destroy cq(%p) failed\n",
-				ssk->rx_ring.cq);
-		} else {
-			ssk->rx_ring.cq = NULL;
-		}
+		ib_destroy_cq(ssk->rx_ring.cq);
+		ssk->rx_ring.cq = NULL;
 	}
 
 	WARN_ON(ring_head(ssk->rx_ring) != ring_tail(ssk->rx_ring));

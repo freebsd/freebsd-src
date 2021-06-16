@@ -583,8 +583,6 @@ static void free_qp_work(struct work_struct *work)
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
 
-	if (ucontext)
-		c4iw_put_ucontext(ucontext);
 	kfree(qhp);
 }
 
@@ -1678,7 +1676,7 @@ out:
 	return ret;
 }
 
-int c4iw_destroy_qp(struct ib_qp *ib_qp)
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
@@ -1879,7 +1877,6 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 				rq_db_key_mm->len);
 		insert_mmap(ucontext, rq_db_key_mm);
 
-		c4iw_get_ucontext(ucontext);
 		qhp->ucontext = ucontext;
 	}
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;

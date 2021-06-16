@@ -86,7 +86,7 @@ static void destroy_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
 {
 	deref_rmpp_recv(rmpp_recv);
 	wait_for_completion(&rmpp_recv->comp);
-	ib_destroy_ah(rmpp_recv->ah);
+	ib_destroy_ah(rmpp_recv->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	kfree(rmpp_recv);
 }
 
@@ -176,7 +176,7 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 				 hdr_len, 0, GFP_KERNEL,
 				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
-		ib_destroy_ah(ah);
+		ib_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 	else {
 		msg->ah = ah;
 		msg->context[0] = ah;
@@ -206,7 +206,7 @@ static void ack_ds_ack(struct ib_mad_agent_private *agent,
 
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		ib_destroy_ah(msg->ah);
+		ib_destroy_ah(msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 		ib_free_send_mad(msg);
 	}
 }
@@ -214,7 +214,7 @@ static void ack_ds_ack(struct ib_mad_agent_private *agent,
 void ib_rmpp_send_handler(struct ib_mad_send_wc *mad_send_wc)
 {
 	if (mad_send_wc->send_buf->context[0] == mad_send_wc->send_buf->ah)
-		ib_destroy_ah(mad_send_wc->send_buf->ah);
+		ib_destroy_ah(mad_send_wc->send_buf->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
@@ -242,7 +242,7 @@ static void nack_recv(struct ib_mad_agent_private *agent,
 
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		ib_destroy_ah(msg->ah);
+		ib_destroy_ah(msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 		ib_free_send_mad(msg);
 	}
 }

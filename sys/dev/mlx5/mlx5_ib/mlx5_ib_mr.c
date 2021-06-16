@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1303,7 +1303,7 @@ static int clean_mr(struct mlx5_ib_mr *mr)
 	return 0;
 }
 
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
@@ -1344,7 +1344,7 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+			       u32 max_num_sg, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
@@ -1389,7 +1389,7 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			goto err_free_in;
 		mr->desc_size = sizeof(struct mlx5_klm);
 		mr->max_descs = ndescs;
-	} else if (mr_type == IB_MR_TYPE_SIGNATURE) {
+	} else if (mr_type == IB_MR_TYPE_INTEGRITY) {
 		u32 psv_index[2];
 
 		MLX5_SET(mkc, mkc, bsf_en, 1);
