@@ -48,5 +48,5 @@ wmemchr(const wchar_t *s, wchar_t c, size_t n)
 		}
 		s++;
 	}
-	return NULL;
+	return (NULL);
 }
