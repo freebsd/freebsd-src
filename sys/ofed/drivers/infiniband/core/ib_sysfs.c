@@ -1336,3 +1336,48 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 
 	device_unregister(&device->dev);
 }
+
+/**
+ * ib_port_register_module_stat - add module counters under relevant port
+ *  of IB device.
+ *
+ * @device: IB device to add counters
+ * @port_num: valid port number
+ * @kobj: pointer to the kobject to initialize
+ * @ktype: pointer to the ktype for this kobject.
+ * @name: the name of the kobject
+ */
+int ib_port_register_module_stat(struct ib_device *device, u8 port_num,
+				 struct kobject *kobj, struct kobj_type *ktype,
+				 const char *name)
+{
+	struct kobject *p, *t;
+	int ret;
+
+	list_for_each_entry_safe(p, t, &device->port_list, entry) {
+		struct ib_port *port = container_of(p, struct ib_port, kobj);
+
+		if (port->port_num != port_num)
+			continue;
+
+		ret = kobject_init_and_add(kobj, ktype, &port->kobj, "%s",
+					   name);
+		if (ret) {
+			kobject_put(kobj);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_port_register_module_stat);
+
+/**
+ * ib_port_unregister_module_stat - release module counters
+ * @kobj: pointer to the kobject to release
+ */
+void ib_port_unregister_module_stat(struct kobject *kobj)
+{
+	kobject_put(kobj);
+}
+EXPORT_SYMBOL(ib_port_unregister_module_stat);
