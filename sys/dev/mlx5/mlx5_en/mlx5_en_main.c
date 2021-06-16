@@ -1350,12 +1350,12 @@ mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 	struct mlx5e_channel *c = rq->channel;
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
-
 	void *in;
 	void *rqc;
 	void *wq;
 	int inlen;
 	int err;
+	u8 ts_format;
 
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) +
 	    sizeof(u64) * rq->wq_ctrl.buf.npages;
@@ -1363,6 +1363,7 @@ mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 	if (in == NULL)
 		return (-ENOMEM);
 
+	ts_format = mlx5_get_rq_default_ts(mdev);
 	rqc = MLX5_ADDR_OF(create_rq_in, in, ctx);
 	wq = MLX5_ADDR_OF(rqc, rqc, wq);
 
@@ -1370,6 +1371,7 @@ mlx5e_enable_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param)
 
 	MLX5_SET(rqc, rqc, cqn, c->rq.cq.mcq.cqn);
 	MLX5_SET(rqc, rqc, state, MLX5_RQC_STATE_RST);
+	MLX5_SET(rqc, rqc, ts_format, ts_format);
 	MLX5_SET(rqc, rqc, flush_in_error_en, 1);
 	if (priv->counter_set_id >= 0)
 		MLX5_SET(rqc, rqc, counter_set_id, priv->counter_set_id);
@@ -1673,6 +1675,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param,
 	void *wq;
 	int inlen;
 	int err;
+	u8 ts_format;
 
 	inlen = MLX5_ST_SZ_BYTES(create_sq_in) +
 	    sizeof(u64) * sq->wq_ctrl.buf.npages;
@@ -1680,6 +1683,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param,
 	if (in == NULL)
 		return (-ENOMEM);
 
+	ts_format = mlx5_get_sq_default_ts(sq->priv->mdev);
 	sqc = MLX5_ADDR_OF(create_sq_in, in, ctx);
 	wq = MLX5_ADDR_OF(sqc, sqc, wq);
 
@@ -1688,6 +1692,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param,
 	MLX5_SET(sqc, sqc, tis_num_0, tis_num);
 	MLX5_SET(sqc, sqc, cqn, sq->cq.mcq.cqn);
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
+	MLX5_SET(sqc, sqc, ts_format, ts_format);
 	MLX5_SET(sqc, sqc, tis_lst_sz, 1);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
 	MLX5_SET(sqc, sqc, allow_swp, 1);

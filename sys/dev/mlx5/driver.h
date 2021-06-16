@@ -1202,4 +1202,25 @@ static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 void mlx5_disable_interrupts(struct mlx5_core_dev *);
 void mlx5_poll_interrupts(struct mlx5_core_dev *);
 
+static inline int mlx5_get_qp_default_ts(struct mlx5_core_dev *dev)
+{
+        return !MLX5_CAP_ROCE(dev, qp_ts_format) ?
+                       MLX5_QPC_TIMESTAMP_FORMAT_FREE_RUNNING :
+                       MLX5_QPC_TIMESTAMP_FORMAT_DEFAULT;
+}
+
+static inline int mlx5_get_rq_default_ts(struct mlx5_core_dev *dev)
+{
+        return !MLX5_CAP_GEN(dev, rq_ts_format) ?
+                       MLX5_RQC_TIMESTAMP_FORMAT_FREE_RUNNING :
+                       MLX5_RQC_TIMESTAMP_FORMAT_DEFAULT;
+}
+
+static inline int mlx5_get_sq_default_ts(struct mlx5_core_dev *dev)
+{
+        return !MLX5_CAP_GEN(dev, sq_ts_format) ?
+                       MLX5_SQC_TIMESTAMP_FORMAT_FREE_RUNNING :
+                       MLX5_SQC_TIMESTAMP_FORMAT_DEFAULT;
+}
+
 #endif /* MLX5_DRIVER_H */
