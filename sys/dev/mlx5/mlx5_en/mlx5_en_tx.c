@@ -423,7 +423,7 @@ mlx5e_get_vxlan_header_size(const struct mbuf *mb, struct mlx5e_tx_wqe *wqe,
 		if (unlikely(ip_type != IPPROTO_UDP))
 			return (0);
 		wqe->eth.swp_outer_l3_offset = eth_hdr_len / 2;
-		wqe->eth.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+		wqe->eth.cs_flags = MLX5_ETH_WQE_L4_CSUM;
 		eth_hdr_len += sizeof(*ip6);
 		udp = mlx5e_parse_mbuf_chain(&mb, &offset, eth_hdr_len,
 		    sizeof(*udp));
@@ -483,7 +483,6 @@ mlx5e_get_vxlan_header_size(const struct mbuf *mb, struct mlx5e_tx_wqe *wqe,
 		if (unlikely(ip6 == NULL))
 			return (0);
 		wqe->eth.swp_inner_l3_offset = eth_hdr_len / 2;
-		wqe->eth.cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
 		wqe->eth.swp_flags |= MLX5_ETH_WQE_SWP_INNER_L3_TYPE;
 		ip_type = ip6->ip6_nxt;
 		eth_hdr_len += sizeof(*ip6);
@@ -833,7 +832,8 @@ top:
 				uint8_t cs_mask;
 
 				if (mb->m_pkthdr.csum_flags &
-				    (CSUM_INNER_IP_TCP | CSUM_INNER_IP_UDP)) {
+				    (CSUM_INNER_IP_TCP | CSUM_INNER_IP_UDP |
+				     CSUM_INNER_IP6_TCP | CSUM_INNER_IP6_UDP)) {
 					cs_mask =
 					    MLX5_ETH_WQE_L3_INNER_CSUM |
 					    MLX5_ETH_WQE_L4_INNER_CSUM |
