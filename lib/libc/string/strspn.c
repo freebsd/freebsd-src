@@ -46,7 +46,7 @@ strspn(const char *s, const char *charset)
 		return 0;
 
 #if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
-	tbl[3] = tbl[2] = tbl[1] = tbl[0] = 0;
+	tbl[0] = tbl[1] = tbl[2] = tbl[3] = 0;
 #else
 	for (size_t idx = 0; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
 		tbl[idx] = 0;
