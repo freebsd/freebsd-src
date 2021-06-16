@@ -239,13 +239,11 @@ fuse_device_filt_read(struct knote *kn, long hint)
 static int
 fuse_device_filt_write(struct knote *kn, long hint)
 {
-	int ready;
 
-	/* The device is always ready to write */
 	kn->kn_data = 0;
-	ready = 1;
 
-	return (ready);
+	/* The device is always ready to write, so we return 1*/
+	return (1);
 }
 
 /*
