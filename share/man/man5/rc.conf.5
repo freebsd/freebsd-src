@@ -1000,6 +1000,42 @@ is set to
 these flags are passed to the
 .Xr pfctl 8
 program when loading the ruleset.
+.It Va pf_fallback_rules_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables loading
+.Va pf_fallback_rules_file
+or
+.Va pf_fallback_rules
+in case of a problem when loading the ruleset in
+.Va pf_rules .
+.It Va pf_fallback_rules_file
+.Pq Vt str
+Path to a pf ruleset to load in case of failure when loading the
+ruleset in
+.Va pf_rules
+(default
+.Pa /etc/pf-fallback.conf ) .
+.It Va pf_fallback_rules
+.Pq Vt str
+A pf ruleset to load in case of failure when loading the ruleset in
+.Va pf_rules
+and
+.Va pf_fallback_rules_file
+is not found.
+Multiple rules can be set as follows:
+.Bd -literal
+pf_fallback_rules="\\
+	block drop log all\\
+	pass in quick on em0"
+.Pp
+.Ed
+The default fallback rule is
+.Dq block drop log all
 .It Va pflog_enable
 .Pq Vt bool
 Set to
