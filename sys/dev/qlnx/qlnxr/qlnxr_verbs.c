@@ -3543,22 +3543,6 @@ qlnxr_modify_qp(struct ib_qp	*ibqp,
 		new_qp_state = old_qp_state;
 
 	if (QLNX_IS_ROCE(dev)) {
-#if __FreeBSD_version >= 1100000
-		if (!ib_modify_qp_is_ok(old_qp_state,
-					new_qp_state,
-					ibqp->qp_type,
-					attr_mask,
-					IB_LINK_LAYER_ETHERNET)) {
-			QL_DPRINT12(ha,
-				"invalid attribute mask=0x%x"
-				" specified for qpn=0x%x of type=0x%x \n"
-				" old_qp_state=0x%x, new_qp_state=0x%x\n",
-				attr_mask, qp->qp_id, ibqp->qp_type,
-				old_qp_state, new_qp_state);
-			rc = -EINVAL;
-			goto err;
-		}
-#else
 		if (!ib_modify_qp_is_ok(old_qp_state,
 					new_qp_state,
 					ibqp->qp_type,
@@ -3572,8 +3556,6 @@ qlnxr_modify_qp(struct ib_qp	*ibqp,
 			rc = -EINVAL;
 			goto err;
 		}
-
-#endif /* #if __FreeBSD_version >= 1100000 */
 	}
 	/* translate the masks... */
 	if (attr_mask & IB_QP_STATE) {
