@@ -67,11 +67,7 @@ static const unsigned long mask80 = 0x8080808080808080;
  * Helper macro to return string length if we caught the zero
  * byte.
  */
-#define testbyte(x)				\
-	do {					\
-		if (p[x] == '\0')		\
-		    return (p - str + x);	\
-	} while (0)
+#define testbyte(x)	if (p[x] == '\0') return p - str + x
 
 size_t
 strlen(const char *str)
@@ -98,7 +94,7 @@ strlen(const char *str)
 		/* Check if we have \0 in the first part */
 		for (p = str; p < (const char *)lp; p++)
 			if (*p == '\0')
-				return (p - str);
+				return p - str;
 
 	/* Scan the rest of the string using word sized operation */
 	for (; ; lp++) {
