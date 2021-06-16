@@ -2220,7 +2220,6 @@ static inline bool ib_is_udata_cleared(struct ib_udata *udata,
  * @next_state: Next QP state
  * @type: QP type
  * @mask: Mask of supplied QP attributes
- * @ll : link layer of port
  *
  * This function is a helper function that a low-level driver's
  * modify_qp method can use to validate the consumer's input.  It
@@ -2228,9 +2227,8 @@ static inline bool ib_is_udata_cleared(struct ib_udata *udata,
  * transition from cur_state to next_state is allowed by the IB spec,
  * and that the attribute mask supplied is allowed for the transition.
  */
-int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
-		       enum rdma_link_layer ll);
+bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
+			enum ib_qp_type type, enum ib_qp_attr_mask mask);
 
 int ib_register_event_handler  (struct ib_event_handler *event_handler);
 int ib_unregister_event_handler(struct ib_event_handler *event_handler);
