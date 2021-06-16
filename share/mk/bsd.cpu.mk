@@ -160,7 +160,8 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 
 ########## i386
 . if ${MACHINE_CPUARCH} == "i386"
-.  if ${CPUTYPE} == "znver2" || ${CPUTYPE} == "znver1"
+.  if ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
+    ${CPUTYPE} == "znver1"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
 .  elif ${CPUTYPE} == "bdver4"
 MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3 sse2 sse mmx k6 k5 i586
@@ -189,13 +190,14 @@ MACHINE_CPU = 3dnow mmx k6 k5 i586
 MACHINE_CPU = mmx k6 k5 i586
 .  elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586
-.  elif ${CPUTYPE} == "tigerlake" || ${CPUTYPE} == "cooperlake" || \
-    ${CPUTYPE} == "cascadelake" || ${CPUTYPE} == "icelake-server" || \
-    ${CPUTYPE} == "icelake-client" || ${CPUTYPE} == "cannonlake" || \
-    ${CPUTYPE} == "knm" || ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
+.  elif ${CPUTYPE} == "sapphirerapids" || ${CPUTYPE} == "tigerlake" || \
+    ${CPUTYPE} == "cooperlake" || ${CPUTYPE} == "cascadelake" || \
+    ${CPUTYPE} == "icelake-server" || ${CPUTYPE} == "icelake-client" || \
+    ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
+    ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
 MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
-.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "broadwell" || \
-    ${CPUTYPE} == "haswell"
+.  elif ${CPUTYPE} == "alderlake" || ${CPUTYPE} == "skylake" || \
+    ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
 .  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3 sse2 sse i686 mmx i586
@@ -236,7 +238,8 @@ MACHINE_CPU = mmx
 MACHINE_CPU += i486
 ########## amd64
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "znver2" || ${CPUTYPE} == "znver1"
+.  if ${CPUTYPE} == "znver3" || ${CPUTYPE} == "znver2" || \
+    ${CPUTYPE} == "znver1"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse4a sse3
 .  elif ${CPUTYPE} == "bdver4"
 MACHINE_CPU = xop avx2 avx sse42 sse41 ssse3 sse4a sse3
@@ -255,13 +258,14 @@ MACHINE_CPU = k8 3dnow sse3
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || \
     ${CPUTYPE} == "athlon-fx" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "tigerlake" || ${CPUTYPE} == "cooperlake" || \
-    ${CPUTYPE} == "cascadelake" || ${CPUTYPE} == "icelake-server" || \
-    ${CPUTYPE} == "icelake-client" || ${CPUTYPE} == "cannonlake" || \
-    ${CPUTYPE} == "knm" || ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
+.  elif ${CPUTYPE} == "sapphirerapids" || ${CPUTYPE} == "tigerlake" || \
+    ${CPUTYPE} == "cooperlake" || ${CPUTYPE} == "cascadelake" || \
+    ${CPUTYPE} == "icelake-server" || ${CPUTYPE} == "icelake-client" || \
+    ${CPUTYPE} == "cannonlake" || ${CPUTYPE} == "knm" || \
+    ${CPUTYPE} == "skylake-avx512" || ${CPUTYPE} == "knl"
 MACHINE_CPU = avx512 avx2 avx sse42 sse41 ssse3 sse3
-.  elif ${CPUTYPE} == "skylake" || ${CPUTYPE} == "broadwell" || \
-    ${CPUTYPE} == "haswell"
+.  elif ${CPUTYPE} == "alderlake" || ${CPUTYPE} == "skylake" || \
+    ${CPUTYPE} == "broadwell" || ${CPUTYPE} == "haswell"
 MACHINE_CPU = avx2 avx sse42 sse41 ssse3 sse3
 .  elif ${CPUTYPE} == "ivybridge" || ${CPUTYPE} == "sandybridge"
 MACHINE_CPU = avx sse42 sse41 ssse3 sse3

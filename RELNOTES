@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+d575e81fbcfa
+	gconcat(8) has added support for appending devices to the device
+	not present at creation time.
+
 76681661be28
 	Remove support for asymmetric cryptographic operations from
 	the kernel open cryptographic framework (OCF).

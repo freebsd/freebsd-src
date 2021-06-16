@@ -52,11 +52,9 @@ __FBSDID("$FreeBSD$");
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 /* DTrace probes */
-LIN_SDT_PROBE_DEFINE0(machdep, linux_set_upcall, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_mmap2, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_rt_sigsuspend, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_sigaltstack, todo);
-LIN_SDT_PROBE_DEFINE0(machdep, linux_set_cloned_tls, todo);
 
 /*
  * LINUXTODO: deduplicate; linux_execve is common across archs, except that on
@@ -84,13 +82,19 @@ linux_execve(struct thread *td, struct linux_execve_args *uap)
 	return (error);
 }
 
-/* LINUXTODO: implement (or deduplicate) arm64 linux_set_upcall */
 int
 linux_set_upcall(struct thread *td, register_t stack)
 {
 
-	LIN_SDT_PROBE0(machdep, linux_set_upcall, todo);
-	return (EDOOFUS);
+	if (stack)
+		td->td_frame->tf_sp = stack;
+
+	/*
+	 * The newly created Linux thread returns
+	 * to the user space by the same path that a parent does.
+	 */
+	td->td_frame->tf_x[0] = 0;
+	return (0);
 }
 
 /* LINUXTODO: deduplicate arm64 linux_mmap2 */
@@ -136,11 +140,12 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	return (EDOOFUS);
 }
 
-/* LINUXTODO: implement arm64 linux_set_cloned_tls */
 int
 linux_set_cloned_tls(struct thread *td, void *desc)
 {
 
-	LIN_SDT_PROBE0(machdep, linux_set_cloned_tls, todo);
-	return (EDOOFUS);
+	if ((uint64_t)desc >= VM_MAXUSER_ADDRESS)
+		return (EPERM);
+
+	return (cpu_set_user_tls(td, desc));
 }

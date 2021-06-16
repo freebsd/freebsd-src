@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2004
+.Dd June 14, 2021
 .Dt GCONCAT 8
 .Os
 .Sh NAME
@@ -45,6 +45,11 @@
 .Op Fl hv
 .Ar name
 .Ar prov ...
+.Nm
+.Cm append
+.Op Fl hv
+.Ar name
+.Ar prov
 .Nm
 .Cm stop
 .Op Fl fv
@@ -104,10 +109,44 @@ method, where metadata are stored in every device's last sector.
 The kernel module
 .Pa geom_concat.ko
 will be loaded if it is not loaded already.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl h"
+.It Fl h
+Hardcode providers' names in metadata.
+.El
+.It Cm append
+Append a new device to the end of an existing concatenate device
+with the specified
+.Ar name .
+.Pp
+If the existing device is using the
+.Dq manual
+method, the new device is simply appended as-is.
+.Pp
+If the existing device is using the
+.Dq automatic
+method, the device is appended persistently.
+New
+.Cm gconcat
+metadata is written to all existing components, as well as to the
+newly added one.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl h"
+.It Fl h
+Hardcode providers' names in metadata.
+.El
 .It Cm stop
 Turn off existing concatenate device by its
 .Ar name .
 This command does not touch on-disk metadata!
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given device even if it is opened.
+.El
 .It Cm destroy
 Same as
 .Cm stop .
@@ -131,10 +170,6 @@ See
 .Pp
 Additional options:
 .Bl -tag -width indent
-.It Fl f
-Force the removal of the specified concatenated device.
-.It Fl h
-Hardcode providers' names in metadata.
 .It Fl v
 Be more verbose.
 .El

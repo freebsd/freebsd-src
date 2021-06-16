@@ -161,6 +161,8 @@ struct sysentvec {
 #define	SV_TIMEKEEP	0x040000	/* Shared page timehands. */
 #define	SV_ASLR		0x080000	/* ASLR allowed. */
 #define	SV_RNG_SEED_VER	0x100000	/* random(4) reseed generation. */
+#define	SV_SIG_DISCIGN	0x200000	/* Do not discard ignored signals */
+#define	SV_SIG_WAITNDQ	0x400000	/* Wait does not dequeue SIGCHLD */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))

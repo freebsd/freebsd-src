@@ -12,10 +12,8 @@ PACKAGE=	runtime
 
 SRCS = \
         assert.c \
-        getexecname.c \
         list.c \
         mkdirp.c \
-        os/freebsd/getexecname.c \
         os/freebsd/zone.c \
         page.c \
         timestamp.c \
@@ -27,6 +25,8 @@ SRCS = \
 .if !defined(BOOTSTRAPPING)
 SRCS += \
         atomic.c \
+        getexecname.c \
+        os/freebsd/getexecname.c \
         os/freebsd/gethostid.c \
         os/freebsd/getmntany.c \
         os/freebsd/mnttab.c
