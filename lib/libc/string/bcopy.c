@@ -131,5 +131,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return dst0;
+#else
+	return;
 #endif
 }
