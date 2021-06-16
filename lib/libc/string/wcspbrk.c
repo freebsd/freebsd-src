@@ -47,8 +47,8 @@ wcspbrk(const wchar_t *s, const wchar_t *set)
 	wchar_t c;
 	wchar_t sc;
 
-	for (p = s; c = *p; p++) {
-		for (q = set; sc = *q; q++) {
+	for (p = s; (c = *p) != '\0'; p++) {
+		for (q = set; (sc = *q) != '\0'; q++) {
 			if (c == sc) {
 				/* LINTED interface specification */
 				return (wchar_t *)p;
