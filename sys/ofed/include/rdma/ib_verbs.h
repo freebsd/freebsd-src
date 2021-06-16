@@ -67,6 +67,7 @@
 
 struct ifla_vf_info;
 struct ifla_vf_stats;
+struct ib_uverbs_file;
 
 extern struct workqueue_struct *ib_wq;
 extern struct workqueue_struct *ib_comp_wq;
@@ -3389,6 +3390,8 @@ int ib_sg_to_pages(struct ib_mr *mr, struct scatterlist *sgl, int sg_nents,
 void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
+
+struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
 			struct ib_ah_attr *ah_attr);
