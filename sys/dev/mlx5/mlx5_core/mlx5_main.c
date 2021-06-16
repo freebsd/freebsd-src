@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,8 +55,7 @@
 
 static const char mlx5_version[] = "Mellanox Core driver "
 	DRIVER_VERSION " (" DRIVER_RELDATE ")";
-MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
+MODULE_DESCRIPTION("Mellanox ConnectX-4 and onwards core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEPEND(mlx5, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mlx5, mlxfw, 1, 1, 1);
@@ -1316,6 +1315,8 @@ static int init_one(struct pci_dev *pdev,
 	struct sysctl_oid *cap_sysctl_node;
 	struct sysctl_oid *current_cap_sysctl_node;
 	struct sysctl_oid *max_cap_sysctl_node;
+
+	printk_once("mlx5: %s", mlx5_version);
 
 	numa_node = dev_to_node(&pdev->dev);
 
