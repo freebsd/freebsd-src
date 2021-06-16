@@ -50,22 +50,12 @@
 #include <dev/mlx5/fs.h>
 #include "mlx5_ib.h"
 
-#define DRIVER_NAME "mlx5ib"
-#ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.6.0"
-#endif
-#define DRIVER_RELDATE	"December 2020"
-
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEPEND(mlx5ib, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(mlx5ib, mlx5, 1, 1, 1);
 MODULE_DEPEND(mlx5ib, ibcore, 1, 1, 1);
 MODULE_VERSION(mlx5ib, 1);
-
-static const char mlx5_version[] =
-	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver "
-	DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 enum {
 	MLX5_ATOMIC_SIZE_QP_8BYTES = 1 << 3,
@@ -3575,14 +3565,6 @@ static void __exit mlx5_ib_cleanup(void)
 	mlx5_unregister_interface(&mlx5_ib_interface);
 	mlx5_ib_odp_cleanup();
 }
-
-static void
-mlx5_ib_show_version(void __unused *arg)
-{
-
-	printf("%s", mlx5_version);
-}
-SYSINIT(mlx5_ib_show_version, SI_SUB_DRIVERS, SI_ORDER_ANY, mlx5_ib_show_version, NULL);
 
 module_init_order(mlx5_ib_init, SI_ORDER_SEVENTH);
 module_exit_order(mlx5_ib_cleanup, SI_ORDER_SEVENTH);
