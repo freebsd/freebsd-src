@@ -936,12 +936,10 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	u_int32_t *tl;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
-	nfsattrbit_t attrbits;
 	u_int8_t *cp = NULL, *cp2, addr[INET6_ADDRSTRLEN + 9];
 	u_short port;
 	int error, isinet6 = 0, callblen;
 	nfsquad_t confirm;
-	u_int32_t lease;
 	static u_int32_t rev = 0;
 	struct nfsclds *dsp, *odsp;
 	struct in6_addr a6;
@@ -1171,29 +1169,6 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 		return (error);
 	    m_freem(nd->nd_mrep);
 	    nd->nd_mrep = NULL;
-	    if (nd->nd_repstat == 0) {
-		nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, nmp->nm_fh,
-		    nmp->nm_fhsize, NULL, NULL, 0, 0);
-		NFSZERO_ATTRBIT(&attrbits);
-		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_LEASETIME);
-		(void) nfsrv_putattrbit(nd, &attrbits);
-		nd->nd_flag |= ND_USEGSSNAME;
-		error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p,
-		    cred, NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-		if (error)
-		    return (error);
-		if (nd->nd_repstat == 0) {
-		    error = nfsv4_loadattr(nd, NULL, NULL, NULL, NULL, 0, NULL,
-			NULL, NULL, NULL, NULL, 0, NULL, &lease, NULL, p, cred);
-		    if (error)
-			goto nfsmout;
-		    clp->nfsc_renew = NFSCL_RENEW(lease);
-		    clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;
-		    clp->nfsc_clientidrev++;
-		    if (clp->nfsc_clientidrev == 0)
-			clp->nfsc_clientidrev++;
-		}
-	    }
 	}
 	error = nd->nd_repstat;
 nfsmout:
@@ -3984,7 +3959,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	do {
 	    nd->nd_repstat = 0;
 	    if (op == F_GETLK) {
-		error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
+		error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
 		if (error)
 			return (error);
 		error = nfscl_lockt(vp, clp, off, len, fl, p, id, flags);
@@ -4001,7 +3976,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		 * We must loop around for all lockowner cases.
 		 */
 		callcnt = 0;
-		error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
+		error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
 		if (error)
 			return (error);
 		do {

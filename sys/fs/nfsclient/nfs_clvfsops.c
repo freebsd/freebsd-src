@@ -1573,10 +1573,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	if ((error = newnfs_connect(nmp, &nmp->nm_sockreq, cred, td, 0, false)))
 		goto bad;
-	/* For NFSv4.1, get the clientid now. */
-	if (nmp->nm_minorvers > 0) {
+	/* For NFSv4, get the clientid now. */
+	if ((argp->flags & NFSMNT_NFSV4) != 0) {
 		NFSCL_DEBUG(3, "at getcl\n");
-		error = nfscl_getcl(mp, cred, td, 0, &clp);
+		error = nfscl_getcl(mp, cred, td, false, &clp);
 		NFSCL_DEBUG(3, "aft getcl=%d\n", error);
 		if (error != 0)
 			goto bad;
@@ -1646,7 +1646,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			lease = 60;
 		}
 		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
-		if (nmp->nm_minorvers > 0) {
+		if ((argp->flags & NFSMNT_NFSV4) != 0) {
 			NFSCL_DEBUG(3, "lease=%d\n", (int)lease);
 			NFSLOCKCLSTATE();
 			clp->nfsc_renew = NFSCL_RENEW(lease);

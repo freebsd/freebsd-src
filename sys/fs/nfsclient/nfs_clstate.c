@@ -246,7 +246,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 		fhlen - 1, M_NFSCLOPEN, M_WAITOK);
 	    nop->nfso_hash.le_prev = NULL;
 	}
-	ret = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
+	ret = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
 	if (ret != 0) {
 		free(nowp, M_NFSCLOWNER);
 		if (nop != NULL)
@@ -823,13 +823,11 @@ nfscl_openrelease(struct nfsmount *nmp, struct nfsclopen *op, int error,
  * If the "cred" argument is NULL, a new clientid should not be created.
  * If the "p" argument is NULL, a SetClientID/SetClientIDConfirm cannot
  * be done.
- * The start_renewthread argument tells nfscl_getcl() to start a renew
- * thread if this creates a new clp.
  * It always clpp with a reference count on it, unless returning an error.
  */
 int
 nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
-    int start_renewthread, struct nfsclclient **clpp)
+    bool tryminvers, struct nfsclclient **clpp)
 {
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
@@ -888,15 +886,10 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		LIST_INSERT_HEAD(&nfsclhead, clp, nfsc_list);
 		nmp->nm_clp = clp;
 		clp->nfsc_nmp = nmp;
-		NFSUNLOCKCLSTATE();
-		if (start_renewthread != 0)
-			nfscl_start_renewthread(clp);
 	} else {
-		NFSUNLOCKCLSTATE();
 		if (newclp != NULL)
 			free(newclp, M_NFSCLCLIENT);
 	}
-	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock &&
 	    !NFSCL_FORCEDISM(mp))
 		igotlock = nfsv4_lock(&clp->nfsc_lock, 1, NULL,
@@ -1085,7 +1078,7 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		if (recovery)
 			clp = rclp;
 		else
-			error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
+			error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
 	}
 	if (error) {
 		free(nlp, M_NFSCLLOCKOWNER);
@@ -1416,7 +1409,7 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 		end = NFS64BITSSET;
 	}
 
-	error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, cred, p, false, &clp);
 	if (error)
 		return (1);
 	nfscl_filllockowner(id, own, flags);
@@ -3209,7 +3202,7 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp)
 	struct nfsfh *nfhp;
 	int error, notdecr;
 
-	error = nfscl_getcl(vp->v_mount, NULL, NULL, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
@@ -3283,7 +3276,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	struct nfsclrecalllayout *recallp;
 	int error;
 
-	error = nfscl_getcl(vp->v_mount, NULL, NULL, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, false, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
