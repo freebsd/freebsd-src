@@ -56,8 +56,8 @@ memchr(const void *src, int c, size_t n)
 #endif
 	for (; n; n--) {
 		if (*s == uc)
-		     return ((void *)s);
+		     return (void *)s;
 		s++;
 	}
-	return (NULL);
+	return NULL;
 }
