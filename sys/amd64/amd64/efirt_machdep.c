@@ -180,6 +180,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	struct efi_md *p;
 	pt_entry_t *pte;
 	void *pml;
+	vm_page_t m;
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
@@ -247,6 +248,14 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		    va += PAGE_SIZE) {
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
+
+			m = PHYS_TO_VM_PAGE(va);
+			if (m != NULL && VM_PAGE_TO_PHYS(m) == 0) {
+				vm_page_init_page(m, va, -1);
+				m->order = VM_NFREEORDER + 1; /* invalid */
+				m->pool = VM_NFREEPOOL + 1; /* invalid */
+				pmap_page_set_memattr(m, mode);
+			}
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 	}
