@@ -35,7 +35,7 @@ size_t
 strnlen(const char *s, size_t maxlen)
 {
 	const char * const p = s;
-	const char *es = s + maxlen;
+	const char * const es = s + maxlen;
 
 	while (*s && s != es) {
 		s++;
