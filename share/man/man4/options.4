@@ -1,0 +1,56 @@
+.\"
+.\" Copyright (c) 2021 Netflix, Inc
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 20, 2021
+.Dt OPTIONS 4
+.Os
+.Sh NAME
+.Nm options
+.Nd Kernel configuration options
+.Sh SYNOPSIS
+.Cd option ...
+.Cd options ...
+.Sh DESCRIPTION
+This manual page documents the options to the
+.Fx
+kernel.
+For general information about kernel config files, see
+.Xr config 8
+and
+.Xr config 5 .
+.Ss Keywords
+.Bl -ohang
+.It Sy option Ar var Op = Ar val
+.It Sy options Ar var Op = Ar val
+Specify an optional portion of the kernel be included.
+An option may have an optional value, which is specified using the familiar
+assignment notation above.
+.El
+.Pp
+Other keywords can be found the
+.Xr config 5
+manual page.
+.Ss Options
+.Bl -ohang
+.It Cd options MAXDSIZ Cd options MAXDSIZ Cd options DFLDSIZ
+FreeBSD processes are subject to certain limits to their consumption
+of system resources.
+See getrlimit(2) for more details.
+Each resource limit has two values, a "soft" limit and a "hard" limit.
+The soft limits can be modified during normal system operation, but
+the hard limits are set at boot time.
+.It Cd options DFLTPHYS
+The default safe raw I/O block device access size.
+Reads and writes will be split into
+.Va DFLTPHYS
+byte chunks.
+.It Cd options MAXPHYS
+The largest raw I/O block device access size.
+Reads and writes will be split into
+.Va MAXPHYS
+byte chunks for known good devices, subject to the device's limitation.
+Many VM system parameters are sized based on this value, and setting it too
+large can produce an unbootable kernel.
+.El

@@ -410,6 +410,7 @@ MAN=	aac.4 \
 	ocs_fc.4\
 	ohci.4 \
 	openfirm.4 \
+	options.4 \
 	orm.4 \
 	${_ossl.4} \
 	ow.4 \
