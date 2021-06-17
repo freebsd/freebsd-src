@@ -505,16 +505,46 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_scan,
     CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet_scan, "I", "Execute fib4_lookup scan tests");
 
+#define	LPS_SEQ		0x1
+#define	LPS_ANN		0x2
+#define	LPS_REP		0x4
+
+struct lps_walk_state {
+	uint32_t *keys;
+	int pos;
+	int lim;
+};
+
+static int
+reduce_keys(struct rtentry *rt, void *_data)
+{
+        struct lps_walk_state *wa = (struct lps_walk_state *) _data;
+	struct in_addr addr;
+	uint32_t scopeid;
+	int plen;
+
+	rt_get_inet_prefix_plen(rt, &addr, &plen, &scopeid);
+	wa->keys[wa->pos] = ntohl(addr.s_addr) |
+	    (wa->keys[wa->pos] & ~(0xffffffffU << (32 - plen)));
+
+	wa->pos++;
+	return (wa->pos == wa->lim);
+}
+
 static int
 rnd_lps(SYSCTL_HANDLER_ARGS)
 {
 	struct epoch_tracker et;
 	struct in_addr key;
+	struct lps_walk_state wa;
 	struct timespec ts_pre, ts_post;
+	struct nhop_object *nh_fib;
 	uint64_t total_diff, lps;
 	uint32_t *keys;
+	uint32_t t, p;
 	uintptr_t acc = 0;
-	int count = 0;
+	int i, pos, count = 0;
+	int seq = 0, rep = 0;
 	int error;
 
 	error = sysctl_handle_int(oidp, &count, 0, req);
@@ -526,25 +556,62 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	keys = malloc(sizeof(*keys) * count, M_TEMP, M_NOWAIT);
 	if (keys == NULL)
 		return (ENOMEM);
-
 	printf("Preparing %d random keys...\n", count);
 	arc4random_buf(keys, sizeof(*keys) * count);
-	printf("Starting LPS test...\n");
+	if (arg2 & LPS_ANN) {
+		wa.keys = keys;
+		wa.pos = 0;
+		wa.lim = count;
+		printf("Reducing keys to announced address space...\n");
+		do {
+			rib_walk(RT_DEFAULT_FIB, AF_INET, false, reduce_keys,
+			    &wa);
+		} while (wa.pos < wa.lim);
+		printf("Reshuffling keys...\n");
+		for (int i = 0; i < count; i++) {
+			p = random() % count;
+			t = keys[p];
+			keys[p] = keys[i];
+			keys[i] = t;
+		}
+	}
+
+	if (arg2 & LPS_REP) {
+		rep = 1;
+		printf("REP ");
+	}
+	if (arg2 & LPS_SEQ) {
+		seq = 1;
+		printf("SEQ");
+	} else if (arg2 & LPS_ANN)
+		printf("ANN");
+	else
+		printf("RND");
+	printf(" LPS test starting...\n");
 
 	NET_EPOCH_ENTER(et);
 	nanouptime(&ts_pre);
-	switch (arg2) {
-	case 0:
-		for (int i = 0; i < count; i++) {
-			key.s_addr = keys[i] + acc;
-			acc += (uintptr_t) fib4_lookup(RT_DEFAULT_FIB, key, 0,
-			    NHR_NONE, 0);
+	for (i = 0, pos = 0; i < count; i++) {
+		key.s_addr = keys[pos++] ^ ((acc >> 10) & 0xff);
+		nh_fib = fib4_lookup(RT_DEFAULT_FIB, key, 0, NHR_NONE, 0);
+		if (seq) {
+			if (nh_fib != NULL) {
+				acc += (uintptr_t) nh_fib + 123;
+				if (acc & 0x1000)
+					acc += (uintptr_t) nh_fib->nh_ifp;
+				else
+					acc -= (uintptr_t) nh_fib->nh_ifp;
+			} else
+				acc ^= (acc >> 3) + (acc << 2) + i;
+			if (acc & 0x800)
+				pos++;
+			if (pos >= count)
+				pos = 0;
 		}
-	case 1:
-		for (int i = 0; i < count; i++) {
-			key.s_addr = keys[i];
-			acc += (uintptr_t) fib4_lookup(RT_DEFAULT_FIB, key, 0,
-			    NHR_NONE, 0);
+		if (rep && ((i & 0xf) == 0xf)) {
+			pos -= 0xf;
+			if (pos < 0)
+				pos += 0xf;
 		}
 	}
 	nanouptime(&ts_post);
@@ -553,22 +620,53 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	free(keys, M_TEMP);
 
 	total_diff = (ts_post.tv_sec - ts_pre.tv_sec) * 1000000000 +
-	    (ts_post.tv_nsec - ts_pre.tv_nsec) + (acc & 1);
+	    (ts_post.tv_nsec - ts_pre.tv_nsec);
 	lps = 1000000000ULL * count / total_diff;
-	printf("%d lookups in %zu nanoseconds, %lu.%06lu MLPS\n",
-	    count, total_diff, lps / 1000000, lps % 1000000);
+	printf("%d lookups in %zu.%06zu milliseconds, %lu.%06lu MLPS\n",
+	    count, total_diff / 1000000, total_diff % 1000000,
+	    lps / 1000000, lps % 1000000);
 
 	return (0);
 }
-SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 0, rnd_lps, "I",
-    "Measure lookups per second, uniformly random keys, "
-    "artificial dependencies between lookups");
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_rnd,
     CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    0, 1, rnd_lps, "I",
+    0, 0, rnd_lps, "I",
     "Measure lookups per second, uniformly random keys, independent lookups");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_rnd_ann,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_ANN, rnd_lps, "I",
+    "Measure lookups per second, random keys from announced address space, "
+    "independent lookups");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_SEQ, rnd_lps, "I",
+    "Measure lookups per second, uniformly random keys, "
+    "artificial dependencies between lookups");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq_ann,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_SEQ | LPS_ANN, rnd_lps, "I",
+    "Measure lookups per second, random keys from announced address space, "
+    "artificial dependencies between lookups");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_rnd_rep,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_REP, rnd_lps, "I",
+    "Measure lookups per second, uniformly random keys, independent lookups, "
+    "repeated keys");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_rnd_ann_rep,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_ANN | LPS_REP, rnd_lps, "I",
+    "Measure lookups per second, random keys from announced address space, "
+    "independent lookups, repeated keys");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq_rep,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_SEQ | LPS_REP, rnd_lps, "I",
+    "Measure lookups per second, uniformly random keys, "
+    "artificial dependencies between lookups, repeated keys");
+SYSCTL_PROC(_net_route_test, OID_AUTO, run_lps_seq_ann_rep,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, LPS_SEQ | LPS_ANN | LPS_REP, rnd_lps, "I",
+    "Measure lookups per second, random keys from announced address space, "
+    "artificial dependencies between lookups, repeated keys");
 
 static int
 test_fib_lookup_modevent(module_t mod, int type, void *unused)
