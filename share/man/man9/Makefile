@@ -447,14 +447,7 @@ MAN=	accept_filter.9 \
 	zero_region.9 \
 	zone.9
 
-MLINKS=	unr.9 alloc_unr.9 \
-	unr.9 alloc_unrl.9 \
-	unr.9 alloc_unr_specific.9 \
-	unr.9 clear_unrhdr.9 \
-	unr.9 delete_unrhdr.9 \
-	unr.9 free_unr.9 \
-	unr.9 new_unrhdr.9
-MLINKS+=accept_filter.9 accept_filt_add.9 \
+MLINKS=	accept_filter.9 accept_filt_add.9 \
 	accept_filter.9 accept_filt_del.9 \
 	accept_filter.9 accept_filt_generic_mod_event.9 \
 	accept_filter.9 accept_filt_get.9
@@ -2211,6 +2204,13 @@ MLINKS+=uidinfo.9 uifind.9 \
 MLINKS+=uio.9 uiomove.9 \
 	uio.9 uiomove_frombuf.9 \
 	uio.9 uiomove_nofault.9
+MLINKS+=unr.9 alloc_unr.9 \
+	unr.9 alloc_unrl.9 \
+	unr.9 alloc_unr_specific.9 \
+	unr.9 clear_unrhdr.9 \
+	unr.9 delete_unrhdr.9 \
+	unr.9 free_unr.9 \
+	unr.9 new_unrhdr.9
 
 .if ${MK_USB} != "no"
 MAN+=	usbdi.9
