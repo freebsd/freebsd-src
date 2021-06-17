@@ -14,7 +14,6 @@ machine         mips mips
 #ident		std.AR934X
 cpu		CPU_MIPS74K
 makeoptions	KERNLOADADDR=0x80050000
-options 	HZ=1000
 
 files		"../atheros/files.ar71xx"
 hints		"AR934X_BASE.hints"

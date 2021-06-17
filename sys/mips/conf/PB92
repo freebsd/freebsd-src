@@ -8,7 +8,6 @@
 ident		PB92
 # XXX The default load address in the Uboot environment is 0x80010000
 makeoptions	KERNLOADADDR=0x80050000
-options 	HZ=1000
 
 # The PB92 has 32mb of RAM; hard-code that
 options 	AR71XX_REALMEM=32*1024*1024
