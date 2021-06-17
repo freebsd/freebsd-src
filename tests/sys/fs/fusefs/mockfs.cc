@@ -655,6 +655,8 @@ void MockFS::init(uint32_t flags) {
 	std::unique_ptr<mockfs_buf_out> out(new mockfs_buf_out);
 
 	read_request(*in, buflen);
+	if (verbosity > 0)
+		debug_request(*in, buflen);
 	audit_request(*in, buflen);
 	ASSERT_EQ(FUSE_INIT, in->header.opcode);
 
