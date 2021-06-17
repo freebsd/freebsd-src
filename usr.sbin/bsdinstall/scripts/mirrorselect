@@ -63,6 +63,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp2.br.freebsd.org 	"Brazil #2"\
 	ftp://ftp3.br.freebsd.org 	"Brazil #3"\
 	ftp://ftp4.br.freebsd.org 	"Brazil #4"\
+	ftp://ftp.bg.freebsd.org 	"Bulgaria"\
 	ftp://ftp.cn.freebsd.org 	"China"\
 	ftp://ftp.cz.freebsd.org 	"Czech Republic"\
 	ftp://ftp.dk.freebsd.org 	"Denmark"\
