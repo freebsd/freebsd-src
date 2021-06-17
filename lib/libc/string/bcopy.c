@@ -101,7 +101,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)dst = *(const word *)src;
+		TLOOP(*(word *)(void *)dst = *(const word *)(const void *)src;
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
