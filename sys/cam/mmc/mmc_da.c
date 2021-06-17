@@ -446,12 +446,12 @@ mmc_format_card_id_string(struct sdda_softc *sc, struct mmc_params *mmcp)
 	snprintf(sc->card_sn_string, sizeof(sc->card_sn_string),
 	    "%08X", sc->cid.psn);
 	snprintf(sc->card_id_string, sizeof(sc->card_id_string),
-                 "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
-                 mmcp->card_features & CARD_FEATURE_MMC ? "MMC" : "SD",
-                 mmcp->card_features & CARD_FEATURE_SDHC ? "HC" : "",
-                 sc->cid.pnm, sc->cid.prv >> 4, sc->cid.prv & 0x0f,
-                 sc->cid.psn, sc->cid.mdt_month, sc->cid.mdt_year,
-                 sc->cid.mid, oidstr);
+		 "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
+		 mmcp->card_features & CARD_FEATURE_MMC ? "MMC" : "SD",
+		 mmcp->card_features & CARD_FEATURE_SDHC ? "HC" : "",
+		 sc->cid.pnm, sc->cid.prv >> 4, sc->cid.prv & 0x0f,
+		 sc->cid.psn, sc->cid.mdt_month, sc->cid.mdt_year,
+		 sc->cid.mid, oidstr);
 }
 
 static int
@@ -603,7 +603,7 @@ sddadiskgonecb(struct disk *dp)
 
 	part = (struct sdda_part *)dp->d_drv1;
 	periph = part->sc->periph;
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddadiskgonecb\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddadiskgonecb\n"));
 
 	cam_periph_release(periph);
 }
@@ -616,7 +616,7 @@ sddaoninvalidate(struct cam_periph *periph)
 
 	softc = (struct sdda_softc *)periph->softc;
 
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaoninvalidate\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaoninvalidate\n"));
 
 	/*
 	 * De-register any async callbacks.
@@ -628,15 +628,14 @@ sddaoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush start\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush start\n"));
 	for (int i = 0; i < MMC_PART_MAX; i++) {
 		if ((part = softc->part[i]) != NULL) {
 			bioq_flush(&part->bio_queue, NULL, ENXIO);
 			disk_gone(part->disk);
 		}
 	}
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush end\n"));
-
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush end\n"));
 }
 
 static void
@@ -675,7 +674,7 @@ sddaasync(void *callback_arg, u_int32_t code,
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
-                CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_FOUND_DEVICE\n"));
+		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_FOUND_DEVICE\n"));
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -686,10 +685,10 @@ sddaasync(void *callback_arg, u_int32_t code,
 		if (cgd->protocol != PROTO_MMCSD)
 			break;
 
-                if (!(path->device->mmc_ident_data.card_features & CARD_FEATURE_MEMORY)) {
-                        CAM_DEBUG(path, CAM_DEBUG_TRACE, ("No memory on the card!\n"));
-                        break;
-                }
+		if (!(path->device->mmc_ident_data.card_features & CARD_FEATURE_MEMORY)) {
+			CAM_DEBUG(path, CAM_DEBUG_TRACE, ("No memory on the card!\n"));
+			break;
+		}
 
 		/*
 		 * Allocate a peripheral instance for
@@ -774,7 +773,7 @@ sddaregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	union ccb *request_ccb;	/* CCB representing the probe request */
 
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaregister\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaregister\n"));
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("sddaregister: no getdev CCB, can't register device\n");
@@ -1258,7 +1257,6 @@ sdda_start_init(void *context, union ccb *start_ccb)
 	}
 
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
-	//struct ccb_mmcio *mmcio = &start_ccb->mmcio;
 	struct mmc_params *mmcp = &periph->path->device->mmc_ident_data;
 	struct cam_ed *device = periph->path->device;
 
@@ -1588,7 +1586,6 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_close = sddaclose;
 	part->disk->d_strategy = sddastrategy;
 	part->disk->d_getattr = sddagetattr;
-//	sc->disk->d_dump = sddadump;
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
@@ -1948,7 +1945,6 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 	path = done_ccb->ccb_h.path;
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("sddadone\n"));
-//        cam_periph_lock(periph);
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Error!!!\n"));
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
