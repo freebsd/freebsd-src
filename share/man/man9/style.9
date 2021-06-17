@@ -112,13 +112,20 @@ New
 lines should only be added when making substantial changes to the file,
 not for trivial changes.
 .Pp
-After any copyright and license comment, there is a blank line, and the
+After any copyright and license comment, there is a blank line.
+If your code needs to be merged into stable/12 or earlier, it
+needs to have the
 .Li $\&FreeBSD$
-for non C/C++ language source files.
-Version control system ID tags should only exist once in a file
-(unlike in this one).
+tag.
+Otherwise, this tag should be omitted in new code.
+Legacy code will have the tag removed in the future.
+For non C/C++ language source files,
+.Li $\&FreeBSD$
+is next, if applicable.
 Non-C/C++ source files follow the example above, while C/C++ source files
 follow the one below.
+Version control system ID tags should only exist once in a file
+(unlike in this one).
 All VCS (version control system) revision identification in files obtained
 from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
@@ -132,6 +139,11 @@ and to keep the IDs out of object files.
 Only add
 .Dq Li "From: "
 in front of foreign VCS IDs if the file is renamed.
+Add
+.Dq Li "From: "
+and FreeBSD git hash with full path name if the file was derived
+from another FreeBSD file and include relevant copyright info
+from the original file.
 .Bd -literal
 /* From: @(#)style	1.14 (Berkeley) 4/28/95 */
 
