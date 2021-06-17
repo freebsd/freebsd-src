@@ -48,7 +48,7 @@ memchr(const void *src, int c, size_t n)
 		typedef size_t __attribute__((__may_alias__)) word;
 		const word *w;
 		const size_t k = ONES * uc;
-		for (w = (const word *)s; n >= SS && !HASZERO(*w ^ k);
+		for (w = (const void *)s; n >= SS && !HASZERO(*w ^ k);
 		     n -= SS)
 			w++;
 		s = (const void *)w;
