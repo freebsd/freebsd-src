@@ -62,7 +62,6 @@ struct kt {
 	const char *kt_name;
 	int kt_val;
 } key_words[] = {
-	{ "config",	CONFIG },
 	{ "cpu",	CPU },
 	{ "nocpu",	NOCPU },
 	{ "device",	DEVICE },

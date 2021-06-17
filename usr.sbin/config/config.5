@@ -402,18 +402,6 @@ Options specific to architecture
 are specified in the file
 .Pa sys/conf/options . Ns Aq Ar arch .
 .El
-.Ss Obsolete Directives
-The following kernel configuration directives are obsolete.
-.Bl -tag -width indent
-.\" -------- CONFIG --------
-.It Ic config
-This directive was used to specify the device to be used for the root
-file system.
-From
-.Fx 4.0
-onwards, this information is passed to a booting kernel by
-.Xr loader 8 .
-.El
 .Sh FILES
 .Bl -tag -width ".Pa sys/conf/Makefile. Ns Ar arch" -compact
 .It Pa sys/compile/ Ns Ar NAME

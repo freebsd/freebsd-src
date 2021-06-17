@@ -203,15 +203,6 @@ Config_spec:
 		STAILQ_INSERT_HEAD(&hints, hint, hint_next);
 	        }
 
-System_spec:
-	CONFIG System_id System_parameter_list {
-		errx(1, "%s:%d: root/dump/swap specifications obsolete",
-		      yyfile, yyline);
-		}
-	  |
-	CONFIG System_id
-	  ;
-
 System_id:
 	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0, 0); };
 
