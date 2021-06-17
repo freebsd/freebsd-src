@@ -10,7 +10,6 @@ machine		mips mips
 #ident		AR5312_BASE
 cpu		CPU_MIPS4KC
 makeoptions	KERNLOADADDR=0x80050000
-options 	HZ=1000
 
 makeoptions	MODULES_OVERRIDE=""
 
