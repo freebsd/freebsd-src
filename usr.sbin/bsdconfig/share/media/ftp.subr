@@ -101,6 +101,7 @@ f_dialog_menu_media_ftp()
 		'$msg_brazil'             'ftp2.br.freebsd.org'
 		' $msg_brazil #3'         'ftp3.br.freebsd.org'
 		' $msg_brazil #4'         'ftp4.br.freebsd.org'
+		'$msg_bulgaria'           'ftp.bg.freebsd.org'
 		'$msg_china'              'ftp.cn.freebsd.org'
 		'$msg_czech_republic'     'ftp.cz.freebsd.org'
 		'$msg_denmark'            'ftp.dk.freebsd.org'
