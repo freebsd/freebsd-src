@@ -2315,6 +2315,7 @@ linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	if (linkstate == LINK_STATE_UP)
 		nb->notifier_call(nb, NETDEV_UP, &ni);
@@ -2329,6 +2330,7 @@ linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_REGISTER, &ni);
 }
@@ -2340,6 +2342,7 @@ linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_UNREGISTER, &ni);
 }
@@ -2351,6 +2354,7 @@ linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_CHANGEADDR, &ni);
 }
@@ -2362,6 +2366,7 @@ linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, &ni);
 }
@@ -2459,6 +2464,30 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 }
 
 void
+lkpi_irq_release(struct device *dev, struct irq_ent *irqe)
+{
+
+	if (irqe->tag != NULL)
+		bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);
+	if (irqe->res != NULL)
+		bus_release_resource(dev->bsddev, SYS_RES_IRQ,
+		    rman_get_rid(irqe->res), irqe->res);
+	list_del(&irqe->links);
+}
+
+void
+lkpi_devm_irq_release(struct device *dev, void *p)
+{
+	struct irq_ent *irqe;
+
+	if (dev == NULL || p == NULL)
+		return;
+
+	irqe = p;
+	lkpi_irq_release(dev, irqe);
+}
+
+void
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
@@ -2467,7 +2496,12 @@ linux_irq_handler(void *ent)
 		return;
 
 	irqe = ent;
-	irqe->handler(irqe->irq, irqe->arg);
+	if (irqe->handler(irqe->irq, irqe->arg) == IRQ_WAKE_THREAD &&
+	    irqe->thread_handler != NULL) {
+		THREAD_SLEEPING_OK();
+		irqe->thread_handler(irqe->irq, irqe->arg);
+		THREAD_NO_SLEEPING();
+	}
 }
 
 #if defined(__i386__) || defined(__amd64__)
