@@ -54,7 +54,7 @@ char *
 __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restrict last)
 {
 	char *spanp, *tok;
-	int c, sc;
+	char c, sc;
 
 	if (s == NULL && (s = *last) == NULL)
 		return (NULL);
@@ -64,12 +64,12 @@ __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restric
 	 */
 cont:
 	c = *s++;
-	for (spanp = (char *)delim; (sc = *spanp++) != 0;) {
+	for (spanp = (char *)delim; (sc = *spanp++) != 0; spanp++) {
 		if (c == sc)
 			goto cont;
 	}
 
-	if (c == 0) {		/* no non-delimiter characters */
+	if (c == '\0') {		/* no non-delimiter characters */
 		*last = NULL;
 		return (NULL);
 	}
@@ -97,7 +97,7 @@ cont:
 }
 
 char *
-strtok(char *s, const char *delim)
+strtok(char * __restrict s, const char * __restrict delim)
 {
 	static char *last;
 
