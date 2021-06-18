@@ -10,6 +10,7 @@ LIBADD=		jail
 LIBADD+=	casper
 LIBADD+=	cap_net
 LIBADD+=	cap_netdb
+LIBADD+=	cap_pwd
 LIBADD+=	cap_sysctl
 CFLAGS+=	-DWITH_CASPER
 .endif
