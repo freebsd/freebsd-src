@@ -370,6 +370,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	m_pm = pm;
 	m_time_gran = time_gran;
 	m_quit = false;
+	m_last_unique = 0;
 	if (m_pm == KQ)
 		m_kq = kqueue();
 	else
@@ -646,6 +647,14 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 	default:
 		FAIL() << "Unknown opcode " << in.header.opcode;
 	}
+	/*
+	 * Check that the ticket's unique value is sequential.  Technically it
+	 * doesn't need to be sequential, merely unique.  But the current
+	 * fusefs driver _does_ make it sequential, and that's easy to check
+	 * for.
+	 */
+	if (in.header.unique != ++m_last_unique)
+		FAIL() << "Non-sequential unique value";
 }
 
 void MockFS::init(uint32_t flags) {

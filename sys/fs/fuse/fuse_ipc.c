@@ -103,6 +103,7 @@ static void fdisp_make_pid(struct fuse_dispatcher *fdip, enum fuse_opcode op,
 static void fuse_interrupt_send(struct fuse_ticket *otick, int err);
 static struct fuse_ticket *fticket_alloc(struct fuse_data *data);
 static void fticket_refresh(struct fuse_ticket *ftick);
+static inline void fticket_reset(struct fuse_ticket *ftick);
 static void fticket_destroy(struct fuse_ticket *ftick);
 static int fticket_wait_answer(struct fuse_ticket *ftick);
 static inline int 
@@ -319,19 +320,11 @@ fticket_ctor(void *mem, int size, void *arg, int flags)
 	FUSE_ASSERT_AW_DONE(ftick);
 
 	ftick->tk_data = data;
-
-	if (ftick->tk_unique != 0)
-		fticket_refresh(ftick);
-
-	/* May be truncated to 32 bits */
-	ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
-	if (ftick->tk_unique == 0)
-		ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
-
 	ftick->irq_unique = 0;
-
 	refcount_init(&ftick->tk_refcount, 1);
 	counter_u64_add(fuse_ticket_count, 1);
+
+	fticket_refresh(ftick);
 
 	return 0;
 }
@@ -386,26 +379,22 @@ fticket_destroy(struct fuse_ticket *ftick)
 	return uma_zfree(ticket_zone, ftick);
 }
 
-static inline
-void
+/* Prepare the ticket to be reused and clear its data buffers */
+static inline void
 fticket_refresh(struct fuse_ticket *ftick)
 {
-	FUSE_ASSERT_MS_DONE(ftick);
-	FUSE_ASSERT_AW_DONE(ftick);
+	fticket_reset(ftick);
 
 	fiov_refresh(&ftick->tk_ms_fiov);
-
-	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
-
 	fiov_refresh(&ftick->tk_aw_fiov);
-	ftick->tk_aw_errno = 0;
-	ftick->tk_flag = 0;
 }
 
-/* Prepar the ticket to be reused, but don't clear its data buffers */
+/* Prepare the ticket to be reused, but don't clear its data buffers */
 static inline void
 fticket_reset(struct fuse_ticket *ftick)
 {
+	struct fuse_data *data = ftick->tk_data;
+
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
@@ -413,6 +402,11 @@ fticket_reset(struct fuse_ticket *ftick)
 
 	ftick->tk_aw_errno = 0;
 	ftick->tk_flag = 0;
+
+	/* May be truncated to 32 bits on LP32 arches */
+	ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
+	if (ftick->tk_unique == 0)
+		ftick->tk_unique = atomic_fetchadd_long(&data->ticketer, 1);
 }
 
 static int
