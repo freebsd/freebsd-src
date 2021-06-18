@@ -662,8 +662,6 @@ void	crypto_cursor_init(struct crypto_buffer_cursor *cc,
 	    const struct crypto_buffer *cb);
 void	crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount);
 void	*crypto_cursor_segment(struct crypto_buffer_cursor *cc, size_t *len);
-void	*crypto_cursor_segbase(struct crypto_buffer_cursor *cc);
-size_t	crypto_cursor_seglen(struct crypto_buffer_cursor *cc);
 void	crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 	    const void *vsrc);
 void	crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size,

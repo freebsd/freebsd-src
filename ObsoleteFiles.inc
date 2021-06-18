@@ -40,6 +40,48 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210616: Remove crypto_cursor_seg{base,len}
+OLD_FILES+=usr/share/man/man9/crypto_cursor_segbase.9.gz
+OLD_FILES+=usr/share/man/man9/crypto_cursor_seglen.9.gz
+
+# 20210618: rename of usr/share/certs/blacklisted
+OLD_FILES+=usr/share/certs/blacklisted/AddTrust_External_Root.pem
+OLD_FILES+=usr/share/certs/blacklisted/AddTrust_Low-Value_Services_Root.pem
+OLD_FILES+=usr/share/certs/blacklisted/Camerfirma_Chambers_of_Commerce_Root.pem
+OLD_FILES+=usr/share/certs/blacklisted/Camerfirma_Global_Chambersign_Root.pem
+OLD_FILES+=usr/share/certs/blacklisted/Certum_Root_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/Chambers_of_Commerce_Root_-_2008.pem
+OLD_FILES+=usr/share/certs/blacklisted/D-TRUST_Root_CA_3_2013.pem
+OLD_FILES+=usr/share/certs/blacklisted/EC-ACC.pem
+OLD_FILES+=usr/share/certs/blacklisted/EE_Certification_Centre_Root_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Global_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Primary_Certification_Authority_-_G2.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Primary_Certification_Authority_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Primary_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Universal_CA_2.pem
+OLD_FILES+=usr/share/certs/blacklisted/GeoTrust_Universal_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/Global_Chambersign_Root_-_2008.pem
+OLD_FILES+=usr/share/certs/blacklisted/LuxTrust_Global_Root_2.pem
+OLD_FILES+=usr/share/certs/blacklisted/OISTE_WISeKey_Global_Root_GA_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/Staat_der_Nederlanden_Root_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/blacklisted/Staat_der_Nederlanden_Root_CA_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/SwissSign_Platinum_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/blacklisted/Symantec_Class_1_Public_Primary_Certification_Authority_-_G4.pem
+OLD_FILES+=usr/share/certs/blacklisted/Symantec_Class_1_Public_Primary_Certification_Authority_-_G6.pem
+OLD_FILES+=usr/share/certs/blacklisted/Symantec_Class_2_Public_Primary_Certification_Authority_-_G4.pem
+OLD_FILES+=usr/share/certs/blacklisted/Symantec_Class_2_Public_Primary_Certification_Authority_-_G6.pem
+OLD_FILES+=usr/share/certs/blacklisted/Taiwan_GRCA.pem
+OLD_FILES+=usr/share/certs/blacklisted/thawte_Primary_Root_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/blacklisted/thawte_Primary_Root_CA_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/thawte_Primary_Root_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/Trustis_FPS_Root_CA.pem
+OLD_FILES+=usr/share/certs/blacklisted/Verisign_Class_1_Public_Primary_Certification_Authority_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/Verisign_Class_2_Public_Primary_Certification_Authority_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/Verisign_Class_3_Public_Primary_Certification_Authority_-_G3.pem
+OLD_FILES+=usr/share/certs/blacklisted/VeriSign_Class_3_Public_Primary_Certification_Authority_-_G4.pem
+OLD_FILES+=usr/share/certs/blacklisted/VeriSign_Class_3_Public_Primary_Certification_Authority_-_G5.pem
+OLD_FILES+=usr/share/certs/blacklisted/VeriSign_Universal_Root_Certification_Authority.pem
+OLD_DIRS+=usr/share/certs/blacklisted
 # 20210613: new clang import which bumps version from 11.0.1 to 12.0.0.
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.1/include/cuda_wrappers/complex

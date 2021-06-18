@@ -79,10 +79,10 @@ create_trusted_link()
 
 	hash=$( do_hash "$1" ) || return
 	certhash=$( openssl x509 -sha1 -in "$1" -noout -fingerprint )
-	for blistfile in $(find $BLACKLISTDESTDIR -name "$hash.*"); do
+	for blistfile in $(find $UNTRUSTDESTDIR -name "$hash.*"); do
 		blisthash=$( openssl x509 -sha1 -in "$blistfile" -noout -fingerprint )
 		if [ "$certhash" = "$blisthash" ]; then
-			echo "Skipping blacklisted certificate $1 ($blistfile)"
+			echo "Skipping untrusted certificate $1 ($blistfile)"
 			return 1
 		fi
 	done
@@ -102,19 +102,19 @@ resolve_certname()
 	if [ -e "$1" ]; then
 		hash=$( do_hash "$1" ) || return
 		srcfile=$(realpath "$1")
-		suffix=$(get_decimal "$BLACKLISTDESTDIR" "$hash")
+		suffix=$(get_decimal "$UNTRUSTDESTDIR" "$hash")
 		filename="$hash.$suffix"
 		echo "$srcfile" "$hash.$suffix"
 	elif [ -e "${CERTDESTDIR}/$1" ];  then
 		srcfile=$(realpath "${CERTDESTDIR}/$1")
 		hash=$(echo "$1" | sed -Ee 's/\.([0-9])+$//')
-		suffix=$(get_decimal "$BLACKLISTDESTDIR" "$hash")
+		suffix=$(get_decimal "$UNTRUSTDESTDIR" "$hash")
 		filename="$hash.$suffix"
 		echo "$srcfile" "$hash.$suffix"
 	fi
 }
 
-create_blacklisted()
+create_untrusted()
 {
 	local srcfile filename
 
@@ -126,8 +126,8 @@ create_blacklisted()
 		return
 	fi
 
-	[ $VERBOSE -gt 0 ] && echo "Adding $filename to blacklist"
-	[ $NOOP -eq 0 ] && install ${INSTALLFLAGS} -lrs "$srcfile" "$BLACKLISTDESTDIR/$filename"
+	[ $VERBOSE -gt 0 ] && echo "Adding $filename to untrusted list"
+	[ $NOOP -eq 0 ] && install ${INSTALLFLAGS} -lrs "$srcfile" "$UNTRUSTDESTDIR/$filename"
 }
 
 do_scan()
@@ -185,14 +185,14 @@ cmd_rehash()
 		else
 			mkdir -p "$CERTDESTDIR"
 		fi
-		if [ -e "$BLACKLISTDESTDIR" ]; then
-			find "$BLACKLISTDESTDIR" -type link -delete
+		if [ -e "$UNTRUSTDESTDIR" ]; then
+			find "$UNTRUSTDESTDIR" -type link -delete
 		else
-			mkdir -p "$BLACKLISTDESTDIR"
+			mkdir -p "$UNTRUSTDESTDIR"
 		fi
 	fi
 
-	do_scan create_blacklisted "$BLACKLISTPATH"
+	do_scan create_untrusted "$UNTRUSTPATH"
 	do_scan create_trusted_link "$TRUSTPATH"
 }
 
@@ -202,19 +202,19 @@ cmd_list()
 	do_list "$CERTDESTDIR"
 }
 
-cmd_blacklist()
+cmd_untrust()
 {
 	local BPATH
 
 	shift # verb
-	[ $NOOP -eq 0 ] && mkdir -p "$BLACKLISTDESTDIR"
+	[ $NOOP -eq 0 ] && mkdir -p "$UNTRUSTDESTDIR"
 	for BFILE in "$@"; do
-		echo "Adding $BFILE to blacklist"
-		create_blacklisted "$BFILE"
+		echo "Adding $BFILE to untrusted list"
+		create_untrusted "$BFILE"
 	done
 }
 
-cmd_unblacklist()
+cmd_trust()
 {
 	local BFILE blisthash certhash hash
 
@@ -223,16 +223,16 @@ cmd_unblacklist()
 		if [ -s "$BFILE" ]; then
 			hash=$( do_hash "$BFILE" )
 			certhash=$( openssl x509 -sha1 -in "$BFILE" -noout -fingerprint )
-			for BLISTEDFILE in $(find $BLACKLISTDESTDIR -name "$hash.*"); do
+			for BLISTEDFILE in $(find $UNTRUSTDESTDIR -name "$hash.*"); do
 				blisthash=$( openssl x509 -sha1 -in "$BLISTEDFILE" -noout -fingerprint )
 				if [ "$certhash" = "$blisthash" ]; then
-					echo "Removing $(basename "$BLISTEDFILE") from blacklist"
+					echo "Removing $(basename "$BLISTEDFILE") from untrusted list"
 					[ $NOOP -eq 0 ] && rm -f $BLISTEDFILE
 				fi
 			done
-		elif [ -e "$BLACKLISTDESTDIR/$BFILE" ]; then
-			echo "Removing $BFILE from blacklist"
-			[ $NOOP -eq 0 ] && rm -f "$BLACKLISTDESTDIR/$BFILE"
+		elif [ -e "$UNTRUSTDESTDIR/$BFILE" ]; then
+			echo "Removing $BFILE from untrusted list"
+			[ $NOOP -eq 0 ] && rm -f "$UNTRUSTDESTDIR/$BFILE"
 		else
 			echo "Cannot find $BFILE" >&2
 			ERRORS=$(( $ERRORS + 1 ))
@@ -240,10 +240,10 @@ cmd_unblacklist()
 	done
 }
 
-cmd_blacklisted()
+cmd_untrusted()
 {
-	echo "Listing Blacklisted Certificates:"
-	do_list "$BLACKLISTDESTDIR"
+	echo "Listing Untrusted Certificates:"
+	do_list "$UNTRUSTDESTDIR"
 }
 
 usage()
@@ -252,14 +252,14 @@ usage()
 	echo "Manage the TLS trusted certificates on the system"
 	echo "	$SCRIPTNAME [-v] list"
 	echo "		List trusted certificates"
-	echo "	$SCRIPTNAME [-v] blacklisted"
-	echo "		List blacklisted certificates"
+	echo "	$SCRIPTNAME [-v] untrusted"
+	echo "		List untrusted certificates"
 	echo "	$SCRIPTNAME [-nUv] [-D <destdir>] [-M <metalog>] rehash"
 	echo "		Generate hash links for all certificates"
-	echo "	$SCRIPTNAME [-nv] blacklist <file>"
-	echo "		Add <file> to the list of blacklisted certificates"
-	echo "	$SCRIPTNAME [-nv] unblacklist <file>"
-	echo "		Remove <file> from the list of blacklisted certificates"
+	echo "	$SCRIPTNAME [-nv] untrust <file>"
+	echo "		Add <file> to the list of untrusted certificates"
+	echo "	$SCRIPTNAME [-nv] trust <file>"
+	echo "		Remove <file> from the list of untrusted certificates"
 	exit 64
 }
 
@@ -281,17 +281,20 @@ INSTALLFLAGS=
 [ $UNPRIV -eq 1 ] && INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
 : ${LOCALBASE:=$(sysctl -n user.localbase)}
 : ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
-: ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}${LOCALBASE}/etc/ssl/blacklisted}
+: ${UNTRUSTPATH:=${DESTDIR}/usr/share/certs/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/untrusted:${DESTDIR}${LOCALBASE}/etc/ssl/blacklisted}
 : ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
-: ${BLACKLISTDESTDIR:=${DESTDIR}/etc/ssl/blacklisted}
+: ${UNTRUSTDESTDIR:=${DESTDIR}/etc/ssl/untrusted}
 
 [ $# -gt 0 ] || usage
 case "$1" in
 list)		cmd_list ;;
 rehash)		cmd_rehash ;;
-blacklist)	cmd_blacklist "$@" ;;
-unblacklist)	cmd_unblacklist "$@" ;;
-blacklisted)	cmd_blacklisted ;;
+blacklist)	cmd_untrust "$@" ;;
+untrust)	cmd_untrust "$@" ;;
+trust)		cmd_trust "$@" ;;
+unblacklist)	cmd_trust "$@" ;;
+untrusted)	cmd_untrusted ;;
+blacklisted)	cmd_untrusted ;;
 *)		usage # NOTREACHED
 esac
 

@@ -14,7 +14,6 @@ machine 	mips mips
 ident		QCA953X_BASE
 cpu		CPU_MIPS24K
 makeoptions	KERNLOADADDR=0x80050000
-options 	HZ=1000
 
 files		"../atheros/files.ar71xx"
 hints		"QCA953X_BASE.hints"
