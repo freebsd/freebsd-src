@@ -91,7 +91,7 @@ cont:
 				*last = s;
 				return (tok);
 			}
-		} while (sc != 0);
+		} while (sc != '\0');
 	}
 	/* NOTREACHED */
 }
