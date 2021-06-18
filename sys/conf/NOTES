@@ -1237,10 +1237,9 @@ options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 # CLOCK OPTIONS
 
 # The granularity of operation is controlled by the kernel option HZ (default
-# 1000 or 1ms). Virtual machines guests default to an HZ value of 100.  Lower
-# values produce less overhead at the expense of reduced accuracy in delivery of
-# kernel timeouts. With the adaptive tick code, lower values produce less
-# benefit than in the past.
+# frequency of 1000 Hz or a period 1ms between calls). Virtual machine guests
+# use a value of 100. Lower values may lower overhead at the expense of accuracy
+# of scheduling, though the adaptive tick code reduces that overhead.
 
 options 	HZ=100
 
