@@ -58,7 +58,7 @@ bzero(void *dst0, size_t length)
 #include <string.h>
 
 #define	RETURN	return (dst0)
-#define	VAL	c0
+#define	VAL	(u_char)c0
 #define	WIDEVAL	c
 
 void *
@@ -69,9 +69,10 @@ memset(void *dst0, int c0, size_t length)
 #ifndef BZERO
 	u_long c;
 #endif
-	u_char *dst;
+	u_char *dst = dst0;
 
-	dst = dst0;
+	const u_char uc = VAL;
+
 	/*
 	 * If not enough words, just fill bytes.  A length >= 2 words
 	 * guarantees that at least one of them is `complete' after
@@ -90,15 +91,15 @@ memset(void *dst0, int c0, size_t length)
 	 */
 	if (length < 3 * wsize) {
 		while (length != 0) {
-			*dst++ = VAL;
+			*dst++ = uc;
 			--length;
 		}
 		RETURN;
 	}
 
 #ifndef BZERO
-	if ((c = (u_char)c0) != 0) {	/* Fill the word. */
-		c = (c << 8) | c;	/* u_long is 16 bits. */
+	if (uc != '\0') {	/* Fill the word. */
+		c = (uc << 8) | uc;	/* u_long is 16 bits. */
 #if ULONG_MAX > 0xffff
 		c = (c << 16) | c;	/* u_long is 32 bits. */
 #endif
@@ -108,26 +109,23 @@ memset(void *dst0, int c0, size_t length)
 	}
 #endif
 	/* Align destination by filling in bytes. */
-	if ((t = (long)dst & wmask) != 0) {
+	if ((t = (u_long)dst & wmask) != 0) {
 		t = wsize - t;
 		length -= t;
 		do {
-			*dst++ = VAL;
+			*dst++ = uc;
 		} while (--t != 0);
 	}
 
 	/* Fill words.  Length was >= 2*words so we know t >= 1 here. */
 	t = length / wsize;
 	do {
-		*(u_long *)(void *)dst = WIDEVAL;
+		*(u_long *)dst = WIDEVAL;
 		dst += wsize;
 	} while (--t != 0);
 
 	/* Mop up trailing bytes, if any. */
-	t = length & wmask;
-	if (t != 0)
-		do {
-			*dst++ = VAL;
-		} while (--t != 0);
+	for (t = length & wmask; t != 0; --t)
+		*dst++ = uc;
 	RETURN;
 }
