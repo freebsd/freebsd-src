@@ -2472,6 +2472,10 @@ ieee80211_probereq_ie(struct ieee80211vap *vap, struct ieee80211com *ic,
 	if (!alloc && len > *frmlen)
 		return (ENOBUFS);
 
+	/* For HW scans we usually do not pass in the SSID as IE. */
+	if (ssidlen == -1)
+		len -= (2 + IEEE80211_NWID_LEN);
+
 	if (alloc) {
 		frm = malloc(len, M_80211_VAP, M_WAITOK | M_ZERO);
 		*frmp = frm;
@@ -2479,10 +2483,7 @@ ieee80211_probereq_ie(struct ieee80211vap *vap, struct ieee80211com *ic,
 	} else
 		frm = *frmp;
 
-	/* For HW scans we usually do not pass in the SSID as IE. */
-	if (ssidlen == -1)
-		len -= (2 + IEEE80211_NWID_LEN);
-	else
+	if (ssidlen != -1)
 		frm = ieee80211_add_ssid(frm, ssid, ssidlen);
 	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, rs);
