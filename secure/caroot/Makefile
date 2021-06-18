@@ -3,7 +3,7 @@
 CLEANFILES+=	certdata.txt
 
 SUBDIR+=	trusted
-SUBDIR+=	blacklisted
+SUBDIR+=	untrusted
 
 .include <bsd.obj.mk>
 

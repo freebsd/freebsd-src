@@ -205,9 +205,9 @@
             ..
         ..
         certs
-            blacklisted tags=package=caroot
-            ..
             trusted tags=package=caroot
+            ..
+            untrusted tags=package=caroot
             ..
         ..
         dict

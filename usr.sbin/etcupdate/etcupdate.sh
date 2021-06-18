@@ -600,7 +600,7 @@ post_install_file()
 				NEWALIAS_WARN=yes
 			fi
 			;;
-		/usr/share/certs/trusted/* | /usr/share/certs/blacklisted/*)
+		/usr/share/certs/trusted/* | /usr/share/certs/untrusted/*)
 			log "certctl rehash"
 			if [ -z "$dryrun" ]; then
 				env DESTDIR=${DESTDIR} certctl rehash >&3 2>&1

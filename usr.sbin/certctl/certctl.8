@@ -26,19 +26,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2021
+.Dd June 18, 2021
 .Dt CERTCTL 8
 .Os
 .Sh NAME
 .Nm certctl
-.Nd "tool for managing trusted and blacklist TLS certificates"
+.Nd "tool for managing trusted and untrusted TLS certificates"
 .Sh SYNOPSIS
 .Nm
 .Op Fl v
 .Ic list
 .Nm
 .Op Fl v
-.Ic blacklisted
+.Ic untrusted
 .Nm
 .Op Fl nUv
 .Op Fl D Ar destdir
@@ -46,10 +46,10 @@
 .Ic rehash
 .Nm
 .Op Fl nv
-.Ic blacklist Ar file
+.Ic untrust Ar file
 .Nm
 .Op Fl nv
-.Ic unblacklist Ar file
+.Ic trust Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -72,28 +72,28 @@ Do record the ownership in the METALOG file.
 .El
 .Pp
 Primary command functions:
-.Bl -tag -width blacklisted
+.Bl -tag -width untrusted
 .It Ic list
 List all currently trusted certificate authorities.
-.It Ic blacklisted
-List all currently blacklisted certificates.
+.It Ic untrusted
+List all currently untrusted certificates.
 .It Ic rehash
 Rebuild the list of trusted certificate authorities by scanning all directories
 in
 .Ev TRUSTPATH
-and all blacklisted certificates in
-.Ev BLACKLISTPATH .
+and all untrusted certificates in
+.Ev UNTRUSTPATH .
 A symbolic link to each trusted certificate is placed in
 .Ev CERTDESTDIR
-and each blacklisted certificate in
-.Ev BLACKLISTDESTDIR .
-.It Ic blacklist
-Add the specified file to the blacklist.
-.It Ic unblacklist
-Remove the specified file from the blacklist.
+and each untrusted certificate in
+.Ev UNTRUSTDESTDIR .
+.It Ic untrust
+Add the specified file to the untrusted list.
+.It Ic trust
+Remove the specified file from the untrusted list.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width BLACKLISTDESTDIR
+.Bl -tag -width UNTRUSTDESTDIR
 .It Ev DESTDIR
 Alternate destination directory to operate on.
 .It Ev TRUSTPATH
@@ -101,19 +101,20 @@ List of paths to search for trusted certificates.
 Default:
 .Pa <DESTDIR>/usr/share/certs/trusted
 .Pa <DESTDIR>/usr/local/share/certs <DESTDIR>/usr/local/etc/ssl/certs
-.It Ev BLACKLISTPATH
-List of paths to search for blacklisted certificates.
+.It Ev UNTRUSTPATH
+List of paths to search for untrusted certificates.
 Default:
-.Pa <DESTDIR>/usr/share/certs/blacklisted
+.Pa <DESTDIR>/usr/share/certs/untrusted
+.Pa <DESTDIR>/usr/local/etc/ssl/untrusted
 .Pa <DESTDIR>/usr/local/etc/ssl/blacklisted
 .It Ev CERTDESTDIR
 Destination directory for symbolic links to trusted certificates.
 Default:
 .Pa <DESTDIR>/etc/ssl/certs
-.It Ev BLACKLISTDESTDIR
-Destination directory for symbolic links to blacklisted certificates.
+.It Ev UNTRUSTDESTDIR
+Destination directory for symbolic links to untrusted certificates.
 Default:
-.Pa <DESTDIR>/etc/ssl/blacklisted
+.Pa <DESTDIR>/etc/ssl/untrusted
 .It Ev EXTENSIONS
 List of file extensions to read as certificate files.
 Default: *.pem *.crt *.cer *.crl *.0

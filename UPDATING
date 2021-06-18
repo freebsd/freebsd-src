@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+202106xx:
+	The directory "blacklisted" under /usr/share/certs/ has been
+	renamed to "untrusted".
+
 20210611:
 	svnlite has been removed from base. Should you need svn for any reason
 	please install the svn package or port.

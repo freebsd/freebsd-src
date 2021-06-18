@@ -884,7 +884,7 @@ mm_install () {
     /etc/mail/aliases)
       NEED_NEWALIASES=yes
       ;;
-    /usr/share/certs/trusted/* | /usr/share/certs/blacklisted/*)
+    /usr/share/certs/trusted/* | /usr/share/certs/untrusted/*)
       NEED_CERTCTL=yes
       ;;
     /etc/login.conf)
