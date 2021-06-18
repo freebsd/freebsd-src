@@ -1685,7 +1685,8 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 			printf("Completing command with bio_cmd == %#x\n", bp->bio_cmd);
 	}
 
-	if (!(bp->bio_flags & BIO_ERROR) && done_ccb != NULL) {
+	if ((bp->bio_flags & BIO_ERROR) == 0 && done_ccb != NULL &&
+	    (done_ccb->ccb_h.status & CAM_QOS_VALID) != 0) {
 		sbintime_t sim_latency;
 		
 		sim_latency = cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data);
