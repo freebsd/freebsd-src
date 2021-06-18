@@ -83,7 +83,7 @@ cont:
 		c = *s++;
 		spanp = (char *)delim;
 		do {
-			if ((sc = *spanp++) == c) {
+			if ((sc = *spanp) == c) {
 				if (c == 0)
 					s = NULL;
 				else
@@ -91,6 +91,8 @@ cont:
 				*last = s;
 				return (tok);
 			}
+
+			spanp++;
 		} while (sc != '\0');
 	}
 	/* NOTREACHED */
