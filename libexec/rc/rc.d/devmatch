@@ -59,9 +59,9 @@ devmatch_start()
 	# or drivers that have symbolic links that
 	# confuse devmatch by running it -n.
 	# Finally, we filter out all items in the
-	# devmactch_blacklist.
+	# devmatch_blocklist.
 	devctl freeze
-	x=$(echo ${devmatch_blacklist} | tr ' ' '#')
+	x=$(echo ${devmatch_blocklist:-${devmatch_blacklist}} | tr ' ' '#')
 	for m in ${list}; do
 		case "#${x}#" in
 		*"#${m}#"*) continue ;;

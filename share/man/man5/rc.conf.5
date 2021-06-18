@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2021
+.Dd June 18, 2021
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -257,8 +257,16 @@ If set to
 .Dq Li NO ,
 disable auto-loading of kernel modules with
 .Xr devmatch 8 .
+.It Va devmatch_blocklist
+.Pq Vt str
+A whitespace-separated list of kernel modules to be ignored by
+.Xr devmatch 8 .
 .It Va devmatch_blacklist
 .Pq Vt str
+This variable is deprecated.
+Use
+.Va devmatch_blocklist
+instead.
 A whitespace-separated list of kernel modules to be ignored by
 .Xr devmatch 8 .
 .It Va kld_list
