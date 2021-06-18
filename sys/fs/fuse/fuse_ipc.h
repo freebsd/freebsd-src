@@ -410,8 +410,6 @@ fdisp_destroy(struct fuse_dispatcher *fdisp)
 #endif
 }
 
-void fdisp_refresh(struct fuse_dispatcher *fdip);
-
 void fdisp_make(struct fuse_dispatcher *fdip, enum fuse_opcode op,
     struct mount *mp, uint64_t nid, struct thread *td, struct ucred *cred);
 

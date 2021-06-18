@@ -998,12 +998,6 @@ fdisp_refresh_vp(struct fuse_dispatcher *fdip, enum fuse_opcode op,
 	    td->td_proc->p_pid, cred);
 }
 
-void
-fdisp_refresh(struct fuse_dispatcher *fdip)
-{
-	fticket_refresh(fdip->tick);
-}
-
 SDT_PROBE_DEFINE2(fusefs, , ipc, fdisp_wait_answ_error, "char*", "int");
 
 int
