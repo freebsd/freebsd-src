@@ -163,7 +163,10 @@ get_proto_type(const char *proto)
 
 	if (strlen(proto) == 0)
 		return (0);
-	pent = cap_getprotobyname(capnetdb, proto);
+	if (capnetdb != NULL)
+		pent = cap_getprotobyname(capnetdb, proto);
+	else
+		pent = getprotobyname(proto);
 	if (pent == NULL) {
 		warn("cap_getprotobyname");
 		return (-1);
