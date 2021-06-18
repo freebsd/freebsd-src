@@ -159,10 +159,12 @@ MAN=	accept_filter.9 \
 	g_provider_by_name.9 \
 	groupmember.9 \
 	g_wither_geom.9 \
+	hardclock.9 \
 	hash.9 \
 	hashinit.9 \
 	hexdump.9 \
 	hhook.9 \
+	hz.9 \
 	ieee80211.9 \
 	ieee80211_amrr.9 \
 	ieee80211_beacon.9 \
@@ -1125,6 +1127,7 @@ MLINKS+=hhook.9 hhook_head_register.9 \
 	hhook.9 hhook_run_hooks.9 \
 	hhook.9 HHOOKS_RUN_IF.9 \
 	hhook.9 HHOOKS_RUN_LOOKUP_IF.9
+MLINKS+=hz.9 tick.9
 MLINKS+=ieee80211.9 ieee80211_ifattach.9 \
 	ieee80211.9 ieee80211_ifdetach.9
 MLINKS+=ieee80211_amrr.9 ieee80211_amrr_choose.9 \
