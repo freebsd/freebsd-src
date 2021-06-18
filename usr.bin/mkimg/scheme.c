@@ -47,6 +47,7 @@ static struct {
 	{ "efi", ALIAS_EFI },
 	{ "fat16b", ALIAS_FAT16B },
 	{ "fat32", ALIAS_FAT32 },
+	{ "fat32lba", ALIAS_FAT32LBA },
 	{ "freebsd", ALIAS_FREEBSD },
 	{ "freebsd-boot", ALIAS_FREEBSD_BOOT },
 	{ "freebsd-nandfs", ALIAS_FREEBSD_NANDFS },
