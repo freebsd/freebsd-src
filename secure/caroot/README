@@ -14,8 +14,8 @@ It will:
 
 Then the results should manually be inspected (svn status)
 	1) Any no-longer-trusted certificates should be moved to the
-	blacklisted directory (svn mv)
-	2) any newly added certificates will need to be added (svn add)
+	untrusted directory (git mv)
+	2) any newly added certificates will need to be added (git add)
 
 
 The following make targets exist:
