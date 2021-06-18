@@ -218,6 +218,14 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 }
 
 static void
+lkpi_pci_dev_release(struct device *dev)
+{
+
+	lkpi_devres_release_free_list(dev);
+	spin_lock_destroy(&dev->devres_lock);
+}
+
+static void
 lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 {
 
@@ -299,14 +307,6 @@ lkpi_pci_get_domain_bus_and_slot(int domain, unsigned int bus,
 
 	pdev = lkpinew_pci_dev(dev);
 	return (pdev);
-}
-
-static void
-lkpi_pci_dev_release(struct device *dev)
-{
-
-	lkpi_devres_release_free_list(dev);
-	spin_lock_destroy(&dev->devres_lock);
 }
 
 static int
