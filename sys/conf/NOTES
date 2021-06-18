@@ -1047,8 +1047,7 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
 # as well.  See dummynet(4) and ipfw(8) for more info.  When you run
-# DUMMYNET it is advisable to also have at least "options HZ=1000" to achieve
-# a smooth scheduling of the traffic.
+# DUMMYNET, HZ/kern.hz should be at least 1000 for adequate response.
 options 	DUMMYNET
 
 # The DEBUGNET option enables a basic debug/panic-time networking API.  It
@@ -1237,14 +1236,11 @@ options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 #####################################################################
 # CLOCK OPTIONS
 
-# The granularity of operation is controlled by the kernel option HZ whose
-# default value (1000 on most architectures) means a granularity of 1ms
-# (1s/HZ).  Historically, the default was 100, but finer granularity is
-# required for DUMMYNET and other systems on modern hardware.  There are
-# reasonable arguments that HZ should, in fact, be 100 still; consider,
-# that reducing the granularity too much might cause excessive overhead in
-# clock interrupt processing, potentially causing ticks to be missed and thus
-# actually reducing the accuracy of operation.
+# The granularity of operation is controlled by the kernel option HZ (default
+# 1000 or 1ms). Virtual machines guests default to an HZ value of 100.  Lower
+# values produce less overhead at the expense of reduce accuracy in delivery of
+# kernel timeouts. With the adaptive tick code, lower values produce less
+# benefit than in the past.
 
 options 	HZ=100
 
