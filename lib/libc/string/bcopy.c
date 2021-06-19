@@ -82,7 +82,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP1(s) do { s; } while (--t)
 
 
-#ifndef memcpy
+#ifndef MEMCOPY
 	if ((uintptr_t)dst < (uintptr_t)src) {
 #endif
 		/*
@@ -109,7 +109,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
-#ifndef memcpy
+#ifndef MEMCOPY
 	} else {
 		/*
 		 * Copy backwards.  Otherwise essentially the same.
