@@ -81,7 +81,7 @@ cont:
 				if (c == L'\0')
 					++s = NULL;
 				else {
-					s++ = L'\0';
+					*s++ = L'\0';
 				}
 				*last = s;
 				return (tok);
