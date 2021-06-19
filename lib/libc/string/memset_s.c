@@ -51,10 +51,10 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 			__throw_constraint_handler_s("memset_s : n > smax",
 			    ret);
 
-			while (smax > 0)
+			while (smax)
 				dst[--smax] = v;
 		} else {
-			while (n > 0)
+			while (n)
 				dst[--n] = v;
 			ret = 0;
 		}
