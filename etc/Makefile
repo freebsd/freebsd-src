@@ -76,10 +76,10 @@ distribution:
 
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    -T "package=runtime" ${ETCMAIL} ${DESTDIR}/etc/mail
+	    -T "package=sendmail" ${ETCMAIL} ${DESTDIR}/etc/mail
 	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		${INSTALL_SYMLINK} -T "package=runtime" \
+		${INSTALL_SYMLINK} -T "package=sendmail" \
 		mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
