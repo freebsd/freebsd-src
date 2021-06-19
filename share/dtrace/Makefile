@@ -6,6 +6,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	dtrace
 SCRIPTS=	blocking \
 		disklatency \
 		disklatencycmd \

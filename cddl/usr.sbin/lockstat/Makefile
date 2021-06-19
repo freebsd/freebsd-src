@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/lockstat
 
+PACKAGE=	dtrace
 PROG=		lockstat
 SRCS=		lockstat.c sym.c
 BINDIR?=	/usr/sbin

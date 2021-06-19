@@ -3,6 +3,7 @@
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libgen/common
 
+PACKAGE=	dtrace
 LIB=		dtrace
 SRCS=		dt_aggregate.c \
 		dt_as.c \

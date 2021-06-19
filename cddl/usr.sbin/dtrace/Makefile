@@ -4,6 +4,7 @@
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/dtrace
 
+PACKAGE=	dtrace
 PROG=		dtrace
 SRCS=		dtrace.c
 BINDIR?=	/usr/sbin

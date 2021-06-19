@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/plockstat
 
+PACKAGE=	dtrace
 PROG=		plockstat
 SRCS=		plockstat.c
 BINDIR?=	/usr/sbin
