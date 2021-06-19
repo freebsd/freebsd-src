@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 char *
 strcat(char * __restrict s, const char * __restrict append)
 {
-	char *save = s;
+	char * const save = s;
 
 	for (; *s; ++s);
-	while ((*s++ = *append++));
-	return(save);
+	while ((*s = *append) != '\0') ++s, ++append;
+	return save;
 }
