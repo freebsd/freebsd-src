@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	nfs
+
 PROG=	nfsuserd
 MAN=	nfsuserd.8
 WARNS?=	3
