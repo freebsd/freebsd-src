@@ -34,11 +34,10 @@ __FBSDID("$FreeBSD$");
 size_t
 strnlen(const char *s, size_t maxlen)
 {
-	const char * const p = s;
+	const char * const olds = s;
 
 	while (*s != '\0' && maxlen != 0) {
-		s++;
-		maxlen--;
+		s++, maxlen--;
 	}
-	return s - p;
+	return s - olds;
 }
