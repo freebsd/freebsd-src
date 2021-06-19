@@ -41,13 +41,13 @@ __FBSDID("$FreeBSD$");
 wchar_t *
 wcscat(wchar_t * __restrict s1, const wchar_t * __restrict s2)
 {
-	wchar_t *cp;
+	wchar_t * const cp = s1;
 
-	cp = s1;
-	while (*cp != L'\0')
-		cp++;
-	while ((*cp++ = *s2++) != L'\0')
-		;
 
-	return (s1);
+	while (*s1 != L'\0')
+		s1++;
+	while ((*s1 = *s2) != L'\0')
+		s1++, s2++;
+
+	return (cp);
 }
