@@ -32,6 +32,7 @@ PLAIN_TESTS_SH+=	self-test
 PLAIN_TESTS_SH+=	bsd-c-test
 PLAIN_TESTS_SH+=	bsd-p-test
 PLAIN_TESTS_SH+=	bsd-s-test
+PLAIN_TESTS_SH+=	coreutils-c-test
 
 .SUFFIXES:		.SH
 
