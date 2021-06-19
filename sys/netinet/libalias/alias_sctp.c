@@ -298,10 +298,10 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define SN_MAX_TIMER 600
 #define SN_TIMER_QUEUE_SIZE SN_MAX_TIMER+2
 
-#define SN_I_T(la) (la->timeStamp + sysctl_init_timer)       /**< INIT State expiration time in seconds */
-#define SN_U_T(la) (la->timeStamp + sysctl_up_timer)         /**< UP State expiration time in seconds */
-#define SN_C_T(la) (la->timeStamp + sysctl_shutdown_timer)   /**< CL State expiration time in seconds */
-#define SN_X_T(la) (la->timeStamp + sysctl_holddown_timer)   /**< Wait after a shutdown complete in seconds */
+#define SN_I_T(la) (LibAliasTime + sysctl_init_timer)       /**< INIT State expiration time in seconds */
+#define SN_U_T(la) (LibAliasTime + sysctl_up_timer)         /**< UP State expiration time in seconds */
+#define SN_C_T(la) (LibAliasTime + sysctl_shutdown_timer)   /**< CL State expiration time in seconds */
+#define SN_X_T(la) (LibAliasTime + sysctl_holddown_timer)   /**< Wait after a shutdown complete in seconds */
 /** @}
  * @defgroup sysctl SysCtl Variable and callback function declarations
  *
@@ -667,9 +667,9 @@ AliasSctpInit(struct libalias *la)
 	for (i = 0; i < SN_TIMER_QUEUE_SIZE; i++)
 		LIST_INIT(&la->sctpNatTimer.TimerQ[i]);
 #ifdef _KERNEL
-	la->sctpNatTimer.loc_time=time_uptime; /* la->timeStamp is not set yet */
+	la->sctpNatTimer.loc_time=time_uptime; /* LibAliasTime is not set yet */
 #else
-	la->sctpNatTimer.loc_time=la->timeStamp;
+	la->sctpNatTimer.loc_time=LibAliasTime;
 #endif
 	la->sctpNatTimer.cur_loc = 0;
 	la->sctpLinkCount = 0;
@@ -2493,12 +2493,12 @@ sctp_CheckTimers(struct libalias *la)
 	struct sctp_nat_assoc *assoc;
 
 	LIBALIAS_LOCK_ASSERT(la);
-	while(la->timeStamp >= la->sctpNatTimer.loc_time) {
+	while(LibAliasTime >= la->sctpNatTimer.loc_time) {
 		while (!LIST_EMPTY(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc])) {
 			assoc = LIST_FIRST(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc]);
 			//SLIST_REMOVE_HEAD(&la->sctpNatTimer.TimerQ[la->sctpNatTimer.cur_loc], timer_Q);
 			LIST_REMOVE(assoc, timer_Q);
-			if (la->timeStamp >= assoc->exp) { /* state expired */
+			if (LibAliasTime >= assoc->exp) { /* state expired */
 				SN_LOG(((assoc->state == SN_CL) ? (SN_LOG_DEBUG) : (SN_LOG_INFO)),
 				    logsctperror("Timer Expired", assoc->g_vtag, assoc->state, SN_TO_NODIR));
 				RmSctpAssoc(la, assoc);
