@@ -59,7 +59,6 @@ cont:
 		if (c == sc) {
 			s++;
 			goto cont;
-
 		}
 	}
 
