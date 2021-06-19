@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-typedef	intptr_t word;		/* "word" used for optimal copy speed */
+typedef	uintptr_t word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
@@ -67,8 +67,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	char *dst = dst0;
-	const char *src = src0;
+	char *dst = (char *)dst0;
+	const char *src = (const char *)src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
@@ -80,7 +80,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	if ((uintptr_t)dst < (uintptr_t)src) {
 		/*
 		 * Copy forward.
 		 */
@@ -101,7 +101,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)(void *)dst = *(const word *)(const void *)src;
+		TLOOP(*(word *)dst = *(const word *)src;
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
@@ -124,7 +124,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		}
 		t = length / wsize;
 		TLOOP(src -= wsize; dst -= wsize;
-		    *(word *)(void *)dst = *(const word *)(const void *)src);
+		    *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
