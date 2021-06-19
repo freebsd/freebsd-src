@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	nfs
+
 PROG=	nfscbd
 MAN=	nfscbd.8
 

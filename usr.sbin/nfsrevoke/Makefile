@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	nfs
+
 PROG=	nfsrevoke
 MAN=	nfsrevoke.8
 
