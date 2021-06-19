@@ -38,13 +38,12 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 {
 	errno_t ret;
 	rsize_t lim;
-	unsigned char v;
 	volatile unsigned char *dst;
+	const unsigned char v = (unsigned char)c;
 
 	ret = EINVAL;
 	lim = n < smax ? n : smax;
-	v = (unsigned char)c;
-	dst = (unsigned char *)s;
+	dst = (volatile unsigned char *)s;
 	if (s == NULL) {
 		__throw_constraint_handler_s("memset_s : s is NULL", ret);
 	} else if (smax > RSIZE_MAX) {
