@@ -69,7 +69,7 @@ memset(void *dst0, int c0, size_t length)
 #ifndef BZERO
 	u_long c;
 #endif
-	u_char *dst = dst0;
+	u_char *dst = (u_char *)dst0;
 
 	const u_char uc = VAL;
 
