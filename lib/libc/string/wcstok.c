@@ -79,9 +79,10 @@ cont:
 		do {
 			if ((sc = *spanp) == c) {
 				if (c == L'\0')
-					s = NULL;
-				else
-					s[-1] = L'\0';
+					++s = NULL;
+				else {
+					s++ = L'\0';
+				}
 				*last = s;
 				return (tok);
 			}
