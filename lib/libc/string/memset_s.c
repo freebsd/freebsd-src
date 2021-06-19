@@ -36,14 +36,7 @@ __FBSDID("$FreeBSD$");
 errno_t
 memset_s(void *s, rsize_t smax, int c, rsize_t n)
 {
-	errno_t ret;
-	rsize_t lim;
-	volatile unsigned char *dst;
-	const unsigned char v = (unsigned char)c;
-
-	ret = EINVAL;
-	lim = n < smax ? n : smax;
-	dst = (volatile unsigned char *)s;
+	errno_t ret = EINVAL;
 	if (s == NULL) {
 		__throw_constraint_handler_s("memset_s : s is NULL", ret);
 	} else if (smax > RSIZE_MAX) {
@@ -51,13 +44,18 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 		    ret);
 	} else if (n > RSIZE_MAX) {
 		__throw_constraint_handler_s("memset_s : n > RSIZE_MAX", ret);
-	} else {
-		while (lim > 0)
-			dst[--lim] = v;
+	} else {	
+		const unsigned char v = (unsigned char)c;
+		volatile unsigned char *dst = (volatile unsigned char *)s;
 		if (n > smax) {
 			__throw_constraint_handler_s("memset_s : n > smax",
 			    ret);
+
+			while (smax > 0)
+				dst[--smax] = v;
 		} else {
+			while (n > 0)
+				dst[--n] = v;
 			ret = 0;
 		}
 	}
