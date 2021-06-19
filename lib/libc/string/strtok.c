@@ -63,31 +63,33 @@ __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restric
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
 	 */
 cont:
-	c = *s++;
+	c = *s;
 	for (spanp = (char *)delim; (sc = *spanp) != '\0'; spanp++) {
-		if (c == sc)
+		if (c == sc) {
+			s++;
 			goto cont;
+		}
 	}
 
 	if (c == '\0') {		/* no non-delimiter characters */
 		*last = NULL;
 		return (NULL);
 	}
-	tok = s - 1;
+	tok = s;
 
 	/*
 	 * Scan token (scan for delimiters: s += strcspn(s, delim), sort of).
 	 * Note that delim must have one NUL; we stop if we see that, too.
 	 */
 	for (;;) {
-		c = *s++;
+		c = *++s;
 		spanp = (char *)delim;
 		do {
 			if ((sc = *spanp) == c) {
 				if (c == 0)
-					s = NULL;
+					++s = NULL;
 				else
-					s[-1] = '\0';
+					*s++ = '\0';
 				*last = s;
 				return (tok);
 			}
