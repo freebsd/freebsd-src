@@ -41,11 +41,10 @@ __FBSDID("$FreeBSD$");
 size_t
 wcslen(const wchar_t *s)
 {
-	const wchar_t *p;
+	const wchar_t * const p = s;
 
-	p = s;
-	while (*p)
-		p++;
+	while (*s)
+		s++;
 
-	return p - s;
+	return s - p;
 }
