@@ -43,18 +43,19 @@ __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
 
+#define uwchar_t sizeof(wchar_t)
+
 /*
  * Compare strings.
  */
 int
 wcscmp(const wchar_t *s1, const wchar_t *s2)
 {
-
 	while (*s1 == *s2) {
 		if (*s1 == '\0')
 			return (0);
 		++s1, ++s2;
 	}
 
-	return (*(const unsigned wchar_t *)s1 - *(const unsigned wchar_t *)s2);
+	return *(const unsigned int *)s1 > *(const unsigned int *)s2 ? 1 : -1;
 }
