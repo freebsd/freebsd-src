@@ -43,15 +43,8 @@ strcspn(const char *s, const char *charset)
 	if (*s == '\0')
 		return (0);
 
-	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
+	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {1}; // All elements other than the first are set to 0 automatically
 
-#if LONG_BIT == 64	/* always better to just assign the entire array on 64-bit architectures */
-	tbl = {1, 0, 0, 0};
-#else
-	for (size_t idx = sizeof(tbl) / sizeof(u_long) - 1; idx; idx--)
-		tbl[idx] = 0;
-	tbl[0] = 1;
-#endif
 	for (; *charset != '\0'; charset++) {
 		tbl[IDX(*charset)] |= BIT(*charset);
 	}
