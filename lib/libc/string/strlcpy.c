@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 size_t
 strlcpy(char * __restrict dst, const char * __restrict src, size_t dsize)
 {
-	const char *osrc = src;
+	const char * const osrc = src;
 	size_t nleft = dsize;
 
 	/* Copy as many bytes as will fit. */
