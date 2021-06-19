@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=	nfs
+
 PROG =	rpc.rquotad
 SRCS =	rquotad.c
 MAN  =	rpc.rquotad.8

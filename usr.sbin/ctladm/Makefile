@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	iscsi
 PROG=		ctladm
 SRCS=		ctladm.c util.c ctl_util.c ctl_scsi_all.c
 .PATH:		${SRCTOP}/sys/cam/ctl

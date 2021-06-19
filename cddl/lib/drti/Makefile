@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libdtrace/common
 
+PACKAGE=	dtrace
 SRCS=		drti.c
 FILES=		${SRCS:R:S/$/.o/g}
 FILESOWN=	${LIBOWN}

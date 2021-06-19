@@ -5,6 +5,7 @@
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 .PATH:  ${SRCTOP}/contrib/libucl/include
 
+PACKAGE=	iscsi
 PROG=		ctld
 SRCS=		chap.c ctld.c discovery.c isns.c kernel.c keys.c log.c
 SRCS+=		login.c parse.y pdu.c token.l y.tab.h uclparse.c
