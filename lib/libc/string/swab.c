@@ -55,7 +55,7 @@ swab(const void * __restrict from, void * __restrict to, ssize_t len)
 	tp = (char *)to;
 #define	STEP	temp = *fp++,*tp++ = *fp++,*tp++ = temp
 	/* round to multiple of 8 */
-	for (; (len & 0x7) != 0; --n)
+	for (; len & 0x7; --len)
 		STEP;
 	for (len >>= 3; len; --len) {
 		STEP; STEP; STEP; STEP;
