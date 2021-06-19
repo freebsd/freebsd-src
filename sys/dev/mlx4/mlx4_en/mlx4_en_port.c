@@ -149,7 +149,7 @@ static u64 en_stats_adder(__be64 *start, __be64 *next, int num)
 	return ret;
 }
 
-static void mlx4_en_fold_software_stats(struct net_device *dev)
+static void mlx4_en_fold_software_stats(struct ifnet *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -187,7 +187,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	struct mlx4_counter tmp_vport_stats;
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
 	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
-	struct net_device *dev = mdev->pndev[port];
+	struct ifnet *dev = mdev->pndev[port];
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_vport_stats *vport_stats = &priv->vport_stats;
 	struct mlx4_cmd_mailbox *mailbox;

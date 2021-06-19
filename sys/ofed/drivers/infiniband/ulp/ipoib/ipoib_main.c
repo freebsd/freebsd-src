@@ -89,7 +89,7 @@ struct ib_sa_client ipoib_sa_client;
 
 static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device, void *client_data);
-static struct net_device *ipoib_get_net_dev_by_params(
+static struct ifnet *ipoib_get_net_dev_by_params(
 		struct ib_device *dev, u8 port, u16 pkey,
 		const union ib_gid *gid, const struct sockaddr *addr,
 		void *client_data);
@@ -1104,7 +1104,7 @@ ipoib_remove_one(struct ib_device *device, void *client_data)
 }
 
 static int
-ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
+ipoib_match_dev_addr(const struct sockaddr *addr, struct ifnet *dev)
 {
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
@@ -1138,7 +1138,7 @@ ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
 static int
 ipoib_match_gid_pkey_addr(struct ipoib_dev_priv *priv,
     const union ib_gid *gid, u16 pkey_index, const struct sockaddr *addr,
-    struct net_device **found_net_dev)
+    struct ifnet **found_net_dev)
 {
 	struct ipoib_dev_priv *child_priv;
 	int matches = 0;
@@ -1147,7 +1147,7 @@ ipoib_match_gid_pkey_addr(struct ipoib_dev_priv *priv,
 	    (!gid || !memcmp(gid, &priv->local_gid, sizeof(*gid)))) {
 		if (addr == NULL || ipoib_match_dev_addr(addr, priv->dev) != 0) {
 			if (*found_net_dev == NULL) {
-				struct net_device *net_dev;
+				struct ifnet *net_dev;
 
 				if (priv->parent != NULL)
 					net_dev = priv->parent;
@@ -1182,7 +1182,7 @@ ipoib_match_gid_pkey_addr(struct ipoib_dev_priv *priv,
 static int
 __ipoib_get_net_dev_by_params(struct list_head *dev_list, u8 port,
     u16 pkey_index, const union ib_gid *gid,
-    const struct sockaddr *addr, struct net_device **net_dev)
+    const struct sockaddr *addr, struct ifnet **net_dev)
 {
 	struct ipoib_dev_priv *priv;
 	int matches = 0;
@@ -1203,11 +1203,11 @@ __ipoib_get_net_dev_by_params(struct list_head *dev_list, u8 port,
 	return matches;
 }
 
-static struct net_device *
+static struct ifnet *
 ipoib_get_net_dev_by_params(struct ib_device *dev, u8 port, u16 pkey,
     const union ib_gid *gid, const struct sockaddr *addr, void *client_data)
 {
-	struct net_device *net_dev;
+	struct ifnet *net_dev;
 	struct list_head *dev_list = client_data;
 	u16 pkey_index;
 	int matches;

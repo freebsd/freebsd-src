@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210618:
+	Bump __FreeBSD_version to 1400024 for LinuxKPI changes.
+	Most notably netdev.h can change now as the (last) dependecies
+	(mlx4/ofed) are now using struct ifnet directly, but also for PCI
+	additions and others.
+
+20210618:
+	The directory "blacklisted" under /usr/share/certs/ has been
+	renamed to "untrusted".
+
 20210611:
 	svnlite has been removed from base. Should you need svn for any reason
 	please install the svn package or port.

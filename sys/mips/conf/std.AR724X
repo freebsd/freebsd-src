@@ -12,7 +12,6 @@ machine		mips mips
 #ident		AR724X_BASE
 cpu		CPU_MIPS24K
 makeoptions	KERNLOADADDR=0x80050000
-options 	HZ=1000
 options 	HWPMC_HOOKS
 
 files		"../atheros/files.ar71xx"

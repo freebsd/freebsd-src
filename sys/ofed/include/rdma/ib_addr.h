@@ -142,7 +142,7 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
+int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 	      const unsigned char *dst_dev_addr);
 
 int rdma_addr_size(struct sockaddr *addr);
@@ -151,7 +151,7 @@ int rdma_addr_size_kss(struct sockaddr_storage *addr);
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *smac, struct net_device *dev,
+				 u8 *smac, struct ifnet *dev,
 				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
@@ -176,7 +176,7 @@ static inline int rdma_addr_gid_offset(struct rdma_dev_addr *dev_addr)
 	return dev_addr->dev_type == ARPHRD_INFINIBAND ? 4 : 0;
 }
 
-static inline u16 rdma_vlan_dev_vlan_id(const struct net_device *dev)
+static inline u16 rdma_vlan_dev_vlan_id(const struct ifnet *dev)
 {
 	uint16_t tag;
 
@@ -231,7 +231,7 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
 				      union ib_gid *gid)
 {
-	struct net_device *dev;
+	struct ifnet *dev;
 	struct ifaddr *ifa;
 
 #ifdef VIMAGE
@@ -300,7 +300,7 @@ static inline enum ib_mtu iboe_get_mtu(int mtu)
 		return 0;
 }
 
-static inline int iboe_get_rate(struct net_device *dev)
+static inline int iboe_get_rate(struct ifnet *dev)
 {
 	uint64_t baudrate = dev->if_baudrate;
 #ifdef if_baudrate_pf
@@ -365,7 +365,7 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 	return vid < 0x1000 ? vid : 0xffff;
 }
 
-static inline struct net_device *rdma_vlan_dev_real_dev(struct net_device *dev)
+static inline struct ifnet *rdma_vlan_dev_real_dev(struct ifnet *dev)
 {
 	struct epoch_tracker et;
 

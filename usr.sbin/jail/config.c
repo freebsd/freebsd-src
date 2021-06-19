@@ -198,7 +198,7 @@ load_config(void)
 				TAILQ_FOREACH(vp, &j->params, tq)
 					if (!strcmp(vp->name, v->name))
 						break;
-				if (!vp) {
+				if (!vp || TAILQ_EMPTY(&vp->val)) {
 					jail_warnx(j,
 					    "%s: variable \"%s\" not found",
 					    p->name, v->name);

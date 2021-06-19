@@ -15,6 +15,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 options 	DDB
 options 	KDB
+options 	HZ=100
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
