@@ -472,7 +472,7 @@ ivhd_print_flag(device_t dev, enum IvrsType ivhd_type, uint8_t flag)
 			"\005IotlbSup"
 			"\006Coherent"
 			"\007PreFSup"
-			"\008PPRSup");
+			"\010PPRSup");
 		break;
 
 	case IVRS_TYPE_HARDWARE_EFR:
@@ -562,9 +562,9 @@ ivhd_print_ext_feature(device_t dev, uint64_t ext_feature)
 		"\005GTSup"
 		"\006<b5>"
 		"\007IASup"
-		"\008GASup"
-		"\009HESup"
-		"\010PCSup",
+		"\010GASup"
+		"\011HESup"
+		"\012PCSup",
 		REG_BITS(ext_low, 11, 10),
 		REG_BITS(ext_low, 13, 12),
 		REG_BITS(ext_low, 15, 14),
@@ -581,17 +581,17 @@ ivhd_print_ext_feature(device_t dev, uint64_t ext_feature)
 		(int)(ext_high),
 		"\020"
 		"\006USSup"
-		"\009PprOvrflwEarlySup"
-		"\010PPRAutoRspSup"
-		"\013BlKStopMrkSup"
-		"\014PerfOptSup"
-		"\015MsiCapMmioSup"
-		"\017GIOSup"
-		"\018HASup"
-		"\019EPHSup"
-		"\020AttrFWSup"
-		"\021HDSup"
-		"\023InvIotlbSup",
+		"\011PprOvrflwEarlySup"
+		"\012PPRAutoRspSup"
+		"\015BlKStopMrkSup"
+		"\016PerfOptSup"
+		"\017MsiCapMmioSup"
+		"\021GIOSup"
+		"\022HASup"
+		"\023EPHSup"
+		"\024AttrFWSup"
+		"\025HDSup"
+		"\027InvIotlbSup",
 	    	REG_BITS(ext_high, 5, 0),
 	    	REG_BITS(ext_high, 8, 7),
 	    	REG_BITS(ext_high, 11, 10));
