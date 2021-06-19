@@ -48,6 +48,7 @@
 #ifndef _ALIAS_LOCAL_H_
 #define	_ALIAS_LOCAL_H_
 
+#include <sys/tree.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -66,10 +67,6 @@
 #endif
 
 /* Sizes of input and output link tables */
-#define LINK_TABLE_OUT_SIZE	4001
-#define LINK_TABLE_IN_SIZE	4001
-#define LINK_PARTIAL_SIZE	401
-
 #define	GET_ALIAS_PORT		-1
 #define	GET_ALIAS_ID		GET_ALIAS_PORT
 
@@ -80,6 +77,14 @@
 #endif
 
 struct proxy_entry;
+
+struct group_in {
+	struct in_addr	alias_addr;
+	u_short		alias_port;
+	int		link_type;
+	SPLAY_ENTRY(group_in)	in;
+	LIST_HEAD(, alias_link)	full, partial;
+};
 
 struct libalias {
 	LIST_ENTRY(libalias) instancelist;
@@ -93,9 +98,9 @@ struct libalias {
 	/* Lookup table of pointers to chains of link records.
 	 * Each link record is doubly indexed into input and
 	 * output lookup tables. */
-	LIST_HEAD     (, alias_link) linkTableOut[LINK_TABLE_OUT_SIZE];
-	LIST_HEAD     (, alias_link) linkTableIn[LINK_TABLE_IN_SIZE];
-	LIST_HEAD     (, alias_link) linkPartialIn[LINK_PARTIAL_SIZE];
+	SPLAY_HEAD(splay_out, alias_link) linkSplayOut;
+	SPLAY_HEAD(splay_in,  group_in)   linkSplayIn;
+	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
 	/* Link statistics */
@@ -107,9 +112,6 @@ struct libalias {
 	unsigned int	fragmentIdLinkCount;
 	unsigned int	fragmentPtrLinkCount;
 	unsigned int	sockCount;
-	/* If equal to zero, DeleteLink()
-	 * will not remove permanent links */
-	int		deleteAllLinks;
 	/* log descriptor */
 #ifdef _KERNEL
 	char	       *logDesc;
