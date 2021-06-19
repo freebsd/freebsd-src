@@ -42,10 +42,9 @@ __FBSDID("$FreeBSD$");
 char *
 strdup(const char *str)
 {
-	size_t len;
 	char *copy;
 
-	len = strlen(str) + 1;
+	const size_t len = strlen(str) + 1;
 	if ((copy = malloc(len)) == NULL)
 		return (NULL);
 	memcpy(copy, str, len);
