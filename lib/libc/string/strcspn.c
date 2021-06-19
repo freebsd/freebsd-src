@@ -39,36 +39,28 @@ __FBSDID("$FreeBSD$");
 size_t
 strcspn(const char *s, const char *charset)
 {
-	/*
-	 * NB: idx and bit are temporaries whose use causes gcc 3.4.2 to
-	 * generate better code.  Without them, gcc gets a little confused.
-	 */
-	const char *s1;
-	u_long bit;
-	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
-	int idx;
 
-	if(*s == '\0')
+	if (*s == '\0')
 		return (0);
 
-#if LONG_BIT == 64	/* always better to unroll on 64-bit architectures */
-	tbl[0] = 1;
-	tbl[3] = tbl[2] = tbl[1] = 0;
+	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT];
+
+#if LONG_BIT == 64	/* always better to just assign the entire array on 64-bit architectures */
+	tbl = {1, 0, 0, 0};
 #else
-	for (tbl[0] = idx = 1; idx < sizeof(tbl) / sizeof(tbl[0]); idx++)
+	for (size_t idx = sizeof(tbl) / sizeof(u_long) - 1; idx; idx--)
 		tbl[idx] = 0;
+	tbl[0] = 1;
 #endif
 	for (; *charset != '\0'; charset++) {
-		idx = IDX(*charset);
-		bit = BIT(*charset);
-		tbl[idx] |= bit;
+		tbl[IDX(*charset)] |= BIT(*charset);
 	}
 
-	for(s1 = s; ; s1++) {
-		idx = IDX(*s1);
-		bit = BIT(*s1);
-		if ((tbl[idx] & bit) != 0)
+	const char * const s1 = s;
+
+	for (;; s++) {
+		if ((tbl[IDX(*s)] & BIT(*s)) != 0)
 			break;
 	}
-	return (s1 - s);
+	return (s - s1);
 }
