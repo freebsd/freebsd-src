@@ -37,7 +37,7 @@ wcsncasecmp(const wchar_t *s1, const wchar_t *s2, size_t n)
 {
 	wchar_t c1, c2;
 
-	for (; n != 0; --n, s1++, s2++) {
+	for (; n != 0; --n, ++s1, ++s2) {
 		c1 = towlower(*s1);
 		c2 = towlower(*s2);
 		if (c1 != c2)
