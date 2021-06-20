@@ -243,7 +243,7 @@ ports_recurse() (
 
 ports_build() (
 
-	ports_recurse . $PORTS_WE_WANT 
+	ports_recurse . $PORTS_WE_WANT
 
 	if [ "x${PKG_DIR}" != "x" ] ; then
 		mkdir -p ${PKG_DIR}
@@ -262,7 +262,7 @@ ports_build() (
 
 			(
 			cd $p
-			ports_make clean all install 
+			ports_make clean all install
 			) > _.$b 2>&1 < /dev/null
 			continue
 		fi
@@ -340,7 +340,7 @@ ports_prefetch() (
 		) > /${ldir}/_.prefetch.$b 2>&1
 	done
 	echo "Done" >> /${ldir}/_.prefetch
-	) 
+	)
 )
 
 #######################################################################
@@ -442,7 +442,7 @@ if $do_prefetch ; then
 	mkdir -p /tmp/sysbuild/ports
 	ln -s ${distfile_cache} /tmp/sysbuild/ports/distfiles
 	export PORTS_OPTS=CD_MOUNTPTS=/tmp/sysbuild
-	ports_prefetch /tmp 
+	ports_prefetch /tmp
 	exit 0
 fi
 
@@ -602,14 +602,18 @@ fi
 if [ -f /etc/localtime ] ; then
 	log_it copy localtime
 	cp /etc/localtime ${SBMNT}/etc
+	if [ -f /var/db/zoneinfo ] ; then
+		log_it copy zoneinfo
+		cp /var/db/zoneinfo ${SBMNT}/var/db
+	fi
 fi
 
 log_it ldconfig in chroot
 chroot ${SBMNT} sh /etc/rc.d/ldconfig start
 
 log_it before_ports
-( 
-	before_ports 
+(
+	before_ports
 )
 
 log_it fixing fstab
@@ -623,14 +627,14 @@ cp /tmp/_sb_log ${SBMNT}/tmp
 b=`basename $0`
 if [ "x$c_arg" != "x" ] ; then
 	cp $c_arg ${SBMNT}/root
-	chroot ${SBMNT} sh /root/$0 -c /root/`basename $c_arg` $use_pkg chroot_script 
+	chroot ${SBMNT} sh /root/$0 -c /root/`basename $c_arg` $use_pkg chroot_script
 else
 	chroot ${SBMNT} sh /root/$0 $use_pkg chroot_script
 fi
 cp ${SBMNT}/tmp/_sb_log /tmp
 
 log_it create all mountpoints
-grep -v '^[ 	]*#' ${SBMNT}/etc/fstab | 
+grep -v '^[ 	]*#' ${SBMNT}/etc/fstab |
 while read a b c
 do
 	mkdir -p ${SBMNT}/$b
