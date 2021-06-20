@@ -49,7 +49,6 @@ strncmp(const char *s1, const char *s2, size_t n)
 				*(const unsigned char *)s2);
 		if (*s1 == '\0')
 			break;
-
 		++s1, ++s2;
 	} while (--n != 0);
 	return (0);
