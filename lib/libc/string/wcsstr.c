@@ -49,17 +49,18 @@ wchar_t *
 wcsstr(const wchar_t * __restrict s, const wchar_t * __restrict find)
 {
 	wchar_t c, sc;
-	size_t len;
 
-	if ((c = *find++) != L'\0') {
-		len = wcslen(find);
+	if ((c = *find) != L'\0') {
+		const size_t len = wcslen(++find);
 		do {
 			do {
-				if ((sc = *s++) == L'\0')
+				if ((sc = *s) == L'\0')
 					return (NULL);
+
+				++s;
 			} while (sc != c);
 		} while (wcsncmp(s, find, len) != 0);
-		s--;
+		--s;
 	}
 	return ((wchar_t *)s);
 }
