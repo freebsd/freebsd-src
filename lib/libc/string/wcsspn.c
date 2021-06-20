@@ -52,7 +52,7 @@ wcsspn(const wchar_t *s, const wchar_t *set)
 			if (*t == *w)
 				break;
 		}
-		if (!*q)
+		if (w == L'\0')
 			break;
 	}
 
