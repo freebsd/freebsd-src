@@ -47,7 +47,7 @@ wcsncat(wchar_t * __restrict s1, const wchar_t * __restrict s2, size_t n)
 
 	for (p = s1; *p != L'\0'; p++);
 
-	for (q = p, r = s2; n != 0 && *r != L'\0', n--)
+	for (q = p, r = s2; n != 0 && *r != L'\0'; n--)
 		*q++ = *r++;
 
 	*q = L'\0';
