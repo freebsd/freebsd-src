@@ -78,7 +78,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) if (t) TLOOP1(s)
+#define	TLOOP(s) for (; t; --t) s;
 #define	TLOOP1(s) do { s; } while (--t)
 
 
