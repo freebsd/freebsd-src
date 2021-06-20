@@ -45,15 +45,11 @@ wcsncat(wchar_t * __restrict s1, const wchar_t * __restrict s2, size_t n)
 	wchar_t *q;
 	const wchar_t *r;
 
-	p = s1;
-	while (*p)
-		p++;
-	q = p;
-	r = s2;
-	while (n && *r) {
+	for (p = s1; *p != '\0'; p++);
+
+	for (q = p, r = r2; n && *r; n--)
 		*q++ = *r++;
-		n--;
-	}
+
 	*q = '\0';
 	return s1;
 }
