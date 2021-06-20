@@ -34,10 +34,12 @@
 /*
  * Constants for the kenv(2) syscall
  */
-#define KENV_GET	0
-#define KENV_SET	1
-#define KENV_UNSET	2
-#define KENV_DUMP	3
+#define KENV_GET		0
+#define KENV_SET		1
+#define KENV_UNSET		2
+#define KENV_DUMP		3
+#define KENV_DUMP_LOADER	4
+#define KENV_DUMP_STATIC	5
 
 #define KENV_MNAMELEN	128	/* Maximum name length (for the syscall) */
 #define KENV_MVALLEN	128	/* Maximum value length (for the syscall) */
