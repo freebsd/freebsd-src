@@ -56,9 +56,6 @@
  */
 ENTRY(btext)
 
-	/* Tell the bios to warmboot next time */
-	movw	$0x1234,0x472
-
 	/* Don't trust what the loader gives for rflags. */
 	pushq	$PSL_KERNEL
 	popfq

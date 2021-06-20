@@ -1604,10 +1604,19 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct region_descriptor r_gdt;
 	size_t kstack0_sz;
 	int late_console;
+	bool efi_boot;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
 	kmdp = init_ops.parse_preload_data(modulep);
+
+	efi_boot = preload_search_info(kmdp, MODINFO_METADATA |
+	    MODINFOMD_EFI_MAP) != NULL;
+
+	if (!efi_boot) {
+		/* Tell the bios to warmboot next time */
+		atomic_store_short((u_short *)0x472, 0x1234);
+	}
 
 	physfree += ucode_load_bsp(physfree + KERNBASE);
 	physfree = roundup2(physfree, PAGE_SIZE);
@@ -1760,8 +1769,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * Once bootblocks have updated, we can test directly for
 	 * efi_systbl != NULL here...
 	 */
-	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP)
-	    != NULL)
+	if (efi_boot)
 		vty_set_preferred(VTY_VT);
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
