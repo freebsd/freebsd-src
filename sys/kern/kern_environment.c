@@ -365,7 +365,11 @@ init_dynamic_kenv_from(char *init_env, int *curpos)
 			kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 			strcpy(kenvp[i++], cp);
 sanitize:
+#ifdef PRESERVE_EARLY_KENV
+			continue;
+#else
 			explicit_bzero(cp, len - 1);
+#endif
 		}
 		*curpos = i;
 	}

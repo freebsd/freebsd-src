@@ -1020,3 +1020,11 @@ IICHID_DEBUG	opt_hid.h
 IICHID_SAMPLING	opt_hid.h
 HKBD_DFLT_KEYMAP	opt_hkbd.h
 HIDRAW_MAKE_UHID_ALIAS	opt_hid.h
+
+# kenv options
+# The early kernel environment (loader environment, config(8)-provided static)
+# is typically cleared after the dynamic environment comes up to ensure that
+# we're not inadvertently holding on to 'secret' values in these stale envs.
+# This option is insecure except in controlled environments where the static
+# environment's contents are known to be safe.
+PRESERVE_EARLY_KENV	opt_global.h
