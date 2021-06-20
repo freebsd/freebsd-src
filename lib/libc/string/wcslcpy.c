@@ -54,10 +54,10 @@ wcslcpy(wchar_t *dst, const wchar_t *src, size_t siz)
 
 	/* Copy as many bytes as will fit */
 	if (n != 0 && --n != 0) {
-		do {
-			if ((*d++ = *s++) == 0)
+		while (--n != 0) {
+			if ((*d++ = *s++) == L'\0')
 				break;
-		} while (--n != 0);
+		}
 	}
 
 	/* Not enough room in dst, add NUL and traverse rest of src */
