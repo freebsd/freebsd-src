@@ -38,7 +38,7 @@ stpncpy(char * __restrict dst, const char * __restrict src, size_t n)
 	for (; n; --n) {
 		if ((*dst = *src) == '\0') {
 			char * const ret = dst;
-			while (--n)
+			for (; n != 1; --n)
 				*++dst = '\0';
 			return (ret);
 		}
