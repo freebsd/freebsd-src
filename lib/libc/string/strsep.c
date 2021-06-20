@@ -65,7 +65,7 @@ strsep(char **stringp, const char *delim)
 		do {
 			if ((sc = *spanp) == c) {
 				if (c == '\0')
-					s++, s = NULL;
+					s = NULL;
 				else
 					*s++ = '\0';
 				*stringp = s;
