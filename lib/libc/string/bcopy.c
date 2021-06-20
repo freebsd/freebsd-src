@@ -86,7 +86,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 	if ((uintptr_t)dst < (uintptr_t)src) {
 #endif
 		/*
-		 * Copy forward.
+		 * Copy forwards.
 		 */
 		t = (uintptr_t)src;	/* only need low bits */
 		if ((t | (uintptr_t)dst) & wmask) {
