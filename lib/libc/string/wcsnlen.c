@@ -36,8 +36,7 @@ wcsnlen(const wchar_t *s, size_t maxlen)
 {
 	const wchar_t * const olds = s;
 
-	while (*s != 'L\0' && maxlen != 0)
-		++s, --maxlen;
+	for (; *s != L'\0' && maxlen != 0; ++s, --maxlen);
 
 	return s - olds;
 }
