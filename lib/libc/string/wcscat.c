@@ -43,11 +43,8 @@ wcscat(wchar_t * __restrict s1, const wchar_t * __restrict s2)
 {
 	wchar_t * const cp = s1;
 
-
-	while (*s1 != L'\0')
-		s1++;
-	while ((*s1 = *s2) != L'\0')
-		s1++, s2++;
+	for (; *s1 != L'\0'; ++s1);
+	for (; (*s1 = *s2) != L'\0'; ++s1, ++s2);
 
 	return (cp);
 }
