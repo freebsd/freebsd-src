@@ -279,21 +279,6 @@ gen_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Install interrupt handlers */
-	error = bus_setup_intr(dev, sc->res[_RES_IRQ1],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, gen_intr, sc, &sc->ih);
-	if (error != 0) {
-		device_printf(dev, "cannot setup interrupt handler1\n");
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->res[_RES_IRQ2],
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, gen_intr2, sc, &sc->ih2);
-	if (error != 0) {
-		device_printf(dev, "cannot setup interrupt handler2\n");
-		goto fail;
-	}
-
 	/* Setup ethernet interface */
 	sc->ifp = if_alloc(IFT_ETHER);
 	if_setsoftc(sc->ifp, sc);
@@ -309,6 +294,21 @@ gen_attach(device_t dev)
 	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM |
 	    IFCAP_HWCSUM_IPV6);
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
+
+	/* Install interrupt handlers */
+	error = bus_setup_intr(dev, sc->res[_RES_IRQ1],
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, gen_intr, sc, &sc->ih);
+	if (error != 0) {
+		device_printf(dev, "cannot setup interrupt handler1\n");
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->res[_RES_IRQ2],
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, gen_intr2, sc, &sc->ih2);
+	if (error != 0) {
+		device_printf(dev, "cannot setup interrupt handler2\n");
+		goto fail;
+	}
 
 	/* Attach MII driver */
 	mii_flags = 0;
