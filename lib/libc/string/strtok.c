@@ -87,7 +87,7 @@ cont:
 		do {
 			if ((sc = *spanp) == c) {
 				if (c == 0)
-					++s = NULL;
+					s++, s = NULL;
 				else
 					*s++ = '\0';
 				*last = s;
