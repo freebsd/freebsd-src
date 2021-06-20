@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <err.h>
+#include <errno.h>
 #include <kenv.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,14 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void	usage(void);
-static int	kdumpenv(void);
+static int	kdumpenv(int dump_type);
 static int	kgetenv(const char *);
 static int	ksetenv(const char *, char *);
 static int	kunsetenv(const char *);
 
 static int hflag = 0;
+static int lflag = 0;
 static int Nflag = 0;
 static int qflag = 0;
+static int sflag = 0;
 static int uflag = 0;
 static int vflag = 0;
 
@@ -51,7 +54,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: kenv [-hNq]",
+	    "usage: kenv [-l|-s] [-hNq]",
 	    "       kenv [-qv] variable[=value]",
 	    "       kenv [-q] -u variable");
 	exit(1);
@@ -65,16 +68,22 @@ main(int argc, char **argv)
 
 	val = NULL;
 	env = NULL;
-	while ((ch = getopt(argc, argv, "hNquv")) != -1) {
+	while ((ch = getopt(argc, argv, "hlNqsuv")) != -1) {
 		switch (ch) {
 		case 'h':
 			hflag++;
+			break;
+		case 'l':
+			lflag++;
 			break;
 		case 'N':
 			Nflag++;
 			break;
 		case 'q':
 			qflag++;
+			break;
+		case 's':
+			sflag++;
 			break;
 		case 'u':
 			uflag++;
@@ -100,12 +109,23 @@ main(int argc, char **argv)
 	}
 	if ((hflag || Nflag) && env != NULL)
 		usage();
+	if (lflag && sflag)
+		usage();
 	if (argc > 0 || ((uflag || vflag) && env == NULL))
 		usage();
 	if (env == NULL) {
-		error = kdumpenv();
-		if (error && !qflag)
-			warn("kdumpenv");
+		if (lflag)
+			error = kdumpenv(KENV_DUMP_LOADER);
+		else if (sflag)
+			error = kdumpenv(KENV_DUMP_STATIC);
+		else
+			error = kdumpenv(KENV_DUMP);
+		if (error && !qflag) {
+			if (errno == ENOENT)
+				warnx("requested environment is unavailable");
+			else
+				warn("kdumpenv");
+		}
 	} else if (val == NULL) {
 		if (uflag) {
 			error = kunsetenv(env);
@@ -125,12 +145,12 @@ main(int argc, char **argv)
 }
 
 static int
-kdumpenv(void)
+kdumpenv(int dump_type)
 {
 	char *buf, *bp, *cp;
 	int buflen, envlen;
 
-	envlen = kenv(KENV_DUMP, NULL, NULL, 0);
+	envlen = kenv(dump_type, NULL, NULL, 0);
 	if (envlen < 0)
 		return (-1);
 	for (;;) {
@@ -138,7 +158,7 @@ kdumpenv(void)
 		buf = calloc(1, buflen + 1);
 		if (buf == NULL)
 			return (-1);
-		envlen = kenv(KENV_DUMP, NULL, buf, buflen);
+		envlen = kenv(dump_type, NULL, buf, buflen);
 		if (envlen < 0) {
 			free(buf);
 			return (-1);
