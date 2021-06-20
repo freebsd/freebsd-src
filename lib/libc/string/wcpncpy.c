@@ -38,7 +38,7 @@ wcpncpy(wchar_t * __restrict dst, const wchar_t * __restrict src, size_t n)
 	for (; n; --n) {
 		if ((*dst = *src) == L'\0') {
 			wchar_t * const ret = dst;
-			while (--n)
+			for (; n != 1; --n)
 				*++dst = L'\0';
 			return (ret);
 		}
