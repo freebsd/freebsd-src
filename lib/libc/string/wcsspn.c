@@ -49,7 +49,7 @@ wcsspn(const wchar_t *s, const wchar_t *set)
 
 	for (p = s; (t = *p) != L'\0'; p++) {
 		for (q = set; (w = *q) != L'\0'; q++) {
-			if (*t == *w)
+			if (t == w)
 				break;
 		}
 		if (w == L'\0')
