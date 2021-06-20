@@ -41,15 +41,10 @@ __FBSDID("$FreeBSD$");
 int
 wmemcmp(const wchar_t *s1, const wchar_t *s2, size_t n)
 {
-	size_t i;
-
-	for (i = 0; i < n; i++) {
-		if (*s1 != *s2) {
-			/* wchar might be unsigned */
-			return *s1 > *s2 ? 1 : -1; 
-		}
-		s1++;
-		s2++;
+	for (; n; --n) {
+		if (*s1 != *s2)
+			return *(unsigned int *)s1 > *(unsigned int *)s2 ? 1 : -1; 
+		++s1, ++s2;
 	}
 	return 0;
 }
