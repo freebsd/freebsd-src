@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
 
-#define uwchar_t sizeof(wchar_t)
-
 /*
  * Compare strings.
  */
