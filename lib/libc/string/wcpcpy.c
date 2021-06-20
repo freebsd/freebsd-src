@@ -43,6 +43,6 @@ wchar_t *
 wcpcpy(wchar_t * __restrict to, const wchar_t * __restrict from)
 {
 
-	while ((*to = *from) != '\0') ++to, ++from;
+	for (; (*to = *from) != '\0'; ++to, ++from);
 	return (to);
 }
