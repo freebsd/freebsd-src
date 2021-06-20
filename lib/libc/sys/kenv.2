@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2017
+.Dd June 20, 2021
 .Dt KENV 2
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ the kernel environment.
 The
 .Fa action
 argument can be one of the following:
-.Bl -tag -width ".Dv KENV_UNSET"
+.Bl -tag -width ".Dv KENV_DUMP_LOADER"
 .It Dv KENV_GET
 Get the
 .Fa value
@@ -90,7 +90,7 @@ and
 arguments are ignored.
 This option is only available to the superuser.
 .It Dv KENV_DUMP
-Dump as much of the kernel environment as will fit in
+Dump as much of the dynamic kernel environment as will fit in
 .Fa value ,
 whose size is given in
 .Fa len .
@@ -103,6 +103,18 @@ will return the number of bytes required to copy out the entire environment.
 The
 .Fa name
 is ignored.
+.It Dv KENV_DUMP_LOADER
+Dump the static environment provided by
+.Xr loader 8 ,
+with semantics identical to
+.Dv KENV_DUMP .
+Duplicate and malformed variables originally present in this environment are
+discarded by the kernel and will not appear in the output.
+.It Dv KENV_DUMP_STATIC
+Dump the static environment defined by the kernel
+.Xr config 5 .
+The semantics are identical to
+.Dv KENV_DUMP_LOADER .
 .El
 .Sh RETURN VALUES
 The
@@ -142,6 +154,12 @@ for a
 .Dv KENV_GET
 or
 .Dv KENV_UNSET .
+.It Bq Er ENOENT
+The requested environment is not available for a
+.Dv KENV_DUMP_LOADER
+or
+.Dv KENV_DUMP_STATIC .
+The kernel is configured to destroy these environments by default.
 .It Bq Er EPERM
 A user other than the superuser attempted to set or unset a kernel
 environment variable.
