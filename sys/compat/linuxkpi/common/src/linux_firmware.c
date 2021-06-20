@@ -30,9 +30,13 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/firmware.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <linux/types.h>
 #include <linux/device.h>
@@ -41,6 +45,16 @@
 #undef firmware
 
 MALLOC_DEFINE(M_LKPI_FW, "lkpifw", "LinuxKPI firmware");
+
+struct lkpi_fw_task {
+	/* Task and arguments for the "nowait" callback. */
+	struct task		fw_task;
+	gfp_t			gfp;
+	const char		*fw_name;
+	struct device		*dev;
+	void			*drv;
+	void(*cont)(const struct linuxkpi_firmware *, void *);
+};
 
 static int
 _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware **fw,
@@ -52,8 +66,10 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 	char *p;
 	uint32_t flags;
 
-	if (fw_name == NULL || fw == NULL || dev == NULL)
+	if (fw_name == NULL || fw == NULL || dev == NULL) {
+		*fw = NULL;
 		return (-EINVAL);
+	}
 
 	/* Set independent on "warn". To debug, bootverbose is avail. */
 	flags = FIRMWARE_GET_NOWARN;
@@ -129,28 +145,54 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 	return (0);
 }
 
+static void
+lkpi_fw_task(void *ctx, int pending)
+{
+	struct lkpi_fw_task *lfwt;
+	const struct linuxkpi_firmware *fw;
+	int error;
+
+	KASSERT(ctx != NULL && pending == 1, ("%s: lfwt %p, pending %d\n",
+	    __func__, ctx, pending));
+
+	lfwt = ctx;
+	if (lfwt->cont == NULL)
+		goto out;
+
+	error = _linuxkpi_request_firmware(lfwt->fw_name, &fw, lfwt->dev,
+	    lfwt->gfp, true, true);
+
+	/*
+	 * Linux seems to run the callback if it cannot find the firmware.
+	 * We call it in all cases as it is the only feedback to the requester.
+	 */
+	lfwt->cont(fw, lfwt->drv);
+	/* Do not assume fw is still valid! */
+
+out:
+	free(lfwt, M_LKPI_FW);
+}
+
 int
 linuxkpi_request_firmware_nowait(struct module *mod __unused, bool _t __unused,
     const char *fw_name, struct device *dev, gfp_t gfp, void *drv,
     void(*cont)(const struct linuxkpi_firmware *, void *))
 {
-	const struct linuxkpi_firmware *lfw;
+	struct lkpi_fw_task *lfwt;
 	int error;
 
-	/*
-	 * Linux seems to run the callback if it cannot find the firmware.
-	 * The fact that this is "_nowait()" and has a callback seems to
-	 * imply that this is run in a deferred conext which we currently
-	 * do not do.  Should it become necessary (a driver actually requiring
-	 * it) we would need to implement it here.
-	 */
-	error = _linuxkpi_request_firmware(fw_name, &lfw, dev, gfp, true, true);
-	if (error == -ENOENT)
-		error = 0;
-	if (error == 0)
-		cont(lfw, drv);
+	lfwt = malloc(sizeof(*lfwt), M_LKPI_FW, M_WAITOK | M_ZERO);
+	lfwt->gfp = gfp;
+	lfwt->fw_name = fw_name;
+	lfwt->dev = dev;
+	lfwt->drv = drv;
+	lfwt->cont = cont;
+	TASK_INIT(&lfwt->fw_task, 0, lkpi_fw_task, lfwt);
+	error = taskqueue_enqueue(taskqueue_thread, &lfwt->fw_task);
 
-	return (error);
+	if (error)
+		return (-error);
+	return (0);
 }
 
 int
