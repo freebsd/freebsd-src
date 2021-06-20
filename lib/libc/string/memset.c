@@ -90,9 +90,8 @@ memset(void *dst0, int c0, size_t length)
 	 * We should benchmark and revisit this decision.
 	 */
 	if (length < 3 * wsize) {
-		while (length != 0) {
+		for (; length != 0; --length) {
 			*dst++ = uc;
-			--length;
 		}
 		RETURN;
 	}
