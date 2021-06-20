@@ -72,9 +72,9 @@ wcsxfrm_l(wchar_t * __restrict dest, const wchar_t * __restrict src, size_t len,
 error:
 	slen = wcslen(src);
 	if (slen < len)
-		(void) wcscpy(dest, src);
+		wcscpy(dest, src);
 	else if (len > 0) {
-		(void) wcsncpy(dest, src, len - 1);
+		wcsncpy(dest, src, len - 1);
 		dest[len - 1] = L'\0';
 	}
 	return (slen);
