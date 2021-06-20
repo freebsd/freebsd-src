@@ -51,6 +51,6 @@ strcpy
 {
 	char * const save = to;
 
-	while ((*to = *from) != '\0') ++to, ++from;
+	for (; (*to = *from) != '\0'; ++to, ++from);
 	return (save);
 }
