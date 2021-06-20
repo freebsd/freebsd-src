@@ -49,7 +49,7 @@ strpbrk(const char *s1, const char *s2)
 	for (scanc = s1; (c = *scanc) != '\0'; scanc++) {
 		for (scanp = s2; (sc = *scanp) != '\0'; scanp++)
 			if (sc == c)
-				return (char *)s1;
+				return (char *)scanc;
 	}
 	return NULL;
 }
