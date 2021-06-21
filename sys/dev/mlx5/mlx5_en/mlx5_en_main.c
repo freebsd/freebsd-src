@@ -1261,7 +1261,8 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	if (err)
 		goto err_rq_wq_destroy;
 
-	rq->mbuf = malloc(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
+	rq->mbuf = malloc_domainset(wq_sz * sizeof(rq->mbuf[0]), M_MLX5EN,
+	    mlx5_dev_domainset(mdev), M_WAITOK | M_ZERO);
 	for (i = 0; i != wq_sz; i++) {
 		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
 		int j;
@@ -1525,7 +1526,8 @@ mlx5e_alloc_sq_db(struct mlx5e_sq *sq)
 	int err;
 	int x;
 
-	sq->mbuf = malloc(wq_sz * sizeof(sq->mbuf[0]), M_MLX5EN, M_WAITOK | M_ZERO);
+	sq->mbuf = malloc_domainset(wq_sz * sizeof(sq->mbuf[0]), M_MLX5EN,
+	    mlx5_dev_domainset(sq->priv->mdev), M_WAITOK | M_ZERO);
 
 	/* Create DMA descriptor MAPs */
 	for (x = 0; x != wq_sz; x++) {
@@ -1619,6 +1621,11 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	    &sq->dma_tag)))
 		goto done;
 
+	sq->mkey_be = cpu_to_be32(priv->mr.key);
+	sq->ifp = priv->ifp;
+	sq->priv = priv;
+	sq->tc = tc;
+
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 	    &sq->wq_ctrl);
 	if (err)
@@ -1629,11 +1636,6 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	err = mlx5e_alloc_sq_db(sq);
 	if (err)
 		goto err_sq_wq_destroy;
-
-	sq->mkey_be = cpu_to_be32(priv->mr.key);
-	sq->ifp = priv->ifp;
-	sq->priv = priv;
-	sq->tc = tc;
 
 	mlx5e_update_sq_inline(sq);
 
@@ -1926,9 +1928,6 @@ mlx5e_create_cq(struct mlx5e_priv *priv,
 	int irqn;
 	int err;
 	u32 i;
-
-	param->wq.buf_numa_node = 0;
-	param->wq.db_numa_node = 0;
 
 	err = mlx5_vector2eqn(mdev, eq_ix, &eqn_not_used, &irqn);
 	if (err)
@@ -2292,8 +2291,6 @@ mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_sz, priv->params.log_rq_size);
 	MLX5_SET(wq, wq, pd, priv->pdn);
 
-	param->wq.buf_numa_node = 0;
-	param->wq.db_numa_node = 0;
 	param->wq.linear = 1;
 }
 
@@ -2308,8 +2305,6 @@ mlx5e_build_sq_param(struct mlx5e_priv *priv,
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, pd, priv->pdn);
 
-	param->wq.buf_numa_node = 0;
-	param->wq.db_numa_node = 0;
 	param->wq.linear = 1;
 }
 
@@ -4430,13 +4425,14 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		mlx5_core_dbg(mdev, "mlx5e_check_required_hca_cap() failed\n");
 		return (NULL);
 	}
+
 	/*
 	 * Try to allocate the priv and make room for worst-case
 	 * number of channel structures:
 	 */
-	priv = malloc(sizeof(*priv) +
+	priv = malloc_domainset(sizeof(*priv) +
 	    (sizeof(priv->channel[0]) * mdev->priv.eq_table.num_comp_vectors),
-	    M_MLX5EN, M_WAITOK | M_ZERO);
+	    M_MLX5EN, mlx5_dev_domainset(mdev), M_WAITOK | M_ZERO);
 
 	ifp = priv->ifp = if_alloc_dev(IFT_ETHER, mdev->pdev->dev.bsddev);
 	if (ifp == NULL) {
