@@ -48,11 +48,11 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 		const unsigned char v = (unsigned char)c;
 		volatile unsigned char *dst = (volatile unsigned char *)s;
 		if (n > smax) {
-			while (smax)
-				dst[--smax] = v;
-
 			__throw_constraint_handler_s("memset_s : n > smax",
 			    ret);
+
+			while (smax)
+				dst[--smax] = v;
 		} else {
 			while (n)
 				dst[--n] = v;
