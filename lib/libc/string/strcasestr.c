@@ -55,8 +55,8 @@ strcasestr_l(const char *s, const char *find, locale_t locale)
 	FIX_LOCALE(locale);
 
 	if ((c = *find) != 0) {
+		const size_t len = strlen(++find);
 		c = (char)tolower_l((unsigned char)c, locale);
-		len = strlen(++find);
 		do {
 			do {
 				if ((sc = *s) == 0)
