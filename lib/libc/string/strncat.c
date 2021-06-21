@@ -53,10 +53,9 @@ strncat(char * __restrict dst, const char * __restrict src, size_t n)
 		for (d = dst; *d != '\0'; d++);
 
 		for (;; src++) {
-			if ((*d = *src) == '\0')
-				return dst;
+			if ((*d++ = *src) == '\0')
+				break;
 
-			d++;
 			if (--n == 0)
 				break;
 		}
