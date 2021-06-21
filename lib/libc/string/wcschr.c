@@ -37,7 +37,7 @@ wcschr(const wchar_t *s, wchar_t c)
 	wchar_t wc;
 	for (; (wc = *s) != L'\0'; s++)
 		if (wc == c)
-			return ((wchar_t *)s);
+			return (wchar_t *)s;
 
-	return (NULL);
+	return NULL;
 }
