@@ -98,9 +98,9 @@ size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
 
-#ifndef __MODE_T_DECLARED
-typedef __mode_t 	mode_t;
-#define __MODE_T_DECLARED
+#ifndef _MODE_T_DECLARED
+typedef _mode_t 	mode_t;
+#define _MODE_T_DECLARED
 #endif
 
 void	 strmode(mode_t, char *);
