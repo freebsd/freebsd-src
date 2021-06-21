@@ -985,8 +985,6 @@ void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev);
 
-#define	mlx5_buf_alloc_node(dev, size, direct, buf, node) \
-	mlx5_buf_alloc(dev, size, direct, buf)
 int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, int max_direct,
 		   struct mlx5_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf);
@@ -1072,9 +1070,13 @@ void mlx5_eq_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
-int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
-		       int node);
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
+
+static inline struct domainset *
+mlx5_dev_domainset(struct mlx5_core_dev *mdev)
+{
+	return (linux_get_vm_domain_set(mdev->priv.numa_node));
+}
 
 const char *mlx5_command_str(int command);
 int mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev);

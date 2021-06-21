@@ -32,8 +32,6 @@
 
 struct mlx5_wq_param {
 	int		linear;
-	int		buf_numa_node;
-	int		db_numa_node;
 };
 
 struct mlx5_wq_ctrl {
