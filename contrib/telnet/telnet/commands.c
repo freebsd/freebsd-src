@@ -122,6 +122,7 @@ static char line[256];
 static char saveline[256];
 static int margc;
 static char *margv[20];
+int quiet_mode;
 
 #ifdef OPIE
 #include <sys/wait.h>
@@ -2042,7 +2043,8 @@ static int
 status(int argc, char *argv[])
 {
     if (connected) {
-	printf("Connected to %s.\n", hostname);
+	if (!quiet_mode)
+		printf("Connected to %s.\n", hostname);
 	if ((argc < 2) || strcmp(argv[1], "notmuch")) {
 	    int mode = getconnmode();
 
@@ -2071,7 +2073,8 @@ status(int argc, char *argv[])
     } else {
 	printf("No connection.\n");
     }
-    printf("Escape character is '%s'.\n", control(escape));
+    if (!quiet_mode)
+	printf("Escape character is '%s'.\n", control(escape));
     (void) fflush(stdout);
     return 1;
 }
@@ -2264,7 +2267,8 @@ tn(int argc, char *argv[])
 	memset(&su, 0, sizeof su);
 	su.sun_family = AF_UNIX;
 	strncpy(su.sun_path, hostp, sizeof su.sun_path);
-	printf("Trying %s...\n", hostp);
+	if (!quiet_mode)
+	    printf("Trying %s...\n", hostp);
 	net = socket(PF_UNIX, SOCK_STREAM, 0);
 	if ( net < 0) {
 	    perror("socket");
@@ -2373,7 +2377,8 @@ tn(int argc, char *argv[])
 	}
     }
     do {
-        printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
+	if (!quiet_mode)
+            printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
 	net = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	setuid(getuid());
 	if (net < 0) {
@@ -2491,7 +2496,10 @@ tn(int argc, char *argv[])
     (void) call(status, "status", "notmuch", 0);
     telnet(user); 
     (void) NetClose(net);
-    ExitString("Connection closed by foreign host.\n",1);
+    if (quiet_mode)
+        ExitString("",1);
+    else
+        ExitString("Connection closed by foreign host.\n",1);
     /*NOTREACHED*/
  fail:
     if (res0 != NULL)
