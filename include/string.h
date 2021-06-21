@@ -36,6 +36,7 @@
 #define	_STRING_H_
 
 #include <sys/cdefs.h>
+#include <says/stat.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
 
@@ -96,6 +97,12 @@ size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
+
+#ifndef __MODE_T_DECLARED
+typedef __mode_t 	mode_t
+#define __MODE_T_DECLARED
+#endif
+
 void	 strmode(mode_t, char *);
 #endif
 char	*strncat(char * __restrict, const char * __restrict, size_t);
