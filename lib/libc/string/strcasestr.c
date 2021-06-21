@@ -51,7 +51,6 @@ char *
 strcasestr_l(const char *s, const char *find, locale_t locale)
 {
 	char c, sc;
-	size_t len;
 	FIX_LOCALE(locale);
 
 	if ((c = *find) != 0) {
