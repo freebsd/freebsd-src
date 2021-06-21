@@ -610,17 +610,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u",
 	    catcher, sig, mask, code);
 
-	/* Allocate space for the signal handler context. */
-	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
-		    sizeof(struct l_rt_sigframe);
-	} else
-		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
-	/* Align to 16 bytes. */
-	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
-	mtx_unlock(&psp->ps_mtx);
-
 	/* Translate the signal. */
 	sig = bsd_to_linux_signal(sig);
 
@@ -633,7 +622,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
 	sf.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
-	PROC_UNLOCK(p);
 
 	sf.sf_sc.uc_mcontext.sc_rdi    = regs->tf_rdi;
 	sf.sf_sc.uc_mcontext.sc_rsi    = regs->tf_rsi;
@@ -658,15 +646,28 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 	sf.sf_sc.uc_mcontext.sc_cr2    = (register_t)ksi->ksi_addr;
 
+	/* Allocate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sp = (caddr_t)td->td_sigstk.ss_sp + td->td_sigstk.ss_size -
+		    sizeof(struct l_rt_sigframe);
+	} else
+		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
+	/* Align to 16 bytes. */
+	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
+
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rax = 0;
 	regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
 	regs->tf_rdx = (register_t)&sfp->sf_sc;	/* arg 3 in %rdx */
 
-	sf.sf_handler = catcher;
 	/* Fill in POSIX parts. */
 	siginfo_to_lsiginfo(&ksi->ksi_info, &sf.sf_si, sig);
+	sf.sf_handler = catcher;
+
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(p);
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
