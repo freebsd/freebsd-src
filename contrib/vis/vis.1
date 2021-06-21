@@ -1,4 +1,4 @@
-.\"	$NetBSD: vis.1,v 1.19 2013/03/14 19:17:23 njoly Exp $
+.\"	$NetBSD: vis.1,v 1.25 2021/02/20 09:31:51 nia Exp $
 .\"
 .\" Copyright (c) 1989, 1991, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"     @(#)vis.1	8.4 (Berkeley) 4/19/94
 .\"
-.Dd February 19, 2013
+.Dd February 18, 2021
 .Dt VIS 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd display non-printable characters in a visual format
 .Sh SYNOPSIS
 .Nm
-.Op Fl bcfhlmnostw
+.Op Fl bcfhlMmNnoSstw
 .Op Fl e Ar extra
 .Op Fl F Ar foldwidth
 .Op Ar file ...
@@ -99,9 +99,22 @@ Encode using the URI encoding from RFC 1808.
 Mark newlines with the visible sequence
 .Ql \e$ ,
 followed by the newline.
+.It Fl M
+Encode all shell meta characters (implies
+.Fl S ,
+.Fl w ,
+.Fl g )
+.Pq Dv VIS_META
 .It Fl m
 Encode using the MIME Quoted-Printable encoding from RFC 2045.
 .Pq Dv VIS_MIMESTYLE
+.It Fl N
+Turn on the
+.Dv VIS_NOLOCALE
+flag which encodes using the
+.Dq C
+locale, removing any encoding dependencies caused by the current
+locale settings specified in the environment.
 .It Fl n
 Turns off any encoding, except for the fact that backslashes are
 still doubled and hidden newline sequences inserted if
@@ -123,6 +136,9 @@ That is, the output can be unfolded by running the output through
 Request a format which displays non-printable characters as
 an octal number, \eddd.
 .Pq Dv VIS_OCTAL
+.It Fl S
+Encode shell meta-characters that are non-white space or glob.
+.Pq Dv VIS_SHELL
 .It Fl s
 Only characters considered unsafe to send to a terminal are encoded.
 This flag allows backspace, bell, and carriage return in addition
@@ -183,7 +199,7 @@ The
 .Nm
 command appears in
 .Bx 4.4 .
-Myltibyte character support was added in
+Multibyte character support was added in
 .Nx 7.0
 and
 .Fx 9.2 .
