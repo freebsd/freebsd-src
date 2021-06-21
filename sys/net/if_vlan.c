@@ -609,6 +609,7 @@ vlan_setmulti(struct ifnet *ifp)
 		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_NOWAIT);
 		if (mc == NULL) {
 			IF_ADDR_WUNLOCK(ifp);
+			CURVNET_RESTORE();
 			return (ENOMEM);
 		}
 		bcopy(ifma->ifma_addr, &mc->mc_addr, ifma->ifma_addr->sa_len);
@@ -619,8 +620,10 @@ vlan_setmulti(struct ifnet *ifp)
 	CK_SLIST_FOREACH (mc, &sc->vlan_mc_listhead, mc_entries) {
 		error = if_addmulti(ifp_p, (struct sockaddr *)&mc->mc_addr,
 		    NULL);
-		if (error)
+		if (error) {
+			CURVNET_RESTORE();
 			return (error);
+		}
 	}
 
 	CURVNET_RESTORE();
