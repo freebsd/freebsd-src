@@ -47,12 +47,13 @@
 #include <stdlib.h>
 
 #include <sys/cdefs.h>
+#include <sys/stat.h>
 
 __BEGIN_DECLS
 size_t strlcpy(char *dst, const char *src, size_t siz);
 size_t strlcat(char *dst, const char *src, size_t siz);
 char *strnstr(const char *str, const char *find, size_t str_len);
-void strmode(/* mode_t*/ int mode, char *str);
+void strmode(mode_t mode, char *str);
 
 #if !defined(__GLIBC__) || \
     (defined(__GLIBC__) && (!__GLIBC_PREREQ(2, 25) || !defined(_GNU_SOURCE)))
