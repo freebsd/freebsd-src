@@ -28,10 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/mount.h>
 #include <sys/param.h>
 #include <sys/syscall.h>
 #include "compat-ino64.h"
+#include <sys/mount.h>
 #include <unistd.h>
 
 #include "libc_private.h"
