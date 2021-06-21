@@ -28,15 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <sys/mount.h>
 #include <sys/param.h>
 #include <sys/syscall.h>
 #include "compat-ino64.h"
 #include <unistd.h>
-
-
-#ifndef BLKGETSIZE64
-#define	BLKGETSIZE64		_IOR(0x12, 114, size_t)
-#endif
 
 #include "libc_private.h"
 
