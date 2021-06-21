@@ -53,11 +53,11 @@ __weak_reference(__strtok_r, strtok_r);
 char *
 __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restrict last)
 {
-	char *spanp, *tok;
-	char c, sc;
-
 	if (s == NULL && (s = *last) == NULL)
 		return (NULL);
+
+	register char *spanp, *tok;
+	register char c, sc;
 
 	/*
 	 * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
