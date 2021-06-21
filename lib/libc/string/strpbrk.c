@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions by and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 char *
 strpbrk(const char *s1, const char *s2)
 {
-	const char *scanp, *scanc;
-	char c, sc;
+	register const char *scanp, *scanc;
+	register char c, sc;
 
 	for (scanc = s1; (c = *scanc) != '\0'; scanc++) {
 		for (scanp = s2; (sc = *scanp) != '\0'; scanp++)
