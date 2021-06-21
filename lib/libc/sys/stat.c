@@ -35,10 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-#ifndef BLKGETSIZE64
-#define	BLKGETSIZE64		_IOR(0x12, 114, size_t)
-#endif
-
 int
 stat(const char *path, struct stat *sb)
 {
