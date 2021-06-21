@@ -3492,7 +3492,7 @@ struct mlx5_ifc_sqerr2rts_qp_out_bits {
 
 struct mlx5_ifc_sqerr2rts_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -3877,7 +3877,7 @@ struct mlx5_ifc_rts2rts_qp_out_bits {
 
 struct mlx5_ifc_rts2rts_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -3907,7 +3907,7 @@ struct mlx5_ifc_rtr2rts_qp_out_bits {
 
 struct mlx5_ifc_rtr2rts_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -3937,7 +3937,7 @@ struct mlx5_ifc_rst2init_qp_out_bits {
 
 struct mlx5_ifc_rst2init_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -5255,7 +5255,7 @@ struct mlx5_ifc_qp_2rst_out_bits {
 
 struct mlx5_ifc_qp_2rst_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -5277,7 +5277,7 @@ struct mlx5_ifc_qp_2err_out_bits {
 
 struct mlx5_ifc_qp_2err_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -5971,7 +5971,7 @@ struct mlx5_ifc_init2rtr_qp_out_bits {
 
 struct mlx5_ifc_init2rtr_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6001,7 +6001,7 @@ struct mlx5_ifc_init2init_qp_out_bits {
 
 struct mlx5_ifc_init2init_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6118,7 +6118,7 @@ struct mlx5_ifc_drain_dct_out_bits {
 
 struct mlx5_ifc_drain_dct_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6274,7 +6274,7 @@ struct mlx5_ifc_destroy_sq_out_bits {
 
 struct mlx5_ifc_destroy_sq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6346,7 +6346,7 @@ struct mlx5_ifc_destroy_rq_out_bits {
 
 struct mlx5_ifc_destroy_rq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6390,7 +6390,7 @@ struct mlx5_ifc_destroy_qp_out_bits {
 
 struct mlx5_ifc_destroy_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -6587,7 +6587,7 @@ struct mlx5_ifc_destroy_dct_out_bits {
 
 struct mlx5_ifc_destroy_dct_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -7050,7 +7050,7 @@ struct mlx5_ifc_create_sq_out_bits {
 
 struct mlx5_ifc_create_sq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -7132,7 +7132,7 @@ struct mlx5_ifc_create_rq_out_bits {
 
 struct mlx5_ifc_create_rq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -7180,7 +7180,7 @@ struct mlx5_ifc_create_qp_out_bits {
 
 struct mlx5_ifc_create_qp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -7452,7 +7452,7 @@ struct mlx5_ifc_create_dct_out_bits {
 
 struct mlx5_ifc_create_dct_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
