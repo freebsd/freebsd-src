@@ -2456,7 +2456,8 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	p = (struct proc *)arg;
 	if (sb == NULL) {
 		size = 0;
-		sb = sbuf_new(NULL, NULL, 128, SBUF_FIXEDLEN);
+		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf_Auxinfo),
+		    SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_count_drain, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PHOLD(p);
