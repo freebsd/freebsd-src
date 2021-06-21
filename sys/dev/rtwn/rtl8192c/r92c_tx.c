@@ -335,7 +335,7 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		uint16_t seqno;
 
 		if (m->m_flags & M_AMPDU_MPDU) {
-			seqno = ni->ni_txseqs[tid];
+			seqno = ni->ni_txseqs[tid] % IEEE80211_SEQ_RANGE;
 			ni->ni_txseqs[tid]++;
 		} else
 			seqno = M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE;
