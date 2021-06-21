@@ -1321,8 +1321,8 @@ envvar		hint.sa.1.target="6"
 # The pt driver drives SCSI Processor devices.
 #
 # The sg driver provides a passthrough API that is compatible with the
-# Linux SG driver.  It will work in conjunction with the COMPAT_LINUX
-# option to run linux SG apps.  It can also stand on its own and provide
+# Linux SG driver.  It will work in conjunction with the Linuxulator
+# to run linux SG apps.  It can also stand on its own and provide
 # source level API compatibility for porting apps to FreeBSD.
 #
 # Target Mode support is provided here but also requires that a SIM
