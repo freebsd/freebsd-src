@@ -98,7 +98,7 @@ size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
 
 #ifndef _MODE_T_DECLARED
-typedef _mode_t 	mode_t;
+typedef __mode_t 	mode_t;
 #define _MODE_T_DECLARED
 #endif
 
