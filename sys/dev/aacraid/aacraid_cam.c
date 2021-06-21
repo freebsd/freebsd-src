@@ -1205,6 +1205,12 @@ aac_cam_complete(struct aac_command *cm)
 				command = ccb->csio.cdb_io.cdb_bytes[0];
 
 			if (command == INQUIRY) {
+				/* Ignore Data Overrun errors on INQUIRY */
+				if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+				    CAM_DATA_RUN_ERR)
+					ccb->ccb_h.status = (ccb->ccb_h.status &
+					    ~CAM_STATUS_MASK) | CAM_REQ_CMP;
+
 				if (ccb->ccb_h.status == CAM_REQ_CMP) {
 				  device = ccb->csio.data_ptr[0] & 0x1f;
 				  /*
