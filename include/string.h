@@ -36,7 +36,7 @@
 #define	_STRING_H_
 
 #include <sys/cdefs.h>
-#include <says/stat.h>
+#include <sys/stat.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
 
