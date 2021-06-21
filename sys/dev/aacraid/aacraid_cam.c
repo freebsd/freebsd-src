@@ -1011,7 +1011,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;	/* Per the controller spec */
 		cpi->initiator_id = camsc->inf->InitiatorBusId;
 		cpi->bus_id = camsc->inf->BusNumber;
-		cpi->maxio = sc->aac_max_sectors << 9;
+		cpi->maxio = AAC_MAXIO_SIZE(sc);
 
 		/*
 		 * Resetting via the passthrough or parallel bus scan
