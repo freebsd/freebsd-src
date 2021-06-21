@@ -805,6 +805,7 @@ struct mlx5_core_dct {
 	struct completion	drained;
 	struct mlx5_rsc_debug	*dbg;
 	int			pid;
+	u16			uid;
 };
 
 enum {

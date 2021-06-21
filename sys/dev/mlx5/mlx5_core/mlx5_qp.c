@@ -133,6 +133,7 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	if (err)
 		return err;
 
+	qp->uid = MLX5_GET(create_qp_in, in, uid);
 	qp->qpn = MLX5_GET(create_qp_out, out, qpn);
 	mlx5_core_dbg(dev, "qpn = 0x%x\n", qp->qpn);
 
@@ -145,8 +146,9 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	return 0;
 
 err_cmd:
-	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
-	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	MLX5_SET(destroy_qp_in, din, opcode, MLX5_CMD_OP_DESTROY_QP);
+	MLX5_SET(destroy_qp_in, din, qpn, qp->qpn);
+	MLX5_SET(destroy_qp_in, din, uid, qp->uid);
 	mlx5_cmd_exec(dev, din, sizeof(din), dout, sizeof(dout));
 	return err;
 }
@@ -164,6 +166,7 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
 	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
+	MLX5_SET(destroy_qp_in, in, uid, qp->uid);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (err)
 		return err;
@@ -203,33 +206,40 @@ static void mbox_free(struct mbox_info *mbox)
 
 static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 				u32 opt_param_mask, void *qpc,
-				struct mbox_info *mbox)
+				struct mbox_info *mbox, u16 uid)
 {
 	mbox->out = NULL;
 	mbox->in = NULL;
 
-	#define MBOX_ALLOC(mbox, typ)  \
-		mbox_alloc(mbox, MLX5_ST_SZ_BYTES(typ##_in), MLX5_ST_SZ_BYTES(typ##_out))
+#define MBOX_ALLOC(mbox, typ)  \
+	mbox_alloc(mbox, MLX5_ST_SZ_BYTES(typ##_in), MLX5_ST_SZ_BYTES(typ##_out))
 
-	#define MOD_QP_IN_SET(typ, in, _opcode, _qpn) \
-		MLX5_SET(typ##_in, in, opcode, _opcode); \
-		MLX5_SET(typ##_in, in, qpn, _qpn)
-	#define MOD_QP_IN_SET_QPC(typ, in, _opcode, _qpn, _opt_p, _qpc) \
-		MOD_QP_IN_SET(typ, in, _opcode, _qpn); \
-		MLX5_SET(typ##_in, in, opt_param_mask, _opt_p); \
-		memcpy(MLX5_ADDR_OF(typ##_in, in, qpc), _qpc, MLX5_ST_SZ_BYTES(qpc))
+#define MOD_QP_IN_SET(typ, in, _opcode, _qpn, _uid)                            \
+	do {                                                                   \
+		MLX5_SET(typ##_in, in, opcode, _opcode);                       \
+		MLX5_SET(typ##_in, in, qpn, _qpn);                             \
+		MLX5_SET(typ##_in, in, uid, _uid);                             \
+	} while (0)
+
+#define MOD_QP_IN_SET_QPC(typ, in, _opcode, _qpn, _opt_p, _qpc, _uid)          \
+	do {                                                                   \
+		MOD_QP_IN_SET(typ, in, _opcode, _qpn, _uid);                   \
+		MLX5_SET(typ##_in, in, opt_param_mask, _opt_p);                \
+		memcpy(MLX5_ADDR_OF(typ##_in, in, qpc), _qpc,                  \
+		       MLX5_ST_SZ_BYTES(qpc));                                 \
+	} while (0)
 
 	switch (opcode) {
 	/* 2RST & 2ERR */
 	case MLX5_CMD_OP_2RST_QP:
 		if (MBOX_ALLOC(mbox, qp_2rst))
 			return -ENOMEM;
-		MOD_QP_IN_SET(qp_2rst, mbox->in, opcode, qpn);
+		MOD_QP_IN_SET(qp_2rst, mbox->in, opcode, qpn, uid);
 		break;
 	case MLX5_CMD_OP_2ERR_QP:
 		if (MBOX_ALLOC(mbox, qp_2err))
 			return -ENOMEM;
-		MOD_QP_IN_SET(qp_2err, mbox->in, opcode, qpn);
+		MOD_QP_IN_SET(qp_2err, mbox->in, opcode, qpn, uid);
 		break;
 
 	/* MODIFY with QPC */
@@ -237,37 +247,37 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 		if (MBOX_ALLOC(mbox, rst2init_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rst2init_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_INIT2RTR_QP:
 		if (MBOX_ALLOC(mbox, init2rtr_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(init2rtr_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_RTR2RTS_QP:
 		if (MBOX_ALLOC(mbox, rtr2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rtr2rts_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_RTS2RTS_QP:
 		if (MBOX_ALLOC(mbox, rts2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(rts2rts_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_SQERR2RTS_QP:
 		if (MBOX_ALLOC(mbox, sqerr2rts_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(sqerr2rts_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	case MLX5_CMD_OP_INIT2INIT_QP:
 		if (MBOX_ALLOC(mbox, init2init_qp))
 			return -ENOMEM;
 		MOD_QP_IN_SET_QPC(init2init_qp, mbox->in, opcode, qpn,
-				  opt_param_mask, qpc);
+				  opt_param_mask, qpc, uid);
 		break;
 	default:
 		mlx5_core_err(dev, "Unknown transition for modify QP: OP(0x%x) QPN(0x%x)\n",
@@ -287,7 +297,7 @@ int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 opcode,
 	int err;
 
 	err = modify_qp_mbox_alloc(dev, opcode, qp->qpn,
-				   opt_param_mask, qpc, &mbox);
+				   opt_param_mask, qpc, &mbox, qp->uid);
 	if (err)
 		return err;
 
@@ -367,6 +377,7 @@ int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 	}
 
 	dct->dctn = MLX5_GET(create_dct_out, out, dctn);
+	dct->uid = MLX5_GET(create_dct_in, in, uid);
 
 	dct->common.res = MLX5_RES_DCT;
 	spin_lock_irq(&table->lock);
@@ -386,6 +397,7 @@ int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 err_cmd:
 	MLX5_SET(destroy_dct_in, din, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, din, dctn, dct->dctn);
+	MLX5_SET(destroy_dct_in, din, uid, dct->uid);
 	mlx5_cmd_exec(dev, &din, sizeof(din), dout, sizeof(dout));
 
 	return err;
@@ -400,6 +412,7 @@ static int mlx5_core_drain_dct(struct mlx5_core_dev *dev,
 
 	MLX5_SET(drain_dct_in, in, opcode, MLX5_CMD_OP_DRAIN_DCT);
 	MLX5_SET(drain_dct_in, in, dctn, dct->dctn);
+	MLX5_SET(drain_dct_in, in, uid, dct->uid);
 	return mlx5_cmd_exec(dev, (void *)&in, sizeof(in),
 			     (void *)&out, sizeof(out));
 }
@@ -437,6 +450,7 @@ free_dct:
 
 	MLX5_SET(destroy_dct_in, in, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, in, dctn, dct->dctn);
+	MLX5_SET(destroy_dct_in, in, uid, dct->uid);
 
 	return mlx5_cmd_exec(dev, (void *)&in, sizeof(in),
 			     (void *)&out, sizeof(out));
@@ -469,6 +483,17 @@ int mlx5_core_arm_dct(struct mlx5_core_dev *dev, struct mlx5_core_dct *dct)
 }
 EXPORT_SYMBOL_GPL(mlx5_core_arm_dct);
 
+static void destroy_rq_tracked(struct mlx5_core_dev *dev, u32 rqn, u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_rq_in)]   = {};
+	u32 out[MLX5_ST_SZ_DW(destroy_rq_out)] = {};
+
+	MLX5_SET(destroy_rq_in, in, opcode, MLX5_CMD_OP_DESTROY_RQ);
+	MLX5_SET(destroy_rq_in, in, rqn, rqn);
+	MLX5_SET(destroy_rq_in, in, uid, uid);
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *rq)
 {
@@ -478,9 +503,11 @@ int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 	if (err)
 		return err;
 
+	rq->uid = MLX5_GET(create_rq_in, in, uid);
+
 	err = create_qprqsq_common(dev, rq, MLX5_RES_RQ);
 	if (err)
-		mlx5_core_destroy_rq(dev, rq->qpn);
+		destroy_rq_tracked(dev, rq->qpn, rq->uid);
 
 	return err;
 }
@@ -490,9 +517,20 @@ void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
 				  struct mlx5_core_qp *rq)
 {
 	destroy_qprqsq_common(dev, rq, MLX5_RES_RQ);
-	mlx5_core_destroy_rq(dev, rq->qpn);
+	destroy_rq_tracked(dev, rq->qpn, rq->uid);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_rq_tracked);
+
+static void destroy_sq_tracked(struct mlx5_core_dev *dev, u32 sqn, u16 uid)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_sq_in)]   = {};
+	u32 out[MLX5_ST_SZ_DW(destroy_sq_out)] = {};
+
+	MLX5_SET(destroy_sq_in, in, opcode, MLX5_CMD_OP_DESTROY_SQ);
+	MLX5_SET(destroy_sq_in, in, sqn, sqn);
+	MLX5_SET(destroy_sq_in, in, uid, uid);
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
 
 int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 				struct mlx5_core_qp *sq)
@@ -503,9 +541,11 @@ int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
 	if (err)
 		return err;
 
+	sq->uid = MLX5_GET(create_sq_in, in, uid);
+
 	err = create_qprqsq_common(dev, sq, MLX5_RES_SQ);
 	if (err)
-		mlx5_core_destroy_sq(dev, sq->qpn);
+		destroy_sq_tracked(dev, sq->qpn, sq->uid);
 
 	return err;
 }
@@ -515,6 +555,6 @@ void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
 				  struct mlx5_core_qp *sq)
 {
 	destroy_qprqsq_common(dev, sq, MLX5_RES_SQ);
-	mlx5_core_destroy_sq(dev, sq->qpn);
+	destroy_sq_tracked(dev, sq->qpn, sq->uid);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_sq_tracked);
