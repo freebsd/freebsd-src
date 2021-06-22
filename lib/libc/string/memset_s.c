@@ -59,7 +59,7 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 			__throw_constraint_handler_s("memset_s : n > smax",
 			    EINVAL);
 
-			return EINVAL
+			return EINVAL;
 		} else {
 			while (n)
 				dst[--n] = v;
