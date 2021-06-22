@@ -62,9 +62,9 @@ wcsxfrm_l(wchar_t * __restrict dest, const wchar_t * __restrict src, size_t len,
 
 	/* Add null termination at the correct location. */
 	if (len > slen) {
-		dest[slen] = 0;
+		dest[slen] = L'\0';
 	} else if (len) {
-		dest[len-1] = 0;
+		dest[len - 1] = L'\0';
 	}
 
 	return (slen);
