@@ -116,8 +116,8 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		src += length;
 		dst += length;
+		src += length;
 		t = (uintptr_t)src;
 		if ((t | (uintptr_t)dst) & wmask) {
 			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize)
