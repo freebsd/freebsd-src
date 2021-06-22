@@ -1491,10 +1491,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		tfo_pending = tp->t_tfo_pending;
 	}
 
-	/* By the time we drop the lock these should no longer be used. */
-	so = NULL;
-	tp = NULL;
-
 #ifdef MAC
 	if (mac_syncache_init(&maclabel) != 0) {
 		INP_RUNLOCK(inp);
