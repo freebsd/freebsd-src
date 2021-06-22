@@ -9,7 +9,6 @@
 .Nd Voodoo Graphics and VoodooII Memory Access GLIDE device driver
 .Sh SYNOPSIS
 .Cd device tdfx
-.Cd device tdfx_linux
 .Sh DESCRIPTION
 This driver creates an entry in
 .Pa /dev
@@ -50,9 +49,11 @@ It also does not currently support the Voodoo Rush.
 It also does not yet handle the SLI feature of the Voodoo II boards.
 You can only use each of them separately.
 .Pp
-By including
-.Nm tdfx_linux ,
-you can enable the linux ioctl code for this driver, where the only supported
+By loading the
+.Nm tdfx_linux.ko
+and
+.Nm linux.ko
+modules, you can enable the linux ioctl code for this driver, where the only supported
 applications currently reside.
 .Sh FILES
 .Bl -tag -width /dev/voodoo* -compact
@@ -70,6 +71,10 @@ Mirrors of above interfaces
 (Some apps use
 .Pa /dev/voodoo )
 .El
+.Sh SEE ALSO
+.Xr kld 4 ,
+.Xr linux 4 ,
+.Xr kldload 8
 .Sh HISTORY
 The
 .Nm
