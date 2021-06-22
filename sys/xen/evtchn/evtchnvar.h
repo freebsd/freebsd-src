@@ -36,9 +36,6 @@
 #include <xen/hypervisor.h>
 #include <contrib/xen/event_channel.h>
 
-/** Submit a port notification for delivery to a userland evtchn consumer */
-void evtchn_device_upcall(evtchn_port_t port);
-
 /* Macros for accessing event channel values */
 #define	EVTCHN_PTR(type, port) \
 	(HYPERVISOR_shared_info->evtchn_##type + ((port) / __LONG_BIT))
