@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 void
 swab(const void * __restrict from, void * __restrict to, ssize_t len)
 {
-	char temp;
-
 	const char *fp;
 	char *tp;
+
+	char temp;
 
 	if (len <= 1)
 		return;
