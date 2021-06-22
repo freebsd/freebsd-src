@@ -390,19 +390,19 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 	if (inc->inc_flags & INC_ISIPV6) {
 		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
 		    inc->inc_fport, &inc->inc6_laddr, inc->inc_lport,
-		    INPLOOKUP_WLOCKPCB, ifp);
+		    INPLOOKUP_RLOCKPCB, ifp);
 	} else {
 		inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
-		    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+		    inc->inc_laddr, inc->inc_lport, INPLOOKUP_RLOCKPCB, ifp);
 	}
 	if (inp != NULL) {
-		INP_WLOCK_ASSERT(inp);
+		INP_RLOCK_ASSERT(inp);
 
 		if ((inp->inp_flags & INP_TIMEWAIT) && th != NULL) {
 			if (!tcp_twcheck(inp, NULL, th, NULL, 0))
 				return (EADDRINUSE);
 		} else {
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 			return (EADDRINUSE);
 		}
 	}
