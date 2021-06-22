@@ -82,8 +82,8 @@
 		    struct l_newstat *buf
 		);
 	}
-7	AUE_POLL	NOPROTO {
-		int poll(
+7	AUE_POLL	STD {
+		int linux_poll(
 		    struct pollfd *fds,
 		    u_int nfds,
 		    int timeout
