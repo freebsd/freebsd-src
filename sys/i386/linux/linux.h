@@ -31,7 +31,6 @@
 #define	_I386_LINUX_H_
 
 #include <sys/abi_compat.h>
-#include <sys/signal.h>	/* for sigval union */
 
 #include <compat/linux/linux.h>
 #include <i386/linux/linux_syscall.h>
