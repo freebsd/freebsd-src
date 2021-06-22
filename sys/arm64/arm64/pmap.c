@@ -3474,7 +3474,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	va = va & ~L2_OFFSET;
 	pv = pmap_pvh_remove(&m->md, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pv_promote_l2: pv not found"));
-	pvh = pa_to_pvh(pa);
+	pvh = page_to_pvh(m);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 	pvh->pv_gen++;
 	/* Free the remaining NPTEPG - 1 pv entries. */
@@ -3896,7 +3896,7 @@ havel3:
 			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
-			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+			    TAILQ_EMPTY(&page_to_pvh(om)->pv_list)))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
 		} else {
 			KASSERT((orig_l3 & ATTR_AF) != 0,
@@ -5000,7 +5000,7 @@ pmap_remove_pages(pmap_t pmap)
 				case 1:
 					pmap_resident_count_dec(pmap,
 					    L2_SIZE / PAGE_SIZE);
-					pvh = pa_to_pvh(tpte & ~ATTR_MASK);
+					pvh = page_to_pvh(m);
 					TAILQ_REMOVE(&pvh->pv_list, pv,pv_next);
 					pvh->pv_gen++;
 					if (TAILQ_EMPTY(&pvh->pv_list)) {

@@ -29,7 +29,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 
 20210618:
 	Bump __FreeBSD_version to 1400024 for LinuxKPI changes.
-	Most notably netdev.h can change now as the (last) dependecies
+	Most notably netdev.h can change now as the (last) dependencies
 	(mlx4/ofed) are now using struct ifnet directly, but also for PCI
 	additions and others.
 
