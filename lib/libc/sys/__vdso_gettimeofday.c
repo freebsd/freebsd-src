@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/vdso.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <strings.h>
 #include <time.h>
 #include <machine/atomic.h>
@@ -59,7 +60,7 @@ tc_delta(const struct vdso_timehands *th, u_int *delta)
  * is based on the kernel implementation.
  */
 static int
-binuptime(struct bintime *bt, struct vdso_timekeep *tk, int abs)
+binuptime(struct bintime *bt, struct vdso_timekeep *tk, bool abs)
 {
 	struct vdso_timehands *th;
 	uint32_t curr, gen;
@@ -123,7 +124,7 @@ __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	}
 	if (tk->tk_ver != VDSO_TK_VER_CURR)
 		return (ENOSYS);
-	error = binuptime(&bt, tk, 1);
+	error = binuptime(&bt, tk, true);
 	if (error != 0)
 		return (error);
 	bintime2timeval(&bt, tv);
@@ -135,7 +136,7 @@ int
 __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts)
 {
 	struct bintime bt;
-	int abs, error;
+	int error;
 
 	if (tk == NULL) {
 		error = _elf_aux_info(AT_TIMEKEEP, &tk, sizeof(tk));
@@ -149,7 +150,7 @@ __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts)
 	case CLOCK_REALTIME_PRECISE:
 	case CLOCK_REALTIME_FAST:
 	case CLOCK_SECOND:
-		abs = 1;
+		error = binuptime(&bt, tk, true);
 		break;
 	case CLOCK_MONOTONIC:
 	case CLOCK_MONOTONIC_PRECISE:
@@ -157,12 +158,12 @@ __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts)
 	case CLOCK_UPTIME:
 	case CLOCK_UPTIME_PRECISE:
 	case CLOCK_UPTIME_FAST:
-		abs = 0;
+		error = getnanouptime(&bt, tk);
 		break;
 	default:
-		return (ENOSYS);
+		error = ENOSYS;
+		break;
 	}
-	error = binuptime(&bt, tk, abs);
 	if (error != 0)
 		return (error);
 	bintime2timespec(&bt, ts);
