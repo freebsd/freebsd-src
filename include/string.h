@@ -38,6 +38,7 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+#include <unistd.h>
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
@@ -102,7 +103,7 @@ typedef __mode_t 	mode_t;
 #define _MODE_T_DECLARED
 #endif
 
-void	 strmode(int, char *);
+void	 strmode(mode_t, char *);
 #endif
 char	*strncat(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
