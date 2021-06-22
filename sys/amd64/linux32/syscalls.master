@@ -887,8 +887,8 @@
 	}
 166	AUE_NULL	UNIMPL	vm86
 167	AUE_NULL	UNIMPL	query_module
-168	AUE_POLL	NOPROTO {
-		int poll(
+168	AUE_POLL	STD {
+		int linux_poll(
 		    struct pollfd *fds,
 		    unsigned int nfds,
 		    int timeout

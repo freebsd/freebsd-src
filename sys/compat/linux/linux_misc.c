@@ -2858,3 +2858,23 @@ linux_getcpu(struct thread *td, struct linux_getcpu_args *args)
 		error = copyout(&node, args->node, sizeof(l_int));
 	return (error);
 }
+
+#if defined(__i386__) || defined(__amd64__)
+int
+linux_poll(struct thread *td, struct linux_poll_args *args)
+{
+	struct timespec ts, *tsp;
+
+	if (args->timeout != INFTIM) {
+		if (args->timeout < 0)
+			return (EINVAL);
+		ts.tv_sec = args->timeout / 1000;
+		ts.tv_nsec = (args->timeout % 1000) * 1000000;
+		tsp = &ts;
+	} else
+		tsp = NULL;
+
+	return (linux_common_ppoll(td, args->fds, args->nfds,
+	    tsp, NULL, 0));
+}
+#endif /* __i386__ || __amd64__ */
