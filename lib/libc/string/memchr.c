@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 void *
 memchr(const void *src, int c, size_t n)
 {
-	register const unsigned char *s = src;
-	register const unsigned char uc = (unsigned char)c;
+	const unsigned char *s = src;
+	const unsigned char uc = (unsigned char)c;
 
 #ifdef __GNUC__
 	for (; ((uintptr_t)s & ALIGN) && n && *s != uc; s++, n--)
