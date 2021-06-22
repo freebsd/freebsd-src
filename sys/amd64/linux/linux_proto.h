@@ -52,6 +52,11 @@ struct linux_newlstat_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
 	char buf_l_[PADL_(struct l_newstat *)]; struct l_newstat * buf; char buf_r_[PADR_(struct l_newstat *)];
 };
+struct linux_poll_args {
+	char fds_l_[PADL_(struct pollfd *)]; struct pollfd * fds; char fds_r_[PADR_(struct pollfd *)];
+	char nfds_l_[PADL_(u_int)]; u_int nfds; char nfds_r_[PADR_(u_int)];
+	char timeout_l_[PADL_(int)]; int timeout; char timeout_r_[PADR_(int)];
+};
 struct linux_lseek_args {
 	char fdes_l_[PADL_(l_uint)]; l_uint fdes; char fdes_r_[PADR_(l_uint)];
 	char off_l_[PADL_(l_off_t)]; l_off_t off; char off_r_[PADR_(l_off_t)];
@@ -1381,6 +1386,7 @@ int	linux_open(struct thread *, struct linux_open_args *);
 int	linux_newstat(struct thread *, struct linux_newstat_args *);
 int	linux_newfstat(struct thread *, struct linux_newfstat_args *);
 int	linux_newlstat(struct thread *, struct linux_newlstat_args *);
+int	linux_poll(struct thread *, struct linux_poll_args *);
 int	linux_lseek(struct thread *, struct linux_lseek_args *);
 int	linux_mmap2(struct thread *, struct linux_mmap2_args *);
 int	linux_mprotect(struct thread *, struct linux_mprotect_args *);
@@ -1727,6 +1733,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX_SYS_AUE_linux_newstat	AUE_STAT
 #define	LINUX_SYS_AUE_linux_newfstat	AUE_FSTAT
 #define	LINUX_SYS_AUE_linux_newlstat	AUE_LSTAT
+#define	LINUX_SYS_AUE_linux_poll	AUE_POLL
 #define	LINUX_SYS_AUE_linux_lseek	AUE_LSEEK
 #define	LINUX_SYS_AUE_linux_mmap2	AUE_MMAP
 #define	LINUX_SYS_AUE_linux_mprotect	AUE_MPROTECT

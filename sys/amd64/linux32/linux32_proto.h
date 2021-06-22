@@ -519,6 +519,11 @@ struct linux_getresuid16_args {
 	char euid_l_[PADL_(l_uid16_t *)]; l_uid16_t * euid; char euid_r_[PADR_(l_uid16_t *)];
 	char suid_l_[PADL_(l_uid16_t *)]; l_uid16_t * suid; char suid_r_[PADR_(l_uid16_t *)];
 };
+struct linux_poll_args {
+	char fds_l_[PADL_(struct pollfd *)]; struct pollfd * fds; char fds_r_[PADR_(struct pollfd *)];
+	char nfds_l_[PADL_(unsigned int)]; unsigned int nfds; char nfds_r_[PADR_(unsigned int)];
+	char timeout_l_[PADL_(int)]; int timeout; char timeout_r_[PADR_(int)];
+};
 struct linux_setresgid16_args {
 	char rgid_l_[PADL_(l_gid16_t)]; l_gid16_t rgid; char rgid_r_[PADR_(l_gid16_t)];
 	char egid_l_[PADL_(l_gid16_t)]; l_gid16_t egid; char egid_r_[PADR_(l_gid16_t)];
@@ -1786,6 +1791,7 @@ int	linux_nanosleep(struct thread *, struct linux_nanosleep_args *);
 int	linux_mremap(struct thread *, struct linux_mremap_args *);
 int	linux_setresuid16(struct thread *, struct linux_setresuid16_args *);
 int	linux_getresuid16(struct thread *, struct linux_getresuid16_args *);
+int	linux_poll(struct thread *, struct linux_poll_args *);
 int	linux_setresgid16(struct thread *, struct linux_setresgid16_args *);
 int	linux_getresgid16(struct thread *, struct linux_getresgid16_args *);
 int	linux_prctl(struct thread *, struct linux_prctl_args *);
@@ -2197,6 +2203,7 @@ int	linux_mount_setattr(struct thread *, struct linux_mount_setattr_args *);
 #define	LINUX32_SYS_AUE_linux_mremap	AUE_NULL
 #define	LINUX32_SYS_AUE_linux_setresuid16	AUE_SETRESUID
 #define	LINUX32_SYS_AUE_linux_getresuid16	AUE_GETRESUID
+#define	LINUX32_SYS_AUE_linux_poll	AUE_POLL
 #define	LINUX32_SYS_AUE_linux_setresgid16	AUE_SETRESGID
 #define	LINUX32_SYS_AUE_linux_getresgid16	AUE_GETRESGID
 #define	LINUX32_SYS_AUE_linux_prctl	AUE_PRCTL
