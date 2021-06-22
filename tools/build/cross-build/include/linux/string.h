@@ -47,7 +47,7 @@
 #include <stdlib.h>
 
 #include <sys/cdefs.h>
-#include <sys/stat.h>
+#include <unistd.h>
 
 __BEGIN_DECLS
 size_t strlcpy(char *dst, const char *src, size_t siz);
