@@ -43,7 +43,7 @@ memccpy(void * __restrict t, const void * __restrict f, int c, size_t n)
 	if (n) {
 		unsigned char *tp = t;
 		const unsigned char *fp = f;
-		register const unsigned char uc = c;
+		const unsigned char uc = c;
 		do {
 			if ((*tp++ = *fp) == uc)
 				return tp;
