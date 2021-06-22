@@ -106,6 +106,30 @@ binuptime(struct bintime *bt, struct vdso_timekeep *tk, bool abs)
 	return (0);
 }
 
+static int
+getnanouptime(struct bintime *bt, struct vdso_timekeep *tk)
+{
+	struct vdso_timehands *th;
+	uint32_t curr, gen;
+
+	do {
+		if (!tk->tk_enabled)
+			return (ENOSYS);
+
+		curr = atomic_load_acq_32(&tk->tk_current);
+		th = &tk->tk_th[curr];
+		gen = atomic_load_acq_32(&th->th_gen);
+		*bt = th->th_offset;
+
+		/*
+		 * Ensure that the load of th_offset is completed
+		 * before the load of th_gen.
+		 */
+		atomic_thread_fence_acq();
+	} while (curr != tk->tk_current || gen == 0 || gen != th->th_gen);
+	return (0);
+}
+
 static struct vdso_timekeep *tk;
 
 #pragma weak __vdso_gettimeofday
@@ -154,9 +178,11 @@ __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts)
 		break;
 	case CLOCK_MONOTONIC:
 	case CLOCK_MONOTONIC_PRECISE:
-	case CLOCK_MONOTONIC_FAST:
 	case CLOCK_UPTIME:
 	case CLOCK_UPTIME_PRECISE:
+		error = binuptime(&bt, tk, false);
+		break;
+	case CLOCK_MONOTONIC_FAST:
 	case CLOCK_UPTIME_FAST:
 		error = getnanouptime(&bt, tk);
 		break;
