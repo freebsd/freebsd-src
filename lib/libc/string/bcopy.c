@@ -86,7 +86,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 	if ((uintptr_t)dst < (uintptr_t)src) {
 #endif
 		/*
-		 * Copy forward.
+		 * Copy forwards.
 		 */
 		t = (uintptr_t)src;	/* only need low bits */
 		if ((t | (uintptr_t)dst) & wmask) {
@@ -112,7 +112,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #ifndef MEMCOPY
 	} else {
 		/*
-		 * Copy backward. Otherwise essentially the same.
+		 * Copy backwards. Otherwise essentially the same.
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
