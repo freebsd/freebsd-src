@@ -60,7 +60,6 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 			    EINVAL);
 
 			return EINVAL
-
 		} else {
 			while (n)
 				dst[--n] = v;
