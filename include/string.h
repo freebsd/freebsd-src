@@ -38,7 +38,6 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
-#include <unistd.h>
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
@@ -97,6 +96,7 @@ size_t	 strlcpy(char * __restrict, const char * __restrict, size_t);
 #endif
 size_t	 strlen(const char *) __pure;
 #if __BSD_VISIBLE
+#include <unistd.h>
 
 #ifndef _MODE_T_DECLARED
 typedef __mode_t 	mode_t;
