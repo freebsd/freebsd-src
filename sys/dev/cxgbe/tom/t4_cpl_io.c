@@ -102,7 +102,7 @@ send_flowc_wr(struct toepcb *toep, struct tcpcb *tp)
 		nparams++;
 	if (toep->params.tc_idx != -1) {
 		MPASS(toep->params.tc_idx >= 0 &&
-		    toep->params.tc_idx < sc->chip_params->nsched_cls);
+		    toep->params.tc_idx < sc->params.nsched_cls);
 		nparams++;
 	}
 
@@ -189,7 +189,7 @@ update_tx_rate_limit(struct adapter *sc, struct toepcb *toep, u_int Bps)
 		rc = t4_reserve_cl_rl_kbps(sc, port_id, kbps, &tc_idx);
 		if (rc != 0)
 			return (rc);
-		MPASS(tc_idx >= 0 && tc_idx < sc->chip_params->nsched_cls);
+		MPASS(tc_idx >= 0 && tc_idx < sc->params.nsched_cls);
 	}
 
 	if (toep->params.tc_idx != tc_idx) {
