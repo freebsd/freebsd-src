@@ -74,8 +74,6 @@
 
 #define	LINUX_PATH_MAX		4096
 
-extern const char *linux_kplatform;
-
 /*
  * Non-standard aux entry types used in Linux ELF binaries.
  */

@@ -721,8 +721,10 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	 * to remain "i686", though.
 	 */
 	strlcpy(utsname.machine, "x86_64", LINUX_MAX_UTSNAME);
-#else
-	strlcpy(utsname.machine, linux_kplatform, LINUX_MAX_UTSNAME);
+#elif defined(__aarch64__)
+	strlcpy(utsname.machine, "aarch64", LINUX_MAX_UTSNAME);
+#elif defined(__i386__)
+	strlcpy(utsname.machine, "i686", LINUX_MAX_UTSNAME);
 #endif
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
