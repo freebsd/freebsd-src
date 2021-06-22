@@ -478,27 +478,6 @@ struct l_ifreq {
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
 #define	ifr_ifindex	ifr_ifru.ifru_ivalue	/* Interface index */
 
-/*
- * poll()
- */
-#define	LINUX_POLLIN		0x0001
-#define	LINUX_POLLPRI		0x0002
-#define	LINUX_POLLOUT		0x0004
-#define	LINUX_POLLERR		0x0008
-#define	LINUX_POLLHUP		0x0010
-#define	LINUX_POLLNVAL		0x0020
-#define	LINUX_POLLRDNORM	0x0040
-#define	LINUX_POLLRDBAND	0x0080
-#define	LINUX_POLLWRNORM	0x0100
-#define	LINUX_POLLWRBAND	0x0200
-#define	LINUX_POLLMSG		0x0400
-
-struct l_pollfd {
-	l_int		fd;
-	l_short		events;
-	l_short		revents;
-};
-
 struct l_user_desc {
 	l_uint		entry_number;
 	l_uint		base_addr;
