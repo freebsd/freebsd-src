@@ -58,7 +58,6 @@ strncpy
 {
 	if (n != 0) {
 		char *d = dst;
-
 		do {
 			if ((*d = *src) == '\0') {
 				/* NUL pad the remaining n-1 bytes */
@@ -70,5 +69,5 @@ strncpy
 			++d, ++src;
 		} while (--n != 0);
 	}
-	return (dst);
+	return dst;
 }
