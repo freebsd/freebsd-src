@@ -171,7 +171,7 @@ set_sched_class_params(struct adapter *sc, struct t4_sched_class_params *p,
 		 */
 		if (p->cl < 0)
 			return (EINVAL);
-		if (!in_range(p->cl, 0, sc->chip_params->nsched_cls - 1))
+		if (!in_range(p->cl, 0, sc->params.nsched_cls - 1))
 			return (ERANGE);
 	}
 
@@ -243,7 +243,7 @@ update_tx_sched(void *context, int pending)
 	struct port_info *pi;
 	struct tx_cl_rl_params *tc;
 	struct adapter *sc = context;
-	const int n = sc->chip_params->nsched_cls;
+	const int n = sc->params.nsched_cls;
 
 	mtx_lock(&sc->tc_lock);
 	for_each_port(sc, i) {
@@ -373,7 +373,7 @@ bind_txq_to_traffic_class(struct adapter *sc, struct sge_txq *txq, int idx)
 		txq->tc_idx = old_idx;
 	}
 done:
-	MPASS(txq->tc_idx >= -1 && txq->tc_idx < sc->chip_params->nsched_cls);
+	MPASS(txq->tc_idx >= -1 && txq->tc_idx < sc->params.nsched_cls);
 	mtx_unlock(&sc->tc_lock);
 	return (rc);
 }
@@ -402,7 +402,7 @@ t4_set_sched_queue(struct adapter *sc, struct t4_sched_queue *p)
 	MPASS(vi->ntxq > 0);
 
 	if (!in_range(p->queue, 0, vi->ntxq - 1) ||
-	    !in_range(p->cl, 0, sc->chip_params->nsched_cls - 1))
+	    !in_range(p->cl, 0, sc->params.nsched_cls - 1))
 		return (EINVAL);
 
 	if (p->queue < 0) {
@@ -431,7 +431,7 @@ int
 t4_init_tx_sched(struct adapter *sc)
 {
 	int i, j;
-	const int n = sc->chip_params->nsched_cls;
+	const int n = sc->params.nsched_cls;
 	struct port_info *pi;
 	struct tx_cl_rl_params *tc;
 
@@ -507,7 +507,7 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 
 	update = false;
 	mtx_lock(&sc->tc_lock);
-	for (i = 0; i < sc->chip_params->nsched_cls; i++, tc++) {
+	for (i = 0; i < sc->params.nsched_cls; i++, tc++) {
 		if (fa < 0 && tc->refcount == 0 && !(tc->flags & CLRL_USER))
 			fa = i;		/* first available */
 
@@ -526,7 +526,7 @@ t4_reserve_cl_rl_kbps(struct adapter *sc, int port_id, u_int maxrate,
 		}
 	}
 	/* Not found */
-	MPASS(i == sc->chip_params->nsched_cls);
+	MPASS(i == sc->params.nsched_cls);
 	if (fa != -1) {
 		tc = &pi->sched_params->cl_rl[fa];
 		tc->refcount = 1;
@@ -557,7 +557,7 @@ t4_release_cl_rl(struct adapter *sc, int port_id, int tc_idx)
 	struct tx_cl_rl_params *tc;
 
 	MPASS(port_id >= 0 && port_id < sc->params.nports);
-	MPASS(tc_idx >= 0 && tc_idx < sc->chip_params->nsched_cls);
+	MPASS(tc_idx >= 0 && tc_idx < sc->params.nsched_cls);
 
 	mtx_lock(&sc->tc_lock);
 	tc = &sc->port[port_id]->sched_params->cl_rl[tc_idx];
@@ -584,7 +584,7 @@ sysctl_tc(SYSCTL_HANDLER_ARGS)
 
 	if (sc->flags & IS_VF)
 		return (EPERM);
-	if (!in_range(tc_idx, 0, sc->chip_params->nsched_cls - 1))
+	if (!in_range(tc_idx, 0, sc->params.nsched_cls - 1))
 		return (EINVAL);
 
 	return (bind_txq_to_traffic_class(sc, txq, tc_idx));
@@ -610,7 +610,7 @@ sysctl_tc_params(SYSCTL_HANDLER_ARGS)
 	MPASS(port_id < sc->params.nports);
 	MPASS(sc->port[port_id] != NULL);
 	i = arg2 & 0xffff;
-	MPASS(i < sc->chip_params->nsched_cls);
+	MPASS(i < sc->params.nsched_cls);
 
 	mtx_lock(&sc->tc_lock);
 	tc = sc->port[port_id]->sched_params->cl_rl[i];
@@ -772,7 +772,7 @@ cxgbe_rate_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	    (params->rate_limit.max_rate * 8ULL / 1000), &schedcl);
 	if (rc != 0)
 		return (rc);
-	MPASS(schedcl >= 0 && schedcl < sc->chip_params->nsched_cls);
+	MPASS(schedcl >= 0 && schedcl < sc->params.nsched_cls);
 
 	cst = malloc(sizeof(*cst), M_CXGBE, M_ZERO | M_NOWAIT);
 	if (cst == NULL) {
@@ -823,7 +823,7 @@ cxgbe_rate_tag_modify(struct m_snd_tag *mst,
 	struct adapter *sc = cst->adapter;
 
 	/* XXX: is schedcl -1 ok here? */
-	MPASS(cst->schedcl >= 0 && cst->schedcl < sc->chip_params->nsched_cls);
+	MPASS(cst->schedcl >= 0 && cst->schedcl < sc->params.nsched_cls);
 
 	mtx_lock(&cst->lock);
 	MPASS(cst->flags & EO_SND_TAG_REF);
@@ -831,7 +831,7 @@ cxgbe_rate_tag_modify(struct m_snd_tag *mst,
 	    (params->rate_limit.max_rate * 8ULL / 1000), &schedcl);
 	if (rc != 0)
 		return (rc);
-	MPASS(schedcl >= 0 && schedcl < sc->chip_params->nsched_cls);
+	MPASS(schedcl >= 0 && schedcl < sc->params.nsched_cls);
 	t4_release_cl_rl(sc, cst->port_id, cst->schedcl);
 	cst->schedcl = schedcl;
 	cst->max_rate = params->rate_limit.max_rate;
@@ -919,7 +919,7 @@ cxgbe_ratelimit_query(struct ifnet *ifp, struct if_ratelimit_query_results *q)
 	 * the card's cclk.
 	 */
 	q->max_flows = sc->tids.netids;
-	q->number_of_rates = sc->chip_params->nsched_cls;
+	q->number_of_rates = sc->params.nsched_cls;
 	q->min_segment_burst = 4; /* matches PKTSCHED_BURST in the firmware. */
 
 #if 1
