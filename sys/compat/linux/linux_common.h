@@ -41,5 +41,9 @@ int		bsd_to_linux_sockaddr(const struct sockaddr *sa,
 		    struct l_sockaddr **lsa, socklen_t len);
 int		linux_to_bsd_sockaddr(const struct l_sockaddr *lsa,
 		    struct sockaddr **sap, socklen_t *len);
+void		linux_to_bsd_poll_events(struct thread *td, int fd,
+		    short lev, short *bev);
+void		bsd_to_linux_poll_events(short bev, short *lev);
+
 
 #endif /* _LINUX_COMMON_H_ */
