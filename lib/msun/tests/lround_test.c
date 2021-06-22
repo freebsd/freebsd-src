@@ -40,14 +40,9 @@ __FBSDID("$FreeBSD$");
 
 #define	IGNORE	0x12345
 
-/*
- * XXX The volatile here is to avoid gcc's bogus constant folding and work
- *     around the lack of support for the FENV_ACCESS pragma.
- */
 #define	test(func, x, result, excepts)	do {					\
-	volatile double _d = x;							\
 	ATF_REQUIRE_EQ(0, feclearexcept(FE_ALL_EXCEPT));			\
-	volatile double _r = (func)(_d);					\
+	long long _r = (func)(x);						\
 	CHECK_FP_EXCEPTIONS_MSG(excepts, FE_ALL_EXCEPT, "for %s(%s)",		\
 	    #func, #x);								\
 	if ((excepts & FE_INVALID) != 0) {					\
