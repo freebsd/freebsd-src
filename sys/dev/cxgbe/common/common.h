@@ -408,6 +408,7 @@ struct adapter_params {
 	bool dev_512sgl_mr;		/* FW support for 512 SGL per FR MR */
 	bool viid_smt_extn_support;	/* FW returns vin, vfvld & smt index? */
 	unsigned int max_pkts_per_eth_tx_pkts_wr;
+	uint8_t nsched_cls;		/* # of usable sched classes per port */
 };
 
 #define CHELSIO_T4		0x4
