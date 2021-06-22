@@ -73,7 +73,7 @@ cont:
 
 	if (c == '\0') {		/* no non-delimiter characters */
 		*last = NULL;
-		return (NULL);
+		return NULL;
 	}
 	tok = s;
 
@@ -91,7 +91,7 @@ cont:
 				else
 					*s++ = '\0';
 				*last = s;
-				return (tok);
+				return tok;
 			}
 
 			spanp++;
