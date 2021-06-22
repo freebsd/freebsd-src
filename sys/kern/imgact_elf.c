@@ -1846,7 +1846,7 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 		size += register_note(list, -1,
 		    __elfN(note_threadmd), thr);
 
-		thr = (thr == td) ? TAILQ_FIRST(&p->p_threads) :
+		thr = thr == td ? TAILQ_FIRST(&p->p_threads) :
 		    TAILQ_NEXT(thr, td_plist);
 		if (thr == td)
 			thr = TAILQ_NEXT(thr, td_plist);
@@ -2118,7 +2118,7 @@ __elfN(note_prpsinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 	elf_prpsinfo_t *psinfo;
 	int error;
 
-	p = (struct proc *)arg;
+	p = arg;
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*psinfo), ("invalid size"));
 		psinfo = malloc(sizeof(*psinfo), M_TEMP, M_ZERO | M_WAITOK);
@@ -2175,7 +2175,7 @@ __elfN(note_prstatus)(void *arg, struct sbuf *sb, size_t *sizep)
 	struct thread *td;
 	elf_prstatus_t *status;
 
-	td = (struct thread *)arg;
+	td = arg;
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*status), ("invalid size"));
 		status = malloc(sizeof(*status), M_TEMP, M_ZERO | M_WAITOK);
@@ -2203,7 +2203,7 @@ __elfN(note_fpregset)(void *arg, struct sbuf *sb, size_t *sizep)
 	struct thread *td;
 	elf_prfpregset_t *fpregset;
 
-	td = (struct thread *)arg;
+	td = arg;
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(*fpregset), ("invalid size"));
 		fpregset = malloc(sizeof(*fpregset), M_TEMP, M_ZERO | M_WAITOK);
@@ -2224,7 +2224,7 @@ __elfN(note_thrmisc)(void *arg, struct sbuf *sb, size_t *sizep)
 	struct thread *td;
 	elf_thrmisc_t thrmisc;
 
-	td = (struct thread *)arg;
+	td = arg;
 	if (sb != NULL) {
 		KASSERT(*sizep == sizeof(thrmisc), ("invalid size"));
 		bzero(&thrmisc, sizeof(thrmisc));
@@ -2246,7 +2246,7 @@ __elfN(note_ptlwpinfo)(void *arg, struct sbuf *sb, size_t *sizep)
 	struct ptrace_lwpinfo pl;
 #endif
 
-	td = (struct thread *)arg;
+	td = arg;
 	size = sizeof(structsize) + sizeof(pl);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2310,7 +2310,7 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + p->p_numthreads *
 	    sizeof(elf_kinfo_proc_t);
 
@@ -2343,7 +2343,7 @@ note_procstat_files(void *arg, struct sbuf *sb, size_t *sizep)
 	else
 		filedesc_flags = 0;
 
-	p = (struct proc *)arg;
+	p = arg;
 	structsize = sizeof(struct kinfo_file);
 	if (sb == NULL) {
 		size = 0;
@@ -2394,7 +2394,7 @@ note_procstat_vmmap(void *arg, struct sbuf *sb, size_t *sizep)
 	else
 		vmmap_flags = 0;
 
-	p = (struct proc *)arg;
+	p = arg;
 	structsize = sizeof(struct kinfo_vmentry);
 	if (sb == NULL) {
 		size = 0;
@@ -2421,7 +2421,7 @@ note_procstat_groups(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + p->p_ucred->cr_ngroups * sizeof(gid_t);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2440,7 +2440,7 @@ note_procstat_umask(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + sizeof(p->p_pd->pd_cmask);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2459,7 +2459,7 @@ note_procstat_rlimit(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize, i;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + sizeof(rlim);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2481,7 +2481,7 @@ note_procstat_osrel(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + sizeof(p->p_osrel);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2500,7 +2500,7 @@ __elfN(note_procstat_psstrings)(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	size = sizeof(structsize) + sizeof(ps_strings);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
@@ -2523,7 +2523,7 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	size_t size;
 	int structsize;
 
-	p = (struct proc *)arg;
+	p = arg;
 	if (sb == NULL) {
 		size = 0;
 		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf_Auxinfo),
