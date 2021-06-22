@@ -31,20 +31,7 @@
 .Nm linux
 .Nd Linux ABI support
 .Sh SYNOPSIS
-To compile support for this ABI into an i386 kernel
-place the following line in your
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options COMPAT_LINUX"
-.Ed
-.Pp
-for an amd64 kernel use:
-.Bd -ragged -offset indent
-.Cd "options COMPAT_LINUX32"
-.Ed
-.Pp
-Alternatively, to load the ABI as a
-module at boot time, place the following line in
+To load the ABI at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 linux_load="YES"

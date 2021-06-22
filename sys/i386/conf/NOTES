@@ -429,11 +429,9 @@ device		s3pci
 # linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
 # the tdfx DRI module from XFree86 and is completely unrelated.
 #
-# To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well.  The other option is to load both as modules.
+# To enable Linuxulator support, one must also load linux.ko and tdfx_linux.ko.
 
 device		tdfx			# Enable 3Dfx Voodoo support
-device		tdfx_linux		# Enable Linuxulator support
 
 options 	IOMMU			# Enable IOMMU support
 
@@ -873,18 +871,6 @@ options 	COMPAT_AOUT
 # Enable 32-bit runtime support for CloudABI binaries.
 options 	COMPAT_CLOUDABI32
 
-# Enable Linux ABI emulation
-options 	COMPAT_LINUX
-
-# Enable the linux-like proc filesystem support (requires COMPAT_LINUX
-# and PSEUDOFS)
-options 	LINPROCFS
-
-#Enable the linux-like sys filesystem support (requires COMPAT_LINUX
-# and PSEUDOFS)
-options 	LINSYSFS
-
-
 #####################################################################
 # VM OPTIONS
 
