@@ -62,5 +62,5 @@ strncat(char * __restrict dst, const char * __restrict src, size_t n)
 		}
 		*d = '\0';
 	}
-	return (dst);
+	return dst;
 }
