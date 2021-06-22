@@ -56,7 +56,7 @@ memset_s(void *s, rsize_t smax, int c, rsize_t n)
 		} else {
 			while (n)
 				dst[--n] = v;
-			ret = EOK;
+			ret = 0;
 		}
 	}
 	return (ret);
