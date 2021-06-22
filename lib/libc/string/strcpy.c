@@ -49,7 +49,7 @@ strcpy
 #endif
 (char * __restrict to, const char * __restrict from)
 {
-	register char * const save = to;
+	char * const save = to;
 
 	for (; (*to = *from) != '\0'; ++to, ++from);
 	return (save);
