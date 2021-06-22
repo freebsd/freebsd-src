@@ -131,7 +131,7 @@
 #define	LINUX_SYS_linux_mremap	163
 #define	LINUX_SYS_linux_setresuid16	164
 #define	LINUX_SYS_linux_getresuid16	165
-#define	LINUX_SYS_poll	168
+#define	LINUX_SYS_linux_poll	168
 #define	LINUX_SYS_linux_setresgid16	170
 #define	LINUX_SYS_linux_getresgid16	171
 #define	LINUX_SYS_linux_prctl	172
