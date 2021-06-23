@@ -2468,6 +2468,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	size_t descrlen;
 	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
+	char old_name[IFNAMSIZ], strbuf[IFNAMSIZ + 8];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
@@ -2673,6 +2674,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		if_printf(ifp, "changing name to '%s'\n", new_name);
 
 		IF_ADDR_WLOCK(ifp);
+		strlcpy(old_name, ifp->if_xname, sizeof(old_name));
 		strlcpy(ifp->if_xname, new_name, sizeof(ifp->if_xname));
 		ifa = ifp->if_addr;
 		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -2700,6 +2702,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
 
 		ifp->if_flags &= ~IFF_RENAMING;
+
+		snprintf(strbuf, sizeof(strbuf), "name=%s", new_name);
+		devctl_notify("IFNET", old_name, "RENAME", strbuf);
 		break;
 
 #ifdef VIMAGE
