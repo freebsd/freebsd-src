@@ -50,6 +50,7 @@
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/devctl.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
@@ -67,6 +68,7 @@
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
+#include <netinet6/in6_var.h>
 
 VNET_PCPUSTAT_DEFINE(struct rtstat, rtstat);
 
@@ -685,6 +687,10 @@ rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netma
 int
 rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 {
+#if defined(INET) || defined(INET6)
+	struct sockaddr *sa = ifa->ifa_addr;
+	struct ifnet *ifp = ifa->ifa_ifp;
+#endif
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 	    ("unexpected cmd %d", cmd));
@@ -692,6 +698,29 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 	EVENTHANDLER_DIRECT_INVOKE(rt_addrmsg, ifa, cmd);
+
+#ifdef INET
+	if (sa->sa_family == AF_INET) {
+		char addrstr[INET_ADDRSTRLEN];
+		char strbuf[INET_ADDRSTRLEN + 12];
+
+		inet_ntoa_r(((struct sockaddr_in *)sa)->sin_addr, addrstr);
+		snprintf(strbuf, sizeof(strbuf), "address=%s", addrstr);
+		devctl_notify("IFNET", ifp->if_xname,
+		    (cmd == RTM_ADD) ? "ADDR_ADD" : "ADDR_DEL", strbuf);
+	}
+#endif
+#ifdef INET6
+	if (sa->sa_family == AF_INET6) {
+		char addrstr[INET6_ADDRSTRLEN];
+		char strbuf[INET6_ADDRSTRLEN + 12];
+
+		ip6_sprintf(addrstr, IFA_IN6(ifa));
+		snprintf(strbuf, sizeof(strbuf), "address=%s", addrstr);
+		devctl_notify("IFNET", ifp->if_xname,
+		    (cmd == RTM_ADD) ? "ADDR_ADD" : "ADDR_DEL", strbuf);
+	}
+#endif
 
 	if (V_rt_add_addr_allfibs)
 		fibnum = RT_ALL_FIBS;
