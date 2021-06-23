@@ -426,6 +426,8 @@ int	bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
 int	bus_generic_attach(device_t dev);
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
+int	bus_generic_child_location(device_t dev, device_t child, struct sbuf *sb);
+int	bus_generic_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb);
 int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 				enum intr_polarity);
@@ -551,8 +553,8 @@ rman_res_t	bus_get_resource_start(device_t dev, int type, int rid);
 rman_res_t	bus_get_resource_count(device_t dev, int type, int rid);
 void	bus_delete_resource(device_t dev, int type, int rid);
 int	bus_child_present(device_t child);
-int	bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen);
-int	bus_child_location_str(device_t child, char *buf, size_t buflen);
+int	bus_child_pnpinfo(device_t child, struct sbuf *sb);
+int	bus_child_location(device_t child, struct sbuf *sb);
 void	bus_enumerate_hinted_children(device_t bus);
 int	bus_delayed_attach_children(device_t bus);
 

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 
 #include <machine/resource.h>
 
@@ -709,54 +710,39 @@ acpi_iicbus_write_ivar(device_t bus, device_t child, int which, uintptr_t val)
 
 /* Location hint for devctl(8). Concatenate IIC and ACPI hints. */
 static int
-acpi_iicbus_child_location_str(device_t bus, device_t child,
-    char *buf, size_t buflen)
+acpi_iicbus_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct acpi_iicbus_ivars *devi = device_get_ivars(child);
 	int error;
 
 	/* read IIC location hint string into the buffer. */
-	error = iicbus_child_location_str(bus, child, buf, buflen);
+	error = iicbus_child_location(bus, child, sb);
 	if (error != 0)
 		return (error);
 
 	/* Place ACPI string right after IIC one's terminating NUL. */
-	if (devi->handle != NULL &&
-	    ((buf[0] != '\0' && strlcat(buf, " ", buflen) >= buflen) ||
-	     strlcat(buf, "handle=", buflen) >= buflen ||
-	     strlcat(buf, acpi_name(devi->handle), buflen) >= buflen))
-		return (EOVERFLOW);
+	if (devi->handle != NULL)
+		sbuf_printf(sb, " handle=%s", acpi_name(devi->handle));
 
 	return (0);
 }
 
 /* PnP information for devctl(8). Concatenate IIC and ACPI info strings. */
 static int
-acpi_iicbus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+acpi_iicbus_child_pnpinfo(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct acpi_iicbus_ivars *devi = device_get_ivars(child);
-	size_t acpi_offset;
 	int error;
 
 	/* read IIC PnP string into the buffer. */
-	error = iicbus_child_pnpinfo_str(bus, child, buf, buflen);
+	error = iicbus_child_pnpinfo(bus, child, sb);
 	if (error != 0)
 		return (error);
 
 	if (devi->handle == NULL)
 		return (0);
 
-	/* Place ACPI string right after IIC one's terminating NUL. */
-	acpi_offset = strlen(buf);
-	if (acpi_offset != 0)
-		acpi_offset++;
-	error = acpi_pnpinfo_str(devi->handle, buf + acpi_offset,
-	    buflen - acpi_offset);
-
-	/* Coalesce both strings if they are not empty. */
-	if (acpi_offset > 0 && acpi_offset < buflen && buf[acpi_offset] != 0)
-		buf[acpi_offset - 1] = ' ';
+	error = acpi_pnpinfo(devi->handle, sb);
 
 	return (error);
 }
@@ -776,8 +762,8 @@ static device_method_t acpi_iicbus_methods[] = {
 	DEVMETHOD(bus_child_deleted,	acpi_iicbus_child_deleted),
 	DEVMETHOD(bus_read_ivar,	acpi_iicbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	acpi_iicbus_write_ivar),
-	DEVMETHOD(bus_child_location_str,acpi_iicbus_child_location_str),
-	DEVMETHOD(bus_child_pnpinfo_str,acpi_iicbus_child_pnpinfo_str),
+	DEVMETHOD(bus_child_location,	acpi_iicbus_child_location),
+	DEVMETHOD(bus_child_pnpinfo,	acpi_iicbus_child_pnpinfo),
 
 	DEVMETHOD_END,
 };

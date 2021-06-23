@@ -104,7 +104,7 @@ static device_method_t macgpio_methods[] = {
         DEVMETHOD(bus_deactivate_resource, macgpio_deactivate_resource),
         DEVMETHOD(bus_release_resource, bus_generic_release_resource),
 
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	macgpio_get_devinfo),

@@ -6738,23 +6738,21 @@ hdaa_print_child(device_t dev, device_t child)
 }
 
 static int
-hdaa_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+hdaa_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct hdaa_devinfo *devinfo = device_get_softc(dev);
 	struct hdaa_pcm_devinfo *pdevinfo =
 	    (struct hdaa_pcm_devinfo *)device_get_ivars(child);
 	struct hdaa_audio_as *as;
-	int first = 1, i, len = 0;
+	int first = 1, i;
 
-	len += snprintf(buf + len, buflen - len, "nid=");
+	sbuf_printf(sb, "nid=");
 	if (pdevinfo->playas >= 0) {
 		as = &devinfo->as[pdevinfo->playas];
 		for (i = 0; i < 16; i++) {
 			if (as->pins[i] <= 0)
 				continue;
-			len += snprintf(buf + len, buflen - len,
-			    "%s%d", first ? "" : ",", as->pins[i]);
+			sbuf_printf(sb, "%s%d", first ? "" : ",", as->pins[i]);
 			first = 0;
 		}
 	}
@@ -6763,8 +6761,7 @@ hdaa_child_location_str(device_t dev, device_t child, char *buf,
 		for (i = 0; i < 16; i++) {
 			if (as->pins[i] <= 0)
 				continue;
-			len += snprintf(buf + len, buflen - len,
-			    "%s%d", first ? "" : ",", as->pins[i]);
+			sbuf_printf(sb, "%s%d", first ? "" : ",", as->pins[i]);
 			first = 0;
 		}
 	}
@@ -6830,7 +6827,7 @@ static device_method_t hdaa_methods[] = {
 	DEVMETHOD(device_resume,	hdaa_resume),
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	hdaa_print_child),
-	DEVMETHOD(bus_child_location_str, hdaa_child_location_str),
+	DEVMETHOD(bus_child_location,	hdaa_child_location),
 	DEVMETHOD(hdac_stream_intr,	hdaa_stream_intr),
 	DEVMETHOD(hdac_unsol_intr,	hdaa_unsol_intr),
 	DEVMETHOD(hdac_pindump,		hdaa_pindump),

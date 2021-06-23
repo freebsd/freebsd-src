@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
 
 #include <dev/pwm/pwmbus.h>
 
@@ -68,22 +69,14 @@ pwmbus_add_child(device_t dev, u_int order, const char *name, int unit)
 }
 
 static int
-pwmbus_child_location_str(device_t dev, device_t child, char *buf, size_t blen)
+pwmbus_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct pwmbus_ivars *ivars;
 
 	ivars = device_get_ivars(child);
-	snprintf(buf, blen, "hwdev=%s channel=%u", 
+	sbuf_printf(sb, "hwdev=%s channel=%u", 
 	    device_get_nameunit(device_get_parent(dev)), ivars->pi_channel);
 
-	return (0);
-}
-
-static int
-pwmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
-{
-	*buf = '\0';
 	return (0);
 }
 
@@ -261,8 +254,7 @@ static device_method_t pwmbus_methods[] = {
 
         /* bus_if */
 	DEVMETHOD(bus_add_child,		pwmbus_add_child),
-	DEVMETHOD(bus_child_location_str,	pwmbus_child_location_str),
-	DEVMETHOD(bus_child_pnpinfo_str,	pwmbus_child_pnpinfo_str),
+	DEVMETHOD(bus_child_location,		pwmbus_child_location),
 	DEVMETHOD(bus_hinted_child,		pwmbus_hinted_child),
 	DEVMETHOD(bus_print_child,		pwmbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,		pwmbus_probe_nomatch),

@@ -493,7 +493,7 @@ static device_method_t ofw_gpiobus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_gpiobus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str,	ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_add_child,	ofw_gpiobus_add_child),
 
 	/* ofw_bus interface */

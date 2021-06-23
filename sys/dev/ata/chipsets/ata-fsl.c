@@ -227,7 +227,7 @@ static device_method_t imx_ata_methods[] = {
 	DEVMETHOD(pci_read_config,	ata_pci_read_config),
 	DEVMETHOD(pci_write_config,	ata_pci_write_config),
 	DEVMETHOD(bus_print_child,	ata_pci_print_child),
-	DEVMETHOD(bus_child_location_str, ata_pci_child_location_str),
+	DEVMETHOD(bus_child_location,	ata_pci_child_location),
 	DEVMETHOD_END
 };
 static driver_t imx_ata_driver = {

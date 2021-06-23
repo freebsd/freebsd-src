@@ -542,21 +542,20 @@ hdacc_detach(device_t dev)
 }
 
 static int
-hdacc_child_location_str(device_t dev, device_t child, char *buf, size_t buflen)
+hdacc_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct hdacc_fg *fg = device_get_ivars(child);
 
-	snprintf(buf, buflen, "nid=%d", fg->nid);
+	sbuf_printf(sb, "nid=%d", fg->nid);
 	return (0);
 }
 
 static int
-hdacc_child_pnpinfo_str_method(device_t dev, device_t child, char *buf,
-    size_t buflen)
+hdacc_child_pnpinfo_method(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct hdacc_fg *fg = device_get_ivars(child);
 
-	snprintf(buf, buflen, "type=0x%02x subsystem=0x%08x",
+	sbuf_printf(sb, "type=0x%02x subsystem=0x%08x",
 	    fg->type, fg->subsystem_id);
 	return (0);
 }
@@ -766,8 +765,8 @@ static device_method_t hdacc_methods[] = {
 	DEVMETHOD(device_suspend,	hdacc_suspend),
 	DEVMETHOD(device_resume,	hdacc_resume),
 	/* Bus interface */
-	DEVMETHOD(bus_child_location_str, hdacc_child_location_str),
-	DEVMETHOD(bus_child_pnpinfo_str, hdacc_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_location,	hdacc_child_location),
+	DEVMETHOD(bus_child_pnpinfo,	hdacc_child_pnpinfo_method),
 	DEVMETHOD(bus_print_child,	hdacc_print_child),
 	DEVMETHOD(bus_probe_nomatch,	hdacc_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	hdacc_read_ivar),

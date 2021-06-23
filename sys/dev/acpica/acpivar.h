@@ -236,8 +236,8 @@ extern int	acpi_quirks;
  * is compatible with ids parameter of ACPI_ID_PROBE bus method.
  *
  * XXX: While ACPI_ID_PROBE matches against _HID and all _CIDs, current
- *      acpi_pnpinfo_str() exports only _HID and first _CID.  That means second
- *      and further _CIDs should be added to both acpi_pnpinfo_str() and
+ *      acpi_pnpinfo() exports only _HID and first _CID.  That means second
+ *      and further _CIDs should be added to both acpi_pnpinfo() and
  *      ACPICOMPAT_PNP_INFO if device matching against them is required.
  */
 #define	ACPICOMPAT_PNP_INFO(t, busname)					\
@@ -490,7 +490,7 @@ int		acpi_wakeup_machdep(struct acpi_softc *sc, int state,
 		    int sleep_result, int intr_enabled);
 int		acpi_table_quirks(int *quirks);
 int		acpi_machdep_quirks(int *quirks);
-int		acpi_pnpinfo_str(ACPI_HANDLE handle, char *buf, size_t buflen);
+int		acpi_pnpinfo(ACPI_HANDLE handle, struct sbuf *sb);
 
 uint32_t	hpet_get_uid(device_t dev);
 

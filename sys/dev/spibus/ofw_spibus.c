@@ -217,7 +217,7 @@ static device_method_t ofw_spibus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_spibus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_add_child,	ofw_spibus_add_child),
 	DEVMETHOD(bus_get_resource_list, ofw_spibus_get_resource_list),
 

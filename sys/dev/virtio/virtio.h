@@ -113,8 +113,7 @@ void	 virtio_stop(device_t dev);
 int	 virtio_config_generation(device_t dev);
 int	 virtio_reinit(device_t dev, uint64_t features);
 void	 virtio_reinit_complete(device_t dev);
-int	 virtio_child_pnpinfo_str(device_t busdev, device_t child, char *buf,
-	     size_t buflen);
+int	 virtio_child_pnpinfo(device_t busdev, device_t child, struct sbuf *sb);
 
 /*
  * Read/write a variable amount from the device specific (ie, network)

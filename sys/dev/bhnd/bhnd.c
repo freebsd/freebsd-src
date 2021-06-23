@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
@@ -899,48 +900,32 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 	    bhnd_get_core_index(child));
 }
 
-/**
- * Default implementation of BUS_CHILD_PNPINFO_STR().
- */
 static int
-bhnd_child_pnpinfo_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+bhnd_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb)
 {
-	if (device_get_parent(child) != dev) {
-		return (BUS_CHILD_PNPINFO_STR(device_get_parent(dev), child,
-		    buf, buflen));
-	}
+	if (device_get_parent(child) != dev)
+		return (BUS_CHILD_PNPINFO(device_get_parent(dev), child, sb));
 
-	snprintf(buf, buflen, "vendor=0x%hx device=0x%hx rev=0x%hhx",
+	sbuf_printf(sb, "vendor=0x%hx device=0x%hx rev=0x%hhx",
 	    bhnd_get_vendor(child), bhnd_get_device(child),
 	    bhnd_get_hwrev(child));
 
 	return (0);
 }
 
-/**
- * Default implementation of BUS_CHILD_LOCATION_STR().
- */
 static int
-bhnd_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+bhnd_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	bhnd_addr_t	addr;
 	bhnd_size_t	size;
 
-	if (device_get_parent(child) != dev) {
-		return (BUS_CHILD_LOCATION_STR(device_get_parent(dev), child,
-		    buf, buflen));
-	}
+	if (device_get_parent(child) != dev)
+		return (BUS_CHILD_LOCATION(device_get_parent(dev), child, sb));
 
-	if (bhnd_get_region_addr(child, BHND_PORT_DEVICE, 0, 0, &addr, &size)) {
-		/* No device default port/region */
-		if (buflen > 0)
-			*buf = '\0';
+	if (bhnd_get_region_addr(child, BHND_PORT_DEVICE, 0, 0, &addr, &size))
 		return (0);
-	}
 
-	snprintf(buf, buflen, "port0.0=0x%llx", (unsigned long long) addr);
+	sbuf_printf(sb, "port0.0=0x%llx", (unsigned long long) addr);
 	return (0);
 }
 
@@ -1104,8 +1089,8 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bus_child_deleted,		bhnd_generic_child_deleted),
 	DEVMETHOD(bus_probe_nomatch,		bhnd_generic_probe_nomatch),
 	DEVMETHOD(bus_print_child,		bhnd_generic_print_child),
-	DEVMETHOD(bus_child_pnpinfo_str,	bhnd_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str,	bhnd_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo,		bhnd_child_pnpinfo),
+	DEVMETHOD(bus_child_location,		bhnd_child_location),
 
 	DEVMETHOD(bus_suspend_child,		bhnd_generic_suspend_child),
 	DEVMETHOD(bus_resume_child,		bhnd_generic_resume_child),

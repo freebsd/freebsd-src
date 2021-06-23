@@ -196,7 +196,7 @@ static device_method_t  smu_methods[] = {
 	DEVMETHOD(clock_settime,	smu_settime),
 
 	/* ofw_bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str,ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(ofw_bus_get_devinfo,	smu_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
 	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),

@@ -36,8 +36,7 @@ SYSCTL_DECL(_hw_ntb);
 
 int ntb_register_device(device_t ntb);
 int ntb_unregister_device(device_t ntb);
-int ntb_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen);
+int ntb_child_location(device_t dev, device_t child, struct sbuf *sb);
 int ntb_print_child(device_t dev, device_t child);
 bus_dma_tag_t ntb_get_dma_tag(device_t bus, device_t child);
 

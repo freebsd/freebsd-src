@@ -177,10 +177,10 @@ static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
-static int	acpi_child_location_str_method(device_t acdev, device_t child,
-					       char *buf, size_t buflen);
-static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
-					      char *buf, size_t buflen);
+static int	acpi_child_location_method(device_t acdev, device_t child,
+		    struct sbuf *sb);
+static int	acpi_child_pnpinfo_method(device_t acdev, device_t child,
+		    struct sbuf *sb);
 static void	acpi_enable_pcie(void);
 static void	acpi_hint_device_unit(device_t acdev, device_t child,
 		    const char *name, int *unitp);
@@ -210,8 +210,8 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_adjust_resource,	acpi_adjust_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
     DEVMETHOD(bus_delete_resource,	acpi_delete_resource),
-    DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
-    DEVMETHOD(bus_child_location_str,	acpi_child_location_str_method),
+    DEVMETHOD(bus_child_pnpinfo,	acpi_child_pnpinfo_method),
+    DEVMETHOD(bus_child_location,	acpi_child_location_method),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
@@ -865,37 +865,32 @@ acpi_driver_added(device_t dev, driver_t *driver)
 
 /* Location hint for devctl(8) */
 static int
-acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
+acpi_child_location_method(device_t cbdev, device_t child, struct sbuf *sb)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
-    char buf2[32];
     int pxm;
 
     if (dinfo->ad_handle) {
-        snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
+        sbuf_printf(sb, "handle=%s", acpi_name(dinfo->ad_handle));
         if (ACPI_SUCCESS(acpi_GetInteger(dinfo->ad_handle, "_PXM", &pxm))) {
-                snprintf(buf2, 32, " _PXM=%d", pxm);
-                strlcat(buf, buf2, buflen);
-        }
-    } else {
-        snprintf(buf, buflen, "");
+            sbuf_printf(sb, " _PXM=%d", pxm);
+	}
     }
     return (0);
 }
 
 /* PnP information for devctl(8) */
 int
-acpi_pnpinfo_str(ACPI_HANDLE handle, char *buf, size_t buflen)
+acpi_pnpinfo(ACPI_HANDLE handle, struct sbuf *sb)
 {
     ACPI_DEVICE_INFO *adinfo;
 
     if (ACPI_FAILURE(AcpiGetObjectInfo(handle, &adinfo))) {
-	snprintf(buf, buflen, "unknown");
+	sbuf_printf(sb, "unknown");
 	return (0);
     }
 
-    snprintf(buf, buflen, "_HID=%s _UID=%lu _CID=%s",
+    sbuf_printf(sb, "_HID=%s _UID=%lu _CID=%s",
 	(adinfo->Valid & ACPI_VALID_HID) ?
 	adinfo->HardwareId.String : "none",
 	(adinfo->Valid & ACPI_VALID_UID) ?
@@ -909,12 +904,11 @@ acpi_pnpinfo_str(ACPI_HANDLE handle, char *buf, size_t buflen)
 }
 
 static int
-acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
+acpi_child_pnpinfo_method(device_t cbdev, device_t child, struct sbuf *sb)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
 
-    return (acpi_pnpinfo_str(dinfo->ad_handle, buf, buflen));
+    return (acpi_pnpinfo(dinfo->ad_handle, sb));
 }
 
 /*

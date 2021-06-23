@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
 #include <machine/resource.h>
@@ -1032,30 +1033,26 @@ isa_pnp_probe(device_t dev, device_t child, struct isa_pnp_id *ids)
 }
 
 static int
-isa_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+isa_child_pnpinfo(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct isa_device *idev = DEVTOISA(child);
 
 	if (idev->id_vendorid)
-		snprintf(buf, buflen, "pnpid=%s",
+		sbuf_printf(sb, "pnpid=%s",
 		    pnp_eisaformat(idev->id_vendorid));
 	return (0);
 }
 
 static int
-isa_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+isa_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 #if 0
 	/* id_pnphandle isn't there yet */
 	struct isa_device *idev = DEVTOISA(child);
 
 	if (idev->id_vendorid)
-		snprintf(buf, buflen, "pnphandle=%d", idev->id_pnphandle);
+		sbuf_printf(sbuf, "pnphandle=%d", idev->id_pnphandle);
 #endif
-	/* Nothing here yet */
-	*buf = '\0';
 	return (0);
 }
 
@@ -1087,8 +1084,8 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_child_pnpinfo_str, isa_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, isa_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo,	isa_child_pnpinfo),
+	DEVMETHOD(bus_child_location,	isa_child_location),
 	DEVMETHOD(bus_hinted_child,	isa_hinted_child),
 	DEVMETHOD(bus_hint_device_unit,	isa_hint_device_unit),
 

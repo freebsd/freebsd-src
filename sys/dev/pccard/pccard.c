@@ -1022,34 +1022,28 @@ pccard_probe_nomatch(device_t bus, device_t child)
 }
 
 static int
-pccard_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+pccard_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 
-	snprintf(buf, buflen, "function=%d", pf->number);
+	sbuf_printf(sb, "function=%d", pf->number);
 	return (0);
 }
 
 static int
-pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+pccard_child_pnpinfo(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *pf = devi->pf;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
-	struct sbuf sb;
 
-	sbuf_new(&sb, buf, buflen, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
-	sbuf_printf(&sb, "manufacturer=0x%04x product=0x%04x "
+	sbuf_printf(sb, "manufacturer=0x%04x product=0x%04x "
 	    "cisvendor=\"", sc->card.manufacturer, sc->card.product);
-	devctl_safe_quote_sb(&sb, sc->card.cis1_info[0]);
-	sbuf_printf(&sb, "\" cisproduct=\"");
-	devctl_safe_quote_sb(&sb, sc->card.cis1_info[1]);
-	sbuf_printf(&sb, "\" function_type=%d", pf->function);
-	sbuf_finish(&sb);
-	sbuf_delete(&sb);
+	devctl_safe_quote_sb(sb, sc->card.cis1_info[0]);
+	sbuf_printf(sb, "\" cisproduct=\"");
+	devctl_safe_quote_sb(sb, sc->card.cis1_info[1]);
+	sbuf_printf(sb, "\" function_type=%d", pf->function);
 
 	return (0);
 }
@@ -1455,8 +1449,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
 	DEVMETHOD(bus_probe_nomatch,	pccard_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	pccard_read_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, pccard_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, pccard_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo,	pccard_child_pnpinfo),
+	DEVMETHOD(bus_child_location,	pccard_child_location),
 
 	/* Card Interface */
 	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),

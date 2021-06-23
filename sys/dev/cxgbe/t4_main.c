@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 static int t4_probe(device_t);
 static int t4_attach(device_t);
 static int t4_detach(device_t);
-static int t4_child_location_str(device_t, device_t, char *, size_t);
+static int t4_child_location(device_t, device_t, struct sbuf *);
 static int t4_ready(device_t);
 static int t4_read_port_device(device_t, int, device_t *);
 static int t4_suspend(device_t);
@@ -111,7 +111,7 @@ static device_method_t t4_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -176,7 +176,7 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -215,7 +215,7 @@ static device_method_t t6_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -1572,18 +1572,17 @@ done:
 }
 
 static int
-t4_child_location_str(device_t bus, device_t dev, char *buf, size_t buflen)
+t4_child_location(device_t bus, device_t dev, struct sbuf *sb)
 {
 	struct adapter *sc;
 	struct port_info *pi;
 	int i;
 
 	sc = device_get_softc(bus);
-	buf[0] = '\0';
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		if (pi != NULL && pi->dev == dev) {
-			snprintf(buf, buflen, "port=%d", pi->port_id);
+			sbuf_printf(sb, "port=%d", pi->port_id);
 			break;
 		}
 	}

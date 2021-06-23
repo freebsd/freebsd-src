@@ -75,7 +75,7 @@ static device_method_t  opaldev_methods[] = {
 	DEVMETHOD(clock_settime,	opal_settime),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 
         /* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	opaldev_get_devinfo),

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/time.h>
 
 #include <machine/bus.h>
@@ -802,24 +803,22 @@ superio_child_detached(device_t dev, device_t child)
 }
 
 static int
-superio_child_location_str(device_t parent, device_t child, char *buf,
-    size_t buflen)
+superio_child_location(device_t parent, device_t child, struct sbuf *sb)
 {
 	uint8_t ldn;
 
 	ldn = superio_get_ldn(child);
-	snprintf(buf, buflen, "ldn=0x%02x", ldn);
+	sbuf_printf(sb, "ldn=0x%02x", ldn);
 	return (0);
 }
 
 static int
-superio_child_pnp_str(device_t parent, device_t child, char *buf,
-    size_t buflen)
+superio_child_pnp(device_t parent, device_t child, struct sbuf *sb)
 {
 	superio_dev_type_t type;
 
 	type = superio_get_type(child);
-	snprintf(buf, buflen, "type=%s", devtype_to_str(type));
+	sbuf_printf(sb, "type=%s", devtype_to_str(type));
 	return (0);
 }
 
@@ -1006,8 +1005,8 @@ static device_method_t superio_methods[] = {
 
 	DEVMETHOD(bus_add_child,	superio_add_child),
 	DEVMETHOD(bus_child_detached,	superio_child_detached),
-	DEVMETHOD(bus_child_location_str, superio_child_location_str),
-	DEVMETHOD(bus_child_pnpinfo_str, superio_child_pnp_str),
+	DEVMETHOD(bus_child_location,	superio_child_location),
+	DEVMETHOD(bus_child_pnpinfo,	superio_child_pnp),
 	DEVMETHOD(bus_print_child,	superio_print_child),
 	DEVMETHOD(bus_read_ivar,	superio_read_ivar),
 	DEVMETHOD(bus_write_ivar,	superio_write_ivar),

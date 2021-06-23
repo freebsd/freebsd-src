@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -429,12 +430,10 @@ mvs_print_child(device_t dev, device_t child)
 }
 
 static int
-mvs_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+mvs_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 
-	snprintf(buf, buflen, "channel=%d",
-	    (int)(intptr_t)device_get_ivars(child));
+	sbuf_printf(sb, "channel=%d", (int)(intptr_t)device_get_ivars(child));
 	return (0);
 }
 
@@ -456,7 +455,7 @@ static device_method_t mvs_methods[] = {
 	DEVMETHOD(bus_release_resource,     mvs_release_resource),
 	DEVMETHOD(bus_setup_intr,   mvs_setup_intr),
 	DEVMETHOD(bus_teardown_intr,mvs_teardown_intr),
-	DEVMETHOD(bus_child_location_str, mvs_child_location_str),
+	DEVMETHOD(bus_child_location, mvs_child_location),
 	DEVMETHOD(bus_get_dma_tag,  mvs_get_dma_tag),
 	DEVMETHOD(mvs_edma,         mvs_edma),
 	{ 0, 0 }
