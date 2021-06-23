@@ -40,7 +40,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd October 12, 2020
+.Dd June 23, 2021
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -467,6 +467,12 @@ Carrier status changed to DOWN.
 The network interface is attached to the system.
 .It Li IFNET Ta Em inet Ta Li DETACH Ta
 The network interface is detached from the system.
+.It Li IFNET Ta Em inet Ta Li RENAME Ta
+The network interface is renamed.
+.It Li IFNET Ta Em inet Ta Li ADDR_ADD Ta
+The network interface address added.
+.It Li IFNET Ta Em inet Ta Li ADDR_DEL Ta
+The network interface address removed.
 .El
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
