@@ -51,10 +51,10 @@ char *
 strcasestr_l(const char *s, const char *find, locale_t locale)
 {
 	char c, sc;
+	size_t len;
 	FIX_LOCALE(locale);
 
-	size_t len;
-	if ((c = *find) != 0) {
+	if ((c = *find) != '\0') {
 		c = (char)tolower_l((unsigned char)c, locale);
 		len = strlen(++find);
 		do {
