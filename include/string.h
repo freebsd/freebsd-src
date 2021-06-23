@@ -120,7 +120,7 @@ size_t	 strspn(const char *, const char *) __pure;
 char	*strstr(const char *, const char *) __pure;
 char	*strtok(char * __restrict, const char * __restrict);
 #if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
-char	*strtok_r(char *, const char *, char **);
+char	*strtok_r(char * __restrict, const char * __restrict, char ** __restrict);
 #endif
 size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 #if __BSD_VISIBLE
