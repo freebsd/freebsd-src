@@ -114,6 +114,9 @@ extern bool ice_enable_tx_fc_filter;
 /* global sysctl indicating whether the Tx LLDP filter should be enabled */
 extern bool ice_enable_tx_lldp_filter;
 
+/* global sysctl indicating whether FW health status events should be enabled */
+extern bool ice_enable_health_events;
+
 /**
  * @struct ice_bar_info
  * @brief PCI BAR mapping information
@@ -242,6 +245,19 @@ struct ice_bar_info {
 #define ICE_MIN_MTU 112
 
 #define ICE_DEFAULT_VF_QUEUES	4
+
+/*
+ * There are three settings that can be updated independently or
+ * altogether: Link speed, FEC, and Flow Control.  These macros allow
+ * the caller to specify which setting(s) to update.
+ */
+#define ICE_APPLY_LS        BIT(0)
+#define ICE_APPLY_FEC       BIT(1)
+#define ICE_APPLY_FC        BIT(2)
+#define ICE_APPLY_LS_FEC    (ICE_APPLY_LS | ICE_APPLY_FEC)
+#define ICE_APPLY_LS_FC     (ICE_APPLY_LS | ICE_APPLY_FC)
+#define ICE_APPLY_FEC_FC    (ICE_APPLY_FEC | ICE_APPLY_FC)
+#define ICE_APPLY_LS_FEC_FC (ICE_APPLY_LS_FEC | ICE_APPLY_FC)
 
 /**
  * @enum ice_dyn_idx_t
@@ -761,7 +777,7 @@ void ice_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 			       struct sysctl_oid *parent,
 			       struct ice_hw_port_stats *stats);
 void ice_configure_misc_interrupts(struct ice_softc *sc);
-int ice_sync_multicast_filters(struct ice_softc *sc);
+int  ice_sync_multicast_filters(struct ice_softc *sc);
 enum ice_status ice_add_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
 enum ice_status ice_remove_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
 void ice_add_vsi_tunables(struct ice_vsi *vsi, struct sysctl_oid *parent);
@@ -789,7 +805,7 @@ void ice_get_and_print_bus_info(struct ice_softc *sc);
 const char *ice_fec_str(enum ice_fec_mode mode);
 const char *ice_fc_str(enum ice_fc_mode mode);
 const char *ice_fwd_act_str(enum ice_sw_fwd_act_type action);
-const char * ice_state_to_str(enum ice_state state);
+const char *ice_state_to_str(enum ice_state state);
 int  ice_init_link_events(struct ice_softc *sc);
 void ice_configure_rx_itr(struct ice_vsi *vsi);
 void ice_configure_tx_itr(struct ice_vsi *vsi);
@@ -797,17 +813,18 @@ void ice_setup_pf_vsi(struct ice_softc *sc);
 void ice_handle_mdd_event(struct ice_softc *sc);
 void ice_init_dcb_setup(struct ice_softc *sc);
 int  ice_send_version(struct ice_softc *sc);
-int ice_cfg_pf_ethertype_filters(struct ice_softc *sc);
+int  ice_cfg_pf_ethertype_filters(struct ice_softc *sc);
 void ice_init_link_configuration(struct ice_softc *sc);
 void ice_init_saved_phy_cfg(struct ice_softc *sc);
-void ice_apply_saved_phy_cfg(struct ice_softc *sc);
+int  ice_apply_saved_phy_cfg(struct ice_softc *sc, u8 settings);
 void ice_set_link_management_mode(struct ice_softc *sc);
-int ice_module_event_handler(module_t mod, int what, void *arg);
-int ice_handle_nvm_access_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
-int ice_handle_i2c_req(struct ice_softc *sc, struct ifi2creq *req);
-int ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u16 length);
-int ice_alloc_intr_tracking(struct ice_softc *sc);
+int  ice_module_event_handler(module_t mod, int what, void *arg);
+int  ice_handle_nvm_access_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
+int  ice_handle_i2c_req(struct ice_softc *sc, struct ifi2creq *req);
+int  ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u16 length);
+int  ice_alloc_intr_tracking(struct ice_softc *sc);
 void ice_free_intr_tracking(struct ice_softc *sc);
 void ice_set_default_local_lldp_mib(struct ice_softc *sc);
+void ice_init_health_events(struct ice_softc *sc);
 
 #endif /* _ICE_LIB_H_ */

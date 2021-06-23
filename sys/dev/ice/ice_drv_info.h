@@ -63,16 +63,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "0.28.1-k";
+const char ice_driver_version[] = "0.29.4-k";
 const uint8_t ice_major_version = 0;
-const uint8_t ice_minor_version = 28;
-const uint8_t ice_patch_version = 1;
+const uint8_t ice_minor_version = 29;
+const uint8_t ice_patch_version = 4;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 0.28.1-k")
+	PVID(vendor, devid, name " - 0.29.4-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 0.28.1-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 0.29.4-k")
 
 /**
  * @var ice_vendor_info_array
@@ -116,6 +116,9 @@ static pci_vendor_info_t ice_vendor_info_array[] = {
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
 		ICE_INTEL_VENDOR_ID, 0x000D, 0,
 		"Intel(R) Ethernet Network Adapter E810-L-Q2 for OCP3.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
+		ICE_INTEL_VENDOR_ID, 0x000E, 0,
+		"Intel(R) Ethernet Network Adapter E810-2C-Q2"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_QSFP,
 		"Intel(R) Ethernet Controller E810-C for QSFP"),
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
@@ -133,6 +136,9 @@ static pci_vendor_info_t ice_vendor_info_array[] = {
 	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
 		ICE_INTEL_VENDOR_ID, 0x0009, 0,
 		"Intel(R) Ethernet Network Adapter E810-XXV-2 for OCP 2.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
+		ICE_INTEL_VENDOR_ID, 0x000C, 0,
+		"Intel(R) Ethernet Network Adapter E810-XXV-4 for OCP 3.0"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E810C_SFP,
 		"Intel(R) Ethernet Controller E810-C for SFP"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E822C_BACKPLANE,

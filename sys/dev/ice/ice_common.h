@@ -39,6 +39,9 @@
 #include "virtchnl.h"
 #include "ice_switch.h"
 
+#define ICE_SQ_SEND_DELAY_TIME_MS	10
+#define ICE_SQ_SEND_MAX_EXECUTE		3
+
 enum ice_fw_modes {
 	ICE_FW_MODE_NORMAL,
 	ICE_FW_MODE_DBG,
@@ -219,6 +222,11 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 		  bool write, struct ice_sq_cd *cd);
 
 enum ice_status
+ice_aq_get_port_options(struct ice_hw *hw,
+			struct ice_aqc_get_port_options_elem *options,
+			u8 *option_count, u8 lport, bool lport_valid,
+			u8 *active_option_idx, bool *active_option_valid);
+enum ice_status
 ice_get_ctx(u8 *src_ctx, u8 *dest_ctx, struct ice_ctx_ele *ce_info);
 enum ice_status
 __ice_write_sr_word(struct ice_hw *hw, u32 offset, const u16 *data);
@@ -275,4 +283,9 @@ ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
 bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw);
 enum ice_status
 ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add);
+enum ice_status
+ice_aq_set_health_status_config(struct ice_hw *hw, u8 event_source,
+				struct ice_sq_cd *cd);
+bool ice_is_fw_health_report_supported(struct ice_hw *hw);
+bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw);
 #endif /* _ICE_COMMON_H_ */
