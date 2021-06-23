@@ -171,7 +171,7 @@ attach_vnode_larger_than_file_cleanup()
 atf_test_case attach_vnode_sector_size cleanup
 attach_vnode_sector_size_head()
 {
-	atf_set "descr" "Tests mdconfig -s with size greater than the file size"
+	atf_set "descr" "Tests mdconfig -S with a backing file"
 }
 attach_vnode_sector_size_body()
 {
