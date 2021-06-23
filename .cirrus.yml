@@ -9,8 +9,17 @@ env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
-  name: World and kernel amd64 build test
   timeout_in: 90m
+  matrix:
+  - name: World and kernel amd64 build test
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+  - name: World and kernel arm64 build test
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
   install_script:
   - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
   script:
