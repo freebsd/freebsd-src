@@ -136,8 +136,8 @@ typedef	__ssize_t	ssize_t;
 void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
-int	 timingsafe_bcmp(const void *, const void *, size_t);
-int	 timingsafe_memcmp(const void *, const void *, size_t);
+int	 timingsafe_bcmp(const void *, const void *, size_t) __pure;
+int	 timingsafe_memcmp(const void *, const void *, size_t) __pure;
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200112 || defined(_XLOCALE_H_)
