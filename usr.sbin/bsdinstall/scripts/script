@@ -162,9 +162,7 @@ fi
 if [ -f $TMPDIR/bsdinstall-installscript-ab ]; then
 	cp $TMPDIR/bsdinstall-installscript-ab $BSDINSTALL_CHROOT/tmp/installscript
 	chmod a+x $BSDINSTALL_CHROOT/tmp/installscript
-	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
 	chroot $BSDINSTALL_CHROOT /tmp/installscript $@ 2>&1
-	umount "$BSDINSTALL_CHROOT/dev"
 	rm $BSDINSTALL_CHROOT/tmp/installscript
 fi
 
