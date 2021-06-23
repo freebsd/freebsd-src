@@ -45,13 +45,15 @@
 
 #include <machine/cpu.h>
 
+#define	SEQC_MOD	1
+
 /*
  * Predicts from inline functions are not honored by clang.
  */
 #define seqc_in_modify(seqc)	({			\
 	seqc_t __seqc = (seqc);				\
 							\
-	__predict_false(__seqc & 1);			\
+	__predict_false(__seqc & SEQC_MOD);		\
 })
 
 static __inline void
@@ -60,7 +62,7 @@ seqc_write_begin(seqc_t *seqcp)
 
 	critical_enter();
 	MPASS(!seqc_in_modify(*seqcp));
-	*seqcp += 1;
+	*seqcp += SEQC_MOD;
 	atomic_thread_fence_rel();
 }
 
@@ -69,7 +71,7 @@ seqc_write_end(seqc_t *seqcp)
 {
 
 	atomic_thread_fence_rel();
-	*seqcp += 1;
+	*seqcp += SEQC_MOD;
 	MPASS(!seqc_in_modify(*seqcp));
 	critical_exit();
 }
@@ -85,7 +87,7 @@ static __inline seqc_t
 seqc_read_notmodify(const seqc_t *seqcp)
 {
 
-	return (atomic_load_acq_int(__DECONST(seqc_t *, seqcp)) & ~1);
+	return (atomic_load_acq_int(__DECONST(seqc_t *, seqcp)) & ~SEQC_MOD);
 }
 
 static __inline seqc_t
@@ -126,7 +128,7 @@ seqc_sleepable_write_begin(seqc_t *seqcp)
 {
 
 	MPASS(!seqc_in_modify(*seqcp));
-	*seqcp += 1;
+	*seqcp += SEQC_MOD;
 	atomic_thread_fence_rel();
 }
 
@@ -135,7 +137,7 @@ seqc_sleepable_write_end(seqc_t *seqcp)
 {
 
 	atomic_thread_fence_rel();
-	*seqcp += 1;
+	*seqcp += SEQC_MOD;
 	MPASS(!seqc_in_modify(*seqcp));
 }
 

@@ -621,9 +621,10 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
 }
 
 int
-softdep_prelink(dvp, vp)
+softdep_prelink(dvp, vp, cnp)
 	struct vnode *dvp;
 	struct vnode *vp;
+	struct componentname *cnp;
 {
 
 	panic("softdep_prelink called");
@@ -3221,6 +3222,26 @@ journal_unsuspend(struct ufsmount *ump)
 	return (0);
 }
 
+static void
+journal_check_space(ump)
+	struct ufsmount *ump;
+{
+	struct mount *mp;
+
+	LOCK_OWNED(ump);
+
+	if (journal_space(ump, 0) == 0) {
+		softdep_speedup(ump);
+		mp = UFSTOVFS(ump);
+		FREE_LOCK(ump);
+		VFS_SYNC(mp, MNT_NOWAIT);
+		ffs_sbupdate(ump, MNT_WAIT, 0);
+		ACQUIRE_LOCK(ump);
+		if (journal_space(ump, 1) == 0)
+			journal_suspend(ump);
+	}
+}
+
 /*
  * Called before any allocation function to be certain that there is
  * sufficient space in the journal prior to creating any new records.
@@ -3271,11 +3292,7 @@ softdep_prealloc(vp, waitok)
 	ACQUIRE_LOCK(ump);
 	process_removes(vp);
 	process_truncates(vp);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 
 	return (0);
@@ -3362,11 +3379,7 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
 	ACQUIRE_LOCK(ump);
 	softdep_speedup(ump);
 	process_worklist_item(UFSTOVFS(ump), 2, LK_NOWAIT);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 	return (ERELOOKUP);
 }
@@ -3384,11 +3397,13 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
  * syscall must be restarted at top level from the lookup.
  */
 int
-softdep_prelink(dvp, vp)
+softdep_prelink(dvp, vp, cnp)
 	struct vnode *dvp;
 	struct vnode *vp;
+	struct componentname *cnp;
 {
 	struct ufsmount *ump;
+	struct nameidata *ndp;
 
 	ASSERT_VOP_ELOCKED(dvp, "prelink dvp");
 	if (vp != NULL)
@@ -3404,37 +3419,50 @@ softdep_prelink(dvp, vp)
 	if (journal_space(ump, 0) || (vp != NULL && IS_SNAPSHOT(VTOI(vp))))
 		return (0);
 
+	/*
+	 * Check if the journal space consumption can in theory be
+	 * accounted on dvp and vp.  If the vnodes metadata was not
+	 * changed comparing with the previous round-trip into
+	 * softdep_prelink(), as indicated by the seqc generation
+	 * recorded in the nameidata, then there is no point in
+	 * starting the sync.
+	 */
+	ndp = __containerof(cnp, struct nameidata, ni_cnd);
+	if (!seqc_in_modify(ndp->ni_dvp_seqc) &&
+	    vn_seqc_consistent(dvp, ndp->ni_dvp_seqc) &&
+	    (vp == NULL || (!seqc_in_modify(ndp->ni_vp_seqc) &&
+	    vn_seqc_consistent(vp, ndp->ni_vp_seqc))))
+		return (0);
+
 	stat_journal_low++;
 	if (vp != NULL) {
 		VOP_UNLOCK(dvp);
 		ffs_syncvnode(vp, MNT_NOWAIT, 0);
 		vn_lock_pair(dvp, false, vp, true);
 		if (dvp->v_data == NULL)
-			return (ERELOOKUP);
+			goto out;
 	}
 	if (vp != NULL)
 		VOP_UNLOCK(vp);
 	ffs_syncvnode(dvp, MNT_WAIT, 0);
-	VOP_UNLOCK(dvp);
-
 	/* Process vp before dvp as it may create .. removes. */
 	if (vp != NULL) {
+		VOP_UNLOCK(dvp);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (vp->v_data == NULL) {
 			vn_lock_pair(dvp, false, vp, true);
-			return (ERELOOKUP);
+			goto out;
 		}
 		ACQUIRE_LOCK(ump);
 		process_removes(vp);
 		process_truncates(vp);
 		FREE_LOCK(ump);
 		VOP_UNLOCK(vp);
-	}
-
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-	if (dvp->v_data == NULL) {
-		vn_lock_pair(dvp, true, vp, false);
-		return (ERELOOKUP);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		if (dvp->v_data == NULL) {
+			vn_lock_pair(dvp, true, vp, false);
+			goto out;
+		}
 	}
 
 	ACQUIRE_LOCK(ump);
@@ -3444,14 +3472,14 @@ softdep_prelink(dvp, vp)
 	softdep_speedup(ump);
 
 	process_worklist_item(UFSTOVFS(ump), 2, LK_NOWAIT);
-	if (journal_space(ump, 0) == 0) {
-		softdep_speedup(ump);
-		if (journal_space(ump, 1) == 0)
-			journal_suspend(ump);
-	}
+	journal_check_space(ump);
 	FREE_LOCK(ump);
 
 	vn_lock_pair(dvp, false, vp, false);
+out:
+	ndp->ni_dvp_seqc = vn_seqc_read_any(dvp);
+	if (vp != NULL)
+		ndp->ni_vp_seqc = vn_seqc_read_any(vp);
 	return (ERELOOKUP);
 }
 
