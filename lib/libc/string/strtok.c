@@ -53,8 +53,8 @@ __weak_reference(__strtok_r, strtok_r);
 char *
 __strtok_r(char * __restrict s, const char * __restrict delim, char ** __restrict last)
 {
-	register char *spanp, *tok;
-	register char c, sc;
+	char *spanp, *tok;
+	char c, sc;
 
 	if (s == NULL && (s = *last) == NULL)
 		return NULL;
