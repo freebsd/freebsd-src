@@ -134,10 +134,10 @@ void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
 void		pci_child_deleted(device_t dev, device_t child);
 void		pci_child_detached(device_t dev, device_t child);
-int		pci_child_location_str_method(device_t cbdev, device_t child,
-		    char *buf, size_t buflen);
-int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
-		    char *buf, size_t buflen);
+int		pci_child_location_method(device_t cbdev, device_t child,
+		    struct sbuf *sb);
+int		pci_child_pnpinfo_method(device_t cbdev, device_t child,
+		    struct sbuf *sb);
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
 int		pci_resume_child(device_t dev, device_t child);

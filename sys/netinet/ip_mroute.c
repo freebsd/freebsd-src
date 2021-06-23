@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -290,7 +291,7 @@ static struct pim_encap_pimhdr pim_encap_pimhdr = {
 
 VNET_DEFINE_STATIC(vifi_t, reg_vif_num) = VIFI_INVALID;
 #define	V_reg_vif_num		VNET(reg_vif_num)
-VNET_DEFINE_STATIC(struct ifnet, multicast_register_if);
+VNET_DEFINE_STATIC(struct ifnet *, multicast_register_if);
 #define	V_multicast_register_if	VNET(multicast_register_if)
 
 /*
@@ -944,11 +945,10 @@ add_vif(struct vifctl *vifcp)
 	MRW_WUNLOCK();
 	return EOPNOTSUPP;
     } else if (vifcp->vifc_flags & VIFF_REGISTER) {
-	ifp = &V_multicast_register_if;
+	ifp = V_multicast_register_if = if_alloc(IFT_LOOP);
 	CTR2(KTR_IPMF, "%s: add register vif for ifp %p", __func__, ifp);
 	if (V_reg_vif_num == VIFI_INVALID) {
-	    if_initname(&V_multicast_register_if, "register_vif", 0);
-	    V_multicast_register_if.if_flags = IFF_LOOPBACK;
+	    if_initname(V_multicast_register_if, "register_vif", 0);
 	    V_reg_vif_num = vifcp->vifc_vifi;
 	}
     } else {		/* Make sure the interface supports multicast */
@@ -1012,8 +1012,11 @@ del_vif_locked(vifi_t vifi)
     if (!(vifp->v_flags & (VIFF_TUNNEL | VIFF_REGISTER)))
 	if_allmulti(vifp->v_ifp, 0);
 
-    if (vifp->v_flags & VIFF_REGISTER)
+    if (vifp->v_flags & VIFF_REGISTER) {
 	V_reg_vif_num = VIFI_INVALID;
+	if_free(V_multicast_register_if);
+	V_multicast_register_if = NULL;
+    }
 
     mtx_destroy(&vifp->v_spin);
 
@@ -1568,7 +1571,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 */
 	if (V_pim_assert_enabled && (vifi < V_numvifs) &&
 	    V_viftable[vifi].v_ifp) {
-	    if (ifp == &V_multicast_register_if)
+	    if (ifp == V_multicast_register_if)
 		PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
 	    /* Get vifi for the incoming packet */

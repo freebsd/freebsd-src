@@ -32,11 +32,12 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/bus.h>
+#include <sys/sbuf.h>
 
 #include <dev/smbus/smbconf.h>
 #include <dev/smbus/smbus.h>
@@ -135,16 +136,13 @@ smbus_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static int
-smbus_child_location_str(device_t parent, device_t child, char *buf,
-    size_t buflen)
+smbus_child_location(device_t parent, device_t child, struct sbuf *sb)
 {
 	struct smbus_ivar *devi;
 
 	devi = device_get_ivars(child);
 	if (devi->addr != 0)
-		snprintf(buf, buflen, "addr=0x%x", devi->addr);
-	else if (buflen)
-		buf[0] = 0;
+		sbuf_printf(sb, "addr=0x%x", devi->addr);
 	return (0);
 }
 
@@ -228,7 +226,7 @@ static device_method_t smbus_methods[] = {
 	DEVMETHOD(bus_add_child,	smbus_add_child),
 	DEVMETHOD(bus_hinted_child,	smbus_hinted_child),
 	DEVMETHOD(bus_probe_nomatch,	smbus_probe_nomatch),
-	DEVMETHOD(bus_child_location_str, smbus_child_location_str),
+	DEVMETHOD(bus_child_location,	smbus_child_location),
 	DEVMETHOD(bus_print_child,	smbus_print_child),
 	DEVMETHOD(bus_read_ivar,	smbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	smbus_write_ivar),

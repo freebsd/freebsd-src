@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
 #include "ntb.h"
@@ -168,12 +169,11 @@ ntb_unregister_device(device_t dev)
 }
 
 int
-ntb_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+ntb_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct ntb_child *nc = device_get_ivars(child);
 
-	snprintf(buf, buflen, "function=%d", nc->function);
+	sbuf_printf(sb, "function=%d", nc->function);
 	return (0);
 }
 

@@ -159,8 +159,6 @@ EVENTHANDLER_LIST_DEFINE(device_attach);
 EVENTHANDLER_LIST_DEFINE(device_detach);
 EVENTHANDLER_LIST_DEFINE(dev_lookup);
 
-static int bus_child_location_sb(device_t child, struct sbuf *sb);
-static int bus_child_pnpinfo_sb(device_t child, struct sbuf *sb);
 static void devctl2_init(void);
 static bool device_frozen;
 
@@ -276,10 +274,10 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		sbuf_cat(&sb, dev->driver ? dev->driver->name : "");
 		break;
 	case DEVICE_SYSCTL_LOCATION:
-		bus_child_location_sb(dev, &sb);
+		bus_child_location(dev, &sb);
 		break;
 	case DEVICE_SYSCTL_PNPINFO:
-		bus_child_pnpinfo_sb(dev, &sb);
+		bus_child_pnpinfo(dev, &sb);
 		break;
 	case DEVICE_SYSCTL_PARENT:
 		sbuf_cat(&sb, dev->parent ? dev->parent->nameunit : "");
@@ -736,11 +734,11 @@ devaddq(const char *type, const char *what, device_t dev)
 	sbuf_cat(&sb, " at ");
 
 	/* Add in the location */
-	bus_child_location_sb(dev, &sb);
+	bus_child_location(dev, &sb);
 	sbuf_putc(&sb, ' ');
 
 	/* Add in pnpinfo */
-	bus_child_pnpinfo_sb(dev, &sb);
+	bus_child_pnpinfo(dev, &sb);
 
 	/* Get the parent of this device, or / if high enough in the tree. */
 	if (device_get_parent(dev) == NULL)
@@ -4947,108 +4945,62 @@ bus_child_present(device_t child)
 }
 
 /**
- * @brief Wrapper function for BUS_CHILD_PNPINFO_STR().
+ * @brief Wrapper function for BUS_CHILD_PNPINFO().
  *
- * This function simply calls the BUS_CHILD_PNPINFO_STR() method of the
- * parent of @p dev.
+ * This function simply calls the BUS_CHILD_PNPINFO() method of the parent of @p
+ * dev.
  */
 int
-bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen)
+bus_child_pnpinfo(device_t child, struct sbuf *sb)
 {
 	device_t parent;
 
 	parent = device_get_parent(child);
-	if (parent == NULL) {
-		*buf = '\0';
+	if (parent == NULL)
 		return (0);
-	}
-	return (BUS_CHILD_PNPINFO_STR(parent, child, buf, buflen));
+	return (BUS_CHILD_PNPINFO(parent, child, sb));
 }
 
 /**
- * @brief Wrapper function for BUS_CHILD_LOCATION_STR().
+ * @brief Generic implementation that does nothing for bus_child_pnpinfo
  *
- * This function simply calls the BUS_CHILD_LOCATION_STR() method of the
- * parent of @p dev.
+ * This function has the right signature and returns 0 since the sbuf is passed
+ * to us to append to.
  */
 int
-bus_child_location_str(device_t child, char *buf, size_t buflen)
+bus_generic_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb)
+{
+	return (0);
+}
+
+/**
+ * @brief Wrapper function for BUS_CHILD_LOCATION().
+ *
+ * This function simply calls the BUS_CHILD_LOCATION() method of the parent of
+ * @p dev.
+ */
+int
+bus_child_location(device_t child, struct sbuf *sb)
 {
 	device_t parent;
 
 	parent = device_get_parent(child);
-	if (parent == NULL) {
-		*buf = '\0';
+	if (parent == NULL)
 		return (0);
-	}
-	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
+	return (BUS_CHILD_LOCATION(parent, child, sb));
 }
 
 /**
- * @brief Wrapper function for bus_child_pnpinfo_str using sbuf
+ * @brief Generic implementation that does nothing for bus_child_location
  *
- * A convenient wrapper frunction for bus_child_pnpinfo_str that allows
- * us to splat that into an sbuf. It uses unholy knowledge of sbuf to
- * accomplish this, however. It is an interim function until we can convert
- * this interface more fully.
+ * This function has the right signature and returns 0 since the sbuf is passed
+ * to us to append to.
  */
-/* Note: we reach inside of sbuf because it's API isn't rich enough to do this */
-#define	SPACE(s)	((s)->s_size - (s)->s_len)
-#define EOB(s)		((s)->s_buf + (s)->s_len)
-
-static int
-bus_child_pnpinfo_sb(device_t dev, struct sbuf *sb)
+int
+bus_generic_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
-	char *p;
-	ssize_t space;
-
-	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
-	MPASS(sb->s_size >= sb->s_len);
-	if (sb->s_error != 0)
-		return (-1);
-	space = SPACE(sb);
-	if (space <= 1) {
-		sb->s_error = ENOMEM;
-		return (-1);
-	}
-	p = EOB(sb);
-	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
-	bus_child_pnpinfo_str(dev, p, space);
-	sb->s_len += strlen(p);
 	return (0);
 }
-
-/**
- * @brief Wrapper function for bus_child_pnpinfo_str using sbuf
- *
- * A convenient wrapper frunction for bus_child_pnpinfo_str that allows
- * us to splat that into an sbuf. It uses unholy knowledge of sbuf to
- * accomplish this, however. It is an interim function until we can convert
- * this interface more fully.
- */
-static int
-bus_child_location_sb(device_t dev, struct sbuf *sb)
-{
-	char *p;
-	ssize_t space;
-
-	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
-	MPASS(sb->s_size >= sb->s_len);
-	if (sb->s_error != 0)
-		return (-1);
-	space = SPACE(sb);
-	if (space <= 1) {
-		sb->s_error = ENOMEM;
-		return (-1);
-	}
-	p = EOB(sb);
-	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
-	bus_child_location_str(dev, p, space);
-	sb->s_len += strlen(p);
-	return (0);
-}
-#undef SPACE
-#undef EOB
 
 /**
  * @brief Wrapper function for BUS_GET_CPUS().
@@ -5579,9 +5531,9 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	if (dev->driver != NULL)
 		sbuf_cat(&sb, dev->driver->name);
 	sbuf_putc(&sb, '\0');
-	bus_child_pnpinfo_sb(dev, &sb);
+	bus_child_pnpinfo(dev, &sb);
 	sbuf_putc(&sb, '\0');
-	bus_child_location_sb(dev, &sb);
+	bus_child_location(dev, &sb);
 	sbuf_putc(&sb, '\0');
 	error = sbuf_finish(&sb);
 	if (error == 0)

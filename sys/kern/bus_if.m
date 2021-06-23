@@ -654,8 +654,7 @@ METHOD int child_present {
 /**
  * @brief Returns the pnp info for this device.
  *
- * Return it as a string.  If the storage is insufficient for the
- * string, then return EOVERFLOW.
+ * Return it as a string, appended to @p _sb
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,
@@ -666,22 +665,18 @@ METHOD int child_present {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
- * @param _buf		the address of a buffer to receive the pnp
- *			string
- * @param _buflen	the size of the buffer pointed to by @p _buf
+ * @param _sb		sbuf for results string
  */
-METHOD int child_pnpinfo_str {
+METHOD int child_pnpinfo {
 	device_t	_dev;
 	device_t	_child;
-	char		*_buf;
-	size_t		_buflen;
-};
+	struct sbuf	*_sb;
+} DEFAULT bus_generic_child_pnpinfo;
 
 /**
  * @brief Returns the location for this device.
  *
- * Return it as a string.  If the storage is insufficient for the
- * string, then return EOVERFLOW.
+ * Return it as a string, appended to @p _sb
  *
  * The string must be formatted as a space-separated list of
  * name=value pairs.  Names may only contain alphanumeric characters,
@@ -692,16 +687,13 @@ METHOD int child_pnpinfo_str {
  *
  * @param _dev		the parent device of @p _child
  * @param _child	the device which is being examined
- * @param _buf		the address of a buffer to receive the location
- *			string
- * @param _buflen	the size of the buffer pointed to by @p _buf
+ * @param _sb		sbuf for results string
  */
-METHOD int child_location_str {
+METHOD int child_location {
 	device_t	_dev;
 	device_t	_child;
-	char		*_buf;
-	size_t		_buflen;
-};
+	struct sbuf	*_sb;
+} DEFAULT bus_generic_child_location;
 
 /**
  * @brief Allow drivers to request that an interrupt be bound to a specific

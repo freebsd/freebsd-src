@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
 #include <dev/ow/ow.h>
@@ -589,27 +590,13 @@ ow_detach(device_t ndev)
 	return 0;
 }
 
-/*
- * Not sure this is really needed. I'm having trouble figuring out what
- * location means in the context of the one wire bus.
- */
 static int
-ow_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
-{
-
-	*buf = '\0';
-	return (0);
-}
-
-static int
-ow_child_pnpinfo_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+ow_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct ow_devinfo *di;
 
 	di = device_get_ivars(child);
-	snprintf(buf, buflen, "romid=%8D", &di->romid, ":");
+	sbuf_printf(sb, "romid=%8D", &di->romid, ":");
 	return (0);
 }
 
@@ -721,8 +708,7 @@ static device_method_t ow_methods[] = {
 	DEVMETHOD(device_detach,	ow_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str, ow_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, ow_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo,	ow_child_pnpinfo),
 	DEVMETHOD(bus_read_ivar,	ow_read_ivar),
 	DEVMETHOD(bus_write_ivar,	ow_write_ivar),
 	DEVMETHOD(bus_print_child,	ow_print_child),

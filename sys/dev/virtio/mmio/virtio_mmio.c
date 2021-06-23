@@ -146,7 +146,7 @@ static device_method_t vtmmio_methods[] = {
 	/* Bus interface. */
 	DEVMETHOD(bus_driver_added,		  vtmmio_driver_added),
 	DEVMETHOD(bus_child_detached,		  vtmmio_child_detached),
-	DEVMETHOD(bus_child_pnpinfo_str,	  virtio_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,		  virtio_child_pnpinfo),
 	DEVMETHOD(bus_read_ivar,		  vtmmio_read_ivar),
 	DEVMETHOD(bus_write_ivar,		  vtmmio_write_ivar),
 
@@ -382,7 +382,7 @@ vtmmio_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	case VIRTIO_IVAR_DEVICE:
 		/*
 		 * Dummy value for fields not present in this bus.  Used by
-		 * bus-agnostic virtio_child_pnpinfo_str.
+		 * bus-agnostic virtio_child_pnpinfo.
 		 */
 		*result = 0;
 		break;

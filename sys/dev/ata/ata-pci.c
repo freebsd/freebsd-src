@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
@@ -558,11 +559,10 @@ ata_pci_print_child(device_t dev, device_t child)
 }
 
 int
-ata_pci_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+ata_pci_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 
-	snprintf(buf, buflen, "channel=%d",
+	sbuf_printf(sb, "channel=%d",
 	    (int)(intptr_t)device_get_ivars(child));
 	return (0);
 }
@@ -595,7 +595,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
     DEVMETHOD(bus_print_child,		ata_pci_print_child),
-    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
+    DEVMETHOD(bus_child_location,	ata_pci_child_location),
     DEVMETHOD(bus_get_dma_tag,		ata_pci_get_dma_tag),
 
     DEVMETHOD_END

@@ -83,7 +83,7 @@ ofw_bus_get_node_t	ofw_bus_gen_get_node;
 ofw_bus_get_type_t	ofw_bus_gen_get_type;
 
 /* Helper method to report interesting OF properties in pnpinfo */
-bus_child_pnpinfo_str_t	ofw_bus_gen_child_pnpinfo_str;
+bus_child_pnpinfo_t	ofw_bus_gen_child_pnpinfo;
 
 /* Routines for processing firmware interrupt maps */
 void	ofw_bus_setup_iinfo(phandle_t, struct ofw_bus_iinfo *, int);
