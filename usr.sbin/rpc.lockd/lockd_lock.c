@@ -217,7 +217,6 @@ enum nlm_stats	do_test(struct file_lock *fl,
 enum nlm_stats	do_unlock(struct file_lock *fl);
 enum nlm_stats	do_lock(struct file_lock *fl);
 void	do_clear(const char *hostname);
-size_t	strnlen(const char *, size_t);
 
 void
 debuglog(char const *fmt, ...)
@@ -371,17 +370,6 @@ copy_nlm4_lock_to_nlm4_holder(src, exclusive, dest)
 	dest->svid = src->svid;
 	dest->l_offset = src->l_offset;
 	dest->l_len = src->l_len;
-}
-
-
-size_t
-strnlen(const char *s, size_t len)
-{
-    size_t n;
-
-    for (n = 0;  s[n] != 0 && n < len; n++)
-        ;
-    return n;
 }
 
 /*
