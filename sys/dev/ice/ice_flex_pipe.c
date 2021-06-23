@@ -38,6 +38,7 @@
 /* To support tunneling entries by PF, the package will append the PF number to
  * the label; for example TNL_VXLAN_PF0, TNL_VXLAN_PF1, TNL_VXLAN_PF2, etc.
  */
+#define ICE_TNL_PRE	"TNL_"
 static const struct ice_tunnel_type_scan tnls[] = {
 	{ TNL_VXLAN,		"TNL_VXLAN_PF" },
 	{ TNL_GENEVE,		"TNL_GENEVE_PF" },
@@ -364,6 +365,7 @@ ice_boost_tcam_handler(u32 sect_type, void *section, u32 index, u32 *offset)
 	if (sect_type != ICE_SID_RXPARSER_BOOST_TCAM)
 		return NULL;
 
+	/* cppcheck-suppress nullPointer */
 	if (index > ICE_MAX_BST_TCAMS_IN_BUF)
 		return NULL;
 
@@ -435,6 +437,7 @@ ice_label_enum_handler(u32 __ALWAYS_UNUSED sect_type, void *section, u32 index,
 	if (!section)
 		return NULL;
 
+	/* cppcheck-suppress nullPointer */
 	if (index > ICE_MAX_LABELS_IN_BUF)
 		return NULL;
 
@@ -481,6 +484,42 @@ ice_enum_labels(struct ice_seg *ice_seg, u32 type, struct ice_pkg_enum *state,
 }
 
 /**
+ * ice_add_tunnel_hint
+ * @hw: pointer to the HW structure
+ * @label_name: label text
+ * @val: value of the tunnel port boost entry
+ */
+static void ice_add_tunnel_hint(struct ice_hw *hw, char *label_name, u16 val)
+{
+	if (hw->tnl.count < ICE_TUNNEL_MAX_ENTRIES) {
+		u16 i;
+
+		for (i = 0; tnls[i].type != TNL_LAST; i++) {
+			size_t len = strlen(tnls[i].label_prefix);
+
+			/* Look for matching label start, before continuing */
+			if (strncmp(label_name, tnls[i].label_prefix, len))
+				continue;
+
+			/* Make sure this label matches our PF. Note that the PF
+			 * character ('0' - '7') will be located where our
+			 * prefix string's null terminator is located.
+			 */
+			if ((label_name[len] - '0') == hw->pf_id) {
+				hw->tnl.tbl[hw->tnl.count].type = tnls[i].type;
+				hw->tnl.tbl[hw->tnl.count].valid = false;
+				hw->tnl.tbl[hw->tnl.count].in_use = false;
+				hw->tnl.tbl[hw->tnl.count].marked = false;
+				hw->tnl.tbl[hw->tnl.count].boost_addr = val;
+				hw->tnl.tbl[hw->tnl.count].port = 0;
+				hw->tnl.count++;
+				break;
+			}
+		}
+	}
+}
+
+/**
  * ice_init_pkg_hints
  * @hw: pointer to the HW structure
  * @ice_seg: pointer to the segment of the package scan (non-NULL)
@@ -506,34 +545,15 @@ static void ice_init_pkg_hints(struct ice_hw *hw, struct ice_seg *ice_seg)
 	label_name = ice_enum_labels(ice_seg, ICE_SID_LBL_RXPARSER_TMEM, &state,
 				     &val);
 
-	while (label_name && hw->tnl.count < ICE_TUNNEL_MAX_ENTRIES) {
-		for (i = 0; tnls[i].type != TNL_LAST; i++) {
-			size_t len = strlen(tnls[i].label_prefix);
-
-			/* Look for matching label start, before continuing */
-			if (strncmp(label_name, tnls[i].label_prefix, len))
-				continue;
-
-			/* Make sure this label matches our PF. Note that the PF
-			 * character ('0' - '7') will be located where our
-			 * prefix string's null terminator is located.
-			 */
-			if ((label_name[len] - '0') == hw->pf_id) {
-				hw->tnl.tbl[hw->tnl.count].type = tnls[i].type;
-				hw->tnl.tbl[hw->tnl.count].valid = false;
-				hw->tnl.tbl[hw->tnl.count].in_use = false;
-				hw->tnl.tbl[hw->tnl.count].marked = false;
-				hw->tnl.tbl[hw->tnl.count].boost_addr = val;
-				hw->tnl.tbl[hw->tnl.count].port = 0;
-				hw->tnl.count++;
-				break;
-			}
-		}
+	while (label_name) {
+		if (!strncmp(label_name, ICE_TNL_PRE, strlen(ICE_TNL_PRE)))
+			/* check for a tunnel entry */
+			ice_add_tunnel_hint(hw, label_name, val);
 
 		label_name = ice_enum_labels(NULL, 0, &state, &val);
 	}
 
-	/* Cache the appropriate boost TCAM entry pointers */
+	/* Cache the appropriate boost TCAM entry pointers for tunnels */
 	for (i = 0; i < hw->tnl.count; i++) {
 		ice_find_boost_entry(ice_seg, hw->tnl.tbl[i].boost_addr,
 				     &hw->tnl.tbl[i].boost_entry);
@@ -944,6 +964,36 @@ ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
 }
 
 /**
+ * ice_update_pkg_no_lock
+ * @hw: pointer to the hardware structure
+ * @bufs: pointer to an array of buffers
+ * @count: the number of buffers in the array
+ */
+static enum ice_status
+ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
+{
+	enum ice_status status = ICE_SUCCESS;
+	u32 i;
+
+	for (i = 0; i < count; i++) {
+		struct ice_buf_hdr *bh = (struct ice_buf_hdr *)(bufs + i);
+		bool last = ((i + 1) == count);
+		u32 offset, info;
+
+		status = ice_aq_update_pkg(hw, bh, LE16_TO_CPU(bh->data_end),
+					   last, &offset, &info, NULL);
+
+		if (status) {
+			ice_debug(hw, ICE_DBG_PKG, "Update pkg failed: err %d off %d inf %d\n",
+				  status, offset, info);
+			break;
+		}
+	}
+
+	return status;
+}
+
+/**
  * ice_update_pkg
  * @hw: pointer to the hardware structure
  * @bufs: pointer to an array of buffers
@@ -955,25 +1005,12 @@ enum ice_status
 ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 {
 	enum ice_status status;
-	u32 offset, info, i;
 
 	status = ice_acquire_change_lock(hw, ICE_RES_WRITE);
 	if (status)
 		return status;
 
-	for (i = 0; i < count; i++) {
-		struct ice_buf_hdr *bh = (struct ice_buf_hdr *)(bufs + i);
-		bool last = ((i + 1) == count);
-
-		status = ice_aq_update_pkg(hw, bh, LE16_TO_CPU(bh->data_end),
-					   last, &offset, &info, NULL);
-
-		if (status) {
-			ice_debug(hw, ICE_DBG_PKG, "Update pkg failed: err %d off %d inf %d\n",
-				  status, offset, info);
-			break;
-		}
-	}
+	status = ice_update_pkg_no_lock(hw, bufs, count);
 
 	ice_release_change_lock(hw);
 
@@ -1102,6 +1139,7 @@ static enum ice_status
 ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 {
 	struct ice_buf_table *ice_buf_tbl;
+	enum ice_status status;
 
 	ice_debug(hw, ICE_DBG_TRACE, "%s\n", __func__);
 	ice_debug(hw, ICE_DBG_PKG, "Segment format version: %d.%d.%d.%d\n",
@@ -1119,8 +1157,12 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 	ice_debug(hw, ICE_DBG_PKG, "Seg buf count: %d\n",
 		  LE32_TO_CPU(ice_buf_tbl->buf_count));
 
-	return ice_dwnld_cfg_bufs(hw, ice_buf_tbl->buf_array,
-				  LE32_TO_CPU(ice_buf_tbl->buf_count));
+	status = ice_dwnld_cfg_bufs(hw, ice_buf_tbl->buf_array,
+				    LE32_TO_CPU(ice_buf_tbl->buf_count));
+
+	ice_cache_vlan_mode(hw);
+
+	return status;
 }
 
 /**
@@ -1882,7 +1924,7 @@ void ice_init_prof_result_bm(struct ice_hw *hw)
  *
  * Frees a package buffer
  */
-static void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld)
+void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld)
 {
 	ice_free(hw, bld);
 }
@@ -1991,7 +2033,7 @@ ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size)
  * Allocates a package buffer with a single section.
  * Note: all package contents must be in Little Endian form.
  */
-static struct ice_buf_build *
+struct ice_buf_build *
 ice_pkg_buf_alloc_single_section(struct ice_hw *hw, u32 type, u16 size,
 				 void **section)
 {
@@ -2105,7 +2147,7 @@ static u16 ice_pkg_buf_get_active_sections(struct ice_buf_build *bld)
  *
  * Return a pointer to the buffer's header
  */
-static struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
+struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
 {
 	if (!bld)
 		return NULL;
@@ -2342,7 +2384,7 @@ enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
 	u16 count = 0;
 	u16 index;
 	u16 size;
-	u16 i;
+	u16 i, j;
 
 	ice_acquire_lock(&hw->tnl_lock);
 
@@ -2382,30 +2424,31 @@ enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
 					  size);
 	if (!sect_rx)
 		goto ice_destroy_tunnel_err;
-	sect_rx->count = CPU_TO_LE16(1);
+	sect_rx->count = CPU_TO_LE16(count);
 
 	sect_tx = (struct ice_boost_tcam_section *)
 		ice_pkg_buf_alloc_section(bld, ICE_SID_TXPARSER_BOOST_TCAM,
 					  size);
 	if (!sect_tx)
 		goto ice_destroy_tunnel_err;
-	sect_tx->count = CPU_TO_LE16(1);
+	sect_tx->count = CPU_TO_LE16(count);
 
 	/* copy original boost entry to update package buffer, one copy to Rx
 	 * section, another copy to the Tx section
 	 */
-	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+	for (i = 0, j = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
 		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
 		    (all || hw->tnl.tbl[i].port == port)) {
-			ice_memcpy(sect_rx->tcam + i,
+			ice_memcpy(sect_rx->tcam + j,
 				   hw->tnl.tbl[i].boost_entry,
 				   sizeof(*sect_rx->tcam),
 				   ICE_NONDMA_TO_NONDMA);
-			ice_memcpy(sect_tx->tcam + i,
+			ice_memcpy(sect_tx->tcam + j,
 				   hw->tnl.tbl[i].boost_entry,
 				   sizeof(*sect_tx->tcam),
 				   ICE_NONDMA_TO_NONDMA);
 			hw->tnl.tbl[i].marked = true;
+			j++;
 		}
 
 	status = ice_update_pkg(hw, ice_pkg_buf(bld), 1);
@@ -2768,6 +2811,7 @@ ice_match_prop_lst(struct LIST_HEAD_TYPE *list1, struct LIST_HEAD_TYPE *list2)
 		count++;
 	LIST_FOR_EACH_ENTRY(tmp2, list2, ice_vsig_prof, list)
 		chk_count++;
+	/* cppcheck-suppress knownConditionTrueFalse */
 	if (!count || count != chk_count)
 		return false;
 

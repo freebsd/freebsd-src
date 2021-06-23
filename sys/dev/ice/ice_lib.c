@@ -49,6 +49,7 @@
 #include <net/if_dl.h>
 #include <sys/firmware.h>
 #include <sys/priv.h>
+#include <sys/limits.h>
 
 /**
  * @var M_ICE
@@ -119,20 +120,18 @@ static int ice_add_ethertype_to_list(struct ice_vsi *vsi,
 				     enum ice_sw_fwd_act_type action);
 static void ice_add_rx_lldp_filter(struct ice_softc *sc);
 static void ice_del_rx_lldp_filter(struct ice_softc *sc);
-static u16 ice_aq_phy_types_to_sysctl_speeds(u64 phy_type_low,
-					     u64 phy_type_high);
-static void
-ice_apply_saved_phy_req_to_cfg(struct ice_port_info *pi,
-			       struct ice_aqc_get_phy_caps_data *pcaps,
+static u16 ice_aq_phy_types_to_link_speeds(u64 phy_type_low,
+					   u64 phy_type_high);
+struct ice_phy_data;
+static int
+ice_intersect_phy_types_and_speeds(struct ice_softc *sc,
+				   struct ice_phy_data *phy_data);
+static int
+ice_apply_saved_phy_req_to_cfg(struct ice_softc *sc,
 			       struct ice_aqc_set_phy_cfg_data *cfg);
-static void
-ice_apply_saved_fec_req_to_cfg(struct ice_port_info *pi,
-			       struct ice_aqc_get_phy_caps_data *pcaps,
+static int
+ice_apply_saved_fec_req_to_cfg(struct ice_softc *sc,
 			       struct ice_aqc_set_phy_cfg_data *cfg);
-static void
-ice_apply_saved_user_req_to_cfg(struct ice_port_info *pi,
-				struct ice_aqc_get_phy_caps_data *pcaps,
-				struct ice_aqc_set_phy_cfg_data *cfg);
 static void
 ice_apply_saved_fc_req_to_cfg(struct ice_port_info *pi,
 			      struct ice_aqc_set_phy_cfg_data *cfg);
@@ -142,16 +141,13 @@ ice_print_ldo_tlv(struct ice_softc *sc,
 static void
 ice_sysctl_speeds_to_aq_phy_types(u16 sysctl_speeds, u64 *phy_type_low,
 				  u64 *phy_type_high);
-static int
-ice_intersect_media_types_with_caps(struct ice_softc *sc, u16 sysctl_speeds,
-				    u64 *phy_type_low, u64 *phy_type_high);
-static int
-ice_get_auto_speeds(struct ice_softc *sc, u64 *phy_type_low,
-		    u64 *phy_type_high);
+static u16 ice_apply_supported_speed_filter(u16 report_speeds);
 static void
-ice_apply_supported_speed_filter(u64 *phy_type_low, u64 *phy_type_high);
-static enum ice_status
-ice_get_phy_types(struct ice_softc *sc, u64 *phy_type_low, u64 *phy_type_high);
+ice_handle_health_status_event(struct ice_softc *sc,
+			       struct ice_rq_event_info *event);
+static void
+ice_print_health_status_string(device_t dev,
+			       struct ice_aqc_health_status_elem *elem);
 
 static int ice_module_init(void);
 static int ice_module_exit(void);
@@ -198,6 +194,7 @@ static int ice_sysctl_read_i2c_diag_data(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_tx_cso_stat(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_rx_cso_stat(SYSCTL_HANDLER_ARGS);
 static int ice_sysctl_pba_number(SYSCTL_HANDLER_ARGS);
+static int ice_sysctl_rx_errors_stat(SYSCTL_HANDLER_ARGS);
 
 /**
  * ice_map_bar - Map PCIe BAR memory
@@ -465,13 +462,13 @@ ice_set_default_vsi_ctx(struct ice_vsi_ctx *ctx)
 	/* Traffic from VSI can be sent to LAN */
 	ctx->info.sw_flags2 = ICE_AQ_VSI_SW_FLAG_LAN_ENA;
 	/* Allow all packets untagged/tagged */
-	ctx->info.vlan_flags = ((ICE_AQ_VSI_VLAN_MODE_ALL &
-				 ICE_AQ_VSI_VLAN_MODE_M) >>
-				ICE_AQ_VSI_VLAN_MODE_S);
+	ctx->info.inner_vlan_flags = ((ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL &
+				       ICE_AQ_VSI_INNER_VLAN_TX_MODE_M) >>
+				       ICE_AQ_VSI_INNER_VLAN_TX_MODE_S);
 	/* Show VLAN/UP from packets in Rx descriptors */
-	ctx->info.vlan_flags |= ((ICE_AQ_VSI_VLAN_EMOD_STR_BOTH &
-				  ICE_AQ_VSI_VLAN_EMOD_M) >>
-				 ICE_AQ_VSI_VLAN_EMOD_S);
+	ctx->info.inner_vlan_flags |= ((ICE_AQ_VSI_INNER_VLAN_EMODE_STR_BOTH &
+					ICE_AQ_VSI_INNER_VLAN_EMODE_M) >>
+					ICE_AQ_VSI_INNER_VLAN_EMODE_S);
 	/* Have 1:1 UP mapping for both ingress/egress tables */
 	table |= ICE_UP_TABLE_TRANSLATE(0, 0);
 	table |= ICE_UP_TABLE_TRANSLATE(1, 1);
@@ -485,7 +482,7 @@ ice_set_default_vsi_ctx(struct ice_vsi_ctx *ctx)
 	ctx->info.egress_table = CPU_TO_LE32(table);
 	/* Have 1:1 UP mapping for outer to inner UP table */
 	ctx->info.outer_up_table = CPU_TO_LE32(table);
-	/* No Outer tag support, so outer_tag_flags remains zero */
+	/* No Outer tag support, so outer_vlan_flags remains zero */
 }
 
 /**
@@ -959,8 +956,8 @@ ice_get_phy_type_high(uint64_t phy_type_high)
  * ice_phy_types_to_max_rate - Returns port's max supported baudrate
  * @pi: port info struct
  *
- * ice_aq_get_phy_caps() w/ ICE_AQC_REPORT_TOPO_CAP parameter needs to have
- * been called before this function for it to work.
+ * ice_aq_get_phy_caps() w/ ICE_AQC_REPORT_TOPO_CAP_MEDIA parameter needs
+ * to have been called before this function for it to work.
  */
 static uint64_t
 ice_phy_types_to_max_rate(struct ice_port_info *pi)
@@ -1081,6 +1078,8 @@ ice_phy_types_to_max_rate(struct ice_port_info *pi)
 enum ice_status
 ice_add_media_types(struct ice_softc *sc, struct ifmedia *media)
 {
+	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
+	struct ice_port_info *pi = sc->hw.port_info;
 	enum ice_status status;
 	uint64_t phy_low, phy_high;
 	int bit;
@@ -1096,13 +1095,17 @@ ice_add_media_types(struct ice_softc *sc, struct ifmedia *media)
 	/* Remove all previous media types */
 	ifmedia_removeall(media);
 
-	status = ice_get_phy_types(sc, &phy_low, &phy_high);
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
+				     &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
-		/* Function already prints appropriate error
-		 * message
-		 */
+		device_printf(sc->dev,
+		    "%s: ice_aq_get_phy_caps (ACTIVE) failed; status %s, aq_err %s\n",
+		    __func__, ice_status_str(status),
+		    ice_aq_str(sc->hw.adminq.sq_last_status));
 		return (status);
 	}
+	phy_low = le64toh(pcaps.phy_type_low);
+	phy_high = le64toh(pcaps.phy_type_high);
 
 	/* make sure the added bitmap is zero'd */
 	memset(already_added, 0, sizeof(already_added));
@@ -1930,10 +1933,17 @@ ice_process_link_event(struct ice_softc *sc,
 		    "Possible mis-configuration of the Ethernet port detected; please use the Intel (R) Ethernet Port Configuration Tool utility to address the issue.\n");
 
 	if ((pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) &&
-	    !(pi->phy.link_info.link_info & ICE_AQ_LINK_UP) &&
-	    !(pi->phy.link_info.an_info & ICE_AQ_QUALIFIED_MODULE))
-		device_printf(dev,
-		    "Link is disabled on this device because an unsupported module type was detected! Refer to the Intel (R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
+	    !(pi->phy.link_info.link_info & ICE_AQ_LINK_UP)) {
+		if (!(pi->phy.link_info.an_info & ICE_AQ_QUALIFIED_MODULE))
+			device_printf(dev,
+			    "Link is disabled on this device because an unsupported module type was detected! Refer to the Intel (R) Ethernet Adapters and Devices User Guide for a list of supported modules.\n");
+		if (pi->phy.link_info.link_cfg_err & ICE_AQ_LINK_MODULE_POWER_UNSUPPORTED)
+			device_printf(dev,
+			    "The module's power requirements exceed the device's power supply. Cannot start link.\n");
+		if (pi->phy.link_info.link_cfg_err & ICE_AQ_LINK_INVAL_MAX_POWER_LIMIT)
+			device_printf(dev,
+			    "The installed module is incompatible with the device's NVM image. Cannot start link.\n");
+	}
 
 	if (!(pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE)) {
 		if (!ice_testandset_state(&sc->state, ICE_STATE_NO_MEDIA)) {
@@ -1981,6 +1991,9 @@ ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
 		break;
 	case ice_aqc_opc_event_lan_overflow:
 		ice_handle_lan_overflow_event(sc, event);
+		break;
+	case ice_aqc_opc_get_health_status:
+		ice_handle_health_status_event(sc, event);
 		break;
 	default:
 		device_printf(sc->dev,
@@ -2047,13 +2060,12 @@ ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 		if (status) {
 			if (q_type == ICE_CTL_Q_ADMIN)
 				device_printf(sc->dev,
-					      "%s Receive Queue event error %s aq_err %s\n",
-					      qname, ice_status_str(status),
-					      ice_aq_str(cq->rq_last_status));
+					      "%s Receive Queue event error %s\n",
+					      qname, ice_status_str(status));
 			else
 				device_printf(sc->dev,
-					      "%s Receive Queue event error %s cq_err %d\n",
-					      qname, ice_status_str(status), cq->rq_last_status);
+					      "%s Receive Queue event error %s\n",
+					      qname, ice_status_str(status));
 			free(event.msg_buf, M_ICE);
 			return (EIO);
 		}
@@ -2753,7 +2765,7 @@ static const uint16_t phy_link_speeds[] = {
      ICE_PHY_TYPE_HIGH_100G_AUI2)
 
 /**
- * ice_aq_phy_types_to_sysctl_speeds - Convert the PHY Types to speeds
+ * ice_aq_phy_types_to_link_speeds - Convert the PHY Types to speeds
  * @phy_type_low: lower 64-bit PHY Type bitmask
  * @phy_type_high: upper 64-bit PHY Type bitmask
  *
@@ -2762,7 +2774,7 @@ static const uint16_t phy_link_speeds[] = {
  * value will include the "ICE_AQ_LINK_SPEED_UNKNOWN" flag as well.
  */
 static u16
-ice_aq_phy_types_to_sysctl_speeds(u64 phy_type_low, u64 phy_type_high)
+ice_aq_phy_types_to_link_speeds(u64 phy_type_low, u64 phy_type_high)
 {
 	u16 sysctl_speeds = 0;
 	int bit;
@@ -2820,162 +2832,103 @@ ice_sysctl_speeds_to_aq_phy_types(u16 sysctl_speeds, u64 *phy_type_low,
 }
 
 /**
- * ice_intersect_media_types_with_caps - Restrict input AQ PHY flags
- * @sc: driver private structure
- * @sysctl_speeds: current SW configuration of PHY types
- * @phy_type_low: input/output flag set for low PHY types
- * @phy_type_high: input/output flag set for high PHY types
+ * @struct ice_phy_data
+ * @brief PHY caps and link speeds
  *
- * Intersects the input PHY flags with PHY flags retrieved from the adapter to
- * ensure the flags are compatible.
+ * Buffer providing report mode and user speeds;
+ * returning intersection of PHY types and speeds.
+ */
+struct ice_phy_data {
+	u64 phy_low_orig;     /* PHY low quad from report */
+	u64 phy_high_orig;    /* PHY high quad from report */
+	u64 phy_low_intr;     /* PHY low quad intersection with user speeds */
+	u64 phy_high_intr;    /* PHY high quad intersection with user speeds */
+	u16 user_speeds_orig; /* Input from caller - See ICE_AQ_LINK_SPEED_* */
+	u16 user_speeds_intr; /* Intersect with report speeds */
+	u8 report_mode;       /* See ICE_AQC_REPORT_* */
+};
+
+/**
+ * ice_intersect_phy_types_and_speeds - Return intersection of link speeds
+ * @sc: device private structure
+ * @phy_data: device PHY data
  *
- * @returns 0 on success, EIO if an AQ command fails, or EINVAL if input PHY
- * types have no intersection with TOPO_CAPS and the adapter is in non-lenient
- * mode
+ * On read: Displays the currently supported speeds
+ * On write: Sets the device's supported speeds
+ * Valid input flags: see ICE_SYSCTL_HELP_ADVERTISE_SPEED
  */
 static int
-ice_intersect_media_types_with_caps(struct ice_softc *sc, u16 sysctl_speeds,
-				    u64 *phy_type_low, u64 *phy_type_high)
+ice_intersect_phy_types_and_speeds(struct ice_softc *sc,
+				   struct ice_phy_data *phy_data)
 {
 	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
-	struct ice_port_info *pi = sc->hw.port_info;
-	device_t dev = sc->dev;
+	const char *report_types[5] = { "w/o MEDIA",
+					"w/MEDIA",
+					"ACTIVE",
+					"EDOOFUS", /* Not used */
+					"DFLT" };
+	struct ice_hw *hw = &sc->hw;
+	struct ice_port_info *pi = hw->port_info;
 	enum ice_status status;
-	u64 temp_phy_low, temp_phy_high;
-	u64 final_phy_low, final_phy_high;
-	u16 topo_speeds;
+	u16 report_speeds, temp_speeds;
+	u8 report_type;
+	bool apply_speed_filter = false;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
-	    &pcaps, NULL);
+	switch (phy_data->report_mode) {
+	case ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA:
+	case ICE_AQC_REPORT_TOPO_CAP_MEDIA:
+	case ICE_AQC_REPORT_ACTIVE_CFG:
+	case ICE_AQC_REPORT_DFLT_CFG:
+		report_type = phy_data->report_mode >> 1;
+		break;
+	default:
+		device_printf(sc->dev,
+		    "%s: phy_data.report_mode \"%u\" doesn't exist\n",
+		    __func__, phy_data->report_mode);
+		return (EINVAL);
+	}
+
+	/* 0 is treated as "Auto"; the driver will handle selecting the
+	 * correct speeds. Including, in some cases, applying an override
+	 * if provided.
+	 */
+	if (phy_data->user_speeds_orig == 0)
+		phy_data->user_speeds_orig = USHRT_MAX;
+	else if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE))
+		apply_speed_filter = true;
+
+	status = ice_aq_get_phy_caps(pi, false, phy_data->report_mode, &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
-		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (TOPO_CAP) failed; status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
+		device_printf(sc->dev,
+		    "%s: ice_aq_get_phy_caps (%s) failed; status %s, aq_err %s\n",
+		    __func__, report_types[report_type],
+		    ice_status_str(status),
 		    ice_aq_str(sc->hw.adminq.sq_last_status));
 		return (EIO);
 	}
 
-	final_phy_low = le64toh(pcaps.phy_type_low);
-	final_phy_high = le64toh(pcaps.phy_type_high);
-
-	topo_speeds = ice_aq_phy_types_to_sysctl_speeds(final_phy_low,
-	    final_phy_high);
-
-	/*
-	 * If the user specifies a subset of speeds the media is already
-	 * capable of supporting, then we're good to go.
-	 */
-	if ((sysctl_speeds & topo_speeds) == sysctl_speeds)
-		goto intersect_final;
-
-	temp_phy_low = final_phy_low;
-	temp_phy_high = final_phy_high;
-	/*
-	 * Otherwise, we'll have to use the superset if Lenient Mode is
-	 * supported.
-	 */
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE)) {
-		/*
-		 * Start with masks that _don't_ include the PHY types
-		 * discovered by the TOPO_CAP.
-		 */
-		ice_sysctl_speeds_to_aq_phy_types(topo_speeds, &final_phy_low,
-		    &final_phy_high);
-		final_phy_low = ~final_phy_low;
-		final_phy_high = ~final_phy_high;
-
-		/* Get the PHY types the NVM says we can support */
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_NVM_CAP,
-		    &pcaps, NULL);
-		if (status != ICE_SUCCESS) {
-			device_printf(dev,
-			    "%s: ice_aq_get_phy_caps (NVM_CAP) failed; status %s, aq_err %s\n",
-			    __func__, ice_status_str(status),
-			    ice_aq_str(sc->hw.adminq.sq_last_status));
-			return (status);
+	phy_data->phy_low_orig = le64toh(pcaps.phy_type_low);
+	phy_data->phy_high_orig = le64toh(pcaps.phy_type_high);
+	report_speeds = ice_aq_phy_types_to_link_speeds(phy_data->phy_low_orig,
+	    phy_data->phy_high_orig);
+	if (apply_speed_filter) {
+		temp_speeds = ice_apply_supported_speed_filter(report_speeds);
+		if ((phy_data->user_speeds_orig & temp_speeds) == 0) {
+			device_printf(sc->dev,
+			    "User-specified speeds (\"0x%04X\") not supported\n",
+			    phy_data->user_speeds_orig);
+			return (EINVAL);
 		}
-
-		/*
-		 * Clear out the unsupported PHY types, including those
-		 * from TOPO_CAP.
-		 */
-		final_phy_low &= le64toh(pcaps.phy_type_low);
-		final_phy_high &= le64toh(pcaps.phy_type_high);
-		/*
-		 * Include PHY types from TOPO_CAP (which may be a subset
-		 * of the types the NVM specifies).
-		 */
-		final_phy_low |= temp_phy_low;
-		final_phy_high |= temp_phy_high;
+		report_speeds = temp_speeds;
 	}
-
-intersect_final:
-
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE))
-		ice_apply_supported_speed_filter(&final_phy_low, &final_phy_high);
-
-	ice_sysctl_speeds_to_aq_phy_types(sysctl_speeds, &temp_phy_low,
-	    &temp_phy_high);
-
-	final_phy_low &= temp_phy_low;
-	final_phy_high &= temp_phy_high;
-
-	if (final_phy_low == 0 && final_phy_high == 0) {
-		device_printf(dev,
-		    "The selected speed is not supported by the current media. Please select a link speed that is supported by the current media.\n");
-		return (EINVAL);
-	}
-
-	/* Overwrite input phy_type values and return */
-	*phy_type_low = final_phy_low;
-	*phy_type_high = final_phy_high;
+	ice_sysctl_speeds_to_aq_phy_types(phy_data->user_speeds_orig,
+	    &phy_data->phy_low_intr, &phy_data->phy_high_intr);
+	phy_data->user_speeds_intr = phy_data->user_speeds_orig & report_speeds;
+	phy_data->phy_low_intr &= phy_data->phy_low_orig;
+	phy_data->phy_high_intr &= phy_data->phy_high_orig;
 
 	return (0);
-}
-
-/**
- * ice_get_auto_speeds - Get PHY type flags for "auto" speed
- * @sc: driver private structure
- * @phy_type_low: output low PHY type flags
- * @phy_type_high: output high PHY type flags
- *
- * Retrieves a suitable set of PHY type flags to use for an "auto" speed
- * setting by either using the NVM default overrides for speed, or retrieving
- * a default from the adapter using Get PHY capabilities in TOPO_CAPS mode.
- *
- * @returns 0 on success or EIO on AQ command failure
- */
-static int
-ice_get_auto_speeds(struct ice_softc *sc, u64 *phy_type_low,
-		    u64 *phy_type_high)
-{
-	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
-	struct ice_hw *hw = &sc->hw;
-	struct ice_port_info *pi = hw->port_info;
-	device_t dev = sc->dev;
-	enum ice_status status;
-
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_DEFAULT_OVERRIDE)) {
-		/* copy over speed settings from LDO TLV */
-		*phy_type_low = CPU_TO_LE64(sc->ldo_tlv.phy_type_low);
-		*phy_type_high = CPU_TO_LE64(sc->ldo_tlv.phy_type_high);
-	} else {
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
-					     &pcaps, NULL);
-		if (status != ICE_SUCCESS) {
-			device_printf(dev,
-			    "%s: ice_aq_get_phy_caps (TOPO_CAP) failed; status %s, aq_err %s\n",
-			    __func__, ice_status_str(status),
-			    ice_aq_str(hw->adminq.sq_last_status));
-			return (EIO);
-		}
-
-		*phy_type_low = le64toh(pcaps.phy_type_low);
-		*phy_type_high = le64toh(pcaps.phy_type_high);
-	}
-
-	return (0);
-}
+ }
 
 /**
  * ice_sysctl_advertise_speed - Display/change link speeds supported by port
@@ -2992,15 +2945,11 @@ static int
 ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg1;
-	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
-	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
-	struct ice_hw *hw = &sc->hw;
-	struct ice_port_info *pi = hw->port_info;
+	struct ice_port_info *pi = sc->hw.port_info;
+	struct ice_phy_data phy_data = { 0 };
 	device_t dev = sc->dev;
-	enum ice_status status;
-	u64 phy_low, phy_high;
-	u16 sysctl_speeds = 0;
-	int error = 0;
+	u16 sysctl_speeds;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
@@ -3008,23 +2957,18 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 		return (ESHUTDOWN);
 
 	/* Get the current speeds from the adapter's "active" configuration. */
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
-				     &pcaps, NULL);
-	if (status != ICE_SUCCESS) {
-		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (SW_CFG) failed; status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
-		    ice_aq_str(hw->adminq.sq_last_status));
-		return (EIO);
+	phy_data.report_mode = ICE_AQC_REPORT_ACTIVE_CFG;
+	ret = ice_intersect_phy_types_and_speeds(sc, &phy_data);
+	if (ret) {
+		/* Error message already printed within function */
+		return (ret);
 	}
 
-	phy_low = le64toh(pcaps.phy_type_low);
-	phy_high = le64toh(pcaps.phy_type_high);
-	sysctl_speeds = ice_aq_phy_types_to_sysctl_speeds(phy_low, phy_high);
+	sysctl_speeds = phy_data.user_speeds_intr;
 
-	error = sysctl_handle_16(oidp, &sysctl_speeds, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_16(oidp, &sysctl_speeds, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	if (sysctl_speeds > 0x7FF) {
 		device_printf(dev,
@@ -3033,53 +2977,10 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-	/* 0 is treated as "Auto"; the driver will handle selecting the correct speeds,
-	 * or apply an override if one is specified in the NVM.
-	 */
-	if (sysctl_speeds == 0) {
-		error = ice_get_auto_speeds(sc, &phy_low, &phy_high);
-		if (error)
-			/* Function already prints appropriate error message */
-			return (error);
-	} else {
-		error = ice_intersect_media_types_with_caps(sc, sysctl_speeds,
-		    &phy_low, &phy_high);
-		if (error)
-			/* Function already prints appropriate error message */
-			return (error);
-	}
-	sysctl_speeds = ice_aq_phy_types_to_sysctl_speeds(phy_low, phy_high);
-
-	/* Cache new user setting for speeds */
 	pi->phy.curr_user_speed_req = sysctl_speeds;
 
-	/* Setup new PHY config with new input PHY types */
-	ice_copy_phy_caps_to_cfg(pi, &pcaps, &cfg);
-
-	cfg.phy_type_low = phy_low;
-	cfg.phy_type_high = phy_high;
-	cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
-
-	status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
-	if (status != ICE_SUCCESS) {
-		/* Don't indicate failure if there's no media in the port -- the sysctl
-		 * handler has saved the value and will apply it when media is inserted.
-		 */
-		if (status == ICE_ERR_AQ_ERROR &&
-		    hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY) {
-			device_printf(dev,
-			    "%s: Setting will be applied when media is inserted\n", __func__);
-			return (0);
-		} else {
-			device_printf(dev,
-			    "%s: ice_aq_set_phy_cfg failed; status %s, aq_err %s\n",
-			    __func__, ice_status_str(status),
-			    ice_aq_str(hw->adminq.sq_last_status));
-			return (EIO);
-		}
-	}
-
-	return (0);
+	/* Apply settings requested by user */
+	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS);
 }
 
 #define ICE_SYSCTL_HELP_FEC_CONFIG			\
@@ -3106,14 +3007,10 @@ ice_sysctl_fec_config(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg1;
 	struct ice_port_info *pi = sc->hw.port_info;
-	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
-	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
-	struct ice_hw *hw = &sc->hw;
 	enum ice_fec_mode new_mode;
-	enum ice_status status;
 	device_t dev = sc->dev;
 	char req_fec[32];
-	int error = 0;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
@@ -3123,9 +3020,9 @@ ice_sysctl_fec_config(SYSCTL_HANDLER_ARGS)
 	bzero(req_fec, sizeof(req_fec));
 	strlcpy(req_fec, ice_requested_fec_mode(pi), sizeof(req_fec));
 
-	error = sysctl_handle_string(oidp, req_fec, sizeof(req_fec), req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_string(oidp, req_fec, sizeof(req_fec), req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	if (strcmp(req_fec, "auto") == 0 ||
 	    strcmp(req_fec, ice_fec_str(ICE_FEC_AUTO)) == 0) {
@@ -3149,74 +3046,8 @@ ice_sysctl_fec_config(SYSCTL_HANDLER_ARGS)
 	/* Cache user FEC mode for later link ups */
 	pi->phy.curr_user_fec_req = new_mode;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
-				     &pcaps, NULL);
-	if (status != ICE_SUCCESS) {
-		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps failed (SW_CFG); status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
-		    ice_aq_str(hw->adminq.sq_last_status));
-		return (EIO);
-	}
-
-	ice_copy_phy_caps_to_cfg(pi, &pcaps, &cfg);
-
-	/* Get link_fec_opt/AUTO_FEC mode from TOPO caps for base for new FEC mode */
-	memset(&pcaps, 0, sizeof(pcaps));
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
-				     &pcaps, NULL);
-	if (status != ICE_SUCCESS) {
-		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps failed (TOPO_CAP); status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
-		    ice_aq_str(hw->adminq.sq_last_status));
-		return (EIO);
-	}
-
-	/* Configure new FEC options using TOPO caps */
-	cfg.link_fec_opt = pcaps.link_fec_options;
-	cfg.caps &= ~ICE_AQ_PHY_ENA_AUTO_FEC;
-	if (pcaps.caps & ICE_AQC_PHY_EN_AUTO_FEC)
-		cfg.caps |= ICE_AQ_PHY_ENA_AUTO_FEC;
-
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_DEFAULT_OVERRIDE) &&
-	    new_mode == ICE_FEC_AUTO) {
-		/* copy over FEC settings from LDO TLV */
-		cfg.link_fec_opt = sc->ldo_tlv.fec_options;
-	} else {
-		ice_cfg_phy_fec(pi, &cfg, new_mode);
-
-		/* Check if the new mode is valid, and exit with an error if not */
-		if (cfg.link_fec_opt &&
-		    !(cfg.link_fec_opt & pcaps.link_fec_options)) {
-			device_printf(dev,
-			    "%s: The requested FEC mode, %s, is not supported by current media\n",
-			    __func__, ice_fec_str(new_mode));
-			return (ENOTSUP);
-		}
-	}
-
-	cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
-	status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
-	if (status != ICE_SUCCESS) {
-		/* Don't indicate failure if there's no media in the port -- the sysctl
-		 * handler has saved the value and will apply it when media is inserted.
-		 */
-		if (status == ICE_ERR_AQ_ERROR &&
-		    hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY) {
-			device_printf(dev,
-			    "%s: Setting will be applied when media is inserted\n", __func__);
-			return (0);
-		} else {
-			device_printf(dev,
-			    "%s: ice_aq_set_phy_cfg failed; status %s, aq_err %s\n",
-			    __func__, ice_status_str(status),
-			    ice_aq_str(hw->adminq.sq_last_status));
-			return (EIO);
-		}
-	}
-
-	return (0);
+	/* Apply settings requested by user */
+	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_FEC);
 }
 
 /**
@@ -3234,7 +3065,7 @@ ice_sysctl_negotiated_fec(SYSCTL_HANDLER_ARGS)
 	struct ice_softc *sc = (struct ice_softc *)arg1;
 	struct ice_hw *hw = &sc->hw;
 	char neg_fec[32];
-	int error;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
@@ -3245,11 +3076,11 @@ ice_sysctl_negotiated_fec(SYSCTL_HANDLER_ARGS)
 	bzero(neg_fec, sizeof(neg_fec));
 	strlcpy(neg_fec, ice_negotiated_fec_mode(hw->port_info), sizeof(neg_fec));
 
-	error = sysctl_handle_string(oidp, neg_fec, 0, req);
+	ret = sysctl_handle_string(oidp, neg_fec, 0, req);
 	if (req->newptr != NULL)
 		return (EPERM);
 
-	return (error);
+	return (ret);
 }
 
 #define ICE_SYSCTL_HELP_FC_CONFIG				\
@@ -3281,19 +3112,18 @@ ice_sysctl_fc_config(SYSCTL_HANDLER_ARGS)
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
 	enum ice_status status;
-	int error = 0, fc_num;
+	int ret, fc_num;
 	bool mode_set = false;
 	struct sbuf buf;
 	char *fc_str_end;
 	char fc_str[32];
-	u8 aq_failures;
 
 	UNREFERENCED_PARAMETER(arg2);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
 				     &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
 		device_printf(dev,
@@ -3321,9 +3151,9 @@ ice_sysctl_fc_config(SYSCTL_HANDLER_ARGS)
 	sbuf_finish(&buf);
 	sbuf_delete(&buf);
 
-	error = sysctl_handle_string(oidp, fc_str, sizeof(fc_str), req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_string(oidp, fc_str, sizeof(fc_str), req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	/* Try to parse input as a string, first */
 	if (strcasecmp(ice_fc_str(ICE_FC_FULL), fc_str) == 0) {
@@ -3372,26 +3202,11 @@ ice_sysctl_fc_config(SYSCTL_HANDLER_ARGS)
 		}
 	}
 
-	/* Finally, set the flow control mode in FW */
-	hw->port_info->fc.req_mode = new_mode;
-	status = ice_set_fc(pi, &aq_failures, true);
-	if (status != ICE_SUCCESS) {
-		/* Don't indicate failure if there's no media in the port -- the sysctl
-		 * handler has saved the value and will apply it when media is inserted.
-		 */
-		if (aq_failures == ICE_SET_FC_AQ_FAIL_SET &&
-		    hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY) {
-			device_printf(dev,
-			    "%s: Setting will be applied when media is inserted\n", __func__);
-			return (0);
-		} else {
-			device_printf(dev,
-			    "%s: ice_set_fc AQ failure = %d\n", __func__, aq_failures);
-			return (EIO);
-		}
-	}
+	/* Set the flow control mode in FW */
+	pi->phy.curr_user_fc_req = new_mode;
 
-	return (0);
+	/* Apply settings requested by user */
+	return ice_apply_saved_phy_cfg(sc, ICE_APPLY_FC);
 }
 
 /**
@@ -3443,14 +3258,14 @@ __ice_sysctl_phy_type_handler(SYSCTL_HANDLER_ARGS, bool is_phy_type_high)
 	device_t dev = sc->dev;
 	enum ice_status status;
 	uint64_t types;
-	int error = 0;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
 
-	status = ice_aq_get_phy_caps(hw->port_info, false, ICE_AQC_REPORT_SW_CFG,
+	status = ice_aq_get_phy_caps(hw->port_info, false, ICE_AQC_REPORT_ACTIVE_CFG,
 				     &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
 		device_printf(dev,
@@ -3465,9 +3280,9 @@ __ice_sysctl_phy_type_handler(SYSCTL_HANDLER_ARGS, bool is_phy_type_high)
 	else
 		types = pcaps.phy_type_low;
 
-	error = sysctl_handle_64(oidp, &types, sizeof(types), req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_64(oidp, &types, sizeof(types), req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	ice_copy_phy_caps_to_cfg(hw->port_info, &pcaps, &cfg);
 
@@ -3542,13 +3357,13 @@ ice_sysctl_phy_caps(SYSCTL_HANDLER_ARGS, u8 report_mode)
 	struct ice_port_info *pi = hw->port_info;
 	device_t dev = sc->dev;
 	enum ice_status status;
-	int error;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
-	error = priv_check(curthread, PRIV_DRIVER);
-	if (error)
-		return (error);
+	ret = priv_check(curthread, PRIV_DRIVER);
+	if (ret)
+		return (ret);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
@@ -3562,11 +3377,11 @@ ice_sysctl_phy_caps(SYSCTL_HANDLER_ARGS, u8 report_mode)
 		return (EIO);
 	}
 
-	error = sysctl_handle_opaque(oidp, &pcaps, sizeof(pcaps), req);
+	ret = sysctl_handle_opaque(oidp, &pcaps, sizeof(pcaps), req);
 	if (req->newptr != NULL)
 		return (EPERM);
 
-	return (error);
+	return (ret);
 }
 
 /**
@@ -3583,7 +3398,7 @@ static int
 ice_sysctl_phy_sw_caps(SYSCTL_HANDLER_ARGS)
 {
 	return ice_sysctl_phy_caps(oidp, arg1, arg2, req,
-				   ICE_AQC_REPORT_SW_CFG);
+				   ICE_AQC_REPORT_ACTIVE_CFG);
 }
 
 /**
@@ -3600,7 +3415,7 @@ static int
 ice_sysctl_phy_nvm_caps(SYSCTL_HANDLER_ARGS)
 {
 	return ice_sysctl_phy_caps(oidp, arg1, arg2, req,
-				   ICE_AQC_REPORT_NVM_CAP);
+				   ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA);
 }
 
 /**
@@ -3617,7 +3432,7 @@ static int
 ice_sysctl_phy_topo_caps(SYSCTL_HANDLER_ARGS)
 {
 	return ice_sysctl_phy_caps(oidp, arg1, arg2, req,
-				   ICE_AQC_REPORT_TOPO_CAP);
+				   ICE_AQC_REPORT_TOPO_CAP_MEDIA);
 }
 
 /**
@@ -3641,7 +3456,7 @@ ice_sysctl_phy_link_status(SYSCTL_HANDLER_ARGS)
 	struct ice_aq_desc desc;
 	device_t dev = sc->dev;
 	enum ice_status status;
-	int error;
+	int ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
@@ -3649,9 +3464,9 @@ ice_sysctl_phy_link_status(SYSCTL_HANDLER_ARGS)
 	 * Ensure that only contexts with driver privilege are allowed to
 	 * access this information
 	 */
-	error = priv_check(curthread, PRIV_DRIVER);
-	if (error)
-		return (error);
+	ret = priv_check(curthread, PRIV_DRIVER);
+	if (ret)
+		return (ret);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
@@ -3669,11 +3484,11 @@ ice_sysctl_phy_link_status(SYSCTL_HANDLER_ARGS)
 		return (EIO);
 	}
 
-	error = sysctl_handle_opaque(oidp, &link_data, sizeof(link_data), req);
+	ret = sysctl_handle_opaque(oidp, &link_data, sizeof(link_data), req);
 	if (req->newptr != NULL)
 		return (EPERM);
 
-	return (error);
+	return (ret);
 }
 
 /**
@@ -3780,7 +3595,7 @@ ice_sysctl_fw_lldp_agent(SYSCTL_HANDLER_ARGS)
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
 	enum ice_status status;
-	int error = 0;
+	int ret;
 	u32 old_state;
 	u8 fw_lldp_enabled;
 	bool retried_start_lldp = false;
@@ -3813,9 +3628,9 @@ ice_sysctl_fw_lldp_agent(SYSCTL_HANDLER_ARGS)
 	else
 		fw_lldp_enabled = true;
 
-	error = sysctl_handle_bool(oidp, &fw_lldp_enabled, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_bool(oidp, &fw_lldp_enabled, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	if (old_state == 0 && fw_lldp_enabled == false)
 		return (0);
@@ -3864,7 +3679,7 @@ retry_start_lldp:
 		hw->port_info->qos_cfg.is_sw_lldp = false;
 	}
 
-	return (error);
+	return (ret);
 }
 
 /**
@@ -4157,6 +3972,47 @@ ice_sysctl_rx_cso_stat(SYSCTL_HANDLER_ARGS)
 }
 
 /**
+ * ice_sysctl_rx_errors_stat - Display aggregate of Rx errors
+ * @oidp: sysctl oid structure
+ * @arg1: pointer to private data structure
+ * @arg2: unused
+ * @req: sysctl request pointer
+ *
+ * On read: Sums current values of Rx error statistics and
+ * displays it.
+ */
+static int
+ice_sysctl_rx_errors_stat(SYSCTL_HANDLER_ARGS)
+{
+	struct ice_vsi *vsi = (struct ice_vsi *)arg1;
+	struct ice_hw_port_stats *hs = &vsi->sc->stats.cur;
+	u64 stat = 0;
+	int i, type;
+
+	UNREFERENCED_PARAMETER(arg2);
+
+	if (ice_driver_is_detaching(vsi->sc))
+		return (ESHUTDOWN);
+
+	stat += hs->rx_undersize;
+	stat += hs->rx_fragments;
+	stat += hs->rx_oversize;
+	stat += hs->rx_jabber;
+	stat += hs->rx_len_errors;
+	stat += hs->crc_errors;
+	stat += hs->illegal_bytes;
+
+	/* Checksum error stats */
+	for (i = 0; i < vsi->num_rx_queues; i++)
+		for (type = ICE_CSO_STAT_RX_IP4_ERR;
+		     type < ICE_CSO_STAT_RX_COUNT;
+		     type++)
+			stat += vsi->rx_queues[i].stats.cso[type];
+
+	return sysctl_handle_64(oidp, NULL, stat, req);
+}
+
+/**
  * @struct ice_rx_cso_stat_info
  * @brief sysctl information for an Rx checksum offload statistic
  *
@@ -4280,9 +4136,10 @@ ice_add_vsi_sysctls(struct ice_vsi *vsi)
 			CTLFLAG_RD | CTLFLAG_STATS, &vsi->hw_stats.cur.rx_discards,
 			0, "Discarded Rx Packets (see rx_errors or rx_no_desc)");
 
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_errors",
-		       CTLFLAG_RD | CTLFLAG_STATS, &vsi->hw_stats.cur.rx_errors,
-		       0, "Rx Packets Discarded Due To Error");
+	SYSCTL_ADD_PROC(ctx, hw_list, OID_AUTO, "rx_errors",
+			CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_STATS,
+			vsi, 0, ice_sysctl_rx_errors_stat, "QU",
+			"Aggregate of all Rx errors");
 
 	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_no_desc",
 		       CTLFLAG_RD | CTLFLAG_STATS, &vsi->hw_stats.cur.rx_no_desc,
@@ -4713,16 +4570,16 @@ ice_sysctl_rx_itr(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_vsi *vsi = (struct ice_vsi *)arg1;
 	struct ice_softc *sc = vsi->sc;
-	int increment, error = 0;
+	int increment, ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
 
-	error = sysctl_handle_16(oidp, &vsi->rx_itr, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_16(oidp, &vsi->rx_itr, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	if (vsi->rx_itr < 0)
 		vsi->rx_itr = ICE_DFLT_RX_ITR;
@@ -4765,16 +4622,16 @@ ice_sysctl_tx_itr(SYSCTL_HANDLER_ARGS)
 {
 	struct ice_vsi *vsi = (struct ice_vsi *)arg1;
 	struct ice_softc *sc = vsi->sc;
-	int increment, error = 0;
+	int increment, ret;
 
 	UNREFERENCED_PARAMETER(arg2);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
 
-	error = sysctl_handle_16(oidp, &vsi->tx_itr, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_16(oidp, &vsi->tx_itr, 0, req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	/* Allow configuring a negative value to reset to the default */
 	if (vsi->tx_itr < 0)
@@ -4892,6 +4749,12 @@ ice_add_device_tunables(struct ice_softc *sc)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid_list *ctx_list =
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+
+	sc->enable_health_events = ice_enable_health_events;
+
+	SYSCTL_ADD_BOOL(ctx, ctx_list, OID_AUTO, "enable_health_events",
+			CTLFLAG_RDTUN, &sc->enable_health_events, 0,
+			"Enable FW health event reporting for this PF");
 
 	/* Add a node to track VSI sysctls. Keep track of the node in the
 	 * softc so that we can hook other sysctls into it later. This
@@ -5321,7 +5184,7 @@ ice_sysctl_request_reset(SYSCTL_HANDLER_ARGS)
 	enum ice_status status;
 	enum ice_reset_req reset_type = ICE_RESET_INVAL;
 	const char *reset_message;
-	int error = 0;
+	int ret;
 
 	/* Buffer to store the requested reset string. Must contain enough
 	 * space to store the largest expected reset string, which currently
@@ -5331,17 +5194,17 @@ ice_sysctl_request_reset(SYSCTL_HANDLER_ARGS)
 
 	UNREFERENCED_PARAMETER(arg2);
 
-	error = priv_check(curthread, PRIV_DRIVER);
-	if (error)
-		return (error);
+	ret = priv_check(curthread, PRIV_DRIVER);
+	if (ret)
+		return (ret);
 
 	if (ice_driver_is_detaching(sc))
 		return (ESHUTDOWN);
 
 	/* Read in the requested reset type. */
-	error = sysctl_handle_string(oidp, reset, sizeof(reset), req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
+	ret = sysctl_handle_string(oidp, reset, sizeof(reset), req);
+	if ((ret) || (req->newptr == NULL))
+		return (ret);
 
 	if (strcmp(reset, "pfr") == 0) {
 		reset_message = "Requesting a PF reset";
@@ -6439,7 +6302,7 @@ ice_requested_fec_mode(struct ice_port_info *pi)
 	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
 	enum ice_status status;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
 				     &pcaps, NULL);
 	if (status)
 		/* Just report unknown if we can't get capabilities */
@@ -7363,7 +7226,7 @@ ice_init_link_configuration(struct ice_softc *sc)
 	if (pi->phy.link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		ice_clear_state(&sc->state, ICE_STATE_NO_MEDIA);
 		/* Apply default link settings */
-		ice_apply_saved_phy_cfg(sc);
+		ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
 	} else {
 		 /* Set link down, and poll for media available in timer. This prevents the
 		  * driver from receiving spurious link-related events.
@@ -7380,8 +7243,7 @@ ice_init_link_configuration(struct ice_softc *sc)
 
 /**
  * ice_apply_saved_phy_req_to_cfg -- Write saved user PHY settings to cfg data
- * @pi: port info struct
- * @pcaps: TOPO_CAPS capability data to use for defaults
+ * @sc: device private structure
  * @cfg: new PHY config data to be modified
  *
  * Applies user settings for advertised speeds to the PHY type fields in the
@@ -7389,47 +7251,136 @@ ice_init_link_configuration(struct ice_softc *sc)
  * saved settings are invalid and uses the pcaps data instead if they are
  * invalid.
  */
-static void
-ice_apply_saved_phy_req_to_cfg(struct ice_port_info *pi,
-			       struct ice_aqc_get_phy_caps_data *pcaps,
+static int
+ice_apply_saved_phy_req_to_cfg(struct ice_softc *sc,
 			       struct ice_aqc_set_phy_cfg_data *cfg)
 {
+	struct ice_phy_data phy_data = { 0 };
+	struct ice_port_info *pi = sc->hw.port_info;
 	u64 phy_low = 0, phy_high = 0;
+	u16 link_speeds;
+	int ret;
 
-	ice_update_phy_type(&phy_low, &phy_high, pi->phy.curr_user_speed_req);
-	cfg->phy_type_low = pcaps->phy_type_low & htole64(phy_low);
-	cfg->phy_type_high = pcaps->phy_type_high & htole64(phy_high);
+	link_speeds = pi->phy.curr_user_speed_req;
 
-	/* Can't use saved user speed request; use NVM default PHY capabilities */
-	if (!cfg->phy_type_low && !cfg->phy_type_high) {
-		cfg->phy_type_low = pcaps->phy_type_low;
-		cfg->phy_type_high = pcaps->phy_type_high;
+	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LINK_MGMT_VER_2)) {
+		memset(&phy_data, 0, sizeof(phy_data));
+		phy_data.report_mode = ICE_AQC_REPORT_DFLT_CFG;
+		phy_data.user_speeds_orig = link_speeds;
+		ret = ice_intersect_phy_types_and_speeds(sc, &phy_data);
+		if (ret != 0) {
+			/* Error message already printed within function */
+			return (ret);
+		}
+		phy_low = phy_data.phy_low_intr;
+		phy_high = phy_data.phy_high_intr;
+
+		if (link_speeds == 0 || phy_data.user_speeds_intr)
+			goto finalize_link_speed;
+		if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE)) {
+			memset(&phy_data, 0, sizeof(phy_data));
+			phy_data.report_mode = ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA;
+			phy_data.user_speeds_orig = link_speeds;
+			ret = ice_intersect_phy_types_and_speeds(sc, &phy_data);
+			if (ret != 0) {
+				/* Error message already printed within function */
+				return (ret);
+			}
+			phy_low = phy_data.phy_low_intr;
+			phy_high = phy_data.phy_high_intr;
+
+			if (!phy_data.user_speeds_intr) {
+				phy_low = phy_data.phy_low_orig;
+				phy_high = phy_data.phy_high_orig;
+			}
+			goto finalize_link_speed;
+		}
+		/* If we're here, then it means the benefits of Version 2
+		 * link management aren't utilized.  We fall through to
+		 * handling Strict Link Mode the same as Version 1 link
+		 * management.
+		 */
 	}
+
+	memset(&phy_data, 0, sizeof(phy_data));
+	if ((link_speeds == 0) &&
+	    (sc->ldo_tlv.phy_type_low || sc->ldo_tlv.phy_type_high))
+		phy_data.report_mode = ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA;
+	else
+		phy_data.report_mode = ICE_AQC_REPORT_TOPO_CAP_MEDIA;
+	phy_data.user_speeds_orig = link_speeds;
+	ret = ice_intersect_phy_types_and_speeds(sc, &phy_data);
+	if (ret != 0) {
+		/* Error message already printed within function */
+		return (ret);
+	}
+	phy_low = phy_data.phy_low_intr;
+	phy_high = phy_data.phy_high_intr;
+
+	if (!ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE)) {
+		if (phy_low == 0 && phy_high == 0) {
+			device_printf(sc->dev,
+			    "The selected speed is not supported by the current media. Please select a link speed that is supported by the current media.\n");
+			return (EINVAL);
+		}
+	} else {
+		if (link_speeds == 0) {
+			if (sc->ldo_tlv.phy_type_low & phy_low ||
+			    sc->ldo_tlv.phy_type_high & phy_high) {
+				phy_low &= sc->ldo_tlv.phy_type_low;
+				phy_high &= sc->ldo_tlv.phy_type_high;
+			}
+		} else if (phy_low == 0 && phy_high == 0) {
+			memset(&phy_data, 0, sizeof(phy_data));
+			phy_data.report_mode = ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA;
+			phy_data.user_speeds_orig = link_speeds;
+			ret = ice_intersect_phy_types_and_speeds(sc, &phy_data);
+			if (ret != 0) {
+				/* Error message already printed within function */
+				return (ret);
+			}
+			phy_low = phy_data.phy_low_intr;
+			phy_high = phy_data.phy_high_intr;
+
+			if (!phy_data.user_speeds_intr) {
+				phy_low = phy_data.phy_low_orig;
+				phy_high = phy_data.phy_high_orig;
+			}
+		}
+	}
+
+finalize_link_speed:
+
+	/* Cache new user settings for speeds */
+	pi->phy.curr_user_speed_req = phy_data.user_speeds_intr;
+	cfg->phy_type_low = htole64(phy_low);
+	cfg->phy_type_high = htole64(phy_high);
+
+	return (ret);
 }
 
 /**
  * ice_apply_saved_fec_req_to_cfg -- Write saved user FEC mode to cfg data
- * @pi: port info struct
- * @pcaps: TOPO_CAPS capability data to use for defaults
+ * @sc: device private structure
  * @cfg: new PHY config data to be modified
  *
  * Applies user setting for FEC mode to PHY config struct. It uses the data
  * from pcaps to check if the saved settings are invalid and uses the pcaps
  * data instead if they are invalid.
  */
-static void
-ice_apply_saved_fec_req_to_cfg(struct ice_port_info *pi,
-			       struct ice_aqc_get_phy_caps_data *pcaps,
+static int
+ice_apply_saved_fec_req_to_cfg(struct ice_softc *sc,
 			       struct ice_aqc_set_phy_cfg_data *cfg)
 {
-	ice_cfg_phy_fec(pi, cfg, pi->phy.curr_user_fec_req);
+	struct ice_port_info *pi = sc->hw.port_info;
+	enum ice_status status;
 
-	/* Can't use saved user FEC mode; use NVM default PHY capabilities */
-	if (cfg->link_fec_opt &&
-	    !(cfg->link_fec_opt & pcaps->link_fec_options)) {
-		cfg->caps |= pcaps->caps & ICE_AQC_PHY_EN_AUTO_FEC;
-		cfg->link_fec_opt = pcaps->link_fec_options;
-	}
+	cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+	status = ice_cfg_phy_fec(pi, cfg, pi->phy.curr_user_fec_req);
+	if (status)
+		return (EIO);
+
+	return (0);
 }
 
 /**
@@ -7451,7 +7402,7 @@ ice_apply_saved_fc_req_to_cfg(struct ice_port_info *pi,
 	switch (pi->phy.curr_user_fc_req) {
 	case ICE_FC_FULL:
 		cfg->caps |= ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY |
-			    ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY;
+			     ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY;
 		break;
 	case ICE_FC_RX_PAUSE:
 		cfg->caps |= ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY;
@@ -7466,80 +7417,101 @@ ice_apply_saved_fc_req_to_cfg(struct ice_port_info *pi,
 }
 
 /**
- * ice_apply_saved_user_req_to_cfg -- Apply all saved user settings to AQ cfg data
- * @pi: port info struct
- * @pcaps: TOPO_CAPS capability data to use for defaults
- * @cfg: new PHY config data to be modified
- *
- * Applies user settings for advertised speeds, FEC mode, and flow control
- * mode to the supplied PHY config struct; it uses the data from pcaps to check
- * if the saved settings are invalid and uses the pcaps data instead if they
- * are invalid.
- */
-static void
-ice_apply_saved_user_req_to_cfg(struct ice_port_info *pi,
-				struct ice_aqc_get_phy_caps_data *pcaps,
-				struct ice_aqc_set_phy_cfg_data *cfg)
-{
-	ice_apply_saved_phy_req_to_cfg(pi, pcaps, cfg);
-	ice_apply_saved_fec_req_to_cfg(pi, pcaps, cfg);
-	ice_apply_saved_fc_req_to_cfg(pi, cfg);
-}
-
-/**
  * ice_apply_saved_phy_cfg -- Re-apply user PHY config settings
  * @sc: device private structure
+ * @settings: which settings to apply
  *
- * Takes the saved user PHY config settings, overwrites the NVM
- * default with them if they're valid, and uses the Set PHY Config AQ command
- * to apply them.
+ * Applies user settings for advertised speeds, FEC mode, and flow
+ * control mode to a PHY config struct; it uses the data from pcaps
+ * to check if the saved settings are invalid and uses the pcaps
+ * data instead if they are invalid.
  *
- * Intended for use when media is inserted.
- *
- * @pre Port has media available
+ * For things like sysctls where only one setting needs to be
+ * updated, the bitmap allows the caller to specify which setting
+ * to update.
  */
-void
-ice_apply_saved_phy_cfg(struct ice_softc *sc)
+int
+ice_apply_saved_phy_cfg(struct ice_softc *sc, u8 settings)
 {
 	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
 	struct ice_port_info *pi = sc->hw.port_info;
 	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
+	u64 phy_low, phy_high;
 	enum ice_status status;
+	enum ice_fec_mode dflt_fec_mode;
+	enum ice_fc_mode dflt_fc_mode;
+	u16 dflt_user_speed;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+	if (!settings || settings > ICE_APPLY_LS_FEC_FC) {
+		ice_debug(hw, ICE_DBG_LINK, "Settings out-of-bounds: %u\n",
+		    settings);
+	}
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
 				     &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
 		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (TOPO_CAP) failed; status %s, aq_err %s\n",
+		    "%s: ice_aq_get_phy_caps (ACTIVE) failed; status %s, aq_err %s\n",
 		    __func__, ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
-		return;
+		return (EIO);
 	}
+
+	phy_low = le64toh(pcaps.phy_type_low);
+	phy_high = le64toh(pcaps.phy_type_high);
+
+	/* Save off initial config parameters */
+	dflt_user_speed = ice_aq_phy_types_to_link_speeds(phy_low, phy_high);
+	dflt_fec_mode = ice_caps_to_fec_mode(pcaps.caps, pcaps.link_fec_options);
+	dflt_fc_mode = ice_caps_to_fc_mode(pcaps.caps);
 
 	/* Setup new PHY config */
 	ice_copy_phy_caps_to_cfg(pi, &pcaps, &cfg);
 
-	/* Apply settings requested by user */
-	ice_apply_saved_user_req_to_cfg(pi, &pcaps, &cfg);
+	/* On error, restore active configuration values */
+	if ((settings & ICE_APPLY_LS) &&
+	    ice_apply_saved_phy_req_to_cfg(sc, &cfg)) {
+		pi->phy.curr_user_speed_req = dflt_user_speed;
+		cfg.phy_type_low = pcaps.phy_type_low;
+		cfg.phy_type_high = pcaps.phy_type_high;
+	}
+	if ((settings & ICE_APPLY_FEC) &&
+	    ice_apply_saved_fec_req_to_cfg(sc, &cfg)) {
+		pi->phy.curr_user_fec_req = dflt_fec_mode;
+	}
+	if (settings & ICE_APPLY_FC) {
+		/* No real error indicators for this process,
+		 * so we'll just have to assume it works. */
+		ice_apply_saved_fc_req_to_cfg(pi, &cfg);
+	}
 
 	/* Enable link and re-negotiate it */
 	cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
 
 	status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
 	if (status != ICE_SUCCESS) {
+		/* Don't indicate failure if there's no media in the port.
+		 * The settings have been saved and will apply when media
+		 * is inserted.
+		 */
 		if ((status == ICE_ERR_AQ_ERROR) &&
-		    (hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY))
+		    (hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY)) {
 			device_printf(dev,
-			    "%s: User PHY cfg not applied; no media in port\n",
+			    "%s: Setting will be applied when media is inserted\n",
 			    __func__);
-		else
+			return (0);
+		} else {
 			device_printf(dev,
 			    "%s: ice_aq_set_phy_cfg failed; status %s, aq_err %s\n",
 			    __func__, ice_status_str(status),
 			    ice_aq_str(hw->adminq.sq_last_status));
+			return (EIO);
+		}
 	}
+
+	return (0);
 }
 
 /**
@@ -7605,14 +7577,25 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	    (!(tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE)))
 		ice_set_bit(ICE_FEATURE_LENIENT_LINK_MODE, sc->feat_en);
 
+	/* FW supports reporting a default configuration */
+	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_LINK_MGMT_VER_2) &&
+	    ice_fw_supports_report_dflt_cfg(&sc->hw)) {
+		ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_2, sc->feat_en);
+		/* Knowing we're at a high enough firmware revision to
+		 * support this link management configuration, we don't
+		 * need to check/support earlier versions.
+		 */
+		return;
+	}
+
 	/* Default overrides only work if in lenient link mode */
-	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_DEFAULT_OVERRIDE) &&
+	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_LINK_MGMT_VER_1) &&
 	    ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE) &&
 	    (tlv.options & ICE_LINK_OVERRIDE_EN))
-		ice_set_bit(ICE_FEATURE_DEFAULT_OVERRIDE, sc->feat_en);
+		ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_1, sc->feat_en);
 
-	/* Cache the LDO TLV structure in the driver, since it won't change
-	 * during the driver's lifetime.
+	/* Cache the LDO TLV structure in the driver, since it
+	 * won't change during the driver's lifetime.
 	 */
 	sc->ldo_tlv = tlv;
 }
@@ -7638,13 +7621,17 @@ ice_init_saved_phy_cfg(struct ice_softc *sc)
 	device_t dev = sc->dev;
 	enum ice_status status;
 	u64 phy_low, phy_high;
+	u8 report_mode = ICE_AQC_REPORT_TOPO_CAP_MEDIA;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
-				     &pcaps, NULL);
+	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LINK_MGMT_VER_2))
+		report_mode = ICE_AQC_REPORT_DFLT_CFG;
+	status = ice_aq_get_phy_caps(pi, false, report_mode, &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
 		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (TOPO_CAP) failed; status %s, aq_err %s\n",
-		    __func__, ice_status_str(status),
+		    "%s: ice_aq_get_phy_caps (%s) failed; status %s, aq_err %s\n",
+		    __func__,
+		    report_mode == ICE_AQC_REPORT_DFLT_CFG ? "DFLT" : "w/MEDIA",
+		    ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return;
 	}
@@ -7654,7 +7641,7 @@ ice_init_saved_phy_cfg(struct ice_softc *sc)
 
 	/* Save off initial config parameters */
 	pi->phy.curr_user_speed_req =
-	   ice_aq_phy_types_to_sysctl_speeds(phy_low, phy_high);
+	   ice_aq_phy_types_to_link_speeds(phy_low, phy_high);
 	pi->phy.curr_user_fec_req = ice_caps_to_fec_mode(pcaps.caps,
 	    pcaps.link_fec_options);
 	pi->phy.curr_user_fc_req = ice_caps_to_fc_mode(pcaps.caps);
@@ -7834,7 +7821,7 @@ int
 ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u16 length)
 {
 	struct ice_hw *hw = &sc->hw;
-	int error = 0, retries = 0;
+	int ret = 0, retries = 0;
 	enum ice_status status;
 
 	if (length > 16)
@@ -7851,18 +7838,18 @@ ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u1
 					   offset, 0, 0, data, length,
 					   false, NULL);
 		if (!status) {
-			error = 0;
+			ret = 0;
 			break;
 		}
 		if (status == ICE_ERR_AQ_ERROR &&
 		    hw->adminq.sq_last_status == ICE_AQ_RC_EBUSY) {
-			error = EBUSY;
+			ret = EBUSY;
 			continue;
 		}
 		if (status == ICE_ERR_AQ_ERROR &&
 		    hw->adminq.sq_last_status == ICE_AQ_RC_EACCES) {
 			/* FW says I2C access isn't supported */
-			error = EACCES;
+			ret = EACCES;
 			break;
 		}
 		if (status == ICE_ERR_AQ_ERROR &&
@@ -7870,24 +7857,24 @@ ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u1
 			device_printf(sc->dev,
 				  "%s: Module pointer location specified in command does not permit the required operation.\n",
 				  __func__);
-			error = EPERM;
+			ret = EPERM;
 			break;
 		} else {
 			device_printf(sc->dev,
 				  "%s: Error reading I2C data: err %s aq_err %s\n",
 				  __func__, ice_status_str(status),
 				  ice_aq_str(hw->adminq.sq_last_status));
-			error = EIO;
+			ret = EIO;
 			break;
 		}
 	} while (retries++ < ICE_I2C_MAX_RETRIES);
 
-	if (error == EBUSY)
+	if (ret == EBUSY)
 		device_printf(sc->dev,
 			  "%s: Error reading I2C data after %d retries\n",
 			  __func__, ICE_I2C_MAX_RETRIES);
 
-	return (error);
+	return (ret);
 }
 
 /**
@@ -7926,7 +7913,7 @@ ice_sysctl_read_i2c_diag_data(SYSCTL_HANDLER_ARGS)
 	struct ice_softc *sc = (struct ice_softc *)arg1;
 	device_t dev = sc->dev;
 	struct sbuf *sbuf;
-	int error = 0;
+	int ret;
 	u8 data[16];
 
 	UNREFERENCED_PARAMETER(arg2);
@@ -7936,13 +7923,13 @@ ice_sysctl_read_i2c_diag_data(SYSCTL_HANDLER_ARGS)
 		return (ESHUTDOWN);
 
 	if (req->oldptr == NULL) {
-		error = SYSCTL_OUT(req, 0, 128);
-		return (error);
+		ret = SYSCTL_OUT(req, 0, 128);
+		return (ret);
 	}
 
-	error = ice_read_sff_eeprom(sc, 0xA0, 0, data, 1);
-	if (error)
-		return (error);
+	ret = ice_read_sff_eeprom(sc, 0xA0, 0, data, 1);
+	if (ret)
+		return (ret);
 
 	/* 0x3 for SFP; 0xD/0x11 for QSFP+/QSFP28 */
 	if (data[0] == 0x3) {
@@ -8070,72 +8057,234 @@ ice_free_intr_tracking(struct ice_softc *sc)
 
 /**
  * ice_apply_supported_speed_filter - Mask off unsupported speeds
- * @phy_type_low: bit-field for the low quad word of PHY types
- * @phy_type_high: bit-field for the high quad word of PHY types
+ * @report_speeds: bit-field for the desired link speeds
  *
- * Given the two quad words containing the supported PHY types,
+ * Given a bitmap of the desired lenient mode link speeds,
  * this function will mask off the speeds that are not currently
  * supported by the device.
  */
-static void
-ice_apply_supported_speed_filter(u64 *phy_type_low, u64 *phy_type_high)
+static u16
+ice_apply_supported_speed_filter(u16 report_speeds)
 {
-	u64 phylow_mask;
+	u16 speed_mask;
 
 	/* We won't offer anything lower than 1G for any part,
 	 * but we also won't offer anything under 25G for 100G
-	 * parts.
+	 * parts or under 10G for 50G parts.
 	 */
-	phylow_mask = ~(ICE_PHY_TYPE_LOW_1000BASE_T - 1);
-	if (*phy_type_high ||
-	    *phy_type_low & ~(ICE_PHY_TYPE_LOW_100GBASE_CR4 - 1))
-		phylow_mask = ~(ICE_PHY_TYPE_LOW_25GBASE_T - 1);
-	*phy_type_low &= phylow_mask;
+	speed_mask = ~((u16)ICE_AQ_LINK_SPEED_1000MB - 1);
+	if (report_speeds & ICE_AQ_LINK_SPEED_50GB)
+		speed_mask = ~((u16)ICE_AQ_LINK_SPEED_10GB - 1);
+	if (report_speeds & ICE_AQ_LINK_SPEED_100GB)
+		speed_mask = ~((u16)ICE_AQ_LINK_SPEED_25GB - 1);
+	return (report_speeds & speed_mask);
 }
 
 /**
- * ice_get_phy_types - Report appropriate PHY types
- * @sc: device softc structure
- * @phy_type_low: bit-field for the low quad word of PHY types
- * @phy_type_high: bit-field for the high quad word of PHY types
+ * ice_init_health_events - Enable FW health event reporting
+ * @sc: device softc
  *
- * Populate the two quad words with bits representing the PHY types
- * supported by the device.  This is really just a wrapper around
- * the ice_aq_get_phy_caps() that chooses the appropriate report
- * mode (lenient or strict) and reports back only the relevant PHY
- * types.  In lenient mode the capabilities are retrieved with the
- * NVM_CAP report mode, otherwise they're retrieved using the
- * TOPO_CAP report mode (NVM intersected with current media).
- *
- * @returns 0 on success, or an error code on failure.
+ * Will try to enable firmware health event reporting, but shouldn't
+ * cause any grief (to the caller) if this fails.
  */
-static enum ice_status
-ice_get_phy_types(struct ice_softc *sc, u64 *phy_type_low, u64 *phy_type_high)
+void
+ice_init_health_events(struct ice_softc *sc)
 {
-	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
-	struct ice_port_info *pi = sc->hw.port_info;
-	device_t dev = sc->dev;
 	enum ice_status status;
-	u8 report_mode;
+	u8 health_mask;
 
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE))
-		report_mode = ICE_AQC_REPORT_NVM_CAP;
-	else
-		report_mode = ICE_AQC_REPORT_TOPO_CAP;
-	status = ice_aq_get_phy_caps(pi, false, report_mode, &pcaps, NULL);
-	if (status != ICE_SUCCESS) {
-		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (%s) failed; status %s, aq_err %s\n",
-		    __func__, (report_mode) ? "TOPO_CAP" : "NVM_CAP",
+	if ((!ice_is_bit_set(sc->feat_cap, ICE_FEATURE_HEALTH_STATUS)) ||
+	    (!sc->enable_health_events))
+		return;
+
+	health_mask = ICE_AQC_HEALTH_STATUS_SET_PF_SPECIFIC_MASK |
+		      ICE_AQC_HEALTH_STATUS_SET_GLOBAL_MASK;
+
+	status = ice_aq_set_health_status_config(&sc->hw, health_mask, NULL);
+	if (status)
+		device_printf(sc->dev,
+		    "Failed to enable firmware health events, err %s aq_err %s\n",
 		    ice_status_str(status),
 		    ice_aq_str(sc->hw.adminq.sq_last_status));
-		return (status);
+	else
+		ice_set_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_en);
+}
+
+/**
+ * ice_print_health_status_string - Print message for given FW health event
+ * @dev: the PCIe device
+ * @elem: health status element containing status code
+ *
+ * A rather large list of possible health status codes and their associated
+ * messages.
+ */
+static void
+ice_print_health_status_string(device_t dev,
+			       struct ice_aqc_health_status_elem *elem)
+{
+	u16 status_code = le16toh(elem->health_status_code);
+
+	switch (status_code) {
+	case ICE_AQC_HEALTH_STATUS_INFO_RECOVERY:
+		device_printf(dev, "The device is in firmware recovery mode.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_FLASH_ACCESS:
+		device_printf(dev, "The flash chip cannot be accessed.\n");
+		device_printf(dev, "Possible Solution: If issue persists, call customer support.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_NVM_AUTH:
+		device_printf(dev, "NVM authentication failed.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_OROM_AUTH:
+		device_printf(dev, "Option ROM authentication failed.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_DDP_AUTH:
+		device_printf(dev, "DDP package failed.\n");
+		device_printf(dev, "Possible Solution: Update to latest base driver and DDP package.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_NVM_COMPAT:
+		device_printf(dev, "NVM image is incompatible.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_OROM_COMPAT:
+		device_printf(dev, "Option ROM is incompatible.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_DCB_MIB:
+		device_printf(dev, "Supplied MIB file is invalid. DCB reverted to default configuration.\n");
+		device_printf(dev, "Possible Solution: Disable FW-LLDP and check DCBx system configuration.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_UNKNOWN_MOD_STRICT:
+		device_printf(dev, "An unsupported module was detected.\n");
+		device_printf(dev, "Possible Solution 1: Check your cable connection.\n");
+		device_printf(dev, "Possible Solution 2: Change or replace the module or cable.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_MOD_TYPE:
+		device_printf(dev, "Module type is not supported.\n");
+		device_printf(dev, "Possible Solution: Change or replace the module or cable.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_MOD_QUAL:
+		device_printf(dev, "Module is not qualified.\n");
+		device_printf(dev, "Possible Solution 1: Check your cable connection.\n");
+		device_printf(dev, "Possible Solution 2: Change or replace the module or cable.\n");
+		device_printf(dev, "Possible Solution 3: Manually set speed and duplex.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_MOD_COMM:
+		device_printf(dev, "Device cannot communicate with the module.\n");
+		device_printf(dev, "Possible Solution 1: Check your cable connection.\n");
+		device_printf(dev, "Possible Solution 2: Change or replace the module or cable.\n");
+		device_printf(dev, "Possible Solution 3: Manually set speed and duplex.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_MOD_CONFLICT:
+		device_printf(dev, "Unresolved module conflict.\n");
+		device_printf(dev, "Possible Solution 1: Manually set speed/duplex or use Intel(R) Ethernet Port Configuration Tool to change the port option.\n");
+		device_printf(dev, "Possible Solution 2: If the problem persists, use a cable/module that is found in the supported modules and cables list for this device.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_MOD_NOT_PRESENT:
+		device_printf(dev, "Module is not present.\n");
+		device_printf(dev, "Possible Solution 1: Check that the module is inserted correctly.\n");
+		device_printf(dev, "Possible Solution 2: If the problem persists, use a cable/module that is found in the supported modules and cables list for this device.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_INFO_MOD_UNDERUTILIZED:
+		device_printf(dev, "Underutilized module.\n");
+		device_printf(dev, "Possible Solution 1: Change or replace the module or cable.\n");
+		device_printf(dev, "Possible Solution 2: Use Intel(R) Ethernet Port Configuration Tool to change the port option.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_UNKNOWN_MOD_LENIENT:
+		device_printf(dev, "An unsupported module was detected.\n");
+		device_printf(dev, "Possible Solution 1: Check your cable connection.\n");
+		device_printf(dev, "Possible Solution 2: Change or replace the module or cable.\n");
+		device_printf(dev, "Possible Solution 3: Manually set speed and duplex.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_INVALID_LINK_CFG:
+		device_printf(dev, "Invalid link configuration.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_PORT_ACCESS:
+		device_printf(dev, "Port hardware access error.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_PORT_UNREACHABLE:
+		device_printf(dev, "A port is unreachable.\n");
+		device_printf(dev, "Possible Solution 1: Use Intel(R) Ethernet Port Configuration Tool to change the port option.\n");
+		device_printf(dev, "Possible Solution 2: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_INFO_PORT_SPEED_MOD_LIMITED:
+		device_printf(dev, "Port speed is limited due to module.\n");
+		device_printf(dev, "Possible Solution: Change the module or use Intel(R) Ethernet Port Configuration Tool to configure the port option to match the current module speed.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_PARALLEL_FAULT:
+		device_printf(dev, "A parallel fault was detected.\n");
+		device_printf(dev, "Possible Solution: Check link partner connection and configuration.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_INFO_PORT_SPEED_PHY_LIMITED:
+		device_printf(dev, "Port speed is limited by PHY capabilities.\n");
+		device_printf(dev, "Possible Solution 1: Change the module to align to port option.\n");
+		device_printf(dev, "Possible Solution 2: Use Intel(R) Ethernet Port Configuration Tool to change the port option.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_NETLIST_TOPO:
+		device_printf(dev, "LOM topology netlist is corrupted.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_NETLIST:
+		device_printf(dev, "Unrecoverable netlist error.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_TOPO_CONFLICT:
+		device_printf(dev, "Port topology conflict.\n");
+		device_printf(dev, "Possible Solution 1: Use Intel(R) Ethernet Port Configuration Tool to change the port option.\n");
+		device_printf(dev, "Possible Solution 2: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_LINK_HW_ACCESS:
+		device_printf(dev, "Unrecoverable hardware access error.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_LINK_RUNTIME:
+		device_printf(dev, "Unrecoverable runtime error.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	case ICE_AQC_HEALTH_STATUS_ERR_DNL_INIT:
+		device_printf(dev, "Link management engine failed to initialize.\n");
+		device_printf(dev, "Possible Solution: Update to the latest NVM image.\n");
+		break;
+	default:
+		break;
+	}
+}
+
+/**
+ * ice_handle_health_status_event - helper function to output health status
+ * @sc: device softc structure
+ * @event: event received on a control queue
+ *
+ * Prints out the appropriate string based on the given Health Status Event
+ * code.
+ */
+static void
+ice_handle_health_status_event(struct ice_softc *sc,
+			       struct ice_rq_event_info *event)
+{
+	struct ice_aqc_health_status_elem *health_info;
+	u16 status_count;
+	int i;
+
+	if (!ice_is_bit_set(sc->feat_en, ICE_FEATURE_HEALTH_STATUS))
+		return;
+
+	health_info = (struct ice_aqc_health_status_elem *)event->msg_buf;
+	status_count = le16toh(event->desc.params.get_health_status.health_status_count);
+
+	if (status_count > (event->buf_len / sizeof(*health_info))) {
+		device_printf(sc->dev, "Received a health status event with invalid event count\n");
+		return;
 	}
 
-	*phy_type_low = le64toh(pcaps.phy_type_low);
-	*phy_type_high = le64toh(pcaps.phy_type_high);
-
-	return (ICE_SUCCESS);
+	for (i = 0; i < status_count; i++) {
+		ice_print_health_status_string(sc->dev, health_info);
+		health_info++;
+	}
 }
 
 /**

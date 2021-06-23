@@ -753,6 +753,9 @@ ice_if_attach_post(if_ctx_t ctx)
 		return err;
 	}
 
+	/* Enable FW health event reporting */
+	ice_init_health_events(sc);
+
 	/* Configure the main PF VSI for RSS */
 	err = ice_config_rss(&sc->pf_vsi);
 	if (err) {
@@ -1946,7 +1949,7 @@ ice_poll_for_media_avail(struct ice_softc *sc)
 			enum ice_status status;
 
 			/* Re-enable link and re-apply user link settings */
-			ice_apply_saved_phy_cfg(sc);
+			ice_apply_saved_phy_cfg(sc, ICE_APPLY_LS_FEC_FC);
 
 			/* Update the OS about changes in media capability */
 			status = ice_add_media_types(sc, sc->media);
@@ -2015,6 +2018,18 @@ static void
 ice_admin_timer(void *arg)
 {
 	struct ice_softc *sc = (struct ice_softc *)arg;
+
+	/*
+	 * There is a point where callout routines are no longer
+	 * cancelable.  So there exists a window of time where the
+	 * driver enters detach() and tries to cancel the callout, but the
+	 * callout routine has passed the cancellation point.  The detach()
+	 * routine is unaware of this and tries to free resources that the
+	 * callout routine needs.  So we check for the detach state flag to
+	 * at least shrink the window of opportunity.
+	 */
+	if (ice_driver_is_detaching(sc))
+		return;
 
 	/* Fire off the admin task */
 	iflib_admin_intr_deferred(sc->ctx);
@@ -2424,6 +2439,9 @@ ice_rebuild(struct ice_softc *sc)
 	if (err)
 		goto err_deinit_pf_vsi;
 
+	/* Re-enable FW health event reporting */
+	ice_init_health_events(sc);
+
 	/* Reconfigure the main PF VSI for RSS */
 	err = ice_config_rss(&sc->pf_vsi);
 	if (err) {
@@ -2593,11 +2611,16 @@ ice_init_device_features(struct ice_softc *sc)
 	ice_set_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_RSS, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_LENIENT_LINK_MODE, sc->feat_cap);
-	ice_set_bit(ICE_FEATURE_DEFAULT_OVERRIDE, sc->feat_cap);
+	ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_1, sc->feat_cap);
+	ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_2, sc->feat_cap);
+	ice_set_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_cap);
 
 	/* Disable features due to hardware limitations... */
 	if (!sc->hw.func_caps.common_cap.rss_table_size)
 		ice_clear_bit(ICE_FEATURE_RSS, sc->feat_cap);
+	/* Disable features due to firmware limitations... */
+	if (!ice_is_fw_health_report_supported(&sc->hw))
+		ice_clear_bit(ICE_FEATURE_HEALTH_STATUS, sc->feat_cap);
 
 	/* Disable capabilities not supported by the OS */
 	ice_disable_unsupported_features(sc->feat_cap);
