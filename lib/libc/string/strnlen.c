@@ -36,8 +36,8 @@ strnlen(const char *s, size_t maxlen)
 {
 	const char * const olds = s;
 
-	while (*s != '\0' && maxlen != 0) {
-		s++, maxlen--;
-	}
+	for (; *s != '\0' && maxlen != 0; --maxlen)
+		++s;
+
 	return s - olds;
 }
