@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-typedef	intptr_t word;		/* "word" used for optimal copy speed */
+typedef	uintptr_t word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
@@ -56,10 +56,11 @@ typedef	intptr_t word;		/* "word" used for optimal copy speed */
 void *
 #ifdef MEMCOPY
 memcpy
+(void * __restrict dst0, const void * __restrict src0, size_t length)
 #else
 memmove
-#endif
 (void *dst0, const void *src0, size_t length)
+#endif
 #else
 #include <strings.h>
 
@@ -67,8 +68,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	char *dst = dst0;
-	const char *src = src0;
+	char *dst = (char *)dst0;
+	const char *src = (const char *)src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
@@ -77,12 +78,15 @@ bcopy(const void *src0, void *dst0, size_t length)
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) if (t) TLOOP1(s)
+#define	TLOOP(s) for (; t; --t) { s; }
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+
+#ifndef MEMCOPY
+	if ((uintptr_t)dst < (uintptr_t)src) {
+#endif
 		/*
-		 * Copy forward.
+		 * Copy forwards.
 		 */
 		t = (uintptr_t)src;	/* only need low bits */
 		if ((t | (uintptr_t)dst) & wmask) {
@@ -101,18 +105,19 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)(void *)dst = *(const word *)(const void *)src;
+		TLOOP(*(word *)dst = *(const word *)src;
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
+#ifndef MEMCOPY
 	} else {
 		/*
 		 * Copy backwards.  Otherwise essentially the same.
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		src += length;
 		dst += length;
+		src += length;
 		t = (uintptr_t)src;
 		if ((t | (uintptr_t)dst) & wmask) {
 			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize)
@@ -124,10 +129,12 @@ bcopy(const void *src0, void *dst0, size_t length)
 		}
 		t = length / wsize;
 		TLOOP(src -= wsize; dst -= wsize;
-		    *(word *)(void *)dst = *(const word *)(const void *)src);
+		    *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
+#endif
+
 done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return (dst0);
