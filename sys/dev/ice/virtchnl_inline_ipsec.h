@@ -470,7 +470,7 @@ struct virtchnl_ipsec_sa_read {
 };
 #pragma pack()
 
-/* Add whitelist entry in IES */
+/* Add allowlist entry in IES */
 struct virtchnl_ipsec_sp_cfg {
 	u32 spi;
 	u32 dip[4];
@@ -489,7 +489,7 @@ struct virtchnl_ipsec_sp_cfg {
 };
 
 #pragma pack(1)
-/* Delete whitelist entry in IES */
+/* Delete allowlist entry in IES */
 struct virtchnl_ipsec_sp_destroy {
 	/* 0 for IPv4 table, 1 for IPv6 table. */
 	u8 table_id;
@@ -497,7 +497,7 @@ struct virtchnl_ipsec_sp_destroy {
 };
 #pragma pack()
 
-/* Response from IES to whitelist operations */
+/* Response from IES to allowlist operations */
 struct virtchnl_ipsec_sp_cfg_resp {
 	u32 rule_id;
 };

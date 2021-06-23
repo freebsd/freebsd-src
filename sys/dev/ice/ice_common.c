@@ -189,6 +189,10 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		return ICE_ERR_PARAM;
 	hw = pi->hw;
 
+	if (report_mode == ICE_AQC_REPORT_DFLT_CFG &&
+	    !ice_fw_supports_report_dflt_cfg(hw))
+		return ICE_ERR_PARAM;
+
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_phy_caps);
 
 	if (qual_mods)
@@ -222,7 +226,7 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	ice_debug(hw, ICE_DBG_LINK, "   module_type[2] = 0x%x\n",
 		  pcaps->module_type[2]);
 
-	if (status == ICE_SUCCESS && report_mode == ICE_AQC_REPORT_TOPO_CAP) {
+	if (status == ICE_SUCCESS && report_mode == ICE_AQC_REPORT_TOPO_CAP_MEDIA) {
 		pi->phy.phy_type_low = LE64_TO_CPU(pcaps->phy_type_low);
 		pi->phy.phy_type_high = LE64_TO_CPU(pcaps->phy_type_high);
 		ice_memcpy(pi->phy.link_info.module_type, &pcaps->module_type,
@@ -454,6 +458,7 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	li->phy_type_high = LE64_TO_CPU(link_data.phy_type_high);
 	*hw_media_type = ice_get_media_type(pi);
 	li->link_info = link_data.link_info;
+	li->link_cfg_err = link_data.link_cfg_err;
 	li->an_info = link_data.an_info;
 	li->ext_info = link_data.ext_info;
 	li->max_frame_size = LE16_TO_CPU(link_data.max_frame_size);
@@ -803,10 +808,11 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 
 	/* Initialize port_info struct with PHY capabilities */
 	status = ice_aq_get_phy_caps(hw->port_info, false,
-				     ICE_AQC_REPORT_TOPO_CAP, pcaps, NULL);
+				     ICE_AQC_REPORT_TOPO_CAP_MEDIA, pcaps, NULL);
 	ice_free(hw, pcaps);
 	if (status)
-		ice_debug(hw, ICE_DBG_PHY, "Get PHY capabilities failed, continuing anyway\n");
+		ice_warn(hw, "Get PHY capabilities failed status = %d, continuing anyway\n",
+			 status);
 
 	/* Initialize port_info struct with link information */
 	status = ice_aq_get_link_info(hw->port_info, false, NULL, NULL);
@@ -850,8 +856,6 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 	ice_init_lock(&hw->tnl_lock);
-
-	ice_init_vlan_mode_ops(hw);
 
 	return ICE_SUCCESS;
 
@@ -1364,6 +1368,97 @@ ice_clear_tx_drbell_q_ctx(struct ice_hw *hw, u32 tx_drbell_q_index)
 /* FW Admin Queue command wrappers */
 
 /**
+ * ice_should_retry_sq_send_cmd
+ * @opcode: AQ opcode
+ *
+ * Decide if we should retry the send command routine for the ATQ, depending
+ * on the opcode.
+ */
+static bool ice_should_retry_sq_send_cmd(u16 opcode)
+{
+	switch (opcode) {
+	case ice_aqc_opc_dnl_get_status:
+	case ice_aqc_opc_dnl_run:
+	case ice_aqc_opc_dnl_call:
+	case ice_aqc_opc_dnl_read_sto:
+	case ice_aqc_opc_dnl_write_sto:
+	case ice_aqc_opc_dnl_set_breakpoints:
+	case ice_aqc_opc_dnl_read_log:
+	case ice_aqc_opc_get_link_topo:
+	case ice_aqc_opc_done_alt_write:
+	case ice_aqc_opc_lldp_stop:
+	case ice_aqc_opc_lldp_start:
+	case ice_aqc_opc_lldp_filter_ctrl:
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_sq_send_cmd_retry - send command to Control Queue (ATQ)
+ * @hw: pointer to the HW struct
+ * @cq: pointer to the specific Control queue
+ * @desc: prefilled descriptor describing the command
+ * @buf: buffer to use for indirect commands (or NULL for direct commands)
+ * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
+ * @cd: pointer to command details structure
+ *
+ * Retry sending the FW Admin Queue command, multiple times, to the FW Admin
+ * Queue if the EBUSY AQ error is returned.
+ */
+static enum ice_status
+ice_sq_send_cmd_retry(struct ice_hw *hw, struct ice_ctl_q_info *cq,
+		      struct ice_aq_desc *desc, void *buf, u16 buf_size,
+		      struct ice_sq_cd *cd)
+{
+	struct ice_aq_desc desc_cpy;
+	enum ice_status status;
+	bool is_cmd_for_retry;
+	u8 *buf_cpy = NULL;
+	u8 idx = 0;
+	u16 opcode;
+
+	opcode = LE16_TO_CPU(desc->opcode);
+	is_cmd_for_retry = ice_should_retry_sq_send_cmd(opcode);
+	ice_memset(&desc_cpy, 0, sizeof(desc_cpy), ICE_NONDMA_MEM);
+
+	if (is_cmd_for_retry) {
+		if (buf) {
+			buf_cpy = (u8 *)ice_malloc(hw, buf_size);
+			if (!buf_cpy)
+				return ICE_ERR_NO_MEMORY;
+		}
+
+		ice_memcpy(&desc_cpy, desc, sizeof(desc_cpy),
+			   ICE_NONDMA_TO_NONDMA);
+	}
+
+	do {
+		status = ice_sq_send_cmd(hw, cq, desc, buf, buf_size, cd);
+
+		if (!is_cmd_for_retry || status == ICE_SUCCESS ||
+		    hw->adminq.sq_last_status != ICE_AQ_RC_EBUSY)
+			break;
+
+		if (buf_cpy)
+			ice_memcpy(buf, buf_cpy, buf_size,
+				   ICE_NONDMA_TO_NONDMA);
+
+		ice_memcpy(desc, &desc_cpy, sizeof(desc_cpy),
+			   ICE_NONDMA_TO_NONDMA);
+
+		ice_msec_delay(ICE_SQ_SEND_DELAY_TIME_MS, false);
+
+	} while (++idx < ICE_SQ_SEND_MAX_EXECUTE);
+
+	if (buf_cpy)
+		ice_free(hw, buf_cpy);
+
+	return status;
+}
+
+/**
  * ice_aq_send_cmd - send FW Admin Queue command to FW Admin Queue
  * @hw: pointer to the HW struct
  * @desc: descriptor describing the command
@@ -1377,7 +1472,7 @@ enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf,
 		u16 buf_size, struct ice_sq_cd *cd)
 {
-	return ice_sq_send_cmd(hw, &hw->adminq, desc, buf, buf_size, cd);
+	return ice_sq_send_cmd_retry(hw, &hw->adminq, desc, buf, buf_size, cd);
 }
 
 /**
@@ -1817,15 +1912,15 @@ static u32 ice_get_num_per_func(struct ice_hw *hw, u32 max)
  * @hw: pointer to the ice_hw instance
  * @caps: pointer to common caps instance
  * @prefix: string to prefix when printing
- * @debug: set to indicate debug print
+ * @dbg: set to indicate debug print
  */
 static void
 ice_print_led_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
-		   char const *prefix, bool debug)
+		   char const *prefix, bool dbg)
 {
 	u8 i;
 
-	if (debug)
+	if (dbg)
 		ice_debug(hw, ICE_DBG_INIT, "%s: led_pin_num = %d\n", prefix,
 			  caps->led_pin_num);
 	else
@@ -1836,7 +1931,7 @@ ice_print_led_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		if (!caps->led[i])
 			continue;
 
-		if (debug)
+		if (dbg)
 			ice_debug(hw, ICE_DBG_INIT, "%s: led[%d] = %d\n",
 				  prefix, i, caps->led[i]);
 		else
@@ -1850,15 +1945,15 @@ ice_print_led_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
  * @hw: pointer to the ice_hw instance
  * @caps: pointer to common caps instance
  * @prefix: string to prefix when printing
- * @debug: set to indicate debug print
+ * @dbg: set to indicate debug print
  */
 static void
 ice_print_sdp_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
-		   char const *prefix, bool debug)
+		   char const *prefix, bool dbg)
 {
 	u8 i;
 
-	if (debug)
+	if (dbg)
 		ice_debug(hw, ICE_DBG_INIT, "%s: sdp_pin_num = %d\n", prefix,
 			  caps->sdp_pin_num);
 	else
@@ -1869,7 +1964,7 @@ ice_print_sdp_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		if (!caps->sdp[i])
 			continue;
 
-		if (debug)
+		if (dbg)
 			ice_debug(hw, ICE_DBG_INIT, "%s: sdp[%d] = %d\n",
 				  prefix, i, caps->sdp[i]);
 		else
@@ -2825,7 +2920,7 @@ enum ice_status ice_update_link_info(struct ice_port_info *pi)
 		if (!pcaps)
 			return ICE_ERR_NO_MEMORY;
 
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					     pcaps, NULL);
 
 		if (status == ICE_SUCCESS)
@@ -2933,7 +3028,6 @@ ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 
 	if (!pi || !cfg)
 		return ICE_ERR_BAD_PTR;
-
 	switch (req_mode) {
 	case ICE_FC_AUTO:
 	{
@@ -2944,11 +3038,10 @@ ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 			ice_malloc(pi->hw, sizeof(*pcaps));
 		if (!pcaps)
 			return ICE_ERR_NO_MEMORY;
-
 		/* Query the value of FC that both the NIC and attached media
 		 * can do.
 		 */
-		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					     pcaps, NULL);
 		if (status) {
 			ice_free(pi->hw, pcaps);
@@ -3017,8 +3110,9 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 		return ICE_ERR_NO_MEMORY;
 
 	/* Get the current PHY config */
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
-				     NULL);
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_ACTIVE_CFG,
+				     pcaps, NULL);
+
 	if (status) {
 		*aq_failures = ICE_SET_FC_AQ_FAIL_GET;
 		goto out;
@@ -3135,17 +3229,6 @@ ice_copy_phy_caps_to_cfg(struct ice_port_info *pi,
 	cfg->link_fec_opt = caps->link_fec_options;
 	cfg->module_compliance_enforcement =
 		caps->module_compliance_enforcement;
-
-	if (ice_fw_supports_link_override(pi->hw)) {
-		struct ice_link_default_override_tlv tlv;
-
-		if (ice_get_link_default_override(&tlv, pi))
-			return;
-
-		if (tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE)
-			cfg->module_compliance_enforcement |=
-				ICE_LINK_OVERRIDE_STRICT_MODE;
-	}
 }
 
 /**
@@ -3172,8 +3255,11 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	if (!pcaps)
 		return ICE_ERR_NO_MEMORY;
 
-	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP, pcaps,
-				     NULL);
+	status = ice_aq_get_phy_caps(pi, false,
+				     (ice_fw_supports_report_dflt_cfg(hw) ?
+				      ICE_AQC_REPORT_DFLT_CFG :
+				      ICE_AQC_REPORT_TOPO_CAP_MEDIA), pcaps, NULL);
+
 	if (status)
 		goto out;
 
@@ -3212,7 +3298,8 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		break;
 	}
 
-	if (fec == ICE_FEC_AUTO && ice_fw_supports_link_override(pi->hw)) {
+	if (fec == ICE_FEC_AUTO && ice_fw_supports_link_override(pi->hw) &&
+	    !ice_fw_supports_report_dflt_cfg(pi->hw)) {
 		struct ice_link_default_override_tlv tlv;
 
 		if (ice_get_link_default_override(&tlv, pi))
@@ -5168,6 +5255,141 @@ bool ice_is_phy_caps_an_enabled(struct ice_aqc_get_phy_caps_data *caps)
 }
 
 /**
+ * ice_is_fw_health_report_supported
+ * @hw: pointer to the hardware structure
+ *
+ * Return true if firmware supports health status reports,
+ * false otherwise
+ */
+bool ice_is_fw_health_report_supported(struct ice_hw *hw)
+{
+	if (hw->api_maj_ver > ICE_FW_API_HEALTH_REPORT_MAJ)
+		return true;
+
+	if (hw->api_maj_ver == ICE_FW_API_HEALTH_REPORT_MAJ) {
+		if (hw->api_min_ver > ICE_FW_API_HEALTH_REPORT_MIN)
+			return true;
+		if (hw->api_min_ver == ICE_FW_API_HEALTH_REPORT_MIN &&
+		    hw->api_patch >= ICE_FW_API_HEALTH_REPORT_PATCH)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_aq_set_health_status_config - Configure FW health events
+ * @hw: pointer to the HW struct
+ * @event_source: type of diagnostic events to enable
+ * @cd: pointer to command details structure or NULL
+ *
+ * Configure the health status event types that the firmware will send to this
+ * PF. The supported event types are: PF-specific, all PFs, and global
+ */
+enum ice_status
+ice_aq_set_health_status_config(struct ice_hw *hw, u8 event_source,
+				struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_health_status_config *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_health_status_config;
+
+	ice_fill_dflt_direct_cmd_desc(&desc,
+				      ice_aqc_opc_set_health_status_config);
+
+	cmd->event_source = event_source;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
+ * ice_aq_get_port_options
+ * @hw: pointer to the hw struct
+ * @options: buffer for the resultant port options
+ * @option_count: input - size of the buffer in port options structures,
+ *                output - number of returned port options
+ * @lport: logical port to call the command with (optional)
+ * @lport_valid: when false, FW uses port owned by the PF instead of lport,
+ *               when PF owns more than 1 port it must be true
+ * @active_option_idx: index of active port option in returned buffer
+ * @active_option_valid: active option in returned buffer is valid
+ *
+ * Calls Get Port Options AQC (0x06ea) and verifies result.
+ */
+enum ice_status
+ice_aq_get_port_options(struct ice_hw *hw,
+			struct ice_aqc_get_port_options_elem *options,
+			u8 *option_count, u8 lport, bool lport_valid,
+			u8 *active_option_idx, bool *active_option_valid)
+{
+	struct ice_aqc_get_port_options *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+	u8 pmd_count;
+	u8 max_speed;
+	u8 i;
+
+	ice_debug(hw, ICE_DBG_TRACE, "%s\n", __func__);
+
+	/* options buffer shall be able to hold max returned options */
+	if (*option_count < ICE_AQC_PORT_OPT_COUNT_M)
+		return ICE_ERR_PARAM;
+
+	cmd = &desc.params.get_port_options;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_port_options);
+
+	if (lport_valid)
+		cmd->lport_num = lport;
+	cmd->lport_num_valid = lport_valid;
+
+	status = ice_aq_send_cmd(hw, &desc, options,
+				 *option_count * sizeof(*options), NULL);
+	if (status != ICE_SUCCESS)
+		return status;
+
+	/* verify direct FW response & set output parameters */
+	*option_count = cmd->port_options_count & ICE_AQC_PORT_OPT_COUNT_M;
+	ice_debug(hw, ICE_DBG_PHY, "options: %x\n", *option_count);
+	*active_option_valid = cmd->port_options & ICE_AQC_PORT_OPT_VALID;
+	if (*active_option_valid) {
+		*active_option_idx = cmd->port_options &
+				     ICE_AQC_PORT_OPT_ACTIVE_M;
+		if (*active_option_idx > (*option_count - 1))
+			return ICE_ERR_OUT_OF_RANGE;
+		ice_debug(hw, ICE_DBG_PHY, "active idx: %x\n",
+			  *active_option_idx);
+	}
+
+	/* verify indirect FW response & mask output options fields */
+	for (i = 0; i < *option_count; i++) {
+		options[i].pmd &= ICE_AQC_PORT_OPT_PMD_COUNT_M;
+		options[i].max_lane_speed &= ICE_AQC_PORT_OPT_MAX_LANE_M;
+		pmd_count = options[i].pmd;
+		max_speed = options[i].max_lane_speed;
+		ice_debug(hw, ICE_DBG_PHY, "pmds: %x max speed: %x\n",
+			  pmd_count, max_speed);
+
+		/* check only entries containing valid max pmd speed values,
+		 * other reserved values may be returned, when logical port
+		 * used is unrelated to specific option
+		 */
+		if (max_speed <= ICE_AQC_PORT_OPT_MAX_LANE_100G) {
+			if (pmd_count > ICE_MAX_PORT_PER_PCI_DEV)
+				return ICE_ERR_OUT_OF_RANGE;
+			if (pmd_count > 2 &&
+			    max_speed > ICE_AQC_PORT_OPT_MAX_LANE_25G)
+				return ICE_ERR_CFG;
+			if (pmd_count > 7 &&
+			    max_speed > ICE_AQC_PORT_OPT_MAX_LANE_10G)
+				return ICE_ERR_CFG;
+		}
+	}
+
+	return ICE_SUCCESS;
+}
+
+/**
  * ice_aq_set_lldp_mib - Set the LLDP MIB
  * @hw: pointer to the HW struct
  * @mib_type: Local, Remote or both Local and Remote MIBs
@@ -5245,4 +5467,24 @@ ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add)
 	cmd->vsi_num = CPU_TO_LE16(vsi_num);
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/**
+ * ice_fw_supports_report_dflt_cfg
+ * @hw: pointer to the hardware structure
+ *
+ * Checks if the firmware supports report default configuration
+ */
+bool ice_fw_supports_report_dflt_cfg(struct ice_hw *hw)
+{
+	if (hw->api_maj_ver == ICE_FW_API_REPORT_DFLT_CFG_MAJ) {
+		if (hw->api_min_ver > ICE_FW_API_REPORT_DFLT_CFG_MIN)
+			return true;
+		if (hw->api_min_ver == ICE_FW_API_REPORT_DFLT_CFG_MIN &&
+		    hw->api_patch >= ICE_FW_API_REPORT_DFLT_CFG_PATCH)
+			return true;
+	} else if (hw->api_maj_ver > ICE_FW_API_REPORT_DFLT_CFG_MAJ) {
+		return true;
+	}
+	return false;
 }

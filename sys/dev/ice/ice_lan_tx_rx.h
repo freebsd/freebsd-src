@@ -1079,6 +1079,7 @@ static const struct ice_ctx_ele ice_tx_cmpltnq_info[] = {
 #pragma pack(1)
 struct ice_tx_cmpltnq_ctx {
 	u64 base;
+#define ICE_TX_CMPLTNQ_CTX_BASE_S	7
 	u32 q_len;
 #define ICE_TX_CMPLTNQ_CTX_Q_LEN_S	4
 	u8 generation;
@@ -1086,6 +1087,9 @@ struct ice_tx_cmpltnq_ctx {
 	u8 pf_num;
 	u16 vmvf_num;
 	u8 vmvf_type;
+#define ICE_TX_CMPLTNQ_CTX_VMVF_TYPE_VF		0
+#define ICE_TX_CMPLTNQ_CTX_VMVF_TYPE_VMQ	1
+#define ICE_TX_CMPLTNQ_CTX_VMVF_TYPE_PF		2
 	u8 tph_desc_wr;
 	u8 cpuid;
 	u32 cmpltn_cache[16];
@@ -1115,10 +1119,15 @@ static const struct ice_ctx_ele ice_tx_drbell_fmt_info[] = {
 #pragma pack(1)
 struct ice_tx_drbell_q_ctx {
 	u64 base;
+#define ICE_TX_DRBELL_Q_CTX_BASE_S	7
 	u16 ring_len;
+#define ICE_TX_DRBELL_Q_CTX_RING_LEN_S	4
 	u8 pf_num;
 	u16 vf_num;
 	u8 vmvf_type;
+#define ICE_TX_DRBELL_Q_CTX_VMVF_TYPE_VF	0
+#define ICE_TX_DRBELL_Q_CTX_VMVF_TYPE_VMQ	1
+#define ICE_TX_DRBELL_Q_CTX_VMVF_TYPE_PF	2
 	u8 cpuid;
 	u8 tph_desc_rd;
 	u8 tph_desc_wr;
@@ -1175,7 +1184,7 @@ static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
 	/* L2 Packet types */
 	ICE_PTT_UNUSED_ENTRY(0),
 	ICE_PTT(1, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
-	ICE_PTT(2, L2, NONE, NOF, NONE, NONE, NOF, NONE, NONE),
+	ICE_PTT_UNUSED_ENTRY(2),
 	ICE_PTT_UNUSED_ENTRY(3),
 	ICE_PTT_UNUSED_ENTRY(4),
 	ICE_PTT_UNUSED_ENTRY(5),
@@ -1289,7 +1298,7 @@ static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
 	/* Non Tunneled IPv6 */
 	ICE_PTT(88, IP, IPV6, FRG, NONE, NONE, NOF, NONE, PAY3),
 	ICE_PTT(89, IP, IPV6, NOF, NONE, NONE, NOF, NONE, PAY3),
-	ICE_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY3),
+	ICE_PTT(90, IP, IPV6, NOF, NONE, NONE, NOF, UDP,  PAY4),
 	ICE_PTT_UNUSED_ENTRY(91),
 	ICE_PTT(92, IP, IPV6, NOF, NONE, NONE, NOF, TCP,  PAY4),
 	ICE_PTT(93, IP, IPV6, NOF, NONE, NONE, NOF, SCTP, PAY4),

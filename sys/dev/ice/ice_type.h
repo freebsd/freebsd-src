@@ -259,6 +259,7 @@ struct ice_link_status {
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
+	u8 link_cfg_err;
 	u8 lse_ena;	/* Link Status Event notification */
 	u8 link_info;
 	u8 an_info;
@@ -661,6 +662,8 @@ enum ice_rl_type {
 #define ICE_TXSCHED_GET_RL_WAKEUP_MV(p) LE16_TO_CPU((p)->info.wake_up_calc)
 #define ICE_TXSCHED_GET_RL_ENCODE(p) LE16_TO_CPU((p)->info.rl_encode)
 
+#define ICE_MAX_PORT_PER_PCI_DEV	8
+
 /* The following tree example shows the naming conventions followed under
  * ice_port_info struct for default scheduler tree topology.
  *
@@ -1024,7 +1027,7 @@ struct ice_hw {
 	struct ice_lock rss_locks;	/* protect RSS configuration */
 	struct LIST_HEAD_TYPE rss_list_head;
 	struct ice_mbx_snapshot mbx_snapshot;
-	struct ice_vlan_mode_ops vlan_mode_ops;
+	u8 dvm_ena;
 };
 
 /* Statistics collected by each port, VSI, VEB, and S-channel */
@@ -1277,4 +1280,14 @@ struct ice_aq_get_set_rss_lut_params {
 #define ICE_FW_API_LLDP_FLTR_MAJ	1
 #define ICE_FW_API_LLDP_FLTR_MIN	7
 #define ICE_FW_API_LLDP_FLTR_PATCH	1
+
+/* AQ API version for report default configuration */
+#define ICE_FW_API_REPORT_DFLT_CFG_MAJ		1
+#define ICE_FW_API_REPORT_DFLT_CFG_MIN		7
+#define ICE_FW_API_REPORT_DFLT_CFG_PATCH	3
+
+/* AQ API version for FW health reports */
+#define ICE_FW_API_HEALTH_REPORT_MAJ		1
+#define ICE_FW_API_HEALTH_REPORT_MIN		7
+#define ICE_FW_API_HEALTH_REPORT_PATCH		6
 #endif /* _ICE_TYPE_H_ */

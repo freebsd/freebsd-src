@@ -137,6 +137,8 @@ struct ice_fltr_info {
 		} mac_vlan;
 		struct {
 			u16 vlan_id;
+			u16 tpid;
+			u8 tpid_valid;
 		} vlan;
 		/* Set lkup_type as ICE_SW_LKUP_ETHERTYPE
 		 * if just using ethertype as filter. Set lkup_type as
@@ -159,7 +161,6 @@ struct ice_fltr_info {
 		 */
 		u16 q_id:11;
 		u16 hw_vsi_id:10;
-		u16 vsi_id:10;
 		u16 vsi_list_id:10;
 	} fwd_id;
 
@@ -412,7 +413,6 @@ ice_alloc_vlan_res_counter(struct ice_hw *hw, u16 *counter_id);
 enum ice_status
 ice_free_vlan_res_counter(struct ice_hw *hw, u16 counter_id);
 
-/* Switch/bridge related commands */
 enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw);
 enum ice_status ice_alloc_rss_global_lut(struct ice_hw *hw, bool shared_res, u16 *global_lut_id);
 enum ice_status ice_free_rss_global_lut(struct ice_hw *hw, u16 global_lut_id);

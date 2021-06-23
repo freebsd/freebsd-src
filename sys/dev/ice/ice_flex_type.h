@@ -612,8 +612,8 @@ struct ice_xlt1 {
 #define ICE_PF_NUM_S	13
 #define ICE_PF_NUM_M	(0x07 << ICE_PF_NUM_S)
 #define ICE_VSIG_VALUE(vsig, pf_id) \
-	(u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
-	      (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M))
+	((u16)((((u16)(vsig)) & ICE_VSIG_IDX_M) | \
+	       (((u16)(pf_id) << ICE_PF_NUM_S) & ICE_PF_NUM_M)))
 #define ICE_DEFAULT_VSIG	0
 
 /* XLT2 Table */
@@ -729,5 +729,31 @@ enum ice_prof_type {
 	ICE_PROF_TUN_GRE = 0x4,
 	ICE_PROF_TUN_ALL = 0x6,
 	ICE_PROF_ALL = 0xFF,
+};
+
+/* Number of bits/bytes contained in meta init entry. Note, this should be a
+ * multiple of 32 bits.
+ */
+#define ICE_META_INIT_BITS	192
+#define ICE_META_INIT_DW_CNT	(ICE_META_INIT_BITS / (sizeof(__le32) * \
+				 BITS_PER_BYTE))
+
+/* The meta init Flag field starts at this bit */
+#define ICE_META_FLAGS_ST		123
+
+/* The entry and bit to check for Double VLAN Mode (DVM) support */
+#define ICE_META_VLAN_MODE_ENTRY	0
+#define ICE_META_FLAG_VLAN_MODE		60
+#define ICE_META_VLAN_MODE_BIT		(ICE_META_FLAGS_ST + \
+					 ICE_META_FLAG_VLAN_MODE)
+
+struct ice_meta_init_entry {
+	__le32 bm[ICE_META_INIT_DW_CNT];
+};
+
+struct ice_meta_init_section {
+	__le16 count;
+	__le16 offset;
+	struct ice_meta_init_entry entry[1];
 };
 #endif /* _ICE_FLEX_TYPE_H_ */
