@@ -64,12 +64,11 @@ enum ice_status
 ice_get_sw_fv_list(struct ice_hw *hw, u8 *prot_ids, u16 ids_cnt,
 		   ice_bitmap_t *bm, struct LIST_HEAD_TYPE *fv_list);
 enum ice_status
-ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
-		      u16 buf_size, struct ice_sq_cd *cd);
-
-enum ice_status
 ice_pkg_buf_unreserve_section(struct ice_buf_build *bld, u16 count);
 u16 ice_pkg_buf_get_free_space(struct ice_buf_build *bld);
+enum ice_status
+ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
+		      u16 buf_size, struct ice_sq_cd *cd);
 bool
 ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
 			 u16 *port);
@@ -120,5 +119,10 @@ ice_rem_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi[], u8 count,
 	     u64 id);
 enum ice_status
 ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id);
+struct ice_buf_build *
+ice_pkg_buf_alloc_single_section(struct ice_hw *hw, u32 type, u16 size,
+				 void **section);
+struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld);
+void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld);
 
 #endif /* _ICE_FLEX_PIPE_H_ */

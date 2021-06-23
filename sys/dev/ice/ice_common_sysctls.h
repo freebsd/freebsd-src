@@ -73,6 +73,18 @@ bool ice_enable_tx_fc_filter = true;
  */
 bool ice_enable_tx_lldp_filter = true;
 
+/**
+ * @var ice_enable_health_events
+ * @brief boolean indicating if health status events from the FW should be reported
+ *
+ * Global sysctl variable indicating whether the Health Status events from the
+ * FW should be enabled. If true, if an event occurs, the driver will print out
+ * a message with a description of the event and possible actions to take.
+ *
+ * @remark each PF has a separate sysctl which can override this value.
+ */
+bool ice_enable_health_events = true;
+
 /* sysctls marked as tunable, (i.e. with the CTLFLAG_TUN set) will
  * automatically load tunable values, without the need to manually create the
  * TUNABLE definition.
@@ -88,6 +100,10 @@ static SYSCTL_NODE(_hw, OID_AUTO, ice, CTLFLAG_RD, 0, "ICE driver parameters");
 
 static SYSCTL_NODE(_hw_ice, OID_AUTO, debug, ICE_CTLFLAG_DEBUG | CTLFLAG_RD, 0,
 		   "ICE driver debug parameters");
+
+SYSCTL_BOOL(_hw_ice, OID_AUTO, enable_health_events, CTLFLAG_RDTUN,
+	    &ice_enable_health_events, 0,
+	    "Enable FW health event reporting globally");
 
 SYSCTL_BOOL(_hw_ice_debug, OID_AUTO, enable_tx_fc_filter, CTLFLAG_RDTUN,
 	    &ice_enable_tx_fc_filter, 0,

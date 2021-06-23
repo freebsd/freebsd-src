@@ -274,6 +274,9 @@ struct ice_softc {
 	/* Ethertype filters enabled */
 	bool enable_tx_fc_filter;
 	bool enable_tx_lldp_filter;
+	
+	/* Other tunable flags */
+	bool enable_health_events;
 
 	int rebuild_ticks;
 

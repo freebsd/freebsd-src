@@ -477,6 +477,51 @@ ice_cmp_bitmap(ice_bitmap_t *bmp1, ice_bitmap_t *bmp2, u16 size)
 	return true;
 }
 
+/**
+ * ice_bitmap_from_array32 - copies u32 array source into bitmap destination
+ * @dst: the destination bitmap
+ * @src: the source u32 array
+ * @size: size of the bitmap (in bits)
+ *
+ * This function copies the src bitmap stored in an u32 array into the dst
+ * bitmap stored as an ice_bitmap_t.
+ */
+static inline void
+ice_bitmap_from_array32(ice_bitmap_t *dst, u32 *src, u16 size)
+{
+	u32 remaining_bits, i;
+
+#define BITS_PER_U32	(sizeof(u32) * BITS_PER_BYTE)
+	/* clear bitmap so we only have to set when iterating */
+	ice_zero_bitmap(dst, size);
+
+	for (i = 0; i < (u32)(size / BITS_PER_U32); i++) {
+		u32 bit_offset = i * BITS_PER_U32;
+		u32 entry = src[i];
+		u32 j;
+
+		for (j = 0; j < BITS_PER_U32; j++) {
+			if (entry & BIT(j))
+				ice_set_bit((u16)(j + bit_offset), dst);
+		}
+	}
+
+	/* still need to check the leftover bits (i.e. if size isn't evenly
+	 * divisible by BITS_PER_U32
+	 **/
+	remaining_bits = size % BITS_PER_U32;
+	if (remaining_bits) {
+		u32 bit_offset = i * BITS_PER_U32;
+		u32 entry = src[i];
+		u32 j;
+
+		for (j = 0; j < remaining_bits; j++) {
+			if (entry & BIT(j))
+				ice_set_bit((u16)(j + bit_offset), dst);
+		}
+	}
+}
+
 #undef BIT_CHUNK
 #undef BIT_IN_CHUNK
 #undef LAST_CHUNK_BITS
