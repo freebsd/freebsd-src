@@ -11,7 +11,16 @@ compute_engine_instance:
   disk: 40
 
 task:
-  name: World and kernel amd64 build and boot smoke test
+  matrix:
+  - name: World and kernel amd64 build and boot smoke test
+    env:
+      TARGET: amd64
+      TARGET_ARCH: amd64
+  - name: World and kernel arm64 build and boot smoke test
+    trigger_type: manual
+    env:
+      TARGET: arm64
+      TARGET_ARCH: aarch64
   timeout_in: 120m
   install_script:
   - sh .cirrus-ci/pkg-install.sh qemu llvm12
