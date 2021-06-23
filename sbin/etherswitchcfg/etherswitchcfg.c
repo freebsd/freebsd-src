@@ -223,6 +223,8 @@ set_port_flag(struct cfg *cfg, int argc, char *argv[])
 			f = ETHERSWITCH_PORT_DOUBLE_TAG;
 		else if (strcasecmp(flag, "ingress") == 0)
 			f = ETHERSWITCH_PORT_INGRESS;
+		else if (strcasecmp(flag, "striptagingress") == 0)
+			f = ETHERSWITCH_PORT_STRIPTAGINGRESS;
 	}
 	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
@@ -869,6 +871,8 @@ static struct cmds cmds[] = {
 	{ MODE_PORT, "-ingress", 0, set_port_flag },
 	{ MODE_PORT, "striptag", 0, set_port_flag },
 	{ MODE_PORT, "-striptag", 0, set_port_flag },
+	{ MODE_PORT, "striptagingress", 0, set_port_flag },
+	{ MODE_PORT, "-striptagingress", 0, set_port_flag },
 	{ MODE_PORT, "doubletag", 0, set_port_flag },
 	{ MODE_PORT, "-doubletag", 0, set_port_flag },
 	{ MODE_PORT, "firstlock", 0, set_port_flag },
