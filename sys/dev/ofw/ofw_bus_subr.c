@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/errno.h>
 #include <sys/libkern.h>
+#include <sys/sbuf.h>
 
 #include <machine/resource.h>
 
@@ -86,22 +87,18 @@ ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *obd)
 }
 
 int
-ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
+ofw_bus_gen_child_pnpinfo(device_t cbdev, device_t child, struct sbuf *sb)
 {
 
-	*buf = '\0';
 	if (!ofw_bus_status_okay(child))
 		return (0);
 
 	if (ofw_bus_get_name(child) != NULL) {
-		strlcat(buf, "name=", buflen);
-		strlcat(buf, ofw_bus_get_name(child), buflen);
+		sbuf_printf(sb, "name=%s ", ofw_bus_get_name(child));
 	}
 
 	if (ofw_bus_get_compat(child) != NULL) {
-		strlcat(buf, " compat=", buflen);
-		strlcat(buf, ofw_bus_get_compat(child), buflen);
+		sbuf_printf(sb, "compat=%s ", ofw_bus_get_compat(child));
 	}
 
 	return (0);
