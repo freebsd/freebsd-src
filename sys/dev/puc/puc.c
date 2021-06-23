@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
@@ -748,23 +749,21 @@ puc_bus_print_child(device_t dev, device_t child)
 }
 
 int
-puc_bus_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+puc_bus_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct puc_port *port;
 
 	port = device_get_ivars(child);
-	snprintf(buf, buflen, "port=%d", port->p_nr);
+	sbuf_printf(sb, "port=%d", port->p_nr);
 	return (0);
 }
 
 int
-puc_bus_child_pnpinfo_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+puc_bus_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct puc_port *port;
 
 	port = device_get_ivars(child);
-	snprintf(buf, buflen, "type=%d", port->p_type);
+	sbuf_printf(sb, "type=%d", port->p_type);
 	return (0);
 }

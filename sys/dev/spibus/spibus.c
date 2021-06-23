@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -119,22 +119,13 @@ spibus_probe_nomatch(device_t bus, device_t child)
 }
 
 static int
-spibus_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+spibus_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct spibus_ivar *devi = SPIBUS_IVAR(child);
 	int cs;
 
 	cs = devi->cs & ~SPIBUS_CS_HIGH; /* trim 'cs high' bit */
-	snprintf(buf, buflen, "bus=%d cs=%d", device_get_unit(bus), cs);
-	return (0);
-}
-
-static int
-spibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
-{
-	*buf = '\0';
+	sbuf_printf(sb, "bus=%d cs=%d", device_get_unit(bus), cs);
 	return (0);
 }
 
@@ -270,8 +261,7 @@ static device_method_t spibus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	spibus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	spibus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	spibus_write_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, spibus_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, spibus_child_location_str),
+	DEVMETHOD(bus_child_location,	spibus_child_location),
 	DEVMETHOD(bus_hinted_child,	spibus_hinted_child),
 
 	/* spibus interface */

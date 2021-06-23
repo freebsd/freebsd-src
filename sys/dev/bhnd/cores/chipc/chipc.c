@@ -596,28 +596,6 @@ chipc_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static int
-chipc_child_pnpinfo_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
-{
-	if (buflen == 0)
-		return (EOVERFLOW);
-
-	*buf = '\0';
-	return (0);
-}
-
-static int
-chipc_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
-{
-	if (buflen == 0)
-		return (EOVERFLOW);
-
-	*buf = '\0';
-	return (ENXIO);
-}
-
 static device_t
 chipc_add_child(device_t dev, u_int order, const char *name, int unit)
 {
@@ -1412,8 +1390,6 @@ static device_method_t chipc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_probe_nomatch,		chipc_probe_nomatch),
 	DEVMETHOD(bus_print_child,		chipc_print_child),
-	DEVMETHOD(bus_child_pnpinfo_str,	chipc_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str,	chipc_child_location_str),
 
 	DEVMETHOD(bus_add_child,		chipc_add_child),
 	DEVMETHOD(bus_child_deleted,		chipc_child_deleted),

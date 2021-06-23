@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -84,8 +85,7 @@ static int			vmbus_attach(device_t);
 static int			vmbus_detach(device_t);
 static int			vmbus_read_ivar(device_t, device_t, int,
 				    uintptr_t *);
-static int			vmbus_child_pnpinfo_str(device_t, device_t,
-				    char *, size_t);
+static int			vmbus_child_pnpinfo(device_t, device_t, struct sbuf *);
 static struct resource		*vmbus_alloc_resource(device_t dev,
 				    device_t child, int type, int *rid,
 				    rman_res_t start, rman_res_t end,
@@ -175,7 +175,7 @@ static device_method_t vmbus_methods[] = {
 	DEVMETHOD(bus_add_child,		bus_generic_add_child),
 	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		vmbus_read_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str,	vmbus_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,		vmbus_child_pnpinfo),
 	DEVMETHOD(bus_alloc_resource,		vmbus_alloc_resource),
 	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
@@ -1044,7 +1044,7 @@ vmbus_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 }
 
 static int
-vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
+vmbus_child_pnpinfo(device_t dev, device_t child, struct sbuf *sb)
 {
 	const struct vmbus_channel *chan;
 	char guidbuf[HYPERV_GUID_STRLEN];
@@ -1055,13 +1055,11 @@ vmbus_child_pnpinfo_str(device_t dev, device_t child, char *buf, size_t buflen)
 		return (0);
 	}
 
-	strlcat(buf, "classid=", buflen);
 	hyperv_guid2str(&chan->ch_guid_type, guidbuf, sizeof(guidbuf));
-	strlcat(buf, guidbuf, buflen);
+	sbuf_printf(sb, "classid=%s", guidbuf);
 
-	strlcat(buf, " deviceid=", buflen);
 	hyperv_guid2str(&chan->ch_guid_inst, guidbuf, sizeof(guidbuf));
-	strlcat(buf, guidbuf, buflen);
+	sbuf_printf(sb, " deviceid=%s", guidbuf);
 
 	return (0);
 }

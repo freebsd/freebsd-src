@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
@@ -407,11 +408,10 @@ siis_print_child(device_t dev, device_t child)
 }
 
 static int
-siis_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+siis_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 
-	snprintf(buf, buflen, "channel=%d",
+	sbuf_printf(sb, "channel=%d",
 	    (int)(intptr_t)device_get_ivars(child));
 	return (0);
 }
@@ -435,7 +435,7 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_release_resource,     siis_release_resource),
 	DEVMETHOD(bus_setup_intr,   siis_setup_intr),
 	DEVMETHOD(bus_teardown_intr,siis_teardown_intr),
-	DEVMETHOD(bus_child_location_str, siis_child_location_str),
+	DEVMETHOD(bus_child_location, siis_child_location),
 	DEVMETHOD(bus_get_dma_tag,  siis_get_dma_tag),
 	{ 0, 0 }
 };

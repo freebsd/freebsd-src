@@ -95,10 +95,8 @@ int iicbus_read_ivar(device_t bus, device_t child, int which,
     uintptr_t *result);
 int iicbus_write_ivar(device_t bus, device_t child, int which,
     uintptr_t value);
-int iicbus_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen);
-int iicbus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen);
+int iicbus_child_location(device_t bus, device_t child, struct sbuf *sb);
+int iicbus_child_pnpinfo(device_t bus, device_t child, struct sbuf *sb);
 
 extern driver_t iicbus_driver;
 extern devclass_t iicbus_devclass;

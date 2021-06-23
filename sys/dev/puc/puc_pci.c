@@ -185,8 +185,8 @@ static device_method_t puc_pci_methods[] = {
     DEVMETHOD(bus_setup_intr,		puc_bus_setup_intr),
     DEVMETHOD(bus_teardown_intr,	puc_bus_teardown_intr),
     DEVMETHOD(bus_print_child,		puc_bus_print_child),
-    DEVMETHOD(bus_child_pnpinfo_str,	puc_bus_child_pnpinfo_str),
-    DEVMETHOD(bus_child_location_str,	puc_bus_child_location_str),
+    DEVMETHOD(bus_child_pnpinfo,	puc_bus_child_pnpinfo),
+    DEVMETHOD(bus_child_location,	puc_bus_child_location),
 
     DEVMETHOD_END
 };

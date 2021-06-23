@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
@@ -697,14 +698,13 @@ ahci_print_child(device_t dev, device_t child)
 }
 
 int
-ahci_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+ahci_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	intptr_t ivars;
 
 	ivars = (intptr_t)device_get_ivars(child);
 	if ((ivars & AHCI_EM_UNIT) == 0)
-		snprintf(buf, buflen, "channel=%d", (int)ivars & AHCI_UNIT);
+		sbuf_printf(sb, "channel=%d", (int)ivars & AHCI_UNIT);
 	return (0);
 }
 

@@ -1774,21 +1774,20 @@ hdac_print_child(device_t dev, device_t child)
 }
 
 static int
-hdac_child_location_str(device_t dev, device_t child, char *buf, size_t buflen)
+hdac_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 
-	snprintf(buf, buflen, "cad=%d", (int)(intptr_t)device_get_ivars(child));
+	sbuf_printf(sb, "cad=%d", (int)(intptr_t)device_get_ivars(child));
 	return (0);
 }
 
 static int
-hdac_child_pnpinfo_str_method(device_t dev, device_t child, char *buf,
-    size_t buflen)
+hdac_child_pnpinfo_method(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
 	nid_t cad = (uintptr_t)device_get_ivars(child);
 
-	snprintf(buf, buflen,
+	sbuf_printf(sb,
 	    "vendor=0x%04x device=0x%04x revision=0x%02x stepping=0x%02x",
 	    sc->codecs[cad].vendor_id, sc->codecs[cad].device_id,
 	    sc->codecs[cad].revision_id, sc->codecs[cad].stepping_id);
@@ -2137,8 +2136,8 @@ static device_method_t hdac_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_get_dma_tag,	hdac_get_dma_tag),
 	DEVMETHOD(bus_print_child,	hdac_print_child),
-	DEVMETHOD(bus_child_location_str, hdac_child_location_str),
-	DEVMETHOD(bus_child_pnpinfo_str, hdac_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_location,	hdac_child_location),
+	DEVMETHOD(bus_child_pnpinfo,	hdac_child_pnpinfo_method),
 	DEVMETHOD(bus_read_ivar,	hdac_read_ivar),
 	DEVMETHOD(hdac_get_mtx,		hdac_get_mtx),
 	DEVMETHOD(hdac_codec_command,	hdac_codec_command),

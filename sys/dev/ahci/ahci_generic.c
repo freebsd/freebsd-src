@@ -182,7 +182,7 @@ static device_method_t ahci_fdt_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
-	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
+	DEVMETHOD(bus_child_location, ahci_child_location),
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
 	DEVMETHOD_END
 };
@@ -206,7 +206,7 @@ static device_method_t ahci_acpi_methods[] = {
 	DEVMETHOD(bus_release_resource,     ahci_release_resource),
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
-	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
+	DEVMETHOD(bus_child_location, ahci_child_location),
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
 	DEVMETHOD_END
 };

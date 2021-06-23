@@ -663,8 +663,7 @@ int ahci_setup_intr(device_t dev, device_t child, struct resource *irq,
     void *argument, void **cookiep);
 int ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie);
-int ahci_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen);
+int ahci_child_location(device_t dev, device_t child, struct sbuf *sb);
 bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
 int ahci_ctlr_reset(device_t dev);
 int ahci_ctlr_setup(device_t dev);
