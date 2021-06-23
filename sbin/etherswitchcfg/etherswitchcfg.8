@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd June 23, 2021
 .Dt ETHERSWITCHCFG 8
 .Os
 .Sh NAME
@@ -139,6 +139,10 @@ Disable the add VLAN tag option.
 Strip the VLAN tags from the packets sent by the port.
 .It Fl striptag
 Disable the strip VLAN tag option.
+.It Cm striptagingress
+Strip the VLAN tags from the packets received by the port.
+.It Fl striptagingress
+Disable the strip VLAN tag on ingress option.
 .It Cm firstlock
 This options makes the switch port lock on the first MAC address it sees.
 After that, usually you need to reset the switch to learn different
