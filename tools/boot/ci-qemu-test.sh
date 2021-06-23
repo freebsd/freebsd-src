@@ -44,11 +44,11 @@ EOF
 	    FreeBSD-clibs FreeBSD-runtime
 
 	# Put loader in standard EFI location.
-	mv ${ROOTDIR}/boot/loader.efi ${ROOTDIR}/efi/boot/BOOTx64.EFI
+	mv ${ROOTDIR}/boot/loader.efi ${ROOTDIR}/efi/boot/$EFIBOOT
 
 	# Configuration files.
 	cat > ${ROOTDIR}/boot/loader.conf <<EOF
-vfs.root.mountfrom="msdosfs:/dev/ada0s1"
+vfs.root.mountfrom="msdosfs:/dev/$ROOTDEV"
 autoboot_delay=-1
 boot_verbose=YES
 EOF
@@ -77,11 +77,26 @@ if [ -z "${OBJTOP}" ]; then
 	die "Cannot locate top of object tree"
 fi
 
-# Locate the uefi firmware file used by qemu.
-: ${OVMF:=/usr/local/share/qemu/edk2-x86_64-code.fd}
-if [ ! -r "${OVMF}" ]; then
-	die "Cannot read UEFI firmware file ${OVMF}"
-fi
+: ${TARGET:=$(uname -m)}
+case $TARGET in
+amd64)
+	# Locate the uefi firmware file used by qemu.
+	: ${OVMF:=/usr/local/share/qemu/edk2-x86_64-code.fd}
+	if [ ! -r "${OVMF}" ]; then
+		die "Cannot read UEFI firmware file ${OVMF}"
+	fi
+	QEMU="qemu-system-x86_64 -drive if=pflash,format=raw,readonly,file=${OVMF}"
+	EFIBOOT=BOOTx64.EFI
+	ROOTDEV=ada0s1
+	;;
+arm64)
+	QEMU="qemu-system-aarch64 -cpu cortex-a57 -M virt -bios edk2-aarch64-code.fd"
+	EFIBOOT=BOOTAA64.EFI
+	ROOTDEV=vtbd0s1
+	;;
+*)
+	die "Unknown TARGET:TARGET_ARCH $TARGET:$TARGET_ARCH"
+esac
 
 # Create a temp dir to hold the boot image.
 ROOTDIR=$(mktemp -d -t ci-qemu-test-fat-root)
@@ -93,8 +108,7 @@ trap tempdir_cleanup EXIT SIGINT SIGHUP SIGTERM SIGQUIT
 # And, boot in QEMU.
 : ${BOOTLOG:=${TMPDIR:-/tmp}/ci-qemu-test-boot.log}
 timeout 300 \
-    qemu-system-x86_64 -m 256M -nodefaults \
-   	-drive if=pflash,format=raw,readonly,file=${OVMF} \
+    $QEMU -m 256M -nodefaults \
         -serial stdio -vga none -nographic -monitor none \
         -snapshot -hda fat:${ROOTDIR} 2>&1 | tee ${BOOTLOG}
 
