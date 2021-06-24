@@ -42,6 +42,7 @@
 
 #include "ocs.h"
 #include "ocs_mgmt.h"
+#include "ocs_gendump.h"
 #include "ocs_vpd.h"
 
 #define SFP_PAGE_SIZE 128
@@ -54,11 +55,6 @@ static int ocs_mgmt_function_reset(ocs_t *ocs, char *, void *buf, uint32_t buf_l
 
 static void ocs_mgmt_fw_write_cb(int32_t status, uint32_t actual_write_length, uint32_t change_status, void *arg);
 static int ocs_mgmt_force_assert(ocs_t *ocs, char *, void *buf, uint32_t buf_len, void*, uint32_t);
-
-#if defined(OCS_INCLUDE_RAMD)
-static int32_t
-ocs_mgmt_read_phys(ocs_t *ocs, char *, void *, uint32_t , void *, uint32_t);
-#endif
 
 /* Getters */
 
@@ -141,9 +137,6 @@ static int set_nv_wwn(ocs_t*, char*, char*);
 static int set_loglevel(ocs_t*, char*, char*);
 
 static void ocs_mgmt_linkcfg_cb(int32_t status, uintptr_t value, void *arg);
-#if defined(OCS_INCLUDE_RAMD)
-static void* find_address_in_target(ocs_ramdisc_t **ramdisc_array, uint32_t ramdisc_count, uintptr_t target_addr);
-#endif
 
 ocs_mgmt_table_entry_t mgmt_table[] = {
 		{"nodes_count", get_nodes_count, NULL, NULL},
@@ -193,9 +186,6 @@ ocs_mgmt_table_entry_t mgmt_table[] = {
 		{"firmware_write", NULL, NULL, ocs_mgmt_firmware_write},
 		{"firmware_reset", NULL, NULL, ocs_mgmt_firmware_reset},
 		{"function_reset", NULL, NULL, ocs_mgmt_function_reset},
-#if defined(OCS_INCLUDE_RAMD)
-		{"read_phys", NULL, NULL, ocs_mgmt_read_phys},
-#endif
 		{"force_assert", NULL, NULL, ocs_mgmt_force_assert},
 
 		{"tgt_rscn_delay", get_tgt_rscn_delay, set_tgt_rscn_delay, NULL},
@@ -490,6 +480,15 @@ ocs_mgmt_exec(ocs_t *ocs, char *action, void *arg_in,
 			}
 		}
 
+		/* See if it's a value I can supply */
+		if (ocs_strcmp(unqualified_name, "driver/gendump") == 0) {
+			return ocs_gen_dump(ocs);
+		}
+
+		if (ocs_strcmp(unqualified_name, "driver/dump_to_host") == 0) {
+			return ocs_dump_to_host(ocs, arg_out, arg_out_length);
+		}
+
 		if ((ocs->mgmt_functions) && (ocs->mgmt_functions->exec_handler)) {
 			result = ocs->mgmt_functions->exec_handler(qualifier, action, arg_in, arg_in_length,
 								   arg_out, arg_out_length, ocs);
@@ -558,137 +557,6 @@ ocs_mgmt_get_all(ocs_t *ocs, ocs_textbuf_t *textbuf)
 
 	ocs_mgmt_end_unnumbered_section(textbuf, "ocs");
 }
-
-#if defined(OCS_INCLUDE_RAMD)
-static int32_t
-ocs_mgmt_read_phys(ocs_t *ocs, char *name, void *arg_in, uint32_t arg_in_length, void *arg_out, uint32_t arg_out_length)
-{
-        uint32_t length;
-        char addr_str[80];
-        uintptr_t target_addr;
-        void* vaddr = NULL;
-        ocs_ramdisc_t **ramdisc_array;
-        uint32_t ramdisc_count;
-
-        if ((arg_in == NULL) ||
-            (arg_in_length == 0) ||
-            (arg_out == NULL) ||
-            (arg_out_length == 0)) {
-                return -1;
-        }
-
-        if (arg_in_length > 80) {
-                arg_in_length = 80;
-        }
-
-        if (ocs_copy_from_user(addr_str, arg_in, arg_in_length)) {
-                ocs_log_test(ocs, "Failed to copy addr from user\n");
-                return -EFAULT;
-        }
-
-        target_addr = (uintptr_t)ocs_strtoul(addr_str, NULL, 0);
-        /* addr_str must be the physical address of a buffer that was reported
-         * in an SGL.  Search ramdiscs looking for a segment that contains that
-         * physical address
-         */
-
-        if (ocs->tgt_ocs.use_global_ramd) {
-                /* Only one target */
-                ramdisc_count = ocs->tgt_ocs.rdisc_count;
-                ramdisc_array = ocs->tgt_ocs.rdisc;
-                vaddr = find_address_in_target(ramdisc_array, ramdisc_count, target_addr);
-        } else {
-                /* Multiple targets.  Each target is on a sport */
-		uint32_t domain_idx;
-
-		for (domain_idx=0; domain_idx<ocs->domain_instance_count; domain_idx++) {
-			ocs_domain_t *domain;
-			uint32_t sport_idx;
-
-			domain = ocs_domain_get_instance(ocs, domain_idx);
-			for (sport_idx=0; sport_idx < domain->sport_instance_count; sport_idx++) {
-				ocs_sport_t *sport;
-
-				sport = ocs_sport_get_instance(domain, sport_idx);
-				ramdisc_count = sport->tgt_sport.rdisc_count;
-				ramdisc_array = sport->tgt_sport.rdisc;
-				vaddr = find_address_in_target(ramdisc_array, ramdisc_count, target_addr);
-
-				if (vaddr != NULL) {
-					break;
-				}
-			}
-                }
-        }
-
-        length = arg_out_length;
-
-        if (vaddr != NULL) {
-                if (ocs_copy_to_user(arg_out, vaddr, length)) {
-                        ocs_log_test(ocs, "Failed to copy buffer to user\n");
-                        return -EFAULT;
-                }
-
-                return 0;
-        } else {
-                return -EFAULT;
-	}
-
-}
-
-/*
- * This function searches a target for a given physical address.
- * The target is made up of a number of LUNs, each represented by
- * a ocs_ramdisc_t.
- */
-static void* find_address_in_target(ocs_ramdisc_t **ramdisc_array, uint32_t ramdisc_count, uintptr_t target_addr)
-{
-	void *vaddr = NULL;
-	uint32_t ramdisc_idx;
-
-	/* Check each ramdisc */
-	for (ramdisc_idx=0; ramdisc_idx<ramdisc_count; ramdisc_idx++) {
-		uint32_t segment_idx;
-		ocs_ramdisc_t *rdisc;
-		rdisc = ramdisc_array[ramdisc_idx];
-		/* Check each segment in the ramdisc */
-		for (segment_idx=0; segment_idx<rdisc->segment_count; segment_idx++) {
-			ramdisc_segment_t *segment = rdisc->segments[segment_idx];
-			uintptr_t segment_start;
-			uintptr_t segment_end;
-			uint32_t offset;
-
-			segment_start = segment->data_segment.phys;
-			segment_end = segment->data_segment.phys + segment->data_segment.size - 1;
-			if ((target_addr >= segment_start) && (target_addr <= segment_end)) {
-				/* Found the target address */
-				offset = target_addr - segment_start;
-				vaddr = (uint32_t*)segment->data_segment.virt + offset;
-			}
-
-			if (rdisc->dif_separate) {
-				segment_start = segment->dif_segment.phys;
-				segment_end = segment->data_segment.phys + segment->dif_segment.size - 1;
-				if ((target_addr >= segment_start) && (target_addr <= segment_end)) {
-					/* Found the target address */
-					offset = target_addr - segment_start;
-					vaddr = (uint32_t*)segment->dif_segment.virt + offset;
-				}
-			}
-
-			if (vaddr != NULL) {
-				break;
-			}
-		}
-
-		if (vaddr != NULL) {
-			break;
-		}
-	}
-
-	return vaddr;
-}
-#endif
 
 static int32_t
 ocs_mgmt_firmware_reset(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, void *arg_out, uint32_t arg_out_length)

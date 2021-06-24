@@ -1050,9 +1050,8 @@ typedef struct ocs_pci_reg_s {
  * @param dev Pointer to location to store the device number.
  * @param func Pointer to location to store the function number.
  *
- * @return Returns 0.
  */
-extern int32_t
+extern void
 ocs_get_bus_dev_func(ocs_t *ocs, uint8_t* bus, uint8_t* dev, uint8_t* func);
 
 extern ocs_t *ocs_get_instance(uint32_t index);

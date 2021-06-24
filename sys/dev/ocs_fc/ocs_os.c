@@ -883,13 +883,12 @@ ocs_pci_model(uint16_t vendor, uint16_t device)
 	return "unknown";
 }
 
-int32_t
+void
 ocs_get_bus_dev_func(ocs_t *ocs, uint8_t* bus, uint8_t* dev, uint8_t* func)
 {
 	*bus = pci_get_bus(ocs->dev);
 	*dev = pci_get_slot(ocs->dev);
 	*func= pci_get_function(ocs->dev);
-	return 0;
 }
 
 /**
