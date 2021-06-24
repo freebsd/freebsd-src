@@ -147,7 +147,7 @@ ofw_bus_gen_get_node(device_t bus, device_t dev)
 
 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
-		return (0);
+		return ((phandle_t)-1);
 	return (obd->obd_node);
 }
 
