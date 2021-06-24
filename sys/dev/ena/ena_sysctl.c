@@ -51,7 +51,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 /*
  * Logging level for changing verbosity of the output
  */
-int ena_log_level = ENA_ALERT | ENA_WARNING;
+int ena_log_level = ENA_INFO;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
@@ -452,20 +452,20 @@ ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (!powerof2(val) || val == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Tx buffer ring size (%u) is not a power of 2\n",
 		    val);
 		return (EINVAL);
 	}
 
 	if (val != adapter->buf_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new Tx buffer ring size: %d. Old size: %d\n",
 		    val, adapter->buf_ring_size);
 
 		error = ena_update_buf_ring_size(adapter, val);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "New Tx buffer ring size is the same as already used: %u\n",
 		    adapter->buf_ring_size);
 	}
@@ -490,7 +490,7 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if  (val < ENA_MIN_RING_SIZE || val > adapter->max_rx_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is out of range: [%u, %u]\n",
 		    val, ENA_MIN_RING_SIZE, adapter->max_rx_ring_size);
 		return (EINVAL);
@@ -498,21 +498,21 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 
 	/* Check if the parameter is power of 2 */
 	if (!powerof2(val)) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is not a power of 2\n",
 		    val);
 		return (EINVAL);
 	}
 
 	if (val != adapter->requested_rx_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new Rx queue size: %u. Old size: %u\n",
 		    val, adapter->requested_rx_ring_size);
 
 		error = ena_update_queue_size(adapter,
 		    adapter->requested_tx_ring_size, val);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "New Rx queue size is the same as already used: %u\n",
 		    adapter->requested_rx_ring_size);
 	}
@@ -539,7 +539,7 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (tmp == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is zero\n");
 		return (EINVAL);
 	}
@@ -552,17 +552,17 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 	 * device reset (`ena_destroy_device()` + `ena_restore_device()`).
 	 */
 	if (tmp > (adapter->msix_vecs - ENA_ADMIN_MSIX_VEC)) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is higher than maximum "
 		    "allowed (%u)\n", adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
 		return (EINVAL);
 	}
 	if (tmp == adapter->num_io_queues) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is equal to current value "
 		    "(%u)\n", adapter->num_io_queues);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new number of IO queues: %u, current value: "
 		    "%u\n", tmp, adapter->num_io_queues);
 
@@ -593,18 +593,18 @@ ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (interval > ENI_METRICS_MAX_SAMPLE_INTERVAL) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "ENI metrics update interval is out of range - maximum allowed value: %d seconds\n",
 		    ENI_METRICS_MAX_SAMPLE_INTERVAL);
 		return (EINVAL);
 	}
 
 	if (interval == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "ENI metrics update is now turned off\n");
 		bzero(&adapter->eni_metrics, sizeof(adapter->eni_metrics));
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "ENI metrics update interval is set to: %"PRIu16" seconds\n",
 		    interval);
 	}
