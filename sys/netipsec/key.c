@@ -534,8 +534,7 @@ MALLOC_DEFINE(M_IPSEC_SAQ, "ipsec-saq", "ipsec sa acquire");
 MALLOC_DEFINE(M_IPSEC_SAR, "ipsec-reg", "ipsec sa acquire");
 MALLOC_DEFINE(M_IPSEC_SPDCACHE, "ipsec-spdcache", "ipsec SPD cache");
 
-VNET_DEFINE_STATIC(uma_zone_t, key_lft_zone);
-#define	V_key_lft_zone		VNET(key_lft_zone)
+static uma_zone_t __read_mostly ipsec_key_lft_zone;
 
 /*
  * set parameters into secpolicyindex buffer.
@@ -2939,13 +2938,11 @@ key_newsav(const struct sadb_msghdr *mhp, struct secasindex *saidx,
 		goto done;
 	}
 	mtx_init(sav->lock, "ipsec association", NULL, MTX_DEF);
-	sav->lft_c = uma_zalloc_pcpu(V_key_lft_zone, M_NOWAIT);
+	sav->lft_c = uma_zalloc_pcpu(ipsec_key_lft_zone, M_NOWAIT | M_ZERO);
 	if (sav->lft_c == NULL) {
 		*errp = ENOBUFS;
 		goto done;
 	}
-	counter_u64_zero(sav->lft_c_allocations);
-	counter_u64_zero(sav->lft_c_bytes);
 
 	sav->spi = spi;
 	sav->seq = mhp->msg->sadb_msg_seq;
@@ -3031,7 +3028,7 @@ done:
 				free(sav->lock, M_IPSEC_MISC);
 			}
 			if (sav->lft_c != NULL)
-				uma_zfree_pcpu(V_key_lft_zone, sav->lft_c);
+				uma_zfree_pcpu(ipsec_key_lft_zone, sav->lft_c);
 			free(sav, M_IPSEC_SA), sav = NULL;
 		}
 		if (sah != NULL)
@@ -3109,7 +3106,7 @@ key_delsav(struct secasvar *sav)
 	if ((sav->flags & SADB_X_EXT_F_CLONED) == 0) {
 		mtx_destroy(sav->lock);
 		free(sav->lock, M_IPSEC_MISC);
-		uma_zfree_pcpu(V_key_lft_zone, sav->lft_c);
+		uma_zfree_pcpu(ipsec_key_lft_zone, sav->lft_c);
 	}
 	free(sav, M_IPSEC_SA);
 }
@@ -8269,10 +8266,6 @@ key_init(void)
 		TAILQ_INIT(&V_sptree_ifnet[i]);
 	}
 
-	V_key_lft_zone = uma_zcreate("IPsec SA lft_c",
-	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
-
 	TAILQ_INIT(&V_sahtree);
 	V_sphashtbl = hashinit(SPHASH_NHASH, M_IPSEC_SP, &V_sphash_mask);
 	V_savhashtbl = hashinit(SAVHASH_NHASH, M_IPSEC_SA, &V_savhash_mask);
@@ -8293,6 +8286,10 @@ key_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	ipsec_key_lft_zone = uma_zcreate("IPsec SA lft_c",
+	    sizeof(uint64_t) * 2, NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 
 	SPTREE_LOCK_INIT();
 	REGTREE_LOCK_INIT();
@@ -8409,10 +8406,12 @@ key_destroy(void)
 	SPACQ_UNLOCK();
 	hashdestroy(V_acqaddrhashtbl, M_IPSEC_SAQ, V_acqaddrhash_mask);
 	hashdestroy(V_acqseqhashtbl, M_IPSEC_SAQ, V_acqseqhash_mask);
-	uma_zdestroy(V_key_lft_zone);
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	uma_zdestroy(ipsec_key_lft_zone);
+
 #ifndef IPSEC_DEBUG2
 	callout_drain(&key_timer);
 #endif
