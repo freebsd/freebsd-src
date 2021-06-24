@@ -258,14 +258,22 @@ struct tx_ch_rl_params {
 	uint32_t maxrate;
 };
 
+/* CLRL state */
+enum clrl_state {
+	CS_UNINITIALIZED = 0,
+	CS_PARAMS_SET,			/* sw parameters have been set. */
+	CS_HW_UPDATE_REQUESTED,		/* async HW update requested. */
+	CS_HW_UPDATE_IN_PROGRESS,	/* sync hw update in progress. */
+	CS_HW_CONFIGURED		/* configured in the hardware. */
+};
+
+/* CLRL flags */
 enum {
-	CLRL_USER	= (1 << 0),	/* allocated manually. */
-	CLRL_SYNC	= (1 << 1),	/* sync hw update in progress. */
-	CLRL_ASYNC	= (1 << 2),	/* async hw update requested. */
-	CLRL_ERR	= (1 << 3),	/* last hw setup ended in error. */
+	CF_USER		= (1 << 0),	/* was configured by driver ioctl. */
 };
 
 struct tx_cl_rl_params {
+	enum clrl_state state;
 	int refcount;
 	uint8_t flags;
 	enum fw_sched_params_rate ratemode;	/* %port REL or ABS value */
