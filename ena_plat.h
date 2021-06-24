@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -107,6 +107,7 @@ extern struct ena_bus_space ebs;
 #define ENA_NETMAP	(1 << 9) /* Detailed info about netmap. 	      */
 
 #define DEFAULT_ALLOC_ALIGNMENT	8
+#define ENA_CDESC_RING_SIZE_ALIGNMENT  (1 << 12) /* 4K */
 
 extern int ena_log_level;
 

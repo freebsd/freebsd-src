@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,5 +30,5 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define	ENA_GEN_DATE	"Fri Sep 18 17:09:00 IDT 2020"
-#define	ENA_GEN_COMMIT	"0f80d82"
+#define	ENA_GEN_DATE	"Tue Jan 19 12:45:09 STD 2021"
+#define	ENA_GEN_COMMIT	"f023ae8f"
