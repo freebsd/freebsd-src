@@ -12491,6 +12491,9 @@ rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 static void
 rack_set_state(struct tcpcb *tp, struct tcp_rack *rack)
 {
+	if ((rack->r_state == TCPS_CLOSED) && (tp->t_state != TCPS_CLOSED)) {
+		rack->r_is_v6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
+	}
 	switch (tp->t_state) {
 	case TCPS_SYN_SENT:
 		rack->r_state = TCPS_SYN_SENT;
@@ -16215,7 +16218,7 @@ rack_output(struct tcpcb *tp)
 		}
 		idle = 0;
 	}
-	if (rack_use_fsb && (rack->r_fsb_inited == 0))
+	if (rack_use_fsb && (rack->r_fsb_inited == 0) && (rack->r_state != TCPS_CLOSED))
 		rack_init_fsb_block(tp, rack);
 again:
 	/*
