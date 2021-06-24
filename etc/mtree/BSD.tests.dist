@@ -488,6 +488,8 @@
         ..
         net
         ..
+        netgraph
+        ..
         netinet
         ..
         netmap
