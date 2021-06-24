@@ -1101,7 +1101,9 @@ try_load_dtb(caddr_t kmdp)
 #endif
 
 	if (dtbp == (vm_offset_t)NULL) {
+#ifndef TSLOG
 		printf("ERROR loading DTB\n");
+#endif
 		return;
 	}
 
