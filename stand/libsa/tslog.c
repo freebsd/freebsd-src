@@ -29,7 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>
+#elif defined(__aarch64__)
+#include <machine/armreg.h>
+#endif
 
 #include <stand.h>
 
@@ -60,6 +64,8 @@ tslog(const char * type, const char * f, const char * s)
 {
 #if defined(__amd64__) || defined(__i386__)
 	uint64_t tsc = rdtsc();
+#elif defined(__aarch64__)
+	uint64_t tsc = READ_SPECIALREG(cntvct_el0);
 #else
 	uint64_t tsc = 0;
 #endif
