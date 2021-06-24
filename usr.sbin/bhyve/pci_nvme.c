@@ -198,13 +198,11 @@ struct pci_nvme_blockstore {
  * Calculate the number of additional page descriptors for guest IO requests
  * based on the advertised Max Data Transfer (MDTS) and given the number of
  * default iovec's in a struct blockif_req.
- *
- * Note the + 1 allows for the initial descriptor to not be page aligned.
  */
 #define MDTS_PAD_SIZE \
-	NVME_MAX_IOVEC > BLOCKIF_IOV_MAX ? \
-	NVME_MAX_IOVEC - BLOCKIF_IOV_MAX : \
-	0
+	( NVME_MAX_IOVEC > BLOCKIF_IOV_MAX ? \
+	  NVME_MAX_IOVEC - BLOCKIF_IOV_MAX : \
+	  0 )
 
 struct pci_nvme_ioreq {
 	struct pci_nvme_softc *sc;
