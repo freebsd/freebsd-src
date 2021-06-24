@@ -33,7 +33,8 @@ SRCS += \
 	ocs_scsi.c \
 	ocs_unsol.c \
 	ocs_ddump.c \
-	ocs_mgmt.c 
+	ocs_mgmt.c \
+	ocs_gendump.c
 
 
 # CAM initiator/target

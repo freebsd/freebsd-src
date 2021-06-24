@@ -303,18 +303,21 @@ typedef struct {
 
 typedef struct {
 	uint8_t		*name;			/*<< Input: name of property to retrieve */
+	uint16_t	name_len;               /*<< Input: Length of name */
 	uint8_t		*value;			/*<< Output: user space buffer in which to place the response */
 	uint32_t	value_length;		/*<< Input: size of the user space buffer */
 } ocs_ioctl_cmd_get_t;
 
 typedef struct {
 	uint8_t		*name;			/*<< Input: name of property to set */
+	uint16_t	name_len;               /*<< Input: Length of name */
 	uint8_t		*value;			/*<< Input: user space buffer which contains the new value */
 	int32_t		result;			/*<< Output: result */
 } ocs_ioctl_cmd_set_t;
 
 typedef struct {
 	uint8_t		*name;			/*<< Input: name of action to execute */
+	uint16_t	name_len;               /*<< Input: Length of name */
 	void		*arg_in;		/*<< Input: pointer to argument in user space */
 	uint32_t	arg_in_length;		/*<< Input: size of arg_in in bytes */
 	void		*arg_out;		/*<< Output: pointer to argument from kernel to user */
