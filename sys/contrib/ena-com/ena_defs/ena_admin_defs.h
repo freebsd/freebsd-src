@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -853,7 +853,8 @@ enum ena_admin_os_type {
 	ENA_ADMIN_OS_FREEBSD                        = 4,
 	ENA_ADMIN_OS_IPXE                           = 5,
 	ENA_ADMIN_OS_ESXI                           = 6,
-	ENA_ADMIN_OS_GROUPS_NUM                     = 6,
+	ENA_ADMIN_OS_MACOS                          = 7,
+	ENA_ADMIN_OS_GROUPS_NUM                     = 7,
 };
 
 struct ena_admin_host_info {
@@ -902,7 +903,9 @@ struct ena_admin_host_info {
 	 * 2 : interrupt_moderation
 	 * 3 : rx_buf_mirroring
 	 * 4 : rss_configurable_function_key
-	 * 31:5 : reserved
+	 * 5 : reserved
+	 * 6 : rx_page_reuse
+	 * 31:7 : reserved
 	 */
 	uint32_t driver_supported_features;
 };
@@ -1092,8 +1095,6 @@ enum ena_admin_aenq_group {
 };
 
 enum ena_admin_aenq_notification_syndrome {
-	ENA_ADMIN_SUSPEND                           = 0,
-	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,
 };
 
@@ -1228,6 +1229,8 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_RX_BUF_MIRRORING_MASK           BIT(3)
 #define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT 4
 #define ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK BIT(4)
+#define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT             6
+#define ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK              BIT(6)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
@@ -1687,6 +1690,16 @@ static inline uint32_t get_ena_admin_host_info_rss_configurable_function_key(con
 static inline void set_ena_admin_host_info_rss_configurable_function_key(struct ena_admin_host_info *p, uint32_t val)
 {
 	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_SHIFT) & ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_rx_page_reuse(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK) >> ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_rx_page_reuse(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_SHIFT) & ENA_ADMIN_HOST_INFO_RX_PAGE_REUSE_MASK;
 }
 
 static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const struct ena_admin_feature_rss_ind_table *p)

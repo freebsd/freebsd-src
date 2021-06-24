@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,22 +91,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
+#include "ena_fbsd_log.h"
+
 extern struct ena_bus_space ebs;
 
-/* Levels */
-#define ENA_ALERT 	(1 << 0) /* Alerts are providing more error info.     */
-#define ENA_WARNING 	(1 << 1) /* Driver output is more error sensitive.    */
-#define ENA_INFO 	(1 << 2) /* Provides additional driver info. 	      */
-#define ENA_DBG 	(1 << 3) /* Driver output for debugging.	      */
-/* Detailed info that will be printed with ENA_INFO or ENA_DEBUG flag. 	      */
-#define ENA_TXPTH 	(1 << 4) /* Allows TX path tracing. 		      */
-#define ENA_RXPTH 	(1 << 5) /* Allows RX path tracing.		      */
-#define ENA_RSC 	(1 << 6) /* Goes with TXPTH or RXPTH, free/alloc res. */
-#define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
-#define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
-#define ENA_NETMAP	(1 << 9) /* Detailed info about netmap. 	      */
-
 #define DEFAULT_ALLOC_ALIGNMENT	8
+#define ENA_CDESC_RING_SIZE_ALIGNMENT  (1 << 12) /* 4K */
 
 extern int ena_log_level;
 
@@ -116,27 +106,18 @@ extern int ena_log_level;
 		(type *)((uintptr_t)__p - offsetof(type, member));	\
 	})
 
-#define ena_trace_raw(ctx, level, fmt, args...)			\
-	do {							\
-		((void)(ctx));					\
-		if (((level) & ena_log_level) != (level))	\
-			break;					\
-		printf(fmt, ##args);				\
-	} while (0)
-
 #define ena_trace(ctx, level, fmt, args...)			\
-	ena_trace_raw(ctx, level, "%s() [TID:%d]: "		\
+	ena_log((ctx)->dmadev, level, "%s() [TID:%d]: "		\
 	    fmt, __func__, curthread->td_tid, ##args)
 
-
 #define ena_trc_dbg(ctx, format, arg...)	\
-	ena_trace(ctx, ENA_DBG, format, ##arg)
+	ena_trace(ctx, DBG, format, ##arg)
 #define ena_trc_info(ctx, format, arg...)	\
-	ena_trace(ctx, ENA_INFO, format, ##arg)
+	ena_trace(ctx, INFO, format, ##arg)
 #define ena_trc_warn(ctx, format, arg...)	\
-	ena_trace(ctx, ENA_WARNING, format, ##arg)
+	ena_trace(ctx, WARN, format, ##arg)
 #define ena_trc_err(ctx, format, arg...)	\
-	ena_trace(ctx, ENA_ALERT, format, ##arg)
+	ena_trace(ctx, ERR, format, ##arg)
 
 #define unlikely(x)	__predict_false(!!(x))
 #define likely(x)  	__predict_true(!!(x))
