@@ -171,11 +171,10 @@ init_toepcb(struct vi_info *vi, struct toepcb *toep)
 	if (cp->tc_idx >= 0 && cp->tc_idx < sc->params.nsched_cls) {
 		tc = &pi->sched_params->cl_rl[cp->tc_idx];
 		mtx_lock(&sc->tc_lock);
-		if (tc->flags & CLRL_ERR) {
-			log(LOG_ERR,
-			    "%s: failed to associate traffic class %u with tid %u\n",
-			    device_get_nameunit(vi->dev), cp->tc_idx,
-			    toep->tid);
+		if (tc->state != CS_HW_CONFIGURED) {
+			CH_ERR(vi, "tid %d cannot be bound to traffic class %d "
+			    "because it is not configured (its state is %d)\n",
+			    toep->tid, cp->tc_idx, tc->state);
 			cp->tc_idx = -1;
 		} else {
 			tc->refcount++;
