@@ -1272,13 +1272,13 @@ $command $rc_flags $command_args"
 			# We cannot use protect(1) inside jails.
 			if [ -n "$_oomprotect" ] && [ -f "${PROTECT}" ] &&
 			    [ "$(sysctl -n security.jail.jailed)" -eq 0 ]; then
-				pid=$(check_process $command)
+				[ -z "${rc_pid}" ] && eval $_pidcmd
 				case $_oomprotect in
 				[Aa][Ll][Ll])
-					${PROTECT} -i -p ${pid}
+					${PROTECT} -i -p ${rc_pid}
 					;;
 				[Yy][Ee][Ss])
-					${PROTECT} -p ${pid}
+					${PROTECT} -p ${rc_pid}
 					;;
 				esac
 			fi
