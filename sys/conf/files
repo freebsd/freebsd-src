@@ -2603,6 +2603,7 @@ dev/oce/oce_mbox.c		optional oce pci
 dev/oce/oce_queue.c		optional oce pci
 dev/oce/oce_sysctl.c		optional oce pci
 dev/oce/oce_util.c		optional oce pci
+dev/ocs_fc/ocs_gendump.c	optional ocs_fc pci
 dev/ocs_fc/ocs_pci.c		optional ocs_fc pci
 dev/ocs_fc/ocs_ioctl.c		optional ocs_fc pci
 dev/ocs_fc/ocs_os.c		optional ocs_fc pci
