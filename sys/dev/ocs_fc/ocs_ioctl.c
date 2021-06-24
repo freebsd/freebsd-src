@@ -60,22 +60,12 @@ ocs_firmware_write(ocs_t *ocs, const uint8_t *buf, size_t buf_len, uint8_t *chan
 static int
 ocs_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 {
-#if 0
-	struct ocs_softc *ocs = cdev->si_drv1;
-
-	device_printf(ocs->dev, "%s\n", __func__);
-#endif
 	return 0;
 }
 
 static int
 ocs_close(struct cdev *cdev, int flag, int fmt, struct thread *td)
 {
-#if 0
-	struct ocs_softc *ocs = cdev->si_drv1;
-
-	device_printf(ocs->dev, "%s\n", __func__);
-#endif
 	return 0;
 }
 
@@ -95,8 +85,8 @@ __ocs_ioctl_mbox_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 }
 
 static int
-ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma){
-
+ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
+{
 	sli4_cmd_sli_config_t *sli_config = (sli4_cmd_sli_config_t *)mcmd->payload;
 
 	if (sli_config->emb) {
