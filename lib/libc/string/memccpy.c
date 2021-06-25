@@ -38,16 +38,17 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 void *
-memccpy(void *t, const void *f, int c, size_t n)
+memccpy(void * __restrict dst, const void * __restrict src, int c, size_t n)
 {
-
 	if (n) {
-		unsigned char *tp = t;
-		const unsigned char *fp = f;
-		unsigned char uc = c;
+		unsigned char *tp = (unsigned char*)dst;
+		const unsigned char *fp = (const unsigned char*)src;
+		const unsigned char uc = (unsigned char)c;
 		do {
-			if ((*tp++ = *fp++) == uc)
+			if ((*tp++ = *fp) == uc)
 				return (tp);
+
+			fp++;
 		} while (--n != 0);
 	}
 	return (0);
