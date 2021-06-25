@@ -51,8 +51,8 @@ __FBSDID("$FreeBSD$");
  */
 static const type type_min = (type)DTYPE_MIN;
 static const type type_max = (type)DTYPE_MAX;
-static const type dtype_min = type_min - 0.5;
-static const type dtype_max = type_max + 0.5;
+static const type dtype_min = (type)DTYPE_MIN - 0.5;
+static const type dtype_max = (type)DTYPE_MAX + 0.5;
 #define	INRANGE(x)	(dtype_max - type_max != 0.5 || \
 			 ((x) > dtype_min && (x) < dtype_max))
 
