@@ -1,4 +1,4 @@
-/*	$NetBSD: enum.h,v 1.18 2021/02/02 21:26:51 rillig Exp $	*/
+/*	$NetBSD: enum.h,v 1.19 2021/03/15 16:00:05 rillig Exp $	*/
 
 /*
  Copyright (c) 2020 Roland Illig <rillig@NetBSD.org>
@@ -114,19 +114,6 @@ const char *Enum_FlagsToString(char *, size_t, int, const EnumToStringSpec *);
 
 /*
  * Declare the necessary data structures for calling Enum_FlagsToString
- * for an enum with 2 flags.
- */
-#define ENUM_FLAGS_RTTI_2(typnam, v1, v2) \
-	ENUM__FLAGS_RTTI(typnam, \
-	    ENUM__SPECS_2( \
-		ENUM__SPEC_1(v1), \
-		ENUM__SPEC_1(v2)), \
-	    ENUM__JOIN_2( \
-		ENUM__JOIN_STR_1(v1), \
-		ENUM__JOIN_STR_1(v2)))
-
-/*
- * Declare the necessary data structures for calling Enum_FlagsToString
  * for an enum with 3 flags.
  */
 #define ENUM_FLAGS_RTTI_3(typnam, v1, v2, v3) \
@@ -140,19 +127,6 @@ const char *Enum_FlagsToString(char *, size_t, int, const EnumToStringSpec *);
 
 /*
  * Declare the necessary data structures for calling Enum_FlagsToString
- * for an enum with 4 flags.
- */
-#define ENUM_FLAGS_RTTI_4(typnam, v1, v2, v3, v4) \
-	ENUM__FLAGS_RTTI(typnam, \
-	    ENUM__SPECS_2( \
-		ENUM__SPEC_2(v1, v2), \
-		ENUM__SPEC_2(v3, v4)), \
-	    ENUM__JOIN_2( \
-		ENUM__JOIN_STR_2(v1, v2), \
-		ENUM__JOIN_STR_2(v3, v4)))
-
-/*
- * Declare the necessary data structures for calling Enum_FlagsToString
  * for an enum with 6 flags.
  */
 #define ENUM_FLAGS_RTTI_6(typnam, v1, v2, v3, v4, v5, v6) \
@@ -163,19 +137,6 @@ const char *Enum_FlagsToString(char *, size_t, int, const EnumToStringSpec *);
 	    ENUM__JOIN_2( \
 		ENUM__JOIN_STR_4(v1, v2, v3, v4), \
 		ENUM__JOIN_STR_2(v5, v6)))
-
-/*
- * Declare the necessary data structures for calling Enum_FlagsToString
- * for an enum with 8 flags.
- */
-#define ENUM_FLAGS_RTTI_8(typnam, v1, v2, v3, v4, v5, v6, v7, v8) \
-	ENUM__FLAGS_RTTI(typnam, \
-	    ENUM__SPECS_2( \
-		ENUM__SPEC_4(v1, v2, v3, v4), \
-		ENUM__SPEC_4(v5, v6, v7, v8)), \
-	    ENUM__JOIN_2( \
-		ENUM__JOIN_STR_4(v1, v2, v3, v4), \
-		ENUM__JOIN_STR_4(v5, v6, v7, v8)))
 
 /*
  * Declare the necessary data structures for calling Enum_FlagsToString
@@ -214,26 +175,5 @@ const char *Enum_FlagsToString(char *, size_t, int, const EnumToStringSpec *);
 	    ENUM__JOIN_STR_4(v25, v26, v27, v28), \
 	    ENUM__JOIN_STR_2(v29, v30), \
 	    ENUM__JOIN_STR_1(v31)))
-
-/*
- * Declare the necessary data structures for calling Enum_FlagsToString
- * for an enum with 32 flags.
- */
-#define ENUM_FLAGS_RTTI_32(typnam, \
-		     v01, v02, v03, v04, v05, v06, v07, v08, \
-		     v09, v10, v11, v12, v13, v14, v15, v16, \
-		     v17, v18, v19, v20, v21, v22, v23, v24, \
-		     v25, v26, v27, v28, v29, v30, v31, v32) \
-    ENUM__FLAGS_RTTI(typnam, \
-	ENUM__SPECS_2( \
-	    ENUM__SPEC_16(v01, v02, v03, v04, v05, v06, v07, v08, \
-			  v09, v10, v11, v12, v13, v14, v15, v16), \
-	    ENUM__SPEC_16(v17, v18, v19, v20, v21, v22, v23, v24, \
-			  v25, v26, v27, v28, v29, v30, v31, v32)), \
-	ENUM__JOIN_2( \
-	    ENUM__JOIN_STR_16(v01, v02, v03, v04, v05, v06, v07, v08, \
-			      v09, v10, v11, v12, v13, v14, v15, v16), \
-	    ENUM__JOIN_STR_16(v17, v18, v19, v20, v21, v22, v23, v24, \
-			      v25, v26, v27, v28, v29, v30, v31, v32)))
 
 #endif

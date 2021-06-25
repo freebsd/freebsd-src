@@ -63,6 +63,7 @@ realpath.c
 setenv.c
 sigcompat.c
 str.c
+str.h
 stresep.c
 strlcpy.c
 suff.c
@@ -399,6 +400,10 @@ unit-tests/job-flags.exp
 unit-tests/job-flags.mk
 unit-tests/job-output-long-lines.exp
 unit-tests/job-output-long-lines.mk
+unit-tests/job-output-null.exp
+unit-tests/job-output-null.mk
+unit-tests/jobs-empty-commands-error.exp
+unit-tests/jobs-empty-commands-error.mk
 unit-tests/jobs-empty-commands.exp
 unit-tests/jobs-empty-commands.mk
 unit-tests/jobs-error-indirect.exp
@@ -439,6 +444,8 @@ unit-tests/opt-debug-curdir.exp
 unit-tests/opt-debug-curdir.mk
 unit-tests/opt-debug-dir.exp
 unit-tests/opt-debug-dir.mk
+unit-tests/opt-debug-errors-jobs.exp
+unit-tests/opt-debug-errors-jobs.mk
 unit-tests/opt-debug-errors.exp
 unit-tests/opt-debug-errors.mk
 unit-tests/opt-debug-file.exp
@@ -627,6 +634,8 @@ unit-tests/var-class-local.exp
 unit-tests/var-class-local.mk
 unit-tests/var-class.exp
 unit-tests/var-class.mk
+unit-tests/var-eval-short.exp
+unit-tests/var-eval-short.mk
 unit-tests/var-op-append.exp
 unit-tests/var-op-append.mk
 unit-tests/var-op-assign.exp
@@ -675,6 +684,8 @@ unit-tests/varmod-l-name-to-value.exp
 unit-tests/varmod-l-name-to-value.mk
 unit-tests/varmod-localtime.exp
 unit-tests/varmod-localtime.mk
+unit-tests/varmod-loop-varname.exp
+unit-tests/varmod-loop-varname.mk
 unit-tests/varmod-loop.exp
 unit-tests/varmod-loop.mk
 unit-tests/varmod-match-escape.exp
@@ -709,6 +720,8 @@ unit-tests/varmod-subst-regex.exp
 unit-tests/varmod-subst-regex.mk
 unit-tests/varmod-subst.exp
 unit-tests/varmod-subst.mk
+unit-tests/varmod-sun-shell.exp
+unit-tests/varmod-sun-shell.mk
 unit-tests/varmod-sysv.exp
 unit-tests/varmod-sysv.mk
 unit-tests/varmod-tail.exp

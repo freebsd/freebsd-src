@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.224 2021/02/05 05:15:12 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.227 2021/04/27 15:19:25 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -99,7 +99,7 @@
 #include "pathnames.h"
 
 /*	"@(#)compat.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: compat.c,v 1.224 2021/02/05 05:15:12 rillig Exp $");
+MAKE_RCSID("$NetBSD: compat.c,v 1.227 2021/04/27 15:19:25 christos Exp $");
 
 static GNode *curTarg = NULL;
 static pid_t compatChild;
@@ -164,7 +164,7 @@ CompatInterrupt(int signo)
 }
 
 static void
-DebugFailedTarget(const char *cmd, GNode *gn)
+DebugFailedTarget(const char *cmd, const GNode *gn)
 {
 	const char *p = cmd;
 	debug_printf("\n*** Failed target:  %s\n*** Failed command: ",
@@ -184,7 +184,7 @@ DebugFailedTarget(const char *cmd, GNode *gn)
 	debug_printf("\n");
 }
 
-static Boolean
+static bool
 UseShell(const char *cmd MAKE_ATTR_UNUSED)
 {
 #if !defined(MAKE_NATIVE)
@@ -194,7 +194,7 @@ UseShell(const char *cmd MAKE_ATTR_UNUSED)
 	 * behaviour.  Or perhaps the shell has been replaced with something
 	 * that does extra logging, and that should not be bypassed.
 	 */
-	return TRUE;
+	return true;
 #else
 	/*
 	 * Search for meta characters in the command. If there are no meta
@@ -227,22 +227,22 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 {
 	char *cmdStart;		/* Start of expanded command */
 	char *bp;
-	Boolean silent;		/* Don't print command */
-	Boolean doIt;		/* Execute even if -n */
-	volatile Boolean errCheck; /* Check errors */
+	bool silent;		/* Don't print command */
+	bool doIt;		/* Execute even if -n */
+	volatile bool errCheck; /* Check errors */
 	WAIT_T reason;		/* Reason for child's death */
 	WAIT_T status;		/* Description of child's death */
 	pid_t cpid;		/* Child actually found */
 	pid_t retstat;		/* Result of wait */
 	const char **volatile av; /* Argument vector for thing to exec */
 	char **volatile mav;	/* Copy of the argument vector for freeing */
-	Boolean useShell;	/* TRUE if command should be executed
+	bool useShell;		/* True if command should be executed
 				 * using a shell */
 	const char *volatile cmd = cmdp;
 
 	silent = (gn->type & OP_SILENT) != 0;
 	errCheck = !(gn->type & OP_IGNORE);
-	doIt = FALSE;
+	doIt = false;
 
 	(void)Var_Subst(cmd, gn, VARE_WANTRES, &cmdStart);
 	/* TODO: handle errors */
@@ -281,9 +281,9 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 		if (*cmd == '@')
 			silent = !DEBUG(LOUD);
 		else if (*cmd == '-')
-			errCheck = FALSE;
+			errCheck = false;
 		else if (*cmd == '+') {
-			doIt = TRUE;
+			doIt = true;
 			if (shellName == NULL)	/* we came here from jobs */
 				Shell_Init();
 		} else
@@ -343,7 +343,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 		 * command into words to form an argument vector we can
 		 * execute.
 		 */
-		Words words = Str_Words(cmd, FALSE);
+		Words words = Str_Words(cmd, false);
 		mav = words.words;
 		bp = words.freeIt;
 		av = (void *)mav;
@@ -392,7 +392,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 	 */
 	while ((retstat = wait(&reason)) != cpid) {
 		if (retstat > 0)
-			JobReapChild(retstat, reason, FALSE); /* not ours? */
+			JobReapChild(retstat, reason, false); /* not ours? */
 		if (retstat == -1 && errno != EINTR) {
 			break;
 		}
@@ -425,7 +425,7 @@ Compat_RunCommand(const char *cmdp, GNode *gn, StringListNode *ln)
 		if (errCheck) {
 #ifdef USE_META
 			if (useMeta) {
-				meta_job_error(NULL, gn, FALSE, status);
+				meta_job_error(NULL, gn, false, status);
 			}
 #endif
 			gn->made = ERROR;
@@ -483,7 +483,7 @@ MakeNodes(GNodeList *gnodes, GNode *pgn)
 	}
 }
 
-static Boolean
+static bool
 MakeUnmade(GNode *gn, GNode *pgn)
 {
 
@@ -493,7 +493,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	 * First mark ourselves to be made, then apply whatever transformations
 	 * the suffix module thinks are necessary. Once that's done, we can
 	 * descend and make all our children. If any of them has an error
-	 * but the -k flag was given, our 'make' field will be set to FALSE
+	 * but the -k flag was given, our 'make' field will be set to false
 	 * again. This is our signal to not attempt to do anything but abort
 	 * our parent as well.
 	 */
@@ -508,7 +508,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	if (!(gn->flags & REMAKE)) {
 		gn->made = ABORTED;
 		pgn->flags &= ~(unsigned)REMAKE;
-		return FALSE;
+		return false;
 	}
 
 	if (Lst_FindDatum(&gn->implicitParents, pgn) != NULL)
@@ -524,7 +524,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	if (!GNode_IsOODate(gn)) {
 		gn->made = UPTODATE;
 		DEBUG0(MAKE, "up-to-date.\n");
-		return FALSE;
+		return false;
 	}
 
 	/*
@@ -539,7 +539,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 	 * We need to be re-made.
 	 * Ensure that $? (.OODATE) and $> (.ALLSRC) are both set.
 	 */
-	Make_DoAllVar(gn);
+	GNode_SetLocalVars(gn);
 
 	/*
 	 * Alter our type to tell if errors should be ignored or things
@@ -596,7 +596,7 @@ MakeUnmade(GNode *gn, GNode *pgn)
 		PrintOnError(gn, "\nStop.");
 		exit(1);
 	}
-	return TRUE;
+	return true;
 }
 
 static void

@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-make-main.mk,v 1.1 2020/11/22 19:37:27 rillig Exp $
+# $NetBSD: cond-func-make-main.mk,v 1.2 2021/04/04 10:13:09 rillig Exp $
 #
 # Test how accurately the make() function in .if conditions reflects
 # what is actually made.
@@ -33,7 +33,7 @@ first-main-target:
 # the line.  This implies that several main targets can be set at the name
 # time, but they have to be in the same dependency group.
 #
-# See ParseDoDependencyTargetSpecial, branch SP_MAIN.
+# See ParseDependencyTargetSpecial, branch SP_MAIN.
 .MAIN: dot-main-target-1a dot-main-target-1b
 
 .if !make(dot-main-target-1a)
@@ -47,7 +47,7 @@ dot-main-target-{1,2}{a,b}:
 	: Making ${.TARGET}.
 
 # At this point, the list of targets to be made (opts.create) is not empty
-# anymore.  ParseDoDependencyTargetSpecial therefore treats the .MAIN as if
+# anymore.  ParseDependencyTargetSpecial therefore treats the .MAIN as if
 # it were an ordinary target.  Since .MAIN is not listed as a dependency
 # anywhere, it is not made.
 .if target(.MAIN)

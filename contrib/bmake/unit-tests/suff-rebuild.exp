@@ -1,38 +1,38 @@
 ParseReadLine (10): '.SUFFIXES:'
-ParseDoDependency(.SUFFIXES:)
+ParseDependency(.SUFFIXES:)
 Clearing all suffixes
 ParseReadLine (12): '.SUFFIXES: .a .b .c'
-ParseDoDependency(.SUFFIXES: .a .b .c)
+ParseDependency(.SUFFIXES: .a .b .c)
 Adding suffix ".a"
 Adding suffix ".b"
 Adding suffix ".c"
 ParseReadLine (14): 'suff-rebuild-example.a:'
-ParseDoDependency(suff-rebuild-example.a:)
+ParseDependency(suff-rebuild-example.a:)
 Adding "suff-rebuild-example.a" to all targets.
 ParseReadLine (15): '	: Making ${.TARGET} out of nothing.'
 ParseReadLine (17): '.a.b:'
-ParseDoDependency(.a.b:)
+ParseDependency(.a.b:)
 defining transformation from `.a' to `.b'
 inserting ".a" (1) at end of list
 inserting ".b" (2) at end of list
 ParseReadLine (18): '	: Making ${.TARGET} from ${.IMPSRC}.'
 ParseReadLine (19): '.b.c:'
 transformation .a.b complete
-ParseDoDependency(.b.c:)
+ParseDependency(.b.c:)
 defining transformation from `.b' to `.c'
 inserting ".b" (2) at end of list
 inserting ".c" (3) at end of list
 ParseReadLine (20): '	: Making ${.TARGET} from ${.IMPSRC}.'
 ParseReadLine (21): '.c:'
 transformation .b.c complete
-ParseDoDependency(.c:)
+ParseDependency(.c:)
 defining transformation from `.c' to `'
 inserting ".c" (3) at end of list
 inserting "" (0) at end of list
 ParseReadLine (22): '	: Making ${.TARGET} from ${.IMPSRC}.'
 ParseReadLine (44): '.SUFFIXES: .c .b .a'
 transformation .c complete
-ParseDoDependency(.SUFFIXES: .c .b .a)
+ParseDependency(.SUFFIXES: .c .b .a)
 Adding ".END" to all targets.
 Wildcard expanding "all"...
 SuffFindDeps "all"

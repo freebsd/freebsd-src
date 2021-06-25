@@ -1,4 +1,4 @@
-# $NetBSD: directive-undef.mk,v 1.9 2020/12/22 20:10:21 rillig Exp $
+# $NetBSD: directive-undef.mk,v 1.10 2021/02/16 18:02:19 rillig Exp $
 #
 # Tests for the .undef directive.
 #
@@ -86,5 +86,22 @@ ${DOLLAR}=	dollar
 .undef ${VARNAMES:L:Z}
 
 
+UT_EXPORTED=	exported-value
+.export UT_EXPORTED
+.if ${:!echo "\${UT_EXPORTED:-not-exported}"!} != "exported-value"
+.  error
+.endif
+.if !${.MAKE.EXPORTED:MUT_EXPORTED}
+.  error
+.endif
+.undef UT_EXPORTED		# XXX: does not update .MAKE.EXPORTED
+.if ${:!echo "\${UT_EXPORTED:-not-exported}"!} != "not-exported"
+.  error
+.endif
+.if ${.MAKE.EXPORTED:MUT_EXPORTED}
+.  warning UT_EXPORTED is still listed in .MAKE.EXPORTED even though $\
+	   it is not exported anymore.
+.endif
+
+
 all:
-	@:;

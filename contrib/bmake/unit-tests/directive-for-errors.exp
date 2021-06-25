@@ -13,7 +13,7 @@ make: "directive-for-errors.mk" line 53: Wrong number of words (5) in .for subst
 make: "directive-for-errors.mk" line 64: missing `in' in for
 make: "directive-for-errors.mk" line 66: warning: Should not be reached.
 make: "directive-for-errors.mk" line 67: for-less endfor
-make: "directive-for-errors.mk" line 73: Unknown modifier 'Z'
+make: "directive-for-errors.mk" line 73: Unknown modifier "Z"
 make: "directive-for-errors.mk" line 74: warning: Should not be reached.
 make: "directive-for-errors.mk" line 74: warning: Should not be reached.
 make: "directive-for-errors.mk" line 74: warning: Should not be reached.

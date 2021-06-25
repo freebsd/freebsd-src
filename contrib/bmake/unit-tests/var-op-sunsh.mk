@@ -1,4 +1,4 @@
-# $NetBSD: var-op-sunsh.mk,v 1.6 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: var-op-sunsh.mk,v 1.8 2021/04/04 10:13:09 rillig Exp $
 #
 # Tests for the :sh= variable assignment operator, which runs its right-hand
 # side through the shell.  It is a seldom-used alternative to the !=
@@ -50,7 +50,7 @@ VAR:shoe:shore=	echo two-colons
 # The variable modifier ':sh' and the assignment operator modifier ':sh'.
 # Intuitively this variable name contains the variable modifier, but until
 # 2020-10-04, the parser regarded it as an assignment operator modifier, in
-# Parse_DoVar.
+# Parse_Var.
 VAR.${:Uecho 123:sh}=	ok-123
 .if ${VAR.123} != "ok-123"
 .  error
@@ -75,11 +75,11 @@ VAR.key:shift=		Shift
 # the ':sh' assignment operator modifier.  Let's see what happens ...
 #
 # Well, the end result is correct but the way until there is rather
-# adventurous.  This only works because the parser replaces each an every
-# whitespace character that is not nested with '\0' (see Parse_DoVar).
+# adventurous.  This only works because the parser replaces each and every
+# whitespace character that is not nested with '\0' (see Parse_Var).
 # The variable name therefore ends before the first ':sh', and the last
 # ':sh' turns the assignment operator into the shell command evaluation.
-# Parse_DoVar completely trusts Parse_IsVar to properly verify the syntax.
+# Parse_Var completely trusts Parse_IsVar to properly verify the syntax.
 #
 # The ':sh' is the only word that may occur between the variable name and
 # the assignment operator at nesting level 0.  All other words would lead
@@ -102,7 +102,7 @@ VAR :sh(Put a comment here)=	comment in parentheses
 
 # The unintended comment can include multiple levels of nested braces and
 # parentheses, they don't even need to be balanced since they are only
-# counted by Parse_IsVar and ignored by Parse_DoVar.
+# counted by Parse_IsVar and ignored by Parse_Var.
 VAR :sh{Put}((((a}{comment}}}}{here}=	comment in braces
 .if ${VAR} != "comment in braces"
 .  error

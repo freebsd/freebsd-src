@@ -1,4 +1,4 @@
-# $NetBSD: moderrs.mk,v 1.25 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: moderrs.mk,v 1.30 2021/06/21 08:28:37 rillig Exp $
 #
 # various modifier error tests
 
@@ -19,7 +19,6 @@ all:	words
 all:	exclam
 all:	mod-subst-delimiter
 all:	mod-regex-delimiter
-all:	mod-regex-undefined-subexpression
 all:	mod-ts-parse
 all:	mod-t-parse
 all:	mod-ifelse-parse
@@ -35,11 +34,11 @@ mod-unknown-indirect: print-header print-footer
 	@echo 'VAR:${MOD_UNKN}=before-${VAR:${MOD_UNKN}:inner}-after'
 
 unclosed-direct: print-header print-footer
-	@echo 'want: Unclosed variable specification (expecting $'}$') for "VAR" (value "Thevariable") modifier S'
+	@echo 'want: Unclosed variable expression, expecting $'}$' for modifier "S,V,v," of variable "VAR" with value "Thevariable"'
 	@echo VAR:S,V,v,=${VAR:S,V,v,
 
 unclosed-indirect: print-header print-footer
-	@echo 'want: Unclosed variable specification after complex modifier (expecting $'}$') for VAR'
+	@echo 'want: Unclosed variable expression after indirect modifier, expecting $'}$' for variable "VAR"'
 	@echo VAR:${MOD_TERM},=${VAR:${MOD_S}
 
 unfinished-indirect: print-header print-footer
@@ -119,27 +118,11 @@ mod-regex-delimiter: print-header print-footer
 	@echo 6: ${VAR:C,from,to,
 	@echo 7: ${VAR:C,from,to,}
 
-# In regular expressions with alternatives, not all capturing groups are
-# always set; some may be missing.  Warn about these.
-#
-# Since there is no way to turn off this warning, the combination of
-# alternative matches and capturing groups is seldom used, if at all.
-#
-# A newly added modifier 'U' such as in :C,(a.)|(b.),\1\2,U might be added
-# for treating undefined capturing groups as empty, but that would create a
-# syntactical ambiguity since the :S and :C modifiers are open-ended (see
-# mod-subst-chain).  Luckily the modifier :U does not make sense after :C,
-# therefore this case does not happen in practice.
-# The sub-modifier for the :S and :C modifiers would have to be chosen
-# wisely, to not create ambiguities while parsing.
-mod-regex-undefined-subexpression: print-header print-footer
-	@echo ${FIB:C,1(.*),one\1,}		# all ok
-	@echo ${FIB:C,1(.*)|2(.*),(\1)+(\2),:Q}	# no match for subexpression
-
 mod-ts-parse: print-header print-footer
 	@echo ${FIB:ts}
 	@echo ${FIB:ts\65}	# octal 065 == U+0035 == '5'
 	@echo ${FIB:ts\65oct}	# bad modifier
+	@echo ${:U${FIB}:ts\65oct} # bad modifier, variable name is ""
 	@echo ${FIB:tsxy}	# modifier too long
 
 mod-t-parse: print-header print-footer

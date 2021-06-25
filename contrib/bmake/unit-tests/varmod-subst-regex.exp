@@ -20,6 +20,27 @@ mod-regex-limits:22-ok:1 33 556
 mod-regex-limits:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
 make: Regex compilation error: (details omitted)
 mod-regex-errors:
-make: Unknown modifier 'Z'
+make: Unknown modifier "Z"
 mod-regex-errors: xy
-exit status 0
+unmatched-subexpression.ok: one one 2 3 5 8 one3 2one 34
+make: No match for subexpression \2
+unmatched-subexpression.1: ()()
+make: No match for subexpression \2
+unmatched-subexpression.1: ()()
+make: No match for subexpression \1
+unmatched-subexpression.2: ()()
+unmatched-subexpression.3: 3
+unmatched-subexpression.5: 5
+unmatched-subexpression.8: 8
+make: No match for subexpression \2
+unmatched-subexpression.13: (3)()
+make: No match for subexpression \1
+unmatched-subexpression.21: ()(1)
+unmatched-subexpression.34: 34
+make: No match for subexpression \2
+make: No match for subexpression \2
+make: No match for subexpression \1
+make: No match for subexpression \2
+make: No match for subexpression \1
+unmatched-subexpression.all: ()() ()() ()() 3 5 8 (3)() ()(1) 34
+exit status 2

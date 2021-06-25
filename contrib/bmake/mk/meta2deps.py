@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.34 2020/10/02 03:11:17 sjg Exp $
+	$Id: meta2deps.py,v 1.38 2021/06/17 05:20:08 sjg Exp $
 
 	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -67,12 +67,6 @@ RCSid:
 """
 
 import os, re, sys
-
-def getv(dict, key, d=None):
-    """Lookup key in dict and return value or the supplied default."""
-    if key in dict:
-        return dict[key]
-    return d
 
 def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
@@ -152,7 +146,10 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     return path
 
 def sort_unique(list, cmp=None, key=None, reverse=False):
-    list.sort(cmp, key, reverse)
+    if sys.version_info[0] == 2:
+        list.sort(cmp, key, reverse)
+    else:
+        list.sort(reverse=reverse)
     nl = []
     le = None
     for e in list:
@@ -224,22 +221,22 @@ class MetaFile:
         """
 
         self.name = name
-        self.debug = getv(conf, 'debug', 0)
-        self.debug_out = getv(conf, 'debug_out', sys.stderr)
+        self.debug = conf.get('debug', 0)
+        self.debug_out = conf.get('debug_out', sys.stderr)
 
-        self.machine = getv(conf, 'MACHINE', '')
-        self.machine_arch = getv(conf, 'MACHINE_ARCH', '')
-        self.target_spec = getv(conf, 'TARGET_SPEC', '')
-        self.curdir = getv(conf, 'CURDIR')
-        self.reldir = getv(conf, 'RELDIR')
-        self.dpdeps = getv(conf, 'DPDEPS')
+        self.machine = conf.get('MACHINE', '')
+        self.machine_arch = conf.get('MACHINE_ARCH', '')
+        self.target_spec = conf.get('TARGET_SPEC', '')
+        self.curdir = conf.get('CURDIR')
+        self.reldir = conf.get('RELDIR')
+        self.dpdeps = conf.get('DPDEPS')
         self.line = 0
 
         if not self.conf:
             # some of the steps below we want to do only once
             self.conf = conf
-            self.host_target = getv(conf, 'HOST_TARGET')
-            for srctop in getv(conf, 'SRCTOPS', []):
+            self.host_target = conf.get('HOST_TARGET')
+            for srctop in conf.get('SRCTOPS', []):
                 if srctop[-1] != '/':
                     srctop += '/'
                 if not srctop in self.srctops:
@@ -256,7 +253,7 @@ class MetaFile:
             if self.target_spec:
                 trim_list += add_trims(self.target_spec)
 
-            for objroot in getv(conf, 'OBJROOTS', []):
+            for objroot in conf.get('OBJROOTS', []):
                 for e in trim_list:
                     if objroot.endswith(e):
                         # this is not what we want - fix it
@@ -276,7 +273,7 @@ class MetaFile:
             self.srctops.sort(reverse=True)
             self.objroots.sort(reverse=True)
 
-            self.excludes = getv(conf, 'EXCLUDES', [])
+            self.excludes = conf.get('EXCLUDES', [])
 
             if self.debug:
                 print("host_target=", self.host_target, file=self.debug_out)
@@ -468,8 +465,8 @@ class MetaFile:
             if pid != last_pid:
                 if last_pid:
                     pid_last_dir[last_pid] = self.last_dir
-                cwd = getv(pid_cwd, pid, self.cwd)
-                self.last_dir = getv(pid_last_dir, pid, self.cwd)
+                cwd = pid_cwd.get(pid, self.cwd)
+                self.last_dir = pid_last_dir.get(pid, self.cwd)
                 last_pid = pid
 
             # process operations
@@ -557,7 +554,10 @@ class MetaFile:
         # to the src dir, we may need to add dependencies for each
         rdir = dir
         dir = abspath(dir, cwd, self.last_dir, self.debug, self.debug_out)
-        rdir = os.path.realpath(dir)
+        if dir:
+            rdir = os.path.realpath(dir)
+        else:
+            dir = rdir
         if rdir == dir:
             rdir = None
         # now put path back together
@@ -725,7 +725,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     for a in eaten:
         args.remove(a)
 
-    debug_out = getv(conf, 'debug_out', sys.stderr)
+    debug_out = conf.get('debug_out', sys.stderr)
 
     if debug:
         print("config:", file=debug_out)
@@ -752,9 +752,9 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
 
         print(m.src_dirdeps('\nsrc:'))
 
-        dpdeps = getv(conf, 'DPDEPS')
+        dpdeps = conf.get('DPDEPS')
         if dpdeps:
-            m.file_depends(open(dpdeps, 'wb'))
+            m.file_depends(open(dpdeps, 'w'))
 
     return m
 

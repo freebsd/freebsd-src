@@ -54,7 +54,7 @@ make: Unclosed variable "UNCLOSED"
 make: Unclosed variable "UNCLOSED"
 
 make: Unclosed variable "PATTERN"
-make: Unclosed variable specification (expecting '}') for "UNCLOSED" (value "") modifier M
+make: Unclosed variable expression, expecting '}' for modifier "M${PATTERN" of variable "UNCLOSED" with value ""
 
 make: Unclosed variable "param"
 make: Unclosed variable "UNCLOSED."

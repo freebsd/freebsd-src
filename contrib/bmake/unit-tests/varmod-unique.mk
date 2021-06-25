@@ -1,4 +1,4 @@
-# $NetBSD: varmod-unique.mk,v 1.4 2020/08/31 17:41:38 rillig Exp $
+# $NetBSD: varmod-unique.mk,v 1.5 2021/05/30 20:26:41 rillig Exp $
 #
 # Tests for the :u variable modifier, which discards adjacent duplicate
 # words.
@@ -15,8 +15,16 @@
 .  warning The :u modifier must do nothing with an empty word list.
 .endif
 
-.if ${:U1:u} != "1"
+.if ${:U   :u} != ""
+.  warning The modifier ':u' must normalize the whitespace.
+.endif
+
+.if ${:Uword:u} != "word"
 .  warning The :u modifier must do nothing with a single-element word list.
+.endif
+
+.if ${:U   word   :u} != "word"
+.  warning The modifier ':u' must normalize the whitespace.
 .endif
 
 .if ${:U1 1 1 1 1 1 1 1:u} != "1"

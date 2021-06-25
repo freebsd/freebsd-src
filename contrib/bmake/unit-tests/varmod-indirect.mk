@@ -1,15 +1,21 @@
-# $NetBSD: varmod-indirect.mk,v 1.5 2020/12/27 17:32:25 rillig Exp $
+# $NetBSD: varmod-indirect.mk,v 1.9 2021/03/15 20:00:50 rillig Exp $
 #
 # Tests for indirect variable modifiers, such as in ${VAR:${M_modifiers}}.
 # These can be used for very basic purposes like converting a string to either
 # uppercase or lowercase, as well as for fairly advanced modifiers that first
 # look like line noise and are hard to decipher.
 #
-# TODO: Since when are indirect modifiers supported?
+# Initial support for indirect modifiers was added in var.c 1.101 from
+# 2006-02-18.  Since var.c 1.108 from 2006-05-11 it is possible to use
+# indirect modifiers for all but the very first modifier as well.
 
 
 # To apply a modifier indirectly via another variable, the whole
 # modifier must be put into a single variable expression.
+# The following expression generates a parse error since its indirect
+# modifier contains more than a sole variable expression.
+#
+# expect+1: Unknown modifier '$'
 .if ${value:L:${:US}${:U,value,replacement,}} != "S,value,replacement,}"
 .  warning unexpected
 .endif
@@ -28,13 +34,39 @@
 .endif
 
 
-# An indirect variable that evaluates to the empty string is allowed though.
+# An indirect variable that evaluates to the empty string is allowed.
+# It is even allowed to write another modifier directly afterwards.
+# There is no practical use case for this feature though, as demonstrated
+# in the test case directly below.
+.if ${value:L:${:Dempty}S,value,replaced,} != "replaced"
+.  warning unexpected
+.endif
+
+# If an expression for an indirect modifier evaluates to anything else than an
+# empty string and is neither followed by a ':' nor '}', this produces a parse
+# error.  Because of this parse error, this feature cannot be used reasonably
+# in practice.
+#
+# expect+1: Unknown modifier '$'
+#.MAKEFLAGS: -dvc
+.if ${value:L:${:UM*}S,value,replaced,} == "M*S,value,replaced,}"
+.  warning	FIXME: this expression should have resulted in a parse $\
+ 		error rather than returning the unparsed portion of the $\
+ 		expression.
+.else
+.  error
+.endif
+#.MAKEFLAGS: -d0
+
+# An indirect modifier can be followed by other modifiers, no matter if the
+# indirect modifier evaluates to an empty string or not.
+#
 # This makes it possible to define conditional modifiers, like this:
 #
 # M.little-endian=	S,1234,4321,
 # M.big-endian=		# none
-.if ${value:L:${:Dempty}S,a,A,} != "vAlue"
-.  warning unexpected
+.if ${value:L:${:D empty }:S,value,replaced,} != "replaced"
+.  error
 .endif
 
 
@@ -153,5 +185,63 @@ _:=	before ${UNDEF:${:UZ}} after
 
 .MAKEFLAGS: -d0
 .undef _
+
+
+# When evaluating indirect modifiers, these modifiers may expand to ':tW',
+# which modifies the interpretation of the expression value. This modified
+# interpretation only lasts until the end of the indirect modifier, it does
+# not influence the outer variable expression.
+.if ${1 2 3:L:tW:[#]} != 1		# direct :tW applies to the :[#]
+.  error
+.endif
+.if ${1 2 3:L:${:UtW}:[#]} != 3		# indirect :tW does not apply to :[#]
+.  error
+.endif
+
+
+# When evaluating indirect modifiers, these modifiers may expand to ':ts*',
+# which modifies the interpretation of the expression value. This modified
+# interpretation only lasts until the end of the indirect modifier, it does
+# not influence the outer variable expression.
+#
+# In this first expression, the direct ':ts*' has no effect since ':U' does not
+# treat the expression value as a list of words but as a single word.  It has
+# to be ':U', not ':D', since the "expression name" is "1 2 3" and there is no
+# variable of that name.
+#.MAKEFLAGS: -dcpv
+.if ${1 2 3:L:ts*:Ua b c} != "a b c"
+.  error
+.endif
+# In this expression, the direct ':ts*' affects the ':M' at the end.
+.if ${1 2 3:L:ts*:Ua b c:M*} != "a*b*c"
+.  error
+.endif
+# In this expression, the ':ts*' is indirect, therefore the changed separator
+# only applies to the modifiers from the indirect text.  It does not affect
+# the ':M' since that is not part of the text from the indirect modifier.
+#
+# Implementation detail: when ApplyModifiersIndirect calls ApplyModifiers
+# (which creates a new ModChain containing a fresh separator),
+# the outer separator character is not passed by reference to the inner
+# evaluation, therefore the scope of the inner separator ends after applying
+# the modifier ':ts*'.
+.if ${1 2 3:L:${:Uts*}:Ua b c:M*} != "a b c"
+.  error
+.endif
+
+# A direct modifier ':U' turns the expression from undefined to defined.
+# An indirect modifier ':U' has the same effect, unlike the separator from
+# ':ts*' or the single-word marker from ':tW'.
+#
+# This is because when ApplyModifiersIndirect calls ApplyModifiers, it passes
+# the definedness of the outer expression by reference.  If that weren't the
+# case, the first condition below would result in a parse error because its
+# left-hand side would be undefined.
+.if ${UNDEF:${:UUindirect-fallback}} != "indirect-fallback"
+.  error
+.endif
+.if ${UNDEF:${:UUindirect-fallback}:Uouter-fallback} != "outer-fallback"
+.  error
+.endif
 
 all:

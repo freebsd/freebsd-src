@@ -1,3 +1,116 @@
+2021-06-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210621
+	Merge with NetBSD make, pick up
+	o var.c: only report error for unmatched regex subexpression
+	when linting (-dL) since we cannot tell when an unmatched
+	subexpression is an expected result.
+	o move unmatched regex subexpression tests to
+	varmod-subst-regex.mk and enable strict (lint) mode
+
+2021-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210616
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o cond.c: rename If_Eval to EvalBare
+	improve function names for parsing conditions
+	o job.c: fix error handling of targets that cannot be made
+	o var.c: uncompress code in ApplyModifier_Unique
+
+2021-05-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210518
+	Merge with NetBSD make, pick up
+	o fix unit-tests/opt-chdir to cope with /nonexistent existing.
+	o job.c: Print -de error information when running multiple jobs
+
+2021-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210420
+	Merge with NetBSD make, pick up
+	o use C99 bool type
+	o convert VarEvalFlags back into an enum
+	o cond.c: do not complain when skipping the condition 'no >= 10'
+	o hash.c: avoid allocating memory for simple variable names
+	o job.c: use distinct wording for writing to the shell commands file
+	remove type name for the abort status in job handling
+	rename PrintOutput to PrintFilteredOutput to avoid confusion
+	o main.c: avoid double slash in name of temporary directory
+	o var.c: use straight quotes for error 'Bad conditional expression'
+	reduce memory allocations in the modifiers ':D' and ':U'
+	rename members of ModifyWord_LoopArgs
+	clean up pattern flags for the modifiers ':S' and ':C'
+	reduce memory allocation and strlen calls in modifier ':from=to'
+	in the ':Q' modifier, only allocate memory if necessary
+	improve performance for LazyBuf
+	remove redundant parameter from ParseVarnameLong
+	migrate ParseModifierPart to use Substring
+	avoid unnecessary calls to strlen when evaluating modifiers
+	migrate ModifyWord functions to use Substring
+	migrate handling of the modifier ':S,from,to,' to Substring
+	reduce debug logging and memory allocation for ${:U...}
+	reduce verbosity of the -dv debug logging for standard cases
+	clean up debug logging for ':M' and ':N'
+	disallow '$' in the variable name of the modifier ':@'
+	simplify access to the name of an expression during evaluation
+
+2021-03-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210330
+	Merge with NetBSD make, pick up
+	o replace enum bit-field with struct bit-field for VarEvalFlags
+	o rename VARE_NONE to VARE_PARSE_ONLY
+	o var.c: rename ApplyModifiersState to ModChain
+	fix double varname expansion in the variable modifier '::='
+	change debug log for variable evaluation flags to lowercase
+
+2021-03-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210314
+	Merge with NetBSD make, pick up
+	o var.c: avoid evaluating many modifiers in parse only mode
+	in strict mode (-dL) many variable references are parsed twice,
+	the first time just to report parse errors early, so we want to
+	avoid side effects and wasted effort to the extent possible.
+
+2021-02-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210226
+	Merge with NetBSD make, pick up
+	o remove freestanding freeIt variables
+	link via FStr
+	o var.c: restructure code in ParseVarname to target human readers
+	improve error message for;
+	  bad modifier in variable expression
+	  unclosed modifier
+	  unknown modifier
+	remove redundant parameter of ApplySingleModifier
+	explain non-obvious code around indirect variable modifiers
+	quote ':S' in error message about missing delimiter
+	extract ParseModifier_Match into separate function
+	add context information to error message about ':range' modifier
+	add quotes around variable name in an error message
+	reorder code in ModifyWords
+	use more common parameter order for VarSelectWords
+	make ModifyWord_Subst a little easier to understand
+	do not expand variable name from the command line twice
+	extract ExistsInCmdline from Var_SetWithFlags
+	save a hash map lookup when defining a cmdline variable
+	clean up VarAdd, Var_Delete, Var_ReexportVars
+	use bit-shift expressions for VarFlags constants
+	rename constants for VarFlags
+	rename ExprDefined constants for debug logging
+	rename ExprStatus to ExprDefined
+	split parameters for evaluating variable expressions
+	reduce redundant code around ModifyWords
+	print error about failed shell command before overwriting variable
+	clean up ValidShortVarname, ParseVarnameShort
+	rename VarExprStatus to ExprStatus
+	add functions for assigning the value of an expression
+	rename ApplyModifiersState_Define to Expr_Define
+	condense the code for parsing :S and :C modifiers
+
 2021-02-06  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20210206

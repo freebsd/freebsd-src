@@ -1,4 +1,4 @@
-# $NetBSD: modword.mk,v 1.5 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: modword.mk,v 1.6 2021/03/14 16:00:07 rillig Exp $
 #
 # Test behaviour of new :[] modifier
 # TODO: When was this modifier new?
@@ -99,6 +99,7 @@ mod-squarebrackets-n:
 mod-squarebrackets-start-end:
 	@echo 'LIST:[1.]="${LIST:[1.]}" is an error'
 	@echo 'LIST:[1..]="${LIST:[1..]}" is an error'
+	@echo 'LIST:[1.. ]="${LIST:[1.. ]}" is an error'
 	@echo 'LIST:[1..1]="${LIST:[1..1]}"'
 	@echo 'LIST:[1..1.]="${LIST:[1..1.]}" is an error'
 	@echo 'LIST:[1..2]="${LIST:[1..2]}"'

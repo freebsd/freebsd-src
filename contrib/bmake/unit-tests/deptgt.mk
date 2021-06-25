@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.10 2020/12/27 18:20:26 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.11 2021/04/04 10:13:09 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -12,7 +12,7 @@
 # The following lines demonstrate how 'targets' is set and reset during
 # parsing of dependencies.  To see it in action, set breakpoints in:
 #
-#	ParseDoDependency	at the beginning
+#	ParseDependency		at the beginning
 #	FinishDependencyGroup	at "targets = NULL"
 #	Parse_File		at "Lst_Free(targets)"
 #	Parse_File		at "targets = Lst_New()"

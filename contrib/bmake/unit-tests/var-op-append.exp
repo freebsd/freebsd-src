@@ -1,7 +1,7 @@
-Var_Parse: ${:U\$\$\$\$\$\$\$\$} with VARE_WANTRES
-Applying ${:U...} to "" (VARE_WANTRES, none, VES_UNDEF)
-Result of ${:U\$\$\$\$\$\$\$\$} is "$$$$$$$$" (VARE_WANTRES, none, VES_DEF)
-Global:VAR.$$$$$$$$ = dollars
-Global:.MAKEFLAGS =  -r -k -d v -d
-Global:.MAKEFLAGS =  -r -k -d v -d 0
+Var_Parse: ${:U\$\$\$\$\$\$\$\$} (eval)
+Evaluating modifier ${:U...} on value "" (eval, undefined)
+Result of ${:U\$\$\$\$\$\$\$\$} is "$$$$$$$$" (eval, defined)
+Global: VAR.$$$$$$$$ = dollars
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
 exit status 0

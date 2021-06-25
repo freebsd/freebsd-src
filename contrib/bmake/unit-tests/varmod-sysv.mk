@@ -1,13 +1,13 @@
-# $NetBSD: varmod-sysv.mk,v 1.12 2020/12/05 13:01:33 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.14 2021/04/12 16:09:57 rillig Exp $
 #
-# Tests for the ${VAR:from=to} variable modifier, which replaces the suffix
+# Tests for the variable modifier ':from=to', which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
 #
 # This modifier is applied when the other modifiers don't match exactly.
 #
 # See ApplyModifier_SysV.
 
-# A typical use case for the :from=to modifier is conversion of filename
+# A typical use case for the modifier ':from=to' is conversion of filename
 # extensions.
 .if ${src.c:L:.c=.o} != "src.o"
 .  error
@@ -23,43 +23,43 @@
 .  error
 .endif
 
-# The :from=to modifier is therefore often combined with the :M modifier.
+# The modifier ':from=to' is therefore often combined with the modifier ':M'.
 .if ${src.c src.h:L:M*.c:.c=.o} != "src.o"
 .  error
 .endif
 
-# Another use case for the :from=to modifier is to append a suffix to each
+# Another use case for the modifier ':from=to' is to append a suffix to each
 # word.  In this case, the "from" string is empty, therefore it always
-# matches.  The same effect can be achieved with the :S,$,teen, modifier.
+# matches.  The same effect can be achieved with the modifier ':S,$,teen,'.
 .if ${four six seven nine:L:=teen} != "fourteen sixteen seventeen nineteen"
 .  error
 .endif
 
-# The :from=to modifier can also be used to surround each word by strings.
+# The modifier ':from=to' can also be used to surround each word by strings.
 # It might be tempting to use this for enclosing a string in quotes for the
-# shell, but that's the job of the :Q modifier.
+# shell, but that's the job of the modifier ':Q'.
 .if ${one two three:L:%=(%)} != "(one) (two) (three)"
 .  error
 .endif
 
-# When the :from=to modifier is parsed, it lasts until the closing brace
-# or parenthesis.  The :Q in the below expression may look like a modifier
-# but isn't.  It is part of the replacement string.
+# When the modifier ':from=to' is parsed, it lasts until the closing brace
+# or parenthesis.  The ':Q' in the below expression may look like a modifier
+# but it isn't.  It is part of the replacement string.
 .if ${a b c d e:L:%a=x:Q} != "x:Q b c d e"
 .  error
 .endif
 
-# In the :from=to modifier, both parts can contain variable expressions.
+# In the modifier ':from=to', both parts can contain variable expressions.
 .if ${one two:L:${:Uone}=${:U1}} != "1 two"
 .  error
 .endif
 
-# In the :from=to modifier, the "from" part is expanded exactly once.
+# In the modifier ':from=to', the "from" part is expanded exactly once.
 .if ${:U\$ \$\$ \$\$\$\$:${:U\$\$\$\$}=4} != "\$ \$\$ 4"
 .  error
 .endif
 
-# In the :from=to modifier, the "to" part is expanded exactly twice.
+# In the modifier ':from=to', the "to" part is expanded exactly twice.
 # XXX: The right-hand side should be expanded only once.
 # XXX: It's hard to get the escaping correct here, and to read that.
 # XXX: It's not intuitive why the closing brace must be escaped but not
@@ -75,7 +75,7 @@
 .endif
 
 # If the variable value is empty, it is debatable whether it consists of a
-# single empty word, or no word at all.  The :from=to modifier treats it as
+# single empty word, or no word at all.  The modifier ':from=to' treats it as
 # no word at all.
 #
 # See SysVMatch, which doesn't handle w_len == p_len specially.
@@ -93,10 +93,10 @@
 
 # Before 2020-07-19, an ampersand could be used in the replacement part
 # of a SysV substitution modifier, and it was replaced with the whole match,
-# just like in the :S modifier.
+# just like in the modifier ':S'.
 #
 # This was probably a copy-and-paste mistake since the code for the SysV
-# modifier looked a lot like the code for the :S and :C modifiers.
+# modifier looked a lot like the code for the modifiers ':S' and ':C'.
 # The ampersand is not mentioned in the manual page.
 .if ${a.bcd.e:L:a.%=%} != "bcd.e"
 .  error
@@ -109,14 +109,14 @@
 # Before 2020-07-20, when a SysV modifier was parsed, a single dollar
 # before the '=' was parsed (but not interpreted) as an anchor.
 # Parsing something without then evaluating it accordingly doesn't make
-# sense.
+# sense, so this has been fixed.
 .if ${value:L:e$=x} != "value"
 .  error
 .endif
-# Before 2020-07-20, the modifier ":e$=x" was parsed as having a left-hand
-# side "e" and a right-hand side "x".  The dollar was parsed (but not
+# Before 2020-07-20, the modifier ':e$=x' was parsed as having a left-hand
+# side 'e' and a right-hand side 'x'.  The dollar was parsed (but not
 # interpreted) as 'anchor at the end'.  Therefore the modifier was equivalent
-# to ":e=x", which doesn't match the string "value$".  Therefore the whole
+# to ':e=x', which doesn't match the string "value$".  Therefore the whole
 # expression evaluated to "value$".
 .if ${${:Uvalue\$}:L:e$=x} != "valux"
 .  error
@@ -198,7 +198,7 @@
 .  error
 .endif
 
-# The :from=to modifier can be used to replace both the prefix and a suffix
+# The modifier ':from=to' can be used to replace both the prefix and a suffix
 # of a word with other strings.  This is not possible with a single :S
 # modifier, and using a :C modifier for the same task looks more complicated
 # in many cases.
@@ -237,5 +237,18 @@ INDIRECT=	1:${VALUE} 2:$${VALUE} 4:$$$${VALUE}
 .if ${x:L:x=${INDIRECT}} != "1:value 2:value 4:\${VALUE}"
 .  error
 .endif
+
+# Test all relevant combinations of prefix, '%' and suffix in both the pattern
+# and the replacement.
+!=1>&2	printf '%-24s %-24s %-24s\n' 'word' 'modifier' 'result'
+.for from in '' ffix % pre% %ffix pre%ffix
+.  for to in '' NS % %NS NPre% NPre%NS
+.    for word in '' suffix prefix pre-middle-suffix
+.      for mod in ${from:N''}=${to:N''}
+!=1>&2	printf '%-24s %-24s "%s"\n' ''${word:Q} ''${mod:Q} ''${word:N'':${mod}:Q}
+.      endfor
+.    endfor
+.  endfor
+.endfor
 
 all:

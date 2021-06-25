@@ -1,0 +1,5 @@
+: 'Making existing-target out of nothing.'
+make: don't know how to make nonexistent-target (continuing)
+
+make: stopped in unit-tests
+exit status 2

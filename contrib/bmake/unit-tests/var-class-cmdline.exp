@@ -1,1 +1,4 @@
+make: "var-class-cmdline.mk" line 67: global
+make: "var-class-cmdline.mk" line 76: makeflags
+makeflags
 exit status 0

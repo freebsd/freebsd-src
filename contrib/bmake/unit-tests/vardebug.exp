@@ -1,86 +1,69 @@
 Global:delete FROM_CMDLINE (not found)
-Command:FROM_CMDLINE = 
-Global:.MAKEOVERRIDES =  FROM_CMDLINE
-Global:VAR = added
-Global:VAR = overwritten
+Command: FROM_CMDLINE = 
+Global: .MAKEOVERRIDES =  FROM_CMDLINE
+Global: VAR = added
+Global: VAR = overwritten
 Global:delete VAR
 Global:delete VAR (not found)
-Var_Parse: ${:U} with VARE_WANTRES
-Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
-Var_Set("${:U}", "empty name", ...) name expands to empty string - ignored
-Var_Parse: ${:U} with VARE_WANTRES
-Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
-Var_Append("${:U}", "empty name", ...) name expands to empty string - ignored
-Global:FROM_CMDLINE = overwritten ignored!
-Global:VAR = 1
-Global:VAR = 1 2
-Global:VAR = 1 2 3
-Var_Parse: ${VAR:M[2]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${VAR:M...} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Pattern[VAR] for [1 2 3] is [[2]]
+Var_SetExpand: variable name "${:U}" expands to empty string, with value "empty name" - ignored
+Var_AppendExpand: variable name "${:U}" expands to empty string, with value "empty name" - ignored
+Global: FROM_CMDLINE = overwritten ignored!
+Global: VAR = 1
+Global: VAR = 1 2
+Global: VAR = 1 2 3
+Var_Parse: ${VAR:M[2]} (eval-defined)
+Evaluating modifier ${VAR:M...} on value "1 2 3"
+Pattern for ':M' is "[2]"
 ModifyWords: split "1 2 3" into 3 words
-VarMatch [1] [[2]]
-VarMatch [2] [[2]]
-VarMatch [3] [[2]]
-Result of ${VAR:M[2]} is "2" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Var_Parse: ${VAR:N[2]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${VAR:N...} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Pattern[VAR] for [1 2 3] is [[2]]
+Result of ${VAR:M[2]} is "2"
+Var_Parse: ${VAR:N[2]} (eval-defined)
+Evaluating modifier ${VAR:N...} on value "1 2 3"
+Pattern for ':N' is "[2]"
 ModifyWords: split "1 2 3" into 3 words
-Result of ${VAR:N[2]} is "1 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Var_Parse: ${VAR:S,2,two,} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${VAR:S...} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Result of ${VAR:N[2]} is "1 3"
+Var_Parse: ${VAR:S,2,two,} (eval-defined)
+Evaluating modifier ${VAR:S...} on value "1 2 3"
 Modifier part: "2"
 Modifier part: "two"
 ModifyWords: split "1 2 3" into 3 words
-Result of ${VAR:S,2,two,} is "1 two 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Var_Parse: ${VAR:Q} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${VAR:Q} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Result of ${VAR:Q} is "1\ 2\ 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Var_Parse: ${VAR:tu:tl:Q} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${VAR:t...} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Result of ${VAR:tu} is "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Applying ${VAR:t...} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Result of ${VAR:tl} is "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Applying ${VAR:Q} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Result of ${VAR:Q} is "1\ 2\ 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
-Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
-Result of ${:Uvalue} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Var_Parse: ${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
-Result of ${:UM*e} is "M*e" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Result of ${VAR:S,2,two,} is "1 two 3"
+Var_Parse: ${VAR:Q} (eval-defined)
+Evaluating modifier ${VAR:Q} on value "1 2 3"
+Result of ${VAR:Q} is "1\ 2\ 3"
+Var_Parse: ${VAR:tu:tl:Q} (eval-defined)
+Evaluating modifier ${VAR:t...} on value "1 2 3"
+Result of ${VAR:tu} is "1 2 3"
+Evaluating modifier ${VAR:t...} on value "1 2 3"
+Result of ${VAR:tl} is "1 2 3"
+Evaluating modifier ${VAR:Q} on value "1 2 3"
+Result of ${VAR:Q} is "1\ 2\ 3"
+Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} (eval-defined)
+Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
+Result of ${:Uvalue} is "value" (eval-defined, defined)
 Indirect modifier "M*e" from "${:UM*e}"
-Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Pattern[] for [value] is [*e]
+Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
+Pattern for ':M' is "*e"
 ModifyWords: split "value" into 1 words
-VarMatch [value] [*e]
-Result of ${:M*e} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Pattern[] for [value] is [valu[e]]
+Result of ${:M*e} is "value" (eval-defined, defined)
+Evaluating modifier ${:M...} on value "value" (eval-defined, defined)
+Pattern for ':M' is "valu[e]"
 ModifyWords: split "value" into 1 words
-VarMatch [value] [valu[e]]
-Result of ${:Mvalu[e]} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Var_Parse: ${:UVAR} with VARE_WANTRES
-Applying ${:U...} to "" (VARE_WANTRES, none, VES_UNDEF)
-Result of ${:UVAR} is "VAR" (VARE_WANTRES, none, VES_DEF)
+Result of ${:Mvalu[e]} is "value" (eval-defined, defined)
 Global:delete VAR
-Var_Parse: ${:Uvariable:unknown} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
-Result of ${:Uvariable} is "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Applying ${:u...} to "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-make: "vardebug.mk" line 44: Unknown modifier 'u'
-Result of ${:unknown} is error (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Var_Parse: ${:Uvariable:unknown} (eval-defined)
+Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
+Result of ${:Uvariable} is "variable" (eval-defined, defined)
+Evaluating modifier ${:u...} on value "variable" (eval-defined, defined)
+make: "vardebug.mk" line 44: Unknown modifier "unknown"
+Result of ${:unknown} is error (eval-defined, defined)
 make: "vardebug.mk" line 44: Malformed conditional (${:Uvariable:unknown})
-Var_Parse: ${UNDEFINED} with VARE_UNDEFERR|VARE_WANTRES
+Var_Parse: ${UNDEFINED} (eval-defined)
 make: "vardebug.mk" line 53: Malformed conditional (${UNDEFINED})
 Global:delete .SHELL (not found)
-Command:.SHELL = </path/to/shell>
-Command:.SHELL = overwritten ignored (read-only)
-Global:.MAKEFLAGS =  -r -k -d v -d
-Global:.MAKEFLAGS =  -r -k -d v -d 0
+Command: .SHELL = </path/to/shell>
+Command: .SHELL = overwritten ignored (read-only)
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

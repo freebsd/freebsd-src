@@ -1,19 +1,19 @@
 ParseReadLine (9): '.SUFFIXES:'
-ParseDoDependency(.SUFFIXES:)
+ParseDependency(.SUFFIXES:)
 Clearing all suffixes
 ParseReadLine (11): '.SUFFIXES: .a .b .c'
-ParseDoDependency(.SUFFIXES: .a .b .c)
+ParseDependency(.SUFFIXES: .a .b .c)
 Adding suffix ".a"
 Adding suffix ".b"
 Adding suffix ".c"
 ParseReadLine (17): '.a.b:'
-ParseDoDependency(.a.b:)
+ParseDependency(.a.b:)
 defining transformation from `.a' to `.b'
 inserting ".a" (1) at end of list
 inserting ".b" (2) at end of list
 ParseReadLine (21): '.a.c: ${.PREFIX}.dependency'
 deleting incomplete transformation from `.a' to `.b'
-ParseDoDependency(.a.c: ${.PREFIX}.dependency)
+ParseDependency(.a.c: ${.PREFIX}.dependency)
 defining transformation from `.a' to `.c'
 inserting ".a" (1) at end of list
 inserting ".c" (3) at end of list
@@ -22,7 +22,7 @@ inserting ".c" (3) at end of list
 # ${.PREFIX}.dependency, unmade, type none, flags none
 ParseReadLine (23): '.DEFAULT:'
 transformation .a.c complete
-ParseDoDependency(.DEFAULT:)
+ParseDependency(.DEFAULT:)
 ParseReadLine (24): '	: Making ${.TARGET} from ${.IMPSRC} all ${.ALLSRC} by default.'
 transformation .DEFAULT complete
 Wildcard expanding "all"...
