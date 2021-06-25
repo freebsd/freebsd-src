@@ -402,6 +402,10 @@ typedef enum {
  * Interface has an admin completion queue
  */
 #define IFLIB_HAS_ADMINCQ	0x100000
+/*
+ * Interface needs to preserve TX ring indices across restarts.
+ */
+#define IFLIB_PRESERVE_TX_INDICES	0x200000
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib

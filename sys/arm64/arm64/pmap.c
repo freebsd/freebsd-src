@@ -2226,7 +2226,6 @@ pv_to_chunk(pv_entry_t pv)
 
 static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
-#if 0
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
 
@@ -2251,7 +2250,6 @@ SYSCTL_LONG(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 	"Current number of spare pv entries");
 #endif
-#endif /* 0 */
 
 /*
  * We are in a serious low memory condition.  Resort to
@@ -2834,8 +2832,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 {
 	struct md_page *pvh;
 	pt_entry_t old_l2;
-	vm_offset_t eva, va;
-	vm_page_t m, ml3;
+	vm_page_t m, ml3, mt;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & L2_OFFSET) == 0, ("pmap_remove_l2: sva is not aligned"));
@@ -2853,19 +2850,18 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
 	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
 	if (old_l2 & ATTR_SW_MANAGED) {
+		m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
+		pvh = page_to_pvh(m);
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, old_l2 & ~ATTR_MASK);
-		pvh = pa_to_pvh(old_l2 & ~ATTR_MASK);
 		pmap_pvh_free(pvh, pmap, sva);
-		eva = sva + L2_SIZE;
-		for (va = sva, m = PHYS_TO_VM_PAGE(old_l2 & ~ATTR_MASK);
-		    va < eva; va += PAGE_SIZE, m++) {
+		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++) {
 			if (pmap_pte_dirty(pmap, old_l2))
-				vm_page_dirty(m);
+				vm_page_dirty(mt);
 			if (old_l2 & ATTR_AF)
-				vm_page_aflag_set(m, PGA_REFERENCED);
-			if (TAILQ_EMPTY(&m->md.pv_list) &&
+				vm_page_aflag_set(mt, PGA_REFERENCED);
+			if (TAILQ_EMPTY(&mt->md.pv_list) &&
 			    TAILQ_EMPTY(&pvh->pv_list))
-				vm_page_aflag_clear(m, PGA_WRITEABLE);
+				vm_page_aflag_clear(mt, PGA_WRITEABLE);
 		}
 	}
 	if (pmap == kernel_pmap) {
