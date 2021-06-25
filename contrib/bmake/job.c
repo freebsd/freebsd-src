@@ -262,7 +262,7 @@ typedef struct ShellWriter {
  * Use .MAKE.ALWAYS_PASS_JOB_QUEUE=no to disable.
  */
 #define MAKE_ALWAYS_PASS_JOB_QUEUE ".MAKE.ALWAYS_PASS_JOB_QUEUE"
-static int Always_pass_job_queue = TRUE;
+static bool Always_pass_job_queue = true;
 /*
  * FreeBSD: aborting entire parallel make isn't always
  * desired. When doing tinderbox for example, failure of
@@ -270,7 +270,7 @@ static int Always_pass_job_queue = TRUE;
  * We still want to bail on interrupt though.
  */
 #define MAKE_JOB_ERROR_TOKEN "MAKE_JOB_ERROR_TOKEN"
-static int Job_error_token = TRUE;
+static bool Job_error_token = true;
 
 /*
  * error handling variables
@@ -2265,10 +2265,11 @@ Job_Init(void)
 	aborting = ABORT_NONE;
 	job_errors = 0;
 
-	Always_pass_job_queue = GetBooleanVar(MAKE_ALWAYS_PASS_JOB_QUEUE,
+	Always_pass_job_queue = GetBooleanExpr(MAKE_ALWAYS_PASS_JOB_QUEUE,
 	    Always_pass_job_queue);
 
-	Job_error_token = GetBooleanVar(MAKE_JOB_ERROR_TOKEN, Job_error_token);
+	Job_error_token = GetBooleanExpr(MAKE_JOB_ERROR_TOKEN, Job_error_token);
+
 
 	/*
 	 * There is a non-zero chance that we already have children.
