@@ -1,4 +1,4 @@
-# $NetBSD: var-op-assign.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: var-op-assign.mk,v 1.8 2021/03/15 19:15:04 rillig Exp $
 #
 # Tests for the = variable assignment operator, which overwrites an existing
 # variable or creates it.
@@ -42,7 +42,7 @@ VAR=	new value and \# some $$ special characters	# comment
 # This alone would not produce any side-effects, therefore the variable has
 # a :!...! modifier that executes a shell command.  The :!...! modifier turns
 # an undefined expression into a defined one, see ApplyModifier_ShellCommand,
-# the call to ApplyModifiersState_Define.
+# the call to Expr_Define.
 #
 # Since the right-hand side of a '=' assignment is not expanded at the time
 # when the variable is defined, the first command is not run at all.

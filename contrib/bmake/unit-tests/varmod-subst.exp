@@ -45,7 +45,7 @@ mod-subst-delimiter:
 1 two 3 tilde
 mod-subst-chain:
 A B c.
-make: Unknown modifier 'i'
+make: Unknown modifier "i"
 .
 mod-subst-dollar:$1:
 mod-subst-dollar:$2:

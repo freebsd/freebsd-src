@@ -1,4 +1,4 @@
-# $NetBSD: opt-file.mk,v 1.11 2020/12/22 08:57:23 rillig Exp $
+# $NetBSD: opt-file.mk,v 1.12 2021/04/04 10:13:09 rillig Exp $
 #
 # Tests for the -f command line option.
 
@@ -28,10 +28,10 @@ all: file-containing-null-byte
 #	ParseReadLine (1): 'VAR=value\<A5><A5><A5><A5><A5><A5>'
 #	Global:VAR = value\<A5><A5><A5><A5><A5><A5>value\<A5><A5><A5><A5><A5><A5>
 #	ParseReadLine (2): 'alue\<A5><A5><A5><A5><A5><A5>'
-#	ParseDoDependency(alue\<A5><A5><A5><A5><A5><A5>)
+#	ParseDependency(alue\<A5><A5><A5><A5><A5><A5>)
 #	make-2014.01.01.00.00.00: "(stdin)" line 2: Need an operator
 #	ParseReadLine (3): '<A5><A5><A5>ZZZZZZZZZZZZZZZZ'
-#	ParseDoDependency(<A5><A5><A5>ZZZZZZZZZZZZZZZZ)
+#	ParseDependency(<A5><A5><A5>ZZZZZZZZZZZZZZZZ)
 #
 file-ending-in-backslash: .PHONY
 	@printf '%s' 'VAR=value\' \

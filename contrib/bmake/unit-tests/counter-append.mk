@@ -1,4 +1,4 @@
-# $NetBSD: counter-append.mk,v 1.4 2020/10/17 16:57:17 rillig Exp $
+# $NetBSD: counter-append.mk,v 1.5 2021/04/04 10:13:09 rillig Exp $
 #
 # Demonstrates how to let make count the number of times a variable
 # is actually accessed, using the ::+= variable modifier.
@@ -15,7 +15,7 @@ COUNTER=	# zero
 NEXT=		${COUNTER::+=a}${COUNTER:[#]}
 
 # This variable is first set to empty and then expanded.
-# See parse.c, function Parse_DoVar, keyword "!Var_Exists".
+# See parse.c, function Parse_Var, keyword "!Var_Exists".
 A:=		${NEXT}
 B:=		${NEXT}
 C:=		${NEXT}
