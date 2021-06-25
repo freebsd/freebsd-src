@@ -8,9 +8,9 @@ testloop () {
 
 	for algorithm in sha512; do
 		for f in %%TESTSBASE%%/sbin/md5/*.inp; do
-			outbase=%%TESTSBASE%%/sbin/md5/$(basename $f .inp)
+			outbase=$(basename $f .inp)
 			$algorithm$sum $opt -p < $f > $outbase.out
-			diff $outbase.$algorithm$sum-p.chk $outbase.out || exitcode=1
+			diff %%TESTSBASE%%/sbin/md5/$outbase.$algorithm$sum-p.chk $outbase.out || exitcode=1
 		done
 	done
 }
