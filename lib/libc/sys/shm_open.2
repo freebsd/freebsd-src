@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2019
+.Dd June 25, 2021
 .Dt SHM_OPEN 2
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@
 The
 .Fn shm_open
 system call opens (or optionally creates) a
-.Tn POSIX
+POSIX
 shared memory object named
 .Fa path .
 The
@@ -258,7 +258,7 @@ and
 .Dv O_TRUNC
 flags may be used in portable programs.
 .Pp
-.Tn POSIX
+POSIX
 specifications state that the result of using
 .Xr open 2 ,
 .Xr read 2 ,
@@ -421,6 +421,7 @@ The required permissions are denied.
 requires write permission to the shared memory object.
 .El
 .Sh SEE ALSO
+.Xr posixshmcontrol 1 ,
 .Xr close 2 ,
 .Xr fstat 2 ,
 .Xr ftruncate 2 ,
