@@ -895,7 +895,7 @@ nfs_mount(struct mount *mp)
 	char *cp, *opt, *name, *secname, *tlscertname;
 	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
-	int minvers = 0;
+	int minvers = -1;
 	int dirlen, has_nfs_args_opt, has_nfs_from_opt,
 	    krbnamelen, srvkrbnamelen;
 	size_t hstlen;
@@ -1417,6 +1417,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	struct nfsclclient *clp;
 	struct nfsclds *dsp, *tdsp;
 	uint32_t lease;
+	bool tryminvers;
 	static u_int64_t clval = 0;
 #ifdef KERN_TLS
 	u_int maxlen;
@@ -1521,9 +1522,14 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_wcommitsize *= 2;
 	nmp->nm_wcommitsize *= 256;
 
-	if ((argp->flags & NFSMNT_NFSV4) != 0)
+	tryminvers = false;
+	if ((argp->flags & NFSMNT_NFSV4) != 0) {
+		if (minvers < 0) {
+			tryminvers = true;
+			minvers = NFSV42_MINORVERSION;
+		}
 		nmp->nm_minorvers = minvers;
-	else
+	} else
 		nmp->nm_minorvers = 0;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
@@ -1574,7 +1580,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	/* For NFSv4, get the clientid now. */
 	if ((argp->flags & NFSMNT_NFSV4) != 0) {
 		NFSCL_DEBUG(3, "at getcl\n");
-		error = nfscl_getcl(mp, cred, td, false, &clp);
+		error = nfscl_getcl(mp, cred, td, tryminvers, &clp);
 		NFSCL_DEBUG(3, "aft getcl=%d\n", error);
 		if (error != 0)
 			goto bad;
