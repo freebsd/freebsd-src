@@ -959,11 +959,18 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			    error == NFSERR_BADSESSION ||
 			    error == NFSERR_CLIDINUSE) {
 				(void) nfs_catnap(PZERO, error, "nfs_setcl");
+			} else if (error == NFSERR_MINORVERMISMATCH &&
+			    tryminvers) {
+				if (nmp->nm_minorvers > 0)
+					nmp->nm_minorvers--;
+				else
+					tryminvers = false;
 			}
 		} while (((error == NFSERR_STALECLIENTID ||
 		     error == NFSERR_BADSESSION ||
 		     error == NFSERR_STALEDONTRECOVER) && --trystalecnt > 0) ||
-		    (error == NFSERR_CLIDINUSE && --clidinusedelay > 0));
+		    (error == NFSERR_CLIDINUSE && --clidinusedelay > 0) ||
+		    (error == NFSERR_MINORVERMISMATCH && tryminvers));
 		if (error) {
 			NFSLOCKCLSTATE();
 			nfsv4_unlock(&clp->nfsc_lock, 0);
