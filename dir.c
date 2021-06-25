@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.270 2021/02/05 05:48:19 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.272 2021/04/04 10:13:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -86,7 +86,7 @@
  *	Dir_SetPATH	Set ${.PATH} to reflect state of dirSearchPath.
  *
  *	Dir_HasWildcards
- *			Returns TRUE if the name given it needs to
+ *			Returns true if the name given it needs to
  *			be wildcard-expanded.
  *
  *	SearchPath_Expand
@@ -138,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.270 2021/02/05 05:48:19 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.272 2021/04/04 10:13:09 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -217,7 +217,7 @@ struct CachedDir {
 	 * and "./." are different.
 	 *
 	 * Not sure what happens when .CURDIR is assigned a new value; see
-	 * Parse_DoVar.
+	 * Parse_Var.
 	 */
 	char *name;
 
@@ -547,14 +547,14 @@ void
 Dir_SetPATH(void)
 {
 	CachedDirListNode *ln;
-	Boolean seenDotLast = FALSE;	/* true if we should search '.' last */
+	bool seenDotLast = false;	/* true if we should search '.' last */
 
 	Global_Delete(".PATH");
 
 	if ((ln = dirSearchPath.dirs.first) != NULL) {
 		CachedDir *dir = ln->datum;
 		if (dir == dotLast) {
-			seenDotLast = TRUE;
+			seenDotLast = true;
 			Global_Append(".PATH", dotLast->name);
 		}
 	}
@@ -591,34 +591,34 @@ Dir_SetPATH(void)
  * that make(1) should be expanding patterns, because then you have to set a
  * mechanism for escaping the expansion!
  *
- * Return TRUE if the word should be expanded, FALSE otherwise.
+ * Return true if the word should be expanded, false otherwise.
  */
-Boolean
+bool
 Dir_HasWildcards(const char *name)
 {
 	const char *p;
-	Boolean wild = FALSE;
+	bool wild = false;
 	int braces = 0, brackets = 0;
 
 	for (p = name; *p != '\0'; p++) {
 		switch (*p) {
 		case '{':
 			braces++;
-			wild = TRUE;
+			wild = true;
 			break;
 		case '}':
 			braces--;
 			break;
 		case '[':
 			brackets++;
-			wild = TRUE;
+			wild = true;
 			break;
 		case ']':
 			brackets--;
 			break;
 		case '?':
 		case '*':
-			wild = TRUE;
+			wild = true;
 			break;
 		default:
 			break;
@@ -647,7 +647,7 @@ static void
 DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
 {
 	const char *dirName = dir->name;
-	Boolean isDot = dirName[0] == '.' && dirName[1] == '\0';
+	bool isDot = dirName[0] == '.' && dirName[1] == '\0';
 	HashIter hi;
 
 	/*
@@ -725,7 +725,7 @@ separator_comma(const char *p)
 	return p;
 }
 
-static Boolean
+static bool
 contains_wildcard(const char *p)
 {
 	for (; *p != '\0'; p++) {
@@ -734,10 +734,10 @@ contains_wildcard(const char *p)
 		case '?':
 		case '{':
 		case '[':
-			return TRUE;
+			return true;
 		}
 	}
-	return FALSE;
+	return false;
 }
 
 static char *
@@ -1064,19 +1064,19 @@ DirFindDot(const char *name, const char *base)
 	return NULL;
 }
 
-static Boolean
-FindFileRelative(SearchPath *path, Boolean seenDotLast,
+static bool
+FindFileRelative(SearchPath *path, bool seenDotLast,
 		 const char *name, char **out_file)
 {
 	SearchPathNode *ln;
-	Boolean checkedDot = FALSE;
+	bool checkedDot = false;
 	char *file;
 
 	DEBUG0(DIR, "   Trying subdirectories...\n");
 
 	if (!seenDotLast) {
 		if (dot != NULL) {
-			checkedDot = TRUE;
+			checkedDot = true;
 			if ((file = DirLookupSubdir(dot, name)) != NULL)
 				goto found;
 		}
@@ -1092,7 +1092,7 @@ FindFileRelative(SearchPath *path, Boolean seenDotLast,
 		if (dir == dot) {
 			if (checkedDot)
 				continue;
-			checkedDot = TRUE;
+			checkedDot = true;
 		}
 		if ((file = DirLookupSubdir(dir, name)) != NULL)
 			goto found;
@@ -1100,7 +1100,7 @@ FindFileRelative(SearchPath *path, Boolean seenDotLast,
 
 	if (seenDotLast) {
 		if (dot != NULL && !checkedDot) {
-			checkedDot = TRUE;
+			checkedDot = true;
 			if ((file = DirLookupSubdir(dot, name)) != NULL)
 				goto found;
 		}
@@ -1119,15 +1119,15 @@ FindFileRelative(SearchPath *path, Boolean seenDotLast,
 		goto found;
 	}
 
-	return FALSE;
+	return false;
 
 found:
 	*out_file = file;
-	return TRUE;
+	return true;
 }
 
-static Boolean
-FindFileAbsolute(SearchPath *path, Boolean const seenDotLast,
+static bool
+FindFileAbsolute(SearchPath *path, bool const seenDotLast,
 		 const char *const name, const char *const base,
 		 char **out_file)
 {
@@ -1162,7 +1162,7 @@ FindFileAbsolute(SearchPath *path, Boolean const seenDotLast,
 	    ((file = DirLookupAbs(cur, name, base)) != NULL))
 		goto found;
 
-	return FALSE;
+	return false;
 
 found:
 	if (file[0] == '\0') {
@@ -1170,7 +1170,7 @@ found:
 		file = NULL;
 	}
 	*out_file = file;
-	return TRUE;
+	return true;
 }
 
 /*
@@ -1194,7 +1194,7 @@ char *
 Dir_FindFile(const char *name, SearchPath *path)
 {
 	char *file;		/* the current filename to check */
-	Boolean seenDotLast = FALSE; /* true if we should search dot last */
+	bool seenDotLast = false; /* true if we should search dot last */
 	struct cached_stat cst;	/* Buffer for stat, if necessary */
 	const char *trailing_dot = ".";
 	const char *base = str_basename(name);
@@ -1210,7 +1210,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 	if (path->dirs.first != NULL) {
 		CachedDir *dir = path->dirs.first->datum;
 		if (dir == dotLast) {
-			seenDotLast = TRUE;
+			seenDotLast = true;
 			DEBUG0(DIR, "[dot last]...");
 		}
 	}
@@ -1471,7 +1471,7 @@ ResolveFullName(GNode *gn)
  * The found file is stored in gn->path, unless the node already had a path.
  */
 void
-Dir_UpdateMTime(GNode *gn, Boolean recheck)
+Dir_UpdateMTime(GNode *gn, bool recheck)
 {
 	char *fullName;
 	struct cached_stat cst;

@@ -1,4 +1,4 @@
-# $NetBSD: opt-jobs-no-action.mk,v 1.8 2020/12/10 23:54:41 rillig Exp $
+# $NetBSD: opt-jobs-no-action.mk,v 1.9 2021/04/04 09:58:51 rillig Exp $
 #
 # Tests for the combination of the options -j and -n, which prints the
 # commands instead of actually running them.
@@ -23,7 +23,7 @@
 # this is handled by the [0] != '\0' checks in Job_ParseShell.
 # The '\#' is handled by ParseGetLine.
 # The '\n' is handled by Str_Words in Job_ParseShell.
-# The '$$' is handled by Var_Subst in ParseDependency.
+# The '$$' is handled by Var_Subst in ParseDependencyLine.
 .SHELL: \
 	name=sh \
 	path=${.SHELL} \
