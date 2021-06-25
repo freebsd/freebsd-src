@@ -367,6 +367,7 @@ struct tcp_function_block {
 	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
 	void	(*tfb_tcp_mtu_chg)(struct tcpcb *);
 	int	(*tfb_pru_options)(struct tcpcb *, int);
+	void	(*tfb_hwtls_change)(struct tcpcb *, int);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 	uint8_t	tfb_id;
@@ -1132,7 +1133,8 @@ tcp_fields_to_net(struct tcphdr *th)
 }
 
 static inline void
-tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt, uint8_t is_tlp)
+tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
+    uint8_t is_tlp, int hw_tls __unused)
 {
 	if (is_tlp) {
 		tp->t_sndtlppack++;
@@ -1143,9 +1145,7 @@ tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt, uint8_t is_
 		tp->t_snd_rxt_bytes += len;
 	else
 		tp->t_sndbytes += len;
-
 }
-
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */
