@@ -43,7 +43,7 @@ strcspn(const char *s, const char *charset)
 	if (*s == '\0')
 		return (0);
 
-	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {1}; // All elements other than the first are set to 0 automatically
+	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {1, 0, 0, 0}; // All elements other than the first are set to 0 automatically
 
 	for (; *charset != '\0'; charset++) {
 		tbl[IDX(*charset)] |= BIT(*charset);
