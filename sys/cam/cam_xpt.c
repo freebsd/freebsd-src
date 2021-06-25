@@ -5573,7 +5573,7 @@ camisr_runqueue(void)
 	}
 }
 
-struct kv 
+struct kv
 {
 	uint32_t v;
 	const char *name;
@@ -5625,7 +5625,7 @@ static struct kv map[] = {
 };
 
 const char *
-xpt_action_name(uint32_t action) 
+xpt_action_name(uint32_t action)
 {
 	static char buffer[32];	/* Only for unknown messages -- racy */
 	struct kv *walker = map;
