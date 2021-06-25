@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.143 2021/02/06 18:31:30 sjg Exp $
+# $Id: Makefile,v 1.148 2021/06/16 19:18:56 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.269 2021/02/06 18:26:03 sjg Exp $
+# $NetBSD: Makefile,v 1.279 2021/06/16 09:39:48 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -207,7 +207,9 @@ TESTS+=		impsrc
 TESTS+=		include-main
 TESTS+=		job-flags
 #TESTS+=		job-output-long-lines
+TESTS+=		job-output-null
 TESTS+=		jobs-empty-commands
+TESTS+=		jobs-empty-commands-error
 TESTS+=		jobs-error-indirect
 TESTS+=		jobs-error-nested
 TESTS+=		jobs-error-nested-make
@@ -232,6 +234,7 @@ TESTS+=		opt-debug-curdir
 TESTS+=		opt-debug-cond
 TESTS+=		opt-debug-dir
 TESTS+=		opt-debug-errors
+TESTS+=		opt-debug-errors-jobs
 TESTS+=		opt-debug-file
 TESTS+=		opt-debug-for
 TESTS+=		opt-debug-graph1
@@ -325,6 +328,7 @@ TESTS+=		var-class-env
 TESTS+=		var-class-global
 TESTS+=		var-class-local
 TESTS+=		var-class-local-legacy
+TESTS+=		var-eval-short
 TESTS+=		var-op
 TESTS+=		var-op-append
 TESTS+=		var-op-assign
@@ -351,6 +355,7 @@ TESTS+=		varmod-indirect
 TESTS+=		varmod-l-name-to-value
 TESTS+=		varmod-localtime
 TESTS+=		varmod-loop
+TESTS+=		varmod-loop-varname
 TESTS+=		varmod-match
 TESTS+=		varmod-match-escape
 TESTS+=		varmod-no-match
@@ -367,6 +372,7 @@ TESTS+=		varmod-select-words
 TESTS+=		varmod-shell
 TESTS+=		varmod-subst
 TESTS+=		varmod-subst-regex
+TESTS+=		varmod-sun-shell
 TESTS+=		varmod-sysv
 TESTS+=		varmod-tail
 TESTS+=		varmod-to-abs
@@ -488,6 +494,7 @@ SED_CMDS.job-output-long-lines= \
 	${:D marker should always be at the beginning of the line. } \
 	-e '/^aa*--- job-b ---$$/d' \
 	-e '/^bb*--- job-a ---$$/d'
+SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
@@ -498,11 +505,12 @@ SED_CMDS.opt-debug-jobs+=	-e 's,JobFinish: [0-9][0-9]*,JobFinish: <pid>,'
 SED_CMDS.opt-debug-jobs+=	-e 's,Command: ${.SHELL:T},Command: <shell>,'
 # The "-q" may be there or not, see jobs.c, variable shells.
 SED_CMDS.opt-debug-jobs+=	-e 's,^\(.Command: <shell>\) -q,\1,'
+SED_CMDS.opt-debug-lint+=	${STD_SED_CMDS.regex}
 SED_CMDS.opt-jobs-no-action=	${STD_SED_CMDS.hide-from-output}
 SED_CMDS.opt-no-action-runflags= ${STD_SED_CMDS.hide-from-output}
-# For Compat_RunCommand, useShell == FALSE.
+# For Compat_RunCommand, useShell == false.
 SED_CMDS.sh-dots=		-e 's,^.*\.\.\.:.*,<not found: ...>,'
-# For Compat_RunCommand, useShell == TRUE.
+# For Compat_RunCommand, useShell == true.
 SED_CMDS.sh-dots+=		-e 's,^make: exec(\(.*\)) failed (.*)$$,<not found: \1>,'
 SED_CMDS.sh-dots+=		-e 's,^\(\*\*\* Error code \)[1-9][0-9]*,\1<nonzero>,'
 SED_CMDS.sh-errctl=		${STD_SED_CMDS.dj}
@@ -513,8 +521,7 @@ SED_CMDS.suff-transform-debug+=	${STD_SED_CMDS.dg1}
 SED_CMDS.var-op-shell+=		${STD_SED_CMDS.shell}
 SED_CMDS.var-op-shell+=		-e '/command/s,No such.*,not found,'
 SED_CMDS.vardebug+=		-e 's,${.SHELL},</path/to/shell>,'
-SED_CMDS.varmod-subst-regex+= \
-			-e 's,\(Regex compilation error:\).*,\1 (details omitted),'
+SED_CMDS.varmod-subst-regex+=	${STD_SED_CMDS.regex}
 SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
@@ -594,6 +601,11 @@ STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: line [0-9][0-9]*: ,,'
 STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: [0-9][0-9]*: ,,'
 STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: ,,'
 
+# The actual error messages for a failed regcomp or regexec differ between the
+# implementations.
+STD_SED_CMDS.regex= \
+	-e 's,\(Regex compilation error:\).*,\1 (details omitted),'
+
 # End of the configuration helpers section.
 
 .sinclude "Makefile.inc"
@@ -643,8 +655,10 @@ _MKMSG_TEST= :
 .if ${.OBJDIR} != ${.CURDIR}
 # easy
 TMPDIR:=	${.OBJDIR}/tmp
+.elif defined(TMPDIR)
+TMPDIR:=	${TMPDIR}/uid${.MAKE.UID}
 .else
-TMPDIR:=	${TMPDIR:U/tmp}/uid${.MAKE.UID}
+TMPDIR:=	/tmp/uid${.MAKE.UID}
 .endif
 # make sure it exists
 .if !exist(${TMPDIR})
