@@ -1560,7 +1560,7 @@ send:
 
 out:
 	if (error == 0)
-		tcp_account_for_send(tp, len, (tp->snd_nxt != tp->snd_max), 0);
+		tcp_account_for_send(tp, len, (tp->snd_nxt != tp->snd_max), 0, hw_tls);
 	/*
 	 * In transmit state, time the transmission and arrange for
 	 * the retransmit.  In persist state, just set snd_max.

@@ -13750,7 +13750,7 @@ out:
 	 * retransmit.  In persist state, just set snd_max.
 	 */
 	if (error == 0) {
-		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp);
+		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp, hw_tls);
 		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 		    (tp->t_flags & TF_SACK_PERMIT) &&
 		    tp->rcv_numsacks > 0)

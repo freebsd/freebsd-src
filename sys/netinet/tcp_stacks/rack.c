@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
+#include "opt_kern_tls.h"
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/module.h>
@@ -483,7 +484,7 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to,
 static void
 rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
     uint32_t seq_out, uint8_t th_flags, int32_t err, uint64_t ts,
-    struct rack_sendmap *hintrsm, uint16_t add_flags, struct mbuf *s_mb, uint32_t s_moff);
+    struct rack_sendmap *hintrsm, uint16_t add_flags, struct mbuf *s_mb, uint32_t s_moff, int hw_tls);
 
 static void
 rack_log_sack_passed(struct tcpcb *tp, struct tcp_rack *rack,
@@ -6061,7 +6062,8 @@ rack_clone_rsm(struct tcp_rack *rack, struct rack_sendmap *nrsm,
 	/* Push bit must go to the right edge as well */
 	if (rsm->r_flags & RACK_HAD_PUSH)
 		rsm->r_flags &= ~RACK_HAD_PUSH;
-
+	/* Clone over the state of the hw_tls flag */
+	nrsm->r_hw_tls = rsm->r_hw_tls;
 	/*
 	 * Now we need to find nrsm's new location in the mbuf chain
 	 * we basically calculate a new offset, which is soff +
@@ -7191,7 +7193,7 @@ rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
 static void
 rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
 		uint32_t seq_out, uint8_t th_flags, int32_t err, uint64_t cts,
-		struct rack_sendmap *hintrsm, uint16_t add_flag, struct mbuf *s_mb, uint32_t s_moff)
+		struct rack_sendmap *hintrsm, uint16_t add_flag, struct mbuf *s_mb, uint32_t s_moff, int hw_tls)
 {
 	struct tcp_rack *rack;
 	struct rack_sendmap *rsm, *nrsm, *insret, fe;
@@ -7295,6 +7297,8 @@ again:
 		} else {
 			rsm->r_flags = add_flag;
 		}
+		if (hw_tls)
+			rsm->r_hw_tls = 1;
 		rsm->r_tim_lastsent[0] = cts;
 		rsm->r_rtr_cnt = 1;
 		rsm->r_rtr_bytes = 0;
@@ -14875,7 +14879,7 @@ rack_log_fsb(struct tcp_rack *rack, struct tcpcb *tp, struct socket *so, uint32_
 static struct mbuf *
 rack_fo_base_copym(struct mbuf *the_m, uint32_t the_off, int32_t *plen,
 		   struct rack_fast_send_blk *fsb,
-		   int32_t seglimit, int32_t segsize)
+		   int32_t seglimit, int32_t segsize, int hw_tls)
 {
 #ifdef KERN_TLS
 	struct ktls_session *tls, *ntls;
@@ -15059,7 +15063,7 @@ rack_fo_m_copym(struct tcp_rack *rack, int32_t *plen,
 	*s_mb = rack->r_ctl.fsb.m;
 	n = rack_fo_base_copym(m, soff, plen,
 			       &rack->r_ctl.fsb,
-			       seglimit, segsize);
+			       seglimit, segsize, rack->r_ctl.fsb.hw_tls);
 	return (n);
 }
 
@@ -15243,7 +15247,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		/* Fix up the orig_m_len and possibly the mbuf offset */
 		rack_adjust_orig_mlen(rsm);
 	}
-	m->m_next = rack_fo_base_copym(rsm->m, rsm->soff, &len, NULL, if_hw_tsomaxsegcount, if_hw_tsomaxsegsize);
+	m->m_next = rack_fo_base_copym(rsm->m, rsm->soff, &len, NULL, if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, rsm->r_hw_tls);
 	if (len <= segsiz) {
 		/*
 		 * Must have ran out of mbufs for the copy
@@ -15405,13 +15409,13 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 		goto failed;
 	}
 	rack_log_output(tp, &to, len, rsm->r_start, flags, error, rack_to_usec_ts(tv),
-			rsm, RACK_SENT_FP, rsm->m, rsm->soff);
+			rsm, RACK_SENT_FP, rsm->m, rsm->soff, rsm->r_hw_tls);
 	if (doing_tlp && (rack->fast_rsm_hack == 0)) {
 		rack->rc_tlp_in_progress = 1;
 		rack->r_ctl.rc_tlp_cnt_out++;
 	}
 	if (error == 0)
-		tcp_account_for_send(tp, len, 1, doing_tlp);
+		tcp_account_for_send(tp, len, 1, doing_tlp, rsm->r_hw_tls);
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
 	if (IN_FASTRECOVERY(tp->t_flags) && rsm)
@@ -15688,7 +15692,8 @@ again:
 		goto failed;
 
 	/* s_mb and s_soff are saved for rack_log_output */
-	m->m_next = rack_fo_m_copym(rack, &len, if_hw_tsomaxsegcount, if_hw_tsomaxsegsize, &s_mb, &s_soff);
+	m->m_next = rack_fo_m_copym(rack, &len, if_hw_tsomaxsegcount, if_hw_tsomaxsegsize,
+				    &s_mb, &s_soff);
 	if (len <= segsiz) {
 		/*
 		 * Must have ran out of mbufs for the copy
@@ -15883,7 +15888,7 @@ again:
 		goto failed;
 	}
 	rack_log_output(tp, &to, len, tp->snd_max, flags, error, rack_to_usec_ts(tv),
-			NULL, add_flag, s_mb, s_soff);
+			NULL, add_flag, s_mb, s_soff, rack->r_ctl.fsb.hw_tls);
 	m = NULL;
 	if (tp->snd_una == tp->snd_max) {
 		rack->r_ctl.rc_tlp_rxt_last_time = cts;
@@ -15891,7 +15896,7 @@ again:
 		tp->t_acktime = ticks;
 	}
 	if (error == 0)
-		tcp_account_for_send(tp, len, 0, 0);
+		tcp_account_for_send(tp, len, 0, 0, rack->r_ctl.fsb.hw_tls);
 
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
 	tot_len += len;
@@ -17030,6 +17035,10 @@ just_return_nolock:
 				rack->r_ctl.fsb.o_m_len = rack->r_ctl.fsb.m->m_len;
 				rack->r_ctl.fsb.tcp_flags = flags;
 				rack->r_ctl.fsb.left_to_send = orig_len - len;
+				if (hw_tls)
+					rack->r_ctl.fsb.hw_tls = 1;
+				else
+					rack->r_ctl.fsb.hw_tls = 0;
 				KASSERT((rack->r_ctl.fsb.left_to_send <= (sbavail(sb) - (tp->snd_max - tp->snd_una))),
 					("rack:%p left_to_send:%u sbavail:%u out:%u",
 					rack, rack->r_ctl.fsb.left_to_send, sbavail(sb),
@@ -18118,7 +18127,7 @@ out:
 	 * retransmit.  In persist state, just set snd_max.
 	 */
 	if (error == 0) {
-		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp);
+		tcp_account_for_send(tp, len, (rsm != NULL), doing_tlp, hw_tls);
 		rack->forced_ack = 0;	/* If we send something zap the FA flag */
 		if (rsm && (doing_tlp == 0)) {
 			/* Set we retransmitted */
@@ -18166,7 +18175,7 @@ out:
 	}
 	rack_log_output(tp, &to, len, rack_seq, (uint8_t) flags, error,
 			rack_to_usec_ts(&tv),
-			rsm, add_flag, s_mb, s_moff);
+			rsm, add_flag, s_mb, s_moff, hw_tls);
 
 
 	if ((error == 0) &&
@@ -18489,6 +18498,10 @@ enobufs:
 			rack->r_ctl.fsb.o_m_len = rack->r_ctl.fsb.m->m_len;
 			rack->r_ctl.fsb.tcp_flags = flags;
 			rack->r_ctl.fsb.left_to_send = orig_len - len;
+			if (hw_tls)
+				rack->r_ctl.fsb.hw_tls = 1;
+			else
+				rack->r_ctl.fsb.hw_tls = 0;
 			KASSERT((rack->r_ctl.fsb.left_to_send <= (sbavail(sb) - (tp->snd_max - tp->snd_una))),
 				("rack:%p left_to_send:%u sbavail:%u out:%u",
 				 rack, rack->r_ctl.fsb.left_to_send, sbavail(sb),
@@ -18535,6 +18548,10 @@ enobufs:
 			rack->r_ctl.fsb.o_m_len = rack->r_ctl.fsb.m->m_len;
 			rack->r_ctl.fsb.tcp_flags = flags;
 			rack->r_ctl.fsb.left_to_send = orig_len - len;
+			if (hw_tls)
+				rack->r_ctl.fsb.hw_tls = 1;
+			else
+				rack->r_ctl.fsb.hw_tls = 0;
 			KASSERT((rack->r_ctl.fsb.left_to_send <= (sbavail(sb) - (tp->snd_max - tp->snd_una))),
 				("rack:%p left_to_send:%u sbavail:%u out:%u",
 				 rack, rack->r_ctl.fsb.left_to_send, sbavail(sb),
@@ -19458,6 +19475,29 @@ rack_apply_deferred_options(struct tcp_rack *rack)
 	}
 }
 
+static void
+rack_hw_tls_change(struct tcpcb *tp, int chg)
+{
+	/*
+	 * HW tls state has changed.. fix all
+	 * rsm's in flight.
+	 */
+	struct tcp_rack *rack;
+	struct rack_sendmap *rsm;
+
+	rack = (struct tcp_rack *)tp->t_fb_ptr;
+	RB_FOREACH(rsm, rack_rb_tree_head, &rack->r_ctl.rc_mtree) {
+		if (chg)
+			rsm->r_hw_tls = 1;
+		else
+			rsm->r_hw_tls = 0;
+	}
+	if (chg)
+		rack->r_ctl.fsb.hw_tls = 1;
+	else
+		rack->r_ctl.fsb.hw_tls = 0;
+}
+
 static int
 rack_pru_options(struct tcpcb *tp, int flags)
 {
@@ -19483,7 +19523,7 @@ static struct tcp_function_block __tcp_rack = {
 	.tfb_tcp_handoff_ok = rack_handoff_ok,
 	.tfb_tcp_mtu_chg = rack_mtu_change,
 	.tfb_pru_options = rack_pru_options,
-
+	.tfb_hwtls_change = rack_hw_tls_change,
 };
 
 /*
