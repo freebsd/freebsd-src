@@ -1,0 +1,9 @@
+Skein256 test suite:
+Skein256 ("") = c8877087da56e072870daa843f176e9453115929094c3a40c463a196c29bf7ba - verified correct
+Skein256 ("a") = 7fba44ff1a31d71a0c1f82e6e82fb5e9ac6c92a39c9185b9951fed82d82fe635 - verified correct
+Skein256 ("abc") = 258bdec343b9fde1639221a5ae0144a96e552e5288753c5fec76c05fc2fc1870 - verified correct
+Skein256 ("message digest") = 4d2ce0062b5eb3a4db95bc1117dd8aa014f6cd50fdc8e64f31f7d41f9231e488 - verified correct
+Skein256 ("abcdefghijklmnopqrstuvwxyz") = 46d8440685461b00e3ddb891b2ecc6855287d2bd8834a95fb1c1708b00ea5e82 - verified correct
+Skein256 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") = 7c5eb606389556b33d34eb2536459528dc0af97adbcd0ce273aeb650f598d4b2 - verified correct
+Skein256 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") = 4def7a7e5464a140ae9c3a80279fbebce4bd00f9faad819ab7e001512f67a10d - verified correct
+Skein256 ("MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been made that its security is in some doubt") = d9c017dbe355f318d036469eb9b5fbe129fc2b5786a9dc6746a516eab6fe0126 - verified correct
