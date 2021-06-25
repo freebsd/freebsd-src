@@ -1,4 +1,4 @@
-# $NetBSD: varmod-ifelse.mk,v 1.9 2021/01/25 19:05:39 rillig Exp $
+# $NetBSD: varmod-ifelse.mk,v 1.17 2021/06/11 13:01:28 rillig Exp $
 #
 # Tests for the ${cond:?then:else} variable modifier, which evaluates either
 # the then-expression or the else-expression, depending on the condition.
@@ -74,7 +74,7 @@ COND:=	${${UNDEF} == "":?bad-assign:bad-assign}
 # conditional expression".
 #
 # XXX: The left-hand side is enclosed in quotes.  This results in Var_Parse
-# being called without VARE_UNDEFERR being set.  When ApplyModifier_IfElse
+# being called without VARE_UNDEFERR.  When ApplyModifier_IfElse
 # returns AMR_CLEANUP as result, Var_Parse returns varUndefined since the
 # value of the variable expression is still undefined.  CondParser_String is
 # then supposed to do proper error handling, but since varUndefined is local
@@ -111,5 +111,61 @@ VAR=	value
 .endif
 .MAKEFLAGS: -d0
 
-all:
-	@:;
+# On 2021-04-19, when building external/bsd/tmux with HAVE_LLVM=yes and
+# HAVE_GCC=no, the following conditional generated this error message:
+#
+#	make: Bad conditional expression 'string == "literal" && no >= 10'
+#	    in 'string == "literal" && no >= 10?yes:no'
+#
+# Despite the error message (which was not clearly marked with "error:"),
+# the build continued, for historical reasons, see main_Exit.
+#
+# The tricky detail here is that the condition that looks so obvious in the
+# form written in the makefile becomes tricky when it is actually evaluated.
+# This is because the condition is written in the place of the variable name
+# of the expression, and in an expression, the variable name is always
+# expanded first, before even looking at the modifiers.  This happens for the
+# modifier ':?' as well, so when CondEvalExpression gets to see the
+# expression, it already looks like this:
+#
+#	string == "literal" && no >= 10
+#
+# When parsing such an expression, the parser used to be strict.  It first
+# evaluated the left-hand side of the operator '&&' and then started parsing
+# the right-hand side 'no >= 10'.  The word 'no' is obviously a string
+# literal, not enclosed in quotes, which is ok, even on the left-hand side of
+# the comparison operator, but only because this is a condition in the
+# modifier ':?'.  In an ordinary directive '.if', this would be a parse error.
+# For strings, only the comparison operators '==' and '!=' are defined,
+# therefore parsing stopped at the '>', producing the 'Bad conditional
+# expression'.
+#
+# Ideally, the conditional expression would not be expanded before parsing
+# it.  This would allow to write the conditions exactly as seen below.  That
+# change has a high chance of breaking _some_ existing code and would need
+# to be thoroughly tested.
+#
+# Since cond.c 1.262 from 2021-04-20, make reports a more specific error
+# message in situations like these, pointing directly to the specific problem
+# instead of just saying that the whole condition is bad.
+STRING=		string
+NUMBER=		no		# not really a number
+.info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
+.info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
+
+# The following situation occasionally occurs with MKINET6 or similar
+# variables.
+NUMBER=		# empty, not really a number either
+.info ${${STRING} == "literal" && ${NUMBER} >= 10:?yes:no}.
+.info ${${STRING} == "literal" || ${NUMBER} >= 10:?yes:no}.
+
+# CondParser_LeafToken handles [0-9-+] specially, treating them as a number.
+PLUS=		+
+ASTERISK=	*
+EMPTY=		# empty
+# "true" since "+" is not the empty string.
+.info ${${PLUS}		:?true:false}
+# "false" since the variable named "*" is not defined.
+.info ${${ASTERISK}	:?true:false}
+# syntax error since the condition is completely blank.
+.info ${${EMPTY}	:?true:false}

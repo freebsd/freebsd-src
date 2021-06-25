@@ -1,4 +1,4 @@
-# $NetBSD: opt-chdir.mk,v 1.5 2020/11/15 05:43:56 sjg Exp $
+# $NetBSD: opt-chdir.mk,v 1.6 2021/05/18 17:05:45 sjg Exp $
 #
 # Tests for the -C command line option, which changes the directory at the
 # beginning.
@@ -23,5 +23,7 @@ chdir-root: .PHONY .IGNORE
 	@MAKE_OBJDIR_CHECK_WRITABLE=no ${MAKE} -C / -V 'cwd: $${.CURDIR}'
 
 # Trying to change to a nonexistent directory exits immediately.
+# Note: just because the whole point of /nonexistent is that it should
+# not exist - doesn't mean it doesn't.
 chdir-nonexistent: .PHONY .IGNORE
-	@${MAKE} -C /nonexistent
+	@${MAKE} -C /nonexistent.${.MAKE.PID}

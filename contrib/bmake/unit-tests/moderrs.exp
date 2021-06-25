@@ -1,143 +1,136 @@
 mod-unknown-direct:
 want: Unknown modifier 'Z'
-make: Unknown modifier 'Z'
+make: Unknown modifier "Z"
 VAR:Z=before--after
 
 mod-unknown-indirect:
 want: Unknown modifier 'Z'
-make: Unknown modifier 'Z'
+make: Unknown modifier "Z"
 VAR:Z=before-inner}-after
 
 unclosed-direct:
-want: Unclosed variable specification (expecting '}') for "VAR" (value "Thevariable") modifier S
-make: Unclosed variable specification (expecting '}') for "VAR" (value "Thevariable") modifier S
+want: Unclosed variable expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
+make: Unclosed variable expression, expecting '}' for modifier "S,V,v," of variable "VAR" with value "Thevariable"
 VAR:S,V,v,=Thevariable
 
 unclosed-indirect:
-want: Unclosed variable specification after complex modifier (expecting '}') for VAR
-make: Unclosed variable specification after complex modifier (expecting '}') for VAR
+want: Unclosed variable expression after indirect modifier, expecting '}' for variable "VAR"
+make: Unclosed variable expression after indirect modifier, expecting '}' for variable "VAR"
 VAR:S,V,v,=Thevariable
 
 unfinished-indirect:
 want: Unfinished modifier for VAR (',' missing)
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 VAR:S,V,v=
 
 unfinished-loop:
 want: Unfinished modifier for UNDEF ('@' missing)
-make: Unfinished modifier for UNDEF ('@' missing)
+make: Unfinished modifier for "UNDEF" ('@' missing)
 
 want: Unfinished modifier for UNDEF ('@' missing)
-make: Unfinished modifier for UNDEF ('@' missing)
+make: Unfinished modifier for "UNDEF" ('@' missing)
 
 1 2 3
 
 loop-close:
-make: Unclosed variable specification (expecting '}') for "UNDEF" (value "1}... 2}... 3}...") modifier @
+make: Unclosed variable expression, expecting '}' for modifier "@var@${var}}...@" of variable "UNDEF" with value "1}... 2}... 3}..."
 1}... 2}... 3}...
 1}... 2}... 3}...
 
 words:
 want: Unfinished modifier for UNDEF (']' missing)
-make: Unfinished modifier for UNDEF (']' missing)
+make: Unfinished modifier for "UNDEF" (']' missing)
 
 want: Unfinished modifier for UNDEF (']' missing)
-make: Unfinished modifier for UNDEF (']' missing)
+make: Unfinished modifier for "UNDEF" (']' missing)
 
 13=
-make: Bad modifier `:[123451234512345123451234512345]' for UNDEF
+make: Bad modifier ":[123451234512345123451234512345]" for variable "UNDEF"
 12345=S,^ok,:S,^3ok,}
 
 exclam:
 want: Unfinished modifier for VARNAME ('!' missing)
-make: Unfinished modifier for VARNAME ('!' missing)
+make: Unfinished modifier for "VARNAME" ('!' missing)
 
 want: Unfinished modifier for ! ('!' missing)
-make: Unfinished modifier for ! ('!' missing)
+make: Unfinished modifier for "!" ('!' missing)
 
 
 mod-subst-delimiter:
-make: Missing delimiter for :S modifier
+make: Missing delimiter for modifier ':S'
 1:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 2:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 3:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 4:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 5:
-make: Unclosed variable specification (expecting '}') for "VAR" (value "TheVariable") modifier S
+make: Unclosed variable expression, expecting '}' for modifier "S,from,to," of variable "VAR" with value "TheVariable"
 6: TheVariable
 7: TheVariable
 
 mod-regex-delimiter:
 make: Missing delimiter for :C modifier
 1:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 2:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 3:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 4:
-make: Unfinished modifier for VAR (',' missing)
+make: Unfinished modifier for "VAR" (',' missing)
 5:
-make: Unclosed variable specification (expecting '}') for "VAR" (value "TheVariable") modifier C
+make: Unclosed variable expression, expecting '}' for modifier "C,from,to," of variable "VAR" with value "TheVariable"
 6: TheVariable
 7: TheVariable
-
-mod-regex-undefined-subexpression:
-one one 2 3 5 8 one3 2one 34
-make: No match for subexpression \2
-make: No match for subexpression \2
-make: No match for subexpression \1
-make: No match for subexpression \2
-make: No match for subexpression \1
-()+() ()+() ()+() 3 5 8 (3)+() ()+(1) 34
 
 mod-ts-parse:
 112358132134
 15152535558513521534
-make: Bad modifier `:ts\65oct' for FIB
+make: Bad modifier ":ts\65oct" for variable "FIB"
 65oct}
-make: Bad modifier `:tsxy' for FIB
+make: Bad modifier ":ts\65oct" for variable ""
+65oct}
+make: Bad modifier ":tsxy" for variable "FIB"
 xy}
 
 mod-t-parse:
-make: Bad modifier `:t' for FIB
+make: Bad modifier ":t" for variable "FIB"
 
-make: Bad modifier `:txy' for FIB
+make: Bad modifier ":txy" for variable "FIB"
 y}
-make: Bad modifier `:t' for FIB
+make: Bad modifier ":t" for variable "FIB"
 
-make: Bad modifier `:t' for FIB
+make: Bad modifier ":t" for variable "FIB"
 M*}
 
 mod-ifelse-parse:
-make: Unfinished modifier for FIB (':' missing)
+make: Unfinished modifier for "FIB" (':' missing)
 
-make: Unfinished modifier for FIB (':' missing)
+make: Unfinished modifier for "FIB" (':' missing)
 
-make: Unfinished modifier for FIB ('}' missing)
+make: Unfinished modifier for "FIB" ('}' missing)
 
-make: Unfinished modifier for FIB ('}' missing)
+make: Unfinished modifier for "FIB" ('}' missing)
 
 then
 
 mod-remember-parse:
 1 1 2 3 5 8 13 21 34
-make: Unknown modifier '_'
+make: Unknown modifier "__"
 
 
 mod-sysv-parse:
-make: Unknown modifier '3'
-make: Unclosed variable specification (expecting '}') for "FIB" (value "") modifier 3
+make: Unknown modifier "3"
+make: Unclosed variable expression, expecting '}' for modifier "3" of variable "FIB" with value ""
 
-make: Unknown modifier '3'
-make: Unclosed variable specification (expecting '}') for "FIB" (value "") modifier 3
+make: Unknown modifier "3="
+make: Unclosed variable expression, expecting '}' for modifier "3=" of variable "FIB" with value ""
 
-make: Unknown modifier '3'
-make: Unclosed variable specification (expecting '}') for "FIB" (value "") modifier 3
+make: Unknown modifier "3=x3"
+make: Unclosed variable expression, expecting '}' for modifier "3=x3" of variable "FIB" with value ""
 
 1 1 2 x3 5 8 1x3 21 34
 

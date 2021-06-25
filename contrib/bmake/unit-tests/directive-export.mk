@@ -1,4 +1,4 @@
-# $NetBSD: directive-export.mk,v 1.6 2020/12/13 01:07:54 rillig Exp $
+# $NetBSD: directive-export.mk,v 1.8 2021/02/16 19:01:18 rillig Exp $
 #
 # Tests for the .export directive.
 #
@@ -28,8 +28,17 @@ VAR=		value $$ ${INDIRECT}
 .  error
 .endif
 
-# No argument means to export all variables.
+# No syntactical argument means to export all variables.
 .export
 
+# An empty argument means no additional variables to export.
+.export ${:U}
+
+
+# Trigger the "This isn't going to end well" in ExportVarEnv.
+EMPTY_SHELL=	${:sh}
+.export EMPTY_SHELL	# only marked for export at this point
+_!=		:;:	# Force the variable to be actually exported.
+
+
 all:
-	@:;

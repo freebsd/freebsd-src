@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.38 2020/12/15 01:23:55 rillig Exp $	*/
+/*	$NetBSD: hash.h,v 1.40 2021/04/11 12:46:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -124,9 +124,9 @@ void HashTable_Init(HashTable *);
 void HashTable_Done(HashTable *);
 HashEntry *HashTable_FindEntry(HashTable *, const char *);
 void *HashTable_FindValue(HashTable *, const char *);
-unsigned int Hash_Hash(const char *);
-void *HashTable_FindValueHash(HashTable *, const char *, unsigned int);
-HashEntry *HashTable_CreateEntry(HashTable *, const char *, Boolean *);
+unsigned int Hash_Substring(Substring);
+void *HashTable_FindValueBySubstringHash(HashTable *, Substring, unsigned int);
+HashEntry *HashTable_CreateEntry(HashTable *, const char *, bool *);
 HashEntry *HashTable_Set(HashTable *, const char *, void *);
 void HashTable_DeleteEntry(HashTable *, HashEntry *);
 void HashTable_DebugStats(HashTable *, const char *);
@@ -146,16 +146,16 @@ HashSet_Done(HashSet *set)
 	HashTable_Done(&set->tbl);
 }
 
-MAKE_INLINE Boolean
+MAKE_INLINE bool
 HashSet_Add(HashSet *set, const char *key)
 {
-	Boolean isNew;
+	bool isNew;
 
 	(void)HashTable_CreateEntry(&set->tbl, key, &isNew);
 	return isNew;
 }
 
-MAKE_INLINE Boolean
+MAKE_INLINE bool
 HashSet_Contains(HashSet *set, const char *key)
 {
 	return HashTable_FindEntry(&set->tbl, key) != NULL;

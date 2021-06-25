@@ -1,4 +1,4 @@
-# $Id: rst2htm.mk,v 1.11 2020/08/19 17:51:53 sjg Exp $
+# $Id: rst2htm.mk,v 1.12 2021/05/26 04:20:31 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -21,7 +21,9 @@ TXTSRCS != 'ls' -1t ${.CURDIR}/*.txt ${.CURDIR}/*.rst 2>/dev/null; echo
 .endif
 RSTSRCS ?= ${TXTSRCS}
 HTMFILES ?= ${RSTSRCS:R:T:O:u:%=%.htm}
-RST2HTML ?= rst2html.py
+# can be empty, 4 or 5
+HTML_VERSION ?= 
+RST2HTML ?= rst2html${HTML_VERSION}.py
 RST2PDF ?= rst2pdf
 RST2S5 ?= rst2s5.py
 # the following will run RST2S5 if the target name contains the word 'slides'

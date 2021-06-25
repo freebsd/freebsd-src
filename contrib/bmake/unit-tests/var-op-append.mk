@@ -1,4 +1,4 @@
-# $NetBSD: var-op-append.mk,v 1.8 2021/02/03 08:40:47 rillig Exp $
+# $NetBSD: var-op-append.mk,v 1.9 2021/04/04 10:13:09 rillig Exp $
 #
 # Tests for the += variable assignment operator, which appends to a variable,
 # creating it if necessary.
@@ -26,7 +26,7 @@ VAR+=	# empty
 # '+=' assignment operator.  As far as possible, the '+' is interpreted as
 # part of the assignment operator.
 #
-# See Parse_DoVar
+# See Parse_Var
 C++=	value
 .if ${C+} != "value" || defined(C++)
 .  error

@@ -1,10 +1,14 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.6 2020/12/05 18:13:44 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.7 2021/06/21 08:17:39 rillig Exp $
 #
 # Tests for the :C,from,to, variable modifier.
+
+# report unmatched subexpressions
+.MAKEFLAGS: -dL
 
 all: mod-regex-compile-error
 all: mod-regex-limits
 all: mod-regex-errors
+all: unmatched-subexpression
 
 # The variable expression expands to 4 words.  Of these words, none matches
 # the regular expression "a b" since these words don't contain any
@@ -107,3 +111,51 @@ mod-regex-errors:
 	# unknown modifier, the parse error is ignored in ParseModifierPart
 	# and the faulty variable expression expands to "".
 	@echo $@: ${word:L:C,.*,x${:U:Z}y,W}
+
+# In regular expressions with alternatives, not all capturing groups are
+# always set; some may be missing.  Make calls these "unmatched
+# subexpressions".
+#
+# Between var.c 1.16 from 1996-12-24 until before var.c 1.933 from 2021-06-21,
+# unmatched subexpressions produced an "error message" but did not have any
+# further effect since the "error handling" didn't influence the exit status.
+#
+# Before 2021-06-21 there was no way to turn off this warning, thus the
+# combination of alternative matches and capturing groups was seldom used, if
+# at all.
+#
+# Since var.c 1.933 from 2021-06-21, the error message is only printed in lint
+# mode (-dL), but not in default mode.
+#
+# As an alternative to the change from var.c 1.933 from 2021-06-21, a possible
+# mitigation would have been to add a new modifier 'U' to the already existing
+# '1Wg' modifiers of the ':C' modifier.  That modifier could have been used in
+# the modifier ':C,(a.)|(b.),\1\2,U' to treat unmatched subexpressions as
+# empty.  This approach would have created a syntactical ambiguity since the
+# modifiers ':S' and ':C' are open-ended (see mod-subst-chain), that is, they
+# do not need to be followed by a ':' to separate them from the next modifier.
+# Luckily the modifier :U does not make sense after :C, therefore this case
+# does not happen in practice.
+unmatched-subexpression:
+	# In each of the following cases, if the regular expression matches at
+	# all, the subexpression \1 matches as well.
+	@echo $@.ok: ${:U1 1 2 3 5 8 13 21 34:C,1(.*),one\1,}
+
+	# In the following cases:
+	#	* The subexpression \1 is only defined for 1 and 13.
+	#	* The subexpression \2 is only defined for 2 and 21.
+	#	* If the regular expression does not match at all, the
+	#	  replacement string is not analyzed, thus no error messages.
+	# In total, there are 5 error messages about unmatched subexpressions.
+	@echo $@.1:  ${:U  1:C,1(.*)|2(.*),(\1)(\2),:Q}		# missing \2
+	@echo $@.1:  ${:U  1:C,1(.*)|2(.*),(\1)(\2),:Q}		# missing \2
+	@echo $@.2:  ${:U  2:C,1(.*)|2(.*),(\1)(\2),:Q}		# missing \1
+	@echo $@.3:  ${:U  3:C,1(.*)|2(.*),(\1)(\2),:Q}
+	@echo $@.5:  ${:U  5:C,1(.*)|2(.*),(\1)(\2),:Q}
+	@echo $@.8:  ${:U  8:C,1(.*)|2(.*),(\1)(\2),:Q}
+	@echo $@.13: ${:U 13:C,1(.*)|2(.*),(\1)(\2),:Q}		# missing \2
+	@echo $@.21: ${:U 21:C,1(.*)|2(.*),(\1)(\2),:Q}		# missing \1
+	@echo $@.34: ${:U 34:C,1(.*)|2(.*),(\1)(\2),:Q}
+
+	# And now all together: 5 error messages for 1, 1, 2, 13, 21.
+	@echo $@.all: ${:U1 1 2 3 5 8 13 21 34:C,1(.*)|2(.*),(\1)(\2),:Q}

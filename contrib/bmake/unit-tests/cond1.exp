@@ -17,7 +17,7 @@ Passed:
 5 is  prime
 
 make: String comparison operator must be either == or !=
-make: Bad conditional expression `"0" > 0' in "0" > 0?OK:No
+make: Bad conditional expression '"0" > 0' in '"0" > 0?OK:No'
 
 OK
 exit status 0

@@ -1,10 +1,10 @@
 Global:delete DOLLAR (not found)
-Command:DOLLAR = $$$$
-Global:.MAKEOVERRIDES =  VAR DOLLAR
+Command: DOLLAR = $$$$
+Global: .MAKEOVERRIDES =  VAR DOLLAR
 CondParser_Eval: ${DOLLAR} != "\$\$"
-Var_Parse: ${DOLLAR} != "\$\$" with VARE_UNDEFERR|VARE_WANTRES
+Var_Parse: ${DOLLAR} != "\$\$" (eval-defined)
 lhs = "$$", rhs = "$$", op = !=
-Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d
-Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d 0
+Global: .MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d
+Global: .MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d 0
 make: Unterminated quoted string [make VAR=initial UNBALANCED=']
 exit status 0

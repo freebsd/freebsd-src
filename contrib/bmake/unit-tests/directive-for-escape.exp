@@ -1,12 +1,12 @@
 For: end for 1
 For: loop body:
 .  info ${:U!"#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: Unclosed variable specification (expecting '}') for "" (value "!"") modifier U
+make: Unclosed variable expression, expecting '}' for modifier "U!"" of variable "" with value "!""
 make: "directive-for-escape.mk" line 19: !"
 For: end for 1
 For: loop body:
 .  info ${:U!"\\\\#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: Unclosed variable specification (expecting '}') for "" (value "!"\\") modifier U
+make: Unclosed variable expression, expecting '}' for modifier "U!"\\\\" of variable "" with value "!"\\"
 make: "directive-for-escape.mk" line 29: !"\\
 For: end for 1
 For: loop body:
@@ -37,19 +37,19 @@ make: "directive-for-escape.mk" line 55: end}
 For: end for 1
 For: loop body:
 .  info ${:Ubegin<${UNDEF:Ufallback:N{{{}}}}>end}
-make: "directive-for-escape.mk" line 66: begin<fallback>end
+make: "directive-for-escape.mk" line 67: begin<fallback>end
 For: end for 1
 For: loop body:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 74: $
+make: "directive-for-escape.mk" line 75: $
 For: end for 1
 For: loop body:
 .  info ${NUMBERS} ${:Ureplaced}
-make: "directive-for-escape.mk" line 82: one two three replaced
+make: "directive-for-escape.mk" line 83: one two three replaced
 For: end for 1
 For: loop body:
 .  info ${:Ureplaced}
-make: "directive-for-escape.mk" line 92: replaced
+make: "directive-for-escape.mk" line 93: replaced
 For: end for 1
 For: loop body:
 .  info .        $$i: ${:Uinner}
@@ -62,14 +62,14 @@ For: loop body:
 .  info .     $${i2}: ${i2}
 .  info .     $${i,}: ${i,}
 .  info .  adjacent: ${:Uinner}${:Uinner}${:Uinner:M*}${:Uinner}
-make: "directive-for-escape.mk" line 100: .        $i: inner
-make: "directive-for-escape.mk" line 101: .      ${i}: inner
-make: "directive-for-escape.mk" line 102: .   ${i:M*}: inner
-make: "directive-for-escape.mk" line 103: .      $(i): inner
-make: "directive-for-escape.mk" line 104: .   $(i:M*): inner
-make: "directive-for-escape.mk" line 105: . ${i${:U}}: outer
-make: "directive-for-escape.mk" line 106: .    ${i\}}: inner}
-make: "directive-for-escape.mk" line 107: .     ${i2}: two
-make: "directive-for-escape.mk" line 108: .     ${i,}: comma
-make: "directive-for-escape.mk" line 109: .  adjacent: innerinnerinnerinner
+make: "directive-for-escape.mk" line 101: .        $i: inner
+make: "directive-for-escape.mk" line 102: .      ${i}: inner
+make: "directive-for-escape.mk" line 103: .   ${i:M*}: inner
+make: "directive-for-escape.mk" line 104: .      $(i): inner
+make: "directive-for-escape.mk" line 105: .   $(i:M*): inner
+make: "directive-for-escape.mk" line 106: . ${i${:U}}: outer
+make: "directive-for-escape.mk" line 107: .    ${i\}}: inner}
+make: "directive-for-escape.mk" line 108: .     ${i2}: two
+make: "directive-for-escape.mk" line 109: .     ${i,}: comma
+make: "directive-for-escape.mk" line 110: .  adjacent: innerinnerinnerinner
 exit status 0

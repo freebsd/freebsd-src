@@ -1,3 +1,38 @@
+2021-06-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210616
+	
+	* dirdeps.mk: when using .MAKE.DEPENDFILE_PREFERENCE to find
+	depend files to read, anchor MACHINE at , or end of string
+	to avoid prefix match.
+
+2021-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210504
+	
+	* dirdeps.mk: re-implement ALL_MACHINES support to better
+	cater for local complexities, when ONLY_TARGET_SPEC_LIST
+	is not set. local.dirdeps.mk can set
+	DIRDEPS_ALL_MACHINES_FILTER and/or
+	DIRDEPS_ALL_MACHINES_FILTER_XTRAS to filter the results we get
+	from listing all existing Makefile.depend.* 
+
+2021-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210420
+
+	* dirdeps.mk: revert previous - not always safe.
+
+2021-03-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210321
+
+	* dirdeps.mk: when generating dirdeps.cache
+	we only need to hook the initial DIRDEPS to the
+	dirdeps target.  That and any _build_xtra_dirs (like tests which
+	should not be hooked directly to the dependency graph - to avoid
+	cycles)
+
 2021-01-30  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20210130

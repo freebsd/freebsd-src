@@ -1,14 +1,12 @@
-# $NetBSD: varmod-shell.mk,v 1.5 2020/11/17 20:11:02 rillig Exp $
+# $NetBSD: varmod-shell.mk,v 1.6 2021/02/14 20:16:17 rillig Exp $
 #
-# Tests for the :sh variable modifier, which runs the shell command
-# given by the variable value and returns its output.
+# Tests for the ':!cmd!' variable modifier, which runs the shell command
+# given by the variable modifier and returns its output.
 #
 # This modifier has been added on 2000-04-29.
 #
 # See also:
 #	ApplyModifier_ShellCommand
-
-# TODO: Implementation
 
 # The command to be run is enclosed between exclamation marks.
 # The previous value of the expression is irrelevant for this modifier.
@@ -32,4 +30,3 @@
 .endif
 
 all:
-	@:;

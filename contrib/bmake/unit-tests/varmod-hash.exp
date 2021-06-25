@@ -1,9 +1,9 @@
-make: Unknown modifier 'h'
+make: Unknown modifier "has"
 
 26bb0f5f
 12345
-make: Unknown modifier 'h'
+make: Unknown modifier "hasX"
 
-make: Unknown modifier 'h'
+make: Unknown modifier "hashed"
 
 exit status 0

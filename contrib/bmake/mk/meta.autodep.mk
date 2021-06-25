@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.53 2020/11/08 05:47:56 sjg Exp $
+# $Id: meta.autodep.mk,v 1.54 2021/03/06 17:03:18 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -298,16 +298,20 @@ start_utc := ${now_utc}
 meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
 	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
 
+.if !target(_reldir_finish)
 #.END: _reldir_finish
 .if target(gendirdeps)
 _reldir_finish: gendirdeps
 .endif
 _reldir_finish: .NOMETA
 	@echo "${TIME_STAMP} Finished ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
 
+.if !target(_reldir_failed)
 #.ERROR: _reldir_failed
 _reldir_failed: .NOMETA
 	@echo "${TIME_STAMP} Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
 
 .if !defined(WITHOUT_META_STATS) && ${.MAKE.LEVEL} > 0
 .END: _reldir_finish

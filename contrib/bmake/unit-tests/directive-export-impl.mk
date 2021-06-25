@@ -1,4 +1,4 @@
-# $NetBSD: directive-export-impl.mk,v 1.1 2020/12/29 01:45:06 rillig Exp $
+# $NetBSD: directive-export-impl.mk,v 1.3 2021/04/03 23:08:30 rillig Exp $
 #
 # Test for the implementation of exporting variables to child processes.
 # This involves marking variables for export, actually exporting them,
@@ -8,8 +8,8 @@
 #	Var_Export
 #	ExportVar
 #	VarExportedMode (global)
-#	VAR_EXPORTED (per variable)
-#	VAR_REEXPORT (per variable)
+#	VarFlags.exported (per variable)
+#	VarFlags.reexport (per variable)
 #	VarExportMode (per call of Var_Export and ExportVar)
 
 : ${:U:sh}			# side effect: initialize .SHELL
@@ -22,13 +22,13 @@ UT_VAR=		<${REF}>
 
 # At this point, ExportVar("UT_VAR", VEM_PLAIN) is called.  Since the
 # variable value refers to another variable, ExportVar does not actually
-# export the variable but only marks it as VAR_EXPORTED and VAR_REEXPORT.
-# After that, ExportVars registers the variable name in .MAKE.EXPORTED.
-# That's all for now.
+# export the variable but only marks it as VarFlags.exported and
+# VarFlags.reexport.  After that, ExportVars registers the variable name in
+# .MAKE.EXPORTED.  That's all for now.
 .export UT_VAR
 
-# Evaluating this expression shows the variable flags in the debug log,
-# which are VAR_EXPORTED|VAR_REEXPORT.
+# The following expression has both flags 'exported' and 'reexport' set.
+# These flags do not show up anywhere, not even in the debug log.
 : ${UT_VAR:N*}
 
 # At the last moment before actually forking off the child process for the
@@ -43,9 +43,10 @@ UT_VAR=		<${REF}>
 .  error
 .endif
 
-# Evaluating this expression shows the variable flags in the debug log,
-# which are still VAR_EXPORTED|VAR_REEXPORT, which means that the variable
-# is still marked as being re-exported for each child process.
+# The following expression still has 'exported' and 'reexport' set.
+# These flags do not show up anywhere though, not even in the debug log.
+# These flags means that the variable is still marked as being re-exported
+# for each child process.
 : ${UT_VAR:N*}
 
 # Now the referenced variable gets defined.  This does not influence anything
