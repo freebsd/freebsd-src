@@ -106,7 +106,7 @@ ENTRY(sse2_pagezero)
 END(sse2_pagezero)
 
 /*
- * memcmpy(b1, b2, len)
+ * memcmp(b1, b2, len)
  *	   rdi,rsi,rdx
  */
 ENTRY(memcmp)
