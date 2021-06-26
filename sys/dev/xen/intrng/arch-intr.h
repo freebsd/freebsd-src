@@ -29,6 +29,8 @@
 #ifndef	_MACHINE__XEN_ARCH_INTR_H_
 #define	_MACHINE__XEN_ARCH_INTR_H_
 
+#include <sys/intr.h>
+
 typedef struct intr_event *xen_arch_isrc_t;
 
 #include <dev/xen/bus/intr-internal.h>
@@ -40,6 +42,14 @@ xen_arch_intr_init(void)
 {
 
 	/* Nothing to do */
+}
+
+static inline u_int
+xen_arch_intr_next_cpu(struct xenisrc *_Nonnull isrc)
+{
+	static u_int current = 0;
+
+	return (current = intr_irq_next_cpu(current, &all_cpus));
 }
 
 u_long	xen_arch_intr_execute_handlers(struct xenisrc *_Nonnull isrc,
