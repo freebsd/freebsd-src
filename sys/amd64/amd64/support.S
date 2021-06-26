@@ -82,7 +82,7 @@ ENTRY(pagecopy)
 END(pagecopy)
 
 /*
- * memcmpy(b1, b2, len)
+ * memcmp(b1, b2, len)
  *	   rdi,rsi,rdx
  */
 ENTRY(memcmp)
