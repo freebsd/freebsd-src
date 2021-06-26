@@ -78,9 +78,8 @@ if [ -z "${OBJTOP}" ]; then
 fi
 
 # Locate the uefi firmware file used by qemu.
-: ${OVMF:=/usr/local/share/uefi-edk2-qemu/QEMU_UEFI_CODE-x86_64.fd}
+: ${OVMF:=/usr/local/share/qemu/edk2-x86_64-code.fd}
 if [ ! -r "${OVMF}" ]; then
-	echo "NOTE: UEFI firmware available in the uefi-edk2-qemu-x86_64 package" >&2
 	die "Cannot read UEFI firmware file ${OVMF}"
 fi
 
