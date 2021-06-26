@@ -17,6 +17,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210626:
+	Commit 6ae32cc8182f changed the internal KAPI between the krpc and
+	nfsd modules.  As such, both need to be rebuilt from sources.
+	Bump __FreeBSD_version to 1202508.
+
 20210510:
 	Commit e9959506d2cc changed the internal KAPI between the
 	nscl.ko and nfscommon.ko modules, so they both need to be
