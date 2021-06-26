@@ -88,10 +88,13 @@ struct cdce_softc {
 	struct mbuf		*sc_rx_buf[CDCE_FRAMES_MAX];
 	struct mbuf		*sc_tx_buf[CDCE_FRAMES_MAX];
 
+	struct ifmedia		sc_media;
+
 	int 			sc_flags;
 #define	CDCE_FLAG_ZAURUS	0x0001
 #define	CDCE_FLAG_NO_UNION	0x0002
 #define	CDCE_FLAG_RX_DATA	0x0010
+#define	CDCE_FLAG_VLAN		0x0020
 
 	uint8_t sc_eaddr_str_index;
 	uint8_t	sc_ifaces_index[2];
