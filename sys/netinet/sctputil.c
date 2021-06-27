@@ -1112,7 +1112,8 @@ sctp_map_assoc_state(int kernel_state)
 
 int
 sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    uint32_t override_tag, uint32_t vrf_id, uint16_t o_strms)
+    uint32_t override_tag, uint32_t initial_tsn, uint32_t vrf_id,
+    uint16_t o_strms)
 {
 	struct sctp_association *asoc;
 
@@ -1190,9 +1191,15 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #endif
 	asoc->refcnt = 0;
 	asoc->assoc_up_sent = 0;
-	asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number = asoc->sending_seq =
-	    sctp_select_initial_TSN(&inp->sctp_ep);
-	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
+	if (override_tag) {
+		asoc->init_seq_number = initial_tsn;
+	} else {
+		asoc->init_seq_number = sctp_select_initial_TSN(&inp->sctp_ep);
+	}
+	asoc->asconf_seq_out = asoc->init_seq_number;
+	asoc->str_reset_seq_out = asoc->init_seq_number;
+	asoc->sending_seq = asoc->init_seq_number;
+	asoc->asconf_seq_out_acked = asoc->init_seq_number - 1;
 	/* we are optimisitic here */
 	asoc->peer_supports_nat = 0;
 	asoc->sent_queue_retran_cnt = 0;
@@ -1200,13 +1207,12 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	/* for CMT */
 	asoc->last_net_cmt_send_started = NULL;
 
-	/* This will need to be adjusted */
 	asoc->last_acked_seq = asoc->init_seq_number - 1;
-	asoc->advanced_peer_ack_point = asoc->last_acked_seq;
-	asoc->asconf_seq_in = asoc->last_acked_seq;
+	asoc->advanced_peer_ack_point = asoc->init_seq_number - 1;
+	asoc->asconf_seq_in = asoc->init_seq_number - 1;
 
 	/* here we are different, we hold the next one we expect */
-	asoc->str_reset_seq_in = asoc->last_acked_seq + 1;
+	asoc->str_reset_seq_in = asoc->init_seq_number;
 
 	asoc->initial_init_rto_max = inp->sctp_ep.initial_init_rto_max;
 	asoc->initial_rto = inp->sctp_ep.initial_rto;
