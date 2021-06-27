@@ -1973,7 +1973,7 @@ nvme_write_read_blockif(struct pci_nvme_softc *sc,
 		/* PRP2 is pointer to a physical region page list */
 		while (bytes) {
 			/* Last entry in list points to the next list */
-			if (prp_list == last) {
+			if ((prp_list == last) && (bytes > PAGE_SIZE)) {
 				uint64_t prp = *prp_list;
 
 				prp_list = paddr_guest2host(vmctx, prp,
