@@ -48,7 +48,7 @@ swab(const void * __restrict from, void * __restrict to, ssize_t len)
 
 	unsigned char temp;
 
-	if (len <= 1)
+	if (len < 2) // Has to be at least 2 to work
 		return;
 	len >>= 1;
 	fp = (const unsigned char *)from;
