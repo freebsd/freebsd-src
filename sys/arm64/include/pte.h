@@ -131,7 +131,6 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	L3_SHIFT	12
 #define	L3_SIZE 	(1 << L3_SHIFT)
 #define	L3_OFFSET 	(L3_SIZE - 1)
-#define	L3_SHIFT	12
 #define	L3_INVAL	0x0
 	/* 0x1 is reserved */
 	/* 0x2 also marks an invalid address */
