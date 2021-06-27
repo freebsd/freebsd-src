@@ -51,22 +51,23 @@ char *
 strcasestr_l(const char *s, const char *find, locale_t locale)
 {
 	char c, sc;
-	size_t len;
 	FIX_LOCALE(locale);
 
-	if ((c = *find++) != 0) {
-		c = tolower_l((unsigned char)c, locale);
-		len = strlen(find);
+	if ((c = *find) != '\0') {
+		const size_t len = strlen(++find);
+		c = (char)tolower_l((unsigned char)c, locale);
 		do {
 			do {
-				if ((sc = *s++) == 0)
-					return (NULL);
+				if ((sc = *s) == '\0')
+					return NULL;
+				++s;
 			} while ((char)tolower_l((unsigned char)sc, locale) != c);
 		} while (strncasecmp_l(s, find, len, locale) != 0);
-		s--;
+		--s;
 	}
-	return ((char *)s);
+	return (char *)s;
 }
+
 char *
 strcasestr(const char *s, const char *find)
 {
