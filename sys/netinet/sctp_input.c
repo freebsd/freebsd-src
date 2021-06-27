@@ -2887,10 +2887,6 @@ sctp_handle_ecn_echo(struct sctp_ecne_chunk *cp,
 	unsigned int pkt_cnt;
 
 	len = ntohs(cp->ch.chunk_length);
-	if ((len != sizeof(struct sctp_ecne_chunk)) &&
-	    (len != sizeof(struct old_sctp_ecne_chunk))) {
-		return;
-	}
 	if (len == sizeof(struct old_sctp_ecne_chunk)) {
 		/* Its the old format */
 		memcpy(&bkup, cp, sizeof(struct old_sctp_ecne_chunk));
@@ -5022,7 +5018,8 @@ process_control_chunks:
 			if (stcb->asoc.ecn_supported == 0) {
 				goto unknown_chunk;
 			}
-			if (chk_length != sizeof(struct sctp_ecne_chunk)) {
+			if ((chk_length != sizeof(struct sctp_ecne_chunk)) &&
+			    (chk_length != sizeof(struct old_sctp_ecne_chunk))) {
 				break;
 			}
 			sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch, stcb);
