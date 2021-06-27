@@ -43,16 +43,16 @@ __FBSDID("$FreeBSD$");
 void
 swab(const void * __restrict from, void * __restrict to, ssize_t len)
 {
-	const char *fp;
-	char *tp;
+	const unsigned char *fp;
+	unsigned char *tp;
 
-	char temp;
+	unsigned char temp;
 
 	if (len <= 1)
 		return;
 	len >>= 1;
-	fp = (const char *)from;
-	tp = (char *)to;
+	fp = (const unsigned char *)from;
+	tp = (unsigned char *)to;
 #define	STEP	temp = *fp++,*tp++ = *fp++,*tp++ = temp
 	/* round to multiple of 8 */
 	for (; len & 0x7; --len)
