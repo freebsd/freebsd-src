@@ -6318,10 +6318,11 @@ done:
 		}
 		break;
 	}
-	if (s)
-		PF_STATE_UNLOCK(s);
 
 	SDT_PROBE4(pf, ip, test, done, action, reason, r, s);
+
+	if (s)
+		PF_STATE_UNLOCK(s);
 
 	return (action);
 }
