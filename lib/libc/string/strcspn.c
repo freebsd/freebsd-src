@@ -55,5 +55,6 @@ strcspn(const char *s, const char *charset)
 		if ((tbl[IDX(*s)] & BIT(*s)) != 0)
 			break;
 	}
+
 	return (s - s1);
 }
