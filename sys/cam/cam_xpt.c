@@ -930,9 +930,9 @@ xpt_init(void *dummy)
 	if (xpt_sim == NULL)
 		return (ENOMEM);
 
-	if ((status = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
-		printf("xpt_init: xpt_bus_register failed with status %#x,"
-		       " failing attach\n", status);
+	if ((error = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
+		printf("xpt_init: xpt_bus_register failed with errno %d,"
+		       " failing attach\n", error);
 		return (EINVAL);
 	}
 
@@ -3999,8 +3999,8 @@ CAM_XPT_XPORT(xport_default);
  * information specified by the user.  Once interrupt services are
  * available, the bus will be probed.
  */
-int32_t
-xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
+int
+xpt_bus_register(struct cam_sim *sim, device_t parent, uint32_t bus)
 {
 	struct cam_eb *new_bus;
 	struct cam_eb *old_bus;
@@ -4013,7 +4013,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 					  M_CAMXPT, M_NOWAIT|M_ZERO);
 	if (new_bus == NULL) {
 		/* Couldn't satisfy request */
-		return (CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	}
 
 	mtx_init(&new_bus->eb_mtx, "CAM bus lock", NULL, MTX_DEF);
@@ -4051,7 +4051,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		xpt_release_bus(new_bus);
-		return (CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	}
 
 	xpt_path_inq(&cpi, path);
@@ -4070,7 +4070,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 			    "No transport found for %d\n", cpi.transport);
 			xpt_release_bus(new_bus);
 			free(path, M_CAMXPT);
-			return (CAM_RESRC_UNAVAIL);
+			return (EINVAL);
 		}
 	}
 
@@ -4099,7 +4099,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	return (CAM_SUCCESS);
 }
 
-int32_t
+int
 xpt_bus_deregister(path_id_t pathid)
 {
 	struct cam_path bus_path;
@@ -4108,7 +4108,7 @@ xpt_bus_deregister(path_id_t pathid)
 	status = xpt_compile_path(&bus_path, NULL, pathid,
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP)
-		return (status);
+		return (ENOMEM);
 
 	xpt_async(AC_LOST_DEVICE, &bus_path, NULL);
 	xpt_async(AC_PATH_DEREGISTERED, &bus_path, NULL);
@@ -4117,7 +4117,7 @@ xpt_bus_deregister(path_id_t pathid)
 	xpt_release_bus(bus_path.bus);
 	xpt_release_path(&bus_path);
 
-	return (CAM_REQ_CMP);
+	return (CAM_SUCCESS);
 }
 
 static path_id_t

@@ -1506,8 +1506,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 			return (ENOMEM);
 		}
 
-		error = xpt_bus_register(is->is_sim, NULL, 0);
-		if (error != 0) {
+		if (xpt_bus_register(is->is_sim, NULL, 0) != 0) {
 			ISCSI_SESSION_UNLOCK(is);
 			ISCSI_SESSION_WARN(is, "failed to register bus");
 			iscsi_session_terminate(is);

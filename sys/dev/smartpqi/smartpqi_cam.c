@@ -1204,7 +1204,7 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 {
 	int max_transactions;
 	union ccb   *ccb = NULL;
-	cam_status status = 0;
+	int error;
 	struct ccb_setasync csa;
 	struct cam_sim *sim;
 
@@ -1231,9 +1231,9 @@ register_sim(struct pqisrc_softstate *softs, int card_index)
 
 	softs->os_specific.sim = sim;
 	mtx_lock(&softs->os_specific.cam_lock);
-	status = xpt_bus_register(sim, softs->os_specific.pqi_dev, 0);
-	if (status != CAM_SUCCESS) {
-		DBG_ERR("xpt_bus_register failed status=%d\n", status);
+	error = xpt_bus_register(sim, softs->os_specific.pqi_dev, 0);
+	if (error != CAM_SUCCESS) {
+		DBG_ERR("xpt_bus_register failed errno %d\n", error);
 		cam_sim_free(softs->os_specific.sim, FALSE);
 		cam_simq_free(softs->os_specific.devq);
 		mtx_unlock(&softs->os_specific.cam_lock);
