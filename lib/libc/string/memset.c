@@ -97,7 +97,7 @@ memset(void *dst0, int c0, size_t length)
 	}
 
 #ifndef BZERO
-	if ((c = uc) != '\0') {	/* Fill the word. */
+	if (uc != '\0') {	/* Fill the word. */
 		c = (uc << 8) | uc;	/* u_long is 16 bits. */
 #if ULONG_MAX > 0xffff
 		c = (c << 16) | c;	/* u_long is 32 bits. */
