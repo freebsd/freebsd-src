@@ -67,7 +67,7 @@ memset(void *dst0, int c0, size_t length)
 {
 	size_t t;
 #ifndef BZERO
-	u_long c;
+	u_long c = 0;
 #endif
 	u_char *dst = (u_char *)dst0;
 
