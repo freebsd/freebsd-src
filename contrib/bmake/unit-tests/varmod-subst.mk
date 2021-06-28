@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: varmod-subst.mk,v 1.8 2021/05/14 19:37:16 rillig Exp $
 #
 # Tests for the :S,from,to, variable modifier.
 
@@ -76,6 +76,14 @@ WORDS=		sequences of letters
 
 .if ${WORDS:S,^office$,,} != ${WORDS}
 .  warning The :S modifier matches a too long suffix anchored at both ends.
+.endif
+
+.if ${WORDS:S,*,replacement,} != ${WORDS}
+.  error The '*' seems to be interpreted as a wildcard of some kind.
+.endif
+
+.if ${WORDS:S,.,replacement,} != ${WORDS}
+.  error The '.' seems to be interpreted as a wildcard of some kind.
 .endif
 
 mod-subst:

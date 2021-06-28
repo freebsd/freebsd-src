@@ -68,19 +68,24 @@ VERSION=`grep '^_MAKE_VERSION' VERSION | sed 's,.*=[[:space:]]*,,'`
 rm -f *~
 mkdir -p ../tmp
 
+# new files are handled automatically
+# but we need to rm if needed
+# FILES are kept sorted so we can determine what was added and deleted
+# but we need to take care dealing with re-ordering
+(${GIT} diff FILES | sed -n '/^[+-][^+-]/p'; \
+ ${GIT} diff mk/FILES | sed -n '/^[+-][^+-]/s,.,&mk/,p' ) > $TF.diffs
+grep '^+' $TF.diffs | sed 's,^.,,' | sort > $TF.adds
+grep '^-' $TF.diffs | sed 's,^.,,' | sort > $TF.rms
+comm -13 $TF.adds $TF.rms > $TF.rm
+
 if [ -z "$ECHO" ]; then
-    # new files are handled automatically
-    # but we need to rm if needed
-    $GIT diff FILES | sed -n '/^-[^-]/s,^-,,p'  > $TF.rm
     test -s $TF.rm && xargs rm -f < $TF.rm
     $GIT add -A
     $GIT diff --staged | tee ../tmp/bmake-import.diff
     echo "$GIT tag -a vendor/NetBSD/bmake/$VERSION" > ../tmp/bmake-post.sh
     echo "After you commit, run $here/../tmp/bmake-post.sh"
 else
-    # FILES is kept sorted so we can determine what was added and deleted
-    $GIT diff FILES | sed -n '/^+[^+]/s,^+,,p'  > $TF.add
-    $GIT diff FILES | sed -n '/^-[^-]/s,^-,,p'  > $TF.rm
+    comm -23 $TF.adds $TF.rms > $TF.add
     test -s $TF.rm && { echo Removing:; cat $TF.rm; }
     test -s $TF.add && { echo Adding:; cat $TF.add; }
     $GIT diff
