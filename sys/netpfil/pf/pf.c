@@ -1736,6 +1736,28 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	return (pf_release_staten(s, 2));
 }
 
+static struct pf_state *
+pf_alloc_state(int flags)
+{
+	struct pf_state *s;
+
+	s = uma_zalloc(V_pf_state_z, flags | M_ZERO);
+	if (__predict_false(s == NULL))
+		return (NULL);
+
+	for (int i = 0; i < 2; i++) {
+		s->bytes[i] = counter_u64_alloc(M_NOWAIT);
+		s->packets[i] = counter_u64_alloc(M_NOWAIT);
+
+		if (s->bytes[i] == NULL || s->packets[i] == NULL) {
+			pf_free_state(s);
+			return (NULL);
+		}
+	}
+
+	return (s);
+}
+
 void
 pf_free_state(struct pf_state *cur)
 {
@@ -3730,20 +3752,10 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		REASON_SET(&reason, PFRES_SRCLIMIT);
 		goto csfailed;
 	}
-	s = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO);
+	s = pf_alloc_state(M_NOWAIT);
 	if (s == NULL) {
 		REASON_SET(&reason, PFRES_MEMORY);
 		goto csfailed;
-	}
-	for (int i = 0; i < 2; i++) {
-		s->bytes[i] = counter_u64_alloc(M_NOWAIT);
-		s->packets[i] = counter_u64_alloc(M_NOWAIT);
-
-		if (s->bytes[i] == NULL || s->packets[i] == NULL) {
-			pf_free_state(s);
-			REASON_SET(&reason, PFRES_MEMORY);
-			goto csfailed;
-		}
 	}
 	s->rule.ptr = r;
 	s->nat_rule.ptr = nr;
