@@ -572,6 +572,7 @@ lkpi_pci_disable_msi(struct pci_dev *pdev)
 	pdev->msi_enabled = false;
 }
 #define	pci_disable_msi(pdev)		lkpi_pci_disable_msi(pdev)
+#define	pci_free_irq_vectors(pdev)	lkpi_pci_disable_msi(pdev)
 
 unsigned long	pci_resource_start(struct pci_dev *pdev, int bar);
 unsigned long	pci_resource_len(struct pci_dev *pdev, int bar);
