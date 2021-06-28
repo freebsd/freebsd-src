@@ -51,9 +51,9 @@ bcmp(const void *b1, const void *b2, size_t length)
 	p2 = (const unsigned char *)b2;
 	do {
 		if (*p1 != *p2)
-			break;
+			return 1;
 
 		p1++, p2++;
 	} while (--length);
-	return length;
+	return 0;
 }
