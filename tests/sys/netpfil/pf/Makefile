@@ -10,6 +10,7 @@ ATF_TESTS_SH+=	anchor \
 		dup \
 		forward \
 		fragmentation \
+		get_state \
 		icmp \
 		killstate \
 		map_e \
