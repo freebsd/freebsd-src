@@ -58,7 +58,7 @@ bzero(void *dst0, size_t length)
 #include <string.h>
 
 #define	RETURN	return (dst0)
-#define	VAL	(u_char)c0
+#define	VAL	uc
 #define	WIDEVAL	c
 
 void *
@@ -68,10 +68,9 @@ memset(void *dst0, int c0, size_t length)
 	size_t t;
 #ifndef BZERO
 	u_long c;
+	const u_char VAL = (u_char)c0;
 #endif
 	u_char *dst = (u_char *)dst0;
-
-	const u_char uc = VAL;
 
 	/*
 	 * If not enough words, just fill bytes.  A length >= 2 words
@@ -91,13 +90,13 @@ memset(void *dst0, int c0, size_t length)
 	 */
 	if (length < 3 * wsize) {
 		for (; length != 0; --length) {
-			*dst++ = uc;
+			*dst++ = VAL;
 		}
 		RETURN;
 	}
 
 #ifndef BZERO
-	if ((c = uc) != '\0') {	/* Fill the word. */
+	if ((c = VAL) != '\0') {	/* Fill the word. */
 		c = (c << 8) | c;	/* u_long is 16 bits. */
 #if ULONG_MAX > 0xffff
 		c = (c << 16) | c;	/* u_long is 32 bits. */
@@ -112,7 +111,7 @@ memset(void *dst0, int c0, size_t length)
 		t = wsize - t;
 		length -= t;
 		do {
-			*dst++ = uc;
+			*dst++ = VAL;
 		} while (--t != 0);
 	}
 
@@ -125,6 +124,6 @@ memset(void *dst0, int c0, size_t length)
 
 	/* Mop up trailing bytes, if any. */
 	for (t = length & wmask; t != 0; --t)
-		*dst++ = uc;
+		*dst++ = VAL;
 	RETURN;
 }
