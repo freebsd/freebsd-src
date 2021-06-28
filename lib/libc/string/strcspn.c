@@ -34,14 +34,14 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #define	IDX(c)	((u_char)(c) / LONG_BIT)
-#define	BIT(c)	((u_long)1 << ((u_char)(c) % LONG_BIT))
+#define	BIT(c)	(1UL << ((u_char)(c) % LONG_BIT))
 
 size_t
 strcspn(const char *s, const char *charset)
 {
 
 	if (*s == '\0')
-		return (0);
+		return 0;
 
 	u_long tbl[(UCHAR_MAX + 1) / LONG_BIT] = {1, 0, 0, 0}; // All elements other than the first are set to 0 automatically
 
@@ -55,5 +55,5 @@ strcspn(const char *s, const char *charset)
 		if ((tbl[IDX(*s)] & BIT(*s)) != 0)
 			break;
 	}
-	return (s - s1);
+	return s - s1;
 }
