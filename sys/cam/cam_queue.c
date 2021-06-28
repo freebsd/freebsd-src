@@ -60,17 +60,16 @@ camq_init(struct camq *camq, int size)
 	bzero(camq, sizeof(*camq));
 	camq->array_size = size;
 	if (camq->array_size != 0) {
-		camq->queue_array = (cam_pinfo**)malloc(size*sizeof(cam_pinfo*),
-							M_CAMQ, M_NOWAIT);
+		/*
+		 * Heap algorithms like everything numbered from 1, so
+		 * allocate one more to account for 0 base.
+		 */
+		camq->queue_array = malloc((size + 1) * sizeof(cam_pinfo*),
+		    M_CAMQ, M_NOWAIT);
 		if (camq->queue_array == NULL) {
 			printf("camq_init: - cannot malloc array!\n");
 			return (1);
 		}
-		/*
-		 * Heap algorithms like everything numbered from 1, so
-		 * offset our pointer into the heap array by one element.
-		 */
-		camq->queue_array--;
 	}
 	return (0);
 }
@@ -85,11 +84,6 @@ void
 camq_fini(struct camq *queue)
 {
 	if (queue->queue_array != NULL) {
-		/*
-		 * Heap algorithms like everything numbered from 1, so
-		 * our pointer into the heap array is offset by one element.
-		 */
-		queue->queue_array++;
 		free(queue->queue_array, M_CAMQ);
 	}
 }
@@ -102,8 +96,8 @@ camq_resize(struct camq *queue, int new_size)
 	KASSERT(new_size >= queue->entries, ("camq_resize: "
 	    "New queue size can't accommodate queued entries (%d < %d).",
 	    new_size, queue->entries));
-	new_array = (cam_pinfo **)malloc(new_size * sizeof(cam_pinfo *),
-					 M_CAMQ, M_NOWAIT);
+	new_array = malloc((new_size + 1) * sizeof(cam_pinfo *), M_CAMQ,
+	    M_NOWAIT);
 	if (new_array == NULL) {
 		/* Couldn't satisfy request */
 		return (CAM_RESRC_UNAVAIL);
@@ -114,12 +108,11 @@ camq_resize(struct camq *queue, int new_size)
 	 * by one element.
 	 */
 	if (queue->queue_array != NULL) {
-		queue->queue_array++;
 		bcopy(queue->queue_array, new_array,
-		      queue->entries * sizeof(cam_pinfo *));
+		    (queue->entries + 1) * sizeof(cam_pinfo *));
 		free(queue->queue_array, M_CAMQ);
 	}
-	queue->queue_array = new_array-1;
+	queue->queue_array = new_array;
 	queue->array_size = new_size;
 	return (CAM_REQ_CMP);
 }
