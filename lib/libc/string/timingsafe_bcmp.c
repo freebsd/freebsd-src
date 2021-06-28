@@ -20,8 +20,6 @@ __FBSDID("$FreeBSD$");
 
 #include <string.h>
 
-int __timingsafe_bcmp(const void *, const void *, size_t);
-
 int
 __timingsafe_bcmp(const void *b1, const void *b2, size_t n)
 {
