@@ -14,7 +14,7 @@ task:
   name: World and kernel amd64 build and boot smoke test
   timeout_in: 120m
   install_script:
-  - sh .cirrus-ci/pkg-install.sh qemu uefi-edk2-qemu-x86_64 llvm12
+  - sh .cirrus-ci/pkg-install.sh qemu llvm12
   setup_script:
   - uname -a
   - df -m

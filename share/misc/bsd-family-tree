@@ -15,19 +15,19 @@ Sixth Edition (V6) -----*
        \                |
         \               |
          \              |
-Seventh Edition (V7)    |
-            \           |
-             \        1BSD
-             32V        |
-               \      2BSD---------------*
-                \    /                   |
-                 \  /                    |
-                  \/                     |
-                 3BSD                    |
-                  |                      |
-               4.0BSD                2.79BSD
-                  |                      |
-               4.1BSD --------------> 2.8BSD
+Seventh Edition (V7)----|----------------------*
+            \           |                      |
+             \        1BSD                     |
+             32V        |                      |
+               \      2BSD---------------*     |
+                \    /                   |     |
+                 \  /                    |     |
+                  \/                     |     |
+                 3BSD                    |     |
+                  |                      |     |
+               4.0BSD                2.79BSD   |
+                  |                      |     |
+               4.1BSD --------------> 2.8BSD <-*
                   |                      |
               4.1aBSD -----------\       |
                   |                \     |
@@ -424,7 +424,7 @@ FreeBSD 5.2           |      |                 |                       |
  |   12.2             |      |    |               |                    |
  |                    |      |    |               |                    |
  *--FreeBSD           |      |    |               |                    |
- |   13.0             |      |  NetBSD 9.2    OpenBSD 6.9              |
+ |   13.0             |      |  NetBSD 9.2    OpenBSD 6.9      DragonFly 6.0.0
  |                    |      |                    |                    |
 FreeBSD 14 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -498,7 +498,8 @@ Tenth   Edition         1989-10-xx [QCU]
 				75 2BSD tapes shipped
 2.79BSD			1980-04-xx [TUHS]
 2.8BSD			1981-07-xx [KSJ]
-
+				First 2BSD with bootable V7 kernel plus
+				community fixes.
 2.8.1BSD		1982-01-xx [QCU]
 				set of performance improvements
 2.9BSD			1983-07-xx [KSJ]
@@ -832,6 +833,7 @@ NetBSD 9.1 		2020-10-18 [NBD]
 FreeBSD 12.2		2020-10-27 [FBD]
 FreeBSD 13.0		2021-04-13 [FBD]
 OpenBSD 6.9		2021-05-01 [OBD]
+DragonFly 6.0		2021-05-08 [DFB]
 NetBSD 9.2		2021-05-12 [NBD]
 
 Bibliography

@@ -228,7 +228,7 @@ TEST_F(GetlkFallback, local)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = getpid();
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -247,7 +247,7 @@ TEST_F(Getlk, no_locks)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -256,11 +256,16 @@ TEST_F(Getlk, no_locks)
 			return (in.header.opcode == FUSE_GETLK &&
 				in.header.nodeid == ino &&
 				in.body.getlk.fh == FH &&
+				/*
+				 * Though it seems useless, libfuse expects the
+				 * owner and pid fields to be set during
+				 * FUSE_GETLK.
+				 */
 				in.body.getlk.owner == (uint32_t)pid &&
+				in.body.getlk.lk.pid == (uint64_t)pid &&
 				in.body.getlk.lk.start == 10 &&
 				in.body.getlk.lk.end == 1009 &&
-				in.body.getlk.lk.type == F_RDLCK &&
-				in.body.getlk.lk.pid == (uint64_t)pid);
+				in.body.getlk.lk.type == F_RDLCK);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in, auto& out) {
@@ -273,7 +278,7 @@ TEST_F(Getlk, no_locks)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -290,7 +295,7 @@ TEST_F(Getlk, lock_exists)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 	pid_t pid2 = 1235;
 
 	expect_lookup(RELPATH, ino);
@@ -300,11 +305,16 @@ TEST_F(Getlk, lock_exists)
 			return (in.header.opcode == FUSE_GETLK &&
 				in.header.nodeid == ino &&
 				in.body.getlk.fh == FH &&
+				/*
+				 * Though it seems useless, libfuse expects the
+				 * owner and pid fields to be set during
+				 * FUSE_GETLK.
+				 */
 				in.body.getlk.owner == (uint32_t)pid &&
+				in.body.getlk.lk.pid == (uint64_t)pid &&
 				in.body.getlk.lk.start == 10 &&
 				in.body.getlk.lk.end == 1009 &&
-				in.body.getlk.lk.type == F_RDLCK &&
-				in.body.getlk.lk.pid == (uint64_t)pid);
+				in.body.getlk.lk.type == F_RDLCK);
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
@@ -319,7 +329,7 @@ TEST_F(Getlk, lock_exists)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -368,7 +378,7 @@ TEST_F(Setlk, clear)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -378,7 +388,7 @@ TEST_F(Setlk, clear)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_UNLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -394,7 +404,7 @@ TEST_F(Setlk, set)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -404,7 +414,7 @@ TEST_F(Setlk, set)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -420,7 +430,7 @@ TEST_F(Setlk, set_eof)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -430,7 +440,7 @@ TEST_F(Setlk, set_eof)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 0;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -446,7 +456,7 @@ TEST_F(Setlk, eagain)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -456,7 +466,7 @@ TEST_F(Setlk, eagain)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -484,7 +494,7 @@ TEST_F(SetlkwFallback, local)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = getpid();
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;
@@ -504,7 +514,7 @@ TEST_F(Setlkw, set)
 	uint64_t ino = 42;
 	struct flock fl;
 	int fd;
-	pid_t pid = 1234;
+	pid_t pid = getpid();
 
 	expect_lookup(RELPATH, ino);
 	expect_open(ino, 0, 1);
@@ -514,7 +524,7 @@ TEST_F(Setlkw, set)
 	ASSERT_LE(0, fd) << strerror(errno);
 	fl.l_start = 10;
 	fl.l_len = 1000;
-	fl.l_pid = pid;
+	fl.l_pid = 0;
 	fl.l_type = F_RDLCK;
 	fl.l_whence = SEEK_SET;
 	fl.l_sysid = 0;

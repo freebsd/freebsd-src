@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -694,7 +694,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 	} else {
 		ena_trc_err(ena_dev, "Invalid header location control, supported: 0x%x\n",
 			    supported_feat);
-		return -EINVAL;
+		return ENA_COM_INVAL;
 	}
 
 	if (likely(llq_info->header_location_ctrl == ENA_ADMIN_INLINE_HEADER)) {
@@ -709,7 +709,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			} else {
 				ena_trc_err(ena_dev, "Invalid desc_stride_ctrl, supported: 0x%x\n",
 					    supported_feat);
-				return -EINVAL;
+				return ENA_COM_INVAL;
 			}
 
 			ena_trc_err(ena_dev, "Default llq stride ctrl is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
@@ -738,7 +738,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		} else {
 			ena_trc_err(ena_dev, "Invalid entry_size_ctrl, supported: 0x%x\n",
 				    supported_feat);
-			return -EINVAL;
+			return ENA_COM_INVAL;
 		}
 
 		ena_trc_err(ena_dev, "Default llq ring entry size is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
@@ -752,7 +752,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		 */
 		ena_trc_err(ena_dev, "Illegal entry size %d\n",
 			    llq_info->desc_list_entry_size);
-		return -EINVAL;
+		return ENA_COM_INVAL;
 	}
 
 	if (llq_info->desc_stride_ctrl == ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY)
@@ -776,7 +776,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		} else {
 			ena_trc_err(ena_dev, "Invalid descs_num_before_header, supported: 0x%x\n",
 				    supported_feat);
-			return -EINVAL;
+			return ENA_COM_INVAL;
 		}
 
 		ena_trc_err(ena_dev, "Default llq num descs before header is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
@@ -1409,16 +1409,17 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 	comp_ctx = ena_com_submit_admin_cmd(admin_queue, cmd, cmd_size,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
-		if (comp_ctx == ERR_PTR(ENA_COM_NO_DEVICE))
+		ret = PTR_ERR(comp_ctx);
+		if (ret == ENA_COM_NO_DEVICE)
 			ena_trc_dbg(admin_queue->ena_dev,
-				    "Failed to submit command [%ld]\n",
-				    PTR_ERR(comp_ctx));
+				    "Failed to submit command [%d]\n",
+				    ret);
 		else
 			ena_trc_err(admin_queue->ena_dev,
-				    "Failed to submit command [%ld]\n",
-				    PTR_ERR(comp_ctx));
+				    "Failed to submit command [%d]\n",
+				    ret);
 
-		return (int)PTR_ERR(comp_ctx);
+		return ret;
 	}
 
 	ret = ena_com_wait_and_process_admin_cq(comp_ctx, admin_queue);
@@ -2034,7 +2035,7 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			return rc;
 
 		if (get_resp.u.max_queue_ext.version != ENA_FEATURE_MAX_QUEUE_EXT_VER)
-			return -EINVAL;
+			return ENA_COM_INVAL;
 
 		memcpy(&get_feat_ctx->max_queue_ext, &get_resp.u.max_queue_ext,
 		       sizeof(get_resp.u.max_queue_ext));
@@ -2363,7 +2364,7 @@ done:
 }
 #endif
 
-int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
+int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 {
 	struct ena_com_admin_queue *admin_queue;
 	struct ena_admin_set_feat_cmd cmd;
@@ -2381,7 +2382,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	cmd.aq_common_descriptor.flags = 0;
 	cmd.feat_common.feature_id = ENA_ADMIN_MTU;
-	cmd.u.mtu.mtu = (u32)mtu;
+	cmd.u.mtu.mtu = mtu;
 
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
@@ -2792,7 +2793,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 		return ret;
 	}
 
-	cmd.control_buffer.length = (u32)(1ULL << rss->tbl_log_size) *
+	cmd.control_buffer.length = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	ret = ena_com_execute_admin_command(admin_queue,
@@ -2814,7 +2815,7 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
 	u32 tbl_size;
 	int i, rc;
 
-	tbl_size = (u32)(1ULL << rss->tbl_log_size) *
+	tbl_size = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
@@ -3098,7 +3099,7 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 
 	if (unlikely(ena_dev->tx_max_header_size == 0)) {
 		ena_trc_err(ena_dev, "The size of the LLQ entry is smaller than needed\n");
-		return -EINVAL;
+		return ENA_COM_INVAL;
 	}
 
 	ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;

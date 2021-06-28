@@ -1,12 +1,12 @@
-# $NetBSD: recursive.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
+# $NetBSD: recursive.mk,v 1.5 2021/03/15 12:15:03 rillig Exp $
 #
 # In -dL mode, a variable may get expanded before it makes sense.
 # This would stop make from doing anything since the "recursive" error
 # is fatal and exits immediately.
 #
 # The purpose of evaluating that variable early was just to detect
-# whether there are unclosed variables.  It might be enough to parse the
-# variable value without VARE_WANTRES for that purpose.
+# whether there are unclosed variables.  The variable value is therefore
+# parsed with VARE_PARSE_ONLY for that purpose.
 #
 # Seen in pkgsrc/x11/libXfixes, and probably many more package that use
 # GNU Automake.
@@ -36,4 +36,3 @@ MISSING_BRACE_INDIRECT:=	${:U\${MISSING_BRACE}
 UNCLOSED=	$(MISSING_PAREN
 UNCLOSED=	${MISSING_BRACE
 UNCLOSED=	${MISSING_BRACE_INDIRECT}
-

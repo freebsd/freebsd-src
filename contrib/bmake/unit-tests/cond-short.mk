@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.15 2020/12/01 19:37:23 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.16 2021/03/14 11:49:37 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -13,8 +13,11 @@
 # parse them.  They were still evaluated though, the only difference to
 # relevant variable expressions was that in the irrelevant variable
 # expressions, undefined variables were allowed.
+#
+# See also:
+#	var-eval-short.mk, for short-circuited variable modifiers
 
-# The && operator.
+# The && operator:
 
 .if 0 && ${echo "unexpected and" 1>&2 :L:sh}
 .endif
@@ -86,7 +89,7 @@ VAR=	# empty again, for the following tests
 .  warning first=${FIRST} last=${LAST} appended=${APPENDED} ran=${RAN}
 .endif
 
-# The || operator.
+# The || operator:
 
 .if 1 || ${echo "unexpected or" 1>&2 :L:sh}
 .endif
@@ -208,9 +211,4 @@ x!=	echo '0 || $${iV2:U2} < $${V42}: $x' >&2; echo
 .  error
 .endif
 
-# TODO: Test each modifier to make sure it is skipped when it is irrelevant
-# for the result.  Since this test is already quite long, do that in another
-# test.
-
 all:
-	@:;:

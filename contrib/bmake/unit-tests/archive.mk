@@ -1,4 +1,4 @@
-# $NetBSD: archive.mk,v 1.11 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: archive.mk,v 1.12 2021/04/09 14:42:00 christos Exp $
 #
 # Very basic demonstration of handling archives, based on the description
 # in PSD.doc/tutorial.ms.
@@ -8,11 +8,11 @@
 # several other tests.
 
 ARCHIVE=	libprog.a
-FILES=		archive.mk modmisc.mk varmisc.mk
+FILES=		archive.mk archive-suffix.mk modmisc.mk ternary.mk varmisc.mk
 
 all:
 .if ${.PARSEDIR:tA} != ${.CURDIR:tA}
-	@cd ${MAKEFILE:H} && cp ${FILES} [at]*.mk ${.CURDIR}
+	@cd ${MAKEFILE:H} && cp ${FILES} ${.CURDIR}
 .endif
 # The following targets create and remove files.  The filesystem cache in
 # dir.c would probably not handle this correctly, therefore each of the

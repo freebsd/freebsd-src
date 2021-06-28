@@ -68,7 +68,8 @@ struct rack_sendmap {
 	uint8_t r_just_ret : 1, /* After sending, the next pkt was just returned, i.e. limited  */
 		r_one_out_nr : 1,	/* Special case 1 outstanding and not in recovery */
 		r_no_rtt_allowed : 1, /* No rtt measurement allowed */
-		r_avail : 5;
+		r_hw_tls : 1,
+		r_avail : 4;
 	uint64_t r_tim_lastsent[RACK_NUM_OF_RETRANS];
 	uint64_t r_ack_arrival;	/* This is the time of ack-arrival (if SACK'd) */
 	RB_ENTRY(rack_sendmap) r_next;		/* RB Tree next */
@@ -330,7 +331,8 @@ struct rack_fast_send_blk {
 	struct mbuf *m;
 	uint32_t o_m_len;
 	uint32_t rfo_apply_push : 1,
-		unused : 31;
+		hw_tls : 1,
+		unused : 30;
 };
 
 struct rack_control {
