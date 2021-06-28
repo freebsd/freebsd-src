@@ -982,9 +982,9 @@ pf_state_to_nvstate(const struct pf_state *s)
 
 	for (int i = 0; i < 2; i++) {
 		nvlist_append_number_array(nvl, "packets",
-		    counter_u64_fetch(s->packets[i]));
+		    s->packets[i]);
 		nvlist_append_number_array(nvl, "bytes",
-		    counter_u64_fetch(s->bytes[i]));
+		    s->bytes[i]);
 	}
 
 	nvlist_add_number(nvl, "creatorid", s->creatorid);
