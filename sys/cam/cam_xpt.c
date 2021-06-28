@@ -4024,6 +4024,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	new_bus->flags = 0;
 	new_bus->refcount = 1;	/* Held until a bus_deregister event */
 	new_bus->generation = 0;
+	new_bus->parent_dev = parent;
 
 	xpt_lock_buses();
 	sim->path_id = new_bus->path_id =
