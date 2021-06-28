@@ -1508,6 +1508,17 @@ pf_release_state(struct pf_state *s)
 		return (0);
 }
 
+static __inline int
+pf_release_staten(struct pf_state *s, u_int n)
+{
+
+	if (refcount_releasen(&s->refs, n)) {
+		pf_free_state(s);
+		return (1);
+	} else
+		return (0);
+}
+
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
