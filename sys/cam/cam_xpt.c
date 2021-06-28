@@ -3669,14 +3669,14 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 	return (status);
 }
 
-cam_status
+int
 xpt_clone_path(struct cam_path **new_path_ptr, struct cam_path *path)
 {
 	struct	   cam_path *new_path;
 
 	new_path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_NOWAIT);
 	if (new_path == NULL)
-		return(CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	*new_path = *path;
 	if (path->bus != NULL)
 		xpt_acquire_bus(path->bus);
@@ -3685,7 +3685,7 @@ xpt_clone_path(struct cam_path **new_path_ptr, struct cam_path *path)
 	if (path->device != NULL)
 		xpt_acquire_device(path->device);
 	*new_path_ptr = new_path;
-	return (CAM_REQ_CMP);
+	return (0);
 }
 
 void
@@ -4397,7 +4397,7 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		return;
 	}
 
-	if (xpt_clone_path(&ccb->ccb_h.path, path) != CAM_REQ_CMP) {
+	if (xpt_clone_path(&ccb->ccb_h.path, path) != 0) {
 		xpt_print(path, "Can't allocate path to send %s\n",
 		    xpt_async_string(async_code));
 		xpt_free_ccb(ccb);
