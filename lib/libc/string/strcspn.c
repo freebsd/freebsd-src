@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 size_t
 strcspn(const char *s, const char *charset)
 {
-
 	if (*s == '\0')
 		return 0;
 
