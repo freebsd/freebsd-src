@@ -504,15 +504,9 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	/*
 	 * XXXGL: consider M_WAITOK in ioctl path after.
 	 */
-	if ((st = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO)) == NULL)
+	st = pf_alloc_state(M_NOWAIT);
+	if (__predict_false(st == NULL))
 		goto cleanup;
-
-	for (int i = 0; i < 2; i++) {
-		st->packets[i] = counter_u64_alloc(M_NOWAIT);
-		st->bytes[i] = counter_u64_alloc(M_NOWAIT);
-		if (st->packets[i] == NULL || st->bytes[i] == NULL)
-			goto cleanup;
-	}
 
 	if ((skw = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
 		goto cleanup;
@@ -623,15 +617,7 @@ cleanup:
 
 cleanup_state:	/* pf_state_insert() frees the state keys. */
 	if (st) {
-		for (int i = 0; i < 2; i++) {
-			counter_u64_free(st->packets[i]);
-			counter_u64_free(st->bytes[i]);
-		}
-		if (st->dst.scrub)
-			uma_zfree(V_pf_state_scrub_z, st->dst.scrub);
-		if (st->src.scrub)
-			uma_zfree(V_pf_state_scrub_z, st->src.scrub);
-		uma_zfree(V_pf_state_z, st);
+		pf_free_state(st);
 	}
 	return (error);
 }
