@@ -61,7 +61,7 @@ strnstr(const char *s, const char *find, size_t slen)
 				--slen, ++s;
 			} while (sc != c);
 			if (slen < len)
-				return (NULL);
+				return NULL;
 		} while (strncmp(s, find, len) != 0);
 		--s;
 	}
