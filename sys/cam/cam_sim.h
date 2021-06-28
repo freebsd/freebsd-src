@@ -104,7 +104,6 @@ struct cam_sim {
 	u_int32_t		flags;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
-	device_t		sim_dev; /* For attached peripherals. */
 };
 
 static __inline u_int32_t
