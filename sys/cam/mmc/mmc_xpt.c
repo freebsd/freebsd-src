@@ -419,7 +419,7 @@ mmccam_start_discovery(struct cam_sim *sim)
 		return;
 	}
 
-	KASSERT(xpt_path_sim_device(&ccb->ccb_h.path) != NULL,
+	KASSERT(xpt_path_sim_device(ccb->ccb_h.path) != NULL,
 	    ("%s(%s): device is not initialized on sim's path",
 	    __func__, cam_sim_name(sim)));
 	xpt_rescan(ccb);
