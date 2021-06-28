@@ -47,15 +47,20 @@ __FBSDID("$FreeBSD$");
 int
 strcasecmp_l(const char *s1, const char *s2, locale_t locale)
 {
+	FIX_LOCALE(locale);
+
 	const u_char
 			*us1 = (const u_char *)s1,
 			*us2 = (const u_char *)s2;
-	FIX_LOCALE(locale);
 
-	while (tolower_l(*us1, locale) == tolower_l(*us2++, locale))
-		if (*us1++ == '\0')
+	u_char u1, u2;
+
+	while ((u1 = tolower_l(*us1, locale)) == (u2 = tolower_l(*us2, locale))) {
+		if (u1 == '\0')
 			return (0);
-	return (tolower_l(*us1, locale) - tolower_l(*--us2, locale));
+		++us1, ++us2;
+	}
+	return (u1 - u2);
 }
 int
 strcasecmp(const char *s1, const char *s2)
@@ -66,17 +71,22 @@ strcasecmp(const char *s1, const char *s2)
 int
 strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t locale)
 {
-	FIX_LOCALE(locale);
 	if (n != 0) {
+		FIX_LOCALE(locale);
+
 		const u_char
 				*us1 = (const u_char *)s1,
 				*us2 = (const u_char *)s2;
 
+		uchar u1, u2;
+
 		do {
-			if (tolower_l(*us1, locale) != tolower_l(*us2++, locale))
-				return (tolower_l(*us1, locale) - tolower_l(*--us2, locale));
-			if (*us1++ == '\0')
+			if ((u1 = tolower_l(*us1, locale)) != (u2 = tolower_l(*us2, locale)))
+				return (u1 - u2);
+			if (u1 == '\0')
 				break;
+
+			++us1, ++us2;
 		} while (--n != 0);
 	}
 	return (0);
