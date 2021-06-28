@@ -1300,9 +1300,6 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 
 #define	CAM_SUCCESS	0	/* For signaling general success */
 
-#define CAM_FALSE	0
-#define CAM_TRUE	1
-
 #define XPT_CCB_INVALID	-1	/* for signaling a bad CCB to free */
 
 /*
