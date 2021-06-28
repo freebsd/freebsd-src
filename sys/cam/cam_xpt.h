@@ -105,9 +105,6 @@ int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
 int			xpt_path_comp_dev(struct cam_path *path,
 					  struct cam_ed *dev);
-void			xpt_print_path(struct cam_path *path);
-void			xpt_print_device(struct cam_ed *device);
-void			xpt_print(struct cam_path *path, const char *fmt, ...);
 int			xpt_path_string(struct cam_path *path, char *str,
 					size_t str_len);
 int			xpt_path_sbuf(struct cam_path *path, struct sbuf *sb);
@@ -116,6 +113,9 @@ target_id_t		xpt_path_target_id(struct cam_path *path);
 lun_id_t		xpt_path_lun_id(struct cam_path *path);
 struct cam_sim		*xpt_path_sim(struct cam_path *path);
 struct cam_periph	*xpt_path_periph(struct cam_path *path);
+void			xpt_print_path(struct cam_path *path);
+void			xpt_print_device(struct cam_ed *device);
+void			xpt_print(struct cam_path *path, const char *fmt, ...);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
 void			xpt_rescan(union ccb *ccb);
