@@ -406,8 +406,6 @@ mmccam_start_discovery(struct cam_sim *sim)
 	union ccb *ccb;
 	uint32_t pathid;
 
-	KASSERT(sim->sim_dev != NULL, ("mmccam_start_discovery(%s): sim_dev is not initialized,"
-	    " has cam_sim_alloc_dev() been used?", cam_sim_name(sim)));
 	pathid = cam_sim_path(sim);
 	ccb = xpt_alloc_ccb();
 
@@ -420,6 +418,10 @@ mmccam_start_discovery(struct cam_sim *sim)
 		xpt_free_ccb(ccb);
 		return;
 	}
+
+	KASSERT(xpt_path_sim_device(&ccb->ccb_h.path) != NULL,
+	    ("%s(%s): device is not initialized on sim's path",
+	    __func__, cam_sim_name(sim)));
 	xpt_rescan(ccb);
 }
 
