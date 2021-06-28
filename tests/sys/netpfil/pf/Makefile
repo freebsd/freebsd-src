@@ -11,6 +11,7 @@ ATF_TESTS_SH+=	altq \
 		dup \
 		forward \
 		fragmentation \
+		get_state \
 		icmp \
 		killstate \
 		map_e \
