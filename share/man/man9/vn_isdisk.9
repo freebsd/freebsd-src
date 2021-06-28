@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd June 28, 2021
 .Dt VN_ISDISK 9
 .Os
 .Sh NAME
@@ -35,12 +35,16 @@
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
-.Ft int
-.Fn vn_isdisk "struct vnode *vp" "int *errp"
+.Ft bool
+.Fn vn_isdisk "struct vnode *vp"
+.Ft bool
+.Fn vn_isdisk_error "struct vnode *vp" "int *errp"
 .Sh DESCRIPTION
 The
 .Fn vn_isdisk
-function checks to see if
+and
+.Fn vn_isdisk_error
+functions check to see if
 .Fa vp
 represents a disk.
 In order for
@@ -56,7 +60,7 @@ must have
 .Dv D_DISK
 set.
 .Pp
-Its arguments are:
+The arguments are:
 .Bl -tag -width ".Fa errp"
 .It Fa vp
 The vnode to check.
@@ -64,7 +68,7 @@ The vnode to check.
 An integer pointer to store the error number in if the call fails.
 .El
 .Sh RETURN VALUES
-If the vnode represents a disk, 1 is returned; otherwise, 0
+If the vnode represents a disk, true is returned; otherwise, false
 is returned and
 .Fa errp
 will contain the error number.
