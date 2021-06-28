@@ -78,7 +78,7 @@ strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t locale)
 				*us1 = (const u_char *)s1,
 				*us2 = (const u_char *)s2;
 
-		uchar u1, u2;
+		u_char u1, u2;
 
 		do {
 			if ((u1 = tolower_l(*us1, locale)) != (u2 = tolower_l(*us2, locale)))
