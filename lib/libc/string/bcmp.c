@@ -43,15 +43,17 @@ __FBSDID("$FreeBSD$");
 int
 bcmp(const void *b1, const void *b2, size_t length)
 {
-	char *p1, *p2;
+	register const unsigned char *p1, *p2;
 
 	if (length == 0)
-		return (0);
-	p1 = (char *)b1;
-	p2 = (char *)b2;
-	do
-		if (*p1++ != *p2++)
+		return 0;
+	p1 = (const unsigned char *)b1;
+	p2 = (const unsigned char *)b2;
+	do {
+		if (*p1 != *p2)
 			break;
-	while (--length);
-	return (length);
+
+		p1++, p2++;
+	} while (--length);
+	return length;
 }
