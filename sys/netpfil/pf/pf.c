@@ -1734,7 +1734,7 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	return (pf_release_staten(s, 2));
 }
 
-static struct pf_state *
+struct pf_state *
 pf_alloc_state(int flags)
 {
 	struct pf_state *s;

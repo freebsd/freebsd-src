@@ -1493,6 +1493,7 @@ extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
+extern struct pf_state		*pf_alloc_state(int);
 extern void			 pf_free_state(struct pf_state *);
 
 static __inline void
