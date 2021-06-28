@@ -5574,7 +5574,23 @@ camisr_runqueue(void)
 	}
 }
 
-struct kv
+/**
+ * @brief Return the device_t associated with the path
+ *
+ * When a SIM is created, it registers a bus with a NEWBUS device_t. This is
+ * stored in the internal cam_eb bus structure. There is no guarnatee any given
+ * path will have a @c device_t associated with it (it's legal to call @c
+ * xpt_bus_register with a @c NULL @c device_t.
+ *
+ * @param path		Path to return the device_t for.
+ */
+device_t
+xpt_path_sim_device(const struct cam_path *path)
+{
+	return (path->bus->parent_dev);
+}
+
+struct kv 
 {
 	uint32_t v;
 	const char *name;
