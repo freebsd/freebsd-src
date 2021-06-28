@@ -41,8 +41,8 @@ void *
 memccpy(void * __restrict dst, const void * __restrict src, int c, size_t n)
 {
 	if (n) {
-		unsigned char *tp = (unsigned char*)dst;
-		const unsigned char *fp = (const unsigned char*)src;
+		unsigned char *tp = (unsigned char *)dst;
+		const unsigned char *fp = (const unsigned char *)src;
 		const unsigned char uc = (unsigned char)c;
 		do {
 			if ((*tp++ = *fp) == uc)
