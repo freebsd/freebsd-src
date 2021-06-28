@@ -112,7 +112,7 @@ struct sdiob_softc {
 #define	NB_STATE_SIM_ADDED		0x0002
 #define	NB_STATE_READY			0x0004
 
-	/* CAM side (including sim_dev). */
+	/* CAM side. */
 	struct card_info		cardinfo;
 	struct cam_periph		*periph;
 	union ccb			*ccb;
@@ -923,23 +923,21 @@ sdio_newbus_sim_add(struct sdiob_softc *sc)
 	/* Add ourselves to our parent (SIM) device. */
 
 	/* Add ourselves to our parent. That way we can become a parent. */
-	KASSERT(sc->periph->sim->sim_dev != NULL, ("%s: sim_dev is NULL, sc %p "
-	    "periph %p sim %p\n", __func__, sc, sc->periph, sc->periph->sim));
+	pdev = xpt_path_sim_device(sc->periph->path);
+	KASSERT(pdev != NULL,
+	    ("%s: pdev is NULL, sc %p periph %p sim %p\n",
+	    __func__, sc, sc->periph, sc->periph->sim));
 
 	if (sc->dev == NULL)
-		sc->dev = BUS_ADD_CHILD(sc->periph->sim->sim_dev, 0,
-		    SDIOB_NAME_S, -1);
+		sc->dev = BUS_ADD_CHILD(pdev, 0, SDIOB_NAME_S, -1);
 	if (sc->dev == NULL)
 		return (ENXIO);
 	device_set_softc(sc->dev, sc);
+
 	/*
 	 * Don't set description here; devclass_add_driver() ->
 	 * device_probe_child() -> device_set_driver() will nuke it again.
 	 */
-
-	pdev = device_get_parent(sc->dev);
-	KASSERT(pdev != NULL, ("%s: sc %p dev %p (%s) parent is NULL\n",
-	    __func__, sc, sc->dev, device_get_nameunit(sc->dev)));
 	bus_devclass = device_get_devclass(pdev);
 	if (bus_devclass == NULL) {
 		printf("%s: Failed to get devclass from %s.\n", __func__,
@@ -1032,9 +1030,8 @@ sdiobregister(struct cam_periph *periph, void *arg)
 		    __func__, periph);
 		return(CAM_REQ_CMP_ERR);
 	}
-	if (periph->sim == NULL || periph->sim->sim_dev == NULL) {
-		printf("%s: no sim %p or sim_dev %p\n", __func__, periph->sim,
-		    (periph->sim != NULL) ? periph->sim->sim_dev : NULL);
+	if (xpt_path_sim_device(periph->path) == NULL) {
+		printf("%s: no device_t for sim %p\n", __func__, periph->sim);
 		return(CAM_REQ_CMP_ERR);
 	}
 
