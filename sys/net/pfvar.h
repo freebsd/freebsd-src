@@ -548,6 +548,11 @@ struct pf_state {
 	u_int8_t		 sync_updates;
 	u_int8_t		_tail[3];
 };
+
+/*
+ * Size <= fits 13 objects per page on LP64. Try to not grow the struct beyond that.
+ */
+_Static_assert(sizeof(struct pf_state) <= 312, "pf_state size crosses 312 bytes");
 #endif
 
 /*
