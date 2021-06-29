@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #error Unsupported word size
 #endif
 
-#define	LONGPTR_MASK (sizeof(long) - 1)
+#define	LONGPTR_MASK (sizeof(unsigned long) - 1)
 
 #define	TESTBYTE				\
 	do {					\
@@ -63,6 +63,10 @@ memcchr(const void *begin, int c, size_t n)
 	const unsigned char *p, *end;
 	unsigned long word;
 
+	/* Don't perform memory I/O when passing a zero-length buffer. */
+	if (n == 0)
+		return (NULL);
+
 	/* Four or eight repetitions of `c'. */
 	word = (unsigned char)c;
 	word |= word << 8;
@@ -70,10 +74,6 @@ memcchr(const void *begin, int c, size_t n)
 #if LONG_BIT >= 64
 	word |= word << 32;
 #endif
-
-	/* Don't perform memory I/O when passing a zero-length buffer. */
-	if (n == 0)
-		return (NULL);
 
 	/*
 	 * First determine whether there is a character unequal to `c'
