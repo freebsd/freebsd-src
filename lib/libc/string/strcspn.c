@@ -48,11 +48,11 @@ strcspn(const char *s, const char *charset)
 		tbl[IDX(*charset)] |= BIT(*charset);
 	}
 
-	const char * const s1 = s;
+	const char * const olds = s;
 
 	for (;; s++) {
 		if ((tbl[IDX(*s)] & BIT(*s)) != 0)
 			break;
 	}
-	return s - s1;
+	return s - olds;
 }
