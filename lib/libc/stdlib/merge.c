@@ -129,13 +129,7 @@ mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 	if (nmemb == 0)
 		return (0);
 
-	/*
-	 * XXX
-	 * Stupid subtraction for the Cray.
-	 */
-	iflag = 0;
-	if (!(size % ISIZE) && !(((char *)base - (char *)0) % ISIZE))
-		iflag = 1;
+	iflag = ((size % ISIZE) || ((char *)base % ISIZE));
 
 	if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
 		return (-1);
