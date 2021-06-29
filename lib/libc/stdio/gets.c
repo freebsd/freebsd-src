@@ -51,12 +51,11 @@ __gets_unsafe(char *buf)
 	int c;
 	char *s, *ret;
 	static int warned;
-	static const char w[] =
-	    "warning: this program uses gets(), which is unsafe.\n";
 
 	FLOCKFILE_CANCELSAFE(stdin);
 	ORIENT(stdin, -1);
 	if (!warned) {
+		const char w[] = "warning: this program uses gets(), which is unsafe.\n";
 		(void) _write(STDERR_FILENO, w, sizeof(w) - 1);
 		warned = 1;
 	}
