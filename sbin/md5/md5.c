@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define TEST_BLOCK_COUNT 100000
 #define MDTESTCOUNT 8
 
+static int bflag;
 static int cflag;
 static int pflag;
 static int qflag;
@@ -301,6 +302,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "bc:pqrs:tx")) != -1)
 		switch (ch) {
 		case 'b':
+			bflag = 1;
 			break;
 		case 'c':
 			cflag = 1;
@@ -436,7 +438,13 @@ MDOutput(const Algorithm_t *alg, char *p, char *argv[])
 			printf("%s\n", p);
 		} else {
 			if (rflag)
-				printf("%s  %s", p, *argv);
+				if (gnu_emu)
+					if (bflag)
+						printf("%s *%s", p, *argv);
+					else
+						printf("%s  %s", p, *argv);
+				else
+					printf("%s %s", p, *argv);
 			else
 				printf("%s (%s) = %s", alg->name, *argv, p);
 			if (checkAgainst) {
