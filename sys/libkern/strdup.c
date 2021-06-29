@@ -43,11 +43,10 @@ char *
 strdup_flags(const char *string, struct malloc_type *type, int flags)
 {
 	const size_t len = strlen(string) + 1;
-	char * const copy = (char *)malloc(len, type, flags);
+	void * const copy = malloc(len, type, flags);
 	if (copy == NULL)
 		return (NULL);
-	(void) memcpy(copy, string, len);
-	return (copy);
+	return (char *) memcpy(copy, string, len);
 }
 
 char *
