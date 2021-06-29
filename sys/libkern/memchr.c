@@ -47,7 +47,7 @@ memchr(const void *s, int c, size_t n)
 
 		do {
 			if (*p == uc)
-				return ((void *)p);
+				return (__DECONST(void *, p));
 			++p;
 		} while (--n != 0);
 	}
