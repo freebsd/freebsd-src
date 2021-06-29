@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210629:	p12	FreeBSD-EN-21:19.libcasper
+			FreeBSD-EN-21:22.linux_futex
+
+	libcasper assertion failure [EN-21:19.libcasper]
+
+	Linux compatibility layer futex(2) system call vulnerability [EN-21:22.linux_futex]
+
 20210601:	p11	FreeBSD-EN-21:17.libradius
 
 	Incorrect validation in rad_get_attr(3) [FreeBSD-EN-21:17.libradius]
