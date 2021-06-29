@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/user.h>
 
@@ -964,7 +965,7 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 		data = *(void **)data;
 	}
 #if defined(__amd64__)
-	if (td->td_proc->p_elf_machine == EM_386) {
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		/* try the compat IOCTL handler first */
 		if (fop->compat_ioctl != NULL) {
 			error = -OPW(fp, td, fop->compat_ioctl(filp,
