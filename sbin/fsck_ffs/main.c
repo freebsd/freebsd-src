@@ -364,17 +364,19 @@ checkfilesys(char *filesys)
 			sujrecovery = 0;
 			printf("** Skipping journal, falling through to full fsck\n\n");
 		}
-		/*
-		 * Write the superblock so we don't try to recover the
-		 * journal on another pass. If this is the only change
-		 * to the filesystem, we do not want it to be called
-		 * out as modified.
-		 */
-		sblock.fs_mtime = time(NULL);
-		sbdirty();
-		ofsmodified = fsmodified;
-		flush(fswritefd, &sblk);
-		fsmodified = ofsmodified;
+		if (fswritefd != -1) {
+			/*
+			 * Write the superblock so we don't try to recover the
+			 * journal on another pass. If this is the only change
+			 * to the filesystem, we do not want it to be called
+			 * out as modified.
+			 */
+			sblock.fs_mtime = time(NULL);
+			sbdirty();
+			ofsmodified = fsmodified;
+			flush(fswritefd, &sblk);
+			fsmodified = ofsmodified;
+		}
 	}
 	/*
 	 * If the filesystem was run on an old kernel that did not
