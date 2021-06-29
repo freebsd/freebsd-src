@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 void *
 memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 {
-        char *cur, *last;
+        const char *cur, *last;
         const char *cl = (const char *)l;
         const char *cs = (const char *)s;
 
@@ -51,12 +51,12 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
         if (s_len == 1)
                 return memchr(l, (int)*cs, l_len);
 
-        /* the last position where its possible to find "s" in "l" */
-        last = __DECONST(char *, cl) + l_len - s_len;
+        /* the last position where it is possible to find "s" in "l" */
+        last = cl + (l_len - s_len);
 
-        for (cur = __DECONST(char *, cl); cur <= last; cur++)
-                if (cur[0] == cs[0] && memcmp(cur, cs, s_len) == 0)
-                        return cur;
+        for (cur = cl; cur <= last; cur++)
+                if (*cur == *cs && memcmp(cur, cs, s_len) == 0)
+                        return __DECONST(char *, cur);
 
         return NULL;
 }
