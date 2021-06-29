@@ -26,11 +26,11 @@ int __timingsafe_memcmp(const void *, const void *, size_t);
 int
 __timingsafe_memcmp(const void *b1, const void *b2, size_t len)
 {
-        const unsigned char *p1 = b1, *p2 = b2;
-        size_t i;
-        int res = 0, done = 0;
+        register const unsigned char * const p1 = (const unsigned char *)b1;
+        register const unsigned char * const p2 = (const unsigned char *)b2;
+        register int res = 0, done = 0;
 
-        for (i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++) {
                 /* lt is -1 if p1[i] < p2[i]; else 0. */
                 int lt = (p1[i] - p2[i]) >> CHAR_BIT;
 
