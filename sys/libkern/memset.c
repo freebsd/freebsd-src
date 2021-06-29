@@ -35,9 +35,13 @@ __FBSDID("$FreeBSD$");
 void *
 (memset)(void *b, int c, size_t len)
 {
-	char *bb;
+	if (len != 0) {
+		const unsigned char uc = (unsigned char)c;
+		unsigned char *bb = (unsigned char *)b;
 
-	for (bb = (char *)b; len--; )
-		*bb++ = c;
+		do
+			*bb++ = uc;
+		while (--len);
+	}
 	return (b);
 }
