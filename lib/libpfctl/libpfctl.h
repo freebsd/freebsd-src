@@ -197,19 +197,10 @@ struct pfctl_kill {
 	bool			kill_match;
 };
 
-struct pfctl_state_scrub {
-	bool		timestamp;
-	uint8_t		ttl;
-	uint32_t	ts_mod;
-};
-
 struct pfctl_state_peer {
-	struct pfctl_state_scrub	*scrub;
 	uint32_t			 seqlo;
 	uint32_t			 seqhi;
 	uint32_t			 seqdiff;
-	uint16_t			 max_win;
-	uint16_t			 mss;
 	uint8_t				 state;
 	uint8_t				 wscale;
 };
@@ -243,10 +234,7 @@ struct pfctl_state {
 	uint32_t		 creation;
 	uint32_t		 expire;
 	uint32_t		 pfsync_time;
-	uint16_t		 tag;
-	uint8_t			 log;
 	uint8_t			 state_flags;
-	uint8_t			 timeout;
 	uint32_t		 sync_flags;
 };
 

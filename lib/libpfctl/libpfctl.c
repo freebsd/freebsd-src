@@ -637,34 +637,14 @@ pfctl_nv_add_state_cmp(nvlist_t *nvl, const char *name,
 }
 
 static void
-pf_nvstate_scrub_to_state_scrub(const nvlist_t *nvl,
-    struct pfctl_state_scrub *scrub)
-{
-	bzero(scrub, sizeof(*scrub));
-
-	scrub->timestamp = nvlist_get_bool(nvl, "timestamp");
-	scrub->ttl = nvlist_get_number(nvl, "ttl");
-	scrub->ts_mod = nvlist_get_number(nvl, "ts_mod");
-}
-
-static void
 pf_nvstate_peer_to_state_peer(const nvlist_t *nvl,
     struct pfctl_state_peer *peer)
 {
 	bzero(peer, sizeof(*peer));
 
-	if (nvlist_exists_nvlist(nvl, "scrub")) {
-		peer->scrub = malloc(sizeof(*peer->scrub));
-		pf_nvstate_scrub_to_state_scrub(
-		    nvlist_get_nvlist(nvl, "scrub"),
-		    peer->scrub);
-	}
-
 	peer->seqlo = nvlist_get_number(nvl, "seqlo");
 	peer->seqhi = nvlist_get_number(nvl, "seqhi");
 	peer->seqdiff = nvlist_get_number(nvl, "seqdiff");
-	peer->max_win = nvlist_get_number(nvl, "max_win");
-	peer->mss = nvlist_get_number(nvl, "mss");
 	peer->state = nvlist_get_number(nvl, "state");
 	peer->wscale = nvlist_get_number(nvl, "wscale");
 }
@@ -721,9 +701,7 @@ pf_nvstate_to_state(const nvlist_t *nvl, struct pfctl_state *s)
 	pf_nvuint_64_array(nvl, "packets", 2, s->packets, NULL);
 	pf_nvuint_64_array(nvl, "bytes", 2, s->bytes, NULL);
 
-	s->log = nvlist_get_number(nvl, "log");
 	s->state_flags = nvlist_get_number(nvl, "state_flags");
-	s->timeout = nvlist_get_number(nvl, "timeout");
 	s->sync_flags = nvlist_get_number(nvl, "sync_flags");
 }
 
