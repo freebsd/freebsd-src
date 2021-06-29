@@ -41,8 +41,10 @@ strchr(const char *cp, int ch)
 	char *p;
 
 	p = __DECONST(char *, cp);
+
+	const char c = (char)ch;
 	for (;; ++p) {
-		if (*p == ch)
+		if (*p == c)
 			return (p);
 		if (*p == '\0')
 			return (NULL);
