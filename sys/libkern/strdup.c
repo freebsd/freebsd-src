@@ -42,20 +42,16 @@ __FBSDID("$FreeBSD$");
 char *
 strdup_flags(const char *string, struct malloc_type *type, int flags)
 {
-	size_t len;
-	char *copy;
-
-	len = strlen(string) + 1;
-	copy = malloc(len, type, flags);
+	const size_t len = strlen(string) + 1;
+	char * const copy = (char *)malloc(len, type, flags);
 	if (copy == NULL)
 		return (NULL);
-	bcopy(string, copy, len);
+	(void) memcpy(copy, string, len);
 	return (copy);
 }
 
 char *
 strdup(const char *string, struct malloc_type *type)
 {
-
 	return (strdup_flags(string, type, M_WAITOK));
 }
