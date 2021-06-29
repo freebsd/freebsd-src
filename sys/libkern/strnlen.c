@@ -40,9 +40,9 @@ strnlen(const char *s, size_t maxlen)
 	const char * const olds = s;
 	const char * const es = s + maxlen;
 
-	while (*++s != '\0')
-		if (s == es)
-			return maxlen;
+	while (++s != es)
+		if (s == '\0')
+			return s - olds;
 
-	return s - olds;
+	return maxlen;
 }
