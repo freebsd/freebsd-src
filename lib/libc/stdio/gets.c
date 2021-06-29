@@ -69,7 +69,7 @@ __gets_unsafe(char *buf)
 		} else
 			*s++ = c;
 	}
-	*s = 0;
+	*s = '\0';
 	ret = buf;
 end:
 	FUNLOCKFILE_CANCELSAFE();
