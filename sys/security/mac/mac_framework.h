@@ -143,9 +143,39 @@ void	mac_devfs_update(struct mount *mp, struct devfs_dirent *de,
 void	mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 
-int	mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m);
+int	mac_ifnet_check_transmit_impl(struct ifnet *ifp, struct mbuf *m);
+#ifdef MAC
+extern bool mac_ifnet_check_transmit_fp_flag;
+#else
+#define mac_ifnet_check_transmit_fp_flag 0
+#endif
+#define mac_ifnet_check_transmit_enabled() __predict_false(mac_ifnet_check_transmit_fp_flag)
+static inline int
+mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+
+	if (mac_ifnet_check_transmit_enabled())
+		return (mac_ifnet_check_transmit_impl(ifp, m));
+	return (0);
+}
+
 void	mac_ifnet_create(struct ifnet *ifp);
-void	mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m);
+
+void	mac_ifnet_create_mbuf_impl(struct ifnet *ifp, struct mbuf *m);
+#ifdef MAC
+extern bool mac_ifnet_create_mbuf_fp_flag;
+#else
+#define mac_ifnet_create_mbuf_fp_flag 0
+#endif
+#define mac_ifnet_create_mbuf_enabled() __predict_false(mac_ifnet_create_mbuf_fp_flag)
+static inline void
+mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m)
+{
+
+	if (mac_ifnet_create_mbuf_enabled())
+		mac_ifnet_create_mbuf_impl(ifp, m);
+}
+
 void	mac_ifnet_destroy(struct ifnet *);
 void	mac_ifnet_init(struct ifnet *);
 int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
