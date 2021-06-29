@@ -11,6 +11,23 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210629:
+	13.0-RELEASE-p3	FreeBSD-EN-21:18.libc++
+			FreeBSD-EN-21:19.libcasper
+			FreeBSD-EN-21:20.vlan
+			FreeBSD-EN-21:21.ipfw
+			FreeBSD-EN-21:22.linux_futex
+
+	Missing C++20 headers in libc++ [EN-21:18.libc++]
+
+	libcasper assertion failure [EN-21:19.libcasper]
+
+	Missing backwards compatibility in vlan(4) [EN-21:20.vlan]
+
+	Kernel panic with ipfw link-layer filtering enabled [EN-21:21.ipfw]
+
+	Linux compatibility layer futex(2) system call vulnerability [EN-21:22.linux_futex]
+
 20210601:
 	13.0-RELEASE-p2 FreeBSD-EN-21:17.libradius
 
