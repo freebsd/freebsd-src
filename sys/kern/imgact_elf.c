@@ -1333,7 +1333,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
 	imgp->proc->p_fctl0 = fctl0;
-	imgp->proc->p_elf_machine = hdr->e_machine;
 	imgp->proc->p_elf_flags = hdr->e_flags;
 
 ret:
@@ -1806,8 +1805,10 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	Elf_Phdr *phdr;
 	Elf_Shdr *shdr;
 	struct phdr_closure phc;
+	Elf_Brandinfo *bi;
 
 	ehdr = (Elf_Ehdr *)hdr;
+	bi = td->td_proc->p_elf_brandinfo;
 
 	ehdr->e_ident[EI_MAG0] = ELFMAG0;
 	ehdr->e_ident[EI_MAG1] = ELFMAG1;
@@ -1820,7 +1821,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
-	ehdr->e_machine = td->td_proc->p_elf_machine;
+	ehdr->e_machine = bi->machine;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_entry = 0;
 	ehdr->e_phoff = sizeof(Elf_Ehdr);
