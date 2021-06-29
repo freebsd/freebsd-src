@@ -358,6 +358,7 @@ SUBDIR=	\
 	stge \
 	${_sume} \
 	${_superio} \
+	${_p2sb} \
 	${_sym} \
 	${_syscons} \
 	sysvipc \
@@ -662,6 +663,7 @@ _safe=		safe
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
+_p2sb=		p2sb
 _wbwd=		wbwd
 
 _aac=		aac
@@ -755,6 +757,7 @@ _sfxge=		sfxge
 _sgx=		sgx
 _sgx_linux=	sgx_linux
 _smartpqi=	smartpqi
+_p2sb=		p2sb
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 .if ${KERN_OPTS:MSMP}

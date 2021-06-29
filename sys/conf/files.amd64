@@ -363,6 +363,9 @@ dev/viawd/viawd.c		optional	viawd
 dev/vmd/vmd.c			optional	vmd
 dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
+dev/p2sb/p2sb.c			optional	p2sb pci
+dev/p2sb/lewisburg_gpiocm.c	optional	lbggpiocm p2sb
+dev/p2sb/lewisburg_gpio.c	optional	lbggpio lbggpiocm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/imgact_aout.c		optional compat_aout
