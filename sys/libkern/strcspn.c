@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define	BIT(c)	(1UL << ((u_char)(c) % LONG_BIT))
 
 size_t
-strcspn(const char * __restrict s, const char * __restrict charset)
+strcspn(const char *s, const char *charset)
 {
 	if (*s == '\0')
 		return 0;
