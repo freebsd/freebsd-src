@@ -838,6 +838,11 @@ fetch_update() {
 		I=$(($I + 1))
 		F="${X}-${Y}"
 		if [ ! -f "${F}" ]; then
+			XS=${X%[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			XE=${X#[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			YS=${Y%[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			YE=${Y#[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			F="${X%${XE}}...${X#${XS}}-${Y%${YE}}...${Y#${YS}}"
 			printf "  Skipping ${F} (${I} of ${PATCHCNT}).\r"
 			continue;
 		fi
