@@ -35,7 +35,7 @@ char *
 strchrnul(const char *p, int ch)
 {
 
-	for (; *p != 0 && *p != ch; p++)
+	for (; *p != '\0' && *p != ch; p++)
 		;
 	return (__DECONST(char *, p));
 }
