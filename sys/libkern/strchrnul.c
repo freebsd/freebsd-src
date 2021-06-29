@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 char *
 strchrnul(const char *p, int ch)
 {
-	for (; *p != '\0' && *p != (char)c; p++)
+	for (; *p != '\0' && *p != (char)ch; p++)
 		;
 	return (__DECONST(char *, p));
 }
