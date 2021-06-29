@@ -50,6 +50,8 @@
 struct image_params;
 struct thread;
 struct vnode;
+struct note_info_list;
+struct sbuf;
 
 /*
  * Structure used to pass information from the loader to the
@@ -98,7 +100,10 @@ typedef struct {
 __ElfType(Auxargs);
 __ElfType(Brandinfo);
 
-#define	MAX_BRANDS	8
+#define	MAX_BRANDS		8
+#define	FREEBSD_ABI_VENDOR	"FreeBSD"
+
+typedef void (*outfunc_t)(void *, struct sbuf *, size_t *);
 
 /* Closure for __elfN(size_segments)(). */
 struct sseg_closure {
@@ -115,7 +120,11 @@ size_t	__elfN(populate_note)(int, void *, void *, size_t, void **);
 void	__elfN(stackgap)(struct image_params *, uintptr_t *);
 int	__elfN(freebsd_copyout_auxargs)(struct image_params *, uintptr_t);
 void	__elfN(puthdr)(struct thread *, void *, size_t, int, size_t, int);
+void	__elfN(prepare_notes)(struct thread *, struct note_info_list *,
+	    size_t *);
 void	__elfN(size_segments)(struct thread *, struct sseg_closure *, int);
+size_t	__elfN(register_note)(struct thread *, struct note_info_list *,
+	    int, outfunc_t, void *);
 
 /* Machine specific function to dump per-thread information. */
 void	__elfN(dump_thread)(struct thread *, void *, size_t *);

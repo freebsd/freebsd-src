@@ -65,6 +65,8 @@ static struct sysentvec elf_freebsd_sysvec = {
 	.sv_name	= "FreeBSD ELF32",
 #endif
 	.sv_coredump	= __elfN(coredump),
+	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
+	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_imgact_try	= NULL,
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,

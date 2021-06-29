@@ -197,8 +197,6 @@ static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 #define	aligned(a, t)	(rounddown2((u_long)(a), sizeof(t)) == (u_long)(a))
 
-static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
-
 Elf_Brandnote __elfN(freebsd_brandnote) = {
 	.hdr.n_namesz	= sizeof(FREEBSD_ABI_VENDOR),
 	.hdr.n_descsz	= sizeof(int32_t),
@@ -1434,8 +1432,6 @@ struct phdr_closure {
 	Elf_Off offset;		/* Offset of segment in core file */
 };
 
-typedef void (*outfunc_t)(void *, struct sbuf *, size_t *);
-
 struct note_info {
 	int		type;		/* Note type. */
 	outfunc_t 	outfunc; 	/* Output function. */
@@ -1455,10 +1451,7 @@ static void each_dumpable_segment(struct thread *, segment_callback, void *,
     int);
 static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
     struct note_info_list *, size_t, int);
-static void __elfN(prepare_notes)(struct thread *, struct note_info_list *,
-    size_t *);
-static void __elfN(putnote)(struct note_info *, struct sbuf *);
-static size_t register_note(struct note_info_list *, int, outfunc_t, void *);
+static void __elfN(putnote)(struct thread *td, struct note_info *, struct sbuf *);
 
 static void __elfN(note_fpregset)(void *, struct sbuf *, size_t *);
 static void __elfN(note_prpsinfo)(void *, struct sbuf *, size_t *);
@@ -1509,7 +1502,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = sizeof(Elf_Ehdr) + sizeof(Elf_Phdr) * (1 + seginfo.count);
 	if (seginfo.count + 1 >= PN_XNUM)
 		hdrsize += sizeof(Elf_Shdr);
-	__elfN(prepare_notes)(td, &notelst, &notesz);
+	td->td_proc->p_sysent->sv_elf_core_prepare_notes(td, &notelst, &notesz);
 	coresize = round_page(hdrsize + notesz) + seginfo.size;
 
 	/* Set up core dump parameters. */
@@ -1735,7 +1728,7 @@ __elfN(corehdr)(struct coredump_params *p, int numsegs, void *hdr,
 	sbuf_start_section(sb, NULL);
 	sbuf_bcat(sb, hdr, hdrsize);
 	TAILQ_FOREACH(ninfo, notelst, link)
-	    __elfN(putnote)(ninfo, sb);
+	    __elfN(putnote)(p->td, ninfo, sb);
 	/* Align up to a page boundary for the program segments. */
 	sbuf_end_section(sb, -1, PAGE_SIZE, 0);
 	error = sbuf_finish(sb);
@@ -1744,7 +1737,7 @@ __elfN(corehdr)(struct coredump_params *p, int numsegs, void *hdr,
 	return (error);
 }
 
-static void
+void
 __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
     size_t *sizep)
 {
@@ -1755,7 +1748,7 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 	p = td->td_proc;
 	size = 0;
 
-	size += register_note(list, NT_PRPSINFO, __elfN(note_prpsinfo), p);
+	size += __elfN(register_note)(td, list, NT_PRPSINFO, __elfN(note_prpsinfo), p);
 
 	/*
 	 * To have the debugger select the right thread (LWP) as the initial
@@ -1765,15 +1758,15 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 	 */
 	thr = td;
 	while (thr != NULL) {
-		size += register_note(list, NT_PRSTATUS,
+		size += __elfN(register_note)(td, list, NT_PRSTATUS,
 		    __elfN(note_prstatus), thr);
-		size += register_note(list, NT_FPREGSET,
+		size += __elfN(register_note)(td, list, NT_FPREGSET,
 		    __elfN(note_fpregset), thr);
-		size += register_note(list, NT_THRMISC,
+		size += __elfN(register_note)(td, list, NT_THRMISC,
 		    __elfN(note_thrmisc), thr);
-		size += register_note(list, NT_PTLWPINFO,
+		size += __elfN(register_note)(td, list, NT_PTLWPINFO,
 		    __elfN(note_ptlwpinfo), thr);
-		size += register_note(list, -1,
+		size += __elfN(register_note)(td, list, -1,
 		    __elfN(note_threadmd), thr);
 
 		thr = thr == td ? TAILQ_FIRST(&p->p_threads) :
@@ -1782,23 +1775,23 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 			thr = TAILQ_NEXT(thr, td_plist);
 	}
 
-	size += register_note(list, NT_PROCSTAT_PROC,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_PROC,
 	    __elfN(note_procstat_proc), p);
-	size += register_note(list, NT_PROCSTAT_FILES,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_FILES,
 	    note_procstat_files, p);
-	size += register_note(list, NT_PROCSTAT_VMMAP,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_VMMAP,
 	    note_procstat_vmmap, p);
-	size += register_note(list, NT_PROCSTAT_GROUPS,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_GROUPS,
 	    note_procstat_groups, p);
-	size += register_note(list, NT_PROCSTAT_UMASK,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_UMASK,
 	    note_procstat_umask, p);
-	size += register_note(list, NT_PROCSTAT_RLIMIT,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_RLIMIT,
 	    note_procstat_rlimit, p);
-	size += register_note(list, NT_PROCSTAT_OSREL,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_OSREL,
 	    note_procstat_osrel, p);
-	size += register_note(list, NT_PROCSTAT_PSSTRINGS,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_PSSTRINGS,
 	    __elfN(note_procstat_psstrings), p);
-	size += register_note(list, NT_PROCSTAT_AUXV,
+	size += __elfN(register_note)(td, list, NT_PROCSTAT_AUXV,
 	    __elfN(note_procstat_auxv), p);
 
 	*sizep = size;
@@ -1822,7 +1815,7 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	ehdr->e_ident[EI_CLASS] = ELF_CLASS;
 	ehdr->e_ident[EI_DATA] = ELF_DATA;
 	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
-	ehdr->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
+	ehdr->e_ident[EI_OSABI] = td->td_proc->p_sysent->sv_elf_core_osabi;
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
@@ -1888,12 +1881,15 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	each_dumpable_segment(td, cb_put_phdr, &phc, flags);
 }
 
-static size_t
-register_note(struct note_info_list *list, int type, outfunc_t out, void *arg)
+size_t
+__elfN(register_note)(struct thread *td, struct note_info_list *list,
+    int type, outfunc_t out, void *arg)
 {
+	const struct sysentvec *sv;
 	struct note_info *ninfo;
 	size_t size, notesize;
 
+	sv = td->td_proc->p_sysent;
 	size = 0;
 	out(arg, NULL, &size);
 	ninfo = malloc(sizeof(*ninfo), M_TEMP, M_ZERO | M_WAITOK);
@@ -1907,7 +1903,7 @@ register_note(struct note_info_list *list, int type, outfunc_t out, void *arg)
 		return (size);
 
 	notesize = sizeof(Elf_Note) +		/* note header */
-	    roundup2(sizeof(FREEBSD_ABI_VENDOR), ELF_NOTE_ROUNDSIZE) +
+	    roundup2(strlen(sv->sv_elf_core_abi_vendor) + 1, ELF_NOTE_ROUNDSIZE) +
 						/* note name */
 	    roundup2(size, ELF_NOTE_ROUNDSIZE);	/* note description */
 
@@ -1957,9 +1953,10 @@ __elfN(populate_note)(int type, void *src, void *dst, size_t size, void **descp)
 }
 
 static void
-__elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
+__elfN(putnote)(struct thread *td, struct note_info *ninfo, struct sbuf *sb)
 {
 	Elf_Note note;
+	const struct sysentvec *sv;
 	ssize_t old_len, sect_len;
 	size_t new_len, descsz, i;
 
@@ -1968,13 +1965,16 @@ __elfN(putnote)(struct note_info *ninfo, struct sbuf *sb)
 		return;
 	}
 
-	note.n_namesz = sizeof(FREEBSD_ABI_VENDOR);
+	sv = td->td_proc->p_sysent;
+
+	note.n_namesz = strlen(sv->sv_elf_core_abi_vendor) + 1;
 	note.n_descsz = ninfo->outsize;
 	note.n_type = ninfo->type;
 
 	sbuf_bcat(sb, &note, sizeof(note));
 	sbuf_start_section(sb, &old_len);
-	sbuf_bcat(sb, FREEBSD_ABI_VENDOR, sizeof(FREEBSD_ABI_VENDOR));
+	sbuf_bcat(sb, sv->sv_elf_core_abi_vendor,
+	    strlen(sv->sv_elf_core_abi_vendor) + 1);
 	sbuf_end_section(sb, old_len, ELF_NOTE_ROUNDSIZE, 0);
 	if (note.n_descsz == 0)
 		return;
