@@ -35,9 +35,9 @@ __FBSDID("$FreeBSD$");
 void *
 memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 {
-        register const char *cur, *last;
-        const char *cl = (const char *)l;
-        const char *cs = (const char *)s;
+        register const unsigned char *cur, *last;
+        const unsigned char *cl = (const unsigned char *)l;
+        const unsigned char *cs = (const unsigned char *)s;
 
         /* we need something to compare */
         if (l_len == 0 || s_len == 0)
@@ -56,7 +56,7 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 
         for (cur = cl; cur <= last; cur++)
                 if (*cur == *cs && memcmp(cur, cs, s_len) == 0)
-                        return __DECONST(char *, cur);
+                        return __DECONST(void *, cur);
 
         return NULL;
 }
