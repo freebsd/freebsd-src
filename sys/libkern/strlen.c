@@ -119,5 +119,4 @@ size_t
 	}
 
 	/* NOTREACHED */
-	return (0);
 }
