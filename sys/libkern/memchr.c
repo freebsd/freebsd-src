@@ -42,11 +42,13 @@ void *
 memchr(const void *s, int c, size_t n)
 {
 	if (n != 0) {
-		const unsigned char *p = s;
+		const unsigned char *p = (const unsigned char *)s;
+		const unsigned char uc = (unsigned char)c;
 
 		do {
-			if (*p++ == (unsigned char)c)
-				return ((void *)(uintptr_t)(p - 1));
+			if (*p == uc)
+				return ((void *)p);
+			++p;
 		} while (--n != 0);
 	}
 	return (NULL);
