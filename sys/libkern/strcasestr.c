@@ -50,19 +50,20 @@ __FBSDID("$FreeBSD$");
 char *
 strcasestr(const char *s, const char *find)
 {
-	char c, sc;
-	size_t len;
+	char c;
 
-	if ((c = *find++) != 0) {
-		c = tolower((unsigned char)c);
-		len = strlen(find);
+	if ((c = *find) != '\0') {
+		const size_t len = strlen(++find);
+		c = (char)tolower((unsigned char)c);
 		do {
+			char sc;
 			do {
-				if ((sc = *s++) == 0)
+				if ((sc = *s) == '\0')
 					return (NULL);
+				++s;
 			} while ((char)tolower((unsigned char)sc) != c);
 		} while (strncasecmp(s, find, len) != 0);
-		s--;
+		--s;
 	}
 	return (__DECONST(char *, s));
 }
