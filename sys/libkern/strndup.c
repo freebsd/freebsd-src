@@ -42,6 +42,9 @@ strndup(const char *string, size_t maxlen, struct malloc_type *type)
 {
 	const size_t len = strnlen(string, maxlen);
 	char * const copy = (char *)malloc(len + 1, type, M_WAITOK);
+
+	(void)memcpy(copy, string, len);
 	copy[len] = '\0';
-	return (char *)memcpy(copy, string, len);
+
+	return copy;
 }
