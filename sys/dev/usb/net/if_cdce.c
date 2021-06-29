@@ -709,17 +709,17 @@ alloc_transfers:
 	if ((ued == NULL) || (ued->bLength < sizeof(*ued))) {
 		error = USB_ERR_INVAL;
 	} else {
+		/*
+		 * ECM 1.2 doesn't say it excludes the CRC, but states that it's
+		 * normally 1514, which excludes the CRC.
+		 */
+		DPRINTF("max segsize: %d\n", UGETW(ued->wMaxSegmentSize));
+		if (UGETW(ued->wMaxSegmentSize) >= (ETHER_MAX_LEN - ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN))
+			sc->sc_flags |= CDCE_FLAG_VLAN;
+
 		error = usbd_req_get_string_any(uaa->device, NULL, 
 		    eaddr_str, sizeof(eaddr_str), ued->iMacAddress);
 	}
-
-	/*
-	 * ECM 1.2 doesn't say it excludes the CRC, but states that it's
-	 * normally 1514, which excludes the CRC.
-	 */
-	DPRINTF("max segsize: %d\n", UGETW(ued->wMaxSegmentSize));
-	if (UGETW(ued->wMaxSegmentSize) >= (ETHER_MAX_LEN - ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN))
-		sc->sc_flags |= CDCE_FLAG_VLAN;
 
 	if (error) {
 		/* fake MAC address */
