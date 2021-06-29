@@ -5122,6 +5122,10 @@ pf_getstates(struct pfioc_nv *nv)
 	for (int i = 0; i < pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
+		/* Avoid taking the lock if there are no states in the row. */
+		if (LIST_EMPTY(&ih->states))
+			continue;
+
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
 			if (s->timeout == PFTM_UNLINKED)
