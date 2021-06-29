@@ -45,14 +45,14 @@ char *
 strstr(const char *s, const char *find)
 {
 	char c, sc;
-	size_t len;
 
-	if ((c = *find++) != 0) {
-		len = strlen(find);
+	if ((c = *find) != '\0') {
+		const size_t len = strlen(++find);
 		do {
 			do {
-				if ((sc = *s++) == '\0')
+				if ((sc = *s) == '\0')
 					return (NULL);
+				s++;
 			} while (sc != c);
 		} while (strncmp(s, find, len) != 0);
 		s--;
