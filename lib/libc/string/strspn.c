@@ -50,9 +50,10 @@ strspn(const char *s, const char *charset)
 		tbl[IDX(*charset)] |= BIT(*charset);
 	}
 
-	for (s1 = s; ; s1++) {
-		if ((tbl[IDX(*s1)] & BIT(*s1)) == 0)
+	const char* const s1 = s;
+	for (;; s++) {
+		if ((tbl[IDX(*s)] & BIT(*s)) == 0)
 			break;
 	}
-	return s1 - s;
+	return s - s1;
 }
