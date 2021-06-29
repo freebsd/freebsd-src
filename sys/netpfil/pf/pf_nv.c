@@ -875,7 +875,7 @@ errout:
 }
 
 static nvlist_t *
-pf_state_scrub_to_nvstate_scrub(const struct pf_state_scrub *scrub)
+pf_state_peer_to_nvstate_peer(const struct pf_state_peer *peer)
 {
 	nvlist_t *nvl;
 
@@ -883,43 +883,13 @@ pf_state_scrub_to_nvstate_scrub(const struct pf_state_scrub *scrub)
 	if (nvl == NULL)
 		return (NULL);
 
-	nvlist_add_bool(nvl, "timestamp", scrub->pfss_flags & PFSS_TIMESTAMP);
-	nvlist_add_number(nvl, "ttl", scrub->pfss_ttl);
-	nvlist_add_number(nvl, "ts_mod", scrub->pfss_ts_mod);
-
-	return (nvl);
-}
-
-static nvlist_t *
-pf_state_peer_to_nvstate_peer(const struct pf_state_peer *peer)
-{
-	nvlist_t *nvl, *tmp;
-
-	nvl = nvlist_create(0);
-	if (nvl == NULL)
-		return (NULL);
-
-	if (peer->scrub) {
-		tmp = pf_state_scrub_to_nvstate_scrub(peer->scrub);
-		if (tmp == NULL)
-			goto errout;
-		nvlist_add_nvlist(nvl, "scrub", tmp);
-		nvlist_destroy(tmp);
-	}
-
 	nvlist_add_number(nvl, "seqlo", peer->seqlo);
 	nvlist_add_number(nvl, "seqhi", peer->seqhi);
 	nvlist_add_number(nvl, "seqdiff", peer->seqdiff);
-	nvlist_add_number(nvl, "max_win", peer->max_win);
-	nvlist_add_number(nvl, "mss", peer->mss);
 	nvlist_add_number(nvl, "state", peer->state);
 	nvlist_add_number(nvl, "wscale", peer->wscale);
 
 	return (nvl);
-
-errout:
-	nvlist_destroy(nvl);
-	return (NULL);
 }
 
 nvlist_t *
@@ -989,9 +959,7 @@ pf_state_to_nvstate(const struct pf_state *s)
 
 	nvlist_add_number(nvl, "creatorid", s->creatorid);
 	nvlist_add_number(nvl, "direction", s->direction);
-	nvlist_add_number(nvl, "log", s->log);
 	nvlist_add_number(nvl, "state_flags", s->state_flags);
-	nvlist_add_number(nvl, "timeout", s->timeout);
 	if (s->src_node)
 		flags |= PFSYNC_FLAG_SRCNODE;
 	if (s->nat_src_node)
