@@ -43,31 +43,39 @@ __FBSDID("$FreeBSD$");
 int
 strcasecmp(const char *s1, const char *s2)
 {
-	const u_char *us1 = (const u_char *)s1, *us2 = (const u_char *)s2;
+	const unsigned char *us1 = (const u_char *)s1,
+	    *us2 = (const u_char *)s2;
 
-	while (tolower(*us1) == tolower(*us2)) {
-		if (*us1++ == '\0')
-			return (0);
-		us2++;
+	unsigned char u1, u2;
+
+	while ((u1 = tolower(*us1)) == (u2 = tolower(*us2))) {
+		if (u1 == '\0') {
+			return 0;
+		}
+		us1++, us2++;
 	}
-	return (tolower(*us1) - tolower(*us2));
+
+	return u1 - u2;
 }
 
 int
 strncasecmp(const char *s1, const char *s2, size_t n)
 {
-
 	if (n != 0) {
-		const u_char *us1 = (const u_char *)s1;
-		const u_char *us2 = (const u_char *)s2;
+		const unsigned char *us1 = (const u_char *)s1,
+		    *us2 = (const u_char *)s2;
+
+		unsigned char u1, u2;
 
 		do {
-			if (tolower(*us1) != tolower(*us2))
-				return (tolower(*us1) - tolower(*us2));
-			if (*us1++ == '\0')
+			if ((u1 = tolower(*us1)) != (u2 = tolower(*us2))) {
+				return u1 - u2;
+			}
+			if (u1 == '\0') {
 				break;
-			us2++;
+			}
+			us1++, us2++;
 		} while (--n != 0);
 	}
-	return (0);
+	return 0;
 }
