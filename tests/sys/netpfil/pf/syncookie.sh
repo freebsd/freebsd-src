@@ -27,6 +27,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "forward" "cleanup"
 forward_head()
 {
@@ -78,7 +80,54 @@ forward_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "nostate" "cleanup"
+nostate_head()
+{
+	atf_set descr 'Ensure that we do not create until SYN|ACK'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nostate_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"set syncookies always" \
+		"pass in" \
+		"pass out"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	# Now syn flood to create many states
+	${common_dir}/pft_synflood.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--count 20
+
+	states=$(jexec alcatraz pfctl -ss | grep tcp)
+	if [ -n "$states" ];
+	then
+		echo "$states"
+		atf_fail "Found unexpected state"
+	fi
+}
+
+nostate_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "forward"
+	atf_add_test_case "nostate"
 }
