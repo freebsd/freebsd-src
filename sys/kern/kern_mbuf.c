@@ -1525,6 +1525,16 @@ m_freem(struct mbuf *mb)
 		mb = m_free(mb);
 }
 
+/*
+ * Temporary primitive to allow freeing without going through m_free.
+ */
+void
+m_free_raw(struct mbuf *mb)
+{
+
+	uma_zfree(zone_mbuf, mb);
+}
+
 int
 m_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **mstp)
