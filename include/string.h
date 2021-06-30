@@ -99,7 +99,7 @@ size_t	 strlen(const char *) __pure;
 
 #ifndef _MODE_T_DECLARED
 typedef	__mode_t	mode_t;
-#define	_mode_T_DECLARED
+#define	_MODE_T_DECLARED
 #endif
 
 void	 strmode(mode_t, char *);
