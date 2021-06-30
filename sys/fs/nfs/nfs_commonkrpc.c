@@ -101,8 +101,8 @@ extern int nfscl_debuglevel;
 extern int nfsrv_lease;
 
 SVCPOOL		*nfscbd_pool;
+int		nfs_bufpackets = 4;
 static int	nfsrv_gsscallbackson = 0;
-static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
@@ -180,6 +180,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	struct thread *td = curthread;
 	SVCXPRT *xprt;
 	struct timeval timo;
+	uint64_t tval;
 
 	/*
 	 * We need to establish the socket using the credentials of
@@ -238,8 +239,21 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	do {
 	    if (error != 0 && pktscale > 2) {
 		if (nmp != NULL && nrp->nr_sotype == SOCK_STREAM &&
-		    pktscale == pktscalesav)
-		    printf("Consider increasing kern.ipc.maxsockbuf\n");
+		    pktscale == pktscalesav) {
+		    /*
+		     * Suggest vfs.nfs.bufpackets * maximum RPC message,
+		     * adjusted for the sb_max->sb_max_adj conversion of
+		     * MCLBYTES / (MSIZE + MCLBYTES) as the minimum setting
+		     * for kern.ipc.maxsockbuf.
+		     */
+		    tval = (NFS_MAXBSIZE + NFS_MAXXDR) * nfs_bufpackets;
+		    tval *= MSIZE + MCLBYTES;
+		    tval += MCLBYTES - 1; /* Round up divide by MCLBYTES. */
+		    tval /= MCLBYTES;
+		    printf("Consider increasing kern.ipc.maxsockbuf to a "
+			"minimum of %ju to support %ubyte NFS I/O\n",
+			(uintmax_t)tval, NFS_MAXBSIZE);
+		}
 		pktscale--;
 	    }
 	    if (nrp->nr_sotype == SOCK_DGRAM) {
@@ -255,10 +269,10 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		if (nrp->nr_sotype != SOCK_STREAM)
 			panic("nfscon sotype");
 		if (nmp != NULL) {
-			sndreserve = (NFS_MAXBSIZE + NFS_MAXXDR +
-			    sizeof (u_int32_t)) * pktscale;
-			rcvreserve = (NFS_MAXBSIZE + NFS_MAXXDR +
-			    sizeof (u_int32_t)) * pktscale;
+			sndreserve = (NFS_MAXBSIZE + NFS_MAXXDR) *
+			    pktscale;
+			rcvreserve = (NFS_MAXBSIZE + NFS_MAXXDR) *
+			    pktscale;
 		} else {
 			sndreserve = rcvreserve = 1024 * pktscale;
 		}
