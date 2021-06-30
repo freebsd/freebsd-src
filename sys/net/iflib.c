@@ -2238,7 +2238,7 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 			*sd_cl = NULL;
 			if (*sd_m != NULL) {
 				m_init(*sd_m, M_NOWAIT, MT_DATA, 0);
-				uma_zfree(zone_mbuf, *sd_m);
+				m_free_raw(*sd_m);
 				*sd_m = NULL;
 			}
 		} else {
