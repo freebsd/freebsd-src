@@ -351,6 +351,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	tf->tf_svc_lr = 0x77777777;
 	tf->tf_pc = imgp->entry_addr;
 	tf->tf_spsr = PSR_USR32_MODE;
+	if ((register_t)imgp->entry_addr & 1)
+		tf->tf_spsr |= PSR_T;
 }
 
 #ifdef VFP
