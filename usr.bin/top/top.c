@@ -53,6 +53,7 @@ typedef void sigret_t;
 static char stdoutbuf[Buffersize];
 
 static int fmt_flags = 0;
+int show_args = false;
 int pcpu_stats = false;
 
 /* signal handling routines */
@@ -907,6 +908,19 @@ restart:
 				}
 				break;
 
+			    case CMD_grep: /* grep command name */
+				new_message(MT_standout,
+				    "Grep command name: ");
+				if (readline(tempbuf1, sizeof(tempbuf1), false) > 0) {
+					free(ps.command);
+					if (tempbuf1[0] == '+' && tempbuf1[1] == '\0') {
+						ps.command = NULL;
+					} else if ((ps.command = strdup(tempbuf1)) == NULL)
+						quit(1);
+				}
+				clear_message();
+				break;
+
 			    case CMD_displays:	/* change display count */
 				new_message(MT_standout,
 					"Displays to show (currently %s): ",
@@ -1025,6 +1039,7 @@ restart:
 				break;
 			    case CMD_showargs:
 				fmt_flags ^= FMT_SHOWARGS;
+				show_args = fmt_flags & FMT_SHOWARGS;
 				new_message(MT_standout | MT_delayed,
 				    " %sisplaying process arguments.",
 				    fmt_flags & FMT_SHOWARGS ? "D" : "Not d");

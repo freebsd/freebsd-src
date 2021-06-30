@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-var.mk,v 1.5 2020/11/15 14:58:14 rillig Exp $
+# $NetBSD: cond-token-var.mk,v 1.6 2021/04/25 21:05:38 rillig Exp $
 #
 # Tests for variable expressions in .if conditions.
 #
@@ -45,4 +45,25 @@ DEF=	defined
 # The :U modifier turns an undefined expression into a defined expression.
 # Since the expression is defined now, it doesn't generate any parse error.
 .if ${UNDEF:U}
+.endif
+
+# If the value of the variable expression is a number, it is compared against
+# zero.
+.if ${:U0}
+.  error
+.endif
+.if !${:U1}
+.  error
+.endif
+
+# If the value of the variable expression is not a number, any non-empty
+# value evaluates to true, even if there is only whitespace.
+.if ${:U}
+.  error
+.endif
+.if !${:U }
+.  error
+.endif
+.if !${:Uanything}
+.  error
 .endif

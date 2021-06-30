@@ -213,6 +213,13 @@ SUBDIR.${MK_TESTS}+=	tests
 
 .include <bsd.arch.inc.mk>
 
+# Add architecture-specific manpages
+# to be included anyway
+MAN=   apmd/apmd.8 \
+       nvram/nvram.8
+
+.include <bsd.prog.mk>
+
 SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

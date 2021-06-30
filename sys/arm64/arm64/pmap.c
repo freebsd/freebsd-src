@@ -3130,8 +3130,8 @@ pmap_remove_all(vm_page_t m)
 	SLIST_INIT(&free);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : page_to_pvh(m);
-retry:
 	rw_wlock(lock);
+retry:
 	while ((pv = TAILQ_FIRST(&pvh->pv_list)) != NULL) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -3140,7 +3140,6 @@ retry:
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
 			if (pvh_gen != pvh->pv_gen) {
-				rw_wunlock(lock);
 				PMAP_UNLOCK(pmap);
 				goto retry;
 			}
@@ -3151,7 +3150,6 @@ retry:
 		    ("pmap_remove_all: no page table entry found"));
 		KASSERT(lvl == 2,
 		    ("pmap_remove_all: invalid pte level %d", lvl));
-
 		pmap_demote_l2_locked(pmap, pte, va, &lock);
 		PMAP_UNLOCK(pmap);
 	}
@@ -3165,7 +3163,6 @@ retry:
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
 			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
-				rw_wunlock(lock);
 				PMAP_UNLOCK(pmap);
 				goto retry;
 			}
@@ -5224,8 +5221,8 @@ pmap_remove_write(vm_page_t m)
 		return;
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : page_to_pvh(m);
-retry_pv_loop:
 	rw_wlock(lock);
+retry:
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
 		PMAP_ASSERT_STAGE1(pmap);
@@ -5236,12 +5233,11 @@ retry_pv_loop:
 			rw_wlock(lock);
 			if (pvh_gen != pvh->pv_gen) {
 				PMAP_UNLOCK(pmap);
-				rw_wunlock(lock);
-				goto retry_pv_loop;
+				goto retry;
 			}
 		}
 		va = pv->pv_va;
-		pte = pmap_pte(pmap, pv->pv_va, &lvl);
+		pte = pmap_pte(pmap, va, &lvl);
 		if ((pmap_load(pte) & ATTR_SW_DBM) != 0)
 			(void)pmap_demote_l2_locked(pmap, pte, va, &lock);
 		KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
@@ -5261,17 +5257,15 @@ retry_pv_loop:
 			if (pvh_gen != pvh->pv_gen ||
 			    md_gen != m->md.pv_gen) {
 				PMAP_UNLOCK(pmap);
-				rw_wunlock(lock);
-				goto retry_pv_loop;
+				goto retry;
 			}
 		}
 		pte = pmap_pte(pmap, pv->pv_va, &lvl);
 		oldpte = pmap_load(pte);
-retry:
 		if ((oldpte & ATTR_SW_DBM) != 0) {
-			if (!atomic_fcmpset_long(pte, &oldpte,
+			while (!atomic_fcmpset_64(pte, &oldpte,
 			    (oldpte | ATTR_S1_AP_RW_BIT) & ~ATTR_SW_DBM))
-				goto retry;
+				cpu_spinwait();
 			if ((oldpte & ATTR_S1_AP_RW_BIT) ==
 			    ATTR_S1_AP(ATTR_S1_AP_RW))
 				vm_page_dirty(m);
@@ -6010,7 +6004,8 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		CTR2(KTR_PMAP, "pmap_demote_l1: failure for va %#lx"
 		    " in pmap %p", va, pmap);
-		return (NULL);
+		l2 = NULL;
+		goto fail;
 	}
 
 	l2phys = VM_PAGE_TO_PHYS(ml2);
@@ -6039,6 +6034,7 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 
 	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va, PAGE_SIZE);
 
+fail:
 	if (tmpl1 != 0) {
 		pmap_kremove(tmpl1);
 		kva_free(tmpl1, PAGE_SIZE);

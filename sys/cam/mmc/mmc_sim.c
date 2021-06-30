@@ -204,9 +204,9 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 	snprintf(mtx_name, sizeof(mtx_name), "%s_mtx", name);
 
 	mtx_init(&mmc_sim->mtx, sim_name, NULL, MTX_DEF);
-	mmc_sim->sim = cam_sim_alloc_dev(mmc_cam_sim_default_action,
+	mmc_sim->sim = cam_sim_alloc(mmc_cam_sim_default_action,
 	    mmc_cam_default_poll,
-	    name, mmc_sim, dev,
+	    name, mmc_sim, device_get_unit(dev),
 	    &mmc_sim->mtx, 1, 1, mmc_sim->devq);
 
 	if (mmc_sim->sim == NULL) {

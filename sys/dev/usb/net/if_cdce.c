@@ -111,6 +111,10 @@ static uether_fn_t cdce_stop;
 static uether_fn_t cdce_start;
 static uether_fn_t cdce_setmulti;
 static uether_fn_t cdce_setpromisc;
+static int cdce_attach_post_sub(struct usb_ether *);
+static int cdce_ioctl(struct ifnet *, u_long, caddr_t);
+static int cdce_media_change_cb(struct ifnet *);
+static void cdce_media_status_cb(struct ifnet *, struct ifmediareq *);
 
 static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 
@@ -124,6 +128,8 @@ SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RWTUN, &cdce_debug, 0,
     "Debug level");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, interval, CTLFLAG_RWTUN, &cdce_tx_interval, 0,
     "NCM transmit interval in ms");
+#else
+#define cdce_debug 0
 #endif
 
 static const struct usb_config cdce_config[CDCE_N_TRANSFER] = {
@@ -307,6 +313,7 @@ USB_PNP_DUAL_INFO(cdce_dual_devs);
 
 static const struct usb_ether_methods cdce_ue_methods = {
 	.ue_attach_post = cdce_attach_post,
+	.ue_attach_post_sub = cdce_attach_post_sub,
 	.ue_start = cdce_start,
 	.ue_init = cdce_init,
 	.ue_stop = cdce_stop,
@@ -561,6 +568,36 @@ cdce_attach_post(struct usb_ether *ue)
 }
 
 static int
+cdce_attach_post_sub(struct usb_ether *ue)
+{
+	struct cdce_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
+
+	/* mostly copied from usb_ethernet.c */
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_start = uether_start;
+	ifp->if_ioctl = cdce_ioctl;
+	ifp->if_init = uether_init;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
+	IFQ_SET_READY(&ifp->if_snd);
+
+	if ((sc->sc_flags & CDCE_FLAG_VLAN) == CDCE_FLAG_VLAN)
+		if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+
+	if_setcapabilitiesbit(ifp, IFCAP_LINKSTATE, 0);
+	if_setcapenable(ifp, if_getcapabilities(ifp));
+
+	ifmedia_init(&sc->sc_media, IFM_IMASK, cdce_media_change_cb,
+	    cdce_media_status_cb);
+	ifmedia_add(&sc->sc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->sc_media, IFM_ETHER | IFM_AUTO);
+	sc->sc_media.ifm_media = sc->sc_media.ifm_cur->ifm_media;
+
+	return 0;
+}
+
+static int
 cdce_attach(device_t dev)
 {
 	struct cdce_softc *sc = device_get_softc(dev);
@@ -672,6 +709,14 @@ alloc_transfers:
 	if ((ued == NULL) || (ued->bLength < sizeof(*ued))) {
 		error = USB_ERR_INVAL;
 	} else {
+		/*
+		 * ECM 1.2 doesn't say it excludes the CRC, but states that it's
+		 * normally 1514, which excludes the CRC.
+		 */
+		DPRINTF("max segsize: %d\n", UGETW(ued->wMaxSegmentSize));
+		if (UGETW(ued->wMaxSegmentSize) >= (ETHER_MAX_LEN - ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN))
+			sc->sc_flags |= CDCE_FLAG_VLAN;
+
 		error = usbd_req_get_string_any(uaa->device, NULL, 
 		    eaddr_str, sizeof(eaddr_str), ued->iMacAddress);
 	}
@@ -742,6 +787,8 @@ cdce_detach(device_t dev)
 	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
+	ifmedia_removeall(&sc->sc_media);
+
 	return (0);
 }
 
@@ -757,6 +804,29 @@ cdce_start(struct usb_ether *ue)
 	usbd_transfer_start(sc->sc_xfer[CDCE_BULK_RX]);
 }
 
+static int
+cdce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+{
+	struct usb_ether *ue = ifp->if_softc;
+	struct cdce_softc *sc = uether_getsc(ue);
+	struct ifreq *ifr = (struct ifreq *)data;
+	int error;
+
+	error = 0;
+
+	switch(command) {
+	case SIOCGIFMEDIA:
+	case SIOCSIFMEDIA:
+		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
+		break;
+	default:
+		error = uether_ioctl(ifp, command, data);
+		break;
+	}
+
+	return (error);
+}
+
 static void
 cdce_free_queue(struct mbuf **ppm, uint8_t n)
 {
@@ -767,6 +837,26 @@ cdce_free_queue(struct mbuf **ppm, uint8_t n)
 			ppm[x] = NULL;
 		}
 	}
+}
+
+static int
+cdce_media_change_cb(struct ifnet *ifp)
+{
+
+	return (EOPNOTSUPP);
+}
+
+static void
+cdce_media_status_cb(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+
+	if ((if_getflags(ifp) & IFF_UP) == 0)
+		return;
+
+	ifmr->ifm_active = IFM_ETHER;
+	ifmr->ifm_status = IFM_AVALID;
+	ifmr->ifm_status |=
+	    ifp->if_link_state == LINK_STATE_UP ? IFM_ACTIVE : 0;
 }
 
 static void
@@ -1043,17 +1133,69 @@ tr_stall:
 static void
 cdce_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct cdce_softc *sc = usbd_xfer_softc(xfer);
-	int actlen;
+	u_char buf[CDCE_IND_SIZE_MAX];
+	struct usb_cdc_notification ucn;
+	struct cdce_softc *sc;
+	struct ifnet *ifp;
+	struct usb_page_cache *pc;
+	int off, actlen;
+	uint32_t downrate, uprate;
+
+	sc = usbd_xfer_softc(xfer);
+	ifp = uether_getifp(&sc->sc_ue);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
+		if (USB_DEBUG_VAR)
+			usbd_copy_out(pc, 0, buf, MIN(actlen, sizeof buf));
+		DPRINTF("Received %d bytes: %*D\n", actlen,
+		    (int)MIN(actlen, sizeof buf), buf, "");
 
-		DPRINTF("Received %d bytes\n", actlen);
+		off = 0;
+		while (actlen - off >= UCDC_NOTIFICATION_LENGTH) {
+			usbd_copy_out(pc, off, &ucn, UCDC_NOTIFICATION_LENGTH);
 
-		/* TODO: decode some indications */
+			do {
+				if (ucn.bmRequestType != 0xa1)
+					break;
+
+				switch (ucn.bNotification) {
+				case UCDC_N_NETWORK_CONNECTION:
+					DPRINTF("changing link state: %d\n",
+					    UGETW(ucn.wValue));
+					if_link_state_change(ifp,
+					    UGETW(ucn.wValue) ? LINK_STATE_UP :
+					    LINK_STATE_DOWN);
+					break;
+
+				case UCDC_N_CONNECTION_SPEED_CHANGE:
+					if (UGETW(ucn.wLength) != 8)
+						break;
+
+					usbd_copy_out(pc, off +
+					    UCDC_NOTIFICATION_LENGTH,
+					    &ucn.data, UGETW(ucn.wLength));
+					downrate = UGETDW(ucn.data);
+					uprate = UGETDW(ucn.data);
+					if (downrate != uprate)
+						break;
+
+					/* set rate */
+					DPRINTF("changing baudrate: %u\n",
+					    downrate);
+					if_setbaudrate(ifp, downrate);
+					break;
+
+				default:
+					break;
+				}
+			} while (0);
+
+			off += UCDC_NOTIFICATION_LENGTH + UGETW(ucn.wLength);
+		}
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:

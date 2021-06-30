@@ -94,7 +94,6 @@ struct cam_sim {
 	const char		*sim_name;
 	void			*softc;
 	struct mtx		*mtx;
-	TAILQ_HEAD(, ccb_hdr)	sim_doneq;
 	TAILQ_ENTRY(cam_sim)	links;
 	u_int32_t		path_id;/* The Boot device may set this to 0? */
 	u_int32_t		unit_number;
@@ -104,7 +103,6 @@ struct cam_sim {
 	u_int32_t		flags;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
-	device_t		sim_dev; /* For attached peripherals. */
 };
 
 static __inline u_int32_t

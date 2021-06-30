@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.141 2021/02/04 21:33:13 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.142 2021/04/03 11:08:40 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -58,7 +58,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.141 2021/02/04 21:33:13 rillig Exp $");
+MAKE_RCSID("$NetBSD: for.c,v 1.142 2021/04/03 11:08:40 rillig Exp $");
 
 
 /* One of the variables to the left of the "in" in a .for loop. */
@@ -75,7 +75,7 @@ typedef struct ForLoop {
 	/* Is any of the names 1 character long? If so, when the variable values
 	 * are substituted, the parser must handle $V expressions as well, not
 	 * only ${V} and $(V). */
-	Boolean short_var;
+	bool short_var;
 	unsigned int sub_next;	/* Where to continue iterating */
 } ForLoop;
 
@@ -94,7 +94,7 @@ ForLoop_New(void)
 	f->items.words = NULL;
 	f->items.freeIt = NULL;
 	Buf_Init(&f->curBody);
-	f->short_var = FALSE;
+	f->short_var = false;
 	f->sub_next = 0;
 
 	return f;
@@ -125,7 +125,7 @@ ForLoop_AddVar(ForLoop *f, const char *name, size_t len)
 	var->nameLen = len;
 }
 
-static Boolean
+static bool
 ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 {
 	const char *p = *pp;
@@ -136,7 +136,7 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 		cpp_skip_whitespace(&p);
 		if (*p == '\0') {
 			Parse_Error(PARSE_FATAL, "missing `in' in for");
-			return FALSE;
+			return false;
 		}
 
 		/*
@@ -151,7 +151,7 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 			break;
 		}
 		if (len == 1)
-			f->short_var = TRUE;
+			f->short_var = true;
 
 		ForLoop_AddVar(f, p, len);
 		p += len;
@@ -159,14 +159,14 @@ ForLoop_ParseVarnames(ForLoop *f, const char **pp)
 
 	if (f->vars.len == 0) {
 		Parse_Error(PARSE_FATAL, "no iteration variables in for");
-		return FALSE;
+		return false;
 	}
 
 	*pp = p;
-	return TRUE;
+	return true;
 }
 
-static Boolean
+static bool
 ForLoop_ParseItems(ForLoop *f, const char *p)
 {
 	char *items;
@@ -175,10 +175,10 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 
 	if (Var_Subst(p, SCOPE_GLOBAL, VARE_WANTRES, &items) != VPR_OK) {
 		Parse_Error(PARSE_FATAL, "Error in .for loop items");
-		return FALSE;
+		return false;
 	}
 
-	f->items = Str_Words(items, FALSE);
+	f->items = Str_Words(items, false);
 	free(items);
 
 	if (f->items.len == 1 && f->items.words[0][0] == '\0')
@@ -189,19 +189,19 @@ ForLoop_ParseItems(ForLoop *f, const char *p)
 		    "Wrong number of words (%u) in .for "
 		    "substitution list with %u variables",
 		    (unsigned)f->items.len, (unsigned)f->vars.len);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
-static Boolean
+static bool
 IsFor(const char *p)
 {
 	return p[0] == 'f' && p[1] == 'o' && p[2] == 'r' && ch_isspace(p[3]);
 }
 
-static Boolean
+static bool
 IsEndfor(const char *p)
 {
 	return p[0] == 'e' && strncmp(p, "endfor", 6) == 0 &&
@@ -257,9 +257,9 @@ For_Eval(const char *line)
 
 /*
  * Add another line to the .for loop that is being built up.
- * Returns FALSE when the matching .endfor is reached.
+ * Returns false when the matching .endfor is reached.
  */
-Boolean
+bool
 For_Accum(const char *line)
 {
 	const char *p = line;
@@ -271,7 +271,7 @@ For_Accum(const char *line)
 		if (IsEndfor(p)) {
 			DEBUG1(FOR, "For: end for %d\n", forLevel);
 			if (--forLevel <= 0)
-				return FALSE;
+				return false;
 		} else if (IsFor(p)) {
 			forLevel++;
 			DEBUG1(FOR, "For: new loop %d\n", forLevel);
@@ -280,7 +280,7 @@ For_Accum(const char *line)
 
 	Buf_AddStr(&accumFor->body, line);
 	Buf_AddByte(&accumFor->body, '\n');
-	return TRUE;
+	return true;
 }
 
 
@@ -319,16 +319,16 @@ for_var_len(const char *var)
  * The .for loop substitutes the items as ${:U<value>...}, which means
  * that characters that break this syntax must be backslash-escaped.
  */
-static Boolean
+static bool
 NeedsEscapes(const char *value, char endc)
 {
 	const char *p;
 
 	for (p = value; *p != '\0'; p++) {
 		if (*p == ':' || *p == '$' || *p == '\\' || *p == endc)
-			return TRUE;
+			return true;
 	}
-	return FALSE;
+	return false;
 }
 
 /*

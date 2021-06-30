@@ -1,6 +1,6 @@
-make: Bad modifier `:tx' for LIST
+make: Bad modifier ":tx" for variable "LIST"
 LIST:tx="}"
-make: Bad modifier `:ts\X' for LIST
+make: Bad modifier ":ts\X" for variable "LIST"
 LIST:ts/x:tu="\X:tu}"
 FU_mod-ts="a/b/cool"
 FU_mod-ts:ts:T="cool" == cool?

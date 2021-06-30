@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/user.h>
 
@@ -107,7 +108,7 @@ static int lkpi_net_maxpps = 99;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, net_ratelimit, CTLFLAG_RWTUN,
     &lkpi_net_maxpps, 0, "Limit number of LinuxKPI net messages per second.");
 
-MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
+MALLOC_DEFINE(M_KMALLOC, "lkpikmalloc", "Linux kmalloc compat");
 
 #include <linux/rbtree.h>
 /* Undo Linux compat changes. */
@@ -963,8 +964,8 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 		/* fetch user-space pointer */
 		data = *(void **)data;
 	}
-#if defined(__amd64__)
-	if (td->td_proc->p_elf_machine == EM_386) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		/* try the compat IOCTL handler first */
 		if (fop->compat_ioctl != NULL) {
 			error = -OPW(fp, td, fop->compat_ioctl(filp,

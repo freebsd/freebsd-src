@@ -1732,11 +1732,15 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
-	/* pf_state_insert() initialises refs to 2, so we can never release the
-	 * last reference here, only in pf_release_state(). */
-	(void)refcount_release(&s->refs);
+	/* pf_state_insert() initialises refs to 2 */
+	return (pf_release_staten(s, 2));
+}
 
-	return (pf_release_state(s));
+struct pf_state *
+pf_alloc_state(int flags)
+{
+
+	return (uma_zalloc(V_pf_state_z, flags | M_ZERO));
 }
 
 void
@@ -1746,11 +1750,6 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-
-	for (int i = 0; i < 2; i++) {
-		counter_u64_free(cur->bytes[i]);
-		counter_u64_free(cur->packets[i]);
-	}
 
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
@@ -3733,20 +3732,10 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		REASON_SET(&reason, PFRES_SRCLIMIT);
 		goto csfailed;
 	}
-	s = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO);
+	s = pf_alloc_state(M_NOWAIT);
 	if (s == NULL) {
 		REASON_SET(&reason, PFRES_MEMORY);
 		goto csfailed;
-	}
-	for (int i = 0; i < 2; i++) {
-		s->bytes[i] = counter_u64_alloc(M_NOWAIT);
-		s->packets[i] = counter_u64_alloc(M_NOWAIT);
-
-		if (s->bytes[i] == NULL || s->packets[i] == NULL) {
-			pf_free_state(s);
-			REASON_SET(&reason, PFRES_MEMORY);
-			goto csfailed;
-		}
 	}
 	s->rule.ptr = r;
 	s->nat_rule.ptr = nr;
@@ -3818,7 +3807,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			REASON_SET(&reason, PFRES_MAPFAILED);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
-			uma_zfree(V_pf_state_z, s);
+			pf_free_state(s);
 			goto csfailed;
 		}
 		s->rt_kif = r->rpool.cur->kif;
@@ -3840,7 +3829,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			REASON_SET(&reason, PFRES_MEMORY);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
-			uma_zfree(V_pf_state_z, s);
+			pf_free_state(s);
 			return (PF_DROP);
 		}
 		if ((pd->flags & PFDESC_TCP_NORM) && s->src.scrub &&
@@ -3850,10 +3839,9 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    ("pf_normalize_tcp_stateful failed on first "
 			     "pkt\n"));
-			pf_normalize_tcp_cleanup(s);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
-			uma_zfree(V_pf_state_z, s);
+			pf_free_state(s);
 			return (PF_DROP);
 		}
 	}
@@ -3877,12 +3865,10 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pf_state_insert(BOUND_IFACE(r, kif), kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
-		if (pd->proto == IPPROTO_TCP)
-			pf_normalize_tcp_cleanup(s);
 		REASON_SET(&reason, PFRES_STATEINS);
 		pf_src_tree_remove_state(s);
 		STATE_DEC_COUNTERS(s);
-		uma_zfree(V_pf_state_z, s);
+		pf_free_state(s);
 		return (PF_DROP);
 	} else
 		*sm = s;
@@ -4307,9 +4293,8 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 			pf_print_flags(th->th_flags);
 			printf(" seq=%u (%u) ack=%u len=%u ackskew=%d "
 			    "pkts=%llu:%llu dir=%s,%s\n", seq, orig_seq, ack,
-			    pd->p_len, ackskew,
-			    (unsigned long long)counter_u64_fetch((*state)->packets[0]),
-			    (unsigned long long)counter_u64_fetch((*state)->packets[1]),
+			    pd->p_len, ackskew, (unsigned long long)(*state)->packets[0],
+			    (unsigned long long)(*state)->packets[1],
 			    pd->dir == PF_IN ? "in" : "out",
 			    pd->dir == (*state)->direction ? "fwd" : "rev");
 		}
@@ -4364,8 +4349,8 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 			printf(" seq=%u (%u) ack=%u len=%u ackskew=%d "
 			    "pkts=%llu:%llu dir=%s,%s\n",
 			    seq, orig_seq, ack, pd->p_len, ackskew,
-			    (unsigned long long)counter_u64_fetch((*state)->packets[0]),
-			    (unsigned long long)counter_u64_fetch((*state)->packets[1]),
+			    (unsigned long long)(*state)->packets[0],
+			    (unsigned long long)(*state)->packets[1],
 			    pd->dir == PF_IN ? "in" : "out",
 			    pd->dir == (*state)->direction ? "fwd" : "rev");
 			printf("pf: State failure on: %c %c %c %c | %c %c\n",
@@ -6270,8 +6255,8 @@ done:
 				    pd.tot_len);
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
-			counter_u64_add(s->packets[dirndx], 1);
-			counter_u64_add(s->bytes[dirndx], pd.tot_len);
+			s->packets[dirndx]++;
+			s->bytes[dirndx] += pd.tot_len;
 		}
 		tr = r;
 		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;
@@ -6312,10 +6297,11 @@ done:
 		}
 		break;
 	}
-	if (s)
-		PF_STATE_UNLOCK(s);
 
 	SDT_PROBE4(pf, ip, test, done, action, reason, r, s);
+
+	if (s)
+		PF_STATE_UNLOCK(s);
 
 	return (action);
 }
@@ -6667,8 +6653,8 @@ done:
 				    pd.tot_len);
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
-			counter_u64_add(s->packets[dirndx], 1);
-			counter_u64_add(s->bytes[dirndx], pd.tot_len);
+			s->packets[dirndx]++;
+			s->bytes[dirndx] += pd.tot_len;
 		}
 		tr = r;
 		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;

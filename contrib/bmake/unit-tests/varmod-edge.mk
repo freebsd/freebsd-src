@@ -1,4 +1,4 @@
-# $NetBSD: varmod-edge.mk,v 1.13 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: varmod-edge.mk,v 1.16 2021/02/23 15:56:30 rillig Exp $
 #
 # Tests for edge cases in variable modifiers.
 #
@@ -51,7 +51,7 @@ TESTS+=		M-nest-mix
 INP.M-nest-mix=	(parentheses)
 MOD.M-nest-mix=	${INP.M-nest-mix:M${:U*)}}
 EXP.M-nest-mix=	(parentheses)}
-# make: Unclosed variable specification (expecting '}') for "" (value "*)") modifier U
+# make: Unclosed variable expression, expecting '}' for modifier "U*)" of variable "" with value "*)"
 
 # In contrast to parentheses and braces, the brackets are not counted
 # when the :M modifier is parsed since Makefile variables only take the
@@ -168,6 +168,28 @@ EXP.colons=	# empty
 .    warning error in ${test}: expected "${EXP.${test}}", got "${MOD.${test}}"
 .  endif
 .endfor
+
+# Even in expressions based on an unnamed variable, there may be errors.
+# XXX: The error message should mention the variable name of the expression,
+# even though that name is empty in this case.
+.if ${:Z}
+.  error
+.else
+.  error
+.endif
+
+# Even in expressions based on an unnamed variable, there may be errors.
+#
+# Before var.c 1.842 from 2021-02-23, the error message did not surround the
+# variable name with quotes, leading to the rather confusing "Unfinished
+# modifier for  (',' missing)", having two spaces in a row.
+#
+# XXX: The error message should report the filename:lineno.
+.if ${:S,}
+.  error
+.else
+.  error
+.endif
 
 all:
 	@echo ok

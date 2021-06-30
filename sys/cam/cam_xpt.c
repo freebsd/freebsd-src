@@ -930,9 +930,9 @@ xpt_init(void *dummy)
 	if (xpt_sim == NULL)
 		return (ENOMEM);
 
-	if ((status = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
-		printf("xpt_init: xpt_bus_register failed with status %#x,"
-		       " failing attach\n", status);
+	if ((error = xpt_bus_register(xpt_sim, NULL, 0)) != CAM_SUCCESS) {
+		printf("xpt_init: xpt_bus_register failed with errno %d,"
+		       " failing attach\n", error);
 		return (EINVAL);
 	}
 
@@ -3669,14 +3669,14 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 	return (status);
 }
 
-cam_status
+int
 xpt_clone_path(struct cam_path **new_path_ptr, struct cam_path *path)
 {
 	struct	   cam_path *new_path;
 
 	new_path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_NOWAIT);
 	if (new_path == NULL)
-		return(CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	*new_path = *path;
 	if (path->bus != NULL)
 		xpt_acquire_bus(path->bus);
@@ -3685,7 +3685,7 @@ xpt_clone_path(struct cam_path **new_path_ptr, struct cam_path *path)
 	if (path->device != NULL)
 		xpt_acquire_device(path->device);
 	*new_path_ptr = new_path;
-	return (CAM_REQ_CMP);
+	return (0);
 }
 
 void
@@ -3999,8 +3999,8 @@ CAM_XPT_XPORT(xport_default);
  * information specified by the user.  Once interrupt services are
  * available, the bus will be probed.
  */
-int32_t
-xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
+int
+xpt_bus_register(struct cam_sim *sim, device_t parent, uint32_t bus)
 {
 	struct cam_eb *new_bus;
 	struct cam_eb *old_bus;
@@ -4013,7 +4013,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 					  M_CAMXPT, M_NOWAIT|M_ZERO);
 	if (new_bus == NULL) {
 		/* Couldn't satisfy request */
-		return (CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	}
 
 	mtx_init(&new_bus->eb_mtx, "CAM bus lock", NULL, MTX_DEF);
@@ -4024,6 +4024,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	new_bus->flags = 0;
 	new_bus->refcount = 1;	/* Held until a bus_deregister event */
 	new_bus->generation = 0;
+	new_bus->parent_dev = parent;
 
 	xpt_lock_buses();
 	sim->path_id = new_bus->path_id =
@@ -4050,7 +4051,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		xpt_release_bus(new_bus);
-		return (CAM_RESRC_UNAVAIL);
+		return (ENOMEM);
 	}
 
 	xpt_path_inq(&cpi, path);
@@ -4069,7 +4070,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 			    "No transport found for %d\n", cpi.transport);
 			xpt_release_bus(new_bus);
 			free(path, M_CAMXPT);
-			return (CAM_RESRC_UNAVAIL);
+			return (EINVAL);
 		}
 	}
 
@@ -4098,7 +4099,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	return (CAM_SUCCESS);
 }
 
-int32_t
+int
 xpt_bus_deregister(path_id_t pathid)
 {
 	struct cam_path bus_path;
@@ -4107,7 +4108,7 @@ xpt_bus_deregister(path_id_t pathid)
 	status = xpt_compile_path(&bus_path, NULL, pathid,
 				  CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP)
-		return (status);
+		return (ENOMEM);
 
 	xpt_async(AC_LOST_DEVICE, &bus_path, NULL);
 	xpt_async(AC_PATH_DEREGISTERED, &bus_path, NULL);
@@ -4116,7 +4117,7 @@ xpt_bus_deregister(path_id_t pathid)
 	xpt_release_bus(bus_path.bus);
 	xpt_release_path(&bus_path);
 
-	return (CAM_REQ_CMP);
+	return (CAM_SUCCESS);
 }
 
 static path_id_t
@@ -4396,7 +4397,7 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		return;
 	}
 
-	if (xpt_clone_path(&ccb->ccb_h.path, path) != CAM_REQ_CMP) {
+	if (xpt_clone_path(&ccb->ccb_h.path, path) != 0) {
 		xpt_print(path, "Can't allocate path to send %s\n",
 		    xpt_async_string(async_code));
 		xpt_free_ccb(ccb);
@@ -5573,6 +5574,22 @@ camisr_runqueue(void)
 	}
 }
 
+/**
+ * @brief Return the device_t associated with the path
+ *
+ * When a SIM is created, it registers a bus with a NEWBUS device_t. This is
+ * stored in the internal cam_eb bus structure. There is no guarnatee any given
+ * path will have a @c device_t associated with it (it's legal to call @c
+ * xpt_bus_register with a @c NULL @c device_t.
+ *
+ * @param path		Path to return the device_t for.
+ */
+device_t
+xpt_path_sim_device(const struct cam_path *path)
+{
+	return (path->bus->parent_dev);
+}
+
 struct kv 
 {
 	uint32_t v;
@@ -5625,7 +5642,7 @@ static struct kv map[] = {
 };
 
 const char *
-xpt_action_name(uint32_t action) 
+xpt_action_name(uint32_t action)
 {
 	static char buffer[32];	/* Only for unknown messages -- racy */
 	struct kv *walker = map;

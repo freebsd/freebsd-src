@@ -4052,7 +4052,7 @@ OLD_FILES+=boot/lua/logo-orbbw.lua
 OLD_LIBS+=lib/libzfs.so.3
 OLD_LIBS+=usr/lib32/libzfs.so.3
 OLD_FILES+=usr/share/man/man1/zstreamdump.1.gz
-OLD_FILES+=usr/share/man/man7/zpool-features.7.gz
+#OLD_FILES+=usr/share/man/man7/zpool-features.7.gz
 
 # 20200923: memfd_test moved to /usr/tests/sys/posixshm
 OLD_FILES+=usr/tests/sys/kern/memfd_test

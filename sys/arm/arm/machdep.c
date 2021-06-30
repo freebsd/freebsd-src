@@ -122,11 +122,6 @@ vm_offset_t vector_page;
 /* The address at which the kernel was loaded.  Set early in initarm(). */
 vm_paddr_t arm_physmem_kernaddr;
 
-int (*_arm_memcpy)(void *, void *, int, int) = NULL;
-int (*_arm_bzero)(void *, int, int) = NULL;
-int _min_memcpy_size = 0;
-int _min_bzero_size = 0;
-
 extern int *end;
 
 #ifdef FDT

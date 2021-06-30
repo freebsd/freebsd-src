@@ -1,6 +1,17 @@
-# $NetBSD: varcmd.mk,v 1.5 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: varcmd.mk,v 1.6 2021/02/16 19:43:09 rillig Exp $
 #
 # Test behaviour of recursive make and vars set on command line.
+#
+# FIXME: The purpose of this test is unclear.  The test uses six levels of
+# sub-makes, which makes it incredibly hard to understand.  There must be at
+# least an introductory explanation about what _should_ happen here.
+# The variable names are terrible, as well as their values.
+#
+# This test produces different results if the large block with the condition
+# "scope == SCOPE_GLOBAL" in Var_SetWithFlags is removed.  This test should
+# be rewritten to make it clear why there is a difference and why this is
+# actually intended.  Removing that large block of code makes only this test
+# and vardebug.mk fail, which is not enough.
 
 FU=	fu
 FOO?=	foo
@@ -57,4 +68,3 @@ five:	show show-v
 
 six:	show-v
 	@${.MAKE} -f ${MAKEFILE} V=override show-v
-
