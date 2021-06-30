@@ -68,9 +68,9 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	register char *dst = (char *)dst0;
-	register const char *src = (const char *)src0;
-	register size_t t;
+	unsigned char *dst = (unsigned char *)dst0;
+	const unsigned char *src = (const unsigned char *)src0;
+	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
 		goto done;
