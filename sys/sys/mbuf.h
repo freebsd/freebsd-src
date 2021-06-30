@@ -478,8 +478,6 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	M_PROTO10	0x00400000 /* protocol-specific */
 #define	M_PROTO11	0x00800000 /* protocol-specific */
 
-#define MB_DTOR_SKIP	0x1	/* don't pollute the cache by touching a freed mbuf */
-
 /*
  * Flags to purge when crossing layers.
  */
