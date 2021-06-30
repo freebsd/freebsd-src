@@ -255,6 +255,8 @@ freebsd32_setregs(struct thread *td, struct image_params *imgp,
 	tf->tf_x[14] = imgp->entry_addr;
 	tf->tf_elr = imgp->entry_addr;
 	tf->tf_spsr = PSR_M_32;
+	if ((uint32_t)imgp->entry_addr & 1)
+		tf->tf_spsr |= PSR_T;
 
 #ifdef VFP
 	vfp_reset_state(td, pcb);
