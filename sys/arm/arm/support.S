@@ -93,14 +93,6 @@ __FBSDID("$FreeBSD$");
 
 	.syntax	unified
 
-.L_arm_memcpy:
-	.word	_C_LABEL(_arm_memcpy)
-.L_arm_bzero:
-	.word	_C_LABEL(_arm_bzero)
-.L_min_memcpy_size:
-	.word	_C_LABEL(_min_memcpy_size)
-.L_min_bzero_size:
-	.word	_C_LABEL(_min_bzero_size)
 /*
  * memset: Sets a block of memory to the specified value
  *
@@ -114,22 +106,6 @@ __FBSDID("$FreeBSD$");
  */
 /* LINTSTUB: Func: void bzero(void *, size_t) */
 ENTRY(bzero)
-	ldr	r3, .L_arm_bzero
-	ldr	r3, [r3]
-	cmp	r3, #0
-	beq	.Lnormal0
-	ldr	r2, .L_min_bzero_size
-	ldr	r2, [r2]
-	cmp	r1, r2
-	blt	.Lnormal0
-	stmfd	sp!, {r0, r1, lr}
-	mov	r2, #0
-	mov	lr, pc
-	mov	pc, r3
-	cmp	r0, #0
-	ldmfd	sp!, {r0, r1, lr}
-	RETeq
-.Lnormal0:
 	mov	r3, #0x00
 	b	do_memset
 END(bzero)
@@ -779,23 +755,6 @@ ENTRY(memcpy)
 	bhi	.Lnormal
 #endif
 #endif
-	ldr	r3, .L_arm_memcpy
-	ldr	r3, [r3]
-	cmp	r3, #0
-	beq	.Lnormal
-	ldr	r3, .L_min_memcpy_size
-	ldr	r3, [r3]
-	cmp	r2, r3
-	blt	.Lnormal
-	stmfd	sp!, {r0-r2, r4, lr}
-	mov	r3, #0
-	ldr	r4, .L_arm_memcpy
-	mov	lr, pc
-	ldr	pc, [r4]
-	cmp	r0, #0
-	ldmfd	sp!, {r0-r2, r4, lr}
-	RETeq
-.Lnormal:
 	mov	r3, r0			/* We must not clobber r0 */
 
 	/* Word-align the destination buffer */
