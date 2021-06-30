@@ -68,9 +68,9 @@ memset(void *dst0, int c0, size_t length)
 	size_t t;
 #ifndef BZERO
 	u_long c;
-	register const u_char VAL = (u_char)c0;
+	const u_char VAL = (u_char)c0;
 #endif
-	register u_char *dst = (u_char *)dst0;
+	u_char *dst = (u_char *)dst0;
 
 	/*
 	 * If not enough words, just fill bytes.  A length >= 2 words
