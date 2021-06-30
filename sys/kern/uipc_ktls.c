@@ -2140,7 +2140,7 @@ ktls_work_thread(void *ctx)
 		STAILQ_FOREACH_SAFE(m, &local_m_head, m_epg_stailq, n) {
 			if (m->m_epg_flags & EPG_FLAG_2FREE) {
 				ktls_free(m->m_epg_tls);
-				uma_zfree(zone_mbuf, m);
+				m_free_raw(m);
 			} else {
 				ktls_encrypt(m);
 				counter_u64_add(ktls_cnt_tx_queued, -1);
