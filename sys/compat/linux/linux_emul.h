@@ -33,6 +33,10 @@
 #define	_LINUX_EMUL_H_
 
 struct image_params;
+struct note_info_list;
+
+/* Linux core notes are labeled "CORE" */
+#define	LINUX_ABI_VENDOR	"CORE"
 
 /*
  * modeled after similar structure in NetBSD
@@ -58,6 +62,8 @@ void	linux_on_exec(struct proc *, struct image_params *);
 void	linux_thread_dtor(struct thread *);
 void	linux_thread_detach(struct thread *);
 int	linux_common_execve(struct thread *, struct image_args *);
+void 	linux32_prepare_notes(struct thread *, struct note_info_list *, size_t *);
+void 	linux64_prepare_notes(struct thread *, struct note_info_list *, size_t *);
 
 /* process emuldata flags */
 #define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
