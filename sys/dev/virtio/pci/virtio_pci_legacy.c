@@ -154,7 +154,7 @@ static device_method_t vtpci_legacy_methods[] = {
 	/* Bus interface. */
 	DEVMETHOD(bus_driver_added,		  vtpci_legacy_driver_added),
 	DEVMETHOD(bus_child_detached,		  vtpci_legacy_child_detached),
-	DEVMETHOD(bus_child_pnpinfo_str,	  virtio_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,		  virtio_child_pnpinfo),
 	DEVMETHOD(bus_read_ivar,		  vtpci_legacy_read_ivar),
 	DEVMETHOD(bus_write_ivar,		  vtpci_legacy_write_ivar),
 

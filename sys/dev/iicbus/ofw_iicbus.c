@@ -57,7 +57,7 @@ static device_method_t ofw_iicbus_methods[] = {
 	DEVMETHOD(device_attach,	ofw_iicbus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_add_child,	ofw_iicbus_add_child),
 
 	/* ofw_bus interface */

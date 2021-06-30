@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <libcasper.h>
 #include <casper/cap_net.h>
 #include <casper/cap_netdb.h>
+#include <casper/cap_pwd.h>
 #include <casper/cap_sysctl.h>
 
 #define	sstosin(ss)	((struct sockaddr_in *)(ss))
@@ -141,6 +142,7 @@ static int nxfiles;
 static cap_channel_t *capnet;
 static cap_channel_t *capnetdb;
 static cap_channel_t *capsysctl;
+static cap_channel_t *cappwd;
 
 static int
 xprintf(const char *fmt, ...)
@@ -163,7 +165,10 @@ get_proto_type(const char *proto)
 
 	if (strlen(proto) == 0)
 		return (0);
-	pent = cap_getprotobyname(capnetdb, proto);
+	if (capnetdb != NULL)
+		pent = cap_getprotobyname(capnetdb, proto);
+	else
+		pent = getprotobyname(proto);
 	if (pent == NULL) {
 		warn("cap_getprotobyname");
 		return (-1);
@@ -1212,7 +1217,7 @@ display(void)
 			printf(" %-.*s", TCP_CA_NAME_MAX, "CC");
 		printf("\n");
 	}
-	setpassent(1);
+	cap_setpassent(cappwd, 1);
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		if (xf->xf_data == 0)
 			continue;
@@ -1226,7 +1231,8 @@ display(void)
 				continue;
 			s->shown = 1;
 			pos = 0;
-			if (opt_n || (pwd = getpwuid(xf->xf_uid)) == NULL)
+			if (opt_n ||
+			    (pwd = cap_getpwuid(cappwd, xf->xf_uid)) == NULL)
 				pos += xprintf("%lu ", (u_long)xf->xf_uid);
 			else
 				pos += xprintf("%s ", pwd->pw_name);
@@ -1323,6 +1329,8 @@ main(int argc, char *argv[])
 {
 	cap_channel_t *capcas;
 	cap_net_limit_t *limit;
+	const char *pwdcmds[] = { "setpassent", "getpwuid" };
+	const char *pwdfields[] = { "pw_name" };
 	int protos_defined = -1;
 	int o, i;
 
@@ -1421,12 +1429,19 @@ main(int argc, char *argv[])
 	capsysctl = cap_service_open(capcas, "system.sysctl");
 	if (capsysctl == NULL)
 		err(1, "Unable to open system.sysctl service");
+	cappwd = cap_service_open(capcas, "system.pwd");
+	if (cappwd == NULL)
+		err(1, "Unable to open system.pwd service");
 	cap_close(capcas);
 	limit = cap_net_limit_init(capnet, CAPNET_ADDR2NAME);
 	if (limit == NULL)
 		err(1, "Unable to init cap_net limits");
 	if (cap_net_limit(limit) < 0)
 		err(1, "Unable to apply limits");
+	if (cap_pwd_limit_cmds(cappwd, pwdcmds, nitems(pwdcmds)) < 0)
+		err(1, "Unable to apply pwd commands limits");
+	if (cap_pwd_limit_fields(cappwd, pwdfields, nitems(pwdfields)) < 0)
+		err(1, "Unable to apply pwd commands limits");
 
 	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = 1;

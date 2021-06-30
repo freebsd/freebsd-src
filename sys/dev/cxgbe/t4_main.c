@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 static int t4_probe(device_t);
 static int t4_attach(device_t);
 static int t4_detach(device_t);
-static int t4_child_location_str(device_t, device_t, char *, size_t);
+static int t4_child_location(device_t, device_t, struct sbuf *);
 static int t4_ready(device_t);
 static int t4_read_port_device(device_t, int, device_t *);
 static int t4_suspend(device_t);
@@ -111,7 +111,7 @@ static device_method_t t4_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -176,7 +176,7 @@ static device_method_t t5_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -215,7 +215,7 @@ static device_method_t t6_methods[] = {
 	DEVMETHOD(device_suspend,	t4_suspend),
 	DEVMETHOD(device_resume,	t4_resume),
 
-	DEVMETHOD(bus_child_location_str, t4_child_location_str),
+	DEVMETHOD(bus_child_location,	t4_child_location),
 	DEVMETHOD(bus_reset_prepare, 	t4_reset_prepare),
 	DEVMETHOD(bus_reset_post, 	t4_reset_post),
 
@@ -1572,18 +1572,17 @@ done:
 }
 
 static int
-t4_child_location_str(device_t bus, device_t dev, char *buf, size_t buflen)
+t4_child_location(device_t bus, device_t dev, struct sbuf *sb)
 {
 	struct adapter *sc;
 	struct port_info *pi;
 	int i;
 
 	sc = device_get_softc(bus);
-	buf[0] = '\0';
 	for_each_port(sc, i) {
 		pi = sc->port[i];
 		if (pi != NULL && pi->dev == dev) {
-			snprintf(buf, buflen, "port=%d", pi->port_id);
+			sbuf_printf(sb, "port=%d", pi->port_id);
 			break;
 		}
 	}
@@ -5237,6 +5236,14 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.max_pkts_per_eth_tx_pkts_wr = 15;
 
+	param[0] = FW_PARAM_DEV(NUM_TM_CLASS);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0) {
+		MPASS(val[0] > 0 && val[0] < 256);	/* nsched_cls is 8b */
+		sc->params.nsched_cls = val[0];
+	} else
+		sc->params.nsched_cls = sc->chip_params->nsched_cls;
+
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
@@ -7782,7 +7789,7 @@ cxgbe_sysctls(struct port_info *pi)
 	struct adapter *sc = pi->adapter;
 	int i;
 	char name[16];
-	static char *tc_flags = {"\20\1USER\2SYNC\3ASYNC\4ERR"};
+	static char *tc_flags = {"\20\1USER"};
 
 	ctx = device_get_sysctl_ctx(pi->dev);
 
@@ -7852,13 +7859,15 @@ cxgbe_sysctls(struct port_info *pi)
 	SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "burstsize",
 	    CTLFLAG_RW, &pi->sched_params->burstsize, 0,
 	    "burstsize for per-flow cl-rl (0 means up to the driver)");
-	for (i = 0; i < sc->chip_params->nsched_cls; i++) {
+	for (i = 0; i < sc->params.nsched_cls; i++) {
 		struct tx_cl_rl_params *tc = &pi->sched_params->cl_rl[i];
 
 		snprintf(name, sizeof(name), "%d", i);
 		children2 = SYSCTL_CHILDREN(SYSCTL_ADD_NODE(ctx,
 		    SYSCTL_CHILDREN(oid), OID_AUTO, name,
 		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "traffic class"));
+		SYSCTL_ADD_UINT(ctx, children2, OID_AUTO, "state",
+		    CTLFLAG_RD, &tc->state, 0, "current state");
 		SYSCTL_ADD_PROC(ctx, children2, OID_AUTO, "flags",
 		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, tc_flags,
 		    (uintptr_t)&tc->flags, sysctl_bitfield_8b, "A", "flags");
@@ -11676,7 +11685,7 @@ error:
 		if ((s->offload != 0 && s->offload != 1) ||
 		    s->cong_algo < -1 || s->cong_algo > CONG_ALG_HIGHSPEED ||
 		    s->sched_class < -1 ||
-		    s->sched_class >= sc->chip_params->nsched_cls) {
+		    s->sched_class >= sc->params.nsched_cls) {
 			rc = EINVAL;
 			goto error;
 		}

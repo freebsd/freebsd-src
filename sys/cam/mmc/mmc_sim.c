@@ -63,11 +63,25 @@ mmc_sim_task(void *arg, int pending)
 		return;
 
 	cts = &mmc_sim->ccb->cts;
-	rv = MMC_SIM_SET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
-	if (rv != 0)
-		mmc_sim->ccb->ccb_h.status = CAM_REQ_INVALID;
-	else
-		mmc_sim->ccb->ccb_h.status = CAM_REQ_CMP;
+	switch (mmc_sim->ccb->ccb_h.func_code) {
+	case XPT_MMC_GET_TRAN_SETTINGS:
+		rv = MMC_SIM_GET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
+		if (rv != 0)
+			mmc_sim->ccb->ccb_h.status = CAM_REQ_INVALID;
+		else
+			mmc_sim->ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	case XPT_MMC_SET_TRAN_SETTINGS:
+		rv = MMC_SIM_SET_TRAN_SETTINGS(mmc_sim->dev, &cts->proto_specific.mmc);
+		if (rv != 0)
+			mmc_sim->ccb->ccb_h.status = CAM_REQ_INVALID;
+		else
+			mmc_sim->ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	default:
+		panic("Unsupported ccb func %x\n", mmc_sim->ccb->ccb_h.func_code);
+		break;
+	}
 
 	xpt_done(mmc_sim->ccb);
 	mmc_sim->ccb = NULL;
@@ -108,7 +122,6 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	case XPT_GET_TRAN_SETTINGS:
-	case XPT_MMC_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
 
@@ -123,6 +136,15 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.valid = 0;
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
+		break;
+	}
+	case XPT_MMC_GET_TRAN_SETTINGS:
+	{
+		ccb->ccb_h.status = CAM_SIM_QUEUED;
+		mmc_sim->ccb = ccb;
+		taskqueue_enqueue(taskqueue_thread, &mmc_sim->sim_task);
+		return;
+		/* NOTREACHED */
 		break;
 	}
 	case XPT_SET_TRAN_SETTINGS:
@@ -182,9 +204,9 @@ mmc_cam_sim_alloc(device_t dev, const char *name, struct mmc_sim *mmc_sim)
 	snprintf(mtx_name, sizeof(mtx_name), "%s_mtx", name);
 
 	mtx_init(&mmc_sim->mtx, sim_name, NULL, MTX_DEF);
-	mmc_sim->sim = cam_sim_alloc_dev(mmc_cam_sim_default_action,
+	mmc_sim->sim = cam_sim_alloc(mmc_cam_sim_default_action,
 	    mmc_cam_default_poll,
-	    name, mmc_sim, dev,
+	    name, mmc_sim, device_get_unit(dev),
 	    &mmc_sim->mtx, 1, 1, mmc_sim->devq);
 
 	if (mmc_sim->sim == NULL) {

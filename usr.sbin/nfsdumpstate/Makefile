@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	nfs
+
 PROG=	nfsdumpstate
 MAN=	nfsdumpstate.8
 

@@ -36,13 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/bus.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -176,20 +177,17 @@ iicbus_probe_nomatch(device_t bus, device_t child)
 }
 
 int
-iicbus_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+iicbus_child_location(device_t bus, device_t child, struct sbuf *sb)
 {
 	struct iicbus_ivar *devi = IICBUS_IVAR(child);
 
-	snprintf(buf, buflen, "addr=%#x", devi->addr);
+	sbuf_printf(sb, "addr=%#x", devi->addr);
 	return (0);
 }
 
 int
-iicbus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen)
+iicbus_child_pnpinfo(device_t bus, device_t child, struct sbuf *sb)
 {
-	*buf = '\0';
 	return (0);
 }
 
@@ -368,8 +366,8 @@ static device_method_t iicbus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	iicbus_write_ivar),
-	DEVMETHOD(bus_child_pnpinfo_str, iicbus_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, iicbus_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo,	iicbus_child_pnpinfo),
+	DEVMETHOD(bus_child_location,	iicbus_child_location),
 	DEVMETHOD(bus_hinted_child,	iicbus_hinted_child),
 
 	/* iicbus interface */

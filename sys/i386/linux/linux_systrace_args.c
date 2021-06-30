@@ -1172,9 +1172,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* poll */
+	/* linux_poll */
 	case 168: {
-		struct poll_args *p = params;
+		struct linux_poll_args *p = params;
 		uarg[0] = (intptr_t)p->fds; /* struct pollfd * */
 		uarg[1] = p->nfds; /* unsigned int */
 		iarg[2] = p->timeout; /* long */
@@ -5025,7 +5025,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* linux_vm86 */
 	case 166:
 		break;
-	/* poll */
+	/* linux_poll */
 	case 168:
 		switch (ndx) {
 		case 0:
@@ -9078,7 +9078,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_vm86 */
 	case 166:
-	/* poll */
+	/* linux_poll */
 	case 168:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

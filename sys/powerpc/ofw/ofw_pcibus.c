@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 #include <sys/pciio.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -66,8 +67,8 @@ static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
 static bus_child_deleted_t ofw_pcibus_child_deleted;
-static int ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child,
-    char *buf, size_t buflen);
+static int ofw_pcibus_child_pnpinfo_method(device_t cbdev, device_t child,
+    struct sbuf *sb);
 
 static void ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno);
 static void ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno);
@@ -79,7 +80,7 @@ static device_method_t ofw_pcibus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_child_deleted,	ofw_pcibus_child_deleted),
-	DEVMETHOD(bus_child_pnpinfo_str, ofw_pcibus_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_pnpinfo,	ofw_pcibus_child_pnpinfo_method),
 	DEVMETHOD(bus_rescan,		bus_null_rescan),
 	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
 	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
@@ -300,14 +301,13 @@ ofw_pcibus_child_deleted(device_t dev, device_t child)
 }
 
 static int
-ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
+ofw_pcibus_child_pnpinfo_method(device_t cbdev, device_t child, struct sbuf *sb)
 {
-	pci_child_pnpinfo_str_method(cbdev, child, buf, buflen);
+	pci_child_pnpinfo_method(cbdev, child, sb);
 
 	if (ofw_bus_get_node(child) != -1)  {
-		strlcat(buf, " ", buflen); /* Separate info */
-		ofw_bus_gen_child_pnpinfo_str(cbdev, child, buf, buflen);
+		sbuf_cat(sb, " "); /* Separate info */
+		ofw_bus_gen_child_pnpinfo(cbdev, child, sb);
 	}
 
 	return (0);

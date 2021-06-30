@@ -1691,6 +1691,7 @@ dt_setcontext(dtrace_hdl_t *dtp, dtrace_probedesc_t *pdp)
 	dt_ident_t *idp;
 	char attrstr[8];
 	int err;
+	size_t prov_len;
 
 	/*
 	 * Both kernel and pid based providers are allowed to have names
@@ -1704,7 +1705,10 @@ dt_setcontext(dtrace_hdl_t *dtp, dtrace_probedesc_t *pdp)
 	 * On an error, dt_pid_create_probes() will set the error message
 	 * and tag -- we just have to longjmp() out of here.
 	 */
-	if (isdigit(pdp->dtpd_provider[strlen(pdp->dtpd_provider) - 1]) &&
+
+	prov_len = strlen(pdp->dtpd_provider);
+
+	if ((prov_len > 0 && isdigit(pdp->dtpd_provider[prov_len - 1])) &&
 	    ((pvp = dt_provider_lookup(dtp, pdp->dtpd_provider)) == NULL ||
 	    pvp->pv_desc.dtvd_priv.dtpp_flags & DTRACE_PRIV_PROC) &&
 	    dt_pid_create_probes(pdp, dtp, yypcb) != 0) {

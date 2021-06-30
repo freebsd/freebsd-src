@@ -11,10 +11,16 @@ MAN=	\
 	aw_spi.4 \
 	aw_syscon.4 \
 	bcm283x_pwm.4 \
+	enetc.4 \
 	rk_gpio.4 \
 	rk_grf.4 \
 	rk_i2c.4 \
 	rk_pinctrl.4 \
+
+# Link files to the parent directory
+.for _manpage in ${MAN}
+MLINKS+=${_manpage} ../${_manpage}
+.endfor
 
 MANSUBDIR=/aarch64
 

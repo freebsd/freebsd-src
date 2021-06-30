@@ -579,7 +579,7 @@ aac_alloc(struct aac_softc *sc)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
-			       sc->aac_max_sectors << 9, /* maxsize */
+			       AAC_MAXIO_SIZE(sc),	/* maxsize */
 			       sc->aac_sg_tablesize,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
@@ -1807,7 +1807,7 @@ aac_init(struct aac_softc *sc)
 	}
 
 	ip->MaxIoCommands = sc->aac_max_fibs;
-	ip->MaxIoSize = sc->aac_max_sectors << 9;
+	ip->MaxIoSize = AAC_MAXIO_SIZE(sc);
 	ip->MaxFibSize = sc->aac_max_fib_size;
 
 	aac_adapter_init_tole(ip);

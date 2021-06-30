@@ -34,6 +34,8 @@ MAN=	accept_filter.9 \
 	bus_child_present.9 \
 	BUS_CHILD_DELETED.9 \
 	BUS_CHILD_DETACHED.9 \
+	BUS_CHILD_LOCATION.9 \
+	BUS_CHILD_PNPINFO.9 \
 	BUS_CONFIG_INTR.9 \
 	bus_delayed_attach_children.9 \
 	BUS_DESCRIBE_INTR.9 \
@@ -159,10 +161,12 @@ MAN=	accept_filter.9 \
 	g_provider_by_name.9 \
 	groupmember.9 \
 	g_wither_geom.9 \
+	hardclock.9 \
 	hash.9 \
 	hashinit.9 \
 	hexdump.9 \
 	hhook.9 \
+	hz.9 \
 	ieee80211.9 \
 	ieee80211_amrr.9 \
 	ieee80211_beacon.9 \
@@ -287,6 +291,7 @@ MAN=	accept_filter.9 \
 	ratecheck.9 \
 	redzone.9 \
 	refcount.9 \
+	regulator.9 \
 	resettodr.9 \
 	resource_int_value.9 \
 	rijndael.9 \
@@ -447,14 +452,7 @@ MAN=	accept_filter.9 \
 	zero_region.9 \
 	zone.9
 
-MLINKS=	unr.9 alloc_unr.9 \
-	unr.9 alloc_unrl.9 \
-	unr.9 alloc_unr_specific.9 \
-	unr.9 clear_unrhdr.9 \
-	unr.9 delete_unrhdr.9 \
-	unr.9 free_unr.9 \
-	unr.9 new_unrhdr.9
-MLINKS+=accept_filter.9 accept_filt_add.9 \
+MLINKS=	accept_filter.9 accept_filt_add.9 \
 	accept_filter.9 accept_filt_del.9 \
 	accept_filter.9 accept_filt_generic_mod_event.9 \
 	accept_filter.9 accept_filt_get.9
@@ -1132,6 +1130,7 @@ MLINKS+=hhook.9 hhook_head_register.9 \
 	hhook.9 hhook_run_hooks.9 \
 	hhook.9 HHOOKS_RUN_IF.9 \
 	hhook.9 HHOOKS_RUN_LOOKUP_IF.9
+MLINKS+=hz.9 tick.9
 MLINKS+=ieee80211.9 ieee80211_ifattach.9 \
 	ieee80211.9 ieee80211_ifdetach.9
 MLINKS+=ieee80211_amrr.9 ieee80211_amrr_choose.9 \
@@ -2211,6 +2210,13 @@ MLINKS+=uidinfo.9 uifind.9 \
 MLINKS+=uio.9 uiomove.9 \
 	uio.9 uiomove_frombuf.9 \
 	uio.9 uiomove_nofault.9
+MLINKS+=unr.9 alloc_unr.9 \
+	unr.9 alloc_unrl.9 \
+	unr.9 alloc_unr_specific.9 \
+	unr.9 clear_unrhdr.9 \
+	unr.9 delete_unrhdr.9 \
+	unr.9 free_unr.9 \
+	unr.9 new_unrhdr.9
 
 .if ${MK_USB} != "no"
 MAN+=	usbdi.9

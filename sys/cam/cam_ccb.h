@@ -1299,10 +1299,6 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 #define	CAM_TIME_INFINITY	0xFFFFFFFF	/* Infinite timeout */
 
 #define	CAM_SUCCESS	0	/* For signaling general success */
-#define	CAM_FAILURE	1	/* For signaling general failure */
-
-#define CAM_FALSE	0
-#define CAM_TRUE	1
 
 #define XPT_CCB_INVALID	-1	/* for signaling a bad CCB to free */
 

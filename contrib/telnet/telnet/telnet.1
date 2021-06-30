@@ -28,7 +28,7 @@
 .\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2020
+.Dd June 21, 2021
 .Dt TELNET 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 protocol
 .Sh SYNOPSIS
 .Nm
-.Op Fl 468EFKLNacdfruxy
+.Op Fl 468EFKLNQacdfruxy
 .Op Fl B Ar baudrate
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
@@ -108,6 +108,11 @@ option to be negotiated on output.
 .It Fl N
 Prevents IP address to name lookup when destination host is given
 as an IP address.
+.It Fl Q
+Quiet mode.
+This suppresses the messages
+.Nm
+would normally output upon connecting or disconnecting.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
 connection to the value

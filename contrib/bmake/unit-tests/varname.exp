@@ -1,24 +1,21 @@
-Global:VAR{{{}}} = 3 braces
-Var_Parse: ${VAR{{{}}}}" != "3 braces" with VARE_WANTRES
-Global:VARNAME = VAR(((
-Var_Parse: ${VARNAME} with VARE_WANTRES
-Global:VAR((( = 3 open parentheses
-Var_Parse: ${VAR(((}}}}" != "3 open parentheses}}}" with VARE_WANTRES
-Var_Parse: ${:UVAR(((}=	try1 with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
-Result of ${:UVAR(((} is "VAR(((" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Global:.ALLTARGETS =  VAR(((=)
+Global: VAR{{{}}} = 3 braces
+Var_Parse: ${VAR{{{}}}}" != "3 braces" (eval)
+Global: VARNAME = VAR(((
+Var_Parse: ${VARNAME} (eval)
+Global: VAR((( = 3 open parentheses
+Var_Parse: ${VAR(((}}}}" != "3 open parentheses}}}" (eval)
+Global: .ALLTARGETS =  VAR(((=)
 make: "varname.mk" line 30: No closing parenthesis in archive specification
 make: "varname.mk" line 30: Error in archive specification: "VAR"
-Var_Parse: ${:UVAR\(\(\(}=	try2 with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
-Result of ${:UVAR\(\(\(} is "VAR\(\(\(" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
-Global:.ALLTARGETS =  VAR(((=) VAR\(\(\(=
+Var_Parse: ${:UVAR\(\(\(}=	try2 (eval-defined)
+Evaluating modifier ${:U...} on value "" (eval-defined, undefined)
+Result of ${:UVAR\(\(\(} is "VAR\(\(\(" (eval-defined, defined)
+Global: .ALLTARGETS =  VAR(((=) VAR\(\(\(=
 make: "varname.mk" line 35: Invalid line type
-Var_Parse: ${VARNAME} with VARE_WANTRES
-Global:VAR((( = try3
-Global:.MAKEFLAGS =  -r -k -d v -d
-Global:.MAKEFLAGS =  -r -k -d v -d 0
+Var_Parse: ${VARNAME} (eval)
+Global: VAR((( = try3
+Global: .MAKEFLAGS =  -r -k -d v -d
+Global: .MAKEFLAGS =  -r -k -d v -d 0
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

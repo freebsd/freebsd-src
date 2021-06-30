@@ -1011,7 +1011,7 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;	/* Per the controller spec */
 		cpi->initiator_id = camsc->inf->InitiatorBusId;
 		cpi->bus_id = camsc->inf->BusNumber;
-		cpi->maxio = sc->aac_max_sectors << 9;
+		cpi->maxio = AAC_MAXIO_SIZE(sc);
 
 		/*
 		 * Resetting via the passthrough or parallel bus scan
@@ -1205,6 +1205,12 @@ aac_cam_complete(struct aac_command *cm)
 				command = ccb->csio.cdb_io.cdb_bytes[0];
 
 			if (command == INQUIRY) {
+				/* Ignore Data Overrun errors on INQUIRY */
+				if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+				    CAM_DATA_RUN_ERR)
+					ccb->ccb_h.status = (ccb->ccb_h.status &
+					    ~CAM_STATUS_MASK) | CAM_REQ_CMP;
+
 				if (ccb->ccb_h.status == CAM_REQ_CMP) {
 				  device = ccb->csio.data_ptr[0] & 0x1f;
 				  /*

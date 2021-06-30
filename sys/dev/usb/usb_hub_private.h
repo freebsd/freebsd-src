@@ -80,6 +80,6 @@ uhub_find_iface_index(struct usb_hub *hub, device_t child,
 device_probe_t uhub_probe;
 device_attach_t uhub_attach;
 device_detach_t uhub_detach;
-bus_child_location_str_t uhub_child_location_string;
+bus_child_location_t uhub_child_location;
 
 #endif

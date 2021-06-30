@@ -28,6 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -74,6 +76,9 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct sbuf *sb;
 	size_t i, limit;
+	caddr_t loader_tslog;
+	void * loader_tslog_buf;
+	size_t loader_tslog_len;
 
 	/*
 	 * This code can race against the code in tslog() which stores
@@ -84,6 +89,16 @@ sysctl_debug_tslog(SYSCTL_HANDLER_ARGS)
 	 * anyone will ever experience this race.
 	 */
 	sb = sbuf_new_for_sysctl(NULL, NULL, 1024, req);
+
+	/* Get data from the boot loader, if it provided any. */
+	loader_tslog = preload_search_by_type("TSLOG data");
+	if (loader_tslog != NULL) {
+		loader_tslog_buf = preload_fetch_addr(loader_tslog);
+		loader_tslog_len = preload_fetch_size(loader_tslog);
+		sbuf_bcat(sb, loader_tslog_buf, loader_tslog_len);
+	}
+
+	/* Add data logged within the kernel. */
 	limit = MIN(nrecs, nitems(timestamps));
 	for (i = 0; i < limit; i++) {
 		sbuf_printf(sb, "%p", timestamps[i].td);

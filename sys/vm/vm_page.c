@@ -497,7 +497,7 @@ vm_page_domain_init(int domain)
  * Initialize a physical page in preparation for adding it to the free
  * lists.
  */
-static void
+void
 vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
 {
 

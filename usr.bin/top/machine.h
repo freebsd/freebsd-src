@@ -75,7 +75,7 @@ struct process_select
     bool swap;		/* show swap usage */
     bool kidle;		/* show per-CPU idle threads */
     int pid;		/* only this pid (unless pid == -1) */
-    const char *command;	/* only this command (unless == NULL) */
+    char *command;	/* only this command (unless == NULL) */
 };
 
 /* routines defined by the machine dependent module */

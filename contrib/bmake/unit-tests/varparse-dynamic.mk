@@ -1,4 +1,4 @@
-# $NetBSD: varparse-dynamic.mk,v 1.4 2021/02/04 21:42:47 rillig Exp $
+# $NetBSD: varparse-dynamic.mk,v 1.5 2021/02/22 20:38:55 rillig Exp $
 
 # Before 2020-07-27, there was an off-by-one error in Var_Parse that skipped
 # the last character in the variable name.
@@ -15,8 +15,8 @@
 # expression is returned as the variable value, hoping that it can be
 # resolved at a later point.
 #
-# This test covers the code in Var_Parse that deals with VAR_JUNK but not
-# VAR_KEEP for dynamic variables.
+# This test covers the code in Var_Parse that deals with DEF_UNDEF but not
+# DEF_DEFINED for dynamic variables.
 .if ${.TARGET:S,^,,} != "\${.TARGET:S,^,,}"
 .  error
 .endif

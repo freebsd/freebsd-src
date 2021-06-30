@@ -284,20 +284,30 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 
 	memset(csd, 0, sizeof(*csd));
 	csd->csd_structure = v = mmc_get_bits(raw_csd, 128, 126, 2);
+
+	/* Common members between 1.0 and 2.0 */
+	m = mmc_get_bits(raw_csd, 128, 115, 4);
+	e = mmc_get_bits(raw_csd, 128, 112, 3);
+	csd->tacc = (exp[e] * mant[m] + 9) / 10;
+	csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
+	m = mmc_get_bits(raw_csd, 128, 99, 4);
+	e = mmc_get_bits(raw_csd, 128, 96, 3);
+	csd->tran_speed = exp[e] * 10000 * mant[m];
+	csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
+	csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
+	csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
+	csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
+	csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
+	csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
+	csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
+	csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
+	csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
+	csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
+	csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
+	csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
+	csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
+
 	if (v == 0) {
-		m = mmc_get_bits(raw_csd, 128, 115, 4);
-		e = mmc_get_bits(raw_csd, 128, 112, 3);
-		csd->tacc = (exp[e] * mant[m] + 9) / 10;
-		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
-		m = mmc_get_bits(raw_csd, 128, 99, 4);
-		e = mmc_get_bits(raw_csd, 128, 96, 3);
-		csd->tran_speed = exp[e] * 10000 * mant[m];
-		csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
-		csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
-		csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
-		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
-		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
-		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
 		csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 59, 3)];
 		csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 56, 3)];
 		csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 53, 3)];
@@ -305,36 +315,9 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 		m = mmc_get_bits(raw_csd, 128, 62, 12);
 		e = mmc_get_bits(raw_csd, 128, 47, 3);
 		csd->capacity = ((1 + m) << (e + 2)) * csd->read_bl_len;
-		csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
-		csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
-		csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
-		csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
-		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
-		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
-		csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
 	} else if (v == 1) {
-		m = mmc_get_bits(raw_csd, 128, 115, 4);
-		e = mmc_get_bits(raw_csd, 128, 112, 3);
-		csd->tacc = (exp[e] * mant[m] + 9) / 10;
-		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
-		m = mmc_get_bits(raw_csd, 128, 99, 4);
-		e = mmc_get_bits(raw_csd, 128, 96, 3);
-		csd->tran_speed = exp[e] * 10000 * mant[m];
-		csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
-		csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
-		csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
-		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
-		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
-		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
 		csd->capacity = ((uint64_t)mmc_get_bits(raw_csd, 128, 48, 22) + 1) *
 		    512 * 1024;
-		csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
-		csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
-		csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
-		csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
-		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
-		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
-		csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
 	} else
 		panic("unknown SD CSD version");
 }
@@ -446,12 +429,12 @@ mmc_format_card_id_string(struct sdda_softc *sc, struct mmc_params *mmcp)
 	snprintf(sc->card_sn_string, sizeof(sc->card_sn_string),
 	    "%08X", sc->cid.psn);
 	snprintf(sc->card_id_string, sizeof(sc->card_id_string),
-                 "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
-                 mmcp->card_features & CARD_FEATURE_MMC ? "MMC" : "SD",
-                 mmcp->card_features & CARD_FEATURE_SDHC ? "HC" : "",
-                 sc->cid.pnm, sc->cid.prv >> 4, sc->cid.prv & 0x0f,
-                 sc->cid.psn, sc->cid.mdt_month, sc->cid.mdt_year,
-                 sc->cid.mid, oidstr);
+		 "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
+		 mmcp->card_features & CARD_FEATURE_MMC ? "MMC" : "SD",
+		 mmcp->card_features & CARD_FEATURE_SDHC ? "HC" : "",
+		 sc->cid.pnm, sc->cid.prv >> 4, sc->cid.prv & 0x0f,
+		 sc->cid.psn, sc->cid.mdt_month, sc->cid.mdt_year,
+		 sc->cid.mid, oidstr);
 }
 
 static int
@@ -603,7 +586,7 @@ sddadiskgonecb(struct disk *dp)
 
 	part = (struct sdda_part *)dp->d_drv1;
 	periph = part->sc->periph;
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddadiskgonecb\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddadiskgonecb\n"));
 
 	cam_periph_release(periph);
 }
@@ -616,7 +599,7 @@ sddaoninvalidate(struct cam_periph *periph)
 
 	softc = (struct sdda_softc *)periph->softc;
 
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaoninvalidate\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaoninvalidate\n"));
 
 	/*
 	 * De-register any async callbacks.
@@ -628,15 +611,14 @@ sddaoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush start\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush start\n"));
 	for (int i = 0; i < MMC_PART_MAX; i++) {
 		if ((part = softc->part[i]) != NULL) {
 			bioq_flush(&part->bio_queue, NULL, ENXIO);
 			disk_gone(part->disk);
 		}
 	}
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush end\n"));
-
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("bioq_flush end\n"));
 }
 
 static void
@@ -675,7 +657,7 @@ sddaasync(void *callback_arg, u_int32_t code,
 	switch (code) {
 	case AC_FOUND_DEVICE:
 	{
-                CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_FOUND_DEVICE\n"));
+		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("=> AC_FOUND_DEVICE\n"));
 		struct ccb_getdev *cgd;
 		cam_status status;
 
@@ -686,10 +668,10 @@ sddaasync(void *callback_arg, u_int32_t code,
 		if (cgd->protocol != PROTO_MMCSD)
 			break;
 
-                if (!(path->device->mmc_ident_data.card_features & CARD_FEATURE_MEMORY)) {
-                        CAM_DEBUG(path, CAM_DEBUG_TRACE, ("No memory on the card!\n"));
-                        break;
-                }
+		if (!(path->device->mmc_ident_data.card_features & CARD_FEATURE_MEMORY)) {
+			CAM_DEBUG(path, CAM_DEBUG_TRACE, ("No memory on the card!\n"));
+			break;
+		}
 
 		/*
 		 * Allocate a peripheral instance for
@@ -774,7 +756,7 @@ sddaregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	union ccb *request_ccb;	/* CCB representing the probe request */
 
-        CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaregister\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddaregister\n"));
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("sddaregister: no getdev CCB, can't register device\n");
@@ -1258,7 +1240,6 @@ sdda_start_init(void *context, union ccb *start_ccb)
 	}
 
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
-	//struct ccb_mmcio *mmcio = &start_ccb->mmcio;
 	struct mmc_params *mmcp = &periph->path->device->mmc_ident_data;
 	struct cam_ed *device = periph->path->device;
 
@@ -1588,7 +1569,6 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_close = sddaclose;
 	part->disk->d_strategy = sddastrategy;
 	part->disk->d_getattr = sddagetattr;
-//	sc->disk->d_dump = sddadump;
 	part->disk->d_gone = sddadiskgonecb;
 	part->disk->d_name = part->name;
 	part->disk->d_drv1 = part;
@@ -1948,7 +1928,6 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 	path = done_ccb->ccb_h.path;
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("sddadone\n"));
-//        cam_periph_lock(periph);
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Error!!!\n"));
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)

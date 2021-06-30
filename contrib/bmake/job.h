@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.72 2021/02/05 19:19:17 sjg Exp $	*/
+/*	$NetBSD: job.h,v 1.73 2021/04/03 11:08:40 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -157,14 +157,14 @@ typedef struct Job {
 
 	JobStatus status;
 
-	Boolean suspended;
+	bool suspended;
 
 	/* Ignore non-zero exits */
-	Boolean ignerr;
+	bool ignerr;
 	/* Output the command before or instead of running it. */
-	Boolean echo;
+	bool echo;
 	/* Target is a special one. */
-	Boolean special;
+	bool special;
 
 	int inPipe;		/* Pipe for reading output from job */
 	int outPipe;		/* Pipe for writing control commands */
@@ -188,22 +188,22 @@ extern int jobTokensRunning;	/* tokens currently "out" */
 
 void Shell_Init(void);
 const char *Shell_GetNewline(void);
-void Job_Touch(GNode *, Boolean);
-Boolean Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
+void Job_Touch(GNode *, bool);
+bool Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...));
 void Job_CatchChildren(void);
 void Job_CatchOutput(void);
 void Job_Make(GNode *);
 void Job_Init(void);
-Boolean Job_ParseShell(char *);
+bool Job_ParseShell(char *);
 int Job_Finish(void);
 void Job_End(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
 void Job_TokenReturn(void);
-Boolean Job_TokenWithdraw(void);
+bool Job_TokenWithdraw(void);
 void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
-Boolean Job_RunTarget(const char *, const char *);
+bool Job_RunTarget(const char *, const char *);
 void Job_FlagsToString(const Job *, char *, size_t);
 int Job_TempFile(const char *, char *, size_t);
 

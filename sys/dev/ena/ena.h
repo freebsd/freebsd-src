@@ -40,8 +40,8 @@
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	3
-#define DRV_MODULE_VER_SUBMINOR 1
+#define DRV_MODULE_VER_MINOR	4
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -215,6 +215,7 @@ struct ena_que {
 
 	uint32_t id;
 	int cpu;
+	struct sysctl_oid *oid;
 };
 
 struct ena_calc_queue_size_ctx {

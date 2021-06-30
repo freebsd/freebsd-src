@@ -411,7 +411,7 @@ fetch_pick_server() {
 	SRV_PRIORITY=`cut -f 1 -d ' ' serverlist | sort -n | head -1`
 
 # Add up the weights of the response lines at that priority level.
-	SRV_WSUM=0;
+	SRV_WSUM=0
 	while read X; do
 		case "$X" in
 		${SRV_PRIORITY}\ *)
@@ -771,7 +771,7 @@ fetch_update() {
 	    cut -f 2 -d '|' /dev/stdin patchlist |
 		while read Y; do
 			if [ ! -f "files/${Y}.gz" ]; then
-				echo ${Y};
+				echo ${Y}
 			fi
 		done > filelist
 	echo -n "Fetching `wc -l < filelist | tr -d ' '` "
@@ -838,8 +838,13 @@ fetch_update() {
 		I=$(($I + 1))
 		F="${X}-${Y}"
 		if [ ! -f "${F}" ]; then
+			XS=${X%[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			XE=${X#[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			YS=${Y%[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			YE=${Y#[0-9a-f][0-9a-f][0-9a-f][0-9a-f]}
+			F="${X%${XE}}...${X#${XS}}-${Y%${YE}}...${Y#${YS}}"
 			printf "  Skipping ${F} (${I} of ${PATCHCNT}).\r"
-			continue;
+			continue
 		fi
 		echo "  Processing ${F}..." 1>${QUIETREDIR}
 		gunzip -c < files/${X}.gz > OLD
@@ -858,7 +863,7 @@ fetch_update() {
 	    cut -f 2 -d '|' /dev/stdin patchlist |
 		while read Y; do
 			if [ ! -f "files/${Y}.gz" ]; then
-				echo ${Y};
+				echo ${Y}
 			fi
 		done > filelist
 	echo -n "Fetching `wc -l < filelist | tr -d ' '` "
@@ -985,7 +990,7 @@ extract_run() {
 		return 1
 	fi
 	if [ ! -z "${EXTRACTPATH}" ]; then
-		return 0;
+		return 0
 	fi
 
 	IFS="$oldifs"

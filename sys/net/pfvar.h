@@ -536,8 +536,8 @@ struct pf_state {
 	struct pfi_kkif		*rt_kif;
 	struct pf_ksrc_node	*src_node;
 	struct pf_ksrc_node	*nat_src_node;
-	counter_u64_t		 packets[2];
-	counter_u64_t		 bytes[2];
+	u_int64_t		 packets[2];
+	u_int64_t		 bytes[2];
 	u_int32_t		 creation;
 	u_int32_t	 	 expire;
 	u_int32_t		 pfsync_time;
@@ -551,6 +551,11 @@ struct pf_state {
 	u_int8_t		 sync_updates;
 	u_int8_t		_tail[3];
 };
+
+/*
+ * Size <= fits 13 objects per page on LP64. Try to not grow the struct beyond that.
+ */
+_Static_assert(sizeof(struct pf_state) <= 312, "pf_state size crosses 312 bytes");
 #endif
 
 /*
@@ -1490,6 +1495,7 @@ extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
+extern struct pf_state		*pf_alloc_state(int);
 extern void			 pf_free_state(struct pf_state *);
 
 static __inline void
@@ -1504,6 +1510,17 @@ pf_release_state(struct pf_state *s)
 {
 
 	if (refcount_release(&s->refs)) {
+		pf_free_state(s);
+		return (1);
+	} else
+		return (0);
+}
+
+static __inline int
+pf_release_staten(struct pf_state *s, u_int n)
+{
+
+	if (refcount_releasen(&s->refs, n)) {
 		pf_free_state(s);
 		return (1);
 	} else

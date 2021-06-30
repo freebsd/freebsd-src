@@ -231,6 +231,7 @@ label_body()
 report_identical_head()
 {
 	atf_set "require.config" unprivileged_user
+	atf_set "require.user" root
 }
 report_identical_body()
 {

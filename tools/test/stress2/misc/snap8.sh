@@ -32,6 +32,9 @@
 # kern/94769: [ufs] Multiple file deletions on multi-snapshotted filesystems
 # causes hang
 
+# panic: handle_workitem_remove: bad dir delta
+# https://people.freebsd.org/~pho/stress/log/log0121.txt
+
 [ `id -u ` -ne 0 ] && echo "Must be root!" && exit 1
 
 . ../default.cfg

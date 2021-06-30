@@ -12,7 +12,7 @@
 #define	LINUX_SYS_linux_newstat	4
 #define	LINUX_SYS_linux_newfstat	5
 #define	LINUX_SYS_linux_newlstat	6
-#define	LINUX_SYS_poll	7
+#define	LINUX_SYS_linux_poll	7
 #define	LINUX_SYS_linux_lseek	8
 #define	LINUX_SYS_linux_mmap2	9
 #define	LINUX_SYS_linux_mprotect	10

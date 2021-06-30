@@ -1047,8 +1047,7 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
 # as well.  See dummynet(4) and ipfw(8) for more info.  When you run
-# DUMMYNET it is advisable to also have at least "options HZ=1000" to achieve
-# a smooth scheduling of the traffic.
+# DUMMYNET, HZ/kern.hz should be at least 1000 for adequate response.
 options 	DUMMYNET
 
 # The DEBUGNET option enables a basic debug/panic-time networking API.  It
@@ -1237,14 +1236,10 @@ options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 #####################################################################
 # CLOCK OPTIONS
 
-# The granularity of operation is controlled by the kernel option HZ whose
-# default value (1000 on most architectures) means a granularity of 1ms
-# (1s/HZ).  Historically, the default was 100, but finer granularity is
-# required for DUMMYNET and other systems on modern hardware.  There are
-# reasonable arguments that HZ should, in fact, be 100 still; consider,
-# that reducing the granularity too much might cause excessive overhead in
-# clock interrupt processing, potentially causing ticks to be missed and thus
-# actually reducing the accuracy of operation.
+# The granularity of operation is controlled by the kernel option HZ (default
+# frequency of 1000 Hz or a period 1ms between calls). Virtual machine guests
+# use a value of 100. Lower values may lower overhead at the expense of accuracy
+# of scheduling, though the adaptive tick code reduces that overhead.
 
 options 	HZ=100
 
@@ -1326,8 +1321,8 @@ envvar		hint.sa.1.target="6"
 # The pt driver drives SCSI Processor devices.
 #
 # The sg driver provides a passthrough API that is compatible with the
-# Linux SG driver.  It will work in conjunction with the COMPAT_LINUX
-# option to run linux SG apps.  It can also stand on its own and provide
+# Linux SG driver.  It will work in conjunction with the Linuxulator
+# to run linux SG apps.  It can also stand on its own and provide
 # source level API compatibility for porting apps to FreeBSD.
 #
 # Target Mode support is provided here but also requires that a SIM

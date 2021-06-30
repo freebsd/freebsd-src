@@ -1548,16 +1548,16 @@ pvscsi_free_all(struct pvscsi_softc *sc)
 {
 
 	if (sc->sim) {
-		int32_t status;
+		int error;
 
 		if (sc->bus_path) {
 			xpt_free_path(sc->bus_path);
 		}
 
-		status = xpt_bus_deregister(cam_sim_path(sc->sim));
-		if (status != CAM_REQ_CMP) {
+		error = xpt_bus_deregister(cam_sim_path(sc->sim));
+		if (error != 0) {
 			device_printf(sc->dev,
-			    "Error deregistering bus, status=%d\n", status);
+			    "Error deregistering bus, error %d\n", error);
 		}
 
 		cam_sim_free(sc->sim, TRUE);

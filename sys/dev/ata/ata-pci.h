@@ -535,8 +535,7 @@ uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
 void ata_pci_write_config(device_t dev, device_t child, int reg, 
     uint32_t val, int width);
 int ata_pci_print_child(device_t dev, device_t child);
-int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen);
+int ata_pci_child_location(device_t dev, device_t child, struct sbuf *sb);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
@@ -586,7 +585,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(pci_read_config,		ata_pci_read_config), \
     DEVMETHOD(pci_write_config,		ata_pci_write_config), \
     DEVMETHOD(bus_print_child,		ata_pci_print_child), \
-    DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
+    DEVMETHOD(bus_child_location,	ata_pci_child_location), \
     DEVMETHOD_END \
 }; \
 static driver_t __CONCAT(dname,_driver) = { \

@@ -107,7 +107,7 @@ static bool mlx5_netdev_match(struct ifnet *ndev,
 static int mlx5_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct ifnet *ndev = netdev_notifier_info_to_dev(ptr);
+	struct ifnet *ndev = netdev_notifier_info_to_ifp(ptr);
 	struct mlx5_ib_dev *ibdev = container_of(this, struct mlx5_ib_dev,
 						 roce.nb);
 

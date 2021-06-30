@@ -210,8 +210,10 @@ dt_idcook_func(dt_node_t *dnp, dt_ident_t *idp, int argc, dt_node_t *args)
 			}
 		}
 
-		for (p2 = strchr(p2, ','); p2++ != NULL; i++)
+		for (p2 = strchr(p2, ','); p2 != NULL; i++) {
+			p2++;
 			p2 = strchr(p2, ',');
+		}
 
 		/*
 		 * We first allocate a new ident signature structure with the

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/sbuf.h>
 #include <sys/uuid.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -245,20 +246,14 @@ nvdimm_root_write_ivar(device_t dev, device_t child, int index,
 }
 
 static int
-nvdimm_root_child_location_str(device_t dev, device_t child, char *buf,
-    size_t buflen)
+nvdimm_root_child_location(device_t dev, device_t child, struct sbuf *sb)
 {
 	ACPI_HANDLE handle;
-	int res;
 
 	handle = nvdimm_root_get_acpi_handle(child);
 	if (handle != NULL)
-		res = snprintf(buf, buflen, "handle=%s", acpi_name(handle));
-	else
-		res = snprintf(buf, buflen, "");
+		sbuf_printf(sb, "handle=%s", acpi_name(handle));
 
-	if (res >= buflen)
-		return (EOVERFLOW);
 	return (0);
 }
 
@@ -269,7 +264,7 @@ static device_method_t nvdimm_acpi_methods[] = {
 	DEVMETHOD(bus_add_child, bus_generic_add_child),
 	DEVMETHOD(bus_read_ivar, nvdimm_root_read_ivar),
 	DEVMETHOD(bus_write_ivar, nvdimm_root_write_ivar),
-	DEVMETHOD(bus_child_location_str, nvdimm_root_child_location_str),
+	DEVMETHOD(bus_child_location, nvdimm_root_child_location),
 	DEVMETHOD_END
 };
 

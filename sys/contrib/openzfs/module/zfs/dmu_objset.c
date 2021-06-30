@@ -399,7 +399,15 @@ static unsigned int
 dnode_multilist_index_func(multilist_t *ml, void *obj)
 {
 	dnode_t *dn = obj;
-	return (dnode_hash(dn->dn_objset, dn->dn_object) %
+
+	/*
+	 * The low order bits of the hash value are thought to be
+	 * distributed evenly. Otherwise, in the case that the multilist
+	 * has a power of two number of sublists, each sublists' usage
+	 * would not be evenly distributed. In this context full 64bit
+	 * division would be a waste of time, so limit it to 32 bits.
+	 */
+	return ((unsigned int)dnode_hash(dn->dn_objset, dn->dn_object) %
 	    multilist_get_num_sublists(ml));
 }
 
@@ -1616,7 +1624,7 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	blkptr_t *blkptr_copy = kmem_alloc(sizeof (*os->os_rootbp), KM_SLEEP);
 	*blkptr_copy = *os->os_rootbp;
 
-	dprintf_ds(os->os_dsl_dataset, "txg=%llu\n", tx->tx_txg);
+	dprintf_ds(os->os_dsl_dataset, "txg=%llu\n", (u_longlong_t)tx->tx_txg);
 
 	ASSERT(dmu_tx_is_syncing(tx));
 	/* XXX the write_done callback should really give us the tx... */

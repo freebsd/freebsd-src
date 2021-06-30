@@ -988,9 +988,14 @@ icl_cxgbei_conn_task_setup(struct icl_conn *ic, struct icl_pdu *ip,
 	uint32_t itt;
 	int rc = 0;
 
+	ICL_CONN_LOCK_ASSERT(ic);
+
 	/* This is for the offload driver's state.  Must not be set already. */
 	MPASS(arg != NULL);
 	MPASS(*arg == NULL);
+
+	if (ic->ic_disconnecting || ic->ic_socket == NULL)
+		return (ECONNRESET);
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_IN ||
 	    csio->dxfer_len < ci->ddp_threshold) {
@@ -1209,8 +1214,17 @@ no_ddp:
 		 * Do not get inp from toep->inp as the toepcb might
 		 * have detached already.
 		 */
+		ICL_CONN_LOCK(ic);
+		if (ic->ic_disconnecting || ic->ic_socket == NULL) {
+			ICL_CONN_UNLOCK(ic);
+			mbufq_drain(&mq);
+			t4_free_page_pods(prsv);
+			free(ddp, M_CXGBEI);
+			return (ECONNRESET);
+		}
 		inp = sotoinpcb(ic->ic_socket);
 		INP_WLOCK(inp);
+		ICL_CONN_UNLOCK(ic);
 		if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) != 0) {
 			INP_WUNLOCK(inp);
 			mbufq_drain(&mq);

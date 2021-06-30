@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include "ena_sysctl.h"
@@ -50,7 +51,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 /*
  * Logging level for changing verbosity of the output
  */
-int ena_log_level = ENA_ALERT | ENA_WARNING;
+int ena_log_level = ENA_INFO;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
@@ -68,6 +69,19 @@ SYSCTL_CONST_STRING(_hw_ena, OID_AUTO, driver_version, CTLFLAG_RD,
 int ena_enable_9k_mbufs = 0;
 SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
     &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
+
+/*
+ * Force the driver to use large LLQ (Low Latency Queue) header. Defaults to
+ * false. This option may be important for platforms, which often handle packet
+ * headers on Tx with total header size greater than 96B, as it may
+ * reduce the latency.
+ * It also reduces the maximum Tx queue size by half, so it may cause more Tx
+ * packet drops.
+ */
+bool ena_force_large_llq_header = false;
+SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
+    &ena_force_large_llq_header, 0,
+    "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum Tx queue size by half.\n");
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
@@ -174,6 +188,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
 		    namebuf, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		adapter->que[i].oid = queue_node;
 
 		/* TX specific stats */
 		tx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
@@ -383,6 +399,42 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 }
 
 
+/*
+ * ena_sysctl_update_queue_node_nb - Register/unregister sysctl queue nodes.
+ *
+ * Whether the nodes are registered or unregistered depends on a delta between
+ * the `old` and `new` parameters, representing the number of queues.
+ *
+ * This function is used to hide sysctl attributes for queue nodes which aren't
+ * currently used by the HW (e.g. after a call to `ena_sysctl_io_queues_nb`).
+ *
+ * NOTE:
+ * All unregistered nodes must be registered again at detach, i.e. by a call to
+ * this function.
+ */
+void
+ena_sysctl_update_queue_node_nb(struct ena_adapter *adapter, int old, int new)
+{
+	device_t dev;
+	struct sysctl_oid *oid;
+	int min, max, i;
+
+	dev = adapter->pdev;
+	min = MIN(old, new);
+	max = MIN(MAX(old, new), adapter->max_num_io_queues);
+
+	for (i = min; i < max; ++i) {
+		oid = adapter->que[i].oid;
+
+		sysctl_wlock();
+		if (old > new)
+			sysctl_unregister_oid(oid);
+		else
+			sysctl_register_oid(oid);
+		sysctl_wunlock();
+	}
+}
+
 static int
 ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 {
@@ -400,20 +452,20 @@ ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (!powerof2(val) || val == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Tx buffer ring size (%u) is not a power of 2\n",
 		    val);
 		return (EINVAL);
 	}
 
 	if (val != adapter->buf_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new Tx buffer ring size: %d. Old size: %d\n",
 		    val, adapter->buf_ring_size);
 
 		error = ena_update_buf_ring_size(adapter, val);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "New Tx buffer ring size is the same as already used: %u\n",
 		    adapter->buf_ring_size);
 	}
@@ -438,7 +490,7 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if  (val < ENA_MIN_RING_SIZE || val > adapter->max_rx_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is out of range: [%u, %u]\n",
 		    val, ENA_MIN_RING_SIZE, adapter->max_rx_ring_size);
 		return (EINVAL);
@@ -446,21 +498,21 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 
 	/* Check if the parameter is power of 2 */
 	if (!powerof2(val)) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is not a power of 2\n",
 		    val);
 		return (EINVAL);
 	}
 
 	if (val != adapter->requested_rx_ring_size) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new Rx queue size: %u. Old size: %u\n",
 		    val, adapter->requested_rx_ring_size);
 
 		error = ena_update_queue_size(adapter,
 		    adapter->requested_tx_ring_size, val);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "New Rx queue size is the same as already used: %u\n",
 		    adapter->requested_rx_ring_size);
 	}
@@ -475,7 +527,7 @@ static int
 ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	uint32_t tmp = 0;
+	uint32_t old_num_queues, tmp = 0;
 	int error;
 
 	error = sysctl_wire_old_buffer(req, sizeof(tmp));
@@ -487,7 +539,7 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (tmp == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is zero\n");
 		return (EINVAL);
 	}
@@ -500,21 +552,26 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 	 * device reset (`ena_destroy_device()` + `ena_restore_device()`).
 	 */
 	if (tmp > (adapter->msix_vecs - ENA_ADMIN_MSIX_VEC)) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is higher than maximum "
 		    "allowed (%u)\n", adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
 		return (EINVAL);
 	}
 	if (tmp == adapter->num_io_queues) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is equal to current value "
 		    "(%u)\n", adapter->num_io_queues);
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "Requested new number of IO queues: %u, current value: "
 		    "%u\n", tmp, adapter->num_io_queues);
 
+		old_num_queues = adapter->num_io_queues;
 		error = ena_update_io_queue_nb(adapter, tmp);
+		if (error != 0)
+			return (error);
+
+		ena_sysctl_update_queue_node_nb(adapter, old_num_queues, tmp);
 	}
 
 	return (error);
@@ -536,18 +593,18 @@ ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	if (interval > ENI_METRICS_MAX_SAMPLE_INTERVAL) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, ERR,
 		    "ENI metrics update interval is out of range - maximum allowed value: %d seconds\n",
 		    ENI_METRICS_MAX_SAMPLE_INTERVAL);
 		return (EINVAL);
 	}
 
 	if (interval == 0) {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "ENI metrics update is now turned off\n");
 		bzero(&adapter->eni_metrics, sizeof(adapter->eni_metrics));
 	} else {
-		device_printf(adapter->pdev,
+		ena_log(adapter->pdev, INFO,
 		    "ENI metrics update interval is set to: %"PRIu16" seconds\n",
 		    interval);
 	}

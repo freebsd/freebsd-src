@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
@@ -174,8 +175,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_child_deleted,	pci_child_deleted),
 	DEVMETHOD(bus_child_detached,	pci_child_detached),
-	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
-	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
+	DEVMETHOD(bus_child_pnpinfo,	pci_child_pnpinfo_method),
+	DEVMETHOD(bus_child_location,	pci_child_location_method),
 	DEVMETHOD(bus_hint_device_unit,	pci_hint_device_unit),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
 	DEVMETHOD(bus_suspend_child,	pci_suspend_child),
@@ -5847,26 +5848,24 @@ pci_write_config_method(device_t dev, device_t child, int reg,
 }
 
 int
-pci_child_location_str_method(device_t dev, device_t child, char *buf,
-    size_t buflen)
+pci_child_location_method(device_t dev, device_t child, struct sbuf *sb)
 {
 
-	snprintf(buf, buflen, "slot=%d function=%d dbsf=pci%d:%d:%d:%d",
+	sbuf_printf(sb, "slot=%d function=%d dbsf=pci%d:%d:%d:%d",
 	    pci_get_slot(child), pci_get_function(child), pci_get_domain(child),
 	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
 	return (0);
 }
 
 int
-pci_child_pnpinfo_str_method(device_t dev, device_t child, char *buf,
-    size_t buflen)
+pci_child_pnpinfo_method(device_t dev, device_t child, struct sbuf *sb)
 {
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;
 
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
-	snprintf(buf, buflen, "vendor=0x%04x device=0x%04x subvendor=0x%04x "
+	sbuf_printf(sb, "vendor=0x%04x device=0x%04x subvendor=0x%04x "
 	    "subdevice=0x%04x class=0x%02x%02x%02x", cfg->vendor, cfg->device,
 	    cfg->subvendor, cfg->subdevice, cfg->baseclass, cfg->subclass,
 	    cfg->progif);

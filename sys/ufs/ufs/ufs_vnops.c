@@ -105,14 +105,16 @@ VFS_SMR_DECLARE;
 static vop_accessx_t	ufs_accessx;
 static vop_fplookup_vexec_t ufs_fplookup_vexec;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
-static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
+static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
+    struct thread *);
 static vop_close_t	ufs_close;
 static vop_create_t	ufs_create;
 static vop_stat_t	ufs_stat;
 static vop_getattr_t	ufs_getattr;
 static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
-static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *, const char *);
+static int ufs_makeinode(int mode, struct vnode *, struct vnode **,
+    struct componentname *, const char *);
 static vop_mmapped_t	ufs_mmapped;
 static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
@@ -1008,7 +1010,7 @@ ufs_remove(ap)
 	    (VTOI(dvp)->i_flags & APPEND))
 		return (EPERM);
 	if (DOINGSUJ(dvp)) {
-		error = softdep_prelink(dvp, vp);
+		error = softdep_prelink(dvp, vp, ap->a_cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1073,7 +1075,7 @@ ufs_link(ap)
 #endif
 
 	if (DOINGSUJ(tdvp)) {
-		error = softdep_prelink(tdvp, vp);
+		error = softdep_prelink(tdvp, vp, cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1145,7 +1147,7 @@ ufs_whiteout(ap)
 
 	if (DOINGSUJ(dvp) && (ap->a_flags == CREATE ||
 	    ap->a_flags == DELETE)) {
-		error = softdep_prelink(dvp, NULL);
+		error = softdep_prelink(dvp, NULL, cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1246,6 +1248,7 @@ ufs_rename(ap)
 	int error = 0;
 	struct mount *mp;
 	ino_t ino;
+	seqc_t fdvp_s, fvp_s, tdvp_s, tvp_s;
 	bool want_seqc_end;
 
 	want_seqc_end = false;
@@ -1269,6 +1272,8 @@ ufs_rename(ap)
 		mp = NULL;
 		goto releout;
 	}
+
+	fdvp_s = fvp_s = tdvp_s = tvp_s = SEQC_MOD;
 relock:
 	/* 
 	 * We need to acquire 2 to 4 locks depending on whether tvp is NULL
@@ -1362,10 +1367,20 @@ relock:
 		}
 	}
 
-	if (DOINGSOFTDEP(fdvp)) {
+	if (DOINGSUJ(fdvp) &&
+	    (seqc_in_modify(fdvp_s) || !vn_seqc_consistent(fdvp, fdvp_s) ||
+	     seqc_in_modify(fvp_s) || !vn_seqc_consistent(fvp, fvp_s) ||
+	     seqc_in_modify(tdvp_s) || !vn_seqc_consistent(tdvp, tdvp_s) ||
+	     (tvp != NULL && (seqc_in_modify(tvp_s) ||
+	     !vn_seqc_consistent(tvp, tvp_s))))) {
 		error = softdep_prerename(fdvp, fvp, tdvp, tvp);
 		if (error != 0) {
 			if (error == ERELOOKUP) {
+				fdvp_s = vn_seqc_read_any(fdvp);
+				fvp_s = vn_seqc_read_any(fvp);
+				tdvp_s = vn_seqc_read_any(tdvp);
+				if (tvp != NULL)
+					tvp_s = vn_seqc_read_any(tvp);
 				atomic_add_int(&rename_restarts, 1);
 				goto relock;
 			}
@@ -1947,7 +1962,7 @@ ufs_mkdir(ap)
 	}
 
 	if (DOINGSUJ(dvp)) {
-		error = softdep_prelink(dvp, NULL);
+		error = softdep_prelink(dvp, NULL, cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -2211,7 +2226,7 @@ ufs_rmdir(ap)
 		goto out;
 	}
 	if (DOINGSUJ(dvp)) {
-		error = softdep_prelink(dvp, vp);
+		error = softdep_prelink(dvp, vp, cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -2736,7 +2751,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		return (EINVAL);
 	}
 	if (DOINGSUJ(dvp)) {
-		error = softdep_prelink(dvp, NULL);
+		error = softdep_prelink(dvp, NULL, cnp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);

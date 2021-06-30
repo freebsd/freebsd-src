@@ -1,4 +1,4 @@
-# $NetBSD: dep-var.mk,v 1.5 2020/09/13 20:04:26 rillig Exp $
+# $NetBSD: dep-var.mk,v 1.6 2021/04/04 10:13:09 rillig Exp $
 #
 # Tests for variable references in dependency declarations.
 #
@@ -79,7 +79,7 @@ all: $$$$)
 # undefined.
 #
 # Since 2020-09-13, this generates a parse error in lint mode (-dL), but not
-# in normal mode since ParseDoDependency does not handle any errors after
+# in normal mode since ParseDependency does not handle any errors after
 # calling Var_Parse.
 undef1 def2 a-def2-b 1-2-$$INDIRECT_2-2-1 ${:U\$)}:
 	@echo ${.TARGET:Q}

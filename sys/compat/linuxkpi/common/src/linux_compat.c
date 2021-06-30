@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/user.h>
 
@@ -107,7 +108,7 @@ static int lkpi_net_maxpps = 99;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, net_ratelimit, CTLFLAG_RWTUN,
     &lkpi_net_maxpps, 0, "Limit number of LinuxKPI net messages per second.");
 
-MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
+MALLOC_DEFINE(M_KMALLOC, "lkpikmalloc", "Linux kmalloc compat");
 
 #include <linux/rbtree.h>
 /* Undo Linux compat changes. */
@@ -963,8 +964,8 @@ linux_file_ioctl_sub(struct file *fp, struct linux_file *filp,
 		/* fetch user-space pointer */
 		data = *(void **)data;
 	}
-#if defined(__amd64__)
-	if (td->td_proc->p_elf_machine == EM_386) {
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		/* try the compat IOCTL handler first */
 		if (fop->compat_ioctl != NULL) {
 			error = -OPW(fp, td, fop->compat_ioctl(filp,
@@ -2315,6 +2316,7 @@ linux_handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	if (linkstate == LINK_STATE_UP)
 		nb->notifier_call(nb, NETDEV_UP, &ni);
@@ -2329,6 +2331,7 @@ linux_handle_ifnet_arrival_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_REGISTER, &ni);
 }
@@ -2340,6 +2343,7 @@ linux_handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_UNREGISTER, &ni);
 }
@@ -2351,6 +2355,7 @@ linux_handle_iflladdr_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_CHANGEADDR, &ni);
 }
@@ -2362,6 +2367,7 @@ linux_handle_ifaddr_event(void *arg, struct ifnet *ifp)
 	struct netdev_notifier_info ni;
 
 	nb = arg;
+	ni.ifp = ifp;
 	ni.dev = (struct net_device *)ifp;
 	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, &ni);
 }
@@ -2459,6 +2465,30 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 }
 
 void
+lkpi_irq_release(struct device *dev, struct irq_ent *irqe)
+{
+
+	if (irqe->tag != NULL)
+		bus_teardown_intr(dev->bsddev, irqe->res, irqe->tag);
+	if (irqe->res != NULL)
+		bus_release_resource(dev->bsddev, SYS_RES_IRQ,
+		    rman_get_rid(irqe->res), irqe->res);
+	list_del(&irqe->links);
+}
+
+void
+lkpi_devm_irq_release(struct device *dev, void *p)
+{
+	struct irq_ent *irqe;
+
+	if (dev == NULL || p == NULL)
+		return;
+
+	irqe = p;
+	lkpi_irq_release(dev, irqe);
+}
+
+void
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
@@ -2467,7 +2497,12 @@ linux_irq_handler(void *ent)
 		return;
 
 	irqe = ent;
-	irqe->handler(irqe->irq, irqe->arg);
+	if (irqe->handler(irqe->irq, irqe->arg) == IRQ_WAKE_THREAD &&
+	    irqe->thread_handler != NULL) {
+		THREAD_SLEEPING_OK();
+		irqe->thread_handler(irqe->irq, irqe->arg);
+		THREAD_NO_SLEEPING();
+	}
 }
 
 #if defined(__i386__) || defined(__amd64__)

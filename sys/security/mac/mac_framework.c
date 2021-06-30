@@ -145,6 +145,8 @@ FPFLAG_RARE(vnode_check_access);
 FPFLAG_RARE(vnode_check_readlink);
 FPFLAG_RARE(pipe_check_stat);
 FPFLAG_RARE(pipe_check_poll);
+FPFLAG_RARE(ifnet_create_mbuf);
+FPFLAG_RARE(ifnet_check_transmit);
 
 #undef FPFLAG
 #undef FPFLAG_RARE
@@ -445,6 +447,10 @@ struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 		.flag = &mac_pipe_check_stat_fp_flag },
 	{ .offset = FPO(pipe_check_poll),
 		.flag = &mac_pipe_check_poll_fp_flag },
+	{ .offset = FPO(ifnet_create_mbuf),
+		.flag = &mac_ifnet_create_mbuf_fp_flag },
+	{ .offset = FPO(ifnet_check_transmit),
+		.flag = &mac_ifnet_check_transmit_fp_flag },
 };
 
 static void

@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_posix.h"
 
-extern struct sysentvec elf32_freebsd_sysvec;	/* defined in i386/i386/elf_machdep.c */
-
 struct l_descriptor {
 	l_uint		entry_number;
 	l_ulong		base_addr;

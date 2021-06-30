@@ -471,6 +471,14 @@ struct aac_softc
 };
 
 /*
+ * Max. I/O size in bytes.
+ * Reserve one page for the DMA subsystem, that may need it when the
+ * I/O buffer is not page aligned.
+ */
+#define AAC_MAXIO_SIZE(sc)	MIN(((sc)->aac_max_sectors << 9) - PAGE_SIZE, \
+					maxphys)
+
+/*
  * Event callback mechanism for the driver
  */
 #define AAC_EVENT_NONE		0x00

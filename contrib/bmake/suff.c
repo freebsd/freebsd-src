@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.345 2021/02/05 05:15:12 rillig Exp $	*/
+/*	$NetBSD: suff.c,v 1.350 2021/04/04 10:05:08 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -77,7 +77,8 @@
  *
  *	Suff_End	Clean up the module.
  *
- *	Suff_DoPaths	Extend the search path of each suffix to include the
+ *	Suff_ExtendPaths
+ *			Extend the search path of each suffix to include the
  *			default search path.
  *
  *	Suff_ClearSuffixes
@@ -114,7 +115,7 @@
 #include "dir.h"
 
 /*	"@(#)suff.c	8.4 (Berkeley) 3/21/94"	*/
-MAKE_RCSID("$NetBSD: suff.c,v 1.345 2021/02/05 05:15:12 rillig Exp $");
+MAKE_RCSID("$NetBSD: suff.c,v 1.350 2021/04/04 10:05:08 rillig Exp $");
 
 typedef List SuffixList;
 typedef ListNode SuffixListNode;
@@ -328,7 +329,7 @@ Suffix_TrimSuffix(const Suffix *suff, size_t nameLen, const char *nameEnd)
 	    suff->name, suff->nameLen);
 }
 
-static Boolean
+static bool
 Suffix_IsSuffix(const Suffix *suff, size_t nameLen, const char *nameEnd)
 {
 	return Suffix_TrimSuffix(suff, nameLen, nameEnd) != NULL;
@@ -509,9 +510,9 @@ Suff_ClearSuffixes(void)
  * suffixes (the source ".c" and the target ".o").  If there are no such
  * suffixes, try a single-suffix transformation as well.
  *
- * Return TRUE if the string is a valid transformation.
+ * Return true if the string is a valid transformation.
  */
-static Boolean
+static bool
 ParseTransform(const char *str, Suffix **out_src, Suffix **out_targ)
 {
 	SuffixListNode *ln;
@@ -536,7 +537,7 @@ ParseTransform(const char *str, Suffix **out_src, Suffix **out_targ)
 			if (targ != NULL) {
 				*out_src = src;
 				*out_targ = targ;
-				return TRUE;
+				return true;
 			}
 		}
 	}
@@ -554,17 +555,17 @@ ParseTransform(const char *str, Suffix **out_src, Suffix **out_targ)
 		 */
 		*out_src = single;
 		*out_targ = nullSuff;
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 /*
- * Return TRUE if the given string is a transformation rule, that is, a
+ * Return true if the given string is a transformation rule, that is, a
  * concatenation of two known suffixes such as ".c.o" or a single suffix
  * such as ".o".
  */
-Boolean
+bool
 Suff_IsTransform(const char *str)
 {
 	Suffix *src, *targ;
@@ -616,7 +617,7 @@ Suff_AddTransform(const char *name)
 
 	{
 		/* TODO: Avoid the redundant parsing here. */
-		Boolean ok = ParseTransform(name, &srcSuff, &targSuff);
+		bool ok = ParseTransform(name, &srcSuff, &targSuff);
 		assert(ok);
 		(void)ok;
 	}
@@ -725,11 +726,11 @@ RebuildGraph(GNode *transform, Suffix *suff)
  * becomes the main target.
  *
  * Results:
- *	TRUE iff a new main target has been selected.
+ *	true iff a new main target has been selected.
  */
-static Boolean
+static bool
 UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
-	     Boolean *inout_removedMain)
+	     bool *inout_removedMain)
 {
 	Suffix *srcSuff, *targSuff;
 	char *ptr;
@@ -740,20 +741,20 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 		*inout_main = target;
 		Targ_SetMain(target);
 		/*
-		 * XXX: Why could it be a good idea to return TRUE here?
+		 * XXX: Why could it be a good idea to return true here?
 		 * The main task of this function is to turn ordinary nodes
 		 * into transformations, no matter whether or not a new .MAIN
 		 * node has been found.
 		 */
 		/*
-		 * XXX: Even when changing this to FALSE, none of the existing
+		 * XXX: Even when changing this to false, none of the existing
 		 * unit tests fails.
 		 */
-		return TRUE;
+		return true;
 	}
 
 	if (target->type == OP_TRANSFORM)
-		return FALSE;
+		return false;
 
 	/*
 	 * XXX: What about a transformation ".cpp.c"?  If ".c" is added as
@@ -762,7 +763,7 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 	 */
 	ptr = strstr(target->name, suff->name);
 	if (ptr == NULL)
-		return FALSE;
+		return false;
 
 	/*
 	 * XXX: In suff-rebuild.mk, in the line '.SUFFIXES: .c .b .a', this
@@ -773,14 +774,14 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 	 * amounts of memory.
 	 */
 	if (ptr == target->name)
-		return FALSE;
+		return false;
 
 	if (ParseTransform(target->name, &srcSuff, &targSuff)) {
 		if (*inout_main == target) {
 			DEBUG1(MAKE,
 			    "Setting main node from \"%s\" back to null\n",
 			    target->name);
-			*inout_removedMain = TRUE;
+			*inout_removedMain = true;
 			*inout_main = NULL;
 			Targ_SetMain(NULL);
 		}
@@ -795,7 +796,7 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 		    srcSuff->name, targSuff->name);
 		Relate(srcSuff, targSuff);
 	}
-	return FALSE;
+	return false;
 }
 
 /*
@@ -808,7 +809,7 @@ UpdateTarget(GNode *target, GNode **inout_main, Suffix *suff,
 static void
 UpdateTargets(GNode **inout_main, Suffix *suff)
 {
-	Boolean removedMain = FALSE;
+	bool removedMain = false;
 	GNodeListNode *ln;
 
 	for (ln = Targ_List()->first; ln != NULL; ln = ln->next) {
@@ -876,7 +877,7 @@ Suff_GetPath(const char *sname)
  * ".LIBS" and the flag is '-L'.
  */
 void
-Suff_DoPaths(void)
+Suff_ExtendPaths(void)
 {
 	SuffixListNode *ln;
 	char *flags;
@@ -1061,7 +1062,7 @@ CandidateList_AddCandidatesFor(CandidateList *list, Candidate *cand)
  * Free the first candidate in the list that is not referenced anymore.
  * Return whether a candidate was removed.
  */
-static Boolean
+static bool
 RemoveCandidate(CandidateList *srcs)
 {
 	CandidateListNode *ln;
@@ -1097,7 +1098,7 @@ RemoveCandidate(CandidateList *srcs)
 			Lst_Remove(srcs, ln);
 			free(src->file);
 			free(src);
-			return TRUE;
+			return true;
 		}
 #ifdef DEBUG_SRC
 		else {
@@ -1108,7 +1109,7 @@ RemoveCandidate(CandidateList *srcs)
 #endif
 	}
 
-	return FALSE;
+	return false;
 }
 
 /* Find the first existing file/target in srcs. */
@@ -1282,7 +1283,7 @@ ExpandWildcards(GNodeListNode *cln, GNode *pgn)
  * add those nodes to the members list.
  *
  * Unfortunately, we can't use Str_Words because it doesn't understand about
- * variable specifications with spaces in them.
+ * variable expressions with spaces in them.
  */
 static void
 ExpandChildrenRegular(char *cp, GNode *pgn, GNodeList *members)
@@ -1309,7 +1310,7 @@ ExpandChildrenRegular(char *cp, GNode *pgn, GNodeList *members)
 			const char *nested_p = cp;
 			FStr junk;
 
-			(void)Var_Parse(&nested_p, pgn, VARE_NONE, &junk);
+			(void)Var_Parse(&nested_p, pgn, VARE_PARSE_ONLY, &junk);
 			/* TODO: handle errors */
 			if (junk.str == var_Error) {
 				Parse_Error(PARSE_FATAL,
@@ -1380,7 +1381,7 @@ ExpandChildren(GNodeListNode *cln, GNode *pgn)
 	}
 
 	DEBUG1(SUFF, "Expanding \"%s\"...", cgn->name);
-	(void)Var_Subst(cgn->name, pgn, VARE_WANTRES | VARE_UNDEFERR, &cp);
+	(void)Var_Subst(cgn->name, pgn, VARE_UNDEFERR, &cp);
 	/* TODO: handle errors */
 
 	{
@@ -1494,9 +1495,9 @@ Suff_FindPath(GNode *gn)
  * the sources for the transformation rule.
  *
  * Results:
- *	TRUE if successful, FALSE if not.
+ *	true if successful, false if not.
  */
-static Boolean
+static bool
 ApplyTransform(GNode *tgn, GNode *sgn, Suffix *tsuff, Suffix *ssuff)
 {
 	GNodeListNode *ln;
@@ -1515,7 +1516,7 @@ ApplyTransform(GNode *tgn, GNode *sgn, Suffix *tsuff, Suffix *ssuff)
 
 	/* This can happen when linking an OP_MEMBER and OP_ARCHV node. */
 	if (gn == NULL)
-		return FALSE;
+		return false;
 
 	DEBUG3(SUFF, "\tapplying %s -> %s to \"%s\"\n",
 	    ssuff->name, tsuff->name, tgn->name);
@@ -1540,7 +1541,7 @@ ApplyTransform(GNode *tgn, GNode *sgn, Suffix *tsuff, Suffix *ssuff)
 	 */
 	Lst_Append(&sgn->implicitParents, tgn);
 
-	return TRUE;
+	return true;
 }
 
 /*
