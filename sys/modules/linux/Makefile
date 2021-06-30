@@ -26,6 +26,7 @@ SRCS+=	linux_dummy_x86.c
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux${SFX}_support.s
+SRCS+=	linux_elf32.c
 .else
 SRCS+=	linux_copyout.c
 .endif
