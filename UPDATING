@@ -12,6 +12,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210630:
+        Commit ca179c4d74f2/632e3f2f3a66 changed the package in which
+	the OpenSSL libraries and utilities are packaged.
+        It is recommended for pkgbase user to do:
+        pkg install -f FreeBSD-openssl
+        before pkg upgrade otherwise some dependencies might not be met
+        and pkg will stop working as libssl will not be present anymore
+        on the system.
+
 20210626:
 	Commit 841006678745 changed the internal KAPI between the krpc
 	and nfsd modules.  As such, they must both be rebuilt from
