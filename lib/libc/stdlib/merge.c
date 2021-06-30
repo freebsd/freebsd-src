@@ -129,7 +129,7 @@ mergesort(void *base, size_t nmemb, size_t size, cmp_t cmp)
 	if (nmemb == 0)
 		return (0);
 
-	iflag = ((size % ISIZE) || ((char *)base % ISIZE));
+	iflag = ((size % ISIZE) || ((uintptr_t)base % ISIZE));
 
 	if ((list2 = malloc(nmemb * size + PSIZE)) == NULL)
 		return (-1);
