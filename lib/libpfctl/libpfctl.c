@@ -727,6 +727,7 @@ pfctl_get_states(int dev, struct pfctl_states *states)
 			goto out;
 		}
 
+		nvlist_destroy(nvl);
 		nvl = nvlist_unpack(nv.data, nv.len, 0);
 		if (nvl == NULL) {
 			error = EIO;
