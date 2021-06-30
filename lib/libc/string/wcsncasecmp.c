@@ -43,9 +43,9 @@ wcsncasecmp(const wchar_t *s1, const wchar_t *s2, size_t n)
 		c1 = towlower(*s1);
 		c2 = towlower(*s2);
 		if (c1 != c2)
-			return ((int)c1 - c2);
+			return (int)((unsigned int)c1 - (unsigned int)c2);
 		if (--n == 0)
 			return (0);
 	}
-	return (-*s2);
+	return (int)(-*s2);
 }
