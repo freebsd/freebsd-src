@@ -841,7 +841,7 @@ tegra_pcib_pex_ctrl(struct tegra_pcib_softc *sc, int port)
 	case 1:
 		return (AFI_PEX1_CTRL);
 	case 2:
-		return (AFI_PEX_2_CTRL);
+		return (AFI_PEX2_CTRL);
 	default:
 		panic("invalid port number: %d\n", port);
 	}
