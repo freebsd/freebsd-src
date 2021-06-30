@@ -79,7 +79,90 @@ synproxy_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "local" "cleanup"
+local_head()
+{
+	atf_set descr 'Synproxy a locally terminated connection'
+	atf_set require.user root
+}
+
+local_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+		$(atf_get_srcdir)/echo_inetd.conf
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "set fail-policy return" \
+		"scrub in all fragment reassemble" \
+		"pass in quick on ${epair}b proto tcp from any to any port 7 synproxy state"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	# Check that we can talk to the jail, after synproxying
+	reply=$(echo ping | nc -N -w 5 192.0.2.1 7)
+	if [ "${reply}" != "ping" ];
+	then
+		atf_fail "echo failed"
+	fi
+}
+
+local_cleanup()
+{
+	rm -f inetd-alcatraz.pid
+	pft_cleanup
+}
+
+atf_test_case "local_v6" "cleanup"
+local_v6_head()
+{
+	atf_set descr 'Synproxy (v6) a locally terminated connection'
+	atf_set require.user root
+}
+
+local_v6_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a inet6 2001:db8:42::1/64 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up
+	jexec alcatraz /usr/sbin/inetd -p inetd-alcatraz.pid \
+		$(atf_get_srcdir)/echo_inetd.conf
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "set fail-policy return" \
+		"scrub in all fragment reassemble" \
+		"pass in quick on ${epair}b proto tcp from any to any port 7 synproxy state"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping6 -c 1 2001:db8:42::2
+
+	reply=$(echo ping | nc -N -w 5 2001:db8:42::2 7)
+	if [ "${reply}" != "ping" ];
+	then
+		atf_fail "echo failed"
+	fi
+}
+
+local_v6_cleanup()
+{
+	rm -f inetd-alcatraz.pid
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "synproxy"
+	atf_add_test_case "local"
+	atf_add_test_case "local_v6"
 }
