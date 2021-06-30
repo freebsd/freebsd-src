@@ -3967,6 +3967,9 @@ OLD_FILES+=usr/libexec/kgdb
 OLD_FILES+=usr/share/man/man4/hme.4.gz
 OLD_FILES+=usr/share/man/man4/if_hme.4.gz
 
+# 20201129: RADIX_MPATH removed
+OLD_FILES+=usr/include/net/radix_mpath.h
+
 # 20201124: ping6(8) was merged into ping(8)
 OLD_FILES+=usr/lib/debug/sbin/ping6.debug
 OLD_FILES+=usr/share/man/man8/ping6.8.gz
@@ -4047,6 +4050,9 @@ OLD_FILES+=boot/lua/logo-beastiebw.lua
 OLD_FILES+=boot/lua/logo-fbsdbw.lua
 OLD_FILES+=boot/lua/logo-orb.lua
 OLD_FILES+=boot/lua/logo-orbbw.lua
+
+# 20200828: net/route/shared.h moved to net/route/route_var.h
+OLD_FILES+=usr/include/net/route/shared.h
 
 # 20200825: merged OpenZFS support
 OLD_LIBS+=lib/libzfs.so.3
@@ -4322,6 +4328,9 @@ OLD_FILES+=usr/share/man/man9/uma_zfree_domain.9.gz
 OLD_FILES+=usr/share/man/man4/cy.4.gz
 OLD_FILES+=usr/share/man/man4/rc.4.gz
 OLD_FILES+=usr/share/man/man4/rp.4.gz
+
+# 20200721: sys/iommu.h moved to dev/iommu/
+OLD_FILES+=usr/include/sys/iommu.h
 
 # 20200715: rework of devstat(9) man page
 OLD_FILES+=usr/share/man/man9/devstat_add_entry.9.gz
@@ -5782,6 +5791,37 @@ OLD_FILES+=usr/libexec/cc1plus
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man7/gperf.7.gz
+OLD_DIRS+=usr/include/c++/4.2/tr1
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/unordered_iterator
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/trie_policy
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/tree_policy
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/thin_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/splay_tree_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/resize_policy
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/rc_binomial_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/rb_tree_map_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/pat_trie_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/pairing_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/ov_tree_map_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/list_update_policy
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/list_update_map_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/left_child_next_sibling_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/hash_fn
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/gp_hash_table_map_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/eq_fn
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/cc_hash_table_map_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/binomial_heap_base_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/binomial_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/binary_heap_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/bin_search_tree_
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail/basic_tree_policy
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds/detail
+OLD_DIRS+=usr/include/c++/4.2/ext/pb_ds
+OLD_DIRS+=usr/include/c++/4.2/ext
+OLD_DIRS+=usr/include/c++/4.2/debug
+OLD_DIRS+=usr/include/c++/4.2/bits
+OLD_DIRS+=usr/include/c++/4.2/backward
+OLD_DIRS+=usr/include/c++/4.2
 
 # 20200220: Upgrade of ncurses, shlib bumped to version 9
 OLD_LIBS+=lib/libncurses.so.8
@@ -5797,6 +5837,7 @@ OLD_FILES+=usr/share/man/man1/elf2aout.1.gz
 OLD_FILES+=usr/sbin/simple_httpd
 
 # 20200127: vpo removed
+OLD_FILES+=usr/include/dev/ppbus/vpoio.h
 OLD_FILES+=usr/share/man/man4/imm.4.gz
 OLD_FILES+=usr/share/man/man4/vpo.4.gz
 
