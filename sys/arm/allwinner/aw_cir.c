@@ -144,6 +144,13 @@ enum {
 
 #define	AW_IR_RAW_BUF_SIZE		128
 
+SYSCTL_NODE(_hw, OID_AUTO, aw_cir, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "aw_cir driver");
+
+static int aw_cir_debug = 0;
+SYSCTL_INT(_hw_aw_cir, OID_AUTO, debug, CTLFLAG_RWTUN, &aw_cir_debug, 0,
+    "Debug 1=on 0=off");
+
 struct aw_ir_softc {
 	device_t		dev;
 	struct resource		*res[2];
@@ -207,14 +214,14 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 	unsigned char val, last;
 	int i, bitcount;
 
-	if (bootverbose)
+	if (bootverbose && __predict_false(aw_cir_debug) != 0)
 		device_printf(sc->dev, "sc->dcnt = %d\n", sc->dcnt);
 
 	/* Find Lead 1 (bit separator) */
 	active_delay = AW_IR_ACTIVE_T_VAL *
 	    (AW_IR_ACTIVE_T_C_VAL != 0 ? 128 : 1);
 	len = active_delay;
-	if (bootverbose)
+	if (bootverbose && __predict_false(aw_cir_debug) != 0)
 		device_printf(sc->dev, "Initial len: %d\n", len);
 	for (i = 0;  i < sc->dcnt; i++) {
 		val = sc->buf[i];
@@ -226,10 +233,10 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 			len = 0;
 		}
 	}
-	if (bootverbose)
+	if (bootverbose && __predict_false(aw_cir_debug) != 0)
 		device_printf(sc->dev, "len = %d\n", len);
 	if ((val & VAL_MASK) || (len <= AW_IR_L1_MIN)) {
-		if (bootverbose)
+		if (bootverbose && __predict_false(aw_cir_debug) != 0)
 			device_printf(sc->dev, "Bit separator error\n");
 		goto error_code;
 	}
@@ -246,7 +253,7 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 			len += (val & PERIOD_MASK) + 1;
 	}
 	if ((!(val & VAL_MASK)) || (len <= AW_IR_L0_MIN)) {
-		if (bootverbose)
+		if (bootverbose && __predict_false(aw_cir_debug) != 0)
 			device_printf(sc->dev, "Bit length error\n");
 		goto error_code;
 	}
@@ -330,7 +337,7 @@ aw_ir_intr(void *arg)
 
 	/* Read RX interrupt status */
 	val = READ(sc, AW_IR_RXSTA);
-	if (bootverbose)
+	if (bootverbose && __predict_false(aw_cir_debug) != 0)
 		device_printf(sc->dev, "RX interrupt status: %x\n", val);
 
 	/* Clean all pending interrupt statuses */
@@ -338,7 +345,7 @@ aw_ir_intr(void *arg)
 
 	/* When Rx FIFO Data available or Packet end */
 	if (val & (AW_IR_RXINT_RAI_EN | AW_IR_RXINT_RPEI_EN)) {
-		if (bootverbose)
+		if (bootverbose && __predict_false(aw_cir_debug) != 0)
 			device_printf(sc->dev,
 			    "RX FIFO Data available or Packet end\n");
 		/* Get available message count in RX FIFO */
@@ -357,7 +364,7 @@ aw_ir_intr(void *arg)
 
 	if (val & AW_IR_RXINT_RPEI_EN) {
 		/* RX Packet end */
-		if (bootverbose)
+		if (bootverbose && __predict_false(aw_cir_debug) != 0)
 			device_printf(sc->dev, "RX Packet end\n");
 		ir_code = aw_ir_decode_packets(sc);
 		stat = aw_ir_validate_code(ir_code);
@@ -366,7 +373,7 @@ aw_ir_intr(void *arg)
 			    EV_MSC, MSC_SCAN, ir_code);
 			evdev_sync(sc->sc_evdev);
 		}
-		if (bootverbose) {
+		if (bootverbose && __predict_false(aw_cir_debug) != 0) {
 			device_printf(sc->dev, "Final IR code: %lx\n",
 			    ir_code);
 			device_printf(sc->dev, "IR code status: %d\n",
