@@ -53,6 +53,29 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 	int error;
 
 	switch (cmd) {
+	case EFIIOC_GET_TABLE:
+	{
+		struct efi_get_table_ioc *egtioc =
+		    (struct efi_get_table_ioc *)addr;
+		void *buf = NULL;
+
+		error = efi_copy_table(&egtioc->uuid, egtioc->buf ? &buf : NULL,
+		    egtioc->buf_len, &egtioc->table_len);
+
+		if (error != 0 || egtioc->buf == NULL)
+			break;
+
+		if (egtioc->buf_len < egtioc->table_len) {
+			error = EINVAL;
+			free(buf, M_TEMP);
+			break;
+		}
+
+		error = copyout(buf, egtioc->buf, egtioc->buf_len);
+		free(buf, M_TEMP);
+
+		break;
+	}
 	case EFIIOC_GET_TIME:
 	{
 		struct efi_tm *tm = (struct efi_tm *)addr;

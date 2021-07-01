@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/clock.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 #include <sys/vmmeter.h>
 
 #include <machine/fpu.h>
@@ -57,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+
+#define EFI_TABLE_ALLOC_MAX 0x800000
 
 static struct efi_systbl *efi_systbl;
 static eventhandler_tag efi_shutdown_tag;
@@ -94,6 +98,11 @@ static int efi_status2err[25] = {
 	EPROTO,		/* EFI_ICMP_ERROR */
 	EPROTO,		/* EFI_TFTP_ERROR */
 	EPROTO		/* EFI_PROTOCOL_ERROR */
+};
+
+enum efi_table_type {
+	TYPE_ESRT = 0,
+	TYPE_PROP
 };
 
 static int efi_enter(void);
@@ -336,6 +345,124 @@ get_table(struct uuid *uuid, void **ptr)
 	return (ENOENT);
 }
 
+static int
+get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
+{
+	switch (type) {
+	case TYPE_ESRT:
+	{
+		struct efi_esrt_table *esrt = NULL;
+		struct uuid uuid = EFI_TABLE_ESRT;
+		uint32_t fw_resource_count = 0;
+		size_t len = sizeof(*esrt);
+		int error;
+		void *buf;
+
+		error = efi_get_table(&uuid, (void **)&esrt);
+		if (error != 0)
+			return (error);
+
+		buf = malloc(len, M_TEMP, M_WAITOK);
+		error = physcopyout((vm_paddr_t)esrt, buf, len);
+		if (error != 0) {
+			free(buf, M_TEMP);
+			return (error);
+		}
+
+		/* Check ESRT version */
+		if (((struct efi_esrt_table *)buf)->fw_resource_version !=
+		    ESRT_FIRMWARE_RESOURCE_VERSION) {
+			free(buf, M_TEMP);
+			return (ENODEV);
+		}
+
+		fw_resource_count = ((struct efi_esrt_table *)buf)->
+		    fw_resource_count;
+		if (fw_resource_count > EFI_TABLE_ALLOC_MAX /
+		    sizeof(struct efi_esrt_entry_v1)) {
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+
+		len += fw_resource_count * sizeof(struct efi_esrt_entry_v1);
+		*table_len = len;
+
+		if (taddr != NULL)
+			*taddr = esrt;
+		free(buf, M_TEMP);
+		return (0);
+	}
+	case TYPE_PROP:
+	{
+		struct uuid uuid = EFI_PROPERTIES_TABLE;
+		struct efi_prop_table *prop;
+		size_t len = sizeof(*prop);
+		uint32_t prop_len;
+		int error;
+		void *buf;
+
+		error = efi_get_table(&uuid, (void **)&prop);
+		if (error != 0)
+			return (error);
+
+		buf = malloc(len, M_TEMP, M_WAITOK);
+		error = physcopyout((vm_paddr_t)prop, buf, len);
+		if (error != 0) {
+			free(buf, M_TEMP);
+			return (error);
+		}
+
+		prop_len = ((struct efi_prop_table *)buf)->length;
+		if (prop_len > EFI_TABLE_ALLOC_MAX) {
+			free(buf, M_TEMP);
+			return (ENOMEM);
+		}
+		*table_len = prop_len;
+
+		if (taddr != NULL)
+			*taddr = prop;
+		free(buf, M_TEMP);
+		return (0);
+	}
+	}
+	return (ENOENT);
+}
+
+static int
+copy_table(struct uuid *uuid, void **buf, size_t buf_len, size_t *table_len)
+{
+	static const struct known_table {
+		struct uuid uuid;
+		enum efi_table_type type;
+	} tables[] = {
+		{ EFI_TABLE_ESRT,       TYPE_ESRT },
+		{ EFI_PROPERTIES_TABLE, TYPE_PROP }
+	};
+	size_t table_idx;
+	void *taddr;
+	int rc;
+
+	for (table_idx = 0; table_idx < nitems(tables); table_idx++) {
+		if (!bcmp(&tables[table_idx].uuid, uuid, sizeof(*uuid)))
+			break;
+	}
+
+	if (table_idx == nitems(tables))
+		return (EINVAL);
+
+	rc = get_table_length(tables[table_idx].type, table_len, &taddr);
+	if (rc != 0)
+		return rc;
+
+	/* return table length to userspace */
+	if (buf == NULL)
+		return (0);
+
+	*buf = malloc(*table_len, M_TEMP, M_WAITOK);
+	rc = physcopyout((vm_paddr_t)taddr, *buf, *table_len);
+	return (rc);
+}
+
 static int efi_rt_handle_faults = EFI_RT_HANDLE_FAULTS_DEFAULT;
 SYSCTL_INT(_machdep, OID_AUTO, efi_rt_handle_faults, CTLFLAG_RWTUN,
     &efi_rt_handle_faults, 0,
@@ -568,6 +695,7 @@ var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
 const static struct efi_ops efi_ops = {
 	.rt_ok = rt_ok,
 	.get_table = get_table,
+	.copy_table = copy_table,
 	.get_time = get_time,
 	.get_time_capabilities = get_time_capabilities,
 	.reset_system = reset_system,
