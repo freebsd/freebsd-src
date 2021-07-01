@@ -103,8 +103,7 @@ add_nat(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 		    &satosin6(nat)->sin6_addr.s6_addr, 16);
 		memset(&pfp.addr.addr.v.a.mask.addr8, 255, 16);
 	}
-	if (pfctl_add_rule(dev, &pfrule, pfanchor, pfanchor_call,
-	    pfticket, pfpool_ticket))
+	if (ioctl(dev, DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
 	pfrule.rpool.proxy_port[0] = nat_range_low;
@@ -138,8 +137,7 @@ add_rdr(u_int32_t id, struct sockaddr *src, struct sockaddr *dst,
 		    &satosin6(rdr)->sin6_addr.s6_addr, 16);
 		memset(&pfp.addr.addr.v.a.mask.addr8, 255, 16);
 	}
-	if (pfctl_add_rule(dev, &pfrule, pfanchor, pfanchor_call,
-	    pfticket, pfpool_ticket))
+	if (ioctl(dev, DIOCADDADDR, &pfp) == -1)
 		return (-1);
 
 	pfrule.rpool.proxy_port[0] = rdr_port;
