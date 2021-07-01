@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sx.h>
-#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -375,8 +374,6 @@ linux_exit(struct thread *td, struct linux_exit_args *args)
 	KASSERT(em != NULL, ("exit: emuldata not found.\n"));
 
 	LINUX_CTR2(exit, "thread(%d) (%d)", em->em_tid, args->rval);
-
-	umtx_thread_exit(td);
 
 	linux_thread_detach(td);
 
