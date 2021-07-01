@@ -5017,13 +5017,13 @@ expand_label_port(const char *name, char *label, size_t len,
 void
 expand_label_proto(const char *name, char *label, size_t len, u_int8_t proto)
 {
-	struct protoent *pe;
+	const char *protoname;
 	char n[4];
 
 	if (strstr(label, name) != NULL) {
-		pe = getprotobynumber(proto);
-		if (pe != NULL)
-			expand_label_str(label, len, name, pe->p_name);
+		protoname = pfctl_proto2name(proto);
+		if (protoname != NULL)
+			expand_label_str(label, len, name, protoname);
 		else {
 			snprintf(n, sizeof(n), "%u", proto);
 			expand_label_str(label, len, name, n);

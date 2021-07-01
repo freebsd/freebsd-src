@@ -812,10 +812,10 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 			printf(" inet6");
 	}
 	if (r->proto) {
-		struct protoent	*p;
+		const char *protoname;
 
-		if ((p = getprotobynumber(r->proto)) != NULL)
-			printf(" proto %s", p->p_name);
+		if ((protoname = pfctl_proto2name(r->proto)) != NULL)
+			printf(" proto %s", protoname);
 		else
 			printf(" proto %u", r->proto);
 	}
