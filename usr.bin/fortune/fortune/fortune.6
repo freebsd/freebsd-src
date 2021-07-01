@@ -31,7 +31,7 @@
 .\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2021
+.Dd July 1, 2021
 .Dt FORTUNE 6
 .Os
 .Sh NAME
@@ -168,7 +168,7 @@ It is a colon-separated list of directories in which
 .Nm
 looks for data files.
 If not set it will default to
-.Pa /usr/share/games/fortune .
+.Pa /usr/share/games/fortune:/usr/local/share/games/fortune .
 If none of the directories specified exist, it will print a warning and exit.
 .It Ev FORTUNE_SAVESTATE
 If set, fortune will save some state about what fortune
