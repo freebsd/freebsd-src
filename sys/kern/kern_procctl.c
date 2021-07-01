@@ -420,6 +420,27 @@ trapcap_status(struct thread *td, struct proc *p, int *data)
 }
 
 static int
+no_new_privs_ctl(struct thread *td, struct proc *p, int state)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if (state != PROC_NO_NEW_PRIVS_ENABLE)
+		return (EINVAL);
+	p->p_flag2 |= P2_NO_NEW_PRIVS;
+	return (0);
+}
+
+static int
+no_new_privs_status(struct thread *td, struct proc *p, int *data)
+{
+
+	*data = (p->p_flag2 & P2_NO_NEW_PRIVS) != 0 ?
+	    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
+	return (0);
+}
+
+static int
 protmax_ctl(struct thread *td, struct proc *p, int state)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -600,6 +621,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_STACKGAP_CTL:
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
+	case PROC_NO_NEW_PRIVS_CTL:
 		error = copyin(uap->data, &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -631,6 +653,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
+	case PROC_NO_NEW_PRIVS_STATUS:
 		data = &flags;
 		break;
 	case PROC_PDEATHSIG_CTL:
@@ -661,6 +684,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
+	case PROC_NO_NEW_PRIVS_STATUS:
 		if (error == 0)
 			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
@@ -710,6 +734,10 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 		return (trapcap_ctl(td, p, *(int *)data));
 	case PROC_TRAPCAP_STATUS:
 		return (trapcap_status(td, p, data));
+	case PROC_NO_NEW_PRIVS_CTL:
+		return (no_new_privs_ctl(td, p, *(int *)data));
+	case PROC_NO_NEW_PRIVS_STATUS:
+		return (no_new_privs_status(td, p, data));
 	default:
 		return (EINVAL);
 	}
@@ -740,6 +768,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_TRAPCAP_STATUS:
 	case PROC_PDEATHSIG_CTL:
 	case PROC_PDEATHSIG_STATUS:
+	case PROC_NO_NEW_PRIVS_CTL:
+	case PROC_NO_NEW_PRIVS_STATUS:
 		if (idtype != P_PID)
 			return (EINVAL);
 	}
@@ -772,6 +802,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_REAP_KILL:
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
+	case PROC_NO_NEW_PRIVS_CTL:
 		sx_slock(&proctree_lock);
 		tree_locked = true;
 		break;
@@ -788,6 +819,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_STACKGAP_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
+	case PROC_NO_NEW_PRIVS_STATUS:
 		tree_locked = false;
 		break;
 	default:
