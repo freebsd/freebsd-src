@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 
 #define	IDX(c)	((u_char)(c) / LONG_BIT)
-#define	BIT(c)	(1UL << ((u_char)(c) % LONG_BIT))
+#define	BIT(c)	((u_long)1 << ((u_char)(c) % LONG_BIT))
 
 size_t 
 strcspn(const char *s, const char *charset) 
