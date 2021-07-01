@@ -412,4 +412,12 @@ sign_extend64(uint64_t value, int index)
 	return ((int64_t)(value << shift) >> shift);
 }
 
+static inline uint32_t
+sign_extend32(uint32_t value, int index)
+{
+	uint8_t shift = 31 - index;
+
+	return ((int32_t)(value << shift) >> shift);
+}
+
 #endif	/* _LINUX_BITOPS_H_ */
