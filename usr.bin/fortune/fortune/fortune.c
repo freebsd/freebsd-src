@@ -1380,7 +1380,7 @@ usage(void)
 
 /*
  * getpath
- * 	Set up file search patch from environment var FORTUNE_PATH;
+ * 	Set up file search path from environment var FORTUNE_PATH;
  *	if not set, use the compiled in FORTDIR.
  */
 
