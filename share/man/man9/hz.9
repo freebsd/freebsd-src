@@ -22,7 +22,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 18, 2021
+.Dd July 1, 2021
 .Dt HZ 9
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Pp
 .Vt extern int hz;
 .Vt extern int tick;
-.Vt extern int stathz;	/* deprecated */
+.Vt extern int stathz;
 .Vt extern int profhz;	/* deprecated */
 .Sh DESCRIPTION
 .Fx
@@ -44,37 +44,34 @@ utilizes periodic, one-shot, global or per-CPU
 timing hardware using
 .Xr eventtimers 9
 to produce traditional clock behavior.
+These clocks regulate periodic events in the system.
 .Pp
 The main clock is used to update the system's notion of time via
 .Xr timecounters 9
-and to pace periodic system callbacks via
-.Xr callout 9 ,
-.Xr epoch 9 ,
-and other methods documented in
+and to pace periodic system processing as documented in
 .Xr hardclock 9 .
-That routine will be called approximately
+That routine may be called once every 1 /
 .Va hz
-times per second.
+seconds, though the call is omitted if no work is needed in the next tick and it
+has not been 0.5 seconds since the last call.
 .Pp
-The second clock, running at either
+The stat clock running at
 .Va stathz
-or
-.Va profhz
-was used to gather timing statistics, but has been replaced with the more
-functional
-.Xr hwpmc 4 .
-These values are returned for
-.Qq compatibility
-with
-.Bx 4.4 ,
-.St -p1003.1-2001
-and the
-.Xr setitimer 2
-.Va ITIMER_PROF
-flag, which were deprecated in
-.St -p1003.1-2008
-in favor of
-.Xr timer_settime 2 .
+gathers statistics on the system and its processes.
+It computes values for
+.Xr getrusage 2
+and statistics displayed by
+.Xr ps 1
+and
+.Xr top 1 .
+.Pp
+Finally, a profiling clock may run at
+.Vt profhz
+to sample user program counter values for profiling purposes.
+This profiling mechanism has been replaced by the more functional
+.Xr hwpmc 4
+and may be removed in a future version of
+.Fx .
 .Pp
 .Va tick
 is the length of time in microseconds of one system tick.
@@ -87,6 +84,15 @@ and
 .Sy kern.clockrate
 from
 .Xr sysctl 8 .
+.Pp
+The current global and per-CPU CPU time usage is returned to the user in units
+of 1 /
+.Va stathz
+ticks in the
+.Sy kern.cp_time
+and
+.Sy kern.cp_times
+sysctl MIBs.
 .Pp
 The
 .Va hz
@@ -103,12 +109,51 @@ Only override the default value if you really know what you are doing.
 Due to the adaptive nature of timeouts, changing this value has less effect than
 it had in the past.
 .Sh SEE ALSO
+.Xr ps 1 ,
+.Xr top 1 ,
 .Xr setitimer 2 ,
 .Xr timer_settime 2 ,
 .Xr loader.conf 5 ,
-.Xr callout 9 ,
 .Xr eventtimers 9 ,
 .Xr hardclock 9 ,
 .Xr microtime 9 ,
 .Xr time_second 9 ,
 .Xr timecounters 9
+.Sh IMPLEMENTATION NOTES
+Historically, both the
+.Va stathz
+and
+.Va profhz
+clocks have run off the same physical timer running at the slower rate when no
+process is using the profile features, or at the higher rate when at least one
+process is using it.
+Although the interface is deprecated by
+.St -p1003.1-2008
+in favor of
+.Xr timer_settime 2 ,
+several programs still use
+.Xr setitimer 2
+and
+.Va ITIMER_PROF
+for a higher-resolution periodic interrupt than has been traditionally
+available.
+.Pp
+Historically,
+.Xr hardclock 9
+has also been run off a separate interrupt, except on constrained platforms that
+lack enough periodic interrupt sources.
+.Fx
+uses
+.Xr eventtimers 9
+to abstract these details away, though some old code may still harbor
+assumptions that are an imperfect fit to this abstraction.
+.Pp
+.Xr timecounters 9
+are limited to 32-bits and wrap after about a second, so we must update the
+time hands they maintain at least every half second to get the proper wrapping
+math.
+In addition,
+.Va kern.cp_times
+needs to updated at least once a second so that the values displayed by
+.Xr top 1
+update every second.
