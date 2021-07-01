@@ -835,17 +835,16 @@ tegra_pcib_msi_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
 static bus_size_t
 tegra_pcib_pex_ctrl(struct tegra_pcib_softc *sc, int port)
 {
-	if (port >= TEGRA_PCIB_MAX_PORTS)
-		panic("invalid port number: %d\n", port);
-
-	if (port == 0)
+	switch (port) {
+	case 0:
 		return (AFI_PEX0_CTRL);
-	else if (port == 1)
+	case 1:
 		return (AFI_PEX1_CTRL);
-	else if (port == 2)
+	case 2:
 		return (AFI_PEX2_CTRL);
-	else
+	default:
 		panic("invalid port number: %d\n", port);
+	}
 }
 
 static int
