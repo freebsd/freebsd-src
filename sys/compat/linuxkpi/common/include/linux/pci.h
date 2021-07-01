@@ -186,6 +186,10 @@ typedef int pci_power_t;
 
 #define	PCI_EXT_CAP_ID_ERR		PCIZ_AER
 
+#define	PCI_IRQ_LEGACY			0x01
+#define	PCI_IRQ_MSI			0x02
+#define	PCI_IRQ_MSIX			0x04
+
 struct pci_dev;
 
 struct pci_driver {
@@ -220,6 +224,25 @@ extern struct list_head pci_devices;
 extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
+
+#define module_pci_driver(_driver)					\
+									\
+static inline int							\
+_pci_init(void)								\
+{									\
+									\
+	return (linux_pci_register_driver(&_driver));			\
+}									\
+									\
+static inline void							\
+_pci_exit(void)								\
+{									\
+									\
+	linux_pci_unregister_driver(&_driver);				\
+}									\
+									\
+module_init(_pci_init);							\
+module_exit(_pci_exit)
 
 /*
  * If we find drivers accessing this from multiple KPIs we may have to
@@ -827,6 +850,42 @@ pci_enable_msi(struct pci_dev *pdev)
 	pdev->irq = rle->start;
 	pdev->msi_enabled = true;
 	return (0);
+}
+
+static inline int
+pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
+    unsigned int flags)
+{
+	int error;
+
+	if (flags & PCI_IRQ_MSIX) {
+		struct msix_entry *entries;
+		int i;
+
+		entries = kcalloc(maxv, sizeof(*entries), GFP_KERNEL);
+		if (entries == NULL) {
+			error = -ENOMEM;
+			goto out;
+		}
+		for (i = 0; i < maxv; ++i)
+			entries[i].entry = i;
+		error = pci_enable_msix(pdev, entries, maxv);
+out:
+		kfree(entries);
+		if (error == 0 && pdev->msix_enabled)
+			return (pdev->dev.irq_end - pdev->dev.irq_start);
+	}
+	if (flags & PCI_IRQ_MSI) {
+		error = pci_enable_msi(pdev);
+		if (error == 0 && pdev->msi_enabled)
+			return (pdev->dev.irq_end - pdev->dev.irq_start);
+	}
+	if (flags & PCI_IRQ_LEGACY) {
+		if (pdev->irq)
+			return (1);
+	}
+
+	return (-EINVAL);
 }
 
 static inline int
