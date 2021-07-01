@@ -340,9 +340,6 @@ exit1(struct thread *td, int rval, int signo)
 
 	itimers_exit(p);
 
-	if (p->p_sysent->sv_onexit != NULL)
-		p->p_sysent->sv_onexit(p);
-
 	/*
 	 * Check if any loadable modules need anything done at process exit.
 	 * E.g. SYSV IPC stuff.
@@ -374,6 +371,8 @@ exit1(struct thread *td, int rval, int signo)
 	PROC_UNLOCK(p);
 
 	umtx_thread_exit(td);
+	if (p->p_sysent->sv_onexit != NULL)
+		p->p_sysent->sv_onexit(p);
 	seltdfini(td);
 
 	/*
