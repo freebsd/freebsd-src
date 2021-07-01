@@ -1431,7 +1431,7 @@ ifconfig_em0_aliases="\\
 It also supports CIDR notation.
 .Pp
 If the
-.Pa /etc/start_if. Ns Aq Ar interface
+.Pa /etc/start_if . Ns Aq Ar interface
 file is present, it is read and executed by the
 .Xr sh 1
 interpreter
@@ -1557,7 +1557,7 @@ will use the settings from
 Finally, you can add
 .Xr ifconfig 8
 options in this variable, in addition to the
-.Pa /etc/start_if. Ns Aq Ar interface
+.Pa /etc/start_if . Ns Aq Ar interface
 file.
 For instance, to configure an
 .Xr ath 4
@@ -1927,16 +1927,16 @@ The value of this variable is used to configure the link layer of the
 tunnel using the
 .Cm tunnel
 option to
-.Xr ifconfig .
+.Xr ifconfig 8 .
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig
+.Xr ifconfig 8
 before attempting to configure it.
 .Pp
 For example, configure two
-.Xr gif
+.Xr gif 4
 interfaces with:
 .Bd -literal
 gif_interfaces="gif0 gif1"
@@ -3961,7 +3961,7 @@ For backward compatibility,
 when per-jail configuration variables are defined,
 .Xr jail 8
 configuration files are created as
-.Pa /var/run/jail. Ns Ao Ar jname Ac Ns Pa .conf
+.Pa /var/run/jail . Ns Ao Ar jname Ac Ns Pa .conf
 and used.
 .Pp
 The following per-jail parameters are handled by
@@ -4682,7 +4682,6 @@ The default is 10.
 .Xr gdb 1 ,
 .Xr info 1 ,
 .Xr kbdcontrol 1 ,
-.Xr makewhatis 1 ,
 .Xr sh 1 ,
 .Xr vi 1 ,
 .Xr vidcontrol 1 ,
@@ -4730,6 +4729,7 @@ The default is 10.
 .Xr kldxref 8 ,
 .Xr loader 8 ,
 .Xr lpd 8 ,
+.Xr makewhatis 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,
 .Xr mixer 8 ,
