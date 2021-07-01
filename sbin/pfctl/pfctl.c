@@ -254,6 +254,49 @@ usage(void)
 	exit(1);
 }
 
+/*
+ * Cache protocol number to name translations.
+ *
+ * Translation is performed a lot e.g., when dumping states and
+ * getprotobynumber is incredibly expensive.
+ *
+ * Note from the getprotobynumber(3) manpage:
+ * <quote>
+ * These functions use a thread-specific data space; if the data is needed
+ * for future use, it should be copied before any subsequent calls overwrite
+ * it.  Only the Internet protocols are currently understood.
+ * </quote>
+ *
+ * Consequently we only cache the name and strdup it for safety.
+ *
+ * At the time of writing this comment the last entry in /etc/protocols is:
+ * divert  258     DIVERT          # Divert pseudo-protocol [non IANA]
+ */
+const char *
+pfctl_proto2name(int proto)
+{
+	static const char *pfctl_proto_cache[259];
+	struct protoent *p;
+
+	if (proto >= nitems(pfctl_proto_cache)) {
+		p = getprotobynumber(proto);
+		if (p == NULL) {
+			return (NULL);
+		}
+		return (p->p_name);
+	}
+
+	if (pfctl_proto_cache[proto] == NULL) {
+		p = getprotobynumber(proto);
+		if (p == NULL) {
+			return (NULL);
+		}
+		pfctl_proto_cache[proto] = strdup(p->p_name);
+	}
+
+	return (pfctl_proto_cache[proto]);
+}
+
 int
 pfctl_enable(int dev, int opts)
 {
