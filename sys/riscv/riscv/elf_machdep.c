@@ -99,6 +99,8 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_trap	= NULL,
 	.sv_hwcap	= &elf_hwcap,
 	.sv_machine_arch = riscv_machine_arch,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
 
