@@ -17,6 +17,7 @@ ATF_TESTS_SH+=	anchor \
 		nat \
 		pass_block \
 		pfsync	\
+		proxy \
 		rdr \
 		route_to \
 		rules_counter \
