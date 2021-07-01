@@ -211,6 +211,7 @@ device		aw_ccu		# Allwinner clock controller
 
 # Interrupt controllers
 device		aw_nmi		# Allwinner NMI support
+device		aw_r_intc	# Allwinner RINTC support
 device		mv_cp110_icu	# Marvell CP110 ICU
 device		mv_ap806_gicp	# Marvell AP806 GICP
 device		mv_ap806_sei	# Marvell AP806 SEI
