@@ -18,6 +18,7 @@ ATF_TESTS_SH+=	altq \
 		nat \
 		pass_block \
 		pfsync	\
+		proxy \
 		rdr \
 		route_to \
 		rules_counter \
