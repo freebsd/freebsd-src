@@ -23,6 +23,7 @@ ATF_TESTS_SH+=	anchor \
 		synproxy \
 		set_skip \
 		pfsync \
+		proxy \
 		table \
 		tos
 
