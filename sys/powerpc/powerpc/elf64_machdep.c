@@ -93,6 +93,8 @@ struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_trap	= NULL,
 	.sv_hwcap	= &cpu_features,
 	.sv_hwcap2	= &cpu_features2,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 
 struct sysentvec elf64_freebsd_sysvec_v2 = {
@@ -129,6 +131,8 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_trap	= NULL,
 	.sv_hwcap	= &cpu_features,
 	.sv_hwcap2	= &cpu_features2,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 
 static boolean_t ppc64_elfv1_header_match(struct image_params *params,

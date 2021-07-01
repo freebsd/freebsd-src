@@ -317,6 +317,9 @@ void exec_sysvec_init(void *param);
 void exec_sysvec_init_secondary(struct sysentvec *sv, struct sysentvec *sv2);
 void exec_inittk(void);
 
+void exit_onexit(struct proc *p);
+void exec_onexec_old(struct thread *td);
+
 #define INIT_SYSENTVEC(name, sv)					\
     SYSINIT(name, SI_SUB_EXEC, SI_ORDER_ANY,				\
 	(sysinit_cfunc_t)exec_sysvec_init, sv);

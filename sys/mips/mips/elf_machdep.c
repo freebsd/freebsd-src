@@ -89,6 +89,8 @@ static struct sysentvec elf_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
+	.sv_onexec_old	= exec_onexec_old,
+	.sv_onexit	= exit_onexit,
 };
 
 static __ElfN(Brandinfo) freebsd_brand_info = {
