@@ -150,6 +150,7 @@ struct sysentvec {
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 	const char	*(*sv_machine_arch)(struct proc *);
 	vm_offset_t	sv_fxrng_gen_base;
+	void		(*sv_onexec_old)(struct thread *td);
 	void		(*sv_onexec)(struct proc *, struct image_params *);
 	void		(*sv_onexit)(struct proc *);
 	void		(*sv_ontdexit)(struct thread *td);
