@@ -77,7 +77,7 @@ ofw_pci_probe(device_t dev)
 	device_t parent;
 
 	parent = device_get_parent(dev);
-	if (ofw_bus_get_node(parent) <= 0)
+	if (ofw_bus_get_node(parent) == -1)
 		return (ENXIO);
 
 	device_set_desc(dev, "OFW PCI bus");
