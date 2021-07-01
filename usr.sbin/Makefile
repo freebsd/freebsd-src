@@ -127,7 +127,7 @@ SUBDIR.${MK_OPENSSL}+=	certctl
 .endif
 SUBDIR.${MK_CXGBETOOL}+=	cxgbetool
 SUBDIR.${MK_DIALOG}+=	bsdconfig
-SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr
+SUBDIR.${MK_EFI}+=	efivar efidp efibootmgr efitable
 .if ${MK_OPENSSL} != "no"
 SUBDIR.${MK_EFI}+=	uefisign
 .endif
