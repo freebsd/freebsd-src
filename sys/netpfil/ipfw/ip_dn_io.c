@@ -169,55 +169,55 @@ SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, pipe_byte_limit,
     0, 0, sysctl_limits, "L",
     "Upper limit in bytes for pipe queue.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
-    CTLFLAG_RW, DC(io_fast), 0, "Enable fast dummynet io.");
+    CTLFLAG_RW | CTLFLAG_VNET, DC(io_fast), 0, "Enable fast dummynet io.");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug,
-    CTLFLAG_RW, DC(debug), 0, "Dummynet debug level");
+    CTLFLAG_RW | CTLFLAG_VNET, DC(debug), 0, "Dummynet debug level");
 
 /* RED parameters */
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
-    CTLFLAG_RD, DC(red_lookup_depth), 0, "Depth of RED lookup table");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(red_lookup_depth), 0, "Depth of RED lookup table");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_avg_pkt_size,
-    CTLFLAG_RD, DC(red_avg_pkt_size), 0, "RED Medium packet size");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(red_avg_pkt_size), 0, "RED Medium packet size");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
-    CTLFLAG_RD, DC(red_max_pkt_size), 0, "RED Max packet size");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(red_max_pkt_size), 0, "RED Max packet size");
 
 /* time adjustment */
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta,
-    CTLFLAG_RD, DC(tick_delta), 0, "Last vs standard tick difference (usec).");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(tick_delta), 0, "Last vs standard tick difference (usec).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta_sum,
-    CTLFLAG_RD, DC(tick_delta_sum), 0, "Accumulated tick difference (usec).");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(tick_delta_sum), 0, "Accumulated tick difference (usec).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_adjustment,
-    CTLFLAG_RD, DC(tick_adjustment), 0, "Tick adjustments done.");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(tick_adjustment), 0, "Tick adjustments done.");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
-    CTLFLAG_RD, DC(tick_diff), 0,
+    CTLFLAG_RD | CTLFLAG_VNET, DC(tick_diff), 0,
     "Adjusted vs non-adjusted curr_time difference (ticks).");
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
-    CTLFLAG_RD, DC(tick_lost), 0,
+    CTLFLAG_RD | CTLFLAG_VNET, DC(tick_lost), 0,
     "Number of ticks coalesced by dummynet taskqueue.");
 
 /* Drain parameters */
 SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire,
-    CTLFLAG_RW, DC(expire), 0, "Expire empty queues/pipes");
+    CTLFLAG_RW | CTLFLAG_VNET, DC(expire), 0, "Expire empty queues/pipes");
 SYSCTL_UINT(_net_inet_ip_dummynet, OID_AUTO, expire_cycle,
-    CTLFLAG_RD, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(expire_cycle), 0, "Expire cycle for queues/pipes");
 
 /* statistics */
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, schk_count,
-    CTLFLAG_RD, DC(schk_count), 0, "Number of schedulers");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(schk_count), 0, "Number of schedulers");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, si_count,
-    CTLFLAG_RD, DC(si_count), 0, "Number of scheduler instances");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(si_count), 0, "Number of scheduler instances");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, fsk_count,
-    CTLFLAG_RD, DC(fsk_count), 0, "Number of flowsets");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(fsk_count), 0, "Number of flowsets");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, queue_count,
-    CTLFLAG_RD, DC(queue_count), 0, "Number of queues");
+    CTLFLAG_RD | CTLFLAG_VNET, DC(queue_count), 0, "Number of queues");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt,
-    CTLFLAG_RD, DC(io_pkt), 0,
+    CTLFLAG_RD | CTLFLAG_VNET, DC(io_pkt), 0,
     "Number of packets passed to dummynet.");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_fast,
-    CTLFLAG_RD, DC(io_pkt_fast), 0,
+    CTLFLAG_RD | CTLFLAG_VNET, DC(io_pkt_fast), 0,
     "Number of packets bypassed dummynet scheduler.");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_drop,
-    CTLFLAG_RD, DC(io_pkt_drop), 0,
+    CTLFLAG_RD | CTLFLAG_VNET, DC(io_pkt_drop), 0,
     "Number of packets dropped by dummynet.");
 #undef DC
 SYSEND
