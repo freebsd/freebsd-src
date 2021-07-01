@@ -22,7 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 13, 2024
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2024
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -308,9 +310,6 @@ Like
 with
 .Va WITHOUT_KERNELS
 defined so only the worlds for each architecture are built.
-.It Cm update
-Get updated sources as configured in
-.Xr make.conf 5 .
 .It Cm targets
 Print a list of supported
 .Va TARGET
@@ -770,26 +769,12 @@ If set, the build process does not run
 as part of the
 .Cm buildkernel
 target.
-.It Va NO_DOCUPDATE
-If set, the update process does not update the source of the
-.Fx
-documentation as part of the
-.Dq make update
-target.
 .It Va NO_LIBS
 If set, the libraries phase will be skipped.
 .It Va NO_OBJWALK
 If set, no object directories will be created.
 This should only be used if object directories were created in a
 previous build and no new directories are connected.
-.It Va NO_PORTSUPDATE
-If set, the update process does not update the Ports tree as part of the
-.Dq make update
-target.
-.It Va NO_WWWUPDATE
-If set, the update process does not update the www tree as part of the
-.Dq make update
-target.
 .It Va WORLDFAST
 If set, the build target
 .Cm buildworld
