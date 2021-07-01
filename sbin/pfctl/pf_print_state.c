@@ -211,7 +211,7 @@ print_state(struct pfctl_state *s, int opts)
 {
 	struct pfctl_state_peer *src, *dst;
 	struct pfctl_state_key *key, *sk, *nk;
-	struct protoent *p;
+	const char *protoname;
 	int min, sec;
 	sa_family_t af;
 	uint8_t proto;
@@ -243,8 +243,8 @@ print_state(struct pfctl_state *s, int opts)
 			sk->port[1] = nk->port[1];
 	}
 	printf("%s ", s->ifname);
-	if ((p = getprotobynumber(proto)) != NULL)
-		printf("%s ", p->p_name);
+	if ((protoname = pfctl_proto2name(proto)) != NULL)
+		printf("%s ", protoname);
 	else
 		printf("%u ", proto);
 

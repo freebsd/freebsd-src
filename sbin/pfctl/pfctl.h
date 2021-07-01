@@ -138,4 +138,6 @@ void	 pf_remove_if_empty_ruleset(struct pfctl_ruleset *);
 struct pfctl_ruleset	*pf_find_ruleset(const char *);
 struct pfctl_ruleset	*pf_find_or_create_ruleset(const char *);
 
+const char *pfctl_proto2name(int);
+
 #endif /* _PFCTL_H_ */
