@@ -32,6 +32,14 @@
 #include <sys/uuid.h>
 #include <sys/efi.h>
 
+struct efi_get_table_ioc
+{
+	void *buf;		/* Pointer to userspace buffer */
+	struct uuid uuid;	/* UUID to look up */
+	size_t table_len;	/* Table size */
+	size_t buf_len;		/* Size of the buffer */
+};
+
 struct efi_var_ioc
 {
 	efi_char *name;		/* User pointer to name, in wide chars */
@@ -42,6 +50,7 @@ struct efi_var_ioc
 	size_t datasize;	/* Number of *bytes* in the data */
 };
 
+#define EFIIOC_GET_TABLE	_IOWR('E',  1, struct efi_get_table_ioc)
 #define EFIIOC_GET_TIME		_IOR('E',   2, struct efi_tm)
 #define EFIIOC_SET_TIME		_IOW('E',   3, struct efi_tm)
 #define EFIIOC_VAR_GET		_IOWR('E',  4, struct efi_var_ioc)
