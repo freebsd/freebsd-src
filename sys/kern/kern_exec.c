@@ -1064,6 +1064,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 
 	sigfastblock_clear(td);
 	umtx_exec(p);
+	if (p->p_sysent->sv_onexec_old != NULL)
+		p->p_sysent->sv_onexec_old(td);
 	itimers_exec(p);
 	if (sv->sv_onexec != NULL)
 		sv->sv_onexec(p, imgp);
