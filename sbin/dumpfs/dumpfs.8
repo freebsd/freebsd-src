@@ -28,7 +28,7 @@
 .\"     @(#)dumpfs.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2013
+.Dd July 2, 2021
 .Dt DUMPFS 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl f
 .Op Fl l
 .Op Fl m
+.Op Fl s
 .Ar filesys | device
 .Sh DESCRIPTION
 The
@@ -46,9 +47,10 @@ The
 utility prints out the UFS super block and cylinder group information
 for the file system or special device specified, unless the
 .Fl f ,
-.Fl l
+.Fl l ,
+.Fl m ,
 or
-.Fl m
+.Fl s
 flag is specified.
 The listing is very long and detailed.
 This
@@ -97,6 +99,10 @@ The
 .Fl r
 flag is needed if the filesystem uses
 .Xr gjournal 8 .
+.Pp
+If
+.Fl s
+is specified, only the super block information is printed.
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr fsck 8 ,
