@@ -546,8 +546,7 @@ enum shst_value {
 	NVME_SHST_COMPLETE	= 0x2,
 };
 
-struct nvme_registers
-{
+struct nvme_registers {
 	uint32_t	cap_lo; /* controller capabilities */
 	uint32_t	cap_hi;
 	uint32_t	vs;	/* version */
@@ -584,8 +583,7 @@ struct nvme_registers
 
 _Static_assert(sizeof(struct nvme_registers) == 0x1008, "bad size for nvme_registers");
 
-struct nvme_command
-{
+struct nvme_command {
 	/* dword 0 */
 	uint8_t opc;		/* opcode */
 	uint8_t fuse;		/* fused operation */
@@ -1446,8 +1444,7 @@ struct nvme_sanitize_status_page {
 _Static_assert(sizeof(struct nvme_sanitize_status_page) == 512,
     "bad size for nvme_sanitize_status_page");
 
-struct intel_log_temp_stats
-{
+struct intel_log_temp_stats {
 	uint64_t	current;
 	uint64_t	overtemp_flag_last;
 	uint64_t	overtemp_flag_life;
@@ -1461,8 +1458,7 @@ struct intel_log_temp_stats
 
 _Static_assert(sizeof(struct intel_log_temp_stats) == 13 * 8, "bad size for intel_log_temp_stats");
 
-struct nvme_resv_reg_ctrlr
-{
+struct nvme_resv_reg_ctrlr {
 	uint16_t		ctrlr_id;	/* Controller ID */
 	uint8_t			rcsts;		/* Reservation Status */
 	uint8_t			reserved3[5];
@@ -1472,8 +1468,7 @@ struct nvme_resv_reg_ctrlr
 
 _Static_assert(sizeof(struct nvme_resv_reg_ctrlr) == 24, "bad size for nvme_resv_reg_ctrlr");
 
-struct nvme_resv_reg_ctrlr_ext
-{
+struct nvme_resv_reg_ctrlr_ext {
 	uint16_t		ctrlr_id;	/* Controller ID */
 	uint8_t			rcsts;		/* Reservation Status */
 	uint8_t			reserved3[5];
@@ -1484,8 +1479,7 @@ struct nvme_resv_reg_ctrlr_ext
 
 _Static_assert(sizeof(struct nvme_resv_reg_ctrlr_ext) == 64, "bad size for nvme_resv_reg_ctrlr_ext");
 
-struct nvme_resv_status
-{
+struct nvme_resv_status {
 	uint32_t		gen;		/* Generation */
 	uint8_t			rtype;		/* Reservation Type */
 	uint8_t			regctl[2];	/* Number of Registered Controllers */
@@ -1497,8 +1491,7 @@ struct nvme_resv_status
 
 _Static_assert(sizeof(struct nvme_resv_status) == 24, "bad size for nvme_resv_status");
 
-struct nvme_resv_status_ext
-{
+struct nvme_resv_status_ext {
 	uint32_t		gen;		/* Generation */
 	uint8_t			rtype;		/* Reservation Type */
 	uint8_t			regctl[2];	/* Number of Registered Controllers */
