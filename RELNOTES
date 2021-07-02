@@ -10,6 +10,21 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+????????????:
+	Support for operation in Xen/ARM64 VMs was introduced.  FreeBSD
+	has worked in x86 Xen VMs for more than a decade, but now FreeBSD
+	works in Xen's ARM64 VMs.  Effort was made to keep the patches
+	architecture-independent, so support for Xen/RISC-V should appear
+	once Xen/RISC-V becomes viable.
+
+	Tianocore/EDK2 for Xen/ARM is the presently known to work initial boot
+	stage.  Build the ArmVirtXen.dsc configuration and configure XEN_EFI.fd
+	as the kernel to boot.
+
+	Presently DomU operation has been implemented.  Dom0 operation could
+	be implemented in the future.  A sponsor could aid this, or CheriBSD
+	may get there first.
+
 0fa7b3bee72e, c71f18998e0b, 4162a419a475, f5a77dc8f8df:
 	LinuxKPI based wireless drivers, especially iwlwifi(4) are now
 	supported on RISC-V.
