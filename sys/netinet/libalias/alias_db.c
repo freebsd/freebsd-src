@@ -613,8 +613,6 @@ AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
 	case LINK_FRAGMENT_PTR:
 		lnk->expire.time = FRAGMENT_PTR_EXPIRE_TIME;
 		break;
-	case LINK_ADDR:
-		break;
 	default:
 		lnk->expire.time = PROTO_EXPIRE_TIME;
 		break;
