@@ -3726,10 +3726,12 @@ DIOCCHANGEADDR_error:
 			error = ENODEV;
 			break;
 		}
-		PF_RULES_WLOCK();
+		PF_TABLE_STATS_LOCK();
+		PF_RULES_RLOCK();
 		n = pfr_table_count(&io->pfrio_table, io->pfrio_flags);
 		if (n < 0) {
-			PF_RULES_WUNLOCK();
+			PF_RULES_RUNLOCK();
+			PF_TABLE_STATS_UNLOCK();
 			error = EINVAL;
 			break;
 		}
@@ -3740,12 +3742,14 @@ DIOCCHANGEADDR_error:
 		    sizeof(struct pfr_tstats), M_TEMP, M_NOWAIT);
 		if (pfrtstats == NULL) {
 			error = ENOMEM;
-			PF_RULES_WUNLOCK();
+			PF_RULES_RUNLOCK();
+			PF_TABLE_STATS_UNLOCK();
 			break;
 		}
 		error = pfr_get_tstats(&io->pfrio_table, pfrtstats,
 		    &io->pfrio_size, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_RULES_WUNLOCK();
+		PF_RULES_RUNLOCK();
+		PF_TABLE_STATS_UNLOCK();
 		if (error == 0)
 			error = copyout(pfrtstats, io->pfrio_buffer, totlen);
 		free(pfrtstats, M_TEMP);
@@ -3780,10 +3784,12 @@ DIOCCHANGEADDR_error:
 			break;
 		}
 
-		PF_RULES_WLOCK();
+		PF_TABLE_STATS_LOCK();
+		PF_RULES_RLOCK();
 		error = pfr_clr_tstats(pfrts, io->pfrio_size,
 		    &io->pfrio_nzero, io->pfrio_flags | PFR_FLAG_USERIOCTL);
-		PF_RULES_WUNLOCK();
+		PF_RULES_RUNLOCK();
+		PF_TABLE_STATS_UNLOCK();
 		free(pfrts, M_TEMP);
 		break;
 	}
