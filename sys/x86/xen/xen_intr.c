@@ -260,7 +260,7 @@ evtchn_cpu_unmask_port(u_int cpu, evtchn_port_t port)
  *          object or NULL.
  */
 static struct xenisrc *
-xen_intr_alloc_isrc(enum evtchn_type type)
+xen_intr_alloc_isrc(void)
 {
 	static int warned;
 	struct xenisrc *isrc;
@@ -279,7 +279,6 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 		KASSERT(isrc->xi_arch.intsrc.is_handlers == 0,
 		    ("Free evtchn still has handlers"));
 
-		isrc->xi_type = type;
 		return (isrc);
 	}
 
@@ -302,7 +301,6 @@ xen_intr_alloc_isrc(enum evtchn_type type)
 	isrc = malloc(sizeof(*isrc), M_XENINTR, M_WAITOK | M_ZERO);
 	isrc->xi_arch.intsrc.is_pic = &xen_intr_pic;
 	isrc->xi_arch.vector = vector;
-	isrc->xi_type = type;
 	error = intr_register_source(&isrc->xi_arch.intsrc);
 	if (error != 0)
 		panic("%s(): failed registering interrupt %u, error=%d\n",
@@ -394,11 +392,12 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	}
 	*port_handlep = NULL;
 
-	isrc = xen_intr_alloc_isrc(type);
+	isrc = xen_intr_alloc_isrc();
 	if (isrc == NULL)
 		return (ENOSPC);
 
 	isrc->xi_cookie = NULL;
+	isrc->xi_type = type;
 	isrc->xi_port = local_port;
 	isrc->xi_close = false;
 	isrc->xi_cpu = 0;
