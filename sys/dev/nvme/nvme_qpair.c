@@ -583,13 +583,30 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	}
 
 	while (1) {
-		cpl = qpair->cpl[qpair->cq_head];
+		uint16_t status;
 
-		/* Convert to host endian */
+		/*
+		 * We need to do this dance to avoid a race between the host and
+		 * the device where the device overtakes the host while the host
+		 * is reading this record, leaving the status field 'new' and
+		 * the sqhd and cid fields potentially stale. If the phase
+		 * doesn't match, that means status hasn't yet been updated and
+		 * we'll get any pending changes next time. It also means that
+		 * the phase must be the same the second time. We have to sync
+		 * before reading to ensure any bouncing completes.
+		 */
+		status = le16toh(qpair->cpl[qpair->cq_head].status);
+		if (NVME_STATUS_GET_P(status) != qpair->phase)
+			break;
+
+		bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		cpl = qpair->cpl[qpair->cq_head];
 		nvme_completion_swapbytes(&cpl);
 
-		if (NVME_STATUS_GET_P(cpl.status) != qpair->phase)
-			break;
+		KASSERT(
+		    NVME_STATUS_GET_P(status) == NVME_STATUS_GET_P(cpl.status),
+		    ("Phase unexpectedly inconsistent"));
 
 		tr = qpair->act_tr[cpl.cid];
 
