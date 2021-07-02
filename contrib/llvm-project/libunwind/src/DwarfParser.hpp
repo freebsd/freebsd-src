@@ -69,7 +69,6 @@ public:
   };
   enum RegisterSavedWhere {
     kRegisterUnused,
-    kRegisterUndefined,
     kRegisterInCFA,
     kRegisterOffsetFromCFA,
     kRegisterInRegister,
@@ -503,7 +502,7 @@ bool CFI_Parser<A>::parseFDEInstructions(A &addressSpace,
               "malformed DW_CFA_undefined DWARF unwind, reg too big");
           return false;
         }
-        results->setRegisterLocation(reg, kRegisterUndefined, initialState);
+        results->setRegisterLocation(reg, kRegisterUnused, initialState);
         _LIBUNWIND_TRACE_DWARF("DW_CFA_undefined(reg=%" PRIu64 ")\n", reg);
         break;
       case DW_CFA_same_value:
