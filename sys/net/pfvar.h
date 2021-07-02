@@ -817,16 +817,70 @@ struct pfr_tstats {
 	int		 pfrts_refcnt[PFR_REFCNT_MAX];
 };
 
+#ifdef _KERNEL
+
+struct pfr_kstate_counter {
+	counter_u64_t	pkc_pcpu;
+	u_int64_t	pkc_zero;
+};
+
+static inline int
+pfr_kstate_counter_init(struct pfr_kstate_counter *pfrc, int flags)
+{
+
+	pfrc->pkc_zero = 0;
+	pfrc->pkc_pcpu = counter_u64_alloc(flags);
+	if (pfrc->pkc_pcpu == NULL)
+		return (ENOMEM);
+	return (0);
+}
+
+static inline void
+pfr_kstate_counter_deinit(struct pfr_kstate_counter *pfrc)
+{
+
+	counter_u64_free(pfrc->pkc_pcpu);
+}
+
+static inline u_int64_t
+pfr_kstate_counter_fetch(struct pfr_kstate_counter *pfrc)
+{
+	u_int64_t c;
+
+	c = counter_u64_fetch(pfrc->pkc_pcpu);
+	c -= pfrc->pkc_zero;
+	return (c);
+}
+
+static inline void
+pfr_kstate_counter_zero(struct pfr_kstate_counter *pfrc)
+{
+	u_int64_t c;
+
+	c = counter_u64_fetch(pfrc->pkc_pcpu);
+	pfrc->pkc_zero = c;
+}
+
+static inline void
+pfr_kstate_counter_add(struct pfr_kstate_counter *pfrc, int64_t n)
+{
+
+	counter_u64_add(pfrc->pkc_pcpu, n);
+}
+
 struct pfr_ktstats {
 	struct pfr_table pfrts_t;
-	counter_u64_t	 pfrkts_packets[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
-	counter_u64_t	 pfrkts_bytes[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
-	counter_u64_t	 pfrkts_match;
-	counter_u64_t	 pfrkts_nomatch;
+	struct pfr_kstate_counter	 pfrkts_packets[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
+	struct pfr_kstate_counter	 pfrkts_bytes[PFR_DIR_MAX][PFR_OP_TABLE_MAX];
+	struct pfr_kstate_counter	 pfrkts_match;
+	struct pfr_kstate_counter	 pfrkts_nomatch;
 	long		 pfrkts_tzero;
 	int		 pfrkts_cnt;
 	int		 pfrkts_refcnt[PFR_REFCNT_MAX];
 };
+
+#endif /* _KERNEL */
+
 #define	pfrts_name	pfrts_t.pfrt_name
 #define pfrts_flags	pfrts_t.pfrt_flags
 
