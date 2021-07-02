@@ -401,15 +401,14 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 static inline int
 isrc_alloc_irq(struct intr_irqsrc *isrc)
 {
-	u_int maxirqs, irq;
+	u_int irq;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	maxirqs = intr_nirq;
-	if (irq_next_free >= maxirqs)
+	if (irq_next_free >= intr_nirq)
 		return (ENOSPC);
 
-	for (irq = irq_next_free; irq < maxirqs; irq++) {
+	for (irq = irq_next_free; irq < intr_nirq; irq++) {
 		if (irq_sources[irq] == NULL)
 			goto found;
 	}
@@ -418,7 +417,7 @@ isrc_alloc_irq(struct intr_irqsrc *isrc)
 			goto found;
 	}
 
-	irq_next_free = maxirqs;
+	irq_next_free = intr_nirq;
 	return (ENOSPC);
 
 found:
@@ -426,7 +425,7 @@ found:
 	irq_sources[irq] = isrc;
 
 	irq_next_free = irq + 1;
-	if (irq_next_free >= maxirqs)
+	if (irq_next_free >= intr_nirq)
 		irq_next_free = 0;
 	return (0);
 }
