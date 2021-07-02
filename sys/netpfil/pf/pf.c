@@ -211,6 +211,10 @@ struct mtx pf_unlnkdrules_mtx;
 MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
     MTX_DEF);
 
+struct mtx pf_table_stats_lock;
+MTX_SYSINIT(pf_table_stats_lock, &pf_table_stats_lock, "pf table stats",
+    MTX_DEF);
+
 VNET_DEFINE_STATIC(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
 uma_zone_t		pf_mtag_z;
