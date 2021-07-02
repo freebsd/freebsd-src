@@ -351,10 +351,10 @@ static inline int
 cmp_out(struct alias_link *a, struct alias_link *b) {
 	int i = a->src_port - b->src_port;
 	if (i != 0) return (i);
-	i = a->src_addr.s_addr - b->src_addr.s_addr;
-	if (i != 0) return (i);
-	i = a->dst_addr.s_addr - b->dst_addr.s_addr;
-	if (i != 0) return (i);
+	if (a->src_addr.s_addr > b->src_addr.s_addr) return (1);
+	if (a->src_addr.s_addr < b->src_addr.s_addr) return (-1);
+	if (a->dst_addr.s_addr > b->dst_addr.s_addr) return (1);
+	if (a->dst_addr.s_addr < b->dst_addr.s_addr) return (-1);
 	i = a->dst_port - b->dst_port;
 	if (i != 0) return (i);
 	i = a->link_type - b->link_type;
@@ -368,8 +368,9 @@ cmp_in(struct group_in *a, struct group_in *b) {
 	if (i != 0) return (i);
 	i = a->link_type - b->link_type;
 	if (i != 0) return (i);
-	i = a->alias_addr.s_addr - b->alias_addr.s_addr;
-	return (i);
+	if (a->alias_addr.s_addr > b->alias_addr.s_addr) return (1);
+	if (a->alias_addr.s_addr < b->alias_addr.s_addr) return (-1);
+	return (0);
 }
 SPLAY_PROTOTYPE(splay_in, group_in, in, cmp_in);
 
