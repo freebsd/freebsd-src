@@ -425,7 +425,7 @@ void apr__SHA256_Update(SHA256_CTX* context, const sha2_byte *data, size_t len) 
         usedspace = freespace = 0;
 }
 
-void apr__SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
+void apr__SHA256_Final(sha2_byte digest[SHA256_DIGEST_LENGTH], SHA256_CTX* context) {
         sha2_word32     *d = (sha2_word32*)digest;
         unsigned int    usedspace;
 
@@ -496,7 +496,7 @@ void apr__SHA256_Final(sha2_byte digest[], SHA256_CTX* context) {
         usedspace = 0;
 }
 
-char *apr__SHA256_End(SHA256_CTX* context, char buffer[]) {
+char *apr__SHA256_End(SHA256_CTX* context, char buffer[SHA256_DIGEST_STRING_LENGTH]) {
         sha2_byte       digest[SHA256_DIGEST_LENGTH], *d = digest;
         int             i;
 
