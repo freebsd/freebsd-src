@@ -81,7 +81,7 @@ static const char rcsid[] =
 
 static struct uufsd disk;
 
-static int	dumpfs(const char *);
+static int	dumpfs(const char *, int);
 static int	dumpfsid(void);
 static int	dumpcg(void);
 static int	dumpfreespace(const char *, int);
@@ -96,11 +96,11 @@ int
 main(int argc, char *argv[])
 {
 	const char *name;
-	int ch, dofreespace, domarshal, dolabel, eval;
+	int ch, dofreespace, domarshal, dolabel, dosb, eval;
 
-	dofreespace = domarshal = dolabel = eval = 0;
+	dofreespace = domarshal = dolabel = dosb = eval = 0;
 
-	while ((ch = getopt(argc, argv, "lfm")) != -1) {
+	while ((ch = getopt(argc, argv, "lfms")) != -1) {
 		switch (ch) {
 		case 'f':
 			dofreespace++;
@@ -110,6 +110,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			dolabel = 1;
+			break;
+		case 's':
+			dosb = 1;
 			break;
 		case '?':
 		default:
@@ -139,7 +142,7 @@ main(int argc, char *argv[])
 		else if (dolabel)
 			eval |= dumpfsid();
 		else
-			eval |= dumpfs(name);
+			eval |= dumpfs(name, dosb);
 		ufs_disk_close(&disk);
 	}
 	exit(eval);
@@ -154,7 +157,7 @@ dumpfsid(void)
 }
 
 static int
-dumpfs(const char *name)
+dumpfs(const char *name, int dosb)
 {
 	time_t fstime, fsmtime;
 	int64_t fssize;
@@ -324,6 +327,8 @@ dumpfs(const char *name)
 		printf("blocks in last group %ld\n\n",
 		    (long)((fssize % afs.fs_fpg) / afs.fs_frag));
 	}
+	if (dosb)
+		return (0);
 	while ((i = cgread(&disk)) != 0) {
 		if (i == -1 || dumpcg())
 			goto err;
