@@ -128,9 +128,16 @@ extern struct rmlock pf_rules_lock;
 #define	PF_RULES_RUNLOCK()	rm_runlock(&pf_rules_lock, &_pf_rules_tracker)
 #define	PF_RULES_WLOCK()	rm_wlock(&pf_rules_lock)
 #define	PF_RULES_WUNLOCK()	rm_wunlock(&pf_rules_lock)
+#define	PF_RULES_WOWNED()	rm_wowned(&pf_rules_lock)
 #define	PF_RULES_ASSERT()	rm_assert(&pf_rules_lock, RA_LOCKED)
 #define	PF_RULES_RASSERT()	rm_assert(&pf_rules_lock, RA_RLOCKED)
 #define	PF_RULES_WASSERT()	rm_assert(&pf_rules_lock, RA_WLOCKED)
+
+extern struct mtx pf_table_stats_lock;
+#define	PF_TABLE_STATS_LOCK()	mtx_lock(&pf_table_stats_lock)
+#define	PF_TABLE_STATS_UNLOCK()	mtx_unlock(&pf_table_stats_lock)
+#define	PF_TABLE_STATS_OWNED()	mtx_owned(&pf_table_stats_lock)
+#define	PF_TABLE_STATS_ASSERT()	mtx_assert(&pf_rules_lock, MA_OWNED)
 
 extern struct sx pf_end_lock;
 

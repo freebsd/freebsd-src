@@ -1865,6 +1865,8 @@ pfr_clstats_ktable(struct pfr_ktable *kt, long tzero, int recurse)
 	struct pfr_kentryworkq	 addrq;
 	int			 pfr_dir, pfr_op;
 
+	MPASS(PF_TABLE_STATS_OWNED() || PF_RULES_WOWNED());
+
 	if (recurse) {
 		pfr_enqueue_addrs(kt, &addrq, NULL, 0);
 		pfr_clstats_kentries(kt, &addrq, tzero, 0);
