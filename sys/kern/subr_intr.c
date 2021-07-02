@@ -447,6 +447,16 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 
 	irq_sources[isrc->isrc_irq] = NULL;
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
+
+	/*
+	 * If we are recovering from the state irq_sources table is full,
+	 * then the following allocation should check the entire table. This
+	 * will ensure maximum separation of allocation order from release
+	 * order.
+	 */
+	if (irq_next_free >= intr_nirq)
+		irq_next_free = 0;
+
 	return (0);
 }
 
