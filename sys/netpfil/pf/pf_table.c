@@ -1327,15 +1327,15 @@ pfr_get_tstats(struct pfr_table *filter, struct pfr_tstats *tbl, int *size,
 		for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
 			for (pfr_op = 0; pfr_op < PFR_OP_TABLE_MAX; pfr_op ++) {
 				tbl->pfrts_packets[pfr_dir][pfr_op] =
-				    counter_u64_fetch(
-					p->pfrkt_packets[pfr_dir][pfr_op]);
+				    pfr_kstate_counter_fetch(
+					&p->pfrkt_packets[pfr_dir][pfr_op]);
 				tbl->pfrts_bytes[pfr_dir][pfr_op] =
-				    counter_u64_fetch(
-					p->pfrkt_bytes[pfr_dir][pfr_op]);
+				    pfr_kstate_counter_fetch(
+					&p->pfrkt_bytes[pfr_dir][pfr_op]);
 			}
 		}
-		tbl->pfrts_match = counter_u64_fetch(p->pfrkt_match);
-		tbl->pfrts_nomatch = counter_u64_fetch(p->pfrkt_nomatch);
+		tbl->pfrts_match = pfr_kstate_counter_fetch(&p->pfrkt_match);
+		tbl->pfrts_nomatch = pfr_kstate_counter_fetch(&p->pfrkt_nomatch);
 		tbl->pfrts_tzero = p->pfrkt_tzero;
 		tbl->pfrts_cnt = p->pfrkt_cnt;
 		for (pfr_op = 0; pfr_op < PFR_REFCNT_MAX; pfr_op++)
@@ -1871,12 +1871,12 @@ pfr_clstats_ktable(struct pfr_ktable *kt, long tzero, int recurse)
 	}
 	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
 		for (pfr_op = 0; pfr_op < PFR_OP_TABLE_MAX; pfr_op ++) {
-			counter_u64_zero(kt->pfrkt_packets[pfr_dir][pfr_op]);
-			counter_u64_zero(kt->pfrkt_bytes[pfr_dir][pfr_op]);
+			pfr_kstate_counter_zero(&kt->pfrkt_packets[pfr_dir][pfr_op]);
+			pfr_kstate_counter_zero(&kt->pfrkt_bytes[pfr_dir][pfr_op]);
 		}
 	}
-	counter_u64_zero(kt->pfrkt_match);
-	counter_u64_zero(kt->pfrkt_nomatch);
+	pfr_kstate_counter_zero(&kt->pfrkt_match);
+	pfr_kstate_counter_zero(&kt->pfrkt_nomatch);
 	kt->pfrkt_tzero = tzero;
 }
 
@@ -1906,28 +1906,24 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset)
 
 	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
 		for (pfr_op = 0; pfr_op < PFR_OP_TABLE_MAX; pfr_op ++) {
-			kt->pfrkt_packets[pfr_dir][pfr_op] =
-			    counter_u64_alloc(M_NOWAIT);
-			if (! kt->pfrkt_packets[pfr_dir][pfr_op]) {
+			if (pfr_kstate_counter_init(
+			    &kt->pfrkt_packets[pfr_dir][pfr_op], M_NOWAIT) != 0) {
 				pfr_destroy_ktable(kt, 0);
 				return (NULL);
 			}
-			kt->pfrkt_bytes[pfr_dir][pfr_op] =
-			    counter_u64_alloc(M_NOWAIT);
-			if (! kt->pfrkt_bytes[pfr_dir][pfr_op]) {
+			if (pfr_kstate_counter_init(
+			    &kt->pfrkt_bytes[pfr_dir][pfr_op], M_NOWAIT) != 0) {
 				pfr_destroy_ktable(kt, 0);
 				return (NULL);
 			}
 		}
 	}
-	kt->pfrkt_match = counter_u64_alloc(M_NOWAIT);
-	if (! kt->pfrkt_match) {
+	if (pfr_kstate_counter_init(&kt->pfrkt_match, M_NOWAIT) != 0) {
 		pfr_destroy_ktable(kt, 0);
 		return (NULL);
 	}
 
-	kt->pfrkt_nomatch = counter_u64_alloc(M_NOWAIT);
-	if (! kt->pfrkt_nomatch) {
+	if (pfr_kstate_counter_init(&kt->pfrkt_nomatch, M_NOWAIT) != 0) {
 		pfr_destroy_ktable(kt, 0);
 		return (NULL);
 	}
@@ -1978,12 +1974,12 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 	}
 	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
 		for (pfr_op = 0; pfr_op < PFR_OP_TABLE_MAX; pfr_op ++) {
-			counter_u64_free(kt->pfrkt_packets[pfr_dir][pfr_op]);
-			counter_u64_free(kt->pfrkt_bytes[pfr_dir][pfr_op]);
+			pfr_kstate_counter_deinit(&kt->pfrkt_packets[pfr_dir][pfr_op]);
+			pfr_kstate_counter_deinit(&kt->pfrkt_bytes[pfr_dir][pfr_op]);
 		}
 	}
-	counter_u64_free(kt->pfrkt_match);
-	counter_u64_free(kt->pfrkt_nomatch);
+	pfr_kstate_counter_deinit(&kt->pfrkt_match);
+	pfr_kstate_counter_deinit(&kt->pfrkt_nomatch);
 
 	free(kt, M_PFTABLE);
 }
@@ -2053,9 +2049,9 @@ pfr_match_addr(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af)
 	}
 	match = (ke && !ke->pfrke_not);
 	if (match)
-		counter_u64_add(kt->pfrkt_match, 1);
+		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 	else
-		counter_u64_add(kt->pfrkt_nomatch, 1);
+		pfr_kstate_counter_add(&kt->pfrkt_nomatch, 1);
 	return (match);
 }
 
@@ -2110,8 +2106,8 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 			    ("pfr_update_stats: assertion failed.\n"));
 		op_pass = PFR_OP_XPASS;
 	}
-	counter_u64_add(kt->pfrkt_packets[dir_out][op_pass], 1);
-	counter_u64_add(kt->pfrkt_bytes[dir_out][op_pass], len);
+	pfr_kstate_counter_add(&kt->pfrkt_packets[dir_out][op_pass], 1);
+	pfr_kstate_counter_add(&kt->pfrkt_bytes[dir_out][op_pass], len);
 	if (ke != NULL && op_pass != PFR_OP_XPASS &&
 	    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS)) {
 		counter_u64_add(pfr_kentry_counter(&ke->pfrke_counters,
@@ -2207,7 +2203,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 _next_block:
 	ke = pfr_kentry_byidx(kt, idx, af);
 	if (ke == NULL) {
-		counter_u64_add(kt->pfrkt_nomatch, 1);
+		pfr_kstate_counter_add(&kt->pfrkt_nomatch, 1);
 		return (1);
 	}
 	pfr_prepare_network(&umask, af, ke->pfrke_net);
@@ -2232,7 +2228,7 @@ _next_block:
 		/* this is a single IP address - no possible nested block */
 		PF_ACPY(counter, addr, af);
 		*pidx = idx;
-		counter_u64_add(kt->pfrkt_match, 1);
+		pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 		return (0);
 	}
 	for (;;) {
@@ -2252,7 +2248,7 @@ _next_block:
 			/* lookup return the same block - perfect */
 			PF_ACPY(counter, addr, af);
 			*pidx = idx;
-			counter_u64_add(kt->pfrkt_match, 1);
+			pfr_kstate_counter_add(&kt->pfrkt_match, 1);
 			return (0);
 		}
 
