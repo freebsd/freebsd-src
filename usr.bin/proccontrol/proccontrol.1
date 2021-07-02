@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd July 2, 2021
 .Dt PROCCONTROL 1
 .Os
 .Sh NAME
@@ -69,6 +69,9 @@ Controls the signalling of capability mode access violations.
 .It Ar protmax
 Controls the implicit PROT_MAX application for
 .Xr mmap 2 .
+.It Ar nonewprivs
+Controls disabling the setuid and sgid bits for
+.Xr execve 2 .
 .It Ar kpti
 Controls the KPTI enable, AMD64 only.
 .It Ar la48
