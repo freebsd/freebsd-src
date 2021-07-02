@@ -578,8 +578,8 @@ struct nvme_registers {
 	struct {
 	    uint32_t	sq_tdbl; /* submission queue tail doorbell */
 	    uint32_t	cq_hdbl; /* completion queue head doorbell */
-	} doorbell[1] __packed;
-} __packed;
+	} doorbell[1];
+};
 
 _Static_assert(sizeof(struct nvme_registers) == 0x1008, "bad size for nvme_registers");
 
@@ -612,7 +612,7 @@ struct nvme_command {
 	uint32_t cdw13;		/* command-specific */
 	uint32_t cdw14;		/* command-specific */
 	uint32_t cdw15;		/* command-specific */
-} __packed;
+};
 
 _Static_assert(sizeof(struct nvme_command) == 16 * 4, "bad size for nvme_command");
 
@@ -630,7 +630,7 @@ struct nvme_completion {
 	/* dword 3 */
 	uint16_t		cid;	/* command identifier */
 	uint16_t		status;
-} __packed;
+} __aligned(8);	/* riscv: nvme_qpair_process_completions has better code gen */
 
 _Static_assert(sizeof(struct nvme_completion) == 4 * 4, "bad size for nvme_completion");
 
@@ -638,7 +638,7 @@ struct nvme_dsm_range {
 	uint32_t attributes;
 	uint32_t length;
 	uint64_t starting_lba;
-} __packed;
+};
 
 /* Largest DSM Trim that can be done */
 #define NVME_MAX_DSM_TRIM		4096
