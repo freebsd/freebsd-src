@@ -41,9 +41,7 @@ nfs16.sh		panic: Failed to register NFS lock locally - error=11		20160608
 oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pageout.sh		panic: handle_written_filepage: not started			20190218
-pmc4.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
-pmc5.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
-pmc6.sh			ld: error: /usr/lib/libpmc.so: undefined reference		20210124
+pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
 quota10.sh		people.freebsd.org/~pho/stress/log/quota10-2.txt		20200525
 quota2.sh		panic: dqflush: stray dquot					20120221
 quota3.sh		panic: softdep_deallocate_dependencies: unrecovered ...		20111222
@@ -51,13 +49,13 @@ quota7.sh		panic: dqflush: stray dquot					20120221
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sendfile25.sh		WiP								20200611
 signal.sh		Timing issues. Needs fixing					20171116
-snap8.sh		panic: handle_workitem_remove: bad dir delta			20210619
 swapoff2.sh		swap_pager_force_pagein: read from swap failed			20171223
 swapoff5.sh		log0005.txt, known issue					20210111
 systrace.sh		WiP								20200227
 systrace2.sh		WiP								20200227
 syzkaller11.sh		WiP								20200721
 syzkaller15.sh		WiP								20200712
+syzkaller16.sh		WiP								20210722
 syzkaller19.sh		WiP								20200712
 syzkaller25.sh		WiP								20201116
 syzkaller28.sh		WiP								20201120
