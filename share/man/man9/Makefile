@@ -228,6 +228,7 @@ MAN=	accept_filter.9 \
 	namei.9 \
 	netisr.9 \
 	nv.9 \
+	nvmem.9 \
 	OF_child.9 \
 	OF_device_from_xref.9 \
 	OF_finddevice.9 \
