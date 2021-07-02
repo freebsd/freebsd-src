@@ -1115,7 +1115,7 @@ arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "{N:/ARP request%s received}\n");
 	p2(rxreplies, "{:received-replies/%ju} "
 	    "{N:/ARP repl%s received}\n");
-	p(received, "{:received-packers/%ju} "
+	p(received, "{:received-packets/%ju} "
 	    "{N:/ARP packet%s received}\n");
 	p(dropped, "{:dropped-no-entry/%ju} "
 	    "{N:/total packet%s dropped due to no ARP entry}\n");
