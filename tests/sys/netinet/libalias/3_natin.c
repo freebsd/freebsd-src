@@ -112,7 +112,7 @@ ATF_TC_BODY(1_portforward, dummy)
 	LibAliasSetAddress(la, masq);
 
 	/* delete and try again */
-	LibAliasRedirectDelete(la, pf2);
+	LibAliasRedirectDelete(la, pf3);
 	UDP_UNNAT_FAIL(p, u, ext, 0x5678, masq, 0xabcd);
 
 	/*
@@ -133,7 +133,7 @@ ATF_TC_BODY(1_portforward, dummy)
 	LibAliasSetAddress(la, masq);
 
 	/* delete and try again */
-	LibAliasRedirectDelete(la, pf2);
+	LibAliasRedirectDelete(la, pf4);
 	UDP_UNNAT_FAIL(p, u, ext, 0x5678, masq, 0xabcd);
 
 	free(p);
