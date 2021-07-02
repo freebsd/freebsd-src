@@ -5060,6 +5060,11 @@ pf_getstates(struct pfioc_nv *nv)
 			if (s->timeout == PFTM_UNLINKED)
 				continue;
 
+			if (SIGPENDING(curthread)) {
+				PF_HASHROW_UNLOCK(ih);
+				ERROUT(EINTR);
+			}
+
 			nvls = pf_state_to_nvstate(s);
 			if (nvls == NULL) {
 				PF_HASHROW_UNLOCK(ih);
