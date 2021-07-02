@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 25, 2010
+.Dd July 1, 2021
 .Dt HARDCLOCK 9
 .Os
 .Sh NAME
@@ -39,19 +39,26 @@
 .Sh DESCRIPTION
 The
 .Fn hardclock
-function is called
-.Xr hz 9
-times per second.
-It implements the real-time system clock.
-The argument
+function is called periodically based on pending work.
+The rate ranges from
+.Va hz
+times per second on a very busy system, to twice a second on an idle system.
+The
 .Va cnt
-is the estimated number of ticks since the last call to
-.Fn hardclock .
+argument reports an estimate of the number of ticks since the last call.
+The sum of
+.Va cnt
+over a second averages
+.Va hz
+over the long haul.
+See
+.Xr hz 9
+for important details over shorter time scales.
 The argument
 .Va usermode
 is none-zero when
 .Fn hardclock
-is called from a user-mode context.
+is called from an context that interrupted usermode execution.
 .Pp
 .Fn hardclock
 may perform different tasks such as:
@@ -96,5 +103,4 @@ processing.
 .Xr ntp_adjtime 2 ,
 .Xr signal 3 ,
 .Xr ntpd 8 ,
-.Xr callout 9 ,
 .Xr hz 9
