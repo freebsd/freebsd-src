@@ -80,7 +80,7 @@ rand_range(int min, int max)
 	pip->ip_src = src;			\
 	pip->ip_dst = dst;			\
 	res = LibAliasOut(la, pip, len);	\
-	ATF_CHECK_MSG(res != PKT_ALIAS_OK),	\
+	ATF_CHECK_MSG(res != PKT_ALIAS_OK,	\
 	    ">%d< not met !PKT_ALIAS_OK", res);	\
 	ATF_CHECK(addr_eq(src, pip->ip_src));	\
 	ATF_CHECK(addr_eq(dst, pip->ip_dst));	\
@@ -118,7 +118,7 @@ rand_range(int min, int max)
 
 #define UDP_NAT_FAIL(p, u, si, sp, di, dp)	do {	\
 	u = set_udp(p, (sp), (dp));			\
-	NAT_FAIL(p, (si), (mi));			\
+	NAT_FAIL(p, (si), (di));			\
 } while(0)
 
 #define UDP_UNNAT_CHECK(p, u, si, sp, mi, mp, di, dp)	\
