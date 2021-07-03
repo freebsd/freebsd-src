@@ -8,8 +8,8 @@
 VDSO=	linux_vdso
 
 KMOD=	linux64
-SRCS=	linux_fork.c linux_dummy_machdep.c linux_file.c linux_event.c \
-	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
+SRCS=	linux_elf64.c linux_fork.c linux_dummy_machdep.c linux_file.c \
+	linux_event.c linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux_machdep.c linux_misc.c linux_ptrace.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux_sysent.c \
 	linux_sysvec.c linux_time.c linux_vdso.c linux_timer.c \
@@ -18,7 +18,6 @@ SRCS=	linux_fork.c linux_dummy_machdep.c linux_file.c linux_event.c \
 	linux_support.s
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux_dummy_x86.c
-SRCS+=	linux_elf64.c
 .endif
 DPSRCS=	assym.inc linux_genassym.c
 
