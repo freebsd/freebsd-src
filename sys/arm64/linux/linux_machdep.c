@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+#include <machine/reg.h>
+
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
@@ -148,4 +150,18 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 		return (EPERM);
 
 	return (cpu_set_user_tls(td, desc));
+}
+
+void
+bsd_to_linux_regset(struct reg *b_reg, struct linux_pt_regset *l_regset)
+{
+
+	KASSERT(sizeof(l_regset->x) == sizeof(b_reg->x) + sizeof(l_ulong),
+	    ("%s: size mismatch\n", __func__));
+	memcpy(l_regset->x, b_reg->x, sizeof(b_reg->x));
+
+	l_regset->x[30] = b_reg->lr;
+	l_regset->sp = b_reg->sp;
+	l_regset->pc = b_reg->elr;
+	l_regset->cpsr = b_reg->spsr;
 }

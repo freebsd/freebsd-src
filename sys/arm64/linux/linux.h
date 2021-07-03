@@ -298,4 +298,16 @@ struct linux_robust_list_head {
 	l_uintptr_t			pending_list;
 };
 
+struct linux_pt_regset {
+	l_ulong x[31];
+	l_ulong sp;
+	l_ulong pc;
+	l_ulong cpsr;
+};
+
+struct reg;
+
+void	bsd_to_linux_regset(struct reg *b_reg,
+	    struct linux_pt_regset *l_regset);
+
 #endif /* _ARM64_LINUX_H_ */
