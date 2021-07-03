@@ -305,6 +305,60 @@ ATF_TC_BODY(7_stress, dummy)
 	LibAliasUninit(la);
 }
 
+ATF_TC_WITHOUT_HEAD(8_portrange);
+ATF_TC_BODY(8_portrange, dummy)
+{
+	struct libalias *la = LibAliasInit(NULL);
+	struct ip  *po;
+	struct udphdr *uo;
+	uint16_t sport = 0x1234;
+	uint16_t dport = 0x5678;
+	uint16_t aport;
+
+	ATF_REQUIRE(la != NULL);
+	LibAliasSetAddress(la, masq);
+	LibAliasSetMode(la, 0, ~0);
+	po = ip_packet(0, 64);
+
+	LibAliasSetAliasPortRange(la, 0, 0); /* reinit like ipfw */
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+	ATF_CHECK(aport >= 0x8000);
+
+	/* Different larger range */
+	LibAliasSetAliasPortRange(la, 2000, 3000);
+	dport++;
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+	ATF_CHECK(aport >= 2000 && aport < 3000);
+
+	/* Different small range (contains two ports) */
+	LibAliasSetAliasPortRange(la, 4000, 4001);
+	dport++;
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+	ATF_CHECK(aport >= 4000 && aport <= 4001);
+
+	sport++;
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+	ATF_CHECK(aport >= 4000 && aport <= 4001);
+
+	/* Third port not available in the range */
+	sport++;
+	UDP_NAT_FAIL(po, uo, prv1, sport, ext, dport);
+
+	/* Back to normal */
+	LibAliasSetAliasPortRange(la, 0, 0);
+	dport++;
+	UDP_NAT_CHECK(po, uo, prv1, sport, ext, dport, masq);
+	aport = ntohs(uo->uh_sport);
+	ATF_CHECK(aport >= 0x8000);
+
+	free(po);
+	LibAliasUninit(la);
+}
+
 ATF_TP_ADD_TCS(natout)
 {
 	/* Use "dd if=/dev/random bs=2 count=1 | od -x" to reproduce */
@@ -317,6 +371,7 @@ ATF_TP_ADD_TCS(natout)
 	ATF_TP_ADD_TC(natout, 5_sameport);
 	ATF_TP_ADD_TC(natout, 6_cleartable);
 	ATF_TP_ADD_TC(natout, 7_stress);
+	ATF_TP_ADD_TC(natout, 8_portrange);
 
 	return atf_no_error();
 }
