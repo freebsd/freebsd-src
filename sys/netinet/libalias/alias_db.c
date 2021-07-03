@@ -2048,9 +2048,15 @@ LibAliasSetAliasPortRange(struct libalias *la, u_short port_low,
     u_short port_high)
 {
 	LIBALIAS_LOCK(la);
-	la->aliasPortLower = port_low;
-	/* Add 1 to the aliasPortLength as modulo has range of 1 to n-1 */
-	la->aliasPortLength = port_high - port_low + 1;
+	if (port_low) {
+		la->aliasPortLower = port_low;
+		/* Add 1 to the aliasPortLength as modulo has range of 1 to n-1 */
+		la->aliasPortLength = port_high - port_low + 1;
+	} else {
+		/* Set default values */
+		la->aliasPortLower = 0x8000;
+		la->aliasPortLength = 0x8000;
+	}
 	LIBALIAS_UNLOCK(la);
 }
 
