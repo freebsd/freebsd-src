@@ -44,6 +44,9 @@
 #include <dev/sound/pci/hda/hdaa.h>
 #include <dev/sound/pci/hda/hda_reg.h>
 
+#include "pin_patch.h"
+#include "pin_patch_realtek.h"
+
 SND_DECLARE_FILE("$FreeBSD$");
 
 static const struct {
@@ -145,10 +148,28 @@ static const struct {
 	    0 }
 };
 
+static struct pin_patch_t *
+match_pin_patches(int vendor_id, int vendor_subid)
+{
+	for (int ci = 0; ci < nitems(realtek_model_pin_patches); ci++) {
+		struct hdaa_model_pin_patch_t *p = &realtek_model_pin_patches[ci];
+		if (vendor_id != p->id)
+			continue;
+		for (struct model_pin_patch_t *pp =  p->patches; pp->models; pp++) {
+			for (struct pin_machine_model_t *model = pp->models; model->id != 0; model++) {
+				if (vendor_subid == model->id)
+					return (pp->pin_patches);
+			}
+		}
+	}
+
+	return (0);
+}
+
 static void
 hdac_pin_patch(struct hdaa_widget *w)
 {
-	const char *patch = NULL;
+	const char *patch_str = NULL;
 	uint32_t config, orig, id, subid;
 	nid_t nid = w->nid;
 
@@ -156,54 +177,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 	id = hdaa_codec_id(w->devinfo);
 	subid = hdaa_card_id(w->devinfo);
 
-	/* XXX: Old patches require complete review.
-	 * Now they may create more problem then solve due to
-	 * incorrect associations.
-	 */
-	if (id == HDA_CODEC_ALC880 && subid == LG_LW20_SUBVENDOR) {
-		switch (nid) {
-		case 26:
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
-			break;
-		case 27:
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT;
-			break;
-		default:
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC880 &&
-	    (subid == CLEVO_D900T_SUBVENDOR ||
-	    subid == ASUS_M5200_SUBVENDOR)) {
-		/*
-		 * Super broken BIOS
-		 */
-		switch (nid) {
-		case 24:	/* MIC1 */
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN;
-			break;
-		case 25:	/* XXX MIC2 */
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN;
-			break;
-		case 26:	/* LINE1 */
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
-			break;
-		case 27:	/* XXX LINE2 */
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
-			break;
-		case 28:	/* CD */
-			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
-			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_CD;
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC883 &&
-	    (subid == MSI_MS034A_SUBVENDOR ||
-	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, subid))) {
+	if (id == HDA_CODEC_ALC883 && HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, subid)) {
 		switch (nid) {
 		case 25:
 			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
@@ -247,42 +221,6 @@ hdac_pin_patch(struct hdaa_widget *w)
 			config |= HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE;
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC861 && subid ==
-	    ASUS_W6F_SUBVENDOR) {
-		switch (nid) {
-		case 11:
-			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
-			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_OUT |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
-			break;
-		case 12:
-		case 14:
-		case 16:
-		case 31:
-		case 32:
-			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
-			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
-			break;
-		case 15:
-			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
-			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK);
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC861 && subid ==
-	    UNIWILL_9075_SUBVENDOR) {
-		switch (nid) {
-		case 15:
-			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
-			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT |
-			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK);
-			break;
-		}
 	}
 
 	/* New patches */
@@ -290,10 +228,10 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    subid == LENOVO_X300_SUBVENDOR) {
 		switch (nid) {
 		case 17: /* Headphones with redirection */
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		case 20: /* Two mics together */
-			patch = "as=2 seq=15";
+			patch_str = "as=2 seq=15";
 			break;
 		}
 	} else if (id == HDA_CODEC_AD1986A &&
@@ -302,60 +240,45 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    subid == ASUS_P5PL2_SUBVENDOR)) {
 		switch (nid) {
 		case 26: /* Headphones with redirection */
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		case 28: /* 5.1 out => 2.0 out + 1 input */
-			patch = "device=Line-in as=8 seq=1";
+			patch_str = "device=Line-in as=8 seq=1";
 			break;
 		case 29: /* Can't use this as input, as the only available mic
 			  * preamplifier is busy by front panel mic (nid 31).
 			  * If you want to use this rear connector as mic input,
 			  * you have to disable the front panel one. */
-			patch = "as=0";
+			patch_str = "as=0";
 			break;
 		case 31: /* Lot of inputs configured with as=15 and unusable */
-			patch = "as=8 seq=3";
+			patch_str = "as=8 seq=3";
 			break;
 		case 32:
-			patch = "as=8 seq=4";
+			patch_str = "as=8 seq=4";
 			break;
 		case 34:
-			patch = "as=8 seq=5";
+			patch_str = "as=8 seq=5";
 			break;
 		case 36:
-			patch = "as=8 seq=6";
+			patch_str = "as=8 seq=6";
 			break;
 		}
-	} else if (id == HDA_CODEC_ALC260 &&
-	    HDA_DEV_MATCH(SONY_S5_SUBVENDOR, subid)) {
-		switch (nid) {
-		case 16:
-			patch = "seq=15 device=Headphones";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC268) {
-	    if (subid == ACER_T5320_SUBVENDOR) {
-		switch (nid) {
-		case 20: /* Headphones Jack */
-			patch = "as=1 seq=15";
-			break;
-		}
-	    }
 	} else if (id == HDA_CODEC_CX20561 &&
 	    subid == LENOVO_B450_SUBVENDOR) {
 		switch (nid) {
 		case 22:
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		}
 	} else if (id == HDA_CODEC_CX20561 &&
 	    subid == LENOVO_T400_SUBVENDOR) {
 		switch (nid) {
 		case 22:
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		case 26:
-			patch = "as=1 seq=0";
+			patch_str = "as=1 seq=0";
 			break;
 		}
 	} else if (id == HDA_CODEC_CX20590 &&
@@ -366,102 +289,62 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    subid == LENOVO_G580_SUBVENDOR)) {
 		switch (nid) {
 		case 25:
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
 		/*
 		 * Group onboard mic and headphone mic
 		 * together.  Fixes onboard mic.
 		 */
 		case 27:
-			patch = "as=2 seq=15";
+			patch_str = "as=2 seq=15";
 			break;
 		case 35:
-			patch = "as=2";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC269 &&
-	    (subid == LENOVO_X1CRBN_SUBVENDOR ||
-	    subid == LENOVO_T430_SUBVENDOR ||
-	    subid == LENOVO_T430S_SUBVENDOR ||
-	    subid == LENOVO_T530_SUBVENDOR)) {
-		switch (nid) {
-		case 21:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC285 &&
-	    (subid == LENOVO_X120KH_SUBVENDOR ||
-	    subid == LENOVO_X120QD_SUBVENDOR)) {
-		switch (nid) {
-		case 33:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC269 &&
-	    subid == ASUS_UX31A_SUBVENDOR) {
-		switch (nid) {
-		case 33:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC892 &&
-	    subid == INTEL_DH87RL_SUBVENDOR) {
-		switch (nid) {
-		case 27:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC292 &&
-	    subid == LENOVO_X120BS_SUBVENDOR) {
-		switch (nid) {
-		case 21:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC295 && subid == HP_AF006UR_SUBVENDOR) {
-		switch (nid) {
-		case 18:
-			patch = "as=2";
-			break;
-		case 25:
-			patch = "as=2 seq=15";
-			break;
-		case 33:
-			patch = "as=1 seq=15";
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC298 && HDA_DEV_MATCH(LENOVO_ALL_SUBVENDOR, subid)) {
-		switch (nid) {
-		case 23:
-			config = 0x03a1103f;
-			break;
-		case 33:
-			config = 0x2121101f;
-			break;
-		}
-	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
-		switch (nid) {
-		case 24:
-			config = 0x01a1913c;
-			break;
-		case 26:
-			config = 0x01a1913d;
+			patch_str = "as=2";
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC256 && (subid == DELL_I7577_SUBVENDOR ||
 	    subid == DELL_L7480_SUBVENDOR)) {
 		switch (nid) {
 		case 20:
-			patch = "as=1 seq=0";
+			patch_str = "as=1 seq=0";
 			break;
 		case 33:
-			patch = "as=1 seq=15";
+			patch_str = "as=1 seq=15";
 			break;
+		}
+	} else {
+		/*
+		 * loop over hdaa_model_pin_patch
+		 */
+		struct pin_patch_t *pin_patches = NULL;
+
+		pin_patches = match_pin_patches(id, subid);
+
+		if (pin_patches != NULL) {
+			for (struct pin_patch_t *patch = pin_patches; patch->type; patch++) {
+				if (nid == patch->nid) {
+					switch (patch->type) {
+					case PIN_PATCH_TYPE_STRING:
+						patch_str = patch->patch.string;
+					case PIN_PATCH_TYPE_MASK:
+						config &= ~patch->patch.mask[0];
+						config |= patch->patch.mask[1];
+						break;
+					case PIN_PATCH_TYPE_OVERRIDE:
+						config = patch->patch.override;
+						break;
+					default:
+						/* should panic hard */
+						break;
+					}
+					break;
+				}
+			}
 		}
 	}
 
-	if (patch != NULL)
-		config = hdaa_widget_pin_patch(config, patch);
+	if (patch_str != NULL)
+		config = hdaa_widget_pin_patch(config, patch_str);
 	HDA_BOOTVERBOSE(
 		if (config != orig)
 			device_printf(w->devinfo->dev,
