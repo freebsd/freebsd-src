@@ -144,6 +144,7 @@ Version 3.2: July, 2000 (Erik Salander, erik@whistle.com and
       Junichi Satoh, junichi@junichi.org)
     - Added support for streaming media (RTSP and PNA) aliasing.
 
-Version 3.3: May 2020 (donner)
+Version 3.3: May 2021 (donner)
     - Dropped LibAliasCheckNewLink
-    - Refactor the database handling, perfomance improvements.
+    - Refactor the database handling
+    - Switch to more effienct SPLAY trees
