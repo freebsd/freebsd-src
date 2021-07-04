@@ -8459,7 +8459,7 @@ pmap_remove_write(vm_page_t m)
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	rw_wlock(lock);
-retry_pv_loop:
+retry:
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -8469,7 +8469,7 @@ retry_pv_loop:
 			rw_wlock(lock);
 			if (pvh_gen != pvh->pv_gen) {
 				PMAP_UNLOCK(pmap);
-				goto retry_pv_loop;
+				goto retry;
 			}
 		}
 		PG_RW = pmap_rw_bit(pmap);
@@ -8493,7 +8493,7 @@ retry_pv_loop:
 			if (pvh_gen != pvh->pv_gen ||
 			    md_gen != m->md.pv_gen) {
 				PMAP_UNLOCK(pmap);
-				goto retry_pv_loop;
+				goto retry;
 			}
 		}
 		PG_M = pmap_modified_bit(pmap);
@@ -8503,12 +8503,11 @@ retry_pv_loop:
 		    ("pmap_remove_write: found a 2mpage in page %p's pv list",
 		    m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
-retry:
 		oldpte = *pte;
 		if (oldpte & PG_RW) {
-			if (!atomic_cmpset_long(pte, oldpte, oldpte &
+			while (!atomic_fcmpset_long(pte, &oldpte, oldpte &
 			    ~(PG_RW | PG_M)))
-				goto retry;
+				cpu_spinwait();
 			if ((oldpte & PG_M) != 0)
 				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va);

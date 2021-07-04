@@ -3223,9 +3223,11 @@ pmap_protect_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva, pt_entry_t mask,
 	 * Return if the L2 entry already has the desired access restrictions
 	 * in place.
 	 */
-retry:
 	if ((old_l2 & mask) == nbits)
 		return;
+
+	while (!atomic_fcmpset_64(l2, &old_l2, (old_l2 & ~mask) | nbits))
+		cpu_spinwait();
 
 	/*
 	 * When a dirty read/write superpage mapping is write protected,
@@ -3239,9 +3241,6 @@ retry:
 		for (mt = m; mt < &m[L2_SIZE / PAGE_SIZE]; mt++)
 			vm_page_dirty(mt);
 	}
-
-	if (!atomic_fcmpset_64(l2, &old_l2, (old_l2 & ~mask) | nbits))
-		goto retry;
 
 	/*
 	 * Since a promotion must break the 4KB page mappings before making
@@ -3334,7 +3333,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		for (l3p = pmap_l2_to_l3(l2, sva); sva != va_next; l3p++,
 		    sva += L3_SIZE) {
 			l3 = pmap_load(l3p);
-retry:
+
 			/*
 			 * Go to the next L3 entry if the current one is
 			 * invalid or already has the desired access
@@ -3351,6 +3350,10 @@ retry:
 				continue;
 			}
 
+			while (!atomic_fcmpset_64(l3p, &l3, (l3 & ~mask) |
+			    nbits))
+				cpu_spinwait();
+
 			/*
 			 * When a dirty read/write mapping is write protected,
 			 * update the page's dirty field.
@@ -3360,8 +3363,6 @@ retry:
 			    pmap_pte_dirty(pmap, l3))
 				vm_page_dirty(PHYS_TO_VM_PAGE(l3 & ~ATTR_MASK));
 
-			if (!atomic_fcmpset_64(l3p, &l3, (l3 & ~mask) | nbits))
-				goto retry;
 			if (va == va_next)
 				va = sva;
 		}
