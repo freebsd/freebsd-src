@@ -156,7 +156,7 @@ int	 flsll(long long);
 #define	bitcountl(x)	__bitcountl((u_long)(x))
 #define	bitcount(x)	__bitcount((u_int)(x))
 
-int	 fnmatch(const char *, const char *, int);
+int	 fnmatch(const char *, const char *, int) __pure;
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n) __pure;
 void	*memcchr(const void *s, int c, size_t n) __pure;
