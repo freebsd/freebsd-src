@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	long	word;		/* "word" used for optimal copy speed */
+typedef	uintptr_t	word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define wmask	(wsize - 1)
@@ -69,14 +69,14 @@ typedef	long	word;		/* "word" used for optimal copy speed */
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
 void *
-memcpy(void *dst0, const void *src0, size_t length)
+memmove(void *dst0, const void *src0, size_t length)
 {
-	char		*dst;
-	const char	*src;
+	unsigned char		*dst;
+	unsigned const char	*src;
 	size_t		t;
 
-	dst = dst0;
-	src = src0;
+	dst = (unsigned char *)dst0;
+	src = (unsigned const char*)src0;
 
 	if (length == 0 || dst == src) {	/* nothing to do */
 		goto done;
@@ -88,7 +88,7 @@ memcpy(void *dst0, const void *src0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	if ((uintptr_t)dst < (uintptr_t)src) {
 		/*
 		 * Copy forward.
 		 */
@@ -152,5 +152,5 @@ void
 (bcopy)(const void *src0, void *dst0, size_t length)
 {
 
-	memcpy(dst0, src0, length);
+	memmove(dst0, src0, length);
 }
