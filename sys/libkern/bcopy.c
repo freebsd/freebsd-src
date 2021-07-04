@@ -71,15 +71,12 @@ typedef	unsigned long	word;		/* "word" used for optimal copy speed */
 void *
 memmove(void *dst0, const void *src0, size_t length)
 {
-	unsigned char		*dst;
-	unsigned const char	*src;
+	unsigned char		*dst = (unsigned char *)dst0;
+	const unsigned char	*src = (const unsigned char*)src0;
 	size_t		t;
 
-	dst = (unsigned char *)dst0;
-	src = (unsigned const char*)src0;
-
 	if (length == 0 || dst == src) {	/* nothing to do */
-		goto done;
+		return (dst0);
 	}
 
 	/*
@@ -142,7 +139,9 @@ memmove(void *dst0, const void *src0, size_t length)
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
-done:
+#undef TLOOP
+#undef TLOOP1
+
 	return (dst0);
 }
 
