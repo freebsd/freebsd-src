@@ -119,7 +119,6 @@ StartPointIn(struct libalias *la,
 	SPLAY_INSERT(splay_in, &la->linkSplayIn, grp);
 	return (grp);
 }
-#undef INGUARD
 
 static int
 SeqDiff(u_long x, u_long y)
