@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	uintptr_t	word;		/* "word" used for optimal copy speed */
+typedef	unsigned long	word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define wmask	(wsize - 1)
@@ -92,9 +92,9 @@ memmove(void *dst0, const void *src0, size_t length)
 		/*
 		 * Copy forward.
 		 */
-		t = (uintptr_t)src;	/* only need low bits */
+		t = (size_t)src;	/* only need low bits */
 
-		if ((t | (uintptr_t)dst) & wmask) {
+		if ((t | (size_t)dst) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
@@ -124,10 +124,10 @@ memmove(void *dst0, const void *src0, size_t length)
 		 */
 		dst += length;
 		src += length;
-		t = (uintptr_t)src;
+		t = (size_t)src;
 
-		if ((t | (uintptr_t)dst) & wmask) {
-			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize) {
+		if ((t | (size_t)dst) & wmask) {
+			if ((t ^ (size_t)dst) & wmask || length <= wsize) {
 				t = length;
 			} else {
 				t &= wmask;
