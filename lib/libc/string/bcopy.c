@@ -69,7 +69,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
 	unsigned char *dst = (unsigned char *)dst0;
-	const char *src = (const unsigned char *)src0;
+	unsigned const char *src = (const unsigned char *)src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
