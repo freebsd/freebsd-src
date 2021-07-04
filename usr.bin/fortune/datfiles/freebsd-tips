@@ -443,9 +443,9 @@ You can use "pkg info" to see a list of packages you have installed.
 %
 You can use the 'fetch' command to retrieve files over ftp, http or https.
 
-	 fetch https://www.FreeBSD.org/index.html
+	 fetch https://www.FreeBSD.org/images/beastie.png
 
-will download the front page of the FreeBSD web site.
+will download the beastie image from the FreeBSD web site.
 %
 You can use "whereis" to search standard binary, manual page and source
 directories for the specified programs. This can be particularly handy
