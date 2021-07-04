@@ -85,14 +85,14 @@ memmove(void *dst0, const void *src0, size_t length)
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) if (t) TLOOP1(s)
+#define	TLOOP(s) for (; t; --t) { s; }
 #define	TLOOP1(s) do { s; } while (--t)
 
 	if ((uintptr_t)dst < (uintptr_t)src) {
 		/*
 		 * Copy forward.
 		 */
-		t = (size_t)src;	/* only need low bits */
+		t = (uintptr_t)src;	/* only need low bits */
 
 		if ((t | (uintptr_t)dst) & wmask) {
 			/*
@@ -122,8 +122,8 @@ memmove(void *dst0, const void *src0, size_t length)
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		src += length;
 		dst += length;
+		src += length;
 		t = (uintptr_t)src;
 
 		if ((t | (uintptr_t)dst) & wmask) {
