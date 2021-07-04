@@ -49,8 +49,8 @@ strcpy
 #endif
 (char * __restrict to, const char * __restrict from)
 {
-	char *save = to;
+	char * const save = to;
 
-	for (; (*to = *from); ++from, ++to);
-	return(save);
+	for (; (*to = *from) != '\0'; ++to, ++from);
+	return (save);
 }

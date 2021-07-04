@@ -48,20 +48,22 @@ __FBSDID("$FreeBSD$");
 char *
 strnstr(const char *s, const char *find, size_t slen)
 {
-	char c, sc;
-	size_t len;
+	const char c = *find;
 
-	if ((c = *find++) != '\0') {
-		len = strlen(find);
+	if (c != '\0') {
+		const size_t len = strlen(++find);
 		do {
+			char sc;
 			do {
-				if (slen-- < 1 || (sc = *s++) == '\0')
-					return (NULL);
+				if (slen < len || (sc = *s) == '\0')
+					return NULL;
+
+				--slen, ++s;
 			} while (sc != c);
-			if (len > slen)
+			if (slen < len)
 				return (NULL);
 		} while (strncmp(s, find, len) != 0);
-		s--;
+		--s;
 	}
-	return ((char *)s);
+	return (char *)s;
 }

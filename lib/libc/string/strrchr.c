@@ -41,11 +41,9 @@ __FBSDID("$FreeBSD$");
 char *
 strrchr(const char *p, int ch)
 {
-	char *save;
-	char c;
-
-	c = ch;
-	for (save = NULL;; ++p) {
+	char *save = NULL;
+	const char c = (char)ch;
+	for (;; ++p) {
 		if (*p == c)
 			save = (char *)p;
 		if (*p == '\0')

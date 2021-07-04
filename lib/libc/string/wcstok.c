@@ -54,34 +54,38 @@ wcstok(wchar_t * __restrict s, const wchar_t * __restrict delim,
 	 * Skip (span) leading delimiters (s += wcsspn(s, delim), sort of).
 	 */
 cont:
-	c = *s++;
-	for (spanp = delim; (sc = *spanp++) != L'\0';) {
-		if (c == sc)
+	c = *s;
+	for (spanp = delim; (sc = *spanp) != L'\0'; spanp++) {
+		if (c == sc) {
+			s++;
 			goto cont;
+		}
 	}
 
 	if (c == L'\0') {	/* no non-delimiter characters */
 		*last = NULL;
 		return (NULL);
 	}
-	tok = s - 1;
+	tok = s;
 
 	/*
 	 * Scan token (scan for delimiters: s += wcscspn(s, delim), sort of).
 	 * Note that delim must have one NUL; we stop if we see that, too.
 	 */
 	for (;;) {
-		c = *s++;
+		c = *++s;
 		spanp = delim;
 		do {
-			if ((sc = *spanp++) == c) {
+			if ((sc = *spanp) == c) {
 				if (c == L'\0')
 					s = NULL;
 				else
-					s[-1] = L'\0';
+					*s++ = L'\0';
 				*last = s;
 				return (tok);
 			}
+
+			spanp++;
 		} while (sc != L'\0');
 	}
 	/* NOTREACHED */

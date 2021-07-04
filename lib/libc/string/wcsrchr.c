@@ -34,15 +34,13 @@ __FBSDID("$FreeBSD$");
 wchar_t *
 wcsrchr(const wchar_t *s, wchar_t c)
 {
-	const wchar_t *last;
+	const wchar_t *last = NULL;
 
-	last = NULL;
-	for (;;) {
+	for (;; s++) {
 		if (*s == c)
 			last = s;
 		if (*s == L'\0')
 			break;
-		s++;
 	}
 
 	return ((wchar_t *)last);

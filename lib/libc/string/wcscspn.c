@@ -44,17 +44,16 @@ wcscspn(const wchar_t *s, const wchar_t *set)
 	const wchar_t *p;
 	const wchar_t *q;
 
-	p = s;
-	while (*p) {
-		q = set;
-		while (*q) {
-			if (*p == *q)
+	wchar_t t;
+	wchar_t w;
+
+	for (p = s; (t = *p) != L'\0'; p++) {
+		for (q = set; (w = *q) != L'\0'; q++) {
+			if (t == w)
 				goto done;
-			q++;
 		}
-		p++;
 	}
 
 done:
-	return (p - s);
+	return p - s;
 }

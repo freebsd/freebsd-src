@@ -48,17 +48,19 @@ char *
 strncat(char * __restrict dst, const char * __restrict src, size_t n)
 {
 	if (n != 0) {
-		char *d = dst;
-		const char *s = src;
+		char *d;
 
-		while (*d != 0)
+		for (d = dst; *d != '\0'; d++);
+
+		for (;; src++) {
+			if ((*d = *src) == '\0')
+				return dst;
+
 			d++;
-		do {
-			if ((*d = *s++) == 0)
+			if (--n == 0)
 				break;
-			d++;
-		} while (--n != 0);
-		*d = 0;
+		}
+		*d = '\0';
 	}
-	return (dst);
+	return dst;
 }

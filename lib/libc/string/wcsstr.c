@@ -48,18 +48,20 @@ __FBSDID("$FreeBSD$");
 wchar_t *
 wcsstr(const wchar_t * __restrict s, const wchar_t * __restrict find)
 {
-	wchar_t c, sc;
-	size_t len;
+	const wchar_t c = *find;
 
-	if ((c = *find++) != L'\0') {
-		len = wcslen(find);
+	if (c != L'\0') {
+		const size_t len = wcslen(++find);
 		do {
+			wchar_t sc;
 			do {
-				if ((sc = *s++) == L'\0')
+				if ((sc = *s) == L'\0')
 					return (NULL);
+
+				++s;
 			} while (sc != c);
 		} while (wcsncmp(s, find, len) != 0);
-		s--;
+		--s;
 	}
 	return ((wchar_t *)s);
 }

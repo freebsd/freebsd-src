@@ -58,16 +58,16 @@ strncpy
 {
 	if (n != 0) {
 		char *d = dst;
-		const char *s = src;
-
 		do {
-			if ((*d++ = *s++) == '\0') {
+			if ((*d = *src) == '\0') {
 				/* NUL pad the remaining n-1 bytes */
-				while (--n != 0)
-					*d++ = '\0';
+				for (; n != 1; --n)
+					*++d = '\0';
 				break;
 			}
+
+			++d, ++src;
 		} while (--n != 0);
 	}
-	return (dst);
+	return dst;
 }
