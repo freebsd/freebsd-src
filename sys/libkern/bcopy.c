@@ -69,7 +69,7 @@ typedef	unsigned long	word;		/* "word" used for optimal copy speed */
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
 void *
-memmove(void *dst0, const void *src0, size_t length)
+memcpy(void *dst0, const void *src0, size_t length)
 {
 	unsigned char		*dst = (unsigned char *)dst0;
 	const unsigned char	*src = (const unsigned char*)src0;
@@ -151,5 +151,5 @@ void
 (bcopy)(const void *src0, void *dst0, size_t length)
 {
 
-	memmove(dst0, src0, length);
+	memcpy(dst0, src0, length);
 }
