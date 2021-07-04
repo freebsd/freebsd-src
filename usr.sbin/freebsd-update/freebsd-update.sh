@@ -1041,7 +1041,7 @@ fetch_pick_server () {
 			This may be because upgrading from this platform (${ARCH})
 			or release (${RELNUM}) is unsupported by `basename $0`. Only
 			platforms with Tier 1 support can be upgraded by `basename $0`.
-			See https://www.freebsd.org/platforms/index.html for more info.
+			See https://www.freebsd.org/platforms/ for more info.
 
 			If unsupported, FreeBSD must be upgraded by source.
 		EOF
