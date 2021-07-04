@@ -80,7 +80,6 @@
 #define	__printf(a,b)			__printflike(a,b)
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
-#define	smp_mb()			mb()
 
 #define	lower_32_bits(n)		((u32)(n))
 #define	upper_32_bits(n)		((u32)(((n) >> 16) >> 16))

@@ -32,5 +32,6 @@
 #include <asm/atomic.h>
 #include <asm/atomic64.h>
 #include <asm/atomic-long.h>
+#include <asm/barrier.h>
 
 #endif /* _LINUX_ATOMIC_H_ */
