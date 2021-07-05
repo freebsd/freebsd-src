@@ -64,4 +64,10 @@ irq_work_queue(struct irq_work *irqw)
 	taskqueue_enqueue(linux_irq_work_tq, &irqw->irq_task);
 }
 
+static inline void
+irq_work_sync(struct irq_work *irqw)
+{
+	taskqueue_drain(linux_irq_work_tq, &irqw->irq_task);
+}
+
 #endif /* __LINUX_IRQ_WORK_H__ */
