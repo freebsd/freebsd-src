@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
+#include <linux/llist.h>
+#include <linux/irq_work.h>
 
 /*
  * By defining CONFIG_NO_RCU_SKIP LinuxKPI RCU locks and asserts will
@@ -60,13 +62,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct callback_head {
-	STAILQ_ENTRY(callback_head) entry;
+	union {
+		STAILQ_ENTRY(callback_head) entry;
+		struct llist_node node;
+	};
 	rcu_callback_t func;
 };
 
 struct linux_epoch_head {
-	STAILQ_HEAD(, callback_head) cb_head;
-	struct mtx lock;
+	struct llist_head cb_head;
 	struct task task;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -120,9 +124,8 @@ linux_rcu_runtime_init(void *arg __unused)
 
 		head = &linux_epoch_head[j];
 
-		mtx_init(&head->lock, "LRCU-HEAD", NULL, MTX_DEF);
 		TASK_INIT(&head->task, 0, linux_rcu_cleaner_func, head);
-		STAILQ_INIT(&head->cb_head);
+		init_llist_head(&head->cb_head);
 
 		CPU_FOREACH(i) {
 			struct linux_epoch_record *record;
@@ -140,36 +143,21 @@ linux_rcu_runtime_init(void *arg __unused)
 SYSINIT(linux_rcu_runtime, SI_SUB_CPU, SI_ORDER_ANY, linux_rcu_runtime_init, NULL);
 
 static void
-linux_rcu_runtime_uninit(void *arg __unused)
-{
-	struct linux_epoch_head *head;
-	int j;
-
-	for (j = 0; j != RCU_TYPE_MAX; j++) {
-		head = &linux_epoch_head[j];
-
-		mtx_destroy(&head->lock);
-	}
-}
-SYSUNINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
-
-static void
 linux_rcu_cleaner_func(void *context, int pending __unused)
 {
-	struct linux_epoch_head *head;
+	struct linux_epoch_head *head = context;
 	struct callback_head *rcu;
 	STAILQ_HEAD(, callback_head) tmp_head;
+	struct llist_node *node, *next;
 	uintptr_t offset;
 
-	linux_set_current(curthread);
-
-	head = context;
-
 	/* move current callbacks into own queue */
-	mtx_lock(&head->lock);
 	STAILQ_INIT(&tmp_head);
-	STAILQ_CONCAT(&tmp_head, &head->cb_head);
-	mtx_unlock(&head->lock);
+	llist_for_each_safe(node, next, llist_del_all(&head->cb_head)) {
+		rcu = container_of(node, struct callback_head, node);
+		/* re-reverse list to restore chronological order */
+		STAILQ_INSERT_HEAD(&tmp_head, rcu, entry);
+	}
 
 	/* synchronize */
 	linux_synchronize_rcu(head - linux_epoch_head);
@@ -384,7 +372,7 @@ linux_rcu_barrier(unsigned type)
 	head = &linux_epoch_head[type];
 
 	/* wait for callbacks to complete */
-	taskqueue_drain(taskqueue_fast, &head->task);
+	taskqueue_drain(linux_irq_work_tq, &head->task);
 }
 
 void
@@ -398,11 +386,9 @@ linux_call_rcu(unsigned type, struct rcu_head *context, rcu_callback_t func)
 	rcu = (struct callback_head *)context;
 	head = &linux_epoch_head[type];
 
-	mtx_lock(&head->lock);
 	rcu->func = func;
-	STAILQ_INSERT_TAIL(&head->cb_head, rcu, entry);
-	taskqueue_enqueue(taskqueue_fast, &head->task);
-	mtx_unlock(&head->lock);
+	llist_add(&rcu->node, &head->cb_head);
+	taskqueue_enqueue(linux_irq_work_tq, &head->task);
 }
 
 int
