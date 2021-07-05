@@ -145,7 +145,7 @@ memmove(void *dst0, const void *src0, size_t length)
 	return (dst0);
 }
 
-__strong_reference(memmove, memcpy);
+__strong_reference(memcpy, memmove);
 
 void
 (bcopy)(const void *src0, void *dst0, size_t length)
