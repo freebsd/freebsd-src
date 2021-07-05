@@ -79,11 +79,7 @@ __FBSDID("$FreeBSD$");
 /*
  * We use a linked list rather than a bitmap because we need to be able to
  * represent potentially huge objects (like all of a processor's physical
- * address space).  That is also why the indices are defined to have type
- * `unsigned long' -- that being the largest integral type in ISO C (1990).
- * The 1999 version of C allows `long long'; we may need to switch to that
- * at some point in the future, particularly if we want to support 36-bit
- * addresses on IA32 hardware.
+ * address space).
  */
 struct resource_i {
 	struct resource		r_r;
