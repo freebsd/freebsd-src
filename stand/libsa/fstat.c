@@ -37,9 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 int
-fstat(fd, sb)
-	int fd;
-	struct stat *sb;
+fstat(int fd, struct stat *sb)
 {
 	struct open_file *f = &files[fd];
 
