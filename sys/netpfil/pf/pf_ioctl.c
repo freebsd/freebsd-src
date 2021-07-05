@@ -4955,6 +4955,8 @@ pf_killstates_nv(struct pfioc_nv *nv)
 		ERROUT(error);
 
 	error = pf_killstates(&kill, &killed);
+	if (error)
+		ERROUT(error);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
