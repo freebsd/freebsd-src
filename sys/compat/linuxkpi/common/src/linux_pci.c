@@ -881,7 +881,7 @@ linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t len)
 
 int
 linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
-    enum dma_data_direction dir, struct dma_attrs *attrs)
+    enum dma_data_direction dir __unused, unsigned long attrs __unused)
 {
 	struct linux_dma_priv *priv;
 	struct scatterlist *sg;
@@ -921,7 +921,8 @@ linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
 
 void
 linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sgl,
-    int nents, enum dma_data_direction dir, struct dma_attrs *attrs)
+    int nents __unused, enum dma_data_direction dir __unused,
+    unsigned long attrs __unused)
 {
 	struct linux_dma_priv *priv;
 
