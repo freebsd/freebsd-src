@@ -466,6 +466,8 @@ fdt_apply_overlays()
 	current_fdtp_size = fdtp_size;
 	overlays_applied = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
+		if (strcmp(fp->f_type, "dtbo") != 0)
+			continue;
 		COPYOUT(fp->f_addr, overlay, fp->f_size);
 		/* Check compatible first to avoid unnecessary allocation */
 		rv = fdt_check_overlay_compatible(current_fdtp, overlay);
