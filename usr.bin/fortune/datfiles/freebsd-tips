@@ -441,7 +441,7 @@ You can use the 'fetch' command to retrieve files over ftp, http or https.
 
 	 fetch https://www.FreeBSD.org/images/beastie.png
 
-will download the front page of the FreeBSD web site.
+will download the beastie image from the FreeBSD web site.
 %
 You can use "whereis" to search standard binary, manual page and source
 directories for the specified programs. This can be particularly handy
