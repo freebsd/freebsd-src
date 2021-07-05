@@ -83,6 +83,7 @@ device		cpufreq
 
 # Interrupt controller
 device		gic
+device		aw_r_intc
 
 # PMU support (for CCNT).
 device		pmu

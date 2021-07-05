@@ -11,6 +11,7 @@ arm/allwinner/aw_machdep.c		standard
 arm/allwinner/aw_mmc.c			optional	mmc | mmccam
 arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/aw_nmi.c			standard
+arm/allwinner/aw_r_intc.c		optional	aw_r_intc
 arm/allwinner/aw_rsb.c			optional	rsb | p2wi
 arm/allwinner/aw_rtc.c			optional	aw_rtc
 arm/allwinner/aw_syscon.c		optional	ext_resources syscon
