@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
 int
 strcasecmp(const char *s1, const char *s2)
 {
-	const unsigned char *us1 = (const u_char *)s1,
+	const u_char *us1 = (const u_char *)s1,
 	    *us2 = (const u_char *)s2;
 
 	u_char u1, u2;
