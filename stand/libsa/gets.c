@@ -96,10 +96,10 @@ fgetstr(char *buf, int size, int fd)
     while (--size > 0) { 	/* leave space for terminator */
 	err = read(fd, &c, sizeof(c));
 	if (err < 0)		/* read error */
-	    return(-1);
+	    return (-1);
 	if (err == 0) {		/* EOF */
 	    if (len == 0)
-		return(-1);	/* nothing to read */
+		return (-1);	/* nothing to read */
 	    break;
 	}
 	if ((c == '\r') ||	/* line terminators */
@@ -109,6 +109,6 @@ fgetstr(char *buf, int size, int fd)
 	len++;
     }
     *buf = '\0';
-    return(len);
+    return (len);
 }
 
