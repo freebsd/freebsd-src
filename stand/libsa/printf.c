@@ -71,7 +71,6 @@ putchar_wrapper(int cc, void *arg)
 int
 printf(const char *fmt, ...)
 {
-
 	int retval;
 	va_list ap;
 
