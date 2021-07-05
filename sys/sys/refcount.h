@@ -70,24 +70,31 @@ refcount_acquire_checked(volatile u_int *count)
 }
 
 static __inline bool
-refcount_release(volatile u_int *count)
+refcount_releasen(volatile u_int *count, u_int n)
 {
 	u_int old;
 
 	atomic_thread_fence_rel();
-	old = atomic_fetchadd_int(count, -1);
+	old = atomic_fetchadd_int(count, -n);
 	KASSERT(old > 0, ("refcount %p is zero", count));
-	if (old > 1)
+	if (old > n)
 		return (false);
 
 	/*
 	 * Last reference.  Signal the user to call the destructor.
 	 *
-	 * Ensure that the destructor sees all updates.  The fence_rel
-	 * at the start of the function synchronized with this fence.
+	 * Ensure that the destructor sees all updates. This synchronizes with
+	 * release fences from all routines which drop the count.
 	 */
 	atomic_thread_fence_acq();
 	return (true);
+}
+
+static __inline bool
+refcount_release(volatile u_int *count)
+{
+
+        return (refcount_releasen(count, 1));
 }
 
 /*
