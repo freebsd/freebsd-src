@@ -150,9 +150,7 @@ int	ffs_sbget(void *, struct fs **, off_t, char *,
  * Read a new inode into a file structure.
  */
 static int
-read_inode(inumber, f)
-	ino_t inumber;
-	struct open_file *f;
+read_inode(ino_t inumber, struct open_file *f)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -207,10 +205,7 @@ out:
  * contains that block.
  */
 static int
-block_map(f, file_block, disk_block_p)
-	struct open_file *f;
-	ufs2_daddr_t file_block;
-	ufs2_daddr_t *disk_block_p;	/* out */
+block_map(struct open_file *f, ufs2_daddr_t file_block, ufs2_daddr_t *disk_block_p)	/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -312,10 +307,7 @@ block_map(f, file_block, disk_block_p)
  * Write a portion of a file from an internal buffer.
  */
 static int
-buf_write_file(f, buf_p, size_p)
-	struct open_file *f;
-	const char *buf_p;
-	size_t *size_p;		/* out */
+buf_write_file(struct open_file *f, const char *buf_p, size_t *size_p)	/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -390,10 +382,7 @@ buf_write_file(f, buf_p, size_p)
  * the location in the buffer and the amount in the buffer.
  */
 static int
-buf_read_file(f, buf_p, size_p)
-	struct open_file *f;
-	char **buf_p;		/* out */
-	size_t *size_p;		/* out */
+buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)		/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -452,10 +441,7 @@ buf_read_file(f, buf_p, size_p)
  * i_number.
  */
 static int
-search_directory(name, f, inumber_p)
-	char *name;
-	struct open_file *f;
-	ino_t *inumber_p;		/* out */
+search_directory(char *name, struct open_file *f, ino_t *inumber_p)		/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct direct *dp;
@@ -502,9 +488,7 @@ search_directory(name, f, inumber_p)
  * Open a file.
  */
 static int
-ufs_open(upath, f)
-	const char *upath;
-	struct open_file *f;
+ufs_open(const char *upath, struct open_file *f)
 {
 	char *cp, *ncp;
 	int c;
@@ -711,8 +695,7 @@ ufs_use_sa_read(void *devfd, off_t loc, void **bufp, int size)
 }
 
 static int
-ufs_close(f)
-	struct open_file *f;
+ufs_close(struct open_file *f)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	int level;
@@ -741,11 +724,7 @@ ufs_close(f)
  * Cross block boundaries when necessary.
  */
 static int
-ufs_read(f, start, size, resid)
-	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;	/* out */
+ufs_read(struct open_file *f, void *start, size_t size, size_t *resid;	/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	size_t csize;
@@ -815,10 +794,7 @@ ufs_write(f, start, size, resid)
 }
 
 static off_t
-ufs_seek(f, offset, where)
-	struct open_file *f;
-	off_t offset;
-	int where;
+ufs_seek(struct open_file *f, off_t offset, int where)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -840,9 +816,7 @@ ufs_seek(f, offset, where)
 }
 
 static int
-ufs_stat(f, sb)
-	struct open_file *f;
-	struct stat *sb;
+ufs_stat(struct open_file *f, struct stat *sb)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -880,16 +854,17 @@ ufs_readdir(struct open_file *f, struct dirent *d)
 	/*
 	 * assume that a directory entry will not be split across blocks
 	 */
-again:
-	if (fp->f_seekp >= DIP(fp, di_size))
-		return (ENOENT);
-	error = buf_read_file(f, &buf, &buf_size);
-	if (error)
-		return (error);
-	dp = (struct direct *)buf;
-	fp->f_seekp += dp->d_reclen;
-	if (dp->d_ino == (ino_t)0)
-		goto again;
+
+	do {
+		if (fp->f_seekp >= DIP(fp, di_size))
+			return (ENOENT);
+		error = buf_read_file(f, &buf, &buf_size);
+		if (error)
+			return (error);
+		dp = (struct direct *)buf;
+		fp->f_seekp += dp->d_reclen;
+	} while (dp->d_ino != (ino_t)0);
+
 	d->d_type = dp->d_type;
 	strcpy(d->d_name, dp->d_name);
 	return (0);
