@@ -2177,6 +2177,8 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 	struct pfr_kentry	*ke, *ke2 = NULL;
 	int			 idx = -1, use_counter = 0;
 
+	MPASS(pidx != NULL);
+
 	switch (af) {
 	case AF_INET:
 		uaddr.sin.sin_len = sizeof(struct sockaddr_in);
@@ -2194,8 +2196,7 @@ pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
 	if (!(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
 		return (-1);
 
-	if (pidx != NULL)
-		idx = *pidx;
+	idx = *pidx;
 	if (counter != NULL && idx >= 0)
 		use_counter = 1;
 	if (idx < 0)
