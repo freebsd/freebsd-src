@@ -77,7 +77,7 @@ in_cksum(void *p, int len)
 #endif
 			}
 		}
-		if ((oddbyte = len & 1) != 0)
+		if ((oddbyte = len & 1))
 #if BYTE_ORDER == BIG_ENDIAN
 			v = *cp << 8;
 #else
