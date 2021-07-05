@@ -202,8 +202,6 @@ list_del_init(struct list_head *entry)
 	for (p = list_entry((h)->next, typeof(*p), field); &(p)->field != (h); \
 	    p = list_entry((p)->field.next, typeof(*p), field))
 
-#define list_for_each_entry_lockless(...) list_for_each_entry(__VA_ARGS__)
-
 #define list_for_each_entry_safe(p, n, h, field)			\
 	for (p = list_entry((h)->next, typeof(*p), field),		\
 	    n = list_entry((p)->field.next, typeof(*p), field); &(p)->field != (h);\
