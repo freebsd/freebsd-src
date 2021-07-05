@@ -272,6 +272,85 @@ broken_pipe_body()
 	    -x '(tail -n 856 ints; echo exit code: $? >&2) | sleep 2'
 }
 
+atf_test_case stdin
+stdin_head()
+{
+	atf_set "descr" "Check basic operations on standard input"
+}
+stdin_body()
+{
+	seq 1 5 > infile
+	seq 1 5 > expectfile
+	seq 5 1 > expectfile_r
+
+	tail < infile > outfile
+	tail -r < infile > outfile_r
+
+	atf_check cmp expectfile outfile
+	atf_check cmp expectfile_r outfile_r
+}
+
+atf_test_case follow
+follow_head()
+{
+	atf_set "descr" "Basic regression test for -f"
+}
+follow_body()
+{
+	local pid
+
+	seq 1 5 > expectfile
+	seq 1 3 > infile
+	tail -f infile > outfile &
+	pid=$!
+	sleep 0.1
+	seq 4 5 >> infile
+	sleep 0.1
+	atf_check cmp expectfile outfile
+	atf_check kill $pid
+}
+
+atf_test_case follow_stdin
+follow_stdin_head()
+{
+	atf_set "descr" "Verify that -f works with files piped to standard input"
+}
+follow_stdin_body()
+{
+	local pid
+
+	seq 1 5 > expectfile
+	seq 1 3 > infile
+	tail -f < infile > outfile &
+	pid=$!
+	sleep 0.1
+	seq 4 5 >> infile
+	sleep 0.1
+	atf_check cmp expectfile outfile
+	atf_check kill $pid
+}
+
+atf_test_case follow_rename
+follow_rename_head()
+{
+	atf_set "descr" "Verify that -F works"
+}
+follow_rename_body()
+{
+	local pid
+
+	seq 1 5 > expectfile
+	seq 1 3 > infile
+	tail -F infile > outfile &
+	pid=$!
+	seq 4 5 > infile_new
+	atf_check mv infile infile_old
+	atf_check mv infile_new infile
+	# tail -F polls for a new file every 1s.
+	sleep 2
+	atf_check cmp expectfile outfile
+	atf_check kill $pid
+}
 
 atf_init_test_cases()
 {
@@ -289,4 +368,8 @@ atf_init_test_cases()
 	atf_add_test_case longfile_rc145782_longlines
 	atf_add_test_case longfile_rn2500
 	atf_add_test_case broken_pipe
+	atf_add_test_case stdin
+	atf_add_test_case follow
+	atf_add_test_case follow_stdin
+	atf_add_test_case follow_rename
 }
