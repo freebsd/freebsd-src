@@ -179,7 +179,7 @@ STAILQ_HEAD(pf_send_head, pf_send_entry);
 VNET_DEFINE_STATIC(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
-static struct mtx pf_sendqueue_mtx;
+static struct mtx_padalign pf_sendqueue_mtx;
 MTX_SYSINIT(pf_sendqueue_mtx, &pf_sendqueue_mtx, "pf send queue", MTX_DEF);
 #define	PF_SENDQ_LOCK()		mtx_lock(&pf_sendqueue_mtx)
 #define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
@@ -201,18 +201,18 @@ VNET_DEFINE_STATIC(struct pf_overload_head, pf_overloadqueue);
 VNET_DEFINE_STATIC(struct task, pf_overloadtask);
 #define	V_pf_overloadtask	VNET(pf_overloadtask)
 
-static struct mtx pf_overloadqueue_mtx;
+static struct mtx_padalign pf_overloadqueue_mtx;
 MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
     "pf overload/flush queue", MTX_DEF);
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
 VNET_DEFINE(struct pf_krulequeue, pf_unlinked_rules);
-struct mtx pf_unlnkdrules_mtx;
+struct mtx_padalign pf_unlnkdrules_mtx;
 MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
     MTX_DEF);
 
-struct mtx pf_table_stats_lock;
+struct mtx_padalign pf_table_stats_lock;
 MTX_SYSINIT(pf_table_stats_lock, &pf_table_stats_lock, "pf table stats",
     MTX_DEF);
 
