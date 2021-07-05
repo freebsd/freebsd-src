@@ -102,6 +102,7 @@ mycc -o /tmp/syzkaller20 -Wall -Wextra -O2 /tmp/syzkaller20.c -lpthread ||
 (cd /tmp; ./syzkaller20) &
 sleep 60
 pkill -9 syzkaller20 swap
+while pgrep -q swap; do pkill swap; done
 wait
 
 rm -f /tmp/syzkaller20 /tmp/syzkaller20.c /tmp/syzkaller20.core
