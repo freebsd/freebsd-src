@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	trivial-vdso_tc.c
+SRCS+=	__vdso_gettc.c
 
 MDASM=	cerror.S \
 	syscall.S \
