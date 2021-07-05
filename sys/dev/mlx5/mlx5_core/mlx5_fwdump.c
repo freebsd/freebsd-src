@@ -81,17 +81,19 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 		return;
 	}
 
+	DROP_GIANT();
+
 	error = mlx5_vsc_find_cap(mdev);
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
 		mlx5_core_warn(mdev,
 		    "Unable to find vendor-specific capability, error %d\n",
 		    error);
-		return;
+		goto pickup_g;
 	}
 	error = mlx5_vsc_lock(mdev);
 	if (error != 0)
-		return;
+		goto pickup_g;
 	error = mlx5_vsc_set_space(mdev, MLX5_VSC_DOMAIN_SCAN_CRSPACE);
 	if (error != 0) {
 		mlx5_core_warn(mdev, "VSC scan space is not supported\n");
@@ -180,6 +182,8 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 
 unlock_vsc:
 	mlx5_vsc_unlock(mdev);
+pickup_g:
+	PICKUP_GIANT();
 }
 
 int
