@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define RANGE_NOMATCH   0
 #define RANGE_ERROR     (-1)
 
-static int rangematch(const char *, const char, const int, const char **);
+static int rangematch(const char *, char, const int, const char **);
 
 int
 fnmatch(const char *pattern, const char *string, int flags)
@@ -138,7 +138,6 @@ fnmatch(const char *pattern, const char *string, int flags)
 					++pattern;
 				}
 			}
-	
 			/* FALLTHROUGH */
 		default:
 		norm:
@@ -157,7 +156,7 @@ fnmatch(const char *pattern, const char *string, int flags)
 }
 
 static int
-rangematch(const char *pattern, const char test, const int flags, const char **newp)
+rangematch(const char *pattern, char test, const int flags, const char **newp)
 {
 	int negate, ok;
 	char c, c2;
