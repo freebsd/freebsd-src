@@ -44,6 +44,9 @@
 	     &(pos)->member != (head);					\
 	     pos = list_entry_rcu((pos)->member.next, typeof(*(pos)), member))
 
+#define	list_for_each_entry_lockless(pos, head, member) \
+	list_for_each_entry_rcu(pos, head, member)
+
 static inline void
 linux_list_add_rcu(struct list_head *new, struct list_head *prev,
     struct list_head *next)
