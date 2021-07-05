@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+#include <sys/vdso.h>
 #include <sys/watchdog.h>
 
 #include <sys/proc.h>
@@ -78,6 +79,9 @@ struct riscv_timer_softc {
 
 static struct riscv_timer_softc *riscv_timer_sc = NULL;
 
+static uint32_t riscv_timer_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+
 static timecounter_get_t riscv_timer_get_timecount;
 
 static struct timecounter riscv_timer_timecount = {
@@ -87,6 +91,7 @@ static struct timecounter riscv_timer_timecount = {
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
 	.tc_quality        = 1000,
+	.tc_fill_vdso_timehands = riscv_timer_fill_vdso_timehands,
 };
 
 static inline uint64_t
@@ -300,4 +305,13 @@ DELAY(int usec)
 		first = last;
 	}
 	TSEXIT();
+}
+
+static uint32_t
+riscv_timer_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc)
+{
+	vdso_th->th_algo = VDSO_TH_ALGO_RISCV_RDTIME;
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (1);
 }
