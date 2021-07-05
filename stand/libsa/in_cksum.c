@@ -61,7 +61,7 @@ in_cksum(void *p, int len)
 			sum += v + *cp++;
 			len--;
 		}
-		if (((long)cp & 1) == 0) {
+		if (((uintptr_t)cp & 1) == 0) {
 			while ((len -= 2) >= 0) {
 				sum += *(u_short *)cp;
 				cp += 2;
