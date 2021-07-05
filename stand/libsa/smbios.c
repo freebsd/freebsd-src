@@ -517,7 +517,7 @@ smbios_detect(const caddr_t addr)
 static int
 smbios_match_str(const char* s1, const char* s2)
 {
-	return (s1 == NULL || (s2 != NULL && strcmp(s1, s2) != 0));
+	return (s1 == NULL || (s2 != NULL && strcmp(s1, s2) == 0));
 }
 
 int
