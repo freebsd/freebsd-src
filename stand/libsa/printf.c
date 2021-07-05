@@ -71,8 +71,9 @@ putchar_wrapper(int cc, void *arg)
 int
 printf(const char *fmt, ...)
 {
-	va_list ap;
+
 	int retval;
+	va_list ap;
 
 	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar_wrapper, NULL, 10, ap);
@@ -153,8 +154,8 @@ int
 snprintf(char *buf, size_t size, const char *cfmt, ...)
 {
 	int retval;
-	va_list ap;
 	struct print_buf arg;
+	va_list ap;
 
 	arg.buf = buf;
 	arg.size = size;
@@ -171,8 +172,8 @@ snprintf(char *buf, size_t size, const char *cfmt, ...)
 int
 vsnprintf(char *buf, size_t size, const char *cfmt, va_list ap)
 {
-	struct print_buf arg;
 	int retval;
+	struct print_buf arg;
 
 	arg.buf = buf;
 	arg.size = size;
