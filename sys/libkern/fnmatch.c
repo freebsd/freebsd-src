@@ -88,13 +88,15 @@ fnmatch(const char *pattern, const char *string, int flags)
 				return (FNM_NOMATCH);
 
 			/* Optimize for pattern with * at end or before /. */
-			if (c == EOS)
+			if (c == EOS) {
 				if (flags & FNM_PATHNAME)
 					return ((flags & FNM_LEADING_DIR) ||
 					    strchr(string, '/') == NULL ?
 					    0 : FNM_NOMATCH);
-				else
-					return (0);
+		
+				return (0);
+			}
+
 			if (c == '/' && flags & FNM_PATHNAME) {
 				if ((string = strchr(string, '/')) == NULL)
 					return (FNM_NOMATCH);
