@@ -121,7 +121,7 @@ struct pfi_dynaddr {
 #define	PF_STATE_LOCK_ASSERT(s)		do {} while (0)
 #endif /* INVARIANTS */
 
-extern struct mtx pf_unlnkdrules_mtx;
+extern struct mtx_padalign pf_unlnkdrules_mtx;
 #define	PF_UNLNKDRULES_LOCK()	mtx_lock(&pf_unlnkdrules_mtx)
 #define	PF_UNLNKDRULES_UNLOCK()	mtx_unlock(&pf_unlnkdrules_mtx)
 
@@ -136,7 +136,7 @@ extern struct rmlock pf_rules_lock;
 #define	PF_RULES_RASSERT()	rm_assert(&pf_rules_lock, RA_RLOCKED)
 #define	PF_RULES_WASSERT()	rm_assert(&pf_rules_lock, RA_WLOCKED)
 
-extern struct mtx pf_table_stats_lock;
+extern struct mtx_padalign pf_table_stats_lock;
 #define	PF_TABLE_STATS_LOCK()	mtx_lock(&pf_table_stats_lock)
 #define	PF_TABLE_STATS_UNLOCK()	mtx_unlock(&pf_table_stats_lock)
 #define	PF_TABLE_STATS_OWNED()	mtx_owned(&pf_table_stats_lock)
