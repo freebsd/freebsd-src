@@ -105,7 +105,7 @@ fnmatch(const char *pattern, const char *string, int flags)
 			for (; (test = *string) != EOS; ++string) {
 				if (!fnmatch(pattern, string, flags & ~FNM_PERIOD))
 					return (0);
-				if (test == '/' && flags & FNM_PATHNAME)
+				if (test == '/' && (flags & FNM_PATHNAME))
 					break;
 			}
 			return (FNM_NOMATCH);
@@ -132,11 +132,12 @@ fnmatch(const char *pattern, const char *string, int flags)
 			break;
 		case '\\':
 			if (!(flags & FNM_NOESCAPE)) {
-				if ((c = *pattern++) == EOS) {
+				if ((c = *pattern) == EOS)
 					c = '\\';
-					--pattern;
-				}
+				else
+					++pattern;
 			}
+	
 			/* FALLTHROUGH */
 		default:
 		norm:
