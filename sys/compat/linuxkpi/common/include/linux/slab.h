@@ -31,12 +31,9 @@
 #ifndef	_LINUX_SLAB_H_
 #define	_LINUX_SLAB_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/limits.h>
-#include <sys/proc.h>
-#include <vm/uma.h>
 
 #include <linux/compat.h>
 #include <linux/types.h>
@@ -65,8 +62,9 @@ MALLOC_DECLARE(M_KMALLOC);
  */
 #define	kmem_cache		linux_kmem_cache
 #define	kmem_cache_create(...)	linux_kmem_cache_create(__VA_ARGS__)
-#define	kmem_cache_alloc(...)	linux_kmem_cache_alloc(__VA_ARGS__)
-#define	kmem_cache_free(...)	linux_kmem_cache_free(__VA_ARGS__)
+#define	kmem_cache_alloc(...)	lkpi_kmem_cache_alloc(__VA_ARGS__)
+#define	kmem_cache_zalloc(...)	lkpi_kmem_cache_zalloc(__VA_ARGS__)
+#define	kmem_cache_free(...)	lkpi_kmem_cache_free(__VA_ARGS__)
 #define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
 
 #define	KMEM_CACHE(__struct, flags)					\
@@ -75,12 +73,7 @@ MALLOC_DECLARE(M_KMALLOC);
 
 typedef void linux_kmem_ctor_t (void *);
 
-struct linux_kmem_cache {
-	uma_zone_t cache_zone;
-	linux_kmem_ctor_t *cache_ctor;
-	unsigned cache_flags;
-	unsigned cache_size;
-};
+struct linux_kmem_cache;
 
 #define	SLAB_HWCACHE_ALIGN	(1 << 0)
 #define	SLAB_TYPESAFE_BY_RCU	(1 << 1)
@@ -212,32 +205,9 @@ ksize(const void *ptr)
 
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
-
-static inline void *
-linux_kmem_cache_alloc(struct linux_kmem_cache *c, gfp_t flags)
-{
-	return (uma_zalloc_arg(c->cache_zone, c,
-	    linux_check_m_flags(flags)));
-}
-
-static inline void *
-kmem_cache_zalloc(struct linux_kmem_cache *c, gfp_t flags)
-{
-	return (uma_zalloc_arg(c->cache_zone, c,
-	    linux_check_m_flags(flags | M_ZERO)));
-}
-
-extern void linux_kmem_cache_free_rcu(struct linux_kmem_cache *, void *);
-
-static inline void
-linux_kmem_cache_free(struct linux_kmem_cache *c, void *m)
-{
-	if (unlikely(c->cache_flags & SLAB_TYPESAFE_BY_RCU))
-		linux_kmem_cache_free_rcu(c, m);
-	else
-		uma_zfree(c->cache_zone, m);
-}
-
+extern void *lkpi_kmem_cache_alloc(struct linux_kmem_cache *, gfp_t);
+extern void *lkpi_kmem_cache_zalloc(struct linux_kmem_cache *, gfp_t);
+extern void lkpi_kmem_cache_free(struct linux_kmem_cache *, void *);
 extern void linux_kmem_cache_destroy(struct linux_kmem_cache *);
 void linux_kfree_async(void *);
 
