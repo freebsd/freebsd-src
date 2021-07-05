@@ -367,8 +367,12 @@ linux_rcu_barrier(unsigned type)
 
 	MPASS(type < RCU_TYPE_MAX);
 
-	linux_synchronize_rcu(type);
-
+	/*
+	 * This function is not obligated to wait for a grace period.
+	 * It only waits for RCU callbacks that have already been posted.
+	 * If there are no RCU callbacks posted, rcu_barrier() can return
+	 * immediately.
+	 */
 	head = &linux_epoch_head[type];
 
 	/* wait for callbacks to complete */
