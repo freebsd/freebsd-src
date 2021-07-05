@@ -59,6 +59,11 @@ mlx5_fwdump_destroy_dd(struct mlx5_core_dev *mdev)
 	mdev->dump_data = NULL;
 }
 
+static int mlx5_fw_dump_enable = 1;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, fw_dump_enable, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &mlx5_fw_dump_enable, 0,
+    "Enable fw dump setup and op");
+
 void
 mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 {
@@ -68,6 +73,14 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	u32 addr, in, out, next_addr;
 
 	mdev->dump_data = NULL;
+
+	TUNABLE_INT_FETCH("hw.mlx5.fw_dump_enable", &mlx5_fw_dump_enable);
+	if (!mlx5_fw_dump_enable) {
+		mlx5_core_warn(mdev,
+		    "Firmware dump administratively prohibited\n");
+		return;
+	}
+
 	error = mlx5_vsc_find_cap(mdev);
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
