@@ -63,13 +63,13 @@ struct dma_map_ops {
 	    void *vaddr, dma_addr_t dma_handle);
 	dma_addr_t (*map_page)(struct device *dev, struct page *page,
 	    unsigned long offset, size_t size, enum dma_data_direction dir,
-	    struct dma_attrs *attrs);
+	    unsigned long attrs);
 	void (*unmap_page)(struct device *dev, dma_addr_t dma_handle,
-	    size_t size, enum dma_data_direction dir, struct dma_attrs *attrs);
+	    size_t size, enum dma_data_direction dir, unsigned long attrs);
 	int (*map_sg)(struct device *dev, struct scatterlist *sg,
-	    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+	    int nents, enum dma_data_direction dir, unsigned long attrs);
 	void (*unmap_sg)(struct device *dev, struct scatterlist *sg, int nents,
-	    enum dma_data_direction dir, struct dma_attrs *attrs);
+	    enum dma_data_direction dir, unsigned long attrs);
 	void (*sync_single_for_cpu)(struct device *dev, dma_addr_t dma_handle,
 	    size_t size, enum dma_data_direction dir);
 	void (*sync_single_for_device)(struct device *dev,
@@ -97,9 +97,11 @@ void *linux_dma_alloc_coherent(struct device *dev, size_t size,
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);
 void linux_dma_unmap(struct device *dev, dma_addr_t dma_addr, size_t size);
 int linux_dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
-    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+    int nents, enum dma_data_direction dir __unused,
+    unsigned long attrs __unused);
 void linux_dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
-    int nents, enum dma_data_direction dir, struct dma_attrs *attrs);
+    int nents __unused, enum dma_data_direction dir __unused,
+    unsigned long attrs __unused);
 
 static inline int
 dma_supported(struct device *dev, u64 mask)
@@ -164,21 +166,11 @@ dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 	kmem_free((vm_offset_t)cpu_addr, size);
 }
 
-static inline dma_addr_t
-dma_map_single_attrs(struct device *dev, void *ptr, size_t size,
-    enum dma_data_direction dir, struct dma_attrs *attrs)
-{
+#define	dma_map_single_attrs(dev, ptr, size, dir, attrs)	\
+	linux_dma_map_phys(dev, vtophys(ptr), size)
 
-	return (linux_dma_map_phys(dev, vtophys(ptr), size));
-}
-
-static inline void
-dma_unmap_single_attrs(struct device *dev, dma_addr_t dma_addr, size_t size,
-    enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-
-	linux_dma_unmap(dev, dma_addr, size);
-}
+#define	dma_unmap_single_attrs(dev, dma_addr, size, dir, attrs)	\
+	linux_dma_unmap(dev, dma_addr, size)
 
 static inline dma_addr_t
 dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
@@ -188,21 +180,12 @@ dma_map_page_attrs(struct device *dev, struct page *page, size_t offset,
 	return (linux_dma_map_phys(dev, VM_PAGE_TO_PHYS(page) + offset, size));
 }
 
-static inline int
-dma_map_sg_attrs(struct device *dev, struct scatterlist *sgl, int nents,
-    enum dma_data_direction dir, struct dma_attrs *attrs)
-{
+/* linux_dma_(un)map_sg_attrs does not support attrs yet */
+#define	dma_map_sg_attrs(dev, sgl, nents, dir, attrs)	\
+	linux_dma_map_sg_attrs(dev, sgl, nents, dir, 0)
 
-	return (linux_dma_map_sg_attrs(dev, sgl, nents, dir, attrs));
-}
-
-static inline void
-dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg, int nents,
-    enum dma_data_direction dir, struct dma_attrs *attrs)
-{
-
-	linux_dma_unmap_sg_attrs(dev, sg, nents, dir, attrs);
-}
+#define	dma_unmap_sg_attrs(dev, sg, nents, dir, attrs)	\
+	linux_dma_unmap_sg_attrs(dev, sg, nents, dir, 0)
 
 static inline dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
@@ -276,10 +259,10 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 	return (0);
 }
 
-#define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
-#define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
-#define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)
-#define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, NULL)
+#define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, 0)
+#define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
+#define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, 0)
+#define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, 0)
 
 #define	DEFINE_DMA_UNMAP_ADDR(name)		dma_addr_t name
 #define	DEFINE_DMA_UNMAP_LEN(name)		__u32 name
