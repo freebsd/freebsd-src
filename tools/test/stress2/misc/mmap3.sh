@@ -42,12 +42,13 @@ while [ `date '+%s'` -lt $((start + 5 * 60)) ]; do
 	./mmap3
 done
 echo "Expect Segmentation faults"
-trap "rm -f /tmp/mmap3.0*" EXIT INT
+trap "ls /tmp/mmap3* | grep -E 'mmap3\.[0-9]{6}\.[0-9]{4}$' | xargs rm -v" \
+    EXIT INT
 start=`date '+%s'`
 while [ `date '+%s'` -lt $((start + 5 * 60)) ]; do
 	./mmap3 random
 done
-rm -f mmap3 mmap3.core /tmp/mmap3.0*
+rm -f mmap3 mmap3.core
 exit
 
 EOF
