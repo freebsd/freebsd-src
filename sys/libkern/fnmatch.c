@@ -62,9 +62,9 @@ fnmatch(const char *pattern, const char *string, int flags)
 	for (stringstart = string;;)
 		switch (c = *pattern++) {
 		case EOS:
-			if ((flags & FNM_LEADING_DIR) && *string == '/')
+			if ((*string == EOS) || (*string == '/' && (flags & FNM_LEADING_DIR)))
 				return (0);
-			return (*string == EOS ? 0 : FNM_NOMATCH);
+			return (FNM_NOMATCH);
 		case '?':
 			if (*string == EOS)
 				return (FNM_NOMATCH);
