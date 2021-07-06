@@ -2429,10 +2429,10 @@ bbr_log_hpts_diag(struct tcp_bbr *bbr, uint32_t cts, struct hpts_diag *diag)
 		log.u_bbr.pkts_out = diag->co_ret;
 		log.u_bbr.applimited = diag->hpts_sleep_time;
 		log.u_bbr.delivered = diag->p_prev_slot;
-		log.u_bbr.inflight = diag->p_runningtick;
-		log.u_bbr.bw_inuse = diag->wheel_tick;
+		log.u_bbr.inflight = diag->p_runningslot;
+		log.u_bbr.bw_inuse = diag->wheel_slot;
 		log.u_bbr.rttProp = diag->wheel_cts;
-		log.u_bbr.delRate = diag->maxticks;
+		log.u_bbr.delRate = diag->maxslots;
 		log.u_bbr.cur_del_rate = diag->p_curtick;
 		log.u_bbr.cur_del_rate <<= 32;
 		log.u_bbr.cur_del_rate |= diag->p_lasttick;
