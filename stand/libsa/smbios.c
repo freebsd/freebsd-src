@@ -212,10 +212,7 @@ smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 static const char *
 smbios_parse_chassis_type(caddr_t addr)
 {
-	int		type;
-
-	type = SMBIOS_GET8(addr, 0x5);
-	switch (type) {
+	switch (SMBIOS_GET8(addr, 0x5)) {
 	case 0x1:
 		return ("Other");
 	case 0x2:
@@ -297,10 +294,9 @@ static caddr_t
 smbios_parse_table(const caddr_t addr)
 {
 	caddr_t		cp;
-	int		proc, size, osize, type;
+	int		proc, size, osize;
 
-	type = SMBIOS_GET8(addr, 0);	/* 3.1.2 Structure Header Format */
-	switch(type) {
+	switch(SMBIOS_GET8(addr, 0)) {	/* 3.1.2 Structure Header Format */
 	case 0:		/* 3.3.1 BIOS Information (Type 0) */
 		smbios_setenv("smbios.bios.vendor", addr, 0x04);
 		smbios_setenv("smbios.bios.version", addr, 0x05);
