@@ -145,7 +145,6 @@ struct ch_softc {
 	ch_flags	flags;
 	ch_state	state;
 	ch_quirks	quirks;
-	union ccb	saved_ccb;
 	struct devstat	*device_stats;
 	struct cdev     *dev;
 	int		open_count;

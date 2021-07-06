@@ -189,7 +189,6 @@ typedef enum {
 typedef struct {
 	TAILQ_HEAD(, ccb_hdr) request_ccbs;
 	probe_action	action;
-	union ccb	saved_ccb;
 	probe_flags	flags;
 	MD5_CTX		context;
 	u_int8_t	digest[16];

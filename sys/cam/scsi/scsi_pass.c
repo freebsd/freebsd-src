@@ -129,7 +129,6 @@ struct pass_softc {
 	pass_state		  state;
 	pass_flags		  flags;
 	u_int8_t		  pd_type;
-	union ccb		  saved_ccb;
 	int			  open_count;
 	u_int		 	  maxio;
 	struct devstat		 *device_stats;

@@ -143,7 +143,6 @@ struct enc_softc {
 #define	ENC_FLAG_INVALID	0x01
 #define	ENC_FLAG_INITIALIZED	0x02
 #define	ENC_FLAG_SHUTDOWN	0x04
-	union ccb		 saved_ccb;
 	struct cdev		*enc_dev;
 	struct cam_periph	*periph;
 	int			 open_count;

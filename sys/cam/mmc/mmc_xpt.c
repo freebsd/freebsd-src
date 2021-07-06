@@ -176,7 +176,6 @@ CAM_XPT_PROTO(mmc_proto);
 typedef struct {
 	probe_action	action;
 	int             restart;
-	union ccb	saved_ccb;
 	uint32_t	host_ocr;
 	uint32_t	flags;
 #define PROBE_FLAG_ACMD_SENT	0x1 /* CMD55 is sent, card expects ACMD */
