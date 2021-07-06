@@ -189,10 +189,12 @@ struct ktls_session {
 	u_int	wq_index;
 	volatile u_int refcount;
 	int mode;
-	bool reset_pending;
 
 	struct task reset_tag_task;
+	struct task disable_ifnet_task;
 	struct inpcb *inp;
+	bool reset_pending;
+	bool disable_ifnet_pending;
 } __aligned(CACHE_LINE_SIZE);
 
 void ktls_check_rx(struct sockbuf *sb);
@@ -230,6 +232,17 @@ ktls_free(struct ktls_session *tls)
 	if (refcount_release(&tls->refcount))
 		ktls_destroy(tls);
 }
+
+#ifdef KERN_TLS
+extern unsigned int ktls_ifnet_max_rexmit_pct;
+void ktls_disable_ifnet(void *arg);
+#else
+#define ktls_ifnet_max_rexmit_pct 1
+inline void
+ktls_disable_ifnet(void *arg __unused)
+{
+}
+#endif
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_KTLS_H_ */

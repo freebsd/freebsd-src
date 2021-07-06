@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_kern_tls.h"
 #include "opt_ratelimit.h"
 #include "opt_rss.h"
 
@@ -121,6 +122,11 @@ SYSCTL_INT(_kern_ipc_tls_stats, OID_AUTO, threads, CTLFLAG_RD,
     &ktls_number_threads, 0,
     "Number of TLS threads in thread-pool");
 
+unsigned int ktls_ifnet_max_rexmit_pct = 2;
+SYSCTL_UINT(_kern_ipc_tls, OID_AUTO, ifnet_max_rexmit_pct, CTLFLAG_RWTUN,
+    &ktls_ifnet_max_rexmit_pct, 2,
+    "Max percent bytes retransmitted before ifnet TLS is disabled");
+
 static bool ktls_offload_enable;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, enable, CTLFLAG_RWTUN,
     &ktls_offload_enable, 0,
@@ -183,6 +189,14 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_to_sw, CTLFLAG_RD,
 static COUNTER_U64_DEFINE_EARLY(ktls_switch_failed);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_failed, CTLFLAG_RD,
     &ktls_switch_failed, "TLS sessions unable to switch between SW and ifnet");
+
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_disable_fail);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, ifnet_disable_failed, CTLFLAG_RD,
+    &ktls_ifnet_disable_fail, "TLS sessions unable to switch to SW from ifnet");
+
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_disable_ok);
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, ifnet_disable_ok, CTLFLAG_RD,
+    &ktls_ifnet_disable_ok, "TLS sessions able to switch to SW from ifnet");
 
 SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, sw, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Software TLS session stats");
@@ -2186,4 +2200,97 @@ ktls_work_thread(void *ctx)
 			counter_u64_add(ktls_cnt_rx_queued, -1);
 		}
 	}
+}
+
+static void
+ktls_disable_ifnet_help(void *context, int pending __unused)
+{
+	struct ktls_session *tls;
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct socket *so;
+	int err;
+
+	tls = context;
+	inp = tls->inp;
+	if (inp == NULL)
+		return;
+	INP_WLOCK(inp);
+	so = inp->inp_socket;
+	MPASS(so != NULL);
+	if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) ||
+	    (inp->inp_flags2 & INP_FREED)) {
+		goto out;
+	}
+
+	if (so->so_snd.sb_tls_info != NULL)
+		err = ktls_set_tx_mode(so, TCP_TLS_MODE_SW);
+	else
+		err = ENXIO;
+	if (err == 0) {
+		counter_u64_add(ktls_ifnet_disable_ok, 1);
+		/* ktls_set_tx_mode() drops inp wlock, so recheck flags */
+		if ((inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) == 0 &&
+		    (inp->inp_flags2 & INP_FREED) == 0 &&
+		    (tp = intotcpcb(inp)) != NULL &&
+		    tp->t_fb->tfb_hwtls_change != NULL)
+			(*tp->t_fb->tfb_hwtls_change)(tp, 0);
+	} else {
+		counter_u64_add(ktls_ifnet_disable_fail, 1);
+	}
+
+out:
+	SOCK_LOCK(so);
+	sorele(so);
+	if (!in_pcbrele_wlocked(inp))
+		INP_WUNLOCK(inp);
+	ktls_free(tls);
+}
+
+/*
+ * Called when re-transmits are becoming a substantial portion of the
+ * sends on this connection.  When this happens, we transition the
+ * connection to software TLS.  This is needed because most inline TLS
+ * NICs keep crypto state only for in-order transmits.  This means
+ * that to handle a TCP rexmit (which is out-of-order), the NIC must
+ * re-DMA the entire TLS record up to and including the current
+ * segment.  This means that when re-transmitting the last ~1448 byte
+ * segment of a 16KB TLS record, we could wind up re-DMA'ing an order
+ * of magnitude more data than we are sending.  This can cause the
+ * PCIe link to saturate well before the network, which can cause
+ * output drops, and a general loss of capacity.
+ */
+void
+ktls_disable_ifnet(void *arg)
+{
+	struct tcpcb *tp;
+	struct inpcb *inp;
+	struct socket *so;
+	struct ktls_session *tls;
+
+	tp = arg;
+	inp = tp->t_inpcb;
+	INP_WLOCK_ASSERT(inp);
+	so = inp->inp_socket;
+	SOCK_LOCK(so);
+	tls = so->so_snd.sb_tls_info;
+	if (tls->disable_ifnet_pending) {
+		SOCK_UNLOCK(so);
+		return;
+	}
+
+	/*
+	 * note that disable_ifnet_pending is never cleared; disabling
+	 * ifnet can only be done once per session, so we never want
+	 * to do it again
+	 */
+
+	(void)ktls_hold(tls);
+	in_pcbref(inp);
+	soref(so);
+	tls->disable_ifnet_pending = true;
+	tls->inp = inp;
+	SOCK_UNLOCK(so);
+	TASK_INIT(&tls->disable_ifnet_task, 0, ktls_disable_ifnet_help, tls);
+	(void)taskqueue_enqueue(taskqueue_thread, &tls->disable_ifnet_task);
 }
