@@ -1354,6 +1354,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	cam_status	status;
 	struct scsi_start_stop_unit *scsi_cmd;
 	int		error = 0, error_code, sense_key, asc, ascq;
+	u_int16_t	done_flags;
 
 	scsi_cmd = (struct scsi_start_stop_unit *)
 	    &done_ccb->csio.cdb_io.cdb_bytes;
@@ -1422,8 +1423,21 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 	 * blocking by that also any new recovery attempts for this CCB,
 	 * and the result will be the final one returned to the CCB owher.
 	 */
+
+	/*
+	 * Copy the CCB back, preserving the alloc_flags field.  Things
+	 * will crash horribly if the CCBs are not of the same size.
+	 */
 	saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
-	bcopy(saved_ccb, done_ccb, sizeof(*done_ccb));
+	KASSERT(saved_ccb->ccb_h.func_code == XPT_SCSI_IO,
+	    ("%s: saved_ccb func_code %#x != XPT_SCSI_IO",
+	     __func__, saved_ccb->ccb_h.func_code));
+	KASSERT(done_ccb->ccb_h.func_code == XPT_SCSI_IO,
+	    ("%s: done_ccb func_code %#x != XPT_SCSI_IO",
+	     __func__, done_ccb->ccb_h.func_code));
+	done_flags = done_ccb->ccb_h.alloc_flags;
+	bcopy(saved_ccb, done_ccb, sizeof(struct ccb_scsiio));
+	done_ccb->ccb_h.alloc_flags = done_flags;
 	xpt_free_ccb(saved_ccb);
 	if (done_ccb->ccb_h.cbfcnp != camperiphdone)
 		periph->flags &= ~CAM_PERIPH_RECOVERY_INPROG;
@@ -1619,6 +1633,7 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 	struct cam_periph *periph;
 	union ccb *orig_ccb = ccb;
 	int error, recoveryccb;
+	u_int16_t flags;
 
 #if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO && ccb->csio.bio != NULL)
@@ -1713,7 +1728,13 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 			 * this freeze will be dropped as part of ERESTART.
 			 */
 			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
-			bcopy(ccb, orig_ccb, sizeof(*orig_ccb));
+
+			KASSERT(ccb->ccb_h.func_code == XPT_SCSI_IO,
+			    ("%s: ccb func_code %#x != XPT_SCSI_IO",
+			     __func__, ccb->ccb_h.func_code));
+			flags = orig_ccb->ccb_h.alloc_flags;
+			bcopy(ccb, orig_ccb, sizeof(struct ccb_scsiio));
+			orig_ccb->ccb_h.alloc_flags = flags;
 		}
 
 		switch (err_action & SS_MASK) {
