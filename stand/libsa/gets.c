@@ -92,23 +92,24 @@ fgetstr(char *buf, int size, int fd)
     char	c;
     int		err, len;
     
+    size--;	/* leave space for terminator */
     len = 0;
-    while (--size > 0) { 	/* leave space for terminator */
+    while (size != 0) {
 	err = read(fd, &c, sizeof(c));
 	if (err < 0)		/* read error */
-	    return (-1);
+	    return(-1);
 	if (err == 0) {		/* EOF */
 	    if (len == 0)
-		return (-1);	/* nothing to read */
+		return(-1);	/* nothing to read */
 	    break;
 	}
 	if ((c == '\r') ||	/* line terminators */
 	    (c == '\n'))
 	    break;
 	*buf++ = c;		/* keep char */
+	size--;
 	len++;
     }
-    *buf = '\0';
-    return (len);
+    *buf = 0;
+    return(len);
 }
-
