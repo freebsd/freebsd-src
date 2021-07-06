@@ -50,9 +50,7 @@ __FBSDID("$FreeBSD$");
  * In particular, it should not be this one.
  */
 int
-in_cksum(p, len)
-	void *p;
-	int len;
+in_cksum(void *p, int len)
 {
 	int sum = 0, oddbyte = 0, v = 0;
 	u_char *cp = p;
@@ -63,7 +61,7 @@ in_cksum(p, len)
 			sum += v + *cp++;
 			len--;
 		}
-		if (((long)cp & 1) == 0) {
+		if (((uintptr_t)cp & 1) == 0) {
 			while ((len -= 2) >= 0) {
 				sum += *(u_short *)cp;
 				cp += 2;
@@ -79,7 +77,7 @@ in_cksum(p, len)
 #endif
 			}
 		}
-		if ((oddbyte = len & 1) != 0)
+		if ((oddbyte = len & 1))
 #if BYTE_ORDER == BIG_ENDIAN
 			v = *cp << 8;
 #else
@@ -90,5 +88,5 @@ in_cksum(p, len)
 		sum += v;
 	sum = (sum >> 16) + (sum & 0xffff); /* add in accumulated carries */
 	sum += sum >> 16;		/* add potential last carry */
-	return (0xffff & ~sum);
+	return (~sum & 0xffff);
 }

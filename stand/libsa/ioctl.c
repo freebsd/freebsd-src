@@ -66,10 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 int
-ioctl(fd, cmd, arg)
-	int fd;
-	u_long cmd;
-	char *arg;
+ioctl(int fd, u_long cmd, char *arg)
 {
 	struct open_file *f = &files[fd];
 

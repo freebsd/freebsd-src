@@ -891,16 +891,17 @@ ext2fs_readdir(struct open_file *f, struct dirent *d)
 	/*
 	 * assume that a directory entry will not be split across blocks
 	 */
-again:
-	if (fp->f_seekp >= fp->f_di.di_size)
-		return (ENOENT);
-	error = buf_read_file(f, &buf, &buf_size);
-	if (error)
-		return (error);
-	ed = (struct ext2dirent *)buf;
-	fp->f_seekp += ed->d_reclen;
-	if (ed->d_ino == (ino_t)0)
-		goto again;
+
+	do {
+		if (fp->f_seekp >= fp->f_di.di_size)
+			return (ENOENT);
+		error = buf_read_file(f, &buf, &buf_size);
+		if (error)
+			return (error);
+		ed = (struct ext2dirent *)buf;
+		fp->f_seekp += ed->d_reclen;
+	} while (ed->d_ino != (ino_t)0);
+
 	d->d_type = EXTFTODT(ed->d_type);
 	strncpy(d->d_name, ed->d_name, ed->d_namlen);
 	d->d_name[ed->d_namlen] = '\0';

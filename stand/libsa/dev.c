@@ -40,22 +40,19 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 int
-nodev()
+nodev(void)
 {
 	return (ENXIO);
 }
 
 void
-nullsys()
+nullsys(void)
 {
 }
 
 /* ARGSUSED */
 int
-noioctl(f, cmd, data)
-	struct open_file *f;
-	u_long cmd;
-	void *data;
+noioctl(struct open_file *f __unused, u_long cmd __unused, void *data __unused)
 {
 	return (EINVAL);
 }
