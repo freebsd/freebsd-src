@@ -113,3 +113,4 @@ fgetstr(char *buf, int size, int fd)
     *buf = 0;
     return(len);
 }
+
