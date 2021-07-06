@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	long	word;		/* "word" used for optimal copy speed */
+typedef	size_t	word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define wmask	(wsize - 1)
@@ -65,21 +65,17 @@ typedef	long	word;		/* "word" used for optimal copy speed */
 /*
  * Copy a block of memory, handling overlap.
  * This is the routine that actually implements
- * (the portable versions of) bcopy, memcpy, and memmove.
+ * (the portable version of) memcpy.
  */
 void *
-memcpy(void *dst0, const void *src0, size_t length)
+memcpy(void * __restrict dst0, const void * __restrict src0, size_t length)
 {
-	char		*dst;
-	const char	*src;
-	size_t		t;
+	if (__predict_false(length == 0))
+		return (dst0);
 
-	dst = dst0;
-	src = src0;
-
-	if (length == 0 || dst == src) {	/* nothing to do */
-		goto done;
-	}
+	u_char *dst = (u_char *)dst0;
+	const u_char *src = (const u_char *)src0;
+	size_t t;
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
@@ -87,23 +83,68 @@ memcpy(void *dst0, const void *src0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	t = (size_t)src;	/* only need low bits */
+
+	if ((t | (size_t)dst) & wmask) {
+		/*
+		 * Try to align operands.  This cannot be done
+		 * unless the low bits match.
+		 */
+		if ((t ^ (size_t)dst) & wmask || length < wsize) {
+			t = length;
+			TLOOP1(*dst++ = *src++);
+			return (dst0);
+		}
+		
+		t = wsize - (t & wmask);
+		length -= t;
+		TLOOP1(*dst++ = *src++);
+	}
+	/*
+	 * Copy whole words, then mop up any trailing bytes.
+	 */
+	t = length / wsize;
+	TLOOP(*(word *)dst = *(const word *)src; dst += wsize;
+		src += wsize);
+	t = length & wmask;
+	TLOOP(*dst++ = *src++);
+	
+	return (dst0);
+}
+
+/*
+ * Copy a block of memory, handling overlap.
+ * This is the routine that actually implements
+ * (the portable version of) memmove.
+ */
+void *
+memmove(void *dst0, const void *src0, size_t length)
+{
+	if (__predict_false(length == 0))
+		return (dst0);
+
+	u_char *dst = (u_char *)dst0;
+	const u_char *src = (const u_char *)src0;
+	size_t t;
+
+	if (dst < src) {
 		/*
 		 * Copy forward.
 		 */
 		t = (size_t)src;	/* only need low bits */
 
-		if ((t | (uintptr_t)dst) & wmask) {
+		if ((t | (size_t)dst) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
 			 */
-			if ((t ^ (uintptr_t)dst) & wmask || length < wsize) {
+			if ((t ^ (size_t)dst) & wmask || length < wsize) {
 				t = length;
-			} else {
-				t = wsize - (t & wmask);
+				TLOOP1(*dst++ = *src++);
+				return (dst0);
 			}
 
+			t = wsize - (t & wmask);
 			length -= t;
 			TLOOP1(*dst++ = *src++);
 		}
@@ -111,8 +152,8 @@ memcpy(void *dst0, const void *src0, size_t length)
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)dst = *(const word *)src; src += wsize;
-		    dst += wsize);
+		TLOOP(*(word *)dst = *(const word *)src; dst += wsize;
+		    src += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
 	} else {
@@ -121,28 +162,29 @@ memcpy(void *dst0, const void *src0, size_t length)
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		src += length;
 		dst += length;
-		t = (uintptr_t)src;
+		src += length;
+		t = (size_t)src;
 
-		if ((t | (uintptr_t)dst) & wmask) {
-			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize) {
+		if ((t | (size_t)dst) & wmask) {
+			if ((t ^ (size_t)dst) & wmask || length < wsize) {
 				t = length;
-			} else {
-				t &= wmask;
+				TLOOP1(*--dst = *--src);
+				return (dst0);
 			}
-
+			
+			t &= wmask;
 			length -= t;
 			TLOOP1(*--dst = *--src);
 		}
 		t = length / wsize;
-		TLOOP(src -= wsize; dst -= wsize;
+		TLOOP(dst -= wsize; src -= wsize;
 		    *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
-done:
+#undef TLOOP
+#undef TLOOP1
+
 	return (dst0);
 }
-
-__strong_reference(memcpy, memmove);
