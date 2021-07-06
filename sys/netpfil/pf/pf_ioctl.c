@@ -2108,6 +2108,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCNATLOOK:
 		case DIOCSETDEBUG:
 		case DIOCGETSTATES:
+		case DIOCGETSTATESV2:
 		case DIOCGETSTATESNV:
 		case DIOCGETTIMEOUT:
 		case DIOCCLRRULECTRS:
@@ -2161,6 +2162,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGETSTATENV:
 		case DIOCGETSTATUS:
 		case DIOCGETSTATES:
+		case DIOCGETSTATESV2:
 		case DIOCGETSTATESNV:
 		case DIOCGETTIMEOUT:
 		case DIOCGETLIMIT:
@@ -2866,6 +2868,60 @@ DIOCGETSTATES_full:
 			break;
 		}
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
+		free(pstore, M_TEMP);
+
+		break;
+	}
+
+	case DIOCGETSTATESV2: {
+		struct pfioc_states_v2	*ps = (struct pfioc_states_v2 *)addr;
+		struct pf_kstate	*s;
+		struct pf_state_export	*pstore, *p;
+		int i, nr;
+
+		if (ps->ps_req_version > PF_STATE_VERSION) {
+			error = ENOTSUP;
+			break;
+		}
+
+		if (ps->ps_len <= 0) {
+			nr = uma_zone_get_cur(V_pf_state_z);
+			ps->ps_len = sizeof(struct pf_state_export) * nr;
+			break;
+		}
+
+		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK | M_ZERO);
+		nr = 0;
+
+		for (i = 0; i <= pf_hashmask; i++) {
+			struct pf_idhash *ih = &V_pf_idhash[i];
+
+			if (LIST_EMPTY(&ih->states))
+				continue;
+
+			PF_HASHROW_LOCK(ih);
+			LIST_FOREACH(s, &ih->states, entry) {
+				if (s->timeout == PFTM_UNLINKED)
+					continue;
+
+				if ((nr+1) * sizeof(*p) > ps->ps_len) {
+					PF_HASHROW_UNLOCK(ih);
+					goto DIOCGETSTATESV2_full;
+				}
+				pf_state_export(p, s);
+				p++;
+				nr++;
+			}
+			PF_HASHROW_UNLOCK(ih);
+		}
+DIOCGETSTATESV2_full:
+		error = copyout(pstore, ps->ps_states,
+		    sizeof(struct pf_state_export) * nr);
+		if (error) {
+			free(pstore, M_TEMP);
+			break;
+		}
+		ps->ps_len = sizeof(struct pf_state_export) * nr;
 		free(pstore, M_TEMP);
 
 		break;
@@ -4594,7 +4650,70 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_kstate *st)
 	pf_state_counter_hton(st->packets[1], sp->packets[1]);
 	pf_state_counter_hton(st->bytes[0], sp->bytes[0]);
 	pf_state_counter_hton(st->bytes[1], sp->bytes[1]);
+}
 
+void
+pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
+{
+	bzero(sp, sizeof(*sp));
+
+	sp->version = PF_STATE_VERSION;
+
+	/* copy from state key */
+	sp->key[PF_SK_WIRE].addr[0] = st->key[PF_SK_WIRE]->addr[0];
+	sp->key[PF_SK_WIRE].addr[1] = st->key[PF_SK_WIRE]->addr[1];
+	sp->key[PF_SK_WIRE].port[0] = st->key[PF_SK_WIRE]->port[0];
+	sp->key[PF_SK_WIRE].port[1] = st->key[PF_SK_WIRE]->port[1];
+	sp->key[PF_SK_STACK].addr[0] = st->key[PF_SK_STACK]->addr[0];
+	sp->key[PF_SK_STACK].addr[1] = st->key[PF_SK_STACK]->addr[1];
+	sp->key[PF_SK_STACK].port[0] = st->key[PF_SK_STACK]->port[0];
+	sp->key[PF_SK_STACK].port[1] = st->key[PF_SK_STACK]->port[1];
+	sp->proto = st->key[PF_SK_WIRE]->proto;
+	sp->af = st->key[PF_SK_WIRE]->af;
+
+	/* copy from state */
+	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
+	strlcpy(sp->orig_ifname, st->orig_kif->pfik_name,
+	    sizeof(sp->orig_ifname));
+	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
+	sp->creation = htonl(time_uptime - st->creation);
+	sp->expire = pf_state_expires(st);
+	if (sp->expire <= time_uptime)
+		sp->expire = htonl(0);
+	else
+		sp->expire = htonl(sp->expire - time_uptime);
+
+	sp->direction = st->direction;
+	sp->log = st->log;
+	sp->timeout = st->timeout;
+	sp->state_flags = st->state_flags;
+	if (st->src_node)
+		sp->sync_flags |= PFSYNC_FLAG_SRCNODE;
+	if (st->nat_src_node)
+		sp->sync_flags |= PFSYNC_FLAG_NATSRCNODE;
+
+	sp->id = st->id;
+	sp->creatorid = st->creatorid;
+	pf_state_peer_hton(&st->src, &sp->src);
+	pf_state_peer_hton(&st->dst, &sp->dst);
+
+	if (st->rule.ptr == NULL)
+		sp->rule = htonl(-1);
+	else
+		sp->rule = htonl(st->rule.ptr->nr);
+	if (st->anchor.ptr == NULL)
+		sp->anchor = htonl(-1);
+	else
+		sp->anchor = htonl(st->anchor.ptr->nr);
+	if (st->nat_rule.ptr == NULL)
+		sp->nat_rule = htonl(-1);
+	else
+		sp->nat_rule = htonl(st->nat_rule.ptr->nr);
+
+	sp->packets[0] = st->packets[0];
+	sp->packets[1] = st->packets[1];
+	sp->bytes[0] = st->bytes[0];
+	sp->bytes[1] = st->bytes[1];
 }
 
 static void
