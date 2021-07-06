@@ -141,6 +141,16 @@ userret(struct thread *td, struct trapframe *frame)
 	if (PMC_THREAD_HAS_SAMPLES(td))
 		PMC_CALL_HOOK(td, PMC_FN_THR_USERRET, NULL);
 #endif
+#ifdef TCPHPTS
+	/*
+	 * @gallatin is adament that this needs to go here, I
+	 * am not so sure. Running hpts is a lot like
+	 * a lro_flush() that happens while a user process
+	 * is running. But he may know best so I will go
+	 * with his view of accounting. :-)
+	 */
+	tcp_run_hpts();
+#endif
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */

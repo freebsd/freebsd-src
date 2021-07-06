@@ -56,6 +56,11 @@
 #define TSTMP_LRO		0x0100
 #define TSTMP_HDWR		0x0200
 #define HAS_TSTMP		0x0400
+/*
+ * Default number of interrupts on the same cpu in a row
+ * that will cause us to declare a "affinity cpu".
+ */
+#define TCP_LRO_CPU_DECLARATION_THRESH 50
 
 struct inpcb;
 
@@ -162,12 +167,15 @@ struct lro_ctrl {
 	unsigned	lro_mbuf_count;
 	unsigned	lro_mbuf_max;
 	unsigned short	lro_ackcnt_lim;		/* max # of aggregated ACKs */
+	unsigned short	lro_cpu;		/* Guess at the cpu we have affinity too */
 	unsigned 	lro_length_lim;		/* max len of aggregated data */
-
 	u_long		lro_hashsz;
+	uint32_t	lro_last_cpu;
+	uint32_t 	lro_cnt_of_same_cpu;
 	struct lro_head	*lro_hash;
 	struct lro_head	lro_active;
 	struct lro_head	lro_free;
+	uint8_t		lro_cpu_is_set;		/* Flag to say its ok to set the CPU on the inp */
 };
 
 struct tcp_ackent {

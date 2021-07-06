@@ -5634,11 +5634,11 @@ rack_log_hpts_diag(struct tcp_rack *rack, uint32_t cts,
 		log.u_bbr.pkts_out = diag->co_ret;
 		log.u_bbr.applimited = diag->hpts_sleep_time;
 		log.u_bbr.delivered = diag->p_prev_slot;
-		log.u_bbr.inflight = diag->p_runningtick;
-		log.u_bbr.bw_inuse = diag->wheel_tick;
+		log.u_bbr.inflight = diag->p_runningslot;
+		log.u_bbr.bw_inuse = diag->wheel_slot;
 		log.u_bbr.rttProp = diag->wheel_cts;
 		log.u_bbr.timeStamp = cts;
-		log.u_bbr.delRate = diag->maxticks;
+		log.u_bbr.delRate = diag->maxslots;
 		log.u_bbr.cur_del_rate = diag->p_curtick;
 		log.u_bbr.cur_del_rate <<= 32;
 		log.u_bbr.cur_del_rate |= diag->p_lasttick;
@@ -5732,22 +5732,22 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 			 * on the clock. We always have a min
 			 * 10 slots (10 x 10 i.e. 100 usecs).
 			 */
-			if (slot <= HPTS_TICKS_PER_USEC) {
+			if (slot <= HPTS_TICKS_PER_SLOT) {
 				/* We gain delay */
-				rack->r_ctl.rc_agg_delayed += (HPTS_TICKS_PER_USEC - slot);
-				slot = HPTS_TICKS_PER_USEC;
+				rack->r_ctl.rc_agg_delayed += (HPTS_TICKS_PER_SLOT - slot);
+				slot = HPTS_TICKS_PER_SLOT;
 			} else {
 				/* We take off some */
-				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_TICKS_PER_USEC);
-				slot = HPTS_TICKS_PER_USEC;
+				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_TICKS_PER_SLOT);
+				slot = HPTS_TICKS_PER_SLOT;
 			}
 		} else {
 			slot -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 			/* Make sure we have 100 useconds at minimum */
-			if (slot < HPTS_TICKS_PER_USEC) {
-				rack->r_ctl.rc_agg_delayed = HPTS_TICKS_PER_USEC - slot;
-				slot = HPTS_TICKS_PER_USEC;
+			if (slot < HPTS_TICKS_PER_SLOT) {
+				rack->r_ctl.rc_agg_delayed = HPTS_TICKS_PER_SLOT - slot;
+				slot = HPTS_TICKS_PER_SLOT;
 			}
 			if (rack->r_ctl.rc_agg_delayed == 0)
 				rack->r_late = 0;
