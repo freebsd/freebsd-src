@@ -900,7 +900,7 @@ ext2fs_readdir(struct open_file *f, struct dirent *d)
 			return (error);
 		ed = (struct ext2dirent *)buf;
 		fp->f_seekp += ed->d_reclen;
-	} while (ed->d_ino != (ino_t)0)
+	} while (ed->d_ino != (ino_t)0);
 
 	d->d_type = EXTFTODT(ed->d_type);
 	strncpy(d->d_name, ed->d_name, ed->d_namlen);
