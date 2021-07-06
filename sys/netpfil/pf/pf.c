@@ -116,12 +116,12 @@ __FBSDID("$FreeBSD$");
 
 SDT_PROVIDER_DEFINE(pf);
 SDT_PROBE_DEFINE4(pf, ip, test, done, "int", "int", "struct pf_krule *",
-    "struct pf_state *");
+    "struct pf_kstate *");
 SDT_PROBE_DEFINE4(pf, ip, test6, done, "int", "int", "struct pf_krule *",
-    "struct pf_state *");
+    "struct pf_kstate *");
 SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
     "struct pf_state_key_cmp *", "int", "struct pf_pdesc *",
-    "struct pf_state *");
+    "struct pf_kstate *");
 
 /*
  * Global variables
@@ -225,7 +225,7 @@ VNET_DEFINE(uint64_t, pf_stateid[MAXCPU]);
 #define	PFID_MAXID	(~PFID_CPUMASK)
 CTASSERT((1 << PFID_CPUBITS) >= MAXCPU);
 
-static void		 pf_src_tree_remove_state(struct pf_state *);
+static void		 pf_src_tree_remove_state(struct pf_kstate *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
 			    u_int32_t);
 static void		 pf_add_threshold(struct pf_threshold *);
@@ -248,13 +248,13 @@ static void		 pf_send_tcp(struct mbuf *,
 			    u_int16_t, struct ifnet *);
 static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
 			    sa_family_t, struct pf_krule *);
-static void		 pf_detach_state(struct pf_state *);
+static void		 pf_detach_state(struct pf_kstate *);
 static int		 pf_state_key_attach(struct pf_state_key *,
-			    struct pf_state_key *, struct pf_state *);
-static void		 pf_state_key_detach(struct pf_state *, int);
+			    struct pf_state_key *, struct pf_kstate *);
+static void		 pf_state_key_detach(struct pf_kstate *, int);
 static int		 pf_state_key_ctor(void *, int, void *, int);
 static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
-static int		 pf_test_rule(struct pf_krule **, struct pf_state **,
+static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    int, struct pfi_kkif *, struct mbuf *, int,
 			    struct pf_pdesc *, struct pf_krule **,
 			    struct pf_kruleset **, struct inpcb *);
@@ -263,29 +263,29 @@ static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_ksrc_node *, struct pf_state_key *,
 			    struct pf_state_key *, struct mbuf *, int,
 			    u_int16_t, u_int16_t, int *, struct pfi_kkif *,
-			    struct pf_state **, int, u_int16_t, u_int16_t,
+			    struct pf_kstate **, int, u_int16_t, u_int16_t,
 			    int);
 static int		 pf_test_fragment(struct pf_krule **, int,
 			    struct pfi_kkif *, struct mbuf *, void *,
 			    struct pf_pdesc *, struct pf_krule **,
 			    struct pf_kruleset **);
 static int		 pf_tcp_track_full(struct pf_state_peer *,
-			    struct pf_state_peer *, struct pf_state **,
+			    struct pf_state_peer *, struct pf_kstate **,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    struct pf_pdesc *, u_short *, int *);
 static int		 pf_tcp_track_sloppy(struct pf_state_peer *,
-			    struct pf_state_peer *, struct pf_state **,
+			    struct pf_state_peer *, struct pf_kstate **,
 			    struct pf_pdesc *, u_short *);
-static int		 pf_test_state_tcp(struct pf_state **, int,
+static int		 pf_test_state_tcp(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
-static int		 pf_test_state_udp(struct pf_state **, int,
+static int		 pf_test_state_udp(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *);
-static int		 pf_test_state_icmp(struct pf_state **, int,
+static int		 pf_test_state_icmp(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, u_short *);
-static int		 pf_test_state_other(struct pf_state **, int,
+static int		 pf_test_state_other(struct pf_kstate **, int,
 			    struct pfi_kkif *, struct mbuf *, struct pf_pdesc *);
 static u_int8_t		 pf_get_wscale(struct mbuf *, int, u_int16_t,
 			    sa_family_t);
@@ -295,15 +295,15 @@ static u_int16_t	 pf_calc_mss(struct pf_addr *, sa_family_t,
 				int, u_int16_t);
 static int		 pf_check_proto_cksum(struct mbuf *, int, int,
 			    u_int8_t, sa_family_t);
-static void		 pf_print_state_parts(struct pf_state *,
+static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 			    struct pf_addr_wrap *);
 static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
 			    bool, u_int8_t);
-static struct pf_state	*pf_find_state(struct pfi_kkif *,
+static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
 			    struct pf_state_key_cmp *, u_int);
-static int		 pf_src_connlimit(struct pf_state **);
+static int		 pf_src_connlimit(struct pf_kstate **);
 static void		 pf_overload_task(void *v, int pending);
 static int		 pf_insert_src_node(struct pf_ksrc_node **,
 			    struct pf_krule *, struct pf_addr *, sa_family_t);
@@ -313,14 +313,14 @@ static int		 pf_mtag_uminit(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
 #ifdef INET
 static void		 pf_route(struct mbuf **, struct pf_krule *, int,
-			    struct ifnet *, struct pf_state *,
+			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET */
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
 static void		 pf_route6(struct mbuf **, struct pf_krule *, int,
-			    struct ifnet *, struct pf_state *,
+			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET6 */
 
@@ -476,7 +476,7 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 
 #ifdef ALTQ
 static int
-pf_state_hash(struct pf_state *s)
+pf_state_hash(struct pf_kstate *s)
 {
 	u_int32_t hv = (intptr_t)s / sizeof(*s);
 
@@ -539,7 +539,7 @@ pf_check_threshold(struct pf_threshold *threshold)
 }
 
 static int
-pf_src_connlimit(struct pf_state **state)
+pf_src_connlimit(struct pf_kstate **state)
 {
 	struct pf_overload_entry *pfoe;
 	int bad = 0;
@@ -655,7 +655,7 @@ pf_overload_task(void *v, int pending)
 	for (int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 		struct pf_state_key *sk;
-		struct pf_state *s;
+		struct pf_kstate *s;
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
@@ -840,7 +840,7 @@ pf_initialize()
 	V_pf_hashseed = arc4random();
 
 	/* States and state keys storage. */
-	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
+	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_kstate),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
@@ -1003,11 +1003,11 @@ pf_get_mtag(struct mbuf *m)
 
 static int
 pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
-    struct pf_state *s)
+    struct pf_kstate *s)
 {
 	struct pf_keyhash	*khs, *khw, *kh;
 	struct pf_state_key	*sk, *cur;
-	struct pf_state		*si, *olds = NULL;
+	struct pf_kstate	*si, *olds = NULL;
 	int idx;
 
 	KASSERT(s->refs == 0, ("%s: state not pristine", __func__));
@@ -1168,7 +1168,7 @@ stateattach:
 }
 
 static void
-pf_detach_state(struct pf_state *s)
+pf_detach_state(struct pf_kstate *s)
 {
 	struct pf_state_key *sks = s->key[PF_SK_STACK];
 	struct pf_keyhash *kh;
@@ -1199,7 +1199,7 @@ pf_detach_state(struct pf_state *s)
 }
 
 static void
-pf_state_key_detach(struct pf_state *s, int idx)
+pf_state_key_detach(struct pf_kstate *s, int idx)
 {
 	struct pf_state_key *sk = s->key[idx];
 #ifdef INVARIANTS
@@ -1264,10 +1264,10 @@ pf_state_key_clone(struct pf_state_key *orig)
 
 int
 pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
-    struct pf_state_key *skw, struct pf_state_key *sks, struct pf_state *s)
+    struct pf_state_key *skw, struct pf_state_key *sks, struct pf_kstate *s)
 {
 	struct pf_idhash *ih;
-	struct pf_state *cur;
+	struct pf_kstate *cur;
 	int error;
 
 	KASSERT(TAILQ_EMPTY(&sks->states[0]) && TAILQ_EMPTY(&sks->states[1]),
@@ -1324,11 +1324,11 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 /*
  * Find state by ID: returns with locked row on success.
  */
-struct pf_state *
+struct pf_kstate *
 pf_find_state_byid(uint64_t id, uint32_t creatorid)
 {
 	struct pf_idhash *ih;
-	struct pf_state *s;
+	struct pf_kstate *s;
 
 	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
@@ -1349,12 +1349,12 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
  * Find state by key.
  * Returns with ID hash slot locked on success.
  */
-static struct pf_state *
+static struct pf_kstate *
 pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 {
 	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
-	struct pf_state		*s;
+	struct pf_kstate	*s;
 	int idx;
 
 	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
@@ -1393,12 +1393,12 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 	return (NULL);
 }
 
-struct pf_state *
+struct pf_kstate *
 pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 {
 	struct pf_keyhash	*kh;
 	struct pf_state_key	*sk;
-	struct pf_state		*s, *ret = NULL;
+	struct pf_kstate	*s, *ret = NULL;
 	int			 idx, inout = 0;
 
 	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
@@ -1586,7 +1586,7 @@ pf_unload_vnet_purge(void)
 
 
 u_int32_t
-pf_state_expires(const struct pf_state *state)
+pf_state_expires(const struct pf_kstate *state)
 {
 	u_int32_t	timeout;
 	u_int32_t	start;
@@ -1650,7 +1650,7 @@ pf_purge_expired_src_nodes()
 }
 
 static void
-pf_src_tree_remove_state(struct pf_state *s)
+pf_src_tree_remove_state(struct pf_kstate *s)
 {
 	struct pf_ksrc_node *sn;
 	struct pf_srchash *sh;
@@ -1687,7 +1687,7 @@ pf_src_tree_remove_state(struct pf_state *s)
  * unlocked, since it needs to go through key hash locking.
  */
 int
-pf_unlink_state(struct pf_state *s, u_int flags)
+pf_unlink_state(struct pf_kstate *s, u_int flags)
 {
 	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
 
@@ -1734,7 +1734,7 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	return (pf_release_staten(s, 2));
 }
 
-struct pf_state *
+struct pf_kstate *
 pf_alloc_state(int flags)
 {
 
@@ -1742,7 +1742,7 @@ pf_alloc_state(int flags)
 }
 
 void
-pf_free_state(struct pf_state *cur)
+pf_free_state(struct pf_kstate *cur)
 {
 
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
@@ -1761,7 +1761,7 @@ static u_int
 pf_purge_expired_states(u_int i, int maxcheck)
 {
 	struct pf_idhash *ih;
-	struct pf_state *s;
+	struct pf_kstate *s;
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
@@ -1920,13 +1920,13 @@ pf_print_host(struct pf_addr *addr, u_int16_t p, sa_family_t af)
 }
 
 void
-pf_print_state(struct pf_state *s)
+pf_print_state(struct pf_kstate *s)
 {
 	pf_print_state_parts(s, NULL, NULL);
 }
 
 static void
-pf_print_state_parts(struct pf_state *s,
+pf_print_state_parts(struct pf_kstate *s,
     struct pf_state_key *skwp, struct pf_state_key *sksp)
 {
 	struct pf_state_key *skw, *sks;
@@ -3327,7 +3327,7 @@ pf_tcp_iss(struct pf_pdesc *pd)
 }
 
 static int
-pf_test_rule(struct pf_krule **rm, struct pf_state **sm, int direction,
+pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
     struct pfi_kkif *kif, struct mbuf *m, int off, struct pf_pdesc *pd,
     struct pf_krule **am, struct pf_kruleset **rsm, struct inpcb *inp)
 {
@@ -3704,10 +3704,10 @@ static int
 pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_pdesc *pd, struct pf_ksrc_node *nsn, struct pf_state_key *nk,
     struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
-    u_int16_t dport, int *rewrite, struct pfi_kkif *kif, struct pf_state **sm,
+    u_int16_t dport, int *rewrite, struct pfi_kkif *kif, struct pf_kstate **sm,
     int tag, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen)
 {
-	struct pf_state		*s = NULL;
+	struct pf_kstate	*s = NULL;
 	struct pf_ksrc_node	*sn = NULL;
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
@@ -4046,7 +4046,7 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 
 static int
 pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
-	struct pf_state **state, struct pfi_kkif *kif, struct mbuf *m, int off,
+	struct pf_kstate **state, struct pfi_kkif *kif, struct mbuf *m, int off,
 	struct pf_pdesc *pd, u_short *reason, int *copyback)
 {
 	struct tcphdr		*th = &pd->hdr.tcp;
@@ -4375,7 +4375,7 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 
 static int
 pf_tcp_track_sloppy(struct pf_state_peer *src, struct pf_state_peer *dst,
-	struct pf_state **state, struct pf_pdesc *pd, u_short *reason)
+	struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 {
 	struct tcphdr		*th = &pd->hdr.tcp;
 
@@ -4445,7 +4445,7 @@ pf_tcp_track_sloppy(struct pf_state_peer *src, struct pf_state_peer *dst,
 }
 
 static int
-pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kkif *kif,
+pf_test_state_tcp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
     struct mbuf *m, int off, void *h, struct pf_pdesc *pd,
     u_short *reason)
 {
@@ -4613,7 +4613,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kkif *kif,
 }
 
 static int
-pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kkif *kif,
+pf_test_state_udp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
     struct mbuf *m, int off, void *h, struct pf_pdesc *pd)
 {
 	struct pf_state_peer	*src, *dst;
@@ -4680,7 +4680,7 @@ pf_test_state_udp(struct pf_state **state, int direction, struct pfi_kkif *kif,
 }
 
 static int
-pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kkif *kif,
+pf_test_state_icmp(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
     struct mbuf *m, int off, void *h, struct pf_pdesc *pd, u_short *reason)
 {
 	struct pf_addr  *saddr = pd->src, *daddr = pd->dst;
@@ -5285,7 +5285,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kkif *kif,
 }
 
 static int
-pf_test_state_other(struct pf_state **state, int direction, struct pfi_kkif *kif,
+pf_test_state_other(struct pf_kstate **state, int direction, struct pfi_kkif *kif,
     struct mbuf *m, struct pf_pdesc *pd)
 {
 	struct pf_state_peer	*src, *dst;
@@ -5582,7 +5582,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *kif,
 #ifdef INET
 static void
 pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
-    struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
+    struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *m1;
 	struct sockaddr_in	dst;
@@ -5745,7 +5745,7 @@ bad:
 #ifdef INET6
 static void
 pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
-    struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
+    struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0;
 	struct sockaddr_in6	dst;
@@ -6013,7 +6013,7 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	struct ip		*h = NULL;
 	struct m_tag		*ipfwtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
-	struct pf_state		*s = NULL;
+	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, dirndx, pqid = 0;
@@ -6404,7 +6404,7 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct m_tag		*mtag;
 	struct ip6_hdr		*h = NULL;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
-	struct pf_state		*s = NULL;
+	struct pf_kstate	*s = NULL;
 	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;

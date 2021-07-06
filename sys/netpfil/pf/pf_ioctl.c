@@ -1784,7 +1784,7 @@ pf_label_match(const struct pf_krule *rule, const char *label)
 static unsigned int
 pf_kill_matching_state(struct pf_state_key_cmp *key, int dir)
 {
-	struct pf_state *match;
+	struct pf_kstate *match;
 	int more = 0;
 	unsigned int killed = 0;
 
@@ -1802,7 +1802,7 @@ pf_kill_matching_state(struct pf_state_key_cmp *key, int dir)
 static int
 pf_killstates_row(struct pf_kstate_kill *psk, struct pf_idhash *ih)
 {
-	struct pf_state		*s;
+	struct pf_kstate		*s;
 	struct pf_state_key	*sk;
 	struct pf_addr		*srcaddr, *dstaddr;
 	struct pf_state_key_cmp	 match_key;
@@ -2820,7 +2820,7 @@ DIOCCHANGERULE_error:
 
 	case DIOCGETSTATE: {
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
-		struct pf_state		*s;
+		struct pf_kstate	*s;
 
 		s = pf_find_state_byid(ps->state.id, ps->state.creatorid);
 		if (s == NULL) {
@@ -2840,7 +2840,7 @@ DIOCCHANGERULE_error:
 
 	case DIOCGETSTATES: {
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
-		struct pf_state		*s;
+		struct pf_kstate	*s;
 		struct pfsync_state	*pstore, *p;
 		int i, nr;
 
@@ -2956,7 +2956,7 @@ DIOCGETSTATES_full:
 	case DIOCNATLOOK: {
 		struct pfioc_natlook	*pnl = (struct pfioc_natlook *)addr;
 		struct pf_state_key	*sk;
-		struct pf_state		*state;
+		struct pf_kstate	*state;
 		struct pf_state_key_cmp	 key;
 		int			 m = 0, direction = pnl->direction;
 		int			 sidx, didx;
@@ -4599,7 +4599,7 @@ fail:
 }
 
 void
-pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
+pfsync_state_export(struct pfsync_state *sp, struct pf_kstate *st)
 {
 	bzero(sp, sizeof(struct pfsync_state));
 
@@ -4680,7 +4680,7 @@ pf_tbladdr_copyout(struct pf_addr_wrap *aw)
 static void
 pf_clear_all_states(void)
 {
-	struct pf_state	*s;
+	struct pf_kstate	*s;
 	u_int i;
 
 	for (i = 0; i <= pf_hashmask; i++) {
@@ -4715,7 +4715,7 @@ pf_clear_tables(void)
 static void
 pf_clear_srcnodes(struct pf_ksrc_node *n)
 {
-	struct pf_state *s;
+	struct pf_kstate *s;
 	int i;
 
 	for (i = 0; i <= pf_hashmask; i++) {
@@ -4779,7 +4779,7 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 	for (int i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
-		struct pf_state *s;
+		struct pf_kstate *s;
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
@@ -4833,7 +4833,7 @@ static unsigned int
 pf_clear_states(const struct pf_kstate_kill *kill)
 {
 	struct pf_state_key_cmp	 match_key;
-	struct pf_state	*s;
+	struct pf_kstate	*s;
 	struct pfi_kkif	*kif;
 	int		 idx;
 	unsigned int	 killed = 0, dir;
@@ -4899,7 +4899,7 @@ relock_DIOCCLRSTATES:
 static int
 pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 {
-	struct pf_state		*s;
+	struct pf_kstate	*s;
 
 	if (kill->psk_pfcmp.id) {
 		if (kill->psk_pfcmp.creatorid == 0)
@@ -5038,11 +5038,11 @@ on_error:
 static int
 pf_getstate(struct pfioc_nv *nv)
 {
-	nvlist_t	*nvl = NULL, *nvls;
-	void		*nvlpacked = NULL;
-	struct pf_state	*s = NULL;
-	int		 error = 0;
-	uint64_t	 id, creatorid;
+	nvlist_t		*nvl = NULL, *nvls;
+	void			*nvlpacked = NULL;
+	struct pf_kstate	*s = NULL;
+	int			 error = 0;
+	uint64_t		 id, creatorid;
 
 #define ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
@@ -5105,11 +5105,11 @@ errout:
 static int
 pf_getstates(struct pfioc_nv *nv)
 {
-	nvlist_t	*nvl = NULL, *nvls;
-	void		*nvlpacked = NULL;
-	struct pf_state	*s = NULL;
-	int		 error = 0;
-	uint64_t	 count = 0;
+	nvlist_t		*nvl = NULL, *nvls;
+	void			*nvlpacked = NULL;
+	struct pf_kstate	*s = NULL;
+	int			 error = 0;
+	uint64_t		 count = 0;
 
 #define ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
