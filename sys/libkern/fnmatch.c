@@ -97,7 +97,7 @@ fnmatch(const char *pattern, const char *string, int flags)
 				return (0);
 			}
 
-			if (c == '/' && flags & FNM_PATHNAME) {
+			if (c == '/' && (flags & FNM_PATHNAME)) {
 				if ((string = strchr(string, '/')) == NULL)
 					return (FNM_NOMATCH);
 				break;
