@@ -82,7 +82,6 @@ struct pt_softc {
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	pt_state state;
 	pt_flags flags;	
-	union	 ccb saved_ccb;
 	int	 io_timeout;
 	struct cdev *dev;
 };

@@ -351,7 +351,6 @@ struct sa_softc {
 	u_int8_t	dsreg;		/* mtio mt_dsreg, redux */
 	int		buffer_mode;
 	int		filemarks;
-	union		ccb saved_ccb;
 	int		last_resid_was_io;
 	uint8_t		density_type_bits[SA_DENSITY_TYPES];
 	int		density_info_valid[SA_DENSITY_TYPES];

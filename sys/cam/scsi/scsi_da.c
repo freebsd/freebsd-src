@@ -373,7 +373,6 @@ struct da_softc {
 	int			p_type;
 	struct	 disk_params params;
 	struct	 disk *disk;
-	union	 ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
