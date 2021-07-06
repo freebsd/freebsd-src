@@ -438,8 +438,7 @@ ufoma_attach(device_t dev)
 
 	/* clear stall at first run, if any */
 	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
-	usbd_xfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
+	usbd_xfer_set_zlp(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
 	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
@@ -791,13 +790,16 @@ ufoma_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
+		if (usbd_xfer_get_and_clr_zlp(xfer))
+			break;
+
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UFOMA_BULK_BUF_SIZE, &actlen)) {
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
-		return;
+		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -805,7 +807,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 

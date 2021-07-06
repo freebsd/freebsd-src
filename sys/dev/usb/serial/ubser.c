@@ -293,8 +293,7 @@ ubser_attach(device_t dev)
 	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 
 	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_RD]);
+	usbd_xfer_set_zlp(sc->sc_xfer[UBSER_BULK_DT_WR]);
 	usbd_transfer_start(sc->sc_xfer[UBSER_BULK_DT_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
@@ -410,6 +409,9 @@ ubser_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
+		if (usbd_xfer_get_and_clr_zlp(xfer))
+			break;
+
 		pc = usbd_xfer_get_frame(xfer, 0);
 		do {
 			if (ucom_get_data(sc->sc_ucom + sc->sc_curr_tx_unit,
@@ -430,7 +432,7 @@ tr_setup:
 
 		} while (sc->sc_curr_tx_unit != first_unit);
 
-		return;
+		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -438,7 +440,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 
