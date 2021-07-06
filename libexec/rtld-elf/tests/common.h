@@ -37,7 +37,7 @@ void	expect_missing_library(int binary, char *senv);
 
 void	try_to_run(int binary, int expected_exit_status, char * const *env,
 	    const char *expected_out, const char *expected_err);
-int	opendir(const char *name);
+int	opendir_fd(const char *name);
 int	opendirat(int parent, const char *name);
 
 #endif /* _LD_COMMON_H_ */

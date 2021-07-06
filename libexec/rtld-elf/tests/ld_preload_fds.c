@@ -39,7 +39,7 @@ setup(const atf_tc_t *tc)
 {
 	int testdir;
 
-	testdir = opendir(atf_tc_get_config_var(tc, "srcdir"));
+	testdir = opendir_fd(atf_tc_get_config_var(tc, "srcdir"));
 	ATF_REQUIRE(testdir >= 0);
 
 	binaryfd = openat(testdir, TARGET_ELF_NAME, O_RDONLY);
