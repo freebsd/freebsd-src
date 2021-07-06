@@ -806,7 +806,7 @@ free_rx_bufs(adapter_t *sc, struct sge_fl *q)
 				uma_zfree(zone_pack, d->m);
 			} else {
 				m_init(d->m, M_NOWAIT, MT_DATA, 0);
-				uma_zfree(zone_mbuf, d->m);
+				m_free_raw(d->m);
 				uma_zfree(q->zone, d->rxsd_cl);
 			}			
 		}
