@@ -29,6 +29,6 @@
 #define	_SMBIOS_H_
 
 void	smbios_detect(const caddr_t);
-int	smbios_match(const char *, const char *, const char *);
+int	smbios_match(const char *, const char *, const char *) __pure;
 
 #endif /* _SMBIOS_H_ */
