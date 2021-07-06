@@ -258,6 +258,7 @@ struct inpcb {
 	volatile uint32_t inp_in_input; /* on input hpts (lock b) */
 #endif
 	volatile uint16_t  inp_hpts_cpu; /* Lock (i) */
+	volatile uint16_t  inp_irq_cpu;	/* Set by LRO in behalf of or the driver */
 	u_int	inp_refcount;		/* (i) refcount */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
 	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
@@ -266,7 +267,8 @@ struct inpcb {
 			 inp_input_cpu_set : 1,	/* on input hpts (i) */
 			 inp_hpts_calls :1,	/* (i) from output hpts */
 			 inp_input_calls :1,	/* (i) from input hpts */
-			 inp_spare_bits2 : 4;
+			 inp_irq_cpu_set :1,	/* (i) from LRO/Driver */
+			 inp_spare_bits2 : 3;
 	uint8_t inp_numa_domain;	/* numa domain */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	socket *inp_socket;	/* (i) back pointer to socket */
