@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-typedef	unsigned long word;		/* "word" used for optimal copy speed */
+typedef	intptr_t word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
@@ -56,11 +56,10 @@ typedef	unsigned long word;		/* "word" used for optimal copy speed */
 void *
 #ifdef MEMCOPY
 memcpy
-(void * __restrict dst0, const void * __restrict src0, size_t length)
 #else
 memmove
-(void *dst0, const void *src0, size_t length)
 #endif
+(void *dst0, const void *src0, size_t length)
 #else
 #include <strings.h>
 
@@ -68,8 +67,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	unsigned char *dst = (unsigned char *)dst0;
-	const unsigned char *src = (const unsigned char *)src0;
+	char *dst = dst0;
+	const char *src = src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
@@ -78,22 +77,20 @@ bcopy(const void *src0, void *dst0, size_t length)
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) for (; t; --t) { s; }
+#define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-#ifndef MEMCPY
-	if ((uintptr_t)dst < (uintptr_t)src) {
-#endif
+	if ((unsigned long)dst < (unsigned long)src) {
 		/*
 		 * Copy forward.
 		 */
-		t = (size_t)src;	/* only need low bits */
-		if ((t | (size_t)dst) & wmask) {
+		t = (uintptr_t)src;	/* only need low bits */
+		if ((t | (uintptr_t)dst) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
 			 */
-			if ((t ^ (size_t)dst) & wmask || length < wsize)
+			if ((t ^ (uintptr_t)dst) & wmask || length < wsize)
 				t = length;
 			else
 				t = wsize - (t & wmask);
@@ -104,22 +101,21 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 * Copy whole words, then mop up any trailing bytes.
 		 */
 		t = length / wsize;
-		TLOOP(*(word *)dst = *(const word *)src;
+		TLOOP(*(word *)(void *)dst = *(const word *)(const void *)src;
 		    src += wsize; dst += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
-#ifndef MEMCPY
 	} else {
 		/*
 		 * Copy backwards.  Otherwise essentially the same.
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		dst += length;
 		src += length;
-		t = (size_t)src;
-		if ((t | (size_t)dst) & wmask) {
-			if ((t ^ (size_t)dst) & wmask || length <= wsize)
+		dst += length;
+		t = (uintptr_t)src;
+		if ((t | (uintptr_t)dst) & wmask) {
+			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize)
 				t = length;
 			else
 				t &= wmask;
@@ -128,15 +124,10 @@ bcopy(const void *src0, void *dst0, size_t length)
 		}
 		t = length / wsize;
 		TLOOP(src -= wsize; dst -= wsize;
-		    *(word *)dst = *(const word *)src);
+		    *(word *)(void *)dst = *(const word *)(const void *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
-#endif
-
-#undef TLOOP
-#undef TLOOP1
-
 done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return (dst0);
