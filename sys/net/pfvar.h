@@ -520,6 +520,65 @@ struct pf_state_cmp {
 #define	PFSTATE_SETPRIO		0x0200
 #define	PFSTATE_SETMASK   (PFSTATE_SETPRIO)
 
+struct pf_state_scrub_export {
+	uint16_t	pfss_flags;
+	uint8_t		pfss_ttl;	/* stashed TTL		*/
+#define PF_SCRUB_FLAG_VALID		0x01
+	uint8_t		scrub_flag;
+	uint32_t	pfss_ts_mod;	/* timestamp modulation	*/
+};
+
+struct pf_state_key_export {
+	struct pf_addr	 addr[2];
+	uint16_t	 port[2];
+};
+
+struct pf_state_peer_export {
+	struct pf_state_scrub_export	scrub;	/* state is scrubbed	*/
+	uint32_t	seqlo;		/* Max sequence number sent	*/
+	uint32_t	seqhi;		/* Max the other end ACKd + win	*/
+	uint32_t	seqdiff;	/* Sequence number modulator	*/
+	uint16_t	max_win;	/* largest window (pre scaling)	*/
+	uint16_t	mss;		/* Maximum segment size option	*/
+	uint8_t		state;		/* active state level		*/
+	uint8_t		wscale;		/* window scaling factor	*/
+	uint8_t		dummy[6];
+};
+_Static_assert(sizeof(struct pf_state_peer_export) == 32, "size incorrect");
+
+struct pf_state_export {
+	uint64_t	 version;
+#define	PF_STATE_VERSION	20210706
+	uint64_t	 id;
+	char		 ifname[IFNAMSIZ];
+	char		 orig_ifname[IFNAMSIZ];
+	struct pf_state_key_export	 key[2];
+	struct pf_state_peer_export	 src;
+	struct pf_state_peer_export	 dst;
+	struct pf_addr	 rt_addr;
+	uint32_t	 rule;
+	uint32_t	 anchor;
+	uint32_t	 nat_rule;
+	uint32_t	 creation;
+	uint32_t	 expire;
+	uint32_t	 spare0;
+	uint64_t	 packets[2];
+	uint64_t	 bytes[2];
+	uint32_t	 creatorid;
+	uint32_t	 spare1;
+	sa_family_t	 af;
+	uint8_t		 proto;
+	uint8_t		 direction;
+	uint8_t		 log;
+	uint8_t		 state_flags;
+	uint8_t		 timeout;
+	uint8_t		 sync_flags;
+	uint8_t		 updates;
+
+	uint8_t		 spare[112];
+};
+_Static_assert(sizeof(struct pf_state_export) == 384, "size incorrect");
+
 #ifdef _KERNEL
 struct pf_kstate {
 	u_int64_t		 id;
@@ -645,6 +704,8 @@ VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
 extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
 void			pfsync_state_export(struct pfsync_state *,
+			    struct pf_kstate *);
+void			pf_state_export(struct pf_state_export *,
 			    struct pf_kstate *);
 
 /* pflog */
@@ -1187,6 +1248,17 @@ struct pfioc_states {
 #define ps_states	ps_u.psu_states
 };
 
+struct pfioc_states_v2 {
+	int		ps_len;
+	uint64_t	ps_req_version;
+	union {
+		caddr_t			 psu_buf;
+		struct pf_state_export	*psu_states;
+	} ps_u;
+#define ps_buf		ps_u.psu_buf
+#define ps_states	ps_u.psu_states
+};
+
 struct pfioc_src_nodes {
 	int	psn_len;
 	union {
@@ -1402,6 +1474,7 @@ struct pfioc_iface {
 #define	DIOCCLRIFFLAG	_IOWR('D', 90, struct pfioc_iface)
 #define	DIOCKILLSRCNODES	_IOWR('D', 91, struct pfioc_src_node_kill)
 #define	DIOCKEEPCOUNTERS	_IOWR('D', 92, struct pfioc_nv)
+#define DIOCGETSTATESV2	_IOWR('D', 93, struct pfioc_states_v2)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
