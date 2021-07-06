@@ -189,7 +189,7 @@ size_t	 strnlen(const char *, size_t) __pure;
 char	*strrchr(const char *, int) __pure;
 char	*strsep(char **, const char *delim);
 size_t	 strspn(const char *, const char *) __pure;
-char	*strstr(const char *, const char *);
+char	*strstr(const char *, const char *) __pure;
 int	 strvalid(const char *, size_t) __pure;
 
 #ifdef SAN_PREFIX
