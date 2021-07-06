@@ -2122,7 +2122,7 @@ iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		    BUS_DMASYNC_PREREAD);
 
 		if (sd_m[frag_idx] == NULL) {
-			m = m_gethdr(M_NOWAIT, MT_NOINIT);
+			m = m_gethdr_raw(M_NOWAIT, 0);
 			if (__predict_false(m == NULL))
 				break;
 			sd_m[frag_idx] = m;
