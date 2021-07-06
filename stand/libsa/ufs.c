@@ -724,7 +724,7 @@ ufs_close(struct open_file *f)
  * Cross block boundaries when necessary.
  */
 static int
-ufs_read(struct open_file *f, void *start, size_t size, size_t *resid;	/* out */
+ufs_read(struct open_file *f, void *start, size_t size, size_t *resid)	/* out */
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	size_t csize;
