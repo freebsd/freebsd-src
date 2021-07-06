@@ -174,7 +174,7 @@ char	*strchr(const char *, int) __pure;
 char	*strchrnul(const char *, int) __pure;
 int	 strcmp(const char *, const char *) __pure;
 char	*strcpy(char * __restrict, const char * __restrict);
-size_t	 strcspn(const char *, const char *) __pure;
+size_t	 strcspn(const char * __restrict, const char * __restrict) __pure;
 char	*strdup_flags(const char *__restrict, struct malloc_type *, int) __malloc_like;
 char	*strdup(const char *__restrict, struct malloc_type *) __malloc_like;
 char	*strncat(char * __restrict, const char * __restrict, size_t);
