@@ -287,6 +287,9 @@ enetc_setup_fixed(struct enetc_softc *sc, phandle_t node)
 	case 1000:
 		speed = IFM_1000_T;
 		break;
+	case 2500:
+		speed = IFM_2500_T;
+		break;
 	default:
 		device_printf(sc->dev, "Unsupported link speed value of %d\n",
 		    speed);
