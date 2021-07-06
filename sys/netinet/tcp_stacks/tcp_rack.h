@@ -268,6 +268,15 @@ struct rack_opts_stats {
 #define TLP_USE_TWO_TWO 3	/* Use 2.2 behavior */
 #define RACK_MIN_BW 8000	/* 64kbps in Bps */
 
+/* Rack quality indicators for GPUT measurements */
+#define RACK_QUALITY_NONE	0	/* No quality stated */
+#define RACK_QUALITY_HIGH 	1	/* A normal measurement of a GP RTT */
+#define RACK_QUALITY_APPLIMITED	2 	/* An app limited case that may be of lower quality */
+#define RACK_QUALITY_PERSIST	3	/* A measurement where we went into persists */
+#define RACK_QUALITY_PROBERTT	4	/* A measurement where we went into or exited probe RTT */
+#define RACK_QUALITY_ALLACKED	5	/* All data is now acknowledged */
+
+
 #define MIN_GP_WIN 6	/* We need at least 6 MSS in a GP measurement */
 #ifdef _KERNEL
 #define RACK_OPTS_SIZE (sizeof(struct rack_opts_stats)/sizeof(uint64_t))
@@ -318,6 +327,7 @@ extern counter_u64_t rack_opts_arry[RACK_OPTS_SIZE];
 #define RACK_GP_HIST 4	/* How much goodput history do we maintain? */
 
 #define RACK_NUM_FSB_DEBUG 16
+#ifdef _KERNEL
 struct rack_fast_send_blk {
 	uint32_t left_to_send;
 	uint16_t tcp_ip_hdr_len;
@@ -501,6 +511,7 @@ struct rack_control {
 	uint8_t rc_rate_sample_method;
 	uint8_t rc_gp_hist_idx;
 };
+#endif
 
 #define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
 #define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
