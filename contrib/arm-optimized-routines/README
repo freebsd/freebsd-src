@@ -1,0 +1,56 @@
+Arm Optimized Routines
+----------------------
+
+This repository contains implementations of library functions
+provided by Arm under MIT License (See LICENSE). Contributions
+to this project are accepted, but Contributors have to sign an
+Assignment Agreement, please follow the instructions in
+contributor-agreement.pdf. This is needed so upstreaming code
+to projects that require copyright assignment is possible.
+
+Regular quarterly releases are tagged as vYY.MM, the latest
+release is v20.11.
+
+Source code layout:
+
+build/          - build directory (created by make).
+math/           - math subproject sources.
+math/include/   - math library public headers.
+math/test/      - math test and benchmark related sources.
+math/tools/     - tools used for designing the algorithms.
+networking/     - networking subproject sources.
+networking/include/ - networking library public headers.
+networking/test/ - networking test and benchmark related sources.
+string/         - string routines subproject sources.
+string/include/ - string library public headers.
+string/test/    - string test and benchmark related sources.
+
+The steps to build the target libraries and run the tests:
+
+cp config.mk.dist config.mk
+# edit config.mk if necessary ...
+make
+make check
+
+Or building outside of the source directory:
+
+ln -s path/to/src/Makefile Makefile
+cp path/to/src/config.mk.dist config.mk
+echo 'srcdir = path/to/src' >> config.mk
+# further edits to config.mk
+make
+make check
+
+Or building and testing the math subproject only:
+
+make all-math
+make check-math
+
+The test system requires libmpfr and libmpc.
+For example on debian linux they can be installed as:
+
+sudo apt-get install libmpfr-dev libmpc-dev
+
+For cross build, CROSS_COMPILE should be set in config.mk and EMULATOR
+should be set for cross testing (e.g. using qemu-user or remote access
+to a target machine), see the examples in config.mk.dist.
