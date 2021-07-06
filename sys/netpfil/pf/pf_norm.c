@@ -1522,7 +1522,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 void
-pf_normalize_tcp_cleanup(struct pf_state *state)
+pf_normalize_tcp_cleanup(struct pf_kstate *state)
 {
 	if (state->src.scrub)
 		uma_zfree(V_pf_state_scrub_z, state->src.scrub);
@@ -1534,7 +1534,7 @@ pf_normalize_tcp_cleanup(struct pf_state *state)
 
 int
 pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
-    u_short *reason, struct tcphdr *th, struct pf_state *state,
+    u_short *reason, struct tcphdr *th, struct pf_kstate *state,
     struct pf_state_peer *src, struct pf_state_peer *dst, int *writeback)
 {
 	struct timeval uptime;
