@@ -67,7 +67,7 @@ try_to_run(int binary, int exit_status, char * const *env,
 }
 
 int
-opendir(const char *name)
+opendir_fd(const char *name)
 {
 
 	return open(name, O_RDONLY | O_DIRECTORY);
