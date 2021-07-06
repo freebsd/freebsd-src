@@ -141,6 +141,6 @@ ether_sprintf(u_char *ap)
 		etherbuf[i++] = digits[*ap++ & 0xf];
 		etherbuf[i++] = ':';
 	}
-	*(etherbuf + 18) = '\0';
+	etherbuf[17] = '\0';
 	return (etherbuf);
 }
