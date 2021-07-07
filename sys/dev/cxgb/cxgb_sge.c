@@ -727,7 +727,7 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 		} else {
 			if ((cl = m_cljget(NULL, M_NOWAIT, q->buf_size)) == NULL)
 				break;
-			if ((m = m_gethdr(M_NOWAIT, MT_NOINIT)) == NULL) {
+			if ((m = m_gethdr_raw(M_NOWAIT, 0)) == NULL) {
 				uma_zfree(q->zone, cl);
 				break;
 			}
