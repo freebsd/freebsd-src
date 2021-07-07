@@ -1,3 +1,111 @@
+2020-07-30         Arnold D. Robbins     <arnold@skeeve.com>
+
+	By fiat, we use bison for $(YACC). Trying to accommodate
+	different versions didn't work.
+
+	* makefile: Significant cleanup. Replace all ytab* references
+	with awkgram.tab.* and simplify definition of YACC.
+	* .gitignore: Remove ytab* references.
+	* b.c, lex.c, maketab.c, parse.c, run.c: Replace include of ytab.h
+	with awkgram.tab.h.
+	* lib.c, main.c, tran.c: Remove include of ytab.h, wasn't needed.
+
+2020-01-20         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* run.c (openfile): Set the close-on-exec flag for file
+	and pipe redirections that aren't stdin/stdout/stderr.
+
+2020-01-06         Arnold D. Robbins     <arnold@skeeve.com>
+
+	Minor fixes.
+	* b.c (replace_repeat): Turn init_q back into an int.
+	* lex.c (string): Use \a instead of \007.
+	* tran.c (catstr): Use snprintf instead of sprintf.
+
+2020-01-01         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* tran.c (syminit, arginit, envinit): Free sval member before
+	setting it. Thanks to valgrind.
+	* b.c: Small formatting cleanups in several routines.
+
+2019-12-27         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* b.c (replace_repeat): Fix a bug whereby a{0,3} could match
+	four a's.  Thanks to Anonymous AWK fan <awkfan77@mailfence.com>
+	for the report. Also, minor code formatting cleanups.
+	* testdir/T.int-expr: New file.
+
+2019-12-11         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* README: Renamed to ...
+	* README.md: ... this. Cleaned up some as well,
+	including moving to Markdown.
+
+2019-11-08         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* test/T.chem: Use $oldawk instead of hardwiring 'awk'.
+	* test/T.lilly: Remove gawk warnings from output, improves
+	portability.
+
+2019-10-17         Arnold D. Robbins     <arnold@skeeve.com>
+
+	Pull in systime() and strftime() from the NetBSD awk.
+
+	* awk.1: Document the functions.
+	* run.c (bltin): Implement the functions.
+	* awk.h: Add defines for systime and strftime.
+	* lex.c: Add support for systime and strftime.
+
+2019-10-07         Arnold D. Robbins     <arnold@skeeve.com>
+
+	Integrate features from different *BSD versions of awk.
+	Gensub support from NetBSD. Bitwise functions from OpenBSD.
+
+	* awk.h: Add defines for and, or, xor, compl, lshift and rshift.
+	* awkgram.y: Add support for gensub.
+	* maketab.c: Ditto.
+	* lex.c: Add support for gensub and bitwise functions.
+	* parse.c (node5, op5): New functions.
+	* proto.h (node5, op5): New declarations.
+	* run.c (bltin): Implement the bitwise functions.
+	(gensub): New function.
+	* awk.1: Document additional functions.
+
+2019-10-07         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* b.c (fnematch): Change type of pbuf from unsigned char to char.
+	* proto.h (fnematch): Ditto.
+
+2019-10-06         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* lib.c (readrec): Allow RS a regular expression. Imported
+	the code from the NetBSD awk.
+	* b.c (fnematch): New function for implementing the feature.
+	* awk.1: Updated.
+	* main.c (version): Updated.
+
+2019-06-24         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* makefile: Revise to take into account there is no more awktest.tar,
+	add targets 'check' and 'test', and also 'testclean' to clean up
+	after test run.  Have 'clean' and 'cleaner' depend upon 'testclean'.
+
+2019-06-23         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* testdir: Extracted from awktest.tar and added to Git.
+	* awktest.tar: Removed.
+
+2019-06-06         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* awk.1: Fix a typo, minor edits.
+
+2019-06-05         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* b.c (relex): Count parentheses and treat umatched right paren
+	as a literal character.
+	* awktest.tar (testdir/T.re): Added a test case.
+	* main.c (version): Updated.
+
 2019-05-29         Arnold D. Robbins     <arnold@skeeve.com>
 
 	* lib.c (isclvar): Remove check for additional '=' after
