@@ -37,9 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 int
-stat(str, sb)
-	const char *str;
-	struct stat *sb;
+stat(const char *str, struct stat *sb)
 {
 	int fd, rv;
 

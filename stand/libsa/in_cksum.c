@@ -50,9 +50,7 @@ __FBSDID("$FreeBSD$");
  * In particular, it should not be this one.
  */
 int
-in_cksum(p, len)
-	void *p;
-	int len;
+in_cksum(void *p, int len)
 {
 	int sum = 0, oddbyte = 0, v = 0;
 	u_char *cp = p;
