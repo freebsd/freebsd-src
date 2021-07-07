@@ -3515,13 +3515,16 @@ bbr_get_header_oh(struct tcp_bbr *bbr)
 	if (bbr->r_ctl.rc_inc_ip_oh) {
 		/* Do we include IP overhead? */
 #ifdef INET6
-		if (bbr->r_is_v6)
+		if (bbr->r_is_v6) {
 			seg_oh += sizeof(struct ip6_hdr);
-		else
+		} else
 #endif
+		{
+
 #ifdef INET
 			seg_oh += sizeof(struct ip);
 #endif
+		}
 	}
 	if (bbr->r_ctl.rc_inc_enet_oh) {
 		/* Do we include the ethernet overhead?  */
@@ -11956,7 +11959,7 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	uint32_t tot_len = 0;
 	uint32_t rtr_cnt = 0;
 	uint32_t maxseg, pace_max_segs, p_maxseg;
-	int32_t csum_flags;
+	int32_t csum_flags = 0;
  	int32_t hw_tls;
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	unsigned ipsec_optlen = 0;

@@ -166,17 +166,21 @@ static int
 ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ether_header *eh;
-	struct tcphdr *th;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
 #endif
 #ifdef INET
 	struct ip *ip = NULL;		/* Keep compiler happy. */
 #endif
+#if defined(INET) || defined(INET6)
+	struct tcphdr *th;
 	int32_t tlen;
 	uint16_t drop_hdrlen;
+#endif
 	uint16_t etype;
+#ifdef INET
 	uint8_t iptos;
+#endif
 
 	/* Is it the easy way? */
 	if (m->m_flags & M_LRO_EHDRSTRP)
