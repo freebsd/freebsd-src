@@ -26,7 +26,7 @@
 # $FreeBSD$
 #
 # PROVIDE: devmatch
-# REQUIRE: kldxref
+# REQUIRE: kld
 # BEFORE: netif
 # KEYWORD: nojail
 
