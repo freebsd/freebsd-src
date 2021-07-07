@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-typedef	unsigned long word;		/* "word" used for optimal copy speed */
+typedef	u_long word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
@@ -68,8 +68,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	unsigned char *dst = (unsigned char *)dst0;
-	const unsigned char *src = (const unsigned char *)src0;
+	u_char *dst = (u_char *)dst0;
+	const u_char *src = (const u_char *)src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
