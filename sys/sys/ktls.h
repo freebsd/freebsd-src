@@ -238,7 +238,7 @@ extern unsigned int ktls_ifnet_max_rexmit_pct;
 void ktls_disable_ifnet(void *arg);
 #else
 #define ktls_ifnet_max_rexmit_pct 1
-inline void
+static inline void
 ktls_disable_ifnet(void *arg __unused)
 {
 }
