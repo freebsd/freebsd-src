@@ -2484,7 +2484,7 @@ sdhci_start_slot(struct sdhci_slot *slot)
 
 	mtx_init(&slot->sim_mtx, "sdhcisim", NULL, MTX_DEF);
 	slot->sim = cam_sim_alloc(sdhci_cam_action, sdhci_cam_poll,
-	    "sdhci_slot", slot, device_get_unit(slot->dev),
+	    "sdhci_slot", slot, device_get_unit(slot->bus),
 	    &slot->sim_mtx, 1, 1, slot->devq);
 
 	if (slot->sim == NULL) {
