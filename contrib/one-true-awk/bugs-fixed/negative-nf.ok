@@ -1,2 +1,2 @@
-./a.out: cannot set NF to a negative value
+../a.out: cannot set NF to a negative value
  source line number 1

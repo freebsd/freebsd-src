@@ -7,6 +7,10 @@
 .fi
 .ft 1
 ..
+.de TF
+.IP "" "\w'\fB\\$1\ \ \fP'u"
+.PD 0
+..
 .TH AWK 1
 .CT 1 files prog_other
 .SH NAME
@@ -48,7 +52,7 @@ matches the pattern.
 Each line is matched against the
 pattern portion of every pattern-action statement;
 the associated action is performed for each matched pattern.
-The file name 
+The file name
 .B \-
 means the standard input.
 Any
@@ -90,7 +94,7 @@ A pattern-action statement has the form:
 .IP
 .IB pattern " { " action " }
 .PP
-A missing 
+A missing
 .BI { " action " }
 means print the line;
 a missing pattern always matches.
@@ -209,7 +213,7 @@ or length of
 if no argument.
 .TP
 .B rand
-random number on [0,1)
+random number on [0,1).
 .TP
 .B srand
 sets seed for
@@ -217,7 +221,7 @@ sets seed for
 and returns the previous seed.
 .TP
 .B int
-truncates to an integer value
+truncates to an integer value.
 .TP
 \fBsubstr(\fIs\fB, \fIm\fR [\fB, \fIn\^\fR]\fB)\fR
 the
@@ -225,12 +229,11 @@ the
 substring of
 .I s
 that begins at position
-.I m 
+.I m
 counted from 1.
 If no
-.IR m ,
-use the rest of the string
-.I 
+.IR n ,
+use the rest of the string.
 .TP
 .BI index( s , " t" )
 the position in
@@ -294,6 +297,25 @@ and
 .B gsub
 return the number of replacements.
 .TP
+\fBgensub(\fIpat\fB, \fIrepl\fB, \fIhow\fR [\fB, \fItarget\fR]\fB)\fR
+replaces instances of
+.I pat
+in
+.I target
+with
+.IR repl .
+If
+.I how
+is \fB"g"\fR or \fB"G"\fR, do so globally. Otherwise,
+.I how
+is a number indicating which occurrence to replace.  If no
+.IR target ,
+use
+.BR $0 .
+Return the resulting string;
+.I target
+is not modified.
+.TP
 .BI sprintf( fmt , " expr" , " ...\fB)
 the string resulting from formatting
 .I expr ...
@@ -302,13 +324,35 @@ according to the
 format
 .IR fmt .
 .TP
+.B systime()
+returns the current date and time as a standard
+``seconds since the epoch'' value.
+.TP
+.BI strftime( fmt ", " timestamp\^ )
+formats
+.I timestamp
+(a value in seconds since the epoch)
+according to
+.IR fmt ,
+which is a format string as supported by
+.IR strftime (3).
+Both
+.I timestamp
+and
+.I fmt
+may be omitted; if no
+.IR timestamp ,
+the current time of day is used, and if no
+.IR fmt ,
+a default format of \fB"%a %b %e %H:%M:%S %Z %Y"\fR is used.
+.TP
 .BI system( cmd )
 executes
 .I cmd
 and returns its exit status. This will be \-1 upon error,
 .IR cmd 's
 exit status upon a normal exit,
-256 + 
+256 +
 .I sig
 upon death-by-signal, where
 .I sig
@@ -361,19 +405,26 @@ In all cases,
 returns 1 for a successful input,
 0 for end of file, and \-1 for an error.
 .PP
+The functions
+.BR compl ,
+.BR and ,
+.BR or ,
+.BR xor ,
+.BR lshift ,
+and
+.B rshift
+peform the corresponding bitwise operations on their
+operands, which are first truncated to integer.
+.PP
 Patterns are arbitrary Boolean combinations
 (with
 .BR "! || &&" )
 of regular expressions and
 relational expressions.
 Regular expressions are as in
-.IR egrep (1) 
-except numeric quantifiers are not supported beyond the basic
-.B +
-and
-.B ?
-for quantities \&\f(CW"0 or 1"\fP and \&\f(CW"1 or more"\fP
-respectively.
+.IR egrep ;
+see
+.IR grep (1).
 Isolated regular expressions
 in a pattern apply to the entire line.
 Regular expressions may also occur in
@@ -483,6 +534,11 @@ the length of a string matched by
 .TP
 .B RS
 input record separator (default newline).
+If empty, blank lines separate records.
+If more than one character long,
+.B RS
+is treated as a regular expression, and records are
+separated by text matching the expression.
 .TP
 .B RSTART
 the start position of a string matched by
@@ -502,6 +558,16 @@ functions may be called recursively.
 Parameters are local to the function; all other variables are global.
 Thus local variables may be created by providing excess parameters in
 the function definition.
+.SH ENVIRONMENT VARIABLES
+If
+.B POSIXLY_CORRECT
+is set in the environment, then
+.I awk
+follows the POSIX rules for
+.B sub
+and
+.B gsub
+with respect to consecutive backslashes and ampersands.
 .SH EXAMPLES
 .TP
 .EX
@@ -546,8 +612,8 @@ BEGIN	{	# Simulate echo(1)
 .fi
 .EE
 .SH SEE ALSO
-.IR grep (1), 
-.IR lex (1), 
+.IR grep (1),
+.IR lex (1),
 .IR sed (1)
 .br
 A. V. Aho, B. W. Kernighan, P. J. Weinberger,
@@ -558,8 +624,61 @@ There are no explicit conversions between numbers and strings.
 To force an expression to be treated as a number add 0 to it;
 to force it to be treated as a string concatenate
 \&\f(CW""\fP to it.
-.br
+.PP
 The scope rules for variables in functions are a botch;
 the syntax is worse.
-.br
+.PP
 Only eight-bit characters sets are handled correctly.
+.SH UNUSUAL FLOATING-POINT VALUES
+.I Awk
+was designed before IEEE 754 arithmetic defined Not-A-Number (NaN)
+and Infinity values, which are supported by all modern floating-point
+hardware.
+.PP
+Because
+.I awk
+uses
+.IR strtod (3)
+and
+.IR atof (3)
+to convert string values to double-precision floating-point values,
+modern C libraries also convert strings starting with
+.B inf
+and
+.B nan
+into infinity and NaN values respectively.  This led to strange results,
+with something like this:
+.PP
+.EX
+.nf
+echo nancy | awk '{ print $1 + 0 }'
+.fi
+.EE
+.PP
+printing
+.B nan
+instead of zero.
+.PP
+.I Awk
+now follows GNU AWK, and prefilters string values before attempting
+to convert them to numbers, as follows:
+.TP
+.I "Hexadecimal values"
+Hexadecimal values (allowed since C99) convert to zero, as they did
+prior to C99.
+.TP
+.I "NaN values"
+The two strings
+.B +nan
+and
+.B \-nan
+(case independent) convert to NaN. No others do.
+(NaNs can have signs.)
+.TP
+.I "Infinity values"
+The two strings
+.B +inf
+and
+.B \-inf
+(case independent) convert to positive and negative infinity, respectively.
+No others do.

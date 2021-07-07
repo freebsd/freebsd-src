@@ -27,13 +27,13 @@ THIS SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "awk.h"
-#include "ytab.h"
+#include "awkgram.tab.h"
 
 Node *nodealloc(int n)
 {
 	Node *x;
 
-	x = (Node *) malloc(sizeof(Node) + (n-1)*sizeof(Node *));
+	x = (Node *) malloc(sizeof(*x) + (n-1) * sizeof(x));
 	if (x == NULL)
 		FATAL("out of space in nodealloc");
 	x->nnext = NULL;
@@ -90,6 +90,20 @@ Node *node4(int a, Node *b, Node *c, Node *d, Node *e)
 	x->narg[1] = c;
 	x->narg[2] = d;
 	x->narg[3] = e;
+	return(x);
+}
+
+Node *node5(int a, Node *b, Node *c, Node *d, Node *e, Node *f)
+{
+	Node *x;
+
+	x = nodealloc(5);
+	x->nobj = a;
+	x->narg[0] = b;
+	x->narg[1] = c;
+	x->narg[2] = d;
+	x->narg[3] = e;
+	x->narg[4] = f;
 	return(x);
 }
 
@@ -161,6 +175,15 @@ Node *op4(int a, Node *b, Node *c, Node *d, Node *e)
 	Node *x;
 
 	x = node4(a,b,c,d,e);
+	x->ntype = NEXPR;
+	return(x);
+}
+
+Node *op5(int a, Node *b, Node *c, Node *d, Node *e, Node *f)
+{
+	Node *x;
+
+	x = node5(a,b,c,d,e,f);
 	x->ntype = NEXPR;
 	return(x);
 }
@@ -250,7 +273,7 @@ void defn(Cell *v, Node *vl, Node *st)	/* turn on FCN bit in definition, */
 	for (p = vl; p; p = p->nnext)
 		n++;
 	v->fval = n;
-	dprintf( ("defining func %s (%d args)\n", v->nval, n) );
+	DPRINTF("defining func %s (%d args)\n", v->nval, n);
 }
 
 int isarg(const char *s)		/* is s in argument list for current function? */

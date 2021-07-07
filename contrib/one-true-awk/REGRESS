@@ -33,3 +33,7 @@ then
 fi
 
 REGRESS
+
+cd ..
+cd bugs-fixed
+REGRESS

@@ -1,7 +1,7 @@
 # /****************************************************************
 # Copyright (C) Lucent Technologies 1997
 # All Rights Reserved
-# 
+#
 # Permission to use, copy, modify, and distribute this software and
 # its documentation for any purpose and without fee is hereby
 # granted, provided that the above copyright notice appear in all
@@ -11,7 +11,7 @@
 # its entities not be used in advertising or publicity pertaining
 # to distribution of the software without specific, written prior
 # permission.
-# 
+#
 # LUCENT DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
 # INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
 # IN NO EVENT SHALL LUCENT OR ANY OF ITS ENTITIES BE LIABLE FOR ANY
@@ -22,6 +22,7 @@
 # THIS SOFTWARE.
 # ****************************************************************/
 
+CFLAGS = -fsanitize=address -O1 -g -fno-omit-frame-pointer -fno-optimize-sibling-calls
 CFLAGS = -g
 CFLAGS =
 CFLAGS = -O2
@@ -30,57 +31,46 @@ CFLAGS = -O2
 #CC = gcc -Wall -g -Wwrite-strings
 #CC = gcc -O4 -Wall -pedantic -fno-strict-aliasing
 #CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
-HOSTCC = gcc -g -Wall -pedantic 
+HOSTCC = gcc -g -Wall -pedantic -Wcast-qual
 CC = $(HOSTCC)  # change this is cross-compiling.
 
-# yacc options.  pick one; this varies a lot by system.
-#YFLAGS = -d -S
-YACC = bison -d -y
-#YACC = yacc -d
-#		-S uses sprintf in yacc parser instead of sprint
+# By fiat, to make our lives easier, yacc is now defined to be bison.
+# If you want something else, you're on your own.
+YACC = bison -d
 
 OFILES = b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o
 
-SOURCE = awk.h ytab.c ytab.h proto.h awkgram.y lex.c b.c main.c \
-	maketab.c parse.c lib.c run.c tran.c proctab.c 
+SOURCE = awk.h awkgram.tab.c awkgram.tab.h proto.h awkgram.y lex.c b.c main.c \
+	maketab.c parse.c lib.c run.c tran.c proctab.c
 
 LISTING = awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
-	lib.c run.c tran.c 
+	lib.c run.c tran.c
 
-SHIP = README LICENSE FIXES $(SOURCE) ytab[ch].bak makefile  \
+SHIP = README LICENSE FIXES $(SOURCE) awkgram.tab.[ch].bak makefile  \
 	 awk.1
 
-a.out:	ytab.o $(OFILES)
-	$(CC) $(CFLAGS) ytab.o $(OFILES) $(ALLOC)  -lm
+a.out:	awkgram.tab.o $(OFILES)
+	$(CC) $(CFLAGS) awkgram.tab.o $(OFILES) $(ALLOC)  -lm
 
-$(OFILES):	awk.h ytab.h proto.h
+$(OFILES):	awk.h awkgram.tab.h proto.h
 
-#Clear dependency for parallel build: (make -j)
-#YACC generated y.tab.c and y.tab.h at the same time
-#this needs to be a static pattern rules otherwise multiple target
-#are mapped onto multiple executions of yacc, which overwrite 
-#each others outputs.
-y%.c y%.h:	awk.h proto.h awkgram.y
+awkgram.tab.c awkgram.tab.h:	awk.h proto.h awkgram.y
 	$(YACC) $(YFLAGS) awkgram.y
-	mv y.$*.c y$*.c
-	mv y.$*.h y$*.h
-
-ytab.h:	ytab.c
 
 proctab.c:	maketab
-	./maketab ytab.h >proctab.c
+	./maketab awkgram.tab.h >proctab.c
 
-maketab:	ytab.h maketab.c
+maketab:	awkgram.tab.h maketab.c
 	$(HOSTCC) $(CFLAGS) maketab.c -o maketab
 
 bundle:
-	@cp ytab.h ytabh.bak
-	@cp ytab.c ytabc.bak
+	@cp awkgram.tab.h awkgram.tab.h.bak
+	@cp awkgram.tab.c awkgram.tab.c.bak
 	@bundle $(SHIP)
 
 tar:
-	@cp ytab.h ytabh.bak
-	@cp ytab.c ytabc.bak
+	@cp awkgram.tab.h awkgram.tab.h.bak
+	@cp awkgram.tab.c awkgram.tab.c.bak
 	@bundle $(SHIP) >awk.shar
 	@tar cf awk.tar $(SHIP)
 	gzip awk.tar
@@ -92,18 +82,30 @@ gitadd:
 	git add README LICENSE FIXES \
            awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
 	   lib.c run.c tran.c \
-	   makefile awk.1 awktest.tar
+	   makefile awk.1 testdir
 
 gitpush:
-	# only do this once: 
+	# only do this once:
 	# git remote add origin https://github.com/onetrueawk/awk.git
 	git push -u origin master
 
 names:
 	@echo $(LISTING)
 
-clean:
+test check:
+	./REGRESS
+
+clean: testclean
 	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda # proctab.c
 
-cleaner:
-	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda proctab.c ytab*
+cleaner: testclean
+	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda proctab.c awkgram.tab.*
+
+# This is a bit of a band-aid until we can invest some more time
+# in the test suite.
+testclean:
+	cd testdir; rm -fr arnold-fixes beebe devnull echo foo* \
+		glop glop1 glop2 lilly.diff tempbig tempsmall time
+
+# For the habits of GNU maintainers:
+distclean: cleaner
