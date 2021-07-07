@@ -1,6 +1,9 @@
 /*-
  * Copyright (c) 2013, 2014 Andrew Turner
- * All rights reserved.
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,53 +52,69 @@
 #define	CPTR_TCPAC	0x80000000
 
 /* HCR_EL2 - Hypervisor Config Register */
-#define	HCR_VM		0x0000000000000001
-#define	HCR_SWIO	0x0000000000000002
-#define	HCR_PTW		0x0000000000000004
-#define	HCR_FMO		0x0000000000000008
-#define	HCR_IMO		0x0000000000000010
-#define	HCR_AMO		0x0000000000000020
-#define	HCR_VF		0x0000000000000040
-#define	HCR_VI		0x0000000000000080
-#define	HCR_VSE		0x0000000000000100
-#define	HCR_FB		0x0000000000000200
-#define	HCR_BSU_MASK	0x0000000000000c00
-#define	 HCR_BSU_IS	0x0000000000000400
-#define	 HCR_BSU_OS	0x0000000000000800
-#define	 HCR_BSU_FS	0x0000000000000c00
-#define	HCR_DC		0x0000000000001000
-#define	HCR_TWI		0x0000000000002000
-#define	HCR_TWE		0x0000000000004000
-#define	HCR_TID0	0x0000000000008000
-#define	HCR_TID1	0x0000000000010000
-#define	HCR_TID2	0x0000000000020000
-#define	HCR_TID3	0x0000000000040000
-#define	HCR_TSC		0x0000000000080000
-#define	HCR_TIDCP	0x0000000000100000
-#define	HCR_TACR	0x0000000000200000
-#define	HCR_TSW		0x0000000000400000
-#define	HCR_TPCP	0x0000000000800000
-#define	HCR_TPU		0x0000000001000000
-#define	HCR_TTLB	0x0000000002000000
-#define	HCR_TVM		0x0000000004000000
-#define	HCR_TGE		0x0000000008000000
-#define	HCR_TDZ		0x0000000010000000
-#define	HCR_HCD		0x0000000020000000
-#define	HCR_TRVM	0x0000000040000000
-#define	HCR_RW		0x0000000080000000
-#define	HCR_CD		0x0000000100000000
-#define	HCR_ID		0x0000000200000000
-#define	HCR_E2H		0x0000000400000000
-#define	HCR_TLOR	0x0000000800000000
-#define	HCR_TERR	0x0000001000000000
-#define	HCR_TEA		0x0000002000000000
-#define	HCR_MIOCNCE	0x0000004000000000
+#define	HCR_VM				(UL(0x1) << 0)
+#define	HCR_SWIO			(UL(0x1) << 1)
+#define	HCR_PTW				(UL(0x1) << 2)
+#define	HCR_FMO				(UL(0x1) << 3)
+#define	HCR_IMO				(UL(0x1) << 4)
+#define	HCR_AMO				(UL(0x1) << 5)
+#define	HCR_VF				(UL(0x1) << 6)
+#define	HCR_VI				(UL(0x1) << 7)
+#define	HCR_VSE				(UL(0x1) << 8)
+#define	HCR_FB				(UL(0x1) << 9)
+#define	HCR_BSU_MASK			(UL(0x3) << 10)
+#define	 HCR_BSU_IS			(UL(0x1) << 10)
+#define	 HCR_BSU_OS			(UL(0x2) << 10)
+#define	 HCR_BSU_FS			(UL(0x3) << 10)
+#define	HCR_DC				(UL(0x1) << 12)
+#define	HCR_TWI				(UL(0x1) << 13)
+#define	HCR_TWE				(UL(0x1) << 14)
+#define	HCR_TID0			(UL(0x1) << 15)
+#define	HCR_TID1			(UL(0x1) << 16)
+#define	HCR_TID2			(UL(0x1) << 17)
+#define	HCR_TID3			(UL(0x1) << 18)
+#define	HCR_TSC				(UL(0x1) << 19)
+#define	HCR_TIDCP			(UL(0x1) << 20)
+#define	HCR_TACR			(UL(0x1) << 21)
+#define	HCR_TSW				(UL(0x1) << 22)
+#define	HCR_TPCP			(UL(0x1) << 23)
+#define	HCR_TPU				(UL(0x1) << 24)
+#define	HCR_TTLB			(UL(0x1) << 25)
+#define	HCR_TVM				(UL(0x1) << 26)
+#define	HCR_TGE				(UL(0x1) << 27)
+#define	HCR_TDZ				(UL(0x1) << 28)
+#define	HCR_HCD				(UL(0x1) << 29)
+#define	HCR_TRVM			(UL(0x1) << 30)
+#define	HCR_RW				(UL(0x1) << 31)
+#define	HCR_CD				(UL(0x1) << 32)
+#define	HCR_ID				(UL(0x1) << 33)
+#define	HCR_E2H				(UL(0x1) << 34)
+#define	HCR_TLOR			(UL(0x1) << 35)
+#define	HCR_TERR			(UL(0x1) << 36)
+#define	HCR_TEA				(UL(0x1) << 37)
+#define	HCR_MIOCNCE			(UL(0x1) << 38)
 /* Bit 39 is reserved */
-#define	HCR_APK		0x0000010000000000
-#define	HCR_API		0x0000020000000000
-#define	HCR_NV		0x0000040000000000
-#define	HCR_NV1		0x0000080000000000
-#define	HCR_AT		0x0000100000000000
+#define	HCR_APK				(UL(0x1) << 40)
+#define	HCR_API				(UL(0x1) << 41)
+#define	HCR_NV				(UL(0x1) << 42)
+#define	HCR_NV1				(UL(0x1) << 43)
+#define	HCR_AT				(UL(0x1) << 44)
+#define	HCR_NV2				(UL(0x1) << 45)
+#define	HCR_FWB				(UL(0x1) << 46)
+#define	HCR_FIEN			(UL(0x1) << 47)
+/* Bit 48 is reserved */
+#define	HCR_TID4			(UL(0x1) << 49)
+#define	HCR_TICAB			(UL(0x1) << 50)
+#define	HCR_AMVOFFEN			(UL(0x1) << 51)
+#define	HCR_TOCU			(UL(0x1) << 52)
+#define	HCR_EnSCXT			(UL(0x1) << 53)
+#define	HCR_TTLBIS			(UL(0x1) << 54)
+#define	HCR_TTLBOS			(UL(0x1) << 55)
+#define	HCR_ATA				(UL(0x1) << 56)
+#define	HCR_DCT				(UL(0x1) << 57)
+#define	HCR_TID5			(UL(0x1) << 58)
+#define	HCR_TWEDEn			(UL(0x1) << 59)
+#define	HCR_TWEDEL_MASK			(UL(0xf) << 60)
 
 /* HPFAR_EL2 - Hypervisor IPA Fault Address Register */
 #define	HPFAR_EL2_FIPA_SHIFT	4
