@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-typedef	u_long word;		/* "word" used for optimal copy speed */
+typedef	size_t word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define	wmask	(wsize - 1)
