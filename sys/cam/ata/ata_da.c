@@ -904,7 +904,7 @@ static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_read_ahead = ADA_DEFAULT_READ_AHEAD;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 static int ada_enable_biospeedup = 1;
-static int ada_enable_uma_ccbs = 0;
+static int ada_enable_uma_ccbs = 1;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "CAM Direct Access Disk driver");
