@@ -397,7 +397,7 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)		/* out */
 	block_size = sblksize(fs, DIP(fp, di_size), file_block);
 
 	if (file_block != fp->f_buf_blkno) {
-		if (fp->f_buf == (char *)0)
+		if (fp->f_buf == NULL)
 			fp->f_buf = malloc(fs->fs_bsize);
 
 		rc = block_map(f, file_block, &disk_block);
@@ -863,7 +863,7 @@ ufs_readdir(struct open_file *f, struct dirent *d)
 			return (error);
 		dp = (struct direct *)buf;
 		fp->f_seekp += dp->d_reclen;
-	} while (dp->d_ino != (ino_t)0);
+	} while (dp->d_ino == (ino_t)0);
 
 	d->d_type = dp->d_type;
 	strcpy(d->d_name, dp->d_name);
