@@ -73,8 +73,8 @@ typedef	__uint64_t	u_quad_t;	/* quads (deprecated) */
 typedef	__int64_t	quad_t;
 typedef	quad_t *	qaddr_t;
 
-typedef	char *		caddr_t;	/* core address */
-typedef	const char *	c_caddr_t;	/* core address, pointer to const */
+typedef	void *		caddr_t;	/* core address */
+typedef	const caddr_t	c_caddr_t;	/* core address, pointer to const */
 
 #ifndef _BLKSIZE_T_DECLARED
 typedef	__blksize_t	blksize_t;
