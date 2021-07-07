@@ -831,7 +831,7 @@
 #define	SCTLR_IESB	0x00200000 /* ARMv8.2 */
 /* Bit 22 is reserved */
 #define	SCTLR_SPAN	0x00800000 /* ARMv8.1 */
-#define	SCTLR_EOE	0x01000000
+#define	SCTLR_E0E	0x01000000
 #define	SCTLR_EE	0x02000000
 #define	SCTLR_UCI	0x04000000
 #define	SCTLR_EnDA	0x08000000 /* ARMv8.3 */
