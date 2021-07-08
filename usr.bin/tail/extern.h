@@ -56,7 +56,7 @@ struct mapinfo {
 
 struct file_info {
 	FILE *fp;
-	char *file_name;
+	const char *file_name;
 	struct stat st;
 };
 
