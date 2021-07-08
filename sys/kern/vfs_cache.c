@@ -2582,6 +2582,30 @@ out_unlock_free:
 	return;
 }
 
+/*
+ * A variant of the above accepting flags.
+ *
+ * - VFS_CACHE_DROPOLD -- if a conflicting entry is found, drop it.
+ *
+ * TODO: this routine is a hack. It blindly removes the old entry, even if it
+ * happens to match and it is doing it in an inefficient manner. It was added
+ * to accomodate NFS which runs into a case where the target for a given name
+ * may change from under it. Note this does nothing to solve the following
+ * race: 2 callers of cache_enter_time_flags pass a different target vnode for
+ * the same [dvp, cnp]. It may be argued that code doing this is broken.
+ */
+void
+cache_enter_time_flags(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
+    struct timespec *tsp, struct timespec *dtsp, int flags)
+{
+
+	MPASS((flags & ~(VFS_CACHE_DROPOLD)) == 0);
+
+	if (flags & VFS_CACHE_DROPOLD)
+		cache_remove_cnp(dvp, cnp);
+	cache_enter_time(dvp, vp, cnp, tsp, dtsp);
+}
+
 static u_int
 cache_roundup_2(u_int val)
 {
