@@ -73,17 +73,17 @@ static int32_t gmt2local(time_t);
 #define MODE_CMDFLUSH	3
 #define MODE_PROMISC	4
 
-int so;
+static int so;
 
-int f_forever = 0;
-int f_all = 0;
-int f_verbose = 0;
-int f_mode = 0;
-int f_cmddump = 0;
-int f_policy = 0;
-int f_hexdump = 0;
-int f_tflag = 0;
-int f_scope = 0;
+static int f_forever = 0;
+static int f_all = 0;
+static int f_verbose = 0;
+static int f_mode = 0;
+static int f_cmddump = 0;
+static int f_policy = 0;
+static int f_hexdump = 0;
+static int f_tflag = 0;
+static int f_scope = 0;
 static time_t thiszone;
 
 extern int lineno;
@@ -322,10 +322,10 @@ again:
 		printf("\n");
 	}
 	if (f_hexdump) {
-		int i;
+		size_t i;
 		for (i = 0; i < len; i++) {
 			if (i % 16 == 0)
-				printf("%08x: ", i);
+				printf("%08x: ", (u_int)i);
 			printf("%02x ", buf[i] & 0xff);
 			if (i % 16 == 15)
 				printf("\n");
