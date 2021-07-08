@@ -2208,10 +2208,10 @@ tcp_init_hptsi(void *st)
 		    OID_AUTO, "lastran", CTLFLAG_RD,
 		    &cts_last_ran[i], 0,
 		    "The last usec tick that this hpts ran");
-		SYSCTL_ADD_U64(&hpts->hpts_ctx,
+		SYSCTL_ADD_LONG(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
 		    OID_AUTO, "cur_min_sleep", CTLFLAG_RD,
-		    &hpts->p_mysleep.tv_usec, 0,
+		    &hpts->p_mysleep.tv_usec,
 		    "What the running pacers is using for p_mysleep.tv_usec");
 		SYSCTL_ADD_U64(&hpts->hpts_ctx,
 		    SYSCTL_CHILDREN(hpts->hpts_root),
