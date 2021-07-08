@@ -1,10 +1,9 @@
 /*-
  * Copyright (c) 2013, 2014 Andrew Turner
- * Copyright (c) 2015 The FreeBSD Foundation
- * All rights reserved.
+ * Copyright (c) 2015,2021 The FreeBSD Foundation
  *
- * This software was developed by Andrew Turner under
- * sponsorship from the FreeBSD Foundation.
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -804,41 +803,55 @@
 #define	PAR_S_MASK		(0x1 << PAR_S_SHIFT)
 
 /* SCTLR_EL1 - System Control Register */
-#define	SCTLR_RES0	0xc8222440	/* Reserved ARMv8.0, write 0 */
 #define	SCTLR_RES1	0x30d00800	/* Reserved ARMv8.0, write 1 */
-
-#define	SCTLR_M		0x00000001
-#define	SCTLR_A		0x00000002
-#define	SCTLR_C		0x00000004
-#define	SCTLR_SA	0x00000008
-#define	SCTLR_SA0	0x00000010
-#define	SCTLR_CP15BEN	0x00000020
-/* Bit 6 is reserved */
-#define	SCTLR_ITD	0x00000080
-#define	SCTLR_SED	0x00000100
-#define	SCTLR_UMA	0x00000200
-/* Bit 10 is reserved */
-/* Bit 11 is reserved */
-#define	SCTLR_I		0x00001000
-#define	SCTLR_EnDB	0x00002000 /* ARMv8.3 */
-#define	SCTLR_DZE	0x00004000
-#define	SCTLR_UCT	0x00008000
-#define	SCTLR_nTWI	0x00010000
+#define	SCTLR_M				(UL(0x1) << 0)
+#define	SCTLR_A				(UL(0x1) << 1)
+#define	SCTLR_C				(UL(0x1) << 2)
+#define	SCTLR_SA			(UL(0x1) << 3)
+#define	SCTLR_SA0			(UL(0x1) << 4)
+#define	SCTLR_CP15BEN			(UL(0x1) << 5)
+#define	SCTLR_nAA			(UL(0x1) << 6)
+#define	SCTLR_ITD			(UL(0x1) << 7)
+#define	SCTLR_SED			(UL(0x1) << 8)
+#define	SCTLR_UMA			(UL(0x1) << 9)
+#define	SCTLR_EnRCTX			(UL(0x1) << 10)
+#define	SCTLR_EOS			(UL(0x1) << 11)
+#define	SCTLR_I				(UL(0x1) << 12)
+#define	SCTLR_EnDB			(UL(0x1) << 13)
+#define	SCTLR_DZE			(UL(0x1) << 14)
+#define	SCTLR_UCT			(UL(0x1) << 15)
+#define	SCTLR_nTWI			(UL(0x1) << 16)
 /* Bit 17 is reserved */
-#define	SCTLR_nTWE	0x00040000
-#define	SCTLR_WXN	0x00080000
-/* Bit 20 is reserved */
-#define	SCTLR_IESB	0x00200000 /* ARMv8.2 */
-/* Bit 22 is reserved */
-#define	SCTLR_SPAN	0x00800000 /* ARMv8.1 */
-#define	SCTLR_E0E	0x01000000
-#define	SCTLR_EE	0x02000000
-#define	SCTLR_UCI	0x04000000
-#define	SCTLR_EnDA	0x08000000 /* ARMv8.3 */
-#define	SCTLR_nTLSMD	0x10000000 /* ARMv8.2 */
-#define	SCTLR_LSMAOE	0x20000000 /* ARMv8.2 */
-#define	SCTLR_EnIB	0x40000000 /* ARMv8.3 */
-#define	SCTLR_EnIA	0x80000000 /* ARMv8.3 */
+#define	SCTLR_nTWE			(UL(0x1) << 18)
+#define	SCTLR_WXN			(UL(0x1) << 19)
+#define	SCTLR_TSCXT			(UL(0x1) << 20)
+#define	SCTLR_IESB			(UL(0x1) << 21)
+#define	SCTLR_EIS			(UL(0x1) << 22)
+#define	SCTLR_SPAN			(UL(0x1) << 23)
+#define	SCTLR_E0E			(UL(0x1) << 24)
+#define	SCTLR_EE			(UL(0x1) << 25)
+#define	SCTLR_UCI			(UL(0x1) << 26)
+#define	SCTLR_EnDA			(UL(0x1) << 27)
+#define	SCTLR_nTLSMD			(UL(0x1) << 28)
+#define	SCTLR_LSMAOE			(UL(0x1) << 29)
+#define	SCTLR_EnIB			(UL(0x1) << 30)
+#define	SCTLR_EnIA			(UL(0x1) << 31)
+/* Bits 34:32 are reserved */
+#define	SCTLR_BT0			(UL(0x1) << 35)
+#define	SCTLR_BT1			(UL(0x1) << 36)
+#define	SCTLR_ITFSB			(UL(0x1) << 37)
+#define	SCTLR_TCF0_MASK			(UL(0x3) << 38)
+#define	SCTLR_TCF_MASK			(UL(0x3) << 40)
+#define	SCTLR_ATA0			(UL(0x1) << 42)
+#define	SCTLR_ATA			(UL(0x1) << 43)
+#define	SCTLR_DSSBS			(UL(0x1) << 44)
+#define	SCTLR_TWEDEn			(UL(0x1) << 45)
+#define	SCTLR_TWEDEL_MASK		(UL(0xf) << 46)
+/* Bits 53:50 are reserved */
+#define	SCTLR_EnASR			(UL(0x1) << 54)
+#define	SCTLR_EnAS0			(UL(0x1) << 55)
+#define	SCTLR_EnALS			(UL(0x1) << 56)
+#define	SCTLR_EPAN			(UL(0x1) << 57)
 
 /* SPSR_EL1 */
 /*
