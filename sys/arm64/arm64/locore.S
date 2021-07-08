@@ -152,6 +152,16 @@ virtdone:
 	bl	initarm
 	/* We are done with the boot params */
 	add	sp, sp, #BOOTPARAMS_SIZE
+
+	/*
+	 * Enable pointer authentication in the kernel. We set the keys for
+	 * thread0 in initarm so have to wait until it returns to enable it.
+	 * If we were to enable it in initarm then any authentication when
+	 * returning would fail as it was called with pointer authentication
+	 * disabled.
+	 */
+	bl	ptrauth_start
+
 	bl	mi_startup
 
 	/* We should not get here */
@@ -239,7 +249,7 @@ LENTRY(drop_to_el1)
 	ret
 1:
 	/* Configure the Hypervisor */
-	mov	x2, #(HCR_RW)
+	ldr	x2, =(HCR_RW | HCR_APK | HCR_API)
 	msr	hcr_el2, x2
 
 	/* Load the Virtualization Process ID Register */

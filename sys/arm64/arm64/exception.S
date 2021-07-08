@@ -88,6 +88,9 @@ __FBSDID("$FreeBSD$");
 	blr	x1
 1:
 
+	ldr	x0, [x18, #PC_CURTHREAD]
+	bl	ptrauth_exit_el0
+
 	ldr	x0, [x18, #(PC_CURTHREAD)]
 	bl	dbg_monitor_enter
 
@@ -113,6 +116,9 @@ __FBSDID("$FreeBSD$");
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
 	bl	dbg_monitor_exit
+
+	ldr	x0, [x18, #PC_CURTHREAD]
+	bl	ptrauth_enter_el0
 
 	/* Remove the SSBD (CVE-2018-3639) workaround if needed */
 	ldr	x1, [x18, #PC_SSBD]
