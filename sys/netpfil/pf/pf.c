@@ -1453,6 +1453,15 @@ second_run:
 	return (ret);
 }
 
+bool
+pf_find_state_all_exists(struct pf_state_key_cmp *key, u_int dir)
+{
+	struct pf_kstate *s;
+
+	s = pf_find_state_all(key, dir, NULL);
+	return (s != NULL);
+}
+
 /* END state table stuff */
 
 static void

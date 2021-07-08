@@ -1588,6 +1588,8 @@ pf_release_staten(struct pf_kstate *s, u_int n)
 extern struct pf_kstate		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_kstate		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
+extern bool			pf_find_state_all_exists(struct pf_state_key_cmp *,
+				    u_int);
 extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_krule *, sa_family_t, int);
 extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
