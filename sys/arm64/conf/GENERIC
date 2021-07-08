@@ -198,10 +198,10 @@ device		iicmux
 device		iic
 device		icee		# Generic IIC eeprom
 device		twsi		# Allwinner I2C controller
+device		fan53555	# Fairchild Semi FAN53555/SYR82x Regulator
 device		pca9547		# NPX I2C bus multiplexer
 device		pcf8563		# NXP Real-time clock/calendar
 device		rk_i2c		# RockChip I2C controller
-device		syr827		# Silergy SYR827 PMIC
 device		sy8106a		# SY8106A Buck Regulator
 device		vf_i2c		# Freescale Vybrid I2C controller
 device		fsliic		# Freescale iMX I2C controller

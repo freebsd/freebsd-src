@@ -2265,6 +2265,7 @@ device		ds1307		# Dallas DS1307 RTC and compatible
 device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
 device		ds3231		# Dallas DS3231 RTC + temperature
+device		fan53555	# Fairchild Semi FAN53555/SYR82x Regulator
 device		icee		# AT24Cxxx and compatible EEPROMs
 device		isl12xx		# Intersil ISL12xx RTC
 device		lm75		# LM75 compatible temperature sensor
@@ -2272,7 +2273,6 @@ device		nxprtc		# NXP RTCs: PCA/PFC212x PCA/PCF85xx
 device		rtc8583		# Epson RTC-8583
 device		s35390a		# Seiko Instruments S-35390A RTC
 device		sy8106a		# Silergy Corp. SY8106A buck regulator
-device		syr827		# Silergy Corp. DC/DC regulator
 
 # Parallel-Port Bus
 #

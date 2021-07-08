@@ -1881,6 +1881,7 @@ dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
 dev/iicbus/syr827.c		optional syr827 ext_resources fdt
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt
+dev/iicbus/pmic/fan53555.c	optional fan53555 ext_resources fdt
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
