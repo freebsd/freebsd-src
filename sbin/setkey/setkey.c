@@ -61,7 +61,7 @@ int get_supported(void);
 void sendkeyshort(u_int, uint8_t);
 void promisc(void);
 int sendkeymsg(char *, size_t);
-int postproc(struct sadb_msg *, int);
+int postproc(struct sadb_msg *);
 const char *numstr(int);
 void shortdump_hdr(void);
 void shortdump(struct sadb_msg *);
@@ -355,7 +355,7 @@ again:
 			kdebug_sadb((struct sadb_msg *)rbuf);
 			printf("\n");
 		}
-		if (postproc(msg, l) < 0)
+		if (postproc(msg) < 0)
 			break;
 	} while (msg->sadb_msg_errno || msg->sadb_msg_seq);
 
@@ -370,7 +370,7 @@ end:
 }
 
 int
-postproc(struct sadb_msg *msg, int len)
+postproc(struct sadb_msg *msg)
 {
 
 	if (msg->sadb_msg_errno != 0) {
