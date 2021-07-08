@@ -201,7 +201,7 @@ struct cdev *pf_dev;
  */
 static void		 pf_clear_all_states(void);
 static unsigned int	 pf_clear_states(const struct pf_kstate_kill *);
-static int		 pf_killstates(struct pf_kstate_kill *,
+static void		 pf_killstates(struct pf_kstate_kill *,
 			    unsigned int *);
 static int		 pf_killstates_row(struct pf_kstate_kill *,
 			    struct pf_idhash *);
@@ -2779,7 +2779,7 @@ DIOCCHANGERULE_error:
 			break;
 
 		psk->psk_killed = 0;
-		error = pf_killstates(&kill, &psk->psk_killed);
+		pf_killstates(&kill, &psk->psk_killed);
 		break;
 	}
 
@@ -4834,7 +4834,7 @@ relock_DIOCCLRSTATES:
 	return (killed);
 }
 
-static int
+static void
 pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 {
 	struct pf_kstate	*s;
@@ -4847,13 +4847,13 @@ pf_killstates(struct pf_kstate_kill *kill, unsigned int *killed)
 			pf_unlink_state(s, PF_ENTER_LOCKED);
 			*killed = 1;
 		}
-		return (0);
+		return;
 	}
 
 	for (unsigned int i = 0; i <= pf_hashmask; i++)
 		*killed += pf_killstates_row(kill, &V_pf_idhash[i]);
 
-	return (0);
+	return;
 }
 
 static int
@@ -4886,9 +4886,7 @@ pf_killstates_nv(struct pfioc_nv *nv)
 	if (error)
 		ERROUT(error);
 
-	error = pf_killstates(&kill, &killed);
-	if (error)
-		ERROUT(error);
+	pf_killstates(&kill, &killed);
 
 	free(nvlpacked, M_NVLIST);
 	nvlpacked = NULL;
