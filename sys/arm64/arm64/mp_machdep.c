@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 #include <machine/machdep.h>
+#include <machine/cpu.h>
 #include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -207,6 +208,8 @@ init_secondary(uint64_t cpu)
 	struct pcpu *pcpup;
 	pmap_t pmap0;
 	u_int mpidr;
+
+	ptrauth_mp_start(cpu);
 
 	/*
 	 * Verify that the value passed in 'cpu' argument (aka context_id) is

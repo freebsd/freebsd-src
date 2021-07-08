@@ -192,7 +192,7 @@ bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
 
 int	pmap_fault(pmap_t, uint64_t, uint64_t);
 
-struct pcb *pmap_switch(struct thread *, struct thread *);
+struct pcb *pmap_switch(struct thread *);
 
 extern void (*pmap_clean_stage2_tlbi)(void);
 extern void (*pmap_invalidate_vpipt_icache)(void);

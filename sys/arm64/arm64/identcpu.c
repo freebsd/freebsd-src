@@ -654,9 +654,19 @@ static struct mrs_field_value id_aa64isar1_gpi[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static struct mrs_field_hwcap id_aa64isar1_gpi_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR1_GPI_IMPL),
+	MRS_HWCAP_END
+};
+
 static struct mrs_field_value id_aa64isar1_gpa[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPA, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_hwcap id_aa64isar1_gpa_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACG, ID_AA64ISAR1_GPA_IMPL),
+	MRS_HWCAP_END
 };
 
 static struct mrs_field_value id_aa64isar1_lrcpc[] = {
@@ -699,11 +709,21 @@ static struct mrs_field_value id_aa64isar1_api[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static struct mrs_field_hwcap id_aa64isar1_api_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR1_API_PAC),
+	MRS_HWCAP_END
+};
+
 static struct mrs_field_value id_aa64isar1_apa[] = {
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_PAC, "APA PAC"),
 	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_EPAC, "APA EPAC"),
 	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_hwcap id_aa64isar1_apa_caps[] = {
+	MRS_HWCAP(&elf_hwcap, HWCAP_PACA, ID_AA64ISAR1_APA_PAC),
+	MRS_HWCAP_END
 };
 
 static struct mrs_field_value id_aa64isar1_dpb[] = {
@@ -732,16 +752,20 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	    id_aa64isar1_sb_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
 	    id_aa64isar1_frintts, id_aa64isar1_frintts_caps),
-	MRS_FIELD(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi),
-	MRS_FIELD(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi,
+	    id_aa64isar1_gpi_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa,
+	    id_aa64isar1_gpa_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, LRCPC, false, MRS_LOWER,
 	    id_aa64isar1_lrcpc, id_aa64isar1_lrcpc_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, FCMA, false, MRS_LOWER,
 	    id_aa64isar1_fcma, id_aa64isar1_fcma_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, JSCVT, false, MRS_LOWER,
 	    id_aa64isar1_jscvt, id_aa64isar1_jscvt_caps),
-	MRS_FIELD(ID_AA64ISAR1, API, false, MRS_EXACT, id_aa64isar1_api),
-	MRS_FIELD(ID_AA64ISAR1, APA, false, MRS_EXACT, id_aa64isar1_apa),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, API, false, MRS_EXACT, id_aa64isar1_api,
+	    id_aa64isar1_api_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, APA, false, MRS_EXACT, id_aa64isar1_apa,
+	    id_aa64isar1_apa_caps),
 	MRS_FIELD_HWCAP(ID_AA64ISAR1, DPB, false, MRS_LOWER, id_aa64isar1_dpb,
 	    id_aa64isar1_dpb_caps),
 	MRS_FIELD_END,

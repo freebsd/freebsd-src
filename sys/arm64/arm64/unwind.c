@@ -47,7 +47,7 @@ unwind_frame(struct thread *td, struct unwind_state *frame)
 	/* FP to previous frame (X29) */
 	frame->fp = ((uintptr_t *)fp)[0];
 	/* LR (X30) */
-	frame->pc = ((uintptr_t *)fp)[1] - 4;
+	frame->pc = ADDR_MAKE_CANONICAL(((uintptr_t *)fp)[1] - 4);
 
 	return (true);
 }

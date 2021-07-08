@@ -162,6 +162,15 @@
 #define	ADDR_IS_CANONICAL(addr)	\
     (((addr) & 0xffff000000000000UL) == 0 || \
      ((addr) & 0xffff000000000000UL) == 0xffff000000000000UL)
+#define	ADDR_MAKE_CANONICAL(addr) ({			\
+	__typeof(addr) _tmp_addr = (addr);		\
+							\
+	_tmp_addr &= ~0xffff000000000000UL;		\
+	if (ADDR_IS_KERNEL(addr))			\
+		_tmp_addr |= 0xffff000000000000UL;	\
+							\
+	_tmp_addr;					\
+})
 
 /* 95 TiB maximum for the direct map region */
 #define	DMAP_MIN_ADDRESS	(0xffffa00000000000UL)

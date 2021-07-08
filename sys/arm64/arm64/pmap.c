@@ -6668,11 +6668,11 @@ pmap_activate(struct thread *td)
 }
 
 /*
- * To eliminate the unused parameter "old", we would have to add an instruction
- * to cpu_switch().
+ * Activate the thread we are switching to.
+ * To simplify the assembly in cpu_throw return the new threads pcb.
  */
 struct pcb *
-pmap_switch(struct thread *old __unused, struct thread *new)
+pmap_switch(struct thread *new)
 {
 	pcpu_bp_harden bp_harden;
 	struct pcb *pcb;
