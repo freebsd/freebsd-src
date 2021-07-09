@@ -59,7 +59,7 @@ static bool_t clnt_reconnect_control(CLIENT *, u_int, void *);
 static void clnt_reconnect_close(CLIENT *);
 static void clnt_reconnect_destroy(CLIENT *);
 
-static struct clnt_ops clnt_reconnect_ops = {
+static const struct clnt_ops clnt_reconnect_ops = {
 	.cl_call =	clnt_reconnect_call,
 	.cl_abort =	clnt_reconnect_abort,
 	.cl_geterr =	clnt_reconnect_geterr,

@@ -132,7 +132,7 @@ typedef struct __rpc_client {
 #ifdef _KERNEL
 	volatile u_int cl_refs;			/* reference count */
 	AUTH	*cl_auth;			/* authenticator */
-	struct clnt_ops {
+	const struct clnt_ops {
 		/* call remote procedure */
 		enum clnt_stat	(*cl_call)(struct __rpc_client *,
 		    struct rpc_callextra *, rpcproc_t,

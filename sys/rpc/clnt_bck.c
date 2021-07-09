@@ -101,7 +101,7 @@ static bool_t clnt_bck_control(CLIENT *, u_int, void *);
 static void clnt_bck_close(CLIENT *);
 static void clnt_bck_destroy(CLIENT *);
 
-static struct clnt_ops clnt_bck_ops = {
+static const struct clnt_ops clnt_bck_ops = {
 	.cl_abort =	clnt_bck_abort,
 	.cl_geterr =	clnt_bck_geterr,
 	.cl_freeres =	clnt_bck_freeres,
