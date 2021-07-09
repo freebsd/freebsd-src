@@ -386,7 +386,7 @@ procfile(const char *fn)
 		clearqueue();
 	grep_close(f);
 
-	if (cflag) {
+	if (cflag && !qflag) {
 		if (!hflag)
 			printf("%s:", pc.ln.file);
 		printf("%u\n", lines);
