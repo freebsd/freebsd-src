@@ -104,7 +104,7 @@ static bool_t time_not_ok(struct timeval *);
 static int clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
 static void clnt_vc_dotlsupcall(void *data);
 
-static struct clnt_ops clnt_vc_ops = {
+static const struct clnt_ops clnt_vc_ops = {
 	.cl_call =	clnt_vc_call,
 	.cl_abort =	clnt_vc_abort,
 	.cl_geterr =	clnt_vc_geterr,

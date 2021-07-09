@@ -105,7 +105,7 @@ static int svc_vc_accept(struct socket *head, struct socket **sop);
 static int svc_vc_soupcall(struct socket *so, void *arg, int waitflag);
 static int svc_vc_rendezvous_soupcall(struct socket *, void *, int);
 
-static struct xp_ops svc_vc_rendezvous_ops = {
+static const struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
 	.xp_stat =	svc_vc_rendezvous_stat,
 	.xp_reply =	(bool_t (*)(SVCXPRT *, struct rpc_msg *,
@@ -114,7 +114,7 @@ static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_control =	svc_vc_rendezvous_control
 };
 
-static struct xp_ops svc_vc_ops = {
+static const struct xp_ops svc_vc_ops = {
 	.xp_recv =	svc_vc_recv,
 	.xp_stat =	svc_vc_stat,
 	.xp_ack =	svc_vc_ack,
@@ -123,7 +123,7 @@ static struct xp_ops svc_vc_ops = {
 	.xp_control =	svc_vc_control
 };
 
-static struct xp_ops svc_vc_backchannel_ops = {
+static const struct xp_ops svc_vc_backchannel_ops = {
 	.xp_recv =	svc_vc_backchannel_recv,
 	.xp_stat =	svc_vc_backchannel_stat,
 	.xp_reply =	svc_vc_backchannel_reply,

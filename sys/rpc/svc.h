@@ -212,7 +212,7 @@ typedef struct __rpc_svcxprt {
  * Interface to server-side authentication flavors.
  */
 typedef struct __rpc_svcauth {
-	struct svc_auth_ops {
+	const struct svc_auth_ops {
 #ifdef _KERNEL
 		int   (*svc_ah_wrap)(struct __rpc_svcauth *,  struct mbuf **);
 		int   (*svc_ah_unwrap)(struct __rpc_svcauth *, struct mbuf **);
