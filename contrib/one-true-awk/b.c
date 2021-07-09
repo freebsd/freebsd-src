@@ -614,22 +614,7 @@ int pmatch(fa *f, const char *p0)	/* longest match, for sub */
 		}
 	nextin:
 		s = 2;
-#if 0 /* XXX */
-		if (f->reset) {
-			for (i = 2; i <= f->curstat; i++)
-n				xfree(f->posns[i]);
-			k = *f->posns[0];			
-			if ((f->posns[2] = (int *) calloc(k+1, sizeof(int))) == NULL)
-				overflo("out of space in pmatch");
-			for (i = 0; i <= k; i++)
-				(f->posns[2])[i] = (f->posns[0])[i];
-			f->initstat = f->curstat = 2;
-			f->out[2] = f->out[0];
-			for (i = 0; i < NCHARS; i++)
-				f->gototab[2][i] = 0;
-		}
-#endif
-	} while (*p++ != 0);
+	} while (*p++);
 	return (0);
 }
 
@@ -670,21 +655,6 @@ int nematch(fa *f, const char *p0)	/* non-empty match, for sub */
 		}
 	nnextin:
 		s = 2;
-#if 0 /* XXX */
-		if (f->reset) {
-			for (i = 2; i <= f->curstat; i++)
-				xfree(f->posns[i]);
-			k = *f->posns[0];			
-			if ((f->posns[2] = (int *) calloc(k+1, sizeof(int))) == NULL)
-				overflo("out of state space");
-			for (i = 0; i <= k; i++)
-				(f->posns[2])[i] = (f->posns[0])[i];
-			f->initstat = f->curstat = 2;
-			f->out[2] = f->out[0];
-			for (i = 0; i < NCHARS; i++)
-				f->gototab[2][i] = 0;
-		}
-#endif
 		p++;
 	}
 	return (0);
