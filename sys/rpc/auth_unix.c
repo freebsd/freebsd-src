@@ -76,7 +76,7 @@ static bool_t authunix_refresh (AUTH *, void *);
 static void authunix_destroy (AUTH *);
 static void marshal_new_auth (AUTH *);
 
-static struct auth_ops authunix_ops = {
+static const struct auth_ops authunix_ops = {
 	.ah_nextverf =		authunix_nextverf,
 	.ah_marshal =		authunix_marshal,
 	.ah_validate =		authunix_validate,

@@ -73,7 +73,7 @@ static void svc_dg_destroy(SVCXPRT *);
 static bool_t svc_dg_control(SVCXPRT *, const u_int, void *);
 static int svc_dg_soupcall(struct socket *so, void *arg, int waitflag);
 
-static struct xp_ops svc_dg_ops = {
+static const struct xp_ops svc_dg_ops = {
 	.xp_recv =	svc_dg_recv,
 	.xp_stat =	svc_dg_stat,
 	.xp_reply =	svc_dg_reply,

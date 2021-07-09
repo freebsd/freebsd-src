@@ -97,7 +97,7 @@ static bool_t	rpc_gss_validate(AUTH *, uint32_t, struct opaque_auth *,
 static void	rpc_gss_destroy(AUTH *);
 static void	rpc_gss_destroy_context(AUTH *, bool_t);
 
-static struct auth_ops rpc_gss_ops = {
+static const struct auth_ops rpc_gss_ops = {
 	.ah_nextverf =	rpc_gss_nextverf,
 	.ah_marshal =	rpc_gss_marshal,
 	.ah_validate =	rpc_gss_validate,

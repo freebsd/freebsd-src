@@ -189,7 +189,7 @@ typedef struct __auth {
 	struct	opaque_auth	ah_cred;
 	struct	opaque_auth	ah_verf;
 	union	des_block	ah_key;
-	struct auth_ops {
+	const struct auth_ops {
 		void	(*ah_nextverf) (struct __auth *);
 		/* nextverf & serialize */
 		int	(*ah_marshal) (struct __auth *, uint32_t, XDR *,

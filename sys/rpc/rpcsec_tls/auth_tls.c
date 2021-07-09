@@ -70,7 +70,7 @@ static bool_t authtls_validate (AUTH *, uint32_t, struct opaque_auth *,
 static bool_t authtls_refresh (AUTH *, void *);
 static void authtls_destroy (AUTH *);
 
-static struct auth_ops authtls_ops = {
+static const struct auth_ops authtls_ops = {
 	.ah_nextverf =		authtls_verf,
 	.ah_marshal =		authtls_marshal,
 	.ah_validate =		authtls_validate,
