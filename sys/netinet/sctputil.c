@@ -3163,6 +3163,8 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	uint16_t abort_len;
 	unsigned int i;
 
+	KASSERT((abort == NULL) || (from_peer != 0),
+	    ("sctp_notify_assoc_change: ABORT chunk provided for local termination"));
 	if (stcb == NULL) {
 		return;
 	}
@@ -3202,9 +3204,13 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		sac->sac_length = sizeof(struct sctp_assoc_change);
 		sac->sac_state = state;
 		sac->sac_error = error;
-		/* XXX verify these stream counts */
-		sac->sac_outbound_streams = stcb->asoc.streamoutcnt;
-		sac->sac_inbound_streams = stcb->asoc.streamincnt;
+		if (state == SCTP_CANT_STR_ASSOC) {
+			sac->sac_outbound_streams = 0;
+			sac->sac_inbound_streams = 0;
+		} else {
+			sac->sac_outbound_streams = stcb->asoc.streamoutcnt;
+			sac->sac_inbound_streams = stcb->asoc.streamincnt;
+		}
 		sac->sac_assoc_id = sctp_get_associd(stcb);
 		if (notif_len > sizeof(struct sctp_assoc_change)) {
 			if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
