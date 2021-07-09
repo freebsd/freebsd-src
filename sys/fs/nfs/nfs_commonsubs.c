@@ -3624,7 +3624,8 @@ nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
  	}
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	if (error == 0)
-		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0, false);
+		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0, false,
+		    &rp->nr_client);
 	if (error == 0) {
 		NFSLOCKNAMEID();
 		nfsrv_nfsuserd = RUNNING;
@@ -3658,7 +3659,7 @@ nfsrv_nfsuserddelport(void)
 		msleep(&nfsrv_userdupcalls, NFSNAMEIDMUTEXPTR, PVFS,
 		    "nfsupcalls", 0);
 	NFSUNLOCKNAMEID();
-	newnfs_disconnect(&nfsrv_nfsuserdsock);
+	newnfs_disconnect(NULL, &nfsrv_nfsuserdsock);
 	free(nfsrv_nfsuserdsock.nr_nam, M_SONAME);
 	NFSLOCKNAMEID();
 	nfsrv_nfsuserd = NOTRUNNING;

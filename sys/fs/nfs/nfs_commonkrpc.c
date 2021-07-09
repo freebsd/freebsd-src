@@ -167,7 +167,8 @@ static int nfsv2_procid[NFS_V3NPROCS] = {
  */
 int
 newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
-    struct ucred *cred, NFSPROC_T *p, int callback_retry_mult, bool dotls)
+    struct ucred *cred, NFSPROC_T *p, int callback_retry_mult, bool dotls,
+    struct __rpc_client **clipp)
 {
 	int rcvreserve, sndreserve;
 	int pktscale, pktscalesav;
@@ -420,15 +421,22 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, &timo);
 	}
 
+	/*
+	 * *clipp is &nrp->nr_client or &nm_aconn[nmp->nm_nextaconn].
+	 * The latter case is for additional connections specified by the
+	 * "nconnect" mount option.  nr_mtx etc is used for these additional
+	 * connections, as well as nr_client in the nfssockreq
+	 * structure for the mount.
+	 */
 	mtx_lock(&nrp->nr_mtx);
-	if (nrp->nr_client != NULL) {
+	if (*clipp != NULL) {
 		mtx_unlock(&nrp->nr_mtx);
 		/*
 		 * Someone else already connected.
 		 */
 		CLNT_RELEASE(client);
 	} else {
-		nrp->nr_client = client;
+		*clipp = client;
 		/*
 		 * Protocols that do not require connections may be optionally
 		 * left unconnected for servers that reply from a port other
@@ -453,18 +461,34 @@ out:
  * NFS disconnect. Clean up and unlink.
  */
 void
-newnfs_disconnect(struct nfssockreq *nrp)
+newnfs_disconnect(struct nfsmount *nmp, struct nfssockreq *nrp)
 {
-	CLIENT *client;
+	CLIENT *client, *aconn[NFS_MAXNCONN - 1];
+	int i;
 
 	mtx_lock(&nrp->nr_mtx);
 	if (nrp->nr_client != NULL) {
 		client = nrp->nr_client;
 		nrp->nr_client = NULL;
+		if (nmp != NULL && nmp->nm_aconnect > 0) {
+			for (i = 0; i < nmp->nm_aconnect; i++) {
+				aconn[i] = nmp->nm_aconn[i];
+				nmp->nm_aconn[i] = NULL;
+			}
+		}
 		mtx_unlock(&nrp->nr_mtx);
 		rpc_gss_secpurge_call(client);
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
+		if (nmp != NULL && nmp->nm_aconnect > 0) {
+			for (i = 0; i < nmp->nm_aconnect; i++) {
+				if (aconn[i] != NULL) {
+					rpc_gss_secpurge_call(aconn[i]);
+					CLNT_CLOSE(aconn[i]);
+					CLNT_RELEASE(aconn[i]);
+				}
+			}
+		}
 	} else {
 		mtx_unlock(&nrp->nr_mtx);
 	}
@@ -565,7 +589,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	int error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	int freeslot, maxslot, reterr, slotpos, timeo;
 	u_int16_t procnum;
-	u_int trylater_delay = 1;
+	u_int nextconn, trylater_delay = 1;
 	struct nfs_feedback_arg nf;
 	struct timeval timo;
 	AUTH *auth;
@@ -577,6 +601,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct ucred *authcred;
 	struct nfsclsession *sep;
 	uint8_t sessionid[NFSX_V4SESSIONID];
+	bool nextconn_set;
 
 	sep = dssep;
 	if (xidp != NULL)
@@ -602,12 +627,24 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	}
 
 	/*
-	 * XXX if not already connected call nfs_connect now. Longer
-	 * term, change nfs_mount to call nfs_connect unconditionally
-	 * and let clnt_reconnect_create handle reconnects.
+	 * If not already connected call newnfs_connect now.
 	 */
 	if (nrp->nr_client == NULL)
-		newnfs_connect(nmp, nrp, cred, td, 0, false);
+		newnfs_connect(nmp, nrp, cred, td, 0, false, &nrp->nr_client);
+
+	nextconn_set = false;
+	if (nmp != NULL && nmp->nm_aconnect > 0 &&
+	    (nd->nd_procnum == NFSPROC_READ ||
+	     nd->nd_procnum == NFSPROC_READDIR ||
+	     nd->nd_procnum == NFSPROC_READDIRPLUS ||
+	     nd->nd_procnum == NFSPROC_WRITE)) {
+		nextconn = atomic_fetchadd_int(&nmp->nm_nextaconn, 1);
+		nextconn %= nmp->nm_aconnect;
+		nextconn_set = true;
+		if (nmp->nm_aconn[nextconn] == NULL)
+			newnfs_connect(nmp, nrp, cred, td, 0, false,
+			    &nmp->nm_aconn[nextconn]);
+	}
 
 	/*
 	 * For a client side mount, nmp is != NULL and clp == NULL. For
@@ -830,6 +867,19 @@ tryagain:
 	if (clp != NULL && sep != NULL)
 		stat = clnt_bck_call(nrp->nr_client, &ext, procnum,
 		    nd->nd_mreq, &nd->nd_mrep, timo, sep->nfsess_xprt);
+	else if (nextconn_set)
+		/*
+		 * When there are multiple TCP connections, send the
+		 * RPCs with large messages on the alternate TCP
+		 * connection(s) in a round robin fashion.
+		 * The small RPC messages are sent on the default
+		 * TCP connection because they do not require much
+		 * network bandwidth and separating them from the
+		 * large RPC messages avoids them getting "log jammed"
+		 * behind several large RPC messages.
+		 */
+		stat = CLNT_CALL_MBUF(nmp->nm_aconn[nextconn],
+		    &ext, procnum, nd->nd_mreq, &nd->nd_mrep, timo);
 	else
 		stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum,
 		    nd->nd_mreq, &nd->nd_mrep, timo);
