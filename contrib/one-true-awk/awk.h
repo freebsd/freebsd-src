@@ -237,8 +237,6 @@ extern	int	pairstack[], paircnt;
 				/* watch out in match(), etc. */
 #define	HAT	(NCHARS+2)	/* matches ^ in regular expr */
 #define NSTATES	32
-#define	HAT	(NCHARS+2)	/* matches ^ in regular expr */
-				/* NCHARS is 2**n */
 
 typedef struct rrow {
 	long	ltype;	/* long avoids pointer warnings on 64-bit */
