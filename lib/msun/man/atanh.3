@@ -55,18 +55,18 @@ and
 functions compute the inverse hyperbolic tangent
 of the real
 argument
-.Ar x .
+.Fa x .
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
 These functions
 return the inverse hyperbolic tangent of
-.Ar x
+.Fa x
 if successful.
 If the argument has absolute value 1, a divide-by-zero exception
 is raised and an infinity is returned.
 If
-.Ar |x|
+.Fa |x|
 > 1, an invalid exception is raised and an \*(Na is returned.
 .Sh SEE ALSO
 .Xr acosh 3 ,
