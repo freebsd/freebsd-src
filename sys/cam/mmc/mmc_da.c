@@ -1935,7 +1935,7 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 			    /*reduction*/0,
 			    /*timeout*/0,
 			    /*getcount_only*/0);
-		error = 5; /* EIO */
+		error = EIO;
 	} else {
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 			panic("REQ_CMP with QFRZN");
@@ -1956,7 +1956,7 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		/* Complete partition switch */
 		softc->state = SDDA_STATE_NORMAL;
-		if (error != MMC_ERR_NONE) {
+		if (error != 0) {
 			/* TODO: Unpause retune if accessing RPMB */
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
