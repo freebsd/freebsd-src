@@ -6198,7 +6198,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
-							    stcb_tmp, op_err,
+							    stcb_tmp, op_err, false,
 							    SCTP_SO_NOT_LOCKED);
 							goto add_it_now;
 						}
@@ -6298,7 +6298,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
-							    stcb_tmp, op_err,
+							    stcb_tmp, op_err, false,
 							    SCTP_SO_NOT_LOCKED);
 							goto add_it_now6;
 						}
