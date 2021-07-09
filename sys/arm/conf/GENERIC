@@ -258,7 +258,6 @@ device		ti_pruss
 device		ti_mbox
 
 # DMA controller
-device		fslsdma
 device		ti_sdma
 device		a10_dmac
 device		a31_dmac
