@@ -177,6 +177,7 @@ struct iichid_softc {
 	struct task		event_task;
 #endif
 
+	struct task		suspend_task;
 	bool			open;			/* iicbus lock */
 	bool			suspend;		/* iicbus lock */
 	bool			power_on;		/* iicbus lock */
@@ -187,6 +188,8 @@ static device_attach_t	iichid_attach;
 static device_detach_t	iichid_detach;
 static device_resume_t	iichid_resume;
 static device_suspend_t	iichid_suspend;
+
+static void	iichid_suspend_task(void *, int);
 
 #ifdef IICHID_SAMPLING
 static int	iichid_setup_callout(struct iichid_softc *);
@@ -1075,6 +1078,7 @@ iichid_attach(device_t dev)
 
 	sc->power_on = true;
 
+	TASK_INIT(&sc->suspend_task, 0, iichid_suspend_task, sc);
 #ifdef IICHID_SAMPLING
 	TASK_INIT(&sc->event_task, 0, iichid_event_task, sc);
 	/* taskqueue_create can't fail with M_WAITOK mflag passed. */
@@ -1146,7 +1150,6 @@ iichid_attach(device_t dev)
 		device_printf(dev, "failed to attach child: error %d\n", error);
 		iichid_detach(dev);
 	}
-
 done:
 	(void)iichid_set_power(sc, I2C_HID_POWER_OFF);
 	sc->power_on = false;
@@ -1175,6 +1178,14 @@ iichid_detach(device_t dev)
 	return (0);
 }
 
+static void
+iichid_suspend_task(void *context, int pending)
+{
+	struct iichid_softc *sc = context;
+
+	iichid_teardown_interrupt(sc);
+}
+
 static int
 iichid_suspend(device_t dev)
 {
@@ -1183,12 +1194,6 @@ iichid_suspend(device_t dev)
 
 	sc = device_get_softc(dev);
 	(void)bus_generic_suspend(dev);
-#ifdef IICHID_SAMPLING
-	if (sc->sampling_rate_slow < 0)
-#endif
-		(void)bus_generic_suspend_intr(device_get_parent(dev), dev,
-		    sc->irq_res);
-
 	/*
 	 * 8.2 - The HOST is going into a deep power optimized state and wishes
 	 * to put all the devices into a low power state also.  The HOST
@@ -1202,6 +1207,24 @@ iichid_suspend(device_t dev)
 	else
 		DPRINTF(sc, "Successfully set power_state\n");
 
+#ifdef IICHID_SAMPLING
+	if (sc->sampling_rate_slow < 0)
+#endif
+	{
+		/*
+		 * bus_teardown_intr can not be executed right here as it wants
+		 * to run on certain CPU to interacts with LAPIC while suspend
+		 * thread is bound to CPU0. So run it from taskqueue context.
+		 */
+#ifdef IICHID_SAMPLING
+#define	suspend_thread	sc->taskqueue
+#else
+#define	suspend_thread	taskqueue_thread
+#endif
+		taskqueue_enqueue(suspend_thread, &sc->suspend_task);
+		taskqueue_drain(suspend_thread, &sc->suspend_task);
+	}
+
 	return (0);
 }
 
@@ -1212,6 +1235,11 @@ iichid_resume(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
+#ifdef IICHID_SAMPLING
+	if (sc->sampling_rate_slow < 0)
+#endif
+		iichid_setup_interrupt(sc);
+
 	DPRINTF(sc, "Resume called, setting device to power_state 0\n");
 	error = iichid_set_power_state(sc, IICHID_PS_NULL, IICHID_PS_ON);
 	if (error != 0)
@@ -1219,11 +1247,6 @@ iichid_resume(device_t dev)
 	else
 		DPRINTF(sc, "Successfully set power_state\n");
 	(void)bus_generic_resume(dev);
-#ifdef IICHID_SAMPLING
-	if (sc->sampling_rate_slow < 0)
-#endif
-		(void)bus_generic_resume_intr(device_get_parent(dev), dev,
-		    sc->irq_res);
 
 	return (0);
 }
