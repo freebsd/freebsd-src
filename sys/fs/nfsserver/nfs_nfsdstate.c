@@ -1368,7 +1368,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 			NULL, 0, NULL, NULL, NULL, 0, p);
 	}
 #endif
-	newnfs_disconnect(&clp->lc_req);
+	newnfs_disconnect(NULL, &clp->lc_req);
 	free(clp->lc_req.nr_nam, M_SONAME);
 	NFSFREEMUTEX(&clp->lc_req.nr_mtx);
 	free(clp->lc_stateid, M_NFSDCLIENT);
@@ -4577,10 +4577,10 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			nfsrv_freesession(sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
-			    NULL, 1, dotls);
+			    NULL, 1, dotls, &clp->lc_req.nr_client);
 		else
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
-			    NULL, 3, dotls);
+			    NULL, 3, dotls, &clp->lc_req.nr_client);
 	}
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
 	NFSD_DEBUG(4, "aft sndunlock=%d\n", error);

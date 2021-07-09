@@ -5610,7 +5610,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 	 * unmount, but I did it anyhow.
 	 */
 	nrp->nr_cred = crhold(nmp->nm_sockreq.nr_cred);
-	error = newnfs_connect(nmp, nrp, NULL, p, 0, false);
+	error = newnfs_connect(nmp, nrp, NULL, p, 0, false, &nrp->nr_client);
 	NFSCL_DEBUG(3, "DS connect=%d\n", error);
 
 	dsp = NULL;
@@ -5628,7 +5628,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 			} while (error == NFSERR_MINORVERMISMATCH &&
 			    firsttry++ == 0);
 			if (error != 0)
-				newnfs_disconnect(nrp);
+				newnfs_disconnect(NULL, nrp);
 		} else {
 			dsp = malloc(sizeof(struct nfsclds), M_NFSCLDS,
 			    M_WAITOK | M_ZERO);
@@ -5656,7 +5656,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 				 * If there is already a session for this
 				 * server, use it.
 				 */
-				(void)newnfs_disconnect(nrp);
+				newnfs_disconnect(NULL, nrp);
 				nfscl_freenfsclds(dsp);
 				*dspp = tdsp;
 				return (0);
@@ -5688,7 +5688,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_in *sin,
 		NFSUNLOCKMNT(nmp);
 		*dspp = dsp;
 	} else if (dsp != NULL) {
-		newnfs_disconnect(nrp);
+		newnfs_disconnect(NULL, nrp);
 		nfscl_freenfsclds(dsp);
 	}
 	return (error);
