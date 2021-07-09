@@ -33,7 +33,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	bump __FreeBSD_version, since it was bumped recently.
 
 20210707:
-	awk has been updated to the latest one-true-awk version 20120215.
+	awk has been updated to the latest one-true-awk version 20210215.
 	This contains a number of minor bug fixes.
 
 20210624:
