@@ -172,11 +172,10 @@ mmc_cam_sim_default_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_MMC_IO:
 	{
+		ccb->ccb_h.status = CAM_REQ_INVALID;
 		rv = MMC_SIM_CAM_REQUEST(mmc_sim->dev, ccb);
 		if (rv != 0)
 			ccb->ccb_h.status = CAM_SIM_QUEUED;
-		else
-			ccb->ccb_h.status = CAM_REQ_INVALID;
 		return;
 		/* NOTREACHED */
 		break;
