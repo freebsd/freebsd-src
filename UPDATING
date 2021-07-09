@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210708:
+	Commit 1e0a518d6548 changed the internal KAPI between the NFS
+	modules. They all need to be rebuilt from sources.  I did not
+	bump __FreeBSD_version, since it was bumped recently.
+
 20210624:
 	The NFSv4 client now uses the highest minor version of NFSv4
 	supported by the NFSv4 server by default instead of minor version 0,
