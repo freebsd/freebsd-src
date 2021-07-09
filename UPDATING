@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	modules. They all need to be rebuilt from sources.  I did not
 	bump __FreeBSD_version, since it was bumped recently.
 
+20210707:
+	awk has been updated to the latest one-true-awk version 20120215.
+	This contains a number of minor bug fixes.
+
 20210624:
 	The NFSv4 client now uses the highest minor version of NFSv4
 	supported by the NFSv4 server by default instead of minor version 0,
