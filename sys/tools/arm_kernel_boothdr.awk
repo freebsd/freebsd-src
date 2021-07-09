@@ -134,7 +134,7 @@ function write_v8booti() {
 	write_le32(0)                         # code1
 	write_le64(0)                         # text_offset
 	write_le64(gEndOff)                   # image_size
-	write_le64(0)                         # flags
+	write_le64(hexstr_to_num("8"))        # flags
 	write_le64(0)                         # res1[0]
 	write_le64(0)                         # res1[1]
 	write_le64(0)                         # res1[2]
