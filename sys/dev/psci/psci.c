@@ -124,7 +124,6 @@ static struct ofw_compat_data compat_data[] = {
 #endif
 
 static int psci_attach(device_t, psci_initfn_t, int);
-static void psci_shutdown(void *, int);
 
 static int psci_find_callfn(psci_callfn_t *);
 static int psci_def_callfn(register_t, register_t, register_t, register_t,
@@ -471,12 +470,24 @@ psci_shutdown(void *xsc, int howto)
 	if (psci_softc == NULL)
 		return;
 
-	/* PSCI system_off and system_reset werent't supported in v0.1. */
 	if ((howto & RB_POWEROFF) != 0)
 		fn = psci_softc->psci_fnids[PSCI_FN_SYSTEM_OFF];
-	else if ((howto & RB_HALT) == 0)
-		fn = psci_softc->psci_fnids[PSCI_FN_SYSTEM_RESET];
+	if (fn)
+		psci_call(fn, 0, 0, 0);
 
+	/* System reset and off do not return. */
+}
+
+static void
+psci_reboot(void *xsc, int howto)
+{
+	uint32_t fn = 0;
+
+	if (psci_softc == NULL)
+		return;
+
+	if ((howto & RB_HALT) == 0)
+		fn = psci_softc->psci_fnids[PSCI_FN_SYSTEM_RESET];
 	if (fn)
 		psci_call(fn, 0, 0, 0);
 
@@ -487,7 +498,7 @@ void
 psci_reset(void)
 {
 
-	psci_shutdown(NULL, 0);
+	psci_reboot(NULL, 0);
 }
 
 #ifdef FDT
@@ -584,6 +595,10 @@ psci_v0_2_init(device_t dev, int default_version)
 		 */
 		EVENTHANDLER_REGISTER(shutdown_final, psci_shutdown, sc,
 		    SHUTDOWN_PRI_LAST);
+
+		/* Handle reboot after shutdown_panic. */
+		EVENTHANDLER_REGISTER(shutdown_final, psci_reboot, sc,
+		    SHUTDOWN_PRI_LAST + 150);
 
 		return (0);
 	}
