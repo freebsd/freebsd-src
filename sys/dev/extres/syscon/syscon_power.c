@@ -162,9 +162,11 @@ syscon_power_attach(device_t dev)
 		OF_getencprop(node, "value", &sc->value, sizeof(sc->value));
 	}
 
+	/* Handle reboot after shutdown_panic. */
 	sc->reboot = ofw_bus_is_compatible(dev, "syscon-reboot");
 	sc->shutdown_tag = EVENTHANDLER_REGISTER(shutdown_final,
-	    syscon_power_shutdown_final, dev, SHUTDOWN_PRI_LAST);
+	    syscon_power_shutdown_final, dev,
+	    sc->reboot ? SHUTDOWN_PRI_LAST + 150 : SHUTDOWN_PRI_LAST);
 
 	return (0);
 }
