@@ -207,6 +207,18 @@ static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
 #undef CONVERT_SWITCH
 #undef CONVERT_FIELD
 
+
+#ifdef __amd64__
+static bool
+is_kernphys_relocatable(elf_file_t ef)
+{
+	Elf_Sym sym;
+
+	return (__elfN(lookup_symbol)(ef, "kernphys", &sym, STT_OBJECT) == 0 &&
+	    sym.st_size == 8);
+}
+#endif
+
 static int
 __elfN(load_elf_header)(char *filename, elf_file_t ef)
 {
@@ -434,6 +446,9 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/* Load OK, return module pointer */
 	*result = (struct preloaded_file *)fp;
 	err = 0;
+#ifdef __amd64__
+	fp->f_kernphys_relocatable = is_kernphys_relocatable(&ef);
+#endif
 	goto out;
 
 ioerr:

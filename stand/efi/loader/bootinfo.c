@@ -64,6 +64,8 @@ int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
 
 extern EFI_SYSTEM_TABLE	*ST;
 
+int boot_services_gone;
+
 static int
 bi_getboothowto(char *kargs)
 {
@@ -393,8 +395,10 @@ bi_load_efi_data(struct preloaded_file *kfp)
 		}
 
 		status = BS->ExitBootServices(IH, efi_mapkey);
-		if (!EFI_ERROR(status))
+		if (!EFI_ERROR(status)) {
+			boot_services_gone = 1;
 			break;
+		}
 	}
 
 	if (retry == 0) {
