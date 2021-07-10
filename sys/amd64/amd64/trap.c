@@ -1059,6 +1059,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	sa = &td->td_sa;
 
 	sa->code = frame->tf_rax;
+	sa->original_code = sa->code;
 
 	if (__predict_false(sa->code == SYS_syscall ||
 	    sa->code == SYS___syscall ||

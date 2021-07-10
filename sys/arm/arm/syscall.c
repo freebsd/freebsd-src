@@ -108,6 +108,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	nap = 4;
 	sa = &td->td_sa;
 	sa->code = td->td_frame->tf_r7;
+	sa->original_code = sa->code;
 	ap = &td->td_frame->tf_r0;
 	if (sa->code == SYS_syscall) {
 		sa->code = *ap++;

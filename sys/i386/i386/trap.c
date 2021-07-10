@@ -1052,6 +1052,7 @@ cpu_fetch_syscall_args(struct thread *td)
 #endif
 
 	sa->code = frame->tf_eax;
+	sa->original_code = sa->code;
 	params = (caddr_t)frame->tf_esp + sizeof(uint32_t);
 
 	/*

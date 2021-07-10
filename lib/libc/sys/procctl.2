@@ -454,6 +454,16 @@ and the
 .Va si_code
 member is set to
 .Dv TRAP_CAP .
+The system call number is stored in the
+.Va si_syscall
+field of the
+.Fa siginfo
+signal handler parameter.
+The other system call parameters can be read from the
+.Fa ucontext_t
+but the system call number is typically stored in the register
+that also contains the return value and so is unavailable in the
+signal handler.
 .Pp
 See
 .Xr capsicum 4

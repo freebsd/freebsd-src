@@ -62,6 +62,7 @@ struct mdproc {
 #define	MAXARGS		8
 struct syscall_args {
 	u_int code;
+	u_int original_code;
 	struct sysent *callp;
 	register_t args[MAXARGS];
 };
