@@ -756,7 +756,6 @@ linux_fetch_syscall_args(struct thread *td)
 	sa = &td->td_sa;
 
 	sa->code = frame->tf_eax;
-	sa->original_code = sa->code;
 	sa->args[0] = frame->tf_ebx;
 	sa->args[1] = frame->tf_ecx;
 	sa->args[2] = frame->tf_edx;
