@@ -529,6 +529,9 @@ struct xhci_softc {
 	/* size of context */
 	uint8_t			sc_ctx_is_64_byte;
 
+	/* Isochronous Scheduling Threshold */
+	uint8_t			sc_ist;
+
 	/* vendor string for root HUB */
 	char			sc_vendor[16];
 };
