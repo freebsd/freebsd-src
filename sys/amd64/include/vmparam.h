@@ -149,8 +149,10 @@
 #endif
 
 /*
- * Kernel physical load address. Needs to be aligned at 2MB superpage
- * boundary.
+ * Kernel physical load address for non-UEFI boot and for legacy UEFI loader.
+ * Newer UEFI loader loads kernel anywhere below 4G, with memory allocated
+ * by boot services.
+ * Needs to be aligned at 2MB superpage boundary.
  */
 #ifndef KERNLOAD
 #define	KERNLOAD	0x200000
@@ -186,7 +188,17 @@
 #define	LARGEMAP_MIN_ADDRESS	KV4ADDR(LMSPML4I, 0, 0, 0)
 #define	LARGEMAP_MAX_ADDRESS	KV4ADDR(LMEPML4I + 1, 0, 0, 0)
 
+/*
+ * Formally kernel mapping starts at KERNBASE, but kernel linker
+ * script leaves first PDE reserved.  For legacy BIOS boot, kernel is
+ * loaded at KERNLOAD = 2M, and initial kernel page table maps
+ * physical memory from zero to KERNend starting at KERNBASE.
+ *
+ * KERNSTART is where the first actual kernel page is mapped, after
+ * the compatibility mapping.
+ */
 #define	KERNBASE		KV4ADDR(KPML4I, KPDPI, 0, 0)
+#define	KERNSTART		(KERNBASE + NBPDR)
 
 #define	UPT_MAX_ADDRESS		KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
 #define	UPT_MIN_ADDRESS		KV4ADDR(PML4PML4I, 0, 0, 0)

@@ -429,7 +429,8 @@ static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 static int		ndmpdpphys;	/* number of DMPDPphys pages */
 
-static vm_paddr_t	KERNend;	/* phys addr of end of bootstrap data */
+vm_paddr_t		kernphys;	/* phys addr of start of bootstrap data */
+vm_paddr_t		KERNend;	/* and the end */
 
 /*
  * pmap_mapdev support pre initialization (i.e. console)
@@ -1532,7 +1533,7 @@ nkpt_init(vm_paddr_t addr)
 #ifdef NKPT
 	pt_pages = NKPT;
 #else
-	pt_pages = howmany(addr, NBPDR);
+	pt_pages = howmany(addr - kernphys, NBPDR) + 1; /* +1 for 2M hole @0 */
 	pt_pages += NKPDPE(pt_pages);
 
 	/*
@@ -1572,7 +1573,6 @@ nkpt_init(vm_paddr_t addr)
 static inline pt_entry_t
 bootaddr_rwx(vm_paddr_t pa)
 {
-
 	/*
 	 * The kernel is loaded at a 2MB-aligned address, and memory below that
 	 * need not be executable.  The .bss section is padded to a 2MB
@@ -1580,8 +1580,8 @@ bootaddr_rwx(vm_paddr_t pa)
 	 * either.  Preloaded kernel modules have their mapping permissions
 	 * fixed up by the linker.
 	 */
-	if (pa < trunc_2mpage(btext - KERNBASE) ||
-	    pa >= trunc_2mpage(_end - KERNBASE))
+	if (pa < trunc_2mpage(kernphys + btext - KERNSTART) ||
+	    pa >= trunc_2mpage(kernphys + _end - KERNSTART))
 		return (X86_PG_RW | pg_nx);
 
 	/*
@@ -1590,7 +1590,7 @@ bootaddr_rwx(vm_paddr_t pa)
 	 * impact read-only data. However, in any case, any page with
 	 * read-write data needs to be read-write.
 	 */
-	if (pa >= trunc_2mpage(brwsection - KERNBASE))
+	if (pa >= trunc_2mpage(kernphys + brwsection - KERNSTART))
 		return (X86_PG_RW | pg_nx);
 
 	/*
@@ -1602,7 +1602,7 @@ bootaddr_rwx(vm_paddr_t pa)
 	 * Note that fixups to the .text section will still work until we
 	 * set CR0.WP.
 	 */
-	if (pa < round_2mpage(etext - KERNBASE))
+	if (pa < round_2mpage(kernphys + etext - KERNSTART))
 		return (0);
 	return (pg_nx);
 }
@@ -1610,11 +1610,12 @@ bootaddr_rwx(vm_paddr_t pa)
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
-	int i, j, ndm1g, nkpdpe, nkdmpde;
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
 	uint64_t DMPDkernphys;
+	vm_paddr_t pax;
+	int i, j, ndm1g, nkpdpe, nkdmpde;
 
 	/* Allocate page table pages for the direct map */
 	ndmpdp = howmany(ptoa(Maxmem), NBPDP);
@@ -1642,9 +1643,11 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 		/*
 		 * Allocate 2M pages for the kernel. These will be used in
-		 * place of the first one or more 1G pages from ndm1g.
+		 * place of the one or more 1G pages from ndm1g that maps
+		 * kernel memory into DMAP.
 		 */
-		nkdmpde = howmany((vm_offset_t)(brwsection - KERNBASE), NBPDP);
+		nkdmpde = howmany((vm_offset_t)brwsection - KERNSTART +
+		    kernphys - rounddown2(kernphys, NBPDP), NBPDP);
 		DMPDkernphys = allocpages(firstaddr, nkdmpde);
 	}
 	if (ndm1g < ndmpdp)
@@ -1681,14 +1684,18 @@ create_pagetables(vm_paddr_t *firstaddr)
 		pd_p[i] = (KPTphys + ptoa(i)) | X86_PG_RW | X86_PG_V;
 
 	/*
-	 * Map from physical address zero to the end of loader preallocated
-	 * memory using 2MB pages.  This replaces some of the PD entries
-	 * created above.
+	 * Map from start of the kernel in physical memory (staging
+	 * area) to the end of loader preallocated memory using 2MB
+	 * pages.  This replaces some of the PD entries created above.
+	 * For compatibility, identity map 2M at the start.
 	 */
-	for (i = 0; (i << PDRSHIFT) < KERNend; i++)
+	pd_p[0] = X86_PG_V | PG_PS | pg_g | X86_PG_M | X86_PG_A |
+	    X86_PG_RW | pg_nx;
+	for (i = 1, pax = kernphys; pax < KERNend; i++, pax += NBPDR) {
 		/* Preset PG_M and PG_A because demotion expects it. */
-		pd_p[i] = (i << PDRSHIFT) | X86_PG_V | PG_PS | pg_g |
-		    X86_PG_M | X86_PG_A | bootaddr_rwx(i << PDRSHIFT);
+		pd_p[i] = pax | X86_PG_V | PG_PS | pg_g | X86_PG_M |
+		    X86_PG_A | bootaddr_rwx(pax);
+	}
 
 	/*
 	 * Because we map the physical blocks in 2M pages, adjust firstaddr
@@ -1735,15 +1742,18 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * use 2M pages with read-only and no-execute permissions.  (If using 1G
 	 * pages, this will partially overwrite the PDPEs above.)
 	 */
-	if (ndm1g) {
+	if (ndm1g > 0) {
 		pd_p = (pd_entry_t *)DMPDkernphys;
-		for (i = 0; i < (NPDEPG * nkdmpde); i++)
-			pd_p[i] = (i << PDRSHIFT) | X86_PG_V | PG_PS | pg_g |
-			    X86_PG_M | X86_PG_A | pg_nx |
-			    bootaddr_rwx(i << PDRSHIFT);
-		for (i = 0; i < nkdmpde; i++)
-			pdp_p[i] = (DMPDkernphys + ptoa(i)) | X86_PG_RW |
-			    X86_PG_V | pg_nx;
+		for (i = 0, pax = rounddown2(kernphys, NBPDP);
+		    i < NPDEPG * nkdmpde; i++, pax += NBPDR) {
+			pd_p[i] = pax | X86_PG_V | PG_PS | pg_g | X86_PG_M |
+			    X86_PG_A | pg_nx | bootaddr_rwx(pax);
+		}
+		j = rounddown2(kernphys, NBPDP) >> PDPSHIFT;
+		for (i = 0; i < nkdmpde; i++) {
+			pdp_p[i + j] = (DMPDkernphys + ptoa(i)) |
+			    X86_PG_RW | X86_PG_V | pg_nx;
+		}
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */
@@ -1811,7 +1821,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/*
 	 * Account for the virtual addresses mapped by create_pagetables().
 	 */
-	virtual_avail = (vm_offset_t)KERNBASE + round_2mpage(KERNend);
+	virtual_avail = (vm_offset_t)KERNSTART + round_2mpage(KERNend -
+	    (vm_paddr_t)kernphys);
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
@@ -2348,7 +2359,8 @@ pmap_init(void)
 		 * Collect the page table pages that were replaced by a 2MB
 		 * page in create_pagetables().  They are zero filled.
 		 */
-		if ((vm_paddr_t)i << PDRSHIFT < KERNend &&
+		if ((i == 0 ||
+		    kernphys + ((vm_paddr_t)(i - 1) << PDRSHIFT) < KERNend) &&
 		    pmap_insert_pt_page(kernel_pmap, mpte, false))
 			panic("pmap_init: pmap_insert_pt_page failed");
 	}
@@ -6567,7 +6579,9 @@ setpte:
 	    mpte < &vm_page_array[vm_page_array_size],
 	    ("pmap_promote_pde: page table page is out of range"));
 	KASSERT(mpte->pindex == pmap_pde_pindex(va),
-	    ("pmap_promote_pde: page table page's pindex is wrong"));
+	    ("pmap_promote_pde: page table page's pindex is wrong "
+	    "mpte %p pidx %#lx va %#lx va pde pidx %#lx",
+	    mpte, mpte->pindex, va, pmap_pde_pindex(va)));
 	if (pmap_insert_pt_page(pmap, mpte, true)) {
 		atomic_add_long(&pmap_pde_p_failures, 1);
 		CTR2(KTR_PMAP,
@@ -10625,8 +10639,8 @@ pmap_pti_init(void)
 		va = __pcpu[i].pc_common_tss.tss_ist4 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - DBG_STACK_SIZE, va, false);
 	}
-	pmap_pti_add_kva_locked((vm_offset_t)KERNBASE + NBPDR,
-	    (vm_offset_t)etext, true);
+	pmap_pti_add_kva_locked((vm_offset_t)KERNSTART, (vm_offset_t)etext,
+	    true);
 	pti_finalized = true;
 	VM_OBJECT_WUNLOCK(pti_obj);
 }
