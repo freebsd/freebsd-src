@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2021 Mellanox Technologies, Ltd.
  * Copyright (c) 2014 François Tigeot
  * All rights reserved.
  *
@@ -68,7 +68,10 @@ ndelay(unsigned long x)
 static inline void
 usleep_range(unsigned long min, unsigned long max)
 {
-	DELAY(min);
+	/* guard against invalid values */
+	if (min == 0)
+		min = 1;
+	pause_sbt("lnxsleep", ustosbt(min), 0, C_HARDCLOCK);
 }
 
 extern unsigned int linux_msleep_interruptible(unsigned int ms);
