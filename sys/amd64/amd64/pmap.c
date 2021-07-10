@@ -1554,7 +1554,7 @@ nkpt_init(vm_paddr_t addr)
 #ifdef NKPT
 	pt_pages = NKPT;
 #else
-	pt_pages = howmany(addr, 1 << PDRSHIFT);
+	pt_pages = howmany(addr, NBPDR);
 	pt_pages += NKPDPE(pt_pages);
 
 	/*
