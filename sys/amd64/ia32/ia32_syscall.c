@@ -150,6 +150,7 @@ ia32_fetch_syscall_args(struct thread *td)
 
 	params = (caddr_t)frame->tf_rsp + sizeof(u_int32_t);
 	sa->code = frame->tf_rax;
+	sa->original_code = sa->code;
 
 	/*
 	 * Need to check if this is a 32 bit or 64 bit syscall.

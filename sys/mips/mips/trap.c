@@ -355,6 +355,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	else
 		locr0->pc += sizeof(int);
 	sa->code = locr0->v0;
+	sa->original_code = sa->code;
 
 	switch (sa->code) {
 	case SYS___syscall:
