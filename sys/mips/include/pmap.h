@@ -166,6 +166,8 @@ extern vm_offset_t virtual_end;
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 
+#define	pmap_vm_page_alloc_check(m)
+
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);

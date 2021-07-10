@@ -456,6 +456,10 @@ extern int invpcid_works;
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 #define	pmap_unmapbios(va, sz)		pmap_unmapdev((va), (sz))
 
+#define	pmap_vm_page_alloc_check(m)					\
+	KASSERT(m->phys_addr < kernphys || m->phys_addr >= KERNend,	\
+	    ("allocating kernel page %p", m));
+
 struct thread;
 
 void	pmap_activate_boot(pmap_t pmap);

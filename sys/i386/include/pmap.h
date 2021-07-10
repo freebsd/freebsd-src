@@ -238,6 +238,8 @@ pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 
 struct sf_buf;
 
+#define	pmap_vm_page_alloc_check(m)
+
 /*
  * Only the following functions or macros may be used before pmap_bootstrap()
  * is called: pmap_kenter(), pmap_kextract(), pmap_kremove(), vtophys(), and
