@@ -5,15 +5,14 @@ ENTRY(btext)
 SEARCH_DIR("/usr/lib");
 SECTIONS
 {
-  kernphys = kernload;
   /* Read-only sections, merged into text segment: */
-  . = kernbase + kernphys + SIZEOF_HEADERS;
+  . = kernbase + kernload + SIZEOF_HEADERS;
   /*
    * Use the AT keyword in order to set the right LMA that contains
    * the physical address where the section should be loaded. This is
    * needed for the Xen loader which honours the LMA.
    */
-  .interp         : AT (kernphys + SIZEOF_HEADERS) { *(.interp) }
+  .interp         : AT (kernload + SIZEOF_HEADERS) { *(.interp) }
   .hash           : { *(.hash) }
   .gnu.hash       : { *(.gnu.hash) }
   .dynsym         : { *(.dynsym) }
