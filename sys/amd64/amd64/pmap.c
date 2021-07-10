@@ -10762,7 +10762,7 @@ pmap_pti_init(void)
 		va = __pcpu[i].pc_common_tss.tss_ist4 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - DBG_STACK_SIZE, va, false);
 	}
-	pmap_pti_add_kva_locked((vm_offset_t)kernphys + KERNBASE,
+	pmap_pti_add_kva_locked((vm_offset_t)KERNBASE + NBPDR,
 	    (vm_offset_t)etext, true);
 	pti_finalized = true;
 	VM_OBJECT_WUNLOCK(pti_obj);
