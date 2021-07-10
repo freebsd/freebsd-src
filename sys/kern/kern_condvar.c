@@ -397,26 +397,23 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 void
 cv_signal(struct cv *cvp)
 {
-	int wakeup_swapper;
 
 	if (cvp->cv_waiters == 0)
 		return;
-	wakeup_swapper = 0;
 	sleepq_lock(cvp);
-	if (cvp->cv_waiters > 0) {
-		if (cvp->cv_waiters == CV_WAITERS_BOUND &&
-		    sleepq_lookup(cvp) == NULL) {
-			cvp->cv_waiters = 0;
-		} else {
-			if (cvp->cv_waiters < CV_WAITERS_BOUND)
-				cvp->cv_waiters--;
-			wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, 0,
-			    0);
-		}
+	if (cvp->cv_waiters == 0) {
+		sleepq_release(cvp);
+		return;
 	}
-	sleepq_release(cvp);
-	if (wakeup_swapper)
-		kick_proc0();
+	if (cvp->cv_waiters == CV_WAITERS_BOUND && sleepq_lookup(cvp) == NULL) {
+		cvp->cv_waiters = 0;
+		sleepq_release(cvp);
+	} else {
+		if (cvp->cv_waiters < CV_WAITERS_BOUND)
+			cvp->cv_waiters--;
+		if (sleepq_signal(cvp, SLEEPQ_CONDVAR | SLEEPQ_DROP, 0, 0))
+			kick_proc0();
+	}
 }
 
 /*
