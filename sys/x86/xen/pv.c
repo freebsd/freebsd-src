@@ -134,7 +134,6 @@ struct init_ops xen_pvh_init_ops = {
 	.early_delay			= xen_delay,
 	.parse_memmap			= xen_pvh_parse_memmap,
 #ifdef SMP
-	.mp_bootaddress			= mp_bootaddress,
 	.start_all_aps			= native_start_all_aps,
 #endif
 	.msi_init			= msi_init,

@@ -38,8 +38,7 @@ inthand_t
 	IDTVEC(rendezvous_pti);
 
 void	invlop_handler(void);
-int	native_start_all_aps(void);
-void	mp_bootaddress(vm_paddr_t *, unsigned int *);
+int native_start_all_aps(void);
 
 #endif /* !LOCORE */
 #endif /* SMP */

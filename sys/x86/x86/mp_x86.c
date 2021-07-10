@@ -1070,11 +1070,6 @@ init_secondary_tail(void)
 	}
 
 #ifdef __amd64__
-	/*
-	 * Enable global pages TLB extension
-	 * This also implicitly flushes the TLB 
-	 */
-	load_cr4(rcr4() | CR4_PGE);
 	if (pmap_pcid_enabled)
 		load_cr4(rcr4() | CR4_PCIDE);
 	load_ds(_udatasel);
