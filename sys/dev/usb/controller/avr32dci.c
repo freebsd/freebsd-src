@@ -1690,6 +1690,12 @@ tr_handle_get_descriptor:
 		len = sizeof(avr32dci_devd);
 		ptr = (const void *)&avr32dci_devd;
 		goto tr_valid;
+	case UDESC_DEVICE_QUALIFIER:
+		if (value & 0xff)
+			goto tr_stalled;
+		len = sizeof(avr32dci_odevd);
+		ptr = (const void *)&avr32dci_odevd;
+		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {
 			goto tr_stalled;
