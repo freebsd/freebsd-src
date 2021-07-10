@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/cons.h>	/* cngetc() */
 #include <sys/cpuset.h>
@@ -1278,6 +1279,8 @@ ipi_bitmap_handler(struct trapframe frame)
 	struct thread *td;
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
+
+	kasan_mark(&frame, sizeof(frame), sizeof(frame), 0);
 
 	td = curthread;
 	ipi_bitmap = atomic_readandclear_int(&cpuid_to_pcpu[cpu]->
