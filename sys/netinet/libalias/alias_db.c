@@ -1769,7 +1769,7 @@ HouseKeeping(struct libalias *la)
 	 * Reduce the amount of house keeping work substantially by
 	 * sampling over the packets.
 	 */
-	if (packets % packet_limit == 0) {
+	if (packet_limit <= 1 || packets % packet_limit == 0) {
 		time_t now;
 
 #ifdef _KERNEL
