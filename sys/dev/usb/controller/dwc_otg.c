@@ -4189,9 +4189,7 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 {
 	struct dwc_otg_softc *sc = DWC_OTG_BUS2SC(xfer->xroot->bus);
 	uint32_t temp;
-	uint32_t msframes;
 	uint32_t framenum;
-	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
 	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
@@ -4214,51 +4212,12 @@ dwc_otg_device_isoc_start(struct usb_xfer *xfer)
 	if (sc->sc_flags.status_high_speed)
 		framenum /= 8;
 
-	framenum &= DWC_OTG_FRAME_MASK;
-
-	/*
-	 * Compute number of milliseconds worth of data traffic for
-	 * this USB transfer:
-	 */ 
-	if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
-		msframes = ((xfer->nframes << shift) + 7) / 8;
-	else
-		msframes = xfer->nframes;
-
-	/*
-	 * check if the frame index is within the window where the frames
-	 * will be inserted
-	 */
-	temp = (framenum - xfer->endpoint->isoc_next) & DWC_OTG_FRAME_MASK;
-
-	if ((xfer->endpoint->is_synced == 0) || (temp < msframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (framenum + 3) & DWC_OTG_FRAME_MASK;
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, framenum, 0, 1, DWC_OTG_FRAME_MASK, NULL))
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - framenum) & DWC_OTG_FRAME_MASK;
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-		usb_isoc_time_expand(&sc->sc_bus, framenum) + temp + msframes;
 
 	/* setup TDs */
 	dwc_otg_setup_standard_chain(xfer);
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += msframes;
 
 	/* start TD chain */
 	dwc_otg_start_standard_chain(xfer);
