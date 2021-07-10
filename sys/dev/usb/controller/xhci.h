@@ -33,7 +33,7 @@
 #define	XHCI_MAX_DEVICES	MIN(USB_MAX_DEVICES, 128)
 #define	XHCI_MAX_ENDPOINTS	32	/* hardcoded - do not change */
 #define	XHCI_MAX_SCRATCHPADS	256	/* theoretical max is 1023 */
-#define	XHCI_MAX_EVENTS		(16 * 13)
+#define	XHCI_MAX_EVENTS		232
 #define	XHCI_MAX_COMMANDS	(16 * 1)
 #define	XHCI_MAX_RSEG		1
 #define	XHCI_MAX_TRANSFERS	4
@@ -382,6 +382,8 @@ struct xhci_hw_root {
 	struct xhci_trb			hwr_events[XHCI_MAX_EVENTS];
 	struct xhci_trb			hwr_commands[XHCI_MAX_COMMANDS];
 };
+
+CTASSERT(sizeof(struct xhci_hw_root) == XHCI_PAGE_SIZE);
 
 struct xhci_endpoint_ext {
 	struct xhci_trb		*trb;
