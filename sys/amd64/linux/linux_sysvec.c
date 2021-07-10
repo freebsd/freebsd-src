@@ -191,6 +191,7 @@ linux_fetch_syscall_args(struct thread *td)
 	sa->args[4] = frame->tf_r8;
 	sa->args[5] = frame->tf_r9;
 	sa->code = frame->tf_rax;
+	sa->original_code = sa->code;
 
 	if (sa->code >= p->p_sysent->sv_size)
 		/* nosys */

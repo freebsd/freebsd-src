@@ -78,6 +78,7 @@ cloudabi64_fetch_syscall_args(struct thread *td)
 
 	/* Obtain system call number. */
 	sa->code = frame->tf_x[8];
+	sa->original_code = sa->code;
 	if (sa->code >= CLOUDABI64_SYS_MAXSYSCALL)
 		return (ENOSYS);
 	sa->callp = &cloudabi64_sysent[sa->code];

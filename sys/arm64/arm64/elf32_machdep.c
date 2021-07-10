@@ -175,6 +175,7 @@ freebsd32_fetch_syscall_args(struct thread *td)
 
 	/* r7 is the syscall id */
 	sa->code = td->td_frame->tf_x[7];
+	sa->original_code = sa->code;
 
 	if (sa->code == SYS_syscall) {
 		sa->code = *ap++;

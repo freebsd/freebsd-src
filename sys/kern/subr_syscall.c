@@ -230,6 +230,7 @@ syscallret(struct thread *td)
 			ksi.ksi_signo = SIGTRAP;
 			ksi.ksi_errno = td->td_errno;
 			ksi.ksi_code = TRAP_CAP;
+			ksi.ksi_info.si_syscall = sa->original_code;
 			trapsignal(td, &ksi);
 		}
 	}
