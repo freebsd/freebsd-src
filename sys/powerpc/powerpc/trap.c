@@ -667,7 +667,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	sa = &td->td_sa;
 
 	sa->code = frame->fixreg[0];
-	sa->original_code = sa->code;
 	params = (caddr_t)(frame->fixreg + FIRSTARG);
 	n = NARGREG;
 
