@@ -644,6 +644,9 @@ xhci_init(struct xhci_softc *sc, device_t self, uint8_t dma32)
 
 	DPRINTF("HCS2=0x%08x\n", temp);
 
+	/* get isochronous scheduling threshold */
+	sc->sc_ist = XHCI_HCS2_IST(temp);
+
 	/* get number of scratchpads */
 	sc->sc_noscratch = XHCI_HCS2_SPB_MAX(temp);
 
@@ -2075,7 +2078,13 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 
 		x = XREAD4(temp.sc, runt, XHCI_MFINDEX);
 
-		DPRINTF("MFINDEX=0x%08x\n", x);
+		DPRINTF("MFINDEX=0x%08x IST=0x%x\n", x, sc->sc_ist);
+
+		/* add isochronous scheduling threshold */
+		if (temp.sc->sc_ist & 8)
+			x += (temp.sc->sc_ist & 7) << 3;
+		else
+			x += (temp.sc->sc_ist & 7);
 
 		switch (usbd_get_speed(xfer->xroot->udev)) {
 		case USB_SPEED_FULL:
