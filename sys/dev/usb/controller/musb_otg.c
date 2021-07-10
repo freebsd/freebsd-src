@@ -3436,9 +3436,7 @@ static void
 musbotg_device_isoc_enter(struct usb_xfer *xfer)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 	uint32_t nframes;
-	uint32_t fs_frames;
 
 	DPRINTFN(5, "xfer=%p next=%d nframes=%d\n",
 	    xfer, xfer->endpoint->isoc_next, xfer->nframes);
@@ -3447,45 +3445,9 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 
 	nframes = MUSB2_READ_2(sc, MUSB2_REG_FRAME);
 
-	/*
-	 * check if the frame index is within the window where the frames
-	 * will be inserted
-	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & MUSB2_MASK_FRAME;
-
-	if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
-		fs_frames = (xfer->nframes + 7) / 8;
-	} else {
-		fs_frames = xfer->nframes;
-	}
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < fs_frames)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & MUSB2_MASK_FRAME;
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, MUSB2_MASK_FRAME, NULL))
 		DPRINTFN(2, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & MUSB2_MASK_FRAME;
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    fs_frames;
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += fs_frames;
 
 	/* setup TDs */
 	musbotg_setup_standard_chain(xfer);

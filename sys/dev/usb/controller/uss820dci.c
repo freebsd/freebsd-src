@@ -1706,7 +1706,6 @@ static void
 uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 {
 	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
@@ -1716,39 +1715,9 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 
 	nframes = USS820_READ_1(sc, USS820_SOFL);
 
-	/*
-	 * check if the frame index is within the window where the
-	 * frames will be inserted
-	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & USS820_SOFL_MASK;
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & USS820_SOFL_MASK;
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, USS820_SOFL_MASK, NULL))
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & USS820_SOFL_MASK;
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    xfer->nframes;
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	uss820dci_setup_standard_chain(xfer);

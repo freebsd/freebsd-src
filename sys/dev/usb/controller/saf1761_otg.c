@@ -2632,7 +2632,6 @@ static void
 saf1761_otg_device_isoc_enter(struct usb_xfer *xfer)
 {
 	struct saf1761_otg_softc *sc = SAF1761_OTG_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
@@ -2642,39 +2641,9 @@ saf1761_otg_device_isoc_enter(struct usb_xfer *xfer)
 
 	nframes = SAF1761_READ_LE_4(sc, SOTG_FRAME_NUM);
 
-	/*
-	 * check if the frame index is within the window where the
-	 * frames will be inserted
-	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & SOTG_FRAME_NUM_SOFR_MASK;
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & SOTG_FRAME_NUM_SOFR_MASK;
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, SOTG_FRAME_NUM_SOFR_MASK, NULL))
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & SOTG_FRAME_NUM_SOFR_MASK;
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    xfer->nframes;
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	saf1761_otg_setup_standard_chain(xfer);
@@ -2714,7 +2683,6 @@ static void
 saf1761_otg_host_isoc_enter(struct usb_xfer *xfer)
 {
 	struct saf1761_otg_softc *sc = SAF1761_OTG_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 	uint32_t nframes;
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d\n",
@@ -2724,39 +2692,9 @@ saf1761_otg_host_isoc_enter(struct usb_xfer *xfer)
 
 	nframes = (SAF1761_READ_LE_4(sc, SOTG_FRINDEX) & SOTG_FRINDEX_MASK) >> 3;
 
-	/*
-	 * check if the frame index is within the window where the
-	 * frames will be inserted
-	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & (SOTG_FRINDEX_MASK >> 3);
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & (SOTG_FRINDEX_MASK >> 3);
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, SOTG_FRINDEX_MASK >> 3, NULL))
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & (SOTG_FRINDEX_MASK >> 3);
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    xfer->nframes;
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	saf1761_otg_setup_standard_chain(xfer);

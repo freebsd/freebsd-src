@@ -2440,6 +2440,7 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	uint32_t *plen;
 	uint32_t buf_offset;
 	uint32_t nframes;
+	uint32_t startframe;
 	uint32_t temp;
 	uint32_t sitd_mask;
 	uint16_t tlen;
@@ -2458,39 +2459,9 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 
 	nframes = EOREAD4(sc, EHCI_FRINDEX) / 8;
 
-	/*
-	 * check if the frame index is within the window where the frames
-	 * will be inserted
-	 */
-	buf_offset = (nframes - xfer->endpoint->isoc_next) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (buf_offset < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is empty we
-		 * schedule the transfer a few frames ahead of the current
-		 * frame position. Else two isochronous transfers might
-		 * overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) &
-		    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-		xfer->endpoint->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	buf_offset = (xfer->endpoint->isoc_next - nframes) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) +
-	    buf_offset + xfer->nframes;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, EHCI_VIRTUAL_FRAMELIST_COUNT - 1, &startframe))
+		DPRINTFN(3, "start next=%d\n", startframe);
 
 	/* get the real number of frames */
 
@@ -2507,11 +2478,11 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	td = xfer->td_start[xfer->flags_int.curr_dma_set];
 	xfer->td_transfer_first = td;
 
-	pp_last = &sc->sc_isoc_fs_p_last[xfer->endpoint->isoc_next];
+	pp_last = &sc->sc_isoc_fs_p_last[startframe];
 
 	/* store starting position */
 
-	xfer->qh_pos = xfer->endpoint->isoc_next;
+	xfer->qh_pos = startframe;
 
 	while (nframes--) {
 		if (td == NULL) {
@@ -2633,10 +2604,6 @@ ehci_device_isoc_fs_enter(struct usb_xfer *xfer)
 
 	xfer->td_transfer_last = td_last;
 
-	/* update isoc_next */
-	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_fs_p_last[0]) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-
 	/*
 	 * We don't allow cancelling of the SPLIT transaction USB FULL
 	 * speed transfer, because it disturbs the bandwidth
@@ -2743,11 +2710,11 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	uint32_t status;
 	uint32_t buf_offset;
 	uint32_t nframes;
+	uint32_t startframe;
 	uint32_t itd_offset[8 + 1];
 	uint8_t x;
 	uint8_t td_no;
 	uint8_t page_no;
-	uint8_t shift = usbd_xfer_get_fps_shift(xfer);
 
 #ifdef USB_DEBUG
 	uint8_t once = 1;
@@ -2755,47 +2722,16 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 #endif
 
 	DPRINTFN(6, "xfer=%p next=%d nframes=%d shift=%d\n",
-	    xfer, xfer->endpoint->isoc_next, xfer->nframes, (int)shift);
+	    xfer, xfer->endpoint->isoc_next, xfer->nframes,
+	    usbd_xfer_get_fps_shift(xfer));
 
 	/* get the current frame index */
 
 	nframes = EOREAD4(sc, EHCI_FRINDEX) / 8;
 
-	/*
-	 * check if the frame index is within the window where the frames
-	 * will be inserted
-	 */
-	buf_offset = (nframes - xfer->endpoint->isoc_next) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (buf_offset < (((xfer->nframes << shift) + 7) / 8))) {
-		/*
-		 * If there is data underflow or the pipe queue is empty we
-		 * schedule the transfer a few frames ahead of the current
-		 * frame position. Else two isochronous transfers might
-		 * overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) &
-		    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-		xfer->endpoint->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	buf_offset = (xfer->endpoint->isoc_next - nframes) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + buf_offset +
-	    (((xfer->nframes << shift) + 7) / 8);
-
-	/* get the real number of frames */
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, EHCI_VIRTUAL_FRAMELIST_COUNT - 1, &startframe))
+		DPRINTFN(3, "start next=%d\n", startframe);
 
 	nframes = xfer->nframes;
 
@@ -2811,11 +2747,11 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	td = xfer->td_start[xfer->flags_int.curr_dma_set];
 	xfer->td_transfer_first = td;
 
-	pp_last = &sc->sc_isoc_hs_p_last[xfer->endpoint->isoc_next];
+	pp_last = &sc->sc_isoc_hs_p_last[startframe];
 
 	/* store starting position */
 
-	xfer->qh_pos = xfer->endpoint->isoc_next;
+	xfer->qh_pos = startframe;
 
 	while (nframes) {
 		if (td == NULL) {
@@ -2927,10 +2863,6 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 	}
 
 	xfer->td_transfer_last = td_last;
-
-	/* update isoc_next */
-	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_hs_p_last[0]) &
-	    (EHCI_VIRTUAL_FRAMELIST_COUNT - 1);
 }
 
 static void

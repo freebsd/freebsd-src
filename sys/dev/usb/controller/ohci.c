@@ -1824,6 +1824,7 @@ ohci_device_isoc_enter(struct usb_xfer *xfer)
 	struct ohci_hcca *hcca;
 	uint32_t buf_offset;
 	uint32_t nframes;
+	uint32_t startframe;
 	uint32_t ed_flags;
 	uint32_t *plen;
 	uint16_t itd_offset[OHCI_ITD_NOFFSET];
@@ -1840,31 +1841,9 @@ ohci_device_isoc_enter(struct usb_xfer *xfer)
 	DPRINTFN(6, "xfer=%p isoc_next=%u nframes=%u hcca_fn=%u\n",
 	    xfer, xfer->endpoint->isoc_next, xfer->nframes, nframes);
 
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (((nframes - xfer->endpoint->isoc_next) & 0xFFFF) < xfer->nframes) ||
-	    (((xfer->endpoint->isoc_next - nframes) & 0xFFFF) >= 128)) {
-		/*
-		 * If there is data underflow or the pipe queue is empty we
-		 * schedule the transfer a few frames ahead of the current
-		 * frame position. Else two isochronous transfers might
-		 * overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & 0xFFFF;
-		xfer->endpoint->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	buf_offset = ((xfer->endpoint->isoc_next - nframes) & 0xFFFF);
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    (usb_isoc_time_expand(&sc->sc_bus, nframes) + buf_offset +
-	    xfer->nframes);
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, 0xFFFF, &startframe))
+		DPRINTFN(3, "start next=%d\n", startframe);
 
 	/* get the real number of frames */
 
@@ -1905,12 +1884,12 @@ ohci_device_isoc_enter(struct usb_xfer *xfer)
 			/* fill current ITD */
 			td->itd_flags = htole32(
 			    OHCI_ITD_NOCC |
-			    OHCI_ITD_SET_SF(xfer->endpoint->isoc_next) |
+			    OHCI_ITD_SET_SF(startframe) |
 			    OHCI_ITD_NOINTR |
 			    OHCI_ITD_SET_FC(ncur));
 
 			td->frames = ncur;
-			xfer->endpoint->isoc_next += ncur;
+			startframe += ncur;
 
 			if (length == 0) {
 				/* all zero */
