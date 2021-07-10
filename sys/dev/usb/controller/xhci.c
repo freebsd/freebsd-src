@@ -2078,7 +2078,7 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 
 		x = XREAD4(temp.sc, runt, XHCI_MFINDEX);
 
-		DPRINTF("MFINDEX=0x%08x IST=0x%x\n", x, sc->sc_ist);
+		DPRINTF("MFINDEX=0x%08x IST=0x%x\n", x, temp.sc->sc_ist);
 
 		switch (usbd_get_speed(xfer->xroot->udev)) {
 		case USB_SPEED_FULL:
