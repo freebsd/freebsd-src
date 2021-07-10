@@ -871,9 +871,7 @@ after_vmfault:
 }
 
 static void
-trap_fatal(frame, eva)
-	struct trapframe *frame;
-	vm_offset_t eva;
+trap_fatal(struct trapframe *frame, vm_offset_t eva)
 {
 	int code, ss;
 	u_int type;
