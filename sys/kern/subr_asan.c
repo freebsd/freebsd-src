@@ -948,7 +948,12 @@ __asan_register_globals(struct __asan_global *globals, size_t n)
 void
 __asan_unregister_globals(struct __asan_global *globals, size_t n)
 {
-	/* never called */
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		kasan_mark(globals[i].beg, globals[i].size_with_redzone,
+		    globals[i].size_with_redzone, 0);
+	}
 }
 
 #define ASAN_LOAD_STORE(size)					\
