@@ -39,7 +39,6 @@ inthand_t
 
 void	invlop_handler(void);
 int	start_all_aps(void);
-void	mp_bootaddress(vm_paddr_t *, unsigned int *);
 
 #endif /* !LOCORE */
 #endif /* SMP */
