@@ -73,5 +73,7 @@ pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 
 #define	PMAP_ENTER_QUICK_LOCKED	0x10000000
 
+#define	pmap_vm_page_alloc_check(m)
+
 #endif	/* _KERNEL */
 #endif	/* !_MACHINE_PMAP_H_ */

@@ -2416,6 +2416,7 @@ vm_page_alloc_check(vm_page_t m)
 	    ("page %p has unexpected memattr %d",
 	    m, pmap_page_get_memattr(m)));
 	KASSERT(m->valid == 0, ("free page %p is valid", m));
+	pmap_vm_page_alloc_check(m);
 }
 
 /*

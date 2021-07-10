@@ -301,6 +301,8 @@ extern	struct pmap kernel_pmap_store;
 
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
 
+#define	pmap_vm_page_alloc_check(m)
+
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
 void		pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void		pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t);
