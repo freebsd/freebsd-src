@@ -2111,7 +2111,7 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	struct uhci_mem_layout ml;
 	uhci_softc_t *sc = UHCI_BUS2SC(xfer->xroot->bus);
 	uint32_t nframes;
-	uint32_t temp;
+	uint32_t startframe;
 	uint32_t *plen;
 
 #ifdef USB_DEBUG
@@ -2127,34 +2127,9 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 
 	nframes = UREAD2(sc, UHCI_FRNUM);
 
-	temp = (nframes - xfer->endpoint->isoc_next) &
-	    (UHCI_VFRAMELIST_COUNT - 1);
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is empty we
-		 * schedule the transfer a few frames ahead of the current
-		 * frame position. Else two isochronous transfers might
-		 * overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & (UHCI_VFRAMELIST_COUNT - 1);
-		xfer->endpoint->is_synced = 1;
-		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) &
-	    (UHCI_VFRAMELIST_COUNT - 1);
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    xfer->nframes;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, UHCI_VFRAMELIST_COUNT - 1, &startframe))
+		DPRINTFN(3, "start next=%d\n", startframe);
 
 	/* get the real number of frames */
 
@@ -2171,11 +2146,11 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	td = xfer->td_start[xfer->flags_int.curr_dma_set];
 	xfer->td_transfer_first = td;
 
-	pp_last = &sc->sc_isoc_p_last[xfer->endpoint->isoc_next];
+	pp_last = &sc->sc_isoc_p_last[startframe];
 
 	/* store starting position */
 
-	xfer->qh_pos = xfer->endpoint->isoc_next;
+	xfer->qh_pos = startframe;
 
 	while (nframes--) {
 		if (td == NULL) {
@@ -2252,10 +2227,6 @@ uhci_device_isoc_enter(struct usb_xfer *xfer)
 	}
 
 	xfer->td_transfer_last = td_last;
-
-	/* update isoc_next */
-	xfer->endpoint->isoc_next = (pp_last - &sc->sc_isoc_p_last[0]) &
-	    (UHCI_VFRAMELIST_COUNT - 1);
 }
 
 static void

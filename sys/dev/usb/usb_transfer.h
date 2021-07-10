@@ -147,5 +147,6 @@ void	usbd_transfer_timeout_ms(struct usb_xfer *xfer,
 	    void (*cb) (void *arg), usb_timeout_t ms);
 usb_timeout_t usbd_get_dma_delay(struct usb_device *udev);
 void	usbd_transfer_power_ref(struct usb_xfer *xfer, int val);
+uint8_t	usbd_xfer_get_isochronous_start_frame(struct usb_xfer *, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t *);
 
 #endif					/* _USB_TRANSFER_H_ */

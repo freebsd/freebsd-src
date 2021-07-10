@@ -3627,3 +3627,72 @@ usbd_xfer_maxp_was_clamped(struct usb_xfer *xfer)
 {
 	return (xfer->flags_int.maxp_was_clamped);
 }
+
+/*
+ * The following function computes the next isochronous frame number
+ * where the first isochronous packet should be queued.
+ *
+ * The function returns non-zero if there was a discontinuity.
+ * Else zero is returned for normal operation.
+ */
+uint8_t
+usbd_xfer_get_isochronous_start_frame(struct usb_xfer *xfer, uint32_t frame_curr,
+    uint32_t frame_min, uint32_t frame_ms, uint32_t frame_mask, uint32_t *p_frame_start)
+{
+	uint32_t duration;
+	uint32_t delta;
+	uint8_t retval;
+	uint8_t shift;
+
+	/* Compute time ahead of current schedule. */
+	delta = (xfer->endpoint->isoc_next - frame_curr) & frame_mask;
+
+	/*
+	 * Check if it is the first transfer or if the future frame
+	 * delta is less than one millisecond or if the frame delta is
+	 * negative:
+	 */
+	if (xfer->endpoint->is_synced == 0 ||
+	    delta < (frame_ms + frame_min) ||
+	    delta > (frame_mask / 2)) {
+		/* Schedule transfer 2 milliseconds into the future. */
+		xfer->endpoint->isoc_next = (frame_curr + 2 * frame_ms + frame_min) & frame_mask;
+		xfer->endpoint->is_synced = 1;
+
+		retval = 1;
+	} else {
+		retval = 0;
+	}
+
+	/* Store start time, if any. */
+	if (p_frame_start != NULL)
+		*p_frame_start = xfer->endpoint->isoc_next & frame_mask;
+
+	/* Get relative completion time, in milliseconds. */
+	delta = xfer->endpoint->isoc_next - frame_curr + (frame_curr % frame_ms);
+	delta &= frame_mask;
+	delta /= frame_ms;
+
+	switch (usbd_get_speed(xfer->xroot->udev)) {
+	case USB_SPEED_FULL:
+		shift = 3;
+		break;
+	default:
+		shift = usbd_xfer_get_fps_shift(xfer);
+		break;
+	}
+
+	/* Get duration in milliseconds, rounded up. */
+	duration = ((xfer->nframes << shift) + 7) / 8;
+
+	/* Compute full 32-bit completion time, in milliseconds. */
+	xfer->isoc_time_complete =
+	    usb_isoc_time_expand(xfer->xroot->bus, frame_curr / frame_ms) +
+	    delta + duration;
+
+	/* Compute next isochronous frame. */
+	xfer->endpoint->isoc_next += duration * frame_ms;
+	xfer->endpoint->isoc_next &= frame_mask;
+
+	return (retval);
+}
