@@ -47,7 +47,7 @@ mptramp_start:
 	mov	%ax, %ss
 
 	/*
-	 * Find relocation base and patch the gdt descript and ljmp targets
+	 * Find relocation base and patch the gdt descriptor and ljmp targets
 	 */
 	xorl	%ebx,%ebx
 	mov	%cs, %bx
