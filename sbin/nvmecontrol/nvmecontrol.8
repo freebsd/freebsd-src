@@ -470,6 +470,37 @@ Run in
 mode.
 This will report status on a sanitize that is already running on the drive.
 .El
+.Ss power
+Manage the power modes of the NVMe controller.
+.Bl -tag -width 6n
+.It Fl l
+List all supported power modes.
+.It Fl p Ar mode
+Set the power mode to
+.Ar mode .
+This must be a mode listed with the
+.Dl nvmecontrol power -l
+command.
+.It Fl w Ar hint
+Set the workload hint for automatic power mode control.
+.Bl -tag -compact -width 6n
+.It 0
+No workload hint is provided.
+.It 1
+Extended idle period workload.
+The device is often idle for minutes at a time.
+A burst of write commands comes in over a period of seconds.
+Then the device returns to being idle.
+.It 2
+Heavy sequential writes.
+A huge number of sequential writes will be submitted, filling the submission queues.
+.It Other
+All other values are reserved and have no standard meaning.
+.El
+Please see the
+.Dq NVM Subsystem Workloads
+section of the relevant NVM Express Base Standard for details.
+.El
 .Ss selftest
 Start the specified device self-test:
 .Bl -tag -width 6n
@@ -505,7 +536,7 @@ and
 commands send NVMe commands to
 either the administrative or the data part of the device.
 These commands are expected to be compatible with nvme-cli.
-Please see the NVMe Standard for details.
+Please see the NVM Express Base Standard for details.
 .Bl -tag -width 16n
 .It Fl o -opcode Ar opcode
 Opcode to send.
