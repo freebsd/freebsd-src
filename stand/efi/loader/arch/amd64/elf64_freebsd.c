@@ -82,7 +82,11 @@ struct file_format *file_formats[] = {
 
 static pml4_entry_t *PT4;
 static pdp_entry_t *PT3;
+static pdp_entry_t *PT3_l, *PT3_u;
 static pd_entry_t *PT2;
+static pd_entry_t *PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
+
+extern EFI_PHYSICAL_ADDRESS staging;
 
 static void (*trampoline)(uint64_t stack, void *copy_finish, uint64_t kernend,
     uint64_t modulep, pml4_entry_t *pagetable, uint64_t entry);
@@ -105,6 +109,12 @@ elf64_exec(struct preloaded_file *fp)
 	ACPI_TABLE_RSDP		*rsdp;
 	char			buf[24];
 	int			revision;
+	bool			copy_auto;
+
+	copy_auto = copy_staging == COPY_STAGING_AUTO;
+	if (copy_auto)
+		copy_staging = fp->f_kernphys_relocatable ?
+		    COPY_STAGING_DISABLE : COPY_STAGING_ENABLE;
 
 	/*
 	 * Report the RSDP to the kernel. While this can be found with
@@ -151,57 +161,133 @@ elf64_exec(struct preloaded_file *fp)
 	}
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
-		return(EFTYPE);
+		return (EFTYPE);
 	ehdr = (Elf_Ehdr *)&(md->md_data);
 
-	trampcode = (vm_offset_t)0x0000000040000000;
+	trampcode = copy_staging == COPY_STAGING_ENABLE ?
+	    (vm_offset_t)0x0000000040000000 /* 1G */ :
+	    (vm_offset_t)0x0000000100000000; /* 4G */;
 	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 1,
 	    (EFI_PHYSICAL_ADDRESS *)&trampcode);
+	if (EFI_ERROR(err)) {
+		printf("Unable to allocate trampoline\n");
+		if (copy_auto)
+			copy_staging = COPY_STAGING_AUTO;
+		return (ENOMEM);
+	}
 	bzero((void *)trampcode, EFI_PAGE_SIZE);
 	trampstack = trampcode + EFI_PAGE_SIZE - 8;
 	bcopy((void *)&amd64_tramp, (void *)trampcode, amd64_tramp_size);
 	trampoline = (void *)trampcode;
 
-	PT4 = (pml4_entry_t *)0x0000000040000000;
-	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 3,
-	    (EFI_PHYSICAL_ADDRESS *)&PT4);
-	bzero(PT4, 3 * EFI_PAGE_SIZE);
+	if (copy_staging == COPY_STAGING_ENABLE) {
+		PT4 = (pml4_entry_t *)0x0000000040000000;
+		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 3,
+		    (EFI_PHYSICAL_ADDRESS *)&PT4);
+		if (EFI_ERROR(err)) {
+			printf("Unable to allocate trampoline page table\n");
+			BS->FreePages(trampcode, 1);
+			if (copy_auto)
+				copy_staging = COPY_STAGING_AUTO;
+			return (ENOMEM);
+		}
+		bzero(PT4, 3 * EFI_PAGE_SIZE);
+		PT3 = &PT4[512];
+		PT2 = &PT3[512];
 
-	PT3 = &PT4[512];
-	PT2 = &PT3[512];
+		/*
+		 * This is kinda brutal, but every single 1GB VM
+		 * memory segment points to the same first 1GB of
+		 * physical memory.  But it is more than adequate.
+		 */
+		for (i = 0; i < NPTEPG; i++) {
+			/*
+			 * Each slot of the L4 pages points to the
+			 * same L3 page.
+			 */
+			PT4[i] = (pml4_entry_t)PT3;
+			PT4[i] |= PG_V | PG_RW;
 
-	/*
-	 * This is kinda brutal, but every single 1GB VM memory segment points
-	 * to the same first 1GB of physical memory.  But it is more than
-	 * adequate.
-	 */
-	for (i = 0; i < 512; i++) {
-		/* Each slot of the L4 pages points to the same L3 page. */
-		PT4[i] = (pml4_entry_t)PT3;
-		PT4[i] |= PG_V | PG_RW;
+			/*
+			 * Each slot of the L3 pages points to the
+			 * same L2 page.
+			 */
+			PT3[i] = (pdp_entry_t)PT2;
+			PT3[i] |= PG_V | PG_RW;
 
-		/* Each slot of the L3 pages points to the same L2 page. */
-		PT3[i] = (pdp_entry_t)PT2;
-		PT3[i] |= PG_V | PG_RW;
+			/*
+			 * The L2 page slots are mapped with 2MB pages for 1GB.
+			 */
+			PT2[i] = (pd_entry_t)i * (2 * 1024 * 1024);
+			PT2[i] |= PG_V | PG_RW | PG_PS;
+		}
+	} else {
+		PT4 = (pml4_entry_t *)0x0000000100000000; /* 4G */
+		err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 9,
+		    (EFI_PHYSICAL_ADDRESS *)&PT4);
+		if (EFI_ERROR(err)) {
+			printf("Unable to allocate trampoline page table\n");
+			BS->FreePages(trampcode, 9);
+			if (copy_auto)
+				copy_staging = COPY_STAGING_AUTO;
+			return (ENOMEM);
+		}
 
-		/* The L2 page slots are mapped with 2MB pages for 1GB. */
-		PT2[i] = i * (2 * 1024 * 1024);
-		PT2[i] |= PG_V | PG_RW | PG_PS;
+		bzero(PT4, 9 * EFI_PAGE_SIZE);
+
+		PT3_l = &PT4[NPML4EPG * 1];
+		PT3_u = &PT4[NPML4EPG * 2];
+		PT2_l0 = &PT4[NPML4EPG * 3];
+		PT2_l1 = &PT4[NPML4EPG * 4];
+		PT2_l2 = &PT4[NPML4EPG * 5];
+		PT2_l3 = &PT4[NPML4EPG * 6];
+		PT2_u0 = &PT4[NPML4EPG * 7];
+		PT2_u1 = &PT4[NPML4EPG * 8];
+
+		/* 1:1 mapping of lower 4G */
+		PT4[0] = (pml4_entry_t)PT3_l | PG_V | PG_RW;
+		PT3_l[0] = (pdp_entry_t)PT2_l0 | PG_V | PG_RW;
+		PT3_l[1] = (pdp_entry_t)PT2_l1 | PG_V | PG_RW;
+		PT3_l[2] = (pdp_entry_t)PT2_l2 | PG_V | PG_RW;
+		PT3_l[3] = (pdp_entry_t)PT2_l3 | PG_V | PG_RW;
+		for (i = 0; i < 4 * NPDEPG; i++) {
+			PT2_l0[i] = ((pd_entry_t)i << PDRSHIFT) | PG_V |
+			    PG_RW | PG_PS;
+		}
+
+		/* mapping of kernel 2G below top */
+		PT4[NPML4EPG - 1] = (pml4_entry_t)PT3_u | PG_V | PG_RW;
+		PT3_u[NPDPEPG - 2] = (pdp_entry_t)PT2_u0 | PG_V | PG_RW;
+		PT3_u[NPDPEPG - 1] = (pdp_entry_t)PT2_u1 | PG_V | PG_RW;
+		/* compat mapping of phys @0 */
+		PT2_u0[0] = PG_PS | PG_V | PG_RW;
+		/* this maps past staging area */
+		for (i = 1; i < 2 * NPDEPG; i++) {
+			PT2_u0[i] = ((pd_entry_t)staging +
+			    ((pd_entry_t)i - 1) * NBPDR) |
+			    PG_V | PG_RW | PG_PS;
+		}
 	}
 
+	printf("staging %#lx (%scoping) tramp %p PT4 %p\n",
+	    staging, copy_staging == COPY_STAGING_ENABLE ? "" : "not ",
+	    trampoline, PT4);
 	printf("Start @ 0x%lx ...\n", ehdr->e_entry);
 
 	efi_time_fini();
 	err = bi_load(fp->f_args, &modulep, &kernend, true);
 	if (err != 0) {
 		efi_time_init();
-		return(err);
+		if (copy_auto)
+			copy_staging = COPY_STAGING_AUTO;
+		return (err);
 	}
 
 	dev_cleanup();
 
-	trampoline(trampstack, efi_copy_finish, kernend, modulep, PT4,
-	    ehdr->e_entry);
+	trampoline(trampstack, copy_staging == COPY_STAGING_ENABLE ?
+	    efi_copy_finish : efi_copy_finish_nop, kernend, modulep,
+	    PT4, ehdr->e_entry);
 
 	panic("exec returned");
 }
