@@ -95,12 +95,25 @@ protmode:
 	 * is later enabled.
 	 */
 	mov	%cr4, %eax
-	orl	$CR4_PAE, %eax
+	orl	$(CR4_PAE | CR4_PGE), %eax
 	cmpb	$0, mptramp_la57-mptramp_start(%ebx)
 	je	1f
 	orl	$CR4_LA57, %eax
 1:	mov	%eax, %cr4
 
+	/*
+	 * If the BSP reported NXE support, enable EFER.NXE for all APs
+	 * prior to loading %cr3. This avoids page faults if the AP
+	 * encounters memory marked with the NX bit prior to detecting and
+	 * enabling NXE support.
+	 */
+	cmpb	$0,mptramp_nx-mptramp_start(%ebx)
+	je	2f
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	orl	$EFER_NXE, %eax
+	wrmsr
+2:
 	/*
 	 * Enable EFER.LME so that we get long mode when all the prereqs are
 	 * in place.  In this case, it turns on when CR0_PG is finally enabled.
@@ -112,12 +125,13 @@ protmode:
 	wrmsr
 
 	/*
-	 * Point to the embedded page tables for startup.  Note that this
-	 * only gets accessed after we're actually in 64 bit mode, however
-	 * we can only set the bottom 32 bits of %cr3 in this state.  This
-	 * means we are required to use a temporary page table that is below
-	 * the 4GB limit.  %ebx is still our relocation base.  We could just
-	 * subtract 3 * PAGE_SIZE, but that would be too easy.
+	 * Load kernel page table pointer into %cr3.
+	 * %ebx is still our relocation base.
+	 *
+	 * Note that this only gets accessed after we're actually in 64 bit
+	 * mode, however we can only set the bottom 32 bits of %cr3 in this
+	 * state.  This means we depend on the kernel page table being
+	 * allocated from the low 4G.
 	 */
 	leal	mptramp_pagetables-mptramp_start(%ebx),%eax
 	movl	(%eax), %eax
@@ -155,10 +169,8 @@ jmp_64:
 	/*
 	 * Yeehar!  We're running in 64 bit mode!  We can mostly ignore our
 	 * segment registers, and get on with it.
-	 * Note that we are running at the correct virtual address, but with
-	 * a 1:1 1GB mirrored mapping over entire address space.  We had better
-	 * switch to a real %cr3 promptly so that we can get to the direct map
-	 * space. Remember that jmp is relative and that we've been relocated,
+	 * We are running at the correct virtual address space.
+	 * Note that the jmp is relative and that we've been relocated,
 	 * so use an indirect jump.
 	 */
 	.code64
@@ -220,6 +232,10 @@ mptramp_pagetables:
 mptramp_la57:
 	.long	0
 
+	.globl	mptramp_nx
+mptramp_nx:
+	.long	0
+
 	/*
 	 * The pseudo descriptor for lgdt to use.
 	 */
@@ -243,31 +259,5 @@ bootMP_size:
 	.code64
 	.p2align 4,0
 entry_64:
-	/*
-	 * If the BSP reported NXE support, enable EFER.NXE for all APs
-	 * prior to loading %cr3. This avoids page faults if the AP
-	 * encounters memory marked with the NX bit prior to detecting and
-	 * enabling NXE support.
-	 */
-	movq	pg_nx, %rbx
-	testq	%rbx, %rbx
-	je	1f
-	movl	$MSR_EFER, %ecx
-	rdmsr
-	orl	$EFER_NXE, %eax
-	wrmsr
-
-1:
-	/*
-	 * Load a real %cr3 that has all the direct map stuff and switches
-	 * off the 1GB replicated mirror.  Load a stack pointer and jump
-	 * into AP startup code in C.
-	*/
-	cmpl	$0, la57
-	jne	2f
-	movq	KPML4phys, %rax
-	jmp	3f
-2:	movq	KPML5phys, %rax
-3:	movq	%rax, %cr3
 	movq	bootSTK, %rsp
 	jmp	init_secondary

@@ -1279,7 +1279,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * in real mode mode (e.g. SMP bare metal).
 	 */
 #ifdef SMP
-	mp_bootaddress(physmap, &physmap_idx);
+	alloc_ap_trampoline(physmap, &physmap_idx);
 #endif
 
 	/* call pmap initialization to make new kernel address space */
