@@ -875,9 +875,7 @@ trap_pfault(struct trapframe *frame, bool usermode, vm_offset_t eva,
 }
 
 static void
-trap_fatal(frame, eva)
-	struct trapframe *frame;
-	vm_offset_t eva;
+trap_fatal(struct trapframe *frame, vm_offset_t eva)
 {
 	int code, ss, esp;
 	u_int type;
