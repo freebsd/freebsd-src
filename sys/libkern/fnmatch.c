@@ -50,21 +50,22 @@ __FBSDID("$FreeBSD$");
 #define RANGE_NOMATCH   0
 #define RANGE_ERROR     (-1)
 
-static int rangematch(const char *, char, int, char **);
+static int rangematch(const char *, char, const int, const char **);
 
 int
 fnmatch(const char *pattern, const char *string, int flags)
 {
 	const char *stringstart;
-	char *newp;
+	const char *newp;
 	char c, test;
 
 	for (stringstart = string;;)
 		switch (c = *pattern++) {
 		case EOS:
-			if ((flags & FNM_LEADING_DIR) && *string == '/')
+			if (*string == EOS || (*string == '/' && 
+			    (flags & FNM_LEADING_DIR)))
 				return (0);
-			return (*string == EOS ? 0 : FNM_NOMATCH);
+			return (FNM_NOMATCH);
 		case '?':
 			if (*string == EOS)
 				return (FNM_NOMATCH);
@@ -88,26 +89,27 @@ fnmatch(const char *pattern, const char *string, int flags)
 				return (FNM_NOMATCH);
 
 			/* Optimize for pattern with * at end or before /. */
-			if (c == EOS)
+			if (c == EOS) {
 				if (flags & FNM_PATHNAME)
 					return ((flags & FNM_LEADING_DIR) ||
 					    strchr(string, '/') == NULL ?
 					    0 : FNM_NOMATCH);
-				else
-					return (0);
-			else if (c == '/' && flags & FNM_PATHNAME) {
+		
+				return (0);
+			}
+
+			if (c == '/' && flags & FNM_PATHNAME) {
 				if ((string = strchr(string, '/')) == NULL)
 					return (FNM_NOMATCH);
 				break;
 			}
 
 			/* General case, use recursion. */
-			while ((test = *string) != EOS) {
+			for (; (test = *string) != EOS; ++string) {
 				if (!fnmatch(pattern, string, flags & ~FNM_PERIOD))
 					return (0);
-				if (test == '/' && flags & FNM_PATHNAME)
+				if (test == '/' && (flags & FNM_PATHNAME))
 					break;
-				++string;
 			}
 			return (FNM_NOMATCH);
 		case '[':
@@ -133,9 +135,10 @@ fnmatch(const char *pattern, const char *string, int flags)
 			break;
 		case '\\':
 			if (!(flags & FNM_NOESCAPE)) {
-				if ((c = *pattern++) == EOS) {
+				if ((c = *pattern) == EOS) {
 					c = '\\';
-					--pattern;
+				} else {
+					++pattern;
 				}
 			}
 			/* FALLTHROUGH */
@@ -149,14 +152,14 @@ fnmatch(const char *pattern, const char *string, int flags)
 				;
 			else
 				return (FNM_NOMATCH);
-			string++;
+			++string;
 			break;
 		}
 	/* NOTREACHED */
 }
 
 static int
-rangematch(const char *pattern, char test, int flags, char **newp)
+rangematch(const char *pattern, char test, const int flags, const char **newp)
 {
 	int negate, ok;
 	char c, c2;
@@ -210,6 +213,6 @@ rangematch(const char *pattern, char test, int flags, char **newp)
 			ok = 1;
 	} while ((c = *pattern++) != ']');
 
-	*newp = (char *)(uintptr_t)pattern;
+	*newp = pattern;
 	return (ok == negate ? RANGE_NOMATCH : RANGE_MATCH);
 }

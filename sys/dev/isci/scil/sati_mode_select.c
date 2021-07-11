@@ -859,7 +859,7 @@ SATI_STATUS sati_mode_select_translate_command(
       else
       {
          //CDB byte 7 and 8 for Mode Select 10
-         data_transfer_length = (sati_get_cdb_byte(cdb, 7) << 8) + sati_get_cdb_byte(cdb, 8);
+         data_transfer_length = (sati_get_cdb_byte(cdb, 7) << 8) | sati_get_cdb_byte(cdb, 8);
       }
 
       sequence->allocation_length = data_transfer_length;

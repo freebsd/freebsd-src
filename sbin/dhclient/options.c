@@ -354,7 +354,7 @@ expand_search_domain_name(struct option_data *option, size_t *offset,
 			return;
 		} else if (label_len & 0xC0) {
 			/* This is a pointer to another list of labels. */
-			pointer = ((label_len & ~(0xC0)) << 8) +
+			pointer = ((label_len & ~(0xC0)) << 8) |
 			    option->data[i + 1];
 
 			expand_search_domain_name(option, &pointer, &cursor);

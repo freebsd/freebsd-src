@@ -3253,7 +3253,7 @@ int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	for (left = n; left; left -= c) {
 		c = min(left, 4U);
 		for (val = 0, i = 0; i < c; ++i)
-			val = (val << 8) + *data++;
+			val = (val << 8) | *data++;
 
 		if (!byte_oriented)
 			val = cpu_to_be32(val);

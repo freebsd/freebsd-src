@@ -71,7 +71,7 @@ _gss_import_export_name(OM_uint32 *minor_status,
 	 */
 	if (len < 2)
 		return (GSS_S_BAD_NAME);
-	t = (p[0] << 8) + p[1];
+	t = (p[0] << 8) | p[1];
 	p += 2;
 	len -= 2;
 

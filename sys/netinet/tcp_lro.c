@@ -537,9 +537,8 @@ tcp_lro_rx_csum_tcphdr(const struct tcphdr *th)
 	uint16_t len;
 
 	csum = -th->th_sum;	/* exclude checksum field */
-	len = th->th_off;
 	ptr = (const uint16_t *)th;
-	while (len--) {
+	for (len = th->th_off; len != 0; len--) {
 		csum += *ptr;
 		ptr++;
 		csum += *ptr;
@@ -743,7 +742,7 @@ tcp_lro_update_checksum(const struct lro_parser *pa, const struct lro_entry *le,
 {
 	uint32_t csum;
 	uint16_t tlen;
-	uint16_t temp[5] = {};
+	uint16_t temp[5] = {0};
 
 	switch (pa->data.lro_type) {
 	case LRO_TYPE_IPV4_TCP:
@@ -1502,58 +1501,57 @@ tcp_lro_sort(struct lro_mbuf_sort *parray, uint32_t size)
 	uint32_t x;
 	uint32_t y;
 
-repeat:
-	/* for small arrays insertion sort is faster */
-	if (size <= 12) {
-		for (x = 1; x < size; x++) {
+	for (;;) {
+		/* for small arrays insertion sort is faster */
+		if (size <= 12) {
+			for (x = 1; x < size; x++) {
+				temp = parray[x];
+				for (y = x; y > 0 && temp.seq < parray[y - 1].seq; y--)
+					parray[y] = parray[y - 1];
+				parray[y] = temp;
+			}
+			return;
+		}
+
+		/* compute sequence bits which are constant */
+		ones = 0;
+		zeros = 0;
+		for (x = 0; x != size; x++) {
+			 ones |= parray[x].seq;
+			 zeros |= ~parray[x].seq;
+		}
+
+		/* compute bits which are not constant into "ones" */
+		ones &= zeros;
+		if (ones == 0)
+			return;
+
+		/* pick the most significant bit which is not constant */
+		ones = tcp_lro_msb_64(ones);
+
+		/*
+	 	 * Move entries having cleared sequence bits to the beginning
+	 	 * of the array:
+	 	 */
+		 for (x = y = 0; y != size; x++, y++) {
+			/* skip set bits */
+			if (parray[y].seq & ones)
+				continue;
+			/* swap entries */
 			temp = parray[x];
-			for (y = x; y > 0 && temp.seq < parray[y - 1].seq; y--)
-				parray[y] = parray[y - 1];
+			parray[x] = parray[y];
 			parray[y] = temp;
 		}
-		return;
+
+		 KASSERT(x != 0 && x != size, ("Memory is corrupted\n"));
+
+		/* sort zeros */
+		tcp_lro_sort(parray, x);
+
+		/* sort ones */
+		parray += x;
+		size -= x;
 	}
-
-	/* compute sequence bits which are constant */
-	ones = 0;
-	zeros = 0;
-	for (x = 0; x != size; x++) {
-		ones |= parray[x].seq;
-		zeros |= ~parray[x].seq;
-	}
-
-	/* compute bits which are not constant into "ones" */
-	ones &= zeros;
-	if (ones == 0)
-		return;
-
-	/* pick the most significant bit which is not constant */
-	ones = tcp_lro_msb_64(ones);
-
-	/*
-	 * Move entries having cleared sequence bits to the beginning
-	 * of the array:
-	 */
-	for (x = y = 0; y != size; y++) {
-		/* skip set bits */
-		if (parray[y].seq & ones)
-			continue;
-		/* swap entries */
-		temp = parray[x];
-		parray[x] = parray[y];
-		parray[y] = temp;
-		x++;
-	}
-
-	KASSERT(x != 0 && x != size, ("Memory is corrupted\n"));
-
-	/* sort zeros */
-	tcp_lro_sort(parray, x);
-
-	/* sort ones */
-	parray += x;
-	size -= x;
-	goto repeat;
 }
 
 void

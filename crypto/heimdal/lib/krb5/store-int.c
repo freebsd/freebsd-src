@@ -52,7 +52,7 @@ _krb5_get_int(void *buffer, unsigned long *value, size_t size)
     unsigned long v = 0;
     size_t i;
     for (i = 0; i < size; i++)
-	v = (v << 8) + p[i];
+	v = (v << 8) | p[i];
     *value = v;
     return size;
 }

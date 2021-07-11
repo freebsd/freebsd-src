@@ -6847,7 +6847,7 @@ iwm_cmd_version(uint32_t cmdid)
 static inline uint32_t
 iwm_cmd_id(uint8_t opcode, uint8_t groupid, uint8_t version)
 {
-	return opcode + (groupid << 8) + (version << 16);
+	return opcode | (groupid << 8) | (version << 16);
 }
 
 /* make uint16_t wide id out of uint8_t group and opcode */

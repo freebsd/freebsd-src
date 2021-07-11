@@ -139,8 +139,8 @@ b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize) {
 		srclength -= 3;
 
 		output[0] = input[0] >> 2;
-		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
-		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
+		output[1] = ((input[0] & 0x03) << 4) | (input[1] >> 4);
+		output[2] = ((input[1] & 0x0f) << 2) | (input[2] >> 6);
 		output[3] = input[2] & 0x3f;
 		Assert(output[0] < 64);
 		Assert(output[1] < 64);
@@ -163,8 +163,8 @@ b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize) {
 			input[i] = *src++;
 	
 		output[0] = input[0] >> 2;
-		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
-		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
+		output[1] = ((input[0] & 0x03) << 4) | (input[1] >> 4);
+		output[2] = ((input[1] & 0x0f) << 2) | (input[2] >> 6);
 		Assert(output[0] < 64);
 		Assert(output[1] < 64);
 		Assert(output[2] < 64);

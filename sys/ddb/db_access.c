@@ -72,7 +72,7 @@ db_get_value(db_addr_t addr, int size, bool is_signed)
 	for (i = size - 1; i >= 0; i--)
 #endif
 	{
-	    value = (value << 8) + (data[i] & 0xFF);
+	    value = (value << 8) | (data[i] & 0xFF);
 	}
 
 	if (size < 4) {

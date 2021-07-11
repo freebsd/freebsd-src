@@ -428,7 +428,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	if (sap == NULL) {
-		len = 0;		/* Make compiler happy. */
+		goto noaddress;
 	} else {
 		if (sap->sg_len > NG_NODESIZ +
 		    offsetof(struct sockaddr_ng, sg_data)) {
@@ -442,7 +442,8 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * If the user used any of these ways to not specify an address
 	 * then handle specially.
 	 */
-	if ((sap == NULL) || (len <= 0) || (*sap->sg_data == '\0')) {
+	if ((len <= 0) || (*sap->sg_data == '\0')) {
+noaddress:
 		if (NG_NODE_NUMHOOKS(pcbp->sockdata->node) != 1) {
 			error = EDESTADDRREQ;
 			goto release;

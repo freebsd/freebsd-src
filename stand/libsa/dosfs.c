@@ -571,7 +571,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
 		}
 	}
 
-	d->d_fileno = (dd.de.clus[1] << 8) + dd.de.clus[0];
+	d->d_fileno = (dd.de.clus[1] << 8) | dd.de.clus[0];
 	d->d_reclen = sizeof(*d);
 	d->d_type = (dd.de.attr & FA_DIR) ? DT_DIR : DT_REG;
 	memcpy(d->d_name, fn, sizeof(d->d_name));

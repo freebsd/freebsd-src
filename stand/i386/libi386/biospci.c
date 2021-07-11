@@ -277,7 +277,7 @@ biospci_enumerate(void)
 		for (device_index = 0; ; device_index++) {
 		    /* Look for a match */
 		    err = biospci_find_devclass((pc->pc_class << 16)
-			+ (psc->ps_subclass << 8) + ppi->pi_code,
+			| (psc->ps_subclass << 8) | ppi->pi_code,
 			device_index, &locator);
 		    if (err != 0)
 			break;

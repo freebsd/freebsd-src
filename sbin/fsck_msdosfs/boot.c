@@ -129,12 +129,12 @@ readboot(int dosfs, struct bootblock *boot)
 	boot->bpbHeads = block[26] + (block[27] << 8);
 
 	/* Hidden sectors: ignored */
-	boot->bpbHiddenSecs = block[28] + (block[29] << 8) +
-	    (block[30] << 16) + (block[31] << 24);
+	boot->bpbHiddenSecs = block[28] | (block[29] << 8) |
+	    (block[30] << 16) | (block[31] << 24);
 
 	/* Total sectors (32 bits) */
-	boot->bpbHugeSectors = block[32] + (block[33] << 8) +
-	    (block[34] << 16) + (block[35] << 24);
+	boot->bpbHugeSectors = block[32] | (block[33] << 8) |
+	    (block[34] << 16) | (block[35] << 24);
 	if (boot->bpbHugeSectors == 0) {
 		if (boot->flags & FAT32) {
 			pfatal("FAT32 with sector count of zero");
@@ -160,8 +160,8 @@ readboot(int dosfs, struct bootblock *boot)
 		}
 
 		/* 32-bit count of sectors per FAT */
-		boot->FATsecs = block[36] + (block[37] << 8)
-				+ (block[38] << 16) + (block[39] << 24);
+		boot->FATsecs = block[36] | (block[37] << 8)
+				| (block[38] << 16) | (block[39] << 24);
 
 		if (block[40] & 0x80)
 			boot->ValidFat = block[40] & 0x0f;
@@ -178,14 +178,14 @@ readboot(int dosfs, struct bootblock *boot)
 		 *
 		 * Should be 2 but do not require it.
 		 */
-		boot->bpbRootClust = block[44] + (block[45] << 8)
-			       + (block[46] << 16) + (block[47] << 24);
+		boot->bpbRootClust = block[44] | (block[45] << 8)
+			       | (block[46] << 16) | (block[47] << 24);
 
 		/* Sector number of the FSInfo structure, usually 1 */
-		boot->bpbFSInfo = block[48] + (block[49] << 8);
+		boot->bpbFSInfo = block[48] | (block[49] << 8);
 
 		/* Sector number of the backup boot block, ignored */
-		boot->bpbBackup = block[50] + (block[51] << 8);
+		boot->bpbBackup = block[50] | (block[51] << 8);
 
 		/* Check basic parameters */
 		if (boot->bpbFSInfo == 0) {
@@ -238,12 +238,12 @@ readboot(int dosfs, struct bootblock *boot)
 				boot->bpbFSInfo = 0;
 		} else {
 			/* We appear to have a valid FSInfo block, decode */
-			boot->FSFree = fsinfo[0x1e8] + (fsinfo[0x1e9] << 8)
-				       + (fsinfo[0x1ea] << 16)
-				       + (fsinfo[0x1eb] << 24);
-			boot->FSNext = fsinfo[0x1ec] + (fsinfo[0x1ed] << 8)
-				       + (fsinfo[0x1ee] << 16)
-				       + (fsinfo[0x1ef] << 24);
+			boot->FSFree = fsinfo[0x1e8] | (fsinfo[0x1e9] << 8)
+				       | (fsinfo[0x1ea] << 16)
+				       | (fsinfo[0x1eb] << 24);
+			boot->FSNext = fsinfo[0x1ec] | (fsinfo[0x1ed] << 8)
+				       | (fsinfo[0x1ee] << 16)
+				       | (fsinfo[0x1ef] << 24);
 		}
 	} else {
 		/* !FAT32: FAT12/FAT16 */

@@ -477,10 +477,10 @@ DeflateSetOptsInput(struct bundle *bundle __unused, struct fsm_opt *o,
   want = (o->data[0] >> 4) + 8;
   if (cfg->deflate.in.winsize == 0) {
     if (want < 8 || want > 15) {
-      o->data[0] = ((15 - 8) << 4) + 8;
+      o->data[0] = ((15 - 8) << 4) | 8;
     }
   } else if (want != cfg->deflate.in.winsize) {
-    o->data[0] = ((cfg->deflate.in.winsize - 8) << 4) + 8;
+    o->data[0] = ((cfg->deflate.in.winsize - 8) << 4) | 8;
     return MODE_NAK;
   }
 

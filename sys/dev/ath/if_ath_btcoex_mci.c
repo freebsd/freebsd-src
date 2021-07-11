@@ -393,7 +393,7 @@ ath_btcoex_mci_coex_msg(struct ath_softc *sc, uint8_t opcode,
 		minor = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
 		DPRINTF(sc, ATH_DEBUG_BTCOEX,
 		    "(MCI) BT Coex version: %d.%d\n", major, minor);
-		version = (major << 8) + minor;
+		version = (major << 8) | minor;
 		version = ath_hal_btcoex_mci_state(sc->sc_ah,
 		    HAL_MCI_STATE_SET_BT_COEX_VERSION, &version);
 		break;

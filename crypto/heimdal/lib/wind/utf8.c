@@ -281,7 +281,7 @@ wind_ucs2read(const void *ptr, size_t len, unsigned int *flags,
      * the LE/BE flag and set the resulting LE/BE flag.
      */
     if ((*flags) & WIND_RW_BOM) {
-	uint16_t bom = (p[0] << 8) + p[1];
+	uint16_t bom = (p[0] << 8) | p[1];
 	if (bom == 0xfffe || bom == 0xfeff) {
 	    little = (bom == 0xfffe);
 	    p += 2;
@@ -298,9 +298,9 @@ wind_ucs2read(const void *ptr, size_t len, unsigned int *flags,
 	if (olen < 1)
 	    return WIND_ERR_OVERRUN;
 	if (little)
-	    *out = (p[1] << 8) + p[0];
+	    *out = (p[1] << 8) | p[0];
 	else
-	    *out = (p[0] << 8) + p[1];
+	    *out = (p[0] << 8) | p[1];
 	out++; p += 2; len -= 2; olen--;
     }
     *out_len -= olen;

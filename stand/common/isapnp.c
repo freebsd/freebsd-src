@@ -191,8 +191,7 @@ isapnp_scan_resdata(struct pnpinfo *pi)
 	    if (isapnp_get_resource_info(resinfo, 2))
 		return(1);
 
-	    large_len = resinfo[1];
-	    large_len = (large_len << 8) + resinfo[0];
+	    large_len = (resinfo[1] << 8) | resinfo[0];
 
 	    switch(PNP_LRES_NUM(tag)) {
 
