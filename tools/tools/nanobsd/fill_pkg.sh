@@ -1,5 +1,6 @@
 #!/bin/sh
 #
+# Copyright (c) 2014 Lev Serebryakov.
 # Copyright (c) 2009 Poul-Henning Kamp.
 # All rights reserved.
 #
@@ -27,70 +28,141 @@
 # $FreeBSD$
 #
 # Usage:
-# 	$0 PACKAGE_DUMP NANO_PACKAGE_DIR /usr/ports/foo/bar ...
+# 	$0 PACKAGE_DUMP NANO_PACKAGE_DIR /usr/ports/foo/bar [package.txz]...
 #
 # Will symlink the packages listed, including their runtime dependencies,
 # from the PACKAGE_DUMP to the NANO_PACKAGE_DIR.
 #
 
-NANO_PKG_DUMP=$1
-shift;
-if [ ! -d $NANO_PKG_DUMP ] ; then
-	echo "$NANO_PKG_DUMP not a directory" 1>&2
-	exit 1
-fi
+: ${PORTSDIR:=/usr/ports}
 
-NANO_PACKAGE_DIR=$1
-shift;
+usage () {
+	echo "Usage: $0 [-v] package-dump-dir nano-package-dir port-dir-or-pkg ..." 1>&2
+	exit 2
+}
+
+msg () {
+	local l
+	l=$1 ; shift
+	[ "$l" -le "$VERBOSE" ] && echo $*
+}
 
 ports_recurse() (
-	of=$1
-	shift
-	for d
-	do
-		if [ ! -d $d ] ; then
-			echo "Missing port $d" 1>&2
+	local outputfile dumpdir type fullpath pkgname p
+	outputfile=$1 ; shift
+	dumpdir=$1    ; shift
+	for p do
+		if [ -d "$p" -a -f "$p/Makefile" ] ; then
+			msg 3 "$p: full path to port"
+			pkgname=`cd "$p" && make -V pkgname`
+			type=port
+			fullpath=$p
+		elif [ -d "${PORTSDIR}/$p" -a -f "${PORTSDIR}/$p/Makefile" ] ; then
+			msg 3 "$p: path to port relative to ${PORTSDIR}}"
+			pkgname=`cd "${PORTSDIR}/$p" && make -V pkgname`
+			type=port
+			fullpath=${PORTSDIR}/$p
+		elif [ "${p%.txz}" != "$p" -a -f "$p" ] && pkg info -F "$p" > /dev/null 2>&1 ; then
+			msg 3 "$p: full package file name"
+			pkgname=`basename "$p" | sed 's/\.txz$//I'`
+			type=pkg
+			fullpath=$p
+		elif [ "${p%.txz}" != "$p" -a -f "$dumpdir/$p" ] && pkg info -F "$dumpdir/$p" > /dev/null 2>&1 ; then
+			msg 3 "$p: package file name relative to $dumpdir"
+			pkgname=`basename "$p" | sed 's/\.txz$//I'`
+			type=pkg
+			fullpath=$dumpdir/$p
+		elif [ -f "$dumpdir/$p.txz" ] && pkg info -F "$dumpdir/$p.txz" > /dev/null 2>&1 ; then
+			msg 3 "$p: package name relative to $dumpdir"
+			pkgname=`basename "$p"`
+			type=pkg
+			fullpath=$dumpdir/$p.txz
+		else
+			echo "Missing port or package $p" 1>&2
 			exit 2
 		fi
-		if grep -q "^$d\$" $of ; then
+		if grep -q "^$pkgname\$" "$outputfile" ; then
+			msg 3 "$pkgname was added already"
 			true
-		else
+		elif [ "$type" = "port" ] ; then
 			(
-			cd $d
-			rd=`make -V RUN_DEPENDS ${PORTS_OPTS}`
-			ld=`make -V LIB_DEPENDS ${PORTS_OPTS}`
-			
-			for x in $rd $ld
-			do
-				ports_recurse $of `echo $x |
-				    sed 's/^[^:]*:\([^:]*\).*$/\1/'`
-			done
+				cd "$fullpath"
+				rd=`make -V RUN_DEPENDS ${PORTS_OPTS}`
+				ld=`make -V LIB_DEPENDS ${PORTS_OPTS}`
+
+				for dep in $rd $ld ; do
+					arg=`echo $dep | sed 's/^[^:]*:\([^:]*\).*$/\1/'`
+					msg 2 "Check $arg as requirement for port $pkgname"
+					ports_recurse "$outputfile" "$dumpdir" "$arg"
+				done
 			)
-			echo $d >> $of
+			msg 1 "Add $pkgname"
+			echo "$pkgname" >> "$outputfile"
+		else
+			dir=`dirname "$p"` # Get directory from SPECIFIED path, not from full path
+			if [ "$dir" = "." ] ; then
+			  dir=""
+			else
+			  dir=${dir}/
+			fi
+			deps=`pkg info -dF "$fullpath" | grep -v "$pkgname:"`
+			for dep in $deps ; do
+				arg=`echo $dep | sed -e "s|^|$dir|" -e 's/$/.txz/'`
+				msg 2 "Check $arg as requirement for package $pkgname"
+				ports_recurse "$outputfile" "$dumpdir" "$arg"
+			done
+			msg 1 "Add $pkgname"
+			echo "$pkgname" >> "$outputfile"
 		fi
 	done
 )
 
-rm -rf $NANO_PACKAGE_DIR
-mkdir -p $NANO_PACKAGE_DIR
+VERBOSE=0
 
-PL=$NANO_PACKAGE_DIR/_list
-true > $PL
-for i 
-do
-	ports_recurse `pwd`/$PL $i
+while getopts v opt ; do
+	case "$opt" in
+	  v) VERBOSE=$(($VERBOSE + 1)) ;;
+	[?]) usage                     ;;
+	esac
+done
+shift $(( ${OPTIND} - 1 ))
+
+if [ "$#" -lt 3 ] ; then
+	usage
+fi
+
+NANO_PKG_DUMP=`realpath $1`
+shift;
+if [ ! -d "$NANO_PKG_DUMP" ] ; then
+	echo "$NANO_PKG_DUMP is not a directory" 1>&2
+	usage
+fi
+
+NANO_PKG_DIR=`realpath $1`
+shift;
+if [ ! -d "$NANO_PKG_DIR" ] ; then
+	echo "$NANO_PKG_DIR is not a directory" 1>&2
+	usage
+fi
+
+# Cleanup
+rm -rf "$NANO_PKG_DIR/"*
+
+PL=$NANO_PKG_DIR/_list
+true > "$PL"
+
+for p do
+	ports_recurse "$PL" "$NANO_PKG_DUMP" "$p"
 done
 
-for i in `cat $PL`
-do
-	p=`(cd $i && make -V PKGNAME)`
-	if [ -f $NANO_PKG_DUMP/$p.t[bx]z ] ; then
-		ln -s $NANO_PKG_DUMP/$p.t[bx]z $NANO_PACKAGE_DIR
+for i in `cat "$PL"` ; do
+	if [ -f "$NANO_PKG_DUMP/$i.txz" ] ; then
+		ln -s "$NANO_PKG_DUMP/$i.txz" "$NANO_PKG_DIR"
 	else
-		echo "Package $p misssing in $NANO_PKG_DUMP" 1>&2
+		echo "Package $i misssing in $NANO_PKG_DUMP" 1>&2
 		exit 1
 	fi
 done
 
-rm -f $PL
+rm -f "$PL"
 exit 0
