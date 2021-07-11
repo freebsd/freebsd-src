@@ -12,6 +12,15 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210711:
+	Commit 8a04edfdcbd2 changes the default minor version
+	used for NFSv4 mounts to the highest minor version supported
+	by the NFSv4 server.  This default can be overridden by using
+	the "minorversion" mount option.
+	The consensus of a discussion on freebsd-current@ indicated
+	that this would be acceptable to do and would not be considered
+	a POLA violation.
+
 20210630:
         Commit ca179c4d74f2/632e3f2f3a66 changed the package in which
 	the OpenSSL libraries and utilities are packaged.
