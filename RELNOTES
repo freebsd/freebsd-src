@@ -10,6 +10,12 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+8a04edfdcbd2:
+	Change the default minor version used for an NFSv4 mount
+	to the highest minor version supported by the NFSv4 server.
+	This default can be overridden by using the "minorversion"
+	mount option.
+
 2c76eebca71b, 59f6f5e23c1a:
 	Add two daemons rpc.tlsclntd(8) and rpc.tlsservd(8) that provide
 	support for NFS-over-TLS as described in the Internet Draft titled
