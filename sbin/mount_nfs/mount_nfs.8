@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2021
+.Dd July 10, 2021
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -196,6 +196,25 @@ If this is set to 0 it disables positive name caching for the mount point.
 Override the default of NFS_DEFAULT_NEGNAMETIMEO for the timeout (in seconds)
 for negative name cache entries.
 If this is set to 0 it disables negative name caching for the mount point.
+.It Cm nconnect Ns = Ns Aq Ar value
+Specify the number of TCP connections (1-16) to be used
+for an NFS Version 4, minor version 1 or 2 mount.
+Multiple TCP connections can provide more client to server network
+bandwidth for certain network configurations such as:
+.Bd -literal
+- Multiple network interfaces that are aggregated together.
+- A fast network interface that uses multiple queues.
+.Ed
+.sp
+The first TCP connection will be used for all RPCs that consist
+entirely of small RPC messages.
+The RPCs that can have large RPC messages (Read/Readdir/Write) are
+distributed over the additional TCP connections in a round robin
+fashion.
+This option will result in more IP port#s being used.
+This option requires the
+.Cm nfsv4
+option.
 .It Cm nfsv2
 Use the NFS Version 2 protocol (the default is to try version 3 first
 then version 2).
@@ -586,9 +605,31 @@ Same as
 Same as
 .Fl o Cm nfsv4
 .El
+.Sh IMPLEMENTATION NOTES
+When neither the
+.Cm rsize
+nor
+.Cm wsize
+options are specified, the I/O size will be set to the largest value
+supported by both the NFS client and server.
+The largest value supported by the NFS client is defined by
+the tunable
+.Cd vfs.maxbcachebuf
+which can be set to a power of two up to
+.Cd kern.maxphys .
+.Pp
+The
+.Xr nfsstat 1
+command with the
+.Ic -m
+command line option will show what
+.Nm
+option settings are actually in use for the mount.
 .Sh SEE ALSO
+.Xr nfsstat 1 ,
 .Xr nmount 2 ,
 .Xr unmount 2 ,
+.Xr lagg 4 ,
 .Xr nfsv4 4 ,
 .Xr fstab 5 ,
 .Xr gssd 8 ,
