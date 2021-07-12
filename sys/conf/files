@@ -1885,6 +1885,14 @@ dev/iicbus/pmic/fan53555.c	optional fan53555 ext_resources fdt
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
+dev/igc/if_igc.c		optional igc iflib pci
+dev/igc/igc_api.c		optional igc iflib pci
+dev/igc/igc_base.c		optional igc iflib pci
+dev/igc/igc_i225.c		optional igc iflib pci
+dev/igc/igc_mac.c		optional igc iflib pci
+dev/igc/igc_nvm.c		optional igc iflib pci
+dev/igc/igc_phy.c		optional igc iflib pci
+dev/igc/igc_txrx.c		optional igc iflib pci
 dev/intpm/intpm.c		optional intpm pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/ips/ips.c			optional ips \
