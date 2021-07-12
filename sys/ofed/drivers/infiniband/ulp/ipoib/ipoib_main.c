@@ -278,7 +278,13 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	int error = 0;
 
 	/* check if detaching */
-	if (priv == NULL || priv->gone != 0)
+	if (priv == NULL)
+		return (ENXIO);
+	/* wait for device to become ready, if any */
+	while (priv->gone == 2)
+		pause("W", 1);
+	/* check for device gone */
+	if (priv->gone != 0)
 		return (ENXIO);
 
 	switch (command) {
@@ -822,7 +828,7 @@ out:
 }
 
 static void
-ipoib_detach(struct ipoib_dev_priv *priv)
+ipoib_ifdetach(struct ipoib_dev_priv *priv)
 {
 	struct ifnet *dev;
 
@@ -830,6 +836,16 @@ ipoib_detach(struct ipoib_dev_priv *priv)
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		priv->gone = 1;
 		infiniband_ifdetach(dev);
+	}
+}
+
+static void
+ipoib_detach(struct ipoib_dev_priv *priv)
+{
+	struct ifnet *dev;
+
+	dev = priv->dev;
+	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		if_free(dev);
 		free_unr(ipoib_unrhdr, priv->unit);
 	} else
@@ -845,6 +861,7 @@ ipoib_dev_cleanup(struct ipoib_dev_priv *priv)
 
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
+		ipoib_ifdetach(cpriv);
 		ipoib_dev_cleanup(cpriv);
 		ipoib_detach(cpriv);
 	}
@@ -897,6 +914,7 @@ ipoib_intf_alloc(const char *name)
 		return NULL;
 	}
 	dev->if_softc = priv;
+	priv->gone = 2; /* initializing */
 	priv->unit = alloc_unr(ipoib_unrhdr);
 	if (priv->unit == -1) {
 		if_free(dev);
@@ -906,7 +924,7 @@ ipoib_intf_alloc(const char *name)
 	if_initname(dev, name, priv->unit);
 	dev->if_flags = IFF_BROADCAST | IFF_MULTICAST;
 
-	infiniband_ifattach(dev, NULL, priv->broadcastaddr);
+	infiniband_ifattach(priv->dev, NULL, priv->broadcastaddr);
 
 	dev->if_init = ipoib_init;
 	dev->if_ioctl = ipoib_ioctl;
@@ -915,7 +933,7 @@ ipoib_intf_alloc(const char *name)
 	dev->if_snd.ifq_maxlen = ipoib_sendq_size * 2;
 
 	priv->dev = dev;
-	if_link_state_change(dev, LINK_STATE_DOWN);
+	if_link_state_change(priv->dev, LINK_STATE_DOWN);
 
 	return dev->if_softc;
 }
@@ -1000,7 +1018,7 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 		       hca->name, port, result);
 		goto device_init_failed;
 	}
-	memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
+	memcpy(IF_LLADDR(priv->dev) + 4, priv->local_gid.raw, sizeof(union ib_gid));
 
 	result = ipoib_dev_init(priv, hca, port);
 	if (result < 0) {
@@ -1022,12 +1040,15 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	}
 	if_printf(priv->dev, "Attached to %s port %d\n", hca->name, port);
 
+	priv->gone = 0;	/* ready */
+
 	return priv->dev;
 
 event_failed:
 	ipoib_dev_cleanup(priv);
 
 device_init_failed:
+	ipoib_ifdetach(priv);
 	ipoib_detach(priv);
 
 alloc_mem_failed:
@@ -1088,11 +1109,10 @@ ipoib_remove_one(struct ib_device *device, void *client_data)
 		if (rdma_port_get_link_layer(device, priv->port) != IB_LINK_LAYER_INFINIBAND)
 			continue;
 
+		ipoib_ifdetach(priv);
 		ipoib_stop(priv);
 
 		ib_unregister_event_handler(&priv->event_handler);
-
-		/* dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP); */
 
 		flush_workqueue(ipoib_workqueue);
 
