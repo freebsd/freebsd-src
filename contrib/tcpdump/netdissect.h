@@ -571,6 +571,7 @@ extern int ospf_print_grace_lsa(netdissect_options *, const uint8_t *, u_int);
 extern int ospf_print_te_lsa(netdissect_options *, const uint8_t *, u_int);
 extern void otv_print(netdissect_options *, const u_char *, u_int);
 extern void pfsync_ip_print(netdissect_options *, const u_char *, u_int);
+extern u_int pfsync_if_print(netdissect_options *, const struct pcap_pkthdr *, const u_char *);
 extern void pgm_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void pim_print(netdissect_options *, const u_char *, u_int, const u_char *);
 extern void pimv1_print(netdissect_options *, const u_char *, u_int);

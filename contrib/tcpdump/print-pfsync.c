@@ -57,30 +57,29 @@ static void	print_src_dst(netdissect_options *,
 		    const struct pfsync_state_peer *, uint8_t);
 static void	print_state(netdissect_options *, struct pfsync_state *);
 
-#ifdef notyet
-void
-pfsync_if_print(u_char *user, const struct pcap_pkthdr *h,
+u_int
+pfsync_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
     register const u_char *p)
 {
 	u_int caplen = h->caplen;
 
-	ts_print(&h->ts);
+	ts_print(ndo, &h->ts);
 
 	if (caplen < PFSYNC_HDRLEN) {
 		ND_PRINT((ndo, "[|pfsync]"));
 		goto out;
 	}
 
-	pfsync_print((struct pfsync_header *)p,
+	pfsync_print(ndo, (struct pfsync_header *)p,
 	    p + sizeof(struct pfsync_header),
 	    caplen - sizeof(struct pfsync_header));
 out:
-	if (xflag) {
-		default_print((const u_char *)p, caplen);
+	if (ndo->ndo_xflag) {
+		hex_print(ndo, "\n\t", p, caplen);
 	}
 	safeputchar(ndo, '\n');
+	return (caplen);
 }
-#endif /* notyet */
 
 void
 pfsync_ip_print(netdissect_options *ndo , const u_char *bp, u_int len)
