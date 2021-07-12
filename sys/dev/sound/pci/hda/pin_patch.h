@@ -109,7 +109,7 @@ struct pin_machine_model_t {
 
 struct model_pin_patch_t {
 	struct pin_machine_model_t *models;	/* list of machine models */
-	struct pin_patch_t *pin_patches;  	/* hardcoded overrides */
+	struct pin_patch_t *pin_patches;	/* hardcoded overrides */
 	void (*fixup_func)(struct hdaa_widget *); /* for future use */
 };
 

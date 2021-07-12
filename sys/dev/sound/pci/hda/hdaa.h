@@ -252,10 +252,10 @@ struct hdaa_chan {
 #define RANGEQDB(ctl)							\
 	((ctl)->step * ((ctl)->size + 1))
 
-#define VAL2QDB(ctl, val) 						\
+#define VAL2QDB(ctl, val)						\
 	(((ctl)->size + 1) * ((int)(val) - (ctl)->offset))
 
-#define QDB2VAL(ctl, qdb) 						\
+#define QDB2VAL(ctl, qdb)						\
 	imax(imin((((qdb) + (ctl)->size / 2 * ((qdb) > 0 ? 1 : -1)) /	\
 	 ((ctl)->size + 1) + (ctl)->offset), (ctl)->step), 0)
 
