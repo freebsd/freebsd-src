@@ -1542,36 +1542,34 @@ Embedded systems often use JTAG for debugging, but rarely use it in
 combination with
 .Nm .
 .Pp
-For serial consoles, you can enter the debugger by sending a BREAK
-condition on the serial line if
+Serial consoles can break to the debugger by sending a BREAK
+condition on the serial line.
+This requires a kernel built with
 .Cd options BREAK_TO_DEBUGGER
 is specified in the kernel.
 Most terminal emulation programs can send a break sequence with a
-special key sequence or via a menu item.
-However, in some setups, sending the break can be difficult to arrange
-or happens spuriously, so if the kernel contains
+special key sequence or menu selection.
+Sending the break can be difficult or even happen spuriously in some setups.
+An alternative method is to build a kernel with
 .Cd options ALT_BREAK_TO_DEBUGGER
 then the sequence of CR TILDE CTRL-B enters the debugger;
-CR TILDE CTRL-P causes a panic instead of entering the
-debugger; and
+CR TILDE CTRL-P causes a panic; and
 CR TILDE CTRL-R causes an immediate reboot.
-In all the above sequences, CR is a Carriage Return and is usually
-sent by hitting the Enter or Return key.
+In all these sequences, CR represents Carriage Return and is usually
+sent by pressing the Enter or Return key.
 TILDE is the ASCII tilde character (~).
-CTRL-x is Control x created by hitting the control key and then x
+CTRL-x is Control x, send by pressing the Control key, then x, then releasing both.
 and then releasing both.
 .Pp
-The break to enter the debugger behavior may be enabled at run-time
-by setting the
+The break-to-debugger behavior can be enabled by setting
 .Xr sysctl 8
 .Va debug.kdb.break_to_debugger
 to 1.
-The alternate sequence to enter the debugger behavior may be enabled
-at run-time by setting the
+The alt-break-to-debugger behavior can be enabled by setting
 .Xr sysctl 8
 .Va debug.kdb.alt_break_to_debugger
 to 1.
-The debugger may be entered by setting the
+The debugger can be entered by setting
 .Xr sysctl 8
 .Va debug.kdb.enter
 to 1.
