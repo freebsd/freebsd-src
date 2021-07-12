@@ -221,6 +221,7 @@ device		puc			# Multi I/O cards and multi-channel UARTs
 
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
 device		iflib
+device		igc			# Intel I225 2.5G Ethernet
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		vmx			# VMware VMXNET3 Ethernet
 
