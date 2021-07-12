@@ -154,22 +154,21 @@ I-state.
 .It Li UNC_CBO_CACHE_LOOKUP.READ_FILTER
 .Pq Event 34H , Umask 10H
 Filter on processor core initiated cacheable read
-requests. Must combine with at least one of 01H, 02H,
-04H, 08H.
+requests.
+Must combine with at least one of 01H, 02H, 04H, 08H.
 .It Li UNC_CBO_CACHE_LOOKUP.WRITE_FILTER
 .Pq Event 34H , Umask 20H
-Filter on processor core initiated cacheable write
-requests. Must combine with at least one of 01H, 02H,
-04H, 08H.
+Filter on processor core initiated cacheable write requests.
+Must combine with at least one of 01H, 02H, 04H, 08H.
 .It Li UNC_CBO_CACHE_LOOKUP.EXTSNP_FILTER
 .Pq Event 34H , Umask 40H
-Filter on external snoop requests. Must combine with
-at least one of 01H, 02H, 04H, 08H.
+Filter on external snoop requests.
+Must combine with at least one of 01H, 02H, 04H, 08H.
 .It Li UNC_CBO_CACHE_LOOKUP.ANY_REQUEST_FILTER
 .Pq Event 34H , Umask 80H
 Filter on any IRQ or IPQ initiated requests including
-uncacheable, non-coherent requests. Must combine
-with at least one of 01H, 02H, 04H, 08H.
+uncacheable, non-coherent requests.
+Must combine with at least one of 01H, 02H, 04H, 08H.
 .It Li UNC_ARB_TRK_OCCUPANCY.ALL
 .Pq Event 80H , Umask 01H
 Counts cycles weighted by the number of requests
