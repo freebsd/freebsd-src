@@ -282,8 +282,6 @@ __elfN(obj_loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		case SHT_SYMTAB:
 			nsym++;
 			ef->symtabindex = i;
-			shdr[i].sh_addr = (Elf_Addr)lastaddr;
-			lastaddr += shdr[i].sh_size;
 			break;
 		}
 	}
