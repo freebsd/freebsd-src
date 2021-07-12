@@ -222,6 +222,7 @@ argument contains a list of the capability rights which file should be limited t
 Any number of
 .Dv NV_TYPE_NULL
 where the name of the element is name of the file which can be opened.
+.El
 .Sh EXAMPLES
 The following example first parse some options and then create the
 .Nm system.fileargs
@@ -279,6 +280,8 @@ The
 .Nm cap_fileargs
 service first appeared in
 .Fx 10.3 .
+.Sh AUTHORS
+.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org
 .Sh BUGS
 The
 .Lb cap_fileargs
@@ -287,5 +290,3 @@ included in
 is considered experimental, and should not be deployed in production
 environments without careful consideration of the risks associated with
 the use of experimental operating system features.
-.Sh AUTHORS
-.An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org

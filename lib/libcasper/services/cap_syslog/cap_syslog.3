@@ -28,10 +28,10 @@
 .Dt CAP_SYSLOG 3
 .Os
 .Sh NAME
-.Nm cap_syslog
-.Nm cap_vsyslog
-.Nm cap_openlog
-.Nm cap_closelog
+.Nm cap_syslog ,
+.Nm cap_vsyslog ,
+.Nm cap_openlog ,
+.Nm cap_closelog ,
 .Nm cap_setlogmask
 .Nd "library for syslog in capability mode"
 .Sh LIBRARY
@@ -98,7 +98,7 @@ cap_syslog(capsyslog, LOG_NOTICE, "System logs from capability mode.");
 .Xr closelog 3 ,
 .Xr err 3 ,
 .Xr openlog 3 ,
-.Xr setlogmask 3
+.Xr setlogmask 3 ,
 .Xr syslog 3 ,
 .Xr vsyslog 3 ,
 .Xr capsicum 4 ,
