@@ -1168,8 +1168,8 @@ microcode assist is occurring.
 .It Li UOPS_DECODED.ESP_FOLDING
 .Pq Event D1H , Umask 04H
 Counts number of stack pointer (ESP) instructions decoded: push , pop , call
-, ret, etc. ESP instructions do not generate a Uop to increment or decrement
-ESP.
+, ret, etc.
+ESP instructions do not generate a Uop to increment or decrement ESP.
 Instead, they update an ESP_Offset register that keeps track of the
 delta to the current value of the ESP register.
 .It Li UOPS_DECODED.ESP_SYNC
