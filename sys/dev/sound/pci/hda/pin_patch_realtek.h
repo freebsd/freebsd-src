@@ -648,6 +648,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = pin_patches_dell_xps_jack
+			},
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(LENOVO_ALL_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_DOCK_LINE_OUT(23),
+					PIN_PATCH_HP_OUT(33),
+					{ }
+				},
 			}, { }
 		}
 	}, { /**** CODEC: HDA_CODEC_ALC861 ****/
