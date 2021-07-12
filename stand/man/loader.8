@@ -354,35 +354,8 @@ Both types of builtin variables are described below.
 Number of seconds
 .Ic autoboot
 will wait before booting.
-If this variable is not defined,
-.Ic autoboot
-will default to 10 seconds.
-.Pp
-If set to
-.Dq Li NO ,
-no
-.Ic autoboot
-will be automatically attempted after processing
-.Pa /boot/loader.rc ,
-though explicit
-.Ic autoboot Ns 's
-will be processed normally, defaulting to 10 seconds delay.
-.Pp
-If set to
-.Dq Li 0 ,
-no delay will be inserted, but user still will be able to interrupt
-.Ic autoboot
-process and escape into the interactive mode by pressing some key
-on the console while kernel and
-modules are being loaded.
-.Pp
-If set to
-.Dq Li -1 ,
-no delay will be inserted and
-.Nm
-will engage interactive mode only if
-.Ic autoboot
-has failed for some reason.
+Configuration options are described in
+.Xr loader.conf 5 .
 .It Va boot_askname
 Instructs the kernel to prompt the user for the name of the root device
 when the kernel is booted.
