@@ -157,7 +157,7 @@ match_pin_patches(int vendor_id, int vendor_subid)
 			continue;
 		for (struct model_pin_patch_t *pp =  p->patches; pp->models; pp++) {
 			for (struct pin_machine_model_t *model = pp->models; model->id != 0; model++) {
-				if (vendor_subid == model->id)
+				if (HDA_DEV_MATCH(model->id, vendor_subid))
 					return (pp->pin_patches);
 			}
 		}
