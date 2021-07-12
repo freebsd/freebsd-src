@@ -103,7 +103,7 @@ sdp_post_recv(struct sdp_sock *ssk)
 	struct ib_recv_wr rx_wr = { NULL };
 	struct ib_sge ibsge[SDP_MAX_RECV_SGES];
 	struct ib_sge *sge = ibsge;
-	struct ib_recv_wr *bad_wr;
+	const struct ib_recv_wr *bad_wr;
 	struct mbuf *mb, *m;
 	struct sdp_bsdh *h;
 	int id = ring_head(ssk->rx_ring);
