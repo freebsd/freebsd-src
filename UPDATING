@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250314:
+	We now use LLVM's binary utilities (nm, objcopy, etc.) by default.
+	The WITHOUT_LLVM_BINUTILS src.conf(5) knob can be used to revert to
+	ELF Tool Chain tools if desired.
+
 20250303:
 	Commit 4a77657cbc01 changed the ABI between ipfw(8) and ipfw(4).
 	Please note that the old ipfw(8) binary will not work with the new
