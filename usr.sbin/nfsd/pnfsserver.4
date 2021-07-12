@@ -30,14 +30,22 @@
 .Nm pNFSserver
 .Nd NFS Version 4.1 and 4.2 Parallel NFS Protocol Server
 .Sh DESCRIPTION
-A set of FreeBSD servers may be configured to provide a
+A set of
+.Fx
+servers may be configured to provide a
 .Xr pnfs 4
 service.
-One FreeBSD system needs to be configured as a MetaData Server (MDS) and
-at least one additional FreeBSD system needs to be configured as one or
+One
+.Fx
+system needs to be configured as a MetaData Server (MDS) and
+at least one additional
+.Fx
+system needs to be configured as one or
 more Data Servers (DS)s.
 .Pp
-These FreeBSD systems are configured to be NFSv4.1 and NFSv4.2
+These
+.Fx
+systems are configured to be NFSv4.1 and NFSv4.2
 servers, see
 .Xr nfsd 8
 and
@@ -85,7 +93,9 @@ not require the
 export option and this directory should be exported to them with the same
 options as used by the MDS to export file system(s) to the clients.
 .Pp
-It is possible to have multiple DSs on the same FreeBSD system, but each
+It is possible to have multiple DSs on the same
+.Fx
+system, but each
 of these DSs must have a separate top level exported directory used for storage
 of data files and each
 of these DSs must be mountable via a separate IP address.
@@ -94,10 +104,15 @@ interface via
 .Xr ifconfig 8
 to create these different IP addresses.
 Multiple DSs on the same server may be useful when data for different file systems
-on the MDS are being stored on different file system volumes on the FreeBSD
+on the MDS are being stored on different file system volumes on the
+.Fx
 DS system.
 .Sh MDS server configuration
-The MDS must be a separate FreeBSD system from the FreeBSD DS system(s) and
+The MDS must be a separate
+.Fx
+system from the
+.Fx
+DS system(s) and
 NFS clients.
 It is configured as a NFSv4.1 and NFSv4.2 server with
 file system(s) exported to clients.
@@ -189,7 +204,9 @@ nfs_server_flags="-u -t -n 128 -p nfsv4-data0:/data0#/export1,nfsv4-data1:/data1
 This can be used by system administrators to control where data files are
 stored and might be useful for control of storage use.
 For this case, it may be convenient to co-locate more than one of the DSs
-on the same FreeBSD server, using separate file systems on the DS system
+on the same
+.Fx
+server, using separate file systems on the DS system
 for storage of the respective DS's data files.
 If mirroring is desired for this case, the
 .Dq -m
@@ -211,7 +228,9 @@ For a service that will store a large number of files this sysctl should be
 set much larger, to avoid the number of entries in a subdirectory from
 getting too large.
 .Sh Client mounts
-Once operational, NFSv4.1 or NFSv4.2 FreeBSD client mounts
+Once operational, NFSv4.1 or NFSv4.2
+.Fx
+client mounts
 done with the
 .Dq pnfs
 option should do I/O directly on the DSs.
@@ -421,5 +440,7 @@ Since the MDS cannot be mirrored, it is a single point of failure just
 as a non
 .Tn pNFS
 server is.
-For non-mirrored configurations, all FreeBSD systems used in the service
+For non-mirrored configurations, all
+.Fx
+systems used in the service
 are single points of failure.

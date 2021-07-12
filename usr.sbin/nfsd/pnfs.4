@@ -54,10 +54,14 @@ the DS.
 The first is DeviceInfo, which is static information defining the DS
 server.
 The critical piece of information in DeviceInfo for the layout types
-supported by FreeBSD is the IP address that is used to perform RPCs on the DS.
+supported by
+.Fx
+is the IP address that is used to perform RPCs on the DS.
 It also indicates which version of NFS the DS supports, I/O size and other
 layout specific information.
-In the DeviceInfo, there is a DeviceID which, for the FreeBSD server
+In the DeviceInfo, there is a DeviceID which, for the
+.Fx
+server
 is unique to the DS configuration
 and changes whenever the
 .Xr nfsd
@@ -66,35 +70,51 @@ daemon is restarted or the server is rebooted.
 The second is the layout, which is per file and references the DeviceInfo
 to use via the DeviceID.
 It is for a byte range of a file and is either Read or Read/Write.
-For the FreeBSD server, a layout covers all bytes of a file.
+For the
+.Fx
+server, a layout covers all bytes of a file.
 A layout may be recalled by the MDS using a LayoutRecall callback.
 When a client returns a layout via the LayoutReturn operation it can
 indicate that error(s) were encountered while doing I/O on the DS,
 at least for certain layout types such as the Flexible File Layout.
 .Pp
-The FreeBSD client and server supports two layout types.
+The
+.Fx
+client and server supports two layout types.
 .Pp
 The File Layout is described in RFC5661 and uses the NFSv4.1 or NFSv4.2 protocol
 to perform I/O on the DS.
 It does not support client aware DS mirroring and, as such,
-the FreeBSD server only provides File Layout support for non-mirrored
+the
+.Fx
+server only provides File Layout support for non-mirrored
 configurations.
 .Pp
 The Flexible File Layout allows the use of the NFSv3, NFSv4.0, NFSv4.1 or
 NFSv4.2 protocol to perform I/O on the DS and does support client aware
 mirroring.
-As such, the FreeBSD server uses Flexible File Layout layouts for the
+As such, the
+.Fx
+server uses Flexible File Layout layouts for the
 mirrored DS configurations.
-The FreeBSD server supports the
+The
+.Fx
+server supports the
 .Dq tightly coupled
 variant and all DSs allow use of the
 NFSv4.2 or NFSv4.1 protocol for I/O operations.
 Clients that support the Flexible File Layout will do writes and commits
 to all DS mirrors in the mirror set.
 .Pp
-A FreeBSD pNFS service consists of a single MDS server plus one or more
-DS servers, all of which are FreeBSD systems.
-For a non-mirrored configuration, the FreeBSD server will issue File Layout
+A
+.Fx
+pNFS service consists of a single MDS server plus one or more
+DS servers, all of which are
+.Fx
+systems.
+For a non-mirrored configuration, the
+.Fx
+server will issue File Layout
 layouts by default.
 However that default can be set to the Flexible File Layout by setting the
 .Xr sysctl 1
@@ -105,7 +125,8 @@ Mirrored server configurations will only issue Flexible File Layouts.
 .Tn pNFS
 clients mount the MDS as they would a single NFS server.
 .Pp
-A FreeBSD
+A
+.Fx
 .Tn pNFS
 client must be running the
 .Xr nfscbd 8
@@ -165,7 +186,9 @@ as a mirror while the pNFS service continues to function.
 .Pp
 See
 .Xr pnfsserver 4
-for information on how to set up a FreeBSD pNFS service.
+for information on how to set up a
+.Fx
+pNFS service.
 .Sh SEE ALSO
 .Xr nfsv4 4 ,
 .Xr pnfsserver 4 ,
@@ -187,7 +210,9 @@ For Linux 4.17-rc2 kernels, I have not seen client crashes during testing,
 but it only supports the
 .Dq loosely coupled
 variant.
-To make it work correctly when mounting the FreeBSD server, you must
+To make it work correctly when mounting the
+.Fx
+server, you must
 set the sysctl
 .Dq vfs.nfsd.flexlinuxhack
 to one so that it works around
