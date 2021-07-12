@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #define RANGE_NOMATCH   0
 #define RANGE_ERROR     (-1)
 
-static int rangematch(const char *, char, const int, const char **);
+static int rangematch(const char *, char, int, const char **);
 
 int
 fnmatch(const char *pattern, const char *string, int flags)
@@ -62,7 +62,8 @@ fnmatch(const char *pattern, const char *string, int flags)
 	for (stringstart = string;;)
 		switch (c = *pattern++) {
 		case EOS:
-			if ((*string == EOS) || (*string == '/' && (flags & FNM_LEADING_DIR)))
+			if (*string == EOS || (*string == '/' && 
+			    (flags & FNM_LEADING_DIR)))
 				return (0);
 			return (FNM_NOMATCH);
 		case '?':
@@ -158,7 +159,7 @@ fnmatch(const char *pattern, const char *string, int flags)
 }
 
 static int
-rangematch(const char *pattern, char test, const int flags, const char **newp)
+rangematch(const char *pattern, char test, const flags, const char **newp)
 {
 	int negate, ok;
 	char c, c2;
