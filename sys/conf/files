@@ -1405,6 +1405,7 @@ dev/bwn/if_bwn_phy_lp.c		optional bwn bhnd
 dev/bwn/if_bwn_phy_n.c		optional bwn bhnd
 dev/bwn/if_bwn_util.c		optional bwn bhnd
 dev/cadence/if_cgem.c		optional cgem fdt
+dev/cardbus/card_if.m		standard
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -2628,7 +2629,6 @@ dev/ow/own_if.m			optional ow
 dev/ow/ow_temp.c		optional ow_temp
 dev/ow/owc_gpiobus.c		optional owc gpio
 dev/pbio/pbio.c			optional pbio isa
-dev/pccard/card_if.m		standard
 dev/pccard/pccard.c		optional pccard
 dev/pccard/pccard_cis.c		optional pccard
 dev/pccard/pccard_cis_quirks.c	optional pccard
