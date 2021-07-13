@@ -2062,6 +2062,19 @@ pmap_init_pat(void)
 	load_cr4(cr4);
 }
 
+vm_page_t
+pmap_page_alloc_below_4g(bool zeroed)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc_contig(NULL, 0, (zeroed ? VM_ALLOC_ZERO : 0) |
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ,
+	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	if (m != NULL && zeroed && (m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+	return (m);
+}
+
 extern const char la57_trampoline[], la57_trampoline_gdt_desc[],
     la57_trampoline_gdt[], la57_trampoline_end[];
 
@@ -2087,42 +2100,18 @@ pmap_bootstrap_la57(void *arg __unused)
 	r_gdt.rd_limit = NGDT * sizeof(struct user_segment_descriptor) - 1;
 	r_gdt.rd_base = (long)__pcpu[0].pc_gdt;
 
-	m_code = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_code->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_code);
+	m_code = pmap_page_alloc_below_4g(true);
 	v_code = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_code));
-	m_pml5 = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pml5->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pml5);
+	m_pml5 = pmap_page_alloc_below_4g(true);
 	KPML5phys = VM_PAGE_TO_PHYS(m_pml5);
 	v_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(KPML5phys);
-	m_pml4 = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pml4->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pml4);
+	m_pml4 = pmap_page_alloc_below_4g(true);
 	v_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
-	m_pdp = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pdp->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pdp);
+	m_pdp = pmap_page_alloc_below_4g(true);
 	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
-	m_pd = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pd->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pd);
+	m_pd = pmap_page_alloc_below_4g(true);
 	v_pd = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd));
-	m_pt = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pt->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pt);
+	m_pt = pmap_page_alloc_below_4g(true);
 	v_pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pt));
 
 	/*
