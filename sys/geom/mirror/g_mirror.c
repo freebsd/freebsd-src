@@ -749,6 +749,7 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
     struct g_mirror_metadata *md)
 {
 
+	bzero(md, sizeof(*md));
 	strlcpy(md->md_magic, G_MIRROR_MAGIC, sizeof(md->md_magic));
 	md->md_version = G_MIRROR_VERSION;
 	strlcpy(md->md_name, sc->sc_name, sizeof(md->md_name));
@@ -760,14 +761,8 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 	md->md_mediasize = sc->sc_mediasize;
 	md->md_sectorsize = sc->sc_sectorsize;
 	md->md_mflags = (sc->sc_flags & G_MIRROR_DEVICE_FLAG_MASK);
-	bzero(md->md_provider, sizeof(md->md_provider));
 	if (disk == NULL) {
 		md->md_did = arc4random();
-		md->md_priority = 0;
-		md->md_syncid = 0;
-		md->md_dflags = 0;
-		md->md_sync_offset = 0;
-		md->md_provsize = 0;
 	} else {
 		md->md_did = disk->d_id;
 		md->md_priority = disk->d_priority;
@@ -775,8 +770,6 @@ g_mirror_fill_metadata(struct g_mirror_softc *sc, struct g_mirror_disk *disk,
 		md->md_dflags = (disk->d_flags & G_MIRROR_DISK_FLAG_MASK);
 		if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 			md->md_sync_offset = disk->d_sync.ds_offset_done;
-		else
-			md->md_sync_offset = 0;
 		if ((disk->d_flags & G_MIRROR_DISK_FLAG_HARDCODED) != 0) {
 			strlcpy(md->md_provider,
 			    disk->d_consumer->provider->name,
