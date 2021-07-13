@@ -1022,6 +1022,7 @@ extern counter_u64_t tcp_extra_mbuf;
 extern counter_u64_t tcp_would_have_but;
 extern counter_u64_t tcp_comp_total;
 extern counter_u64_t tcp_uncomp_total;
+extern counter_u64_t tcp_bad_csums;
 
 #ifdef NETFLIX_EXP_DETECTION
 /* Various SACK attack thresholds */
