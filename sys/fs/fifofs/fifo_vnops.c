@@ -154,9 +154,9 @@ fifo_open(ap)
 		error = pipe_named_ctor(&fpipe, td);
 		if (error != 0)
 			return (error);
-		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
+		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK | M_ZERO);
 		fip->fi_pipe = fpipe;
-		fpipe->pipe_wgen = fip->fi_readers = fip->fi_writers = 0;
+		fpipe->pipe_wgen = 0;
  		KASSERT(vp->v_fifoinfo == NULL, ("fifo_open: v_fifoinfo race"));
 		vp->v_fifoinfo = fip;
 	}
