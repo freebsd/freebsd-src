@@ -501,6 +501,7 @@ int	pmap_pkru_set(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 void	pmap_thread_init_invl_gen(struct thread *td);
 int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
+vm_page_t pmap_page_alloc_below_4g(bool zeroed);
 #endif /* _KERNEL */
 
 /* Return various clipped indexes for a given VA */
