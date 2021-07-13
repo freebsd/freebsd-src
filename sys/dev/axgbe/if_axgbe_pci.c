@@ -770,7 +770,7 @@ xgbe_service_timer(void *data)
 static void
 xgbe_init_timers(struct xgbe_prv_data *pdata)
 {
-        callout_init(&pdata->service_timer, 1*hz);
+        callout_init(&pdata->service_timer, 1);
 }
 
 static void
