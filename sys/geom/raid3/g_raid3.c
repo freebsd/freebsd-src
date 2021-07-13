@@ -743,6 +743,7 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	struct g_raid3_softc *sc;
 	struct g_provider *pp;
 
+	bzero(md, sizeof(*md));
 	sc = disk->d_softc;
 	strlcpy(md->md_magic, G_RAID3_MAGIC, sizeof(md->md_magic));
 	md->md_version = G_RAID3_VERSION;
@@ -756,9 +757,7 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 	md->md_no = disk->d_no;
 	md->md_syncid = disk->d_sync.ds_syncid;
 	md->md_dflags = (disk->d_flags & G_RAID3_DISK_FLAG_MASK);
-	if (disk->d_state != G_RAID3_DISK_STATE_SYNCHRONIZING)
-		md->md_sync_offset = 0;
-	else {
+	if (disk->d_state == G_RAID3_DISK_STATE_SYNCHRONIZING) {
 		md->md_sync_offset =
 		    disk->d_sync.ds_offset_done / (sc->sc_ndisks - 1);
 	}
@@ -768,12 +767,8 @@ g_raid3_fill_metadata(struct g_raid3_disk *disk, struct g_raid3_metadata *md)
 		pp = NULL;
 	if ((disk->d_flags & G_RAID3_DISK_FLAG_HARDCODED) != 0 && pp != NULL)
 		strlcpy(md->md_provider, pp->name, sizeof(md->md_provider));
-	else
-		bzero(md->md_provider, sizeof(md->md_provider));
 	if (pp != NULL)
 		md->md_provsize = pp->mediasize;
-	else
-		md->md_provsize = 0;
 }
 
 void
