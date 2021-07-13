@@ -809,11 +809,11 @@ amdvi_print_dev_cap(struct amdvi_softc *softc)
 
 	cfg = softc->dev_cfg;
 	for (i = 0; i < softc->dev_cfg_cnt; i++) {
-		device_printf(softc->dev, "device [0x%x - 0x%x]"
+		device_printf(softc->dev, "device [0x%x - 0x%x] "
 		    "config:%b%s\n", cfg->start_id, cfg->end_id,
 		    cfg->data,
 		    "\020\001INIT\002ExtInt\003NMI"
-		    "\007LINT0\008LINT1",
+		    "\007LINT0\010LINT1",
 		    cfg->enable_ats ? "ATS enabled" : "");
 		cfg++;
 	}
@@ -874,10 +874,6 @@ amdvi_add_sysctl(struct amdvi_softc *softc)
 	    &softc->total_cmd, "Command submitted count");
 	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "pci_rid", CTLFLAG_RD,
 	    &softc->pci_rid, 0, "IOMMU RID");
-	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "start_dev_rid", CTLFLAG_RD,
-	    &softc->start_dev_rid, 0, "Start of device under this IOMMU");
-	SYSCTL_ADD_U16(ctx, child, OID_AUTO, "end_dev_rid", CTLFLAG_RD,
-	    &softc->end_dev_rid, 0, "End of device under this IOMMU");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "command_head",
 	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 0,
 	    amdvi_handle_sysctl, "IU", "Command head");
@@ -1204,22 +1200,17 @@ static struct amdvi_softc *
 amdvi_find_iommu(uint16_t devid)
 {
 	struct amdvi_softc *softc;
-	int i;
+	int i, j;
 
 	for (i = 0; i < ivhd_count; i++) {
 		softc = device_get_softc(ivhd_devs[i]);
-		if ((devid >= softc->start_dev_rid) &&
-		    (devid <= softc->end_dev_rid))
-			return (softc);
+		for (j = 0; j < softc->dev_cfg_cnt; j++)
+			if ((devid >= softc->dev_cfg[j].start_id) &&
+			    (devid <= softc->dev_cfg[j].end_id))
+				return (softc);
 	}
 
-	/*
-	 * XXX: BIOS bug, device not in IVRS table, assume its from first IOMMU.
-	 */
-	printf("BIOS bug device(%d.%d.%d) doesn't have IVHD entry.\n",
-	    RID2PCI_STR(devid));
-
-	return (device_get_softc(ivhd_devs[0]));
+	return (NULL);
 }
 
 /*
@@ -1228,14 +1219,12 @@ amdvi_find_iommu(uint16_t devid)
  * be set concurrently, e.g. read and write bits.
  */
 static void
-amdvi_set_dte(struct amdvi_domain *domain, uint16_t devid, bool enable)
+amdvi_set_dte(struct amdvi_domain *domain, struct amdvi_softc *softc,
+    uint16_t devid, bool enable)
 {
-	struct amdvi_softc *softc;
 	struct amdvi_dte* temp;
 
 	KASSERT(domain, ("domain is NULL for pci_rid:0x%x\n", devid));
-
-	softc = amdvi_find_iommu(devid);
 	KASSERT(softc, ("softc is NULL for pci_rid:0x%x\n", devid));
 
 	temp = &amdvi_dte[devid];
@@ -1269,11 +1258,8 @@ amdvi_set_dte(struct amdvi_domain *domain, uint16_t devid, bool enable)
 }
 
 static void
-amdvi_inv_device(uint16_t devid)
+amdvi_inv_device(struct amdvi_softc *softc, uint16_t devid)
 {
-	struct amdvi_softc *softc;
-
-	softc = amdvi_find_iommu(devid);
 	KASSERT(softc, ("softc is NULL"));
 
 	amdvi_cmd_inv_dte(softc, devid);
@@ -1288,6 +1274,7 @@ static void
 amdvi_add_device(void *arg, uint16_t devid)
 {
 	struct amdvi_domain *domain;
+	struct amdvi_softc *softc;
 
 	domain = (struct amdvi_domain *)arg;
 	KASSERT(domain != NULL, ("domain is NULL"));
@@ -1295,22 +1282,29 @@ amdvi_add_device(void *arg, uint16_t devid)
 	printf("Assigning device(%d.%d.%d) to domain:%d\n",
 	    RID2PCI_STR(devid), domain->id);
 #endif
-	amdvi_set_dte(domain, devid, true);
-	amdvi_inv_device(devid);
+	softc = amdvi_find_iommu(devid);
+	if (softc == NULL)
+		return;
+	amdvi_set_dte(domain, softc, devid, true);
+	amdvi_inv_device(softc, devid);
 }
 
 static void
 amdvi_remove_device(void *arg, uint16_t devid)
 {
 	struct amdvi_domain *domain;
+	struct amdvi_softc *softc;
 
 	domain = (struct amdvi_domain *)arg;
 #ifdef AMDVI_DEBUG_CMD
 	printf("Remove device(0x%x) from domain:%d\n",
 	       devid, domain->id);
 #endif
-	amdvi_set_dte(domain, devid, false);
-	amdvi_inv_device(devid);
+	softc = amdvi_find_iommu(devid);
+	if (softc == NULL)
+		return;
+	amdvi_set_dte(domain, softc, devid, false);
+	amdvi_inv_device(softc, devid);
 }
 
 static void

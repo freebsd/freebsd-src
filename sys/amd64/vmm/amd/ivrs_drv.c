@@ -184,9 +184,17 @@ ivhd_dev_add_entry(struct amdvi_softc *softc, uint32_t start_id,
 {
 	struct ivhd_dev_cfg *dev_cfg;
 
-	/* If device doesn't have special data, don't add it. */
-	if (!cfg)
-		return;
+	KASSERT(softc->dev_cfg_cap <= softc->dev_cfg_cnt,
+	    ("Impossible case: number of dev_cfg exceeding capacity"));
+	if (softc->dev_cfg_cap == softc->dev_cfg_cnt) {
+		if (softc->dev_cfg_cap == 0)
+			softc->dev_cfg_cap = 1;
+		else
+			softc->dev_cfg_cap <<= 2;
+		softc->dev_cfg = realloc(softc->dev_cfg,
+		    sizeof(*softc->dev_cfg) * softc->dev_cfg_cap, M_DEVBUF,
+		    M_WAITOK);
+	}
 
 	dev_cfg = &softc->dev_cfg[softc->dev_cfg_cnt++];
 	dev_cfg->start_id = start_id;
@@ -203,13 +211,10 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 {
 	ACPI_IVRS_DE_HEADER *de;
 	uint8_t *p, *end;
-	int range_start_id = 0, range_end_id = 0;
+	int range_start_id = -1, range_end_id = -1, i;
 	uint32_t *extended;
 	uint8_t all_data = 0, range_data = 0;
 	bool range_enable_ats = false, enable_ats;
-
-	softc->start_dev_rid = ~0;
-	softc->end_dev_rid = 0;
 
 	switch (ivhd->Header.Type) {
 		case IVRS_TYPE_HARDWARE_LEGACY:
@@ -231,11 +236,11 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 
 	while (p < end) {
 		de = (ACPI_IVRS_DE_HEADER *)p;
-		softc->start_dev_rid = MIN(softc->start_dev_rid, de->Id);
-		softc->end_dev_rid = MAX(softc->end_dev_rid, de->Id);
 		switch (de->Type) {
 		case ACPI_IVRS_TYPE_ALL:
 			all_data = de->DataSetting;
+			for (i = 0; i < softc->dev_cfg_cnt; i++)
+				softc->dev_cfg[i].data |= all_data;
 			break;
 
 		case ACPI_IVRS_TYPE_SELECT:
@@ -255,6 +260,11 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 		case ACPI_IVRS_TYPE_START:
 		case ACPI_IVRS_TYPE_ALIAS_START:
 		case ACPI_IVRS_TYPE_EXT_START:
+			if (range_start_id != -1) {
+				device_printf(softc->dev,
+				    "Unexpected start-of-range device entry\n");
+				return (EINVAL);
+			}
 			range_start_id = de->Id;
 			range_data = de->DataSetting;
 			if (de->Type == ACPI_IVRS_TYPE_EXT_START) {
@@ -266,10 +276,20 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 			break;
 
 		case ACPI_IVRS_TYPE_END:
+			if (range_start_id == -1) {
+				device_printf(softc->dev,
+				    "Unexpected end-of-range device entry\n");
+				return (EINVAL);
+			}
 			range_end_id = de->Id;
+			if (range_end_id < range_start_id) {
+				device_printf(softc->dev,
+				    "Device entry range going backward\n");
+				return (EINVAL);
+			}
 			ivhd_dev_add_entry(softc, range_start_id, range_end_id,
-				range_data | all_data, range_enable_ats);
-			range_start_id = range_end_id = 0;
+			    range_data | all_data, range_enable_ats);
+			range_start_id = range_end_id = -1;
 			range_data = 0;
 			all_data = 0;
 			break;
@@ -287,12 +307,6 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 				    "Unknown dev entry:0x%x\n", de->Type);
 		}
 
-		if (softc->dev_cfg_cnt >
-			(sizeof(softc->dev_cfg) / sizeof(softc->dev_cfg[0]))) {
-			device_printf(softc->dev,
-			    "WARN Too many device entries.\n");
-			return (EINVAL);
-		}
 		if (de->Type < 0x40)
 			p += sizeof(ACPI_IVRS_DEVICE4);
 		else if (de->Type < 0x80)
@@ -303,10 +317,6 @@ ivhd_dev_parse(ACPI_IVRS_HARDWARE1 *ivhd, struct amdvi_softc *softc)
 			break;
 		}
 	}
-
-	KASSERT((softc->end_dev_rid >= softc->start_dev_rid),
-	    ("Device end[0x%x] < start[0x%x.\n",
-	    softc->end_dev_rid, softc->start_dev_rid));
 
 	return (0);
 }
@@ -619,9 +629,6 @@ ivhd_print_cap(struct amdvi_softc *softc, ACPI_IVRS_HARDWARE1 * ivhd)
 	    		max_ptp_level, amdvi_ptp_level);
 	}
 
-	device_printf(softc->dev, "device range: 0x%x - 0x%x\n",
-			softc->start_dev_rid, softc->end_dev_rid);
-
 	return (0);
 }
 
@@ -679,21 +686,25 @@ ivhd_attach(device_t dev)
 	if (status != 0) {
 		device_printf(dev,
 		    "endpoint device parsing error=%d\n", status);
+		goto fail;
 	}
 
 	status = ivhd_print_cap(softc, ivhd);
-	if (status != 0) {
-		return (status);
-	}
+	if (status != 0)
+		goto fail;
 
 	status = amdvi_setup_hw(softc);
 	if (status != 0) {
 		device_printf(dev, "couldn't be initialised, error=%d\n", 
 		    status);
-		return (status);
+		goto fail;
 	}
 
 	return (0);
+
+fail:
+	free(softc->dev_cfg, M_DEVBUF);
+	return (status);
 }
 
 static int
@@ -704,6 +715,7 @@ ivhd_detach(device_t dev)
 	softc = device_get_softc(dev);
 
 	amdvi_teardown_hw(softc);
+	free(softc->dev_cfg, M_DEVBUF);
 
 	/*
 	 * XXX: delete the device.
