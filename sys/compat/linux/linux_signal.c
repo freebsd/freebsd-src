@@ -96,7 +96,12 @@ linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 	}
 	if (lsa->lsa_flags & LINUX_SA_RESTORER) {
 		flags &= ~LINUX_SA_RESTORER;
-		/* XXX: We might want to handle it; see Linux sigreturn(2). */
+		/*
+		 * We ignore the lsa_restorer and always use our own signal
+		 * trampoline instead.  It looks like SA_RESTORER is obsolete
+		 * in Linux too - it doesn't seem to be used at all on arm64.
+		 * In any case: see Linux sigreturn(2).
+		 */
 	}
 	if (lsa->lsa_flags & LINUX_SA_ONSTACK) {
 		flags &= ~LINUX_SA_ONSTACK;
