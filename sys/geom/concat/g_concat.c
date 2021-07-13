@@ -865,6 +865,7 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
+	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_CONCAT_VERSION;
 	name = gctl_get_asciiparam(req, "arg0");
@@ -876,7 +877,6 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 	md.md_id = arc4random();
 	md.md_no = 0;
 	md.md_all = *nargs - 1;
-	bzero(md.md_provider, sizeof(md.md_provider));
 	/* This field is not important here. */
 	md.md_provsize = 0;
 
@@ -1017,6 +1017,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 	u_char *sector;
 	int error;
 
+	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_CONCAT_VERSION;
 	strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
@@ -1026,25 +1027,24 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 		pp = disk->d_consumer->provider;
 
 		md.md_no = no;
-		bzero(md.md_provider, sizeof(md.md_provider));
-		if (disk->d_hardcoded) {
-			strlcpy(md.md_provider, pp->name, sizeof(md.md_provider));
-		}
+		if (disk->d_hardcoded)
+			strlcpy(md.md_provider, pp->name,
+			    sizeof(md.md_provider));
 		md.md_provsize = disk->d_consumer->provider->mediasize;
 
-		sector = g_malloc(pp->sectorsize, M_WAITOK);
-
+		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		concat_metadata_encode(&md, sector);
 		error = g_access(disk->d_consumer, 0, 1, 0);
 		if (error == 0) {
-			error = g_write_data(disk->d_consumer, pp->mediasize - pp->sectorsize,
-			    sector, pp->sectorsize);
+			error = g_write_data(disk->d_consumer,
+			    pp->mediasize - pp->sectorsize, sector,
+			    pp->sectorsize);
 			(void)g_access(disk->d_consumer, 0, -1, 0);
 		}
 		g_free(sector);
-		if (error != 0) {
-			gctl_error(req, "Cannot store metadata on %s: %d", pp->name, error);
-		}
+		if (error != 0)
+			gctl_error(req, "Cannot store metadata on %s: %d",
+			    pp->name, error);
 
 		no++;
 	}
