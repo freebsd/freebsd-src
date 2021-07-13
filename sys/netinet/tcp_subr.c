@@ -1520,6 +1520,7 @@ tcp_init(void)
 	tcp_would_have_but = counter_u64_alloc(M_WAITOK);
 	tcp_comp_total = counter_u64_alloc(M_WAITOK);
 	tcp_uncomp_total = counter_u64_alloc(M_WAITOK);
+	tcp_bad_csums = counter_u64_alloc(M_WAITOK);
 #ifdef TCPPCAP
 	tcp_pcap_init();
 #endif
