@@ -1456,7 +1456,7 @@ options 	PCI_IOV			# PCI SR-IOV support
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# PCI, CardBus, and SD/MMC are self identifying buses, so
 # no hints are needed.
 
 #
@@ -1678,7 +1678,6 @@ device		ata
 
 # Modular ATA
 #device		atacore		# Core ATA functionality
-#device		atapccard	# CARDBUS support
 #device		ataisa		# ISA bus support
 #device		atapci		# PCI bus support; only generic chipset support
 
@@ -2171,10 +2170,8 @@ options		SND_OLDSTEREO
 # PC Card/PCMCIA and Cardbus
 #
 # cbb: pci/cardbus bridge implementing YENTA interface
-# pccard: pccard slots
 # cardbus: cardbus slots
 device		cbb
-device		pccard
 device		cardbus
 
 #
