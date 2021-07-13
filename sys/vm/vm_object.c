@@ -2471,7 +2471,7 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 }
 
 static int
-vm_object_list_handler(struct sysctl_req *req)
+vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 {
 	struct kinfo_vmobject *kvo;
 	char *fullpath, *freepath;
@@ -2509,10 +2509,12 @@ vm_object_list_handler(struct sysctl_req *req)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
-		if (obj->type == OBJT_DEAD)
+		if (obj->type == OBJT_DEAD ||
+		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0))
 			continue;
 		VM_OBJECT_RLOCK(obj);
-		if (obj->type == OBJT_DEAD) {
+		if (obj->type == OBJT_DEAD ||
+		    (swap_only && (obj->flags & (OBJ_ANON | OBJ_SWAP)) == 0)) {
 			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
@@ -2592,12 +2594,30 @@ vm_object_list_handler(struct sysctl_req *req)
 static int
 sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 {
-	return (vm_object_list_handler(req));
+	return (vm_object_list_handler(req, false));
 }
 
 SYSCTL_PROC(_vm, OID_AUTO, objects, CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_object_list, "S,kinfo_vmobject",
     "List of VM objects");
+
+static int
+sysctl_vm_object_list_swap(SYSCTL_HANDLER_ARGS)
+{
+	return (vm_object_list_handler(req, true));
+}
+
+/*
+ * This sysctl returns list of the anonymous or swap objects. Intent
+ * is to provide stripped optimized list useful to analyze swap use.
+ * Since technically non-swap (default) objects participate in the
+ * shadow chains, and are converted to swap type as needed by swap
+ * pager, we must report them.
+ */
+SYSCTL_PROC(_vm, OID_AUTO, swap_objects,
+    CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vm_object_list_swap, "S,kinfo_vmobject",
+    "List of swap VM objects");
 
 #include "opt_ddb.h"
 #ifdef DDB
