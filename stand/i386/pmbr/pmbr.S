@@ -114,8 +114,9 @@ main.2b:	cmpb $1,%dh			# Reading primary?
 main.3:		movb $0,%dh			# %dh := 0 (reading backup)
 		movw $DPBUF+DPBUF_SEC,%si	# %si = last sector + 1
 		movw $lba,%di			# %di = $lba
-main.3a:	decl (%si)			# 0x0(%si) = last sec (0-31)
-		movw $2,%cx
+main.3a:	subl $1, (%si)			# 0x0(%si) = last sec (0-31)
+		sbbl $0, 4(%si)
+		movw $4,%cx
 		rep
 		movsw				# $lastsec--, copy it to $lba
 		jmp main.2a			# Read the next sector
@@ -128,7 +129,7 @@ load_part:	movw $GPT_ADDR+GPT_PART_LBA,%si
 		call read
 scan:		movw %bx,%si			# Compare partition UUID
 		movw $boot_uuid,%di		#  with FreeBSD boot UUID 
-		movb $0x10,%cl
+		movw $0x10,%cx
 		repe cmpsb
 		jnz next_part			# Didn't match, next partition
 #
@@ -150,7 +151,7 @@ load_boot:	push %si			# Save %si
 		jnz next_boot
 		mov %bx,%es			# Reset %es to zero 
 		jmp LOAD			# Jump to boot code
-next_boot:	incl (%si)			# Next LBA
+next_boot:	addl $1,(%si)			# Next LBA
 		adcl $0,4(%si)
 		mov %es,%ax			# Adjust segment for next
 		addw $SECSIZE/16,%ax		#  sector
@@ -171,7 +172,7 @@ next_part:	decl GPT_ADDR+GPT_NPART		# Was this the last partition?
 		addw %ax,%bx			# Next partition
 		cmpw $PART_ADDR+0x200,%bx	# Still in sector?
 		jb scan
-		incl GPT_ADDR+GPT_PART_LBA	# Next sector
+		addl $1, GPT_ADDR+GPT_PART_LBA	# Next sector
 		adcl $0,GPT_ADDR+GPT_PART_LBA+4
 		jmp load_part
 #
