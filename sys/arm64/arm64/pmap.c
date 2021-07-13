@@ -4557,6 +4557,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		if (srcptepaddr == 0)
 			continue;
 		if ((srcptepaddr & ATTR_DESCR_MASK) == L2_BLOCK) {
+			/*
+			 * We can only virtual copy whole superpages.
+			 */
 			if ((addr & L2_OFFSET) != 0 ||
 			    addr + L2_SIZE > end_addr)
 				continue;
@@ -4567,8 +4570,19 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			    ((srcptepaddr & ATTR_SW_MANAGED) == 0 ||
 			    pmap_pv_insert_l2(dst_pmap, addr, srcptepaddr,
 			    PMAP_ENTER_NORECLAIM, &lock))) {
-				mask = ATTR_SW_WIRED;
-				pmap_store(l2, srcptepaddr & ~mask);
+				/*
+				 * We leave the dirty bit unchanged because
+				 * managed read/write superpage mappings are
+				 * required to be dirty.  However, managed
+				 * superpage mappings are not required to
+				 * have their accessed bit set, so we clear
+				 * it because we don't know if this mapping
+				 * will be used.
+				 */
+				srcptepaddr &= ~ATTR_SW_WIRED;
+				if ((srcptepaddr & ATTR_SW_MANAGED) != 0)
+					srcptepaddr &= ~ATTR_AF;
+				pmap_store(l2, srcptepaddr);
 				pmap_resident_count_inc(dst_pmap, L2_SIZE /
 				    PAGE_SIZE);
 				atomic_add_long(&pmap_l2_mappings, 1);
