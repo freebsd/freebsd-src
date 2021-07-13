@@ -2471,7 +2471,7 @@ vm_object_busy_wait(vm_object_t obj, const char *wmesg)
 }
 
 static int
-sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
+vm_object_list_handler(struct sysctl_req *req)
 {
 	struct kinfo_vmobject *kvo;
 	char *fullpath, *freepath;
@@ -2588,6 +2588,13 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 	free(kvo, M_TEMP);
 	return (error);
 }
+
+static int
+sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
+{
+	return (vm_object_list_handler(req));
+}
+
 SYSCTL_PROC(_vm, OID_AUTO, objects, CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_SKIP |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_object_list, "S,kinfo_vmobject",
     "List of VM objects");
