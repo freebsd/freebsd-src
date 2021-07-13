@@ -747,7 +747,7 @@ again:
 			bzero(md.md_provider, sizeof(md.md_provider));
 		}
 		md.md_provsize = pp->mediasize;
-		sector = g_malloc(pp->sectorsize, M_WAITOK);
+		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		mirror_metadata_encode(&md, sector);
 		error = g_write_data(disks[i].consumer,
 		    pp->mediasize - pp->sectorsize, sector, pp->sectorsize);
