@@ -2526,20 +2526,22 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
-		TAILQ_FOREACH(m, &obj->memq, listq) {
-			/*
-			 * A page may belong to the object but be
-			 * dequeued and set to PQ_NONE while the
-			 * object lock is not held.  This makes the
-			 * reads of m->queue below racy, and we do not
-			 * count pages set to PQ_NONE.  However, this
-			 * sysctl is only meant to give an
-			 * approximation of the system anyway.
-			 */
-			if (m->a.queue == PQ_ACTIVE)
-				kvo->kvo_active++;
-			else if (m->a.queue == PQ_INACTIVE)
-				kvo->kvo_inactive++;
+		if (!swap_only) {
+			TAILQ_FOREACH(m, &obj->memq, listq) {
+				/*
+				 * A page may belong to the object but be
+				 * dequeued and set to PQ_NONE while the
+				 * object lock is not held.  This makes the
+				 * reads of m->queue below racy, and we do not
+				 * count pages set to PQ_NONE.  However, this
+				 * sysctl is only meant to give an
+				 * approximation of the system anyway.
+				 */
+				if (m->a.queue == PQ_ACTIVE)
+					kvo->kvo_active++;
+				else if (m->a.queue == PQ_INACTIVE)
+					kvo->kvo_inactive++;
+			}
 		}
 
 		kvo->kvo_vn_fileid = 0;
@@ -2547,7 +2549,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_vn_fsid_freebsd11 = 0;
 		freepath = NULL;
 		fullpath = "";
-		kvo->kvo_type = vm_object_kvme_type(obj, &vp);
+		vp = NULL;
+		kvo->kvo_type = vm_object_kvme_type(obj, swap_only ? NULL : &vp);
 		if (vp != NULL) {
 			vref(vp);
 		} else if ((obj->flags & OBJ_ANON) != 0) {
