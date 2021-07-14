@@ -74,6 +74,7 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_MARVELL_8K
 	{ "marvell,armada-cp110-sdhci",	1 },
 	{ "marvell,armada-ap806-sdhci",	1 },
+	{ "marvell,armada-ap807-sdhci",	1 },
 #endif
 	{ NULL, 0 }
 };
