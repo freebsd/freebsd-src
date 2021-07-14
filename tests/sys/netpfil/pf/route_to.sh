@@ -181,9 +181,79 @@ multiwan_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "multiwanlocal" "cleanup"
+multiwanlocal_head()
+{
+	atf_set descr 'Multi-WAN local origin source-based redirection / route-to test'
+	atf_set require.user root
+}
+
+multiwanlocal_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	epair_cl_one=$(vnet_mkepair)
+	epair_cl_two=$(vnet_mkepair)
+
+	vnet_mkjail srv1 ${epair_one}b
+	vnet_mkjail srv2 ${epair_two}b
+	vnet_mkjail wan_one ${epair_one}a ${epair_cl_one}b
+	vnet_mkjail wan_two ${epair_two}a ${epair_cl_two}b
+	vnet_mkjail client ${epair_cl_one}a ${epair_cl_two}a
+
+	jexec client ifconfig ${epair_cl_one}a 203.0.113.1/25
+	jexec wan_one ifconfig ${epair_cl_one}b 203.0.113.2/25
+	jexec wan_one ifconfig ${epair_one}a 192.0.2.1/24 up
+	jexec wan_one sysctl net.inet.ip.forwarding=1
+	jexec srv1 ifconfig ${epair_one}b 192.0.2.2/24 up
+
+	jexec client ifconfig ${epair_cl_two}a 203.0.113.128/25
+	jexec wan_two ifconfig ${epair_cl_two}b 203.0.113.129/25
+	jexec wan_two ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec wan_two sysctl net.inet.ip.forwarding=1
+	jexec srv2 ifconfig ${epair_two}b 198.51.100.2/24 up
+
+	jexec client route add default 203.0.113.2
+	jexec srv1 route add default 192.0.2.1
+	jexec srv2 route add default 198.51.100.1
+
+	# Run data source in srv1 and srv2
+	jexec srv1 sh -c 'dd if=/dev/zero bs=1024 count=100 | nc -l 7 -w 2 -N &'
+	jexec srv2 sh -c 'dd if=/dev/zero bs=1024 count=100 | nc -l 7 -w 2 -N &'
+
+	jexec client pfctl -e
+	pft_set_rules client \
+		"block in"	\
+		"block out"	\
+		"pass out quick route-to (${epair_cl_two}a 203.0.113.129) inet proto tcp from 203.0.113.128 to any port 7" \
+		"pass out on ${epair_cl_one}a inet proto tcp from any to any port 7"
+
+	# This should work
+	result=$(jexec client nc -N -w 1 192.0.2.2 7 | wc -c)
+	if [ ${result} -ne 102400 ]; then
+		jexec client pfctl -ss
+		atf_fail "Redirect from client on one failed: ${result}"
+	fi
+
+	# This should trigger the issue
+	result=$(jexec client nc -N -w 1 -s 203.0.113.128 198.51.100.2 7 | wc -c)
+	jexec client pfctl -ss
+	if [ ${result} -ne 102400 ]; then
+		atf_fail "Redirect from client on two failed: ${result}"
+	fi
+}
+
+multiwanlocal_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
 	atf_add_test_case "v6"
 	atf_add_test_case "multiwan"
+	atf_add_test_case "multiwanlocal"
 }
