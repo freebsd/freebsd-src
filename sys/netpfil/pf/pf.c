@@ -346,12 +346,6 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 			return (PF_DROP);				\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
-		if ((d) == PF_OUT &&					\
-		    (s)->rule.ptr->rt == PF_ROUTETO &&			\
-		    (s)->rule.ptr->direction == PF_OUT &&		\
-		    (s)->rt_kif != NULL &&				\
-		    (s)->rt_kif != (i))					\
-			return (PF_PASS);				\
 	} while (0)
 
 #define	BOUND_IFACE(r, k) \
