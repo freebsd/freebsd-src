@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	long	word;		/* "word" used for optimal copy speed */
+typedef	size_t	word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define wmask	(wsize - 1)
@@ -69,32 +69,29 @@ typedef	long	word;		/* "word" used for optimal copy speed */
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
 void *
-memcpy(void *dst0, const void *src0, size_t length)
+memmove(void *dst0, const void *src0, size_t length)
 {
-	char		*dst;
-	const char	*src;
+	u_char		*dst = (u_char *)dst0;
+	const u_char	*src = (const u_char*)src0;
 	size_t		t;
 
-	dst = dst0;
-	src = src0;
-
 	if (length == 0 || dst == src) {	/* nothing to do */
-		goto done;
+		return (dst0);
 	}
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
-#define	TLOOP(s) if (t) TLOOP1(s)
+#define	TLOOP(s) for (; t; --t) { s; }
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	if ((uintptr_t)dst < (uintptr_t)src) {
 		/*
 		 * Copy forward.
 		 */
 		t = (size_t)src;	/* only need low bits */
 
-		if ((t | (uintptr_t)dst) & wmask) {
+		if ((t | (size_t)dst) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
@@ -122,12 +119,12 @@ memcpy(void *dst0, const void *src0, size_t length)
 		 * Alignment works as before, except that it takes
 		 * (t&wmask) bytes to align, not wsize-(t&wmask).
 		 */
-		src += length;
 		dst += length;
-		t = (uintptr_t)src;
+		src += length;
+		t = (size_t)src;
 
-		if ((t | (uintptr_t)dst) & wmask) {
-			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize) {
+		if ((t | (size_t)dst) & wmask) {
+			if ((t ^ (size_t)dst) & wmask || length <= wsize) {
 				t = length;
 			} else {
 				t &= wmask;
@@ -142,15 +139,17 @@ memcpy(void *dst0, const void *src0, size_t length)
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
 	}
-done:
+#undef TLOOP
+#undef TLOOP1
+
 	return (dst0);
 }
 
-__strong_reference(memcpy, memmove);
+__strong_reference(memmove, memcpy);
 
 void
 (bcopy)(const void *src0, void *dst0, size_t length)
 {
 
-	memcpy(dst0, src0, length);
+	(void)memmove(dst0, src0, length);
 }
