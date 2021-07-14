@@ -568,9 +568,21 @@ struct mmc_request {
 #define	 CCCR_BUS_WIDTH_4		(1 << 1)
 #define	 CCCR_BUS_WIDTH_1		(1 << 0)
 #define	SD_IO_CCCR_CARDCAP		0x08	/* SDIO card capabilities */
-#define  CCCR_CC_SMB                    (1 << 1) /* CMD53 block mode support */
+#define	 CCCR_CC_SMB			(1 << 1) /* CMD53 block mode support */
+#define	 CCCR_CC_LSC			(1 << 6)
+
 #define	SD_IO_CCCR_CISPTR		0x09    /* 0x09 - 0x0B */
 #define SD_IO_CCCR_FN0_BLKSZ            0x10    /* 0x10 - 0x11 */
+#define	SD_IO_CCCR_SPEED		0x13
+#define	 CCCR_SPEED_SHS			(1 << 0)
+#define	 CCCR_SPEED_BSS_MASK		(0x7 << 1)
+#define	 CCCR_SPEED_EHS			(1 << 1)
+#define	 CCCR_SPEED_SDR12		(0 << 1)
+#define	 CCCR_SPEED_SDR25		(1 << 1)
+#define	 CCCR_SPEED_SDR50		(2 << 1)
+#define	 CCCR_SPEED_SDR104		(3 << 1)
+#define	 CCCR_SPEED_DDR50		(4 << 1)
+
 /* Function Basic Registers (FBR) */
 #define	SD_IO_FBR_START			0x00100 /* Offset in F0 address space */
 #define	SD_IO_FBR_SIZE			0x00700 /* Total size of FBR */
