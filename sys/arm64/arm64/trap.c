@@ -425,7 +425,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 #ifdef KDB
 		kdb_trap(exception, 0, frame);
 #else
-		panic("No debugger in kernel.\n");
+		panic("No debugger in kernel.");
 #endif
 		break;
 	case EXCP_WATCHPT_EL1:
@@ -433,7 +433,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 #ifdef KDB
 		kdb_trap(exception, 0, frame);
 #else
-		panic("No debugger in kernel.\n");
+		panic("No debugger in kernel.");
 #endif
 		break;
 	case EXCP_UNKNOWN:
@@ -443,7 +443,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	default:
 		print_registers(frame);
 		printf(" far: %16lx\n", READ_SPECIALREG(far_el1));
-		panic("Unknown kernel exception %x esr_el1 %lx\n", exception,
+		panic("Unknown kernel exception %x esr_el1 %lx", exception,
 		    esr);
 	}
 }
