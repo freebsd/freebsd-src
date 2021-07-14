@@ -1153,10 +1153,18 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 			cmdr |= SDMMC_CMD_DATA_WRITE;
 
 		WRITE4(sc, SDMMC_TMOUT, 0xffffffff);
-		WRITE4(sc, SDMMC_BYTCNT, data->len);
-		blksz = (data->len < MMC_SECTOR_SIZE) ? \
-			 data->len : MMC_SECTOR_SIZE;
-		WRITE4(sc, SDMMC_BLKSIZ, blksz);
+#ifdef MMCCAM
+		if (cmd->data->flags & MMC_DATA_BLOCK_SIZE) {
+			WRITE4(sc, SDMMC_BLKSIZ, cmd->data->block_size);
+			WRITE4(sc, SDMMC_BYTCNT, cmd->data->len);
+		} else
+#endif
+		{
+			WRITE4(sc, SDMMC_BYTCNT, data->len);
+			blksz = (data->len < MMC_SECTOR_SIZE) ? \
+				data->len : MMC_SECTOR_SIZE;
+			WRITE4(sc, SDMMC_BLKSIZ, blksz);
+		}
 
 		if (sc->use_pio) {
 			pio_prepare(sc, cmd);
