@@ -377,11 +377,11 @@ device		rk_dwmmc
 device		rk_emmcphy
 
 # VirtIO support
-device		virtio
-device		virtio_pci
-device		virtio_mmio
-device		virtio_blk
-device		vtnet
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		virtio_mmio		# VirtIO Memory Mapped IO device
+device		virtio_blk		# VirtIO Block device
+device		vtnet			# VirtIO Ethernet device
 
 # Chip-specific errata
 options 	THUNDERX_PASS_1_1_ERRATA
