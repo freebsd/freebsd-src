@@ -17,6 +17,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210730:
+	Commit b69019c14cd8 removes pf's DIOCGETSTATESNV ioctl.
+	As of be70c7a50d32 it is no longer used by userspace, but it does mean
+	users may not be able to enumerate pf states if they update the kernel
+	past c021ff986e2b without first updating userspace past be70c7a50d32.
+
 20210715:
 	The 20210707 awk update brought in a change in behavior. This has
 	been corrected as of d4d252c49976. Between these dates, if you
