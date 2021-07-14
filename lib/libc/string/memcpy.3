@@ -32,7 +32,7 @@
 .\"     @(#)memcpy.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd July 14, 2021
 .Dt MEMCPY 3
 .Os
 .Sh NAME
@@ -44,11 +44,15 @@
 .In string.h
 .Ft void *
 .Fn memcpy "void *dst" "const void *src" "size_t len"
+.Ft void *
+.Fn mempcpy "void *dst" "const void *src" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn memcpy
-function
-copies
+and
+.Fn mempcpy
+functions
+copy
 .Fa len
 bytes from string
 .Fa src
@@ -65,12 +69,17 @@ The
 function
 returns the original value of
 .Fa dst .
+.Pp
+The
+.Fn mempcpy
+function returns a pointer to the byte after the last written byte.
 .Sh SEE ALSO
 .Xr bcopy 3 ,
 .Xr memccpy 3 ,
 .Xr memmove 3 ,
 .Xr strcpy 3 ,
 .Xr wmemcpy 3
+.Xr wmempcpy 3
 .Sh STANDARDS
 The
 .Fn memcpy
@@ -80,7 +89,9 @@ conforms to
 .Sh BUGS
 In this implementation
 .Fn memcpy
-is implemented using
+and
+.Fn mempcpy
+are implemented using
 .Xr bcopy 3 ,
 and therefore the strings may overlap.
 On other systems, copying overlapping strings may produce surprises.
