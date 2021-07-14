@@ -87,6 +87,7 @@ marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+philip [label="Philip Paeps\nphilip@FreeBSD.org\n2021/07/13"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
@@ -157,6 +158,7 @@ gjb -> wblock
 gjb -> rene
 gjb -> dru
 gjb -> crees
+gjb -> philip
 
 hrs -> ryusuke
 hrs -> dru
