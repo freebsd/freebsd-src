@@ -76,7 +76,7 @@ is set to 24.
 Next,
 .Tn FICL
 is initialized, the builtin words are added to its vocabulary, and
-.Pa /boot/boot.4th
+.Pa /boot/loader.4th
 is processed if it exists.
 No disk switching is possible while that file is being read.
 The inner interpreter
@@ -983,7 +983,7 @@ Currently, MD is only supported in
 .It Pa /boot/loader
 .Nm
 itself.
-.It Pa /boot/boot.4th
+.It Pa /boot/loader.4th
 Additional
 .Tn FICL
 initialization.
