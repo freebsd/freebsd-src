@@ -10,7 +10,7 @@ CFLAGS+= -I${LIBC_SRCTOP}/locale
 MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 	ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memccpy.c memchr.c memrchr.c memcmp.c \
-	memcpy.c memmem.c memmove.c memset.c memset_s.c \
+	memcpy.c memmem.c memmove.c mempcpy.c memset.c memset_s.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
 	strcat.c strcasestr.c strchr.c strchrnul.c strcmp.c strcoll.c strcpy.c\
 	strcspn.c strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c \
@@ -25,7 +25,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 	wcsncpy.c wcsnlen.c wcspbrk.c \
 	wcsrchr.c wcsspn.c wcsstr.c wcstok.c wcswidth.c wcsxfrm.c wmemchr.c \
 	wmemcmp.c \
-	wmemcpy.c wmemmove.c wmemset.c
+	wmemcpy.c wmemmove.c wmempcpy.c wmemset.c
 
 SYM_MAPS+=	${LIBC_SRCTOP}/string/Symbol.map
 
@@ -50,6 +50,7 @@ MLINKS+=ffs.3 ffsl.3 \
 	ffs.3 flsll.3
 MLINKS+=index.3 rindex.3
 MLINKS+=memchr.3 memrchr.3
+MLINKS+=memcpy.3 mempcpy.3
 MLINKS+=memset.3 memset_s.3
 MLINKS+=strcasecmp.3 strncasecmp.3 \
 	strcasecmp.3 strcasecmp_l.3 \
@@ -101,4 +102,5 @@ MLINKS+=wmemchr.3 wcpcpy.3 \
 	wmemchr.3 wmemcmp.3 \
 	wmemchr.3 wmemcpy.3 \
 	wmemchr.3 wmemmove.3 \
+	wmemchr.3 wmempcpy.3 \
 	wmemchr.3 wmemset.3
