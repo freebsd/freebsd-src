@@ -31,10 +31,13 @@
 # "panic: default pager with handle" seen with WiP kernel code.
 # https://people.freebsd.org/~pho/stress/log/kostik1243.txt
 
+# "panic: ASan: Invalid access, 8-byte read at ..., MallocRedZone(fb)" seen
+
 [ `sysctl vm.swap_total | sed 's/.* //'` -eq 0 ] && exit 0
 
 . ../default.cfg
 
+log=/tmp/radix.log
 dir=/tmp
 odir=`pwd`
 cd $dir
@@ -49,8 +52,9 @@ usermem=`sysctl hw.usermem | sed 's/.* //'`
 pagesize=`pagesize`
 start=`date +%s`
 while true; do
-	/tmp/radix $parallel > /tmp/radix.log 2>&1
-	used=`awk '{print $4}' < /tmp/radix.log`
+	/tmp/radix $parallel > $log; s=$?
+	[ $s -ne 0 ] && cat $log
+	used=`awk '{print $4}' < $log`
 	[ -z "$used" ] && break
 	[ $((`date +%s` - start)) -gt 300 ] && break
 	[ $used -gt $((usermem / pagesize)) ] && break
@@ -61,8 +65,8 @@ while true; do
 done
 cat /tmp/radix.log
 
-rm -f /tmp/radix #/tmp/radix.log
-exit
+rm -f /tmp/radix $log
+exit $s
 
 EOF
 /*
@@ -169,7 +173,7 @@ handler(int s __unused)
 static void
 ihandler(int s __unused)
 {
-	_exit(0);
+	_exit(1);
 }
 
 static int
@@ -191,7 +195,7 @@ test(void)
 {
 	state_t state;
 	off_t offset;
-	int fd;
+	int fd, i;
 
 	signal(SIGHUP, ihandler);
 	for (;;) {
@@ -214,7 +218,7 @@ test(void)
 	if (write(fds[1], &pgs, sizeof(pgs)) != sizeof(pgs))
 		err(1, "ewrite pipe");
 	kill(getppid(), SIGHUP);
-	for (;;)
+	for (i = 0; i < 180; i++)
 		sleep(1);
 	close(fd);
 
@@ -233,6 +237,7 @@ main(int argc, char **argv)
 	parallel = atoi(argv[1]);
 
 	ps = getpagesize();
+	signal(SIGALRM, ihandler);
 	signal(SIGHUP, handler);
 	unlink("rendezvous");
 	pids = malloc(parallel * sizeof(pid_t));
@@ -246,10 +251,10 @@ main(int argc, char **argv)
 	if ((rfd = open("rendezvous", O_CREAT, 0644)) == -1)
 		err(1, "open()");
 	close(rfd);
-	alarm(60);
-	while (s1 != parallel)
+	alarm(300);
+	while (s1 != parallel) {
 		usleep(10000);
-	alarm(0);
+	}
 	r2 = radix();
 	pages = 0;
 	for (i = 0; i < parallel; i++) {
@@ -258,7 +263,7 @@ main(int argc, char **argv)
 			err(1, "read pipe");
 		pages += pgs;
 	}
-	fprintf(stderr, "A total of %jd pages (%.1f MB) touched, %d"
+	fprintf(stdout, "A total of %jd pages (%.1f MB) touched, %d"
 	    " RADIX nodes used, p/r = %.1f, parallel = %d.\n",
 	    pages, pages * ps / 1024. / 1024, r2 - r1,
 	    pages / (r2 - r1 + 0.), parallel);
