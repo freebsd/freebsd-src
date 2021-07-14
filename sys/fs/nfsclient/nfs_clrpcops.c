@@ -3762,11 +3762,11 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 					ndp->ni_dvp != ndp->ni_vp &&
 					(newvp->v_type != VDIR ||
 					 dctime.tv_sec != 0)) {
-					cache_enter_time(ndp->ni_dvp,
+					cache_enter_time_flags(ndp->ni_dvp,
 					    ndp->ni_vp, cnp,
 					    &nfsva.na_ctime,
 					    newvp->v_type != VDIR ? NULL :
-					    &dctime);
+					    &dctime, VFS_CACHE_DROPOLD);
 				    }
 				    if (unlocknewvp)
 					vput(newvp);
