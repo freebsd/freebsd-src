@@ -331,7 +331,7 @@ static struct identify_options {
 	.hex = false,
 	.verbose = false,
 	.dev = NULL,
-	.nsid = NONE - 1,
+	.nsid = NONE,
 };
 
 static const struct opts identify_opts[] = {
@@ -912,12 +912,12 @@ nsidentify(const struct cmd *f, int argc, char *argv[])
 	if (nsid != 0) {
 		close(fd);
 		open_dev(path, &fd, 1, 1);
-	} else if (identify_opt.nsid == NONE - 1) {
+	} else if (identify_opt.nsid == NONE) {
 		close(fd);
 		fprintf(stderr, "No NSID specified");
 		arg_help(argc, argv, f);
 	}
-	if (identify_opt.nsid != NONE - 1)
+	if (identify_opt.nsid != NONE)
 		nsid = identify_opt.nsid;
 	if (read_controller_data(fd, &cd))
 		errx(EX_IOERR, "Identify request failed");
