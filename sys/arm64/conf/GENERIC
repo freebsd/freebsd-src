@@ -381,6 +381,7 @@ device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device
 device		virtio_mmio		# VirtIO Memory Mapped IO device
 device		virtio_blk		# VirtIO Block device
+device		virtio_scsi		# VirtIO SCSI device
 device		vtnet			# VirtIO Ethernet device
 
 # Chip-specific errata
