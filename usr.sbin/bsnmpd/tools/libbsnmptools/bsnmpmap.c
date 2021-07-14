@@ -503,14 +503,15 @@ snmp_table_insert(struct snmp_toolinfo *snmptoolctx,
 
 	if (snmptoolctx == NULL || snmptoolctx->mappings == NULL ||
 	    entry == NULL)
-		return(-1);
+		return (-1);
 
 	if ((prev = SLIST_FIRST(&snmptoolctx->snmp_tablelist)) == NULL ||
 	    asn_compare_oid(&(entry->var), &(prev->var)) < 0) {
 		SLIST_INSERT_HEAD(&snmptoolctx->snmp_tablelist, entry, link);
 		return (1);
-	} else
-		rc = -1;	/* Make the compiler happy. */
+	}
+
+	rc = -1;
 
 	SLIST_FOREACH(temp, &snmptoolctx->snmp_tablelist, link) {
 		if ((rc = asn_compare_oid(&(entry->var), &(temp->var))) <= 0)
