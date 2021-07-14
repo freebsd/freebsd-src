@@ -39,17 +39,14 @@ static char sccsid[] = "@(#)strdup.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 
 char *
-strdup(str)
-	const char *str;
+strdup(const char *str)
 {
-	size_t len;
 	char *copy = NULL;
 
 	if (str != NULL) {
-	    len = strlen(str) + 1;
-	    if ((copy = malloc(len)) == NULL)
-		return (NULL);
-	    memcpy(copy, str, len);
+	    const size_t len = strlen(str) + 1;
+	    if ((copy = (char *)malloc(len)) != NULL)
+		(void)memcpy(copy, str, len);
 	}
 	return (copy);
 }

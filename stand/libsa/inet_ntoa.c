@@ -45,8 +45,7 @@ static char sccsid[] = "@(#)inet_ntoa.c	8.1 (Berkeley) 6/4/93";
  * to base 256 d.d.d.d representation.
  */
 char *
-inet_ntoa(in)
-	struct in_addr in;
+inet_ntoa(struct in_addr in)
 {
 	static const char fmt[] = "%u.%u.%u.%u";
 	static char ret[sizeof "255.255.255.255"];

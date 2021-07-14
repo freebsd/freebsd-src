@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 
 void
-closeall()
+closeall(void)
 {
 	int i;
 

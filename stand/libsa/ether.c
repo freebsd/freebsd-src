@@ -133,15 +133,15 @@ static char digits[] = "0123456789abcdef";
 char *
 ether_sprintf(u_char *ap)
 {
-	int i;
+	size_t i;
 	static char etherbuf[18];
 	char *cp = etherbuf;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; ++i) {
 		*cp++ = digits[*ap >> 4];
 		*cp++ = digits[*ap++ & 0xf];
 		*cp++ = ':';
 	}
-	*--cp = 0;
+	etherbuf[17] = '\0';
 	return (etherbuf);
 }

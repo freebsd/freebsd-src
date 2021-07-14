@@ -796,9 +796,10 @@ ext2fs_close(struct open_file *f)
 	struct file *fp = (struct file *)f->f_fsdata;
 	int level;
 
-	f->f_fsdata = (void *)0;
-	if (fp == (struct file *)0)
+	if (fp == NULL)
 		return (0);
+
+	f->f_fsdata = NULL;
 
 	for (level = 0; level < EXT2_NIADDR; level++) {
 		if (fp->f_blk[level])
@@ -891,16 +892,17 @@ ext2fs_readdir(struct open_file *f, struct dirent *d)
 	/*
 	 * assume that a directory entry will not be split across blocks
 	 */
-again:
-	if (fp->f_seekp >= fp->f_di.di_size)
-		return (ENOENT);
-	error = buf_read_file(f, &buf, &buf_size);
-	if (error)
-		return (error);
-	ed = (struct ext2dirent *)buf;
-	fp->f_seekp += ed->d_reclen;
-	if (ed->d_ino == (ino_t)0)
-		goto again;
+
+	do {
+		if (fp->f_seekp >= fp->f_di.di_size)
+			return (ENOENT);
+		error = buf_read_file(f, &buf, &buf_size);
+		if (error)
+			return (error);
+		ed = (struct ext2dirent *)buf;
+		fp->f_seekp += ed->d_reclen;
+	} while (ed->d_ino == (ino_t)0);
+
 	d->d_type = EXTFTODT(ed->d_type);
 	strncpy(d->d_name, ed->d_name, ed->d_namlen);
 	d->d_name[ed->d_namlen] = '\0';
