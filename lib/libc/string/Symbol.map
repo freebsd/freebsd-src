@@ -114,6 +114,11 @@ FBSD_1.6 {
 	strerror_l;
 };
 
+FBSD_1.7 {
+	mempcpy;
+	wmempcpy;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };
