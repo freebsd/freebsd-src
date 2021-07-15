@@ -56,7 +56,7 @@ mmc_fdt_parse_sd_speed(phandle_t node, struct mmc_host *host)
 	 * Parse SD supported modes 
 	 * All UHS-I modes requires 1.8V signaling.
 	 */
-	if (OF_hasprop(node, "no1-8-v"))
+	if (OF_hasprop(node, "no-1-8-v"))
 		no_18v = true;
 	if (OF_hasprop(node, "cap-sd-highspeed"))
 		host->caps |= MMC_CAP_HSPEED;
