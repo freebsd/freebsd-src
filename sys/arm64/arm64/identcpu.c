@@ -467,7 +467,7 @@ static struct mrs_field_value id_aa64isar0_aes[] = {
 
 static struct mrs_field id_aa64isar0_fields[] = {
 	MRS_FIELD(ID_AA64ISAR0, RNDR, false, MRS_LOWER, id_aa64isar0_rndr),
-	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_LOWER, id_aa64isar0_tlb),
+	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_EXACT, id_aa64isar0_tlb),
 	MRS_FIELD(ID_AA64ISAR0, TS, false, MRS_LOWER, id_aa64isar0_ts),
 	MRS_FIELD(ID_AA64ISAR0, FHM, false, MRS_LOWER, id_aa64isar0_fhm),
 	MRS_FIELD(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp),
@@ -568,7 +568,7 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD(ID_AA64ISAR1, I8MM, false, MRS_LOWER, id_aa64isar1_i8mm),
 	MRS_FIELD(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh),
 	MRS_FIELD(ID_AA64ISAR1, BF16, false, MRS_LOWER, id_aa64isar1_bf16),
-	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER,
+	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_EXACT,
 	    id_aa64isar1_specres),
 	MRS_FIELD(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb),
 	MRS_FIELD(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
