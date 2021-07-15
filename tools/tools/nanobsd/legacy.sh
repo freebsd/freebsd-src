@@ -35,29 +35,17 @@
 # Functions and variable definitions used by the legacy nanobsd
 # image building system.
 
-create_diskimage ( ) (
-	pprint 2 "build diskimage"
-	pprint 3 "log: ${NANO_LOG}/_.di"
-
-	(
+calculate_partitioning ( ) (
 	echo $NANO_MEDIASIZE $NANO_IMAGES \
 		$NANO_SECTS $NANO_HEADS \
 		$NANO_CODESIZE $NANO_CONFSIZE $NANO_DATASIZE |
 	awk '
 	{
-		printf "# %s\n", $0
-
 		# size of cylinder in sectors
 		cs = $3 * $4
 
 		# number of full cylinders on media
 		cyl = int ($1 / cs)
-
-		# output fdisk geometry spec, truncate cyls to 1023
-		if (cyl <= 1023)
-			print "g c" cyl " h" $4 " s" $3
-		else
-			print "g c" 1023 " h" $4 " s" $3
 
 		if ($7 > 0) {
 			# size of data partition in full cylinders
@@ -69,44 +57,100 @@ create_diskimage ( ) (
 		# size of config partition in full cylinders
 		csl = int (($6 + cs - 1) / cs)
 
+		# size of image partition(s) in full cylinders
 		if ($5 == 0) {
-			# size of image partition(s) in full cylinders
 			isl = int ((cyl - dsl - csl) / $2)
 		} else {
 			isl = int (($5 + cs - 1) / cs)
 		}
 
 		# First image partition start at second track
-		print "p 1 165 " $3, isl * cs - $3
+		print $3, isl * cs - $3
 		c = isl * cs;
 
 		# Second image partition (if any) also starts offset one
 		# track to keep them identical.
 		if ($2 > 1) {
-			print "p 2 165 " $3 + c, isl * cs - $3
+			print $3 + c, isl * cs - $3
 			c += isl * cs;
 		}
 
 		# Config partition starts at cylinder boundary.
-		print "p 3 165 " c, csl * cs
+		print c, csl * cs
 		c += csl * cs
 
 		# Data partition (if any) starts at cylinder boundary.
 		if ($7 > 0) {
-			print "p 4 165 " c, dsl * cs
+			print c, dsl * cs
 		} else if ($7 < 0 && $1 > c) {
-			print "p 4 165 " c, $1 - c
+			print c, $1 - c
 		} else if ($1 < c) {
 			print "Disk space overcommitted by", \
 			    c - $1, "sectors" > "/dev/stderr"
 			exit 2
 		}
 
-		# Force slice 1 to be marked active. This is necessary
-		# for booting the image from a USB device to work.
-		print "a 1"
 	}
-	' > ${NANO_LOG}/_.fdisk
+	' > ${NANO_LOG}/_.partitioning
+)
+
+create_code_slice ( ) (
+	pprint 2 "build code slice"
+	pprint 3 "log: ${NANO_OBJ}/_.cs"
+
+	(
+	IMG=${NANO_DISKIMGDIR}/_.disk.image
+	MNT=${NANO_OBJ}/_.mnt
+	mkdir -p ${MNT}
+	CODE_SIZE=`head -n 1 ${NANO_LOG}/_.partitioning | awk '{ print $2 }'`
+
+	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		MD=`mdconfig -a -t swap -s ${CODE_SIZE} -x ${NANO_SECTS} \
+			-y ${NANO_HEADS}`
+	else
+		echo "Creating md backing file..."
+		rm -f ${IMG}
+		dd if=/dev/zero of=${IMG} seek=${CODE_SIZE} count=0
+		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
+			-y ${NANO_HEADS}`
+	fi
+
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+
+	bsdlabel -w ${MD}
+	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
+	    echo "Making bootable partition"
+	    gpart bootcode -b ${NANO_WORLDDIR}/boot/boot ${MD}
+	else
+	    echo "Partition will not be bootable"
+	fi
+	bsdlabel ${MD}
+
+	# Create first image
+	populate_slice /dev/${MD}${NANO_PARTITION_ROOT} ${NANO_WORLDDIR} ${MNT} "${NANO_ROOT}"
+	mount /dev/${MD}a ${MNT}
+	echo "Generating mtree..."
+	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
+	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
+	nano_umount ${MNT}
+
+	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		echo "Writing out _.disk.image..."
+		dd conv=sparse if=/dev/${MD} of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	fi
+	mdconfig -d -u $MD
+
+	trap - 1 2 15 EXIT
+
+	) > ${NANO_OBJ}/_.cs 2>&1
+)
+
+
+create_diskimage ( ) (
+	pprint 2 "build diskimage"
+	pprint 3 "log: ${NANO_OBJ}/_.di"
+
+	(
 
 	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
 	MNT=${NANO_OBJ}/_.mnt
@@ -123,29 +167,34 @@ create_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
+	awk '
+	BEGIN {
+		# Create MBR partition table
+		print "gpart create -s mbr $1"
+	}
+	{
+		# Make partition
+		print "gpart add -t freebsd -b ", $1, " -s ", $2, " $1"
+	}
+	END {
+		# Force slice 1 to be marked active. This is necessary
+		# for booting the image from a USB device to work.
+		print "gpart set -a active -i 1 $1"
+	}
+	' ${NANO_LOG}/_.partitioning > ${NANO_OBJ}/_.gpart
+
 	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
-	fdisk -i -f ${NANO_LOG}/_.fdisk ${MD}
-	fdisk ${MD}
+	sh ${NANO_OBJ}/_.gpart ${MD}
+	gpart show ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
 	if [ -f ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ]; then
-		boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
+		gpart bootcode -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOTFLAGS} ${MD}
 	fi
-	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
-		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}${NANO_SLICE_ROOT}
-	else
-		bsdlabel -w ${MD}${NANO_SLICE_ROOT}
-	fi
-	bsdlabel ${MD}${NANO_SLICE_ROOT}
 
-	# Create first image
-	populate_slice /dev/${MD}${NANO_ROOT} ${NANO_WORLDDIR} ${MNT} "${NANO_ROOT}"
-	mount /dev/${MD}${NANO_ROOT} ${MNT}
-	echo "Generating mtree..."
-	( cd "${MNT}" && mtree -c ) > ${NANO_LOG}/_.mtree
-	( cd "${MNT}" && du -k ) > ${NANO_LOG}/_.du
-	nano_umount "${MNT}"
+	echo "Writing code image..."
+	dd conv=sparse if=${NANO_DISKIMGDIR}/_.disk.image of=/dev/${MD}${NANO_SLICE_ROOT} bs=64k
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
@@ -190,11 +239,6 @@ create_diskimage ( ) (
 		dd conv=sparse if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
-	if ${do_copyout_partition} ; then
-		echo "Writing out ${NANO_IMG1NAME}..."
-		dd conv=sparse if=/dev/${MD}${NANO_SLICE_ROOT} \
-		   of=${NANO_DISKIMGDIR}/${NANO_IMG1NAME} bs=64k
-	fi
 	mdconfig -d -u $MD
 
 	trap - 1 2 15 EXIT
