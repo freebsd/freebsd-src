@@ -99,8 +99,8 @@ SDT_PROBE_DEFINE3(pf, ioctl, function, error, "char *", "int", "int");
 SDT_PROBE_DEFINE2(pf, ioctl, addrule, error, "int", "int");
 SDT_PROBE_DEFINE2(pf, ioctl, nvchk, error, "int", "int");
 
-static struct pf_kpool	*pf_get_kpool(char *, u_int32_t, u_int8_t, u_int32_t,
-			    u_int8_t, u_int8_t, u_int8_t);
+static struct pf_kpool	*pf_get_kpool(const char *, u_int32_t, u_int8_t,
+			    u_int32_t, u_int8_t, u_int8_t, u_int8_t);
 
 static void		 pf_mv_kpool(struct pf_kpalist *, struct pf_kpalist *);
 static void		 pf_empty_kpool(struct pf_kpalist *);
@@ -112,7 +112,7 @@ static int		 pf_rollback_altq(u_int32_t);
 static int		 pf_commit_altq(u_int32_t);
 static int		 pf_enable_altq(struct pf_altq *);
 static int		 pf_disable_altq(struct pf_altq *);
-static u_int32_t	 pf_qname2qid(char *);
+static u_int32_t	 pf_qname2qid(const char *);
 static void		 pf_qid_unref(u_int32_t);
 #endif /* ALTQ */
 static int		 pf_begin_rules(u_int32_t *, int, const char *);
@@ -188,8 +188,8 @@ static void		 pf_init_tagset(struct pf_tagset *, unsigned int *,
 static void		 pf_cleanup_tagset(struct pf_tagset *);
 static uint16_t		 tagname2hashindex(const struct pf_tagset *, const char *);
 static uint16_t		 tag2hashindex(const struct pf_tagset *, uint16_t);
-static u_int16_t	 tagname2tag(struct pf_tagset *, char *);
-static u_int16_t	 pf_tagname2tag(char *);
+static u_int16_t	 tagname2tag(struct pf_tagset *, const char *);
+static u_int16_t	 pf_tagname2tag(const char *);
 static void		 tag_unref(struct pf_tagset *, u_int16_t);
 
 #define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
@@ -356,7 +356,7 @@ pfattach_vnet(void)
 }
 
 static struct pf_kpool *
-pf_get_kpool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
+pf_get_kpool(const char *anchor, u_int32_t ticket, u_int8_t rule_action,
     u_int32_t rule_number, u_int8_t r_last, u_int8_t active,
     u_int8_t check_ticket)
 {
@@ -549,7 +549,7 @@ tag2hashindex(const struct pf_tagset *ts, uint16_t tag)
 }
 
 static u_int16_t
-tagname2tag(struct pf_tagset *ts, char *tagname)
+tagname2tag(struct pf_tagset *ts, const char *tagname)
 {
 	struct pf_tagname	*tag;
 	u_int32_t		 index;
@@ -628,14 +628,14 @@ tag_unref(struct pf_tagset *ts, u_int16_t tag)
 }
 
 static u_int16_t
-pf_tagname2tag(char *tagname)
+pf_tagname2tag(const char *tagname)
 {
 	return (tagname2tag(&V_pf_tags, tagname));
 }
 
 #ifdef ALTQ
 static u_int32_t
-pf_qname2qid(char *qname)
+pf_qname2qid(const char *qname)
 {
 	return ((u_int32_t)tagname2tag(&V_pf_qids, qname));
 }
