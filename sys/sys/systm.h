@@ -625,6 +625,13 @@ void _gone_in_dev(device_t dev, int major, const char *msg);
 #endif
 #define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
 #define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
+
+#if defined(INVARIANTS) || defined(WITNESS)
+#define	__diagused
+#else
+#define	__diagused	__unused
+#endif
+
 #endif /* _KERNEL */
 
 __NULLABILITY_PRAGMA_POP
