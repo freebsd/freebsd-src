@@ -1594,7 +1594,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_fhsize = argp->fhsize;
 	if (nmp->nm_fhsize > 0)
 		bcopy((caddr_t)argp->fh, (caddr_t)nmp->nm_fh, argp->fhsize);
-	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
+	strlcpy(mp->mnt_stat.f_mntfromname, hst, MNAMELEN);
 	nmp->nm_nam = nam;
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
