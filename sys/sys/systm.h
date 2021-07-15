@@ -583,6 +583,15 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 	gone_in_dev((dev), 13,						\
 	    "see https://github.com/freebsd/fcp/blob/master/fcp-0101.md")
 
+#ifdef _KERNEL
+#if defined(INVARIANTS) || defined(WITNESS)
+#define	__diagused
+#else
+#define	__diagused	__unused
+#endif
+
+#endif /* _KERNEL */
+
 __NULLABILITY_PRAGMA_POP
 
 #endif /* !_SYS_SYSTM_H_ */
