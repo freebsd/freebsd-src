@@ -15,6 +15,14 @@ MAN=
 NO_PIC=
 INTERNALLIB=
 .endif
+# Should be NO_CPU_FLAGS, but bsd.cpu.mk is included too early in bsd.init.mk
+# via the early include of bsd.opts.mk. Moving Makefile.inc include earlier in
+# that file causes weirdness, so this is the next best thing. We need to do this
+# because the loader needs very specific flags to work right, and things like
+# CPUTYPE?=native prevent that, and introduce an endless game of whack-a-mole
+# to disable more and more features. Boot loader performance is never improved
+# enough to make that hassle worth chasing.
+_CPUCFLAGS=
 
 .include <src.opts.mk>
 .include <bsd.linker.mk>
