@@ -48,17 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/extres/regulator/regulator.h>
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/bridge.h>
-#include <dev/mmc/mmc_fdt_helpers.h>
 #include <dev/mmc/mmcbrvar.h>
 #include <dev/mmc/mmcreg.h>
 
 #include <dev/sdhci/sdhci.h>
-#include <dev/sdhci/sdhci_fdt_gpio.h>
 #include <dev/sdhci/sdhci_xenon.h>
 
 #include "mmcbr_if.h"
@@ -68,34 +63,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_soc.h"
 
 #define	MAX_SLOTS		6
-
-static struct ofw_compat_data compat_data[] = {
-	{ "marvell,armada-3700-sdhci",	1 },
-#ifdef SOC_MARVELL_8K
-	{ "marvell,armada-cp110-sdhci",	1 },
-	{ "marvell,armada-ap806-sdhci",	1 },
-	{ "marvell,armada-ap807-sdhci",	1 },
-#endif
-	{ NULL, 0 }
-};
-
-struct sdhci_xenon_softc {
-	device_t	dev;		/* Controller device */
-	int		slot_id;	/* Controller ID */
-	phandle_t	node;		/* FDT node */
-	struct resource *irq_res;	/* IRQ resource */
-	void		*intrhand;	/* Interrupt handle */
-	struct sdhci_fdt_gpio *gpio;	/* GPIO pins for CD detection. */
-
-	struct sdhci_slot *slot;	/* SDHCI internal data */
-	struct resource	*mem_res;	/* Memory resource */
-
-	uint8_t		znr;		/* PHY ZNR */
-	uint8_t		zpr;		/* PHY ZPR */
-	bool		slow_mode;	/* PHY slow mode */
-
-	struct mmc_helper	mmc_helper; /* MMC helper for parsing FDT */
-};
 
 static uint8_t
 sdhci_xenon_read_1(device_t dev, struct sdhci_slot *slot __unused,
@@ -182,16 +149,7 @@ sdhci_xenon_get_ro(device_t bus, device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(bus);
 
-	return (sdhci_generic_get_ro(bus, dev) ^
-	    (sc->mmc_helper.props & MMC_PROP_WP_INVERTED));
-}
-
-static bool
-sdhci_xenon_get_card_present(device_t dev, struct sdhci_slot *slot)
-{
-	struct sdhci_xenon_softc *sc = device_get_softc(dev);
-
-	return (sdhci_fdt_gpio_get_present(sc->gpio));
+	return (sdhci_generic_get_ro(bus, dev) ^ sc->wp_inverted);
 }
 
 static void
@@ -387,19 +345,19 @@ sdhci_xenon_update_ios(device_t brdev, device_t reqdev)
 		if (bootverbose)
 			device_printf(sc->dev, "Powering down sd/mmc\n");
 
-		if (sc->mmc_helper.vmmc_supply)
-			regulator_disable(sc->mmc_helper.vmmc_supply);
-		if (sc->mmc_helper.vqmmc_supply)
-			regulator_disable(sc->mmc_helper.vqmmc_supply);
+		if (sc->vmmc_supply)
+			regulator_disable(sc->vmmc_supply);
+		if (sc->vqmmc_supply)
+			regulator_disable(sc->vqmmc_supply);
 		break;
 	case power_up:
 		if (bootverbose)
 			device_printf(sc->dev, "Powering up sd/mmc\n");
 
-		if (sc->mmc_helper.vmmc_supply)
-			regulator_enable(sc->mmc_helper.vmmc_supply);
-		if (sc->mmc_helper.vqmmc_supply)
-			regulator_enable(sc->mmc_helper.vqmmc_supply);
+		if (sc->vmmc_supply)
+			regulator_enable(sc->vmmc_supply);
+		if (sc->vqmmc_supply)
+			regulator_enable(sc->vqmmc_supply);
 		break;
 	};
 
@@ -432,8 +390,8 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 
 	sc = device_get_softc(brdev);
 
-	if (sc->mmc_helper.vqmmc_supply == NULL)
-		return EOPNOTSUPP;
+	if (sc->vqmmc_supply == NULL && !sc->skip_regulators)
+		return (EOPNOTSUPP);
 
 	err = 0;
 
@@ -445,15 +403,17 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 		hostctrl2 &= ~SDHCI_CTRL2_S18_ENABLE;
 		bus_write_2(sc->mem_res, SDHCI_HOST_CONTROL2, hostctrl2);
 
-		uvolt = 3300000;
-		err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply,
-		    uvolt, uvolt);
-		if (err != 0) {
-			device_printf(sc->dev,
-			    "Cannot set vqmmc to %d<->%d\n",
-			    uvolt,
-			    uvolt);
-			return (err);
+		if (!sc->skip_regulators) {
+			uvolt = 3300000;
+			err = regulator_set_voltage(sc->vqmmc_supply,
+			    uvolt, uvolt);
+			if (err != 0) {
+				device_printf(sc->dev,
+				    "Cannot set vqmmc to %d<->%d\n",
+				    uvolt,
+				    uvolt);
+				return (err);
+			}
 		}
 
 		/*
@@ -466,25 +426,27 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 		hostctrl2 = bus_read_2(sc->mem_res, SDHCI_HOST_CONTROL2);
 		if (!(hostctrl2 & SDHCI_CTRL2_S18_ENABLE))
 			return (0);
-		return EAGAIN;
+		return (EAGAIN);
 	case vccq_180:
 		if (!(slot->host.caps & MMC_CAP_SIGNALING_180)) {
-			return EINVAL;
+			return (EINVAL);
 		}
 		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
 			return (0);
 		hostctrl2 |= SDHCI_CTRL2_S18_ENABLE;
 		bus_write_2(sc->mem_res, SDHCI_HOST_CONTROL2, hostctrl2);
 
-		uvolt = 1800000;
-		err = regulator_set_voltage(sc->mmc_helper.vqmmc_supply,
-		    uvolt, uvolt);
-		if (err != 0) {
-			device_printf(sc->dev,
-			    "Cannot set vqmmc to %d<->%d\n",
-			    uvolt,
-			    uvolt);
-			return (err);
+		if (!sc->skip_regulators) {
+			uvolt = 1800000;
+			err = regulator_set_voltage(sc->vqmmc_supply,
+				uvolt, uvolt);
+			if (err != 0) {
+				device_printf(sc->dev,
+					"Cannot set vqmmc to %d<->%d\n",
+					uvolt,
+					uvolt);
+				return (err);
+			}
 		}
 
 		/*
@@ -497,62 +459,46 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 		hostctrl2 = bus_read_2(sc->mem_res, SDHCI_HOST_CONTROL2);
 		if (hostctrl2 & SDHCI_CTRL2_S18_ENABLE)
 			return (0);
-		return EAGAIN;
+		return (EAGAIN);
 	default:
 		device_printf(brdev,
 		    "Attempt to set unsupported signaling voltage\n");
-		return EINVAL;
+		return (EINVAL);
 	}
 }
 
 static void
-sdhci_xenon_fdt_parse(device_t dev, struct sdhci_slot *slot)
+sdhci_xenon_parse_prop(device_t dev)
 {
-	struct sdhci_xenon_softc *sc = device_get_softc(dev);
-	pcell_t cid;
+	struct sdhci_xenon_softc *sc;
+	uint64_t val;
 
-	mmc_fdt_parse(dev, 0, &sc->mmc_helper, &slot->host);
+	sc = device_get_softc(dev);
+	val = 0;
 
-	/* Allow dts to patch quirks, slots, and max-frequency. */
-	if ((OF_getencprop(sc->node, "quirks", &cid, sizeof(cid))) > 0)
-		slot->quirks = cid;
-	if (OF_hasprop(sc->node, "marvell,xenon-phy-slow-mode"))
-		sc->slow_mode = true;
+	if (device_get_property(dev, "quirks", &val, sizeof(val)) > 0)
+		sc->slot->quirks = val;
 	sc->znr = XENON_ZNR_DEF_VALUE;
-	if ((OF_getencprop(sc->node, "marvell,xenon-phy-znr", &cid,
-	    sizeof(cid))) > 0)
-		sc->znr = cid & XENON_ZNR_MASK;
+	if (device_get_property(dev, "marvell,xenon-phy-znr",
+	    &val, sizeof(val)) > 0)
+		sc->znr = val & XENON_ZNR_MASK;
 	sc->zpr = XENON_ZPR_DEF_VALUE;
-	if ((OF_getencprop(sc->node, "marvell,xenon-phy-zpr", &cid,
-	    sizeof(cid))) > 0)
-		sc->zpr = cid & XENON_ZPR_MASK;
+	if (device_get_property(dev, "marvell,xenon-phy-zpr",
+	    &val, sizeof(val)) > 0)
+		sc->zpr = val & XENON_ZPR_MASK;
+	if (device_has_property(dev, "marvell,xenon-phy-slow-mode"))
+		sc->slow_mode = true;
 }
 
-static int
-sdhci_xenon_probe(device_t dev)
-{
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "Armada Xenon SDHCI controller");
-
-	return (0);
-}
-
-static int
+int
 sdhci_xenon_attach(device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
-	struct sdhci_slot *slot;
 	int err, rid;
 	uint32_t reg;
 
 	sc->dev = dev;
 	sc->slot_id = 0;
-	sc->node = ofw_bus_get_node(dev);
 
 	/* Allocate IRQ. */
 	rid = 0;
@@ -574,27 +520,11 @@ sdhci_xenon_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	slot = malloc(sizeof(*slot), M_DEVBUF, M_ZERO | M_WAITOK);
+	sdhci_xenon_parse_prop(dev);
 
-	/*
-	 * Set up any gpio pin handling described in the FDT data. This cannot
-	 * fail; see comments in sdhci_fdt_gpio.h for details.
-	 */
-	sc->gpio = sdhci_fdt_gpio_setup(dev, slot);
-
-	sdhci_xenon_fdt_parse(dev, slot);
-
-	slot->max_clk = XENON_MMC_MAX_CLK;
-	if (slot->host.f_max > 0)
-		slot->max_clk = slot->host.f_max;
-	/* Check if the device is flagged as non-removable. */
-	if (sc->mmc_helper.props & MMC_PROP_NON_REMOVABLE) {
-		slot->opt |= SDHCI_NON_REMOVABLE;
-		if (bootverbose)
-			device_printf(dev, "Non-removable media\n");
-	}
-
-	sc->slot = slot;
+	sc->slot->max_clk = XENON_MMC_MAX_CLK;
+	if (sc->slot->host.f_max > 0)
+		sc->slot->max_clk = sc->slot->host.f_max;
 
 	if (sdhci_init_slot(dev, sc->slot, 0))
 		goto fail;
@@ -658,13 +588,10 @@ fail:
 	return (ENXIO);
 }
 
-static int
+int
 sdhci_xenon_detach(device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
-
-	if (sc->gpio != NULL)
-		sdhci_fdt_gpio_teardown(sc->gpio);
 
 	bus_generic_detach(dev);
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
@@ -680,11 +607,6 @@ sdhci_xenon_detach(device_t dev)
 }
 
 static device_method_t sdhci_xenon_methods[] = {
-	/* device_if */
-	DEVMETHOD(device_probe,		sdhci_xenon_probe),
-	DEVMETHOD(device_attach,	sdhci_xenon_attach),
-	DEVMETHOD(device_detach,	sdhci_xenon_detach),
-
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sdhci_generic_write_ivar),
@@ -708,21 +630,13 @@ static device_method_t sdhci_xenon_methods[] = {
 	DEVMETHOD(sdhci_write_2,	sdhci_xenon_write_2),
 	DEVMETHOD(sdhci_write_4,	sdhci_xenon_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_xenon_write_multi_4),
-	DEVMETHOD(sdhci_get_card_present,	sdhci_xenon_get_card_present),
 	DEVMETHOD(sdhci_set_uhs_timing, sdhci_xenon_set_uhs_timing),
 
 	DEVMETHOD_END
 };
 
-static driver_t sdhci_xenon_driver = {
-	"sdhci_xenon",
-	sdhci_xenon_methods,
-	sizeof(struct sdhci_xenon_softc),
-};
-static devclass_t sdhci_xenon_devclass;
-
-DRIVER_MODULE(sdhci_xenon, simplebus, sdhci_xenon_driver, sdhci_xenon_devclass,
-    NULL, NULL);
+DEFINE_CLASS_0(sdhci_xenon, sdhci_xenon_driver, sdhci_xenon_methods,
+    sizeof(struct sdhci_xenon_softc));
 
 SDHCI_DEPEND(sdhci_xenon);
 #ifndef MMCCAM
