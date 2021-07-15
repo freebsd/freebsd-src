@@ -264,7 +264,7 @@ soft_pcpu_init(struct pmc_mdep *md, int cpu)
 static int
 soft_read_pmc(int cpu, int ri, pmc_value_t *v)
 {
-	struct pmc *pm;
+	struct pmc *pm __diagused;
 	const struct pmc_hw *phw;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -288,8 +288,7 @@ soft_read_pmc(int cpu, int ri, pmc_value_t *v)
 static int
 soft_write_pmc(int cpu, int ri, pmc_value_t v)
 {
-	struct pmc *pm;
-	const struct soft_descr *pd;
+	struct pmc *pm __diagused;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[soft,%d] illegal cpu value %d", __LINE__, cpu));
@@ -297,7 +296,6 @@ soft_write_pmc(int cpu, int ri, pmc_value_t v)
 	    ("[soft,%d] illegal row-index %d", __LINE__, ri));
 
 	pm = soft_pcpu[cpu]->soft_hw[ri].phw_pmc;
-	pd = &soft_pmcdesc[ri];
 
 	KASSERT(pm,
 	    ("[soft,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
@@ -312,7 +310,7 @@ soft_write_pmc(int cpu, int ri, pmc_value_t v)
 static int
 soft_release_pmc(int cpu, int ri, struct pmc *pmc)
 {
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 	enum pmc_event ev;
 	struct pmc_soft *ps;
 
