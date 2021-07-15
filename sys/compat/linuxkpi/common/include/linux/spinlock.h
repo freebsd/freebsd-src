@@ -104,6 +104,11 @@ typedef struct {
 #define	spin_trylock_irq(_l)			\
 	spin_trylock(_l)
 
+#define	spin_trylock_irqsave(_l, flags) ({	\
+	(flags) = 0;				\
+	spin_trylock(_l);			\
+})
+
 #define	spin_lock_nested(_l, _n) do {		\
 	if (SPIN_SKIP())			\
 		break;				\
