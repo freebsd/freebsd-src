@@ -161,6 +161,8 @@ NANO_SLICE_ROOT=s1
 NANO_SLICE_ALTROOT=s2
 NANO_SLICE_CFG=s3
 NANO_SLICE_DATA=s4
+NANO_PARTITION_ROOT=a
+NANO_PARTITION_ALTROOT=a
 NANO_ROOT=s1a
 NANO_ALTROOT=s2a
 
@@ -853,7 +855,7 @@ usage ( ) {
 	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
-	echo "	-f	suppress code slice extraction"
+	echo "	-f	suppress code slice extraction (implies -i)"
 	echo "	-h	print this help summary page"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
