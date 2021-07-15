@@ -101,4 +101,33 @@
 #define	XENON_EMMC_PHY_LOGIC_TIMING_ADJUST	(XENON_EMMC_PHY_REG_BASE + 0x18)
 #define	 XENON_LOGIC_TIMING_VALUE		0x00AA8977
 
+DECLARE_CLASS(sdhci_xenon_driver);
+
+struct sdhci_xenon_softc {
+	device_t	dev;		/* Controller device */
+	int		slot_id;	/* Controller ID */
+
+	struct resource	*mem_res;	/* Memory resource */
+	struct resource *irq_res;	/* IRQ resource */
+	void		*intrhand;	/* Interrupt handle */
+
+	struct sdhci_slot *slot;	/* SDHCI internal data */
+
+	uint8_t		znr;		/* PHY ZNR */
+	uint8_t		zpr;		/* PHY ZPR */
+	bool		slow_mode;	/* PHY slow mode */
+	bool		wp_inverted;
+	bool		skip_regulators; /* Don't switch regulators */
+
+	regulator_t	vmmc_supply;
+	regulator_t	vqmmc_supply;
+
+#ifdef FDT
+	struct sdhci_fdt_gpio *gpio;	/* GPIO pins for CD detection. */
+#endif
+};
+
+device_attach_t sdhci_xenon_attach;
+device_detach_t sdhci_xenon_detach;
+
 #endif	/* _SDHCI_XENON_H_ */
