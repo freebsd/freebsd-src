@@ -1285,6 +1285,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		l1index = ptepindex - NUL1E;
 		l1 = &pmap->pm_l1[l1index];
+		KASSERT((pmap_load(l1) & PTE_V) == 0,
+		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
 
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);
@@ -1314,6 +1316,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		phys = PTE_TO_PHYS(pmap_load(l1));
 		l2 = (pd_entry_t *)PHYS_TO_DMAP(phys);
 		l2 = &l2[ptepindex & Ln_ADDR_MASK];
+		KASSERT((pmap_load(l2) & PTE_V) == 0,
+		    ("%s: L2 entry %#lx is valid", __func__, pmap_load(l2)));
 
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);

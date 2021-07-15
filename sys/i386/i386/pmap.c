@@ -2157,8 +2157,11 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags)
 	pmap->pm_stats.resident_count++;
 
 	ptepa = VM_PAGE_TO_PHYS(m);
+	KASSERT((pmap->pm_pdir[ptepindex] & PG_V) == 0,
+	    ("%s: page directory entry %#jx is valid",
+	    __func__, (uintmax_t)pmap->pm_pdir[ptepindex]));
 	pmap->pm_pdir[ptepindex] =
-		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
+	    (pd_entry_t)(ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
 	return (m);
 }

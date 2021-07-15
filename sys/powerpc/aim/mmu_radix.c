@@ -4246,8 +4246,9 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		/* Wire up a new PDPE page */
 		pml1index = ptepindex - (NUPDE + NUPDPE);
 		l1e = &pmap->pm_pml1[pml1index];
+		KASSERT((be64toh(*l1e) & PG_V) == 0,
+		    ("%s: L1 entry %#lx is valid", __func__, *l1e));
 		pde_store(l1e, VM_PAGE_TO_PHYS(m));
-
 	} else if (ptepindex >= NUPDE) {
 		vm_pindex_t pml1index;
 		vm_pindex_t pdpindex;
@@ -4276,8 +4277,9 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		/* Now find the pdp page */
 		l2e = &l2e[pdpindex & RPTE_MASK];
+		KASSERT((be64toh(*l2e) & PG_V) == 0,
+		    ("%s: L2 entry %#lx is valid", __func__, *l2e));
 		pde_store(l2e, VM_PAGE_TO_PHYS(m));
-
 	} else {
 		vm_pindex_t pml1index;
 		vm_pindex_t pdpindex;
@@ -4322,6 +4324,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		/* Now we know where the page directory page is */
 		l3e = &l3e[ptepindex & RPTE_MASK];
+		KASSERT((be64toh(*l3e) & PG_V) == 0,
+		    ("%s: L3 entry %#lx is valid", __func__, *l3e));
 		pde_store(l3e, VM_PAGE_TO_PHYS(m));
 	}
 
