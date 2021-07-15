@@ -186,6 +186,7 @@ int	 strncasecmp(const char *, const char *, size_t);
 int	 strncmp(const char *, const char *, size_t);
 char	*strncpy(char * __restrict, const char * __restrict, size_t);
 size_t	 strnlen(const char *, size_t);
+char	*strnstr(const char *, const char *, size_t);
 char	*strrchr(const char *, int);
 char	*strsep(char **, const char *delim);
 size_t	 strspn(const char *, const char *);
