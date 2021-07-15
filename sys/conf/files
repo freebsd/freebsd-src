@@ -4090,6 +4090,7 @@ libkern/strncat.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard
+libkern/strnstr.c		standard
 libkern/strrchr.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
