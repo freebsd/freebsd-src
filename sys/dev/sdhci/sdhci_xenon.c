@@ -83,9 +83,6 @@ struct sdhci_xenon_softc {
 	device_t	dev;		/* Controller device */
 	int		slot_id;	/* Controller ID */
 	phandle_t	node;		/* FDT node */
-	uint32_t	quirks;		/* Chip specific quirks */
-	uint32_t	caps;		/* If we override SDHCI_CAPABILITIES */
-	uint32_t	max_clk;	/* Max possible freq */
 	struct resource *irq_res;	/* IRQ resource */
 	void		*intrhand;	/* Interrupt handle */
 	struct sdhci_fdt_gpio *gpio;	/* GPIO pins for CD detection. */
@@ -95,7 +92,6 @@ struct sdhci_xenon_softc {
 
 	uint8_t		znr;		/* PHY ZNR */
 	uint8_t		zpr;		/* PHY ZPR */
-	bool		no_18v;		/* No 1.8V support */
 	bool		slow_mode;	/* PHY slow mode */
 
 	struct mmc_fdt_helper	mmc_helper; /* MMC helper for parsing FDT */
@@ -509,32 +505,17 @@ sdhci_xenon_switch_vccq(device_t brdev, device_t reqdev)
 	}
 }
 
-static int
-sdhci_xenon_probe(device_t dev)
+static void
+sdhci_xenon_fdt_parse(device_t dev, struct sdhci_slot *slot)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
 	pcell_t cid;
 
-	sc->quirks = 0;
-	sc->slot_id = 0;
-	sc->max_clk = XENON_MMC_MAX_CLK;
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	sc->node = ofw_bus_get_node(dev);
-	device_set_desc(dev, "Armada Xenon SDHCI controller");
+	mmc_fdt_parse(dev, 0, &sc->mmc_helper, &slot->host);
 
 	/* Allow dts to patch quirks, slots, and max-frequency. */
 	if ((OF_getencprop(sc->node, "quirks", &cid, sizeof(cid))) > 0)
-		sc->quirks = cid;
-	if ((OF_getencprop(sc->node, "max-frequency", &cid, sizeof(cid))) > 0)
-		sc->max_clk = cid;
-	if (OF_hasprop(sc->node, "no-1-8-v"))
-		sc->no_18v = true;
+		slot->quirks = cid;
 	if (OF_hasprop(sc->node, "marvell,xenon-phy-slow-mode"))
 		sc->slow_mode = true;
 	sc->znr = XENON_ZNR_DEF_VALUE;
@@ -545,6 +526,18 @@ sdhci_xenon_probe(device_t dev)
 	if ((OF_getencprop(sc->node, "marvell,xenon-phy-zpr", &cid,
 	    sizeof(cid))) > 0)
 		sc->zpr = cid & XENON_ZPR_MASK;
+}
+
+static int
+sdhci_xenon_probe(device_t dev)
+{
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
+
+	device_set_desc(dev, "Armada Xenon SDHCI controller");
 
 	return (0);
 }
@@ -558,6 +551,8 @@ sdhci_xenon_attach(device_t dev)
 	uint32_t reg;
 
 	sc->dev = dev;
+	sc->slot_id = 0;
+	sc->node = ofw_bus_get_node(dev);
 
 	/* Allocate IRQ. */
 	rid = 0;
@@ -581,25 +576,25 @@ sdhci_xenon_attach(device_t dev)
 
 	slot = malloc(sizeof(*slot), M_DEVBUF, M_ZERO | M_WAITOK);
 
-	/* Check if the device is flagged as non-removable. */
-	if (OF_hasprop(sc->node, "non-removable")) {
-		slot->opt |= SDHCI_NON_REMOVABLE;
-		if (bootverbose)
-			device_printf(dev, "Non-removable media\n");
-	}
-
-	slot->quirks = sc->quirks;
-	slot->caps = sc->caps;
-	slot->max_clk = sc->max_clk;
-	sc->slot = slot;
-
 	/*
 	 * Set up any gpio pin handling described in the FDT data. This cannot
 	 * fail; see comments in sdhci_fdt_gpio.h for details.
 	 */
 	sc->gpio = sdhci_fdt_gpio_setup(dev, slot);
 
-	mmc_fdt_parse(dev, 0, &sc->mmc_helper, &sc->slot->host);
+	sdhci_xenon_fdt_parse(dev, slot);
+
+	slot->max_clk = XENON_MMC_MAX_CLK;
+	if (slot->host.f_max > 0)
+		slot->max_clk = slot->host.f_max;
+	/* Check if the device is flagged as non-removable. */
+	if (sc->mmc_helper.props & MMC_PROP_NON_REMOVABLE) {
+		slot->opt |= SDHCI_NON_REMOVABLE;
+		if (bootverbose)
+			device_printf(dev, "Non-removable media\n");
+	}
+
+	sc->slot = slot;
 
 	if (sdhci_init_slot(dev, sc->slot, 0))
 		goto fail;
@@ -607,8 +602,8 @@ sdhci_xenon_attach(device_t dev)
 	/* 1.2V signaling is not supported. */
 	sc->slot->host.caps &= ~MMC_CAP_SIGNALING_120;
 
-	/* Disable UHS in case of lack of 1.8V VCCQ or the PHY slow mode. */
-	if (sc->no_18v || sc->slow_mode)
+	/* Disable UHS in case of the PHY slow mode. */
+	if (sc->slow_mode)
 		sc->slot->host.caps &= ~MMC_CAP_SIGNALING_180;
 
 	/* Activate the interrupt */
