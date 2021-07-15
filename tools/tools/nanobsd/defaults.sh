@@ -67,7 +67,8 @@ NANO_PKG_META_BASE=/var/db
 
 # Make & parallel Make
 NANO_MAKE="make"
-NANO_PMAKE="make -j 3"
+NANO_NCPU=$(sysctl -n hw.ncpu)
+NANO_PMAKE="make -j $NANO_NCPU"
 
 # The default name for any image we create.
 NANO_IMGNAME="_.disk.full"
@@ -920,6 +921,7 @@ set_defaults_and_export ( ) {
 	export_var NANO_MAKE_CONF_INSTALL
 	export_var NANO_MEDIASIZE
 	export_var NANO_NAME
+	export_var NANO_NCPU
 	export_var NANO_NEWFS
 	export_var NANO_OBJ
 	export_var NANO_PMAKE
