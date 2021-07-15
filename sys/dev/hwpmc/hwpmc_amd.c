@@ -669,7 +669,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 #ifdef	HWPMC_DEBUG
 	const struct amd_descr *pd;
 #endif
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 
 	(void) pmc;
 
