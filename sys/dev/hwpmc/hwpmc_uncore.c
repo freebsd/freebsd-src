@@ -189,7 +189,6 @@ static int
 ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	enum pmc_event ev;
 	uint32_t caps, flags;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -206,7 +205,6 @@ ucf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	    (caps & UCF_PMC_CAPS) != caps)
 		return (EINVAL);
 
-	ev = pm->pm_event;
 	flags = UCF_EN;
 
 	pm->pm_md.pm_ucf.pm_ucf_ctrl = (flags << (ri * 4));
@@ -718,7 +716,7 @@ ucp_start_pmc(int cpu, int ri)
 static int
 ucp_stop_pmc(int cpu, int ri)
 {
-	struct pmc *pm;
+	struct pmc *pm __diagused;
 	struct uncore_cpu *cc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),

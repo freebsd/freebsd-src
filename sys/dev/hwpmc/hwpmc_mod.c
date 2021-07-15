@@ -1351,7 +1351,7 @@ pmc_process_csw_in(struct thread *td)
 	struct pmc *pm;
 	struct proc *p;
 	struct pmc_cpu *pc;
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 	pmc_value_t newvalue;
 	struct pmc_process *pp;
 	struct pmc_thread *pt;
@@ -2769,7 +2769,7 @@ static void
 pmc_release_pmc_descriptor(struct pmc *pm)
 {
 	enum pmc_mode mode;
-	struct pmc_hw *phw;
+	struct pmc_hw *phw __diagused;
 	u_int adjri, ri, cpu;
 	struct pmc_owner *po;
 	struct pmc_binding pb;
@@ -4336,7 +4336,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error = copyin(arg, &prw, sizeof(prw))) != 0)
 			break;
 
-		ri = 0;
 		PMCDBG2(PMC,OPS,1, "rw id=%d flags=0x%x", prw.pm_pmcid,
 		    prw.pm_flags);
 
@@ -4920,7 +4919,7 @@ pmc_process_samples(int cpu, ring_type_t ring)
 	struct pmc_sample *ps;
 	struct pmc_classdep *pcd;
 	struct pmc_samplebuffer *psb;
-	uint64_t delta;
+	uint64_t delta __diagused;
 
 	KASSERT(PCPU_GET(cpuid) == cpu,
 	    ("[pmc,%d] not on the correct CPU pcpu=%d cpu=%d", __LINE__,
