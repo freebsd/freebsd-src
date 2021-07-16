@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+ee29e6f31111
+	Commit ee29e6f31111 added a new sysctl called vfs.nfsd.srvmaxio
+	that can be used to increase the maximum I/O size for the NFS
+	server to any power of 2 up to 1Mbyte while the nfsd(8) is not running.
+	The FreeBSD NFS client can now be set to use a 1Mbyte I/O size
+	via the vfs.maxbcachebuf tunable and the Linux NFS client
+	can also do 1Mbyte I/O.
+	kern.ipc.maxsockbuf will need to be increased.  A console
+	message will suggest a setting for it.
+
 d575e81fbcfa
 	gconcat(8) has added support for appending devices to the device
 	not present at creation time.
