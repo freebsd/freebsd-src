@@ -228,7 +228,7 @@ struct vxlan_header {
 };
 
 static inline void *
-tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data, bool is_vxlan)
+tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data, bool is_vxlan, int mlen)
 {
 	const struct ether_vlan_header *eh;
 	void *old;
@@ -258,16 +258,21 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 		}
 		/* advance to next header */
 		ptr = (uint8_t *)ptr + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		mlen -= (ETHER_HDR_LEN  + ETHER_VLAN_ENCAP_LEN);
 	} else {
 		eth_type = eh->evl_encap_proto;
 		/* advance to next header */
+		mlen -= ETHER_HDR_LEN;
 		ptr = (uint8_t *)ptr + ETHER_HDR_LEN;
 	}
-
+	if (__predict_false(mlen <= 0))
+		return (NULL);
 	switch (eth_type) {
 #ifdef INET
 	case htons(ETHERTYPE_IP):
 		parser->ip4 = ptr;
+		if (__predict_false(mlen < sizeof(struct ip)))
+			return (NULL);
 		/* Ensure there are no IPv4 options. */
 		if ((parser->ip4->ip_hl << 2) != sizeof (*parser->ip4))
 			break;
@@ -275,12 +280,15 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 		if (parser->ip4->ip_off & htons(IP_MF|IP_OFFMASK))
 			break;
 		ptr = (uint8_t *)ptr + (parser->ip4->ip_hl << 2);
+		mlen -= sizeof(struct ip);
 		if (update_data) {
 			parser->data.s_addr.v4 = parser->ip4->ip_src;
 			parser->data.d_addr.v4 = parser->ip4->ip_dst;
 		}
 		switch (parser->ip4->ip_p) {
 		case IPPROTO_UDP:
+			if (__predict_false(mlen < sizeof(struct udphdr)))
+				return (NULL);
 			parser->udp = ptr;
 			if (update_data) {
 				parser->data.lro_type = LRO_TYPE_IPV4_UDP;
@@ -294,6 +302,8 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 			return (ptr);
 		case IPPROTO_TCP:
 			parser->tcp = ptr;
+			if (__predict_false(mlen < sizeof(struct tcphdr)))
+				return (NULL);
 			if (update_data) {
 				parser->data.lro_type = LRO_TYPE_IPV4_TCP;
 				parser->data.s_port = parser->tcp->th_sport;
@@ -301,6 +311,8 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 			} else {
 				MPASS(parser->data.lro_type == LRO_TYPE_IPV4_TCP);
 			}
+			if (__predict_false(mlen < (parser->tcp->th_off << 2)))
+				return (NULL);
 			ptr = (uint8_t *)ptr + (parser->tcp->th_off << 2);
 			parser->total_hdr_len = (uint8_t *)ptr - (uint8_t *)old;
 			return (ptr);
@@ -312,13 +324,18 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 #ifdef INET6
 	case htons(ETHERTYPE_IPV6):
 		parser->ip6 = ptr;
+		if (__predict_false(mlen < sizeof(struct ip6_hdr)))
+			return (NULL);
 		ptr = (uint8_t *)ptr + sizeof(*parser->ip6);
 		if (update_data) {
 			parser->data.s_addr.v6 = parser->ip6->ip6_src;
 			parser->data.d_addr.v6 = parser->ip6->ip6_dst;
 		}
+		mlen -= sizeof(struct ip6_hdr);
 		switch (parser->ip6->ip6_nxt) {
 		case IPPROTO_UDP:
+			if (__predict_false(mlen < sizeof(struct udphdr)))
+				return (NULL);
 			parser->udp = ptr;
 			if (update_data) {
 				parser->data.lro_type = LRO_TYPE_IPV6_UDP;
@@ -331,6 +348,8 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 			parser->total_hdr_len = (uint8_t *)ptr - (uint8_t *)old;
 			return (ptr);
 		case IPPROTO_TCP:
+			if (__predict_false(mlen < sizeof(struct tcphdr)))
+				return (NULL);
 			parser->tcp = ptr;
 			if (update_data) {
 				parser->data.lro_type = LRO_TYPE_IPV6_TCP;
@@ -339,6 +358,8 @@ tcp_lro_low_level_parser(void *ptr, struct lro_parser *parser, bool update_data,
 			} else {
 				MPASS(parser->data.lro_type == LRO_TYPE_IPV6_TCP);
 			}
+			if (__predict_false(mlen < (parser->tcp->th_off << 2)))
+				return (NULL);
 			ptr = (uint8_t *)ptr + (parser->tcp->th_off << 2);
 			parser->total_hdr_len = (uint8_t *)ptr - (uint8_t *)old;
 			return (ptr);
@@ -363,7 +384,7 @@ tcp_lro_parser(struct mbuf *m, struct lro_parser *po, struct lro_parser *pi, boo
 	void *data_ptr;
 
 	/* Try to parse outer headers first. */
-	data_ptr = tcp_lro_low_level_parser(m->m_data, po, update_data, false);
+	data_ptr = tcp_lro_low_level_parser(m->m_data, po, update_data, false, m->m_len);
 	if (data_ptr == NULL || po->total_hdr_len > m->m_len)
 		return (NULL);
 
@@ -383,8 +404,9 @@ tcp_lro_parser(struct mbuf *m, struct lro_parser *po, struct lro_parser *pi, boo
 			break;
 
 		/* Try to parse inner headers. */
-		data_ptr = tcp_lro_low_level_parser(data_ptr, pi, update_data, true);
-		if (data_ptr == NULL || pi->total_hdr_len > m->m_len)
+		data_ptr = tcp_lro_low_level_parser(data_ptr, pi, update_data, true,
+						    (m->m_len - ((caddr_t)data_ptr - m->m_data)));
+		if (data_ptr == NULL || (pi->total_hdr_len + po->total_hdr_len) > m->m_len)
 			break;
 
 		/* Verify supported header types. */
