@@ -1147,22 +1147,26 @@ get_kernel_reg(u_int reg, uint64_t *val)
 	return (false);
 }
 
-static uint64_t
-update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
-    int width, bool sign)
+/*
+ * Compares two field values that may be signed or unsigned.
+ * Returns:
+ *  < 0 when a is less than b
+ *  = 0 when a equals b
+ *  > 0 when a is greater than b
+ */
+static int
+mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 {
 	uint64_t mask;
-	uint64_t new_field, old_field;
-	bool update;
 
 	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
 	    width));
 
 	mask = (1ul << width) - 1;
-	new_field = (new_val >> shift) & mask;
-	old_field = (val >> shift) & mask;
+	/* Move the field to the lower bits */
+	a = (a >> shift) & mask;
+	b = (b >> shift) & mask;
 
-	update = false;
 	if (sign) {
 		/*
 		 * The field is signed. Toggle the upper bit so the comparison
@@ -1170,17 +1174,29 @@ update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
 		 * i.e. those with a 0 bit, larger than negative numbers,
 		 * i.e. those with a 1 bit, in an unsigned comparison.
 		 */
-		if ((new_field ^ (1ul << (width - 1))) <
-		    (old_field ^ (1ul << (width - 1))))
-			update = true;
-	} else {
-		if (new_field < old_field)
-			update = true;
+		a ^= 1ul << (width - 1);
+		b ^= 1ul << (width - 1);
 	}
 
-	if (update) {
+	return (a - b);
+}
+
+static uint64_t
+update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
+    int width, bool sign)
+{
+	uint64_t mask;
+
+	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
+	    width));
+
+	/*
+	 * If the new value is less than the existing value update it.
+	 */
+	if (mrs_field_cmp(new_val, val, shift, width, sign) < 0) {
+		mask = (1ul << width) - 1;
 		val &= ~(mask << shift);
-		val |= new_field << shift;
+		val |= new_val & (mask << shift);
 	}
 
 	return (val);
