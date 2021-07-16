@@ -213,8 +213,8 @@ static device_method_t vmd_bus_pci_methods[] = {
 
 static devclass_t vmd_bus_devclass;
 
-DEFINE_CLASS_1(vmd_bus, vmd_bus_pci_driver, vmd_bus_pci_methods,
+DEFINE_CLASS_1(pci, vmd_bus_pci_driver, vmd_bus_pci_methods,
     sizeof(struct pci_softc), pci_driver);
 
-DRIVER_MODULE(vmd_bus, vmd, vmd_bus_pci_driver, vmd_bus_devclass, NULL, NULL);
+DRIVER_MODULE(pci, vmd, vmd_bus_pci_driver, vmd_bus_devclass, NULL, NULL);
 MODULE_VERSION(vmd_bus, 1);
