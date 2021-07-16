@@ -85,6 +85,7 @@ extern volatile int nfsrv_devidcnt;
 extern int nfscl_debuglevel;
 extern struct nfsdevicehead nfsrv_devidhead;
 extern struct nfsstatsv1 nfsstatsv1;
+extern uint32_t nfs_srvmaxio;
 
 SYSCTL_DECL(_vfs_nfs);
 SYSCTL_INT(_vfs_nfs, OID_AUTO, enable_uidtostring, CTLFLAG_RW,
@@ -2201,7 +2202,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			attrsum += NFSX_UNSIGNED;
 			i = fxdr_unsigned(int, *tl);
-			if (compare && !(*retcmpp) && i != NFS_SRVMAXIO)
+			if (compare && !(*retcmpp) && i != nfs_srvmaxio)
 				*retcmpp = NFSERR_NOTSAME;
 			break;
 		default:
@@ -3012,7 +3013,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		case NFSATTRBIT_LAYOUTALIGNMENT:
 		case NFSATTRBIT_LAYOUTBLKSIZE:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = txdr_unsigned(NFS_SRVMAXIO);
+			*tl = txdr_unsigned(nfs_srvmaxio);
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_XATTRSUPPORT:
