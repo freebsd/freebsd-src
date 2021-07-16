@@ -66,6 +66,7 @@ extern u_long sb_max_adj;
 extern int nfsrv_pnfsatime;
 extern int nfsrv_maxpnfsmirror;
 extern int nfs_maxcopyrange;
+extern uint32_t nfs_srvmaxio;
 
 static int	nfs_async = 0;
 SYSCTL_DECL(_vfs_nfsd);
@@ -1023,7 +1024,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 			lop->lo_end = NFS64BITSSET;
 	}
 
-	if (retlen > NFS_SRVMAXIO || retlen < 0)
+	if (retlen > nfs_srvmaxio || retlen < 0)
 		nd->nd_repstat = EIO;
 	if (vnode_vtype(vp) != VREG && !nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -4417,6 +4418,7 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsdsession *sep = NULL;
 	uint32_t rdmacnt;
 	struct thread *p = curthread;
+	static bool do_printf = true;
 
 	if ((nd->nd_repstat = nfsd_checkrootexp(nd)) != 0)
 		goto nfsmout;
@@ -4438,12 +4440,16 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 	sep->sess_maxreq = fxdr_unsigned(uint32_t, *tl++);
 	if (sep->sess_maxreq > sb_max_adj - NFS_MAXXDR) {
 		sep->sess_maxreq = sb_max_adj - NFS_MAXXDR;
-		printf("Consider increasing kern.ipc.maxsockbuf\n");
+		if (do_printf)
+			printf("Consider increasing kern.ipc.maxsockbuf\n");
+		do_printf = false;
 	}
 	sep->sess_maxresp = fxdr_unsigned(uint32_t, *tl++);
 	if (sep->sess_maxresp > sb_max_adj - NFS_MAXXDR) {
 		sep->sess_maxresp = sb_max_adj - NFS_MAXXDR;
-		printf("Consider increasing kern.ipc.maxsockbuf\n");
+		if (do_printf)
+			printf("Consider increasing kern.ipc.maxsockbuf\n");
+		do_printf = false;
 	}
 	sep->sess_maxrespcached = fxdr_unsigned(uint32_t, *tl++);
 	sep->sess_maxops = fxdr_unsigned(uint32_t, *tl++);
