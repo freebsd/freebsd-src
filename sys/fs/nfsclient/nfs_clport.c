@@ -1312,7 +1312,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			error = EINVAL;
 		}
 		if (error == 0) {
-			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK);
+			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK |
+			    M_ZERO);
 			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
 			    dumpmntopts.ndmnt_blen);
 			vput(nd.ni_vp);
