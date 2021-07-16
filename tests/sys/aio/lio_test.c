@@ -133,6 +133,15 @@ ATF_TC_BODY(lio_listio_empty_wait, tc)
 	ATF_REQUIRE_EQ(0, lio_listio(LIO_WAIT, &list, 0, NULL));
 }
 
+/* With LIO_NOWAIT, an empty lio_listio should return immediately */
+ATF_TC_WITHOUT_HEAD(lio_listio_empty_nowait);
+ATF_TC_BODY(lio_listio_empty_nowait, tc)
+{
+	struct aiocb *list = NULL;
+
+	ATF_REQUIRE_EQ(0, lio_listio(LIO_NOWAIT, &list, 0, NULL));
+}
+
 /*
  * With LIO_NOWAIT, an empty lio_listio should send completion notification
  * immediately
@@ -253,6 +262,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, lio_listio_eagain_kevent);
+	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_kevent);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_signal);
 	ATF_TP_ADD_TC(tp, lio_listio_empty_nowait_thread);
