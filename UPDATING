@@ -12,6 +12,18 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210715:
+	The 20210707 awk update brought in a change in behavior. This has
+	been corrected as of d4d252c49976. Between these dates, if you
+	installed a new awk binary, you may not be able to build a new
+	kernel because the change in behavior affected the genoffset
+	script used to build the kernel. If you did update, the fix is
+	to update your sources past the above hash and do
+		% cd usr.bin/awk
+		% make clean all
+		% sudo -E make install
+	to enable building kernels again.
+
 20210711:
 	Commit 8a04edfdcbd2 changes the default minor version
 	used for NFSv4 mounts to the highest minor version supported
@@ -20,6 +32,10 @@ and/or ports.
 	The consensus of a discussion on freebsd-current@ indicated
 	that this would be acceptable to do and would not be considered
 	a POLA violation.
+
+20210710:
+	awk has been updated to the latest one-true-awk version 20210215.
+	This contains a number of minor bug fixes.
 
 20210630:
         Commit ca179c4d74f2/632e3f2f3a66 changed the package in which
