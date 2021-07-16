@@ -479,25 +479,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 					return (-1);
 				}
 			}
-			/* Test weak undefined thread variable */
-			if (def->st_shndx != SHN_UNDEF) {
-				*where = def->st_value + rela->r_addend +
-				    defobj->tlsoffset;
-			} else {
-				/*
-				 * XXX We should relocate undefined thread
-				 * weak variable address to NULL, but how?
-				 * Can we return error in this situation?
-				 */
-				rtld_printf("%s: Unable to relocate undefined "
-				"weak TLS variable\n", obj->path);
-#if 0
-				return (-1);
-#else
-				*where = def->st_value + rela->r_addend +
-				    defobj->tlsoffset;
-#endif
-			}
+			*where = def->st_value + rela->r_addend +
+			    defobj->tlsoffset;
 			break;
 
 		/*
