@@ -728,7 +728,7 @@ cust_comconsole ( ) (
 # Allow root login via ssh
 
 cust_allow_ssh_root ( ) (
-	sed -i "" -e '/PermitRootLogin/s/.*/PermitRootLogin yes/' \
+	sed -i "" -E 's/^#?PermitRootLogin.*/PermitRootLogin yes/' \
 	    ${NANO_WORLDDIR}/etc/ssh/sshd_config
 )
 
