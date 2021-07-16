@@ -1,4 +1,3 @@
-
 /* $FreeBSD$ */
 /*===------- llvm/Config/llvm-config.h - llvm configuration -------*- C -*-===*/
 /*                                                                            */
