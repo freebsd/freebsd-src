@@ -76,6 +76,9 @@ extern struct nfsdontlisthead nfsrv_dontlisthead;
 extern volatile int nfsrv_dontlistlen;
 extern volatile int nfsrv_devidcnt;
 extern int nfsrv_maxpnfsmirror;
+extern uint32_t nfs_srvmaxio;
+extern int nfs_bufpackets;
+extern u_long sb_max_adj;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 NFSSTATESPINLOCK;
@@ -194,6 +197,84 @@ sysctl_dsdirsize(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs_nfsd, OID_AUTO, dsdirsize,
     CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(nfsrv_dsdirsize),
     sysctl_dsdirsize, "IU", "Number of dsN subdirs on the DS servers");
+
+/*
+ * nfs_srvmaxio can only be increased and only when the nfsd threads are
+ * not running.  The setting must be a power of 2, with the current limit of
+ * 1Mbyte.
+ */
+static int
+sysctl_srvmaxio(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	u_int newsrvmaxio;
+	uint64_t tval;
+
+	newsrvmaxio = nfs_srvmaxio;
+	error = sysctl_handle_int(oidp, &newsrvmaxio, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (newsrvmaxio == nfs_srvmaxio)
+		return (0);
+	if (newsrvmaxio < nfs_srvmaxio) {
+		printf("nfsd: vfs.nfsd.srvmaxio can only be increased\n");
+		return (EINVAL);
+	}
+	if (newsrvmaxio > 1048576) {
+		printf("nfsd: vfs.nfsd.srvmaxio cannot be > 1Mbyte\n");
+		return (EINVAL);
+	}
+	if ((newsrvmaxio & (newsrvmaxio - 1)) != 0) {
+		printf("nfsd: vfs.nfsd.srvmaxio must be a power of 2\n");
+		return (EINVAL);
+	}
+
+	/*
+	 * Check that kern.ipc.maxsockbuf is large enough for
+	 * newsrviomax, given the setting of vfs.nfs.bufpackets.
+	 */
+	if ((newsrvmaxio + NFS_MAXXDR) * nfs_bufpackets >
+	    sb_max_adj) {
+		/*
+		 * Suggest vfs.nfs.bufpackets * maximum RPC message for
+		 * sb_max_adj.
+		 */
+		tval = (newsrvmaxio + NFS_MAXXDR) * nfs_bufpackets;
+
+		/*
+		 * Convert suggested sb_max_adj value to a suggested
+		 * sb_max value, which is what is set via kern.ipc.maxsockbuf.
+		 * Perform the inverse calculation of (from uipc_sockbuf.c):
+		 * sb_max_adj = (u_quad_t)sb_max * MCLBYTES /
+		 *     (MSIZE + MCLBYTES);
+		 * XXX If the calculation of sb_max_adj from sb_max changes,
+		 *     this calculation must be changed as well.
+		 */
+		tval *= (MSIZE + MCLBYTES);  /* Brackets for readability. */
+		tval += MCLBYTES - 1;        /* Round up divide. */
+		tval /= MCLBYTES;
+		printf("nfsd: set kern.ipc.maxsockbuf to a minimum of "
+		    "%ju to support %ubyte NFS I/O\n", (uintmax_t)tval,
+		    newsrvmaxio);
+		return (EINVAL);
+	}
+
+	NFSD_LOCK();
+	if (newnfs_numnfsd != 0) {
+		NFSD_UNLOCK();
+		printf("nfsd: cannot set vfs.nfsd.srvmaxio when nfsd "
+		    "threads are running\n");
+		return (EINVAL);
+	}
+
+
+	nfs_srvmaxio = newsrvmaxio;
+	NFSD_UNLOCK();
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, srvmaxio,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0,
+    sysctl_srvmaxio, "IU", "Maximum I/O size in bytes");
 
 #define	MAX_REORDERED_RPC	16
 #define	NUM_HEURISTIC		1031

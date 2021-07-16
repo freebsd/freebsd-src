@@ -42,6 +42,7 @@ struct nfsv4lock nfsv4rootfs_lock;
 time_t nfsdev_time = 0;
 int nfsrv_layouthashsize;
 volatile int nfsrv_layoutcnt = 0;
+extern uint32_t nfs_srvmaxio;
 
 extern int newnfs_numnfsd;
 extern struct nfsstatsv1 nfsstatsv1;
@@ -6898,7 +6899,7 @@ nfsrv_filelayout(struct nfsrv_descript *nd, int iomode, fhandle_t *fhp,
 	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 
 	/* Set the stripe size to the maximum I/O size. */
-	*tl++ = txdr_unsigned(NFS_SRVMAXIO & NFSFLAYUTIL_STRIPE_MASK);
+	*tl++ = txdr_unsigned(nfs_srvmaxio & NFSFLAYUTIL_STRIPE_MASK);
 	*tl++ = 0;					/* 1st stripe index. */
 	pattern_offset = 0;
 	txdr_hyper(pattern_offset, tl); tl += 2;	/* Pattern offset. */
@@ -7964,13 +7965,13 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	*tl++ = txdr_unsigned(2);		/* Two NFS Versions. */
 	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
 	*tl++ = txdr_unsigned(NFSV42_MINORVERSION); /* Minor version 2. */
-	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */
-	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max wsize. */
+	*tl++ = txdr_unsigned(nfs_srvmaxio);	/* DS max rsize. */
+	*tl++ = txdr_unsigned(nfs_srvmaxio);	/* DS max wsize. */
 	*tl++ = newnfs_true;			/* Tightly coupled. */
 	*tl++ = txdr_unsigned(NFS_VER4);	/* NFSv4. */
 	*tl++ = txdr_unsigned(NFSV41_MINORVERSION); /* Minor version 1. */
-	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max rsize. */
-	*tl++ = txdr_unsigned(NFS_SRVMAXIO);	/* DS max wsize. */
+	*tl++ = txdr_unsigned(nfs_srvmaxio);	/* DS max rsize. */
+	*tl++ = txdr_unsigned(nfs_srvmaxio);	/* DS max wsize. */
 	*tl = newnfs_true;			/* Tightly coupled. */
 
 	ds->nfsdev_hostnamelen = strlen(dnshost);
