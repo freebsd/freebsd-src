@@ -2246,6 +2246,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	lj->lioj_flags = 0;
 	lj->lioj_count = 0;
 	lj->lioj_finished_count = 0;
+	lj->lioj_signal.sigev_notify = SIGEV_NONE;
 	knlist_init_mtx(&lj->klist, AIO_MTX(ki));
 	ksiginfo_init(&lj->lioj_ksi);
 
