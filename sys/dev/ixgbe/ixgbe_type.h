@@ -306,7 +306,7 @@
 #define NVM_VER_INVALID		0xFFFF
 #define NVM_ETK_VALID		0x8000
 #define NVM_INVALID_PTR		0xFFFF
-#define NVM_VER_SIZE		32    /* version sting size */
+#define NVM_VER_SIZE		32    /* version string size */
 
 struct ixgbe_nvm_version {
 	u32 etk_id;
