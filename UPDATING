@@ -27,6 +27,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210715:
+	The 20210707 awk update brought in a change in behavior. This has
+	been corrected as of d4d252c49976. Between these dates, if you
+	installed a new awk binary, you may not be able to build a new
+	kernel because the change in behavior affected the genoffset
+	script used to build the kernel. If you did update, the fix is
+	to update your sources past the above hash and do
+		% cd usr.bin/awk
+		% make clean all
+		% sudo -E make install
+	to enable building kernels again.
+
 20210708:
 	Commit 1e0a518d6548 changed the internal KAPI between the NFS
 	modules. They all need to be rebuilt from sources.  I did not
