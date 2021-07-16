@@ -173,6 +173,8 @@ static void ixgbe_initialize_transmit_units(if_ctx_t ctx);
 static int  ixgbe_setup_interface(if_ctx_t ctx);
 static void ixgbe_init_device_features(struct adapter *adapter);
 static void ixgbe_check_fan_failure(struct adapter *, u32, bool);
+static void ixgbe_sbuf_fw_version(struct ixgbe_hw *, struct sbuf *);
+static void ixgbe_print_fw_version(if_ctx_t ctx);
 static void ixgbe_add_media_types(if_ctx_t ctx);
 static void ixgbe_update_stats_counters(struct adapter *adapter);
 static void ixgbe_config_link(if_ctx_t ctx);
@@ -196,6 +198,7 @@ static int  ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_dmac(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_phy_temp(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_phy_overtemp_occurred(SYSCTL_HANDLER_ARGS);
+static int  ixgbe_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS);
 #ifdef IXGBE_DEBUG
 static int  ixgbe_sysctl_power_state(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS);
@@ -1118,6 +1121,9 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 	 * only on the first port of a bypass adapter.
 	 */
 	ixgbe_bypass_init(adapter);
+
+	/* Display NVM and Option ROM versions */
+	ixgbe_print_fw_version(ctx);
 
 	/* Set an initial dmac value */
 	adapter->dmac = 0;
@@ -2647,6 +2653,10 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	adapter->enable_aim = ixgbe_enable_aim;
 	SYSCTL_ADD_INT(ctx_list, child, OID_AUTO, "enable_aim", CTLFLAG_RW,
 	    &adapter->enable_aim, 0, "Interrupt Moderation");
+
+	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter, 0,
+	    ixgbe_sysctl_print_fw_version, "A", "Prints FW/NVM Versions");
 
 #ifdef IXGBE_DEBUG
 	/* testing sysctls (for all devices) */
@@ -4674,3 +4684,93 @@ ixgbe_check_fan_failure(struct adapter *adapter, u32 reg, bool in_interrupt)
 	if (reg & mask)
 		device_printf(adapter->dev, "\nCRITICAL: FAN FAILURE!! REPLACE IMMEDIATELY!!\n");
 } /* ixgbe_check_fan_failure */
+
+/************************************************************************
+ * ixgbe_sbuf_fw_version
+ ************************************************************************/
+static void
+ixgbe_sbuf_fw_version(struct ixgbe_hw *hw, struct sbuf *buf)
+{
+	struct ixgbe_nvm_version nvm_ver = {0};
+	uint16_t phyfw = 0;
+	int status;
+
+	ixgbe_get_oem_prod_version(hw, &nvm_ver); /* OEM's NVM version */
+	ixgbe_get_orom_version(hw, &nvm_ver); /* Option ROM */
+	ixgbe_get_etk_id(hw, &nvm_ver); /* eTrack identifies a build in Intel's SCM */
+	status = ixgbe_get_phy_firmware_version(hw, &phyfw);
+
+	if (nvm_ver.oem_valid)
+		sbuf_printf(buf, "NVM OEM V%d.%d R%d ", nvm_ver.oem_major,
+		    nvm_ver.oem_minor, nvm_ver.oem_release);
+
+	if (nvm_ver.or_valid)
+		sbuf_printf(buf, "Option ROM V%d-b%d-p%d ", nvm_ver.or_major,
+		    nvm_ver.or_build, nvm_ver.or_patch);
+
+	if (nvm_ver.etk_id != ((NVM_VER_INVALID << NVM_ETK_SHIFT) | NVM_VER_INVALID))
+		sbuf_printf(buf, "eTrack 0x%08x ", nvm_ver.etk_id);
+
+	if (phyfw != 0 && status == IXGBE_SUCCESS)
+		sbuf_printf(buf, "PHY FW V%d ", phyfw);
+
+	sbuf_trim(buf);
+} /* ixgbe_sbuf_fw_version */
+
+/************************************************************************
+ * ixgbe_print_fw_version
+ ************************************************************************/
+static void
+ixgbe_print_fw_version(if_ctx_t ctx)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+	struct ixgbe_hw *hw = &adapter->hw;
+	device_t dev = adapter->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_auto();
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return;
+	}
+
+	ixgbe_sbuf_fw_version(hw, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+	else if (sbuf_len(buf))
+		device_printf(dev, "%s\n", sbuf_data(buf));
+
+	sbuf_delete(buf);
+} /* ixgbe_print_fw_version */
+
+/************************************************************************
+ * ixgbe_sysctl_print_fw_version
+ ************************************************************************/
+static int
+ixgbe_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter  *adapter = (struct adapter *)arg1;
+	struct ixgbe_hw *hw = &adapter->hw;
+	device_t dev = adapter->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	ixgbe_sbuf_fw_version(hw, buf);
+
+	error = sbuf_finish(buf);
+	if (error)
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+
+	sbuf_delete(buf);
+
+	return (0);
+} /* ixgbe_sysctl_print_fw_version */
