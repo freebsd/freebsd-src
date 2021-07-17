@@ -77,8 +77,8 @@ vmd_bus_attach(device_t dev)
 
 	/*
 	 * Start at max PCI vmd_domain and work down.  Only VMD
-	 * starting bus is connect to VMD device directly.  Scan al
-	 * lslots and function connected to starting bus.
+	 * starting bus is connect to VMD device directly.  Scan
+	 * all slots and function connected to starting bus.
 	 */
 
 	b = sc->vmd_bus_start;
