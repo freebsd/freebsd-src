@@ -980,6 +980,28 @@ null_read_pgcache(struct vop_read_pgcache_args *ap)
 	return (error);
 }
 
+static int
+null_advlock(struct vop_advlock_args *ap)
+{
+	struct vnode *lvp, *vp;
+	struct null_node *xp;
+	int error;
+
+	vp = ap->a_vp;
+	VI_LOCK(vp);
+	xp = VTONULL(vp);
+	if (xp == NULL) {
+		VI_UNLOCK(vp);
+		return (EBADF);
+	}
+	lvp = xp->null_lowervp;
+	vref(lvp);
+	VI_UNLOCK(vp);
+	error = VOP_ADVLOCK(lvp, ap->a_id, ap->a_op, ap->a_fl, ap->a_flags);
+	vrele(lvp);
+	return (error);
+}
+
 /*
  * Avoid standard bypass, since lower dvp and vp could be no longer
  * valid after vput().
@@ -1052,6 +1074,7 @@ struct vop_vector null_vnodeops = {
 	.vop_bypass =		null_bypass,
 	.vop_access =		null_access,
 	.vop_accessx =		null_accessx,
+	.vop_advlock =		null_advlock,
 	.vop_advlockpurge =	vop_stdadvlockpurge,
 	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_stat =		null_stat,
