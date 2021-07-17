@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20210718:
+	Bump __FreeBSD_version to 1300512 after merging LinuxKPI, OFED,
+	net80211, and driver changes in order to support building
+	Intel wireless iwlwifi drivers.  This is especially needed for
+	drm-kmod which needs updates after this.
+
 20210715:
 	The 20210707 awk update brought in a change in behavior. This has
 	been corrected as of d4d252c49976. Between these dates, if you
