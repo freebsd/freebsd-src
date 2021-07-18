@@ -3,8 +3,7 @@
 
 ======================================================================
 
-  For the latest news about less, see the "less" Web page:
-      https://greenwoodsoftware.com/less
+  For the latest news about less, see https://greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
   Report bugs, suggestions or comments at 
@@ -12,7 +11,32 @@
 
 ======================================================================
 
-	Major changes between "less" versions 563 and 581.2
+	Major changes between "less" versions 581 and 590
+
+* Make less able to read lesskey source files (deprecating lesskey).
+
+* If XDG_CONFIG_HOME is set, find lesskey source file 
+  in $XDG_CONFIG_HOME/lesskey rather than $HOME/.lesskey.
+
+* If XDG_DATA_HOME is set, find and store history file 
+  in $XDG_DATA_HOME/lesshst rather than $HOME/.lesshst.
+
+* Add the --lesskey-src option.
+
+* Add the --file-size option.
+
+* With -F, if screen is resized to make file fit on one screen, don't exit.
+
+* Fix bug which could leave terminal in mouse-reporting mode 
+  after exiting less.
+
+* Fix bug which caused failure to respond to window resize.
+
+* Fix backslash bug searching in tag file.
+
+======================================================================
+
+	Major changes between "less" versions 563 and 581
 
 * Change ESC-u command to toggle, not disable, highlighting per man page.
 

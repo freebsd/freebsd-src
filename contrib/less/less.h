@@ -571,6 +571,7 @@ struct loption;
 struct hilite_tree;
 struct ansi_state;
 #include "pattern.h"
+#include "xbuf.h"
 #include "funcs.h"
 
 /* Functions not included in funcs.h */
