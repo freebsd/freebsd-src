@@ -205,6 +205,8 @@
                   Don't display tildes after end of file.
   -# [_N]  ....  --shift=[_N]
                   Set horizontal scroll amount (0 = one half screen width).
+                --file-size
+                  Automatically determine the size of the input file.
                 --follow-name
                   The F command changes files if the input file is renamed.
                 --incsearch

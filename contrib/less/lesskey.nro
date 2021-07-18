@@ -1,8 +1,8 @@
 '\" t
-.TH LESSKEY 1 "Version 581.2: 28 Apr 2021"
+.TH LESSKEY 1 "Version 590: 03 Jun 2021"
 .SH NAME
 lesskey \- specify key bindings for less
-.SH SYNOPSIS
+.SH "SYNOPSIS (deprecated)"
 .B "lesskey [\-o output] [\-\-] [input]"
 .br
 .B "lesskey [\-\-output=output] [\-\-] [input]"
@@ -10,38 +10,27 @@ lesskey \- specify key bindings for less
 .B "lesskey \-V"
 .br
 .B "lesskey \-\-version"
-.SH DESCRIPTION
-.I Lesskey
-is used to specify a set of key bindings to be used by
-.IR less .
-The input file is a text file which describes the key bindings.
-If the input file is "\-", standard input is read.
-If no input file is specified, a standard filename is used
-as the name of the input file, which depends on the system being used:
-On Unix systems, "$HOME/.lesskey" is used;
-on MS-DOS systems, "$HOME/_lesskey" is used;
-and on OS/2 systems "$HOME/lesskey.ini" is used,
-or "$INIT/lesskey.ini" if $HOME is undefined.
-The output file is a binary file which is used by
-.IR less .
-If no output file is specified,
-and the environment variable LESSKEY is set,
-the value of LESSKEY is used as the name of the output file.
-Otherwise, a standard filename is used as the name of the output file,
-which depends on the system being used:
-On Unix and OS-9 systems, "$HOME/.less" is used;
-on MS-DOS systems, "$HOME/_less" is used;
-and on OS/2 systems, "$HOME/less.ini" is used,
-or "$INIT/less.ini" if $HOME is undefined.
-If the output file already exists,
+.SH SCOPE
+This document describes the format of the 
 .I lesskey
-will overwrite it.
-.PP
-The \-V or \-\-version option causes
+source file, which is used by
+.I less
+version 582 and later.
+In previous versions of 
+.IR less ,
+a separate program called
 .I lesskey
-to print its version number and immediately exit.
-If \-V or \-\-version is present, other options and arguments are ignored.
+was used to compile the 
+.I lesskey 
+source file into a format understood by
+.IR less .
+This compilation step is no longer required and the
+.I lesskey
+program is therefore deprecated although the file format remains supported by
+.I less
+itself.
 .PP
+.SH FILE FORMAT
 The input file consists of one or more
 .I sections.
 Each section starts with a line that identifies the type of section.

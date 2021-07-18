@@ -1401,11 +1401,12 @@ mlist_size(ml)
  * Get the name of the history file.
  */
 	static char *
-histfile_name(VOID_PARAM)
+histfile_name(must_exist)
+	int must_exist;
 {
 	char *home;
+	char *xdg;
 	char *name;
-	int len;
 	
 	/* See if filename is explicitly specified by $LESSHISTFILE. */
 	name = lgetenv("LESSHISTFILE");
@@ -1421,19 +1422,25 @@ histfile_name(VOID_PARAM)
 	if (strcmp(LESSHISTFILE, "") == 0 || strcmp(LESSHISTFILE, "-") == 0)
 		return (NULL);
 
-	/* Otherwise, file is in $HOME. */
+	/* Try in $XDG_DATA_HOME first, then in $HOME. */
+	xdg = lgetenv("XDG_DATA_HOME");
 	home = lgetenv("HOME");
-	if (isnullenv(home))
-	{
 #if OS2
+	if (isnullenv(home))
 		home = lgetenv("INIT");
-		if (isnullenv(home))
 #endif
-			return (NULL);
+	name = NULL;
+	if (!must_exist)
+	{
+	 	/* If we're writing the file and the file already exists, use it. */
+		name = dirfile(xdg, &LESSHISTFILE[1], 1);
+		if (name == NULL)
+			name = dirfile(home, LESSHISTFILE, 1);
 	}
-	len = (int) (strlen(home) + strlen(LESSHISTFILE) + 2);
-	name = (char *) ecalloc(len, sizeof(char));
-	SNPRINTF2(name, len, "%s/%s", home, LESSHISTFILE);
+	if (name == NULL)
+		name = dirfile(xdg, &LESSHISTFILE[1], must_exist);
+	if (name == NULL)
+		name = dirfile(home, LESSHISTFILE, must_exist);
 	return (name);
 }
 
@@ -1454,7 +1461,7 @@ read_cmdhist2(action, uparam, skip_search, skip_shell)
 	char *p;
 	int *skip = NULL;
 
-	filename = histfile_name();
+	filename = histfile_name(1);
 	if (filename == NULL)
 		return;
 	f = fopen(filename, "r");
@@ -1700,7 +1707,7 @@ save_cmdhist(VOID_PARAM)
 
 	if (!histfile_modified())
 		return;
-	histname = histfile_name();
+	histname = histfile_name(0);
 	if (histname == NULL)
 		return;
 	tempname = make_tempname(histname);
