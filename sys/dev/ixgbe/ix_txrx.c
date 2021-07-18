@@ -50,16 +50,19 @@ static void ixgbe_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
 static int ixgbe_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
 
 static void ixgbe_isc_rxd_refill(void *arg, if_rxd_update_t iru);
-static void ixgbe_isc_rxd_flush(void *arg, uint16_t qsidx, uint8_t flidx __unused, qidx_t pidx);
+static void ixgbe_isc_rxd_flush(void *arg, uint16_t qsidx,
+    uint8_t flidx __unused, qidx_t pidx);
 static int ixgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t pidx,
-				   qidx_t budget);
+    qidx_t budget);
 static int ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-static void ixgbe_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype);
-static int ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *, if_pkt_info_t);
+static void ixgbe_rx_checksum(uint32_t staterr, if_rxd_info_t ri,
+    uint32_t ptype);
+static int ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *,
+    if_pkt_info_t);
 
 extern void ixgbe_if_enable_intr(if_ctx_t ctx);
-static int ixgbe_determine_rsstype(u16 pkt_info);
+static int ixgbe_determine_rsstype(uint16_t pkt_info);
 
 struct if_txrx ixgbe_txrx  = {
 	.ift_txd_encap = ixgbe_isc_txd_encap,
@@ -81,8 +84,8 @@ struct if_txrx ixgbe_txrx  = {
 static int
 ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 {
-	u32 vlan_macip_lens, type_tucmd_mlhl;
-	u32 olinfo_status, mss_l4len_idx, pktlen, offload;
+	uint32_t vlan_macip_lens, type_tucmd_mlhl;
+	uint32_t olinfo_status, mss_l4len_idx, pktlen, offload;
 	u8  ehdrlen;
 
 	offload = TRUE;
@@ -150,7 +153,7 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 		offload = FALSE;
 		break;
 	}
-/* Insert L4 checksum into data descriptors */
+	/* Insert L4 checksum into data descriptors */
 	if (offload)
 		olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
 
@@ -180,7 +183,7 @@ ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	union ixgbe_adv_tx_desc          *txd = NULL;
 	struct ixgbe_adv_tx_context_desc *TXD;
 	int                              i, j, first, pidx_last;
-	u32                              olinfo_status, cmd, flags;
+	uint32_t                         olinfo_status, cmd, flags;
 	qidx_t                           ntxd;
 
 	cmd =  (IXGBE_ADVTXD_DTYP_DATA |
@@ -364,7 +367,7 @@ ixgbe_isc_rxd_available(void *arg, uint16_t qsidx, qidx_t pidx, qidx_t budget)
 	struct ix_rx_queue      *que = &sc->rx_queues[qsidx];
 	struct rx_ring          *rxr = &que->rxr;
 	union ixgbe_adv_rx_desc *rxd;
-	u32                      staterr;
+	uint32_t                 staterr;
 	int                      cnt, i, nrxd;
 
 	nrxd = sc->shared->isc_nrxd[0];
@@ -400,11 +403,11 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct ifnet             *ifp = iflib_get_ifp(adapter->ctx);
 	union ixgbe_adv_rx_desc  *rxd;
 
-	u16                      pkt_info, len, cidx, i;
-	u16                      vtag = 0;
-	u32                      ptype;
-	u32                      staterr = 0;
-	bool                     eop;
+	uint16_t                  pkt_info, len, cidx, i;
+	uint16_t                  vtag = 0;
+	uint32_t                  ptype;
+	uint32_t                  staterr = 0;
+	bool                      eop;
 
 	i = 0;
 	cidx = ri->iri_cidx;
@@ -434,11 +437,8 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
-
-#if __FreeBSD_version >= 1100036
 			if (adapter->feat_en & IXGBE_FEATURE_VF)
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-#endif
 
 			rxr->rx_discarded++;
 			return (EBADMSG);
@@ -483,35 +483,28 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *   doesn't spend time verifying the checksum.
  ************************************************************************/
 static void
-ixgbe_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype)
+ixgbe_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 {
-	u16  status = (u16)staterr;
-	u8   errors = (u8)(staterr >> 24);
-	bool sctp = false;
+	uint16_t status = (uint16_t)staterr;
+	uint8_t errors = (uint8_t)(staterr >> 24);
 
-	if ((ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
-	    (ptype & IXGBE_RXDADV_PKTTYPE_SCTP) != 0)
-		sctp = TRUE;
+	/* If there is a layer 3 or 4 error we are done */
+	if (__predict_false(errors & (IXGBE_RXD_ERR_IPE | IXGBE_RXD_ERR_TCPE)))
+		return;
 
-	/* IPv4 checksum */
-	if (status & IXGBE_RXD_STAT_IPCS) {
-		if (!(errors & IXGBE_RXD_ERR_IPE)) {
-			/* IP Checksum Good */
-			ri->iri_csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
-		} else
-			ri->iri_csum_flags = 0;
-	}
-	/* TCP/UDP/SCTP checksum */
-	if (status & IXGBE_RXD_STAT_L4CS) {
-		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-#if __FreeBSD_version >= 800000
-		if (sctp)
-			type = CSUM_SCTP_VALID;
-#endif
-		if (!(errors & IXGBE_RXD_ERR_TCPE)) {
-			ri->iri_csum_flags |= type;
-			if (!sctp)
-				ri->iri_csum_data = htons(0xffff);
+	/* IP Checksum Good */
+	if (status & IXGBE_RXD_STAT_IPCS)
+		ri->iri_csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
+
+	/* Valid L4E checksum */
+	if (__predict_true(status & IXGBE_RXD_STAT_L4CS)) {
+		/* SCTP header present. */
+		if (__predict_false((ptype & IXGBE_RXDADV_PKTTYPE_ETQF) == 0 &&
+		    (ptype & IXGBE_RXDADV_PKTTYPE_SCTP) != 0)) {
+			ri->iri_csum_flags |= CSUM_SCTP_VALID;
+		} else {
+			ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			ri->iri_csum_data = htons(0xffff);
 		}
 	}
 } /* ixgbe_rx_checksum */
@@ -522,7 +515,7 @@ ixgbe_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype)
  *   Parse the packet type to determine the appropriate hash
  ************************************************************************/
 static int
-ixgbe_determine_rsstype(u16 pkt_info)
+ixgbe_determine_rsstype(uint16_t pkt_info)
 {
 	switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
 	case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
