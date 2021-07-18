@@ -3891,52 +3891,26 @@ vgone(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
-static void
-notify_lowervp_vfs_dummy(struct mount *mp __unused,
-    struct vnode *lowervp __unused)
-{
-}
-
-struct notify_mount {
-	struct mount mp;
-	struct mount_upper_node upper;
-};
-
 /*
  * Notify upper mounts about reclaimed or unlinked vnode.
  */
 void
 vfs_notify_upper(struct vnode *vp, int event)
 {
-	static struct vfsops vgonel_vfsops = {
-		.vfs_reclaim_lowervp = notify_lowervp_vfs_dummy,
-		.vfs_unlink_lowervp = notify_lowervp_vfs_dummy,
-	};
 	struct mount *mp;
 	struct mount_upper_node *ump;
-	struct notify_mount *mmp;
 
-	mp = vp->v_mount;
+	mp = atomic_load_ptr(&vp->v_mount);
 	if (mp == NULL)
 		return;
 	if (TAILQ_EMPTY(&mp->mnt_notify))
 		return;
 
-	mmp = malloc(sizeof(*mmp), M_TEMP, M_WAITOK | M_ZERO);
-	mmp->mp.mnt_op = &vgonel_vfsops;
-	mmp->mp.mnt_kern_flag |= MNTK_MARKER;
-	mmp->upper.mp = &mmp->mp;
 	MNT_ILOCK(mp);
 	mp->mnt_upper_pending++;
 	KASSERT(mp->mnt_upper_pending > 0,
 	    ("%s: mnt_upper_pending %d", __func__, mp->mnt_upper_pending));
-	for (ump = TAILQ_FIRST(&mp->mnt_notify); ump != NULL;) {
-		if ((ump->mp->mnt_kern_flag & MNTK_MARKER) != 0) {
-			ump = TAILQ_NEXT(ump, mnt_upper_link);
-			continue;
-		}
-		TAILQ_INSERT_AFTER(&mp->mnt_notify, ump, &mmp->upper,
-		    mnt_upper_link);
+	TAILQ_FOREACH(ump, &mp->mnt_notify, mnt_upper_link) {
 		MNT_IUNLOCK(mp);
 		switch (event) {
 		case VFS_NOTIFY_UPPER_RECLAIM:
@@ -3950,10 +3924,7 @@ vfs_notify_upper(struct vnode *vp, int event)
 			break;
 		}
 		MNT_ILOCK(mp);
-		ump = TAILQ_NEXT(&mmp->upper, mnt_upper_link);
-		TAILQ_REMOVE(&mp->mnt_notify, &mmp->upper, mnt_upper_link);
 	}
-	free(mmp, M_TEMP);
 	mp->mnt_upper_pending--;
 	if ((mp->mnt_kern_flag & MNTK_UPPER_WAITER) != 0 &&
 	    mp->mnt_upper_pending == 0) {
@@ -4391,7 +4362,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_RECURSE);
 	MNT_KERN_FLAG(MNTK_UPPER_WAITER);
 	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
-	MNT_KERN_FLAG(MNTK_MARKER);
 	MNT_KERN_FLAG(MNTK_USES_BCACHE);
 	MNT_KERN_FLAG(MNTK_FPLOOKUP);
 	MNT_KERN_FLAG(MNTK_TASKQUEUE_WAITER);

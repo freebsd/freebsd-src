@@ -488,7 +488,6 @@ struct mntoptnames {
 #define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
 #define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
-#define	MNTK_MARKER		0x00001000
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
 #define	MNTK_TEXT_REFS		0x00008000 /* Keep use ref for text */
