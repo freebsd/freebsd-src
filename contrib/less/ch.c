@@ -860,7 +860,7 @@ ch_init(f, flags)
 		 * Allocate and initialize a new filestate.
 		 */
 		thisfile = (struct filestate *) 
-				calloc(1, sizeof(struct filestate));
+				ecalloc(1, sizeof(struct filestate));
 		thisfile->buflist.next = thisfile->buflist.prev = END_OF_CHAIN;
 		thisfile->nbufs = 0;
 		thisfile->flags = flags;

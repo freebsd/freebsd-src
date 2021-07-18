@@ -469,3 +469,26 @@ currline(where)
 		linenum--;
 	return (linenum);
 }
+
+/*
+ * Scan entire file, counting line numbers.
+ */
+	public void
+scan_eof(VOID_PARAM)
+{
+	POSITION pos = 0;
+	LINENUM linenum = 0;
+
+	if (ch_seek(0))
+		return;
+	ierror("Determining length of file", NULL_PARG);
+	while (pos != NULL_POSITION)
+	{
+        /* For efficiency, only add one every 256 line numbers. */
+        if ((linenum++ % 256) == 0)
+            add_lnum(linenum, pos);
+		pos = forw_raw_line(pos, (char **)NULL, (int *)NULL);
+		if (ABORT_SIGS())
+			break;
+	}
+}

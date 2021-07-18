@@ -272,6 +272,7 @@ findctag(tag)
 	char *tag;
 {
 	char *p;
+	char *q;
 	FILE *f;
 	int taglen;
 	LINENUM taglinenum;
@@ -352,17 +353,24 @@ findctag(tag)
 			search_char = *p++;
 			if (*p == '^')
 				p++;
-			tagpattern = p;
+			tagpattern = q = p;
 			while (*p != search_char && *p != '\0')
 			{
 				if (*p == '\\')
 					p++;
-				p++;
+				if (q != p)
+				{
+					*q++ = *p++;
+				} else
+				{
+					q++;
+					p++;
+				}
 			}
-			tagendline = (p[-1] == '$');
+			tagendline = (q[-1] == '$');
 			if (tagendline)
-				p--;
-			*p = '\0';
+				q--;
+			*q = '\0';
 		}
 		tp = maketagent(tag, tagfile, taglinenum, tagpattern, tagendline);
 		TAG_INS(tp);

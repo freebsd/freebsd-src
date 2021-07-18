@@ -1,5 +1,5 @@
 '\" t
-.TH LESS 1 "Version 581.2: 28 Apr 2021"
+.TH LESS 1 "Version 590: 03 Jun 2021"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -759,13 +759,38 @@ Causes
 .I less
 to open and interpret the named file as a
 .IR lesskey (1)
-file.
+binary file.
 Multiple \-k options may be specified.
 If the LESSKEY or LESSKEY_SYSTEM environment variable is set, or
 if a lesskey file is found in a standard place (see KEY BINDINGS),
 it is also used as a
 .I lesskey
 file.
+.IP "\-\-lesskey-src=\fIfilename\fP"
+Causes
+.I less
+to open and interpret the named file as a 
+.IR lesskey (1)
+source file. 
+If the LESSKEYIN or LESSKEYIN_SYSTEM environment variable is set, or
+if a lesskey source file is found in a standard place (see KEY BINDINGS),
+it is also used as a
+.I "lesskey source"
+file.
+Prior to version 582, the
+.I lesskey
+program needed to be run to convert a 
+.I "lesskey source"
+file to a 
+.I "lesskey binary"
+file for
+.I less
+to use.
+Newer versions of
+.I less
+read the
+.I "lesskey source"
+file directly and ignore the binary file if the source file exists.
 .IP "\-K or \-\-quit-on-intr"
 Causes
 .I less
@@ -1054,6 +1079,12 @@ If the number is specified as a fraction, the actual number of
 scroll positions is recalculated if the terminal window is resized,
 so that the actual scroll remains at the specified fraction
 of the screen width.
+.IP "\-\-file-size"
+If \-\-file-size is specified,
+.I less
+will determine the size of the file 
+immediately after opening the file.
+Normally this is not done, because it can be slow if the input file is large.
 .IP "\-\-follow-name"
 Normally, if the input file is renamed while an F command is executing,
 .I less
@@ -1222,57 +1253,61 @@ Delete the entire command line and return to the main prompt.
 .SH "KEY BINDINGS"
 You may define your own
 .I less
-commands by using the program
-.IR lesskey (1)
-to create a lesskey file.
+commands by creating a lesskey source file.
 This file specifies a set of command keys and an action
 associated with each key.
-You may also use
-.I lesskey
-to change the line-editing keys (see LINE EDITING),
+You may also change the line-editing keys (see LINE EDITING),
 and to set environment variables.
-If the environment variable LESSKEY is set,
+If the environment variable LESSKEYIN is set,
 .I less
-uses that as the name of the lesskey file.
+uses that as the name of the lesskey source file.
 Otherwise,
 .I less
-looks in a standard place for the lesskey file:
+looks in a standard place for the lesskey source file:
 On Unix systems,
 .I less
-looks for a lesskey file called "$HOME/.less".
+looks for a lesskey file called "$XDG_CONFIG_HOME/lesskey" or "$HOME/.lesskey".
 On MS-DOS and Windows systems,
 .I less
-looks for a lesskey file called "$HOME/_less", and if it is not found there,
-then looks for a lesskey file called "_less" in any directory specified
+looks for a lesskey file called "$HOME/_lesskey", and if it is not found there,
+then looks for a lesskey file called "_lesskey" in any directory specified
 in the PATH environment variable.
 On OS/2 systems,
 .I less
-looks for a lesskey file called "$HOME/less.ini", and if it is not found,
-then looks for a lesskey file called "less.ini" in any directory specified
+looks for a lesskey file called "$HOME/lesskey.ini", and if it is not found,
+then looks for a lesskey file called "lesskey.ini" in any directory specified
 in the INIT environment variable, and if it not found there,
-then looks for a lesskey file called "less.ini" in any directory specified
+then looks for a lesskey file called "lesskey.ini" in any directory specified
 in the PATH environment variable.
 See the
 .I lesskey
 manual page for more details.
-.P
-A system-wide lesskey file may also be set up to provide key bindings.
+.PP
+A system-wide lesskey source file may also be set up to provide key bindings.
 If a key is defined in both a local lesskey file and in the
 system-wide file, key bindings in the local file take precedence over
 those in the system-wide file.
-If the environment variable LESSKEY_SYSTEM is set,
+If the environment variable LESSKEYIN_SYSTEM is set,
 .I less
 uses that as the name of the system-wide lesskey file.
 Otherwise,
 .I less
 looks in a standard place for the system-wide lesskey file:
-On Unix systems, the system-wide lesskey file is /usr/local/etc/sysless.
+On Unix systems, the system-wide lesskey file is /usr/local/etc/syslesskey.
 (However, if
 .I less
 was built with a different sysconf directory than /usr/local/etc,
 that directory is where the sysless file is found.)
-On MS-DOS and Windows systems, the system-wide lesskey file is c:\e_sysless.
-On OS/2 systems, the system-wide lesskey file is c:\esysless.ini.
+On MS-DOS and Windows systems, the system-wide lesskey file is c:\e_syslesskey.
+On OS/2 systems, the system-wide lesskey file is c:\esyslesskey.ini.
+.PP
+Previous versions of
+.I less
+(before v582) used lesskey files with a binary format, produced by the
+.I lesskey
+program. It is no longer necessary to use the
+.I lesskey
+program.
 .
 .SH "INPUT PREPROCESSOR"
 You may define an "input preprocessor" for
@@ -1890,20 +1925,29 @@ Name of the history file used to remember search commands and
 shell commands between invocations of
 .IR less .
 If set to "\-" or "/dev/null", a history file is not used.
-The default is "$HOME/.lesshst" on Unix systems, "$HOME/_lesshst" on
-DOS and Windows systems, or "$HOME/lesshst.ini" or "$INIT/lesshst.ini"
+The default is "$XDG_DATA_HOME/lesshst" or "$HOME/.lesshst" on Unix systems,
+"$HOME/_lesshst" on DOS and Windows systems,
+or "$HOME/lesshst.ini" or "$INIT/lesshst.ini"
 on OS/2 systems.
 .IP LESSHISTSIZE
 The maximum number of commands to save in the history file.
 The default is 100.
+.IP LESSKEYIN
+Name of the default
+.I "lesskey source"
+file.
 .IP LESSKEY
 Name of the default
-.IR lesskey (1)
+.I "lesskey binary"
+file. (Not used if "$LESSKEYIN" exists.)
+.IP LESSKEYIN_SYSTEM
+Name of the default system-wide
+.I "lesskey source"
 file.
 .IP LESSKEY_SYSTEM
 Name of the default system-wide
-.IR lesskey (1)
-file.
+.I "lesskey binary"
+file. (Not used if "$LESSKEYIN_SYSTEM" exists.)
 .IP LESSMETACHARS
 List of characters which are considered "metacharacters" by the shell.
 .IP LESSMETAESCAPE
@@ -1981,4 +2025,4 @@ Report bugs at https://github.com/gwsw/less/issues.
 .br
 For more information, see the less homepage at
 .br
-https://greenwoodsoftware.com/less.
+https://greenwoodsoftware.com/less

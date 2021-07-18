@@ -58,6 +58,7 @@ extern int less_is_more;
 extern int linenum_width;
 extern int status_col_width;
 extern int use_color;
+extern int want_filesize;
 #if LOGFILE
 extern char *namelogfile;
 extern int force_logfile;
@@ -163,7 +164,7 @@ opt_j(type, s)
 	char *s;
 {
 	PARG parg;
-	char buf[16];
+	char buf[24];
 	int len;
 	int err;
 
@@ -199,7 +200,7 @@ opt_j(type, s)
 		} else
 		{
 
-			sprintf(buf, ".%06ld", jump_sline_fraction);
+			SNPRINTF1(buf, sizeof(buf), ".%06ld", jump_sline_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -228,7 +229,7 @@ opt_shift(type, s)
 	char *s;
 {
 	PARG parg;
-	char buf[16];
+	char buf[24];
 	int len;
 	int err;
 
@@ -264,7 +265,7 @@ opt_shift(type, s)
 		} else
 		{
 
-			sprintf(buf, ".%06ld", shift_count_fraction);
+			SNPRINTF1(buf, sizeof(buf), ".%06ld", shift_count_fraction);
 			len = (int) strlen(buf);
 			while (len > 2 && buf[len-1] == '0')
 				len--;
@@ -275,6 +276,7 @@ opt_shift(type, s)
 		break;
 	}
 }
+
 	public void
 calc_shift_count(VOID_PARAM)
 {
@@ -302,7 +304,28 @@ opt_k(type, s)
 		break;
 	}
 }
-#endif
+
+#if HAVE_LESSKEYSRC 
+	public void
+opt_ks(type, s)
+	int type;
+	char *s;
+{
+	PARG parg;
+
+	switch (type)
+	{
+	case INIT:
+		if (lesskey_src(s, 0))
+		{
+			parg.p_string = s;
+			error("Cannot use lesskey source file \"%s\"", &parg);
+		}
+		break;
+	}
+}
+#endif /* HAVE_LESSKEYSRC */
+#endif /* USERFILE */
 
 #if TAGS
 /*
@@ -518,9 +541,8 @@ opt__V(type, s)
 		putstr(pattern_lib_name());
 		putstr(" regular expressions)\n");
 		{
-			char constant *copyright = "Copyright (C) 1984-2021  Mark Nudelman\n\n";
-			if (copyright[0] == '@')
-				copyright = "Copyright (C) 1984  Mark Nudelman\n\n";
+			char constant *copyright = 
+				"Copyright (C) 1984-2021  Mark Nudelman\n\n";
 			putstr(copyright);
 		}
 		if (version[strlen(version)-1] == 'x')
@@ -590,7 +612,7 @@ color_from_namechar(namechar)
 {
 	switch (namechar)
 	{
-	case 'A': return AT_COLOR_ATTN;
+	case 'W': case 'A': return AT_COLOR_ATTN;
 	case 'B': return AT_COLOR_BIN;
 	case 'C': return AT_COLOR_CTRL;
 	case 'E': return AT_COLOR_ERROR;
@@ -934,6 +956,27 @@ opt_status_col_width(type, s)
 			error("Status column width must not be larger than %d", &parg);
 			status_col_width = 2;
 		}
+		break;
+	case QUERY:
+		break;
+	}
+}
+
+/*
+ * Handler for the --file-size option.
+ */
+	/*ARGSUSED*/
+	public void
+opt_filesize(type, s)
+	int type;
+	char *s;
+{
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		if (want_filesize && curr_ifile != NULL && ch_length() == NULL_POSITION)
+            scan_eof();
 		break;
 	case QUERY:
 		break;
