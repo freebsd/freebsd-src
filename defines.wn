@@ -115,6 +115,7 @@
 #define	LESSKEYFILE		"_less"
 #define	LESSKEYFILE_SYS		"c:\\_sysless"
 #define	DEF_LESSKEYINFILE	"_lesskey"
+#define	LESSKEYINFILE_SYS	"c:\\_syslesskey"
 #define LESSHISTFILE		"_lesshst"
 
 
@@ -168,6 +169,9 @@
  * HAVE_DUP is 1 if your system has the dup() call.
  */
 #define	HAVE_DUP	1
+
+/* Define to 1 to support reading lesskey source files (not just binary). */
+#define HAVE_LESSKEYSRC 1
 
 /*
  * Sizes of various buffers.

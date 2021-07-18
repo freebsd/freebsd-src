@@ -387,7 +387,9 @@ fi
 # Compile in secure mode?
 AC_ARG_WITH(secure,
   [  --with-secure           Compile in secure mode],
-  AC_DEFINE(SECURE_COMPILE, 1), AC_DEFINE(SECURE_COMPILE, 0))
+  AC_DEFINE(SECURE_COMPILE, 1)
+  AC_SUBST(SECURE_COMPILE,1), AC_DEFINE(SECURE_COMPILE, 0)
+  AC_SUBST(SECURE_COMPILE,0))
 
 # Should we use floating point?
 AC_MSG_CHECKING(for floating point)
@@ -595,7 +597,7 @@ AH_TOP([
  * PIPEC is 1 if you wish to have the "|" command
  * which allows the user to pipe data into a shell command.
  */
-#define	PIPEC		(!SECURE)
+#define	PIPEC		(!SECURE && HAVE_POPEN)
 
 /*
  * LOGFILE is 1 if you wish to allow the -o option (to create log files).
@@ -627,6 +629,7 @@ AH_TOP([
 #define	LESSKEYFILE		".less"
 #define	LESSKEYFILE_SYS		SYSDIR "/sysless"
 #define	DEF_LESSKEYINFILE	".lesskey"
+#define	LESSKEYINFILE_SYS	SYSDIR "/syslesskey"
 #define LESSHISTFILE		".lesshst"
 
 
@@ -698,6 +701,9 @@ AH_TOP([
 
 /* Define to 1 if you have the strstr() function. */
 #define HAVE_STRSTR 1
+
+/* Define to 1 to support reading lesskey source files (not just binary). */
+#define HAVE_LESSKEYSRC 1
 
 /*
  * Sizes of various buffers.

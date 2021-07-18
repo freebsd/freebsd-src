@@ -339,21 +339,41 @@ init_cmds(VOID_PARAM)
 	add_fcmd_table((char*)cmdtable, sizeof(cmdtable));
 	add_ecmd_table((char*)edittable, sizeof(edittable));
 #if USERFILE
-	/*
-	 * For backwards compatibility,
-	 * try to add tables in the OLD system lesskey file.
-	 */
-#ifdef BINDIR
-	add_hometable(NULL, BINDIR "/.sysless", 1);
+#ifdef BINDIR /* For backwards compatibility */
+	/* Try to add tables in the OLD system lesskey file. */
+	add_hometable(lesskey, NULL, BINDIR "/.sysless", 1);
 #endif
 	/*
-	 * Try to add the tables in the system lesskey file.
+	 * Try to load lesskey source file or binary file.
+	 * If the source file succeeds, don't load binary file. 
+	 * The binary file is likely to have been generated from 
+	 * a (possibly out of date) copy of the src file, 
+	 * so loading it is at best redundant.
 	 */
-	add_hometable("LESSKEY_SYSTEM", LESSKEYFILE_SYS, 1);
 	/*
-	 * Try to add the tables in the standard lesskey file "$HOME/.less".
+	 * Try to add tables in system lesskey src file.
 	 */
-	add_hometable("LESSKEY", LESSKEYFILE, 0);
+#if HAVE_LESSKEYSRC 
+	if (add_hometable(lesskey_src, "LESSKEYIN_SYSTEM", LESSKEYINFILE_SYS, 1) != 0)
+#endif
+	{
+		/*
+		 * Try to add the tables in the system lesskey binary file.
+		 */
+		add_hometable(lesskey, "LESSKEY_SYSTEM", LESSKEYFILE_SYS, 1);
+	}
+	/*
+	 * Try to add tables in the lesskey src file "$HOME/.lesskey".
+	 */
+#if HAVE_LESSKEYSRC 
+	if (add_hometable(lesskey_src, "LESSKEYIN", DEF_LESSKEYINFILE, 0) != 0)
+#endif
+	{
+		/*
+		 * Try to add the tables in the standard lesskey binary file "$HOME/.less".
+		 */
+		add_hometable(lesskey, "LESSKEY", LESSKEYFILE, 0);
+	}
 #endif
 }
 
@@ -877,32 +897,63 @@ lesskey(filename, sysvar)
 	return (new_lesskey(buf, (int)len, sysvar));
 }
 
+#if HAVE_LESSKEYSRC 
+	public int
+lesskey_src(filename, sysvar)
+	char *filename;
+	int sysvar;
+{
+	static struct lesskey_tables tables;
+	int r = parse_lesskey(filename, &tables);
+	if (r != 0)
+		return (r);
+	add_fcmd_table(tables.cmdtable.buf.data, tables.cmdtable.buf.end);
+	add_ecmd_table(tables.edittable.buf.data, tables.edittable.buf.end);
+	add_var_table(sysvar ? &list_sysvar_tables : &list_var_tables,
+		tables.vartable.buf.data, tables.vartable.buf.end);
+	return (0);
+}
+
+	void
+lesskey_parse_error(s)
+	char *s;
+{
+	PARG parg;
+	parg.p_string = s;
+	error("%s", &parg);
+}
+#endif /* HAVE_LESSKEYSRC */
+
 /*
- * Add the standard lesskey file "$HOME/.less"
+ * Add a lesskey file.
  */
-	public void
-add_hometable(envname, def_filename, sysvar)
+	public int
+add_hometable(call_lesskey, envname, def_filename, sysvar)
+	int (*call_lesskey)(char *, int);
 	char *envname;
 	char *def_filename;
 	int sysvar;
 {
 	char *filename;
-	PARG parg;
+	int r;
 
 	if (envname != NULL && (filename = lgetenv(envname)) != NULL)
 		filename = save(filename);
-	else if (sysvar)
+	else if (sysvar) /* def_filename is full path */
 		filename = save(def_filename);
-	else
-		filename = homefile(def_filename);
-	if (filename == NULL)
-		return;
-	if (lesskey(filename, sysvar) < 0)
+	else /* def_filename is just basename */
 	{
-		parg.p_string = filename;
-		error("Cannot use lesskey file \"%s\"", &parg);
+		char *xdg = lgetenv("XDG_CONFIG_HOME");
+		if (!isnullenv(xdg))
+			filename = dirfile(xdg, def_filename+1, 1);
+		if (filename == NULL)
+			filename = homefile(def_filename);
 	}
+	if (filename == NULL)
+		return -1;
+	r = (*call_lesskey)(filename, sysvar);
 	free(filename);
+	return (r);
 }
 #endif
 

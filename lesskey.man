@@ -5,34 +5,21 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 [1mNAME[0m
        lesskey - specify key bindings for less
 
-[1mSYNOPSIS[0m
+[1mSYNOPSIS (deprecated)[0m
        [1mlesskey [-o output] [--] [input][0m
        [1mlesskey [--output=output] [--] [input][0m
        [1mlesskey -V[0m
        [1mlesskey --version[0m
 
-[1mDESCRIPTION[0m
-       [4mLesskey[24m  is  used  to specify a set of key bindings to be used by [4mless[24m.
-       The input file is a text file which describes the key bindings.  If the
-       input  file is "-", standard input is read.  If no input file is speci-
-       fied, a standard filename is used as the name of the input file,  which
-       depends  on the system being used: On Unix systems, "$HOME/.lesskey" is
-       used; on MS-DOS systems, "$HOME/_lesskey" is used; and on OS/2  systems
-       "$HOME/lesskey.ini"  is  used, or "$INIT/lesskey.ini" if $HOME is unde-
-       fined.  The output file is a binary file which is used by [4mless[24m.  If  no
-       output  file is specified, and the environment variable LESSKEY is set,
-       the value of LESSKEY is used as the name of the  output  file.   Other-
-       wise, a standard filename is used as the name of the output file, which
-       depends  on  the  system  being  used:  On  Unix  and   OS-9   systems,
-       "$HOME/.less" is used; on MS-DOS systems, "$HOME/_less" is used; and on
-       OS/2 systems, "$HOME/less.ini" is used, or "$INIT/less.ini" if $HOME is
-       undefined.   If  the output file already exists, [4mlesskey[24m will overwrite
-       it.
+[1mSCOPE[0m
+       This document describes the format of the [4mlesskey[24m source file, which is
+       used by [4mless[24m version 582 and later.  In previous versions  of  [4mless[24m,  a
+       separate  program called [4mlesskey[24m was used to compile the [4mlesskey[24m source
+       file into a format understood by [4mless[24m.  This  compilation  step  is  no
+       longer  required  and  the  [4mlesskey[24m program is therefore deprecated al-
+       though the file format remains supported by [4mless[24m itself.
 
-       The -V or --version option causes [4mlesskey[24m to print its  version  number
-       and immediately exit.  If -V or --version is present, other options and
-       arguments are ignored.
-
+[1mFILE FORMAT[0m
        The input file consists of one or more [4msections.[24m  Each  section  starts
        with  a  line  that  identifies the type of section.  Possible sections
        are:
@@ -129,7 +116,6 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             J          forw-line-force
             K          back-line-force
             Y          back-line-force
-
             d          forw-scroll
             ^D         forw-scroll
             u          back-scroll
@@ -143,6 +129,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             ^B         back-screen
             \ev        back-screen
             \kU        back-screen
+
             z          forw-window
             w          back-window
             \e\40      forw-screen-force
@@ -195,7 +182,6 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             &          filter
             m          set-mark
             M          set-mark-bottom
-
             \em        clear-mark
             '          goto-mark
             ^X^X       goto-mark
@@ -209,6 +195,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             :x         index-file
             :d         remove-file
             -          toggle-option
+
             :t         toggle-option t
             s          toggle-option o
             _          display-option
@@ -274,6 +261,7 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
             \t           forw-complete
             \17          back-complete
             \e\t         back-complete
+
             ^L           expand
             ^V           literal
             ^A           literal
@@ -358,4 +346,4 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
 
 
-                          Version 581.2: 28 Apr 2021                LESSKEY(1)
+                           Version 590: 03 Jun 2021                 LESSKEY(1)

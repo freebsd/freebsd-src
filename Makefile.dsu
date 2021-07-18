@@ -30,10 +30,10 @@ LIBS = $(LIBDIR)\llibce.lib $(LIBDIR)\graphics.lib
 OBJ = \
 	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj \
 	command.obj cvt.obj decode.obj edit.obj filename.obj forwback.obj \
-	help.obj ifile.obj input.obj jump.obj line.obj linenum.obj \
+	help.obj ifile.obj input.obj jump.obj lesskey_parse.obj line.obj linenum.obj \
 	lsystem.obj mark.obj optfunc.obj option.obj opttbl.obj os.obj \
 	output.obj pattern.obj position.obj prompt.obj search.obj signal.obj \
-	tags.obj  ttyin.obj version.obj
+	tags.obj  ttyin.obj version.obj xbuf.obj
 
 all: less lesskey
 
@@ -43,8 +43,8 @@ less: $(OBJ)
 	-if exist lesskey.obj del lesskey.obj
 	$(CC) $(LDFLAGS) -o $@ *.obj $(LIBS)
 
-lesskey: lesskey.obj version.obj
-	$(CC) $(LDFLAGS) -o $@ lesskey.obj version.obj $(LIBS)
+lesskey: lesskey.obj lesskey_parse.obj version.obj xbuf.obj
+	$(CC) $(LDFLAGS) -o $@ lesskey.obj lesskey_parse.obj version.obj xbuf.obj $(LIBS)
 
 defines.h: defines.ds
 	-del defines.h

@@ -115,6 +115,7 @@
 #define	LESSKEYFILE		"less.ini"
 #define	LESSKEYFILE_SYS		"C:\\sysless.ini"
 #define	DEF_LESSKEYINFILE	"lesskey.ini"
+#define	LESSKEYINFILE_SYS	"C:\\syslesskey.ini"
 #define LESSHISTFILE		"lesshst.ini"
 
 
@@ -167,6 +168,9 @@
  * HAVE_DUP is 1 if your system has the dup() call.
  */
 #define	HAVE_DUP	1
+
+/* Define to 1 to support reading lesskey source files (not just binary). */
+#define HAVE_LESSKEYSRC 1
 
 /*
  * Sizes of various buffers.

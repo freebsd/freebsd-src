@@ -28,10 +28,10 @@ LIBS = ${LIBDIR}\import32.lib ${LIBDIR}\cw32.lib
 OBJ = \
 	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj \
 	command.obj cvt.obj decode.obj edit.obj filename.obj forwback.obj \
-	help.obj ifile.obj input.obj jump.obj line.obj linenum.obj \
+	help.obj ifile.obj input.obj jump.obj lesskey_parse.obj line.obj linenum.obj \
 	lsystem.obj mark.obj optfunc.obj option.obj opttbl.obj os.obj \
 	output.obj pattern.obj position.obj prompt.obj search.obj signal.obj \
-	tags.obj ttyin.obj version.obj regexp.obj
+	tags.obj ttyin.obj version.obj xbuf.obj regexp.obj
 
 all: less lesskey lessecho
 
@@ -42,7 +42,7 @@ all: less lesskey lessecho
 less: ${OBJ}
 	${LD} ${LDFLAGS} ${LIBDIR}\c0x32.obj $**, $@,,${LIBS}
 
-lesskey: lesskey.obj version.obj
+lesskey: lesskey.obj lesskey_parse.obj version.obj xbuf.obj
 	${LD} ${LDFLAGS} ${LIBDIR}\c0x32.obj $**, $@,,${LIBS}
 
 lessecho: lessecho.obj version.obj
