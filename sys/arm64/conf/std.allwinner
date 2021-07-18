@@ -25,6 +25,7 @@ device		sy8106a			# SY8106A Buck Regulator
 device		aw_ccu			# Allwinner clock controller
 
 # Interrupt controllers
+device		aw_r_intc		# Allwinner RINTC support
 device		aw_nmi			# Allwinner NMI support
 
 # Real-time clock support
@@ -57,7 +58,6 @@ device		dwc3			# Synopsys DWC controller
 device		aw_dwc3			# Allwinner DWC3 controller
 
 # Sound support
-device		a10_codec
 device		a10_codec               # Allwinner A10 codec
 device		aw_i2s                  # Allwinner I2S
 device		a33_codec               # Allwinner A33 codec
