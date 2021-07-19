@@ -326,12 +326,7 @@ ENTRY(memcmp)
 	RET
 END(memcmp)
 
-ENTRY(bcopy)
-	/* switch the source and destination registers */
-	eor     r0, r1, r0
-	eor     r1, r0, r1
-	eor     r0, r1, r0
-EENTRY(memmove)
+ENTRY(memmove)
 	/* Do the buffers overlap? */
 	cmp	r0, r1
 	RETeq		/* Bail now if src/dst are the same */
@@ -736,8 +731,7 @@ EENTRY(memmove)
 .Lmemmove_bsrcul1l4:
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
-EEND(memmove)
-END(bcopy)
+END(memmove)
 
 /* LINTSTUB: Func: void *memcpy(void *dst, const void *src, size_t len) */
 ENTRY(memcpy)
