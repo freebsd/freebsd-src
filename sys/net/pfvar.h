@@ -589,6 +589,10 @@ struct pf_kstate {
 	 * end of the area
 	 */
 
+	u_int8_t		 state_flags;
+	u_int8_t		 timeout;
+	u_int8_t		 sync_state; /* PFSYNC_S_x */
+	u_int8_t		 sync_updates; /* XXX */
 	u_int			 refs;
 	TAILQ_ENTRY(pf_kstate)	 sync_list;
 	TAILQ_ENTRY(pf_kstate)	 key_list[2];
@@ -612,13 +616,6 @@ struct pf_kstate {
 	u_int32_t		 pfsync_time;
 	u_int16_t		 tag;
 	u_int8_t		 log;
-	u_int8_t		 state_flags;
-	u_int8_t		 timeout;
-	u_int8_t		 sync_state; /* PFSYNC_S_x */
-
-	/* XXX */
-	u_int8_t		 sync_updates;
-	u_int8_t		_tail[3];
 };
 
 /*
