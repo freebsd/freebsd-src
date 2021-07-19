@@ -96,6 +96,16 @@ typedef struct {
 #define	REG_LARGE	01000	/* force large representation */
 #define	REG_BACKR	02000	/* force use of backref code */
 
+#ifdef USE_WIDECHAR
+/*
+ * Avoid function name conflicts with the system regex functions.
+ * This is needed e.g. to build with AddressSanitizer.
+ */
+#define regcomp nvi_regcomp
+#define regerror nvi_regerror
+#define regexec nvi_regexec
+#define regfree nvi_regfree
+#endif
 int	regcomp(regex_t *, const RCHAR_T *, int);
 size_t	regerror(int, const regex_t *, char *, size_t);
 int	regexec(const regex_t *,
