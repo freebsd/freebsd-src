@@ -91,7 +91,7 @@ map_table(vm_paddr_t pa, const char *sig)
 
 /*
  * See if a given ACPI table is the requested table.  Returns the
- * length of the able if it matches or zero on failure.
+ * length of the table if it matches or zero on failure.
  */
 static int
 probe_table(vm_paddr_t address, const char *sig)
