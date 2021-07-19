@@ -311,7 +311,7 @@ upr(KINFO *k, VARENT *ve __unused)
 #undef scalepri
 
 char *
-uname(KINFO *k, VARENT *ve __unused)
+username(KINFO *k, VARENT *ve __unused)
 {
 
 	return (strdup(user_from_uid(k->ki_p->ki_uid, 0)));
