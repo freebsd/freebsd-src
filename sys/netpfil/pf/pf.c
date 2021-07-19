@@ -1058,6 +1058,9 @@ pf_state_key_attach(struct pf_state_key *skw, struct pf_state_key *sks,
 	kh = khw;
 	idx = PF_SK_WIRE;
 
+	MPASS(s->lock == NULL);
+	s->lock = &V_pf_idhash[PF_IDHASH(s)].lock;
+
 keyattach:
 	LIST_FOREACH(cur, &kh->keys, entry)
 		if (bcmp(cur, sk, sizeof(struct pf_state_key_cmp)) == 0)
