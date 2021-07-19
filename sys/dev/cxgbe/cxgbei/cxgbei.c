@@ -552,9 +552,6 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 		MPASS(cmp != NULL);
 
-		/* Must be the final PDU. */
-		MPASS(bhsdo->bhsdo_flags & BHSDO_FLAGS_F);
-
 		/*
 		 * The difference between the end of the last burst
 		 * and the offset of the last PDU in this burst is
