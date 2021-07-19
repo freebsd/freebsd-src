@@ -43,10 +43,6 @@
 #error do not include this header, use machine/atomic.h
 #endif
 
-#ifndef ATOMIC_SAN_PREFIX
-#error No sanitizer prefix available
-#endif
-
 #define	ATOMIC_SAN_FUNC_1(sp, op, name, type)				\
 	void sp##_atomic_##op##_##name(volatile type *, type);		\
 	void sp##_atomic_##op##_acq_##name(volatile type *, type);	\
@@ -104,7 +100,7 @@
 	ATOMIC_SAN_THREAD_FENCE(sp);
 
 #define	ATOMIC_SAN_FUNCS(name, type)					\
-	_ATOMIC_SAN_FUNCS(ATOMIC_SAN_PREFIX, name, type)
+	_ATOMIC_SAN_FUNCS(SAN_INTERCEPTOR_PREFIX, name, type)
 
 ATOMIC_SAN_FUNCS(char, uint8_t);
 ATOMIC_SAN_FUNCS(short, uint16_t);
@@ -123,8 +119,8 @@ ATOMIC_SAN_FUNCS(64, uint64_t);
  * For instance, KASAN callers of atomic_add_char() will be redirected to
  * kasan_atomic_add_char().
  */
-#define	ATOMIC_SAN(func)		\
-	__CONCAT(ATOMIC_SAN_PREFIX, __CONCAT(_atomic_, func))
+#define	ATOMIC_SAN(func)						\
+	__CONCAT(SAN_INTERCEPTOR_PREFIX, __CONCAT(_atomic_, func))
 
 #define	atomic_add_char			ATOMIC_SAN(add_char)
 #define	atomic_add_acq_char		ATOMIC_SAN(add_acq_char)
