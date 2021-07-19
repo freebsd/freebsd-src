@@ -32,11 +32,13 @@ __FBSDID("$FreeBSD$");
  * This implements
  *  void __aeabi_memclr4(void *dest, size_t len)
  * by calling:
- *  void bzero(dest, len)
+ *  void *memset(dest, 0, len)
  */
 ENTRY_NP(__aeabi_memclr4)
 EENTRY_NP(__aeabi_memclr8)
-	b	bzero
+	mov	r2, r1
+	mov	r1, #0
+	b	memset
 EEND(__aeabi_memclr8)
 END(__aeabi_memclr4)
 
