@@ -116,7 +116,7 @@ static void *
 map_table(vm_paddr_t pa, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
-	vm_offset_t length;
+	vm_size_t length;
 	void *table;
 
 	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
