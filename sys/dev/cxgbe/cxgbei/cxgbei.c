@@ -592,7 +592,6 @@ do_rx_iscsi_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	} else {
 		MPASS(icp->icp_flags & (ICPF_RX_FLBUF));
 		MPASS(ip->ip_data_len == ip->ip_data_mbuf->m_pkthdr.len);
-		MPASS(icp->icp_seq == tp->rcv_nxt);
 	}
 
 	tp->rcv_nxt = icp->icp_seq + pdu_len;
