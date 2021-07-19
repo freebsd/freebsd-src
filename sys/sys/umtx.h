@@ -34,6 +34,9 @@
 
 #include <sys/_umtx.h>
 
+#define	UMTX_UNOWNED		0x0
+#define	UMTX_CONTESTED		LONG_MIN
+
 /* Common lock flags */
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
 
@@ -73,8 +76,8 @@
 #define	USEM_COUNT(c)		((c) & USEM_MAX_COUNT)
 
 /* op code for _umtx_op */
-#define	UMTX_OP_RESERVED0	0
-#define	UMTX_OP_RESERVED1	1
+#define	UMTX_OP_LOCK		0	/* COMPAT10 */
+#define	UMTX_OP_UNLOCK		1	/* COMPAT10 */
 #define	UMTX_OP_WAIT		2
 #define	UMTX_OP_WAKE		3
 #define	UMTX_OP_MUTEX_TRYLOCK	4
