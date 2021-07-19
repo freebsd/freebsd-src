@@ -104,11 +104,6 @@ __FBSDID("$FreeBSD$");
  * On exit:
  *   r0 - dest address
  */
-/* LINTSTUB: Func: void bzero(void *, size_t) */
-ENTRY(bzero)
-	mov	r3, #0x00
-	b	do_memset
-END(bzero)
 /* LINTSTUB: Func: void *memset(void *, int, size_t) */
 ENTRY(memset)
 	and	r3, r1, #0xff		/* We deal with bytes */
@@ -213,8 +208,7 @@ do_memset:
 	strbge	r3, [ip], #0x01		/* Set another byte */
 	strbgt	r3, [ip]		/* and a third */
 	RET			/* Exit */
-EEND(memset)
-END(bzero)
+END(memset)
 
 ENTRY(memcmp)
 	mov	ip, r0
