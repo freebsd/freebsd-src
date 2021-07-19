@@ -282,6 +282,7 @@ EEND(memset)
 END(bzero)
 
 ENTRY(bcmp)
+EENTRY(memcmp)
 	mov	ip, r0
 	cmp	r2, #0x06
 	beq	.Lmemcmp_6bytes
@@ -389,6 +390,7 @@ ENTRY(bcmp)
 	RETne			/* Return if mismatch on #4 */
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
 	RET
+EEND(memcmp)
 END(bcmp)
 
 ENTRY(bcopy)
