@@ -510,16 +510,18 @@ skip_vnet:
 				m_freem(m);
 				m = m_save;
 			}
-			if (no_vn == 0)
+			if (no_vn == 0) {
 				CURVNET_RESTORE();
+			}
 			INP_UNLOCK_ASSERT(inp);
 			return(retval);
 		}
 skipped_pkt:
 		m = m_save;
 	}
-	if (no_vn == 0)
+	if (no_vn == 0) {
 		CURVNET_RESTORE();
+	}
 	return(retval);
 }
 
