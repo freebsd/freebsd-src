@@ -374,7 +374,6 @@ kcsan_copyout(const void *kaddr, void *uaddr, size_t len)
 /* -------------------------------------------------------------------------- */
 
 #include <machine/atomic.h>
-#define	ATOMIC_SAN_PREFIX	kcsan
 #include <sys/atomic_san.h>
 
 #define	_CSAN_ATOMIC_FUNC_ADD(name, type)				\
@@ -689,7 +688,6 @@ kcsan_atomic_interrupt_fence(void)
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#define	BUS_SAN_PREFIX		kcsan
 #include <sys/bus_san.h>
 
 int

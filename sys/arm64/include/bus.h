@@ -91,14 +91,6 @@
 #define	BUS_SPACE_BARRIER_READ	0x01
 #define	BUS_SPACE_BARRIER_WRITE	0x02
 
-#ifndef SAN_RUNTIME
-#if defined(KASAN)
-#define	BUS_SAN_PREFIX	kasan
-#elif defined(KCSAN)
-#define	BUS_SAN_PREFIX	kcsan
-#endif
-#endif
-
 struct bus_space {
 	/* cookie */
 	void		*bs_cookie;
@@ -285,7 +277,7 @@ struct bus_space {
 			   bus_size_t, uint64_t);
 };
 
-#ifdef BUS_SAN_PREFIX
+#ifdef SAN_NEEDS_INTERCEPTORS
 #include <sys/bus_san.h>
 #else
 
@@ -523,7 +515,7 @@ struct bus_space {
 #define	bus_space_peek_4(t, h, o, vp)	__bs_peek(4, (t), (h), (o), (vp))
 #define	bus_space_peek_8(t, h, o, vp)	__bs_peek(8, (t), (h), (o), (vp))
 
-#endif
+#endif /* !SAN_NEEDS_INTERCEPTORS */
 
 #include <machine/bus_dma.h>
 

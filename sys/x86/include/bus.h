@@ -135,15 +135,7 @@
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
 
-#ifndef SAN_RUNTIME
-#if defined(KASAN)
-#define	BUS_SAN_PREFIX	kasan
-#elif defined(KCSAN)
-#define	BUS_SAN_PREFIX	kcsan
-#endif
-#endif
-
-#ifdef BUS_SAN_PREFIX
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
 #include <sys/bus_san.h>
 #else
 
@@ -1129,6 +1121,6 @@ BUS_POKE_FUNC(4, uint32_t)
 BUS_POKE_FUNC(8, uint64_t)
 #endif
 
-#endif /* !BUS_SAN_PREFIX */
+#endif /* !SAN_NEEDS_INTERCEPTORS && SAN_RUNTIME */
 
 #endif /* !_MACHINE_BUS_H_ */

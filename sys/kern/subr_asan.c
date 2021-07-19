@@ -527,7 +527,6 @@ kasan_copyout(const void *kaddr, void *uaddr, size_t len)
 /* -------------------------------------------------------------------------- */
 
 #include <machine/atomic.h>
-#define	ATOMIC_SAN_PREFIX	kasan
 #include <sys/atomic_san.h>
 
 #define _ASAN_ATOMIC_FUNC_ADD(name, type)				\
@@ -789,7 +788,6 @@ kasan_atomic_interrupt_fence(void)
 
 #include <sys/bus.h>
 #include <machine/bus.h>
-#define	BUS_SAN_PREFIX	kasan
 #include <sys/bus_san.h>
 
 int

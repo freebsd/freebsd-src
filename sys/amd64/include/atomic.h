@@ -68,15 +68,7 @@
 #define	OFFSETOF_MONITORBUF	0x100
 #endif
 
-#ifndef SAN_RUNTIME
-#if defined(KASAN)
-#define	ATOMIC_SAN_PREFIX	kasan
-#elif defined(KCSAN)
-#define	ATOMIC_SAN_PREFIX	kcsan
-#endif
-#endif
-
-#ifdef ATOMIC_SAN_PREFIX
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(SAN_RUNTIME)
 #include <sys/atomic_san.h>
 #else
 #include <sys/atomic_common.h>
@@ -644,6 +636,6 @@ u_long	atomic_swap_long(volatile u_long *p, u_long v);
 
 #endif /* !WANT_FUNCTIONS */
 
-#endif /* !ATOMIC_SAN_PREFIX */
+#endif /* !SAN_NEEDS_INTERCEPTORS || SAN_RUNTIME */
 
 #endif /* !_MACHINE_ATOMIC_H_ */
