@@ -2270,7 +2270,19 @@
 		    int sig
 		);
 	}
-434-435	AUE_NULL	RESERVED
+
+434	AUE_NULL	COMPAT10 {
+		int _umtx_lock(
+		    _Inout_ struct umtx *umtx
+		);
+	}
+
+435	AUE_NULL	COMPAT10 {
+		int _umtx_unlock(
+		    _Inout_ struct umtx *umtx
+		);
+	}
+
 436	AUE_JAIL_ATTACH	STD {
 		int jail_attach(
 		    int jid

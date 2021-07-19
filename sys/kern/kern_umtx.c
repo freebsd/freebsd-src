@@ -908,6 +908,369 @@ umtx_key_release(struct umtx_key *key)
 		vm_object_deallocate(key->info.shared.object);
 }
 
+#ifdef COMPAT_FREEBSD10
+/*
+ * Lock a umtx object.
+ */
+static int
+do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id,
+    const struct timespec *timeout)
+{
+	struct abs_timeout timo;
+	struct umtx_q *uq;
+	u_long owner;
+	u_long old;
+	int error = 0;
+
+	uq = td->td_umtxq;
+	if (timeout != NULL)
+		abs_timeout_init(&timo, CLOCK_REALTIME, 0, timeout);
+
+	/*
+	 * Care must be exercised when dealing with umtx structure. It
+	 * can fault on any access.
+	 */
+	for (;;) {
+		/*
+		 * Try the uncontested case.  This should be done in userland.
+		 */
+		owner = casuword(&umtx->u_owner, UMTX_UNOWNED, id);
+
+		/* The acquire succeeded. */
+		if (owner == UMTX_UNOWNED)
+			return (0);
+
+		/* The address was invalid. */
+		if (owner == -1)
+			return (EFAULT);
+
+		/* If no one owns it but it is contested try to acquire it. */
+		if (owner == UMTX_CONTESTED) {
+			owner = casuword(&umtx->u_owner,
+			    UMTX_CONTESTED, id | UMTX_CONTESTED);
+
+			if (owner == UMTX_CONTESTED)
+				return (0);
+
+			/* The address was invalid. */
+			if (owner == -1)
+				return (EFAULT);
+
+			error = thread_check_susp(td, false);
+			if (error != 0)
+				break;
+
+			/* If this failed the lock has changed, restart. */
+			continue;
+		}
+
+		/*
+		 * If we caught a signal, we have retried and now
+		 * exit immediately.
+		 */
+		if (error != 0)
+			break;
+
+		if ((error = umtx_key_get(umtx, TYPE_SIMPLE_LOCK,
+			AUTO_SHARE, &uq->uq_key)) != 0)
+			return (error);
+
+		umtxq_lock(&uq->uq_key);
+		umtxq_busy(&uq->uq_key);
+		umtxq_insert(uq);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * Set the contested bit so that a release in user space
+		 * knows to use the system call for unlock.  If this fails
+		 * either some one else has acquired the lock or it has been
+		 * released.
+		 */
+		old = casuword(&umtx->u_owner, owner, owner | UMTX_CONTESTED);
+
+		/* The address was invalid. */
+		if (old == -1) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
+			return (EFAULT);
+		}
+
+		/*
+		 * We set the contested bit, sleep. Otherwise the lock changed
+		 * and we need to retry or we lost a race to the thread
+		 * unlocking the umtx.
+		 */
+		umtxq_lock(&uq->uq_key);
+		if (old == owner)
+			error = umtxq_sleep(uq, "umtx", timeout == NULL ? NULL :
+			    &timo);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+
+		if (error == 0)
+			error = thread_check_susp(td, false);
+	}
+
+	if (timeout == NULL) {
+		/* Mutex locking is restarted if it is interrupted. */
+		if (error == EINTR)
+			error = ERESTART;
+	} else {
+		/* Timed-locking is not restarted. */
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	return (error);
+}
+
+/*
+ * Unlock a umtx object.
+ */
+static int
+do_unlock_umtx(struct thread *td, struct umtx *umtx, u_long id)
+{
+	struct umtx_key key;
+	u_long owner;
+	u_long old;
+	int error;
+	int count;
+
+	/*
+	 * Make sure we own this mtx.
+	 */
+	owner = fuword(__DEVOLATILE(u_long *, &umtx->u_owner));
+	if (owner == -1)
+		return (EFAULT);
+
+	if ((owner & ~UMTX_CONTESTED) != id)
+		return (EPERM);
+
+	/* This should be done in userland */
+	if ((owner & UMTX_CONTESTED) == 0) {
+		old = casuword(&umtx->u_owner, owner, UMTX_UNOWNED);
+		if (old == -1)
+			return (EFAULT);
+		if (old == owner)
+			return (0);
+		owner = old;
+	}
+
+	/* We should only ever be in here for contested locks */
+	if ((error = umtx_key_get(umtx, TYPE_SIMPLE_LOCK, AUTO_SHARE,
+	    &key)) != 0)
+		return (error);
+
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	count = umtxq_count(&key);
+	umtxq_unlock(&key);
+
+	/*
+	 * When unlocking the umtx, it must be marked as unowned if
+	 * there is zero or one thread only waiting for it.
+	 * Otherwise, it must be marked as contested.
+	 */
+	old = casuword(&umtx->u_owner, owner,
+	    count <= 1 ? UMTX_UNOWNED : UMTX_CONTESTED);
+	umtxq_lock(&key);
+	umtxq_signal(&key,1);
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	if (old == -1)
+		return (EFAULT);
+	if (old != owner)
+		return (EINVAL);
+	return (0);
+}
+
+#ifdef COMPAT_FREEBSD32
+
+/*
+ * Lock a umtx object.
+ */
+static int
+do_lock_umtx32(struct thread *td, uint32_t *m, uint32_t id,
+	const struct timespec *timeout)
+{
+	struct abs_timeout timo;
+	struct umtx_q *uq;
+	uint32_t owner;
+	uint32_t old;
+	int error = 0;
+
+	uq = td->td_umtxq;
+
+	if (timeout != NULL)
+		abs_timeout_init(&timo, CLOCK_REALTIME, 0, timeout);
+
+	/*
+	 * Care must be exercised when dealing with umtx structure. It
+	 * can fault on any access.
+	 */
+	for (;;) {
+		/*
+		 * Try the uncontested case.  This should be done in userland.
+		 */
+		owner = casuword32(m, UMUTEX_UNOWNED, id);
+
+		/* The acquire succeeded. */
+		if (owner == UMUTEX_UNOWNED)
+			return (0);
+
+		/* The address was invalid. */
+		if (owner == -1)
+			return (EFAULT);
+
+		/* If no one owns it but it is contested try to acquire it. */
+		if (owner == UMUTEX_CONTESTED) {
+			owner = casuword32(m,
+			    UMUTEX_CONTESTED, id | UMUTEX_CONTESTED);
+			if (owner == UMUTEX_CONTESTED)
+				return (0);
+
+			/* The address was invalid. */
+			if (owner == -1)
+				return (EFAULT);
+
+			error = thread_check_susp(td, false);
+			if (error != 0)
+				break;
+
+			/* If this failed the lock has changed, restart. */
+			continue;
+		}
+
+		/*
+		 * If we caught a signal, we have retried and now
+		 * exit immediately.
+		 */
+		if (error != 0)
+			return (error);
+
+		if ((error = umtx_key_get(m, TYPE_SIMPLE_LOCK,
+			AUTO_SHARE, &uq->uq_key)) != 0)
+			return (error);
+
+		umtxq_lock(&uq->uq_key);
+		umtxq_busy(&uq->uq_key);
+		umtxq_insert(uq);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * Set the contested bit so that a release in user space
+		 * knows to use the system call for unlock.  If this fails
+		 * either some one else has acquired the lock or it has been
+		 * released.
+		 */
+		old = casuword32(m, owner, owner | UMUTEX_CONTESTED);
+
+		/* The address was invalid. */
+		if (old == -1) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
+			return (EFAULT);
+		}
+
+		/*
+		 * We set the contested bit, sleep. Otherwise the lock changed
+		 * and we need to retry or we lost a race to the thread
+		 * unlocking the umtx.
+		 */
+		umtxq_lock(&uq->uq_key);
+		if (old == owner)
+			error = umtxq_sleep(uq, "umtx", timeout == NULL ?
+			    NULL : &timo);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+
+		if (error == 0)
+			error = thread_check_susp(td, false);
+	}
+
+	if (timeout == NULL) {
+		/* Mutex locking is restarted if it is interrupted. */
+		if (error == EINTR)
+			error = ERESTART;
+	} else {
+		/* Timed-locking is not restarted. */
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	return (error);
+}
+
+/*
+ * Unlock a umtx object.
+ */
+static int
+do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
+{
+	struct umtx_key key;
+	uint32_t owner;
+	uint32_t old;
+	int error;
+	int count;
+
+	/*
+	 * Make sure we own this mtx.
+	 */
+	owner = fuword32(m);
+	if (owner == -1)
+		return (EFAULT);
+
+	if ((owner & ~UMUTEX_CONTESTED) != id)
+		return (EPERM);
+
+	/* This should be done in userland */
+	if ((owner & UMUTEX_CONTESTED) == 0) {
+		old = casuword32(m, owner, UMUTEX_UNOWNED);
+		if (old == -1)
+			return (EFAULT);
+		if (old == owner)
+			return (0);
+		owner = old;
+	}
+
+	/* We should only ever be in here for contested locks */
+	if ((error = umtx_key_get(m, TYPE_SIMPLE_LOCK, AUTO_SHARE,
+		&key)) != 0)
+		return (error);
+
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	count = umtxq_count(&key);
+	umtxq_unlock(&key);
+
+	/*
+	 * When unlocking the umtx, it must be marked as unowned if
+	 * there is zero or one thread only waiting for it.
+	 * Otherwise, it must be marked as contested.
+	 */
+	old = casuword32(m, owner,
+		count <= 1 ? UMUTEX_UNOWNED : UMUTEX_CONTESTED);
+	umtxq_lock(&key);
+	umtxq_signal(&key,1);
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	if (old == -1)
+		return (EFAULT);
+	if (old != owner)
+		return (EINVAL);
+	return (0);
+}
+#endif	/* COMPAT_FREEBSD32 */
+#endif	/* COMPAT_FREEBSD10 */
+
 /*
  * Fetch and compare value, sleep on the address if value is not changed.
  */
@@ -3397,6 +3760,21 @@ do_sem2_wake(struct thread *td, struct _usem2 *sem)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD10
+int
+freebsd10__umtx_lock(struct thread *td, struct freebsd10__umtx_lock_args *uap)
+{
+	return (do_lock_umtx(td, uap->umtx, td->td_tid, 0));
+}
+
+int
+freebsd10__umtx_unlock(struct thread *td,
+    struct freebsd10__umtx_unlock_args *uap)
+{
+	return (do_unlock_umtx(td, uap->umtx, td->td_tid));
+}
+#endif
+
 inline int
 umtx_copyin_timeout(const void *uaddr, struct timespec *tsp)
 {
@@ -3456,13 +3834,50 @@ umtx_copyout_timeout(void *uaddr, size_t sz, struct timespec *tsp)
 	return (copyout(tsp, uaddr, sizeof(*tsp)));
 }
 
+#ifdef COMPAT_FREEBSD10
 static int
-__umtx_op_unimpl(struct thread *td, struct _umtx_op_args *uap,
+__umtx_op_lock_umtx(struct thread *td, struct _umtx_op_args *uap,
+    const struct umtx_copyops *ops)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = ops->copyin_timeout(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		ts = &timeout;
+	}
+#ifdef COMPAT_FREEBSD32
+	if (ops->compat32)
+		return (do_lock_umtx32(td, uap->obj, uap->val, ts));
+#endif
+	return (do_lock_umtx(td, uap->obj, uap->val, ts));
+}
+
+static int
+__umtx_op_unlock_umtx(struct thread *td, struct _umtx_op_args *uap,
+    const struct umtx_copyops *ops)
+{
+#ifdef COMPAT_FREEBSD32
+	if (ops->compat32)
+		return (do_unlock_umtx32(td, uap->obj, uap->val));
+#endif
+	return (do_unlock_umtx(td, uap->obj, uap->val));
+}
+#endif	/* COMPAT_FREEBSD10 */
+
+#if !defined(COMPAT_FREEBSD10)
+static int
+__umtx_op_unimpl(struct thread *td __unused, struct _umtx_op_args *uap __unused,
     const struct umtx_copyops *ops __unused)
 {
-
 	return (EOPNOTSUPP);
 }
+#endif	/* COMPAT_FREEBSD10 */
 
 static int
 __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap,
@@ -4358,8 +4773,13 @@ typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap,
     const struct umtx_copyops *umtx_ops);
 
 static const _umtx_op_func op_table[] = {
-	[UMTX_OP_RESERVED0]	= __umtx_op_unimpl,
-	[UMTX_OP_RESERVED1]	= __umtx_op_unimpl,
+#ifdef COMPAT_FREEBSD10
+	[UMTX_OP_LOCK]		= __umtx_op_lock_umtx,
+	[UMTX_OP_UNLOCK]	= __umtx_op_unlock_umtx,
+#else
+	[UMTX_OP_LOCK]		= __umtx_op_unimpl,
+	[UMTX_OP_UNLOCK]	= __umtx_op_unimpl,
+#endif
 	[UMTX_OP_WAIT]		= __umtx_op_wait,
 	[UMTX_OP_WAKE]		= __umtx_op_wake,
 	[UMTX_OP_MUTEX_TRYLOCK]	= __umtx_op_trylock_umutex,
@@ -4480,6 +4900,22 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 }
 
 #ifdef COMPAT_FREEBSD32
+#ifdef COMPAT_FREEBSD10
+int
+freebsd10_freebsd32_umtx_lock(struct thread *td,
+    struct freebsd10_freebsd32_umtx_lock_args *uap)
+{
+	return (do_lock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid, NULL));
+}
+
+int
+freebsd10_freebsd32_umtx_unlock(struct thread *td,
+    struct freebsd10_freebsd32_umtx_unlock_args *uap)
+{
+	return (do_unlock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid));
+}
+#endif /* COMPAT_FREEBSD10 */
+
 int
 freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
 {
@@ -4487,7 +4923,7 @@ freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
 	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr,
 	    uap->uaddr2, &umtx_native_ops32));
 }
-#endif
+#endif /* COMPAT_FREEBSD32 */
 
 void
 umtx_thread_init(struct thread *td)
