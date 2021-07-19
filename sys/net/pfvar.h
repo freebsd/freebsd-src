@@ -586,10 +586,16 @@ _Static_assert(sizeof(struct pf_state_export) == 384, "size incorrect");
 
 #ifdef _KERNEL
 struct pf_kstate {
+	/*
+	 * Area shared with pf_state_cmp
+	 */
 	u_int64_t		 id;
 	u_int32_t		 creatorid;
 	u_int8_t		 direction;
 	u_int8_t		 pad[3];
+	/*
+	 * end of the area
+	 */
 
 	u_int			 refs;
 	TAILQ_ENTRY(pf_kstate)	 sync_list;
