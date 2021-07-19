@@ -123,7 +123,6 @@ libkern/fls.c			optional	!armv7 !armv6
 libkern/flsl.c			optional	!armv7 !armv6
 libkern/flsll.c			optional	!armv7 !armv6
 libkern/lshrdi3.c		standard
-libkern/memcmp.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/strlen.c		standard

@@ -216,7 +216,7 @@ do_memset:
 EEND(memset)
 END(bzero)
 
-ENTRY(bcmp)
+ENTRY(memcmp)
 	mov	ip, r0
 	cmp	r2, #0x06
 	beq	.Lmemcmp_6bytes
@@ -324,7 +324,7 @@ ENTRY(bcmp)
 	RETne			/* Return if mismatch on #4 */
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
 	RET
-END(bcmp)
+END(memcmp)
 
 ENTRY(bcopy)
 	/* switch the source and destination registers */
