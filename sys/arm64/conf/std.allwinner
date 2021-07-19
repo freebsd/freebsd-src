@@ -34,6 +34,9 @@ device		aw_rtc			# Allwinner Real-time Clock
 # Watchdog controllers
 device		aw_wdog			# Allwinner Watchdog
 
+# Syscon controller
+device		aw_syscon		# Allwinner System Controller
+
 # Power management controllers
 device		axp81x			# X-Powers AXP81x PMIC
 
