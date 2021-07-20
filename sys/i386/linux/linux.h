@@ -39,9 +39,6 @@
 
 #define	LINUX_DTRACE	linuxulator
 
-#define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
-#define	LINUX_USRSTACK		LINUX_SHAREDPAGE
-
 /*
  * Provide a separate set of types for the Linux types.
  */

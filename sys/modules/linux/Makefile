@@ -10,8 +10,6 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .PATH: ${SRCTOP}/sys/x86/linux
 .endif
 
-VDSO=	linux${SFX}_vdso
-
 KMOD=	linux
 SRCS=	linux_fork.c linux${SFX}_dummy_machdep.c linux_file.c linux_event.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
@@ -22,7 +20,8 @@ SRCS=	linux_fork.c linux${SFX}_dummy_machdep.c linux_file.c linux_event.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	linux_dummy_x86.c
+SRCS+=	linux_dummy_x86.c linux_vdso_tsc_selector_x86.c
+VDSODEPS=linux_vdso_gettc_x86.inc
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux${SFX}_support.s
@@ -38,7 +37,7 @@ SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
 SRCS+=	opt_apic.h
 .endif
 
-OBJS=	${VDSO}.so
+OBJS=	linux${SFX}_vdso.so
 
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c linux_util.c linux_mib.c linux_mmap.c \
@@ -55,33 +54,54 @@ EXPORT_SYMS+=	linux_ioctl_unregister_handler
 .endif
 
 CLEANFILES=	linux${SFX}_assym.h linux${SFX}_genassym.o linux${SFX}_locore.o \
-		genassym.o
+		genassym.o linux${SFX}_vdso_gtod.o linux${SFX}_vdso.so.o
 
 linux${SFX}_assym.h: linux${SFX}_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
+.if ${MACHINE_CPUARCH} == "amd64"
+VDSOFLAGS=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32 -m32
+.endif
+
 linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
-	${CC} ${CCLDFLAGS} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
-	-pipe -I. -I${SYSDIR} ${WERROR} -Wall -fno-common -nostdinc -nostdlib	\
-	-fno-omit-frame-pointer -fPIC						\
-	-Wl,-T${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
-	-Wl,-soname=${VDSO}.so.1,--eh-frame-hdr,-warn-common		\
+	${CC} -c -x assembler-with-cpp -DLOCORE -fPIC -pipe -O2 -Werror \
+	-msoft-float -mregparm=0 \
+	-mcmodel=small -fno-common -nostdinc -fasynchronous-unwind-tables \
+	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
+	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
 	    ${.IMPSRC} -o ${.TARGET}
+
+linux${SFX}_vdso_gtod.o: linux_vdso_gtod.inc ${VDSODEPS}
+	${CC} -c -fPIC -pipe -O2 -Werror -msoft-float -mregparm=0 \
+	-mcmodel=small -fno-common -nostdinc -fasynchronous-unwind-tables \
+	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
+	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
+	    ${.IMPSRC} -o ${.TARGET}
+
+linux${SFX}_vdso.so.o: linux${SFX}_locore.o linux${SFX}_vdso_gtod.o
+	${LD} -m elf_i386 --shared --eh-frame-hdr -soname=linux-gate.so.1 \
+	--no-undefined --hash-style=both -warn-common -nostdlib \
+	--strip-debug -s --build-id=sha1 --Bsymbolic \
+	-T${SRCTOP}/sys/${MACHINE}/linux${SFX}/linux${SFX}_vdso.lds.s \
+	-o ${.TARGET} ${.ALLSRC:M*.o}
+
+.if ${MACHINE_CPUARCH} == "amd64"
+OBJCOPY_TARGET=--output-target elf64-x86-64-freebsd --binary-architecture i386
+.elif ${MACHINE_CPUARCH} == "i386"
+OBJCOPY_TARGET=--output-target elf32-i386-freebsd --binary-architecture i386
+.else
+.error ${MACHINE_CPUARCH} not yet supported by linux
+.endif
+
+linux${SFX}_vdso.so: linux${SFX}_vdso.so.o
+	${OBJCOPY} --input-target binary ${OBJCOPY_TARGET} \
+	    linux${SFX}_vdso.so.o ${.TARGET}
+	${STRIPBIN} -N _binary_linux${SFX}_vdso_so_o_size ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "amd64"
 linux${SFX}_support.o: linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
-
-${VDSO}.so: linux${SFX}_locore.o
-	${OBJCOPY} --input-target binary --output-target elf64-x86-64-freebsd			\
-	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
-	${STRIPBIN} -N _binary_linux${SFX}_locore_o_size ${.TARGET}
-.else
-${VDSO}.so: linux${SFX}_locore.o
-	${OBJCOPY} --input-target binary --output-target elf32-i386-freebsd			\
-	    --binary-architecture i386 linux${SFX}_locore.o ${.TARGET}
-	${STRIPBIN} -N _binary_linux_locore_o_size ${.TARGET}
 .endif
 
 linux${SFX}_genassym.o: offset.inc

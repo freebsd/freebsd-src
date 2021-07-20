@@ -41,10 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/stddef.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_param.h>
 
 #include <arm64/linux/linux.h>
@@ -65,11 +72,24 @@ __FBSDID("$FreeBSD$");
 
 MODULE_VERSION(linux64elf, 1);
 
+#define	LINUX_VDSOPAGE_SIZE	PAGE_SIZE * 2
+#define	LINUX_VDSOPAGE		(VM_MAXUSER_ADDRESS - \
+				    LINUX_VDSOPAGE_SIZE)
+#define	LINUX_SHAREDPAGE	(LINUX_VDSOPAGE - PAGE_SIZE)
+				/*
+				 * PAGE_SIZE - the size
+				 * of the native SHAREDPAGE
+				 */
+#define	LINUX_USRSTACK		LINUX_SHAREDPAGE
+#define	LINUX_PS_STRINGS	(LINUX_USRSTACK - \
+				    sizeof(struct ps_strings))
+
 static int linux_szsigcode;
-static vm_object_t linux_shared_page_obj;
-static char *linux_shared_page_mapping;
-extern char _binary_linux_locore_o_start;
-extern char _binary_linux_locore_o_end;
+static vm_object_t linux_vdso_obj;
+static char *linux_vdso_mapping;
+extern char _binary_linux_vdso_so_o_start;
+extern char _binary_linux_vdso_so_o_end;
+static vm_offset_t linux_vdso_base;
 
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
@@ -82,10 +102,12 @@ static int	linux_elf_fixup(uintptr_t *stack_base,
 static bool	linux_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static void	linux_vdso_install(const void *param);
 static void	linux_vdso_deinstall(const void *param);
+static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
 static void	linux_set_syscall_retval(struct thread *td, int error);
 static int	linux_fetch_syscall_args(struct thread *td);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    uintptr_t stack);
+static void	linux_exec_sysvec_init(void *param);
 static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
 
@@ -102,6 +124,10 @@ LIN_SDT_PROBE_DEFINE0(sysvec, linux_rt_sendsig, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_vdso_install, todo);
 LIN_SDT_PROBE_DEFINE0(sysvec, linux_vdso_deinstall, todo);
 
+LINUX_VDSO_SYM_CHAR(linux_platform);
+LINUX_VDSO_SYM_INTPTR(kern_timekeep_base);
+LINUX_VDSO_SYM_INTPTR(__kernel_rt_sigreturn);
+
 /* LINUXTODO: do we have traps to translate? */
 static int
 linux_translate_traps(int signal, int trap_code)
@@ -110,8 +136,6 @@ linux_translate_traps(int signal, int trap_code)
 	LIN_SDT_PROBE2(sysvec, linux_translate_traps, todo, signal, trap_code);
 	return (signal);
 }
-
-LINUX_VDSO_SYM_CHAR(linux_platform);
 
 static int
 linux_fetch_syscall_args(struct thread *td)
@@ -169,8 +193,7 @@ linux_copyout_auxargs(struct image_params *imgp, uintptr_t base)
 	    M_WAITOK | M_ZERO);
 
 	issetugid = p->p_flag & P_SUGID ? 1 : 0;
-	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR,
-	    imgp->proc->p_sysent->sv_shared_page_base);
+	AUXARGS_ENTRY(pos, LINUX_AT_SYSINFO_EHDR, linux_vdso_base);
 	AUXARGS_ENTRY(pos, LINUX_AT_HWCAP, *imgp->sysent->sv_hwcap);
 	AUXARGS_ENTRY(pos, AT_PAGESZ, args->pagesz);
 	AUXARGS_ENTRY(pos, LINUX_AT_CLKTCK, stclohz);
@@ -404,7 +427,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_transtrap	= linux_translate_traps,
 	.sv_fixup	= linux_elf_fixup,
 	.sv_sendsig	= linux_rt_sendsig,
-	.sv_sigcode	= &_binary_linux_locore_o_start,
+	.sv_sigcode	= &_binary_linux_vdso_so_o_start,
 	.sv_szsigcode	= &linux_szsigcode,
 	.sv_name	= "Linux ELF64",
 	.sv_coredump	= elf64_coredump,
@@ -415,8 +438,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS, /* XXX */
+	.sv_usrstack	= LINUX_USRSTACK,
+	.sv_psstrings	= LINUX_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_auxargs = linux_copyout_auxargs,
 	.sv_copyout_strings = linux_copyout_strings,
@@ -424,11 +447,11 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_LINUX | SV_LP64 | SV_SHP | SV_SIG_DISCIGN |
-	    SV_SIG_WAITNDQ,
+	    SV_SIG_WAITNDQ | SV_TIMEKEEP,
 	.sv_set_syscall_retval = linux_set_syscall_retval,
 	.sv_fetch_syscall_args = linux_fetch_syscall_args,
 	.sv_syscallnames = NULL,
-	.sv_shared_page_base = SHAREDPAGE,
+	.sv_shared_page_base = LINUX_SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
@@ -444,45 +467,114 @@ struct sysentvec elf_linux_sysvec = {
 static int
 linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)
 {
+	int error;
 
-	linux_on_exec(p, imgp);
-	return (0);
+	error = linux_map_vdso(p, linux_vdso_obj, linux_vdso_base,
+	    LINUX_VDSOPAGE_SIZE, imgp);
+	if (error == 0)
+		linux_on_exec(p, imgp);
+	return (error);
 }
+
+static void
+linux_exec_sysvec_init(void *param)
+{
+	l_uintptr_t *ktimekeep_base;
+	struct sysentvec *sv;
+	ptrdiff_t tkoff;
+
+	sv = param;
+	/* Fill timekeep_base */
+	exec_sysvec_init(sv);
+
+	tkoff = kern_timekeep_base - linux_vdso_base;
+	ktimekeep_base = (l_uintptr_t *)(linux_vdso_mapping + tkoff);
+	*ktimekeep_base = sv->sv_timekeep_base;
+}
+SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC, SI_ORDER_ANY,
+    linux_exec_sysvec_init, &elf_linux_sysvec);
 
 static void
 linux_vdso_install(const void *param)
 {
+	char *vdso_start = &_binary_linux_vdso_so_o_start;
+	char *vdso_end = &_binary_linux_vdso_so_o_end;
 
-	linux_szsigcode = (&_binary_linux_locore_o_end -
-	    &_binary_linux_locore_o_start);
+	linux_szsigcode = vdso_end - vdso_start;
+	MPASS(linux_szsigcode <= LINUX_VDSOPAGE_SIZE);
 
-	if (linux_szsigcode > elf_linux_sysvec.sv_shared_page_len)
-		panic("invalid Linux VDSO size\n");
+	linux_vdso_base = LINUX_VDSOPAGE;
 
-	__elfN(linux_vdso_fixup)(&elf_linux_sysvec);
+	__elfN(linux_vdso_fixup)(vdso_start, linux_vdso_base);
 
-	linux_shared_page_obj = __elfN(linux_shared_page_init)
-	    (&linux_shared_page_mapping);
+	linux_vdso_obj = __elfN(linux_shared_page_init)
+	    (&linux_vdso_mapping, LINUX_VDSOPAGE_SIZE);
+	bcopy(vdso_start, linux_vdso_mapping, linux_szsigcode);
 
-	__elfN(linux_vdso_reloc)(&elf_linux_sysvec);
-
-	memcpy(linux_shared_page_mapping, elf_linux_sysvec.sv_sigcode,
-	    linux_szsigcode);
-	elf_linux_sysvec.sv_shared_page_obj = linux_shared_page_obj;
+	linux_vdso_reloc(linux_vdso_mapping, linux_vdso_base);
 }
-SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_ANY,
+SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_install, NULL);
 
 static void
 linux_vdso_deinstall(const void *param)
 {
 
-	LIN_SDT_PROBE0(sysvec, linux_vdso_deinstall, todo);
-	__elfN(linux_shared_page_fini)(linux_shared_page_obj,
-	    linux_shared_page_mapping);
+	__elfN(linux_shared_page_fini)(linux_vdso_obj,
+	    linux_vdso_mapping, LINUX_VDSOPAGE_SIZE);
 }
 SYSUNINIT(elf_linux_vdso_uninit, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_deinstall, NULL);
+
+static void
+linux_vdso_reloc(char *mapping, Elf_Addr offset)
+{
+	Elf_Size rtype, symidx;
+	const Elf_Rela *rela;
+	const Elf_Shdr *shdr;
+	const Elf_Ehdr *ehdr;
+	Elf_Addr *where;
+	Elf_Addr addr, addend;
+	int i, relacnt;
+
+	MPASS(offset != 0);
+
+	relacnt = 0;
+	ehdr = (const Elf_Ehdr *)mapping;
+	shdr = (const Elf_Shdr *)(mapping + ehdr->e_shoff);
+	for (i = 0; i < ehdr->e_shnum; i++)
+	{
+		switch (shdr[i].sh_type) {
+		case SHT_REL:
+			printf("Linux Aarch64 vDSO: unexpected Rel section\n");
+			break;
+		case SHT_RELA:
+			rela = (const Elf_Rela *)(mapping + shdr[i].sh_offset);
+			relacnt = shdr[i].sh_size / sizeof(*rela);
+		}
+	}
+
+	for (i = 0; i < relacnt; i++, rela++) {
+		where = (Elf_Addr *)(mapping + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
+
+		switch (rtype) {
+		case R_AARCH64_NONE:	/* none */
+			break;
+
+		case R_AARCH64_RELATIVE:	/* B + A */
+			addr = (Elf_Addr)(mapping + addend);
+			if (*where != addr)
+				*where = addr;
+			break;
+		default:
+			printf("Linux Aarch64 vDSO: unexpected relocation type %ld, "
+			    "symbol index %ld\n", rtype, symidx);
+		}
+	}
+}
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNU_ABI_LINUX = 0;
