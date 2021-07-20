@@ -238,6 +238,7 @@ struct linux_futex_args {
 };
 
 static int	linux_futex(struct thread *, struct linux_futex_args *);
+static int linux_futex_wait(struct thread *, struct linux_futex_args *);
 
 static void
 futex_put(struct futex *f, struct waiting_proc *wp)
@@ -645,9 +646,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 {
 	int nrwake, nrrequeue, op_ret, ret;
 	struct linux_pemuldata *pem;
-	struct waiting_proc *wp;
 	struct futex *f, *f2;
-	struct timespec kts;
 	int error, save;
 	uint32_t val;
 
@@ -686,47 +685,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		LINUX_CTR3(sys_futex, "WAIT uaddr %p val 0x%x bitset 0x%x",
 		    args->uaddr, args->val, args->val3);
 
-		if (args->ts != NULL) {
-			if (args->clockrt) {
-				nanotime(&kts);
-				timespecsub(args->ts, &kts, args->ts);
-			} else if (args->op == LINUX_FUTEX_WAIT_BITSET) {
-				nanouptime(&kts);
-				timespecsub(args->ts, &kts, args->ts);
-			}
-		}
-
-retry0:
-		error = futex_get(args->uaddr, &wp, &f,
-		    args->flags | FUTEX_CREATE_WP);
-		if (error)
-			return (error);
-
-		error = copyin_nofault(args->uaddr, &val, sizeof(val));
-		if (error) {
-			futex_put(f, wp);
-			error = copyin(args->uaddr, &val, sizeof(val));
-			if (error == 0)
-				goto retry0;
-			LIN_SDT_PROBE1(futex, linux_futex, copyin_error,
-			    error);
-			LINUX_CTR1(sys_futex, "WAIT copyin failed %d",
-			    error);
-			return (error);
-		}
-		if (val != args->val) {
-			LIN_SDT_PROBE4(futex, linux_futex,
-			    debug_wait_value_neq, args->uaddr, args->val, val,
-			    args->val3);
-			LINUX_CTR3(sys_futex,
-			    "WAIT uaddr %p val 0x%x != uval 0x%x",
-			    args->uaddr, args->val, val);
-			futex_put(f, wp);
-			return (EWOULDBLOCK);
-		}
-
-		error = futex_wait(f, wp, args->ts, args->val3);
-		break;
+		return (linux_futex_wait(td, args));
 
 	case LINUX_FUTEX_WAKE:
 		args->val3 = FUTEX_BITSET_MATCH_ANY;
@@ -972,6 +931,55 @@ retry2:
 	}
 
 	return (error);
+}
+
+static int
+linux_futex_wait(struct thread *td, struct linux_futex_args *args)
+{
+	struct waiting_proc *wp;
+	struct timespec kts;
+	struct futex *f;
+	int error;
+	uint32_t val;
+
+	if (args->ts != NULL) {
+		if (args->clockrt) {
+			nanotime(&kts);
+			timespecsub(args->ts, &kts, args->ts);
+		} else if (args->op == LINUX_FUTEX_WAIT_BITSET) {
+			nanouptime(&kts);
+			timespecsub(args->ts, &kts, args->ts);
+		}
+	}
+
+retry:
+	f = NULL;
+	error = futex_get(args->uaddr, &wp, &f, args->flags | FUTEX_CREATE_WP);
+	if (error != 0)
+		return (error);
+
+	error = copyin_nofault(args->uaddr, &val, sizeof(val));
+	if (error != 0) {
+		futex_put(f, wp);
+		error = copyin(args->uaddr, &val, sizeof(val));
+		if (error == 0)
+			goto retry;
+		LIN_SDT_PROBE1(futex, linux_futex, copyin_error, error);
+		LINUX_CTR1(sys_futex, "WAIT copyin failed %d", error);
+		return (error);
+	}
+	if (val != args->val) {
+		LIN_SDT_PROBE4(futex, linux_futex,
+		    debug_wait_value_neq, args->uaddr, args->val, val,
+			args->val3);
+		LINUX_CTR3(sys_futex,
+		    "WAIT uaddr %p val 0x%x != uval 0x%x",
+		    args->uaddr, args->val, val);
+		futex_put(f, wp);
+		return (EWOULDBLOCK);
+	}
+
+	return (futex_wait(f, wp, args->ts, args->val3));
 }
 
 int
