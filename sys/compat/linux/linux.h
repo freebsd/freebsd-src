@@ -31,6 +31,11 @@
 #include <sys/queue.h>
 
 /*
+ * Private Brandinfo flags
+ */
+#define	LINUX_BI_FUTEX_REQUEUE	0x01000000
+
+/*
  * poll()
  */
 #define	LINUX_POLLIN		0x0001

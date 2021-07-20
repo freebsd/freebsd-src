@@ -46,6 +46,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/imgact.h>
+#include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -234,6 +235,7 @@ struct linux_futex_args {
 	struct timespec	*ts;
 	uint32_t	*uaddr2;
 	uint32_t	val3;
+	bool		val3_compare;
 	struct timespec	kts;
 };
 
@@ -648,6 +650,7 @@ static int
 linux_futex(struct thread *td, struct linux_futex_args *args)
 {
 	struct linux_pemuldata *pem;
+	struct proc *p;
 
 	if (args->op & LINUX_FUTEX_PRIVATE_FLAG) {
 		args->flags = 0;
@@ -694,6 +697,33 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    args->uaddr, args->val, args->val3);
 
 		return (linux_futex_wake(td, args));
+
+	case LINUX_FUTEX_REQUEUE:
+		/*
+		 * Glibc does not use this operation since version 2.3.3,
+		 * as it is racy and replaced by FUTEX_CMP_REQUEUE operation.
+		 * Glibc versions prior to 2.3.3 fall back to FUTEX_WAKE when
+		 * FUTEX_REQUEUE returned EINVAL.
+		 */
+		pem = pem_find(td->td_proc);
+		if ((pem->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
+			linux_msg(td, "unsupported FUTEX_REQUEUE");
+			pem->flags |= LINUX_XDEPR_REQUEUEOP;
+			LIN_SDT_PROBE0(futex, linux_futex,
+			    deprecated_requeue);
+		}
+
+		/*
+		 * The above is true, however musl libc does make use of the
+		 * futex requeue operation, allow operation for brands which
+		 * set LINUX_BI_FUTEX_REQUEUE bit of Brandinfo flags.
+		 */
+		p = td->td_proc;
+		Elf_Brandinfo *bi = p->p_elf_brandinfo;
+		if (bi == NULL || ((bi->flags & LINUX_BI_FUTEX_REQUEUE)) == 0)
+			return (EINVAL);
+		args->val3_compare = false;
+		/* FALLTHROUGH */
 
 	case LINUX_FUTEX_CMP_REQUEUE:
 		LIN_SDT_PROBE5(futex, linux_futex, debug_cmp_requeue,
@@ -748,22 +778,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 			    unimplemented_trylock_pi);
 		}
 		return (ENOSYS);
-
-	case LINUX_FUTEX_REQUEUE:
-		/*
-		 * Glibc does not use this operation since version 2.3.3,
-		 * as it is racy and replaced by FUTEX_CMP_REQUEUE operation.
-		 * Glibc versions prior to 2.3.3 fall back to FUTEX_WAKE when
-		 * FUTEX_REQUEUE returned EINVAL.
-		 */
-		pem = pem_find(td->td_proc);
-		if ((pem->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
-			linux_msg(td, "unsupported FUTEX_REQUEUE");
-			pem->flags |= LINUX_XDEPR_REQUEUEOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    deprecated_requeue);
-		}
-		return (EINVAL);
 
 	case LINUX_FUTEX_WAIT_REQUEUE_PI:
 		/* not yet implemented */
@@ -921,7 +935,7 @@ retry:
 		    error);
 		return (error);
 	}
-	if (val != args->val3) {
+	if (args->val3_compare == true && val != args->val3) {
 		LIN_SDT_PROBE2(futex, linux_futex,
 		    debug_cmp_requeue_value_neq, args->val, val);
 		LINUX_CTR2(sys_futex, "CMP_REQUEUE val 0x%x != uval 0x%x",
@@ -1016,6 +1030,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		.ts = NULL,
 		.uaddr2 = args->uaddr2,
 		.val3 = args->val3,
+		.val3_compare = true,
 	};
 	struct l_timespec lts;
 	int error;
