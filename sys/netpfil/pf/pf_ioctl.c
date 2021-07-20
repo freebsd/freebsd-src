@@ -5633,6 +5633,7 @@ pf_unload_vnet(void)
 	}
 
 	PF_RULES_WLOCK();
+	pf_syncookies_cleanup();
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
 

@@ -1842,6 +1842,7 @@ void		 pf_send_tcp(const struct pf_krule *, sa_family_t,
 			    u_int16_t);
 
 void			 pf_syncookies_init(void);
+void			 pf_syncookies_cleanup(void);
 int			 pf_get_syncookies(struct pfioc_nv *);
 int			 pf_set_syncookies(struct pfioc_nv *);
 int			 pf_synflood_check(struct pf_pdesc *);
