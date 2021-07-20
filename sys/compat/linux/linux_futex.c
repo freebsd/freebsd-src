@@ -845,6 +845,8 @@ retry:
 		if (f2 != NULL)
 			futex_put(f2, NULL);
 		futex_put(f, NULL);
+		if (op_ret == -ENOSYS)
+			return (ENOSYS);
 		error = copyin(args->uaddr2, &val, sizeof(val));
 		if (error == 0)
 			goto retry;
