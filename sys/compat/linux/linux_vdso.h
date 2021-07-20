@@ -38,11 +38,13 @@ struct linux_vdso_sym {
 	char		symname[];
 };
 
-vm_object_t __elfN(linux_shared_page_init)(char **);
-void	__elfN(linux_shared_page_fini)(vm_object_t, void *);
-void	__elfN(linux_vdso_fixup)(struct sysentvec *);
-void	__elfN(linux_vdso_reloc)(struct sysentvec *);
+vm_object_t __elfN(linux_shared_page_init)(char **, vm_size_t);
+void	__elfN(linux_shared_page_fini)(vm_object_t, void *, vm_size_t);
+void	__elfN(linux_vdso_fixup)(char *, vm_offset_t);
 void	__elfN(linux_vdso_sym_init)(struct linux_vdso_sym *);
+
+int	linux_map_vdso(struct proc *, vm_object_t, vm_offset_t,
+	    vm_offset_t, struct image_params *);
 
 #define	LINUX_VDSO_SYM_INTPTR(name)				\
 uintptr_t name;							\
