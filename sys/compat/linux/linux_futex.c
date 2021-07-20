@@ -241,6 +241,7 @@ static int	linux_futex(struct thread *, struct linux_futex_args *);
 static int linux_futex_wait(struct thread *, struct linux_futex_args *);
 static int linux_futex_wake(struct thread *, struct linux_futex_args *);
 static int linux_futex_requeue(struct thread *, struct linux_futex_args *);
+static int linux_futex_wakeop(struct thread *, struct linux_futex_args *);
 
 static void
 futex_put(struct futex *f, struct waiting_proc *wp)
@@ -646,11 +647,7 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 static int
 linux_futex(struct thread *td, struct linux_futex_args *args)
 {
-	int nrwake, op_ret, ret;
 	struct linux_pemuldata *pem;
-	struct futex *f, *f2;
-	int error, save;
-	uint32_t val;
 
 	if (args->op & LINUX_FUTEX_PRIVATE_FLAG) {
 		args->flags = 0;
@@ -672,9 +669,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    unimplemented_clockswitch);
 		return (ENOSYS);
 	}
-
-	error = 0;
-	f = f2 = NULL;
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
@@ -720,62 +714,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    args->uaddr, args->val, args->uaddr2, args->val3,
 		    args->ts);
 
-		if (args->uaddr == args->uaddr2)
-			return (EINVAL);
-
-retry2:
-		error = futex_get(args->uaddr, NULL, &f,
-		    args->flags | FUTEX_DONTLOCK);
-		if (error)
-			return (error);
-
-		error = futex_get(args->uaddr2, NULL, &f2,
-		    args->flags | FUTEX_DONTLOCK);
-		if (error) {
-			futex_put(f, NULL);
-			return (error);
-		}
-		futex_lock(f);
-		futex_lock(f2);
-
-		/*
-		 * This function returns positive number as results and
-		 * negative as errors
-		 */
-		save = vm_fault_disable_pagefaults();
-		op_ret = futex_atomic_op(td, args->val3, args->uaddr2);
-		vm_fault_enable_pagefaults(save);
-
-		LINUX_CTR2(sys_futex, "WAKE_OP atomic_op uaddr %p ret 0x%x",
-		    args->uaddr, op_ret);
-
-		if (op_ret < 0) {
-			if (f2 != NULL)
-				futex_put(f2, NULL);
-			futex_put(f, NULL);
-			error = copyin(args->uaddr2, &val, sizeof(val));
-			if (error == 0)
-				goto retry2;
-			return (error);
-		}
-
-		ret = futex_wake(f, args->val, args->val3);
-
-		if (op_ret > 0) {
-			op_ret = 0;
-			nrwake = (int)(unsigned long)args->ts;
-
-			if (f2 != NULL)
-				op_ret += futex_wake(f2, nrwake, args->val3);
-			else
-				op_ret += futex_wake(f, nrwake, args->val3);
-			ret += op_ret;
-		}
-		if (f2 != NULL)
-			futex_put(f2, NULL);
-		futex_put(f, NULL);
-		td->td_retval[0] = ret;
-		break;
+		return (linux_futex_wakeop(td, args));
 
 	case LINUX_FUTEX_LOCK_PI:
 		/* not yet implemented */
@@ -854,8 +793,71 @@ retry2:
 		    args->op);
 		return (ENOSYS);
 	}
+}
 
-	return (error);
+static int
+linux_futex_wakeop(struct thread *td, struct linux_futex_args *args)
+{
+	int nrwake, op_ret, ret;
+	struct futex *f, *f2;
+	int error, save;
+	uint32_t val;
+
+	if (args->uaddr == args->uaddr2)
+		return (EINVAL);
+
+retry:
+	f = f2 = NULL;
+	error = futex_get(args->uaddr, NULL, &f, args->flags | FUTEX_DONTLOCK);
+	if (error != 0)
+		return (error);
+
+	error = futex_get(args->uaddr2, NULL, &f2, args->flags | FUTEX_DONTLOCK);
+	if (error != 0) {
+		futex_put(f, NULL);
+		return (error);
+	}
+	futex_lock(f);
+	futex_lock(f2);
+
+	/*
+	 * This function returns positive number as results and
+	 * negative as errors
+	 */
+	save = vm_fault_disable_pagefaults();
+	op_ret = futex_atomic_op(td, args->val3, args->uaddr2);
+	vm_fault_enable_pagefaults(save);
+
+	LINUX_CTR2(sys_futex, "WAKE_OP atomic_op uaddr %p ret 0x%x",
+	    args->uaddr, op_ret);
+
+	if (op_ret < 0) {
+		if (f2 != NULL)
+			futex_put(f2, NULL);
+		futex_put(f, NULL);
+		error = copyin(args->uaddr2, &val, sizeof(val));
+		if (error == 0)
+			goto retry;
+		return (error);
+	}
+
+	ret = futex_wake(f, args->val, args->val3);
+
+	if (op_ret > 0) {
+		op_ret = 0;
+		nrwake = (int)(unsigned long)args->ts;
+
+		if (f2 != NULL)
+			op_ret += futex_wake(f2, nrwake, args->val3);
+		else
+			op_ret += futex_wake(f, nrwake, args->val3);
+		ret += op_ret;
+	}
+	if (f2 != NULL)
+		futex_put(f2, NULL);
+	futex_put(f, NULL);
+	td->td_retval[0] = ret;
+	return (0);
 }
 
 static int
