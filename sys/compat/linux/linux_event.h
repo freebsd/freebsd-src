@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2007 Roman Divacky
- * All rights reserved.
  * Copyright (c) 2014 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
