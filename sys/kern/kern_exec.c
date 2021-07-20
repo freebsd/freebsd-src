@@ -1163,9 +1163,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)stack_addr;
 
-	if (sv->sv_onexec != NULL)
-		sv->sv_onexec(p, imgp);
-	return (0);
+	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
 }
 
 /*
