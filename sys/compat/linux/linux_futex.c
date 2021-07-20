@@ -240,6 +240,7 @@ struct linux_futex_args {
 static int	linux_futex(struct thread *, struct linux_futex_args *);
 static int linux_futex_wait(struct thread *, struct linux_futex_args *);
 static int linux_futex_wake(struct thread *, struct linux_futex_args *);
+static int linux_futex_requeue(struct thread *, struct linux_futex_args *);
 
 static void
 futex_put(struct futex *f, struct waiting_proc *wp)
@@ -645,7 +646,7 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 static int
 linux_futex(struct thread *td, struct linux_futex_args *args)
 {
-	int nrwake, nrrequeue, op_ret, ret;
+	int nrwake, op_ret, ret;
 	struct linux_pemuldata *pem;
 	struct futex *f, *f2;
 	int error, save;
@@ -709,73 +710,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    args->uaddr, args->val, args->val3, args->uaddr2,
 		    args->ts);
 
-		/*
-		 * Linux allows this, we would not, it is an incorrect
-		 * usage of declared ABI, so return EINVAL.
-		 */
-		if (args->uaddr == args->uaddr2) {
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    invalid_cmp_requeue_use);
-			return (EINVAL);
-		}
-
-		nrrequeue = (int)(unsigned long)args->ts;
-		nrwake = args->val;
-		/*
-		 * Sanity check to prevent signed integer overflow,
-		 * see Linux CVE-2018-6927
-		 */
-		if (nrwake < 0 || nrrequeue < 0)
-			return (EINVAL);
-
-retry1:
-		error = futex_get(args->uaddr, NULL, &f,
-		    args->flags | FUTEX_DONTLOCK);
-		if (error)
-			return (error);
-
-		/*
-		 * To avoid deadlocks return EINVAL if second futex
-		 * exists at this time.
-		 *
-		 * Glibc fall back to FUTEX_WAKE in case of any error
-		 * returned by FUTEX_CMP_REQUEUE.
-		 */
-		error = futex_get(args->uaddr2, NULL, &f2,
-		    args->flags | FUTEX_DONTEXISTS | FUTEX_DONTLOCK);
-		if (error) {
-			futex_put(f, NULL);
-			return (error);
-		}
-		futex_lock(f);
-		futex_lock(f2);
-		error = copyin_nofault(args->uaddr, &val, sizeof(val));
-		if (error) {
-			futex_put(f2, NULL);
-			futex_put(f, NULL);
-			error = copyin(args->uaddr, &val, sizeof(val));
-			if (error == 0)
-				goto retry1;
-			LIN_SDT_PROBE1(futex, linux_futex, copyin_error,
-			    error);
-			LINUX_CTR1(sys_futex, "CMP_REQUEUE copyin failed %d",
-			    error);
-			return (error);
-		}
-		if (val != args->val3) {
-			LIN_SDT_PROBE2(futex, linux_futex,
-			    debug_cmp_requeue_value_neq, args->val, val);
-			LINUX_CTR2(sys_futex, "CMP_REQUEUE val 0x%x != uval 0x%x",
-			    args->val, val);
-			futex_put(f2, NULL);
-			futex_put(f, NULL);
-			return (EAGAIN);
-		}
-
-		td->td_retval[0] = futex_requeue(f, nrwake, f2, nrrequeue);
-		futex_put(f2, NULL);
-		futex_put(f, NULL);
-		break;
+		return (linux_futex_requeue(td, args));
 
 	case LINUX_FUTEX_WAKE_OP:
 		LIN_SDT_PROBE5(futex, linux_futex, debug_wake_op,
@@ -921,6 +856,83 @@ retry2:
 	}
 
 	return (error);
+}
+
+static int
+linux_futex_requeue(struct thread *td, struct linux_futex_args *args)
+{
+	int nrwake, nrrequeue;
+	struct futex *f, *f2;
+	int error;
+	uint32_t val;
+
+	/*
+	 * Linux allows this, we would not, it is an incorrect
+	 * usage of declared ABI, so return EINVAL.
+	 */
+	if (args->uaddr == args->uaddr2) {
+		LIN_SDT_PROBE0(futex, linux_futex,
+		    invalid_cmp_requeue_use);
+		return (EINVAL);
+	}
+
+	nrrequeue = (int)(unsigned long)args->ts;
+	nrwake = args->val;
+	/*
+	 * Sanity check to prevent signed integer overflow,
+	 * see Linux CVE-2018-6927
+	 */
+	if (nrwake < 0 || nrrequeue < 0)
+		return (EINVAL);
+
+retry:
+	f = f2 = NULL;
+	error = futex_get(args->uaddr, NULL, &f, args->flags | FUTEX_DONTLOCK);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * To avoid deadlocks return EINVAL if second futex
+	 * exists at this time.
+	 *
+	 * Glibc fall back to FUTEX_WAKE in case of any error
+	 * returned by FUTEX_CMP_REQUEUE.
+	 */
+	error = futex_get(args->uaddr2, NULL, &f2,
+	    args->flags | FUTEX_DONTEXISTS | FUTEX_DONTLOCK);
+	if (error != 0) {
+		futex_put(f, NULL);
+		return (error);
+	}
+	futex_lock(f);
+	futex_lock(f2);
+	error = copyin_nofault(args->uaddr, &val, sizeof(val));
+	if (error != 0) {
+		futex_put(f2, NULL);
+		futex_put(f, NULL);
+		error = copyin(args->uaddr, &val, sizeof(val));
+		if (error == 0)
+			goto retry;
+		LIN_SDT_PROBE1(futex, linux_futex, copyin_error,
+		    error);
+		LINUX_CTR1(sys_futex, "CMP_REQUEUE copyin failed %d",
+		    error);
+		return (error);
+	}
+	if (val != args->val3) {
+		LIN_SDT_PROBE2(futex, linux_futex,
+		    debug_cmp_requeue_value_neq, args->val, val);
+		LINUX_CTR2(sys_futex, "CMP_REQUEUE val 0x%x != uval 0x%x",
+		    args->val, val);
+		futex_put(f2, NULL);
+		futex_put(f, NULL);
+		return (EAGAIN);
+	}
+
+	td->td_retval[0] = futex_requeue(f, nrwake, f2, nrrequeue);
+	futex_put(f2, NULL);
+	futex_put(f, NULL);
+	return (0);
 }
 
 static int
