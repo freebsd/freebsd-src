@@ -61,6 +61,7 @@ enum	{ PF_CHANGE_NONE, PF_CHANGE_ADD_HEAD, PF_CHANGE_ADD_TAIL,
 	  PF_CHANGE_REMOVE, PF_CHANGE_GET_TICKET };
 enum	{ PF_GET_NONE, PF_GET_CLR_CNTR };
 enum	{ PF_SK_WIRE, PF_SK_STACK, PF_SK_BOTH };
+enum	{ PF_PEER_SRC, PF_PEER_DST, PF_PEER_BOTH };
 
 /*
  * Note about PFTM_*: real indices into pf_rule.timeout[] come before
