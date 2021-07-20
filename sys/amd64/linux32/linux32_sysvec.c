@@ -1184,9 +1184,9 @@ linux_elf_modevent(module_t mod, int type, void *data)
 				linux32_ioctl_register_handler(*lihp);
 			stclohz = (stathz ? stathz : hz);
 			if (bootverbose)
-				printf("Linux ELF exec handler installed\n");
+				printf("Linux i386 ELF exec handler installed\n");
 		} else
-			printf("cannot insert Linux ELF brand handler\n");
+			printf("cannot insert Linux i386 ELF brand handler\n");
 		break;
 	case MOD_UNLOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
@@ -1203,9 +1203,9 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			SET_FOREACH(lihp, linux_ioctl_handler_set)
 				linux32_ioctl_unregister_handler(*lihp);
 			if (bootverbose)
-				printf("Linux ELF exec handler removed\n");
+				printf("Linux i386 ELF exec handler removed\n");
 		} else
-			printf("Could not deinstall ELF interpreter entry\n");
+			printf("Could not deinstall Linux i386 ELF interpreter entry\n");
 		break;
 	default:
 		return (EOPNOTSUPP);
