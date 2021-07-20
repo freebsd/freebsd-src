@@ -222,9 +222,7 @@ tcp_default_output(struct tcpcb *tp)
 #endif
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
-	int isipv6;
-
-	isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
+	const bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif
 #ifdef KERN_TLS
 	const bool hw_tls = tp->t_nic_ktls_xmit != 0;
