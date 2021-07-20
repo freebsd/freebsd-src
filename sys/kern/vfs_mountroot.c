@@ -580,6 +580,7 @@ parse_dir_md(char **conf)
 	int error, fd, len;
 
 	td = curthread;
+	fd = -1;
 
 	error = parse_token(conf, &tok);
 	if (error)
@@ -635,9 +636,9 @@ parse_dir_md(char **conf)
 	root_mount_mddev = mdio->md_unit;
 	printf(MD_NAME "%u attached to %s\n", root_mount_mddev, mdio->md_file);
 
-	error = kern_close(td, fd);
-
  out:
+	if (fd >= 0)
+		(void)kern_close(td, fd);
 	free(mdio, M_TEMP);
 	return (error);
 }
