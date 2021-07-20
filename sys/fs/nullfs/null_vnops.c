@@ -223,13 +223,12 @@ int
 null_bypass(struct vop_generic_args *ap)
 {
 	struct vnode **this_vp_p;
-	int error;
 	struct vnode *old_vps[VDESC_MAX_VPS];
 	struct vnode **vps_p[VDESC_MAX_VPS];
 	struct vnode ***vppp;
 	struct vnode *lvp;
 	struct vnodeop_desc *descp = ap->a_desc;
-	int reles, i;
+	int error, i, reles;
 
 	if (null_bug_bypass)
 		printf ("null_bypass: %s\n", descp->vdesc_name);
@@ -252,26 +251,28 @@ null_bypass(struct vop_generic_args *ap)
 	for (i = 0; i < VDESC_MAX_VPS; reles >>= 1, i++) {
 		if (descp->vdesc_vp_offsets[i] == VDESC_NO_OFFSET)
 			break;   /* bail out at end of list */
-		vps_p[i] = this_vp_p =
-			VOPARG_OFFSETTO(struct vnode**,descp->vdesc_vp_offsets[i],ap);
+		vps_p[i] = this_vp_p = VOPARG_OFFSETTO(struct vnode **,
+		    descp->vdesc_vp_offsets[i], ap);
+
 		/*
 		 * We're not guaranteed that any but the first vnode
 		 * are of our type.  Check for and don't map any
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
-		if (i && (*this_vp_p == NULLVP ||
+		if (i != 0 && (*this_vp_p == NULLVP ||
 		    (*this_vp_p)->v_op != &null_vnodeops)) {
 			old_vps[i] = NULLVP;
 		} else {
 			old_vps[i] = *this_vp_p;
 			*(vps_p[i]) = NULLVPTOLOWERVP(*this_vp_p);
+
 			/*
 			 * XXX - Several operations have the side effect
 			 * of vrele'ing their vp's.  We must account for
 			 * that.  (This should go away in the future.)
 			 */
 			if (reles & VDESC_VP0_WILLRELE)
-				VREF(*this_vp_p);
+				vref(*this_vp_p);
 		}
 	}
 
@@ -279,9 +280,9 @@ null_bypass(struct vop_generic_args *ap)
 	 * Call the operation on the lower layer
 	 * with the modified argument structure.
 	 */
-	if (vps_p[0] && *vps_p[0])
+	if (vps_p[0] != NULL && *vps_p[0] != NULL) {
 		error = VCALL(ap);
-	else {
+	} else {
 		printf("null_bypass: no map for %s\n", descp->vdesc_name);
 		error = EINVAL;
 	}
@@ -295,7 +296,7 @@ null_bypass(struct vop_generic_args *ap)
 	for (i = 0; i < VDESC_MAX_VPS; reles >>= 1, i++) {
 		if (descp->vdesc_vp_offsets[i] == VDESC_NO_OFFSET)
 			break;   /* bail out at end of list */
-		if (old_vps[i]) {
+		if (old_vps[i] != NULL) {
 			lvp = *(vps_p[i]);
 
 			/*
@@ -328,17 +329,18 @@ null_bypass(struct vop_generic_args *ap)
 	 * (Assumes that the lower layer always returns
 	 * a VREF'ed vpp unless it gets an error.)
 	 */
-	if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET && !error) {
+	if (descp->vdesc_vpp_offset != VDESC_NO_OFFSET && error == 0) {
 		/*
 		 * XXX - even though some ops have vpp returned vp's,
 		 * several ops actually vrele this before returning.
 		 * We must avoid these ops.
 		 * (This should go away when these ops are regularized.)
 		 */
-		vppp = VOPARG_OFFSETTO(struct vnode***,
-				 descp->vdesc_vpp_offset,ap);
-		if (*vppp)
-			error = null_nodeget(old_vps[0]->v_mount, **vppp, *vppp);
+		vppp = VOPARG_OFFSETTO(struct vnode ***,
+		    descp->vdesc_vpp_offset, ap);
+		if (*vppp != NULL)
+			error = null_nodeget(old_vps[0]->v_mount, **vppp,
+			    *vppp);
 	}
 
 	return (error);
