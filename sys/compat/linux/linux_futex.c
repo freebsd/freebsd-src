@@ -3,9 +3,9 @@
 /*-
  * SPDX-License-Identifier: BSD-4-Clause
  *
- * Copyright (c) 2009-2016 Dmitry Chagin
  * Copyright (c) 2005 Emmanuel Dreyfus
  * All rights reserved.
+ * Copyright (c) 2009-2016 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1994-1996 Søren Schmidt
- * Copyright (c) 2013 Dmitry Chagin
+ * Copyright (c) 2013 Dmitry Chagin <dchagin@FreeBSD.org>
  * Copyright (c) 2018 Turing Robotic Industries Inc.
  *
  * Redistribution and use in source and binary forms, with or without
