@@ -32,32 +32,6 @@ ENTRY(linux_rt_sigcode)
 .endrtsigcode:
 0:	jmp	0b
 
-ENTRY(__vdso_clock_gettime)
-	movq	$LINUX_SYS_linux_clock_gettime,%rax
-	syscall
-	ret
-.weak clock_gettime
-.set clock_gettime, __vdso_clock_gettime
-
-ENTRY(__vdso_time)
-	movq	$LINUX_SYS_linux_time,%rax
-	syscall
-	ret
-.weak time
-.set time, __vdso_time
-
-ENTRY(__vdso_gettimeofday)
-	movq	$LINUX_SYS_gettimeofday,%rax
-	syscall
-	ret
-.weak gettimeofday
-.set gettimeofday, __vdso_gettimeofday
-
-ENTRY(__vdso_getcpu)
-	movq	$-38,%rax	/* not implemented */
-	ret
-.weak getcpu
-.set getcpu, __vdso_getcpu
 
 #if 0
 	.section .note.Linux, "a",@note
