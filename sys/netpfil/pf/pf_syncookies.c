@@ -301,7 +301,6 @@ pf_syncookie_rotate(void *arg)
 	pf_syncookie_newkey();
 
 	CURVNET_RESTORE();
-	printf("KP: %s() return\n", __func__);
 }
 
 void
