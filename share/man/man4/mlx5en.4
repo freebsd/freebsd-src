@@ -1,4 +1,5 @@
 .\" Copyright (c) 2015 Mellanox Technologies
+.\" Copyright (c) 2021 NVIDIA corporation & affiliates
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2019
+.Dd July 20, 2021
 .Dt MLX5EN 4
 .Os
 .Sh NAME
 .Nm mlx5en
-.Nd "Mellanox ConnectX-4, ConnectX-4 LX and ConnectX-5 based 100Gb, 50Gb, 40Gb, 25Gb and 10Gb Ethernet adapter driver"
+.Nd "NVIDIA Mellanox ConnectX-4/5/6 [Dx/Ex/Lx] based 200Gb, 100Gb, 50Gb, 40Gb, 25Gb and 10Gb ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -37,6 +38,7 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options COMPAT_LINUXKPI"
 .Cd "options RATELIMIT"
+.Cd "options KERN_TLS"
 .Cd "device xz"
 .Cd "device mlxfw"
 .Cd "device firmware"
@@ -60,67 +62,63 @@ mlx5en_load="YES"
 The
 .Nm
 driver provides support for PCI Express Ethernet adapters based on
-ConnectX-4, ConnectX-4 LX and ConnectX-5.
-The driver supports Jumbo Frames, Transmit/Receive checksum offload,
+ConnectX-4/5/6 [Dx, Ex and Lx variants].
+The driver supports Jumbo Frames, Transmit and Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO),
-HW Large Receive Offload (HW LRO), VLAN tag insertion/extraction,
-VLAN checksum offload, VLAN TSO, hardware rate limiting (TXRTLMT)
-and Receive Side Steering (RSS).
-.br
-The network interface is named mce.
-.br
-For further hardware information and questions related to hardware
-requirements, see
-.Pa http://www.mellanox.com/ .
+HW Large Receive Offload (HW LRO), VLAN tag insertion and extraction,
+VLAN checksum offload, VLAN TSO, hardware rate limiting (TXRTLMT),
+stateless VxLAN hardware offload for receive and transmit,
+HW TLS offload for transmit, Receive Side Steering (RSS) and
+.Xr NUMA 4
+awareness.
 .Pp
-For more information on configuring this device, see
-.Xr ifconfig 8 .
+The network interface name is
+.Dv mce<N>
+which corresponds to a PCI function,
+.Dv mlx_core<N> ,
+where
+.Dv <N>
+is a number starting at zero.
+There is at most one network interface per PCI function.
+.Pp
+For further information and questions related to hardware
+requirements, see
+.Pa https://www.mellanox.com .
 .Sh HARDWARE
 The
 .Nm
-driver supports 100Gb, 50Gb, 40Gb, 25Gb and 10Gb Ethernet adapters.
-ConnectX-5 supports:10/20/25/40/50/56/100Gb/s speeds.
-ConnectX-4 supports:10/20/25/40/50/56/100Gb/s speeds.
-ConnectX-4 LX supports:10/25/40/50Gb/s speeds (and reduced power consumption) :
-.Pp
+driver supports 200Gb, 100Gb, 50Gb, 40Gb, 25Gb and 10Gb ethernet adapters.
 .Bl -bullet -compact
+.Pp
 .It
-Mellanox MCX455A-ECAT
+ConnectX-6 supports 10/20/25/40/50/56/100Gb/200Gb/s speeds.
 .It
-Mellanox MCX456A-ECAT
+ConnectX-5 supports 10/20/25/40/50/56/100Gb/s speeds.
 .It
-Mellanox MCX415A-CCAT
+ConnectX-4 supports 10/20/25/40/50/56/100Gb/s speeds.
 .It
-Mellanox MCX416A-CCAT
-.It
-Mellanox MCX455A-FCAT
-.It
-Mellanox MCX456A-FCAT
-.It
-Mellanox MCX415A-BCAT
-.It
-Mellanox MCX416A-BCAT
-.It
-Mellanox MCX4131A-GCAT
-.It
-Mellanox MCX4131A-BCAT
-.It
-Mellanox MCX4121A-ACAT
-.It
-Mellanox MCX4111A-ACAT
-.It
-Mellanox MCX4121A-XCAT
-.It
-Mellanox MCX4111A-XCAT
+ConnectX-4 LX supports 10/25/40/50Gb/s speeds and reduced power consumption.
 .El
+.Sh CONFIGURATION
+The
+.Nm
+network interface is configured using
+.Xr ifconfig 8
+and the
+.Xr sysctl 8
+tree at
+.Dv dev.mce.<N> .
+All configurable entries are also tunables, and can be put directly into the
+.Xr loader.conf 5
+for persistent configuration.
 .Sh SUPPORT
 For general information and support,
-go to the Mellanox support website at:
-.Pa http://www.mellanox.com/ .
+go to the NVIDIA Mellanox networking support website at:
+.Pa https://www.mellanox.com .
 .Pp
-If an issue is identified with this driver with a supported adapter,
-email all the specific information related to the issue to
-.Aq Mt freebsd-drivers@mellanox.com .
+If an issue is identified with this driver using a supported adapter,
+e-mail all the specific information related to the issue to
+.Aq Mt nbu-freebsd-drivers@nvidia.com .
 .Sh SEE ALSO
 .Xr ifconfig 8
 .Sh HISTORY
@@ -133,4 +131,4 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Mellanox Technologies <freebsd-drivers@mellanox.com> .
+.An NVIDIA Mellanox networking <nbu-freebsd-drivers@nvidia.com> .
