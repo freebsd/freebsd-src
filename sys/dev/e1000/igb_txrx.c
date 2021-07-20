@@ -527,7 +527,7 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 		return;
 
 	/* If there is a layer 3 or 4 error we are done */
-	if (errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE))
+	if (__predict_false(errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
 		return;
 
 	/* IP Checksum Good */
