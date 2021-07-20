@@ -109,6 +109,7 @@ static void disaster(int);
 static void revoke_ttys(void);
 static int  runshutdown(void);
 static char *strk(char *);
+static void runfinal(void);
 
 /*
  * We really need a recursive typedef...
@@ -876,6 +877,8 @@ single_user(void)
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
+		/* Run scripts after all processes have been terminated. */
+		runfinal();
 		if (reboot(howto) == -1) {
 			emergency("reboot(%#x) failed, %m", howto);
 			_exit(1); /* panic and reboot */
@@ -2039,3 +2042,51 @@ setprocresources(const char *cname)
 	}
 }
 #endif
+
+/*
+ * Run /etc/rc.final to execute scripts after all user processes have been
+ * terminated.
+ */
+static void
+runfinal(void)
+{
+	struct stat sb;
+	pid_t other_pid, pid;
+	sigset_t mask;
+
+	/* Avoid any surprises. */
+	alarm(0);
+
+	/* rc.final is optional. */
+	if (stat(_PATH_RUNFINAL, &sb) == -1 && errno == ENOENT)
+		return;
+	if (access(_PATH_RUNFINAL, X_OK) != 0) {
+		warning("%s exists, but not executable", _PATH_RUNFINAL);
+		return;
+	}
+
+	pid = fork();
+	if (pid == 0) {
+		/*
+		 * Reopen stdin/stdout/stderr so that scripts can write to
+		 * console.
+		 */
+		close(0);
+		open(_PATH_DEVNULL, O_RDONLY);
+		close(1);
+		close(2);
+		open_console();
+		dup2(1, 2);
+		sigemptyset(&mask);
+		sigprocmask(SIG_SETMASK, &mask, NULL);
+		signal(SIGCHLD, SIG_DFL);
+		execl(_PATH_RUNFINAL, _PATH_RUNFINAL, NULL);
+		perror("execl(" _PATH_RUNFINAL ") failed");
+		exit(1);
+	}
+
+	/* Wait for rc.final script to exit */
+	while ((other_pid = waitpid(-1, NULL, 0)) != pid && other_pid > 0) {
+		continue;
+	}
+}
