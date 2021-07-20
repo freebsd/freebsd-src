@@ -228,6 +228,8 @@ static int fetch_robust_entry(struct linux_robust_list **,
 struct linux_futex_args {
 	uint32_t	*uaddr;
 	int32_t		op;
+	uint32_t	flags;
+	bool		clockrt;
 	uint32_t	val;
 	struct timespec	*ts;
 	uint32_t	*uaddr2;
@@ -641,19 +643,19 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 static int
 linux_futex(struct thread *td, struct linux_futex_args *args)
 {
-	int clockrt, nrwake, nrrequeue, op_ret, ret;
+	int nrwake, nrrequeue, op_ret, ret;
 	struct linux_pemuldata *pem;
 	struct waiting_proc *wp;
 	struct futex *f, *f2;
 	struct timespec kts;
 	int error, save;
-	uint32_t flags, val;
+	uint32_t val;
 
 	if (args->op & LINUX_FUTEX_PRIVATE_FLAG) {
-		flags = 0;
+		args->flags = 0;
 		args->op &= ~LINUX_FUTEX_PRIVATE_FLAG;
 	} else
-		flags = FUTEX_SHARED;
+		args->flags = FUTEX_SHARED;
 
 	/*
 	 * Currently support for switching between CLOCK_MONOTONIC and
@@ -661,9 +663,9 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 	 * FUTEX_CLOCK_REALTIME with any op except FUTEX_WAIT_BITSET and
 	 * FUTEX_WAIT_REQUEUE_PI.
 	 */
-	clockrt = args->op & LINUX_FUTEX_CLOCK_REALTIME;
+	args->clockrt = args->op & LINUX_FUTEX_CLOCK_REALTIME;
 	args->op = args->op & ~LINUX_FUTEX_CLOCK_REALTIME;
-	if (clockrt && args->op != LINUX_FUTEX_WAIT_BITSET &&
+	if (args->clockrt && args->op != LINUX_FUTEX_WAIT_BITSET &&
 		args->op != LINUX_FUTEX_WAIT_REQUEUE_PI) {
 		LIN_SDT_PROBE0(futex, linux_futex,
 		    unimplemented_clockswitch);
@@ -685,7 +687,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    args->uaddr, args->val, args->val3);
 
 		if (args->ts != NULL) {
-			if (clockrt) {
+			if (args->clockrt) {
 				nanotime(&kts);
 				timespecsub(args->ts, &kts, args->ts);
 			} else if (args->op == LINUX_FUTEX_WAIT_BITSET) {
@@ -696,7 +698,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 
 retry0:
 		error = futex_get(args->uaddr, &wp, &f,
-		    flags | FUTEX_CREATE_WP);
+		    args->flags | FUTEX_CREATE_WP);
 		if (error)
 			return (error);
 
@@ -737,7 +739,7 @@ retry0:
 		    args->uaddr, args->val, args->val3);
 
 		error = futex_get(args->uaddr, NULL, &f,
-		    flags | FUTEX_DONTCREATE);
+		    args->flags | FUTEX_DONTCREATE);
 		if (error)
 			return (error);
 
@@ -778,7 +780,8 @@ retry0:
 			return (EINVAL);
 
 retry1:
-		error = futex_get(args->uaddr, NULL, &f, flags | FUTEX_DONTLOCK);
+		error = futex_get(args->uaddr, NULL, &f,
+		    args->flags | FUTEX_DONTLOCK);
 		if (error)
 			return (error);
 
@@ -790,7 +793,7 @@ retry1:
 		 * returned by FUTEX_CMP_REQUEUE.
 		 */
 		error = futex_get(args->uaddr2, NULL, &f2,
-		    flags | FUTEX_DONTEXISTS | FUTEX_DONTLOCK);
+		    args->flags | FUTEX_DONTEXISTS | FUTEX_DONTLOCK);
 		if (error) {
 			futex_put(f, NULL);
 			return (error);
@@ -837,11 +840,13 @@ retry1:
 			return (EINVAL);
 
 retry2:
-		error = futex_get(args->uaddr, NULL, &f, flags | FUTEX_DONTLOCK);
+		error = futex_get(args->uaddr, NULL, &f,
+		    args->flags | FUTEX_DONTLOCK);
 		if (error)
 			return (error);
 
-		error = futex_get(args->uaddr2, NULL, &f2, flags | FUTEX_DONTLOCK);
+		error = futex_get(args->uaddr2, NULL, &f2,
+		    args->flags | FUTEX_DONTLOCK);
 		if (error) {
 			futex_put(f, NULL);
 			return (error);
