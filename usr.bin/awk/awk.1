@@ -131,8 +131,9 @@ and newlines are used as field separators
 This is convenient when working with multi-line records.
 .Pp
 An input line is normally made up of fields separated by whitespace,
-or by the regular expression
-.Va FS .
+or by the extended regular expression
+.Va FS
+as described below.
 The fields are denoted
 .Va $1 , $2 , ... ,
 while
@@ -141,6 +142,22 @@ refers to the entire line.
 If
 .Va FS
 is null, the input line is split into one field per character.
+While both gawk and mawk have the same behavior, it is unspecified in the
+.St -p1003.1-2008
+standard.
+If
+.Va FS
+is a single space, then leading and trailing blank and newline characters are
+skipped.
+Fields are delimited by one or more blank or newline characters.
+A blank character is a space or a tab.
+If
+.Va FS
+is a single character, other than space, fields are delimited by each single
+occurrence of that character.
+The
+.Va FS
+variable defaults to a single space.
 .Pp
 Normally, any number of blanks separate fields.
 In order to set the field separator to a single blank, use the
