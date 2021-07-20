@@ -127,6 +127,12 @@ pf_syncookies_init(void)
 	PF_RULES_WUNLOCK();
 }
 
+void
+pf_syncookies_cleanup(void)
+{
+	callout_stop(&V_pf_syncookie_status.keytimeout);
+}
+
 int
 pf_get_syncookies(struct pfioc_nv *nv)
 {
