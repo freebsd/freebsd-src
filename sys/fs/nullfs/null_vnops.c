@@ -267,6 +267,17 @@ null_bypass(struct vop_generic_args *ap)
 			*(vps_p[i]) = NULLVPTOLOWERVP(*this_vp_p);
 
 			/*
+			 * The upper vnode reference to the lower
+			 * vnode is the only reference that keeps our
+			 * pointer to the lower vnode alive.  If lower
+			 * vnode is relocked during the VOP call,
+			 * upper vnode might become unlocked and
+			 * reclaimed, which invalidates our reference.
+			 * Add a transient hold around VOP call.
+			 */
+			vhold(*this_vp_p);
+
+			/*
 			 * XXX - Several operations have the side effect
 			 * of vrele'ing their vp's.  We must account for
 			 * that.  (This should go away in the future.)
@@ -300,6 +311,7 @@ null_bypass(struct vop_generic_args *ap)
 			lvp = *(vps_p[i]);
 
 			/*
+			 * Get rid of the transient hold on lvp.
 			 * If lowervp was unlocked during VOP
 			 * operation, nullfs upper vnode could have
 			 * been reclaimed, which changes its v_vnlock
@@ -307,11 +319,14 @@ null_bypass(struct vop_generic_args *ap)
 			 * must move lock ownership from lower to
 			 * upper (reclaimed) vnode.
 			 */
-			if (lvp != NULLVP &&
-			    VOP_ISLOCKED(lvp) == LK_EXCLUSIVE &&
-			    old_vps[i]->v_vnlock != lvp->v_vnlock) {
-				VOP_UNLOCK(lvp);
-				VOP_LOCK(old_vps[i], LK_EXCLUSIVE | LK_RETRY);
+			if (lvp != NULLVP) {
+				if (VOP_ISLOCKED(lvp) == LK_EXCLUSIVE &&
+				    old_vps[i]->v_vnlock != lvp->v_vnlock) {
+					VOP_UNLOCK(lvp);
+					VOP_LOCK(old_vps[i], LK_EXCLUSIVE |
+					    LK_RETRY);
+				}
+				vdrop(lvp);
 			}
 
 			*(vps_p[i]) = old_vps[i];
