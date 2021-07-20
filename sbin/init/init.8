@@ -31,7 +31,7 @@
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2019
+.Dd July 22, 2021
 .Dt INIT 8
 .Os
 .Sh NAME
@@ -279,6 +279,14 @@ Otherwise,
 .Dq Li reboot
 argument is used.
 .Pp
+After all user processes have been terminated,
+.Nm
+will try to run the
+.Pa /etc/rc.final
+script.
+This script can be used to finally prepare and unmount filesystems that may have
+been needed during shutdown, for instance.
+.Pp
 The role of
 .Nm
 is so critical that if it dies, the system will reboot itself
@@ -371,9 +379,10 @@ It is used for running the
 or
 .Va init_script
 if set, as well as for the
-.Pa /etc/rc
+.Pa /etc/rc ,
+.Pa /etc/rc.shutdown ,
 and
-.Pa /etc/rc.shutdown
+.Pa /etc/rc.final
 scripts.
 The value of the corresponding
 .Xr kenv 2
@@ -403,6 +412,8 @@ the terminal initialization information file
 system startup commands
 .It Pa /etc/rc.shutdown
 system shutdown commands
+.It Pa /etc/rc.final
+system shutdown commands (after process termination)
 .It Pa /var/log/init.log
 log of
 .Xr rc 8
