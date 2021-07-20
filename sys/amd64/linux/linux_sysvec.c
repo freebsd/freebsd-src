@@ -106,6 +106,8 @@ static void	linux_set_syscall_retval(struct thread *td, int error);
 static int	linux_fetch_syscall_args(struct thread *td);
 static void	linux_exec_setregs(struct thread *td, struct image_params *imgp,
 		    uintptr_t stack);
+static int	linux_on_exec_vmspace(struct proc *p,
+		    struct image_params *imgp);
 static int	linux_vsyscall(struct thread *td);
 
 #define LINUX_T_UNKNOWN  255
@@ -766,11 +768,19 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_schedtail	= linux_schedtail,
 	.sv_thread_detach = linux_thread_detach,
 	.sv_trap	= linux_vsyscall,
-	.sv_onexec	= linux_on_exec,
+	.sv_onexec	= linux_on_exec_vmspace,
 	.sv_onexit	= linux_on_exit,
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
 };
+
+static int
+linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)
+{
+
+	linux_on_exec(p, imgp);
+	return (0);
+}
 
 static void
 linux_vdso_install(void *param)
