@@ -215,8 +215,6 @@ static int futex_get(uint32_t *, struct waiting_proc **, struct futex **,
 static int futex_sleep(struct futex *, struct waiting_proc *, struct timespec *);
 static int futex_wake(struct futex *, int, uint32_t);
 static int futex_requeue(struct futex *, int, struct futex *, int);
-static int futex_wait(struct futex *, struct waiting_proc *, struct timespec *,
-    uint32_t);
 static void futex_lock(struct futex *);
 static void futex_unlock(struct futex *);
 static int futex_atomic_op(struct thread *, int, uint32_t *);
@@ -552,27 +550,6 @@ futex_requeue(struct futex *f, int nrwake, struct futex *f2,
 	}
 
 	return (count);
-}
-
-static int
-futex_wait(struct futex *f, struct waiting_proc *wp, struct timespec *ts,
-    uint32_t bitset)
-{
-	int error;
-
-	if (bitset == 0) {
-		futex_put(f, wp);
-		return (EINVAL);
-	}
-
-	f->f_bitset = bitset;
-	error = futex_sleep(f, wp, ts);
-	if (error)
-		LIN_SDT_PROBE1(futex, futex_wait, sleep_error, error);
-	if (error == EWOULDBLOCK)
-		error = ETIMEDOUT;
-
-	return (error);
 }
 
 static int
@@ -1015,7 +992,18 @@ retry:
 		return (EWOULDBLOCK);
 	}
 
-	return (futex_wait(f, wp, args->ts, args->val3));
+	if (args->val3 == 0) {
+		futex_put(f, wp);
+		return (EINVAL);
+	}
+
+	f->f_bitset = args->val3;
+	error = futex_sleep(f, wp, args->ts);
+	if (error != 0)
+		LIN_SDT_PROBE1(futex, futex_wait, sleep_error, error);
+	if (error == EWOULDBLOCK)
+		error = ETIMEDOUT;
+	return (error);
 }
 
 int
