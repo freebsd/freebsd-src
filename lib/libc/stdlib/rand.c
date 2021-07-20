@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdbool.h>
 #include <stdlib.h>
 #include <syslog.h>
+#include <machine/atomic.h>
 #include "un-namespace.h"
 
 #include "random.h"
@@ -68,11 +69,15 @@ static struct __random_state *rand3_state;
 static void
 initialize_rand3(void)
 {
+	struct __random_state *state;
 	int error;
 
-	rand3_state = allocatestate(TYPE_3);
-	error = initstate_r(rand3_state, 1, rand3_state->rst_randtbl, BREAK_3);
+	state = allocatestate(TYPE_3);
+	error = initstate_r(state, 1, state->rst_randtbl, BREAK_3);
 	assert(error == 0);
+	if (!atomic_cmpset_rel_ptr((volatile uintptr_t *)&rand3_state,
+	    (uintptr_t)NULL, (uintptr_t)state))
+		free(state);
 }
 
 int
