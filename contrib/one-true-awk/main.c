@@ -91,9 +91,7 @@ setfs(char *p)
 	/* wart: t=>\t */
 	if (p[0] == 't' && p[1] == '\0')
 		return "\t";
-	else if (p[0] != '\0')
-		return p;
-	return NULL;
+	return p;
 }
 
 static char *
@@ -169,8 +167,6 @@ int main(int argc, char *argv[])
  			break;
 		case 'F':	/* set field separator */
 			fs = setfs(getarg(&argc, &argv, "no field separator"));
-			if (fs == NULL)
-				WARNING("field separator FS is empty");
 			break;
 		case 'v':	/* -v a=1 to be done NOW.  one -v for each */
 			vn = getarg(&argc, &argv, "no variable name");
