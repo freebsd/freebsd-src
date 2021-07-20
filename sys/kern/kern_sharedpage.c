@@ -308,27 +308,43 @@ exec_sysvec_init(void *param)
 #ifdef RANDOM_FENESTRASX
 	ptrdiff_t base;
 #endif
+	u_int flags;
 
 	sv = (struct sysentvec *)param;
-	if ((sv->sv_flags & SV_SHP) == 0)
+	flags = sv->sv_flags;
+	if ((flags & SV_SHP) == 0)
 		return;
+	MPASS(sv->sv_shared_page_obj == NULL);
+	MPASS(sv->sv_shared_page_base != 0);
+
 	sv->sv_shared_page_obj = shared_page_obj;
-	sv->sv_sigcode_base = sv->sv_shared_page_base +
-	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
-	if ((sv->sv_flags & SV_ABI_MASK) != SV_ABI_FREEBSD)
-		return;
-	if ((sv->sv_flags & SV_TIMEKEEP) != 0) {
+	if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
+		sv->sv_sigcode_base = sv->sv_shared_page_base +
+		    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
+	}
+	if ((flags & SV_TIMEKEEP) != 0) {
 #ifdef COMPAT_FREEBSD32
-		if ((sv->sv_flags & SV_ILP32) != 0) {
-			KASSERT(compat32_svtk == NULL,
-			    ("Compat32 already registered"));
-			compat32_svtk = alloc_sv_tk_compat32();
+		if ((flags & SV_ILP32) != 0) {
+			if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
+				KASSERT(compat32_svtk == NULL,
+				    ("Compat32 already registered"));
+				compat32_svtk = alloc_sv_tk_compat32();
+			} else {
+				KASSERT(compat32_svtk != NULL,
+				    ("Compat32 not registered"));
+			}
 			sv->sv_timekeep_base = sv->sv_shared_page_base +
 			    compat32_svtk->sv_timekeep_off;
 		} else {
 #endif
-			KASSERT(host_svtk == NULL, ("Host already registered"));
-			host_svtk = alloc_sv_tk();
+			if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
+				KASSERT(host_svtk == NULL,
+				    ("Host already registered"));
+				host_svtk = alloc_sv_tk();
+			} else {
+				KASSERT(host_svtk != NULL,
+				    ("Host not registered"));
+			}
 			sv->sv_timekeep_base = sv->sv_shared_page_base +
 			    host_svtk->sv_timekeep_off;
 #ifdef COMPAT_FREEBSD32
@@ -336,7 +352,8 @@ exec_sysvec_init(void *param)
 #endif
 	}
 #ifdef RANDOM_FENESTRASX
-	if ((sv->sv_flags & SV_RNG_SEED_VER) != 0) {
+	if ((flags & (SV_ABI_MASK | SV_RNG_SEED_VER)) ==
+	    (SV_ABI_FREEBSD | SV_RNG_SEED_VER)) {
 		/*
 		 * Only allocate a single VDSO entry for multiple sysentvecs,
 		 * i.e., native and COMPAT32.
