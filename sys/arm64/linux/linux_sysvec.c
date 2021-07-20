@@ -476,6 +476,10 @@ linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)
 	return (error);
 }
 
+/*
+ * linux_vdso_install() and linux_exec_sysvec_init() must be called
+ * after exec_sysvec_init() which is SI_SUB_EXEC (SI_ORDER_ANY).
+ */
 static void
 linux_exec_sysvec_init(void *param)
 {
@@ -491,7 +495,7 @@ linux_exec_sysvec_init(void *param)
 	ktimekeep_base = (l_uintptr_t *)(linux_vdso_mapping + tkoff);
 	*ktimekeep_base = sv->sv_timekeep_base;
 }
-SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC, SI_ORDER_ANY,
+SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC + 1, SI_ORDER_ANY,
     linux_exec_sysvec_init, &elf_linux_sysvec);
 
 static void
@@ -513,7 +517,7 @@ linux_vdso_install(const void *param)
 
 	linux_vdso_reloc(linux_vdso_mapping, linux_vdso_base);
 }
-SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_FIRST,
+SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC + 1, SI_ORDER_FIRST,
     linux_vdso_install, NULL);
 
 static void
