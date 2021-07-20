@@ -125,8 +125,8 @@ static int	linux_on_exec_vmspace(struct proc *p,
 		    struct image_params *imgp);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
 static bool	linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
-static void	linux_vdso_install(void *param);
-static void	linux_vdso_deinstall(void *param);
+static void	linux_vdso_install(const void *param);
+static void	linux_vdso_deinstall(const void *param);
 static void	linux_vdso_reloc(char *mapping, Elf_Addr offset);
 static void	linux32_set_syscall_retval(struct thread *td, int error);
 
@@ -995,7 +995,7 @@ SYSINIT(elf_linux_exec_sysvec_init, SI_SUB_EXEC, SI_ORDER_ANY,
     linux_exec_sysvec_init, &elf_linux_sysvec);
 
 static void
-linux_vdso_install(void *param)
+linux_vdso_install(const void *param)
 {
 	char *vdso_start = &_binary_linux32_vdso_so_o_start;
 	char *vdso_end = &_binary_linux32_vdso_so_o_end;
@@ -1017,7 +1017,7 @@ SYSINIT(elf_linux_vdso_init, SI_SUB_EXEC, SI_ORDER_FIRST,
     linux_vdso_install, NULL);
 
 static void
-linux_vdso_deinstall(void *param)
+linux_vdso_deinstall(const void *param)
 {
 
 	__elfN(linux_shared_page_fini)(linux_vdso_obj,
