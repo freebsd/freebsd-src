@@ -114,13 +114,11 @@ main(int argc, char *argv[])
 	struct statfs statfsbuf, totalbuf;
 	struct maxwidths maxwidths;
 	struct statfs *mntbuf;
-	const char *fstype;
 	char *mntpt;
 	const char **vfslist;
 	int i, mntsize;
 	int ch, rv;
 
-	fstype = "ufs";
 	(void)setlocale(LC_ALL, "");
 	memset(&maxwidths, 0, sizeof(maxwidths));
 	memset(&totalbuf, 0, sizeof(totalbuf));
@@ -194,7 +192,6 @@ main(int argc, char *argv[])
 				xo_errx(1, "-l and -t are mutually exclusive.");
 			if (vfslist != NULL)
 				xo_errx(1, "only one -t option may be specified");
-			fstype = optarg;
 			vfslist = makevfslist(optarg);
 			break;
 		case 'T':
