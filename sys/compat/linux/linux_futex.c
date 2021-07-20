@@ -115,7 +115,6 @@ LIN_SDT_PROBE_DEFINE3(futex, futex_requeue, requeue, "uint32_t *",
 LIN_SDT_PROBE_DEFINE1(futex, futex_wait, sleep_error, "int");
 LIN_SDT_PROBE_DEFINE4(futex, futex_atomic_op, decoded_op, "int", "int", "int",
     "int");
-LIN_SDT_PROBE_DEFINE0(futex, futex_atomic_op, missing_access_check);
 LIN_SDT_PROBE_DEFINE1(futex, futex_atomic_op, unimplemented_op, "int");
 LIN_SDT_PROBE_DEFINE1(futex, futex_atomic_op, unimplemented_cmp, "int");
 LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_clockswitch);
@@ -590,9 +589,6 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 
 	LIN_SDT_PROBE4(futex, futex_atomic_op, decoded_op, op, cmp, oparg,
 	    cmparg);
-
-	/* XXX: Linux verifies access here and returns EFAULT */
-	LIN_SDT_PROBE0(futex, futex_atomic_op, missing_access_check);
 
 	switch (op) {
 	case FUTEX_OP_SET:
