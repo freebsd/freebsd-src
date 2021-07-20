@@ -1271,7 +1271,7 @@ tcp_set_flags(struct tcphdr *th, uint16_t flags)
 
 static inline void
 tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
-    uint8_t is_tlp, int hw_tls)
+    uint8_t is_tlp, bool hw_tls)
 {
 	if (is_tlp) {
 		tp->t_sndtlppack++;
