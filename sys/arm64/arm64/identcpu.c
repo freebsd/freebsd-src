@@ -1316,7 +1316,8 @@ cpu_features_sysinit(void *dummy __unused)
 	CPU_FOREACH(cpu)
 		print_cpu_features(cpu);
 }
-SYSINIT(cpu_features, SI_SUB_SMP, SI_ORDER_ANY, cpu_features_sysinit, NULL);
+/* Log features before APs are released and start printing to the dmesg. */
+SYSINIT(cpu_features, SI_SUB_SMP - 1, SI_ORDER_ANY, cpu_features_sysinit, NULL);
 
 static u_long
 parse_cpu_features_hwcap(void)
