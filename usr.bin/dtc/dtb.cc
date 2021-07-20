@@ -33,12 +33,12 @@
  */
 
 #include "dtb.hh"
+#include <cerrno>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 
 using std::string;
 
