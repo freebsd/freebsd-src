@@ -239,6 +239,7 @@ struct linux_futex_args {
 
 static int	linux_futex(struct thread *, struct linux_futex_args *);
 static int linux_futex_wait(struct thread *, struct linux_futex_args *);
+static int linux_futex_wake(struct thread *, struct linux_futex_args *);
 
 static void
 futex_put(struct futex *f, struct waiting_proc *wp)
@@ -697,18 +698,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		LINUX_CTR3(sys_futex, "WAKE uaddr %p nrwake 0x%x bitset 0x%x",
 		    args->uaddr, args->val, args->val3);
 
-		error = futex_get(args->uaddr, NULL, &f,
-		    args->flags | FUTEX_DONTCREATE);
-		if (error)
-			return (error);
-
-		if (f == NULL) {
-			td->td_retval[0] = 0;
-			return (error);
-		}
-		td->td_retval[0] = futex_wake(f, args->val, args->val3);
-		futex_put(f, NULL);
-		break;
+		return (linux_futex_wake(td, args));
 
 	case LINUX_FUTEX_CMP_REQUEUE:
 		LIN_SDT_PROBE5(futex, linux_futex, debug_cmp_requeue,
@@ -931,6 +921,26 @@ retry2:
 	}
 
 	return (error);
+}
+
+static int
+linux_futex_wake(struct thread *td, struct linux_futex_args *args)
+{
+	struct futex *f;
+	int error;
+
+	f = NULL;
+	error = futex_get(args->uaddr, NULL, &f, args->flags | FUTEX_DONTCREATE);
+	if (error != 0)
+		return (error);
+
+	if (f == NULL) {
+		td->td_retval[0] = 0;
+		return (error);
+	}
+	td->td_retval[0] = futex_wake(f, args->val, args->val3);
+	futex_put(f, NULL);
+	return (0);
 }
 
 static int
