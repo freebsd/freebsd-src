@@ -310,7 +310,7 @@ exec_sysvec_init(void *param)
 #endif
 	u_int flags;
 
-	sv = (struct sysentvec *)param;
+	sv = param;
 	flags = sv->sv_flags;
 	if ((flags & SV_SHP) == 0)
 		return;
