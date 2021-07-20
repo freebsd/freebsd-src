@@ -955,6 +955,10 @@ kern_chdir(struct thread *td, const char *path, enum uio_seg pathseg)
 	return (0);
 }
 
+static int unprivileged_chroot = 0;
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
+    &unprivileged_chroot, 0,
+    "Unprivileged processes can use chroot(2)");
 /*
  * Change notion of root (``/'') directory.
  */
@@ -967,11 +971,20 @@ int
 sys_chroot(struct thread *td, struct chroot_args *uap)
 {
 	struct nameidata nd;
+	struct proc *p;
 	int error;
 
 	error = priv_check(td, PRIV_VFS_CHROOT);
-	if (error != 0)
-		return (error);
+	if (error != 0) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		if (unprivileged_chroot == 0 ||
+		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
+		PROC_UNLOCK(p);
+	}
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
