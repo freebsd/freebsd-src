@@ -103,7 +103,7 @@ int
 main(int argc, char **argv)
 {
 	int ch;
-	int outfile = std::fileno(stdout);
+	int outfile = fileno(stdout);
 	const char *outfile_name = "-";
 	const char *in_file = "-";
 	FILE *depfile = 0;
@@ -186,7 +186,7 @@ main(int argc, char **argv)
 			outfile_name = optarg;
 			if (std::strcmp(outfile_name, "-") != 0)
 			{
-				outfile = std::open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666);
+				outfile = open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666);
 				if (outfile == -1)
 				{
 					perror("Unable to open output file");
@@ -217,7 +217,7 @@ main(int argc, char **argv)
 			}
 			else
 			{
-				depfile = std::fdopen(std::open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666), "w");
+				depfile = std::fdopen(open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666), "w");
 				if (depfile == 0)
 				{
 					perror("Unable to open dependency file");
