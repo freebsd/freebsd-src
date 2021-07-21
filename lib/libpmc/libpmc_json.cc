@@ -49,7 +49,7 @@ extern "C" {
 #include <cstring>
 #include <string>
 
-using std::string;
+using namespace std;
 
 static const char *typenames[] = {
 	"",
