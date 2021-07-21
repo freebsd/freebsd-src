@@ -122,6 +122,7 @@ static int sysctl_root(SYSCTL_HANDLER_ARGS);
 /* Root list */
 struct sysctl_oid_list sysctl__children = SLIST_HEAD_INITIALIZER(&sysctl__children);
 
+static char*	sysctl_escape_name(const char*);
 static int	sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del,
 		    int recurse);
 static int	sysctl_old_kernel(struct sysctl_req *, const void *, size_t);
@@ -747,6 +748,46 @@ sysctl_remove_name(struct sysctl_oid *parent, const char *name,
 	return (error);
 }
 
+/*
+ * Duplicate the provided string, escaping any illegal characters.  The result
+ * must be freed when no longer in use.
+ *
+ * The list of illegal characters is ".".
+ */
+static char*
+sysctl_escape_name(const char* orig)
+{
+	int i, s = 0, d = 0, nillegals = 0;
+	char *new;
+
+	/* First count the number of illegal characters */
+	for (i = 0; orig[i] != '\0'; i++) {
+		if (orig[i] == '.')
+			nillegals++;
+	}
+
+	/* Allocate storage for new string */
+	new = malloc(i + 2 * nillegals + 1, M_SYSCTLOID, M_WAITOK);
+
+	/* Copy the name, escaping characters as we go */
+	while (orig[s] != '\0') {
+		if (orig[s] == '.') {
+			/* %25 is the hexadecimal representation of '.' */
+			new[d++] = '%';
+			new[d++] = '2';
+			new[d++] = '5';
+			s++;
+		} else {
+			new[d++] = orig[s++];
+		}
+	}
+
+	/* Finally, nul-terminate */
+	new[d] = '\0';
+
+	return (new);
+}
+
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
@@ -828,14 +869,17 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	const char *label)
 {
 	struct sysctl_oid *oidp;
+	char *escaped;
 
 	/* You have to hook up somewhere.. */
 	if (parent == NULL)
 		return(NULL);
+	escaped = sysctl_escape_name(name);
 	/* Check if the node already exists, otherwise create it */
 	SYSCTL_WLOCK();
-	oidp = sysctl_find_oidname(name, parent);
+	oidp = sysctl_find_oidname(escaped, parent);
 	if (oidp != NULL) {
+		free(escaped, M_SYSCTLOID);
 		if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 			oidp->oid_refcnt++;
 			/* Update the context */
@@ -854,7 +898,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	SLIST_INIT(&oidp->oid_children);
 	oidp->oid_number = number;
 	oidp->oid_refcnt = 1;
-	oidp->oid_name = strdup(name, M_SYSCTLOID);
+	oidp->oid_name = escaped;
 	oidp->oid_handler = handler;
 	oidp->oid_kind = CTLFLAG_DYN | kind;
 	oidp->oid_arg1 = arg1;
