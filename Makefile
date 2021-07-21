@@ -207,7 +207,7 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} MK_AUTO_OBJ=no \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
     SRCCONF=${SRCCONF} SRC_ENV_CONF= \
     -f /dev/null -V MAKEOBJDIRPREFIX dummy
-.if !empty(_MAKEOBJDIRPREFIX)
+.if !empty(_MAKEOBJDIRPREFIX) || !empty(.MAKEOVERRIDES:MMAKEOBJDIRPREFIX)
 .error MAKEOBJDIRPREFIX can only be set in environment or src-env.conf(5),\
     not as a global (in make.conf(5) or src.conf(5)) or command-line variable.
 .endif
