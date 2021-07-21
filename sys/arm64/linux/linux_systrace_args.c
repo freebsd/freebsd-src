@@ -1099,9 +1099,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_rt_sigreturn */
 	case 139: {
-		struct linux_rt_sigreturn_args *p = params;
-		uarg[0] = (intptr_t)p->ucp; /* struct l_ucontext * */
-		*n_args = 1;
+		*n_args = 0;
 		break;
 	}
 	/* setpriority */
@@ -4173,13 +4171,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigreturn */
 	case 139:
-		switch (ndx) {
-		case 0:
-			p = "userland struct l_ucontext *";
-			break;
-		default:
-			break;
-		};
 		break;
 	/* setpriority */
 	case 140:
@@ -6727,9 +6718,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_rt_sigreturn */
 	case 139:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* setpriority */
 	case 140:
 		if (ndx == 0 || ndx == 1)

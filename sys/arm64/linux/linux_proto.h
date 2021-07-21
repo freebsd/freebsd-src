@@ -581,7 +581,7 @@ struct linux_rt_sigqueueinfo_args {
 	char info_l_[PADL_(l_siginfo_t *)]; l_siginfo_t * info; char info_r_[PADR_(l_siginfo_t *)];
 };
 struct linux_rt_sigreturn_args {
-	char ucp_l_[PADL_(struct l_ucontext *)]; struct l_ucontext * ucp; char ucp_r_[PADR_(struct l_ucontext *)];
+	register_t dummy;
 };
 struct linux_getpriority_args {
 	char which_l_[PADL_(l_int)]; l_int which; char which_r_[PADR_(l_int)];
