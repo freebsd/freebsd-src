@@ -44,9 +44,9 @@
 
 #include <err.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <cinttypes>
 #include <paths.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <syslog.h>
 #include <unistd.h>
 
