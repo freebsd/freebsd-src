@@ -2,7 +2,7 @@
 /* check unwinding for main thread */
 
 #include <pthread.h>
-#include <stdio.h>
+#include <cstdio>
 #include <stdlib.h>
 
 #include "Test.cpp"
