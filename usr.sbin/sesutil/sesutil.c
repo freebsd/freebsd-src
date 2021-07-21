@@ -650,7 +650,7 @@ show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t
 	xo_emit("{e:model/%s}", model ? model : "");
 	xo_emit("{d:serial/%-20s} ", serial != NULL ? serial : "-");
 	xo_emit("{e:serial/%s}", serial != NULL ? serial : "");
-	if (e_status.cstat[0] == SES_OBJSTAT_OK && size >= 0) {
+	if ((e_status.cstat[0] & 0xf) == SES_OBJSTAT_OK && size >= 0) {
 		xo_emit("{h,hn-1000:size/%ld}{e:status/%s}",
 		    size, scode2ascii(e_status.cstat[0]));
 	} else {
