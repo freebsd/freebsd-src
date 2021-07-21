@@ -53,15 +53,13 @@ volatile int constructor_run;
 bool run_destructor_test = false;
 #endif
 
-using namespace std;
-
 struct Foo {
 	Foo() {
 		constructor_run = 1;
 	}
 	~Foo() {
 		if (run_destructor_test)
-			_exit(1);
+			std::_exit(1);
 	}
 };
 extern Foo foo;
@@ -90,7 +88,7 @@ ATF_TEST_CASE_BODY(cxx_destructor)
 		break;
 	case 0:
 		run_destructor_test = true;
-		exit(0);
+		std::exit(0);
 	default:
 		while ((wpid = waitpid(pid, &status, 0)) == -1 &&
 		    errno == EINTR)
