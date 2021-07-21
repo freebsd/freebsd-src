@@ -477,6 +477,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		    /*getcount_only*/1);
 	}
 
+	memset(&ccb, 0, sizeof(ccb));
 	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	ccb.ccb_h.func_code = XPT_EN_LUN;
 	ccb.cel.grp6_len = 0;
@@ -611,6 +612,7 @@ ctlfeoninvalidate(struct cam_periph *periph)
 	cam_status status;
 
 	/* Abort all ATIOs and INOTs queued to SIM. */
+	memset(&ccb, 0, sizeof(ccb));
 	xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	ccb.ccb_h.func_code = XPT_ABORT;
 	LIST_FOREACH(hdr, &softc->atio_list, periph_links.le) {
@@ -1850,6 +1852,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 	struct ccb_getdevstats cgds;
 	int num_items;
 
+	memset(&cgds, 0, sizeof(cgds));
 	xpt_setup_ccb(&cgds.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cgds.ccb_h.func_code = XPT_GDEV_STATS;
 	xpt_action((union ccb *)&cgds);
