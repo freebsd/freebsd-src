@@ -76,6 +76,7 @@ extern "C" {
 #include <vector>
 #include <unordered_map>
 
+using namespace std;
 using	std::unordered_map;
 typedef unordered_map <int, std::string> idmap;
 typedef unordered_map <uint32_t, uint64_t> intmap;
