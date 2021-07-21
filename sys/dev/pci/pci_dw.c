@@ -73,6 +73,11 @@ __FBSDID("$FreeBSD$");
 #define	DBI_RD2(sc, reg)	pci_dw_dbi_rd2((sc)->dev, reg)
 #define	DBI_RD4(sc, reg)	pci_dw_dbi_rd4((sc)->dev, reg)
 
+#define	IATU_UR_WR4(sc, reg, val)	\
+    bus_write_4((sc)->iatu_ur_res, (sc)->iatu_ur_offset + (reg), (val))
+#define	IATU_UR_RD4(sc, reg)		\
+    bus_read_4((sc)->iatu_ur_res, (sc)->iatu_ur_offset + (reg))
+
 #define	PCI_BUS_SHIFT		20
 #define	PCI_SLOT_SHIFT		15
 #define	PCI_FUNC_SHIFT		12
@@ -168,9 +173,52 @@ pci_dw_check_dev(struct pci_dw_softc *sc, u_int bus, u_int slot, u_int func,
 	return (true);
 }
 
-/* Map one uoutbound ATU region */
+static bool
+pci_dw_detect_atu_unroll(struct pci_dw_softc *sc)
+{
+	return (DBI_RD4(sc, DW_IATU_VIEWPORT) == 0xFFFFFFFFU);
+}
+
 static int
-pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
+pci_dw_map_out_atu_unroll(struct pci_dw_softc *sc, int idx, int type,
+    uint64_t pa, uint64_t pci_addr, uint32_t size)
+{
+	uint32_t reg;
+	int i;
+
+	if (size == 0)
+		return (0);
+
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LWR_BASE_ADDR),
+	    pa & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, UPPER_BASE_ADDR),
+	    (pa >> 32) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LIMIT_ADDR),
+	    (pa + size - 1) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LWR_TARGET_ADDR),
+	    pci_addr & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, UPPER_TARGET_ADDR),
+	    (pci_addr  >> 32) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, CTRL1),
+	    IATU_CTRL1_TYPE(type));
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, CTRL2),
+	    IATU_CTRL2_REGION_EN);
+
+	/* Wait until setup becomes valid */
+	for (i = 10; i > 0; i--) {
+		reg = IATU_UR_RD4(sc, DW_IATU_UR_REG(idx, CTRL2));
+		if (reg & IATU_CTRL2_REGION_EN)
+			return (0);
+		DELAY(5);
+	}
+
+	device_printf(sc->dev,
+	    "Cannot map outbound region %d in unroll mode iATU\n", idx);
+	return (ETIMEDOUT);
+}
+
+static int
+pci_dw_map_out_atu_legacy(struct pci_dw_softc *sc, int idx, int type,
     uint64_t pa, uint64_t pci_addr, uint32_t size)
 {
 	uint32_t reg;
@@ -195,9 +243,23 @@ pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
 			return (0);
 		DELAY(5);
 	}
+
 	device_printf(sc->dev,
-	    "Cannot map outbound region(%d) in iATU\n", idx);
+	    "Cannot map outbound region %d in legacy mode iATU\n", idx);
 	return (ETIMEDOUT);
+}
+
+/* Map one outbound ATU region */
+static int
+pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
+    uint64_t pa, uint64_t pci_addr, uint32_t size)
+{
+	if (sc->iatu_ur_res)
+		return (pci_dw_map_out_atu_unroll(sc, idx, type, pa,
+		    pci_addr, size));
+	else
+		return (pci_dw_map_out_atu_legacy(sc, idx, type, pa,
+		    pci_addr, size));
 }
 
 static int
@@ -580,6 +642,7 @@ pci_dw_init(device_t dev)
 {
 	struct pci_dw_softc *sc;
 	int rv, rid;
+	bool unroll_mode;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -659,6 +722,36 @@ pci_dw_init(device_t dev)
 	    sc->ofw_pci.sc_nrange);
 	if (rv != 0)
 		goto out;
+
+	unroll_mode = pci_dw_detect_atu_unroll(sc);
+	if (bootverbose)
+		device_printf(dev, "Using iATU %s mode\n",
+		    unroll_mode ? "unroll" : "legacy");
+	if (unroll_mode) {
+		rid = 0;
+		rv = ofw_bus_find_string_index(sc->node, "reg-names", "atu", &rid);
+		if (rv == 0) {
+			sc->iatu_ur_res = bus_alloc_resource_any(dev,
+			    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+			if (sc->iatu_ur_res == NULL) {
+				device_printf(dev,
+				    "Cannot allocate iATU space (rid: %d)\n",
+				    rid);
+				rv = ENXIO;
+				goto out;
+			}
+			sc->iatu_ur_offset = 0;
+			sc->iatu_ur_size = rman_get_size(sc->iatu_ur_res);
+		} else if (rv == ENOENT) {
+			sc->iatu_ur_res = sc->dbi_res;
+			sc->iatu_ur_offset = DW_DEFAULT_IATU_UR_DBI_OFFSET;
+			sc->iatu_ur_size = DW_DEFAULT_IATU_UR_DBI_SIZE;
+		} else {
+			device_printf(dev, "Cannot get iATU space memory\n");
+			rv = ENXIO;
+			goto out;
+		}
+	}
 
 	rv = pci_dw_setup_hw(sc);
 	if (rv != 0)
