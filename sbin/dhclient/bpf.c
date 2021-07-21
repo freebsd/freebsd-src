@@ -90,6 +90,14 @@ if_register_bpf(struct interface_info *info, int flags)
 		error("Can't attach interface %s to bpf device %s: %m",
 		    info->name, filename);
 
+	/* Tag the packets with the proper VLAN PCP setting. */
+	if (info->client->config->vlan_pcp != 0) {
+		if (ioctl(sock, BIOCSETVLANPCP,
+		    &info->client->config->vlan_pcp) < 0)
+			error( "Can't set the VLAN PCP tag on interface %s: %m",
+			    info->name);
+	}
+
 	return (sock);
 }
 

@@ -38,7 +38,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2018
+.Dd July 21, 2021
 .Dt DHCLIENT.CONF 5
 .Os
 .Sh NAME
@@ -484,6 +484,13 @@ lease database and will record the media type used to acquire the address.
 Whenever the client tries to renew the lease, it will use that same media type.
 The lease must expire before the client will go back to cycling through media
 types.
+.It Ic vlan-pcp Ar code ;
+The
+.Ic vlan-pcp
+statement sets the PCP (Priority Code Point) value for the VLAN header.
+This requires the
+.Va net.link.vlan.mtag_pcp
+sysctl to be set to 1.
 .El
 .Sh EXAMPLES
 The following configuration file is used on a laptop
