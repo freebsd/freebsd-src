@@ -42,19 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <cassert>
-#include <curses.h>
-#include <err.h>
+
 #include <cerrno>
-#include <fcntl.h>
-#include <getopt.h>
-#include <kvm.h>
-#include <libgen.h>
+
 #include <climits>
 #include <clocale>
 #include <cmath>
-#include <pmc.h>
-#include <pmclog.h>
-#include <regex.h>
 #include <csignal>
 #include <cstdarg>
 #include <cstdint>
@@ -62,6 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <cstdlib>
 #include <cstddef>
 #include <cstring>
+#include <curses.h>
+#include <err.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <kvm.h>
+#include <libgen.h>
+#include <pmc.h>
+#include <pmclog.h>
+#include <regex.h>
 #include <sysexits.h>
 #include <unistd.h>
 
