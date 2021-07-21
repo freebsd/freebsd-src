@@ -156,7 +156,7 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = AS(linux_rt_sigpending_args), .sy_call = (sy_call_t *)linux_rt_sigpending, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 136 = linux_rt_sigpending */
 	{ .sy_narg = AS(linux_rt_sigtimedwait_args), .sy_call = (sy_call_t *)linux_rt_sigtimedwait, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 137 = linux_rt_sigtimedwait */
 	{ .sy_narg = AS(linux_rt_sigqueueinfo_args), .sy_call = (sy_call_t *)linux_rt_sigqueueinfo, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 138 = linux_rt_sigqueueinfo */
-	{ .sy_narg = AS(linux_rt_sigreturn_args), .sy_call = (sy_call_t *)linux_rt_sigreturn, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 139 = linux_rt_sigreturn */
+	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_rt_sigreturn, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 139 = linux_rt_sigreturn */
 	{ .sy_narg = AS(setpriority_args), .sy_call = (sy_call_t *)sys_setpriority, .sy_auevent = AUE_SETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 140 = setpriority */
 	{ .sy_narg = AS(linux_getpriority_args), .sy_call = (sy_call_t *)linux_getpriority, .sy_auevent = AUE_GETPRIORITY, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 141 = linux_getpriority */
 	{ .sy_narg = AS(linux_reboot_args), .sy_call = (sy_call_t *)linux_reboot, .sy_auevent = AUE_REBOOT, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 142 = linux_reboot */
