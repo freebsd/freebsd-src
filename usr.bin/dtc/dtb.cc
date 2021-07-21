@@ -193,7 +193,7 @@ asm_writer::write_string(const char *c)
 {
 	while (*c)
 	{
-		buffer.push_back((uint8_t)*(c++));
+		buffer.push_back(static_cast<uint8_t>(*(c++)));
 	}
 }
 
@@ -292,12 +292,12 @@ header::read_dtb(input_buffer &input)
 {
 	if (!input.consume_binary(magic))
 	{
-		fprintf(stderr, "Missing magic token in header.");
+		std::fprintf(stderr, "Missing magic token in header.");
 		return false;
 	}
 	if (magic != 0xd00dfeed)
 	{
-		fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
+		std::fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
 		                " expected 0xd00dfeed\n", magic);
 		return false;
 	}
