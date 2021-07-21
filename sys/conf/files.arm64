@@ -264,6 +264,7 @@ dev/psci/smccc.c				standard
 dev/safexcel/safexcel.c				optional safexcel fdt
 
 dev/sdhci/sdhci_xenon.c				optional sdhci_xenon sdhci
+dev/sdhci/sdhci_xenon_acpi.c			optional sdhci_xenon sdhci acpi
 dev/sdhci/sdhci_xenon_fdt.c			optional sdhci_xenon sdhci fdt
 
 dev/uart/uart_cpu_arm64.c			optional uart
