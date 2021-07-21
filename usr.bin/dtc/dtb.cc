@@ -33,12 +33,16 @@
  */
 
 #include "dtb.hh"
+
+extern "C" {
+#include <sys/types.h>
+#include <unistd.h>
+}
+
 #include <cerrno>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
-#include <sys/types.h>
-#include <unistd.h>
 
 using std::string;
 
