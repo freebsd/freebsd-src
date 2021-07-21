@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+extern "C" {
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/event.h>
@@ -40,6 +41,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttycom.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <kvm.h>
+#include <libgen.h>
+#include <pmc.h>
+#include <pmclog.h>
+#include <regex.h>
+#include <sysexits.h>
+#include <unistd.h>
+}
 
 #include <cassert>
 #include <cerrno>
@@ -54,16 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <cstddef>
 #include <cstring>
 #include <curses.h>
-#include <err.h>
-#include <fcntl.h>
-#include <getopt.h>
-#include <kvm.h>
-#include <libgen.h>
-#include <pmc.h>
-#include <pmclog.h>
-#include <regex.h>
-#include <sysexits.h>
-#include <unistd.h>
 
 #include <libpmcstat.h>
 #include "cmd_pmc.h"
