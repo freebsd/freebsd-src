@@ -524,6 +524,8 @@ intern(char *atom, int dfv)
 	case 'v':
 		if (!strcasecmp(atom + 1, "endor-class"))
 			return (VENDOR_CLASS);
+		if (!strcasecmp(atom + 1, "lan-pcp"))
+			return (VLAN_PCP);
 		break;
 	case 'y':
 		if (!strcasecmp(atom + 1, "iaddr"))

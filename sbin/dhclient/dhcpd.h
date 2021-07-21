@@ -159,6 +159,7 @@ struct client_config {
 	u_int8_t		 required_options[256];
 	u_int8_t		 requested_options[256];
 	int			 requested_option_count;
+	u_int			 vlan_pcp;
 	time_t			 timeout;
 	time_t			 initial_interval;
 	time_t			 retry_interval;

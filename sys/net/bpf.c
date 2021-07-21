@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_vlan_var.h>
 #include <net/if_dl.h>
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
@@ -125,6 +126,7 @@ CTASSERT(offsetof(struct bpf_if, bif_ext) == 0);
 #if defined(DEV_BPF) || defined(NETGRAPH_BPF)
 
 #define PRINET  26			/* interruptible */
+#define BPF_PRIO_MAX	7
 
 #define	SIZEOF_BPF_HDR(type)	\
     (offsetof(type, bh_hdrlen) + sizeof(((type *)0)->bh_hdrlen))
@@ -927,6 +929,9 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	callout_init_mtx(&d->bd_callout, &d->bd_lock, 0);
 	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_lock);
 
+	/* Disable VLAN pcp tagging. */
+	d->bd_pcp = 0;
+
 	return (0);
 }
 
@@ -1117,6 +1122,27 @@ bpf_ready(struct bpf_d *d)
 }
 
 static int
+bpf_setpcp(struct mbuf *m, u_int8_t prio)
+{
+	struct m_tag *mtag;
+
+	KASSERT(prio <= BPF_PRIO_MAX,
+	    ("%s with invalid pcp", __func__));
+
+	mtag = m_tag_locate(m, MTAG_8021Q, MTAG_8021Q_PCP_OUT, NULL);
+	if (mtag == NULL) {
+		mtag = m_tag_alloc(MTAG_8021Q, MTAG_8021Q_PCP_OUT,
+		    sizeof(uint8_t), M_NOWAIT);
+		if (mtag == NULL)
+			return (ENOMEM);
+		m_tag_prepend(m, mtag);
+	}
+
+	*(uint8_t *)(mtag + 1) = prio;
+	return (0);
+}
+
+static int
 bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct bpf_d *d;
@@ -1193,6 +1219,9 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		ro.ro_plen = hlen;
 		ro.ro_flags = RT_HAS_HEADER;
 	}
+
+	if (d->bd_pcp != 0)
+		bpf_setpcp(m, d->bd_pcp);
 
 	error = (*ifp->if_output)(ifp, m, &dst, &ro);
 	if (error)
@@ -1273,6 +1302,7 @@ reset_d(struct bpf_d *d)
  *  BIOCROTZBUF		Force rotation of zero-copy buffer
  *  BIOCSETBUFMODE	Set buffer mode.
  *  BIOCGETBUFMODE	Get current buffer mode.
+ *  BIOCSETVLANPCP	Set VLAN PCP tag.
  */
 /* ARGSUSED */
 static	int
@@ -1824,6 +1854,19 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case BIOCROTZBUF:
 		error = bpf_ioctl_rotzbuf(td, d, (struct bpf_zbuf *)addr);
 		break;
+
+	case BIOCSETVLANPCP:
+		{
+			u_int pcp;
+
+			pcp = *(u_int *)addr;
+			if (pcp > BPF_PRIO_MAX || pcp < 0) {
+				error = EINVAL;
+				break;
+			}
+			d->bd_pcp = pcp;
+			break;
+		}
 	}
 	CURVNET_RESTORE();
 	return (error);
