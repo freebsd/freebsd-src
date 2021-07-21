@@ -50,6 +50,7 @@ extern "C" {
 #include <string>
 
 using namespace std;
+using std::string;
 
 static const char *typenames[] = {
 	"",
