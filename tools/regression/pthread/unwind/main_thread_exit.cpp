@@ -3,7 +3,7 @@
 
 #include <pthread.h>
 #include <cstdio>
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "Test.cpp"
 
