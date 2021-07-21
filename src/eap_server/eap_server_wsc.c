@@ -132,9 +132,11 @@ static void * eap_wsc_init(struct eap_sm *sm)
 	cfg.peer_addr = sm->peer_addr;
 #ifdef CONFIG_P2P
 	if (sm->assoc_p2p_ie) {
-		wpa_printf(MSG_DEBUG, "EAP-WSC: Prefer PSK format for P2P "
-			   "client");
-		cfg.use_psk_key = 1;
+		if (!sm->cfg->wps->use_passphrase) {
+			wpa_printf(MSG_DEBUG,
+				   "EAP-WSC: Prefer PSK format for non-6 GHz P2P client");
+			cfg.use_psk_key = 1;
+		}
 		cfg.p2p_dev_addr = p2p_get_go_dev_addr(sm->assoc_p2p_ie);
 	}
 #endif /* CONFIG_P2P */

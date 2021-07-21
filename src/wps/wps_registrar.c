@@ -1753,8 +1753,10 @@ int wps_build_cred(struct wps_data *wps, struct wpabuf *msg)
 		wpa_snprintf_hex(hex, sizeof(hex), wps->wps->psk, PMK_LEN);
 		os_memcpy(wps->cred.key, hex, PMK_LEN * 2);
 		wps->cred.key_len = PMK_LEN * 2;
-	} else if (!wps->wps->registrar->force_per_enrollee_psk &&
-		   wps->wps->network_key) {
+	} else if ((!wps->wps->registrar->force_per_enrollee_psk ||
+		    wps->wps->use_passphrase) && wps->wps->network_key) {
+		wpa_printf(MSG_DEBUG,
+			   "WPS: Use passphrase format for Network key");
 		os_memcpy(wps->cred.key, wps->wps->network_key,
 			  wps->wps->network_key_len);
 		wps->cred.key_len = wps->wps->network_key_len;

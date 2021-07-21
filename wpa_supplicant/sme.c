@@ -1340,8 +1340,15 @@ static int sme_sae_auth(struct wpa_supplicant *wpa_s, u16 auth_transaction,
 
 	if (status_code != WLAN_STATUS_SUCCESS &&
 	    status_code != WLAN_STATUS_SAE_HASH_TO_ELEMENT &&
-	    status_code != WLAN_STATUS_SAE_PK)
+	    status_code != WLAN_STATUS_SAE_PK) {
+		const u8 *bssid = sa ? sa : wpa_s->pending_bssid;
+
+		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_AUTH_REJECT MACSTR
+			" auth_type=%u auth_transaction=%u status_code=%u",
+			MAC2STR(bssid), WLAN_AUTH_SAE,
+			auth_transaction, status_code);
 		return -1;
+	}
 
 	if (auth_transaction == 1) {
 		u16 res;
@@ -1542,7 +1549,7 @@ void sme_event_auth(struct wpa_supplicant *wpa_s, union wpa_event_data *data)
 		int res;
 		res = sme_sae_auth(wpa_s, data->auth.auth_transaction,
 				   data->auth.status_code, data->auth.ies,
-				   data->auth.ies_len, 0, NULL);
+				   data->auth.ies_len, 0, data->auth.peer);
 		if (res < 0) {
 			wpas_connection_failed(wpa_s, wpa_s->pending_bssid);
 			wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);

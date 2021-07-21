@@ -175,7 +175,7 @@ DBusMessage * wpas_dbus_handler_p2p_find(DBusMessage *message,
 	}
 
 	if (wpas_p2p_find(wpa_s, timeout, type, num_req_dev_types,
-			  req_dev_types, NULL, 0, 0, NULL, freq))
+			  req_dev_types, NULL, 0, 0, NULL, freq, false))
 		reply = wpas_dbus_error_unknown_error(
 			message, "Could not start P2P find");
 
@@ -425,14 +425,15 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 			goto inv_args;
 
 		if (wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq, 0, 0, 0,
-						  0, 0, 0, 0, NULL, 0, 0)) {
+						  0, 0, 0, 0, NULL, 0, 0,
+						  false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
 			goto out;
 		}
 	} else if (wpas_p2p_group_add(wpa_s, persistent_group, freq, 0, 0, 0,
-				      0, 0, 0))
+				      0, 0, 0, false))
 		goto inv_args;
 
 out:
@@ -653,7 +654,7 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
 				   persistent_group, 0, join, authorize_only,
 				   go_intent, freq, 0, -1, 0, 0, 0, 0, 0, 0,
-				   NULL, 0);
+				   NULL, 0, false);
 
 	if (new_pin >= 0) {
 		char npin[9];
@@ -810,7 +811,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 			goto err;
 
 		if (wpas_p2p_invite(wpa_s, peer_addr, ssid, NULL, 0, 0, 0, 0, 0,
-				    0, 0, 0) < 0) {
+				    0, 0, 0, false) < 0) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
@@ -821,7 +822,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 		 * No group ID means propose to a peer to join my active group
 		 */
 		if (wpas_p2p_invite_group(wpa_s, wpa_s->ifname,
-					  peer_addr, NULL)) {
+					  peer_addr, NULL, false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message, "Failed to join to an active group");
 			goto out;

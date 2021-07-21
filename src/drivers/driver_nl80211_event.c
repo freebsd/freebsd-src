@@ -1329,7 +1329,7 @@ static void send_scan_event(struct wpa_driver_nl80211_data *drv, int aborted,
 	struct nlattr *nl;
 	int rem;
 	struct scan_info *info;
-#define MAX_REPORT_FREQS 50
+#define MAX_REPORT_FREQS 100
 	int freqs[MAX_REPORT_FREQS];
 	int num_freqs = 0;
 
@@ -1361,7 +1361,7 @@ static void send_scan_event(struct wpa_driver_nl80211_data *drv, int aborted,
 		}
 	}
 	if (tb[NL80211_ATTR_SCAN_FREQUENCIES]) {
-		char msg[300], *pos, *end;
+		char msg[500], *pos, *end;
 		int res;
 
 		pos = msg;
@@ -2273,7 +2273,7 @@ static void send_vendor_scan_event(struct wpa_driver_nl80211_data *drv,
 	}
 
 	if (tb[QCA_WLAN_VENDOR_ATTR_SCAN_FREQUENCIES]) {
-		char msg[300], *pos, *end;
+		char msg[500], *pos, *end;
 		int res;
 
 		pos = msg;

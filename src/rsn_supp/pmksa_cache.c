@@ -212,7 +212,8 @@ pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
 				   "that was based on the old PMK");
 			if (!pos->opportunistic)
 				pmksa_cache_flush(pmksa, entry->network_ctx,
-						  pos->pmk, pos->pmk_len);
+						  pos->pmk, pos->pmk_len,
+						  false);
 			pmksa_cache_free_entry(pmksa, pos, PMKSA_REPLACE);
 			break;
 		}
@@ -282,9 +283,11 @@ pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
  * @network_ctx: Network configuration context or %NULL to flush all entries
  * @pmk: PMK to match for or %NULL to match all PMKs
  * @pmk_len: PMK length
+ * @external_only: Flush only PMKSA cache entries configured by external
+ * applications
  */
 void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa, void *network_ctx,
-		       const u8 *pmk, size_t pmk_len)
+		       const u8 *pmk, size_t pmk_len, bool external_only)
 {
 	struct rsn_pmksa_cache_entry *entry, *prev = NULL, *tmp;
 	int removed = 0;
@@ -295,7 +298,8 @@ void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa, void *network_ctx,
 		     network_ctx == NULL) &&
 		    (pmk == NULL ||
 		     (pmk_len == entry->pmk_len &&
-		      os_memcmp(pmk, entry->pmk, pmk_len) == 0))) {
+		      os_memcmp(pmk, entry->pmk, pmk_len) == 0)) &&
+		    (!external_only || entry->external)) {
 			wpa_printf(MSG_DEBUG, "RSN: Flush PMKSA cache entry "
 				   "for " MACSTR, MAC2STR(entry->aa));
 			if (prev)

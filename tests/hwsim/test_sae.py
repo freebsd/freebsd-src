@@ -2775,3 +2775,19 @@ def test_sae_ocv_pmk_failure(dev, apdev):
         raise Exception("hostapd did not report correct PMK after disconnection")
     if pmk_w2 != pmk_w:
         raise Exception("wpa_supplicant did not report correct PMK after disconnection")
+
+def test_sae_reject(dev, apdev):
+    """SAE and AP rejecting connection"""
+    check_sae_capab(dev[0])
+    params = hostapd.wpa2_params(ssid="test-sae",
+                                 passphrase="12345678")
+    params['wpa_key_mgmt'] = 'SAE'
+    params['max_num_sta'] = '0'
+    hapd = hostapd.add_ap(apdev[0], params)
+    dev[0].set("sae_groups", "")
+    id = dev[0].connect("test-sae", psk="12345678", key_mgmt="SAE",
+                        scan_freq="2412", wait_connect=False)
+    if not dev[0].wait_event(["CTRL-EVENT-AUTH-REJECT"], timeout=10):
+        raise Exception("Authentication rejection not reported")
+    dev[0].request("REMOVE_NETWORK all")
+    dev[0].dump_monitor()

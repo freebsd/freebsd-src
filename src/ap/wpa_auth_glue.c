@@ -1553,7 +1553,8 @@ int hostapd_setup_wpa(struct hostapd_data *hapd)
 		return -1;
 	}
 
-	hapd->ptksa = ptksa_cache_init();
+	if (!hapd->ptksa)
+		hapd->ptksa = ptksa_cache_init();
 	if (!hapd->ptksa) {
 		wpa_printf(MSG_ERROR, "Failed to allocate PTKSA cache");
 		return -1;

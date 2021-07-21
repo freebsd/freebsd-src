@@ -841,6 +841,10 @@ struct wps_context {
 	struct wpabuf *ap_nfc_dh_pubkey;
 	struct wpabuf *ap_nfc_dh_privkey;
 	struct wpabuf *ap_nfc_dev_pw;
+
+	/* Whether to send WPA2-PSK passphrase as a passphrase instead of PSK
+	 * for WPA3-Personal transition mode needs. */
+	bool use_passphrase;
 };
 
 struct wps_registrar *

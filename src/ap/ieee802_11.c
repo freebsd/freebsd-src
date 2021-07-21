@@ -3943,8 +3943,10 @@ static void handle_auth(struct hostapd_data *hapd,
 
  fail:
 	reply_res = send_auth_reply(hapd, sta, mgmt->sa, mgmt->bssid, auth_alg,
-				    auth_transaction + 1, resp, resp_ies,
-				    resp_ies_len, "handle-auth");
+				    auth_alg == WLAN_AUTH_SAE ?
+				    auth_transaction : auth_transaction + 1,
+				    resp, resp_ies, resp_ies_len,
+				    "handle-auth");
 
 	if (sta && sta->added_unassoc && (resp != WLAN_STATUS_SUCCESS ||
 					  reply_res != WLAN_STATUS_SUCCESS)) {

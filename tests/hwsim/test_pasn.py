@@ -680,6 +680,8 @@ def test_pasn_ft_eap_sha384(dev, apdev):
 
 def test_pasn_sta_mic_error(dev, apdev):
     """PASN authentication with WPA2/CCMP AP with corrupted MIC on station"""
+    check_pasn_capab(dev[0])
+
     params = pasn_ap_params("PASN", "CCMP", "19")
     hapd = hostapd.add_ap(apdev[0], params)
 
@@ -697,6 +699,8 @@ def test_pasn_sta_mic_error(dev, apdev):
 
 def test_pasn_ap_mic_error(dev, apdev):
     """PASN authentication with WPA2/CCMP AP with corrupted MIC on AP"""
+    check_pasn_capab(dev[0])
+
     params = pasn_ap_params("PASN", "CCMP", "19")
     hapd0 = hostapd.add_ap(apdev[0], params)
 

@@ -2850,6 +2850,7 @@ wpa_scan_clone_params(const struct wpa_driver_scan_params *src)
 	params->relative_rssi = src->relative_rssi;
 	params->relative_adjust_band = src->relative_adjust_band;
 	params->relative_adjust_rssi = src->relative_adjust_rssi;
+	params->p2p_include_6ghz = src->p2p_include_6ghz;
 	return params;
 
 failed:

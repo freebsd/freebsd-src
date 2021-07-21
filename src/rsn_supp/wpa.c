@@ -2345,6 +2345,16 @@ void wpa_sm_aborted_cached(struct wpa_sm *sm)
 }
 
 
+void wpa_sm_aborted_external_cached(struct wpa_sm *sm)
+{
+	if (sm && sm->cur_pmksa && sm->cur_pmksa->external) {
+		wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
+			"RSN: Cancelling external PMKSA caching attempt");
+		sm->cur_pmksa = NULL;
+	}
+}
+
+
 static void wpa_eapol_key_dump(struct wpa_sm *sm,
 			       const struct wpa_eapol_key *key,
 			       unsigned int key_data_len,
@@ -3865,7 +3875,13 @@ void wpa_sm_update_replay_ctr(struct wpa_sm *sm, const u8 *replay_ctr)
 
 void wpa_sm_pmksa_cache_flush(struct wpa_sm *sm, void *network_ctx)
 {
-	pmksa_cache_flush(sm->pmksa, network_ctx, NULL, 0);
+	pmksa_cache_flush(sm->pmksa, network_ctx, NULL, 0, false);
+}
+
+
+void wpa_sm_external_pmksa_cache_flush(struct wpa_sm *sm, void *network_ctx)
+{
+	pmksa_cache_flush(sm->pmksa, network_ctx, NULL, 0, true);
 }
 
 

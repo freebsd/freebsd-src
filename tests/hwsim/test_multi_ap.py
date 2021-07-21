@@ -100,6 +100,11 @@ def test_multi_ap_fronthaul_on_ap(dev, apdev):
     if "CTRL-EVENT-DISCONNECTED" not in ev:
         raise Exception("Unexpected connection result")
 
+def remove_apdev(dev, ifname):
+    hglobal = hostapd.HostapdGlobal()
+    hglobal.remove(ifname)
+    dev.cmd_execute(['iw', ifname, 'del'])
+
 def run_multi_ap_wps(dev, apdev, params, params_backhaul=None, add_apdev=False,
                      run_csa=False, allow_csa_fail=False):
     """Helper for running Multi-AP WPS tests
@@ -219,10 +224,10 @@ def run_multi_ap_wps(dev, apdev, params, params_backhaul=None, add_apdev=False,
                 raise Exception("Received disconnection event instead of channel switch event")
 
         if add_apdev:
-            dev[0].cmd_execute(['iw', wpas_apdev['ifname'], 'del'])
+            remove_apdev(dev[0], wpas_apdev['ifname'])
     except:
         if wpas_apdev:
-            dev[0].cmd_execute(['iw', wpas_apdev['ifname'], 'del'])
+            remove_apdev(dev[0], wpas_apdev['ifname'])
         raise
 
     return hapd
