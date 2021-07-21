@@ -77,7 +77,7 @@ namespace dtb
 
 void output_writer::write_data(byte_buffer b)
 {
-	for (auto i : b)
+	for (const auto i : b)
 	{
 		write_data(i);
 	}
@@ -335,7 +335,7 @@ string_table::write(dtb::output_writer &writer)
 {
 	writer.write_comment("Strings table.");
 	writer.write_label("dt_strings_start");
-	for (auto &i : strings)
+	for (const auto &i : strings)
 	{
 		writer.write_string(i);
 	}
