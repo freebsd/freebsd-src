@@ -131,7 +131,7 @@ Consumer::DisconnectFromDevd()
 {
 	if (m_devdSockFD != -1) {
 		syslog(LOG_INFO, "Disconnecting from devd.");
-		std::close(m_devdSockFD);
+		close(m_devdSockFD);
 	}
 	m_devdSockFD = -1;
 }
