@@ -107,7 +107,7 @@ Consumer::ConnectToDevd()
 
 	std::memset(&devdAddr, 0, sizeof(devdAddr));
 	devdAddr.sun_family= AF_UNIX;
-	std::strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
+	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);
 
 	m_devdSockFD = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_NONBLOCK, 0);
