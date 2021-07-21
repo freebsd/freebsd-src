@@ -38,10 +38,12 @@
 #include <dev/hwpmc/hwpmc_arm64.h>
 
 union pmc_md_op_pmcallocate {
-	uint32_t		pm_md_flags;
+	struct {
+		uint32_t	pm_md_config;
+		uint32_t	pm_md_flags;
 #define	PM_MD_RAW_EVENT		0x1
-	uint32_t		__pad32;
-	uint64_t		__pad[3];
+	};
+	uint64_t		__pad[4];
 };
 
 /* Logging */
