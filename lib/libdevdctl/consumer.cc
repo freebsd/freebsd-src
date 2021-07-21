@@ -40,11 +40,11 @@
 #include <sys/un.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdarg>
 #include <cstring>
 #include <list>
