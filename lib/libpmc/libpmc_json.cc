@@ -30,14 +30,14 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <assert.h>
+#include <cassert>
 #include <err.h>
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cerrno>
+#include <climits>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <sysexits.h>
 
