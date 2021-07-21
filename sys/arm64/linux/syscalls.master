@@ -842,9 +842,7 @@
 		);
 	}
 139	AUE_NULL	STD	{
-		int linux_rt_sigreturn(
-		    struct l_ucontext *ucp
-		);
+		int linux_rt_sigreturn(void);
 	}
 140	AUE_SETPRIORITY	NOPROTO	{
 		int setpriority(
