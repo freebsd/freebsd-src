@@ -69,7 +69,7 @@ Guid::Guid(const string &guidString)
 		 * strtoumax() returns zero on conversion failure
 		 * which nicely matches our choice for INVALID_GUID.
 		 */
-		m_GUID = static_cast<uint64_t>(strtoumax(guidString.c_str(), NULL, 0));
+		m_GUID = static_cast<uint64_t>(std::strtoumax(guidString.c_str(), NULL, 0));
 	}
 }
 
