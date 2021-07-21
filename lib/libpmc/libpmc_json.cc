@@ -155,7 +155,7 @@ proccsw_to_json(struct pmclog_ev *ev)
 	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\" "
 	    "\"tid\": \"%d\", \"value\": \"0x%016jx\"}\n",
 		startent.c_str(), ev->pl_u.pl_c.pl_pmcid, ev->pl_u.pl_c.pl_pid,
-	    ev->pl_u.pl_c.pl_tid, (uintmax_t)ev->pl_u.pl_c.pl_value);
+	    ev->pl_u.pl_c.pl_tid, static_cast<uintmax_t>(ev->pl_u.pl_c.pl_value));
 	return string(eventbuf);
 }
 
