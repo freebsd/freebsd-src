@@ -36,9 +36,10 @@ extern "C" {
 #include <sys/sysctl.h>
 
 #include <fcntl.h>
-#include <stdlib.h>
 #include <unistd.h>
 }
+
+#include <cstdlib>
 
 #include "mockfs.hh"
 #include "utils.hh"
