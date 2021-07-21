@@ -31,13 +31,13 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <cassert>
-#include <err.h>
 #include <cerrno>
 #include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <err.h>
 #include <string>
 #include <sysexits.h>
 
