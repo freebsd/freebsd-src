@@ -52,8 +52,8 @@ extern "C" {
 }
 
 #include <cinttypes>
-#include <cstdlib>
 #include <cstdarg>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <list>
