@@ -241,6 +241,7 @@ targbhenlun(struct cam_periph *periph)
 	if ((softc->flags & TARGBH_FLAG_LUN_ENABLED) != 0)
 		return (CAM_REQ_CMP);
 
+	memset(&immed_ccb, 0, sizeof(immed_ccb));
 	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	immed_ccb.ccb_h.func_code = XPT_EN_LUN;
 
@@ -267,7 +268,7 @@ targbhenlun(struct cam_periph *periph)
 		struct ccb_accept_tio *atio;
 
 		atio = (struct ccb_accept_tio*)malloc(sizeof(*atio), M_SCSIBH,
-						      M_NOWAIT);
+						      M_ZERO | M_NOWAIT);
 		if (atio == NULL) {
 			status = CAM_RESRC_UNAVAIL;
 			break;
@@ -309,7 +310,7 @@ targbhenlun(struct cam_periph *periph)
 		struct ccb_immediate_notify *inot;
 
 		inot = (struct ccb_immediate_notify*)malloc(sizeof(*inot),
-			    M_SCSIBH, M_NOWAIT);
+			    M_SCSIBH, M_ZERO | M_NOWAIT);
 
 		if (inot == NULL) {
 			status = CAM_RESRC_UNAVAIL;
@@ -349,6 +350,8 @@ targbhdislun(struct cam_periph *periph)
 	softc = (struct targbh_softc *)periph->softc;
 	if ((softc->flags & TARGBH_FLAG_LUN_ENABLED) == 0)
 		return CAM_REQ_CMP;
+
+	memset(&ccb, 0, sizeof(ccb));
 
 	/* XXX Block for Continue I/O completion */
 

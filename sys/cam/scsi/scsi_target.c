@@ -363,6 +363,7 @@ targendislun(struct cam_path *path, int enable, int grp6_len, int grp7_len)
 	cam_status	  status;
 
 	/* Tell the lun to begin answering selects */
+	memset(&en_ccb, 0, sizeof(en_ccb));
 	xpt_setup_ccb(&en_ccb.ccb_h, path, CAM_PRIORITY_NORMAL);
 	en_ccb.ccb_h.func_code = XPT_EN_LUN;
 	/* Don't need support for any vendor specific commands */
@@ -936,7 +937,7 @@ targgetccb(struct targ_softc *softc, xpt_opcode type, int priority)
 	int ccb_len;
 
 	ccb_len = targccblen(type);
-	ccb = malloc(ccb_len, M_TARG, M_NOWAIT);
+	ccb = malloc(ccb_len, M_TARG, M_NOWAIT | M_ZERO);
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("getccb %p\n", ccb));
 	if (ccb == NULL) {
 		return (ccb);
@@ -1033,6 +1034,7 @@ abort_all_pending(struct targ_softc *softc)
 	 * Then abort all pending CCBs.
 	 * targdone() will return the aborted CCB via user_ccb_queue
 	 */
+	memset(&cab, 0, sizeof(cab));
 	xpt_setup_ccb(&cab.ccb_h, softc->path, CAM_PRIORITY_NORMAL);
 	cab.ccb_h.func_code = XPT_ABORT;
 	cab.ccb_h.status = CAM_REQ_CMP_ERR;
