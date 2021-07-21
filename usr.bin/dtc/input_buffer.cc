@@ -33,13 +33,13 @@
  */
 
 #include "input_buffer.hh"
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #ifndef NDEBUG
 #include <iostream>
@@ -48,7 +48,7 @@
 
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <assert.h>
+#include <cassert>
 #include <fcntl.h>
 #include <unistd.h>
 
