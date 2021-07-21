@@ -57,7 +57,7 @@ extern "C" {
 #define MAP_PREFAULT_READ 0
 #endif
 
-using std::string;
+using namespace std;
 
 namespace
 {
