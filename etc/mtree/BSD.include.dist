@@ -237,6 +237,12 @@
     ..
     netipsec
     ..
+    netlink
+        linux
+        ..
+        net
+        ..
+    ..
     netnatm
         api
         ..

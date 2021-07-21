@@ -54,6 +54,7 @@ LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	net/altq \
 	net/route \
 	netgraph/atm netgraph/netflow \
+	netlink/linux netlink/net \
 	netinet/cc \
 	netinet/netdump \
 	netinet/tcp_stacks \
