@@ -550,6 +550,7 @@ atomic_swap_32(volatile u_int32_t *p, u_int32_t v)
 #define atomic_subtract_acq_32	atomic_subtract_32
 #define atomic_store_rel_32	atomic_store_32
 #define atomic_store_rel_long	atomic_store_long
+#define atomic_store_rel_64	atomic_store_64
 #define atomic_load_acq_32	atomic_load_32
 #define atomic_load_acq_long	atomic_load_long
 #define atomic_add_acq_long		atomic_add_long
