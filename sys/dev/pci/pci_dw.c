@@ -180,6 +180,71 @@ pci_dw_detect_atu_unroll(struct pci_dw_softc *sc)
 }
 
 static int
+pci_dw_detect_out_atu_regions_unroll(struct pci_dw_softc *sc)
+{
+	int num_regions, i;
+	uint32_t reg;
+
+	num_regions = sc->iatu_ur_size / DW_IATU_UR_STEP;
+
+	for (i = 0; i < num_regions; ++i) {
+		IATU_UR_WR4(sc, DW_IATU_UR_REG(i, LWR_TARGET_ADDR),
+		    0x12340000);
+		reg = IATU_UR_RD4(sc, DW_IATU_UR_REG(i, LWR_TARGET_ADDR));
+		if (reg != 0x12340000)
+			break;
+	}
+
+	sc->num_out_regions = i;
+
+	return (0);
+}
+
+static int
+pci_dw_detect_out_atu_regions_legacy(struct pci_dw_softc *sc)
+{
+	int num_viewports, i;
+	uint32_t reg;
+
+	/* Find out how many viewports there are in total */
+	DBI_WR4(sc, DW_IATU_VIEWPORT, IATU_REGION_INDEX(~0U));
+	reg = DBI_RD4(sc, DW_IATU_VIEWPORT);
+	if (reg > IATU_REGION_INDEX(~0U)) {
+		device_printf(sc->dev,
+		    "Cannot detect number of output iATU regions; read %#x\n",
+		    reg);
+		return (ENXIO);
+	}
+
+	num_viewports = reg + 1;
+
+	/*
+	 * Find out how many of them are outbound by seeing whether a dummy
+	 * page-aligned address sticks.
+	 */
+	for (i = 0; i < num_viewports; ++i) {
+		DBI_WR4(sc, DW_IATU_VIEWPORT, IATU_REGION_INDEX(i));
+		DBI_WR4(sc, DW_IATU_LWR_TARGET_ADDR, 0x12340000);
+		reg = DBI_RD4(sc, DW_IATU_LWR_TARGET_ADDR);
+		if (reg != 0x12340000)
+			break;
+	}
+
+	sc->num_out_regions = i;
+
+	return (0);
+}
+
+static int
+pci_dw_detect_out_atu_regions(struct pci_dw_softc *sc)
+{
+	if (sc->iatu_ur_res)
+		return (pci_dw_detect_out_atu_regions_unroll(sc));
+	else
+		return (pci_dw_detect_out_atu_regions_legacy(sc));
+}
+
+static int
 pci_dw_map_out_atu_unroll(struct pci_dw_softc *sc, int idx, int type,
     uint64_t pa, uint64_t pci_addr, uint32_t size)
 {
@@ -285,7 +350,7 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	pci_dw_dbi_protect(sc, true);
 
 	/* Setup outbound memory windows */
-	for (i = 0; i < min(sc->num_mem_ranges, sc->num_viewport - 1); ++i) {
+	for (i = 0; i < min(sc->num_mem_ranges, sc->num_out_regions - 1); ++i) {
 		rv = pci_dw_map_out_atu(sc, i + 1, IATU_CTRL1_TYPE_MEM,
 		    sc->mem_ranges[i].host, sc->mem_ranges[i].pci,
 		    sc->mem_ranges[i].size);
@@ -293,8 +358,8 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 			return (rv);
 	}
 
-	/* If we have enough viewports ..*/
-	if (sc->num_mem_ranges + 1 < sc->num_viewport &&
+	/* If we have enough regions ... */
+	if (sc->num_mem_ranges + 1 < sc->num_out_regions &&
 	    sc->io_range.size != 0) {
 		/* Setup outbound I/O window */
 		rv = pci_dw_map_out_atu(sc, sc->num_mem_ranges + 1,
@@ -660,13 +725,8 @@ pci_dw_init(device_t dev)
 	if (!sc->coherent)
 		sc->coherent = OF_hasprop(sc->node, "dma-coherent");
 
-	rv = OF_getencprop(sc->node, "num-viewport", &sc->num_viewport,
-	    sizeof(sc->num_viewport));
-	if (rv != sizeof(sc->num_viewport))
-		sc->num_viewport = 2;
-
 	rv = OF_getencprop(sc->node, "num-lanes", &sc->num_lanes,
-	    sizeof(sc->num_viewport));
+	    sizeof(sc->num_lanes));
 	if (rv != sizeof(sc->num_lanes))
 		sc->num_lanes = 1;
 	if (sc->num_lanes != 1 && sc->num_lanes != 2 &&
@@ -752,6 +812,14 @@ pci_dw_init(device_t dev)
 			goto out;
 		}
 	}
+
+	rv = pci_dw_detect_out_atu_regions(sc);
+	if (rv != 0)
+		goto out;
+
+	if (bootverbose)
+		device_printf(sc->dev, "Detected outbound iATU regions: %d\n",
+		    sc->num_out_regions);
 
 	rv = pci_dw_setup_hw(sc);
 	if (rv != 0)

@@ -115,7 +115,7 @@ struct pci_dw_softc {
 	bus_dma_tag_t		dmat;
 
 	int			num_lanes;
-	int			num_viewport;
+	int			num_out_regions;
 	struct resource		*iatu_ur_res;	/* NB: May be dbi_res */
 	bus_addr_t		iatu_ur_offset;
 	bus_size_t		iatu_ur_size;
