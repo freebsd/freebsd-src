@@ -153,6 +153,7 @@ struct bpf_zbuf {
 #define	BIOCSETFNR	_IOW('B', 130, struct bpf_program)
 #define	BIOCGTSTAMP	_IOR('B', 131, u_int)
 #define	BIOCSTSTAMP	_IOW('B', 132, u_int)
+#define	BIOCSETVLANPCP	_IOW('B', 133, u_int)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
