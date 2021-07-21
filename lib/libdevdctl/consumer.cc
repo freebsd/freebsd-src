@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
+using namespace std;
 using std::string;
 namespace DevdCtl
 {
