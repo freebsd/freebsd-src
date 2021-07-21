@@ -204,7 +204,7 @@ static int
 pci_dw_setup_hw(struct pci_dw_softc *sc)
 {
 	uint32_t reg;
-	int rv;
+	int rv, i;
 
 	pci_dw_dbi_protect(sc, false);
 
@@ -222,21 +222,25 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	   PCIM_CMD_BUSMASTEREN | PCIM_CMD_SERRESPEN);
 	pci_dw_dbi_protect(sc, true);
 
-	/* Setup outbound memory window */
-	rv = pci_dw_map_out_atu(sc, 0, IATU_CTRL1_TYPE_MEM,
-	    sc->mem_range.host, sc->mem_range.pci, sc->mem_range.size);
-	if (rv != 0)
-		return (rv);
-
-	/* If we have enouht viewports ..*/
-	if (sc->num_viewport >= 3 && sc->io_range.size != 0) {
-		/* Setup outbound I/O window */
-		rv = pci_dw_map_out_atu(sc, 2, IATU_CTRL1_TYPE_IO,
-		    sc->io_range.host, sc->io_range.pci, sc->io_range.size);
+	/* Setup outbound memory windows */
+	for (i = 0; i < min(sc->num_mem_ranges, sc->num_viewport - 1); ++i) {
+		rv = pci_dw_map_out_atu(sc, i + 1, IATU_CTRL1_TYPE_MEM,
+		    sc->mem_ranges[i].host, sc->mem_ranges[i].pci,
+		    sc->mem_ranges[i].size);
 		if (rv != 0)
 			return (rv);
 	}
-	/* XXX Should we handle also prefetch memory? */
+
+	/* If we have enough viewports ..*/
+	if (sc->num_mem_ranges + 1 < sc->num_viewport &&
+	    sc->io_range.size != 0) {
+		/* Setup outbound I/O window */
+		rv = pci_dw_map_out_atu(sc, sc->num_mem_ranges + 1,
+		    IATU_CTRL1_TYPE_IO, sc->io_range.host, sc->io_range.pci,
+		    sc->io_range.size);
+		if (rv != 0)
+			return (rv);
+	}
 
 	/* Adjust number of lanes */
 	reg = DBI_RD4(sc, DW_PORT_LINK_CTRL);
@@ -304,57 +308,67 @@ static int
 pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
      int nranges)
 {
-	int i;
+	int i, nmem, rv;
 
+	nmem = 0;
+	for (i = 0; i < nranges; i++) {
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32)
+			++nmem;
+	}
+
+	sc->mem_ranges = malloc(nmem * sizeof(*sc->mem_ranges), M_DEVBUF,
+	    M_WAITOK);
+	sc->num_mem_ranges = nmem;
+
+	nmem = 0;
 	for (i = 0; i < nranges; i++) {
 		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
 		    OFW_PCI_PHYS_HI_SPACE_IO) {
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
-				return (ENXIO);
+				rv = ENXIO;
+				goto out;
 			}
+
 			sc->io_range = ranges[i];
-		}
-		if (((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
-		    OFW_PCI_PHYS_HI_SPACE_MEM32))  {
-			if (ranges[i].pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
-				if (sc->pref_mem_range.size != 0) {
-					device_printf(sc->dev,
-					    "Duplicated memory range found "
-					    "in DT\n");
-					return (ENXIO);
-				}
-				sc->pref_mem_range = ranges[i];
-			} else {
-				if (sc->mem_range.size != 0) {
-					device_printf(sc->dev,
-					    "Duplicated memory range found "
-					    "in DT\n");
-					return (ENXIO);
-				}
-				sc->mem_range = ranges[i];
+			if (sc->io_range.size > UINT32_MAX) {
+				device_printf(sc->dev,
+				    "ATU IO window size is too large. "
+				    "Up to 4GB windows are supported, "
+				    "trimming window size to 4GB\n");
+				sc->io_range.size = UINT32_MAX;
 			}
+		}
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32) {
+			MPASS(nmem < sc->num_mem_ranges);
+			sc->mem_ranges[nmem] = ranges[i];
+			if (sc->mem_ranges[nmem].size > UINT32_MAX) {
+				device_printf(sc->dev,
+				    "ATU MEM window size is too large. "
+				    "Up to 4GB windows are supported, "
+				    "trimming window size to 4GB\n");
+				sc->mem_ranges[nmem].size = UINT32_MAX;
+			}
+			++nmem;
 		}
 	}
-	if (sc->mem_range.size == 0) {
+
+	MPASS(nmem == sc->num_mem_ranges);
+
+	if (nmem == 0) {
 		device_printf(sc->dev,
-		    " Not all required ranges are found in DT\n");
+		    "Missing required memory range in DT\n");
 		return (ENXIO);
 	}
-	if (sc->io_range.size > UINT32_MAX) {
-		device_printf(sc->dev,
-		    "ATU IO window size is too large. Up to 4GB windows "
-		    "are supported, trimming window size to 4GB\n");
-		sc->io_range.size = UINT32_MAX;
-	}
-	if (sc->mem_range.size > UINT32_MAX) {
-		device_printf(sc->dev,
-		    "ATU MEM window size is too large. Up to 4GB windows "
-		    "are supported, trimming window size to 4GB\n");
-		sc->mem_range.size = UINT32_MAX;
-	}
+
 	return (0);
+
+out:
+	free(sc->mem_ranges, M_DEVBUF);
+	return (rv);
 }
 
 /*-----------------------------------------------------------------------------
@@ -386,7 +400,7 @@ pci_dw_read_config(device_t dev, u_int bus, u_int slot,
 			type = IATU_CTRL1_TYPE_CFG0;
 		else
 			type = IATU_CTRL1_TYPE_CFG1;
-		rv = pci_dw_map_out_atu(sc, 1, type,
+		rv = pci_dw_map_out_atu(sc, 0, type,
 		    sc->cfg_pa, addr, sc->cfg_size);
 		if (rv != 0)
 			return (0xFFFFFFFFU);
@@ -433,7 +447,7 @@ pci_dw_write_config(device_t dev, u_int bus, u_int slot,
 			type = IATU_CTRL1_TYPE_CFG0;
 		else
 			type = IATU_CTRL1_TYPE_CFG1;
-		rv = pci_dw_map_out_atu(sc, 1, type,
+		rv = pci_dw_map_out_atu(sc, 0, type,
 		    sc->cfg_pa, addr, sc->cfg_size);
 		if (rv != 0)
 			return ;

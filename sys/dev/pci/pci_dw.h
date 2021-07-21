@@ -92,9 +92,9 @@ struct pci_dw_softc {
 	struct mtx		mtx;
 	struct resource		*cfg_res;
 
-	struct ofw_pci_range	mem_range;
-	struct ofw_pci_range	pref_mem_range;
 	struct ofw_pci_range	io_range;
+	struct ofw_pci_range	*mem_ranges;
+	int			num_mem_ranges;
 
 	bool			coherent;
 	bus_dma_tag_t		dmat;
