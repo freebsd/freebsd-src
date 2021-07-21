@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #define NUM_ELEMENTS(x) (sizeof(x) / sizeof(*x))
 
 /*============================ Namespace Control =============================*/
-using namespace std;
 using std::string;
 namespace DevdCtl
 {
@@ -106,9 +105,9 @@ Consumer::ConnectToDevd()
 	}
 	syslog(LOG_INFO, "%s: Connecting to devd.", __func__);
 
-	memset(&devdAddr, 0, sizeof(devdAddr));
+	std::memset(&devdAddr, 0, sizeof(devdAddr));
 	devdAddr.sun_family= AF_UNIX;
-	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
+	std::strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);
 
 	m_devdSockFD = socket(AF_UNIX, SOCK_SEQPACKET | SOCK_NONBLOCK, 0);
@@ -132,7 +131,7 @@ Consumer::DisconnectFromDevd()
 {
 	if (m_devdSockFD != -1) {
 		syslog(LOG_INFO, "Disconnecting from devd.");
-		close(m_devdSockFD);
+		std::close(m_devdSockFD);
 	}
 	m_devdSockFD = -1;
 }
