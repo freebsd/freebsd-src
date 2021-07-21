@@ -14,7 +14,7 @@ thr_routine(void *arg)
 		pthread_exit(NULL);
 	} catch (...) {
 		caught = true;
-		printf("thread exiting exception caught\n");
+		std::printf("thread exiting exception caught\n");
 		/* rethrow */
 		throw;
 	}
@@ -28,8 +28,8 @@ main()
 	pthread_create(&td, NULL, thr_routine, NULL);
 	pthread_join(td, NULL);
 	if (caught)
-		printf("OK\n");
+		std::printf("OK\n");
 	else
-		printf("failure\n");
+		std::printf("failure\n");
 	return (0);
 }
