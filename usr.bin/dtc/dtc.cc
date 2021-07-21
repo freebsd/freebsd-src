@@ -32,16 +32,18 @@
  * $FreeBSD$
  */
 
+extern "C" {
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <unistd.h>
+}
+
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <unistd.h>
-
 
 #include "fdt.hh"
 #include "checking.hh"
