@@ -31,9 +31,10 @@
  */
 
 extern "C" {
-#include <stdlib.h>
 #include <unistd.h>
 }
+
+#include <cstdlib>
 
 #include "mockfs.hh"
 #include "utils.hh"
