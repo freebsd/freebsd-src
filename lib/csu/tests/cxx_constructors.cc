@@ -53,6 +53,8 @@ volatile int constructor_run;
 bool run_destructor_test = false;
 #endif
 
+using namespace std;
+
 struct Foo {
 	Foo() {
 		constructor_run = 1;
