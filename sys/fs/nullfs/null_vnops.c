@@ -436,11 +436,12 @@ null_lookup(struct vop_lookup_args *ap)
 	 * dvp to be reclaimed due to shared v_vnlock.  Check for the
 	 * doomed state and return error.
 	 */
-	if ((error == 0 || error == EJUSTRETURN) &&
-	    VN_IS_DOOMED(dvp)) {
-		error = ENOENT;
-		if (lvp != NULL)
-			vput(lvp);
+	if (VN_IS_DOOMED(dvp)) {
+		if (error == 0 || error == EJUSTRETURN) {
+			if (lvp != NULL)
+				vput(lvp);
+			error = ENOENT;
+		}
 
 		/*
 		 * If vgone() did reclaimed dvp before curthread
