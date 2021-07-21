@@ -63,6 +63,7 @@
 #define	DW_MISC_CONTROL_1		0x8BC
 #define	 DBI_RO_WR_EN				(1 << 0)
 
+/* Legacy (pre-4.80) iATU mode */
 #define	DW_IATU_VIEWPORT			0x900
 #define	 IATU_REGION_INBOUND			(1U << 31)
 #define	 IATU_REGION_INDEX(x)			((x) & 0x7)
@@ -79,6 +80,20 @@
 #define	DW_IATU_LIMIT_ADDR		0x914
 #define	DW_IATU_LWR_TARGET_ADDR		0x918
 #define	DW_IATU_UPPER_TARGET_ADDR	0x91C
+
+/* Modern (4.80+) "unroll" iATU mode */
+#define	DW_IATU_UR_STEP			0x200
+#define	DW_IATU_UR_REG(r, n)		(r) * DW_IATU_UR_STEP + IATU_UR_##n
+#define	 IATU_UR_CTRL1				0x00
+#define	 IATU_UR_CTRL2				0x04
+#define	 IATU_UR_LWR_BASE_ADDR			0x08
+#define	 IATU_UR_UPPER_BASE_ADDR		0x0C
+#define	 IATU_UR_LIMIT_ADDR			0x10
+#define	 IATU_UR_LWR_TARGET_ADDR		0x14
+#define	 IATU_UR_UPPER_TARGET_ADDR		0x18
+
+#define	DW_DEFAULT_IATU_UR_DBI_OFFSET	0x300000
+#define	DW_DEFAULT_IATU_UR_DBI_SIZE	0x1000
 
 struct pci_dw_softc {
 	struct ofw_pci_softc	ofw_pci;	/* Must be first */
@@ -101,6 +116,9 @@ struct pci_dw_softc {
 
 	int			num_lanes;
 	int			num_viewport;
+	struct resource		*iatu_ur_res;	/* NB: May be dbi_res */
+	bus_addr_t		iatu_ur_offset;
+	bus_size_t		iatu_ur_size;
 	bus_addr_t		cfg_pa;   	/* PA of config memoty */
 	bus_size_t		cfg_size; 	/* size of config  region */
 
