@@ -378,7 +378,9 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
+#if __ARM_ARCH >= 6
 	pcpu->pc_mpidr = 0xffffffff;
+#endif
 }
 
 void
@@ -765,7 +767,9 @@ pcpu0_init(void)
 	set_curthread(&thread0);
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+#if __ARM_ARCH >= 6
 	pcpup->pc_mpidr = cp15_mpidr_get() & 0xFFFFFF;
+#endif
 	PCPU_SET(curthread, &thread0);
 }
 
