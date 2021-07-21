@@ -122,6 +122,10 @@ device		xae		# Xilinx AXI Ethernet MAC
 device		xdma		# DMA interface
 device		axidma		# Xilinx AXI DMA Controller
 
+# SPI
+device		spibus
+device		spigen
+
 # Uncomment for memory disk
 # options 	MD_ROOT
 # options 	MD_ROOT_SIZE=32768	# 32MB ram disk
