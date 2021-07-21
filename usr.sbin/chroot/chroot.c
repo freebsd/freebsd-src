@@ -71,12 +71,12 @@ main(int argc, char *argv[])
 	uid_t		uid;
 	int		arg, ch, error, gids;
 	long		ngroups_max;
-	bool		nonpriviledged;
+	bool		nonprivileged;
 
 	gid = 0;
 	uid = 0;
 	user = group = grouplist = NULL;
-	nonpriviledged = false;
+	nonprivileged = false;
 	while ((ch = getopt(argc, argv, "G:g:u:n")) != -1) {
 		switch(ch) {
 		case 'u':
@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 				usage();
 			break;
 		case 'n':
-			nonpriviledged = true;
+			nonprivileged = true;
 			break;
 		case '?':
 		default:
@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (nonpriviledged) {
+	if (nonprivileged) {
 		arg = PROC_NO_NEW_PRIVS_ENABLE;
 		error = procctl(P_PID, getpid(), PROC_NO_NEW_PRIVS_CTL, &arg);
 		if (error != 0)
@@ -193,6 +193,6 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: chroot [-g group] [-G group,group,...] "
-	    "[-u user] [-n ] newroot [command]\n");
+	    "[-u user] [-n] newroot [command]\n");
 	exit(1);
 }
