@@ -32,18 +32,18 @@
  * $FreeBSD$
  */
 
-#include <climits>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-
 extern "C" {
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <unistd.h>
 }
+
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "fdt.hh"
 #include "checking.hh"
@@ -359,7 +359,7 @@ main(int argc, char **argv)
 	}
 	clock_t c3 = clock();
 	(tree.*write_fn)(outfile);
-	std::close(outfile);
+	close(outfile);
 	clock_t c4 = clock();
 
 	if (debug_mode)
