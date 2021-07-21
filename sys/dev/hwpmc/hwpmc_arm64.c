@@ -182,9 +182,9 @@ arm64_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	pe = a->pm_ev;
 
 	/* Adjust the config value if needed. */
-	config = (uint32_t)pe;
+	config = a->pm_md.pm_md_config;
 	if ((a->pm_md.pm_md_flags & PM_MD_RAW_EVENT) == 0) {
-		config -= PMC_EV_ARMV8_FIRST;
+		config = (uint32_t)pe - PMC_EV_ARMV8_FIRST;
 		if (config > (PMC_EV_ARMV8_LAST - PMC_EV_ARMV8_FIRST))
 			return (EINVAL);
 	}

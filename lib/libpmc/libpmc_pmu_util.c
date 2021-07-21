@@ -577,6 +577,7 @@ int
 pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 {
 	const struct pmu_event *pe;
+	struct pmu_event_desc ped;
 	int idx = -1;
 
 	event_name = pmu_alias_get(event_name);
@@ -584,8 +585,12 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 		return (ENOENT);
 	if (pe->event == NULL)
 		return (ENOENT);
+	if (pmu_parse_event(&ped, pe->event))
+		return (ENOENT);
 
 	assert(idx >= 0);
+	pm->pm_ev = idx;
+	pm->pm_md.pm_md_config = ped.ped_event;
 	pm->pm_md.pm_md_flags |= PM_MD_RAW_EVENT;
 	pm->pm_class = PMC_CLASS_ARMV8;
 	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
