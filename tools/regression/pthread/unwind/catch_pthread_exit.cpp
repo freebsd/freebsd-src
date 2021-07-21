@@ -2,10 +2,10 @@
 /* try to catch thread exiting, and rethrow the exception */
 
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
-int caught;
+bool caught;
 
 void *
 thr_routine(void *arg)
@@ -13,7 +13,7 @@ thr_routine(void *arg)
 	try {
 		pthread_exit(NULL);
 	} catch (...) {
-		caught = 1;
+		caught = true;
 		printf("thread exiting exception caught\n");
 		/* rethrow */
 		throw;
