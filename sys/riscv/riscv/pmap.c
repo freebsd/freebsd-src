@@ -1132,7 +1132,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	vm_paddr_t phys;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (m->pindex >= NUL1E) {
+	if (m->pindex >= NUL2E) {
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
@@ -1143,7 +1143,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
-	if (m->pindex < NUL1E) {
+	if (m->pindex < NUL2E) {
 		pd_entry_t *l1;
 		vm_page_t pdpg;
 
@@ -1279,11 +1279,11 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 * it isn't already there.
 	 */
 
-	if (ptepindex >= NUL1E) {
+	if (ptepindex >= NUL2E) {
 		pd_entry_t *l1;
 		vm_pindex_t l1index;
 
-		l1index = ptepindex - NUL1E;
+		l1index = ptepindex - NUL2E;
 		l1 = &pmap->pm_l1[l1index];
 		KASSERT((pmap_load(l1) & PTE_V) == 0,
 		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
@@ -1301,7 +1301,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		l1 = &pmap->pm_l1[l1index];
 		if (pmap_load(l1) == 0) {
 			/* recurse for allocating page dir */
-			if (_pmap_alloc_l3(pmap, NUL1E + l1index,
+			if (_pmap_alloc_l3(pmap, NUL2E + l1index,
 			    lockp) == NULL) {
 				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
