@@ -53,7 +53,7 @@ extern "C" {
 
 __FBSDID("$FreeBSD$");
 /*============================ Namespace Control =============================*/
-using std::string;
+using namespace std;
 namespace DevdCtl
 {
 
