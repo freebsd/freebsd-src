@@ -44,12 +44,12 @@
 
 #include <err.h>
 #include <fcntl.h>
-#include <cinttypes>
 #include <paths.h>
-#include <cstdlib>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cinttypes>
+#include <cstdlib>
 #include <cstdarg>
 #include <cstring>
 #include <iostream>
