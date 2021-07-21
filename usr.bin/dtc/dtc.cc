@@ -217,7 +217,7 @@ main(int argc, char **argv)
 			}
 			else
 			{
-				depfile = std::fdopen(open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666), "w");
+				depfile = fdopen(open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666), "w");
 				if (depfile == 0)
 				{
 					perror("Unable to open dependency file");
