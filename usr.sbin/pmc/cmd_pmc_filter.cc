@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <cassert>
-
 #include <cerrno>
-
 #include <climits>
 #include <clocale>
 #include <cmath>
