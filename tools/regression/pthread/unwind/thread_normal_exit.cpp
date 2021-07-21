@@ -2,8 +2,8 @@
 /* test stack unwinding for a new thread */
 
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "Test.cpp"
 
