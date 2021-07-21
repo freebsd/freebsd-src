@@ -288,19 +288,19 @@ Event::DevPath(std::string &path) const
 		return (false);
 
 	string devPath(_PATH_DEV + devName);
-	int devFd(open(devPath.c_str(), O_RDONLY));
+	int devFd(std::open(devPath.c_str(), O_RDONLY));
 	if (devFd == -1)
 		return (false);
 
 	/* Normalize the device name in case the DEVFS event is for a link. */
 	if (fdevname_r(devFd, buf, sizeof(buf)) == NULL) {
-		close(devFd);
+		std::close(devFd);
 		return (false);
 	}
 	devName = buf;
 	path = _PATH_DEV + devName;
 
-	close(devFd);
+	std::close(devFd);
 
 	return (true);
 }
@@ -313,14 +313,14 @@ Event::PhysicalPath(std::string &path) const
 	if (!DevPath(devPath))
 		return (false);
 
-	int devFd(open(devPath.c_str(), O_RDONLY));
+	int devFd(std::open(devPath.c_str(), O_RDONLY));
 	if (devFd == -1)
 		return (false);
 	
 	char physPath[MAXPATHLEN];
 	physPath[0] = '\0';
 	bool result(ioctl(devFd, DIOCGPHYSPATH, physPath) == 0);
-	close(devFd);
+	std::close(devFd);
 	if (result)
 		path = physPath;
 	return (result);
@@ -444,8 +444,8 @@ Event::TimestampEventString(std::string &eventString)
 			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
 			if (gettimeofday(&now, NULL) != 0)
 				err(1, "gettimeofday");
-			snprintf(timebuf, bufsize, " timestamp=%" PRId64,
-				(int64_t) now.tv_sec);
+			std::snprintf(timebuf, bufsize, " timestamp=%" PRId64,
+				static_cast<int64_t>(now.tv_sec));
 			eventString.insert(eventEnd, timebuf);
 		}
 	}
