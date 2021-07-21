@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/disklabel.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 
@@ -47,6 +48,81 @@ __FBSDID("$FreeBSD$");
 
 #define	G_LABEL_UFS_VOLUME	0
 #define	G_LABEL_UFS_ID		1
+
+/*
+ * G_LABEL_UFS_CMP returns true if difference between provider mediasize
+ * and filesystem size is less than G_LABEL_UFS_MAXDIFF sectors
+ */
+#define	G_LABEL_UFS_CMP(prov, fsys, size) 				   \
+	( abs( ((fsys)->size) - ( (prov)->mediasize / (fsys)->fs_fsize ))  \
+				< G_LABEL_UFS_MAXDIFF )
+#define	G_LABEL_UFS_MAXDIFF	0x100
+
+/*
+ * For providers that look like disklabels we need to check if the file system
+ * size is almost equal to the provider's size, because sysinstall(8) used to
+ * bogusly put the first partition at offset 0 instead of 16, and glabel/ufs
+ * would find a file system on the slice instead of the partition.
+ *
+ * In addition, media size can be a bit bigger than file system size. For
+ * instance, mkuzip can append bytes to align data to large sector size (it
+ * improves compression rates).
+ */
+static bool
+g_label_ufs_ignore_bsdlabel_slice(struct g_consumer *cp,
+    struct fs *fs)
+{
+	struct g_provider *pp;
+	u_char *buf;
+	uint32_t magic1, magic2;
+	int error;
+
+	pp = cp->provider;
+
+	/*
+	 * If the expected provider size for the filesystem matches the
+	 * real provider size then don't ignore this filesystem.
+	 */
+	if (G_LABEL_UFS_CMP(pp, fs, fs_providersize))
+		return (false);
+
+	/*
+	 * If the filesystem size matches the real provider size then
+	 * don't ignore this filesystem.
+	 */
+	if (fs->fs_magic == FS_UFS1_MAGIC ?
+	    G_LABEL_UFS_CMP(pp, fs, fs_old_size) :
+	    G_LABEL_UFS_CMP(pp, fs, fs_size))
+		return (false);
+
+	/*
+	 * Provider is bigger than expected; probe to see if there's a
+	 * disklabel. Adapted from g_part_bsd_probe.
+	 */
+
+	/* Check if the superblock overlaps where the disklabel lives. */
+	if (fs->fs_sblockloc < pp->sectorsize * 2)
+		return (false);
+
+	/* Sanity-check the provider. */
+	if (pp->sectorsize < sizeof(struct disklabel) ||
+	    pp->mediasize < BBSIZE)
+		return (false);
+	if (BBSIZE % pp->sectorsize)
+		return (false);
+
+	/* Check that there's a disklabel. */
+	buf = g_read_data(cp, pp->sectorsize, pp->sectorsize, &error);
+	if (buf == NULL)
+		return (false);
+	magic1 = le32dec(buf + 0);
+	magic2 = le32dec(buf + 132);
+	g_free(buf);
+	if (magic1 == DISKMAGIC && magic2 == DISKMAGIC)
+		return (true);
+
+	return (false);
+}
 
 /*
  * Try to find a superblock on the provider. If successful, look for a volume
@@ -78,6 +154,9 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	} else {
 		goto out;
 	}
+	/* Check if this should be ignored for compatibility. */
+	if (g_label_ufs_ignore_bsdlabel_slice(cp, fs))
+		goto out;
 	G_LABEL_DEBUG(1, "%s file system detected on %s.",
 	    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
 	switch (what) {
