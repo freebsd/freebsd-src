@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
 using namespace std;
+using std::string;
 namespace DevdCtl
 {
 
