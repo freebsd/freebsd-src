@@ -36,7 +36,6 @@
  * Implementation of the class hierarchy used to express events
  * received via the devdctl API.
  */
-
 #include <sys/cdefs.h>
 #include <sys/disk.h>
 #include <sys/filio.h>
