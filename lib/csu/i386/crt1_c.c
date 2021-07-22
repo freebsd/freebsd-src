@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "ignore_init.c"
 
-typedef void (*fptr)(void);
-
 extern void _start(char *, ...);
 
 #ifdef GCRT
@@ -45,11 +43,11 @@ extern int eprol;
 extern int etext;
 #endif
 
-void _start1(fptr, int, char *[]) __dead2;
+void _start1(void (*)(void), int, char *[]) __dead2;
 
 /* The entry function, C part. */
 void
-_start1(fptr cleanup, int argc, char *argv[])
+_start1(void (*cleanup)(void), int argc, char *argv[])
 {
 	char **env;
 
