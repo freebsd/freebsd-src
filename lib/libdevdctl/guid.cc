@@ -37,7 +37,6 @@
  *
  * Implementation of the Guid class.
  */
-
 #include <sys/cdefs.h>
 
 #include <cstdlib>
