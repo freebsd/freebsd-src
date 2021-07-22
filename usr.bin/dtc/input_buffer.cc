@@ -1249,7 +1249,7 @@ input_buffer::buffer_for_file(const string &path, bool warn)
 		return 0;
 	}
 	struct stat st;
-	if (std::fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
+	if (fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
 	{
 		if (warn)
 		{
