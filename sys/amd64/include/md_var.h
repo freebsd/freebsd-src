@@ -55,6 +55,8 @@ extern int la57;
  */
 extern char kernphys[];
 
+extern bool efi_boot;
+
 struct	savefpu;
 struct	sysentvec;
 
