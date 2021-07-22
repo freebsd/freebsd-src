@@ -42,6 +42,7 @@ extern "C" {
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include <curses.h>
 #include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -66,7 +67,6 @@ extern "C" {
 #include <cstdlib>
 #include <cstddef>
 #include <cstring>
-#include <curses.h>
 
 #include <libpmcstat.h>
 #include "cmd_pmc.h"
