@@ -22,9 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-const char	*version = "version 20210215 (FreeBSD)";
+const char	*version = "version 20210215";
 
 #define DEBUG
 #include <stdio.h>
