@@ -287,19 +287,19 @@ Event::DevPath(std::string &path) const
 		return (false);
 
 	string devPath(_PATH_DEV + devName);
-	int devFd(std::open(devPath.c_str(), O_RDONLY));
+	int devFd(open(devPath.c_str(), O_RDONLY));
 	if (devFd == -1)
 		return (false);
 
 	/* Normalize the device name in case the DEVFS event is for a link. */
 	if (fdevname_r(devFd, buf, sizeof(buf)) == NULL) {
-		std::close(devFd);
+		close(devFd);
 		return (false);
 	}
 	devName = buf;
 	path = _PATH_DEV + devName;
 
-	std::close(devFd);
+	close(devFd);
 
 	return (true);
 }
@@ -312,14 +312,14 @@ Event::PhysicalPath(std::string &path) const
 	if (!DevPath(devPath))
 		return (false);
 
-	int devFd(std::open(devPath.c_str(), O_RDONLY));
+	int devFd(open(devPath.c_str(), O_RDONLY));
 	if (devFd == -1)
 		return (false);
 	
 	char physPath[MAXPATHLEN];
 	physPath[0] = '\0';
 	bool result(ioctl(devFd, DIOCGPHYSPATH, physPath) == 0);
-	std::close(devFd);
+	close(devFd);
 	if (result)
 		path = physPath;
 	return (result);
