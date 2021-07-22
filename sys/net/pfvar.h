@@ -586,9 +586,9 @@ struct pf_krule {
 	TAILQ_ENTRY(pf_krule)	 entries;
 	struct pf_kpool		 rpool;
 
-	counter_u64_t		 evaluations;
-	counter_u64_t		 packets[2];
-	counter_u64_t		 bytes[2];
+	struct pf_counter_u64	 evaluations;
+	struct pf_counter_u64	 packets[2];
+	struct pf_counter_u64	 bytes[2];
 
 	struct pfi_kkif		*kif;
 	struct pf_kanchor	*anchor;
@@ -662,6 +662,11 @@ struct pf_krule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+
+#ifdef PF_WANT_32_TO_64_COUNTER
+	LIST_ENTRY(pf_krule)	 allrulelist;
+	bool			 allrulelinked;
+#endif
 };
 
 struct pf_ksrc_node {
@@ -1862,6 +1867,14 @@ VNET_DECLARE(size_t, pf_allkifcount);
 #define V_pf_allkifcount     VNET(pf_allkifcount)
 VNET_DECLARE(struct pfi_kkif *, pf_kifmarker);
 #define V_pf_kifmarker     VNET(pf_kifmarker)
+
+LIST_HEAD(allrulelist_head, pf_krule);
+VNET_DECLARE(struct allrulelist_head, pf_allrulelist);
+#define V_pf_allrulelist     VNET(pf_allrulelist)
+VNET_DECLARE(size_t, pf_allrulecount);
+#define V_pf_allrulecount     VNET(pf_allrulecount)
+VNET_DECLARE(struct pf_krule *, pf_rulemarker);
+#define V_pf_rulemarker     VNET(pf_rulemarker)
 #endif
 
 void				 pf_initialize(void);

@@ -157,6 +157,10 @@ VNET_DEFINE_STATIC(uint32_t, pf_purge_idx);
 #ifdef PF_WANT_32_TO_64_COUNTER
 VNET_DEFINE_STATIC(uint32_t, pf_counter_periodic_iter);
 #define	V_pf_counter_periodic_iter	VNET(pf_counter_periodic_iter)
+
+VNET_DEFINE(struct allrulelist_head, pf_allrulelist);
+VNET_DEFINE(size_t, pf_allrulecount);
+VNET_DEFINE(struct pf_krule *, pf_rulemarker);
 #endif
 
 /*
@@ -1575,6 +1579,45 @@ pf_kif_counter_u64_periodic(void)
 }
 
 static void
+pf_rule_counter_u64_periodic(void)
+{
+	struct pf_krule *rule;
+	size_t r, run;
+
+	PF_RULES_RASSERT();
+
+	if (__predict_false(V_pf_allrulecount == 0)) {
+		return;
+	}
+
+	if ((V_pf_counter_periodic_iter % (pf_purge_thread_period * 10 * 300)) != 0) {
+		return;
+	}
+
+	run = V_pf_allrulecount / 10;
+	if (run < 5)
+		run = 5;
+
+	for (r = 0; r < run; r++) {
+		rule = LIST_NEXT(V_pf_rulemarker, allrulelist);
+		if (rule == NULL) {
+			LIST_REMOVE(V_pf_rulemarker, allrulelist);
+			LIST_INSERT_HEAD(&V_pf_allrulelist, V_pf_rulemarker, allrulelist);
+			break;
+		}
+
+		LIST_REMOVE(V_pf_rulemarker, allrulelist);
+		LIST_INSERT_AFTER(rule, V_pf_rulemarker, allrulelist);
+
+		pf_counter_u64_periodic(&rule->evaluations);
+		for (int i = 0; i < 2; i++) {
+			pf_counter_u64_periodic(&rule->packets[i]);
+			pf_counter_u64_periodic(&rule->bytes[i]);
+		}
+	}
+}
+
+static void
 pf_counter_u64_periodic_main(void)
 {
 	PF_RULES_RLOCK_TRACKER;
@@ -1585,6 +1628,7 @@ pf_counter_u64_periodic_main(void)
 	pf_counter_u64_critical_enter();
 	pf_status_counter_u64_periodic();
 	pf_kif_counter_u64_periodic();
+	pf_rule_counter_u64_periodic();
 	pf_counter_u64_critical_exit();
 	PF_RULES_RUNLOCK();
 }
@@ -3663,7 +3707,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 	}
 
 	while (r != NULL) {
-		counter_u64_add(r->evaluations, 1);
+		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
@@ -3732,8 +3776,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 				rtableid = r->rtableid;
 			if (r->anchor == NULL) {
 				if (r->action == PF_MATCH) {
-					counter_u64_add(r->packets[direction == PF_OUT], 1);
-					counter_u64_add(r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_add(&r->packets[direction == PF_OUT], 1);
+					pf_counter_u64_add(&r->bytes[direction == PF_OUT], pd->tot_len);
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
@@ -4105,7 +4149,7 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 	while (r != NULL) {
-		counter_u64_add(r->evaluations, 1);
+		pf_counter_u64_add(&r->evaluations, 1);
 		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
@@ -4146,8 +4190,8 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 		else {
 			if (r->anchor == NULL) {
 				if (r->action == PF_MATCH) {
-					counter_u64_add(r->packets[direction == PF_OUT], 1);
-					counter_u64_add(r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_add(&r->packets[direction == PF_OUT], 1);
+					pf_counter_u64_add(&r->bytes[direction == PF_OUT], pd->tot_len);
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
@@ -6452,17 +6496,17 @@ done:
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		counter_u64_add(r->packets[dirndx], 1);
-		counter_u64_add(r->bytes[dirndx], pd.tot_len);
+		pf_counter_u64_add(&r->packets[dirndx], 1);
+		pf_counter_u64_add(&r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			counter_u64_add(a->packets[dirndx], 1);
-			counter_u64_add(a->bytes[dirndx], pd.tot_len);
+			pf_counter_u64_add(&a->packets[dirndx], 1);
+			pf_counter_u64_add(&a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				counter_u64_add(s->nat_rule.ptr->packets[dirndx],
+				pf_counter_u64_add(&s->nat_rule.ptr->packets[dirndx],
 				    1);
-				counter_u64_add(s->nat_rule.ptr->bytes[dirndx],
+				pf_counter_u64_add(&s->nat_rule.ptr->bytes[dirndx],
 				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
@@ -6857,17 +6901,17 @@ done:
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		counter_u64_add(r->packets[dirndx], 1);
-		counter_u64_add(r->bytes[dirndx], pd.tot_len);
+		pf_counter_u64_add(&r->packets[dirndx], 1);
+		pf_counter_u64_add(&r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			counter_u64_add(a->packets[dirndx], 1);
-			counter_u64_add(a->bytes[dirndx], pd.tot_len);
+			pf_counter_u64_add(&a->packets[dirndx], 1);
+			pf_counter_u64_add(&a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				counter_u64_add(s->nat_rule.ptr->packets[dirndx],
+				pf_counter_u64_add(&s->nat_rule.ptr->packets[dirndx],
 				    1);
-				counter_u64_add(s->nat_rule.ptr->bytes[dirndx],
+				pf_counter_u64_add(&s->nat_rule.ptr->bytes[dirndx],
 				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
