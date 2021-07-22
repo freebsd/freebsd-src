@@ -21,8 +21,11 @@ TESTS_SUBDIRS+=	routing
 TEST_METADATA+=	is_exclusive=true
 
 ${PACKAGE}FILES+=	\
+		dhclient_pcp.conf \
+		pcp.py \
 		stp.py
 
+${PACKAGE}FILESMODE_pcp.py=		0555
 ${PACKAGE}FILESMODE_stp.py=		0555
 
 MAN=
