@@ -33,7 +33,6 @@
  */
 
 #include "dtb.hh"
-
 #include <sys/types.h>
 #include <unistd.h>
 
