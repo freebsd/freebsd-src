@@ -35,11 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <cerrno>
 #include <cstdlib>
 
-extern "C" {
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-}
 
 #ifndef DSO_LIB
 #include <atf-c++.hpp>
