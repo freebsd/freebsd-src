@@ -59,7 +59,7 @@ struct Foo {
 	}
 	~Foo() {
 		if (run_destructor_test)
-			std::_exit(1);
+			_exit(1);
 	}
 };
 extern Foo foo;
@@ -88,7 +88,7 @@ ATF_TEST_CASE_BODY(cxx_destructor)
 		break;
 	case 0:
 		run_destructor_test = true;
-		std::exit(0);
+		exit(0);
 	default:
 		while ((wpid = waitpid(pid, &status, 0)) == -1 &&
 		    errno == EINTR)
