@@ -271,6 +271,7 @@ mmc_detach(device_t dev)
 	struct mmc_softc *sc = device_get_softc(dev);
 	int err;
 
+	config_intrhook_drain(&sc->config_intrhook);
 	err = mmc_delete_cards(sc, true);
 	if (err != 0)
 		return (err);
