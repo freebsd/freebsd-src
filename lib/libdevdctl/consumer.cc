@@ -34,7 +34,6 @@
  * \file consumer.cc
  */
 
-extern "C" {
 #include <sys/cdefs.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -44,7 +43,6 @@ extern "C" {
 #include <fcntl.h>
 #include <syslog.h>
 #include <unistd.h>
-}
 
 #include <cerrno>
 #include <cstdarg>
