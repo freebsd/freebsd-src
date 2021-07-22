@@ -28,12 +28,10 @@
  *
  */
 
-extern "C" {
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sysexits.h>
 #include <err.h>
-}
 
 #include <cassert>
 #include <cerrno>
