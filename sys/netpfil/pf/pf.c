@@ -154,6 +154,11 @@ VNET_DECLARE(int,			 pf_vnet_active);
 VNET_DEFINE_STATIC(uint32_t, pf_purge_idx);
 #define V_pf_purge_idx	VNET(pf_purge_idx)
 
+#ifdef PF_WANT_32_TO_64_COUNTER
+VNET_DEFINE_STATIC(uint32_t, pf_counter_periodic_iter);
+#define	V_pf_counter_periodic_iter	VNET(pf_counter_periodic_iter)
+#endif
+
 /*
  * Queue for pf_intr() sends.
  */
@@ -1509,6 +1514,25 @@ pf_intr(void *v)
 	CURVNET_RESTORE();
 }
 
+#define	pf_purge_thread_period	(hz / 10)
+
+#ifdef PF_WANT_32_TO_64_COUNTER
+static void
+pf_counter_u64_periodic_main(void)
+{
+	PF_RULES_RLOCK_TRACKER;
+
+	V_pf_counter_periodic_iter++;
+
+	PF_RULES_RLOCK();
+	pf_counter_u64_critical_enter();
+	pf_counter_u64_critical_exit();
+	PF_RULES_RUNLOCK();
+}
+#else
+#define	pf_counter_u64_periodic_main()	do { } while (0)
+#endif
+
 void
 pf_purge_thread(void *unused __unused)
 {
@@ -1516,7 +1540,7 @@ pf_purge_thread(void *unused __unused)
 
 	sx_xlock(&pf_end_lock);
 	while (pf_end_threads == 0) {
-		sx_sleep(pf_purge_thread, &pf_end_lock, 0, "pftm", hz / 10);
+		sx_sleep(pf_purge_thread, &pf_end_lock, 0, "pftm", pf_purge_thread_period);
 
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
@@ -1527,6 +1551,8 @@ pf_purge_thread(void *unused __unused)
 				CURVNET_RESTORE();
 				continue;
 			}
+
+			pf_counter_u64_periodic_main();
 
 			/*
 			 *  Process 1/interval fraction of the state
