@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* try to catch thread exiting, and rethrow the exception */
 
-extern "C" #include <pthread.h>
+#include <pthread.h>
 
 #include <cstdio>
 #include <cstdlib>
