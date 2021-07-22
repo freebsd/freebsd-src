@@ -29,10 +29,7 @@
  *
  * $FreeBSD$
  */
-
-extern "C" {
 #include <unistd.h>
-}
 
 #include <cstdlib>
 
