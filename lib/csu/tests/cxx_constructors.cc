@@ -32,11 +32,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <cerrno>
-#include <cstdlib>
-
 #include <sys/types.h>
 #include <sys/wait.h>
+
+#include <cerrno>
+#include <cstdlib>
 #include <unistd.h>
 
 #ifndef DSO_LIB
