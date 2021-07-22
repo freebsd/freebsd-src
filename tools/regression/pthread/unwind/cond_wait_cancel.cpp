@@ -1,8 +1,8 @@
 /* $FreeBSD$ */
 /* Test stack unwinding for pthread_cond_wait function */
 
-#include <pthread.h>
 #include <cstdio>
+#include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
 
