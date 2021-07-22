@@ -32,13 +32,8 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sysexits.h>
-
 #include <err.h>
 }
-
-#include <pmc.h>
-#include <pmcformat.h>
-#include <pmclog.h>
 
 #include <cassert>
 #include <cerrno>
@@ -48,6 +43,10 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 #include <string>
+
+#include <pmc.h>
+#include <pmcformat.h>
+#include <pmclog.h>
 
 using std::string;
 
