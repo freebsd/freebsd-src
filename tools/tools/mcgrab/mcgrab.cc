@@ -33,22 +33,22 @@
 __FBSDID("$FreeBSD$");
 
 // C++ STL and other related includes
-#include <cstdlib>
+#include <cerrno>
 #include <climits>
-#include <iostream>
+#include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <string>
 
 // Operating System and other C based includes
 #include <unistd.h>
-#include <cerrno>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#include <arpa/inet.h>
 
 // Private include files
 #include "mctest.h"
