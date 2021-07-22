@@ -50,6 +50,7 @@ extern "C" {
  */
 
 using namespace testing;
+using namespace std;
 
 const char FULLPATH[] = "mountpoint/some_file.txt";
 const char RELPATH[] = "some_file.txt";
@@ -58,7 +59,7 @@ const uint64_t ino = 42;
 static void compare(const void *tbuf, const void *controlbuf, off_t baseofs,
 	ssize_t size)
 {
-	int i;
+	ssize_t i;
 
 	for (i = 0; i < size; i++) {
 		if (((const char*)tbuf)[i] != ((const char*)controlbuf)[i]) {
