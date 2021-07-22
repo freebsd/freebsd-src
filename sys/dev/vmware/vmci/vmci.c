@@ -845,17 +845,17 @@ vmci_setup_interrupts(struct vmci_softc *sc)
 	    vmci_interrupt, NULL, &intr->vmci_handler);
 	if (error)
 		return (error);
-	bus_describe_intr(sc->vmci_dev, intr->vmci_irq, intr->vmci_handler,
-	    "vmci_interrupt");
 
 	if (sc->vmci_num_intr == 2) {
+		bus_describe_intr(sc->vmci_dev, intr->vmci_irq,
+		    intr->vmci_handler, "dg");
 		intr = &sc->vmci_intrs[1];
 		error = bus_setup_intr(sc->vmci_dev, intr->vmci_irq, flags,
 		    NULL, vmci_interrupt_bm, NULL, &intr->vmci_handler);
 		if (error)
 			return (error);
 		bus_describe_intr(sc->vmci_dev, intr->vmci_irq,
-		    intr->vmci_handler, "vmci_interrupt_bm");
+		    intr->vmci_handler, "bm");
 	}
 
 	return (0);
