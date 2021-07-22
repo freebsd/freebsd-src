@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "ignore_init.c"
 
-typedef void (*fptr)(void);
-
 #ifdef GCRT
 extern void _mcleanup(void);
 extern void monstartup(void *, void *);
