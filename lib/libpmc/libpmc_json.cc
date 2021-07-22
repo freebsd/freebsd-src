@@ -34,11 +34,11 @@ extern "C" {
 #include <sysexits.h>
 
 #include <err.h>
+}
 
 #include <pmc.h>
 #include <pmcformat.h>
 #include <pmclog.h>
-}
 
 #include <cassert>
 #include <cerrno>
