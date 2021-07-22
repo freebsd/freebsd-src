@@ -2839,27 +2839,6 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 }
 
 static int
-pf_ieee8021q_setpcp(struct mbuf *m, u_int8_t prio)
-{
-	struct m_tag *mtag;
-
-	KASSERT(prio <= PF_PRIO_MAX,
-	    ("%s with invalid pcp", __func__));
-
-	mtag = m_tag_locate(m, MTAG_8021Q, MTAG_8021Q_PCP_OUT, NULL);
-	if (mtag == NULL) {
-		mtag = m_tag_alloc(MTAG_8021Q, MTAG_8021Q_PCP_OUT,
-		    sizeof(uint8_t), M_NOWAIT);
-		if (mtag == NULL)
-			return (ENOMEM);
-		m_tag_prepend(m, mtag);
-	}
-
-	*(uint8_t *)(mtag + 1) = prio;
-	return (0);
-}
-
-static int
 pf_match_ieee8021q_pcp(u_int8_t prio, struct mbuf *m)
 {
 	struct m_tag *mtag;
@@ -6393,7 +6372,7 @@ done:
 	if (r->scrub_flags & PFSTATE_SETPRIO) {
 		if (pd.tos & IPTOS_LOWDELAY)
 			pqid = 1;
-		if (pf_ieee8021q_setpcp(m, r->set_prio[pqid])) {
+		if (vlan_set_pcp(m, r->set_prio[pqid])) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
 			log = 1;
@@ -6842,7 +6821,7 @@ done:
 	if (r->scrub_flags & PFSTATE_SETPRIO) {
 		if (pd.tos & IPTOS_LOWDELAY)
 			pqid = 1;
-		if (pf_ieee8021q_setpcp(m, r->set_prio[pqid])) {
+		if (vlan_set_pcp(m, r->set_prio[pqid])) {
 			action = PF_DROP;
 			REASON_SET(&reason, PFRES_MEMORY);
 			log = 1;

@@ -2040,7 +2040,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = priv_check(curthread, PRIV_NET_SETVLANPCP);
 		if (error)
 			break;
-		if (ifr->ifr_vlan_pcp > 7) {
+		if (ifr->ifr_vlan_pcp > VLAN_PCP_MAX) {
 			error = EINVAL;
 			break;
 		}
