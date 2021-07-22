@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-extern "C" {
 #include <sys/param.h>
 #include <sys/cpuset.h>
 #include <sys/event.h>
@@ -53,7 +52,6 @@ extern "C" {
 #include <regex.h>
 #include <sysexits.h>
 #include <unistd.h>
-}
 
 #include <cassert>
 #include <cerrno>
