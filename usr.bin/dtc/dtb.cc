@@ -44,7 +44,6 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 
-using namespace std;
 using std::string;
 
 namespace {
