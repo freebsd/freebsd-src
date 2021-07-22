@@ -40,6 +40,7 @@ extern "C" {
 #include "utils.hh"
 
 using namespace testing;
+using namespace std;
 
 class Rename: public FuseTest {
 	public:
