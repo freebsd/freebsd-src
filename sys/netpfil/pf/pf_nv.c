@@ -655,7 +655,7 @@ error:
 }
 
 nvlist_t *
-pf_krule_to_nvrule(const struct pf_krule *rule)
+pf_krule_to_nvrule(struct pf_krule *rule)
 {
 	nvlist_t *nvl, *tmp;
 
@@ -698,12 +698,12 @@ pf_krule_to_nvrule(const struct pf_krule *rule)
 	nvlist_destroy(tmp);
 
 	nvlist_add_number(nvl, "evaluations",
-	    counter_u64_fetch(rule->evaluations));
+	    pf_counter_u64_fetch(&rule->evaluations));
 	for (int i = 0; i < 2; i++) {
 		nvlist_append_number_array(nvl, "packets",
-		    counter_u64_fetch(rule->packets[i]));
+		    pf_counter_u64_fetch(&rule->packets[i]));
 		nvlist_append_number_array(nvl, "bytes",
-		    counter_u64_fetch(rule->bytes[i]));
+		    pf_counter_u64_fetch(&rule->bytes[i]));
 	}
 
 	nvlist_add_number(nvl, "os_fingerprint", rule->os_fingerprint);
