@@ -37,7 +37,6 @@
  * received via the devdctl API.
  */
 
-extern "C" {
 #include <sys/cdefs.h>
 #include <sys/disk.h>
 #include <sys/filio.h>
@@ -49,7 +48,6 @@ extern "C" {
 #include <paths.h>
 #include <syslog.h>
 #include <unistd.h>
-}
 
 #include <cinttypes>
 #include <cstdarg>
