@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+extern "C" #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <cerrno>
