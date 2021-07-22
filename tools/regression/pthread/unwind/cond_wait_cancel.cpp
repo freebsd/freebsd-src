@@ -3,11 +3,9 @@
 
 #include <cstdio>
 
-extern "C" {
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
-}
 
 #include "Test.cpp"
 
