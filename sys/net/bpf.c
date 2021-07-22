@@ -1173,27 +1173,6 @@ bpf_ready(struct bpf_d *d)
 }
 
 static int
-bpf_setpcp(struct mbuf *m, u_int8_t prio)
-{
-	struct m_tag *mtag;
-
-	KASSERT(prio <= BPF_PRIO_MAX,
-	    ("%s with invalid pcp", __func__));
-
-	mtag = m_tag_locate(m, MTAG_8021Q, MTAG_8021Q_PCP_OUT, NULL);
-	if (mtag == NULL) {
-		mtag = m_tag_alloc(MTAG_8021Q, MTAG_8021Q_PCP_OUT,
-		    sizeof(uint8_t), M_NOWAIT);
-		if (mtag == NULL)
-			return (ENOMEM);
-		m_tag_prepend(m, mtag);
-	}
-
-	*(uint8_t *)(mtag + 1) = prio;
-	return (0);
-}
-
-static int
 bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct route ro;
@@ -1294,7 +1273,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 
 	if (d->bd_pcp != 0)
-		bpf_setpcp(m, d->bd_pcp);
+		vlan_set_pcp(m, d->bd_pcp);
 
 	/* Avoid possible recursion on BPFD_LOCK(). */
 	NET_EPOCH_ENTER(et);
