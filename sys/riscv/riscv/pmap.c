@@ -872,7 +872,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	pd_entry_t *l2;
+	pd_entry_t *l2, l2e;
 	pt_entry_t *l3;
 	vm_paddr_t pa;
 
@@ -882,14 +882,23 @@ pmap_kextract(vm_offset_t va)
 		l2 = pmap_l2(kernel_pmap, va);
 		if (l2 == NULL)
 			panic("pmap_kextract: No l2");
-		if ((pmap_load(l2) & PTE_RX) != 0) {
+		l2e = pmap_load(l2);
+		/*
+		 * Beware of concurrent promotion and demotion! We must
+		 * use l2e rather than loading from l2 multiple times to
+		 * ensure we see a consistent state, including the
+		 * implicit load in pmap_l2_to_l3.  It is, however, safe
+		 * to use an old l2e because the L3 page is preserved by
+		 * promotion.
+		 */
+		if ((l2e & PTE_RX) != 0) {
 			/* superpages */
-			pa = L2PTE_TO_PHYS(pmap_load(l2));
+			pa = L2PTE_TO_PHYS(l2e);
 			pa |= (va & L2_OFFSET);
 			return (pa);
 		}
 
-		l3 = pmap_l2_to_l3(l2, va);
+		l3 = pmap_l2_to_l3(&l2e, va);
 		if (l3 == NULL)
 			panic("pmap_kextract: No l3...");
 		pa = PTE_TO_PHYS(pmap_load(l3));
