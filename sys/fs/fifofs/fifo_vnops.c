@@ -282,9 +282,21 @@ fifo_close(ap)
 	struct pipe *cpipe;
 
 	vp = ap->a_vp;
-	fip = vp->v_fifoinfo;
-	cpipe = fip->fi_pipe;
 	ASSERT_VOP_ELOCKED(vp, "fifo_close");
+	fip = vp->v_fifoinfo;
+
+	/*
+	 * During open, it is possible that the fifo vnode is relocked
+	 * after the vnode is instantiated but before VOP_OPEN() is
+	 * done.  For instance, vn_open_vnode() might need to upgrade
+	 * vnode lock, or ffs_vput_pair() needs to unlock vp to sync
+	 * dvp.  In this case, reclaim can observe us with v_fifoinfo
+	 * equal to NULL.
+	 */
+	if (fip == NULL)
+		return (0);
+
+	cpipe = fip->fi_pipe;
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
 		if (fip->fi_readers == 0) {
