@@ -228,7 +228,7 @@ text_input_buffer::handle_include()
 	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
 	if (include_buffer == 0)
 	{
-		for (const auto i : include_paths)
+		for (auto i : include_paths)
 		{
 			include_file = i + '/' + file;
 			include_buffer = input_buffer::buffer_for_file(include_file, false);
@@ -270,7 +270,7 @@ bool text_input_buffer::read_binary_file(const std::string &filename, byte_buffe
 	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
 	if (include_buffer == 0 && try_include_paths)
 	{
-		for (const auto i : include_paths)
+		for (auto i : include_paths)
 		{
 			include_file = i + '/' + filename;
 			include_buffer = input_buffer::buffer_for_file(include_file, false);
