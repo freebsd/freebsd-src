@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/wait.h>
 
 #include <assert.h>
 #include <capsicum_helpers.h>
@@ -210,7 +211,7 @@ check_size(int fd, const char *fn)
 
 #ifdef HAVE_CRYPTO
 static void
-genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
+_genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 {
 	FILE *fp;
 	RSA *pubkey;
@@ -304,6 +305,50 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 		    ERR_error_string(ERR_get_error(), NULL));
 	}
 	RSA_free(pubkey);
+}
+
+/*
+ * Run genkey() in a child so it can use capability mode without affecting
+ * the rest of the runtime.
+ */
+static void
+genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
+{
+	pid_t pid;
+	int error, filedes[2], status;
+	ssize_t bytes;
+
+	if (pipe2(filedes, O_CLOEXEC) != 0)
+		err(1, "pipe");
+	pid = fork();
+	switch (pid) {
+	case -1:
+		err(1, "fork");
+		break;
+	case 0:
+		close(filedes[0]);
+		_genkey(pubkeyfile, kdap);
+		/* Write the new kdap back to the parent. */
+		bytes = write(filedes[1], kdap, sizeof(*kdap));
+		if (bytes != sizeof(*kdap))
+			err(1, "genkey pipe write");
+		_exit(0);
+	}
+	close(filedes[1]);
+	/* Read in the child's genkey() result into kdap. */
+	bytes = read(filedes[0], kdap, sizeof(*kdap));
+	if (bytes != sizeof(*kdap))
+		errx(1, "genkey pipe read");
+	error = waitpid(pid, &status, WEXITED);
+	if (error == -1)
+		err(1, "waitpid");
+	if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+		errx(1, "genkey child exited with status %d",
+		    WEXITSTATUS(status));
+	else if (WIFSIGNALED(status))
+		errx(1, "genkey child exited with signal %d",
+		    WTERMSIG(status));
+	close(filedes[0]);
 }
 #endif
 
