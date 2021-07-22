@@ -91,7 +91,7 @@ initialize_to_json(struct pmclog_ev *ev)
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"version\": \"0x%08x\", \"arch\": \"0x%08x\", \"cpuid\": \"%s\", "
 		"\"tsc_freq\": \"%jd\", \"sec\": \"%jd\", \"nsec\": \"%jd\"}\n",
 		startent.c_str(), ev->pl_u.pl_i.pl_version, ev->pl_u.pl_i.pl_arch,
