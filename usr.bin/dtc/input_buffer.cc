@@ -46,12 +46,10 @@
 #include <iostream>
 #endif
 
-extern "C" {
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-}
 
 #ifndef MAP_PREFAULT_READ
 #define MAP_PREFAULT_READ 0
