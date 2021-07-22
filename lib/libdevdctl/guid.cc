@@ -38,9 +38,7 @@
  * Implementation of the Guid class.
  */
 
-extern "C" {
 #include <sys/cdefs.h>
-}
 
 #include <cstdlib>
 #include <climits>
