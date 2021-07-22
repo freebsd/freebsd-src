@@ -1042,7 +1042,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct ifnet	*ifp;
 	struct tuntap_softc *tp;
-	int error, tunflags;
+	int error __diagused, tunflags;
 
 	tunflags = 0;
 	CURVNET_SET(TD_TO_VNET(td));
