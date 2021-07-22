@@ -1,8 +1,8 @@
-# $FreeBSD$
+#!/usr/bin/env python3
 #
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2017 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2021 Rubicon Communications, LLC (Netgate).
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,37 +24,51 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-#
 
-import threading
+import argparse
+import logging
+logging.getLogger("scapy").setLevel(logging.CRITICAL)
 import scapy.all as sp
 import sys
+import os
+curdir = os.path.dirname(os.path.realpath(__file__))
+netpfil_common = curdir + "/../netpfil/common"
+sys.path.append(netpfil_common)
+from sniffer import Sniffer
 
-class Sniffer(threading.Thread):
-	def __init__(self, args, check_function, recvif=None, timeout=3):
-		threading.Thread.__init__(self)
+def check_pcp(args, packet):
+	vlan = packet.getlayer(sp.Dot1Q)
 
-		self._args = args
-		self._timeout = timeout
-		if recvif is not None:
-			self._recvif = recvif
-		else:
-			self._recvif = args.recvif[0]
-		self._check_function = check_function
-		self.foundCorrectPacket = False
+	if vlan is None:
+		return False
 
-		self.start()
+	if not packet.getlayer(sp.BOOTP):
+		return False
 
-	def _checkPacket(self, packet):
-		ret = self._check_function(self._args, packet)
-		if ret:
-			self.foundCorrectPacket = True
-		return ret
+	if vlan.prio == int(args.expect_pcp[0]):
+		return True
 
-	def run(self):
-		self.packets = []
-		try:
-			self.packets = sp.sniff(iface=self._recvif,
-					stop_filter=self._checkPacket, timeout=self._timeout)
-		except Exception as e:
-			print(e, file=sys.stderr)
+	return False
+
+def main():
+	parser = argparse.ArgumentParser("pcp.py",
+		description="PCP test tool")
+	parser.add_argument('--recvif', nargs=1,
+		required=True,
+		help='The interface where to look for packets to check')
+	parser.add_argument('--expect-pcp', nargs=1,
+		help='The expected PCP value on VLAN packets')
+
+	args = parser.parse_args()
+
+	sniffer = Sniffer(args, check_pcp, recvif=args.recvif[0], timeout=20)
+
+	sniffer.join()
+
+	if sniffer.foundCorrectPacket:
+		sys.exit(0)
+
+	sys.exit(1)
+
+if __name__ == '__main__':
+	main()
