@@ -361,20 +361,9 @@ int quoted(const uschar **pp)	/* pick up next thing after a \\ */
 	return c;
 }
 
-static int collate_range_cmp(int a, int b)
-{
-	static char s[2][2];
-
-	if ((uschar)a == (uschar)b)
-		return 0;
-	s[0][0] = a;
-	s[1][0] = b;
-	return (strcoll(s[0], s[1]));
-}
-
 char *cclenter(const char *argp)	/* add a character class */
 {
-	int i, c, c2, j;
+	int i, c, c2;
 	const uschar *op, *p = (const uschar *) argp;
 	uschar *bp;
 	static uschar *buf = NULL;
@@ -393,18 +382,15 @@ char *cclenter(const char *argp)	/* add a character class */
 				c2 = *p++;
 				if (c2 == '\\')
 					c2 = quoted(&p);
-				if (collate_range_cmp(c, c2) > 0) {
+				if (c > c2) {	/* empty; ignore */
 					bp--;
 					i--;
 					continue;
 				}
-				for (j = 0; j < NCHARS; j++) {
-					if ((collate_range_cmp(c, j) > 0) ||
-					    collate_range_cmp(j, c2) > 0)
-						continue;
+				while (c < c2) {
 					if (!adjbuf((char **) &buf, &bufsz, bp-buf+2, 100, (char **) &bp, "cclenter1"))
 						FATAL("out of space for character class [%.10s...] 2", p);
-					*bp++ = j;
+					*bp++ = ++c;
 					i++;
 				}
 				continue;
