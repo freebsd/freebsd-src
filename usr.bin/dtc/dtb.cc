@@ -34,10 +34,8 @@
 
 #include "dtb.hh"
 
-extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
-}
 
 #include <cerrno>
 #include <cinttypes>
@@ -62,7 +60,7 @@ void write(dtc::byte_buffer &buffer, int fd)
 		}
 		else if (errno != EAGAIN)
 		{
-			fprintf(stderr, "Writing to file failed\n");
+			std::fprintf(stderr, "Writing to file failed\n");
 			exit(-1);
 		}
 	}
@@ -148,7 +146,7 @@ asm_writer::write_byte(uint8_t b)
 		buffer.push_back('\t');
 	}
 	write_string(".byte 0x");
-	snprintf(out, 3, "%.2hhx", b);
+	std::snprintf(out, 3, "%.2hhx", b);
 	buffer.push_back(out[0]);
 	buffer.push_back(out[1]);
 	if (byte_count == 4)
