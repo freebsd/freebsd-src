@@ -53,11 +53,11 @@ _i18n=		i18n
 .endif
 
 .if ${MK_LOCALES} != "no"
-_colldef=	colldef
+_colldef=	colldef colldef_unicode
+_monetdef=	monetdef monetdef_unicode
 _ctypedef=	ctypedef
-_monetdef=	monetdef
-_msgdef=	msgdef
-_numericdef=	numericdef
+_msgdef=	msgdef msgdef_unicode
+_numericdef=	numericdef numericdef_unicode
 _timedef=	timedef
 .endif
 
