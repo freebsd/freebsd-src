@@ -30,14 +30,12 @@
  * $FreeBSD$
  */
 
-extern "C" {
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 
 #include <fcntl.h>
 #include <unistd.h>
-}
 
 #include <cstdlib>
 
