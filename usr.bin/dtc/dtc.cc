@@ -57,13 +57,13 @@ namespace {
 /**
  * The current major version of the tool.
  */
-constexpr  int version_major = 0;
+constexpr int version_major = 0;
 constexpr int version_major_compatible = 1;
 /**
  * The current minor version of the tool.
  */
-constexpr  int version_minor = 5;
-constexpr  int version_minor_compatible = 4;
+constexpr int version_minor = 5;
+constexpr int version_minor_compatible = 4;
 /**
  * The current patch level of the tool.
  */
