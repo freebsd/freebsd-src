@@ -798,16 +798,11 @@ bool is_valid_number(const char *s, bool trailing_stuff_ok,
  * where hex strings were treated as numbers in nawk the whole time it has been
  * in FreeBSD (since 2001). The POSIX 2001 through 2004 standards mandated this
  * behavior and the current standard allows it. Deviate from upstream by restoring
- * the prior FreeBSD behavior, but warning that it differs.
+ * the prior FreeBSD behavior.
  */
+#if 0
 	// no hex floating point, sorry
 	if (s[0] == '0' && tolower(s[1]) == 'x')
-#ifdef __FreeBSD__
-	{	static int warned = 0;	/* Only warn the first time */
-		if (warned++ == 0)
-			WARNING("Script depends on old '0x' hex conversion behavior");
-	}
-#else
 		return false;
 #endif
 
