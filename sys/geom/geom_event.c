@@ -341,20 +341,22 @@ g_cancel_event(void *ref)
 	mtx_unlock(&g_eventlock);
 }
 
-static int
-g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event **epp, va_list ap)
+struct g_event *
+g_alloc_event(int flag)
 {
-	struct g_event *ep;
+	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
+	    ("Wrong flag to g_alloc_event"));
+
+	return (g_malloc(sizeof(struct g_event), flag | M_ZERO));
+}
+
+static void
+g_post_event_ep_va(g_event_t *func, void *arg, int wuflag,
+    struct g_event *ep, va_list ap)
+{
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)",
-	    func, arg, flag, wuflag);
-	KASSERT(wuflag == 0 || wuflag == EV_WAKEUP,
-	    ("Wrong wuflag in g_post_event_x(0x%x)", wuflag));
-	ep = g_malloc(sizeof *ep, flag | M_ZERO);
-	if (ep == NULL)
-		return (ENOMEM);
 	ep->flag = wuflag;
 	for (n = 0; n < G_N_EVENTREFS; n++) {
 		p = va_arg(ap, void *);
@@ -371,12 +373,38 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
 	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
-	if (epp != NULL)
-		*epp = ep;
 	curthread->td_pflags |= TDP_GEOM;
 	thread_lock(curthread);
 	curthread->td_flags |= TDF_ASTPENDING;
 	thread_unlock(curthread);
+}
+
+void
+g_post_event_ep(g_event_t *func, void *arg, struct g_event *ep, ...)
+{
+	va_list ap;
+
+	va_start(ap, ep);
+	g_post_event_ep_va(func, arg, 0, ep, ap);
+	va_end(ap);
+}
+
+
+static int
+g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event **epp, va_list ap)
+{
+	struct g_event *ep;
+
+	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)",
+	    func, arg, flag, wuflag);
+	KASSERT(wuflag == 0 || wuflag == EV_WAKEUP,
+	    ("Wrong wuflag in g_post_event_x(0x%x)", wuflag));
+	ep = g_alloc_event(flag);
+	if (ep == NULL)
+		return (ENOMEM);
+	if (epp != NULL)
+		*epp = ep;
+	g_post_event_ep_va(func, arg, wuflag, ep, ap);
 	return (0);
 }
 
