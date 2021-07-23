@@ -2297,7 +2297,7 @@ static int
 sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 {
 	vm_map_entry_t entry, tmp_entry;
-	unsigned int last_timestamp;
+	unsigned int last_timestamp, namelen;
 	char *fullpath, *freepath;
 	struct kinfo_ovmentry *kve;
 	struct vattr va;
@@ -2307,6 +2307,10 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	vm_map_t map;
 	struct vmspace *vm;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
@@ -2678,7 +2682,12 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 {
 	struct proc *p;
 	struct sbuf sb;
+	u_int namelen;
 	int error, error2, *name;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_vmentry), req);
@@ -2705,6 +2714,11 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	struct stack *st;
 	struct sbuf sb;
 	struct proc *p;
+	u_int namelen;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 	error = pget((pid_t)name[0], PGET_NOTINEXEC | PGET_WANTREAD, &p);
