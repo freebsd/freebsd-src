@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd July 23, 2021
 .Dt G_EVENT 9
 .Os
 .Sh NAME
@@ -40,6 +40,10 @@
 .Fn g_waitfor_event "g_event_t *func" "void *arg" "int flag" ...
 .Ft void
 .Fn g_cancel_event "void *ref"
+.Ft "struct g_event *"
+.Fn g_alloc_event "int flag"
+.Ft void
+.Fn g_post_event_ep "g_event_t *func" "void *arg" "struct g_event *ep" ...
 .Sh DESCRIPTION
 The GEOM framework has its own event queue to inform classes about important
 events.
@@ -78,6 +82,13 @@ function is a blocking version of the
 .Fn g_post_event
 function.
 It waits until the event is finished or canceled and then returns.
+.Pp
+The
+.Fn g_post_event_ep
+function posts the event with a pre-allocated
+.Va struct g_event .
+An event may be pre-allocated with
+.Fn g_alloc_event .
 .Pp
 The
 .Fn g_cancel_event
@@ -122,6 +133,25 @@ The
 .Fn g_waitfor_event
 function cannot be called from an event, since doing so would result
 in a deadlock.
+.El
+.Pp
+.Fn g_alloc_event :
+.Bl -item -offset indent
+.It
+The argument
+.Fa flag
+has to be
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT .
+.It
+The returned
+.Va struct g_event *
+must be freed with
+.Fn g_free
+if
+.Fn g_post_event_ep
+is not called.
 .El
 .Sh RETURN VALUES
 The
