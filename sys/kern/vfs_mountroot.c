@@ -983,6 +983,7 @@ vfs_mountroot_wait(void)
 	TSENTER();
 
 	curfail = 0;
+	lastfail.tv_sec = 0;
 	while (1) {
 		g_waitidle();
 		mtx_lock(&root_holds_mtx);
