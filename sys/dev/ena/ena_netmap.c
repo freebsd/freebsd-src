@@ -278,7 +278,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 	enum txrx t;
 	int rc, i;
 
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	ena_down(adapter);
 
@@ -315,7 +315,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
 		rc = ena_restore_device(adapter);
 	}
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 
 	return (rc);
 }
@@ -426,6 +426,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 	ena_tx_ctx.num_bufs = tx_info->num_of_bufs;
 	ena_tx_ctx.req_id = req_id;
 	ena_tx_ctx.header_len = header_len;
+	ena_tx_ctx.meta_valid = adapter->disable_meta_caching;
 
 	/* There are no any offloads, as the netmap doesn't support them */
 
@@ -444,6 +445,8 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 		} else {
 			ena_log_nm(adapter->pdev, ERR,
 			    "Failed to prepare Tx bufs\n");
+			ena_trigger_reset(adapter,
+			    ENA_REGS_RESET_DRIVER_INVALID_STATE);
 		}
 		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 
