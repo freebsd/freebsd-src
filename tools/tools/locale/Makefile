@@ -21,7 +21,6 @@ PATCHDIR=	${BASEDIR}/patch
 UNIDIR=		${.OBJDIR:tA}/unicode
 
 PKGS=	openjdk8 \
-	apache-ant \
 	p5-XML-Parser \
 	p5-Tie-IxHash \
 	p5-Text-Iconv
@@ -124,9 +123,10 @@ ENCODINGS=	UTF-8 \
 		UTF-32
 
 # CLDR files
-CLDRFILES_CORE= https://unicode.org/Public/cldr/35/core.zip
-CLDRFILES_KEY=	https://unicode.org/Public/cldr/35/keyboards.zip
-CLDRFILES_TOOLS=https://unicode.org/Public/cldr/35/tools.zip
+CLDRVERSION=	39.0
+CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION:R}/core.zip
+CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-keyboards-${CLDRVERSION}.zip
+CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-tools-${CLDRVERSION}.jar
 CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/13.0.0/UCD.zip
 
 # fetch and extract targets
@@ -140,27 +140,17 @@ extract-${CLDRFILES_${N}:T}:: ${CLDRFILES_${N}:T} ${UNIDIR}
 	cd ${UNIDIR} && unzip -o ../${CLDRFILES_${N}:T}
 extract: extract-${CLDRFILES_${N}:T}
 .endfor
-	grep 'name="version"' ${UNIDIR}/tools/build.xml | \
-		sed 's/.* value="//;s/".*//' > ${UNIDIR}/cldr-version
+	echo ${CLDRVERSION} > ${UNIDIR}/cldr-version
 patch::
 .if exists(${PATCHDIR})
 	cd ${UNIDIR} && cat ${PATCHDIR}/patch-* | patch
 .endif
 
-.if !exists(${UNIDIR}/tools/java/cldr.jar)
-.ORDER: extract patch
-build-tools: extract patch tools-test ${UNIDIR}
-	cd ${UNIDIR}/tools/java && ${SETENV} ant all jar
-.else
-build-tools:
-	@echo cldr.jar is ready.
-.endif
-
-JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar
+JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${.OBJDIR:tA}//${CLDRFILES_TOOLS:T}
 
 posix: posixcm post-posixcm posixsrc
 .ORDER: posixcm post-posixcm posixsrc
-${UNIDIR}/posix:
+${UNIDIR}/posix: ${UNIDIR}
 	ln -s -f ../posix ${.TARGET}
 clean-posix:
 	rm -rf posix ${UNIDIR}/posix
@@ -169,16 +159,16 @@ ${UNIDIR}/posix/xx_Comm_C.UTF-8.src: ${UNIDIR}/posix
 	    --unidir=${UNIDIR}
 post-posixcm: ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
 .for enc in ${ENCODINGS}
-posixcm: build-tools posix/${enc}.cm
-.ORDER: build-tools posix/${enc}.cm
+posixcm: posix/${enc}.cm
+.ORDER: posix/${enc}.cm
 posix/${enc}.cm:
 	mkdir -p posix && \
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GenerateCharmap \
 		-d posix -c ${enc}
 .endfor
 .for area in ${BASE_LOCALES_OF_INTEREST}
-posixsrc: build-tools posix/${area}.UTF-8.src
-.ORDER: build-tools posix/${area}.UTF-8.src
+posixsrc: posix/${area}.UTF-8.src
+.ORDER: posix/${area}.UTF-8.src
 posix/${area}.UTF-8.src:
 	mkdir -p posix && \
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GeneratePOSIX \
