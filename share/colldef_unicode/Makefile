@@ -7,7 +7,7 @@ FILESNAME=	LC_COLLATE
 .SUFFIXES:	.src .LC_COLLATE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
-CLDR_VERSION=	"34.0"
+CLDR_VERSION=	"39.0"
 
 .include <bsd.endian.mk>
 
@@ -54,7 +54,9 @@ LOCALES+=	uk_UA.UTF-8
 LOCALES+=	zh_CN.UTF-8
 LOCALES+=	zh_TW.UTF-8
 
-LOCALES_MAPPED=	sr_RS.UTF-8@latin hr_HR.UTF-8
+LOCALES_MAPPED+=	sr_RS.UTF-8@latin hr_HR.UTF-8
+
+
 
 SAME+=		ar_SA.UTF-8 ar_QA.UTF-8
 SAME+=		ar_SA.UTF-8 ar_MA.UTF-8

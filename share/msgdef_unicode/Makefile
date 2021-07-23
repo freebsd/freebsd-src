@@ -49,8 +49,9 @@ LOCALES+=	sv_SE.UTF-8
 LOCALES+=	tr_TR.UTF-8
 LOCALES+=	uk_UA.UTF-8
 LOCALES+=	zh_CN.UTF-8
-LOCALES+=	zh_HK.UTF-8
 LOCALES+=	zh_TW.UTF-8
+
+
 
 SAME+=		nl_NL.UTF-8 nl_BE.UTF-8
 SAME+=		nl_NL.UTF-8 af_ZA.UTF-8
@@ -88,6 +89,7 @@ SAME+=		sr_RS.UTF-8@latin hr_HR.UTF-8
 SAME+=		it_IT.UTF-8 it_CH.UTF-8
 SAME+=		pt_PT.UTF-8 pt_BR.UTF-8
 SAME+=		se_NO.UTF-8 se_FI.UTF-8
+SAME+=		zh_TW.UTF-8 zh_HK.UTF-8
 
 FILES=		${LOCALES:S/$/.out/}
 CLEANFILES=	${FILES}
