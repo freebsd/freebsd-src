@@ -174,6 +174,7 @@ kasan_code_name(uint8_t code)
 
 #define	REPORT(f, ...) do {				\
 	if (panic_on_violation) {			\
+		kasan_enabled = false;			\
 		panic(f, __VA_ARGS__);			\
 	} else {					\
 		struct stack st;			\
