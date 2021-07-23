@@ -3223,8 +3223,7 @@ journal_unsuspend(struct ufsmount *ump)
 }
 
 static void
-journal_check_space(ump)
-	struct ufsmount *ump;
+journal_check_space(struct ufsmount *ump)
 {
 	struct mount *mp;
 
