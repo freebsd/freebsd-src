@@ -129,6 +129,11 @@ skein_block.o skein_block.pico: Makefile
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.S)
 ACFLAGS+= -DELF -Wa,--noexecstack
 .endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=	sha256c_arm64.c
+CFLAGS+= -DARM64_SHA2
+CFLAGS.sha256c_arm64.c+= -march=armv8-a+crypto
+.endif
 .endif # ${USE_ASM_SOURCES} != 0
 
 md4hl.c: mdXhl.c
