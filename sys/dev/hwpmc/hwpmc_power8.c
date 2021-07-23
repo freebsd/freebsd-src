@@ -43,6 +43,12 @@ __FBSDID("$FreeBSD$");
 
 #define	POWER8_MAX_PMCS		6
 
+#define PM_EVENT_CODE(pe)	(pe & 0xffff)
+#define PM_EVENT_COUNTER(pe)	((pe >> 16) & 0xffff)
+
+#define PM_CYC			0x1e
+#define PM_INST_CMPL		0x02
+
 static struct pmc_ppc_event power8_event_codes[] = {
 	{PMC_EV_POWER8_INSTR_COMPLETED,
 	    .pe_flags = PMC_FLAG_PMC5,
@@ -275,6 +281,54 @@ power8_resume_pmc(bool ie)
 	mtspr(SPR_MMCR0, mmcr0);
 }
 
+static int
+power8_allocate_pmc(int cpu, int ri, struct pmc *pm,
+	const struct pmc_op_pmcallocate *a)
+{
+	uint32_t caps, config, counter, pe;
+
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[powerpc,%d] illegal CPU value %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < ppc_max_pmcs,
+	    ("[powerpc,%d] illegal row index %d", __LINE__, ri));
+
+	pe = a->pm_md.pm_event;
+	counter = PM_EVENT_COUNTER(pe);
+	config = PM_EVENT_CODE(pe);
+
+	/*
+	 * PMC5 and PMC6 are not programmable and always count instructions
+	 * completed and cycles, respectively.
+	 *
+	 * When counter is 0 any of the 4 programmable PMCs may be used for
+	 * the specified event, otherwise it must match ri + 1.
+	 */
+	if (counter == 0 && config == PM_INST_CMPL)
+		counter = 5;
+	else if (counter == 0 && config == PM_CYC)
+		counter = 6;
+	else if (counter > 4)
+		return (EINVAL);
+
+	if (counter != 0 && counter != ri + 1)
+		return (EINVAL);
+
+	caps = a->pm_caps;
+
+	if (caps & PMC_CAP_SYSTEM)
+		config |= POWERPC_PMC_KERNEL_ENABLE;
+	if (caps & PMC_CAP_USER)
+		config |= POWERPC_PMC_USER_ENABLE;
+	if ((caps & (PMC_CAP_USER | PMC_CAP_SYSTEM)) == 0)
+		config |= POWERPC_PMC_ENABLE;
+
+	pm->pm_md.pm_powerpc.pm_powerpc_evsel = config;
+
+	PMCDBG3(MDP,ALL,1,"powerpc-allocate cpu=%d ri=%d -> config=0x%x",
+	    cpu, ri, config);
+	return (0);
+}
+
 int
 pmc_power8_initialize(struct pmc_mdep *pmc_mdep)
 {
@@ -291,7 +345,7 @@ pmc_power8_initialize(struct pmc_mdep *pmc_mdep)
 
 	pcd->pcd_pcpu_init      = power8_pcpu_init;
 	pcd->pcd_pcpu_fini      = power8_pcpu_fini;
-	pcd->pcd_allocate_pmc   = powerpc_allocate_pmc;
+	pcd->pcd_allocate_pmc   = power8_allocate_pmc;
 	pcd->pcd_release_pmc    = powerpc_release_pmc;
 	pcd->pcd_start_pmc      = powerpc_start_pmc;
 	pcd->pcd_stop_pmc       = powerpc_stop_pmc;
@@ -304,10 +358,7 @@ pmc_power8_initialize(struct pmc_mdep *pmc_mdep)
 	pmc_mdep->pmd_npmc     += POWER8_MAX_PMCS;
 	pmc_mdep->pmd_intr      = powerpc_pmc_intr;
 
-	ppc_event_codes = power8_event_codes;
 	ppc_event_codes_size = power8_event_codes_size;
-	ppc_event_first = PMC_EV_POWER8_FIRST;
-	ppc_event_last = PMC_EV_POWER8_LAST;
 	ppc_max_pmcs = POWER8_MAX_PMCS;
 
 	powerpc_set_pmc = power8_set_pmc;
