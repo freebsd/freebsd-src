@@ -758,11 +758,15 @@ static void
 aio_md_cleanup(void)
 {
 	struct md_ioctl mdio;
-	int mdctl_fd, error, n, unit;
+	int mdctl_fd, n, unit;
 	char buf[80];
 
 	mdctl_fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
-	ATF_REQUIRE(mdctl_fd >= 0);
+	if (mdctl_fd < 0) {
+		fprintf(stderr, "opening /dev/%s failed: %s\n", MDCTL_NAME,
+		    strerror(errno));
+		return;
+	}
 	n = readlink(MDUNIT_LINK, buf, sizeof(buf));
 	if (n > 0) {
 		if (sscanf(buf, "%d", &unit) == 1 && unit >= 0) {
@@ -770,11 +774,9 @@ aio_md_cleanup(void)
 			mdio.md_version = MDIOVERSION;
 			mdio.md_unit = unit;
 			if (ioctl(mdctl_fd, MDIOCDETACH, &mdio) == -1) {
-				error = errno;
-				close(mdctl_fd);
-				errno = error;
-				atf_tc_fail("ioctl MDIOCDETACH failed: %s",
-				    strerror(errno));
+				fprintf(stderr,
+				    "ioctl MDIOCDETACH unit %d failed: %s\n",
+				    unit, strerror(errno));
 			}
 		}
 	}
