@@ -98,8 +98,6 @@ extern struct ena_bus_space ebs;
 #define DEFAULT_ALLOC_ALIGNMENT	8
 #define ENA_CDESC_RING_SIZE_ALIGNMENT  (1 << 12) /* 4K */
 
-extern int ena_log_level;
-
 #define container_of(ptr, type, member)					\
 	({								\
 		const __typeof(((type *)0)->member) *__p = (ptr);	\
