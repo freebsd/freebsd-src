@@ -6,6 +6,7 @@ FILESNAME=	LC_CTYPE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
 .include <bsd.endian.mk>
+.include <src.opts.mk>
 
 .src.LC_CTYPE:
 	localedef ${LOCALEDEF_ENDIAN} -D -U -c -w ${MAPLOC}/widths.txt \
@@ -13,6 +14,7 @@ MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 	-i ${.IMPSRC} ${.OBJDIR}/${.IMPSRC:T:R}  || true
 
 LOCALES+=	C.UTF-8
+.if ${MK_LOCALES} != no
 LOCALES+=	be_BY.CP1131
 LOCALES+=	ca_IT.ISO8859-1
 LOCALES+=	ca_IT.ISO8859-15
@@ -206,6 +208,7 @@ SAME+=		en_US.US-ASCII en_CA.US-ASCII
 SAME+=		en_US.US-ASCII en_AU.US-ASCII
 SAME+=		lv_LV.ISO8859-13 lt_LT.ISO8859-13
 SAME+=		ko_KR.eucKR ko_KR.CP949	# legacy (same charset)
+.endif
 
 FILES=		${LOCALES:S/$/.LC_CTYPE/}
 CLEANFILES=	${FILES}
