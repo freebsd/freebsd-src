@@ -18,6 +18,8 @@ MISRCS+=C99_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 	strtol.c strtold.c strtoll.c strtoq.c strtoul.c strtonum.c strtoull.c \
 	strtoumax.c strtouq.c system.c tdelete.c tfind.c tsearch.c twalk.c
 
+CFLAGS.qsort.c+= -Wsign-compare
+
 # Work around an issue on case-insensitive file systems.
 # libc has both _Exit.c and _exit.s and they both yield
 # _exit.o (case insensitively speaking).
