@@ -319,6 +319,13 @@ pfattach_vnet(void)
 	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
 
+#ifdef PF_WANT_32_TO_64_COUNTER
+	V_pf_kifmarker = malloc(sizeof(*V_pf_kifmarker), PFI_MTYPE, M_WAITOK | M_ZERO);
+	PF_RULES_WLOCK();
+	LIST_INSERT_HEAD(&V_pf_allkiflist, V_pf_kifmarker, pfik_allkiflist);
+	PF_RULES_WUNLOCK();
+#endif
+
 	/* initialize default timeouts */
 	my_timeout[PFTM_TCP_FIRST_PACKET] = PFTM_TCP_FIRST_PACKET_VAL;
 	my_timeout[PFTM_TCP_OPENING] = PFTM_TCP_OPENING_VAL;
@@ -5599,6 +5606,16 @@ pf_unload_vnet(void)
 	pf_cleanup_tagset(&V_pf_qids);
 #endif
 	uma_zdestroy(V_pf_tag_z);
+
+#ifdef PF_WANT_32_TO_64_COUNTER
+	PF_RULES_WLOCK();
+	LIST_REMOVE(V_pf_kifmarker, pfik_allkiflist);
+	PF_RULES_WUNLOCK();
+	free(V_pf_kifmarker, PFI_MTYPE);
+
+	MPASS(LIST_EMPTY(&V_pf_allkiflist));
+	MPASS(V_pf_allkifcount == 0);
+#endif
 
 	/* Free counters last as we updated them during shutdown. */
 	counter_u64_free(V_pf_default_rule.evaluations);

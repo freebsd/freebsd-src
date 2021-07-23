@@ -1258,14 +1258,17 @@ struct pfi_kkif {
 	} _pfik_glue;
 #define	pfik_tree	_pfik_glue._pfik_tree
 #define	pfik_list	_pfik_glue._pfik_list
-	counter_u64_t			 pfik_packets[2][2][2];
-	counter_u64_t			 pfik_bytes[2][2][2];
+	struct pf_counter_u64		 pfik_packets[2][2][2];
+	struct pf_counter_u64		 pfik_bytes[2][2][2];
 	u_int32_t			 pfik_tzero;
 	u_int				 pfik_flags;
 	struct ifnet			*pfik_ifp;
 	struct ifg_group		*pfik_group;
 	u_int				 pfik_rulerefs;
 	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
+#ifdef PF_WANT_32_TO_64_COUNTER
+	LIST_ENTRY(pfi_kkif)		 pfik_allkiflist;
+#endif
 };
 #endif
 
@@ -1850,6 +1853,16 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altq_ifs_inactive);
 
 VNET_DECLARE(struct pf_krulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
+
+#ifdef PF_WANT_32_TO_64_COUNTER
+LIST_HEAD(allkiflist_head, pfi_kkif);
+VNET_DECLARE(struct allkiflist_head, pf_allkiflist);
+#define V_pf_allkiflist     VNET(pf_allkiflist)
+VNET_DECLARE(size_t, pf_allkifcount);
+#define V_pf_allkifcount     VNET(pf_allkifcount)
+VNET_DECLARE(struct pfi_kkif *, pf_kifmarker);
+#define V_pf_kifmarker     VNET(pf_kifmarker)
+#endif
 
 void				 pf_initialize(void);
 void				 pf_mtag_initialize(void);

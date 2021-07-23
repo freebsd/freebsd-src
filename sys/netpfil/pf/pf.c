@@ -1533,6 +1533,48 @@ pf_status_counter_u64_periodic(void)
 }
 
 static void
+pf_kif_counter_u64_periodic(void)
+{
+	struct pfi_kkif *kif;
+	size_t r, run;
+
+	PF_RULES_RASSERT();
+
+	if (__predict_false(V_pf_allkifcount == 0)) {
+		return;
+	}
+
+	if ((V_pf_counter_periodic_iter % (pf_purge_thread_period * 10 * 300)) != 0) {
+		return;
+	}
+
+	run = V_pf_allkifcount / 10;
+	if (run < 5)
+		run = 5;
+
+	for (r = 0; r < run; r++) {
+		kif = LIST_NEXT(V_pf_kifmarker, pfik_allkiflist);
+		if (kif == NULL) {
+			LIST_REMOVE(V_pf_kifmarker, pfik_allkiflist);
+			LIST_INSERT_HEAD(&V_pf_allkiflist, V_pf_kifmarker, pfik_allkiflist);
+			break;
+		}
+
+		LIST_REMOVE(V_pf_kifmarker, pfik_allkiflist);
+		LIST_INSERT_AFTER(kif, V_pf_kifmarker, pfik_allkiflist);
+
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 2; j++) {
+				for (int k = 0; k < 2; k++) {
+					pf_counter_u64_periodic(&kif->pfik_packets[i][j][k]);
+					pf_counter_u64_periodic(&kif->pfik_bytes[i][j][k]);
+				}
+			}
+		}
+	}
+}
+
+static void
 pf_counter_u64_periodic_main(void)
 {
 	PF_RULES_RLOCK_TRACKER;
@@ -1542,6 +1584,7 @@ pf_counter_u64_periodic_main(void)
 	PF_RULES_RLOCK();
 	pf_counter_u64_critical_enter();
 	pf_status_counter_u64_periodic();
+	pf_kif_counter_u64_periodic();
 	pf_counter_u64_critical_exit();
 	PF_RULES_RUNLOCK();
 }
@@ -6402,9 +6445,9 @@ done:
 		    (s == NULL));
 	}
 
-	counter_u64_add(kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add(&kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
 	    pd.tot_len);
-	counter_u64_add(kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add(&kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
 	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
@@ -6807,9 +6850,9 @@ done:
 		    &pd, (s == NULL));
 	}
 
-	counter_u64_add(kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add(&kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
 	    pd.tot_len);
-	counter_u64_add(kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add(&kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
 	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
