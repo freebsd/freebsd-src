@@ -1244,7 +1244,7 @@ done:
  * The backend always returns POLLHUP/POLLERR if appropriate and we
  * return this as a set bit in any set.
  */
-static int select_flags[3] = {
+static const int select_flags[3] = {
     POLLRDNORM | POLLHUP | POLLERR,
     POLLWRNORM | POLLHUP | POLLERR,
     POLLRDBAND | POLLERR
