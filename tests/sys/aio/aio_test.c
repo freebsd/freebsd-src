@@ -767,8 +767,9 @@ aio_md_cleanup(void)
 		    strerror(errno));
 		return;
 	}
-	n = readlink(MDUNIT_LINK, buf, sizeof(buf));
+	n = readlink(MDUNIT_LINK, buf, sizeof(buf) - 1);
 	if (n > 0) {
+		buf[n] = '\0';
 		if (sscanf(buf, "%d", &unit) == 1 && unit >= 0) {
 			bzero(&mdio, sizeof(mdio));
 			mdio.md_version = MDIOVERSION;
