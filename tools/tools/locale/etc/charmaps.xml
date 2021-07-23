@@ -68,6 +68,8 @@
 		countries="EE" />
 	<language name="eu"
 		countries="ES" />
+	<language name="fa"
+		countries="AF IR" />
 	<language name="fi"
 		countries="FI" />
 	<language name="fr"

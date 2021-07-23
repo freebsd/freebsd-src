@@ -107,7 +107,7 @@ BASE_LOCALES_OF_INTEREST?= \
 	be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	cs_CZ da_DK de_AT de_CH de_DE el_GR en_AU en_CA \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US en_ZA \
-	es_AR es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE \
+	es_AR es_CR es_ES es_MX et_EE eu_ES fa_AF fa_IR fi_FI fr_BE \
 	fr_CA fr_CH fr_FR ga_IE he_IL hi_IN hr_HR hu_HU hy_AM \
 	is_IS it_CH it_IT ja_JP ko_KR lt_LT lv_LV \
 	nb_NO nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO \
