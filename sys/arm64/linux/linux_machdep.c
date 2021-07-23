@@ -53,7 +53,6 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 /* DTrace probes */
 LIN_SDT_PROBE_DEFINE0(machdep, linux_mmap2, todo);
-LIN_SDT_PROBE_DEFINE0(machdep, linux_rt_sigsuspend, todo);
 LIN_SDT_PROBE_DEFINE0(machdep, linux_sigaltstack, todo);
 
 /*
@@ -120,15 +119,6 @@ linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 
 	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
-}
-
-/* LINUXTODO: implement arm64 linux_rt_sigsuspend */
-int
-linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
-{
-
-	LIN_SDT_PROBE0(machdep, linux_rt_sigsuspend, todo);
-	return (EDOOFUS);
 }
 
 /* LINUXTODO: implement arm64 linux_sigaltstack */
