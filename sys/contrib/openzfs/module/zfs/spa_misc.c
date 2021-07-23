@@ -700,13 +700,12 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		spa->spa_root = spa_strdup(altroot);
 
 	spa->spa_alloc_count = spa_allocators;
-	spa->spa_alloc_locks = kmem_zalloc(spa->spa_alloc_count *
-	    sizeof (kmutex_t), KM_SLEEP);
-	spa->spa_alloc_trees = kmem_zalloc(spa->spa_alloc_count *
-	    sizeof (avl_tree_t), KM_SLEEP);
+	spa->spa_allocs = kmem_zalloc(spa->spa_alloc_count *
+	    sizeof (spa_alloc_t), KM_SLEEP);
 	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		mutex_init(&spa->spa_alloc_locks[i], NULL, MUTEX_DEFAULT, NULL);
-		avl_create(&spa->spa_alloc_trees[i], zio_bookmark_compare,
+		mutex_init(&spa->spa_allocs[i].spaa_lock, NULL, MUTEX_DEFAULT,
+		    NULL);
+		avl_create(&spa->spa_allocs[i].spaa_tree, zio_bookmark_compare,
 		    sizeof (zio_t), offsetof(zio_t, io_alloc_node));
 	}
 	avl_create(&spa->spa_metaslabs_by_flushed, metaslab_sort_by_flushed,
@@ -799,13 +798,11 @@ spa_remove(spa_t *spa)
 	}
 
 	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		avl_destroy(&spa->spa_alloc_trees[i]);
-		mutex_destroy(&spa->spa_alloc_locks[i]);
+		avl_destroy(&spa->spa_allocs[i].spaa_tree);
+		mutex_destroy(&spa->spa_allocs[i].spaa_lock);
 	}
-	kmem_free(spa->spa_alloc_locks, spa->spa_alloc_count *
-	    sizeof (kmutex_t));
-	kmem_free(spa->spa_alloc_trees, spa->spa_alloc_count *
-	    sizeof (avl_tree_t));
+	kmem_free(spa->spa_allocs, spa->spa_alloc_count *
+	    sizeof (spa_alloc_t));
 
 	avl_destroy(&spa->spa_metaslabs_by_flushed);
 	avl_destroy(&spa->spa_sm_logs_by_txg);
@@ -1786,8 +1783,22 @@ spa_get_worst_case_asize(spa_t *spa, uint64_t lsize)
 uint64_t
 spa_get_slop_space(spa_t *spa)
 {
-	uint64_t space = spa_get_dspace(spa);
-	uint64_t slop = MIN(space >> spa_slop_shift, spa_max_slop);
+	uint64_t space = 0;
+	uint64_t slop = 0;
+
+	/*
+	 * Make sure spa_dedup_dspace has been set.
+	 */
+	if (spa->spa_dedup_dspace == ~0ULL)
+		spa_update_dspace(spa);
+
+	/*
+	 * spa_get_dspace() includes the space only logically "used" by
+	 * deduplicated data, so since it's not useful to reserve more
+	 * space with more deduplicated data, we subtract that out here.
+	 */
+	space = spa_get_dspace(spa) - spa->spa_dedup_dspace;
+	slop = MIN(space >> spa_slop_shift, spa_max_slop);
 
 	/*
 	 * Subtract the embedded log space, but no more than half the (3.2%)
