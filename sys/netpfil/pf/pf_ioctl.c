@@ -2321,7 +2321,7 @@ DIOCADDRULENV_error:
 		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
 		struct pf_krule		*rule;
 
-		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
+		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK | M_ZERO);
 		error = pf_rule_to_krule(&pr->rule, rule);
 		if (error != 0) {
 			free(rule, M_PFRULE);
@@ -2574,7 +2574,7 @@ DIOCGETRULENV_error:
 		}
 
 		if (pcr->action != PF_CHANGE_REMOVE) {
-			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK);
+			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK | M_ZERO);
 			error = pf_rule_to_krule(&pcr->rule, newrule);
 			if (error != 0) {
 				free(newrule, M_PFRULE);
