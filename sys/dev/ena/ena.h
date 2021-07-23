@@ -34,14 +34,14 @@
 #ifndef ENA_H
 #define ENA_H
 
-#include <sys/types.h>
+#include "opt_rss.h"
 
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
 #define DRV_MODULE_VER_MINOR	4
-#define DRV_MODULE_VER_SUBMINOR 0
+#define DRV_MODULE_VER_SUBMINOR 1
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -123,6 +123,8 @@
 
 #define	ENA_IO_TXQ_IDX(q)		(2 * (q))
 #define	ENA_IO_RXQ_IDX(q)		(2 * (q) + 1)
+#define	ENA_IO_TXQ_IDX_TO_COMBINED_IDX(q)	((q) / 2)
+#define	ENA_IO_RXQ_IDX_TO_COMBINED_IDX(q)	(((q) - 1) / 2)
 
 #define	ENA_MGMNT_IRQ_IDX		0
 #define	ENA_IO_IRQ_FIRST_IDX		1
@@ -201,7 +203,9 @@ struct ena_irq {
 	void *cookie;
 	unsigned int vector;
 	bool requested;
+#ifdef RSS
 	int cpu;
+#endif
 	char name[ENA_IRQNAME_SIZE];
 };
 
@@ -214,7 +218,10 @@ struct ena_que {
 	struct taskqueue *cleanup_tq;
 
 	uint32_t id;
+#ifdef RSS
 	int cpu;
+	cpuset_t cpu_mask;
+#endif
 	struct sysctl_oid *oid;
 };
 
@@ -281,19 +288,21 @@ struct ena_stats_tx {
 	counter_u64_t queue_wakeup;
 	counter_u64_t queue_stop;
 	counter_u64_t llq_buffer_copy;
+	counter_u64_t unmask_interrupt_num;
 };
 
 struct ena_stats_rx {
 	counter_u64_t cnt;
 	counter_u64_t bytes;
 	counter_u64_t refil_partial;
-	counter_u64_t bad_csum;
+	counter_u64_t csum_bad;
 	counter_u64_t mjum_alloc_fail;
 	counter_u64_t mbuf_alloc_fail;
 	counter_u64_t dma_mapping_err;
 	counter_u64_t bad_desc_num;
 	counter_u64_t bad_req_id;
 	counter_u64_t empty_rx_ring;
+	counter_u64_t csum_good;
 };
 
 struct ena_ring {
@@ -402,8 +411,6 @@ struct ena_adapter {
 	struct resource *msix;
 	int msix_rid;
 
-	struct sx global_lock;
-
 	/* MSI-X */
 	struct msix_entry *msix_entries;
 	int msix_vecs;
@@ -432,7 +439,7 @@ struct ena_adapter {
 	uint32_t buf_ring_size;
 
 	/* RSS*/
-	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
+	struct ena_indir *rss_indir;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/
@@ -480,15 +487,20 @@ struct ena_adapter {
 #define	ENA_RING_MTX_LOCK(_ring)		mtx_lock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_TRYLOCK(_ring)		mtx_trylock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_UNLOCK(_ring)		mtx_unlock(&(_ring)->ring_mtx)
+#define ENA_RING_MTX_ASSERT(_ring)		\
+	mtx_assert(&(_ring)->ring_mtx, MA_OWNED)
 
-#define ENA_LOCK_INIT(adapter)			\
-	sx_init(&(adapter)->global_lock, "ENA global lock")
-#define ENA_LOCK_DESTROY(adapter)	sx_destroy(&(adapter)->global_lock)
-#define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
-#define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
+#define ENA_LOCK_INIT()					\
+	sx_init(&ena_global_lock,	"ENA global lock")
+#define ENA_LOCK_DESTROY()		sx_destroy(&ena_global_lock)
+#define ENA_LOCK_LOCK()			sx_xlock(&ena_global_lock)
+#define ENA_LOCK_UNLOCK()		sx_unlock(&ena_global_lock)
+#define ENA_LOCK_ASSERT()		sx_assert(&ena_global_lock, SA_XLOCKED)
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp_val(val, lo, hi)		clamp_t(__typeof(val), val, lo, hi)
+
+extern struct sx ena_global_lock;
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {

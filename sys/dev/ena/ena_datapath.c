@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_NETMAP
 #include "ena_netmap.h"
 #endif /* DEV_NETMAP */
+#ifdef RSS
+#include <net/rss_config.h>
+#endif /* RSS */
 
 /*********************************************************************
  *  Static functions prototypes
@@ -103,6 +106,7 @@ ena_cleanup(void *arg, int pending)
 	    RX_IRQ_INTERVAL,
 	    TX_IRQ_INTERVAL,
 	    true);
+	counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 	ena_com_unmask_intr(io_cq, &intr_reg);
 }
 
@@ -128,6 +132,9 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	struct ena_ring *tx_ring;
 	int ret, is_drbr_empty;
 	uint32_t i;
+#ifdef RSS
+	uint32_t bucket_id;
+#endif
 
 	if (unlikely((if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING) == 0))
 		return (ENODEV);
@@ -139,7 +146,13 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	 * It should improve performance.
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-		i = m->m_pkthdr.flowid % adapter->num_io_queues;
+#ifdef RSS
+		if (rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+		    &bucket_id) == 0)
+			i = bucket_id % adapter->num_io_queues;
+		else
+#endif
+			i = m->m_pkthdr.flowid % adapter->num_io_queues;
 	} else {
 		i = curcpu % adapter->num_io_queues;
 	}
@@ -516,7 +529,7 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 	    ena_rx_ctx->l3_csum_err)) {
 		/* ipv4 checksum error */
 		mbuf->m_pkthdr.csum_flags = 0;
-		counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
+		counter_u64_add(rx_ring->rx_stats.csum_bad, 1);
 		ena_log_io(pdev, DBG, "RX IPv4 header checksum error\n");
 		return;
 	}
@@ -527,11 +540,12 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 		if (ena_rx_ctx->l4_csum_err) {
 			/* TCP/UDP checksum error */
 			mbuf->m_pkthdr.csum_flags = 0;
-			counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
+			counter_u64_add(rx_ring->rx_stats.csum_bad, 1);
 			ena_log_io(pdev, DBG, "RX L4 checksum error\n");
 		} else {
 			mbuf->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
 			mbuf->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			counter_u64_add(rx_ring->rx_stats.csum_good, 1);
 		}
 	}
 }
@@ -801,6 +815,11 @@ ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* One segment must be reserved for configuration descriptor. */
 	if (num_frags < adapter->max_tx_sgl_size)
 		return (0);
+
+	if ((num_frags == adapter->max_tx_sgl_size) &&
+	    ((*mbuf)->m_pkthdr.len < tx_ring->tx_max_header_size))
+		return (0);
+
 	counter_u64_add(tx_ring->tx_stats.collapse, 1);
 
 	collapsed_mbuf = m_collapse(*mbuf, M_NOWAIT,
@@ -962,6 +981,9 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	tx_info = &tx_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
 
+	ENA_WARN(tx_info->mbuf != NULL, adapter->ena_dev,
+	    "mbuf isn't NULL for req_id %d\n", req_id);
+
 	rc = ena_tx_map_mbuf(tx_ring, tx_info, *mbuf, &push_hdr, &header_len);
 	if (unlikely(rc != 0)) {
 		ena_log_io(pdev, WARN, "Failed to map TX mbuf\n");
@@ -995,6 +1017,8 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 			    tx_ring->que->id);
 		} else {
 			ena_log(pdev, ERR, "failed to prepare tx bufs\n");
+			ena_trigger_reset(adapter,
+			    ENA_REGS_RESET_DRIVER_INVALID_STATE);
 		}
 		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 		goto dma_error;
@@ -1064,6 +1088,8 @@ ena_start_xmit(struct ena_ring *tx_ring)
 	struct ena_com_io_sq* io_sq;
 	int ena_qid;
 	int ret = 0;
+
+	ENA_RING_MTX_ASSERT(tx_ring);
 
 	if (unlikely((if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING) == 0))
 		return;
