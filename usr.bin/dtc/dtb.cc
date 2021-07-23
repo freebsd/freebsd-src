@@ -34,11 +34,12 @@
 
 #include "dtb.hh"
 #include <sys/types.h>
-#include <inttypes.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+
+#include <cerrno>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
 
 using std::string;
 
@@ -58,7 +59,7 @@ void write(dtc::byte_buffer &buffer, int fd)
 		}
 		else if (errno != EAGAIN)
 		{
-			fprintf(stderr, "Writing to file failed\n");
+			std::fprintf(stderr, "Writing to file failed\n");
 			exit(-1);
 		}
 	}
@@ -72,7 +73,7 @@ namespace dtb
 
 void output_writer::write_data(byte_buffer b)
 {
-	for (auto i : b)
+	for (const auto i : b)
 	{
 		write_data(i);
 	}
@@ -144,7 +145,7 @@ asm_writer::write_byte(uint8_t b)
 		buffer.push_back('\t');
 	}
 	write_string(".byte 0x");
-	snprintf(out, 3, "%.2hhx", b);
+	std::snprintf(out, 3, "%.2hhx", b);
 	buffer.push_back(out[0]);
 	buffer.push_back(out[1]);
 	if (byte_count == 4)
@@ -188,7 +189,7 @@ asm_writer::write_string(const char *c)
 {
 	while (*c)
 	{
-		buffer.push_back((uint8_t)*(c++));
+		buffer.push_back(static_cast<uint8_t>(*(c++)));
 	}
 }
 
@@ -287,12 +288,12 @@ header::read_dtb(input_buffer &input)
 {
 	if (!input.consume_binary(magic))
 	{
-		fprintf(stderr, "Missing magic token in header.");
+		std::fprintf(stderr, "Missing magic token in header.");
 		return false;
 	}
 	if (magic != 0xd00dfeed)
 	{
-		fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
+		std::fprintf(stderr, "Bad magic token in header.  Got %" PRIx32
 		                " expected 0xd00dfeed\n", magic);
 		return false;
 	}
@@ -330,7 +331,7 @@ string_table::write(dtb::output_writer &writer)
 {
 	writer.write_comment("Strings table.");
 	writer.write_label("dt_strings_start");
-	for (auto &i : strings)
+	for (const auto &i : strings)
 	{
 		writer.write_string(i);
 	}

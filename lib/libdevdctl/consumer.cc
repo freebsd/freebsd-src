@@ -40,11 +40,11 @@
 #include <sys/un.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdarg>
 #include <cstring>
 #include <list>
@@ -103,7 +103,7 @@ Consumer::ConnectToDevd()
 	}
 	syslog(LOG_INFO, "%s: Connecting to devd.", __func__);
 
-	memset(&devdAddr, 0, sizeof(devdAddr));
+	std::memset(&devdAddr, 0, sizeof(devdAddr));
 	devdAddr.sun_family= AF_UNIX;
 	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);

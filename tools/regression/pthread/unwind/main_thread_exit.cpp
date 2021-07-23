@@ -1,9 +1,9 @@
 /* $FreeBSD$ */
 /* check unwinding for main thread */
 
+#include <cstdio>
+#include <cstdlib>
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "Test.cpp"
 

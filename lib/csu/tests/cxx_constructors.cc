@@ -35,25 +35,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <errno.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdlib>
 #include <unistd.h>
 
 #ifndef DSO_LIB
 #include <atf-c++.hpp>
 #endif
 
-extern volatile int constructor_run;
+extern volatile bool constructor_run;
 extern bool run_destructor_test;
 
 #ifndef DSO_BASE
-volatile int constructor_run;
+volatile bool constructor_run;
 bool run_destructor_test = false;
 #endif
 
 struct Foo {
 	Foo() {
-		constructor_run = 1;
+		constructor_run = false;
 	}
 	~Foo() {
 		if (run_destructor_test)
@@ -71,7 +71,7 @@ ATF_TEST_CASE_WITHOUT_HEAD(cxx_constructor);
 ATF_TEST_CASE_BODY(cxx_constructor)
 {
 
-	ATF_REQUIRE(constructor_run == 1);
+	ATF_REQUIRE(constructor_run);
 }
 
 ATF_TEST_CASE_WITHOUT_HEAD(cxx_destructor);
