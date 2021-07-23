@@ -734,6 +734,8 @@ aio_md_setup(void)
 	mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
 	mdio.md_mediasize = GLOBAL_MAX;
 	mdio.md_sectorsize = 512;
+	strlcpy(buf, __func__, sizeof(buf));
+	mdio.md_label = buf;
 
 	if (ioctl(mdctl_fd, MDIOCATTACH, &mdio) < 0) {
 		error = errno;
