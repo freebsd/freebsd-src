@@ -2563,7 +2563,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	u_char	af;
 	struct	walkarg w;
 
-	name ++;
+	if (namelen < 3)
+		return (EINVAL);
+
+	name++;
 	namelen--;
 	if (req->newptr)
 		return (EPERM);
