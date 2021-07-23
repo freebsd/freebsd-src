@@ -65,7 +65,6 @@ my %values = ();
 my %hashtable = ();
 my %languages = ();
 my %translations = ();
-my %encodings = ();
 my %alternativemonths = ();
 get_languages();
 
@@ -74,7 +73,6 @@ $utfmap{'UTF-8'} = {};
 $utfmap{'UTF-32'} = {};
 get_utfmap("$UNIDIR/posix/$DEFENCODING.cm", $utfmap{'UTF-8'});
 get_utfmap("$UNIDIR/posix/UTF-32.cm", $utfmap{'UTF-32'});
-get_encodings("$ETCDIR/charmaps");
 
 my %keys = ();
 tie(%keys, "Tie::IxHash");
@@ -384,44 +382,11 @@ sub resolve_enc_addition {
 	return $ret;
 }
 
-sub get_encodings {
-	my $dir = shift;
-	foreach my $e (sort(keys(%encodings))) {
-		if (!open(FIN, "$dir/$e.TXT")) {
-			print "Cannot open charmap for $e\n";
-			next;
-
-		}
-		$encodings{$e} = 1;
-		my @lines = <FIN>;
-		close(FIN);
-		chomp(@lines);
-		foreach my $l (@lines) {
-			$l =~ s/\r//;
-			next if ($l eq "");
-
-			my @a = split(" ", $l);
-			next if ($#a < 1);
-			next if ($a[0] =~ /^\#/ or $a[1] =~ /^\#/);
-			next if ($a[0] eq '' or $a[1] eq '');
-
-			$a[0] = resolve_enc_addition($a[0]);	# local
-			$a[1] = resolve_enc_addition($a[1]);	# UTF-32
-			my $u32 = sprintf("%08X", hex($a[1]));
-#			print STDERR "$a[1] => $u32\n";
-
-			# Use UTF-32 as the indices.
-			$convertors{$e}{$u32} = uc($a[0]);
-		}
-	}
-}
-
 sub get_languages {
 	my %data = get_xmldata($ETCDIR);
 	%languages = %{$data{L}}; 
 	%translations = %{$data{T}}; 
 	%alternativemonths = %{$data{AM}}; 
-	%encodings = %{$data{E}}; 
 }
 
 sub transform_ctypes {
