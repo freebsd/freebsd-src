@@ -517,6 +517,73 @@ gif_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "mtu" "cleanup"
+mtu_head()
+{
+	atf_set descr 'Bridge MTU changes'
+	atf_set require.user root
+}
+
+get_mtu()
+{
+	intf=$1
+
+	ifconfig ${intf} ether | awk '$5 == "mtu" { print $6 }'
+}
+
+check_mtu()
+{
+	intf=$1
+	expected=$2
+
+	mtu=$(get_mtu $intf)
+	if [ $mtu -ne $expected ];
+	then
+		atf_fail "Expected MTU of $expected on $intf but found $mtu"
+	fi
+}
+
+mtu_body()
+{
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	gif=$(ifconfig gif create)
+	echo ${gif} >> created_interfaces.lst
+	bridge=$(vnet_mkbridge)
+
+	atf_check -s exit:0 \
+		ifconfig ${bridge} addm ${epair}a
+	# Can't add an interface with an MTU mismatch
+	atf_check -s exit:1 -e ignore \
+		ifconfig ${bridge} addm ${gif}
+
+	ifconfig ${gif} mtu 1500
+	atf_check -s exit:0 \
+		ifconfig ${bridge} addm ${gif}
+
+	# Changing MTU changes it for all member interfaces
+	atf_check -s exit:0 \
+		ifconfig ${bridge} mtu 2000
+
+	check_mtu ${bridge} 2000
+	check_mtu ${gif} 2000
+	check_mtu ${epair}a 2000
+
+	# Rejected MTUs mean none of the MTUs change
+	atf_check -s exit:1 -e ignore \
+		ifconfig ${bridge} mtu 9000
+
+	check_mtu ${bridge} 2000
+	check_mtu ${gif} 2000
+	check_mtu ${epair}a 2000
+}
+
+mtu_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -529,4 +596,5 @@ atf_init_test_cases()
 	atf_add_test_case "mac_conflict"
 	atf_add_test_case "stp_validation"
 	atf_add_test_case "gif"
+	atf_add_test_case "mtu"
 }
