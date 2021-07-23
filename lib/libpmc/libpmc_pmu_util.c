@@ -142,6 +142,13 @@ pmu_alias_get(const char *name)
 
 	return (name);
 }
+#elif defined(__powerpc64__)
+
+static const char *
+pmu_alias_get(const char *name)
+{
+	return (name);
+}
 
 #elif defined(__aarch64__)
 
@@ -569,6 +576,33 @@ pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
 		return (pmc_pmu_intel_pmcallocate(event_name, pm, &ped));
 	else
 		return (pmc_pmu_amd_pmcallocate(event_name, pm, &ped));
+}
+
+#elif defined(__powerpc64__)
+
+int
+pmc_pmu_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm)
+{
+	const struct pmu_event *pe;
+	struct pmu_event_desc ped;
+	int idx = -1;
+
+	bzero(&pm->pm_md, sizeof(pm->pm_md));
+	pm->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	event_name = pmu_alias_get(event_name);
+
+	if ((pe = pmu_event_get(NULL, event_name, &idx)) == NULL)
+		return (ENOENT);
+	if (pe->event == NULL)
+		return (ENOENT);
+	if (pmu_parse_event(&ped, pe->event))
+		return (ENOENT);
+
+	assert(ped.ped_event >= 0);
+	pm->pm_ev = idx;
+	pm->pm_md.pm_event = ped.ped_event;
+	pm->pm_class = PMC_CLASS_POWER8;
+	return (0);
 }
 
 #elif defined(__aarch64__)
