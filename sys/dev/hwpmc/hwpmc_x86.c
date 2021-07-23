@@ -156,7 +156,7 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
  * code, and if so we terminate our trace.
  */
 
-int __nosanitizeaddress
+int __nosanitizeaddress __nosanitizememory
 pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 {
 	int n;

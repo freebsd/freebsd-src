@@ -258,7 +258,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	*fp = (struct amd64_frame *) rbp;
 }
 
-static int
+static int __nosanitizeaddress __nosanitizememory
 db_backtrace(struct thread *td, struct trapframe *tf, struct amd64_frame *frame,
     db_addr_t pc, register_t sp, int count)
 {
