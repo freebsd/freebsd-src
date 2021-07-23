@@ -1146,6 +1146,7 @@ enum pf_syncookies_mode {
 	PF_SYNCOOKIES_MODE_MAX = PF_SYNCOOKIES_ALWAYS
 };
 
+#ifdef _KERNEL
 struct pf_kstatus {
 	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
 	counter_u64_t	lcounters[LCNT_MAX]; /* limit counters */
@@ -1163,6 +1164,7 @@ struct pf_kstatus {
 	enum pf_syncookies_mode	syncookies_mode;
 	bool		syncookies_active;
 };
+#endif
 
 struct pf_divert {
 	union {
