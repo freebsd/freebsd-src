@@ -20,6 +20,7 @@ LOCALES+=	be_BY.UTF-8
 LOCALES+=	bg_BG.UTF-8
 LOCALES+=	cs_CZ.UTF-8
 LOCALES+=	da_DK.UTF-8
+LOCALES+=	de_AT.UTF-8
 LOCALES+=	en_AU.UTF-8
 LOCALES+=	en_CA.UTF-8
 LOCALES+=	en_GB.UTF-8
@@ -48,7 +49,6 @@ LOCALES+=	kk_KZ.UTF-8
 LOCALES+=	ko_KR.UTF-8
 LOCALES+=	mn_MN.UTF-8
 LOCALES+=	nb_NO.UTF-8
-LOCALES+=	nl_BE.UTF-8
 LOCALES+=	nl_NL.UTF-8
 LOCALES+=	pl_PL.UTF-8
 LOCALES+=	pt_BR.UTF-8
@@ -66,6 +66,8 @@ LOCALES+=	zh_CN.UTF-8
 LOCALES+=	zh_HK.UTF-8
 LOCALES+=	zh_TW.UTF-8
 
+
+
 SAME+=		en_ZA.UTF-8 af_ZA.UTF-8
 SAME+=		it_IT.UTF-8 es_ES.UTF-8
 SAME+=		it_IT.UTF-8 el_GR.UTF-8
@@ -74,7 +76,6 @@ SAME+=		it_IT.UTF-8 ca_IT.UTF-8
 SAME+=		it_IT.UTF-8 ca_FR.UTF-8
 SAME+=		it_IT.UTF-8 ca_ES.UTF-8
 SAME+=		it_IT.UTF-8 ca_AD.UTF-8
-SAME+=		nl_BE.UTF-8 de_AT.UTF-8
 SAME+=		it_CH.UTF-8 de_CH.UTF-8
 SAME+=		zh_HK.UTF-8 en_HK.UTF-8
 SAME+=		ga_IE.UTF-8 en_IE.UTF-8
@@ -86,6 +87,7 @@ SAME+=		sl_SI.UTF-8 eu_ES.UTF-8
 SAME+=		fr_FR.UTF-8 fr_BE.UTF-8
 SAME+=		sk_SK.UTF-8 pt_PT.UTF-8
 SAME+=		sk_SK.UTF-8 lv_LV.UTF-8
+SAME+=		nl_NL.UTF-8 nl_BE.UTF-8
 SAME+=		se_NO.UTF-8 nn_NO.UTF-8
 SAME+=		sr_RS.UTF-8@latin sr_RS.UTF-8
 
