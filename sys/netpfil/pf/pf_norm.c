@@ -1065,10 +1065,9 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kkif *kif, u_short *reason
 
 	if (r == NULL || r->action == PF_NOSCRUB)
 		return (PF_PASS);
-	else {
-		counter_u64_add(r->packets[dir == PF_OUT], 1);
-		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
-	}
+
+	counter_u64_add(r->packets[dir == PF_OUT], 1);
+	counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 
 	/* Check for illegal packets */
 	if (hlen < (int)sizeof(struct ip)) {
@@ -1207,10 +1206,9 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 
 	if (r == NULL || r->action == PF_NOSCRUB)
 		return (PF_PASS);
-	else {
-		counter_u64_add(r->packets[dir == PF_OUT], 1);
-		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
-	}
+
+	counter_u64_add(r->packets[dir == PF_OUT], 1);
+	counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 
 	/* Check for illegal packets */
 	if (sizeof(struct ip6_hdr) + IPV6_MAXPACKET < m->m_pkthdr.len)
@@ -1369,10 +1367,9 @@ pf_normalize_tcp(int dir, struct pfi_kkif *kif, struct mbuf *m, int ipoff,
 
 	if (rm == NULL || rm->action == PF_NOSCRUB)
 		return (PF_PASS);
-	else {
-		counter_u64_add(r->packets[dir == PF_OUT], 1);
-		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
-	}
+
+	counter_u64_add(r->packets[dir == PF_OUT], 1);
+	counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 
 	if (rm->rule_flag & PFRULE_REASSEMBLE_TCP)
 		pd->flags |= PFDESC_TCP_NORM;
