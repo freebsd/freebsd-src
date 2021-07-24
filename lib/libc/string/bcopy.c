@@ -116,7 +116,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		src += length;
 		t = (size_t)src;
 		if ((t | (size_t)dst) & wmask) {
-			if ((t ^ (size_t)dst) & wmask || length <= wsize)
+			if ((t ^ (size_t)dst) & wmask || length < wsize)
 				t = length;
 			else
 				t &= wmask;
