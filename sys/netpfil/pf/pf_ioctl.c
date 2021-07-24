@@ -354,7 +354,7 @@ pfattach_vnet(void)
 	for (int i = 0; i < LCNT_MAX; i++)
 		V_pf_status.lcounters[i] = counter_u64_alloc(M_WAITOK);
 	for (int i = 0; i < FCNT_MAX; i++)
-		V_pf_status.fcounters[i] = counter_u64_alloc(M_WAITOK);
+		pf_counter_u64_init(&V_pf_status.fcounters[i], M_WAITOK);
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
@@ -2986,7 +2986,7 @@ DIOCGETSTATESV2_full:
 			    counter_u64_fetch(V_pf_status.lcounters[i]);
 		for (int i = 0; i < FCNT_MAX; i++)
 			s->fcounters[i] =
-			    counter_u64_fetch(V_pf_status.fcounters[i]);
+			    pf_counter_u64_fetch(&V_pf_status.fcounters[i]);
 		for (int i = 0; i < SCNT_MAX; i++)
 			s->scounters[i] =
 			    counter_u64_fetch(V_pf_status.scounters[i]);
@@ -3018,7 +3018,7 @@ DIOCGETSTATESV2_full:
 		for (int i = 0; i < PFRES_MAX; i++)
 			counter_u64_zero(V_pf_status.counters[i]);
 		for (int i = 0; i < FCNT_MAX; i++)
-			counter_u64_zero(V_pf_status.fcounters[i]);
+			pf_counter_u64_zero(&V_pf_status.fcounters[i]);
 		for (int i = 0; i < SCNT_MAX; i++)
 			counter_u64_zero(V_pf_status.scounters[i]);
 		for (int i = 0; i < LCNT_MAX; i++)
@@ -5615,7 +5615,7 @@ pf_unload_vnet(void)
 	for (int i = 0; i < LCNT_MAX; i++)
 		counter_u64_free(V_pf_status.lcounters[i]);
 	for (int i = 0; i < FCNT_MAX; i++)
-		counter_u64_free(V_pf_status.fcounters[i]);
+		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
 }
