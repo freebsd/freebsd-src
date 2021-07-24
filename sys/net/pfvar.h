@@ -1382,7 +1382,8 @@ struct pf_pdesc {
 enum pf_syncookies_mode {
 	PF_SYNCOOKIES_NEVER = 0,
 	PF_SYNCOOKIES_ALWAYS = 1,
-	PF_SYNCOOKIES_MODE_MAX = PF_SYNCOOKIES_ALWAYS
+	PF_SYNCOOKIES_ADAPTIVE = 2,
+	PF_SYNCOOKIES_MODE_MAX = PF_SYNCOOKIES_ADAPTIVE
 };
 
 #ifdef _KERNEL
@@ -1402,6 +1403,8 @@ struct pf_kstatus {
 	bool		keep_counters;
 	enum pf_syncookies_mode	syncookies_mode;
 	bool		syncookies_active;
+	uint64_t	syncookies_inflight[2];
+	uint32_t	states_halfopen;
 };
 #endif
 

@@ -106,6 +106,8 @@ struct pf_syncookie_status {
 	struct callout	keytimeout;
 	uint8_t		oddeven;
 	uint8_t		key[2][SIPHASH_KEY_LENGTH];
+	uint32_t	hiwat;	/* absolute; # of states */
+	uint32_t	lowat;
 };
 VNET_DEFINE_STATIC(struct pf_syncookie_status, pf_syncookie_status);
 #define V_pf_syncookie_status	VNET(pf_syncookie_status)
@@ -242,7 +244,24 @@ pf_synflood_check(struct pf_pdesc *pd)
 	if (pd->pf_mtag && (pd->pf_mtag->tag & PF_TAG_SYNCOOKIE_RECREATED))
 		return (0);
 
-	return (V_pf_status.syncookies_mode);
+	if (V_pf_status.syncookies_mode != PF_SYNCOOKIES_ADAPTIVE)
+		return (V_pf_status.syncookies_mode);
+
+	if (!V_pf_status.syncookies_active &&
+	    atomic_load_32(&V_pf_status.states_halfopen) >
+	    V_pf_syncookie_status.hiwat) {
+		/* We'd want to 'pf_syncookie_newkey()' here, but that requires
+		 * the rules write lock, which we can't get with the read lock
+		 * held. */
+		callout_reset(&V_pf_syncookie_status.keytimeout, 0,
+		    pf_syncookie_rotate, curvnet);
+		V_pf_status.syncookies_active = true;
+		DPFPRINTF(LOG_WARNING,
+		    ("synflood detected, enabling syncookies\n"));
+		// XXXTODO V_pf_status.lcounters[LCNT_SYNFLOODS]++;
+	}
+
+	return (V_pf_status.syncookies_active);
 }
 
 void
@@ -257,6 +276,9 @@ pf_syncookie_send(struct mbuf *m, int off, struct pf_pdesc *pd)
 	    iss, ntohl(pd->hdr.tcp.th_seq) + 1, TH_SYN|TH_ACK, 0, mss,
 	    0, 1, 0);
 	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_SENT], 1);
+	/* XXX Maybe only in adaptive mode? */
+	atomic_add_64(&V_pf_status.syncookies_inflight[V_pf_syncookie_status.oddeven],
+	    1);
 }
 
 uint8_t
@@ -272,11 +294,17 @@ pf_syncookie_validate(struct pf_pdesc *pd)
 	ack = ntohl(pd->hdr.tcp.th_ack) - 1;
 	cookie.cookie = (ack & 0xff) ^ (ack >> 24);
 
+	/* we don't know oddeven before setting the cookie (union) */
+        if (atomic_load_64(&V_pf_status.syncookies_inflight[cookie.flags.oddeven])
+	    == 0)
+                return (0);
+
 	hash = pf_syncookie_mac(pd, cookie, seq);
 	if ((ack & ~0xff) != (hash & ~0xff))
 		return (0);
 
 	counter_u64_add(V_pf_status.lcounters[KLCNT_SYNCOOKIES_VALID], 1);
+	atomic_add_64(&V_pf_status.syncookies_inflight[cookie.flags.oddeven], -1);
 
 	return (1);
 }
@@ -290,13 +318,22 @@ pf_syncookie_rotate(void *arg)
 	CURVNET_SET((struct vnet *)arg);
 
 	/* do we want to disable syncookies? */
-	if (V_pf_status.syncookies_active) {
+	if (V_pf_status.syncookies_active &&
+	    ((V_pf_status.syncookies_mode == PF_SYNCOOKIES_ADAPTIVE &&
+	    (atomic_load_32(&V_pf_status.states_halfopen) +
+	    atomic_load_64(&V_pf_status.syncookies_inflight[0]) +
+	    atomic_load_64(&V_pf_status.syncookies_inflight[1])) <
+	    V_pf_syncookie_status.lowat) ||
+	    V_pf_status.syncookies_mode == PF_SYNCOOKIES_NEVER)
+			) {
 		V_pf_status.syncookies_active = false;
-		DPFPRINTF(PF_DEBUG_MISC, ("syncookies disabled"));
+		DPFPRINTF(PF_DEBUG_MISC, ("syncookies disabled\n"));
 	}
 
 	/* nothing in flight any more? delete keys and return */
-	if (!V_pf_status.syncookies_active) {
+	if (!V_pf_status.syncookies_active &&
+	    atomic_load_64(&V_pf_status.syncookies_inflight[0]) == 0 &&
+	    atomic_load_64(&V_pf_status.syncookies_inflight[1]) == 0) {
 		memset(V_pf_syncookie_status.key[0], 0,
 		    PF_SYNCOOKIE_SECRET_SIZE);
 		memset(V_pf_syncookie_status.key[1], 0,
@@ -305,8 +342,10 @@ pf_syncookie_rotate(void *arg)
 		return;
 	}
 
+	PF_RULES_WLOCK();
 	/* new key, including timeout */
 	pf_syncookie_newkey();
+	PF_RULES_WUNLOCK();
 
 	CURVNET_RESTORE();
 }
@@ -316,11 +355,13 @@ pf_syncookie_newkey(void)
 {
 	PF_RULES_WASSERT();
 
+	MPASS(V_pf_syncookie_status.oddeven < 2);
 	V_pf_syncookie_status.oddeven = (V_pf_syncookie_status.oddeven + 1) & 0x1;
+	atomic_store_64(&V_pf_status.syncookies_inflight[V_pf_syncookie_status.oddeven], 0);
 	arc4random_buf(V_pf_syncookie_status.key[V_pf_syncookie_status.oddeven],
 	    PF_SYNCOOKIE_SECRET_SIZE);
 	callout_reset(&V_pf_syncookie_status.keytimeout,
-	    PF_SYNCOOKIE_SECRET_LIFETIME, pf_syncookie_rotate, curvnet);
+	    PF_SYNCOOKIE_SECRET_LIFETIME * hz, pf_syncookie_rotate, curvnet);
 }
 
 /*
