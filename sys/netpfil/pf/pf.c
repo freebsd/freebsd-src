@@ -3776,8 +3776,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 				rtableid = r->rtableid;
 			if (r->anchor == NULL) {
 				if (r->action == PF_MATCH) {
-					pf_counter_u64_add(&r->packets[direction == PF_OUT], 1);
-					pf_counter_u64_add(&r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_critical_enter();
+					pf_counter_u64_add_protected(&r->packets[direction == PF_OUT], 1);
+					pf_counter_u64_add_protected(&r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_critical_exit();
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
@@ -4190,8 +4192,10 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kkif *kif,
 		else {
 			if (r->anchor == NULL) {
 				if (r->action == PF_MATCH) {
-					pf_counter_u64_add(&r->packets[direction == PF_OUT], 1);
-					pf_counter_u64_add(&r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_critical_enter();
+					pf_counter_u64_add_protected(&r->packets[direction == PF_OUT], 1);
+					pf_counter_u64_add_protected(&r->bytes[direction == PF_OUT], pd->tot_len);
+					pf_counter_u64_critical_exit();
 					pf_rule_to_actions(r, &pd->act);
 					if (r->log)
 						PFLOG_PACKET(kif, m, af,
@@ -6489,24 +6493,25 @@ done:
 		    (s == NULL));
 	}
 
-	pf_counter_u64_add(&kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_critical_enter();
+	pf_counter_u64_add_protected(&kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
 	    pd.tot_len);
-	pf_counter_u64_add(&kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add_protected(&kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
 	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		pf_counter_u64_add(&r->packets[dirndx], 1);
-		pf_counter_u64_add(&r->bytes[dirndx], pd.tot_len);
+		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
+		pf_counter_u64_add_protected(&r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			pf_counter_u64_add(&a->packets[dirndx], 1);
-			pf_counter_u64_add(&a->bytes[dirndx], pd.tot_len);
+			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
+			pf_counter_u64_add_protected(&a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				pf_counter_u64_add(&s->nat_rule.ptr->packets[dirndx],
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->packets[dirndx],
 				    1);
-				pf_counter_u64_add(&s->nat_rule.ptr->bytes[dirndx],
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->bytes[dirndx],
 				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
@@ -6544,6 +6549,7 @@ done:
 			    pd.af, pd.tot_len, dir == PF_OUT,
 			    r->action == PF_PASS, tr->dst.neg);
 	}
+	pf_counter_u64_critical_exit();
 
 	switch (action) {
 	case PF_SYNPROXY_DROP:
@@ -6894,24 +6900,25 @@ done:
 		    &pd, (s == NULL));
 	}
 
-	pf_counter_u64_add(&kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_critical_enter();
+	pf_counter_u64_add_protected(&kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
 	    pd.tot_len);
-	pf_counter_u64_add(&kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
+	pf_counter_u64_add_protected(&kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
 	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		pf_counter_u64_add(&r->packets[dirndx], 1);
-		pf_counter_u64_add(&r->bytes[dirndx], pd.tot_len);
+		pf_counter_u64_add_protected(&r->packets[dirndx], 1);
+		pf_counter_u64_add_protected(&r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			pf_counter_u64_add(&a->packets[dirndx], 1);
-			pf_counter_u64_add(&a->bytes[dirndx], pd.tot_len);
+			pf_counter_u64_add_protected(&a->packets[dirndx], 1);
+			pf_counter_u64_add_protected(&a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				pf_counter_u64_add(&s->nat_rule.ptr->packets[dirndx],
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->packets[dirndx],
 				    1);
-				pf_counter_u64_add(&s->nat_rule.ptr->bytes[dirndx],
+				pf_counter_u64_add_protected(&s->nat_rule.ptr->bytes[dirndx],
 				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
@@ -6947,6 +6954,7 @@ done:
 			    pd.af, pd.tot_len, dir == PF_OUT,
 			    r->action == PF_PASS, tr->dst.neg);
 	}
+	pf_counter_u64_critical_exit();
 
 	switch (action) {
 	case PF_SYNPROXY_DROP:
