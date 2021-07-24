@@ -2516,27 +2516,6 @@ static struct mntoptnames optnames[] = {
 	MNTOPT_NAMES
 };
 
-static void
-mount_devctl_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
-{
-	struct vfsopt *opt;
-
-	if (opts == NULL || TAILQ_EMPTY(opts))
-		return;
-	sbuf_printf(sb, " %s=\"", what);
-	TAILQ_FOREACH(opt, opts, link) {
-		if (opt->name[0] == '\0' || (opt->len > 0 && *(char *)opt->value == '\0'))
-			continue;
-		devctl_safe_quote_sb(sb, opt->name);
-		if (opt->len > 0) {
-			sbuf_putc(sb, '=');
-			devctl_safe_quote_sb(sb, opt->value);
-		}
-		sbuf_putc(sb, ';');
-	}
-	sbuf_putc(sb, '"');
-}
-
 #define DEVCTL_LEN 1024
 static void
 mount_devctl_event(const char *type, struct mount *mp, bool donew)
@@ -2569,10 +2548,14 @@ mount_devctl_event(const char *type, struct mount *mp, bool donew)
 		}
 	}
 	sbuf_putc(&sb, '"');
-	mount_devctl_event_mntopt(&sb, "opt", mp->mnt_opt);
-	if (donew)
-		mount_devctl_event_mntopt(&sb, "optnew", mp->mnt_optnew);
 	sbuf_finish(&sb);
+
+	/*
+	 * Options are not published because the form of the options depends on
+	 * the file system and may include binary data. In addition, they don't
+	 * necessarily provide enough useful information to be actionable when
+	 * devd processes them.
+	 */
 
 	if (sbuf_error(&sb) == 0)
 		devctl_notify("VFS", "FS", type, sbuf_data(&sb));
