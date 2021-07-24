@@ -1120,16 +1120,18 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 			while ((tail != NULL) && ! pf_krule_compare(tail, rule))
 				tail = TAILQ_NEXT(tail, entries);
 			if (tail != NULL) {
-				pf_counter_u64_add(&rule->evaluations,
+				pf_counter_u64_critical_enter();
+				pf_counter_u64_add_protected(&rule->evaluations,
 				    pf_counter_u64_fetch(&tail->evaluations));
-				pf_counter_u64_add(&rule->packets[0],
+				pf_counter_u64_add_protected(&rule->packets[0],
 				    pf_counter_u64_fetch(&tail->packets[0]));
-				pf_counter_u64_add(&rule->packets[1],
+				pf_counter_u64_add_protected(&rule->packets[1],
 				    pf_counter_u64_fetch(&tail->packets[1]));
-				pf_counter_u64_add(&rule->bytes[0],
+				pf_counter_u64_add_protected(&rule->bytes[0],
 				    pf_counter_u64_fetch(&tail->bytes[0]));
-				pf_counter_u64_add(&rule->bytes[1],
+				pf_counter_u64_add_protected(&rule->bytes[1],
 				    pf_counter_u64_fetch(&tail->bytes[1]));
+				pf_counter_u64_critical_exit();
 			}
 		}
 	}
