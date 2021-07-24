@@ -1311,7 +1311,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 	/* One for keys, one for ID hash. */
 	refcount_init(&s->refs, 2);
 
-	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_INSERT], 1);
+	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_INSERT], 1);
 	if (V_pfsync_insert_state_ptr != NULL)
 		V_pfsync_insert_state_ptr(s);
 
@@ -1328,7 +1328,7 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
 	struct pf_idhash *ih;
 	struct pf_kstate *s;
 
-	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
+	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	ih = &V_pf_idhash[(be64toh(id) % (pf_hashmask + 1))];
 
@@ -1355,7 +1355,7 @@ pf_find_state(struct pfi_kkif *kif, struct pf_state_key_cmp *key, u_int dir)
 	struct pf_kstate	*s;
 	int idx;
 
-	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
+	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
 
@@ -1399,7 +1399,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 	struct pf_kstate	*s, *ret = NULL;
 	int			 idx, inout = 0;
 
-	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
+	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
 
@@ -1518,6 +1518,21 @@ pf_intr(void *v)
 
 #ifdef PF_WANT_32_TO_64_COUNTER
 static void
+pf_status_counter_u64_periodic(void)
+{
+
+	PF_RULES_RASSERT();
+
+	if ((V_pf_counter_periodic_iter % (pf_purge_thread_period * 10 * 60)) != 0) {
+		return;
+	}
+
+	for (int i = 0; i < FCNT_MAX; i++) {
+		pf_counter_u64_periodic(&V_pf_status.fcounters[i]);
+	}
+}
+
+static void
 pf_counter_u64_periodic_main(void)
 {
 	PF_RULES_RLOCK_TRACKER;
@@ -1526,6 +1541,7 @@ pf_counter_u64_periodic_main(void)
 
 	PF_RULES_RLOCK();
 	pf_counter_u64_critical_enter();
+	pf_status_counter_u64_periodic();
 	pf_counter_u64_critical_exit();
 	PF_RULES_RUNLOCK();
 }
@@ -1781,7 +1797,7 @@ pf_free_state(struct pf_kstate *cur)
 
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
-	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
+	pf_counter_u64_add(&V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
 }
 
 /*
