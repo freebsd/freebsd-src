@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2015 Dmitry Chagin
- * All rights reserved.
+ * Copyright (c) 2015 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,6 +29,11 @@
 #define _LINUX_MI_H_
 
 #include <sys/queue.h>
+
+/*
+ * Private Brandinfo flags
+ */
+#define	LINUX_BI_FUTEX_REQUEUE	0x01000000
 
 /*
  * poll()

@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 6, 2021
+.Dd July 10, 2021
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -77,6 +77,47 @@ may have any prefix; the prefix identifies a module.
 All such settings sharing a common
 prefix refer to the same module.
 .Bl -tag -width Ar
+.It Ar autoboot_delay
+Delay in seconds before automatically booting.
+A user with console access will be able to interrupt the
+.Ic autoboot
+process and escape into the interactive mode by pressing a key on
+the console during this delay.
+.Pp
+If set to
+.Dq Li NO ,
+no
+.Ic autoboot
+is automatically attempted after processing
+.Pa /boot/loader.rc ,
+though explicit
+.Ic autoboot Ns 's
+are processed normally, using a 10 second delay.
+.Pp
+If set to
+.Dq Li 0 ,
+no delay is inserted, but any keys pressed while the kernel and modules are
+loaded will enter interactive mode.
+.Pp
+If set to
+.Dq Li -1 ,
+no delay will be inserted and
+.Nm
+starts interactive mode only if
+.Ic autoboot
+has failed.
+In combination with the
+.Va beastie_disable
+option, this option prevents users with console access from being able
+to interrupt the
+.Ic autoboot
+process and escape to the loader prompt.
+To use the
+.Va autoboot_delay
+option in this manner,
+.Va beastie_disable
+must be set to
+.Dq Li YES .
 .It Ar exec
 Immediately executes a
 .Xr loader 8

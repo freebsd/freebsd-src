@@ -105,12 +105,13 @@ __FBSDID("$FreeBSD$");
 #define HWTYPE_GENERIC_GEM	1
 #define HWTYPE_ZYNQ		2
 #define HWTYPE_ZYNQMP		3
-#define HWTYPE_SIFIVE_FU540	4
+#define HWTYPE_SIFIVE		4
 
 static struct ofw_compat_data compat_data[] = {
 	{ "cdns,zynq-gem",		HWTYPE_ZYNQ },
 	{ "cdns,zynqmp-gem",		HWTYPE_ZYNQMP },
-	{ "sifive,fu540-c000-gem",	HWTYPE_SIFIVE_FU540 },
+	{ "sifive,fu540-c000-gem",	HWTYPE_SIFIVE },
+	{ "sifive,fu740-c000-gem",	HWTYPE_SIFIVE },
 	{ "cdns,gem",			HWTYPE_GENERIC_GEM },
 	{ "cadence,gem",		HWTYPE_GENERIC_GEM },
 	{ NULL,				0 }
@@ -1762,8 +1763,7 @@ cgem_attach(device_t dev)
 			    "could not retrieve reference clock.\n");
 		else if (clk_enable(sc->ref_clk) != 0)
 			device_printf(dev, "could not enable clock.\n");
-	}
-	else if (hwtype == HWTYPE_SIFIVE_FU540) {
+	} else if (hwtype == HWTYPE_SIFIVE) {
 		if (clk_get_by_ofw_name(dev, 0, "pclk", &sc->ref_clk) != 0)
 			device_printf(dev,
 			    "could not retrieve reference clock.\n");

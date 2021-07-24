@@ -349,6 +349,8 @@ acct_process(struct thread *td)
 	if (acct_vp == NULL || acct_suspended)
 		return (0);
 
+	memset(&acct, 0, sizeof(acct));
+
 	sx_slock(&acct_sx);
 
 	/*

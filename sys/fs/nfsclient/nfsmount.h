@@ -39,6 +39,9 @@
 
 #include <nfs/nfs_mountcommon.h>
 
+/* Maximum value for nm_nconnect. */
+#define	NFS_MAXNCONN	16
+
 /*
  * Mount structure.
  * One allocated on every NFS mount.
@@ -81,6 +84,11 @@ struct	nfsmount {
 	u_int64_t nm_clval;		/* identifies which clientid */
 	u_int64_t nm_fsid[2];		/* NFSv4 fsid */
 	int	nm_minorvers;		/* Minor version # for NFSv4 */
+	u_int	nm_aconnect;		/* additional TCP connections */
+	u_int	nm_nextaconn;		/* Next nm_aconn[] to use */
+					/* unclipped, wraps to 0 */
+	struct __rpc_client *nm_aconn[NFS_MAXNCONN - 1]; /* Additional nconn */
+					/* Locked via nm_sockreq.nr_mtx */
 	u_int16_t nm_krbnamelen;	/* Krb5 host principal, if any */
 	u_int16_t nm_dirpathlen;	/* and mount dirpath, for V4 */
 	u_int16_t nm_srvkrbnamelen;	/* and the server's target name */

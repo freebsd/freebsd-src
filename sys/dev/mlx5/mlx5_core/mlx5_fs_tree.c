@@ -66,10 +66,10 @@
 
 #define BYPASS_MAX_FT 5
 #define BYPASS_PRIO_MAX_FT 1
-#define KERNEL_MAX_FT 3
+#define KERNEL_MAX_FT 5
 #define LEFTOVER_MAX_FT 1
-#define KENREL_MIN_LEVEL 3
-#define LEFTOVER_MIN_LEVEL KENREL_MIN_LEVEL + 1
+#define KERNEL_MIN_LEVEL 3
+#define LEFTOVER_MIN_LEVEL KERNEL_MIN_LEVEL + 1
 #define BYPASS_MIN_LEVEL MLX5_NUM_BYPASS_FTS + LEFTOVER_MIN_LEVEL
 struct node_caps {
 	size_t	arr_sz;
@@ -113,7 +113,7 @@ struct init_tree_node {
 					    BYPASS_PRIO_MAX_FT),
 				ADD_FT_PRIO("prio-mcast", 0,
 					    BYPASS_PRIO_MAX_FT))),
-		ADD_PRIO("kernel_prio", 0, KENREL_MIN_LEVEL, 0, {},
+		ADD_PRIO("kernel_prio", 0, KERNEL_MIN_LEVEL, 0, {},
 			 ADD_NS("kernel_ns",
 				ADD_FT_PRIO("prio_kernel-0", 0,
 					    KERNEL_MAX_FT))),

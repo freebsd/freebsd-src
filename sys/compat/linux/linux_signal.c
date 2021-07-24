@@ -96,7 +96,12 @@ linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 	}
 	if (lsa->lsa_flags & LINUX_SA_RESTORER) {
 		flags &= ~LINUX_SA_RESTORER;
-		/* XXX: We might want to handle it; see Linux sigreturn(2). */
+		/*
+		 * We ignore the lsa_restorer and always use our own signal
+		 * trampoline instead.  It looks like SA_RESTORER is obsolete
+		 * in Linux too - it doesn't seem to be used at all on arm64.
+		 * In any case: see Linux sigreturn(2).
+		 */
 	}
 	if (lsa->lsa_flags & LINUX_SA_ONSTACK) {
 		flags &= ~LINUX_SA_ONSTACK;
@@ -785,4 +790,22 @@ linux_rt_tgsigqueueinfo(struct thread *td, struct linux_rt_tgsigqueueinfo_args *
 		return (ESRCH);
 
 	return (linux_do_tkill(td, tds, &ksi));
+}
+
+int
+linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
+{
+	l_sigset_t lmask;
+	sigset_t sigmask;
+	int error;
+
+	if (uap->sigsetsize != sizeof(l_sigset_t))
+		return (EINVAL);
+
+	error = copyin(uap->newset, &lmask, sizeof(l_sigset_t));
+	if (error != 0)
+		return (error);
+
+	linux_to_bsd_sigset(&lmask, &sigmask);
+	return (kern_sigsuspend(td, sigmask));
 }

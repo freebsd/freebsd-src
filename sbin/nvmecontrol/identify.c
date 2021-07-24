@@ -175,6 +175,8 @@ print_namespace(struct nvme_namespace_data *nsdata)
 		lbaf = nsdata->lbaf[i];
 		lbads = (lbaf >> NVME_NS_DATA_LBAF_LBADS_SHIFT) &
 			NVME_NS_DATA_LBAF_LBADS_MASK;
+		if (lbads == 0)
+			continue;
 		ms = (lbaf >> NVME_NS_DATA_LBAF_MS_SHIFT) &
 			NVME_NS_DATA_LBAF_MS_MASK;
 		rp = (lbaf >> NVME_NS_DATA_LBAF_RP_SHIFT) &

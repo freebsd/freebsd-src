@@ -191,6 +191,19 @@ _Static_assert(sizeof(struct mount_pcpu) == 16,
     "the struct is allocated from pcpu 16 zone");
 
 /*
+ * Structure for tracking a stacked filesystem mounted above another
+ * filesystem.  This is expected to be stored in the upper FS' per-mount data.
+ *
+ * Lock reference:
+ *	i - lower mount interlock
+ *	c - constant from node initialization
+ */
+struct mount_upper_node {
+	struct mount 	*mp;	/* (c) mount object for upper FS */
+	TAILQ_ENTRY(mount_upper_node) mnt_upper_link;	/* (i) position in uppers list */
+};
+
+/*
  * Structure per mounted filesystem.  Each mounted filesystem has an
  * array of operations and an instance record.  The filesystems are
  * put on a doubly linked list.
@@ -199,8 +212,8 @@ _Static_assert(sizeof(struct mount_pcpu) == 16,
  * 	l - mnt_listmtx
  *	m - mountlist_mtx
  *	i - interlock
- *	i* - interlock of uppers' list head
  *	v - vnode freelist mutex
+ *	d - deferred unmount list mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -242,10 +255,12 @@ struct mount {
 	struct mtx	mnt_listmtx;
 	struct vnodelst	mnt_lazyvnodelist;	/* (l) list of lazy vnodes */
 	int		mnt_lazyvnodelistsize;	/* (l) # of lazy vnodes */
-	int		mnt_pinned_count;	/* (i) unmount prevented */
+	int		mnt_upper_pending;	/* (i) # of pending ops on mnt_uppers */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
-	TAILQ_ENTRY(mount) mnt_upper_link;	/* (i*) we in the all uppers */
-	TAILQ_HEAD(, mount) mnt_uppers;		/* (i) upper mounts over us */
+	TAILQ_HEAD(, mount_upper_node) mnt_uppers; /* (i) upper mounts over us */
+	TAILQ_HEAD(, mount_upper_node) mnt_notify; /* (i) upper mounts for notification */
+	STAILQ_ENTRY(mount) mnt_taskqueue_link;	/* (d) our place in deferred unmount list */
+	uint64_t	mnt_taskqueue_flags;	/* (d) unmount flags passed from taskqueue */
 };
 #endif	/* _WANT_MOUNT || _KERNEL */
 
@@ -438,9 +453,13 @@ struct mntoptnames {
 #define	MNT_BYFSID	0x0000000008000000ULL /* specify filesystem by ID. */
 #define	MNT_NOCOVER	0x0000001000000000ULL /* Do not cover a mount point */
 #define	MNT_EMPTYDIR	0x0000002000000000ULL /* Only mount on empty dir */
-#define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
+#define	MNT_RECURSE	0x0000100000000000ULL /* recursively unmount uppers */
+#define	MNT_DEFERRED    0x0000200000000000ULL /* unmount in async context */
+#define	MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
 			MNT_FORCE	| MNT_SNAPSHOT	| MNT_NONBUSY	| \
-			MNT_BYFSID	| MNT_NOCOVER	| MNT_EMPTYDIR)
+			MNT_BYFSID	| MNT_NOCOVER	| MNT_EMPTYDIR	| \
+			MNT_RECURSE	| MNT_DEFERRED)
+
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
@@ -466,10 +485,9 @@ struct mntoptnames {
 #define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
 					   and writes. Filesystem shall properly
 					   handle i/o state on EFAULT. */
-#define	MNTK_VGONE_UPPER	0x00000200
-#define	MNTK_VGONE_WAITER	0x00000400
+#define	MNTK_RECURSE		0x00000200 /* pending recursive unmount */
+#define	MNTK_UPPER_WAITER	0x00000400 /* waiting to drain MNTK_UPPER_PENDING */
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
-#define	MNTK_MARKER		0x00001000
 #define	MNTK_UNMAPPED_BUFS	0x00002000
 #define	MNTK_USES_BCACHE	0x00004000 /* FS uses the buffer cache. */
 #define	MNTK_TEXT_REFS		0x00008000 /* Keep use ref for text */
@@ -477,8 +495,9 @@ struct mntoptnames {
 #define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
 #define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */
 #define	MNTK_SUSPEND_ALL	0x00080000 /* Suspended by all-fs suspension */
-#define MNTK_NOASYNC	0x00800000	/* disable async */
-#define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
+#define	MNTK_TASKQUEUE_WAITER	0x00100000 /* Waiting on unmount taskqueue */
+#define	MNTK_NOASYNC	0x00800000	/* disable async */
+#define	MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
@@ -952,7 +971,7 @@ vfs_statfs_t	__vfs_statfs;
  * exported vnode operations
  */
 
-int	dounmount(struct mount *, int, struct thread *);
+int	dounmount(struct mount *, uint64_t, struct thread *);
 
 int	kernel_mount(struct mntarg *ma, uint64_t flags);
 int	kernel_vmount(int flags, ...);
@@ -1012,8 +1031,13 @@ struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *);
 void	vfs_unmountall(void);
-struct mount *vfs_pin_from_vp(struct vnode *);
-void	vfs_unpin(struct mount *);
+struct mount *vfs_register_upper_from_vp(struct vnode *,
+	    struct mount *ump, struct mount_upper_node *);
+void	vfs_register_for_notification(struct mount *, struct mount *,
+	    struct mount_upper_node *);
+void	vfs_unregister_for_notification(struct mount *,
+	    struct mount_upper_node *);
+void	vfs_unregister_upper(struct mount *, struct mount_upper_node *);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx_padalign mountlist_mtx;
 extern	struct nfs_public nfs_pub;

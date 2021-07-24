@@ -51,8 +51,6 @@ mlx5e_rl_build_sq_param(struct mlx5e_rl_priv_data *rl,
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, pd, rl->priv->pdn);
 
-	param->wq.buf_numa_node = 0;
-	param->wq.db_numa_node = 0;
 	param->wq.linear = 1;
 }
 
@@ -116,8 +114,9 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	    &sq->dma_tag)))
 		goto done;
 
-	/* use shared UAR */
-	sq->uar_map = priv->bfreg.map;
+	sq->mkey_be = cpu_to_be32(priv->mr.key);
+	sq->ifp = priv->ifp;
+	sq->priv = priv;
 
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 	    &sq->wq_ctrl);
@@ -129,10 +128,6 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	err = mlx5e_alloc_sq_db(sq);
 	if (err)
 		goto err_sq_wq_destroy;
-
-	sq->mkey_be = cpu_to_be32(priv->mr.key);
-	sq->ifp = priv->ifp;
-	sq->priv = priv;
 
 	mlx5e_update_sq_inline(sq);
 
@@ -165,7 +160,7 @@ mlx5e_rl_open_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	if (err)
 		return (err);
 
-	err = mlx5e_enable_sq(sq, param, priv->rl.tisn);
+	err = mlx5e_enable_sq(sq, param, &priv->channel[ix].bfreg, priv->rl.tisn);
 	if (err)
 		goto err_destroy_sq;
 

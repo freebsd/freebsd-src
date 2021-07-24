@@ -21,7 +21,6 @@ PATCHDIR=	${BASEDIR}/patch
 UNIDIR=		${.OBJDIR:tA}/unicode
 
 PKGS=	openjdk8 \
-	apache-ant \
 	p5-XML-Parser \
 	p5-Tie-IxHash \
 	p5-Text-Iconv
@@ -32,33 +31,9 @@ tools-test:
 KNOWN=		monetdef numericdef msgdef colldef ctypedef # timedef
 TYPES?=		${KNOWN}
 
-COLLATION_SPECIAL?= \
-	cs_CZ ISO8859-2 \
-	da_DK ISO8859-1 \
-	da_DK ISO8859-15 \
-	hr_HR ISO8859-2 \
-	hu_HU ISO8859-2 \
-	nb_NO ISO8859-1 \
-	nb_NO ISO8859-15 \
-	sk_SK ISO8859-2 \
-	sr_Latn_RS ISO8859-2 \
-	sr_Cyrl_RS ISO8859-5 \
-	zh_Hans_CN GB2312 \
-	zh_Hans_CN eucCN \
-	zh_Hant_TW Big5 \
-	zh_Hans_CN GB18030 \
-	zh_Hans_CN GBK \
-	ja_JP eucJP \
-	nn_NO ISO8859-15 \
-	nn_NO ISO8859-1
-
-.for area enc in ${COLLATION_SPECIAL}
-COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
-.endfor
 SETENV=	env -i \
 	PATH="${PATH}" \
 	TMPDIR="${TMPDIR}" \
-	COLLATIONS_SPECIAL="${COLLATIONS_SPECIAL_ENV}" \
 	UNIDIR="${UNIDIR}" \
 	BASEDIR="${BASEDIR}" \
 	TOOLSDIR="${TOOLSDIR}" \
@@ -89,16 +64,22 @@ diff-${t}:
 .endfor
 
 install:
-.for t in ${TYPES}
+.for t in ${TYPES:Nctypedef}
 .  if ${KNOWN:M${t}}
 install: install-${t}
 install-${t}:
-	cd ${LOCALESRCDIR}/${t} && \
+	cd ${LOCALESRCDIR}/${t}_unicode && \
 	    rm -f Makefile *.src && \
 	    cd ${.OBJDIR} && \
-	    install -m 644 ${t}/* ${LOCALESRCDIR}/${t}
+	    install -m 644 ${t}/* ${LOCALESRCDIR}/${t}_unicode
 .  endif
 .endfor
+install: install-ctypedef
+install-ctypedef:
+	cd ${LOCALESRCDIR}/ctypedef && \
+		rm -f C.UTF-8.src && \
+		cd ${.OBJDIR} && \
+		install -m 644 ctypedef/C.UTF-8.src ${LOCALESRCDIR}/ctypedef
 
 post-install:
 .for t in ${TYPES}
@@ -121,21 +102,12 @@ build-${t}: ${t}
 	${SETENV} OUTBASEDIR="${.OBJDIR}/${t}" ${TOOLSDIR}/finalize ${t}
 .endfor
 
-static-colldef: colldef
-build-colldef:	static-colldef
-
-static-colldef:
-.for area enc in ${COLLATION_SPECIAL}
-	awk -f ${TOOLSDIR}/extract-colldef.awk \
-	    posix/${area}.${enc}.src > colldef.draft/${area}.${enc}.src
-.endfor
-
 BASE_LOCALES_OF_INTEREST?= \
 	af_ZA am_ET ar_AE ar_EG ar_JO ar_MA ar_QA ar_SA \
 	be_BY bg_BG ca_AD ca_ES ca_FR ca_IT \
 	cs_CZ da_DK de_AT de_CH de_DE el_GR en_AU en_CA \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US en_ZA \
-	es_AR es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE \
+	es_AR es_CR es_ES es_MX et_EE eu_ES fa_AF fa_IR fi_FI fr_BE \
 	fr_CA fr_CH fr_FR ga_IE he_IL hi_IN hr_HR hu_HU hy_AM \
 	is_IS it_CH it_IT ja_JP ko_KR lt_LT lv_LV \
 	nb_NO nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO \
@@ -147,35 +119,15 @@ BASE_LOCALES_OF_INTEREST?= \
 	th_TH lo_LA bo_IN my_MM pa_Guru_IN ka_GE chr_US \
 	km_KH shi_Tfng_MA ii_CN vai_Vaii_LR vi_VN
 
-ENCODINGS=	Big5 \
-		CP1251 \
-		CP866 \
-		CP949 \
-		eucCN \
-		eucJP \
-		eucKR \
-		GB18030 \
-		GB2312 \
-		GBK \
-		ISO8859-1 \
-		ISO8859-13 \
-		ISO8859-15 \
-		ISO8859-2 \
-		ISO8859-5 \
-		ISO8859-7 \
-		ISO8859-9 \
-		KOI8-R \
-		KOI8-U \
-		SJIS \
-		US-ASCII \
-		UTF-8 \
+ENCODINGS=	UTF-8 \
 		UTF-32
 
 # CLDR files
-CLDRFILES_CORE= https://unicode.org/Public/cldr/35/core.zip
-CLDRFILES_KEY=	https://unicode.org/Public/cldr/35/keyboards.zip
-CLDRFILES_TOOLS=https://unicode.org/Public/cldr/35/tools.zip
-CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/latest/UCD.zip
+CLDRVERSION=	39.0
+CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION:R}/core.zip
+CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-keyboards-${CLDRVERSION}.zip
+CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-tools-${CLDRVERSION}.jar
+CLDRFILES_UCD=	http://www.unicode.org/Public/zipped/13.0.0/UCD.zip
 
 # fetch and extract targets
 ${UNIDIR}:
@@ -188,27 +140,17 @@ extract-${CLDRFILES_${N}:T}:: ${CLDRFILES_${N}:T} ${UNIDIR}
 	cd ${UNIDIR} && unzip -o ../${CLDRFILES_${N}:T}
 extract: extract-${CLDRFILES_${N}:T}
 .endfor
-	grep 'name="version"' ${UNIDIR}/tools/build.xml | \
-		sed 's/.* value="//;s/".*//' > ${UNIDIR}/cldr-version
+	echo ${CLDRVERSION} > ${UNIDIR}/cldr-version
 patch::
 .if exists(${PATCHDIR})
 	cd ${UNIDIR} && cat ${PATCHDIR}/patch-* | patch
 .endif
 
-.if !exists(${UNIDIR}/tools/java/cldr.jar)
-.ORDER: extract patch
-build-tools: extract patch tools-test ${UNIDIR}
-	cd ${UNIDIR}/tools/java && ${SETENV} ant all jar
-.else
-build-tools:
-	@echo cldr.jar is ready.
-.endif
+JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${.OBJDIR:tA}//${CLDRFILES_TOOLS:T}
 
-JAVA_CLDR= java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar
-
-posix: posixcm post-posixcm posixsrc posixcol
-.ORDER: posixcm post-posixcm posixsrc posixcol
-${UNIDIR}/posix:
+posix: posixcm post-posixcm posixsrc
+.ORDER: posixcm post-posixcm posixsrc
+${UNIDIR}/posix: ${UNIDIR}
 	ln -s -f ../posix ${.TARGET}
 clean-posix:
 	rm -rf posix ${UNIDIR}/posix
@@ -217,28 +159,20 @@ ${UNIDIR}/posix/xx_Comm_C.UTF-8.src: ${UNIDIR}/posix
 	    --unidir=${UNIDIR}
 post-posixcm: ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
 .for enc in ${ENCODINGS}
-posixcm: build-tools posix/${enc}.cm
-.ORDER: build-tools posix/${enc}.cm
+posixcm: posix/${enc}.cm
+.ORDER: posix/${enc}.cm
 posix/${enc}.cm:
 	mkdir -p posix && \
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GenerateCharmap \
 		-d posix -c ${enc}
 .endfor
 .for area in ${BASE_LOCALES_OF_INTEREST}
-posixsrc: build-tools posix/${area}.UTF-8.src
-.ORDER: build-tools posix/${area}.UTF-8.src
+posixsrc: posix/${area}.UTF-8.src
+.ORDER: posix/${area}.UTF-8.src
 posix/${area}.UTF-8.src:
 	mkdir -p posix && \
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GeneratePOSIX \
 		-d posix -m ${area} -c UTF-8
-.endfor
-.for area encoding in ${COLLATION_SPECIAL}
-posixcol: build-tools posix/${area}.${encoding}.src
-.ORDER: build-tools posix/${area}.${encoding}.src
-posix/${area}.${encoding}.src:
-	mkdir -p posix && \
-	    ${JAVA_CLDR} org.unicode.cldr.posix.GeneratePOSIX \
-		-d posix -m ${area} -c ${encoding}
 .endfor
 
 # generate widths.txt using the data from libut8proc

@@ -304,9 +304,22 @@ static struct mrs_field id_aa64afr1_fields[] = {
 
 
 /* ID_AA64DFR0_EL1 */
+static struct mrs_field_value id_aa64dfr0_tracefilt[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_TraceFilt_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64DFR0_TraceFilt_8_4, "Trace v8.4"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64dfr0_doublelock[] = {
+	MRS_FIELD_VALUE(ID_AA64DFR0_DoubleLock_IMPL, "DoubleLock"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DoubleLock_NONE, ""),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64dfr0_pmsver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_NONE, ""),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_V1, "SPE"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE, "SPE"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_8_3, "SPE v8.3"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -328,7 +341,9 @@ static struct mrs_field_value id_aa64dfr0_brps[] = {
 static struct mrs_field_value id_aa64dfr0_pmuver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3, "PMUv3"),
-	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_1, "PMUv3+16 bit evtCount"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_1, "PMUv3 v8.1"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_4, "PMUv3 v8.4"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_5, "PMUv3 v8.5"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_IMPL, "IMPL PMU"),
 	MRS_FIELD_VALUE_END,
 };
@@ -343,10 +358,15 @@ static struct mrs_field_value id_aa64dfr0_debugver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8, "Debugv8"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_VHE, "Debugv8_VHE"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8.2"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_4, "Debugv8.4"),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field id_aa64dfr0_fields[] = {
+	MRS_FIELD(ID_AA64DFR0, TraceFilt, false, MRS_EXACT,
+	    id_aa64dfr0_tracefilt),
+	MRS_FIELD(ID_AA64DFR0, DoubleLock, false, MRS_EXACT,
+	    id_aa64dfr0_doublelock),
 	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
 	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
 	    id_aa64dfr0_ctx_cmps),
@@ -361,7 +381,7 @@ static struct mrs_field id_aa64dfr0_fields[] = {
 };
 
 
-/* ID_AA64DFR1 */
+/* ID_AA64DFR1_EL1 */
 static struct mrs_field id_aa64dfr1_fields[] = {
 	MRS_FIELD_END,
 };
@@ -447,7 +467,7 @@ static struct mrs_field_value id_aa64isar0_aes[] = {
 
 static struct mrs_field id_aa64isar0_fields[] = {
 	MRS_FIELD(ID_AA64ISAR0, RNDR, false, MRS_LOWER, id_aa64isar0_rndr),
-	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_LOWER, id_aa64isar0_tlb),
+	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_EXACT, id_aa64isar0_tlb),
 	MRS_FIELD(ID_AA64ISAR0, TS, false, MRS_LOWER, id_aa64isar0_ts),
 	MRS_FIELD(ID_AA64ISAR0, FHM, false, MRS_LOWER, id_aa64isar0_fhm),
 	MRS_FIELD(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp),
@@ -524,12 +544,16 @@ static struct mrs_field_value id_aa64isar1_jscvt[] = {
 };
 
 static struct mrs_field_value id_aa64isar1_api[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, API, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_API_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_API_PAC, "API PAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_API_EPAC, "API EPAC"),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field_value id_aa64isar1_apa[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, APA, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_PAC, "APA PAC"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_APA_EPAC, "APA EPAC"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -544,7 +568,7 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD(ID_AA64ISAR1, I8MM, false, MRS_LOWER, id_aa64isar1_i8mm),
 	MRS_FIELD(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh),
 	MRS_FIELD(ID_AA64ISAR1, BF16, false, MRS_LOWER, id_aa64isar1_bf16),
-	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER,
+	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_EXACT,
 	    id_aa64isar1_specres),
 	MRS_FIELD(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb),
 	MRS_FIELD(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
@@ -562,8 +586,34 @@ static struct mrs_field id_aa64isar1_fields[] = {
 
 
 /* ID_AA64MMFR0_EL1 */
+static struct mrs_field_value id_aa64mmfr0_exs[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, ExS, ALL, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_tgran4_2[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_TGran4, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_NONE, "No S2 TGran4"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran4_2_IMPL, "S2 TGran4"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_tgran64_2[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran64_2_TGran64, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran64_2_NONE, "No S2 TGran64"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran64_2_IMPL, "S2 TGran64"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64mmfr0_tgran16_2[] = {
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_TGran16, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_NONE, "No S2 TGran16"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_TGran16_2_IMPL, "S2 TGran16"),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64mmfr0_tgran4[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4, NONE, IMPL),
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4,NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -577,7 +627,7 @@ static struct mrs_field_value id_aa64mmfr0_tgran16[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-static struct mrs_field_value id_aa64mmfr0_bigend_el0[] = {
+static struct mrs_field_value id_aa64mmfr0_bigendel0[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, BigEndEL0, FIXED, MIXED),
 	MRS_FIELD_VALUE_END,
 };
@@ -592,7 +642,7 @@ static struct mrs_field_value id_aa64mmfr0_bigend[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-static struct mrs_field_value id_aa64mmfr0_asid_bits[] = {
+static struct mrs_field_value id_aa64mmfr0_asidbits[] = {
 	MRS_FIELD_VALUE(ID_AA64MMFR0_ASIDBits_8, "8bit ASID"),
 	MRS_FIELD_VALUE(ID_AA64MMFR0_ASIDBits_16, "16bit ASID"),
 	MRS_FIELD_VALUE_END,
@@ -610,17 +660,24 @@ static struct mrs_field_value id_aa64mmfr0_parange[] = {
 };
 
 static struct mrs_field id_aa64mmfr0_fields[] = {
+	MRS_FIELD(ID_AA64MMFR0, ExS, false, MRS_EXACT, id_aa64mmfr0_exs),
+	MRS_FIELD(ID_AA64MMFR0, TGran4_2, false, MRS_EXACT,
+	    id_aa64mmfr0_tgran4_2),
+	MRS_FIELD(ID_AA64MMFR0, TGran64_2, false, MRS_EXACT,
+	    id_aa64mmfr0_tgran64_2),
+	MRS_FIELD(ID_AA64MMFR0, TGran16_2, false, MRS_EXACT,
+	    id_aa64mmfr0_tgran16_2),
 	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_EXACT, id_aa64mmfr0_tgran4),
 	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_EXACT,
 	    id_aa64mmfr0_tgran64),
 	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_EXACT,
 	    id_aa64mmfr0_tgran16),
 	MRS_FIELD(ID_AA64MMFR0, BigEndEL0, false, MRS_EXACT,
-	    id_aa64mmfr0_bigend_el0),
+	    id_aa64mmfr0_bigendel0),
 	MRS_FIELD(ID_AA64MMFR0, SNSMem, false, MRS_EXACT, id_aa64mmfr0_snsmem),
 	MRS_FIELD(ID_AA64MMFR0, BigEnd, false, MRS_EXACT, id_aa64mmfr0_bigend),
 	MRS_FIELD(ID_AA64MMFR0, ASIDBits, false, MRS_EXACT,
-	    id_aa64mmfr0_asid_bits),
+	    id_aa64mmfr0_asidbits),
 	MRS_FIELD(ID_AA64MMFR0, PARange, false, MRS_EXACT,
 	    id_aa64mmfr0_parange),
 	MRS_FIELD_END,
@@ -735,7 +792,8 @@ static struct mrs_field_value id_aa64mmfr2_st[] = {
 };
 
 static struct mrs_field_value id_aa64mmfr2_nv[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, NV, NONE, IMPL),
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, NV, NONE, 8_3),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_NV_8_4, "NV v8.4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -835,7 +893,8 @@ static struct mrs_field_value id_aa64pfr0_sve[] = {
 
 static struct mrs_field_value id_aa64pfr0_ras[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_NONE, ""),
-	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_V1, "RASv1"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_IMPL, "RAS"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_8_4, "RAS v8.4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1088,22 +1147,26 @@ get_kernel_reg(u_int reg, uint64_t *val)
 	return (false);
 }
 
-static uint64_t
-update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
-    int width, bool sign)
+/*
+ * Compares two field values that may be signed or unsigned.
+ * Returns:
+ *  < 0 when a is less than b
+ *  = 0 when a equals b
+ *  > 0 when a is greater than b
+ */
+static int
+mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 {
 	uint64_t mask;
-	uint64_t new_field, old_field;
-	bool update;
 
 	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
 	    width));
 
 	mask = (1ul << width) - 1;
-	new_field = (new_val >> shift) & mask;
-	old_field = (val >> shift) & mask;
+	/* Move the field to the lower bits */
+	a = (a >> shift) & mask;
+	b = (b >> shift) & mask;
 
-	update = false;
 	if (sign) {
 		/*
 		 * The field is signed. Toggle the upper bit so the comparison
@@ -1111,17 +1174,29 @@ update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
 		 * i.e. those with a 0 bit, larger than negative numbers,
 		 * i.e. those with a 1 bit, in an unsigned comparison.
 		 */
-		if ((new_field ^ (1ul << (width - 1))) <
-		    (old_field ^ (1ul << (width - 1))))
-			update = true;
-	} else {
-		if (new_field < old_field)
-			update = true;
+		a ^= 1ul << (width - 1);
+		b ^= 1ul << (width - 1);
 	}
 
-	if (update) {
+	return (a - b);
+}
+
+static uint64_t
+update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
+    int width, bool sign)
+{
+	uint64_t mask;
+
+	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
+	    width));
+
+	/*
+	 * If the new value is less than the existing value update it.
+	 */
+	if (mrs_field_cmp(new_val, val, shift, width, sign) < 0) {
+		mask = (1ul << width) - 1;
 		val &= ~(mask << shift);
-		val |= new_field << shift;
+		val |= new_val & (mask << shift);
 	}
 
 	return (val);
@@ -1241,7 +1316,8 @@ cpu_features_sysinit(void *dummy __unused)
 	CPU_FOREACH(cpu)
 		print_cpu_features(cpu);
 }
-SYSINIT(cpu_features, SI_SUB_SMP, SI_ORDER_ANY, cpu_features_sysinit, NULL);
+/* Log features before APs are released and start printing to the dmesg. */
+SYSINIT(cpu_features, SI_SUB_SMP - 1, SI_ORDER_ANY, cpu_features_sysinit, NULL);
 
 static u_long
 parse_cpu_features_hwcap(void)

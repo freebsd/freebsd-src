@@ -1,0 +1,26 @@
+#
+# NXP SoC support
+#
+
+# SoC support
+options		SOC_NXP_LS
+
+# I2C
+device		pca9547			# NPX I2C bus multiplexer
+device		pcf8563			# NXP Real-time clock/calendar
+
+# Serial (COM) ports
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+
+# USB support
+device		dwc3			# Synopsys DWC controller
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+options 	FDT
+device		acpi
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/freescale"

@@ -843,10 +843,10 @@ scrsize(VOID_PARAM)
 #endif
 #endif
 
-	if ((s = lgetenv("LINES")) != NULL)
-		sc_height = atoi(s);
-	else if (sys_height > 0)
+	if (sys_height > 0)
 		sc_height = sys_height;
+	else if ((s = lgetenv("LINES")) != NULL)
+		sc_height = atoi(s);
 #if !MSDOS_COMPILER
 	else if ((n = ltgetnum("li")) > 0)
 		sc_height = n;
@@ -854,10 +854,10 @@ scrsize(VOID_PARAM)
 	if (sc_height <= 0)
 		sc_height = DEF_SC_HEIGHT;
 
-	if ((s = lgetenv("COLUMNS")) != NULL)
-		sc_width = atoi(s);
-	else if (sys_width > 0)
+	if (sys_width > 0)
 		sc_width = sys_width;
+	else if ((s = lgetenv("COLUMNS")) != NULL)
+		sc_width = atoi(s);
 #if !MSDOS_COMPILER
 	else if ((n = ltgetnum("co")) > 0)
 		sc_width = n;
@@ -1707,6 +1707,7 @@ deinit_mouse(VOID_PARAM)
 	public void
 init(VOID_PARAM)
 {
+	clear_bot_if_needed();
 #if !MSDOS_COMPILER
 	if (!(quit_if_one_screen && one_screen))
 	{
@@ -2526,7 +2527,7 @@ tput_fmt(fmt, color, f_putc)
 	int color;
 	int (*f_putc)(int);
 {
-	char buf[16];
+	char buf[32];
 	if (color == attrcolor)
 		return;
 	SNPRINTF1(buf, sizeof(buf), fmt, color);

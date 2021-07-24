@@ -431,11 +431,7 @@ putchr(c)
 		ubuf_len = 0;
 	}
 #endif
-	if (need_clr)
-	{
-		need_clr = 0;
-		clear_bot();
-	}
+	clear_bot_if_needed();
 #if MSDOS_COMPILER
 	if (c == '\n' && is_tty)
 	{
@@ -457,6 +453,15 @@ putchr(c)
 	*ob++ = c;
 	at_prompt = 0;
 	return (c);
+}
+
+	public void
+clear_bot_if_needed(VOID_PARAM)
+{
+	if (!need_clr)
+		return;
+	need_clr = 0;
+	clear_bot();
 }
 
 /*

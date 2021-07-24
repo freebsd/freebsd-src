@@ -194,7 +194,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_JACK_WO_DETECT(25),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -204,7 +204,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_JACK_WO_DETECT(25),
 					PIN_PATCH_HPMIC_WO_DETECT(26),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -219,7 +219,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(27, "seq=1 as=5 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -235,7 +235,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_MIC_INTERNAL(19),
 					PIN_PATCH_STRING(25, "as=2 misc=1 color=Black ctype=1/8 device=Mic loc=Right"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -249,7 +249,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(16, "seq=15 device=Headphones"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -258,7 +258,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(17, "as=1 misc=1 ctype=ATAPI device=Speaker loc=Internal conn=Fixed"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -267,7 +267,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(15, "color=Green ctype=1/8 device=Headphones loc=Rear"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -286,7 +286,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_NOT_APPLICABLE(23),
 					PIN_PATCH_NOT_APPLICABLE(24),
 					PIN_PATCH_NOT_APPLICABLE(25),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -302,7 +302,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(20, "as=1 misc=1 ctype=ATAPI device=Speaker loc=Onboard conn=Fixed"),
 					PIN_PATCH_STRING(21, "seq=15 as=2 misc=4 color=Black ctype=1/8 device=Headphones loc=Front"),
 					PIN_PATCH_STRING(22, "seq=15 as=1 misc=4 color=Black ctype=1/8 device=Headphones loc=Rear"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -311,7 +311,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(21, "as=1 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -320,7 +320,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(22, "as=2 misc=1 ctype=ATAPI device=Speaker loc=Onboard conn=Fixed"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -329,7 +329,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(22, "as=15 misc=1 color=White ctype=ATAPI device=AUX loc=Onboard"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -338,7 +338,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(22, "seq=1 as=2"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -352,7 +352,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(20, "as=1 seq=15"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -361,7 +361,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(30, "as=8 misc=1 color=Black ctype=Combo device=SPDIF-out loc=Rear"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -375,7 +375,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(21, "as=1 seq=15"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -389,7 +389,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_DOCK_MIC_IN(25),
 					PIN_PATCH_DOCK_HP(27),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -398,7 +398,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(33, "as=1 seq=15"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -407,7 +407,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_SUBWOOFER(23),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -417,7 +417,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_DOCK_LINE_OUT(26),
 					PIN_PATCH_DOCK_MIC_IN(27),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -426,7 +426,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_HPMIC_WITH_DETECT(25),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -436,7 +436,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(33, "seq=15 as=2 color=Black ctype=1/8 device=Headphones loc=Front"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -448,7 +448,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_JACK_WO_DETECT(25),
 					PIN_PATCH_HPMIC_WO_DETECT(26),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -458,7 +458,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_JACK_WO_DETECT(25),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -467,7 +467,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(24, "seq=12 as=2 misc=8 color=Black ctype=1/8 device=Mic loc=Right"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -480,7 +480,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(24, "as=1 misc=1 ctype=ATAPI device=Speaker loc=Onboard conn=Fixed"),
 					PIN_PATCH_STRING(30, "seq=14 as=1 color=Black ctype=Digital device=SPDIF-out loc=Left"),
 					PIN_PATCH_STRING(33, "seq=15 as=1 color=Black ctype=1/8 device=Headphones loc=Left"),
-        				{ }
+					{ }
 				}
 			}, {
 				.models = (struct pin_machine_model_t[]){
@@ -490,7 +490,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(24, "seq=15 as=3 color=Black ctype=1/8 device=Line-in loc=Ext-Rear"),
 					PIN_PATCH_STRING(27, "as=2 color=Black ctype=1/8 loc=Ext-Rear"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -510,7 +510,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(25, "as=2 misc=12 color=Pink ctype=1/8 device=Mic loc=Rear"),
 					PIN_PATCH_STRING(27, "seq=15 as=2 misc=1 ctype=Analog device=Mic loc=Onboard conn=Fixed"),
 					PIN_PATCH_HP_OUT(33),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -527,7 +527,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(27, "as=2 color=Black ctype=1/8 loc=Ext-Rear"),
 					PIN_PATCH_HPMIC_WITH_DETECT(26),
 					PIN_PATCH_STRING(24, "seq=15 as=3 color=Black ctype=1/8 device=Line-in loc=Ext-Rear"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -550,7 +550,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(29, "seq=13 as=2 misc=11 color=Pink ctype=DIN device=Other conn=None"),
 					PIN_PATCH_NOT_APPLICABLE(30),
 					PIN_PATCH_STRING(33, "seq=15 as=1 color=Black ctype=1/8 device=Headphones loc=Left"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -565,7 +565,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_JACK_WO_DETECT(25),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -596,7 +596,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					PIN_PATCH_STRING(21, "seq=15 as=1 color=Green ctype=1/8 device=Headphones loc=Front"),
 					PIN_PATCH_STRING(23, "seq=2 as=1 misc=1 ctype=Analog device=Speaker loc=Internal conn=Fixed"),
 					PIN_PATCH_JACK_WO_DETECT(26),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -610,7 +610,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(21, "as=1 seq=15"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -635,7 +635,7 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_HPMIC_WO_DETECT(24),
 					PIN_PATCH_JACK_WO_DETECT(26),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
@@ -648,6 +648,17 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 					{ }
 				},
 				.pin_patches = pin_patches_dell_xps_jack
+			},
+			{
+				.models = (struct pin_machine_model_t[]){
+					PIN_SUBVENDOR(LENOVO_ALL_SUBVENDOR),
+					{ }
+				},
+				.pin_patches = (struct pin_patch_t[]){
+					PIN_PATCH_DOCK_LINE_OUT(23),
+					PIN_PATCH_HP_OUT(33),
+					{ }
+				},
 			}, { }
 		}
 	}, { /**** CODEC: HDA_CODEC_ALC861 ****/
@@ -982,11 +993,11 @@ static struct hdaa_model_pin_patch_t realtek_model_pin_patches[] = {
 				},
 				.pin_patches = (struct pin_patch_t[]){
 					PIN_PATCH_STRING(27, "as=1 seq=15"),
-        				{ }
+					{ }
 				}
 			}, { }
 		}
-	} 
+	}
 };
 
 #endif /* PIN_PATCH_REALTEK_H */

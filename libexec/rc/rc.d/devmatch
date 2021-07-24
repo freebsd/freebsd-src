@@ -26,7 +26,7 @@
 # $FreeBSD$
 #
 # PROVIDE: devmatch
-# REQUIRE: kldxref
+# REQUIRE: kld
 # BEFORE: netif
 # KEYWORD: nojail
 
@@ -52,22 +52,27 @@ devmatch_start()
 
 	[ -n "$list" ] || return
 
-	# While kldload can accept multiple modules
-	# on the line at once, we loop here in case
-	# there's some weird error with one of them.
-	# We also optimize against the false positives
-	# or drivers that have symbolic links that
-	# confuse devmatch by running it -n.
-	# Finally, we filter out all items in the
-	# devmatch_blocklist.
+	# While kldload can accept multiple modules on the line at once, we loop
+	# here in case there's some weird error with one of them.  We also
+	# optimize against the false positives or drivers that have symbolic
+	# links that confuse devmatch by running it -n.  Finally, we filter out
+	# all items in the devmatch_blocklist.
+	#
+	# We strip all the .ko suffixes off so that one may specify modules
+	# with or without .ko. Prior version documented it was without, while
+	# the code required it, so accept both now. devmatch produces module
+	# names with .ko
+
 	devctl freeze
-	x=$(echo ${devmatch_blocklist:-${devmatch_blacklist}} | tr ' ' '#')
+	x=$(echo '#'${devmatch_blocklist:-${devmatch_blacklist}}'#' | \
+		sed -e "s/ /#/g;s/\.ko#/#/g")
 	for m in ${list}; do
-		case "#${x}#" in
+		m="${m%.ko}"
+		case "${x}" in
 		*"#${m}#"*) continue ;;
 		esac
-		echo "Autoloading module: ${m}"
-		kldload -n ${m}
+		kldstat -q -n ${m} || \
+		    (echo "Autoloading module: ${m}"; kldload -n ${m})
 	done
 	devctl thaw
 }

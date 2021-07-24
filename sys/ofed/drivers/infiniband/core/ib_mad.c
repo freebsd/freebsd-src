@@ -219,6 +219,10 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	unsigned long flags;
 	u8 mgmt_class, vclass;
 
+	if ((qp_type == IB_QPT_SMI && !rdma_cap_ib_smi(device, port_num)) ||
+	    (qp_type == IB_QPT_GSI && !rdma_cap_ib_cm(device, port_num)))
+		return ERR_PTR(-EPROTONOSUPPORT);
+
 	/* Validate parameters */
 	qpn = get_spl_qp_index(qp_type);
 	if (qpn == -1) {
@@ -823,7 +827,6 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
 	if (!local) {
 		ret = -ENOMEM;
-		dev_err(&device->dev, "No memory for ib_mad_local_private\n");
 		goto out;
 	}
 	local->mad_priv = NULL;
@@ -831,7 +834,6 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	mad_priv = alloc_mad_private(mad_size, GFP_ATOMIC);
 	if (!mad_priv) {
 		ret = -ENOMEM;
-		dev_err(&device->dev, "No memory for local response MAD\n");
 		kfree(local);
 		goto out;
 	}
@@ -954,9 +956,6 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 	for (left = send_buf->data_len + pad; left > 0; left -= seg_size) {
 		seg = kmalloc(sizeof (*seg) + seg_size, gfp_mask);
 		if (!seg) {
-			dev_err(&send_buf->mad_agent->device->dev,
-				"alloc_send_rmpp_segs: RMPP mem alloc failed for len %zd, gfp %#x\n",
-				sizeof (*seg) + seg_size, gfp_mask);
 			free_send_rmpp_list(send_wr);
 			return -ENOMEM;
 		}
@@ -1150,7 +1149,7 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_mad_qp_info *qp_info;
 	struct list_head *list;
-	struct ib_send_wr *bad_send_wr;
+	const struct ib_send_wr *bad_send_wr;
 	struct ib_mad_agent *mad_agent;
 	struct ib_sge *sge;
 	unsigned long flags;
@@ -1369,12 +1368,7 @@ static int allocate_method_table(struct ib_mad_mgmt_method_table **method)
 {
 	/* Allocate management method table */
 	*method = kzalloc(sizeof **method, GFP_ATOMIC);
-	if (!*method) {
-		pr_err("No memory for ib_mad_mgmt_method_table\n");
-		return -ENOMEM;
-	}
-
-	return 0;
+	return (*method) ? 0 : (-ENOMEM);
 }
 
 /*
@@ -1465,8 +1459,6 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 		/* Allocate management class table for "new" class version */
 		*class = kzalloc(sizeof **class, GFP_ATOMIC);
 		if (!*class) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_class_table\n");
 			ret = -ENOMEM;
 			goto error1;
 		}
@@ -1531,22 +1523,16 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	if (!*vendor_table) {
 		/* Allocate mgmt vendor class table for "new" class version */
 		vendor = kzalloc(sizeof *vendor, GFP_ATOMIC);
-		if (!vendor) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_vendor_class_table\n");
+		if (!vendor)
 			goto error1;
-		}
 
 		*vendor_table = vendor;
 	}
 	if (!(*vendor_table)->vendor_class[vclass]) {
 		/* Allocate table for this management vendor class */
 		vendor_class = kzalloc(sizeof *vendor_class, GFP_ATOMIC);
-		if (!vendor_class) {
-			dev_err(&agent_priv->agent.device->dev,
-				"No memory for ib_mad_mgmt_vendor_class\n");
+		if (!vendor_class)
 			goto error2;
-		}
 
 		(*vendor_table)->vendor_class[vclass] = vendor_class;
 	}
@@ -1556,7 +1542,8 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 			    mad_reg_req->oui, 3)) {
 			method = &(*vendor_table)->vendor_class[
 						vclass]->method_table[i];
-			BUG_ON(!*method);
+			if (!*method)
+				goto error3;
 			goto check_in_use;
 		}
 	}
@@ -1566,10 +1553,12 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 				vclass]->oui[i])) {
 			method = &(*vendor_table)->vendor_class[
 				vclass]->method_table[i];
-			BUG_ON(*method);
 			/* Allocate method table for this OUI */
-			if ((ret = allocate_method_table(method)))
-				goto error3;
+			if (!*method) {
+				ret = allocate_method_table(method);
+				if (ret)
+					goto error3;
+			}
 			memcpy((*vendor_table)->vendor_class[vclass]->oui[i],
 			       mad_reg_req->oui, 3);
 			goto check_in_use;
@@ -2245,11 +2234,8 @@ static void ib_mad_recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	mad_size = recv->mad_size;
 	response = alloc_mad_private(mad_size, GFP_KERNEL);
-	if (!response) {
-		dev_err(&port_priv->device->dev,
-			"%s: no memory for response buffer\n", __func__);
+	if (!response)
 		goto out;
-	}
 
 	if (rdma_cap_ib_switch(port_priv->device))
 		port_num = wc->port_num;
@@ -2441,7 +2427,7 @@ static void ib_mad_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_mad_send_wr_private	*mad_send_wr, *queued_send_wr;
 	struct ib_mad_qp_info		*qp_info;
 	struct ib_mad_queue		*send_queue;
-	struct ib_send_wr		*bad_send_wr;
+	const struct ib_send_wr		*bad_send_wr;
 	struct ib_mad_send_wc		mad_send_wc;
 	unsigned long flags;
 	int ret;
@@ -2536,7 +2522,7 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 	if (wc->status == IB_WC_WR_FLUSH_ERR) {
 		if (mad_send_wr->retry) {
 			/* Repost send */
-			struct ib_send_wr *bad_send_wr;
+			const struct ib_send_wr *bad_send_wr;
 
 			mad_send_wr->retry = 0;
 			ret = ib_post_send(qp_info->qp, &mad_send_wr->send_wr.wr,
@@ -2856,7 +2842,8 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 	int post, ret;
 	struct ib_mad_private *mad_priv;
 	struct ib_sge sg_list;
-	struct ib_recv_wr recv_wr, *bad_recv_wr;
+	struct ib_recv_wr recv_wr;
+	const struct ib_recv_wr *bad_recv_wr;
 	struct ib_mad_queue *recv_queue = &qp_info->recv_queue;
 
 	/* Initialize common scatter list fields */
@@ -2876,8 +2863,6 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			mad_priv = alloc_mad_private(port_mad_size(qp_info->port_priv),
 						     GFP_ATOMIC);
 			if (!mad_priv) {
-				dev_err(&qp_info->port_priv->device->dev,
-					"No memory for receive buffer\n");
 				ret = -ENOMEM;
 				break;
 			}
@@ -2968,11 +2953,8 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	u16 pkey_index;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
-	if (!attr) {
-		dev_err(&port_priv->device->dev,
-			"Couldn't kmalloc ib_qp_attr\n");
+	if (!attr)
 		return -ENOMEM;
-	}
 
 	ret = ib_find_pkey(port_priv->device, port_priv->port_num,
 			   IB_DEFAULT_PKEY_FULL, &pkey_index);
@@ -3142,10 +3124,8 @@ static int ib_mad_port_open(struct ib_device *device,
 
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
-	if (!port_priv) {
-		dev_err(&device->dev, "No memory for ib_mad_port_private\n");
+	if (!port_priv)
 		return -ENOMEM;
-	}
 
 	port_priv->device = device;
 	port_priv->port_num = port_num;
@@ -3159,18 +3139,18 @@ static int ib_mad_port_open(struct ib_device *device,
 	if (has_smi)
 		cq_size *= 2;
 
+	port_priv->pd = ib_alloc_pd(device, 0);
+	if (IS_ERR(port_priv->pd)) {
+		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
+		ret = PTR_ERR(port_priv->pd);
+		goto error3;
+	}
+
 	port_priv->cq = ib_alloc_cq(port_priv->device, port_priv, cq_size, 0,
 			IB_POLL_WORKQUEUE);
 	if (IS_ERR(port_priv->cq)) {
 		dev_err(&device->dev, "Couldn't create ib_mad CQ\n");
 		ret = PTR_ERR(port_priv->cq);
-		goto error3;
-	}
-
-	port_priv->pd = ib_alloc_pd(device, 0);
-	if (IS_ERR(port_priv->pd)) {
-		dev_err(&device->dev, "Couldn't create ib_mad PD\n");
-		ret = PTR_ERR(port_priv->pd);
 		goto error4;
 	}
 
@@ -3213,11 +3193,11 @@ error8:
 error7:
 	destroy_mad_qp(&port_priv->qp_info[0]);
 error6:
-	ib_dealloc_pd(port_priv->pd);
-error4:
 	ib_free_cq(port_priv->cq);
 	cleanup_recv_queue(&port_priv->qp_info[1]);
 	cleanup_recv_queue(&port_priv->qp_info[0]);
+error4:
+	ib_dealloc_pd(port_priv->pd);
 error3:
 	kfree(port_priv);
 
@@ -3247,8 +3227,8 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 	destroy_workqueue(port_priv->wq);
 	destroy_mad_qp(&port_priv->qp_info[1]);
 	destroy_mad_qp(&port_priv->qp_info[0]);
-	ib_dealloc_pd(port_priv->pd);
 	ib_free_cq(port_priv->cq);
+	ib_dealloc_pd(port_priv->pd);
 	cleanup_recv_queue(&port_priv->qp_info[1]);
 	cleanup_recv_queue(&port_priv->qp_info[0]);
 	/* XXX: Handle deallocation of MAD registration tables */

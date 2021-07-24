@@ -569,7 +569,11 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		    !NFSBCMP(nfhp, dp->nfsdl_fh, fhlen)) {
 			if (!(mode & NFSV4OPEN_ACCESSWRITE) ||
 			    (dp->nfsdl_flags & NFSCLDL_WRITE)) {
-				stateidp->seqid = dp->nfsdl_stateid.seqid;
+				if (NFSHASNFSV4N(nmp))
+					stateidp->seqid = 0;
+				else
+					stateidp->seqid =
+					    dp->nfsdl_stateid.seqid;
 				stateidp->other[0] = dp->nfsdl_stateid.other[0];
 				stateidp->other[1] = dp->nfsdl_stateid.other[1];
 				stateidp->other[2] = dp->nfsdl_stateid.other[2];
@@ -604,8 +608,10 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		    own, own, mode, &lp, &op);
 		if (error == 0 && lp != NULL && fords == 0) {
 			/* Don't return a lock stateid for a DS. */
-			stateidp->seqid =
-			    lp->nfsl_stateid.seqid;
+			if (NFSHASNFSV4N(nmp))
+				stateidp->seqid = 0;
+			else
+				stateidp->seqid = lp->nfsl_stateid.seqid;
 			stateidp->other[0] =
 			    lp->nfsl_stateid.other[0];
 			stateidp->other[1] =
@@ -656,7 +662,10 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	/*
 	 * No lock stateid, so return the open stateid.
 	 */
-	stateidp->seqid = op->nfso_stateid.seqid;
+	if (NFSHASNFSV4N(nmp))
+		stateidp->seqid = 0;
+	else
+		stateidp->seqid = op->nfso_stateid.seqid;
 	stateidp->other[0] = op->nfso_stateid.other[0];
 	stateidp->other[1] = op->nfso_stateid.other[1];
 	stateidp->other[2] = op->nfso_stateid.other[2];

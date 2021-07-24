@@ -1355,7 +1355,6 @@ static void
 avr32dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 {
 	struct avr32dci_softc *sc = AVR32_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 	uint32_t nframes;
 	uint8_t ep_no;
 
@@ -1366,41 +1365,9 @@ avr32dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	ep_no = xfer->endpointno & UE_ADDR;
 	nframes = (AVR32_READ_4(sc, AVR32_FNUM) / 8);
 
-	nframes &= AVR32_FRAME_MASK;
-
-	/*
-	 * check if the frame index is within the window where the frames
-	 * will be inserted
-	 */
-	temp = (nframes - xfer->endpoint->isoc_next) & AVR32_FRAME_MASK;
-
-	if ((xfer->endpoint->is_synced == 0) ||
-	    (temp < xfer->nframes)) {
-		/*
-		 * If there is data underflow or the pipe queue is
-		 * empty we schedule the transfer a few frames ahead
-		 * of the current frame position. Else two isochronous
-		 * transfers might overlap.
-		 */
-		xfer->endpoint->isoc_next = (nframes + 3) & AVR32_FRAME_MASK;
-		xfer->endpoint->is_synced = 1;
+	if (usbd_xfer_get_isochronous_start_frame(
+	    xfer, nframes, 0, 1, AVR32_FRAME_MASK, NULL))
 		DPRINTFN(3, "start next=%d\n", xfer->endpoint->isoc_next);
-	}
-	/*
-	 * compute how many milliseconds the insertion is ahead of the
-	 * current frame position:
-	 */
-	temp = (xfer->endpoint->isoc_next - nframes) & AVR32_FRAME_MASK;
-
-	/*
-	 * pre-compute when the isochronous transfer will be finished:
-	 */
-	xfer->isoc_time_complete =
-	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
-	    xfer->nframes;
-
-	/* compute frame number for next insertion */
-	xfer->endpoint->isoc_next += xfer->nframes;
 
 	/* setup TDs */
 	avr32dci_setup_standard_chain(xfer);
@@ -1689,6 +1656,12 @@ tr_handle_get_descriptor:
 		}
 		len = sizeof(avr32dci_devd);
 		ptr = (const void *)&avr32dci_devd;
+		goto tr_valid;
+	case UDESC_DEVICE_QUALIFIER:
+		if (value & 0xff)
+			goto tr_stalled;
+		len = sizeof(avr32dci_odevd);
+		ptr = (const void *)&avr32dci_odevd;
 		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {

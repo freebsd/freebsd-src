@@ -244,8 +244,16 @@ blist_create(daddr_t blocks, int flags)
 	 * Calculate the radix and node count used for scanning.
 	 */
 	nodes = 1;
-	for (radix = 1; radix <= blocks / BLIST_RADIX; radix *= BLIST_RADIX)
-		nodes += 1 + (blocks - 1) / radix / BLIST_RADIX;
+	for (radix = 1; (blocks - 1) / BLIST_RADIX / radix > 0;
+	    radix *= BLIST_RADIX)
+		nodes += 1 + (blocks - 1) / BLIST_RADIX / radix;
+
+	/*
+	 * Include a sentinel node to ensure that cross-leaf scans stay within
+	 * the bounds of the allocation.
+	 */
+	if (blocks % BLIST_RADIX == 0)
+		nodes++;
 
 	bl = malloc(offsetof(struct blist, bl_root[nodes]), M_SWAP, flags |
 	    M_ZERO);

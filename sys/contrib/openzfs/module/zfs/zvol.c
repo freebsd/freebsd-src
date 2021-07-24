@@ -84,9 +84,7 @@
 #include <sys/zfs_rlock.h>
 #include <sys/spa_impl.h>
 #include <sys/zvol.h>
-
 #include <sys/zvol_impl.h>
-
 
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_volmode = ZFS_VOLMODE_GEOM;
@@ -106,10 +104,8 @@ typedef enum {
 
 typedef struct {
 	zvol_async_op_t op;
-	char pool[MAXNAMELEN];
 	char name1[MAXNAMELEN];
 	char name2[MAXNAMELEN];
-	zprop_source_t source;
 	uint64_t value;
 } zvol_task_t;
 
@@ -579,6 +575,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 	uint32_t blocksize = zv->zv_volblocksize;
 	zilog_t *zilog = zv->zv_zilog;
 	itx_wr_state_t write_state;
+	uint64_t sz = size;
 
 	if (zil_replaying(zilog, tx))
 		return;
@@ -629,6 +626,10 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, uint64_t offset,
 
 		offset += len;
 		size -= len;
+	}
+
+	if (write_state == WR_COPIED || write_state == WR_NEED_COPY) {
+		dsl_pool_wrlog_count(zilog->zl_dmu_pool, sz, tx->tx_txg);
 	}
 }
 
@@ -1197,6 +1198,12 @@ zvol_create_minor(const char *name)
  * Remove minors for specified dataset including children and snapshots.
  */
 
+static void
+zvol_free_task(void *arg)
+{
+	ops->zv_free(arg);
+}
+
 void
 zvol_remove_minors_impl(const char *name)
 {
@@ -1245,8 +1252,8 @@ zvol_remove_minors_impl(const char *name)
 			mutex_exit(&zv->zv_state_lock);
 
 			/* Try parallel zv_free, if failed do it in place */
-			t = taskq_dispatch(system_taskq,
-			    (task_func_t *)ops->zv_free, zv, TQ_SLEEP);
+			t = taskq_dispatch(system_taskq, zvol_free_task, zv,
+			    TQ_SLEEP);
 			if (t == TASKQID_INVALID)
 				list_insert_head(&free_list, zv);
 		} else {
@@ -1435,7 +1442,6 @@ zvol_task_alloc(zvol_async_op_t op, const char *name1, const char *name2,
     uint64_t value)
 {
 	zvol_task_t *task;
-	char *delim;
 
 	/* Never allow tasks on hidden names. */
 	if (name1[0] == '$')
@@ -1444,8 +1450,6 @@ zvol_task_alloc(zvol_async_op_t op, const char *name1, const char *name2,
 	task = kmem_zalloc(sizeof (zvol_task_t), KM_SLEEP);
 	task->op = op;
 	task->value = value;
-	delim = strchr(name1, '/');
-	strlcpy(task->pool, name1, delim ? (delim - name1 + 1) : MAXNAMELEN);
 
 	strlcpy(task->name1, name1, MAXNAMELEN);
 	if (name2 != NULL)

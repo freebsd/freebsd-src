@@ -1040,6 +1040,13 @@ exec_unmap_first_page(struct image_params *imgp)
 	}
 }
 
+void
+exec_onexec_old(struct thread *td)
+{
+	sigfastblock_clear(td);
+	umtx_exec(td->td_proc);
+}
+
 /*
  * Destroy old address space, and allocate a new stack.
  *	The new stack is only sgrowsiz large because it is grown
@@ -1062,11 +1069,9 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	imgp->vmspace_destroyed = 1;
 	imgp->sysent = sv;
 
-	sigfastblock_clear(td);
-	umtx_exec(p);
+	if (p->p_sysent->sv_onexec_old != NULL)
+		p->p_sysent->sv_onexec_old(td);
 	itimers_exec(p);
-	if (sv->sv_onexec != NULL)
-		sv->sv_onexec(p, imgp);
 
 	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
@@ -1158,7 +1163,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)stack_addr;
 
-	return (0);
+	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
 }
 
 /*

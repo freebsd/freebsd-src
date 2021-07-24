@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2020
+.Dd July 22, 2021
 .Dt FETCH 9
 .Os
 .Sh NAME
@@ -67,14 +67,15 @@
 .Fn fueword32 "volatile const void *base" "int32_t *val"
 .Ft int
 .Fn fueword64 "volatile const void *base" "int64_t *val"
-.In sys/resourcevar.h
 .Sh DESCRIPTION
 The
 .Nm
 functions are designed to copy small amounts of data from user-space
 of the current process.
-If read is successful, it is performed atomically.
-The data read must be naturally aligned.
+If the user address is naturally aligned, then the operation will be
+performed atomically.
+Otherwise it may fail or be performed non-atomically, depending on
+the platform.
 .Pp
 The
 .Nm

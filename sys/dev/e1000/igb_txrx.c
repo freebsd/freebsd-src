@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2016 Matthew Macy <mmacy@mattmacy.io>
  * All rights reserved.
  *
@@ -47,16 +49,20 @@ static int igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
 
 static void igb_isc_rxd_refill(void *arg, if_rxd_update_t iru);
 
-static void igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx);
-static int igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget);
+static void igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
+    qidx_t pidx);
+static int igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
+    qidx_t budget);
 
 static int igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-static int igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *olinfo_status);
-static int igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *olinfo_status);
+static int igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
+    uint32_t *cmd_type_len, uint32_t *olinfo_status);
+static int igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi,
+    uint32_t *cmd_type_len, uint32_t *olinfo_status);
 
-static void igb_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype);
-static int igb_determine_rsstype(u16 pkt_info);	
+static void igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype);
+static int igb_determine_rsstype(uint16_t pkt_info);
 
 extern void igb_if_enable_intr(if_ctx_t ctx);
 extern int em_intr(void *arg);
@@ -79,13 +85,14 @@ struct if_txrx igb_txrx = {
  *
  **********************************************************************/
 static int
-igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *olinfo_status)
+igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
+    uint32_t *olinfo_status)
 {
 	struct e1000_adv_tx_context_desc *TXD;
 	struct adapter *adapter = txr->adapter;
-	u32 type_tucmd_mlhl = 0, vlan_macip_lens = 0;
-	u32 mss_l4len_idx = 0;
-	u32 paylen;
+	uint32_t type_tucmd_mlhl = 0, vlan_macip_lens = 0;
+	uint32_t mss_l4len_idx = 0;
+	uint32_t paylen;
 
 	switch(pi->ipi_etype) {
 	case ETHERTYPE_IPV6:
@@ -143,12 +150,13 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *oli
  *
  **********************************************************************/
 static int
-igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *olinfo_status)
+igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
+    uint32_t *olinfo_status)
 {
 	struct e1000_adv_tx_context_desc *TXD;
-	struct adapter *adapter = txr->adapter; 
-	u32 vlan_macip_lens, type_tucmd_mlhl;
-	u32 mss_l4len_idx;
+	struct adapter *adapter = txr->adapter;
+	uint32_t vlan_macip_lens, type_tucmd_mlhl;
+	uint32_t mss_l4len_idx;
 	mss_l4len_idx = vlan_macip_lens = type_tucmd_mlhl = 0;
 
 	/* First check if TSO is to be used */
@@ -162,7 +170,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 	TXD = (struct e1000_adv_tx_context_desc *) &txr->tx_base[pi->ipi_pidx];
 
 	/*
-	** In advanced descriptors the vlan tag must 
+	** In advanced descriptors the vlan tag must
 	** be placed into the context descriptor. Hence
 	** we need to make one even if not doing offloads.
 	*/
@@ -171,7 +179,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, u32 *cmd_type_len, u32 *
 	} else if ((pi->ipi_csum_flags & IGB_CSUM_OFFLOAD) == 0) {
 		return (0);
 	}
-	
+
 	/* Set the ether header length */
 	vlan_macip_lens |= pi->ipi_ehdrlen << E1000_ADVTXD_MACLEN_SHIFT;
 
@@ -236,7 +244,7 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	bus_dma_segment_t *segs = pi->ipi_segs;
 	union e1000_adv_tx_desc *txd = NULL;
 	int i, j, pidx_last;
-	u32 olinfo_status, cmd_type_len, txd_flags;
+	uint32_t olinfo_status, cmd_type_len, txd_flags;
 	qidx_t ntxd;
 
 	pidx_last = olinfo_status = 0;
@@ -395,7 +403,7 @@ igb_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 	struct em_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
 	union e1000_adv_rx_desc *rxd;
-	u32 staterr = 0;
+	uint32_t staterr = 0;
 	int cnt, i;
 
 	for (cnt = 0, i = idx; cnt < scctx->isc_nrxd[0] && cnt <= budget;) {
@@ -426,16 +434,15 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if_softc_ctx_t scctx = adapter->shared;
 	struct em_rx_queue *que = &adapter->rx_queues[ri->iri_qsidx];
 	struct rx_ring *rxr = &que->rxr;
-	struct ifnet *ifp = iflib_get_ifp(adapter->ctx);
 	union e1000_adv_rx_desc *rxd;
 
-	u16 pkt_info, len;
-	u16 vtag = 0;
-	u32 ptype;
-	u32 staterr = 0;
+	uint16_t pkt_info, len, vtag;
+	uint32_t ptype, staterr;
+	int i, cidx;
 	bool eop;
-	int i = 0;
-	int cidx = ri->iri_cidx;
+
+	staterr = i = vtag = 0;
+	cidx = ri->iri_cidx;
 
 	do {
 		rxd = (union e1000_adv_rx_desc *)&rxr->rx_base[cidx];
@@ -485,14 +492,15 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	rxr->rx_packets++;
 
-	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
 		igb_rx_checksum(staterr, ri, ptype);
 
-	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+	if ((scctx->isc_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
 	    (staterr & E1000_RXD_STAT_VP) != 0) {
 		ri->iri_vtag = vtag;
 		ri->iri_flags |= M_VLANTAG;
 	}
+
 	ri->iri_flowid =
 		le32toh(rxd->wb.lower.hi_dword.rss);
 	ri->iri_rsstype = igb_determine_rsstype(pkt_info);
@@ -509,46 +517,37 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *
  *********************************************************************/
 static void
-igb_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype)
+igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 {
-	u16 status = (u16)staterr;
-	u8 errors = (u8) (staterr >> 24);
-	bool sctp = FALSE;
+	uint16_t status = (uint16_t)staterr;
+	uint8_t errors = (uint8_t)(staterr >> 24);
 
 	/* Ignore Checksum bit is set */
-	if (status & E1000_RXD_STAT_IXSM) {
-		ri->iri_csum_flags = 0;
+	if (__predict_false(status & E1000_RXD_STAT_IXSM))
 		return;
-	}
 
-	if ((ptype & E1000_RXDADV_PKTTYPE_ETQF) == 0 &&
-	    (ptype & E1000_RXDADV_PKTTYPE_SCTP) != 0)
-		sctp = 1;
-	else
-		sctp = 0;
+	/* If there is a layer 3 or 4 error we are done */
+	if (__predict_false(errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
+		return;
 
-	if (status & E1000_RXD_STAT_IPCS) {
-		/* Did it pass? */
-		if (!(errors & E1000_RXD_ERR_IPE)) {
-			/* IP Checksum Good */
-			ri->iri_csum_flags = CSUM_IP_CHECKED;
-			ri->iri_csum_flags |= CSUM_IP_VALID;
-		} else
-			ri->iri_csum_flags = 0;
-	}
+	/* IP Checksum Good */
+	if (status & E1000_RXD_STAT_IPCS)
+		ri->iri_csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
 
-	if (status & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS)) {
-		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		if (sctp) /* reassign */
-			type = CSUM_SCTP_VALID;
-		/* Did it pass? */
-		if (!(errors & E1000_RXD_ERR_TCPE)) {
-			ri->iri_csum_flags |= type;
-			if (sctp == 0)
-				ri->iri_csum_data = htons(0xffff);
+	/* Valid L4E checksum */
+	if (__predict_true(status &
+	    (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))) {
+		/* SCTP header present.
+		 * XXXKB: ETQF doesn't appear to be used in igb?
+		 */
+		if (__predict_false((ptype & E1000_RXDADV_PKTTYPE_ETQF) == 0 &&
+		    (ptype & E1000_RXDADV_PKTTYPE_SCTP) != 0)) {
+			ri->iri_csum_flags |= CSUM_SCTP_VALID;
+		} else {
+			ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			ri->iri_csum_data = htons(0xffff);
 		}
 	}
-	return;
 }
 
 /********************************************************************
@@ -557,7 +556,7 @@ igb_rx_checksum(u32 staterr, if_rxd_info_t ri, u32 ptype)
  *
  ******************************************************************/
 static int
-igb_determine_rsstype(u16 pkt_info)
+igb_determine_rsstype(uint16_t pkt_info)
 {
 	switch (pkt_info & E1000_RXDADV_RSSTYPE_MASK) {
 	case E1000_RXDADV_RSSTYPE_IPV4_TCP:

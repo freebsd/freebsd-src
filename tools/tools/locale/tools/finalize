@@ -82,7 +82,6 @@ for i in *_*_*.*.src; do
 	nname=`echo $oldname | awk '{ split($0, a, "_"); print a[1]"_"a[3]"@"a[2];} '`
 	mv -f ${oldname}.src ${nname}.src
 	sed -i '' -e "s/${oldname}/${nname}/g" Makefile
-	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${nname}/g")
 done
 
 # For variable without @modifier ambiguity do not keep the @modifier
@@ -95,7 +94,6 @@ for i in *@*.src; do
 	if [ $(ls ${shortname}@* | wc -l) -eq 1 ] ; then
 		mv -f $i ${shortname}.src
 		sed -i '' -e "s/${oldname}/${shortname}/g" Makefile
-		COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${oldname}/${shortname}/g")
 	fi
 done
 
@@ -106,7 +104,6 @@ for i in *@Latn.src; do
 	fi
 	mv -f ${i} ${i%@*}@latin.src
 	sed -i '' -e "s/${i%.*}/${i%@*}@latin/g" Makefile
-	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@latin/g")
 done
 
 for i in *@Cyrl.src; do
@@ -115,7 +112,6 @@ for i in *@Cyrl.src; do
 	fi
 	mv -f ${i} ${i%@*}@cyrillic.src
 	sed -i '' -e "s/${i%.*}/${i%@*}@cyrillic/g" Makefile
-	COLLATIONS_SPECIAL=$(echo ${COLLATIONS_SPECIAL} | sed -e "s/${i%.*}/${i%@*}@cyrillic/g")
 done
 
 # On locales with multiple modifiers rename the "default" version without the @modifier
@@ -150,30 +146,6 @@ then
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${UNIDIR}/posix/UTF-8.cm \
 		> ${ETCDIR}/final-maps/map.UTF-8
-	/usr/bin/sed -E -e 's/[ ]+/ /g' \
-		${UNIDIR}/posix/eucCN.cm \
-		> ${ETCDIR}/final-maps/map.eucCN
-	/usr/bin/sed -E -e 's/[ ]+/ /g' \
-		${UNIDIR}/posix/eucCN.cm \
-		> ${ETCDIR}/final-maps/map.GB2312
-
-	# GB18030 and Big5 are pre-generated from CLDR data
-	CHARMAPS="ARMSCII-8 CP1131 CP1251 \
-		CP866 GBK ISCII-DEV ISO8859-1 \
-		ISO8859-13 ISO8859-15 ISO8859-2 ISO8859-4 \
-		ISO8859-5 ISO8859-7 ISO8859-9 KOI8-R KOI8-U \
-		PT154 SJIS US-ASCII eucJP eucKR"
-
-	for map in ${CHARMAPS}
-	do
-		encoding=${map}
-		env ETCDIR="${ETCDIR}" \
-		/usr/local/bin/perl ${TOOLSDIR}/convert_map.pl \
-			${ETCDIR}/charmaps/${map}.TXT ${encoding} \
-			| /usr/bin/sed -E -e 's/	+/ /g' \
-		> ${ETCDIR}/final-maps/map.${map}
-		echo map ${map} converted.
-	done
 
 elif [ $1 = "colldef" ]
 then
@@ -190,13 +162,9 @@ then
 		sed -i '' "/^SAME.*$line$/d" ${old}/Makefile
 	done
 	echo "" >> ${TEMP4}
-	for enc in ${COLLATIONS_SPECIAL}; do
-		sed -i '' "/^.*${enc}$/d" ${TEMP4}
-		echo "LOCALES+=	${enc}" >> ${TEMP4}
-	done
 
 	keep=$(cat ${TEMP} | awk '{ print $2 }')
-	for original in ${keep} ${COLLATIONS_SPECIAL}
+	for original in ${keep}
 	do
 		cp ${old}/${original}.src ${new}/
 	done

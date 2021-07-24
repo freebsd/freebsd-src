@@ -60,8 +60,10 @@ device_t mix_get_dev(struct snd_mixer *m);
 
 void mix_setdevs(struct snd_mixer *m, u_int32_t v);
 void mix_setrecdevs(struct snd_mixer *m, u_int32_t v);
+void mix_setmutedevs(struct snd_mixer *m, u_int32_t v);
 u_int32_t mix_getdevs(struct snd_mixer *m);
 u_int32_t mix_getrecdevs(struct snd_mixer *m);
+u_int32_t mix_getmutedevs(struct snd_mixer *m);
 void mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs);
 void mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev);
 u_int32_t mix_getparent(struct snd_mixer *m, u_int32_t dev);

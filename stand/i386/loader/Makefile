@@ -95,7 +95,7 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # that pxeloader provides has none of that flexibility because it lacks access
 # to the a.out/elf headers and assumes an entry point of 0.
 #
-# We must add it to the LDFLAGS instead of the OBJS becauce the former won't try
+# We must add it to the LDFLAGS instead of the OBJS because the former won't try
 # to clean it. When it is in OBJS, this cleaning can lead to races where
 # btxcrt.o is rebuilt, but boot2 isn't, leading to errors at installation time.
 # LDFLAGS does not have this baggage and will be included first in the list of

@@ -584,23 +584,21 @@ malloc_large_size(uma_slab_t slab)
 }
 
 static caddr_t __noinline
-malloc_large(size_t *size, struct malloc_type *mtp, struct domainset *policy,
+malloc_large(size_t size, struct malloc_type *mtp, struct domainset *policy,
     int flags DEBUG_REDZONE_ARG_DEF)
 {
 	vm_offset_t kva;
 	caddr_t va;
-	size_t sz;
 
-	sz = roundup(*size, PAGE_SIZE);
-	kva = kmem_malloc_domainset(policy, sz, flags);
+	size = roundup(size, PAGE_SIZE);
+	kva = kmem_malloc_domainset(policy, size, flags);
 	if (kva != 0) {
 		/* The low bit is unused for slab pointers. */
-		vsetzoneslab(kva, NULL, (void *)((sz << 1) | 1));
-		uma_total_inc(sz);
-		*size = sz;
+		vsetzoneslab(kva, NULL, (void *)((size << 1) | 1));
+		uma_total_inc(size);
 	}
 	va = (caddr_t)kva;
-	malloc_type_allocated(mtp, va == NULL ? 0 : sz);
+	malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	if (__predict_false(va == NULL)) {
 		KASSERT((flags & M_WAITOK) == 0,
 		    ("malloc(M_WAITOK) returned NULL"));
@@ -608,7 +606,7 @@ malloc_large(size_t *size, struct malloc_type *mtp, struct domainset *policy,
 #ifdef DEBUG_REDZONE
 		va = redzone_setup(va, osize);
 #endif
-		kasan_mark((void *)va, osize, sz, KASAN_MALLOC_REDZONE);
+		kasan_mark((void *)va, osize, size, KASAN_MALLOC_REDZONE);
 	}
 	return (va);
 }
@@ -648,7 +646,7 @@ void *
 #endif
 
 	if (__predict_false(size > kmem_zmax))
-		return (malloc_large(&size, mtp, DOMAINSET_RR(), flags
+		return (malloc_large(size, mtp, DOMAINSET_RR(), flags
 		    DEBUG_REDZONE_ARG));
 
 	if (size & KMEM_ZMASK)
@@ -718,7 +716,7 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 #endif
 
 	if (__predict_false(size > kmem_zmax))
-		return (malloc_large(&size, mtp, DOMAINSET_RR(), flags
+		return (malloc_large(size, mtp, DOMAINSET_RR(), flags
 		    DEBUG_REDZONE_ARG));
 
 	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
@@ -770,7 +768,7 @@ malloc_domainset_exec(size_t size, struct malloc_type *mtp, struct domainset *ds
 		return (va);
 #endif
 
-	return (malloc_large(&size, mtp, ds, flags DEBUG_REDZONE_ARG));
+	return (malloc_large(size, mtp, ds, flags DEBUG_REDZONE_ARG));
 }
 
 void *

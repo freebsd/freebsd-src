@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2018
+.Dd July 22, 2021
 .Dt STORE 9
 .Os
 .Sh NAME
@@ -56,13 +56,14 @@
 .Fn suword32 "volatile void *base" "int32_t word"
 .Ft int
 .Fn suword64 "volatile void *base" "int64_t word"
-.In sys/resourcevar.h
 .Sh DESCRIPTION
 The
 .Nm
 functions are designed to copy small amounts of data to user-space.
-If write is successful, it is performed atomically.
-The data written must be naturally aligned.
+If the user address is naturally aligned, then the operation will be
+performed atomically.
+Otherwise it may fail or be performed non-atomically, depending on
+the platform.
 .Pp
 The
 .Nm

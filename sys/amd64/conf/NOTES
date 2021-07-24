@@ -287,6 +287,7 @@ device		cpufreq
 #       adapters.
 # ice:	Intel 800 Series Physical Function
 #	Requires the ice_ddp module for full functionality
+# igc:	Intel I225 2.5Gb Ethernet adapter
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 #	Requires the ipw firmware module
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
@@ -309,6 +310,7 @@ device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
+device		igc		# Intel I225 2.5G Ethernet
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.

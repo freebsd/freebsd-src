@@ -284,7 +284,7 @@ static void
 plan_b(const char *filename)
 {
 	FILE	*ifp;
-	size_t	i = 0, j, len, maxlen = 1;
+	size_t	i, j, len, maxlen;
 	char	*lbuf = NULL, *p;
 	bool	found_revision = (revision == NULL);
 
@@ -294,6 +294,8 @@ plan_b(const char *filename)
 	unlink(TMPINNAME);
 	if ((tifd = open(TMPINNAME, O_EXCL | O_CREAT | O_WRONLY, 0666)) < 0)
 		pfatal("can't open file %s", TMPINNAME);
+	len = 0;
+	maxlen = 1;
 	while ((p = fgetln(ifp, &len)) != NULL) {
 		if (p[len - 1] == '\n')
 			p[len - 1] = '\0';

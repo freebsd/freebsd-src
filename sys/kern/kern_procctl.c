@@ -530,8 +530,9 @@ aslr_status(struct thread *td, struct proc *p, int *data)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		vm = vmspace_acquire_ref(p);
-		if (vm != NULL && (vm->vm_map.flags & MAP_ASLR) != 0) {
-			d |= PROC_ASLR_ACTIVE;
+		if (vm != NULL) {
+			if ((vm->vm_map.flags & MAP_ASLR) != 0)
+				d |= PROC_ASLR_ACTIVE;
 			vmspace_free(vm);
 		}
 		PROC_LOCK(p);

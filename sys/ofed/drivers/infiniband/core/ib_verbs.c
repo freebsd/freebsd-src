@@ -127,20 +127,28 @@ EXPORT_SYMBOL(ib_wc_status_msg);
 __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
-	case IB_RATE_2_5_GBPS: return  1;
-	case IB_RATE_5_GBPS:   return  2;
-	case IB_RATE_10_GBPS:  return  4;
-	case IB_RATE_20_GBPS:  return  8;
-	case IB_RATE_30_GBPS:  return 12;
-	case IB_RATE_40_GBPS:  return 16;
-	case IB_RATE_60_GBPS:  return 24;
-	case IB_RATE_80_GBPS:  return 32;
-	case IB_RATE_120_GBPS: return 48;
+	case IB_RATE_2_5_GBPS: return   1;
+	case IB_RATE_5_GBPS:   return   2;
+	case IB_RATE_10_GBPS:  return   4;
+	case IB_RATE_20_GBPS:  return   8;
+	case IB_RATE_30_GBPS:  return  12;
+	case IB_RATE_40_GBPS:  return  16;
+	case IB_RATE_60_GBPS:  return  24;
+	case IB_RATE_80_GBPS:  return  32;
+	case IB_RATE_120_GBPS: return  48;
+	case IB_RATE_14_GBPS:  return   6;
+	case IB_RATE_56_GBPS:  return  22;
+	case IB_RATE_112_GBPS: return  45;
+	case IB_RATE_168_GBPS: return  67;
+	case IB_RATE_25_GBPS:  return  10;
+	case IB_RATE_100_GBPS: return  40;
+	case IB_RATE_200_GBPS: return  80;
+	case IB_RATE_300_GBPS: return 120;
 	case IB_RATE_28_GBPS:  return  11;
 	case IB_RATE_50_GBPS:  return  20;
 	case IB_RATE_400_GBPS: return 160;
 	case IB_RATE_600_GBPS: return 240;
-	default:	       return -1;
+	default:	       return  -1;
 	}
 }
 EXPORT_SYMBOL(ib_rate_to_mult);
@@ -148,15 +156,15 @@ EXPORT_SYMBOL(ib_rate_to_mult);
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 {
 	switch (mult) {
-	case 1:  return IB_RATE_2_5_GBPS;
-	case 2:  return IB_RATE_5_GBPS;
-	case 4:  return IB_RATE_10_GBPS;
-	case 8:  return IB_RATE_20_GBPS;
-	case 12: return IB_RATE_30_GBPS;
-	case 16: return IB_RATE_40_GBPS;
-	case 24: return IB_RATE_60_GBPS;
-	case 32: return IB_RATE_80_GBPS;
-	case 48: return IB_RATE_120_GBPS;
+	case 1:   return IB_RATE_2_5_GBPS;
+	case 2:   return IB_RATE_5_GBPS;
+	case 4:   return IB_RATE_10_GBPS;
+	case 8:   return IB_RATE_20_GBPS;
+	case 12:  return IB_RATE_30_GBPS;
+	case 16:  return IB_RATE_40_GBPS;
+	case 24:  return IB_RATE_60_GBPS;
+	case 32:  return IB_RATE_80_GBPS;
+	case 48:  return IB_RATE_120_GBPS;
 	case 6:   return IB_RATE_14_GBPS;
 	case 22:  return IB_RATE_56_GBPS;
 	case 45:  return IB_RATE_112_GBPS;
@@ -169,7 +177,7 @@ __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 	case 20:  return IB_RATE_50_GBPS;
 	case 160: return IB_RATE_400_GBPS;
 	case 240: return IB_RATE_600_GBPS;
-	default: return IB_RATE_PORT_CURRENT;
+	default:  return IB_RATE_PORT_CURRENT;
 	}
 }
 EXPORT_SYMBOL(mult_to_ib_rate);
@@ -1008,6 +1016,7 @@ static const struct {
 						 IB_QP_QKEY),
 				 [IB_QPT_GSI] = (IB_QP_CUR_STATE		|
 						 IB_QP_QKEY),
+				 [IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			 }
 		}
 	},
@@ -1041,6 +1050,7 @@ static const struct {
 						IB_QP_QKEY),
 				[IB_QPT_GSI] = (IB_QP_CUR_STATE			|
 						IB_QP_QKEY),
+				[IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			}
 		},
 		[IB_QPS_SQD]   = {
@@ -1159,34 +1169,29 @@ static const struct {
 	}
 };
 
-int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
-		       enum rdma_link_layer ll)
+bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
+			enum ib_qp_type type, enum ib_qp_attr_mask mask)
 {
 	enum ib_qp_attr_mask req_param, opt_param;
-
-	if (cur_state  < 0 || cur_state  > IB_QPS_ERR ||
-	    next_state < 0 || next_state > IB_QPS_ERR)
-		return 0;
 
 	if (mask & IB_QP_CUR_STATE  &&
 	    cur_state != IB_QPS_RTR && cur_state != IB_QPS_RTS &&
 	    cur_state != IB_QPS_SQD && cur_state != IB_QPS_SQE)
-		return 0;
+		return false;
 
 	if (!qp_state_table[cur_state][next_state].valid)
-		return 0;
+		return false;
 
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
 	if ((mask & req_param) != req_param)
-		return 0;
+		return false;
 
 	if (mask & ~(req_param | opt_param | IB_QP_STATE))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
@@ -1976,7 +1981,7 @@ static void __ib_drain_sq(struct ib_qp *qp)
 {
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe sdrain;
-	struct ib_send_wr *bad_swr;
+	const struct ib_send_wr *bad_swr;
 	struct ib_rdma_wr swr = {
 		.wr = {
 			.opcode	= IB_WR_RDMA_WRITE,
@@ -2016,7 +2021,8 @@ static void __ib_drain_rq(struct ib_qp *qp)
 {
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe rdrain;
-	struct ib_recv_wr rwr = {}, *bad_rwr;
+	struct ib_recv_wr rwr = {};
+	const struct ib_recv_wr *bad_rwr;
 	int ret;
 
 	if (qp->recv_cq->poll_ctx == IB_POLL_DIRECT) {

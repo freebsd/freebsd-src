@@ -573,41 +573,38 @@ static int dma_map_mr_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	return 0;
 }
 
-static void prep_umr_wqe_common(struct ib_pd *pd, struct ib_send_wr *wr,
+static void prep_umr_wqe_common(struct ib_pd *pd, struct mlx5_umr_wr *umrwr,
 				struct ib_sge *sg, u64 dma, int n, u32 key,
 				int page_shift)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
 	sg->addr = dma;
 	sg->length = ALIGN(sizeof(u64) * n, 64);
 	sg->lkey = dev->umrc.pd->local_dma_lkey;
 
-	wr->next = NULL;
-	wr->sg_list = sg;
+	umrwr->wr.next = NULL;
+	umrwr->wr.sg_list = sg;
 	if (n)
-		wr->num_sge = 1;
+		umrwr->wr.num_sge = 1;
 	else
-		wr->num_sge = 0;
+		umrwr->wr.num_sge = 0;
 
-	wr->opcode = MLX5_IB_WR_UMR;
+	umrwr->wr.opcode = MLX5_IB_WR_UMR;
 
 	umrwr->npages = n;
 	umrwr->page_shift = page_shift;
 	umrwr->mkey = key;
 }
 
-static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
+static void prep_umr_reg_wqe(struct ib_pd *pd, struct mlx5_umr_wr *umrwr,
 			     struct ib_sge *sg, u64 dma, int n, u32 key,
 			     int page_shift, u64 virt_addr, u64 len,
 			     int access_flags)
 {
-	struct mlx5_umr_wr *umrwr = umr_wr(wr);
+	prep_umr_wqe_common(pd, umrwr, sg, dma, n, key, page_shift);
 
-	prep_umr_wqe_common(pd, wr, sg, dma, n, key, page_shift);
-
-	wr->send_flags = 0;
+	umrwr->wr.send_flags = 0;
 
 	umrwr->target.virt_addr = virt_addr;
 	umrwr->length = len;
@@ -616,12 +613,10 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 }
 
 static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
-			       struct ib_send_wr *wr, u32 key)
+			       struct mlx5_umr_wr *umrwr, u32 key)
 {
-	struct mlx5_umr_wr *umrwr = umr_wr(wr);
-
-	wr->send_flags = MLX5_IB_SEND_UMR_UNREG | MLX5_IB_SEND_UMR_FAIL_IF_FREE;
-	wr->opcode = MLX5_IB_WR_UMR;
+	umrwr->wr.send_flags = MLX5_IB_SEND_UMR_UNREG | MLX5_IB_SEND_UMR_FAIL_IF_FREE;
+	umrwr->wr.opcode = MLX5_IB_WR_UMR;
 	umrwr->mkey = key;
 }
 
@@ -637,7 +632,7 @@ static struct ib_umem *mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 		return (void *)umem;
 	}
 
-	mlx5_ib_cont_pages(umem, start, npages, page_shift, ncont, order);
+	mlx5_ib_cont_pages(umem, start, MLX5_MKEY_PAGE_SHIFT_MASK, npages, page_shift, ncont, order);
 	if (!*npages) {
 		mlx5_ib_warn(dev, "avoid zero region\n");
 		ib_umem_release(umem);
@@ -675,7 +670,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
 	struct mlx5_umr_wr umrwr = {};
-	struct ib_send_wr *bad;
+	const struct ib_send_wr *bad;
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
 	int size;
@@ -707,7 +702,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	mlx5_ib_init_umr_context(&umr_context);
 
 	umrwr.wr.wr_cqe = &umr_context.cqe;
-	prep_umr_reg_wqe(pd, &umrwr.wr, &sg, dma, npages, mr->mmkey.key,
+	prep_umr_reg_wqe(pd, &umrwr, &sg, dma, npages, mr->mmkey.key,
 			 page_shift, virt_addr, len, access_flags);
 
 	down(&umrc->sem);
@@ -756,7 +751,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 	int size;
 	__be64 *pas;
 	dma_addr_t dma;
-	struct ib_send_wr *bad;
+	const struct ib_send_wr *bad;
 	struct mlx5_umr_wr wr;
 	struct ib_sge sg;
 	int err = 0;
@@ -1026,7 +1021,7 @@ static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
 	struct mlx5_umr_wr umrwr = {};
-	struct ib_send_wr *bad;
+	const struct ib_send_wr *bad;
 	int err;
 
 	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
@@ -1035,7 +1030,7 @@ static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	mlx5_ib_init_umr_context(&umr_context);
 
 	umrwr.wr.wr_cqe = &umr_context.cqe;
-	prep_umr_unreg_wqe(dev, &umrwr.wr, mr->mmkey.key);
+	prep_umr_unreg_wqe(dev, &umrwr, mr->mmkey.key);
 
 	down(&umrc->sem);
 	err = ib_post_send(umrc->qp, &umrwr.wr, &bad);
@@ -1065,7 +1060,7 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct device *ddev = dev->ib_dev.dma_device;
 	struct mlx5_ib_umr_context umr_context;
-	struct ib_send_wr *bad;
+	const struct ib_send_wr *bad;
 	struct mlx5_umr_wr umrwr = {};
 	struct ib_sge sg;
 	struct umr_common *umrc = &dev->umrc;
@@ -1090,7 +1085,7 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_TRANSLATION;
 	}
 
-	prep_umr_wqe_common(pd, &umrwr.wr, &sg, dma, npages, mr->mmkey.key,
+	prep_umr_wqe_common(pd, &umrwr, &sg, dma, npages, mr->mmkey.key,
 			    page_shift);
 
 	if (flags & IB_MR_REREG_PD) {

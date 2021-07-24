@@ -70,7 +70,7 @@ static struct mtx intr_lock;
 MTX_SYSINIT(intr_lock, &intr_lock, "stack intr", MTX_DEF);
 #endif
 
-static void __nosanitizeaddress
+static void __nosanitizeaddress __nosanitizememory
 stack_capture(struct thread *td, struct stack *st, register_t fp)
 {
 	x86_frame_t frame;

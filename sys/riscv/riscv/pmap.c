@@ -872,7 +872,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	pd_entry_t *l2;
+	pd_entry_t *l2, l2e;
 	pt_entry_t *l3;
 	vm_paddr_t pa;
 
@@ -882,14 +882,23 @@ pmap_kextract(vm_offset_t va)
 		l2 = pmap_l2(kernel_pmap, va);
 		if (l2 == NULL)
 			panic("pmap_kextract: No l2");
-		if ((pmap_load(l2) & PTE_RX) != 0) {
+		l2e = pmap_load(l2);
+		/*
+		 * Beware of concurrent promotion and demotion! We must
+		 * use l2e rather than loading from l2 multiple times to
+		 * ensure we see a consistent state, including the
+		 * implicit load in pmap_l2_to_l3.  It is, however, safe
+		 * to use an old l2e because the L3 page is preserved by
+		 * promotion.
+		 */
+		if ((l2e & PTE_RX) != 0) {
 			/* superpages */
-			pa = L2PTE_TO_PHYS(pmap_load(l2));
+			pa = L2PTE_TO_PHYS(l2e);
 			pa |= (va & L2_OFFSET);
 			return (pa);
 		}
 
-		l3 = pmap_l2_to_l3(l2, va);
+		l3 = pmap_l2_to_l3(&l2e, va);
 		if (l3 == NULL)
 			panic("pmap_kextract: No l3...");
 		pa = PTE_TO_PHYS(pmap_load(l3));
@@ -1132,7 +1141,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	vm_paddr_t phys;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (m->pindex >= NUL1E) {
+	if (m->pindex >= NUL2E) {
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
@@ -1143,7 +1152,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
-	if (m->pindex < NUL1E) {
+	if (m->pindex < NUL2E) {
 		pd_entry_t *l1;
 		vm_page_t pdpg;
 
@@ -1279,12 +1288,14 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 * it isn't already there.
 	 */
 
-	if (ptepindex >= NUL1E) {
+	if (ptepindex >= NUL2E) {
 		pd_entry_t *l1;
 		vm_pindex_t l1index;
 
-		l1index = ptepindex - NUL1E;
+		l1index = ptepindex - NUL2E;
 		l1 = &pmap->pm_l1[l1index];
+		KASSERT((pmap_load(l1) & PTE_V) == 0,
+		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
 
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);
@@ -1299,7 +1310,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		l1 = &pmap->pm_l1[l1index];
 		if (pmap_load(l1) == 0) {
 			/* recurse for allocating page dir */
-			if (_pmap_alloc_l3(pmap, NUL1E + l1index,
+			if (_pmap_alloc_l3(pmap, NUL2E + l1index,
 			    lockp) == NULL) {
 				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
@@ -1314,6 +1325,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		phys = PTE_TO_PHYS(pmap_load(l1));
 		l2 = (pd_entry_t *)PHYS_TO_DMAP(phys);
 		l2 = &l2[ptepindex & Ln_ADDR_MASK];
+		KASSERT((pmap_load(l2) & PTE_V) == 0,
+		    ("%s: L2 entry %#lx is valid", __func__, pmap_load(l2)));
 
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);

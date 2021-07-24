@@ -1,9 +1,9 @@
 /*-
- * Copyright (c) 2013 Dmitry Chagin
  * Copyright (c) 2004 Tim J. Robbins
  * Copyright (c) 2002 Doug Rabson
  * Copyright (c) 2000 Marcel Moolenaar
  * All rights reserved.
+ * Copyright (c) 2013 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -172,27 +172,6 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 	    (args->level * (PSL_IOPL / 3));
 
 	return (0);
-}
-
-int
-linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
-{
-	l_sigset_t lmask;
-	sigset_t sigmask;
-	int error;
-
-	LINUX_CTR2(rt_sigsuspend, "%p, %ld",
-	    uap->newset, uap->sigsetsize);
-
-	if (uap->sigsetsize != sizeof(l_sigset_t))
-		return (EINVAL);
-
-	error = copyin(uap->newset, &lmask, sizeof(l_sigset_t));
-	if (error)
-		return (error);
-
-	linux_to_bsd_sigset(&lmask, &sigmask);
-	return (kern_sigsuspend(td, sigmask));
 }
 
 int

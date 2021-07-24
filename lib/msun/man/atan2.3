@@ -63,7 +63,7 @@ The
 and
 .Fn atan2l
 functions compute the principal value of the arc tangent of
-.Fa y/ Ns Ar x ,
+.Fa y/ Ns Fa x ,
 using the signs of both arguments to determine the quadrant of
 the return value.
 .Pp
@@ -94,7 +94,7 @@ and
 .Fn atan2l
 functions, if successful,
 return the arc tangent of
-.Fa y/ Ns Ar x
+.Fa y/ Ns Fa x
 in the range
 .Bk -words
 .Bq \&- Ns \*(Pi , \&+ Ns \*(Pi
@@ -105,22 +105,22 @@ Here are some of the special cases:
 .It Fn atan2 y x No := Ta
 .Fn atan y/x Ta
 if
-.Ar x
+.Fa x
 > 0,
-.It Ta sign( Ns Ar y Ns )*(\*(Pi -
+.It Ta sign( Ns Fa y Ns )*(\*(Pi -
 .Fn atan "\*(Bay/x\*(Ba" ) Ta
 if
-.Ar x
+.Fa x
 < 0,
 .It Ta
 .No 0 Ta
 if x = y = 0, or
 .It Ta
-.Pf sign( Ar y Ns )*\*(Pi/2 Ta
+.Pf sign( Fa y Ns )*\*(Pi/2 Ta
 if
-.Ar x
+.Fa x
 = 0 \(!=
-.Ar y .
+.Fa y .
 .El
 .Sh NOTES
 The function

@@ -75,6 +75,7 @@ struct mdproc {
  */
 struct syscall_args {
 	u_int code;
+	u_int original_code;
 	struct sysent *callp;
 	register_t args[MAXARGS];
 } __aligned(8);

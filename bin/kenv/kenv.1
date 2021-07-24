@@ -24,14 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2020
+.Dd June 20, 2021
 .Dt KENV 1
 .Os
 .Sh NAME
 .Nm kenv
-.Nd dump or modify the kernel environment
+.Nd list or modify the kernel environment
 .Sh SYNOPSIS
 .Nm
+.Op Fl l | s
 .Op Fl hNq
 .Nm
 .Op Fl qv
@@ -43,8 +44,25 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility will dump the kernel environment if
+utility will list all variables in the kernel environment if
 invoked without arguments.
+.Pp
+If the
+.Fl l
+option is specified, then the static environment provided by
+.Xr loader 8
+will be listed instead.
+Similarly, the
+.Fl s
+option will list the static environment defined by the kernel config.
+Both of the
+.Fl l
+and
+.Fl s
+options are dependent on the kernel being configured to preserve early kernel
+environments.
+The default kernel configuration does not preserve these environments.
+.Pp
 If the
 .Fl h
 option is specified, it will limit the report to kernel probe hints.

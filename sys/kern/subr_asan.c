@@ -174,6 +174,7 @@ kasan_code_name(uint8_t code)
 
 #define	REPORT(f, ...) do {				\
 	if (panic_on_violation) {			\
+		kasan_enabled = false;			\
 		panic(f, __VA_ARGS__);			\
 	} else {					\
 		struct stack st;			\
@@ -948,7 +949,12 @@ __asan_register_globals(struct __asan_global *globals, size_t n)
 void
 __asan_unregister_globals(struct __asan_global *globals, size_t n)
 {
-	/* never called */
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		kasan_mark(globals[i].beg, globals[i].size_with_redzone,
+		    globals[i].size_with_redzone, 0);
+	}
 }
 
 #define ASAN_LOAD_STORE(size)					\

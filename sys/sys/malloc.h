@@ -298,16 +298,20 @@ extern void *Malloc(size_t bytes, const char *file, int line);
  * flags mean anything and there's no need declare malloc types.
  * Define the simple alloc / free routines in terms of Malloc and
  * Free. None of the kernel features that this stuff disables are needed.
- *
- * XXX we are setting ourselves up for a potential crash if we can't allocate
- * memory for a M_WAITOK call.
  */
-#define M_WAITOK 0
+#define M_WAITOK 1
 #define M_ZERO 0
-#define M_NOWAIT 0
+#define M_NOWAIT 2
 #define MALLOC_DECLARE(x)
 
-#define kmem_zalloc(size, flags) Malloc((size), __FILE__, __LINE__)
+#define kmem_zalloc(size, flags) ({					\
+	void *p = Malloc((size), __FILE__, __LINE__);			\
+	if (p == NULL && (flags &  M_WAITOK) != 0)			\
+		panic("Could not malloc %zd bytes with M_WAITOK from %s line %d", \
+		    (size_t)size, __FILE__, __LINE__);			\
+	p;								\
+})
+
 #define kmem_free(p, size) Free(p, __FILE__, __LINE__)
 
 /*
@@ -315,5 +319,6 @@ extern void *Malloc(size_t bytes, const char *file, int line);
  * M_WAITOK. Given the above, it will also be a nop.
  */
 #define KM_SLEEP M_WAITOK
+#define KM_NOSLEEP M_NOWAIT
 #endif /* _STANDALONE */
 #endif /* !_SYS_MALLOC_H_ */

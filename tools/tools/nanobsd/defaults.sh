@@ -67,7 +67,8 @@ NANO_PKG_META_BASE=/var/db
 
 # Make & parallel Make
 NANO_MAKE="make"
-NANO_PMAKE="make -j 3"
+NANO_NCPU=$(sysctl -n hw.ncpu)
+NANO_PMAKE="make -j $NANO_NCPU"
 
 # The default name for any image we create.
 NANO_IMGNAME="_.disk.full"
@@ -161,6 +162,8 @@ NANO_SLICE_ROOT=s1
 NANO_SLICE_ALTROOT=s2
 NANO_SLICE_CFG=s3
 NANO_SLICE_DATA=s4
+NANO_PARTITION_ROOT=a
+NANO_PARTITION_ALTROOT=a
 NANO_ROOT=s1a
 NANO_ALTROOT=s2a
 
@@ -725,7 +728,7 @@ cust_comconsole ( ) (
 # Allow root login via ssh
 
 cust_allow_ssh_root ( ) (
-	sed -i "" -e '/PermitRootLogin/s/.*/PermitRootLogin yes/' \
+	sed -i "" -E 's/^#?PermitRootLogin.*/PermitRootLogin yes/' \
 	    ${NANO_WORLDDIR}/etc/ssh/sshd_config
 )
 
@@ -853,7 +856,7 @@ usage ( ) {
 	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
-	echo "	-f	suppress code slice extraction"
+	echo "	-f	suppress code slice extraction (implies -i)"
 	echo "	-h	print this help summary page"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
@@ -918,6 +921,7 @@ set_defaults_and_export ( ) {
 	export_var NANO_MAKE_CONF_INSTALL
 	export_var NANO_MEDIASIZE
 	export_var NANO_NAME
+	export_var NANO_NCPU
 	export_var NANO_NEWFS
 	export_var NANO_OBJ
 	export_var NANO_PMAKE

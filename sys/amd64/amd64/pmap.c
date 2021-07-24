@@ -1554,7 +1554,7 @@ nkpt_init(vm_paddr_t addr)
 #ifdef NKPT
 	pt_pages = NKPT;
 #else
-	pt_pages = howmany(addr, 1 << PDRSHIFT);
+	pt_pages = howmany(addr, NBPDR);
 	pt_pages += NKPDPE(pt_pages);
 
 	/*
@@ -2062,6 +2062,19 @@ pmap_init_pat(void)
 	load_cr4(cr4);
 }
 
+vm_page_t
+pmap_page_alloc_below_4g(bool zeroed)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc_contig(NULL, 0, (zeroed ? VM_ALLOC_ZERO : 0) |
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ,
+	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	if (m != NULL && zeroed && (m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+	return (m);
+}
+
 extern const char la57_trampoline[], la57_trampoline_gdt_desc[],
     la57_trampoline_gdt[], la57_trampoline_end[];
 
@@ -2087,42 +2100,18 @@ pmap_bootstrap_la57(void *arg __unused)
 	r_gdt.rd_limit = NGDT * sizeof(struct user_segment_descriptor) - 1;
 	r_gdt.rd_base = (long)__pcpu[0].pc_gdt;
 
-	m_code = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_code->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_code);
+	m_code = pmap_page_alloc_below_4g(true);
 	v_code = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_code));
-	m_pml5 = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pml5->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pml5);
+	m_pml5 = pmap_page_alloc_below_4g(true);
 	KPML5phys = VM_PAGE_TO_PHYS(m_pml5);
 	v_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(KPML5phys);
-	m_pml4 = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pml4->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pml4);
+	m_pml4 = pmap_page_alloc_below_4g(true);
 	v_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pml4));
-	m_pdp = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pdp->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pdp);
+	m_pdp = pmap_page_alloc_below_4g(true);
 	v_pdp = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pdp));
-	m_pd = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pd->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pd);
+	m_pd = pmap_page_alloc_below_4g(true);
 	v_pd = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pd));
-	m_pt = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if ((m_pt->flags & PG_ZERO) == 0)
-		pmap_zero_page(m_pt);
+	m_pt = pmap_page_alloc_below_4g(true);
 	v_pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m_pt));
 
 	/*
@@ -6626,7 +6615,6 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	 * within a 2MB page. 
 	 */
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
-setpde:
 	newpde = *firstpte;
 	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V) ||
 	    !pmap_allow_2m_x_page(pmap, pmap_pde_ept_executable(pmap,
@@ -6636,12 +6624,13 @@ setpde:
 		    " in pmap %p", va, pmap);
 		return;
 	}
+setpde:
 	if ((newpde & (PG_M | PG_RW)) == PG_RW) {
 		/*
 		 * When PG_M is already clear, PG_RW can be cleared without
 		 * a TLB invalidation.
 		 */
-		if (!atomic_cmpset_long(firstpte, newpde, newpde & ~PG_RW))
+		if (!atomic_fcmpset_long(firstpte, &newpde, newpde & ~PG_RW))
 			goto setpde;
 		newpde &= ~PG_RW;
 	}
@@ -6653,7 +6642,6 @@ setpde:
 	 */
 	pa = (newpde & (PG_PS_FRAME | PG_A | PG_V)) + NBPDR - PAGE_SIZE;
 	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
-setpte:
 		oldpte = *pte;
 		if ((oldpte & (PG_FRAME | PG_A | PG_V)) != pa) {
 			counter_u64_add(pmap_pde_p_failures, 1);
@@ -6661,12 +6649,13 @@ setpte:
 			    " in pmap %p", va, pmap);
 			return;
 		}
+setpte:
 		if ((oldpte & (PG_M | PG_RW)) == PG_RW) {
 			/*
 			 * When PG_M is already clear, PG_RW can be cleared
 			 * without a TLB invalidation.
 			 */
-			if (!atomic_cmpset_long(pte, oldpte, oldpte & ~PG_RW))
+			if (!atomic_fcmpset_long(pte, &oldpte, oldpte & ~PG_RW))
 				goto setpte;
 			oldpte &= ~PG_RW;
 			CTR2(KTR_PMAP, "pmap_promote_pde: protect for va %#lx"
@@ -7334,7 +7323,6 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    m->psind == 1 && pmap_ps_enabled(pmap) &&
-		    pmap_allow_2m_x_page(pmap, (prot & VM_PROT_EXECUTE) != 0) &&
 		    pmap_enter_2mpage(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
@@ -7775,6 +7763,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
+			/*
+			 * We can only virtual copy whole superpages.
+			 */
 			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
 				continue;
 			pde = pmap_alloc_pde(dst_pmap, addr, &dst_pdpg, NULL);
@@ -7783,7 +7774,19 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			if (*pde == 0 && ((srcptepaddr & PG_MANAGED) == 0 ||
 			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr,
 			    PMAP_ENTER_NORECLAIM, &lock))) {
-				*pde = srcptepaddr & ~PG_W;
+				/*
+				 * We leave the dirty bit unchanged because
+				 * managed read/write superpage mappings are
+				 * required to be dirty.  However, managed
+				 * superpage mappings are not required to
+				 * have their accessed bit set, so we clear
+				 * it because we don't know if this mapping
+				 * will be used.
+				 */
+				srcptepaddr &= ~PG_W;
+				if ((srcptepaddr & PG_MANAGED) != 0)
+					srcptepaddr &= ~PG_A;
+				*pde = srcptepaddr;
 				pmap_resident_count_adj(dst_pmap, NBPDR /
 				    PAGE_SIZE);
 				counter_u64_add(pmap_pde_mappings, 1);
@@ -8201,6 +8204,16 @@ pmap_remove_pages(pmap_t pmap)
 					continue;
 				}
 
+				/* Mark free */
+				pc->pc_map[field] |= bitmask;
+
+				/*
+				 * Because this pmap is not active on other
+				 * processors, the dirty bit cannot have
+				 * changed state since we last loaded pte.
+				 */
+				pte_clear(pte);
+
 				if (superpage)
 					pa = tpte & PG_PS_FRAME;
 				else
@@ -8217,8 +8230,6 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad tpte %#jx",
 				    (uintmax_t)tpte));
 
-				pte_clear(pte);
-
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
@@ -8232,8 +8243,6 @@ pmap_remove_pages(pmap_t pmap)
 
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 
-				/* Mark free */
-				pc->pc_map[field] |= bitmask;
 				if (superpage) {
 					pmap_resident_count_adj(pmap, -NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
@@ -10742,7 +10751,7 @@ pmap_pti_init(void)
 		va = __pcpu[i].pc_common_tss.tss_ist4 + sizeof(struct nmi_pcpu);
 		pmap_pti_add_kva_locked(va - DBG_STACK_SIZE, va, false);
 	}
-	pmap_pti_add_kva_locked((vm_offset_t)kernphys + KERNBASE,
+	pmap_pti_add_kva_locked((vm_offset_t)KERNBASE + NBPDR,
 	    (vm_offset_t)etext, true);
 	pti_finalized = true;
 	VM_OBJECT_WUNLOCK(pti_obj);

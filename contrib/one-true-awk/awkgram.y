@@ -32,8 +32,8 @@ int yywrap(void) { return(1); }
 
 Node	*beginloc = 0;
 Node	*endloc = 0;
-int	infunc	= 0;	/* = 1 if in arglist or body of func */
-int	inloop	= 0;	/* = 1 if in while, for, do */
+bool	infunc	= false;	/* = true if in arglist or body of func */
+int	inloop	= 0;	/* >= 1 if in while, for, do; can't be bool, since loops can next */
 char	*curfname = 0;	/* current function name */
 Node	*arglist = 0;	/* list of args for current function */
 %}
@@ -50,10 +50,10 @@ Node	*arglist = 0;	/* list of args for current function */
 %token	<i>	NL ',' '{' '(' '|' ';' '/' ')' '}' '[' ']'
 %token	<i>	ARRAY
 %token	<i>	MATCH NOTMATCH MATCHOP
-%token	<i>	FINAL DOT ALL CCL NCCL CHAR OR STAR QUEST PLUS EMPTYRE
+%token	<i>	FINAL DOT ALL CCL NCCL CHAR OR STAR QUEST PLUS EMPTYRE ZERO
 %token	<i>	AND BOR APPEND EQ GE GT LE LT NE IN
-%token	<i>	ARG BLTIN BREAK CLOSE CONTINUE DELETE DO EXIT FOR FUNC 
-%token	<i>	SUB GSUB IF INDEX LSUBSTR MATCHFCN NEXT NEXTFILE
+%token	<i>	ARG BLTIN BREAK CLOSE CONTINUE DELETE DO EXIT FOR FUNC
+%token	<i>	GENSUB SUB GSUB IF INDEX LSUBSTR MATCHFCN NEXT NEXTFILE
 %token	<i>	ADD MINUS MULT DIVIDE MOD
 %token	<i>	ASSIGN ASGNOP ADDEQ SUBEQ MULTEQ DIVEQ MODEQ POWEQ
 %token	<i>	PRINT PRINTF SPRINTF
@@ -71,6 +71,7 @@ Node	*arglist = 0;	/* list of args for current function */
 %type	<i>	do st
 %type	<i>	pst opt_pst lbrace rbrace rparen comma nl opt_nl and bor
 %type	<i>	subop print
+%type	<cp>	string
 
 %right	ASGNOP
 %right	'?'
@@ -79,7 +80,7 @@ Node	*arglist = 0;	/* list of args for current function */
 %left	AND
 %left	GETLINE
 %nonassoc APPEND EQ GE GT LE LT NE MATCHOP IN '|'
-%left	ARG BLTIN BREAK CALL CLOSE CONTINUE DELETE DO EXIT FOR FUNC 
+%left	ARG BLTIN BREAK CALL CLOSE CONTINUE DELETE DO EXIT FOR FUNC
 %left	GSUB IF INDEX LSUBSTR MATCHFCN NEXT NUMBER
 %left	PRINT PRINTF RETURN SPLIT SPRINTF STRING SUB SUBSTR
 %left	REGEXPR VAR VARNF IVAR WHILE '('
@@ -181,8 +182,8 @@ pa_stat:
 		{ beginloc = linkum(beginloc, $3); $$ = 0; }
 	| XEND lbrace stmtlist '}'
 		{ endloc = linkum(endloc, $3); $$ = 0; }
-	| FUNC funcname '(' varlist rparen {infunc++;} lbrace stmtlist '}'
-		{ infunc--; curfname=0; defn((Cell *)$2, $4, $8); $$ = 0; }
+	| FUNC funcname '(' varlist rparen {infunc = true;} lbrace stmtlist '}'
+		{ infunc = false; curfname=0; defn((Cell *)$2, $4, $8); $$ = 0; }
 	;
 
 pa_stats:
@@ -238,10 +239,10 @@ pattern:
 			$$ = op3($2, (Node *)1, $1, $3); }
 	| pattern IN varname		{ $$ = op2(INTEST, $1, makearr($3)); }
 	| '(' plist ')' IN varname	{ $$ = op2(INTEST, $2, makearr($5)); }
-	| pattern '|' GETLINE var	{ 
+	| pattern '|' GETLINE var	{
 			if (safe) SYNTAX("cmd | getline is unsafe");
 			else $$ = op3(GETLINE, $4, itonp($2), $1); }
-	| pattern '|' GETLINE		{ 
+	| pattern '|' GETLINE		{
 			if (safe) SYNTAX("cmd | getline is unsafe");
 			else $$ = op3(GETLINE, (Node*)0, itonp($2), $1); }
 	| pattern term %prec CAT	{ $$ = op2(CAT, $1, $2); }
@@ -292,7 +293,7 @@ rparen:
 	;
 
 simple_stmt:
-	  print prarg '|' term		{ 
+	  print prarg '|' term		{
 			if (safe) SYNTAX("print | is unsafe");
 			else $$ = stat3($1, $2, itonp($3), $4); }
 	| print prarg APPEND term	{
@@ -348,6 +349,11 @@ subop:
 	  SUB | GSUB
 	;
 
+string:
+	  STRING
+	| string STRING		{ $$ = catstr($1, $2); }
+	;
+
 term:
  	  term '/' ASGNOP term		{ $$ = op2(DIVEQ, $1, $4); }
  	| term '+' term			{ $$ = op2(ADD, $1, $3); }
@@ -369,6 +375,22 @@ term:
 	| INCR var			{ $$ = op1(PREINCR, $2); }
 	| var DECR			{ $$ = op1(POSTDECR, $1); }
 	| var INCR			{ $$ = op1(POSTINCR, $1); }
+	| GENSUB '(' reg_expr comma pattern comma pattern ')'
+		{ $$ = op5(GENSUB, NIL, (Node*)makedfa($3, 1), $5, $7, rectonode()); }
+	| GENSUB '(' pattern comma pattern comma pattern ')'
+		{ if (constnode($3))
+			$$ = op5(GENSUB, NIL, (Node *)makedfa(strnode($3), 1), $5, $7, rectonode());
+		  else
+			$$ = op5(GENSUB, (Node *)1, $3, $5, $7, rectonode());
+		}
+	| GENSUB '(' reg_expr comma pattern comma pattern comma pattern ')'
+		{ $$ = op5(GENSUB, NIL, (Node*)makedfa($3, 1), $5, $7, $9); }
+	| GENSUB '(' pattern comma pattern comma pattern comma pattern ')'
+		{ if (constnode($3))
+			$$ = op5(GENSUB, NIL, (Node *)makedfa(strnode($3),1), $5,$7,$9);
+		  else
+			$$ = op5(GENSUB, (Node *)1, $3, $5, $7, $9);
+		}
 	| GETLINE var LT term		{ $$ = op3(GETLINE, $2, itonp($3), $4); }
 	| GETLINE LT term		{ $$ = op3(GETLINE, NIL, itonp($2), $3); }
 	| GETLINE var			{ $$ = op3(GETLINE, $2, NIL, NIL); }
@@ -394,7 +416,7 @@ term:
 	| SPLIT '(' pattern comma varname ')'
 		{ $$ = op4(SPLIT, $3, makearr($5), NIL, (Node*)STRING); }  /* default */
 	| SPRINTF '(' patlist ')'	{ $$ = op1($1, $3); }
-	| STRING	 		{ $$ = celltonode($1, CCON); }
+	| string	 		{ $$ = celltonode($1, CCON); }
 	| subop '(' reg_expr comma pattern ')'
 		{ $$ = op4($1, NIL, (Node*)makedfa($3, 1), $5, rectonode()); }
 	| subop '(' pattern comma pattern ')'
@@ -421,7 +443,7 @@ var:
 	| varname '[' patlist ']'	{ $$ = op2(ARRAY, makearr($1), $3); }
 	| IVAR				{ $$ = op1(INDIRECT, celltonode($1, CVAR)); }
 	| INDIRECT term	 		{ $$ = op1(INDIRECT, $2); }
-	;	
+	;
 
 varlist:
 	  /* nothing */		{ arglist = $$ = 0; }

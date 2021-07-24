@@ -4092,7 +4092,12 @@ sysctl_kern_proc_nfds(SYSCTL_HANDLER_ARGS)
 {
 	NDSLOTTYPE *map;
 	struct filedesc *fdp;
+	u_int namelen;
 	int count, off, minoff;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	if (*(int *)arg1 != 0)
 		return (EINVAL);
@@ -4482,7 +4487,12 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	struct proc *p;
 	ssize_t maxlen;
+	u_int namelen;
 	int error, error2, *name;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 
@@ -4561,9 +4571,14 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct filedesc *fdp;
 	struct pwddesc *pdp;
 	struct pwd *pwd;
+	u_int namelen;
 	int error, i, lastfile, *name;
 	struct file *fp;
 	struct proc *p;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
@@ -4706,7 +4721,12 @@ sysctl_kern_proc_cwd(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	struct proc *p;
 	ssize_t maxlen;
+	u_int namelen;
 	int error, error2, *name;
+
+	namelen = arg2;
+	if (namelen != 1)
+		return (EINVAL);
 
 	name = (int *)arg1;
 

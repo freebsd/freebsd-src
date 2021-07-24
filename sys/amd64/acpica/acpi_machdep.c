@@ -98,7 +98,7 @@ static void *
 map_table(vm_paddr_t pa, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
-	vm_offset_t length;
+	vm_size_t length;
 	void *table;
 
 	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
@@ -122,7 +122,7 @@ map_table(vm_paddr_t pa, const char *sig)
 
 /*
  * See if a given ACPI table is the requested table.  Returns the
- * length of the able if it matches or zero on failure.
+ * length of the table if it matches or zero on failure.
  */
 static int
 probe_table(vm_paddr_t address, const char *sig)

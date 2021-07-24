@@ -888,6 +888,7 @@
 #define __nosanitizethread	__attribute__((no_sanitize("thread")))
 #else
 #define __nosanitizeaddress
+#define __nosanitizememory
 #define __nosanitizethread
 #endif
 

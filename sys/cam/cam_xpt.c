@@ -4642,6 +4642,7 @@ xpt_done_direct(union ccb *done_ccb)
 
 	/* Store the time the ccb was in the sim */
 	done_ccb->ccb_h.qos.periph_data = cam_iosched_delta_t(done_ccb->ccb_h.qos.periph_data);
+	done_ccb->ccb_h.status |= CAM_QOS_VALID;
 	xpt_done_process(&done_ccb->ccb_h);
 }
 

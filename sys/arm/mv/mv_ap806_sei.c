@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+
+#include <sys/bitset.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "msi_if.h"
 #include "pic_if.h"
 
 #define	MV_AP806_SEI_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
@@ -58,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #define	MV_AP806_SEI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED);
 #define	MV_AP806_SEI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->mtx, MA_NOTOWNED);
 
-#define	MV_AP806_SEI_MAX_NIRQS	64
 #define GICP_SECR0		0x00
 #define GICP_SECR1		0x04
 #define GICP_SECR(i)		(0x00  + (((i)/32) * 0x4))
@@ -67,6 +69,16 @@ __FBSDID("$FreeBSD$");
 #define GICP_SEMR1		0x24
 #define GICP_SEMR(i)		(0x20  + (((i)/32) * 0x4))
 #define GICP_SEMR_BIT(i)	((i) % 32)
+
+#define	MV_AP806_SEI_AP_FIRST	0
+#define	MV_AP806_SEI_AP_SIZE	21
+#define	MV_AP806_SEI_CP_FIRST	21
+#define	MV_AP806_SEI_CP_SIZE	43
+#define	MV_AP806_SEI_MAX_NIRQS	(MV_AP806_SEI_AP_SIZE + MV_AP806_SEI_CP_SIZE)
+
+#define	MV_AP806_SEI_SETSPI_OFFSET	0x30
+
+BITSET_DEFINE(sei_msi_bitmap, MV_AP806_SEI_CP_SIZE);
 
 struct mv_ap806_sei_irqsrc {
 	struct intr_irqsrc	isrc;
@@ -81,6 +93,8 @@ struct mv_ap806_sei_softc {
 	struct mtx		mtx;
 
 	struct mv_ap806_sei_irqsrc *isrcs;
+
+	struct sei_msi_bitmap	msi_bitmap;
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -90,6 +104,10 @@ static struct ofw_compat_data compat_data[] = {
 
 #define	RD4(sc, reg)		bus_read_4((sc)->mem_res, (reg))
 #define	WR4(sc, reg, val)	bus_write_4((sc)->mem_res, (reg), (val))
+
+static msi_alloc_msi_t mv_ap806_sei_alloc_msi;
+static msi_release_msi_t mv_ap806_sei_release_msi;
+static msi_map_msi_t mv_ap806_sei_map_msi;
 
 static inline void
 mv_ap806_sei_isrc_mask(struct mv_ap806_sei_softc *sc,
@@ -152,8 +170,13 @@ mv_ap806_sei_map(device_t dev, struct intr_map_data *data, u_int *irqp)
 		return (ENOTSUP);
 
 	daf = (struct intr_map_data_fdt *)data;
-	if (daf->ncells != 1 || daf->cells[0] >= MV_AP806_SEI_MAX_NIRQS)
+	if (daf->ncells != 1)
 		return (EINVAL);
+
+	if (daf->cells[0] < MV_AP806_SEI_AP_FIRST ||
+	    daf->cells[0] >= MV_AP806_SEI_AP_FIRST + MV_AP806_SEI_AP_SIZE)
+		return (EINVAL);
+
 	irq = daf->cells[0];
 	if (irqp != NULL)
 		*irqp = irq;
@@ -361,6 +384,12 @@ mv_ap806_sei_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * Bitmap of all IRQs.
+	 * 1 - available, 0 - used.
+	 */
+	BIT_FILL(MV_AP806_SEI_CP_SIZE, &sc->msi_bitmap);
+
 	OF_device_register_xref(xref, dev);
 	return (0);
 
@@ -382,6 +411,72 @@ mv_ap806_sei_detach(device_t dev)
 	return (EBUSY);
 }
 
+static int
+mv_ap806_sei_alloc_msi(device_t dev, device_t child, int count, int maxcount,
+    device_t *pic, struct intr_irqsrc **srcs)
+{
+	struct mv_ap806_sei_softc *sc;
+	int i, ret = 0, vector;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < count; i++) {
+		/*
+		 * Find first available MSI vector represented by first set bit
+		 * in the bitmap. BIT_FFS starts the count from 1,
+		 * 0 means that nothing was found.
+		 */
+		vector = BIT_FFS_AT(MV_AP806_SEI_CP_SIZE, &sc->msi_bitmap, 0);
+		if (vector == 0) {
+			ret = ENOMEM;
+			i--;
+			goto fail;
+		}
+
+		vector--;
+		BIT_CLR(MV_AP806_SEI_CP_SIZE, vector, &sc->msi_bitmap);
+		vector += MV_AP806_SEI_CP_FIRST;
+
+		srcs[i] = &sc->isrcs[vector].isrc;
+	}
+
+	return (ret);
+fail:
+	mv_ap806_sei_release_msi(dev, child, i + 1, srcs);
+	return (ret);
+}
+
+static int
+mv_ap806_sei_release_msi(device_t dev, device_t child, int count, struct intr_irqsrc **srcs)
+{
+	struct mv_ap806_sei_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	for (i = 0; i < count; i++) {
+		BIT_SET(MV_AP806_SEI_CP_SIZE,
+		    srcs[i]->isrc_irq - MV_AP806_SEI_CP_FIRST,
+		    &sc->msi_bitmap);
+	}
+
+	return (0);
+}
+
+static int
+mv_ap806_sei_map_msi(device_t dev, device_t child, struct intr_irqsrc *isrc,
+    uint64_t *addr, uint32_t *data)
+{
+	struct mv_ap806_sei_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	*addr = rman_get_start(sc->mem_res) + MV_AP806_SEI_SETSPI_OFFSET;
+	*data = isrc->isrc_irq;
+
+	return (0);
+}
+
 static device_method_t mv_ap806_sei_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mv_ap806_sei_probe),
@@ -397,6 +492,11 @@ static device_method_t mv_ap806_sei_methods[] = {
 	DEVMETHOD(pic_post_filter,	mv_ap806_sei_post_filter),
 	DEVMETHOD(pic_post_ithread,	mv_ap806_sei_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	mv_ap806_sei_pre_ithread),
+
+	/* MSI interface */
+	DEVMETHOD(msi_alloc_msi,	mv_ap806_sei_alloc_msi),
+	DEVMETHOD(msi_release_msi,	mv_ap806_sei_release_msi),
+	DEVMETHOD(msi_map_msi,		mv_ap806_sei_map_msi),
 
 	DEVMETHOD_END
 };

@@ -64,8 +64,6 @@ OLD_FILES+=etc/rc.d/apmd
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=usr/sbin/apm
 OLD_FILES+=usr/share/examples/etc/apmd.conf
-OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
-OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_AT} == no

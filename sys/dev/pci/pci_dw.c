@@ -73,6 +73,11 @@ __FBSDID("$FreeBSD$");
 #define	DBI_RD2(sc, reg)	pci_dw_dbi_rd2((sc)->dev, reg)
 #define	DBI_RD4(sc, reg)	pci_dw_dbi_rd4((sc)->dev, reg)
 
+#define	IATU_UR_WR4(sc, reg, val)	\
+    bus_write_4((sc)->iatu_ur_res, (sc)->iatu_ur_offset + (reg), (val))
+#define	IATU_UR_RD4(sc, reg)		\
+    bus_read_4((sc)->iatu_ur_res, (sc)->iatu_ur_offset + (reg))
+
 #define	PCI_BUS_SHIFT		20
 #define	PCI_SLOT_SHIFT		15
 #define	PCI_FUNC_SHIFT		12
@@ -168,9 +173,117 @@ pci_dw_check_dev(struct pci_dw_softc *sc, u_int bus, u_int slot, u_int func,
 	return (true);
 }
 
-/* Map one uoutbound ATU region */
+static bool
+pci_dw_detect_atu_unroll(struct pci_dw_softc *sc)
+{
+	return (DBI_RD4(sc, DW_IATU_VIEWPORT) == 0xFFFFFFFFU);
+}
+
 static int
-pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
+pci_dw_detect_out_atu_regions_unroll(struct pci_dw_softc *sc)
+{
+	int num_regions, i;
+	uint32_t reg;
+
+	num_regions = sc->iatu_ur_size / DW_IATU_UR_STEP;
+
+	for (i = 0; i < num_regions; ++i) {
+		IATU_UR_WR4(sc, DW_IATU_UR_REG(i, LWR_TARGET_ADDR),
+		    0x12340000);
+		reg = IATU_UR_RD4(sc, DW_IATU_UR_REG(i, LWR_TARGET_ADDR));
+		if (reg != 0x12340000)
+			break;
+	}
+
+	sc->num_out_regions = i;
+
+	return (0);
+}
+
+static int
+pci_dw_detect_out_atu_regions_legacy(struct pci_dw_softc *sc)
+{
+	int num_viewports, i;
+	uint32_t reg;
+
+	/* Find out how many viewports there are in total */
+	DBI_WR4(sc, DW_IATU_VIEWPORT, IATU_REGION_INDEX(~0U));
+	reg = DBI_RD4(sc, DW_IATU_VIEWPORT);
+	if (reg > IATU_REGION_INDEX(~0U)) {
+		device_printf(sc->dev,
+		    "Cannot detect number of output iATU regions; read %#x\n",
+		    reg);
+		return (ENXIO);
+	}
+
+	num_viewports = reg + 1;
+
+	/*
+	 * Find out how many of them are outbound by seeing whether a dummy
+	 * page-aligned address sticks.
+	 */
+	for (i = 0; i < num_viewports; ++i) {
+		DBI_WR4(sc, DW_IATU_VIEWPORT, IATU_REGION_INDEX(i));
+		DBI_WR4(sc, DW_IATU_LWR_TARGET_ADDR, 0x12340000);
+		reg = DBI_RD4(sc, DW_IATU_LWR_TARGET_ADDR);
+		if (reg != 0x12340000)
+			break;
+	}
+
+	sc->num_out_regions = i;
+
+	return (0);
+}
+
+static int
+pci_dw_detect_out_atu_regions(struct pci_dw_softc *sc)
+{
+	if (sc->iatu_ur_res)
+		return (pci_dw_detect_out_atu_regions_unroll(sc));
+	else
+		return (pci_dw_detect_out_atu_regions_legacy(sc));
+}
+
+static int
+pci_dw_map_out_atu_unroll(struct pci_dw_softc *sc, int idx, int type,
+    uint64_t pa, uint64_t pci_addr, uint32_t size)
+{
+	uint32_t reg;
+	int i;
+
+	if (size == 0)
+		return (0);
+
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LWR_BASE_ADDR),
+	    pa & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, UPPER_BASE_ADDR),
+	    (pa >> 32) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LIMIT_ADDR),
+	    (pa + size - 1) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, LWR_TARGET_ADDR),
+	    pci_addr & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, UPPER_TARGET_ADDR),
+	    (pci_addr  >> 32) & 0xFFFFFFFF);
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, CTRL1),
+	    IATU_CTRL1_TYPE(type));
+	IATU_UR_WR4(sc, DW_IATU_UR_REG(idx, CTRL2),
+	    IATU_CTRL2_REGION_EN);
+
+	/* Wait until setup becomes valid */
+	for (i = 10; i > 0; i--) {
+		reg = IATU_UR_RD4(sc, DW_IATU_UR_REG(idx, CTRL2));
+		if (reg & IATU_CTRL2_REGION_EN)
+			return (0);
+		DELAY(5);
+	}
+
+	device_printf(sc->dev,
+	    "Cannot map outbound region %d in unroll mode iATU\n", idx);
+	return (ETIMEDOUT);
+}
+
+static int
+pci_dw_map_out_atu_legacy(struct pci_dw_softc *sc, int idx, int type,
     uint64_t pa, uint64_t pci_addr, uint32_t size)
 {
 	uint32_t reg;
@@ -195,16 +308,30 @@ pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
 			return (0);
 		DELAY(5);
 	}
+
 	device_printf(sc->dev,
-	    "Cannot map outbound region(%d) in iATU\n", idx);
+	    "Cannot map outbound region %d in legacy mode iATU\n", idx);
 	return (ETIMEDOUT);
+}
+
+/* Map one outbound ATU region */
+static int
+pci_dw_map_out_atu(struct pci_dw_softc *sc, int idx, int type,
+    uint64_t pa, uint64_t pci_addr, uint32_t size)
+{
+	if (sc->iatu_ur_res)
+		return (pci_dw_map_out_atu_unroll(sc, idx, type, pa,
+		    pci_addr, size));
+	else
+		return (pci_dw_map_out_atu_legacy(sc, idx, type, pa,
+		    pci_addr, size));
 }
 
 static int
 pci_dw_setup_hw(struct pci_dw_softc *sc)
 {
 	uint32_t reg;
-	int rv;
+	int rv, i;
 
 	pci_dw_dbi_protect(sc, false);
 
@@ -222,21 +349,25 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	   PCIM_CMD_BUSMASTEREN | PCIM_CMD_SERRESPEN);
 	pci_dw_dbi_protect(sc, true);
 
-	/* Setup outbound memory window */
-	rv = pci_dw_map_out_atu(sc, 0, IATU_CTRL1_TYPE_MEM,
-	    sc->mem_range.host, sc->mem_range.pci, sc->mem_range.size);
-	if (rv != 0)
-		return (rv);
-
-	/* If we have enouht viewports ..*/
-	if (sc->num_viewport >= 3 && sc->io_range.size != 0) {
-		/* Setup outbound I/O window */
-		rv = pci_dw_map_out_atu(sc, 2, IATU_CTRL1_TYPE_IO,
-		    sc->io_range.host, sc->io_range.pci, sc->io_range.size);
+	/* Setup outbound memory windows */
+	for (i = 0; i < min(sc->num_mem_ranges, sc->num_out_regions - 1); ++i) {
+		rv = pci_dw_map_out_atu(sc, i + 1, IATU_CTRL1_TYPE_MEM,
+		    sc->mem_ranges[i].host, sc->mem_ranges[i].pci,
+		    sc->mem_ranges[i].size);
 		if (rv != 0)
 			return (rv);
 	}
-	/* XXX Should we handle also prefetch memory? */
+
+	/* If we have enough regions ... */
+	if (sc->num_mem_ranges + 1 < sc->num_out_regions &&
+	    sc->io_range.size != 0) {
+		/* Setup outbound I/O window */
+		rv = pci_dw_map_out_atu(sc, sc->num_mem_ranges + 1,
+		    IATU_CTRL1_TYPE_IO, sc->io_range.host, sc->io_range.pci,
+		    sc->io_range.size);
+		if (rv != 0)
+			return (rv);
+	}
 
 	/* Adjust number of lanes */
 	reg = DBI_RD4(sc, DW_PORT_LINK_CTRL);
@@ -304,57 +435,67 @@ static int
 pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
      int nranges)
 {
-	int i;
+	int i, nmem, rv;
 
+	nmem = 0;
+	for (i = 0; i < nranges; i++) {
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32)
+			++nmem;
+	}
+
+	sc->mem_ranges = malloc(nmem * sizeof(*sc->mem_ranges), M_DEVBUF,
+	    M_WAITOK);
+	sc->num_mem_ranges = nmem;
+
+	nmem = 0;
 	for (i = 0; i < nranges; i++) {
 		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK)  ==
 		    OFW_PCI_PHYS_HI_SPACE_IO) {
 			if (sc->io_range.size != 0) {
 				device_printf(sc->dev,
 				    "Duplicated IO range found in DT\n");
-				return (ENXIO);
+				rv = ENXIO;
+				goto out;
 			}
+
 			sc->io_range = ranges[i];
-		}
-		if (((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
-		    OFW_PCI_PHYS_HI_SPACE_MEM32))  {
-			if (ranges[i].pci_hi & OFW_PCI_PHYS_HI_PREFETCHABLE) {
-				if (sc->pref_mem_range.size != 0) {
-					device_printf(sc->dev,
-					    "Duplicated memory range found "
-					    "in DT\n");
-					return (ENXIO);
-				}
-				sc->pref_mem_range = ranges[i];
-			} else {
-				if (sc->mem_range.size != 0) {
-					device_printf(sc->dev,
-					    "Duplicated memory range found "
-					    "in DT\n");
-					return (ENXIO);
-				}
-				sc->mem_range = ranges[i];
+			if (sc->io_range.size > UINT32_MAX) {
+				device_printf(sc->dev,
+				    "ATU IO window size is too large. "
+				    "Up to 4GB windows are supported, "
+				    "trimming window size to 4GB\n");
+				sc->io_range.size = UINT32_MAX;
 			}
+		}
+		if ((ranges[i].pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) ==
+		    OFW_PCI_PHYS_HI_SPACE_MEM32) {
+			MPASS(nmem < sc->num_mem_ranges);
+			sc->mem_ranges[nmem] = ranges[i];
+			if (sc->mem_ranges[nmem].size > UINT32_MAX) {
+				device_printf(sc->dev,
+				    "ATU MEM window size is too large. "
+				    "Up to 4GB windows are supported, "
+				    "trimming window size to 4GB\n");
+				sc->mem_ranges[nmem].size = UINT32_MAX;
+			}
+			++nmem;
 		}
 	}
-	if (sc->mem_range.size == 0) {
+
+	MPASS(nmem == sc->num_mem_ranges);
+
+	if (nmem == 0) {
 		device_printf(sc->dev,
-		    " Not all required ranges are found in DT\n");
+		    "Missing required memory range in DT\n");
 		return (ENXIO);
 	}
-	if (sc->io_range.size > UINT32_MAX) {
-		device_printf(sc->dev,
-		    "ATU IO window size is too large. Up to 4GB windows "
-		    "are supported, trimming window size to 4GB\n");
-		sc->io_range.size = UINT32_MAX;
-	}
-	if (sc->mem_range.size > UINT32_MAX) {
-		device_printf(sc->dev,
-		    "ATU MEM window size is too large. Up to 4GB windows "
-		    "are supported, trimming window size to 4GB\n");
-		sc->mem_range.size = UINT32_MAX;
-	}
+
 	return (0);
+
+out:
+	free(sc->mem_ranges, M_DEVBUF);
+	return (rv);
 }
 
 /*-----------------------------------------------------------------------------
@@ -386,7 +527,7 @@ pci_dw_read_config(device_t dev, u_int bus, u_int slot,
 			type = IATU_CTRL1_TYPE_CFG0;
 		else
 			type = IATU_CTRL1_TYPE_CFG1;
-		rv = pci_dw_map_out_atu(sc, 1, type,
+		rv = pci_dw_map_out_atu(sc, 0, type,
 		    sc->cfg_pa, addr, sc->cfg_size);
 		if (rv != 0)
 			return (0xFFFFFFFFU);
@@ -433,7 +574,7 @@ pci_dw_write_config(device_t dev, u_int bus, u_int slot,
 			type = IATU_CTRL1_TYPE_CFG0;
 		else
 			type = IATU_CTRL1_TYPE_CFG1;
-		rv = pci_dw_map_out_atu(sc, 1, type,
+		rv = pci_dw_map_out_atu(sc, 0, type,
 		    sc->cfg_pa, addr, sc->cfg_size);
 		if (rv != 0)
 			return ;
@@ -566,6 +707,7 @@ pci_dw_init(device_t dev)
 {
 	struct pci_dw_softc *sc;
 	int rv, rid;
+	bool unroll_mode;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -583,13 +725,8 @@ pci_dw_init(device_t dev)
 	if (!sc->coherent)
 		sc->coherent = OF_hasprop(sc->node, "dma-coherent");
 
-	rv = OF_getencprop(sc->node, "num-viewport", &sc->num_viewport,
-	    sizeof(sc->num_viewport));
-	if (rv != sizeof(sc->num_viewport))
-		sc->num_viewport = 2;
-
 	rv = OF_getencprop(sc->node, "num-lanes", &sc->num_lanes,
-	    sizeof(sc->num_viewport));
+	    sizeof(sc->num_lanes));
 	if (rv != sizeof(sc->num_lanes))
 		sc->num_lanes = 1;
 	if (sc->num_lanes != 1 && sc->num_lanes != 2 &&
@@ -645,6 +782,44 @@ pci_dw_init(device_t dev)
 	    sc->ofw_pci.sc_nrange);
 	if (rv != 0)
 		goto out;
+
+	unroll_mode = pci_dw_detect_atu_unroll(sc);
+	if (bootverbose)
+		device_printf(dev, "Using iATU %s mode\n",
+		    unroll_mode ? "unroll" : "legacy");
+	if (unroll_mode) {
+		rid = 0;
+		rv = ofw_bus_find_string_index(sc->node, "reg-names", "atu", &rid);
+		if (rv == 0) {
+			sc->iatu_ur_res = bus_alloc_resource_any(dev,
+			    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+			if (sc->iatu_ur_res == NULL) {
+				device_printf(dev,
+				    "Cannot allocate iATU space (rid: %d)\n",
+				    rid);
+				rv = ENXIO;
+				goto out;
+			}
+			sc->iatu_ur_offset = 0;
+			sc->iatu_ur_size = rman_get_size(sc->iatu_ur_res);
+		} else if (rv == ENOENT) {
+			sc->iatu_ur_res = sc->dbi_res;
+			sc->iatu_ur_offset = DW_DEFAULT_IATU_UR_DBI_OFFSET;
+			sc->iatu_ur_size = DW_DEFAULT_IATU_UR_DBI_SIZE;
+		} else {
+			device_printf(dev, "Cannot get iATU space memory\n");
+			rv = ENXIO;
+			goto out;
+		}
+	}
+
+	rv = pci_dw_detect_out_atu_regions(sc);
+	if (rv != 0)
+		goto out;
+
+	if (bootverbose)
+		device_printf(sc->dev, "Detected outbound iATU regions: %d\n",
+		    sc->num_out_regions);
 
 	rv = pci_dw_setup_hw(sc);
 	if (rv != 0)

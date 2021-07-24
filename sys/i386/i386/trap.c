@@ -875,9 +875,7 @@ trap_pfault(struct trapframe *frame, bool usermode, vm_offset_t eva,
 }
 
 static void
-trap_fatal(frame, eva)
-	struct trapframe *frame;
-	vm_offset_t eva;
+trap_fatal(struct trapframe *frame, vm_offset_t eva)
 {
 	int code, ss, esp;
 	u_int type;
@@ -1054,6 +1052,7 @@ cpu_fetch_syscall_args(struct thread *td)
 #endif
 
 	sa->code = frame->tf_eax;
+	sa->original_code = sa->code;
 	params = (caddr_t)frame->tf_esp + sizeof(uint32_t);
 
 	/*

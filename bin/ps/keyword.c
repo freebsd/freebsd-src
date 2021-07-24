@@ -222,7 +222,7 @@ static VAR var[] = {
 	{"upr", "UPR", NULL, "user-priority", 0, upr, 0, CHAR, NULL, 0},
 	{"uprocp", "UPROCP", NULL, "process-address", 0, kvar, KOFF(ki_paddr),
 	    KPTR, "lx", 0},
-	{"user", "USER", NULL, "user", LJUST, uname, 0, CHAR, NULL, 0},
+	{"user", "USER", NULL, "user", LJUST, username, 0, CHAR, NULL, 0},
 	{"usertime", "USERTIME", NULL, "user-time", USER, usertime, 0, CHAR,
 	    NULL, 0},
 	{"usrpri", "", "upr", NULL, 0, NULL, 0, CHAR, NULL, 0},

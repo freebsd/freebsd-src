@@ -40,9 +40,9 @@ do_clean=true
 do_kernel=true
 do_installkernel=true
 do_world=true
+do_code=true
 do_installworld=true
 do_image=true
-do_copyout_partition=true
 do_native_xtools=false
 do_prep_image=true
 
@@ -94,7 +94,8 @@ do
 		shift
 		;;
 	-f)
-		do_copyout_partition=false
+		do_code=false
+		do_image=false
 		shift
 		;;
 	-h)
@@ -215,10 +216,16 @@ if $do_prep_image ; then
 else
 	pprint 2 "Skipping image prep (as instructed)"
 fi
-if $do_image ; then
-	create_diskimage
+if $do_code ; then
+	calculate_partitioning
+	create_code_slice
+	if $do_image ; then
+		create_diskimage
+	else
+		pprint 2 "Skipping image build (as instructed)"
+	fi
 else
-	pprint 2 "Skipping image build (as instructed)"
+	pprint 2 "Skipping code and image build (as instructed)"
 fi
 last_orders
 

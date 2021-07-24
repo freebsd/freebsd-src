@@ -444,9 +444,9 @@ spa_config_lock_init(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_init(&scl->scl_lock, NULL, MUTEX_DEFAULT, NULL);
 		cv_init(&scl->scl_cv, NULL, CV_DEFAULT, NULL);
-		zfs_refcount_create_untracked(&scl->scl_count);
 		scl->scl_writer = NULL;
 		scl->scl_write_wanted = 0;
+		scl->scl_count = 0;
 	}
 }
 
@@ -457,9 +457,9 @@ spa_config_lock_destroy(spa_t *spa)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		mutex_destroy(&scl->scl_lock);
 		cv_destroy(&scl->scl_cv);
-		zfs_refcount_destroy(&scl->scl_count);
 		ASSERT(scl->scl_writer == NULL);
 		ASSERT(scl->scl_write_wanted == 0);
+		ASSERT(scl->scl_count == 0);
 	}
 }
 
@@ -480,7 +480,7 @@ spa_config_tryenter(spa_t *spa, int locks, void *tag, krw_t rw)
 			}
 		} else {
 			ASSERT(scl->scl_writer != curthread);
-			if (!zfs_refcount_is_zero(&scl->scl_count)) {
+			if (scl->scl_count != 0) {
 				mutex_exit(&scl->scl_lock);
 				spa_config_exit(spa, locks & ((1 << i) - 1),
 				    tag);
@@ -488,7 +488,7 @@ spa_config_tryenter(spa_t *spa, int locks, void *tag, krw_t rw)
 			}
 			scl->scl_writer = curthread;
 		}
-		(void) zfs_refcount_add(&scl->scl_count, tag);
+		scl->scl_count++;
 		mutex_exit(&scl->scl_lock);
 	}
 	return (1);
@@ -514,14 +514,14 @@ spa_config_enter(spa_t *spa, int locks, const void *tag, krw_t rw)
 			}
 		} else {
 			ASSERT(scl->scl_writer != curthread);
-			while (!zfs_refcount_is_zero(&scl->scl_count)) {
+			while (scl->scl_count != 0) {
 				scl->scl_write_wanted++;
 				cv_wait(&scl->scl_cv, &scl->scl_lock);
 				scl->scl_write_wanted--;
 			}
 			scl->scl_writer = curthread;
 		}
-		(void) zfs_refcount_add(&scl->scl_count, tag);
+		scl->scl_count++;
 		mutex_exit(&scl->scl_lock);
 	}
 	ASSERT3U(wlocks_held, <=, locks);
@@ -535,8 +535,8 @@ spa_config_exit(spa_t *spa, int locks, const void *tag)
 		if (!(locks & (1 << i)))
 			continue;
 		mutex_enter(&scl->scl_lock);
-		ASSERT(!zfs_refcount_is_zero(&scl->scl_count));
-		if (zfs_refcount_remove(&scl->scl_count, tag) == 0) {
+		ASSERT(scl->scl_count > 0);
+		if (--scl->scl_count == 0) {
 			ASSERT(scl->scl_writer == NULL ||
 			    scl->scl_writer == curthread);
 			scl->scl_writer = NULL;	/* OK in either case */
@@ -555,8 +555,7 @@ spa_config_held(spa_t *spa, int locks, krw_t rw)
 		spa_config_lock_t *scl = &spa->spa_config_lock[i];
 		if (!(locks & (1 << i)))
 			continue;
-		if ((rw == RW_READER &&
-		    !zfs_refcount_is_zero(&scl->scl_count)) ||
+		if ((rw == RW_READER && scl->scl_count != 0) ||
 		    (rw == RW_WRITER && scl->scl_writer == curthread))
 			locks_held |= 1 << i;
 	}
@@ -701,13 +700,12 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		spa->spa_root = spa_strdup(altroot);
 
 	spa->spa_alloc_count = spa_allocators;
-	spa->spa_alloc_locks = kmem_zalloc(spa->spa_alloc_count *
-	    sizeof (kmutex_t), KM_SLEEP);
-	spa->spa_alloc_trees = kmem_zalloc(spa->spa_alloc_count *
-	    sizeof (avl_tree_t), KM_SLEEP);
+	spa->spa_allocs = kmem_zalloc(spa->spa_alloc_count *
+	    sizeof (spa_alloc_t), KM_SLEEP);
 	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		mutex_init(&spa->spa_alloc_locks[i], NULL, MUTEX_DEFAULT, NULL);
-		avl_create(&spa->spa_alloc_trees[i], zio_bookmark_compare,
+		mutex_init(&spa->spa_allocs[i].spaa_lock, NULL, MUTEX_DEFAULT,
+		    NULL);
+		avl_create(&spa->spa_allocs[i].spaa_tree, zio_bookmark_compare,
 		    sizeof (zio_t), offsetof(zio_t, io_alloc_node));
 	}
 	avl_create(&spa->spa_metaslabs_by_flushed, metaslab_sort_by_flushed,
@@ -800,13 +798,11 @@ spa_remove(spa_t *spa)
 	}
 
 	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		avl_destroy(&spa->spa_alloc_trees[i]);
-		mutex_destroy(&spa->spa_alloc_locks[i]);
+		avl_destroy(&spa->spa_allocs[i].spaa_tree);
+		mutex_destroy(&spa->spa_allocs[i].spaa_lock);
 	}
-	kmem_free(spa->spa_alloc_locks, spa->spa_alloc_count *
-	    sizeof (kmutex_t));
-	kmem_free(spa->spa_alloc_trees, spa->spa_alloc_count *
-	    sizeof (avl_tree_t));
+	kmem_free(spa->spa_allocs, spa->spa_alloc_count *
+	    sizeof (spa_alloc_t));
 
 	avl_destroy(&spa->spa_metaslabs_by_flushed);
 	avl_destroy(&spa->spa_sm_logs_by_txg);
@@ -1787,8 +1783,22 @@ spa_get_worst_case_asize(spa_t *spa, uint64_t lsize)
 uint64_t
 spa_get_slop_space(spa_t *spa)
 {
-	uint64_t space = spa_get_dspace(spa);
-	uint64_t slop = MIN(space >> spa_slop_shift, spa_max_slop);
+	uint64_t space = 0;
+	uint64_t slop = 0;
+
+	/*
+	 * Make sure spa_dedup_dspace has been set.
+	 */
+	if (spa->spa_dedup_dspace == ~0ULL)
+		spa_update_dspace(spa);
+
+	/*
+	 * spa_get_dspace() includes the space only logically "used" by
+	 * deduplicated data, so since it's not useful to reserve more
+	 * space with more deduplicated data, we subtract that out here.
+	 */
+	space = spa_get_dspace(spa) - spa->spa_dedup_dspace;
+	slop = MIN(space >> spa_slop_shift, spa_max_slop);
 
 	/*
 	 * Subtract the embedded log space, but no more than half the (3.2%)

@@ -62,7 +62,17 @@ SDT_PROBE_DEFINE5_XLATE(sdt, , , m__init,
     "uint32_t", "uint32_t",
     "uint32_t", "uint32_t");
 
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr_raw,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
 SDT_PROBE_DEFINE3_XLATE(sdt, , , m__gethdr,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "struct mbuf *", "mbufinfo_t *");
+
+SDT_PROBE_DEFINE3_XLATE(sdt, , , m__get_raw,
     "uint32_t", "uint32_t",
     "uint16_t", "uint16_t",
     "struct mbuf *", "mbufinfo_t *");

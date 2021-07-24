@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016-2018, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2016-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -108,7 +108,7 @@ enum mlx5e_link_speed {
 	MLX5E_25GBASE_SR	 = 29,
 	MLX5E_50GBASE_CR2	 = 30,
 	MLX5E_50GBASE_KR2	 = 31,
-	MLX5E_LINK_SPEEDS_NUMBER,
+	MLX5E_LINK_SPEEDS_NUMBER = 32,
 };
 
 enum mlx5e_ext_link_speed {
@@ -122,78 +122,22 @@ enum mlx5e_ext_link_speed {
 	MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR	= 8,
 	MLX5E_CAUI_4_100GBASE_CR4_KR4		= 9,
 	MLX5E_100GAUI_2_100GBASE_CR2_KR2	= 10,
+	MLX5E_100GAUI_1_100GBASE_CR_KR		= 11,
 	MLX5E_200GAUI_4_200GBASE_CR4_KR4	= 12,
+	MLX5E_200GAUI_2_200GBASE_CR2_KR2	= 13,
 	MLX5E_400GAUI_8				= 15,
-	MLX5E_EXT_LINK_SPEEDS_NUMBER,
+	MLX5E_400GAUI_4_400GBASE_CR4_KR4	= 16,
+	MLX5E_EXT_LINK_SPEEDS_NUMBER		= 32,
 };
 
-enum mlx5e_link_mode {
-	MLX5E_ACC,
-	MLX5E_AOC,
-	MLX5E_AUI,
-	MLX5E_AUI_AC,
-	MLX5E_AUI2,
-	MLX5E_AUI2_AC,
-	MLX5E_AUI4,
-	MLX5E_AUI4_AC,
-	MLX5E_CAUI2,
-	MLX5E_CAUI2_AC,
-	MLX5E_CAUI4,
-	MLX5E_CAUI4_AC,
-	MLX5E_CP,
-	MLX5E_CP2,
-	MLX5E_CR,
-	MLX5E_CR_S,
-	MLX5E_CR1,
-	MLX5E_CR2,
-	MLX5E_CR4,
-	MLX5E_CR_PAM4,
-	MLX5E_CR4_PAM4,
-	MLX5E_CX4,
-	MLX5E_CX,
-	MLX5E_CX_SGMII,
-	MLX5E_DR,
-	MLX5E_DR4,
-	MLX5E_ER,
-	MLX5E_ER4,
-	MLX5E_FR,
-	MLX5E_FR4,
-	MLX5E_KR,
-	MLX5E_KR1,
-	MLX5E_KR_PAM4,
-	MLX5E_KR_S,
-	MLX5E_KR2,
-	MLX5E_KR2_PAM4,
-	MLX5E_KR4,
-	MLX5E_KR4_PAM4,
-	MLX5E_KX,
-	MLX5E_KX4,
-	MLX5E_LR,
-	MLX5E_LR2,
-	MLX5E_LR4,
-	MLX5E_LX,
-	MLX5E_R,
-	MLX5E_SGMII,
-	MLX5E_SR,
-	MLX5E_SR2,
-	MLX5E_SR4,
-	MLX5E_SX,
-	MLX5E_T,
-	MLX5E_TX,
-	MLX5E_LINK_MODES_NUMBER,
-};
-
-enum mlx5e_connector_type {
-	MLX5E_PORT_UNKNOWN	= 0,
-	MLX5E_PORT_NONE			= 1,
-	MLX5E_PORT_TP			= 2,
-	MLX5E_PORT_AUI			= 3,
-	MLX5E_PORT_BNC			= 4,
-	MLX5E_PORT_MII			= 5,
-	MLX5E_PORT_FIBRE		= 6,
-	MLX5E_PORT_DA			= 7,
-	MLX5E_PORT_OTHER		= 8,
-	MLX5E_CONNECTOR_TYPE_NUMBER,
+enum mlx5e_cable_type {
+	MLX5E_CABLE_TYPE_UNKNOWN		= 0,
+	MLX5E_CABLE_TYPE_ACTIVE_CABLE		= 1,
+	MLX5E_CABLE_TYPE_OPTICAL_MODULE 	= 2,
+	MLX5E_CABLE_TYPE_PASSIVE_COPPER		= 3,
+	MLX5E_CABLE_TYPE_CABLE_UNPLUGGED	= 4,
+	MLX5E_CABLE_TYPE_TWISTED_PAIR		= 5,
+	MLX5E_CABLE_TYPE_NUMBER			= 8,
 };
 
 enum mlx5_qpts_trust_state {
@@ -282,6 +226,7 @@ int mlx5_set_dscp2prio(struct mlx5_core_dev *mdev, const u8 *dscp2prio);
 int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio);
 
 int mlx5_query_pddr_range_info(struct mlx5_core_dev *mdev, u8 local_port, u8 *is_er_type);
+int mlx5_query_pddr_cable_type(struct mlx5_core_dev *mdev, u8 local_port, u8 *cable_type);
 
 u32 mlx5e_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper);
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);

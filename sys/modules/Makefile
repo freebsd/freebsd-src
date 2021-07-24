@@ -164,6 +164,7 @@ SUBDIR=	\
 	if_vlan \
 	if_vxlan \
 	iflib \
+	${_igc} \
 	${_iir} \
 	imgact_binmisc \
 	${_intelspi} \
@@ -281,7 +282,6 @@ SUBDIR=	\
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
-	${_pccard} \
 	${_pchtherm} \
 	${_pcfclock} \
 	${_pf} \
@@ -634,6 +634,7 @@ _em=		em
 _et=		et
 _ftwd=		ftwd
 _exca=		exca
+_igc=		igc
 _io=		io
 _itwd=		itwd
 _ix=		ix
@@ -644,7 +645,6 @@ _lio=		lio
 _nctgpio=	nctgpio
 _ntb=		ntb
 _ocs_fc=	ocs_fc
-_pccard=	pccard
 _qat=		qat
 _qatfw=		qatfw
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -790,7 +790,6 @@ _exca=		exca
 _ffec=		ffec
 _nvd=		nvd
 _nvme=		nvme
-_pccard=	pccard
 .endif
 
 .if ${MACHINE_ARCH:Mpowerpc64*} != ""

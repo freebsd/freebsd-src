@@ -281,28 +281,8 @@ ffs_check_blkno(struct mount *mp, ino_t inum, ufs2_daddr_t daddr, int blksize)
 }
 
 /*
- * Initiate a forcible unmount.
+ * On first ENXIO error, initiate an asynchronous forcible unmount.
  * Used to unmount filesystems whose underlying media has gone away.
- */
-static void
-ffs_fsfail_unmount(void *v, int pending)
-{
-	struct fsfail_task *etp;
-	struct mount *mp;
-
-	etp = v;
-
-	/*
-	 * Find our mount and get a ref on it, then try to unmount.
-	 */
-	mp = vfs_getvfs(&etp->fsid);
-	if (mp != NULL)
-		dounmount(mp, MNT_FORCE, curthread);
-	free(etp, M_UFSMNT);
-}
-
-/*
- * On first ENXIO error, start a task that forcibly unmounts the filesystem.
  *
  * Return true if a cleanup is in progress.
  */
@@ -320,25 +300,18 @@ ffs_fsfail_cleanup(struct ufsmount *ump, int error)
 int
 ffs_fsfail_cleanup_locked(struct ufsmount *ump, int error)
 {
-	struct fsfail_task *etp;
-	struct task *tp;
-
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	if (error == ENXIO && (ump->um_flags & UM_FSFAIL_CLEANUP) == 0) {
 		ump->um_flags |= UM_FSFAIL_CLEANUP;
 		/*
 		 * Queue an async forced unmount.
 		 */
-		etp = ump->um_fsfail_task;
-		ump->um_fsfail_task = NULL;
-		if (etp != NULL) {
-			tp = &etp->task;
-			TASK_INIT(tp, 0, ffs_fsfail_unmount, etp);
-			taskqueue_enqueue(taskqueue_thread, tp);
-			printf("UFS: forcibly unmounting %s from %s\n",
-			    ump->um_mountp->mnt_stat.f_mntfromname,
-			    ump->um_mountp->mnt_stat.f_mntonname);
-		}
+		vfs_ref(ump->um_mountp);
+		dounmount(ump->um_mountp,
+		    MNT_FORCE | MNT_RECURSE | MNT_DEFERRED, curthread);
+		printf("UFS: forcibly unmounting %s from %s\n",
+		    ump->um_mountp->mnt_stat.f_mntfromname,
+		    ump->um_mountp->mnt_stat.f_mntonname);
 	}
 	return ((ump->um_flags & UM_FSFAIL_CLEANUP) != 0);
 }
@@ -1046,7 +1019,6 @@ ffs_mountfs(odevvp, mp, td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 	struct vnode *devvp;
-	struct fsfail_task *etp;
 	int candelete, canspeedup;
 	off_t loc;
 
@@ -1334,9 +1306,6 @@ ffs_mountfs(odevvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
-	etp = malloc(sizeof *ump->um_fsfail_task, M_UFSMNT, M_WAITOK | M_ZERO);
-	etp->fsid = mp->mnt_stat.f_fsid;
-	ump->um_fsfail_task = etp;
 	return (0);
 out:
 	if (fs != NULL) {
@@ -1583,8 +1552,6 @@ ffs_unmount(mp, mntflags)
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs->fs_si, M_UFSMNT);
 	free(fs, M_UFSMNT);
-	if (ump->um_fsfail_task != NULL)
-		free(ump->um_fsfail_task, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);

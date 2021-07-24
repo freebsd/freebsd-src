@@ -71,6 +71,10 @@ __FBSDID("$FreeBSD$");
 #define	 DLEN_READ		(1 << 4)
 #define	RSB_DATA0		0x1c
 #define	RSB_DATA1		0x20
+#define	RSB_PMCR		0x28
+#define	 RSB_PMCR_START		(1 << 31)
+#define	 RSB_PMCR_DATA(x)	(x << 16)
+#define	 RSB_PMCR_REG(x)	(x << 8)
 #define	RSB_CMD			0x2c
 #define	 CMD_SRTA		0xe8
 #define	 CMD_RD8		0x8b
@@ -92,6 +96,10 @@ __FBSDID("$FreeBSD$");
 #define	RSB_ADDR_PMIC_PRIMARY	0x3a3
 #define	RSB_ADDR_PMIC_SECONDARY	0x745
 #define	RSB_ADDR_PERIPH_IC	0xe89
+
+#define	PMIC_MODE_REG	0x3e
+#define	PMIC_MODE_I2C	0x00
+#define	PMIC_MODE_RSB	0x7c
 
 #define	A31_P2WI	1
 #define	A23_RSB		2
@@ -435,6 +443,9 @@ rsb_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	/* Set the PMIC into RSB mode as ATF might have leave it in I2C mode */
+	RSB_WRITE(sc, RSB_PMCR, RSB_PMCR_REG(PMIC_MODE_REG) | RSB_PMCR_DATA(PMIC_MODE_RSB) | RSB_PMCR_START);
 
 	sc->iicbus = device_add_child(dev, "iicbus", -1);
 	if (sc->iicbus == NULL) {

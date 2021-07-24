@@ -893,7 +893,7 @@ pf_state_peer_to_nvstate_peer(const struct pf_state_peer *peer)
 }
 
 nvlist_t *
-pf_state_to_nvstate(const struct pf_state *s)
+pf_state_to_nvstate(const struct pf_kstate *s)
 {
 	nvlist_t	*nvl, *tmp;
 	uint32_t	 expire, flags = 0;

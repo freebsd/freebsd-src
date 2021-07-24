@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,68 +32,48 @@
 
 /* @umem: umem object to scan
  * @addr: ib virtual address requested by the user
+ * @max_page_shift: high limit for page_shift - 0 means no limit
  * @count: number of PAGE_SIZE pages covered by umem
  * @shift: page shift for the compound pages found in the region
  * @ncont: number of compund pages
  * @order: log2 of the number of compound pages
  */
-void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift,
+void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
+			unsigned long max_page_shift,
+			int *count, int *shift,
 			int *ncont, int *order)
 {
 	unsigned long tmp;
 	unsigned long m;
-	int i, k;
-	u64 base = 0;
-	int p = 0;
-	int skip;
-	int mask;
-	u64 len;
-	u64 pfn;
+	u64 base = ~0, p = 0;
+	u64 len, pfn;
+	int i = 0;
 	struct scatterlist *sg;
 	int entry;
-	unsigned long page_shift = ilog2(umem->page_size);
 
-	/* With ODP we must always match OS page size. */
-	if (umem->odp_data) {
-		*count = ib_umem_page_count(umem);
-		*shift = PAGE_SHIFT;
-		*ncont = *count;
-		if (order)
-			*order = ilog2(roundup_pow_of_two(*count));
-
-		return;
-	}
-
-	addr = addr >> page_shift;
+	addr = addr >> PAGE_SHIFT;
 	tmp = (unsigned long)addr;
 	m = find_first_bit(&tmp, BITS_PER_LONG);
-	skip = 1 << m;
-	mask = skip - 1;
-	i = 0;
+	if (max_page_shift)
+		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
+
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> page_shift;
-		pfn = sg_dma_address(sg) >> page_shift;
-		for (k = 0; k < len; k++) {
-			if (!(i & mask)) {
-				tmp = (unsigned long)pfn;
-				m = min_t(unsigned long, m, find_first_bit(&tmp, BITS_PER_LONG));
-				skip = 1 << m;
-				mask = skip - 1;
-				base = pfn;
-				p = 0;
-			} else {
-				if (base + p != pfn) {
-					tmp = (unsigned long)p;
-					m = find_first_bit(&tmp, BITS_PER_LONG);
-					skip = 1 << m;
-					mask = skip - 1;
-					base = pfn;
-					p = 0;
-				}
-			}
-			p++;
-			i++;
+		len = sg_dma_len(sg) >> PAGE_SHIFT;
+		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
+		if (base + p != pfn) {
+			/* If either the offset or the new
+			 * base are unaligned update m
+			 */
+			tmp = (unsigned long)(pfn | p);
+			if (!IS_ALIGNED(tmp, 1 << m))
+				m = find_first_bit(&tmp, BITS_PER_LONG);
+
+			base = pfn;
+			p = 0;
 		}
+
+		p += len;
+		i += len;
 	}
 
 	if (i) {
@@ -111,7 +91,7 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift,
 
 		*ncont = 0;
 	}
-	*shift = page_shift + m;
+	*shift = PAGE_SHIFT + m;
 	*count = i;
 }
 

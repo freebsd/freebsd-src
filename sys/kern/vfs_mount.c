@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <vm/uma.h>
 
@@ -89,6 +90,11 @@ static bool	default_autoro = false;
 SYSCTL_BOOL(_vfs, OID_AUTO, default_autoro, CTLFLAG_RW, &default_autoro, 0,
     "Retry failed r/w mount as r/o if no explicit ro/rw option is specified");
 
+static bool	recursive_forced_unmount = false;
+SYSCTL_BOOL(_vfs, OID_AUTO, recursive_forced_unmount, CTLFLAG_RW,
+    &recursive_forced_unmount, 0, "Recursively unmount stacked upper mounts"
+    " when a file system is forcibly unmounted");
+
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 MALLOC_DEFINE(M_STATFS, "statfs", "statfs structure");
 static uma_zone_t mount_zone;
@@ -102,6 +108,16 @@ MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
+
+static void vfs_deferred_unmount(void *arg, int pending);
+static struct task deferred_unmount_task =
+    TASK_INITIALIZER(0, vfs_deferred_unmount, NULL);;
+static struct mtx deferred_unmount_lock;
+MTX_SYSINIT(deferred_unmount, &deferred_unmount_lock, "deferred_unmount",
+    MTX_DEF);
+static STAILQ_HEAD(, mount) deferred_unmount_list =
+    STAILQ_HEAD_INITIALIZER(deferred_unmount_list);
+TASKQUEUE_DEFINE_THREAD(deferred_unmount);
 
 static void mount_devctl_event(const char *type, struct mount *mp, bool donew);
 
@@ -505,8 +521,21 @@ vfs_ref(struct mount *mp)
 	MNT_IUNLOCK(mp);
 }
 
+/*
+ * Register ump as an upper mount of the mount associated with
+ * vnode vp.  This registration will be tracked through
+ * mount_upper_node upper, which should be allocated by the
+ * caller and stored in per-mount data associated with mp.
+ *
+ * If successful, this function will return the mount associated
+ * with vp, and will ensure that it cannot be unmounted until
+ * ump has been unregistered as one of its upper mounts.
+ * 
+ * Upon failure this function will return NULL.
+ */
 struct mount *
-vfs_pin_from_vp(struct vnode *vp)
+vfs_register_upper_from_vp(struct vnode *vp, struct mount *ump,
+    struct mount_upper_node *upper)
 {
 	struct mount *mp;
 
@@ -514,26 +543,81 @@ vfs_pin_from_vp(struct vnode *vp)
 	if (mp == NULL)
 		return (NULL);
 	MNT_ILOCK(mp);
-	if (mp != vp->v_mount || (mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
+	if (mp != vp->v_mount ||
+	    ((mp->mnt_kern_flag & (MNTK_UNMOUNT | MNTK_RECURSE)) != 0)) {
 		MNT_IUNLOCK(mp);
 		return (NULL);
 	}
+	KASSERT(ump != mp, ("upper and lower mounts are identical"));
+	upper->mp = ump;
 	MNT_REF(mp);
-	KASSERT(mp->mnt_pinned_count < INT_MAX,
-	    ("mount pinned count overflow"));
-	++mp->mnt_pinned_count;
+	TAILQ_INSERT_TAIL(&mp->mnt_uppers, upper, mnt_upper_link);
 	MNT_IUNLOCK(mp);
 	return (mp);
 }
 
+/*
+ * Register upper mount ump to receive vnode unlink/reclaim
+ * notifications from lower mount mp. This registration will
+ * be tracked through mount_upper_node upper, which should be
+ * allocated by the caller and stored in per-mount data
+ * associated with mp.
+ *
+ * ump must already be registered as an upper mount of mp
+ * through a call to vfs_register_upper_from_vp().
+ */
 void
-vfs_unpin(struct mount *mp)
+vfs_register_for_notification(struct mount *mp, struct mount *ump,
+    struct mount_upper_node *upper)
+{
+	upper->mp = ump;
+	MNT_ILOCK(mp);
+	TAILQ_INSERT_TAIL(&mp->mnt_notify, upper, mnt_upper_link);
+	MNT_IUNLOCK(mp);
+}
+
+static void
+vfs_drain_upper_locked(struct mount *mp)
+{
+	mtx_assert(MNT_MTX(mp), MA_OWNED);
+	while (mp->mnt_upper_pending != 0) {
+		mp->mnt_kern_flag |= MNTK_UPPER_WAITER;
+		msleep(&mp->mnt_uppers, MNT_MTX(mp), 0, "mntupw", 0);
+	}
+}
+
+/*
+ * Undo a previous call to vfs_register_for_notification().
+ * The mount represented by upper must be currently registered
+ * as an upper mount for mp.
+ */
+void
+vfs_unregister_for_notification(struct mount *mp,
+    struct mount_upper_node *upper)
 {
 	MNT_ILOCK(mp);
-	KASSERT(mp->mnt_pinned_count > 0, ("mount pinned count underflow"));
+	vfs_drain_upper_locked(mp);
+	TAILQ_REMOVE(&mp->mnt_notify, upper, mnt_upper_link);
+	MNT_IUNLOCK(mp);
+}
+
+/*
+ * Undo a previous call to vfs_register_upper_from_vp().
+ * This must be done before mp can be unmounted.
+ */
+void
+vfs_unregister_upper(struct mount *mp, struct mount_upper_node *upper)
+{
+	MNT_ILOCK(mp);
 	KASSERT((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0,
-	    ("mount pinned with pending unmount"));
-	--mp->mnt_pinned_count;
+	    ("registered upper with pending unmount"));
+	vfs_drain_upper_locked(mp);
+	TAILQ_REMOVE(&mp->mnt_uppers, upper, mnt_upper_link);
+	if ((mp->mnt_kern_flag & MNTK_TASKQUEUE_WAITER) != 0 &&
+	    TAILQ_EMPTY(&mp->mnt_uppers)) {
+		mp->mnt_kern_flag &= ~MNTK_TASKQUEUE_WAITER;
+		wakeup(&mp->mnt_taskqueue_link);
+	}
 	MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 }
@@ -600,8 +684,10 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mac_mount_create(cred, mp);
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
+	mp->mnt_upper_pending = 0;
 	TAILQ_INIT(&mp->mnt_uppers);
-	mp->mnt_pinned_count = 0;
+	TAILQ_INIT(&mp->mnt_notify);
+	mp->mnt_taskqueue_flags = 0;
 	return (mp);
 }
 
@@ -640,9 +726,9 @@ vfs_mount_destroy(struct mount *mp)
 			vn_printf(vp, "dangling vnode ");
 		panic("unmount: dangling vnode");
 	}
-	KASSERT(mp->mnt_pinned_count == 0,
-	   ("mnt_pinned_count = %d", mp->mnt_pinned_count));
+	KASSERT(mp->mnt_upper_pending == 0, ("mnt_upper_pending"));
 	KASSERT(TAILQ_EMPTY(&mp->mnt_uppers), ("mnt_uppers"));
+	KASSERT(TAILQ_EMPTY(&mp->mnt_notify), ("mnt_notify"));
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	if (mp->mnt_lazyvnodelistsize != 0)
@@ -1799,16 +1885,165 @@ vfs_mount_fetch_counter(struct mount *mp, enum mount_counter which)
 	return (sum);
 }
 
+static bool
+deferred_unmount_enqueue(struct mount *mp, uint64_t flags, bool requeue)
+{
+	bool enqueued;
+
+	enqueued = false;
+	mtx_lock(&deferred_unmount_lock);
+	if ((mp->mnt_taskqueue_flags & MNT_DEFERRED) == 0 || requeue) {
+		mp->mnt_taskqueue_flags = flags | MNT_DEFERRED;
+		STAILQ_INSERT_TAIL(&deferred_unmount_list, mp,
+		    mnt_taskqueue_link);
+		enqueued = true;
+	}
+	mtx_unlock(&deferred_unmount_lock);
+
+	if (enqueued) {
+		taskqueue_enqueue(taskqueue_deferred_unmount,
+		    &deferred_unmount_task);
+	}
+
+	return (enqueued);
+}
+
+/*
+ * Taskqueue handler for processing async/recursive unmounts
+ */
+static void
+vfs_deferred_unmount(void *argi __unused, int pending __unused)
+{
+	STAILQ_HEAD(, mount) local_unmounts;
+	uint64_t flags;
+	struct mount *mp, *tmp;
+	bool unmounted;
+
+	STAILQ_INIT(&local_unmounts);
+	mtx_lock(&deferred_unmount_lock);
+	STAILQ_CONCAT(&local_unmounts, &deferred_unmount_list); 
+	mtx_unlock(&deferred_unmount_lock);
+
+	STAILQ_FOREACH_SAFE(mp, &local_unmounts, mnt_taskqueue_link, tmp) {
+		flags = mp->mnt_taskqueue_flags;
+		KASSERT((flags & MNT_DEFERRED) != 0,
+		    ("taskqueue unmount without MNT_DEFERRED"));
+		if (dounmount(mp, flags, curthread) != 0) {
+			MNT_ILOCK(mp);
+			unmounted = ((mp->mnt_kern_flag & MNTK_REFEXPIRE) != 0);
+			MNT_IUNLOCK(mp);
+			if (!unmounted)
+				deferred_unmount_enqueue(mp, flags, true);
+			else
+				vfs_rel(mp);
+		}
+	}
+}
+
 /*
  * Do the actual filesystem unmount.
  */
 int
-dounmount(struct mount *mp, int flags, struct thread *td)
+dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 {
+	struct mount_upper_node *upper;
 	struct vnode *coveredvp, *rootvp;
 	int error;
 	uint64_t async_flag;
 	int mnt_gen_r;
+
+	KASSERT((flags & MNT_DEFERRED) == 0 ||
+	    (flags & (MNT_RECURSE | MNT_FORCE)) == (MNT_RECURSE | MNT_FORCE),
+	    ("MNT_DEFERRED requires MNT_RECURSE | MNT_FORCE"));
+
+	/*
+	 * If the caller has explicitly requested the unmount to be handled by
+	 * the taskqueue and we're not already in taskqueue context, queue
+	 * up the unmount request and exit.  This is done prior to any
+	 * credential checks; MNT_DEFERRED should be used only for kernel-
+	 * initiated unmounts and will therefore be processed with the
+	 * (kernel) credentials of the taskqueue thread.  Still, callers
+	 * should be sure this is the behavior they want.
+	 */
+	if ((flags & MNT_DEFERRED) != 0 &&
+	    taskqueue_member(taskqueue_deferred_unmount, curthread) == 0) {
+		if (!deferred_unmount_enqueue(mp, flags, false))
+			vfs_rel(mp);
+		return (EINPROGRESS);
+	}
+
+	/*
+	 * Only privileged root, or (if MNT_USER is set) the user that did the
+	 * original mount is permitted to unmount this filesystem.
+	 * This check should be made prior to queueing up any recursive
+	 * unmounts of upper filesystems.  Those unmounts will be executed
+	 * with kernel thread credentials and are expected to succeed, so
+	 * we must at least ensure the originating context has sufficient
+	 * privilege to unmount the base filesystem before proceeding with
+	 * the uppers.
+	 */
+	error = vfs_suser(mp, td);
+	if (error != 0) {
+		KASSERT((flags & MNT_DEFERRED) == 0,
+		    ("taskqueue unmount with insufficient privilege"));
+		vfs_rel(mp);
+		return (error);
+	}
+
+	if (recursive_forced_unmount && ((flags & MNT_FORCE) != 0))
+		flags |= MNT_RECURSE;
+
+	if ((flags & MNT_RECURSE) != 0) {
+		KASSERT((flags & MNT_FORCE) != 0,
+		    ("MNT_RECURSE requires MNT_FORCE"));
+
+		MNT_ILOCK(mp);
+		/*
+		 * Set MNTK_RECURSE to prevent new upper mounts from being
+		 * added, and note that an operation on the uppers list is in
+		 * progress.  This will ensure that unregistration from the
+		 * uppers list, and therefore any pending unmount of the upper
+		 * FS, can't complete until after we finish walking the list.
+		 */
+		mp->mnt_kern_flag |= MNTK_RECURSE;
+		mp->mnt_upper_pending++;
+		TAILQ_FOREACH(upper, &mp->mnt_uppers, mnt_upper_link) {
+			MNT_IUNLOCK(mp);
+			vfs_ref(upper->mp);
+			if (!deferred_unmount_enqueue(upper->mp, flags, false))
+				vfs_rel(upper->mp);
+			MNT_ILOCK(mp);
+		}
+		mp->mnt_upper_pending--;
+		if ((mp->mnt_kern_flag & MNTK_UPPER_WAITER) != 0 &&
+		    mp->mnt_upper_pending == 0) {
+			mp->mnt_kern_flag &= ~MNTK_UPPER_WAITER;
+			wakeup(&mp->mnt_uppers);
+		}
+		/*
+		 * If we're not on the taskqueue, wait until the uppers list
+		 * is drained before proceeding with unmount.  Otherwise, if
+		 * we are on the taskqueue and there are still pending uppers,
+		 * just re-enqueue on the end of the taskqueue.
+		 */
+		if ((flags & MNT_DEFERRED) == 0) {
+			while (!TAILQ_EMPTY(&mp->mnt_uppers)) {
+				mp->mnt_kern_flag |= MNTK_TASKQUEUE_WAITER;
+				msleep(&mp->mnt_taskqueue_link, MNT_MTX(mp), 0,
+				    "umntqw", 0);
+			}
+		} else if (!TAILQ_EMPTY(&mp->mnt_uppers)) {
+			MNT_IUNLOCK(mp);
+			deferred_unmount_enqueue(mp, flags, true);
+			return (0);
+		}
+		MNT_IUNLOCK(mp);
+		KASSERT(TAILQ_EMPTY(&mp->mnt_uppers), ("mnt_uppers not empty"));
+	}
+
+	/* Allow the taskqueue to safely re-enqueue on failure */
+	if ((flags & MNT_DEFERRED) != 0)
+		vfs_ref(mp);
 
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL) {
 		mnt_gen_r = mp->mnt_gen;
@@ -1828,27 +2063,13 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		}
 	}
 
-	/*
-	 * Only privileged root, or (if MNT_USER is set) the user that did the
-	 * original mount is permitted to unmount this filesystem.
-	 */
-	error = vfs_suser(mp, td);
-	if (error != 0) {
-		if (coveredvp != NULL) {
-			VOP_UNLOCK(coveredvp);
-			vdrop(coveredvp);
-		}
-		vfs_rel(mp);
-		return (error);
-	}
-
 	vfs_op_enter(mp);
 
 	vn_start_write(NULL, &mp, V_WAIT | V_MNTREF);
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
 	    (mp->mnt_flag & MNT_UPDATE) != 0 ||
-	    mp->mnt_pinned_count != 0) {
+	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		dounmount_cleanup(mp, coveredvp, 0);
 		return (EBUSY);
 	}
@@ -1952,6 +2173,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		}
 		return (error);
 	}
+
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
@@ -1977,6 +2199,8 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	}
 	if (mp == rootdevmp)
 		rootdevmp = NULL;
+	if ((flags & MNT_DEFERRED) != 0)
+		vfs_rel(mp);
 	vfs_mount_destroy(mp);
 	return (0);
 }
@@ -2553,27 +2777,6 @@ static struct mntoptnames optnames[] = {
 	MNTOPT_NAMES
 };
 
-static void
-mount_devctl_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
-{
-	struct vfsopt *opt;
-
-	if (opts == NULL || TAILQ_EMPTY(opts))
-		return;
-	sbuf_printf(sb, " %s=\"", what);
-	TAILQ_FOREACH(opt, opts, link) {
-		if (opt->name[0] == '\0' || (opt->len > 0 && *(char *)opt->value == '\0'))
-			continue;
-		devctl_safe_quote_sb(sb, opt->name);
-		if (opt->len > 0) {
-			sbuf_putc(sb, '=');
-			devctl_safe_quote_sb(sb, opt->value);
-		}
-		sbuf_putc(sb, ';');
-	}
-	sbuf_putc(sb, '"');
-}
-
 #define DEVCTL_LEN 1024
 static void
 mount_devctl_event(const char *type, struct mount *mp, bool donew)
@@ -2606,10 +2809,14 @@ mount_devctl_event(const char *type, struct mount *mp, bool donew)
 		}
 	}
 	sbuf_putc(&sb, '"');
-	mount_devctl_event_mntopt(&sb, "opt", mp->mnt_opt);
-	if (donew)
-		mount_devctl_event_mntopt(&sb, "optnew", mp->mnt_optnew);
 	sbuf_finish(&sb);
+
+	/*
+	 * Options are not published because the form of the options depends on
+	 * the file system and may include binary data. In addition, they don't
+	 * necessarily provide enough useful information to be actionable when
+	 * devd processes them.
+	 */
 
 	if (sbuf_error(&sb) == 0)
 		devctl_notify("VFS", "FS", type, sbuf_data(&sb));

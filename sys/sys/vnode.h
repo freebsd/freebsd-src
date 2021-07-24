@@ -641,6 +641,12 @@ int	bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn,
 	    daddr_t endn);
 /* cache_* may belong in namei.h. */
 void	cache_changesize(u_long newhashsize);
+
+#define	VFS_CACHE_DROPOLD	0x1
+
+void	cache_enter_time_flags(struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp, struct timespec *tsp,
+	    struct timespec *dtsp, int flags);
 #define	cache_enter(dvp, vp, cnp)					\
 	cache_enter_time(dvp, vp, cnp, NULL, NULL)
 void	cache_enter_time(struct vnode *dvp, struct vnode *vp,

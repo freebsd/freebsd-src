@@ -86,7 +86,7 @@ char	 *tdev(KINFO *, VARENT *);
 char	 *tdnam(KINFO *, VARENT *);
 char	 *tname(KINFO *, VARENT *);
 char	 *ucomm(KINFO *, VARENT *);
-char	 *uname(KINFO *, VARENT *);
+char	 *username(KINFO *, VARENT *);
 char	 *upr(KINFO *, VARENT *);
 char	 *usertime(KINFO *, VARENT *);
 char	 *vsize(KINFO *, VARENT *);

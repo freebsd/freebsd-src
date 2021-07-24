@@ -166,17 +166,21 @@ static int
 ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ether_header *eh;
-	struct tcphdr *th;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
 #endif
 #ifdef INET
 	struct ip *ip = NULL;		/* Keep compiler happy. */
 #endif
+#if defined(INET) || defined(INET6)
+	struct tcphdr *th;
 	int32_t tlen;
 	uint16_t drop_hdrlen;
+#endif
 	uint16_t etype;
+#ifdef INET
 	uint8_t iptos;
+#endif
 
 	/* Is it the easy way? */
 	if (m->m_flags & M_LRO_EHDRSTRP)
@@ -206,7 +210,6 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 				m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
 				if (m == NULL) {
 					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
 					return (-1);
 				}
 			}
@@ -239,7 +242,6 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 				m = m_pullup(m, sizeof (struct tcpiphdr));
 				if (m == NULL) {
 					KMOD_TCPSTAT_INC(tcps_rcvshort);
-					m_freem(m);
 					return (-1);
 				}
 			}
@@ -506,16 +508,18 @@ skip_vnet:
 				m_freem(m);
 				m = m_save;
 			}
-			if (no_vn == 0)
+			if (no_vn == 0) {
 				CURVNET_RESTORE();
+			}
 			INP_UNLOCK_ASSERT(inp);
 			return(retval);
 		}
 skipped_pkt:
 		m = m_save;
 	}
-	if (no_vn == 0)
+	if (no_vn == 0) {
 		CURVNET_RESTORE();
+	}
 	return(retval);
 }
 

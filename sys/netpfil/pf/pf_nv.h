@@ -81,6 +81,6 @@ nvlist_t	*pf_krule_to_nvrule(const struct pf_krule *);
 int		 pf_nvrule_to_krule(const nvlist_t *, struct pf_krule *);
 int		 pf_nvstate_kill_to_kstate_kill(const nvlist_t *,
 		    struct pf_kstate_kill *);
-nvlist_t	*pf_state_to_nvstate(const struct pf_state *);
+nvlist_t	*pf_state_to_nvstate(const struct pf_kstate *);
 
 #endif

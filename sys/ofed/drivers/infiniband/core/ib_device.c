@@ -664,7 +664,7 @@ int ib_query_port(struct ib_device *device,
 	union ib_gid gid;
 	int err;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	memset(port_attr, 0, sizeof(*port_attr));
@@ -809,6 +809,9 @@ void ib_cache_gid_del_all_by_netdev(struct ifnet *ndev)
 int ib_query_pkey(struct ib_device *device,
 		  u8 port_num, u16 index, u16 *pkey)
 {
+	if (!rdma_is_port_valid(device, port_num))
+		return -EINVAL;
+
 	return device->query_pkey(device, port_num, index, pkey);
 }
 EXPORT_SYMBOL(ib_query_pkey);
@@ -852,7 +855,7 @@ int ib_modify_port(struct ib_device *device,
 	if (!device->modify_port)
 		return -ENOSYS;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	return device->modify_port(device, port_num, port_modify_mask,

@@ -90,14 +90,14 @@ SUBDIR.${MK_ZFS}+=	zfsbootcfg
 
 SUBDIR.${MK_TESTS}+=	tests
 
+.include <bsd.arch.inc.mk>
+
+SUBDIR_PARALLEL=
+
 # Add architecture-specific manpages
 # to be included anyway
 MAN=   sconfig/sconfig.8
 
 .include <bsd.prog.mk>
-
-.include <bsd.arch.inc.mk>
-
-SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

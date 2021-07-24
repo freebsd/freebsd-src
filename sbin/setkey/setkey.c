@@ -61,7 +61,7 @@ int get_supported(void);
 void sendkeyshort(u_int, uint8_t);
 void promisc(void);
 int sendkeymsg(char *, size_t);
-int postproc(struct sadb_msg *, int);
+int postproc(struct sadb_msg *);
 const char *numstr(int);
 void shortdump_hdr(void);
 void shortdump(struct sadb_msg *);
@@ -73,17 +73,17 @@ static int32_t gmt2local(time_t);
 #define MODE_CMDFLUSH	3
 #define MODE_PROMISC	4
 
-int so;
+static int so;
 
-int f_forever = 0;
-int f_all = 0;
-int f_verbose = 0;
-int f_mode = 0;
-int f_cmddump = 0;
-int f_policy = 0;
-int f_hexdump = 0;
-int f_tflag = 0;
-int f_scope = 0;
+static int f_forever = 0;
+static int f_all = 0;
+static int f_verbose = 0;
+static int f_mode = 0;
+static int f_cmddump = 0;
+static int f_policy = 0;
+static int f_hexdump = 0;
+static int f_tflag = 0;
+static int f_scope = 0;
 static time_t thiszone;
 
 extern int lineno;
@@ -91,7 +91,7 @@ extern int lineno;
 extern int parse(FILE **);
 
 void
-usage()
+usage(void)
 {
 
 	printf("usage: setkey [-v] -c\n");
@@ -103,9 +103,7 @@ usage()
 }
 
 int
-main(ac, av)
-	int ac;
-	char **av;
+main(int ac, char **av)
 {
 	FILE *fp = stdin;
 	int c;
@@ -202,7 +200,7 @@ main(ac, av)
 }
 
 int
-get_supported()
+get_supported(void)
 {
 
 	if (pfkey_send_register(so, SADB_SATYPE_UNSPEC) < 0)
@@ -234,7 +232,7 @@ sendkeyshort(u_int type, uint8_t satype)
 }
 
 void
-promisc()
+promisc(void)
 {
 	struct sadb_msg msg;
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
@@ -300,9 +298,7 @@ promisc()
 }
 
 int
-sendkeymsg(buf, len)
-	char *buf;
-	size_t len;
+sendkeymsg(char *buf, size_t len)
 {
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
 	ssize_t l;
@@ -326,10 +322,10 @@ again:
 		printf("\n");
 	}
 	if (f_hexdump) {
-		int i;
+		size_t i;
 		for (i = 0; i < len; i++) {
 			if (i % 16 == 0)
-				printf("%08x: ", i);
+				printf("%08x: ", (u_int)i);
 			printf("%02x ", buf[i] & 0xff);
 			if (i % 16 == 15)
 				printf("\n");
@@ -359,7 +355,7 @@ again:
 			kdebug_sadb((struct sadb_msg *)rbuf);
 			printf("\n");
 		}
-		if (postproc(msg, l) < 0)
+		if (postproc(msg) < 0)
 			break;
 	} while (msg->sadb_msg_errno || msg->sadb_msg_seq);
 
@@ -374,9 +370,7 @@ end:
 }
 
 int
-postproc(msg, len)
-	struct sadb_msg *msg;
-	int len;
+postproc(struct sadb_msg *msg)
 {
 
 	if (msg->sadb_msg_errno != 0) {
@@ -482,8 +476,7 @@ static const char *ipproto[] = {
 	(((x) < sizeof(tab)/sizeof(tab[0]) && tab[(x)])	? tab[(x)] : numstr(x))
 
 const char *
-numstr(x)
-	int x;
+numstr(int x)
 {
 	static char buf[20];
 	snprintf(buf, sizeof(buf), "#%d", x);
@@ -491,15 +484,14 @@ numstr(x)
 }
 
 void
-shortdump_hdr()
+shortdump_hdr(void)
 {
 	printf("%-4s %-3s %-1s %-8s %-7s %s -> %s\n",
 		"time", "p", "s", "spi", "ltime", "src", "dst");
 }
 
 void
-shortdump(msg)
-	struct sadb_msg *msg;
+shortdump(struct sadb_msg *msg)
 {
 	caddr_t mhp[SADB_EXT_MAX + 1];
 	char buf[NI_MAXHOST], pbuf[NI_MAXSERV];
@@ -585,7 +577,7 @@ shortdump(msg)
  * Print the timestamp
  */
 static void
-printdate()
+printdate(void)
 {
 	struct timeval tp;
 	int s;

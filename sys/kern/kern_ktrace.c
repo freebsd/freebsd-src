@@ -219,7 +219,8 @@ ktrace_init(void *dummy)
 	sx_init(&ktrace_sx, "ktrace_sx");
 	STAILQ_INIT(&ktr_free);
 	for (i = 0; i < ktr_requestpool; i++) {
-		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK);
+		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK |
+		    M_ZERO);
 		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	}
 }
@@ -285,7 +286,7 @@ ktrace_resize_pool(u_int oldsize, u_int newsize)
 		STAILQ_INIT(&ktr_new);
 		while (bound-- > 0) {
 			req = malloc(sizeof(struct ktr_request), M_KTRACE,
-			    M_WAITOK);
+			    M_WAITOK | M_ZERO);
 			STAILQ_INSERT_HEAD(&ktr_new, req, ktr_list);
 		}
 		mtx_lock(&ktrace_mtx);

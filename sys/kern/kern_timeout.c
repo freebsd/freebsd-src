@@ -190,14 +190,14 @@ struct callout_cpu {
 #define	cc_migration_time(cc, dir)	cc->cc_exec_entity[dir].ce_migration_time
 #define	cc_migration_prec(cc, dir)	cc->cc_exec_entity[dir].ce_migration_prec
 
-struct callout_cpu cc_cpu[MAXCPU];
+static struct callout_cpu cc_cpu[MAXCPU];
 #define	CPUBLOCK	MAXCPU
 #define	CC_CPU(cpu)	(&cc_cpu[(cpu)])
 #define	CC_SELF()	CC_CPU(PCPU_GET(cpuid))
 #else
-struct callout_cpu cc_cpu;
-#define	CC_CPU(cpu)	&cc_cpu
-#define	CC_SELF()	&cc_cpu
+static struct callout_cpu cc_cpu;
+#define	CC_CPU(cpu)	(&cc_cpu)
+#define	CC_SELF()	(&cc_cpu)
 #endif
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)

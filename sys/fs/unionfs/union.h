@@ -57,6 +57,8 @@ struct unionfs_mount {
 	struct vnode   *um_lowervp;	/* VREFed once */
 	struct vnode   *um_uppervp;	/* VREFed once */
 	struct vnode   *um_rootvp;	/* ROOT vnode */
+	struct mount_upper_node	um_lower_link;	/* node in lower FS list of uppers */
+	struct mount_upper_node	um_upper_link;	/* node in upper FS list of uppers */
 	unionfs_copymode um_copymode;
 	unionfs_whitemode um_whitemode;
 	uid_t		um_uid;

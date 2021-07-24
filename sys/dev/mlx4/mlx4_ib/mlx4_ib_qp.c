@@ -2163,21 +2163,13 @@ static int _mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
 	int err = -EINVAL;
-	int ll;
 	mutex_lock(&qp->mutex);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
-		ll = IB_LINK_LAYER_UNSPECIFIED;
-	} else {
-		int port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		ll = rdma_port_get_link_layer(&dev->ib_dev, port);
-	}
-
 	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type,
-				attr_mask, ll)) {
+				attr_mask)) {
 		pr_debug("qpn 0x%x: invalid attribute mask specified "
 			 "for transition %d to %d. qp_type %d,"
 			 " attr_mask 0x%x\n",
@@ -2295,7 +2287,7 @@ static int vf_get_qp0_qkey(struct mlx4_dev *dev, int qpn, u32 *qkey)
 }
 
 static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
-				  struct ib_ud_wr *wr,
+				  const struct ib_ud_wr *wr,
 				  void *wqe, unsigned *mlx_seg_len)
 {
 	struct mlx4_ib_dev *mdev = to_mdev(sqp->qp.ibqp.device);
@@ -2424,7 +2416,7 @@ static u8 sl_to_vl(struct mlx4_ib_dev *dev, u8 sl, int port_num)
 }
 
 #define MLX4_ROCEV2_QP1_SPORT 0xC000
-static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
+static int build_mlx_header(struct mlx4_ib_sqp *sqp, const struct ib_ud_wr *wr,
 			    void *wqe, unsigned *mlx_seg_len)
 {
 	struct ib_device *ib_dev = sqp->qp.ibqp.device;
@@ -2715,7 +2707,7 @@ static __be32 convert_access(int acc)
 }
 
 static void set_reg_seg(struct mlx4_wqe_fmr_seg *fseg,
-			struct ib_reg_wr *wr)
+			const struct ib_reg_wr *wr)
 {
 	struct mlx4_ib_mr *mr = to_mmr(wr->mr);
 
@@ -2745,7 +2737,7 @@ static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,
 }
 
 static void set_atomic_seg(struct mlx4_wqe_atomic_seg *aseg,
-		struct ib_atomic_wr *wr)
+		const struct ib_atomic_wr *wr)
 {
 	if (wr->wr.opcode == IB_WR_ATOMIC_CMP_AND_SWP) {
 		aseg->swap_add = cpu_to_be64(wr->swap);
@@ -2761,7 +2753,7 @@ static void set_atomic_seg(struct mlx4_wqe_atomic_seg *aseg,
 }
 
 static void set_masked_atomic_seg(struct mlx4_wqe_masked_atomic_seg *aseg,
-				  struct ib_atomic_wr *wr)
+				  const struct ib_atomic_wr *wr)
 {
 	aseg->swap_add		= cpu_to_be64(wr->swap);
 	aseg->swap_add_mask	= cpu_to_be64(wr->swap_mask);
@@ -2770,7 +2762,7 @@ static void set_masked_atomic_seg(struct mlx4_wqe_masked_atomic_seg *aseg,
 }
 
 static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
-			     struct ib_ud_wr *wr)
+			     const struct ib_ud_wr *wr)
 {
 	memcpy(dseg->av, &to_mah(wr->ah)->av, sizeof (struct mlx4_av));
 	dseg->dqpn = cpu_to_be32(wr->remote_qpn);
@@ -2781,7 +2773,7 @@ static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
 
 static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 				    struct mlx4_wqe_datagram_seg *dseg,
-				    struct ib_ud_wr *wr,
+				    const struct ib_ud_wr *wr,
 				    enum mlx4_ib_qp_type qpt)
 {
 	union mlx4_ext_av *av = &to_mah(wr->ah)->av;
@@ -2803,7 +2795,7 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }
 
-static void build_tunnel_header(struct ib_ud_wr *wr, void *wqe, unsigned *mlx_seg_len)
+static void build_tunnel_header(const struct ib_ud_wr *wr, void *wqe, unsigned *mlx_seg_len)
 {
 	struct mlx4_wqe_inline_seg *inl = wqe;
 	struct mlx4_ib_tunnel_header hdr;
@@ -2886,7 +2878,7 @@ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->addr       = cpu_to_be64(sg->addr);
 }
 
-static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_ud_wr *wr,
+static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, const struct ib_ud_wr *wr,
 			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len,
 			 __be32 *lso_hdr_sz, __be32 *blh)
 {
@@ -2906,7 +2898,7 @@ static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_ud_wr *wr,
 	return 0;
 }
 
-static __be32 send_ieth(struct ib_send_wr *wr)
+static __be32 send_ieth(const struct ib_send_wr *wr)
 {
 	switch (wr->opcode) {
 	case IB_WR_SEND_WITH_IMM:
@@ -2928,8 +2920,8 @@ static void add_zero_len_inline(void *wqe)
 	inl->byte_count = cpu_to_be32(1U << 31);
 }
 
-int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		      struct ib_send_wr **bad_wr)
+int mlx4_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		      const struct ib_send_wr **bad_wr)
 {
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	void *wqe;
@@ -3263,8 +3255,8 @@ out:
 	return err;
 }
 
-int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int mlx4_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	struct mlx4_wqe_data_seg *scat;

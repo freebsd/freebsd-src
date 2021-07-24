@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdb.h"
 
 #include <sys/param.h>
+#include <sys/asan.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -226,6 +227,8 @@ trap(struct trapframe *frame)
 	td = curthread;
 	p = td->td_proc;
 	dr6 = 0;
+
+	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
 
 	VM_CNT_INC(v_trap);
 	type = frame->tf_trapno;
@@ -871,9 +874,7 @@ after_vmfault:
 }
 
 static void
-trap_fatal(frame, eva)
-	struct trapframe *frame;
-	vm_offset_t eva;
+trap_fatal(struct trapframe *frame, vm_offset_t eva)
 {
 	int code, ss;
 	u_int type;
@@ -1058,6 +1059,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	sa = &td->td_sa;
 
 	sa->code = frame->tf_rax;
+	sa->original_code = sa->code;
 
 	if (__predict_false(sa->code == SYS_syscall ||
 	    sa->code == SYS___syscall ||

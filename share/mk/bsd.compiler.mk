@@ -64,8 +64,9 @@ CCACHE_BUILD_TYPE?=	command
 # PATH since it is more clear that ccache is used and avoids wasting time
 # for mkdep/linking/asm builds.
 LOCALBASE?=		/usr/local
-CCACHE_WRAPPER_PATH?=	${LOCALBASE}/libexec/ccache
-CCACHE_BIN?=		${LOCALBASE}/bin/ccache
+CCACHE_PKG_PREFIX?=	${LOCALBASE}
+CCACHE_WRAPPER_PATH?=	${CCACHE_PKG_PREFIX}/libexec/ccache
+CCACHE_BIN?=		${CCACHE_PKG_PREFIX}/bin/ccache
 .if exists(${CCACHE_BIN})
 # Export to ensure sub-makes can filter it out for mkdep/linking and
 # to chain down into kernel build which won't include this file.

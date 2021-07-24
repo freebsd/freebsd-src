@@ -50,7 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dt-bindings/interrupt-controller/irq.h>
+
 #include "pic_if.h"
+#include "msi_if.h"
+
+#define	ICU_TYPE_NSR		1
+#define	ICU_TYPE_SEI		2
 
 #define	ICU_GRP_NSR		0x0
 #define	ICU_GRP_SR		0x1
@@ -61,19 +66,28 @@ __FBSDID("$FreeBSD$");
 #define	ICU_SETSPI_NSR_AH	0x14
 #define	ICU_CLRSPI_NSR_AL	0x18
 #define	ICU_CLRSPI_NSR_AH	0x1c
+#define	ICU_SETSPI_SEI_AL	0x50
+#define	ICU_SETSPI_SEI_AH	0x54
 #define	ICU_INT_CFG(x)	(0x100 + (x) * 4)
 #define	 ICU_INT_ENABLE		(1 << 24)
 #define	 ICU_INT_EDGE		(1 << 28)
 #define	 ICU_INT_GROUP_SHIFT	29
 #define	 ICU_INT_MASK		0x3ff
 
+#define	ICU_INT_SATA0		109
+#define	ICU_INT_SATA1		107
+
 #define	MV_CP110_ICU_MAX_NIRQS	207
+
+#define	MV_CP110_ICU_CLRSPI_OFFSET	0x8
 
 struct mv_cp110_icu_softc {
 	device_t		dev;
 	device_t		parent;
 	struct resource		*res;
 	struct intr_map_data_fdt *parent_map_data;
+	bool			initialized;
+	int			type;
 };
 
 static struct resource_spec mv_cp110_icu_res_spec[] = {
@@ -82,8 +96,8 @@ static struct resource_spec mv_cp110_icu_res_spec[] = {
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"marvell,cp110-icu-nsr",	1},
-	{"marvell,cp110-icu-sei",	2},
+	{"marvell,cp110-icu-nsr",	ICU_TYPE_NSR},
+	{"marvell,cp110-icu-sei",	ICU_TYPE_SEI},
 	{NULL,				0}
 };
 
@@ -109,10 +123,14 @@ mv_cp110_icu_attach(device_t dev)
 {
 	struct mv_cp110_icu_softc *sc;
 	phandle_t node, msi_parent;
+	uint32_t reg, icu_grp;
+	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	node = ofw_bus_get_node(dev);
+	sc->type = (int)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->initialized = false;
 
 	if (OF_getencprop(node, "msi-parent", &msi_parent,
 	    sizeof(phandle_t)) <= 0) {
@@ -134,10 +152,20 @@ mv_cp110_icu_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Allocate GICP compatible mapping entry (2 cells) */
+	/* Allocate GICP/SEI compatible mapping entry (2 cells) */
 	sc->parent_map_data = (struct intr_map_data_fdt *)intr_alloc_map_data(
 	    INTR_MAP_DATA_FDT, sizeof(struct intr_map_data_fdt) +
 	    + 3 * sizeof(phandle_t), M_WAITOK | M_ZERO);
+
+	/* Clear any previous mapping done by firmware. */
+	for (i = 0; i < MV_CP110_ICU_MAX_NIRQS; i++) {
+		reg = RD4(sc, ICU_INT_CFG(i));
+		icu_grp = reg >> ICU_INT_GROUP_SHIFT;
+
+		if (icu_grp == ICU_GRP_NSR || icu_grp == ICU_GRP_SEI)
+			WR4(sc, ICU_INT_CFG(i), 0);
+	}
+
 	return (0);
 
 fail:
@@ -154,15 +182,17 @@ mv_cp110_icu_convert_map_data(struct mv_cp110_icu_softc *sc, struct intr_map_dat
 	daf = (struct intr_map_data_fdt *)data;
 	if (daf->ncells != 2)
 		return (NULL);
+
 	irq_no = daf->cells[0];
-	irq_type = daf->cells[1];
 	if (irq_no >= MV_CP110_ICU_MAX_NIRQS)
 		return (NULL);
+
+	irq_type = daf->cells[1];
 	if (irq_type != IRQ_TYPE_LEVEL_HIGH &&
 	    irq_type != IRQ_TYPE_EDGE_RISING)
 		return (NULL);
 
-	/* We rely on fact that ICU->GIC mapping is preset by bootstrap. */
+	/* ICU -> GICP/SEI mapping is set in mv_cp110_icu_map_intr. */
 	reg = RD4(sc, ICU_INT_CFG(irq_no));
 
 	/* Construct GICP compatible mapping. */
@@ -212,13 +242,40 @@ mv_cp110_icu_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 	PIC_DISABLE_INTR(sc->parent, isrc);
 }
 
+static void
+mv_cp110_icu_init(struct mv_cp110_icu_softc *sc, uint64_t addr)
+{
+
+	if (sc->initialized)
+		return;
+
+	switch (sc->type) {
+	case ICU_TYPE_NSR:
+		WR4(sc, ICU_SETSPI_NSR_AL, addr & UINT32_MAX);
+		WR4(sc, ICU_SETSPI_NSR_AH, (addr >> 32) & UINT32_MAX);
+		addr += MV_CP110_ICU_CLRSPI_OFFSET;
+		WR4(sc, ICU_CLRSPI_NSR_AL, addr & UINT32_MAX);
+		WR4(sc, ICU_CLRSPI_NSR_AH, (addr >> 32) & UINT32_MAX);
+		break;
+	case ICU_TYPE_SEI:
+		WR4(sc, ICU_SETSPI_SEI_AL, addr & UINT32_MAX);
+		WR4(sc, ICU_SETSPI_SEI_AH, (addr >> 32) & UINT32_MAX);
+		break;
+	default:
+		panic("Unkown ICU type.");
+	}
+
+	sc->initialized = true;
+}
+
 static int
 mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
 	struct mv_cp110_icu_softc *sc;
 	struct intr_map_data_fdt *daf;
-	uint32_t reg, irq_no, irq_type;
+	uint32_t vector, irq_no, irq_type;
+	uint64_t addr;
 	int ret;
 
 	sc = device_get_softc(dev);
@@ -230,22 +287,61 @@ mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
 	daf = (struct intr_map_data_fdt *)data;
 	if (daf->ncells != 2)
 		return (EINVAL);
+
 	irq_no = daf->cells[0];
-	irq_type = daf->cells[1];
-	data = mv_cp110_icu_convert_map_data(sc, data);
-	if (data == NULL)
+	if (irq_no >= MV_CP110_ICU_MAX_NIRQS)
 		return (EINVAL);
 
-	reg = RD4(sc, ICU_INT_CFG(irq_no));
-	reg |= ICU_INT_ENABLE;
-	if (irq_type == IRQ_TYPE_LEVEL_HIGH)
-		reg &= ~ICU_INT_EDGE;
-	else
-		reg |= ICU_INT_EDGE;
-	WR4(sc, ICU_INT_CFG(irq_no), reg);
+	irq_type = daf->cells[1];
+	if (irq_type != IRQ_TYPE_LEVEL_HIGH &&
+	    irq_type != IRQ_TYPE_EDGE_RISING)
+		return (EINVAL);
 
-	ret = PIC_MAP_INTR(sc->parent, data, isrcp);
+	/*
+	 * Allocate MSI vector.
+	 * We don't use intr_alloc_msi wrapper, since it registers a new irq
+	 * in the kernel. In our case irq was already added by the ofw code.
+	 */
+	ret = MSI_ALLOC_MSI(sc->parent, dev, 1, 1, NULL, isrcp);
+	if (ret != 0)
+		return (ret);
+
+	ret = MSI_MAP_MSI(sc->parent, dev, *isrcp, &addr, &vector);
+	if (ret != 0)
+		goto fail;
+
+	mv_cp110_icu_init(sc, addr);
+	vector |= ICU_INT_ENABLE;
+
+	if (sc->type == ICU_TYPE_NSR)
+		vector |= ICU_GRP_NSR << ICU_INT_GROUP_SHIFT;
+	else
+		vector |= ICU_GRP_SEI << ICU_INT_GROUP_SHIFT;
+
+	if (irq_type & IRQ_TYPE_EDGE_BOTH)
+		vector |= ICU_INT_EDGE;
+
+	WR4(sc, ICU_INT_CFG(irq_no), vector);
+
+	/*
+	 * SATA controller has two ports, each gets its own interrupt.
+	 * The problem is that only one irq is described in dts.
+	 * Also ahci_generic driver supports only one irq per controller.
+	 * As a workaround map both interrupts when one of them is allocated.
+	 * This allows us to use both SATA ports.
+	 */
+	if (irq_no == ICU_INT_SATA0)
+		WR4(sc, ICU_INT_CFG(ICU_INT_SATA1), vector);
+	if (irq_no == ICU_INT_SATA1)
+		WR4(sc, ICU_INT_CFG(ICU_INT_SATA0), vector);
+
 	(*isrcp)->isrc_dev = sc->dev;
+	return (ret);
+
+fail:
+	if (*isrcp != NULL)
+		MSI_RELEASE_MSI(sc->parent, dev, 1, isrcp);
+
 	return (ret);
 }
 
@@ -254,13 +350,30 @@ mv_cp110_icu_deactivate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	struct mv_cp110_icu_softc *sc;
+	struct intr_map_data_fdt *daf;
+	int irq_no, ret;
+
+	if (data->type != INTR_MAP_DATA_FDT)
+		return (ENOTSUP);
 
 	sc = device_get_softc(dev);
+	daf = (struct intr_map_data_fdt *)data;
+	if (daf->ncells != 2)
+		return (EINVAL);
+
+	irq_no = daf->cells[0];
 	data = mv_cp110_icu_convert_map_data(sc, data);
 	if (data == NULL)
 		return (EINVAL);
 
-	return (PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data));
+	/* Clear the mapping. */
+	WR4(sc, ICU_INT_CFG(irq_no), 0);
+
+	ret = PIC_DEACTIVATE_INTR(sc->parent, isrc, res, data);
+	if (ret != 0)
+		return (ret);
+
+	return (MSI_RELEASE_MSI(sc->parent, dev, 1, &isrc));
 }
 
 static int

@@ -5634,11 +5634,11 @@ rack_log_hpts_diag(struct tcp_rack *rack, uint32_t cts,
 		log.u_bbr.pkts_out = diag->co_ret;
 		log.u_bbr.applimited = diag->hpts_sleep_time;
 		log.u_bbr.delivered = diag->p_prev_slot;
-		log.u_bbr.inflight = diag->p_runningtick;
-		log.u_bbr.bw_inuse = diag->wheel_tick;
+		log.u_bbr.inflight = diag->p_runningslot;
+		log.u_bbr.bw_inuse = diag->wheel_slot;
 		log.u_bbr.rttProp = diag->wheel_cts;
 		log.u_bbr.timeStamp = cts;
-		log.u_bbr.delRate = diag->maxticks;
+		log.u_bbr.delRate = diag->maxslots;
 		log.u_bbr.cur_del_rate = diag->p_curtick;
 		log.u_bbr.cur_del_rate <<= 32;
 		log.u_bbr.cur_del_rate |= diag->p_lasttick;
@@ -5732,22 +5732,22 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 			 * on the clock. We always have a min
 			 * 10 slots (10 x 10 i.e. 100 usecs).
 			 */
-			if (slot <= HPTS_TICKS_PER_USEC) {
+			if (slot <= HPTS_TICKS_PER_SLOT) {
 				/* We gain delay */
-				rack->r_ctl.rc_agg_delayed += (HPTS_TICKS_PER_USEC - slot);
-				slot = HPTS_TICKS_PER_USEC;
+				rack->r_ctl.rc_agg_delayed += (HPTS_TICKS_PER_SLOT - slot);
+				slot = HPTS_TICKS_PER_SLOT;
 			} else {
 				/* We take off some */
-				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_TICKS_PER_USEC);
-				slot = HPTS_TICKS_PER_USEC;
+				rack->r_ctl.rc_agg_delayed -= (slot - HPTS_TICKS_PER_SLOT);
+				slot = HPTS_TICKS_PER_SLOT;
 			}
 		} else {
 			slot -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 			/* Make sure we have 100 useconds at minimum */
-			if (slot < HPTS_TICKS_PER_USEC) {
-				rack->r_ctl.rc_agg_delayed = HPTS_TICKS_PER_USEC - slot;
-				slot = HPTS_TICKS_PER_USEC;
+			if (slot < HPTS_TICKS_PER_SLOT) {
+				rack->r_ctl.rc_agg_delayed = HPTS_TICKS_PER_SLOT - slot;
+				slot = HPTS_TICKS_PER_SLOT;
 			}
 			if (rack->r_ctl.rc_agg_delayed == 0)
 				rack->r_late = 0;
@@ -12043,7 +12043,9 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 #ifdef INET
 	struct ip *ip = NULL;
 #endif
+#if defined(INET) || defined(INET6)
 	struct udphdr *udp = NULL;
+#endif
 
 	/* Ok lets fill in the fast block, it can only be used with no IP options! */
 #ifdef INET6
@@ -12067,6 +12069,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 				  ip6, rack->r_ctl.fsb.th);
 	} else
 #endif				/* INET6 */
+#ifdef INET
 	{
 		rack->r_ctl.fsb.tcp_ip_hdr_len = sizeof(struct tcpiphdr);
 		ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
@@ -12086,6 +12089,7 @@ rack_init_fsb_block(struct tcpcb *tp, struct tcp_rack *rack)
 				  tp->t_port,
 				  ip, rack->r_ctl.fsb.th);
 	}
+#endif
 	rack->r_fsb_inited = 1;
 }
 
@@ -15226,7 +15230,7 @@ rack_fast_rsm_output(struct tcpcb *tp, struct tcp_rack *rack, struct rack_sendma
 	struct tcpopt to;
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
-	int32_t slot, segsiz, max_val, tso = 0, error, flags, ulen = 0;
+	int32_t slot, segsiz, max_val, tso = 0, error = 0, flags, ulen = 0;
 	uint32_t us_cts;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -15706,7 +15710,7 @@ rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
 	u_char opt[TCP_MAXOLEN];
 	uint32_t hdrlen, optlen;
 	int cnt_thru = 1;
-	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error, flags, ulen = 0;
+	int32_t slot, segsiz, len, max_val, tso = 0, sb_offset, error = 0, flags, ulen = 0;
 	uint32_t us_cts, s_soff;
 	uint32_t if_hw_tsomaxsegcount = 0, startseq;
 	uint32_t if_hw_tsomaxsegsize;
@@ -16119,9 +16123,9 @@ rack_output(struct tcpcb *tp)
 	long tot_len_this_send = 0;
 #ifdef INET
 	struct ip *ip = NULL;
-#endif
 #ifdef TCPDEBUG
 	struct ipovly *ipov = NULL;
+#endif
 #endif
 	struct udphdr *udp = NULL;
 	struct tcp_rack *rack;
@@ -16130,7 +16134,10 @@ rack_output(struct tcpcb *tp)
 	uint8_t mark = 0;
 	uint8_t wanted_cookie = 0;
 	u_char opt[TCP_MAXOLEN];
-	unsigned ipoptlen, optlen, hdrlen, ulen=0;
+	unsigned ipoptlen, optlen, hdrlen;
+#if defined(INET) || defined(INET6)
+	unsigned ulen=0;
+#endif
 	uint32_t rack_seq;
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -17830,21 +17837,29 @@ send:
 #endif
 	if ((ipoptlen == 0) && (rack->r_ctl.fsb.tcp_ip_hdr) &&  rack->r_fsb_inited) {
 #ifdef INET6
-		if (isipv6)
+		if (isipv6) {
 			ip6 = (struct ip6_hdr *)rack->r_ctl.fsb.tcp_ip_hdr;
-		else
+		} else
 #endif				/* INET6 */
+		{
+#ifdef INET
 			ip = (struct ip *)rack->r_ctl.fsb.tcp_ip_hdr;
+#endif
+		}
 		th = rack->r_ctl.fsb.th;
 		udp = rack->r_ctl.fsb.udp;
 		if (udp) {
 #ifdef INET6
-			if (isipv6)
+			if (isipv6) {
 				ulen = hdrlen + len - sizeof(struct ip6_hdr);
-			else
+			} else
 #endif				/* INET6 */
+			{
+#ifdef INET
 				ulen = hdrlen + len - sizeof(struct ip);
-			udp->uh_ulen = htons(ulen);
+				udp->uh_ulen = htons(ulen);
+#endif
+			}
 		}
 	} else {
 #ifdef INET6
@@ -17863,6 +17878,7 @@ send:
 		} else
 #endif				/* INET6 */
 		{
+#ifdef INET
 			ip = mtod(m, struct ip *);
 #ifdef TCPDEBUG
 			ipov = (struct ipovly *)ip;
@@ -17877,6 +17893,7 @@ send:
 			} else
 				th = (struct tcphdr *)(ip + 1);
 			tcpip_fillheaders(inp, tp->t_port, ip, th);
+#endif				/* INET */
 		}
 	}
 	/*
@@ -17915,11 +17932,15 @@ send:
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
 		    (sack_rxmit == 0)) {
 #ifdef INET6
-			if (isipv6)
+			if (isipv6) {
 				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
-			else
+			} else
 #endif
+			{
+#ifdef INET
 				ip->ip_tos |= IPTOS_ECN_ECT0;
+#endif
+			}
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
 			/*
 			 * Reply with proper ECN notifications.
@@ -18024,7 +18045,9 @@ send:
 			ip6 = mtod(m, struct ip6_hdr *);
 		else
 #endif				/* INET6 */
+#ifdef INET
 			ip = mtod(m, struct ip *);
+#endif				/* INET */
 		th = (struct tcphdr *)(cpto + ((uint8_t *)rack->r_ctl.fsb.th - rack->r_ctl.fsb.tcp_ip_hdr));
 		/* If we have a udp header lets set it into the mbuf as well */
 		if (udp)

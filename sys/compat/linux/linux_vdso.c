@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013 Dmitry Chagin
- * All rights reserved.
+ * Copyright (c) 2013-2021 Dmitry Chagin <dchagin@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,17 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/elf.h>
+#include <sys/imgact.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/sysent.h>
 
-#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -59,12 +57,6 @@ __FBSDID("$FreeBSD$");
 SLIST_HEAD(, linux_vdso_sym) __elfN(linux_vdso_syms) =
     SLIST_HEAD_INITIALIZER(__elfN(linux_vdso_syms));
 
-static int __elfN(symtabindex);
-static int __elfN(symstrindex);
-
-static void
-__elfN(linux_vdso_lookup)(Elf_Ehdr *, struct linux_vdso_sym *);
-
 void
 __elfN(linux_vdso_sym_init)(struct linux_vdso_sym *s)
 {
@@ -73,176 +65,119 @@ __elfN(linux_vdso_sym_init)(struct linux_vdso_sym *s)
 }
 
 vm_object_t
-__elfN(linux_shared_page_init)(char **mapping)
+__elfN(linux_shared_page_init)(char **mapping, vm_size_t size)
 {
 	vm_page_t m;
 	vm_object_t obj;
 	vm_offset_t addr;
+	size_t n, pages;
 
-	obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
+	pages = size / PAGE_SIZE;
+
+	addr = kva_alloc(size);
+	obj = vm_pager_allocate(OBJT_PHYS, 0, size,
 	    VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(obj);
-	m = vm_page_grab(obj, 0, VM_ALLOC_ZERO);
+	for (n = 0; n < pages; n++) {
+		m = vm_page_grab(obj, n,
+		    VM_ALLOC_ZERO);
+		vm_page_valid(m);
+		vm_page_xunbusy(m);
+		pmap_qenter(addr + n * PAGE_SIZE, &m, 1);
+	}
 	VM_OBJECT_WUNLOCK(obj);
-	vm_page_valid(m);
-	vm_page_xunbusy(m);
-	addr = kva_alloc(PAGE_SIZE);
-	pmap_qenter(addr, &m, 1);
 	*mapping = (char *)addr;
 	return (obj);
 }
 
 void
-__elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping)
+__elfN(linux_shared_page_fini)(vm_object_t obj, void *mapping,
+    vm_size_t size)
 {
 	vm_offset_t va;
 
 	va = (vm_offset_t)mapping;
-	pmap_qremove(va, 1);
-	kva_free(va, PAGE_SIZE);
+	pmap_qremove(va, size / PAGE_SIZE);
+	kva_free(va, size);
 	vm_object_deallocate(obj);
 }
 
 void
-__elfN(linux_vdso_fixup)(struct sysentvec *sv)
+__elfN(linux_vdso_fixup)(char *base, vm_offset_t offset)
 {
+	struct linux_vdso_sym *lsym;
+	const Elf_Shdr *shdr;
 	Elf_Ehdr *ehdr;
-	Elf_Shdr *shdr;
-	int i;
+	Elf_Sym *dsym, *sym;
+	char *strtab, *symname;
+	int i, symcnt;
 
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
+	ehdr = (Elf_Ehdr *)base;
 
-	if (!IS_ELF(*ehdr) ||
-	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
-	    ehdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
-	    ehdr->e_ident[EI_VERSION] != EV_CURRENT ||
-	    ehdr->e_shoff == 0 ||
-	    ehdr->e_shentsize != sizeof(Elf_Shdr))
-		panic("Linux invalid vdso header.\n");
+	MPASS(IS_ELF(*ehdr));
+	MPASS(ehdr->e_ident[EI_CLASS] == ELF_TARG_CLASS);
+	MPASS(ehdr->e_ident[EI_DATA] == ELF_TARG_DATA);
+	MPASS(ehdr->e_ident[EI_VERSION] == EV_CURRENT);
+	MPASS(ehdr->e_shentsize == sizeof(Elf_Shdr));
+	MPASS(ehdr->e_shoff != 0);
+	MPASS(ehdr->e_type == ET_DYN);
 
-	if (ehdr->e_type != ET_DYN)
-		panic("Linux invalid vdso header.\n");
+	shdr = (const Elf_Shdr *)(base + ehdr->e_shoff);
 
-	shdr = (Elf_Shdr *) ((caddr_t)ehdr + ehdr->e_shoff);
-
-	__elfN(symtabindex) = -1;
-	__elfN(symstrindex) = -1;
+	dsym = NULL;
 	for (i = 0; i < ehdr->e_shnum; i++) {
 		if (shdr[i].sh_size == 0)
 			continue;
 		if (shdr[i].sh_type == SHT_DYNSYM) {
-			__elfN(symtabindex) = i;
-			__elfN(symstrindex) = shdr[i].sh_link;
-		}
-	}
-
-	if (__elfN(symtabindex) == -1 || __elfN(symstrindex) == -1)
-		panic("Linux invalid vdso header.\n");
-
-	ehdr->e_ident[EI_OSABI] = ELFOSABI_LINUX;
-}
-
-void
-__elfN(linux_vdso_reloc)(struct sysentvec *sv)
-{
-	struct linux_vdso_sym *lsym;
-	Elf_Ehdr *ehdr;
-	Elf_Phdr *phdr;
-	Elf_Shdr *shdr;
-	Elf_Dyn *dyn;
-	Elf_Sym *sym;
-	int i, j, symcnt;
-
-	ehdr = (Elf_Ehdr *) sv->sv_sigcode;
-
-	/* Adjust our so relative to the sigcode_base */
-	if (sv->sv_shared_page_base != 0) {
-		ehdr->e_entry += sv->sv_shared_page_base;
-		phdr = (Elf_Phdr *)((caddr_t)ehdr + ehdr->e_phoff);
-
-		/* phdrs */
-		for (i = 0; i < ehdr->e_phnum; i++) {
-			phdr[i].p_vaddr += sv->sv_shared_page_base;
-			if (phdr[i].p_type != PT_DYNAMIC)
-				continue;
-			dyn = (Elf_Dyn *)((caddr_t)ehdr + phdr[i].p_offset);
-			for(; dyn->d_tag != DT_NULL; dyn++) {
-				switch (dyn->d_tag) {
-				case DT_PLTGOT:
-				case DT_HASH:
-				case DT_STRTAB:
-				case DT_SYMTAB:
-				case DT_RELA:
-				case DT_INIT:
-				case DT_FINI:
-				case DT_REL:
-				case DT_DEBUG:
-				case DT_JMPREL:
-				case DT_VERSYM:
-				case DT_VERDEF:
-				case DT_VERNEED:
-				case DT_ADDRRNGLO ... DT_ADDRRNGHI:
-					dyn->d_un.d_ptr += sv->sv_shared_page_base;
-					break;
-				case DT_ENCODING ... DT_LOOS-1:
-				case DT_LOOS ... DT_HIOS:
-					if (dyn->d_tag >= DT_ENCODING &&
-					    (dyn->d_tag & 1) == 0)
-						dyn->d_un.d_ptr += sv->sv_shared_page_base;
-					break;
-				default:
-					break;
-				}
-			}
-		}
-
-		/* sections */
-		shdr = (Elf_Shdr *)((caddr_t)ehdr + ehdr->e_shoff);
-		for(i = 0; i < ehdr->e_shnum; i++) {
-			if (!(shdr[i].sh_flags & SHF_ALLOC))
-				continue;
-			shdr[i].sh_addr += sv->sv_shared_page_base;
-			if (shdr[i].sh_type != SHT_SYMTAB &&
-			    shdr[i].sh_type != SHT_DYNSYM)
-				continue;
-
-			sym = (Elf_Sym *)((caddr_t)ehdr + shdr[i].sh_offset);
-			symcnt = shdr[i].sh_size / sizeof(*sym);
-
-			for(j = 0; j < symcnt; j++, sym++) {
-				if (sym->st_shndx == SHN_UNDEF ||
-				    sym->st_shndx == SHN_ABS)
-					continue;
-				sym->st_value += sv->sv_shared_page_base;
-			}
-		}
-	}
-
-	SLIST_FOREACH(lsym, &__elfN(linux_vdso_syms), sym)
-		__elfN(linux_vdso_lookup)(ehdr, lsym);
-}
-
-static void
-__elfN(linux_vdso_lookup)(Elf_Ehdr *ehdr, struct linux_vdso_sym *vsym)
-{
-	vm_offset_t strtab, symname;
-	uint32_t symcnt;
-	Elf_Shdr *shdr;
-	int i;
-
-	shdr = (Elf_Shdr *) ((caddr_t)ehdr + ehdr->e_shoff);
-
-	strtab = (vm_offset_t)((caddr_t)ehdr +
-	    shdr[__elfN(symstrindex)].sh_offset);
-	Elf_Sym *sym = (Elf_Sym *)((caddr_t)ehdr +
-	    shdr[__elfN(symtabindex)].sh_offset);
-	symcnt = shdr[__elfN(symtabindex)].sh_size / sizeof(*sym);
-
-	for (i = 0; i < symcnt; ++i, ++sym) {
-		symname = strtab + sym->st_name;
-		if (strncmp(vsym->symname, (char *)symname, vsym->size) == 0) {
-			*vsym->ptr = (uintptr_t)sym->st_value;
+			dsym = (Elf_Sym *)(base + shdr[i].sh_offset);
+			strtab = base + shdr[shdr[i].sh_link].sh_offset;
+			symcnt = shdr[i].sh_size / sizeof(*dsym);
 			break;
 		}
 	}
+	MPASS(dsym != NULL);
+
+	ehdr->e_ident[EI_OSABI] = ELFOSABI_LINUX;
+
+	/*
+	 * VDSO is readonly mapped to the process VA and
+	 * can't be relocated by rtld.
+	 */
+	SLIST_FOREACH(lsym, &__elfN(linux_vdso_syms), sym) {
+		for (i = 0, sym = dsym; i < symcnt; i++, sym++) {
+			symname = strtab + sym->st_name;
+			if (strncmp(lsym->symname, symname, lsym->size) == 0) {
+				sym->st_value += offset;
+				*lsym->ptr = sym->st_value;
+				break;
+
+			}
+		}
+	}
+}
+
+int
+linux_map_vdso(struct proc *p, vm_object_t obj, vm_offset_t base,
+    vm_offset_t size, struct image_params *imgp)
+{
+	struct vmspace *vmspace;
+	vm_map_t map;
+	int error;
+
+	MPASS((imgp->sysent->sv_flags & SV_ABI_MASK) == SV_ABI_LINUX);
+	MPASS(obj != NULL);
+
+	vmspace = p->p_vmspace;
+	map = &vmspace->vm_map;
+
+	vm_object_reference(obj);
+	error = vm_map_fixed(map, obj, 0, base, size,
+	    VM_PROT_READ | VM_PROT_EXECUTE,
+	    VM_PROT_READ | VM_PROT_EXECUTE,
+	    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
+	if (error != KERN_SUCCESS) {
+		vm_object_deallocate(obj);
+		return (vm_mmap_to_errno(error));
+	}
+	return (0);
 }

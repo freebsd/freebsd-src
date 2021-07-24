@@ -92,7 +92,7 @@ static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_cm_r
 
 static int ipoib_cm_post_receive_srq(struct ipoib_dev_priv *priv, int id)
 {
-	struct ib_recv_wr *bad_wr;
+	const struct ib_recv_wr *bad_wr;
 	struct ipoib_rx_buf *rx_req;
 	struct mbuf *m;
 	int ret;
@@ -124,7 +124,7 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 					struct ib_sge *sge, int id)
 {
 	struct ipoib_rx_buf *rx_req;
-	struct ib_recv_wr *bad_wr;
+	const struct ib_recv_wr *bad_wr;
 	struct mbuf *m;
 	int ret;
 	int i;
@@ -172,7 +172,7 @@ static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
 
 static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 {
-	struct ib_send_wr *bad_wr;
+	const struct ib_send_wr *bad_wr;
 	struct ipoib_cm_rx *p;
 
 	/* We only reserved 1 extra slot in CQ for drain WRs, so
@@ -600,7 +600,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 			    struct ipoib_cm_tx_buf *tx_req,
 			    unsigned int wr_id)
 {
-	struct ib_send_wr *bad_wr;
+	const struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
 	struct mbuf *m;
