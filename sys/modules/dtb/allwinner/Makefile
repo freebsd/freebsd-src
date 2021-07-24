@@ -54,8 +54,7 @@ DTS=	\
 	allwinner/sun50i-h6-pine-h64.dts \
 	allwinner/sun50i-h6-pine-h64-model-b.dts
 
-DTSO=	sun50i-a64-opp.dtso \
-	sun50i-a64-pwm.dtso \
+DTSO=	sun50i-a64-pwm.dtso \
 	sun50i-a64-rpwm.dtso \
 	sun50i-a64-spi0-spigen.dtso \
 	sun50i-a64-timer.dtso \
