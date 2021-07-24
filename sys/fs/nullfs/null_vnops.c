@@ -655,15 +655,17 @@ null_remove(struct vop_remove_args *ap)
 static int
 null_rename(struct vop_rename_args *ap)
 {
-	struct vnode *tdvp = ap->a_tdvp;
-	struct vnode *fvp = ap->a_fvp;
-	struct vnode *fdvp = ap->a_fdvp;
-	struct vnode *tvp = ap->a_tvp;
+	struct vnode *fdvp, *fvp, *tdvp, *tvp;
 	struct null_node *tnn;
+
+	tdvp = ap->a_tdvp;
+	fvp = ap->a_fvp;
+	fdvp = ap->a_fdvp;
+	tvp = ap->a_tvp;
 
 	/* Check for cross-device rename. */
 	if ((fvp->v_mount != tdvp->v_mount) ||
-	    (tvp && (fvp->v_mount != tvp->v_mount))) {
+	    (tvp != NULL && fvp->v_mount != tvp->v_mount)) {
 		if (tdvp == tvp)
 			vrele(tdvp);
 		else
