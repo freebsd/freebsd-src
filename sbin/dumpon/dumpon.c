@@ -550,6 +550,24 @@ main(int argc, char *argv[])
 		} else
 			dev = argv[0];
 		netdump = false;
+
+		if (strcmp(dev, _PATH_DEVNULL) == 0) {
+			/*
+			 * Netdump has its own configuration tracking that
+			 * is not removed when using /dev/null.
+			 */
+			fd = open(_PATH_NETDUMP, O_RDONLY);
+			if (fd != -1) {
+				bzero(&ndconf, sizeof(ndconf));
+				ndconf.kda_index = KDA_REMOVE_ALL;
+				ndconf.kda_af = AF_INET;
+				error = ioctl(fd, DIOCSKERNELDUMP, &ndconf);
+				if (error != 0)
+					err(1, "ioctl(%s, DIOCSKERNELDUMP)",
+					    _PATH_NETDUMP);
+				close(fd);
+			}
+		}
 	} else
 		usage();
 
