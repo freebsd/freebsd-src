@@ -7334,7 +7334,6 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    m->psind == 1 && pmap_ps_enabled(pmap) &&
-		    pmap_allow_2m_x_page(pmap, (prot & VM_PROT_EXECUTE) != 0) &&
 		    pmap_enter_2mpage(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
