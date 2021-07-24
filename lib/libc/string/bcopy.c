@@ -72,9 +72,6 @@ bcopy(const void *src0, void *dst0, size_t length)
 	const u_char *src = (const u_char *)src0;
 	size_t t;
 
-	if (length == 0 || dst == src)		/* nothing to do */
-		goto done;
-
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
 	 */
@@ -82,7 +79,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP1(s) do { s; } while (--t)
 
 #ifndef MEMCPY
-	if ((uintptr_t)dst < (uintptr_t)src) {
+	if (src - dst > 0) {
 #endif
 		/*
 		 * Copy forward.
@@ -137,10 +134,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #undef TLOOP
 #undef TLOOP1
 
-done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return (dst0);
-#else
-	return;
 #endif
 }
