@@ -102,7 +102,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 		 */
 		t = length / wsize;
 		TLOOP(*(word *)dst = *(const word *)src;
-		    src += wsize; dst += wsize);
+		    dst += wsize; src += wsize);
 		t = length & wmask;
 		TLOOP(*dst++ = *src++);
 #ifndef MEMCPY
@@ -124,7 +124,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 			TLOOP1(*--dst = *--src);
 		}
 		t = length / wsize;
-		TLOOP(src -= wsize; dst -= wsize;
+		TLOOP(dst -= wsize; src -= wsize;
 		    *(word *)dst = *(const word *)src);
 		t = length & wmask;
 		TLOOP(*--dst = *--src);
