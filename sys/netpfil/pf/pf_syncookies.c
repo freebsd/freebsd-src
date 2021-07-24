@@ -85,6 +85,7 @@
 #include <netinet/tcp_var.h>
 
 #include <net/pfvar.h>
+#include <netpfil/pf/pf_nv.h>
 
 #define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
@@ -147,7 +148,10 @@ pf_get_syncookies(struct pfioc_nv *nv)
 
 	nvlist_add_bool(nvl, "enabled",
 	    V_pf_status.syncookies_mode != PF_SYNCOOKIES_NEVER);
-	nvlist_add_bool(nvl, "adaptive", false);
+	nvlist_add_bool(nvl, "adaptive",
+	    V_pf_status.syncookies_mode == PF_SYNCOOKIES_ADAPTIVE);
+	nvlist_add_number(nvl, "highwater", V_pf_syncookie_status.hiwat);
+	nvlist_add_number(nvl, "lowwater", V_pf_syncookie_status.lowat);
 
 	nvlpacked = nvlist_pack(nvl, &nv->len);
 	if (nvlpacked == NULL) {
@@ -174,6 +178,10 @@ pf_set_syncookies(struct pfioc_nv *nv)
 	void		*nvlpacked = NULL;
 	int		 error;
 	bool		 enabled, adaptive;
+	uint32_t	 hiwat, lowat;
+	uint8_t		 newmode;
+
+#define ERROUT(x)	ERROUT_FUNCTION(errout, x)
 
 	if (nv->len > pf_ioctl_maxcount)
 		return (ENOMEM);
@@ -183,37 +191,43 @@ pf_set_syncookies(struct pfioc_nv *nv)
 		return (ENOMEM);
 
 	error = copyin(nv->data, nvlpacked, nv->len);
-	if (error) {
-		free(nvlpacked, M_TEMP);
-		return (error);
-	}
+	if (error)
+		ERROUT(error);
 
 	nvl = nvlist_unpack(nvlpacked, nv->len, 0);
-	if (nvl == NULL) {
-		free(nvlpacked, M_TEMP);
-		return (EBADMSG);
-	}
+	if (nvl == NULL)
+		ERROUT(EBADMSG);
 
 	if (! nvlist_exists_bool(nvl, "enabled")
-	    || ! nvlist_exists_bool(nvl, "adaptive")) {
-		nvlist_destroy(nvl);
-		free(nvlpacked, M_TEMP);
-		return (EBADMSG);
-	}
+	    || ! nvlist_exists_bool(nvl, "adaptive"))
+		ERROUT(EBADMSG);
 
 	enabled = nvlist_get_bool(nvl, "enabled");
 	adaptive = nvlist_get_bool(nvl, "adaptive");
+	PFNV_CHK(pf_nvuint32_opt(nvl, "highwater", &hiwat,
+	    V_pf_syncookie_status.hiwat));
+	PFNV_CHK(pf_nvuint32_opt(nvl, "lowwater", &lowat,
+	    V_pf_syncookie_status.lowat));
 
-	if (adaptive) {
-		nvlist_destroy(nvl);
-		free(nvlpacked, M_TEMP);
-		return (ENOTSUP);
-	}
+	if (lowat >= hiwat)
+		ERROUT(EINVAL);
+
+	newmode = PF_SYNCOOKIES_NEVER;
+	if (enabled)
+		newmode = adaptive ? PF_SYNCOOKIES_ADAPTIVE : PF_SYNCOOKIES_ALWAYS;
 
 	PF_RULES_WLOCK();
-	error = pf_syncookies_setmode(enabled ?
-	    PF_SYNCOOKIES_ALWAYS : PF_SYNCOOKIES_NEVER);
+	error = pf_syncookies_setmode(newmode);
+
+	V_pf_syncookie_status.lowat = lowat;
+	V_pf_syncookie_status.hiwat = hiwat;
+
 	PF_RULES_WUNLOCK();
+
+#undef ERROUT
+errout:
+	nvlist_destroy(nvl);
+	free(nvlpacked, M_TEMP);
 
 	return (error);
 }
