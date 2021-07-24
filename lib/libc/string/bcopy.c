@@ -79,7 +79,7 @@ bcopy(const void *src0, void *dst0, size_t length)
 #define	TLOOP1(s) do { s; } while (--t)
 
 #ifndef MEMCPY
-	if (src - dst > 0) {
+	if ((uintptr_t)dst < (uintptr_t)src) {
 #endif
 		/*
 		 * Copy forward.
