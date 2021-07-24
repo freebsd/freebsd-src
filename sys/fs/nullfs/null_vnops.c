@@ -656,32 +656,78 @@ static int
 null_rename(struct vop_rename_args *ap)
 {
 	struct vnode *fdvp, *fvp, *tdvp, *tvp;
-	struct null_node *tnn;
+	struct vnode *lfdvp, *lfvp, *ltdvp, *ltvp;
+	struct null_node *fdnn, *fnn, *tdnn, *tnn;
+	int error;
 
 	tdvp = ap->a_tdvp;
 	fvp = ap->a_fvp;
 	fdvp = ap->a_fdvp;
 	tvp = ap->a_tvp;
+	lfdvp = NULL;
 
 	/* Check for cross-device rename. */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp != NULL && fvp->v_mount != tvp->v_mount)) {
-		if (tdvp == tvp)
-			vrele(tdvp);
-		else
-			vput(tdvp);
-		if (tvp)
-			vput(tvp);
-		vrele(fdvp);
-		vrele(fvp);
-		return (EXDEV);
+		error = EXDEV;
+		goto upper_err;
 	}
+
+	VI_LOCK(fdvp);
+	fdnn = VTONULL(fdvp);
+	if (fdnn == NULL) {	/* fdvp is not locked, can be doomed */
+		VI_UNLOCK(fdvp);
+		error = ENOENT;
+		goto upper_err;
+	}
+	lfdvp = fdnn->null_lowervp;
+	vref(lfdvp);
+	VI_UNLOCK(fdvp);
+
+	VI_LOCK(fvp);
+	fnn = VTONULL(fvp);
+	if (fnn == NULL) {
+		VI_UNLOCK(fvp);
+		error = ENOENT;
+		goto upper_err;
+	}
+	lfvp = fnn->null_lowervp;
+	vref(lfvp);
+	VI_UNLOCK(fvp);
+
+	tdnn = VTONULL(tdvp);
+	ltdvp = tdnn->null_lowervp;
+	vref(ltdvp);
 
 	if (tvp != NULL) {
 		tnn = VTONULL(tvp);
+		ltvp = tnn->null_lowervp;
+		vref(ltvp);
 		tnn->null_flags |= NULLV_DROP;
+	} else {
+		ltvp = NULL;
 	}
-	return (null_bypass((struct vop_generic_args *)ap));
+
+	error = VOP_RENAME(lfdvp, lfvp, ap->a_fcnp, ltdvp, ltvp, ap->a_tcnp);
+	vrele(fdvp);
+	vrele(fvp);
+	vrele(tdvp);
+	if (tvp != NULL)
+		vrele(tvp);
+	return (error);
+
+upper_err:
+	if (tdvp == tvp)
+		vrele(tdvp);
+	else
+		vput(tdvp);
+	if (tvp)
+		vput(tvp);
+	if (lfdvp != NULL)
+		vrele(lfdvp);
+	vrele(fdvp);
+	vrele(fvp);
+	return (error);
 }
 
 static int
