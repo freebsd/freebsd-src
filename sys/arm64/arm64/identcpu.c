@@ -50,6 +50,10 @@ __FBSDID("$FreeBSD$");
 static void print_cpu_features(u_int cpu);
 static u_long parse_cpu_features_hwcap(void);
 static u_long parse_cpu_features_hwcap2(void);
+#ifdef COMPAT_FREEBSD32
+static u_long parse_cpu_features_hwcap32(void);
+static u_long parse_cpu_features_hwcap32_2(void);
+#endif
 
 char machine[] = "arm64";
 
@@ -135,6 +139,11 @@ struct cpu_desc {
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
 	uint64_t	ctr;
+#ifdef COMPAT_FREEBSD32
+	uint64_t	id_isar5;
+	uint64_t	mvfr0;
+	uint64_t	mvfr1;
+#endif
 };
 
 static struct cpu_desc cpu_desc[MAXCPU];
@@ -152,6 +161,11 @@ static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_MMFR2	0x00004000
 #define	PRINT_ID_AA64_PFR0	0x00010000
 #define	PRINT_ID_AA64_PFR1	0x00020000
+#ifdef COMPAT_FREEBSD32
+#define	PRINT_ID_ISAR5		0x01000000
+#define	PRINT_MVFR0		0x02000000
+#define	PRINT_MVFR1		0x04000000
+#endif
 #define	PRINT_CTR_EL0		0x10000000
 
 struct cpu_parts {
@@ -987,6 +1001,167 @@ static struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD_END,
 };
 
+#ifdef COMPAT_FREEBSD32
+/* ID_ISAR5_EL1 */
+static struct mrs_field_value id_isar5_vcma[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, VCMA, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_rdm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, RDM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_crc32[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, CRC32, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_sha2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, SHA2, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_sha1[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, SHA1, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_aes[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, AES, NONE, BASE),
+	MRS_FIELD_VALUE(ID_ISAR5_AES_VMULL, "AES+VMULL"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_isar5_sevl[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_ISAR5, SEVL, NOP, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field id_isar5_fields[] = {
+	MRS_FIELD(ID_ISAR5, VCMA, false, MRS_LOWER, id_isar5_vcma),
+	MRS_FIELD(ID_ISAR5, RDM, false, MRS_LOWER, id_isar5_rdm),
+	MRS_FIELD(ID_ISAR5, CRC32, false, MRS_LOWER, id_isar5_crc32),
+	MRS_FIELD(ID_ISAR5, SHA2, false, MRS_LOWER, id_isar5_sha2),
+	MRS_FIELD(ID_ISAR5, SHA1, false, MRS_LOWER, id_isar5_sha1),
+	MRS_FIELD(ID_ISAR5, AES, false, MRS_LOWER, id_isar5_aes),
+	MRS_FIELD(ID_ISAR5, SEVL, false, MRS_LOWER, id_isar5_sevl),
+	MRS_FIELD_END,
+};
+
+/* MVFR0 */
+static struct mrs_field_value mvfr0_fpround[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR0, FPRound, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_fpsqrt[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR0, FPSqrt, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_fpdivide[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR0, FPDivide, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_fptrap[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR0, FPTrap, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_fpdp[] = {
+	MRS_FIELD_VALUE(MVFR0_FPDP_NONE, ""),
+	MRS_FIELD_VALUE(MVFR0_FPDP_VFP_v2, "DP VFPv2"),
+	MRS_FIELD_VALUE(MVFR0_FPDP_VFP_v3_v4, "DP VFPv3+v4"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_fpsp[] = {
+	MRS_FIELD_VALUE(MVFR0_FPSP_NONE, ""),
+	MRS_FIELD_VALUE(MVFR0_FPSP_VFP_v2, "SP VFPv2"),
+	MRS_FIELD_VALUE(MVFR0_FPSP_VFP_v3_v4, "SP VFPv3+v4"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr0_simdreg[] = {
+	MRS_FIELD_VALUE(MVFR0_SIMDReg_NONE, ""),
+	MRS_FIELD_VALUE(MVFR0_SIMDReg_FP, "FP 16x64"),
+	MRS_FIELD_VALUE(MVFR0_SIMDReg_AdvSIMD, "AdvSIMD"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field mvfr0_fields[] = {
+	MRS_FIELD(MVFR0, FPRound, false, MRS_LOWER, mvfr0_fpround),
+	MRS_FIELD(MVFR0, FPSqrt, false, MRS_LOWER, mvfr0_fpsqrt),
+	MRS_FIELD(MVFR0, FPDivide, false, MRS_LOWER, mvfr0_fpdivide),
+	MRS_FIELD(MVFR0, FPTrap, false, MRS_LOWER, mvfr0_fptrap),
+	MRS_FIELD(MVFR0, FPDP, false, MRS_LOWER, mvfr0_fpdp),
+	MRS_FIELD(MVFR0, FPSP, false, MRS_LOWER, mvfr0_fpsp),
+	MRS_FIELD(MVFR0, SIMDReg, false, MRS_LOWER, mvfr0_simdreg),
+	MRS_FIELD_END,
+};
+
+/* MVFR1 */
+static struct mrs_field_value mvfr1_simdfmac[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, SIMDFMAC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_fphp[] = {
+	MRS_FIELD_VALUE(MVFR1_FPHP_NONE, ""),
+	MRS_FIELD_VALUE(MVFR1_FPHP_CONV_SP, "FPHP SP Conv"),
+	MRS_FIELD_VALUE(MVFR1_FPHP_CONV_DP, "FPHP DP Conv"),
+	MRS_FIELD_VALUE(MVFR1_FPHP_ARITH, "FPHP Arith"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_simdhp[] = {
+	MRS_FIELD_VALUE(MVFR1_SIMDHP_NONE, ""),
+	MRS_FIELD_VALUE(MVFR1_SIMDHP_CONV_SP, "SIMDHP SP Conv"),
+	MRS_FIELD_VALUE(MVFR1_SIMDHP_ARITH, "SIMDHP Arith"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_simdsp[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, SIMDSP, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_simdint[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, SIMDInt, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_simdls[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, SIMDLS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_fpdnan[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, FPDNaN, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value mvfr1_fpftz[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(MVFR1, FPFtZ, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field mvfr1_fields[] = {
+	MRS_FIELD(MVFR1, SIMDFMAC, false, MRS_LOWER, mvfr1_simdfmac),
+	MRS_FIELD(MVFR1, FPHP, false, MRS_LOWER, mvfr1_fphp),
+	MRS_FIELD(MVFR1, SIMDHP, false, MRS_LOWER, mvfr1_simdhp),
+	MRS_FIELD(MVFR1, SIMDSP, false, MRS_LOWER, mvfr1_simdsp),
+	MRS_FIELD(MVFR1, SIMDInt, false, MRS_LOWER, mvfr1_simdint),
+	MRS_FIELD(MVFR1, SIMDLS, false, MRS_LOWER, mvfr1_simdls),
+	MRS_FIELD(MVFR1, FPDNaN, false, MRS_LOWER, mvfr1_fpdnan),
+	MRS_FIELD(MVFR1, FPFtZ, false, MRS_LOWER, mvfr1_fpftz),
+	MRS_FIELD_END,
+};
+#endif /* COMPAT_FREEBSD32 */
+
 struct mrs_user_reg {
 	u_int		reg;
 	u_int		CRm;
@@ -1038,6 +1213,32 @@ static struct mrs_user_reg user_regs[] = {
 		.offset = __offsetof(struct cpu_desc, id_aa64mmfr0),
 		.fields = id_aa64mmfr0_fields,
 	},
+#ifdef COMPAT_FREEBSD32
+	{
+		/* id_isar5_el1 */
+		.reg = ID_ISAR5_EL1,
+		.CRm = 2,
+		.Op2 = 5,
+		.offset = __offsetof(struct cpu_desc, id_isar5),
+		.fields = id_isar5_fields,
+	},
+	{
+		/* mvfr0 */
+		.reg = MVFR0_EL1,
+		.CRm = 3,
+		.Op2 = 0,
+		.offset = __offsetof(struct cpu_desc, mvfr0),
+		.fields = mvfr0_fields,
+	},
+	{
+		/* mvfr1 */
+		.reg = MVFR1_EL1,
+		.CRm = 3,
+		.Op2 = 1,
+		.offset = __offsetof(struct cpu_desc, mvfr1),
+		.fields = mvfr1_fields,
+	},
+#endif /* COMPAT_FREEBSD32 */
 };
 
 #define	CPU_DESC_FIELD(desc, idx)					\
@@ -1288,6 +1489,12 @@ identify_cpu_sysinit(void *dummy __unused)
 	elf_hwcap = parse_cpu_features_hwcap();
 	elf_hwcap2 = parse_cpu_features_hwcap2();
 
+#ifdef COMPAT_FREEBSD32
+	/* 32-bit ARM versions of AT_HWCAP/HWCAP2 */
+	elf32_hwcap = parse_cpu_features_hwcap32();
+	elf32_hwcap2 = parse_cpu_features_hwcap32_2();
+#endif
+
 	if (dic && idc) {
 		arm64_icache_sync_range = &arm64_dic_idc_icache_sync_range;
 		if (bootverbose)
@@ -1498,6 +1705,66 @@ parse_cpu_features_hwcap2(void)
 
 	return (hwcap2);
 }
+
+#ifdef COMPAT_FREEBSD32
+static u_long
+parse_cpu_features_hwcap32(void)
+{
+	u_long hwcap = HWCAP32_DEFAULT;
+
+	if (MVFR0_FPDP_VAL(user_cpu_desc.mvfr0) >=
+	    MVFR0_FPDP_VFP_v2) {
+		hwcap |= HWCAP32_VFP;
+
+		if (MVFR0_FPDP_VAL(user_cpu_desc.mvfr0) ==
+		    MVFR0_FPDP_VFP_v3_v4) {
+			hwcap |= HWCAP32_VFPv3;
+
+			if (MVFR1_SIMDFMAC_VAL(user_cpu_desc.mvfr1) ==
+			    MVFR1_SIMDFMAC_IMPL)
+				hwcap |= HWCAP32_VFPv4;
+		}
+	}
+
+	if ((MVFR1_SIMDLS_VAL(user_cpu_desc.mvfr1) ==
+	     MVFR1_SIMDLS_IMPL) &&
+	    (MVFR1_SIMDInt_VAL(user_cpu_desc.mvfr1) ==
+	     MVFR1_SIMDInt_IMPL) &&
+	    (MVFR1_SIMDSP_VAL(user_cpu_desc.mvfr1) ==
+	     MVFR1_SIMDSP_IMPL))
+		hwcap |= HWCAP32_NEON;
+
+	return (hwcap);
+}
+
+static u_long
+parse_cpu_features_hwcap32_2(void)
+{
+	u_long hwcap2 = 0;
+
+	if (ID_ISAR5_AES_VAL(user_cpu_desc.id_isar5) >=
+	    ID_ISAR5_AES_BASE)
+		hwcap2 |= HWCAP32_2_AES;
+
+	if (ID_ISAR5_AES_VAL(user_cpu_desc.id_isar5) ==
+	    ID_ISAR5_AES_VMULL)
+		hwcap2 |= HWCAP32_2_PMULL;
+
+	if (ID_ISAR5_SHA1_VAL(user_cpu_desc.id_isar5) ==
+	    ID_ISAR5_SHA1_IMPL)
+		hwcap2 |= HWCAP32_2_SHA1;
+
+	if (ID_ISAR5_SHA2_VAL(user_cpu_desc.id_isar5) ==
+	    ID_ISAR5_SHA2_IMPL)
+		hwcap2 |= HWCAP32_2_SHA2;
+
+	if (ID_ISAR5_CRC32_VAL(user_cpu_desc.id_isar5) ==
+	    ID_ISAR5_CRC32_IMPL)
+		hwcap2 |= HWCAP32_2_CRC32;
+
+	return (hwcap2);
+}
+#endif /* COMPAT_FREEBSD32 */
 
 static void
 print_ctr_fields(struct sbuf *sb, uint64_t reg, void *arg)
@@ -1712,6 +1979,23 @@ print_cpu_features(u_int cpu)
 		print_id_register(sb, "Auxiliary Features 1",
 		    cpu_desc[cpu].id_aa64afr1, id_aa64afr1_fields);
 
+#ifdef COMPAT_FREEBSD32
+	/* AArch32 Instruction Set Attribute Register 5 */
+	if (cpu == 0 || (cpu_print_regs & PRINT_ID_ISAR5) != 0)
+		print_id_register(sb, "AArch32 Instruction Set Attributes 5",
+		     cpu_desc[cpu].id_isar5, id_isar5_fields);
+
+	/* AArch32 Media and VFP Feature Register 0 */
+	if (cpu == 0 || (cpu_print_regs & PRINT_MVFR0) != 0)
+		print_id_register(sb, "AArch32 Media and VFP Features 0",
+		     cpu_desc[cpu].mvfr0, mvfr0_fields);
+
+	/* AArch32 Media and VFP Feature Register 1 */
+	if (cpu == 0 || (cpu_print_regs & PRINT_MVFR1) != 0)
+		print_id_register(sb, "AArch32 Media and VFP Features 1",
+		     cpu_desc[cpu].mvfr1, mvfr1_fields);
+#endif
+
 	sbuf_delete(sb);
 	sb = NULL;
 #undef SEP_STR
@@ -1811,6 +2095,15 @@ identify_cpu(u_int cpu)
 	cpu_desc[cpu].id_aa64mmfr2 = READ_SPECIALREG(id_aa64mmfr2_el1);
 	cpu_desc[cpu].id_aa64pfr0 = READ_SPECIALREG(id_aa64pfr0_el1);
 	cpu_desc[cpu].id_aa64pfr1 = READ_SPECIALREG(id_aa64pfr1_el1);
+#ifdef COMPAT_FREEBSD32
+	/* Only read aarch32 SRs if EL0-32 is available */
+	if (ID_AA64PFR0_EL0_VAL(cpu_desc[cpu].id_aa64pfr0) ==
+	    ID_AA64PFR0_EL0_64_32) {
+		cpu_desc[cpu].id_isar5 = READ_SPECIALREG(id_isar5_el1);
+		cpu_desc[cpu].mvfr0 = READ_SPECIALREG(mvfr0_el1);
+		cpu_desc[cpu].mvfr1 = READ_SPECIALREG(mvfr1_el1);
+	}
+#endif
 }
 
 static void
@@ -1875,4 +2168,13 @@ check_cpu_regs(u_int cpu)
 		identify_cache(cpu_desc[cpu].ctr);
 		cpu_print_regs |= PRINT_CTR_EL0;
 	}
+
+#ifdef COMPAT_FREEBSD32
+	if (cpu_desc[cpu].id_isar5 != cpu_desc[0].id_isar5)
+		cpu_print_regs |= PRINT_ID_ISAR5;
+	if (cpu_desc[cpu].mvfr0 != cpu_desc[0].mvfr0)
+		cpu_print_regs |= PRINT_MVFR0;
+	if (cpu_desc[cpu].mvfr1 != cpu_desc[0].mvfr1)
+		cpu_print_regs |= PRINT_MVFR1;
+#endif
 }
