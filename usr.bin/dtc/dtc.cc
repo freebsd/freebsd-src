@@ -68,7 +68,7 @@ constexpr int version_minor_compatible = 4;
 constexpr int version_patch = 0;
 constexpr int version_patch_compatible = 7;
 
-void usage(const string &argv0)
+void usage(const string &argv0) noexcept
 {
 	std::fprintf(stderr, "Usage:\n"
 		"\t%s\t[-fhsv@] [-b boot_cpu_id] [-d dependency_file]"
@@ -83,7 +83,7 @@ void usage(const string &argv0)
 /**
  * Prints the current version of this program..
  */
-void version(const char* progname)
+void version(const char* progname) noexcept
 {
 	std::fprintf(stdout, "Version: %s %d.%d.%d compatible with gpl dtc %d.%d.%d\n", progname,
 		version_major, version_minor, version_patch,
