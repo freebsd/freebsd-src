@@ -56,7 +56,7 @@ namespace DevdCtl
 
 /*=========================== Class Implementations ==========================*/
 /*----------------------------------- Guid -----------------------------------*/
-Guid::Guid(const string &guidString)
+Guid::Guid(const string &guidString) noexcept
 {
 	if (guidString.empty()) {
 		m_GUID = INVALID_GUID;
@@ -70,7 +70,7 @@ Guid::Guid(const string &guidString)
 }
 
 std::ostream&
-operator<< (std::ostream& out, Guid g)
+operator<< (std::ostream& out, Guid g) noexcept
 {
 	if (g.IsValid())
 		out << static_cast<uint64_t>(g);
