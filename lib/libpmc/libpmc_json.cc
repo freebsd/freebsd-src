@@ -73,7 +73,7 @@ static const char *typenames[] = {
 };
 
 static string
-startentry(struct pmclog_ev *ev)
+startentry(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 
@@ -83,7 +83,7 @@ startentry(struct pmclog_ev *ev)
 }
 
 static string
-initialize_to_json(struct pmclog_ev *ev)
+initialize_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
@@ -99,7 +99,7 @@ initialize_to_json(struct pmclog_ev *ev)
 }
 
 static string
-pmcallocate_to_json(struct pmclog_ev *ev)
+pmcallocate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
@@ -114,7 +114,7 @@ pmcallocate_to_json(struct pmclog_ev *ev)
 }
 
 static string
-pmcattach_to_json(struct pmclog_ev *ev)
+pmcattach_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -128,7 +128,7 @@ pmcattach_to_json(struct pmclog_ev *ev)
 }
 
 static string
-pmcdetach_to_json(struct pmclog_ev *ev)
+pmcdetach_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -142,7 +142,7 @@ pmcdetach_to_json(struct pmclog_ev *ev)
 
 
 static string
-proccsw_to_json(struct pmclog_ev *ev)
+proccsw_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -156,7 +156,7 @@ proccsw_to_json(struct pmclog_ev *ev)
 }
 
 static string
-procexec_to_json(struct pmclog_ev *ev)
+procexec_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -171,7 +171,7 @@ procexec_to_json(struct pmclog_ev *ev)
 }
 
 static string
-procexit_to_json(struct pmclog_ev *ev)
+procexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -186,7 +186,7 @@ procexit_to_json(struct pmclog_ev *ev)
 }
 
 static string
-procfork_to_json(struct pmclog_ev *ev)
+procfork_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -199,7 +199,7 @@ procfork_to_json(struct pmclog_ev *ev)
 }
 
 static string
-sysexit_to_json(struct pmclog_ev *ev)
+sysexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -211,7 +211,7 @@ sysexit_to_json(struct pmclog_ev *ev)
 }
 
 static string
-userdata_to_json(struct pmclog_ev *ev)
+userdata_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
@@ -223,7 +223,7 @@ userdata_to_json(struct pmclog_ev *ev)
 }
 
 static string
-map_in_to_json(struct pmclog_ev *ev)
+map_in_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -237,7 +237,7 @@ map_in_to_json(struct pmclog_ev *ev)
 }
 
 static string
-map_out_to_json(struct pmclog_ev *ev)
+map_out_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
@@ -252,7 +252,7 @@ map_out_to_json(struct pmclog_ev *ev)
 }
 
 static string
-callchain_to_json(struct pmclog_ev *ev)
+callchain_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[1024];
 	string result;
@@ -276,7 +276,7 @@ callchain_to_json(struct pmclog_ev *ev)
 }
 
 static string
-pmcallocatedyn_to_json(struct pmclog_ev *ev)
+pmcallocatedyn_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -290,7 +290,7 @@ pmcallocatedyn_to_json(struct pmclog_ev *ev)
 }
 
 static string
-proccreate_to_json(struct pmclog_ev *ev)
+proccreate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -304,7 +304,7 @@ proccreate_to_json(struct pmclog_ev *ev)
 }
 
 static string
-threadcreate_to_json(struct pmclog_ev *ev)
+threadcreate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
@@ -318,7 +318,7 @@ threadcreate_to_json(struct pmclog_ev *ev)
 }
 
 static string
-threadexit_to_json(struct pmclog_ev *ev)
+threadexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
@@ -330,7 +330,7 @@ threadexit_to_json(struct pmclog_ev *ev)
 }
 
 static string
-stub_to_json(struct pmclog_ev *ev)
+stub_to_json(struct pmclog_ev *ev) noexcept
 {
 	string startent;
 
