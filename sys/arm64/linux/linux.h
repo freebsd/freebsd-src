@@ -243,6 +243,16 @@ typedef struct l_siginfo {
 #define	lsi_band	_sifields._sigpoll._band
 #define	lsi_fd		_sifields._sigpoll._fd
 
+/*
+ * This structure is different from the one used by Linux,
+ * but it doesn't matter - it's not user-accessible.  We need
+ * it instead of the native one because of l_siginfo.
+ */
+struct l_sigframe {
+	struct l_siginfo	sf_si;
+	ucontext_t		sf_uc;
+};
+
 union l_semun {
 	l_int		val;
 	l_uintptr_t	buf;

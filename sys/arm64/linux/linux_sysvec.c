@@ -37,12 +37,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stddef.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 
@@ -61,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
+#include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_vdso.h>
 
@@ -407,18 +410,103 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
+	struct l_sigframe frame;
+	struct trapframe *tf;
+	int error;
 
-	/* LINUXTODO: implement */
-	LIN_SDT_PROBE0(sysvec, linux_rt_sigreturn, todo);
-	return (EDOOFUS);
+	tf = td->td_frame;
+
+	if (copyin((void *)tf->tf_sp, &frame, sizeof(frame)))
+		return (EFAULT);
+
+	error = set_mcontext(td, &frame.sf_uc.uc_mcontext);
+	if (error != 0)
+		return (error);
+
+	/* Restore signal mask. */
+	kern_sigprocmask(td, SIG_SETMASK, &frame.sf_uc.uc_sigmask, NULL, 0);
+
+	return (EJUSTRETURN);
 }
 
 static void
 linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
+	struct thread *td;
+	struct proc *p;
+	struct trapframe *tf;
+	struct l_sigframe *fp, frame;
+	struct sigacts *psp;
+	int onstack, sig;
+	uint32_t spsr;
 
-	/* LINUXTODO: implement */
-	LIN_SDT_PROBE0(sysvec, linux_rt_sendsig, todo);
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	sig = ksi->ksi_signo;
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+
+	tf = td->td_frame;
+	onstack = sigonstack(tf->tf_sp);
+
+	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
+	    catcher, sig);
+
+	/* Allocate and validate space for the signal handler context. */
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !onstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		fp = (struct l_sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
+		    td->td_sigstk.ss_size);
+#if defined(COMPAT_43)
+		td->td_sigstk.ss_flags |= SS_ONSTACK;
+#endif
+	} else {
+		fp = (struct l_sigframe *)td->td_frame->tf_sp;
+	}
+
+	/* Make room, keeping the stack aligned */
+	fp--;
+	fp = (struct l_sigframe *)STACKALIGN(fp);
+
+	/* Fill in the frame to copy out */
+	bzero(&frame, sizeof(frame));
+	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
+	spsr = frame.sf_uc.uc_mcontext.mc_gpregs.gp_spsr;
+
+	/* Translate the signal. */
+	sig = bsd_to_linux_signal(sig);
+
+	siginfo_to_lsiginfo(&ksi->ksi_info, &frame.sf_si, sig);
+	frame.sf_uc.uc_sigmask = *mask;
+	frame.sf_uc.uc_stack = td->td_sigstk;
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) != 0 ?
+	    (onstack ? SS_ONSTACK : 0) : SS_DISABLE;
+	mtx_unlock(&psp->ps_mtx);
+	PROC_UNLOCK(td->td_proc);
+
+	/* Copy the sigframe out to the user's stack. */
+	if (copyout(&frame, fp, sizeof(*fp)) != 0) {
+		/* Process has trashed its stack. Kill it. */
+		CTR2(KTR_SIG, "sendsig: sigexit td=%p fp=%p", td, fp);
+		PROC_LOCK(p);
+		sigexit(td, SIGILL);
+	}
+
+	tf->tf_x[0]= sig;
+	tf->tf_x[1] = (register_t)&fp->sf_si;
+	tf->tf_x[2] = (register_t)&fp->sf_uc;
+
+	tf->tf_elr = (register_t)catcher;
+	tf->tf_sp = (register_t)fp;
+	tf->tf_lr = (register_t)__kernel_rt_sigreturn;
+
+	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#x sp=%#x", td, tf->tf_elr,
+	    tf->tf_sp);
+
+	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 struct sysentvec elf_linux_sysvec = {
