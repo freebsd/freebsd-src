@@ -76,7 +76,7 @@ const char Consumer::s_devdSockPath[] = "/var/run/devd.seqpacket.pipe";
 //- Consumer Public Methods ----------------------------------------------------
 Consumer::Consumer(Event::BuildMethod *defBuilder,
 		   EventFactory::Record *regEntries,
-		   size_t numEntries)
+		   size_t numEntries) noexcept
  : m_devdSockFD(-1),
    m_eventFactory(defBuilder),
    m_replayingEvents(false)
@@ -84,7 +84,7 @@ Consumer::Consumer(Event::BuildMethod *defBuilder,
 	m_eventFactory.UpdateRegistry(regEntries, numEntries);
 }
 
-Consumer::~Consumer()
+Consumer::~Consumer() noexcept
 {
 	DisconnectFromDevd();
 }
@@ -125,7 +125,7 @@ Consumer::ConnectToDevd()
 }
 
 void
-Consumer::DisconnectFromDevd()
+Consumer::DisconnectFromDevd() noexcepy
 {
 	if (m_devdSockFD != -1) {
 		syslog(LOG_INFO, "Disconnecting from devd.");
@@ -135,7 +135,7 @@ Consumer::DisconnectFromDevd()
 }
 
 std::string
-Consumer::ReadEvent()
+Consumer::ReadEvent() noexcept
 {
 	char buf[MAX_EVENT_SIZE + 1];
 	ssize_t len;
@@ -151,7 +151,7 @@ Consumer::ReadEvent()
 }
 
 void
-Consumer::ReplayUnconsumedEvents(bool discardUnconsumed)
+Consumer::ReplayUnconsumedEvents(bool discardUnconsumed) noexcept
 {
 	EventList::iterator event(m_unconsumedEvents.begin());
 	bool replayed_any = (event != m_unconsumedEvents.end());
@@ -174,7 +174,7 @@ Consumer::ReplayUnconsumedEvents(bool discardUnconsumed)
 }
 
 bool
-Consumer::SaveEvent(const Event &event)
+Consumer::SaveEvent(const Event &event) noexcept
 {
         if (m_replayingEvents)
                 return (false);
@@ -183,7 +183,7 @@ Consumer::SaveEvent(const Event &event)
 }
 
 Event *
-Consumer::NextEvent()
+Consumer::NextEvent() noexcept
 {
 	if (!Connected())
 		return(NULL);
@@ -206,7 +206,7 @@ Consumer::NextEvent()
 
 /* Capture and process buffered events. */
 void
-Consumer::ProcessEvents()
+Consumer::ProcessEvents() noexcept
 {
 	Event *event;
 	while ((event = NextEvent()) != NULL) {
@@ -217,7 +217,7 @@ Consumer::ProcessEvents()
 }
 
 void
-Consumer::FlushEvents()
+Consumer::FlushEvents() noexcept
 {
 	std::string s;
 
