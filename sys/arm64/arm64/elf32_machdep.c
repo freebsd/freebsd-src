@@ -77,6 +77,9 @@ static boolean_t elf32_arm_abi_supported(struct image_params *, int32_t *,
 
 extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 
+u_long __read_frequently elf32_hwcap;
+u_long __read_frequently elf32_hwcap2;
+
 static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= freebsd32_sysent,
@@ -112,6 +115,8 @@ static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
 	.sv_trap	= NULL,
+	.sv_hwcap	= &elf32_hwcap,
+	.sv_hwcap2	= &elf32_hwcap2,
 	.sv_onexec_old	= exec_onexec_old,
 	.sv_onexit	= exit_onexit,
 };
