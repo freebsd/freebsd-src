@@ -44,7 +44,9 @@ linux_platform:
 
 	.text
 
+	nop	/* This is what Linux calls a "Mysterious NOP". */
 ENTRY(__kernel_rt_sigreturn)
-	brk #0 /* LINUXTODO: implement __kernel_rt_sigreturn */
+	mov	x8, #LINUX_SYS_linux_rt_sigreturn
+	svc	#0
 	ret
 END(__kernel_rt_sigreturn)
