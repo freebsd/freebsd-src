@@ -88,7 +88,7 @@ ATF_TC_BODY(wait6_exited, tc)
 	default:
 		ATF_REQUIRE(wait6(P_PID, pid, &st, WEXITED, &wru, &si) == pid);
 		ATF_REQUIRE(WIFEXITED(st) && WEXITSTATUS(st) == 0x5a);
-		ATF_REQUIRE(si.si_status = 0x5a5a5a5a);
+		ATF_REQUIRE(si.si_status == 0x5a5a5a5a);
 		ATF_REQUIRE(si.si_pid == pid);
 		ATF_REQUIRE(si.si_uid == getuid());
 		ATF_REQUIRE(si.si_code == CLD_EXITED);
