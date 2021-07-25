@@ -76,7 +76,7 @@ const char Consumer::s_devdSockPath[] = "/var/run/devd.seqpacket.pipe";
 //- Consumer Public Methods ----------------------------------------------------
 Consumer::Consumer(Event::BuildMethod *defBuilder,
 		   EventFactory::Record *regEntries,
-		   size_t numEntries) noexcept
+		   size_t numEntries)
  : m_devdSockFD(-1),
    m_eventFactory(defBuilder),
    m_replayingEvents(false)
@@ -84,7 +84,7 @@ Consumer::Consumer(Event::BuildMethod *defBuilder,
 	m_eventFactory.UpdateRegistry(regEntries, numEntries);
 }
 
-Consumer::~Consumer() noexcept
+Consumer::~Consumer()
 {
 	DisconnectFromDevd();
 }
@@ -125,7 +125,7 @@ Consumer::ConnectToDevd()
 }
 
 void
-Consumer::DisconnectFromDevd() noexcepy
+Consumer::DisconnectFromDevd() noexcept
 {
 	if (m_devdSockFD != -1) {
 		syslog(LOG_INFO, "Disconnecting from devd.");
