@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 		printf(("%s: " f), __func__, ## __VA_ARGS__);		\
 } while (0)
 
+static void	 netdump_cleanup(void);
 static int	 netdump_configure(struct diocskerneldump_arg *,
 		    struct thread *);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
@@ -254,12 +255,13 @@ netdump_dumper(void *priv __unused, void *virtual,
 			printf("failed to close the transaction\n");
 		else
 			printf("\nnetdump finished.\n");
-		debugnet_free(nd_conf.nd_pcb);
-		nd_conf.nd_pcb = NULL;
+		netdump_cleanup();
 		return (0);
 	}
-	if (length > sizeof(nd_buf))
+	if (length > sizeof(nd_buf)) {
+		netdump_cleanup();
 		return (ENOSPC);
+	}
 
 	if (nd_conf.nd_buf_len + length > sizeof(nd_buf) ||
 	    (nd_conf.nd_buf_len != 0 && nd_conf.nd_tx_off +
@@ -267,6 +269,7 @@ netdump_dumper(void *priv __unused, void *virtual,
 		error = netdump_flush_buf();
 		if (error != 0) {
 			dump_failed = 1;
+			netdump_cleanup();
 			return (error);
 		}
 		nd_conf.nd_tx_off = offset;
@@ -344,18 +347,35 @@ netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh,
 
 	error = netdump_flush_buf();
 	if (error != 0)
-		return (error);
+		goto out;
 	memcpy(nd_buf, kdh, sizeof(*kdh));
 	error = debugnet_send(nd_conf.nd_pcb, NETDUMP_KDH, nd_buf,
 	    sizeof(*kdh), NULL);
 	if (error == 0 && keysize > 0) {
-		if (keysize > sizeof(nd_buf))
-			return (EINVAL);
+		if (keysize > sizeof(nd_buf)) {
+			error = EINVAL;
+			goto out;
+		}
 		memcpy(nd_buf, key, keysize);
 		error = debugnet_send(nd_conf.nd_pcb, NETDUMP_EKCD_KEY, nd_buf,
 		    keysize, NULL);
 	}
+out:
+	if (error != 0)
+		netdump_cleanup();
 	return (error);
+}
+
+/*
+ * Cleanup routine for a possibly failed netdump.
+ */
+static void
+netdump_cleanup(void)
+{
+	if (nd_conf.nd_pcb != NULL) {
+		debugnet_free(nd_conf.nd_pcb);
+		nd_conf.nd_pcb = NULL;
+	}
 }
 
 /*-
