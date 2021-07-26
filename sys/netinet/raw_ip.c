@@ -523,8 +523,15 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 	} else {
 		if (m->m_pkthdr.len > IP_MAXPACKET) {
 			m_freem(m);
-			return(EMSGSIZE);
+			return (EMSGSIZE);
 		}
+		if (m->m_pkthdr.len < sizeof(*ip)) {
+			m_freem(m);
+			return (EINVAL);
+		}
+		m = m_pullup(m, sizeof(*ip));
+		if (m == NULL)
+			return (ENOMEM);
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
 		if (m->m_len < hlen) {
