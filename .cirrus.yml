@@ -30,6 +30,7 @@ task:
   setup_script:
   - uname -a
   - df -m
+  - pkg --version
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
