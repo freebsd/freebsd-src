@@ -31,7 +31,7 @@ linux_assym.h: linux_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux_genassym.o > ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "amd64"
-VDSOFLAGS=-mregparm=0 -mcmodel=small -msoft-float
+VDSOFLAGS=-mcmodel=small -msoft-float
 VDSODEPS=linux_vdso_gettc_x86.inc
 .elif ${MACHINE_CPUARCH} == "aarch64"
 # The Linux uses tiny memory model, but our ld does not know about
