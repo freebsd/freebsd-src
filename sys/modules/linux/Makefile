@@ -60,19 +60,21 @@ linux${SFX}_assym.h: linux${SFX}_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "amd64"
-VDSOFLAGS=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32 -m32 -mcmodel=small
+VDSOFLAGS=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32 -m32
+.else
+VDSOFLAGS=-mregparm=0
 .endif
 
 linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE -fPIC -pipe -O2 -Werror \
-	-msoft-float -mregparm=0 \
+	-msoft-float \
 	-fno-common -nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
 	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux${SFX}_vdso_gtod.o: linux_vdso_gtod.inc ${VDSODEPS}
-	${CC} -c -fPIC -pipe -O2 -Werror -msoft-float -mregparm=0 \
+	${CC} -c -fPIC -pipe -O2 -Werror -msoft-float \
 	-fno-common -nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls ${VDSOFLAGS} \
 	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
