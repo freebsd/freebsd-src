@@ -275,14 +275,6 @@ pflog_packet_t			*pflog_packet_ptr = NULL;
 
 extern u_long	pf_ioctl_maxcount;
 
-#define	ERROUT_FUNCTION(target, x)					\
-	do {								\
-		error = (x);						\
-		SDT_PROBE3(pf, ioctl, function, error, __func__, error,	\
-		    __LINE__);						\
-		goto target;						\
-	} while (0)
-
 static void
 pfattach_vnet(void)
 {
