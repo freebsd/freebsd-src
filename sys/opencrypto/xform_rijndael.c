@@ -58,7 +58,7 @@ static	void rijndael128_encrypt(void *, const uint8_t *, uint8_t *);
 static	void rijndael128_decrypt(void *, const uint8_t *, uint8_t *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_rijndael128 = {
+const struct enc_xform enc_xform_rijndael128 = {
 	.type = CRYPTO_RIJNDAEL128_CBC,
 	.name = "Rijndael-128/AES",
 	.ctxsize = sizeof(rijndael_ctx),

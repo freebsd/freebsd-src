@@ -1318,7 +1318,7 @@ safexcel_setkey_xcbcmac(const uint8_t *key, int klen, uint32_t *hashkey)
 }
 
 static void
-safexcel_setkey_hmac_digest(struct auth_hash *ahash, union authctx *ctx,
+safexcel_setkey_hmac_digest(const struct auth_hash *ahash, union authctx *ctx,
     char *buf)
 {
 	int hashwords, i;
@@ -1360,7 +1360,7 @@ safexcel_setkey_hmac(const struct crypto_session_params *csp,
     const uint8_t *key, int klen, uint8_t *ipad, uint8_t *opad)
 {
 	union authctx ctx;
-	struct auth_hash *ahash;
+	const struct auth_hash *ahash;
 
 	ahash = crypto_auth_hash(csp);
 	hmac_init_ipad(ahash, key, klen, &ctx);

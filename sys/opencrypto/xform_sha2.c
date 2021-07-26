@@ -62,7 +62,7 @@ static	int SHA384Update_int(void *, const void *, u_int);
 static	int SHA512Update_int(void *, const void *, u_int);
 
 /* Plain hashes */
-struct auth_hash auth_hash_sha2_224 = {
+const struct auth_hash auth_hash_sha2_224 = {
 	.type = CRYPTO_SHA2_224,
 	.name = "SHA2-224",
 	.hashsize = SHA2_224_HASH_LEN,
@@ -73,7 +73,7 @@ struct auth_hash auth_hash_sha2_224 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA224_Final,
 };
 
-struct auth_hash auth_hash_sha2_256 = {
+const struct auth_hash auth_hash_sha2_256 = {
 	.type = CRYPTO_SHA2_256,
 	.name = "SHA2-256",
 	.keysize = SHA2_256_BLOCK_LEN,
@@ -85,7 +85,7 @@ struct auth_hash auth_hash_sha2_256 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA256_Final,
 };
 
-struct auth_hash auth_hash_sha2_384 = {
+const struct auth_hash auth_hash_sha2_384 = {
 	.type = CRYPTO_SHA2_384,
 	.name = "SHA2-384",
 	.keysize = SHA2_384_BLOCK_LEN,
@@ -97,7 +97,7 @@ struct auth_hash auth_hash_sha2_384 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA384_Final,
 };
 
-struct auth_hash auth_hash_sha2_512 = {
+const struct auth_hash auth_hash_sha2_512 = {
 	.type = CRYPTO_SHA2_512,
 	.name = "SHA2-512",
 	.keysize = SHA2_512_BLOCK_LEN,
@@ -110,7 +110,7 @@ struct auth_hash auth_hash_sha2_512 = {
 };
 
 /* Authentication instances */
-struct auth_hash auth_hash_hmac_sha2_224 = {
+const struct auth_hash auth_hash_hmac_sha2_224 = {
 	.type = CRYPTO_SHA2_224_HMAC,
 	.name = "HMAC-SHA2-224",
 	.keysize = SHA2_224_BLOCK_LEN,
@@ -122,7 +122,7 @@ struct auth_hash auth_hash_hmac_sha2_224 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA224_Final,
 };
 
-struct auth_hash auth_hash_hmac_sha2_256 = {
+const struct auth_hash auth_hash_hmac_sha2_256 = {
 	.type = CRYPTO_SHA2_256_HMAC,
 	.name = "HMAC-SHA2-256",
 	.keysize = SHA2_256_BLOCK_LEN,
@@ -134,7 +134,7 @@ struct auth_hash auth_hash_hmac_sha2_256 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA256_Final,
 };
 
-struct auth_hash auth_hash_hmac_sha2_384 = {
+const struct auth_hash auth_hash_hmac_sha2_384 = {
 	.type = CRYPTO_SHA2_384_HMAC,
 	.name = "HMAC-SHA2-384",
 	.keysize = SHA2_384_BLOCK_LEN,
@@ -146,7 +146,7 @@ struct auth_hash auth_hash_hmac_sha2_384 = {
 	.Final = (void (*)(uint8_t *, void *)) SHA384_Final,
 };
 
-struct auth_hash auth_hash_hmac_sha2_512 = {
+const struct auth_hash auth_hash_hmac_sha2_512 = {
 	.type = CRYPTO_SHA2_512_HMAC,
 	.name = "HMAC-SHA2-512",
 	.keysize = SHA2_512_BLOCK_LEN,

@@ -136,7 +136,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_CCR, "ccr", "Chelsio T6 crypto");
 
 struct ccr_session_hmac {
-	struct auth_hash *auth_hash;
+	const struct auth_hash *auth_hash;
 	int hash_len;
 	unsigned int partial_digest_len;
 	unsigned int auth_mode;
@@ -466,7 +466,7 @@ ccr_hash(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 {
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	char *dst;
 	u_int hash_size_in_response, kctx_flits, kctx_len, transhdr_len, wr_len;
 	u_int hmac_ctrl, imm_len, iopad_size;
@@ -803,7 +803,7 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	char iv[CHCR_MAX_CRYPTO_IV_LEN];
 	struct chcr_wr *crwr;
 	struct wrqe *wr;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	char *dst;
 	u_int kctx_len, key_half, op_type, transhdr_len, wr_len;
 	u_int hash_size_in_response, imm_len, iopad_size, iv_len;
@@ -1402,8 +1402,8 @@ ccr_gcm_done(struct ccr_softc *sc, struct ccr_session *s,
 static void
 ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 {
-	struct auth_hash *axf;
-	struct enc_xform *exf;
+	const struct auth_hash *axf;
+	const struct enc_xform *exf;
 	void *auth_ctx, *kschedule;
 	char block[GMAC_BLOCK_LEN];
 	char digest[GMAC_DIGEST_LEN];
@@ -1892,8 +1892,8 @@ ccr_ccm_done(struct ccr_softc *sc, struct ccr_session *s,
 static void
 ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 {
-	struct auth_hash *axf;
-	struct enc_xform *exf;
+	const struct auth_hash *axf;
+	const struct enc_xform *exf;
 	union authctx *auth_ctx;
 	void *kschedule;
 	char block[CCM_CBC_BLOCK_LEN];
@@ -2273,7 +2273,7 @@ static void
 ccr_init_hash_digest(struct ccr_session *s)
 {
 	union authctx auth_ctx;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	axf = s->hmac.auth_hash;
 	axf->Init(&auth_ctx);
@@ -2552,7 +2552,7 @@ ccr_newsession(device_t dev, crypto_session_t cses,
 {
 	struct ccr_softc *sc;
 	struct ccr_session *s;
-	struct auth_hash *auth_hash;
+	const struct auth_hash *auth_hash;
 	unsigned int auth_mode, cipher_mode, mk_size;
 	unsigned int partial_digest_len;
 

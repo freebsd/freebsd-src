@@ -39,7 +39,7 @@ chacha20_xform_crypt_last(void *ctx, const uint8_t *in, uint8_t *out,
 	chacha_encrypt_bytes(ctx, in, out, len);
 }
 
-struct enc_xform enc_xform_chacha20 = {
+const struct enc_xform enc_xform_chacha20 = {
 	.type = CRYPTO_CHACHA20,
 	.name = "chacha20",
 	.ctxsize = sizeof(struct chacha_ctx),

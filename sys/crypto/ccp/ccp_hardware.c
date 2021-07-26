@@ -994,7 +994,7 @@ const struct SHA_Defn {
 	enum sha_version version;
 	const void *H_vectors;
 	size_t H_size;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	enum ccp_sha_type engine_type;
 } SHA_definitions[] = {
 	{
@@ -1206,7 +1206,7 @@ ccp_do_hmac_done(struct ccp_queue *qp, struct ccp_session *s,
 {
 	char ihash[SHA2_512_HASH_LEN /* max hash len */];
 	union authctx auth_ctx;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	axf = s->hmac.auth_hash;
 
@@ -1260,7 +1260,7 @@ ccp_do_hmac(struct ccp_queue *qp, struct ccp_session *s, struct cryptop *crp,
     const struct ccp_completion_ctx *cctx)
 {
 	device_t dev;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	int error;
 
 	dev = qp->cq_softc->dev;

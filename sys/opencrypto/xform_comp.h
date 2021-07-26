@@ -46,6 +46,6 @@ struct comp_algo {
 	uint32_t (*decompress) (uint8_t *, uint32_t, uint8_t **);
 };
 
-extern struct comp_algo comp_algo_deflate;
+extern const struct comp_algo comp_algo_deflate;
 
 #endif /* _CRYPTO_XFORM_COMP_H_ */

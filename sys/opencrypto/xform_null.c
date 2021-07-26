@@ -62,7 +62,7 @@ static	int null_update(void *, const void *, u_int);
 static	void null_final(uint8_t *, void *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_null = {
+const struct enc_xform enc_xform_null = {
 	.type = CRYPTO_NULL_CBC,
 	.name = "NULL",
 	/* NB: blocksize of 4 is to generate a properly aligned ESP header */
@@ -76,7 +76,7 @@ struct enc_xform enc_xform_null = {
 };
 
 /* Authentication instances */
-struct auth_hash auth_hash_null = {
+const struct auth_hash auth_hash_null = {
 	.type = CRYPTO_NULL_HMAC,
 	.name = "NULL-HMAC",
 	.keysize = 0,

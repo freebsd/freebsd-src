@@ -1308,7 +1308,8 @@ struct tls_keyctx;
 void t4_aes_getdeckey(void *, const void *, unsigned int);
 void t4_copy_partial_hash(int, union authctx *, void *);
 void t4_init_gmac_hash(const char *, int, char *);
-void t4_init_hmac_digest(struct auth_hash *, u_int, const char *, int, char *);
+void t4_init_hmac_digest(const struct auth_hash *, u_int, const char *, int,
+    char *);
 #ifdef KERN_TLS
 u_int t4_tls_key_info_size(const struct ktls_session *);
 int t4_tls_proto_ver(const struct ktls_session *);

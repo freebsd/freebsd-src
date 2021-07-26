@@ -58,7 +58,7 @@ static	int RMD160Update_int(void *, const void *, u_int);
 static	void RMD160Final_int(uint8_t *, void *);
 
 /* Authentication instances */
-struct auth_hash auth_hash_hmac_ripemd_160 = {
+const struct auth_hash auth_hash_hmac_ripemd_160 = {
 	.type = CRYPTO_RIPEMD160_HMAC,
 	.name = "HMAC-RIPEMD-160",
 	.keysize = RIPEMD160_BLOCK_LEN,

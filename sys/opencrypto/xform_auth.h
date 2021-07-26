@@ -51,7 +51,7 @@
 /* Declarations */
 struct auth_hash {
 	int type;
-	char *name;
+	const char *name;
 	uint16_t keysize;
 	uint16_t hashsize; 
 	uint16_t ctxsize;
@@ -63,28 +63,28 @@ struct auth_hash {
 	void (*Final) (uint8_t *, void *);
 };
 
-extern struct auth_hash auth_hash_null;
-extern struct auth_hash auth_hash_hmac_sha1;
-extern struct auth_hash auth_hash_hmac_ripemd_160;
-extern struct auth_hash auth_hash_hmac_sha2_224;
-extern struct auth_hash auth_hash_hmac_sha2_256;
-extern struct auth_hash auth_hash_hmac_sha2_384;
-extern struct auth_hash auth_hash_hmac_sha2_512;
-extern struct auth_hash auth_hash_sha1;
-extern struct auth_hash auth_hash_sha2_224;
-extern struct auth_hash auth_hash_sha2_256;
-extern struct auth_hash auth_hash_sha2_384;
-extern struct auth_hash auth_hash_sha2_512;
-extern struct auth_hash auth_hash_nist_gmac_aes_128;
-extern struct auth_hash auth_hash_nist_gmac_aes_192;
-extern struct auth_hash auth_hash_nist_gmac_aes_256;
-extern struct auth_hash auth_hash_blake2b;
-extern struct auth_hash auth_hash_blake2s;
-extern struct auth_hash auth_hash_poly1305;
-extern struct auth_hash auth_hash_ccm_cbc_mac_128;
-extern struct auth_hash auth_hash_ccm_cbc_mac_192;
-extern struct auth_hash auth_hash_ccm_cbc_mac_256;
-extern struct auth_hash auth_hash_chacha20_poly1305;
+extern const struct auth_hash auth_hash_null;
+extern const struct auth_hash auth_hash_hmac_sha1;
+extern const struct auth_hash auth_hash_hmac_ripemd_160;
+extern const struct auth_hash auth_hash_hmac_sha2_224;
+extern const struct auth_hash auth_hash_hmac_sha2_256;
+extern const struct auth_hash auth_hash_hmac_sha2_384;
+extern const struct auth_hash auth_hash_hmac_sha2_512;
+extern const struct auth_hash auth_hash_sha1;
+extern const struct auth_hash auth_hash_sha2_224;
+extern const struct auth_hash auth_hash_sha2_256;
+extern const struct auth_hash auth_hash_sha2_384;
+extern const struct auth_hash auth_hash_sha2_512;
+extern const struct auth_hash auth_hash_nist_gmac_aes_128;
+extern const struct auth_hash auth_hash_nist_gmac_aes_192;
+extern const struct auth_hash auth_hash_nist_gmac_aes_256;
+extern const struct auth_hash auth_hash_blake2b;
+extern const struct auth_hash auth_hash_blake2s;
+extern const struct auth_hash auth_hash_poly1305;
+extern const struct auth_hash auth_hash_ccm_cbc_mac_128;
+extern const struct auth_hash auth_hash_ccm_cbc_mac_192;
+extern const struct auth_hash auth_hash_ccm_cbc_mac_256;
+extern const struct auth_hash auth_hash_chacha20_poly1305;
 
 union authctx {
 	SHA1_CTX sha1ctx;
