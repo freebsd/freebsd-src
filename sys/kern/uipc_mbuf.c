@@ -719,7 +719,7 @@ m_dup(const struct mbuf *m, int how)
 		while (n->m_len < nsize && m != NULL) {
 			int chunk = min(nsize - n->m_len, m->m_len - moff);
 
-			bcopy(m->m_data + moff, n->m_data + n->m_len, chunk);
+			m_copydata(m, moff, chunk, n->m_data + n->m_len);
 			moff += chunk;
 			n->m_len += chunk;
 			remain -= chunk;
