@@ -82,7 +82,7 @@ blake2b_xform_final(uint8_t *out, void *vctx)
 		panic("blake2b_final: invalid");
 }
 
-struct auth_hash auth_hash_blake2b = {
+const struct auth_hash auth_hash_blake2b = {
 	.type = CRYPTO_BLAKE2B,
 	.name = "Blake2b",
 	.keysize = BLAKE2B_KEYBYTES,
@@ -150,7 +150,7 @@ blake2s_xform_final(uint8_t *out, void *vctx)
 		panic("blake2s_final: invalid");
 }
 
-struct auth_hash auth_hash_blake2s = {
+const struct auth_hash auth_hash_blake2s = {
 	.type = CRYPTO_BLAKE2S,
 	.name = "Blake2s",
 	.keysize = BLAKE2S_KEYBYTES,

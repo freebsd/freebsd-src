@@ -234,7 +234,7 @@ static void
 ccp_init_hmac_digest(struct ccp_session *s, const char *key, int klen)
 {
 	union authctx auth_ctx;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	u_int i;
 
 	/*
@@ -408,7 +408,7 @@ ccp_newsession(device_t dev, crypto_session_t cses,
 {
 	struct ccp_softc *sc;
 	struct ccp_session *s;
-	struct auth_hash *auth_hash;
+	const struct auth_hash *auth_hash;
 	enum ccp_aes_mode cipher_mode;
 	unsigned auth_mode;
 	unsigned q;

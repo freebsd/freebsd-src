@@ -37,7 +37,7 @@
 
 struct glxsb_session {
 	uint32_t	ses_key[4];		/* key */
-	struct auth_hash *ses_axf;
+	const struct auth_hash *ses_axf;
 	uint8_t		*ses_ictx;
 	uint8_t		*ses_octx;
 	int		ses_mlen;

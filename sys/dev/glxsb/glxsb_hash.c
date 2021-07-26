@@ -52,7 +52,7 @@ MALLOC_DECLARE(M_GLXSB);
 static void
 glxsb_hash_key_setup(struct glxsb_session *ses, const char *key, int klen)
 {
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	axf = ses->ses_axf;
 	hmac_init_ipad(axf, key, klen, ses->ses_ictx);
@@ -66,7 +66,7 @@ static int
 glxsb_authcompute(struct glxsb_session *ses, struct cryptop *crp)
 {
 	u_char hash[HASH_MAX_LEN];
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	union authctx ctx;
 	int error;
 

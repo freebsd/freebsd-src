@@ -59,7 +59,7 @@ static	void aes_xts_decrypt(void *, const uint8_t *, uint8_t *);
 static	void aes_xts_reinit(void *, const uint8_t *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_aes_xts = {
+const struct enc_xform enc_xform_aes_xts = {
 	.type = CRYPTO_AES_XTS,
 	.name = "AES-XTS",
 	.ctxsize = sizeof(struct aes_xts_ctx),

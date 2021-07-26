@@ -58,7 +58,7 @@ static	void cml_encrypt(void *, const uint8_t *, uint8_t *);
 static	void cml_decrypt(void *, const uint8_t *, uint8_t *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_camellia = {
+const struct enc_xform enc_xform_camellia = {
 	.type = CRYPTO_CAMELLIA_CBC,
 	.name = "Camellia-CBC",
 	.ctxsize = sizeof(camellia_ctx),

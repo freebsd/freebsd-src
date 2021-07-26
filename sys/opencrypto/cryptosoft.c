@@ -60,17 +60,17 @@ __FBSDID("$FreeBSD$");
 struct swcr_auth {
 	void		*sw_ictx;
 	void		*sw_octx;
-	struct auth_hash *sw_axf;
+	const struct auth_hash *sw_axf;
 	uint16_t	sw_mlen;
 };
 
 struct swcr_encdec {
 	void		*sw_kschedule;
-	struct enc_xform *sw_exf;
+	const struct enc_xform *sw_exf;
 };
 
 struct swcr_compdec {
-	struct comp_algo *sw_cxf;
+	const struct comp_algo *sw_cxf;
 };
 
 struct swcr_session {
@@ -103,8 +103,8 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	unsigned char iv[EALG_MAX_BLOCK_LEN], blk[EALG_MAX_BLOCK_LEN];
 	unsigned char *ivp, *nivp, iv2[EALG_MAX_BLOCK_LEN];
 	const struct crypto_session_params *csp;
+	const struct enc_xform *exf;
 	struct swcr_encdec *sw;
-	struct enc_xform *exf;
 	size_t inlen, outlen;
 	int i, blks, ivlen, resid;
 	struct crypto_buffer_cursor cc_in, cc_out;
@@ -278,7 +278,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 }
 
 static void
-swcr_authprepare(struct auth_hash *axf, struct swcr_auth *sw,
+swcr_authprepare(const struct auth_hash *axf, struct swcr_auth *sw,
     const uint8_t *key, int klen)
 {
 
@@ -313,7 +313,7 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 	u_char aalg[HASH_MAX_LEN];
 	const struct crypto_session_params *csp;
 	struct swcr_auth *sw;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	union authctx ctx;
 	int err;
 
@@ -389,7 +389,7 @@ swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
 	const u_char *inblk;
 	union authctx ctx;
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	uint32_t *blkp;
 	size_t len;
 	int blksz, error, ivlen, resid;
@@ -468,8 +468,8 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	union authctx ctx;
 	struct swcr_auth *swa;
 	struct swcr_encdec *swe;
-	struct auth_hash *axf;
-	struct enc_xform *exf;
+	const struct auth_hash *axf;
+	const struct enc_xform *exf;
 	uint32_t *blkp;
 	size_t len;
 	int blksz, error, ivlen, r, resid;
@@ -645,7 +645,7 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	u_char iv[AES_BLOCK_LEN];
 	union authctx ctx;
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 	int error, ivlen;
 
 	swa = &ses->swcr_auth;
@@ -706,8 +706,8 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	union authctx ctx;
 	struct swcr_auth *swa;
 	struct swcr_encdec *swe;
-	struct auth_hash *axf;
-	struct enc_xform *exf;
+	const struct auth_hash *axf;
+	const struct enc_xform *exf;
 	size_t len;
 	int blksz, error, ivlen, r, resid;
 
@@ -875,8 +875,8 @@ swcr_chacha20_poly1305(struct swcr_session *ses, struct cryptop *crp)
 	union authctx ctx;
 	struct swcr_auth *swa;
 	struct swcr_encdec *swe;
-	struct auth_hash *axf;
-	struct enc_xform *exf;
+	const struct auth_hash *axf;
+	const struct enc_xform *exf;
 	size_t len;
 	int blksz, error, r, resid;
 
@@ -1046,8 +1046,8 @@ swcr_eta(struct swcr_session *ses, struct cryptop *crp)
 static int
 swcr_compdec(struct swcr_session *ses, struct cryptop *crp)
 {
+	const struct comp_algo *cxf;
 	uint8_t *data, *out;
-	struct comp_algo *cxf;
 	int adj;
 	uint32_t result;
 
@@ -1131,7 +1131,7 @@ swcr_setup_cipher(struct swcr_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_encdec *swe;
-	struct enc_xform *txf;
+	const struct enc_xform *txf;
 	int error;
 
 	swe = &ses->swcr_encdec;
@@ -1158,7 +1158,7 @@ swcr_setup_auth(struct swcr_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	swa = &ses->swcr_auth;
 
@@ -1242,7 +1242,7 @@ swcr_setup_gcm(struct swcr_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	if (csp->csp_ivlen != AES_GCM_IV_LEN)
 		return (EINVAL);
@@ -1286,7 +1286,7 @@ swcr_setup_ccm(struct swcr_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	if (csp->csp_ivlen != AES_CCM_IV_LEN)
 		return (EINVAL);
@@ -1330,7 +1330,7 @@ swcr_setup_chacha20_poly1305(struct swcr_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct swcr_auth *swa;
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	if (csp->csp_ivlen != CHACHA20_POLY1305_IV_LEN)
 		return (EINVAL);
@@ -1355,7 +1355,7 @@ swcr_setup_chacha20_poly1305(struct swcr_session *ses,
 static bool
 swcr_auth_supported(const struct crypto_session_params *csp)
 {
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	axf = crypto_auth_hash(csp);
 	if (axf == NULL)
@@ -1408,7 +1408,7 @@ swcr_auth_supported(const struct crypto_session_params *csp)
 static bool
 swcr_cipher_supported(const struct crypto_session_params *csp)
 {
-	struct enc_xform *txf;
+	const struct enc_xform *txf;
 
 	txf = crypto_cipher(csp);
 	if (txf == NULL)
@@ -1496,7 +1496,7 @@ swcr_newsession(device_t dev, crypto_session_t cses,
 	struct swcr_session *ses;
 	struct swcr_encdec *swe;
 	struct swcr_auth *swa;
-	struct comp_algo *cxf;
+	const struct comp_algo *cxf;
 	int error;
 
 	ses = crypto_get_driver_session(cses);

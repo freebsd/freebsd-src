@@ -58,7 +58,7 @@ xform_Poly1305_Final(uint8_t *digest, void *ctx)
 		panic("%s: Invariant violated: %d", __func__, rc);
 }
 
-struct auth_hash auth_hash_poly1305 = {
+const struct auth_hash auth_hash_poly1305 = {
 	.type = CRYPTO_POLY1305,
 	.name = "Poly-1305",
 	.keysize = POLY1305_KEY_LEN,

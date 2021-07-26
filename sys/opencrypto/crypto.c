@@ -489,7 +489,7 @@ crypto_get_params(crypto_session_t crypto_session)
 	return (&crypto_session->csp);
 }
 
-struct auth_hash *
+const struct auth_hash *
 crypto_auth_hash(const struct crypto_session_params *csp)
 {
 
@@ -551,7 +551,7 @@ crypto_auth_hash(const struct crypto_session_params *csp)
 	}
 }
 
-struct enc_xform *
+const struct enc_xform *
 crypto_cipher(const struct crypto_session_params *csp)
 {
 
@@ -719,7 +719,7 @@ alg_is_aead(int alg)
 static bool
 check_csp(const struct crypto_session_params *csp)
 {
-	struct auth_hash *axf;
+	const struct auth_hash *axf;
 
 	/* Mode-independent checks. */
 	if ((csp->csp_flags & ~(SUPPORTED_SES)) != 0)

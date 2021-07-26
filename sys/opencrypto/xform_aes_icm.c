@@ -60,7 +60,7 @@ static	void aes_gcm_reinit(void *, const uint8_t *);
 static	void aes_ccm_reinit(void *, const uint8_t *);
 
 /* Encryption instances */
-struct enc_xform enc_xform_aes_icm = {
+const struct enc_xform enc_xform_aes_icm = {
 	.type = CRYPTO_AES_ICM,
 	.name = "AES-ICM",
 	.ctxsize = sizeof(struct aes_icm_ctx),
@@ -77,7 +77,7 @@ struct enc_xform enc_xform_aes_icm = {
 	.decrypt_last = aes_icm_crypt_last,
 };
 
-struct enc_xform enc_xform_aes_nist_gcm = {
+const struct enc_xform enc_xform_aes_nist_gcm = {
 	.type = CRYPTO_AES_NIST_GCM_16,
 	.name = "AES-GCM",
 	.ctxsize = sizeof(struct aes_icm_ctx),
@@ -94,7 +94,7 @@ struct enc_xform enc_xform_aes_nist_gcm = {
 	.decrypt_last = aes_icm_crypt_last,
 };
 
-struct enc_xform enc_xform_ccm = {
+const struct enc_xform enc_xform_ccm = {
 	.type = CRYPTO_AES_CCM_16,
 	.name = "AES-CCM",
 	.ctxsize = sizeof(struct aes_icm_ctx),

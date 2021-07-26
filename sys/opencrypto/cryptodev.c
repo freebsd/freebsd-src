@@ -262,7 +262,7 @@ struct csession {
 	uint32_t	ses;
 	struct mtx	lock;		/* for op submission */
 
-	struct enc_xform *txform;
+	const struct enc_xform *txform;
 	int		hashsize;
 	int		ivsize;
 	int		mode;
@@ -328,8 +328,8 @@ cse_create(struct fcrypt *fcr, struct session2_op *sop)
 {
 	struct crypto_session_params csp;
 	struct csession *cse;
-	struct enc_xform *txform;
-	struct auth_hash *thash;
+	const struct enc_xform *txform;
+	const struct auth_hash *thash;
 	void *key = NULL;
 	void *mackey = NULL;
 	crypto_session_t cses;

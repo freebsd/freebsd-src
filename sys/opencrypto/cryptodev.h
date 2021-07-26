@@ -589,8 +589,8 @@ uint32_t crypto_ses2caps(crypto_session_t crypto_session);
 void *crypto_get_driver_session(crypto_session_t crypto_session);
 const struct crypto_session_params *crypto_get_params(
     crypto_session_t crypto_session);
-struct auth_hash *crypto_auth_hash(const struct crypto_session_params *csp);
-struct enc_xform *crypto_cipher(const struct crypto_session_params *csp);
+const struct auth_hash *crypto_auth_hash(const struct crypto_session_params *csp);
+const struct enc_xform *crypto_cipher(const struct crypto_session_params *csp);
 
 MALLOC_DECLARE(M_CRYPTO_DATA);
 

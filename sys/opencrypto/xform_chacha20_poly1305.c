@@ -84,7 +84,7 @@ chacha20_poly1305_crypt_last(void *vctx, const uint8_t *in, uint8_t *out,
 	KASSERT(error == 0, ("%s failed: %d", __func__, error));
 }
 
-struct enc_xform enc_xform_chacha20_poly1305 = {
+const struct enc_xform enc_xform_chacha20_poly1305 = {
 	.type = CRYPTO_CHACHA20_POLY1305,
 	.name = "ChaCha20-Poly1305",
 	.ctxsize = sizeof(struct chacha20_poly1305_cipher_ctx),
@@ -148,7 +148,7 @@ chacha20_poly1305_Final(uint8_t *digest, void *vctx)
 	crypto_onetimeauth_poly1305_final(&ctx->state, digest);
 }
 
-struct auth_hash auth_hash_chacha20_poly1305 = {
+const struct auth_hash auth_hash_chacha20_poly1305 = {
 	.type = CRYPTO_POLY1305,
 	.name = "ChaCha20-Poly1305",
 	.keysize = POLY1305_KEY_LEN,
