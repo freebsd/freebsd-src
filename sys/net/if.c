@@ -2746,6 +2746,9 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EINVAL);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
+		/* Disallow MTU changes on bridge member interfaces. */
+		if (ifp->if_bridge)
+			return (EOPNOTSUPP);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
