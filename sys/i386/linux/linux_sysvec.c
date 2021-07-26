@@ -441,7 +441,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
-	frame.sf_sc.uc_stack.ss_sp = td->td_sigstk.ss_sp;
+	frame.sf_sc.uc_stack.ss_sp = PTROUT(td->td_sigstk.ss_sp);
 	frame.sf_sc.uc_stack.ss_size = td->td_sigstk.ss_size;
 	frame.sf_sc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
@@ -751,7 +751,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 
 	/* Call sigaltstack & ignore results. */
 	lss = &uc.uc_stack;
-	ss.ss_sp = lss->ss_sp;
+	ss.ss_sp = PTRIN(lss->ss_sp);
 	ss.ss_size = lss->ss_size;
 	ss.ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 

@@ -55,7 +55,6 @@ LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 /* DTrace probes */
 LIN_SDT_PROBE_DEFINE0(machdep, linux_mmap2, todo);
-LIN_SDT_PROBE_DEFINE0(machdep, linux_sigaltstack, todo);
 
 /*
  * LINUXTODO: deduplicate; linux_execve is common across archs, except that on
@@ -121,15 +120,6 @@ linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 
 	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
-}
-
-/* LINUXTODO: implement arm64 linux_sigaltstack */
-int
-linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
-{
-
-	LIN_SDT_PROBE0(machdep, linux_sigaltstack, todo);
-	return (EDOOFUS);
 }
 
 int
