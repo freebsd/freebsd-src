@@ -577,6 +577,11 @@ mtu_body()
 	check_mtu ${bridge} 2000
 	check_mtu ${gif} 2000
 	check_mtu ${epair}a 2000
+
+	# We're not allowed to change the MTU of a member interface
+	atf_check -s exit:1 -e ignore \
+		ifconfig ${epair}a mtu 1900
+	check_mtu ${epair}a 2000
 }
 
 mtu_cleanup()
