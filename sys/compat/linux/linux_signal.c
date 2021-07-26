@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
@@ -182,6 +183,37 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 		bsd_to_linux_sigaction(osa, linux_osa);
 
 	return (0);
+}
+
+int
+linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
+{
+	stack_t ss, oss;
+	l_stack_t lss;
+	int error;
+
+	memset(&lss, 0, sizeof(lss));
+	LINUX_CTR2(sigaltstack, "%p, %p", uap->uss, uap->uoss);
+
+	if (uap->uss != NULL) {
+		error = copyin(uap->uss, &lss, sizeof(l_stack_t));
+		if (error != 0)
+			return (error);
+
+		ss.ss_sp = PTRIN(lss.ss_sp);
+		ss.ss_size = lss.ss_size;
+		ss.ss_flags = linux_to_bsd_sigaltstack(lss.ss_flags);
+	}
+	error = kern_sigaltstack(td, (uap->uss != NULL) ? &ss : NULL,
+	    (uap->uoss != NULL) ? &oss : NULL);
+	if (error == 0 && uap->uoss != NULL) {
+		lss.ss_sp = PTROUT(oss.ss_sp);
+		lss.ss_size = oss.ss_size;
+		lss.ss_flags = bsd_to_linux_sigaltstack(oss.ss_flags);
+		error = copyout(&lss, uap->uoss, sizeof(l_stack_t));
+	}
+
+	return (error);
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
