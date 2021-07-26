@@ -485,7 +485,7 @@ variable fd
 get-current ( -- wid ) previous definitions >search ( wid -- )
 
 : reset_line_reading
-  0 read_buffer .len !
+  0 to read_buffer_ptr
 ;
 
 : read_line
