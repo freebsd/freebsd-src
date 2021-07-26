@@ -630,9 +630,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	LINUX_CTR4(rt_sendsig, "%p, %d, %p, %u",
 	    catcher, sig, mask, code);
 
-	/* Translate the signal. */
-	sig = bsd_to_linux_signal(sig);
-
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	bsd_to_linux_sigset(mask, &sf.sf_sc.uc_sigmask);
@@ -675,6 +672,9 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sp = (caddr_t)regs->tf_rsp - sizeof(struct l_rt_sigframe) - 128;
 	/* Align to 16 bytes. */
 	sfp = (struct l_rt_sigframe *)((unsigned long)sp & ~0xFul);
+
+	/* Translate the signal. */
+	sig = bsd_to_linux_signal(sig);
 
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
