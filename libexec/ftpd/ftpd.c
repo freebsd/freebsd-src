@@ -3345,6 +3345,7 @@ setproctitle(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
 
 	/* make ps print our process name */
 	p = Argv[0];
