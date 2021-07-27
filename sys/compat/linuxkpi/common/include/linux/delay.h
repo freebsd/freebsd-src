@@ -73,4 +73,14 @@ usleep_range(unsigned long min, unsigned long max)
 
 extern unsigned int linux_msleep_interruptible(unsigned int ms);
 
+static inline void
+fsleep(unsigned long us)
+{
+
+	if (us < 10)
+		udelay(us);
+	else
+		usleep_range(us, us);
+}
+
 #endif	/* _LINUX_DELAY_H_ */
