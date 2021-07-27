@@ -947,7 +947,12 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	io_old = NULL;
 #endif
 
-	if (!(flag & FWRITE)) {
+	/*
+	 * Interpret read-only opened /dev/pci as a promise that no
+	 * operation of the file descriptor could modify system state,
+	 * including side-effects due to reading devices registers.
+	 */
+	if ((flag & FWRITE) == 0) {
 		switch (cmd) {
 		case PCIOCGETCONF:
 #ifdef COMPAT_FREEBSD32
