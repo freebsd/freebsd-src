@@ -86,6 +86,9 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 	struct mbuf *m;
 	unsigned short hlen;
 
+	if (pcb->dp_state < DN_STATE_HAVE_GW_MAC)
+		return;
+
 	/* IP processing. */
 	m = *mb;
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
@@ -347,13 +350,19 @@ debugnet_handle_arp(struct debugnet_pcb *pcb, struct mbuf **mb)
 			    " server or gateway)\n", buf);
 			return;
 		}
+		if (pcb->dp_state >= DN_STATE_HAVE_GW_MAC) {
+			inet_ntoa_r(isaddr, buf);
+			DNETDEBUG("ignoring server ARP reply from %s (already"
+			    " have gateway address)\n", buf);
+			return;
+		}
+		MPASS(pcb->dp_state == DN_STATE_INIT);
 		memcpy(pcb->dp_gw_mac.octet, ar_sha(ah),
 		    min(ah->ar_hln, ETHER_ADDR_LEN));
 		
 		DNETDEBUG("got server MAC address %6D\n",
 		    pcb->dp_gw_mac.octet, ":");
 
-		MPASS(pcb->dp_state == DN_STATE_INIT);
 		pcb->dp_state = DN_STATE_HAVE_GW_MAC;
 		return;
 	}
