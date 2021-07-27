@@ -205,10 +205,6 @@ int	swaitmax = SWAITMAX;
 int	swaitint = SWAITINT;
 
 #ifdef SETPROCTITLE
-#ifdef OLD_SETPROCTITLE
-char	**Argv = NULL;		/* pointer to argument vector */
-char	*LastArgv = NULL;	/* end of argv */
-#endif /* OLD_SETPROCTITLE */
 char	proctitle[LINE_MAX];	/* initial part of title */
 #endif /* SETPROCTITLE */
 
@@ -279,16 +275,6 @@ main(int argc, char *argv[], char **envp)
 	tzset();		/* in case no timezone database in ~ftp */
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
-
-#ifdef OLD_SETPROCTITLE
-	/*
-	 *  Save start and extent of argv for setproctitle.
-	 */
-	Argv = argv;
-	while (*envp)
-		envp++;
-	LastArgv = envp[-1] + strlen(envp[-1]);
-#endif /* OLD_SETPROCTITLE */
 
 	/*
 	 * Prevent diagnostic messages from appearing on stderr.
@@ -3328,41 +3314,6 @@ reapchild(int signo)
 {
 	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
-
-#ifdef OLD_SETPROCTITLE
-/*
- * Clobber argv so ps will show what we're doing.  (Stolen from sendmail.)
- * Warning, since this is usually started from inetd.conf, it often doesn't
- * have much of an environment or arglist to overwrite.
- */
-void
-setproctitle(const char *fmt, ...)
-{
-	int i;
-	va_list ap;
-	char *p, *bp, ch;
-	char buf[LINE_MAX];
-
-	va_start(ap, fmt);
-	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
-
-	/* make ps print our process name */
-	p = Argv[0];
-	*p++ = '-';
-
-	i = strlen(buf);
-	if (i > LastArgv - p - 2) {
-		i = LastArgv - p - 2;
-		buf[i] = '\0';
-	}
-	bp = buf;
-	while (ch = *bp++)
-		if (ch != '\n' && ch != '\r')
-			*p++ = ch;
-	while (p < LastArgv)
-		*p++ = ' ';
-}
-#endif /* OLD_SETPROCTITLE */
 
 static void
 appendf(char **strp, char *fmt, ...)
