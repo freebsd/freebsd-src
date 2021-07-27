@@ -27,6 +27,18 @@
  *
  */
 
+/*
+ * Marvell/Cavium ThunderX vnic/bgx network controller
+ *
+ * UNIMPLEMENTED FEATURES
+ * ----------------------
+ * A number of features supported by the hardware are not yet implemented in
+ * this driver:
+ *
+ * - PR223573 multicast rx filter
+ * - PR223575 non-promiscuous mode (driver currently forces promisc)
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
