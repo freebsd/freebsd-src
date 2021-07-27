@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2019
+.Dd July 27, 2021
 .Dt PCI 4
 .Os
 .Sh NAME
 .Nm pci
-.Nd generic PCI bus driver
+.Nd generic PCI/PCIe bus driver
 .Sh SYNOPSIS
 To compile the PCI bus driver into the kernel,
 place the following line in your
@@ -53,6 +53,8 @@ The
 .Nm
 driver provides support for
 .Tn PCI
+and
+.Tn PCIe
 devices in the kernel and limited access to
 .Tn PCI
 devices for userland.
@@ -80,6 +82,15 @@ granting access to the
 device.
 If used improperly, this driver can allow userland applications to
 crash a machine or cause data loss.
+In particular, driver only allows operations on the opened
+.Pa /dev/pci
+to modify system state if the file descriptor was opened for writing.
+For instance, the
+.Dv PCIOCREAD
+and
+.Dv PCIOCBARMMAP
+operations require a writeable descriptor, because reading a config register
+or a BAR read access could have function-specific side-effects.
 .Pp
 The
 .Nm
