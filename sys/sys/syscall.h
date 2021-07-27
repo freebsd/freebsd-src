@@ -376,6 +376,8 @@
 #define	SYS_thr_exit	431
 #define	SYS_thr_self	432
 #define	SYS_thr_kill	433
+#define	SYS_freebsd10__umtx_lock	434
+#define	SYS_freebsd10__umtx_unlock	435
 #define	SYS_jail_attach	436
 #define	SYS_extattr_list_fd	437
 #define	SYS_extattr_list_file	438
