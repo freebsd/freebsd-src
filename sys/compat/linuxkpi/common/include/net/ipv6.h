@@ -38,6 +38,11 @@
 
 #define	IPV6_DEFAULT_HOPLIMIT 64
 
+#define	NEXTHDR_HOP		IPPROTO_HOPOPTS
+#define	NEXTHDR_ROUTING		IPPROTO_ROUTING
+#define	NEXTHDR_NONE		IPPROTO_NONE
+#define	NEXTHDR_DEST		IPPROTO_DSTOPTS
+
 #define	ipv6_addr_loopback(addr) IN6_IS_ADDR_LOOPBACK(addr)
 #define	ipv6_addr_any(addr) IN6_IS_ADDR_UNSPECIFIED(addr)
 
