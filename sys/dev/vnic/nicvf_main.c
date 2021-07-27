@@ -485,7 +485,7 @@ nicvf_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				if ((flags ^ nic->if_flags) & IFF_PROMISC) {
 					/* Change promiscous mode */
-#if 0 /* XXX* /
+#if 0 /* XXX */
 					nicvf_set_promiscous(nic);
 #endif
 				}
