@@ -122,6 +122,27 @@ METHOD ACPI_STATUS evaluate_object {
 };
 
 #
+# Get property value from Device Specific Data
+#
+# device_t bus:  parent bus for the device
+#
+# device_t dev:  find property for this device's handle.
+#
+# const ACPI_STRING propname: name of the property
+#
+# const ACPI_OBJECT **value: property value output
+#   Specify NULL if ignored
+#
+# Returns:  AE_OK or an error value
+#
+METHOD ACPI_STATUS get_property {
+	device_t	bus;
+	device_t	dev;
+	ACPI_STRING 	propname;
+	const ACPI_OBJECT	**value;
+};
+
+#
 # Get the highest power state (D0-D3) that is usable for a device when
 # suspending/resuming.  If a bus calls this when suspending a device, it
 # must also call it when resuming.
