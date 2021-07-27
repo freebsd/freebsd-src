@@ -47,7 +47,6 @@ linux_vdso.so			optional	compat_linux		\
 	no-implicit-rule						\
 	clean		"linux_vdso.so"
 #
-cddl/contrib/opensolaris/common/atomic/i386/opensolaris_atomic.S	optional zfs | dtrace compile-with "${ZFS_S}"
 cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
