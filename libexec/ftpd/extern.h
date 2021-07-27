@@ -59,9 +59,6 @@ char   *renamefrom(char *);
 void	reply(int, const char *, ...) __printflike(2, 3);
 void	retrieve(char *, char *);
 void	send_file_list(char *);
-#ifdef OLD_SETPROCTITLE
-void	setproctitle(const char *, ...);
-#endif
 void	statcmd(void);
 void	statfilecmd(char *);
 void	store(char *, char *, int);
