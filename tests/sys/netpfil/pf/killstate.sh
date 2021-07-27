@@ -426,7 +426,7 @@ match_body()
 	wait_for_state alcatraz 192.0.2.1
 
 	# Expect two states
-	states=$(jexec alcatraz pfctl -s s | wc -l)
+	states=$(jexec alcatraz pfctl -s s | grep 192.0.2.1 | wc -l)
 	if [ $states -ne 2 ] ;
 	then
 		atf_fail "Expected two states, found $states"
@@ -434,7 +434,7 @@ match_body()
 
 	# If we don't kill the matching NAT state one should be left
 	jexec alcatraz pfctl -k 192.0.2.1
-	states=$(jexec alcatraz pfctl -s s | wc -l)
+	states=$(jexec alcatraz pfctl -s s | grep 192.0.2.1 | wc -l)
 	if [ $states -ne 1 ] ;
 	then
 		atf_fail "Expected one states, found $states"
@@ -448,7 +448,7 @@ match_body()
 
 	# Kill matching states, expect all of them to be gone
 	jexec alcatraz pfctl -M -k 192.0.2.1
-	states=$(jexec alcatraz pfctl -s s | wc -l)
+	states=$(jexec alcatraz pfctl -s s | grep 192.0.2.1 | wc -l)
 	if [ $states -ne 0 ] ;
 	then
 		atf_fail "Expected zero states, found $states"
