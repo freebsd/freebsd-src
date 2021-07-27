@@ -1193,6 +1193,12 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
+struct freebsd10_freebsd32_umtx_lock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
+struct freebsd10_freebsd32_umtx_unlock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
 #ifdef PAD64_REQUIRED
 #else
 #endif
@@ -1209,6 +1215,8 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 #else
 #endif
 int	freebsd10_freebsd32_pipe(struct thread *, struct freebsd10_freebsd32_pipe_args *);
+int	freebsd10_freebsd32_umtx_lock(struct thread *, struct freebsd10_freebsd32_umtx_lock_args *);
+int	freebsd10_freebsd32_umtx_unlock(struct thread *, struct freebsd10_freebsd32_umtx_unlock_args *);
 
 #endif /* COMPAT_FREEBSD10 */
 
@@ -1414,6 +1422,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_getcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_setcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_swapcontext	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32_umtx_lock	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd10_freebsd32_umtx_unlock	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_ksem_timedwait	AUE_SEMWAIT
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_suspend	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32__umtx_op	AUE_NULL
