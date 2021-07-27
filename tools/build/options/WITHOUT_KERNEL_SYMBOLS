@@ -1,5 +1,2 @@
 .\" $FreeBSD$
-Set to not install kernel symbol files.
-.Bf -symbolic
-This option is recommended for those people who have small root partitions.
-.Ef
+Do not install kernel debug symbol files.
