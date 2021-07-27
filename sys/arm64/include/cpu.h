@@ -93,6 +93,7 @@
 #define	CPU_PART_NEOVERSE_N1	0xD0C
 #define	CPU_PART_CORTEX_A77	0xD0D
 #define	CPU_PART_CORTEX_A76AE	0xD0E
+#define	CPU_PART_AEM_V8		0xD0F
 
 /* Cavium Part numbers */
 #define	CPU_PART_THUNDERX	0x0A1
