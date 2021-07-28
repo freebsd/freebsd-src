@@ -214,6 +214,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 				if (sbappendaddr(&last->inp_socket->so_rcv,
 						(struct sockaddr *)&fromsa,
 						 n, opts) == 0) {
+					soroverflow(last->inp_socket);
 					m_freem(n);
 					if (opts)
 						m_freem(opts);
@@ -325,6 +326,7 @@ skip_2:
 		m_adj(m, *offp);
 		if (sbappendaddr(&last->inp_socket->so_rcv,
 		    (struct sockaddr *)&fromsa, m, opts) == 0) {
+			soroverflow(last->inp_socket);
 			m_freem(m);
 			if (opts)
 				m_freem(opts);

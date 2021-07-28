@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2020
+.Dd February 8, 2021
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -177,6 +177,7 @@ for the socket
 .It Dv SO_PROTOCOL Ta "get the protocol number for the socket (get only)"
 .It Dv SO_PROTOTYPE Ta "SunOS alias for the Linux SO_PROTOCOL (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
+.It Dv SO_RERROR Ta "enables receive error reporting"
 .It Dv SO_SETFIB Ta "set the associated FIB (routing table) for the socket (set only)"
 .El
 .Pp
@@ -514,6 +515,13 @@ returns any pending error on the socket and clears
 the error status.
 It may be used to check for asynchronous errors on connected
 datagram sockets or for other asynchronous errors.
+.Dv SO_RERROR
+indicates that receive buffer overflows should be handled as errors.
+Historically receive buffer overflows have been ignored and programs
+could not tell if they missed messages or messages had been truncated
+because of overflows.
+Since programs historically do not expect to get receive overflow errors,
+this behavior is not the default.
 .Pp
 .Dv SO_LABEL
 returns the MAC label of the socket.
