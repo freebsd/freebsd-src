@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
@@ -88,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elan_mmcr.h>
 #endif
 #include <x86/acpica_machdep.h>
+#include <x86/ifunc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -1420,4 +1422,18 @@ acpi_get_fadt_bootflags(uint16_t *flagsp)
 #else
 	return (false);
 #endif
+}
+
+DEFINE_IFUNC(, uint64_t, rdtsc_ordered, (void), static)
+{
+	bool cpu_is_amd = cpu_vendor_id == CPU_VENDOR_AMD ||
+	    cpu_vendor_id == CPU_VENDOR_HYGON;
+
+	if ((amd_feature & AMDID_RDTSCP) != 0)
+		return (rdtscp);
+	else if ((cpu_feature & CPUID_SSE2) != 0)
+		return (cpu_is_amd ? rdtsc_ordered_mfence :
+		    rdtsc_ordered_lfence);
+	else
+		return (rdtsc);
 }

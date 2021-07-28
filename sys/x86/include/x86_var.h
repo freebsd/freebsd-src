@@ -159,6 +159,7 @@ int	pti_get_default(void);
 int	user_dbreg_trap(register_t dr6);
 int	minidumpsys(struct dumperinfo *);
 struct pcb *get_pcb_td(struct thread *td);
+uint64_t rdtsc_ordered(void);
 
 #define	MSR_OP_ANDNOT		0x00000001
 #define	MSR_OP_OR		0x00000002
