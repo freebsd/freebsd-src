@@ -240,6 +240,21 @@ cli["show-module-options"] = function()
 	pager.close()
 end
 
+cli["disable-device"] = function(...)
+	local _, argv = cli.arguments(...)
+	local d, u
+
+	if #argv == 0 then
+		print("usage error: disable-device device")
+		return
+	end
+
+	d, u = string.match(argv[1], "(%w*%a)(%d+)")
+	if d ~= nil then
+		loader.setenv("hint." .. d .. "." .. u .. ".disabled", "1")
+	end
+end
+
 -- Used for splitting cli varargs into cmd_name and the rest of argv
 function cli.arguments(...)
 	local argv = {...}
