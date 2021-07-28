@@ -395,6 +395,20 @@ rdtsc(void)
 }
 
 static __inline uint64_t
+rdtsc_ordered_lfence(void)
+{
+	lfence();
+	return (rdtsc());
+}
+
+static __inline uint64_t
+rdtsc_ordered_mfence(void)
+{
+	mfence();
+	return (rdtsc());
+}
+
+static __inline uint64_t
 rdtscp(void)
 {
 	uint64_t rv;
