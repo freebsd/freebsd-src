@@ -829,6 +829,12 @@ x86topo_add_sched_group(struct topo_node *root, struct cpu_group *cg_root)
 		node = topo_next_nonchild_node(root, node);
 	}
 
+	/*
+	 * We are not interested in nodes including only one CPU each.
+	 */
+	if (nchildren == root->cpu_count)
+		return;
+
 	cg_root->cg_child = smp_topo_alloc(nchildren);
 	cg_root->cg_children = nchildren;
 
