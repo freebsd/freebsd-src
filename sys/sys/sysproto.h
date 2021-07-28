@@ -284,11 +284,11 @@ struct mincore_args {
 	char vec_l_[PADL_(char *)]; char * vec; char vec_r_[PADR_(char *)];
 };
 struct getgroups_args {
-	char gidsetsize_l_[PADL_(u_int)]; u_int gidsetsize; char gidsetsize_r_[PADR_(u_int)];
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
 	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
 };
 struct setgroups_args {
-	char gidsetsize_l_[PADL_(u_int)]; u_int gidsetsize; char gidsetsize_r_[PADR_(u_int)];
+	char gidsetsize_l_[PADL_(int)]; int gidsetsize; char gidsetsize_r_[PADR_(int)];
 	char gidset_l_[PADL_(gid_t *)]; gid_t * gidset; char gidset_r_[PADR_(gid_t *)];
 };
 struct getpgrp_args {
@@ -2573,7 +2573,15 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 
 #ifdef COMPAT_FREEBSD10
 
+struct freebsd10__umtx_lock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
+struct freebsd10__umtx_unlock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
 int	freebsd10_pipe(struct thread *, struct freebsd10_pipe_args *);
+int	freebsd10__umtx_lock(struct thread *, struct freebsd10__umtx_lock_args *);
+int	freebsd10__umtx_unlock(struct thread *, struct freebsd10__umtx_unlock_args *);
 
 #endif /* COMPAT_FREEBSD10 */
 
@@ -3040,6 +3048,8 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_thr_exit	AUE_THR_EXIT
 #define	SYS_AUE_thr_self	AUE_NULL
 #define	SYS_AUE_thr_kill	AUE_THR_KILL
+#define	SYS_AUE_freebsd10__umtx_lock	AUE_NULL
+#define	SYS_AUE_freebsd10__umtx_unlock	AUE_NULL
 #define	SYS_AUE_jail_attach	AUE_JAIL_ATTACH
 #define	SYS_AUE_extattr_list_fd	AUE_EXTATTR_LIST_FD
 #define	SYS_AUE_extattr_list_file	AUE_EXTATTR_LIST_FILE
