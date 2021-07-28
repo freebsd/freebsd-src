@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2020
+.Dd July 24, 2021
 .Dt CLI.LUA 8
 .Os
 .Sh NAME
@@ -91,9 +91,11 @@ module provides the following default commands:
 .It
 .Ic reload-conf
 .It
-.Ic enable-module
+.Ic device-disable
 .It
 .Ic disable-module
+.It
+.Ic enable-module
 .It
 .Ic toggle-module
 .It
@@ -131,6 +133,10 @@ The
 .Ic show-module-options
 command will dump the list of modules that loader has been made aware of and
 any applicable options using paged output.
+.Pp
+The
+.Ic device-disable
+command sets the environment variable that disables the device argument.
 .Ss Exported Functions
 The following functions are exported from
 .Nm :
