@@ -3166,6 +3166,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 	struct vattr va;
 	int ret, error;
 	u_quad_t size;
+	struct nfsmount *nmp;
 
 	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error != 0)
@@ -3194,6 +3195,22 @@ nfs_advlock(struct vop_advlock_args *ap)
 		    nfscl_checkwritelocked(vp, ap->a_fl, cred, td, ap->a_id,
 		    ap->a_flags))
 			(void) ncl_flush(vp, MNT_WAIT, td, 1, 0);
+
+		/*
+		 * Mark NFS node as might have acquired a lock.
+		 * This is separate from NHASBEENLOCKED, because it must
+		 * be done before the nfsrpc_advlock() call, which might
+		 * add a nfscllock structure to the client state.
+		 * It is used to check for the case where a nfscllock
+		 * state structure cannot exist for the file.
+		 * Only done for "oneopenown" NFSv4.1/4.2 mounts.
+		 */
+		nmp = VFSTONFS(vp->v_mount);
+		if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp)) {
+			NFSLOCKNODE(np);
+			np->n_flag |= NMIGHTBELOCKED;
+			NFSUNLOCKNODE(np);
+		}
 
 		/*
 		 * Loop around doing the lock op, while a blocking lock

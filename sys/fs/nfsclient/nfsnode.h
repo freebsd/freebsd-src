@@ -128,6 +128,7 @@ struct nfsnode {
 	u_int64_t		 n_change;	/* old Change attribute */
 	struct nfsv4node	*n_v4;		/* extra V4 stuff */
 	struct ucred		*n_writecred;	/* Cred. for putpages */
+	struct nfsclopen	*n_openstateid;	/* Cached open stateid */
 };
 
 #define	n_atim		n_un1.nf_atim
@@ -164,6 +165,7 @@ struct nfsnode {
 #define	NHASBEENLOCKED	0x00080000  /* Has been file locked. */
 #define	NDSCOMMIT	0x00100000  /* Commit is done via the DS. */
 #define	NVNSETSZSKIP	0x00200000  /* Skipped vnode_pager_setsize() */
+#define	NMIGHTBELOCKED	0x00400000  /* Might be file locked. */
 
 /*
  * Convert between nfsnode pointers and vnode pointers
