@@ -147,6 +147,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_NO_OFFLOAD	0x00004000	/* socket cannot be offloaded */
 #define	SO_NO_DDP	0x00008000	/* disable direct data placement */
 #define	SO_REUSEPORT_LB	0x00010000	/* reuse with load balancing */
+#define	SO_RERROR	0x00020000	/* keep track of receive errors */
 
 /*
  * Additional options, not kept in so_options.
