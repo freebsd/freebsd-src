@@ -53,5 +53,8 @@ device		sdhci_xenon		# Marvell Xenon SD/MMC controller
 options 	FDT
 device		acpi
 
+# Clocks
+device		a37x0_xtal		# Marvell xtal-clock
+
 # DTBs
 makeoptions	MODULES_EXTRA+="dtb/mv"
