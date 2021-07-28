@@ -1015,10 +1015,28 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, clone_gc,
     "global clone garbage collector");
 #endif
 
+static u_int8_t
+pcm_mode_init(struct snddev_info *d)
+{
+	u_int8_t mode = 0;
+
+	if (d->playcount > 0)
+		mode |= PCM_MODE_PLAY;
+	if (d->reccount > 0)
+		mode |= PCM_MODE_REC;
+	if (d->mixer_dev != NULL)
+		mode |= PCM_MODE_MIXER;
+
+	return (mode);
+}
+
 static void
 pcm_sysinit(device_t dev)
 {
   	struct snddev_info *d = device_get_softc(dev);
+	u_int8_t mode;
+
+	mode = pcm_mode_init(d);
 
 	/* XXX: a user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
@@ -1030,6 +1048,11 @@ pcm_sysinit(device_t dev)
 	    "bitperfect", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, d,
 	    sizeof(d), sysctl_dev_pcm_bitperfect, "I",
 	    "bit-perfect playback/recording (0=disable, 1=enable)");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "mode", CTLFLAG_RD, NULL, mode,
+	    "mode (1=mixer, 2=play, 4=rec. The values are OR'ed if more than one"
+	    "mode is supported)");
 #ifdef SND_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
