@@ -111,6 +111,7 @@ SUBDIR=	\
 	${_efirt} \
 	${_em} \
 	${_ena} \
+	${_enetc} \
 	esp \
 	${_et} \
 	evdev \
@@ -612,6 +613,7 @@ _allwinner=	allwinner
 _armv8crypto=	armv8crypto
 _dwwdt=		dwwdt
 _em=		em
+_enetc=		enetc
 _felix=		felix
 _rockchip=	rockchip
 .endif
