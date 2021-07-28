@@ -547,6 +547,34 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		return (EISDIR);
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
+
+	/*
+	 * For "oneopenown" mounts, first check for a cached open in the
+	 * NFS vnode, that can be used as a stateid.  This can only be
+	 * done if no delegations have been issued to the mount and no
+	 * byte range file locking has been done for the file.
+	 */
+	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) && fords == 0) {
+		NFSLOCKMNT(nmp);
+		NFSLOCKNODE(np);
+		if ((nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0 &&
+		    (np->n_flag & NMIGHTBELOCKED) == 0 &&
+		    np->n_openstateid != NULL) {
+			stateidp->seqid = 0;
+			stateidp->other[0] =
+			    np->n_openstateid->nfso_stateid.other[0];
+			stateidp->other[1] =
+			    np->n_openstateid->nfso_stateid.other[1];
+			stateidp->other[2] =
+			    np->n_openstateid->nfso_stateid.other[2];
+			NFSUNLOCKNODE(np);
+			NFSUNLOCKMNT(nmp);
+			return (0);
+		}
+		NFSUNLOCKNODE(np);
+		NFSUNLOCKMNT(nmp);
+	}
+
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
@@ -4302,8 +4330,16 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 {
 	struct nfscllockowner *nlp;
 	struct nfsfh *nfhp;
+	struct nfsnode *np;
 	u_int64_t off, len;
 	int error, newone, donelocally;
+
+	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp)) {
+		np = VTONFS(vp);
+		NFSLOCKNODE(np);
+		np->n_flag |= NMIGHTBELOCKED;
+		NFSUNLOCKNODE(np);
+	}
 
 	off = lop->nfslo_first;
 	len = lop->nfslo_end - lop->nfslo_first;

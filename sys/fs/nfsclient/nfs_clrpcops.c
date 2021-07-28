@@ -457,8 +457,14 @@ else printf(" fhl=0\n");
 	     * If error is non-zero, don't increment it, since the Open
 	     * hasn't succeeded yet.
 	     */
-	    if (!error)
+	    if (!error) {
 		op->nfso_opencnt++;
+		if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp)) {
+		    NFSLOCKNODE(np);
+		    np->n_openstateid = op;
+		    NFSUNLOCKNODE(np);
+		}
+	    }
 	    nfscl_openrelease(nmp, op, error, newone);
 	    if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
