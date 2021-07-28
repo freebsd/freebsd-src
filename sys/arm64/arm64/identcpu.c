@@ -1186,8 +1186,11 @@ static struct mrs_user_reg user_regs[] = {
 	USER_REG(ID_AA64ISAR1_EL1, id_aa64isar1),
 
 	USER_REG(ID_AA64MMFR0_EL1, id_aa64mmfr0),
+	USER_REG(ID_AA64MMFR1_EL1, id_aa64mmfr1),
+	USER_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2),
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
+	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
 
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5),
