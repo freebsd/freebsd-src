@@ -31,6 +31,7 @@
 #ifndef __LINUX_DMI_H__
 #define	__LINUX_DMI_H__
 
+#include <sys/types.h>
 #include <linux/mod_devicetable.h>
 
 int linux_dmi_check_system(const struct dmi_system_id *);
