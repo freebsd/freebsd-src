@@ -287,7 +287,7 @@ divert_packet(struct mbuf *m, int incoming)
 			if (sbappendaddr_locked(&sa->so_rcv,
 			    (struct sockaddr *)&divsrc, m,
 			    (struct mbuf *)0) == 0) {
-				SOCKBUF_UNLOCK(&sa->so_rcv);
+				soroverflow_locked(sa);
 				sa = NULL;	/* force mbuf reclaim below */
 			} else
 				sorwakeup_locked(sa);
