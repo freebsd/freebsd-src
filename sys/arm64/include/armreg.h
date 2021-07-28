@@ -50,10 +50,14 @@
 #define	 MRS_Op2_MASK			0x000000e0
 #define	 MRS_Rt_SHIFT			0
 #define	 MRS_Rt_MASK			0x0000001f
-#define	MRS_REG(op0, op1, crn, crm, op2)				\
+#define	__MRS_REG(op0, op1, crn, crm, op2)				\
     (((op0) << MRS_Op0_SHIFT) | ((op1) << MRS_Op1_SHIFT) |		\
      ((crn) << MRS_CRn_SHIFT) | ((crm) << MRS_CRm_SHIFT) |		\
      ((op2) << MRS_Op2_SHIFT))
+#define	MRS_REG(reg)							\
+    __MRS_REG(reg##_op0, reg##_op1, reg##_CRn, reg##_CRm, reg##_op2)
+
+
 
 #define	READ_SPECIALREG(reg)						\
 ({	uint64_t _val;							\
@@ -258,7 +262,12 @@
 #define	ICC_SRE_EL1_SRE		(1U << 0)
 
 /* ID_AA64DFR0_EL1 */
-#define	ID_AA64DFR0_EL1			MRS_REG(3, 0, 0, 5, 0)
+#define	ID_AA64DFR0_EL1			MRS_REG(ID_AA64DFR0_EL1)
+#define	ID_AA64DFR0_EL1_op0		0x3
+#define	ID_AA64DFR0_EL1_op1		0x0
+#define	ID_AA64DFR0_EL1_CRn		0x0
+#define	ID_AA64DFR0_EL1_CRm		0x5
+#define	ID_AA64DFR0_EL1_op2		0x0
 #define	ID_AA64DFR0_DebugVer_SHIFT	0
 #define	ID_AA64DFR0_DebugVer_MASK	(UL(0xf) << ID_AA64DFR0_DebugVer_SHIFT)
 #define	ID_AA64DFR0_DebugVer_VAL(x)	((x) & ID_AA64DFR0_DebugVer_MASK)
@@ -310,7 +319,12 @@
 #define	 ID_AA64DFR0_TraceFilt_8_4	(UL(0x1) << ID_AA64DFR0_TraceFilt_SHIFT)
 
 /* ID_AA64ISAR0_EL1 */
-#define	ID_AA64ISAR0_EL1		MRS_REG(3, 0, 0, 6, 0)
+#define	ID_AA64ISAR0_EL1		MRS_REG(ID_AA64ISAR0_EL1)
+#define	ID_AA64ISAR0_EL1_op0		0x3
+#define	ID_AA64ISAR0_EL1_op1		0x0
+#define	ID_AA64ISAR0_EL1_CRn		0x0
+#define	ID_AA64ISAR0_EL1_CRm		0x6
+#define	ID_AA64ISAR0_EL1_op2		0x0
 #define	ID_AA64ISAR0_AES_SHIFT		4
 #define	ID_AA64ISAR0_AES_MASK		(UL(0xf) << ID_AA64ISAR0_AES_SHIFT)
 #define	ID_AA64ISAR0_AES_VAL(x)		((x) & ID_AA64ISAR0_AES_MASK)
@@ -387,7 +401,12 @@
 #define	 ID_AA64ISAR0_RNDR_IMPL		(UL(0x1) << ID_AA64ISAR0_RNDR_SHIFT)
 
 /* ID_AA64ISAR1_EL1 */
-#define	ID_AA64ISAR1_EL1		MRS_REG(3, 0, 0, 6, 1)
+#define	ID_AA64ISAR1_EL1		MRS_REG(ID_AA64ISAR1_EL1)
+#define	ID_AA64ISAR1_EL1_op0		0x3
+#define	ID_AA64ISAR1_EL1_op1		0x0
+#define	ID_AA64ISAR1_EL1_CRn		0x0
+#define	ID_AA64ISAR1_EL1_CRm		0x6
+#define	ID_AA64ISAR1_EL1_op2		0x1
 #define	ID_AA64ISAR1_DPB_SHIFT		0
 #define	ID_AA64ISAR1_DPB_MASK		(UL(0xf) << ID_AA64ISAR1_DPB_SHIFT)
 #define	ID_AA64ISAR1_DPB_VAL(x)		((x) & ID_AA64ISAR1_DPB_MASK)
@@ -464,7 +483,12 @@
 #define	 ID_AA64ISAR1_I8MM_IMPL		(UL(0x1) << ID_AA64ISAR1_I8MM_SHIFT)
 
 /* ID_AA64MMFR0_EL1 */
-#define	ID_AA64MMFR0_EL1		MRS_REG(3, 0, 0, 7, 0)
+#define	ID_AA64MMFR0_EL1		MRS_REG(ID_AA64MMFR0_EL1)
+#define	ID_AA64MMFR0_EL1_op0		0x3
+#define	ID_AA64MMFR0_EL1_op1		0x0
+#define	ID_AA64MMFR0_EL1_CRn		0x0
+#define	ID_AA64MMFR0_EL1_CRm		0x7
+#define	ID_AA64MMFR0_EL1_op2		0x0
 #define	ID_AA64MMFR0_PARange_SHIFT	0
 #define	ID_AA64MMFR0_PARange_MASK	(UL(0xf) << ID_AA64MMFR0_PARange_SHIFT)
 #define	ID_AA64MMFR0_PARange_VAL(x)	((x) & ID_AA64MMFR0_PARange_MASK)
@@ -535,7 +559,12 @@
 #define	 ID_AA64MMFR0_ExS_IMPL		(UL(0x1) << ID_AA64MMFR0_ExS_SHIFT)
 
 /* ID_AA64MMFR1_EL1 */
-#define	ID_AA64MMFR1_EL1		MRS_REG(3, 0, 0, 7, 1)
+#define	ID_AA64MMFR1_EL1		MRS_REG(ID_AA64MMFR1_EL1)
+#define	ID_AA64MMFR1_EL1_op0		0x3
+#define	ID_AA64MMFR1_EL1_op1		0x0
+#define	ID_AA64MMFR1_EL1_CRn		0x0
+#define	ID_AA64MMFR1_EL1_CRm		0x7
+#define	ID_AA64MMFR1_EL1_op2		0x1
 #define	ID_AA64MMFR1_HAFDBS_SHIFT	0
 #define	ID_AA64MMFR1_HAFDBS_MASK	(UL(0xf) << ID_AA64MMFR1_HAFDBS_SHIFT)
 #define	ID_AA64MMFR1_HAFDBS_VAL(x)	((x) & ID_AA64MMFR1_HAFDBS_MASK)
@@ -581,7 +610,12 @@
 #define	 ID_AA64MMFR1_XNX_IMPL		(UL(0x1) << ID_AA64MMFR1_XNX_SHIFT)
 
 /* ID_AA64MMFR2_EL1 */
-#define	ID_AA64MMFR2_EL1		MRS_REG(3, 0, 0, 7, 2)
+#define	ID_AA64MMFR2_EL1		MRS_REG(ID_AA64MMFR2_EL1)
+#define	ID_AA64MMFR2_EL1_op0		0x3
+#define	ID_AA64MMFR2_EL1_op1		0x0
+#define	ID_AA64MMFR2_EL1_CRn		0x0
+#define	ID_AA64MMFR2_EL1_CRm		0x7
+#define	ID_AA64MMFR2_EL1_op2		0x2
 #define	ID_AA64MMFR2_CnP_SHIFT		0
 #define	ID_AA64MMFR2_CnP_MASK		(UL(0xf) << ID_AA64MMFR2_CnP_SHIFT)
 #define	ID_AA64MMFR2_CnP_VAL(x)		((x) & ID_AA64MMFR2_CnP_MASK)
@@ -662,7 +696,12 @@
 #define	 ID_AA64MMFR2_E0PD_IMPL		(UL(0x1) << ID_AA64MMFR2_E0PD_SHIFT)
 
 /* ID_AA64PFR0_EL1 */
-#define	ID_AA64PFR0_EL1			MRS_REG(3, 0, 0, 4, 0)
+#define	ID_AA64PFR0_EL1			MRS_REG(ID_AA64PFR0_EL1)
+#define	ID_AA64PFR0_EL1_op0		0x3
+#define	ID_AA64PFR0_EL1_op1		0x0
+#define	ID_AA64PFR0_EL1_CRn		0x0
+#define	ID_AA64PFR0_EL1_CRm		0x4
+#define	ID_AA64PFR0_EL1_op2		0x0
 #define	ID_AA64PFR0_EL0_SHIFT		0
 #define	ID_AA64PFR0_EL0_MASK		(UL(0xf) << ID_AA64PFR0_EL0_SHIFT)
 #define	ID_AA64PFR0_EL0_VAL(x)		((x) & ID_AA64PFR0_EL0_MASK)
@@ -747,7 +786,12 @@
 #define	 ID_AA64PFR0_CSV3_ISOLATED	(UL(0x1) << ID_AA64PFR0_CSV3_SHIFT)
 
 /* ID_AA64PFR1_EL1 */
-#define	ID_AA64PFR1_EL1			MRS_REG(3, 0, 0, 4, 1)
+#define	ID_AA64PFR1_EL1			MRS_REG(ID_AA64PFR1_EL1)
+#define	ID_AA64PFR1_EL1_op0		0x3
+#define	ID_AA64PFR1_EL1_op1		0x0
+#define	ID_AA64PFR1_EL1_CRn		0x0
+#define	ID_AA64PFR1_EL1_CRm		0x4
+#define	ID_AA64PFR1_EL1_op2		0x1
 #define	ID_AA64PFR1_BT_SHIFT		0
 #define	ID_AA64PFR1_BT_MASK		(UL(0xf) << ID_AA64PFR1_BT_SHIFT)
 #define	ID_AA64PFR1_BT_VAL(x)		((x) & ID_AA64PFR1_BT_MASK)
@@ -772,7 +816,12 @@
 #define	 ID_AA64PFR1_RAS_frac_V2	(UL(0x1) << ID_AA64PFR1_RAS_frac_SHIFT)
 
 /* ID_ISAR5_EL1 */
-#define	ID_ISAR5_EL1			MRS_REG(3, 0, 0, 2, 5)
+#define	ID_ISAR5_EL1			MRS_REG(ID_ISAR5_EL1)
+#define	ID_ISAR5_EL1_op0		0x3
+#define	ID_ISAR5_EL1_op1		0x0
+#define	ID_ISAR5_EL1_CRn		0x0
+#define	ID_ISAR5_EL1_CRm		0x2
+#define	ID_ISAR5_EL1_op2		0x5
 #define	ID_ISAR5_SEVL_SHIFT		0
 #define	ID_ISAR5_SEVL_MASK		(UL(0xf) << ID_ISAR5_SEVL_SHIFT)
 #define	ID_ISAR5_SEVL_VAL(x)		((x) & ID_ISAR5_SEVL_MASK)
@@ -820,7 +869,12 @@
 #define	 MAIR_NORMAL_WB		0xff
 
 /* MVFR0_EL1 */
-#define	MVFR0_EL1			MRS_REG(3, 0, 0, 3, 0)
+#define	MVFR0_EL1			MRS_REG(MVFR0_EL1)
+#define	MVFR0_EL1_op0			0x3
+#define	MVFR0_EL1_op1			0x0
+#define	MVFR0_EL1_CRn			0x0
+#define	MVFR0_EL1_CRm			0x3
+#define	MVFR0_EL1_op2			0x0
 #define	MVFR0_SIMDReg_SHIFT		0
 #define	MVFR0_SIMDReg_MASK		(UL(0xf) << MVFR0_SIMDReg_SHIFT)
 #define	MVFR0_SIMDReg_VAL(x)		((x) & MVFR0_SIMDReg_MASK)
@@ -866,7 +920,12 @@
 #define	 MVFR0_FPRound_IMPL		(UL(0x1) << MVFR0_FPRound_SHIFT)
 
 /* MVFR1_EL1 */
-#define	MVFR1_EL1			MRS_REG(3, 0, 0, 3, 1)
+#define	MVFR1_EL1			MRS_REG(MVFR1_EL1)
+#define	MVFR1_EL1_op0			0x3
+#define	MVFR1_EL1_op1			0x0
+#define	MVFR1_EL1_CRn			0x0
+#define	MVFR1_EL1_CRm			0x3
+#define	MVFR1_EL1_op2			0x1
 #define	MVFR1_FPFtZ_SHIFT		0
 #define	MVFR1_FPFtZ_MASK		(UL(0xf) << MVFR1_FPFtZ_SHIFT)
 #define	MVFR1_FPFtZ_VAL(x)		((x) & MVFR1_FPFtZ_MASK)
