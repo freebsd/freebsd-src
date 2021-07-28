@@ -159,7 +159,7 @@ enetc_mdio_pci_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_regs);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->sc_regs);
 	mtx_destroy(&sc->sc_lock);
 
 	return (0);
@@ -184,8 +184,8 @@ static driver_t	enetc_mdio_pci_driver = {
 
 static devclass_t enetc_mdio_pci_devclass;
 
-DRIVER_MODULE(enetc_mdio_pci, pci, enetc_mdio_pci_driver,
+DRIVER_MODULE(enetc_mdio, pci, enetc_mdio_pci_driver,
     enetc_mdio_pci_devclass, 0, 0);
-DRIVER_MODULE(miibus, enetc_mdio_pci, miibus_driver, miibus_devclass,
+DRIVER_MODULE(miibus, enetc_mdio, miibus_driver, miibus_devclass,
     0, 0);
-MODULE_VERSION(enetc_mdio_pci, 1);
+MODULE_VERSION(enetc_mdio, 1);

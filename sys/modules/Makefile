@@ -112,6 +112,7 @@ SUBDIR=	\
 	${_em} \
 	${_ena} \
 	${_enetc} \
+	${_enetc_mdio} \
 	esp \
 	${_et} \
 	evdev \
@@ -614,6 +615,7 @@ _armv8crypto=	armv8crypto
 _dwwdt=		dwwdt
 _em=		em
 _enetc=		enetc
+_enetc_mdio=	enetc_mdio
 _felix=		felix
 _rockchip=	rockchip
 .endif

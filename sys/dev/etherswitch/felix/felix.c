@@ -138,6 +138,8 @@ MODULE_VERSION(felix, 1);
 MODULE_PNP_INFO("U16:vendor;U16:device;D:#", pci, felix,
     felix_pci_ids, nitems(felix_pci_ids) - 1);
 
+MODULE_DEPEND(felix, enetc_mdio, 1, 1, 1);
+
 static int
 felix_probe(device_t dev)
 {
