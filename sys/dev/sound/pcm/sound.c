@@ -1020,7 +1020,7 @@ pcm_sysinit(device_t dev)
 {
   	struct snddev_info *d = device_get_softc(dev);
 
-  	/* XXX: an user should be able to set this with a control tool, the
+	/* XXX: a user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1133,7 +1133,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	sysctl_ctx_init(&d->rec_sysctl_ctx);
 	d->rec_sysctl_tree = SYSCTL_ADD_NODE(&d->rec_sysctl_ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "rec",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "record channels node");
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "recording channels node");
 
 	if (numplay > 0 || numrec > 0)
 		d->flags |= SD_F_AUTOVCHAN;
