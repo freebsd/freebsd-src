@@ -275,7 +275,6 @@ pf_syncookie_validate(struct pf_pdesc *pd)
 	if ((ack & ~0xff) != (hash & ~0xff))
 		return (0);
 
-	counter_u64_add(V_pf_status.lcounters[LCNT_SYNCOOKIES_VALID], 1);
 	return (1);
 }
 
