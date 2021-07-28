@@ -528,7 +528,7 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	struct nfscldeleg *dp;
 	struct nfsnode *np;
 	struct nfsmount *nmp;
-	u_int8_t own[NFSV4CL_LOCKNAMELEN];
+	u_int8_t own[NFSV4CL_LOCKNAMELEN], lockown[NFSV4CL_LOCKNAMELEN];
 	int error;
 	bool done;
 
@@ -603,9 +603,10 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 			nfscl_filllockowner(NULL, own, F_POSIX);
 		else
 			nfscl_filllockowner(p->td_proc, own, F_POSIX);
+		nfscl_filllockowner(p->td_proc, lockown, F_POSIX);
 		lp = NULL;
 		error = nfscl_getopen(NULL, clp->nfsc_openhash, nfhp, fhlen,
-		    own, own, mode, &lp, &op);
+		    own, lockown, mode, &lp, &op);
 		if (error == 0 && lp != NULL && fords == 0) {
 			/* Don't return a lock stateid for a DS. */
 			if (NFSHASNFSV4N(nmp))
