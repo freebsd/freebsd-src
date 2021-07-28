@@ -125,10 +125,10 @@ mfdec(void)
 	return (value);
 }
 
-static __inline register_t
+static __inline uint32_t
 mfpvr(void)
 {
-	register_t value;
+	uint32_t value;
 
 	__asm __volatile ("mfpvr %0" : "=r"(value));
 
