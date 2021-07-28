@@ -243,7 +243,11 @@ ncl_inactive(struct vop_inactive_args *ap)
 	boolean_t retv;
 
 	td = curthread;
+	np = VTONFS(vp);
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
+		NFSLOCKNODE(np);
+		np->n_openstateid = NULL;
+		NFSUNLOCKNODE(np);
 		/*
 		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
 		 * Close operations are delayed until now. Any dirty
@@ -263,7 +267,6 @@ ncl_inactive(struct vop_inactive_args *ap)
 		}
 	}
 
-	np = VTONFS(vp);
 	NFSLOCKNODE(np);
 	ncl_releasesillyrename(vp, td);
 
@@ -303,9 +306,10 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 
 	NFSLOCKNODE(np);
 	ncl_releasesillyrename(vp, td);
-	NFSUNLOCKNODE(np);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
+		np->n_openstateid = NULL;
+		NFSUNLOCKNODE(np);
 		/*
 		 * We can now safely close any remaining NFSv4 Opens for
 		 * this file. Most opens will have already been closed by
@@ -325,7 +329,8 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 			nfscl_delegreturnvp(vp, td);
 		} else
 			MNT_IUNLOCK(mp);
-	}
+	} else
+		NFSUNLOCKNODE(np);
 
 	vfs_hash_remove(vp);
 
