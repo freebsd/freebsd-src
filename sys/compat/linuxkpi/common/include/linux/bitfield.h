@@ -90,7 +90,7 @@ static __inline void
 le32p_replace_bits(uint32_t *p, uint32_t v, uint32_t f)
 {
 
-	*p = (*p & ~(cpu_to_le32(v))) | le32_encode_bits(v, f);
+	*p = (*p & ~(cpu_to_le32(f))) | le32_encode_bits(v, f);
 }
 
 #define	__bf_shf(x)	(__builtin_ffsll(x) - 1)
