@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/sysent.h>
 #include <sys/sx.h>
-#include <sys/umtx.h>
+#include <sys/umtxvar.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>

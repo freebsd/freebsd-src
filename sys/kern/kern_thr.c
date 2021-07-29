@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 #include <sys/thr.h>
 #include <sys/rtprio.h>
-#include <sys/umtx.h>
+#include <sys/umtxvar.h>
 #include <sys/limits.h>
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
