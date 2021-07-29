@@ -214,9 +214,19 @@ int umtxq_requeue(struct umtx_key *, int, struct umtx_key *, int);
 int umtxq_signal_mask(struct umtx_key *, int, u_int);
 int umtxq_sleep(struct umtx_q *, const char *,
     struct umtx_abs_timeout *);
+int umtxq_sleep_pi(struct umtx_q *, struct umtx_pi *, uint32_t,
+    const char *, struct umtx_abs_timeout *, bool);
 void umtxq_unbusy(struct umtx_key *);
+void umtxq_unbusy_unlocked(struct umtx_key *);
 int kern_umtx_wake(struct thread *, void *, int, int);
 void umtx_pi_adjust(struct thread *, u_char);
+struct umtx_pi *umtx_pi_alloc(int);
+int umtx_pi_claim(struct umtx_pi *, struct thread *);
+void umtx_pi_free(struct umtx_pi *);
+void umtx_pi_insert(struct umtx_pi *);
+struct umtx_pi *umtx_pi_lookup(struct umtx_key *);
+void umtx_pi_ref(struct umtx_pi *);
+void umtx_pi_unref(struct umtx_pi *);
 void umtx_thread_init(struct thread *);
 void umtx_thread_fini(struct thread *);
 void umtx_thread_alloc(struct thread *);
