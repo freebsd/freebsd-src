@@ -893,7 +893,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 {
 	struct linux_emuldata *em;
 	struct linux_robust_list_head *head;
-	l_size_t len = sizeof(struct linux_robust_list_head);
+	l_size_t len;
 	struct thread *td2;
 	int error;
 
@@ -924,6 +924,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 		PROC_UNLOCK(td2->td_proc);
 	}
 
+	len = sizeof(struct linux_robust_list_head);
 	error = copyout(&len, args->len, sizeof(l_size_t));
 	if (error != 0)
 		return (EFAULT);
