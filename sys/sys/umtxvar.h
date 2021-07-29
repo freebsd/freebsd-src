@@ -210,6 +210,7 @@ void umtxq_free(struct umtx_q *);
 struct umtxq_chain *umtxq_getchain(struct umtx_key *);
 void umtxq_insert_queue(struct umtx_q *, int);
 void umtxq_remove_queue(struct umtx_q *, int);
+int umtxq_requeue(struct umtx_key *, int, struct umtx_key *, int);
 int umtxq_signal_mask(struct umtx_key *, int, u_int);
 int umtxq_sleep(struct umtx_q *, const char *,
     struct umtx_abs_timeout *);

@@ -621,6 +621,43 @@ umtxq_signal_thread(struct umtx_q *uq)
 	wakeup(uq);
 }
 
+/*
+ * Wake up a maximum of n_wake threads that are waiting on an userland
+ * object identified by key. The remaining threads are removed from queue
+ * identified by key and added to the queue identified by key2 (requeued).
+ * The n_requeue specifies an upper limit on the number of threads that
+ * are requeued to the second queue.
+ */
+int
+umtxq_requeue(struct umtx_key *key, int n_wake, struct umtx_key *key2,
+    int n_requeue)
+{
+	struct umtxq_queue *uh, *uh2;
+	struct umtx_q *uq, *uq_temp;
+	int ret;
+
+	ret = 0;
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key2));
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	uh2 = umtxq_queue_lookup(key2, UMTX_SHARED_QUEUE);
+	if (uh == NULL)
+		return (0);
+	TAILQ_FOREACH_SAFE(uq, &uh->head, uq_link, uq_temp) {
+		if (++ret <= n_wake) {
+			umtxq_remove(uq);
+			wakeup_one(uq);
+		} else {
+			umtxq_remove(uq);
+			uq->uq_key = *key2;
+			umtxq_insert(uq);
+			if (ret - n_wake == n_requeue)
+				break;
+		}
+	}
+	return (ret);
+}
+
 static inline int
 tstohz(const struct timespec *tsp)
 {
