@@ -107,8 +107,8 @@ LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 #define	GET_SHARED(a)	(a->flags & FUTEX_SHARED) ? AUTO_SHARE : THREAD_SHARE
 
 static int futex_atomic_op(struct thread *, int, uint32_t *);
-static int handle_futex_death(struct linux_emuldata *, uint32_t *,
-    unsigned int);
+static int handle_futex_death(struct thread *td, struct linux_emuldata *,
+    uint32_t *, unsigned int);
 static int fetch_robust_entry(struct linux_robust_list **,
     struct linux_robust_list **, unsigned int *);
 
@@ -982,7 +982,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 }
 
 static int
-handle_futex_death(struct linux_emuldata *em, uint32_t *uaddr,
+handle_futex_death(struct thread *td, struct linux_emuldata *em, uint32_t *uaddr,
     unsigned int pi)
 {
 	uint32_t uval, nval, mval;
@@ -994,20 +994,22 @@ retry:
 		return (EFAULT);
 	if ((uval & FUTEX_TID_MASK) == em->em_tid) {
 		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
-		nval = casuword32(uaddr, uval, mval);
-
-		if (nval == -1)
+		error = casueword32(uaddr, uval, &nval, mval);
+		if (error == -1)
 			return (EFAULT);
-
-		if (nval != uval)
+		if (error == 1) {
+			error = thread_check_susp(td, false);
+			if (error != 0)
+				return (error);
 			goto retry;
+		}
 
 		if (!pi && (uval & FUTEX_WAITERS)) {
-			error = futex_wake(curthread, uaddr, 1, true);
+			error = futex_wake(td, uaddr, 1, true);
 			if (error != 0)
 				return (error);
 		} else if (pi && (uval & FUTEX_WAITERS)) {
-			error = futex_wake_pi(curthread, uaddr, true);
+			error = futex_wake_pi(td, uaddr, true);
 			if (error != 0)
 				return (error);
 		}
@@ -1067,7 +1069,7 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 		rc = fetch_robust_entry(&next_entry, PTRIN(&entry->next), &next_pi);
 
 		if (entry != pending)
-			if (handle_futex_death(em,
+			if (handle_futex_death(td, em,
 			    (uint32_t *)((caddr_t)entry + futex_offset), pi)) {
 				return;
 			}
@@ -1084,5 +1086,6 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 	}
 
 	if (pending)
-		handle_futex_death(em, (uint32_t *)((caddr_t)pending + futex_offset), pip);
+		handle_futex_death(td, em,
+		    (uint32_t *)((caddr_t)pending + futex_offset), pip);
 }
