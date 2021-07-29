@@ -44,9 +44,11 @@ state, and will block reads until it is seeded for the first time.
 .Pp
 To provide prompt access to the random device at boot time,
 .Fx
-automatically persists some entropy data in
+automatically saves some entropy data in
 .Pa /boot/entropy
-for the loader to provide to the kernel.
+for the
+.Xr loader 8
+to provide to the kernel.
 Additional entropy is regularly saved in
 .Pa /var/db/entropy .
 This saved entropy is sufficient to unblock the random device on devices with
@@ -95,7 +97,8 @@ Other than
 .Va kern.random.fortuna.minpoolsize ,
 and
 .Va kern.random.harvest.mask ,
-all settings are read-only.
+all settings are read-only via
+.Xr sysctl 8 .
 .Pp
 The
 .Pa kern.random.fortuna.minpoolsize
@@ -126,7 +129,7 @@ sysctls
 can be used to confirm
 settings in a human readable form.
 Disabled items
-in the latter item
+in the latter
 are listed in square brackets.
 See
 .Xr random_harvest 9
