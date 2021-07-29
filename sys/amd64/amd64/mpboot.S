@@ -260,4 +260,21 @@ bootMP_size:
 	.p2align 4,0
 entry_64:
 	movq	bootSTK, %rsp
+
+	/*
+	 * Initialize the segment register used for the PCPU area.  The PCPU
+	 * area will be initialized by init_secondary(), but it should be
+	 * accessible before that to support sanitizer instrumentation which
+	 * accesses per-CPU variables.
+	 *
+	 * Note that GS.base is loaded again in init_secondary().  This is not
+	 * redundant: lgdt() loads a selector into %gs and this has the side
+	 * effect of clearing GS.base.
+	 */
+	movl	$MSR_GSBASE, %ecx
+	movq	bootpcpu, %rax
+	movq	%rax, %rdx
+	shrq	$32, %rdx
+	wrmsr
+
 	jmp	init_secondary
