@@ -262,8 +262,8 @@ init_secondary(void)
 	lgdt(&ap_gdt);			/* does magic intra-segment return */
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
-	wrmsr(MSR_GSBASE, (u_int64_t)pc);
-	wrmsr(MSR_KGSBASE, (u_int64_t)pc);	/* XXX User value while we're in the kernel */
+	wrmsr(MSR_GSBASE, (uint64_t)pc);
+	wrmsr(MSR_KGSBASE, 0);		/* User value */
 	fix_cpuid();
 
 	lidt(&r_idt);
