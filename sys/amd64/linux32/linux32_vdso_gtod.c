@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vdso.h>
 #undef	_KERNEL
 #include <stdbool.h>
-#include <strings.h>
 
 #include <machine/atomic.h>
 #include <machine/stdarg.h>
