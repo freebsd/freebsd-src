@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/undefined.h>
 
+static void print_cpu_midr(struct sbuf *sb, u_int cpu);
 static void print_cpu_features(u_int cpu);
 #ifdef COMPAT_FREEBSD32
 static u_long parse_cpu_features_hwcap32(void);
@@ -116,13 +117,6 @@ uint64_t __cpu_affinity[MAXCPU];
 static u_int cpu_aff_levels;
 
 struct cpu_desc {
-	u_int		cpu_impl;
-	u_int		cpu_part_num;
-	u_int		cpu_variant;
-	u_int		cpu_revision;
-	const char	*cpu_impl_name;
-	const char	*cpu_part_name;
-
 	uint64_t	mpidr;
 	uint64_t	id_aa64afr0;
 	uint64_t	id_aa64afr1;
@@ -169,7 +163,7 @@ struct cpu_parts {
 	u_int		part_id;
 	const char	*part_name;
 };
-#define	CPU_PART_NONE	{ 0, "Unknown Processor" }
+#define	CPU_PART_NONE	{ 0, NULL }
 
 struct cpu_implementers {
 	u_int			impl_id;
@@ -180,7 +174,7 @@ struct cpu_implementers {
 	 */
 	const struct cpu_parts	*cpu_parts;
 };
-#define	CPU_IMPLEMENTER_NONE	{ 0, "Unknown Implementer", cpu_parts_none }
+#define	CPU_IMPLEMENTER_NONE	{ 0, NULL, NULL }
 
 /*
  * Per-implementer table of (PartNum, CPU Name) pairs.
@@ -1435,7 +1429,6 @@ static struct mrs_user_reg user_regs[] = {
 
 	USER_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
 	USER_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
-
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5),
 
@@ -1754,10 +1747,17 @@ SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 static void
 cpu_features_sysinit(void *dummy __unused)
 {
+	struct sbuf sb;
 	u_int cpu;
 
 	CPU_FOREACH(cpu)
 		print_cpu_features(cpu);
+
+	/* Fill in cpu_model for the hw.model sysctl */
+	sbuf_new(&sb, cpu_model, sizeof(cpu_model), SBUF_FIXEDLEN);
+	print_cpu_midr(&sb, 0);
+	sbuf_finish(&sb);
+	sbuf_delete(&sb);
 }
 /* Log features before APs are released and start printing to the dmesg. */
 SYSINIT(cpu_features, SI_SUB_SMP - 1, SI_ORDER_ANY, cpu_features_sysinit, NULL);
@@ -1880,14 +1880,63 @@ print_id_register(struct sbuf *sb, const char *reg_name, uint64_t reg,
 }
 
 static void
+print_cpu_midr(struct sbuf *sb, u_int cpu)
+{
+	const struct cpu_parts *cpu_partsp;
+	const char *cpu_impl_name;
+	const char *cpu_part_name;
+	u_int midr;
+	u_int impl_id;
+	u_int part_id;
+
+	midr = pcpu_find(cpu)->pc_midr;
+
+	cpu_impl_name = NULL;
+	cpu_partsp = NULL;
+	impl_id = CPU_IMPL(midr);
+	for (int i = 0; cpu_implementers[i].impl_name != NULL; i++) {
+		if (impl_id == cpu_implementers[i].impl_id) {
+			cpu_impl_name = cpu_implementers[i].impl_name;
+			cpu_partsp = cpu_implementers[i].cpu_parts;
+			break;
+		}
+	}
+	/* Unknown implementer, so unknown part */
+	if (cpu_impl_name == NULL) {
+		sbuf_printf(sb, "Unknown Implementer (midr: %08x)", midr);
+		return;
+	}
+
+	KASSERT(cpu_partsp != NULL, ("%s: No parts table for implementer %s",
+	    __func__, cpu_impl_name));
+
+	cpu_part_name = NULL;
+	part_id = CPU_PART(midr);
+	for (int i = 0; cpu_partsp[i].part_name != NULL; i++) {
+		if (part_id == cpu_partsp[i].part_id) {
+			cpu_part_name = cpu_partsp[i].part_name;
+			break;
+		}
+	}
+	/* Known Implementer, Unknown part */
+	if (cpu_part_name == NULL) {
+		sbuf_printf(sb, "%s Unknown CPU r%dp%d (midr: %08x)",
+		    cpu_impl_name, CPU_VAR(midr), CPU_REV(midr), midr);
+		return;
+	}
+
+	sbuf_printf(sb, "%s %s r%dp%d", cpu_impl_name,
+	    cpu_part_name, CPU_VAR(midr), CPU_REV(midr));
+}
+
+static void
 print_cpu_features(u_int cpu)
 {
 	struct sbuf *sb;
 
 	sb = sbuf_new_auto();
-	sbuf_printf(sb, "CPU%3d: %s %s r%dp%d", cpu,
-	    cpu_desc[cpu].cpu_impl_name, cpu_desc[cpu].cpu_part_name,
-	    cpu_desc[cpu].cpu_variant, cpu_desc[cpu].cpu_revision);
+	sbuf_printf(sb, "CPU%3u: ", cpu);
+	print_cpu_midr(sb, cpu);
 
 	sbuf_cat(sb, " affinity:");
 	switch(cpu_aff_levels) {
@@ -2058,43 +2107,6 @@ identify_cache(uint64_t ctr)
 void
 identify_cpu(u_int cpu)
 {
-	u_int midr;
-	u_int impl_id;
-	u_int part_id;
-	size_t i;
-	const struct cpu_parts *cpu_partsp = NULL;
-
-	midr = get_midr();
-
-	impl_id = CPU_IMPL(midr);
-	for (i = 0; i < nitems(cpu_implementers); i++) {
-		if (impl_id == cpu_implementers[i].impl_id ||
-		    cpu_implementers[i].impl_id == 0) {
-			cpu_desc[cpu].cpu_impl = impl_id;
-			cpu_desc[cpu].cpu_impl_name =
-			    cpu_implementers[i].impl_name;
-			cpu_partsp = cpu_implementers[i].cpu_parts;
-			break;
-		}
-	}
-
-	part_id = CPU_PART(midr);
-	for (i = 0; &cpu_partsp[i] != NULL; i++) {
-		if (part_id == cpu_partsp[i].part_id ||
-		    cpu_partsp[i].part_id == 0) {
-			cpu_desc[cpu].cpu_part_num = part_id;
-			cpu_desc[cpu].cpu_part_name = cpu_partsp[i].part_name;
-			break;
-		}
-	}
-
-	cpu_desc[cpu].cpu_revision = CPU_REV(midr);
-	cpu_desc[cpu].cpu_variant = CPU_VAR(midr);
-
-	snprintf(cpu_model, sizeof(cpu_model), "%s %s r%dp%d",
-	    cpu_desc[cpu].cpu_impl_name, cpu_desc[cpu].cpu_part_name,
-	    cpu_desc[cpu].cpu_variant, cpu_desc[cpu].cpu_revision);
-
 	/* Save affinity for current CPU */
 	cpu_desc[cpu].mpidr = get_mpidr();
 	CPU_AFFINITY(cpu) = cpu_desc[cpu].mpidr & CPU_AFF_MASK;
