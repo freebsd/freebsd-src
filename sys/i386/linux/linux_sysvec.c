@@ -1166,8 +1166,3 @@ static moduledata_t linux_elf_mod = {
 
 DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 FEATURE(linux, "Linux 32bit support");
-
-/*
- * linux_vdso_install() and linux_exec_sysvec_init() must be called
- * after exec_sysvec_init() which is SI_SUB_EXEC (SI_ORDER_ANY).
- */
