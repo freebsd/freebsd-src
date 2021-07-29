@@ -87,6 +87,104 @@ struct umtx_abs_timeout {
 
 struct thread;
 
+/* Priority inheritance mutex info. */
+struct umtx_pi {
+	/* Owner thread */
+	struct thread		*pi_owner;
+
+	/* Reference count */
+	int			pi_refcount;
+
+	/* List entry to link umtx holding by thread */
+	TAILQ_ENTRY(umtx_pi)	pi_link;
+
+	/* List entry in hash */
+	TAILQ_ENTRY(umtx_pi)	pi_hashlink;
+
+	/* List for waiters */
+	TAILQ_HEAD(,umtx_q)	pi_blocked;
+
+	/* Identify a userland lock object */
+	struct umtx_key		pi_key;
+};
+
+/* A userland synchronous object user. */
+struct umtx_q {
+	/* Linked list for the hash. */
+	TAILQ_ENTRY(umtx_q)	uq_link;
+
+	/* Umtx key. */
+	struct umtx_key		uq_key;
+
+	/* Umtx flags. */
+	int			uq_flags;
+#define UQF_UMTXQ	0x0001
+
+	/* The thread waits on. */
+	struct thread		*uq_thread;
+
+	/*
+	 * Blocked on PI mutex. read can use chain lock
+	 * or umtx_lock, write must have both chain lock and
+	 * umtx_lock being hold.
+	 */
+	struct umtx_pi		*uq_pi_blocked;
+
+	/* On blocked list */
+	TAILQ_ENTRY(umtx_q)	uq_lockq;
+
+	/* Thread contending with us */
+	TAILQ_HEAD(,umtx_pi)	uq_pi_contested;
+
+	/* Inherited priority from PP mutex */
+	u_char			uq_inherited_pri;
+
+	/* Spare queue ready to be reused */
+	struct umtxq_queue	*uq_spare_queue;
+
+	/* The queue we on */
+	struct umtxq_queue	*uq_cur_queue;
+};
+
+TAILQ_HEAD(umtxq_head, umtx_q);
+
+/* Per-key wait-queue */
+struct umtxq_queue {
+	struct umtxq_head	head;
+	struct umtx_key		key;
+	LIST_ENTRY(umtxq_queue)	link;
+	int			length;
+};
+
+LIST_HEAD(umtxq_list, umtxq_queue);
+
+/* Userland lock object's wait-queue chain */
+struct umtxq_chain {
+	/* Lock for this chain. */
+	struct mtx		uc_lock;
+
+	/* List of sleep queues. */
+	struct umtxq_list	uc_queue[2];
+#define UMTX_SHARED_QUEUE	0
+#define UMTX_EXCLUSIVE_QUEUE	1
+
+	LIST_HEAD(, umtxq_queue) uc_spare_queue;
+
+	/* Busy flag */
+	char			uc_busy;
+
+	/* Chain lock waiters */
+	int			uc_waiters;
+
+	/* All PI in the list */
+	TAILQ_HEAD(,umtx_pi)	uc_pi_list;
+
+#ifdef UMTX_PROFILING
+	u_int			length;
+	u_int			max_length;
+#endif
+};
+
 static inline int
 umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 {
@@ -103,13 +201,49 @@ void umtx_exec(struct proc *p);
 int umtx_key_get(const void *, int, int, struct umtx_key *);
 void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);
+void umtxq_busy(struct umtx_key *);
+int umtxq_count(struct umtx_key *);
 void umtxq_free(struct umtx_q *);
+struct umtxq_chain *umtxq_getchain(struct umtx_key *);
+void umtxq_insert_queue(struct umtx_q *, int);
+void umtxq_remove_queue(struct umtx_q *, int);
+int umtxq_sleep(struct umtx_q *, const char *,
+    struct umtx_abs_timeout *);
+void umtxq_unbusy(struct umtx_key *);
 int kern_umtx_wake(struct thread *, void *, int, int);
 void umtx_pi_adjust(struct thread *, u_char);
 void umtx_thread_init(struct thread *);
 void umtx_thread_fini(struct thread *);
 void umtx_thread_alloc(struct thread *);
 void umtx_thread_exit(struct thread *);
+
+#define umtxq_insert(uq)	umtxq_insert_queue((uq), UMTX_SHARED_QUEUE)
+#define umtxq_remove(uq)	umtxq_remove_queue((uq), UMTX_SHARED_QUEUE)
+
+/*
+ * Lock a chain.
+ *
+ * The code is a macro so that file/line information is taken from the caller.
+ */
+#define umtxq_lock(key) do {		\
+	struct umtx_key *_key = (key);	\
+	struct umtxq_chain *_uc;	\
+					\
+	_uc = umtxq_getchain(_key);	\
+	mtx_lock(&_uc->uc_lock);	\
+} while (0)
+
+/*
+ * Unlock a chain.
+ */
+static inline void
+umtxq_unlock(struct umtx_key *key)
+{
+	struct umtxq_chain *uc;
+
+	uc = umtxq_getchain(key);
+	mtx_unlock(&uc->uc_lock);
+}
 
 #endif /* _KERNEL */
 #endif /* !_SYS_UMTXVAR_H_ */
