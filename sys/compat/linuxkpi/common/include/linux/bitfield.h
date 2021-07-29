@@ -77,7 +77,7 @@ _uX_encode_bits(8)
 
 #define	_leX_encode_bits(_n)						\
 	static __inline uint ## _n ## _t				\
-	le ## _n ## _encode_bits(__le ## _n v, uint ## _n ## _t f)\
+	le ## _n ## _encode_bits(__le ## _n v, uint ## _n ## _t f)	\
 	{								\
 		return (cpu_to_le ## _n((v & ___bitmask(f)) * ___lsb(f))); \
 	}
@@ -91,7 +91,6 @@ le32p_replace_bits(uint32_t *p, uint32_t v, uint32_t f)
 {
 
 	*p = (*p & ~(cpu_to_le32(v))) | le32_encode_bits(v, f);
-	return;
 }
 
 #define	__bf_shf(x)	(__builtin_ffsll(x) - 1)
