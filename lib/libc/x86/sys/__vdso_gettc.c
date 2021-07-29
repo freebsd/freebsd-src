@@ -230,7 +230,7 @@ __vdso_init_hpet(uint32_t u)
 	 * triggering trap_enocap on the device open by absolute path.
 	 */
 	if ((cap_getmode(&mode) == 0 && mode != 0) ||
-	    (fd = _open(devname, O_RDONLY)) == -1) {
+	    (fd = _open(devname, O_RDONLY | O_CLOEXEC)) == -1) {
 		/* Prevent the caller from re-entering. */
 		atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
 		    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
@@ -266,7 +266,7 @@ __vdso_init_hyperv_tsc(void)
 	if (cap_getmode(&mode) == 0 && mode != 0)
 		goto fail;
 
-	fd = _open(HYPERV_REFTSC_DEVPATH, O_RDONLY);
+	fd = _open(HYPERV_REFTSC_DEVPATH, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		goto fail;
 	hyperv_ref_tsc = mmap(NULL, sizeof(*hyperv_ref_tsc), PROT_READ,
