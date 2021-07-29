@@ -125,7 +125,7 @@ struct disk {
 
 	/* Fields private to geom_disk, to be moved on next version bump */
 	LIST_HEAD(,disk_alias)	d_aliases;
-	void			*d_event;
+	struct g_event		*d_event;
 };
 
 #define	DISKFLAG_RESERVED		0x0001	/* Was NEEDSGIANT */
