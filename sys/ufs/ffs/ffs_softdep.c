@@ -1233,9 +1233,7 @@ workitem_free(item, type)
 	    ump->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
 	atomic_subtract_long(&dep_current[item->wk_type], 1);
 	ump->softdep_curdeps[item->wk_type] -= 1;
-#ifdef INVARIANTS
 	LIST_REMOVE(item, wk_all);
-#endif
 	free(item, DtoM(type));
 }
 
@@ -1262,9 +1260,7 @@ workitem_alloc(item, type, mp)
 	ump->softdep_curdeps[type] += 1;
 	ump->softdep_deps++;
 	ump->softdep_accdeps++;
-#ifdef INVARIANTS
 	LIST_INSERT_HEAD(&ump->softdep_alldeps[type], item, wk_all);
-#endif
 	FREE_LOCK(ump);
 }
 
@@ -1293,6 +1289,8 @@ workitem_reassign(item, newtype)
 	dep_total[newtype]++;
 	FREE_GBLLOCK(&lk);
 	item->wk_type = newtype;
+	LIST_REMOVE(item, wk_all);
+	LIST_INSERT_HEAD(&ump->softdep_alldeps[newtype], item, wk_all);
 }
 
 /*
@@ -2710,10 +2708,8 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
 		TAILQ_INIT(&ump->indir_hashtbl[i]);
-#ifdef INVARIANTS
 	for (i = 0; i <= D_LAST; i++)
 		LIST_INIT(&ump->softdep_alldeps[i]);
-#endif
 	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	FREE_GBLLOCK(&lk);
@@ -14765,9 +14761,12 @@ softdep_check_suspend(struct mount *mp,
 		      int secondary_writes,
 		      int secondary_accwrites)
 {
+	struct buf *bp;
 	struct bufobj *bo;
 	struct ufsmount *ump;
 	struct inodedep *inodedep;
+	struct indirdep *indirdep;
+	struct worklist *wk, *nextwk;
 	int error, unlinked;
 
 	bo = &devvp->v_bufobj;
@@ -14844,8 +14843,51 @@ softdep_check_suspend(struct mount *mp,
 	}
 
 	/*
+	 * XXX Check for orphaned indirdep dependency structures.
+	 *
+	 * During forcible unmount after a disk failure there is a
+	 * bug that causes one or more indirdep dependency structures
+	 * to fail to be deallocated. We check for them here and clean
+	 * them up so that the unmount can succeed.
+	 */
+	if ((ump->um_flags & UM_FSFAIL_CLEANUP) != 0 && ump->softdep_deps > 0 &&
+	    ump->softdep_deps == ump->softdep_curdeps[D_INDIRDEP]) {
+		LIST_FOREACH_SAFE(wk, &ump->softdep_alldeps[D_INDIRDEP],
+		    wk_all, nextwk) {
+			indirdep = WK_INDIRDEP(wk);
+			if ((indirdep->ir_state & (GOINGAWAY | DEPCOMPLETE)) !=
+			    (GOINGAWAY | DEPCOMPLETE) ||
+			    !TAILQ_EMPTY(&indirdep->ir_trunc) ||
+			    !LIST_EMPTY(&indirdep->ir_completehd) ||
+			    !LIST_EMPTY(&indirdep->ir_writehd) ||
+			    !LIST_EMPTY(&indirdep->ir_donehd) ||
+			    !LIST_EMPTY(&indirdep->ir_deplisthd) ||
+			    indirdep->ir_saveddata != NULL ||
+			    indirdep->ir_savebp == NULL) {
+				printf("%s: skipping orphaned indirdep %p\n",
+				    __FUNCTION__, indirdep);
+				continue;
+			}
+			printf("%s: freeing orphaned indirdep %p\n",
+			    __FUNCTION__, indirdep);
+			bp = indirdep->ir_savebp;
+			indirdep->ir_savebp = NULL;
+			free_indirdep(indirdep);
+			FREE_LOCK(ump);
+			brelse(bp);
+			while (!TRY_ACQUIRE_LOCK(ump)) {
+				BO_UNLOCK(bo);
+				ACQUIRE_LOCK(ump);
+				FREE_LOCK(ump);
+				BO_LOCK(bo);
+			}
+		}
+	}
+
+	/*
 	 * Reasons for needing more work before suspend:
 	 * - Dirty buffers on devvp.
+	 * - Dependency structures still exist
 	 * - Softdep activity occurred after start of vnode sync loop
 	 * - Secondary writes occurred after start of vnode sync loop
 	 */
