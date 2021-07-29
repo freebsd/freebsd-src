@@ -170,8 +170,6 @@ static inline void umtx_abs_timeout_update(struct umtx_abs_timeout *timo);
 static void umtx_shm_init(void);
 static void umtxq_sysinit(void *);
 static void umtxq_hash(struct umtx_key *key);
-static struct umtx_pi *umtx_pi_alloc(int);
-static void umtx_pi_free(struct umtx_pi *pi);
 static int do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags,
     bool rb);
 static void umtx_thread_cleanup(struct thread *td);
@@ -435,7 +433,7 @@ umtxq_unbusy(struct umtx_key *key)
 		wakeup_one(uc);
 }
 
-static inline void
+void
 umtxq_unbusy_unlocked(struct umtx_key *key)
 {
 
@@ -1668,7 +1666,7 @@ do_wake2_umutex(struct thread *td, struct umutex *m, uint32_t flags)
 	return (error);
 }
 
-static inline struct umtx_pi *
+struct umtx_pi *
 umtx_pi_alloc(int flags)
 {
 	struct umtx_pi *pi;
@@ -1679,7 +1677,7 @@ umtx_pi_alloc(int flags)
 	return (pi);
 }
 
-static inline void
+void
 umtx_pi_free(struct umtx_pi *pi)
 {
 	uma_zfree(umtx_pi_zone, pi);
@@ -1888,7 +1886,7 @@ umtx_pi_disown(struct umtx_pi *pi)
 /*
  * Claim ownership of a PI mutex.
  */
-static int
+int
 umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 {
 	struct umtx_q *uq;
@@ -1946,7 +1944,7 @@ umtx_pi_adjust(struct thread *td, u_char oldpri)
 /*
  * Sleep on a PI mutex.
  */
-static int
+int
 umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
     const char *wmesg, struct umtx_abs_timeout *timo, bool shared)
 {
@@ -2014,7 +2012,7 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
 /*
  * Add reference count for a PI mutex.
  */
-static void
+void
 umtx_pi_ref(struct umtx_pi *pi)
 {
 
@@ -2026,7 +2024,7 @@ umtx_pi_ref(struct umtx_pi *pi)
  * Decrease reference count for a PI mutex, if the counter
  * is decreased to zero, its memory space is freed.
  */
-static void
+void
 umtx_pi_unref(struct umtx_pi *pi)
 {
 	struct umtxq_chain *uc;
@@ -2049,7 +2047,7 @@ umtx_pi_unref(struct umtx_pi *pi)
 /*
  * Find a PI mutex in hash table.
  */
-static struct umtx_pi *
+struct umtx_pi *
 umtx_pi_lookup(struct umtx_key *key)
 {
 	struct umtxq_chain *uc;
@@ -2069,7 +2067,7 @@ umtx_pi_lookup(struct umtx_key *key)
 /*
  * Insert a PI mutex into hash table.
  */
-static inline void
+void
 umtx_pi_insert(struct umtx_pi *pi)
 {
 	struct umtxq_chain *uc;
