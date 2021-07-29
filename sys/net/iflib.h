@@ -187,6 +187,7 @@ typedef struct if_txrx {
 	void (*ift_rxd_refill) (void * , if_rxd_update_t iru);
 	void (*ift_rxd_flush) (void *, uint16_t qsidx, uint8_t flidx, qidx_t pidx);
 	int (*ift_legacy_intr) (void *);
+	qidx_t (*ift_txq_select) (void *, struct mbuf *);
 } *if_txrx_t;
 
 typedef struct if_softc_ctx {
@@ -397,7 +398,6 @@ typedef enum {
  * emulating ethernet
  */
 #define IFLIB_PSEUDO_ETHER	0x80000
-
 /*
  * Interface has an admin completion queue
  */
@@ -406,6 +406,16 @@ typedef enum {
  * Interface needs to preserve TX ring indices across restarts.
  */
 #define IFLIB_PRESERVE_TX_INDICES	0x200000
+
+/* The following IFLIB_FEATURE_* defines are for driver modules to determine
+ * what features this version of iflib supports. They shall be defined to the
+ * first __FreeBSD_version that introduced the feature.
+ */
+/*
+ * Driver can set its own TX queue selection function
+ * as ift_txq_select in struct if_txrx
+ */
+#define IFLIB_FEATURE_QUEUE_SELECT	1400050
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib
