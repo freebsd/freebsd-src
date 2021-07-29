@@ -1293,6 +1293,10 @@ workitem_reassign(item, newtype)
 	dep_total[newtype]++;
 	FREE_GBLLOCK(&lk);
 	item->wk_type = newtype;
+#ifdef INVARIANTS
+	LIST_REMOVE(item, wk_all);
+	LIST_INSERT_HEAD(&ump->softdep_alldeps[newtype], item, wk_all);
+#endif
 }
 
 /*
