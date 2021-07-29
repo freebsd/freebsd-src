@@ -895,7 +895,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 	struct linux_robust_list_head *head;
 	l_size_t len = sizeof(struct linux_robust_list_head);
 	struct thread *td2;
-	int error = 0;
+	int error;
 
 	if (!args->pid) {
 		em = em_find(td);
