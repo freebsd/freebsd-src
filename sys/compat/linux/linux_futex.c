@@ -925,7 +925,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 	}
 
 	error = copyout(&len, args->len, sizeof(l_size_t));
-	if (error)
+	if (error != 0)
 		return (EFAULT);
 
 	return (copyout(&head, args->head, sizeof(head)));
@@ -1001,7 +1001,7 @@ fetch_robust_entry(struct linux_robust_list **entry,
 	int error;
 
 	error = copyin((const void *)head, &uentry, sizeof(l_ulong));
-	if (error)
+	if (error != 0)
 		return (EFAULT);
 
 	*entry = (void *)(uentry & ~1UL);
@@ -1022,10 +1022,9 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 	unsigned int limit = 2048, pi, next_pi, pip;
 	uint32_t *uaddr;
 	l_long futex_offset;
-	int rc, error;
+	int error;
 
 	head = em->robust_futexes;
-
 	if (head == NULL)
 		return;
 
@@ -1034,14 +1033,15 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 
 	error = copyin(&head->futex_offset, &futex_offset,
 	    sizeof(futex_offset));
-	if (error)
+	if (error != 0)
 		return;
 
 	if (fetch_robust_entry(&pending, PTRIN(&head->pending_list), &pip))
 		return;
 
 	while (entry != &head->list) {
-		rc = fetch_robust_entry(&next_entry, PTRIN(&entry->next), &next_pi);
+		error = fetch_robust_entry(&next_entry, PTRIN(&entry->next),
+		    &next_pi);
 
 		/*
 		 * A pending lock might already be on the list, so
@@ -1053,7 +1053,7 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 			    LINUX_HANDLE_DEATH_LIST))
 				return;
 		}
-		if (rc)
+		if (error != 0)
 			return;
 
 		entry = next_entry;
