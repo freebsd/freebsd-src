@@ -82,8 +82,10 @@ struct linker_file {
     int			id;		/* unique id */
     caddr_t		address;	/* load address */
     size_t		size;		/* size of file */
-    caddr_t		ctors_addr;	/* address of .ctors */
-    size_t		ctors_size;	/* size of .ctors */
+    caddr_t		ctors_addr;	/* address of .ctors/.init_array */
+    size_t		ctors_size;	/* size of .ctors/.init_array */
+    caddr_t		dtors_addr;	/* address of .dtors/.fini_array */
+    size_t		dtors_size;	/* size of .dtors/.fini_array */
     int			ndeps;		/* number of dependencies */
     linker_file_t*	deps;		/* list of dependencies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
