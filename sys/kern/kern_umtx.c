@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/eventhandler.h>
 #include <sys/umtx.h>
+#include <sys/umtxvar.h>
 
 #include <security/mac/mac_framework.h>
 

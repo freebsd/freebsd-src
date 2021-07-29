@@ -57,7 +57,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/queue.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
-#include <sys/umtx.h>
+#include <sys/umtxvar.h>
 
 #include <vm/vm_extern.h>
 

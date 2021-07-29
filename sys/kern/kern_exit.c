@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sem.h>
 #include <sys/sysent.h>
 #include <sys/timers.h>
-#include <sys/umtx.h>
+#include <sys/umtxvar.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
