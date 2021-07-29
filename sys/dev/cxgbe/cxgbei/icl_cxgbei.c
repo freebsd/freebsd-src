@@ -881,7 +881,14 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	INP_WLOCK(inp);
 	if (toep != NULL) {	/* NULL if connection was never offloaded. */
 		toep->ulpcb = NULL;
+
+		/* Discard PDUs queued for TX. */
 		mbufq_drain(&toep->ulp_pduq);
+
+		/*
+		 * Wait for the cwt threads to stop processing this
+		 * connection.
+		 */
 		SOCKBUF_LOCK(sb);
 		if (icc->rx_flags & RXF_ACTIVE) {
 			volatile u_int *p = &icc->rx_flags;
@@ -896,6 +903,10 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 			SOCKBUF_LOCK(sb);
 		}
 
+		/*
+		 * Discard received PDUs not passed to the iSCSI
+		 * layer.
+		 */
 		while (!STAILQ_EMPTY(&icc->rcvd_pdus)) {
 			ip = STAILQ_FIRST(&icc->rcvd_pdus);
 			STAILQ_REMOVE_HEAD(&icc->rcvd_pdus, ip_next);
@@ -914,7 +925,22 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 	 * queues were purged instead of delivered reliably but soabort isn't
 	 * really general purpose and wouldn't do the right thing here.
 	 */
+	soref(so);
 	soclose(so);
+
+	/*
+	 * Wait for the socket to fully close.  This ensures any
+	 * pending received data has been received (and in particular,
+	 * any data that would be received by DDP has been handled).
+	 * Callers assume that it is safe to free buffers for tasks
+	 * and transfers after this function returns.
+	 */
+	SOCK_LOCK(so);
+	while ((so->so_state & SS_ISDISCONNECTED) == 0)
+		mtx_sleep(&so->so_timeo, SOCK_MTX(so), PSOCK, "conclo2", 0);
+	CURVNET_SET(so->so_vnet);
+	sorele(so);
+	CURVNET_RESTORE();
 }
 
 static void
