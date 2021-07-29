@@ -51,6 +51,7 @@ enum {
 	TYPE_SHM,
 	TYPE_PI_ROBUST_UMUTEX,
 	TYPE_PP_ROBUST_UMUTEX,
+	TYPE_PI_FUTEX,
 };
 
 /* Key to represent a unique userland synchronous object */
