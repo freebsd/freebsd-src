@@ -888,6 +888,7 @@ linux_sys_futex_time64(struct thread *td,
 		.ts = NULL,
 		.uaddr2 = args->uaddr2,
 		.val3 = args->val3,
+		.val3_compare = true,
 	};
 	struct l_timespec64 lts;
 	int error;
