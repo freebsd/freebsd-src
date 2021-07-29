@@ -108,7 +108,7 @@ LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 
 static int futex_atomic_op(struct thread *, int, uint32_t *);
 static int handle_futex_death(struct thread *td, struct linux_emuldata *,
-    uint32_t *, unsigned int);
+    uint32_t *, unsigned int, bool);
 static int fetch_robust_entry(struct linux_robust_list **,
     struct linux_robust_list **, unsigned int *);
 
@@ -995,7 +995,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 
 static int
 handle_futex_death(struct thread *td, struct linux_emuldata *em, uint32_t *uaddr,
-    unsigned int pi)
+    unsigned int pi, bool pending_op)
 {
 	uint32_t uval, nval, mval;
 	int error;
@@ -1004,6 +1004,31 @@ retry:
 	error = fueword32(uaddr, &uval);
 	if (error != 0)
 		return (EFAULT);
+
+	/*
+	 * Special case for regular (non PI) futexes. The unlock path in
+	 * user space has two race scenarios:
+	 *
+	 * 1. The unlock path releases the user space futex value and
+	 *    before it can execute the futex() syscall to wake up
+	 *    waiters it is killed.
+	 *
+	 * 2. A woken up waiter is killed before it can acquire the
+	 *    futex in user space.
+	 *
+	 * In both cases the TID validation below prevents a wakeup of
+	 * potential waiters which can cause these waiters to block
+	 * forever.
+	 *
+	 * In both cases it is safe to attempt waking up a potential
+	 * waiter without touching the user space futex value and trying
+	 * to set the OWNER_DIED bit.
+	 */
+	if (pending_op && !pi && !uval) {
+		(void)futex_wake(td, uaddr, 1, true);
+		return (0);
+	}
+
 	if ((uval & FUTEX_TID_MASK) == em->em_tid) {
 		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 		error = casueword32(uaddr, uval, &nval, mval);
@@ -1049,6 +1074,9 @@ fetch_robust_entry(struct linux_robust_list **entry,
 	return (0);
 }
 
+#define	LINUX_HANDLE_DEATH_PENDING	true
+#define	LINUX_HANDLE_DEATH_LIST		false
+
 /* This walks the list of robust futexes releasing them. */
 void
 release_futexes(struct thread *td, struct linux_emuldata *em)
@@ -1056,6 +1084,7 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 	struct linux_robust_list_head *head = NULL;
 	struct linux_robust_list *entry, *next_entry, *pending;
 	unsigned int limit = 2048, pi, next_pi, pip;
+	uint32_t *uaddr;
 	l_long futex_offset;
 	int rc, error;
 
@@ -1080,11 +1109,16 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 	while (entry != &head->list) {
 		rc = fetch_robust_entry(&next_entry, PTRIN(&entry->next), &next_pi);
 
-		if (entry != pending)
-			if (handle_futex_death(td, em,
-			    (uint32_t *)((caddr_t)entry + futex_offset), pi)) {
+		/*
+		 * A pending lock might already be on the list, so
+		 * don't process it twice.
+		 */
+		if (entry != pending) {
+			uaddr = (uint32_t *)((caddr_t)entry + futex_offset);
+			if (handle_futex_death(td, em, uaddr, pi,
+			    LINUX_HANDLE_DEATH_LIST))
 				return;
-			}
+		}
 		if (rc)
 			return;
 
@@ -1097,7 +1131,9 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 		sched_relinquish(curthread);
 	}
 
-	if (pending)
-		handle_futex_death(td, em,
-		    (uint32_t *)((caddr_t)pending + futex_offset), pip);
+	if (pending) {
+		uaddr = (uint32_t *)((caddr_t)pending + futex_offset);
+		(void)handle_futex_death(td, em, uaddr, pip,
+		    LINUX_HANDLE_DEATH_PENDING);
+	}
 }
