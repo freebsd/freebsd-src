@@ -26,6 +26,40 @@
  * SUCH DAMAGE.
  */
 
+static int
+fls(int mask)
+{
+
+	if (mask == 0)
+		return (0);
+	return ((__builtin_clz(mask) ^ 0x1f) + 1);
+}
+
+#ifdef _LP64
+static int
+ffsl(long mask)
+{
+	int bit;
+
+	if (mask == 0)
+		return (0);
+	for (bit = 1; !(mask & 1); bit++)
+		mask = (unsigned long)mask >> 1;
+	return (bit);
+}
+#else
+static int
+ffsll(long long mask)
+{
+	int bit;
+
+	if (mask == 0)
+		return (0);
+	for (bit = 1; !(mask & 1); bit++)
+		mask = (unsigned long long)mask >> 1;
+	return (bit);
+}
+#endif
 
 static int
 __vdso_native_to_linux_timespec(struct l_timespec *lts,
