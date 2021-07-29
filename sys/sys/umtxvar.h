@@ -120,6 +120,9 @@ struct umtx_q {
 	int			uq_flags;
 #define UQF_UMTXQ	0x0001
 
+	/* Futex bitset mask */
+	u_int			uq_bitset;
+
 	/* The thread waits on. */
 	struct thread		*uq_thread;
 
@@ -207,6 +210,7 @@ void umtxq_free(struct umtx_q *);
 struct umtxq_chain *umtxq_getchain(struct umtx_key *);
 void umtxq_insert_queue(struct umtx_q *, int);
 void umtxq_remove_queue(struct umtx_q *, int);
+int umtxq_signal_mask(struct umtx_key *, int, u_int);
 int umtxq_sleep(struct umtx_q *, const char *,
     struct umtx_abs_timeout *);
 void umtxq_unbusy(struct umtx_key *);
