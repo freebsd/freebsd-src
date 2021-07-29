@@ -101,7 +101,6 @@ LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_cmp_requeue_pi);
 LIN_SDT_PROBE_DEFINE1(futex, linux_futex, unknown_operation, "int");
 LIN_SDT_PROBE_DEFINE0(futex, linux_set_robust_list, size_error);
 LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, copyout_error, "int");
-LIN_SDT_PROBE_DEFINE1(futex, handle_futex_death, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 
@@ -705,11 +704,9 @@ handle_futex_death(struct linux_emuldata *em, uint32_t *uaddr,
 	int error;
 
 retry:
-	error = copyin(uaddr, &uval, 4);
-	if (error) {
-		LIN_SDT_PROBE1(futex, handle_futex_death, copyin_error, error);
+	error = fueword32(uaddr, &uval);
+	if (error != 0)
 		return (EFAULT);
-	}
 	if ((uval & FUTEX_TID_MASK) == em->em_tid) {
 		mval = (uval & FUTEX_WAITERS) | FUTEX_OWNER_DIED;
 		nval = casuword32(uaddr, uval, mval);
