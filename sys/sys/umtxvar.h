@@ -222,6 +222,7 @@ int kern_umtx_wake(struct thread *, void *, int, int);
 void umtx_pi_adjust(struct thread *, u_char);
 struct umtx_pi *umtx_pi_alloc(int);
 int umtx_pi_claim(struct umtx_pi *, struct thread *);
+int umtx_pi_drop(struct thread *, struct umtx_key *, bool, int *);
 void umtx_pi_free(struct umtx_pi *);
 void umtx_pi_insert(struct umtx_pi *);
 struct umtx_pi *umtx_pi_lookup(struct umtx_key *);
