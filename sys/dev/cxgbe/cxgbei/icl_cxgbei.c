@@ -826,7 +826,8 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		toep->params.ulp_mode = ULP_MODE_ISCSI;
 		toep->ulpcb = icc;
 
-		send_iscsi_flowc_wr(icc->sc, toep, ci->max_tx_pdu_len);
+		send_iscsi_flowc_wr(icc->sc, toep, roundup(ci->max_tx_pdu_len,
+		    tp->t_maxseg));
 		set_ulp_mode_iscsi(icc->sc, toep, icc->ulp_submode);
 		error = 0;
 	}
