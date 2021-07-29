@@ -446,7 +446,8 @@ start_all_aps(void)
 		/* attempt to start the Application Processor */
 		if (!start_ap(apic_id, boot_address)) {
 			/* restore the warmstart vector */
-			*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
+			if (!efi_boot)
+				*(u_int32_t *)WARMBOOT_OFF = mpbioswarmvec;
 			panic("AP #%d (PHY# %d) failed!", cpu, apic_id);
 		}
 
@@ -454,7 +455,8 @@ start_all_aps(void)
 	}
 
 	/* restore the warmstart vector */
-	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
+	if (!efi_boot)
+		*(u_int32_t *)WARMBOOT_OFF = mpbioswarmvec;
 
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
