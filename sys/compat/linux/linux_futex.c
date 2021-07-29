@@ -314,6 +314,18 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 
 		return (linux_futex_lock_pi(td, true, args));
 
+	/*
+	 * Current implementation of FUTEX_WAIT_REQUEUE_PI and FUTEX_CMP_REQUEUE_PI
+	 * can't be used anymore to implement conditional variables.
+	 * A detailed explanation can be found here:
+	 *
+	 * https://sourceware.org/bugzilla/show_bug.cgi?id=13165
+	 * and here http://austingroupbugs.net/view.php?id=609
+	 *
+	 * And since commit
+	 * https://sourceware.org/git/gitweb.cgi?p=glibc.git;h=ed19993b5b0d05d62cc883571519a67dae481a14
+	 * glibc does not uses it.
+	 */
 	case LINUX_FUTEX_WAIT_REQUEUE_PI:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
