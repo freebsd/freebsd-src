@@ -266,4 +266,5 @@ veriexec_drvinit(void *unused __unused)
 }
 
 SYSINIT(veriexec, SI_SUB_PSEUDO, SI_ORDER_ANY, veriexec_drvinit, NULL);
-MODULE_DEPEND(veriexec, mac_veriexec, 1, 1, 1);
+MODULE_DEPEND(veriexec, mac_veriexec, MAC_VERIEXEC_VERSION,
+    MAC_VERIEXEC_VERSION, MAC_VERIEXEC_VERSION);
