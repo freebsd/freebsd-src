@@ -90,6 +90,17 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	UMTXQ_LOCKED_ASSERT(uc)		mtx_assert(&(uc)->uc_lock, MA_OWNED)
+#ifdef INVARIANTS
+#define	UMTXQ_ASSERT_LOCKED_BUSY(key) do {				\
+	struct umtxq_chain *uc;						\
+									\
+	uc = umtxq_getchain(key);					\
+	mtx_assert(&uc->uc_lock, MA_OWNED);				\
+	KASSERT(uc->uc_busy != 0, ("umtx chain is not busy"));		\
+} while (0)
+#else
+#define	UMTXQ_ASSERT_LOCKED_BUSY(key) do {} while (0)
+#endif
 
 /*
  * Don't propagate time-sharing priority, there is a security reason,
@@ -2078,6 +2089,73 @@ umtx_pi_insert(struct umtx_pi *pi)
 }
 
 /*
+ * Drop a PI mutex and wakeup a top waiter.
+ */
+int
+umtx_pi_drop(struct thread *td, struct umtx_key *key, bool rb, int *count)
+{
+	struct umtx_q *uq_first, *uq_first2, *uq_me;
+	struct umtx_pi *pi, *pi2;
+	int pri;
+
+	UMTXQ_ASSERT_LOCKED_BUSY(key);
+	*count = umtxq_count_pi(key, &uq_first);
+	if (uq_first != NULL) {
+		mtx_lock(&umtx_lock);
+		pi = uq_first->uq_pi_blocked;
+		KASSERT(pi != NULL, ("pi == NULL?"));
+		if (pi->pi_owner != td && !(rb && pi->pi_owner == NULL)) {
+			mtx_unlock(&umtx_lock);
+			/* userland messed the mutex */
+			return (EPERM);
+		}
+		uq_me = td->td_umtxq;
+		if (pi->pi_owner == td)
+			umtx_pi_disown(pi);
+		/* get highest priority thread which is still sleeping. */
+		uq_first = TAILQ_FIRST(&pi->pi_blocked);
+		while (uq_first != NULL &&
+		    (uq_first->uq_flags & UQF_UMTXQ) == 0) {
+			uq_first = TAILQ_NEXT(uq_first, uq_lockq);
+		}
+		pri = PRI_MAX;
+		TAILQ_FOREACH(pi2, &uq_me->uq_pi_contested, pi_link) {
+			uq_first2 = TAILQ_FIRST(&pi2->pi_blocked);
+			if (uq_first2 != NULL) {
+				if (pri > UPRI(uq_first2->uq_thread))
+					pri = UPRI(uq_first2->uq_thread);
+			}
+		}
+		thread_lock(td);
+		sched_lend_user_prio(td, pri);
+		thread_unlock(td);
+		mtx_unlock(&umtx_lock);
+		if (uq_first)
+			umtxq_signal_thread(uq_first);
+	} else {
+		pi = umtx_pi_lookup(key);
+		/*
+		 * A umtx_pi can exist if a signal or timeout removed the
+		 * last waiter from the umtxq, but there is still
+		 * a thread in do_lock_pi() holding the umtx_pi.
+		 */
+		if (pi != NULL) {
+			/*
+			 * The umtx_pi can be unowned, such as when a thread
+			 * has just entered do_lock_pi(), allocated the
+			 * umtx_pi, and unlocked the umtxq.
+			 * If the current thread owns it, it must disown it.
+			 */
+			mtx_lock(&umtx_lock);
+			if (pi->pi_owner == td)
+				umtx_pi_disown(pi);
+			mtx_unlock(&umtx_lock);
+		}
+	}
+	return (0);
+}
+
+/*
  * Lock a PI mutex.
  */
 static int
@@ -2298,10 +2376,8 @@ static int
 do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags, bool rb)
 {
 	struct umtx_key key;
-	struct umtx_q *uq_first, *uq_first2, *uq_me;
-	struct umtx_pi *pi, *pi2;
 	uint32_t id, new_owner, old, owner;
-	int count, error, pri;
+	int count, error;
 
 	id = td->td_tid;
 
@@ -2342,61 +2418,13 @@ usrloop:
 
 	umtxq_lock(&key);
 	umtxq_busy(&key);
-	count = umtxq_count_pi(&key, &uq_first);
-	if (uq_first != NULL) {
-		mtx_lock(&umtx_lock);
-		pi = uq_first->uq_pi_blocked;
-		KASSERT(pi != NULL, ("pi == NULL?"));
-		if (pi->pi_owner != td && !(rb && pi->pi_owner == NULL)) {
-			mtx_unlock(&umtx_lock);
-			umtxq_unbusy(&key);
-			umtxq_unlock(&key);
-			umtx_key_release(&key);
-			/* userland messed the mutex */
-			return (EPERM);
-		}
-		uq_me = td->td_umtxq;
-		if (pi->pi_owner == td)
-			umtx_pi_disown(pi);
-		/* get highest priority thread which is still sleeping. */
-		uq_first = TAILQ_FIRST(&pi->pi_blocked);
-		while (uq_first != NULL &&
-		    (uq_first->uq_flags & UQF_UMTXQ) == 0) {
-			uq_first = TAILQ_NEXT(uq_first, uq_lockq);
-		}
-		pri = PRI_MAX;
-		TAILQ_FOREACH(pi2, &uq_me->uq_pi_contested, pi_link) {
-			uq_first2 = TAILQ_FIRST(&pi2->pi_blocked);
-			if (uq_first2 != NULL) {
-				if (pri > UPRI(uq_first2->uq_thread))
-					pri = UPRI(uq_first2->uq_thread);
-			}
-		}
-		thread_lock(td);
-		sched_lend_user_prio(td, pri);
-		thread_unlock(td);
-		mtx_unlock(&umtx_lock);
-		if (uq_first)
-			umtxq_signal_thread(uq_first);
-	} else {
-		pi = umtx_pi_lookup(&key);
-		/*
-		 * A umtx_pi can exist if a signal or timeout removed the
-		 * last waiter from the umtxq, but there is still
-		 * a thread in do_lock_pi() holding the umtx_pi.
-		 */
-		if (pi != NULL) {
-			/*
-			 * The umtx_pi can be unowned, such as when a thread
-			 * has just entered do_lock_pi(), allocated the
-			 * umtx_pi, and unlocked the umtxq.
-			 * If the current thread owns it, it must disown it.
-			 */
-			mtx_lock(&umtx_lock);
-			if (pi->pi_owner == td)
-				umtx_pi_disown(pi);
-			mtx_unlock(&umtx_lock);
-		}
+	error = umtx_pi_drop(td, &key, rb, &count);
+	if (error != 0) {
+		umtxq_unbusy(&key);
+		umtxq_unlock(&key);
+		umtx_key_release(&key);
+		/* userland messed the mutex */
+		return (error);
 	}
 	umtxq_unlock(&key);
 
