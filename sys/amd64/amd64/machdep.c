@@ -1272,16 +1272,6 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	    (boothowto & RB_VERBOSE))
 		printf("Physical memory use set to %ldK\n", Maxmem * 4);
 
-	/*
-	 * Make hole for "AP -> long mode" bootstrap code.  The
-	 * mp_bootaddress vector is only available when the kernel
-	 * is configured to support APs and APs for the system start
-	 * in real mode mode (e.g. SMP bare metal).
-	 */
-#ifdef SMP
-	alloc_ap_trampoline(physmap, &physmap_idx);
-#endif
-
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(&first);
 

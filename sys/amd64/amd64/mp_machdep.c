@@ -112,7 +112,7 @@ extern u_int mptramp_nx;
  * Local data and functions.
  */
 
-static int	start_ap(int apic_id);
+static int start_ap(int apic_id, vm_paddr_t boot_address);
 
 /*
  * Initialize the IPI handlers and start up the AP's.
@@ -322,16 +322,24 @@ mp_realloc_pcpu(int cpuid, int domain)
 int
 start_all_aps(void)
 {
-	vm_page_t m_pml4, m_pdp, m_pd[4];
+	vm_page_t m_boottramp, m_pml4, m_pdp, m_pd[4];
 	pml5_entry_t old_pml45;
 	pml4_entry_t *v_pml4;
 	pdp_entry_t *v_pdp;
 	pd_entry_t *v_pd;
+	vm_paddr_t boot_address;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, domain, i;
 	u_char mpbiosreason;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
+
+	MPASS(bootMP_size <= PAGE_SIZE);
+	m_boottramp = vm_page_alloc_contig(NULL, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ, 1, 0,
+	    (1ULL << 20), /* Trampoline should be below 1M for real mode */
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+	boot_address = VM_PAGE_TO_PHYS(m_boottramp);
 
 	/* Create a transient 1:1 mapping of low 4G */
 	if (la57) {
@@ -382,7 +390,7 @@ start_all_aps(void)
 	/* copy the AP 1st level boot code */
 	bcopy(mptramp_start, (void *)PHYS_TO_DMAP(boot_address), bootMP_size);
 	if (bootverbose)
-		printf("AP boot address %#x\n", boot_address);
+		printf("AP boot address %#lx\n", boot_address);
 
 	/* save the current value of the warm-start vector */
 	if (!efi_boot)
@@ -436,7 +444,7 @@ start_all_aps(void)
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
-		if (!start_ap(apic_id)) {
+		if (!start_ap(apic_id, boot_address)) {
 			/* restore the warmstart vector */
 			*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
 			panic("AP #%d (PHY# %d) failed!", cpu, apic_id);
@@ -461,6 +469,7 @@ start_all_aps(void)
 	vm_page_free(m_pd[1]);
 	vm_page_free(m_pd[0]);
 	vm_page_free(m_pdp);
+	vm_page_free(m_boottramp);
 
 	/* number of APs actually started */
 	return (mp_naps);
@@ -474,7 +483,7 @@ start_all_aps(void)
  * but it seems to work.
  */
 static int
-start_ap(int apic_id)
+start_ap(int apic_id, vm_paddr_t boot_address)
 {
 	int vector, ms;
 	int cpus;
