@@ -407,7 +407,6 @@ linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args
 void
 linux_thread_detach(struct thread *td)
 {
-	struct linux_sys_futex_args cup;
 	struct linux_emuldata *em;
 	int *child_clear_tid;
 	int error;
@@ -429,13 +428,7 @@ linux_thread_detach(struct thread *td)
 		if (error != 0)
 			return;
 
-		cup.uaddr = child_clear_tid;
-		cup.op = LINUX_FUTEX_WAKE;
-		cup.val = 1;		/* wake one */
-		cup.timeout = NULL;
-		cup.uaddr2 = NULL;
-		cup.val3 = 0;
-		error = linux_sys_futex(td, &cup);
+		error = futex_wake(td, child_clear_tid, 1, false);
 		/*
 		 * this cannot happen at the moment and if this happens it
 		 * probably means there is a user space bug

@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/sx.h>
 
 #include <compat/linux/linux.h>
@@ -64,15 +63,12 @@ linux_common_modevent(module_t mod, int type, void *data)
 		linux_osd_jail_register();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_register_handler(*ldhp);
-		LIST_INIT(&futex_list);
-		mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 		break;
 	case MOD_UNLOAD:
 		linux_dev_shm_destroy();
 		linux_osd_jail_deregister();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_unregister_handler(*ldhp);
-		mtx_destroy(&futex_mtx);
 		break;
 	default:
 		return (EOPNOTSUPP);
