@@ -71,6 +71,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
@@ -92,9 +93,6 @@ LIN_SDT_PROBE_DEFINE5(futex, linux_futex, debug_cmp_requeue, "uint32_t *",
     "uint32_t", "uint32_t", "uint32_t *", "struct l_timespec *");
 LIN_SDT_PROBE_DEFINE5(futex, linux_futex, debug_wake_op, "uint32_t *",
     "int", "uint32_t", "uint32_t *", "uint32_t");
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_lock_pi);
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_unlock_pi);
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_trylock_pi);
 LIN_SDT_PROBE_DEFINE0(futex, linux_futex, deprecated_requeue);
 LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_wait_requeue_pi);
 LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_cmp_requeue_pi);
@@ -134,6 +132,10 @@ static int linux_futex_wait(struct thread *, struct linux_futex_args *);
 static int linux_futex_wake(struct thread *, struct linux_futex_args *);
 static int linux_futex_requeue(struct thread *, struct linux_futex_args *);
 static int linux_futex_wakeop(struct thread *, struct linux_futex_args *);
+static int linux_futex_lock_pi(struct thread *, bool, struct linux_futex_args *);
+static int linux_futex_unlock_pi(struct thread *, bool,
+	    struct linux_futex_args *);
+static int futex_wake_pi(struct thread *, uint32_t *, bool);
 
 int
 futex_wake(struct thread *td, uint32_t *uaddr, int val, bool shared)
@@ -148,6 +150,19 @@ futex_wake(struct thread *td, uint32_t *uaddr, int val, bool shared)
 	args.val3 = FUTEX_BITSET_MATCH_ANY;
 
 	return (linux_futex_wake(td, &args));
+}
+
+static int
+futex_wake_pi(struct thread *td, uint32_t *uaddr, bool shared)
+{
+	struct linux_futex_args args;
+
+	bzero(&args, sizeof(args));
+	args.op = LINUX_FUTEX_UNLOCK_PI;
+	args.uaddr = uaddr;
+	args.flags = shared == true ? FUTEX_SHARED : 0;
+
+	return (linux_futex_unlock_pi(td, true, &args));
 }
 
 static int
@@ -306,37 +321,23 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		return (linux_futex_wakeop(td, args));
 
 	case LINUX_FUTEX_LOCK_PI:
-		/* not yet implemented */
-		pem = pem_find(td->td_proc);
-		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td, "unsupported FUTEX_LOCK_PI");
-			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    unimplemented_lock_pi);
-		}
-		return (ENOSYS);
+		args->clockrt = true;
+		LINUX_CTR2(sys_futex, "LOCKPI uaddr %p val 0x%x",
+		    args->uaddr, args->val);
+
+		return (linux_futex_lock_pi(td, false, args));
 
 	case LINUX_FUTEX_UNLOCK_PI:
-		/* not yet implemented */
-		pem = pem_find(td->td_proc);
-		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td, "unsupported FUTEX_UNLOCK_PI");
-			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    unimplemented_unlock_pi);
-		}
-		return (ENOSYS);
+		LINUX_CTR1(sys_futex, "UNLOCKPI uaddr %p",
+		    args->uaddr);
+
+		return (linux_futex_unlock_pi(td, false, args));
 
 	case LINUX_FUTEX_TRYLOCK_PI:
-		/* not yet implemented */
-		pem = pem_find(td->td_proc);
-		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td, "unsupported FUTEX_TRYLOCK_PI");
-			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    unimplemented_trylock_pi);
-		}
-		return (ENOSYS);
+		LINUX_CTR1(sys_futex, "TRYLOCKPI uaddr %p",
+		    args->uaddr);
+
+		return (linux_futex_lock_pi(td, true, args));
 
 	case LINUX_FUTEX_WAIT_REQUEUE_PI:
 		/* not yet implemented */
@@ -366,6 +367,288 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		    args->op);
 		return (ENOSYS);
 	}
+}
+
+/*
+ * pi protocol:
+ * - 0 futex word value means unlocked.
+ * - TID futex word value means locked.
+ * Userspace uses atomic ops to lock/unlock these futexes without entering the
+ * kernel. If the lock-acquire fastpath fails, (transition from 0 to TID fails),
+ * then FUTEX_LOCK_PI is called.
+ * The kernel atomically set FUTEX_WAITERS bit in the futex word value, if no
+ * other waiters exists looks up the thread that owns the futex (it has put its
+ * own TID into the futex value) and made this thread the owner of the internal
+ * pi-aware lock object (mutex). Then the kernel tries to lock the internal lock
+ * object, on which it blocks. Once it returns, it has the mutex acquired, and it
+ * sets the futex value to its own TID and returns (futex value contains
+ * FUTEX_WAITERS|TID).
+ * The unlock fastpath would fail (because the FUTEX_WAITERS bit is set) and
+ * FUTEX_UNLOCK_PI will be called.
+ * If a futex is found to be held at exit time, the kernel sets the OWNER_DIED
+ * bit of the futex word and wakes up the next futex waiter (if any), WAITERS
+ * bit is preserved (if any).
+ * If OWNER_DIED bit is set the kernel sanity checks the futex word value against
+ * the internal futex state and if correct, acquire futex.
+ */
+static int
+linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
+{
+	struct umtx_abs_timeout timo;
+	struct linux_emuldata *em;
+	struct umtx_pi *pi, *new_pi;
+	struct thread *td1;
+	struct umtx_q *uq;
+	int error, rv;
+	uint32_t owner, old_owner;
+
+	em = em_find(td);
+	uq = td->td_umtxq;
+	error = umtx_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args),
+	    &uq->uq_key);
+	if (error != 0)
+		return (error);
+	if (args->ts != NULL)
+		linux_umtx_abs_timeout_init(&timo, args);
+
+	umtxq_lock(&uq->uq_key);
+	pi = umtx_pi_lookup(&uq->uq_key);
+	if (pi == NULL) {
+		new_pi = umtx_pi_alloc(M_NOWAIT);
+		if (new_pi == NULL) {
+			umtxq_unlock(&uq->uq_key);
+			new_pi = umtx_pi_alloc(M_WAITOK);
+			umtxq_lock(&uq->uq_key);
+			pi = umtx_pi_lookup(&uq->uq_key);
+			if (pi != NULL) {
+				umtx_pi_free(new_pi);
+				new_pi = NULL;
+			}
+		}
+		if (new_pi != NULL) {
+			new_pi->pi_key = uq->uq_key;
+			umtx_pi_insert(new_pi);
+			pi = new_pi;
+		}
+	}
+	umtx_pi_ref(pi);
+	umtxq_unlock(&uq->uq_key);
+	for (;;) {
+		/* Try uncontested case first. */
+		rv = casueword32(args->uaddr, 0, &owner, em->em_tid);
+		/* The acquire succeeded. */
+		if (rv == 0) {
+			error = 0;
+			break;
+		}
+		if (rv == -1) {
+			error = EFAULT;
+			break;
+		}
+
+		/*
+		 * Avoid overwriting a possible error from sleep due
+		 * to the pending signal with suspension check result.
+		 */
+		if (error == 0) {
+			error = thread_check_susp(td, true);
+			if (error != 0)
+				break;
+		}
+
+		/* The futex word at *uaddr is already locked by the caller. */
+		if ((owner & FUTEX_TID_MASK) == em->em_tid) {
+			error = EDEADLK;
+			break;
+		}
+
+		/*
+		 * Futex owner died, handle_futex_death() set the OWNER_DIED bit
+		 * and clear tid. Try to acquire it.
+		 */
+		if ((owner & FUTEX_TID_MASK) == 0) {
+			old_owner = owner;
+			owner = owner & (FUTEX_WAITERS | FUTEX_OWNER_DIED);
+			owner |= em->em_tid;
+			rv = casueword32(args->uaddr, old_owner, &owner, owner);
+			if (rv == -1) {
+				error = EFAULT;
+				break;
+			}
+			if (rv == 1) {
+				if (error == 0) {
+					error = thread_check_susp(td, true);
+					if (error != 0)
+						break;
+				}
+
+				/*
+				 * If this failed the lock could
+				 * changed, restart.
+				 */
+				continue;
+			}
+
+			umtxq_lock(&uq->uq_key);
+			umtxq_busy(&uq->uq_key);
+			error = umtx_pi_claim(pi, td);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_unlock(&uq->uq_key);
+			if (error != 0) {
+				/*
+				 * Since we're going to return an
+				 * error, restore the futex to its
+				 * previous, unowned state to avoid
+				 * compounding the problem.
+				 */
+				(void)casuword32(args->uaddr, owner, old_owner);
+			}
+			break;
+		}
+
+		/*
+		 * Inconsistent state: OWNER_DIED is set and tid is not 0.
+		 * Linux does some checks of futex state, we return EINVAL,
+		 * as the user space can take care of this.
+		 */
+		if ((owner & FUTEX_OWNER_DIED) != 0) {
+			error = EINVAL;
+			break;
+		}
+
+		if (try != 0) {
+			error = EBUSY;
+			break;
+		}
+
+		/*
+		 * If we caught a signal, we have retried and now
+		 * exit immediately.
+		 */
+		if (error != 0)
+			break;
+
+		umtxq_lock(&uq->uq_key);
+		umtxq_busy(&uq->uq_key);
+		umtxq_unlock(&uq->uq_key);
+
+		/*
+		 * Set the contested bit so that a release in user space knows
+		 * to use the system call for unlock. If this fails either some
+		 * one else has acquired the lock or it has been released.
+		 */
+		rv = casueword32(args->uaddr, owner, &owner,
+		    owner | FUTEX_WAITERS);
+		if (rv == -1) {
+			umtxq_unbusy_unlocked(&uq->uq_key);
+			error = EFAULT;
+			break;
+		}
+		if (rv == 1) {
+			umtxq_unbusy_unlocked(&uq->uq_key);
+			error = thread_check_susp(td, true);
+			if (error != 0)
+				break;
+
+			/*
+			 * The lock changed and we need to retry or we
+			 * lost a race to the thread unlocking the umtx.
+			 */
+			continue;
+		}
+
+		/*
+		 * Substitute Linux thread id by native thread id to
+		 * avoid refactoring code of umtxq_sleep_pi().
+		 */
+		td1 = linux_tdfind(td, owner & FUTEX_TID_MASK, -1);
+		if (td1 != NULL) {
+			owner = td1->td_tid;
+			PROC_UNLOCK(td1->td_proc);
+		} else {
+			umtxq_unbusy_unlocked(&uq->uq_key);
+			error = EINVAL;
+			break;
+		}
+
+		umtxq_lock(&uq->uq_key);
+
+		/* We set the contested bit, sleep. */
+		error = umtxq_sleep_pi(uq, pi, owner, "futexp",
+		    args->ts == NULL ? NULL : &timo,
+		    (args->flags & FUTEX_SHARED) != 0);
+		if (error != 0)
+			continue;
+
+		error = thread_check_susp(td, false);
+		if (error != 0)
+			break;
+	}
+
+	umtxq_lock(&uq->uq_key);
+	umtx_pi_unref(pi);
+	umtxq_unlock(&uq->uq_key);
+	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+static int
+linux_futex_unlock_pi(struct thread *td, bool rb, struct linux_futex_args *args)
+{
+	struct linux_emuldata *em;
+	struct umtx_key key;
+	uint32_t old, owner, new_owner;
+	int count, error;
+
+	em = em_find(td);
+
+	/*
+	 * Make sure we own this mtx.
+	 */
+	error = fueword32(args->uaddr, &owner);
+	if (error == -1)
+		return (EFAULT);
+	if (!rb && (owner & FUTEX_TID_MASK) != em->em_tid)
+		return (EPERM);
+
+	error = umtx_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args), &key);
+	if (error != 0)
+		return (error);
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	error = umtx_pi_drop(td, &key, rb, &count);
+	if (error != 0 || rb) {
+		umtxq_unbusy(&key);
+		umtxq_unlock(&key);
+		umtx_key_release(&key);
+		return (error);
+	}
+	umtxq_unlock(&key);
+
+	/*
+	 * When unlocking the futex, it must be marked as unowned if
+	 * there is zero or one thread only waiting for it.
+	 * Otherwise, it must be marked as contested.
+	 */
+	if (count > 1)
+		new_owner = FUTEX_WAITERS;
+	else
+		new_owner = 0;
+
+again:
+	error = casueword32(args->uaddr, owner, &old, new_owner);
+	if (error == 1) {
+		error = thread_check_susp(td, false);
+		if (error == 0)
+			goto again;
+	}
+	umtxq_unbusy_unlocked(&key);
+	umtx_key_release(&key);
+	if (error == -1)
+		return (EFAULT);
+	if (error == 0 && old != owner)
+		return (EINVAL);
+	return (error);
 }
 
 static int
@@ -576,6 +859,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	switch (args->op & LINUX_FUTEX_CMD_MASK) {
 	case LINUX_FUTEX_WAIT:
 	case LINUX_FUTEX_WAIT_BITSET:
+	case LINUX_FUTEX_LOCK_PI:
 		if (args->timeout != NULL) {
 			error = copyin(args->timeout, &lts, sizeof(lts));
 			if (error != 0)
@@ -611,6 +895,7 @@ linux_sys_futex_time64(struct thread *td,
 	switch (args->op & LINUX_FUTEX_CMD_MASK) {
 	case LINUX_FUTEX_WAIT:
 	case LINUX_FUTEX_WAIT_BITSET:
+	case LINUX_FUTEX_LOCK_PI:
 		if (args->timeout != NULL) {
 			error = copyin(args->timeout, &lts, sizeof(lts));
 			if (error != 0)
@@ -719,6 +1004,10 @@ retry:
 
 		if (!pi && (uval & FUTEX_WAITERS)) {
 			error = futex_wake(curthread, uaddr, 1, true);
+			if (error != 0)
+				return (error);
+		} else if (pi && (uval & FUTEX_WAITERS)) {
+			error = futex_wake_pi(curthread, uaddr, true);
 			if (error != 0)
 				return (error);
 		}

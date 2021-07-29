@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sx.h>
+#include <sys/umtxvar.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 
@@ -436,4 +437,10 @@ linux_thread_detach(struct thread *td)
 		if (error != 0)
 			linux_msg(td, "futex stuff in thread_detach failed.");
 	}
+
+	/*
+	 * Do not rely on the robust list which is maintained by userspace,
+	 * cleanup remaining pi (if any) after release_futexes anyway.
+	 */
+	umtx_thread_exit(td);
 }
