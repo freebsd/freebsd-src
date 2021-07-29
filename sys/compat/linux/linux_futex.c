@@ -1001,7 +1001,7 @@ fetch_robust_entry(struct linux_robust_list **entry,
 	l_ulong uentry;
 	int error;
 
-	error = copyin((const void *)head, &uentry, sizeof(l_ulong));
+	error = copyin((const void *)head, &uentry, sizeof(uentry));
 	if (error != 0)
 		return (EFAULT);
 
