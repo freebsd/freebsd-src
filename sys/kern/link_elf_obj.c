@@ -544,6 +544,17 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 					lf->ctors_addr = ef->progtab[pb].addr;
 					lf->ctors_size = shdr[i].sh_size;
 				}
+			} else if ((ef->progtab[pb].name != NULL &&
+			    strcmp(ef->progtab[pb].name, ".dtors") == 0) ||
+			    shdr[i].sh_type == SHT_FINI_ARRAY) {
+				if (lf->dtors_addr != 0) {
+					printf(
+				    "%s: multiple dtor sections in %s\n",
+					    __func__, filename);
+				} else {
+					lf->dtors_addr = ef->progtab[pb].addr;
+					lf->dtors_size = shdr[i].sh_size;
+				}
 			}
 
 			/* Update all symbol values with the offset. */
@@ -612,7 +623,7 @@ out:
 }
 
 static void
-link_elf_invoke_ctors(caddr_t addr, size_t size)
+link_elf_invoke_cbs(caddr_t addr, size_t size)
 {
 	void (**ctor)(void);
 	size_t i, cnt;
@@ -653,7 +664,7 @@ link_elf_link_preload_finish(linker_file_t lf)
 	/* Apply protections now that relocation processing is complete. */
 	link_elf_protect(ef);
 
-	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
 
@@ -1012,6 +1023,19 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 						lf->ctors_size =
 						    shdr[i].sh_size;
 					}
+				} else if (!strcmp(ef->progtab[pb].name,
+				    ".dtors") ||
+				    shdr[i].sh_type == SHT_FINI_ARRAY) {
+					if (lf->dtors_addr != 0) {
+						printf(
+				    "%s: multiple dtor sections in %s\n",
+						    __func__, filename);
+					} else {
+						lf->dtors_addr =
+						    (caddr_t)mapbase;
+						lf->dtors_size =
+						    shdr[i].sh_size;
+					}
 				}
 			} else if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
@@ -1196,7 +1220,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #endif
 
 	link_elf_protect(ef);
-	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
+	link_elf_invoke_cbs(lf->ctors_addr, lf->ctors_size);
 	*result = lf;
 
 out:
@@ -1215,6 +1239,8 @@ link_elf_unload_file(linker_file_t file)
 {
 	elf_file_t ef = (elf_file_t) file;
 	u_int i;
+
+	link_elf_invoke_cbs(file->dtors_addr, file->dtors_size);
 
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
