@@ -47,8 +47,6 @@
 
 MALLOC_DECLARE(M_LINUX);
 MALLOC_DECLARE(M_EPOLL);
-MALLOC_DECLARE(M_FUTEX);
-MALLOC_DECLARE(M_FUTEX_WP);
 
 extern char linux_emul_path[];
 extern int linux_use_emul_path;
