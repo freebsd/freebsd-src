@@ -56,7 +56,6 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
-#include <sys/sdt.h>
 #include <sys/umtxvar.h>
 
 #include <vm/vm_extern.h>
@@ -68,39 +67,11 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
-
-/* DTrace init */
-LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
-
-/**
- * DTrace probes in this module.
- */
-LIN_SDT_PROBE_DEFINE4(futex, futex_atomic_op, decoded_op, "int", "int", "int",
-    "int");
-LIN_SDT_PROBE_DEFINE1(futex, futex_atomic_op, unimplemented_op, "int");
-LIN_SDT_PROBE_DEFINE1(futex, futex_atomic_op, unimplemented_cmp, "int");
-LIN_SDT_PROBE_DEFINE3(futex, linux_futex, debug_wait, "uint32_t *",
-    "uint32_t", "uint32_t");
-LIN_SDT_PROBE_DEFINE3(futex, linux_futex, debug_wake, "uint32_t *",
-    "uint32_t", "uint32_t");
-LIN_SDT_PROBE_DEFINE5(futex, linux_futex, debug_cmp_requeue, "uint32_t *",
-    "uint32_t", "uint32_t", "uint32_t *", "struct l_timespec *");
-LIN_SDT_PROBE_DEFINE5(futex, linux_futex, debug_wake_op, "uint32_t *",
-    "int", "uint32_t", "uint32_t *", "uint32_t");
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, deprecated_requeue);
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_wait_requeue_pi);
-LIN_SDT_PROBE_DEFINE0(futex, linux_futex, unimplemented_cmp_requeue_pi);
-LIN_SDT_PROBE_DEFINE1(futex, linux_futex, unknown_operation, "int");
-LIN_SDT_PROBE_DEFINE0(futex, linux_set_robust_list, size_error);
-LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, copyout_error, "int");
-LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, copyin_error, "int");
-LIN_SDT_PROBE_DEFINE1(futex, release_futexes, copyin_error, "int");
 
 #define	FUTEX_SHARED	0x8     /* shared futex */
 
@@ -188,9 +159,6 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
 		oparg = 1 << oparg;
 
-	LIN_SDT_PROBE4(futex, futex_atomic_op, decoded_op, op, cmp, oparg,
-	    cmparg);
-
 	switch (op) {
 	case FUTEX_OP_SET:
 		ret = futex_xchgl(oparg, uaddr, &oldval);
@@ -208,7 +176,6 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 		ret = futex_xorl(oparg, uaddr, &oldval);
 		break;
 	default:
-		LIN_SDT_PROBE1(futex, futex_atomic_op, unimplemented_op, op);
 		ret = -ENOSYS;
 		break;
 	}
@@ -236,7 +203,6 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 		ret = (oldval > cmparg);
 		break;
 	default:
-		LIN_SDT_PROBE1(futex, futex_atomic_op, unimplemented_cmp, cmp);
 		ret = -ENOSYS;
 	}
 
@@ -264,8 +230,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		/* FALLTHROUGH */
 
 	case LINUX_FUTEX_WAIT_BITSET:
-		LIN_SDT_PROBE3(futex, linux_futex, debug_wait, args->uaddr,
-		    args->val, args->val3);
 		LINUX_CTR3(sys_futex, "WAIT uaddr %p val 0x%x bitset 0x%x",
 		    args->uaddr, args->val, args->val3);
 
@@ -276,8 +240,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		/* FALLTHROUGH */
 
 	case LINUX_FUTEX_WAKE_BITSET:
-		LIN_SDT_PROBE3(futex, linux_futex, debug_wake, args->uaddr,
-		    args->val, args->val3);
 		LINUX_CTR3(sys_futex, "WAKE uaddr %p nrwake 0x%x bitset 0x%x",
 		    args->uaddr, args->val, args->val3);
 
@@ -294,8 +256,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		if ((pem->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
 			linux_msg(td, "unsupported FUTEX_REQUEUE");
 			pem->flags |= LINUX_XDEPR_REQUEUEOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    deprecated_requeue);
 		}
 
 		/*
@@ -311,9 +271,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		/* FALLTHROUGH */
 
 	case LINUX_FUTEX_CMP_REQUEUE:
-		LIN_SDT_PROBE5(futex, linux_futex, debug_cmp_requeue,
-		    args->uaddr, args->val, args->val3, args->uaddr2,
-		    args->ts);
 		LINUX_CTR5(sys_futex, "CMP_REQUEUE uaddr %p "
 		    "nrwake 0x%x uval 0x%x uaddr2 %p nrequeue 0x%x",
 		    args->uaddr, args->val, args->val3, args->uaddr2,
@@ -322,8 +279,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		return (linux_futex_requeue(td, args));
 
 	case LINUX_FUTEX_WAKE_OP:
-		LIN_SDT_PROBE5(futex, linux_futex, debug_wake_op,
-		    args->uaddr, args->op, args->val, args->uaddr2, args->val3);
 		LINUX_CTR5(sys_futex, "WAKE_OP "
 		    "uaddr %p nrwake 0x%x uaddr2 %p op 0x%x nrwake2 0x%x",
 		    args->uaddr, args->val, args->uaddr2, args->val3,
@@ -356,8 +311,6 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
 			linux_msg(td, "unsupported FUTEX_WAIT_REQUEUE_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    unimplemented_wait_requeue_pi);
 		}
 		return (ENOSYS);
 
@@ -367,15 +320,11 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
 			linux_msg(td, "unsupported FUTEX_CMP_REQUEUE_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
-			LIN_SDT_PROBE0(futex, linux_futex,
-			    unimplemented_cmp_requeue_pi);
 		}
 		return (ENOSYS);
 
 	default:
 		linux_msg(td, "unsupported futex op %d", args->op);
-		LIN_SDT_PROBE1(futex, linux_futex, unknown_operation,
-		    args->op);
 		return (ENOSYS);
 	}
 }
@@ -930,10 +879,8 @@ linux_set_robust_list(struct thread *td, struct linux_set_robust_list_args *args
 {
 	struct linux_emuldata *em;
 
-	if (args->len != sizeof(struct linux_robust_list_head)) {
-		LIN_SDT_PROBE0(futex, linux_set_robust_list, size_error);
+	if (args->len != sizeof(struct linux_robust_list_head))
 		return (EINVAL);
-	}
 
 	em = em_find(td);
 	em->robust_futexes = args->head;
@@ -978,19 +925,10 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 	}
 
 	error = copyout(&len, args->len, sizeof(l_size_t));
-	if (error) {
-		LIN_SDT_PROBE1(futex, linux_get_robust_list, copyout_error,
-		    error);
+	if (error)
 		return (EFAULT);
-	}
 
-	error = copyout(&head, args->head, sizeof(head));
-	if (error) {
-		LIN_SDT_PROBE1(futex, linux_get_robust_list, copyout_error,
-		    error);
-	}
-
-	return (error);
+	return (copyout(&head, args->head, sizeof(head)));
 }
 
 static int
@@ -1063,10 +1001,8 @@ fetch_robust_entry(struct linux_robust_list **entry,
 	int error;
 
 	error = copyin((const void *)head, &uentry, sizeof(l_ulong));
-	if (error) {
-		LIN_SDT_PROBE1(futex, fetch_robust_entry, copyin_error, error);
+	if (error)
 		return (EFAULT);
-	}
 
 	*entry = (void *)(uentry & ~1UL);
 	*pi = uentry & 1;
@@ -1098,10 +1034,8 @@ release_futexes(struct thread *td, struct linux_emuldata *em)
 
 	error = copyin(&head->futex_offset, &futex_offset,
 	    sizeof(futex_offset));
-	if (error) {
-		LIN_SDT_PROBE1(futex, release_futexes, copyin_error, error);
+	if (error)
 		return;
-	}
 
 	if (fetch_robust_entry(&pending, PTRIN(&head->pending_list), &pip))
 		return;
