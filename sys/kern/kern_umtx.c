@@ -559,6 +559,32 @@ umtxq_count_pi(struct umtx_key *key, struct umtx_q **first)
 }
 
 /*
+ * Wake up threads waiting on an userland object by a bit mask.
+ */
+int
+umtxq_signal_mask(struct umtx_key *key, int n_wake, u_int bitset)
+{
+	struct umtxq_queue *uh;
+	struct umtx_q *uq, *uq_temp;
+	int ret;
+
+	ret = 0;
+	UMTXQ_LOCKED_ASSERT(umtxq_getchain(key));
+	uh = umtxq_queue_lookup(key, UMTX_SHARED_QUEUE);
+	if (uh == NULL)
+		return (0);
+	TAILQ_FOREACH_SAFE(uq, &uh->head, uq_link, uq_temp) {
+		if ((uq->uq_bitset & bitset) == 0)
+			continue;
+		umtxq_remove_queue(uq, UMTX_SHARED_QUEUE);
+		wakeup_one(uq);
+		if (++ret >= n_wake)
+			break;
+	}
+	return (ret);
+}
+
+/*
  * Wake up threads waiting on an userland object.
  */
 
