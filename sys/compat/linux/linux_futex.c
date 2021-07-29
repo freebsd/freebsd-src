@@ -288,6 +288,9 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 
 	case LINUX_FUTEX_LOCK_PI:
 		args->clockrt = true;
+		/* FALLTHROUGH */
+
+	case LINUX_FUTEX_LOCK_PI2:
 		LINUX_CTR2(sys_futex, "LOCKPI uaddr %p val 0x%x",
 		    args->uaddr, args->val);
 
@@ -789,7 +792,7 @@ linux_umtx_abs_timeout_init(struct umtx_abs_timeout *timo,
 
 	/*
 	 * The FUTEX_CLOCK_REALTIME option bit can be employed only with the
-	 * FUTEX_WAIT_BITSET, FUTEX_WAIT_REQUEUE_PI.
+	 * FUTEX_WAIT_BITSET, FUTEX_WAIT_REQUEUE_PI, FUTEX_LOCK_PI2.
 	 * For FUTEX_WAIT, timeout is interpreted as a relative value, for other
 	 * futex operations timeout is interpreted as an absolute value.
 	 * If FUTEX_CLOCK_REALTIME option bit is set, the Linux kernel measures
@@ -820,6 +823,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	case LINUX_FUTEX_WAIT:
 	case LINUX_FUTEX_WAIT_BITSET:
 	case LINUX_FUTEX_LOCK_PI:
+	case LINUX_FUTEX_LOCK_PI2:
 		if (args->timeout != NULL) {
 			error = copyin(args->timeout, &lts, sizeof(lts));
 			if (error != 0)
@@ -857,6 +861,7 @@ linux_sys_futex_time64(struct thread *td,
 	case LINUX_FUTEX_WAIT:
 	case LINUX_FUTEX_WAIT_BITSET:
 	case LINUX_FUTEX_LOCK_PI:
+	case LINUX_FUTEX_LOCK_PI2:
 		if (args->timeout != NULL) {
 			error = copyin(args->timeout, &lts, sizeof(lts));
 			if (error != 0)
