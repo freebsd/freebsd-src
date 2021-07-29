@@ -125,6 +125,7 @@ struct linux_futex_args {
 	struct timespec	kts;
 };
 
+static inline int futex_key_get(const void *, int, int, struct umtx_key *);
 static void linux_umtx_abs_timeout_init(struct umtx_abs_timeout *,
 	    struct linux_futex_args *);
 static int	linux_futex(struct thread *, struct linux_futex_args *);
@@ -136,6 +137,16 @@ static int linux_futex_lock_pi(struct thread *, bool, struct linux_futex_args *)
 static int linux_futex_unlock_pi(struct thread *, bool,
 	    struct linux_futex_args *);
 static int futex_wake_pi(struct thread *, uint32_t *, bool);
+
+static int
+futex_key_get(const void *uaddr, int type, int share, struct umtx_key *key)
+{
+
+	/* Check that futex address is a 32bit aligned. */
+	if (!__is_aligned(uaddr, sizeof(uint32_t)))
+		return (EINVAL);
+	return (umtx_key_get(uaddr, type, share, key));
+}
 
 int
 futex_wake(struct thread *td, uint32_t *uaddr, int val, bool shared)
@@ -404,7 +415,7 @@ linux_futex_lock_pi(struct thread *td, bool try, struct linux_futex_args *args)
 
 	em = em_find(td);
 	uq = td->td_umtxq;
-	error = umtx_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args),
+	error = futex_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args),
 	    &uq->uq_key);
 	if (error != 0)
 		return (error);
@@ -611,7 +622,7 @@ linux_futex_unlock_pi(struct thread *td, bool rb, struct linux_futex_args *args)
 	if (!rb && (owner & FUTEX_TID_MASK) != em->em_tid)
 		return (EPERM);
 
-	error = umtx_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args), &key);
+	error = futex_key_get(args->uaddr, TYPE_PI_FUTEX, GET_SHARED(args), &key);
 	if (error != 0)
 		return (error);
 	umtxq_lock(&key);
@@ -661,10 +672,10 @@ linux_futex_wakeop(struct thread *td, struct linux_futex_args *args)
 	if (args->uaddr == args->uaddr2)
 		return (EINVAL);
 
-	error = umtx_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
+	error = futex_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
 	if (error != 0)
 		return (error);
-	error = umtx_key_get(args->uaddr2, TYPE_FUTEX, GET_SHARED(args), &key2);
+	error = futex_key_get(args->uaddr2, TYPE_FUTEX, GET_SHARED(args), &key2);
 	if (error != 0) {
 		umtx_key_release(&key);
 		return (error);
@@ -726,10 +737,10 @@ linux_futex_requeue(struct thread *td, struct linux_futex_args *args)
 	if (nrwake < 0 || nrrequeue < 0)
 		return (EINVAL);
 
-	error = umtx_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
+	error = futex_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
 	if (error != 0)
 		return (error);
-	error = umtx_key_get(args->uaddr2, TYPE_FUTEX, GET_SHARED(args), &key2);
+	error = futex_key_get(args->uaddr2, TYPE_FUTEX, GET_SHARED(args), &key2);
 	if (error != 0) {
 		umtx_key_release(&key);
 		return (error);
@@ -764,7 +775,7 @@ linux_futex_wake(struct thread *td, struct linux_futex_args *args)
 	if (args->val3 == 0)
 		return (EINVAL);
 
-	error = umtx_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
+	error = futex_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args), &key);
 	if (error != 0)
 		return (error);
 	umtxq_lock(&key);
@@ -786,7 +797,7 @@ linux_futex_wait(struct thread *td, struct linux_futex_args *args)
 		error = EINVAL;
 
 	uq = td->td_umtxq;
-	error = umtx_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args),
+	error = futex_key_get(args->uaddr, TYPE_FUTEX, GET_SHARED(args),
 	    &uq->uq_key);
 	if (error != 0)
 		return (error);
