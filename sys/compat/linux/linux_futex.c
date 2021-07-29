@@ -1017,7 +1017,7 @@ fetch_robust_entry(struct linux_robust_list **entry,
 void
 release_futexes(struct thread *td, struct linux_emuldata *em)
 {
-	struct linux_robust_list_head *head = NULL;
+	struct linux_robust_list_head *head;
 	struct linux_robust_list *entry, *next_entry, *pending;
 	unsigned int limit = 2048, pi, next_pi, pip;
 	uint32_t *uaddr;
