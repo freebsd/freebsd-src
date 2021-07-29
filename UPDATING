@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210729:
+	As of commit 01ad0c007964 if_bridge member interfaces can no longer
+	change their MTU. Changing the MTU of the bridge itself will change the
+	MTU on all member interfaces instead.
+
 20210716:
 	Commit ee29e6f31111 changed the internal KAPI between the nfscommon
 	and nfsd modules. Therefore, both need to be rebuilt from sources.
