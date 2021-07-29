@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
-MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
-MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
 
 FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
 FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
