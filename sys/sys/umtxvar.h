@@ -78,6 +78,13 @@ struct umtx_key {
 #define PROCESS_SHARE		1
 #define AUTO_SHARE		2
 
+struct umtx_abs_timeout {
+	int clockid;
+	bool is_abs_real;	/* TIMER_ABSTIME && CLOCK_REALTIME* */
+	struct timespec cur;
+	struct timespec end;
+};
+
 struct thread;
 
 static inline int
@@ -89,6 +96,8 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 	    k1->info.both.b == k2->info.both.b);
 }
 
+void umtx_abs_timeout_init(struct umtx_abs_timeout *, int, int,
+    const struct timespec *);
 int umtx_copyin_timeout(const void *, struct timespec *);
 void umtx_exec(struct proc *p);
 int umtx_key_get(const void *, int, int, struct umtx_key *);
