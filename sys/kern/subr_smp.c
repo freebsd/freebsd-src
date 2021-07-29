@@ -630,6 +630,17 @@ smp_rendezvous(void (* setup_func)(void *),
 
 static struct cpu_group group[MAXCPU * MAX_CACHE_LEVELS + 1];
 
+static void
+smp_topo_fill(struct cpu_group *cg)
+{
+	int c;
+
+	for (c = 0; c < cg->cg_children; c++)
+		smp_topo_fill(&cg->cg_child[c]);
+	cg->cg_first = CPU_FFS(&cg->cg_mask) - 1;
+	cg->cg_last = CPU_FLS(&cg->cg_mask) - 1;
+}
+
 struct cpu_group *
 smp_topo(void)
 {
@@ -693,6 +704,7 @@ smp_topo(void)
 		top = &top->cg_child[0];
 		top->cg_parent = NULL;
 	}
+	smp_topo_fill(top);
 	return (top);
 }
 
