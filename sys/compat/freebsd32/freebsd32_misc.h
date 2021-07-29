@@ -38,12 +38,12 @@
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define	PAIR32TO64(type, name)	((name ## 2) | ((type)(name ## 1) << 32))
-#define	RETVAL_HI	0	
-#define	RETVAL_LO	1	
+#define	RETVAL_HI	0
+#define	RETVAL_LO	1
 #else
 #define	PAIR32TO64(type, name)	((name ## 1) | ((type)(name ## 2) << 32))
-#define	RETVAL_HI	1	
-#define	RETVAL_LO	0	
+#define	RETVAL_HI	1
+#define	RETVAL_LO	0
 #endif
 
 #endif	/* !_COMPAT_FREEBSD32_MISC_H_ */
