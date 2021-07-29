@@ -131,7 +131,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	if (asprintf(&buf, "%s/%s/LC_COLLATE", _PathLocale, encoding) == -1)
 		return (_LDP_ERROR);
 
-	if ((fd = _open(buf, O_RDONLY)) < 0) {
+	if ((fd = _open(buf, O_RDONLY | O_CLOEXEC)) < 0) {
 		free(buf);
 		return (_LDP_ERROR);
 	}
