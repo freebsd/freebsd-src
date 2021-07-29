@@ -28,7 +28,7 @@ LLDB_PLUGIN_DEFINE(DynamicLoaderWindowsDYLD)
 DynamicLoaderWindowsDYLD::DynamicLoaderWindowsDYLD(Process *process)
     : DynamicLoader(process) {}
 
-DynamicLoaderWindowsDYLD::~DynamicLoaderWindowsDYLD() {}
+DynamicLoaderWindowsDYLD::~DynamicLoaderWindowsDYLD() = default;
 
 void DynamicLoaderWindowsDYLD::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -193,7 +193,7 @@ DynamicLoaderWindowsDYLD::GetStepThroughTrampolinePlan(Thread &thread,
   AddressRange range(pc, 2 * 15);
 
   DisassemblerSP disassembler_sp = Disassembler::DisassembleRange(
-      arch, nullptr, nullptr, m_process->GetTarget(), range, true);
+      arch, nullptr, nullptr, m_process->GetTarget(), range);
   if (!disassembler_sp) {
     return ThreadPlanSP();
   }

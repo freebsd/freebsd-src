@@ -177,9 +177,9 @@ bool ModuleLinker::computeResultingSelectionKind(StringRef ComdatName,
     // Go with Dst.
     LinkFromSrc = false;
     break;
-  case Comdat::SelectionKind::NoDuplicates:
+  case Comdat::SelectionKind::NoDeduplicate:
     return emitError("Linking COMDATs named '" + ComdatName +
-                     "': noduplicates has been violated!");
+                     "': nodeduplicate has been violated!");
   case Comdat::SelectionKind::ExactMatch:
   case Comdat::SelectionKind::Largest:
   case Comdat::SelectionKind::SameSize: {
@@ -438,13 +438,12 @@ void ModuleLinker::dropReplacedComdat(
   } else {
     auto &Alias = cast<GlobalAlias>(GV);
     Module &M = *Alias.getParent();
-    PointerType &Ty = *cast<PointerType>(Alias.getType());
     GlobalValue *Declaration;
     if (auto *FTy = dyn_cast<FunctionType>(Alias.getValueType())) {
       Declaration = Function::Create(FTy, GlobalValue::ExternalLinkage, "", &M);
     } else {
       Declaration =
-          new GlobalVariable(M, Ty.getElementType(), /*isConstant*/ false,
+          new GlobalVariable(M, Alias.getValueType(), /*isConstant*/ false,
                              GlobalValue::ExternalLinkage,
                              /*Initializer*/ nullptr);
     }

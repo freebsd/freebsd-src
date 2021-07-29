@@ -331,7 +331,7 @@ static void DiskFilesOrDirectories(const llvm::Twine &partial_name,
   llvm::StringRef PartialItem;
 
   if (CompletionBuffer.startswith("~")) {
-    llvm::StringRef Buffer(CompletionBuffer);
+    llvm::StringRef Buffer = CompletionBuffer;
     size_t FirstSep =
         Buffer.find_if([](char c) { return path::is_separator(c); });
 
@@ -774,9 +774,7 @@ void CommandCompletions::WatchPointIDs(CommandInterpreter &interpreter,
     return;
 
   const WatchpointList &wp_list = exe_ctx.GetTargetPtr()->GetWatchpointList();
-  const size_t wp_num = wp_list.GetSize();
-  for (size_t idx = 0; idx < wp_num; ++idx) {
-    const lldb::WatchpointSP wp_sp = wp_list.GetByIndex(idx);
+  for (lldb::WatchpointSP wp_sp : wp_list.Watchpoints()) {
     StreamString strm;
     wp_sp->Dump(&strm);
     request.TryCompleteCurrentArg(std::to_string(wp_sp->GetID()),

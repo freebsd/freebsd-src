@@ -126,9 +126,10 @@ static cl::opt<bool> DisableSimplifyLibCalls("disable-simplify-libcalls",
 static cl::opt<bool> ShowMCEncoding("show-mc-encoding", cl::Hidden,
                                     cl::desc("Show encoding in .s output"));
 
-static cl::opt<bool> EnableDwarfDirectory(
-    "enable-dwarf-directory", cl::Hidden,
-    cl::desc("Use .file directives with an explicit directory."));
+static cl::opt<bool>
+    DwarfDirectory("dwarf-directory", cl::Hidden,
+                   cl::desc("Use .file directives with an explicit directory"),
+                   cl::init(true));
 
 static cl::opt<bool> AsmVerbose("asm-verbose",
                                 cl::desc("Add comments to directives."),
@@ -276,7 +277,7 @@ static std::unique_ptr<ToolOutputFile> GetOutputStream(const char *TargetName,
   std::error_code EC;
   sys::fs::OpenFlags OpenFlags = sys::fs::OF_None;
   if (!Binary)
-    OpenFlags |= sys::fs::OF_Text;
+    OpenFlags |= sys::fs::OF_TextWithCRLF;
   auto FDOut = std::make_unique<ToolOutputFile>(OutputFilename, EC, OpenFlags);
   if (EC) {
     reportError(EC.message());
@@ -290,6 +291,22 @@ struct LLCDiagnosticHandler : public DiagnosticHandler {
   bool *HasError;
   LLCDiagnosticHandler(bool *HasErrorPtr) : HasError(HasErrorPtr) {}
   bool handleDiagnostics(const DiagnosticInfo &DI) override {
+    if (DI.getKind() == llvm::DK_SrcMgr) {
+      const auto &DISM = cast<DiagnosticInfoSrcMgr>(DI);
+      const SMDiagnostic &SMD = DISM.getSMDiag();
+
+      if (SMD.getKind() == SourceMgr::DK_Error)
+        *HasError = true;
+
+      SMD.print(nullptr, errs());
+
+      // For testing purposes, we print the LocCookie here.
+      if (DISM.isInlineAsmDiag() && DISM.getLocCookie())
+        WithColor::note() << "!srcloc = " << DISM.getLocCookie() << "\n";
+
+      return true;
+    }
+
     if (DI.getSeverity() == DS_Error)
       *HasError = true;
 
@@ -304,19 +321,6 @@ struct LLCDiagnosticHandler : public DiagnosticHandler {
     return true;
   }
 };
-
-static void InlineAsmDiagHandler(const SMDiagnostic &SMD, void *Context,
-                                 unsigned LocCookie) {
-  bool *HasError = static_cast<bool *>(Context);
-  if (SMD.getKind() == SourceMgr::DK_Error)
-    *HasError = true;
-
-  SMD.print(nullptr, errs());
-
-  // For testing purposes, we print the LocCookie here.
-  if (LocCookie)
-    WithColor::note() << "!srcloc = " << LocCookie << "\n";
-}
 
 // main - Entry point for the llc compiler.
 //
@@ -349,8 +353,10 @@ int main(int argc, char **argv) {
   initializeVectorization(*Registry);
   initializeScalarizeMaskedMemIntrinLegacyPassPass(*Registry);
   initializeExpandReductionsPass(*Registry);
+  initializeExpandVectorPredicationPass(*Registry);
   initializeHardwareLoopsPass(*Registry);
   initializeTransformUtils(*Registry);
+  initializeReplaceWithVeclibLegacyPass(*Registry);
 
   // Initialize debugging passes.
   initializeScavengerTestPass(*Registry);
@@ -366,7 +372,6 @@ int main(int argc, char **argv) {
   bool HasError = false;
   Context.setDiagnosticHandler(
       std::make_unique<LLCDiagnosticHandler>(&HasError));
-  Context.setInlineAsmDiagnosticHandler(InlineAsmDiagHandler, &HasError);
 
   Expected<std::unique_ptr<ToolOutputFile>> RemarksFileOrErr =
       setupLLVMOptimizationRemarks(Context, RemarksFilename, RemarksPasses,
@@ -469,7 +474,7 @@ static int compileModule(char **argv, LLVMContext &Context) {
         TargetMachine::parseBinutilsVersion(BinutilsVersion);
     Options.DisableIntegratedAS = NoIntegratedAssembler;
     Options.MCOptions.ShowMCEncoding = ShowMCEncoding;
-    Options.MCOptions.MCUseDwarfDirectory = EnableDwarfDirectory;
+    Options.MCOptions.MCUseDwarfDirectory = DwarfDirectory;
     Options.MCOptions.AsmVerbose = AsmVerbose;
     Options.MCOptions.PreserveAsmComments = PreserveComments;
     Options.MCOptions.IASSearchPaths = IncludeDirs;

@@ -170,8 +170,10 @@ const SCEV *llvm::replaceSymbolicStrideSCEV(PredicatedScalarEvolution &PSE,
 
 RuntimeCheckingPtrGroup::RuntimeCheckingPtrGroup(
     unsigned Index, RuntimePointerChecking &RtCheck)
-    : RtCheck(RtCheck), High(RtCheck.Pointers[Index].End),
-      Low(RtCheck.Pointers[Index].Start) {
+    : High(RtCheck.Pointers[Index].End), Low(RtCheck.Pointers[Index].Start),
+      AddressSpace(RtCheck.Pointers[Index]
+                       .PointerValue->getType()
+                       ->getPointerAddressSpace()) {
   Members.push_back(Index);
 }
 
@@ -199,9 +201,9 @@ void RuntimePointerChecking::insert(Loop *Lp, Value *Ptr, bool WritePtr,
   const SCEV *ScStart;
   const SCEV *ScEnd;
 
-  if (SE->isLoopInvariant(Sc, Lp))
+  if (SE->isLoopInvariant(Sc, Lp)) {
     ScStart = ScEnd = Sc;
-  else {
+  } else {
     const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(Sc);
     assert(AR && "Invalid addrec expression");
     const SCEV *Ex = PSE.getBackedgeTakenCount();
@@ -222,13 +224,13 @@ void RuntimePointerChecking::insert(Loop *Lp, Value *Ptr, bool WritePtr,
       ScStart = SE->getUMinExpr(ScStart, ScEnd);
       ScEnd = SE->getUMaxExpr(AR->getStart(), ScEnd);
     }
-    // Add the size of the pointed element to ScEnd.
-    auto &DL = Lp->getHeader()->getModule()->getDataLayout();
-    Type *IdxTy = DL.getIndexType(Ptr->getType());
-    const SCEV *EltSizeSCEV =
-        SE->getStoreSizeOfExpr(IdxTy, Ptr->getType()->getPointerElementType());
-    ScEnd = SE->getAddExpr(ScEnd, EltSizeSCEV);
   }
+  // Add the size of the pointed element to ScEnd.
+  auto &DL = Lp->getHeader()->getModule()->getDataLayout();
+  Type *IdxTy = DL.getIndexType(Ptr->getType());
+  const SCEV *EltSizeSCEV =
+      SE->getStoreSizeOfExpr(IdxTy, Ptr->getType()->getPointerElementType());
+  ScEnd = SE->getAddExpr(ScEnd, EltSizeSCEV);
 
   Pointers.emplace_back(Ptr, ScStart, ScEnd, WritePtr, DepSetId, ASId, Sc);
 }
@@ -279,18 +281,28 @@ static const SCEV *getMinFromExprs(const SCEV *I, const SCEV *J,
   return I;
 }
 
-bool RuntimeCheckingPtrGroup::addPointer(unsigned Index) {
-  const SCEV *Start = RtCheck.Pointers[Index].Start;
-  const SCEV *End = RtCheck.Pointers[Index].End;
+bool RuntimeCheckingPtrGroup::addPointer(unsigned Index,
+                                         RuntimePointerChecking &RtCheck) {
+  return addPointer(
+      Index, RtCheck.Pointers[Index].Start, RtCheck.Pointers[Index].End,
+      RtCheck.Pointers[Index].PointerValue->getType()->getPointerAddressSpace(),
+      *RtCheck.SE);
+}
+
+bool RuntimeCheckingPtrGroup::addPointer(unsigned Index, const SCEV *Start,
+                                         const SCEV *End, unsigned AS,
+                                         ScalarEvolution &SE) {
+  assert(AddressSpace == AS &&
+         "all pointers in a checking group must be in the same address space");
 
   // Compare the starts and ends with the known minimum and maximum
   // of this set. We need to know how we compare against the min/max
   // of the set in order to be able to emit memchecks.
-  const SCEV *Min0 = getMinFromExprs(Start, Low, RtCheck.SE);
+  const SCEV *Min0 = getMinFromExprs(Start, Low, &SE);
   if (!Min0)
     return false;
 
-  const SCEV *Min1 = getMinFromExprs(End, High, RtCheck.SE);
+  const SCEV *Min1 = getMinFromExprs(End, High, &SE);
   if (!Min1)
     return false;
 
@@ -410,7 +422,7 @@ void RuntimePointerChecking::groupChecks(
 
         TotalComparisons++;
 
-        if (Group.addPointer(Pointer)) {
+        if (Group.addPointer(Pointer, *this)) {
           Merged = true;
           break;
         }
@@ -1124,74 +1136,116 @@ int64_t llvm::getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr,
   return Stride;
 }
 
-bool llvm::sortPtrAccesses(ArrayRef<Value *> VL, const DataLayout &DL,
-                           ScalarEvolution &SE,
+Optional<int> llvm::getPointersDiff(Type *ElemTyA, Value *PtrA, Type *ElemTyB,
+                                    Value *PtrB, const DataLayout &DL,
+                                    ScalarEvolution &SE, bool StrictCheck,
+                                    bool CheckType) {
+  assert(PtrA && PtrB && "Expected non-nullptr pointers.");
+  assert(cast<PointerType>(PtrA->getType())
+             ->isOpaqueOrPointeeTypeMatches(ElemTyA) && "Wrong PtrA type");
+  assert(cast<PointerType>(PtrB->getType())
+             ->isOpaqueOrPointeeTypeMatches(ElemTyB) && "Wrong PtrB type");
+
+  // Make sure that A and B are different pointers.
+  if (PtrA == PtrB)
+    return 0;
+
+  // Make sure that the element types are the same if required.
+  if (CheckType && ElemTyA != ElemTyB)
+    return None;
+
+  unsigned ASA = PtrA->getType()->getPointerAddressSpace();
+  unsigned ASB = PtrB->getType()->getPointerAddressSpace();
+
+  // Check that the address spaces match.
+  if (ASA != ASB)
+    return None;
+  unsigned IdxWidth = DL.getIndexSizeInBits(ASA);
+
+  APInt OffsetA(IdxWidth, 0), OffsetB(IdxWidth, 0);
+  Value *PtrA1 = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
+  Value *PtrB1 = PtrB->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetB);
+
+  int Val;
+  if (PtrA1 == PtrB1) {
+    // Retrieve the address space again as pointer stripping now tracks through
+    // `addrspacecast`.
+    ASA = cast<PointerType>(PtrA1->getType())->getAddressSpace();
+    ASB = cast<PointerType>(PtrB1->getType())->getAddressSpace();
+    // Check that the address spaces match and that the pointers are valid.
+    if (ASA != ASB)
+      return None;
+
+    IdxWidth = DL.getIndexSizeInBits(ASA);
+    OffsetA = OffsetA.sextOrTrunc(IdxWidth);
+    OffsetB = OffsetB.sextOrTrunc(IdxWidth);
+
+    OffsetB -= OffsetA;
+    Val = OffsetB.getSExtValue();
+  } else {
+    // Otherwise compute the distance with SCEV between the base pointers.
+    const SCEV *PtrSCEVA = SE.getSCEV(PtrA);
+    const SCEV *PtrSCEVB = SE.getSCEV(PtrB);
+    const auto *Diff =
+        dyn_cast<SCEVConstant>(SE.getMinusSCEV(PtrSCEVB, PtrSCEVA));
+    if (!Diff)
+      return None;
+    Val = Diff->getAPInt().getSExtValue();
+  }
+  int Size = DL.getTypeStoreSize(ElemTyA);
+  int Dist = Val / Size;
+
+  // Ensure that the calculated distance matches the type-based one after all
+  // the bitcasts removal in the provided pointers.
+  if (!StrictCheck || Dist * Size == Val)
+    return Dist;
+  return None;
+}
+
+bool llvm::sortPtrAccesses(ArrayRef<Value *> VL, Type *ElemTy,
+                           const DataLayout &DL, ScalarEvolution &SE,
                            SmallVectorImpl<unsigned> &SortedIndices) {
   assert(llvm::all_of(
              VL, [](const Value *V) { return V->getType()->isPointerTy(); }) &&
          "Expected list of pointer operands.");
-  SmallVector<std::pair<int64_t, Value *>, 4> OffValPairs;
-  OffValPairs.reserve(VL.size());
-
   // Walk over the pointers, and map each of them to an offset relative to
   // first pointer in the array.
   Value *Ptr0 = VL[0];
-  const SCEV *Scev0 = SE.getSCEV(Ptr0);
-  Value *Obj0 = getUnderlyingObject(Ptr0);
 
-  llvm::SmallSet<int64_t, 4> Offsets;
-  for (auto *Ptr : VL) {
-    // TODO: Outline this code as a special, more time consuming, version of
-    // computeConstantDifference() function.
-    if (Ptr->getType()->getPointerAddressSpace() !=
-        Ptr0->getType()->getPointerAddressSpace())
-      return false;
-    // If a pointer refers to a different underlying object, bail - the
-    // pointers are by definition incomparable.
-    Value *CurrObj = getUnderlyingObject(Ptr);
-    if (CurrObj != Obj0)
-      return false;
-
-    const SCEV *Scev = SE.getSCEV(Ptr);
-    const auto *Diff = dyn_cast<SCEVConstant>(SE.getMinusSCEV(Scev, Scev0));
-    // The pointers may not have a constant offset from each other, or SCEV
-    // may just not be smart enough to figure out they do. Regardless,
-    // there's nothing we can do.
+  using DistOrdPair = std::pair<int64_t, int>;
+  auto Compare = [](const DistOrdPair &L, const DistOrdPair &R) {
+    return L.first < R.first;
+  };
+  std::set<DistOrdPair, decltype(Compare)> Offsets(Compare);
+  Offsets.emplace(0, 0);
+  int Cnt = 1;
+  bool IsConsecutive = true;
+  for (auto *Ptr : VL.drop_front()) {
+    Optional<int> Diff = getPointersDiff(ElemTy, Ptr0, ElemTy, Ptr, DL, SE,
+                                         /*StrictCheck=*/true);
     if (!Diff)
       return false;
 
     // Check if the pointer with the same offset is found.
-    int64_t Offset = Diff->getAPInt().getSExtValue();
-    if (!Offsets.insert(Offset).second)
+    int64_t Offset = *Diff;
+    auto Res = Offsets.emplace(Offset, Cnt);
+    if (!Res.second)
       return false;
-    OffValPairs.emplace_back(Offset, Ptr);
+    // Consecutive order if the inserted element is the last one.
+    IsConsecutive = IsConsecutive && std::next(Res.first) == Offsets.end();
+    ++Cnt;
   }
   SortedIndices.clear();
-  SortedIndices.resize(VL.size());
-  std::iota(SortedIndices.begin(), SortedIndices.end(), 0);
-
-  // Sort the memory accesses and keep the order of their uses in UseOrder.
-  llvm::stable_sort(SortedIndices, [&](unsigned Left, unsigned Right) {
-    return OffValPairs[Left].first < OffValPairs[Right].first;
-  });
-
-  // Check if the order is consecutive already.
-  if (llvm::all_of(SortedIndices, [&SortedIndices](const unsigned I) {
-        return I == SortedIndices[I];
-      }))
-    SortedIndices.clear();
-
+  if (!IsConsecutive) {
+    // Fill SortedIndices array only if it is non-consecutive.
+    SortedIndices.resize(VL.size());
+    Cnt = 0;
+    for (const std::pair<int64_t, int> &Pair : Offsets) {
+      SortedIndices[Cnt] = Pair.second;
+      ++Cnt;
+    }
+  }
   return true;
-}
-
-/// Take the address space operand from the Load/Store instruction.
-/// Returns -1 if this is not a valid Load/Store instruction.
-static unsigned getAddressSpaceOperand(Value *I) {
-  if (LoadInst *L = dyn_cast<LoadInst>(I))
-    return L->getPointerAddressSpace();
-  if (StoreInst *S = dyn_cast<StoreInst>(I))
-    return S->getPointerAddressSpace();
-  return -1;
 }
 
 /// Returns true if the memory operations \p A and \p B are consecutive.
@@ -1199,64 +1253,13 @@ bool llvm::isConsecutiveAccess(Value *A, Value *B, const DataLayout &DL,
                                ScalarEvolution &SE, bool CheckType) {
   Value *PtrA = getLoadStorePointerOperand(A);
   Value *PtrB = getLoadStorePointerOperand(B);
-  unsigned ASA = getAddressSpaceOperand(A);
-  unsigned ASB = getAddressSpaceOperand(B);
-
-  // Check that the address spaces match and that the pointers are valid.
-  if (!PtrA || !PtrB || (ASA != ASB))
+  if (!PtrA || !PtrB)
     return false;
-
-  // Make sure that A and B are different pointers.
-  if (PtrA == PtrB)
-    return false;
-
-  // Make sure that A and B have the same type if required.
-  if (CheckType && PtrA->getType() != PtrB->getType())
-    return false;
-
-  unsigned IdxWidth = DL.getIndexSizeInBits(ASA);
-  Type *Ty = cast<PointerType>(PtrA->getType())->getElementType();
-
-  APInt OffsetA(IdxWidth, 0), OffsetB(IdxWidth, 0);
-  PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
-  PtrB = PtrB->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetB);
-
-  // Retrieve the address space again as pointer stripping now tracks through
-  // `addrspacecast`.
-  ASA = cast<PointerType>(PtrA->getType())->getAddressSpace();
-  ASB = cast<PointerType>(PtrB->getType())->getAddressSpace();
-  // Check that the address spaces match and that the pointers are valid.
-  if (ASA != ASB)
-    return false;
-
-  IdxWidth = DL.getIndexSizeInBits(ASA);
-  OffsetA = OffsetA.sextOrTrunc(IdxWidth);
-  OffsetB = OffsetB.sextOrTrunc(IdxWidth);
-
-  APInt Size(IdxWidth, DL.getTypeStoreSize(Ty));
-
-  //  OffsetDelta = OffsetB - OffsetA;
-  const SCEV *OffsetSCEVA = SE.getConstant(OffsetA);
-  const SCEV *OffsetSCEVB = SE.getConstant(OffsetB);
-  const SCEV *OffsetDeltaSCEV = SE.getMinusSCEV(OffsetSCEVB, OffsetSCEVA);
-  const APInt &OffsetDelta = cast<SCEVConstant>(OffsetDeltaSCEV)->getAPInt();
-
-  // Check if they are based on the same pointer. That makes the offsets
-  // sufficient.
-  if (PtrA == PtrB)
-    return OffsetDelta == Size;
-
-  // Compute the necessary base pointer delta to have the necessary final delta
-  // equal to the size.
-  // BaseDelta = Size - OffsetDelta;
-  const SCEV *SizeSCEV = SE.getConstant(Size);
-  const SCEV *BaseDelta = SE.getMinusSCEV(SizeSCEV, OffsetDeltaSCEV);
-
-  // Otherwise compute the distance with SCEV between the base pointers.
-  const SCEV *PtrSCEVA = SE.getSCEV(PtrA);
-  const SCEV *PtrSCEVB = SE.getSCEV(PtrB);
-  const SCEV *X = SE.getAddExpr(PtrSCEVA, BaseDelta);
-  return X == PtrSCEVB;
+  Type *ElemTyA = getLoadStoreType(A);
+  Type *ElemTyB = getLoadStoreType(B);
+  Optional<int> Diff = getPointersDiff(ElemTyA, PtrA, ElemTyB, PtrB, DL, SE,
+                                       /*StrictCheck=*/true, CheckType);
+  return Diff && *Diff == 1;
 }
 
 MemoryDepChecker::VectorizationSafetyStatus
@@ -1523,7 +1526,8 @@ MemoryDepChecker::isDependent(const MemAccessInfo &A, unsigned AIdx,
   uint64_t Stride = std::abs(StrideAPtr);
   const SCEVConstant *C = dyn_cast<SCEVConstant>(Dist);
   if (!C) {
-    if (TypeByteSize == DL.getTypeAllocSize(BTy) &&
+    if (!isa<SCEVCouldNotCompute>(Dist) &&
+        TypeByteSize == DL.getTypeAllocSize(BTy) &&
         isSafeDependenceDistance(DL, *(PSE.getSE()),
                                  *(PSE.getBackedgeTakenCount()), *Dist, Stride,
                                  TypeByteSize))
@@ -2276,12 +2280,12 @@ bool LoopAccessLegacyAnalysis::runOnFunction(Function &F) {
 }
 
 void LoopAccessLegacyAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<ScalarEvolutionWrapperPass>();
-    AU.addRequired<AAResultsWrapperPass>();
-    AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<LoopInfoWrapperPass>();
+  AU.addRequiredTransitive<ScalarEvolutionWrapperPass>();
+  AU.addRequiredTransitive<AAResultsWrapperPass>();
+  AU.addRequiredTransitive<DominatorTreeWrapperPass>();
+  AU.addRequiredTransitive<LoopInfoWrapperPass>();
 
-    AU.setPreservesAll();
+  AU.setPreservesAll();
 }
 
 char LoopAccessLegacyAnalysis::ID = 0;

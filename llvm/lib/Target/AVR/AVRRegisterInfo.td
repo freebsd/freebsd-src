@@ -67,12 +67,12 @@ def R22 : AVRReg<22, "r22">, DwarfRegNum<[22]>;
 def R23 : AVRReg<23, "r23">, DwarfRegNum<[23]>;
 def R24 : AVRReg<24, "r24">, DwarfRegNum<[24]>;
 def R25 : AVRReg<25, "r25">, DwarfRegNum<[25]>;
-def R26 : AVRReg<26, "r26">, DwarfRegNum<[26]>;
-def R27 : AVRReg<27, "r27">, DwarfRegNum<[27]>;
-def R28 : AVRReg<28, "r28">, DwarfRegNum<[28]>;
-def R29 : AVRReg<29, "r29">, DwarfRegNum<[29]>;
-def R30 : AVRReg<30, "r30">, DwarfRegNum<[30]>;
-def R31 : AVRReg<31, "r31">, DwarfRegNum<[31]>;
+def R26 : AVRReg<26, "r26", [], ["xl"]>, DwarfRegNum<[26]>;
+def R27 : AVRReg<27, "r27", [], ["xh"]>, DwarfRegNum<[27]>;
+def R28 : AVRReg<28, "r28", [], ["yl"]>, DwarfRegNum<[28]>;
+def R29 : AVRReg<29, "r29", [], ["yh"]>, DwarfRegNum<[29]>;
+def R30 : AVRReg<30, "r30", [], ["zl"]>, DwarfRegNum<[30]>;
+def R31 : AVRReg<31, "r31", [], ["zh"]>, DwarfRegNum<[31]>;
 def SPL : AVRReg<32, "SPL">, DwarfRegNum<[32]>;
 def SPH : AVRReg<33, "SPH">, DwarfRegNum<[33]>;
 
@@ -169,6 +169,21 @@ def DREGS : RegisterClass<"AVR", [i16], 8,
     R26R25, R24R23, R22R21,
     R20R19, R18R17, R16R15,
     R14R13, R12R11, R10R9
+  )>;
+
+// Lower 16-bit pair registers in R0..R15, only used in inline assembly.
+def DREGSlo : RegisterClass<"AVR", [i16], 8,
+  (
+    add R15R14, R13R12, R11R10, R9R8, R7R6, R5R4, R3R2, R1R0
+  )>;
+
+// Lower 16-bit pair registers in r16..r23, only used in inline assembly.
+def DREGSLD8lo : RegisterClass<"AVR", [i16], 8,
+  (
+    // Return value and arguments.
+    add R19R18, R21R20, R23R22,
+    // Callee saved registers.
+    R17R16
   )>;
 
 // 16-bit pair register class for movw

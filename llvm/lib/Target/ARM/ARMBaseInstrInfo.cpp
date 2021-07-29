@@ -1306,17 +1306,12 @@ unsigned ARMBaseInstrInfo::isStoreToStackSlot(const MachineInstr &MI,
   case ARM::tSTRspi:
   case ARM::VSTRD:
   case ARM::VSTRS:
+  case ARM::VSTR_P0_off:
+  case ARM::MVE_VSTRWU32:
     if (MI.getOperand(1).isFI() && MI.getOperand(2).isImm() &&
         MI.getOperand(2).getImm() == 0) {
       FrameIndex = MI.getOperand(1).getIndex();
       return MI.getOperand(0).getReg();
-    }
-    break;
-  case ARM::VSTR_P0_off:
-    if (MI.getOperand(0).isFI() && MI.getOperand(1).isImm() &&
-        MI.getOperand(1).getImm() == 0) {
-      FrameIndex = MI.getOperand(0).getIndex();
-      return ARM::P0;
     }
     break;
   case ARM::VST1q64:
@@ -1543,17 +1538,12 @@ unsigned ARMBaseInstrInfo::isLoadFromStackSlot(const MachineInstr &MI,
   case ARM::tLDRspi:
   case ARM::VLDRD:
   case ARM::VLDRS:
+  case ARM::VLDR_P0_off:
+  case ARM::MVE_VLDRWU32:
     if (MI.getOperand(1).isFI() && MI.getOperand(2).isImm() &&
         MI.getOperand(2).getImm() == 0) {
       FrameIndex = MI.getOperand(1).getIndex();
       return MI.getOperand(0).getReg();
-    }
-    break;
-  case ARM::VLDR_P0_off:
-    if (MI.getOperand(0).isFI() && MI.getOperand(1).isImm() &&
-        MI.getOperand(1).getImm() == 0) {
-      FrameIndex = MI.getOperand(0).getIndex();
-      return ARM::P0;
     }
     break;
   case ARM::VLD1q64:
@@ -5391,7 +5381,9 @@ bool ARMBaseInstrInfo::getInsertSubregLikeInputs(
 
   switch (MI.getOpcode()) {
   case ARM::VSETLNi32:
+  case ARM::MVE_VMOV_to_lane_32:
     // dX = VSETLNi32 dY, rZ, imm
+    // qX = MVE_VMOV_to_lane_32 qY, rZ, imm
     const MachineOperand &MOBaseReg = MI.getOperand(1);
     const MachineOperand &MOInsertedReg = MI.getOperand(2);
     if (MOInsertedReg.isUndef())
@@ -5402,7 +5394,7 @@ bool ARMBaseInstrInfo::getInsertSubregLikeInputs(
 
     InsertedReg.Reg = MOInsertedReg.getReg();
     InsertedReg.SubReg = MOInsertedReg.getSubReg();
-    InsertedReg.SubIdx = MOIndex.getImm() == 0 ? ARM::ssub_0 : ARM::ssub_1;
+    InsertedReg.SubIdx = ARM::ssub_0 + MOIndex.getImm();
     return true;
   }
   llvm_unreachable("Target dependent opcode missing");
@@ -5934,6 +5926,9 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
       || AddrMode == ARMII::AddrModeT2_so // SP can't be used as based register
       || AddrMode == ARMII::AddrModeT2_pc // PCrel access
       || AddrMode == ARMII::AddrMode2     // Used by PRE and POST indexed LD/ST
+      || AddrMode == ARMII::AddrModeT2_i7 // v8.1-M MVE
+      || AddrMode == ARMII::AddrModeT2_i7s2 // v8.1-M MVE
+      || AddrMode == ARMII::AddrModeT2_i7s4 // v8.1-M sys regs VLDR/VSTR
       || AddrMode == ARMII::AddrModeNone)
     return false;
 
@@ -5976,6 +5971,10 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
     NumBits = 8;
     break;
   case ARMII::AddrModeT2_i8s4:
+    // FIXME: Values are already scaled in this addressing mode.
+    assert((Fixup & 3) == 0 && "Can't encode this offset!");
+    NumBits = 10;
+    break;
   case ARMII::AddrModeT2_ldrex:
     NumBits = 8;
     Scale = 4;
@@ -5983,17 +5982,6 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
   case ARMII::AddrModeT2_i12:
   case ARMII::AddrMode_i12:
     NumBits = 12;
-    break;
-  case ARMII::AddrModeT2_i7:
-    NumBits = 7;
-    break;
-  case ARMII::AddrModeT2_i7s2:
-    NumBits = 7;
-    Scale = 2;
-    break;
-  case ARMII::AddrModeT2_i7s4:
-    NumBits = 7;
-    Scale = 4;
     break;
   case ARMII::AddrModeT1_s: // SP-relative LD/ST
     NumBits = 8;
@@ -6004,8 +5992,8 @@ bool ARMBaseInstrInfo::checkAndUpdateStackOffset(MachineInstr *MI,
   }
   // Make sure the offset is encodable for instructions that scale the
   // immediate.
-  if (((OffVal * Scale + Fixup) & (Scale - 1)) != 0)
-    return false;
+  assert(((OffVal * Scale + Fixup) & (Scale - 1)) == 0 &&
+         "Can't encode this offset!");
   OffVal += Fixup / Scale;
 
   unsigned Mask = (1 << NumBits) - 1;
@@ -6124,6 +6112,7 @@ ARMBaseInstrInfo::getOutliningType(MachineBasicBlock::iterator &MIT,
   // Be conservative with ARMv8.1 MVE instructions.
   if (Opc == ARM::t2BF_LabelPseudo || Opc == ARM::t2DoLoopStart ||
       Opc == ARM::t2DoLoopStartTP || Opc == ARM::t2WhileLoopStart ||
+      Opc == ARM::t2WhileLoopStartLR || Opc == ARM::t2WhileLoopStartTP ||
       Opc == ARM::t2LoopDec || Opc == ARM::t2LoopEnd ||
       Opc == ARM::t2LoopEndDec)
     return outliner::InstrType::Illegal;

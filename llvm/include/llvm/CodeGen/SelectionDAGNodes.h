@@ -462,7 +462,7 @@ protected:
   // SubclassData.  These are designed to fit within a uint16_t so they pack
   // with NodeType.
 
-#if defined(_AIX) && (!defined(__GNUC__) || defined(__ibmxl__))
+#if defined(_AIX) && (!defined(__GNUC__) || defined(__clang__))
 // Except for GCC; by default, AIX compilers store bit-fields in 4-byte words
 // and give the `pack` pragma push semantics.
 #define BEGIN_TWO_BYTE_PACK() _Pragma("pack(2)")
@@ -716,8 +716,7 @@ public:
 
   /// This class provides iterator support for SDUse
   /// operands that use a specific SDNode.
-  class use_iterator
-    : public std::iterator<std::forward_iterator_tag, SDUse, ptrdiff_t> {
+  class use_iterator {
     friend class SDNode;
 
     SDUse *Op = nullptr;
@@ -725,10 +724,11 @@ public:
     explicit use_iterator(SDUse *op) : Op(op) {}
 
   public:
-    using reference = std::iterator<std::forward_iterator_tag,
-                                    SDUse, ptrdiff_t>::reference;
-    using pointer = std::iterator<std::forward_iterator_tag,
-                                  SDUse, ptrdiff_t>::pointer;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = SDUse;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
 
     use_iterator() = default;
     use_iterator(const use_iterator &I) : Op(I.Op) {}
@@ -944,7 +944,7 @@ public:
     return nullptr;
   }
 
-  const SDNodeFlags getFlags() const { return Flags; }
+  SDNodeFlags getFlags() const { return Flags; }
   void setFlags(SDNodeFlags NewFlags) { Flags = NewFlags; }
 
   /// Clear any flags in this node that aren't also set in Flags.
@@ -1262,10 +1262,6 @@ public:
   /// Returns alignment and volatility of the memory access
   Align getOriginalAlign() const { return MMO->getBaseAlign(); }
   Align getAlign() const { return MMO->getAlign(); }
-  LLVM_ATTRIBUTE_DEPRECATED(unsigned getOriginalAlignment() const,
-                            "Use getOriginalAlign() instead") {
-    return MMO->getBaseAlign().value();
-  }
   // FIXME: Remove once transition to getAlign is over.
   unsigned getAlignment() const { return MMO->getAlign().value(); }
 
@@ -1308,7 +1304,14 @@ public:
   /// Return the atomic ordering requirements for this memory operation. For
   /// cmpxchg atomic operations, return the atomic ordering requirements when
   /// store occurs.
-  AtomicOrdering getOrdering() const { return MMO->getOrdering(); }
+  AtomicOrdering getSuccessOrdering() const {
+    return MMO->getSuccessOrdering();
+  }
+
+  /// Return a single atomic ordering that is at least as strong as both the
+  /// success and failure orderings for an atomic operation.  (For operations
+  /// other than cmpxchg, this is equivalent to getSuccessOrdering().)
+  AtomicOrdering getMergedOrdering() const { return MMO->getMergedOrdering(); }
 
   /// Return true if the memory operation ordering is Unordered or higher.
   bool isAtomic() const { return MMO->isAtomic(); }
@@ -1364,33 +1367,36 @@ public:
   static bool classof(const SDNode *N) {
     // For some targets, we lower some target intrinsics to a MemIntrinsicNode
     // with either an intrinsic or a target opcode.
-    return N->getOpcode() == ISD::LOAD                ||
-           N->getOpcode() == ISD::STORE               ||
-           N->getOpcode() == ISD::PREFETCH            ||
-           N->getOpcode() == ISD::ATOMIC_CMP_SWAP     ||
-           N->getOpcode() == ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS ||
-           N->getOpcode() == ISD::ATOMIC_SWAP         ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_ADD     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_SUB     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_AND     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_CLR     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_OR      ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_XOR     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_NAND    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_MIN     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_MAX     ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_UMIN    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_FADD    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_FSUB    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD         ||
-           N->getOpcode() == ISD::ATOMIC_STORE        ||
-           N->getOpcode() == ISD::MLOAD               ||
-           N->getOpcode() == ISD::MSTORE              ||
-           N->getOpcode() == ISD::MGATHER             ||
-           N->getOpcode() == ISD::MSCATTER            ||
-           N->isMemIntrinsic()                        ||
-           N->isTargetMemoryOpcode();
+    switch (N->getOpcode()) {
+    case ISD::LOAD:
+    case ISD::STORE:
+    case ISD::PREFETCH:
+    case ISD::ATOMIC_CMP_SWAP:
+    case ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS:
+    case ISD::ATOMIC_SWAP:
+    case ISD::ATOMIC_LOAD_ADD:
+    case ISD::ATOMIC_LOAD_SUB:
+    case ISD::ATOMIC_LOAD_AND:
+    case ISD::ATOMIC_LOAD_CLR:
+    case ISD::ATOMIC_LOAD_OR:
+    case ISD::ATOMIC_LOAD_XOR:
+    case ISD::ATOMIC_LOAD_NAND:
+    case ISD::ATOMIC_LOAD_MIN:
+    case ISD::ATOMIC_LOAD_MAX:
+    case ISD::ATOMIC_LOAD_UMIN:
+    case ISD::ATOMIC_LOAD_UMAX:
+    case ISD::ATOMIC_LOAD_FADD:
+    case ISD::ATOMIC_LOAD_FSUB:
+    case ISD::ATOMIC_LOAD:
+    case ISD::ATOMIC_STORE:
+    case ISD::MLOAD:
+    case ISD::MSTORE:
+    case ISD::MGATHER:
+    case ISD::MSCATTER:
+      return true;
+    default:
+      return N->isMemIntrinsic() || N->isTargetMemoryOpcode();
+    }
   }
 };
 
@@ -1559,6 +1565,8 @@ public:
   bool isOne() const { return Value->isOne(); }
   bool isNullValue() const { return Value->isZero(); }
   bool isAllOnesValue() const { return Value->isMinusOne(); }
+  bool isMaxSignedValue() const { return Value->isMaxValue(true); }
+  bool isMinSignedValue() const { return Value->isMinValue(true); }
 
   bool isOpaque() const { return ConstantSDNodeBits.IsOpaque; }
 
@@ -1677,12 +1685,17 @@ bool isNullOrNullSplat(SDValue V, bool AllowUndefs = false);
 /// Return true if the value is a constant 1 integer or a splatted vector of a
 /// constant 1 integer (with no undefs).
 /// Does not permit build vector implicit truncation.
-bool isOneOrOneSplat(SDValue V);
+bool isOneOrOneSplat(SDValue V, bool AllowUndefs = false);
 
 /// Return true if the value is a constant -1 integer or a splatted vector of a
 /// constant -1 integer (with no undefs).
 /// Does not permit build vector implicit truncation.
-bool isAllOnesOrAllOnesSplat(SDValue V);
+bool isAllOnesOrAllOnesSplat(SDValue V, bool AllowUndefs = false);
+
+/// Return true if \p V is either a integer or FP constant.
+inline bool isIntOrFPConstant(SDValue V) {
+  return isa<ConstantSDNode>(V) || isa<ConstantFPSDNode>(V);
+}
 
 class GlobalAddressSDNode : public SDNode {
   friend class SelectionDAG;
@@ -2587,14 +2600,19 @@ public:
   }
 };
 
-class SDNodeIterator : public std::iterator<std::forward_iterator_tag,
-                                            SDNode, ptrdiff_t> {
+class SDNodeIterator {
   const SDNode *Node;
   unsigned Operand;
 
   SDNodeIterator(const SDNode *N, unsigned Op) : Node(N), Operand(Op) {}
 
 public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = SDNode;
+  using difference_type = std::ptrdiff_t;
+  using pointer = value_type *;
+  using reference = value_type &;
+
   bool operator==(const SDNodeIterator& x) const {
     return Operand == x.Operand;
   }
@@ -2699,16 +2717,6 @@ namespace ISD {
     const StoreSDNode *St = dyn_cast<StoreSDNode>(N);
     return St && !St->isTruncatingStore() &&
       St->getAddressingMode() == ISD::UNINDEXED;
-  }
-
-  /// Returns true if the specified node is a non-truncating store.
-  inline bool isNON_TRUNCStore(const SDNode *N) {
-    return isa<StoreSDNode>(N) && !cast<StoreSDNode>(N)->isTruncatingStore();
-  }
-
-  /// Returns true if the specified node is a truncating store.
-  inline bool isTRUNCStore(const SDNode *N) {
-    return isa<StoreSDNode>(N) && cast<StoreSDNode>(N)->isTruncatingStore();
   }
 
   /// Returns true if the specified node is an unindexed store.

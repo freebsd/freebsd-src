@@ -767,21 +767,21 @@ private:
   /// This contains the data loaded from all EAGERLY_DESERIALIZED_DECLS blocks
   /// in the chain. The referenced declarations are deserialized and passed to
   /// the consumer eagerly.
-  SmallVector<uint64_t, 16> EagerlyDeserializedDecls;
+  SmallVector<serialization::DeclID, 16> EagerlyDeserializedDecls;
 
   /// The IDs of all tentative definitions stored in the chain.
   ///
   /// Sema keeps track of all tentative definitions in a TU because it has to
   /// complete them and pass them on to CodeGen. Thus, tentative definitions in
   /// the PCH chain must be eagerly deserialized.
-  SmallVector<uint64_t, 16> TentativeDefinitions;
+  SmallVector<serialization::DeclID, 16> TentativeDefinitions;
 
   /// The IDs of all CXXRecordDecls stored in the chain whose VTables are
   /// used.
   ///
   /// CodeGen has to emit VTables for these records, so they have to be eagerly
   /// deserialized.
-  SmallVector<uint64_t, 64> VTableUses;
+  SmallVector<serialization::DeclID, 64> VTableUses;
 
   /// A snapshot of the pending instantiations in the chain.
   ///
@@ -789,7 +789,7 @@ private:
   /// end of the TU. It consists of a pair of values for every pending
   /// instantiation where the first value is the ID of the decl and the second
   /// is the instantiation location.
-  SmallVector<uint64_t, 64> PendingInstantiations;
+  SmallVector<serialization::DeclID, 64> PendingInstantiations;
 
   //@}
 
@@ -799,24 +799,24 @@ private:
 
   /// A snapshot of Sema's unused file-scoped variable tracking, for
   /// generating warnings.
-  SmallVector<uint64_t, 16> UnusedFileScopedDecls;
+  SmallVector<serialization::DeclID, 16> UnusedFileScopedDecls;
 
   /// A list of all the delegating constructors we've seen, to diagnose
   /// cycles.
-  SmallVector<uint64_t, 4> DelegatingCtorDecls;
+  SmallVector<serialization::DeclID, 4> DelegatingCtorDecls;
 
   /// Method selectors used in a @selector expression. Used for
   /// implementation of -Wselector.
-  SmallVector<uint64_t, 64> ReferencedSelectorsData;
+  SmallVector<serialization::SelectorID, 64> ReferencedSelectorsData;
 
   /// A snapshot of Sema's weak undeclared identifier tracking, for
   /// generating warnings.
-  SmallVector<uint64_t, 64> WeakUndeclaredIdentifiers;
+  SmallVector<serialization::IdentifierID, 64> WeakUndeclaredIdentifiers;
 
   /// The IDs of type aliases for ext_vectors that exist in the chain.
   ///
   /// Used by Sema for finding sugared names for ext_vectors in diagnostics.
-  SmallVector<uint64_t, 4> ExtVectorDecls;
+  SmallVector<serialization::DeclID, 4> ExtVectorDecls;
 
   //@}
 
@@ -827,7 +827,7 @@ private:
   /// The IDs of all potentially unused typedef names in the chain.
   ///
   /// Sema tracks these to emit warnings.
-  SmallVector<uint64_t, 16> UnusedLocalTypedefNameCandidates;
+  SmallVector<serialization::DeclID, 16> UnusedLocalTypedefNameCandidates;
 
   /// Our current depth in #pragma cuda force_host_device begin/end
   /// macros.
@@ -836,18 +836,18 @@ private:
   /// The IDs of the declarations Sema stores directly.
   ///
   /// Sema tracks a few important decls, such as namespace std, directly.
-  SmallVector<uint64_t, 4> SemaDeclRefs;
+  SmallVector<serialization::DeclID, 4> SemaDeclRefs;
 
   /// The IDs of the types ASTContext stores directly.
   ///
   /// The AST context tracks a few important types, such as va_list, directly.
-  SmallVector<uint64_t, 16> SpecialTypes;
+  SmallVector<serialization::TypeID, 16> SpecialTypes;
 
   /// The IDs of CUDA-specific declarations ASTContext stores directly.
   ///
   /// The AST context tracks a few important decls, currently cudaConfigureCall,
   /// directly.
-  SmallVector<uint64_t, 2> CUDASpecialDeclRefs;
+  SmallVector<serialization::DeclID, 2> CUDASpecialDeclRefs;
 
   /// The floating point pragma option settings.
   SmallVector<uint64_t, 1> FPPragmaOptions;
@@ -896,11 +896,11 @@ private:
   llvm::DenseMap<const Decl *, std::set<std::string>> OpenCLDeclExtMap;
 
   /// A list of the namespaces we've seen.
-  SmallVector<uint64_t, 4> KnownNamespaces;
+  SmallVector<serialization::DeclID, 4> KnownNamespaces;
 
   /// A list of undefined decls with internal linkage followed by the
   /// SourceLocation of a matching ODR-use.
-  SmallVector<uint64_t, 8> UndefinedButUsed;
+  SmallVector<serialization::DeclID, 8> UndefinedButUsed;
 
   /// Delete expressions to analyze at the end of translation unit.
   SmallVector<uint64_t, 8> DelayedDeleteExprs;
@@ -912,8 +912,7 @@ private:
   /// The IDs of all decls to be checked for deferred diags.
   ///
   /// Sema tracks these to emit deferred diags.
-  SmallVector<uint64_t, 4> DeclsToCheckForDeferredDiags;
-
+  llvm::SmallSetVector<serialization::DeclID, 4> DeclsToCheckForDeferredDiags;
 
 public:
   struct ImportedSubmodule {
@@ -1402,6 +1401,9 @@ private:
   llvm::iterator_range<PreprocessingRecord::iterator>
   getModulePreprocessedEntities(ModuleFile &Mod) const;
 
+  bool canRecoverFromOutOfDate(StringRef ModuleFileName,
+                               unsigned ClientLoadCapabilities);
+
 public:
   class ModuleDeclIterator
       : public llvm::iterator_adaptor_base<
@@ -1543,7 +1545,11 @@ public:
     /// The client can handle an AST file that cannot load because it's
     /// compiled configuration doesn't match that of the context it was
     /// loaded into.
-    ARR_ConfigurationMismatch = 0x8
+    ARR_ConfigurationMismatch = 0x8,
+
+    /// If a module file is marked with errors treat it as out-of-date so the
+    /// caller can rebuild it.
+    ARR_TreatModuleWithErrorsAsOutOfDate = 0x10
   };
 
   /// Load the AST file designated by the given file name.
@@ -2012,7 +2018,7 @@ public:
       llvm::SmallSetVector<const TypedefNameDecl *, 4> &Decls) override;
 
   void ReadDeclsToCheckForDeferredDiags(
-      llvm::SmallVector<Decl *, 4> &Decls) override;
+      llvm::SmallSetVector<Decl *, 4> &Decls) override;
 
   void ReadReferencedSelectors(
            SmallVectorImpl<std::pair<Selector, SourceLocation>> &Sels) override;
@@ -2133,12 +2139,15 @@ public:
 
   /// Read a source location from raw form and return it in its
   /// originating module file's source location space.
-  SourceLocation ReadUntranslatedSourceLocation(uint32_t Raw) const {
-    return SourceLocation::getFromRawEncoding((Raw >> 1) | (Raw << 31));
+  SourceLocation
+  ReadUntranslatedSourceLocation(SourceLocation::UIntTy Raw) const {
+    return SourceLocation::getFromRawEncoding((Raw >> 1) |
+                                              (Raw << (8 * sizeof(Raw) - 1)));
   }
 
   /// Read a source location from raw form.
-  SourceLocation ReadSourceLocation(ModuleFile &ModuleFile, uint32_t Raw) const {
+  SourceLocation ReadSourceLocation(ModuleFile &ModuleFile,
+                                    SourceLocation::UIntTy Raw) const {
     SourceLocation Loc = ReadUntranslatedSourceLocation(Raw);
     return TranslateSourceLocation(ModuleFile, Loc);
   }
@@ -2152,7 +2161,8 @@ public:
     assert(ModuleFile.SLocRemap.find(Loc.getOffset()) !=
                ModuleFile.SLocRemap.end() &&
            "Cannot find offset to remap.");
-    int Remap = ModuleFile.SLocRemap.find(Loc.getOffset())->second;
+    SourceLocation::IntTy Remap =
+        ModuleFile.SLocRemap.find(Loc.getOffset())->second;
     return Loc.getLocWithOffset(Remap);
   }
 

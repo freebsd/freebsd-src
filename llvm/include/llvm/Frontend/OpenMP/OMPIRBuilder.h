@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_OPENMP_IR_IRBUILDER_H
-#define LLVM_OPENMP_IR_IRBUILDER_H
+#ifndef LLVM_FRONTEND_OPENMP_OMPIRBUILDER_H
+#define LLVM_FRONTEND_OPENMP_OMPIRBUILDER_H
 
 #include "llvm/Frontend/OpenMP/OMPConstants.h"
 #include "llvm/IR/DebugLoc.h"
@@ -31,6 +31,7 @@ public:
   /// Create a new OpenMPIRBuilder operating on the given module \p M. This will
   /// not have an effect on \p M (see initialize).
   OpenMPIRBuilder(Module &M) : M(M), Builder(M.getContext()) {}
+  ~OpenMPIRBuilder();
 
   /// Initialize the internal state, this will put structures types and
   /// potentially other helpers into the underlying module. Must be called
@@ -38,10 +39,12 @@ public:
   void initialize();
 
   /// Finalize the underlying module, e.g., by outlining regions.
+  /// \param Fn                    The function to be finalized. If not used,
+  ///                              all functions are finalized.
   /// \param AllowExtractorSinking Flag to include sinking instructions,
   ///                              emitted by CodeExtractor, in the
   ///                              outlined region. Default is false.
-  void finalize(bool AllowExtractorSinking = false);
+  void finalize(Function *Fn = nullptr, bool AllowExtractorSinking = false);
 
   /// Add attributes known for \p FnID to \p Fn.
   void addAttributes(omp::RuntimeFunction FnID, Function &Fn);
@@ -100,6 +103,14 @@ public:
   using BodyGenCallbackTy =
       function_ref<void(InsertPointTy AllocaIP, InsertPointTy CodeGenIP,
                         BasicBlock &ContinuationBB)>;
+
+  // This is created primarily for sections construct as llvm::function_ref
+  // (BodyGenCallbackTy) is not storable (as described in the comments of
+  // function_ref class - function_ref contains non-ownable reference
+  // to the callable.
+  using StorableBodyGenCallbackTy =
+      std::function<void(InsertPointTy AllocaIP, InsertPointTy CodeGenIP,
+                         BasicBlock &ContinuationBB)>;
 
   /// Callback type for loop body code generation.
   ///
@@ -274,7 +285,123 @@ public:
                                          InsertPointTy ComputeIP = {},
                                          const Twine &Name = "loop");
 
+  /// Collapse a loop nest into a single loop.
+  ///
+  /// Merges loops of a loop nest into a single CanonicalLoopNest representation
+  /// that has the same number of innermost loop iterations as the origin loop
+  /// nest. The induction variables of the input loops are derived from the
+  /// collapsed loop's induction variable. This is intended to be used to
+  /// implement OpenMP's collapse clause. Before applying a directive,
+  /// collapseLoops normalizes a loop nest to contain only a single loop and the
+  /// directive's implementation does not need to handle multiple loops itself.
+  /// This does not remove the need to handle all loop nest handling by
+  /// directives, such as the ordered(<n>) clause or the simd schedule-clause
+  /// modifier of the worksharing-loop directive.
+  ///
+  /// Example:
+  /// \code
+  ///   for (int i = 0; i < 7; ++i) // Canonical loop "i"
+  ///     for (int j = 0; j < 9; ++j) // Canonical loop "j"
+  ///       body(i, j);
+  /// \endcode
+  ///
+  /// After collapsing with Loops={i,j}, the loop is changed to
+  /// \code
+  ///   for (int ij = 0; ij < 63; ++ij) {
+  ///     int i = ij / 9;
+  ///     int j = ij % 9;
+  ///     body(i, j);
+  ///   }
+  /// \endcode
+  ///
+  /// In the current implementation, the following limitations apply:
+  ///
+  ///  * All input loops have an induction variable of the same type.
+  ///
+  ///  * The collapsed loop will have the same trip count integer type as the
+  ///    input loops. Therefore it is possible that the collapsed loop cannot
+  ///    represent all iterations of the input loops. For instance, assuming a
+  ///    32 bit integer type, and two input loops both iterating 2^16 times, the
+  ///    theoretical trip count of the collapsed loop would be 2^32 iteration,
+  ///    which cannot be represented in an 32-bit integer. Behavior is undefined
+  ///    in this case.
+  ///
+  ///  * The trip counts of every input loop must be available at \p ComputeIP.
+  ///    Non-rectangular loops are not yet supported.
+  ///
+  ///  * At each nest level, code between a surrounding loop and its nested loop
+  ///    is hoisted into the loop body, and such code will be executed more
+  ///    often than before collapsing (or not at all if any inner loop iteration
+  ///    has a trip count of 0). This is permitted by the OpenMP specification.
+  ///
+  /// \param DL        Debug location for instructions added for collapsing,
+  ///                  such as instructions to compute derive the input loop's
+  ///                  induction variables.
+  /// \param Loops     Loops in the loop nest to collapse. Loops are specified
+  ///                  from outermost-to-innermost and every control flow of a
+  ///                  loop's body must pass through its directly nested loop.
+  /// \param ComputeIP Where additional instruction that compute the collapsed
+  ///                  trip count. If not set, defaults to before the generated
+  ///                  loop.
+  ///
+  /// \returns The CanonicalLoopInfo object representing the collapsed loop.
+  CanonicalLoopInfo *collapseLoops(DebugLoc DL,
+                                   ArrayRef<CanonicalLoopInfo *> Loops,
+                                   InsertPointTy ComputeIP);
+
   /// Modifies the canonical loop to be a statically-scheduled workshare loop.
+  ///
+  /// This takes a \p LoopInfo representing a canonical loop, such as the one
+  /// created by \p createCanonicalLoop and emits additional instructions to
+  /// turn it into a workshare loop. In particular, it calls to an OpenMP
+  /// runtime function in the preheader to obtain the loop bounds to be used in
+  /// the current thread, updates the relevant instructions in the canonical
+  /// loop and calls to an OpenMP runtime finalization function after the loop.
+  ///
+  /// \param Loc      The source location description, the insertion location
+  ///                 is not used.
+  /// \param CLI      A descriptor of the canonical loop to workshare.
+  /// \param AllocaIP An insertion point for Alloca instructions usable in the
+  ///                 preheader of the loop.
+  /// \param NeedsBarrier Indicates whether a barrier must be inserted after
+  ///                     the loop.
+  /// \param Chunk    The size of loop chunk considered as a unit when
+  ///                 scheduling. If \p nullptr, defaults to 1.
+  ///
+  /// \returns Updated CanonicalLoopInfo.
+  CanonicalLoopInfo *createStaticWorkshareLoop(const LocationDescription &Loc,
+                                               CanonicalLoopInfo *CLI,
+                                               InsertPointTy AllocaIP,
+                                               bool NeedsBarrier,
+                                               Value *Chunk = nullptr);
+
+  /// Modifies the canonical loop to be a dynamically-scheduled workshare loop.
+  ///
+  /// This takes a \p LoopInfo representing a canonical loop, such as the one
+  /// created by \p createCanonicalLoop and emits additional instructions to
+  /// turn it into a workshare loop. In particular, it calls to an OpenMP
+  /// runtime function in the preheader to obtain, and then in each iteration
+  /// to update the loop counter.
+  /// \param Loc      The source location description, the insertion location
+  ///                 is not used.
+  /// \param CLI      A descriptor of the canonical loop to workshare.
+  /// \param AllocaIP An insertion point for Alloca instructions usable in the
+  ///                 preheader of the loop.
+  /// \param SchedType Type of scheduling to be passed to the init function.
+  /// \param NeedsBarrier Indicates whether a barrier must be insterted after
+  ///                     the loop.
+  /// \param Chunk    The size of loop chunk considered as a unit when
+  ///                 scheduling. If \p nullptr, defaults to 1.
+  ///
+  /// \returns Point where to insert code after the loop.
+  InsertPointTy createDynamicWorkshareLoop(const LocationDescription &Loc,
+                                           CanonicalLoopInfo *CLI,
+                                           InsertPointTy AllocaIP,
+                                           omp::OMPScheduleType SchedType,
+                                           bool NeedsBarrier,
+                                           Value *Chunk = nullptr);
+
+  /// Modifies the canonical loop to be a workshare loop.
   ///
   /// This takes a \p LoopInfo representing a canonical loop, such as the one
   /// created by \p createCanonicalLoop and emits additional instructions to
@@ -290,15 +417,12 @@ public:
   ///                 preheader of the loop.
   /// \param NeedsBarrier Indicates whether a barrier must be insterted after
   ///                     the loop.
-  /// \param Chunk    The size of loop chunk considered as a unit when
-  ///                 scheduling. If \p nullptr, defaults to 1.
   ///
   /// \returns Updated CanonicalLoopInfo.
-  CanonicalLoopInfo *createStaticWorkshareLoop(const LocationDescription &Loc,
-                                               CanonicalLoopInfo *CLI,
-                                               InsertPointTy AllocaIP,
-                                               bool NeedsBarrier,
-                                               Value *Chunk = nullptr);
+  CanonicalLoopInfo *createWorkshareLoop(const LocationDescription &Loc,
+                                         CanonicalLoopInfo *CLI,
+                                         InsertPointTy AllocaIP,
+                                         bool NeedsBarrier);
 
   /// Tile a loop nest.
   ///
@@ -407,8 +531,10 @@ public:
   ///
   /// \param CancelFlag Flag indicating if the cancellation is performed.
   /// \param CanceledDirective The kind of directive that is cancled.
+  /// \param ExitCB Extra code to be generated in the exit block.
   void emitCancelationCheckImpl(Value *CancelFlag,
-                                omp::Directive CanceledDirective);
+                                omp::Directive CanceledDirective,
+                                FinalizeCallbackTy ExitCB = {});
 
   /// Generate a barrier runtime call.
   ///
@@ -479,6 +605,9 @@ public:
     /// vector and set.
     void collectBlocks(SmallPtrSetImpl<BasicBlock *> &BlockSet,
                        SmallVectorImpl<BasicBlock *> &BlockVector);
+
+    /// Return the function that contains the region to be outlined.
+    Function *getFunction() const { return EntryBB->getParent(); }
   };
 
   /// Collection of regions that need to be outlined during finalization.
@@ -497,6 +626,40 @@ public:
   /// <mangled_name_for_global_var> + ".cache." for cache for threadprivate
   /// variables.
   StringMap<AssertingVH<Constant>, BumpPtrAllocator> InternalVars;
+
+  /// Create the global variable holding the offload mappings information.
+  GlobalVariable *createOffloadMaptypes(SmallVectorImpl<uint64_t> &Mappings,
+                                        std::string VarName);
+
+  /// Create the global variable holding the offload names information.
+  GlobalVariable *
+  createOffloadMapnames(SmallVectorImpl<llvm::Constant *> &Names,
+                        std::string VarName);
+
+  struct MapperAllocas {
+    AllocaInst *ArgsBase = nullptr;
+    AllocaInst *Args = nullptr;
+    AllocaInst *ArgSizes = nullptr;
+  };
+
+  /// Create the allocas instruction used in call to mapper functions.
+  void createMapperAllocas(const LocationDescription &Loc,
+                           InsertPointTy AllocaIP, unsigned NumOperands,
+                           struct MapperAllocas &MapperAllocas);
+
+  /// Create the call for the target mapper function.
+  /// \param Loc The source location description.
+  /// \param MapperFunc Function to be called.
+  /// \param SrcLocInfo Source location information global.
+  /// \param MaptypesArgs
+  /// \param MapnamesArg
+  /// \param MapperAllocas The AllocaInst used for the call.
+  /// \param DeviceID Device ID for the call.
+  /// \param TotalNbOperand Number of operand in the call.
+  void emitMapperCall(const LocationDescription &Loc, Function *MapperFunc,
+                      Value *SrcLocInfo, Value *MaptypesArg, Value *MapnamesArg,
+                      struct MapperAllocas &MapperAllocas, int64_t DeviceID,
+                      unsigned NumOperands);
 
 public:
   /// Generator for __kmpc_copyprivate
@@ -536,6 +699,17 @@ public:
                              BodyGenCallbackTy BodyGenCB,
                              FinalizeCallbackTy FiniCB);
 
+  /// Generator for '#omp masked'
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param BodyGenCB Callback that will generate the region code.
+  /// \param FiniCB Callback to finialize variable copies.
+  ///
+  /// \returns The insertion position *after* the master.
+  InsertPointTy createMasked(const LocationDescription &Loc,
+                             BodyGenCallbackTy BodyGenCB,
+                             FinalizeCallbackTy FiniCB, Value *Filter);
+
   /// Generator for '#omp critical'
   ///
   /// \param Loc The insert and source location description.
@@ -549,6 +723,34 @@ public:
                                BodyGenCallbackTy BodyGenCB,
                                FinalizeCallbackTy FiniCB,
                                StringRef CriticalName, Value *HintInst);
+
+  /// Generator for '#omp sections'
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param AllocaIP The insertion points to be used for alloca instructions.
+  /// \param SectionCBs Callbacks that will generate body of each section.
+  /// \param PrivCB Callback to copy a given variable (think copy constructor).
+  /// \param FiniCB Callback to finalize variable copies.
+  /// \param IsCancellable Flag to indicate a cancellable parallel region.
+  /// \param IsNowait If true, barrier - to ensure all sections are executed
+  /// before moving forward will not be generated.
+  /// \returns The insertion position *after* the sections.
+  InsertPointTy createSections(const LocationDescription &Loc,
+                               InsertPointTy AllocaIP,
+                               ArrayRef<StorableBodyGenCallbackTy> SectionCBs,
+                               PrivatizeCallbackTy PrivCB,
+                               FinalizeCallbackTy FiniCB, bool IsCancellable,
+                               bool IsNowait);
+
+  /// Generator for '#omp section'
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param BodyGenCB Callback that will generate the region body code.
+  /// \param FiniCB Callback to finalize variable copies.
+  /// \returns The insertion position *after* the section.
+  InsertPointTy createSection(const LocationDescription &Loc,
+                              BodyGenCallbackTy BodyGenCB,
+                              FinalizeCallbackTy FiniCB);
 
   /// Generate conditional branch and relevant BasicBlocks through which private
   /// threads copy the 'copyin' variables from Master copy to threadprivate
@@ -601,6 +803,29 @@ public:
                                       llvm::Value *Pointer,
                                       llvm::ConstantInt *Size,
                                       const llvm::Twine &Name = Twine(""));
+
+  /// The `omp target` interface
+  ///
+  /// For more information about the usage of this interface,
+  /// \see openmp/libomptarget/deviceRTLs/common/include/target.h
+  ///
+  ///{
+
+  /// Create a runtime call for kmpc_target_init
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param IsSPMD Flag to indicate if the kernel is an SPMD kernel or not.
+  /// \param RequiresFullRuntime Indicate if a full device runtime is necessary.
+  InsertPointTy createTargetInit(const LocationDescription &Loc, bool IsSPMD, bool RequiresFullRuntime);
+
+  /// Create a runtime call for kmpc_target_deinit
+  ///
+  /// \param Loc The insert and source location description.
+  /// \param IsSPMD Flag to indicate if the kernel is an SPMD kernel or not.
+  /// \param RequiresFullRuntime Indicate if a full device runtime is necessary.
+  void createTargetDeinit(const LocationDescription &Loc, bool IsSPMD, bool RequiresFullRuntime);
+
+  ///}
 
   /// Declarations for LLVM-IR types (simple, array, function and structure) are
   /// generated below. Their names are defined and used in OpenMPKinds.def. Here
@@ -669,16 +894,17 @@ private:
   ///        to evaluate a conditional of whether a thread will execute
   ///        body code or not.
   /// \param HasFinalize indicate if the directive will require finalization
-  ///         and has a finalization callback in the stack that
-  /// should        be called.
-  ///
+  ///        and has a finalization callback in the stack that
+  ///        should be called.
+  /// \param IsCancellable if HasFinalize is set to true, indicate if the
+  ///        the directive should be cancellable.
   /// \return The insertion point after the region
 
   InsertPointTy
   EmitOMPInlinedRegion(omp::Directive OMPD, Instruction *EntryCall,
                        Instruction *ExitCall, BodyGenCallbackTy BodyGenCB,
                        FinalizeCallbackTy FiniCB, bool Conditional = false,
-                       bool HasFinalize = true);
+                       bool HasFinalize = true, bool IsCancellable = false);
 
   /// Get the platform-specific name separator.
   /// \param Parts different parts of the final name that needs separation
@@ -705,6 +931,167 @@ private:
   /// \param CriticalName Name of the critical region.
   ///
   Value *getOMPCriticalRegionLock(StringRef CriticalName);
+
+  /// Callback type for Atomic Expression update
+  /// ex:
+  /// \code{.cpp}
+  /// unsigned x = 0;
+  /// #pragma omp atomic update
+  /// x = Expr(x_old);  //Expr() is any legal operation
+  /// \endcode
+  ///
+  /// \param XOld the value of the atomic memory address to use for update
+  /// \param IRB reference to the IRBuilder to use
+  ///
+  /// \returns Value to update X to.
+  using AtomicUpdateCallbackTy =
+      const function_ref<Value *(Value *XOld, IRBuilder<> &IRB)>;
+
+private:
+  enum AtomicKind { Read, Write, Update, Capture };
+
+  /// Determine whether to emit flush or not
+  ///
+  /// \param Loc    The insert and source location description.
+  /// \param AO     The required atomic ordering
+  /// \param AK     The OpenMP atomic operation kind used.
+  ///
+  /// \returns		wether a flush was emitted or not
+  bool checkAndEmitFlushAfterAtomic(const LocationDescription &Loc,
+                                    AtomicOrdering AO, AtomicKind AK);
+
+  /// Emit atomic update for constructs: X = X BinOp Expr ,or X = Expr BinOp X
+  /// For complex Operations: X = UpdateOp(X) => CmpExch X, old_X, UpdateOp(X)
+  /// Only Scalar data types.
+  ///
+  /// \param AllocIP	  Instruction to create AllocaInst before.
+  /// \param X			    The target atomic pointer to be updated
+  /// \param Expr		    The value to update X with.
+  /// \param AO			    Atomic ordering of the generated atomic
+  ///                   instructions.
+  /// \param RMWOp		  The binary operation used for update. If
+  ///                   operation is not supported by atomicRMW,
+  ///                   or belong to {FADD, FSUB, BAD_BINOP}.
+  ///                   Then a `cmpExch` based	atomic will be generated.
+  /// \param UpdateOp 	Code generator for complex expressions that cannot be
+  ///                   expressed through atomicrmw instruction.
+  /// \param VolatileX	     true if \a X volatile?
+  /// \param IsXLHSInRHSPart true if \a X is Left H.S. in Right H.S. part of
+  ///                        the update expression, false otherwise.
+  ///                        (e.g. true for X = X BinOp Expr)
+  ///
+  /// \returns A pair of the old value of X before the update, and the value
+  ///          used for the update.
+  std::pair<Value *, Value *> emitAtomicUpdate(Instruction *AllocIP, Value *X,
+                                               Value *Expr, AtomicOrdering AO,
+                                               AtomicRMWInst::BinOp RMWOp,
+                                               AtomicUpdateCallbackTy &UpdateOp,
+                                               bool VolatileX,
+                                               bool IsXLHSInRHSPart);
+
+  /// Emit the binary op. described by \p RMWOp, using \p Src1 and \p Src2 .
+  ///
+  /// \Return The instruction
+  Value *emitRMWOpAsInstruction(Value *Src1, Value *Src2,
+                                AtomicRMWInst::BinOp RMWOp);
+
+public:
+  /// a struct to pack relevant information while generating atomic Ops
+  struct AtomicOpValue {
+    Value *Var = nullptr;
+    bool IsSigned = false;
+    bool IsVolatile = false;
+  };
+
+  /// Emit atomic Read for : V = X --- Only Scalar data types.
+  ///
+  /// \param Loc    The insert and source location description.
+  /// \param X			The target pointer to be atomically read
+  /// \param V			Memory address where to store atomically read
+  /// 					    value
+  /// \param AO			Atomic ordering of the generated atomic
+  /// 					    instructions.
+  ///
+  /// \return Insertion point after generated atomic read IR.
+  InsertPointTy createAtomicRead(const LocationDescription &Loc,
+                                 AtomicOpValue &X, AtomicOpValue &V,
+                                 AtomicOrdering AO);
+
+  /// Emit atomic write for : X = Expr --- Only Scalar data types.
+  ///
+  /// \param Loc    The insert and source location description.
+  /// \param X			The target pointer to be atomically written to
+  /// \param Expr		The value to store.
+  /// \param AO			Atomic ordering of the generated atomic
+  ///               instructions.
+  ///
+  /// \return Insertion point after generated atomic Write IR.
+  InsertPointTy createAtomicWrite(const LocationDescription &Loc,
+                                  AtomicOpValue &X, Value *Expr,
+                                  AtomicOrdering AO);
+
+  /// Emit atomic update for constructs: X = X BinOp Expr ,or X = Expr BinOp X
+  /// For complex Operations: X = UpdateOp(X) => CmpExch X, old_X, UpdateOp(X)
+  /// Only Scalar data types.
+  ///
+  /// \param Loc      The insert and source location description.
+  /// \param AllocIP  Instruction to create AllocaInst before.
+  /// \param X        The target atomic pointer to be updated
+  /// \param Expr     The value to update X with.
+  /// \param AO       Atomic ordering of the generated atomic instructions.
+  /// \param RMWOp    The binary operation used for update. If operation
+  ///                 is	not supported by atomicRMW, or belong to
+  ///	                {FADD, FSUB, BAD_BINOP}. Then a `cmpExch` based
+  ///                 atomic will be generated.
+  /// \param UpdateOp 	Code generator for complex expressions that cannot be
+  ///                   expressed through atomicrmw instruction.
+  /// \param IsXLHSInRHSPart true if \a X is Left H.S. in Right H.S. part of
+  ///                        the update expression, false otherwise.
+  ///	                       (e.g. true for X = X BinOp Expr)
+  ///
+  /// \return Insertion point after generated atomic update IR.
+  InsertPointTy createAtomicUpdate(const LocationDescription &Loc,
+                                   Instruction *AllocIP, AtomicOpValue &X,
+                                   Value *Expr, AtomicOrdering AO,
+                                   AtomicRMWInst::BinOp RMWOp,
+                                   AtomicUpdateCallbackTy &UpdateOp,
+                                   bool IsXLHSInRHSPart);
+
+  /// Emit atomic update for constructs: --- Only Scalar data types
+  /// V = X; X = X BinOp Expr ,
+  /// X = X BinOp Expr; V = X,
+  /// V = X; X = Expr BinOp X,
+  /// X = Expr BinOp X; V = X,
+  /// V = X; X = UpdateOp(X),
+  /// X = UpdateOp(X); V = X,
+  ///
+  /// \param Loc        The insert and source location description.
+  /// \param AllocIP    Instruction to create AllocaInst before.
+  /// \param X          The target atomic pointer to be updated
+  /// \param V          Memory address where to store captured value
+  /// \param Expr       The value to update X with.
+  /// \param AO         Atomic ordering of the generated atomic instructions
+  /// \param RMWOp      The binary operation used for update. If
+  ///                   operation is not supported by atomicRMW, or belong to
+  ///	                  {FADD, FSUB, BAD_BINOP}. Then a cmpExch based
+  ///                   atomic will be generated.
+  /// \param UpdateOp   Code generator for complex expressions that cannot be
+  ///                   expressed through atomicrmw instruction.
+  /// \param UpdateExpr true if X is an in place update of the form
+  ///                   X = X BinOp Expr or X = Expr BinOp X
+  /// \param IsXLHSInRHSPart true if X is Left H.S. in Right H.S. part of the
+  ///                        update expression, false otherwise.
+  ///                        (e.g. true for X = X BinOp Expr)
+  /// \param IsPostfixUpdate true if original value of 'x' must be stored in
+  ///                        'v', not an updated one.
+  ///
+  /// \return Insertion point after generated atomic capture IR.
+  InsertPointTy
+  createAtomicCapture(const LocationDescription &Loc, Instruction *AllocIP,
+                      AtomicOpValue &X, AtomicOpValue &V, Value *Expr,
+                      AtomicOrdering AO, AtomicRMWInst::BinOp RMWOp,
+                      AtomicUpdateCallbackTy &UpdateOp, bool UpdateExpr,
+                      bool IsPostfixUpdate, bool IsXLHSInRHSPart);
 
   /// Create the control flow structure of a canonical OpenMP loop.
   ///
@@ -852,10 +1239,12 @@ public:
     return {After, After->begin()};
   };
 
+  Function *getFunction() const { return Header->getParent(); }
+
   /// Consistency self-check.
   void assertOK() const;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_IR_IRBUILDER_H
+#endif // LLVM_FRONTEND_OPENMP_OMPIRBUILDER_H

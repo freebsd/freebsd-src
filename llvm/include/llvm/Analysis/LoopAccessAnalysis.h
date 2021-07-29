@@ -341,17 +341,21 @@ struct RuntimeCheckingPtrGroup {
   /// pointer, with index \p Index in RtCheck.
   RuntimeCheckingPtrGroup(unsigned Index, RuntimePointerChecking &RtCheck);
 
+  RuntimeCheckingPtrGroup(unsigned Index, const SCEV *Start, const SCEV *End,
+                          unsigned AS)
+      : High(End), Low(Start), AddressSpace(AS) {
+    Members.push_back(Index);
+  }
+
   /// Tries to add the pointer recorded in RtCheck at index
   /// \p Index to this pointer checking group. We can only add a pointer
   /// to a checking group if we will still be able to get
   /// the upper and lower bounds of the check. Returns true in case
   /// of success, false otherwise.
-  bool addPointer(unsigned Index);
+  bool addPointer(unsigned Index, RuntimePointerChecking &RtCheck);
+  bool addPointer(unsigned Index, const SCEV *Start, const SCEV *End,
+                  unsigned AS, ScalarEvolution &SE);
 
-  /// Constitutes the context of this pointer checking group. For each
-  /// pointer that is a member of this group we will retain the index
-  /// at which it appears in RtCheck.
-  RuntimePointerChecking &RtCheck;
   /// The SCEV expression which represents the upper bound of all the
   /// pointers in this group.
   const SCEV *High;
@@ -360,6 +364,8 @@ struct RuntimeCheckingPtrGroup {
   const SCEV *Low;
   /// Indices of all the pointers that constitute this grouping.
   SmallVector<unsigned, 2> Members;
+  /// Address space of the involved pointers.
+  unsigned AddressSpace;
 };
 
 /// A memcheck which made up of a pair of grouped pointers.
@@ -679,6 +685,16 @@ int64_t getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr, const Loop *Lp,
                      const ValueToValueMap &StridesMap = ValueToValueMap(),
                      bool Assume = false, bool ShouldCheckWrap = true);
 
+/// Returns the distance between the pointers \p PtrA and \p PtrB iff they are
+/// compatible and it is possible to calculate the distance between them. This
+/// is a simple API that does not depend on the analysis pass.
+/// \param StrictCheck Ensure that the calculated distance matches the
+/// type-based one after all the bitcasts removal in the provided pointers.
+Optional<int> getPointersDiff(Type *ElemTyA, Value *PtrA, Type *ElemTyB,
+                              Value *PtrB, const DataLayout &DL,
+                              ScalarEvolution &SE, bool StrictCheck = false,
+                              bool CheckType = true);
+
 /// Attempt to sort the pointers in \p VL and return the sorted indices
 /// in \p SortedIndices, if reordering is required.
 ///
@@ -689,7 +705,7 @@ int64_t getPtrStride(PredicatedScalarEvolution &PSE, Value *Ptr, const Loop *Lp,
 /// sorted indices in \p SortedIndices as a[i+0], a[i+1], a[i+4], a[i+7] and
 /// saves the mask for actual memory accesses in program order in
 /// \p SortedIndices as <1,2,0,3>
-bool sortPtrAccesses(ArrayRef<Value *> VL, const DataLayout &DL,
+bool sortPtrAccesses(ArrayRef<Value *> VL, Type *ElemTy, const DataLayout &DL,
                      ScalarEvolution &SE,
                      SmallVectorImpl<unsigned> &SortedIndices);
 

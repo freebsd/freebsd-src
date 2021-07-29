@@ -33,7 +33,7 @@
  * compatible, thus CINDEX_VERSION_MAJOR is expected to remain stable.
  */
 #define CINDEX_VERSION_MAJOR 0
-#define CINDEX_VERSION_MINOR 61
+#define CINDEX_VERSION_MINOR 62
 
 #define CINDEX_VERSION_ENCODE(major, minor) (((major)*10000) + ((minor)*1))
 
@@ -2568,7 +2568,31 @@ enum CXCursorKind {
    */
   CXCursor_OMPScanDirective = 287,
 
-  CXCursor_LastStmt = CXCursor_OMPScanDirective,
+  /** OpenMP tile directive.
+   */
+  CXCursor_OMPTileDirective = 288,
+
+  /** OpenMP canonical loop.
+   */
+  CXCursor_OMPCanonicalLoop = 289,
+
+  /** OpenMP interop directive.
+   */
+  CXCursor_OMPInteropDirective = 290,
+
+  /** OpenMP dispatch directive.
+   */
+  CXCursor_OMPDispatchDirective = 291,
+
+  /** OpenMP masked directive.
+   */
+  CXCursor_OMPMaskedDirective = 292,
+
+  /** OpenMP unroll directive.
+   */
+  CXCursor_OMPUnrollDirective = 293,
+
+  CXCursor_LastStmt = CXCursor_OMPUnrollDirective,
 
   /**
    * Cursor that represents the translation unit itself.
@@ -3394,6 +3418,7 @@ enum CXCallingConv {
   CXCallingConv_PreserveMost = 14,
   CXCallingConv_PreserveAll = 15,
   CXCallingConv_AArch64VectorCall = 16,
+  CXCallingConv_SwiftAsync = 17,
 
   CXCallingConv_Invalid = 100,
   CXCallingConv_Unexposed = 200

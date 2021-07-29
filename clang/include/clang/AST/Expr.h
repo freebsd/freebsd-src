@@ -266,13 +266,11 @@ public:
   /// C++11 divides the concept of "r-value" into pure r-values
   /// ("pr-values") and so-called expiring values ("x-values"), which
   /// identify specific objects that can be safely cannibalized for
-  /// their resources.  This is an unfortunate abuse of terminology on
-  /// the part of the C++ committee.  In Clang, when we say "r-value",
-  /// we generally mean a pr-value.
+  /// their resources.
   bool isLValue() const { return getValueKind() == VK_LValue; }
-  bool isRValue() const { return getValueKind() == VK_RValue; }
+  bool isPRValue() const { return getValueKind() == VK_PRValue; }
   bool isXValue() const { return getValueKind() == VK_XValue; }
-  bool isGLValue() const { return getValueKind() != VK_RValue; }
+  bool isGLValue() const { return getValueKind() != VK_PRValue; }
 
   enum LValueClassification {
     LV_Valid,
@@ -425,7 +423,7 @@ public:
                 ? VK_LValue
                 : (RT->getPointeeType()->isFunctionType()
                      ? VK_LValue : VK_XValue));
-    return VK_RValue;
+    return VK_PRValue;
   }
 
   /// getValueKind - The value kind that this expression produces.
@@ -1588,8 +1586,8 @@ public:
   // type should be IntTy
   CharacterLiteral(unsigned value, CharacterKind kind, QualType type,
                    SourceLocation l)
-      : Expr(CharacterLiteralClass, type, VK_RValue, OK_Ordinary), Value(value),
-        Loc(l) {
+      : Expr(CharacterLiteralClass, type, VK_PRValue, OK_Ordinary),
+        Value(value), Loc(l) {
     CharacterLiteralBits.Kind = kind;
     setDependence(ExprDependence::None);
   }
@@ -1614,6 +1612,8 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CharacterLiteralClass;
   }
+
+  static void print(unsigned val, CharacterKind Kind, raw_ostream &OS);
 
   // Iterators
   child_range children() {
@@ -1707,7 +1707,7 @@ class ImaginaryLiteral : public Expr {
   Stmt *Val;
 public:
   ImaginaryLiteral(Expr *val, QualType Ty)
-      : Expr(ImaginaryLiteralClass, Ty, VK_RValue, OK_Ordinary), Val(val) {
+      : Expr(ImaginaryLiteralClass, Ty, VK_PRValue, OK_Ordinary), Val(val) {
     setDependence(ExprDependence::None);
   }
 
@@ -2035,6 +2035,64 @@ public:
     return const_child_range(getTrailingObjects<Stmt *>(),
                              getTrailingObjects<Stmt *>() + hasFunctionName());
   }
+};
+
+// This represents a use of the __builtin_sycl_unique_stable_name, which takes a
+// type-id, and at CodeGen time emits a unique string representation of the
+// type in a way that permits us to properly encode information about the SYCL
+// kernels.
+class SYCLUniqueStableNameExpr final : public Expr {
+  friend class ASTStmtReader;
+  SourceLocation OpLoc, LParen, RParen;
+  TypeSourceInfo *TypeInfo;
+
+  SYCLUniqueStableNameExpr(EmptyShell Empty, QualType ResultTy);
+  SYCLUniqueStableNameExpr(SourceLocation OpLoc, SourceLocation LParen,
+                           SourceLocation RParen, QualType ResultTy,
+                           TypeSourceInfo *TSI);
+
+  void setTypeSourceInfo(TypeSourceInfo *Ty) { TypeInfo = Ty; }
+
+  void setLocation(SourceLocation L) { OpLoc = L; }
+  void setLParenLocation(SourceLocation L) { LParen = L; }
+  void setRParenLocation(SourceLocation L) { RParen = L; }
+
+public:
+  TypeSourceInfo *getTypeSourceInfo() { return TypeInfo; }
+
+  const TypeSourceInfo *getTypeSourceInfo() const { return TypeInfo; }
+
+  static SYCLUniqueStableNameExpr *
+  Create(const ASTContext &Ctx, SourceLocation OpLoc, SourceLocation LParen,
+         SourceLocation RParen, TypeSourceInfo *TSI);
+
+  static SYCLUniqueStableNameExpr *CreateEmpty(const ASTContext &Ctx);
+
+  SourceLocation getBeginLoc() const { return getLocation(); }
+  SourceLocation getEndLoc() const { return RParen; }
+  SourceLocation getLocation() const { return OpLoc; }
+  SourceLocation getLParenLocation() const { return LParen; }
+  SourceLocation getRParenLocation() const { return RParen; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == SYCLUniqueStableNameExprClass;
+  }
+
+  // Iterators
+  child_range children() {
+    return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
+  }
+
+  // Convenience function to generate the name of the currently stored type.
+  std::string ComputeName(ASTContext &Context) const;
+
+  // Get the generated name of the type.  Note that this only works after all
+  // kernels have been instantiated.
+  static std::string ComputeName(ASTContext &Context, QualType Ty);
 };
 
 /// ParenExpr - This represents a parethesized expression, e.g. "(1)".  This
@@ -2487,7 +2545,8 @@ public:
   UnaryExprOrTypeTraitExpr(UnaryExprOrTypeTrait ExprKind, TypeSourceInfo *TInfo,
                            QualType resultType, SourceLocation op,
                            SourceLocation rp)
-      : Expr(UnaryExprOrTypeTraitExprClass, resultType, VK_RValue, OK_Ordinary),
+      : Expr(UnaryExprOrTypeTraitExprClass, resultType, VK_PRValue,
+             OK_Ordinary),
         OpLoc(op), RParenLoc(rp) {
     assert(ExprKind <= UETT_Last && "invalid enum value!");
     UnaryExprOrTypeTraitExprBits.Kind = ExprKind;
@@ -2928,9 +2987,20 @@ public:
   }
 
   /// setArg - Set the specified argument.
+  /// ! the dependence bits might be stale after calling this setter, it is
+  /// *caller*'s responsibility to recompute them by calling
+  /// computeDependence().
   void setArg(unsigned Arg, Expr *ArgExpr) {
     assert(Arg < getNumArgs() && "Arg access out of range!");
     getArgs()[Arg] = ArgExpr;
+  }
+
+  /// Compute and set dependence bits.
+  void computeDependence() {
+    setDependence(clang::computeDependence(
+        this, llvm::makeArrayRef(
+                  reinterpret_cast<Expr **>(getTrailingStmts() + PREARGS_START),
+                  getNumPreArgs())));
   }
 
   /// Reduce the number of arguments in this call expression. This is used for
@@ -4227,7 +4297,7 @@ class AddrLabelExpr : public Expr {
 public:
   AddrLabelExpr(SourceLocation AALoc, SourceLocation LLoc, LabelDecl *L,
                 QualType t)
-      : Expr(AddrLabelExprClass, t, VK_RValue, OK_Ordinary), AmpAmpLoc(AALoc),
+      : Expr(AddrLabelExprClass, t, VK_PRValue, OK_Ordinary), AmpAmpLoc(AALoc),
         LabelLoc(LLoc), Label(L) {
     setDependence(ExprDependence::None);
   }
@@ -4272,7 +4342,7 @@ class StmtExpr : public Expr {
 public:
   StmtExpr(CompoundStmt *SubStmt, QualType T, SourceLocation LParenLoc,
            SourceLocation RParenLoc, unsigned TemplateDepth)
-      : Expr(StmtExprClass, T, VK_RValue, OK_Ordinary), SubStmt(SubStmt),
+      : Expr(StmtExprClass, T, VK_PRValue, OK_Ordinary), SubStmt(SubStmt),
         LParenLoc(LParenLoc), RParenLoc(RParenLoc) {
     setDependence(computeDependence(this, TemplateDepth));
     // FIXME: A templated statement expression should have an associated
@@ -4522,7 +4592,7 @@ class GNUNullExpr : public Expr {
 
 public:
   GNUNullExpr(QualType Ty, SourceLocation Loc)
-      : Expr(GNUNullExprClass, Ty, VK_RValue, OK_Ordinary), TokenLoc(Loc) {
+      : Expr(GNUNullExprClass, Ty, VK_PRValue, OK_Ordinary), TokenLoc(Loc) {
     setDependence(ExprDependence::None);
   }
 
@@ -4557,7 +4627,7 @@ class VAArgExpr : public Expr {
 public:
   VAArgExpr(SourceLocation BLoc, Expr *e, TypeSourceInfo *TInfo,
             SourceLocation RPLoc, QualType t, bool IsMS)
-      : Expr(VAArgExprClass, t, VK_RValue, OK_Ordinary), Val(e),
+      : Expr(VAArgExprClass, t, VK_PRValue, OK_Ordinary), Val(e),
         TInfo(TInfo, IsMS), BuiltinLoc(BLoc), RParenLoc(RPLoc) {
     setDependence(computeDependence(this));
   }
@@ -5249,7 +5319,7 @@ public:
 class NoInitExpr : public Expr {
 public:
   explicit NoInitExpr(QualType ty)
-      : Expr(NoInitExprClass, ty, VK_RValue, OK_Ordinary) {
+      : Expr(NoInitExprClass, ty, VK_PRValue, OK_Ordinary) {
     setDependence(computeDependence(this));
   }
 
@@ -5345,7 +5415,7 @@ class ArrayInitLoopExpr : public Expr {
 
 public:
   explicit ArrayInitLoopExpr(QualType T, Expr *CommonInit, Expr *ElementInit)
-      : Expr(ArrayInitLoopExprClass, T, VK_RValue, OK_Ordinary),
+      : Expr(ArrayInitLoopExprClass, T, VK_PRValue, OK_Ordinary),
         SubExprs{CommonInit, ElementInit} {
     setDependence(computeDependence(this));
   }
@@ -5396,7 +5466,7 @@ class ArrayInitIndexExpr : public Expr {
 
 public:
   explicit ArrayInitIndexExpr(QualType T)
-      : Expr(ArrayInitIndexExprClass, T, VK_RValue, OK_Ordinary) {
+      : Expr(ArrayInitIndexExprClass, T, VK_PRValue, OK_Ordinary) {
     setDependence(ExprDependence::None);
   }
 
@@ -5429,7 +5499,7 @@ public:
 class ImplicitValueInitExpr : public Expr {
 public:
   explicit ImplicitValueInitExpr(QualType ty)
-      : Expr(ImplicitValueInitExprClass, ty, VK_RValue, OK_Ordinary) {
+      : Expr(ImplicitValueInitExprClass, ty, VK_PRValue, OK_Ordinary) {
     setDependence(computeDependence(this));
   }
 
@@ -5834,7 +5904,7 @@ public:
   ExtVectorElementExpr(QualType ty, ExprValueKind VK, Expr *base,
                        IdentifierInfo &accessor, SourceLocation loc)
       : Expr(ExtVectorElementExprClass, ty, VK,
-             (VK == VK_RValue ? OK_Ordinary : OK_VectorComponent)),
+             (VK == VK_PRValue ? OK_Ordinary : OK_VectorComponent)),
         Base(base), Accessor(&accessor), AccessorLoc(loc) {
     setDependence(computeDependence(this));
   }
@@ -5891,7 +5961,7 @@ protected:
   BlockDecl *TheBlock;
 public:
   BlockExpr(BlockDecl *BD, QualType ty)
-      : Expr(BlockExprClass, ty, VK_RValue, OK_Ordinary), TheBlock(BD) {
+      : Expr(BlockExprClass, ty, VK_PRValue, OK_Ordinary), TheBlock(BD) {
     setDependence(computeDependence(this));
   }
 

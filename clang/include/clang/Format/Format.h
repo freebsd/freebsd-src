@@ -19,6 +19,7 @@
 #include "clang/Tooling/Inclusions/IncludeStyle.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Regex.h"
+#include "llvm/Support/SourceMgr.h"
 #include <system_error>
 
 namespace llvm {
@@ -52,6 +53,11 @@ std::error_code make_error_code(ParseError e);
 /// The ``FormatStyle`` is used to configure the formatting to follow
 /// specific guidelines.
 struct FormatStyle {
+  // If the BasedOn: was InheritParentConfig and this style needs the file from
+  // the parent directories. It is not part of the actual style for formatting.
+  // Thus the // instead of ///.
+  bool InheritsParentConfig;
+
   /// The extra indent or outdent of access modifiers, e.g. ``public:``.
   int AccessModifierOffset;
 
@@ -83,6 +89,35 @@ struct FormatStyle {
   /// This applies to round brackets (parentheses), angle brackets and square
   /// brackets.
   BracketAlignmentStyle AlignAfterOpenBracket;
+
+  /// Different style for aligning array initializers.
+  enum ArrayInitializerAlignmentStyle {
+    /// Align array column and left justify the columns e.g.:
+    /// \code
+    ///   struct test demo[] =
+    ///   {
+    ///       {56, 23,    "hello"},
+    ///       {-1, 93463, "world"},
+    ///       {7,  5,     "!!"   }
+    ///   };
+    /// \endcode
+    AIAS_Left,
+    /// Align array column and right justify the columns e.g.:
+    /// \code
+    ///   struct test demo[] =
+    ///   {
+    ///       {56,    23, "hello"},
+    ///       {-1, 93463, "world"},
+    ///       { 7,     5,    "!!"}
+    ///   };
+    /// \endcode
+    AIAS_Right,
+    /// Don't align array initializer columns.
+    AIAS_None
+  };
+  /// if not ``None``, when using initialization for an array of structs
+  /// aligns the fields into columns.
+  ArrayInitializerAlignmentStyle AlignArrayOfStructures;
 
   /// Styles for alignment of consecutive tokens. Tokens can be assignment signs
   /// (see
@@ -614,37 +649,74 @@ struct FormatStyle {
   /// single line.
   ShortFunctionStyle AllowShortFunctionsOnASingleLine;
 
-  /// Different styles for handling short if lines
+  /// Different styles for handling short if statements.
   enum ShortIfStyle : unsigned char {
     /// Never put short ifs on the same line.
     /// \code
     ///   if (a)
-    ///     return ;
+    ///     return;
+    ///
+    ///   if (b)
+    ///     return;
+    ///   else
+    ///     return;
+    ///
+    ///   if (c)
+    ///     return;
     ///   else {
     ///     return;
     ///   }
     /// \endcode
     SIS_Never,
-    /// Without else put short ifs on the same line only if
-    /// the else is not a compound statement.
+    /// Put short ifs on the same line only if there is no else statement.
     /// \code
     ///   if (a) return;
+    ///
+    ///   if (b)
+    ///     return;
     ///   else
     ///     return;
-    /// \endcode
-    SIS_WithoutElse,
-    /// Always put short ifs on the same line if
-    /// the else is not a compound statement or not.
-    /// \code
-    ///   if (a) return;
+    ///
+    ///   if (c)
+    ///     return;
     ///   else {
     ///     return;
     ///   }
     /// \endcode
-    SIS_Always,
+    SIS_WithoutElse,
+    /// Put short ifs, but not else ifs nor else statements, on the same line.
+    /// \code
+    ///   if (a) return;
+    ///
+    ///   if (b) return;
+    ///   else if (b)
+    ///     return;
+    ///   else
+    ///     return;
+    ///
+    ///   if (c) return;
+    ///   else {
+    ///     return;
+    ///   }
+    /// \endcode
+    SIS_OnlyFirstIf,
+    /// Always put short ifs, else ifs and else statements on the same
+    /// line.
+    /// \code
+    ///   if (a) return;
+    ///
+    ///   if (b) return;
+    ///   else return;
+    ///
+    ///   if (c) return;
+    ///   else {
+    ///     return;
+    ///   }
+    /// \endcode
+    SIS_AllIfsAndElse,
   };
 
-  /// If ``true``, ``if (a) return;`` can be put on a single line.
+  /// Dependent on the value, ``if (a) return;`` can be put on a single line.
   ShortIfStyle AllowShortIfStatementsOnASingleLine;
 
   /// Different styles for merging short lambdas containing at most one
@@ -1786,7 +1858,14 @@ struct FormatStyle {
     ///        Base2
     ///    {};
     /// \endcode
-    BILS_AfterColon
+    BILS_AfterColon,
+    /// Break inheritance list only after the commas.
+    /// \code
+    ///    class Foo : Base1,
+    ///                Base2
+    ///    {};
+    /// \endcode
+    BILS_AfterComma,
   };
 
   /// The inheritance list style to use.
@@ -1885,6 +1964,56 @@ struct FormatStyle {
   /// Disables formatting completely.
   bool DisableFormat;
 
+  /// Different styles for empty line after access modifiers.
+  /// ``EmptyLineBeforeAccessModifier`` configuration handles the number of
+  /// empty lines between two access modifiers.
+  enum EmptyLineAfterAccessModifierStyle : unsigned char {
+    /// Remove all empty lines after access modifiers.
+    /// \code
+    ///   struct foo {
+    ///   private:
+    ///     int i;
+    ///   protected:
+    ///     int j;
+    ///     /* comment */
+    ///   public:
+    ///     foo() {}
+    ///   private:
+    ///   protected:
+    ///   };
+    /// \endcode
+    ELAAMS_Never,
+    /// Keep existing empty lines after access modifiers.
+    /// MaxEmptyLinesToKeep is applied instead.
+    ELAAMS_Leave,
+    /// Always add empty line after access modifiers if there are none.
+    /// MaxEmptyLinesToKeep is applied also.
+    /// \code
+    ///   struct foo {
+    ///   private:
+    ///
+    ///     int i;
+    ///   protected:
+    ///
+    ///     int j;
+    ///     /* comment */
+    ///   public:
+    ///
+    ///     foo() {}
+    ///   private:
+    ///
+    ///   protected:
+    ///
+    ///   };
+    /// \endcode
+    ELAAMS_Always,
+  };
+
+  /// Defines when to put an empty line after access modifiers.
+  /// ``EmptyLineBeforeAccessModifier`` configuration handles the number of
+  /// empty lines between two access modifiers.
+  EmptyLineAfterAccessModifierStyle EmptyLineAfterAccessModifier;
+
   /// Different styles for empty line before access modifiers.
   enum EmptyLineBeforeAccessModifierStyle : unsigned char {
     /// Remove all empty lines before access modifiers.
@@ -1959,12 +2088,14 @@ struct FormatStyle {
   /// not use this in config files, etc. Use at your own risk.
   bool ExperimentalAutoDetectBinPacking;
 
-  /// If ``true``, clang-format adds missing namespace end comments and
-  /// fixes invalid existing ones.
+  /// If ``true``, clang-format adds missing namespace end comments for
+  /// short namespaces and fixes invalid existing ones. Short ones are
+  /// controlled by "ShortNamespaceLines".
   /// \code
   ///    true:                                  false:
   ///    namespace a {                  vs.     namespace a {
   ///    foo();                                 foo();
+  ///    bar();                                 bar();
   ///    } // namespace a                       }
   /// \endcode
   bool FixNamespaceComments;
@@ -1985,6 +2116,26 @@ struct FormatStyle {
   ///
   /// For example: BOOST_FOREACH.
   std::vector<std::string> ForEachMacros;
+
+  /// A vector of macros that should be interpreted as conditionals
+  /// instead of as function calls.
+  ///
+  /// These are expected to be macros of the form:
+  /// \code
+  ///   IF(...)
+  ///     <conditional-body>
+  ///   else IF(...)
+  ///     <conditional-body>
+  /// \endcode
+  ///
+  /// In the .clang-format configuration file, this can be configured like:
+  /// \code{.yaml}
+  ///   IfMacros: ['IF']
+  /// \endcode
+  ///
+  /// For example: `KJ_IF_MAYBE
+  /// <https://github.com/capnproto/capnproto/blob/master/kjdoc/tour.md#maybes>`_
+  std::vector<std::string> IfMacros;
 
   /// \brief A vector of macros that should be interpreted as type declarations
   /// instead of as function calls.
@@ -2041,6 +2192,32 @@ struct FormatStyle {
   std::vector<std::string> WhitespaceSensitiveMacros;
 
   tooling::IncludeStyle IncludeStyle;
+
+  /// Specify whether access modifiers should have their own indentation level.
+  ///
+  /// When ``false``, access modifiers are indented (or outdented) relative to
+  /// the record members, respecting the ``AccessModifierOffset``. Record
+  /// members are indented one level below the record.
+  /// When ``true``, access modifiers get their own indentation level. As a
+  /// consequence, record members are always indented 2 levels below the record,
+  /// regardless of the access modifier presence. Value of the
+  /// ``AccessModifierOffset`` is ignored.
+  /// \code
+  ///    false:                                 true:
+  ///    class C {                      vs.     class C {
+  ///      class D {                                class D {
+  ///        void bar();                                void bar();
+  ///      protected:                                 protected:
+  ///        D();                                       D();
+  ///      };                                       };
+  ///    public:                                  public:
+  ///      C();                                     C();
+  ///    };                                     };
+  ///    void foo() {                           void foo() {
+  ///      return 1;                              return 1;
+  ///    }                                      }
+  /// \endcode
+  bool IndentAccessModifiers;
 
   /// Indent case labels one level from the switch statement.
   ///
@@ -2316,6 +2493,8 @@ struct FormatStyle {
     LK_Java,
     /// Should be used for JavaScript.
     LK_JavaScript,
+    /// Should be used for JSON.
+    LK_Json,
     /// Should be used for Objective-C, Objective-C++.
     LK_ObjC,
     /// Should be used for Protocol Buffers
@@ -2329,9 +2508,42 @@ struct FormatStyle {
   };
   bool isCpp() const { return Language == LK_Cpp || Language == LK_ObjC; }
   bool isCSharp() const { return Language == LK_CSharp; }
+  bool isJson() const { return Language == LK_Json; }
 
   /// Language, this format style is targeted at.
   LanguageKind Language;
+
+  /// Indentation logic for lambda bodies.
+  enum LambdaBodyIndentationKind : unsigned char {
+    /// Align lambda body relative to the lambda signature. This is the default.
+    /// \code
+    ///    someMethod(
+    ///        [](SomeReallyLongLambdaSignatureArgument foo) {
+    ///          return;
+    ///        });
+    /// \endcode
+    LBI_Signature,
+    /// Align lambda body relative to the indentation level of the outer scope
+    /// the lambda signature resides in.
+    /// \code
+    ///    someMethod(
+    ///        [](SomeReallyLongLambdaSignatureArgument foo) {
+    ///      return;
+    ///    });
+    /// \endcode
+    LBI_OuterScope,
+  };
+
+  /// The indentation style of lambda bodies. ``Signature`` (the default)
+  /// causes the lambda body to be indented one additional level relative to
+  /// the indentation level of the signature. ``OuterScope`` forces the lambda
+  /// body to be indented one additional level relative to the parent scope
+  /// containing the lambda signature. For callback-heavy code, it may improve
+  /// readability to have the signature indented two levels and to use
+  /// ``OuterScope``. The KJ style guide requires ``OuterScope``.
+  /// `KJ style guide
+  /// <https://github.com/capnproto/capnproto/blob/master/kjdoc/style-guide.md>`_
+  LambdaBodyIndentationKind LambdaBodyIndentation;
 
   /// A regular expression matching macros that start a block.
   /// \code
@@ -2516,7 +2728,7 @@ struct FormatStyle {
   /// (counted relative to leading non-whitespace column).
   unsigned PenaltyIndentedWhitespace;
 
-  /// The ``&`` and ``*`` alignment style.
+  /// The ``&``, ``&&`` and ``*`` alignment style.
   enum PointerAlignmentStyle : unsigned char {
     /// Align pointer to the left.
     /// \code
@@ -2537,6 +2749,20 @@ struct FormatStyle {
 
   /// Pointer and reference alignment style.
   PointerAlignmentStyle PointerAlignment;
+
+  /// The number of columns to use for indentation of preprocessor statements.
+  /// When set to -1 (default) ``IndentWidth`` is used also for preprocessor
+  /// statements.
+  /// \code
+  ///    PPIndentWidth: 1
+  ///
+  ///    #ifdef __linux__
+  ///    # define FOO
+  ///    #else
+  ///    # define BAR
+  ///    #endif
+  /// \endcode
+  int PPIndentWidth;
 
   /// See documentation of ``RawStringFormats``.
   struct RawStringFormat {
@@ -2597,6 +2823,31 @@ struct FormatStyle {
   /// \endcode
   std::vector<RawStringFormat> RawStringFormats;
 
+  /// \brief The ``&`` and ``&&`` alignment style.
+  enum ReferenceAlignmentStyle {
+    /// Align reference like ``PointerAlignment``.
+    RAS_Pointer,
+    /// Align reference to the left.
+    /// \code
+    ///   int& a;
+    /// \endcode
+    RAS_Left,
+    /// Align reference to the right.
+    /// \code
+    ///   int &a;
+    /// \endcode
+    RAS_Right,
+    /// Align reference in the middle.
+    /// \code
+    ///   int & a;
+    /// \endcode
+    RAS_Middle
+  };
+
+  /// \brief Reference alignment style (overrides ``PointerAlignment`` for
+  /// references).
+  ReferenceAlignmentStyle ReferenceAlignment;
+
   // clang-format off
   /// If ``true``, clang-format will attempt to re-flow comments.
   /// \code
@@ -2613,13 +2864,65 @@ struct FormatStyle {
   bool ReflowComments;
   // clang-format on
 
-  /// If ``true``, clang-format will sort ``#includes``.
+  /// The maximal number of unwrapped lines that a short namespace spans.
+  /// Defaults to 1.
+  ///
+  /// This determines the maximum length of short namespaces by counting
+  /// unwrapped lines (i.e. containing neither opening nor closing
+  /// namespace brace) and makes "FixNamespaceComments" omit adding
+  /// end comments for those.
   /// \code
-  ///    false:                                 true:
-  ///    #include "b.h"                 vs.     #include "a.h"
-  ///    #include "a.h"                         #include "b.h"
+  ///    ShortNamespaceLines: 1     vs.     ShortNamespaceLines: 0
+  ///    namespace a {                      namespace a {
+  ///      int foo;                           int foo;
+  ///    }                                  } // namespace a
+  ///
+  ///    ShortNamespaceLines: 1     vs.     ShortNamespaceLines: 0
+  ///    namespace b {                      namespace b {
+  ///      int foo;                           int foo;
+  ///      int bar;                           int bar;
+  ///    } // namespace b                   } // namespace b
   /// \endcode
-  bool SortIncludes;
+  unsigned ShortNamespaceLines;
+
+  /// Include sorting options.
+  enum SortIncludesOptions : unsigned char {
+    /// Includes are never sorted.
+    /// \code
+    ///    #include "B/A.h"
+    ///    #include "A/B.h"
+    ///    #include "a/b.h"
+    ///    #include "A/b.h"
+    ///    #include "B/a.h"
+    /// \endcode
+    SI_Never,
+    /// Includes are sorted in an ASCIIbetical or case sensitive fashion.
+    /// \code
+    ///    #include "A/B.h"
+    ///    #include "A/b.h"
+    ///    #include "B/A.h"
+    ///    #include "B/a.h"
+    ///    #include "a/b.h"
+    /// \endcode
+    SI_CaseSensitive,
+    /// Includes are sorted in an alphabetical or case insensitive fashion.
+    /// \code
+    ///    #include "A/B.h"
+    ///    #include "A/b.h"
+    ///    #include "a/b.h"
+    ///    #include "B/A.h"
+    ///    #include "B/a.h"
+    /// \endcode
+    SI_CaseInsensitive,
+  };
+
+  /// Controls if and how clang-format will sort ``#includes``.
+  /// If ``Never``, includes are never sorted.
+  /// If ``CaseInsensitive``, includes are sorted in an ASCIIbetical or case
+  /// insensitive fashion.
+  /// If ``CaseSensitive``, includes are sorted in an alphabetical or case
+  /// sensitive fashion.
+  SortIncludesOptions SortIncludes;
 
   /// Position for Java Static imports.
   enum SortJavaStaticImportOptions : unsigned char {
@@ -2778,8 +3081,10 @@ struct FormatStyle {
     /// \endcode
     SBPO_ControlStatements,
     /// Same as ``SBPO_ControlStatements`` except this option doesn't apply to
-    /// ForEach macros. This is useful in projects where ForEach macros are
-    /// treated as function calls instead of control statements.
+    /// ForEach and If macros. This is useful in projects where ForEach/If
+    /// macros are treated as function calls instead of control statements.
+    /// ``SBPO_ControlStatementsExceptForEachMacros`` remains an alias for
+    /// backward compatability.
     /// \code
     ///    void f() {
     ///      Q_FOREACH(...) {
@@ -2787,7 +3092,7 @@ struct FormatStyle {
     ///      }
     ///    }
     /// \endcode
-    SBPO_ControlStatementsExceptForEachMacros,
+    SBPO_ControlStatementsExceptControlMacros,
     /// Put a space before opening parentheses only if the parentheses are not
     /// empty i.e. '()'
     /// \code
@@ -2860,14 +3165,27 @@ struct FormatStyle {
   /// \endcode
   unsigned SpacesBeforeTrailingComments;
 
-  /// If ``true``, spaces will be inserted after ``<`` and before ``>``
-  /// in template argument lists.
-  /// \code
-  ///    true:                                  false:
-  ///    static_cast< int >(arg);       vs.     static_cast<int>(arg);
-  ///    std::function< void(int) > fct;        std::function<void(int)> fct;
-  /// \endcode
-  bool SpacesInAngles;
+  /// Styles for adding spacing after ``<`` and before ``>`
+  ///  in template argument lists.
+  enum SpacesInAnglesStyle : unsigned char {
+    /// Remove spaces after ``<`` and before ``>``.
+    /// \code
+    ///    static_cast<int>(arg);
+    ///    std::function<void(int)> fct;
+    /// \endcode
+    SIAS_Never,
+    /// Add spaces after ``<`` and before ``>``.
+    /// \code
+    ///    static_cast< int >(arg);
+    ///    std::function< void(int) > fct;
+    /// \endcode
+    SIAS_Always,
+    /// Keep a single space after ``<`` and before ``>`` if any spaces were
+    /// present. Option ``Standard: Cpp03`` takes precedence.
+    SIAS_Leave
+  };
+  /// The SpacesInAnglesStyle to use for template argument lists.
+  SpacesInAnglesStyle SpacesInAngles;
 
   /// If ``true``, spaces will be inserted around if/for/switch/while
   /// conditions.
@@ -2893,6 +3211,43 @@ struct FormatStyle {
   ///    x = ( int32 )y                 vs.     x = (int32)y
   /// \endcode
   bool SpacesInCStyleCastParentheses;
+
+  /// Control of spaces within a single line comment
+  struct SpacesInLineComment {
+    /// The minimum number of spaces at the start of the comment.
+    unsigned Minimum;
+    /// The maximum number of spaces at the start of the comment.
+    unsigned Maximum;
+  };
+
+  /// How many spaces are allowed at the start of a line comment. To disable the
+  /// maximum set it to ``-1``, apart from that the maximum takes precedence
+  /// over the minimum.
+  /// \code Minimum = 1 Maximum = -1
+  /// // One space is forced
+  ///
+  /// //  but more spaces are possible
+  ///
+  /// Minimum = 0
+  /// Maximum = 0
+  /// //Forces to start every comment directly after the slashes
+  /// \endcode
+  ///
+  /// Note that in line comment sections the relative indent of the subsequent
+  /// lines is kept, that means the following:
+  /// \code
+  /// before:                                   after:
+  /// Minimum: 1
+  /// //if (b) {                                // if (b) {
+  /// //  return true;                          //   return true;
+  /// //}                                       // }
+  ///
+  /// Maximum: 0
+  /// /// List:                                 ///List:
+  /// ///  - Foo                                /// - Foo
+  /// ///    - Bar                              ///   - Bar
+  /// \endcode
+  SpacesInLineComment SpacesInLineCommentPrefix;
 
   /// If ``true``, spaces will be inserted after ``(`` and before ``)``.
   /// \code
@@ -3028,6 +3383,7 @@ struct FormatStyle {
   bool operator==(const FormatStyle &R) const {
     return AccessModifierOffset == R.AccessModifierOffset &&
            AlignAfterOpenBracket == R.AlignAfterOpenBracket &&
+           AlignArrayOfStructures == R.AlignArrayOfStructures &&
            AlignConsecutiveAssignments == R.AlignConsecutiveAssignments &&
            AlignConsecutiveBitFields == R.AlignConsecutiveBitFields &&
            AlignConsecutiveDeclarations == R.AlignConsecutiveDeclarations &&
@@ -3077,6 +3433,7 @@ struct FormatStyle {
            DeriveLineEnding == R.DeriveLineEnding &&
            DerivePointerAlignment == R.DerivePointerAlignment &&
            DisableFormat == R.DisableFormat &&
+           EmptyLineAfterAccessModifier == R.EmptyLineAfterAccessModifier &&
            EmptyLineBeforeAccessModifier == R.EmptyLineBeforeAccessModifier &&
            ExperimentalAutoDetectBinPacking ==
                R.ExperimentalAutoDetectBinPacking &&
@@ -3088,6 +3445,7 @@ struct FormatStyle {
                R.IncludeStyle.IncludeIsMainRegex &&
            IncludeStyle.IncludeIsMainSourceRegex ==
                R.IncludeStyle.IncludeIsMainSourceRegex &&
+           IndentAccessModifiers == R.IndentAccessModifiers &&
            IndentCaseLabels == R.IndentCaseLabels &&
            IndentCaseBlocks == R.IndentCaseBlocks &&
            IndentGotoLabels == R.IndentGotoLabels &&
@@ -3101,6 +3459,7 @@ struct FormatStyle {
            JavaScriptWrapImports == R.JavaScriptWrapImports &&
            KeepEmptyLinesAtTheStartOfBlocks ==
                R.KeepEmptyLinesAtTheStartOfBlocks &&
+           LambdaBodyIndentation == R.LambdaBodyIndentation &&
            MacroBlockBegin == R.MacroBlockBegin &&
            MacroBlockEnd == R.MacroBlockEnd &&
            MaxEmptyLinesToKeep == R.MaxEmptyLinesToKeep &&
@@ -3124,6 +3483,9 @@ struct FormatStyle {
                R.PenaltyBreakTemplateDeclaration &&
            PointerAlignment == R.PointerAlignment &&
            RawStringFormats == R.RawStringFormats &&
+           ReferenceAlignment == R.ReferenceAlignment &&
+           ShortNamespaceLines == R.ShortNamespaceLines &&
+           SortIncludes == R.SortIncludes &&
            SortJavaStaticImport == R.SortJavaStaticImport &&
            SpaceAfterCStyleCast == R.SpaceAfterCStyleCast &&
            SpaceAfterLogicalNot == R.SpaceAfterLogicalNot &&
@@ -3145,6 +3507,10 @@ struct FormatStyle {
            SpacesInConditionalStatement == R.SpacesInConditionalStatement &&
            SpacesInContainerLiterals == R.SpacesInContainerLiterals &&
            SpacesInCStyleCastParentheses == R.SpacesInCStyleCastParentheses &&
+           SpacesInLineCommentPrefix.Minimum ==
+               R.SpacesInLineCommentPrefix.Minimum &&
+           SpacesInLineCommentPrefix.Maximum ==
+               R.SpacesInLineCommentPrefix.Maximum &&
            SpacesInParentheses == R.SpacesInParentheses &&
            SpacesInSquareBrackets == R.SpacesInSquareBrackets &&
            SpaceBeforeSquareBrackets == R.SpaceBeforeSquareBrackets &&
@@ -3191,9 +3557,11 @@ struct FormatStyle {
 private:
   FormatStyleSet StyleSet;
 
-  friend std::error_code parseConfiguration(llvm::MemoryBufferRef Config,
-                                            FormatStyle *Style,
-                                            bool AllowUnknownOptions);
+  friend std::error_code
+  parseConfiguration(llvm::MemoryBufferRef Config, FormatStyle *Style,
+                     bool AllowUnknownOptions,
+                     llvm::SourceMgr::DiagHandlerTy DiagHandler,
+                     void *DiagHandlerCtxt);
 };
 
 /// Returns a format style complying with the LLVM coding standards:
@@ -3251,9 +3619,13 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
 ///
 /// If AllowUnknownOptions is true, no errors are emitted if unknown
 /// format options are occured.
-std::error_code parseConfiguration(llvm::MemoryBufferRef Config,
-                                   FormatStyle *Style,
-                                   bool AllowUnknownOptions = false);
+///
+/// If set all diagnostics are emitted through the DiagHandler.
+std::error_code
+parseConfiguration(llvm::MemoryBufferRef Config, FormatStyle *Style,
+                   bool AllowUnknownOptions = false,
+                   llvm::SourceMgr::DiagHandlerTy DiagHandler = nullptr,
+                   void *DiagHandlerCtx = nullptr);
 
 /// Like above but accepts an unnamed buffer.
 inline std::error_code parseConfiguration(StringRef Config, FormatStyle *Style,
@@ -3427,6 +3799,8 @@ inline StringRef getLanguageName(FormatStyle::LanguageKind Language) {
     return "Java";
   case FormatStyle::LK_JavaScript:
     return "JavaScript";
+  case FormatStyle::LK_Json:
+    return "Json";
   case FormatStyle::LK_Proto:
     return "Proto";
   case FormatStyle::LK_TableGen:

@@ -260,7 +260,7 @@ public:
   int SLocEntryBaseID = 0;
 
   /// The base offset in the source manager's view of this module.
-  unsigned SLocEntryBaseOffset = 0;
+  SourceLocation::UIntTy SLocEntryBaseOffset = 0;
 
   /// Base file offset for the offsets in SLocEntryOffsets. Real file offset
   /// for the entry is SLocEntryOffsetsBase + SLocEntryOffsets[i].
@@ -274,7 +274,8 @@ public:
   SmallVector<uint64_t, 4> PreloadSLocEntries;
 
   /// Remapping table for source locations in this module.
-  ContinuousRangeMap<uint32_t, int, 2> SLocRemap;
+  ContinuousRangeMap<SourceLocation::UIntTy, SourceLocation::IntTy, 2>
+      SLocRemap;
 
   // === Identifiers ===
 
@@ -298,7 +299,7 @@ public:
   ///
   /// This pointer points into a memory buffer, where the on-disk hash
   /// table for identifiers actually lives.
-  const char *IdentifierTableData = nullptr;
+  const unsigned char *IdentifierTableData = nullptr;
 
   /// A pointer to an on-disk hash table of opaque type
   /// IdentifierHashTable.

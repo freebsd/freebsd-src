@@ -79,10 +79,10 @@ public:
   /// Return true if the given load or store is a strided memory access.
   static bool isStridedAccess(const MachineInstr &MI);
 
-  /// Return true if this is an unscaled load/store.
-  static bool isUnscaledLdSt(unsigned Opc);
-  static bool isUnscaledLdSt(MachineInstr &MI) {
-    return isUnscaledLdSt(MI.getOpcode());
+  /// Return true if it has an unscaled load/store offset.
+  static bool hasUnscaledLdStOffset(unsigned Opc);
+  static bool hasUnscaledLdStOffset(MachineInstr &MI) {
+    return hasUnscaledLdStOffset(MI.getOpcode());
   }
 
   /// Returns the unscaled load/store for the scaled load/store opcode,
@@ -95,6 +95,14 @@ public:
     return getMemScale(MI.getOpcode());
   }
 
+  /// Returns whether the instruction is a pre-indexed load.
+  static bool isPreLd(const MachineInstr &MI);
+
+  /// Returns whether the instruction is a pre-indexed store.
+  static bool isPreSt(const MachineInstr &MI);
+
+  /// Returns whether the instruction is a pre-indexed load/store.
+  static bool isPreLdSt(const MachineInstr &MI);
 
   /// Returns the index for the immediate for a given instruction.
   static unsigned getLoadStoreImmIdx(unsigned Opc);
@@ -209,7 +217,7 @@ public:
                     const DebugLoc &DL, Register DstReg,
                     ArrayRef<MachineOperand> Cond, Register TrueReg,
                     Register FalseReg) const override;
-  void getNoop(MCInst &NopInst) const override;
+  MCInst getNop() const override;
 
   bool isSchedulingBoundary(const MachineInstr &MI,
                             const MachineBasicBlock *MBB,
@@ -299,6 +307,11 @@ public:
   Optional<ParamLoadedValue> describeLoadedValue(const MachineInstr &MI,
                                                  Register Reg) const override;
 
+  unsigned int getTailDuplicateSize(CodeGenOpt::Level OptLevel) const override;
+
+  bool isExtendLikelyToBeFolded(MachineInstr &ExtMI,
+                                MachineRegisterInfo &MRI) const override;
+
   static void decomposeStackOffsetForFrameOffsets(const StackOffset &Offset,
                                                   int64_t &NumBytes,
                                                   int64_t &NumPredicateVectors,
@@ -329,7 +342,9 @@ private:
                              MachineBasicBlock *TBB,
                              ArrayRef<MachineOperand> Cond) const;
   bool substituteCmpToZero(MachineInstr &CmpInstr, unsigned SrcReg,
-                           const MachineRegisterInfo *MRI) const;
+                           const MachineRegisterInfo &MRI) const;
+  bool removeCmpToZeroOrOne(MachineInstr &CmpInstr, unsigned SrcReg,
+                            int CmpValue, const MachineRegisterInfo &MRI) const;
 
   /// Returns an unused general-purpose register which can be used for
   /// constructing an outlined call if one exists. Returns 0 otherwise.
@@ -440,7 +455,7 @@ unsigned getBLRCallOpcode(const MachineFunction &MF);
 
 // struct TSFlags {
 #define TSFLAG_ELEMENT_SIZE_TYPE(X)      (X)       // 3-bits
-#define TSFLAG_DESTRUCTIVE_INST_TYPE(X) ((X) << 3) // 4-bit
+#define TSFLAG_DESTRUCTIVE_INST_TYPE(X) ((X) << 3) // 4-bits
 #define TSFLAG_FALSE_LANE_TYPE(X)       ((X) << 7) // 2-bits
 #define TSFLAG_INSTR_FLAGS(X)           ((X) << 9) // 2-bits
 // }
@@ -467,6 +482,7 @@ enum DestructiveInstType {
   DestructiveBinaryComm         = TSFLAG_DESTRUCTIVE_INST_TYPE(0x6),
   DestructiveBinaryCommWithRev  = TSFLAG_DESTRUCTIVE_INST_TYPE(0x7),
   DestructiveTernaryCommWithRev = TSFLAG_DESTRUCTIVE_INST_TYPE(0x8),
+  DestructiveUnaryPassthru      = TSFLAG_DESTRUCTIVE_INST_TYPE(0x9),
 };
 
 enum FalseLaneType {

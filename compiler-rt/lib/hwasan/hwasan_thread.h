@@ -23,8 +23,17 @@ typedef __sanitizer::CompactRingBuffer<uptr> StackAllocationsRingBuffer;
 
 class Thread {
  public:
-  void Init(uptr stack_buffer_start, uptr stack_buffer_size);  // Must be called from the thread itself.
+  // These are optional parameters that can be passed to Init.
+  struct InitState;
+
+  void Init(uptr stack_buffer_start, uptr stack_buffer_size,
+            const InitState *state = nullptr);
   void InitRandomState();
+  void InitStackAndTls(const InitState *state = nullptr);
+
+  // Must be called from the thread itself.
+  void InitStackRingBuffer(uptr stack_buffer_start, uptr stack_buffer_size);
+
   void Destroy();
 
   uptr stack_top() { return stack_top_; }
@@ -42,7 +51,7 @@ class Thread {
   HeapAllocationsRingBuffer *heap_allocations() { return heap_allocations_; }
   StackAllocationsRingBuffer *stack_allocations() { return stack_allocations_; }
 
-  tag_t GenerateRandomTag();
+  tag_t GenerateRandomTag(uptr num_bits = kTagBits);
 
   void DisableTagging() { tagging_disabled_++; }
   void EnableTagging() { tagging_disabled_--; }

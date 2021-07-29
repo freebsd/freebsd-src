@@ -15,6 +15,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
+#include "llvm/Support/FormatVariadic.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -341,7 +342,18 @@ Expected<FileBufferByteStream> MSFBuilder::commit(StringRef Path,
 
   Layout = std::move(*L);
 
-  uint64_t FileSize = Layout.SB->BlockSize * Layout.SB->NumBlocks;
+  uint64_t FileSize = uint64_t(Layout.SB->BlockSize) * Layout.SB->NumBlocks;
+  if (FileSize > UINT32_MAX) {
+    // FIXME: Changing the BinaryStream classes to use 64-bit numbers lets
+    // us create PDBs larger than 4 GiB successfully. The file format is
+    // block-based and as long as each stream is small enough, PDBs larger than
+    // 4 GiB might work. Check if tools can handle these large PDBs, and if so
+    // add support for writing them.
+    return make_error<MSFError>(
+        msf_error_code::size_overflow,
+        formatv("File size would have been {0,1:N}", FileSize));
+  }
+
   auto OutFileOrError = FileOutputBuffer::create(Path, FileSize);
   if (auto EC = OutFileOrError.takeError())
     return std::move(EC);

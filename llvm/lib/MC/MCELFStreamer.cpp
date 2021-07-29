@@ -31,6 +31,7 @@
 #include "llvm/MC/MCSymbolELF.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/LEB128.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
@@ -156,6 +157,8 @@ void MCELFStreamer::changeSection(MCSection *Section,
   const MCSymbol *Grp = SectionELF->getGroup();
   if (Grp)
     Asm.registerSymbol(*Grp);
+  if (SectionELF->getFlags() & ELF::SHF_GNU_RETAIN)
+    Asm.getWriter().markGnuAbi();
 
   changeSectionImpl(Section, Subsection);
   Asm.registerSymbol(*Section->getBeginSymbol());
@@ -334,10 +337,11 @@ void MCELFStreamer::emitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
   cast<MCSymbolELF>(Symbol)->setSize(Value);
 }
 
-void MCELFStreamer::emitELFSymverDirective(StringRef AliasName,
-                                           const MCSymbol *Aliasee) {
-  getAssembler().Symvers.push_back(
-      MCAssembler::Symver{AliasName, Aliasee, getStartTokLoc()});
+void MCELFStreamer::emitELFSymverDirective(const MCSymbol *OriginalSym,
+                                           StringRef Name,
+                                           bool KeepOriginalSym) {
+  getAssembler().Symvers.push_back(MCAssembler::Symver{
+      getStartTokLoc(), OriginalSym, Name, KeepOriginalSym});
 }
 
 void MCELFStreamer::emitLocalCommonSymbol(MCSymbol *S, uint64_t Size,
@@ -375,7 +379,7 @@ void MCELFStreamer::emitCGProfileEntry(const MCSymbolRefExpr *From,
 
 void MCELFStreamer::emitIdent(StringRef IdentString) {
   MCSection *Comment = getAssembler().getContext().getELFSection(
-      ".comment", ELF::SHT_PROGBITS, ELF::SHF_MERGE | ELF::SHF_STRINGS, 1, "");
+      ".comment", ELF::SHT_PROGBITS, ELF::SHF_MERGE | ELF::SHF_STRINGS, 1);
   PushSection();
   SwitchSection(Comment);
   if (!SeenIdent) {
@@ -474,7 +478,8 @@ void MCELFStreamer::fixSymbolsInTLSFixups(const MCExpr *expr) {
   }
 }
 
-void MCELFStreamer::finalizeCGProfileEntry(const MCSymbolRefExpr *&SRE) {
+void MCELFStreamer::finalizeCGProfileEntry(const MCSymbolRefExpr *&SRE,
+                                           uint64_t Offset) {
   const MCSymbol *S = &SRE->getSymbol();
   if (S->isTemporary()) {
     if (!S->isInSection()) {
@@ -485,22 +490,36 @@ void MCELFStreamer::finalizeCGProfileEntry(const MCSymbolRefExpr *&SRE) {
     }
     S = S->getSection().getBeginSymbol();
     S->setUsedInReloc();
-    SRE =
-        MCSymbolRefExpr::create(S, SRE->getKind(), getContext(), SRE->getLoc());
-    return;
+    SRE = MCSymbolRefExpr::create(S, MCSymbolRefExpr::VK_None, getContext(),
+                                  SRE->getLoc());
   }
-  // Not a temporary, referece it as a weak undefined.
-  bool Created;
-  getAssembler().registerSymbol(*S, &Created);
-  if (Created)
-    cast<MCSymbolELF>(S)->setBinding(ELF::STB_WEAK);
+  const MCConstantExpr *MCOffset = MCConstantExpr::create(Offset, getContext());
+  MCObjectStreamer::visitUsedExpr(*SRE);
+  if (Optional<std::pair<bool, std::string>> Err =
+          MCObjectStreamer::emitRelocDirective(
+              *MCOffset, "BFD_RELOC_NONE", SRE, SRE->getLoc(),
+              *getContext().getSubtargetInfo()))
+    report_fatal_error("Relocation for CG Profile could not be created: " +
+                       Err->second);
 }
 
 void MCELFStreamer::finalizeCGProfile() {
-  for (MCAssembler::CGProfileEntry &E : getAssembler().CGProfile) {
-    finalizeCGProfileEntry(E.From);
-    finalizeCGProfileEntry(E.To);
+  MCAssembler &Asm = getAssembler();
+  if (Asm.CGProfile.empty())
+    return;
+  MCSection *CGProfile = getAssembler().getContext().getELFSection(
+      ".llvm.call-graph-profile", ELF::SHT_LLVM_CALL_GRAPH_PROFILE,
+      ELF::SHF_EXCLUDE, /*sizeof(Elf_CGProfile_Impl<>)=*/8);
+  PushSection();
+  SwitchSection(CGProfile);
+  uint64_t Offset = 0;
+  for (MCAssembler::CGProfileEntry &E : Asm.CGProfile) {
+    finalizeCGProfileEntry(E.From, Offset);
+    finalizeCGProfileEntry(E.To, Offset);
+    emitIntValue(E.Count, sizeof(uint64_t));
+    Offset += sizeof(uint64_t);
   }
+  PopSection();
 }
 
 void MCELFStreamer::emitInstToFragment(const MCInst &Inst,
@@ -508,8 +527,8 @@ void MCELFStreamer::emitInstToFragment(const MCInst &Inst,
   this->MCObjectStreamer::emitInstToFragment(Inst, STI);
   MCRelaxableFragment &F = *cast<MCRelaxableFragment>(getCurrentFragment());
 
-  for (unsigned i = 0, e = F.getFixups().size(); i != e; ++i)
-    fixSymbolsInTLSFixups(F.getFixups()[i].getValue());
+  for (auto &Fixup : F.getFixups())
+    fixSymbolsInTLSFixups(Fixup.getValue());
 }
 
 // A fragment can only have one Subtarget, and when bundling is enabled we
@@ -529,8 +548,8 @@ void MCELFStreamer::emitInstToData(const MCInst &Inst,
   raw_svector_ostream VecOS(Code);
   Assembler.getEmitter().encodeInstruction(Inst, VecOS, Fixups, STI);
 
-  for (unsigned i = 0, e = Fixups.size(); i != e; ++i)
-    fixSymbolsInTLSFixups(Fixups[i].getValue());
+  for (auto &Fixup : Fixups)
+    fixSymbolsInTLSFixups(Fixup.getValue());
 
   // There are several possibilities here:
   //
@@ -597,10 +616,11 @@ void MCELFStreamer::emitInstToData(const MCInst &Inst,
   }
 
   // Add the fixups and data.
-  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
-    Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
-    DF->getFixups().push_back(Fixups[i]);
+  for (auto &Fixup : Fixups) {
+    Fixup.setOffset(Fixup.getOffset() + DF->getContents().size());
+    DF->getFixups().push_back(Fixup);
   }
+
   DF->setHasInstructions(STI);
   DF->getContents().append(Code.begin(), Code.end());
 
@@ -678,6 +698,13 @@ void MCELFStreamer::emitBundleUnlock() {
 }
 
 void MCELFStreamer::finishImpl() {
+  // Emit the .gnu attributes section if any attributes have been added.
+  if (!GNUAttributes.empty()) {
+    MCSection *DummyAttributeSection = nullptr;
+    createAttributesSection("gnu", ".gnu.attributes", ELF::SHT_GNU_ATTRIBUTES,
+                            DummyAttributeSection, GNUAttributes);
+  }
+
   // Ensure the last section gets aligned if necessary.
   MCSection *CurSection = getCurrentSectionOnly();
   setSectionAlignmentForBundling(getAssembler(), CurSection);
@@ -705,6 +732,156 @@ void MCELFStreamer::emitZerofill(MCSection *Section, MCSymbol *Symbol,
 void MCELFStreamer::emitTBSSSymbol(MCSection *Section, MCSymbol *Symbol,
                                    uint64_t Size, unsigned ByteAlignment) {
   llvm_unreachable("ELF doesn't support this directive");
+}
+
+void MCELFStreamer::setAttributeItem(unsigned Attribute, unsigned Value,
+                                     bool OverwriteExisting) {
+  // Look for existing attribute item
+  if (AttributeItem *Item = getAttributeItem(Attribute)) {
+    if (!OverwriteExisting)
+      return;
+    Item->Type = AttributeItem::NumericAttribute;
+    Item->IntValue = Value;
+    return;
+  }
+
+  // Create new attribute item
+  AttributeItem Item = {AttributeItem::NumericAttribute, Attribute, Value,
+                        std::string(StringRef(""))};
+  Contents.push_back(Item);
+}
+
+void MCELFStreamer::setAttributeItem(unsigned Attribute, StringRef Value,
+                                     bool OverwriteExisting) {
+  // Look for existing attribute item
+  if (AttributeItem *Item = getAttributeItem(Attribute)) {
+    if (!OverwriteExisting)
+      return;
+    Item->Type = AttributeItem::TextAttribute;
+    Item->StringValue = std::string(Value);
+    return;
+  }
+
+  // Create new attribute item
+  AttributeItem Item = {AttributeItem::TextAttribute, Attribute, 0,
+                        std::string(Value)};
+  Contents.push_back(Item);
+}
+
+void MCELFStreamer::setAttributeItems(unsigned Attribute, unsigned IntValue,
+                                      StringRef StringValue,
+                                      bool OverwriteExisting) {
+  // Look for existing attribute item
+  if (AttributeItem *Item = getAttributeItem(Attribute)) {
+    if (!OverwriteExisting)
+      return;
+    Item->Type = AttributeItem::NumericAndTextAttributes;
+    Item->IntValue = IntValue;
+    Item->StringValue = std::string(StringValue);
+    return;
+  }
+
+  // Create new attribute item
+  AttributeItem Item = {AttributeItem::NumericAndTextAttributes, Attribute,
+                        IntValue, std::string(StringValue)};
+  Contents.push_back(Item);
+}
+
+MCELFStreamer::AttributeItem *
+MCELFStreamer::getAttributeItem(unsigned Attribute) {
+  for (size_t I = 0; I < Contents.size(); ++I)
+    if (Contents[I].Tag == Attribute)
+      return &Contents[I];
+  return nullptr;
+}
+
+size_t
+MCELFStreamer::calculateContentSize(SmallVector<AttributeItem, 64> &AttrsVec) {
+  size_t Result = 0;
+  for (size_t I = 0; I < AttrsVec.size(); ++I) {
+    AttributeItem Item = AttrsVec[I];
+    switch (Item.Type) {
+    case AttributeItem::HiddenAttribute:
+      break;
+    case AttributeItem::NumericAttribute:
+      Result += getULEB128Size(Item.Tag);
+      Result += getULEB128Size(Item.IntValue);
+      break;
+    case AttributeItem::TextAttribute:
+      Result += getULEB128Size(Item.Tag);
+      Result += Item.StringValue.size() + 1; // string + '\0'
+      break;
+    case AttributeItem::NumericAndTextAttributes:
+      Result += getULEB128Size(Item.Tag);
+      Result += getULEB128Size(Item.IntValue);
+      Result += Item.StringValue.size() + 1; // string + '\0';
+      break;
+    }
+  }
+  return Result;
+}
+
+void MCELFStreamer::createAttributesSection(
+    StringRef Vendor, const Twine &Section, unsigned Type,
+    MCSection *&AttributeSection, SmallVector<AttributeItem, 64> &AttrsVec) {
+  // <format-version>
+  // [ <section-length> "vendor-name"
+  // [ <file-tag> <size> <attribute>*
+  //   | <section-tag> <size> <section-number>* 0 <attribute>*
+  //   | <symbol-tag> <size> <symbol-number>* 0 <attribute>*
+  //   ]+
+  // ]*
+
+  // Switch section to AttributeSection or get/create the section.
+  if (AttributeSection) {
+    SwitchSection(AttributeSection);
+  } else {
+    AttributeSection = getContext().getELFSection(Section, Type, 0);
+    SwitchSection(AttributeSection);
+
+    // Format version
+    emitInt8(0x41);
+  }
+
+  // Vendor size + Vendor name + '\0'
+  const size_t VendorHeaderSize = 4 + Vendor.size() + 1;
+
+  // Tag + Tag Size
+  const size_t TagHeaderSize = 1 + 4;
+
+  const size_t ContentsSize = calculateContentSize(AttrsVec);
+
+  emitInt32(VendorHeaderSize + TagHeaderSize + ContentsSize);
+  emitBytes(Vendor);
+  emitInt8(0); // '\0'
+
+  emitInt8(ARMBuildAttrs::File);
+  emitInt32(TagHeaderSize + ContentsSize);
+
+  // Size should have been accounted for already, now
+  // emit each field as its type (ULEB or String)
+  for (size_t I = 0; I < AttrsVec.size(); ++I) {
+    AttributeItem Item = AttrsVec[I];
+    emitULEB128IntValue(Item.Tag);
+    switch (Item.Type) {
+    default:
+      llvm_unreachable("Invalid attribute type");
+    case AttributeItem::NumericAttribute:
+      emitULEB128IntValue(Item.IntValue);
+      break;
+    case AttributeItem::TextAttribute:
+      emitBytes(Item.StringValue);
+      emitInt8(0); // '\0'
+      break;
+    case AttributeItem::NumericAndTextAttributes:
+      emitULEB128IntValue(Item.IntValue);
+      emitBytes(Item.StringValue);
+      emitInt8(0); // '\0'
+      break;
+    }
+  }
+
+  AttrsVec.clear();
 }
 
 MCStreamer *llvm::createELFStreamer(MCContext &Context,

@@ -8,7 +8,10 @@
 
 #include "CommandObjectTraceStartIntelPT.h"
 
+#include "TraceIntelPT.h"
+#include "TraceIntelPTConstants.h"
 #include "lldb/Host/OptionParser.h"
+#include "lldb/Target/Process.h"
 #include "lldb/Target/Trace.h"
 
 using namespace lldb;
@@ -16,10 +19,12 @@ using namespace lldb_private;
 using namespace lldb_private::trace_intel_pt;
 using namespace llvm;
 
+// CommandObjectThreadTraceStartIntelPT
+
 #define LLDB_OPTIONS_thread_trace_start_intel_pt
 #include "TraceIntelPTCommandOptions.inc"
 
-Status CommandObjectTraceStartIntelPT::CommandOptions::SetOptionValue(
+Status CommandObjectThreadTraceStartIntelPT::CommandOptions::SetOptionValue(
     uint32_t option_idx, llvm::StringRef option_arg,
     ExecutionContext *execution_context) {
   Status error;
@@ -27,23 +32,27 @@ Status CommandObjectTraceStartIntelPT::CommandOptions::SetOptionValue(
 
   switch (short_option) {
   case 's': {
-    int32_t size_in_kb;
-    if (option_arg.empty() || option_arg.getAsInteger(0, size_in_kb) ||
-        size_in_kb < 0)
+    int64_t thread_buffer_size;
+    if (option_arg.empty() || option_arg.getAsInteger(0, thread_buffer_size) ||
+        thread_buffer_size < 0)
       error.SetErrorStringWithFormat("invalid integer value for option '%s'",
                                      option_arg.str().c_str());
     else
-      m_size_in_kb = size_in_kb;
+      m_thread_buffer_size = thread_buffer_size;
     break;
   }
-  case 'c': {
-    int32_t custom_config;
-    if (option_arg.empty() || option_arg.getAsInteger(0, custom_config) ||
-        custom_config < 0)
+  case 't': {
+    m_enable_tsc = true;
+    break;
+  }
+  case 'p': {
+    int64_t psb_period;
+    if (option_arg.empty() || option_arg.getAsInteger(0, psb_period) ||
+        psb_period < 0)
       error.SetErrorStringWithFormat("invalid integer value for option '%s'",
                                      option_arg.str().c_str());
     else
-      m_custom_config = custom_config;
+      m_psb_period = psb_period;
     break;
   }
   default:
@@ -52,22 +61,104 @@ Status CommandObjectTraceStartIntelPT::CommandOptions::SetOptionValue(
   return error;
 }
 
-void CommandObjectTraceStartIntelPT::CommandOptions::OptionParsingStarting(
-    ExecutionContext *execution_context) {
-  m_size_in_kb = 4;
-  m_custom_config = 0;
+void CommandObjectThreadTraceStartIntelPT::CommandOptions::
+    OptionParsingStarting(ExecutionContext *execution_context) {
+  m_thread_buffer_size = kDefaultThreadBufferSize;
+  m_enable_tsc = kDefaultEnableTscValue;
+  m_psb_period = kDefaultPsbPeriod;
 }
 
 llvm::ArrayRef<OptionDefinition>
-CommandObjectTraceStartIntelPT::CommandOptions::GetDefinitions() {
+CommandObjectThreadTraceStartIntelPT::CommandOptions::GetDefinitions() {
   return llvm::makeArrayRef(g_thread_trace_start_intel_pt_options);
 }
 
-bool CommandObjectTraceStartIntelPT::HandleOneThread(
-    lldb::tid_t tid, CommandReturnObject &result) {
-  result.AppendMessageWithFormat(
-      "would trace tid %" PRIu64 " with size_in_kb %zu and custom_config %d\n",
-      tid, m_options.m_size_in_kb, m_options.m_custom_config);
-  result.SetStatus(eReturnStatusSuccessFinishResult);
+bool CommandObjectThreadTraceStartIntelPT::DoExecuteOnThreads(
+    Args &command, CommandReturnObject &result,
+    llvm::ArrayRef<lldb::tid_t> tids) {
+  if (Error err = m_trace.Start(tids, m_options.m_thread_buffer_size,
+                                m_options.m_enable_tsc, m_options.m_psb_period))
+    result.SetError(Status(std::move(err)));
+  else
+    result.SetStatus(eReturnStatusSuccessFinishResult);
+
+  return result.Succeeded();
+}
+
+/// CommandObjectProcessTraceStartIntelPT
+
+#define LLDB_OPTIONS_process_trace_start_intel_pt
+#include "TraceIntelPTCommandOptions.inc"
+
+Status CommandObjectProcessTraceStartIntelPT::CommandOptions::SetOptionValue(
+    uint32_t option_idx, llvm::StringRef option_arg,
+    ExecutionContext *execution_context) {
+  Status error;
+  const int short_option = m_getopt_table[option_idx].val;
+
+  switch (short_option) {
+  case 's': {
+    int64_t thread_buffer_size;
+    if (option_arg.empty() || option_arg.getAsInteger(0, thread_buffer_size) ||
+        thread_buffer_size < 0)
+      error.SetErrorStringWithFormat("invalid integer value for option '%s'",
+                                     option_arg.str().c_str());
+    else
+      m_thread_buffer_size = thread_buffer_size;
+    break;
+  }
+  case 'l': {
+    int64_t process_buffer_size_limit;
+    if (option_arg.empty() ||
+        option_arg.getAsInteger(0, process_buffer_size_limit) ||
+        process_buffer_size_limit < 0)
+      error.SetErrorStringWithFormat("invalid integer value for option '%s'",
+                                     option_arg.str().c_str());
+    else
+      m_process_buffer_size_limit = process_buffer_size_limit;
+    break;
+  }
+  case 't': {
+    m_enable_tsc = true;
+    break;
+  }
+  case 'p': {
+    int64_t psb_period;
+    if (option_arg.empty() || option_arg.getAsInteger(0, psb_period) ||
+        psb_period < 0)
+      error.SetErrorStringWithFormat("invalid integer value for option '%s'",
+                                     option_arg.str().c_str());
+    else
+      m_psb_period = psb_period;
+    break;
+  }
+  default:
+    llvm_unreachable("Unimplemented option");
+  }
+  return error;
+}
+
+void CommandObjectProcessTraceStartIntelPT::CommandOptions::
+    OptionParsingStarting(ExecutionContext *execution_context) {
+  m_thread_buffer_size = kDefaultThreadBufferSize;
+  m_process_buffer_size_limit = kDefaultProcessBufferSizeLimit;
+  m_enable_tsc = kDefaultEnableTscValue;
+  m_psb_period = kDefaultPsbPeriod;
+}
+
+llvm::ArrayRef<OptionDefinition>
+CommandObjectProcessTraceStartIntelPT::CommandOptions::GetDefinitions() {
+  return llvm::makeArrayRef(g_process_trace_start_intel_pt_options);
+}
+
+bool CommandObjectProcessTraceStartIntelPT::DoExecute(
+    Args &command, CommandReturnObject &result) {
+  if (Error err = m_trace.Start(m_options.m_thread_buffer_size,
+                                m_options.m_process_buffer_size_limit,
+                                m_options.m_enable_tsc, m_options.m_psb_period))
+    result.SetError(Status(std::move(err)));
+  else
+    result.SetStatus(eReturnStatusSuccessFinishResult);
+
   return result.Succeeded();
 }

@@ -184,7 +184,7 @@ private:
   }
 
 public:
-  DeclContextOverride() {}
+  DeclContextOverride() = default;
 
   void OverrideAllDeclsFromContainingFunction(clang::Decl *decl) {
     for (DeclContext *decl_context = decl->getLexicalDeclContext();
@@ -359,9 +359,6 @@ bool ClangASTImporter::CanImport(const CompilerType &type) {
   if (!ClangUtil::IsClangType(type))
     return false;
 
-  // TODO: remove external completion BOOL
-  // CompleteAndFetchChildren should get the Decl out and check for the
-
   clang::QualType qual_type(
       ClangUtil::GetCanonicalQualType(ClangUtil::RemoveFastQualifiers(type)));
 
@@ -435,8 +432,6 @@ bool ClangASTImporter::CanImport(const CompilerType &type) {
 bool ClangASTImporter::Import(const CompilerType &type) {
   if (!ClangUtil::IsClangType(type))
     return false;
-  // TODO: remove external completion BOOL
-  // CompleteAndFetchChildren should get the Decl out and check for the
 
   clang::QualType qual_type(
       ClangUtil::GetCanonicalQualType(ClangUtil::RemoveFastQualifiers(type)));
@@ -830,6 +825,10 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
 
   // Check which ASTContext this declaration originally came from.
   DeclOrigin origin = m_master.GetDeclOrigin(From);
+
+  // Prevent infinite recursion when the origin tracking contains a cycle.
+  assert(origin.decl != From && "Origin points to itself?");
+
   // If it originally came from the target ASTContext then we can just
   // pretend that the original is the one we imported. This can happen for
   // example when inspecting a persistent declaration from the scratch
@@ -889,6 +888,37 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
     LLDB_LOG(log, "[ClangASTImporter] Complete definition not found");
   }
 
+  // Disable the minimal import for fields that have record types. There is
+  // no point in minimally importing the record behind their type as Clang
+  // will anyway request their definition when the FieldDecl is added to the
+  // RecordDecl (as Clang will query the FieldDecl's type for things such
+  // as a deleted constexpr destructor).
+  // By importing the type ahead of time we avoid some corner cases where
+  // the FieldDecl's record is importing in the middle of Clang's
+  // `DeclContext::addDecl` logic.
+  if (clang::FieldDecl *fd = dyn_cast<FieldDecl>(From)) {
+    // This is only necessary because we do the 'minimal import'. Remove this
+    // once LLDB stopped using that mode.
+    assert(isMinimalImport() && "Only necessary for minimal import");
+    QualType field_type = fd->getType();
+    if (field_type->isRecordType()) {
+      // First get the underlying record and minimally import it.
+      clang::TagDecl *record_decl = field_type->getAsTagDecl();
+      llvm::Expected<Decl *> imported = Import(record_decl);
+      if (!imported)
+        return imported.takeError();
+      // Check how/if the import got redirected to a different AST. Now
+      // import the definition of what was actually imported. If there is no
+      // origin then that means the record was imported by just picking a
+      // compatible type in the target AST (in which case there is no more
+      // importing to do).
+      if (clang::Decl *origin = m_master.GetDeclOrigin(*imported).decl) {
+        if (llvm::Error def_err = ImportDefinition(record_decl))
+          return std::move(def_err);
+      }
+    }
+  }
+
   return ASTImporter::ImportImpl(From);
 }
 
@@ -903,16 +933,6 @@ void ClangASTImporter::ASTImporterDelegate::ImportDefinitionTo(
   // tell the ASTImporter that 'to' was imported from 'from'.
   MapImported(from, to);
   ASTImporter::Imported(from, to);
-
-  /*
-  if (to_objc_interface)
-      to_objc_interface->startDefinition();
-
-  CXXRecordDecl *to_cxx_record = dyn_cast<CXXRecordDecl>(to);
-
-  if (to_cxx_record)
-      to_cxx_record->startDefinition();
-  */
 
   Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
 
@@ -1088,22 +1108,23 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
     DeclOrigin origin = from_context_md->getOrigin(from);
 
     if (origin.Valid()) {
-      if (!to_context_md->hasOrigin(to) || user_id != LLDB_INVALID_UID)
-        if (origin.ctx != &to->getASTContext())
+      if (origin.ctx != &to->getASTContext()) {
+        if (!to_context_md->hasOrigin(to) || user_id != LLDB_INVALID_UID)
           to_context_md->setOrigin(to, origin);
 
-      ImporterDelegateSP direct_completer =
-          m_master.GetDelegate(&to->getASTContext(), origin.ctx);
+        ImporterDelegateSP direct_completer =
+            m_master.GetDelegate(&to->getASTContext(), origin.ctx);
 
-      if (direct_completer.get() != this)
-        direct_completer->ASTImporter::Imported(origin.decl, to);
+        if (direct_completer.get() != this)
+          direct_completer->ASTImporter::Imported(origin.decl, to);
 
-      LLDB_LOG(log,
-               "    [ClangASTImporter] Propagated origin "
-               "(Decl*){0}/(ASTContext*){1} from (ASTContext*){2} to "
-               "(ASTContext*){3}",
-               origin.decl, origin.ctx, &from->getASTContext(),
-               &to->getASTContext());
+        LLDB_LOG(log,
+                 "    [ClangASTImporter] Propagated origin "
+                 "(Decl*){0}/(ASTContext*){1} from (ASTContext*){2} to "
+                 "(ASTContext*){3}",
+                 origin.decl, origin.ctx, &from->getASTContext(),
+                 &to->getASTContext());
+      }
     } else {
       if (m_new_decl_listener)
         m_new_decl_listener->NewDeclImported(from, to);

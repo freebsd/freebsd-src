@@ -52,6 +52,7 @@ FunctionPass *createPPCCTRLoops();
   FunctionPass *createPPCBoolRetToIntPass();
   FunctionPass *createPPCExpandISELPass();
   FunctionPass *createPPCPreEmitPeepholePass();
+  FunctionPass *createPPCExpandAtomicPseudoPass();
   void LowerPPCMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
                                     AsmPrinter &AP);
   bool LowerPPCMachineOperandToMCOperand(const MachineOperand &MO,
@@ -75,6 +76,7 @@ FunctionPass *createPPCCTRLoops();
   void initializePPCPreEmitPeepholePass(PassRegistry &);
   void initializePPCTLSDynamicCallPass(PassRegistry &);
   void initializePPCMIPeepholePass(PassRegistry&);
+  void initializePPCExpandAtomicPseudoPass(PassRegistry &);
 
   extern char &PPCVSXFMAMutateID;
 
@@ -116,7 +118,8 @@ FunctionPass *createPPCCTRLoops();
     MO_PCREL_OPT_FLAG = 16,
 
     /// MO_TLSGD_FLAG - If this bit is set the symbol reference is relative to
-    /// TLS General Dynamic model.
+    /// TLS General Dynamic model for Linux and the variable offset of TLS
+    /// General Dynamic model for AIX.
     MO_TLSGD_FLAG = 32,
 
     /// MO_TPREL_FLAG - If this bit is set the symbol reference is relative to
@@ -126,6 +129,10 @@ FunctionPass *createPPCCTRLoops();
     /// MO_TLSLD_FLAG - If this bit is set the symbol reference is relative to
     /// TLS Local Dynamic model.
     MO_TLSLD_FLAG = 128,
+
+    /// MO_TLSGDM_FLAG - If this bit is set the symbol reference is relative
+    /// to the region handle of TLS General Dynamic model for AIX.
+    MO_TLSGDM_FLAG = 256,
 
     /// MO_GOT_TLSGD_PCREL_FLAG - A combintaion of flags, if these bits are set
     /// they should produce the relocation @got@tlsgd@pcrel.

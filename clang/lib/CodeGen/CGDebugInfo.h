@@ -161,6 +161,15 @@ class CGDebugInfo {
   llvm::DenseMap<const Decl *, llvm::TypedTrackingMDRef<llvm::DIDerivedType>>
       StaticDataMemberCache;
 
+  using ParamDecl2StmtTy = llvm::DenseMap<const ParmVarDecl *, const Stmt *>;
+  using Param2DILocTy =
+      llvm::DenseMap<const ParmVarDecl *, llvm::DILocalVariable *>;
+
+  /// The key is coroutine real parameters, value is coroutine move parameters.
+  ParamDecl2StmtTy CoroutineParameterMappings;
+  /// The key is coroutine real parameters, value is DIVariable in LLVM IR.
+  Param2DILocTy ParamDbgMappings;
+
   /// Helper functions for getOrCreateType.
   /// @{
   /// Currently the checksum of an interface includes the number of
@@ -463,8 +472,10 @@ public:
 
   /// Emit call to \c llvm.dbg.declare for an argument variable
   /// declaration.
-  void EmitDeclareOfArgVariable(const VarDecl *Decl, llvm::Value *AI,
-                                unsigned ArgNo, CGBuilderTy &Builder);
+  llvm::DILocalVariable *EmitDeclareOfArgVariable(const VarDecl *Decl,
+                                                  llvm::Value *AI,
+                                                  unsigned ArgNo,
+                                                  CGBuilderTy &Builder);
 
   /// Emit call to \c llvm.dbg.declare for the block-literal argument
   /// to a block invocation function.
@@ -491,8 +502,14 @@ public:
   /// Emit the type even if it might not be used.
   void EmitAndRetainType(QualType Ty);
 
+  /// Emit a shadow decl brought in by a using or using-enum
+  void EmitUsingShadowDecl(const UsingShadowDecl &USD);
+
   /// Emit C++ using declaration.
   void EmitUsingDecl(const UsingDecl &UD);
+
+  /// Emit C++ using-enum declaration.
+  void EmitUsingEnumDecl(const UsingEnumDecl &UD);
 
   /// Emit an @import declaration.
   void EmitImportDecl(const ImportDecl &ID);
@@ -533,6 +550,11 @@ public:
                                          SourceLocation LineLoc,
                                          SourceLocation FileLoc);
 
+  Param2DILocTy &getParamDbgMappings() { return ParamDbgMappings; }
+  ParamDecl2StmtTy &getCoroutineParameterMappings() {
+    return CoroutineParameterMappings;
+  }
+
 private:
   /// Emit call to llvm.dbg.declare for a variable declaration.
   /// Returns a pointer to the DILocalVariable associated with the
@@ -548,6 +570,8 @@ private:
     /// The type as it appears in the source code.
     llvm::DIType *WrappedType;
   };
+
+  std::string GetName(const Decl*, bool Qualified = false) const;
 
   /// Build up structure info for the byref.  See \a BuildByRefType.
   BlockByRefType EmitTypeForVarWithBlocksAttr(const VarDecl *VD,

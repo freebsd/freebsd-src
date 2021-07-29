@@ -42,7 +42,6 @@
 #include <limits>
 #include <list>
 #include <memory>
-#include <string>
 #include <system_error>
 
 using namespace llvm;
@@ -1836,6 +1835,8 @@ MachOObjectFile::getSymbolType(DataRefImpl Symb) const {
       if (!SecOrError)
         return SecOrError.takeError();
       section_iterator Sec = *SecOrError;
+      if (Sec == section_end())
+        return SymbolRef::ST_Other;
       if (Sec->isData() || Sec->isBSS())
         return SymbolRef::ST_Data;
       return SymbolRef::ST_Function;
@@ -2033,7 +2034,14 @@ bool MachOObjectFile::isSectionBSS(DataRefImpl Sec) const {
           SectionType == MachO::S_GB_ZEROFILL);
 }
 
-bool MachOObjectFile::isDebugSection(StringRef SectionName) const {
+bool MachOObjectFile::isDebugSection(DataRefImpl Sec) const {
+  Expected<StringRef> SectionNameOrErr = getSectionName(Sec);
+  if (!SectionNameOrErr) {
+    // TODO: Report the error message properly.
+    consumeError(SectionNameOrErr.takeError());
+    return false;
+  }
+  StringRef SectionName = SectionNameOrErr.get();
   return SectionName.startswith("__debug") ||
          SectionName.startswith("__zdebug") ||
          SectionName.startswith("__apple") || SectionName == "__gdb_index" ||

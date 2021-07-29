@@ -6,39 +6,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TOOLS_OBJCOPY_ELFCONFIG_H
-#define LLVM_TOOLS_OBJCOPY_ELFCONFIG_H
+#ifndef LLVM_TOOLS_LLVM_OBJCOPY_ELF_ELFCONFIG_H
+#define LLVM_TOOLS_LLVM_OBJCOPY_ELF_ELFCONFIG_H
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/ELFTypes.h"
-#include "llvm/Support/Error.h"
 #include <vector>
 
 namespace llvm {
 namespace objcopy {
-struct CopyConfig;
 
-namespace elf {
-
-struct NewSymbolInfo {
-  StringRef SymbolName;
-  StringRef SectionName;
-  uint64_t Value = 0;
-  uint8_t Type = ELF::STT_NOTYPE;
-  uint8_t Bind = ELF::STB_GLOBAL;
-  uint8_t Visibility = ELF::STV_DEFAULT;
+// ELF specific configuration for copying/stripping a single file.
+struct ELFConfig {
+  uint8_t NewSymbolVisibility = (uint8_t)ELF::STV_DEFAULT;
 };
 
-struct ELFCopyConfig {
-  Optional<uint8_t> NewSymbolVisibility;
-  std::vector<NewSymbolInfo> SymbolsToAdd;
-};
-
-Expected<ELFCopyConfig> parseConfig(const CopyConfig &Config);
-
-} // namespace elf
 } // namespace objcopy
 } // namespace llvm
 
-#endif
+#endif // LLVM_TOOLS_LLVM_OBJCOPY_ELF_ELFCONFIG_H

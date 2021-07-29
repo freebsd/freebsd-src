@@ -27,8 +27,8 @@
 #include <mutex>
 #include <vector>
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace lldb_private {
 class ConstString;
@@ -471,7 +471,7 @@ protected:
   collection m_modules; ///< The collection of modules.
   mutable std::recursive_mutex m_modules_mutex;
 
-  Notifier *m_notifier;
+  Notifier *m_notifier = nullptr;
 
 public:
   typedef LockingAdaptedIterable<collection, lldb::ModuleSP, vector_adapter,

@@ -7,9 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 // C includes
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
 #include <sys/types.h>
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -442,14 +442,12 @@ bool Host::FindProcessThreads(const lldb::pid_t pid, TidMap &tids_to_attach) {
 #endif
 
 struct ShellInfo {
-  ShellInfo()
-      : process_reaped(false), pid(LLDB_INVALID_PROCESS_ID), signo(-1),
-        status(-1) {}
+  ShellInfo() : process_reaped(false) {}
 
   lldb_private::Predicate<bool> process_reaped;
-  lldb::pid_t pid;
-  int signo;
-  int status;
+  lldb::pid_t pid = LLDB_INVALID_PROCESS_ID;
+  int signo = -1;
+  int status = -1;
 };
 
 static bool

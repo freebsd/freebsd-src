@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
-#include <errno.h>
-#include <stdint.h>
 
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
@@ -45,7 +45,7 @@ RegisterContextPOSIX_arm::RegisterContextPOSIX_arm(
     : lldb_private::RegisterContext(thread, 0),
       m_register_info_up(std::move(register_info)) {}
 
-RegisterContextPOSIX_arm::~RegisterContextPOSIX_arm() {}
+RegisterContextPOSIX_arm::~RegisterContextPOSIX_arm() = default;
 
 void RegisterContextPOSIX_arm::Invalidate() {}
 

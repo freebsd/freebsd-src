@@ -25,7 +25,7 @@ public:
   // Constructors and Destructors
   StopInfo(Thread &thread, uint64_t value);
 
-  virtual ~StopInfo() {}
+  virtual ~StopInfo() = default;
 
   bool IsValid() const;
 
@@ -128,6 +128,9 @@ public:
   CreateStopReasonWithException(Thread &thread, const char *description);
 
   static lldb::StopInfoSP CreateStopReasonWithExec(Thread &thread);
+
+  static lldb::StopInfoSP
+  CreateStopReasonProcessorTrace(Thread &thread, const char *description);
 
   static lldb::ValueObjectSP
   GetReturnValueObject(lldb::StopInfoSP &stop_info_sp);

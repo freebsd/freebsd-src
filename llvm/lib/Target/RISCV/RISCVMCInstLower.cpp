@@ -109,7 +109,7 @@ bool llvm::LowerRISCVMachineOperandToMCOperand(const MachineOperand &MO,
     MCOp = lowerSymbolOperand(MO, MO.getMBB()->getSymbol(), AP);
     break;
   case MachineOperand::MO_GlobalAddress:
-    MCOp = lowerSymbolOperand(MO, AP.getSymbol(MO.getGlobal()), AP);
+    MCOp = lowerSymbolOperand(MO, AP.getSymbolPreferLocal(*MO.getGlobal()), AP);
     break;
   case MachineOperand::MO_BlockAddress:
     MCOp = lowerSymbolOperand(
@@ -155,13 +155,13 @@ static bool lowerRISCVVMachineInstrToMCInst(const MachineInstr *MI,
     assert(OpNo >= 0 && "Operand number doesn't fit in an 'int' type");
 
     // Skip VL and SEW operands which are the last two operands if present.
-    if ((TSFlags & RISCVII::HasVLOpMask) && OpNo == (NumOps - 2))
+    if (RISCVII::hasVLOp(TSFlags) && OpNo == (NumOps - 2))
       continue;
-    if ((TSFlags & RISCVII::HasSEWOpMask) && OpNo == (NumOps - 1))
+    if (RISCVII::hasSEWOp(TSFlags) && OpNo == (NumOps - 1))
       continue;
 
     // Skip merge op. It should be the first operand after the result.
-    if ((TSFlags & RISCVII::HasMergeOpMask) && OpNo == 1) {
+    if (RISCVII::hasMergeOp(TSFlags) && OpNo == 1) {
       assert(MI->getNumExplicitDefs() == 1);
       continue;
     }
@@ -198,16 +198,16 @@ static bool lowerRISCVVMachineInstrToMCInst(const MachineInstr *MI,
 
   // Unmasked pseudo instructions need to append dummy mask operand to
   // V instructions. All V instructions are modeled as the masked version.
-  if (TSFlags & RISCVII::HasDummyMaskOpMask)
+  if (RISCVII::hasDummyMaskOp(TSFlags))
     OutMI.addOperand(MCOperand::createReg(RISCV::NoRegister));
 
   return true;
 }
 
-void llvm::LowerRISCVMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
-                                          const AsmPrinter &AP) {
+bool llvm::lowerRISCVMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
+                                          AsmPrinter &AP) {
   if (lowerRISCVVMachineInstrToMCInst(MI, OutMI))
-    return;
+    return false;
 
   OutMI.setOpcode(MI->getOpcode());
 
@@ -217,19 +217,32 @@ void llvm::LowerRISCVMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
       OutMI.addOperand(MCOp);
   }
 
-  if (OutMI.getOpcode() == RISCV::PseudoReadVLENB) {
+  switch (OutMI.getOpcode()) {
+  case TargetOpcode::PATCHABLE_FUNCTION_ENTER: {
+    const Function &F = MI->getParent()->getParent()->getFunction();
+    if (F.hasFnAttribute("patchable-function-entry")) {
+      unsigned Num;
+      if (F.getFnAttribute("patchable-function-entry")
+              .getValueAsString()
+              .getAsInteger(10, Num))
+        return false;
+      AP.emitNops(Num);
+      return true;
+    }
+    break;
+  }
+  case RISCV::PseudoReadVLENB:
     OutMI.setOpcode(RISCV::CSRRS);
     OutMI.addOperand(MCOperand::createImm(
         RISCVSysReg::lookupSysRegByName("VLENB")->Encoding));
     OutMI.addOperand(MCOperand::createReg(RISCV::X0));
-    return;
-  }
-
-  if (OutMI.getOpcode() == RISCV::PseudoReadVL) {
+    break;
+  case RISCV::PseudoReadVL:
     OutMI.setOpcode(RISCV::CSRRS);
-    OutMI.addOperand(MCOperand::createImm(
-        RISCVSysReg::lookupSysRegByName("VL")->Encoding));
+    OutMI.addOperand(
+        MCOperand::createImm(RISCVSysReg::lookupSysRegByName("VL")->Encoding));
     OutMI.addOperand(MCOperand::createReg(RISCV::X0));
-    return;
+    break;
   }
+  return false;
 }

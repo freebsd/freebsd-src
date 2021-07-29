@@ -99,25 +99,19 @@ public:
     MachineInstr &MI, MachineRegisterInfo &MRI, MachineIRBuilder &B,
     AMDGPUFunctionArgInfo::PreloadedValue ArgType) const;
 
-  bool legalizeUDIV_UREM(MachineInstr &MI, MachineRegisterInfo &MRI,
-                         MachineIRBuilder &B) const;
+  bool legalizeUnsignedDIV_REM(MachineInstr &MI, MachineRegisterInfo &MRI,
+                               MachineIRBuilder &B) const;
 
-  void legalizeUDIV_UREM32Impl(MachineIRBuilder &B,
-                               Register DstReg, Register Num, Register Den,
-                               bool IsRem) const;
-  bool legalizeUDIV_UREM32(MachineInstr &MI, MachineRegisterInfo &MRI,
-                           MachineIRBuilder &B) const;
-  bool legalizeSDIV_SREM32(MachineInstr &MI, MachineRegisterInfo &MRI,
-                           MachineIRBuilder &B) const;
+  void legalizeUnsignedDIV_REM32Impl(MachineIRBuilder &B, Register DstDivReg,
+                                     Register DstRemReg, Register Num,
+                                     Register Den) const;
 
-  void legalizeUDIV_UREM64Impl(MachineIRBuilder &B,
-                               Register DstReg, Register Numer, Register Denom,
-                               bool IsDiv) const;
+  void legalizeUnsignedDIV_REM64Impl(MachineIRBuilder &B, Register DstDivReg,
+                                     Register DstRemReg, Register Numer,
+                                     Register Denom) const;
 
-  bool legalizeUDIV_UREM64(MachineInstr &MI, MachineRegisterInfo &MRI,
-                           MachineIRBuilder &B) const;
-  bool legalizeSDIV_SREM(MachineInstr &MI, MachineRegisterInfo &MRI,
-                         MachineIRBuilder &B) const;
+  bool legalizeSignedDIV_REM(MachineInstr &MI, MachineRegisterInfo &MRI,
+                             MachineIRBuilder &B) const;
 
   bool legalizeFDIV(MachineInstr &MI, MachineRegisterInfo &MRI,
                     MachineIRBuilder &B) const;
@@ -148,8 +142,11 @@ public:
   bool legalizeIsAddrSpace(MachineInstr &MI, MachineRegisterInfo &MRI,
                            MachineIRBuilder &B, unsigned AddrSpace) const;
 
-  std::tuple<Register, unsigned, unsigned>
-  splitBufferOffsets(MachineIRBuilder &B, Register OrigOffset) const;
+  std::pair<Register, unsigned> splitBufferOffsets(MachineIRBuilder &B,
+                                                   Register OrigOffset) const;
+  void updateBufferMMO(MachineMemOperand *MMO, Register VOffset,
+                       Register SOffset, unsigned ImmOffset, Register VIndex,
+                       MachineRegisterInfo &MRI) const;
 
   Register handleD16VData(MachineIRBuilder &B, MachineRegisterInfo &MRI,
                           Register Reg, bool ImageStore = false) const;
@@ -183,6 +180,12 @@ public:
 
   bool legalizeTrapIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
                              MachineIRBuilder &B) const;
+  bool legalizeTrapEndpgm(MachineInstr &MI, MachineRegisterInfo &MRI,
+                          MachineIRBuilder &B) const;
+  bool legalizeTrapHsaQueuePtr(MachineInstr &MI, MachineRegisterInfo &MRI,
+                               MachineIRBuilder &B) const;
+  bool legalizeTrapHsa(MachineInstr &MI, MachineRegisterInfo &MRI,
+                       MachineIRBuilder &B) const;
   bool legalizeDebugTrapIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
                                   MachineIRBuilder &B) const;
 

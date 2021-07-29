@@ -50,27 +50,24 @@ void *map(void *Addr, uptr Size, UNUSED const char *Name, uptr Flags,
     MmapProt = PROT_NONE;
   } else {
     MmapProt = PROT_READ | PROT_WRITE;
+  }
 #if defined(__aarch64__)
 #ifndef PROT_MTE
 #define PROT_MTE 0x20
 #endif
-    if (Flags & MAP_MEMTAG)
-      MmapProt |= PROT_MTE;
+  if (Flags & MAP_MEMTAG)
+    MmapProt |= PROT_MTE;
 #endif
-  }
-  if (Addr) {
-    // Currently no scenario for a noaccess mapping with a fixed address.
-    DCHECK_EQ(Flags & MAP_NOACCESS, 0);
+  if (Addr)
     MmapFlags |= MAP_FIXED;
-  }
   void *P = mmap(Addr, Size, MmapProt, MmapFlags, -1, 0);
   if (P == MAP_FAILED) {
     if (!(Flags & MAP_ALLOWNOMEM) || errno != ENOMEM)
-      dieOnMapUnmapError(errno == ENOMEM);
+      dieOnMapUnmapError(errno == ENOMEM ? Size : 0);
     return nullptr;
   }
 #if SCUDO_ANDROID
-  if (!(Flags & MAP_NOACCESS))
+  if (Name)
     prctl(ANDROID_PR_SET_VMA, ANDROID_PR_SET_VMA_ANON_NAME, P, Size, Name);
 #endif
   return P;
@@ -82,9 +79,17 @@ void unmap(void *Addr, uptr Size, UNUSED uptr Flags,
     dieOnMapUnmapError();
 }
 
+void setMemoryPermission(uptr Addr, uptr Size, uptr Flags,
+                         UNUSED MapPlatformData *Data) {
+  int Prot = (Flags & MAP_NOACCESS) ? PROT_NONE : (PROT_READ | PROT_WRITE);
+  if (mprotect(reinterpret_cast<void *>(Addr), Size, Prot) != 0)
+    dieOnMapUnmapError();
+}
+
 void releasePagesToOS(uptr BaseAddress, uptr Offset, uptr Size,
                       UNUSED MapPlatformData *Data) {
   void *Addr = reinterpret_cast<void *>(BaseAddress + Offset);
+
   while (madvise(Addr, Size, MADV_DONTNEED) == -1 && errno == EAGAIN) {
   }
 }

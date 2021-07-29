@@ -5042,13 +5042,39 @@ let TargetPrefix = "x86" in {
                         [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                          ImmArg<ArgIndex<2>>]>;
   // AMX - internal intrinsics
+  def int_x86_ldtilecfg_internal :
+              GCCBuiltin<"__builtin_ia32_tile_loadconfig_internal">,
+              Intrinsic<[], [llvm_ptr_ty], []>;
   def int_x86_tileloadd64_internal :
               GCCBuiltin<"__builtin_ia32_tileloadd64_internal">,
               Intrinsic<[llvm_x86amx_ty],
                         [llvm_i16_ty, llvm_i16_ty, llvm_ptr_ty, llvm_i64_ty],
                         []>;
+  def int_x86_tileloaddt164_internal :
+              GCCBuiltin<"__builtin_ia32_tileloaddt164_internal">,
+              Intrinsic<[llvm_x86amx_ty],
+                        [llvm_i16_ty, llvm_i16_ty, llvm_ptr_ty, llvm_i64_ty],
+                        []>;
   def int_x86_tdpbssd_internal :
               GCCBuiltin<"__builtin_ia32_tdpbssd_internal">,
+              Intrinsic<[llvm_x86amx_ty],
+                        [llvm_i16_ty, llvm_i16_ty, llvm_i16_ty,
+                         llvm_x86amx_ty, llvm_x86amx_ty,
+                         llvm_x86amx_ty], []>;
+  def int_x86_tdpbsud_internal :
+              GCCBuiltin<"__builtin_ia32_tdpbsud_internal">,
+              Intrinsic<[llvm_x86amx_ty],
+                        [llvm_i16_ty, llvm_i16_ty, llvm_i16_ty,
+                         llvm_x86amx_ty, llvm_x86amx_ty,
+                         llvm_x86amx_ty], []>;
+  def int_x86_tdpbusd_internal :
+              GCCBuiltin<"__builtin_ia32_tdpbusd_internal">,
+              Intrinsic<[llvm_x86amx_ty],
+                        [llvm_i16_ty, llvm_i16_ty, llvm_i16_ty,
+                         llvm_x86amx_ty, llvm_x86amx_ty,
+                         llvm_x86amx_ty], []>;
+  def int_x86_tdpbuud_internal :
+              GCCBuiltin<"__builtin_ia32_tdpbuud_internal">,
               Intrinsic<[llvm_x86amx_ty],
                         [llvm_i16_ty, llvm_i16_ty, llvm_i16_ty,
                          llvm_x86amx_ty, llvm_x86amx_ty,
@@ -5061,6 +5087,12 @@ let TargetPrefix = "x86" in {
               GCCBuiltin<"__builtin_ia32_tilezero_internal">,
               Intrinsic<[llvm_x86amx_ty], [llvm_i16_ty, llvm_i16_ty],
                         []>;
+  def int_x86_tdpbf16ps_internal :
+              GCCBuiltin<"__builtin_ia32_tdpbf16ps_internal">,
+              Intrinsic<[llvm_x86amx_ty],
+                        [llvm_i16_ty, llvm_i16_ty, llvm_i16_ty,
+                         llvm_x86amx_ty, llvm_x86amx_ty,
+                         llvm_x86amx_ty], []>;
 }
 
 //===----------------------------------------------------------------------===//

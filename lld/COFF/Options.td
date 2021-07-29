@@ -221,6 +221,7 @@ def rsp_quoting : Joined<["--"], "rsp-quoting=">,
   HelpText<"Quoting style for response files, 'windows' (default) or 'posix'">;
 def start_lib : F<"start-lib">,
   HelpText<"Start group of objects treated as if they were in a library">;
+defm stdcall_fixup : B_priv<"stdcall-fixup">;
 def thinlto_emit_imports_files :
     F<"thinlto-emit-imports-files">,
     HelpText<"Emit .imports files with -thinlto-index-only">;
@@ -239,6 +240,10 @@ def thinlto_prefix_replace: P<
 def lto_obj_path : P<
     "lto-obj-path",
     "output native object for merged LTO unit to this path">;
+def lto_cs_profile_generate: F<"lto-cs-profile-generate">,
+    HelpText<"Perform context sensitive PGO instrumentation">;
+def lto_cs_profile_file : P<"lto-cs-profile-file",
+    "Context sensitive profile file path">;
 def dash_dash_version : Flag<["--"], "version">,
   HelpText<"Display the version number and exit">;
 def threads

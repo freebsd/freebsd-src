@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SetOperations.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/ReachingDefAnalysis.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
@@ -124,7 +125,7 @@ void ReachingDefAnalysis::processDefs(MachineInstr *MI) {
     for (MCRegUnitIterator Unit(MO.getReg().asMCReg(), TRI); Unit.isValid();
          ++Unit) {
       // This instruction explicitly defines the current reg unit.
-      LLVM_DEBUG(dbgs() << printReg(*Unit, TRI) << ":\t" << CurInstr
+      LLVM_DEBUG(dbgs() << printRegUnit(*Unit, TRI) << ":\t" << CurInstr
                         << '\t' << *MI);
 
       // How many instructions since this reg unit was last written?
@@ -660,10 +661,7 @@ void ReachingDefAnalysis::collectKilledOperands(MachineInstr *MI,
 
     SmallPtrSet<MachineInstr*, 4> Uses;
     getGlobalUses(Def, PhysReg, Uses);
-    for (auto *Use : Uses)
-      if (!Dead.count(Use))
-        return false;
-    return true;
+    return llvm::set_is_subset(Uses, Dead);
   };
 
   for (auto &MO : MI->operands()) {
@@ -688,9 +686,8 @@ bool ReachingDefAnalysis::isSafeToDefRegAt(MachineInstr *MI, MCRegister PhysReg,
     if (auto *Def = getReachingLocalMIDef(MI, PhysReg)) {
       SmallPtrSet<MachineInstr*, 2> Uses;
       getGlobalUses(Def, PhysReg, Uses);
-      for (auto *Use : Uses)
-        if (!Ignore.count(Use))
-          return false;
+      if (!llvm::set_is_subset(Uses, Ignore))
+        return false;
     } else
       return false;
   }

@@ -6,8 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "hsdr"
-
 #include "HexagonInstrInfo.h"
 #include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
@@ -41,6 +39,8 @@
 #include <set>
 #include <utility>
 #include <vector>
+
+#define DEBUG_TYPE "hsdr"
 
 using namespace llvm;
 
@@ -296,8 +296,7 @@ void HexagonSplitDoubleRegs::partitionRegisters(UUSetMap &P2Rs) {
       Visited.insert(T);
       // Add all registers associated with T.
       USet &Asc = AssocMap[T];
-      for (USet::iterator J = Asc.begin(), F = Asc.end(); J != F; ++J)
-        WorkQ.push_back(*J);
+      append_range(WorkQ, Asc);
     }
   }
 

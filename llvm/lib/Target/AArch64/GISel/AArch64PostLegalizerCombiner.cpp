@@ -23,7 +23,9 @@
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
 #include "llvm/CodeGen/GlobalISel/CombinerHelper.h"
 #include "llvm/CodeGen/GlobalISel/CombinerInfo.h"
+#include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/GISelKnownBits.h"
+#include "llvm/CodeGen/GlobalISel/MIPatternMatch.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/GlobalISel/Utils.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -36,6 +38,7 @@
 #define DEBUG_TYPE "aarch64-postlegalizer-combiner"
 
 using namespace llvm;
+using namespace MIPatternMatch;
 
 /// This combine tries do what performExtractVectorEltCombine does in SDAG.
 /// Rewrite for pairwise fadd pattern
@@ -155,8 +158,9 @@ bool matchAArch64MulConstCombine(
     // folded into madd or msub.
     if (MRI.hasOneNonDBGUse(Dst)) {
       MachineInstr &UseMI = *MRI.use_instr_begin(Dst);
-      if (UseMI.getOpcode() == TargetOpcode::G_ADD ||
-          UseMI.getOpcode() == TargetOpcode::G_SUB)
+      unsigned UseOpc = UseMI.getOpcode();
+      if (UseOpc == TargetOpcode::G_ADD || UseOpc == TargetOpcode::G_PTR_ADD ||
+          UseOpc == TargetOpcode::G_SUB)
         return false;
     }
   }
@@ -237,6 +241,27 @@ bool applyAArch64MulConstCombine(
   return true;
 }
 
+/// Try to fold a G_MERGE_VALUES of 2 s32 sources, where the second source
+/// is a zero, into a G_ZEXT of the first.
+bool matchFoldMergeToZext(MachineInstr &MI, MachineRegisterInfo &MRI) {
+  auto &Merge = cast<GMerge>(MI);
+  LLT SrcTy = MRI.getType(Merge.getSourceReg(0));
+  if (SrcTy != LLT::scalar(32) || Merge.getNumSources() != 2)
+    return false;
+  return mi_match(Merge.getSourceReg(1), MRI, m_SpecificICst(0));
+}
+
+void applyFoldMergeToZext(MachineInstr &MI, MachineRegisterInfo &MRI,
+                          MachineIRBuilder &B, GISelChangeObserver &Observer) {
+  // Mutate %d(s64) = G_MERGE_VALUES %a(s32), 0(s32)
+  //  ->
+  // %d(s64) = G_ZEXT %a(s32)
+  Observer.changingInstr(MI);
+  MI.setDesc(B.getTII().get(TargetOpcode::G_ZEXT));
+  MI.RemoveOperand(2);
+  Observer.changedInstr(MI);
+}
+
 #define AARCH64POSTLEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_DEPS
 #include "AArch64GenPostLegalizeGICombiner.inc"
 #undef AARCH64POSTLEGALIZERCOMBINERHELPER_GENCOMBINERHELPER_DEPS
@@ -308,6 +333,8 @@ void AArch64PostLegalizerCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
   if (!IsOptNone) {
     AU.addRequired<MachineDominatorTree>();
     AU.addPreserved<MachineDominatorTree>();
+    AU.addRequired<GISelCSEAnalysisWrapperPass>();
+    AU.addPreserved<GISelCSEAnalysisWrapperPass>();
   }
   MachineFunctionPass::getAnalysisUsage(AU);
 }
@@ -333,8 +360,11 @@ bool AArch64PostLegalizerCombiner::runOnMachineFunction(MachineFunction &MF) {
       IsOptNone ? nullptr : &getAnalysis<MachineDominatorTree>();
   AArch64PostLegalizerCombinerInfo PCInfo(EnableOpt, F.hasOptSize(),
                                           F.hasMinSize(), KB, MDT);
+  GISelCSEAnalysisWrapper &Wrapper =
+      getAnalysis<GISelCSEAnalysisWrapperPass>().getCSEWrapper();
+  auto *CSEInfo = &Wrapper.get(TPC->getCSEConfig());
   Combiner C(PCInfo, TPC);
-  return C.combineMachineInstrs(MF, /*CSEInfo*/ nullptr);
+  return C.combineMachineInstrs(MF, CSEInfo);
 }
 
 char AArch64PostLegalizerCombiner::ID = 0;

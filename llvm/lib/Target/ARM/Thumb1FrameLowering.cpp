@@ -403,7 +403,7 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF,
   AFI->setGPRCalleeSavedArea2Size(GPRCS2Size);
   AFI->setDPRCalleeSavedAreaSize(DPRCSSize);
 
-  if (RegInfo->needsStackRealignment(MF)) {
+  if (RegInfo->hasStackRealignment(MF)) {
     const unsigned NrBitsToZero = Log2(MFI.getMaxAlign());
     // Emit the following sequence, using R4 as a temporary, since we cannot use
     // SP as a source or destination register for the shifts:
@@ -681,7 +681,7 @@ bool Thumb1FrameLowering::emitPopSpecialFixUp(MachineBasicBlock &MBB,
   // R7 may be used as a frame pointer, hence marked as not generally
   // allocatable, however there's no reason to not use it as a temporary for
   // restoring LR.
-  if (STI.useR7AsFramePointer())
+  if (STI.getFramePointerReg() == ARM::R7)
     PopFriendly.set(ARM::R7);
 
   assert(PopFriendly.any() && "No allocatable pop-friendly register?!");

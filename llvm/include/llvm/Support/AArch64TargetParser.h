@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_AARCH64TARGETPARSERCOMMON_H
-#define LLVM_SUPPORT_AARCH64TARGETPARSERCOMMON_H
+#ifndef LLVM_SUPPORT_AARCH64TARGETPARSER_H
+#define LLVM_SUPPORT_AARCH64TARGETPARSER_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -66,6 +66,9 @@ enum ArchExtKind : uint64_t {
   AEK_BRBE =        1ULL << 34,
   AEK_PAUTH =       1ULL << 35,
   AEK_FLAGM =       1ULL << 36,
+  AEK_SME =         1ULL << 37,
+  AEK_SMEF64 =      1ULL << 38,
+  AEK_SMEI64 =      1ULL << 39,
 };
 
 enum class ArchKind {

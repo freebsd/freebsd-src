@@ -31,7 +31,6 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <climits>
@@ -43,6 +42,10 @@
 #include <vector>
 
 namespace llvm {
+
+namespace vfs {
+class FileSystem;
+}
 
 class StringSaver;
 
@@ -199,7 +202,7 @@ public:
 };
 
 // The general Option Category (used as default category).
-extern OptionCategory GeneralCategory;
+OptionCategory &getGeneralCategory();
 
 //===----------------------------------------------------------------------===//
 // SubCommand class
@@ -339,7 +342,7 @@ protected:
       : NumOccurrences(0), Occurrences(OccurrencesFlag), Value(0),
         HiddenFlag(Hidden), Formatting(NormalFormatting), Misc(0),
         FullyInitialized(false), Position(0), AdditionalVals(0) {
-    Categories.push_back(&GeneralCategory);
+    Categories.push_back(&getGeneralCategory());
   }
 
   inline void setNumAdditionalVals(unsigned n) { AdditionalVals = n; }
@@ -369,8 +372,21 @@ public:
 
   virtual void setDefault() = 0;
 
+  // Prints the help string for an option.
+  //
+  // This maintains the Indent for multi-line descriptions.
+  // FirstLineIndentedBy is the count of chars of the first line
+  //      i.e. the one containing the --<option name>.
   static void printHelpStr(StringRef HelpStr, size_t Indent,
                            size_t FirstLineIndentedBy);
+
+  // Prints the help string for an enum value.
+  //
+  // This maintains the Indent for multi-line descriptions.
+  // FirstLineIndentedBy is the count of chars of the first line
+  //      i.e. the one containing the =<value>.
+  static void printEnumValHelpStr(StringRef HelpStr, size_t Indent,
+                                  size_t FirstLineIndentedBy);
 
   virtual void getExtraOptionNames(SmallVectorImpl<StringRef> &) {}
 
@@ -2078,11 +2094,18 @@ bool readConfigFile(StringRef CfgFileName, StringSaver &Saver,
 /// \param [in] CurrentDir Path used to resolve relative rsp files. If set to
 /// None, process' cwd is used instead.
 /// \return true if all @files were expanded successfully or there were none.
+bool ExpandResponseFiles(StringSaver &Saver, TokenizerCallback Tokenizer,
+                         SmallVectorImpl<const char *> &Argv, bool MarkEOLs,
+                         bool RelativeNames,
+                         llvm::Optional<llvm::StringRef> CurrentDir,
+                         llvm::vfs::FileSystem &FS);
+
+/// An overload of ExpandResponseFiles() that uses
+/// llvm::vfs::getRealFileSystem().
 bool ExpandResponseFiles(
     StringSaver &Saver, TokenizerCallback Tokenizer,
     SmallVectorImpl<const char *> &Argv, bool MarkEOLs = false,
     bool RelativeNames = false,
-    llvm::vfs::FileSystem &FS = *llvm::vfs::getRealFileSystem(),
     llvm::Optional<llvm::StringRef> CurrentDir = llvm::None);
 
 /// A convenience helper which concatenates the options specified by the

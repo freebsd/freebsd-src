@@ -17,13 +17,15 @@
 #include "llvm/ExecutionEngine/Orc/Layer.h"
 #include <algorithm>
 #include <memory>
-#include <string>
 
 namespace llvm {
 namespace orc {
 
-class ObjectTransformLayer : public ObjectLayer {
+class ObjectTransformLayer
+    : public RTTIExtends<ObjectTransformLayer, ObjectLayer> {
 public:
+  static char ID;
+
   using TransformFunction =
       std::function<Expected<std::unique_ptr<MemoryBuffer>>(
           std::unique_ptr<MemoryBuffer>)>;

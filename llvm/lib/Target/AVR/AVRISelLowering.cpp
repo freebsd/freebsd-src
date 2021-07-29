@@ -334,7 +334,7 @@ SDValue AVRTargetLowering::LowerShifts(SDValue Op, SelectionDAG &DAG) const {
     llvm_unreachable("Invalid shift opcode");
   }
 
-  // Optimize int8 shifts.
+  // Optimize int8/int16 shifts.
   if (VT.getSizeInBits() == 8) {
     if (Op.getOpcode() == ISD::SHL && 4 <= ShiftAmount && ShiftAmount < 7) {
       // Optimize LSL when 4 <= ShiftAmount <= 6.
@@ -351,17 +351,71 @@ SDValue AVRTargetLowering::LowerShifts(SDValue Op, SelectionDAG &DAG) const {
       ShiftAmount -= 4;
     } else if (Op.getOpcode() == ISD::SHL && ShiftAmount == 7) {
       // Optimize LSL when ShiftAmount == 7.
-      Victim = DAG.getNode(AVRISD::LSL7, dl, VT, Victim);
+      Victim = DAG.getNode(AVRISD::LSLBN, dl, VT, Victim,
+                           DAG.getConstant(7, dl, VT));
       ShiftAmount = 0;
     } else if (Op.getOpcode() == ISD::SRL && ShiftAmount == 7) {
       // Optimize LSR when ShiftAmount == 7.
-      Victim = DAG.getNode(AVRISD::LSR7, dl, VT, Victim);
+      Victim = DAG.getNode(AVRISD::LSRBN, dl, VT, Victim,
+                           DAG.getConstant(7, dl, VT));
       ShiftAmount = 0;
     } else if (Op.getOpcode() == ISD::SRA && ShiftAmount == 7) {
       // Optimize ASR when ShiftAmount == 7.
-      Victim = DAG.getNode(AVRISD::ASR7, dl, VT, Victim);
+      Victim = DAG.getNode(AVRISD::ASRBN, dl, VT, Victim,
+                           DAG.getConstant(7, dl, VT));
       ShiftAmount = 0;
     }
+  } else if (VT.getSizeInBits() == 16) {
+    if (4 <= ShiftAmount && ShiftAmount < 8)
+      switch (Op.getOpcode()) {
+      case ISD::SHL:
+        Victim = DAG.getNode(AVRISD::LSLWN, dl, VT, Victim,
+                             DAG.getConstant(4, dl, VT));
+        ShiftAmount -= 4;
+        break;
+      case ISD::SRL:
+        Victim = DAG.getNode(AVRISD::LSRWN, dl, VT, Victim,
+                             DAG.getConstant(4, dl, VT));
+        ShiftAmount -= 4;
+        break;
+      default:
+        break;
+      }
+    else if (8 <= ShiftAmount && ShiftAmount < 12)
+      switch (Op.getOpcode()) {
+      case ISD::SHL:
+        Victim = DAG.getNode(AVRISD::LSLWN, dl, VT, Victim,
+                             DAG.getConstant(8, dl, VT));
+        ShiftAmount -= 8;
+        break;
+      case ISD::SRL:
+        Victim = DAG.getNode(AVRISD::LSRWN, dl, VT, Victim,
+                             DAG.getConstant(8, dl, VT));
+        ShiftAmount -= 8;
+        break;
+      case ISD::SRA:
+        Victim = DAG.getNode(AVRISD::ASRWN, dl, VT, Victim,
+                             DAG.getConstant(8, dl, VT));
+        ShiftAmount -= 8;
+        break;
+      default:
+        break;
+      }
+    else if (12 <= ShiftAmount)
+      switch (Op.getOpcode()) {
+      case ISD::SHL:
+        Victim = DAG.getNode(AVRISD::LSLWN, dl, VT, Victim,
+                             DAG.getConstant(12, dl, VT));
+        ShiftAmount -= 12;
+        break;
+      case ISD::SRL:
+        Victim = DAG.getNode(AVRISD::LSRWN, dl, VT, Victim,
+                             DAG.getConstant(12, dl, VT));
+        ShiftAmount -= 12;
+        break;
+      default:
+        break;
+      }
   }
 
   while (ShiftAmount--) {
@@ -477,7 +531,7 @@ SDValue AVRTargetLowering::getAVRCmp(SDValue LHS, SDValue RHS,
 
   SDValue Cmp;
 
-  if (LHS.getSimpleValueType() == MVT::i16 && dyn_cast<ConstantSDNode>(RHS)) {
+  if (LHS.getSimpleValueType() == MVT::i16 && isa<ConstantSDNode>(RHS)) {
     // Generate a CPI/CPC pair if RHS is a 16-bit constant.
     SDValue LHSlo = DAG.getNode(ISD::EXTRACT_ELEMENT, DL, MVT::i8, LHS,
                                 DAG.getIntPtrConstant(0, DL));
@@ -1269,15 +1323,17 @@ SDValue AVRTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
   }
 
-  // Second, stack arguments have to walked in reverse order by inserting
-  // chained stores, this ensures their order is not changed by the scheduler
-  // and that the push instruction sequence generated is correct, otherwise they
-  // can be freely intermixed.
+  // Second, stack arguments have to walked.
+  // Previously this code created chained stores but those chained stores appear
+  // to be unchained in the legalization phase. Therefore, do not attempt to
+  // chain them here. In fact, chaining them here somehow causes the first and
+  // second store to be reversed which is the exact opposite of the intended
+  // effect.
   if (HasStackArgs) {
-    for (AE = AI, AI = ArgLocs.size(); AI != AE; --AI) {
-      unsigned Loc = AI - 1;
-      CCValAssign &VA = ArgLocs[Loc];
-      SDValue Arg = OutVals[Loc];
+    SmallVector<SDValue, 8> MemOpChains;
+    for (; AI != AE; AI++) {
+      CCValAssign &VA = ArgLocs[AI];
+      SDValue Arg = OutVals[AI];
 
       assert(VA.isMemLoc());
 
@@ -1287,10 +1343,13 @@ SDValue AVRTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
           DAG.getRegister(AVR::SP, getPointerTy(DAG.getDataLayout())),
           DAG.getIntPtrConstant(VA.getLocMemOffset() + 1, DL));
 
-      Chain =
+      MemOpChains.push_back(
           DAG.getStore(Chain, DL, Arg, PtrOff,
-                       MachinePointerInfo::getStack(MF, VA.getLocMemOffset()));
+                       MachinePointerInfo::getStack(MF, VA.getLocMemOffset())));
     }
+
+    if (!MemOpChains.empty())
+      Chain = DAG.getNode(ISD::TokenFactor, DL, MVT::Other, MemOpChains);
   }
 
   // Build a sequence of copy-to-reg nodes chained together with token chain and
@@ -1871,44 +1930,65 @@ std::pair<unsigned, const TargetRegisterClass *>
 AVRTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                                 StringRef Constraint,
                                                 MVT VT) const {
-  // We only support i8 and i16.
-  //
-  //:FIXME: remove this assert for now since it gets sometimes executed
-  // assert((VT == MVT::i16 || VT == MVT::i8) && "Wrong operand type.");
-
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'a': // Simple upper registers r16..r23.
-      return std::make_pair(0U, &AVR::LD8loRegClass);
+      if (VT == MVT::i8)
+        return std::make_pair(0U, &AVR::LD8loRegClass);
+      else if (VT == MVT::i16)
+        return std::make_pair(0U, &AVR::DREGSLD8loRegClass);
+      break;
     case 'b': // Base pointer registers: y, z.
-      return std::make_pair(0U, &AVR::PTRDISPREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(0U, &AVR::PTRDISPREGSRegClass);
+      break;
     case 'd': // Upper registers r16..r31.
-      return std::make_pair(0U, &AVR::LD8RegClass);
+      if (VT == MVT::i8)
+        return std::make_pair(0U, &AVR::LD8RegClass);
+      else if (VT == MVT::i16)
+        return std::make_pair(0U, &AVR::DLDREGSRegClass);
+      break;
     case 'l': // Lower registers r0..r15.
-      return std::make_pair(0U, &AVR::GPR8loRegClass);
+      if (VT == MVT::i8)
+        return std::make_pair(0U, &AVR::GPR8loRegClass);
+      else if (VT == MVT::i16)
+        return std::make_pair(0U, &AVR::DREGSloRegClass);
+      break;
     case 'e': // Pointer register pairs: x, y, z.
-      return std::make_pair(0U, &AVR::PTRREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(0U, &AVR::PTRREGSRegClass);
+      break;
     case 'q': // Stack pointer register: SPH:SPL.
       return std::make_pair(0U, &AVR::GPRSPRegClass);
     case 'r': // Any register: r0..r31.
       if (VT == MVT::i8)
         return std::make_pair(0U, &AVR::GPR8RegClass);
-
-      assert(VT == MVT::i16 && "inline asm constraint too large");
-      return std::make_pair(0U, &AVR::DREGSRegClass);
+      else if (VT == MVT::i16)
+        return std::make_pair(0U, &AVR::DREGSRegClass);
+      break;
     case 't': // Temporary register: r0.
-      return std::make_pair(unsigned(AVR::R0), &AVR::GPR8RegClass);
+      if (VT == MVT::i8)
+        return std::make_pair(unsigned(AVR::R0), &AVR::GPR8RegClass);
+      break;
     case 'w': // Special upper register pairs: r24, r26, r28, r30.
-      return std::make_pair(0U, &AVR::IWREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(0U, &AVR::IWREGSRegClass);
+      break;
     case 'x': // Pointer register pair X: r27:r26.
     case 'X':
-      return std::make_pair(unsigned(AVR::R27R26), &AVR::PTRREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(unsigned(AVR::R27R26), &AVR::PTRREGSRegClass);
+      break;
     case 'y': // Pointer register pair Y: r29:r28.
     case 'Y':
-      return std::make_pair(unsigned(AVR::R29R28), &AVR::PTRREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(unsigned(AVR::R29R28), &AVR::PTRREGSRegClass);
+      break;
     case 'z': // Pointer register pair Z: r31:r30.
     case 'Z':
-      return std::make_pair(unsigned(AVR::R31R30), &AVR::PTRREGSRegClass);
+      if (VT == MVT::i8 || VT == MVT::i16)
+        return std::make_pair(unsigned(AVR::R31R30), &AVR::PTRREGSRegClass);
+      break;
     default:
       break;
     }
@@ -2031,37 +2111,21 @@ Register AVRTargetLowering::getRegisterByName(const char *RegName, LLT VT,
 
   if (VT == LLT::scalar(8)) {
     Reg = StringSwitch<unsigned>(RegName)
-      .Case("r0", AVR::R0).Case("r1", AVR::R1).Case("r2", AVR::R2)
-      .Case("r3", AVR::R3).Case("r4", AVR::R4).Case("r5", AVR::R5)
-      .Case("r6", AVR::R6).Case("r7", AVR::R7).Case("r8", AVR::R8)
-      .Case("r9", AVR::R9).Case("r10", AVR::R10).Case("r11", AVR::R11)
-      .Case("r12", AVR::R12).Case("r13", AVR::R13).Case("r14", AVR::R14)
-      .Case("r15", AVR::R15).Case("r16", AVR::R16).Case("r17", AVR::R17)
-      .Case("r18", AVR::R18).Case("r19", AVR::R19).Case("r20", AVR::R20)
-      .Case("r21", AVR::R21).Case("r22", AVR::R22).Case("r23", AVR::R23)
-      .Case("r24", AVR::R24).Case("r25", AVR::R25).Case("r26", AVR::R26)
-      .Case("r27", AVR::R27).Case("r28", AVR::R28).Case("r29", AVR::R29)
-      .Case("r30", AVR::R30).Case("r31", AVR::R31)
-      .Case("X", AVR::R27R26).Case("Y", AVR::R29R28).Case("Z", AVR::R31R30)
-      .Default(0);
+              .Case("r0", AVR::R0)
+              .Case("r1", AVR::R1)
+              .Default(0);
   } else {
     Reg = StringSwitch<unsigned>(RegName)
-      .Case("r0", AVR::R1R0).Case("r2", AVR::R3R2)
-      .Case("r4", AVR::R5R4).Case("r6", AVR::R7R6)
-      .Case("r8", AVR::R9R8).Case("r10", AVR::R11R10)
-      .Case("r12", AVR::R13R12).Case("r14", AVR::R15R14)
-      .Case("r16", AVR::R17R16).Case("r18", AVR::R19R18)
-      .Case("r20", AVR::R21R20).Case("r22", AVR::R23R22)
-      .Case("r24", AVR::R25R24).Case("r26", AVR::R27R26)
-      .Case("r28", AVR::R29R28).Case("r30", AVR::R31R30)
-      .Case("X", AVR::R27R26).Case("Y", AVR::R29R28).Case("Z", AVR::R31R30)
-      .Default(0);
+              .Case("r0", AVR::R1R0)
+              .Case("sp", AVR::SP)
+              .Default(0);
   }
 
   if (Reg)
     return Reg;
 
-  report_fatal_error("Invalid register name global variable");
+  report_fatal_error(
+      Twine("Invalid register name \"" + StringRef(RegName) + "\"."));
 }
 
 } // end of namespace llvm

@@ -22,6 +22,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/KnownBits.h"
@@ -200,6 +201,7 @@ public:
   AMDGPUCodeGenPrepare() : FunctionPass(ID) {}
 
   bool visitFDiv(BinaryOperator &I);
+  bool visitXor(BinaryOperator &I);
 
   bool visitInstruction(Instruction &I) { return false; }
   bool visitBinaryOperator(BinaryOperator &I);
@@ -807,9 +809,34 @@ bool AMDGPUCodeGenPrepare::visitFDiv(BinaryOperator &FDiv) {
   return !!NewFDiv;
 }
 
+bool AMDGPUCodeGenPrepare::visitXor(BinaryOperator &I) {
+  // Match the Xor instruction, its type and its operands
+  IntrinsicInst *IntrinsicCall = dyn_cast<IntrinsicInst>(I.getOperand(0));
+  ConstantInt *RHS = dyn_cast<ConstantInt>(I.getOperand(1));
+  if (!RHS || !IntrinsicCall || RHS->getSExtValue() != -1)
+    return visitBinaryOperator(I);
+
+  // Check if the Call is an intrinsic intruction to amdgcn_class intrinsic
+  // has only one use
+  if (IntrinsicCall->getIntrinsicID() != Intrinsic::amdgcn_class ||
+      !IntrinsicCall->hasOneUse())
+    return visitBinaryOperator(I);
+
+  // "Not" the second argument of the intrinsic call
+  ConstantInt *Arg = dyn_cast<ConstantInt>(IntrinsicCall->getOperand(1));
+  if (!Arg)
+    return visitBinaryOperator(I);
+
+  IntrinsicCall->setOperand(
+      1, ConstantInt::get(Arg->getType(), Arg->getZExtValue() ^ 0x3ff));
+  I.replaceAllUsesWith(IntrinsicCall);
+  I.eraseFromParent();
+  return true;
+}
+
 static bool hasUnsafeFPMath(const Function &F) {
   Attribute Attr = F.getFnAttribute("unsafe-fp-math");
-  return Attr.getValueAsString() == "true";
+  return Attr.getValueAsBool();
 }
 
 static std::pair<Value*, Value*> getMul64(IRBuilder<> &Builder,

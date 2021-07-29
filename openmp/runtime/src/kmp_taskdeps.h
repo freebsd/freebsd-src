@@ -2,7 +2,6 @@
  * kmp_taskdeps.h
  */
 
-
 //===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -10,7 +9,6 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
 
 #ifndef KMP_TASKDEPS_H
 #define KMP_TASKDEPS_H
@@ -25,6 +23,8 @@ static inline void __kmp_node_deref(kmp_info_t *thread, kmp_depnode_t *node) {
     return;
 
   kmp_int32 n = KMP_ATOMIC_DEC(&node->dn.nrefs) - 1;
+  // TODO: temporarily disable assertion until the bug with dependences is fixed
+  //  KMP_DEBUG_ASSERT(n >= 0);
   if (n == 0) {
     KMP_ASSERT(node->dn.nrefs == 0);
 #if USE_FAST_MEMORY
@@ -58,8 +58,8 @@ static inline void __kmp_dephash_free_entries(kmp_info_t *thread,
       kmp_dephash_entry_t *next;
       for (kmp_dephash_entry_t *entry = h->buckets[i]; entry; entry = next) {
         next = entry->next_in_bucket;
-        __kmp_depnode_list_free(thread, entry->last_ins);
-        __kmp_depnode_list_free(thread, entry->last_mtxs);
+        __kmp_depnode_list_free(thread, entry->last_set);
+        __kmp_depnode_list_free(thread, entry->prev_set);
         __kmp_node_deref(thread, entry->last_out);
         if (entry->mtx_lock) {
           __kmp_destroy_lock(entry->mtx_lock);
@@ -84,6 +84,8 @@ static inline void __kmp_dephash_free(kmp_info_t *thread, kmp_dephash_t *h) {
   __kmp_thread_free(thread, h);
 #endif
 }
+
+extern void __kmpc_give_task(kmp_task_t *ptask, kmp_int32 start);
 
 static inline void __kmp_release_deps(kmp_int32 gtid, kmp_taskdata_t *task) {
   kmp_info_t *thread = __kmp_threads[gtid];
@@ -143,7 +145,9 @@ static inline void __kmp_release_deps(kmp_int32 gtid, kmp_taskdata_t *task) {
           // encountering thread's queue; otherwise, it can be pushed to its own
           // queue.
           if (!next_taskdata->td_flags.hidden_helper) {
-            __kmp_omp_task(task->encountering_gtid, successor->dn.task, false);
+            __kmpc_give_task(
+                successor->dn.task,
+                __kmp_tid_from_gtid(next_taskdata->encountering_gtid));
           } else {
             __kmp_omp_task(gtid, successor->dn.task, false);
           }

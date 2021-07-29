@@ -99,12 +99,18 @@ void parseGuard(StringRef fullArg) {
   SmallVector<StringRef, 1> splitArgs;
   fullArg.split(splitArgs, ",");
   for (StringRef arg : splitArgs) {
-    if (arg.equals_lower("no"))
+    if (arg.equals_insensitive("no"))
       config->guardCF = GuardCFLevel::Off;
-    else if (arg.equals_lower("nolongjmp"))
-      config->guardCF = GuardCFLevel::NoLongJmp;
-    else if (arg.equals_lower("cf") || arg.equals_lower("longjmp"))
-      config->guardCF = GuardCFLevel::Full;
+    else if (arg.equals_insensitive("nolongjmp"))
+      config->guardCF &= ~GuardCFLevel::LongJmp;
+    else if (arg.equals_insensitive("noehcont"))
+      config->guardCF &= ~GuardCFLevel::EHCont;
+    else if (arg.equals_insensitive("cf"))
+      config->guardCF = GuardCFLevel::CF;
+    else if (arg.equals_insensitive("longjmp"))
+      config->guardCF |= GuardCFLevel::CF | GuardCFLevel::LongJmp;
+    else if (arg.equals_insensitive("ehcont"))
+      config->guardCF |= GuardCFLevel::CF | GuardCFLevel::EHCont;
     else
       fatal("invalid argument to /guard: " + arg);
   }
@@ -251,17 +257,17 @@ void parseFunctionPadMin(llvm::opt::Arg *a, llvm::COFF::MachineTypes machine) {
 // Parses a string in the form of "EMBED[,=<integer>]|NO".
 // Results are directly written to Config.
 void parseManifest(StringRef arg) {
-  if (arg.equals_lower("no")) {
+  if (arg.equals_insensitive("no")) {
     config->manifest = Configuration::No;
     return;
   }
-  if (!arg.startswith_lower("embed"))
+  if (!arg.startswith_insensitive("embed"))
     fatal("invalid option " + arg);
   config->manifest = Configuration::Embed;
   arg = arg.substr(strlen("embed"));
   if (arg.empty())
     return;
-  if (!arg.startswith_lower(",id="))
+  if (!arg.startswith_insensitive(",id="))
     fatal("invalid option " + arg);
   arg = arg.substr(strlen(",id="));
   if (arg.getAsInteger(0, config->manifestID))
@@ -271,7 +277,7 @@ void parseManifest(StringRef arg) {
 // Parses a string in the form of "level=<string>|uiAccess=<string>|NO".
 // Results are directly written to Config.
 void parseManifestUAC(StringRef arg) {
-  if (arg.equals_lower("no")) {
+  if (arg.equals_insensitive("no")) {
     config->manifestUAC = false;
     return;
   }
@@ -279,12 +285,12 @@ void parseManifestUAC(StringRef arg) {
     arg = arg.ltrim();
     if (arg.empty())
       return;
-    if (arg.startswith_lower("level=")) {
+    if (arg.startswith_insensitive("level=")) {
       arg = arg.substr(strlen("level="));
       std::tie(config->manifestLevel, arg) = arg.split(" ");
       continue;
     }
-    if (arg.startswith_lower("uiaccess=")) {
+    if (arg.startswith_insensitive("uiaccess=")) {
       arg = arg.substr(strlen("uiaccess="));
       std::tie(config->manifestUIAccess, arg) = arg.split(" ");
       continue;
@@ -299,9 +305,9 @@ void parseSwaprun(StringRef arg) {
   do {
     StringRef swaprun, newArg;
     std::tie(swaprun, newArg) = arg.split(',');
-    if (swaprun.equals_lower("cd"))
+    if (swaprun.equals_insensitive("cd"))
       config->swaprunCD = true;
-    else if (swaprun.equals_lower("net"))
+    else if (swaprun.equals_insensitive("net"))
       config->swaprunNet = true;
     else if (swaprun.empty())
       error("/swaprun: missing argument");
@@ -350,7 +356,7 @@ public:
   // is called (you cannot remove an opened file on Windows.)
   std::unique_ptr<MemoryBuffer> getMemoryBuffer() {
     // IsVolatile=true forces MemoryBuffer to not use mmap().
-    return CHECK(MemoryBuffer::getFile(path, /*FileSize=*/-1,
+    return CHECK(MemoryBuffer::getFile(path, /*IsText=*/false,
                                        /*RequiresNullTerminator=*/false,
                                        /*IsVolatile=*/true),
                  "could not open " + path);
@@ -414,7 +420,7 @@ static std::string createManifestXmlWithExternalMt(StringRef defaultXml) {
   // Create the default manifest file as a temporary file.
   TemporaryFile Default("defaultxml", "manifest");
   std::error_code ec;
-  raw_fd_ostream os(Default.path, ec, sys::fs::OF_Text);
+  raw_fd_ostream os(Default.path, ec, sys::fs::OF_TextWithCRLF);
   if (ec)
     fatal("failed to open " + Default.path + ": " + ec.message());
   os << defaultXml;
@@ -516,7 +522,7 @@ void createSideBySideManifest() {
   if (path == "")
     path = config->outputFile + ".manifest";
   std::error_code ec;
-  raw_fd_ostream out(path, ec, sys::fs::OF_Text);
+  raw_fd_ostream out(path, ec, sys::fs::OF_TextWithCRLF);
   if (ec)
     fatal("failed to create manifest: " + ec.message());
   out << createManifestXml();
@@ -554,21 +560,21 @@ Export parseExport(StringRef arg) {
   while (!rest.empty()) {
     StringRef tok;
     std::tie(tok, rest) = rest.split(",");
-    if (tok.equals_lower("noname")) {
+    if (tok.equals_insensitive("noname")) {
       if (e.ordinal == 0)
         goto err;
       e.noname = true;
       continue;
     }
-    if (tok.equals_lower("data")) {
+    if (tok.equals_insensitive("data")) {
       e.data = true;
       continue;
     }
-    if (tok.equals_lower("constant")) {
+    if (tok.equals_insensitive("constant")) {
       e.constant = true;
       continue;
     }
-    if (tok.equals_lower("private")) {
+    if (tok.equals_insensitive("private")) {
       e.isPrivate = true;
       continue;
     }
@@ -877,10 +883,11 @@ ParsedDirectives ArgParser::parseDirectives(StringRef s) {
   SmallVector<StringRef, 16> tokens;
   cl::TokenizeWindowsCommandLineNoCopy(s, saver, tokens);
   for (StringRef tok : tokens) {
-    if (tok.startswith_lower("/export:") || tok.startswith_lower("-export:"))
+    if (tok.startswith_insensitive("/export:") ||
+        tok.startswith_insensitive("-export:"))
       result.exports.push_back(tok.substr(strlen("/export:")));
-    else if (tok.startswith_lower("/include:") ||
-             tok.startswith_lower("-include:"))
+    else if (tok.startswith_insensitive("/include:") ||
+             tok.startswith_insensitive("-include:"))
       result.includes.push_back(tok.substr(strlen("/include:")));
     else {
       // Copy substrings that are not valid C strings. The tokenizer may have
@@ -926,7 +933,7 @@ std::vector<const char *> ArgParser::tokenize(StringRef s) {
 }
 
 void printHelp(const char *argv0) {
-  optTable.PrintHelp(lld::outs(),
+  optTable.printHelp(lld::outs(),
                      (std::string(argv0) + " [options] file...").c_str(),
                      "LLVM Linker", false);
 }

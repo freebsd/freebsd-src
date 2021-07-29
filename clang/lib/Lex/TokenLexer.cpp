@@ -148,12 +148,12 @@ bool TokenLexer::MaybeRemoveCommaBeforeVaArgs(
     return false;
 
   // GCC removes the comma in the expansion of " ... , ## __VA_ARGS__ " if
-  // __VA_ARGS__ is empty, but not in strict mode where there are no
-  // named arguments, where it remains.  With GNU extensions, it is removed
-  // regardless of named arguments.
+  // __VA_ARGS__ is empty, but not in strict C99 mode where there are no
+  // named arguments, where it remains.  In all other modes, including C99
+  // with GNU extensions, it is removed regardless of named arguments.
   // Microsoft also appears to support this extension, unofficially.
-  if (!PP.getLangOpts().GNUMode && !PP.getLangOpts().MSVCCompat &&
-      Macro->getNumParams() < 2)
+  if (PP.getLangOpts().C99 && !PP.getLangOpts().GNUMode
+        && Macro->getNumParams() < 2)
     return false;
 
   // Is a comma available to be removed?
@@ -971,7 +971,7 @@ TokenLexer::getExpansionLocForMacroDefLoc(SourceLocation loc) const {
   assert(SM.isInSLocAddrSpace(loc, MacroDefStart, MacroDefLength) &&
          "Expected loc to come from the macro definition");
 
-  unsigned relativeOffset = 0;
+  SourceLocation::UIntTy relativeOffset = 0;
   SM.isInSLocAddrSpace(loc, MacroDefStart, MacroDefLength, &relativeOffset);
   return MacroExpansionStart.getLocWithOffset(relativeOffset);
 }
@@ -1010,7 +1010,7 @@ static void updateConsecutiveMacroArgTokens(SourceManager &SM,
     if (CurLoc.isFileID() != NextLoc.isFileID())
       break; // Token from different kind of FileID.
 
-    int RelOffs;
+    SourceLocation::IntTy RelOffs;
     if (!SM.isInSameSLocAddrSpace(CurLoc, NextLoc, &RelOffs))
       break; // Token from different local/loaded location.
     // Check that token is not before the previous token or more than 50
@@ -1027,10 +1027,11 @@ static void updateConsecutiveMacroArgTokens(SourceManager &SM,
   // For the consecutive tokens, find the length of the SLocEntry to contain
   // all of them.
   Token &LastConsecutiveTok = *(NextTok-1);
-  int LastRelOffs = 0;
+  SourceLocation::IntTy LastRelOffs = 0;
   SM.isInSameSLocAddrSpace(FirstLoc, LastConsecutiveTok.getLocation(),
                            &LastRelOffs);
-  unsigned FullLength = LastRelOffs + LastConsecutiveTok.getLength();
+  SourceLocation::UIntTy FullLength =
+      LastRelOffs + LastConsecutiveTok.getLength();
 
   // Create a macro expansion SLocEntry that will "contain" all of the tokens.
   SourceLocation Expansion =
@@ -1040,7 +1041,7 @@ static void updateConsecutiveMacroArgTokens(SourceManager &SM,
   // expanded location.
   for (; begin_tokens < NextTok; ++begin_tokens) {
     Token &Tok = *begin_tokens;
-    int RelOffs = 0;
+    SourceLocation::IntTy RelOffs = 0;
     SM.isInSameSLocAddrSpace(FirstLoc, Tok.getLocation(), &RelOffs);
     Tok.setLocation(Expansion.getLocWithOffset(RelOffs));
   }

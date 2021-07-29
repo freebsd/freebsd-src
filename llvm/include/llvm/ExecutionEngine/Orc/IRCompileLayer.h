@@ -18,8 +18,9 @@
 #include "llvm/ExecutionEngine/Orc/Layer.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include <functional>
 #include <memory>
-#include <string>
+#include <mutex>
 
 namespace llvm {
 
@@ -69,4 +70,4 @@ private:
 } // end namespace orc
 } // end namespace llvm
 
-#endif // LLVM_EXECUTIONENGINE_ORC_IRCOMPILINGLAYER_H
+#endif // LLVM_EXECUTIONENGINE_ORC_IRCOMPILELAYER_H

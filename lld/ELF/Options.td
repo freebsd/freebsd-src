@@ -36,10 +36,12 @@ multiclass B<string name, string help1, string help2> {
 
 defm auxiliary: Eq<"auxiliary", "Set DT_AUXILIARY field to the specified name">;
 
-def Bsymbolic: F<"Bsymbolic">, HelpText<"Bind defined symbols locally">;
+def Bno_symbolic: F<"Bno-symbolic">, HelpText<"Don't bind default visibility defined symbols locally for -shared (default)">;
+
+def Bsymbolic: F<"Bsymbolic">, HelpText<"Bind default visibility defined symbols locally for -shared">;
 
 def Bsymbolic_functions: F<"Bsymbolic-functions">,
-  HelpText<"Bind defined function symbols locally">;
+  HelpText<"Bind default visibility defined function symbols locally for -shared">;
 
 def Bdynamic: F<"Bdynamic">, HelpText<"Link against shared libraries (default)">;
 
@@ -124,9 +126,7 @@ def color_diagnostics_eq: J<"color-diagnostics=">,
   HelpText<"Use colors in diagnostics (default: auto)">,
   MetaVarName<"[auto,always,never]">;
 
-defm cref: B<"cref",
-    "Output cross reference table",
-    "Do not output cross reference table">;
+def cref: FF<"cref">, HelpText<"Output cross reference table">;
 
 defm define_common: B<"define-common",
     "Assign space to common symbols",
@@ -158,6 +158,9 @@ defm dynamic_list : Eq<"dynamic-list",
    "non-local STV_DEFAULT symbols shouldn't be bound to definitions within the "
    "shared object. Implies -Bsymbolic but does not set DF_SYMBOLIC">,
    MetaVarName<"<file>">;
+
+def eb: F<"EB">, HelpText<"Select the big-endian format in OUTPUT_FORMAT">;
+def el: F<"EL">, HelpText<"Select the little-endian format in OUTPUT_FORMAT">;
 
 defm eh_frame_hdr: B<"eh-frame-hdr",
     "Request creation of .eh_frame_hdr section and PT_GNU_EH_FRAME segment header",
@@ -378,7 +381,7 @@ def start_group: F<"start-group">,
 def start_lib: F<"start-lib">,
   HelpText<"Start a grouping of objects that should be treated as if they were together in an archive">;
 
-def strip_all: F<"strip-all">, HelpText<"Strip all symbols">;
+def strip_all: F<"strip-all">, HelpText<"Strip all symbols. Implies --strip-debug">;
 
 def strip_debug: F<"strip-debug">, HelpText<"Strip debugging information">;
 
@@ -441,6 +444,17 @@ def v: Flag<["-"], "v">, HelpText<"Display the version number">;
 def verbose: F<"verbose">, HelpText<"Verbose mode">;
 
 def version: F<"version">, HelpText<"Display the version number and exit">;
+
+def power10_stubs: F<"power10-stubs">, HelpText<"Alias for --power10-stubs=auto">;
+
+def no_power10_stubs: F<"no-power10-stubs">, HelpText<"Alias for --power10-stubs=no">;
+
+def power10_stubs_eq:
+  J<"power10-stubs=">, HelpText<
+                     "Enables Power10 instructions in all stubs without options, "
+                     "options override previous flags."
+                     "auto: Allow Power10 instructions in stubs if applicable."
+                     "no:   No Power10 instructions in stubs.">;
 
 defm version_script: Eq<"version-script", "Read a version script">;
 
@@ -572,8 +586,10 @@ def lto_basic_block_sections: JJ<"lto-basic-block-sections=">,
 defm lto_unique_basic_block_section_names: BB<"lto-unique-basic-block-section-names",
     "Give unique names to every basic block section for LTO",
     "Do not give unique names to every basic block section for LTO (default)">;
-def shuffle_sections: JJ<"shuffle-sections=">, MetaVarName<"<seed>">,
-  HelpText<"Shuffle input sections using the given seed. If 0, use a random seed">;
+defm shuffle_sections: EEq<"shuffle-sections",
+  "Shuffle matched sections using the given seed before mapping them to the output sections. "
+  "If -1, reverse the section order. If 0, use a random seed">,
+  MetaVarName<"<section-glob>=<seed>">;
 def thinlto_cache_dir: JJ<"thinlto-cache-dir=">,
   HelpText<"Path to ThinLTO cached object file directory">;
 defm thinlto_cache_policy: EEq<"thinlto-cache-policy", "Pruning policy for the ThinLTO cache">;
@@ -687,12 +703,16 @@ def: F<"stats">;
 def: F<"warn-execstack">;
 def: F<"warn-once">;
 def: F<"warn-shared-textrel">;
-def: F<"EB">;
-def: F<"EL">;
 def: JoinedOrSeparate<["-"], "G">;
 def: F<"Qy">;
 
 // Hidden option used for testing MIPS multi-GOT implementation.
 defm mips_got_size:
   Eq<"mips-got-size", "Max size of a single MIPS GOT. 0x10000 by default.">,
+  Flags<[HelpHidden]>;
+
+// Hidden option used to opt-in to additional output checks.
+defm check_dynamic_relocations: BB<"check-dynamic-relocations",
+    "Perform additional validation of the written dynamic relocations",
+    "Do not perform additional validation of the written dynamic relocations">,
   Flags<[HelpHidden]>;

@@ -9,13 +9,13 @@
 // ThinLTO.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H
-#define LLVM_TRANSFORMS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H
+#ifndef LLVM_ANALYSIS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H
+#define LLVM_ANALYSIS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include <string>
+#include <memory>
 #include <vector>
 
 namespace llvm {
@@ -109,4 +109,4 @@ enum class InlinerFunctionImportStatsOpts {
 
 } // llvm
 
-#endif // LLVM_TRANSFORMS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H
+#endif // LLVM_ANALYSIS_UTILS_IMPORTEDFUNCTIONSINLININGSTATISTICS_H

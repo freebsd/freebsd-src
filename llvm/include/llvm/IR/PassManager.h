@@ -467,21 +467,16 @@ class PassManager : public PassInfoMixin<
                         PassManager<IRUnitT, AnalysisManagerT, ExtraArgTs...>> {
 public:
   /// Construct a pass manager.
-  ///
-  /// If \p DebugLogging is true, we'll log our progress to llvm::dbgs().
-  explicit PassManager(bool DebugLogging = false) : DebugLogging(DebugLogging) {}
+  explicit PassManager() {}
 
   // FIXME: These are equivalent to the default move constructor/move
   // assignment. However, using = default triggers linker errors due to the
   // explicit instantiations below. Find away to use the default and remove the
   // duplicated code here.
-  PassManager(PassManager &&Arg)
-      : Passes(std::move(Arg.Passes)),
-        DebugLogging(std::move(Arg.DebugLogging)) {}
+  PassManager(PassManager &&Arg) : Passes(std::move(Arg.Passes)) {}
 
   PassManager &operator=(PassManager &&RHS) {
     Passes = std::move(RHS.Passes);
-    DebugLogging = std::move(RHS.DebugLogging);
     return *this;
   }
 
@@ -498,9 +493,6 @@ public:
     PassInstrumentation PI =
         detail::getAnalysisResult<PassInstrumentationAnalysis>(
             AM, IR, std::tuple<ExtraArgTs...>(ExtraArgs...));
-
-    if (DebugLogging)
-      dbgs() << "Starting " << getTypeName<IRUnitT>() << " pass manager run.\n";
 
     for (unsigned Idx = 0, Size = Passes.size(); Idx != Size; ++Idx) {
       auto *P = Passes[Idx].get();
@@ -542,20 +534,17 @@ public:
     // need to inspect each one individually.
     PA.preserveSet<AllAnalysesOn<IRUnitT>>();
 
-    if (DebugLogging)
-      dbgs() << "Finished " << getTypeName<IRUnitT>() << " pass manager run.\n";
-
     return PA;
   }
 
   template <typename PassT>
   std::enable_if_t<!std::is_same<PassT, PassManager>::value>
-  addPass(PassT Pass) {
+  addPass(PassT &&Pass) {
     using PassModelT =
         detail::PassModel<IRUnitT, PassT, PreservedAnalyses, AnalysisManagerT,
                           ExtraArgTs...>;
 
-    Passes.emplace_back(new PassModelT(std::move(Pass)));
+    Passes.emplace_back(new PassModelT(std::forward<PassT>(Pass)));
   }
 
   /// When adding a pass manager pass that has the same type as this pass
@@ -580,9 +569,6 @@ protected:
       detail::PassConcept<IRUnitT, AnalysisManagerT, ExtraArgTs...>;
 
   std::vector<std::unique_ptr<PassConceptT>> Passes;
-
-  /// Flag indicating whether we should do debug logging.
-  bool DebugLogging;
 };
 
 extern template class PassManager<Module>;
@@ -746,9 +732,7 @@ public:
   };
 
   /// Construct an empty analysis manager.
-  ///
-  /// If \p DebugLogging is true, we'll log our progress to llvm::dbgs().
-  AnalysisManager(bool DebugLogging = false);
+  AnalysisManager();
   AnalysisManager(AnalysisManager &&);
   AnalysisManager &operator=(AnalysisManager &&);
 
@@ -860,16 +844,6 @@ public:
     return true;
   }
 
-  /// Invalidate a specific analysis pass for an IR unit.
-  ///
-  /// Note that the analysis result can disregard invalidation, if it determines
-  /// it is in fact still valid.
-  template <typename PassT> void invalidate(IRUnitT &IR) {
-    assert(AnalysisPasses.count(PassT::ID()) &&
-           "This analysis pass was not registered prior to being invalidated");
-    invalidateImpl(PassT::ID(), IR);
-  }
-
   /// Invalidate cached analyses for an IR unit.
   ///
   /// Walk through all of the analyses pertaining to this unit of IR and
@@ -904,20 +878,6 @@ private:
     return RI == AnalysisResults.end() ? nullptr : &*RI->second->second;
   }
 
-  /// Invalidate a pass result for a IR unit.
-  void invalidateImpl(AnalysisKey *ID, IRUnitT &IR) {
-    typename AnalysisResultMapT::iterator RI =
-        AnalysisResults.find({ID, &IR});
-    if (RI == AnalysisResults.end())
-      return;
-
-    if (DebugLogging)
-      dbgs() << "Invalidating analysis: " << this->lookUpPass(ID).name()
-             << " on " << IR.getName() << "\n";
-    AnalysisResultLists[&IR].erase(RI->second);
-    AnalysisResults.erase(RI);
-  }
-
   /// Map type from analysis pass ID to pass concept pointer.
   using AnalysisPassMapT =
       DenseMap<AnalysisKey *, std::unique_ptr<PassConceptT>>;
@@ -934,9 +894,6 @@ private:
   /// Map from an analysis ID and IR unit to a particular cached
   /// analysis result.
   AnalysisResultMapT AnalysisResults;
-
-  /// Indicates whether we log to \c llvm::dbgs().
-  bool DebugLogging;
 };
 
 extern template class AnalysisManager<Module>;
@@ -1249,13 +1206,13 @@ private:
 /// templated adaptor.
 template <typename FunctionPassT>
 ModuleToFunctionPassAdaptor
-createModuleToFunctionPassAdaptor(FunctionPassT Pass) {
+createModuleToFunctionPassAdaptor(FunctionPassT &&Pass) {
   using PassModelT =
       detail::PassModel<Function, FunctionPassT, PreservedAnalyses,
                         FunctionAnalysisManager>;
 
   return ModuleToFunctionPassAdaptor(
-      std::make_unique<PassModelT>(std::move(Pass)));
+      std::make_unique<PassModelT>(std::forward<FunctionPassT>(Pass)));
 }
 
 /// A utility pass template to force an analysis result to be available.
@@ -1327,7 +1284,8 @@ struct InvalidateAllAnalysesPass : PassInfoMixin<InvalidateAllAnalysesPass> {
 template <typename PassT>
 class RepeatedPass : public PassInfoMixin<RepeatedPass<PassT>> {
 public:
-  RepeatedPass(int Count, PassT P) : Count(Count), P(std::move(P)) {}
+  RepeatedPass(int Count, PassT &&P)
+      : Count(Count), P(std::forward<PassT>(P)) {}
 
   template <typename IRUnitT, typename AnalysisManagerT, typename... Ts>
   PreservedAnalyses run(IRUnitT &IR, AnalysisManagerT &AM, Ts &&... Args) {
@@ -1360,8 +1318,8 @@ private:
 };
 
 template <typename PassT>
-RepeatedPass<PassT> createRepeatedPass(int Count, PassT P) {
-  return RepeatedPass<PassT>(Count, std::move(P));
+RepeatedPass<PassT> createRepeatedPass(int Count, PassT &&P) {
+  return RepeatedPass<PassT>(Count, std::forward<PassT>(P));
 }
 
 } // end namespace llvm

@@ -213,8 +213,9 @@ bool ARM::getFPUFeatures(unsigned FPUKind, std::vector<StringRef> &Features) {
     const char *PlusName, *MinusName;
     NeonSupportLevel MinSupportLevel;
   } NeonFeatureInfoList[] = {
-    {"+neon", "-neon", NeonSupportLevel::Neon},
-    {"+crypto", "-crypto", NeonSupportLevel::Crypto},
+      {"+neon", "-neon", NeonSupportLevel::Neon},
+      {"+sha2", "-sha2", NeonSupportLevel::Crypto},
+      {"+aes", "-aes", NeonSupportLevel::Crypto},
   };
 
   for (const auto &Info: NeonFeatureInfoList) {
@@ -537,14 +538,6 @@ bool ARM::appendArchExtFeatures(StringRef CPU, ARM::ArchKind AK,
     return ARM::getFPUFeatures(FPUKind, Features);
   }
   return StartingNumFeatures != Features.size();
-}
-
-StringRef ARM::getHWDivName(uint64_t HWDivKind) {
-  for (const auto &D : HWDivNames) {
-    if (HWDivKind == D.ID)
-      return D.getName();
-  }
-  return StringRef();
 }
 
 StringRef ARM::getDefaultCPU(StringRef Arch) {

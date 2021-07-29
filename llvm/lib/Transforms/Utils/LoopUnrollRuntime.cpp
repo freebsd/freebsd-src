@@ -50,6 +50,9 @@ static cl::opt<bool> UnrollRuntimeMultiExit(
     "unroll-runtime-multi-exit", cl::init(false), cl::Hidden,
     cl::desc("Allow runtime unrolling for loops with multiple exits, when "
              "epilog is generated"));
+static cl::opt<bool> UnrollRuntimeOtherExitPredictable(
+    "unroll-runtime-other-exit-predictable", cl::init(false), cl::Hidden,
+    cl::desc("Assume the non latch exit block to be predictable"));
 
 /// Connect the unrolling prolog code to the original loop.
 /// The unrolling prolog code contains code to execute the
@@ -493,12 +496,19 @@ static bool canProfitablyUnrollMultiExitLoop(
   if (ExitingBlocks.size() > 2)
     return false;
 
+  // Allow unrolling of loops with no non latch exit blocks.
+  if (OtherExits.size() == 0)
+    return true;
+
   // The second heuristic is that L has one exit other than the latchexit and
   // that exit is a deoptimize block. We know that deoptimize blocks are rarely
   // taken, which also implies the branch leading to the deoptimize block is
-  // highly predictable.
+  // highly predictable. When UnrollRuntimeOtherExitPredictable is specified, we
+  // assume the other exit branch is predictable even if it has no deoptimize
+  // call.
   return (OtherExits.size() == 1 &&
-          OtherExits[0]->getTerminatingDeoptimizeCall());
+          (UnrollRuntimeOtherExitPredictable ||
+           OtherExits[0]->getTerminatingDeoptimizeCall()));
   // TODO: These can be fine-tuned further to consider code size or deopt states
   // that are captured by the deoptimize exit block.
   // Also, we can extend this to support more cases, if we actually
@@ -974,11 +984,9 @@ bool llvm::UnrollRuntimeLoopRemainder(
     LLVM_DEBUG(dbgs() << "Unrolling remainder loop\n");
     UnrollResult =
         UnrollLoop(remainderLoop,
-                   {/*Count*/ Count - 1, /*TripCount*/ Count - 1,
-                    /*Force*/ false, /*AllowRuntime*/ false,
-                    /*AllowExpensiveTripCount*/ false, /*PreserveCondBr*/ true,
-                    /*PreserveOnlyFirst*/ false, /*TripMultiple*/ 1,
-                    /*PeelCount*/ 0, /*UnrollRemainder*/ false, ForgetAllSCEV},
+                   {/*Count*/ Count - 1, /*Force*/ false, /*Runtime*/ false,
+                    /*AllowExpensiveTripCount*/ false,
+                    /*UnrollRemainder*/ false, ForgetAllSCEV},
                    LI, SE, DT, AC, TTI, /*ORE*/ nullptr, PreserveLCSSA);
   }
 

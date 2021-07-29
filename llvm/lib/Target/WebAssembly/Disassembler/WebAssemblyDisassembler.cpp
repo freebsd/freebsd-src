@@ -14,9 +14,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/WebAssemblyInstPrinter.h"
-#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "TargetInfo/WebAssemblyTargetInfo.h"
+#include "Utils/WebAssemblyTypeUtilities.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler/MCDisassembler.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
@@ -114,7 +113,8 @@ bool parseImmediate(MCInst &MI, uint64_t &Size, ArrayRef<uint8_t> Bytes) {
       Bytes.data() + Size);
   Size += sizeof(T);
   if (std::is_floating_point<T>::value) {
-    MI.addOperand(MCOperand::createFPImm(static_cast<double>(Val)));
+    MI.addOperand(
+        MCOperand::createDFPImm(bit_cast<uint64_t>(static_cast<double>(Val))));
   } else {
     MI.addOperand(MCOperand::createImm(static_cast<int64_t>(Val)));
   }
@@ -203,7 +203,7 @@ MCDisassembler::DecodeStatus WebAssemblyDisassembler::getInstruction(
     case WebAssembly::OPERAND_OFFSET64:
     case WebAssembly::OPERAND_P2ALIGN:
     case WebAssembly::OPERAND_TYPEINDEX:
-    case WebAssembly::OPERAND_EVENT:
+    case WebAssembly::OPERAND_TAG:
     case MCOI::OPERAND_IMMEDIATE: {
       if (!parseLEBImmediate(MI, Size, Bytes, false))
         return MCDisassembler::Fail;

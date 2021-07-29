@@ -17,6 +17,7 @@
 #include "AMDGPUMachineFunction.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
 #include "SIInstrInfo.h"
+#include "llvm/ADT/MapVector.h"
 #include "llvm/CodeGen/MIRYamlMapping.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/raw_ostream.h"
@@ -288,10 +289,12 @@ struct SIMachineFunctionInfo final : public yaml::MachineFunctionInfo {
 
   Optional<SIArgumentInfo> ArgInfo;
   SIMode Mode;
+  Optional<FrameIndex> ScavengeFI;
 
   SIMachineFunctionInfo() = default;
   SIMachineFunctionInfo(const llvm::SIMachineFunctionInfo &,
-                        const TargetRegisterInfo &TRI);
+                        const TargetRegisterInfo &TRI,
+                        const llvm::MachineFunction &MF);
 
   void mappingImpl(yaml::IO &YamlIO) override;
   ~SIMachineFunctionInfo() = default;
@@ -321,6 +324,7 @@ template <> struct MappingTraits<SIMachineFunctionInfo> {
     YamlIO.mapOptional("highBitsOf32BitAddress",
                        MFI.HighBitsOf32BitAddress, 0u);
     YamlIO.mapOptional("occupancy", MFI.Occupancy, 0);
+    YamlIO.mapOptional("scavengeFI", MFI.ScavengeFI);
   }
 };
 
@@ -445,15 +449,15 @@ public:
     bool hasReg() { return VGPR != 0;}
   };
 
-  struct SGPRSpillVGPRCSR {
+  struct SGPRSpillVGPR {
     // VGPR used for SGPR spills
     Register VGPR;
 
-    // If the VGPR is a CSR, the stack slot used to save/restore it in the
-    // prolog/epilog.
+    // If the VGPR is is used for SGPR spills in a non-entrypoint function, the
+    // stack slot used to save/restore it in the prolog/epilog.
     Optional<int> FI;
 
-    SGPRSpillVGPRCSR(Register V, Optional<int> F) : VGPR(V), FI(F) {}
+    SGPRSpillVGPR(Register V, Optional<int> F) : VGPR(V), FI(F) {}
   };
 
   struct VGPRSpillToAGPR {
@@ -461,16 +465,16 @@ public:
     bool FullyAllocated = false;
   };
 
-  SparseBitVector<> WWMReservedRegs;
-
-  void ReserveWWMRegister(Register Reg) { WWMReservedRegs.set(Reg); }
+  // Map WWM VGPR to a stack slot that is used to save/restore it in the
+  // prolog/epilog.
+  MapVector<Register, Optional<int>> WWMReservedRegs;
 
 private:
   // Track VGPR + wave index for each subregister of the SGPR spilled to
   // frameindex key.
   DenseMap<int, std::vector<SpilledReg>> SGPRToVGPRSpills;
   unsigned NumVGPRSpillLanes = 0;
-  SmallVector<SGPRSpillVGPRCSR, 2> SpillVGPRs;
+  SmallVector<SGPRSpillVGPR, 2> SpillVGPRs;
 
   DenseMap<int, VGPRSpillToAGPR> VGPRToAGPRSpills;
 
@@ -479,6 +483,10 @@ private:
 
   // VGPRs used for AGPR spills.
   SmallVector<MCPhysReg, 32> SpillVGPR;
+
+  // Emergency stack slot. Sometimes, we create this before finalizing the stack
+  // frame, so save it here and add it to the RegScavenger later.
+  Optional<int> ScavengeFI;
 
 public: // FIXME
   /// If this is set, an SGPR used for save/restore of the register used for the
@@ -497,7 +505,14 @@ public: // FIXME
 public:
   SIMachineFunctionInfo(const MachineFunction &MF);
 
-  bool initializeBaseYamlFields(const yaml::SIMachineFunctionInfo &YamlMFI);
+  bool initializeBaseYamlFields(const yaml::SIMachineFunctionInfo &YamlMFI,
+                                const MachineFunction &MF,
+                                PerFunctionMIParsingState &PFS,
+                                SMDiagnostic &Error, SMRange &SourceRange);
+
+  void reserveWWMRegister(Register Reg, Optional<int> FI) {
+    WWMReservedRegs.insert(std::make_pair(Reg, FI));
+  }
 
   ArrayRef<SpilledReg> getSGPRToVGPRSpills(int FrameIndex) const {
     auto I = SGPRToVGPRSpills.find(FrameIndex);
@@ -505,9 +520,7 @@ public:
       ArrayRef<SpilledReg>() : makeArrayRef(I->second);
   }
 
-  ArrayRef<SGPRSpillVGPRCSR> getSGPRSpillVGPRs() const {
-    return SpillVGPRs;
-  }
+  ArrayRef<SGPRSpillVGPR> getSGPRSpillVGPRs() const { return SpillVGPRs; }
 
   void setSGPRSpillVGPRs(Register NewVGPR, Optional<int> newFI, int Index) {
     SpillVGPRs[Index].VGPR = NewVGPR;
@@ -537,6 +550,9 @@ public:
   bool reserveVGPRforSGPRSpills(MachineFunction &MF);
   bool allocateVGPRSpillToAGPR(MachineFunction &MF, int FI, bool isAGPRtoVGPR);
   void removeDeadFrameIndices(MachineFrameInfo &MFI);
+
+  int getScavengeFI(MachineFrameInfo &MFI, const SIRegisterInfo &TRI);
+  Optional<int> getOptionalScavengeFI() const { return ScavengeFI; }
 
   bool hasCalculatedTID() const { return TIDReg != 0; };
   Register getTIDReg() const { return TIDReg; };

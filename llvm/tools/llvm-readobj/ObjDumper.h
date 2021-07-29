@@ -72,6 +72,7 @@ public:
   virtual void printGroupSections() {}
   virtual void printHashHistograms() {}
   virtual void printCGProfile() {}
+  virtual void printBBAddrMaps() {}
   virtual void printAddrsig() {}
   virtual void printNotes() {}
   virtual void printELFLinkerOptions() {}
@@ -104,7 +105,12 @@ public:
   virtual void printMachOIndirectSymbols() { }
   virtual void printMachOLinkerOptions() { }
 
+  // Currently only implemented for XCOFF.
+  virtual void printStringTable() { }
+
   virtual void printStackMap() const = 0;
+
+  void printAsStringList(StringRef StringContent);
 
   void printSectionsAsString(const object::ObjectFile &Obj,
                              ArrayRef<std::string> Sections);

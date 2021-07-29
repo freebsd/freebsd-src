@@ -54,7 +54,9 @@ typedef ObjectFile *(*ObjectFileCreateMemoryInstance)(
     const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
     const lldb::ProcessSP &process_sp, lldb::addr_t offset);
 typedef bool (*ObjectFileSaveCore)(const lldb::ProcessSP &process_sp,
-                                   const FileSpec &outfile, Status &error);
+                                   const FileSpec &outfile,
+                                   lldb::SaveCoreStyle &core_style,
+                                   Status &error);
 typedef EmulateInstruction *(*EmulateInstructionCreateInstance)(
     const ArchSpec &arch, InstructionType inst_type);
 typedef OperatingSystem *(*OperatingSystemCreateInstance)(Process *process,
@@ -111,12 +113,17 @@ typedef lldb::REPLSP (*REPLCreateInstance)(Status &error,
                                            const char *repl_options);
 typedef int (*ComparisonFunction)(const void *, const void *);
 typedef void (*DebuggerInitializeCallback)(Debugger &debugger);
-typedef llvm::Expected<lldb::TraceSP> (*TraceCreateInstance)(
+/// Trace
+/// \{
+typedef llvm::Expected<lldb::TraceSP> (*TraceCreateInstanceForSessionFile)(
     const llvm::json::Value &trace_session_file,
     llvm::StringRef session_file_dir, lldb_private::Debugger &debugger);
-typedef lldb::CommandObjectSP (*TraceGetStartCommand)(
+typedef llvm::Expected<lldb::TraceSP> (*TraceCreateInstanceForLiveProcess)(
+    Process &process);
+typedef llvm::Expected<lldb::TraceExporterUP> (*TraceExporterCreateInstance)();
+typedef lldb::CommandObjectSP (*ThreadTraceExportCommandCreator)(
     CommandInterpreter &interpreter);
-
+/// \}
 } // namespace lldb_private
 
 #endif // #if defined(__cplusplus)

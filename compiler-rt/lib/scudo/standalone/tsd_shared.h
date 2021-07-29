@@ -24,21 +24,32 @@ namespace scudo {
 
 template <class Allocator, u32 TSDsArraySize, u32 DefaultTSDCount>
 struct TSDRegistrySharedT {
-  void initLinkerInitialized(Allocator *Instance) {
-    Instance->initLinkerInitialized();
+  void init(Allocator *Instance) {
+    DCHECK(!Initialized);
+    Instance->init();
     for (u32 I = 0; I < TSDsArraySize; I++)
-      TSDs[I].initLinkerInitialized(Instance);
+      TSDs[I].init(Instance);
     const u32 NumberOfCPUs = getNumberOfCPUs();
     setNumberOfTSDs((NumberOfCPUs == 0) ? DefaultTSDCount
                                         : Min(NumberOfCPUs, DefaultTSDCount));
     Initialized = true;
   }
-  void init(Allocator *Instance) {
-    memset(this, 0, sizeof(*this));
-    initLinkerInitialized(Instance);
+
+  void initOnceMaybe(Allocator *Instance) {
+    ScopedLock L(Mutex);
+    if (LIKELY(Initialized))
+      return;
+    init(Instance); // Sets Initialized.
   }
 
-  void unmapTestOnly() { setCurrentTSD(nullptr); }
+  void unmapTestOnly(Allocator *Instance) {
+    for (u32 I = 0; I < TSDsArraySize; I++) {
+      TSDs[I].commitBack(Instance);
+      TSDs[I] = {};
+    }
+    setCurrentTSD(nullptr);
+    Initialized = false;
+  }
 
   ALWAYS_INLINE void initThreadMaybe(Allocator *Instance,
                                      UNUSED bool MinimalInit) {
@@ -139,13 +150,6 @@ private:
     *getTlsPtr() |= B;
   }
 
-  void initOnceMaybe(Allocator *Instance) {
-    ScopedLock L(Mutex);
-    if (LIKELY(Initialized))
-      return;
-    initLinkerInitialized(Instance); // Sets Initialized.
-  }
-
   NOINLINE void initThread(Allocator *Instance) {
     initOnceMaybe(Instance);
     // Initial context assignment is done in a plain round-robin fashion.
@@ -197,11 +201,11 @@ private:
     return CurrentTSD;
   }
 
-  atomic_u32 CurrentIndex;
-  u32 NumberOfTSDs;
-  u32 NumberOfCoPrimes;
-  u32 CoPrimes[TSDsArraySize];
-  bool Initialized;
+  atomic_u32 CurrentIndex = {};
+  u32 NumberOfTSDs = 0;
+  u32 NumberOfCoPrimes = 0;
+  u32 CoPrimes[TSDsArraySize] = {};
+  bool Initialized = false;
   HybridMutex Mutex;
   HybridMutex MutexTSDs;
   TSD<Allocator> TSDs[TSDsArraySize];

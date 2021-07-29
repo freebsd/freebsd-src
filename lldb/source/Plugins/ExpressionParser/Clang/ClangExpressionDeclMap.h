@@ -9,8 +9,8 @@
 #ifndef LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CLANGEXPRESSIONDECLMAP_H
 #define LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CLANGEXPRESSIONDECLMAP_H
 
-#include <signal.h>
-#include <stdint.h>
+#include <csignal>
+#include <cstdint>
 
 #include <vector>
 
@@ -248,10 +248,10 @@ public:
                                 lldb::SymbolType symbol_type);
 
   struct TargetInfo {
-    lldb::ByteOrder byte_order;
-    size_t address_byte_size;
+    lldb::ByteOrder byte_order = lldb::eByteOrderInvalid;
+    size_t address_byte_size = 0;
 
-    TargetInfo() : byte_order(lldb::eByteOrderInvalid), address_byte_size(0) {}
+    TargetInfo() = default;
 
     bool IsValid() {
       return (byte_order != lldb::eByteOrderInvalid && address_byte_size != 0);
@@ -308,7 +308,7 @@ private:
   /// The following values should not live beyond parsing
   class ParserVars {
   public:
-    ParserVars() {}
+    ParserVars() = default;
 
     Target *GetTarget() {
       if (m_exe_ctx.GetTargetPtr())
@@ -353,16 +353,15 @@ private:
   /// The following values contain layout information for the materialized
   /// struct, but are not specific to a single materialization
   struct StructVars {
-    StructVars()
-        : m_struct_alignment(0), m_struct_size(0), m_struct_laid_out(false),
-          m_result_name(), m_object_pointer_type(nullptr, nullptr) {}
+    StructVars() : m_result_name(), m_object_pointer_type(nullptr, nullptr) {}
 
-    lldb::offset_t
-        m_struct_alignment; ///< The alignment of the struct in bytes.
-    size_t m_struct_size;   ///< The size of the struct in bytes.
-    bool m_struct_laid_out; ///< True if the struct has been laid out and the
-                            ///layout is valid (that is, no new fields have been
-                            ///added since).
+    lldb::offset_t m_struct_alignment =
+        0;                    ///< The alignment of the struct in bytes.
+    size_t m_struct_size = 0; ///< The size of the struct in bytes.
+    bool m_struct_laid_out =
+        false; ///< True if the struct has been laid out and the
+               /// layout is valid (that is, no new fields have been
+               /// added since).
     ConstString
         m_result_name; ///< The name of the result variable ($1, for example)
     TypeFromUser m_object_pointer_type; ///< The type of the "this" variable, if

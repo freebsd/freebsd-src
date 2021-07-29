@@ -93,7 +93,7 @@ void InstructionInfoView::collectData(
     MutableArrayRef<InstructionInfoViewData> IIVD) const {
   const llvm::MCSubtargetInfo &STI = getSubTargetInfo();
   const MCSchedModel &SM = STI.getSchedModel();
-  for (const auto &I : zip(getSource(), IIVD)) {
+  for (const auto I : zip(getSource(), IIVD)) {
     const MCInst &Inst = std::get<0>(I);
     InstructionInfoViewData &IIVDEntry = std::get<1>(I);
     const MCInstrDesc &MCDesc = MCII.get(Inst.getOpcode());
@@ -147,7 +147,7 @@ json::Value InstructionInfoView::toJSON() const {
     JO.try_emplace("Instruction", (unsigned)I.index());
     InstInfo.push_back(std::move(JO));
   }
-  return json::Value(std::move(InstInfo));
+  return json::Object({{"InstructionList", json::Value(std::move(InstInfo))}});
 }
 } // namespace mca.
 } // namespace llvm

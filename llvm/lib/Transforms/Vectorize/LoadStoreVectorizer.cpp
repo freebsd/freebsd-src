@@ -49,6 +49,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/MemoryLocation.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -111,6 +112,7 @@ using InstrListMap = MapVector<ChainID, InstrList>;
 class Vectorizer {
   Function &F;
   AliasAnalysis &AA;
+  AssumptionCache &AC;
   DominatorTree &DT;
   ScalarEvolution &SE;
   TargetTransformInfo &TTI;
@@ -118,9 +120,9 @@ class Vectorizer {
   IRBuilder<> Builder;
 
 public:
-  Vectorizer(Function &F, AliasAnalysis &AA, DominatorTree &DT,
-             ScalarEvolution &SE, TargetTransformInfo &TTI)
-      : F(F), AA(AA), DT(DT), SE(SE), TTI(TTI),
+  Vectorizer(Function &F, AliasAnalysis &AA, AssumptionCache &AC,
+             DominatorTree &DT, ScalarEvolution &SE, TargetTransformInfo &TTI)
+      : F(F), AA(AA), AC(AC), DT(DT), SE(SE), TTI(TTI),
         DL(F.getParent()->getDataLayout()), Builder(SE.getContext()) {}
 
   bool run();
@@ -186,7 +188,7 @@ private:
 
   /// Check if this load/store access is misaligned accesses.
   bool accessIsMisaligned(unsigned SzInBytes, unsigned AddressSpace,
-                          unsigned Alignment);
+                          Align Alignment);
 };
 
 class LoadStoreVectorizerLegacyPass : public FunctionPass {
@@ -205,6 +207,7 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<AAResultsWrapperPass>();
+    AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<ScalarEvolutionWrapperPass>();
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.addRequired<TargetTransformInfoWrapperPass>();
@@ -219,6 +222,7 @@ char LoadStoreVectorizerLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(LoadStoreVectorizerLegacyPass, DEBUG_TYPE,
                       "Vectorize load and Store instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(SCEVAAWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker);
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)
@@ -241,7 +245,10 @@ bool LoadStoreVectorizerLegacyPass::runOnFunction(Function &F) {
   TargetTransformInfo &TTI =
       getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
 
-  Vectorizer V(F, AA, DT, SE, TTI);
+  AssumptionCache &AC =
+      getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
+
+  Vectorizer V(F, AA, AC, DT, SE, TTI);
   return V.run();
 }
 
@@ -254,8 +261,9 @@ PreservedAnalyses LoadStoreVectorizerPass::run(Function &F, FunctionAnalysisMana
   DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
   ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   TargetTransformInfo &TTI = AM.getResult<TargetIRAnalysis>(F);
+  AssumptionCache &AC = AM.getResult<AssumptionAnalysis>(F);
 
-  Vectorizer V(F, AA, DT, SE, TTI);
+  Vectorizer V(F, AA, AC, DT, SE, TTI);
   bool Changed = V.run();
   PreservedAnalyses PA;
   PA.preserveSet<CFGAnalyses>();
@@ -304,8 +312,8 @@ bool Vectorizer::isConsecutiveAccess(Value *A, Value *B) {
     return false;
 
   // Make sure that A and B are different pointers of the same size type.
-  Type *PtrATy = PtrA->getType()->getPointerElementType();
-  Type *PtrBTy = PtrB->getType()->getPointerElementType();
+  Type *PtrATy = getLoadStoreType(A);
+  Type *PtrBTy = getLoadStoreType(B);
   if (PtrA == PtrB ||
       PtrATy->isVectorTy() != PtrBTy->isVectorTy() ||
       DL.getTypeStoreSize(PtrATy) != DL.getTypeStoreSize(PtrBTy) ||
@@ -376,6 +384,81 @@ bool Vectorizer::areConsecutivePointers(Value *PtrA, Value *PtrB,
   return lookThroughComplexAddresses(PtrA, PtrB, BaseDelta, Depth);
 }
 
+static bool checkNoWrapFlags(Instruction *I, bool Signed) {
+  BinaryOperator *BinOpI = cast<BinaryOperator>(I);
+  return (Signed && BinOpI->hasNoSignedWrap()) ||
+         (!Signed && BinOpI->hasNoUnsignedWrap());
+}
+
+static bool checkIfSafeAddSequence(const APInt &IdxDiff, Instruction *AddOpA,
+                                   unsigned MatchingOpIdxA, Instruction *AddOpB,
+                                   unsigned MatchingOpIdxB, bool Signed) {
+  // If both OpA and OpB is an add with NSW/NUW and with
+  // one of the operands being the same, we can guarantee that the
+  // transformation is safe if we can prove that OpA won't overflow when
+  // IdxDiff added to the other operand of OpA.
+  // For example:
+  //  %tmp7 = add nsw i32 %tmp2, %v0
+  //  %tmp8 = sext i32 %tmp7 to i64
+  //  ...
+  //  %tmp11 = add nsw i32 %v0, 1
+  //  %tmp12 = add nsw i32 %tmp2, %tmp11
+  //  %tmp13 = sext i32 %tmp12 to i64
+  //
+  //  Both %tmp7 and %tmp2 has the nsw flag and the first operand
+  //  is %tmp2. It's guaranteed that adding 1 to %tmp7 won't overflow
+  //  because %tmp11 adds 1 to %v0 and both %tmp11 and %tmp12 has the
+  //  nsw flag.
+  assert(AddOpA->getOpcode() == Instruction::Add &&
+         AddOpB->getOpcode() == Instruction::Add &&
+         checkNoWrapFlags(AddOpA, Signed) && checkNoWrapFlags(AddOpB, Signed));
+  if (AddOpA->getOperand(MatchingOpIdxA) ==
+      AddOpB->getOperand(MatchingOpIdxB)) {
+    Value *OtherOperandA = AddOpA->getOperand(MatchingOpIdxA == 1 ? 0 : 1);
+    Value *OtherOperandB = AddOpB->getOperand(MatchingOpIdxB == 1 ? 0 : 1);
+    Instruction *OtherInstrA = dyn_cast<Instruction>(OtherOperandA);
+    Instruction *OtherInstrB = dyn_cast<Instruction>(OtherOperandB);
+    // Match `x +nsw/nuw y` and `x +nsw/nuw (y +nsw/nuw IdxDiff)`.
+    if (OtherInstrB && OtherInstrB->getOpcode() == Instruction::Add &&
+        checkNoWrapFlags(OtherInstrB, Signed) &&
+        isa<ConstantInt>(OtherInstrB->getOperand(1))) {
+      int64_t CstVal =
+          cast<ConstantInt>(OtherInstrB->getOperand(1))->getSExtValue();
+      if (OtherInstrB->getOperand(0) == OtherOperandA &&
+          IdxDiff.getSExtValue() == CstVal)
+        return true;
+    }
+    // Match `x +nsw/nuw (y +nsw/nuw -Idx)` and `x +nsw/nuw (y +nsw/nuw x)`.
+    if (OtherInstrA && OtherInstrA->getOpcode() == Instruction::Add &&
+        checkNoWrapFlags(OtherInstrA, Signed) &&
+        isa<ConstantInt>(OtherInstrA->getOperand(1))) {
+      int64_t CstVal =
+          cast<ConstantInt>(OtherInstrA->getOperand(1))->getSExtValue();
+      if (OtherInstrA->getOperand(0) == OtherOperandB &&
+          IdxDiff.getSExtValue() == -CstVal)
+        return true;
+    }
+    // Match `x +nsw/nuw (y +nsw/nuw c)` and
+    // `x +nsw/nuw (y +nsw/nuw (c + IdxDiff))`.
+    if (OtherInstrA && OtherInstrB &&
+        OtherInstrA->getOpcode() == Instruction::Add &&
+        OtherInstrB->getOpcode() == Instruction::Add &&
+        checkNoWrapFlags(OtherInstrA, Signed) &&
+        checkNoWrapFlags(OtherInstrB, Signed) &&
+        isa<ConstantInt>(OtherInstrA->getOperand(1)) &&
+        isa<ConstantInt>(OtherInstrB->getOperand(1))) {
+      int64_t CstValA =
+          cast<ConstantInt>(OtherInstrA->getOperand(1))->getSExtValue();
+      int64_t CstValB =
+          cast<ConstantInt>(OtherInstrB->getOperand(1))->getSExtValue();
+      if (OtherInstrA->getOperand(0) == OtherInstrB->getOperand(0) &&
+          IdxDiff.getSExtValue() == (CstValB - CstValA))
+        return true;
+    }
+  }
+  return false;
+}
+
 bool Vectorizer::lookThroughComplexAddresses(Value *PtrA, Value *PtrB,
                                              APInt PtrDelta,
                                              unsigned Depth) const {
@@ -430,73 +513,30 @@ bool Vectorizer::lookThroughComplexAddresses(Value *PtrA, Value *PtrB,
 
   // Now we need to prove that adding IdxDiff to ValA won't overflow.
   bool Safe = false;
-  auto CheckFlags = [](Instruction *I, bool Signed) {
-    BinaryOperator *BinOpI = cast<BinaryOperator>(I);
-    return (Signed && BinOpI->hasNoSignedWrap()) ||
-           (!Signed && BinOpI->hasNoUnsignedWrap());
-  };
 
   // First attempt: if OpB is an add with NSW/NUW, and OpB is IdxDiff added to
   // ValA, we're okay.
   if (OpB->getOpcode() == Instruction::Add &&
       isa<ConstantInt>(OpB->getOperand(1)) &&
       IdxDiff.sle(cast<ConstantInt>(OpB->getOperand(1))->getSExtValue()) &&
-      CheckFlags(OpB, Signed))
+      checkNoWrapFlags(OpB, Signed))
     Safe = true;
 
-  // Second attempt: If both OpA and OpB is an add with NSW/NUW and with
-  // the same LHS operand, we can guarantee that the transformation is safe
-  // if we can prove that OpA won't overflow when IdxDiff added to the RHS
-  // of OpA.
-  // For example:
-  //  %tmp7 = add nsw i32 %tmp2, %v0
-  //  %tmp8 = sext i32 %tmp7 to i64
-  //  ...
-  //  %tmp11 = add nsw i32 %v0, 1
-  //  %tmp12 = add nsw i32 %tmp2, %tmp11
-  //  %tmp13 = sext i32 %tmp12 to i64
-  //
-  //  Both %tmp7 and %tmp2 has the nsw flag and the first operand
-  //  is %tmp2. It's guaranteed that adding 1 to %tmp7 won't overflow
-  //  because %tmp11 adds 1 to %v0 and both %tmp11 and %tmp12 has the
-  //  nsw flag.
+  // Second attempt: check if we have eligible add NSW/NUW instruction
+  // sequences.
   OpA = dyn_cast<Instruction>(ValA);
   if (!Safe && OpA && OpA->getOpcode() == Instruction::Add &&
-      OpB->getOpcode() == Instruction::Add &&
-      OpA->getOperand(0) == OpB->getOperand(0) && CheckFlags(OpA, Signed) &&
-      CheckFlags(OpB, Signed)) {
-    Value *RHSA = OpA->getOperand(1);
-    Value *RHSB = OpB->getOperand(1);
-    Instruction *OpRHSA = dyn_cast<Instruction>(RHSA);
-    Instruction *OpRHSB = dyn_cast<Instruction>(RHSB);
-    // Match `x +nsw/nuw y` and `x +nsw/nuw (y +nsw/nuw IdxDiff)`.
-    if (OpRHSB && OpRHSB->getOpcode() == Instruction::Add &&
-        CheckFlags(OpRHSB, Signed) && isa<ConstantInt>(OpRHSB->getOperand(1))) {
-      int64_t CstVal = cast<ConstantInt>(OpRHSB->getOperand(1))->getSExtValue();
-      if (OpRHSB->getOperand(0) == RHSA && IdxDiff.getSExtValue() == CstVal)
-        Safe = true;
-    }
-    // Match `x +nsw/nuw (y +nsw/nuw -Idx)` and `x +nsw/nuw (y +nsw/nuw x)`.
-    if (OpRHSA && OpRHSA->getOpcode() == Instruction::Add &&
-        CheckFlags(OpRHSA, Signed) && isa<ConstantInt>(OpRHSA->getOperand(1))) {
-      int64_t CstVal = cast<ConstantInt>(OpRHSA->getOperand(1))->getSExtValue();
-      if (OpRHSA->getOperand(0) == RHSB && IdxDiff.getSExtValue() == -CstVal)
-        Safe = true;
-    }
-    // Match `x +nsw/nuw (y +nsw/nuw c)` and
-    // `x +nsw/nuw (y +nsw/nuw (c + IdxDiff))`.
-    if (OpRHSA && OpRHSB && OpRHSA->getOpcode() == Instruction::Add &&
-        OpRHSB->getOpcode() == Instruction::Add && CheckFlags(OpRHSA, Signed) &&
-        CheckFlags(OpRHSB, Signed) && isa<ConstantInt>(OpRHSA->getOperand(1)) &&
-        isa<ConstantInt>(OpRHSB->getOperand(1))) {
-      int64_t CstValA =
-          cast<ConstantInt>(OpRHSA->getOperand(1))->getSExtValue();
-      int64_t CstValB =
-          cast<ConstantInt>(OpRHSB->getOperand(1))->getSExtValue();
-      if (OpRHSA->getOperand(0) == OpRHSB->getOperand(0) &&
-          IdxDiff.getSExtValue() == (CstValB - CstValA))
-        Safe = true;
-    }
+      OpB->getOpcode() == Instruction::Add && checkNoWrapFlags(OpA, Signed) &&
+      checkNoWrapFlags(OpB, Signed)) {
+    // In the checks below a matching operand in OpA and OpB is
+    // an operand which is the same in those two instructions.
+    // Below we account for possible orders of the operands of
+    // these add instructions.
+    for (unsigned MatchingOpIdxA : {0, 1})
+      for (unsigned MatchingOpIdxB : {0, 1})
+        if (!Safe)
+          Safe = checkIfSafeAddSequence(IdxDiff, OpA, MatchingOpIdxA, OpB,
+                                        MatchingOpIdxB, Signed);
   }
 
   unsigned BitWidth = ValA->getType()->getScalarSizeInBits();
@@ -506,11 +546,8 @@ bool Vectorizer::lookThroughComplexAddresses(Value *PtrA, Value *PtrB,
   // are known to be zero in ValA, we can add Diff to it while guaranteeing no
   // overflow of any sort.
   if (!Safe) {
-    OpA = dyn_cast<Instruction>(ValA);
-    if (!OpA)
-      return false;
     KnownBits Known(BitWidth);
-    computeKnownBits(OpA, Known, DL, 0, nullptr, OpA, &DT);
+    computeKnownBits(ValA, Known, DL, 0, &AC, OpB, &DT);
     APInt BitsAllowedToBeSet = Known.Zero.zext(IdxDiff.getBitWidth());
     if (Signed)
       BitsAllowedToBeSet.clearBit(BitWidth - 1);
@@ -670,6 +707,9 @@ Vectorizer::getVectorizablePrefix(ArrayRef<Instruction *> Chain) {
                cast<IntrinsicInst>(&I)->getIntrinsicID() ==
                    Intrinsic::pseudoprobe) {
       // Ignore llvm.pseudoprobe calls.
+    } else if (isa<IntrinsicInst>(&I) &&
+               cast<IntrinsicInst>(&I)->getIntrinsicID() == Intrinsic::assume) {
+      // Ignore llvm.assume calls.
     } else if (IsLoadChain && (I.mayWriteToMemory() || I.mayThrow())) {
       LLVM_DEBUG(dbgs() << "LSV: Found may-write/throw operation: " << I
                         << '\n');
@@ -1061,7 +1101,7 @@ bool Vectorizer::vectorizeStoreChain(
   InstructionsProcessed->insert(Chain.begin(), Chain.end());
 
   // If the store is going to be misaligned, don't vectorize it.
-  if (accessIsMisaligned(SzInBytes, AS, Alignment.value())) {
+  if (accessIsMisaligned(SzInBytes, AS, Alignment)) {
     if (S0->getPointerAddressSpace() != DL.getAllocaAddrSpace()) {
       auto Chains = splitOddVectorElts(Chain, Sz);
       return vectorizeStoreChain(Chains.first, InstructionsProcessed) |
@@ -1206,7 +1246,7 @@ bool Vectorizer::vectorizeLoadChain(
   InstructionsProcessed->insert(Chain.begin(), Chain.end());
 
   // If the load is going to be misaligned, don't vectorize it.
-  if (accessIsMisaligned(SzInBytes, AS, Alignment.value())) {
+  if (accessIsMisaligned(SzInBytes, AS, Alignment)) {
     if (L0->getPointerAddressSpace() != DL.getAllocaAddrSpace()) {
       auto Chains = splitOddVectorElts(Chain, Sz);
       return vectorizeLoadChain(Chains.first, InstructionsProcessed) |
@@ -1301,8 +1341,8 @@ bool Vectorizer::vectorizeLoadChain(
 }
 
 bool Vectorizer::accessIsMisaligned(unsigned SzInBytes, unsigned AddressSpace,
-                                    unsigned Alignment) {
-  if (Alignment % SzInBytes == 0)
+                                    Align Alignment) {
+  if (Alignment.value() % SzInBytes == 0)
     return false;
 
   bool Fast = false;

@@ -8,10 +8,10 @@
 
 #include "Hexagon.h"
 #include "CommonArgs.h"
-#include "InputInfo.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Option/ArgList.h"
@@ -38,7 +38,7 @@ static void handleHVXWarnings(const Driver &D, const ArgList &Args) {
   // Handle the unsupported values passed to mhvx-length.
   if (Arg *A = Args.getLastArg(options::OPT_mhexagon_hvx_length_EQ)) {
     StringRef Val = A->getValue();
-    if (!Val.equals_lower("64b") && !Val.equals_lower("128b"))
+    if (!Val.equals_insensitive("64b") && !Val.equals_insensitive("128b"))
       D.Diag(diag::err_drv_unsupported_option_argument)
           << A->getOption().getName() << Val;
   }
@@ -218,8 +218,8 @@ constructHexagonLinkArgs(Compilation &C, const JobAction &JA,
   bool IncDefLibs = !Args.hasArg(options::OPT_nodefaultlibs);
   bool UseG0 = false;
   const char *Exec = Args.MakeArgString(HTC.GetLinkerPath());
-  bool UseLLD = (llvm::sys::path::filename(Exec).equals_lower("ld.lld") ||
-                 llvm::sys::path::stem(Exec).equals_lower("ld.lld"));
+  bool UseLLD = (llvm::sys::path::filename(Exec).equals_insensitive("ld.lld") ||
+                 llvm::sys::path::stem(Exec).equals_insensitive("ld.lld"));
   bool UseShared = IsShared && !IsStatic;
   StringRef CpuVer = toolchains::HexagonToolChain::GetTargetCPUVersion(Args);
 
@@ -613,15 +613,15 @@ void HexagonToolChain::addLibCxxIncludePaths(
     llvm::opt::ArgStringList &CC1Args) const {
   const Driver &D = getDriver();
   if (!D.SysRoot.empty() && getTriple().isMusl())
-    addLibStdCXXIncludePaths(D.SysRoot + "/usr/include/c++/v1", "", "", "", "",
-                             "", DriverArgs, CC1Args);
-  else if (getTriple().isMusl())
-    addLibStdCXXIncludePaths("/usr/include/c++/v1", "", "", "", "", "",
+    addLibStdCXXIncludePaths(D.SysRoot + "/usr/include/c++/v1", "", "",
                              DriverArgs, CC1Args);
+  else if (getTriple().isMusl())
+    addLibStdCXXIncludePaths("/usr/include/c++/v1", "", "", DriverArgs,
+                             CC1Args);
   else {
     std::string TargetDir = getHexagonTargetDir(D.InstalledDir, D.PrefixDirs);
-    addLibStdCXXIncludePaths(TargetDir, "/hexagon/include/c++/v1", "", "", "",
-                             "", DriverArgs, CC1Args);
+    addLibStdCXXIncludePaths(TargetDir + "/hexagon/include/c++/v1", "", "",
+                             DriverArgs, CC1Args);
   }
 }
 void HexagonToolChain::addLibStdCxxIncludePaths(
@@ -629,7 +629,7 @@ void HexagonToolChain::addLibStdCxxIncludePaths(
     llvm::opt::ArgStringList &CC1Args) const {
   const Driver &D = getDriver();
   std::string TargetDir = getHexagonTargetDir(D.InstalledDir, D.PrefixDirs);
-  addLibStdCXXIncludePaths(TargetDir, "/hexagon/include/c++", "", "", "", "",
+  addLibStdCXXIncludePaths(TargetDir + "/hexagon/include/c++", "", "",
                            DriverArgs, CC1Args);
 }
 

@@ -26,13 +26,13 @@
 #include "lldb/API/SBStringList.h"
 #include "lldb/API/SBStructuredData.h"
 #include "lldb/API/SBSymbolContextList.h"
+#include "lldb/API/SBTrace.h"
 #include "lldb/Breakpoint/BreakpointID.h"
 #include "lldb/Breakpoint/BreakpointIDList.h"
 #include "lldb/Breakpoint/BreakpointList.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/AddressResolver.h"
-#include "lldb/Core/AddressResolverName.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Module.h"
@@ -706,7 +706,7 @@ size_t SBTarget::ReadMemory(const SBAddress addr, void *buf, size_t size,
   if (target_sp) {
     std::lock_guard<std::recursive_mutex> guard(target_sp->GetAPIMutex());
     bytes_read =
-        target_sp->ReadMemory(addr.ref(), false, buf, size, sb_error.ref());
+        target_sp->ReadMemory(addr.ref(), buf, size, sb_error.ref(), true);
   } else {
     sb_error.SetErrorString("invalid target");
   }
@@ -2086,12 +2086,12 @@ lldb::SBInstructionList SBTarget::ReadInstructions(lldb::SBAddress base_addr,
     if (addr_ptr) {
       DataBufferHeap data(
           target_sp->GetArchitecture().GetMaximumOpcodeByteSize() * count, 0);
-      bool prefer_file_cache = false;
+      bool force_live_memory = true;
       lldb_private::Status error;
       lldb::addr_t load_addr = LLDB_INVALID_ADDRESS;
       const size_t bytes_read =
-          target_sp->ReadMemory(*addr_ptr, prefer_file_cache, data.GetBytes(),
-                                data.GetByteSize(), error, &load_addr);
+          target_sp->ReadMemory(*addr_ptr, data.GetBytes(), data.GetByteSize(),
+                                error, force_live_memory, &load_addr);
       const bool data_from_file = load_addr == LLDB_INVALID_ADDRESS;
       sb_instructions.SetDisassembler(Disassembler::DisassembleBytes(
           target_sp->GetArchitecture(), nullptr, flavor_string, *addr_ptr,
@@ -2410,6 +2410,21 @@ lldb::addr_t SBTarget::GetStackRedZoneSize() {
   return 0;
 }
 
+bool SBTarget::IsLoaded(const SBModule &module) const {
+  LLDB_RECORD_METHOD_CONST(bool, SBTarget, IsLoaded, (const lldb::SBModule &),
+                           module);
+
+  TargetSP target_sp(GetSP());
+  if (!target_sp)
+    return false;
+
+  ModuleSP module_sp(module.GetSP());
+  if (!module_sp)
+    return false;
+
+  return module_sp->IsLoadedInTarget(target_sp.get());
+}
+
 lldb::SBLaunchInfo SBTarget::GetLaunchInfo() const {
   LLDB_RECORD_METHOD_CONST_NO_ARGS(lldb::SBLaunchInfo, SBTarget, GetLaunchInfo);
 
@@ -2438,6 +2453,34 @@ SBEnvironment SBTarget::GetEnvironment() {
   }
 
   return LLDB_RECORD_RESULT(SBEnvironment());
+}
+
+lldb::SBTrace SBTarget::GetTrace() {
+  LLDB_RECORD_METHOD_NO_ARGS(lldb::SBTrace, SBTarget, GetTrace);
+  TargetSP target_sp(GetSP());
+
+  if (target_sp)
+    return LLDB_RECORD_RESULT(SBTrace(target_sp->GetTrace()));
+
+  return LLDB_RECORD_RESULT(SBTrace());
+}
+
+lldb::SBTrace SBTarget::CreateTrace(lldb::SBError &error) {
+  LLDB_RECORD_METHOD(lldb::SBTrace, SBTarget, CreateTrace, (lldb::SBError &),
+                     error);
+  TargetSP target_sp(GetSP());
+  error.Clear();
+
+  if (target_sp) {
+    if (llvm::Expected<lldb::TraceSP> trace_sp = target_sp->CreateTrace()) {
+      return LLDB_RECORD_RESULT(SBTrace(*trace_sp));
+    } else {
+      error.SetErrorString(llvm::toString(trace_sp.takeError()).c_str());
+    }
+  } else {
+    error.SetErrorString("missing target");
+  }
+  return LLDB_RECORD_RESULT(SBTrace());
 }
 
 namespace lldb_private {
@@ -2682,6 +2725,8 @@ void RegisterMethods<SBTarget>(Registry &R) {
   LLDB_REGISTER_METHOD(lldb::SBValue, SBTarget, EvaluateExpression,
                        (const char *, const lldb::SBExpressionOptions &));
   LLDB_REGISTER_METHOD(lldb::addr_t, SBTarget, GetStackRedZoneSize, ());
+  LLDB_REGISTER_METHOD_CONST(bool, SBTarget, IsLoaded,
+                             (const lldb::SBModule &));
   LLDB_REGISTER_METHOD_CONST(lldb::SBLaunchInfo, SBTarget, GetLaunchInfo, ());
   LLDB_REGISTER_METHOD(void, SBTarget, SetLaunchInfo,
                        (const lldb::SBLaunchInfo &));
@@ -2699,6 +2744,8 @@ void RegisterMethods<SBTarget>(Registry &R) {
                        GetInstructionsWithFlavor,
                        (lldb::addr_t, const char *, const void *, size_t));
   LLDB_REGISTER_METHOD(lldb::SBEnvironment, SBTarget, GetEnvironment, ());
+  LLDB_REGISTER_METHOD(lldb::SBTrace, SBTarget, GetTrace, ());
+  LLDB_REGISTER_METHOD(lldb::SBTrace, SBTarget, CreateTrace, (lldb::SBError &));
 }
 
 }

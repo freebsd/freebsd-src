@@ -502,6 +502,28 @@ IntInit::convertInitializerBitRange(ArrayRef<unsigned> Bits) const {
   return BitsInit::get(NewBits);
 }
 
+AnonymousNameInit *AnonymousNameInit::get(unsigned V) {
+  return new (Allocator) AnonymousNameInit(V);
+}
+
+StringInit *AnonymousNameInit::getNameInit() const {
+  return StringInit::get(getAsString());
+}
+
+std::string AnonymousNameInit::getAsString() const {
+  return "anonymous_" + utostr(Value);
+}
+
+Init *AnonymousNameInit::resolveReferences(Resolver &R) const {
+  auto *Old = const_cast<Init *>(static_cast<const Init *>(this));
+  auto *New = R.resolve(Old);
+  New = New ? New : Old;
+  if (R.isFinal())
+    if (auto *Anonymous = dyn_cast<AnonymousNameInit>(New))
+      return Anonymous->getNameInit();
+  return New;
+}
+
 StringInit *StringInit::get(StringRef V, StringFormat Fmt) {
   static StringMap<StringInit*, BumpPtrAllocator &> StringPool(Allocator);
   static StringMap<StringInit*, BumpPtrAllocator &> CodePool(Allocator);
@@ -593,6 +615,12 @@ Init *ListInit::convertInitializerTo(RecTy *Ty) const {
 }
 
 Init *ListInit::convertInitListSlice(ArrayRef<unsigned> Elements) const {
+  if (Elements.size() == 1) {
+    if (Elements[0] >= size())
+      return nullptr;
+    return getElement(Elements[0]);
+  }
+
   SmallVector<Init*, 8> Vals;
   Vals.reserve(Elements.size());
   for (unsigned Element : Elements) {
@@ -625,6 +653,14 @@ Init *ListInit::resolveReferences(Resolver &R) const {
   if (Changed)
     return ListInit::get(Resolved, getElementType());
   return const_cast<ListInit *>(this);
+}
+
+bool ListInit::isComplete() const {
+  for (Init *Element : *this) {
+    if (!Element->isComplete())
+      return false;
+  }
+  return true;
 }
 
 bool ListInit::isConcrete() const {
@@ -701,7 +737,9 @@ Init *UnOpInit::Fold(Record *CurRec, bool IsFinal) const {
 
         // Self-references are allowed, but their resolution is delayed until
         // the final resolve to ensure that we get the correct type for them.
-        if (Name == CurRec->getNameInit()) {
+        auto *Anonymous = dyn_cast<AnonymousNameInit>(CurRec->getNameInit());
+        if (Name == CurRec->getNameInit() ||
+            (Anonymous && Name == Anonymous->getNameInit())) {
           if (!IsFinal)
             break;
           D = CurRec;
@@ -1360,6 +1398,26 @@ Init *TernOpInit::Fold(Record *CurRec) const {
     }
     break;
   }
+
+  case FIND: {
+    StringInit *LHSs = dyn_cast<StringInit>(LHS);
+    StringInit *MHSs = dyn_cast<StringInit>(MHS);
+    IntInit *RHSi = dyn_cast<IntInit>(RHS);
+    if (LHSs && MHSs && RHSi) {
+      int64_t SourceSize = LHSs->getValue().size();
+      int64_t Start = RHSi->getValue();
+      if (Start < 0 || Start > SourceSize)
+        PrintError(CurRec->getLoc(),
+                   Twine("!find start position is out of range 0...") +
+                       std::to_string(SourceSize) + ": " +
+                       std::to_string(Start));
+      auto I = LHSs->getValue().find(MHSs->getValue(), Start);
+      if (I == std::string::npos)
+        return IntInit::get(-1);
+      return IntInit::get(I);
+    }
+    break;
+  }
   }
 
   return const_cast<TernOpInit *>(this);
@@ -1405,15 +1463,15 @@ std::string TernOpInit::getAsString() const {
   case IF: Result = "!if"; break;
   case SUBST: Result = "!subst"; break;
   case SUBSTR: Result = "!substr"; break;
+  case FIND: Result = "!find"; break;
   }
   return (Result + "(" +
           (UnquotedLHS ? LHS->getAsUnquotedString() : LHS->getAsString()) +
           ", " + MHS->getAsString() + ", " + RHS->getAsString() + ")");
 }
 
-static void ProfileFoldOpInit(FoldingSetNodeID &ID, Init *A, Init *B,
-                              Init *Start, Init *List, Init *Expr,
-                              RecTy *Type) {
+static void ProfileFoldOpInit(FoldingSetNodeID &ID, Init *Start, Init *List,
+                              Init *A, Init *B, Init *Expr, RecTy *Type) {
   ID.AddPointer(Start);
   ID.AddPointer(List);
   ID.AddPointer(A);
@@ -1776,6 +1834,9 @@ DefInit *VarDefInit::instantiate() {
     for (const RecordVal &Val : Class->getValues())
       NewRec->addValue(Val);
 
+    // Copy assertions from class to instance.
+    NewRec->appendAssertions(Class);
+
     // Substitute and resolve template arguments
     ArrayRef<Init *> TArgs = Class->getTemplateArgs();
     MapResolver R(NewRec);
@@ -1803,6 +1864,9 @@ DefInit *VarDefInit::instantiate() {
     // Resolve internal references and store in record keeper
     NewRec->resolveReferences();
     Records.addDef(std::move(NewRecOwner));
+
+    // Check the assertions.
+    NewRec->checkRecordAssertions();
 
     Def = DefInit::get(NewRec);
   }
@@ -1888,7 +1952,7 @@ Init *FieldInit::Fold(Record *CurRec) const {
                       FieldName->getAsUnquotedString() + "' of '" +
                       Rec->getAsString() + "' is a forbidden self-reference");
     Init *FieldVal = Def->getValue(FieldName)->getValue();
-    if (FieldVal->isComplete())
+    if (FieldVal->isConcrete())
       return FieldVal;
   }
   return const_cast<FieldInit *>(this);
@@ -2304,6 +2368,14 @@ void Record::getDirectSuperClasses(SmallVectorImpl<Record *> &Classes) const {
 }
 
 void Record::resolveReferences(Resolver &R, const RecordVal *SkipVal) {
+  Init *OldName = getNameInit();
+  Init *NewName = Name->resolveReferences(R);
+  if (NewName != OldName) {
+    // Re-register with RecordKeeper.
+    setName(NewName);
+  }
+
+  // Resolve the field values.
   for (RecordVal &Value : Values) {
     if (SkipVal == &Value) // Skip resolve the same field as the given one
       continue;
@@ -2314,26 +2386,29 @@ void Record::resolveReferences(Resolver &R, const RecordVal *SkipVal) {
         if (TypedInit *VRT = dyn_cast<TypedInit>(VR))
           Type =
               (Twine("of type '") + VRT->getType()->getAsString() + "' ").str();
-        PrintFatalError(getLoc(), Twine("Invalid value ") + Type +
-                                      "is found when setting '" +
-                                      Value.getNameInitAsString() +
-                                      "' of type '" +
-                                      Value.getType()->getAsString() +
-                                      "' after resolving references: " +
-                                      VR->getAsUnquotedString() + "\n");
+        PrintFatalError(
+            getLoc(),
+            Twine("Invalid value ") + Type + "found when setting field '" +
+                Value.getNameInitAsString() + "' of type '" +
+                Value.getType()->getAsString() +
+                "' after resolving references: " + VR->getAsUnquotedString() +
+                "\n");
       }
     }
   }
-  Init *OldName = getNameInit();
-  Init *NewName = Name->resolveReferences(R);
-  if (NewName != OldName) {
-    // Re-register with RecordKeeper.
-    setName(NewName);
+
+  // Resolve the assertion expressions.
+  for (auto &Assertion : Assertions) {
+    Init *Value = Assertion.Condition->resolveReferences(R);
+    Assertion.Condition = Value;
+    Value = Assertion.Message->resolveReferences(R);
+    Assertion.Message = Value;
   }
 }
 
-void Record::resolveReferences() {
+void Record::resolveReferences(Init *NewName) {
   RecordResolver R(*this);
+  R.setName(NewName);
   R.setFinal(true);
   resolveReferences(R);
 }
@@ -2570,6 +2645,21 @@ DagInit *Record::getValueAsDag(StringRef FieldName) const {
     FieldName + "' does not have a dag initializer!");
 }
 
+// Check all record assertions: For each one, resolve the condition
+// and message, then call CheckAssert().
+// Note: The condition and message are probably already resolved,
+//       but resolving again allows calls before records are resolved.
+void Record::checkRecordAssertions() {
+  RecordResolver R(*this);
+  R.setFinal(true);
+
+  for (auto Assertion : getAssertions()) {
+    Init *Condition = Assertion.Condition->resolveReferences(R);
+    Init *Message = Assertion.Message->resolveReferences(R);
+    CheckAssert(Assertion.Loc, Condition, Message);
+  }
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void RecordKeeper::dump() const { errs() << *this; }
 #endif
@@ -2588,7 +2678,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
 /// GetNewAnonymousName - Generate a unique anonymous name that can be used as
 /// an identifier.
 Init *RecordKeeper::getNewAnonymousName() {
-  return StringInit::get("anonymous_" + utostr(AnonCounter++));
+  return AnonymousNameInit::get(AnonCounter++);
 }
 
 // These functions implement the phase timing facility. Starting a timer
@@ -2690,10 +2780,8 @@ Init *RecordResolver::resolve(Init *VarName) {
   if (Val)
     return Val;
 
-  for (Init *S : Stack) {
-    if (S == VarName)
-      return nullptr; // prevent infinite recursion
-  }
+  if (llvm::is_contained(Stack, VarName))
+    return nullptr; // prevent infinite recursion
 
   if (RecordVal *RV = getCurrentRecord()->getValue(VarName)) {
     if (!isa<UnsetInit>(RV->getValue())) {
@@ -2702,6 +2790,10 @@ Init *RecordResolver::resolve(Init *VarName) {
       Val = Val->resolveReferences(*this);
       Stack.pop_back();
     }
+  } else if (Name && VarName == getCurrentRecord()->getNameInit()) {
+    Stack.push_back(VarName);
+    Val = Name->resolveReferences(*this);
+    Stack.pop_back();
   }
 
   Cache[VarName] = Val;

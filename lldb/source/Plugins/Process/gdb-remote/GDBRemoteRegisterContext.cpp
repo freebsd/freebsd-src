@@ -36,7 +36,7 @@ GDBRemoteRegisterContext::GDBRemoteRegisterContext(
     : RegisterContext(thread, concrete_frame_idx),
       m_reg_info_sp(std::move(reg_info_sp)), m_reg_valid(), m_reg_data(),
       m_read_all_at_once(read_all_at_once),
-      m_write_all_at_once(write_all_at_once) {
+      m_write_all_at_once(write_all_at_once), m_gpacket_cached(false) {
   // Resize our vector of bools to contain one bool for every register. We will
   // use these boolean values to know when a register value is valid in
   // m_reg_data.
@@ -50,13 +50,14 @@ GDBRemoteRegisterContext::GDBRemoteRegisterContext(
 }
 
 // Destructor
-GDBRemoteRegisterContext::~GDBRemoteRegisterContext() {}
+GDBRemoteRegisterContext::~GDBRemoteRegisterContext() = default;
 
 void GDBRemoteRegisterContext::InvalidateAllRegisters() {
   SetAllRegisterValid(false);
 }
 
 void GDBRemoteRegisterContext::SetAllRegisterValid(bool b) {
+  m_gpacket_cached = b;
   std::vector<bool>::iterator pos, end = m_reg_valid.end();
   for (pos = m_reg_valid.begin(); pos != end; ++pos)
     *pos = b;
@@ -200,7 +201,7 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
   const uint32_t reg = reg_info->kinds[eRegisterKindLLDB];
 
   if (!GetRegisterIsValid(reg)) {
-    if (m_read_all_at_once) {
+    if (m_read_all_at_once && !m_gpacket_cached) {
       if (DataBufferSP buffer_sp =
               gdb_comm.ReadAllRegisters(m_thread.GetProtocolID())) {
         memcpy(const_cast<uint8_t *>(m_reg_data.GetDataStart()),
@@ -221,7 +222,10 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
               m_reg_valid[i] = false;
             }
           }
-          return true;
+
+          m_gpacket_cached = true;
+          if (GetRegisterIsValid(reg))
+            return true;
         } else {
           Log *log(ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet(GDBR_LOG_THREAD |
                                                                 GDBR_LOG_PACKETS));
@@ -233,9 +237,9 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
               " bytes "
               "but only got %" PRId64 " bytes.",
               m_reg_data.GetByteSize(), buffer_sp->GetByteSize());
+          return false;
         }
       }
-      return false;
     }
     if (reg_info->value_regs) {
       // Process this composite register request by delegating to the
@@ -249,7 +253,8 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
           break;
         // We have a valid primordial register as our constituent. Grab the
         // corresponding register info.
-        const RegisterInfo *prim_reg_info = GetRegisterInfoAtIndex(prim_reg);
+        const RegisterInfo *prim_reg_info =
+            GetRegisterInfo(eRegisterKindProcessPlugin, prim_reg);
         if (prim_reg_info == nullptr)
           success = false;
         else {
@@ -359,7 +364,7 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
                                reg_info->byte_size,        // dst length
                                m_reg_data.GetByteOrder())) // dst byte order
   {
-    GDBRemoteClientBase::Lock lock(gdb_comm, false);
+    GDBRemoteClientBase::Lock lock(gdb_comm);
     if (lock) {
       if (m_write_all_at_once) {
         // Invalidate all register values
@@ -395,7 +400,8 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
               break;
             // We have a valid primordial register as our constituent. Grab the
             // corresponding register info.
-            const RegisterInfo *value_reg_info = GetRegisterInfoAtIndex(reg);
+            const RegisterInfo *value_reg_info =
+                GetRegisterInfo(eRegisterKindProcessPlugin, reg);
             if (value_reg_info == nullptr)
               success = false;
             else
@@ -414,9 +420,10 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
         if (reg_info->invalidate_regs) {
           for (uint32_t idx = 0, reg = reg_info->invalidate_regs[0];
                reg != LLDB_INVALID_REGNUM;
-               reg = reg_info->invalidate_regs[++idx]) {
-            SetRegisterIsValid(reg, false);
-          }
+               reg = reg_info->invalidate_regs[++idx])
+            SetRegisterIsValid(ConvertRegisterKindToRegisterNumber(
+                                   eRegisterKindProcessPlugin, reg),
+                               false);
         }
 
         return success;
@@ -501,7 +508,7 @@ bool GDBRemoteRegisterContext::ReadAllRegisterValues(
   const bool use_g_packet =
       !gdb_comm.AvoidGPackets((ProcessGDBRemote *)process);
 
-  GDBRemoteClientBase::Lock lock(gdb_comm, false);
+  GDBRemoteClientBase::Lock lock(gdb_comm);
   if (lock) {
     if (gdb_comm.SyncThreadState(m_thread.GetProtocolID()))
       InvalidateAllRegisters();
@@ -567,7 +574,7 @@ bool GDBRemoteRegisterContext::WriteAllRegisterValues(
   const bool use_g_packet =
       !gdb_comm.AvoidGPackets((ProcessGDBRemote *)process);
 
-  GDBRemoteClientBase::Lock lock(gdb_comm, false);
+  GDBRemoteClientBase::Lock lock(gdb_comm);
   if (lock) {
     // The data_sp contains the G response packet.
     if (use_g_packet) {

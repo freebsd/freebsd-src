@@ -8,7 +8,7 @@
 
 #include "EmulateInstructionMIPS64.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Opcode.h"
@@ -163,8 +163,8 @@ EmulateInstructionMIPS64::EmulateInstructionMIPS64(
       target->createMCSubtargetInfo(triple.getTriple(), cpu, features));
   assert(m_asm_info.get() && m_subtype_info.get());
 
-  m_context = std::make_unique<llvm::MCContext>(m_asm_info.get(),
-                                                m_reg_info.get(), nullptr);
+  m_context = std::make_unique<llvm::MCContext>(
+      triple, m_asm_info.get(), m_reg_info.get(), m_subtype_info.get());
   assert(m_context.get());
 
   m_disasm.reset(target->createMCDisassembler(*m_subtype_info, *m_context));

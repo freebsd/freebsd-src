@@ -7,10 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Job.h"
-#include "InputInfo.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -43,7 +43,7 @@ Command::Command(const Action &Source, const Tool &Creator,
       Executable(Executable), Arguments(Arguments) {
   for (const auto &II : Inputs)
     if (II.isFilename())
-      InputFilenames.push_back(II.getFilename());
+      InputInfoList.push_back(II);
   for (const auto &II : Outputs)
     if (II.isFilename())
       OutputFilenames.push_back(II.getFilename());
@@ -237,9 +237,10 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
         }
       }
 
-      auto Found = llvm::find_if(InputFilenames,
-                                 [&Arg](StringRef IF) { return IF == Arg; });
-      if (Found != InputFilenames.end() &&
+      auto Found = llvm::find_if(InputInfoList, [&Arg](const InputInfo &II) {
+        return II.getFilename() == Arg;
+      });
+      if (Found != InputInfoList.end() &&
           (i == 0 || StringRef(Args[i - 1]) != "-main-file-name")) {
         // Replace the input file name with the crashinfo's file name.
         OS << ' ';
@@ -302,8 +303,8 @@ void Command::setEnvironment(llvm::ArrayRef<const char *> NewEnvironment) {
 
 void Command::PrintFileNames() const {
   if (PrintInputFilenames) {
-    for (const char *Arg : InputFilenames)
-      llvm::outs() << llvm::sys::path::filename(Arg) << "\n";
+    for (const auto &Arg : InputInfoList)
+      llvm::outs() << llvm::sys::path::filename(Arg.getFilename()) << "\n";
     llvm::outs().flush();
   }
 }
@@ -412,50 +413,6 @@ void CC1Command::setEnvironment(llvm::ArrayRef<const char *> NewEnvironment) {
   // We don't support set a new environment when calling into ExecuteCC1Tool()
   llvm_unreachable(
       "The CC1Command doesn't support changing the environment vars!");
-}
-
-FallbackCommand::FallbackCommand(const Action &Source_, const Tool &Creator_,
-                                 ResponseFileSupport ResponseSupport,
-                                 const char *Executable_,
-                                 const llvm::opt::ArgStringList &Arguments_,
-                                 ArrayRef<InputInfo> Inputs,
-                                 ArrayRef<InputInfo> Outputs,
-                                 std::unique_ptr<Command> Fallback_)
-    : Command(Source_, Creator_, ResponseSupport, Executable_, Arguments_,
-              Inputs, Outputs),
-      Fallback(std::move(Fallback_)) {}
-
-void FallbackCommand::Print(raw_ostream &OS, const char *Terminator,
-                            bool Quote, CrashReportInfo *CrashInfo) const {
-  Command::Print(OS, "", Quote, CrashInfo);
-  OS << " ||";
-  Fallback->Print(OS, Terminator, Quote, CrashInfo);
-}
-
-static bool ShouldFallback(int ExitCode) {
-  // FIXME: We really just want to fall back for internal errors, such
-  // as when some symbol cannot be mangled, when we should be able to
-  // parse something but can't, etc.
-  return ExitCode != 0;
-}
-
-int FallbackCommand::Execute(ArrayRef<llvm::Optional<StringRef>> Redirects,
-                             std::string *ErrMsg, bool *ExecutionFailed) const {
-  int PrimaryStatus = Command::Execute(Redirects, ErrMsg, ExecutionFailed);
-  if (!ShouldFallback(PrimaryStatus))
-    return PrimaryStatus;
-
-  // Clear ExecutionFailed and ErrMsg before falling back.
-  if (ErrMsg)
-    ErrMsg->clear();
-  if (ExecutionFailed)
-    *ExecutionFailed = false;
-
-  const Driver &D = getCreator().getToolChain().getDriver();
-  D.Diag(diag::warn_drv_invoking_fallback) << Fallback->getExecutable();
-
-  int SecondaryStatus = Fallback->Execute(Redirects, ErrMsg, ExecutionFailed);
-  return SecondaryStatus;
 }
 
 ForceSuccessCommand::ForceSuccessCommand(

@@ -102,6 +102,8 @@ public:
   /// If this is a byval or inalloca argument, return its alignment.
   MaybeAlign getParamAlign() const;
 
+  MaybeAlign getParamStackAlign() const;
+
   /// If this is a byval argument, return its type.
   Type *getParamByValType() const;
 
@@ -111,6 +113,9 @@ public:
   /// If this is a byref argument, return its type.
   Type *getParamByRefType() const;
 
+  /// If this is an inalloca argument, return its type.
+  Type *getParamInAllocaType() const;
+
   /// Return true if this argument has the nest attribute.
   bool hasNestAttr() const;
 
@@ -119,6 +124,9 @@ public:
 
   /// Return true if this argument has the nocapture attribute.
   bool hasNoCaptureAttr() const;
+
+  /// Return true if this argument has the nofree attribute.
+  bool hasNoFreeAttr() const;
 
   /// Return true if this argument has the sret attribute.
   bool hasStructRetAttr() const;
@@ -153,6 +161,8 @@ public:
 
   /// Remove attributes from an argument.
   void removeAttr(Attribute::AttrKind Kind);
+
+  void removeAttrs(const AttrBuilder &B);
 
   /// Check if an argument has a given attribute.
   bool hasAttribute(Attribute::AttrKind Kind) const;

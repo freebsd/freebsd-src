@@ -363,14 +363,11 @@ void MemorySSAUpdater::insertDef(MemoryDef *MD, bool RenameUses) {
     // place, compute IDF and place phis.
     SmallPtrSet<BasicBlock *, 2> DefiningBlocks;
 
-    // If this is the last Def in the block, also compute IDF based on MD, since
-    // this may a new Def added, and we may need additional Phis.
-    auto Iter = MD->getDefsIterator();
-    ++Iter;
-    auto IterEnd = MSSA->getBlockDefs(MD->getBlock())->end();
-    if (Iter == IterEnd)
-      DefiningBlocks.insert(MD->getBlock());
-
+    // If this is the last Def in the block, we may need additional Phis.
+    // Compute IDF in all cases, as renaming needs to be done even when MD is
+    // not the last access, because it can introduce a new access past which a
+    // previous access was optimized; that access needs to be reoptimized.
+    DefiningBlocks.insert(MD->getBlock());
     for (const auto &VH : InsertedPHIs)
       if (const auto *RealPHI = cast_or_null<MemoryPhi>(VH))
         DefiningBlocks.insert(RealPHI->getBlock());
@@ -1395,11 +1392,9 @@ void MemorySSAUpdater::removeBlocks(
     MemorySSA::AccessList *Acc = MSSA->getWritableBlockAccesses(BB);
     if (!Acc)
       continue;
-    for (auto AB = Acc->begin(), AE = Acc->end(); AB != AE;) {
-      MemoryAccess *MA = &*AB;
-      ++AB;
-      MSSA->removeFromLookups(MA);
-      MSSA->removeFromLists(MA);
+    for (MemoryAccess &MA : llvm::make_early_inc_range(*Acc)) {
+      MSSA->removeFromLookups(&MA);
+      MSSA->removeFromLists(&MA);
     }
   }
 }
@@ -1426,22 +1421,6 @@ void MemorySSAUpdater::changeToUnreachable(const Instruction *I) {
       MPhi->unorderedDeleteIncomingBlock(BB);
       UpdatedPHIs.push_back(MPhi);
     }
-  }
-  // Optimize trivial phis.
-  tryRemoveTrivialPhis(UpdatedPHIs);
-}
-
-void MemorySSAUpdater::changeCondBranchToUnconditionalTo(const BranchInst *BI,
-                                                         const BasicBlock *To) {
-  const BasicBlock *BB = BI->getParent();
-  SmallVector<WeakVH, 16> UpdatedPHIs;
-  for (const BasicBlock *Succ : successors(BB)) {
-    removeDuplicatePhiEdgesBetween(BB, Succ);
-    if (Succ != To)
-      if (auto *MPhi = MSSA->getMemoryAccess(Succ)) {
-        MPhi->unorderedDeleteIncomingBlock(BB);
-        UpdatedPHIs.push_back(MPhi);
-      }
   }
   // Optimize trivial phis.
   tryRemoveTrivialPhis(UpdatedPHIs);

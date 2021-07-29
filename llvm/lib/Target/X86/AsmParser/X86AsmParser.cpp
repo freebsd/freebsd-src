@@ -1784,21 +1784,21 @@ bool X86AsmParser::ParseIntelNamedOperator(StringRef Name,
   if (Name.compare(Name.lower()) && Name.compare(Name.upper()) &&
       !getParser().isParsingMasm())
     return false;
-  if (Name.equals_lower("not")) {
+  if (Name.equals_insensitive("not")) {
     SM.onNot();
-  } else if (Name.equals_lower("or")) {
+  } else if (Name.equals_insensitive("or")) {
     SM.onOr();
-  } else if (Name.equals_lower("shl")) {
+  } else if (Name.equals_insensitive("shl")) {
     SM.onLShift();
-  } else if (Name.equals_lower("shr")) {
+  } else if (Name.equals_insensitive("shr")) {
     SM.onRShift();
-  } else if (Name.equals_lower("xor")) {
+  } else if (Name.equals_insensitive("xor")) {
     SM.onXor();
-  } else if (Name.equals_lower("and")) {
+  } else if (Name.equals_insensitive("and")) {
     SM.onAnd();
-  } else if (Name.equals_lower("mod")) {
+  } else if (Name.equals_insensitive("mod")) {
     SM.onMod();
-  } else if (Name.equals_lower("offset")) {
+  } else if (Name.equals_insensitive("offset")) {
     SMLoc OffsetLoc = getTok().getLoc();
     const MCExpr *Val = nullptr;
     StringRef ID;
@@ -1814,24 +1814,24 @@ bool X86AsmParser::ParseIntelNamedOperator(StringRef Name,
   } else {
     return false;
   }
-  if (!Name.equals_lower("offset"))
+  if (!Name.equals_insensitive("offset"))
     End = consumeToken();
   return true;
 }
 bool X86AsmParser::ParseMasmNamedOperator(StringRef Name,
                                           IntelExprStateMachine &SM,
                                           bool &ParseError, SMLoc &End) {
-  if (Name.equals_lower("eq")) {
+  if (Name.equals_insensitive("eq")) {
     SM.onEq();
-  } else if (Name.equals_lower("ne")) {
+  } else if (Name.equals_insensitive("ne")) {
     SM.onNE();
-  } else if (Name.equals_lower("lt")) {
+  } else if (Name.equals_insensitive("lt")) {
     SM.onLT();
-  } else if (Name.equals_lower("le")) {
+  } else if (Name.equals_insensitive("le")) {
     SM.onLE();
-  } else if (Name.equals_lower("gt")) {
+  } else if (Name.equals_insensitive("gt")) {
     SM.onGT();
-  } else if (Name.equals_lower("ge")) {
+  } else if (Name.equals_insensitive("ge")) {
     SM.onGE();
   } else {
     return false;
@@ -1933,7 +1933,7 @@ bool X86AsmParser::ParseIntelExpression(IntelExprStateMachine &SM, SMLoc &End) {
       if (Parser.isParsingMasm()) {
         const AsmToken &NextTok = getLexer().peekTok();
         if (NextTok.is(AsmToken::Identifier) &&
-            NextTok.getIdentifier().equals_lower("ptr")) {
+            NextTok.getIdentifier().equals_insensitive("ptr")) {
           AsmTypeInfo Info;
           if (Parser.lookUpType(Identifier, Info))
             return Error(Tok.getLoc(), "unknown type");
@@ -2594,9 +2594,9 @@ bool X86AsmParser::ParseIntelOperand(OperandVector &Operands) {
                                    End, Size, SM.getSymName(),
                                    SM.getIdentifierInfo(), Operands);
 
-  // When parsing x64 MS-style assembly, all memory operands default to
-  // RIP-relative when interpreted as non-absolute references.
-  if (Parser.isParsingMasm() && is64BitMode()) {
+  // When parsing x64 MS-style assembly, all non-absolute references to a named
+  // variable default to RIP-relative.
+  if (Parser.isParsingMasm() && is64BitMode() && SM.getElementSize() > 0) {
     Operands.push_back(X86Operand::CreateMem(getPointerWidth(), RegNo, Disp,
                                              BaseReg, IndexReg, Scale, Start,
                                              End, Size,
@@ -3068,13 +3068,13 @@ bool X86AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     }
     // Parse MASM style pseudo prefixes.
     if (isParsingMSInlineAsm()) {
-      if (Name.equals_lower("vex"))
+      if (Name.equals_insensitive("vex"))
         ForcedVEXEncoding = VEXEncoding_VEX;
-      else if (Name.equals_lower("vex2"))
+      else if (Name.equals_insensitive("vex2"))
         ForcedVEXEncoding = VEXEncoding_VEX2;
-      else if (Name.equals_lower("vex3"))
+      else if (Name.equals_insensitive("vex3"))
         ForcedVEXEncoding = VEXEncoding_VEX3;
-      else if (Name.equals_lower("evex"))
+      else if (Name.equals_insensitive("evex"))
         ForcedVEXEncoding = VEXEncoding_EVEX;
 
       if (ForcedVEXEncoding != VEXEncoding_Default) {
@@ -3101,11 +3101,12 @@ bool X86AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   // Hack to skip "short" following Jcc.
   if (isParsingIntelSyntax() &&
       (PatchedName == "jmp" || PatchedName == "jc" || PatchedName == "jnc" ||
-       PatchedName == "jcxz" || PatchedName == "jexcz" ||
+       PatchedName == "jcxz" || PatchedName == "jecxz" ||
        (PatchedName.startswith("j") &&
         ParseConditionCode(PatchedName.substr(1)) != X86::COND_INVALID))) {
     StringRef NextTok = Parser.getTok().getString();
-    if (NextTok == "short") {
+    if (Parser.isParsingMasm() ? NextTok.equals_insensitive("short")
+                               : NextTok == "short") {
       SMLoc NameEndLoc =
           NameLoc.getFromPointer(NameLoc.getPointer() + Name.size());
       // Eat the short keyword.
@@ -4648,19 +4649,19 @@ bool X86AsmParser::ParseDirective(AsmToken DirectiveID) {
   else if (IDVal == ".cv_fpo_endproc")
     return parseDirectiveFPOEndProc(DirectiveID.getLoc());
   else if (IDVal == ".seh_pushreg" ||
-           (Parser.isParsingMasm() && IDVal.equals_lower(".pushreg")))
+           (Parser.isParsingMasm() && IDVal.equals_insensitive(".pushreg")))
     return parseDirectiveSEHPushReg(DirectiveID.getLoc());
   else if (IDVal == ".seh_setframe" ||
-           (Parser.isParsingMasm() && IDVal.equals_lower(".setframe")))
+           (Parser.isParsingMasm() && IDVal.equals_insensitive(".setframe")))
     return parseDirectiveSEHSetFrame(DirectiveID.getLoc());
   else if (IDVal == ".seh_savereg" ||
-           (Parser.isParsingMasm() && IDVal.equals_lower(".savereg")))
+           (Parser.isParsingMasm() && IDVal.equals_insensitive(".savereg")))
     return parseDirectiveSEHSaveReg(DirectiveID.getLoc());
   else if (IDVal == ".seh_savexmm" ||
-           (Parser.isParsingMasm() && IDVal.equals_lower(".savexmm128")))
+           (Parser.isParsingMasm() && IDVal.equals_insensitive(".savexmm128")))
     return parseDirectiveSEHSaveXMM(DirectiveID.getLoc());
   else if (IDVal == ".seh_pushframe" ||
-           (Parser.isParsingMasm() && IDVal.equals_lower(".pushframe")))
+           (Parser.isParsingMasm() && IDVal.equals_insensitive(".pushframe")))
     return parseDirectiveSEHPushFrame(DirectiveID.getLoc());
 
   return true;
@@ -4776,31 +4777,27 @@ bool X86AsmParser::parseDirectiveFPOProc(SMLoc L) {
     return true;
   if (!isUIntN(32, ParamsSize))
     return Parser.TokError("parameters size out of range");
-  if (Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_proc' directive");
+  if (parseEOL())
+    return true;
   MCSymbol *ProcSym = getContext().getOrCreateSymbol(ProcName);
   return getTargetStreamer().emitFPOProc(ProcSym, ParamsSize, L);
 }
 
 // .cv_fpo_setframe ebp
 bool X86AsmParser::parseDirectiveFPOSetFrame(SMLoc L) {
-  MCAsmParser &Parser = getParser();
   unsigned Reg;
   SMLoc DummyLoc;
-  if (ParseRegister(Reg, DummyLoc, DummyLoc) ||
-      Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_setframe' directive");
+  if (ParseRegister(Reg, DummyLoc, DummyLoc) || parseEOL())
+    return true;
   return getTargetStreamer().emitFPOSetFrame(Reg, L);
 }
 
 // .cv_fpo_pushreg ebx
 bool X86AsmParser::parseDirectiveFPOPushReg(SMLoc L) {
-  MCAsmParser &Parser = getParser();
   unsigned Reg;
   SMLoc DummyLoc;
-  if (ParseRegister(Reg, DummyLoc, DummyLoc) ||
-      Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_pushreg' directive");
+  if (ParseRegister(Reg, DummyLoc, DummyLoc) || parseEOL())
+    return true;
   return getTargetStreamer().emitFPOPushReg(Reg, L);
 }
 
@@ -4808,9 +4805,8 @@ bool X86AsmParser::parseDirectiveFPOPushReg(SMLoc L) {
 bool X86AsmParser::parseDirectiveFPOStackAlloc(SMLoc L) {
   MCAsmParser &Parser = getParser();
   int64_t Offset;
-  if (Parser.parseIntToken(Offset, "expected offset") ||
-      Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_stackalloc' directive");
+  if (Parser.parseIntToken(Offset, "expected offset") || parseEOL())
+    return true;
   return getTargetStreamer().emitFPOStackAlloc(Offset, L);
 }
 
@@ -4818,25 +4814,24 @@ bool X86AsmParser::parseDirectiveFPOStackAlloc(SMLoc L) {
 bool X86AsmParser::parseDirectiveFPOStackAlign(SMLoc L) {
   MCAsmParser &Parser = getParser();
   int64_t Offset;
-  if (Parser.parseIntToken(Offset, "expected offset") ||
-      Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_stackalign' directive");
+  if (Parser.parseIntToken(Offset, "expected offset") || parseEOL())
+    return true;
   return getTargetStreamer().emitFPOStackAlign(Offset, L);
 }
 
 // .cv_fpo_endprologue
 bool X86AsmParser::parseDirectiveFPOEndPrologue(SMLoc L) {
   MCAsmParser &Parser = getParser();
-  if (Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_endprologue' directive");
+  if (Parser.parseEOL())
+    return true;
   return getTargetStreamer().emitFPOEndPrologue(L);
 }
 
 // .cv_fpo_endproc
 bool X86AsmParser::parseDirectiveFPOEndProc(SMLoc L) {
   MCAsmParser &Parser = getParser();
-  if (Parser.parseEOL("unexpected tokens"))
-    return addErrorSuffix(" in '.cv_fpo_endproc' directive");
+  if (Parser.parseEOL())
+    return true;
   return getTargetStreamer().emitFPOEndProc(L);
 }
 

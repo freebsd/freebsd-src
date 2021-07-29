@@ -60,7 +60,7 @@ static mode_t ParsePermissionString(llvm::StringRef permissions) {
 
 class OptionPermissions : public OptionGroup {
 public:
-  OptionPermissions() {}
+  OptionPermissions() = default;
 
   ~OptionPermissions() override = default;
 
@@ -180,16 +180,13 @@ protected:
           result.SetStatus(eReturnStatusSuccessFinishResult);
         } else {
           result.AppendError(error.AsCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       } else {
         result.AppendError("invalid platform name");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError(
           "platform create takes a platform name as an argument\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -232,7 +229,6 @@ protected:
 
     if (idx == 0) {
       result.AppendError("no platforms are available\n");
-      result.SetStatus(eReturnStatusFailed);
     } else
       result.SetStatus(eReturnStatusSuccessFinishResult);
     return result.Succeeded();
@@ -266,7 +262,6 @@ protected:
       result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
       result.AppendError("no platform is currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -298,15 +293,12 @@ protected:
         platform_sp->ConnectToWaitingProcesses(GetDebugger(), error);
         if (error.Fail()) {
           result.AppendError(error.AsCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       } else {
         result.AppendErrorWithFormat("%s\n", error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform is currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -361,24 +353,20 @@ protected:
             result.SetStatus(eReturnStatusSuccessFinishResult);
           } else {
             result.AppendErrorWithFormat("%s", error.AsCString());
-            result.SetStatus(eReturnStatusFailed);
           }
         } else {
           // Not connected...
           result.AppendErrorWithFormat(
               "not connected to '%s'",
               platform_sp->GetPluginName().GetCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       } else {
         // Bad args
         result.AppendError(
             "\"platform disconnect\" doesn't take any arguments");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform is currently selected");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -412,7 +400,6 @@ protected:
             m_option_working_dir.GetOptionValue().GetCurrentValue());
     } else {
       result.AppendError("no platform is currently selected");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -457,11 +444,9 @@ public:
         result.SetStatus(eReturnStatusSuccessFinishResult);
       } else {
         result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -521,11 +506,9 @@ public:
         result.SetStatus(eReturnStatusSuccessFinishResult);
       } else {
         result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -560,7 +543,6 @@ public:
       if (!llvm::to_integer(cmd_line, fd)) {
         result.AppendErrorWithFormatv("'{0}' is not a valid file descriptor.\n",
                                       cmd_line);
-        result.SetStatus(eReturnStatusFailed);
         return result.Succeeded();
       }
       Status error;
@@ -570,11 +552,9 @@ public:
         result.SetStatus(eReturnStatusSuccessFinishResult);
       } else {
         result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -605,7 +585,6 @@ public:
       if (!llvm::to_integer(cmd_line, fd)) {
         result.AppendErrorWithFormatv("'{0}' is not a valid file descriptor.\n",
                                       cmd_line);
-        result.SetStatus(eReturnStatusFailed);
         return result.Succeeded();
       }
       std::string buffer(m_options.m_count, 0);
@@ -617,7 +596,6 @@ public:
       result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -698,7 +676,6 @@ public:
       if (!llvm::to_integer(cmd_line, fd)) {
         result.AppendErrorWithFormatv("'{0}' is not a valid file descriptor.",
                                       cmd_line);
-        result.SetStatus(eReturnStatusFailed);
         return result.Succeeded();
       }
       uint32_t retcode =
@@ -708,7 +685,6 @@ public:
       result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -844,10 +820,8 @@ public:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     // If the number of arguments is incorrect, issue an error message.
     if (args.GetArgumentCount() != 2) {
-      result.GetErrorStream().Printf("error: required arguments missing; "
-                                     "specify both the source and destination "
-                                     "file paths\n");
-      result.SetStatus(eReturnStatusFailed);
+      result.AppendError("required arguments missing; specify both the "
+                         "source and destination file paths");
       return false;
     }
 
@@ -866,11 +840,9 @@ public:
       } else {
         result.AppendMessageWithFormat("get-file failed: %s\n",
                                        error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -920,10 +892,8 @@ public:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     // If the number of arguments is incorrect, issue an error message.
     if (args.GetArgumentCount() != 1) {
-      result.GetErrorStream().Printf("error: required argument missing; "
-                                     "specify the source file path as the only "
-                                     "argument\n");
-      result.SetStatus(eReturnStatusFailed);
+      result.AppendError("required argument missing; specify the source file "
+                         "path as the only argument");
       return false;
     }
 
@@ -941,11 +911,9 @@ public:
         result.AppendMessageWithFormat(
             "Error getting file size of %s (remote)\n",
             remote_file_path.c_str());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -991,11 +959,9 @@ public:
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
       } else {
         result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform currently selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -1009,11 +975,14 @@ public:
                             "Launch a new process on a remote platform.",
                             "platform process launch program",
                             eCommandRequiresTarget | eCommandTryTargetAPILock),
-        m_options() {}
+        m_options(), m_all_options() {
+    m_all_options.Append(&m_options);
+    m_all_options.Finalize();
+  }
 
   ~CommandObjectPlatformProcessLaunch() override = default;
 
-  Options *GetOptions() override { return &m_options; }
+  Options *GetOptions() override { return &m_all_options; }
 
 protected:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
@@ -1070,12 +1039,10 @@ protected:
           result.AppendError("process launch failed");
         else
           result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       } else {
         result.AppendError("'platform process launch' uses the current target "
                            "file and arguments, or the executable and its "
                            "arguments can be specified in this command");
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
     } else {
@@ -1085,6 +1052,7 @@ protected:
   }
 
   CommandOptionsProcessLaunch m_options;
+  OptionGroupOptions m_all_options;
 };
 
 // "platform process list"
@@ -1136,7 +1104,6 @@ protected:
             } else {
               result.AppendErrorWithFormat(
                   "no process found with pid = %" PRIu64 "\n", pid);
-              result.SetStatus(eReturnStatusFailed);
             }
           } else {
             ProcessInstanceInfoList proc_infos;
@@ -1178,7 +1145,6 @@ protected:
                 result.AppendErrorWithFormat(
                     "no processes were found on the \"%s\" platform\n",
                     platform_sp->GetPluginName().GetCString());
-              result.SetStatus(eReturnStatusFailed);
             } else {
               result.AppendMessageWithFormat(
                   "%u matching process%s found on \"%s\"", matches,
@@ -1200,19 +1166,16 @@ protected:
         }
       } else {
         result.AppendError("invalid args: process list takes only options\n");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform is selected\n");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
 
   class CommandOptions : public Options {
   public:
-    CommandOptions()
-        : Options(), match_info(), show_args(false), verbose(false) {}
+    CommandOptions() : Options(), match_info() {}
 
     ~CommandOptions() override = default;
 
@@ -1347,8 +1310,8 @@ protected:
     // Instance variables to hold the values for command options.
 
     ProcessInstanceInfoMatch match_info;
-    bool show_args;
-    bool verbose;
+    bool show_args = false;
+    bool verbose = false;
   };
 
   CommandOptions m_options;
@@ -1410,7 +1373,6 @@ protected:
             if (entry.ref().getAsInteger(0, pid)) {
               result.AppendErrorWithFormat("invalid process ID argument '%s'",
                                            entry.ref().str().c_str());
-              result.SetStatus(eReturnStatusFailed);
               break;
             } else {
               ProcessInstanceInfo proc_info;
@@ -1431,16 +1393,13 @@ protected:
           result.AppendErrorWithFormat(
               "not connected to '%s'",
               platform_sp->GetPluginName().GetCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       } else {
         // No args
         result.AppendError("one or more process id(s) must be specified");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("no platform is currently selected");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -1529,15 +1488,12 @@ public:
           m_options.attach_info, GetDebugger(), nullptr, err);
       if (err.Fail()) {
         result.AppendError(err.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       } else if (!remote_process_sp) {
         result.AppendError("could not attach: unknown reason");
-        result.SetStatus(eReturnStatusFailed);
       } else
         result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
       result.AppendError("no platform is currently selected");
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -1715,7 +1671,6 @@ public:
 
     if (error.Fail()) {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
     } else {
       result.SetStatus(eReturnStatusSuccessFinishResult);
     }
@@ -1749,7 +1704,6 @@ public:
   bool DoExecute(Args &args, CommandReturnObject &result) override {
     if (args.GetArgumentCount() != 2) {
       result.AppendError("platform target-install takes two arguments");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     // TODO: move the bulk of this code over to the platform itself
@@ -1758,14 +1712,12 @@ public:
     FileSpec dst(args.GetArgumentAtIndex(1));
     if (!FileSystem::Instance().Exists(src)) {
       result.AppendError("source location does not exist or is not accessible");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     PlatformSP platform_sp(
         GetDebugger().GetPlatformList().GetSelectedPlatform());
     if (!platform_sp) {
       result.AppendError("no platform currently selected");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -1774,7 +1726,6 @@ public:
       result.SetStatus(eReturnStatusSuccessFinishNoResult);
     } else {
       result.AppendErrorWithFormat("install failed: %s", error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }

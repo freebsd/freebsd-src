@@ -179,7 +179,6 @@ __kmp_wait_template(kmp_info_t *this_thr,
   kmp_uint32 spins;
   int th_gtid;
   int tasks_completed = FALSE;
-  int oversubscribed;
 #if !KMP_USE_MONITOR
   kmp_uint64 poll_count;
   kmp_uint64 hibernate_goal;
@@ -321,10 +320,10 @@ final_spin=FALSE)
     } else
       hibernate_goal = KMP_NOW() + this_thr->th.th_team_bt_intervals;
     poll_count = 0;
+    (void)poll_count;
 #endif // KMP_USE_MONITOR
   }
 
-  oversubscribed = (TCR_4(__kmp_nth) > __kmp_avail_proc);
   KMP_MB();
 
   // Main wait spin loop
@@ -983,7 +982,7 @@ public:
     else if (flag_switch) {
       this_thr->th.th_bar[bt].bb.wait_flag = KMP_BARRIER_SWITCHING;
       kmp_flag_64<> flag(&this_thr->th.th_bar[bt].bb.b_go,
-                       (kmp_uint64)KMP_BARRIER_STATE_BUMP);
+                         (kmp_uint64)KMP_BARRIER_STATE_BUMP);
       __kmp_wait_64(this_thr, &flag, TRUE USE_ITT_BUILD_ARG(itt_sync_obj));
     }
     return false;
@@ -1026,9 +1025,18 @@ public:
   int execute_tasks(kmp_info_t *this_thr, kmp_int32 gtid, int final_spin,
                     int *thread_finished USE_ITT_BUILD_ARG(void *itt_sync_obj),
                     kmp_int32 is_constrained) {
+#if OMPD_SUPPORT
+    int ret = __kmp_execute_tasks_oncore(
+        this_thr, gtid, this, final_spin,
+        thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), is_constrained);
+    if (ompd_state & OMPD_ENABLE_BP)
+      ompd_bp_task_end();
+    return ret;
+#else
     return __kmp_execute_tasks_oncore(
         this_thr, gtid, this, final_spin,
         thread_finished USE_ITT_BUILD_ARG(itt_sync_obj), is_constrained);
+#endif
   }
   kmp_uint8 *get_stolen() { return NULL; }
   enum barrier_type get_bt() { return bt; }

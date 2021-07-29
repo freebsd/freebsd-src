@@ -59,9 +59,12 @@ def AVRlsr : SDNode<"AVRISD::LSR", SDTIntUnaryOp>;
 def AVRrol : SDNode<"AVRISD::ROL", SDTIntUnaryOp>;
 def AVRror : SDNode<"AVRISD::ROR", SDTIntUnaryOp>;
 def AVRasr : SDNode<"AVRISD::ASR", SDTIntUnaryOp>;
-def AVRlsl7 : SDNode<"AVRISD::LSL7", SDTIntUnaryOp>;
-def AVRlsr7 : SDNode<"AVRISD::LSR7", SDTIntUnaryOp>;
-def AVRasr7 : SDNode<"AVRISD::ASR7", SDTIntUnaryOp>;
+def AVRlslbn : SDNode<"AVRISD::LSLBN", SDTIntBinOp>;
+def AVRlsrbn : SDNode<"AVRISD::LSRBN", SDTIntBinOp>;
+def AVRasrbn : SDNode<"AVRISD::ASRBN", SDTIntBinOp>;
+def AVRlslwn : SDNode<"AVRISD::LSLWN", SDTIntBinOp>;
+def AVRlsrwn : SDNode<"AVRISD::LSRWN", SDTIntBinOp>;
+def AVRasrwn : SDNode<"AVRISD::ASRWN", SDTIntBinOp>;
 
 // Pseudo shift nodes for non-constant shift amounts.
 def AVRlslLoop : SDNode<"AVRISD::LSLLOOP", SDTIntShiftOp>;
@@ -357,11 +360,13 @@ Uses = [SP] in
                                 "#ADJCALLSTACKDOWN",
                                 [(AVRcallseq_start timm:$amt, timm:$amt2)]>;
 
-  // R31R30 is used to update SP, since it is a scratch reg and this instruction
-  // is placed after the function call then R31R30 should be always free.
-  //let Defs = [R31R30],
-  //Uses = [R31R30] in
-  //:TODO: if we enable this, the pseudo is killed because it looks dead
+  // R31R30 is used to update SP. It is normally free because it is a
+  // call-clobbered register but it is necessary to set it as a def as the
+  // register allocator might use it in rare cases (for rematerialization, it
+  // seems). hasSideEffects needs to be set to true so this instruction isn't
+  // considered dead.
+  let Defs = [R31R30],
+  hasSideEffects=1 in
   def ADJCALLSTACKUP : Pseudo<(outs),
                               (ins i16imm:$amt1, i16imm:$amt2),
                               "#ADJCALLSTACKUP",
@@ -750,7 +755,7 @@ Defs = [SREG] in
   // Expands to:
   // neg Rd+1
   // neg Rd
-  // sbci Rd+1, 0
+  // sbc Rd+1, r1
   def NEGWRd : Pseudo<(outs DREGS:$rd),
                       (ins DREGS:$src),
                       "negw\t$rd",
@@ -1292,6 +1297,7 @@ class AtomicStore<PatFrag Op, RegisterClass DRC,
   Pseudo<(outs), (ins PTRRC:$rd, DRC:$rr), "atomic_op",
          [(Op i16:$rd, DRC:$rr)]>;
 
+let Constraints = "@earlyclobber $rd" in
 class AtomicLoadOp<PatFrag Op, RegisterClass DRC,
                    RegisterClass PTRRC> :
   Pseudo<(outs DRC:$rd), (ins PTRRC:$rr, DRC:$operand),
@@ -1669,10 +1675,17 @@ Defs = [SREG] in
                       "lslw\t$rd",
                       [(set i16:$rd, (AVRlsl i16:$src)), (implicit SREG)]>;
 
-  def LSLB7Rd : Pseudo<(outs GPR8:$rd),
-                       (ins GPR8:$src),
-                       "lslb7\t$rd",
-                       [(set i8:$rd, (AVRlsl7 i8:$src)), (implicit SREG)]>;
+  def LSLWNRd : Pseudo<(outs DLDREGS:$rd),
+                       (ins DREGS:$src, imm16:$bits),
+                       "lslwn\t$rd, $bits",
+                       [(set i16:$rd, (AVRlslwn i16:$src, imm:$bits)),
+                        (implicit SREG)]>;
+
+  def LSLBNRd : Pseudo<(outs LD8:$rd),
+                       (ins GPR8:$src, imm_ldi8:$bits),
+                       "lslbn\t$rd, $bits",
+                       [(set i8:$rd, (AVRlslbn i8:$src, imm:$bits)),
+                        (implicit SREG)]>;
 
   def LSRRd : FRd<0b1001,
                   0b0100110,
@@ -1681,15 +1694,22 @@ Defs = [SREG] in
                   "lsr\t$rd",
                   [(set i8:$rd, (AVRlsr i8:$src)), (implicit SREG)]>;
 
-  def LSRB7Rd : Pseudo<(outs GPR8:$rd),
-                       (ins GPR8:$src),
-                       "lsrb7\t$rd",
-                       [(set i8:$rd, (AVRlsr7 i8:$src)), (implicit SREG)]>;
-
   def LSRWRd : Pseudo<(outs DREGS:$rd),
                       (ins DREGS:$src),
                       "lsrw\t$rd",
                       [(set i16:$rd, (AVRlsr i16:$src)), (implicit SREG)]>;
+
+  def LSRWNRd : Pseudo<(outs DLDREGS:$rd),
+                       (ins DREGS:$src, imm16:$bits),
+                       "lsrwn\t$rd, $bits",
+                       [(set i16:$rd, (AVRlsrwn i16:$src, imm:$bits)),
+                        (implicit SREG)]>;
+
+  def LSRBNRd : Pseudo<(outs LD8:$rd),
+                       (ins GPR8:$src, imm_ldi8:$bits),
+                       "lsrbn\t$rd, $bits",
+                       [(set i8:$rd, (AVRlsrbn i8:$src, imm:$bits)),
+                        (implicit SREG)]>;
 
   def ASRRd : FRd<0b1001,
                   0b0100101,
@@ -1698,30 +1718,36 @@ Defs = [SREG] in
                   "asr\t$rd",
                   [(set i8:$rd, (AVRasr i8:$src)), (implicit SREG)]>;
 
-  def ASRB7Rd : Pseudo<(outs GPR8:$rd),
-                       (ins GPR8:$src),
-                       "asrb7\t$rd",
-                       [(set i8:$rd, (AVRasr7 i8:$src)), (implicit SREG)]>;
+  def ASRWNRd : Pseudo<(outs DLDREGS:$rd),
+                       (ins DREGS:$src, imm16:$bits),
+                       "asrwn\t$rd, $bits",
+                       [(set i16:$rd, (AVRasrwn i16:$src, imm:$bits)),
+                        (implicit SREG)]>;
+
+  def ASRBNRd : Pseudo<(outs LD8:$rd),
+                       (ins GPR8:$src, imm_ldi8:$bits),
+                       "asrbn\t$rd, $bits",
+                       [(set i8:$rd, (AVRasrbn i8:$src, imm:$bits)),
+                        (implicit SREG)]>;
 
   def ASRWRd : Pseudo<(outs DREGS:$rd),
                       (ins DREGS:$src),
                       "asrw\t$rd",
                       [(set i16:$rd, (AVRasr i16:$src)), (implicit SREG)]>;
 
+  def ROLBRd : Pseudo<(outs GPR8:$rd),
+                      (ins GPR8:$src),
+                      "rolb\t$rd",
+                      [(set i8:$rd, (AVRrol i8:$src)), (implicit SREG)]>;
+
+  def RORBRd : Pseudo<(outs GPR8:$rd),
+                      (ins GPR8:$src),
+                      "rorb\t$rd",
+                      [(set i8:$rd, (AVRror i8:$src)), (implicit SREG)]>;
+
   // Bit rotate operations.
   let Uses = [SREG] in
   {
-    // 8-bit ROL is an alias of ADC Rd, Rd
-
-    def ROLBRd : Pseudo<(outs GPR8:$rd),
-                        (ins GPR8:$src),
-                        "rolb\t$rd",
-                        [(set i8:$rd, (AVRrol i8:$src)), (implicit SREG)]>;
-
-    def RORBRd : Pseudo<(outs GPR8:$rd),
-                        (ins GPR8:$src),
-                        "rorb\t$rd",
-                        [(set i8:$rd, (AVRror i8:$src)), (implicit SREG)]>;
 
     def ROLWRd : Pseudo<(outs DREGS:$rd),
                         (ins DREGS:$src),
@@ -1777,10 +1803,11 @@ def BST : FRdB<0b01,
                "bst\t$rd, $b",
                []>;
 
-let Uses = [SREG] in
+let Constraints = "$src = $rd",
+Uses = [SREG] in
 def BLD : FRdB<0b00,
-               (outs),
-               (ins GPR8:$rd, i8imm:$b),
+               (outs GPR8:$rd),
+               (ins GPR8:$src, i8imm:$b),
                "bld\t$rd, $b",
                []>;
 
@@ -2123,12 +2150,7 @@ def : Pat<(store i16:$src, (i16 (AVRWrapper tglobaladdr:$dst))),
 def : Pat<(i16 (AVRWrapper tblockaddress:$dst)),
           (LDIWRdK tblockaddress:$dst)>;
 
-// hi-reg truncation : trunc(int16 >> 8)
-//:FIXME: i think it's better to emit an extract subreg node in the DAG than
-// all this mess once we get optimal shift code
-// lol... I think so, too. [@agnat]
-def : Pat<(i8 (trunc (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr
-                     (AVRlsr DREGS:$src)))))))))),
+def : Pat<(i8 (trunc (AVRlsrwn DLDREGS:$src, (i16 8)))),
           (EXTRACT_SUBREG DREGS:$src, sub_hi)>;
 
 // :FIXME: DAGCombiner produces an shl node after legalization from these seq:

@@ -44,6 +44,19 @@ def int_aarch64_fjcvtzs : DefaultAttrsIntrinsic<[llvm_i32_ty], [llvm_double_ty],
 def int_aarch64_cls: DefaultAttrsIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]>;
 def int_aarch64_cls64: DefaultAttrsIntrinsic<[llvm_i32_ty], [llvm_i64_ty], [IntrNoMem]>;
 
+def int_aarch64_frint32z
+    : DefaultAttrsIntrinsic<[ llvm_anyfloat_ty ], [ LLVMMatchType<0> ],
+                            [ IntrNoMem ]>;
+def int_aarch64_frint64z
+    : DefaultAttrsIntrinsic<[ llvm_anyfloat_ty ], [ LLVMMatchType<0> ],
+                            [ IntrNoMem ]>;
+def int_aarch64_frint32x
+    : DefaultAttrsIntrinsic<[ llvm_anyfloat_ty ], [ LLVMMatchType<0> ],
+                            [ IntrNoMem ]>;
+def int_aarch64_frint64x
+    : DefaultAttrsIntrinsic<[ llvm_anyfloat_ty ], [ LLVMMatchType<0> ],
+                            [ IntrNoMem ]>;
+
 //===----------------------------------------------------------------------===//
 // HINT
 
@@ -431,9 +444,6 @@ let TargetPrefix = "aarch64", IntrProperties = [IntrNoMem] in {
   def int_aarch64_neon_ursqrte : AdvSIMD_1VectorArg_Intrinsic;
   def int_aarch64_neon_frsqrte : AdvSIMD_1FloatArg_Intrinsic;
 
-  // Vector Bitwise Reverse
-  def int_aarch64_neon_rbit : AdvSIMD_1VectorArg_Intrinsic;
-
   // Vector Conversions Between Half-Precision and Single-Precision.
   def int_aarch64_neon_vcvtfp2hf
     : DefaultAttrsIntrinsic<[llvm_v4i16_ty], [llvm_v4f32_ty], [IntrNoMem]>;
@@ -458,9 +468,11 @@ let TargetPrefix = "aarch64", IntrProperties = [IntrNoMem] in {
   def int_aarch64_neon_fcvtzs : AdvSIMD_FPToIntRounding_Intrinsic;
   def int_aarch64_neon_fcvtzu : AdvSIMD_FPToIntRounding_Intrinsic;
 
-  // Vector FP Rounding: only ties to even is unrepresented by a normal
-  // intrinsic.
-  def int_aarch64_neon_frintn : AdvSIMD_1FloatArg_Intrinsic;
+  // v8.5-A Vector FP Rounding
+  def int_aarch64_neon_frint32x : AdvSIMD_1FloatArg_Intrinsic;
+  def int_aarch64_neon_frint32z : AdvSIMD_1FloatArg_Intrinsic;
+  def int_aarch64_neon_frint64x : AdvSIMD_1FloatArg_Intrinsic;
+  def int_aarch64_neon_frint64z : AdvSIMD_1FloatArg_Intrinsic;
 
   // Scalar FP->Int conversions
 
@@ -475,7 +487,7 @@ let TargetPrefix = "aarch64", IntrProperties = [IntrNoMem] in {
   def int_aarch64_neon_udot : AdvSIMD_Dot_Intrinsic;
   def int_aarch64_neon_sdot : AdvSIMD_Dot_Intrinsic;
 
-// v8.6-A Matrix Multiply Intrinsics
+  // v8.6-A Matrix Multiply Intrinsics
   def int_aarch64_neon_ummla : AdvSIMD_MatMul_Intrinsic;
   def int_aarch64_neon_smmla : AdvSIMD_MatMul_Intrinsic;
   def int_aarch64_neon_usmmla : AdvSIMD_MatMul_Intrinsic;
@@ -675,10 +687,19 @@ def int_aarch64_neon_tbx4 : AdvSIMD_Tbx4_Intrinsic;
 let TargetPrefix = "aarch64" in {
   class FPCR_Get_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_i64_ty], [], [IntrNoMem, IntrHasSideEffects]>;
+  class FPCR_Set_Intrinsic
+    : DefaultAttrsIntrinsic<[], [llvm_i64_ty], [IntrNoMem, IntrHasSideEffects]>;
+  class RNDR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_i64_ty, llvm_i1_ty], [], [IntrNoMem, IntrHasSideEffects]>;
 }
 
 // FPCR
 def int_aarch64_get_fpcr : FPCR_Get_Intrinsic;
+def int_aarch64_set_fpcr : FPCR_Set_Intrinsic;
+
+// Armv8.5-A Random number generation intrinsics
+def int_aarch64_rndr : RNDR_Intrinsic;
+def int_aarch64_rndrrs : RNDR_Intrinsic;
 
 let TargetPrefix = "aarch64" in {
   class Crypto_AES_DataKey_Intrinsic
@@ -711,6 +732,42 @@ let TargetPrefix = "aarch64" in {
   class Crypto_SHA_8Hash4Schedule_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty, llvm_v4i32_ty],
                 [IntrNoMem]>;
+
+  // SHA512 intrinsic taking 2 arguments
+  class Crypto_SHA512_2Arg_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty], [IntrNoMem]>;
+
+  // SHA512 intrinsic taking 3 Arguments
+  class Crypto_SHA512_3Arg_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty, llvm_v2i64_ty],
+                [IntrNoMem]>;
+
+  // SHA3 Intrinsics taking 3 arguments
+  class Crypto_SHA3_3Arg_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+               [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>],
+               [IntrNoMem]>;
+
+  // SHA3 Intrinsic taking 2 arguments
+  class Crypto_SHA3_2Arg_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty],
+               [IntrNoMem]>;
+
+  // SHA3 Intrinsic taking 3 Arguments 1 immediate
+  class Crypto_SHA3_2ArgImm_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_v2i64_ty], [llvm_v2i64_ty, llvm_v2i64_ty, llvm_i64_ty],
+               [IntrNoMem, ImmArg<ArgIndex<2>>]>;
+
+  class Crypto_SM3_3Vector_Intrinsic
+    : Intrinsic<[llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty, llvm_v4i32_ty],
+                [IntrNoMem]>;
+
+  class Crypto_SM3_3VectorIndexed_Intrinsic
+    : Intrinsic<[llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty, llvm_v4i32_ty, llvm_i64_ty],
+                [IntrNoMem, ImmArg<ArgIndex<3>>]>;
+
+  class Crypto_SM4_2Vector_Intrinsic
+    : Intrinsic<[llvm_v4i32_ty], [llvm_v4i32_ty, llvm_v4i32_ty], [IntrNoMem]>;
 }
 
 // AES
@@ -733,6 +790,31 @@ def int_aarch64_crypto_sha256h   : Crypto_SHA_8Hash4Schedule_Intrinsic;
 def int_aarch64_crypto_sha256h2  : Crypto_SHA_8Hash4Schedule_Intrinsic;
 def int_aarch64_crypto_sha256su0 : Crypto_SHA_8Schedule_Intrinsic;
 def int_aarch64_crypto_sha256su1 : Crypto_SHA_12Schedule_Intrinsic;
+
+//SHA3
+def int_aarch64_crypto_eor3s : Crypto_SHA3_3Arg_Intrinsic;
+def int_aarch64_crypto_eor3u : Crypto_SHA3_3Arg_Intrinsic;
+def int_aarch64_crypto_bcaxs : Crypto_SHA3_3Arg_Intrinsic;
+def int_aarch64_crypto_bcaxu : Crypto_SHA3_3Arg_Intrinsic;
+def int_aarch64_crypto_rax1 : Crypto_SHA3_2Arg_Intrinsic;
+def int_aarch64_crypto_xar : Crypto_SHA3_2ArgImm_Intrinsic;
+
+// SHA512
+def int_aarch64_crypto_sha512h : Crypto_SHA512_3Arg_Intrinsic;
+def int_aarch64_crypto_sha512h2 : Crypto_SHA512_3Arg_Intrinsic;
+def int_aarch64_crypto_sha512su0 : Crypto_SHA512_2Arg_Intrinsic;
+def int_aarch64_crypto_sha512su1 : Crypto_SHA512_3Arg_Intrinsic;
+
+//SM3 & SM4
+def int_aarch64_crypto_sm3partw1 : Crypto_SM3_3Vector_Intrinsic;
+def int_aarch64_crypto_sm3partw2 : Crypto_SM3_3Vector_Intrinsic;
+def int_aarch64_crypto_sm3ss1    : Crypto_SM3_3Vector_Intrinsic;
+def int_aarch64_crypto_sm3tt1a   : Crypto_SM3_3VectorIndexed_Intrinsic;
+def int_aarch64_crypto_sm3tt1b   : Crypto_SM3_3VectorIndexed_Intrinsic;
+def int_aarch64_crypto_sm3tt2a   : Crypto_SM3_3VectorIndexed_Intrinsic;
+def int_aarch64_crypto_sm3tt2b   : Crypto_SM3_3VectorIndexed_Intrinsic;
+def int_aarch64_crypto_sm4e      : Crypto_SM4_2Vector_Intrinsic;
+def int_aarch64_crypto_sm4ekey   : Crypto_SM4_2Vector_Intrinsic;
 
 //===----------------------------------------------------------------------===//
 // CRC32
@@ -879,6 +961,12 @@ let TargetPrefix = "aarch64" in {  // All intrinsics start with "llvm.aarch64.".
                 [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
                  LLVMPointerToElt<0>],
                 [IntrReadMem, IntrArgMemOnly]>;
+
+  class AdvSIMD_1Vec_PredLoad_WriteFFR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                 LLVMPointerToElt<0>],
+                [IntrInaccessibleMemOrArgMemOnly]>;
 
   class AdvSIMD_1Vec_PredStore_Intrinsic
     : DefaultAttrsIntrinsic<[],
@@ -1312,6 +1400,15 @@ class AdvSIMD_GatherLoad_SV_64b_Offsets_Intrinsic
                 ],
                 [IntrReadMem, IntrArgMemOnly]>;
 
+class AdvSIMD_GatherLoad_SV_64b_Offsets_WriteFFR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [
+                  LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                  LLVMPointerToElt<0>,
+                  LLVMScalarOrSameVectorWidth<0, llvm_i64_ty>
+                ],
+                [IntrInaccessibleMemOrArgMemOnly]>;
+
 class AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                 [
@@ -1321,6 +1418,15 @@ class AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic
                 ],
                 [IntrReadMem, IntrArgMemOnly]>;
 
+class AdvSIMD_GatherLoad_SV_32b_Offsets_WriteFFR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [
+                  LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                  LLVMPointerToElt<0>,
+                  LLVMScalarOrSameVectorWidth<0, llvm_i32_ty>
+                ],
+                [IntrInaccessibleMemOrArgMemOnly]>;
+
 class AdvSIMD_GatherLoad_VS_Intrinsic
     : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
                 [
@@ -1329,6 +1435,15 @@ class AdvSIMD_GatherLoad_VS_Intrinsic
                   llvm_i64_ty
                 ],
                 [IntrReadMem]>;
+
+class AdvSIMD_GatherLoad_VS_WriteFFR_Intrinsic
+    : DefaultAttrsIntrinsic<[llvm_anyvector_ty],
+                [
+                  LLVMScalarOrSameVectorWidth<0, llvm_i1_ty>,
+                  llvm_anyvector_ty,
+                  llvm_i64_ty
+                ],
+                [IntrInaccessibleMemOrArgMemOnly]>;
 
 class AdvSIMD_ScatterStore_SV_64b_Offsets_Intrinsic
     : DefaultAttrsIntrinsic<[],
@@ -1421,8 +1536,8 @@ def int_aarch64_sve_ld3 : AdvSIMD_ManyVec_PredLoad_Intrinsic;
 def int_aarch64_sve_ld4 : AdvSIMD_ManyVec_PredLoad_Intrinsic;
 
 def int_aarch64_sve_ldnt1 : AdvSIMD_1Vec_PredLoad_Intrinsic;
-def int_aarch64_sve_ldnf1 : AdvSIMD_1Vec_PredLoad_Intrinsic;
-def int_aarch64_sve_ldff1 : AdvSIMD_1Vec_PredLoad_Intrinsic;
+def int_aarch64_sve_ldnf1 : AdvSIMD_1Vec_PredLoad_WriteFFR_Intrinsic;
+def int_aarch64_sve_ldff1 : AdvSIMD_1Vec_PredLoad_WriteFFR_Intrinsic;
 
 def int_aarch64_sve_ld1rq : AdvSIMD_1Vec_PredLoad_Intrinsic;
 def int_aarch64_sve_ld1ro : AdvSIMD_1Vec_PredLoad_Intrinsic;
@@ -1478,7 +1593,6 @@ def int_aarch64_sve_prfd_gather_scalar_offset : SVE_gather_prf_VS;
 
 def int_aarch64_sve_dup : AdvSIMD_SVE_DUP_Intrinsic;
 def int_aarch64_sve_dup_x : AdvSIMD_SVE_DUP_Unpred_Intrinsic;
-
 
 def int_aarch64_sve_index : AdvSIMD_SVE_Index_Intrinsic;
 
@@ -1607,10 +1721,10 @@ def int_aarch64_sve_cntp : AdvSIMD_SVE_CNTP_Intrinsic;
 // FFR manipulation
 //
 
-def int_aarch64_sve_rdffr   : GCCBuiltin<"__builtin_sve_svrdffr">,   DefaultAttrsIntrinsic<[llvm_nxv16i1_ty], []>;
-def int_aarch64_sve_rdffr_z : GCCBuiltin<"__builtin_sve_svrdffr_z">, DefaultAttrsIntrinsic<[llvm_nxv16i1_ty], [llvm_nxv16i1_ty]>;
-def int_aarch64_sve_setffr  : GCCBuiltin<"__builtin_sve_svsetffr">,  DefaultAttrsIntrinsic<[], []>;
-def int_aarch64_sve_wrffr   : GCCBuiltin<"__builtin_sve_svwrffr">,   DefaultAttrsIntrinsic<[], [llvm_nxv16i1_ty]>;
+def int_aarch64_sve_rdffr   : GCCBuiltin<"__builtin_sve_svrdffr">,   DefaultAttrsIntrinsic<[llvm_nxv16i1_ty], [], [IntrReadMem, IntrInaccessibleMemOnly]>;
+def int_aarch64_sve_rdffr_z : GCCBuiltin<"__builtin_sve_svrdffr_z">, DefaultAttrsIntrinsic<[llvm_nxv16i1_ty], [llvm_nxv16i1_ty], [IntrReadMem, IntrInaccessibleMemOnly]>;
+def int_aarch64_sve_setffr  : GCCBuiltin<"__builtin_sve_svsetffr">,  DefaultAttrsIntrinsic<[], [], [IntrWriteMem, IntrInaccessibleMemOnly]>;
+def int_aarch64_sve_wrffr   : GCCBuiltin<"__builtin_sve_svwrffr">,   DefaultAttrsIntrinsic<[], [llvm_nxv16i1_ty], [IntrWriteMem, IntrInaccessibleMemOnly]>;
 
 //
 // Saturating scalar arithmetic
@@ -1961,24 +2075,24 @@ def int_aarch64_sve_ld1_gather_scalar_offset : AdvSIMD_GatherLoad_VS_Intrinsic;
 //
 
 // 64 bit unscaled offsets
-def int_aarch64_sve_ldff1_gather : AdvSIMD_GatherLoad_SV_64b_Offsets_Intrinsic;
+def int_aarch64_sve_ldff1_gather : AdvSIMD_GatherLoad_SV_64b_Offsets_WriteFFR_Intrinsic;
 
 // 64 bit scaled offsets
-def int_aarch64_sve_ldff1_gather_index : AdvSIMD_GatherLoad_SV_64b_Offsets_Intrinsic;
+def int_aarch64_sve_ldff1_gather_index : AdvSIMD_GatherLoad_SV_64b_Offsets_WriteFFR_Intrinsic;
 
 // 32 bit unscaled offsets, sign (sxtw) or zero (uxtw) extended to 64 bits
-def int_aarch64_sve_ldff1_gather_sxtw : AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic;
-def int_aarch64_sve_ldff1_gather_uxtw : AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic;
+def int_aarch64_sve_ldff1_gather_sxtw : AdvSIMD_GatherLoad_SV_32b_Offsets_WriteFFR_Intrinsic;
+def int_aarch64_sve_ldff1_gather_uxtw : AdvSIMD_GatherLoad_SV_32b_Offsets_WriteFFR_Intrinsic;
 
 // 32 bit scaled offsets, sign (sxtw) or zero (uxtw) extended to 64 bits
-def int_aarch64_sve_ldff1_gather_sxtw_index : AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic;
-def int_aarch64_sve_ldff1_gather_uxtw_index : AdvSIMD_GatherLoad_SV_32b_Offsets_Intrinsic;
+def int_aarch64_sve_ldff1_gather_sxtw_index : AdvSIMD_GatherLoad_SV_32b_Offsets_WriteFFR_Intrinsic;
+def int_aarch64_sve_ldff1_gather_uxtw_index : AdvSIMD_GatherLoad_SV_32b_Offsets_WriteFFR_Intrinsic;
 
 //
 // First-faulting gather loads: vector base + scalar offset
 //
 
-def int_aarch64_sve_ldff1_gather_scalar_offset : AdvSIMD_GatherLoad_VS_Intrinsic;
+def int_aarch64_sve_ldff1_gather_scalar_offset : AdvSIMD_GatherLoad_VS_WriteFFR_Intrinsic;
 
 
 //

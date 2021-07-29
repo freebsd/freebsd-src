@@ -28,12 +28,39 @@ fun:dfsan_set_write_callback=uninstrumented
 fun:dfsan_set_write_callback=custom
 fun:dfsan_flush=uninstrumented
 fun:dfsan_flush=discard
+fun:dfsan_print_origin_trace=uninstrumented
+fun:dfsan_print_origin_trace=discard
+fun:dfsan_sprint_origin_trace=uninstrumented
+fun:dfsan_sprint_origin_trace=discard
+fun:dfsan_sprint_stack_trace=uninstrumented
+fun:dfsan_sprint_stack_trace=discard
+fun:dfsan_get_origin=uninstrumented
+fun:dfsan_get_origin=custom
+fun:dfsan_get_init_origin=uninstrumented
+fun:dfsan_get_init_origin=discard
+fun:dfsan_get_track_origins=uninstrumented
+fun:dfsan_get_track_origins=discard
 
 ###############################################################################
 # glibc
 ###############################################################################
+# Functions of memory allocators
+fun:__libc_memalign=discard
+fun:aligned_alloc=discard
+fun:calloc=discard
+fun:cfree=discard
+fun:mallinfo=discard
 fun:malloc=discard
 fun:free=discard
+fun:malloc_stats=discard
+fun:malloc_usable_size=discard
+fun:mallopt=discard
+fun:memalign=discard
+fun:posix_memalign=discard
+fun:pvalloc=discard
+fun:realloc=discard
+fun:reallocarray=discard
+fun:valloc=discard
 
 # Functions that return a value that depends on the input, but the output might
 # not be necessarily data-dependent on the input.
@@ -148,7 +175,6 @@ fun:open=discard
 fun:openat=discard
 fun:pipe=discard
 fun:posix_fadvise=discard
-fun:posix_memalign=discard
 fun:prctl=discard
 fun:printf=discard
 fun:pthread_sigmask=discard
@@ -180,11 +206,11 @@ fun:symlink=discard
 fun:syscall=discard
 fun:unlink=discard
 fun:uselocale=discard
+fun:vfprintf=discard
 
 # Functions that produce output does not depend on the input (need to zero the
 # shadow manually).
 fun:_dl_get_tls_static_info=custom
-fun:calloc=custom
 fun:clock_gettime=custom
 fun:dlopen=custom
 fun:epoll_wait=custom
@@ -214,6 +240,7 @@ fun:ctime_r=custom
 fun:inet_pton=custom
 fun:localtime_r=custom
 fun:memcpy=custom
+fun:memmove=custom
 fun:memset=custom
 fun:strcpy=custom
 fun:strdup=custom
@@ -223,6 +250,7 @@ fun:strtol=custom
 fun:strtoll=custom
 fun:strtoul=custom
 fun:strtoull=custom
+fun:strcat=custom
 
 # Functions that produce an output that is computed from the input, but is not
 # necessarily data dependent.
@@ -252,6 +280,7 @@ fun:sched_getaffinity=custom
 fun:select=custom
 fun:sigemptyset=custom
 fun:sigaction=custom
+fun:signal=custom
 fun:gettimeofday=custom
 
 # sprintf-like
@@ -261,6 +290,9 @@ fun:snprintf=custom
 # TODO: custom
 fun:asprintf=discard
 fun:qsort=discard
+
+# fork
+fun:fork=custom
 
 ###############################################################################
 # pthread
@@ -386,6 +418,38 @@ fun:__sanitizer_cov_trace_pc*=discard
 fun:__sanitizer_cov_pcs_init=uninstrumented
 fun:__sanitizer_cov_pcs_init=discard
 
+fun:__sanitizer_get_current_allocated_bytes=uninstrumented
+fun:__sanitizer_get_current_allocated_bytes=discard
+fun:__sanitizer_get_heap_size=uninstrumented
+fun:__sanitizer_get_heap_size=discard
+fun:__sanitizer_get_free_bytes=uninstrumented
+fun:__sanitizer_get_free_bytes=discard
+fun:__sanitizer_get_unmapped_bytes=uninstrumented
+fun:__sanitizer_get_unmapped_bytes=discard
+fun:__sanitizer_get_estimated_allocated_size=uninstrumented
+fun:__sanitizer_get_estimated_allocated_size=discard
+fun:__sanitizer_get_ownership=uninstrumented
+fun:__sanitizer_get_ownership=discard
+fun:__sanitizer_get_allocated_size=uninstrumented
+fun:__sanitizer_get_allocated_size=discard
+fun:__sanitizer_print_stack_trace=uninstrumented
+fun:__sanitizer_print_stack_trace=discard
+
+fun:TcmallocSlab_Internal_PushBatch_FixedShift=uninstrumented
+fun:TcmallocSlab_Internal_PushBatch_FixedShift=discard
+fun:TcmallocSlab_Internal_PushBatch_FixedShift_VCPU=uninstrumented
+fun:TcmallocSlab_Internal_PushBatch_FixedShift_VCPU=discard
+fun:TcmallocSlab_Internal_PerCpuCmpxchg64=uninstrumented
+fun:TcmallocSlab_Internal_PerCpuCmpxchg64=discard
+fun:TcmallocSlab_Internal_PerCpuCmpxchg64_VCPU=uninstrumented
+fun:TcmallocSlab_Internal_PerCpuCmpxchg64_VCPU=discard
+fun:TcmallocSlab_Internal_PopBatch_FixedShift=uninstrumented
+fun:TcmallocSlab_Internal_PopBatch_FixedShift=discard
+fun:TcmallocSlab_Internal_PopBatch_FixedShift_VCPU=uninstrumented
+fun:TcmallocSlab_Internal_PopBatch_FixedShift_VCPU=discard
+
 # Ignores the dfsan wrappers.
 fun:__dfsw_*=uninstrumented
 fun:__dfsw_*=discard
+fun:__dfso_*=uninstrumented
+fun:__dfso_*=discard

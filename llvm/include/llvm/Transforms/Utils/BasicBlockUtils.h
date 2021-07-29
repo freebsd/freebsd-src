@@ -109,7 +109,8 @@ bool MergeBlockSuccessorsIntoGivenBlocks(
     DomTreeUpdater *DTU = nullptr, LoopInfo *LI = nullptr);
 
 /// Try to remove redundant dbg.value instructions from given basic block.
-/// Returns true if at least one instruction was removed.
+/// Returns true if at least one instruction was removed. Remove redundant
+/// pseudo ops when RemovePseudoOp is true.
 bool RemoveRedundantDbgInstrs(BasicBlock *BB);
 
 /// Replace all uses of an instruction (specified by BI) with a value, then
@@ -178,6 +179,13 @@ struct CriticalEdgeSplittingOptions {
   }
 };
 
+/// When a loop exit edge is split, LCSSA form may require new PHIs in the new
+/// exit block. This function inserts the new PHIs, as needed. Preds is a list
+/// of preds inside the loop, SplitBB is the new loop exit block, and DestBB is
+/// the old loop exit, now the successor of SplitBB.
+void createPHIsForSplitLoopExit(ArrayRef<BasicBlock *> Preds,
+                                BasicBlock *SplitBB, BasicBlock *DestBB);
+
 /// If this edge is a critical edge, insert a new node to split the critical
 /// edge. This will update the analyses passed in through the option struct.
 /// This returns the new block if the edge was split, null otherwise.
@@ -198,6 +206,13 @@ BasicBlock *SplitCriticalEdge(Instruction *TI, unsigned SuccNum,
                               const CriticalEdgeSplittingOptions &Options =
                                   CriticalEdgeSplittingOptions(),
                               const Twine &BBName = "");
+
+/// If it is known that an edge is critical, SplitKnownCriticalEdge can be
+/// called directly, rather than calling SplitCriticalEdge first.
+BasicBlock *SplitKnownCriticalEdge(Instruction *TI, unsigned SuccNum,
+                                   const CriticalEdgeSplittingOptions &Options =
+                                       CriticalEdgeSplittingOptions(),
+                                   const Twine &BBName = "");
 
 inline BasicBlock *
 SplitCriticalEdge(BasicBlock *BB, succ_iterator SI,
@@ -251,6 +266,23 @@ BasicBlock *SplitEdge(BasicBlock *From, BasicBlock *To,
                       DominatorTree *DT = nullptr, LoopInfo *LI = nullptr,
                       MemorySSAUpdater *MSSAU = nullptr,
                       const Twine &BBName = "");
+
+/// Sets the unwind edge of an instruction to a particular successor.
+void setUnwindEdgeTo(Instruction *TI, BasicBlock *Succ);
+
+/// Replaces all uses of OldPred with the NewPred block in all PHINodes in a
+/// block.
+void updatePhiNodes(BasicBlock *DestBB, BasicBlock *OldPred,
+                    BasicBlock *NewPred, PHINode *Until = nullptr);
+
+/// Split the edge connect the specficed blocks in the case that \p Succ is an
+/// Exception Handling Block
+BasicBlock *ehAwareSplitEdge(BasicBlock *BB, BasicBlock *Succ,
+                             LandingPadInst *OriginalPad = nullptr,
+                             PHINode *LandingPadReplacement = nullptr,
+                             const CriticalEdgeSplittingOptions &Options =
+                                 CriticalEdgeSplittingOptions(),
+                             const Twine &BBName = "");
 
 /// Split the specified block at the specified instruction.
 ///
@@ -455,15 +487,15 @@ void SplitBlockAndInsertIfThenElse(Value *Cond, Instruction *SplitBefore,
                                    MDNode *BranchWeights = nullptr);
 
 /// Check whether BB is the merge point of a if-region.
-/// If so, return the boolean condition that determines which entry into
+/// If so, return the branch instruction that determines which entry into
 /// BB will be taken.  Also, return by references the block that will be
 /// entered from if the condition is true, and the block that will be
 /// entered if the condition is false.
 ///
 /// This does no checking to see if the true/false blocks have large or unsavory
 /// instructions in them.
-Value *GetIfCondition(BasicBlock *BB, BasicBlock *&IfTrue,
-                      BasicBlock *&IfFalse);
+BranchInst *GetIfCondition(BasicBlock *BB, BasicBlock *&IfTrue,
+                           BasicBlock *&IfFalse);
 
 // Split critical edges where the source of the edge is an indirectbr
 // instruction. This isn't always possible, but we can handle some easy cases.
