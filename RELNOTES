@@ -5,10 +5,24 @@ users of binary FreeBSD releases.  Each entry should describe the change in no
 more than several sentences and should reference manual pages where an
 interested user can find more information.  Entries should wrap after 80
 columns.  Each entry should begin with one or more commit IDs on one line,
-specified as a comma separated list and/or range, followed by a colon and a
-newline.  Entries should be separated by a newline.
+specified as a comma separated list and/or range.  Entries should be separated
+by a newline.
 
 Changes to this file should not be MFCed.
+
+various
+	One True Awk has been updated to the latest from upstream
+	(20210215). All the FreeBSD patches, but one, have now been
+	either up streamed or discarded.  Notable changes include:
+		o Locale is no longer used for ranges
+		o Various bugs fixed
+		o Better compatibility with gawk and mawk
+
+	The one FreeBSD change, likely to be removed in FreeBSD 14, is that
+	we still allow hex numbers, prefixed with 0x, to be parsed and
+	interpreted as hex numbers while all other awks (including one
+	true awk now) interpret them as 0 in line with awk's historic
+	behavior.
 
 ee29e6f31111
 	Commit ee29e6f31111 added a new sysctl called vfs.nfsd.srvmaxio
