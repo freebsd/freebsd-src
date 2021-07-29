@@ -224,6 +224,12 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 	args->clockrt = args->op & LINUX_FUTEX_CLOCK_REALTIME;
 	args->op = args->op & ~LINUX_FUTEX_CLOCK_REALTIME;
 
+	if (args->clockrt &&
+	    args->op != LINUX_FUTEX_WAIT_BITSET &&
+	    args->op != LINUX_FUTEX_WAIT_REQUEUE_PI &&
+	    args->op != LINUX_FUTEX_LOCK_PI2)
+		return (ENOSYS);
+
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
 		args->val3 = FUTEX_BITSET_MATCH_ANY;
