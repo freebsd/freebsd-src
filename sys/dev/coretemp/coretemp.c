@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>	/* for curthread */
-#include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -310,14 +310,32 @@ coretemp_detach(device_t dev)
 	return (0);
 }
 
+struct coretemp_args {
+	u_int		msr;
+	uint64_t	val;
+};
+
+static void
+coretemp_rdmsr(void *arg)
+{
+	struct coretemp_args *args = arg;
+
+	args->val = rdmsr(args->msr);
+}
+
+static void
+coretemp_wrmsr(void *arg)
+{
+	struct coretemp_args *args = arg;
+
+	wrmsr(args->msr, args->val);
+}
+
 static uint64_t
 coretemp_get_thermal_msr(int cpu)
 {
-	uint64_t msr;
-
-	thread_lock(curthread);
-	sched_bind(curthread, cpu);
-	thread_unlock(curthread);
+	struct coretemp_args args;
+	cpuset_t cpus;
 
 	/*
 	 * The digital temperature reading is located at bit 16
@@ -329,27 +347,24 @@ coretemp_get_thermal_msr(int cpu)
 	 * The temperature is computed by subtracting the temperature
 	 * reading by Tj(max).
 	 */
-	msr = rdmsr(MSR_THERM_STATUS);
-
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
-
-	return (msr);
+	args.msr = MSR_THERM_STATUS;
+	CPU_SETOF(cpu, &cpus);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, coretemp_rdmsr,
+	    smp_no_rendezvous_barrier, &args);
+	return (args.val);
 }
 
 static void
 coretemp_clear_thermal_msr(int cpu)
 {
-	thread_lock(curthread);
-	sched_bind(curthread, cpu);
-	thread_unlock(curthread);
+	struct coretemp_args args;
+	cpuset_t cpus;
 
-	wrmsr(MSR_THERM_STATUS, 0);
-
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	args.msr = MSR_THERM_STATUS;
+	args.val = 0;
+	CPU_SETOF(cpu, &cpus);
+	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, coretemp_wrmsr,
+	    smp_no_rendezvous_barrier, &args);
 }
 
 static int
