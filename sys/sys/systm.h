@@ -437,6 +437,37 @@ int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
 	    u_long newval);
 
+#if defined(SAN_NEEDS_INTERCEPTORS) && !defined(KCSAN)
+int	SAN_INTERCEPTOR(fubyte)(volatile const void *base);
+int	SAN_INTERCEPTOR(fuword16)(volatile const void *base);
+int	SAN_INTERCEPTOR(fueword)(volatile const void *base, long *val);
+int	SAN_INTERCEPTOR(fueword32)(volatile const void *base, int32_t *val);
+int	SAN_INTERCEPTOR(fueword64)(volatile const void *base, int64_t *val);
+int	SAN_INTERCEPTOR(subyte)(volatile void *base, int byte);
+int	SAN_INTERCEPTOR(suword)(volatile void *base, long word);
+int	SAN_INTERCEPTOR(suword16)(volatile void *base, int word);
+int	SAN_INTERCEPTOR(suword32)(volatile void *base, int32_t word);
+int	SAN_INTERCEPTOR(suword64)(volatile void *base, int64_t word);
+int	SAN_INTERCEPTOR(casueword32)(volatile uint32_t *base, uint32_t oldval,
+	    uint32_t *oldvalp, uint32_t newval);
+int	SAN_INTERCEPTOR(casueword)(volatile u_long *p, u_long oldval,
+	    u_long *oldvalp, u_long newval);
+#ifndef SAN_RUNTIME
+#define	fubyte(b)		SAN_INTERCEPTOR(fubyte)((b))
+#define	fuword16(b)		SAN_INTERCEPTOR(fuword16)((b))
+#define	fueword(b, v)		SAN_INTERCEPTOR(fueword)((b), (v))
+#define	fueword32(b, v)		SAN_INTERCEPTOR(fueword32)((b), (v))
+#define	fueword64(b, v)		SAN_INTERCEPTOR(fueword64)((b), (v))
+#define	subyte(b, w)		SAN_INTERCEPTOR(subyte)((b), (w))
+#define	suword(b, w)		SAN_INTERCEPTOR(suword)((b), (w))
+#define	suword16(b, w)		SAN_INTERCEPTOR(suword16)((b), (w))
+#define	suword32(b, w)		SAN_INTERCEPTOR(suword32)((b), (w))
+#define	suword64(b, w)		SAN_INTERCEPTOR(suword64)((b), (w))
+#define	casueword32(b, o, p, n)	SAN_INTERCEPTOR(casueword32)((b), (o), (p), (n))
+#define	casueword(b, o, p, n)	SAN_INTERCEPTOR(casueword)((b), (o), (p), (n))
+#endif /* !SAN_RUNTIME */
+#endif /* SAN_NEEDS_INTERCEPTORS && !KCSAN */
+
 void	realitexpire(void *);
 
 int	sysbeep(int hertz, int period);
