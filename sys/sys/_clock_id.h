@@ -85,6 +85,15 @@
 #define	CLOCK_PROCESS_CPUTIME_ID 15
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+/*
+ * Linux compatible names.
+ */
+#if __BSD_VISIBLE
+#define	CLOCK_BOOTTIME		CLOCK_UPTIME
+#define	CLOCK_REALTIME_COARSE	CLOCK_REALTIME_FAST
+#define	CLOCK_MONOTONIC_COARSE	CLOCK_MONOTONIC_FAST
+#endif
+
 #if __BSD_VISIBLE
 #define TIMER_RELTIME	0x0	/* relative timer */
 #endif
