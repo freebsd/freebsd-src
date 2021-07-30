@@ -296,6 +296,9 @@ static struct ichwd_device ichwd_devices[] = {
 
 static struct ichwd_device ichwd_smb_devices[] = {
 	{ DEVICEID_LEWISBURG_SMB, "Lewisburg watchdog timer",		10, 4 },
+	{ DEVICEID_LEWISBURG_SMB_SSKU, "Lewisburg watchdog timer",	10, 4 },
+	{ DEVICEID_CANNON_SMB,    "Cannon Lake watchdog timer",		10, 4, PMC_HIDDEN},
+	{ DEVICEID_COMET_SMB,     "Comet Lake watchdog timer",		10, 4, PMC_HIDDEN},
 	{ DEVICEID_SRPTLP_SMB,    "Sunrise Point-LP watchdog timer",	10, 4 },
 	{ DEVICEID_C3000,         "Intel Atom C3000 watchdog timer",	10, 4 },
 	{ 0, NULL, 0, 0 },
@@ -788,13 +791,23 @@ ichwd_smb_attach(device_t dev)
 	isab = device_get_parent(device_get_parent(dev));
 	pmdev = pci_find_dbsf(pci_get_domain(isab), pci_get_bus(isab), 31, 2);
 	if (pmdev == NULL) {
-		device_printf(dev, "unable to find Power Management device\n");
-		return (ENXIO);
-	}
-	acpi_base = pci_read_config(pmdev, ICH_PMBASE, 4) & 0xffffff00;
-	if (acpi_base == 0) {
-		device_printf(dev, "ACPI base address is not set\n");
-		return (ENXIO);
+		if (id_p->quirks & PMC_HIDDEN) {
+			/*
+			 * Since the PMC is hidden, we take the default value for the
+			 * given device, which happens to be the same for the ones we
+			 * support.
+			 */
+			acpi_base = ACPI_DEFAULT_CANNON;
+		} else {
+			device_printf(dev, "unable to find Power Management device\n");
+			return (ENXIO);
+		}
+	} else {
+		acpi_base = pci_read_config(pmdev, ICH_PMBASE, 4) & 0xffffff00;
+		if (acpi_base == 0) {
+			device_printf(dev, "ACPI base address is not set\n");
+			return (ENXIO);
+		}
 	}
 
 	/* Allocate SMI control I/O register space. */

@@ -38,6 +38,7 @@ struct ichwd_device {
 	char			*desc;
 	unsigned int		 ich_version;
 	unsigned int		 tco_version;
+	uint32_t		 quirks;
 };
 
 struct ichwd_softc {
@@ -277,6 +278,9 @@ struct ichwd_softc {
 #define	DEVICEID_WCPT_LP7	0x9cc7
 #define	DEVICEID_WCPT_LP9	0x9cc9
 #define	DEVICEID_LEWISBURG_SMB	0xa1a3
+#define	DEVICEID_LEWISBURG_SMB_SSKU	0xa223
+#define DEVICEID_CANNON_SMB	0xa323
+#define DEVICEID_COMET_SMB	0x06a3
 #define	DEVICEID_SRPTLP_SMB	0x9d23
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
@@ -386,6 +390,9 @@ struct ichwd_softc {
 #define	TCO_INTRD_SEL_INTR	0x0001
 #define	TCO_INTRD_SEL_SMI	0x0002
 
+/* default ACPI Base values */
+#define ACPI_DEFAULT_CANNON	0x1800
+
 /*
  * Masks for the TCO timer value field in TCO_RLD.
  * If the datasheets are to be believed, the minimum value actually varies
@@ -407,5 +414,12 @@ struct ichwd_softc {
  * for TCO v3
  */
 #define	ICHWD_TCO_V3_TICK	1000000000
+
+/*
+ * Quirks
+ */
+
+/* On Cannon Lake and Commet Lake PHCs, the PMC is hidden */
+#define PMC_HIDDEN		(1 << 0)
 
 #endif
