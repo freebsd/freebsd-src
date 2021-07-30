@@ -144,6 +144,8 @@ static void	acpi_delete_resource(device_t bus, device_t child, int type,
 		    int rid);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
 static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
+static ssize_t acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
+		    void *propvalue, size_t size);
 static int	acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match);
 static ACPI_STATUS acpi_device_eval_obj(device_t bus, device_t dev,
 		    ACPI_STRING pathname, ACPI_OBJECT_LIST *parameters,
@@ -223,6 +225,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
     DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
     DEVMETHOD(bus_get_domain,		acpi_get_domain),
+    DEVMETHOD(bus_get_property,		acpi_bus_get_prop),
 
     /* ACPI bus */
     DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
@@ -1815,6 +1818,40 @@ acpi_find_dsd(device_t bus, device_t dev)
 	}
 
 	return (AE_NOT_FOUND);
+}
+
+static ssize_t
+acpi_bus_get_prop(device_t bus, device_t child, const char *propname,
+    void *propvalue, size_t size)
+{
+	ACPI_STATUS status;
+	const ACPI_OBJECT *obj;
+
+	status = acpi_device_get_prop(bus, child, __DECONST(char *, propname),
+		&obj);
+	if (ACPI_FAILURE(status))
+		return (-1);
+
+	switch (obj->Type) {
+	case ACPI_TYPE_INTEGER:
+		if (propvalue != NULL && size >= sizeof(uint64_t))
+			*((uint64_t *) propvalue) = obj->Integer.Value;
+		return (sizeof(uint64_t));
+
+	case ACPI_TYPE_STRING:
+		if (propvalue != NULL && size > 0)
+			memcpy(propvalue, obj->String.Pointer,
+			    MIN(size, obj->String.Length));
+		return (obj->String.Length);
+
+	case ACPI_TYPE_BUFFER:
+		if (propvalue != NULL && size > 0)
+			memcpy(propvalue, obj->Buffer.Pointer,
+			    MIN(size, obj->Buffer.Length));
+		return (obj->Buffer.Length);
+	}
+
+	return (-1);
 }
 
 int

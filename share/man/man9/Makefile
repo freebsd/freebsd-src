@@ -47,6 +47,7 @@ MAN=	accept_filter.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
 	BUS_GET_CPUS.9 \
+	BUS_GET_PROPERTY.9 \
 	bus_get_resource.9 \
 	bus_map_resource.9 \
 	BUS_NEW_PASS.9 \
@@ -108,6 +109,7 @@ MAN=	accept_filter.9 \
 	device_get_ivars.9 \
 	device_get_name.9 \
 	device_get_parent.9 \
+	device_get_property.9 \
 	device_get_softc.9 \
 	device_get_state.9 \
 	device_get_sysctl.9 \
