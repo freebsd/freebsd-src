@@ -5,12 +5,12 @@ users of binary FreeBSD releases.  Each entry should describe the change in no
 more than several sentences and should reference manual pages where an
 interested user can find more information.  Entries should wrap after 80
 columns.  Each entry should begin with one or more commit IDs on one line,
-specified as a comma separated list and/or range.  Entries should be separated
-by a newline.
+specified as a comma separated list and/or range, followed by a colon and a
+newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-various
+various:
 	One True Awk has been updated to the latest from upstream
 	(20210215). All the FreeBSD patches, but one, have now been
 	either up streamed or discarded.  Notable changes include:
@@ -24,7 +24,7 @@ various
 	true awk now) interpret them as 0 in line with awk's historic
 	behavior.
 
-ee29e6f31111
+ee29e6f31111:
 	Commit ee29e6f31111 added a new sysctl called vfs.nfsd.srvmaxio
 	that can be used to increase the maximum I/O size for the NFS
 	server to any power of 2 up to 1Mbyte while the nfsd(8) is not running.
@@ -34,15 +34,15 @@ ee29e6f31111
 	kern.ipc.maxsockbuf will need to be increased.  A console
 	message will suggest a setting for it.
 
-d575e81fbcfa
+d575e81fbcfa:
 	gconcat(8) has added support for appending devices to the device
 	not present at creation time.
 
-76681661be28
+76681661be28:
 	Remove support for asymmetric cryptographic operations from
 	the kernel open cryptographic framework (OCF).
 
-a145cf3f73c7
+a145cf3f73c7:
 	The NFSv4 client now uses the highest minor version of NFSv4
 	supported by the NFSv4 server by default instead of minor version 0,
 	for NFSv4 mounts.
