@@ -46,6 +46,7 @@
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
+#include <sys/_clock_id.h>
 
 #if __POSIX_VISIBLE > 0 && __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
 /*
@@ -96,35 +97,6 @@ typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
 #endif
 #endif
-
-/* These macros are also in sys/time.h. */
-#if !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 199506
-#define CLOCK_REALTIME	0
-#endif /* !defined(CLOCK_REALTIME) && __POSIX_VISIBLE >= 199506 */
-#if !defined(CLOCK_VIRTUAL) && __BSD_VISIBLE
-#define CLOCK_VIRTUAL	1
-#define CLOCK_PROF	2
-#endif /* !defined(CLOCK_VIRTUAL) && __BSD_VISIBLE */
-#if !defined(CLOCK_MONOTONIC) && __POSIX_VISIBLE >= 200112
-#define CLOCK_MONOTONIC	4
-#define CLOCK_UPTIME	5		/* FreeBSD-specific. */
-#define CLOCK_UPTIME_PRECISE	7	/* FreeBSD-specific. */
-#define CLOCK_UPTIME_FAST	8	/* FreeBSD-specific. */
-#define CLOCK_REALTIME_PRECISE	9	/* FreeBSD-specific. */
-#define CLOCK_REALTIME_FAST	10	/* FreeBSD-specific. */
-#define CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
-#define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
-#define CLOCK_SECOND	13		/* FreeBSD-specific. */
-#define CLOCK_THREAD_CPUTIME_ID	14
-#define	CLOCK_PROCESS_CPUTIME_ID	15
-#endif /* !defined(CLOCK_MONOTONIC) && __POSIX_VISIBLE >= 200112 */
-
-#if __BSD_VISIBLE
-#define TIMER_RELTIME	0x0	/* relative timer */
-#endif
-#if !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 199506
-#define TIMER_ABSTIME	0x1	/* absolute timer */
-#endif /* !defined(TIMER_ABSTIME) && __POSIX_VISIBLE >= 199506 */
 
 struct tm {
 	int	tm_sec;		/* seconds after the minute [0-60] */

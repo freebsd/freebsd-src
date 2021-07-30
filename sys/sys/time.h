@@ -38,6 +38,7 @@
 #include <sys/_timeval.h>
 #include <sys/types.h>
 #include <sys/timespec.h>
+#include <sys/_clock_id.h>
 
 struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
@@ -470,33 +471,6 @@ struct clockinfo {
 	int	stathz;		/* statistics clock frequency */
 	int	profhz;		/* profiling clock frequency */
 };
-
-/* These macros are also in time.h. */
-#ifndef CLOCK_REALTIME
-#define	CLOCK_REALTIME	0
-#endif
-#ifndef CLOCK_VIRTUAL
-#define	CLOCK_VIRTUAL	1
-#define	CLOCK_PROF	2
-#endif
-#ifndef CLOCK_MONOTONIC
-#define	CLOCK_MONOTONIC	4
-#define	CLOCK_UPTIME	5		/* FreeBSD-specific. */
-#define	CLOCK_UPTIME_PRECISE	7	/* FreeBSD-specific. */
-#define	CLOCK_UPTIME_FAST	8	/* FreeBSD-specific. */
-#define	CLOCK_REALTIME_PRECISE	9	/* FreeBSD-specific. */
-#define	CLOCK_REALTIME_FAST	10	/* FreeBSD-specific. */
-#define	CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
-#define	CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
-#define	CLOCK_SECOND	13		/* FreeBSD-specific. */
-#define	CLOCK_THREAD_CPUTIME_ID	14
-#define	CLOCK_PROCESS_CPUTIME_ID	15
-#endif
-
-#ifndef TIMER_ABSTIME
-#define	TIMER_RELTIME	0x0	/* relative timer */
-#define	TIMER_ABSTIME	0x1	/* absolute timer */
-#endif
 
 #if __BSD_VISIBLE
 #define	CPUCLOCK_WHICH_PID	0
