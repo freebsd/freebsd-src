@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2018
+.Dd July 30, 2021
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -291,7 +291,7 @@ struct ip6_hbh {
 .Ed
 .Pp
 The
-.Fn inet6_option_space
+.Fn inet6_opt_init
 routine and family of routines may be used to manipulate this data.
 .Pp
 This option requires superuser privileges.
@@ -311,7 +311,7 @@ struct ip6_dest {
 .Ed
 .Pp
 The
-.Fn inet6_option_space
+.Fn inet6_opt_init
 routine and family of routines may be used to manipulate this data.
 .Pp
 This option requires superuser privileges.
@@ -345,7 +345,7 @@ struct ip6_rthdr {
 .Ed
 .Pp
 The
-.Fn inet6_option_space
+.Fn inet6_opt_init
 routine and family of routines may be used to manipulate this data.
 .Pp
 This option requires superuser privileges.
