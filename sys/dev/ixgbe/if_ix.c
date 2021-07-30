@@ -2564,7 +2564,7 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	    IXGBE_SYSCTL_DESC_ADV_SPEED);
 
 	SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "fw_version",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, adapter, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD, adapter, 0,
 	    ixgbe_sysctl_print_fw_version, "A", "Prints FW/NVM Versions");
 
 #ifdef IXGBE_DEBUG
