@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2018 Microsemi Corporation.
- * All rights reserved.
+ * Copyright 2016-2021 Microchip Technology, Inc. and/or its subsidiaries.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,9 +28,6 @@
 #ifndef _PQI_STRUCTURES_H
 #define _PQI_STRUCTURES_H
 
-
-
-
 struct bmic_host_wellness_driver_version {
 	uint8_t		start_tag[4];
 	uint8_t		driver_version_tag[2];
@@ -40,7 +36,6 @@ struct bmic_host_wellness_driver_version {
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
-
 
 struct bmic_host_wellness_time {
 	uint8_t		start_tag[4];
@@ -59,14 +54,13 @@ struct bmic_host_wellness_time {
 
 }OS_ATTRIBUTE_PACKED;
 
-
 /* As per PQI Spec pqi-2r00a , 6.2.2. */
 
 /* device capability register , for admin q table 24 */
 struct pqi_dev_adminq_cap {
 	uint8_t		max_admin_ibq_elem;
 	uint8_t		max_admin_obq_elem;
-	uint8_t		admin_ibq_elem_len;	
+	uint8_t		admin_ibq_elem_len;
 	uint8_t		admin_obq_elem_len;
 	uint16_t	max_pqi_dev_reset_tmo;
 	uint8_t		res[2];
@@ -96,7 +90,7 @@ struct pqi_registers {
 	uint64_t		admin_obq_elem_array_addr;
 	uint64_t		admin_ibq_ci_addr;
 	uint64_t		admin_obq_pi_addr;
-	uint32_t	 	admin_q_param;		
+	uint32_t	 	admin_q_param;
 	uint8_t			res3[4];
 	uint32_t		pqi_dev_err;
 	uint8_t			res4[4];
@@ -110,17 +104,17 @@ struct pqi_registers {
  * IOA controller registers
  * Mapped in PCIe BAR 0.
  */
- 
+
 struct ioa_registers {
-	uint8_t		res1[0x18];				 	
+	uint8_t		res1[0x18];
 	uint32_t	host_to_ioa_db_mask_clr; 	/* 18h */
-	uint8_t		res2[4];				 	
+	uint8_t		res2[4];
 	uint32_t	host_to_ioa_db;			/* 20h */
 	uint8_t		res3[4];
 	uint32_t	host_to_ioa_db_clr;		/* 28h */
 	uint8_t		res4[8];
 	uint32_t	ioa_to_host_glob_int_mask;	/* 34h */
-	uint8_t		res5[0x64];	
+	uint8_t		res5[0x64];
 	uint32_t	ioa_to_host_db;			/* 9Ch */
 	uint32_t	ioa_to_host_db_clr;		/* A0h */
 	uint8_t		res6[4];
@@ -191,10 +185,10 @@ typedef union pqi_reset_reg {
 	uint32_t all_bits;
 }pqi_reset_reg_t;
 
-/* Memory descriptor for DMA memory allocation */	
+/* Memory descriptor for DMA memory allocation */
 typedef struct dma_mem {
 	void			*virt_addr;
-	dma_addr_t 		dma_addr;
+    dma_addr_t 		dma_addr;
 	uint32_t 		size;
 	uint32_t 		align;
 	char 			*tag;
@@ -228,9 +222,10 @@ union head_list {
 };
 /* lock-free stack used to push and pop the tag used for IO request */
 typedef struct  lockless_stack {
-        uint32_t                        *next_index_array;
-        uint32_t                        num_elements;
-        volatile union head_list      head	OS_ATTRIBUTE_ALIGNED(8);
+	uint32_t	*next_index_array;
+	uint32_t	max_elem;/*No.of total elements*/
+	uint32_t	num_elem;/*No.of present elements*/
+	volatile union	head_list      head	OS_ATTRIBUTE_ALIGNED(8);
 }lockless_stack_t;
 
 #endif /* LOCKFREE_STACK */
@@ -254,12 +249,12 @@ typedef struct sgl_descriptor
 	uint64_t	addr;	/* !< Bytes 0-7.  The starting 64-bit memory byte address of the data block. */
 	uint32_t	length;	/* !< Bytes 8-11.  The length in bytes of the data block.  Set to 0x00000000 specifies that no data be transferred. */
 	uint8_t		res[3];	/* !< Bytes 12-14. */
-	uint8_t     	zero : 4; /* !< Byte 15, Bits 0-3. */
-	uint8_t     	type : 4; /* !< Byte 15, Bits 4-7. sgl descriptor type */
+	uint8_t     zero : 4; /* !< Byte 15, Bits 0-3. */
+	uint8_t     type : 4; /* !< Byte 15, Bits 4-7. sgl descriptor type */
 } sg_desc_t;
 
 /* PQI IUs */
-typedef struct iu_header 
+typedef struct iu_header
 {
 	uint8_t		iu_type;
 	uint8_t		comp_feature;
@@ -278,7 +273,7 @@ typedef struct general_admin_request /* REPORT_PQI_DEVICE_CAPABILITY, REPORT_MAN
 		struct {
 			uint8_t		res2[33];	/* !< Bytes 11-43. function specific */
 			uint32_t	buf_size;	/* !< Bytes 44-47. size in bytes of the Data-In/Out Buffer */
-			sg_desc_t	sg_desc;	/* !< Bytes 48-63. SGL */ 
+			sg_desc_t	sg_desc;	/* !< Bytes 48-63. SGL */
         } OS_ATTRIBUTE_PACKED general_func;
 
 		struct {
@@ -357,15 +352,15 @@ typedef struct general_admin_response {
 
 typedef struct pqi_event_config_request {
 	iu_header_t   	header;
-	uint16_t	response_queue_id;	/* specifies the OQ where the response
-					                    	IU is to be delivered */
-	uint8_t	    	work_area[2];		/* reserved for driver use */
-	uint16_t	request_id;
+	uint16_t	 	response_queue_id;	/* specifies the OQ where the response
+					                              IU is to be delivered */
+	uint8_t	    	work_area[2];	/* reserved for driver use */
+	uint16_t	    request_id;
 	union {
-		uint16_t  	reserved;           /* Report event config iu */ 
+		uint16_t  	reserved;           /* Report event config iu */
 		uint16_t  	global_event_oq_id; /* Set event config iu */
 	}iu_specific;
-	uint32_t	buffer_length;
+	uint32_t	    buffer_length;
 	sg_desc_t     	sg_desc;
 }pqi_event_config_request_t;
 #if 0
@@ -380,9 +375,9 @@ typedef struct pqi_set_event_config_request {
 	sg_desc_t 	sg_desc;
 }pqi_set_event_config_request_t;
 #endif
-  
+
  /* Report/Set event config data-in/data-out buffer structure */
-  
+
 #define PQI_MAX_EVENT_DESCRIPTORS 255
 
 struct pqi_event_descriptor {
@@ -390,7 +385,7 @@ struct pqi_event_descriptor {
 	uint8_t  	reserved;
 	uint16_t	oq_id;
 };
-  
+
 typedef struct pqi_event_config {
 	uint8_t  	reserved[2];
 	uint8_t  	num_event_descriptors;
@@ -410,7 +405,7 @@ typedef struct pqi_management_response{
 }pqi_management_response_t;
   /*Event response IU*/
 typedef struct pqi_event_response {
-	iu_header_t 		header;
+	iu_header_t 	header;
 	uint16_t 		reserved1;
 	uint8_t 		work_area[2];
 	uint8_t 		event_type;
@@ -423,7 +418,7 @@ typedef struct pqi_event_response {
 
   /*event acknowledge IU*/
 typedef struct pqi_event_acknowledge_request {
-	iu_header_t 		header;
+	iu_header_t 	header;
 	uint16_t 		reserved1;
 	uint8_t 		work_area[2];
 	uint8_t 		event_type;
@@ -439,22 +434,114 @@ struct pqi_event {
 	uint32_t	additional_event_id;
 };
 
+typedef struct pqi_vendor_general_request {
+	iu_header_t	header;
+	uint16_t	response_queue_id;
+	uint8_t		work_area[2];
+	uint16_t	request_id;
+	uint16_t	function_code;
+	union {
+		struct {
+			uint16_t	first_section;
+			uint16_t	last_section;
+			uint8_t		reserved1[48];
+		} OS_ATTRIBUTE_PACKED config_table_update;
+
+		struct {
+			uint64_t	buffer_address;
+			uint32_t	buffer_length;
+			uint8_t		reserved2[40];
+		} OS_ATTRIBUTE_PACKED ofa_memory_allocation;
+	} data;
+} OS_ATTRIBUTE_PACKED pqi_vendor_general_request_t;
+
+typedef struct pqi_vendor_general_response {
+	iu_header_t	header;
+	uint16_t	reserved1;
+	uint8_t		work_area[2];
+	uint16_t	request_id;
+	uint16_t	function_code;
+	uint16_t	status;
+	uint8_t		reserved2[2];
+} OS_ATTRIBUTE_PACKED pqi_vendor_general_response_t;
 
 typedef struct op_q_params
 {
-	uint8_t		fn_code;	
-	uint16_t        qid;		
+	uint8_t		fn_code;
+	uint16_t        qid;
 	uint16_t	num_elem;
 	uint16_t	elem_len;
 	uint16_t	int_msg_num;
-    
+
 } OS_ATTRIBUTE_PACKED op_q_params;
 
+/* "Fixed Format Sense Data" (0x70 or 0x71)  (Table 45 in SPC5) */
+typedef struct sense_data_fixed {
+	uint8_t  response_code : 7;      // Byte 0, 0x70 or 0x71
+	uint8_t  valid : 1;              // Byte 0, bit 7
+	uint8_t  byte_1;                 // Byte 1
+	uint8_t  sense_key : 4;          // Byte 2, bit 0-3 (Key)
+	uint8_t  byte_2_other : 4;       // Byte 2, bit 4-7
+	uint32_t information;            // Byte 3-6, big-endian like block # in CDB
+	uint8_t  addtnl_length;          // Byte 7
+	uint8_t  cmd_specific[4];        // Byte 8-11
+	uint8_t  sense_code;             // Byte 12 (ASC)
+	uint8_t  sense_qual;             // Byte 13 (ASCQ)
+	uint8_t  fru_code;               // Byte 14
+	uint8_t  sense_key_specific[3];  // Byte 15-17
+	uint8_t  addtnl_sense[1];        // Byte 18+
+} OS_ATTRIBUTE_PACKED sense_data_fixed_t;
 
-/* Driver will use this structure to interpret the error 
+
+/* Generic Sense Data Descriptor (Table 29 in SPC5) */
+typedef struct descriptor_entry
+{
+	uint8_t  desc_type;              // Byte 9/0
+	uint8_t  desc_type_length;       // Byte 10/1
+	union
+	{
+		/* Sense data descriptor specific */
+		uint8_t bytes[1];
+
+		/* Information (Type 0) (Table 31 is SPC5) */
+		struct {
+			uint8_t  byte_2_rsvd : 7;  // Byte 11/2
+			uint8_t  valid : 1;        // Byte 11/2, bit 7
+			uint8_t  byte_3;           // Byte 12/3
+			uint8_t  information[8];   // Byte 13-20/4-11
+		} OS_ATTRIBUTE_PACKED type_0;
+
+	}u;
+} OS_ATTRIBUTE_PACKED descriptor_entry_t;
+
+/* "Descriptor Format Sense Data" (0x72 or 0x73) (Table 28 in SPC5) */
+typedef struct sense_data_descriptor {
+	uint8_t  response_code : 7;      // Byte 0, 0x72 or 0x73
+	uint8_t  byte_0_rsvd: 1;         // Byte 0, bit 7
+	uint8_t  sense_key : 4;          // Byte 1, bit 0-3 (Key)
+	uint8_t  byte_1_other : 4;       // Byte 1, bit 4-7
+	uint8_t  sense_code;             // Byte 2 (ASC)
+	uint8_t  sense_qual;             // Byte 3 (ASCQ)
+	uint8_t  byte4_6[3];             // Byte 4-6
+	uint8_t  more_length;            // Byte 7
+	descriptor_entry_t descriptor_list; // Bytes 8+
+
+} OS_ATTRIBUTE_PACKED sense_data_descriptor_t;
+
+typedef union sense_data_u
+{
+	sense_data_fixed_t      fixed_format;
+	sense_data_descriptor_t descriptor_format;
+	uint8_t                 data[256];
+} sense_data_u_t;
+
+
+
+
+/* Driver will use this structure to interpret the error
    info element returned from a failed requests */
 typedef struct raid_path_error_info_elem {
-	uint8_t		data_in_result;		/* !< Byte 0.  See SOP spec Table 77. */ 
+	uint8_t		data_in_result;		/* !< Byte 0.  See SOP spec Table 77. */
 	uint8_t		data_out_result;	/* !< Byte 1.  See SOP spec Table 78. */
 	uint8_t		reserved[3];		/* !< Bytes 2-4. */
 	uint8_t		status;			/* !< Byte 5. See SAM-5 specification "Status" codes Table 40. Defined in Storport.h */
@@ -463,29 +550,33 @@ typedef struct raid_path_error_info_elem {
 	uint16_t	resp_data_len;		/* !< Bytes 10-11. See SOP specification table 79. */
 	uint32_t	data_in_transferred;	/* !< Bytes 12-15. If "dada_in_result = 0x01 (DATA_IN BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-In buffer else Ignored. */
 	uint32_t	data_out_transferred;	/* !< Bytes 16-19. If "data_out_result = 0x01 (DATA_OUT BUFFER UNDERFLOW)", Indicates the number of contiguous bytes starting with offset zero in Data-Out buffer else Ignored. */
-	uint8_t		data[256];              /* !< Bytes 20-275. Response Data buffer or Sense Data buffer but not both. */
+	union
+	{
+		sense_data_u_t sense_data;
+		uint8_t        data[256];              /* !< Bytes 20-275. Response Data buffer or Sense Data buffer but not both. */
+	};
 }OS_ATTRIBUTE_PACKED raid_path_error_info_elem_t;
 
 #define PQI_ERROR_BUFFER_ELEMENT_LENGTH sizeof(raid_path_error_info_elem_t)
 
-typedef enum error_data_present 
+typedef enum error_data_present
 {
-   DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */ 
+   DATA_PRESENT_NO_DATA       = 0,   /* !< No data present in Data buffer. */
    DATA_PRESENT_RESPONSE_DATA = 1,   /* !< Response data is present in Data buffer. */
    DATA_PRESENT_SENSE_DATA    = 2    /* !< Sense data is present in Data buffer. */
 } error_data_present_t;
 
-typedef struct aio_path_error_info_elem 
+typedef struct aio_path_error_info_elem
 {
 	uint8_t		status;			/* !< Byte 0.  See SAM-5 specification "SCSI Status" codes Table 40. Defined in Storport.h */
-	uint8_t		service_resp;		/* !< Byte 1.  SCSI Service Response.  */ 
+	uint8_t		service_resp;		/* !< Byte 1.  SCSI Service Response.  */
 	uint8_t		data_pres;		/* !< Byte 2.  Bits [7:2] reserved. Bits [1:0] - 0=No data, 1=Response data, 2=Sense data. */
-	uint8_t		reserved1;		/* !< Byte 3.  Reserved. */ 
+	uint8_t		reserved1;		/* !< Byte 3.  Reserved. */
 	uint32_t	resd_count;		/* !< Bytes 4-7.  The residual data length in bytes. Need the original transfer size and if Status is OverRun or UnderRun. */
-	uint16_t	data_len;		/* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */ 
+	uint16_t	data_len;		/* !< Bytes 8-9.  The amount of Sense data or Response data returned in Response/Sense Data buffer. */
 	uint16_t	reserved2;		/* !< Bytes 10.  Reserved. */
 	uint8_t		data[256];		/* !< Bytes 11-267. Response data buffer or Sense data buffer but not both. */
-	uint8_t		padding[8];		/* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */ 
+	uint8_t		padding[8];		/* !< Bytes 268-275.  Padding to make AIO_PATH_ERROR_INFO_ELEMENT = RAID_PATH_ERROR_INFO_ELEMENT */
 }OS_ATTRIBUTE_PACKED aio_path_error_info_elem_t;
 
 struct init_base_struct {
@@ -495,7 +586,7 @@ struct init_base_struct {
 	uint32_t	err_buf_paddr_h;	/* upper 32 bits of physical address of error buffer */
 	uint32_t	err_buf_elem_len;	/* length of each element in error buffer (in bytes) */
 	uint32_t	err_buf_num_elem;	/* number of elements in error buffer */
-}OS_ATTRIBUTE_PACKED; 
+}OS_ATTRIBUTE_PACKED;
 
 /* Queue details */
 typedef struct ib_queue {
@@ -611,40 +702,42 @@ typedef struct pqi_aio_req {
 
 
 typedef struct pqisrc_raid_request {
-	iu_header_t 	header;
-	uint16_t 	response_queue_id;	/* specifies the OQ where the response
+	iu_header_t header;
+	uint16_t response_queue_id;	/* specifies the OQ where the response
 					   IU is to be delivered */
-	uint8_t		work_area[2];	/* reserved for driver use */
-	uint16_t 	request_id;
-	uint16_t 	nexus_id;
-	uint32_t 	buffer_length;
-	uint8_t		lun_number[8];
-	uint16_t 	protocol_spec;
-	uint8_t		data_direction : 2;
-	uint8_t		partial : 1;
-	uint8_t		reserved1 : 4;
-	uint8_t		fence : 1;
-	uint16_t 	error_index;
-	uint8_t		reserved2;
-	uint8_t		task_attribute : 3;
-	uint8_t		command_priority : 4;
-	uint8_t		reserved3 : 1;
-	uint8_t		reserved4 : 2;
-	uint8_t		additional_cdb_bytes_usage : 3;
-	uint8_t		reserved5 : 3;
-	uint8_t		cdb[16];
-	uint8_t		additional_cdb_bytes[16];
-	sgt_t		sg_descriptors[4];
-}OS_ATTRIBUTE_PACKED pqisrc_raid_req_t;
+	uint8_t	work_area[2];	/* reserved for driver use */
+	uint16_t request_id;
+	uint16_t nexus_id;
+	uint32_t buffer_length;
+	uint8_t	lun_number[8];
+	uint16_t protocol_spec;
+	uint8_t	data_direction : 2;
+	uint8_t	partial : 1;
+	uint8_t	reserved1 : 4;
+	uint8_t	fence : 1;
+	uint16_t error_index;
+	uint8_t	reserved2;
+	uint8_t	task_attribute : 3;
+	uint8_t	command_priority : 4;
+	uint8_t	reserved3 : 1;
+	uint8_t	reserved4 : 2;
+	uint8_t	additional_cdb_bytes_usage : 3;
+	uint8_t	reserved5 : 3;
+	uint8_t	cdb[16];
+	uint8_t	reserved[12];
+	uint32_t timeout_in_sec;
+	sgt_t	sg_descriptors[4];
+} OS_ATTRIBUTE_PACKED pqisrc_raid_req_t;
 
 
-typedef struct pqi_tmf_req {
+typedef struct pqi_raid_tmf_req {
         iu_header_t     header;
         uint16_t        resp_qid;
         uint8_t         work_area[2];
         uint16_t        req_id;
         uint16_t        nexus;
-        uint8_t         res1[4];
+        uint8_t         res1[2];
+        uint16_t        timeout_in_sec;
         uint8_t         lun[8];
         uint16_t        protocol_spec;
         uint16_t        obq_id_to_manage;
@@ -652,8 +745,22 @@ typedef struct pqi_tmf_req {
         uint8_t         tmf;
         uint8_t         res2 : 7;
         uint8_t         fence : 1;
-}OS_ATTRIBUTE_PACKED pqi_tmf_req_t;
+} OS_ATTRIBUTE_PACKED pqi_raid_tmf_req_t;
 
+typedef struct pqi_aio_tmf_req {
+	iu_header_t     header;
+	uint16_t        resp_qid;
+	uint8_t         work_area[2];
+	uint16_t        req_id;
+	uint16_t        res1;
+	uint32_t        nexus;
+	uint8_t         lun[8];
+	uint32_t        req_id_to_manage;
+	uint8_t         tmf;
+	uint8_t         res2 : 7;
+	uint8_t         fence : 1;
+	uint16_t        error_idx;
+}OS_ATTRIBUTE_PACKED pqi_aio_tmf_req_t;
 
 typedef struct pqi_tmf_resp {
         iu_header_t     header;
@@ -669,7 +776,7 @@ typedef struct pqi_tmf_resp {
 struct pqi_io_response {
 	iu_header_t	header;
 	uint16_t	queue_id;
-	uint8_t		work_area[2];	
+	uint8_t		work_area[2];
 	uint16_t	request_id;
 	uint16_t	error_index;
 	uint8_t		reserved[4];
@@ -685,100 +792,156 @@ struct pqi_enc_info {
 
 typedef struct pqi_scsi_device {
 	device_type_t	devtype;		/* as reported by INQUIRY commmand */
-	uint8_t		device_type;		/* as reported by
+	uint8_t	device_type;		/* as reported by
 					   BMIC_IDENTIFY_PHYSICAL_DEVICE - only
 					   valid for devtype = TYPE_DISK */
-	int		bus;
-	int		target;
-	int		lun;
-	uint8_t 	flags;
-	uint8_t		scsi3addr[8];
+	int	bus;
+	int	target;
+	int	lun;
+	uint8_t flags;
+	uint8_t	scsi3addr[8];
 	uint64_t	wwid;
-	uint8_t		is_physical_device : 1;
-	uint8_t		is_external_raid_device : 1;
-	uint8_t 	target_lun_valid : 1;
-	uint8_t		expose_device : 1;
-	uint8_t		no_uld_attach : 1;
-	uint8_t		is_obdr_device : 1;
-	uint8_t 	aio_enabled : 1;
-	uint8_t		device_gone : 1;
-	uint8_t		new_device : 1;
-	uint8_t		volume_offline : 1;
-	uint8_t		vendor[8];		/* bytes 8-15 of inquiry data */
-	uint8_t		model[16];		/* bytes 16-31 of inquiry data */
+	uint8_t	is_physical_device : 1;
+	uint8_t	is_external_raid_device : 1;
+	uint8_t target_lun_valid : 1;
+	uint8_t	expose_device : 1;
+	uint8_t	no_uld_attach : 1;
+	uint8_t	is_obdr_device : 1;
+	uint8_t aio_enabled : 1;
+	uint8_t	device_gone : 1;
+	uint8_t	new_device : 1;
+	uint8_t	volume_offline : 1;
+	uint8_t scsi_rescan : 1;
+	uint8_t	vendor[8];		/* bytes 8-15 of inquiry data */
+	uint8_t	model[16];		/* bytes 16-31 of inquiry data */
 	uint64_t	sas_address;
-	uint8_t		raid_level;
+	uint8_t	raid_level;
 	uint16_t	queue_depth;		/* max. queue_depth for this device */
 	uint16_t	advertised_queue_depth;
 	uint32_t	ioaccel_handle;
-	uint8_t		volume_status;
-	uint8_t		active_path_index;
-	uint8_t		path_map;
-	uint8_t		bay;
-	uint8_t		box[8];
+	uint8_t	volume_status;
+	uint8_t	active_path_index;
+	uint8_t	path_map;
+	uint8_t	bay;
+	uint8_t	box[8];
 	uint16_t	phys_connector[8];
-	int		offload_config;		/* I/O accel RAID offload configured */
-	int		offload_enabled;	/* I/O accel RAID offload enabled */
-	int		offload_enabled_pending;
-	int		offload_to_mirror;	/* Send next I/O accelerator RAID
-						   offload request to mirror drive. */
+	int	offload_config;		/* I/O accel RAID offload configured */
+	int	offload_enabled;	/* I/O accel RAID offload enabled */
+	int	offload_enabled_pending;
+	int	offload_to_mirror;	/* Send next I/O accelerator RAID
+					   offload request to mirror drive. */
 	struct raid_map *raid_map;	/* I/O accelerator RAID map */
-	int 		reset_in_progress;
+
+	int 	reset_in_progress;
+	int 	logical_unit_number;
 	os_dev_info_t	*dip;			/*os specific scsi device information*/
-	boolean_t	invalid;		
+	boolean_t	invalid;
+	boolean_t	path_destroyed;
+	boolean_t	firmware_queue_depth_set;
+	OS_ATOMIC64_T   active_requests;
 }pqi_scsi_dev_t;
 
+typedef struct pqisrc_softstate pqisrc_softstate_t;
+typedef struct pqi_firmware_feature pqi_firmware_feature_t;
+typedef void (*feature_status_fn)(pqisrc_softstate_t *softs,
+	pqi_firmware_feature_t *firmware_feature);
+
+struct pqi_firmware_feature {
+	char			*feature_name;
+	unsigned int		feature_bit;
+	boolean_t		supported;
+	boolean_t		enabled;
+	feature_status_fn	feature_status;
+};
+
+struct pqi_conf_table_firmware_features {
+	struct		pqi_conf_table_section_header header;
+	uint16_t	num_elements;
+	uint8_t		features_supported[];
+};
+
+struct pqi_conf_table_section_info {
+	struct 		pqisrc_softstate *softs;
+	void		*section;
+	uint32_t	section_offset;
+	void 		*section_addr;
+};
 
 struct sense_header_scsi {		/* See SPC-3 section 4.5 */
-	uint8_t 	response_code;		/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
-	uint8_t 	sense_key;
-	uint8_t 	asc;
-	uint8_t 	ascq;
-	uint8_t 	byte4;
-	uint8_t 	byte5;
-	uint8_t 	byte6;
-	uint8_t 	additional_length;	/* always 0 for fixed sense format */
+	uint8_t response_code;		/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
+	uint8_t sense_key;
+	uint8_t asc;
+	uint8_t ascq;
+	uint8_t byte4;
+	uint8_t byte5;
+	uint8_t byte6;
+	uint8_t additional_length;	/* always 0 for fixed sense format */
 }OS_ATTRIBUTE_PACKED;
 
 
 
 typedef struct report_lun_header {
-	uint32_t 	list_length;
-	uint8_t		extended_response;
-	uint8_t		reserved[3];
+	uint32_t list_length;
+	uint8_t	extended_response;
+	uint8_t	reserved[3];
 }OS_ATTRIBUTE_PACKED reportlun_header_t;
 
 
 typedef struct report_lun_ext_entry {
-	uint8_t		lunid[8];
-	uint64_t 	wwid;
-	uint8_t		device_type;
-	uint8_t		device_flags;
-	uint8_t		lun_count;	/* number of LUNs in a multi-LUN device */
-	uint8_t		redundant_paths;
-	uint32_t 	ioaccel_handle;
+	uint8_t	lunid[8];
+	uint64_t wwid;
+	uint8_t	device_type;
+	uint8_t	device_flags;
+	uint8_t	lun_count;	/* number of LUNs in a multi-LUN device */
+	uint8_t	redundant_paths;
+	uint32_t ioaccel_handle;
 }OS_ATTRIBUTE_PACKED reportlun_ext_entry_t;
 
 
 typedef struct report_lun_data_ext {
-	reportlun_header_t 	header;
-	reportlun_ext_entry_t 	lun_entries[1];
+	reportlun_header_t header;
+	reportlun_ext_entry_t lun_entries[1];
 }OS_ATTRIBUTE_PACKED reportlun_data_ext_t;
 
+typedef struct reportlun_queue_depth_entry {
+        uint8_t logical_unit_num;
+        uint8_t reserved_1:6;
+        uint8_t address:2;
+        uint8_t box_bus_num;
+        uint8_t reserved_2:6;
+        uint8_t mode:2;
+        uint8_t bus_ident;
+
+        /* Byte 5 */
+        uint8_t queue_depth:7;
+        uint8_t multiplier:1;
+
+        /* Byte 6 */
+        uint8_t drive_type_mix_flags;
+        uint8_t level_2_bus:6;
+        uint8_t level_2_mode:2;
+        uint8_t unused_bytes[16];
+}OS_ATTRIBUTE_PACKED reportlun_queue_depth_entry_t;
+
+typedef struct reportlun_queue_depth_data {
+        reportlun_header_t header;
+	reportlun_queue_depth_entry_t lun_entries[1]; /* lun list with Queue Depth values for each lun */
+}OS_ATTRIBUTE_PACKED reportlun_queue_depth_data_t;
+
 typedef struct raidmap_data {
-	uint32_t 	ioaccel_handle;
-	uint8_t		xor_mult[2];
-	uint8_t		reserved[2];
+	uint32_t ioaccel_handle;
+	uint8_t	xor_mult[2];
+	uint8_t	reserved[2];
 }OS_ATTRIBUTE_PACKED raidmap_data_t;
 
 typedef struct raid_map {
 	uint32_t	structure_size;		/* size of entire structure in bytes */
 	uint32_t	volume_blk_size;	/* bytes / block in the volume */
 	uint64_t	volume_blk_cnt;		/* logical blocks on the volume */
-	uint8_t		phys_blk_shift;		/* shift factor to convert between
+	uint8_t	phys_blk_shift;		/* shift factor to convert between
 					   units of logical blocks and physical
 					   disk blocks */
-	uint8_t		parity_rotation_shift;	/* shift factor to convert between units
+	uint8_t	parity_rotation_shift;	/* shift factor to convert between units
 					   of logical stripes and physical
 					   stripes */
 	uint16_t	strip_size;		/* blocks used on each disk / stripe */
@@ -792,8 +955,8 @@ typedef struct raid_map {
 					   group) */
 	uint16_t	flags;
 	uint16_t	data_encryption_key_index;
-	uint8_t		reserved[16];
-	raidmap_data_t 	dev_data[RAID_MAP_MAX_ENTRIES];
+	uint8_t	reserved[16];
+	raidmap_data_t dev_data[RAID_MAP_MAX_ENTRIES];
 }OS_ATTRIBUTE_PACKED pqisrc_raid_map_t;
 
 
@@ -813,79 +976,79 @@ typedef struct bmic_ident_ctrl {
 }OS_ATTRIBUTE_PACKED bmic_ident_ctrl_t;
 
 typedef struct bmic_identify_physical_device {
-	uint8_t		scsi_bus;		/* SCSI Bus number on controller */
-	uint8_t		scsi_id;		/* SCSI ID on this bus */
+	uint8_t	scsi_bus;		/* SCSI Bus number on controller */
+	uint8_t	scsi_id;		/* SCSI ID on this bus */
 	uint16_t	block_size;		/* sector size in bytes */
 	uint32_t	total_blocks;		/* number for sectors on drive */
 	uint32_t	reserved_blocks;	/* controller reserved (RIS) */
-	uint8_t		model[40];		/* Physical Drive Model */
-	uint8_t		serial_number[40];	/* Drive Serial Number */
-	uint8_t		firmware_revision[8];	/* drive firmware revision */
-	uint8_t		scsi_inquiry_bits;	/* inquiry byte 7 bits */
-	uint8_t		compaq_drive_stamp;	/* 0 means drive not stamped */
-	uint8_t		last_failure_reason;
-	uint8_t		flags;
-	uint8_t		more_flags;
-	uint8_t		scsi_lun;		/* SCSI LUN for phys drive */
-	uint8_t		yet_more_flags;
-	uint8_t		even_more_flags;
+	uint8_t	model[40];		/* Physical Drive Model */
+	uint8_t	serial_number[40];	/* Drive Serial Number */
+	uint8_t	firmware_revision[8];	/* drive firmware revision */
+	uint8_t	scsi_inquiry_bits;	/* inquiry byte 7 bits */
+	uint8_t	compaq_drive_stamp;	/* 0 means drive not stamped */
+	uint8_t	last_failure_reason;
+	uint8_t	flags;
+	uint8_t	more_flags;
+	uint8_t	scsi_lun;		/* SCSI LUN for phys drive */
+	uint8_t	yet_more_flags;
+	uint8_t	even_more_flags;
 	uint32_t	spi_speed_rules;
-	uint8_t		phys_connector[2];	/* connector number on controller */
-	uint8_t		phys_box_on_bus;	/* phys enclosure this drive resides */
-	uint8_t		phys_bay_in_box;	/* phys drv bay this drive resides */
+	uint8_t	phys_connector[2];	/* connector number on controller */
+	uint8_t	phys_box_on_bus;	/* phys enclosure this drive resides */
+	uint8_t	phys_bay_in_box;	/* phys drv bay this drive resides */
 	uint32_t	rpm;			/* drive rotational speed in RPM */
-	uint8_t		device_type;		/* type of drive */
-	uint8_t		sata_version;		/* only valid when device_type =
+	uint8_t	device_type;		/* type of drive */
+	uint8_t	sata_version;		/* only valid when device_type =
 					   BMIC_DEVICE_TYPE_SATA */
 	uint64_t	big_total_block_count;
 	uint64_t	ris_starting_lba;
 	uint32_t	ris_size;
-	uint8_t		wwid[20];
-	uint8_t		controller_phy_map[32];
+	uint8_t	wwid[20];
+	uint8_t	controller_phy_map[32];
 	uint16_t	phy_count;
-	uint8_t		phy_connected_dev_type[256];
-	uint8_t		phy_to_drive_bay_num[256];
+	uint8_t	phy_connected_dev_type[256];
+	uint8_t	phy_to_drive_bay_num[256];
 	uint16_t	phy_to_attached_dev_index[256];
-	uint8_t		box_index;
-	uint8_t		reserved;
+	uint8_t	box_index;
+	uint8_t	reserved;
 	uint16_t	extra_physical_drive_flags;
-	uint8_t		negotiated_link_rate[256];
-	uint8_t		phy_to_phy_map[256];
-	uint8_t		redundant_path_present_map;
-	uint8_t		redundant_path_failure_map;
-	uint8_t		active_path_number;
+	uint8_t	negotiated_link_rate[256];
+	uint8_t	phy_to_phy_map[256];
+	uint8_t	redundant_path_present_map;
+	uint8_t	redundant_path_failure_map;
+	uint8_t	active_path_number;
 	uint16_t	alternate_paths_phys_connector[8];
-	uint8_t		alternate_paths_phys_box_on_port[8];
-	uint8_t		multi_lun_device_lun_count;
-	uint8_t		minimum_good_fw_revision[8];
-	uint8_t		unique_inquiry_bytes[20];
-	uint8_t		current_temperature_degreesC;
-	uint8_t		temperature_threshold_degreesC;
-	uint8_t		max_temperature_degreesC;
-	uint8_t		logical_blocks_per_phys_block_exp;
+	uint8_t	alternate_paths_phys_box_on_port[8];
+	uint8_t	multi_lun_device_lun_count;
+	uint8_t	minimum_good_fw_revision[8];
+	uint8_t	unique_inquiry_bytes[20];
+	uint8_t	current_temperature_degreesC;
+	uint8_t	temperature_threshold_degreesC;
+	uint8_t	max_temperature_degreesC;
+	uint8_t	logical_blocks_per_phys_block_exp;
 	uint16_t	current_queue_depth_limit;
-	uint8_t		switch_name[10];
+	uint8_t	switch_name[10];
 	uint16_t	switch_port;
-	uint8_t		alternate_paths_switch_name[40];
-	uint8_t		alternate_paths_switch_port[8];
+	uint8_t	alternate_paths_switch_name[40];
+	uint8_t	alternate_paths_switch_port[8];
 	uint16_t	power_on_hours;
 	uint16_t	percent_endurance_used;
-	uint8_t		drive_authentication;
-	uint8_t		smart_carrier_authentication;
-	uint8_t		smart_carrier_app_fw_version;
-	uint8_t		smart_carrier_bootloader_fw_version;
-	uint8_t		encryption_key_name[64];
+	uint8_t	drive_authentication;
+	uint8_t	smart_carrier_authentication;
+	uint8_t	smart_carrier_app_fw_version;
+	uint8_t	smart_carrier_bootloader_fw_version;
+	uint8_t	encryption_key_name[64];
 	uint32_t	misc_drive_flags;
 	uint16_t	dek_index;
 	uint8_t		padding[112];
 }OS_ATTRIBUTE_PACKED bmic_ident_physdev_t;
 
 typedef struct pqisrc_bmic_flush_cache {
-	uint8_t		disable_cache;
-	uint8_t		power_action;
-	uint8_t		ndu_flush_cache;
-	uint8_t		halt_event;
-	uint8_t		reserved[28];
+	uint8_t	disable_cache;
+	uint8_t	power_action;
+	uint8_t	ndu_flush_cache;
+	uint8_t	halt_event;
+	uint8_t	reserved[28];
 } OS_ATTRIBUTE_PACKED pqisrc_bmic_flush_cache_t;
 
 /* for halt_event member of pqisrc_bmic_flush_cache_t */
@@ -897,7 +1060,6 @@ enum pqisrc_flush_cache_event_type {
 	PQISRC_RESTART = 4
 };
 
-struct pqisrc_softstate;
 struct request_container_block;
 typedef void (*success_callback)(struct pqisrc_softstate *, struct request_container_block *);
 typedef void (*error_callback)(struct pqisrc_softstate *, struct request_container_block *, uint16_t);
@@ -921,14 +1083,20 @@ typedef struct request_container_block {
 	uint32_t		ioaccel_handle;
 	boolean_t 		encrypt_enable;
 	struct pqi_enc_info 	enc_info;
+	ib_queue_t		*req_q;
+	int 			path;
+	int 			resp_qid;
+	boolean_t		req_pending;
+	boolean_t		timedout;
+	int			tm_req;
+	int			aio_retry;
 	int			cm_flags;
 	void			*cm_data; /* pointer to data in kernel space */
 	bus_dmamap_t		cm_datamap;
 	uint32_t		nseg;
 	union ccb		*cm_ccb;
 	sgt_t			*sgt;	/* sg table */
-	int 			resp_qid;
-	boolean_t		req_pending;
+
 }rcb_t;
 
 typedef struct tid_pool {
@@ -936,12 +1104,12 @@ typedef struct tid_pool {
 	int			index;
 }tid_pool_t;
 
-typedef struct pqisrc_softstate {
-	OS_SPECIFIC_T			os_specific;  
-	struct ioa_registers		*ioa_reg; 
-	struct pqi_registers		*pqi_reg;	
-	char				*pci_mem_base_vaddr;
-	PCI_ACC_HANDLE_T		pci_mem_handle; 
+struct pqisrc_softstate {
+	OS_SPECIFIC_T			os_specific;
+	struct ioa_registers		*ioa_reg;
+	struct pqi_registers		*pqi_reg;
+	uint8_t				*pci_mem_base_vaddr;
+	PCI_ACC_HANDLE_T		pci_mem_handle;
 	struct pqi_cap			pqi_cap;
 	struct pqi_pref_settings	pref_settings;
 	char				fw_version[11];
@@ -951,7 +1119,7 @@ typedef struct pqisrc_softstate {
 	uint16_t			subvendid;	/* sub vendor id */
 	uint16_t			devid;		/* device id */
 	uint16_t			subsysid;	/* sub system id */
-	controller_state_t		ctlr_state;		
+	controller_state_t		ctlr_state;
 	struct dma_mem			err_buf_dma_mem;
 	struct dma_mem			admin_queue_dma_mem;
 	struct dma_mem			op_ibq_dma_mem;
@@ -979,7 +1147,7 @@ typedef struct pqisrc_softstate {
 	unsigned			max_sg_per_iu;
 	uint8_t				ib_spanning_supported : 1;
 	uint8_t				ob_spanning_supported : 1;
-	pqi_event_config_t		event_config; 
+	pqi_event_config_t		event_config;
 	struct pqi_event		pending_events[PQI_NUM_SUPPORTED_EVENTS];
 	int				intr_type;
 	int				intr_count;
@@ -991,19 +1159,18 @@ typedef struct pqisrc_softstate {
 #else
 	lockless_stack_t		taglist;
 #endif /* LOCKFREE_STACK */
-	boolean_t			devlist_lockcreated;    
+	boolean_t			devlist_lockcreated;
 	OS_LOCK_T			devlist_lock	OS_ATTRIBUTE_ALIGNED(8);
 	char				devlist_lock_name[LOCKNAME_SIZE];
 	pqi_scsi_dev_t			*device_list[PQI_MAX_DEVICES][PQI_MAX_MULTILUN];
 	OS_SEMA_LOCK_T			scan_lock;
 	uint8_t				lun_count[PQI_MAX_DEVICES];
-	uint64_t			target_sas_addr[PQI_MAX_EXT_TARGETS];
-	OS_ATOMIC64_T			num_intrs;
-	uint64_t			prev_num_intrs;
+	uint64_t     		target_sas_addr[PQI_MAX_EXT_TARGETS];
 	uint64_t			prev_heartbeat_count;
 	uint64_t			*heartbeat_counter_abs_addr;
 	uint64_t			heartbeat_counter_off;
-	uint64_t			num_heartbeats_requested;
+	uint8_t			*fw_features_section_abs_addr;
+	uint64_t			fw_features_section_off;
 	uint32_t			bus_id;
 	uint32_t			device_id;
 	uint32_t			func_id;
@@ -1011,7 +1178,21 @@ typedef struct pqisrc_softstate {
 	boolean_t			ctrl_online;
 	uint8_t				pqi_reset_quiesce_allowed : 1;
 	boolean_t 			ctrl_in_pqi_mode;
-	tid_pool_t			tid_pool;	
-}pqisrc_softstate_t;
+	tid_pool_t			tid_pool;
+	uint32_t			adapterQDepth;
+	uint32_t 			dma_mem_consumed;
+	boolean_t			timeout_in_passthrough;
+	boolean_t			timeout_in_tmf;
+};
+
+typedef struct vpd_logical_volume_status {
+	uint8_t         peripheral_info;
+	uint8_t         page_code;
+	uint8_t         reserved;
+	uint8_t         page_length;
+	uint8_t         volume_status;
+	uint8_t         reserved2[3];
+	uint32_t        flags;
+}vpd_volume_status;
 
 #endif
