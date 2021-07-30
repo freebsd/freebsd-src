@@ -55,6 +55,7 @@ device		acpi
 
 # Clocks
 device		a37x0_xtal		# Marvell xtal-clock
+device		a37x0_tbg		# Marvell tbg-clock
 
 # DTBs
 makeoptions	MODULES_EXTRA+="dtb/mv"
