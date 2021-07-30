@@ -41,11 +41,11 @@ NANO_CFG_BASE=$(pwd)
 NANO_CFG_BASE=${NANO_CFG_BASE%/dhcpd}
 NANO_SRC=$(pwd)
 NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/dhcpd}
-NANO_OBJ=${NANO_SRC}/../dhcpd/obj
+NANO_OBJ=${NANO_SRC}/../nanobsd-builds/dhcpd/obj
 # Where cust_pkg() finds packages to install
 #XXX: Is this the right place?
-#NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
-NANO_PORTS=/usr/ports
+NANO_PORTS=$(realpath ${NANO_SRC}/../ports)
+#NANO_PORTS=/usr/ports
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 NANO_DATADIR=${NANO_OBJ}/_.data
 NANO_DATASIZE=40960
