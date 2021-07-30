@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2019
+.Dd July 30, 2021
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -68,14 +68,17 @@ as well as the following values:
 .It Dv CLOCK_REALTIME
 .It Dv CLOCK_REALTIME_PRECISE
 .It Dv CLOCK_REALTIME_FAST
+.It Dv CLOCK_REALTIME_COARSE
 Increments as a wall clock should.
 .It Dv CLOCK_MONOTONIC
 .It Dv CLOCK_MONOTONIC_PRECISE
 .It Dv CLOCK_MONOTONIC_FAST
+.It Dv CLOCK_MONOTONIC_COARSE
 Increments in SI seconds.
 .It Dv CLOCK_UPTIME
 .It Dv CLOCK_UPTIME_PRECISE
 .It Dv CLOCK_UPTIME_FAST
+.It Dv CLOCK_BOOTTIME
 Starts at zero when the kernel boots and increments
 monotonically in SI seconds while the machine is running.
 .It Dv CLOCK_VIRTUAL
@@ -104,6 +107,16 @@ Similarly,
 .Fa CLOCK_UPTIME_PRECISE
 are used to get the most exact value as possible, at the expense of
 execution time.
+The clock IDs
+.Fa CLOCK_REALTIME_COARSE ,
+.Fa CLOCK_MONOTONIC_COARSE
+are aliases of corresponding IDs with _FAST suffix for compatibility with other
+systems.
+Finally,
+.Dv CLOCK_BOOTTIME
+is an alias for
+.Dv CLOCK_UPTIME
+for compatibility with other systems.
 .Pp
 The structure pointed to by
 .Fa tp
