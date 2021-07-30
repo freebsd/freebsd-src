@@ -2708,6 +2708,20 @@ device_verbose(device_t dev)
 	dev->flags &= ~DF_QUIET;
 }
 
+ssize_t
+device_get_property(device_t dev, const char *prop, void *val, size_t sz)
+{
+	device_t bus = device_get_parent(dev);
+
+	return (BUS_GET_PROPERTY(bus, dev, prop, val, sz));
+}
+
+bool
+device_has_property(device_t dev, const char *prop)
+{
+	return (device_get_property(dev, prop, NULL, 0) >= 0);
+}
+
 /**
  * @brief Return non-zero if the DF_QUIET_CHIDLREN flag is set on the device
  */

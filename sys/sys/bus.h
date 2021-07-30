@@ -631,6 +631,8 @@ int	device_set_unit(device_t dev, int unit);	/* XXX DONT USE XXX */
 int	device_shutdown(device_t dev);
 void	device_unbusy(device_t dev);
 void	device_verbose(device_t dev);
+ssize_t	device_get_property(device_t dev, const char *prop, void *val, size_t sz);
+bool device_has_property(device_t dev, const char *prop);
 
 /*
  * Access functions for devclass.

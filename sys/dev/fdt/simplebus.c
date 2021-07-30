@@ -54,6 +54,9 @@ static device_t		simplebus_add_child(device_t dev, u_int order,
     const char *name, int unit);
 static struct resource_list *simplebus_get_resource_list(device_t bus,
     device_t child);
+
+static ssize_t		simplebus_get_property(device_t bus, device_t child,
+    const char *propname, void *propvalue, size_t size);
 /*
  * ofw_bus interface
  */
@@ -89,6 +92,7 @@ static device_method_t	simplebus_methods[] = {
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_child_pnpinfo,	ofw_bus_gen_child_pnpinfo),
 	DEVMETHOD(bus_get_resource_list, simplebus_get_resource_list),
+	DEVMETHOD(bus_get_property,	simplebus_get_property),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	simplebus_get_devinfo),
@@ -348,6 +352,18 @@ simplebus_get_resource_list(device_t bus __unused, device_t child)
 	if (ndi == NULL)
 		return (NULL);
 	return (&ndi->rl);
+}
+
+static ssize_t
+simplebus_get_property(device_t bus, device_t child, const char *propname,
+    void *propvalue, size_t size)
+{
+	phandle_t node = ofw_bus_get_node(child);
+
+	if (propvalue == NULL || size == 0)
+		return (OF_getproplen(node, propname));
+
+	return (OF_getencprop(node, propname, propvalue, size));
 }
 
 static struct resource *
