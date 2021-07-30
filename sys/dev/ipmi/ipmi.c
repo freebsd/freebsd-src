@@ -638,8 +638,15 @@ ipmi_reset_watchdog(struct ipmi_softc *sc)
 	IPMI_ALLOC_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_RESET_WDOG, 0, 0);
 	error = ipmi_submit_driver_request(sc, req, 0);
-	if (error)
+	if (error) {
 		device_printf(sc->ipmi_dev, "Failed to reset watchdog\n");
+	} else if (req->ir_compcode == 0x80) {
+		error = ENOENT;
+	} else if (req->ir_compcode != 0) {
+		device_printf(sc->ipmi_dev, "Watchdog reset returned 0x%x\n",
+		    req->ir_compcode);
+		error = EINVAL;
+	}
 	return (error);
 }
 
@@ -671,8 +678,13 @@ ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 		req->ir_request[5] = 0;
 	}
 	error = ipmi_submit_driver_request(sc, req, 0);
-	if (error)
+	if (error) {
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
+	} else if (req->ir_compcode != 0) {
+		device_printf(sc->ipmi_dev, "Watchdog set returned 0x%x\n",
+		    req->ir_compcode);
+		error = EINVAL;
+	}
 	return (error);
 }
 
@@ -886,9 +898,9 @@ ipmi_startup(void *arg)
 		    IPMI_GET_CHANNEL_INFO, 1, 0);
 		req->ir_request[0] = i;
 
-		ipmi_submit_driver_request(sc, req, 0);
+		error = ipmi_submit_driver_request(sc, req, 0);
 
-		if (req->ir_compcode != 0)
+		if (error != 0 || req->ir_compcode != 0)
 			break;
 	}
 	device_printf(dev, "Number of channels %d\n", i);
@@ -901,9 +913,9 @@ ipmi_startup(void *arg)
 		IPMI_INIT_DRIVER_REQUEST(req, IPMI_ADDR(IPMI_APP_REQUEST, 0),
 		    IPMI_GET_WDOG, 0, 0);
 
-		ipmi_submit_driver_request(sc, req, 0);
+		error = ipmi_submit_driver_request(sc, req, 0);
 
-		if (req->ir_compcode == 0x00) {
+		if (error == 0 && req->ir_compcode == 0x00) {
 			device_printf(dev, "Attached watchdog\n");
 			/* register the watchdog event handler */
 			sc->ipmi_watchdog_tag = EVENTHANDLER_REGISTER(
