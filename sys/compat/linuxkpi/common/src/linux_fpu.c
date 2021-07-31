@@ -30,21 +30,44 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
+#include <linux/sched.h>
+
+#include <asm/fpu/api.h>
+
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
+
 #include <machine/fpu.h>
 
-struct fpu_kern_ctx *__lkpi_fpu_ctx;
-unsigned int __lkpi_fpu_ctx_level = 0;
+/*
+ * Technically the Linux API isn't supposed to allow nesting sections
+ * either, but currently used versions of GPU drivers rely on nesting
+ * working, so we only enter the section on the outermost level.
+ */
 
-static void
-linux_fpu_init(void *arg __unused)
+void
+lkpi_kernel_fpu_begin(void)
 {
-	__lkpi_fpu_ctx = fpu_kern_alloc_ctx(0);
+	if ((current->fpu_ctx_level)++ == 0)
+		fpu_kern_enter(curthread, NULL, FPU_KERN_NOCTX);
 }
-SYSINIT(linux_fpu, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_fpu_init, NULL);
 
-static void
-linux_fpu_uninit(void *arg __unused)
+void
+lkpi_kernel_fpu_end(void)
 {
-	fpu_kern_free_ctx(__lkpi_fpu_ctx);
+	if (--(current->fpu_ctx_level) == 0)
+		fpu_kern_leave(curthread, NULL);
 }
-SYSUNINIT(linux_fpu, SI_SUB_EVENTHANDLER, SI_ORDER_SECOND, linux_fpu_uninit, NULL);
+
+#else
+
+void
+lkpi_kernel_fpu_begin(void)
+{
+}
+
+void
+lkpi_kernel_fpu_end(void)
+{
+}
+
+#endif
