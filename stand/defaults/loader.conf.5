@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd July 10, 2021
+.Dd July 31, 2021
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -270,6 +270,8 @@ serial port speed setting.
 selects serial console,
 .Dq vidconsole
 selects the video console,
+.Dq efi
+selects the EFI console,
 .Dq nullconsole
 selects a mute console
 (useful for systems with neither a video console nor a serial port), and
