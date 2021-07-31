@@ -35,13 +35,13 @@
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include <unistd.h>
 
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #include "fdt.hh"
 #include "checking.hh"
@@ -55,22 +55,22 @@ namespace {
 /**
  * The current major version of the tool.
  */
-int version_major = 0;
-int version_major_compatible = 1;
+constexpr int version_major = 0;
+constexpr int version_major_compatible = 1;
 /**
  * The current minor version of the tool.
  */
-int version_minor = 5;
-int version_minor_compatible = 4;
+constexpr int version_minor = 5;
+constexpr int version_minor_compatible = 4;
 /**
  * The current patch level of the tool.
  */
-int version_patch = 0;
-int version_patch_compatible = 7;
+constexpr int version_patch = 0;
+constexpr int version_patch_compatible = 7;
 
-void usage(const string &argv0)
+void usage(const string &argv0) noexcept
 {
-	fprintf(stderr, "Usage:\n"
+	std::fprintf(stderr, "Usage:\n"
 		"\t%s\t[-fhsv@] [-b boot_cpu_id] [-d dependency_file]"
 			"[-E [no-]checker_name]\n"
 		"\t\t[-H phandle_format] [-I input_format]"
@@ -83,9 +83,9 @@ void usage(const string &argv0)
 /**
  * Prints the current version of this program..
  */
-void version(const char* progname)
+void version(const char* progname) noexcept
 {
-	fprintf(stdout, "Version: %s %d.%d.%d compatible with gpl dtc %d.%d.%d\n", progname,
+	std::fprintf(stdout, "Version: %s %d.%d.%d compatible with gpl dtc %d.%d.%d\n", progname,
 		version_major, version_minor, version_patch,
 		version_major_compatible, version_minor_compatible,
 		version_patch_compatible);
@@ -148,7 +148,7 @@ main(int argc, char **argv)
 			}
 			else
 			{
-				fprintf(stderr, "Unknown input format: %s\n", optarg);
+				std::fprintf(stderr, "Unknown input format: %s\n", optarg);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -174,7 +174,7 @@ main(int argc, char **argv)
 			}
 			else
 			{
-				fprintf(stderr, "Unknown output format: %s\n", optarg);
+				std::fprintf(stderr, "Unknown output format: %s\n", optarg);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -182,7 +182,7 @@ main(int argc, char **argv)
 		case 'o':
 		{
 			outfile_name = optarg;
-			if (strcmp(outfile_name, "-") != 0)
+			if (std::strcmp(outfile_name, "-") != 0)
 			{
 				outfile = open(optarg, O_CREAT | O_TRUNC | O_WRONLY, 0666);
 				if (outfile == -1)
@@ -199,7 +199,7 @@ main(int argc, char **argv)
 		case 'V':
 			if (string(optarg) != "17")
 			{
-				fprintf(stderr, "Unknown output format version: %s\n", optarg);
+				std::fprintf(stderr, "Unknown output format version: %s\n", optarg);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -207,7 +207,7 @@ main(int argc, char **argv)
 		{
 			if (depfile != 0)
 			{
-				fclose(depfile);
+				std::fclose(depfile);
 			}
 			if (string(optarg) == "-")
 			{
@@ -241,7 +241,7 @@ main(int argc, char **argv)
 			}
 			else
 			{
-				fprintf(stderr, "Unknown phandle format: %s\n", optarg);
+				std::fprintf(stderr, "Unknown phandle format: %s\n", optarg);
 				return EXIT_FAILURE;
 			}
 			break;
@@ -249,7 +249,7 @@ main(int argc, char **argv)
 		case 'b':
 			// Don't bother to check if strtoll fails, just
 			// use the 0 it returns.
-			boot_cpu = (uint32_t)strtoll(optarg, 0, 10);
+			boot_cpu = static_cast<uint32_t>(strtoll(optarg, 0, 10));
 			boot_cpu_specified = true;
 			break;
 		case 'f':
@@ -259,18 +259,18 @@ main(int argc, char **argv)
 		case 'E':
 		{
 			string arg(optarg);
-			if ((arg.size() > 3) && (strncmp(optarg, "no-", 3) == 0))
+			if ((arg.size() > 3) && (std::strncmp(optarg, "no-", 3) == 0))
 			{
 				arg = string(optarg+3);
 				if (!checks.disable_checker(arg))
 				{
-					fprintf(stderr, "Checker %s either does not exist or is already disabled\n", optarg+3);
+					std::fprintf(stderr, "Checker %s either does not exist or is already disabled\n", optarg+3);
 				}
 				break;
 			}
 			if (!checks.enable_checker(arg))
 			{
-				fprintf(stderr, "Checker %s either does not exist or is already enabled\n", optarg);
+				std::fprintf(stderr, "Checker %s either does not exist or is already enabled\n", optarg);
 			}
 			break;
 		}
@@ -299,7 +299,7 @@ main(int argc, char **argv)
 		case 'P':
 			if (!tree.parse_define(optarg))
 			{
-				fprintf(stderr, "Invalid predefine value %s\n",
+				std::fprintf(stderr, "Invalid predefine value %s\n",
 				        optarg);
 			}
 			break;
@@ -325,9 +325,9 @@ main(int argc, char **argv)
 	}
 	if (depfile != 0)
 	{
-		fputs(outfile_name, depfile);
-		fputs(": ", depfile);
-		fputs(in_file, depfile);
+		std::fputs(outfile_name, depfile);
+		std::fputs(": ", depfile);
+		std::fputs(in_file, depfile);
 	}
 	clock_t c1 = clock();
 	(tree.*read_fn)(in_file, depfile);
@@ -342,12 +342,12 @@ main(int argc, char **argv)
 	}
 	if (depfile != 0)
 	{
-		putc('\n', depfile);
-		fclose(depfile);
+		std::putc('\n', depfile);
+		std::fclose(depfile);
 	}
 	if (!(tree.is_valid() || keep_going))
 	{
-		fprintf(stderr, "Failed to parse tree.\n");
+		std::fprintf(stderr, "Failed to parse tree.\n");
 		return EXIT_FAILURE;
 	}
 	clock_t c2 = clock();
@@ -365,19 +365,17 @@ main(int argc, char **argv)
 		struct rusage r;
 
 		getrusage(RUSAGE_SELF, &r);
-		fprintf(stderr, "Peak memory usage: %ld bytes\n", r.ru_maxrss);
-		fprintf(stderr, "Setup and option parsing took %f seconds\n",
+		std::fprintf(stderr, "Peak memory usage: %ld bytes\n", r.ru_maxrss);
+		std::fprintf(stderr, "Setup and option parsing took %f seconds\n",
 				((double)(c1-c0))/CLOCKS_PER_SEC);
-		fprintf(stderr, "Parsing took %f seconds\n",
+		std::fprintf(stderr, "Parsing took %f seconds\n",
 				((double)(c2-c1))/CLOCKS_PER_SEC);
-		fprintf(stderr, "Checking took %f seconds\n",
+		std::fprintf(stderr, "Checking took %f seconds\n",
 				((double)(c3-c2))/CLOCKS_PER_SEC);
-		fprintf(stderr, "Generating output took %f seconds\n",
+		std::fprintf(stderr, "Generating output took %f seconds\n",
 				((double)(c4-c3))/CLOCKS_PER_SEC);
-		fprintf(stderr, "Total time: %f seconds\n",
+		std::fprintf(stderr, "Total time: %f seconds\n",
 				((double)(c4-c0))/CLOCKS_PER_SEC);
-		// This is not needed, but keeps valgrind quiet.
-		fclose(stdin);
 	}
 	return EXIT_SUCCESS;
 }

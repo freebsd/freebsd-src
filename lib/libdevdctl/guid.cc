@@ -39,9 +39,9 @@
  */
 #include <sys/cdefs.h>
 
-#include <stdlib.h>
-#include <limits.h>
-#include <inttypes.h>
+#include <cstdlib>
+#include <climits>
+#include <cinttypes>
 
 #include <iostream>
 #include <string>
@@ -56,7 +56,7 @@ namespace DevdCtl
 
 /*=========================== Class Implementations ==========================*/
 /*----------------------------------- Guid -----------------------------------*/
-Guid::Guid(const string &guidString)
+Guid::Guid(const string &guidString) noexcept
 {
 	if (guidString.empty()) {
 		m_GUID = INVALID_GUID;
@@ -65,15 +65,15 @@ Guid::Guid(const string &guidString)
 		 * strtoumax() returns zero on conversion failure
 		 * which nicely matches our choice for INVALID_GUID.
 		 */
-		m_GUID = (uint64_t)strtoumax(guidString.c_str(), NULL, 0);
+		m_GUID = static_cast<uint64_t>(std::strtoumax(guidString.c_str(), NULL, 0));
 	}
 }
 
 std::ostream&
-operator<< (std::ostream& out, Guid g)
+operator<< (std::ostream& out, Guid g) noexcept
 {
 	if (g.IsValid())
-		out << (uint64_t)g;
+		out << static_cast<uint64_t>(g);
 	else
 		out << "None";
 	return (out);

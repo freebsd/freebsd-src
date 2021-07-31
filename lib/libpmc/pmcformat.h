@@ -29,5 +29,6 @@
  */
 #ifndef __PMCFORMAT_H_
 #define __PMCFORMAT_H_
-std::string event_to_json(struct pmclog_ev *ev);
+#include <string>
+std::string event_to_json(struct pmclog_ev *ev) noexcept;
 #endif

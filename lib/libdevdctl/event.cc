@@ -44,13 +44,13 @@
 
 #include <err.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <paths.h>
-#include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cinttypes>
 #include <cstdarg>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <list>
@@ -440,8 +440,8 @@ Event::TimestampEventString(std::string &eventString)
 			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
 			if (gettimeofday(&now, NULL) != 0)
 				err(1, "gettimeofday");
-			snprintf(timebuf, bufsize, " timestamp=%" PRId64,
-				(int64_t) now.tv_sec);
+			std::snprintf(timebuf, bufsize, " timestamp=%" PRId64,
+				static_cast<int64_t>(now.tv_sec));
 			eventString.insert(eventEnd, timebuf);
 		}
 	}

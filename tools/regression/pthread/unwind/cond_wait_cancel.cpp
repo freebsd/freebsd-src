@@ -1,8 +1,8 @@
 /* $FreeBSD$ */
 /* Test stack unwinding for pthread_cond_wait function */
 
+#include <cstdio>
 #include <pthread.h>
-#include <stdio.h>
 #include <semaphore.h>
 #include <unistd.h>
 
@@ -12,19 +12,19 @@ static pthread_mutex_t mtx;
 static pthread_cond_t cv;
 
 static void *
-thr(void *arg __unused)
+thr(void *arg __unused) noexcept
 {
 	Test t;
 
 	pthread_mutex_lock(&mtx);
 	pthread_cond_wait(&cv, &mtx);
 	pthread_mutex_unlock(&mtx);
-	printf("Bug, thread shouldn't be here.\n");
+	std::printf("Bug, thread shouldn't be here.\n");
 	return (0);
 }
 
 int
-main()
+main() noexcept
 {
 	pthread_t td;
 

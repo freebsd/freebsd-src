@@ -1,37 +1,37 @@
 /* $FreeBSD$ */
 
-static int destructed;
-static int destructed2;
+static bool destructed;
+static bool destructed2;
 
 class Test {
 public:
-	Test() { printf("Test::Test()\n"); }
-	~Test() { printf("Test::~Test()\n"); destructed = 1; }
+	Test() { std::printf("Test::Test()\n"); }
+	~Test() { std::printf("Test::~Test()\n"); destructed = true; }
 };
 
 void
-cleanup_handler(void *arg __unused)
+cleanup_handler(void *arg __unused) noexcept
 {
-	destructed2 = 1;
-	printf("%s()\n", __func__);
+	destructed2 = true;
+	std::printf("%s()\n", __func__);
 }
 
 void
-check_destruct(void)
+check_destruct(void) noexcept
 {
-	if (!destructed)
-		printf("Bug, object destructor is not called\n");
+	if (destructed)
+		std::printf("OK\n");
 	else
-		printf("OK\n");
+		std::printf("Bug, object destructor is not called\n");
 }
 
 void
-check_destruct2(void)
+check_destruct2(void) noexcept
 {
 	if (!destructed)
-		printf("Bug, object destructor is not called\n");
+		std::printf("Bug, object destructor is not called\n");
 	else if (!destructed2)
-		printf("Bug, cleanup handler is not called\n");
+		std::printf("Bug, cleanup handler is not called\n");
 	else
-		printf("OK\n");
+		std::printf("OK\n");
 }

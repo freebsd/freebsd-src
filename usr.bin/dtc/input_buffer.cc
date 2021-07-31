@@ -33,22 +33,20 @@
  */
 
 #include "input_buffer.hh"
-#include <ctype.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #ifndef NDEBUG
 #include <iostream>
 #endif
 #include <limits>
 
-
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <assert.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -133,7 +131,7 @@ mmap_input_buffer::~mmap_input_buffer()
 stream_input_buffer::stream_input_buffer() : input_buffer(0, 0)
 {
 	int c;
-	while ((c = fgetc(stdin)) != EOF)
+	while ((c = std::fgetc(stdin)) != EOF)
 	{
 		b.push_back(c);
 	}
@@ -229,7 +227,7 @@ text_input_buffer::handle_include()
 	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
 	if (include_buffer == 0)
 	{
-		for (auto i : include_paths)
+		for (const auto &i : include_paths)
 		{
 			include_file = i + '/' + file;
 			include_buffer = input_buffer::buffer_for_file(include_file, false);
@@ -271,7 +269,7 @@ bool text_input_buffer::read_binary_file(const std::string &filename, byte_buffe
 	auto include_buffer = input_buffer::buffer_for_file(include_file, false);
 	if (include_buffer == 0 && try_include_paths)
 	{
-		for (auto i : include_paths)
+		for (const auto &i : include_paths)
 		{
 			include_file = i + '/' + filename;
 			include_buffer = input_buffer::buffer_for_file(include_file, false);
@@ -287,8 +285,8 @@ bool text_input_buffer::read_binary_file(const std::string &filename, byte_buffe
 	}
 	if (depfile)
 	{
-		putc(' ', depfile);
-		fputs(include_file.c_str(), depfile);
+		std::putc(' ', depfile);
+		std::fputs(include_file.c_str(), depfile);
 	}
 	b.insert(b.begin(), include_buffer->begin(), include_buffer->end());
 	return true;
@@ -1248,7 +1246,7 @@ input_buffer::buffer_for_file(const string &path, bool warn)
 	{
 		if (warn)
 		{
-			fprintf(stderr, "Unable to open file '%s'.  %s\n", path.c_str(), strerror(errno));
+			std::fprintf(stderr, "Unable to open file '%s'.  %s\n", path.c_str(), strerror(errno));
 		}
 		return 0;
 	}
@@ -1257,7 +1255,7 @@ input_buffer::buffer_for_file(const string &path, bool warn)
 	{
 		if (warn)
 		{
-			fprintf(stderr, "File %s is a directory\n", path.c_str());
+			std::fprintf(stderr, "File %s is a directory\n", path.c_str());
 		}
 		close(source);
 		return 0;

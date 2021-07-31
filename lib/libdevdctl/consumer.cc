@@ -40,11 +40,11 @@
 #include <sys/un.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdarg>
 #include <cstring>
 #include <list>
@@ -90,7 +90,7 @@ Consumer::~Consumer()
 }
 
 bool
-Consumer::ConnectToDevd()
+Consumer::ConnectToDevd() noexcept
 {
 	struct sockaddr_un devdAddr;
 	int		   sLen;
@@ -103,7 +103,7 @@ Consumer::ConnectToDevd()
 	}
 	syslog(LOG_INFO, "%s: Connecting to devd.", __func__);
 
-	memset(&devdAddr, 0, sizeof(devdAddr));
+	std::memset(&devdAddr, 0, sizeof(devdAddr));
 	devdAddr.sun_family= AF_UNIX;
 	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);
@@ -125,7 +125,7 @@ Consumer::ConnectToDevd()
 }
 
 void
-Consumer::DisconnectFromDevd()
+Consumer::DisconnectFromDevd() noexcept
 {
 	if (m_devdSockFD != -1) {
 		syslog(LOG_INFO, "Disconnecting from devd.");
@@ -135,7 +135,7 @@ Consumer::DisconnectFromDevd()
 }
 
 std::string
-Consumer::ReadEvent()
+Consumer::ReadEvent() noexcept
 {
 	char buf[MAX_EVENT_SIZE + 1];
 	ssize_t len;
@@ -151,7 +151,7 @@ Consumer::ReadEvent()
 }
 
 void
-Consumer::ReplayUnconsumedEvents(bool discardUnconsumed)
+Consumer::ReplayUnconsumedEvents(bool discardUnconsumed) noexcept
 {
 	EventList::iterator event(m_unconsumedEvents.begin());
 	bool replayed_any = (event != m_unconsumedEvents.end());
@@ -174,7 +174,7 @@ Consumer::ReplayUnconsumedEvents(bool discardUnconsumed)
 }
 
 bool
-Consumer::SaveEvent(const Event &event)
+Consumer::SaveEvent(const Event &event) noexcept
 {
         if (m_replayingEvents)
                 return (false);
@@ -183,7 +183,7 @@ Consumer::SaveEvent(const Event &event)
 }
 
 Event *
-Consumer::NextEvent()
+Consumer::NextEvent() noexcept
 {
 	if (!Connected())
 		return(NULL);
@@ -206,7 +206,7 @@ Consumer::NextEvent()
 
 /* Capture and process buffered events. */
 void
-Consumer::ProcessEvents()
+Consumer::ProcessEvents() noexcept
 {
 	Event *event;
 	while ((event = NextEvent()) != NULL) {
@@ -217,7 +217,7 @@ Consumer::ProcessEvents()
 }
 
 void
-Consumer::FlushEvents()
+Consumer::FlushEvents() noexcept
 {
 	std::string s;
 

@@ -69,7 +69,7 @@ public:
 	/**                                                          
          * Queue an event for deferred processing or replay.
          */ 
-	bool SaveEvent(const Event &event);
+	bool SaveEvent(const Event &event) noexcept;
 
 	/**                                  
 	 * Reprocess any events saved via the SaveEvent() facility.   
@@ -77,18 +77,18 @@ public:
 	 * \param discardUnconsumed  If true, events that are not consumed
 	 *                           during replay are discarded.
 	 */                                                              
-	void ReplayUnconsumedEvents(bool discardUnconsumed);
+	void ReplayUnconsumedEvents(bool discardUnconsumed) noexcept;
 
 	/** Return an event, if one is available.  */
-	Event *NextEvent();
+	Event *NextEvent() noexcept;
 
 	/**
 	 * Extract events and invoke each event's Process method.
 	 */
-	void ProcessEvents();
+	void ProcessEvents() noexcept;
 
 	/** Discard all data pending in m_devdSockFD. */
-	void FlushEvents();
+	void FlushEvents() noexcept;
 
 	/**
 	 * Test for data pending in m_devdSockFD
@@ -103,12 +103,12 @@ public:
 	 * \return  True if the connection attempt is successsful.  Otherwise
 	 *          false.
 	 */
-	bool ConnectToDevd();
+	bool ConnectToDevd() noexcept;
 
 	/**
 	 * Close a connection (if any) to devd's unix domain socket.
 	 */
-	void DisconnectFromDevd();
+	void DisconnectFromDevd() noexcept;
 
 	EventFactory GetFactory();
 
@@ -120,7 +120,7 @@ protected:
 	 *
 	 * \returns      A string containing the record
 	 */
-	std::string ReadEvent();
+	std::string ReadEvent() noexcept;
 
 	enum {
 		/*

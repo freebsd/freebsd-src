@@ -2,10 +2,8 @@
 /* try to catch thread exiting, and rethrow the exception */
 
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-static int caught;
+static bool caught;
 
 static void *
 thr_routine(void *arg __unused)
@@ -13,8 +11,8 @@ thr_routine(void *arg __unused)
 	try {
 		pthread_exit(NULL);
 	} catch (...) {
-		caught = 1;
-		printf("thread exiting exception caught\n");
+		caught = true;
+		std::printf("thread exiting exception caught\n");
 		/* rethrow */
 		throw;
 	}
@@ -28,8 +26,8 @@ main()
 	pthread_create(&td, NULL, thr_routine, NULL);
 	pthread_join(td, NULL);
 	if (caught)
-		printf("OK\n");
+		std::printf("OK\n");
 	else
-		printf("failure\n");
+		std::printf("failure\n");
 	return (0);
 }

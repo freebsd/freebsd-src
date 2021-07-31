@@ -30,20 +30,21 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#include <assert.h>
-#include <err.h>
-#include <errno.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <string>
-#include <sysexits.h>
 
+#include <err.h>
 #include <pmc.h>
 #include <pmcformat.h>
 #include <pmclog.h>
+#include <sysexits.h>
+
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
 
 using std::string;
 
@@ -72,54 +73,54 @@ static const char *typenames[] = {
 };
 
 static string
-startentry(struct pmclog_ev *ev)
+startentry(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"tsc\": \"%jd\"",
-	    typenames[ev->pl_type], (uintmax_t)ev->pl_ts.tv_sec);
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"tsc\": \"%jd\"",
+	    typenames[ev->pl_type], static_cast<uintmax_t>(ev->pl_ts.tv_sec));
 	return (string(eventbuf));
 }
 
 static string
-initialize_to_json(struct pmclog_ev *ev)
+initialize_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"version\": \"0x%08x\", \"arch\": \"0x%08x\", \"cpuid\": \"%s\", "
 		"\"tsc_freq\": \"%jd\", \"sec\": \"%jd\", \"nsec\": \"%jd\"}\n",
 		startent.c_str(), ev->pl_u.pl_i.pl_version, ev->pl_u.pl_i.pl_arch,
-		ev->pl_u.pl_i.pl_cpuid, (uintmax_t)ev->pl_u.pl_i.pl_tsc_freq,
-		(uintmax_t)ev->pl_u.pl_i.pl_ts.tv_sec, (uintmax_t)ev->pl_u.pl_i.pl_ts.tv_nsec);
+		ev->pl_u.pl_i.pl_cpuid, static_cast<uintmax_t>(ev->pl_u.pl_i.pl_tsc_freq),
+		static_cast<uintmax_t>(ev->pl_u.pl_i.pl_ts.tv_sec), static_cast<uintmax_t>(ev->pl_u.pl_i.pl_ts.tv_nsec));
 	return string(eventbuf);
 }
 
 static string
-pmcallocate_to_json(struct pmclog_ev *ev)
+pmcallocate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"pmcid\": \"0x%08x\", \"event\": \"0x%08x\", \"flags\": \"0x%08x\", "
 	    "\"rate\": \"%jd\"}\n",
 		startent.c_str(), ev->pl_u.pl_a.pl_pmcid, ev->pl_u.pl_a.pl_event,
-	    ev->pl_u.pl_a.pl_flags, (intmax_t)ev->pl_u.pl_a.pl_rate);
+	    ev->pl_u.pl_a.pl_flags, static_cast<intmax_t>(ev->pl_u.pl_a.pl_rate));
 	return string(eventbuf);
 }
 
 static string
-pmcattach_to_json(struct pmclog_ev *ev)
+pmcattach_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\", \"pathname\": \"%s\"}\n",
 		startent.c_str(), ev->pl_u.pl_t.pl_pmcid, ev->pl_u.pl_t.pl_pid,
 	    ev->pl_u.pl_t.pl_pathname);
@@ -127,13 +128,13 @@ pmcattach_to_json(struct pmclog_ev *ev)
 }
 
 static string
-pmcdetach_to_json(struct pmclog_ev *ev)
+pmcdetach_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 		"%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\"}\n",
 			 startent.c_str(), ev->pl_u.pl_d.pl_pmcid, ev->pl_u.pl_d.pl_pid);
 	return string(eventbuf);
@@ -141,117 +142,117 @@ pmcdetach_to_json(struct pmclog_ev *ev)
 
 
 static string
-proccsw_to_json(struct pmclog_ev *ev)
+proccsw_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\" "
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\" "
 	    "\"tid\": \"%d\", \"value\": \"0x%016jx\"}\n",
 		startent.c_str(), ev->pl_u.pl_c.pl_pmcid, ev->pl_u.pl_c.pl_pid,
-	    ev->pl_u.pl_c.pl_tid, (uintmax_t)ev->pl_u.pl_c.pl_value);
+	    ev->pl_u.pl_c.pl_tid, static_cast<uintmax_t>(ev->pl_u.pl_c.pl_value));
 	return string(eventbuf);
 }
 
 static string
-procexec_to_json(struct pmclog_ev *ev)
+procexec_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 		"%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\", "
 	    "\"start\": \"0x%016jx\", \"pathname\": \"%s\"}\n",
 		startent.c_str(), ev->pl_u.pl_x.pl_pmcid, ev->pl_u.pl_x.pl_pid,
-		(uintmax_t)ev->pl_u.pl_x.pl_entryaddr, ev->pl_u.pl_x.pl_pathname);
+		static_cast<uintmax_t>(ev->pl_u.pl_x.pl_entryaddr), ev->pl_u.pl_x.pl_pathname);
 	return string(eventbuf);
 }
 
 static string
-procexit_to_json(struct pmclog_ev *ev)
+procexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 		"%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\", "
 	    "\"value\": \"0x%016jx\"}\n",
 		startent.c_str(), ev->pl_u.pl_e.pl_pmcid, ev->pl_u.pl_e.pl_pid,
-	    (uintmax_t)ev->pl_u.pl_e.pl_value);
+	    static_cast<uintmax_t>(ev->pl_u.pl_e.pl_value));
 	return string(eventbuf);
 }
 
 static string
-procfork_to_json(struct pmclog_ev *ev)
+procfork_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 		"%s, \"oldpid\": \"%d\", \"newpid\": \"%d\"}\n",
 		startent.c_str(), ev->pl_u.pl_f.pl_oldpid, ev->pl_u.pl_f.pl_newpid);
 	return string(eventbuf);
 }
 
 static string
-sysexit_to_json(struct pmclog_ev *ev)
+sysexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\"}\n",
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\"}\n",
 		startent.c_str(), ev->pl_u.pl_se.pl_pid);
 	return string(eventbuf);
 }
 
 static string
-userdata_to_json(struct pmclog_ev *ev)
+userdata_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[128];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"userdata\": \"0x%08x\"}\n",
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"userdata\": \"0x%08x\"}\n",
 	    startent.c_str(), ev->pl_u.pl_u.pl_userdata);
 	return string(eventbuf);
 }
 
 static string
-map_in_to_json(struct pmclog_ev *ev)
+map_in_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\", "
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\", "
 	    "\"start\": \"0x%016jx\", \"pathname\": \"%s\"}\n",
 	    startent.c_str(), ev->pl_u.pl_mi.pl_pid,
-	    (uintmax_t)ev->pl_u.pl_mi.pl_start, ev->pl_u.pl_mi.pl_pathname);
+	    static_cast<uintmax_t>(ev->pl_u.pl_mi.pl_start), ev->pl_u.pl_mi.pl_pathname);
 	return string(eventbuf);
 }
 
 static string
-map_out_to_json(struct pmclog_ev *ev)
+map_out_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\", "
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"pid\": \"%d\", "
 	    "\"start\": \"0x%016jx\", \"end\": \"0x%016jx\"}\n",
 	    startent.c_str(), ev->pl_u.pl_mi.pl_pid,
-	    (uintmax_t)ev->pl_u.pl_mi.pl_start,
-	    (uintmax_t)ev->pl_u.pl_mo.pl_end);
+	    static_cast<uintmax_t>(ev->pl_u.pl_mi.pl_start),
+	    static_cast<uintmax_t>(ev->pl_u.pl_mo.pl_end));
 	return string(eventbuf);
 }
 
 static string
-callchain_to_json(struct pmclog_ev *ev)
+callchain_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[1024];
 	string result;
@@ -259,29 +260,29 @@ callchain_to_json(struct pmclog_ev *ev)
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"pmcid\": \"0x%08x\", \"pid\": \"%d\", \"tid\": \"%d\", "
 	    "\"cpuflags\": \"0x%08x\", \"cpuflags2\": \"0x%08x\", \"pc\": [ ",
 		startent.c_str(), ev->pl_u.pl_cc.pl_pmcid, ev->pl_u.pl_cc.pl_pid,
 	    ev->pl_u.pl_cc.pl_tid, ev->pl_u.pl_cc.pl_cpuflags, ev->pl_u.pl_cc.pl_cpuflags2);
 	result = string(eventbuf);
 	for (i = 0; i < ev->pl_u.pl_cc.pl_npc - 1; i++) {
-		snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\", ", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
+		std::snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\", ", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
 		result += string(eventbuf);
 	}
-	snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\"]}\n", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
+	std::snprintf(eventbuf, sizeof(eventbuf), "\"0x%016jx\"]}\n", (uintmax_t)ev->pl_u.pl_cc.pl_pc[i]);
 	result += string(eventbuf);
 	return (result);
 }
 
 static string
-pmcallocatedyn_to_json(struct pmclog_ev *ev)
+pmcallocatedyn_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"pmcid\": \"0x%08x\", \"event\": \"%d\", \"flags\": \"0x%08x\", \"evname\": \"%s\"}\n",
 	    startent.c_str(), ev->pl_u.pl_ad.pl_pmcid, ev->pl_u.pl_ad.pl_event,
 	    ev->pl_u.pl_ad.pl_flags, ev->pl_u.pl_ad.pl_evname);
@@ -289,13 +290,13 @@ pmcallocatedyn_to_json(struct pmclog_ev *ev)
 }
 
 static string
-proccreate_to_json(struct pmclog_ev *ev)
+proccreate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"pid\": \"%d\", \"flags\": \"0x%08x\", \"pcomm\": \"%s\"}\n",
 	    startent.c_str(), ev->pl_u.pl_pc.pl_pid,
 	    ev->pl_u.pl_pc.pl_flags, ev->pl_u.pl_pc.pl_pcomm);
@@ -303,13 +304,13 @@ proccreate_to_json(struct pmclog_ev *ev)
 }
 
 static string
-threadcreate_to_json(struct pmclog_ev *ev)
+threadcreate_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[2048];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf),
+	std::snprintf(eventbuf, sizeof(eventbuf),
 	    "%s, \"tid\": \"%d\", \"pid\": \"%d\", \"flags\": \"0x%08x\", \"tdname\": \"%s\"}\n",
 	    startent.c_str(), ev->pl_u.pl_tc.pl_tid, ev->pl_u.pl_tc.pl_pid,
 	    ev->pl_u.pl_tc.pl_flags, ev->pl_u.pl_tc.pl_tdname);
@@ -317,19 +318,19 @@ threadcreate_to_json(struct pmclog_ev *ev)
 }
 
 static string
-threadexit_to_json(struct pmclog_ev *ev)
+threadexit_to_json(struct pmclog_ev *ev) noexcept
 {
 	char eventbuf[256];
 	string startent;
 
 	startent = startentry(ev);
-	snprintf(eventbuf, sizeof(eventbuf), "%s, \"tid\": \"%d\"}\n",
+	std::snprintf(eventbuf, sizeof(eventbuf), "%s, \"tid\": \"%d\"}\n",
 	    startent.c_str(), ev->pl_u.pl_te.pl_tid);
 	return string(eventbuf);
 }
 
 static string
-stub_to_json(struct pmclog_ev *ev)
+stub_to_json(struct pmclog_ev *ev) noexcept
 {
 	string startent;
 
@@ -365,7 +366,7 @@ static jconv jsonconvert[] = {
 };
 
 string
-event_to_json(struct pmclog_ev *ev){
+event_to_json(struct pmclog_ev *ev) noexcept {
 
 	switch (ev->pl_type) {
 	case PMCLOG_TYPE_DROPNOTIFY:

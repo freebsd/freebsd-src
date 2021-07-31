@@ -41,29 +41,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <curses.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <kvm.h>
 #include <libgen.h>
-#include <limits.h>
-#include <locale.h>
-#include <math.h>
 #include <pmc.h>
 #include <pmclog.h>
 #include <regex.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <clocale>
+#include <cmath>
+#include <csignal>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstddef>
+#include <cstring>
 
 #include <libpmcstat.h>
 #include "cmd_pmc.h"

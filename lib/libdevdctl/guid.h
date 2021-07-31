@@ -67,7 +67,7 @@ public:
 	/* Construct a guid from a provided integer */
 	Guid(uint64_t guid);
 	/* Construct a guid from a string in base 8, 10, or 16 */
-	Guid(const std::string &guid);
+	Guid(const std::string &guid) noexcept;
 	static Guid InvalidGuid();
 
 	/* Test the validity of this guid. */
@@ -138,7 +138,7 @@ Guid::operator bool() const
 }
 
 /** Convert the GUID into its string representation */
-std::ostream& operator<< (std::ostream& out, Guid g);
+std::ostream& operator<< (std::ostream& out, Guid g) noexcept;
 
 } // namespace DevdCtl
 #endif /* _DEVDCTL_GUID_H_ */

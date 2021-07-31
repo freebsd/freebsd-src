@@ -41,29 +41,30 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <curses.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <kvm.h>
 #include <libgen.h>
-#include <limits.h>
-#include <locale.h>
-#include <math.h>
 #include <pmc.h>
 #include <pmclog.h>
 #include <regex.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
-#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <clocale>
+#include <cmath>
+#include <csignal>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstddef>
+#include <cstring>
 
 #include <libpmcstat.h>
 #include "cmd_pmc.h"
@@ -82,7 +83,7 @@ typedef std::pair<uint64_t, std::string> samplename;
 typedef unordered_map <uint32_t, std::vector<samplename>> eventcountmap;
 
 static void __dead2
-usage(void)
+usage(void) noexcept
 {
 	errx(EX_USAGE,
 	    "\t summarize log file\n"
@@ -91,7 +92,7 @@ usage(void)
 }
 
 static int
-pmc_summary_handler(int logfd, int k, bool do_full)
+pmc_summary_handler(int logfd, int k, bool do_full) noexcept
 {
 	struct pmclog_parse_state *ps;
 	struct pmclog_ev ev;
@@ -165,7 +166,7 @@ pmc_summary_handler(int logfd, int k, bool do_full)
 		auto &name = eventnamemap[kv.first];
 		auto rate = ratemap[kv.first];
 		std::cout << name << ":" << std::endl;
-		for (auto i = 0; i < k; i++) {
+		for (auto i = k; i > 0; i--) {
 			auto largest = kv.second.back();
 			kv.second.pop_back();
 			std::cout << "\t" << largest.second << ": " << largest.first*rate << std::endl;
@@ -180,7 +181,7 @@ static struct option longopts[] = {
 	{NULL, 0, NULL, 0}
 };
 
-int
+extern "C" int
 cmd_pmc_summary(int argc, char **argv)
 {
 	int option, logfd, k;
@@ -188,13 +189,14 @@ cmd_pmc_summary(int argc, char **argv)
 
 	do_full = false;
 	k = 5;
-	while ((option = getopt_long(argc, argv, "k:f", longopts, NULL)) != -1) {
+	while (
+	    (option = getopt_long(argc, argv, "k:f", longopts, NULL)) != -1) {
 		switch (option) {
 		case 'f':
-			do_full = 1;
+			do_full = true;
 			break;
 		case 'k':
-			k = atoi(optarg);
+			k = std::atoi(optarg);
 			break;
 		case '?':
 		default:
@@ -204,15 +206,15 @@ cmd_pmc_summary(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 	if (argc != 1) {
-		printf("argc: %d\n", argc);
+		std::printf("argc: %d\n", argc);
 		for (int i = 0; i < argc; i++)
-			printf("%s\n", argv[i]);
+			std::printf("%s\n", argv[i]);
 		usage();
 	}
 	if ((logfd = open(argv[0], O_RDONLY,
-	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
-		errx(EX_OSERR, "ERROR: Cannot open \"%s\" for reading: %s.", argv[0],
-		    strerror(errno));
+		 S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
+		errx(EX_OSERR, "ERROR: Cannot open \"%s\" for reading: %s.",
+		    argv[0], std::strerror(errno));
 
 	return (pmc_summary_handler(logfd, k, do_full));
 }
