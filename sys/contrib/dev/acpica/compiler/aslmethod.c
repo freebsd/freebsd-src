@@ -205,6 +205,10 @@ MtMethodAnalysisWalkBegin (
     UINT8                   ActualArgs = 0;
     BOOLEAN                 HidExists;
     BOOLEAN                 AdrExists;
+    BOOLEAN                 PrsExists;
+    BOOLEAN                 CrsExists;
+    BOOLEAN                 SrsExists;
+    BOOLEAN                 DisExists;
 
 
     /* Build cross-reference output file if requested */
@@ -536,8 +540,8 @@ MtMethodAnalysisWalkBegin (
 
         if (!HidExists && !AdrExists)
         {
-            AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                "Device object requires a _HID or _ADR in same scope");
+            AslError (ASL_ERROR, ASL_MSG_MISSING_DEPENDENCY, Op,
+                "Device object requires a _HID or _ADR");
         }
         else if (HidExists && AdrExists)
         {
@@ -548,6 +552,81 @@ MtMethodAnalysisWalkBegin (
              */
             AslError (ASL_WARNING, ASL_MSG_MULTIPLE_TYPES, Op,
                 "Device object requires either a _HID or _ADR, but not both");
+        }
+
+        /*
+         * Check usage of _CRS, _DIS, _PRS, and _SRS objects (July 2021).
+         *
+         * Under the Device Object:
+         *
+         * 1) If _DIS is present, must have a _CRS, _PRS, and _SRS
+         * 2) If _PRS is present, must have a _CRS and _SRS
+         * 3) If _SRS is present, must have a _CRS and _PRS
+         */
+        CrsExists = ApFindNameInDeviceTree (METHOD_NAME__CRS, Op);
+        DisExists = ApFindNameInDeviceTree (METHOD_NAME__DIS, Op);
+        PrsExists = ApFindNameInDeviceTree (METHOD_NAME__PRS, Op);
+        SrsExists = ApFindNameInDeviceTree (METHOD_NAME__SRS, Op);
+
+        /* 1) If _DIS is present, must have a _CRS, _PRS, and _SRS */
+
+        if (DisExists)
+        {
+            if (!CrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_DIS is missing a _CRS, requires a _CRS, _PRS, and a _SRS");
+            }
+
+            if (!PrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_DIS is missing a _PRS, requires a _CRS, _PRS, and a _SRS");
+            }
+
+            if (!SrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_DIS is missing a _SRS, requires a _CRS, _PRS, and a _SRS");
+            }
+        }
+
+        /* 2) If _PRS is present, must have a _CRS and _SRS */
+
+        if (PrsExists)
+        {
+            if (!CrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_PRS is missing a _CRS, requires a _CRS and a _SRS");
+            }
+
+            if (!SrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_PRS is missing a _SRS, requires a _CRS and a _SRS");
+            }
+        }
+
+        /* 3) If _SRS is present, must have a _CRS and _PRS */
+
+        if (SrsExists)
+        {
+            if (!CrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_SRS is missing a _CRS, requires a _CRS and a _PRS");
+            }
+            if (!PrsExists)
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_SRS is missing a _PRS, requires a _CRS and a _PRS");
+            }
+            if (!DisExists)
+            {
+                AslError (ASL_REMARK, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_SRS is missing a _DIS");
+            }
         }
         break;
 

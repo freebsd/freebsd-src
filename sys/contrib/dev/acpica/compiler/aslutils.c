@@ -434,18 +434,20 @@ UtDisplaySupportedTables (
 
 
     printf ("\nACPI tables supported by iASL version %8.8X:\n"
-        "  (Compiler, Disassembler, Template Generator)\n\n",
+        "  (Compiler, Disassembler, Template Generator)\n",
         ACPI_CA_VERSION);
 
     /* All ACPI tables with the common table header */
 
-    printf ("\n  Supported ACPI tables:\n");
+    printf ("\nKnown/Supported ACPI tables:\n");
     for (TableData = AcpiGbl_SupportedTables, i = 1;
          TableData->Signature; TableData++, i++)
     {
         printf ("%8u) %s    %s\n", i,
             TableData->Signature, TableData->Description);
     }
+
+    printf ("\nTotal %u ACPI tables\n\n", i-1);
 }
 
 

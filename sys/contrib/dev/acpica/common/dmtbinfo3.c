@@ -759,7 +759,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoWpbt[] =
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoWpbt0[] =
 {
-    {ACPI_DMT_UNICODE,     sizeof (ACPI_TABLE_WPBT),                "Command-line Arguments", 0},
+    {ACPI_DMT_WPBT_UNICODE, ACPI_WPBT2_OFFSET (UnicodeString),      "Command-line Arguments", DT_DESCRIBES_OPTIONAL},
     ACPI_DMT_TERMINATOR
 };
 
@@ -834,6 +834,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoGeneric[][2] =
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_STRING,     "String"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_UNICODE,    "Unicode"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_BUFFER,     "Buffer"),
+    ACPI_DM_GENERIC_ENTRY (ACPI_DMT_BUF16,      "BUF16"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_UUID,       "GUID"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_STRING,     "DevicePath"),
     ACPI_DM_GENERIC_ENTRY (ACPI_DMT_LABEL,      "Label"),
