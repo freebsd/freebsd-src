@@ -193,6 +193,144 @@
 
 /*******************************************************************************
  *
+ * AEST - ARM Error Source table. Conforms to:
+ * ACPI for the Armv8 RAS Extensions 1.1 Platform Design Document Sep 2020
+ *
+ ******************************************************************************/
+
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestHdr[] =
+{
+    {ACPI_DMT_AEST,     ACPI_AESTH_OFFSET (Type),                   "Subtable Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_AESTH_OFFSET (Length),                 "Length", DT_LENGTH},
+    {ACPI_DMT_UINT8,    ACPI_AESTH_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_AESTH_OFFSET (NodeSpecificOffset),     "Node Specific Offset", 0},
+    {ACPI_DMT_UINT32,   ACPI_AESTH_OFFSET (NodeInterfaceOffset),    "Node Interface Offset", 0},
+    {ACPI_DMT_UINT32,   ACPI_AESTH_OFFSET (NodeInterruptOffset),    "Node Interrupt Array Offset", 0},
+    {ACPI_DMT_UINT32,   ACPI_AESTH_OFFSET (NodeInterruptCount),     "Node Interrupt Array Count", 0},
+    {ACPI_DMT_UINT64,   ACPI_AESTH_OFFSET (TimestampRate),          "Timestamp Rate", 0},
+    {ACPI_DMT_UINT64,   ACPI_AESTH_OFFSET (Reserved1),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_AESTH_OFFSET (ErrorInjectionRate),     "Error Injection Rate", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/*
+ * AEST subtables (nodes)
+ */
+
+/* 0: Processor Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestProcError[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST0_OFFSET (ProcessorId),            "Processor ID", 0},
+    {ACPI_DMT_AEST_RES, ACPI_AEST0_OFFSET (ResourceType),           "Resource Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0_OFFSET (Flags),                  "Flags (decoded Below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_AEST0_FLAG_OFFSET (Flags, 0),          "Global", 0},
+    {ACPI_DMT_FLAG1,    ACPI_AEST0_FLAG_OFFSET (Flags, 0),          "Shared", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0_OFFSET (Revision),               "Revision", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0_OFFSET (ProcessorAffinity),      "Processor Affinity Structure", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0RT: Processor Cache Resource */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestCacheRsrc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST0A_OFFSET (CacheReference),        "Cache Reference", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0A_OFFSET (Reserved),              "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1RT: ProcessorTLB Resource */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestTlbRsrc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST0B_OFFSET (TlbLevel),              "TLB Level", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0B_OFFSET (Reserved),              "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2RT: Processor Generic Resource */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestGenRsrc[] =
+{
+    {ACPI_DMT_RAW_BUFFER, 0,                                        "Resource", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1: Memory Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestMemError[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST1_OFFSET (SratProximityDomain),    "Srat Proximity Domain", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2: Smmu Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestSmmuError[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST2_OFFSET (IortNodeReference),      "Iort Node Reference", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST2_OFFSET (SubcomponentReference),  "Subcomponent Reference", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 3: Vendor Defined */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestVendorError[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST3_OFFSET (AcpiHid),                "ACPI HID", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST3_OFFSET (AcpiUid),                "ACPI UID", 0},
+    {ACPI_DMT_BUF16,    ACPI_AEST3_OFFSET (VendorSpecificData),     "Vendor Specific Data", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 4: Gic Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestGicError[] =
+{
+    {ACPI_DMT_AEST_GIC, ACPI_AEST4_OFFSET (InterfaceType),          "GIC Interface Type", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST4_OFFSET (InstanceId),             "Instance ID", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* AestXface: Node Interface Structure */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXface[] =
+{
+    {ACPI_DMT_AEST_XFACE, ACPI_AEST0D_OFFSET (Type),                "Interface Type", 0},
+    {ACPI_DMT_UINT24,   ACPI_AEST0D_OFFSET (Reserved[0]),           "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0D_OFFSET (Flags),                 "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),         "Shared Interface", 0},
+    {ACPI_DMT_FLAG1,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),         "Clear MISCx Registers", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D_OFFSET (Address),               "Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0D_OFFSET (ErrorRecordIndex),      "Error Record Index", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0D_OFFSET (ErrorRecordCount),      "Error Record Count", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D_OFFSET (ErrorRecordImplemented),"Error Record Implemented", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D_OFFSET (ErrorStatusReporting),  "Error Status Reporting", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D_OFFSET (AddressingMode),        "Addressing Mode", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* AestXrupt: Node Interrupt Structure */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXrupt[] =
+{
+    {ACPI_DMT_AEST_XRUPT, ACPI_AEST0E_OFFSET (Type),                "Interrupt Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_AEST0E_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0E_OFFSET (Flags),                 "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_AEST0E_FLAG_OFFSET (Flags, 0),         "Level Triggered", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0E_OFFSET (Gsiv),                  "Gsiv", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0E_OFFSET (IortId),                "IortId", 0},
+    {ACPI_DMT_UINT24,   ACPI_AEST0E_OFFSET (Reserved1[0]),          "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * ASF - Alert Standard Format table (Signature "ASF!")
  *
  ******************************************************************************/

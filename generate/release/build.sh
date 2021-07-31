@@ -407,7 +407,6 @@ generate_binary_package()
 	#
 	mkdir $TEMP_DIR
 	cp -r documents/changes.txt     $TEMP_DIR/changes.txt
-	cp documents/aslcompiler.pdf    $TEMP_DIR
 	cp libraries/acpibin.exe        $TEMP_DIR
 	cp libraries/acpidump.exe       $TEMP_DIR
 	cp libraries/acpiexec.exe       $TEMP_DIR

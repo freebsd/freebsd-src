@@ -681,7 +681,7 @@ AcpiDmDumpViot (
     ACPI_TABLE_VIOT         *Viot;
     ACPI_VIOT_HEADER        *ViotHeader;
     UINT16                  Length;
-    UINT16                  Offset;
+    UINT32                  Offset;
     ACPI_DMTABLE_INFO       *InfoTable;
 
     /* Main table */
@@ -833,13 +833,12 @@ AcpiDmDumpWpbt (
 {
     ACPI_STATUS             Status;
     ACPI_TABLE_WPBT         *Subtable;
-    UINT32                  Length = Table->Length;
     UINT16                  ArgumentsLength;
 
 
     /* Dump the main table */
 
-    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoWpbt);
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoWpbt);
     if (ACPI_FAILURE (Status))
     {
         return;
@@ -850,8 +849,11 @@ AcpiDmDumpWpbt (
     Subtable = ACPI_CAST_PTR (ACPI_TABLE_WPBT, Table);
     ArgumentsLength = Subtable->ArgumentsLength;
 
-    /* Dump the arguments buffer */
+    /* Dump the arguments buffer if present */
 
-    (void) AcpiDmDumpTable (Table->Length, 0, Table, ArgumentsLength,
-        AcpiDmTableInfoWpbt0);
+    if (ArgumentsLength)
+    {
+        (void) AcpiDmDumpTable (Table->Length, 0, Table, ArgumentsLength,
+            AcpiDmTableInfoWpbt0);
+    }
 }

@@ -478,7 +478,7 @@ AdDisassembleOneTable (
         AcpiOsPrintf (" * ACPI Data Table [%4.4s]\n *\n",
             Table->Signature);
         AcpiOsPrintf (" * Format: [HexOffset DecimalOffset ByteLength]  "
-            "FieldName : FieldValue\n */\n\n");
+            "FieldName : FieldValue (in hex)\n */\n\n");
 
         AcpiDmDumpDataTable (Table);
         fprintf (stderr, "Acpi Data Table [%4.4s] decoded\n",

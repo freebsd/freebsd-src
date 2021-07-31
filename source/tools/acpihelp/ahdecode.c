@@ -709,11 +709,11 @@ AhDisplayTables (
     UINT32                  i = 0;
 
 
-    printf ("Known ACPI tables:\n");
+    printf ("Known/Supported ACPI tables:\n");
 
     for (Info = AcpiGbl_SupportedTables; Info->Signature; Info++)
     {
-        printf ("%8s : %s\n", Info->Signature, Info->Description);
+        printf ("%8u) %s : %s\n", i + 1, Info->Signature, Info->Description);
         i++;
     }
 
