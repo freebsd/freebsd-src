@@ -134,9 +134,9 @@ key_send(struct socket *so, int flags, struct mbuf *m,
 	error = key_parse(m, so);
 	m = NULL;
 end:
-	if (m)
+	if (m != NULL)
 		m_freem(m);
-	return error;
+	return (error);
 }
 
 /*
@@ -168,11 +168,11 @@ key_sendup0(struct keycb *kp, struct mbuf *m, int promisc)
 		PFKEYSTAT_INC(in_nomem);
 		m_freem(m);
 		soroverflow(kp->kp_socket);
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 
 	sorwakeup(kp->kp_socket);
-	return 0;
+	return (0);
 }
 
 /* so can be NULL if target != KEY_SENDUP_ONE */
@@ -195,7 +195,7 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		m = m_pullup(m, sizeof(struct sadb_msg));
 		if (m == NULL) {
 			PFKEYSTAT_INC(in_nomem);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
 	}
 	if (m->m_len >= sizeof(struct sadb_msg)) {
@@ -222,8 +222,8 @@ key_sendup_mbuf(struct socket *so, struct mbuf *m, int target)
 		if (so != NULL && so->so_pcb == kp)
 			continue;
 
-		if (target == KEY_SENDUP_ONE || (
-		    target == KEY_SENDUP_REGISTERED && kp->kp_registered == 0))
+		if (target == KEY_SENDUP_ONE || (target ==
+		    KEY_SENDUP_REGISTERED && kp->kp_registered == 0))
 			continue;
 
 		/* KEY_SENDUP_ALL + KEY_SENDUP_REGISTERED */
@@ -267,12 +267,12 @@ key_attach(struct socket *so, int proto, struct thread *td)
 
 	if (td != NULL) {
 		error = priv_check(td, PRIV_NET_RAW);
-		if (error)
-			return error;
+		if (error != 0)
+			return (error);
 	}
 
 	error = soreserve(so, key_sendspace, key_recvspace);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	kp = malloc(sizeof(*kp), M_PCB, M_WAITOK);
@@ -313,7 +313,6 @@ key_detach(struct socket *so)
 static int
 key_shutdown(struct socket *so)
 {
-
 	socantsendmore(so);
 	return (0);
 }
@@ -324,7 +323,7 @@ SYSCTL_NODE(_net, PF_KEY, key, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static struct protosw keysw = {
 	.pr_type =		SOCK_RAW,
 	.pr_protocol =		PF_KEY_V2,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_flags =		PR_ATOMIC | PR_ADDR,
 	.pr_abort =		key_close,
 	.pr_attach =		key_attach,
 	.pr_detach =		key_detach,
