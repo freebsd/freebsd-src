@@ -55,7 +55,7 @@ union sockaddr_union {
 };
 #endif /* _SOCKADDR_UNION_DEFINED */
 
-/* Security Assocciation Index */
+/* Security Association Index */
 /* NOTE: Ensure to be same address family */
 struct secasindex {
 	union sockaddr_union src;	/* source address for SA */
