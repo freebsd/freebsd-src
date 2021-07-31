@@ -172,6 +172,223 @@ static ACPI_DMTABLE_INFO           TableInfoDmarPciPath[] =
 
 /******************************************************************************
  *
+ * FUNCTION:    DtCompileAest
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile AEST.
+ *
+ * NOTE: Assumes the following table structure:
+ *      For all AEST Error Nodes:
+ *          1) An AEST Error Node, followed immediately by:
+ *          2) Any node-specific data
+ *          3) An Interface Structure (one)
+ *          4) A list (array) of Interrupt Structures, the count as specified
+ *              in the NodeInterruptCount field of the Error Node header.
+ *
+ * AEST - ARM Error Source table. Conforms to:
+ * ACPI for the Armv8 RAS Extensions 1.1 Platform Design Document Sep 2020
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileAest (
+    void                    **List)
+{
+    ACPI_AEST_HEADER        *ErrorNodeHeader;
+    ACPI_AEST_PROCESSOR     *AestProcessor;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    ACPI_STATUS             Status;
+    UINT32                  i;
+    UINT32                  Offset;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+
+
+    while (*PFieldList)
+    {
+        /* Compile the common error node header */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestHdr,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        /* Everything past the error node header will be a subtable */
+
+        DtPushSubtable (Subtable);
+
+        /*
+         * Compile the node-specific structure (Based on the error
+         * node header Type field)
+         */
+        ErrorNodeHeader = ACPI_CAST_PTR (ACPI_AEST_HEADER, Subtable->Buffer);
+
+        /* Point past the common error node header */
+
+        Offset = sizeof (ACPI_AEST_HEADER);
+        ErrorNodeHeader->NodeSpecificOffset = Offset;
+
+        /* Decode the error node type */
+
+        switch (ErrorNodeHeader->Type)
+        {
+        case ACPI_AEST_PROCESSOR_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestProcError;
+            break;
+
+        case ACPI_AEST_MEMORY_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestMemError;
+            break;
+
+        case ACPI_AEST_SMMU_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestSmmuError;
+            break;
+
+        case ACPI_AEST_VENDOR_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestVendorError;
+            break;
+
+        case ACPI_AEST_GIC_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestGicError;
+            break;
+
+        /* Error case below */
+        default:
+            AcpiOsPrintf ("Unknown AEST Subtable Type: %X\n",
+                ErrorNodeHeader->Type);
+            return (AE_ERROR);
+        }
+
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Point past the node-specific structure */
+
+        Offset += Subtable->Length;
+        ErrorNodeHeader->NodeInterfaceOffset = Offset;
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        /* Compile any additional node-specific substructures */
+
+        if (ErrorNodeHeader->Type == ACPI_AEST_PROCESSOR_ERROR_NODE)
+        {
+            /*
+             * Special handling for PROCESSOR_ERROR_NODE subtables
+             * (to handle the Resource Substructure via the ResourceType
+             * field).
+             */
+            AestProcessor = ACPI_CAST_PTR (ACPI_AEST_PROCESSOR,
+                Subtable->Buffer);
+
+            switch (AestProcessor->ResourceType)
+            {
+            case ACPI_AEST_CACHE_RESOURCE:
+
+                InfoTable = AcpiDmTableInfoAestCacheRsrc;
+                break;
+
+            case ACPI_AEST_TLB_RESOURCE:
+
+                InfoTable = AcpiDmTableInfoAestTlbRsrc;
+                break;
+
+            case ACPI_AEST_GENERIC_RESOURCE:
+
+                InfoTable = AcpiDmTableInfoAestGenRsrc;
+                AcpiOsPrintf ("Generic Resource Type (%X) is not supported at this time\n",
+                    AestProcessor->ResourceType);
+                return (AE_ERROR);
+
+            /* Error case below */
+            default:
+                AcpiOsPrintf ("Unknown AEST Processor Resource Type: %X\n",
+                    AestProcessor->ResourceType);
+                return (AE_ERROR);
+            }
+
+            Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            /* Point past the resource substructure subtable */
+
+            Offset += Subtable->Length;
+            ErrorNodeHeader->NodeInterfaceOffset = Offset;
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);
+        }
+
+        /* Compile the (required) node interface structure */
+
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestXface,
+            &Subtable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ErrorNodeHeader->NodeInterruptOffset = 0;
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        /* Compile each of the node interrupt structures */
+
+        if (ErrorNodeHeader->NodeInterruptCount)
+        {
+            /* Point to the first interrupt structure */
+
+            Offset += Subtable->Length;
+            ErrorNodeHeader->NodeInterruptOffset = Offset;
+        }
+
+        /* Compile each of the interrupt structures */
+
+        for (i = 0; i < ErrorNodeHeader->NodeInterruptCount; i++)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestXrupt,
+                &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);
+        }
+
+        /* Prepare for the next AEST Error node */
+
+        DtPopSubtable ();
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtCompileAsf
  *
  * PARAMETERS:  List                - Current field list pointer
