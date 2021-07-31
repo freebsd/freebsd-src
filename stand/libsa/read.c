@@ -69,12 +69,13 @@ __FBSDID("$FreeBSD$");
 ssize_t
 read(int fd, void *dest, size_t bcount)
 {
-	struct open_file *f = &files[fd];
+	struct open_file *f;
 	size_t resid;
 
 	TSENTER();
 
-	if ((unsigned)fd >= SOPEN_MAX || !(f->f_flags & F_READ)) {
+	f = fd2open_file(fd);
+	if (f == NULL || !(f->f_flags & F_READ)) {
 		errno = EBADF;
 		return (-1);
 	}

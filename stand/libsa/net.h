@@ -97,8 +97,6 @@ extern	u_int intf_mtu;
 
 extern	int debug;			/* defined in the machdep sources */
 
-extern struct iodesc sockets[SOPEN_MAX];
-
 /* ARP/RevARP functions: */
 u_char	*arpwhohas(struct iodesc *, struct in_addr);
 void	arp_reply(struct iodesc *, void *);

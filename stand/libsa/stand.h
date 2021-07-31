@@ -65,6 +65,7 @@
 #include <sys/cdefs.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
+#include <sys/queue.h>
 
 /* this header intentionally exports NULL from <string.h> */
 #include <string.h>
@@ -182,11 +183,14 @@ struct open_file {
     char		*f_rabuf;	/* readahead buffer pointer */
     size_t		f_ralen;	/* valid data in readahead buffer */
     off_t		f_raoffset;	/* consumer offset in readahead buffer */
+    int			f_id;		/* file number */
+    TAILQ_ENTRY(open_file) f_link;	/* next entry */
 #define SOPEN_RASIZE	512
 };
 
-#define	SOPEN_MAX	64
-extern struct open_file files[];
+typedef TAILQ_HEAD(file_list, open_file) file_list_t;
+extern file_list_t files;
+extern struct open_file *fd2open_file(int);
 
 /* f_flags values */
 #define	F_READ		0x0001	/* file opened for reading */

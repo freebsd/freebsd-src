@@ -68,23 +68,38 @@ __FBSDID("$FreeBSD$");
 int
 close(int fd)
 {
-	struct open_file *f = &files[fd];
+	struct open_file *f, *last;
 	int err1 = 0, err2 = 0;
 
-	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
+	f = fd2open_file(fd);
+	if (f == NULL) {
 		errno = EBADF;
 		return (-1);
 	}
 	free(f->f_rabuf);
 	f->f_rabuf = NULL;
 
-	if (!(f->f_flags & F_RAW) && f->f_ops)
-		err1 = (f->f_ops->fo_close)(f);
-	if (!(f->f_flags & F_NODEV) && f->f_dev)
-		err2 = (f->f_dev->dv_close)(f);
-	if (f->f_devdata != NULL)
-		devclose(f);
-	f->f_flags = 0;
+	if (f->f_flags != 0) {
+		if (!(f->f_flags & F_RAW) && f->f_ops)
+			err1 = (f->f_ops->fo_close)(f);
+		if (!(f->f_flags & F_NODEV) && f->f_dev)
+			err2 = (f->f_dev->dv_close)(f);
+		if (f->f_devdata != NULL)
+			devclose(f);
+		f->f_flags = 0;
+	} else {
+		/* Attempt to close already closed file. */
+		err1 = EBADF;
+	}
+
+	/* free unused entries from tail. */
+	TAILQ_FOREACH_REVERSE_SAFE(last, &files, file_list, f_link, f) {
+		if (last->f_flags != 0)
+			break;
+		TAILQ_REMOVE(&files, last, f_link);
+		free(last);
+	}
+
 	if (err1) {
 		errno = err1;
 		return (-1);

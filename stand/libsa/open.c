@@ -67,17 +67,66 @@ __FBSDID("$FreeBSD$");
 
 struct fs_ops *exclusive_file_system;
 
-struct open_file files[SOPEN_MAX];
+/*
+ * Open file list. The current implementation and assumption is,
+ * we only remove entries from tail and we only add new entries to tail.
+ * This decision is to keep file id management simple - we get list
+ * entries ordered by continiously growing f_id field.
+ * If we do have multiple files open and we do close file not from tail,
+ * this entry will be marked unused. open() will reuse unused entry, or
+ * close will free all unused tail entries.
+ *
+ * Only case we expect open file list to grow long, is with zfs pools with
+ * many disks. 
+ */
+file_list_t files = TAILQ_HEAD_INITIALIZER(files);
+
+/*
+ * Walk file list and return pointer to open_file structure.
+ * if fd is < 0, return first unused open_file.
+ */
+struct open_file *
+fd2open_file(int fd)
+{
+	struct open_file *f;
+
+	TAILQ_FOREACH(f, &files, f_link) {
+		if (fd >= 0) {
+			if (f->f_id == fd)
+				break;
+			continue;
+		}
+
+		if (f->f_flags == 0)
+			break;
+	}
+	return (f);
+}
 
 static int
-o_gethandle(void)
+o_gethandle(struct open_file **ptr)
 {
-	int fd;
+	struct open_file *f, *last;
 
-	for (fd = 0; fd < SOPEN_MAX; fd++)
-		if (files[fd].f_flags == 0)
-			return (fd);
-	return (-1);
+	/* Pick up unused entry */
+	f = fd2open_file(-1);
+	if (f != NULL) {
+		*ptr = f;
+		return (f->f_id);
+	}
+
+	/* Add new entry */
+	f = calloc(1, sizeof (*f));
+	if (f == NULL)
+		return (-1);
+
+	last = TAILQ_LAST(&files, file_list);
+	if (last != NULL)
+		f->f_id = last->f_id + 1;
+	TAILQ_INSERT_TAIL(&files, f, f_link);
+
+	*ptr = f;
+	return (f->f_id);
 }
 
 static void
@@ -98,12 +147,11 @@ open(const char *fname, int mode)
 
 	TSENTER();
 
-	if ((fd = o_gethandle()) == -1) {
+	if ((fd = o_gethandle(&f)) == -1) {
 		errno = EMFILE;
 		return (-1);
 	}
 
-	f = &files[fd];
 	f->f_flags = mode + 1;
 	f->f_dev = NULL;
 	f->f_ops = NULL;
