@@ -814,9 +814,44 @@ The scope rules for variables in functions are a botch;
 the syntax is worse.
 .Sh DEPRECATED BEHAVIOR
 One True Awk has accpeted
-.Fl Ft
+.Fl F Ar t
 to mean the same as
-.Fl F\t
+.Fl F Ar <TAB>
 to make it easier to specify tabs as the separator character.
 Upstream One True Awk has deprecated this wart in the name of better
 compatibility with other awk implementations like gawk and mawk.
+.Pp
+Historically,
+.Nm
+did not accept
+.Dq 0x
+as a hex string.
+However, since One True Awk used strtod to convert strings to floats, and since
+.Dq 0x12
+is a valid hexadecimal representation of a floating point number,
+On
+.Fx ,
+.Nm
+has accepted this notation as an extension since One True Awk was imported in
+.Fx 5.0 .
+Upstream One True Awk has restored the historical behavior for better
+compatibility between the different awk implementations.
+Both gawk and mawk already behave similarly.
+Starting with
+.Fx 14.0
+.Nm
+will no longer accept this extension.
+.Pp
+The
+.Fx
+.Nm
+sets the locale for many years to match the environment it was running in.
+This lead to pattern ranges, like
+.Dq "[A-Z]"
+sometimes matching lower case characters in some locales.
+This misbehavior was never in upstream One True Awk and has been removed as a
+bug in
+.Fx 12.3 ,
+.Fx 13.1 ,
+and
+.Fx 14.0 .
