@@ -8243,7 +8243,7 @@ spdcache_init(void)
 
 		V_spdcache_lock = malloc(sizeof(struct mtx) *
 		    (V_spdcachehash_mask + 1),
-		    M_IPSEC_SPDCACHE, M_WAITOK|M_ZERO);
+		    M_IPSEC_SPDCACHE, M_WAITOK | M_ZERO);
 
 		for (i = 0; i < V_spdcachehash_mask + 1; ++i)
 			SPDCACHE_LOCK_INIT(i);
@@ -8255,10 +8255,10 @@ spdcache_entry_alloc(const struct secpolicyindex *spidx, struct secpolicy *sp)
 {
 	struct spdcache_entry *entry;
 
-	entry = malloc(sizeof(struct spdcache_entry),
-		    M_IPSEC_SPDCACHE, M_NOWAIT|M_ZERO);
+	entry = malloc(sizeof(struct spdcache_entry), M_IPSEC_SPDCACHE,
+	    M_NOWAIT | M_ZERO);
 	if (entry == NULL)
-		return NULL;
+		return (NULL);
 
 	if (sp != NULL)
 		SP_ADDREF(sp);
