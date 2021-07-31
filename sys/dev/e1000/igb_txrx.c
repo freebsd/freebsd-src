@@ -522,7 +522,6 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 	uint16_t status = (uint16_t)staterr;
 	uint8_t errors = (uint8_t)(staterr >> 24);
 
-	/* Ignore Checksum bit is set */
 	if (__predict_false(status & E1000_RXD_STAT_IXSM))
 		return;
 
@@ -537,9 +536,7 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 	/* Valid L4E checksum */
 	if (__predict_true(status &
 	    (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))) {
-		/* SCTP header present.
-		 * XXXKB: ETQF doesn't appear to be used in igb?
-		 */
+		/* SCTP header present */
 		if (__predict_false((ptype & E1000_RXDADV_PKTTYPE_ETQF) == 0 &&
 		    (ptype & E1000_RXDADV_PKTTYPE_SCTP) != 0)) {
 			ri->iri_csum_flags |= CSUM_SCTP_VALID;
