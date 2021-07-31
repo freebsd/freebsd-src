@@ -166,7 +166,7 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
-CFLAGS		?=	-O2 -pipe
+CFLAGS		?=	-O3 -pipe
 .if defined(NO_STRICT_ALIASING)
 CFLAGS		+=	-fno-strict-aliasing
 .endif

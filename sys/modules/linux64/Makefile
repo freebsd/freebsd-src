@@ -41,14 +41,14 @@ VDSOFLAGS=-mgeneral-regs-only -mcmodel=small -ffixed-x18
 
 linux_locore.o: linux_assym.h assym.inc
 	${CC} -c -x assembler-with-cpp -DLOCORE \
-	-fPIC -pipe -O2 -Werror ${VDSOFLAGS} \
+	-fPIC -pipe -O3 -Werror ${VDSOFLAGS} \
 	-nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls \
 	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux_vdso_gtod.o: linux_vdso_gtod.inc ${VDSODEPS}
-	${CC} -c -fPIC -pipe -O2 -Werror ${VDSOFLAGS} \
+	${CC} -c -fPIC -pipe -O3 -Werror ${VDSOFLAGS} \
 	-nostdinc -fasynchronous-unwind-tables \
 	-fno-omit-frame-pointer -foptimize-sibling-calls \
 	-fno-stack-protector -I. -I${SYSDIR} -I${SRCTOP}/include \
