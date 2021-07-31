@@ -23,7 +23,7 @@
 .\" THIS SOFTWARE.
 .\"
 .\"	$FreeBSD$
-.Dd $Mdocdate: June 6 2020 $
+.Dd July 30, 2021
 .Dt AWK 1
 .Os
 .Sh NAME
@@ -812,3 +812,11 @@ to it.
 .Pp
 The scope rules for variables in functions are a botch;
 the syntax is worse.
+.Sh DEPRECATED BEHAVIOR
+One True Awk has accpeted
+.Fl Ft
+to mean the same as
+.Fl F\t
+to make it easier to specify tabs as the separator character.
+Upstream One True Awk has deprecated this wart in the name of better
+compatibility with other awk implementations like gawk and mawk.
