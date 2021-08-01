@@ -275,7 +275,7 @@ int msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
  * Internal service routine prototypes.
  */
 struct componentname;
-int deget(struct msdosfsmount *, u_long, u_long, struct denode **);
+int deget(struct msdosfsmount *, u_long, u_long, int, struct denode **);
 int uniqdosname(struct denode *, struct componentname *, u_char *);
 
 int readep(struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp);

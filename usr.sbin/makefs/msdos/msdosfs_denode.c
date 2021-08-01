@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
  */
 int
 deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
-    struct denode **depp)
+    int lkflags __unused, struct denode **depp)
 {
 	int error;
 	uint64_t inode;

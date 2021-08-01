@@ -86,7 +86,8 @@ msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
 
 	pmp = VFSTOMSDOSFS(mp);
 	dd_arg = arg;
-	error = deget(pmp, dd_arg->cluster, dd_arg->blkoff,  &rdp);
+	error = deget(pmp, dd_arg->cluster, dd_arg->blkoff,
+	    LK_EXCLUSIVE, &rdp);
 	if (error == 0)
 		*rvp = DETOV(rdp);
 	return (error);
@@ -495,7 +496,7 @@ foundroot:
 			*vpp = vdp;
 			return (0);
 		}
-		error = deget(pmp, cluster, blkoff, &tdp);
+		error = deget(pmp, cluster, blkoff, LK_EXCLUSIVE, &tdp);
 		if (error)
 			return (error);
 		*vpp = DETOV(tdp);
@@ -523,7 +524,8 @@ foundroot:
 		if (dp->de_StartCluster == scn && isadir)
 			return (EISDIR);
 
-		if ((error = deget(pmp, cluster, blkoff, &tdp)) != 0)
+		if ((error = deget(pmp, cluster, blkoff, LK_EXCLUSIVE,
+		    &tdp)) != 0)
 			return (error);
 		*vpp = DETOV(tdp);
 		cnp->cn_flags |= SAVENAME;
@@ -569,7 +571,8 @@ foundroot:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		if ((error = deget(pmp, cluster, blkoff, &tdp)) != 0)
+		if ((error = deget(pmp, cluster, blkoff, LK_EXCLUSIVE,
+		    &tdp)) != 0)
 			return (error);
 		*vpp = DETOV(tdp);
 	}
@@ -708,7 +711,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 			else
 				diroffset = 0;
 		}
-		return deget(pmp, dirclust, diroffset, depp);
+		return (deget(pmp, dirclust, diroffset, LK_EXCLUSIVE, depp));
 	}
 
 	return 0;
@@ -862,7 +865,7 @@ doscheckpath(struct denode *source, struct denode *target)
 		brelse(bp);
 		bp = NULL;
 		/* NOTE: deget() clears dep on error */
-		if ((error = deget(pmp, scn, 0, &dep)) != 0)
+		if ((error = deget(pmp, scn, 0, LK_EXCLUSIVE, &dep)) != 0)
 			break;
 	}
 out:;
