@@ -68,12 +68,17 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
+	if (length == 0)
+		goto done;
+	
+#ifndef MEMCPY
+	if (dst0 == src0)
+		goto done;
+#endif
+
 	u_char *dst = (u_char *)dst0;
 	const u_char *src = (const u_char *)src0;
 	size_t t;
-	
-	if (length == 0 || dst == src)
-		goto done;
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
