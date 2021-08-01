@@ -1439,7 +1439,8 @@ ufs_dir_dd_ino(struct vnode *vp, struct ucred *cred, ino_t *dd_ino,
  * Check if source directory is in the path of the target directory.
  */
 int
-ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct ucred *cred, ino_t *wait_ino)
+ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target,
+    struct ucred *cred, ino_t *wait_ino)
 {
 	struct mount *mp;
 	struct vnode *tvp, *vp, *vp1;
