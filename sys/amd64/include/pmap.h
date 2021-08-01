@@ -457,9 +457,10 @@ extern int invpcid_works;
 #define	pmap_unmapbios(va, sz)		pmap_unmapdev((va), (sz))
 
 #define	pmap_vm_page_alloc_check(m)					\
-	KASSERT(m->phys_addr < kernphys || m->phys_addr >= KERNend,	\
-	    ("allocating kernel page %p pa %#lx kernphys %#lx kernend %#lx", \
-	    m, m->phys_addr, kernphys, KERNend));
+	KASSERT(m->phys_addr < kernphys ||				\
+	    m->phys_addr >= kernphys + (vm_offset_t)&_end - KERNSTART,	\
+	    ("allocating kernel page %p pa %#lx kernphys %#lx end %p", \
+	    m, m->phys_addr, kernphys, &_end));
 
 struct thread;
 
