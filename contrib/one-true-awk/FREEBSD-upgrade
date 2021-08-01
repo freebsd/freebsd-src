@@ -1,0 +1,58 @@
+Notes on upgrading awk from upstream
+
+FreeBSD imports awk from the one true awk github project. This is the blessed
+successor to Brian Kernighan's efforts to maintain awk after he left Lucent.
+
+git@github.com:onetrueawk/awk.git
+
+We also track the bsd-features branch. This is a branch that takes the
+traditional one true awk and adds features that the BSD projects have added over
+the years that are useful, but not too over the top (like bit functions).
+
+The typical update cycle goes something like:
+
+(1) Create a work tree for the vendor/one-true-awk branch
+	% cd freebsd-main
+	% git worktree create ../ota vendor/one-true-awk
+(2) Update the onetrueawk github
+	% cd ../awk
+	% git pull --rebase
+	% git branch --show-current
+	bsd-features
+	% git show-ref HEAD
+	f9affa922c5e074990a999d486d4bc823590fd93 refs/remotes/origin/HEAD
+(3) Copy that to the vendor branch and push upstream
+	% rm -rf ../ota/*	# trailing /* is important
+	% cp -a * ../ota
+	% cd ../ota
+	% git add *
+	% git commit -m"Import awk YYYYMMDD hash f9affa922c5e" # 12 places
+	% git commit --amend
+	<insert the relevant bits from the FIXES file>
+	% diff -ur ../awk .
+	# Sanity check to make sure it looks good. The vendor branch should
+	# contain the unaltered sources from upstream since it's active
+	# again (for a while we were importing submitted patches to the
+	# vendor branch given the long lag with the old upstream, but no more)
+	% git tag -a -s vendor/one-true-awk/f9affa92		# 8 places
+	<enter gpg password>
+	% git push --follow-tags freebsd vendor/one-true-awk
+(4) Merge this into main
+	% git subtree merge -P contrib/one-true-awk vendor/one-true-awk
+	# resolve any conflicts and commit
+	# Be sure to use the same or similar commit message as you did for
+	# the import. If you import multiple versions before merging to head
+	# you may need to combine the messages. Also, if there's more than
+	# a screen of changes, you may want to abstract them down into an
+	# easy to digest summary.
+	% cd usr.bin/awk
+	% sudo make check
+	# make sure all the tests pass
+	% cd ../..
+	# awk is a build tool, so test the builds
+	% make buildworld / buildkernel for amd64, armv7, i386 and aarch64 (or
+	  make universe/tinderbox if there's a lot of changes).
+	% git push freebsd
+(5) Oops, lost the race to push while testing, the following will rebase things
+	% git fetch freebsd
+	% git rebase --rebase-merges -i freebsd/main
