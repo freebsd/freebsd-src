@@ -115,31 +115,13 @@ struct _HNAME##_head {				\
 	(_head)->items_count++;						\
 } while(0)
 
-#define	CHT_SLIST_REMOVE(_head, _PX, _key, _ret) do {			\
-	typeof(*(_head)->ptr) _tmp;					\
-	uint32_t _buck = CHT_GET_BUCK(_head, _PX, _key);		\
-	_ret = CHT_FIRST(_head, _buck);					\
-	_tmp = NULL;							\
-	for ( ; _ret != NULL; _tmp = _ret, _ret = _PX##_next(_ret)) {	\
-		if (_PX##_cmp(_key, _ret))				\
-			break;						\
-	}								\
-	if (_ret != NULL) {						\
-		if (_tmp == NULL)					\
-			CHT_FIRST(_head, _buck) = _PX##_next(_ret);	\
-		else							\
-			_PX##_next(_tmp) = _PX##_next(_ret);		\
-		(_head)->items_count--;					\
-	}								\
-} while(0)
-
-#define	CHT_SLIST_REMOVE_BYOBJ(_head, _PX, _obj, _ret) do {		\
+#define	CHT_SLIST_REMOVE(_head, _PX, _obj, _ret) do {			\
 	typeof(*(_head)->ptr) _tmp;					\
 	uint32_t _buck = CHT_GET_BUCK_OBJ(_head, _PX, _obj);		\
 	_ret = CHT_FIRST(_head, _buck);					\
 	_tmp = NULL;							\
 	for ( ; _ret != NULL; _tmp = _ret, _ret = _PX##_next(_ret)) {	\
-		if (_PX##_cmp(_obj, _ret))				\
+		if (_obj == _ret)					\
 			break;						\
 	}								\
 	if (_ret != NULL) {						\
@@ -150,6 +132,7 @@ struct _HNAME##_head {				\
 		(_head)->items_count--;					\
 	}								\
 } while(0)
+#define	CHT_SLIST_REMOVE_BYOBJ	CHT_SLIST_REMOVE
 
 #define	CHT_SLIST_FOREACH(_head, _PX, _x)				\
 	for (uint32_t _i = 0; _i < (_head)->hash_size; _i++) {		\
