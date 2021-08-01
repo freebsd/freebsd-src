@@ -847,7 +847,7 @@ msdosfs_root(struct mount *mp, int flags, struct vnode **vpp)
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_root(); mp %p, pmp %p\n", mp, pmp);
 #endif
-	error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, &ndep);
+	error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, LK_EXCLUSIVE, &ndep);
 	if (error)
 		return (error);
 	*vpp = DETOV(ndep);
@@ -988,7 +988,8 @@ msdosfs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	struct denode *dep;
 	int error;
 
-	error = deget(pmp, defhp->defid_dirclust, defhp->defid_dirofs, &dep);
+	error = deget(pmp, defhp->defid_dirclust, defhp->defid_dirofs,
+	    LK_EXCLUSIVE, &dep);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);

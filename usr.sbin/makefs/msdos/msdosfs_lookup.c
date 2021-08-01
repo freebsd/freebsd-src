@@ -187,7 +187,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 			else
 				diroffset = 0;
 		}
-		return deget(pmp, dirclust, diroffset, depp);
+		return deget(pmp, dirclust, diroffset, 0, depp);
 	}
 
 	return 0;

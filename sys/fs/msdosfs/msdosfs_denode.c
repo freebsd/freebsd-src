@@ -92,11 +92,12 @@ de_vncmpf(struct vnode *vp, void *arg)
  *	       diroffset is relative to the beginning of the root directory,
  *	       otherwise it is cluster relative.
  * diroffset - offset past begin of cluster of denode we want
+ * lkflags   - locking flags (LK_NOWAIT)
  * depp	     - returns the address of the gotten denode.
  */
 int
 deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
-    struct denode **depp)
+    int lkflags, struct denode **depp)
 {
 	int error;
 	uint64_t inode;
@@ -107,9 +108,11 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	struct buf *bp;
 
 #ifdef MSDOSFS_DEBUG
-	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
-	    pmp, dirclust, diroffset, depp);
+	printf("deget(pmp %p, dirclust %lu, diroffset %lx, flags %#x, "
+	    "depp %p)\n",
+	    pmp, dirclust, diroffset, flags, depp);
 #endif
+	MPASS((lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE);
 
 	/*
 	 * On FAT32 filesystems, root is a (more or less) normal
@@ -133,7 +136,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	 */
 	inode = (uint64_t)pmp->pm_bpcluster * dirclust + diroffset;
 
-	error = vfs_hash_get(mntp, inode, LK_EXCLUSIVE, curthread, &nvp,
+	error = vfs_hash_get(mntp, inode, lkflags, curthread, &nvp,
 	    de_vncmpf, &inode);
 	if (error)
 		return (error);
@@ -171,7 +174,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 		*depp = NULL;
 		return (error);
 	}
-	error = vfs_hash_insert(nvp, inode, LK_EXCLUSIVE, curthread, &xvp,
+	error = vfs_hash_insert(nvp, inode, lkflags, curthread, &xvp,
 	    de_vncmpf, &inode);
 	if (error) {
 		*depp = NULL;
