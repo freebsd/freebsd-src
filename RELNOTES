@@ -10,9 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-various:
+f39dd6a97844,23f24377b1a9,628bd30ab5a4:
 	One True Awk has been updated to the latest from upstream
-	(20210215). All the FreeBSD patches, but one, have now been
+	(20210727). All the FreeBSD patches, but one, have now been
 	either up streamed or discarded.  Notable changes include:
 		o Locale is no longer used for ranges
 		o Various bugs fixed
@@ -23,6 +23,10 @@ various:
 	interpreted as hex numbers while all other awks (including one
 	true awk now) interpret them as 0 in line with awk's historic
 	behavior.
+
+	A second change, less likely to be noticed, is the historic wart
+	if -Ft meaning to use hard tab characters as the field separator
+	is deprecated and will likely be removed in FreeBSD 14.
 
 ee29e6f31111:
 	Commit ee29e6f31111 added a new sysctl called vfs.nfsd.srvmaxio
