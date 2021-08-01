@@ -32,30 +32,30 @@
  * SUCH DAMAGE.
  *
  *	@(#)lseek.c	8.1 (Berkeley) 6/11/93
- *  
+ *
  *
  * Copyright (c) 1989, 1990, 1991 Carnegie Mellon University
  * All Rights Reserved.
  *
  * Author: Alessandro Forin
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
+ *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
@@ -68,74 +68,75 @@ __FBSDID("$FreeBSD$");
 off_t
 lseek(int fd, off_t offset, int where)
 {
-    off_t bufpos, filepos, target;
-    struct open_file *f = &files[fd];
+	off_t bufpos, filepos, target;
+	struct open_file *f = &files[fd];
 
-    if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
-	errno = EBADF;
-	return (-1);
-    }
+	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
+		errno = EBADF;
+		return (-1);
+	}
 
-    if (f->f_flags & F_RAW) {
+	if (f->f_flags & F_RAW) {
+		/*
+		 * On RAW devices, update internal offset.
+		 */
+		switch (where) {
+		case SEEK_SET:
+			f->f_offset = offset;
+			break;
+		case SEEK_CUR:
+			f->f_offset += offset;
+			break;
+		default:
+			errno = EOFFSET;
+			return (-1);
+		}
+		return (f->f_offset);
+	}
+
 	/*
-	 * On RAW devices, update internal offset.
+	 * If there is some unconsumed data in the readahead buffer and it
+	 * contains the desired offset, simply adjust the buffer offset and
+	 * length.  We don't bother with SEEK_END here, since the code to
+	 * handle it would fail in the same cases where the non-readahead
+	 * code fails (namely, for streams which cannot seek backward and whose
+	 * size isn't known in advance).
 	 */
-	switch (where) {
-	case SEEK_SET:
-	    f->f_offset = offset;
-	    break;
-	case SEEK_CUR:
-	    f->f_offset += offset;
-	    break;
-	default:
-	    errno = EOFFSET;
-	    return (-1);
+	if (f->f_ralen != 0 && where != SEEK_END) {
+		filepos = (f->f_ops->fo_seek)(f, 0, SEEK_CUR);
+		if (filepos == -1)
+			return (-1);
+		bufpos = filepos - f->f_ralen;
+		switch (where) {
+		case SEEK_SET:
+			target = offset;
+			break;
+		case SEEK_CUR:
+			target = bufpos + offset;
+			break;
+		default:
+			errno = EINVAL;
+			return (-1);
+		}
+		if (bufpos <= target && target < filepos) {
+			f->f_raoffset += target - bufpos;
+			f->f_ralen -= target - bufpos;
+			return (target);
+		}
 	}
-	return (f->f_offset);
-    }
 
-    /*
-     * If there is some unconsumed data in the readahead buffer and it
-     * contains the desired offset, simply adjust the buffer offset and
-     * length.  We don't bother with SEEK_END here, since the code to
-     * handle it would fail in the same cases where the non-readahead
-     * code fails (namely, for streams which cannot seek backward and whose
-     * size isn't known in advance).
-     */
-    if (f->f_ralen != 0 && where != SEEK_END) {
-	if ((filepos = (f->f_ops->fo_seek)(f, (off_t)0, SEEK_CUR)) == -1)
-	    return (-1);
-	bufpos = filepos - f->f_ralen;
-	switch (where) {
-	case SEEK_SET:
-	    target = offset;
-	    break;
-	case SEEK_CUR:
-	    target = bufpos + offset;
-	    break;
-	default:
-	    errno = EINVAL;
-	    return (-1);
-	}
-	if (bufpos <= target && target < filepos) {
-	    f->f_raoffset += target - bufpos;
-	    f->f_ralen -= target - bufpos;
-	    return (target);
-	}
-    }
+	/*
+	 * If this is a relative seek, we need to correct the offset for
+	 * bytes that we have already read but the caller doesn't know
+	 * about.
+	 */
+	if (where == SEEK_CUR)
+		offset -= f->f_ralen;
 
-    /*
-     * If this is a relative seek, we need to correct the offset for
-     * bytes that we have already read but the caller doesn't know
-     * about.
-     */
-    if (where == SEEK_CUR)
-	offset -= f->f_ralen;
+	/*
+	 * Invalidate the readahead buffer.
+	 */
+	f->f_ralen = 0;
 
-    /* 
-     * Invalidate the readahead buffer.
-     */
-    f->f_ralen = 0;
-
-    return (f->f_ops->fo_seek)(f, offset, where);
+	return (f->f_ops->fo_seek)(f, offset, where);
 }
