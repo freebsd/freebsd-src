@@ -68,11 +68,11 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	if (length == 0)
+	if (length == 0) // Nothing to do
 		goto done;
 	
 #ifndef MEMCPY
-	if (dst0 == src0)
+	if (dst0 == src0) // Nothing to do
 		goto done;
 #endif
 
