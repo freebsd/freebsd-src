@@ -337,7 +337,7 @@ unlink_nhop(struct nh_control *ctl, struct nhop_priv *nh_priv_del)
 	idx = 0;
 
 	NHOPS_WLOCK(ctl);
-	CHT_SLIST_REMOVE_BYOBJ(&ctl->nh_head, nhops, nh_priv_del, priv_ret);
+	CHT_SLIST_REMOVE(&ctl->nh_head, nhops, nh_priv_del, priv_ret);
 
 	if (priv_ret != NULL) {
 		idx = priv_ret->nh_idx;

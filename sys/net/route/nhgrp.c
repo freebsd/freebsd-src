@@ -187,7 +187,7 @@ unlink_nhgrp(struct nh_control *ctl, struct nhgrp_priv *key)
 
 	NHOPS_WLOCK(ctl);
 
-	CHT_SLIST_REMOVE_BYOBJ(&ctl->gr_head, mpath, key, nhg_priv_ret);
+	CHT_SLIST_REMOVE(&ctl->gr_head, mpath, key, nhg_priv_ret);
 
 	if (nhg_priv_ret == NULL) {
 		DPRINTF("Unable to find nhop group!");
