@@ -1,0 +1,4 @@
+../a.out: syntax error at source line 1 source file pfile-overflow.awk
+ context is
+	 >>>  <<< 
+../a.out: bailing out at source line 1 source file pfile-overflow.awk
