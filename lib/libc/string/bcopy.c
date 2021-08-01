@@ -71,6 +71,9 @@ bcopy(const void *src0, void *dst0, size_t length)
 	u_char *dst = (u_char *)dst0;
 	const u_char *src = (const u_char *)src0;
 	size_t t;
+	
+	if (length == 0 || dst == src)
+		goto done;
 
 	/*
 	 * Macros: loop-t-times; and loop-t-times, t>0
@@ -133,8 +136,10 @@ bcopy(const void *src0, void *dst0, size_t length)
 
 #undef TLOOP
 #undef TLOOP1
-
+done:
 #if defined(MEMCOPY) || defined(MEMMOVE)
 	return (dst0);
+#else
+	return;
 #endif
 }
