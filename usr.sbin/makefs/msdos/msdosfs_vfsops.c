@@ -353,7 +353,7 @@ msdosfs_root(struct msdosfsmount *pmp, struct vnode *vp) {
 	int error;
 
 	*vp = *pmp->pm_devvp;
-	if ((error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, &ndep)) != 0) {
+	if ((error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, 0, &ndep)) != 0) {
 		errno = error;
 		return -1;
 	}
