@@ -25,6 +25,23 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+July 27, 2021:
+	As per IEEE Std 1003.1-2008, -F "str" is now consistent with
+	-v FS="str" when str is null. Thanks to Warner Losh.
+
+July 24, 2021:
+	Fix readrec's definition of a record. This fixes an issue
+	with NetBSD's RS regular expression support that can cause
+	an infinite read loop. Thanks to Miguel Pineiro Jr.
+
+	Fix regular expression RS ^-anchoring. RS ^-anchoring needs to
+	know if it is reading the first record of a file. This change
+	restores a missing line that was overlooked when porting NetBSD's
+	RS regex functionality. Thanks to Miguel Pineiro Jr.
+
+	Fix size computation in replace_repeat() for special case
+	REPEAT_WITH_Q. Thanks to Todd C. Miller.
+
 February 15, 2021:
 	Small fix so that awk will compile again with g++. Thanks to
 	Arnold Robbins.

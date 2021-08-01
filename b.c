@@ -935,7 +935,7 @@ replace_repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 	if (special_case == REPEAT_PLUS_APPENDED) {
 		size++;		/* for the final + */
 	} else if (special_case == REPEAT_WITH_Q) {
-		size += init_q + (atomlen+1)* n_q_reps;
+		size += init_q + (atomlen+1)* (n_q_reps-init_q);
 	} else if (special_case == REPEAT_ZERO) {
 		size += 2;	/* just a null ERE: () */
 	}
@@ -964,11 +964,8 @@ replace_repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 		}
 	}
 	memcpy(&buf[j], reptok+reptoklen, suffix_length);
-	if (special_case == REPEAT_ZERO) {
-		buf[j+suffix_length] = '\0';
-	} else {
-		buf[size] = '\0';
-	}
+	j += suffix_length;
+	buf[j] = '\0';
 	/* free old basestr */
 	if (firstbasestr != basestr) {
 		if (basestr)
