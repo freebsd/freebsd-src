@@ -59,6 +59,7 @@ _MKSHOWCONFIG=	t
 
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
+TIME_ENV ?= time env
 
 .include "share/mk/src.tools.mk"
 
@@ -722,7 +723,7 @@ BSARGS= 	DESTDIR= \
 		MK_INCLUDES=yes
 
 BMAKE=		\
-		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		${TIME_ENV} ${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		${BSARGS}
 .if empty(.MAKEOVERRIDES:MMK_LLVM_TARGET_ALL)
 BMAKE+=		MK_LLVM_TARGET_ALL=no
@@ -730,7 +731,7 @@ BMAKE+=		MK_LLVM_TARGET_ALL=no
 
 # build-tools stage
 TMAKE=		\
-		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+		${TIME_ENV} ${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
@@ -754,7 +755,7 @@ KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		WORLDTMP=${WORLDTMP} \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
 
-KTMAKE=		\
+KTMAKE=		${TIME_ENV} \
 		TOOLS_PREFIX=${TOOLS_PREFIX_UNDEF:U${WORLDTMP}} \
 		${KTMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
@@ -882,12 +883,12 @@ host-osreldate.h: # DO NOT ADD /usr/include/osreldate.h here
 	@echo "#endif" >> ${.TARGET}
 .endif
 
-WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
+WMAKE=		${TIME_ENV} ${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		BWPHASE=${.TARGET:C,^_,,} \
 		DESTDIR=${WORLDTMP}
 
 IMAKEENV=	${CROSSENV}
-IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
+IMAKE=		${TIME_ENV} ${IMAKEENV} ${MAKE} -f Makefile.inc1 \
 		${IMAKE_INSTALL} ${IMAKE_MTREE}
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
@@ -951,7 +952,7 @@ DESTDIR_MTREE=	${DISTR_MTREE} ${DESTDIR_MTREEFLAGS}
 
 # kernel stage
 KMAKEENV=	${WMAKEENV:NSYSROOT=*}
-KMAKE=		${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
+KMAKE=		${TIME_ENV} ${KMAKEENV} ${MAKE} ${.MAKEFLAGS} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
