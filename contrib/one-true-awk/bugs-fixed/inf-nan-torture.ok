@@ -1,0 +1,16 @@
+1 -inf -inf
+2 -inform 0
+3 inform 0
+4 -nan -nan
+5 -nancy 0
+6 nancy 0
+7 -123 -123
+8 0 0
+9 123 123
+10 +123 123
+11 nancy 0
+12 +nancy 0
+13 +nan +nan
+14 inform 0
+15 +inform 0
+16 +inf +inf

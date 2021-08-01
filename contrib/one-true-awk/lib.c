@@ -176,6 +176,7 @@ int getrec(char **pbuf, int *pbufsize, bool isrecord)	/* get next input record *
 				infile = stdin;
 			else if ((infile = fopen(file, "r")) == NULL)
 				FATAL("can't open file %s", file);
+			innew = true;
 			setfval(fnrloc, 0.0);
 		}
 		c = readrec(&buf, &bufsize, infile, innew);
@@ -241,6 +242,7 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf, bool newflag)	/* read one rec
 		}
 		if (found)
 			setptr(patbeg, '\0');
+		isrec = (found == 0 && *buf == '\0') ? false : true;
 	} else {
 		if ((sep = *rs) == 0) {
 			sep = '\n';
@@ -270,10 +272,10 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf, bool newflag)	/* read one rec
 		if (!adjbuf(&buf, &bufsize, 1+rr-buf, recsize, &rr, "readrec 3"))
 			FATAL("input record `%.30s...' too long", buf);
 		*rr = 0;
+		isrec = (c == EOF && rr == buf) ? false : true;
 	}
 	*pbuf = buf;
 	*pbufsize = bufsize;
-	isrec = *buf || !feof(inf);
 	DPRINTF("readrec saw <%s>, returns %d\n", buf, isrec);
 	return isrec;
 }
