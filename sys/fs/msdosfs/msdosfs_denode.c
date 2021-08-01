@@ -167,6 +167,7 @@ deget(struct msdosfsmount *pmp, u_long dirclust, u_long diroffset,
 	ldep->de_inode = inode;
 	cluster_init_vn(&ldep->de_clusterw);
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
+	VN_LOCK_AREC(nvp);	/* for doscheckpath */
 	fc_purge(ldep, 0);	/* init the FAT cache for this denode */
 	error = insmntque(nvp, mntp);
 	if (error != 0) {

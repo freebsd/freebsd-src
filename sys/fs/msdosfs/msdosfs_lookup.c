@@ -67,7 +67,8 @@ int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
 {
 
-	return (msdosfs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
+	return (msdosfs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL,
+	    NULL));
 }
 
 struct deget_dotdot {
@@ -109,8 +110,8 @@ msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
  * memory denode's will be in synch.
  */
 int
-msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, uint64_t *dd_inum)
+msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname
+    *cnp, daddr_t *scnp, u_long *blkoffp)
 {
 	struct mbnambuf nb;
 	daddr_t bn;
@@ -119,11 +120,11 @@ msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
 	int slotoffset = 0;
 	int frcn;
 	u_long cluster;
-	int blkoff;
+	u_long blkoff;
 	int diroff;
 	int blsize;
 	int isadir;		/* ~0 if found direntry is a directory	 */
-	u_long scn;		/* starting cluster number		 */
+	daddr_t scn;		/* starting cluster number		 */
 	struct vnode *pdp;
 	struct denode *dp;
 	struct denode *tdp;
@@ -464,8 +465,9 @@ foundroot:
 	if (FAT32(pmp) && scn == MSDOSFSROOT)
 		scn = pmp->pm_rootdirblk;
 
-	if (dd_inum != NULL) {
-		*dd_inum = (uint64_t)pmp->pm_bpcluster * scn + blkoff;
+	if (scnp != NULL) {
+		*scnp = cluster;
+		*blkoffp = blkoff;
 		return (0);
 	}
 
@@ -557,12 +559,15 @@ foundroot:
 		 * Recheck that ".." still points to the inode we
 		 * looked up before pdp lock was dropped.
 		 */
-		error = msdosfs_lookup_ino(pdp, NULL, cnp, &inode1);
+		error = msdosfs_lookup_ino(pdp, NULL, cnp, &scn, &blkoff);
 		if (error) {
 			vput(*vpp);
 			*vpp = NULL;
 			return (error);
 		}
+		if (FAT32(pmp) && scn == MSDOSFSROOT)
+			scn = pmp->pm_rootdirblk;
+		inode1 = scn * pmp->pm_bpcluster + blkoff;
 		if (VTODE(*vpp)->de_inode != inode1) {
 			vput(*vpp);
 			goto restart;
@@ -794,10 +799,9 @@ dosdirempty(struct denode *dep)
  *
  * Returns 0 if target is NOT a subdirectory of source.
  * Otherwise returns a non-zero error number.
- * The target inode is always unlocked on return.
  */
 int
-doscheckpath(struct denode *source, struct denode *target)
+doscheckpath(struct denode *source, struct denode *target, daddr_t *wait_scn)
 {
 	daddr_t scn;
 	struct msdosfsmount *pmp;
@@ -806,26 +810,25 @@ doscheckpath(struct denode *source, struct denode *target)
 	struct buf *bp = NULL;
 	int error = 0;
 
-	dep = target;
-	if ((target->de_Attributes & ATTR_DIRECTORY) == 0 ||
-	    (source->de_Attributes & ATTR_DIRECTORY) == 0) {
-		error = ENOTDIR;
-		goto out;
-	}
-	if (dep->de_StartCluster == source->de_StartCluster) {
-		error = EEXIST;
-		goto out;
-	}
-	if (dep->de_StartCluster == MSDOSFSROOT)
-		goto out;
-	pmp = dep->de_pmp;
-#ifdef	DIAGNOSTIC
-	if (pmp != source->de_pmp)
-		panic("doscheckpath: source and target on different filesystems");
-#endif
-	if (FAT32(pmp) && dep->de_StartCluster == pmp->pm_rootdirblk)
-		goto out;
+	*wait_scn = 0;
 
+	pmp = target->de_pmp;
+	KASSERT(pmp == source->de_pmp,
+	    ("doscheckpath: source and target on different filesystems"));
+
+	if ((target->de_Attributes & ATTR_DIRECTORY) == 0 ||
+	    (source->de_Attributes & ATTR_DIRECTORY) == 0)
+		return (ENOTDIR);
+
+	if (target->de_StartCluster == source->de_StartCluster)
+		return (EEXIST);
+
+	if (target->de_StartCluster == MSDOSFSROOT ||
+	    (FAT32(pmp) && target->de_StartCluster == pmp->pm_rootdirblk))
+		return (0);
+
+	dep = target;
+	vget(DETOV(dep), LK_EXCLUSIVE);
 	for (;;) {
 		if ((dep->de_Attributes & ATTR_DIRECTORY) == 0) {
 			error = ENOTDIR;
@@ -833,19 +836,22 @@ doscheckpath(struct denode *source, struct denode *target)
 		}
 		scn = dep->de_StartCluster;
 		error = bread(pmp->pm_devvp, cntobn(pmp, scn),
-			      pmp->pm_bpcluster, NOCRED, &bp);
-		if (error)
+		    pmp->pm_bpcluster, NOCRED, &bp);
+		if (error != 0)
 			break;
 
-		ep = (struct direntry *) bp->b_data + 1;
+		ep = (struct direntry *)bp->b_data + 1;
 		if ((ep->deAttributes & ATTR_DIRECTORY) == 0 ||
 		    bcmp(ep->deName, "..         ", 11) != 0) {
 			error = ENOTDIR;
+			brelse(bp);
 			break;
 		}
+
 		scn = getushort(ep->deStartCluster);
 		if (FAT32(pmp))
 			scn |= getushort(ep->deHighClust) << 16;
+		brelse(bp);
 
 		if (scn == source->de_StartCluster) {
 			error = EINVAL;
@@ -862,15 +868,14 @@ doscheckpath(struct denode *source, struct denode *target)
 		}
 
 		vput(DETOV(dep));
-		brelse(bp);
-		bp = NULL;
+		dep = NULL;
 		/* NOTE: deget() clears dep on error */
-		if ((error = deget(pmp, scn, 0, LK_EXCLUSIVE, &dep)) != 0)
+		error = deget(pmp, scn, 0, LK_EXCLUSIVE | LK_NOWAIT, &dep);
+		if (error != 0) {
+			*wait_scn = scn;
 			break;
+		}
 	}
-out:;
-	if (bp)
-		brelse(bp);
 #ifdef MSDOSFS_DEBUG
 	if (error == ENOTDIR)
 		printf("doscheckpath(): .. not a directory?\n");

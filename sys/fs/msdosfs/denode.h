@@ -268,7 +268,7 @@ int msdosfs_lookup(struct vop_cachedlookup_args *);
 int msdosfs_inactive(struct vop_inactive_args *);
 int msdosfs_reclaim(struct vop_reclaim_args *);
 int msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, uint64_t *inum);
+    struct componentname *cnp, daddr_t *scnp, u_long *blkoffp);
 #endif
 
 /*
@@ -288,6 +288,7 @@ int createde(struct denode *dep, struct denode *ddep, struct denode **depp, stru
 int deupdat(struct denode *dep, int waitfor);
 int removede(struct denode *pdep, struct denode *dep);
 int detrunc(struct denode *dep, u_long length, int flags, struct ucred *cred);
-int doscheckpath( struct denode *source, struct denode *target);
+int doscheckpath( struct denode *source, struct denode *target,
+    daddr_t *wait_scn);
 #endif	/* _KERNEL || MAKEFS */
 #endif	/* !_FS_MSDOSFS_DENODE_H_ */
