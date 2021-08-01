@@ -154,7 +154,7 @@ struct rib_subscription *rib_subscribe_internal(struct rib_head *rnh,
     bool waitok);
 struct rib_subscription *rib_subscribe_locked(struct rib_head *rnh,
     rib_subscription_cb_t *f, void *arg, enum rib_subscription_type type);
-void rib_unsibscribe(struct rib_subscription *rs);
-void rib_unsibscribe_locked(struct rib_subscription *rs);
+void rib_unsubscribe(struct rib_subscription *rs);
+void rib_unsubscribe_locked(struct rib_subscription *rs);
 
 #endif
