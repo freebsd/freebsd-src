@@ -458,7 +458,8 @@ extern int invpcid_works;
 
 #define	pmap_vm_page_alloc_check(m)					\
 	KASSERT(m->phys_addr < kernphys || m->phys_addr >= KERNend,	\
-	    ("allocating kernel page %p", m));
+	    ("allocating kernel page %p pa %#lx kernphys %#lx kernend %#lx", \
+	    m, m->phys_addr, kernphys, KERNend));
 
 struct thread;
 
