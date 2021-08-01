@@ -1028,7 +1028,7 @@ schedule_destroy_fd_instance(struct fib_data *fd, bool in_callout)
 	FD_PRINTF(LOG_INFO, fd, "DETACH");
 
 	if (fd->fd_rs != NULL)
-		rib_unsibscribe_locked(fd->fd_rs);
+		rib_unsubscribe_locked(fd->fd_rs);
 
 	/*
 	 * After rib_unsubscribe() no _new_ handle_rtable_change_cb() calls

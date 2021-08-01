@@ -1477,7 +1477,7 @@ rib_subscribe_locked(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg,
  * Needs to be run in network epoch.
  */
 void
-rib_unsibscribe(struct rib_subscription *rs)
+rib_unsubscribe(struct rib_subscription *rs)
 {
 	struct rib_head *rnh = rs->rnh;
 
@@ -1492,7 +1492,7 @@ rib_unsibscribe(struct rib_subscription *rs)
 }
 
 void
-rib_unsibscribe_locked(struct rib_subscription *rs)
+rib_unsubscribe_locked(struct rib_subscription *rs)
 {
 	struct rib_head *rnh = rs->rnh;
 
