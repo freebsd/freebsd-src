@@ -63,14 +63,11 @@
 #include <fs/msdosfs/fat.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
-static int msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
-    struct componentname *cnp, uint64_t *inum);
-
 int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
 {
 
-	return (msdosfs_lookup_(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
+	return (msdosfs_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
 }
 
 struct deget_dotdot {
@@ -110,8 +107,8 @@ msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
  * out to disk.  This way disk blocks containing directory entries and in
  * memory denode's will be in synch.
  */
-static int
-msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
+int
+msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
     struct componentname *cnp, uint64_t *dd_inum)
 {
 	struct mbnambuf nb;
@@ -558,7 +555,7 @@ foundroot:
 		 * Recheck that ".." still points to the inode we
 		 * looked up before pdp lock was dropped.
 		 */
-		error = msdosfs_lookup_(pdp, NULL, cnp, &inode1);
+		error = msdosfs_lookup_ino(pdp, NULL, cnp, &inode1);
 		if (error) {
 			vput(*vpp);
 			*vpp = NULL;

@@ -267,6 +267,8 @@ extern struct vop_vector msdosfs_vnodeops;
 int msdosfs_lookup(struct vop_cachedlookup_args *);
 int msdosfs_inactive(struct vop_inactive_args *);
 int msdosfs_reclaim(struct vop_reclaim_args *);
+int msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp,
+    struct componentname *cnp, uint64_t *inum);
 #endif
 
 /*
