@@ -764,6 +764,13 @@ malloc_domainset_exec(size_t size, struct malloc_type *mtp, struct domainset *ds
 }
 
 void *
+malloc_aligned(size_t size, size_t align, struct malloc_type *type, int flags)
+{
+	return (malloc_domainset_aligned(size, align, type, DOMAINSET_RR(),
+	    flags));
+}
+
+void *
 malloc_domainset_aligned(size_t size, size_t align,
     struct malloc_type *mtp, struct domainset *ds, int flags)
 {
