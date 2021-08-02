@@ -895,6 +895,8 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 	doing_lockprof = 1;
 #elif defined(KDTRACE_HOOKS)
 	doing_lockprof = lockstat_enabled;
+#endif
+#ifdef KDTRACE_HOOKS
 	if (__predict_false(doing_lockprof))
 		spin_time -= lockstat_nsecs(&td->td_lock->lock_object);
 #endif
