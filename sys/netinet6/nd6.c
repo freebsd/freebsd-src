@@ -617,7 +617,7 @@ nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
 static int
 nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 {
-	int nd_delay, nd_gctimer, r_skip_req;
+	int nd_delay, nd_gctimer;
 	time_t lle_hittime;
 	long delay;
 
@@ -625,17 +625,13 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 	nd_gctimer = V_nd6_gctimer;
 	nd_delay = V_nd6_delay;
 
-	LLE_REQ_LOCK(lle);
-	r_skip_req = lle->r_skip_req;
-	lle_hittime = lle->lle_hittime;
-	LLE_REQ_UNLOCK(lle);
+	lle_hittime = llentry_get_hittime(lle);
 
-	if (r_skip_req > 0) {
+	if (lle_hittime == 0) {
 		/*
-		 * Nonzero r_skip_req value was set upon entering
-		 * STALE state. Since value was not changed, no
-		 * packets were passed using this lle. Ask for
-		 * timer reschedule and keep STALE state.
+		 * Datapath feedback has been requested upon entering
+		 * STALE state. No packets has been passed using this lle.
+		 * Ask for the timer reschedule and keep STALE state.
 		 */
 		delay = (long)(MIN(nd_gctimer, nd_delay));
 		delay *= hz;
@@ -705,13 +701,7 @@ nd6_llinfo_setstate(struct llentry *lle, int newstate)
 		break;
 	case ND6_LLINFO_STALE:
 
-		/*
-		 * Notify fast path that we want to know if any packet
-		 * is transmitted by setting r_skip_req.
-		 */
-		LLE_REQ_LOCK(lle);
-		lle->r_skip_req = 1;
-		LLE_REQ_UNLOCK(lle);
+		llentry_request_feedback(lle);
 		nd_delay = V_nd6_delay;
 		nd_gctimer = V_nd6_gctimer;
 
@@ -2254,13 +2244,7 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		bcopy(ln->r_linkdata, desten, ln->r_hdrlen);
 		if (pflags != NULL)
 			*pflags = LLE_VALID | (ln->r_flags & RLLE_IFADDR);
-		/* Check if we have feedback request from nd6 timer */
-		if (ln->r_skip_req != 0) {
-			LLE_REQ_LOCK(ln);
-			ln->r_skip_req = 0; /* Notify that entry was used */
-			ln->lle_hittime = time_uptime;
-			LLE_REQ_UNLOCK(ln);
-		}
+		llentry_provide_feedback(ln);
 		if (plle) {
 			LLE_ADDREF(ln);
 			*plle = ln;
