@@ -29,6 +29,15 @@ MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
 
 SYM_MAPS+=	${LIBC_SRCTOP}/string/Symbol.map
 
+.if ${MK_ASAN} != "no"
+# These source files deliberately read out of bounds since they assume that
+# out-of-bounds memory accesses that don't cross pages are always legal.
+# Note: While this is fine on x86, it does break when running with CHERI.
+CFLAGS.strlen.c+=		-fno-sanitize=address
+CFLAGS.strchrnul.c+=	-fno-sanitize=address
+CFLAGS.memchr.c+=		-fno-sanitize=address
+.endif
+
 
 # machine-dependent string sources
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/string/Makefile.inc"
