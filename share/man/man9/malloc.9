@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2021
+.Dd August 26, 2021
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -55,6 +55,13 @@
 .Fn reallocf "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft size_t
 .Fn malloc_usable_size "const void *addr"
+.Ft void *
+.Fo malloc_aligned
+.Fa "size_t size"
+.Fa "size_t align"
+.Fa "struct malloc_type *type"
+.Fa "int flags"
+.Fc
 .Fn MALLOC_DECLARE type
 .In sys/param.h
 .In sys/malloc.h
@@ -64,6 +71,14 @@
 .In sys/domainset.h
 .Ft void *
 .Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
+.Ft void *
+.Fo malloc_domainset_aligned
+.Fa "size_t size"
+.Fa "size_t align"
+.Fa "struct malloc_type *type"
+.Fa "struct domainset *ds"
+.Fa "int flags"
+.Fc
 .Ft void *
 .Fn mallocarray_domainset "size_t nmemb" "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
 .Ft void
@@ -85,6 +100,14 @@ See
 for some example policies.
 Memory allocated with this function should be returned with
 .Fn free_domain .
+.Pp
+The
+.Fn malloc_aligned
+and
+.Fn malloc_domainset_aligned
+variants return allocations aligned as specified by
+.Fa align ,
+which must be non-zero, a power of two, and less than or equal to the page size.
 .Pp
 The
 .Fn mallocarray
