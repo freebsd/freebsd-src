@@ -261,8 +261,8 @@ iaf_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if ((cpu_stdext_feature3 & CPUID_STDEXT3_TSXFA) != 0 &&
 	    !pmc_tsx_force_abort_set) {
 		pmc_tsx_force_abort_set = true;
-		x86_msr_op(MSR_TSX_FORCE_ABORT, MSR_OP_RENDEZVOUS |
-		    MSR_OP_WRITE, 1);
+		x86_msr_op(MSR_TSX_FORCE_ABORT, MSR_OP_RENDEZVOUS_ALL |
+		    MSR_OP_WRITE, 1, NULL);
 	}
 
 	flags = 0;
@@ -403,8 +403,8 @@ iaf_release_pmc(int cpu, int ri, struct pmc *pmc)
 	MPASS(pmc_alloc_refs > 0);
 	if (pmc_alloc_refs-- == 1 && pmc_tsx_force_abort_set) {
 		pmc_tsx_force_abort_set = false;
-		x86_msr_op(MSR_TSX_FORCE_ABORT, MSR_OP_RENDEZVOUS |
-		    MSR_OP_WRITE, 0);
+		x86_msr_op(MSR_TSX_FORCE_ABORT, MSR_OP_RENDEZVOUS_ALL |
+		    MSR_OP_WRITE, 0, NULL);
 	}
 
 	return (0);

@@ -119,6 +119,7 @@ struct msr_op_arg {
 	u_int msr;
 	int op;
 	uint64_t arg1;
+	uint64_t *res;
 };
 
 static void
@@ -142,33 +143,41 @@ x86_msr_op_one(void *argp)
 	case MSR_OP_WRITE:
 		wrmsr(a->msr, a->arg1);
 		break;
+	case MSR_OP_READ:
+		v = rdmsr(a->msr);
+		*a->res = v;
+		break;
 	}
 }
 
 #define	MSR_OP_EXMODE_MASK	0xf0000000
 #define	MSR_OP_OP_MASK		0x000000ff
+#define	MSR_OP_GET_CPUID(x)	(((x) & ~MSR_OP_EXMODE_MASK) >> 8)
 
 void
-x86_msr_op(u_int msr, u_int op, uint64_t arg1)
+x86_msr_op(u_int msr, u_int op, uint64_t arg1, uint64_t *res)
 {
 	struct thread *td;
 	struct msr_op_arg a;
+	cpuset_t set;
 	u_int exmode;
-	int bound_cpu, i, is_bound;
+	int bound_cpu, cpu, i, is_bound;
 
 	a.op = op & MSR_OP_OP_MASK;
 	MPASS(a.op == MSR_OP_ANDNOT || a.op == MSR_OP_OR ||
-	    a.op == MSR_OP_WRITE);
+	    a.op == MSR_OP_WRITE || a.op == MSR_OP_READ);
 	exmode = op & MSR_OP_EXMODE_MASK;
-	MPASS(exmode == MSR_OP_LOCAL || exmode == MSR_OP_SCHED ||
-	    exmode == MSR_OP_RENDEZVOUS);
+	MPASS(exmode == MSR_OP_LOCAL || exmode == MSR_OP_SCHED_ALL ||
+	    exmode == MSR_OP_SCHED_ONE || exmode == MSR_OP_RENDEZVOUS_ALL ||
+	    exmode == MSR_OP_RENDEZVOUS_ONE);
 	a.msr = msr;
 	a.arg1 = arg1;
+	a.res = res;
 	switch (exmode) {
 	case MSR_OP_LOCAL:
 		x86_msr_op_one(&a);
 		break;
-	case MSR_OP_SCHED:
+	case MSR_OP_SCHED_ALL:
 		td = curthread;
 		thread_lock(td);
 		is_bound = sched_is_bound(td);
@@ -183,8 +192,32 @@ x86_msr_op(u_int msr, u_int op, uint64_t arg1)
 			sched_unbind(td);
 		thread_unlock(td);
 		break;
-	case MSR_OP_RENDEZVOUS:
-		smp_rendezvous(NULL, x86_msr_op_one, NULL, &a);
+	case MSR_OP_SCHED_ONE:
+		td = curthread;
+		cpu = MSR_OP_GET_CPUID(op);
+		thread_lock(td);
+		is_bound = sched_is_bound(td);
+		bound_cpu = td->td_oncpu;
+		if (!is_bound || bound_cpu != cpu)
+			sched_bind(td, cpu);
+		x86_msr_op_one(&a);
+		if (is_bound) {
+			if (bound_cpu != cpu)
+				sched_bind(td, bound_cpu);
+		} else {
+			sched_unbind(td);
+		}
+		thread_unlock(td);
+		break;
+	case MSR_OP_RENDEZVOUS_ALL:
+		smp_rendezvous(smp_no_rendezvous_barrier, x86_msr_op_one,
+		    smp_no_rendezvous_barrier, &a);
+		break;
+	case MSR_OP_RENDEZVOUS_ONE:
+		cpu = MSR_OP_GET_CPUID(op);
+		CPU_SETOF(cpu, &set);
+		smp_rendezvous_cpus(set, smp_no_rendezvous_barrier,
+		    x86_msr_op_one, smp_no_rendezvous_barrier, &a);
 		break;
 	}
 }
@@ -872,9 +905,9 @@ hw_ibrs_recalculate(bool for_all_cpus)
 {
 	if ((cpu_ia32_arch_caps & IA32_ARCH_CAP_IBRS_ALL) != 0) {
 		x86_msr_op(MSR_IA32_SPEC_CTRL, (for_all_cpus ?
-		    MSR_OP_RENDEZVOUS : MSR_OP_LOCAL) |
+		    MSR_OP_RENDEZVOUS_ALL : MSR_OP_LOCAL) |
 		    (hw_ibrs_disable != 0 ? MSR_OP_ANDNOT : MSR_OP_OR),
-		    IA32_SPEC_CTRL_IBRS);
+		    IA32_SPEC_CTRL_IBRS, NULL);
 		hw_ibrs_active = hw_ibrs_disable == 0;
 		hw_ibrs_ibpb_active = 0;
 	} else {
@@ -930,7 +963,8 @@ hw_ssb_set(bool enable, bool for_all_cpus)
 	hw_ssb_active = enable;
 	x86_msr_op(MSR_IA32_SPEC_CTRL,
 	    (enable ? MSR_OP_OR : MSR_OP_ANDNOT) |
-	    (for_all_cpus ? MSR_OP_SCHED : MSR_OP_LOCAL), IA32_SPEC_CTRL_SSBD);
+	    (for_all_cpus ? MSR_OP_SCHED_ALL : MSR_OP_LOCAL),
+	    IA32_SPEC_CTRL_SSBD, NULL);
 }
 
 void
@@ -1221,8 +1255,9 @@ taa_set(bool enable, bool all)
 
 	x86_msr_op(MSR_IA32_TSX_CTRL,
 	    (enable ? MSR_OP_OR : MSR_OP_ANDNOT) |
-	    (all ? MSR_OP_RENDEZVOUS : MSR_OP_LOCAL),
-	    IA32_TSX_CTRL_RTM_DISABLE | IA32_TSX_CTRL_TSX_CPUID_CLEAR);
+	    (all ? MSR_OP_RENDEZVOUS_ALL : MSR_OP_LOCAL),
+	    IA32_TSX_CTRL_RTM_DISABLE | IA32_TSX_CTRL_TSX_CPUID_CLEAR,
+	    NULL);
 }
 
 void
@@ -1386,8 +1421,8 @@ x86_rngds_mitg_recalculate(bool all_cpus)
 		return;
 	x86_msr_op(MSR_IA32_MCU_OPT_CTRL,
 	    (x86_rngds_mitg_enable ? MSR_OP_OR : MSR_OP_ANDNOT) |
-	    (all_cpus ? MSR_OP_RENDEZVOUS : MSR_OP_LOCAL),
-	    IA32_RNGDS_MITG_DIS);
+	    (all_cpus ? MSR_OP_RENDEZVOUS_ALL : MSR_OP_LOCAL),
+	    IA32_RNGDS_MITG_DIS, NULL);
 }
 
 static int
