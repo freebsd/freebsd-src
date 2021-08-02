@@ -2916,7 +2916,9 @@ DIOCCHANGERULE_error:
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
 		struct pf_kstate	*s;
 		struct pfsync_state	*pstore, *p;
-		int i, nr;
+		int			 i, nr;
+		size_t			 slice_count = 16, count;
+		void			*out;
 
 		if (ps->ps_len <= 0) {
 			nr = uma_zone_get_cur(V_pf_state_z);
@@ -2924,34 +2926,59 @@ DIOCCHANGERULE_error:
 			break;
 		}
 
-		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK | M_ZERO);
+		out = ps->ps_states;
+		pstore = mallocarray(slice_count,
+		    sizeof(struct pfsync_state), M_TEMP, M_WAITOK | M_ZERO);
 		nr = 0;
 
 		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
+DIOCGETSTATES_retry:
+			p = pstore;
+
+			if (LIST_EMPTY(&ih->states))
+				continue;
+
 			PF_HASHROW_LOCK(ih);
+			count = 0;
+			LIST_FOREACH(s, &ih->states, entry) {
+				if (s->timeout == PFTM_UNLINKED)
+					continue;
+				count++;
+			}
+
+			if (count > slice_count) {
+				PF_HASHROW_UNLOCK(ih);
+				free(pstore, M_TEMP);
+				slice_count = count * 2;
+				pstore = mallocarray(slice_count,
+				    sizeof(struct pfsync_state), M_TEMP,
+				    M_WAITOK | M_ZERO);
+				goto DIOCGETSTATES_retry;
+			}
+
+			if ((nr+count) * sizeof(*p) > ps->ps_len) {
+				PF_HASHROW_UNLOCK(ih);
+				goto DIOCGETSTATES_full;
+			}
+
 			LIST_FOREACH(s, &ih->states, entry) {
 				if (s->timeout == PFTM_UNLINKED)
 					continue;
 
-				if ((nr+1) * sizeof(*p) > ps->ps_len) {
-					PF_HASHROW_UNLOCK(ih);
-					goto DIOCGETSTATES_full;
-				}
 				pfsync_state_export(p, s);
 				p++;
 				nr++;
 			}
 			PF_HASHROW_UNLOCK(ih);
+			error = copyout(pstore, out,
+			    sizeof(struct pfsync_state) * count);
+			if (error)
+				break;
+			out = ps->ps_states + nr;
 		}
 DIOCGETSTATES_full:
-		error = copyout(pstore, ps->ps_states,
-		    sizeof(struct pfsync_state) * nr);
-		if (error) {
-			free(pstore, M_TEMP);
-			break;
-		}
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
 		free(pstore, M_TEMP);
 
