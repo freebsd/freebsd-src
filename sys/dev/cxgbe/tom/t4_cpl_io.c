@@ -1288,7 +1288,21 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
-	tp->rcv_nxt++;	/* FIN */
+	if (ulp_mode(toep) == ULP_MODE_RDMA ||
+	    (ulp_mode(toep) == ULP_MODE_ISCSI && chip_id(sc) >= CHELSIO_T6)) {
+		/*
+		 * There might be data received via DDP before the FIN
+		 * not reported to the driver.  Just assume the
+		 * sequence number in the CPL is correct as the
+		 * sequence number of the FIN.
+		 */
+	} else {
+		KASSERT(tp->rcv_nxt + 1 == be32toh(cpl->rcv_nxt),
+		    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
+		    be32toh(cpl->rcv_nxt)));
+	}
+
+	tp->rcv_nxt = be32toh(cpl->rcv_nxt);
 
 	so = inp->inp_socket;
 	socantrcvmore(so);
@@ -1298,12 +1312,6 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		    (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE)))
 			handle_ddp_close(toep, tp, cpl->rcv_nxt);
 		DDP_UNLOCK(toep);
-	}
-
-	if (ulp_mode(toep) != ULP_MODE_RDMA) {
-		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
-	    		("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
-	    		be32toh(cpl->rcv_nxt)));
 	}
 
 	switch (tp->t_state) {
