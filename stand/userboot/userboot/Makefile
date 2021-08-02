@@ -6,6 +6,9 @@ LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 PIC=yes
 
+# Note: -nostdlib needs to be added to LDFLAGS before including defs.mk
+LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
+
 .include <bsd.init.mk>
 
 SHLIB_NAME=	userboot_${LOADER_INTERP}.so
@@ -38,8 +41,6 @@ CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 CFLAGS.gfx_fb.c+= -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
-
-LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
 
 NEWVERSWHAT=	"User boot ${LOADER_INTERP}" ${MACHINE_CPUARCH}
 VERSION_FILE=	${.CURDIR}/../userboot/version

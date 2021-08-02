@@ -25,6 +25,12 @@ INTERNALLIB=
 # enough to make that hassle worth chasing.
 _CPUCFLAGS=
 
+.if ${LDFLAGS:M-nostdlib}
+# Sanitizers won't work unless we link against libc (e.g. in userboot/test).
+MK_ASAN:=	no
+MK_UBSAN:=	no
+.endif
+
 .include <src.opts.mk>
 .include <bsd.linker.mk>
 
