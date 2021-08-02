@@ -718,6 +718,7 @@ BSARGS= 	DESTDIR= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no MK_MAN_UTILS=yes \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WERROR=no MK_CTF=no \
+		MK_ASAN=no MK_UBSAN=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FORMAT=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no \
 		MK_INCLUDES=yes
@@ -739,6 +740,7 @@ TMAKE=		\
 		SSP_CFLAGS= \
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS MK_WERROR=no MK_CTF=no \
+		MK_ASAN=no MK_UBSAN=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FORMAT=no MK_CLANG_FULL=no \
 		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no
 
@@ -2843,6 +2845,16 @@ libraries: .MAKE .PHONY
 _prereq_libs= lib/libcompiler_rt
 .if ${MK_SSP} != "no"
 _prereq_libs+= lib/libssp_nonshared
+.endif
+.if ${MK_ASAN} != "no"
+_prereq_libs+=	lib/libclang_rt/asan
+_prereq_libs+=	lib/libclang_rt/asan-preinit
+_prereq_libs+=	lib/libclang_rt/asan_cxx
+.endif
+.if ${MK_UBSAN} != "no"
+_prereq_libs+=	lib/libclang_rt/ubsan_minimal
+_prereq_libs+=	lib/libclang_rt/ubsan_standalone
+_prereq_libs+=	lib/libclang_rt/ubsan_standalone_cxx
 .endif
 
 # These dependencies are not automatically generated:

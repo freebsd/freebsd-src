@@ -118,7 +118,7 @@ The profiled libraries are no longer built in a different directory than
 the regular libraries.  A new suffix, ".po", is used to denote a profiled
 object, and ".pico" denotes a position-independent relocatable object.
 ".nossppico" denotes a position-independent relocatable object without
-stack smashing protection.
+stack smashing protection and without sanitizer instrumentation.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
