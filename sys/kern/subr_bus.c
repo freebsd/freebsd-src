@@ -1638,13 +1638,13 @@ devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 		/* Unwired device, find the next available slot for it */
 		unit = 0;
 		for (unit = 0;; unit++) {
+			/* If this device slot is already in use, skip it. */
+			if (unit < dc->maxunit && dc->devices[unit] != NULL)
+				continue;
+
 			/* If there is an "at" hint for a unit then skip it. */
 			if (resource_string_value(dc->name, unit, "at", &s) ==
 			    0)
-				continue;
-
-			/* If this device slot is already in use, skip it. */
-			if (unit < dc->maxunit && dc->devices[unit] != NULL)
 				continue;
 
 			break;
