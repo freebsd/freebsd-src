@@ -132,9 +132,11 @@ device		ether			# Ethernet support
 device		bpf			# Berkeley packet filter
 
 # Xen HVM Guest Optimizations
-# NOTE: XENHVM depends on xenpci.  They must be added or removed together.
+# NOTE: XENHVM depends on xenpci and xentimer.
+# They must be added or removed together.
 options 	XENHVM			# Xen HVM kernel infrastructure
 device		xenpci			# Xen HVM Hypervisor services driver
+device		xentimer		# Xen x86 PV timer device
 
 # evdev interface
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
