@@ -504,6 +504,7 @@ device 		hyperv		# HyperV drivers
 # Xen HVM Guest Optimizations
 options 	XENHVM		# Xen HVM kernel infrastructure
 device 		xenpci		# Xen HVM Hypervisor services driver
+device		xentimer	# Xen x86 PV timer device
 
 #####################################################################
 
