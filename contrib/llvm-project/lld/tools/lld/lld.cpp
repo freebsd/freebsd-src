@@ -146,7 +146,8 @@ static Flavor parseFlavor(std::vector<const char *> &v) {
 static int lldMain(int argc, const char **argv, llvm::raw_ostream &stdoutOS,
                    llvm::raw_ostream &stderrOS, bool exitEarly = true) {
   std::vector<const char *> args(argv, argv + argc);
-#ifdef __FreeBSD__
+#if 1
+  /* On FreeBSD we only build the ELF linker. */
   return !elf::link(args, exitEarly, stdoutOS, stderrOS);
 #else
   switch (parseFlavor(args)) {

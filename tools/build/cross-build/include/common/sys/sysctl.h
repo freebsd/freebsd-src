@@ -37,6 +37,11 @@
  */
 #pragma once
 
+#ifdef BOOTSTRAPPING_WANT_NATIVE_SYSCTL
+/* We need the real sysctl.h e.g. when bootstrapping the LLVM tools. */
+#include_next <sys/sysctl.h>
+#else
+/* Otherwise, avoid sysctls since they might not be supported on the host. */
 #include <sys/types.h>
 
 #define sysctlbyname __freebsd_sysctlbyname
@@ -44,3 +49,4 @@
 
 int sysctl(const int *, u_int, void *, size_t *, const void *, size_t);
 int sysctlbyname(const char *, void *, size_t *, const void *, size_t);
+#endif
