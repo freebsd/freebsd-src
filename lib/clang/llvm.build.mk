@@ -106,6 +106,7 @@ CFLAGS+=	-DLLVM_NATIVE_TARGETMC=LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC
 
 CFLAGS+=	-ffunction-sections
 CFLAGS+=	-fdata-sections
+.include "bsd.linker.mk"
 .if ${LINKER_TYPE} == "mac"
 LDFLAGS+=	-Wl,-dead_strip
 .else
