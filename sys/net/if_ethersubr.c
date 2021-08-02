@@ -315,7 +315,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 					 * the entry was used
 					 * by datapath.
 					 */
-					llentry_mark_used(lle);
+					llentry_provide_feedback(lle);
 			}
 			if (lle != NULL) {
 				phdr = lle->r_linkdata;
