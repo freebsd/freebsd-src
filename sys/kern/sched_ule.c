@@ -739,7 +739,7 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 		if (l < s->cs_limit || !tdq->tdq_transferable ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
-		load -= sched_random() % 128;
+		load -= sched_random() % 256;
 		if (load > bload) {
 			bload = load;
 			r->cs_cpu = c;
@@ -1416,6 +1416,7 @@ sched_setup_smp(void)
 		tdq->tdq_cg = smp_topo_find(cpu_top, i);
 		if (tdq->tdq_cg == NULL)
 			panic("Can't find cpu group for %d\n", i);
+		DPCPU_ID_SET(i, randomval, i * 69069 + 5);
 	}
 	PCPU_SET(sched, DPCPU_PTR(tdq));
 	balance_tdq = TDQ_SELF();
