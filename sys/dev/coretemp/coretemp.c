@@ -315,56 +315,31 @@ struct coretemp_args {
 	uint64_t	val;
 };
 
-static void
-coretemp_rdmsr(void *arg)
-{
-	struct coretemp_args *args = arg;
-
-	args->val = rdmsr(args->msr);
-}
-
-static void
-coretemp_wrmsr(void *arg)
-{
-	struct coretemp_args *args = arg;
-
-	wrmsr(args->msr, args->val);
-}
-
+/*
+ * The digital temperature reading is located at bit 16
+ * of MSR_THERM_STATUS.
+ *
+ * There is a bit on that MSR that indicates whether the
+ * temperature is valid or not.
+ *
+ * The temperature is computed by subtracting the temperature
+ * reading by Tj(max).
+ */
 static uint64_t
 coretemp_get_thermal_msr(int cpu)
 {
-	struct coretemp_args args;
-	cpuset_t cpus;
+	uint64_t res;
 
-	/*
-	 * The digital temperature reading is located at bit 16
-	 * of MSR_THERM_STATUS.
-	 *
-	 * There is a bit on that MSR that indicates whether the
-	 * temperature is valid or not.
-	 *
-	 * The temperature is computed by subtracting the temperature
-	 * reading by Tj(max).
-	 */
-	args.msr = MSR_THERM_STATUS;
-	CPU_SETOF(cpu, &cpus);
-	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, coretemp_rdmsr,
-	    smp_no_rendezvous_barrier, &args);
-	return (args.val);
+	x86_msr_op(MSR_THERM_STATUS, MSR_OP_RENDEZVOUS_ONE | MSR_OP_READ |
+	    MSR_OP_CPUID(cpu), 0, &res);
+	return (res);
 }
 
 static void
 coretemp_clear_thermal_msr(int cpu)
 {
-	struct coretemp_args args;
-	cpuset_t cpus;
-
-	args.msr = MSR_THERM_STATUS;
-	args.val = 0;
-	CPU_SETOF(cpu, &cpus);
-	smp_rendezvous_cpus(cpus, smp_no_rendezvous_barrier, coretemp_wrmsr,
-	    smp_no_rendezvous_barrier, &args);
+	x86_msr_op(MSR_THERM_STATUS, MSR_OP_RENDEZVOUS_ONE | MSR_OP_WRITE |
+	    MSR_OP_CPUID(cpu), 0, NULL);
 }
 
 static int
