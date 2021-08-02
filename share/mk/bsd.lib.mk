@@ -6,6 +6,8 @@
 .include <bsd.compiler.mk>
 .include <bsd.linker.mk>
 
+__<bsd.lib.mk>__:
+
 .if defined(LIB_CXX) || defined(SHLIB_CXX)
 _LD=	${CXX}
 .else
@@ -106,6 +108,8 @@ CXXFLAGS+= -ftrivial-auto-var-init=pattern
 .endif
 .endif
 
+.include "bsd.sanitizer.mk"
+
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
 CFLAGS+= ${DEBUG_FILES_CFLAGS}
@@ -147,7 +151,7 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .c.nossppico:
-	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS:C/^-fstack-protector.*$//} ${CFLAGS:C/^-fstack-protector.*$//} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS:C/^-fstack-protector.*$//:C/^-fsanitize.*$//} ${CFLAGS:C/^-fstack-protector.*$//:C/^-fsanitize.*$//} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .c.pieo:
@@ -161,7 +165,7 @@ PO_FLAG=-pg
 	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.nossppico .C.nossppico .cpp.nossppico .cxx.nossppico:
-	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS:C/^-fstack-protector.*$//} ${CXXFLAGS:C/^-fstack-protector.*$//} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PICFLAG} -DPIC ${SHARED_CXXFLAGS:C/^-fstack-protector.*$//:C/^-fsanitize.*$//} ${CXXFLAGS:C/^-fstack-protector.*$//:C/^-fsanitize.*$//} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.pieo .C.pieo .cpp.pieo .cxx.pieo:
 	${CXX} ${PIEFLAG} ${SHARED_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
