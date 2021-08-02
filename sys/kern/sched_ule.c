@@ -300,6 +300,8 @@ static struct tdq	tdq_cpu;
 #define	TDQ_LOCK_ASSERT(t, type)	mtx_assert(TDQ_LOCKPTR((t)), (type))
 #define	TDQ_LOCK(t)		mtx_lock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCK_FLAGS(t, f)	mtx_lock_spin_flags(TDQ_LOCKPTR((t)), (f))
+#define	TDQ_TRYLOCK(t)		mtx_trylock_spin(TDQ_LOCKPTR((t)))
+#define	TDQ_TRYLOCK_FLAGS(t, f)	mtx_trylock_spin_flags(TDQ_LOCKPTR((t)), (f))
 #define	TDQ_UNLOCK(t)		mtx_unlock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCKPTR(t)		((struct mtx *)(&(t)->tdq_lock))
 
@@ -989,13 +991,22 @@ tdq_idled(struct tdq *tdq)
 		if (steal->tdq_load < steal_thresh ||
 		    steal->tdq_transferable == 0)
 			goto restart;
-		tdq_lock_pair(tdq, steal);
 		/*
-		 * We were assigned a thread while waiting for the locks.
-		 * Switch to it now instead of stealing a thread.
+		 * Try to lock both queues. If we are assigned a thread while
+		 * waited for the lock, switch to it now instead of stealing.
+		 * If we can't get the lock, then somebody likely got there
+		 * first so continue searching.
 		 */
-		if (tdq->tdq_load)
-			break;
+		TDQ_LOCK(tdq);
+		if (tdq->tdq_load > 0) {
+			mi_switch(SW_VOL | SWT_IDLE);
+			return (0);
+		}
+		if (TDQ_TRYLOCK_FLAGS(steal, MTX_DUPOK) == 0) {
+			TDQ_UNLOCK(tdq);
+			CPU_CLR(cpu, &mask);
+			continue;
+		}
 		/*
 		 * The data returned by sched_highest() is stale and
 		 * the chosen CPU no longer has an eligible thread, or
@@ -1948,18 +1959,18 @@ tdq_trysteal(struct tdq *tdq)
 		if (steal->tdq_load < steal_thresh ||
 		    steal->tdq_transferable == 0)
 			continue;
-		tdq_lock_pair(tdq, steal);
 		/*
-		 * If we get to this point, unconditonally exit the loop
-		 * to bound the time spent in the critcal section.
-		 *
-		 * If a thread was added while interrupts were disabled don't
-		 * steal one here.
+		 * Try to lock both queues. If we are assigned a thread while
+		 * waited for the lock, switch to it now instead of stealing.
+		 * If we can't get the lock, then somebody likely got there
+		 * first.  At this point unconditonally exit the loop to
+		 * bound the time spent in the critcal section.
 		 */
-		if (tdq->tdq_load > 0) {
-			TDQ_UNLOCK(steal);
+		TDQ_LOCK(tdq);
+		if (tdq->tdq_load > 0)
 			break;
-		}
+		if (TDQ_TRYLOCK_FLAGS(steal, MTX_DUPOK) == 0)
+			break;
 		/*
 		 * The data returned by sched_highest() is stale and
                  * the chosen CPU no longer has an eligible thread.
