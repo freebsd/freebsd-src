@@ -387,6 +387,52 @@ lltable_calc_llheader(struct ifnet *ifp, int family, char *lladdr,
 }
 
 /*
+ * Requests feedback from the datapath.
+ * First packet using @lle should result in
+ * setting r_skip_req back to 0 and updating
+ * lle_hittime to the current time_uptime.
+ */
+void
+llentry_request_feedback(struct llentry *lle)
+{
+	LLE_REQ_LOCK(lle);
+	lle->r_skip_req = 1;
+	LLE_REQ_UNLOCK(lle);
+}
+
+/*
+ * Updates the lle state to mark it has been used
+ * and record the time.
+ * Used by the llentry_provide_feedback() wrapper.
+ */
+void
+llentry_mark_used(struct llentry *lle)
+{
+	LLE_REQ_LOCK(lle);
+	lle->r_skip_req = 0;
+	lle->lle_hittime = time_uptime;
+	LLE_REQ_UNLOCK(lle);
+}
+
+/*
+ * Fetches the time when lle was used.
+ * Return 0 if the entry was not used, relevant time_uptime
+ *  otherwise.
+ */
+time_t
+llentry_get_hittime(struct llentry *lle)
+{
+	time_t lle_hittime = 0;
+
+	LLE_REQ_LOCK(lle);
+	if ((lle->r_skip_req == 0) && (lle_hittime < lle->lle_hittime))
+		lle_hittime = lle->lle_hittime;
+	LLE_REQ_UNLOCK(lle);
+
+	return (lle_hittime);
+}
+
+/*
  * Update link-layer header for given @lle after
  * interface lladdr was changed.
  */
