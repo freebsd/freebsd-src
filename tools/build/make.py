@@ -166,6 +166,9 @@ if __name__ == "__main__":
                              "needed if CC/CPP/CXX are not set). ")
     parser.add_argument("--debug", action="store_true",
                         help="Print information on inferred env vars")
+    parser.add_argument("--bootstrap-toolchain", action="store_true",
+                        help="Bootstrap the toolchain instead of using an "
+                             "external one (experimental and not recommended)")
     parser.add_argument("--clean", action="store_true",
                         help="Do a clean rebuild instead of building with "
                              "-DWITHOUT_CLEAN")
@@ -195,6 +198,7 @@ if __name__ == "__main__":
             if "universe" not in sys.argv and "tinderbox" not in sys.argv:
                 sys.exit("TARGET= and TARGET_ARCH= must be set explicitly "
                          "when building on non-FreeBSD")
+    if not parsed_args.bootstrap_toolchain:
         # infer values for CC/CXX/CPP
         if parsed_args.host_compiler_type == "gcc":
             default_cc, default_cxx, default_cpp = ("gcc", "g++", "cpp")
