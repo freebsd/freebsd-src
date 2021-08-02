@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright 2018-2020 Alex Richardson <arichardson@FreeBSD.org>
+ * Copyright 2018-2021 Alex Richardson <arichardson@FreeBSD.org>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
@@ -11,6 +11,9 @@
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * This work was supported by Innovate UK project 105694, "Digital Security by
+ * Design (DSbD) Technology Platform Prototype".
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,29 +40,9 @@
  */
 #pragma once
 
-
 /* <bits/fcntl.h> includes <bits/stat.h> which contains a member __unused */
 #include "__unused_workaround_start.h"
 #include_next <fcntl.h>
 #include "__unused_workaround_end.h"
 
-#ifdef __unused_undefd
-#undef __unused_undefd
-#define __unused __attribute__((unused))
-#endif
-
 #include <sys/file.h>
-
-#ifndef O_EXLOCK
-#define O_EXLOCK (1 << 30)
-#endif
-#ifndef O_SHLOCK
-#define O_SHLOCK (1 << 31)
-#endif
-
-#undef open
-#define open(path, flags, ...) ({ \
-    int __fd = (open)(path, flags, ##__VA_ARGS__); \
-    if (flags & O_EXLOCK) flock(__fd, LOCK_EX); \
-    if (flags & O_SHLOCK) flock(__fd, LOCK_SH); \
-    __fd; })
