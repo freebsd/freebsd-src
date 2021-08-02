@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
  * Simple TFTP implementation for libsa.
  * Assumes:
  *  - socket descriptor (int) at open_file->f_devdata
- *  - server host IP in global servip
+ *  - server host IP in global rootip
  * Restrictions:
  *  - read only
  *  - lseek only with SEEK_SET or SEEK_CUR
@@ -82,8 +82,6 @@ struct fs_ops tftp_fsops = {
 	.fo_stat = tftp_stat,
 	.fo_readdir = null_readdir
 };
-
-extern struct in_addr servip;
 
 static int	tftpport = 2000;
 static int	is_open = 0;
@@ -460,7 +458,7 @@ tftp_open(const char *path, struct open_file *f)
 		return (EINVAL);
 	}
 
-	io->destip = servip;
+	io->destip = rootip;
 	tftpfile->off = 0;
 	pathsize = (strlen(rootpath) + 1 + strlen(path) + 1) * sizeof(char);
 	tftpfile->path = malloc(pathsize);
