@@ -130,7 +130,7 @@ struct aw_mmc_softc {
 	int			aw_timeout;
 	struct callout		aw_timeoutc;
 	struct mmc_host		aw_host;
-	struct mmc_fdt_helper	mmc_helper;
+	struct mmc_helper	mmc_helper;
 #ifdef MMCCAM
 	union ccb *		ccb;
 	struct mmc_sim		mmc_sim;

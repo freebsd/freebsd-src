@@ -2483,6 +2483,7 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
 dev/mmc/mmc_fdt_helpers.c	optional ext_resources mmc fdt | ext_resources mmccam fdt
+dev/mmc/mmc_helpers.c		optional ext_resources mmc | ext_resources mmccam
 dev/mmc/mmc_pwrseq.c		optional ext_resources mmc fdt | ext_resources mmccam fdt
 dev/mmc/mmc_pwrseq_if.m		optional ext_resources mmc fdt | ext_resources mmccam fdt
 dev/mmcnull/mmcnull.c		optional mmcnull
