@@ -1,6 +1,5 @@
 .include <bsd.opts.mk>
 
-.include "../../lib/libclang_rt/compiler-rt-vars.mk"
 _use_sanitizers=	no
 # Add the necessary sanitizer flags if requested
 .if ${MK_ASAN} == "yes" && ${NO_SHARED:Uno:tl} == "no"
@@ -23,7 +22,7 @@ SANITIZER_LDFLAGS+=	-fsanitize=undefined
 _use_sanitizers=	yes
 .endif # ${MK_UBSAN} == "yes"
 
-.if !defined(BOOTSTRAPPING) && ${_use_sanitizers} != 0 && \
+.if !defined(BOOTSTRAPPING) && ${_use_sanitizers} != "no" && \
     ${COMPILER_TYPE} != "clang"
 .error "Sanitizer instrumentation currently only supported with clang"
 .endif
@@ -32,6 +31,7 @@ _use_sanitizers=	yes
 # SHARED_CFLAGS instead of CFLAGS. We do this since static executables are not
 # compatible with the santizers (interceptors do not work).
 .if ${_use_sanitizers} != "no"
+.include "../../lib/libclang_rt/compiler-rt-vars.mk"
 .if target(__<bsd.lib.mk>__)
 SHARED_CFLAGS+=	${SANITIZER_CFLAGS}
 SOLINKOPTS+=	${SANITIZER_LDFLAGS}
