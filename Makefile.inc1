@@ -2331,6 +2331,11 @@ _localedef=	usr.bin/localedef
 ${_bt}-usr.bin/localedef: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
 .endif
 
+.if ${MK_ICONV} != "no"
+_mkesdb=	usr.bin/mkesdb
+_mkcsmapper=	usr.bin/mkcsmapper
+.endif
+
 .if ${MK_KERBEROS} != "no"
 _kerberos5_bootstrap_tools= \
 	kerberos5/tools/make-roken \
@@ -2482,6 +2487,8 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_nmtree} \
     ${_vtfontcvt} \
     ${_localedef} \
+    ${_mkcsmapper} \
+    ${_mkesdb} \
     ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -2543,8 +2550,6 @@ _bt_clean=	${CLEANDIR}
     ${_share} \
     usr.bin/awk \
     ${_libmagic} \
-    usr.bin/mkesdb_static \
-    usr.bin/mkcsmapper_static \
     usr.bin/vi/catalog
 build-tools_${_tool}: .PHONY
 	${_+_}@${ECHODIR} "===> ${_tool} (${_bt_clean:D${_bt_clean},}obj,build-tools)"; \

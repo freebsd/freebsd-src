@@ -12,8 +12,8 @@ DIRDEPS = \
 	usr.bin/clang/clang-tblgen \
 	usr.bin/clang/llvm-tblgen \
 	usr.bin/localedef \
-	usr.bin/mkcsmapper_static \
-	usr.bin/mkesdb_static \
+	usr.bin/mkcsmapper \
+	usr.bin/mkesdb \
 	usr.bin/xinstall \
 	usr.bin/yacc \
 	usr.sbin/config \
