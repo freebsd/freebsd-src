@@ -37,7 +37,7 @@
 #ifndef __LIBC_COMPAT_H__
 #define	__LIBC_COMPAT_H__
 
-#define	__sym_compat(sym,impl,verid)	\
+#define	__sym_compat(sym, impl, verid)	\
 	.symver impl, sym@verid
 
 #ifndef NO_COMPAT7
@@ -74,7 +74,7 @@ __sym_compat(kevent, freebsd11_kevent, FBSD_1.0);
 #define	__weak_reference(sym,alias)	\
 	.weak	alias;.equ	alias,sym
 
-__weak_reference(__sys_fcntl,__fcntl_compat)
+__weak_reference(__sys_fcntl, __fcntl_compat)
 
 #undef __weak_reference
 
