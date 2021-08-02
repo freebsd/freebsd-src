@@ -287,12 +287,6 @@ SUBDIR.${MK_SVN}+=	svn
 SUBDIR.${MK_SVNLITE}+=	svn
 SUBDIR.${MK_OFED}+=	ofed
 
-# These are normally only handled for build-tools.
-.if make(clean*)
-SUBDIR+=	mkcsmapper_static
-SUBDIR+=	mkesdb_static
-.endif
-
 .include <bsd.arch.inc.mk>
 
 SUBDIR_PARALLEL=
