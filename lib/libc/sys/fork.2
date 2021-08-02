@@ -28,7 +28,7 @@
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2021
+.Dd August 2, 2021
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -40,10 +40,12 @@
 .In unistd.h
 .Ft pid_t
 .Fn fork void
+.Ft pid_t
+.Fn _Fork void
 .Sh DESCRIPTION
 The
 .Fn fork
-system call causes creation of a new process.
+function causes creation of a new process.
 The new process (child process) is an exact copy of the
 calling process (parent process) except for the following:
 .Bl -bullet -offset indent
@@ -77,6 +79,15 @@ are set to 0; see
 All interval timers are cleared; see
 .Xr setitimer 2 .
 .It
+The robust mutexes list (see
+.Xr pthread_mutexattr_setrobust 3 )
+is cleared for the child.
+.It
+The atfork handlers established with the
+.Xr pthread_atfork 3
+function are called as appropriate before fork in the parent process,
+and after the child is created, in parent and child.
+.It
 The child process has only one thread,
 corresponding to the calling thread in the parent process.
 If the process has more than one thread,
@@ -87,11 +98,58 @@ and therefore only async-signal-safe functions
 are guaranteed to work in the child process until a call to
 .Xr execve 2
 or a similar function.
+The
+.Fx
+implementation of
+.Fn fork
+provides a usable
+.Xr malloc 3 ,
+and
+.Xr rtld 1
+services in the child process.
 .El
+.Pp
+The
+.Fn fork
+function is not async-signal safe and creates a cancellation point
+in the parent process.
+It cannot be safely used from signal handlers, and the atfork handlers
+established by
+.Xr pthread_atfork 3
+do not need to be async-signal safe either.
+.Pp
+The
+.Fn _Fork
+function creates a new process, similarly to
+.Fn fork ,
+but it is async-signal safe.
+.Fn _Fork
+does not call atfork handlers, and does not create a cancellation point.
+It can be used safely from signal handlers, but then no userspace
+services (
+.Xr malloc 3
+or
+.Xr rtld 1 )
+are available in the child if forked from multi-threaded parent.
+In particular, if using dynamic linking, all dynamic symbols used by the
+child after
+.Fn _Fork
+must be pre-resolved.
+Note: resolving can be done globally by specifying the
+.Ev LD_BIND_NOW
+environment variable to the dynamic linker, or per-binary by passing the
+.Fl z Ar now
+option to the static linker
+.Xr ld 1 ,
+or by using each symbol before the
+.Fn _Fork
+call to force the binding.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn fork
-returns a value
+and
+.Fn _Fork
+return a value
 of 0 to the child process and returns the process ID of the child
 process to the parent process.
 Otherwise, a value of -1 is returned
@@ -176,9 +234,21 @@ There is insufficient swap space for the new process.
 .Xr setrlimit 2 ,
 .Xr sigaction 2 ,
 .Xr vfork 2 ,
-.Xr wait 2
+.Xr wait 2 ,
+.Xr pthread_atfork 3
 .Sh HISTORY
 The
 .Fn fork
 function appeared in
 .At v1 .
+.Pp
+The
+.Fn _Fork
+function was defined by Austin Group together with the removal
+of a requirement that the
+.Fn fork
+implementation must be async-signal safe.
+The
+.Fn _Fork
+function appeared in
+.Fx 14.0 .
