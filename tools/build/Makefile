@@ -266,8 +266,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/elf.h
 # Linux/MacOS since we only use flags that are supported by all of them.
 _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 	dirname echo env false find fmt gzip gunzip head hostname id ln ls \
-	mkdir mv nice patch rm sh sleep stat tee touch tr true uname uniq unxz \
-	wc which xz
+	mkdir mv nice patch rm sh sleep stat tee time touch tr true uname uniq \
+	unxz wc which xz
 
 # We also need a symlink to the absolute path to the make binary used for
 # the toplevel makefile. This is not necessarily the same as `which make`
