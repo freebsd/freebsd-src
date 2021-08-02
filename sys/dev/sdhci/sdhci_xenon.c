@@ -94,7 +94,7 @@ struct sdhci_xenon_softc {
 	uint8_t		zpr;		/* PHY ZPR */
 	bool		slow_mode;	/* PHY slow mode */
 
-	struct mmc_fdt_helper	mmc_helper; /* MMC helper for parsing FDT */
+	struct mmc_helper	mmc_helper; /* MMC helper for parsing FDT */
 };
 
 static uint8_t

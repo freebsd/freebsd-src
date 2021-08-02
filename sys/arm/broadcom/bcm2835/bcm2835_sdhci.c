@@ -156,7 +156,7 @@ struct bcm_sdhci_softc {
 	void *			sc_intrhand;
 	struct mmc_request *	sc_req;
 	struct sdhci_slot	sc_slot;
-	struct mmc_fdt_helper	sc_mmc_helper;
+	struct mmc_helper	sc_mmc_helper;
 	int			sc_dma_ch;
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;

@@ -106,7 +106,7 @@ struct sdhci_fsl_fdt_softc {
 	bool					slot_init_done;
 	uint32_t				cmd_and_mode;
 	uint16_t				sdclk_bits;
-	struct mmc_fdt_helper			fdt_helper;
+	struct mmc_helper			fdt_helper;
 
 	uint32_t (* read)(struct sdhci_fsl_fdt_softc *, bus_size_t);
 	void (* write)(struct sdhci_fsl_fdt_softc *, bus_size_t, uint32_t);

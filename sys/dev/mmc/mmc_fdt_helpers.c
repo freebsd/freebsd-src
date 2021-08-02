@@ -45,105 +45,21 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #endif
 
+#include <dev/mmc/mmc_helpers.h>
+
 #include "mmc_pwrseq_if.h"
 
-static inline void
-mmc_fdt_parse_sd_speed(phandle_t node, struct mmc_host *host)
-{
-	bool no_18v = false;
-
-	/* 
-	 * Parse SD supported modes 
-	 * All UHS-I modes requires 1.8V signaling.
-	 */
-	if (OF_hasprop(node, "no-1-8-v"))
-		no_18v = true;
-	if (OF_hasprop(node, "cap-sd-highspeed"))
-		host->caps |= MMC_CAP_HSPEED;
-	if (OF_hasprop(node, "sd-uhs-sdr12") && no_18v == false)
-		host->caps |= MMC_CAP_UHS_SDR12 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "sd-uhs-sdr25") && no_18v == false)
-		host->caps |= MMC_CAP_UHS_SDR25 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "sd-uhs-sdr50") && no_18v == false)
-		host->caps |= MMC_CAP_UHS_SDR50 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "sd-uhs-sdr104") && no_18v == false)
-		host->caps |= MMC_CAP_UHS_SDR104 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "sd-uhs-ddr50") && no_18v == false)
-		host->caps |= MMC_CAP_UHS_DDR50 | MMC_CAP_SIGNALING_180;
-}
-
-static inline void
-mmc_fdt_parse_mmc_speed(phandle_t node, struct mmc_host *host)
-{
-
-	/* Parse eMMC supported modes */
-	if (OF_hasprop(node, "cap-mmc-highspeed"))
-		host->caps |= MMC_CAP_HSPEED;
-	if (OF_hasprop(node, "mmc-ddr-1_2v"))
-		host->caps |= MMC_CAP_MMC_DDR52_120 | MMC_CAP_SIGNALING_120;
-	if (OF_hasprop(node, "mmc-ddr-1_8v"))
-		host->caps |= MMC_CAP_MMC_DDR52_180 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "mmc-ddr-3_3v"))
-		host->caps |= MMC_CAP_SIGNALING_330;
-	if (OF_hasprop(node, "mmc-hs200-1_2v"))
-		host->caps |= MMC_CAP_MMC_HS200_120 | MMC_CAP_SIGNALING_120;
-	if (OF_hasprop(node, "mmc-hs200-1_8v"))
-		host->caps |= MMC_CAP_MMC_HS200_180 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "mmc-hs400-1_2v"))
-		host->caps |= MMC_CAP_MMC_HS400_120 | MMC_CAP_SIGNALING_120;
-	if (OF_hasprop(node, "mmc-hs400-1_8v"))
-		host->caps |= MMC_CAP_MMC_HS400_180 | MMC_CAP_SIGNALING_180;
-	if (OF_hasprop(node, "mmc-hs400-enhanced-strobe"))
-		host->caps |= MMC_CAP_MMC_ENH_STROBE;
-}
-
 int
-mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
+mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_helper *helper,
     struct mmc_host *host)
 {
-	uint32_t bus_width;
+	struct mmc_helper mmc_helper;
 	phandle_t pwrseq_xref;
 
-	if (node <= 0)
-		node = ofw_bus_get_node(dev);
-	if (node <= 0)
-		return (ENXIO);
+	memset(&mmc_helper, 0, sizeof(mmc_helper));
+	mmc_parse(dev, &mmc_helper, host);
 
-	if (OF_getencprop(node, "bus-width", &bus_width, sizeof(uint32_t)) <= 0)
-		bus_width = 1;
-
-	if (bus_width >= 4)
-		host->caps |= MMC_CAP_4_BIT_DATA;
-	if (bus_width >= 8)
-		host->caps |= MMC_CAP_8_BIT_DATA;
-
-	/* 
-	 * max-frequency is optional, drivers should tweak this value
-	 * if it's not present based on the clock that the mmc controller
-	 * operates on
-	 */
-	OF_getencprop(node, "max-frequency", &host->f_max, sizeof(uint32_t));
-
-	if (OF_hasprop(node, "broken-cd"))
-		helper->props |= MMC_PROP_BROKEN_CD;
-	if (OF_hasprop(node, "non-removable"))
-		helper->props |= MMC_PROP_NON_REMOVABLE;
-	if (OF_hasprop(node, "wp-inverted"))
-		helper->props |= MMC_PROP_WP_INVERTED;
-	if (OF_hasprop(node, "cd-inverted"))
-		helper->props |= MMC_PROP_CD_INVERTED;
-	if (OF_hasprop(node, "no-sdio"))
-		helper->props |= MMC_PROP_NO_SDIO;
-	if (OF_hasprop(node, "no-sd"))
-		helper->props |= MMC_PROP_NO_SD;
-	if (OF_hasprop(node, "no-mmc"))
-		helper->props |= MMC_PROP_NO_MMC;
-
-	if (!(helper->props & MMC_PROP_NO_SD))
-		mmc_fdt_parse_sd_speed(node, host);
-
-	if (!(helper->props & MMC_PROP_NO_MMC))
-		mmc_fdt_parse_mmc_speed(node, host);
+	helper->props = mmc_helper.props;
 
 #ifdef EXT_RESOURCES
 	/*
@@ -200,7 +116,7 @@ mmc_fdt_parse(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 static void
 cd_intr(void *arg)
 {
-	struct mmc_fdt_helper *helper = arg;
+	struct mmc_helper *helper = arg;
 
 	taskqueue_enqueue_timeout(taskqueue_swi_giant,
 	    &helper->cd_delayed_task, -(hz / 2));
@@ -209,7 +125,7 @@ cd_intr(void *arg)
 static void
 cd_card_task(void *arg, int pending __unused)
 {
-	struct mmc_fdt_helper *helper = arg;
+	struct mmc_helper *helper = arg;
 	bool cd_present;
 
 	cd_present = mmc_fdt_gpio_get_present(helper);
@@ -228,7 +144,7 @@ cd_card_task(void *arg, int pending __unused)
  * Card detect setup.
  */
 static void
-cd_setup(struct mmc_fdt_helper *helper, phandle_t node)
+cd_setup(struct mmc_helper *helper, phandle_t node)
 {
 	int pincaps;
 	device_t dev;
@@ -330,7 +246,7 @@ without_interrupts:
  * Write protect setup.
  */
 static void
-wp_setup(struct mmc_fdt_helper *helper, phandle_t node)
+wp_setup(struct mmc_helper *helper, phandle_t node)
 {
 	device_t dev;
 
@@ -352,7 +268,7 @@ wp_setup(struct mmc_fdt_helper *helper, phandle_t node)
 }
 
 int
-mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
+mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_helper *helper,
     mmc_fdt_cd_handler handler)
 {
 
@@ -377,7 +293,7 @@ mmc_fdt_gpio_setup(device_t dev, phandle_t node, struct mmc_fdt_helper *helper,
 }
 
 void
-mmc_fdt_gpio_teardown(struct mmc_fdt_helper *helper)
+mmc_fdt_gpio_teardown(struct mmc_helper *helper)
 {
 
 	if (helper == NULL)
@@ -396,7 +312,7 @@ mmc_fdt_gpio_teardown(struct mmc_fdt_helper *helper)
 }
 
 bool
-mmc_fdt_gpio_get_present(struct mmc_fdt_helper *helper)
+mmc_fdt_gpio_get_present(struct mmc_helper *helper)
 {
 	bool pinstate;
 
@@ -411,7 +327,7 @@ mmc_fdt_gpio_get_present(struct mmc_fdt_helper *helper)
 }
 
 bool
-mmc_fdt_gpio_get_readonly(struct mmc_fdt_helper *helper)
+mmc_fdt_gpio_get_readonly(struct mmc_helper *helper)
 {
 	bool pinstate;
 
@@ -427,7 +343,7 @@ mmc_fdt_gpio_get_readonly(struct mmc_fdt_helper *helper)
 }
 
 void
-mmc_fdt_set_power(struct mmc_fdt_helper *helper, enum mmc_power_mode power_mode)
+mmc_fdt_set_power(struct mmc_helper *helper, enum mmc_power_mode power_mode)
 {
 	int reg_status;
 	int rv;
