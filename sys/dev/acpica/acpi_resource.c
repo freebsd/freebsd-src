@@ -511,10 +511,12 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
      */
     if (acpi_MatchHid(handle, "ARMHC500") != ACPI_MATCHHID_NOMATCH ||
         acpi_MatchHid(handle, "ARMHC502") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC600") != ACPI_MATCHHID_NOMATCH ||
         acpi_MatchHid(handle, "ARMHC979") != ACPI_MATCHHID_NOMATCH ||
         acpi_MatchHid(handle, "ARMHC97C") != ACPI_MATCHHID_NOMATCH ||
         acpi_MatchHid(handle, "ARMHC98D") != ACPI_MATCHHID_NOMATCH ||
-        acpi_MatchHid(handle, "ARMHC9FF") != ACPI_MATCHHID_NOMATCH)
+        acpi_MatchHid(handle, "ARMHC9FF") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHD620") != ACPI_MATCHHID_NOMATCH)
 	    arc.ignore_producer_flag = true;
 
     status = AcpiWalkResources(handle, "_CRS", acpi_parse_resource, &arc);
