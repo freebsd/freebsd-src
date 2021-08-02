@@ -933,10 +933,10 @@ tdq_move(struct tdq *from, struct tdq *to)
 static int
 tdq_idled(struct tdq *tdq)
 {
-	struct cpu_group *cg;
+	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, switchcnt;
+	int cpu, switchcnt, goup;
 
 	if (smp_started == 0 || steal_idle == 0 || tdq->tdq_cg == NULL)
 		return (1);
@@ -944,7 +944,7 @@ tdq_idled(struct tdq *tdq)
 	CPU_CLR(PCPU_GET(cpuid), &mask);
     restart:
 	switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-	for (cg = tdq->tdq_cg; ; ) {
+	for (cg = tdq->tdq_cg, goup = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh);
 		/*
 		 * We were assigned a thread but not preempted.  Returning
@@ -952,10 +952,29 @@ tdq_idled(struct tdq *tdq)
 		 */
 		if (tdq->tdq_load)
 			return (0);
+
+		/*
+		 * We found no CPU to steal from in this group.  Escalate to
+		 * the parent and repeat.  But if parent has only two children
+		 * groups we can avoid searching this group again by searching
+		 * the other one specifically and then escalating two levels.
+		 */
 		if (cpu == -1) {
-			cg = cg->cg_parent;
-			if (cg == NULL)
+			if (goup) {
+				cg = cg->cg_parent;
+				goup = 0;
+			}
+			parent = cg->cg_parent;
+			if (parent == NULL)
 				return (1);
+			if (parent->cg_children == 2) {
+				if (cg == &parent->cg_child[0])
+					cg = &parent->cg_child[1];
+				else
+					cg = &parent->cg_child[0];
+				goup = 1;
+			} else
+				cg = parent;
 			continue;
 		}
 		steal = TDQ_CPU(cpu);
@@ -1868,10 +1887,10 @@ lend:
 static void
 tdq_trysteal(struct tdq *tdq)
 {
-	struct cpu_group *cg;
+	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, i;
+	int cpu, i, goup;
 
 	if (smp_started == 0 || trysteal_limit == 0 || tdq->tdq_cg == NULL)
 		return;
@@ -1880,7 +1899,7 @@ tdq_trysteal(struct tdq *tdq)
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
-	for (i = 1, cg = tdq->tdq_cg; ; ) {
+	for (i = 1, cg = tdq->tdq_cg, goup = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh);
 		/*
 		 * If a thread was added while interrupts were disabled don't
@@ -1890,13 +1909,35 @@ tdq_trysteal(struct tdq *tdq)
 			TDQ_LOCK(tdq);
 			break;
 		}
+
+		/*
+		 * We found no CPU to steal from in this group.  Escalate to
+		 * the parent and repeat.  But if parent has only two children
+		 * groups we can avoid searching this group again by searching
+		 * the other one specifically and then escalating two levels.
+		 */
 		if (cpu == -1) {
-			i++;
-			cg = cg->cg_parent;
-			if (cg == NULL || i > trysteal_limit) {
+			if (goup) {
+				cg = cg->cg_parent;
+				goup = 0;
+			}
+			if (++i > trysteal_limit) {
 				TDQ_LOCK(tdq);
 				break;
 			}
+			parent = cg->cg_parent;
+			if (parent == NULL) {
+				TDQ_LOCK(tdq);
+				break;
+			}
+			if (parent->cg_children == 2) {
+				if (cg == &parent->cg_child[0])
+					cg = &parent->cg_child[1];
+				else
+					cg = &parent->cg_child[0];
+				goup = 1;
+			} else
+				cg = parent;
 			continue;
 		}
 		steal = TDQ_CPU(cpu);
