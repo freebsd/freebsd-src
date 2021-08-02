@@ -1923,7 +1923,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int llchange;
 	int flags;
 	uint16_t router = 0;
-	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
 	u_char linkhdr[LLE_MAX_LINKHDR];
 	size_t linkhdrsize;
@@ -2044,7 +2043,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 
 		if (ln->la_hold != NULL)
-			nd6_grab_holdchain(ln, &chain, &sin6);
+			chain = nd6_grab_holdchain(ln);
 	}
 
 	/* Calculates new router status */
@@ -2062,7 +2061,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		LLE_RUNLOCK(ln);
 
 	if (chain != NULL)
-		nd6_flush_holdchain(ifp, chain, &sin6);
+		nd6_flush_holdchain(ifp, ln, chain);
 
 	/*
 	 * When the link-layer address of a router changes, select the
@@ -2119,16 +2118,15 @@ nd6_slowtimo(void *arg)
 	CURVNET_RESTORE();
 }
 
-void
-nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
-    struct sockaddr_in6 *sin6)
+struct mbuf *
+nd6_grab_holdchain(struct llentry *ln)
 {
+	struct mbuf *chain;
 
 	LLE_WLOCK_ASSERT(ln);
 
-	*chain = ln->la_hold;
+	chain = ln->la_hold;
 	ln->la_hold = NULL;
-	lltable_fill_sa_entry(ln, (struct sockaddr *)sin6);
 
 	if (ln->ln_state == ND6_LLINFO_STALE) {
 		/*
@@ -2142,6 +2140,8 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 		 */
 		nd6_llinfo_setstate(ln, ND6_LLINFO_DELAY);
 	}
+
+	return (chain);
 }
 
 int
@@ -2435,19 +2435,27 @@ nd6_resolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
 }
 
 int
-nd6_flush_holdchain(struct ifnet *ifp, struct mbuf *chain,
-    struct sockaddr_in6 *dst)
+nd6_flush_holdchain(struct ifnet *ifp, struct llentry *lle, struct mbuf *chain)
 {
 	struct mbuf *m, *m_head;
+	struct sockaddr_in6 dst6;
 	int error = 0;
 
+	NET_EPOCH_ASSERT();
+
+	struct route_in6 ro = {
+		.ro_prepend = lle->r_linkdata,
+		.ro_plen = lle->r_hdrlen,
+	};
+
+	lltable_fill_sa_entry(lle, (struct sockaddr *)&dst6);
 	m_head = chain;
 
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
 		m->m_nextpkt = NULL;
-		error = nd6_output_ifp(ifp, ifp, m, dst, NULL);
+		error = nd6_output_ifp(ifp, ifp, m, &dst6, (struct route *)&ro);
 	}
 
 	/*

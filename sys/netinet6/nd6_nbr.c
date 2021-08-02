@@ -623,7 +623,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct mbuf *chain;
 	struct nd_neighbor_advert *nd_na;
 	struct in6_addr daddr6, taddr6;
-	struct sockaddr_in6 sin6;
 	union nd_opts ndopts;
 	u_char linkhdr[LLE_MAX_LINKHDR];
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
@@ -899,16 +898,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 *  rt->rt_flags &= ~RTF_REJECT;
 	 */
 	ln->la_asked = 0;
-	if (ln->la_hold != NULL) {
-		memset(&sin6, 0, sizeof(sin6));
-		nd6_grab_holdchain(ln, &chain, &sin6);
-	}
+	if (ln->la_hold != NULL)
+		chain = nd6_grab_holdchain(ln);
  freeit:
 	if (ln != NULL)
 		LLE_WUNLOCK(ln);
 
 	if (chain != NULL)
-		nd6_flush_holdchain(ifp, chain, &sin6);
+		nd6_flush_holdchain(ifp, ln, chain);
 
 	if (checklink)
 		pfxlist_onlink_check();

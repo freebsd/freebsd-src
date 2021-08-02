@@ -1145,6 +1145,44 @@ drop:
 }
 #endif
 
+static struct mbuf *
+arp_grab_holdchain(struct llentry *la)
+{
+	struct mbuf *chain;
+
+	LLE_WLOCK_ASSERT(la);
+
+	chain = la->la_hold;
+	la->la_hold = NULL;
+	la->la_numheld = 0;
+
+	return (chain);
+}
+
+static void
+arp_flush_holdchain(struct ifnet *ifp, struct llentry *la, struct mbuf *chain)
+{
+	struct mbuf *m_hold, *m_hold_next;
+	struct sockaddr_in sin;
+
+	NET_EPOCH_ASSERT();
+
+	struct route ro = {
+		.ro_prepend = la->r_linkdata,
+		.ro_plen = la->r_hdrlen,
+	};
+
+	lltable_fill_sa_entry(la, (struct sockaddr *)&sin);
+
+	for (m_hold = chain; m_hold != NULL; m_hold = m_hold_next) {
+		m_hold_next = m_hold->m_nextpkt;
+		m_hold->m_nextpkt = NULL;
+		/* Avoid confusing lower layers. */
+		m_clrprotoflags(m_hold);
+		(*ifp->if_output)(ifp, m_hold, (struct sockaddr *)&sin, &ro);
+	}
+}
+
 /*
  * Checks received arp data against existing @la.
  * Updates lle state/performs notification if necessary.
@@ -1153,8 +1191,6 @@ static void
 arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp,
     int bridged, struct llentry *la)
 {
-	struct sockaddr sa;
-	struct mbuf *m_hold, *m_hold_next;
 	uint8_t linkhdr[LLE_MAX_LINKHDR];
 	size_t linkhdrsize;
 	int lladdr_off;
@@ -1227,18 +1263,11 @@ arp_check_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp
 	 * output routine.
 	 */
 	if (la->la_hold != NULL) {
-		m_hold = la->la_hold;
-		la->la_hold = NULL;
-		la->la_numheld = 0;
-		lltable_fill_sa_entry(la, &sa);
+		struct mbuf *chain;
+
+		chain = arp_grab_holdchain(la);
 		LLE_WUNLOCK(la);
-		for (; m_hold != NULL; m_hold = m_hold_next) {
-			m_hold_next = m_hold->m_nextpkt;
-			m_hold->m_nextpkt = NULL;
-			/* Avoid confusing lower layers. */
-			m_clrprotoflags(m_hold);
-			(*ifp->if_output)(ifp, m_hold, &sa, NULL);
-		}
+		arp_flush_holdchain(ifp, la, chain);
 	} else
 		LLE_WUNLOCK(la);
 }
