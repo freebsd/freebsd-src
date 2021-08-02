@@ -718,7 +718,8 @@ SRCS_EXL+=	LTO/LTOModule.cpp
 SRCS_EXL+=	LTO/SummaryBasedOptimizations.cpp
 SRCS_EXL+=	LTO/ThinLTOCodeGenerator.cpp
 SRCS_MIN+=	LTO/UpdateCompilerUsed.cpp
-SRCS_MIN+=	LineEditor/LineEditor.cpp
+# Only needed for clangd/clang-query, uncomment once we build those.
+# SRCS_XDW+=	LineEditor/LineEditor.cpp
 SRCS_MIN+=	Linker/IRMover.cpp
 SRCS_MIN+=	Linker/LinkModules.cpp
 SRCS_MIN+=	MC/ConstantPools.cpp

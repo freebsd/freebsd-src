@@ -106,12 +106,24 @@ CFLAGS+=	-DLLVM_NATIVE_TARGETMC=LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC
 
 CFLAGS+=	-ffunction-sections
 CFLAGS+=	-fdata-sections
+.if ${LINKER_TYPE} == "mac"
+LDFLAGS+=	-Wl,-dead_strip
+.else
 LDFLAGS+=	-Wl,--gc-sections
+.endif
 
 CXXSTD?=	c++14
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
+.if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
+# Building on macOS/Linux needs the real sysctl() not the bootstrap tools stub.
+CFLAGS+=	-DBOOTSTRAPPING_WANT_NATIVE_SYSCTL
+.else
 CXXFLAGS.clang+= -stdlib=libc++
+.endif
+.if defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Linux"
+LIBADD+=	dl
+.endif
 
 .if ${MACHINE_ARCH:Mmips64}
 STATIC_CFLAGS+= -mxgot
