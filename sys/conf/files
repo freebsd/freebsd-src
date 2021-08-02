@@ -4628,6 +4628,8 @@ compat/linuxkpi/common/src/linux_domain.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_firmware.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_hrtimer.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_i2c.c		optional compat_linuxkpi \
