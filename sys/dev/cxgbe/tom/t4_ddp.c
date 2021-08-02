@@ -700,7 +700,8 @@ handle_ddp_close(struct toepcb *toep, struct tcpcb *tp, __be32 rcv_nxt)
 	INP_WLOCK_ASSERT(toep->inp);
 	DDP_ASSERT_LOCKED(toep);
 
-	len = be32toh(rcv_nxt) - tp->rcv_nxt;
+	/* - 1 is to ignore the byte for FIN */
+	len = be32toh(rcv_nxt) - tp->rcv_nxt - 1;
 	tp->rcv_nxt += len;
 
 	while (toep->ddp.active_count > 0) {
