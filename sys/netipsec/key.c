@@ -363,70 +363,70 @@ static struct mtx spacq_lock;
 #define	SPACQ_LOCK_ASSERT()	mtx_assert(&spacq_lock, MA_OWNED)
 
 static const int minsize[] = {
-	sizeof(struct sadb_msg),	/* SADB_EXT_RESERVED */
-	sizeof(struct sadb_sa),		/* SADB_EXT_SA */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_CURRENT */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_HARD */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_SOFT */
-	sizeof(struct sadb_address),	/* SADB_EXT_ADDRESS_SRC */
-	sizeof(struct sadb_address),	/* SADB_EXT_ADDRESS_DST */
-	sizeof(struct sadb_address),	/* SADB_EXT_ADDRESS_PROXY */
-	sizeof(struct sadb_key),	/* SADB_EXT_KEY_AUTH */
-	sizeof(struct sadb_key),	/* SADB_EXT_KEY_ENCRYPT */
-	sizeof(struct sadb_ident),	/* SADB_EXT_IDENTITY_SRC */
-	sizeof(struct sadb_ident),	/* SADB_EXT_IDENTITY_DST */
-	sizeof(struct sadb_sens),	/* SADB_EXT_SENSITIVITY */
-	sizeof(struct sadb_prop),	/* SADB_EXT_PROPOSAL */
-	sizeof(struct sadb_supported),	/* SADB_EXT_SUPPORTED_AUTH */
-	sizeof(struct sadb_supported),	/* SADB_EXT_SUPPORTED_ENCRYPT */
-	sizeof(struct sadb_spirange),	/* SADB_EXT_SPIRANGE */
-	0,				/* SADB_X_EXT_KMPRIVATE */
-	sizeof(struct sadb_x_policy),	/* SADB_X_EXT_POLICY */
-	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
-	sizeof(struct sadb_x_nat_t_type),/* SADB_X_EXT_NAT_T_TYPE */
-	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_SPORT */
-	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_DPORT */
-	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAI */
-	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAR */
-	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
-	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
-	sizeof(struct sadb_address),	/* SADB_X_EXT_NEW_ADDRESS_SRC */
-	sizeof(struct sadb_address),	/* SADB_X_EXT_NEW_ADDRESS_DST */
+	[SADB_EXT_RESERVED] = sizeof(struct sadb_msg),
+	[SADB_EXT_SA] = sizeof(struct sadb_sa),
+	[SADB_EXT_LIFETIME_CURRENT] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_LIFETIME_HARD] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_LIFETIME_SOFT] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_ADDRESS_SRC] = sizeof(struct sadb_address),
+	[SADB_EXT_ADDRESS_DST] = sizeof(struct sadb_address),
+	[SADB_EXT_ADDRESS_PROXY] = sizeof(struct sadb_address),
+	[SADB_EXT_KEY_AUTH] = sizeof(struct sadb_key),
+	[SADB_EXT_KEY_ENCRYPT] = sizeof(struct sadb_key),
+	[SADB_EXT_IDENTITY_SRC] = sizeof(struct sadb_ident),
+	[SADB_EXT_IDENTITY_DST] = sizeof(struct sadb_ident),
+	[SADB_EXT_SENSITIVITY] = sizeof(struct sadb_sens),
+	[SADB_EXT_PROPOSAL] = sizeof(struct sadb_prop),
+	[SADB_EXT_SUPPORTED_AUTH] = sizeof(struct sadb_supported),
+	[SADB_EXT_SUPPORTED_ENCRYPT] = sizeof(struct sadb_supported),
+	[SADB_EXT_SPIRANGE] = sizeof(struct sadb_spirange),
+	[SADB_X_EXT_KMPRIVATE] = 0,
+	[SADB_X_EXT_POLICY] = sizeof(struct sadb_x_policy),
+	[SADB_X_EXT_SA2] = sizeof(struct sadb_x_sa2),
+	[SADB_X_EXT_NAT_T_TYPE] = sizeof(struct sadb_x_nat_t_type),
+	[SADB_X_EXT_NAT_T_SPORT] = sizeof(struct sadb_x_nat_t_port),
+	[SADB_X_EXT_NAT_T_DPORT] = sizeof(struct sadb_x_nat_t_port),
+	[SADB_X_EXT_NAT_T_OAI] = sizeof(struct sadb_address),
+	[SADB_X_EXT_NAT_T_OAR] = sizeof(struct sadb_address),
+	[SADB_X_EXT_NAT_T_FRAG] = sizeof(struct sadb_x_nat_t_frag),
+	[SADB_X_EXT_SA_REPLAY] = sizeof(struct sadb_x_sa_replay),
+	[SADB_X_EXT_NEW_ADDRESS_SRC] = sizeof(struct sadb_address),
+	[SADB_X_EXT_NEW_ADDRESS_DST] = sizeof(struct sadb_address),
 };
-_Static_assert(sizeof(minsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
+_Static_assert(nitems(minsize) == SADB_EXT_MAX + 1, "minsize size mismatch");
 
 static const int maxsize[] = {
-	sizeof(struct sadb_msg),	/* SADB_EXT_RESERVED */
-	sizeof(struct sadb_sa),		/* SADB_EXT_SA */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_CURRENT */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_HARD */
-	sizeof(struct sadb_lifetime),	/* SADB_EXT_LIFETIME_SOFT */
-	0,				/* SADB_EXT_ADDRESS_SRC */
-	0,				/* SADB_EXT_ADDRESS_DST */
-	0,				/* SADB_EXT_ADDRESS_PROXY */
-	0,				/* SADB_EXT_KEY_AUTH */
-	0,				/* SADB_EXT_KEY_ENCRYPT */
-	0,				/* SADB_EXT_IDENTITY_SRC */
-	0,				/* SADB_EXT_IDENTITY_DST */
-	0,				/* SADB_EXT_SENSITIVITY */
-	0,				/* SADB_EXT_PROPOSAL */
-	0,				/* SADB_EXT_SUPPORTED_AUTH */
-	0,				/* SADB_EXT_SUPPORTED_ENCRYPT */
-	sizeof(struct sadb_spirange),	/* SADB_EXT_SPIRANGE */
-	0,				/* SADB_X_EXT_KMPRIVATE */
-	0,				/* SADB_X_EXT_POLICY */
-	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
-	sizeof(struct sadb_x_nat_t_type),/* SADB_X_EXT_NAT_T_TYPE */
-	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_SPORT */
-	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_DPORT */
-	0,				/* SADB_X_EXT_NAT_T_OAI */
-	0,				/* SADB_X_EXT_NAT_T_OAR */
-	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
-	sizeof(struct sadb_x_sa_replay), /* SADB_X_EXT_SA_REPLAY */
-	0,				/* SADB_X_EXT_NEW_ADDRESS_SRC */
-	0,				/* SADB_X_EXT_NEW_ADDRESS_DST */
+	[SADB_EXT_RESERVED] = sizeof(struct sadb_msg),
+	[SADB_EXT_SA] = sizeof(struct sadb_sa),
+	[SADB_EXT_LIFETIME_CURRENT] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_LIFETIME_HARD] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_LIFETIME_SOFT] = sizeof(struct sadb_lifetime),
+	[SADB_EXT_ADDRESS_SRC] = 0,
+	[SADB_EXT_ADDRESS_DST] = 0,
+	[SADB_EXT_ADDRESS_PROXY] = 0,
+	[SADB_EXT_KEY_AUTH] = 0,
+	[SADB_EXT_KEY_ENCRYPT] = 0,
+	[SADB_EXT_IDENTITY_SRC] = 0,
+	[SADB_EXT_IDENTITY_DST] = 0,
+	[SADB_EXT_SENSITIVITY] = 0,
+	[SADB_EXT_PROPOSAL] = 0,
+	[SADB_EXT_SUPPORTED_AUTH] = 0,
+	[SADB_EXT_SUPPORTED_ENCRYPT] = 0,
+	[SADB_EXT_SPIRANGE] = sizeof(struct sadb_spirange),
+	[SADB_X_EXT_KMPRIVATE] = 0,
+	[SADB_X_EXT_POLICY] = 0,
+	[SADB_X_EXT_SA2] = sizeof(struct sadb_x_sa2),
+	[SADB_X_EXT_NAT_T_TYPE] = sizeof(struct sadb_x_nat_t_type),
+	[SADB_X_EXT_NAT_T_SPORT] = sizeof(struct sadb_x_nat_t_port),
+	[SADB_X_EXT_NAT_T_DPORT] = sizeof(struct sadb_x_nat_t_port),
+	[SADB_X_EXT_NAT_T_OAI] = 0,
+	[SADB_X_EXT_NAT_T_OAR] = 0,
+	[SADB_X_EXT_NAT_T_FRAG] = sizeof(struct sadb_x_nat_t_frag),
+	[SADB_X_EXT_SA_REPLAY] = sizeof(struct sadb_x_sa_replay),
+	[SADB_X_EXT_NEW_ADDRESS_SRC] = 0,
+	[SADB_X_EXT_NEW_ADDRESS_DST] = 0,
 };
-_Static_assert(sizeof(maxsize)/sizeof(int) == SADB_EXT_MAX + 1, "minsize size mismatch");
+_Static_assert(nitems(maxsize) == SADB_EXT_MAX + 1, "maxsize size mismatch");
 
 /*
  * Internal values for SA flags:
@@ -7748,30 +7748,30 @@ key_promisc(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 }
 
 static int (*key_typesw[])(struct socket *, struct mbuf *,
-		const struct sadb_msghdr *) = {
-	NULL,		/* SADB_RESERVED */
-	key_getspi,	/* SADB_GETSPI */
-	key_update,	/* SADB_UPDATE */
-	key_add,	/* SADB_ADD */
-	key_delete,	/* SADB_DELETE */
-	key_get,	/* SADB_GET */
-	key_acquire2,	/* SADB_ACQUIRE */
-	key_register,	/* SADB_REGISTER */
-	NULL,		/* SADB_EXPIRE */
-	key_flush,	/* SADB_FLUSH */
-	key_dump,	/* SADB_DUMP */
-	key_promisc,	/* SADB_X_PROMISC */
-	NULL,		/* SADB_X_PCHANGE */
-	key_spdadd,	/* SADB_X_SPDUPDATE */
-	key_spdadd,	/* SADB_X_SPDADD */
-	key_spddelete,	/* SADB_X_SPDDELETE */
-	key_spdget,	/* SADB_X_SPDGET */
-	NULL,		/* SADB_X_SPDACQUIRE */
-	key_spddump,	/* SADB_X_SPDDUMP */
-	key_spdflush,	/* SADB_X_SPDFLUSH */
-	key_spdadd,	/* SADB_X_SPDSETIDX */
-	NULL,		/* SADB_X_SPDEXPIRE */
-	key_spddelete2,	/* SADB_X_SPDDELETE2 */
+    const struct sadb_msghdr *) = {
+	[SADB_RESERVED] =	NULL,
+	[SADB_GETSPI] =		key_getspi,
+	[SADB_UPDATE] =		key_update,
+	[SADB_ADD] =		key_add,
+	[SADB_DELETE] =		key_delete,
+	[SADB_GET] =		key_get,
+	[SADB_ACQUIRE] =	key_acquire2,
+	[SADB_REGISTER] =	key_register,
+	[SADB_EXPIRE] =		NULL,
+	[SADB_FLUSH] =		key_flush,
+	[SADB_DUMP] =		key_dump,
+	[SADB_X_PROMISC] =	key_promisc,
+	[SADB_X_PCHANGE] =	NULL,
+	[SADB_X_SPDUPDATE] =	key_spdadd,
+	[SADB_X_SPDADD] =	key_spdadd,
+	[SADB_X_SPDDELETE] =	key_spddelete,
+	[SADB_X_SPDGET] =	key_spdget,
+	[SADB_X_SPDACQUIRE] =	NULL,
+	[SADB_X_SPDDUMP] =	key_spddump,
+	[SADB_X_SPDFLUSH] =	key_spdflush,
+	[SADB_X_SPDSETIDX] =	key_spdadd,
+	[SADB_X_SPDEXPIRE] =	NULL,
+	[SADB_X_SPDDELETE2] =	key_spddelete2,
 };
 
 /*
