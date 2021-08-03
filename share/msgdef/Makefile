@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=	locales
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_MESSAGES
 .SUFFIXES:	.src .out
@@ -125,6 +126,7 @@ CLEANFILES=	${FILES}
 .for f t in ${SAME}
 DIRS+=		LOCALEDIR_$t
 LOCALEDIR_$t=	${LOCALEDIR}/$t
+LOCALEDIR_$tPACKAGE=	locales
 SYMLINKS+=	../$f/${FILESNAME} \
     ${LOCALEDIR}/$t/${FILESNAME}
 .endfor
