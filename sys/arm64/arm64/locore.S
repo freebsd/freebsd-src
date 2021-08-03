@@ -168,7 +168,7 @@ END(_start)
  */
 ENTRY(mpentry)
 	/* Disable interrupts */
-	msr	daifset, #2
+	msr	daifset, #DAIF_INTR
 
 	/* Drop to EL1 */
 	bl	drop_to_el1
