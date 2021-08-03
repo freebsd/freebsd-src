@@ -108,7 +108,8 @@ CXXFLAGS+= -ftrivial-auto-var-init=pattern
 .endif
 .endif
 
-.include "bsd.sanitizer.mk"
+# bsd.sanitizer.mk is not installed, so don't require it (e.g. for ports).
+.sinclude "bsd.sanitizer.mk"
 
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
