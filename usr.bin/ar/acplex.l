@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 
 #include "y.tab.h"
 
@@ -72,7 +72,7 @@ SAVE|save		{ return (SAVE); }
 [-_A-Za-z0-9/:$.\\]+	{
 	yylval.str = strdup(yytext);
 	if (yylval.str == NULL)
-		errc(EX_SOFTWARE, errno, "strdup failed");
+		errc(EXIT_FAILURE, errno, "strdup failed");
 	return (FNAME);
 }
 
