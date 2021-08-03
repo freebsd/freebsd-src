@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+PACKAGE=	locales
+FILESGROUPS=	FILES ALWAYS
+ALWAYSPACKAGE=	runtime
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_CTYPE
 .SUFFIXES:	.src .LC_CTYPE
@@ -212,12 +215,15 @@ SAME+=		lv_LV.ISO8859-13 lt_LT.ISO8859-13
 SAME+=		ko_KR.eucKR ko_KR.CP949	# legacy (same charset)
 .endif
 
-FILES=		${LOCALES:S/$/.LC_CTYPE/}
+# C.UTF-8 is the default locale, so it should always been installed.
+ALWAYS=		C.UTF-8.LC_CTYPE
+FILES=		${LOCALES:NC.UTF-8:S/$/.LC_CTYPE/}
 CLEANFILES=	${FILES}
 
 .for f t in ${SAME}
 DIRS+=	LOCALEDIR_$t
 LOCALEDIR_$t=	${LOCALEDIR}/$t
+LOCALEDIR_$tPACKAGE=	locales
 SYMLINKS+=	../$f/${FILESNAME} \
     ${LOCALEDIR}/$t/${FILESNAME}
 .endfor
@@ -225,6 +231,7 @@ SYMLINKS+=	../$f/${FILESNAME} \
 .for f in ${LOCALES}
 FILESDIR_${f}.LC_CTYPE= ${LOCALEDIR}/${f}
 .endfor
+FILESDIR_C.UTF-8.LC_CTYPEPACKAGE=	runtime
 
 SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB18030.src
 SYMPAIRS+=	zh_CN.eucCN.src zh_CN.GB2312.src
