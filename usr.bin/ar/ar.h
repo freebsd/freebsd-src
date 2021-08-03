@@ -54,7 +54,7 @@
  */
 #define	AC(CALL) do {							\
 	if ((CALL))							\
-		bsdar_errc(bsdar, EX_SOFTWARE, archive_errno(a), "%s",	\
+		bsdar_errc(bsdar, EXIT_FAILURE, archive_errno(a), "%s",	\
 		    archive_error_string(a));				\
 } while (0)
 
@@ -117,13 +117,13 @@ struct bsdar {
 void	bsdar_errc(struct bsdar *, int _eval, int _code,
 	    const char *fmt, ...) __dead2;
 void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
-void	ar_mode_d(struct bsdar *bsdar);
-void	ar_mode_m(struct bsdar *bsdar);
-void	ar_mode_p(struct bsdar *bsdar);
-void	ar_mode_q(struct bsdar *bsdar);
-void	ar_mode_r(struct bsdar *bsdar);
-void	ar_mode_s(struct bsdar *bsdar);
-void	ar_mode_t(struct bsdar *bsdar);
-void	ar_mode_x(struct bsdar *bsdar);
-void	ar_mode_A(struct bsdar *bsdar);
+int	ar_mode_d(struct bsdar *bsdar);
+int	ar_mode_m(struct bsdar *bsdar);
+int	ar_mode_p(struct bsdar *bsdar);
+int	ar_mode_q(struct bsdar *bsdar);
+int	ar_mode_r(struct bsdar *bsdar);
+int	ar_mode_s(struct bsdar *bsdar);
+int	ar_mode_t(struct bsdar *bsdar);
+int	ar_mode_x(struct bsdar *bsdar);
+int	ar_mode_A(struct bsdar *bsdar);
 void	ar_mode_script(struct bsdar *ar);
