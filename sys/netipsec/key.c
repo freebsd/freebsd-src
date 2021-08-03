@@ -4739,7 +4739,7 @@ key_timehandler(void *arg)
 }
 
 u_long
-key_random()
+key_random(void)
 {
 	u_long value;
 
