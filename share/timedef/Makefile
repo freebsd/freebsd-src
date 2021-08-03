@@ -208,7 +208,9 @@ SAME+=		ko_KR.eucKR ko_KR.CP949	# legacy (same charset)
 FILES=		${LOCALES:S/$/.out/}
 CLEANFILES=	${FILES}
 
+DIRS+=	SAMEDIRS
 .for f t in ${SAME}
+SAMEDIRS+=	${LOCALEDIR}/$t
 SYMLINKS+=	../$f/${FILESNAME} \
     ${LOCALEDIR}/$t/${FILESNAME}
 .endfor

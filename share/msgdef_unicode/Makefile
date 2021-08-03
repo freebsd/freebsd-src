@@ -96,7 +96,9 @@ SAME+=		zh_TW.UTF-8 zh_HK.UTF-8
 FILES=		${LOCALES:S/$/.out/}
 CLEANFILES=	${FILES}
 
+DIRS+=		SAMEDIRS
 .for f t in ${SAME}
+SAMEDIRS+=	${LOCALEDIR}/$t
 SYMLINKS+=	../$f/${FILESNAME} \
     ${LOCALEDIR}/$t/${FILESNAME}
 .endfor
