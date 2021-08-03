@@ -326,6 +326,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 					switch (patch->type) {
 					case PIN_PATCH_TYPE_STRING:
 						patch_str = patch->patch.string;
+						break;
 					case PIN_PATCH_TYPE_MASK:
 						config &= ~patch->patch.mask[0];
 						config |= patch->patch.mask[1];
