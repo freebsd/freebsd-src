@@ -1081,9 +1081,9 @@ EOF
 FILES=		\${LOCALES:S/\$/.${SRCOUT2}/}
 CLEANFILES=	\${FILES}
 
-DIRS+=		SAMEDIRS
 .for f t in \${SAME}
-SAMEDIRS+=	\${LOCALEDIR}/\$t
+DIRS+=		LOCALEDIR_\$t
+LOCALEDIR_\$t=	\${LOCALEDIR}/\$t
 SYMLINKS+=	../\$f/\${FILESNAME} \\
     \${LOCALEDIR}/\$t/\${FILESNAME}
 .endfor

@@ -96,9 +96,9 @@ SAME+=		fr_FR.UTF-8 fr_BE.UTF-8
 FILES=		${LOCALES:S/$/.out/}
 CLEANFILES=	${FILES}
 
-DIRS+=		SAMEDIRS
 .for f t in ${SAME}
-SAMEDIRS+=	${LOCALEDIR}/$t
+DIRS+=		LOCALEDIR_$t
+LOCALEDIR_$t=	${LOCALEDIR}/$t
 SYMLINKS+=	../$f/${FILESNAME} \
     ${LOCALEDIR}/$t/${FILESNAME}
 .endfor
