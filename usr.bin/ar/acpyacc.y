@@ -191,7 +191,7 @@ directory_cmd
 	;
 
 end_cmd
-	: END { arscp_end(EX_OK); }
+	: END { arscp_end(EXIT_SUCCESS); }
 	;
 
 extract_cmd
@@ -655,9 +655,9 @@ ar_mode_script(struct bsdar *ar)
 	interactive = isatty(fileno(stdin));
 	while(yyparse()) {
 		if (!interactive)
-			arscp_end(1);
+			arscp_end(EXIT_FAILURE);
 	}
 
 	/* Script ends without END */
-	arscp_end(EX_OK);
+	arscp_end(EXIT_SUCCESS);
 }
