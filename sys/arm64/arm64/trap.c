@@ -102,6 +102,15 @@ static abort_handler *abort_handlers[] = {
 	[ISS_DATA_DFSC_PF_L3] = data_abort,
 	[ISS_DATA_DFSC_ALIGN] = align_abort,
 	[ISS_DATA_DFSC_EXT] =  external_abort,
+	[ISS_DATA_DFSC_EXT_L0] =  external_abort,
+	[ISS_DATA_DFSC_EXT_L1] =  external_abort,
+	[ISS_DATA_DFSC_EXT_L2] =  external_abort,
+	[ISS_DATA_DFSC_EXT_L3] =  external_abort,
+	[ISS_DATA_DFSC_ECC] =  external_abort,
+	[ISS_DATA_DFSC_ECC_L0] =  external_abort,
+	[ISS_DATA_DFSC_ECC_L1] =  external_abort,
+	[ISS_DATA_DFSC_ECC_L2] =  external_abort,
+	[ISS_DATA_DFSC_ECC_L3] =  external_abort,
 };
 
 static __inline void
