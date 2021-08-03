@@ -130,6 +130,15 @@
 #define	DAIF_I_MASKED		(1 << 7)
 #define	DAIF_F_MASKED		(1 << 6)
 
+/* DAIFSet/DAIFClear */
+#define	DAIF_D			(1 << 3)
+#define	DAIF_A			(1 << 2)
+#define	DAIF_I			(1 << 1)
+#define	DAIF_F			(1 << 0)
+#define	DAIF_ALL		(DAIF_D | DAIF_A | DAIF_I | DAIF_F)
+#define	DAIF_INTR		(DAIF_I)	/* All exceptions that pass */
+						/* through the intr framework */
+
 /* DCZID_EL0 - Data Cache Zero ID register */
 #define DCZID_DZP		(1 << 4) /* DC ZVA prohibited if non-0 */
 #define DCZID_BS_SHIFT		0

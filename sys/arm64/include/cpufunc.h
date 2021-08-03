@@ -106,7 +106,7 @@ dbg_disable(void)
 
 	__asm __volatile(
 	    "mrs %x0, daif   \n"
-	    "msr daifset, #8 \n"
+	    "msr daifset, #(" __XSTRING(DAIF_D) ") \n"
 	    : "=&r" (ret));
 
 	return (ret);
@@ -116,7 +116,7 @@ static __inline void
 dbg_enable(void)
 {
 
-	__asm __volatile("msr daifclr, #8");
+	__asm __volatile("msr daifclr, #(" __XSTRING(DAIF_D) ")");
 }
 
 static __inline register_t
@@ -127,7 +127,7 @@ intr_disable(void)
 
 	__asm __volatile(
 	    "mrs %x0, daif   \n"
-	    "msr daifset, #2 \n"
+	    "msr daifset, #(" __XSTRING(DAIF_INTR) ") \n"
 	    : "=&r" (ret));
 
 	return (ret);
@@ -144,7 +144,7 @@ static __inline void
 intr_enable(void)
 {
 
-	__asm __volatile("msr daifclr, #2");
+	__asm __volatile("msr daifclr, #(" __XSTRING(DAIF_INTR) ")");
 }
 
 static __inline register_t
