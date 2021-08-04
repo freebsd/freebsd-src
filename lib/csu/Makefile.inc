@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-SSP_CFLAGS=
-
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 .include <src.opts.mk>
+MK_SSP=	no
 
 .if !defined(BUILDING_TESTS)
 

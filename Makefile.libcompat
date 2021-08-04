@@ -99,7 +99,7 @@ build${libcompat}: .PHONY
 	${_+_}cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    ${MAKE} DESTDIR= \
 	    OBJTOP=${LIBCOMPAT_OBJTOP} \
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
@@ -108,6 +108,7 @@ build${libcompat}: .PHONY
 	    -DNO_CPU_CFLAGS \
 	    MK_CTF=no \
 	    MK_RETPOLINE=no \
+	    MK_SSP=no \
 	    MK_WERROR=no \
 	    ${_t}
 .endfor

@@ -129,8 +129,6 @@ LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
 .endif
 
-SSP_CFLAGS=
-
 # Add in the no float / no SIMD stuff and announce we're freestanding
 # aarch64 and riscv don't have -msoft-float, but all others do.
 CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
