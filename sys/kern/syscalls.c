@@ -586,4 +586,5 @@ const char *syscallnames[] = {
 	"__specialfd",			/* 577 = __specialfd */
 	"aio_writev",			/* 578 = aio_writev */
 	"aio_readv",			/* 579 = aio_readv */
+	"fspacectl",			/* 580 = fspacectl */
 };
