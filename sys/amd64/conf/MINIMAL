@@ -131,6 +131,9 @@ device		ether			# Ethernet support
 # Note that 'bpf' is required for DHCP.
 device		bpf			# Berkeley packet filter
 
+# Linux KVM paravirtualization support
+device		kvm_clock		# KVM paravirtual clock driver
+
 # Xen HVM Guest Optimizations
 # NOTE: XENHVM depends on xenpci and xentimer.
 # They must be added or removed together.

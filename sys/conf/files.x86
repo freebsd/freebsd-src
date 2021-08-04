@@ -263,6 +263,7 @@ dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
 dev/itwd/itwd.c							optional itwd
+dev/kvm_clock/kvm_clock.c	optional	kvm_clock
 dev/qat/qat.c			optional qat
 dev/qat/qat_ae.c		optional qat
 dev/qat/qat_c2xxx.c		optional qat
@@ -318,7 +319,7 @@ x86/x86/x86_mem.c		optional	mem
 x86/x86/mp_x86.c		optional	smp
 x86/x86/mp_watchdog.c		optional	mp_watchdog smp
 x86/x86/nexus.c			standard
-x86/x86/pvclock.c		optional	xenhvm
+x86/x86/pvclock.c		optional	kvm_clock | xenhvm
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/ucode.c			standard
