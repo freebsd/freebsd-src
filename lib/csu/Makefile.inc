@@ -1,12 +1,11 @@
 # $FreeBSD$
 
-SSP_CFLAGS=
-
 SED_FIX_NOTE = -i "" -e '/\.note\.tag/s/progbits/note/'
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 .include <src.opts.mk>
+MK_SSP=	no
 
 .if ${MK_BSD_CRTBEGIN} != "no" && !defined(BUILDING_TESTS)
 
