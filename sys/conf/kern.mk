@@ -213,8 +213,7 @@ CFLAGS+=	-fwrapv
 #
 # GCC SSP support
 #
-.if ${MK_SSP} != "no" && \
-    ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if ${MK_SSP} != "no"
 CFLAGS+=	-fstack-protector
 .endif
 
