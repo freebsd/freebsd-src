@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "ar.h"
@@ -250,7 +249,7 @@ arscp_open(char *fname)
 	int			 r;
 
 	if ((a = archive_read_new()) == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
+		bsdar_errc(bsdar, 0, "archive_read_new failed");
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, fname, DEF_BLKSZ));
 	if ((r = archive_read_next_header(a, &entry)))
@@ -277,15 +276,15 @@ arscp_create(char *in, char *out)
 	/* Delete previously created temporary archive, if any. */
 	if (tmpac) {
 		if (unlink(tmpac) < 0)
-			bsdar_errc(bsdar, EX_IOERR, errno, "unlink failed");
+			bsdar_errc(bsdar, errno, "unlink failed");
 		free(tmpac);
 	}
 
 	tmpac = strdup(TEMPLATE);
 	if (tmpac == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+		bsdar_errc(bsdar, errno, "strdup failed");
 	if ((ofd = mkstemp(tmpac)) < 0)
-		bsdar_errc(bsdar, EX_IOERR, errno, "mkstemp failed");
+		bsdar_errc(bsdar, errno, "mkstemp failed");
 
 	if (in) {
 		/*
@@ -308,8 +307,7 @@ arscp_create(char *in, char *out)
 		 * (archive with only global header)
 		 */
 		if ((a = archive_write_new()) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0,
-			    "archive_write_new failed");
+			bsdar_errc(bsdar, 0, "archive_write_new failed");
 		archive_write_set_format_ar_svr4(a);
 		AC(archive_write_open_fd(a, ofd));
 		AC(archive_write_close(a));
@@ -350,7 +348,7 @@ arscp_copy(int ifd, int ofd)
 		}
 	}
 	if (munmap(p, sb.st_size) < 0)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "munmap failed");
+		bsdar_errc(bsdar, errno, "munmap failed");
 	if (bytes > 0)
 		return (1);
 
@@ -369,7 +367,7 @@ arscp_addlib(char *archive, struct list *list)
 		return;
 	arscp_mlist2argv(list);
 	bsdar->addlib = archive;
-	ar_mode_A(bsdar);
+	ar_write_archive(bsdar, 'A');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -382,7 +380,7 @@ arscp_addmod(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_q(bsdar);
+	ar_write_archive(bsdar, 'q');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -395,7 +393,7 @@ arscp_delete(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_d(bsdar);
+	ar_write_archive(bsdar, 'd');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -408,7 +406,7 @@ arscp_extract(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_x(bsdar);
+	ar_read_archive(bsdar, 'x');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -424,7 +422,7 @@ arscp_list(void)
 	bsdar->argv = NULL;
 	/* Always verbose. */
 	bsdar->options |= AR_V;
-	ar_mode_t(bsdar);
+	ar_read_archive(bsdar, 't');
 	bsdar->options &= ~AR_V;
 }
 
@@ -439,8 +437,7 @@ arscp_dir(char *archive, struct list *list, char *rlt)
 	if (rlt) {
 		out = stdout;
 		if ((stdout = fopen(rlt, "w")) == NULL)
-			bsdar_errc(bsdar, EX_IOERR, errno,
-			    "fopen %s failed", rlt);
+			bsdar_errc(bsdar, errno, "fopen %s failed", rlt);
 	}
 
 	bsdar->filename = archive;
@@ -452,13 +449,12 @@ arscp_dir(char *archive, struct list *list, char *rlt)
 	}
 	if (verbose)
 		bsdar->options |= AR_V;
-	ar_mode_t(bsdar);
+	ar_read_archive(bsdar, 't');
 	bsdar->options &= ~AR_V;
 
 	if (rlt) {
 		if (fclose(stdout) == EOF)
-			bsdar_errc(bsdar, EX_IOERR, errno,
-			    "fclose %s failed", rlt);
+			bsdar_errc(bsdar, errno, "fclose %s failed", rlt);
 		stdout = out;
 		free(rlt);
 	}
@@ -477,7 +473,7 @@ arscp_replace(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_r(bsdar);
+	ar_write_archive(bsdar, 'r');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -490,7 +486,7 @@ arscp_save(void)
 
 	if (target) {
 		if (rename(tmpac, target) < 0)
-			bsdar_errc(bsdar, EX_IOERR, errno, "rename failed");
+			bsdar_errc(bsdar, errno, "rename failed");
 		/*
 		 * mkstemp creates temp files with mode 0600, here we
 		 * set target archive mode per process umask.
@@ -498,7 +494,7 @@ arscp_save(void)
 		mask = umask(0);
 		umask(mask);
 		if (chmod(target, 0666 & ~mask) < 0)
-			bsdar_errc(bsdar, EX_IOERR, errno, "chmod failed");
+			bsdar_errc(bsdar, errno, "chmod failed");
 		free(tmpac);
 		free(target);
 		tmpac = NULL;
@@ -520,7 +516,7 @@ arscp_clear(void)
 	if (target) {
 		new_target = strdup(target);
 		if (new_target == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+			bsdar_errc(bsdar, errno, "strdup failed");
 		arscp_create(NULL, new_target);
 	}
 }
@@ -537,7 +533,7 @@ arscp_end(int eval)
 		free(target);
 	if (tmpac) {
 		if (unlink(tmpac) == -1)
-			bsdar_errc(bsdar, EX_IOERR, errno, "unlink %s failed",
+			bsdar_errc(bsdar, errno, "unlink %s failed",
 			    tmpac);
 		free(tmpac);
 	}
@@ -568,7 +564,7 @@ arscp_mlist(struct list *list, char *str)
 
 	l = malloc(sizeof(*l));
 	if (l == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+		bsdar_errc(bsdar, errno, "malloc failed");
 	l->str = str;
 	l->next = list;
 
@@ -610,12 +606,12 @@ arscp_mlist2argv(struct list *list)
 	n = arscp_mlist_len(list);
 	argv = malloc(n * sizeof(*argv));
 	if (argv == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+		bsdar_errc(bsdar, errno, "malloc failed");
 
 	/* Note that module names are stored in reverse order in mlist. */
 	for(i = n - 1; i >= 0; i--, list = list->next) {
 		if (list == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "invalid mlist");
+			bsdar_errc(bsdar, errno, "invalid mlist");
 		argv[i] = list->str;
 	}
 
