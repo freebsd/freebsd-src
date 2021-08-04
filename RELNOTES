@@ -10,6 +10,29 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+9fb6e613373c:
+	Add a sysctl called vfs.nfsd.srvmaxio that can be used to
+	increase the NFS server's maximum I/O size from 128Kbytes
+	to any power of 2 up to 1Mbyte.  It can only be set when
+	the nfsd threads are not running and will normally require
+	an increase in kern.ipc.maxsockbuf to at least the value
+	recommended by the console log message generated when
+	setting vfs.nfsd.srvmaxio is first attempted.
+
+9ec7dbf46b0a:
+	Add a new NFSv4.1/4.2 mount option "nconnect" that can
+	be used to specify the number of TCP connections that
+	will be used for the mount, up to a maximum of 16.
+	The first (default) TCP connection will be used for
+	all RPCs that consist of small RPC messages.
+	The RPCs that can consist of large RPC messages
+	(Read/Readdir/ReaddirPlus/Write) will be sent on the
+	additional TCP connections in a round robin fashion.
+	If either the NFS client or NFS server have multiple
+	network interfaces aggregated together or a network
+	interface that uses multiple queues, this can increase
+	NFS performance for the mount.
+
 various:
 	One True Awk has been updated to the latest from upstream
 	(20210215). All the FreeBSD patches, but one, have now been
