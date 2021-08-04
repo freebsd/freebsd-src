@@ -74,6 +74,8 @@ SYSCTL_INT(_net_hvsock, OID_AUTO, hvs_dbg_level, CTLFLAG_RWTUN, &hvs_dbg_level,
 
 MALLOC_DEFINE(M_HVSOCK, "hyperv_socket", "hyperv socket control structures");
 
+static int hvs_dom_probe(void);
+
 /* The MTU is 16KB per host side's design */
 #define HVSOCK_MTU_SIZE		(1024 * 16)
 #define HVSOCK_SEND_BUF_SZ	(PAGE_SIZE - sizeof(struct vmpipe_proto_header))
@@ -124,6 +126,7 @@ static struct protosw		hv_socket_protosw[] = {
 static struct domain		hv_socket_domain = {
 	.dom_family =		AF_HYPERV,
 	.dom_name =		"hyperv",
+	.dom_probe =		hvs_dom_probe,
 	.dom_protosw =		hv_socket_protosw,
 	.dom_protoswNPROTOSW =	&hv_socket_protosw[nitems(hv_socket_protosw)]
 };
@@ -323,14 +326,21 @@ hvs_trans_unlock(void)
 	sx_xunlock(&hvs_trans_socks_sx);
 }
 
+static int
+hvs_dom_probe(void)
+{
+
+	/* Don't even give us a chance to attach on non-HyperV. */
+	if (vm_guest != VM_GUEST_HV)
+		return (ENXIO);
+	return (0);
+}
+
 void
 hvs_trans_init(void)
 {
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
-		return;
-
-	if (vm_guest != VM_GUEST_HV)
 		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
@@ -354,9 +364,6 @@ int
 hvs_trans_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct hvs_pcb *pcb = so2hvspcb(so);
-
-	if (vm_guest != VM_GUEST_HV)
-		return (ESOCKTNOSUPPORT);
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_attach called\n", __func__);
@@ -383,9 +390,6 @@ void
 hvs_trans_detach(struct socket *so)
 {
 	struct hvs_pcb *pcb;
-
-	if (vm_guest != VM_GUEST_HV)
-		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_detach called\n", __func__);
@@ -603,9 +607,6 @@ int
 hvs_trans_disconnect(struct socket *so)
 {
 	struct hvs_pcb *pcb;
-
-	if (vm_guest != VM_GUEST_HV)
-		return (ESOCKTNOSUPPORT);
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_disconnect called\n", __func__);
@@ -934,9 +935,6 @@ hvs_trans_close(struct socket *so)
 {
 	struct hvs_pcb *pcb;
 
-	if (vm_guest != VM_GUEST_HV)
-		return;
-
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_close called\n", __func__);
 
@@ -977,9 +975,6 @@ void
 hvs_trans_abort(struct socket *so)
 {
 	struct hvs_pcb *pcb = so2hvspcb(so);
-
-	if (vm_guest != VM_GUEST_HV)
-		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_abort called\n", __func__);
