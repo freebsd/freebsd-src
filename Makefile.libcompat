@@ -103,9 +103,14 @@ build${libcompat}: .PHONY
 	    OBJTOP=${LIBCOMPAT_OBJTOP} \
 	    OBJROOT='$${OBJTOP}/' \
 	    MAKEOBJDIRPREFIX= \
-	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS \
-	    MK_ASAN=no MK_UBSAN=no \
-	    MK_CTF=no MK_RETPOLINE=no MK_WERROR=no \
+	    DIRPRFX=${_dir}/ \
+	    -DNO_LINT \
+	    -DNO_CPU_CFLAGS \
+	    MK_ASAN=no \
+	    MK_CTF=no \
+	    MK_RETPOLINE=no \
+	    MK_UBSAN=no \
+	    MK_WERROR=no \
 	    ${_t}
 .endfor
 .endfor
