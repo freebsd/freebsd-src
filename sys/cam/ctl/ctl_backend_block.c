@@ -588,7 +588,7 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 {
 	union ctl_io *io = beio->io;
 	struct mount *mountpoint;
-	int error, lock_flags;
+	int error;
 
 	DPRINTF("entered\n");
 
@@ -597,12 +597,8 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 
 	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
-	if (MNT_SHARED_WRITES(mountpoint) ||
-	    ((mountpoint == NULL) && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
-		lock_flags = LK_SHARED;
-	else
-		lock_flags = LK_EXCLUSIVE;
-	vn_lock(be_lun->vn, lock_flags | LK_RETRY);
+	vn_lock(be_lun->vn, vn_lktype_write(mountpoint, be_lun->vn) |
+	    LK_RETRY);
 	error = VOP_FSYNC(be_lun->vn, beio->io_arg ? MNT_NOWAIT : MNT_WAIT,
 	    curthread);
 	VOP_UNLOCK(be_lun->vn);
@@ -722,16 +718,10 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		}
 	} else {
 		struct mount *mountpoint;
-		int lock_flags;
 
 		(void)vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
-
-		if (MNT_SHARED_WRITES(mountpoint) || ((mountpoint == NULL)
-		  && MNT_SHARED_WRITES(be_lun->vn->v_mount)))
-			lock_flags = LK_SHARED;
-		else
-			lock_flags = LK_EXCLUSIVE;
-		vn_lock(be_lun->vn, lock_flags | LK_RETRY);
+		vn_lock(be_lun->vn, vn_lktype_write(mountpoint,
+		    be_lun->vn) | LK_RETRY);
 
 		/*
 		 * UFS pays attention to IO_DIRECT for writes.  The write
