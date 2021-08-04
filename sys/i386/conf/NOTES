@@ -771,6 +771,9 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
 device		virtio_console	# VirtIO Console device
 
+# Linux KVM paravirtualization support
+device 		kvm_clock	# KVM paravirtual clock driver
+
 device 		hyperv		# HyperV drivers
 
 #####################################################################

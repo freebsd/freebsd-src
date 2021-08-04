@@ -398,6 +398,7 @@ dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/hyperv/vmbus/amd64/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/amd64/vmbus_vector.S			optional	hyperv
+dev/kvm_clock/kvm_clock.c	optional	kvm_clock
 dev/nctgpio/nctgpio.c		optional	nctgpio
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
@@ -819,7 +820,7 @@ x86/x86/mp_x86.c		optional	smp
 x86/x86/mp_watchdog.c		optional	mp_watchdog smp
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
-x86/x86/pvclock.c		optional	xenhvm
+x86/x86/pvclock.c		optional	kvm_clock | xenhvm
 x86/x86/stack_machdep.c		optional	ddb | stack
 x86/x86/tsc.c			standard
 x86/x86/ucode.c			standard
