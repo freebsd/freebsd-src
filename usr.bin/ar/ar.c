@@ -152,7 +152,7 @@ main(int argc, char **argv)
 			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
-			if (ar_mode_s(bsdar))
+			if (ar_write_archive(bsdar, 's'))
 				exitcode = EXIT_FAILURE;
 
 		exit(exitcode);
@@ -163,8 +163,7 @@ main(int argc, char **argv)
 		if (*argv[1] != '-') {
 			len = strlen(argv[1]) + 2;
 			if ((p = malloc(len)) == NULL)
-				bsdar_errc(bsdar, EXIT_FAILURE, errno,
-				    "malloc failed");
+				bsdar_errc(bsdar, errno, "malloc failed");
 			*p = '-';
 			(void)strlcpy(p + 1, argv[1], len - 1);
 			argv[1] = p;
@@ -267,24 +266,20 @@ main(int argc, char **argv)
 		bsdar_usage();
 
 	if (bsdar->options & AR_A && bsdar->options & AR_B)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0,
+		bsdar_errc(bsdar, 0,
 		    "only one of -a and -[bi] options allowed");
 
 	if (bsdar->options & AR_J && bsdar->options & AR_Z)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0,
-		    "only one of -j and -z options allowed");
+		bsdar_errc(bsdar, 0, "only one of -j and -z options allowed");
 
 	if (bsdar->options & AR_S && bsdar->options & AR_SS)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0,
-		    "only one of -s and -S options allowed");
+		bsdar_errc(bsdar, 0, "only one of -s and -S options allowed");
 
 	if (bsdar->options & (AR_A | AR_B)) {
 		if (*argv == NULL)
-			bsdar_errc(bsdar, EXIT_FAILURE, 0,
-			    "no position operand specified");
+			bsdar_errc(bsdar, 0, "no position operand specified");
 		if ((bsdar->posarg = basename(*argv)) == NULL)
-			bsdar_errc(bsdar, EXIT_FAILURE, errno,
-			    "basename failed");
+			bsdar_errc(bsdar, errno, "basename failed");
 		argc--;
 		argv++;
 	}
@@ -326,32 +321,17 @@ main(int argc, char **argv)
 
 	if ((!bsdar->mode || strchr("ptx", bsdar->mode)) &&
 	    bsdar->options & AR_S) {
-		exitcode = ar_mode_s(bsdar);
+		exitcode = ar_write_archive(bsdar, 's');
 		if (!bsdar->mode)
 			exit(exitcode);
 	}
 
 	switch(bsdar->mode) {
-	case 'd':
-		exitcode = ar_mode_d(bsdar);
+	case 'd': case 'm': case 'q': case 'r':
+		exitcode = ar_write_archive(bsdar, bsdar->mode);
 		break;
-	case 'm':
-		exitcode = ar_mode_m(bsdar);
-		break;
-	case 'p':
-		exitcode = ar_mode_p(bsdar);
-		break;
-	case 'q':
-		exitcode = ar_mode_q(bsdar);
-		break;
-	case 'r':
-		exitcode = ar_mode_r(bsdar);
-		break;
-	case 't':
-		exitcode = ar_mode_t(bsdar);
-		break;
-	case 'x':
-		exitcode = ar_mode_x(bsdar);
+	case 'p': case 't': case 'x':
+		exitcode = ar_read_archive(bsdar, bsdar->mode);
 		break;
 	default:
 		bsdar_usage();
@@ -374,8 +354,8 @@ set_mode(struct bsdar *bsdar, char opt)
 {
 
 	if (bsdar->mode != '\0' && bsdar->mode != opt)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0,
-		    "Can't specify both -%c and -%c", opt, bsdar->mode);
+		bsdar_errc(bsdar, 0, "Can't specify both -%c and -%c", opt,
+		    bsdar->mode);
 	bsdar->mode = opt;
 }
 
@@ -384,8 +364,8 @@ only_mode(struct bsdar *bsdar, const char *opt, const char *valid_modes)
 {
 
 	if (strchr(valid_modes, bsdar->mode) == NULL)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0,
-		    "Option %s is not permitted in mode -%c", opt, bsdar->mode);
+		bsdar_errc(bsdar, 0, "Option %s is not permitted in mode -%c",
+		    opt, bsdar->mode);
 }
 
 static void
