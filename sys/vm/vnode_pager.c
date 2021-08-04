@@ -428,6 +428,53 @@ vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 }
 
 /*
+ * Internal routine clearing partial-page content
+ */
+static void
+vnode_pager_subpage_purge(struct vm_page *m, int base, int end)
+{
+	int size;
+
+	KASSERT(end > base && end <= PAGE_SIZE,
+	    ("%s: start %d end %d", __func__, base, end));
+	size = end - base;
+
+	/*
+	 * Clear out partial-page garbage in case
+	 * the page has been mapped.
+	 */
+	pmap_zero_page_area(m, base, size);
+
+	/*
+	 * Update the valid bits to reflect the blocks
+	 * that have been zeroed.  Some of these valid
+	 * bits may have already been set.
+	 */
+	vm_page_set_valid_range(m, base, size);
+
+	/*
+	 * Round up "base" to the next block boundary so
+	 * that the dirty bit for a partially zeroed
+	 * block is not cleared.
+	 */
+	base = roundup2(base, DEV_BSIZE);
+	end = rounddown2(end, DEV_BSIZE);
+
+	if (end > base) {
+		/*
+		 * Clear out partial-page dirty bits.
+		 *
+		 * note that we do not clear out the
+		 * valid bits.  This would prevent
+		 * bogus_page replacement from working
+		 * properly.
+		 */
+		vm_page_clear_dirty(m, base, end - base);
+	}
+
+}
+
+/*
  * Lets the VM system know about a change in size for a file.
  * We adjust our own internal size and flush any cached pages in
  * the associated object that are affected by the size change.
@@ -489,39 +536,9 @@ vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 		m = vm_page_grab(object, OFF_TO_IDX(nsize), VM_ALLOC_NOCREAT);
 		if (m == NULL)
 			goto out;
-		if (!vm_page_none_valid(m)) {
-			int base = (int)nsize & PAGE_MASK;
-			int size = PAGE_SIZE - base;
-
-			/*
-			 * Clear out partial-page garbage in case
-			 * the page has been mapped.
-			 */
-			pmap_zero_page_area(m, base, size);
-
-			/*
-			 * Update the valid bits to reflect the blocks that
-			 * have been zeroed.  Some of these valid bits may
-			 * have already been set.
-			 */
-			vm_page_set_valid_range(m, base, size);
-
-			/*
-			 * Round "base" to the next block boundary so that the
-			 * dirty bit for a partially zeroed block is not
-			 * cleared.
-			 */
-			base = roundup2(base, DEV_BSIZE);
-
-			/*
-			 * Clear out partial-page dirty bits.
-			 *
-			 * note that we do not clear out the valid
-			 * bits.  This would prevent bogus_page
-			 * replacement from working properly.
-			 */
-			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		}
+		if (!vm_page_none_valid(m))
+			vnode_pager_subpage_purge(m, (int)nsize & PAGE_MASK,
+			    PAGE_SIZE);
 		vm_page_xunbusy(m);
 	}
 out:
@@ -531,6 +548,63 @@ out:
 	atomic_store_64(&object->un_pager.vnp.vnp_size, nsize);
 #endif
 	object->size = nobjsize;
+	VM_OBJECT_WUNLOCK(object);
+}
+
+/*
+ * Lets the VM system know about the purged range for a file. We toss away any
+ * cached pages in the associated object that are affected by the purge
+ * operation. Partial-page area not aligned to page boundaries will be zeroed
+ * and the dirty blocks in DEV_BSIZE unit within a page will not be flushed.
+ */
+void
+vnode_pager_purge_range(struct vnode *vp, vm_ooffset_t start, vm_ooffset_t end)
+{
+	struct vm_page *m;
+	struct vm_object *object;
+	vm_pindex_t pi, pistart, piend;
+	bool same_page;
+	int base, pend;
+
+	ASSERT_VOP_LOCKED(vp, "vnode_pager_purge_range");
+
+	object = vp->v_object;
+	pi = start + PAGE_MASK < start ? OBJ_MAX_SIZE :
+	    OFF_TO_IDX(start + PAGE_MASK);
+	pistart = OFF_TO_IDX(start);
+	piend = end == 0 ? OBJ_MAX_SIZE : OFF_TO_IDX(end);
+	same_page = pistart == piend;
+	if ((end != 0 && end <= start) || object == NULL)
+		return;
+
+	VM_OBJECT_WLOCK(object);
+
+	if (pi < piend)
+		vm_object_page_remove(object, pi, piend, 0);
+
+	if ((start & PAGE_MASK) != 0) {
+		base = (int)start & PAGE_MASK;
+		pend = same_page ? (int)end & PAGE_MASK : PAGE_SIZE;
+		m = vm_page_grab(object, pistart, VM_ALLOC_NOCREAT);
+		if (m != NULL) {
+			if (!vm_page_none_valid(m))
+				vnode_pager_subpage_purge(m, base, pend);
+			vm_page_xunbusy(m);
+		}
+		if (same_page)
+			goto out;
+	}
+	if ((end & PAGE_MASK) != 0) {
+		base = same_page ? (int)start & PAGE_MASK : 0 ;
+		pend = (int)end & PAGE_MASK;
+		m = vm_page_grab(object, piend, VM_ALLOC_NOCREAT);
+		if (m != NULL) {
+			if (!vm_page_none_valid(m))
+				vnode_pager_subpage_purge(m, base, pend);
+			vm_page_xunbusy(m);
+		}
+	}
+out:
 	VM_OBJECT_WUNLOCK(object);
 }
 
