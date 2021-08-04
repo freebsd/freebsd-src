@@ -276,6 +276,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_HASWELL_XEON:
+		MPASS(nclasses >= PMC_MDEP_CLASS_INDEX_IAF);
 		error = pmc_core_initialize(pmc_mdep, ncpus, verov);
 		break;
 
@@ -317,6 +318,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_BROADWELL:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 #endif
+		MPASS(nclasses >= PMC_MDEP_CLASS_INDEX_UCF);
 		error = pmc_uncore_initialize(pmc_mdep, ncpus);
 		break;
 	default:
