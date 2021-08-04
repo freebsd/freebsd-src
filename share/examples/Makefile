@@ -30,6 +30,7 @@ LDIRS=	BSD_daemon \
 	printing \
 	ses \
 	scsi_target \
+	sound \
 	sunrpc \
 	ypldap
 
@@ -316,6 +317,12 @@ SE_SCSI_TARGET= \
 	scsi_target.h \
 	scsi_target.8 \
 	scsi_cmds.c
+
+SE_DIRS+=	sound
+SE_SOUND= \
+	basic.c \
+	ossinit.h \
+	README
 
 SE_DIRS+=	sunrpc
 SE_SUNRPC=	Makefile
