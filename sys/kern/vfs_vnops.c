@@ -653,11 +653,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				goto out;
-			if (MNT_SHARED_WRITES(mp) ||
-			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount)))
-				lock_flags = LK_SHARED;
-			else
-				lock_flags = LK_EXCLUSIVE;
+			lock_flags = vn_lktype_write(mp, vp);
 		} else
 			lock_flags = LK_SHARED;
 		vn_lock(vp, lock_flags | LK_RETRY);
@@ -1106,7 +1102,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	struct vnode *vp;
 	struct mount *mp;
 	off_t orig_offset;
-	int error, ioflag, lock_flags;
+	int error, ioflag;
 	int advice;
 	bool need_finished_write;
 
@@ -1147,14 +1143,7 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 
 	advice = get_advice(fp, uio);
 
-	if (MNT_SHARED_WRITES(mp) ||
-	    (mp == NULL && MNT_SHARED_WRITES(vp->v_mount))) {
-		lock_flags = LK_SHARED;
-	} else {
-		lock_flags = LK_EXCLUSIVE;
-	}
-
-	vn_lock(vp, lock_flags | LK_RETRY);
+	vn_lock(vp, vn_lktype_write(mp, vp) | LK_RETRY);
 	switch (advice) {
 	case POSIX_FADV_NORMAL:
 	case POSIX_FADV_SEQUENTIAL:
@@ -3060,7 +3049,7 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 {
 	struct mount *mp;
 	off_t dataoff, holeoff, xfer2;
-	int error, lckf;
+	int error;
 
 	/*
 	 * Loop around doing writes of blksize until write has been completed.
@@ -3099,11 +3088,7 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 				VOP_UNLOCK(outvp);
 			}
 		} else {
-			if (MNT_SHARED_WRITES(mp))
-				lckf = LK_SHARED;
-			else
-				lckf = LK_EXCLUSIVE;
-			error = vn_lock(outvp, lckf);
+			error = vn_lock(outvp, vn_lktype_write(mp, outvp));
 			if (error == 0) {
 				error = vn_rdwr(UIO_WRITE, outvp, dat, xfer2,
 				    outoff, UIO_SYSSPACE, IO_NODELOCKED,
@@ -3531,4 +3516,13 @@ vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
 		ASSERT_VOP_ELOCKED(vp1, "vp1 ret");
 	if (vp2 != NULL)
 		ASSERT_VOP_ELOCKED(vp2, "vp2 ret");
+}
+
+int
+vn_lktype_write(struct mount *mp, struct vnode *vp)
+{
+	if (MNT_SHARED_WRITES(mp) ||
+	    (mp == NULL && MNT_SHARED_WRITES(vp->v_mount)))
+		return (LK_SHARED);
+	return (LK_EXCLUSIVE);
 }
