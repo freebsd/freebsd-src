@@ -422,4 +422,5 @@ MIASM =  \
 	rpctls_syscall.o \
 	__specialfd.o \
 	aio_writev.o \
-	aio_readv.o
+	aio_readv.o \
+	fspacectl.o
