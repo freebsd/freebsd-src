@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
@@ -42,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "ar.h"
@@ -67,53 +67,10 @@ static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 static void	prefault_buffer(const char *buf, size_t s);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
 		    int checkargv);
-static int	write_archive(struct bsdar *bsdar, char mode);
 static void	write_cleanup(struct bsdar *bsdar);
 static void	write_data(struct bsdar *bsdar, struct archive *a,
 		    const void *buf, size_t s);
 static void	write_objs(struct bsdar *bsdar);
-
-int
-ar_mode_d(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'd'));
-}
-
-int
-ar_mode_m(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'm'));
-}
-
-int
-ar_mode_q(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'q'));
-}
-
-int
-ar_mode_r(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'r'));
-}
-
-int
-ar_mode_s(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 's'));
-}
-
-int
-ar_mode_A(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'A'));
-}
 
 /*
  * Create object from file, return created obj upon success, or NULL
@@ -133,7 +90,7 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 
 	obj = malloc(sizeof(struct ar_obj));
 	if (obj == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+		bsdar_errc(bsdar, errno, "malloc failed");
 	if ((obj->fd = open(name, O_RDONLY, 0)) < 0) {
 		bsdar_warnc(bsdar, errno, "can't open file: %s", name);
 		free(obj);
@@ -142,17 +99,17 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 
 	tmpname = strdup(name);
 	if (tmpname == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+		bsdar_errc(bsdar, errno, "strdup failed");
 	if ((bname = basename(tmpname)) == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "basename failed");
+		bsdar_errc(bsdar, errno, "basename failed");
 	if (bsdar->options & AR_TR && strlen(bname) > _TRUNCATE_LEN) {
 		if ((obj->name = malloc(_TRUNCATE_LEN + 1)) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+			bsdar_errc(bsdar, errno, "malloc failed");
 		(void)strncpy(obj->name, bname, _TRUNCATE_LEN);
 		obj->name[_TRUNCATE_LEN] = '\0';
 	} else
 		if ((obj->name = strdup(bname)) == NULL)
-		    bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+		    bsdar_errc(bsdar, errno, "strdup failed");
 	free(tmpname);
 
 	if (fstat(obj->fd, &sb) < 0) {
@@ -205,14 +162,14 @@ create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
 		goto giveup;
 	}
 	if (close(obj->fd) < 0)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "close failed: %s",
+		bsdar_errc(bsdar, errno, "close failed: %s",
 		    obj->name);
 
 	return (obj);
 
 giveup:
 	if (close(obj->fd) < 0)
-		bsdar_errc(bsdar, EX_SOFTWARE, errno, "close failed: %s",
+		bsdar_errc(bsdar, errno, "close failed: %s",
 		    obj->name);
 	free(obj->name);
 	free(obj);
@@ -242,7 +199,7 @@ static void
 insert_obj(struct bsdar *bsdar, struct ar_obj *obj, struct ar_obj *pos)
 {
 	if (obj == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "try to insert a null obj");
+		bsdar_errc(bsdar, 0, "try to insert a null obj");
 
 	if (pos == NULL || obj == pos)
 		/*
@@ -285,13 +242,13 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 	int			  i, r, find;
 
 	if ((a = archive_read_new()) == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
+		bsdar_errc(bsdar, 0, "archive_read_new failed");
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, archive, DEF_BLKSZ));
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_FATAL)
-			bsdar_errc(bsdar, EX_DATAERR, archive_errno(a), "%s",
+			bsdar_errc(bsdar, archive_errno(a), "%s",
 			    archive_error_string(a));
 		if (r == ARCHIVE_EOF)
 			break;
@@ -322,7 +279,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 				if (*av == NULL)
 					continue;
 				if ((bname = basename(*av)) == NULL)
-					bsdar_errc(bsdar, EX_SOFTWARE, errno,
+					bsdar_errc(bsdar, errno,
 					    "basename failed");
 				if (strcmp(bname, name) != 0)
 					continue;
@@ -339,8 +296,7 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 		if (size > 0) {
 			if ((buff = malloc(size)) == NULL)
-				bsdar_errc(bsdar, EX_SOFTWARE, errno,
-				    "malloc failed");
+				bsdar_errc(bsdar, errno, "malloc failed");
 			if (archive_read_data(a, buff, size) != (ssize_t)size) {
 				bsdar_warnc(bsdar, archive_errno(a), "%s",
 				    archive_error_string(a));
@@ -352,10 +308,10 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 		obj = malloc(sizeof(struct ar_obj));
 		if (obj == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+			bsdar_errc(bsdar, errno, "malloc failed");
 		obj->maddr = buff;
 		if ((obj->name = strdup(name)) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "strdup failed");
+			bsdar_errc(bsdar, errno, "strdup failed");
 		obj->size = size;
 		obj->uid = archive_entry_uid(entry);
 		obj->gid = archive_entry_gid(entry);
@@ -378,8 +334,8 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 /*
  * Determine the constitution of resulting archive.
  */
-static int
-write_archive(struct bsdar *bsdar, char mode)
+int
+ar_write_archive(struct bsdar *bsdar, int mode)
 {
 	struct ar_obj		 *nobj, *obj, *obj_temp, *pos;
 	struct stat		  sb;
@@ -392,6 +348,9 @@ write_archive(struct bsdar *bsdar, char mode)
 	nobj = NULL;
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
+
+	assert(mode == 'A' || mode == 'd' || mode == 'm' || mode == 'q' ||
+	    mode == 'r' || mode == 's');
 
 	/*
 	 * Test if the specified archive exists, to figure out
@@ -476,8 +435,7 @@ write_archive(struct bsdar *bsdar, char mode)
 
 		TAILQ_FOREACH_SAFE(obj, &bsdar->v_obj, objs, obj_temp) {
 			if ((bname = basename(*av)) == NULL)
-				bsdar_errc(bsdar, EX_SOFTWARE, errno,
-				    "basename failed");
+				bsdar_errc(bsdar, errno, "basename failed");
 			if (bsdar->options & AR_TR) {
 				if (strncmp(bname, obj->name, _TRUNCATE_LEN))
 					continue;
@@ -605,7 +563,7 @@ write_data(struct bsdar *bsdar, struct archive *a, const void *buf, size_t s)
 	while (s > 0) {
 		written = archive_write_data(a, buf, s);
 		if (written < 0)
-			bsdar_errc(bsdar, EX_SOFTWARE, archive_errno(a), "%s",
+			bsdar_errc(bsdar, archive_errno(a), "%s",
 			    archive_error_string(a));
 		buf = (const char *)buf + written;
 		s -= written;
@@ -629,8 +587,8 @@ write_objs(struct bsdar *bsdar)
 	uint32_t		 nr32;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0,
-		    "ELF library initialization failed: %s", elf_errmsg(-1));
+		bsdar_errc(bsdar, 0, "ELF library initialization failed: %s",
+		    elf_errmsg(-1));
 
 	bsdar->rela_off = 0;
 
@@ -695,7 +653,7 @@ write_objs(struct bsdar *bsdar)
 	}
 
 	if ((a = archive_write_new()) == NULL)
-		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_write_new failed");
+		bsdar_errc(bsdar, 0, "archive_write_new failed");
 
 	archive_write_set_format_ar_svr4(a);
 
@@ -710,8 +668,7 @@ write_objs(struct bsdar *bsdar)
 	    bsdar->options & AR_S) {
 		entry = archive_entry_new();
 		if (entry == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0,
-			    "archive_entry_new failed");
+			bsdar_errc(bsdar, 0, "archive_entry_new failed");
 		if (w_sz == sizeof(uint64_t))
 			archive_entry_copy_pathname(entry, "/SYM64/");
 		else
@@ -737,8 +694,7 @@ write_objs(struct bsdar *bsdar)
 	if (bsdar->as != NULL) {
 		entry = archive_entry_new();
 		if (entry == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0,
-			    "archive_entry_new failed");
+			bsdar_errc(bsdar, 0, "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, "//");
 		archive_entry_set_size(entry, bsdar->as_sz);
 		AC(archive_write_header(a, entry));
@@ -750,8 +706,7 @@ write_objs(struct bsdar *bsdar)
 	TAILQ_FOREACH(obj, &bsdar->v_obj, objs) {
 		entry = archive_entry_new();
 		if (entry == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, 0,
-			    "archive_entry_new failed");
+			bsdar_errc(bsdar, 0, "archive_entry_new failed");
 		archive_entry_copy_pathname(entry, obj->name);
 		archive_entry_set_uid(entry, obj->uid);
 		archive_entry_set_gid(entry, obj->gid);
@@ -893,7 +848,7 @@ add_to_ar_str_table(struct bsdar *bsdar, const char *name)
 		bsdar->as_cap = _INIT_AS_CAP;
 		bsdar->as_sz = 0;
 		if ((bsdar->as = malloc(bsdar->as_cap)) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+			bsdar_errc(bsdar, errno, "malloc failed");
 	}
 
 	/*
@@ -904,7 +859,7 @@ add_to_ar_str_table(struct bsdar *bsdar, const char *name)
 		bsdar->as_cap *= 2;
 		bsdar->as = realloc(bsdar->as, bsdar->as_cap);
 		if (bsdar->as == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
+			bsdar_errc(bsdar, errno, "realloc failed");
 	}
 	strncpy(&bsdar->as[bsdar->as_sz], name, strlen(name));
 	bsdar->as_sz += strlen(name);
@@ -922,14 +877,14 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 	if (bsdar->s_so == NULL) {
 		if ((bsdar->s_so = malloc(_INIT_SYMOFF_CAP)) ==
 		    NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+			bsdar_errc(bsdar, errno, "malloc failed");
 		bsdar->s_so_cap = _INIT_SYMOFF_CAP;
 		bsdar->s_cnt = 0;
 	}
 
 	if (bsdar->s_sn == NULL) {
 		if ((bsdar->s_sn = malloc(_INIT_SYMNAME_CAP)) == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "malloc failed");
+			bsdar_errc(bsdar, errno, "malloc failed");
 		bsdar->s_sn_cap = _INIT_SYMNAME_CAP;
 		bsdar->s_sn_sz = 0;
 	}
@@ -938,7 +893,7 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 		bsdar->s_so_cap *= 2;
 		bsdar->s_so = realloc(bsdar->s_so, bsdar->s_so_cap);
 		if (bsdar->s_so == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
+			bsdar_errc(bsdar, errno, "realloc failed");
 	}
 	bsdar->s_so[bsdar->s_cnt] = bsdar->rela_off;
 	if ((uint64_t)bsdar->rela_off > bsdar->s_so_max)
@@ -953,7 +908,7 @@ add_to_ar_sym_table(struct bsdar *bsdar, const char *name)
 		bsdar->s_sn_cap *= 2;
 		bsdar->s_sn = realloc(bsdar->s_sn, bsdar->s_sn_cap);
 		if (bsdar->s_sn == NULL)
-			bsdar_errc(bsdar, EX_SOFTWARE, errno, "realloc failed");
+			bsdar_errc(bsdar, errno, "realloc failed");
 	}
 	strncpy(&bsdar->s_sn[bsdar->s_sn_sz], name, strlen(name));
 	bsdar->s_sn_sz += strlen(name);
