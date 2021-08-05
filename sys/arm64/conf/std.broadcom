@@ -20,8 +20,12 @@ device		pl011
 # Ethernet NICs
 device		genet			# Broadcom on RPi4
 
+# USB support
+device		dwcotg
+
 # USB ethernet support
 device		muge
+device		smsc
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
