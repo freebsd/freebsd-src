@@ -326,6 +326,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * Preserve compatibility with old programs.
 		 */
 		if (nam->sa_family != AF_UNSPEC ||
+		    nam->sa_len < offsetof(struct sockaddr_in, sin_zero) ||
 		    sinp->sin_addr.s_addr != INADDR_ANY)
 			return (EAFNOSUPPORT);
 		nam->sa_family = AF_INET;
