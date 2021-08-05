@@ -374,8 +374,17 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 	IN6_MULTI_LIST_LOCK();
 	IF_ADDR_WLOCK(ifp);
 	NET_EPOCH_ENTER(et);
-	inm = in6m_lookup_locked(ifp, group);
+	/*
+	 * Does ifp support IPv6 multicasts?
+	 */
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		error = ENODEV;
+	else
+		inm = in6m_lookup_locked(ifp, group);
 	NET_EPOCH_EXIT(et);
+
+	if (error != 0)
+		goto out_locked;
 
 	if (inm != NULL) {
 		/*
