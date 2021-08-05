@@ -57,6 +57,9 @@
 #define	__ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
 #define	__ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
 
+/* Define ElfW for compatibility with Linux, prefer __ElfN() in FreeBSD code */
+#define	ElfW(x)		__ElfN(x)
+
 __ElfType(Addr);
 __ElfType(Half);
 __ElfType(Off);
