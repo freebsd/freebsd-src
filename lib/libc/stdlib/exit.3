@@ -32,7 +32,7 @@
 .\"     @(#)exit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2020
+.Dd August 5, 2021
 .Dt EXIT 3
 .Os
 .Sh NAME
@@ -58,17 +58,17 @@ Before termination,
 performs the following functions in the order listed:
 .Bl -enum -offset indent
 .It
-Call the functions registered with the
+Call all functions registered with the
+.Xr __cxa_atexit 3
+function
+(which are typically destructors from the loaded dynamic objects),
+and the functions registered with the
 .Xr atexit 3
 function, in the reverse order of their registration.
 .It
 Flush all open output streams.
 .It
 Close all open streams.
-.It
-Unlink all files created with the
-.Xr tmpfile 3
-function.
 .El
 .Pp
 The
@@ -76,6 +76,14 @@ The
 function terminates without calling the functions registered with the
 .Xr atexit 3
 function, and may or may not perform the other actions listed.
+The
+.Fx
+implementation of the
+.Fn _Exit
+function does not call destructors registered with
+.Xr __cxa_atexit 3,
+does not flush buffers, and does not close streams.
+.Pp
 Both functions make the low-order eight bits of the
 .Fa status
 argument available to a parent process which has called a
