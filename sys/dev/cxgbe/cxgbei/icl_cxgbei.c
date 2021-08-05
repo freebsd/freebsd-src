@@ -569,10 +569,6 @@ icl_cxgbei_new_conn(const char *name, struct mtx *lock)
 	ic = &icc->ic;
 	ic->ic_lock = lock;
 
-	/* XXXNP: review.  Most of these icl_conn fields aren't really used */
-	STAILQ_INIT(&ic->ic_to_send);
-	cv_init(&ic->ic_send_cv, "icl_cxgbei_tx");
-	cv_init(&ic->ic_receive_cv, "icl_cxgbei_rx");
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
@@ -593,9 +589,6 @@ icl_cxgbei_conn_free(struct icl_conn *ic)
 	MPASS(icc->icc_signature == CXGBEI_CONN_SIGNATURE);
 
 	CTR2(KTR_CXGBE, "%s: icc %p", __func__, icc);
-
-	cv_destroy(&ic->ic_send_cv);
-	cv_destroy(&ic->ic_receive_cv);
 
 	mtx_destroy(&icc->cmp_lock);
 	hashdestroy(icc->cmp_table, M_CXGBEI, icc->cmp_hash_mask);
@@ -863,10 +856,6 @@ icl_cxgbei_conn_close(struct icl_conn *ic)
 		return;
 	}
 	ic->ic_disconnecting = true;
-
-	/* These are unused in this driver right now. */
-	MPASS(STAILQ_EMPTY(&ic->ic_to_send));
-	MPASS(ic->ic_receive_pdu == NULL);
 
 #ifdef DIAGNOSTIC
 	KASSERT(ic->ic_outstanding_pdus == 0,
