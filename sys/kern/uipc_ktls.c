@@ -2240,7 +2240,7 @@ ktls_alloc_thread(void *ctx)
 	nbufs = 0;
 	for (;;) {
 		atomic_store_int(&sc->running, 0);
-		tsleep_sbt(sc, PZERO, "waiting for work", SBT_MAX, SBT_1S, 0);
+		tsleep(sc, PZERO | PNOLOCK, "-",  0);
 		atomic_store_int(&sc->running, 1);
 		sc->wakeups++;
 		if (nbufs != ktls_max_alloc) {
