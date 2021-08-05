@@ -323,6 +323,14 @@ struct __oflock {
 	short	l_type;		/* lock type: read/write, etc. */
 	short	l_whence;	/* type of l_start */
 };
+
+/*
+ * Space control offset/length description
+ */
+struct spacectl_range {
+	off_t	r_offset;	/* starting offset */
+	off_t	r_len;	/* length */
+};
 #endif
 
 #if __BSD_VISIBLE
@@ -352,6 +360,16 @@ struct __oflock {
  * similar syscalls.
  */
 #define	FD_NONE			-200
+
+/*
+ * Commands for fspacectl(2)
+ */
+#define SPACECTL_DEALLOC	1	/* deallocate space */
+
+/*
+ * fspacectl(2) flags
+ */
+#define SPACECTL_F_SUPPORTED	0
 #endif
 
 #ifndef _KERNEL
@@ -361,6 +379,8 @@ int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
 #if __BSD_VISIBLE
 int	flock(int, int);
+int	fspacectl(int, int, const struct spacectl_range *, int,
+	    struct spacectl_range *);
 #endif
 #if __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);

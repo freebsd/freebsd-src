@@ -1091,6 +1091,18 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		FD_VNODE1_TOKENS;
 		break;
 
+	case AUE_FSPACECTL:
+		if (ARG_IS_VALID(kar, ARG_CMD)) {
+			tok = au_to_arg32(2, "operation", ar->ar_arg_cmd);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(4, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		FD_VNODE1_TOKENS;
+		break;
+
 	case AUE_RFORK:
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(1, "flags", ar->ar_arg_fflags);

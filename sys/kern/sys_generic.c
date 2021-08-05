@@ -862,6 +862,76 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 }
 
 int
+sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
+{
+	struct spacectl_range rqsr, rmsr;
+	int error, cerror;
+
+	error = copyin(uap->rqsr, &rqsr, sizeof(rqsr));
+	if (error != 0)
+		return (error);
+
+	error = kern_fspacectl(td, uap->fd, uap->cmd, &rqsr, uap->flags,
+	    &rmsr);
+	if (uap->rmsr != NULL) {
+		cerror = copyout(&rmsr, uap->rmsr, sizeof(rmsr));
+		if (error == 0)
+			error = cerror;
+	}
+	return (error);
+}
+
+int
+kern_fspacectl(struct thread *td, int fd, int cmd,
+    const struct spacectl_range *rqsr, int flags, struct spacectl_range *rmsrp)
+{
+	struct file *fp;
+	struct spacectl_range rmsr;
+	int error;
+
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_CMD(cmd);
+	AUDIT_ARG_FFLAGS(flags);
+
+	if (rqsr == NULL)
+		return (EINVAL);
+	rmsr = *rqsr;
+	if (rmsrp != NULL)
+		*rmsrp = rmsr;
+
+	if (cmd != SPACECTL_DEALLOC ||
+	    rqsr->r_offset < 0 || rqsr->r_len <= 0 ||
+	    rqsr->r_offset > OFF_MAX - rqsr->r_len ||
+	    (flags & ~SPACECTL_F_SUPPORTED) != 0)
+		return (EINVAL);
+
+	error = fget_write(td, fd, &cap_pwrite_rights, &fp);
+	if (error != 0)
+		return (error);
+	AUDIT_ARG_FILE(td->td_proc, fp);
+	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
+		error = ESPIPE;
+		goto out;
+	}
+	if ((fp->f_flag & FWRITE) == 0) {
+		error = EBADF;
+		goto out;
+	}
+
+	error = fo_fspacectl(fp, cmd, &rmsr.r_offset, &rmsr.r_len, flags,
+	    td->td_ucred, td);
+	/* fspacectl is not restarted after signals if the file is modified. */
+	if (rmsr.r_len != rqsr->r_len && (error == ERESTART ||
+	    error == EINTR || error == EWOULDBLOCK))
+		error = 0;
+	if (rmsrp != NULL)
+		*rmsrp = rmsr;
+out:
+	fdrop(fp, td);
+	return (error);
+}
+
+int
 kern_specialfd(struct thread *td, int type, void *arg)
 {
 	struct file *fp;

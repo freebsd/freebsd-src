@@ -166,6 +166,9 @@ specified file, otherwise 0.
 .It Li _PC_MIN_HOLE_SIZE
 If a file system supports the reporting of holes (see
 .Xr lseek 2 ) ,
+.It Li _PC_DEALLOC_PRESENT
+If a file system supports hole-punching (see
+.Xr fspacectl 2 ) ,
 .Fn pathconf
 and
 .Fn fpathconf
