@@ -28,7 +28,7 @@
 .\"	@(#)fork.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2021
+.Dd August 5, 2021
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -172,11 +172,28 @@ main(void)
 {
 	pid_t pid;
 
+	/*
+	 * If child is expected to use stdio(3), state of
+	 * the reused io streams must be synchronized between
+	 * parent and child, to avoid double output and other
+	 * possible issues.
+	 */
+	fflush(stdout);
+
 	switch (pid = fork()) {
 	case -1:
 		err(1, "Failed to fork");
 	case 0:
 		printf("Hello from child process!\en");
+
+		/*
+		 * Since we wrote into stdout, child needs to use
+		 * exit(3) and not _exit(2).  This causes handlers
+		 * registered with atexit(3) to be called twice,
+		 * once in parent, and once in the child.  If such
+		 * behavior is undesirable, consider
+		 * terminating child with _exit(2) or _Exit(3).
+		 */
 		exit(0);
 	default:
 		break;
