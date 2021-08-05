@@ -106,6 +106,7 @@ static fo_kqfilter_t	vn_kqfilter;
 static fo_close_t	vn_closefile;
 static fo_mmap_t	vn_mmap;
 static fo_fallocate_t	vn_fallocate;
+static fo_fspacectl_t	vn_fspacectl;
 
 struct 	fileops vnops = {
 	.fo_read = vn_io_fault,
@@ -123,6 +124,7 @@ struct 	fileops vnops = {
 	.fo_fill_kinfo = vn_fill_kinfo,
 	.fo_mmap = vn_mmap,
 	.fo_fallocate = vn_fallocate,
+	.fo_fspacectl = vn_fspacectl,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -3434,6 +3436,114 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 			break;
 		KASSERT(olen > len, ("Iteration did not make progress?"));
 		maybe_yield();
+	}
+
+	return (error);
+}
+
+static int
+vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
+    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+{
+	struct mount *mp;
+	void *rl_cookie;
+	off_t off, len;
+	int error;
+#ifdef AUDIT
+	bool audited_vnode1 = false;
+#endif
+
+	rl_cookie = NULL;
+	error = 0;
+	mp = NULL;
+	off = *offset;
+	len = *length;
+
+	if ((ioflg & (IO_NODELOCKED|IO_RANGELOCKED)) == 0)
+		rl_cookie = vn_rangelock_wlock(vp, off, off + len);
+	while (len > 0 && error == 0) {
+		/*
+		 * Try to deallocate the longest range in one pass.
+		 * In case a pass takes too long to be executed, it returns
+		 * partial result. The residue will be proceeded in the next
+		 * pass.
+		 */
+
+		if ((ioflg & IO_NODELOCKED) == 0) {
+			bwillwrite();
+			if ((error = vn_start_write(vp, &mp,
+			    V_WAIT | PCATCH)) != 0)
+				goto out;
+			vn_lock(vp, vn_lktype_write(mp, vp) | LK_RETRY);
+		}
+#ifdef AUDIT
+		if (!audited_vnode1) {
+			AUDIT_ARG_VNODE1(vp);
+			audited_vnode1 = true;
+		}
+#endif
+
+#ifdef MAC
+		if ((ioflg & IO_NOMACCHECK) == 0)
+			error = mac_vnode_check_write(active_cred, file_cred,
+			    vp);
+#endif
+		if (error == 0)
+			error = VOP_DEALLOCATE(vp, &off, &len, flags,
+			    active_cred);
+
+		if ((ioflg & IO_NODELOCKED) == 0) {
+			VOP_UNLOCK(vp);
+			if (mp != NULL) {
+				vn_finished_write(mp);
+				mp = NULL;
+			}
+		}
+	}
+out:
+	if (rl_cookie != NULL)
+		vn_rangelock_unlock(vp, rl_cookie);
+	*offset = off;
+	*length = len;
+	return (error);
+}
+
+int
+vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
+    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+{
+	if (*offset < 0 || *length <= 0 || *length > OFF_MAX - *offset ||
+	    flags != 0)
+		return (EINVAL);
+	if (vp->v_type != VREG)
+		return (ENODEV);
+
+	return (vn_deallocate_impl(vp, offset, length, flags, ioflg,
+	    active_cred, file_cred));
+}
+
+static int
+vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
+    struct ucred *active_cred, struct thread *td)
+{
+	int error;
+	struct vnode *vp;
+
+	vp = fp->f_vnode;
+
+	if (cmd != SPACECTL_DEALLOC || *offset < 0 || *length <= 0 ||
+	    *length > OFF_MAX - *offset || flags != 0)
+		return (EINVAL);
+	if (vp->v_type != VREG)
+		return (ENODEV);
+
+	switch (cmd) {
+	case SPACECTL_DEALLOC:
+		error = vn_deallocate_impl(vp, offset, length, flags, 0,
+		    active_cred, fp->f_cred);
+		break;
+	default:
+		panic("vn_fspacectl: unknown cmd %d", cmd);
 	}
 
 	return (error);

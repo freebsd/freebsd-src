@@ -59,6 +59,7 @@ struct rusage;
 struct sched_param;
 union semun;
 struct sockaddr;
+struct spacectl_range;
 struct stat;
 struct thr_param;
 struct timex;
@@ -233,6 +234,8 @@ int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
 int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
 	    off_t len);
+int	kern_fspacectl(struct thread *td, int fd, int cmd,
+	    const struct spacectl_range *, int flags, struct spacectl_range *);
 int	kern_procctl(struct thread *td, enum idtype idtype, id_t id, int com,
 	    void *data);
 int	kern_pread(struct thread *td, int fd, void *buf, size_t nbyte,

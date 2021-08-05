@@ -3250,6 +3250,15 @@
 		    _Inout_ struct aiocb *aiocbp
 		);
 	}
+580	AUE_FSPACECTL	STD {
+		int fspacectl(
+		    int fd,
+		    int cmd,
+		    _In_ const struct spacectl_range *rqsr,
+		    int flags,
+		    _Out_opt_ struct spacectl_range *rmsr,
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
