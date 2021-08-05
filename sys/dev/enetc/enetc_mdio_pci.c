@@ -177,7 +177,7 @@ static device_method_t	enetc_mdio_pci_methods[] ={
 };
 
 static driver_t	enetc_mdio_pci_driver = {
-	"enetc_mdio_pci",
+	"enetc_mdio",
 	enetc_mdio_pci_methods,
 	sizeof(struct enetc_mdio_pci_softc),
 };
