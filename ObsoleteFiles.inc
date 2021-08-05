@@ -40,6 +40,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210805: C.UTF-8 installed to the wrong location
+OLD_FILES+=usr/share/C.UTF-8.LC_CTYPE
+
 # 20210619: new clang import which bumps version from 12.0.0 to 12.0.1.
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/complex
