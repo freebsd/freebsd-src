@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=	locale
+PACKAGE=	locales
 LOCALEDIR=	${SHAREDIR}/locale
 FILESNAME=	LC_NUMERIC
 .SUFFIXES:	.src .out
