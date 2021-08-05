@@ -506,22 +506,14 @@ vtpci_legacy_read_dev_config(device_t dev, bus_size_t offset,
 	struct vtpci_legacy_softc *sc;
 	bus_size_t off;
 	uint8_t *d;
-	int size;
+	int i;
 
 	sc = device_get_softc(dev);
 	off = VIRTIO_PCI_LEGACY_CONFIG(sc) + offset;
 
-	for (d = dst; length > 0; d += size, off += size, length -= size) {
-		if (length >= 4) {
-			size = 4;
-			*(uint32_t *)d = vtpci_legacy_read_config_4(sc, off);
-		} else if (length >= 2) {
-			size = 2;
-			*(uint16_t *)d = vtpci_legacy_read_config_2(sc, off);
-		} else {
-			size = 1;
-			*d = vtpci_legacy_read_config_1(sc, off);
-		}
+	d = dst;
+	for (i = 0; i < length; i++) {
+		d[i] = vtpci_legacy_read_config_1(sc, off + i);
 	}
 }
 
@@ -532,22 +524,14 @@ vtpci_legacy_write_dev_config(device_t dev, bus_size_t offset,
 	struct vtpci_legacy_softc *sc;
 	bus_size_t off;
 	uint8_t *s;
-	int size;
+	int i;
 
 	sc = device_get_softc(dev);
 	off = VIRTIO_PCI_LEGACY_CONFIG(sc) + offset;
 
-	for (s = src; length > 0; s += size, off += size, length -= size) {
-		if (length >= 4) {
-			size = 4;
-			vtpci_legacy_write_config_4(sc, off, *(uint32_t *)s);
-		} else if (length >= 2) {
-			size = 2;
-			vtpci_legacy_write_config_2(sc, off, *(uint16_t *)s);
-		} else {
-			size = 1;
-			vtpci_legacy_write_config_1(sc, off, *s);
-		}
+	s = src;
+	for (i = 0; i < length; i++) {
+		vtpci_legacy_write_config_1(sc, off + i, s[i]);
 	}
 }
 
