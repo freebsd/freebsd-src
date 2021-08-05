@@ -1144,8 +1144,6 @@ static inline void
 tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
     uint8_t is_tlp, int hw_tls)
 {
-	uint64_t rexmit_percent;
-
 	if (is_tlp) {
 		tp->t_sndtlppack++;
 		tp->t_sndtlpbyte += len;
@@ -1156,11 +1154,13 @@ tcp_account_for_send(struct tcpcb *tp, uint32_t len, uint8_t is_rxt,
 	else
 		tp->t_sndbytes += len;
 
+#ifdef KERN_TLS
 	if (hw_tls && is_rxt) {
-		rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) / (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
+		uint64_t rexmit_percent = (1000ULL * tp->t_snd_rxt_bytes) / (10ULL * (tp->t_snd_rxt_bytes + tp->t_sndbytes));
 		if (rexmit_percent > ktls_ifnet_max_rexmit_pct)
 			ktls_disable_ifnet(tp);
 	}
+#endif
 
 }
 #endif /* _KERNEL */
