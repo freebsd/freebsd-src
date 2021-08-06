@@ -28,7 +28,7 @@
 .\"	@(#)pathconf.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd August 6, 2021
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -166,9 +166,6 @@ specified file, otherwise 0.
 .It Li _PC_MIN_HOLE_SIZE
 If a file system supports the reporting of holes (see
 .Xr lseek 2 ) ,
-.It Li _PC_DEALLOC_PRESENT
-If a file system supports hole-punching (see
-.Xr fspacectl 2 ) ,
 .Fn pathconf
 and
 .Fn fpathconf
@@ -177,6 +174,10 @@ bytes.
 The offsets of holes returned will be aligned to this same value.
 A special value of 1 is returned if the file system does not specify the minimum
 hole size but still reports holes.
+.It Li _PC_DEALLOC_PRESENT
+Return 1 if a file system supports hole-punching (see
+.Xr fspacectl 2 ) ,
+otherwise 0.
 .El
 .Sh RETURN VALUES
 If the call to
