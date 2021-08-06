@@ -1154,7 +1154,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	struct iscsi_bhs_data_out *bhsdo;
 	struct iscsi_outstanding *io;
 	struct ccb_scsiio *csio;
-	size_t off, len, total_len;
+	size_t off, len, max_send_data_segment_length, total_len;
 	int error;
 	uint32_t datasn = 0;
 
@@ -1203,11 +1203,16 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 
 	//ISCSI_SESSION_DEBUG(is, "r2t; off %zd, len %zd", off, total_len);
 
+	if (is->is_conn->ic_hw_isomax != 0)
+		max_send_data_segment_length = is->is_conn->ic_hw_isomax;
+	else
+		max_send_data_segment_length =
+		    is->is_conn->ic_max_send_data_segment_length;
 	for (;;) {
 		len = total_len;
 
-		if (len > is->is_conn->ic_max_send_data_segment_length)
-			len = is->is_conn->ic_max_send_data_segment_length;
+		if (len > max_send_data_segment_length)
+			len = max_send_data_segment_length;
 
 		if (off + len > csio->dxfer_len) {
 			ISCSI_SESSION_WARN(is, "target requested invalid "
@@ -1232,7 +1237,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		    bhsr2t->bhsr2t_initiator_task_tag;
 		bhsdo->bhsdo_target_transfer_tag =
 		    bhsr2t->bhsr2t_target_transfer_tag;
-		bhsdo->bhsdo_datasn = htonl(datasn++);
+		bhsdo->bhsdo_datasn = htonl(datasn);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
 		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
 		    M_NOWAIT);
@@ -1245,6 +1250,8 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			return;
 		}
 
+		datasn += howmany(len,
+		    is->is_conn->ic_max_send_data_segment_length);
 		off += len;
 		total_len -= len;
 
