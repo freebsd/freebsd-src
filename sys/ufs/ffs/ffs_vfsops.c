@@ -1151,6 +1151,7 @@ ffs_mountfs(odevvp, mp, td)
 	else
 		ump->um_check_blkno = NULL;
 	mtx_init(UFS_MTX(ump), "FFS", "FFS Lock", MTX_DEF);
+	sx_init(&ump->um_checkpath_lock, "uchpth");
 	ffs_oldfscompat_read(fs, ump, fs->fs_sblockloc);
 	fs->fs_ronly = ronly;
 	fs->fs_active = NULL;
@@ -1318,8 +1319,9 @@ out:
 		g_vfs_close(cp);
 		g_topology_unlock();
 	}
-	if (ump) {
+	if (ump != NULL) {
 		mtx_destroy(UFS_MTX(ump));
+		sx_destroy(&ump->um_checkpath_lock);
 		if (mp->mnt_gjprovider != NULL) {
 			free(mp->mnt_gjprovider, M_UFSMNT);
 			mp->mnt_gjprovider = NULL;
@@ -1545,6 +1547,7 @@ ffs_unmount(mp, mntflags)
 	vrele(ump->um_odevvp);
 	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
+	sx_destroy(&ump->um_checkpath_lock);
 	if (mp->mnt_gjprovider != NULL) {
 		free(mp->mnt_gjprovider, M_UFSMNT);
 		mp->mnt_gjprovider = NULL;
