@@ -133,9 +133,8 @@ typedef int dumper_t(
 	vm_offset_t _physical,	/* Physical address of virtual. */
 	off_t _offset,		/* Byte-offset to write at. */
 	size_t _length);	/* Number of bytes to dump. */
-typedef int dumper_start_t(struct dumperinfo *di);
-typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
-    void *key, uint32_t keylen);
+typedef int dumper_start_t(struct dumperinfo *di, void *key, uint32_t keysize);
+typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh);
 
 #endif /* _KERNEL */
 
