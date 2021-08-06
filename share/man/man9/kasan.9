@@ -45,6 +45,7 @@ kernel configuration file:
 .Cd "options KASAN"
 .Ed
 .Pp
+.In sys/asan.h
 .Ft void
 .Fn kasan_mark "const void *addr" "size_t size" "size_t redzsize" "uint8_t code"
 .Sh DESCRIPTION
