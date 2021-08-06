@@ -238,6 +238,8 @@ void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
 struct ifnet *lltable_get_ifp(const struct lltable *llt);
 int lltable_get_af(const struct lltable *llt);
 
+bool lltable_acquire_wlock(struct ifnet *ifp, struct llentry *lle);
+
 int lltable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f,
     void *farg);
 /*

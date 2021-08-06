@@ -318,6 +318,35 @@ lltable_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
 }
 
 /*
+ * Acquires lltable write lock.
+ *
+ * Returns true on success, with both lltable and lle lock held.
+ * On failure, false is returned and lle wlock is still held.
+ */
+bool
+lltable_acquire_wlock(struct ifnet *ifp, struct llentry *lle)
+{
+	NET_EPOCH_ASSERT();
+
+	/* Perform real LLE update */
+	/* use afdata WLOCK to update fields */
+	LLE_WUNLOCK(lle);
+	IF_AFDATA_WLOCK(ifp);
+	LLE_WLOCK(lle);
+
+	/*
+	 * Since we droppped LLE lock, other thread might have deleted
+	 * this lle. Check and return
+	 */
+	if ((lle->la_flags & LLE_DELETED) != 0) {
+		IF_AFDATA_WUNLOCK(ifp);
+		return (false);
+	}
+
+	return (true);
+}
+
+/*
  * Tries to update @lle link-level address.
  * Since update requires AFDATA WLOCK, function
  * drops @lle lock, acquires AFDATA lock and then acquires
@@ -330,30 +359,13 @@ lltable_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle,
     const char *linkhdr, size_t linkhdrsize, int lladdr_off)
 {
 
-	/* Perform real LLE update */
-	/* use afdata WLOCK to update fields */
-	LLE_WLOCK_ASSERT(lle);
-	LLE_ADDREF(lle);
-	LLE_WUNLOCK(lle);
-	IF_AFDATA_WLOCK(ifp);
-	LLE_WLOCK(lle);
-
-	/*
-	 * Since we droppped LLE lock, other thread might have deleted
-	 * this lle. Check and return
-	 */
-	if ((lle->la_flags & LLE_DELETED) != 0) {
-		IF_AFDATA_WUNLOCK(ifp);
-		LLE_FREE_LOCKED(lle);
+	if (!lltable_acquire_wlock(ifp, lle))
 		return (0);
-	}
 
 	/* Update data */
 	lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize, lladdr_off);
 
 	IF_AFDATA_WUNLOCK(ifp);
-
-	LLE_REMREF(lle);
 
 	return (1);
 }
