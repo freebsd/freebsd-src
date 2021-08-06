@@ -391,7 +391,7 @@ ng_hci_command_untimeout(ng_hci_unit_p unit)
 		panic(
 "%s: %s - No command timeout!\n", __func__, NG_NODE_NAME(unit->node));
 
-	if (ng_uncallout(&unit->cmd_timo, unit->node) == 0)
+	if (ng_uncallout(&unit->cmd_timo, unit->node) < 1)
 		return (ETIMEDOUT);
 
 	unit->state &= ~NG_HCI_UNIT_COMMAND_PENDING;
@@ -432,7 +432,7 @@ ng_hci_con_untimeout(ng_hci_unit_con_p con)
 		panic(
 "%s: %s - No connection timeout!\n", __func__, NG_NODE_NAME(con->unit->node));
 
-	if (ng_uncallout(&con->con_timo, con->unit->node) == 0)
+	if (ng_uncallout(&con->con_timo, con->unit->node) < 1)
 		return (ETIMEDOUT);
 
 	con->flags &= ~NG_HCI_CON_TIMEOUT_PENDING;
