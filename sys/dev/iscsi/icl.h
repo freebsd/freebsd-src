@@ -93,6 +93,7 @@ struct icl_conn {
 #endif
 	uint32_t		ic_max_recv_data_segment_length;
 	uint32_t		ic_max_send_data_segment_length;
+	size_t			ic_hw_isomax;
 	size_t			ic_maxtags;
 	bool			ic_header_crc32c;
 	bool			ic_data_crc32c;
