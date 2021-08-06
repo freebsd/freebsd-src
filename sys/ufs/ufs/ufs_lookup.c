@@ -1450,6 +1450,8 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target,
 	vp = tvp = ITOV(target);
 	mp = vp->v_mount;
 	*wait_ino = 0;
+	sx_assert(&VFSTOUFS(mp)->um_checkpath_lock, SA_XLOCKED);
+
 	if (target->i_number == source_ino)
 		return (EEXIST);
 	if (target->i_number == parent_ino)
