@@ -233,6 +233,7 @@ struct tom_tunables {
 	int cop_managed_offloading;
 	int autorcvbuf_inc;
 	int update_hc_on_pmtu_change;
+	int iso;
 };
 
 /* iWARP driver tunables */

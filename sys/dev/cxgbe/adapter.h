@@ -739,6 +739,7 @@ struct sge_ofld_txq {
 	struct sge_wrq wrq;
 	counter_u64_t tx_iscsi_pdus;
 	counter_u64_t tx_iscsi_octets;
+	counter_u64_t tx_iscsi_iso_wrs;
 	counter_u64_t tx_toe_tls_records;
 	counter_u64_t tx_toe_tls_octets;
 } __aligned(CACHE_LINE_SIZE);

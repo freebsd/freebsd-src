@@ -134,6 +134,8 @@ struct cxgbei_data {
 	struct sysctl_ctx_list ctx;	/* from uld_activate to deactivate */
 };
 
+#define CXGBEI_MAX_ISO_PAYLOAD	65535
+
 /* cxgbei.c */
 u_int cxgbei_select_worker_thread(struct icl_cxgbei_conn *);
 
