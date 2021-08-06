@@ -2398,7 +2398,8 @@ MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zone_set_warning.9 \
 	zone.9 uma_zsecond_create.9
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+# This makes more sense for amd64 and i386 but
+# we decide to install all manpages in all architectures
 _superio.9=	superio.9
 MLINKS+=superio.9 superio_devid.9 \
 	superio.9 superio_dev_disable.9 \
@@ -2415,6 +2416,5 @@ MLINKS+=superio.9 superio_devid.9 \
 	superio.9 superio_revid.9 \
 	superio.9 superio_vendor.9 \
 	superio.9 superio_write.9
-.endif
 
 .include <bsd.prog.mk>
