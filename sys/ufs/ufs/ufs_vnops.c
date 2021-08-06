@@ -1249,9 +1249,9 @@ ufs_rename(ap)
 	struct mount *mp;
 	ino_t ino;
 	seqc_t fdvp_s, fvp_s, tdvp_s, tvp_s;
-	bool want_seqc_end;
+	bool checkpath_locked, want_seqc_end;
 
-	want_seqc_end = false;
+	checkpath_locked = want_seqc_end = false;
 
 #ifdef INVARIANTS
 	if ((tcnp->cn_flags & HASBUF) == 0 ||
@@ -1453,6 +1453,9 @@ relock:
 		error = VOP_ACCESS(fvp, VWRITE, tcnp->cn_cred, tcnp->cn_thread);
 		if (error)
 			goto unlockout;
+
+		sx_xlock(&VFSTOUFS(mp)->um_checkpath_lock);
+		checkpath_locked = true;
 		error = ufs_checkpath(ino, fdp->i_number, tdp, tcnp->cn_cred,
 		    &ino);
 		/*
@@ -1460,6 +1463,8 @@ relock:
 		 * everything else and VGET before restarting.
 		 */
 		if (ino) {
+			sx_xunlock(&VFSTOUFS(mp)->um_checkpath_lock);
+			checkpath_locked = false;
 			VOP_UNLOCK(fdvp);
 			VOP_UNLOCK(fvp);
 			VOP_UNLOCK(tdvp);
@@ -1689,6 +1694,9 @@ unlockout:
 		vn_seqc_write_end(fvp);
 		vn_seqc_write_end(fdvp);
 	}
+
+	if (checkpath_locked)
+		sx_xunlock(&VFSTOUFS(mp)->um_checkpath_lock);
 
 	vput(fdvp);
 	vput(fvp);

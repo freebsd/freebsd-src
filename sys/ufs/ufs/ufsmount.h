@@ -45,6 +45,9 @@ struct ufs_args {
 
 #ifdef _KERNEL
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_sx.h>
 #include <sys/_task.h>
 
 #ifdef MALLOC_DECLARE
@@ -100,6 +103,8 @@ struct ufsmount {
 	uint64_t um_maxsymlinklen;		/* (c) max size of short
 						       symlink */
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
+	struct	sx um_checkpath_lock;		/* (c) Protects ufs_checkpath()
+						       result */
 	pid_t	um_fsckpid;			/* (u) PID can do fsck sysctl */
 	struct	mount_softdeps *um_softdep;	/* (c) softdep mgmt structure */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* (q) pointer to quota files */
