@@ -770,16 +770,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		linkhdrsize = sizeof(linkhdr);
-		if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
-			return;
-
-		if (lltable_try_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
-		    lladdr_off) == 0) {
-			ln = NULL;
+		if (!nd6_try_set_entry_addr(ifp, ln, lladdr))
 			goto freeit;
-		}
+
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited)
 			nd6_llinfo_setstate(ln, ND6_LLINFO_REACHABLE);

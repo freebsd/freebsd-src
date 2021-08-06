@@ -1383,6 +1383,35 @@ nd6_is_addr_neighbor(const struct sockaddr_in6 *addr, struct ifnet *ifp)
 }
 
 /*
+ * Tries to update @lle address/prepend data with new @lladdr.
+ *
+ * Returns true on success.
+ * In any case, @lle is returned wlocked.
+ */
+bool
+nd6_try_set_entry_addr(struct ifnet *ifp, struct llentry *lle, char *lladdr)
+{
+	u_char linkhdr[LLE_MAX_LINKHDR];
+	size_t linkhdrsize;
+	int lladdr_off;
+
+	LLE_WLOCK_ASSERT(lle);
+
+	linkhdrsize = sizeof(linkhdr);
+	if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
+	    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
+		return (false);
+	}
+
+	if (!lltable_acquire_wlock(ifp, lle))
+		return (false);
+	lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize, lladdr_off);
+	IF_AFDATA_WUNLOCK(ifp);
+
+	return (true);
+}
+
+/*
  * Free an nd6 llinfo entry.
  * Since the function would cause significant changes in the kernel, DO NOT
  * make it global, unless you have a strong reason for the change, and are sure
@@ -2027,14 +2056,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 * Record source link-layer address
 		 * XXX is it dependent to ifp->if_type?
 		 */
-		linkhdrsize = sizeof(linkhdr);
-		if (lltable_calc_llheader(ifp, AF_INET6, lladdr,
-		    linkhdr, &linkhdrsize, &lladdr_off) != 0)
-			return;
-
-		if (lltable_try_set_entry_addr(ifp, ln, linkhdr, linkhdrsize,
-		    lladdr_off) == 0) {
+		if (!nd6_try_set_entry_addr(ifp, ln, lladdr)) {
 			/* Entry was deleted */
+			LLE_WUNLOCK(ln);
 			return;
 		}
 
@@ -2258,6 +2282,39 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 }
 
 /*
+ * Finds or creates a new llentry for @addr.
+ * Returns wlocked llentry or NULL.
+ */
+static __noinline struct llentry *
+nd6_get_llentry(struct ifnet *ifp, const struct in6_addr *addr)
+{
+	struct llentry *lle, *lle_tmp;
+
+	lle = nd6_alloc(addr, 0, ifp);
+	if (lle == NULL) {
+		char ip6buf[INET6_ADDRSTRLEN];
+		log(LOG_DEBUG,
+		    "nd6_get_llentry: can't allocate llinfo for %s "
+		    "(ln=%p)\n",
+		    ip6_sprintf(ip6buf, addr), lle);
+		return (NULL);
+	}
+
+	IF_AFDATA_WLOCK(ifp);
+	LLE_WLOCK(lle);
+	/* Prefer any existing entry over newly-created one */
+	lle_tmp = nd6_lookup(addr, LLE_EXCLUSIVE, ifp);
+	if (lle_tmp == NULL)
+		lltable_link_entry(LLTABLE6(ifp), lle);
+	IF_AFDATA_WUNLOCK(ifp);
+	if (lle_tmp != NULL) {
+		lltable_free_entry(LLTABLE6(ifp), lle);
+		return (lle_tmp);
+	} else
+		return (lle);
+}
+
+/*
  * Do L2 address resolution for @sa_dst address. Stores found
  * address in @desten buffer. Copy of lle ln_flags can be also
  * saved in @pflags if @pflags is non-NULL.
@@ -2273,7 +2330,7 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
     const struct sockaddr_in6 *dst, u_char *desten, uint32_t *pflags,
     struct llentry **plle)
 {
-	struct llentry *lle = NULL, *lle_tmp;
+	struct llentry *lle = NULL;
 	struct in6_addr *psrc, src;
 	int send_ns, ll_len;
 	char *lladdr;
@@ -2286,39 +2343,16 @@ nd6_resolve_slow(struct ifnet *ifp, int flags, struct mbuf *m,
 	 * At this point, the destination of the packet must be a unicast
 	 * or an anycast address(i.e. not a multicast).
 	 */
-	if (lle == NULL) {
-		lle = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
-		if ((lle == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
-			/*
-			 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
-			 * the condition below is not very efficient.  But we believe
-			 * it is tolerable, because this should be a rare case.
-			 */
-			lle = nd6_alloc(&dst->sin6_addr, 0, ifp);
-			if (lle == NULL) {
-				char ip6buf[INET6_ADDRSTRLEN];
-				log(LOG_DEBUG,
-				    "nd6_output: can't allocate llinfo for %s "
-				    "(ln=%p)\n",
-				    ip6_sprintf(ip6buf, &dst->sin6_addr), lle);
-				m_freem(m);
-				return (ENOBUFS);
-			}
+	lle = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
+	if ((lle == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
+		/*
+		 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
+		 * the condition below is not very efficient.  But we believe
+		 * it is tolerable, because this should be a rare case.
+		 */
+		lle = nd6_get_llentry(ifp, &dst->sin6_addr);
+	}
 
-			IF_AFDATA_WLOCK(ifp);
-			LLE_WLOCK(lle);
-			/* Prefer any existing entry over newly-created one */
-			lle_tmp = nd6_lookup(&dst->sin6_addr, LLE_EXCLUSIVE, ifp);
-			if (lle_tmp == NULL)
-				lltable_link_entry(LLTABLE6(ifp), lle);
-			IF_AFDATA_WUNLOCK(ifp);
-			if (lle_tmp != NULL) {
-				lltable_free_entry(LLTABLE6(ifp), lle);
-				lle = lle_tmp;
-				lle_tmp = NULL;
-			}
-		}
-	} 
 	if (lle == NULL) {
 		m_freem(m);
 		return (ENOBUFS);
