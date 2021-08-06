@@ -35,10 +35,10 @@ MLINKS+=yp.8 NIS.8 \
 	yp.8 YP.8
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+# This makes more sense for aarch 64 and amd64
+# we decide to install all manpages in all architectures
 _uefi.8= uefi.8
 
 MLINKS+=uefi.8 efi.8
-.endif
 
 .include <bsd.prog.mk>
