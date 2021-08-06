@@ -662,8 +662,8 @@ ng_l2tp_shutdown(node_p node)
 	SEQ_UNLOCK(seq);
 
 	/* Free private data if neither timer is running */
-	ng_uncallout(&seq->rack_timer, node);
-	ng_uncallout(&seq->xack_timer, node);
+	ng_uncallout_drain(&seq->rack_timer, node);
+	ng_uncallout_drain(&seq->xack_timer, node);
 
 	mtx_destroy(&seq->mtx);
 
@@ -1192,9 +1192,9 @@ ng_l2tp_seq_init(priv_p priv)
 	if (seq->wmax > L2TP_MAX_XWIN)
 		seq->wmax = L2TP_MAX_XWIN;
 	seq->ssth = seq->wmax;
-	ng_callout_init(&seq->rack_timer);
-	ng_callout_init(&seq->xack_timer);
 	mtx_init(&seq->mtx, "ng_l2tp", NULL, MTX_DEF);
+	callout_init_mtx(&seq->rack_timer, &seq->mtx, CALLOUT_RETURNUNLOCKED);
+	callout_init_mtx(&seq->xack_timer, &seq->mtx, CALLOUT_RETURNUNLOCKED);
 }
 
 /*
@@ -1408,12 +1408,9 @@ ng_l2tp_seq_xack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct l2tp_seq *const seq = &priv->seq;
 
-	/* Make sure callout is still active before doing anything */
-	if (callout_pending(&seq->xack_timer) ||
-	    (!callout_active(&seq->xack_timer)))
-		return;
-
-	SEQ_LOCK(seq);
+	SEQ_LOCK_ASSERT(seq);
+	MPASS(!callout_pending(&seq->xack_timer));
+	MPASS(callout_active(&seq->xack_timer));
 
 	/* Send a ZLB */
 	ng_l2tp_xmit_ctrl(priv, NULL, seq->ns);
@@ -1434,14 +1431,10 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	u_int delay;
 
-	SEQ_LOCK(seq);
-
-	/* Make sure callout is still active before doing anything */
-	if (callout_pending(&seq->rack_timer) ||
-	    !callout_active(&seq->rack_timer)) {
-		SEQ_UNLOCK(seq);
-		return;
-	}
+	SEQ_LOCK_ASSERT(seq);
+	MPASS(seq->xwin[0]);
+	MPASS(!callout_pending(&seq->rack_timer));
+	MPASS(callout_active(&seq->rack_timer));
 
 	priv->stats.xmitRetransmits++;
 
