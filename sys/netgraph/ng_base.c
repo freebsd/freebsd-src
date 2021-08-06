@@ -3816,20 +3816,18 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	return (0);
 }
 
-/* A special modified version of callout_stop() */
-int
-ng_uncallout(struct callout *c, node_p node)
+/*
+ * Free references and item if callout_stop/callout_drain returned 1,
+ * meaning that callout was successfully stopped and now references
+ * belong to us.
+ */
+static void
+ng_uncallout_internal(struct callout *c, node_p node)
 {
 	item_p item;
-	int rval;
 
-	KASSERT(c != NULL, ("ng_uncallout: NULL callout"));
-	KASSERT(node != NULL, ("ng_uncallout: NULL node"));
-
-	rval = callout_stop(c);
 	item = c->c_arg;
-	/* Do an extra check */
-	if ((rval > 0) && (c->c_func == &ng_callout_trampoline) &&
+	if ((c->c_func == &ng_callout_trampoline) &&
 	    (item != NULL) && (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
@@ -3839,6 +3837,38 @@ ng_uncallout(struct callout *c, node_p node)
 		NG_FREE_ITEM(item);
 	}
 	c->c_arg = NULL;
+}
+
+
+/* A special modified version of callout_stop() */
+int
+ng_uncallout(struct callout *c, node_p node)
+{
+	int rval;
+
+	rval = callout_stop(c);
+	if (rval > 0)
+		/*
+		 * XXXGL: in case if callout is already running and next
+		 * invocation is scheduled at the same time, callout_stop()
+		 * returns 0. See d153eeee97d. In this case netgraph(4) would
+		 * leak resources. However, no nodes are known to induce such
+		 * behavior.
+		 */
+		ng_uncallout_internal(c, node);
+
+	return (rval);
+}
+
+/* A special modified version of callout_drain() */
+int
+ng_uncallout_drain(struct callout *c, node_p node)
+{
+	int rval;
+
+	rval = callout_drain(c);
+	if (rval > 0)
+		ng_uncallout_internal(c, node);
 
 	return (rval);
 }
