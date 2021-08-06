@@ -1489,7 +1489,7 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 #ifdef EKCD
 	struct kerneldumpcrypto *kdc;
 #endif
-	void *buf, *key;
+	void *buf;
 	size_t hdrsz;
 	uint64_t extent;
 	uint32_t keysize;
@@ -1501,10 +1501,8 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 
 #ifdef EKCD
 	kdc = di->kdcrypto;
-	key = kdc->kdc_dumpkey;
 	keysize = kerneldumpcrypto_dumpkeysize(kdc);
 #else
-	key = NULL;
 	keysize = 0;
 #endif
 
@@ -1513,7 +1511,7 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 	 * of writing them out.
 	 */
 	if (di->dumper_hdr != NULL)
-		return (di->dumper_hdr(di, kdh, key, keysize));
+		return (di->dumper_hdr(di, kdh));
 
 	if (hdrsz == di->blocksize)
 		buf = kdh;
@@ -1572,22 +1570,30 @@ dump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 int
 dump_start(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
+#ifdef EKCD
+	struct kerneldumpcrypto *kdc;
+#endif
+	void *key;
 	uint64_t dumpextent, span;
 	uint32_t keysize;
 	int error;
 
 #ifdef EKCD
-	error = kerneldumpcrypto_init(di->kdcrypto);
+	/* Send the key before the dump so a partial dump is still usable. */
+	kdc = di->kdcrypto;
+	error = kerneldumpcrypto_init(kdc);
 	if (error != 0)
 		return (error);
-	keysize = kerneldumpcrypto_dumpkeysize(di->kdcrypto);
+	keysize = kerneldumpcrypto_dumpkeysize(kdc);
+	key = keysize > 0 ? kdc->kdc_dumpkey : NULL;
 #else
 	error = 0;
 	keysize = 0;
+	key = NULL;
 #endif
 
 	if (di->dumper_start != NULL) {
-		error = di->dumper_start(di);
+		error = di->dumper_start(di, key, keysize);
 	} else {
 		dumpextent = dtoh64(kdh->dumpextent);
 		span = SIZEOF_METADATA + dumpextent + 2 * di->blocksize +
