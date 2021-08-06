@@ -95,7 +95,8 @@ static int	 netdump_enabled_sysctl(SYSCTL_HANDLER_ARGS);
 static int	 netdump_ioctl(struct cdev *dev __unused, u_long cmd,
 		    caddr_t addr, int flags __unused, struct thread *td);
 static int	 netdump_modevent(module_t mod, int type, void *priv);
-static int	 netdump_start(struct dumperinfo *di);
+static int	 netdump_start(struct dumperinfo *di, void *key,
+		    uint32_t keysize);
 static void	 netdump_unconfigure(void);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
@@ -285,7 +286,7 @@ netdump_dumper(void *priv __unused, void *virtual,
  * Perform any initialization needed prior to transmitting the kernel core.
  */
 static int
-netdump_start(struct dumperinfo *di)
+netdump_start(struct dumperinfo *di, void *key, uint32_t keysize)
 {
 	struct debugnet_conn_params dcp;
 	struct debugnet_pcb *pcb;
@@ -336,12 +337,34 @@ netdump_start(struct dumperinfo *di)
 	printf("netdumping to %s (%6D)\n", inet_ntoa_r(nd_server, buf),
 	    debugnet_get_gw_mac(pcb), ":");
 	nd_conf.nd_pcb = pcb;
-	return (0);
+
+	/* Send the key before the dump so a partial dump is still usable. */
+	if (keysize > 0) {
+		if (keysize > sizeof(nd_buf)) {
+			printf("crypto key is too large (%u)\n", keysize);
+			error = EINVAL;
+			goto out;
+		}
+		memcpy(nd_buf, key, keysize);
+		error = debugnet_send(pcb, NETDUMP_EKCD_KEY, nd_buf, keysize,
+		    NULL);
+		if (error != 0) {
+			printf("error %d sending crypto key\n", error);
+			goto out;
+		}
+	}
+
+out:
+	if (error != 0) {
+		/* As above, squash errors. */
+		error = EINVAL;
+		netdump_cleanup();
+	}
+	return (error);
 }
 
 static int
-netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh,
-    void *key, uint32_t keysize)
+netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh)
 {
 	int error;
 
@@ -351,15 +374,6 @@ netdump_write_headers(struct dumperinfo *di, struct kerneldumpheader *kdh,
 	memcpy(nd_buf, kdh, sizeof(*kdh));
 	error = debugnet_send(nd_conf.nd_pcb, NETDUMP_KDH, nd_buf,
 	    sizeof(*kdh), NULL);
-	if (error == 0 && keysize > 0) {
-		if (keysize > sizeof(nd_buf)) {
-			error = EINVAL;
-			goto out;
-		}
-		memcpy(nd_buf, key, keysize);
-		error = debugnet_send(nd_conf.nd_pcb, NETDUMP_EKCD_KEY, nd_buf,
-		    keysize, NULL);
-	}
 out:
 	if (error != 0)
 		netdump_cleanup();
