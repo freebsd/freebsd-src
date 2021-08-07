@@ -44,6 +44,11 @@ device		virtio_blk		# VirtIO Block device
 device		virtio_mmio		# VirtIO MMIO bus
 device		virtio_random		# VirtIO Entropy device
 
+# NVM Express (NVMe) support
+device		nvme		# base NVMe driver
+options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
+device		nvd		# expose NVMe namespaces as disks, depends on nvme
+
 # NOTE: dtrace introduces CDDL-licensed components into the kernel
 device		dtrace			# dtrace core
 device		dtraceall		# include all dtrace modules
@@ -65,8 +70,10 @@ device		axidma		# Xilinx AXI DMA Controller
 # SPI
 device		xilinx_spi	# Xilinx AXI Quad-SPI Controller
 
-# SOC-specific
+# SiFive device drivers
 device		fe310aon
+device		fu740_pci_dw
+device		sifive_gpio
 device		sifive_spi
 files		"../sifive/files.sifive"
 
