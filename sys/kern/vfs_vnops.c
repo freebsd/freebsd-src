@@ -205,6 +205,10 @@ open2nameif(int fmode, u_int vn_open_flags)
 		res |= RBENEATH;
 	if ((fmode & O_EMPTY_PATH) != 0)
 		res |= EMPTYPATH;
+	if ((fmode & FREAD) != 0)
+		res |= OPENREAD;
+	if ((fmode & FWRITE) != 0)
+		res |= OPENWRITE;
 	if ((vn_open_flags & VN_OPEN_NOAUDIT) == 0)
 		res |= AUDITVNODE1;
 	if ((vn_open_flags & VN_OPEN_NOCAPCHECK) != 0)
