@@ -173,7 +173,6 @@ struct denode {
 #define	DE_CREATE	0x0008	/* Creation time update */
 #define	DE_ACCESS	0x0010	/* Access time update */
 #define	DE_MODIFIED	0x0020	/* Denode has been modified */
-#define	DE_RENAME	0x0040	/* Denode is in the process of being renamed */
 
 /* Maximum size of a file on a FAT filesystem */
 #define MSDOSFS_FILESIZE_MAX	0xFFFFFFFFLL
