@@ -293,9 +293,9 @@ done:
 
 /* rte<>ro_flags translation */
 static inline void
-rt_update_ro_flags(struct route *ro)
+rt_update_ro_flags(struct route *ro, const struct nhop_object *nh)
 {
-	int nh_flags = ro->ro_nh->nh_flags;
+	int nh_flags = nh->nh_flags;
 
 	ro->ro_flags &= ~ (RT_REJECT|RT_BLACKHOLE|RT_HAS_GW);
 
@@ -495,22 +495,21 @@ again:
 				goto bad;
 			}
 		}
-		ia = ifatoia(ro->ro_nh->nh_ifa);
-		ifp = ro->ro_nh->nh_ifp;
-		counter_u64_add(ro->ro_nh->nh_pksent, 1);
-		rt_update_ro_flags(ro);
-		if (ro->ro_nh->nh_flags & NHF_GATEWAY)
-			gw = &ro->ro_nh->gw4_sa;
-		if (ro->ro_nh->nh_flags & NHF_HOST)
-			isbroadcast = (ro->ro_nh->nh_flags & NHF_BROADCAST);
+		struct nhop_object *nh = ro->ro_nh;
+
+		ia = ifatoia(nh->nh_ifa);
+		ifp = nh->nh_ifp;
+		counter_u64_add(nh->nh_pksent, 1);
+		rt_update_ro_flags(ro, nh);
+		if (nh->nh_flags & NHF_GATEWAY)
+			gw = &nh->gw4_sa;
+		if (nh->nh_flags & NHF_HOST)
+			isbroadcast = (nh->nh_flags & NHF_BROADCAST);
 		else if (ifp->if_flags & IFF_BROADCAST)
 			isbroadcast = in_ifaddr_broadcast(gw->sin_addr, ia);
 		else
 			isbroadcast = 0;
-		if (ro->ro_nh->nh_flags & NHF_HOST)
-			mtu = ro->ro_nh->nh_mtu;
-		else
-			mtu = ifp->if_mtu;
+		mtu = nh->nh_mtu;
 		src = IA_SIN(ia)->sin_addr;
 	} else {
 		struct nhop_object *nh;

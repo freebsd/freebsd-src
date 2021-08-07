@@ -568,6 +568,24 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 }
 
 /*
+ * Checks if @dst and @gateway is valid combination.
+ *
+ * Returns true if is valid, false otherwise.
+ */
+static bool
+check_gateway(struct rib_head *rnh, struct sockaddr *dst,
+    struct sockaddr *gateway)
+{
+	if (dst->sa_family == gateway->sa_family)
+		return (true);
+	else if (gateway->sa_family == AF_UNSPEC)
+		return (true);
+	else if (gateway->sa_family == AF_LINK)
+		return (true);
+	return (false);
+}
+
+/*
  * Creates rtentry and nexthop based on @info data.
  * Return 0 and fills in rtentry into @prt on success,
  * return errno otherwise.
@@ -589,8 +607,7 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	if ((flags & RTF_GATEWAY) && !gateway)
 		return (EINVAL);
-	if (dst && gateway && (dst->sa_family != gateway->sa_family) && 
-	    (gateway->sa_family != AF_UNSPEC) && (gateway->sa_family != AF_LINK))
+	if (dst && gateway && !check_gateway(rnh, dst, gateway))
 		return (EINVAL);
 
 	if (dst->sa_len > sizeof(((struct rtentry *)NULL)->rt_dstb))
