@@ -12449,9 +12449,13 @@ sctp_sosend(struct socket *so,
 	}
 	addr_to_use = addr;
 #if defined(INET) && defined(INET6)
-	if ((addr) && (addr->sa_family == AF_INET6)) {
+	if ((addr != NULL) && (addr->sa_family == AF_INET6)) {
 		struct sockaddr_in6 *sin6;
 
+		if (addr->sa_len != sizeof(struct sockaddr_in6)) {
+			SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+			return (EINVAL);
+		}
 		sin6 = (struct sockaddr_in6 *)addr;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			in6_sin6_2_sin(&sin, sin6);
