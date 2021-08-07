@@ -82,6 +82,7 @@ device		rcons
 # EXT_RESOURCES pseudo devices
 options 	EXT_RESOURCES
 device		clk
+device		hwreset
 device		syscon
 device		syscon_power
 device		riscv_syscon
