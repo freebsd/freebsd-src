@@ -128,6 +128,8 @@ hyperv_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
 	vdso_th->th_algo = VDSO_TH_ALGO_X86_HVTSC;
 	vdso_th->th_x86_shift = 0;
 	vdso_th->th_x86_hpet_idx = 0;
+	vdso_th->th_x86_pvc_last_systime = 0;
+	vdso_th->th_x86_pvc_stable_mask = 0;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
 	return (1);
 }
