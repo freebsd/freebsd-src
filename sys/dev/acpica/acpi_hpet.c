@@ -156,6 +156,8 @@ hpet_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 	vdso_th->th_algo = VDSO_TH_ALGO_X86_HPET;
 	vdso_th->th_x86_shift = 0;
 	vdso_th->th_x86_hpet_idx = device_get_unit(sc->dev);
+	vdso_th->th_x86_pvc_last_systime = 0;
+	vdso_th->th_x86_pvc_stable_mask = 0;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
 	return (sc->mmap_allow != 0);
 }
@@ -171,6 +173,8 @@ hpet_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
 	vdso_th32->th_algo = VDSO_TH_ALGO_X86_HPET;
 	vdso_th32->th_x86_shift = 0;
 	vdso_th32->th_x86_hpet_idx = device_get_unit(sc->dev);
+	vdso_th32->th_x86_pvc_last_systime = 0;
+	vdso_th32->th_x86_pvc_stable_mask = 0;
 	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
 	return (sc->mmap_allow != 0);
 }
