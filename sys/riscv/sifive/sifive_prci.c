@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include "clkdev_if.h"
+#include "hwreset_if.h"
 
 static struct resource_spec prci_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
@@ -69,6 +70,8 @@ struct prci_softc {
 	struct resource		*res;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+
+	int			nresets;
 };
 
 struct prci_clk_pll_sc {
@@ -93,6 +96,9 @@ struct prci_clk_div_sc {
 #define	PRCI_PLL_DIVF_SHIFT		6
 #define	PRCI_PLL_DIVQ_MASK		0x38000
 #define	PRCI_PLL_DIVQ_SHIFT		15
+
+/* Called devicesresetreg on the FU540 */
+#define	PRCI_DEVICES_RESET_N		0x28
 
 #define	PRCI_READ(_sc, _reg)		\
     bus_space_read_4((_sc)->bst, (_sc)->bsh, (_reg))
@@ -155,6 +161,7 @@ struct prci_config {
 	struct prci_div_def	*div_clks;
 	struct prci_gate_def	*gate_clks;
 	struct clk_fixed_def	*tlclk_def;
+	int			nresets;
 };
 
 /* FU540 clock numbers */
@@ -191,6 +198,7 @@ static struct clk_fixed_def fu540_tlclk_def = {
 struct prci_config fu540_prci_config = {
 	.pll_clks = fu540_pll_clks,
 	.tlclk_def = &fu540_tlclk_def,
+	.nresets = 6,
 };
 
 /* FU740 clock numbers */
@@ -254,6 +262,7 @@ struct prci_config fu740_prci_config = {
 	.div_clks = fu740_div_clks,
 	.gate_clks = fu740_gate_clks,
 	.tlclk_def = &fu740_tlclk_def,
+	.nresets = 7,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -547,6 +556,8 @@ prci_attach(device_t dev)
 	if (error)
 		panic("Couldn't finalise clock domain");
 
+	sc->nresets = cfg->nresets;
+
 	return (0);
 
 fail1:
@@ -616,6 +627,48 @@ prci_device_unlock(device_t dev)
 	PRCI_UNLOCK(sc);
 }
 
+static int
+prci_reset_assert(device_t dev, intptr_t id, bool reset)
+{
+	struct prci_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+
+	if (id >= sc->nresets)
+		return (ENXIO);
+
+	PRCI_LOCK(sc);
+	reg = PRCI_READ(sc, PRCI_DEVICES_RESET_N);
+	if (reset)
+		reg &= ~(1u << id);
+	else
+		reg |= (1u << id);
+	PRCI_WRITE(sc, PRCI_DEVICES_RESET_N, reg);
+	PRCI_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+prci_reset_is_asserted(device_t dev, intptr_t id, bool *reset)
+{
+	struct prci_softc *sc;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+
+	if (id >= sc->nresets)
+		return (ENXIO);
+
+	PRCI_LOCK(sc);
+	reg = PRCI_READ(sc, PRCI_DEVICES_RESET_N);
+	*reset = (reg & (1u << id)) == 0;
+	PRCI_UNLOCK(sc);
+
+	return (0);
+}
+
 static device_method_t prci_methods[] = {
 	DEVMETHOD(device_probe,		prci_probe),
 	DEVMETHOD(device_attach,	prci_attach),
@@ -626,6 +679,10 @@ static device_method_t prci_methods[] = {
 	DEVMETHOD(clkdev_modify_4,	prci_modify_4),
 	DEVMETHOD(clkdev_device_lock,	prci_device_lock),
 	DEVMETHOD(clkdev_device_unlock,	prci_device_unlock),
+
+	/* Reset interface */
+	DEVMETHOD(hwreset_assert,	prci_reset_assert),
+	DEVMETHOD(hwreset_is_asserted,	prci_reset_is_asserted),
 
 	DEVMETHOD_END
 };
