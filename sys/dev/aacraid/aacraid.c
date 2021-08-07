@@ -2184,8 +2184,13 @@ aac_timeout(struct aac_softc *sc)
 		}
 	}
 
-	if (timedout) 
-		aac_reset_adapter(sc);
+    if (timedout)
+        /*
+         * Resetting the adapter causes FreeNAS 11.x/12.x to panic with a "command not in queue" error.
+         * Let's not reset the adapter and carry on as if nothing happened.
+         * This is the command we are leaving out:
+         * aac_reset_adapter(sc);
+         */
 	aacraid_print_queues(sc);
 }
 
