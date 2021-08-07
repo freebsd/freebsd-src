@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2019 Axiado Corporation
  * All rights reserved.
+ * Copyright (c) 2021 Jessica Clarke <jrtc27@FreeBSD.org>
  *
  * This software was developed in part by Kristof Provost under contract for
  * Axiado Corporation.
@@ -51,15 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
-#include <dt-bindings/clock/sifive-fu540-prci.h>
-
-static struct ofw_compat_data compat_data[] = {
-	{ "sifive,aloeprci0",		1 },
-	{ "sifive,ux00prci0",		1 },
-	{ "sifive,fu540-c000-prci",	1 },
-	{ NULL,				0 },
-};
-
 static struct resource_spec prci_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
 	RESOURCE_SPEC_END
@@ -86,10 +78,6 @@ struct prci_clk_pll_sc {
 #define	PRCI_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->mtx, MA_OWNED);
 #define	PRCI_ASSERT_UNLOCKED(sc)	mtx_assert(&(sc)->mtx, MA_NOTOWNED);
 
-#define	PRCI_COREPLL_CFG0		0x4
-#define	PRCI_DDRPLL_CFG0		0xC
-#define	PRCI_GEMGXLPLL_CFG0		0x1C
-
 #define	PRCI_PLL_DIVR_MASK		0x3f
 #define	PRCI_PLL_DIVR_SHIFT		0
 #define	PRCI_PLL_DIVF_MASK		0x7fc0
@@ -113,22 +101,54 @@ struct prci_pll_def {
 	.reg = (_base),						\
 }
 
-/* PLL Clocks */
-struct prci_pll_def pll_clks[] = {
-	PLL(PRCI_CLK_COREPLL, "coreclk",  PRCI_COREPLL_CFG0),
-	PLL(PRCI_CLK_DDRPLL, "ddrclk",   PRCI_DDRPLL_CFG0),
-	PLL(PRCI_CLK_GEMGXLPLL, "gemgxclk", PRCI_GEMGXLPLL_CFG0),
+#define PLL_END	PLL(0, NULL, 0)
+
+struct prci_config {
+	struct prci_pll_def	*pll_clks;
+	struct clk_fixed_def	*tlclk_def;
 };
 
-/* Fixed divisor clock TLCLK. */
-struct clk_fixed_def tlclk_def = {
-	.clkdef.id = PRCI_CLK_TLCLK,
-	.clkdef.name = "prci_tlclk",
+/* FU540 clock numbers */
+#define	FU540_PRCI_CORECLK		0
+#define	FU540_PRCI_DDRCLK		1
+#define	FU540_PRCI_GEMGXLCLK		2
+#define	FU540_PRCI_TLCLK		3
+
+/* FU540 registers */
+#define	FU540_PRCI_COREPLL_CFG0		0x4
+#define	FU540_PRCI_DDRPLL_CFG0		0xC
+#define	FU540_PRCI_GEMGXLPLL_CFG0	0x1C
+
+/* FU540 PLL clocks */
+static struct prci_pll_def fu540_pll_clks[] = {
+	PLL(FU540_PRCI_CORECLK, "coreclk", FU540_PRCI_COREPLL_CFG0),
+	PLL(FU540_PRCI_DDRCLK, "ddrclk", FU540_PRCI_DDRPLL_CFG0),
+	PLL(FU540_PRCI_GEMGXLCLK, "gemgxlclk", FU540_PRCI_GEMGXLPLL_CFG0),
+	PLL_END
+};
+
+/* FU540 fixed divisor clock TLCLK. */
+static struct clk_fixed_def fu540_tlclk_def = {
+	.clkdef.id = FU540_PRCI_TLCLK,
+	.clkdef.name = "tlclk",
 	.clkdef.parent_names = (const char *[]){"coreclk"},
 	.clkdef.parent_cnt = 1,
 	.clkdef.flags = CLK_NODE_STATIC_STRINGS,
 	.mult = 1,
 	.div = 2,
+};
+
+/* FU540 config */
+struct prci_config fu540_prci_config = {
+	.pll_clks = fu540_pll_clks,
+	.tlclk_def = &fu540_tlclk_def,
+};
+
+static struct ofw_compat_data compat_data[] = {
+	{ "sifive,aloeprci0",		(uintptr_t)&fu540_prci_config },
+	{ "sifive,ux00prci0",		(uintptr_t)&fu540_prci_config },
+	{ "sifive,fu540-c000-prci",	(uintptr_t)&fu540_prci_config },
+	{ NULL,				0 },
 };
 
 static int
@@ -199,7 +219,7 @@ prci_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "SiFive FU540 Power Reset Clocking Interrupt");
+	device_set_desc(dev, "SiFive Power Reset Clocking Interrupt");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -231,9 +251,14 @@ prci_attach(device_t dev)
 	clk_t clk_parent;
 	phandle_t node;
 	int i, ncells, error;
+	struct prci_config *cfg;
+	struct prci_pll_def *pll_clk;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+
+	cfg = (struct prci_config *)ofw_bus_search_compatible(dev,
+	    compat_data)->ocd_data;
 
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev), NULL, MTX_DEF);
 
@@ -277,10 +302,10 @@ prci_attach(device_t dev)
 	}
 
 	/* We can't free a clkdom, so from now on we cannot fail. */
-	for (i = 0; i < nitems(pll_clks); i++) {
-		clkdef.id = pll_clks[i].id;
-		clkdef.name = pll_clks[i].name;
-		prci_pll_register(sc, &clkdef, pll_clks[i].reg);
+	for (pll_clk = cfg->pll_clks; pll_clk->name; pll_clk++) {
+		clkdef.id = pll_clk->id;
+		clkdef.name = pll_clk->name;
+		prci_pll_register(sc, &clkdef, pll_clk->reg);
 	}
 
 	/*
@@ -291,7 +316,7 @@ prci_attach(device_t dev)
 	 * will be registered automatically by the fixed_clk driver, and the
 	 * version we register here will be an unreferenced duplicate.
 	 */
-	clknode_fixed_register(sc->clkdom, &tlclk_def);
+	clknode_fixed_register(sc->clkdom, cfg->tlclk_def);
 
 	error = clkdom_finit(sc->clkdom);
 	if (error)
@@ -316,12 +341,12 @@ static device_method_t prci_methods[] = {
 };
 
 static driver_t prci_driver = {
-	"fu540prci",
+	"sifive_prci",
 	prci_methods,
 	sizeof(struct prci_softc)
 };
 
 static devclass_t prci_devclass;
 
-EARLY_DRIVER_MODULE(fu540prci, simplebus, prci_driver, prci_devclass, 0, 0,
+EARLY_DRIVER_MODULE(sifive_prci, simplebus, prci_driver, prci_devclass, 0, 0,
     BUS_PASS_BUS);
