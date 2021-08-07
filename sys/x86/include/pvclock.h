@@ -29,6 +29,9 @@
 #ifndef X86_PVCLOCK
 #define X86_PVCLOCK
 
+#include <sys/types.h>
+#include <sys/timetc.h>
+
 struct pvclock_vcpu_time_info {
 	uint32_t	version;
 	uint32_t	pad0;
@@ -43,17 +46,39 @@ struct pvclock_vcpu_time_info {
 #define PVCLOCK_FLAG_TSC_STABLE		0x01
 #define PVCLOCK_FLAG_GUEST_PASUED	0x02
 
+typedef struct pvclock_wall_clock *pvclock_get_wallclock_t(void *arg);
+
 struct pvclock_wall_clock {
 	uint32_t	version;
 	uint32_t	sec;
 	uint32_t	nsec;
 };
 
+struct pvclock {
+	/* Public; initialized by the caller of 'pvclock_init()': */
+	pvclock_get_wallclock_t		*get_wallclock;
+	void				*get_wallclock_arg;
+	struct pvclock_vcpu_time_info	*timeinfos;
+	bool				 stable_flag_supported;
+
+	/* Private; initialized by the 'pvclock' API: */
+	struct timecounter		 tc;
+};
+
+/*
+ * NOTE: 'pvclock_get_timecount()' and 'pvclock_get_wallclock()' are purely
+ * transitional; they should be removed after 'dev/xen/timer/timer.c' has been
+ * migrated to the 'struct pvclock' API.
+ */
 void		pvclock_resume(void);
-uint64_t	pvclock_get_last_cycles(void);
 uint64_t	pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti);
 uint64_t	pvclock_get_timecount(struct pvclock_vcpu_time_info *ti);
 void		pvclock_get_wallclock(struct pvclock_wall_clock *wc,
 		    struct timespec *ts);
+
+void		pvclock_init(struct pvclock *pvc, device_t dev,
+		    const char *tc_name, int tc_quality, u_int tc_flags);
+void		pvclock_gettime(struct pvclock *pvc, struct timespec *ts);
+int		pvclock_destroy(struct pvclock *pvc);
 
 #endif

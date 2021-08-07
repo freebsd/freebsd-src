@@ -31,31 +31,34 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/clock.h>
+#include <sys/limits.h>
 #include <sys/proc.h>
 
-#include <machine/cpufunc.h>
-#include <machine/cpu.h>
 #include <machine/atomic.h>
+#include <machine/md_var.h>
 #include <machine/pvclock.h>
 
 /*
- * Last time; this guarantees a monotonically increasing clock for when
- * a stable TSC is not provided.
+ * Last system time. This is used to guarantee a monotonically non-decreasing
+ * clock for the kernel codepath and approximate the same for the vDSO codepath.
+ * In theory, this should be unnecessary absent hypervisor bug(s) and/or what
+ * should be rare cases where TSC jitter may still be visible despite the
+ * hypervisor's best efforts.
  */
-static volatile uint64_t pvclock_last_cycles;
+static volatile uint64_t pvclock_last_systime;
+
+static uint64_t		 pvclock_getsystime(struct pvclock *pvc);
+static void		 pvclock_read_time_info(
+    struct pvclock_vcpu_time_info *ti, uint64_t *ns, uint8_t *flags);
+static void		 pvclock_read_wall_clock(struct pvclock_wall_clock *wc,
+    struct timespec *ts);
+static u_int		 pvclock_tc_get_timecount(struct timecounter *tc);
 
 void
 pvclock_resume(void)
 {
-
-	atomic_store_rel_64(&pvclock_last_cycles, 0);
-}
-
-uint64_t
-pvclock_get_last_cycles(void)
-{
-
-	return (atomic_load_acq_64(&pvclock_last_cycles));
+	atomic_store_rel_64(&pvclock_last_systime, 0);
 }
 
 uint64_t
@@ -64,12 +67,10 @@ pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti)
 	uint64_t freq;
 
 	freq = (1000000000ULL << 32) / ti->tsc_to_system_mul;
-
 	if (ti->tsc_shift < 0)
 		freq <<= -ti->tsc_shift;
 	else
 		freq >>= ti->tsc_shift;
-
 	return (freq);
 }
 
@@ -86,7 +87,6 @@ pvclock_scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
 		delta >>= -shift;
 	else
 		delta <<= shift;
-
 #if defined(__i386__)
 	{
 		uint32_t tmp1, tmp2;
@@ -122,82 +122,156 @@ pvclock_scale_delta(uint64_t delta, uint32_t mul_frac, int shift)
 #else
 #error "pvclock: unsupported x86 architecture?"
 #endif
-
 	return (product);
-}
-
-static uint64_t
-pvclock_get_nsec_offset(struct pvclock_vcpu_time_info *ti)
-{
-	uint64_t delta;
-
-	delta = rdtsc() - ti->tsc_timestamp;
-
-	return (pvclock_scale_delta(delta, ti->tsc_to_system_mul,
-	    ti->tsc_shift));
 }
 
 static void
 pvclock_read_time_info(struct pvclock_vcpu_time_info *ti,
-    uint64_t *cycles, uint8_t *flags)
+    uint64_t *ns, uint8_t *flags)
 {
+	uint64_t delta;
 	uint32_t version;
 
 	do {
-		version = ti->version;
-		rmb();
-		*cycles = ti->system_time + pvclock_get_nsec_offset(ti);
+		version = atomic_load_acq_32(&ti->version);
+		delta = rdtsc_ordered() - ti->tsc_timestamp;
+		*ns = ti->system_time + pvclock_scale_delta(delta,
+		    ti->tsc_to_system_mul, ti->tsc_shift);
 		*flags = ti->flags;
-		rmb();
+		atomic_thread_fence_acq();
 	} while ((ti->version & 1) != 0 || ti->version != version);
 }
 
 static void
-pvclock_read_wall_clock(struct pvclock_wall_clock *wc, uint32_t *sec,
-    uint32_t *nsec)
+pvclock_read_wall_clock(struct pvclock_wall_clock *wc, struct timespec *ts)
 {
 	uint32_t version;
 
 	do {
-		version = wc->version;
-		rmb();
-		*sec = wc->sec;
-		*nsec = wc->nsec;
-		rmb();
+		version = atomic_load_acq_32(&wc->version);
+		ts->tv_sec = wc->sec;
+		ts->tv_nsec = wc->nsec;
+		atomic_thread_fence_acq();
 	} while ((wc->version & 1) != 0 || wc->version != version);
 }
 
+static uint64_t
+pvclock_getsystime(struct pvclock *pvc)
+{
+	uint64_t now, last, ret;
+	uint8_t flags;
+
+	critical_enter();
+	pvclock_read_time_info(&pvc->timeinfos[curcpu], &now, &flags);
+	ret = now;
+	if ((flags & PVCLOCK_FLAG_TSC_STABLE) == 0) {
+		last = atomic_load_acq_64(&pvclock_last_systime);
+		do {
+			if (last > now) {
+				ret = last;
+				break;
+			}
+		} while (!atomic_fcmpset_rel_64(&pvclock_last_systime, &last,
+		    now));
+	}
+	critical_exit();
+	return (ret);
+}
+
+/*
+ * NOTE: Transitional-only; this should be removed after 'dev/xen/timer/timer.c'
+ * has been migrated to the 'struct pvclock' API.
+ */
 uint64_t
 pvclock_get_timecount(struct pvclock_vcpu_time_info *ti)
 {
-	uint64_t now, last;
+	uint64_t now, last, ret;
 	uint8_t flags;
 
 	pvclock_read_time_info(ti, &now, &flags);
-
-	if (flags & PVCLOCK_FLAG_TSC_STABLE)
-		return (now);
-
-	/*
-	 * Enforce a monotonically increasing clock time across all VCPUs.
-	 * If our time is too old, use the last time and return. Otherwise,
-	 * try to update the last time.
-	 */
-	do {
-		last = atomic_load_acq_64(&pvclock_last_cycles);
-		if (last > now)
-			return (last);
-	} while (!atomic_cmpset_64(&pvclock_last_cycles, last, now));
-
-	return (now);
+	ret = now;
+	if ((flags & PVCLOCK_FLAG_TSC_STABLE) == 0) {
+		last = atomic_load_acq_64(&pvclock_last_systime);
+		do {
+			if (last > now) {
+				ret = last;
+				break;
+			}
+		} while (!atomic_fcmpset_rel_64(&pvclock_last_systime, &last,
+		    now));
+	}
+	return (ret);
 }
 
+/*
+ * NOTE: Transitional-only; this should be removed after 'dev/xen/timer/timer.c'
+ * has been migrated to the 'struct pvclock' API.
+ */
 void
 pvclock_get_wallclock(struct pvclock_wall_clock *wc, struct timespec *ts)
 {
-	uint32_t sec, nsec;
+	pvclock_read_wall_clock(wc, ts);
+}
 
-	pvclock_read_wall_clock(wc, &sec, &nsec);
-	ts->tv_sec = sec;
-	ts->tv_nsec = nsec;
+static u_int
+pvclock_tc_get_timecount(struct timecounter *tc)
+{
+	struct pvclock *pvc = tc->tc_priv;
+
+	return (pvclock_getsystime(pvc) & UINT_MAX);
+}
+
+void
+pvclock_gettime(struct pvclock *pvc, struct timespec *ts)
+{
+	struct timespec system_ts;
+	uint64_t system_ns;
+
+	pvclock_read_wall_clock(pvc->get_wallclock(pvc->get_wallclock_arg), ts);
+	system_ns = pvclock_getsystime(pvc);
+	system_ts.tv_sec = system_ns / 1000000000ULL;
+	system_ts.tv_nsec = system_ns % 1000000000ULL;
+	timespecadd(ts, &system_ts, ts);
+}
+
+void
+pvclock_init(struct pvclock *pvc, device_t dev, const char *tc_name,
+    int tc_quality, u_int tc_flags)
+{
+	KASSERT(((uintptr_t)pvc->timeinfos & PAGE_MASK) == 0,
+	    ("Specified time info page(s) address is not page-aligned."));
+
+	/* Set up timecounter and timecounter-supporting members: */
+	pvc->tc.tc_get_timecount = pvclock_tc_get_timecount;
+	pvc->tc.tc_poll_pps = NULL;
+	pvc->tc.tc_counter_mask = ~0U;
+	pvc->tc.tc_frequency = 1000000000ULL;
+	pvc->tc.tc_name = tc_name;
+	pvc->tc.tc_quality = tc_quality;
+	pvc->tc.tc_flags = tc_flags;
+	pvc->tc.tc_priv = pvc;
+	pvc->tc.tc_fill_vdso_timehands = NULL;
+#ifdef COMPAT_FREEBSD32
+	pvc->tc.tc_fill_vdso_timehands32 = NULL;
+#endif
+
+	/* Register timecounter: */
+	tc_init(&pvc->tc);
+
+	/*
+	 * Register wallclock:
+	 *     The RTC registration API expects a resolution in microseconds;
+	 *     pvclock's 1ns resolution is rounded up to 1us.
+	 */
+	clock_register(dev, 1);
+}
+
+int
+pvclock_destroy(struct pvclock *pvc)
+{
+	/*
+	 * Not currently possible since there is no teardown counterpart of
+	 * 'tc_init()'.
+	 */
+	return (EBUSY);
 }
