@@ -149,6 +149,30 @@ SYSCTL_INT(_hw_pci, OID_AUTO, clear_pcib, CTLFLAG_RDTUN, &pci_clear_pcib, 0,
     "Clear firmware-assigned resources for PCI-PCI bridge I/O windows.");
 
 /*
+ * Get the corresponding window if this resource from a child device was
+ * sub-allocated from one of our window resource managers.
+ */
+static struct pcib_window *
+pcib_get_resource_window(struct pcib_softc *sc, int type, struct resource *r)
+{
+	switch (type) {
+	case SYS_RES_IOPORT:
+		if (rman_is_region_manager(r, &sc->io.rman))
+			return (&sc->io);
+		break;
+	case SYS_RES_MEMORY:
+		/* Prefetchable resources may live in either memory rman. */
+		if (rman_get_flags(r) & RF_PREFETCHABLE &&
+		    rman_is_region_manager(r, &sc->pmem.rman))
+			return (&sc->pmem);
+		if (rman_is_region_manager(r, &sc->mem.rman))
+			return (&sc->mem);
+		break;
+	}
+	return (NULL);
+}
+
+/*
  * Is a resource from a child device sub-allocated from one of our
  * resource managers?
  */
@@ -156,21 +180,11 @@ static int
 pcib_is_resource_managed(struct pcib_softc *sc, int type, struct resource *r)
 {
 
-	switch (type) {
 #ifdef PCI_RES_BUS
-	case PCI_RES_BUS:
+	if (type == PCI_RES_BUS)
 		return (rman_is_region_manager(r, &sc->bus.rman));
 #endif
-	case SYS_RES_IOPORT:
-		return (rman_is_region_manager(r, &sc->io.rman));
-	case SYS_RES_MEMORY:
-		/* Prefetchable resources may live in either memory rman. */
-		if (rman_get_flags(r) & RF_PREFETCHABLE &&
-		    rman_is_region_manager(r, &sc->pmem.rman))
-			return (1);
-		return (rman_is_region_manager(r, &sc->mem.rman));
-	}
-	return (0);
+	return (pcib_get_resource_window(sc, type, r) != NULL);
 }
 
 static int
@@ -2330,11 +2344,44 @@ pcib_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
     rman_res_t start, rman_res_t end)
 {
 	struct pcib_softc *sc;
+	struct pcib_window *w;
+	int error;
 
 	sc = device_get_softc(bus);
-	if (pcib_is_resource_managed(sc, type, r))
-		return (rman_adjust_resource(r, start, end));
-	return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+
+	/*
+	 * If the resource wasn't sub-allocated from one of our region
+	 * managers then just pass the request up.
+	 */
+	if (!pcib_is_resource_managed(sc, type, r))
+		return (bus_generic_adjust_resource(bus, child, type, r,
+		    start, end));
+
+#ifdef PCI_RES_BUS
+	if (type != PCI_RES_BUS)
+#endif
+	{
+		/*
+		 * Resource is managed and not a secondary bus number, must
+		 * be from one of our windows.
+		 */
+		w = pcib_get_resource_window(sc, type, r);
+		KASSERT(w != NULL,
+		    ("%s: no window for resource (%#jx-%#jx) type %d",
+		    __func__, rman_get_start(r), rman_get_end(r), type));
+
+		/*
+		 * If our window isn't big enough to grow the sub-allocation
+		 * then we need to expand the window.
+		 */
+		if (start < w->base || end > w->limit) {
+			error = pcib_expand_window(sc, w, type, start, end);
+			if (error != 0)
+				return (error);
+		}
+	}
+
+	return (rman_adjust_resource(r, start, end));
 }
 
 int
