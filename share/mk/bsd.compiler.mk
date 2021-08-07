@@ -235,7 +235,14 @@ ${X_}COMPILER_FEATURES+=		c++11 c++14
 ${X_}COMPILER_FEATURES+=	c++17
 .endif
 .if ${${X_}COMPILER_TYPE} == "clang"
-${X_}COMPILER_FEATURES+=	compressed-debug retpoline init-all
+${X_}COMPILER_FEATURES+=	retpoline init-all
+# PR257638 lld fails with BE compressed debug.  Fixed in main but external tool
+# chains will initially not have the fix.  For now limit the feature to LE
+# targets.
+.include <bsd.endian.mk>
+.if ${TARGET_ENDIANNESS} == "1234"
+${X_}COMPILER_FEATURES+=	compressed-debug
+.endif
 .endif
 .if ${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 100000 || \
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 80100)
