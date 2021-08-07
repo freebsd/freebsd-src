@@ -77,6 +77,14 @@ struct iort_its_entry {
 	int			pxm;
 };
 
+struct iort_named_component
+{
+	UINT32                  NodeFlags;
+	UINT64                  MemoryProperties;
+	UINT8                   MemoryAddressLimit;
+	char                    DeviceName[32]; /* Path of namespace object */
+};
+
 /*
  * IORT node. Each node has some device specific data depending on the
  * type of the node. The node can also have a set of mappings, OR in
@@ -91,9 +99,10 @@ struct iort_node {
 	u_int			usecount;	/* for bookkeeping */
 	u_int			revision;	/* node revision */
 	union {
-		ACPI_IORT_ROOT_COMPLEX	pci_rc;		/* PCI root complex */
-		ACPI_IORT_SMMU		smmu;
-		ACPI_IORT_SMMU_V3	smmu_v3;
+		ACPI_IORT_ROOT_COMPLEX		pci_rc;	/* PCI root complex */
+		ACPI_IORT_SMMU			smmu;
+		ACPI_IORT_SMMU_V3		smmu_v3;
+		struct iort_named_component	named_comp;
 	} data;
 	union {
 		struct iort_map_entry	*mappings;	/* node mappings  */
@@ -105,6 +114,7 @@ struct iort_node {
 static TAILQ_HEAD(, iort_node) pci_nodes = TAILQ_HEAD_INITIALIZER(pci_nodes);
 static TAILQ_HEAD(, iort_node) smmu_nodes = TAILQ_HEAD_INITIALIZER(smmu_nodes);
 static TAILQ_HEAD(, iort_node) its_groups = TAILQ_HEAD_INITIALIZER(its_groups);
+static TAILQ_HEAD(, iort_node) named_nodes = TAILQ_HEAD_INITIALIZER(named_nodes);
 
 static int
 iort_entry_get_id_mapping_index(struct iort_node *node)
@@ -167,6 +177,29 @@ iort_entry_lookup(struct iort_node *node, u_int id, u_int *outid)
 }
 
 /*
+ * Perform an additional lookup in case of SMMU node and ITS outtype.
+ */
+static struct iort_node *
+iort_smmu_trymap(struct iort_node *node, u_int outtype, u_int *outid)
+{
+	/* Original node can be not found. */
+	if (!node)
+		return (NULL);
+
+	/* Node can be SMMU or ITS. If SMMU, we need another lookup. */
+	if (outtype == ACPI_IORT_NODE_ITS_GROUP &&
+	    (node->type == ACPI_IORT_NODE_SMMU_V3 ||
+	     node->type == ACPI_IORT_NODE_SMMU)) {
+		node = iort_entry_lookup(node, *outid, outid);
+		if (node == NULL)
+			return (NULL);
+	}
+
+	KASSERT(node->type == outtype, ("mapping fail"));
+	return (node);
+}
+
+/*
  * Map a PCI RID to a SMMU node or an ITS node, based on outtype.
  */
 static struct iort_node *
@@ -184,21 +217,35 @@ iort_pci_rc_map(u_int seg, u_int rid, u_int outtype, u_int *outid)
 			break;
 	}
 
-	/* Could not find a PCI RC node with segment and device ID. */
-	if (out_node == NULL)
-		return (NULL);
+	out_node = iort_smmu_trymap(out_node, outtype, &nxtid);
+	if (out_node)
+		*outid = nxtid;
 
-	/* Node can be SMMU or ITS. If SMMU, we need another lookup. */
-	if (outtype == ACPI_IORT_NODE_ITS_GROUP &&
-	    (out_node->type == ACPI_IORT_NODE_SMMU_V3 ||
-	    out_node->type == ACPI_IORT_NODE_SMMU)) {
-		out_node = iort_entry_lookup(out_node, nxtid, &nxtid);
-		if (out_node == NULL)
-			return (NULL);
+	return (out_node);
+}
+
+/*
+ * Map a named component node to a SMMU node or an ITS node, based on outtype.
+ */
+static struct iort_node *
+iort_named_comp_map(const char *devname, u_int rid, u_int outtype, u_int *outid)
+{
+	struct iort_node *node, *out_node;
+	u_int nxtid;
+
+	out_node = NULL;
+	TAILQ_FOREACH(node, &named_nodes, next) {
+		if (strstr(node->data.named_comp.DeviceName, devname) == NULL)
+			continue;
+		out_node = iort_entry_lookup(node, rid, &nxtid);
+		if (out_node != NULL)
+			break;
 	}
 
-	KASSERT(out_node->type == outtype, ("mapping fail"));
-	*outid = nxtid;
+	out_node = iort_smmu_trymap(out_node, outtype, &nxtid);
+	if (out_node)
+		*outid = nxtid;
+
 	return (out_node);
 }
 
@@ -279,6 +326,7 @@ iort_add_nodes(ACPI_IORT_NODE *node_entry, u_int node_offset)
 	ACPI_IORT_ROOT_COMPLEX *pci_rc;
 	ACPI_IORT_SMMU *smmu;
 	ACPI_IORT_SMMU_V3 *smmu_v3;
+	ACPI_IORT_NAMED_COMPONENT *named_comp;
 	struct iort_node *node;
 
 	node = malloc(sizeof(*node), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -309,6 +357,19 @@ iort_add_nodes(ACPI_IORT_NODE *node_entry, u_int node_offset)
 	case ACPI_IORT_NODE_ITS_GROUP:
 		iort_copy_its(node, node_entry);
 		TAILQ_INSERT_TAIL(&its_groups, node, next);
+		break;
+	case ACPI_IORT_NODE_NAMED_COMPONENT:
+		named_comp = (ACPI_IORT_NAMED_COMPONENT *)node_entry->NodeData;
+		memcpy(&node->data.named_comp, named_comp, sizeof(*named_comp));
+
+		/* Copy name of the node separately. */
+		strncpy(node->data.named_comp.DeviceName,
+		    named_comp->DeviceName,
+		    sizeof(node->data.named_comp.DeviceName));
+		node->data.named_comp.DeviceName[31] = 0;
+
+		iort_copy_data(node, node_entry);
+		TAILQ_INSERT_TAIL(&named_nodes, node, next);
 		break;
 	default:
 		printf("ACPI: IORT: Dropping unhandled type %u\n",
@@ -368,7 +429,9 @@ iort_post_process_mappings(void)
 	TAILQ_FOREACH(node, &smmu_nodes, next)
 		for (i = 0; i < node->nentries; i++)
 			iort_resolve_node(&node->entries.mappings[i], FALSE);
-	/* TODO: named nodes */
+	TAILQ_FOREACH(node, &named_nodes, next)
+		for (i = 0; i < node->nentries; i++)
+			iort_resolve_node(&node->entries.mappings[i], TRUE);
 }
 
 /*
@@ -576,6 +639,49 @@ acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, u_int *xref, u_int *sid)
 	struct iort_node *node;
 
 	node = iort_pci_rc_map(seg, rid, ACPI_IORT_NODE_SMMU_V3, sid);
+	if (node == NULL)
+		return (ENOENT);
+
+	/* This should be an SMMU node. */
+	KASSERT(node->type == ACPI_IORT_NODE_SMMU_V3, ("bad node"));
+
+	smmu = (ACPI_IORT_SMMU_V3 *)&node->data.smmu_v3;
+	*xref = smmu->BaseAddress;
+
+	return (0);
+}
+
+/*
+ * Finds mapping for a named node given name and resource ID and returns the
+ * XREF for MSI interrupt setup and the device ID to use for the interrupt setup.
+ */
+int
+acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
+    u_int *devid)
+{
+	struct iort_node *node;
+
+	node = iort_named_comp_map(devname, rid, ACPI_IORT_NODE_ITS_GROUP,
+	    devid);
+	if (node == NULL)
+		return (ENOENT);
+
+	/* This should be an ITS node */
+	KASSERT(node->type == ACPI_IORT_NODE_ITS_GROUP, ("bad group"));
+
+	/* Return first node, we don't handle more than that now. */
+	*xref = node->entries.its[0].xref;
+	return (0);
+}
+
+int
+acpi_iort_map_named_smmuv3(const char *devname, u_int rid, u_int *xref,
+    u_int *devid)
+{
+	ACPI_IORT_SMMU_V3 *smmu;
+	struct iort_node *node;
+
+	node = iort_named_comp_map(devname, rid, ACPI_IORT_NODE_SMMU_V3, devid);
 	if (node == NULL)
 		return (ENOENT);
 
