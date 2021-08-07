@@ -469,6 +469,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	pmp->pm_bo = bo;
 
 	lockinit(&pmp->pm_fatlock, 0, msdosfs_lock_msg, 0, 0);
+	lockinit(&pmp->pm_checkpath_lock, 0, "msdoscp", 0, 0);
 
 	/*
 	 * Initialize ownerships and permissions, since nothing else will
@@ -740,6 +741,7 @@ error_exit:
 	}
 	if (pmp) {
 		lockdestroy(&pmp->pm_fatlock);
+		lockdestroy(&pmp->pm_checkpath_lock);
 		free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
@@ -829,6 +831,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	lockdestroy(&pmp->pm_fatlock);
+	lockdestroy(&pmp->pm_checkpath_lock);
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
