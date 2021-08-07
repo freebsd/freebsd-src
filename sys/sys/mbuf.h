@@ -829,6 +829,7 @@ struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
 void		 m_free_raw(struct mbuf *);
 struct mbuf	*m_get2(int, int, short, int);
+struct mbuf	*m_get3(int, int, short, int);
 struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
