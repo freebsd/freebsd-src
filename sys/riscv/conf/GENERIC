@@ -123,6 +123,9 @@ device		xae		# Xilinx AXI Ethernet MAC
 device		xdma		# DMA interface
 device		axidma		# Xilinx AXI DMA Controller
 
+# GPIO
+device		gpio
+
 # SPI
 device		spibus
 device		spigen
@@ -174,5 +177,6 @@ options 	FDT
 makeoptions	MODULES_EXTRA+="dtb/sifive"
 
 # SiFive device drivers
+device		sifive_gpio
 device		sifive_spi
 include		"../sifive/std.sifive"
