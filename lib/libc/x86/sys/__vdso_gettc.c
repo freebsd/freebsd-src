@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/pvclock.h>
 #include <machine/specialreg.h>
 #include <dev/acpica/acpi_hpet.h>
 #ifdef WANT_HYPERV
@@ -312,6 +313,61 @@ __vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
 
 #endif	/* WANT_HYPERV */
 
+static struct pvclock_vcpu_time_info *pvclock_timeinfos;
+
+static int
+__vdso_pvclock_gettc(const struct vdso_timehands *th, u_int *tc)
+{
+	uint64_t delta, ns, tsc;
+	struct pvclock_vcpu_time_info *ti;
+	uint32_t cpuid_ti, cpuid_tsc, version;
+	bool stable;
+
+	do {
+		ti = &pvclock_timeinfos[0];
+		version = atomic_load_acq_32(&ti->version);
+		stable = (ti->flags & th->th_x86_pvc_stable_mask) != 0;
+		if (stable) {
+			tsc = rdtscp();
+		} else {
+			(void)rdtscp_aux(&cpuid_ti);
+			ti = &pvclock_timeinfos[cpuid_ti];
+			version = atomic_load_acq_32(&ti->version);
+			tsc = rdtscp_aux(&cpuid_tsc);
+		}
+		delta = tsc - ti->tsc_timestamp;
+		ns = ti->system_time + pvclock_scale_delta(delta,
+		    ti->tsc_to_system_mul, ti->tsc_shift);
+		atomic_thread_fence_acq();
+	} while ((ti->version & 1) != 0 || ti->version != version ||
+	    (!stable && cpuid_ti != cpuid_tsc));
+	*tc = MAX(ns, th->th_x86_pvc_last_systime);
+	return (0);
+}
+
+static void
+__vdso_init_pvclock_timeinfos(void)
+{
+	struct pvclock_vcpu_time_info *timeinfos;
+	size_t len;
+	int fd, ncpus;
+	unsigned int mode;
+
+	timeinfos = MAP_FAILED;
+	if (_elf_aux_info(AT_NCPUS, &ncpus, sizeof(ncpus)) != 0 ||
+	    (cap_getmode(&mode) == 0 && mode != 0) ||
+	    (fd = _open("/dev/" PVCLOCK_CDEVNAME, O_RDONLY | O_CLOEXEC)) < 0)
+		goto leave;
+	len = ncpus * sizeof(*pvclock_timeinfos);
+	timeinfos = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+	_close(fd);
+leave:
+	if (atomic_cmpset_rel_ptr(
+	    (volatile uintptr_t *)&pvclock_timeinfos, (uintptr_t)NULL,
+	    (uintptr_t)timeinfos) == 0 && timeinfos != MAP_FAILED)
+		(void)munmap((void *)timeinfos, len);
+}
+
 #pragma weak __vdso_gettc
 int
 __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
@@ -347,6 +403,12 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 			return (ENOSYS);
 		return (__vdso_hyperv_tsc(hyperv_ref_tsc, tc));
 #endif
+	case VDSO_TH_ALGO_X86_PVCLK:
+		if (pvclock_timeinfos == NULL)
+			__vdso_init_pvclock_timeinfos();
+		if (pvclock_timeinfos == MAP_FAILED)
+			return (ENOSYS);
+		return (__vdso_pvclock_gettc(th, tc));
 	default:
 		return (ENOSYS);
 	}
