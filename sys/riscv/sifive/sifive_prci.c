@@ -638,5 +638,9 @@ static driver_t prci_driver = {
 
 static devclass_t prci_devclass;
 
+/*
+ * hfclk and rtcclk appear later in the device tree than prci, so we must
+ * attach late.
+ */
 EARLY_DRIVER_MODULE(sifive_prci, simplebus, prci_driver, prci_devclass, 0, 0,
-    BUS_PASS_BUS);
+    BUS_PASS_BUS + BUS_PASS_ORDER_LATE);
