@@ -66,7 +66,7 @@ device		xilinx_spi	# Xilinx AXI Quad-SPI Controller
 
 # SOC-specific
 device		fe310aon
-device		fu540spi
+device		sifive_spi
 files		"../sifive/files.sifive"
 
 # Flattened Device Tree
