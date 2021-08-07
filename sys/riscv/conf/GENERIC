@@ -177,6 +177,7 @@ options 	FDT
 makeoptions	MODULES_EXTRA+="dtb/sifive"
 
 # SiFive device drivers
+device		fu740_pci_dw
 device		sifive_gpio
 device		sifive_spi
 include		"../sifive/std.sifive"
