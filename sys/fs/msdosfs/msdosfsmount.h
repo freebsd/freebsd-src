@@ -114,6 +114,7 @@ struct msdosfsmount {
 	void *pm_d2u;	/* DOS->Local iconv handle */
 #ifndef MAKEFS
 	struct lock pm_fatlock;	/* lockmgr protecting allocations */
+	struct lock pm_checkpath_lock; /* protects doscheckpath result */
 #endif
 };
 
