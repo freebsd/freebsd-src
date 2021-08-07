@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_dw_if.h"
 
-#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...) do { printf(fmt,##args); } while (0)
 #else
