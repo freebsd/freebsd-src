@@ -1372,6 +1372,44 @@ m_get2(int size, int how, short type, int flags)
 }
 
 /*
+ * m_get3() allocates minimum mbuf that would fit "size" argument.
+ * Unlike m_get2() it can allocate clusters up to MJUM16BYTES.
+ */
+struct mbuf *
+m_get3(int size, int how, short type, int flags)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	if (size <= MJUMPAGESIZE)
+		return (m_get2(size, how, type, flags));
+
+	if (size > MJUM16BYTES)
+		return (NULL);
+
+	args.flags = flags;
+	args.type = type;
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+	if (size <= MJUM9BYTES)
+		zone = zone_jumbo9;
+	else
+		zone = zone_jumbo16;
+
+	n = uma_zalloc_arg(zone_jumbop, m, how);
+	if (n == NULL) {
+		m_free_raw(m);
+		return (NULL);
+	}
+
+	return (m);
+}
+
+/*
  * m_getjcl() returns an mbuf with a cluster of the specified size attached.
  * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
  */
