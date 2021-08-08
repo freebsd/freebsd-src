@@ -40,8 +40,5 @@ ${lse_name}: lse.S
 .if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=	libcompiler_rt.a ${LIBDIR}/libgcc.a
 .endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
-.endif
 
 .include <bsd.lib.mk>

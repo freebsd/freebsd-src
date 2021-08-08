@@ -770,7 +770,6 @@ BSARGS= 	DESTDIR= \
 		MK_CLANG_FULL=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_RETPOLINE=no \
 		MK_SSP=no \
 		MK_TESTS=no \
@@ -837,7 +836,6 @@ KTMAKE=		${TIME_ENV} \
 		MK_CTF=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_SSP=no \
 		MK_RETPOLINE=no \
 		MK_WERROR=no
@@ -1207,7 +1205,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
+	    MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
 	    libraries
 everything: .PHONY
 	@echo
@@ -3086,7 +3084,6 @@ NXBMAKEARGS+= \
 	MK_MAN_UTILS=yes \
 	MK_OFED=no \
 	MK_OPENSSH=no \
-	MK_PROFILE=no \
 	MK_RETPOLINE=no \
 	MK_SENDMAIL=no \
 	MK_SSP=no \
@@ -3451,9 +3448,9 @@ ${_lib}__PL: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -3756,7 +3753,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
-	MK_MAN=no MK_NLS=no MK_PROFILE=no \
+	MK_MAN=no MK_NLS=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}

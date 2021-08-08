@@ -195,14 +195,6 @@ SYMLINKS+=	libtinfow.so ${LIBDIR}/libtermcap.so
 SYMLINKS+=	libtinfow.so ${LIBDIR}/libtermlib.so
 SYMLINKS+=	libtinfow.so ${LIBDIR}/libtinfo.so
 .endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtermcapw_p.a
-SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtermlibw_p.a
-# backward compat
-SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtermcap_p.a
-SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtermlib_p.a
-SYMLINKS+=	libtinfow_p.a ${LIBDIR}/libtinfo_p.a
-.endif
 
 DOCSDIR=	${SHAREDIR}/doc/ncurses
 DOCS=		ncurses-intro.html hackguide.html

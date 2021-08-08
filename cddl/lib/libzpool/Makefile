@@ -283,9 +283,6 @@ CFLAGS.gcc+=	-fms-extensions
 
 LIBADD=		md pthread z spl icp nvpair avl umem
 
-# atomic.S doesn't like profiling.
-MK_PROFILE=	no
-
 CSTD=	c99
 
 # Since there are many asserts in this library, it makes no sense to compile

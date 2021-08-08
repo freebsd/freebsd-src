@@ -297,18 +297,6 @@ lib${LIB_PRIVATE}${LIB}${_STATICLIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
 
 .if !defined(INTERNALLIB)
 
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB_PRIVATE}${LIB}_p.a
-POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
-DEPENDOBJS+=	${POBJS}
-CLEANFILES+=	${POBJS}
-
-lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
-	@${ECHO} building profiled ${LIB} library
-	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} ${POBJS} ${ARADD}
-.endif
-
 .if defined(LLVM_LINK)
 lib${LIB_PRIVATE}${LIB}.bc: ${BCOBJS}
 	${LLVM_LINK} -o ${.TARGET} ${BCOBJS}
@@ -495,10 +483,6 @@ _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}${_STATICLIB_SUFFIX}.a ${DESTDIR}${_LIBDIR}/
-.if ${MK_PROFILE} != "no"
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a ${DESTDIR}${_LIBDIR}/
-.endif
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${TAG_ARGS} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
