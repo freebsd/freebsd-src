@@ -95,6 +95,24 @@ SYSCTL_BOOL(_vfs, OID_AUTO, recursive_forced_unmount, CTLFLAG_RW,
     &recursive_forced_unmount, 0, "Recursively unmount stacked upper mounts"
     " when a file system is forcibly unmounted");
 
+static SYSCTL_NODE(_vfs, OID_AUTO, deferred_unmount,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "deferred unmount controls");
+
+static unsigned int	deferred_unmount_retry_limit = 10;
+SYSCTL_UINT(_vfs_deferred_unmount, OID_AUTO, retry_limit, CTLFLAG_RW,
+    &deferred_unmount_retry_limit, 0,
+    "Maximum number of retries for deferred unmount failure");
+
+static int	deferred_unmount_retry_delay_hz;
+SYSCTL_INT(_vfs_deferred_unmount, OID_AUTO, retry_delay_hz, CTLFLAG_RW,
+    &deferred_unmount_retry_delay_hz, 0,
+    "Delay in units of [1/kern.hz]s when retrying a failed deferred unmount");
+
+static int	deferred_unmount_total_retries = 0;
+SYSCTL_INT(_vfs_deferred_unmount, OID_AUTO, total_retries, CTLFLAG_RD,
+    &deferred_unmount_total_retries, 0,
+    "Total number of retried deferred unmounts");
+
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 MALLOC_DEFINE(M_STATFS, "statfs", "statfs structure");
 static uma_zone_t mount_zone;
@@ -110,8 +128,7 @@ EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
 
 static void vfs_deferred_unmount(void *arg, int pending);
-static struct task deferred_unmount_task =
-    TASK_INITIALIZER(0, vfs_deferred_unmount, NULL);;
+static struct timeout_task deferred_unmount_task;
 static struct mtx deferred_unmount_lock;
 MTX_SYSINIT(deferred_unmount, &deferred_unmount_lock, "deferred_unmount",
     MTX_DEF);
@@ -166,7 +183,9 @@ mount_fini(void *mem, int size)
 static void
 vfs_mount_init(void *dummy __unused)
 {
-
+	TIMEOUT_TASK_INIT(taskqueue_deferred_unmount, &deferred_unmount_task,
+	    0, vfs_deferred_unmount, NULL);
+	deferred_unmount_retry_delay_hz = hz;
 	mount_zone = uma_zcreate("Mountpoints", sizeof(struct mount), NULL,
 	    NULL, mount_init, mount_fini, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
 }
@@ -688,6 +707,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	TAILQ_INIT(&mp->mnt_uppers);
 	TAILQ_INIT(&mp->mnt_notify);
 	mp->mnt_taskqueue_flags = 0;
+	mp->mnt_unmount_retries = 0;
 	return (mp);
 }
 
@@ -1895,7 +1915,8 @@ vfs_mount_fetch_counter(struct mount *mp, enum mount_counter which)
 }
 
 static bool
-deferred_unmount_enqueue(struct mount *mp, uint64_t flags, bool requeue)
+deferred_unmount_enqueue(struct mount *mp, uint64_t flags, bool requeue,
+    int timeout_ticks)
 {
 	bool enqueued;
 
@@ -1910,8 +1931,8 @@ deferred_unmount_enqueue(struct mount *mp, uint64_t flags, bool requeue)
 	mtx_unlock(&deferred_unmount_lock);
 
 	if (enqueued) {
-		taskqueue_enqueue(taskqueue_deferred_unmount,
-		    &deferred_unmount_task);
+		taskqueue_enqueue_timeout(taskqueue_deferred_unmount,
+		    &deferred_unmount_task, timeout_ticks);
 	}
 
 	return (enqueued);
@@ -1926,6 +1947,8 @@ vfs_deferred_unmount(void *argi __unused, int pending __unused)
 	STAILQ_HEAD(, mount) local_unmounts;
 	uint64_t flags;
 	struct mount *mp, *tmp;
+	int error;
+	unsigned int retries;
 	bool unmounted;
 
 	STAILQ_INIT(&local_unmounts);
@@ -1937,14 +1960,30 @@ vfs_deferred_unmount(void *argi __unused, int pending __unused)
 		flags = mp->mnt_taskqueue_flags;
 		KASSERT((flags & MNT_DEFERRED) != 0,
 		    ("taskqueue unmount without MNT_DEFERRED"));
-		if (dounmount(mp, flags, curthread) != 0) {
+		error = dounmount(mp, flags, curthread);
+		if (error != 0) {
 			MNT_ILOCK(mp);
 			unmounted = ((mp->mnt_kern_flag & MNTK_REFEXPIRE) != 0);
 			MNT_IUNLOCK(mp);
-			if (!unmounted)
-				deferred_unmount_enqueue(mp, flags, true);
-			else
+
+			/*
+			 * The deferred unmount thread is the only thread that
+			 * modifies the retry counts, so locking/atomics aren't
+			 * needed here.
+			 */
+			retries = (mp->mnt_unmount_retries)++;
+			deferred_unmount_total_retries++;
+			if (!unmounted && retries < deferred_unmount_retry_limit) {
+				deferred_unmount_enqueue(mp, flags, true,
+				    -deferred_unmount_retry_delay_hz);
+			} else {
+				if (retries >= deferred_unmount_retry_limit) {
+					printf("giving up on deferred unmount "
+					    "of %s after %d retries, error %d\n",
+					    mp->mnt_stat.f_mntonname, retries, error);
+				}
 				vfs_rel(mp);
+			}
 		}
 	}
 }
@@ -1960,6 +1999,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	int error;
 	uint64_t async_flag;
 	int mnt_gen_r;
+	unsigned int retries;
 
 	KASSERT((flags & MNT_DEFERRED) == 0 ||
 	    (flags & (MNT_RECURSE | MNT_FORCE)) == (MNT_RECURSE | MNT_FORCE),
@@ -1976,7 +2016,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	 */
 	if ((flags & MNT_DEFERRED) != 0 &&
 	    taskqueue_member(taskqueue_deferred_unmount, curthread) == 0) {
-		if (!deferred_unmount_enqueue(mp, flags, false))
+		if (!deferred_unmount_enqueue(mp, flags, false, 0))
 			vfs_rel(mp);
 		return (EINPROGRESS);
 	}
@@ -2017,9 +2057,16 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		mp->mnt_kern_flag |= MNTK_RECURSE;
 		mp->mnt_upper_pending++;
 		TAILQ_FOREACH(upper, &mp->mnt_uppers, mnt_upper_link) {
+			retries = upper->mp->mnt_unmount_retries;
+			if (retries > deferred_unmount_retry_limit) {
+				error = EBUSY;
+				continue;
+			}
 			MNT_IUNLOCK(mp);
+
 			vfs_ref(upper->mp);
-			if (!deferred_unmount_enqueue(upper->mp, flags, false))
+			if (!deferred_unmount_enqueue(upper->mp, flags,
+			    false, 0))
 				vfs_rel(upper->mp);
 			MNT_ILOCK(mp);
 		}
@@ -2029,6 +2076,7 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 			mp->mnt_kern_flag &= ~MNTK_UPPER_WAITER;
 			wakeup(&mp->mnt_uppers);
 		}
+
 		/*
 		 * If we're not on the taskqueue, wait until the uppers list
 		 * is drained before proceeding with unmount.  Otherwise, if
@@ -2043,8 +2091,9 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 			}
 		} else if (!TAILQ_EMPTY(&mp->mnt_uppers)) {
 			MNT_IUNLOCK(mp);
-			deferred_unmount_enqueue(mp, flags, true);
-			return (0);
+			if (error == 0)
+				deferred_unmount_enqueue(mp, flags, true, 0);
+			return (error);
 		}
 		MNT_IUNLOCK(mp);
 		KASSERT(TAILQ_EMPTY(&mp->mnt_uppers), ("mnt_uppers not empty"));
