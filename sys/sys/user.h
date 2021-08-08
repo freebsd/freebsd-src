@@ -349,7 +349,7 @@ struct kinfo_file {
 	int64_t		kf_offset;		/* Seek location. */
 	union {
 		struct {
-			/* API compatiblity with FreeBSD < 12. */
+			/* API compatibility with FreeBSD < 12. */
 			int		kf_vnode_type;
 			int		kf_sock_domain;
 			int		kf_sock_type;

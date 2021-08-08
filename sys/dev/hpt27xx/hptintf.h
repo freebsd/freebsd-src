@@ -132,7 +132,7 @@ typedef HPT_U32 DEVICEID;
 #define MAX_ARRAY_MEMBERS_V3 64
 #endif
 
-/* keep definition for source code compatiblity */
+/* keep definition for source code compatibility */
 #define MAX_ARRAY_MEMBERS MAX_ARRAY_MEMBERS_V1
 
 /*

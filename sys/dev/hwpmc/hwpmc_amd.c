@@ -771,7 +771,7 @@ amd_stop_pmc(int cpu, int ri)
 	/*
 	 * Due to NMI latency on newer AMD processors
 	 * NMI interrupts are ignored, which leads to
-	 * panic or messages based on kernel configuraiton
+	 * panic or messages based on kernel configuration
 	 */
 
 	/* Wait for the count to be reset */

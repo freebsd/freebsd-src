@@ -418,7 +418,7 @@ ses_iter_init(enc_softc_t *enc, enc_cache_t *cache, struct ses_iterator *iter)
 
 /**
  * \brief Traverse the provided SES iterator to the next element
- *        within the configuraiton.
+ *        within the configuration.
  *
  * \param iter  The iterator to move.
  *

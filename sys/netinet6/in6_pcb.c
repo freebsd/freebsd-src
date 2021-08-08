@@ -699,7 +699,7 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 
 		/*
 		 * Detect if we should notify the error. If no source and
-		 * destination ports are specifed, but non-zero flowinfo and
+		 * destination ports are specified, but non-zero flowinfo and
 		 * local address match, notify the error. This is the case
 		 * when the error is delivered with an encrypted buffer
 		 * by ESP. Otherwise, just compare addresses and ports

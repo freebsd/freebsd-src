@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INET
 
-/* Verify struct route compatiblity */
+/* Verify struct route compatibility */
 /* Assert 'struct route_in' is compatible with 'struct route' */
 CHK_STRUCT_ROUTE_COMPAT(struct route_in, ro_dst4);
 
