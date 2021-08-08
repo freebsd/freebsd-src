@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2014 The FreeBSD Foundation
- * All rights reserved.
  *
  * This software was developed by John-Mark Gurney under
  * the sponsorship of the FreeBSD Foundation and
