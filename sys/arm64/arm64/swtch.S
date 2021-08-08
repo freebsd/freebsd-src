@@ -203,8 +203,6 @@ ENTRY(cpu_switch)
 
 	str	xzr, [x4, #PCB_REGS + 18 * 8]
 	ret
-.Lcpu_switch_panic_str:
-	.asciz "cpu_switch: %p\0"
 END(cpu_switch)
 
 ENTRY(fork_trampoline)
