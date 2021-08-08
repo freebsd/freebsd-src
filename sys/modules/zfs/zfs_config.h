@@ -124,6 +124,9 @@
 /* blkg_tryget() GPL-only */
 /* #undef HAVE_BLKG_TRYGET_GPL_ONLY */
 
+/* blk_alloc_disk() exists */
+/* #undef HAVE_BLK_ALLOC_DISK */
+
 /* blk_alloc_queue() expects request function */
 /* #undef HAVE_BLK_ALLOC_QUEUE_REQUEST_FN */
 
@@ -673,6 +676,9 @@
 /* fops->read/write_iter() are available */
 /* #undef HAVE_VFS_RW_ITERATE */
 
+/* __set_page_dirty_nobuffers exists */
+/* #undef HAVE_VFS_SET_PAGE_DIRTY_NOBUFFERS */
+
 /* __vmalloc page flags exists */
 /* #undef HAVE_VMALLOC_PAGE_KERNEL */
 
@@ -803,7 +809,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_g14b43fbd9"
+#define ZFS_META_ALIAS "zfs-2.1.99-FreeBSD_gf3678d70f"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -833,7 +839,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_g14b43fbd9"
+#define ZFS_META_RELEASE "FreeBSD_gf3678d70f"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.1.99"
