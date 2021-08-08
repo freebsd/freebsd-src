@@ -2084,10 +2084,15 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		 * just re-enqueue on the end of the taskqueue.
 		 */
 		if ((flags & MNT_DEFERRED) == 0) {
-			while (!TAILQ_EMPTY(&mp->mnt_uppers)) {
+			while (error == 0 && !TAILQ_EMPTY(&mp->mnt_uppers)) {
 				mp->mnt_kern_flag |= MNTK_TASKQUEUE_WAITER;
-				msleep(&mp->mnt_taskqueue_link, MNT_MTX(mp), 0,
-				    "umntqw", 0);
+				error = msleep(&mp->mnt_taskqueue_link,
+				    MNT_MTX(mp), PCATCH, "umntqw", 0);
+			}
+			if (error != 0) {
+				MNT_REL(mp);
+				MNT_IUNLOCK(mp);
+				return (error);
 			}
 		} else if (!TAILQ_EMPTY(&mp->mnt_uppers)) {
 			MNT_IUNLOCK(mp);
