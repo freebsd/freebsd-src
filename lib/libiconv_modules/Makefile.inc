@@ -7,4 +7,3 @@ CFLAGS+=	-Dbool=_Bool
 
 SHLIBDIR= /usr/lib${COMPAT_libcompat:U}/i18n
 LIBDIR=	 ${SHLIBDIR}
-MK_PROFILE=	no

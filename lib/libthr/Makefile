@@ -91,9 +91,6 @@ SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
 .endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
-.endif
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests

@@ -135,9 +135,6 @@ SYMLINKS+=	libmenuw.a ${LIBDIR}/libmenu.a
 .if !defined(NO_PIC)
 SYMLINKS+=	libmenuw.so ${LIBDIR}/libmenu.so
 .endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=	libmenuw_p.a ${LIBDIR}/libmenu_p.a
-.endif
 
 .include <bsd.lib.mk>
 
