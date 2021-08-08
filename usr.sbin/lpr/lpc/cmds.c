@@ -94,7 +94,7 @@ static void	 wrapup_clean(int _laststatus);
  */
 enum	qsel_val {			/* how a given ptr was selected */
 	QSEL_UNKNOWN = -1,		/* ... not selected yet */
-	QSEL_BYNAME = 0,		/* ... user specifed it by name */
+	QSEL_BYNAME = 0,		/* ... user specified it by name */
 	QSEL_ALL = 1			/* ... user wants "all" printers */
 					/*     (with more to come)    */
 };

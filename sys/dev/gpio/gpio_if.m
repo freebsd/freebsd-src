@@ -85,7 +85,7 @@ METHOD int pin_max {
 };
 
 #
-# Set value of pin specifed by pin_num 
+# Set value of pin specified by pin_num 
 #
 METHOD int pin_set {
 	device_t dev;
@@ -94,7 +94,7 @@ METHOD int pin_set {
 };
 
 #
-# Get value of pin specifed by pin_num 
+# Get value of pin specified by pin_num 
 #
 METHOD int pin_get {
 	device_t dev;
@@ -103,7 +103,7 @@ METHOD int pin_get {
 };
 
 #
-# Toggle value of pin specifed by pin_num 
+# Toggle value of pin specified by pin_num 
 #
 METHOD int pin_toggle {
 	device_t dev;

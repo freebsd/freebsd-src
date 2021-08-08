@@ -215,7 +215,7 @@ showuid(u_long uid)
 }
 
 /*
- * Print out quotas for a specifed user name.
+ * Print out quotas for a specified user name.
  */
 static int
 showusrname(char *name)
@@ -246,7 +246,7 @@ showgid(u_long gid)
 }
 
 /*
- * Print out quotas for a specifed group name.
+ * Print out quotas for a specified group name.
  */
 static int
 showgrpname(char *name)
