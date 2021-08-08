@@ -261,6 +261,7 @@ struct mount {
 	TAILQ_HEAD(, mount_upper_node) mnt_notify; /* (i) upper mounts for notification */
 	STAILQ_ENTRY(mount) mnt_taskqueue_link;	/* (d) our place in deferred unmount list */
 	uint64_t	mnt_taskqueue_flags;	/* (d) unmount flags passed from taskqueue */
+	unsigned int	mnt_unmount_retries;	/* (d) # of failed deferred unmount attempts */
 };
 #endif	/* _WANT_MOUNT || _KERNEL */
 
