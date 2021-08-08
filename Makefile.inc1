@@ -1889,7 +1889,8 @@ _pkgbootstrap: .PHONY
 .if make(create-world-packages-jobs) || make(create-kernel-packages*) || make(real-update-packages) || make(sign-packages)
 PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
 .endif
-PKG_BIN_VERSION!=${PKG_CMD} --version | awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
+PKG_BIN_VERSION!=${PKG_CMD} --version </dev/null 2>/dev/null |\
+    awk -F. '/^[0-9.]+$$/ {print $$1 * 10000 + $$2 * 100 + $$3}'
 .if ${PKG_BIN_VERSION} < 11700
 PKG_EXT=	${PKG_FORMAT}
 .else
