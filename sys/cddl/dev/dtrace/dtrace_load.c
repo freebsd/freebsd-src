@@ -119,7 +119,7 @@ dtrace_load(void *dummy)
 	    offsetof(dtrace_probe_t, dtpr_prevname));
 
 	if (dtrace_retain_max < 1) {
-		cmn_err(CE_WARN, "illegal value (%lu) for dtrace_retain_max; "
+		cmn_err(CE_WARN, "illegal value (%zu) for dtrace_retain_max; "
 		    "setting to 1", dtrace_retain_max);
 		dtrace_retain_max = 1;
 	}
