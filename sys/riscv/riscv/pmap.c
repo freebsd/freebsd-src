@@ -1348,7 +1348,10 @@ pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 
 retry:
 	l1 = pmap_l1(pmap, va);
-	if (l1 != NULL && (pmap_load(l1) & PTE_RWX) == 0) {
+	if (l1 != NULL && (pmap_load(l1) & PTE_V) != 0) {
+		KASSERT((pmap_load(l1) & PTE_RWX) == 0,
+		    ("%s: L1 entry %#lx for VA %#lx is a leaf", __func__,
+		    pmap_load(l1), va));
 		/* Add a reference to the L2 page. */
 		l2pg = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
 		l2pg->ref_count++;
