@@ -124,12 +124,6 @@
 #define	CTR_ILINE_VAL(reg)	((reg) & CTR_ILINE_MASK)
 #define	CTR_ILINE_SIZE(reg)	(4 << (CTR_ILINE_VAL(reg) >> CTR_ILINE_SHIFT))
 
-/* DAIF - Interrupt Mask Bits */
-#define	DAIF_D_MASKED		(1 << 9)
-#define	DAIF_A_MASKED		(1 << 8)
-#define	DAIF_I_MASKED		(1 << 7)
-#define	DAIF_F_MASKED		(1 << 6)
-
 /* DAIFSet/DAIFClear */
 #define	DAIF_D			(1 << 3)
 #define	DAIF_A			(1 << 2)
@@ -1078,6 +1072,8 @@
 #define	PSR_A		0x00000100
 #define	PSR_D		0x00000200
 #define	PSR_DAIF	(PSR_D | PSR_A | PSR_I | PSR_F)
+/* The default DAIF mask. These bits are valid in spsr_el1 and daif */
+#define	PSR_DAIF_DEFAULT (PSR_F)
 #define	PSR_IL		0x00100000
 #define	PSR_SS		0x00200000
 #define	PSR_V		0x10000000
