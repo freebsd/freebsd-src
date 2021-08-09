@@ -1181,7 +1181,7 @@ amdvi_create_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa,
 }
 
 static uint64_t
-amdvi_destroy_mapping(void *arg, vm_paddr_t gpa, uint64_t len)
+amdvi_remove_mapping(void *arg, vm_paddr_t gpa, uint64_t len)
 {
 	struct amdvi_domain *domain;
 
@@ -1360,7 +1360,7 @@ amdvi_disable(void)
 }
 
 static void
-amdvi_inv_tlb(void *arg)
+amdvi_invalidate_tlb(void *arg)
 {
 	struct amdvi_domain *domain;
 
@@ -1369,16 +1369,16 @@ amdvi_inv_tlb(void *arg)
 	amdvi_do_inv_domain(domain->id, false);
 }
 
-struct iommu_ops iommu_ops_amd = {
-	amdvi_init,
-	amdvi_cleanup,
-	amdvi_enable,
-	amdvi_disable,
-	amdvi_create_domain,
-	amdvi_destroy_domain,
-	amdvi_create_mapping,
-	amdvi_destroy_mapping,
-	amdvi_add_device,
-	amdvi_remove_device,
-	amdvi_inv_tlb
+const struct iommu_ops iommu_ops_amd = {
+	.init = amdvi_init,
+	.cleanup = amdvi_cleanup,
+	.enable = amdvi_enable,
+	.disable = amdvi_disable,
+	.create_domain = amdvi_create_domain,
+	.destroy_domain = amdvi_destroy_domain,
+	.create_mapping = amdvi_create_mapping,
+	.remove_mapping = amdvi_remove_mapping,
+	.add_device = amdvi_add_device,
+	.remove_device = amdvi_remove_device,
+	.invalidate_tlb = amdvi_invalidate_tlb
 };

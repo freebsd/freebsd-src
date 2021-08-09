@@ -59,7 +59,7 @@ static int iommu_enable = 1;
 SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, enable, CTLFLAG_RDTUN, &iommu_enable, 0,
     "Enable use of I/O MMU (required for PCI passthrough).");
 
-static struct iommu_ops *ops;
+static const struct iommu_ops *ops;
 static void *host_domain;
 static eventhandler_tag add_tag, delete_tag;
 
