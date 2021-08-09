@@ -151,7 +151,7 @@ usage(const char *why)
 	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
 	fprintf(stderr, "\t--version\t-  show version information\n");
 	fputc('\n', stderr);
-	fprintf(stderr, "\t-a <num>\t-  mark num'th partion as active\n");
+	fprintf(stderr, "\t-a <num>\t-  mark num'th partition as active\n");
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-c <num>\t-  minimum capacity (in bytes) of the disk\n");
 	fprintf(stderr, "\t-C <num>\t-  maximum capacity (in bytes) of the disk\n");
