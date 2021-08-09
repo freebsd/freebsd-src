@@ -137,10 +137,9 @@ vmread(uint64_t r, uint64_t *addr)
 
 	__asm __volatile("vmread %[r], %[addr];"
 			 VMX_SET_ERROR_CODE
-			 : [error] "=r" (error)
-			 : [r] "r" (r), [addr] "m" (*addr)
+			 : [error] "=r" (error), [addr] "=m" (*addr)
+			 : [r] "r" (r)
 			 : "memory");
-
 	return (error);
 }
 
