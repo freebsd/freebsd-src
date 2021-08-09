@@ -2584,7 +2584,7 @@ ip6_pcbopt(int optname, u_char *buf, int len, struct ip6_pktopts **pktopt,
 		pktopt = inp->in6p_outputopts;					\
 		if (pktopt && pktopt->field) {					\
 			optdatalen = min(lenexpr, sopt->sopt_valsize);		\
-			bcopy(&pktopt->field, optdata, optdatalen);		\
+			bcopy(pktopt->field, optdata, optdatalen);		\
 		} else {							\
 			free(optdata, M_TEMP);					\
 			optdata = NULL;						\
