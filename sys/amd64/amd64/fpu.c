@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(csr)		__asm __volatile("ldmxcsr %0" : : "m" (csr))
-#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
+#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
 
 static __inline void
 xrstor32(char *addr, uint64_t mask)
