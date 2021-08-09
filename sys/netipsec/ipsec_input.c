@@ -68,7 +68,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/in_var.h>
+#include <netinet/tcp_var.h>
 
 #include <netinet/ip6.h>
 #ifdef INET6
@@ -263,6 +265,40 @@ ipsec4_input(struct mbuf *m, int offset, int proto)
 		m_freem(m);
 		return (EACCES);
 	}
+	return (0);
+}
+
+int
+ipsec4_ctlinput(int code, struct sockaddr *sa, void *v)
+{
+	struct in_conninfo inc;
+	struct secasvar *sav;
+	struct icmp *icp;
+	struct ip *ip = v;
+	uint32_t pmtu, spi;
+
+	if (code != PRC_MSGSIZE || ip == NULL)
+		return (EINVAL);
+	if (sa->sa_family != AF_INET ||
+	    sa->sa_len != sizeof(struct sockaddr_in))
+		return (EAFNOSUPPORT);
+
+	icp = __containerof(ip, struct icmp, icmp_ip);
+	pmtu = ntohs(icp->icmp_nextmtu);
+
+	if (pmtu < V_ip4_ipsec_min_pmtu)
+		return (EINVAL);
+
+	memcpy(&spi, (caddr_t)ip + (ip->ip_hl << 2), sizeof(spi));
+	sav = key_allocsa((union sockaddr_union *)sa, ip->ip_p, spi);
+	if (sav == NULL)
+		return (ENOENT);
+
+	key_freesav(&sav);
+
+	memset(&inc, 0, sizeof(inc));
+	inc.inc_faddr = satosin(sa)->sin_addr;
+	tcp_hc_updatemtu(&inc, pmtu);
 	return (0);
 }
 
@@ -479,6 +515,12 @@ ipsec6_input(struct mbuf *m, int offset, int proto)
 		m_freem(m);
 		return (EACCES);
 	}
+	return (0);
+}
+
+int
+ipsec6_ctlinput(int code, struct sockaddr *sa, void *v)
+{
 	return (0);
 }
 
