@@ -3173,15 +3173,19 @@ setutimes(struct thread *td, struct vnode *vp, const struct timespec *ts,
 {
 	struct mount *mp;
 	struct vattr vattr;
-	int error, setbirthtime;
+	int error;
+	bool setbirthtime;
+
+	setbirthtime = false;
+	vattr.va_birthtime.tv_sec = VNOVAL;
+	vattr.va_birthtime.tv_nsec = 0;
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	setbirthtime = 0;
-	if (numtimes < 3 && !VOP_GETATTR(vp, &vattr, td->td_ucred) &&
+	if (numtimes < 3 && VOP_GETATTR(vp, &vattr, td->td_ucred) == 0 &&
 	    timespeccmp(&ts[1], &vattr.va_birthtime, < ))
-		setbirthtime = 1;
+		setbirthtime = true;
 	VATTR_NULL(&vattr);
 	vattr.va_atime = ts[0];
 	vattr.va_mtime = ts[1];
