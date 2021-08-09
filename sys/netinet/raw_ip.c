@@ -880,6 +880,12 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 		ifa_free(&ia->ia_ifa);
 		break;
+#if defined(IPSEC) || defined(IPSEC_SUPPORT)
+	case PRC_MSGSIZE:
+		if (IPSEC_ENABLED(ipv4))
+			IPSEC_CTLINPUT(ipv4, cmd, sa, vip);
+		break;
+#endif
 	}
 }
 

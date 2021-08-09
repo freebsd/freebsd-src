@@ -134,6 +134,8 @@ extern const struct ipsec_support * const ipv6_ipsec_support;
     (*(proto ## _ipsec_support)->methods->capability)(m, __VA_ARGS__)
 #define	IPSEC_HDRSIZE(proto, inp)		\
     (*(proto ## _ipsec_support)->methods->hdrsize)(inp)
+#define	IPSEC_CTLINPUT(proto, code, sa, v)	\
+    (*(proto ## _ipsec_support)->methods->ctlinput)(code, sa, v)
 
 #define	UDPENCAP_INPUT(m, ...)			\
     (*ipv4_ipsec_support->methods->udp_input)(m, __VA_ARGS__)
@@ -162,6 +164,8 @@ int ipsec_kmod_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
 int ipsec_kmod_capability(struct ipsec_support * const, struct mbuf *, u_int);
 size_t ipsec_kmod_hdrsize(struct ipsec_support * const, struct inpcb *);
+int ipsec_kmod_ctlinput(struct ipsec_support * const, int,
+    struct sockaddr *, void *);
 int ipsec_kmod_udp_input(struct ipsec_support * const, struct mbuf *, int, int);
 int ipsec_kmod_udp_pcbctl(struct ipsec_support * const, struct inpcb *,
     struct sockopt *);
@@ -185,6 +189,8 @@ int ipsec_kmod_udp_pcbctl(struct ipsec_support * const, struct inpcb *,
     ipsec_kmod_capability(proto ## _ipsec_support, __VA_ARGS__)
 #define	IPSEC_HDRSIZE(proto, ...)	\
     ipsec_kmod_hdrsize(proto ## _ipsec_support, __VA_ARGS__)
+#define	IPSEC_CTLINPUT(proto, ...)	\
+    ipsec_kmod_ctlinput(proto ## _ipsec_support, __VA_ARGS__)
 #endif /* IPSEC_SUPPORT */
 #endif /* _KERNEL */
 #endif /* _NETIPSEC_IPSEC_SUPPORT_H_ */

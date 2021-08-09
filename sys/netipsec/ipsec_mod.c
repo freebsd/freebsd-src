@@ -63,6 +63,7 @@ static const struct ipsec_methods ipv4_methods = {
 	.pcbctl = ipsec4_pcbctl,
 	.capability = ipsec4_capability,
 	.check_policy = ipsec4_in_reject,
+	.ctlinput = ipsec4_ctlinput,
 	.hdrsize = ipsec_hdrsiz_inpcb,
 	.udp_input = udp_ipsec_input,
 	.udp_pcbctl = udp_ipsec_pcbctl,
@@ -84,6 +85,7 @@ static const struct ipsec_methods ipv6_methods = {
 	.pcbctl = ipsec6_pcbctl,
 	.capability = ipsec6_capability,
 	.check_policy = ipsec6_in_reject,
+	.ctlinput = ipsec6_ctlinput,
 	.hdrsize = ipsec_hdrsiz_inpcb,
 };
 #ifndef KLD_MODULE

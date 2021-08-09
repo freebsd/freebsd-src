@@ -246,6 +246,7 @@ struct ipsecstat {
 #define	IPSECCTL_ECN			11
 #define	IPSECCTL_DEBUG			12
 #define	IPSECCTL_ESP_RANDPAD		13
+#define	IPSECCTL_MIN_PMTU		14
 
 #ifdef _KERNEL
 #include <sys/counter.h>
@@ -277,6 +278,7 @@ VNET_DECLARE(int, ip4_esp_net_deflev);
 VNET_DECLARE(int, ip4_ah_trans_deflev);
 VNET_DECLARE(int, ip4_ah_net_deflev);
 VNET_DECLARE(int, ip4_ipsec_dfbit);
+VNET_DECLARE(int, ip4_ipsec_min_pmtu);
 VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
@@ -289,6 +291,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	V_ip4_ah_trans_deflev	VNET(ip4_ah_trans_deflev)
 #define	V_ip4_ah_net_deflev	VNET(ip4_ah_net_deflev)
 #define	V_ip4_ipsec_dfbit	VNET(ip4_ipsec_dfbit)
+#define	V_ip4_ipsec_min_pmtu	VNET(ip4_ipsec_min_pmtu)
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
 #define	V_crypto_support	VNET(crypto_support)
 #define	V_async_crypto		VNET(async_crypto)
@@ -341,6 +344,7 @@ int ipsec4_pcbctl(struct inpcb *, struct sockopt *);
 int ipsec4_output(struct mbuf *, struct inpcb *);
 int ipsec4_capability(struct mbuf *, u_int);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
+int ipsec4_ctlinput(int, struct sockaddr *, void *);
 int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
 int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
     u_int);
