@@ -225,11 +225,11 @@ nd6_init(void)
 	nd6_defrouter_init();
 
 	/* Start timers. */
-	callout_init(&V_nd6_slowtimo_ch, 0);
+	callout_init(&V_nd6_slowtimo_ch, 1);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 
-	callout_init(&V_nd6_timer_ch, 0);
+	callout_init(&V_nd6_timer_ch, 1);
 	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	nd6_dad_init();

@@ -889,7 +889,7 @@ in6_ifattach_init(void *dummy)
 {
 
 	/* Timer for regeneranation of temporary addresses randomize ID. */
-	callout_init(&V_in6_tmpaddrtimer_ch, 0);
+	callout_init(&V_in6_tmpaddrtimer_ch, 1);
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 	    V_ip6_temp_regen_advance) * hz,
