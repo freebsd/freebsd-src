@@ -462,7 +462,6 @@ arm/mv/mv_cp110_clock.c				optional SOC_MARVELL_8K fdt
 arm/mv/mv_cp110_icu.c				optional mv_cp110_icu fdt
 arm/mv/mv_cp110_icu_bus.c			optional mv_cp110_icu fdt
 arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
-arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 
 # NVidia
 arm/nvidia/tegra_abpmisc.c			optional fdt soc_nvidia_tegra210
