@@ -75,23 +75,25 @@ __FBSDID("$FreeBSD$");
 
 	ldr	x0, [x18, #(PC_CURTHREAD)]
 	bl	dbg_monitor_enter
-	msr	daifclr, #DAIF_D	/* Enable the debug exception */
-.endif
+
+	/* Unmask debug and SError exceptions */
+	msr	daifclr, #(DAIF_D | DAIF_A)
+.else
 	/*
+	 * Unmask debug and SError exceptions.
 	 * For EL1, debug exceptions are conditionally unmasked in
 	 * do_el1h_sync().
 	 */
+	msr	daifclr, #(DAIF_A)
+.endif
 .endm
 
 .macro	restore_registers el
-.if \el == 1
 	/*
-	 * Disable interrupts and debug exceptions, x18 may change in the
-	 * interrupt exception handler.  For EL0 exceptions, do_ast already
-	 * did this.
+	 * Mask all exceptions, x18 may change in the interrupt exception
+	 * handler.
 	 */
-	msr	daifset, #(DAIF_D | DAIF_INTR)
-.endif
+	msr	daifset, #(DAIF_ALL)
 .if \el == 0
 	ldr	x0, [x18, #PC_CURTHREAD]
 	mov	x1, sp
@@ -147,8 +149,10 @@ __FBSDID("$FreeBSD$");
 	/* Make sure the IRQs are enabled before calling ast() */
 	bic	x19, x19, #PSR_I
 1:
-	/* Disable interrupts */
-	msr	daifset, #(DAIF_D | DAIF_INTR)
+	/*
+	 * Mask interrupts while checking the ast pending flag
+	 */
+	msr	daifset, #(DAIF_INTR)
 
 	/* Read the current thread flags */
 	ldr	x1, [x18, #PC_CURTHREAD]	/* Load curthread */

@@ -147,6 +147,13 @@ intr_enable(void)
 	__asm __volatile("msr daifclr, #(" __XSTRING(DAIF_INTR) ")");
 }
 
+static __inline void
+serror_enable(void)
+{
+
+	__asm __volatile("msr daifclr, #(" __XSTRING(DAIF_A) ")");
+}
+
 static __inline register_t
 get_midr(void)
 {
