@@ -828,6 +828,7 @@ void
 in6_tmpaddrtimer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
+	struct epoch_tracker et;
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
 	struct ifnet *ifp;
@@ -837,6 +838,7 @@ in6_tmpaddrtimer(void *arg)
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
@@ -850,7 +852,7 @@ in6_tmpaddrtimer(void *arg)
 			    ndi->randomseed1, ndi->randomid);
 		}
 	}
-
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
 
