@@ -62,8 +62,7 @@ static int lem_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
    qidx_t budget);
 static int lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
 
-static void lem_receive_checksum(int status, int errors, if_rxd_info_t ri);
-static void em_receive_checksum(uint32_t status, if_rxd_info_t ri);
+static void em_receive_checksum(uint16_t, uint8_t, if_rxd_info_t);
 static int em_determine_rsstype(u32 pkt_info);
 extern int em_intr(void *arg);
 
@@ -646,8 +645,8 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	} while (!eop);
 
 	/* XXX add a faster way to look this up */
-	if (adapter->hw.mac.type >= e1000_82543 && !(status & E1000_RXD_STAT_IXSM))
-		lem_receive_checksum(status, errors, ri);
+	if (adapter->hw.mac.type >= e1000_82543)
+		em_receive_checksum(status, errors, ri);
 
 	if (status & E1000_RXD_STAT_VP) {
 		ri->iri_vtag = le16toh(rxd->special);
@@ -707,9 +706,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
-	/* XXX add a faster way to look this up */
-	if (adapter->hw.mac.type >= e1000_82543)
-		em_receive_checksum(staterr, ri);
+	em_receive_checksum(staterr, staterr >> 24, ri);
 
 	if (staterr & E1000_RXD_STAT_VP) {
 		vtag = le16toh(rxd->wb.upper.vlan);
@@ -734,19 +731,24 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *
  *********************************************************************/
 static void
-lem_receive_checksum(int status, int errors, if_rxd_info_t ri)
+em_receive_checksum(uint16_t status, uint8_t errors, if_rxd_info_t ri)
 {
-	/* Did it pass? */
-	if (status & E1000_RXD_STAT_IPCS && !(errors & E1000_RXD_ERR_IPE))
-		ri->iri_csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID);
+	if (__predict_false(status & E1000_RXD_STAT_IXSM))
+		return;
 
-	if (status & E1000_RXD_STAT_TCPCS) {
-		/* Did it pass? */
-		if (!(errors & E1000_RXD_ERR_TCPE)) {
-			ri->iri_csum_flags |=
-			(CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-			ri->iri_csum_data = htons(0xffff);
-		}
+	/* If there is a layer 3 or 4 error we are done */
+	if (__predict_false(errors & (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
+		return;
+
+	/* IP Checksum Good */
+	if (status & E1000_RXD_STAT_IPCS)
+		ri->iri_csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
+
+	/* Valid L4E checksum */
+	if (__predict_true(status &
+	    (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))) {
+		ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+		ri->iri_csum_data = htons(0xffff);
 	}
 }
 
@@ -773,32 +775,5 @@ em_determine_rsstype(u32 pkt_info)
 		return M_HASHTYPE_RSS_TCP_IPV6_EX;
 	default:
 		return M_HASHTYPE_OPAQUE;
-	}
-}
-
-static void
-em_receive_checksum(uint32_t status, if_rxd_info_t ri)
-{
-	ri->iri_csum_flags = 0;
-
-	/* Ignore Checksum bit is set */
-	if (status & E1000_RXD_STAT_IXSM)
-		return;
-
-	/* If the IP checksum exists and there is no IP Checksum error */
-	if ((status & (E1000_RXD_STAT_IPCS | E1000_RXDEXT_STATERR_IPE)) ==
-	    E1000_RXD_STAT_IPCS) {
-		ri->iri_csum_flags = (CSUM_IP_CHECKED | CSUM_IP_VALID);
-	}
-
-	/* TCP or UDP checksum */
-	if ((status & (E1000_RXD_STAT_TCPCS | E1000_RXDEXT_STATERR_TCPE)) ==
-	    E1000_RXD_STAT_TCPCS) {
-		ri->iri_csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		ri->iri_csum_data = htons(0xffff);
-	}
-	if (status & E1000_RXD_STAT_UDPCS) {
-		ri->iri_csum_flags |= (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
-		ri->iri_csum_data = htons(0xffff);
 	}
 }
