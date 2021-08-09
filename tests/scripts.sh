@@ -33,6 +33,7 @@ script="$0"
 
 testdir=$(dirname "${script}")
 
+# Command-line processing.
 if [ "$#" -eq 0 ]; then
 	printf 'usage: %s dir [run_extra_tests] [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
 	exit 1
@@ -80,6 +81,7 @@ scriptdir="$testdir/$d/scripts"
 
 scripts=$(cat "$scriptdir/all.txt")
 
+# Run each script test individually.
 for s in $scripts; do
 
 	f=$(basename "$s")

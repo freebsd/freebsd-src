@@ -33,7 +33,7 @@
  *
  */
 
-scale=20
+scale=2*A
 define e(x){
 	auto b,s,n,r,d,i,p,f,v
 	b=ibase
