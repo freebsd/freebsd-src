@@ -28,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2020
+.Dd August 9, 2021
 .Dt IP 4
 .Os
 .Sh NAME
@@ -107,6 +107,15 @@ setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
 
 int ttl = 60;                   /* max = 255 */
 setsockopt(s, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+.Ed
+.Pp
+.Dv IP_IPSEC_POLICY
+controls IPSec policy for sockets.
+For example,
+.Bd -literal
+const char *policy = "in ipsec ah/transport//require";
+char *buf = ipsec_set_policy(policy, strlen(policy));
+setsockopt(s, IPPROTO_IP, IP_IPSEC_POLICY, buf, ipsec_get_policylen(buf));
 .Ed
 .Pp
 .Dv IP_MINTTL
