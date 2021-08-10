@@ -313,6 +313,13 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 						}
 						if (bit >= 0 && ((1 << bit) & mask) == 0)
 							break;
+						if (strcmp(cp + 2, "#") == 0) {
+							if (verbose_flag) {
+								printf("Ignoring %s (%c) table=%#x tomatch=%#x\n",
+								    cp + 2, *cp, v, ival);
+							}
+							break;
+						}
 						v = pnpval_as_int(cp + 2, pnpinfo);
 						if (verbose_flag)
 							printf("Matching %s (%c) table=%#x tomatch=%#x\n",
@@ -351,6 +358,13 @@ search_hints(const char *bus, const char *dev, const char *pnpinfo)
 							break;
 						if (bit >= 0 && ((1 << bit) & mask) == 0)
 							break;
+						if (strcmp(cp + 2, "#") == 0) {
+							if (verbose_flag) {
+								printf("Ignoring %s (%c) table=%#x tomatch=%#x\n",
+								    cp + 2, *cp, v, ival);
+							}
+							break;
+						}
 						s = pnpval_as_str(cp + 2, pnpinfo);
 						if (verbose_flag)
 							printf("Matching %s (%c) table=%s tomatch=%s\n",
