@@ -216,7 +216,7 @@ efi_copy_free(void)
 }
 
 #ifdef __amd64__
-int copy_staging = COPY_STAGING_ENABLE;
+int copy_staging = COPY_STAGING_AUTO;
 
 static int
 command_copy_staging(int argc, char *argv[])
