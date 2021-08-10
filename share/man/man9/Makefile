@@ -196,6 +196,7 @@ MAN=	accept_filter.9 \
 	kernacc.9 \
 	kernel_mount.9 \
 	khelp.9 \
+	kmsan.9 \
 	kobj.9 \
 	kproc.9 \
 	kqueue.9 \
@@ -1320,6 +1321,13 @@ MLINKS+=khelp.9 khelp_add_hhook.9 \
 	khelp.9 khelp_get_osd.9 \
 	khelp.9 khelp_init_osd.9 \
 	khelp.9 khelp_remove_hhook.9
+MLINKS+=kmsan.9 KMSAN.9 \
+	kmsan.9 kmsan_check.9 \
+	kmsan.9 kmsan_check_bio.9 \
+	kmsan.9 kmsan_check_ccb.9 \
+	kmsan.9 kmsan_check_mbuf.9 \
+	kmsan.9 kmsan_mark.9 \
+	kmsan.9 kmsan_oirg.9
 MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_compile.9 \
 	kobj.9 kobj_class_compile_static.9 \
