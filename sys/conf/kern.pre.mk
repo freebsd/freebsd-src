@@ -122,6 +122,12 @@ KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
 SAN_CFLAGS+=	-fsanitize=thread
 .endif
 
+KMSAN_ENABLED!= grep KMSAN opt_global.h || true ; echo
+.if !empty(KMSAN_ENABLED)
+SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kmsan \
+		-fsanitize=kernel-memory
+.endif
+
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
 .if !empty(KUBSAN_ENABLED)
 SAN_CFLAGS+=	-fsanitize=undefined
