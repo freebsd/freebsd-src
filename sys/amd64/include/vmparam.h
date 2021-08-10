@@ -75,7 +75,7 @@
  * of the direct mapped segment.  This uses 2MB pages for reduced
  * TLB pressure.
  */
-#ifndef KASAN
+#if !defined(KASAN) && !defined(KMSAN)
 #define	UMA_MD_SMALL_ALLOC
 #endif
 

@@ -217,6 +217,15 @@ pbuf_zsecond_create(const char *name, int max)
 
 	zone = uma_zsecond_create(name, pbuf_ctor, pbuf_dtor, NULL, NULL,
 	    pbuf_zone);
+
+#ifdef KMSAN
+	/*
+	 * Shrink the size of the pbuf pools if KMSAN is enabled, otherwise the
+	 * shadows of the large KVA allocations eat up too much memory.
+	 */
+	max /= 3;
+#endif
+
 	/*
 	 * uma_prealloc() rounds up to items per slab. If we would prealloc
 	 * immediately on every pbuf_zsecond_create(), we may accumulate too
