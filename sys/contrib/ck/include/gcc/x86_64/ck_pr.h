@@ -149,7 +149,7 @@ ck_pr_rfo(const void *m)
 		return v;					\
 	}
 
-CK_PR_FAS(ptr, void, void *, char, "xchgq")
+CK_PR_FAS(ptr, void, void *, uint64_t, "xchgq")
 
 #define CK_PR_FAS_S(S, T, I) CK_PR_FAS(S, T, T, T, I)
 
@@ -182,7 +182,7 @@ CK_PR_FAS_S(8,  uint8_t,  "xchgb")
 		return (r);					\
 	}
 
-CK_PR_LOAD(ptr, void, void *, char, "movq")
+CK_PR_LOAD(ptr, void, void *, uint64_t, "movq")
 
 #define CK_PR_LOAD_S(S, T, I) CK_PR_LOAD(S, T, T, T, I)
 
@@ -264,7 +264,7 @@ CK_PR_LOAD_2(8, 16, uint8_t)
 		return;						\
 	}
 
-CK_PR_STORE_IMM(ptr, void, const void *, char, "movq", CK_CC_IMM_U32)
+CK_PR_STORE_IMM(ptr, void, const void *, uint64_t, "movq", CK_CC_IMM_U32)
 #ifndef CK_PR_DISABLE_DOUBLE
 CK_PR_STORE(double, double, double, double, "movq")
 #endif
@@ -298,7 +298,7 @@ CK_PR_STORE_S(8,  uint8_t, "movb", CK_CC_IMM_U32)
 		return (d);						\
 	}
 
-CK_PR_FAA(ptr, void, uintptr_t, char, "xaddq")
+CK_PR_FAA(ptr, void, uintptr_t, uint64_t, "xaddq")
 
 #define CK_PR_FAA_S(S, T, I) CK_PR_FAA(S, T, T, T, I)
 
@@ -347,7 +347,7 @@ CK_PR_FAA_S(8,  uint8_t,  "xaddb")
 #define CK_PR_UNARY_S(K, S, T, I) CK_PR_UNARY(K, S, T, T, I)
 
 #define CK_PR_GENERATE(K)				\
-	CK_PR_UNARY(K, ptr, void, char, #K "q") 	\
+	CK_PR_UNARY(K, ptr, void, uint64_t, #K "q") 	\
 	CK_PR_UNARY_S(K, char, char, #K "b")		\
 	CK_PR_UNARY_S(K, int, int, #K "l")		\
 	CK_PR_UNARY_S(K, uint, unsigned int, #K "l")	\
@@ -388,7 +388,7 @@ CK_PR_GENERATE(not)
 #define CK_PR_BINARY_S(K, S, T, I, O) CK_PR_BINARY(K, S, T, T, T, I, O)
 
 #define CK_PR_GENERATE(K)							\
-	CK_PR_BINARY(K, ptr, void, uintptr_t, char, #K "q", CK_CC_IMM_U32)	\
+	CK_PR_BINARY(K, ptr, void, uintptr_t, uint64_t, #K "q", CK_CC_IMM_U32)	\
 	CK_PR_BINARY_S(K, char, char, #K "b", CK_CC_IMM_S32)			\
 	CK_PR_BINARY_S(K, int, int, #K "l", CK_CC_IMM_S32)			\
 	CK_PR_BINARY_S(K, uint, unsigned int, #K "l", CK_CC_IMM_U32)		\
@@ -424,7 +424,7 @@ CK_PR_GENERATE(xor)
 		return z;							\
 	}
 
-CK_PR_CAS(ptr, void, void *, char, "cmpxchgq")
+CK_PR_CAS(ptr, void, void *, uint64_t, "cmpxchgq")
 
 #define CK_PR_CAS_S(S, T, I) CK_PR_CAS(S, T, T, T, I)
 
@@ -462,7 +462,7 @@ CK_PR_CAS_S(8,  uint8_t,  "cmpxchgb")
 		return z;							\
 	}
 
-CK_PR_CAS_O(ptr, void, void *, char, "q", "rax")
+CK_PR_CAS_O(ptr, void, void *, uint64_t, "q", "rax")
 
 #define CK_PR_CAS_O_S(S, T, I, R)	\
 	CK_PR_CAS_O(S, T, T, T, I, R)
@@ -587,12 +587,12 @@ CK_PR_CAS_V(8, 16, uint8_t)
 
 #define CK_PR_BT_S(K, S, T, I) CK_PR_BT(K, S, T, T, T, I)
 
-#define CK_PR_GENERATE(K)					\
-	CK_PR_BT(K, ptr, void, uint64_t, char, #K "q %2, %0")	\
-	CK_PR_BT_S(K, uint, unsigned int, #K "l %2, %0")	\
-	CK_PR_BT_S(K, int, int, #K "l %2, %0")			\
-	CK_PR_BT_S(K, 64, uint64_t, #K "q %2, %0")		\
-	CK_PR_BT_S(K, 32, uint32_t, #K "l %2, %0")		\
+#define CK_PR_GENERATE(K)						\
+	CK_PR_BT(K, ptr, void, uint64_t, uint64_t, #K "q %2, %0")	\
+	CK_PR_BT_S(K, uint, unsigned int, #K "l %2, %0")		\
+	CK_PR_BT_S(K, int, int, #K "l %2, %0")				\
+	CK_PR_BT_S(K, 64, uint64_t, #K "q %2, %0")			\
+	CK_PR_BT_S(K, 32, uint32_t, #K "l %2, %0")			\
 	CK_PR_BT_S(K, 16, uint16_t, #K "w %w2, %0")
 
 CK_PR_GENERATE(btc)
