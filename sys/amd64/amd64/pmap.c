@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rangeset.h>
@@ -161,8 +162,8 @@ __FBSDID("$FreeBSD$");
 #include <x86/ifunc.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/msan.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
 #ifdef SMP
@@ -429,6 +430,17 @@ u_int64_t		KPML5phys;	/* phys addr of kernel level 5,
 
 #ifdef KASAN
 static uint64_t		KASANPDPphys;
+#endif
+#ifdef KMSAN
+static uint64_t		KMSANSHADPDPphys;
+static uint64_t		KMSANORIGPDPphys;
+
+/*
+ * To support systems with large amounts of memory, it is necessary to extend
+ * the maximum size of the direct map.  This could eat into the space reserved
+ * for the shadow map.
+ */
+_Static_assert(DMPML4I + NDMPML4E <= KMSANSHADPML4I, "direct map overflow");
 #endif
 
 static pml4_entry_t	*kernel_pml4;
@@ -1682,12 +1694,20 @@ create_pagetables(vm_paddr_t *firstaddr)
 		DMPDphys = allocpages(firstaddr, ndmpdp - ndm1g);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
-	/* Allocate pages */
+	/* Allocate pages. */
 	KPML4phys = allocpages(firstaddr, 1);
 	KPDPphys = allocpages(firstaddr, NKPML4E);
 #ifdef KASAN
 	KASANPDPphys = allocpages(firstaddr, NKASANPML4E);
 	KASANPDphys = allocpages(firstaddr, 1);
+#endif
+#ifdef KMSAN
+	/*
+	 * The KMSAN shadow maps are initially left unpopulated, since there is
+	 * no need to shadow memory above KERNBASE.
+	 */
+	KMSANSHADPDPphys = allocpages(firstaddr, NKMSANSHADPML4E);
+	KMSANORIGPDPphys = allocpages(firstaddr, NKMSANORIGPML4E);
 #endif
 
 	/*
@@ -1823,6 +1843,20 @@ create_pagetables(vm_paddr_t *firstaddr)
 	for (i = 0; i < NKASANPML4E; i++) {
 		p4_p[KASANPML4I + i] = KASANPDPphys + ptoa(i);
 		p4_p[KASANPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
+	}
+#endif
+
+#ifdef KMSAN
+	/* Connect the KMSAN shadow map slots up to the PML4. */
+	for (i = 0; i < NKMSANSHADPML4E; i++) {
+		p4_p[KMSANSHADPML4I + i] = KMSANSHADPDPphys + ptoa(i);
+		p4_p[KMSANSHADPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
+	}
+
+	/* Connect the KMSAN origin map slots up to the PML4. */
+	for (i = 0; i < NKMSANORIGPML4E; i++) {
+		p4_p[KMSANORIGPML4I + i] = KMSANORIGPDPphys + ptoa(i);
+		p4_p[KMSANORIGPML4I + i] |= X86_PG_RW | X86_PG_V | pg_nx;
 	}
 #endif
 
@@ -2498,6 +2532,14 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.large_map_pml4_entries", &lm_ents);
 	if (lm_ents > LMEPML4I - LMSPML4I + 1)
 		lm_ents = LMEPML4I - LMSPML4I + 1;
+#ifdef KMSAN
+	if (lm_ents > KMSANORIGPML4I - LMSPML4I) {
+		printf(
+	    "pmap: shrinking large map for KMSAN (%d slots to %ld slots)\n",
+		    lm_ents, KMSANORIGPML4I - LMSPML4I);
+		lm_ents = KMSANORIGPML4I - LMSPML4I;
+	}
+#endif
 	if (bootverbose)
 		printf("pmap: large map %u PML4 slots (%lu GB)\n",
 		    lm_ents, (u_long)lm_ents * (NBPML4 / 1024 / 1024 / 1024));
@@ -4187,6 +4229,16 @@ pmap_pinit_pml4(vm_page_t pml4pg)
 		    X86_PG_V | pg_nx;
 	}
 #endif
+#ifdef KMSAN
+	for (i = 0; i < NKMSANSHADPML4E; i++) {
+		pm_pml4[KMSANSHADPML4I + i] = (KMSANSHADPDPphys + ptoa(i)) |
+		    X86_PG_RW | X86_PG_V | pg_nx;
+	}
+	for (i = 0; i < NKMSANORIGPML4E; i++) {
+		pm_pml4[KMSANORIGPML4I + i] = (KMSANORIGPDPphys + ptoa(i)) |
+		    X86_PG_RW | X86_PG_V | pg_nx;
+	}
+#endif
 	for (i = 0; i < ndmpdpphys; i++) {
 		pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) | X86_PG_RW |
 		    X86_PG_V;
@@ -4773,6 +4825,12 @@ pmap_release(pmap_t pmap)
 		for (i = 0; i < NKASANPML4E; i++) /* KASAN shadow map */
 			pmap->pm_pmltop[KASANPML4I + i] = 0;
 #endif
+#ifdef KMSAN
+		for (i = 0; i < NKMSANSHADPML4E; i++) /* KMSAN shadow map */
+			pmap->pm_pmltop[KMSANSHADPML4I + i] = 0;
+		for (i = 0; i < NKMSANORIGPML4E; i++) /* KMSAN shadow map */
+			pmap->pm_pmltop[KMSANORIGPML4I + i] = 0;
+#endif
 		for (i = 0; i < ndmpdpphys; i++)/* Direct Map */
 			pmap->pm_pmltop[DMPML4I + i] = 0;
 		pmap->pm_pmltop[PML4PML4I] = 0;	/* Recursive Mapping */
@@ -4814,6 +4872,60 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, kvm_free, "LU",
     "Amount of KVM free");
 
+#ifdef KMSAN
+static void
+pmap_kmsan_shadow_map_page_array(vm_paddr_t pdppa, vm_size_t size)
+{
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_paddr_t dummypa, dummypd, dummypt;
+	int i, npde, npdpg;
+
+	npdpg = howmany(size, NBPDP);
+	npde = size / NBPDR;
+
+	dummypa = vm_phys_early_alloc(-1, PAGE_SIZE);
+	pagezero((void *)PHYS_TO_DMAP(dummypa));
+
+	dummypt = vm_phys_early_alloc(-1, PAGE_SIZE);
+	pagezero((void *)PHYS_TO_DMAP(dummypt));
+	dummypd = vm_phys_early_alloc(-1, PAGE_SIZE * npdpg);
+	for (i = 0; i < npdpg; i++)
+		pagezero((void *)PHYS_TO_DMAP(dummypd + ptoa(i)));
+
+	pte = (pt_entry_t *)PHYS_TO_DMAP(dummypt);
+	for (i = 0; i < NPTEPG; i++)
+		pte[i] = (pt_entry_t)(dummypa | X86_PG_V | X86_PG_RW |
+		    X86_PG_A | X86_PG_M | pg_nx);
+
+	pde = (pd_entry_t *)PHYS_TO_DMAP(dummypd);
+	for (i = 0; i < npde; i++)
+		pde[i] = (pd_entry_t)(dummypt | X86_PG_V | X86_PG_RW | pg_nx);
+
+	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(pdppa);
+	for (i = 0; i < npdpg; i++)
+		pdpe[i] = (pdp_entry_t)(dummypd + ptoa(i) | X86_PG_V |
+		    X86_PG_RW | pg_nx);
+}
+
+static void
+pmap_kmsan_page_array_startup(vm_offset_t start, vm_offset_t end)
+{
+	vm_size_t size;
+
+	KASSERT(start % NBPDP == 0, ("unaligned page array start address"));
+
+	/*
+	 * The end of the page array's KVA region is 2MB aligned, see
+	 * kmem_init().
+	 */
+	size = round_2mpage(end) - start;
+	pmap_kmsan_shadow_map_page_array(KMSANSHADPDPphys, size);
+	pmap_kmsan_shadow_map_page_array(KMSANORIGPDPphys, size);
+}
+#endif
+
 /*
  * Allocate physical memory for the vm_page array and map it into KVA,
  * attempting to back the vm_pages with domain-local memory.
@@ -4854,6 +4966,10 @@ pmap_page_array_startup(long pages)
 		pde_store(pde, newpdir);
 	}
 	vm_page_array = (vm_page_t)start;
+
+#ifdef KMSAN
+	pmap_kmsan_page_array_startup(start, end);
+#endif
 }
 
 /*
@@ -4892,6 +5008,8 @@ pmap_growkernel(vm_offset_t addr)
 		addr = vm_map_max(kernel_map);
 	if (kernel_vm_end < addr)
 		kasan_shadow_map(kernel_vm_end, addr - kernel_vm_end);
+	if (kernel_vm_end < addr)
+		kmsan_shadow_map(kernel_vm_end, addr - kernel_vm_end);
 	while (kernel_vm_end < addr) {
 		pdpe = pmap_pdpe(kernel_pmap, kernel_vm_end);
 		if ((*pdpe & X86_PG_V) == 0) {
