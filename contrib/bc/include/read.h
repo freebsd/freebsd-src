@@ -41,20 +41,42 @@
 #include <status.h>
 #include <vector.h>
 
-#ifndef BC_ENABLE_PROMPT
-#define BC_ENABLE_PROMPT (1)
-#endif // BC_ENABLE_PROMPT
+/**
+ * Returns true if @a c is a non-ASCII (invalid) char.
+ * @param c  The character to test.
+ * @return   True if @a c is an invalid char.
+ */
+#define BC_READ_BIN_CHAR(c) (!(c))
 
-#if !BC_ENABLE_PROMPT
-#define bc_read_line(vec, prompt) bc_read_line(vec)
-#define bc_read_chars(vec, prompt) bc_read_chars(vec)
-#endif // BC_ENABLE_PROMPT
-
-#define BC_READ_BIN_CHAR(c) (((c) < ' ' && !isspace((c))) || ((uchar) c) > '~')
-
+/**
+ * Reads a line from stdin after printing prompt, if desired.
+ * @param vec     The vector to put the stdin data into.
+ * @param prompt  The prompt to print, if desired.
+ */
 BcStatus bc_read_line(BcVec *vec, const char *prompt);
-void bc_read_file(const char *path, char **buf);
+
+/**
+ * Read a file and return a buffer with the data. The buffer must be freed by
+ * the caller.
+ * @param path  The path to the file to read.
+ */
+char* bc_read_file(const char *path);
+
+/**
+ * Helper function for reading characters from stdin. This takes care of a bunch
+ * of complex error handling. Thus, it returns a status instead of throwing an
+ * error, except for fatal errors.
+ * @param vec     The vec to put the stdin into.
+ * @param prompt  The prompt to print, if desired.
+ */
 BcStatus bc_read_chars(BcVec *vec, const char *prompt);
+
+/**
+ * Read a line from buf into vec.
+ * @param vec      The vector to read data into.
+ * @param buf      The buffer to read from.
+ * @param buf_len  The length of the buffer.
+ */
 bool bc_read_buf(BcVec *vec, char *buf, size_t *buf_len);
 
 #endif // BC_READ_H

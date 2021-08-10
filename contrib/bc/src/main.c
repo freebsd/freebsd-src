@@ -56,16 +56,25 @@ int main(int argc, char *argv[]) {
 	char *name;
 	size_t len = strlen(BC_EXECPREFIX);
 
+	// Must set the locale properly in order to have the right error messages.
 	vm.locale = setlocale(LC_ALL, "");
 
+	// Set the start pledge().
+	bc_pledge(bc_pledge_start, NULL);
+
+	// Figure out the name of the calculator we are using. We can't use basename
+	// because it's not portable, but yes, this is stripping off the directory.
 	name = strrchr(argv[0], BC_FILE_SEP);
 	vm.name = (name == NULL) ? argv[0] : name + 1;
 
+	// If the name is longer than the length of the prefix, skip the prefix.
 	if (strlen(vm.name) > len) vm.name += len;
 
 	BC_SIG_LOCK;
 
-	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), NULL);
+	// We *must* do this here. Otherwise, other code could not jump out all of
+	// the way.
+	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
 
 	BC_SETJMP_LOCKED(exit);
 
@@ -74,6 +83,7 @@ int main(int argc, char *argv[]) {
 #elif !BC_ENABLED
 	dc_main(argc, argv);
 #else
+	// BC_IS_BC uses vm.name, which was set above. So we're good.
 	if (BC_IS_BC) bc_main(argc, argv);
 	else dc_main(argc, argv);
 #endif
@@ -81,5 +91,6 @@ int main(int argc, char *argv[]) {
 exit:
 	BC_SIG_MAYLOCK;
 
+	// Ensure we exit appropriately.
 	return bc_vm_atexit((int) vm.status);
 }

@@ -1,7 +1,5 @@
 # `bc`
 
-[![Coverity Scan Build Status][17]][18]
-
 ***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
 reasons][21], though GitHub will remain a mirror.***
 
@@ -22,6 +20,8 @@ For more information, see the `dc`'s full manual.
 This `bc` also provides `bc`'s math as a library with C bindings, called `bcl`.
 
 For more information, see the full manual for `bcl`.
+
+## License
 
 This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 2-clause License. Full license text may be found in the [`LICENSE.md`][4] file.
@@ -54,6 +54,12 @@ Please submit bug reports if this `bc` does not build out of the box on any
 system.
 
 ## Build
+
+This `bc` should build unmodified on any POSIX-compliant system or on Windows
+starting with Windows 10 (though earlier versions may work).
+
+For more complex build requirements than the ones below, see the
+[build manual][5].
 
 ### Windows
 
@@ -95,12 +101,6 @@ msbuild -property:Configuration=<config> bcl.sln
 where `<config>` is either one of `Debug` or `Release`.
 
 ### POSIX-Compatible Systems
-
-This `bc` should build unmodified on any POSIX-compliant system or on Windows
-starting with Windows 10 (though earlier versions may work).
-
-For more complex build requirements than the ones below, see the
-[build manual][5].
 
 On POSIX-compatible systems, `bc` is built as `bin/bc` and `dc` is built as
 `bin/dc` by default. On Windows, they are built as `Release/bc/bc.exe` and
@@ -243,7 +243,7 @@ allowed.
 ##### Karatsuba Number
 
 Package and distro maintainers have one tool at their disposal to build this
-`bc` in the optimal configuration: `karatsuba.py`.
+`bc` in the optimal configuration: `scripts/karatsuba.py`.
 
 This script is not a compile-time or runtime prerequisite; it is for package and
 distro maintainers to run once when a package is being created. It finds the
@@ -271,6 +271,21 @@ In addition, this `bc` is considered complete; i.e., there will be no more
 releases with additional features. However, it *is* actively maintained, so if
 any bugs are found, they will be fixed in new releases. Also, additional
 translations will also be added as they are provided.
+
+### Development
+
+If I (Gavin D. Howard) get [hit by a bus][27] and future programmers need to
+handle work themselves, the best place to start is the [Development manual][28].
+
+## Vim Syntax
+
+I have developed (using other people's code to start) [`vim` syntax files][17]
+for this `bc` and `dc`, including the extensions.
+
+## `bc` Libs
+
+I have gathered some excellent [`bc` and `dc` libraries][18]. These libraries
+may prove useful to any serious users.
 
 ## Comparison to GNU `bc`
 
@@ -366,20 +381,10 @@ Files:
 	bcl.vcxproj.filters  The Visual Studio filters file for bcl.
 	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
-	functions.sh         A script with functions used by other scripts.
-	install.sh           Install script.
-	karatsuba.py         Script to find the optimal Karatsuba number.
 	LICENSE.md           A Markdown form of the BSD 2-clause License.
-	link.sh              A script to link dc to bc.
-	locale_install.sh    A script to install locales, if desired.
-	locale_uninstall.sh  A script to uninstall locales.
 	Makefile.in          The Makefile template.
-	manpage.sh           Script to generate man pages from markdown files
-	                     (maintainer use only).
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
-	release.sh           A script to test for release (maintainer use only).
-	safe-install.sh      Safe install script from musl libc.
 
 Folders:
 
@@ -388,6 +393,7 @@ Folders:
 	locales  Locale files, in .msg format. Patches welcome for translations.
 	manuals  Manuals for both programs.
 	src      All source code.
+	scripts  A bunch of shell scripts to help with development and building.
 	tests    All tests.
 
 [1]: https://www.gnu.org/software/bc/
@@ -399,8 +405,8 @@ Folders:
 [10]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [11]: http://semver.org/
 [12]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
-[17]: https://img.shields.io/coverity/scan/16609.svg
-[18]: https://scan.coverity.com/projects/gavinhoward-bc
+[17]: https://git.yzena.com/gavin/vim-bc
+[18]: https://git.yzena.com/gavin/bc_libs
 [19]: ./manuals/benchmarks.md
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
@@ -409,3 +415,5 @@ Folders:
 [24]: https://bugs.freebsd.org/
 [25]: https://reviews.freebsd.org/
 [26]: ./manuals/bcl.3.md
+[27]: https://en.wikipedia.org/wiki/Bus_factor
+[28]: ./manuals/development.md

@@ -32,13 +32,19 @@ set -e
 script="$0"
 testdir=$(dirname "$script")
 
-. "$testdir/../functions.sh"
+. "$testdir/../scripts/functions.sh"
 
-if [ "$#" -ge 1 ]; then
+# Command-line processing.
+if [ "$#" -ge 2 ]; then
+
 	d="$1"
 	shift
+
+	extra_math="$1"
+	shift
+
 else
-	err_exit "usage: $script dir [exec args...]" 1
+	err_exit "usage: $script dir extra_math [exec args...]" 1
 fi
 
 if [ "$#" -lt 1 ]; then
@@ -54,11 +60,13 @@ else
 	halt="q"
 fi
 
+# For tests later.
 num=100000000000000000000000000000000000000000000000000000000000000000000000000000
 numres="$num"
 num70="10000000000000000000000000000000000000000000000000000000000000000000\\
 0000000000"
 
+# Set stuff for the correct calculator.
 if [ "$d" = "bc" ]; then
 	halt="halt"
 	opt="x"
@@ -72,6 +80,12 @@ else
 	num="$num pR"
 fi
 
+# I use these, so unset them to make the tests work.
+unset BC_ENV_ARGS
+unset BC_LINE_LENGTH
+unset DC_ENV_ARGS
+unset DC_LINE_LENGTH
+
 set +e
 
 printf '\nRunning %s quit test...' "$d"
@@ -80,6 +94,7 @@ printf '%s\n' "$halt" | "$exe" "$@" > /dev/null 2>&1
 
 checktest_retcode "$d" "$?" "quit"
 
+# bc has two halt or quit commands, so test the second as well.
 if [ "$d" = bc ]; then
 
 	printf '%s\n' "quit" | "$exe" "$@" > /dev/null 2>&1
@@ -99,25 +114,63 @@ printf 'pass\n'
 
 base=$(basename "$exe")
 
-if [ "$base" != "bc" -a "$base" != "dc" ]; then
-	exit 0
-fi
-
 printf 'Running %s environment var tests...' "$d"
 
 if [ "$d" = "bc" ]; then
 
 	export BC_ENV_ARGS=" '-l' '' -q"
-	export BC_EXPR_EXIT="1"
 
 	printf 's(.02893)\n' | "$exe" "$@" > /dev/null
 
 	checktest_retcode "$d" "$?" "environment var"
 
-	"$exe" -e 4 "$@" > /dev/null
+	"$exe" "$@" -e 4 > /dev/null
 
 	err="$?"
 	checktest_retcode "$d" "$?" "environment var"
+
+	printf 'pass\n'
+
+	printf 'Running keyword redefinition test...'
+
+	unset BC_ENV_ARGS
+
+	redefine_res="$testdir/bc_outputs/redefine.txt"
+	redefine_out="$testdir/bc_outputs/redefine_results.txt"
+
+	outdir=$(dirname "$easter_out")
+
+	if [ ! -d "$outdir" ]; then
+		mkdir -p "$outdir"
+	fi
+
+	printf '5\n0\n' > "$redefine_res"
+
+	"$exe" "$@" --redefine=print -e 'define print(x) { x }' -e 'print(5)' > "$redefine_out"
+
+	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
+
+	"$exe" "$@" -r "abs" -r "else" -e 'abs = 5;else = 0' -e 'abs;else' > "$redefine_out"
+
+	checktest "$d" "$err" "keyword redefinition" "$redefine_res" "$redefine_out"
+
+	if [ "$extra_math" -ne 0 ]; then
+
+		"$exe" "$@" -lr abs -e "perm(5, 1)" -e "0" > "$redefine_out"
+
+		checktest "$d" "$err" "keyword not redefined in builtin library" "$redefine_res" "$redefine_out"
+
+	fi
+
+	"$exe" "$@" -r "break" -e 'define break(x) { x }' 2> "$redefine_out"
+	err="$?"
+
+	checkerrtest "$d" "$err" "keyword redefinition error" "$redefine_out" "$d"
+
+	"$exe" "$@" -e 'define read(x) { x }' 2> "$redefine_out"
+	err="$?"
+
+	checkerrtest "$d" "$err" "Keyword redefinition error without BC_REDEFINE_KEYWORDS" "$redefine_out" "$d"
 
 	printf 'pass\n'
 
@@ -130,7 +183,7 @@ else
 
 	checktest_retcode "$d" "$?" "environment var"
 
-	"$exe" -e 4pR "$@" > /dev/null
+	"$exe" "$@" -e 4pR > /dev/null
 
 	checktest_retcode "$d" "$?" "environment var"
 
@@ -138,6 +191,9 @@ else
 
 	set +e
 
+	# dc has an extra test for a case that someone found running this easter.dc
+	# script. It went into an infinite loop, so we want to check that we did not
+	# regress.
 	printf 'three\n' | cut -c1-3 > /dev/null
 	err=$?
 
@@ -156,7 +212,7 @@ else
 
 		printf '4 April 2021\n' > "$easter_res"
 
-		"$testdir/dc/scripts/easter.sh" "$exe" 2021 | cut -c1-12 > "$easter_out"
+		"$testdir/dc/scripts/easter.sh" "$exe" 2021 "$@" | cut -c1-12 > "$easter_out"
 		err="$?"
 
 		checktest "$d" "$err" "Easter script" "$easter_res" "$easter_out"
@@ -211,6 +267,8 @@ printf '%s\n' "$halt" | "$exe" "$@" -h > /dev/null
 checktest_retcode "$d" "$?" "arg"
 printf '%s\n' "$halt" | "$exe" "$@" -P > /dev/null
 checktest_retcode "$d" "$?" "arg"
+printf '%s\n' "$halt" | "$exe" "$@" -R > /dev/null
+checktest_retcode "$d" "$?" "arg"
 printf '%s\n' "$halt" | "$exe" "$@" -v > /dev/null
 checktest_retcode "$d" "$?" "arg"
 printf '%s\n' "$halt" | "$exe" "$@" -V > /dev/null
@@ -255,6 +313,16 @@ checkerrtest "$d" "$err" "missing required argument to long option" "$out2" "$d"
 err="$?"
 
 checkerrtest "$d" "$err" "given argument to long option with no argument" "$out2" "$d"
+
+"$exe" "$@" -: > /dev/null 2> "$out2"
+err="$?"
+
+checkerrtest "$d" "$err" "colon short option" "$out2" "$d"
+
+"$exe" "$@" --: > /dev/null 2> "$out2"
+err="$?"
+
+checkerrtest "$d" "$err" "colon long option" "$out2" "$d"
 
 printf 'pass\n'
 

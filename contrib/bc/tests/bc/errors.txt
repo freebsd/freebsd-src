@@ -163,6 +163,7 @@ scale = 18446744073709551616
 1>>18446744073709551614
 i /= 0
 4^2903482.29304823
+2^340282366920938463463374607431768211456)
 4 @ 2389.21982
 1 @ -38
 3 @ 81906237540187263501872350127351023651023517239512635109283651203985123581235
@@ -220,6 +221,7 @@ define r() { auto a[], 4; return a[0]; }
 define s() { auto a[ 4; return a[0]; }
 define void y() { return (1); }
 print uint(0)
+for (i = 0; i < 10; ++i) { print 4, 5 define
 4 + uint(4)
 s(uint(5))
 4 + 4 scale
@@ -236,10 +238,11 @@ bytes(1) + 4
 a[2^63] = 1
 ibase = 100
 length(l[] + i[])
-length("string")
 abs("string")
 abs(a[])
 scale("string")
+v = "s"; scale(v)
+v += "string"
 scale(b[])
 sqrt("string")
 sqrt(c[])
@@ -249,8 +252,51 @@ abs
 sqrt(1
 length(1
 abs(1
+divmod 24
+modexp 23
+divmod(if
+modexp(if
+divmod(24)
+modexp(24)
+divmod(24 24)
+modexp(24 24)
+divmod(24,)
+modexp(24,)
+divmod(24,
+modexp(24,
+divmod(24,5
+modexp(24,5
+divmod(24,5)
+modexp(24,5)
+divmod(24,5,)
+modexp(24,5,)
+divmod(24,5,
+modexp(24,5,
+divmod(24,5,4
+modexp(24,5,4
+divmod(24,5,a
+modexp(24,5,a
+divmod(24,5,a[]
+divmod(24,5,a[
+divmod(24,5,a[2
+divmod(24,5,a[2]
+divmod(24,5,a[];
+modexp(24,5,a;
+divmod(24,5,a[];)
+modexp(24,5,a;)
+divmod(24,5,4)
+scale(4.5) modexp(25,5,5)
 scale(.2093
 a2(0,0)
+v = "stuff" + "other"
+v = "stuff"; v + v
+v = "stuff"; v * 3
+v = "stuff"; v - 3
+v = "stuff"; v / 3
+v = "stuff"; divmod(v, 3, a[])
+v = "stuff"; modexp(v, 3, 2)
+define f(x) { x * x }; f("stuff")
+define f(x) { x * x }; v = "stuff"; f(v)
 read
 read(
 read()

@@ -1,7 +1,0 @@
-e(0.5)
-
-define e(x) {
-	return x
-}
-
-e(0.5)

@@ -49,99 +49,8 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define BC_SEED_ULONGS (4)
-#define BC_SEED_SIZE (sizeof(long) * BC_SEED_ULONGS)
-
-// For some reason, LONG_BIT is not defined in some versions of gcc.
-// I define it here to the minimum accepted value in the POSIX standard.
-#ifndef LONG_BIT
-#define LONG_BIT (32)
-#endif // LONG_BIT
-
-#ifndef BC_LONG_BIT
-#define BC_LONG_BIT LONG_BIT
-#endif // BC_LONG_BIT
-
-#if BC_LONG_BIT > LONG_BIT
-#error BC_LONG_BIT cannot be greater than LONG_BIT
-#endif // BC_LONG_BIT > LONG_BIT
-
-#if BC_LONG_BIT >= 64
-
-typedef uint64_t BclBigDig;
-typedef uint64_t BclRandInt;
-
-#elif BC_LONG_BIT >= 32
-
-typedef uint32_t BclBigDig;
-typedef uint32_t BclRandInt;
-
-#else
-
-#error BC_LONG_BIT must be at least 32
-
-#endif // BC_LONG_BIT >= 64
-#define BC_UNUSED(e) ((void) (e))
-
-#ifndef BC_LIKELY
-#define BC_LIKELY(e) (e)
-#endif // BC_LIKELY
-
-#ifndef BC_UNLIKELY
-#define BC_UNLIKELY(e) (e)
-#endif // BC_UNLIKELY
-
-#define BC_ERR(e) BC_UNLIKELY(e)
-#define BC_NO_ERR(s) BC_LIKELY(s)
-
-#ifndef BC_DEBUG_CODE
-#define BC_DEBUG_CODE (0)
-#endif // BC_DEBUG_CODE
-
-#if __STDC_VERSION__ >= 201100L
-#include <stdnoreturn.h>
-#define BC_NORETURN _Noreturn
-#else // __STDC_VERSION__
-#define BC_NORETURN
-#define BC_MUST_RETURN
-#endif // __STDC_VERSION__
-
-#if defined(__clang__) || defined(__GNUC__)
-#if defined(__has_attribute)
-#if __has_attribute(fallthrough)
-#define BC_FALLTHROUGH __attribute__((fallthrough));
-#else // __has_attribute(fallthrough)
-#define BC_FALLTHROUGH
-#endif // __has_attribute(fallthrough)
-#else // defined(__has_attribute)
-#define BC_FALLTHROUGH
-#endif // defined(__has_attribute)
-#else // defined(__clang__) || defined(__GNUC__)
-#define BC_FALLTHROUGH
-#endif // defined(__clang__) || defined(__GNUC__)
-
-// Workarounds for AIX's POSIX incompatibility.
-#ifndef SIZE_MAX
-#define SIZE_MAX __SIZE_MAX__
-#endif // SIZE_MAX
-#ifndef UINTMAX_C
-#define UINTMAX_C __UINTMAX_C
-#endif // UINTMAX_C
-#ifndef UINT32_C
-#define UINT32_C __UINT32_C
-#endif // UINT32_C
-#ifndef UINT_FAST32_MAX
-#define UINT_FAST32_MAX __UINT_FAST32_MAX__
-#endif // UINT_FAST32_MAX
-#ifndef UINT16_MAX
-#define UINT16_MAX __UINT16_MAX__
-#endif // UINT16_MAX
-#ifndef SIG_ATOMIC_MAX
-#define SIG_ATOMIC_MAX __SIG_ATOMIC_MAX__
-#endif // SIG_ATOMIC_MAX
-
-// Windows has deprecated isatty() and the rest of these.
-// Or doesn't have them.
+// Windows has deprecated isatty() and the rest of these. Or doesn't have them.
+// So these are just fixes for Windows.
 #ifdef _WIN32
 
 // This one is special. Windows did not like me defining an
@@ -159,9 +68,9 @@ typedef uint32_t BclRandInt;
 #define sigsetjmp(j, s) setjmp(j)
 #define siglongjmp longjmp
 #define isatty _isatty
-#define STDIN_FILENO (0)
-#define STDOUT_FILENO (1)
-#define STDERR_FILENO (2)
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
+#define STDERR_FILENO _fileno(stderr)
 #define ssize_t SSIZE_T
 #define S_ISDIR(m) ((m) & _S_IFDIR)
 #define O_RDONLY _O_RDONLY
@@ -172,6 +81,50 @@ typedef uint32_t BclRandInt;
 #else // _WIN32
 #define BC_FILE_SEP '/'
 #endif // _WIN32
+
+#define BCL_SEED_ULONGS (4)
+#define BCL_SEED_SIZE (sizeof(long) * BCL_SEED_ULONGS)
+
+// For some reason, LONG_BIT is not defined in some versions of gcc.
+// I define it here to the minimum accepted value in the POSIX standard.
+#ifndef LONG_BIT
+#define LONG_BIT (32)
+#endif // LONG_BIT
+
+#ifndef BC_LONG_BIT
+#define BC_LONG_BIT LONG_BIT
+#endif // BC_LONG_BIT
+
+#if BC_LONG_BIT > LONG_BIT
+#error BC_LONG_BIT cannot be greater than LONG_BIT
+#endif // BC_LONG_BIT > LONG_BIT
+
+// For more information about the items here, see the either the
+// manuals/bcl.3.md or manuals/bcl.3 manuals.
+
+// BclBigDig is a fixed-size integer type that bcl can convert numbers to.
+//
+// BclRandInt is the type of fixed-size integer natively returned by the
+// pseudo-random number generator.
+#if BC_LONG_BIT >= 64
+
+typedef uint64_t BclBigDig;
+typedef uint64_t BclRandInt;
+
+#elif BC_LONG_BIT >= 32
+
+typedef uint32_t BclBigDig;
+typedef uint32_t BclRandInt;
+
+#else
+
+#error BC_LONG_BIT must be at least 32
+
+#endif // BC_LONG_BIT >= 64
+
+#ifndef BC_ENABLE_LIBRARY
+#define BC_ENABLE_LIBRARY (1)
+#endif // BC_ENABLE_LIBRARY
 
 #if BC_ENABLE_LIBRARY
 
@@ -275,7 +228,7 @@ BclNumber bcl_frand(size_t places);
 BclNumber bcl_ifrand(BclNumber a, size_t places);
 
 BclError bcl_rand_seedWithNum(BclNumber n);
-BclError bcl_rand_seed(unsigned char seed[BC_SEED_SIZE]);
+BclError bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE]);
 void bcl_rand_reseed(void);
 BclNumber bcl_rand_seed2num(void);
 BclRandInt bcl_rand_int(void);

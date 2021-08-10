@@ -60,7 +60,7 @@ $set 4
 5 "token inválido"
 6 "expressão inválida"
 7 "expressão vazia"
-8 "instrução de gravação inválida"
+8 "instrução de gravação ou de fluxo inválida"
 9 "definição de função inválida"
 10 "atribuição inválida: a parte esquerda deve ser 'scale', 'ibase', 'obase', 'last', uma variável ou um elemento da matriz"
 11 "nenhuma variável automática encontrada"
@@ -80,6 +80,7 @@ $set 4
 25 "POSIX não permite notação exponencial"
 26 "POSIX não permite referências de matriz como parâmetros de função"
 27 "POSIX requer que o cabeçalho da função '{' estejam na mesma linha"
+28 "POSIX não permite a atribuição de cadeias de caracteres a variáveis ou matrizes"
 
 $ Runtime errors.
 $set 5
@@ -91,9 +92,10 @@ $set 5
 5 "chamada read() recursiva"
 6 "tipo errado de variável ou elemento de matriz"
 7 "pilha tem poucos elementos"
-8 "número incorreto de parâmetros - esperado: %zu, obtido: %zu"
-9 "função indefinida: %s()"
-10 "um valor 'void' não pode ser usado em uma expressão"
+8 "pilha para registo \"%s\" tem poucos elementos"
+9 "número incorreto de parâmetros - esperado: %zu, obtido: %zu"
+10 "função indefinida: %s()"
+11 "um valor 'void' não pode ser usado em uma expressão"
 
 $ Fatal errors.
 $set 6
@@ -101,8 +103,9 @@ $set 6
 1 "falha na alocação de memória"
 2 "erro de entrada-saída"
 3 "impossível abrir o arquivo: %s"
-4 "arquivo não é ASCII: %s"
+4 "arquivo não é texto: %s"
 5 "caminho é um diretório: %s"
 6 "opção de linha de comando inválida: \"%s\""
 7 "opção requer um argumento: '%c' (\"%s\")"
 8 "a opção não aceita argumentos: '%c' (\"%s\")"
+9 "argumento de opção de linha de comando inválido: \"%s\""

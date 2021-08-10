@@ -60,7 +60,7 @@ $set 4
 5 "symbole invalide"
 6 "expression invalide"
 7 "expression vide"
-8 "instruction d'écriture invalide"
+8 "instruction d'écriture ou de flux invalide"
 9 "définition de fonction invalide"
 10 "affectation invalide : la partie gauche doit être 'scale', 'ibase', 'obase', 'seed', 'last', une variable ou une case de tableau"
 11 "aucune variable auto trouvée"
@@ -80,6 +80,7 @@ $set 4
 25 "POSIX interdit la notation exponentielle"
 26 "POSIX interdit les références à un tableau dans les paramètres d'une fonction"
 27 "POSIX impose que l'en-tête de la fonction et le '{' soient sur la même ligne"
+28 "POSIX interdit pas d'assigner des chaînes de caractères à des variables ou à des tableaux"
 
 $ Runtime errors.
 $set 5
@@ -91,9 +92,10 @@ $set 5
 5 "appel read() récursif"
 6 "mauvais type de variable ou d'élément de tableau"
 7 "pile sous-remplie"
-8 "nombre incorrect de paramètres - attendus : %zu, obtenus : %zu"
-9 "fonction non définie : %s()"
-10 "une valeur 'void' est inutilisable dans une expression"
+8 "pile pour le registre \"%s\" sous-remplie"
+9 "nombre incorrect de paramètres - attendus : %zu, obtenus : %zu"
+10 "fonction non définie : %s()"
+11 "une valeur 'void' est inutilisable dans une expression"
 
 $ Fatal errors.
 $set 6
@@ -101,8 +103,9 @@ $set 6
 1 "échec d'allocation mémoire"
 2 "erreur d'entrée-sortie"
 3 "impossible d'ouvrir le fichier : %s"
-4 "fichier non ASCII : %s"
+4 "fichier non texte: %s"
 5 "le chemin est un répertoire : %s"
 6 "option de ligne de commande invalide : \"%s\""
 7 "l'option '%c' (\"%s\") requiert un argument"
 8 "l'option '%c' (\"%s\") ne prend pas d'argument"
+9 "argument d'option de ligne de commande invalide : \"%s\""

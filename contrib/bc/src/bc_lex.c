@@ -42,11 +42,18 @@
 #include <bc.h>
 #include <vm.h>
 
+/**
+ * Lexes an identifier, which may be a keyword.
+ * @param l  The lexer.
+ */
 static void bc_lex_identifier(BcLex *l) {
 
-	size_t i;
+	// We already passed the first character, so we need to be sure to include
+	// it.
 	const char *buf = l->buf + l->i - 1;
+	size_t i;
 
+	// This loop is simply checking for keywords.
 	for (i = 0; i < bc_lex_kws_len; ++i) {
 
 		const BcLexKeyword *kw = bc_lex_kws + i;
@@ -54,38 +61,74 @@ static void bc_lex_identifier(BcLex *l) {
 
 		if (!strncmp(buf, kw->name, n) && !isalnum(buf[n]) && buf[n] != '_') {
 
+			// If the keyword has been redefined, and redefinition is allowed
+			// (it is not allowed for builtin libraries), break out of the loop
+			// and use it as a name. This depends on the argument parser to
+			// ensure that only non-POSIX keywords get redefined.
+			if (!vm.no_redefine && vm.redefined_kws[i]) break;
+
 			l->t = BC_LEX_KW_AUTO + (BcLexType) i;
 
-			if (!BC_LEX_KW_POSIX(kw))
-				bc_lex_verr(l, BC_ERR_POSIX_KW, kw->name);
+			// Warn or error, as appropriate for the mode, if the keyword is not
+			// in the POSIX standard.
+			if (!BC_LEX_KW_POSIX(kw)) bc_lex_verr(l, BC_ERR_POSIX_KW, kw->name);
 
 			// We minus 1 because the index has already been incremented.
 			l->i += n - 1;
+
+			// Already have the token; bail.
 			return;
 		}
 	}
 
+	// If not a keyword, parse the name.
 	bc_lex_name(l);
 
+	// POSIX doesn't allow identifiers that are more than one character, so we
+	// might have to warn or error here too.
 	if (BC_ERR(l->str.len - 1 > 1))
 		bc_lex_verr(l, BC_ERR_POSIX_NAME_LEN, l->str.v);
 }
 
+/**
+ * Parses a bc string. This is separate from dc strings because dc strings need
+ * to be balanced.
+ * @param l  The lexer.
+ */
 static void bc_lex_string(BcLex *l) {
 
-	size_t len, nlines = 0, i = l->i;
-	const char *buf = l->buf;
+	// We need to keep track of newlines to increment them properly.
+	size_t len, nlines, i;
+	const char *buf;
 	char c;
+	bool got_more;
 
 	l->t = BC_LEX_STR;
 
-	for (; (c = buf[i]) && c != '"'; ++i) nlines += c == '\n';
+	do {
 
-	if (BC_ERR(c == '\0')) {
+		nlines = 0;
+		buf = l->buf;
+		got_more = false;
+
+		assert(!vm.is_stdin || buf == vm.buffer.v);
+
+		// Fortunately for us, bc doesn't escape quotes. Instead, the equivalent
+		// is '\q', which makes this loop simpler.
+		for (i = l->i; (c = buf[i]) && c != '"'; ++i) nlines += (c == '\n');
+
+		if (BC_ERR(c == '\0') && !vm.eof && l->is_stdin)
+			got_more = bc_lex_readLine(l);
+
+	} while (got_more && c != '"');
+
+	// If the string did not end properly, barf.
+	if (c != '"') {
 		l->i = i;
 		bc_lex_err(l, BC_ERR_PARSE_STRING);
 	}
 
+	// Set the temp string to the parsed string.
 	len = i - l->i;
 	bc_vec_string(&l->str, len, l->buf + l->i);
 
@@ -93,6 +136,13 @@ static void bc_lex_string(BcLex *l) {
 	l->line += nlines;
 }
 
+/**
+ * This function takes a lexed operator and checks to see if it's the assignment
+ * version, setting the token appropriately.
+ * @param l        The lexer.
+ * @param with     The token to assign if it is an assignment operator.
+ * @param without  The token to assign if it is not an assignment operator.
+ */
 static void bc_lex_assign(BcLex *l, BcLexType with, BcLexType without) {
 	if (l->buf[l->i] == '=') {
 		l->i += 1;
@@ -103,6 +153,9 @@ static void bc_lex_assign(BcLex *l, BcLexType with, BcLexType without) {
 
 void bc_lex_token(BcLex *l) {
 
+	// We increment here. This means that all lexing needs to take that into
+	// account, such as when parsing an identifier. If we don't, the first
+	// character of every identifier would be missing.
 	char c = l->buf[l->i++], c2;
 
 	// This is the workhorse of the lexer.
@@ -122,8 +175,10 @@ void bc_lex_token(BcLex *l) {
 
 		case '!':
 		{
+			// Even though it's not an assignment, we can use this.
 			bc_lex_assign(l, BC_LEX_OP_REL_NE, BC_LEX_OP_BOOL_NOT);
 
+			// POSIX doesn't allow boolean not.
 			if (l->t == BC_LEX_OP_BOOL_NOT)
 				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "!");
 
@@ -138,6 +193,7 @@ void bc_lex_token(BcLex *l) {
 
 		case '#':
 		{
+			// POSIX does not allow line comments.
 			bc_lex_err(l, BC_ERR_POSIX_COMMENT);
 			bc_lex_lineComment(l);
 			break;
@@ -152,6 +208,9 @@ void bc_lex_token(BcLex *l) {
 		case '&':
 		{
 			c2 = l->buf[l->i];
+
+			// Either we have boolean and or an error. And boolean and is not
+			// allowed by POSIX.
 			if (BC_NO_ERR(c2 == '&')) {
 
 				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "&&");
@@ -192,6 +251,8 @@ void bc_lex_token(BcLex *l) {
 		case '+':
 		{
 			c2 = l->buf[l->i];
+
+			// Have to check for increment first.
 			if (c2 == '+') {
 				l->i += 1;
 				l->t = BC_LEX_OP_INC;
@@ -209,6 +270,8 @@ void bc_lex_token(BcLex *l) {
 		case '-':
 		{
 			c2 = l->buf[l->i];
+
+			// Have to check for decrement first.
 			if (c2 == '-') {
 				l->i += 1;
 				l->t = BC_LEX_OP_DEC;
@@ -220,11 +283,14 @@ void bc_lex_token(BcLex *l) {
 		case '.':
 		{
 			c2 = l->buf[l->i];
+
+			// If it's alone, it's an alias for last.
 			if (BC_LEX_NUM_CHAR(c2, true, false)) bc_lex_number(l, c);
 			else {
 				l->t = BC_LEX_KW_LAST;
 				bc_lex_err(l, BC_ERR_POSIX_DOT);
 			}
+
 			break;
 		}
 
@@ -292,6 +358,7 @@ void bc_lex_token(BcLex *l) {
 #if BC_ENABLE_EXTRA_MATH
 			c2 = l->buf[l->i];
 
+			// Check for shift.
 			if (c2 == '<') {
 				l->i += 1;
 				bc_lex_assign(l, BC_LEX_OP_ASSIGN_LSHIFT, BC_LEX_OP_LSHIFT);
@@ -313,6 +380,7 @@ void bc_lex_token(BcLex *l) {
 #if BC_ENABLE_EXTRA_MATH
 			c2 = l->buf[l->i];
 
+			// Check for shift.
 			if (c2 == '>') {
 				l->i += 1;
 				bc_lex_assign(l, BC_LEX_OP_ASSIGN_RSHIFT, BC_LEX_OP_RSHIFT);
@@ -332,6 +400,7 @@ void bc_lex_token(BcLex *l) {
 
 		case '\\':
 		{
+			// In bc, a backslash+newline is whitespace.
 			if (BC_NO_ERR(l->buf[l->i] == '\n')) {
 				l->i += 1;
 				l->t = BC_LEX_WHITESPACE;
@@ -388,6 +457,7 @@ void bc_lex_token(BcLex *l) {
 		{
 			c2 = l->buf[l->i];
 
+			// Once again, boolean or is not allowed by POSIX.
 			if (BC_NO_ERR(c2 == '|')) {
 
 				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "||");

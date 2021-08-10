@@ -32,8 +32,9 @@
 script="$0"
 testdir=$(dirname "$script")
 
-. "$testdir/../functions.sh"
+. "$testdir/../scripts/functions.sh"
 
+# Command-line processing.
 if [ "$#" -eq 0 ]; then
 	printf 'usage: %s dir [exec args...]\n' "$script"
 	exit 1
@@ -49,6 +50,7 @@ else
 	shift
 fi
 
+# I use these, so unset them to make the tests work.
 unset BC_ENV_ARGS
 unset BC_LINE_LENGTH
 unset DC_ENV_ARGS
@@ -57,15 +59,18 @@ unset DC_LINE_LENGTH
 out="$testdir/${d}_outputs/errors_results.txt"
 outdir=$(dirname "$out")
 
+# Make sure the directory exists.
 if [ ! -d "$outdir" ]; then
 	mkdir -p "$outdir"
 fi
 
 exebase=$(basename "$exe")
 
+# These are the filenames for the extra tests.
 posix="posix_errors"
 read_errors="read_errors"
 
+# Set stuff for the correct calculator.
 if [ "$d" = "bc" ]; then
 	opts="-l"
 	halt="halt"
@@ -76,6 +81,21 @@ else
 	halt="q"
 fi
 
+printf 'Running %s command-line error tests...' "$d"
+
+printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -e "2+2" 2> "$out" > /dev/null
+err="$?"
+
+checkerrtest "$d" "$err" "command-line -e test" "$out" "$exebase"
+
+printf '%s\n' "$halt" | "$exe" "$@" -e "1+1" -f- -f "$testdir/$d/decimal.txt" 2> "$out" > /dev/null
+err="$?"
+
+checkerrtest "$d" "$err" "command-line -f test" "$out" "$exebase"
+
+printf 'pass\n'
+
+# Now test the error files in the standard tests directory.
 for testfile in $testdir/$d/*errors.txt; do
 
 	if [ -z "${testfile##*$read_errors*}" ]; then
@@ -83,8 +103,10 @@ for testfile in $testdir/$d/*errors.txt; do
 		continue
 	fi
 
+	# Test bc POSIX errors and warnings.
 	if [ -z "${testfile##*$posix*}" ]; then
 
+		# Just test warnings.
 		line="last"
 		printf '%s\n' "$line" | "$exe" "$@" "-lw"  2> "$out" > /dev/null
 		err="$?"
@@ -95,15 +117,20 @@ for testfile in $testdir/$d/*errors.txt; do
 
 		checkerrtest "$d" "1" "$line" "$out" "$exebase"
 
+		# Set the options for standard mode.
 		options="-ls"
+
 	else
 		options="$opts"
 	fi
 
+	# Output something pretty.
 	base=$(basename "$testfile")
 	base="${base%.*}"
 	printf 'Running %s %s...' "$d" "$base"
 
+	# Test errors on each line of the file. Yes, each line has a separate error
+	# case.
 	while read -r line; do
 
 		rm -f "$out"
@@ -119,7 +146,32 @@ for testfile in $testdir/$d/*errors.txt; do
 
 done
 
+# I need to skip a test here on FreeBSD.
+os=$(uname)
+
+# The list of files we need to skip.
+skip_files="
+33.txt
+"
+
+# Test all the files in the errors directory. While the loop above does one test
+# for every line, this does one test per file, but it runs the file through
+# stdin and as a file on the command-line.
 for testfile in $testdir/$d/errors/*.txt; do
+
+	# If we are on FreeBSD...
+	if [ "$os" = "FreeBSD" ] && [ "$d" = "dc" ]; then
+
+		b=$(basename "$testfile")
+
+		# If the file is one of the skip files...
+		if [ -z "${skip_files##*$b*}" ]; then
+
+			printf 'On FreeBSD; skipping %s...\n' "$testfile"
+			continue
+
+		fi
+	fi
 
 	printf 'Running %s error file %s...' "$d" "$testfile"
 

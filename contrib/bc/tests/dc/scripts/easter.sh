@@ -2,7 +2,7 @@
 
 if test $# -lt 2
 then
-	echo usage: $0 dc_exec year
+	echo usage: $0 dc_exec year [options...]
 	exit 1
 fi
 
@@ -43,5 +43,5 @@ echo $year '
 	]s@
 	31<@psnlmPpsn1z>p
 ]sp
-lpx' | "$dc_exec" | tr '\012' ' '
+lpx' | "$dc_exec" "$@" | tr '\012' ' '
 echo ''

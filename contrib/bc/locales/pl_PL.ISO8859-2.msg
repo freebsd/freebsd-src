@@ -60,7 +60,7 @@ $set 4
 5 "niewa¿ny token"
 6 "niewa¿ne wyra¿enie"
 7 "puste wyra¿enie"
-8 "niewa¿ny wyci±g z wydruku"
+8 "nieprawid³owe polecenie drukowania lub przesy³ania strumienia"
 9 "nieprawid³owa definicja funkcji"
 10 "nieprawid³owe przyporz±dkowanie: lewa strona musi byæ elementem scale, ibase, obase, last, var lub element array"
 11 "nie znaleziono zmiennej automatycznej"
@@ -80,6 +80,7 @@ $set 4
 25 "POSIX nie pozwala na notacjê wyk³adnicz±"
 26 "POSIX nie zezwala na odniesienia do tablicy jako parametrów funkcji"
 27 "POSIX wymaga, aby lewe usztywnienie znajdowa³o siê na tej samej linii co nag³ówek funkcji"
+28 "POSIX nie pozwala na przypisywanie ci±gów znaków do zmiennych lub tablic"
 
 $ B³êdy Runtime'u.
 $set 5
@@ -91,9 +92,10 @@ $set 5
 5 "powtarzalne wywo³anie read()"
 6 "element zmienny lub tablicowy jest niew³a¶ciwym typem"
 7 "stos ma zbyt ma³o elementów"
-8 "niew³a¶ciwa liczba parametrów; potrzeba %zu, maj± %zu"
-9 "niezdefiniowana funkcja: %s()"
-10 "nie mo¿e u¿yæ warto¶ci pustej w wyra¿eniu"
+8 "stos dla rejestru \"%s\" ma zbyt ma³o elementów"
+9 "niew³a¶ciwa liczba parametrów; potrzeba %zu, maj± %zu"
+10 "niezdefiniowana funkcja: %s()"
+11 "nie mo¿e u¿yæ warto¶ci pustej w wyra¿eniu"
 
 $ Fatalne b³êdy.
 $set 6
@@ -101,11 +103,9 @@ $set 6
 1 "Alokacja pamiêci nie powiod³a siê"
 2 "B³±d we/wy"
 3 "nie móg³ otworzyæ pliku: %s"
-4 "plik nie jest ASCII: %s"
+4 "plik nie jest tekstem: %s"
 5 "¶cie¿ka to katalog: %s"
-6 "nieprawid³owa opcja wiersza poleceñ: '%c' (\"%s\")"
-
-$set 7
-
-1 "opcja wymaga argumentu: '%c' (\"%s\")"
-2 "opcja nie wymaga ¿adnych argumentów: '%c' (\"%s\")"
+6 "nieprawid³owa opcja wiersza poleceñ: \"%s\""
+7 "opcja wymaga argumentu: '%c' (\"%s\")"
+8 "opcja nie wymaga ¿adnych argumentów: '%c' (\"%s\")"
+9 "nieprawid³owa argument opcja wiersza poleceñ: \"%s\""

@@ -1,1 +1,0 @@
-.TH "BCL" "3" "April 2021" "Gavin D. Howard" "Libraries Manual"
