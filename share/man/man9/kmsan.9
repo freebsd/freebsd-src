@@ -1,0 +1,352 @@
+.\"-
+.\" Copyright (c) 2021 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Mark Johnston under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 10, 2021
+.Dt KMSAN 9
+.Os
+.Sh NAME
+.Nm KMSAN
+.Nd Kernel Memory SANitizer
+.Sh SYNOPSIS
+The
+.Pa GENERIC-KMSAN
+kernel configuration can be used to compile a KMSAN-enabled kernel using
+.Pa GENERIC
+as a base configuration.
+Alternately, to compile KMSAN into the kernel, place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options KMSAN"
+.Ed
+.Pp
+.In sys/msan.h
+.Ft void
+.Fn kmsan_mark "const void *addr" "size_t size" "uint8_t code"
+.Ft void
+.Fn kmsan_orig "const void *addr" "size_t size" "int type" "uintptr_t pc"
+.Ft void
+.Fn kmsan_check "const void *addr" "size_t size" "const char *descr"
+.Ft void
+.Fn kmsan_check_bio "const struct bio *" "const char *descr"
+.Ft void
+.Fn kmsan_check_ccb "const union ccb *" "const char *descr"
+.Ft void
+.Fn kmsan_check_mbuf "const struct mbuf *" "const char *descr"
+.Sh DESCRIPTION
+.Nm
+is a subsystem which leverages compiler instrumentation to detect uses of
+uninitialized memory in the kernel.
+Currently it is implemented only on the amd64 platform.
+.Pp
+When
+.Nm
+is compiled into the kernel, the compiler is configured to emit function
+calls preceding memory accesses.
+The functions are implemented by the
+.Nm
+runtime component and use hidden, byte-granular shadow state to determine
+whether the source operand has been initialized.
+When uninitialized memory is used as a source operand in certain operations,
+such as control flow expressions or memory accesses, the runtime reports
+an error.
+Otherwise, the shadow state is propagated to destination operand.
+For example, a
+variable assignment or a
+.Fn memcpy
+call which copies uninitialized memory will cause the destination buffer or
+variable to be marked uninitialized.
+.Pp
+To report an error, the
+.Nm
+runtime will either trigger a kernel panic or print a message to the console,
+depending on the value of the
+.Sy debug.kmsan.panic_on_violation
+sysctl.
+In both cases, a stack trace and information about the origin of the
+uninitialized memory is included.
+.Pp
+In addition to compiler-detected uses of uninitialized memory,
+various kernel I/O
+.Dq exit points ,
+such as
+.Xr copyout 9 ,
+perform validation of the input's shadow state and will raise an error if
+any uninitialized bytes are detected.
+.Pp
+The
+.Nm
+option imposes a significant performance penalty.
+Kernel code typically runs two or three times slower, and each byte mapped in
+the kernel map requires two bytes of shadow state.
+As a result,
+.Nm
+should be used only for kernel testing and development.
+It is not recommended to enable
+.Nm
+in systems with less than 8GB of physical RAM.
+.Sh FUNCTIONS
+The
+.Fn kmsan_mark
+and
+.Fn kmsan_orig
+functions update
+.Nm
+shadow state.
+.Fn kmsan_mark
+marks an address range as valid or invalid according to the value of the
+.Va code
+parameter.
+The valid values for this parameter are
+.Dv KMSAN_STATE_INITED
+and
+.Dv KMSAN_STATE_UNINIT ,
+which mark the range as initialized and uninitialized, respectively.
+For example, when a piece of memory is freed to a kernel allocator, it will
+typically have been marked initialized; before the memory is reused for a new
+allocation, the allocator should mark it as uninitialized.
+As another example, writes to host memory performed by devices, e.g., via DMA,
+are not intercepted by the sanitizer; to avoid false positives, drivers should
+mark device-written memory as initialized.
+For many drivers this is handled internally by the
+.Xr busdma 9
+subsystem.
+.Pp
+The
+.Fn kmsan_orig
+function updates
+.Dq origin
+shadow state.
+In particular, it associates a given uninitialized buffer with a memory type
+and code address.
+This is used by the
+.Nm
+runtime to track the source of uninitialized memory and is only for debugging
+purposes.
+See
+.Sx IMPLEMENTATION NOTES
+for more details.
+.Pp
+The
+.Fn kmsan_check
+function and its sub-typed siblings validate the shadow state of the region(s)
+of kernel memory passed as input parameters.
+If any byte of the input is marked as uninitialized, the runtime will generate
+a report.
+These functions are useful during debugging, as they can be strategically
+inserted into code paths to narrow down the source of uninitialized memory.
+They are also used to perform validation in various kernel I/O paths, helping
+ensure that, for example, packets transmitted over a network do not contain
+uninitialized kernel memory.
+.Fn kmsan_check
+and related functions also take a
+.Fa descr
+parameter which is inserted into any reports raised by the check.
+.Sh IMPLEMENTATION NOTES
+.Ss Shadow Maps
+The
+.Nm
+runtime makes use of two shadows of the kernel map.
+Each address in the kernel map has a linear mapping to addresses in the
+two shadows.
+The first, simply called the shadow map, tracks the state of the corresponding
+kernel memory.
+A non-zero byte in the shadow map indicates that the corresponding byte of
+kernel memory is uninitialized.
+The
+.Nm
+instrumentation automatically propagates shadow state as the contents of kernel
+memory are transformed and copied.
+.Pp
+The second shadow is called the origin map, and exists only to help debug
+reports from the sanitizer.
+To avoid false positives,
+.Nm
+does not raise reports for certain operations on uninitialized memory, such
+as copying or arithmetic.
+Thus, operations on uninitialized state which raise a report may be far removed
+from the source of the bug, complicating debugging.
+The origin map contains information which can help pinpoint the root cause of
+a particular
+.Nm
+report; when generating a report, the runtime uses state from the origin map
+to provide extra details.
+.Pp
+Unlike the shadow map, the origin map is not byte-granular, but consists of 4-byte
+.Dq cells .
+Each cell describes the corresponding four bytes of mapped kernel memory and
+holds a type and compressed code address.
+When kernel memory is allocated for some purpose, its origin is initialized
+either by the compiler instrumentation or by runtime hooks in the allocator.
+The type indicates the specific allocator, e.g.,
+.Xr uma 9 ,
+and the address provides the location in the kernel code where the memory was
+allocated.
+.Ss Assembly Code
+When
+.Nm
+is configured, the compiler will only emit instrumentation for C code.
+Files containing assembly code are left un-instrumented.
+In some cases this is handled by the sanitizer runtime, which defines
+wrappers for subroutines implemented in assembly.
+These wrappers are referred to as interceptors and handle updating
+shadow state to reflect the operations performed by the original
+subroutines.
+In other cases, C code which calls assembly code or is called from
+assembly code may need to use
+.Fn kmsan_mark
+to manually update shadow state.
+This is typically only necessary in machine-dependent code.
+.Pp
+Inline assembly is instrumented by the compiler to update shadow state
+based on the output operands of the code, and thus does not usually
+require any special handling to avoid false positives.
+.Ss Interrupts and Exceptions
+In addition to the shadow maps, the sanitizer requires some thread-local
+storage (TLS) to track initialization and origin state for function
+parameters and return values.
+The sanitizer instrumentation will automatically fetch, update and
+verify this state.
+In particular, this storage block has a layout defined by the sanitizer
+ABI.
+.Pp
+Most kernel code runs in a context where interrupts or exceptions may
+redirect the CPU to begin execution of unrelated code.
+To ensure that thread-local sanitizer state remains consistent, the
+runtime maintains a stack of TLS blocks for each thread.
+When machine-dependent interrupt and exception handlers begin execution,
+they push a new entry onto the stack before calling into any C code, and
+pop the stack before resuming execution of the interrupted code.
+These operations are performed by the
+.Fn kmsan_intr_enter
+and
+.Fn kmsan_intr_leave
+functions in the sanitizer runtime.
+.Sh EXAMPLES
+The following contrived example demonstrates some of the types of bugs
+that are automatically detected by
+.Nm :
+.Bd -literal -offset indent
+int
+f(size_t osz)
+{
+	struct {
+		uint32_t bar;
+		uint16_t baz;
+		/* A 2-byte hole is here. */
+	} foo;
+	char *buf;
+	size_t sz;
+	int error;
+
+	/*
+	 * This will raise a report since "sz" is uninitialized
+	 * here.  If it is initialized, and "osz" was left uninitialized
+	 * by the caller, a report would also be raised.
+	 */
+	if (sz < osz)
+		return (1);
+
+	buf = malloc(32, M_TEMP, M_WAITOK);
+
+	/*
+	 * This will raise a report since "buf" has not been
+	 * initialized and contains whatever data is left over from the
+	 * previous use of that memory.
+	 */
+	for (i = 0; i < 32; i++)
+		if (buf[i] != '\0')
+			foo.bar++;
+	foo.baz = 0;
+
+	/*
+	 * This will raise a report since the pad bytes in "foo" have
+	 * not been initialized, e.g., by memset(), and this call will
+	 * thus copy uninitialized kernel stack memory into userspace.
+	 */
+	copyout(&foo, uaddr, sizeof(foo));
+
+	/*
+	 * This line itself will not raise a report, but may trigger
+	 * a report in the caller depending on how the return value is
+	 * used.
+	 */
+	return (error);
+}
+.Ed
+.Sh SEE ALSO
+.Xr build 7 ,
+.Xr busdma 9 ,
+.Xr copyout 9 ,
+.Xr KASAN 9 ,
+.Xr uma 9
+.Rs
+.%A Evgeniy Stepanov
+.%A Konstantin Serebryany
+.%T MemorySanitizer: fast detector of uninitialized memory use in C++
+.%J 2015 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)
+.%D 2015
+.Re
+.Sh HISTORY
+.Nm
+was ported from
+.Nx
+and first appeared in
+.Fx 14.0 .
+.Sh BUGS
+Accesses to kernel memory outside of the kernel map are ignored by the
+.Nm
+runtime.
+In particular, memory accesses via the direct map are not validated.
+When memory is copied from outside the kernel map into the kernel map,
+that region of the kernel map is marked as initialized.
+When
+.Nm
+is configured, kernel memory allocators are configured to use the kernel map,
+and filesystems are configured to always map data buffers into the kernel map,
+so usage of the direct map is minimized.
+However, some uses of the direct map remain.
+This is a conservative policy which aims to avoid false positives, but it will
+mask bug in some kernel subsystems.
+.Pp
+On amd64, global variables and the physical page array
+.Va vm_page_array
+are not sanitized.
+This is intentional, as it reduces memory usage by avoiding creating
+shadows of large regions of the kernel map.
+However, this can allow bugs to go undetected by
+.Nm .
+.Pp
+Some kernel memory allocators provide type-stable objects, and code which uses
+them frequently depends on object data being preserved across allocations.
+Such allocations cannot be sanitized by
+.Nm .
+However, in some cases it may be possible to use
+.Fn kmsan_mark
+to manually annotate fields which are known to contain invalid data upon
+allocation.
