@@ -28,7 +28,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2020
+.Dd August 7, 2021
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -348,6 +348,8 @@ Requested via
 .Xr getsockopt 2
 on a
 .Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET
 socket returns credentials of the remote side.
 These will arrive in the form of a filled in
 .Vt xucred
