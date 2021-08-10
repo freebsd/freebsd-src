@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
@@ -207,6 +208,8 @@ ia32_syscall(struct trapframe *frame)
 	struct thread *td;
 	register_t orig_tf_rflags;
 	ksiginfo_t ksi;
+
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	orig_tf_rflags = frame->tf_rflags;
 	td = curthread;

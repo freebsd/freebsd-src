@@ -282,8 +282,10 @@ alltraps_pushregs_no_rax:
 	.globl	calltrap
 	.type	calltrap,@function
 calltrap:
-	movq	%rsp,%rdi
+	KMSAN_ENTER
+	movq	%rsp, %rdi
 	call	trap_check
+	KMSAN_LEAVE
 	jmp	doreti			/* Handle any pending ASTs */
 
 	/*
@@ -352,8 +354,10 @@ IDTVEC(dblfault)
 	cmpq	$~0,%rax
 	je	2f
 	movq	%rax,%cr3
-2:	movq	%rsp,%rdi
+2:	KMSAN_ENTER
+	movq	%rsp,%rdi
 	call	dblfault_handler
+	KMSAN_LEAVE
 3:	hlt
 	jmp	3b
 
@@ -856,8 +860,10 @@ nmi_fromuserspace:
 3:
 /* Note: this label is also used by ddb and gdb: */
 nmi_calltrap:
+	KMSAN_ENTER
 	movq	%rsp,%rdi
 	call	trap
+	KMSAN_LEAVE
 #ifdef HWPMC_HOOKS
 	/*
 	 * Capture a userspace callchain if needed.
@@ -1043,8 +1049,10 @@ mchk_fromuserspace:
 1:	call	handle_ibrs_entry
 /* Note: this label is also used by ddb and gdb: */
 mchk_calltrap:
+	KMSAN_ENTER
 	movq	%rsp,%rdi
 	call	mca_intr
+	KMSAN_LEAVE
 	testl	%ebx,%ebx	/* %ebx != 0 => return to userland */
 	jnz	doreti_exit
 	/*
