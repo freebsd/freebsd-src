@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2021
+.Dd August 10, 2021
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -601,6 +601,19 @@ process.
 .Bd -literal -offset indent
 make PORTS_MODULES=emulators/virtualbox-ose-kmod kernel
 .Ed
+.It Va LOCAL_MODULES
+A list of external kernel modules that should be built and installed
+as part of the
+.Cm buildkernel
+and
+.Cm installkernel
+process.
+.It Va LOCAL_MODULES_DIR
+The directory in which to search for the kernel modules specified by
+.Va LOCAL_MODULES .
+Each kernel module should consist of a directory containing a makefile.
+Defaults to
+.Pa ${LOCALBASE}/sys/modules .
 .It Va SRCCONF
 Specify a file to override the default
 .Pa /etc/src.conf .
