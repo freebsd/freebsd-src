@@ -191,4 +191,16 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 	return (tc->impl->map_complete(dmat, map, segs, nsegs, error));
 }
 
+#ifdef KMSAN
+static inline void
+_bus_dmamap_load_kmsan(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct memdesc *mem)
+{
+	struct bus_dma_tag_common *tc;
+
+	tc = (struct bus_dma_tag_common *)dmat;
+	return (tc->impl->load_kmsan(map, mem));
+}
+#endif
+
 #endif /* !_X86_BUS_DMA_H_ */

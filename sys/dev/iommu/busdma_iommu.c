@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/memdesc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/rman.h>
@@ -916,10 +917,27 @@ iommu_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map1)
 }
 
 static void
-iommu_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
+iommu_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map1,
     bus_dmasync_op_t op)
 {
+	struct bus_dmamap_iommu *map;
+
+	map = (struct bus_dmamap_iommu *)map1;
+	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
 }
+
+#ifdef KMSAN
+static void
+iommu_bus_dmamap_load_kmsan(bus_dmamap_t map1, struct memdesc *mem)
+{
+	struct bus_dmamap_iommu *map;
+
+	map = (struct bus_dmamap_iommu *)map1;
+	if (map == NULL)
+		return;
+	memcpy(&map->kmsan_mem, mem, sizeof(struct memdesc));
+}
+#endif
 
 struct bus_dma_impl bus_dma_iommu_impl = {
 	.tag_create = iommu_bus_dma_tag_create,
@@ -937,6 +955,9 @@ struct bus_dma_impl bus_dma_iommu_impl = {
 	.map_complete = iommu_bus_dmamap_complete,
 	.map_unload = iommu_bus_dmamap_unload,
 	.map_sync = iommu_bus_dmamap_sync,
+#ifdef KMSAN
+	.load_kmsan = iommu_bus_dmamap_load_kmsan,
+#endif
 };
 
 static void

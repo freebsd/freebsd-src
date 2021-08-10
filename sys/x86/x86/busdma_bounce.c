@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/memdesc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -129,6 +130,9 @@ struct bus_dmamap {
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
 	STAILQ_ENTRY(bus_dmamap) links;
+#ifdef KMSAN
+	struct memdesc	       kmsan_mem;
+#endif
 };
 
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
@@ -202,6 +206,14 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->common.impl = &bus_dma_bounce_impl;
 	newtag->map_count = 0;
 	newtag->segments = NULL;
+
+#ifdef KMSAN
+	/*
+	 * When KMSAN is configured, we need a map to store a memory descriptor
+	 * which can be used for validation.
+	 */
+	newtag->bounce_flags |= BUS_DMA_FORCE_MAP;
+#endif
 
 	if (parent != NULL && (newtag->common.filter != NULL ||
 	    (parent->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0))
@@ -975,7 +987,10 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 	vm_offset_t datavaddr, tempvaddr;
 	bus_size_t datacount1, datacount2;
 
-	if (map == NULL || (bpage = STAILQ_FIRST(&map->bpages)) == NULL)
+	if (map == NULL)
+		goto out;
+	kmsan_bus_dmamap_sync(&map->kmsan_mem, op);
+	if ((bpage = STAILQ_FIRST(&map->bpages)) == NULL)
 		goto out;
 
 	/*
@@ -1069,6 +1084,16 @@ next_r:
 out:
 	atomic_thread_fence_rel();
 }
+
+#ifdef KMSAN
+static void
+bounce_bus_dmamap_load_kmsan(bus_dmamap_t map, struct memdesc *mem)
+{
+	if (map == NULL)
+		return;
+	memcpy(&map->kmsan_mem, mem, sizeof(map->kmsan_mem));
+}
+#endif
 
 static void
 init_bounce_pages(void *dummy __unused)
@@ -1351,4 +1376,7 @@ struct bus_dma_impl bus_dma_bounce_impl = {
 	.map_complete = bounce_bus_dmamap_complete,
 	.map_unload = bounce_bus_dmamap_unload,
 	.map_sync = bounce_bus_dmamap_sync,
+#ifdef KMSAN
+	.load_kmsan = bounce_bus_dmamap_load_kmsan,
+#endif
 };
