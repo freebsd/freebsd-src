@@ -574,8 +574,13 @@ rpctls_setupcl_ssl(void)
 #else
 	flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1_3;
 #endif
+#ifdef SSL_OP_ENABLE_KTLS
+	flags |= SSL_OP_ENABLE_KTLS;
+#endif
 	SSL_CTX_set_options(ctx, flags);
+#ifdef SSL_MODE_NO_KTLS_TX
 	SSL_CTX_clear_mode(ctx, SSL_MODE_NO_KTLS_TX | SSL_MODE_NO_KTLS_RX);
+#endif
 	return (ctx);
 }
 
