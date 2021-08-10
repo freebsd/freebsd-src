@@ -66,6 +66,7 @@ enum {
 	BUS_DMA_COULD_BOUNCE	= 0x01,
 	BUS_DMA_MIN_ALLOC_COMP	= 0x02,
 	BUS_DMA_KMEM_ALLOC	= 0x04,
+	BUS_DMA_FORCE_MAP	= 0x08,
 };
 
 struct bounce_zone;
@@ -301,7 +302,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	error = 0;
 
 	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc_domainset(
+		dmat->segments = malloc_domainset(
 		    sizeof(bus_dma_segment_t) * dmat->common.nsegments,
 		    M_DEVBUF, DOMAINSET_PREF(dmat->common.domain), M_NOWAIT);
 		if (dmat->segments == NULL) {
@@ -311,6 +312,19 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 	}
 
+	if (dmat->bounce_flags & (BUS_DMA_COULD_BOUNCE | BUS_DMA_FORCE_MAP)) {
+		*mapp = malloc_domainset(sizeof(**mapp), M_DEVBUF,
+		    DOMAINSET_PREF(dmat->common.domain), M_NOWAIT | M_ZERO);
+		if (*mapp == NULL) {
+			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
+			    __func__, dmat, ENOMEM);
+			return (ENOMEM);
+		}
+		STAILQ_INIT(&(*mapp)->bpages);
+	} else {
+		*mapp = NULL;
+	}
+
 	/*
 	 * Bouncing might be required if the driver asks for an active
 	 * exclusion region, a data alignment that is stricter than 1, and/or
@@ -318,22 +332,10 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 */
 	if ((dmat->bounce_flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		/* Must bounce */
-		if (dmat->bounce_zone == NULL) {
-			if ((error = alloc_bounce_zone(dmat)) != 0)
-				return (error);
-		}
+		if (dmat->bounce_zone == NULL &&
+		    (error = alloc_bounce_zone(dmat)) != 0)
+			goto out;
 		bz = dmat->bounce_zone;
-
-		*mapp = (bus_dmamap_t)malloc_domainset(sizeof(**mapp), M_DEVBUF,
-		    DOMAINSET_PREF(dmat->common.domain), M_NOWAIT | M_ZERO);
-		if (*mapp == NULL) {
-			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
-			    __func__, dmat, ENOMEM);
-			return (ENOMEM);
-		}
-
-		/* Initialize the new map */
-		STAILQ_INIT(&((*mapp)->bpages));
 
 		/*
 		 * Attempt to add pages to our pool on a per-instance
@@ -361,11 +363,16 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 				error = 0;
 		}
 		bz->map_count++;
+	}
+
+out:
+	if (error == 0) {
+		dmat->map_count++;
 	} else {
+		free(*mapp, M_DEVBUF);
 		*mapp = NULL;
 	}
-	if (error == 0)
-		dmat->map_count++;
+
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->common.flags, error);
 	return (error);
