@@ -54,6 +54,9 @@ struct bus_dmamap_iommu {
 	bool locked;
 	bool cansleep;
 	int flags;
+#ifdef KMSAN
+	struct memdesc kmsan_mem;
+#endif
 };
 
 #define	BUS_DMAMAP_IOMMU_MALLOC	0x0001
