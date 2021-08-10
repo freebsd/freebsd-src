@@ -11339,6 +11339,76 @@ pmap_kasan_enter(vm_offset_t va)
 }
 #endif
 
+#ifdef KMSAN
+static vm_page_t
+pmap_kmsan_enter_alloc_4k(void)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	if (m == NULL)
+		panic("%s: no memory to grow shadow map", __func__);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
+	return (m);
+}
+
+static vm_page_t
+pmap_kmsan_enter_alloc_2m(void)
+{
+	vm_page_t m;
+
+	m = vm_page_alloc_contig(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED, NPTEPG, 0, ~0ul, NBPDR, 0, VM_MEMATTR_DEFAULT);
+	if (m != NULL)
+		memset((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), 0, NBPDR);
+	return (m);
+}
+
+/*
+ * Grow the shadow or origin maps by at least one 4KB page at the specified
+ * address.  Use 2MB pages when possible.
+ */
+void
+pmap_kmsan_enter(vm_offset_t va)
+{
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_page_t m;
+
+	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
+
+	pdpe = pmap_pdpe(kernel_pmap, va);
+	if ((*pdpe & X86_PG_V) == 0) {
+		m = pmap_kmsan_enter_alloc_4k();
+		*pdpe = (pdp_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+		    X86_PG_V | pg_nx);
+	}
+	pde = pmap_pdpe_to_pde(pdpe, va);
+	if ((*pde & X86_PG_V) == 0) {
+		m = pmap_kmsan_enter_alloc_2m();
+		if (m != NULL) {
+			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+			    X86_PG_PS | X86_PG_V | X86_PG_A | X86_PG_M | pg_nx);
+		} else {
+			m = pmap_kmsan_enter_alloc_4k();
+			*pde = (pd_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW |
+			    X86_PG_V | pg_nx);
+		}
+	}
+	if ((*pde & X86_PG_PS) != 0)
+		return;
+	pte = pmap_pde_to_pte(pde, va);
+	if ((*pte & X86_PG_V) != 0)
+		return;
+	m = pmap_kmsan_enter_alloc_4k();
+	*pte = (pt_entry_t)(VM_PAGE_TO_PHYS(m) | X86_PG_RW | X86_PG_V |
+	    X86_PG_M | X86_PG_A | pg_nx);
+}
+#endif
+
 /*
  * Track a range of the kernel's virtual address space that is contiguous
  * in various mapping attributes.
@@ -11519,6 +11589,14 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 #ifdef KASAN
 		case KASANPML4I:
 			sbuf_printf(sb, "\nKASAN shadow map:\n");
+			break;
+#endif
+#ifdef KMSAN
+		case KMSANSHADPML4I:
+			sbuf_printf(sb, "\nKMSAN shadow map:\n");
+			break;
+		case KMSANORIGPML4I:
+			sbuf_printf(sb, "\nKMSAN origin map:\n");
 			break;
 #endif
 		case KPML4BASE:
