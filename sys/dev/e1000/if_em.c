@@ -3170,6 +3170,7 @@ em_initialize_transmit_unit(if_ctx_t ctx)
  *  Enable receive unit.
  *
  **********************************************************************/
+#define BSIZEPKT_ROUNDUP ((1<<E1000_SRRCTL_BSIZEPKT_SHIFT)-1)
 
 static void
 em_initialize_receive_unit(if_ctx_t ctx)
@@ -3180,7 +3181,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	struct e1000_hw	*hw = &adapter->hw;
 	struct em_rx_queue *que;
 	int i;
-	u32 rctl, rxcsum, rfctl;
+	uint32_t rctl, rxcsum;
 
 	INIT_DEBUGOUT("em_initialize_receive_units: begin");
 
@@ -3224,21 +3225,25 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	}
 	E1000_WRITE_REG(hw, E1000_RDTR, adapter->rx_int_delay.value);
 
-	/* Use extended rx descriptor formats */
-	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
-	rfctl |= E1000_RFCTL_EXTEN;
-	/*
-	 * When using MSI-X interrupts we need to throttle
-	 * using the EITR register (82574 only)
-	 */
-	if (hw->mac.type == e1000_82574) {
-		for (int i = 0; i < 4; i++)
-			E1000_WRITE_REG(hw, E1000_EITR_82574(i),
-			    DEFAULT_ITR);
-		/* Disable accelerated acknowledge */
-		rfctl |= E1000_RFCTL_ACK_DIS;
+	if (hw->mac.type >= em_mac_min) {
+		uint32_t rfctl;
+		/* Use extended rx descriptor formats */
+		rfctl = E1000_READ_REG(hw, E1000_RFCTL);
+		rfctl |= E1000_RFCTL_EXTEN;
+
+		/*
+		 * When using MSI-X interrupts we need to throttle
+		 * using the EITR register (82574 only)
+		 */
+		if (hw->mac.type == e1000_82574) {
+			for (int i = 0; i < 4; i++)
+				E1000_WRITE_REG(hw, E1000_EITR_82574(i),
+				    DEFAULT_ITR);
+			/* Disable accelerated acknowledge */
+			rfctl |= E1000_RFCTL_ACK_DIS;
+		}
+		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
-	E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
 	if (if_getcapenable(ifp) & IFCAP_RXCSUM &&
@@ -3323,23 +3328,16 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		u32 psize, srrctl = 0;
 
 		if (if_getmtu(ifp) > ETHERMTU) {
-			/* Set maximum packet len */
-			if (adapter->rx_mbuf_sz <= 4096) {
-				srrctl |= 4096 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-				rctl |= E1000_RCTL_SZ_4096 | E1000_RCTL_BSEX;
-			} else if (adapter->rx_mbuf_sz > 4096) {
-				srrctl |= 8192 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-				rctl |= E1000_RCTL_SZ_8192 | E1000_RCTL_BSEX;
-			}
 			psize = scctx->isc_max_frame_size;
 			/* are we on a vlan? */
 			if (ifp->if_vlantrunk != NULL)
 				psize += VLAN_TAG_SIZE;
 			E1000_WRITE_REG(hw, E1000_RLPML, psize);
-		} else {
-			srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
-			rctl |= E1000_RCTL_SZ_2048;
 		}
+
+		/* Set maximum packet buffer len */
+		srrctl |= (adapter->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >>
+		    E1000_SRRCTL_BSIZEPKT_SHIFT;
 
 		/*
 		 * If TX flow control is disabled and there's >1 queue defined,
@@ -3391,17 +3389,29 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	/* Make sure VLAN Filters are off */
 	rctl &= ~E1000_RCTL_VFE;
 
+	/* Set up packet buffer size, overridden by per queue srrctl on igb */
 	if (hw->mac.type < igb_mac_min) {
-		if (adapter->rx_mbuf_sz == MCLBYTES)
-			rctl |= E1000_RCTL_SZ_2048;
-		else if (adapter->rx_mbuf_sz == MJUMPAGESIZE)
+		if (adapter->rx_mbuf_sz > 2048 && adapter->rx_mbuf_sz <= 4096)
 			rctl |= E1000_RCTL_SZ_4096 | E1000_RCTL_BSEX;
-		else if (adapter->rx_mbuf_sz > MJUMPAGESIZE)
+		else if (adapter->rx_mbuf_sz > 4096 && adapter->rx_mbuf_sz <= 8192)
 			rctl |= E1000_RCTL_SZ_8192 | E1000_RCTL_BSEX;
+		else if (adapter->rx_mbuf_sz > 8192)
+			rctl |= E1000_RCTL_SZ_16384 | E1000_RCTL_BSEX;
+		else {
+			rctl |= E1000_RCTL_SZ_2048;
+			rctl &= ~E1000_RCTL_BSEX;
+		}
+	} else
+		rctl |= E1000_RCTL_SZ_2048;
 
-		/* ensure we clear use DTYPE of 00 here */
-		rctl &= ~0x00000C00;
-	}
+	/*
+	 * rctl bits 11:10 are as follows
+	 * lem: reserved
+	 * em: DTYPE
+	 * igb: reserved
+	 * and should be 00 on all of the above
+	 */
+	rctl &= ~0x00000C00;
 
 	/* Write out the settings */
 	E1000_WRITE_REG(hw, E1000_RCTL, rctl);
