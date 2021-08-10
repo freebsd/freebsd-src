@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
@@ -387,6 +388,7 @@ vm_thread_new(struct thread *td, int pages)
 	td->td_kstack = ks;
 	td->td_kstack_pages = pages;
 	kasan_mark((void *)ks, ptoa(pages), ptoa(pages), 0);
+	kmsan_mark((void *)ks, ptoa(pages), KMSAN_STATE_UNINIT);
 	return (1);
 }
 
