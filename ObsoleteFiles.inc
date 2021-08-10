@@ -36,6 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210810: remove Pentium-related man pages and references
+OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.p5.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.p6.3.gz
+
 # 20210619: new clang import which bumps version from 12.0.0 to 12.0.1.
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/12.0.0/include/cuda_wrappers/complex
