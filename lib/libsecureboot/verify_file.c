@@ -56,6 +56,9 @@ extern char *Skip;
  * We sometimes need to know if input is verified or not.
  * The extra slot is for tracking most recently opened.
  */
+#ifndef SOPEN_MAX
+#define	SOPEN_MAX	64
+#endif
 static int ve_status[SOPEN_MAX+1];
 static int ve_status_state;
 struct verify_status;
