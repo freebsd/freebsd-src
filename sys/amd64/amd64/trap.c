@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -229,6 +230,7 @@ trap(struct trapframe *frame)
 	dr6 = 0;
 
 	kasan_mark(frame, sizeof(*frame), sizeof(*frame), 0);
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	VM_CNT_INC(v_trap);
 	type = frame->tf_trapno;
@@ -973,6 +975,7 @@ trap_user_dtrace(struct trapframe *frame, int (**hookp)(struct trapframe *))
 void
 dblfault_handler(struct trapframe *frame)
 {
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 #ifdef KDTRACE_HOOKS
 	if (dtrace_doubletrap_func != NULL)
 		(*dtrace_doubletrap_func)();
@@ -1176,6 +1179,8 @@ void
 amd64_syscall(struct thread *td, int traced)
 {
 	ksiginfo_t ksi;
+
+	kmsan_mark(td->td_frame, sizeof(*td->td_frame), KMSAN_STATE_INITED);
 
 #ifdef DIAGNOSTIC
 	if (!TRAPF_USERMODE(td->td_frame)) {

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/pmckern.h>
 #include <sys/proc.h>
@@ -215,6 +216,8 @@ ast(struct trapframe *framep)
 	struct proc *p;
 	int flags, sig;
 	bool resched_sigs;
+
+	kmsan_mark(framep, sizeof(*framep), KMSAN_STATE_INITED);
 
 	td = curthread;
 	p = td->td_proc;

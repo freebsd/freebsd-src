@@ -1057,6 +1057,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	struct thread *td;
 	struct thread *dtd;
 
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
+
 	td = curthread;
 	p = td->td_proc;
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
