@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/sysctl.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/random.h>
@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/smr.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vmmeter.h>
 
@@ -631,6 +632,60 @@ kasan_mark_slab_invalid(uma_keg_t keg __unused, void *mem __unused)
 {
 }
 #endif /* KASAN */
+
+#ifdef KMSAN
+static inline void
+kmsan_mark_item_uninitialized(uma_zone_t zone, void *item)
+{
+	void *pcpu_item;
+	size_t sz;
+	int i;
+
+	if ((zone->uz_flags &
+	    (UMA_ZFLAG_CACHE | UMA_ZONE_SECONDARY | UMA_ZONE_MALLOC)) != 0) {
+		/*
+		 * Cache zones should not be instrumented by default, as UMA
+		 * does not have enough information to do so correctly.
+		 * Consumers can mark items themselves if it makes sense to do
+		 * so.
+		 *
+		 * Items from secondary zones are initialized by the parent
+		 * zone and thus cannot safely be marked by UMA.
+		 *
+		 * malloc zones are handled directly by malloc(9) and friends,
+		 * since they can provide more precise origin tracking.
+		 */
+		return;
+	}
+	if (zone->uz_keg->uk_init != NULL) {
+		/*
+		 * By definition, initialized items cannot be marked.  The
+		 * best we can do is mark items from these zones after they
+		 * are freed to the keg.
+		 */
+		return;
+	}
+
+	sz = zone->uz_size;
+	if ((zone->uz_flags & UMA_ZONE_PCPU) == 0) {
+		kmsan_orig(item, sz, KMSAN_TYPE_UMA, KMSAN_RET_ADDR);
+		kmsan_mark(item, sz, KMSAN_STATE_UNINIT);
+	} else {
+		pcpu_item = zpcpu_base_to_offset(item);
+		for (i = 0; i <= mp_maxid; i++) {
+			kmsan_orig(zpcpu_get_cpu(pcpu_item, i), sz,
+			    KMSAN_TYPE_UMA, KMSAN_RET_ADDR);
+			kmsan_mark(zpcpu_get_cpu(pcpu_item, i), sz,
+			    KMSAN_STATE_INITED);
+		}
+	}
+}
+#else /* !KMSAN */
+static inline void
+kmsan_mark_item_uninitialized(uma_zone_t zone __unused, void *item __unused)
+{
+}
+#endif /* KMSAN */
 
 /*
  * Acquire the domain lock and record contention.
@@ -2799,7 +2854,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		STAILQ_INIT(&zdom->uzd_buckets);
 	}
 
-#if defined(INVARIANTS) && !defined(KASAN)
+#if defined(INVARIANTS) && !defined(KASAN) && !defined(KMSAN)
 	if (arg->uminit == trash_init && arg->fini == trash_fini)
 		zone->uz_flags |= UMA_ZFLAG_TRASH | UMA_ZFLAG_CTORDTOR;
 #elif defined(KASAN)
@@ -3227,7 +3282,7 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.dtor = dtor;
 	args.uminit = uminit;
 	args.fini = fini;
-#if defined(INVARIANTS) && !defined(KASAN)
+#if defined(INVARIANTS) && !defined(KASAN) && !defined(KMSAN)
 	/*
 	 * Inject procedures which check for memory use after free if we are
 	 * allowed to scramble the memory while it is not allocated.  This
@@ -3387,6 +3442,7 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 #endif
 
 	kasan_mark_item_valid(zone, item);
+	kmsan_mark_item_uninitialized(zone, item);
 
 #ifdef INVARIANTS
 	skipdbg = uma_dbg_zskip(zone, item);

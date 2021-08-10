@@ -683,7 +683,7 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	KASSERT(m->m_ext.ext_arg2 == NULL, ("%s: ext_arg2 != NULL", __func__));
 	KASSERT(m->m_ext.ext_size == MCLBYTES, ("%s: ext_size != MCLBYTES", __func__));
 	KASSERT(m->m_ext.ext_type == EXT_PACKET, ("%s: ext_type != EXT_PACKET", __func__));
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KMSAN)
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
 	/*
@@ -742,7 +742,7 @@ mb_zinit_pack(void *mem, int size, int how)
 	    m->m_ext.ext_buf == NULL)
 		return (ENOMEM);
 	m->m_ext.ext_type = EXT_PACKET;	/* Override. */
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KMSAN)
 	trash_init(m->m_ext.ext_buf, MCLBYTES, how);
 #endif
 	return (0);
@@ -758,11 +758,11 @@ mb_zfini_pack(void *mem, int size)
 	struct mbuf *m;
 
 	m = (struct mbuf *)mem;
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KMSAN)
 	trash_fini(m->m_ext.ext_buf, MCLBYTES);
 #endif
 	uma_zfree_arg(zone_clust, m->m_ext.ext_buf, NULL);
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KMSAN)
 	trash_dtor(mem, size, NULL);
 #endif
 }
@@ -784,7 +784,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	type = args->type;
 	MPASS((flags & M_NOFREE) == 0);
 
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && !defined(KMSAN)
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
 #endif
 

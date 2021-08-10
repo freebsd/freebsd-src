@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
@@ -654,8 +655,13 @@ void *
 	indx = kmemsize[size >> KMEM_ZSHIFT];
 	zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
 	va = uma_zalloc(zone, flags);
-	if (va != NULL)
+	if (va != NULL) {
 		size = zone->uz_size;
+		if ((flags & M_ZERO) == 0) {
+			kmsan_mark(va, size, KMSAN_STATE_UNINIT);
+			kmsan_orig(va, size, KMSAN_TYPE_MALLOC, KMSAN_RET_ADDR);
+		}
+	}
 	malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	if (__predict_false(va == NULL)) {
 		KASSERT((flags & M_WAITOK) == 0,
@@ -735,6 +741,12 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 #ifdef KASAN
 	if (va != NULL)
 		kasan_mark((void *)va, osize, size, KASAN_MALLOC_REDZONE);
+#endif
+#ifdef KMSAN
+	if ((flags & M_ZERO) == 0) {
+		kmsan_mark(va, size, KMSAN_STATE_UNINIT);
+		kmsan_orig(va, size, KMSAN_TYPE_MALLOC, KMSAN_RET_ADDR);
+	}
 #endif
 	return (va);
 }
@@ -1232,7 +1244,7 @@ mallocinit(void *dummy)
 		for (subzone = 0; subzone < numzones; subzone++) {
 			kmemzones[indx].kz_zone[subzone] =
 			    uma_zcreate(name, size,
-#if defined(INVARIANTS) && !defined(KASAN)
+#if defined(INVARIANTS) && !defined(KASAN) && !defined(KMSAN)
 			    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
 #else
 			    NULL, NULL, NULL, NULL,
