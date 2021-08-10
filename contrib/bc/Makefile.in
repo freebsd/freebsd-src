@@ -134,39 +134,64 @@ BC_ENABLE_HISTORY = %%HISTORY%%
 BC_ENABLE_EXTRA_MATH_NAME = BC_ENABLE_EXTRA_MATH
 BC_ENABLE_EXTRA_MATH = %%EXTRA_MATH%%
 BC_ENABLE_NLS = %%NLS%%
-BC_ENABLE_PROMPT = %%PROMPT%%
 BC_LONG_BIT = %%LONG_BIT%%
 
 BC_ENABLE_AFL = %%FUZZ%%
 BC_ENABLE_MEMCHECK = %%MEMCHECK%%
 
+BC_DEFAULT_BANNER = %%BC_DEFAULT_BANNER%%
+BC_DEFAULT_SIGINT_RESET = %%BC_DEFAULT_SIGINT_RESET%%
+DC_DEFAULT_SIGINT_RESET = %%DC_DEFAULT_SIGINT_RESET%%
+BC_DEFAULT_TTY_MODE = %%BC_DEFAULT_TTY_MODE%%
+DC_DEFAULT_TTY_MODE = %%DC_DEFAULT_TTY_MODE%%
+BC_DEFAULT_PROMPT = %%BC_DEFAULT_PROMPT%%
+DC_DEFAULT_PROMPT = %%DC_DEFAULT_PROMPT%%
+
 RM = rm
 MKDIR = mkdir
 
-INSTALL = ./exec-install.sh
-SAFE_INSTALL = ./safe-install.sh
-LINK = ./link.sh
-MANPAGE = ./manpage.sh
-KARATSUBA = ./karatsuba.py
-LOCALE_INSTALL = ./locale_install.sh
-LOCALE_UNINSTALL = ./locale_uninstall.sh
+SCRIPTS = ./scripts
+
+MINISTAT = ministat
+MINISTAT_EXEC = $(SCRIPTS)/$(MINISTAT)
+
+BITFUNCGEN = bitfuncgen
+BITFUNCGEN_EXEC = $(SCRIPTS)/$(BITFUNCGEN)
+
+INSTALL = $(SCRIPTS)/exec-install.sh
+SAFE_INSTALL = $(SCRIPTS)/safe-install.sh
+LINK = $(SCRIPTS)/link.sh
+MANPAGE = $(SCRIPTS)/manpage.sh
+KARATSUBA = $(SCRIPTS)/karatsuba.py
+LOCALE_INSTALL = $(SCRIPTS)/locale_install.sh
+LOCALE_UNINSTALL = $(SCRIPTS)/locale_uninstall.sh
 
 VALGRIND_ARGS = --error-exitcode=100 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
 
-TEST_STARS = "***********************************************************************"
+TEST_STARS = ***********************************************************************
 
 BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
+
+BC_DEFS0 = -DBC_DEFAULT_BANNER=$(BC_DEFAULT_BANNER)
+BC_DEFS1 = -DBC_DEFAULT_SIGINT_RESET=$(BC_DEFAULT_SIGINT_RESET)
+BC_DEFS2 = -DBC_DEFAULT_TTY_MODE=$(BC_DEFAULT_TTY_MODE)
+BC_DEFS3 = -DBC_DEFAULT_PROMPT=$(BC_DEFAULT_PROMPT)
+BC_DEFS = $(BC_DEFS0) $(BC_DEFS1) $(BC_DEFS2) $(BC_DEFS3)
+DC_DEFS1 = -DDC_DEFAULT_SIGINT_RESET=$(DC_DEFAULT_SIGINT_RESET)
+DC_DEFS2 = -DDC_DEFAULT_TTY_MODE=$(DC_DEFAULT_TTY_MODE)
+DC_DEFS3 = -DDC_DEFAULT_PROMPT=$(DC_DEFAULT_PROMPT)
+DC_DEFS = $(DC_DEFS1) $(DC_DEFS2) $(DC_DEFS3)
 
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
 CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DBUILD_TYPE=$(BC_BUILD_TYPE) %%LONG_BIT_DEFINE%%
 CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
-CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
+CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 %%BSD%%
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
-CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS) -DBC_ENABLE_PROMPT=$(BC_ENABLE_PROMPT)
+CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
 CPPFLAGS8 = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY) -DBC_ENABLE_LIBRARY=$(BC_ENABLE_LIBRARY)
 CPPFLAGS = $(CPPFLAGS8) -DBC_ENABLE_MEMCHECK=$(BC_ENABLE_MEMCHECK) -DBC_ENABLE_AFL=$(BC_ENABLE_AFL)
-CFLAGS = $(CPPFLAGS) %%CPPFLAGS%% %%CFLAGS%%
+CFLAGS = $(CPPFLAGS) $(BC_DEFS) $(DC_DEFS) %%CPPFLAGS%% %%CFLAGS%%
 LDFLAGS = %%LDFLAGS%%
 
 HOSTCFLAGS = %%HOSTCFLAGS%%
@@ -219,6 +244,12 @@ $(BIN):
 
 headers: %%HEADERS%%
 
+$(MINISTAT):
+	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(MINISTAT_EXEC) scripts/ministat.c
+
+$(BITFUNCGEN):
+	$(HOSTCC) $(HOSTCFLAGS) -lm -o $(BITFUNCGEN_EXEC) scripts/bitfuncgen.c
+
 help:
 	@printf 'available targets:\n'
 	@printf '\n'
@@ -249,16 +280,33 @@ help:
 	@printf '    valgrind_dc     runs the dc test suite, if dc has been built,\n'
 	@printf '                    through valgrind\n'
 
-run_all_tests:
+run_all_tests: bc_all_tests timeconst_all_tests dc_all_tests
+
+run_all_tests_np: bc_all_tests_np timeconst_all_tests dc_all_tests_np
+
+bc_all_tests:
 	%%BC_ALL_TESTS%%
+
+bc_all_tests_np:
+	%%BC_ALL_TESTS_NP%%
+
+timeconst_all_tests:
 	%%TIMECONST_ALL_TESTS%%
+
+dc_all_tests:
 	%%DC_ALL_TESTS%%
+
+dc_all_tests_np:
+	%%DC_ALL_TESTS_NP%%
+
+history_all_tests:
+	%%HISTORY_TESTS%%
 
 check: test
 
 test: %%TESTS%%
 
-test_bc: test_bc_header test_bc_tests test_bc_scripts test_bc_stdin test_bc_read test_bc_errors test_bc_other
+test_bc: test_bc_header test_bc_tests test_bc_scripts test_bc_errors test_bc_stdin test_bc_read test_bc_other
 	@printf '\nAll bc tests passed.\n\n$(TEST_STARS)\n'
 
 test_bc_tests:%%BC_TESTS%%
@@ -271,16 +319,18 @@ test_bc_stdin:
 test_bc_read:
 	@sh tests/read.sh bc %%BC_TEST_EXEC%%
 
-test_bc_errors:
+test_bc_errors: test_bc_error_lines%%BC_ERROR_TESTS%%
+
+test_bc_error_lines:
 	@sh tests/errors.sh bc %%BC_TEST_EXEC%%
 
 test_bc_other:
-	@sh tests/other.sh bc %%BC_TEST_EXEC%%
+	@sh tests/other.sh bc $(BC_ENABLE_EXTRA_MATH) %%BC_TEST_EXEC%%
 
 test_bc_header:
 	@printf '$(TEST_STARS)\n\nRunning bc tests...\n\n'
 
-test_dc: test_dc_header test_dc_tests test_dc_scripts test_dc_stdin test_dc_read test_dc_errors test_dc_other
+test_dc: test_dc_header test_dc_tests test_dc_scripts test_dc_errors test_dc_stdin test_dc_read test_dc_other
 	@printf '\nAll dc tests passed.\n\n$(TEST_STARS)\n'
 
 test_dc_tests:%%DC_TESTS%%
@@ -293,17 +343,135 @@ test_dc_stdin:
 test_dc_read:
 	@sh tests/read.sh dc %%DC_TEST_EXEC%%
 
-test_dc_errors:
+test_dc_errors: test_dc_error_lines%%DC_ERROR_TESTS%%
+
+test_dc_error_lines:
 	@sh tests/errors.sh dc %%DC_TEST_EXEC%%
 
 test_dc_other:
-	@sh tests/other.sh dc %%DC_TEST_EXEC%%
+	@sh tests/other.sh dc $(BC_ENABLE_EXTRA_MATH) %%DC_TEST_EXEC%%
 
 test_dc_header:
 	@printf '$(TEST_STARS)\n\nRunning dc tests...\n\n'
 
 timeconst:
 	%%TIMECONST%%
+
+test_history: test_history_header test_bc_history test_dc_history
+	@printf '\nAll history tests passed.\n\n$(TEST_STARS)\n'
+
+test_bc_history:%%BC_HISTORY_TEST_PREREQS%%
+
+test_bc_history_all: test_bc_history0 test_bc_history1 test_bc_history2 test_bc_history3 test_bc_history4 test_bc_history5 test_bc_history6 test_bc_history7 test_bc_history8 test_bc_history9 test_bc_history10 test_bc_history11 test_bc_history12 test_bc_history13 test_bc_history14 test_bc_history15 test_bc_history16 test_bc_history17 test_bc_history18 test_bc_history19 test_bc_history20 test_bc_history21
+
+test_bc_history_skip:
+	@printf 'No bc history tests to run\n'
+
+test_bc_history0:
+	@sh tests/history.sh bc 0 %%BC_TEST_EXEC%%
+
+test_bc_history1:
+	@sh tests/history.sh bc 1 %%BC_TEST_EXEC%%
+
+test_bc_history2:
+	@sh tests/history.sh bc 2 %%BC_TEST_EXEC%%
+
+test_bc_history3:
+	@sh tests/history.sh bc 3 %%BC_TEST_EXEC%%
+
+test_bc_history4:
+	@sh tests/history.sh bc 4 %%BC_TEST_EXEC%%
+
+test_bc_history5:
+	@sh tests/history.sh bc 5 %%BC_TEST_EXEC%%
+
+test_bc_history6:
+	@sh tests/history.sh bc 6 %%BC_TEST_EXEC%%
+
+test_bc_history7:
+	@sh tests/history.sh bc 7 %%BC_TEST_EXEC%%
+
+test_bc_history8:
+	@sh tests/history.sh bc 8 %%BC_TEST_EXEC%%
+
+test_bc_history9:
+	@sh tests/history.sh bc 9 %%BC_TEST_EXEC%%
+
+test_bc_history10:
+	@sh tests/history.sh bc 10 %%BC_TEST_EXEC%%
+
+test_bc_history11:
+	@sh tests/history.sh bc 11 %%BC_TEST_EXEC%%
+
+test_bc_history12:
+	@sh tests/history.sh bc 12 %%BC_TEST_EXEC%%
+
+test_bc_history13:
+	@sh tests/history.sh bc 13 %%BC_TEST_EXEC%%
+
+test_bc_history14:
+	@sh tests/history.sh bc 14 %%BC_TEST_EXEC%%
+
+test_bc_history15:
+	@sh tests/history.sh bc 15 %%BC_TEST_EXEC%%
+
+test_bc_history16:
+	@sh tests/history.sh bc 16 %%BC_TEST_EXEC%%
+
+test_bc_history17:
+	@sh tests/history.sh bc 17 %%BC_TEST_EXEC%%
+
+test_bc_history18:
+	@sh tests/history.sh bc 18 %%BC_TEST_EXEC%%
+
+test_bc_history19:
+	@sh tests/history.sh bc 19 %%BC_TEST_EXEC%%
+
+test_bc_history20:
+	@sh tests/history.sh bc 20 %%BC_TEST_EXEC%%
+
+test_bc_history21:
+	@sh tests/history.sh bc 21 %%BC_TEST_EXEC%%
+
+test_dc_history:%%DC_HISTORY_TEST_PREREQS%%
+
+test_dc_history_all: test_dc_history0 test_dc_history1 test_dc_history2 test_dc_history3 test_dc_history4 test_dc_history5 test_dc_history6 test_dc_history7 test_dc_history8 test_dc_history9
+
+test_dc_history_skip:
+	@printf 'No dc history tests to run\n'
+
+test_dc_history0:
+	@sh tests/history.sh dc 0 %%DC_TEST_EXEC%%
+
+test_dc_history1:
+	@sh tests/history.sh dc 1 %%DC_TEST_EXEC%%
+
+test_dc_history2:
+	@sh tests/history.sh dc 2 %%DC_TEST_EXEC%%
+
+test_dc_history3:
+	@sh tests/history.sh dc 3 %%DC_TEST_EXEC%%
+
+test_dc_history4:
+	@sh tests/history.sh dc 4 %%DC_TEST_EXEC%%
+
+test_dc_history5:
+	@sh tests/history.sh dc 5 %%DC_TEST_EXEC%%
+
+test_dc_history6:
+	@sh tests/history.sh dc 6 %%DC_TEST_EXEC%%
+
+test_dc_history7:
+	@sh tests/history.sh dc 7 %%DC_TEST_EXEC%%
+
+test_dc_history8:
+	@sh tests/history.sh dc 8 %%DC_TEST_EXEC%%
+
+test_dc_history9:
+	@sh tests/history.sh dc 9 %%DC_TEST_EXEC%%
+
+test_history_header:
+	@printf '$(TEST_STARS)\n\nRunning history tests...\n\n'
 
 library_test: $(LIBBC)
 	$(CC) $(CFLAGS) $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
@@ -321,12 +489,6 @@ coverage_output:
 	%%COVERAGE_OUTPUT%%
 
 coverage:%%COVERAGE_PREREQS%%
-
-libcname:
-	@printf '%s' "$(BC_LIB_C)"
-
-extra_math:
-	@printf '%s' "$(BC_ENABLE_EXTRA_MATH)"
 
 manpages:
 	$(MANPAGE) bc
@@ -348,15 +510,19 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(BC_LIB2_C) $(BC_LIB2_O)
 	@$(RM) -f $(BC_HELP_C) $(BC_HELP_O)
 	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
-	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
-	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
 	@$(RM) -fr Debug/ Release/
 
-clean_config: clean
+clean_benchmarks:
+	@printf 'Cleaning benchmarks...\n'
+	@$(RM) -f $(MINISTAT_EXEC)
+	@$(RM) -f benchmarks/bc/*.txt
+	@$(RM) -f benchmarks/dc/*.txt
+
+clean_config: clean clean_benchmarks
 	@printf 'Cleaning config...\n'
 	@$(RM) -f Makefile
-	@$(RM) -f $(BC_MD) $(DC_MD)
-	@$(RM) -f $(BC_MANPAGE) $(DC_MANPAGE)
+	@$(RM) -f $(BC_MD) $(BC_MANPAGE)
+	@$(RM) -f $(DC_MD) $(DC_MANPAGE)
 
 clean_coverage:
 	@printf 'Cleaning coverage files...\n'
@@ -376,9 +542,12 @@ clean_coverage:
 
 clean_tests: clean clean_config clean_coverage
 	@printf 'Cleaning test files...\n'
+	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
+	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
 	@$(RM) -f tests/bc/parse.txt tests/bc/parse_results.txt
 	@$(RM) -f tests/bc/print.txt tests/bc/print_results.txt
 	@$(RM) -f tests/bc/bessel.txt tests/bc/bessel_results.txt
+	@$(RM) -f tests/bc/strings2.txt tests/bc/strings2_results.txt
 	@$(RM) -f tests/bc/scripts/bessel.txt
 	@$(RM) -f tests/bc/scripts/parse.txt
 	@$(RM) -f tests/bc/scripts/print.txt
@@ -386,13 +555,15 @@ clean_tests: clean clean_config clean_coverage
 	@$(RM) -f tests/bc/scripts/divide.txt
 	@$(RM) -f tests/bc/scripts/multiply.txt
 	@$(RM) -f tests/bc/scripts/subtract.txt
-	@$(RM) -f tests/dc/scripts/prime.txt tests/dc/scripts/stream.txt
+	@$(RM) -f tests/bc/scripts/strings2.txt
+	@$(RM) -f tests/dc/scripts/prime.txt
 	@$(RM) -f .log_*.txt
 	@$(RM) -f .math.txt .results.txt .ops.txt
 	@$(RM) -f .test.txt
 	@$(RM) -f tags .gdbbreakpoints .gdb_history .gdbsetup
 	@$(RM) -f cscope.*
 	@$(RM) -f bc.old
+	@$(RM) -f $(BITFUNCGEN_EXEC)
 
 install_locales:
 	%%INSTALL_LOCALES%%

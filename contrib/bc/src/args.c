@@ -48,37 +48,22 @@
 #include <args.h>
 #include <opt.h>
 
-static const BcOptLong bc_args_lopt[] = {
-
-	{ "expression", BC_OPT_REQUIRED, 'e' },
-	{ "file", BC_OPT_REQUIRED, 'f' },
-	{ "help", BC_OPT_NONE, 'h' },
-	{ "interactive", BC_OPT_NONE, 'i' },
-	{ "no-prompt", BC_OPT_NONE, 'P' },
-	{ "no-read-prompt", BC_OPT_NONE, 'R' },
-#if BC_ENABLED
-	{ "global-stacks", BC_OPT_BC_ONLY, 'g' },
-	{ "mathlib", BC_OPT_BC_ONLY, 'l' },
-	{ "quiet", BC_OPT_BC_ONLY, 'q' },
-	{ "standard", BC_OPT_BC_ONLY, 's' },
-	{ "warn", BC_OPT_BC_ONLY, 'w' },
-#endif // BC_ENABLED
-	{ "version", BC_OPT_NONE, 'v' },
-	{ "version", BC_OPT_NONE, 'V' },
-#if DC_ENABLED
-	{ "extended-register", BC_OPT_DC_ONLY, 'x' },
-#endif // DC_ENABLED
-	{ NULL, 0, 0 },
-
-};
-
+/**
+ * Adds @a str to the list of expressions to execute later.
+ * @param str  The string to add to the list of expressions.
+ */
 static void bc_args_exprs(const char *str) {
 	BC_SIG_ASSERT_LOCKED;
-	if (vm.exprs.v == NULL) bc_vec_init(&vm.exprs, sizeof(uchar), NULL);
+	if (vm.exprs.v == NULL) bc_vec_init(&vm.exprs, sizeof(uchar), BC_DTOR_NONE);
 	bc_vec_concat(&vm.exprs, str);
 	bc_vec_concat(&vm.exprs, "\n");
 }
 
+/**
+ * Adds the contents of @a file to the list of expressions to execute later.
+ * @param file  The name of the file whose contents should be added to the list
+ *              of expressions to execute.
+ */
 static void bc_args_file(const char *file) {
 
 	char *buf;
@@ -87,10 +72,43 @@ static void bc_args_file(const char *file) {
 
 	vm.file = file;
 
-	bc_read_file(file, &buf);
+	buf = bc_read_file(file);
+
+	assert(buf != NULL);
+
 	bc_args_exprs(buf);
 	free(buf);
 }
+
+#if BC_ENABLED
+
+/**
+ * Redefines a keyword, if it exists and is not a POSIX keyword. Otherwise, it
+ * throws a fatal error.
+ * @param keyword  The keyword to redefine.
+ */
+static void bc_args_redefine(const char *keyword) {
+
+	size_t i;
+
+	for (i = 0; i < bc_lex_kws_len; ++i) {
+
+		const BcLexKeyword *kw = bc_lex_kws + i;
+
+		if (!strcmp(keyword, kw->name)) {
+
+			if (BC_LEX_KW_POSIX(kw)) break;
+
+			vm.redefined_kws[i] = true;
+
+			return;
+		}
+	}
+
+	bc_error(BC_ERR_FATAL_ARG, 0, keyword);
+}
+
+#endif // BC_ENABLED
 
 void bc_args(int argc, char *argv[], bool exit_exprs) {
 
@@ -103,28 +121,40 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 
 	bc_opt_init(&opts, argv);
 
+	// This loop should look familiar to anyone who has used getopt() or
+	// getopt_long() in C.
 	while ((c = bc_opt_parse(&opts, bc_args_lopt)) != -1) {
 
 		switch (c) {
 
 			case 'e':
 			{
-				if (vm.no_exit_exprs)
-					bc_vm_verr(BC_ERR_FATAL_OPTION, "-e (--expression)");
+				// Barf if not allowed.
+				if (vm.no_exprs)
+					bc_verr(BC_ERR_FATAL_OPTION, "-e (--expression)");
+
+				// Add the expressions and set exit.
 				bc_args_exprs(opts.optarg);
 				vm.exit_exprs = (exit_exprs || vm.exit_exprs);
+
 				break;
 			}
 
 			case 'f':
 			{
-				if (!strcmp(opts.optarg, "-")) vm.no_exit_exprs = true;
+				// Figure out if exiting on expressions is disabled.
+				if (!strcmp(opts.optarg, "-")) vm.no_exprs = true;
 				else {
-					if (vm.no_exit_exprs)
-						bc_vm_verr(BC_ERR_FATAL_OPTION, "-f (--file)");
+
+					// Barf if not allowed.
+					if (vm.no_exprs)
+						bc_verr(BC_ERR_FATAL_OPTION, "-f (--file)");
+
+				// Add the expressions and set exit.
 					bc_args_file(opts.optarg);
 					vm.exit_exprs = (exit_exprs || vm.exit_exprs);
 				}
+
 				break;
 			}
 
@@ -141,15 +171,27 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 				break;
 			}
 
+			case 'z':
+			{
+				vm.flags |= BC_FLAG_Z;
+				break;
+			}
+
+			case 'L':
+			{
+				vm.line_len = 0;
+				break;
+			}
+
 			case 'P':
 			{
-				vm.flags |= BC_FLAG_P;
+				vm.flags &= ~(BC_FLAG_P);
 				break;
 			}
 
 			case 'R':
 			{
-				vm.flags |= BC_FLAG_R;
+				vm.flags &= ~(BC_FLAG_R);
 				break;
 			}
 
@@ -171,7 +213,13 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 			case 'q':
 			{
 				assert(BC_IS_BC);
-				// Do nothing.
+				vm.flags &= ~(BC_FLAG_Q);
+				break;
+			}
+
+			case 'r':
+			{
+				bc_args_redefine(opts.optarg);
 				break;
 			}
 
@@ -207,12 +255,13 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 #endif // DC_ENABLED
 
 #ifndef NDEBUG
-			// We shouldn't get here because bc_opt_error()/bc_vm_error() should
+			// We shouldn't get here because bc_opt_error()/bc_error() should
 			// longjmp() out.
 			case '?':
 			case ':':
 			default:
 			{
+				BC_UNREACHABLE
 				abort();
 			}
 #endif // NDEBUG
@@ -220,11 +269,20 @@ void bc_args(int argc, char *argv[], bool exit_exprs) {
 	}
 
 	if (version) bc_vm_info(NULL);
-	if (do_exit) exit((int) vm.status);
+	if (do_exit) {
+		vm.status = (sig_atomic_t) BC_STATUS_QUIT;
+		BC_JMP;
+	}
 
+	// We do not print the banner if expressions are used or dc is used.
+	if (!BC_IS_BC || vm.exprs.len > 1) vm.flags &= ~(BC_FLAG_Q);
+
+	// We need to make sure the files list is initialized. We don't want to
+	// initialize it if there are no files because it's just a waste of memory.
 	if (opts.optind < (size_t) argc && vm.files.v == NULL)
-		bc_vec_init(&vm.files, sizeof(char*), NULL);
+		bc_vec_init(&vm.files, sizeof(char*), BC_DTOR_NONE);
 
+	// Add all the files to the vector.
 	for (i = opts.optind; i < (size_t) argc; ++i)
 		bc_vec_push(&vm.files, argv + i);
 }

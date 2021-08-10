@@ -1,0 +1,49 @@
+#! /usr/bin/bc -q
+
+a = 1
+b = 2
+c = 3
+
+if (a == 1) if (b == 2) if (c == 3) print "Yay!\n"
+
+define void g(x) {
+	print "g: x: ", x, "\n"
+}
+
+if (a == 1) {
+	if (b == 2) {
+		if (c == 3) {
+			g(5)
+		}
+	}
+}
+
+define void h(x) {
+	print "h: x: ", x, "\n"
+}
+
+if (z == 0)
+	for (i = 0; i < 2; ++i)
+		if (a == 1)
+			for (j = 0; j < 2; ++j)
+				if (b == 2)
+					for (k = 0; k < 2; ++k)
+						if (c == 3) h(k)
+
+define void i(x) {
+	print "i: x: ", x, "\n"
+}
+
+if (z == 0) {
+	for (i = 0; i < 2; ++i) {
+		if (a == 1) {
+			for (j = 0; j < 2; ++j) {
+				if (b == 2) {
+					for (k = 0; k < 2; ++k) {
+						if (c == 3) i(k)
+					}
+				}
+			}
+		}
+	}
+}

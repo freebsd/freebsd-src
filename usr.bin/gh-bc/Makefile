@@ -7,9 +7,10 @@ PROGNAME=	bc
 
 BCDIR=		${SRCTOP}/contrib/${PROGNAME}
 
-SRCS=		args.c data.c file.c lang.c lex.c main.c num.c parse.c program.c read.c vector.c vm.c
-SRCS+=		bc.c bc_lex.c bc_parse.c dc.c dc_lex.c dc_parse.c history.c library.c
-SRCS+=		bc_help.c dc_help.c lib.c lib2.c opt.c rand.c
+SRCS=		args.c bc.c bc_lex.c bc_parse.c data.c dc.c dc_lex.c dc_parse.c file.c history.c
+SRCS+=		lang.c lex.c main.c num.c opt.c parse.c program.c rand.c read.c vector.c  vm.c
+SRCS+=		bc_help.c dc_help.c lib.c lib2.c
+
 MAN=		bc.1 dc.1
 
 LINKS=		${BINDIR}/bc ${BINDIR}/dc
@@ -32,12 +33,21 @@ NLSSRCDIR=	${BCDIR}/locales
 
 CFLAGS+=	-DMAINEXEC=${PROGNAME}
 CFLAGS+=	-DNLSPATH=/usr/share/nls/%L/%N.cat
+CFLAGS+=	-DBUILD_TYPE=A
+CFLAGS+=	-DBC_DEFAULT_BANNER=0
+CFLAGS+=	-DBC_DEFAULT_PROMPT=0
+CFLAGS+=	-DBC_DEFAULT_SIGINT_RESET
+CFLAGS+=	-DBC_DEFAULT_TTY_MODE
 CFLAGS+=	-DBC_ENABLED
-CFLAGS+=	-DBC_ENABLE_PROMPT
-CFLAGS+=	-DBC_ENABLE_LONG_OPTIONS
 CFLAGS+=	-DBC_ENABLE_EXTRA_MATH
+CFLAGS+=	-DBC_ENABLE_LIBRARY=0
+CFLAGS+=	-DBC_ENABLE_LONG_OPTIONS
 CFLAGS+=	-DBC_ENABLE_HISTORY
+CFLAGS+=	-DBC_ENABLE_PROMPT
 CFLAGS+=	-DBC_ENABLE_RAND
+CFLAGS+=	-DDC_DEFAULT_PROMPT=0
+CFLAGS+=	-DDC_DEFAULT_SIGINT_RESET
+CFLAGS+=	-DDC_DEFAULT_TTY_MODE=0
 CFLAGS+=	-DDC_ENABLED
 CFLAGS+=	-DNDEBUG
 CFLAGS+=	-I${BCDIR}/include

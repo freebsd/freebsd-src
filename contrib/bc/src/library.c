@@ -45,7 +45,17 @@
 #include <num.h>
 #include <vm.h>
 
-static void bcl_num_destruct(void *num);
+// The asserts in this file are important to testing; in many cases, the test
+// would not work without the asserts, so don't remove them without reason.
+//
+// Also, there are many uses of bc_num_clear() here; that is because numbers are
+// being reused, and a clean slate is required.
+//
+// Also, there are a bunch of BC_UNSETJMP and BC_SETJMP_LOCKED() between calls
+// to bc_num_init(). That is because locals are being initialized, and unlike bc
+// proper, this code cannot assume that allocation failures are fatal. So we
+// have to reset the jumps every time to ensure that the locals will be correct
+// after jumping.
 
 void bcl_handleSignal(void) {
 
@@ -56,7 +66,7 @@ void bcl_handleSignal(void) {
 
 	assert(vm.jmp_bufs.len);
 
-	if (!vm.sig_lock) BC_VM_JMP;
+	if (!vm.sig_lock) BC_JMP;
 }
 
 bool bcl_running(void) {
@@ -71,6 +81,8 @@ BclError bcl_init(void) {
 
 	if (vm.refs > 1) return e;
 
+	// Setting these to NULL ensures that if an error occurs, we only free what
+	// is necessary.
 	vm.ctxts.v = NULL;
 	vm.jmp_bufs.v = NULL;
 	vm.out.v = NULL;
@@ -79,19 +91,22 @@ BclError bcl_init(void) {
 
 	BC_SIG_LOCK;
 
-	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), NULL);
+	// The jmp_bufs always has to be initialized first.
+	bc_vec_init(&vm.jmp_bufs, sizeof(sigjmp_buf), BC_DTOR_NONE);
 
 	BC_FUNC_HEADER_INIT(err);
 
 	bc_vm_init();
 
-	bc_vec_init(&vm.ctxts, sizeof(BclContext), NULL);
-	bc_vec_init(&vm.out, sizeof(uchar), NULL);
+	bc_vec_init(&vm.ctxts, sizeof(BclContext), BC_DTOR_NONE);
+	bc_vec_init(&vm.out, sizeof(uchar), BC_DTOR_NONE);
 
+	// We need to seed this in case /dev/random and /dev/urandm don't work.
 	srand((unsigned int) time(NULL));
 	bc_rand_init(&vm.rng);
 
 err:
+	// This is why we had to set them to NULL.
 	if (BC_ERR(vm.err)) {
 		if (vm.out.v != NULL) bc_vec_free(&vm.out);
 		if (vm.jmp_bufs.v != NULL) bc_vec_free(&vm.jmp_bufs);
@@ -129,27 +144,23 @@ BclContext bcl_context(void) {
 
 void bcl_free(void) {
 
+	size_t i;
+
 	vm.refs -= 1;
 
 	if (vm.refs) return;
 
 	BC_SIG_LOCK;
 
-#ifndef NDEBUG
 	bc_rand_free(&vm.rng);
 	bc_vec_free(&vm.out);
 
-	{
-		size_t i;
-
-		for (i = 0; i < vm.ctxts.len; ++i) {
-			BclContext ctxt = *((BclContext*) bc_vec_item(&vm.ctxts, i));
-			bcl_ctxt_free(ctxt);
-		}
+	for (i = 0; i < vm.ctxts.len; ++i) {
+		BclContext ctxt = *((BclContext*) bc_vec_item(&vm.ctxts, i));
+		bcl_ctxt_free(ctxt);
 	}
 
 	bc_vec_free(&vm.ctxts);
-#endif // NDEBUG
 
 	bc_vm_atexit();
 
@@ -161,8 +172,9 @@ void bcl_free(void) {
 }
 
 void bcl_gc(void) {
+	BC_SIG_LOCK;
 	bc_vm_freeTemps();
-	vm.temps.len = 0;
+	BC_SIG_UNLOCK;
 }
 
 bool bcl_abortOnFatalError(void) {
@@ -173,16 +185,26 @@ void bcl_setAbortOnFatalError(bool abrt) {
 	vm.abrt = abrt;
 }
 
+bool bcl_leadingZeroes(void) {
+	return vm.leading_zeroes;
+}
+
+void bcl_setLeadingZeroes(bool leadingZeroes) {
+	vm.leading_zeroes = leadingZeroes;
+}
+
 BclContext bcl_ctxt_create(void) {
 
 	BclContext ctxt = NULL;
 
 	BC_FUNC_HEADER_LOCK(err);
 
+	// We want the context to be free of any interference of other parties, so
+	// malloc() is appropriate here.
 	ctxt = bc_vm_malloc(sizeof(BclCtxt));
 
-	bc_vec_init(&ctxt->nums, sizeof(BcNum), bcl_num_destruct);
-	bc_vec_init(&ctxt->free_nums, sizeof(BclNumber), NULL);
+	bc_vec_init(&ctxt->nums, sizeof(BcNum), BC_DTOR_BCL_NUM);
+	bc_vec_init(&ctxt->free_nums, sizeof(BclNumber), BC_DTOR_NONE);
 
 	ctxt->scale = 0;
 	ctxt->ibase = 10;
@@ -247,6 +269,8 @@ BclError bcl_err(BclNumber n) {
 
 	BC_CHECK_CTXT_ERR(ctxt);
 
+	// Errors are encoded as (0 - error_code). If the index is in that range, it
+	// is an encoded error.
 	if (n.i >= ctxt->nums.len) {
 		if (n.i > 0 - (size_t) BCL_ERROR_NELEMS) return (BclError) (0 - n.i);
 		else return BCL_ERROR_INVALID_NUM;
@@ -254,22 +278,31 @@ BclError bcl_err(BclNumber n) {
 	else return BCL_ERROR_NONE;
 }
 
+/**
+ * Inserts a BcNum into a context's list of numbers.
+ * @param ctxt  The context to insert into.
+ * @param n     The BcNum to insert.
+ * @return      The resulting BclNumber from the insert.
+ */
 static BclNumber bcl_num_insert(BclContext ctxt, BcNum *restrict n) {
 
 	BclNumber idx;
 
+	// If there is a free spot...
 	if (ctxt->free_nums.len) {
 
 		BcNum *ptr;
 
+		// Get the index of the free spot and remove it.
 		idx = *((BclNumber*) bc_vec_top(&ctxt->free_nums));
-
 		bc_vec_pop(&ctxt->free_nums);
 
+		// Copy the number into the spot.
 		ptr = bc_vec_item(&ctxt->nums, idx.i);
 		memcpy(ptr, n, sizeof(BcNum));
 	}
 	else {
+		// Just push the number onto the vector.
 		idx.i = ctxt->nums.len;
 		bc_vec_push(&ctxt->nums, n);
 	}
@@ -303,6 +336,12 @@ err:
 	return idx;
 }
 
+/**
+ * Destructs a number and marks its spot as free.
+ * @param ctxt  The context.
+ * @param n     The index of the number.
+ * @param num   The number to destroy.
+ */
 static void bcl_num_dtor(BclContext ctxt, BclNumber n, BcNum *restrict num) {
 
 	BC_SIG_ASSERT_LOCKED;
@@ -378,8 +417,8 @@ BclNumber bcl_dup(BclNumber s) {
 
 	assert(src != NULL && src->num != NULL);
 
+	// Copy the number.
 	bc_num_clear(&dest);
-
 	bc_num_createCopy(&dest, src);
 
 err:
@@ -391,7 +430,7 @@ err:
 	return idx;
 }
 
-static void bcl_num_destruct(void *num) {
+void bcl_num_destruct(void *num) {
 
 	BcNum *n = (BcNum*) num;
 
@@ -514,7 +553,7 @@ BclError bcl_bigdig(BclNumber n, BclBigDig *result) {
 
 	assert(num != NULL && num->num != NULL);
 
-	bc_num_bigdig(num, result);
+	*result = bc_num_bigdig(num);
 
 err:
 	bcl_num_dtor(ctxt, n, num);
@@ -549,9 +588,16 @@ err:
 	return idx;
 }
 
-static BclNumber bcl_binary(BclNumber a, BclNumber b,
-                                const BcNumBinaryOp op,
-                                const BcNumBinaryOpReq req)
+/**
+ * Sets up and executes a binary operator operation.
+ * @param a     The first operand.
+ * @param b     The second operand.
+ * @param op    The operation.
+ * @param req   The function to get the size of the result for preallocation.
+ * @return      The result of the operation.
+ */
+static BclNumber bcl_binary(BclNumber a, BclNumber b, const BcNumBinaryOp op,
+                            const BcNumBinaryOpReq req)
 {
 	BclError e = BCL_ERROR_NONE;
 	BcNum *aptr, *bptr;
@@ -576,8 +622,8 @@ static BclNumber bcl_binary(BclNumber a, BclNumber b,
 	assert(aptr != NULL && bptr != NULL);
 	assert(aptr->num != NULL && bptr->num != NULL);
 
+	// Clear and initialize the result.
 	bc_num_clear(&c);
-
 	bc_num_init(&c, req(aptr, bptr, ctxt->scale));
 
 	BC_SIG_UNLOCK;
@@ -585,9 +631,13 @@ static BclNumber bcl_binary(BclNumber a, BclNumber b,
 	op(aptr, bptr, &c, ctxt->scale);
 
 err:
+
 	BC_SIG_MAYLOCK;
+
+	// Eat the operands.
 	bcl_num_dtor(ctxt, a, aptr);
 	if (b.i != a.i) bcl_num_dtor(ctxt, b, bptr);
+
 	BC_FUNC_FOOTER(e);
 	BC_MAYBE_SETUP(ctxt, e, c, idx);
 
@@ -691,7 +741,10 @@ BclError bcl_divmod(BclNumber a, BclNumber b, BclNumber *c, BclNumber *d) {
 
 	req = bc_num_divReq(aptr, bptr, ctxt->scale);
 
+	// Initialize the numbers.
 	bc_num_init(&cnum, req);
+	BC_UNSETJMP;
+	BC_SETJMP_LOCKED(err);
 	bc_num_init(&dnum, req);
 
 	BC_SIG_UNLOCK;
@@ -701,18 +754,28 @@ BclError bcl_divmod(BclNumber a, BclNumber b, BclNumber *c, BclNumber *d) {
 err:
 	BC_SIG_MAYLOCK;
 
+	// Eat the operands.
 	bcl_num_dtor(ctxt, a, aptr);
 	if (b.i != a.i) bcl_num_dtor(ctxt, b, bptr);
 
+	// If there was an error...
 	if (BC_ERR(vm.err)) {
+
+		// Free the results.
 		if (cnum.num != NULL) bc_num_free(&cnum);
 		if (dnum.num != NULL) bc_num_free(&dnum);
+
+		// Make sure the return values are invalid.
 		c->i = 0 - (size_t) BCL_ERROR_INVALID_NUM;
 		d->i = c->i;
+
 		BC_FUNC_FOOTER(e);
 	}
 	else {
+
 		BC_FUNC_FOOTER(e);
+
+		// Insert the results into the context.
 		*c = bcl_num_insert(ctxt, &cnum);
 		*d = bcl_num_insert(ctxt, &dnum);
 	}
@@ -751,10 +814,12 @@ BclNumber bcl_modexp(BclNumber a, BclNumber b, BclNumber c) {
 	assert(aptr != NULL && bptr != NULL && cptr != NULL);
 	assert(aptr->num != NULL && bptr->num != NULL && cptr->num != NULL);
 
+	// Prepare the result.
 	bc_num_clear(&d);
 
 	req = bc_num_divReq(aptr, cptr, 0);
 
+	// Initialize the result.
 	bc_num_init(&d, req);
 
 	BC_SIG_UNLOCK;
@@ -764,6 +829,7 @@ BclNumber bcl_modexp(BclNumber a, BclNumber b, BclNumber c) {
 err:
 	BC_SIG_MAYLOCK;
 
+	// Eat the operands.
 	bcl_num_dtor(ctxt, a, aptr);
 	if (b.i != a.i) bcl_num_dtor(ctxt, b, bptr);
 	if (c.i != a.i && c.i != b.i) bcl_num_dtor(ctxt, c, cptr);
@@ -842,6 +908,8 @@ BclNumber bcl_parse(const char *restrict val) {
 
 	assert(val != NULL);
 
+	// We have to take care of negative here because bc's number parsing does
+	// not.
 	neg = (val[0] == '-');
 
 	if (neg) val += 1;
@@ -851,14 +919,15 @@ BclNumber bcl_parse(const char *restrict val) {
 		goto err;
 	}
 
+	// Clear and initialize the number.
 	bc_num_clear(&n);
-
 	bc_num_init(&n, BC_NUM_DEF_SIZE);
 
 	BC_SIG_UNLOCK;
 
 	bc_num_parse(&n, val, (BcBigDig) ctxt->ibase);
 
+	// Set the negative.
 	n.rdx = BC_NUM_NEG_VAL_NP(n, neg);
 
 err:
@@ -889,15 +958,21 @@ char* bcl_string(BclNumber n) {
 
 	assert(nptr != NULL && nptr->num != NULL);
 
+	// Clear the buffer.
 	bc_vec_popAll(&vm.out);
 
+	// Print to the buffer.
 	bc_num_print(nptr, (BcBigDig) ctxt->obase, false);
 	bc_vec_pushByte(&vm.out, '\0');
 
 	BC_SIG_LOCK;
+
+	// Just dup the string; the caller is responsible for it.
 	str = bc_vm_strdup(vm.out.v);
 
 err:
+
+	// Eat the operand.
 	bcl_num_dtor(ctxt, n, nptr);
 
 	BC_FUNC_FOOTER_NO_ERR;
@@ -929,8 +1004,8 @@ BclNumber bcl_irand(BclNumber a) {
 
 	assert(aptr != NULL && aptr->num != NULL);
 
+	// Clear and initialize the result.
 	bc_num_clear(&b);
-
 	bc_num_init(&b, BC_NUM_DEF_SIZE);
 
 	BC_SIG_UNLOCK;
@@ -939,7 +1014,10 @@ BclNumber bcl_irand(BclNumber a) {
 
 err:
 	BC_SIG_MAYLOCK;
+
+	// Eat the operand.
 	bcl_num_dtor(ctxt, a, aptr);
+
 	BC_FUNC_FOOTER(e);
 	BC_MAYBE_SETUP(ctxt, e, b, idx);
 
@@ -948,12 +1026,19 @@ err:
 	return idx;
 }
 
+/**
+ * Helps bcl_frand(). This is separate because the error handling is easier that
+ * way. It is also easier to do ifrand that way.
+ * @param b       The return parameter.
+ * @param places  The number of decimal places to generate.
+ */
 static void bcl_frandHelper(BcNum *restrict b, size_t places) {
 
 	BcNum exp, pow, ten;
 	BcDig exp_digs[BC_NUM_BIGDIG_LOG10];
 	BcDig ten_digs[BC_NUM_BIGDIG_LOG10];
 
+	// Set up temporaries.
 	bc_num_setup(&exp, exp_digs, BC_NUM_BIGDIG_LOG10);
 	bc_num_setup(&ten, ten_digs, BC_NUM_BIGDIG_LOG10);
 
@@ -962,20 +1047,23 @@ static void bcl_frandHelper(BcNum *restrict b, size_t places) {
 
 	bc_num_bigdig2num(&exp, (BcBigDig) places);
 
+	// Clear the temporary that might need to grow.
 	bc_num_clear(&pow);
 
 	BC_SIG_LOCK;
 
-	BC_SETJMP_LOCKED(err);
-
+	// Initialize the temporary that might need to grow.
 	bc_num_init(&pow, bc_num_powReq(&ten, &exp, 0));
+
+	BC_SETJMP_LOCKED(err);
 
 	BC_SIG_UNLOCK;
 
+	// Generate the number.
 	bc_num_pow(&ten, &exp, &pow, 0);
-
 	bc_num_irand(&pow, b, &vm.rng);
 
+	// Make the number entirely fraction.
 	bc_num_shiftRight(b, places);
 
 err:
@@ -997,8 +1085,8 @@ BclNumber bcl_frand(size_t places) {
 
 	bc_vec_grow(&ctxt->nums, 1);
 
+	// Clear and initialize the number.
 	bc_num_clear(&n);
-
 	bc_num_init(&n, BC_NUM_DEF_SIZE);
 
 	BC_SIG_UNLOCK;
@@ -1007,6 +1095,7 @@ BclNumber bcl_frand(size_t places) {
 
 err:
 	BC_SIG_MAYLOCK;
+
 	BC_FUNC_FOOTER(e);
 	BC_MAYBE_SETUP(ctxt, e, n, idx);
 
@@ -1015,20 +1104,29 @@ err:
 	return idx;
 }
 
+/**
+ * Helps bc_ifrand(). This is separate because error handling is easier that
+ * way.
+ * @param a       The limit for bc_num_irand().
+ * @param b       The return parameter.
+ * @param places  The number of decimal places to generate.
+ */
 static void bcl_ifrandHelper(BcNum *restrict a, BcNum *restrict b,
                              size_t places)
 {
 	BcNum ir, fr;
 
+	// Clear the integer and fractional numbers.
 	bc_num_clear(&ir);
 	bc_num_clear(&fr);
 
 	BC_SIG_LOCK;
 
-	BC_SETJMP_LOCKED(err);
-
+	// Initialize the integer and fractional numbers.
 	bc_num_init(&ir, BC_NUM_DEF_SIZE);
 	bc_num_init(&fr, BC_NUM_DEF_SIZE);
+
+	BC_SETJMP_LOCKED(err);
 
 	BC_SIG_UNLOCK;
 
@@ -1053,7 +1151,6 @@ BclNumber bcl_ifrand(BclNumber a, size_t places) {
 	BclContext ctxt;
 
 	BC_CHECK_CTXT(ctxt);
-
 	BC_CHECK_NUM(ctxt, a);
 
 	BC_FUNC_HEADER_LOCK(err);
@@ -1066,8 +1163,8 @@ BclNumber bcl_ifrand(BclNumber a, size_t places) {
 
 	assert(aptr != NULL && aptr->num != NULL);
 
+	// Clear and initialize the number.
 	bc_num_clear(&b);
-
 	bc_num_init(&b, BC_NUM_DEF_SIZE);
 
 	BC_SIG_UNLOCK;
@@ -1076,7 +1173,10 @@ BclNumber bcl_ifrand(BclNumber a, size_t places) {
 
 err:
 	BC_SIG_MAYLOCK;
+
+	// Eat the oprand.
 	bcl_num_dtor(ctxt, a, aptr);
+
 	BC_FUNC_FOOTER(e);
 	BC_MAYBE_SETUP(ctxt, e, b, idx);
 
@@ -1092,7 +1192,6 @@ BclError bcl_rand_seedWithNum(BclNumber n) {
 	BclContext ctxt;
 
 	BC_CHECK_CTXT_ERR(ctxt);
-
 	BC_CHECK_NUM_ERR(ctxt, n);
 
 	BC_FUNC_HEADER(err);
@@ -1114,15 +1213,16 @@ err:
 	return e;
 }
 
-BclError bcl_rand_seed(unsigned char seed[BC_SEED_SIZE]) {
+BclError bcl_rand_seed(unsigned char seed[BCL_SEED_SIZE]) {
 
 	BclError e = BCL_ERROR_NONE;
 	size_t i;
-	ulong vals[BC_SEED_ULONGS];
+	ulong vals[BCL_SEED_ULONGS];
 
 	BC_FUNC_HEADER(err);
 
-	for (i = 0; i < BC_SEED_SIZE; ++i) {
+	// Fill the array.
+	for (i = 0; i < BCL_SEED_SIZE; ++i) {
 		ulong val = ((ulong) seed[i]) << (((ulong) CHAR_BIT) *
 		                                  (i % sizeof(ulong)));
 		vals[i / sizeof(long)] |= val;
@@ -1151,8 +1251,8 @@ BclNumber bcl_rand_seed2num(void) {
 
 	BC_FUNC_HEADER_LOCK(err);
 
+	// Clear and initialize the number.
 	bc_num_clear(&n);
-
 	bc_num_init(&n, BC_NUM_DEF_SIZE);
 
 	BC_SIG_UNLOCK;

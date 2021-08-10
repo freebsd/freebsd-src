@@ -60,7 +60,7 @@ $set 4
 5 "el token no es válido"
 6 "la expresión no es válida"
 7 "la expresión es vacía"
-8 "la expresión de print no es válida"
+8 "la expresión de print o de stream no es válida"
 9 "la definición de función no es válida"
 10 "la asignación no es valida: en la izquierda debe ser scale, ibase, obase, last, var, o un elemento de matriz"
 11 "no se encontró ninguna variable automática"
@@ -80,6 +80,7 @@ $set 4
 25 "POSIX no permite una notación exponencial"
 26 "POSIX no permite una referencia a una matriz como un parámetro de función"
 27 "POSIX requiere el llave de la izquierda que sea en la misma línea que los parámetros de la función"
+28 "POSIX no permite asignar cadenas a variables o matrices"
 
 $ Runtime errors.
 $set 5
@@ -91,9 +92,10 @@ $set 5
 5 "recursion en la invocación de read()"
 6 "variable o elemento del matriz de tipo equivocado"
 7 "la pila no ha demaciado elementos"
-8 "la función no tiene un número de argumentos correcto; necessita %zu, tiene %zu"
-9 "la función no esta definida: %s()"
-10 "no puede utilizar un valor vacío en una expresión"
+8 "la pila del registro \"%s\" no ha demaciado elementos"
+9 "la función no tiene un número de argumentos correcto; necessita %zu, tiene %zu"
+10 "la función no esta definida: %s()"
+11 "no puede utilizar un valor vacío en una expresión"
 
 $ Fatal errors.
 $set 6
@@ -101,8 +103,9 @@ $set 6
 1 "error en la asignación de memoria"
 2 "error de I/O"
 3 "no puede abrir el archivo: %s"
-4 "el archivo no es ASCII: %s"
+4 "el archivo no es texto: %s"
 5 "el ruta es un directorio: %s"
 6 "una opción de línea de comandos no es válida: \"%s\""
 7 "una opción requiere un argumento: '%c' (\"%s\")"
 8 "una opción no tiene argumento: '%c' (\"%s\")"
+9 "uno argumento de opción de línea de comandos no es válido: \"%s\""

@@ -29,13 +29,14 @@
  *
  * *****************************************************************************
  *
- * Definitions for processing command-line arguments.
+ * The version of bc.
  *
  */
 
 #ifndef BC_VERSION_H
 #define BC_VERSION_H
 
-#define VERSION 4.0.2
+/// The current version.
+#define VERSION 5.1.1
 
 #endif // BC_VERSION_H

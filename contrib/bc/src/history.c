@@ -148,29 +148,41 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <strings.h>
 #include <ctype.h>
 
 #include <signal.h>
-
-#include <termios.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#ifndef _WIN32
+#include <strings.h>
+#include <termios.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
+#endif // _WIN32
 
+#include <status.h>
 #include <vector.h>
 #include <history.h>
 #include <read.h>
 #include <file.h>
 #include <vm.h>
 
-static void bc_history_add(BcHistory *h, char *line);
-static void bc_history_add_empty(BcHistory *h);
+#if BC_DEBUG_CODE
+
+/// A file for outputting to when debugging.
+BcFile bc_history_debug_fp;
+
+/// A buffer for the above file.
+char *bc_history_debug_buf;
+
+#endif // BC_DEBUG_CODE
 
 /**
- * Check if the code is a wide character.
+ * Checks if the code is a wide character.
+ * @param cp  The codepoint to check.
+ * @return    True if @a cp is a wide character, false otherwise.
  */
 static bool bc_history_wchar(uint32_t cp) {
 
@@ -192,7 +204,9 @@ static bool bc_history_wchar(uint32_t cp) {
 }
 
 /**
- * Check if the code is a combining character.
+ * Checks if the code is a combining character.
+ * @param cp  The codepoint to check.
+ * @return    True if @a cp is a combining character, false otherwise.
  */
 static bool bc_history_comboChar(uint32_t cp) {
 
@@ -210,7 +224,9 @@ static bool bc_history_comboChar(uint32_t cp) {
 }
 
 /**
- * Get length of previous UTF8 character.
+ * Gets the length of previous UTF8 character.
+ * @param buf  The buffer of characters.
+ * @param pos  The index into the buffer.
  */
 static size_t bc_history_prevCharLen(const char *buf, size_t pos) {
 	size_t end = pos;
@@ -219,13 +235,20 @@ static size_t bc_history_prevCharLen(const char *buf, size_t pos) {
 }
 
 /**
- * Convert UTF-8 to Unicode code point.
+ * Converts UTF-8 to a Unicode code point.
+ * @param s    The string.
+ * @param len  The length of the string.
+ * @param cp   An out parameter for the codepoint.
+ * @return     The number of bytes eaten by the codepoint.
  */
 static size_t bc_history_codePoint(const char *s, size_t len, uint32_t *cp) {
 
 	if (len) {
 
 		uchar byte = (uchar) s[0];
+
+		// This is literally the UTF-8 decoding algorithm. Look that up if you
+		// don't understand this.
 
 		if ((byte & 0x80) == 0) {
 			*cp = byte;
@@ -270,7 +293,12 @@ static size_t bc_history_codePoint(const char *s, size_t len, uint32_t *cp) {
 }
 
 /**
- * Get length of next grapheme.
+ * Gets the length of next grapheme.
+ * @param buf      The buffer.
+ * @param buf_len  The length of the buffer.
+ * @param pos      The index into the buffer.
+ * @param col_len  An out parameter for the length of the grapheme on screen.
+ * @return         The number of bytes in the grapheme.
  */
 static size_t bc_history_nextLen(const char *buf, size_t buf_len,
                                  size_t pos, size_t *col_len)
@@ -280,14 +308,20 @@ static size_t bc_history_nextLen(const char *buf, size_t buf_len,
 	size_t len = bc_history_codePoint(buf + pos, buf_len - pos, &cp);
 
 	if (bc_history_comboChar(cp)) {
-		// Currently unreachable?
+
+		BC_UNREACHABLE
+
+		if (col_len != NULL) *col_len = 0;
+
 		return 0;
 	}
 
+	// Store the width of the character on screen.
 	if (col_len != NULL) *col_len = bc_history_wchar(cp) ? 2 : 1;
 
 	pos += len;
 
+	// Find the first non-combining character.
 	while (pos < buf_len) {
 
 		len = bc_history_codePoint(buf + pos, buf_len - pos, &cp);
@@ -301,12 +335,16 @@ static size_t bc_history_nextLen(const char *buf, size_t buf_len,
 }
 
 /**
- * Get length of previous grapheme.
+ * Gets the length of previous grapheme.
+ * @param buf  The buffer.
+ * @param pos  The index into the buffer.
+ * @return     The number of bytes in the grapheme.
  */
-static size_t bc_history_prevLen(const char *buf, size_t pos, size_t *col_len) {
+static size_t bc_history_prevLen(const char *buf, size_t pos) {
 
 	size_t end = pos;
 
+	// Find the first non-combining character.
 	while (pos > 0) {
 
 		uint32_t cp;
@@ -315,25 +353,48 @@ static size_t bc_history_prevLen(const char *buf, size_t pos, size_t *col_len) {
 		pos -= len;
 		bc_history_codePoint(buf + pos, len, &cp);
 
-		if (!bc_history_comboChar(cp)) {
-			if (col_len != NULL) *col_len = 1 + (bc_history_wchar(cp) != 0);
-			return end - pos;
-		}
+		// The original linenoise-mob had an extra parameter col_len, like
+		// bc_history_nextLen(), which, if not NULL, was set in this if
+		// statement. However, we always passed NULL, so just skip that.
+		if (!bc_history_comboChar(cp)) return end - pos;
 	}
 
-	// Currently unreachable?
+	BC_UNREACHABLE
+
 	return 0;
 }
 
+/**
+ * Reads @a n characters from stdin.
+ * @param buf  The buffer to read into. The caller is responsible for making
+ *             sure this is big enough for @a n.
+ * @param n    The number of characters to read.
+ * @return     The number of characters read or less than 0 on error.
+ */
 static ssize_t bc_history_read(char *buf, size_t n) {
 
 	ssize_t ret;
 
 	BC_SIG_LOCK;
 
+#ifndef _WIN32
+
 	do {
+		// We don't care about being interrupted.
 		ret = read(STDIN_FILENO, buf, n);
 	} while (ret == EINTR);
+
+#else // _WIN32
+
+	bool good;
+	DWORD read;
+	HANDLE hn = GetStdHandle(STD_INPUT_HANDLE);
+
+	good = ReadConsole(hn, buf, (DWORD) n, &read, NULL);
+
+	ret = (read != n) ? -1 : 1;
+
+#endif // _WIN32
 
 	BC_SIG_UNLOCK;
 
@@ -341,7 +402,12 @@ static ssize_t bc_history_read(char *buf, size_t n) {
 }
 
 /**
- * Read a Unicode code point from a file.
+ * Reads a Unicode code point into a buffer.
+ * @param buf      The buffer to read into.
+ * @param buf_len  The length of the buffer.
+ * @param cp       An out parameter for the codepoint.
+ * @param nread    An out parameter for the number of bytes read.
+ * @return         BC_STATUS_EOF or BC_STATUS_SUCCESS.
  */
 static BcStatus bc_history_readCode(char *buf, size_t buf_len,
                                     uint32_t *cp, size_t *nread)
@@ -350,26 +416,39 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 
 	assert(buf_len >= 1);
 
+	// Read a byte.
 	n = bc_history_read(buf, 1);
 	if (BC_ERR(n <= 0)) goto err;
 
-	uchar byte = (uchar) buf[0];
+	// Get the byte.
+	uchar byte = ((uchar*) buf)[0];
 
+	// Once again, this is the UTF-8 decoding algorithm, but it has reads
+	// instead of actual decoding.
 	if ((byte & 0x80) != 0) {
 
 		if ((byte & 0xE0) == 0xC0) {
+
 			assert(buf_len >= 2);
+
 			n = bc_history_read(buf + 1, 1);
+
 			if (BC_ERR(n <= 0)) goto err;
 		}
 		else if ((byte & 0xF0) == 0xE0) {
+
 			assert(buf_len >= 3);
+
 			n = bc_history_read(buf + 1, 2);
+
 			if (BC_ERR(n <= 0)) goto err;
 		}
 		else if ((byte & 0xF8) == 0xF0) {
+
 			assert(buf_len >= 3);
+
 			n = bc_history_read(buf + 1, 3);
+
 			if (BC_ERR(n <= 0)) goto err;
 		}
 		else {
@@ -378,24 +457,32 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 		}
 	}
 
+	// Convert to the codepoint.
 	*nread = bc_history_codePoint(buf, buf_len, cp);
 
 	return BC_STATUS_SUCCESS;
 
 err:
+	// If we get here, we either had a fatal error of EOF.
 	if (BC_ERR(n < 0)) bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 	else *nread = (size_t) n;
 	return BC_STATUS_EOF;
 }
 
 /**
- * Get column length from begining of buffer to current byte position.
+ * Gets the column length from beginning of buffer to current byte position.
+ * @param buf      The buffer.
+ * @param buf_len  The length of the buffer.
+ * @param pos      The index into the buffer.
+ * @return         The number of columns between the beginning of @a buffer to
+ *                 @a pos.
  */
 static size_t bc_history_colPos(const char *buf, size_t buf_len, size_t pos) {
 
 	size_t ret = 0, off = 0;
 
-	while (off < pos) {
+	// While we haven't reached the offset, get the length of the next grapheme.
+	while (off < pos && off < buf_len) {
 
 		size_t col_len, len;
 
@@ -409,28 +496,36 @@ static size_t bc_history_colPos(const char *buf, size_t buf_len, size_t pos) {
 }
 
 /**
- * Return true if the terminal name is in the list of terminals we know are
+ * Returns true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences.
+ * @return  True if the terminal is a bad terminal.
  */
 static inline bool bc_history_isBadTerm(void) {
 
 	size_t i;
-	char *term = getenv("TERM");
+	bool ret = false;
+	char *term = bc_vm_getenv("TERM");
 
 	if (term == NULL) return false;
 
-	for (i = 0; bc_history_bad_terms[i]; ++i) {
-		if (!strcasecmp(term, bc_history_bad_terms[i])) return true;
-	}
+	for (i = 0; !ret && bc_history_bad_terms[i]; ++i)
+		ret = (!strcasecmp(term, bc_history_bad_terms[i]));
 
-	return false;
+	bc_vm_getenvFree(term);
+
+	return ret;
 }
 
 /**
- * Raw mode: 1960's black magic.
+ * Enables raw mode (1960's black magic).
+ * @param h  The history data.
  */
 static void bc_history_enableRaw(BcHistory *h) {
 
+	// I don't do anything for Windows because in Windows, you set their
+	// equivalent of raw mode and leave it, so I do it in bc_history_init().
+
+#ifndef _WIN32
 	struct termios raw;
 	int err;
 
@@ -452,7 +547,7 @@ static void bc_history_enableRaw(BcHistory *h) {
 	// no start/stop output control.
 	raw.c_iflag &= (unsigned int) (~(BRKINT | ICRNL | INPCK | ISTRIP | IXON));
 
-	// Control modes - set 8 bit chars.
+	// Control modes: set 8 bit chars.
 	raw.c_cflag |= (CS8);
 
 	// Local modes - choing off, canonical off, no extended functions,
@@ -474,29 +569,36 @@ static void bc_history_enableRaw(BcHistory *h) {
 	BC_SIG_UNLOCK;
 
 	if (BC_ERR(err < 0)) bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
+#endif // _WIN32
 
 	h->rawMode = true;
 }
 
+/**
+ * Disables raw mode.
+ * @param h  The history data.
+ */
 static void bc_history_disableRaw(BcHistory *h) {
 
 	sig_atomic_t lock;
 
-	// Don't even check the return value as it's too late.
 	if (!h->rawMode) return;
 
 	BC_SIG_TRYLOCK(lock);
 
+#ifndef _WIN32
 	if (BC_ERR(tcsetattr(STDIN_FILENO, TCSAFLUSH, &h->orig_termios) != -1))
 		h->rawMode = false;
+#endif // _WIN32
 
 	BC_SIG_TRYUNLOCK(lock);
 }
 
 /**
- * Use the ESC [6n escape sequence to query the horizontal cursor position
+ * Uses the ESC [6n escape sequence to query the horizontal cursor position
  * and return it. On error -1 is returned, on success the position of the
  * cursor.
+ * @return  The horizontal cursor position.
  */
 static size_t bc_history_cursorPos(void) {
 
@@ -515,14 +617,17 @@ static size_t bc_history_cursorPos(void) {
 
 	buf[i] = '\0';
 
+	// This is basically an error; we didn't get what we were expecting.
 	if (BC_ERR(buf[0] != BC_ACTION_ESC || buf[1] != '[')) return SIZE_MAX;
 
-	// Parse it.
+	// Parse the rows.
 	ptr = buf + 2;
 	rows = strtoul(ptr, &ptr2, 10);
 
+	// Here we also didn't get what we were expecting.
 	if (BC_ERR(!rows || ptr2[0] != ';')) return SIZE_MAX;
 
+	// Parse the columns.
 	ptr = ptr2 + 1;
 	cols = strtoul(ptr, NULL, 10);
 
@@ -532,10 +637,13 @@ static size_t bc_history_cursorPos(void) {
 }
 
 /**
- * Try to get the number of columns in the current terminal, or assume 80
+ * Tries to get the number of columns in the current terminal, or assume 80
  * if it fails.
+ * @return  The number of columns in the terminal.
  */
 static size_t bc_history_columns(void) {
+
+#ifndef _WIN32
 
 	struct winsize ws;
 	int ret;
@@ -571,69 +679,51 @@ static size_t bc_history_columns(void) {
 	}
 
 	return ws.ws_col;
-}
 
-#if BC_ENABLE_PROMPT
-/**
- * Check if text is an ANSI escape sequence.
- */
-static bool bc_history_ansiEscape(const char *buf, size_t buf_len, size_t *len)
-{
-	if (buf_len > 2 && !memcmp("\033[", buf, 2)) {
+#else // _WIN32
 
-		size_t off = 2;
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-		while (off < buf_len) {
+	if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+		return 80;
 
-			char c = buf[off++];
+	return ((size_t) (csbi.srWindow.Right)) - csbi.srWindow.Left + 1;
 
-			if ((c >= 'A' && c <= 'K' && c != 'I') ||
-			    c == 'S' || c == 'T' || c == 'f' || c == 'm')
-			{
-				*len = off;
-				return true;
-			}
-		}
-	}
-
-	return false;
+#endif // _WIN32
 }
 
 /**
- * Get column length of prompt text.
+ * Gets the column length of prompt text. This is probably unnecessary because
+ * the prompts that I use are ASCII, but I kept it just in case.
+ * @param prompt  The prompt.
+ * @param plen    The length of the prompt.
+ * @return        The column length of the prompt.
  */
 static size_t bc_history_promptColLen(const char *prompt, size_t plen) {
 
 	char buf[BC_HIST_MAX_LINE + 1];
 	size_t buf_len = 0, off = 0;
 
-	while (off < plen) {
-
-		size_t len;
-
-		if (bc_history_ansiEscape(prompt + off, plen - off, &len)) {
-			off += len;
-			continue;
-		}
-
-		buf[buf_len++] = prompt[off++];
-	}
+	// The original linenoise-mob checked for ANSI escapes here on the prompt. I
+	// know the prompts do not have ANSI escapes. I deleted the code.
+	while (off < plen) buf[buf_len++] = prompt[off++];
 
 	return bc_history_colPos(buf, buf_len, buf_len);
 }
-#endif // BC_ENABLE_PROMPT
 
 /**
  * Rewrites the currently edited line accordingly to the buffer content,
  * cursor position, and number of columns of the terminal.
+ * @param h  The history data.
  */
 static void bc_history_refresh(BcHistory *h) {
 
 	char* buf = h->buf.v;
-	size_t colpos, len = BC_HIST_BUF_LEN(h), pos = h->pos;
+	size_t colpos, len = BC_HIST_BUF_LEN(h), pos = h->pos, extras_len = 0;
 
 	bc_file_flush(&vm.fout, bc_flush_none);
 
+	// Get to the prompt column position from the left.
 	while(h->pcol + bc_history_colPos(buf, len, pos) >= h->cols) {
 
 		size_t chlen = bc_history_nextLen(buf, len, 0, NULL);
@@ -643,61 +733,77 @@ static void bc_history_refresh(BcHistory *h) {
 		pos -= chlen;
 	}
 
+	// Get to the prompt column position from the right.
 	while (h->pcol + bc_history_colPos(buf, len, len) > h->cols)
-		len -= bc_history_prevLen(buf, len, NULL);
+		len -= bc_history_prevLen(buf, len);
 
 	// Cursor to left edge.
 	bc_file_write(&vm.fout, bc_flush_none, "\r", 1);
 
-	// Take the extra stuff into account.
+	// Take the extra stuff into account. This is where history makes sure to
+	// preserve stuff that was printed without a newline.
 	if (h->extras.len > 1) {
-		len += h->extras.len - 1;
-		pos += h->extras.len - 1;
-		bc_file_write(&vm.fout, bc_flush_none, h->extras.v, h->extras.len - 1);
+
+		extras_len = h->extras.len - 1;
+
+		bc_vec_grow(&h->buf, extras_len);
+
+		len += extras_len;
+		pos += extras_len;
+
+		bc_file_write(&vm.fout, bc_flush_none, h->extras.v, extras_len);
 	}
 
 	// Write the prompt, if desired.
-#if BC_ENABLE_PROMPT
-	if (BC_USE_PROMPT)
-		bc_file_write(&vm.fout, bc_flush_none, h->prompt, h->plen);
-#endif // BC_ENABLE_PROMPT
+	if (BC_PROMPT) bc_file_write(&vm.fout, bc_flush_none, h->prompt, h->plen);
 
-	bc_file_write(&vm.fout, bc_flush_none, buf, BC_HIST_BUF_LEN(h));
+	bc_file_write(&vm.fout, bc_flush_none, h->buf.v, len - extras_len);
 
 	// Erase to right.
 	bc_file_write(&vm.fout, bc_flush_none, "\x1b[0K", 4);
 
-	// Move cursor to original position.
-	colpos = bc_history_colPos(buf, len, pos) + h->pcol;
+	// We need to be sure to grow this.
+	if (pos >= h->buf.len - extras_len)
+		bc_vec_grow(&h->buf, pos + extras_len);
 
+	// Move cursor to original position.
+	colpos = bc_history_colPos(h->buf.v, len - extras_len, pos) + h->pcol;
+
+	// Set the cursor position again.
 	if (colpos) bc_file_printf(&vm.fout, "\r\x1b[%zuC", colpos);
 
 	bc_file_flush(&vm.fout, bc_flush_none);
 }
 
 /**
- * Insert the character 'c' at cursor current position.
+ * Inserts the character(s) 'c' at cursor current position.
+ * @param h     The history data.
+ * @param cbuf  The character buffer to copy from.
+ * @param clen  The number of characters to copy.
  */
 static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 {
 	bc_vec_grow(&h->buf, clen);
 
+	// If we are at the end of the line...
 	if (h->pos == BC_HIST_BUF_LEN(h)) {
 
 		size_t colpos = 0, len;
 
+		// Copy into the buffer.
 		memcpy(bc_vec_item(&h->buf, h->pos), cbuf, clen);
 
+		// Adjust the buffer.
 		h->pos += clen;
 		h->buf.len += clen - 1;
 		bc_vec_pushByte(&h->buf, '\0');
 
+		// Set the length and column position.
 		len = BC_HIST_BUF_LEN(h) + h->extras.len - 1;
-#if BC_ENABLE_PROMPT
 		colpos = bc_history_promptColLen(h->prompt, h->plen);
-#endif // BC_ENABLE_PROMPT
 		colpos += bc_history_colPos(h->buf.v, len, len);
 
+		// Do we have the trivial case?
 		if (colpos < h->cols) {
 
 			// Avoid a full update of the line in the trivial case.
@@ -708,11 +814,14 @@ static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 	}
 	else {
 
+		// Amount that we need to move.
 		size_t amt = BC_HIST_BUF_LEN(h) - h->pos;
 
+		// Move the stuff.
 		memmove(h->buf.v + h->pos + clen, h->buf.v + h->pos, amt);
 		memcpy(h->buf.v + h->pos, cbuf, clen);
 
+		// Adjust the buffer.
 		h->pos += clen;
 		h->buf.len += clen;
 		h->buf.v[BC_HIST_BUF_LEN(h)] = '\0';
@@ -722,22 +831,26 @@ static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 }
 
 /**
- * Move cursor to the left.
+ * Moves the cursor to the left.
+ * @param h  The history data.
  */
 static void bc_history_edit_left(BcHistory *h) {
 
+	// Stop at the left end.
 	if (h->pos <= 0) return;
 
-	h->pos -= bc_history_prevLen(h->buf.v, h->pos, NULL);
+	h->pos -= bc_history_prevLen(h->buf.v, h->pos);
 
 	bc_history_refresh(h);
 }
 
 /**
- * Move cursor on the right.
+ * Moves the cursor to the right.
+ * @param h  The history data.
 */
 static void bc_history_edit_right(BcHistory *h) {
 
+	// Stop at the right end.
 	if (h->pos == BC_HIST_BUF_LEN(h)) return;
 
 	h->pos += bc_history_nextLen(h->buf.v, BC_HIST_BUF_LEN(h), h->pos, NULL);
@@ -746,14 +859,17 @@ static void bc_history_edit_right(BcHistory *h) {
 }
 
 /**
- * Move cursor to the end of the current word.
+ * Moves the cursor to the end of the current word.
+ * @param h  The history data.
  */
 static void bc_history_edit_wordEnd(BcHistory *h) {
 
 	size_t len = BC_HIST_BUF_LEN(h);
 
+	// Don't overflow.
 	if (!len || h->pos >= len) return;
 
+	// Find the word, then find the end of it.
 	while (h->pos < len && isspace(h->buf.v[h->pos])) h->pos += 1;
 	while (h->pos < len && !isspace(h->buf.v[h->pos])) h->pos += 1;
 
@@ -761,14 +877,17 @@ static void bc_history_edit_wordEnd(BcHistory *h) {
 }
 
 /**
- * Move cursor to the start of the current word.
+ * Moves the cursor to the start of the current word.
+ * @param h  The history data.
  */
 static void bc_history_edit_wordStart(BcHistory *h) {
 
 	size_t len = BC_HIST_BUF_LEN(h);
 
+	// Stop with no data.
 	if (!len) return;
 
+	// Find the word, the find the beginning of the word.
 	while (h->pos > 0 && isspace(h->buf.v[h->pos - 1])) h->pos -= 1;
 	while (h->pos > 0 && !isspace(h->buf.v[h->pos - 1])) h->pos -= 1;
 
@@ -776,10 +895,12 @@ static void bc_history_edit_wordStart(BcHistory *h) {
 }
 
 /**
- * Move cursor to the start of the line.
+ * Moves the cursor to the start of the line.
+ * @param h  The history data.
  */
 static void bc_history_edit_home(BcHistory *h) {
 
+	// Stop at the beginning.
 	if (!h->pos) return;
 
 	h->pos = 0;
@@ -788,10 +909,12 @@ static void bc_history_edit_home(BcHistory *h) {
 }
 
 /**
- * Move cursor to the end of the line.
+ * Moves the cursor to the end of the line.
+ * @param h  The history data.
  */
 static void bc_history_edit_end(BcHistory *h) {
 
+	// Stop at the end of the line.
 	if (h->pos == BC_HIST_BUF_LEN(h)) return;
 
 	h->pos = BC_HIST_BUF_LEN(h);
@@ -800,22 +923,25 @@ static void bc_history_edit_end(BcHistory *h) {
 }
 
 /**
- * Substitute the currently edited line with the next or previous history
+ * Substitutes the currently edited line with the next or previous history
  * entry as specified by 'dir' (direction).
+ * @param h    The history data.
+ * @param dir  The direction to substitute; true means previous, false next.
  */
 static void bc_history_edit_next(BcHistory *h, bool dir) {
 
 	const char *dup, *str;
 
+	// Stop if there is no history.
 	if (h->history.len <= 1) return;
 
 	BC_SIG_LOCK;
 
+	// Duplicate the buffer.
 	if (h->buf.v[0]) dup = bc_vm_strdup(h->buf.v);
 	else dup = "";
 
-	// Update the current history entry before
-	// overwriting it with the next one.
+	// Update the current history entry before overwriting it with the next one.
 	bc_vec_replaceAt(&h->history, h->history.len - 1 - h->idx, &dup);
 
 	BC_SIG_UNLOCK;
@@ -823,6 +949,7 @@ static void bc_history_edit_next(BcHistory *h, bool dir) {
 	// Show the new entry.
 	h->idx += (dir == BC_HIST_PREV ? 1 : SIZE_MAX);
 
+	// Se the index appropriately at the ends.
 	if (h->idx == SIZE_MAX) {
 		h->idx = 0;
 		return;
@@ -832,45 +959,62 @@ static void bc_history_edit_next(BcHistory *h, bool dir) {
 		return;
 	}
 
+	// Get the string.
 	str = *((char**) bc_vec_item(&h->history, h->history.len - 1 - h->idx));
 	bc_vec_string(&h->buf, strlen(str), str);
+
 	assert(h->buf.len > 0);
 
+	// Set the position at the end.
 	h->pos = BC_HIST_BUF_LEN(h);
 
 	bc_history_refresh(h);
 }
 
 /**
- * Delete the character at the right of the cursor without altering the cursor
- * position. Basically this is what happens with the "Delete" keyboard key.
+ * Deletes the character at the right of the cursor without altering the cursor
+ * position. Basically, this is what happens with the "Delete" keyboard key.
+ * @param h  The history data.
  */
 static void bc_history_edit_delete(BcHistory *h) {
 
 	size_t chlen, len = BC_HIST_BUF_LEN(h);
 
+	// If there is no character, skip.
 	if (!len || h->pos >= len) return;
 
+	// Get the length of the character.
 	chlen = bc_history_nextLen(h->buf.v, len, h->pos, NULL);
 
+	// Move characters after it into its place.
 	memmove(h->buf.v + h->pos, h->buf.v + h->pos + chlen, len - h->pos - chlen);
 
+	// Make the buffer valid again.
 	h->buf.len -= chlen;
 	h->buf.v[BC_HIST_BUF_LEN(h)] = '\0';
 
 	bc_history_refresh(h);
 }
 
+/**
+ * Deletes the character to the left of the cursor and moves the cursor back one
+ * space. Basically, this is what happens with the "Backspace" keyboard key.
+ * @param h  The history data.
+ */
 static void bc_history_edit_backspace(BcHistory *h) {
 
 	size_t chlen, len = BC_HIST_BUF_LEN(h);
 
+	// If there are no characters, skip.
 	if (!h->pos || !len) return;
 
-	chlen = bc_history_prevLen(h->buf.v, h->pos, NULL);
+	// Get the length of the previous character.
+	chlen = bc_history_prevLen(h->buf.v, h->pos);
 
+	// Move everything back one.
 	memmove(h->buf.v + h->pos - chlen, h->buf.v + h->pos, len - h->pos);
 
+	// Make the buffer valid again.
 	h->pos -= chlen;
 	h->buf.len -= chlen;
 	h->buf.v[BC_HIST_BUF_LEN(h)] = '\0';
@@ -879,71 +1023,110 @@ static void bc_history_edit_backspace(BcHistory *h) {
 }
 
 /**
- * Delete the previous word, maintaining the cursor at the start of the
+ * Deletes the previous word, maintaining the cursor at the start of the
  * current word.
+ * @param h  The history data.
  */
 static void bc_history_edit_deletePrevWord(BcHistory *h) {
 
 	size_t diff, old_pos = h->pos;
 
-	while (h->pos > 0 && h->buf.v[h->pos - 1] == ' ') --h->pos;
-	while (h->pos > 0 && h->buf.v[h->pos - 1] != ' ') --h->pos;
+	// If at the beginning of the line, skip.
+	if (!old_pos) return;
 
+	// Find the word, then the beginning of the word.
+	while (h->pos > 0 && isspace(h->buf.v[h->pos - 1])) --h->pos;
+	while (h->pos > 0 && !isspace(h->buf.v[h->pos - 1])) --h->pos;
+
+	// Get the difference in position.
 	diff = old_pos - h->pos;
+
+	// Move the data back.
 	memmove(h->buf.v + h->pos, h->buf.v + old_pos,
 	        BC_HIST_BUF_LEN(h) - old_pos + 1);
+
+	// Make the buffer valid again.
 	h->buf.len -= diff;
 
 	bc_history_refresh(h);
 }
 
 /**
- * Delete the next word, maintaining the cursor at the same position.
+ * Deletes the next word, maintaining the cursor at the same position.
+ * @param h  The history data.
  */
 static void bc_history_edit_deleteNextWord(BcHistory *h) {
 
 	size_t next_end = h->pos, len = BC_HIST_BUF_LEN(h);
 
-	while (next_end < len && h->buf.v[next_end] == ' ') ++next_end;
-	while (next_end < len && h->buf.v[next_end] != ' ') ++next_end;
+	// If at the end of the line, skip.
+	if (next_end == len) return;
 
+	// Find the word, then the end of the word.
+	while (next_end < len && isspace(h->buf.v[next_end])) ++next_end;
+	while (next_end < len && !isspace(h->buf.v[next_end])) ++next_end;
+
+	// Move the stuff into position.
 	memmove(h->buf.v + h->pos, h->buf.v + next_end, len - next_end);
 
+	// Make the buffer valid again.
 	h->buf.len -= next_end - h->pos;
 
 	bc_history_refresh(h);
 }
 
+/**
+ * Swaps two characters, the one under the cursor and the one to the left.
+ * @param h  The history data.
+ */
 static void bc_history_swap(BcHistory *h) {
 
 	size_t pcl, ncl;
 	char auxb[5];
 
-	pcl = bc_history_prevLen(h->buf.v, h->pos, NULL);
+	// Get the length of the previous and next characters.
+	pcl = bc_history_prevLen(h->buf.v, h->pos);
 	ncl = bc_history_nextLen(h->buf.v, BC_HIST_BUF_LEN(h), h->pos, NULL);
 
 	// To perform a swap we need:
-	// * nonzero char length to the left
-	// * not at the end of the line
+	// * Nonzero char length to the left.
+	// * To not be at the end of the line.
 	if (pcl && h->pos != BC_HIST_BUF_LEN(h) && pcl < 5 && ncl < 5) {
 
+		// Swap.
 		memcpy(auxb, h->buf.v + h->pos - pcl, pcl);
 		memcpy(h->buf.v + h->pos - pcl, h->buf.v + h->pos, ncl);
 		memcpy(h->buf.v + h->pos - pcl + ncl, auxb, pcl);
 
-		h->pos += -pcl + ncl;
+		// Reset the position.
+		h->pos += ((~pcl) + 1) + ncl;
 
 		bc_history_refresh(h);
 	}
 }
 
 /**
- * Handle escape sequences.
+ * Raises the specified signal. This is a convenience function.
+ * @param h    The history data.
+ * @param sig  The signal to raise.
+ */
+static void bc_history_raise(BcHistory *h, int sig) {
+
+	// We really don't want to be in raw mode when longjmp()'s are flying.
+	bc_history_disableRaw(h);
+	raise(sig);
+}
+
+/**
+ * Handles escape sequences. This function will make sense if you know VT100
+ * escape codes; otherwise, it will be confusing.
+ * @param h  The history data.
  */
 static void bc_history_escape(BcHistory *h) {
 
 	char c, seq[3];
 
+	// Read a character into seq.
 	if (BC_ERR(BC_HIST_READ(seq, 1))) return;
 
 	c = seq[0];
@@ -956,6 +1139,7 @@ static void bc_history_escape(BcHistory *h) {
 	}
 	else {
 
+		// Read a character into seq.
 		if (BC_ERR(BC_HIST_READ(seq + 1, 1)))
 			bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
@@ -973,6 +1157,7 @@ static void bc_history_escape(BcHistory *h) {
 				if (seq[2] == '~' && c == '3') bc_history_edit_delete(h);
 				else if(seq[2] == ';') {
 
+					// Read two characters into seq.
 					if (BC_ERR(BC_HIST_READ(seq, 2)))
 						bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
@@ -1038,7 +1223,7 @@ static void bc_history_escape(BcHistory *h) {
 			}
 		}
 		// ESC O sequences.
-		else if (c == 'O') {
+		else {
 
 			switch (seq[1]) {
 
@@ -1082,6 +1267,61 @@ static void bc_history_escape(BcHistory *h) {
 	}
 }
 
+/**
+ * Adds a line to the history.
+ * @param h     The history data.
+ * @param line  The line to add.
+ */
+static void bc_history_add(BcHistory *h, char *line) {
+
+	// If there is something already there...
+	if (h->history.len) {
+
+		// Get the previous.
+		char *s = *((char**) bc_vec_item_rev(&h->history, 0));
+
+		// Check for, and discard, duplicates.
+		if (!strcmp(s, line)) {
+
+			BC_SIG_LOCK;
+
+			free(line);
+
+			BC_SIG_UNLOCK;
+
+			return;
+		}
+	}
+
+	bc_vec_push(&h->history, &line);
+}
+
+/**
+ * Adds an empty line to the history. This is separate from bc_history_add()
+ * because we don't want it allocating.
+ * @param h  The history data.
+ */
+static void bc_history_add_empty(BcHistory *h) {
+
+	const char *line = "";
+
+	// If there is something already there...
+	if (h->history.len) {
+
+		// Get the previous.
+		char *s = *((char**) bc_vec_item_rev(&h->history, 0));
+
+		// Check for, and discard, duplicates.
+		if (!s[0]) return;
+	}
+
+	bc_vec_push(&h->history, &line);
+}
+
+/**
+ * Resets the history state to nothing.
+ * @param h  The history data.
+ */
 static void bc_history_reset(BcHistory *h) {
 
 	h->oldcolpos = h->pos = h->idx = 0;
@@ -1095,30 +1335,46 @@ static void bc_history_reset(BcHistory *h) {
 	bc_vec_empty(&h->buf);
 }
 
+/**
+ * Prints a control character.
+ * @param h  The history data.
+ * @param c  The control character to print.
+ */
 static void bc_history_printCtrl(BcHistory *h, unsigned int c) {
 
 	char str[3] = "^A";
 	const char newline[2] = "\n";
 
+	// Set the correct character.
 	str[1] = (char) (c + 'A' - BC_ACTION_CTRL_A);
 
+	// Concatenate the string.
 	bc_vec_concat(&h->buf, str);
 
 	bc_history_refresh(h);
 
+	// Pop the string.
 	bc_vec_npop(&h->buf, sizeof(str));
 	bc_vec_pushByte(&h->buf, '\0');
 
-	if (c != BC_ACTION_CTRL_C && c != BC_ACTION_CTRL_D) {
+#ifndef _WIN32
+	if (c != BC_ACTION_CTRL_C && c != BC_ACTION_CTRL_D)
+#endif // _WIN32
+	{
+		// We sometimes want to print a newline; for the times we don't; it's
+		// because newlines are taken care of elsewhere.
 		bc_file_write(&vm.fout, bc_flush_none, newline, sizeof(newline) - 1);
 		bc_history_refresh(h);
 	}
 }
 
 /**
- * This function is the core of the line editing capability of bc history.
- * It expects 'fd' to be already in "raw mode" so that every key pressed
- * will be returned ASAP to read().
+ * Edits a line of history. This function is the core of the line editing
+ * capability of bc history. It expects 'fd' to be already in "raw mode" so that
+ * every key pressed will be returned ASAP to read().
+ * @param h       The history data.
+ * @param prompt  The prompt.
+ * @return        BC_STATUS_SUCCESS or BC_STATUS_EOF.
  */
 static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 
@@ -1129,8 +1385,8 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 	// line below or add anything like it.
 	// bc_file_write(&vm.fout, bc_flush_none, h->extras.v, h->extras.len - 1);
 
-#if BC_ENABLE_PROMPT
-	if (BC_USE_PROMPT) {
+	// Write the prompt if desired.
+	if (BC_PROMPT) {
 
 		h->prompt = prompt;
 		h->plen = strlen(prompt);
@@ -1139,16 +1395,16 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 		bc_file_write(&vm.fout, bc_flush_none, prompt, h->plen);
 		bc_file_flush(&vm.fout, bc_flush_none);
 	}
-#endif // BC_ENABLE_PROMPT
 
+	// This is the input loop.
 	for (;;) {
 
 		BcStatus s;
-		// Large enough for any encoding?
 		char cbuf[32];
 		unsigned int c = 0;
 		size_t nread = 0;
 
+		// Read a code.
 		s = bc_history_readCode(cbuf, sizeof(cbuf), &c, &nread);
 		if (BC_ERR(s)) return s;
 
@@ -1157,27 +1413,40 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 			case BC_ACTION_LINE_FEED:
 			case BC_ACTION_ENTER:
 			{
+				// Return the line.
 				bc_vec_pop(&h->history);
 				return s;
 			}
 
 			case BC_ACTION_TAB:
 			{
+				// My tab handling is dumb; it just prints 8 spaces every time.
 				memcpy(cbuf, bc_history_tab, bc_history_tab_len + 1);
 				bc_history_edit_insert(h, cbuf, bc_history_tab_len);
 				break;
 			}
 
+#ifndef _WIN32
 			case BC_ACTION_CTRL_C:
 			{
 				bc_history_printCtrl(h, c);
+
+				// Quit if the user wants it.
+				if (!BC_SIGINT) {
+					vm.status = BC_STATUS_QUIT;
+					BC_JMP;
+				}
+
+				// Print the ready message.
 				bc_file_write(&vm.fout, bc_flush_none, vm.sigmsg, vm.siglen);
 				bc_file_write(&vm.fout, bc_flush_none, bc_program_ready_msg,
 				              bc_program_ready_msg_len);
 				bc_history_reset(h);
 				bc_history_refresh(h);
+
 				break;
 			}
+#endif // _WIN32
 
 			case BC_ACTION_BACKSPACE:
 			case BC_ACTION_CTRL_H:
@@ -1186,12 +1455,14 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 				break;
 			}
 
+#ifndef _WIN32
 			// Act as end-of-file.
 			case BC_ACTION_CTRL_D:
 			{
 				bc_history_printCtrl(h, c);
 				return BC_STATUS_EOF;
 			}
+#endif // _WIN32
 
 			// Swaps current character with previous.
 			case BC_ACTION_CTRL_T:
@@ -1281,11 +1552,23 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 
 			default:
 			{
-				if (c >= BC_ACTION_CTRL_A && c <= BC_ACTION_CTRL_Z) {
+				// If we have a control character, print it and raise signals as
+				// needed.
+				if ((c >= BC_ACTION_CTRL_A && c <= BC_ACTION_CTRL_Z) ||
+				    c == BC_ACTION_CTRL_BSLASH)
+				{
 					bc_history_printCtrl(h, c);
-					if (c == BC_ACTION_CTRL_Z) raise(SIGTSTP);
-					if (c == BC_ACTION_CTRL_S) raise(SIGSTOP);
+#ifndef _WIN32
+					if (c == BC_ACTION_CTRL_Z) bc_history_raise(h, SIGTSTP);
+					if (c == BC_ACTION_CTRL_S) bc_history_raise(h, SIGSTOP);
+					if (c == BC_ACTION_CTRL_BSLASH)
+						bc_history_raise(h, SIGQUIT);
+#else // _WIN32
+					vm.status = BC_STATUS_QUIT;
+					BC_JMP;
+#endif // _WIN32
 				}
+				// Otherwise, just insert.
 				else bc_history_edit_insert(h, cbuf, nread);
 				break;
 			}
@@ -1295,33 +1578,19 @@ static BcStatus bc_history_edit(BcHistory *h, const char *prompt) {
 	return BC_STATUS_SUCCESS;
 }
 
+/**
+ * Returns true if stdin has more data. This is for multi-line pasting, and it
+ * does not work on Windows.
+ * @param h  The history data.
+ */
 static inline bool bc_history_stdinHasData(BcHistory *h) {
+#ifndef _WIN32
 	int n;
 	return pselect(1, &h->rdset, NULL, NULL, &h->ts, &h->sigmask) > 0 ||
 	       (ioctl(STDIN_FILENO, FIONREAD, &n) >= 0 && n > 0);
-}
-
-/**
- * This function calls the line editing function bc_history_edit()
- * using the STDIN file descriptor set in raw mode.
- */
-static BcStatus bc_history_raw(BcHistory *h, const char *prompt) {
-
-	BcStatus s;
-
-	assert(vm.fout.len == 0);
-
-	bc_history_enableRaw(h);
-
-	s = bc_history_edit(h, prompt);
-
-	h->stdin_has_data = bc_history_stdinHasData(h);
-	if (!h->stdin_has_data) bc_history_disableRaw(h);
-
-	bc_file_write(&vm.fout, bc_flush_none, "\n", 1);
-	bc_file_flush(&vm.fout, bc_flush_none);
-
-	return s;
+#else // _WIN32
+	return false;
+#endif // _WIN32
 }
 
 BcStatus bc_history_line(BcHistory *h, BcVec *vec, const char *prompt) {
@@ -1329,64 +1598,49 @@ BcStatus bc_history_line(BcHistory *h, BcVec *vec, const char *prompt) {
 	BcStatus s;
 	char* line;
 
-	s = bc_history_raw(h, prompt);
+	assert(vm.fout.len == 0);
+
+	bc_history_enableRaw(h);
+
+	do {
+
+		// Do the edit.
+		s = bc_history_edit(h, prompt);
+
+		// Print a newline and flush.
+		bc_file_write(&vm.fout, bc_flush_none, "\n", 1);
+		bc_file_flush(&vm.fout, bc_flush_none);
+
+		// If we actually have data...
+		if (h->buf.v[0]) {
+
+			BC_SIG_LOCK;
+
+			// Duplicate it.
+			line = bc_vm_strdup(h->buf.v);
+
+			BC_SIG_UNLOCK;
+
+			// Store it.
+			bc_history_add(h, line);
+		}
+		// Add an empty string.
+		else bc_history_add_empty(h);
+
+		// Concatenate the line to the return vector.
+		bc_vec_concat(vec, h->buf.v);
+		bc_vec_concat(vec, "\n");
+
+	} while (!s && bc_history_stdinHasData(h));
+
 	assert(!s || s == BC_STATUS_EOF);
 
-	bc_vec_string(vec, BC_HIST_BUF_LEN(h), h->buf.v);
-
-	if (h->buf.v[0]) {
-
-		BC_SIG_LOCK;
-
-		line = bc_vm_strdup(h->buf.v);
-
-		BC_SIG_UNLOCK;
-
-		bc_history_add(h, line);
-	}
-	else bc_history_add_empty(h);
-
-	bc_vec_concat(vec, "\n");
+	bc_history_disableRaw(h);
 
 	return s;
 }
 
-static void bc_history_add(BcHistory *h, char *line) {
-
-	if (h->history.len) {
-
-		char *s = *((char**) bc_vec_item_rev(&h->history, 0));
-
-		if (!strcmp(s, line)) {
-
-			BC_SIG_LOCK;
-
-			free(line);
-
-			BC_SIG_UNLOCK;
-
-			return;
-		}
-	}
-
-	bc_vec_push(&h->history, &line);
-}
-
-static void bc_history_add_empty(BcHistory *h) {
-
-	const char *line = "";
-
-	if (h->history.len) {
-
-		char *s = *((char**) bc_vec_item_rev(&h->history, 0));
-
-		if (!s[0]) return;
-	}
-
-	bc_vec_push(&h->history, &line);
-}
-
-static void bc_history_string_free(void *str) {
+void bc_history_string_free(void *str) {
 	char *s = *((char**) str);
 	BC_SIG_ASSERT_LOCKED;
 	if (s[0]) free(s);
@@ -1394,12 +1648,50 @@ static void bc_history_string_free(void *str) {
 
 void bc_history_init(BcHistory *h) {
 
+#ifdef _WIN32
+	HANDLE out, in;
+#endif // _WIN32
+
 	BC_SIG_ASSERT_LOCKED;
 
-	bc_vec_init(&h->buf, sizeof(char), NULL);
-	bc_vec_init(&h->history, sizeof(char*), bc_history_string_free);
-	bc_vec_init(&h->extras, sizeof(char), NULL);
+	h->rawMode = false;
+	h->badTerm = bc_history_isBadTerm();
 
+#ifdef _WIN32
+
+	h->orig_in = 0;
+	h->orig_out = 0;
+
+	in = GetStdHandle(STD_INPUT_HANDLE);
+	out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	if (!h->badTerm) {
+		SetConsoleCP(CP_UTF8);
+		SetConsoleOutputCP(CP_UTF8);
+		if (!GetConsoleMode(in, &h->orig_in) ||
+			!GetConsoleMode(out, &h->orig_out))
+		{
+			h->badTerm = true;
+			return;
+		}
+		else {
+			DWORD reqOut = ENABLE_VIRTUAL_TERMINAL_PROCESSING |
+				DISABLE_NEWLINE_AUTO_RETURN;
+			DWORD reqIn = ENABLE_VIRTUAL_TERMINAL_INPUT;
+			if (!SetConsoleMode(in, h->orig_in | reqIn) ||
+				!SetConsoleMode(out, h->orig_out | reqOut))
+			{
+				h->badTerm = true;
+			}
+		}
+	}
+#endif // _WIN32
+
+	bc_vec_init(&h->buf, sizeof(char), BC_DTOR_NONE);
+	bc_vec_init(&h->history, sizeof(char*), BC_DTOR_HISTORY_STRING);
+	bc_vec_init(&h->extras, sizeof(char), BC_DTOR_NONE);
+
+#ifndef _WIN32
 	FD_ZERO(&h->rdset);
 	FD_SET(STDIN_FILENO, &h->rdset);
 	h->ts.tv_sec = 0;
@@ -1407,14 +1699,17 @@ void bc_history_init(BcHistory *h) {
 
 	sigemptyset(&h->sigmask);
 	sigaddset(&h->sigmask, SIGINT);
-
-	h->rawMode = h->stdin_has_data = false;
-	h->badTerm = bc_history_isBadTerm();
+#endif // _WIN32
 }
 
 void bc_history_free(BcHistory *h) {
 	BC_SIG_ASSERT_LOCKED;
+#ifndef _WIN32
 	bc_history_disableRaw(h);
+#else // _WIN32
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), h->orig_in);
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), h->orig_out);
+#endif // _WIN32
 #ifndef NDEBUG
 	bc_vec_free(&h->buf);
 	bc_vec_free(&h->history);
@@ -1422,11 +1717,13 @@ void bc_history_free(BcHistory *h) {
 #endif // NDEBUG
 }
 
-/**
- * This special mode is used by bc history in order to print scan codes
- * on screen for debugging / development purposes.
- */
 #if BC_DEBUG_CODE
+
+/**
+ * Prints scan codes. This special mode is used by bc history in order to print
+ * scan codes on screen for debugging / development purposes.
+ * @param h  The history data.
+ */
 void bc_history_printKeyCodes(BcHistory *h) {
 
 	char quit[4];

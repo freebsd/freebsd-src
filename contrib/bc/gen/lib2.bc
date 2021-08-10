@@ -119,7 +119,7 @@ define root(x,n){
 	m=(x<0)
 	x=abs(x)
 	p=n-1
-	q=10^ceil((length(x$)/n)$,0)
+	q=A^ceil((length(x$)/n)$,0)
 	while(r!=q){
 		r=q
 		q=(p*r+x/r^p)/n
@@ -129,6 +129,37 @@ define root(x,n){
 	return r@s
 }
 define cbrt(x){return root(x,3)}
+define gcd(a,b){
+	auto g,s
+	if(!b)return a
+	s=scale
+	scale=0
+	a=abs(a)$
+	b=abs(b)$
+	if(a<b){
+		g=a
+		a=b
+		b=g
+	}
+	while(b){
+		g=a%b
+		a=b
+		b=g
+	}
+	scale=s
+	return a
+}
+define lcm(a,b){
+	auto r,s
+	if(!a&&!b)return 0
+	s=scale
+	scale=0
+	a=abs(a)$
+	b=abs(b)$
+	r=a*b/gcd(a,b)
+	scale=s
+	return r
+}
 define pi(s){
 	auto t,v
 	if(s==0)return 3
@@ -140,12 +171,12 @@ define pi(s){
 	return v@s
 }
 define t(x){
-	auto s,c,l
+	auto s,c
 	l=scale
 	scale+=2
 	s=s(x)
 	c=c(x)
-	scale=l
+	scale-=2
 	return s/c
 }
 define a2(y,x){
@@ -192,7 +223,7 @@ define d2r(x){
 }
 define frand(p){
 	p=abs(p)$
-	return irand(10^p)>>p
+	return irand(A^p)>>p
 }
 define ifrand(i,p){return irand(abs(i)$)+frand(p)}
 define srand(x){
@@ -210,27 +241,74 @@ define void output(x,b){
 define void hex(x){output(x,G)}
 define void binary(x){output(x,2)}
 define ubytes(x){
-	auto p,b,i
-	b=ibase
-	ibase=A
+	auto p,i
 	x=abs(x)$
 	i=2^8
 	for(p=1;i-1<x;p*=2){i*=i}
-	ibase=b
 	return p
 }
 define sbytes(x){
-	auto p,b,n,z
+	auto p,n,z
 	z=(x<0)
 	x=abs(x)
 	x=x$
 	n=ubytes(x)
-	b=ibase
-	ibase=A
 	p=2^(n*8-1)
 	if(x>p||(!z&&x==p))n*=2
-	ibase=b
 	return n
+}
+define s2un(x,n){
+	auto t,u,s
+	x=x$
+	if(x<0){
+		x=abs(x)
+		s=scale
+		scale=0
+		t=n*8
+		u=2^(t-1)
+		if(x==u)return x
+		else if(x>u)x%=u
+		scale=s
+		return 2^(t)-x
+	}
+	return x
+}
+define s2u(x){return s2un(x,sbytes(x))}
+define void plz(x){
+	if(leading_zero())print x
+	else{
+		if(x>-1&&x<1&&x!=0){
+			if(x<0)print"-"
+			print 0,abs(x)
+		}
+		else print x
+	}
+}
+define void plznl(x){
+	plz(x)
+	print"\n"
+}
+define void pnlz(x){
+	auto s,i
+	if(leading_zero()){
+		if(x>-1&&x<1&&x!=0){
+			s=scale(x)
+			if(x<0)print"-"
+			print"."
+			x=abs(x)
+			for(i=0;i<s;++i){
+				x<<=1
+				print x$
+				x-=x$
+			}
+			return
+		}
+	}
+	print x
+}
+define void pnlznl(x){
+	pnlz(x)
+	print"\n"
 }
 define void output_byte(x,i){
 	auto j,p,y,b
@@ -240,7 +318,7 @@ define void output_byte(x,i){
 	scale=0
 	x=abs(x)$
 	b=x/(2^(i*8))
-	b%=2^8
+	b%=256
 	y=log(256,obase)
 	if(b>1)p=log(b,obase)+1
 	else p=b
@@ -250,15 +328,12 @@ define void output_byte(x,i){
 	ibase=j
 }
 define void output_uint(x,n){
-	auto i,b
-	b=ibase
-	ibase=A
+	auto i
 	for(i=n-1;i>=0;--i){
 		output_byte(x,i)
 		if(i)print" "
 		else print"\n"
 	}
-	ibase=b
 }
 define void hex_uint(x,n){
 	auto o
@@ -301,7 +376,7 @@ define void intn(x,n){
 		print "Error: ",x," cannot fit into ",n," signed byte(s).\n"
 		return
 	}
-	if(x<0)x=2^(n*8)-(-x)
+	x=s2un(x,n)
 	binary_uint(x,n)
 	hex_uint(x,n)
 }
@@ -315,3 +390,175 @@ define void uint64(x){uintn(x,8)}
 define void int64(x){intn(x,8)}
 define void uint(x){uintn(x,ubytes(x))}
 define void int(x){intn(x,sbytes(x))}
+define bunrev(t){
+	auto a,s,m[]
+	s=scale
+	scale=0
+	t=abs(t)$
+	while(t!=1){
+		t=divmod(t,2,m[])
+		a*=2
+		a+=m[0]
+	}
+	scale=s
+	return a
+}
+define band(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]&&n[0])
+	}
+	scale=s
+	return bunrev(t)
+}
+define bor(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]||n[0])
+	}
+	while(a){
+		a=divmod(a,2,m[])
+		t*=2
+		t+=m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bxor(a,b){
+	auto s,t,m[],n[]
+	a=abs(a)$
+	b=abs(b)$
+	if(b>a){
+		t=b
+		b=a
+		a=t
+	}
+	s=scale
+	scale=0
+	t=1
+	while(b){
+		a=divmod(a,2,m[])
+		b=divmod(b,2,n[])
+		t*=2
+		t+=(m[0]+n[0]==1)
+	}
+	while(a){
+		a=divmod(a,2,m[])
+		t*=2
+		t+=m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bshl(a,b){return abs(a)$*2^abs(b)$}
+define bshr(a,b){return (abs(a)$/2^abs(b)$)$}
+define bnotn(x,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	t=2^(abs(n)$*8)
+	x=abs(x)$%t+t
+	t=1
+	while(x!=1){
+		x=divmod(x,2,m[])
+		t*=2
+		t+=!m[0]
+	}
+	scale=s
+	return bunrev(t)
+}
+define bnot8(x){return bnotn(x,1)}
+define bnot16(x){return bnotn(x,2)}
+define bnot32(x){return bnotn(x,4)}
+define bnot64(x){return bnotn(x,8)}
+define bnot(x){return bnotn(x,ubytes(x))}
+define brevn(x,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	t=2^(abs(n)$*8)
+	x=abs(x)$%t+t
+	scale=s
+	return bunrev(x)
+}
+define brev8(x){return brevn(x,1)}
+define brev16(x){return brevn(x,2)}
+define brev32(x){return brevn(x,4)}
+define brev64(x){return brevn(x,8)}
+define brev(x){return brevn(x,ubytes(x))}
+define broln(x,p,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	n=abs(n)$*8
+	p=abs(p)$%n
+	t=2^n
+	x=abs(x)$%t
+	if(!p)return x
+	x=divmod(x,2^(n-p),m[])
+	x+=m[0]*2^p%t
+	scale=s
+	return x
+}
+define brol8(x,p){return broln(x,p,1)}
+define brol16(x,p){return broln(x,p,2)}
+define brol32(x,p){return broln(x,p,4)}
+define brol64(x,p){return broln(x,p,8)}
+define brol(x,p){return broln(x,p,ubytes(x))}
+define brorn(x,p,n){
+	auto s,t,m[]
+	s=scale
+	scale=0
+	n=abs(n)$*8
+	p=abs(p)$%n
+	t=2^n
+	x=abs(x)$%t
+	if(!p)return x
+	x=divmod(x,2^p,m[])
+	x+=m[0]*2^(n-p)%t
+	scale=s
+	return x
+}
+define bror8(x,p){return brorn(x,p,1)}
+define bror16(x,p){return brorn(x,p,2)}
+define bror32(x,p){return brorn(x,p,4)}
+define bror64(x,p){return brorn(x,p,8)}
+define brol(x,p){return brorn(x,p,ubytes(x))}
+define bmodn(x,n){
+	auto s
+	s=scale
+	scale=0
+	x=abs(x)$%2^(abs(n)$*8)
+	scale=s
+	return x
+}
+define bmod8(x){return bmodn(x,1)}
+define bmod16(x){return bmodn(x,2)}
+define bmod32(x){return bmodn(x,4)}
+define bmod64(x){return bmodn(x,8)}
