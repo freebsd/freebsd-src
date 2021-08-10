@@ -2078,8 +2078,8 @@ sdhci_generic_release_host(device_t brdev __unused, device_t reqdev)
 	/* Deactivate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl &= ~SDHCI_CTRL_LED);
 	slot->bus_busy--;
-	SDHCI_UNLOCK(slot);
 	wakeup(slot);
+	SDHCI_UNLOCK(slot);
 	return (0);
 }
 
