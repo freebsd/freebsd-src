@@ -492,8 +492,8 @@ ntb_transport_attach(device_t dev)
 	for (i = 0; i < nt->qp_count; i++)
 		ntb_transport_init_queue(nt, i);
 
-	callout_init(&nt->link_work, 0);
-	callout_init(&nt->link_watchdog, 0);
+	callout_init(&nt->link_work, 1);
+	callout_init(&nt->link_watchdog, 1);
 	TASK_INIT(&nt->link_cleanup, 0, ntb_transport_link_cleanup_work, nt);
 	nt->link_is_up = false;
 
@@ -639,7 +639,7 @@ ntb_transport_init_queue(struct ntb_transport_ctx *nt, unsigned int qp_num)
 	qp->tx_max_frame = qmin(transport_mtu, tx_size / 2);
 	qp->tx_max_entry = tx_size / qp->tx_max_frame;
 
-	callout_init(&qp->link_work, 0);
+	callout_init(&qp->link_work, 1);
 	callout_init(&qp->rx_full, 1);
 
 	mtx_init(&qp->ntb_rx_q_lock, "ntb rx q", NULL, MTX_SPIN);
