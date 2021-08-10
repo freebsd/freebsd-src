@@ -5,3 +5,4 @@ rand
 scientific
 shift
 trunc
+bitfuncs

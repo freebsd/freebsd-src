@@ -60,7 +60,7 @@ $set 4
 5 "invalid token"
 6 "invalid expression"
 7 "empty expression"
-8 "invalid print statement"
+8 "invalid print or stream statement"
 9 "invalid function definition"
 10 "invalid assignment: left side must be scale, ibase, obase, seed, last, var, or array element"
 11 "no auto variable found"
@@ -80,6 +80,7 @@ $set 4
 25 "POSIX does not allow exponential notation"
 26 "POSIX does not allow array references as function parameters"
 27 "POSIX requires the left brace be on the same line as the function header"
+28 "POSIX does not allow strings to be assigned to variables or arrays"
 
 $ Runtime errors.
 $set 5
@@ -91,9 +92,10 @@ $set 5
 5 "recursive read() call"
 6 "variable or array element is the wrong type"
 7 "stack has too few elements"
-8 "wrong number of parameters; need %zu, have %zu"
-9 "undefined function: %s()"
-10 "cannot use a void value in an expression"
+8 "stack for register \"%s\" has too few elements"
+9 "wrong number of parameters; need %zu, have %zu"
+10 "undefined function: %s()"
+11 "cannot use a void value in an expression"
 
 $ Fatal errors.
 $set 6
@@ -101,8 +103,9 @@ $set 6
 1 "memory allocation failed"
 2 "I/O error"
 3 "cannot open file: %s"
-4 "file is not ASCII: %s"
+4 "file is not text: %s"
 5 "path is a directory: %s"
 6 "invalid command-line option: \"%s\""
 7 "option requires an argument: '%c' (\"%s\")"
 8 "option takes no arguments: '%c' (\"%s\")"
+9 "invalid command-line option argument: \"%s\""

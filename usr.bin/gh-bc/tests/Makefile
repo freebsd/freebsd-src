@@ -12,8 +12,8 @@ TESTSDIR=		${TESTSBASE}/usr.bin/gh-bc
 
 FILESGROUPS+=		FILESf
 FILESfPACKAGE=		${PACKAGE}
-FILESfDIR=		${TESTSDIR}
-FILESf=			${TEST_DIR}/functions.sh
+FILESfDIR=		${TESTSDIR}/scripts
+FILESf=			${TEST_DIR}/scripts/functions.sh
 FILESfMODE=		0755
 
 FILESGROUPS+=		FILEStests

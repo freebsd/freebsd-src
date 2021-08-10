@@ -29,3 +29,4 @@ define void a(e) { "stuff" }
 maxibase()
 maxobase()
 maxscale()
+v = "stuff"
