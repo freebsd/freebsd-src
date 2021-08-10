@@ -3532,8 +3532,8 @@ rtsx_mmcbr_release_host(device_t bus, device_t child __unused)
 	sc = device_get_softc(bus);
 	RTSX_LOCK(sc);
 	sc->rtsx_bus_busy--;
-	RTSX_UNLOCK(sc);
 	wakeup(&sc->rtsx_bus_busy);
+	RTSX_UNLOCK(sc);
 
 	return (0);
 }
