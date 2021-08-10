@@ -40,6 +40,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210810: remove Pentium-related man pages and references
+OLD_FILES+=usr/share/man/man3/pmc.p4.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.p5.3.gz
+OLD_FILES+=usr/share/man/man3/pmc.p6.3.gz
+
 # 20210805: C.UTF-8 installed to the wrong location
 OLD_FILES+=usr/share/C.UTF-8.LC_CTYPE
 

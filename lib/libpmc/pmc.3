@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2020
+.Dd August 10, 2021
 .Dt PMC 3
 .Os
 .Sh NAME
@@ -161,26 +161,6 @@ and
 CPUs, and other CPUs conforming to version 2 of the
 .Tn Intel
 performance measurement architecture.
-.It Li PMC_CPU_INTEL_P5
-.Tn Intel
-.Tn "Pentium"
-CPUs.
-.It Li PMC_CPU_INTEL_P6
-.Tn Intel
-.Tn "Pentium Pro"
-CPUs.
-.It Li PMC_CPU_INTEL_PII
-.Tn "Intel Pentium II"
-CPUs.
-.It Li PMC_CPU_INTEL_PIII
-.Tn "Intel Pentium III"
-CPUs.
-.It Li PMC_CPU_INTEL_PIV
-.Tn "Intel Pentium 4"
-CPUs.
-.It Li PMC_CPU_INTEL_PM
-.Tn "Intel Pentium M"
-CPUs.
 .El
 .Ss Supported PMCs
 PMC supported by this library are named by the
@@ -204,25 +184,6 @@ CPUs.
 .It Li PMC_CLASS_K8
 Programmable hardware counters present in
 .Tn "AMD Athlon64"
-CPUs.
-.It Li PMC_CLASS_P4
-Programmable hardware counters present in
-.Tn "Intel Pentium 4"
-CPUs.
-.It Li PMC_CLASS_P5
-Programmable hardware counters present in
-.Tn Intel
-.Tn Pentium
-CPUs.
-.It Li PMC_CLASS_P6
-Programmable hardware counters present in
-.Tn Intel
-.Tn "Pentium Pro" ,
-.Tn "Pentium II" ,
-.Tn "Pentium III" ,
-.Tn "Celeron" ,
-and
-.Tn "Pentium M"
 CPUs.
 .It Li PMC_CLASS_TSC
 The timestamp counter on i386 and amd64 architecture CPUs.
@@ -473,9 +434,6 @@ following manual pages:
 .It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
 .It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
 .It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
-.It Li PMC_CLASS_P4     Ta Xr pmc.p4 3
-.It Li PMC_CLASS_P5     Ta Xr pmc.p5 3
-.It Li PMC_CLASS_P6     Ta Xr pmc.p6 3
 .It Li PMC_CLASS_TSC    Ta Xr pmc.tsc 3
 .El
 .Ss Event Name Aliases
@@ -535,9 +493,6 @@ API is
 .Xr pmc.k8 3 ,
 .Xr pmc.mips24k 3 ,
 .Xr pmc.octeon 3 ,
-.Xr pmc.p4 3 ,
-.Xr pmc.p5 3 ,
-.Xr pmc.p6 3 ,
 .Xr pmc.sandybridge 3 ,
 .Xr pmc.sandybridgeuc 3 ,
 .Xr pmc.sandybridgexeon 3 ,
