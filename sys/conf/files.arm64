@@ -470,6 +470,14 @@ arm/mv/mv_cp110_icu.c				optional mv_cp110_icu fdt
 arm/mv/mv_cp110_icu_bus.c			optional mv_cp110_icu fdt
 arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
 arm/mv/clk/a37x0_tbg_pll.c			optional a37x0_tbg clk fdt syscon
+arm/mv/clk/a37x0_periph_clk_driver.c		optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
+arm/mv/clk/a37x0_nb_periph_clk_driver.c		optional a37x0_nb_periph clk fdt syscon
+arm/mv/clk/a37x0_sb_periph_clk_driver.c		optional a37x0_sb_periph clk fdt syscon
+arm/mv/clk/periph.c				optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
+arm/mv/clk/periph_clk_d.c			optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
+arm/mv/clk/periph_clk_fixed.c			optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
+arm/mv/clk/periph_clk_gate.c			optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
+arm/mv/clk/periph_clk_mux_gate.c		optional a37x0_nb_periph a37x0_sb_periph clk fdt syscon
 
 # NVidia
 arm/nvidia/tegra_abpmisc.c			optional fdt soc_nvidia_tegra210
