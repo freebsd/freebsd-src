@@ -170,9 +170,10 @@
  * 0xffff804020100fff - 0xffff807fffffffff   unused
  * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
  * 0xffff848000000000 - 0xfffff77fffffffff   unused (large map extends there)
- * 0xfffff78000000000 - 0xfffff7ffffffffff   512GB KASAN shadow map
+ * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
+ * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
  * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
- * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
+ * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
  * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
  * Within the kernel map:
@@ -190,6 +191,14 @@
 
 #define	KASAN_MIN_ADDRESS	KV4ADDR(KASANPML4I, 0, 0, 0)
 #define	KASAN_MAX_ADDRESS	KV4ADDR(KASANPML4I + NKASANPML4E, 0, 0, 0)
+
+#define	KMSAN_SHAD_MIN_ADDRESS	KV4ADDR(KMSANSHADPML4I, 0, 0, 0)
+#define	KMSAN_SHAD_MAX_ADDRESS	KV4ADDR(KMSANSHADPML4I + NKMSANSHADPML4E, \
+					0, 0, 0)
+
+#define	KMSAN_ORIG_MIN_ADDRESS	KV4ADDR(KMSANORIGPML4I, 0, 0, 0)
+#define	KMSAN_ORIG_MAX_ADDRESS	KV4ADDR(KMSANORIGPML4I + NKMSANORIGPML4E, \
+					0, 0, 0)
 
 #define	LARGEMAP_MIN_ADDRESS	KV4ADDR(LMSPML4I, 0, 0, 0)
 #define	LARGEMAP_MAX_ADDRESS	KV4ADDR(LMEPML4I + 1, 0, 0, 0)
