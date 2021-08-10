@@ -636,7 +636,12 @@ rpctls_setup_ssl(const char *certdir)
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER,
 		    rpctls_verify_callback);
 	}
+#ifdef SSL_OP_ENABLE_KTLS
+	SSL_CTX_set_options(ctx, SSL_OP_ENABLE_KTLS);
+#endif
+#ifdef SSL_MODE_NO_KTLS_TX
 	SSL_CTX_clear_mode(ctx, SSL_MODE_NO_KTLS_TX | SSL_MODE_NO_KTLS_RX);
+#endif
 	return (ctx);
 }
 
