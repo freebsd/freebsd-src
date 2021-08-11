@@ -36,9 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sockio.h>
-#include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/msan.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/random.h>
@@ -2106,6 +2107,8 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 			if (vtnet_rxq_merged_eof(rxq, m, nbufs) != 0)
 				continue;
 		}
+
+		kmsan_mark_mbuf(m, KMSAN_STATE_INITED);
 
 		/*
 		 * Save an endian swapped version of the header prior to it
