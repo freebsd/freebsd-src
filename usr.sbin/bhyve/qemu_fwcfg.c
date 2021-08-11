@@ -131,6 +131,31 @@ qemu_fwcfg_data_port_handler(struct vmctx *const ctx __unused, const int in,
 }
 
 static int
+qemu_fwcfg_add_item(const uint16_t architecture, const uint16_t index,
+    const uint32_t size, void *const data)
+{
+	/* truncate architecture and index to their desired size */
+	const uint16_t arch = architecture & QEMU_FWCFG_ARCHITECTURE_MASK;
+	const uint16_t idx = index & QEMU_FWCFG_INDEX_MASK;
+
+	/* get pointer to item specified by selector */
+	struct qemu_fwcfg_item *const fwcfg_item = &fwcfg_sc.items[arch][idx];
+
+	/* check if item is already used */
+	if (fwcfg_item->data != NULL) {
+		warnx("%s: qemu fwcfg item exists (architecture %s index 0x%x)",
+		    __func__, arch ? "specific" : "generic", idx);
+		return (-1);
+	}
+
+	/* save data of the item */
+	fwcfg_item->size = size;
+	fwcfg_item->data = data;
+
+	return (0);
+}
+
+static int
 qemu_fwcfg_register_port(const char *const name, const int port, const int size,
     const int flags, const inout_func_t handler)
 {
