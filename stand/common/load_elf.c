@@ -447,7 +447,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	*result = (struct preloaded_file *)fp;
 	err = 0;
 #ifdef __amd64__
-	fp->f_kernphys_relocatable = is_kernphys_relocatable(&ef);
+	fp->f_kernphys_relocatable = multiboot || is_kernphys_relocatable(&ef);
 #endif
 	goto out;
 
@@ -1252,6 +1252,11 @@ __elfN(lookup_symbol)(elf_file_t ef, const char* name, Elf_Sym *symp,
 	Elf_Sym sym;
 	char *strp;
 	unsigned long hash;
+
+	if (ef->nbuckets == 0) {
+		printf(__elfN(bad_symtable));
+		return ENOENT;
+	}
 
 	hash = elf_hash(name);
 	COPYOUT(&ef->buckets[hash % ef->nbuckets], &symnum, sizeof(symnum));
