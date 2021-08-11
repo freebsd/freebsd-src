@@ -9236,7 +9236,7 @@ sysctl_scsi_delay(SYSCTL_HANDLER_ARGS)
 	return (set_scsi_delay(delay));
 }
 SYSCTL_PROC(_kern_cam, OID_AUTO, scsi_delay,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, 0, sysctl_scsi_delay, "I",
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0, sysctl_scsi_delay, "I",
     "Delay to allow devices to settle after a SCSI bus reset (ms)");
 
 static int
