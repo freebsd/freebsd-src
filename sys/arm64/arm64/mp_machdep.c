@@ -239,6 +239,7 @@ init_secondary(uint64_t cpu)
 	 * We need this before signalling the CPU is ready to
 	 * let the boot CPU use the results.
 	 */
+	pcpup->pc_midr = get_midr();
 	identify_cpu(cpu);
 
 	/* Ensure the stores in identify_cpu have completed */
@@ -248,8 +249,6 @@ init_secondary(uint64_t cpu)
 	atomic_add_int(&aps_started, 1);
 	while (!atomic_load_int(&aps_ready))
 		__asm __volatile("wfe");
-
-	pcpup->pc_midr = get_midr();
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
