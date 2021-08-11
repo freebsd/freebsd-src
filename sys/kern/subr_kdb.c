@@ -608,6 +608,10 @@ kdb_thr_first(void)
 	struct thread *thr;
 	u_int i;
 
+	/* This function may be called early. */
+	if (pidhashtbl == NULL)
+		return (&thread0);
+
 	for (i = 0; i <= pidhash; i++) {
 		LIST_FOREACH(p, &pidhashtbl[i], p_hash) {
 			thr = FIRST_THREAD_IN_PROC(p);
@@ -651,6 +655,8 @@ kdb_thr_next(struct thread *thr)
 	thr = TAILQ_NEXT(thr, td_plist);
 	if (thr != NULL)
 		return (thr);
+	if (pidhashtbl == NULL)
+		return (NULL);
 	hash = p->p_pid & pidhash;
 	for (;;) {
 		p = LIST_NEXT(p, p_hash);
