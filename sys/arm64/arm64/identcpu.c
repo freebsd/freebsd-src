@@ -220,6 +220,7 @@ static const struct cpu_parts cpu_parts_none[] = {
  * Implementers table.
  */
 const struct cpu_implementers cpu_implementers[] = {
+	{ CPU_IMPL_APPLE,	"Apple",	cpu_parts_none },
 	{ CPU_IMPL_APM,		"APM",		cpu_parts_apm },
 	{ CPU_IMPL_ARM,		"ARM",		cpu_parts_arm },
 	{ CPU_IMPL_BROADCOM,	"Broadcom",	cpu_parts_none },
