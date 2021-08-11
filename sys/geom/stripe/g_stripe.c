@@ -77,20 +77,8 @@ static u_int g_stripe_debug = 0;
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug, 0,
     "Debug level");
 static int g_stripe_fast = 0;
-static int
-g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
-{
-	int error, fast;
-
-	fast = g_stripe_fast;
-	error = sysctl_handle_int(oidp, &fast, 0, req);
-	if (error == 0 && req->newptr != NULL)
-		g_stripe_fast = fast;
-	return (error);
-}
-SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, NULL, 0,
-    g_sysctl_stripe_fast, "I",
+SYSCTL_INT(_kern_geom_stripe, OID_AUTO, fast,
+    CTLFLAG_RWTUN, &g_stripe_fast, 0,
     "Fast, but memory-consuming, mode");
 static u_long g_stripe_maxmem;
 SYSCTL_ULONG(_kern_geom_stripe, OID_AUTO, maxmem,
