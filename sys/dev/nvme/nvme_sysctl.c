@@ -278,7 +278,7 @@ nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
 	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, que_list, OID_AUTO,
-	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "dump_debug", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    qpair, 0, nvme_sysctl_dump_debug, "IU", "Dump debug data");
 }
 
@@ -301,46 +301,46 @@ nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr)
 	    "Number of I/O queue pairs");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "int_coal_time", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_int_coal_time, "IU",
 	    "Interrupt coalescing timeout (in microseconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "int_coal_threshold",
-	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ctrlr, 0,
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr, 0,
 	    nvme_sysctl_int_coal_threshold, "IU",
 	    "Interrupt coalescing threshold");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "timeout_period", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_timeout_period, "IU",
 	    "Timeout period (in seconds)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "num_cmds", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_num_cmds, "IU",
 	    "Number of commands submitted");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
 	    "num_intr_handler_calls",
-	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ctrlr, 0,
+	    CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE, ctrlr, 0,
 	    nvme_sysctl_num_intr_handler_calls, "IU",
 	    "Number of times interrupt handler was invoked (will "
 	    "typically be less than number of actual interrupts "
 	    "generated due to coalescing)");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "num_retries", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_num_retries, "IU",
 	    "Number of commands retried");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    "num_failures", CTLTYPE_S64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    ctrlr, 0, nvme_sysctl_num_failures, "IU",
 	    "Number of commands ending in failure after all retries");
 
 	SYSCTL_ADD_PROC(ctrlr_ctx, ctrlr_list, OID_AUTO,
-	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ctrlr,
+	    "reset_stats", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, ctrlr,
 	    0, nvme_sysctl_reset_stats, "IU", "Reset statistics to zero");
 
 	que_tree = SYSCTL_ADD_NODE(ctrlr_ctx, ctrlr_list, OID_AUTO, "adminq",
