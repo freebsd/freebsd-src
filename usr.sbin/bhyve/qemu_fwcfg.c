@@ -56,6 +56,8 @@ struct qemu_fwcfg_softc {
 
 	uint32_t data_offset;
 	union qemu_fwcfg_selector selector;
+	struct qemu_fwcfg_item items[QEMU_FWCFG_MAX_ARCHS]
+				    [QEMU_FWCFG_MAX_ENTRIES];
 };
 
 static struct qemu_fwcfg_softc fwcfg_sc;
@@ -87,6 +89,44 @@ qemu_fwcfg_data_port_handler(struct vmctx *const ctx __unused, const int in,
     const int port __unused, const int bytes, uint32_t *const eax,
     void *const arg __unused)
 {
+	if (bytes != sizeof(uint8_t)) {
+		warnx("%s: invalid size (%d) of IO port access", __func__,
+		    bytes);
+		return (-1);
+	}
+
+	if (!in) {
+		warnx("%s: Writes to qemu fwcfg data port aren't allowed",
+		    __func__);
+		return (-1);
+	}
+
+	/* get fwcfg item */
+	struct qemu_fwcfg_item *const item =
+	    &fwcfg_sc.items[fwcfg_sc.selector.architecture]
+			   [fwcfg_sc.selector.index];
+	if (item->data == NULL) {
+		warnx(
+		    "%s: qemu fwcfg item doesn't exist (architecture %s index 0x%x)",
+		    __func__,
+		    fwcfg_sc.selector.architecture ? "specific" : "generic",
+		    fwcfg_sc.selector.index);
+		*eax = 0x00;
+		return (0);
+	} else if (fwcfg_sc.data_offset >= item->size) {
+		warnx(
+		    "%s: qemu fwcfg item read exceeds size (architecture %s index 0x%x size 0x%x offset 0x%x)",
+		    __func__,
+		    fwcfg_sc.selector.architecture ? "specific" : "generic",
+		    fwcfg_sc.selector.index, item->size, fwcfg_sc.data_offset);
+		*eax = 0x00;
+		return (0);
+	}
+
+	/* return item data */
+	*eax = item->data[fwcfg_sc.data_offset];
+	fwcfg_sc.data_offset++;
+
 	return (0);
 }
 
