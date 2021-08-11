@@ -46,8 +46,9 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/msan.h>
 #include <sys/proc.h>
 #include <sys/priv.h>
 #include <sys/random.h>
@@ -502,9 +503,13 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	/*
-	 * Queue message on interface, update output statistics if
-	 * successful, and start output if interface not yet active.
+	 * Queue message on interface, update output statistics if successful,
+	 * and start output if interface not yet active.
+	 *
+	 * If KMSAN is enabled, use it to verify that the data does not contain
+	 * any uninitialized bytes.
 	 */
+	kmsan_check_mbuf(m, "ether_output");
 	return ((ifp->if_transmit)(ifp, m));
 }
 
