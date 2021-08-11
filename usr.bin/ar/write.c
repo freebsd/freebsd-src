@@ -787,7 +787,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 		return;
 	}
 	if (elf_getshstrndx(e, &shstrndx) == 0) {
-		bsdar_warnc(bsdar, EX_SOFTWARE, 0, "elf_getshstrndx failed: %s",
+		bsdar_warnc(bsdar, 0, "elf_getshstrndx failed: %s",
 		     elf_errmsg(-1));
 		elf_end(e);
 		return;
@@ -824,8 +824,8 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 	scn = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		if (gelf_getshdr(scn, &shdr) != &shdr) {
-			bsdar_warnc(bsdar, EX_SOFTWARE, 0,
-			    "elf_getshdr failed: %s", elf_errmsg(-1));
+			bsdar_warnc(bsdar, 0, "elf_getshdr failed: %s",
+			    elf_errmsg(-1));
 			continue;
 		}
 		if (shdr.sh_type != SHT_SYMTAB)
@@ -838,7 +838,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 			len = data->d_size / shdr.sh_entsize;
 			for (i = 0; i < len; i++) {
 				if (gelf_getsym(data, i, &sym) != &sym) {
-					bsdar_warnc(bsdar, EX_SOFTWARE, 0,
+					bsdar_warnc(bsdar, 0,
 					    "gelf_getsym failed: %s",
 					     elf_errmsg(-1));
 					continue;
@@ -855,7 +855,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 
 				if ((name = elf_strptr(e, tabndx,
 				    sym.st_name)) == NULL) {
-					bsdar_warnc(bsdar, EX_SOFTWARE, 0,
+					bsdar_warnc(bsdar, 0,
 					    "elf_strptr failed: %s",
 					     elf_errmsg(-1));
 					continue;
@@ -867,7 +867,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 	}
 	elferr = elf_errno();
 	if (elferr != 0)
-		bsdar_warnc(bsdar, EX_SOFTWARE, 0, "elf_nextscn failed: %s",
+		bsdar_warnc(bsdar, 0, "elf_nextscn failed: %s",
 		     elf_errmsg(elferr));
 
 	elf_end(e);
