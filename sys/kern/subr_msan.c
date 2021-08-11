@@ -549,7 +549,7 @@ kmsan_mark(const void *addr, size_t size, uint8_t c)
 	kmsan_shadow_fill((uintptr_t)addr, c, size);
 }
 
-static void
+void
 kmsan_mark_bio(const struct bio *bp, uint8_t c)
 {
 	kmsan_mark(bp->bio_data, bp->bio_length, c);
@@ -591,7 +591,7 @@ kmsan_mark_ccb(const union ccb *ccb, uint8_t c)
 	}
 }
 
-static void
+void
 kmsan_mark_mbuf(const struct mbuf *m, uint8_t c)
 {
 	do {

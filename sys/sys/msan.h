@@ -62,6 +62,8 @@ void kmsan_bus_dmamap_sync(struct memdesc *, bus_dmasync_op_t);
 
 void kmsan_orig(const void *, size_t, int, uintptr_t);
 void kmsan_mark(const void *, size_t, uint8_t);
+void kmsan_mark_bio(const struct bio *, uint8_t);
+void kmsan_mark_mbuf(const struct mbuf *, uint8_t);
 
 void kmsan_check(const void *, size_t, const char *);
 void kmsan_check_bio(const struct bio *, const char *);
@@ -77,6 +79,8 @@ void kmsan_check_mbuf(const struct mbuf *, const char *);
 #define kmsan_dma_load(m, b, s, o)
 #define kmsan_orig(p, l, c, a)
 #define kmsan_mark(p, l, c)
+#define kmsan_mark_bio(b, c)
+#define kmsan_mark_mbuf(m, c)
 #define kmsan_check(b, s, d)
 #define kmsan_check_bio(b, d)
 #define kmsan_check_ccb(c, d)
