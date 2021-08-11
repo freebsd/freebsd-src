@@ -1747,8 +1747,6 @@ mpt_raid_sysctl_vol_member_wce(SYSCTL_HANDLER_ARGS)
 	u_int size;
 	u_int i;
 
-	GIANT_REQUIRED;
-
 	mpt = (struct mpt_softc *)arg1;
 	str = mpt_vol_mwce_strs[mpt->raid_mwce_setting];
 	error = SYSCTL_OUT(req, str, strlen(str) + 1);
@@ -1781,8 +1779,6 @@ mpt_raid_sysctl_vol_resync_rate(SYSCTL_HANDLER_ARGS)
 	u_int raid_resync_rate;
 	int error;
 
-	GIANT_REQUIRED;
-
 	mpt = (struct mpt_softc *)arg1;
 	raid_resync_rate = mpt->raid_resync_rate;
 
@@ -1800,8 +1796,6 @@ mpt_raid_sysctl_vol_queue_depth(SYSCTL_HANDLER_ARGS)
 	struct mpt_softc *mpt;
 	u_int raid_queue_depth;
 	int error;
-
-	GIANT_REQUIRED;
 
 	mpt = (struct mpt_softc *)arg1;
 	raid_queue_depth = mpt->raid_queue_depth;
@@ -1821,17 +1815,17 @@ mpt_raid_sysctl_attach(struct mpt_softc *mpt)
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "vol_member_wce", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "vol_member_wce", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    mpt, 0, mpt_raid_sysctl_vol_member_wce, "A",
 	    "volume member WCE(On,Off,On-During-Rebuild,NC)");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "vol_queue_depth", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "vol_queue_depth", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    mpt, 0, mpt_raid_sysctl_vol_queue_depth, "I",
 	    "default volume queue depth");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "vol_resync_rate", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    "vol_resync_rate", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    mpt, 0, mpt_raid_sysctl_vol_resync_rate, "I",
 	    "volume resync priority (0 == NC, 1 - 255)");
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,

@@ -1952,7 +1952,7 @@ ioat_setup_sysctl(device_t device)
 	    "submitter processing");
 
 	SYSCTL_ADD_PROC(ctx, state, OID_AUTO, "chansts",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ioat, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, ioat, 0,
 	    sysctl_handle_chansts, "A", "String of the channel status");
 
 	SYSCTL_ADD_U16(ctx, state, OID_AUTO, "intrdelay", CTLFLAG_RD,
@@ -1965,7 +1965,7 @@ ioat_setup_sysctl(device_t device)
 	hammer = SYSCTL_CHILDREN(tmp);
 
 	SYSCTL_ADD_PROC(ctx, hammer, OID_AUTO, "force_hw_reset",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, ioat, 0,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, ioat, 0,
 	    sysctl_handle_reset, "I", "Set to non-zero to reset the hardware");
 
 	tmp = SYSCTL_ADD_NODE(ctx, par, OID_AUTO, "stats",
@@ -1992,7 +1992,7 @@ ioat_setup_sysctl(device_t device)
 	    "The raw CHANERR when the channel was last halted");
 
 	SYSCTL_ADD_PROC(ctx, statpar, OID_AUTO, "desc_per_interrupt",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, ioat, 0,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, ioat, 0,
 	    sysctl_handle_dpi, "A", "Descriptors per interrupt");
 }
 
