@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright 2018-2019,2020 Thomas E. Dickey                                *
+ * Copyright 2018-2020,2021 Thomas E. Dickey                                *
  * Copyright 1998-2016,2017 Free Software Foundation, Inc.                  *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -52,7 +52,7 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.106 2020/11/29 00:40:08 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.107 2021/04/03 18:45:53 tom Exp $")
 
 NCURSES_EXPORT_VAR(char) PC = 0;              /* used by termcap library */
 NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;        /* used by termcap library */
@@ -429,7 +429,7 @@ NCURSES_SP_NAME(tputs) (NCURSES_SP_DCLx
      */
     if (trailpad > 0
 	&& (always_delay || normal_delay))
-	delay_output(trailpad / 10);
+	NCURSES_SP_NAME(delay_output) (NCURSES_SP_ARGx trailpad / 10);
 #endif /* BSD_TPUTS */
 
     SetOutCh(my_outch);
