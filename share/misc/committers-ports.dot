@@ -96,6 +96,7 @@ decke [label="Bernhard Froehlich\ndecke@FreeBSD.org\n2010/03/21"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2006/05/01"]
 demon [label="Dmitry Sivachenko\ndemon@FreeBSD.org\n2000/11/13"]
 dhn [label="Dennis Herrmann\ndhn@FreeBSD.org\n2009/03/03"]
+diizzy [label="Daniel Engberg\ndiizzy@FreeBSD.org\n2021/07/06"]
 dmgk [label="Dmitri Goutnik\ndmgk@FreeBSD.org\n2019/09/15"]
 dryice [label="Dryice Dong Liu\ndryice@FreeBSD.org\n2006/12/25"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
@@ -329,6 +330,7 @@ araujo -> pclin
 araujo -> pgollucci
 araujo -> samm
 
+arrowd -> diizzy
 arrowd -> rhurlin
 arrowd -> vishwin
 
@@ -550,6 +552,8 @@ kwm -> zeising
 
 lawrance -> itetcu
 
+lbartoletti -> diizzy
+
 leeym -> clsung
 
 ler -> leres
@@ -763,6 +767,7 @@ tabthorpe -> gblach
 
 tcberner -> adridg
 tcberner -> arrowd
+tcberner -> diizzy
 tcberner -> fernape
 tcberner -> joneum
 tcberner -> kai
