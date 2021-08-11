@@ -1483,7 +1483,7 @@ adasysctlinit(void *context, int pending)
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "delete_method",
-		CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		softc, 0, adadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
@@ -1506,12 +1506,12 @@ adasysctlinit(void *context, int pending)
 		&softc->write_cache, 0, "Enable disk write cache.");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_mode",
-		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 		softc, 0, adazonemodesysctl, "A",
 		"Zone Mode");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_support",
-		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 		softc, 0, adazonesupsysctl, "A",
 		"Zone Support");
 	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,

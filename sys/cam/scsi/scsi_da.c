@@ -1575,7 +1575,7 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
 	    &da_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
 
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     dasysctlsofttimeout, "I",
     "Soft I/O timeout (ms)");
 TUNABLE_INT64("kern.cam.da.default_softtimeout", &da_default_softtimeout);
@@ -2272,17 +2272,17 @@ dasysctlinit(void *context, int pending)
 	 */
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "delete_method",
-		CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 		softc, 0, dadeletemethodsysctl, "A",
 		"BIO_DELETE execution method");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "delete_max",
-		CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		softc, 0, dadeletemaxsysctl, "Q",
 		"Maximum BIO_DELETE size");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "minimum_cmd_size",
-		CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+		CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		&softc->minimum_cmd_size, 0, dacmdsizesysctl, "I",
 		"Minimum CDB size");
 	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
@@ -2300,12 +2300,12 @@ dasysctlinit(void *context, int pending)
 
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_mode",
-		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 		softc, 0, dazonemodesysctl, "A",
 		"Zone Mode");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 		OID_AUTO, "zone_support",
-		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+		CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 		softc, 0, dazonesupsysctl, "A",
 		"Zone Support");
 	SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,

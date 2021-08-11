@@ -1009,7 +1009,7 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "limiter",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    ios, 0, cam_iosched_limiter_sysctl, "A",
 	    "Current limiting type.");
 	SYSCTL_ADD_INT(ctx, n,
@@ -1027,7 +1027,7 @@ cam_iosched_iop_stats_sysctl_init(struct cam_iosched_softc *isc, struct iop_stat
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "latencies",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &ios->latencies, 0,
 	    cam_iosched_sysctl_latencies, "A",
 	    "Array of power of 2 latency from 1ms to 1.024s");
@@ -1057,22 +1057,22 @@ cam_iosched_cl_sysctl_init(struct cam_iosched_softc *isc)
 
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "type",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    clp, 0, cam_iosched_control_type_sysctl, "A",
 	    "Control loop algorithm");
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "steer_interval",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &clp->steer_interval, 0, cam_iosched_sbintime_sysctl, "A",
 	    "How often to steer (in us)");
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "lolat",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &clp->lolat, 0, cam_iosched_sbintime_sysctl, "A",
 	    "Low water mark for Latency (in us)");
 	SYSCTL_ADD_PROC(ctx, n,
 	    OID_AUTO, "hilat",
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &clp->hilat, 0, cam_iosched_sbintime_sysctl, "A",
 	    "Hi water mark for Latency (in us)");
 	SYSCTL_ADD_INT(ctx, n,
@@ -1200,7 +1200,7 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 	    "How biased towards read should we be independent of limits");
 
 	SYSCTL_ADD_PROC(ctx, n,
-	    OID_AUTO, "quanta", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
+	    OID_AUTO, "quanta", CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 	    &isc->quanta, 0, cam_iosched_quanta_sysctl, "I",
 	    "How many quanta per second do we slice the I/O up into");
 
