@@ -77,6 +77,7 @@
 #define	CPU_IMPL_APM		0x50
 #define	CPU_IMPL_QUALCOMM	0x51
 #define	CPU_IMPL_MARVELL	0x56
+#define	CPU_IMPL_APPLE		0x61
 #define	CPU_IMPL_INTEL		0x69
 
 /* ARM Part numbers */
