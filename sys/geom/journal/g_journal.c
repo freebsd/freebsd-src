@@ -129,7 +129,7 @@ g_journal_record_entries_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal, OID_AUTO, record_entries,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     g_journal_record_entries_sysctl, "I",
     "Maximum number of entires in one journal record");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
@@ -163,7 +163,7 @@ g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal_cache, OID_AUTO, limit,
-    CTLTYPE_ULONG | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_ULONG | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL, 0,
     g_journal_cache_limit_sysctl, "I",
     "Maximum number of allocated bytes");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, divisor, CTLFLAG_RDTUN,
@@ -186,7 +186,7 @@ g_journal_cache_switch_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal_cache, OID_AUTO, switch,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     g_journal_cache_switch_sysctl, "I",
     "Force switch when we hit this percent of cache use");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, misses, CTLFLAG_RW,

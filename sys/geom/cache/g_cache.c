@@ -85,11 +85,11 @@ sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_lo,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_lo, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &g_cache_used_lo, 0,
     sysctl_handle_pct, "IU",
     "");
 SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_hi,
-    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, &g_cache_used_hi, 0,
+    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, &g_cache_used_hi, 0,
     sysctl_handle_pct, "IU",
     "");
 

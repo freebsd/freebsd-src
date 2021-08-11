@@ -745,7 +745,7 @@ g_disk_create(void *arg, int flag)
 		    "LED name");
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "flags",
-		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, dp, 0,
+		    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, dp, 0,
 		    g_disk_sysctl_flags, "A", "Report disk flags");
 	}
 	pp->private = sc;
