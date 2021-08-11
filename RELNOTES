@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+422084abbda:
+	LLVM's MemorySanitizer can now be used in amd64 kernels.  See the
+	kmsan(9) manual page for more information.
+
+38da497a4dfc:
+	LLVM's AddressSanitizer can now be used in amd64 kernels.  See the
+	kasan(9) manual page for more information.
+
 f39dd6a97844,23f24377b1a9,628bd30ab5a4:
 	One True Awk has been updated to the latest from upstream
 	(20210727). All the FreeBSD patches, but one, have now been
