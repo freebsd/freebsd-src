@@ -709,6 +709,7 @@ ktls_clone_session(struct ktls_session *tls)
 	counter_u64_add(ktls_offload_active, 1);
 
 	refcount_init(&tls_new->refcount, 1);
+	TASK_INIT(&tls_new->reset_tag_task, 0, ktls_reset_send_tag, tls_new);
 
 	/* Copy fields from existing session. */
 	tls_new->params = tls->params;
