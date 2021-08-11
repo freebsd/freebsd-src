@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/devctl.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/sbuf.h>
 #include <sys/devicestat.h>
 
@@ -238,6 +239,9 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_length - bp->bio_resid;
+
+	if (bp->bio_cmd == BIO_READ)
+		kmsan_check(bp2->bio_data, bp2->bio_completed, "g_disk_done");
 
 	switch (bp->bio_cmd) {
 	case BIO_ZONE:
@@ -445,6 +449,10 @@ g_disk_start(struct bio *bp)
 		KASSERT((dp->d_flags & DISKFLAG_UNMAPPED_BIO) != 0 ||
 		    (bp->bio_flags & BIO_UNMAPPED) == 0,
 		    ("unmapped bio not supported by disk %s", dp->d_name));
+
+		if (bp->bio_cmd == BIO_WRITE)
+			kmsan_check_bio(bp, "g_disk_start");
+
 		off = 0;
 		bp3 = NULL;
 		bp2 = g_clone_bio(bp);
