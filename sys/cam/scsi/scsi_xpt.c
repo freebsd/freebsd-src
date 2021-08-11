@@ -79,11 +79,8 @@ struct scsi_quirk_entry {
 #define SCSI_QUIRK(dev)	((struct scsi_quirk_entry *)((dev)->quirk))
 
 static int cam_srch_hi = 0;
-static int sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_kern_cam, OID_AUTO, cam_srch_hi,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, 0,
-    sysctl_cam_search_luns, "I",
-    "allow search above LUN 7 for SCSI3 and greater devices");
+SYSCTL_INT(_kern_cam, OID_AUTO, cam_srch_hi, CTLFLAG_RWTUN,
+    &cam_srch_hi, 0, "Search above LUN 7 for SCSI3 and greater devices");
 
 #define	CAM_SCSI2_MAXLUN	8
 #define	CAM_CAN_GET_SIMPLE_LUN(x, i)				\
@@ -1897,23 +1894,6 @@ scsi_find_quirk(struct cam_ed *device)
 	device->quirk = quirk;
 	device->mintags = quirk->mintags;
 	device->maxtags = quirk->maxtags;
-}
-
-static int
-sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS)
-{
-	int error, val;
-
-	val = cam_srch_hi;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (val == 0 || val == 1) {
-		cam_srch_hi = val;
-		return (0);
-	} else {
-		return (EINVAL);
-	}
 }
 
 typedef struct {
