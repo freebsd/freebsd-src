@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/msan.h>
 #include <sys/sglist.h>
 #include <sys/sysctl.h>
 #include <sys/lock.h>
@@ -1151,6 +1152,8 @@ vtblk_bio_done(struct vtblk_softc *sc, struct bio *bp, int error)
 		bp->bio_resid = bp->bio_bcount;
 		bp->bio_error = error;
 		bp->bio_flags |= BIO_ERROR;
+	} else {
+		kmsan_mark_bio(bp, KMSAN_STATE_INITED);
 	}
 
 	if (bp->bio_driver1 != NULL) {
