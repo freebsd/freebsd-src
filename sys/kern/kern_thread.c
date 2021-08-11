@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/bitstring.h>
@@ -761,6 +762,7 @@ thread_alloc(int pages)
 		return (NULL);
 	}
 	td->td_tid = tid;
+	kmsan_thread_alloc(td);
 	cpu_thread_alloc(td);
 	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 	return (td);
@@ -797,6 +799,7 @@ thread_free_batched(struct thread *td)
 	 * Freeing handled by the caller.
 	 */
 	td->td_tid = -1;
+	kmsan_thread_free(td);
 	uma_zfree(thread_zone, td);
 }
 
