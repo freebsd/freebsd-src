@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #define _PIM_VT 1
 
+#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/stddef.h>
@@ -100,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/counter.h>
+#include <machine/atomic.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -727,7 +729,7 @@ ip_mrouter_init(struct socket *so, int version)
 	curvnet);
 
     V_ip_mrouter = so;
-    ip_mrouter_cnt++;
+    atomic_add_int(&ip_mrouter_cnt, 1);
 
     /* This is a mutex required by buf_ring init, but not used internally */
     mtx_init(&V_buf_ring_mtx, "mroute buf_ring mtx", NULL, MTX_DEF);
@@ -750,21 +752,19 @@ X_ip_mrouter_done(void)
     vifi_t vifi;
     struct bw_upcall *bu;
 
-    MRW_WLOCK();
-
-    if (V_ip_mrouter == NULL) {
-	MRW_WUNLOCK();
+    if (V_ip_mrouter == NULL)
 	return EINVAL;
-    }
 
     /*
      * Detach/disable hooks to the reset of the system.
      */
     V_ip_mrouter = NULL;
-    ip_mrouter_cnt--;
+    atomic_subtract_int(&ip_mrouter_cnt, 1);
     V_mrt_api_config = 0;
 
     MROUTER_WAIT();
+
+    MRW_WLOCK();
 
     upcall_thread_shutdown = 1;
     mtx_lock(&V_upcall_thread_mtx);
@@ -896,25 +896,17 @@ add_vif(struct vifctl *vifcp)
     struct ifnet *ifp;
     int error;
 
-    MRW_WLOCK();
-    if (vifcp->vifc_vifi >= MAXVIFS) {
-	MRW_WUNLOCK();
+
+    if (vifcp->vifc_vifi >= MAXVIFS)
 	return EINVAL;
-    }
     /* rate limiting is no longer supported by this code */
     if (vifcp->vifc_rate_limit != 0) {
 	log(LOG_ERR, "rate limiting is no longer supported\n");
-	MRW_WUNLOCK();
 	return EINVAL;
     }
-    if (!in_nullhost(vifp->v_lcl_addr)) {
-	MRW_WUNLOCK();
-	return EADDRINUSE;
-    }
-    if (in_nullhost(vifcp->vifc_lcl_addr)) {
-	MRW_WUNLOCK();
+
+    if (in_nullhost(vifcp->vifc_lcl_addr))
 	return EADDRNOTAVAIL;
-    }
 
     /* Find the interface with an address in AF_INET family */
     if (vifcp->vifc_flags & VIFF_REGISTER) {
@@ -932,7 +924,6 @@ add_vif(struct vifctl *vifcp)
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	if (ifa == NULL) {
 	    NET_EPOCH_EXIT(et);
-	    MRW_WUNLOCK();
 	    return EADDRNOTAVAIL;
 	}
 	ifp = ifa->ifa_ifp;
@@ -942,7 +933,6 @@ add_vif(struct vifctl *vifcp)
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {
 	CTR1(KTR_IPMF, "%s: tunnels are no longer supported", __func__);
-	MRW_WUNLOCK();
 	return EOPNOTSUPP;
     } else if (vifcp->vifc_flags & VIFF_REGISTER) {
 	ifp = V_multicast_register_if = if_alloc(IFT_LOOP);
@@ -952,17 +942,24 @@ add_vif(struct vifctl *vifcp)
 	    V_reg_vif_num = vifcp->vifc_vifi;
 	}
     } else {		/* Make sure the interface supports multicast */
-	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-	    MRW_WUNLOCK();
+	if ((ifp->if_flags & IFF_MULTICAST) == 0)
 	    return EOPNOTSUPP;
-	}
 
 	/* Enable promiscuous reception of all IP multicasts from the if */
 	error = if_allmulti(ifp, 1);
-	if (error) {
-	    MRW_WUNLOCK();
+	if (error)
 	    return error;
-	}
+    }
+
+    MRW_WLOCK();
+
+    if (!in_nullhost(vifp->v_lcl_addr)) {
+	if (ifp)
+		V_multicast_register_if = NULL;
+	MRW_WUNLOCK();
+	if (ifp)
+		if_free(ifp);
+	return EADDRINUSE;
     }
 
     vifp->v_flags     = vifcp->vifc_flags;
@@ -1014,8 +1011,11 @@ del_vif_locked(vifi_t vifi)
 
     if (vifp->v_flags & VIFF_REGISTER) {
 	V_reg_vif_num = VIFI_INVALID;
-	if_free(V_multicast_register_if);
-	V_multicast_register_if = NULL;
+	if (vifp->v_ifp) {
+	    if (vifp->v_ifp == V_multicast_register_if)
+	        V_multicast_register_if = NULL;
+	    if_free(vifp->v_ifp);
+	}
     }
 
     mtx_destroy(&vifp->v_spin);
