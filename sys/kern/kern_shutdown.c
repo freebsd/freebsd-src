@@ -740,7 +740,7 @@ SYSCTL_INT(_debug_kassert, OID_AUTO, suppress_in_panic, KASSERT_RWTUN,
 static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_PROC(_debug_kassert, OID_AUTO, kassert,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
     kassert_sysctl_kassert, "I",
     "set to trigger a test kassert");
 
@@ -1021,7 +1021,7 @@ dumpdevname_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_kern_shutdown, OID_AUTO, dumpdevname,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, &dumper_configs, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, &dumper_configs, 0,
     dumpdevname_sysctl_handler, "A",
     "Device(s) for kernel dumps");
 
