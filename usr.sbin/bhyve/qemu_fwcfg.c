@@ -29,8 +29,33 @@
 #define QEMU_FWCFG_DATA_PORT_FLAGS \
 	IOPORT_F_INOUT /* QEMU v2.4+ ignores writes */
 
+#define QEMU_FWCFG_ARCHITECTURE_MASK 0x0001
+#define QEMU_FWCFG_INDEX_MASK 0x3FFF
+
+#define QEMU_FWCFG_SELECT_READ 0
+#define QEMU_FWCFG_SELECT_WRITE 1
+
+#define QEMU_FWCFG_ARCHITECTURE_GENERIC 0
+#define QEMU_FWCFG_ARCHITECTURE_SPECIFIC 1
+
+#pragma pack(1)
+
+union qemu_fwcfg_selector {
+	struct {
+		uint16_t index : 14;
+		uint16_t writeable : 1;
+		uint16_t architecture : 1;
+	};
+	uint16_t bits;
+};
+
+#pragma pack()
+
 struct qemu_fwcfg_softc {
 	struct acpi_device *acpi_dev;
+
+	uint32_t data_offset;
+	union qemu_fwcfg_selector selector;
 };
 
 static struct qemu_fwcfg_softc fwcfg_sc;
@@ -40,6 +65,20 @@ qemu_fwcfg_selector_port_handler(struct vmctx *const ctx __unused, const int in,
     const int port __unused, const int bytes, uint32_t *const eax,
     void *const arg __unused)
 {
+	if (bytes != sizeof(uint16_t)) {
+		warnx("%s: invalid size (%d) of IO port access", __func__,
+		    bytes);
+		return (-1);
+	}
+
+	if (in) {
+		*eax = htole16(fwcfg_sc.selector.bits);
+		return (0);
+	}
+
+	fwcfg_sc.data_offset = 0;
+	fwcfg_sc.selector.bits = le16toh(*eax);
+
 	return (0);
 }
 
