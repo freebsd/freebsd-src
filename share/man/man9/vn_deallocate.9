@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd Jul 30, 2021
+.Dd August 11, 2021
 .Dt VN_DEALLOCATE 9
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Fa "off_t *offset"
 .Fa "off_t *length"
 .Fa "int flags"
-.Fa "int ioflg"
+.Fa "int ioflag"
 .Fa "struct ucred *active_cred"
 .Fa "struct ucred *file_cred"
 .Fc
@@ -66,7 +66,7 @@ This must be greater than 0.
 .It Fa flags
 The control flags of the operation.
 This should be set to 0 for now.
-.It Fa ioflg
+.It Fa ioflag
 The control flags of vnode locking.
 .It Fa active_cred
 The user credentials of the calling thread.
@@ -75,7 +75,7 @@ The credentials installed on the file description pointing to the vnode or NOCRE
 .El
 .Pp
 The
-.Fn ioflg
+.Fn ioflag
 argument may be one or more of the following flags:
 .Bl -tag -width IO_RANGELOCKED
 .It Dv IO_NODELOCKED

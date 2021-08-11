@@ -3447,7 +3447,7 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 
 static int
 vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
-    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+    int ioflag, struct ucred *active_cred, struct ucred *file_cred)
 {
 	struct mount *mp;
 	void *rl_cookie;
@@ -3463,7 +3463,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 	off = *offset;
 	len = *length;
 
-	if ((ioflg & (IO_NODELOCKED|IO_RANGELOCKED)) == 0)
+	if ((ioflag & (IO_NODELOCKED | IO_RANGELOCKED)) == 0)
 		rl_cookie = vn_rangelock_wlock(vp, off, off + len);
 	while (len > 0 && error == 0) {
 		/*
@@ -3473,7 +3473,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 		 * pass.
 		 */
 
-		if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((ioflag & IO_NODELOCKED) == 0) {
 			bwillwrite();
 			if ((error = vn_start_write(vp, &mp,
 			    V_WAIT | PCATCH)) != 0)
@@ -3488,7 +3488,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 #endif
 
 #ifdef MAC
-		if ((ioflg & IO_NOMACCHECK) == 0)
+		if ((ioflag & IO_NOMACCHECK) == 0)
 			error = mac_vnode_check_write(active_cred, file_cred,
 			    vp);
 #endif
@@ -3496,7 +3496,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 			error = VOP_DEALLOCATE(vp, &off, &len, flags,
 			    active_cred);
 
-		if ((ioflg & IO_NODELOCKED) == 0) {
+		if ((ioflag & IO_NODELOCKED) == 0) {
 			VOP_UNLOCK(vp);
 			if (mp != NULL) {
 				vn_finished_write(mp);
@@ -3514,7 +3514,7 @@ out:
 
 int
 vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
-    int ioflg, struct ucred *active_cred, struct ucred *file_cred)
+    int ioflag, struct ucred *active_cred, struct ucred *file_cred)
 {
 	if (*offset < 0 || *length <= 0 || *length > OFF_MAX - *offset ||
 	    flags != 0)
@@ -3522,7 +3522,7 @@ vn_deallocate(struct vnode *vp, off_t *offset, off_t *length, int flags,
 	if (vp->v_type != VREG)
 		return (ENODEV);
 
-	return (vn_deallocate_impl(vp, offset, length, flags, ioflg,
+	return (vn_deallocate_impl(vp, offset, length, flags, ioflag,
 	    active_cred, file_cred));
 }
 
