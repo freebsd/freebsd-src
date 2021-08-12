@@ -53,6 +53,13 @@
 #define	LINUX_CLONE_NEWNET		0x40000000
 #define	LINUX_CLONE_IO			0x80000000
 
+/* Flags for the clone3() syscall. */
+#define	LINUX_CLONE_CLEAR_SIGHAND	0x100000000ULL
+#define	LINUX_CLONE_INTO_CGROUP		0x200000000ULL
+#define	LINUX_CLONE_NEWTIME		0x00000080
+
+#define	LINUX_CLONE_LEGACY_FLAGS	0xffffffffULL
+
 #define	LINUX_CSIGNAL			0x000000ff
 
 /*
@@ -84,6 +91,8 @@ struct l_clone_args {
 	l_ulong stack_size;
 	l_ulong tls;
 };
+
+#define	LINUX_CLONE_ARGS_SIZE_VER0	64
 
 int linux_set_upcall(struct thread *, register_t);
 int linux_set_cloned_tls(struct thread *, void *);
