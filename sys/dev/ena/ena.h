@@ -34,6 +34,7 @@
 #ifndef ENA_H
 #define ENA_H
 
+#include "opt_rss.h"
 
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"
@@ -122,6 +123,8 @@
 
 #define	ENA_IO_TXQ_IDX(q)		(2 * (q))
 #define	ENA_IO_RXQ_IDX(q)		(2 * (q) + 1)
+#define	ENA_IO_TXQ_IDX_TO_COMBINED_IDX(q)	((q) / 2)
+#define	ENA_IO_RXQ_IDX_TO_COMBINED_IDX(q)	(((q) - 1) / 2)
 
 #define	ENA_MGMNT_IRQ_IDX		0
 #define	ENA_IO_IRQ_FIRST_IDX		1
@@ -200,7 +203,9 @@ struct ena_irq {
 	void *cookie;
 	unsigned int vector;
 	bool requested;
+#ifdef RSS
 	int cpu;
+#endif
 	char name[ENA_IRQNAME_SIZE];
 };
 
@@ -213,7 +218,10 @@ struct ena_que {
 	struct taskqueue *cleanup_tq;
 
 	uint32_t id;
+#ifdef RSS
 	int cpu;
+	cpuset_t cpu_mask;
+#endif
 	struct sysctl_oid *oid;
 };
 
@@ -431,7 +439,7 @@ struct ena_adapter {
 	uint32_t buf_ring_size;
 
 	/* RSS*/
-	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
+	struct ena_indir *rss_indir;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
 	/* mdio and phy*/

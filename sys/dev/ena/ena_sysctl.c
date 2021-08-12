@@ -31,19 +31,31 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include "ena_sysctl.h"
+#include "ena_rss.h"
 
 static void	ena_sysctl_add_wd(struct ena_adapter *);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
 static void	ena_sysctl_add_eni_metrics(struct ena_adapter *);
 static void	ena_sysctl_add_tuneables(struct ena_adapter *);
+/* Kernel option RSS prevents manipulation of key hash and indirection table. */
+#ifndef RSS
+static void	ena_sysctl_add_rss(struct ena_adapter *);
+#endif
 static int	ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS);
+#ifndef RSS
+static int	ena_sysctl_rss_key(SYSCTL_HANDLER_ARGS);
+static int	ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS);
+#endif
 
 /* Limit max ENI sample rate to be an hour. */
 #define ENI_METRICS_MAX_SAMPLE_INTERVAL 3600
+#define ENA_HASH_KEY_MSG_SIZE		(ENA_HASH_KEY_SIZE * 2 + 1)
 
 static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ENA driver parameters");
@@ -83,6 +95,8 @@ SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
     &ena_force_large_llq_header, 0,
     "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum Tx queue size by half.\n");
 
+int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
+
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
 {
@@ -90,6 +104,9 @@ ena_sysctl_add_nodes(struct ena_adapter *adapter)
 	ena_sysctl_add_stats(adapter);
 	ena_sysctl_add_eni_metrics(adapter);
 	ena_sysctl_add_tuneables(adapter);
+#ifndef RSS
+	ena_sysctl_add_rss(adapter);
+#endif
 }
 
 static void
@@ -405,6 +422,45 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	    ena_sysctl_io_queues_nb, "I", "Number of IO queues.");
 }
 
+/* Kernel option RSS prevents manipulation of key hash and indirection table. */
+#ifndef RSS
+static void
+ena_sysctl_add_rss(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	/* RSS options */
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "rss",
+	    CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, "Receive Side Scaling options.");
+	child = SYSCTL_CHILDREN(tree);
+
+	/* RSS hash key */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "key",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_rss_key, "A", "RSS key.");
+
+	/* Tuneable RSS indirection table */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "indir_table",
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_rss_indir_table, "A", "RSS indirection table.");
+
+	/* RSS indirection table size */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "indir_table_size",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &ena_rss_table_size, 0,
+	    "RSS indirection table size.");
+}
+#endif /* RSS */
+
 
 /*
  * ena_sysctl_update_queue_node_nb - Register/unregister sysctl queue nodes.
@@ -662,3 +718,203 @@ unlock:
 
 	return (0);
 }
+
+#ifndef RSS
+/*
+ * Change the Receive Side Scaling hash key.
+ */
+static int
+ena_sysctl_rss_key(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	enum ena_admin_hash_functions ena_func;
+	char msg[ENA_HASH_KEY_MSG_SIZE];
+	char elem[3] = { 0 };
+	char *endp;
+	u8 rss_key[ENA_HASH_KEY_SIZE];
+	int error, i;
+
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
+		error = ENOTSUP;
+		goto unlock;
+	}
+
+	error = sysctl_wire_old_buffer(req, sizeof(msg));
+	if (error != 0)
+		goto unlock;
+
+	error = ena_com_get_hash_function(adapter->ena_dev, &ena_func);
+	if (error != 0) {
+		device_printf(adapter->pdev, "Cannot get hash function\n");
+		goto unlock;
+	}
+
+	if (ena_func != ENA_ADMIN_TOEPLITZ) {
+		error = EINVAL;
+		device_printf(adapter->pdev, "Unsupported hash algorithm\n");
+		goto unlock;
+	}
+
+	error = ena_rss_get_hash_key(ena_dev, rss_key);
+	if (error != 0) {
+		device_printf(adapter->pdev, "Cannot get hash key\n");
+		goto unlock;
+	}
+
+	for (i = 0; i < ENA_HASH_KEY_SIZE; ++i)
+		snprintf(&msg[i * 2], 3, "%02x", rss_key[i]);
+
+	error = sysctl_handle_string(oidp, msg, sizeof(msg), req);
+	if (error != 0 || req->newptr == NULL)
+		goto unlock;
+
+	if (strlen(msg) != sizeof(msg) - 1) {
+		error = EINVAL;
+		device_printf(adapter->pdev, "Invalid key size\n");
+		goto unlock;
+	}
+
+	for (i = 0; i < ENA_HASH_KEY_SIZE; ++i) {
+		strncpy(elem, &msg[i * 2], 2);
+		rss_key[i] = strtol(elem, &endp, 16);
+
+		/* Both hex nibbles in the string must be valid to continue. */
+		if (endp == elem || *endp != '\0' || rss_key[i] < 0) {
+			error = EINVAL;
+			device_printf(adapter->pdev,
+			    "Invalid key hex value: '%c'\n", *endp);
+			goto unlock;
+		}
+	}
+
+	error = ena_rss_set_hash(ena_dev, rss_key);
+	if (error != 0)
+		device_printf(adapter->pdev, "Cannot fill hash key\n");
+
+unlock:
+	ENA_LOCK_UNLOCK();
+
+	return (error);
+}
+
+/*
+ * Change the Receive Side Scaling indirection table.
+ *
+ * The sysctl entry string consists of one or more `x:y` keypairs, where
+ * x stands for the table index and y for its new value.
+ * Table indices that don't need to be updated can be omitted from the string
+ * and will retain their existing values. If an index is entered more than once,
+ * the last value is used.
+ *
+ * Example:
+ * To update two selected indices in the RSS indirection table, e.g. setting
+ * index 0 to queue 5 and then index 5 to queue 0, the below command should be
+ * used:
+ *   sysctl dev.ena.0.rss.indir_table="0:5 5:0"
+ */
+static int
+ena_sysctl_rss_indir_table(SYSCTL_HANDLER_ARGS)
+{
+	int num_queues, error;
+	struct ena_adapter *adapter = arg1;
+	struct ena_com_dev *ena_dev;
+	struct ena_indir *indir;
+	char *msg, *buf, *endp;
+	uint32_t idx, value;
+
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
+		error = ENOTSUP;
+		goto unlock;
+	}
+
+	ena_dev = adapter->ena_dev;
+	indir = adapter->rss_indir;
+	msg = indir->sysctl_buf;
+
+	if (unlikely(indir == NULL)) {
+		error = ENOTSUP;
+		goto unlock;
+	}
+
+	error = sysctl_handle_string(oidp, msg, sizeof(indir->sysctl_buf), req);
+	if (error != 0 || req->newptr == NULL)
+		goto unlock;
+
+	num_queues = adapter->num_io_queues;
+
+	/*
+	 * This sysctl expects msg to be a list of `x:y` record pairs,
+	 * where x is the indirection table index and y is its value.
+	 */
+	for (buf = msg; *buf != '\0'; buf = endp) {
+		idx = strtol(buf, &endp, 10);
+
+		if (endp == buf || idx < 0) {
+			device_printf(adapter->pdev, "Invalid index: %s\n",
+			    buf);
+			error = EINVAL;
+			break;
+		}
+
+		if (idx >= ENA_RX_RSS_TABLE_SIZE) {
+			device_printf(adapter->pdev, "Index %d out of range\n",
+			    idx);
+			error = ERANGE;
+			break;
+		}
+
+		buf = endp;
+
+		if (*buf++ != ':') {
+			device_printf(adapter->pdev, "Missing ':' separator\n");
+			error = EINVAL;
+			break;
+		}
+
+		value = strtol(buf, &endp, 10);
+
+		if (endp == buf || value < 0) {
+			device_printf(adapter->pdev, "Invalid value: %s\n",
+			    buf);
+			error = EINVAL;
+			break;
+		}
+
+		if (value >= num_queues) {
+			device_printf(adapter->pdev, "Value %d out of range\n",
+			    value);
+			error = ERANGE;
+			break;
+		}
+
+		indir->table[idx] = value;
+	}
+
+	if (error != 0) /* Reload indirection table with last good data. */
+		ena_rss_indir_get(adapter, indir->table);
+
+	/* At this point msg has been clobbered by sysctl_handle_string. */
+	ena_rss_copy_indir_buf(msg, indir->table);
+
+	if (error == 0)
+		error = ena_rss_indir_set(adapter, indir->table);
+
+unlock:
+	ENA_LOCK_UNLOCK();
+
+	return (error);
+}
+#endif /* RSS */
