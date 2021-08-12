@@ -67,7 +67,7 @@ This must be greater than 0.
 The control flags of the operation.
 This should be set to 0 for now.
 .It Fa ioflag
-The control flags of vnode locking.
+Directives and hints to be given to the file system.
 .It Fa active_cred
 The user credentials of the calling thread.
 .It Fa file_cred
@@ -76,7 +76,8 @@ The credentials installed on the file description pointing to the vnode or NOCRE
 .Pp
 The
 .Fn ioflag
-argument may be one or more of the following flags:
+argument gives directives and hints to the file system.
+It may include one or more of the following flags:
 .Bl -tag -width IO_RANGELOCKED
 .It Dv IO_NODELOCKED
 The vnode was locked before the call.
@@ -84,6 +85,10 @@ The vnode was locked before the call.
 Rangelock was owned around the call.
 .It Dv IO_NOMACCHECK
 Skip MAC checking in the call.
+.It Dv IO_SYNC
+Do I/O synchronously.
+.It Dv IO_DIRECT
+Attempt to bypass buffer cache.
 .El
 .Pp
 .Fa *offset

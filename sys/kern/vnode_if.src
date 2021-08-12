@@ -808,6 +808,7 @@ vop_deallocate {
 	INOUT off_t *offset;
 	INOUT off_t *len;
 	IN int flags;
+	IN int ioflag;
 	IN struct ucred *cred;
 };
 
