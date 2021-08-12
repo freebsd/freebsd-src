@@ -1731,7 +1731,10 @@
 		int linux_pidfd_open(void);
 	}
 435    AUE_NULL		STD {
-		int linux_clone3(void);
+		int linux_clone3(
+		    struct l_user_clone_args *uargs,
+		    l_size_t usize
+		);
 	}
 436    AUE_NULL		STD {
 		int linux_close_range(void);

@@ -33,6 +33,8 @@
 
 #include <sys/sysctl.h>
 
+#define	LINUX_MAX_PID_NS_LEVEL	32
+
 				/* bits per mask */
 #define	LINUX_NFDBITS		sizeof(l_fd_mask) * 8
 
