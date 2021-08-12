@@ -78,10 +78,18 @@
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
 #define	LINUX_O_SYNC		000010000
 #define	LINUX_O_ASYNC		000020000
+#ifndef LINUX_O_DIRECT
 #define	LINUX_O_DIRECT		000040000	/* Direct disk access hint */
+#endif
+#ifndef LINUX_O_LARGEFILE
 #define	LINUX_O_LARGEFILE	000100000
+#endif
+#ifndef LINUX_O_DIRECTORY
 #define	LINUX_O_DIRECTORY	000200000	/* Must be a directory */
+#endif
+#ifndef LINUX_O_NOFOLLOW
 #define	LINUX_O_NOFOLLOW	000400000	/* Do not follow links */
+#endif
 #define	LINUX_O_NOATIME		001000000
 #define	LINUX_O_CLOEXEC		002000000
 #define	LINUX_O_PATH		010000000

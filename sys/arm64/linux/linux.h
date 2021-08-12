@@ -117,6 +117,11 @@ struct l_timespec {
 	l_long		tv_nsec;
 };
 
+#define	LINUX_O_DIRECTORY	000040000	/* Must be a directory */
+#define	LINUX_O_NOFOLLOW	000100000	/* Do not follow links */
+#define	LINUX_O_DIRECT		000200000	/* Direct disk access hint */
+#define	LINUX_O_LARGEFILE	000400000
+
 struct l_newstat {
 	l_dev_t		st_dev;
 	l_ino_t		st_ino;
