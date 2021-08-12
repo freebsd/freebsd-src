@@ -134,13 +134,14 @@ static int
 linux_clone_proc(struct thread *td, struct l_clone_args *args)
 {
 	struct fork_req fr;
-	int error, ff = RFPROC | RFSTOPPED, f2;
+	int error, ff, f2;
 	struct proc *p2;
 	struct thread *td2;
 	int exit_signal;
 	struct linux_emuldata *em;
 
 	f2 = 0;
+	ff = RFPROC | RFSTOPPED;
 	if (LINUX_SIG_VALID(args->exit_signal)) {
 		exit_signal = linux_to_bsd_signal(args->exit_signal);
 	} else if (args->exit_signal != 0)
