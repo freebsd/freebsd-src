@@ -967,6 +967,9 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	tx_info = &tx_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
 
+	ENA_WARN(tx_info->mbuf != NULL, adapter->ena_dev,
+	    "mbuf isn't NULL for req_id %d\n", req_id);
+
 	rc = ena_tx_map_mbuf(tx_ring, tx_info, *mbuf, &push_hdr, &header_len);
 	if (unlikely(rc != 0)) {
 		ena_log_io(pdev, WARN, "Failed to map TX mbuf\n");
