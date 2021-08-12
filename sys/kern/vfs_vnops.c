@@ -914,6 +914,35 @@ get_advice(struct file *fp, struct uio *uio)
 	return (ret);
 }
 
+static int
+get_write_ioflag(struct file *fp)
+{
+	int ioflag;
+	struct mount *mp;
+	struct vnode *vp;
+
+	ioflag = 0;
+	vp = fp->f_vnode;
+	mp = atomic_load_ptr(&vp->v_mount);
+
+	if ((fp->f_flag & O_DIRECT) != 0)
+		ioflag |= IO_DIRECT;
+
+	if ((fp->f_flag & O_FSYNC) != 0 ||
+	    (mp != NULL && (mp->mnt_flag & MNT_SYNCHRONOUS) != 0))
+		ioflag |= IO_SYNC;
+
+	/*
+	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
+	 * or VOP_DEALLOCATE() implementations that don't understand IO_DATASYNC
+	 * fall back to full O_SYNC behavior.
+	 */
+	if ((fp->f_flag & O_DSYNC) != 0)
+		ioflag |= IO_SYNC | IO_DATASYNC;
+
+	return (ioflag);
+}
+
 int
 vn_read_from_obj(struct vnode *vp, struct uio *uio)
 {
@@ -1113,25 +1142,12 @@ vn_write(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	if (vp->v_type == VREG)
 		bwillwrite();
 	ioflag = IO_UNIT;
-	if (vp->v_type == VREG && (fp->f_flag & O_APPEND))
+	if (vp->v_type == VREG && (fp->f_flag & O_APPEND) != 0)
 		ioflag |= IO_APPEND;
-	if (fp->f_flag & FNONBLOCK)
+	if ((fp->f_flag & FNONBLOCK) != 0)
 		ioflag |= IO_NDELAY;
-	if (fp->f_flag & O_DIRECT)
-		ioflag |= IO_DIRECT;
+	ioflag |= get_write_ioflag(fp);
 
-	mp = atomic_load_ptr(&vp->v_mount);
-	if ((fp->f_flag & O_FSYNC) ||
-	    (mp != NULL && (mp->mnt_flag & MNT_SYNCHRONOUS)))
-		ioflag |= IO_SYNC;
-
-	/*
-	 * For O_DSYNC we set both IO_SYNC and IO_DATASYNC, so that VOP_WRITE()
-	 * implementations that don't understand IO_DATASYNC fall back to full
-	 * O_SYNC behavior.
-	 */
-	if (fp->f_flag & O_DSYNC)
-		ioflag |= IO_SYNC | IO_DATASYNC;
 	mp = NULL;
 	need_finished_write = false;
 	if (vp->v_type != VCHR) {
