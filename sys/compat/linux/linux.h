@@ -265,4 +265,6 @@ struct l_statx {
 	uint64_t __spare2[13];
 };
 
+#define	lower_32_bits(n)	((uint32_t)((n) & 0xffffffff))
+
 #endif /* _LINUX_MI_H_ */

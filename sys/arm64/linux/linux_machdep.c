@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_mmap.h>
 #include <compat/linux/linux_util.h>
