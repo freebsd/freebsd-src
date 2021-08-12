@@ -160,7 +160,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_mount(spa, 0, &zmount)) != 0) {
+	if ((err = zfs_mount_impl(spa, 0, &zmount)) != 0) {
 		DPRINTF("Failed to mount pool '%s' (%d)\n", spa->spa_name, err);
 		return (EFI_NOT_FOUND);
 	}

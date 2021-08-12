@@ -187,15 +187,12 @@ static void
 set_currdev(const char *devname)
 {
 
-	/*
-	 * Don't execute hooks here; we may need to try setting these more than
-	 * once here if we're probing for the ZFS pool we're supposed to boot.
-	 * The currdev hook is intended to just validate user input anyways,
-	 * while the loaddev hook makes it immutable once we've determined what
-	 * the proper currdev is.
-	 */
-	env_setenv("currdev", EV_VOLATILE | EV_NOHOOK, devname, efi_setcurrdev,
+	env_setenv("currdev", EV_VOLATILE, devname, efi_setcurrdev,
 	    env_nounset);
+	/*
+	 * Don't execute hook here; the loaddev hook makes it immutable
+	 * once we've determined what the proper currdev is.
+	 */
 	env_setenv("loaddev", EV_VOLATILE | EV_NOHOOK, devname, env_noset,
 	    env_nounset);
 }
@@ -931,6 +928,9 @@ main(int argc, CHAR16 *argv[])
 		setenv("console", "comconsole", 1);
 #endif
 	cons_probe();
+
+	/* Set up currdev variable to have hooks in place. */
+	env_setenv("currdev", EV_VOLATILE, "", efi_setcurrdev, env_nounset);
 
 	/* Init the time source */
 	efi_time_init();

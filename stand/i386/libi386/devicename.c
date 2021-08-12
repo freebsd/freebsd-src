@@ -204,12 +204,12 @@ i386_fmtdev(void *vdev)
 int
 i386_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-    struct i386_devdesc	*ncurr;
-    int			rv;
+	struct i386_devdesc	*ncurr;
+	int			rv;
 
-    if ((rv = i386_parsedev(&ncurr, value, NULL)) != 0)
-	return(rv);
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(0);
+	if ((rv = i386_parsedev(&ncurr, value, NULL)) != 0)
+		return (rv);
+	free(ncurr);
+
+	return (mount_currdev(ev, flags, value));
 }

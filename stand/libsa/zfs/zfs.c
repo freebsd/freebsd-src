@@ -58,6 +58,8 @@ static int	zfs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	zfs_seek(struct open_file *f, off_t offset, int where);
 static int	zfs_stat(struct open_file *f, struct stat *sb);
 static int	zfs_readdir(struct open_file *f, struct dirent *d);
+static int	zfs_mount(const char *dev, const char *path, void **data);
+static int	zfs_unmount(const char *dev, void *data);
 
 static void	zfs_bootenv_initial(const char *envname, spa_t *spa,
 		    const char *name, const char *dsname, int checkpoint);
@@ -67,14 +69,16 @@ static void	zfs_checkpoints_initial(spa_t *spa, const char *name,
 struct devsw zfs_dev;
 
 struct fs_ops zfs_fsops = {
-	"zfs",
-	zfs_open,
-	zfs_close,
-	zfs_read,
-	null_write,
-	zfs_seek,
-	zfs_stat,
-	zfs_readdir
+	.fs_name = "zfs",
+	.fo_open = zfs_open,
+	.fo_close = zfs_close,
+	.fo_read = zfs_read,
+	.fo_write = null_write,
+	.fo_seek = zfs_seek,
+	.fo_stat = zfs_stat,
+	.fo_readdir = zfs_readdir,
+	.fo_mount = zfs_mount,
+	.fo_unmount = zfs_unmount
 };
 
 /*
@@ -360,6 +364,74 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 
 		return (0);
 	}
+}
+
+/*
+ * if path is NULL, create mount structure, but do not add it to list.
+ */
+static int
+zfs_mount(const char *dev, const char *path, void **data)
+{
+	struct zfs_devdesc *zfsdev;
+	spa_t *spa;
+	struct zfsmount *mnt;
+	int rv;
+
+	errno = 0;
+	zfsdev = malloc(sizeof(*zfsdev));
+	if (zfsdev == NULL)
+		return (errno);
+
+	rv = zfs_parsedev(zfsdev, dev + 3, NULL);
+	if (rv != 0) {
+		free(zfsdev);
+		return (rv);
+	}
+
+	spa = spa_find_by_dev(zfsdev);
+	if (spa == NULL)
+		return (ENXIO);
+
+	mnt = calloc(1, sizeof(*mnt));
+	if (mnt != NULL && path != NULL)
+		mnt->path = strdup(path);
+	rv = errno;
+
+	if (mnt != NULL)
+		rv = zfs_mount_impl(spa, zfsdev->root_guid, mnt);
+	free(zfsdev);
+
+	if (rv == 0 && mnt != NULL && mnt->objset.os_type != DMU_OST_ZFS) {
+		printf("Unexpected object set type %ju\n",
+		    (uintmax_t)mnt->objset.os_type);
+		rv = EIO;
+	}
+
+	if (rv != 0) {
+		if (mnt != NULL)
+			free(mnt->path);
+		free(mnt);
+		return (rv);
+	}
+
+	if (mnt != NULL) {
+		*data = mnt;
+		if (path != NULL)
+			STAILQ_INSERT_TAIL(&zfsmount, mnt, next);
+	}
+
+	return (rv);
+}
+
+static int
+zfs_unmount(const char *dev, void *data)
+{
+	struct zfsmount *mnt = data;
+
+	STAILQ_REMOVE(&zfsmount, mnt, zfsmount, next);
+	free(mnt->path);
+	free(mnt);
+	return (0);
 }
 
 static int
@@ -1503,32 +1575,45 @@ zfs_dev_open(struct open_file *f, ...)
 	if ((spa = spa_find_by_dev(dev)) == NULL)
 		return (ENXIO);
 
-	mount = malloc(sizeof(*mount));
+	STAILQ_FOREACH(mount, &zfsmount, next) {
+		if (spa->spa_guid == mount->spa->spa_guid)
+			break;
+	}
+
+	rv = 0;
+	/* This device is not set as currdev, mount us private copy. */
 	if (mount == NULL)
-		rv = ENOMEM;
-	else
-		rv = zfs_mount(spa, dev->root_guid, mount);
-	if (rv != 0) {
-		free(mount);
-		return (rv);
+		rv = zfs_mount(zfs_fmtdev(dev), NULL, (void **)&mount);
+
+	if (rv == 0) {
+		f->f_devdata = mount;
+		free(dev);
 	}
-	if (mount->objset.os_type != DMU_OST_ZFS) {
-		printf("Unexpected object set type %ju\n",
-		    (uintmax_t)mount->objset.os_type);
-		free(mount);
-		return (EIO);
-	}
-	f->f_devdata = mount;
-	free(dev);
-	return (0);
+	return (rv);
 }
 
 static int
 zfs_dev_close(struct open_file *f)
 {
+	struct zfsmount	*mnt, *mount;
 
-	free(f->f_devdata);
-	f->f_devdata = NULL;
+	mnt = f->f_devdata;
+
+	STAILQ_FOREACH(mount, &zfsmount, next) {
+		if (mnt->spa->spa_guid == mount->spa->spa_guid)
+			break;
+	}
+
+	/*
+	 * devclose() will free f->f_devdata, but since we do have
+	 * pointer to zfsmount structure in f->f_devdata, and
+	 * zfs_unmount() will also free the zfsmount structure,
+	 * we will get double free. To prevent double free,
+	 * we must set f_devdata to NULL there.
+	 */
+	if (mount != NULL)
+		f->f_devdata = NULL;
+
 	return (0);
 }
 

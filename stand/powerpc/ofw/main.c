@@ -168,6 +168,9 @@ main(int (*openfirm)(void *))
          */
 	cons_probe();
 
+	/* Set up currdev variable to have hooks in place. */
+	env_setenv("currdev", EV_VOLATILE, "", ofw_setcurrdev, env_nounset);
+
 	/*
 	 * March through the device switch probing for things.
 	 */

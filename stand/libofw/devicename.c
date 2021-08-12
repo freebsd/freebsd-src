@@ -134,13 +134,13 @@ found:
 int
 ofw_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-    struct ofw_devdesc	*ncurr;
-    int			rv;
+	struct ofw_devdesc	*ncurr;
+	int			rv;
 
-    if ((rv = ofw_parsedev(&ncurr, value, NULL)) != 0)
-	return rv;
+	if ((rv = ofw_parsedev(&ncurr, value, NULL)) != 0)
+		return (rv);
 
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return 0;
+	free(ncurr);
+
+	return (mount_currdev(ev, flags, value));
 }
