@@ -412,6 +412,10 @@ linux_clone3_args_valid(struct l_user_clone_args *uca)
 	if (uca->stack != 0 && uca->stack_size == 0)
 		return (EINVAL);
 
+	/* Verify that higher 32bits of exit_signal are unset. */
+	if ((uca->exit_signal & ~(uint64_t)LINUX_CSIGNAL) != 0)
+		return (EINVAL);
+
 	/* Verify that no unsupported flags are passed along. */
 	if ((uca->flags & LINUX_CLONE_NEWTIME) != 0) {
 		LINUX_RATELIMIT_MSG("unsupported clone3 option CLONE_NEWTIME");
