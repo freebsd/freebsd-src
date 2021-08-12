@@ -5347,12 +5347,18 @@ nfsrvd_allocate(struct nfsrv_descript *nd, __unused int isdgram,
 	off = fxdr_hyper(tl); tl += 2;
 	lop->lo_first = off;
 	len = fxdr_hyper(tl);
-	lop->lo_end = off + len;
+	lop->lo_end = lop->lo_first + len;
 	/*
-	 * Paranoia, just in case it wraps around, which shouldn't
-	 * ever happen anyhow.
+	 * Sanity check the offset and length.
+	 * off and len are off_t (signed int64_t) whereas
+	 * lo_first and lo_end are uint64_t and, as such,
+	 * if off >= 0 && len > 0, lo_end cannot overflow
+	 * unless off_t is changed to something other than
+	 * int64_t.  Check lo_end < lo_first in case that
+	 * is someday the case.
 	 */
-	if (nd->nd_repstat == 0 && (lop->lo_end < lop->lo_first || len <= 0))
+	if (nd->nd_repstat == 0 && (len <= 0 || off < 0 || lop->lo_end >
+	    OFF_MAX || lop->lo_end < lop->lo_first))
 		nd->nd_repstat = NFSERR_INVAL;
 
 	if (nd->nd_repstat == 0 && vnode_vtype(vp) != VREG)
