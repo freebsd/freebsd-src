@@ -209,8 +209,7 @@ efi_setcurrdev(struct env_var *ev, int flags, const void *value)
 	rv = efi_parsedev(&ncurr, value, NULL);
 	if (rv != 0)
 		return (rv);
-
 	free(ncurr);
-	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-	return (0);
+
+	return (mount_currdev(ev, flags, value));
 }

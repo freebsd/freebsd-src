@@ -475,6 +475,9 @@ main(int argc, char **argv)
 
 	meminfo();
 
+	/* Set up currdev variable to have hooks in place. */
+	env_setenv("currdev", EV_VOLATILE, "", uboot_setcurrdev, env_nounset);
+
 	/*
 	 * Enumerate U-Boot devices
 	 */

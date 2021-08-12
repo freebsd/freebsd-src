@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 #include "stand.h"
+#include "disk.h"
 #include "string.h"
 
 static int	ufs_open(const char *path, struct open_file *f);
@@ -91,16 +92,20 @@ static int	ufs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	ufs_seek(struct open_file *f, off_t offset, int where);
 static int	ufs_stat(struct open_file *f, struct stat *sb);
 static int	ufs_readdir(struct open_file *f, struct dirent *d);
+static int	ufs_mount(const char *dev, const char *path, void **data);
+static int	ufs_unmount(const char *dev, void *data);
 
 struct fs_ops ufs_fsops = {
-	"ufs",
-	ufs_open,
-	ufs_close,
-	ufs_read,
-	ufs_write,
-	ufs_seek,
-	ufs_stat,
-	ufs_readdir
+	.fs_name = "ufs",
+	.fo_open = ufs_open,
+	.fo_close = ufs_close,
+	.fo_read = ufs_read,
+	.fo_write = ufs_write,
+	.fo_seek = ufs_seek,
+	.fo_stat = ufs_stat,
+	.fo_readdir = ufs_readdir,
+	.fo_mount = ufs_mount,
+	.fo_unmount = ufs_unmount
 };
 
 /*
@@ -130,6 +135,15 @@ struct file {
 	((fp)->f_fs->fs_magic == FS_UFS1_MAGIC ? \
 	(fp)->f_di.di1.field : (fp)->f_di.di2.field)
 
+typedef struct ufs_mnt {
+	char			*um_dev;
+	int			um_fd;
+	STAILQ_ENTRY(ufs_mnt)	um_link;
+} ufs_mnt_t;
+
+typedef STAILQ_HEAD(ufs_mnt_list, ufs_mnt) ufs_mnt_list_t;
+static ufs_mnt_list_t mnt_list = STAILQ_HEAD_INITIALIZER(mnt_list);
+
 static int	read_inode(ino_t, struct open_file *);
 static int	block_map(struct open_file *, ufs2_daddr_t, ufs2_daddr_t *);
 static int	buf_read_file(struct open_file *, char **, size_t *);
@@ -150,9 +164,7 @@ int	ffs_sbget(void *, struct fs **, off_t, char *,
  * Read a new inode into a file structure.
  */
 static int
-read_inode(inumber, f)
-	ino_t inumber;
-	struct open_file *f;
+read_inode(ino_t inumber, struct open_file *f)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -207,10 +219,8 @@ out:
  * contains that block.
  */
 static int
-block_map(f, file_block, disk_block_p)
-	struct open_file *f;
-	ufs2_daddr_t file_block;
-	ufs2_daddr_t *disk_block_p;	/* out */
+block_map(struct open_file *f, ufs2_daddr_t file_block,
+    ufs2_daddr_t *disk_block_p)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -312,10 +322,7 @@ block_map(f, file_block, disk_block_p)
  * Write a portion of a file from an internal buffer.
  */
 static int
-buf_write_file(f, buf_p, size_p)
-	struct open_file *f;
-	const char *buf_p;
-	size_t *size_p;		/* out */
+buf_write_file(struct open_file *f, const char *buf_p, size_t *size_p)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -390,10 +397,7 @@ buf_write_file(f, buf_p, size_p)
  * the location in the buffer and the amount in the buffer.
  */
 static int
-buf_read_file(f, buf_p, size_p)
-	struct open_file *f;
-	char **buf_p;		/* out */
-	size_t *size_p;		/* out */
+buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct fs *fs = fp->f_fs;
@@ -452,10 +456,7 @@ buf_read_file(f, buf_p, size_p)
  * i_number.
  */
 static int
-search_directory(name, f, inumber_p)
-	char *name;
-	struct open_file *f;
-	ino_t *inumber_p;		/* out */
+search_directory(char *name, struct open_file *f, ino_t *inumber_p)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	struct direct *dp;
@@ -502,9 +503,7 @@ search_directory(name, f, inumber_p)
  * Open a file.
  */
 static int
-ufs_open(upath, f)
-	const char *upath;
-	struct open_file *f;
+ufs_open(const char *upath, struct open_file *f)
 {
 	char *cp, *ncp;
 	int c;
@@ -516,18 +515,41 @@ ufs_open(upath, f)
 	char namebuf[MAXPATHLEN+1];
 	char *buf = NULL;
 	char *path = NULL;
+	const char *dev;
+	ufs_mnt_t *mnt;
 
 	/* allocate file system specific data structure */
-	fp = malloc(sizeof(struct file));
-	bzero(fp, sizeof(struct file));
+	errno = 0;
+	fp = calloc(1, sizeof(struct file));
+	if (fp == NULL)
+		return (errno);
 	f->f_fsdata = (void *)fp;
 
-	/* read super block */
-	twiddle(1);
-	if ((rc = ffs_sbget(f, &fs, STDSB_NOHASHFAIL, "stand",
-	     ufs_use_sa_read)) != 0)
-		goto out;
+	dev = disk_fmtdev(f->f_devdata);
+	/* Is this device mounted? */
+	STAILQ_FOREACH(mnt, &mnt_list, um_link) {
+		if (strcmp(dev, mnt->um_dev) == 0)
+			break;
+	}
+
+	if (mnt == NULL) {
+		/* read super block */
+		twiddle(1);
+		if ((rc = ffs_sbget(f, &fs, STDSB_NOHASHFAIL, "stand",
+		     ufs_use_sa_read)) != 0) {
+			goto out;
+		}
+	} else {
+		struct open_file *sbf;
+		struct file *sfp;
+
+		/* get superblock from mounted file system */
+		sbf = fd2open_file(mnt->um_fd);
+		sfp = sbf->f_fsdata;
+		fs = sfp->f_fs;
+	}
 	fp->f_fs = fs;
+
 	/*
 	 * Calculate indirect block levels.
 	 */
@@ -671,14 +693,12 @@ ufs_open(upath, f)
 	rc = 0;
 	fp->f_seekp = 0;
 out:
-	if (buf)
-		free(buf);
-	if (path)
-		free(path);
+	free(buf);
+	free(path);
 	if (rc) {
-		if (fp->f_buf)
-			free(fp->f_buf);
-		if (fp->f_fs != NULL) {
+		free(fp->f_buf);
+
+		if (mnt == NULL && fp->f_fs != NULL) {
 			free(fp->f_fs->fs_csp);
 			free(fp->f_fs->fs_si);
 			free(fp->f_fs);
@@ -711,27 +731,34 @@ ufs_use_sa_read(void *devfd, off_t loc, void **bufp, int size)
 }
 
 static int
-ufs_close(f)
-	struct open_file *f;
+ufs_close(struct open_file *f)
 {
+	ufs_mnt_t *mnt;
 	struct file *fp = (struct file *)f->f_fsdata;
 	int level;
+	char *dev;
 
-	f->f_fsdata = (void *)0;
-	if (fp == (struct file *)0)
+	f->f_fsdata = NULL;
+	if (fp == NULL)
 		return (0);
 
 	for (level = 0; level < UFS_NIADDR; level++) {
-		if (fp->f_blk[level])
-			free(fp->f_blk[level]);
+		free(fp->f_blk[level]);
 	}
-	if (fp->f_buf)
-		free(fp->f_buf);
-	if (fp->f_fs != NULL) {
+	free(fp->f_buf);
+
+	dev = disk_fmtdev(f->f_devdata);
+	STAILQ_FOREACH(mnt, &mnt_list, um_link) {
+		if (strcmp(dev, mnt->um_dev) == 0)
+			break;
+	}
+
+	if (mnt == NULL && fp->f_fs != NULL) {
 		free(fp->f_fs->fs_csp);
 		free(fp->f_fs->fs_si);
 		free(fp->f_fs);
 	}
+
 	free(fp);
 	return (0);
 }
@@ -741,11 +768,7 @@ ufs_close(f)
  * Cross block boundaries when necessary.
  */
 static int
-ufs_read(f, start, size, resid)
-	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;	/* out */
+ufs_read(struct open_file *f, void *start, size_t size, size_t *resid)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	size_t csize;
@@ -783,11 +806,7 @@ ufs_read(f, start, size, resid)
  * extend the file.
  */
 static int
-ufs_write(f, start, size, resid)
-	struct open_file *f;
-	const void *start;
-	size_t size;
-	size_t *resid;	/* out */
+ufs_write(struct open_file *f, const void *start, size_t size, size_t *resid)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 	size_t csize;
@@ -815,10 +834,7 @@ ufs_write(f, start, size, resid)
 }
 
 static off_t
-ufs_seek(f, offset, where)
-	struct open_file *f;
-	off_t offset;
-	int where;
+ufs_seek(struct open_file *f, off_t offset, int where)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -840,9 +856,7 @@ ufs_seek(f, offset, where)
 }
 
 static int
-ufs_stat(f, sb)
-	struct open_file *f;
-	struct stat *sb;
+ufs_stat(struct open_file *f, struct stat *sb)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
 
@@ -892,5 +906,61 @@ again:
 		goto again;
 	d->d_type = dp->d_type;
 	strcpy(d->d_name, dp->d_name);
+	return (0);
+}
+
+static int
+ufs_mount(const char *dev, const char *path, void **data)
+{
+	char *fs;
+	ufs_mnt_t *mnt;
+	struct open_file *f;
+
+	errno = 0;
+	mnt = calloc(1, sizeof(*mnt));
+	if (mnt == NULL)
+		return (errno);
+	mnt->um_fd = -1;
+	mnt->um_dev = strdup(dev);
+	if (mnt->um_dev == NULL)
+		goto done;
+
+	if (asprintf(&fs, "%s%s", dev, path) < 0)
+		goto done;
+
+	mnt->um_fd = open(fs, O_RDONLY);
+	free(fs);
+	if (mnt->um_fd == -1)
+		goto done;
+
+	/* Is it ufs file system? */
+	f = fd2open_file(mnt->um_fd);
+	if (strcmp(f->f_ops->fs_name, "ufs") == 0)
+		STAILQ_INSERT_TAIL(&mnt_list, mnt, um_link);
+	else
+		errno = ENXIO;
+
+done:
+	if (errno != 0) {
+		free(mnt->um_dev);
+		if (mnt->um_fd >= 0)
+			close(mnt->um_fd);
+		free(mnt);
+	} else {
+		*data = mnt;
+	}
+
+	return (errno);
+}
+
+static int
+ufs_unmount(const char *dev __unused, void *data)
+{
+	ufs_mnt_t *mnt = data;
+
+	STAILQ_REMOVE(&mnt_list, mnt, ufs_mnt, um_link);
+	free(mnt->um_dev);
+	close(mnt->um_fd);
+	free(mnt);
 	return (0);
 }

@@ -159,6 +159,10 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	 */
 	cons_probe();
 
+	/* Set up currdev variable to have hooks in place. */
+	env_setenv("currdev", EV_VOLATILE, "",
+	    userboot_setcurrdev, env_nounset);
+
 	printf("\n%s", bootprog_info);
 #if 0
 	printf("Memory: %ld k\n", memsize() / 1024);

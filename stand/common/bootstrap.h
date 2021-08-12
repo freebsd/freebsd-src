@@ -29,6 +29,7 @@
 #ifndef _BOOTSTRAP_H_
 #define	_BOOTSTRAP_H_
 
+#include <stand.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/linker_set.h>
@@ -399,6 +400,9 @@ int nvstore_set_var(void *, int, const char *, void *, size_t);
 int nvstore_set_var_from_string(void *, const char *, const char *,
     const char *);
 int nvstore_unset_var(void *, const char *);
+
+/* common code to set currdev variable. */
+extern int mount_currdev(struct env_var *, int, const void *);
 
 #ifndef CTASSERT
 #define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")

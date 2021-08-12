@@ -195,12 +195,12 @@ beri_arch_fmtdev(void *vdev)
 int
 beri_arch_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-    struct disk_devdesc	*ncurr;
-    int			rv;
+	struct disk_devdesc	*ncurr;
+	int			rv;
 
-    if ((rv = beri_arch_parsedev(&ncurr, value, NULL)) != 0)
-	return(rv);
-    free(ncurr);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return(0);
+	if ((rv = beri_arch_parsedev(&ncurr, value, NULL)) != 0)
+		return (rv);
+	free(ncurr);
+
+	return (mount_currdev(ev, flags, value));
 }
