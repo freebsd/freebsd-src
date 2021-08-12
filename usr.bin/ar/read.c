@@ -88,7 +88,7 @@ read_archive(struct bsdar *bsdar, char mode)
 	int			  exitcode, flags, r, i;
 
 	if ((a = archive_read_new()) == NULL)
-		bsdar_errc(bsdar, EXIT_FAILURE, 0, "archive_read_new failed");
+		bsdar_errc(bsdar, 0, "archive_read_new failed");
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
 
@@ -122,7 +122,7 @@ read_archive(struct bsdar *bsdar, char mode)
 				if (*av == NULL)
 					continue;
 				if ((bname = basename(*av)) == NULL)
-					bsdar_errc(bsdar, EXIT_FAILURE, errno,
+					bsdar_errc(bsdar, errno,
 					    "basename failed");
 				if (strcmp(bname, name) != 0)
 					continue;
