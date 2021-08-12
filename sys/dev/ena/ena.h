@@ -480,12 +480,16 @@ struct ena_adapter {
 #define	ENA_RING_MTX_LOCK(_ring)		mtx_lock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_TRYLOCK(_ring)		mtx_trylock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_UNLOCK(_ring)		mtx_unlock(&(_ring)->ring_mtx)
+#define ENA_RING_MTX_ASSERT(_ring)		\
+	mtx_assert(&(_ring)->ring_mtx, MA_OWNED)
 
 #define ENA_LOCK_INIT(adapter)			\
 	sx_init(&(adapter)->global_lock, "ENA global lock")
 #define ENA_LOCK_DESTROY(adapter)	sx_destroy(&(adapter)->global_lock)
 #define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
 #define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
+#define ENA_LOCK_ASSERT(adapter)		\
+	sx_assert(&(adapter)->global_lock, SA_XLOCKED)
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp_val(val, lo, hi)		clamp_t(__typeof(val), val, lo, hi)
