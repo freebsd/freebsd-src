@@ -2094,7 +2094,12 @@
 		int linux_pidfd_getfd(void);
 	}
 439    AUE_NULL		STD {
-		int linux_faccessat2(void);
+		int linux_faccessat2(
+		    l_int dfd,
+		    const char *filename,
+		    l_int amode,
+		    l_int flags
+		);
 	}
 440    AUE_NULL		STD {
 		int linux_process_madvise(void);
