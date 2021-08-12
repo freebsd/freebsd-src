@@ -801,6 +801,11 @@ ena_check_and_collapse_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	/* One segment must be reserved for configuration descriptor. */
 	if (num_frags < adapter->max_tx_sgl_size)
 		return (0);
+
+	if ((num_frags == adapter->max_tx_sgl_size) &&
+	    ((*mbuf)->m_pkthdr.len < tx_ring->tx_max_header_size))
+		return (0);
+
 	counter_u64_add(tx_ring->tx_stats.collapse, 1);
 
 	collapsed_mbuf = m_collapse(*mbuf, M_NOWAIT,
