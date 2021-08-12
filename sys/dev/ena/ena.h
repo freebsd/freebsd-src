@@ -280,19 +280,21 @@ struct ena_stats_tx {
 	counter_u64_t queue_wakeup;
 	counter_u64_t queue_stop;
 	counter_u64_t llq_buffer_copy;
+	counter_u64_t unmask_interrupt_num;
 };
 
 struct ena_stats_rx {
 	counter_u64_t cnt;
 	counter_u64_t bytes;
 	counter_u64_t refil_partial;
-	counter_u64_t bad_csum;
+	counter_u64_t csum_bad;
 	counter_u64_t mjum_alloc_fail;
 	counter_u64_t mbuf_alloc_fail;
 	counter_u64_t dma_mapping_err;
 	counter_u64_t bad_desc_num;
 	counter_u64_t bad_req_id;
 	counter_u64_t empty_rx_ring;
+	counter_u64_t csum_good;
 };
 
 struct ena_ring {

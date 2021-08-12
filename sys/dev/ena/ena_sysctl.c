@@ -238,6 +238,10 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    "llq_buffer_copy", CTLFLAG_RD,
 		    &tx_stats->llq_buffer_copy,
 		    "Header copies for llq transaction");
+		SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+		    "unmask_interrupt_num", CTLFLAG_RD,
+		    &tx_stats->unmask_interrupt_num,
+		    "Unmasked interrupt count");
 
 		/* RX specific stats */
 		rx_node = SYSCTL_ADD_NODE(ctx, queue_list, OID_AUTO,
@@ -256,8 +260,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		    "refil_partial", CTLFLAG_RD,
 		    &rx_stats->refil_partial, "Partial refilled mbufs");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
-		    "bad_csum", CTLFLAG_RD,
-		    &rx_stats->bad_csum, "Bad RX checksum");
+		    "csum_bad", CTLFLAG_RD,
+		    &rx_stats->csum_bad, "Bad RX checksum");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "mbuf_alloc_fail", CTLFLAG_RD,
 		    &rx_stats->mbuf_alloc_fail, "Failed mbuf allocs");
@@ -276,6 +280,9 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "empty_rx_ring", CTLFLAG_RD,
 		    &rx_stats->empty_rx_ring, "RX descriptors depletion count");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "csum_good", CTLFLAG_RD,
+		    &rx_stats->csum_good, "Valid RX checksum calculations");
 	}
 
 	/* Stats read from device */
