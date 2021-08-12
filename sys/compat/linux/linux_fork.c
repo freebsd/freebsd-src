@@ -151,6 +151,8 @@ linux_clone_proc(struct thread *td, struct l_clone_args *args)
 		ff |= RFMEM;
 	if (args->flags & LINUX_CLONE_SIGHAND)
 		ff |= RFSIGSHARE;
+	if ((args->flags & LINUX_CLONE_CLEAR_SIGHAND) != 0)
+		f2 |= FR2_DROPSIG_CAUGHT;
 	if (args->flags & LINUX_CLONE_FILES) {
 		if (!(args->flags & LINUX_CLONE_FS))
 			f2 |= FR2_SHARE_PATHS;
