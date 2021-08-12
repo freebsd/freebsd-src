@@ -848,6 +848,7 @@ void
 final_cpl_received(struct toepcb *toep)
 {
 	struct inpcb *inp = toep->inp;
+	bool need_wakeup;
 
 	KASSERT(inp != NULL, ("%s: inp is NULL", __func__));
 	INP_WLOCK_ASSERT(inp);
@@ -862,7 +863,8 @@ final_cpl_received(struct toepcb *toep)
 	else if (ulp_mode(toep) == ULP_MODE_TLS)
 		tls_detach(toep);
 	toep->inp = NULL;
-	toep->flags &= ~TPF_CPL_PENDING;
+	need_wakeup = (toep->flags & TPF_WAITING_FOR_FINAL) != 0;
+	toep->flags &= ~(TPF_CPL_PENDING | TPF_WAITING_FOR_FINAL);
 	mbufq_drain(&toep->ulp_pduq);
 	mbufq_drain(&toep->ulp_pdu_reclaimq);
 
@@ -871,6 +873,14 @@ final_cpl_received(struct toepcb *toep)
 
 	if (!in_pcbrele_wlocked(inp))
 		INP_WUNLOCK(inp);
+
+	if (need_wakeup) {
+		struct mtx *lock = mtx_pool_find(mtxpool_sleep, toep);
+
+		mtx_lock(lock);
+		wakeup(toep);
+		mtx_unlock(lock);
+	}
 }
 
 void
