@@ -2,6 +2,11 @@
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
+ * Copyright (c) 2021 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Ka Ho Ng
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -171,6 +176,126 @@ verify_object(const char *path, char expected_value)
 	ATF_REQUIRE_MSG(munmap(page, pagesize) == 0, "munmap failed; errno=%d",
 	    errno);
 	close(fd);
+}
+
+static off_t shm_max_pages = 32;
+static const char byte_to_fill = 0x5f;
+
+static int
+shm_fill(int fd, off_t offset, off_t len)
+{
+	int error;
+	size_t blen;
+	char *buf;
+	error = 0;
+	buf = malloc(PAGE_SIZE);
+	if (buf == NULL)
+		return (1);
+
+	while (len > 0) {
+		blen = len < (off_t)PAGE_SIZE ? len : PAGE_SIZE;
+		memset(buf, byte_to_fill, blen);
+		if (pwrite(fd, buf, blen, offset) != (ssize_t)blen) {
+			error = 1;
+			break;
+		}
+		len -= blen;
+		offset += blen;
+	}
+
+	free(buf);
+	return (error);
+}
+
+static int
+check_content_dealloc(int fd, off_t hole_start, off_t hole_len, off_t shm_sz)
+{
+	int error;
+	size_t blen;
+	off_t offset, resid;
+	struct stat statbuf;
+	char *buf, *sblk;
+
+	error = 0;
+	buf = malloc(PAGE_SIZE * 2);
+	if (buf == NULL)
+		return (1);
+	sblk = buf + PAGE_SIZE;
+
+	memset(sblk, 0, PAGE_SIZE);
+
+	if ((uint64_t)hole_start + hole_len > (uint64_t)shm_sz)
+		hole_len = shm_sz - hole_start;
+
+	/*
+	 * Check hole is zeroed.
+	 */
+	offset = hole_start;
+	resid = hole_len;
+	while (resid > 0) {
+		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
+			error = 1;
+			break;
+		}
+		if (memcmp(buf, sblk, blen) != 0) {
+			error = 1;
+			break;
+		}
+		resid -= blen;
+		offset += blen;
+	}
+
+	memset(sblk, byte_to_fill, PAGE_SIZE);
+
+	/*
+	 * Check file region before hole is zeroed.
+	 */
+	offset = 0;
+	resid = hole_start;
+	while (resid > 0) {
+		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
+			error = 1;
+			break;
+		}
+		if (memcmp(buf, sblk, blen) != 0) {
+			error = 1;
+			break;
+		}
+		resid -= blen;
+		offset += blen;
+	}
+
+	/*
+	 * Check file region after hole is zeroed.
+	 */
+	offset = hole_start + hole_len;
+	resid = shm_sz - offset;
+	while (resid > 0) {
+		blen = resid < (off_t)PAGE_SIZE ? resid : PAGE_SIZE;
+		if (pread(fd, buf, blen, offset) != (ssize_t)blen) {
+			error = 1;
+			break;
+		}
+		if (memcmp(buf, sblk, blen) != 0) {
+			error = 1;
+			break;
+		}
+		resid -= blen;
+		offset += blen;
+	}
+
+	/*
+	 * Check file size matches with expected file size.
+	 */
+	if (fstat(fd, &statbuf) == -1)
+		error = -1;
+	if (statbuf.st_size != shm_sz)
+		error = -1;
+
+	free(buf);
+	return (error);
 }
 
 ATF_TC_WITHOUT_HEAD(remap_object);
@@ -958,6 +1083,79 @@ ATF_TC_BODY(fallocate, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(fspacectl);
+ATF_TC_BODY(fspacectl, tc)
+{
+	struct spacectl_range range;
+	off_t offset, length, shm_sz;
+	int fd, error;
+
+	shm_sz = shm_max_pages << PAGE_SHIFT;
+
+	fd = shm_open("/testtest", O_RDWR|O_CREAT, 0666);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; errno:%d", errno);
+	ATF_REQUIRE_MSG((error = posix_fallocate(fd, 0, shm_sz)) == 0,
+	    "posix_fallocate failed; error=%d", error);
+
+	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = PAGE_SIZE;
+	range.r_len = length = ((shm_max_pages - 1) << PAGE_SHIFT) -
+	    range.r_offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Aligned fspacectl failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Aligned fspacectl content checking failed", errno);
+
+	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
+	range.r_len = length = ((shm_max_pages - 1) << PAGE_SHIFT) +
+	    (1 << (PAGE_SHIFT - 1)) - offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Unaligned fspacectl failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Unaligned fspacectl content checking failed", errno);
+
+	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = PAGE_SHIFT;
+	range.r_len = length = OFF_MAX - offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Aligned fspacectl to OFF_MAX failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Aligned fspacectl to OFF_MAX content checking failed", errno);
+
+	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) to OFF_MAX */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
+	range.r_len = length = OFF_MAX - offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Unaligned fspacectl to OFF_MAX failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Unaligned fspacectl to OFF_MAX content checking failed", errno);
+
+	/* Aligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = PAGE_SIZE;
+	range.r_len = length = ((shm_max_pages + 1) << PAGE_SHIFT) - offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Aligned fspacectl past shm_sz failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Aligned fspacectl past shm_sz content checking failed", errno);
+
+	/* Unaligned fspacectl(fd, SPACECTL_DEALLOC, ...) past shm_sz */
+	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
+	range.r_offset = offset = 1 << (PAGE_SHIFT - 1);
+	range.r_len = length = ((shm_max_pages + 1) << PAGE_SHIFT) - offset;
+	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
+	    "Unaligned fspacectl past shm_sz failed; errno=%d", errno);
+	ATF_CHECK_MSG(check_content_dealloc(fd, offset, length, shm_sz) == 0,
+	    "Unaligned fspacectl past shm_sz content checking failed", errno);
+
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 static int
 shm_open_large(int psind, int policy, size_t sz)
 {
@@ -1704,6 +1902,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cloexec);
 	ATF_TP_ADD_TC(tp, mode);
 	ATF_TP_ADD_TC(tp, fallocate);
+	ATF_TP_ADD_TC(tp, fspacectl);
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
