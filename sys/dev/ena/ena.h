@@ -401,8 +401,6 @@ struct ena_adapter {
 	struct resource *msix;
 	int msix_rid;
 
-	struct sx global_lock;
-
 	/* MSI-X */
 	struct msix_entry *msix_entries;
 	int msix_vecs;
@@ -482,16 +480,17 @@ struct ena_adapter {
 #define ENA_RING_MTX_ASSERT(_ring)		\
 	mtx_assert(&(_ring)->ring_mtx, MA_OWNED)
 
-#define ENA_LOCK_INIT(adapter)			\
-	sx_init(&(adapter)->global_lock, "ENA global lock")
-#define ENA_LOCK_DESTROY(adapter)	sx_destroy(&(adapter)->global_lock)
-#define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
-#define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
-#define ENA_LOCK_ASSERT(adapter)		\
-	sx_assert(&(adapter)->global_lock, SA_XLOCKED)
+#define ENA_LOCK_INIT()					\
+	sx_init(&ena_global_lock,	"ENA global lock")
+#define ENA_LOCK_DESTROY()		sx_destroy(&ena_global_lock)
+#define ENA_LOCK_LOCK()			sx_xlock(&ena_global_lock)
+#define ENA_LOCK_UNLOCK()		sx_unlock(&ena_global_lock)
+#define ENA_LOCK_ASSERT()		sx_assert(&ena_global_lock, SA_XLOCKED)
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp_val(val, lo, hi)		clamp_t(__typeof(val), val, lo, hi)
+
+extern struct sx ena_global_lock;
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {

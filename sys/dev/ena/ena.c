@@ -181,6 +181,8 @@ static ena_vendor_info_t ena_vendor_info_array[] = {
     { 0, 0, 0 }
 };
 
+struct sx ena_global_lock;
+
 /*
  * Contains pointers to event handlers, e.g. link state chage.
  */
@@ -1127,8 +1129,6 @@ ena_update_buf_ring_size(struct ena_adapter *adapter,
 	int rc = 0;
 	bool dev_was_up;
 
-	ENA_LOCK_LOCK(adapter);
-
 	old_buf_ring_size = adapter->buf_ring_size;
 	adapter->buf_ring_size = new_buf_ring_size;
 
@@ -1163,8 +1163,6 @@ ena_update_buf_ring_size(struct ena_adapter *adapter,
 		}
 	}
 
-	ENA_LOCK_UNLOCK(adapter);
-
 	return (rc);
 }
 
@@ -1175,8 +1173,6 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 	uint32_t old_tx_size, old_rx_size;
 	int rc = 0;
 	bool dev_was_up;
-
-	ENA_LOCK_LOCK(adapter);
 
 	old_tx_size = adapter->requested_tx_ring_size;
 	old_rx_size = adapter->requested_rx_ring_size;
@@ -1218,8 +1214,6 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 		}
 	}
 
-	ENA_LOCK_UNLOCK(adapter);
-
 	return (rc);
 }
 
@@ -1241,8 +1235,6 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 	uint32_t old_num;
 	int rc = 0;
 	bool dev_was_up;
-
-	ENA_LOCK_LOCK(adapter);
 
 	dev_was_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
 	old_num = adapter->num_io_queues;
@@ -1272,8 +1264,6 @@ ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
 			}
 		}
 	}
-
-	ENA_LOCK_UNLOCK(adapter);
 
 	return (rc);
 }
@@ -2029,7 +2019,7 @@ ena_up(struct ena_adapter *adapter)
 {
 	int rc = 0;
 
-	ENA_LOCK_ASSERT(adapter);
+	ENA_LOCK_ASSERT();
 
 	if (unlikely(device_is_attached(adapter->pdev) == 0)) {
 		ena_log(adapter->pdev, ERR, "device is not attached!\n");
@@ -2148,13 +2138,13 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	struct ena_adapter *adapter = if_getsoftc(ifp);
 	ena_log(adapter->pdev, DBG, "Media status update\n");
 
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter)) {
-		ENA_LOCK_UNLOCK(adapter);
+		ENA_LOCK_UNLOCK();
 		ena_log(adapter->pdev, INFO, "Link is down\n");
 		return;
 	}
@@ -2162,7 +2152,7 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 	ifmr->ifm_active |= IFM_UNKNOWN | IFM_FDX;
 
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 }
 
 static void
@@ -2171,9 +2161,9 @@ ena_init(void *arg)
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter)) {
-		ENA_LOCK_LOCK(adapter);
+		ENA_LOCK_LOCK();
 		ena_up(adapter);
-		ENA_LOCK_UNLOCK(adapter);
+		ENA_LOCK_UNLOCK();
 	}
 }
 
@@ -2195,13 +2185,13 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFMTU:
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
-		ENA_LOCK_LOCK(adapter);
+		ENA_LOCK_LOCK();
 		ena_down(adapter);
 
 		ena_change_mtu(ifp, ifr->ifr_mtu);
 
 		rc = ena_up(adapter);
-		ENA_LOCK_UNLOCK(adapter);
+		ENA_LOCK_UNLOCK();
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2213,15 +2203,15 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 					    "ioctl promisc/allmulti\n");
 				}
 			} else {
-				ENA_LOCK_LOCK(adapter);
+				ENA_LOCK_LOCK();
 				rc = ena_up(adapter);
-				ENA_LOCK_UNLOCK(adapter);
+				ENA_LOCK_UNLOCK();
 			}
 		} else {
 			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
-				ENA_LOCK_LOCK(adapter);
+				ENA_LOCK_LOCK();
 				ena_down(adapter);
-				ENA_LOCK_UNLOCK(adapter);
+				ENA_LOCK_UNLOCK();
 			}
 		}
 		break;
@@ -2246,10 +2236,10 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 
 			if ((reinit != 0) &&
 			    ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)) {
-				ENA_LOCK_LOCK(adapter);
+				ENA_LOCK_LOCK();
 				ena_down(adapter);
 				rc = ena_up(adapter);
-				ENA_LOCK_UNLOCK(adapter);
+				ENA_LOCK_UNLOCK();
 			}
 		}
 
@@ -2404,7 +2394,7 @@ ena_down(struct ena_adapter *adapter)
 {
 	int rc;
 
-	ENA_LOCK_ASSERT(adapter);
+	ENA_LOCK_ASSERT();
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
 		return;
@@ -3400,12 +3390,12 @@ ena_reset_task(void *arg, int pending)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
 		ena_destroy_device(adapter, false);
 		ena_restore_device(adapter);
 	}
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 }
 
 /**
@@ -3433,8 +3423,6 @@ ena_attach(device_t pdev)
 
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
-
-	ENA_LOCK_INIT(adapter);
 
 	/*
 	 * Set up the timer service - driver is responsible for avoiding
@@ -3677,19 +3665,19 @@ ena_detach(device_t pdev)
 	ether_ifdetach(adapter->ifp);
 
 	/* Stop timer service */
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 	callout_drain(&adapter->timer_service);
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 
 	/* Release reset task */
 	while (taskqueue_cancel(adapter->reset_tq, &adapter->reset_task, NULL))
 		taskqueue_drain(adapter->reset_tq, &adapter->reset_task);
 	taskqueue_free(adapter->reset_tq);
 
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 	ena_down(adapter);
 	ena_destroy_device(adapter, true);
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 
 	/* Restore unregistered sysctl queue nodes. */
 	ena_sysctl_update_queue_node_nb(adapter, adapter->num_io_queues,
@@ -3722,8 +3710,6 @@ ena_detach(device_t pdev)
 		ena_com_rss_destroy(ena_dev);
 
 	ena_com_delete_host_info(ena_dev);
-
-	ENA_LOCK_DESTROY(adapter);
 
 	if_free(adapter->ifp);
 
@@ -3789,6 +3775,20 @@ static void ena_notification(void *adapter_data,
 		    aenq_e->aenq_common_desc.syndrome);
 	}
 }
+
+static void
+ena_lock_init(void *arg)
+{
+	ENA_LOCK_INIT();
+}
+SYSINIT(ena_lock_init, SI_SUB_LOCK, SI_ORDER_FIRST, ena_lock_init, NULL);
+
+static void
+ena_lock_uninit(void *arg)
+{
+	ENA_LOCK_DESTROY();
+}
+SYSUNINIT(ena_lock_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, ena_lock_uninit, NULL);
 
 /**
  * This handler will called for unknown event group or unimplemented handlers
