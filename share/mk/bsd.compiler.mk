@@ -239,8 +239,14 @@ ${X_}COMPILER_FEATURES+=	retpoline init-all
 # PR257638 lld fails with BE compressed debug.  Fixed in main but external tool
 # chains will initially not have the fix.  For now limit the feature to LE
 # targets.
+# When compiling bootstrap tools on non-FreeBSD, the various MACHINE variables
+# for the host can be missing or not match FreeBSD's naming (e.g. Linux/amd64
+# reports as MACHINE=x86_64 MACHINE_ARCH=x86_64), causing TARGET_ENDIANNESS to
+# be undefined; be conservative and default to off until we turn this on by
+# default everywhere.
 .include <bsd.endian.mk>
-.if ${TARGET_ENDIANNESS} == "1234"
+.if (${.MAKE.OS} == "FreeBSD" || defined(TARGET_ENDIANNESS)) && \
+    ${TARGET_ENDIANNESS} == "1234"
 ${X_}COMPILER_FEATURES+=	compressed-debug
 .endif
 .endif
