@@ -154,7 +154,8 @@ chrp_attach(platform_t plat)
 			realmaxaddr = MAX(off, realmaxaddr);
 		}
 
-		pmap_mmu_install("mmu_phyp", BUS_PROBE_SPECIFIC);
+		if (!radix_mmu)
+			pmap_mmu_install("mmu_phyp", BUS_PROBE_SPECIFIC);
 		cpu_idle_hook = phyp_cpu_idle;
 
 		/* Set up important VPA fields */
