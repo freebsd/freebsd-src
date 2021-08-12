@@ -2079,6 +2079,10 @@ err_setup_tx:
 			return (rc);
 		}
 
+		ena_log(pdev, INFO,
+		    "Retrying queue creation with sizes TX=%d, RX=%d\n",
+		    new_tx_ring_size, new_rx_ring_size);
+
 		set_io_rings_size(adapter, new_tx_ring_size, new_rx_ring_size);
 	}
 }
