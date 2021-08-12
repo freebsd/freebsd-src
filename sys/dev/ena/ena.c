@@ -3539,15 +3539,11 @@ ena_reset_task(void *arg, int pending)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
-	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-		ena_log(adapter->pdev, WARN,
-		    "device reset scheduled but trigger_reset is off\n");
-		return;
-	}
-
 	ENA_LOCK_LOCK(adapter);
-	ena_destroy_device(adapter, false);
-	ena_restore_device(adapter);
+	if (likely(ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		ena_destroy_device(adapter, false);
+		ena_restore_device(adapter);
+	}
 	ENA_LOCK_UNLOCK(adapter);
 }
 
