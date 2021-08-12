@@ -70,6 +70,8 @@ static int	cd9660_read(struct open_file *f, void *buf, size_t size,
 static off_t	cd9660_seek(struct open_file *f, off_t offset, int where);
 static int	cd9660_stat(struct open_file *f, struct stat *sb);
 static int	cd9660_readdir(struct open_file *f, struct dirent *d);
+static int	cd9660_mount(const char *, const char *, void **);
+static int	cd9660_unmount(const char *, void *);
 static int	dirmatch(struct open_file *f, const char *path,
 		    struct iso_directory_record *dp, int use_rrip, int lenskip);
 static int	rrip_check(struct open_file *f, struct iso_directory_record *dp,
@@ -81,15 +83,27 @@ static ISO_SUSP_HEADER *susp_lookup_record(struct open_file *f,
 		    int lenskip);
 
 struct fs_ops cd9660_fsops = {
-	"cd9660",
-	cd9660_open,
-	cd9660_close,
-	cd9660_read,
-	null_write,
-	cd9660_seek,
-	cd9660_stat,
-	cd9660_readdir
+	.fs_name = "cd9660",
+	.fo_open = cd9660_open,
+	.fo_close = cd9660_close,
+	.fo_read = cd9660_read,
+	.fo_write = null_write,
+	.fo_seek = cd9660_seek,
+	.fo_stat = cd9660_stat,
+	.fo_readdir = cd9660_readdir,
+	.fo_mount = cd9660_mount,
+	.fo_unmount = cd9660_unmount
 };
+
+typedef struct cd9660_mnt {
+	struct devdesc			*cd_dev;
+	int				cd_fd;
+	struct iso_directory_record	cd_rec;
+	STAILQ_ENTRY(cd9660_mnt)	cd_link;
+} cd9660_mnt_t;
+
+typedef STAILQ_HEAD(cd9660_mnt_list, cd9660_mnt) cd9660_mnt_list_t;
+static cd9660_mnt_list_t mnt_list = STAILQ_HEAD_INITIALIZER(mnt_list);
 
 #define	F_ISDIR		0x0001		/* Directory */
 #define	F_ROOTDIR	0x0002		/* Root directory */
@@ -281,26 +295,23 @@ dirmatch(struct open_file *f, const char *path, struct iso_directory_record *dp,
 }
 
 static int
-cd9660_open(const char *path, struct open_file *f)
+cd9660_read_dr(struct open_file *f, struct iso_directory_record *rec)
 {
-	struct file *fp = NULL;
-	void *buf;
 	struct iso_primary_descriptor *vd;
-	size_t read, dsize, off;
-	daddr_t bno, boff;
-	struct iso_directory_record rec;
-	struct iso_directory_record *dp = NULL;
-	int rc, first, use_rrip, lenskip;
-	bool isdir = false;
+	size_t read;
+	daddr_t bno;
+	int rc;
 
-	/* First find the volume descriptor */
-	buf = malloc(MAX(ISO_DEFAULT_BLOCK_SIZE,
+	errno = 0;
+	vd = malloc(MAX(ISO_DEFAULT_BLOCK_SIZE,
 	    sizeof(struct iso_primary_descriptor)));
-	vd = buf;
+	if (vd == NULL)
+		return (errno);
+
 	for (bno = 16;; bno++) {
 		twiddle(1);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
-					ISO_DEFAULT_BLOCK_SIZE, buf, &read);
+		    ISO_DEFAULT_BLOCK_SIZE, (char *)vd, &read);
 		if (rc)
 			goto out;
 		if (read != ISO_DEFAULT_BLOCK_SIZE) {
@@ -308,18 +319,61 @@ cd9660_open(const char *path, struct open_file *f)
 			goto out;
 		}
 		rc = EINVAL;
-		if (bcmp(vd->id, ISO_STANDARD_ID, sizeof vd->id) != 0)
+		if (bcmp(vd->id, ISO_STANDARD_ID, sizeof(vd->id)) != 0)
 			goto out;
 		if (isonum_711(vd->type) == ISO_VD_END)
 			goto out;
 		if (isonum_711(vd->type) == ISO_VD_PRIMARY)
 			break;
 	}
-	if (isonum_723(vd->logical_block_size) != ISO_DEFAULT_BLOCK_SIZE)
+	if (isonum_723(vd->logical_block_size) == ISO_DEFAULT_BLOCK_SIZE) {
+		bcopy(vd->root_directory_record, rec, sizeof(*rec));
+		rc = 0;
+	}
+out:
+	free(vd);
+	return (rc);
+}
+
+static int
+cd9660_open(const char *path, struct open_file *f)
+{
+	struct file *fp = NULL;
+	void *buf;
+	size_t read, dsize, off;
+	daddr_t bno, boff;
+	struct iso_directory_record rec;
+	struct iso_directory_record *dp = NULL;
+	int rc, first, use_rrip, lenskip;
+	bool isdir = false;
+	struct devdesc *dev;
+	cd9660_mnt_t *mnt;
+
+	/* First find the volume descriptor */
+	errno = 0;
+	buf = malloc(MAX(ISO_DEFAULT_BLOCK_SIZE,
+	    sizeof(struct iso_primary_descriptor)));
+	if (buf == NULL)
+		return (errno);
+
+	dev = f->f_devdata;
+	STAILQ_FOREACH(mnt, &mnt_list, cd_link) {
+		if (dev->d_dev->dv_type == mnt->cd_dev->d_dev->dv_type &&
+		    dev->d_unit == mnt->cd_dev->d_unit)
+			break;
+	}
+
+	rc = 0;
+	if (mnt == NULL)
+		rc = cd9660_read_dr(f, &rec);
+	else
+		rec = mnt->cd_rec;
+
+	if (rc != 0)
 		goto out;
 
-	bcopy(vd->root_directory_record, &rec, sizeof(rec));
-	if (*path == '/') path++; /* eat leading '/' */
+	if (*path == '/')
+		path++; /* eat leading '/' */
 
 	first = 1;
 	use_rrip = 0;
@@ -620,4 +674,58 @@ cd9660_stat(struct open_file *f, struct stat *sb)
 	sb->st_uid = sb->st_gid = 0;
 	sb->st_size = fp->f_size;
 	return 0;
+}
+
+static int
+cd9660_mount(const char *dev, const char *path, void **data)
+{
+	cd9660_mnt_t *mnt;
+	struct open_file *f;
+	char *fs;
+
+	errno = 0;
+	mnt = calloc(1, sizeof(*mnt));
+	if (mnt == NULL)
+		return (errno);
+	mnt->cd_fd = -1;
+
+	if (asprintf(&fs, "%s%s", dev, path) < 0)
+		goto done;
+
+	mnt->cd_fd = open(fs, O_RDONLY);
+	free(fs);
+	if (mnt->cd_fd == -1)
+		goto done;
+
+	f = fd2open_file(mnt->cd_fd);
+	/* Is it cd9660 file system? */
+	if (strcmp(f->f_ops->fs_name, "cd9660") == 0) {
+		mnt->cd_dev = f->f_devdata;
+		errno = cd9660_read_dr(f, &mnt->cd_rec);
+		STAILQ_INSERT_TAIL(&mnt_list, mnt, cd_link);
+	} else {
+		errno = ENXIO;
+	}
+
+done:
+	if (errno != 0) {
+		free(mnt->cd_dev);
+		if (mnt->cd_fd >= 0)
+			close(mnt->cd_fd);
+		free(mnt);
+	} else {
+		*data = mnt;
+	}
+	return (errno);
+}
+
+static int
+cd9660_unmount(const char *dev __unused, void *data)
+{
+	cd9660_mnt_t *mnt = data;
+
+	STAILQ_REMOVE(&mnt_list, mnt, cd9660_mnt, cd_link);
+	close(mnt->cd_fd);
+	free(mnt);
+	return (0);
 }

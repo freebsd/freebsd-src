@@ -45,7 +45,6 @@ ssize_t kboot_copyout(vm_offset_t src, void *dest, const size_t len);
 ssize_t kboot_readin(readin_handle_t fd, vm_offset_t dest, const size_t len);
 int kboot_autoload(void);
 uint64_t kboot_loadaddr(u_int type, void *data, uint64_t addr);
-int kboot_setcurrdev(struct env_var *ev, int flags, const void *value);
 static void kboot_kseg_get(int *nseg, void **ptr);
 
 extern int command_fdt_internal(int argc, char *argv[]);

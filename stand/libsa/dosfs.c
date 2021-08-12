@@ -38,9 +38,19 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 
 #include "stand.h"
+#include "disk.h"
 
 #include "dosfs.h"
 
+typedef struct dos_mnt {
+	char			*dos_dev;
+	DOS_FS			*dos_fs;
+	int			dos_fd;
+	STAILQ_ENTRY(dos_mnt)	dos_link;
+} dos_mnt_t;
+
+typedef STAILQ_HEAD(dos_mnt_list, dos_mnt) dos_mnt_list_t;
+static dos_mnt_list_t mnt_list = STAILQ_HEAD_INITIALIZER(mnt_list);
 
 static int	dos_open(const char *path, struct open_file *fd);
 static int	dos_close(struct open_file *fd);
@@ -48,16 +58,20 @@ static int	dos_read(struct open_file *fd, void *buf, size_t size, size_t *resid)
 static off_t	dos_seek(struct open_file *fd, off_t offset, int whence);
 static int	dos_stat(struct open_file *fd, struct stat *sb);
 static int	dos_readdir(struct open_file *fd, struct dirent *d);
+static int	dos_mount(const char *dev, const char *path, void **data);
+static int	dos_unmount(const char *dev, void *data);
 
 struct fs_ops dosfs_fsops = {
-	"dosfs",
-	dos_open,
-	dos_close,
-	dos_read,
-	null_write,
-	dos_seek,
-	dos_stat,
-	dos_readdir
+	.fs_name = "dosfs",
+	.fo_open = dos_open,
+	.fo_close = dos_close,
+	.fo_read = dos_read,
+	.fo_write = null_write,
+	.fo_seek = dos_seek,
+	.fo_stat = dos_stat,
+	.fo_readdir = dos_readdir,
+	.fo_mount = dos_mount,
+	.fo_unmount = dos_unmount
 };
 
 #define SECSIZ  512             /* sector size */
@@ -179,12 +193,11 @@ dos_read_fatblk(DOS_FS *fs, struct open_file *fd, u_int blknum)
  * Mount DOS filesystem
  */
 static int
-dos_mount(DOS_FS *fs, struct open_file *fd)
+dos_mount_impl(DOS_FS *fs, struct open_file *fd)
 {
 	int err;
 	u_char *buf;
 
-	bzero(fs, sizeof(DOS_FS));
 	fs->fd = fd;
 
 	if ((buf = malloc(secbyt(1))) == NULL)
@@ -215,11 +228,70 @@ dos_mount(DOS_FS *fs, struct open_file *fd)
 	return (0);
 }
 
+static int
+dos_mount(const char *dev, const char *path, void **data)
+{
+	char *fs;
+	dos_mnt_t *mnt;
+	struct open_file *f;
+	DOS_FILE *df;
+
+	errno = 0;
+	mnt = calloc(1, sizeof(*mnt));
+	if (mnt == NULL)
+		return (errno);
+	mnt->dos_fd = -1;
+	mnt->dos_dev = strdup(dev);
+	if (mnt->dos_dev == NULL)
+		goto done;
+
+	if (asprintf(&fs, "%s%s", dev, path) < 0)
+		goto done;
+
+	mnt->dos_fd = open(fs, O_RDONLY);
+	free(fs);
+	if (mnt->dos_fd == -1)
+		goto done;
+
+	f = fd2open_file(mnt->dos_fd);
+	if (strcmp(f->f_ops->fs_name, "dosfs") == 0) {
+		df = f->f_fsdata;
+		mnt->dos_fs = df->fs;
+		STAILQ_INSERT_TAIL(&mnt_list, mnt, dos_link);
+	} else {
+                errno = ENXIO;
+	}
+
+done:
+	if (errno != 0) {
+		free(mnt->dos_dev);
+		if (mnt->dos_fd >= 0)
+			close(mnt->dos_fd);
+		free(mnt);
+	} else {
+		*data = mnt;
+	}
+
+	return (errno);
+}
+
+static int
+dos_unmount(const char *dev __unused, void *data)
+{
+	dos_mnt_t *mnt = data;
+
+	STAILQ_REMOVE(&mnt_list, mnt, dos_mnt, dos_link);
+	free(mnt->dos_dev);
+	close(mnt->dos_fd);
+	free(mnt);
+	return (0);
+}
+
 /*
  * Unmount mounted filesystem
  */
 static int
-dos_unmount(DOS_FS *fs)
+dos_unmount_impl(DOS_FS *fs)
 {
 	if (fs->links)
 		return (EBUSY);
@@ -237,19 +309,32 @@ dos_open(const char *path, struct open_file *fd)
 	DOS_DE *de;
 	DOS_FILE *f;
 	DOS_FS *fs;
+	dos_mnt_t *mnt;
+	const char *dev;
 	u_int size, clus;
 	int err;
 
-	/* Allocate mount structure, associate with open */
-	if ((fs = malloc(sizeof(DOS_FS))) == NULL)
-		return (errno);
-	if ((err = dos_mount(fs, fd))) {
-		free(fs);
-		return (err);
+	dev = disk_fmtdev(fd->f_devdata);
+	STAILQ_FOREACH(mnt, &mnt_list, dos_link) {
+		if (strcmp(dev, mnt->dos_dev) == 0)
+			break;
+	}
+
+	if (mnt == NULL) {
+		/* Allocate mount structure, associate with open */
+		if ((fs = malloc(sizeof(DOS_FS))) == NULL)
+			return (errno);
+		if ((err = dos_mount_impl(fs, fd))) {
+			free(fs);
+			return (err);
+		}
+	} else {
+		fs = mnt->dos_fs;
 	}
 
 	if ((err = namede(fs, path, &de))) {
-		dos_unmount(fs);
+		if (mnt == NULL)
+			dos_unmount_impl(fs);
 		return (err);
 	}
 
@@ -259,19 +344,20 @@ dos_open(const char *path, struct open_file *fd)
 	if ((!(de->attr & FA_DIR) && (!clus != !size)) ||
 	    ((de->attr & FA_DIR) && size) ||
 	    (clus && !okclus(fs, clus))) {
-		dos_unmount(fs);
+		if (mnt == NULL)
+			dos_unmount_impl(fs);
 		return (EINVAL);
 	}
-	if ((f = malloc(sizeof(DOS_FILE))) == NULL) {
+	if ((f = calloc(1, sizeof(DOS_FILE))) == NULL) {
 		err = errno;
-		dos_unmount(fs);
+		if (mnt == NULL)
+			dos_unmount_impl(fs);
 		return (err);
 	}
-	bzero(f, sizeof(DOS_FILE));
 	f->fs = fs;
 	fs->links++;
 	f->de = *de;
-	fd->f_fsdata = (void *)f;
+	fd->f_fsdata = f;
 	return (0);
 }
 
@@ -381,7 +467,7 @@ dos_close(struct open_file *fd)
 
 	f->fs->links--;
 	free(f);
-	dos_unmount(fs);
+	dos_unmount_impl(fs);
 	return (0);
 }
 

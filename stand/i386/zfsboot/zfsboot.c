@@ -207,6 +207,10 @@ main(void)
 	snprintf(boot_devname, sizeof (boot_devname), "disk%d:",
 	    bd_bios2unit(bootinfo.bi_bios_dev));
 
+	/* Set up currdev variable to have hooks in place. */
+	env_setenv("currdev", EV_VOLATILE, "", i386_setcurrdev,
+	    env_nounset);
+
 	for (i = 0; devsw[i] != NULL; i++)
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
