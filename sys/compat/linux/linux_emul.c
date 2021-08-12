@@ -139,7 +139,7 @@ linux_set_default_stacksize(struct thread *td, struct proc *p)
 }
 
 void
-linux_proc_init(struct thread *td, struct thread *newtd, int flags)
+linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 {
 	struct linux_emuldata *em;
 	struct linux_pemuldata *pem;
@@ -150,7 +150,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 
 		/* non-exec call */
 		em = malloc(sizeof(*em), M_TEMP, M_WAITOK | M_ZERO);
-		if (flags & LINUX_CLONE_THREAD) {
+		if (init_thread) {
 			LINUX_CTR1(proc_init, "thread newtd(%d)",
 			    newtd->td_tid);
 
@@ -312,12 +312,12 @@ linux_on_exec(struct proc *p, struct image_params *imgp)
 		 * before exec.  Update emuldata to reflect
 		 * single-threaded cleaned state after exec.
 		 */
-		linux_proc_init(td, NULL, 0);
+		linux_proc_init(td, NULL, false);
 	} else {
 		/*
 		 * We are switching the process to Linux emulator.
 		 */
-		linux_proc_init(td, td, 0);
+		linux_proc_init(td, td, false);
 
 		/*
 		 * Create a transient td_emuldata for all suspended
@@ -328,7 +328,7 @@ linux_on_exec(struct proc *p, struct image_params *imgp)
 		FOREACH_THREAD_IN_PROC(td->td_proc, othertd) {
 			if (othertd == td)
 				continue;
-			linux_proc_init(td, othertd, LINUX_CLONE_THREAD);
+			linux_proc_init(td, othertd, true);
 		}
 	}
 #if defined(__amd64__)

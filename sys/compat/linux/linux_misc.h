@@ -98,31 +98,6 @@
 #define	__LINUX_NPXCW__		0x37f
 #endif
 
-#define	LINUX_CLONE_VM			0x00000100
-#define	LINUX_CLONE_FS			0x00000200
-#define	LINUX_CLONE_FILES		0x00000400
-#define	LINUX_CLONE_SIGHAND		0x00000800
-#define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
-#define	LINUX_CLONE_PTRACE		0x00002000
-#define	LINUX_CLONE_VFORK		0x00004000
-#define	LINUX_CLONE_PARENT		0x00008000
-#define	LINUX_CLONE_THREAD		0x00010000
-#define	LINUX_CLONE_NEWNS		0x00020000	/* New mount NS */
-#define	LINUX_CLONE_SYSVSEM		0x00040000
-#define	LINUX_CLONE_SETTLS		0x00080000
-#define	LINUX_CLONE_PARENT_SETTID	0x00100000
-#define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
-#define	LINUX_CLONE_DETACHED		0x00400000	/* Unused */
-#define	LINUX_CLONE_UNTRACED		0x00800000
-#define	LINUX_CLONE_CHILD_SETTID	0x01000000
-#define	LINUX_CLONE_NEWCGROUP		0x02000000	/* New cgroup NS */
-#define	LINUX_CLONE_NEWUTS		0x04000000
-#define	LINUX_CLONE_NEWIPC		0x08000000
-#define	LINUX_CLONE_NEWUSER		0x10000000
-#define	LINUX_CLONE_NEWPID		0x20000000
-#define	LINUX_CLONE_NEWNET		0x40000000
-#define	LINUX_CLONE_IO			0x80000000
-
 /* Scheduling policies */
 #define	LINUX_SCHED_OTHER	0
 #define	LINUX_SCHED_FIFO	1
@@ -180,8 +155,6 @@ extern int stclohz;
 int linux_ptrace_status(struct thread *td, int pid, int status);
 #endif
 void linux_to_bsd_waitopts(int options, int *bsdopts);
-int linux_set_upcall(struct thread *td, register_t stack);
-int linux_set_cloned_tls(struct thread *td, void *desc);
 struct thread	*linux_tdfind(struct thread *, lwpid_t, pid_t);
 
 #endif	/* _LINUX_MISC_H_ */
