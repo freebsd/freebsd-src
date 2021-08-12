@@ -76,6 +76,7 @@ enum {
 	TPF_INITIALIZED    = (1 << 12), /* init_toepcb has been called */
 	TPF_TLS_RECEIVE	   = (1 << 13), /* should receive TLS records */
 	TPF_TLS_ESTABLISHED = (1 << 14), /* TLS handshake timer initialized */
+	TPF_WAITING_FOR_FINAL = (1<< 15), /* waiting for wakeup on final CPL */
 };
 
 enum {
