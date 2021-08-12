@@ -334,7 +334,7 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 			err(1, "genkey pipe write");
 		bytes = write(filedes[1], kdap->kda_encryptedkey,
 		    kdap->kda_encryptedkeysize);
-		if (bytes != kdap->kda_encryptedkeysize)
+		if (bytes != (ssize_t)kdap->kda_encryptedkeysize)
 			err(1, "genkey pipe write kda_encryptedkey");
 		_exit(0);
 	}
@@ -351,7 +351,7 @@ genkey(const char *pubkeyfile, struct diocskerneldump_arg *kdap)
 		err(1, "Unable to allocate encrypted key");
 	bytes = read(filedes[0], kdap->kda_encryptedkey,
 	    kdap->kda_encryptedkeysize);
-	if (bytes != kdap->kda_encryptedkeysize)
+	if (bytes != (ssize_t)kdap->kda_encryptedkeysize)
 		errx(1, "genkey pipe read kda_encryptedkey");
 	error = waitpid(pid, &status, WEXITED);
 	if (error == -1)
