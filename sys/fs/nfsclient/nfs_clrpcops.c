@@ -1382,15 +1382,20 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 int
 nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *dnap, struct nfsvattr *nap,
-    struct nfsfh **nfhpp, int *attrflagp, int *dattrflagp, void *stuff)
+    struct nfsfh **nfhpp, int *attrflagp, int *dattrflagp, void *stuff,
+    uint32_t openmode)
 {
-	u_int32_t *tl;
+	uint32_t deleg, rflags, *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nfsmount *nmp;
 	struct nfsnode *np;
 	struct nfsfh *nfhp;
 	nfsattrbit_t attrbits;
-	int error = 0, lookupp = 0;
+	int error = 0, lookupp = 0, newone, ret, retop;
+	uint8_t own[NFSV4CL_LOCKNAMELEN];
+	struct nfsclopen *op;
+	struct nfscldeleg *ndp;
+	nfsv4stateid_t stateid;
 
 	*attrflagp = 0;
 	*dattrflagp = 0;
@@ -1415,7 +1420,11 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 	if (NFSHASNFSV4(nmp) && len == 2 &&
 		name[0] == '.' && name[1] == '.') {
 		lookupp = 1;
+		openmode = 0;
 		NFSCL_REQSTART(nd, NFSPROC_LOOKUPP, dvp);
+	} else if (openmode != 0) {
+		NFSCL_REQSTART(nd, NFSPROC_LOOKUPOPEN, dvp);
+		nfsm_strtom(nd, name, len);
 	} else {
 		NFSCL_REQSTART(nd, NFSPROC_LOOKUP, dvp);
 		(void) nfsm_strtom(nd, name, len);
@@ -1426,10 +1435,36 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		*tl++ = txdr_unsigned(NFSV4OP_GETFH);
 		*tl = txdr_unsigned(NFSV4OP_GETATTR);
 		(void) nfsrv_putattrbit(nd, &attrbits);
+		if (openmode != 0) {
+			/* Test for a VREG file. */
+			NFSZERO_ATTRBIT(&attrbits);
+			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TYPE);
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4OP_VERIFY);
+			nfsrv_putattrbit(nd, &attrbits);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(NFSX_UNSIGNED);
+			*tl = vtonfsv34_type(VREG);
+
+			/* Attempt the Open for VREG. */
+			nfscl_filllockowner(NULL, own, F_POSIX);
+			NFSM_BUILD(tl, uint32_t *, 6 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(NFSV4OP_OPEN);
+			*tl++ = 0;		/* seqid, ignored. */
+			*tl++ = txdr_unsigned(openmode);
+			*tl++ = txdr_unsigned(NFSV4OPEN_DENYNONE);
+			*tl++ = 0;		/* ClientID, ignored. */
+			*tl = 0;
+			nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN);
+			NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(NFSV4OPEN_NOCREATE);
+			*tl = txdr_unsigned(NFSV4OPEN_CLAIMFH);
+		}
 	}
 	error = nfscl_request(nd, dvp, p, cred, stuff);
 	if (error)
 		return (error);
+	ndp = NULL;
 	if (nd->nd_repstat) {
 		/*
 		 * When an NFSv4 Lookupp returns ENOENT, it means that
@@ -1453,6 +1488,33 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 			error = nfsm_loadattr(nd, dnap);
 			if (error == 0)
 				*dattrflagp = 1;
+			else
+				goto nfsmout;
+		}
+		/* Check Lookup operation reply status. */
+		if (openmode != 0 && (nd->nd_flag & ND_NOMOREDATA) == 0) {
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			if (*++tl != 0)
+				goto nfsmout;
+		}
+		/* Look for GetFH reply. */
+		if (openmode != 0 && (nd->nd_flag & ND_NOMOREDATA) == 0) {
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			if (*++tl != 0)
+				goto nfsmout;
+			error = nfsm_getfh(nd, nfhpp);
+			if (error)
+				goto nfsmout;
+		}
+		/* Look for Getattr reply. */
+		if (openmode != 0 && (nd->nd_flag & ND_NOMOREDATA) == 0) {
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			if (*++tl != 0)
+				goto nfsmout;
+			error = nfscl_postop_attr(nd, nap, attrflagp, stuff);
+			if (error == 0)
+				/* Successfully got Lookup done. */
+				nd->nd_repstat = 0;
 		}
 		goto nfsmout;
 	}
@@ -1470,12 +1532,84 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 		goto nfsmout;
 
 	error = nfscl_postop_attr(nd, nap, attrflagp, stuff);
+	if (openmode != 0 && error == 0) {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID +
+		    10 * NFSX_UNSIGNED);
+		tl += 4;	/* Skip over Verify+Open status. */
+		stateid.seqid = *tl++;
+		stateid.other[0] = *tl++;
+		stateid.other[1] = *tl++;
+		stateid.other[2] = *tl;
+		rflags = fxdr_unsigned(uint32_t, *(tl + 6));
+		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
+		if (error != 0)
+			goto nfsmout;
+		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+		deleg = fxdr_unsigned(uint32_t, *tl);
+		if (deleg == NFSV4OPEN_DELEGATEREAD ||
+		    deleg == NFSV4OPEN_DELEGATEWRITE) {
+			/*
+			 * Just need to fill in the fields used by
+			 * nfscl_trydelegreturn().
+			 * Mark the mount point as acquiring
+			 * delegations, so NFSPROC_LOOKUPOPEN will
+			 * no longer be done.
+			 */
+			NFSLOCKMNT(nmp);
+			nmp->nm_privflag |= NFSMNTP_DELEGISSUED;
+			NFSUNLOCKMNT(nmp);
+			ndp = malloc(sizeof(struct nfscldeleg) +
+			    (*nfhpp)->nfh_len, M_NFSCLDELEG, M_WAITOK);
+			ndp->nfsdl_fhlen = (*nfhpp)->nfh_len;
+			NFSBCOPY((*nfhpp)->nfh_fh, ndp->nfsdl_fh,
+			    ndp->nfsdl_fhlen);
+			newnfs_copyincred(cred, &ndp->nfsdl_cred);
+			NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID);
+			ndp->nfsdl_stateid.seqid = *tl++;
+			ndp->nfsdl_stateid.other[0] = *tl++;
+			ndp->nfsdl_stateid.other[1] = *tl++;
+			ndp->nfsdl_stateid.other[2] = *tl++;
+		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		}
+		ret = nfscl_open(dvp, (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len,
+		    openmode, 0, cred, p, NULL, &op, &newone, &retop, 1);
+		if (ret != 0)
+			goto nfsmout;
+		if (newone != 0) {
+			op->nfso_stateid.seqid = stateid.seqid;
+			op->nfso_stateid.other[0] = stateid.other[0];
+			op->nfso_stateid.other[1] = stateid.other[1];
+			op->nfso_stateid.other[2] = stateid.other[2];
+			op->nfso_mode = openmode;
+		} else {
+			op->nfso_stateid.seqid = stateid.seqid;
+			if (retop == NFSCLOPEN_DOOPEN)
+				op->nfso_mode |= openmode;
+		}
+		if ((rflags & NFSV4OPEN_LOCKTYPEPOSIX) != 0 ||
+		    nfscl_assumeposixlocks)
+			op->nfso_posixlock = 1;
+		else
+			op->nfso_posixlock = 0;
+		nfscl_openrelease(nmp, op, 0, 0);
+		if (ndp != NULL) {
+			/*
+			 * Since we do not have the vnode, we
+			 * cannot invalidate cached attributes.
+			 * Just return the delegation.
+			 */
+			nfscl_trydelegreturn(ndp, cred, nmp, p);
+		}
+	}
 	if ((nd->nd_flag & ND_NFSV3) && !error)
 		error = nfscl_postop_attr(nd, dnap, dattrflagp, stuff);
 nfsmout:
 	m_freem(nd->nd_mrep);
 	if (!error && nd->nd_repstat)
 		error = nd->nd_repstat;
+	free(ndp, M_NFSCLDELEG);
 	return (error);
 }
 

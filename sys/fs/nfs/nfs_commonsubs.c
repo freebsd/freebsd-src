@@ -179,7 +179,7 @@ struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 0 },		/* Allocate */
 	{ 2, 1, 1, 0, LK_SHARED, 1, 0 },		/* Copy */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Copy Notify */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Deallocate */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1, 0 },		/* Deallocate */
 	{ 0, 1, 0, 0, LK_SHARED, 1, 0 },		/* IO Advise */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Error */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* Layout Stats */
@@ -219,7 +219,7 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
 static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 0, 0, 1, 0 };
+    1, 0, 0, 1, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -303,6 +303,8 @@ static struct {
 	{ NFSV4OP_REMOVEXATTR, 2, "Rmxattr", 7, },
 	{ NFSV4OP_LISTXATTRS, 2, "Listxattr", 9, },
 	{ NFSV4OP_BINDCONNTOSESS, 1, "BindConSess", 11, },
+	{ NFSV4OP_LOOKUP, 5, "LookupOpen", 10, },
+	{ NFSV4OP_DEALLOCATE, 2, "Deallocate", 10, },
 };
 
 /*
@@ -311,7 +313,7 @@ static struct {
 static int nfs_bigrequest[NFSV42_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
 };
 
 /*
@@ -434,7 +436,8 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 				 * attributes, so we can load the name cache.
 				 */
 				if (procnum == NFSPROC_LOOKUP ||
-				    procnum == NFSPROC_LOOKUPP)
+				    procnum == NFSPROC_LOOKUPP ||
+				    procnum == NFSPROC_LOOKUPOPEN)
 					NFSGETATTR_ATTRBIT(&attrbits);
 				else {
 					NFSWCCATTR_ATTRBIT(&attrbits);

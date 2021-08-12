@@ -162,8 +162,6 @@ static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
     vnode_t *);
 static void nfscl_freeopenowner(struct nfsclowner *, int);
 static void nfscl_cleandeleg(struct nfscldeleg *);
-static int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
-    struct nfsmount *, NFSPROC_T *);
 static void nfscl_emptylockowner(struct nfscllockowner *,
     struct nfscllockownerfhhead *);
 static void nfscl_mergeflayouts(struct nfsclflayouthead *,
@@ -4463,7 +4461,7 @@ nfscl_trylock(struct nfsmount *nmp, vnode_t vp, u_int8_t *fhp,
  * retrying while NFSERR_DELAY. Also, try system credentials, if the passed in
  * credentials fail.
  */
-static int
+int
 nfscl_trydelegreturn(struct nfscldeleg *dp, struct ucred *cred,
     struct nfsmount *nmp, NFSPROC_T *p)
 {
