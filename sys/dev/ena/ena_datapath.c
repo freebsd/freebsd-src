@@ -1000,6 +1000,8 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 			    tx_ring->que->id);
 		} else {
 			ena_log(pdev, ERR, "failed to prepare tx bufs\n");
+			ena_trigger_reset(adapter,
+			    ENA_REGS_RESET_DRIVER_INVALID_STATE);
 		}
 		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 		goto dma_error;

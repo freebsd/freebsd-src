@@ -444,6 +444,8 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 		} else {
 			ena_log_nm(adapter->pdev, ERR,
 			    "Failed to prepare Tx bufs\n");
+			ena_trigger_reset(adapter,
+			    ENA_REGS_RESET_DRIVER_INVALID_STATE);
 		}
 		counter_u64_add(tx_ring->tx_stats.prepare_ctx_err, 1);
 
