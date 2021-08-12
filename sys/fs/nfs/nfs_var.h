@@ -465,7 +465,7 @@ int nfsrpc_setattr(vnode_t, struct vattr *, NFSACL_T *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_lookup(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, struct nfsvattr *, struct nfsfh **, int *, int *,
-    void *);
+    void *, uint32_t);
 int nfsrpc_readlink(vnode_t, struct uio *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_read(vnode_t, struct uio *, struct ucred *, NFSPROC_T *,
@@ -624,6 +624,8 @@ void nfscl_reclaimnode(vnode_t);
 void nfscl_newnode(vnode_t);
 void nfscl_delegmodtime(vnode_t);
 void nfscl_deleggetmodtime(vnode_t, struct timespec *);
+int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
+    struct nfsmount *, NFSPROC_T *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);

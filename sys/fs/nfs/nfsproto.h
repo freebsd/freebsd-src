@@ -396,10 +396,16 @@
 /* BindConnectionToSession, done by the krpc for a new connection. */
 #define	NFSPROC_BINDCONNTOSESS	65
 
+/* Do a Lookup+Open for "oneopenown". */
+#define	NFSPROC_LOOKUPOPEN	66
+
+/* Do an NFSv4.2 Deallocate. */
+#define	NFSPROC_DEALLOCATE	67
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		66
+#define	NFSV42_NPROCS		68
 
 #endif	/* NFS_V3NPROCS */
 

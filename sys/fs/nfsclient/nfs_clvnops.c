@@ -1164,6 +1164,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct nfsvattr dnfsva, nfsva;
 	struct vattr vattr;
 	struct timespec nctime;
+	uint32_t openmode;
 
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
@@ -1265,11 +1266,30 @@ nfs_lookup(struct vop_lookup_args *ap)
 		cache_purge_negative(dvp);
 	}
 
+	/*
+	 * If this an NFSv4.1/4.2 mount using the "oneopenown" mount
+	 * option, it is possible to do the Open operation in the same
+	 * compound as Lookup, so long as delegations are not being
+	 * issued.  This saves doing a separate RPC for Open.
+	 */
+	openmode = 0;
+	NFSLOCKMNT(nmp);
+	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) &&
+	    (nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0 &&
+	    (!NFSMNT_RDONLY(mp) || (flags & OPENWRITE) == 0) &&
+	    (flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN)) {
+		if ((flags & OPENREAD) != 0)
+			openmode |= NFSV4OPEN_ACCESSREAD;
+		if ((flags & OPENWRITE) != 0)
+			openmode |= NFSV4OPEN_ACCESSWRITE;
+	}
+	NFSUNLOCKMNT(nmp);
+
 	newvp = NULLVP;
 	NFSINCRGLOBAL(nfsstatsv1.lookupcache_misses);
 	error = nfsrpc_lookup(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    cnp->cn_cred, td, &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-	    NULL);
+	    NULL, openmode);
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (error) {
@@ -1577,7 +1597,7 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, cnp->cn_thread,
 			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-			    NULL);
+			    NULL, 0);
 		if (nfhp)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
 			    cnp->cn_thread, &np, NULL, LK_EXCLUSIVE);
@@ -1693,7 +1713,7 @@ again:
 			(void) nfsrpc_lookup(dvp, cnp->cn_nameptr,
 			    cnp->cn_namelen, cnp->cn_cred, cnp->cn_thread,
 			    &dnfsva, &nfsva, &nfhp, &attrflag, &dattrflag,
-			    NULL);
+			    NULL, 0);
 		if (nfhp != NULL)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
 			    cnp->cn_thread, &np, NULL, LK_EXCLUSIVE);
@@ -2611,7 +2631,7 @@ nfs_lookitup(struct vnode *dvp, char *name, int len, struct ucred *cred,
 	u_int hash;
 
 	error = nfsrpc_lookup(dvp, name, len, cred, td, &dnfsva, &nfsva,
-	    &nfhp, &attrflag, &dattrflag, NULL);
+	    &nfhp, &attrflag, &dattrflag, NULL, 0);
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (npp && !error) {
