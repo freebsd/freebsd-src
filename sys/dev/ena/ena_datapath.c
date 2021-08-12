@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_NETMAP
 #include "ena_netmap.h"
 #endif /* DEV_NETMAP */
+#ifdef RSS
+#include <net/rss_config.h>
+#endif /* RSS */
 
 /*********************************************************************
  *  Static functions prototypes
@@ -129,6 +132,9 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	struct ena_ring *tx_ring;
 	int ret, is_drbr_empty;
 	uint32_t i;
+#ifdef RSS
+	uint32_t bucket_id;
+#endif
 
 	if (unlikely((if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING) == 0))
 		return (ENODEV);
@@ -140,7 +146,13 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	 * It should improve performance.
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-		i = m->m_pkthdr.flowid % adapter->num_io_queues;
+#ifdef RSS
+		if (rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+		    &bucket_id) == 0)
+			i = bucket_id % adapter->num_io_queues;
+		else
+#endif
+			i = m->m_pkthdr.flowid % adapter->num_io_queues;
 	} else {
 		i = curcpu % adapter->num_io_queues;
 	}

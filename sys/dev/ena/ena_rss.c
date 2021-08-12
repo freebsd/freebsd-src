@@ -59,6 +59,45 @@ ena_rss_key_fill(void *key, size_t size)
 	memcpy(key, default_key, size);
 }
 
+/*
+ * ENA HW expects the key to be in reverse-byte order.
+ */
+static void
+ena_rss_reorder_hash_key(u8 *reordered_key, const u8 *key, size_t key_size)
+{
+	int i;
+
+	key = key + key_size - 1;
+
+	for (i = 0; i < key_size; ++i)
+		*reordered_key++ = *key--;
+}
+
+int ena_rss_set_hash(struct ena_com_dev *ena_dev, const u8 *key)
+{
+	enum ena_admin_hash_functions ena_func = ENA_ADMIN_TOEPLITZ;
+	u8 hw_key[ENA_HASH_KEY_SIZE];
+
+	ena_rss_reorder_hash_key(hw_key, key, ENA_HASH_KEY_SIZE);
+
+	return (ena_com_fill_hash_function(ena_dev, ena_func, hw_key,
+	    ENA_HASH_KEY_SIZE, 0x0));
+}
+
+int ena_rss_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
+{
+	u8 hw_key[ENA_HASH_KEY_SIZE];
+	int rc;
+
+	rc = ena_com_get_hash_key(ena_dev, hw_key);
+	if (rc != 0)
+		return rc;
+
+	ena_rss_reorder_hash_key(key, hw_key, ENA_HASH_KEY_SIZE);
+
+	return (0);
+}
+
 static int
 ena_rss_init_default(struct ena_adapter *adapter)
 {
@@ -73,7 +112,11 @@ ena_rss_init_default(struct ena_adapter *adapter)
 	}
 
 	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
+#ifdef RSS
+		qid = rss_get_indirection_to_bucket(i) % adapter->num_io_queues;
+#else
 		qid = i % adapter->num_io_queues;
+#endif
 		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
 		    ENA_IO_RXQ_IDX(qid));
 		if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
@@ -89,12 +132,11 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		uint8_t hash_key[RSS_KEYSIZE];
 
 		rss_getkey(hash_key);
-		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
-		    hash_key, RSS_KEYSIZE, 0xFFFFFFFF);
+		rc = ena_rss_set_hash(ena_dev, hash_key);
 	} else
 #endif
-	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
-	    ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
+	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ, NULL,
+	    ENA_HASH_KEY_SIZE, 0x0);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
 		ena_log(dev, ERR, "Cannot fill hash function\n");
 		goto err_rss_destroy;
@@ -106,7 +148,9 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		goto err_rss_destroy;
 	}
 
-	return (0);
+	rc = ena_rss_indir_init(adapter);
+
+	return (rc == EOPNOTSUPP ? 0 : rc);
 
 err_rss_destroy:
 	ena_com_rss_destroy(ena_dev);
@@ -180,3 +224,77 @@ ena_rss_init_default_deferred(void *arg)
 	}
 }
 SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND, ena_rss_init_default_deferred, NULL);
+
+int
+ena_rss_indir_get(struct ena_adapter *adapter, uint32_t *table)
+{
+	int rc, i;
+
+	rc = ena_com_indirect_table_get(adapter->ena_dev, table);
+	if (rc != 0) {
+		if (rc == EOPNOTSUPP)
+			device_printf(adapter->pdev,
+			    "Reading from indirection table not supported\n");
+		else
+			device_printf(adapter->pdev,
+			    "Unable to get indirection table\n");
+		return (rc);
+	}
+
+	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i)
+		table[i] = ENA_IO_RXQ_IDX_TO_COMBINED_IDX(table[i]);
+
+	return (0);
+}
+
+int
+ena_rss_indir_set(struct ena_adapter *adapter, uint32_t *table)
+{
+	int rc, i;
+
+	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; ++i) {
+		rc = ena_com_indirect_table_fill_entry(adapter->ena_dev, i,
+		    ENA_IO_RXQ_IDX(table[i]));
+		if (rc != 0) {
+			device_printf(adapter->pdev,
+			    "Cannot fill indirection table entry %d\n", i);
+			return (rc);
+		}
+	}
+
+	rc = ena_com_indirect_table_set(adapter->ena_dev);
+	if (rc == EOPNOTSUPP)
+		device_printf(adapter->pdev,
+		    "Writing to indirection table not supported\n");
+	else if (rc != 0)
+		device_printf(adapter->pdev,
+		    "Cannot set indirection table\n");
+
+	return (rc);
+}
+
+int
+ena_rss_indir_init(struct ena_adapter *adapter)
+{
+	struct ena_indir *indir = adapter->rss_indir;
+	int rc;
+
+	if (indir == NULL) {
+		adapter->rss_indir = indir = malloc(sizeof(struct ena_indir),
+		    M_DEVBUF, M_WAITOK | M_ZERO);
+		if (indir == NULL)
+			return (ENOMEM);
+	}
+
+	rc = ena_rss_indir_get(adapter, indir->table);
+	if (rc != 0) {
+		free(adapter->rss_indir, M_DEVBUF);
+		adapter->rss_indir = NULL;
+
+		return (rc);
+	}
+
+	ena_rss_copy_indir_buf(indir->sysctl_buf, indir->table);
+
+	return (0);
+}

@@ -269,6 +269,57 @@ command should be used:
 .Bd -literal -offset indent
 sysctl dev.ena.1.eni_metrics.sample_interval=10
 .Ed
+.It Va dev.ena.X.rss.indir_table_size
+RSS indirection table size.
+The default is 128.
+Returns the number of entries in the RSS indirection table.
+.Pp
+Example:
+To read the RSS indirection table size, the following command should be used:
+.Bd -literal -offset indent
+sysctl dev.ena.0.rss.indir_table_size
+.Ed
+.It Va dev.ena.X.rss.indir_table
+RSS indirection table mapping.
+The default is x:y key-pairs of indir_table_size length.
+Updates selected indices of the RSS indirection table.
+.Pp
+The entry string consists of one or more x:y keypairs, where x stands for
+the table index and y for its new value. Table indices that don't need to be
+updated can be omitted from the string and will retain their existing values.
+.Pp
+If an index is entered more than once, the last value is used.
+.Pp
+Example:
+To update two selected indices in the RSS indirection table, e.g. setting index
+0 to queue 5 and then index 5 to queue 0, the following command should be used:
+.Bd -literal -offset indent
+sysctl dev.ena.0.rss.indir_table="0:5 5:0"
+.Ed
+.It Va dev.ena.X.rss.key
+RSS hash key.
+The default is 40 bytes long randomly generated hash key.
+Controls the RSS Toeplitz hash algorithm key value.
+.Pp
+Only available when driver compiled without the kernel side RSS support.
+.Pp
+Example:
+To change the RSS hash key value to
+.Pp
+0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+.br
+0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+.br
+0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+.br
+0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+.br
+0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
+.Pp
+the following command should be used:
+.Bd -literal -offset indent
+sysctl dev.ena.0.rss.key=6d5a56da255b0ec24167253d43a38fb0d0ca2bcbae7b30b477cb2da38030f20c6a42b73bbeac01fa
+.Ed
 .El
 .Sh DIAGNOSTICS
 .Ss Device initialization phase

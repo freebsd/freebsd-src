@@ -601,8 +601,10 @@ static int
 ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 {
 	device_t pdev = adapter->pdev;
+	char thread_name[MAXCOMLEN + 1];
 	struct ena_que *que = &adapter->que[qid];
 	struct ena_ring *tx_ring = que->tx_ring;
+	cpuset_t *cpu_mask = NULL;
 	int size, i, err;
 #ifdef DEV_NETMAP
 	bus_dmamap_t *map;
@@ -686,8 +688,16 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	tx_ring->running = true;
 
-	taskqueue_start_threads(&tx_ring->enqueue_tq, 1, PI_NET,
-	    "%s txeq %d", device_get_nameunit(adapter->pdev), que->cpu);
+#ifdef RSS
+	cpu_mask = &que->cpu_mask;
+	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
+	    device_get_nameunit(adapter->pdev), que->cpu);
+#else
+	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
+	    device_get_nameunit(adapter->pdev), que->id);
+#endif
+	taskqueue_start_threads_cpuset(&tx_ring->enqueue_tq, 1, PI_NET,
+	    cpu_mask, "%s", thread_name);
 
 	return (0);
 
@@ -1423,6 +1433,7 @@ ena_create_io_queues(struct ena_adapter *adapter)
 	struct ena_que *queue;
 	uint16_t ena_qid;
 	uint32_t msix_vector;
+	cpuset_t *cpu_mask = NULL;
 	int rc, i;
 
 	/* Create TX queues */
@@ -1489,7 +1500,11 @@ ena_create_io_queues(struct ena_adapter *adapter)
 		queue->cleanup_tq = taskqueue_create_fast("ena cleanup",
 		    M_WAITOK, taskqueue_thread_enqueue, &queue->cleanup_tq);
 
-		taskqueue_start_threads(&queue->cleanup_tq, 1, PI_NET,
+#ifdef RSS
+		cpu_mask = &queue->cpu_mask;
+#endif
+		taskqueue_start_threads_cpuset(&queue->cleanup_tq, 1, PI_NET,
+		    cpu_mask,
 		    "%s queue %d cleanup",
 		    device_get_nameunit(adapter->pdev), i);
 	}
@@ -1628,7 +1643,10 @@ ena_setup_mgmnt_intr(struct ena_adapter *adapter)
 static int
 ena_setup_io_intr(struct ena_adapter *adapter)
 {
-	static int last_bind_cpu = -1;
+#ifdef RSS
+	int num_buckets = rss_getnumbuckets();
+	static int last_bind = 0;
+#endif
 	int irq_idx;
 
 	if (adapter->msix_entries == NULL)
@@ -1646,15 +1664,12 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		ena_log(adapter->pdev, DBG, "ena_setup_io_intr vector: %d\n",
 		    adapter->msix_entries[irq_idx].vector);
 
-		/*
-		 * We want to bind rings to the corresponding cpu
-		 * using something similar to the RSS round-robin technique.
-		 */
-		if (unlikely(last_bind_cpu < 0))
-			last_bind_cpu = CPU_FIRST();
+#ifdef RSS
 		adapter->que[i].cpu = adapter->irq_tbl[irq_idx].cpu =
-		    last_bind_cpu;
-		last_bind_cpu = CPU_NEXT(last_bind_cpu);
+		    rss_getcpu(last_bind);
+		last_bind = (last_bind + 1) % num_buckets;
+		CPU_SETOF(adapter->que[i].cpu, &adapter->que[i].cpu_mask);
+#endif
 	}
 
 	return (0);
@@ -1746,6 +1761,19 @@ ena_request_io_irq(struct ena_adapter *adapter)
 			goto err;
 		}
 		irq->requested = true;
+
+#ifdef RSS
+		rc = bus_bind_intr(adapter->pdev, irq->res, irq->cpu);
+		if (unlikely(rc != 0)) {
+			ena_log(pdev, ERR, "failed to bind "
+			    "interrupt handler for irq %ju to cpu %d: %d\n",
+			    rman_get_start(irq->res), irq->cpu, rc);
+			goto err;
+		}
+
+		ena_log(pdev, INFO, "queue %d - cpu %d\n",
+		    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
+#endif
 	}
 
 	return (rc);
@@ -2464,6 +2492,10 @@ ena_calc_max_io_queue_num(device_t pdev, struct ena_com_dev *ena_dev,
 	/* 1 IRQ for for mgmnt and 1 IRQ for each TX/RX pair */
 	max_num_io_queues = min_t(uint32_t, max_num_io_queues,
 	    pci_msix_count(pdev) - 1);
+#ifdef RSS
+	max_num_io_queues = min_t(uint32_t, max_num_io_queues,
+	    rss_getnumbuckets());
+#endif
 
 	return (max_num_io_queues);
 }
@@ -2692,7 +2724,8 @@ ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
 		(DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT);
 	host_info->num_cpus = mp_ncpus;
 	host_info->driver_supported_features =
-	    ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK;
+	    ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK |
+	    ENA_ADMIN_HOST_INFO_RSS_CONFIGURABLE_FUNCTION_KEY_MASK;
 
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (unlikely(rc != 0)) {
@@ -3708,6 +3741,9 @@ ena_detach(device_t pdev)
 	ena_free_irqs(adapter);
 
 	ena_free_pci_resources(adapter);
+
+	if (adapter->rss_indir != NULL)
+		free(adapter->rss_indir, M_DEVBUF);
 
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter)))
 		ena_com_rss_destroy(ena_dev);
