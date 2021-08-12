@@ -442,6 +442,12 @@ ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 	uint32_t val;
 	int error;
 
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
 	val = 0;
 	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
@@ -449,13 +455,14 @@ ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_32(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto unlock;
 
 	if (!powerof2(val) || val == 0) {
 		ena_log(adapter->pdev, ERR,
 		    "Requested new Tx buffer ring size (%u) is not a power of 2\n",
 		    val);
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 
 	if (val != adapter->buf_ring_size) {
@@ -470,6 +477,9 @@ ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 		    adapter->buf_ring_size);
 	}
 
+unlock:
+	ENA_LOCK_UNLOCK();
+
 	return (error);
 }
 
@@ -480,6 +490,12 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 	uint32_t val;
 	int error;
 
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
 	val = 0;
 	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
@@ -487,13 +503,14 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		error = sysctl_handle_32(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto unlock;
 
 	if  (val < ENA_MIN_RING_SIZE || val > adapter->max_rx_ring_size) {
 		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is out of range: [%u, %u]\n",
 		    val, ENA_MIN_RING_SIZE, adapter->max_rx_ring_size);
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 
 	/* Check if the parameter is power of 2 */
@@ -501,7 +518,8 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		ena_log(adapter->pdev, ERR,
 		    "Requested new Rx queue size (%u) is not a power of 2\n",
 		    val);
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 
 	if (val != adapter->requested_rx_ring_size) {
@@ -517,6 +535,9 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		    adapter->requested_rx_ring_size);
 	}
 
+unlock:
+	ENA_LOCK_UNLOCK();
+
 	return (error);
 }
 
@@ -530,18 +551,25 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 	uint32_t old_num_queues, tmp = 0;
 	int error;
 
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
 	error = sysctl_wire_old_buffer(req, sizeof(tmp));
 	if (error == 0) {
 		tmp = adapter->num_io_queues;
 		error = sysctl_handle_int(oidp, &tmp, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto unlock;
 
 	if (tmp == 0) {
 		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is zero\n");
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 
 	/*
@@ -555,7 +583,8 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 		ena_log(adapter->pdev, ERR,
 		    "Requested number of IO queues is higher than maximum "
 		    "allowed (%u)\n", adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 	if (tmp == adapter->num_io_queues) {
 		ena_log(adapter->pdev, ERR,
@@ -574,6 +603,9 @@ ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
 		ena_sysctl_update_queue_node_nb(adapter, old_num_queues, tmp);
 	}
 
+unlock:
+	ENA_LOCK_UNLOCK();
+
 	return (error);
 }
 
@@ -584,19 +616,26 @@ ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
 	uint16_t interval;
 	int error;
 
+	ENA_LOCK_LOCK();
+	if (unlikely(!ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter))) {
+		error = EINVAL;
+		goto unlock;
+	}
+
 	error = sysctl_wire_old_buffer(req, sizeof(interval));
 	if (error == 0) {
 		interval = adapter->eni_metrics_sample_interval;
 		error = sysctl_handle_16(oidp, &interval, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto unlock;
 
 	if (interval > ENI_METRICS_MAX_SAMPLE_INTERVAL) {
 		ena_log(adapter->pdev, ERR,
 		    "ENI metrics update interval is out of range - maximum allowed value: %d seconds\n",
 		    ENI_METRICS_MAX_SAMPLE_INTERVAL);
-		return (EINVAL);
+		error = EINVAL;
+		goto unlock;
 	}
 
 	if (interval == 0) {
@@ -610,6 +649,9 @@ ena_sysctl_eni_metrics_interval(SYSCTL_HANDLER_ARGS)
 	}
 
 	adapter->eni_metrics_sample_interval = interval;
+
+unlock:
+	ENA_LOCK_UNLOCK();
 
 	return (0);
 }

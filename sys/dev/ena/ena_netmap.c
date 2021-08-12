@@ -278,7 +278,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 	enum txrx t;
 	int rc, i;
 
-	ENA_LOCK_LOCK(adapter);
+	ENA_LOCK_LOCK();
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	ena_down(adapter);
 
@@ -315,7 +315,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
 		rc = ena_restore_device(adapter);
 	}
-	ENA_LOCK_UNLOCK(adapter);
+	ENA_LOCK_UNLOCK();
 
 	return (rc);
 }
