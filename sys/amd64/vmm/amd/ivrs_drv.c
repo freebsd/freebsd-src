@@ -184,7 +184,7 @@ ivhd_dev_add_entry(struct amdvi_softc *softc, uint32_t start_id,
 {
 	struct ivhd_dev_cfg *dev_cfg;
 
-	KASSERT(softc->dev_cfg_cap <= softc->dev_cfg_cnt,
+	KASSERT(softc->dev_cfg_cap >= softc->dev_cfg_cnt,
 	    ("Impossible case: number of dev_cfg exceeding capacity"));
 	if (softc->dev_cfg_cap == softc->dev_cfg_cnt) {
 		if (softc->dev_cfg_cap == 0)
