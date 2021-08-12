@@ -1646,7 +1646,8 @@ struct linux_pidfd_open_args {
 	register_t dummy;
 };
 struct linux_clone3_args {
-	register_t dummy;
+	char uargs_l_[PADL_(struct l_user_clone_args *)]; struct l_user_clone_args * uargs; char uargs_r_[PADR_(struct l_user_clone_args *)];
+	char usize_l_[PADL_(l_size_t)]; l_size_t usize; char usize_r_[PADR_(l_size_t)];
 };
 struct linux_close_range_args {
 	register_t dummy;
