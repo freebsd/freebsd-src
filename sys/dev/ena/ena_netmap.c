@@ -426,6 +426,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 	ena_tx_ctx.num_bufs = tx_info->num_of_bufs;
 	ena_tx_ctx.req_id = req_id;
 	ena_tx_ctx.header_len = header_len;
+	ena_tx_ctx.meta_valid = adapter->disable_meta_caching;
 
 	/* There are no any offloads, as the netmap doesn't support them */
 
