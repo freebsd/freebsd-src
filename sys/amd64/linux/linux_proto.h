@@ -275,10 +275,10 @@ struct linux_getsockopt_args {
 };
 struct linux_clone_args {
 	char flags_l_[PADL_(l_ulong)]; l_ulong flags; char flags_r_[PADR_(l_ulong)];
-	char stack_l_[PADL_(void *)]; void * stack; char stack_r_[PADR_(void *)];
-	char parent_tidptr_l_[PADL_(void *)]; void * parent_tidptr; char parent_tidptr_r_[PADR_(void *)];
-	char child_tidptr_l_[PADL_(void *)]; void * child_tidptr; char child_tidptr_r_[PADR_(void *)];
-	char tls_l_[PADL_(void *)]; void * tls; char tls_r_[PADR_(void *)];
+	char stack_l_[PADL_(l_ulong)]; l_ulong stack; char stack_r_[PADR_(l_ulong)];
+	char parent_tidptr_l_[PADL_(l_int *)]; l_int * parent_tidptr; char parent_tidptr_r_[PADR_(l_int *)];
+	char child_tidptr_l_[PADL_(l_int *)]; l_int * child_tidptr; char child_tidptr_r_[PADR_(l_int *)];
+	char tls_l_[PADL_(l_ulong)]; l_ulong tls; char tls_r_[PADR_(l_ulong)];
 };
 struct linux_fork_args {
 	register_t dummy;
