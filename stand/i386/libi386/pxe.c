@@ -30,6 +30,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdarg.h>
@@ -432,91 +434,144 @@ pxe_netif_init(struct iodesc *desc, void *machdep_hint)
 }
 
 static int
-pxe_netif_receive(void **pkt)
+pxe_netif_receive_isr(t_PXENV_UNDI_ISR *isr, void **pkt, ssize_t *retsize)
 {
-	t_PXENV_UNDI_ISR *isr;
+	static bool data_pending;
 	char *buf, *ptr, *frame;
 	size_t size, rsize;
 
-	isr = bio_alloc(sizeof(*isr));
-	if (isr == NULL)
-		return (-1);
+	buf = NULL;
+	size = rsize = 0;
 
+	/*
+	 * We can save ourselves the next two pxe calls because we already know
+	 * we weren't done grabbing everything.
+	 */
+	if (data_pending) {
+		data_pending = false;
+		goto nextbuf;
+	}
+
+	/*
+	 * We explicitly don't check for OURS/NOT_OURS as a result of START;
+	 * it's been reported that some cards are known to mishandle these.
+	 */
 	bzero(isr, sizeof(*isr));
 	isr->FuncFlag = PXENV_UNDI_ISR_IN_START;
 	pxe_call(PXENV_UNDI_ISR, isr);
+	/* We could translate Status... */
 	if (isr->Status != 0) {
-		bio_free(isr, sizeof(*isr));
-		return (-1);
+		return (ENXIO);
 	}
 
 	bzero(isr, sizeof(*isr));
 	isr->FuncFlag = PXENV_UNDI_ISR_IN_PROCESS;
 	pxe_call(PXENV_UNDI_ISR, isr);
 	if (isr->Status != 0) {
-		bio_free(isr, sizeof(*isr));
-		return (-1);
+		return (ENXIO);
 	}
-
-	while (isr->FuncFlag == PXENV_UNDI_ISR_OUT_TRANSMIT) {
+	if (isr->FuncFlag == PXENV_UNDI_ISR_OUT_BUSY) {
 		/*
-		 * Wait till transmit is done.
+		 * Let the caller decide if we need to be restarted.  It will
+		 * currently blindly restart us, but it could check timeout in
+		 * the future.
 		 */
-		bzero(isr, sizeof(*isr));
-		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		pxe_call(PXENV_UNDI_ISR, isr);
-		if (isr->Status != 0 ||
-		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE) {
-			bio_free(isr, sizeof(*isr));
-			return (-1);
+		return (ERESTART);
+	}
+
+	/*
+	 * By design, we'll hardly ever hit this terminal condition unless we
+	 * pick up nothing but tx interrupts here.  More frequently, we will
+	 * process rx buffers until we hit the terminal condition in the middle.
+	 */
+	while (isr->FuncFlag != PXENV_UNDI_ISR_OUT_DONE) {
+		/*
+		 * This might have given us PXENV_UNDI_ISR_OUT_TRANSMIT, in
+		 * which case we can just disregard and move on to the next
+		 * buffer/frame.
+		 */
+		if (isr->FuncFlag != PXENV_UNDI_ISR_OUT_RECEIVE)
+			goto nextbuf;
+
+		if (buf == NULL) {
+			/*
+			 * Grab size from the first Frame that we picked up,
+			 * allocate an rx buf to hold.  Careful here, as we may
+			 * see a fragmented frame that's spread out across
+			 * multiple GET_NEXT calls.
+			 */
+			size = isr->FrameLength;
+			buf = malloc(size + ETHER_ALIGN);
+			if (buf == NULL)
+				return (ENOMEM);
+
+			ptr = buf + ETHER_ALIGN;
 		}
-	}
 
-	while (isr->FuncFlag != PXENV_UNDI_ISR_OUT_RECEIVE) {
-		if (isr->Status != 0 ||
-		    isr->FuncFlag == PXENV_UNDI_ISR_OUT_DONE) {
-			bio_free(isr, sizeof(*isr));
-			return (-1);
-		}
-		bzero(isr, sizeof(*isr));
-		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		pxe_call(PXENV_UNDI_ISR, isr);
-	}
-
-	size = isr->FrameLength;
-	buf = malloc(size + ETHER_ALIGN);
-	if (buf == NULL) {
-		bio_free(isr, sizeof(*isr));
-		return (-1);
-	}
-	ptr = buf + ETHER_ALIGN;
-	rsize = 0;
-
-	while (rsize < size) {
 		frame = (char *)((uintptr_t)isr->Frame.segment << 4);
 		frame += isr->Frame.offset;
 		bcopy(PTOV(frame), ptr, isr->BufferLength);
 		ptr += isr->BufferLength;
 		rsize += isr->BufferLength;
 
+		/*
+		 * Stop here before we risk catching the start of another frame.
+		 * It would be nice to continue reading until we actually get a
+		 * PXENV_UNDI_ISR_OUT_DONE, but our network stack in libsa isn't
+		 * suitable for reading more than one packet at a time.
+		 */
+		if (rsize >= size) {
+			data_pending = true;
+			break;
+		}
+
+nextbuf:
 		bzero(isr, sizeof(*isr));
 		isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
 		pxe_call(PXENV_UNDI_ISR, isr);
 		if (isr->Status != 0) {
-			bio_free(isr, sizeof(*isr));
 			free(buf);
-			return (-1);
+			return (ENXIO);
 		}
+	}
 
-		/* Did we got another update? */
-		if (isr->FuncFlag == PXENV_UNDI_ISR_OUT_RECEIVE)
-			continue;
-		break;
+	/*
+	 * We may have never picked up a frame at all (all tx), in which case
+	 * the caller should restart us.
+	 */
+	if (rsize == 0) {
+		return (ERESTART);
 	}
 
 	*pkt = buf;
+	*retsize = rsize;
+	return (0);
+}
+
+static int
+pxe_netif_receive(void **pkt, ssize_t *size)
+{
+	t_PXENV_UNDI_ISR *isr;
+	int ret;
+
+	isr = bio_alloc(sizeof(*isr));
+	if (isr == NULL)
+		return (ENOMEM);
+
+	/*
+	 * This completely ignores the timeout specified in pxe_netif_get(), but
+	 * we shouldn't be running long enough here for that to make a
+	 * difference.
+	 */
+	for (;;) {
+		/* We'll only really re-enter for PXENV_UNDI_ISR_OUT_BUSY. */
+		ret = pxe_netif_receive_isr(isr, pkt, size);
+		if (ret != ERESTART)
+			break;
+	}
+
 	bio_free(isr, sizeof(*isr));
-	return (rsize);
+	return (ret);
 }
 
 static ssize_t
@@ -525,16 +580,19 @@ pxe_netif_get(struct iodesc *desc, void **pkt, time_t timeout)
 	time_t t;
 	void *ptr;
 	int ret = -1;
+	ssize_t size;
 
 	t = getsecs();
+	size = 0;
 	while ((getsecs() - t) < timeout) {
-		ret = pxe_netif_receive(&ptr);
+		ret = pxe_netif_receive(&ptr, &size);
 		if (ret != -1) {
 			*pkt = ptr;
 			break;
 		}
 	}
-	return (ret);
+
+	return (ret == 0 ? size : -1);
 }
 
 static ssize_t
