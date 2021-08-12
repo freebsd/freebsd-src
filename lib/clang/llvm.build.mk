@@ -117,10 +117,10 @@ CXXSTD?=	c++14
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)
+CXXFLAGS.clang+= -stdlib=libc++
+.else
 # Building on macOS/Linux needs the real sysctl() not the bootstrap tools stub.
 CFLAGS+=	-DBOOTSTRAPPING_WANT_NATIVE_SYSCTL
-.else
-CXXFLAGS.clang+= -stdlib=libc++
 .endif
 .if defined(BOOTSTRAPPING) && ${.MAKE.OS} == "Linux"
 LIBADD+=	dl
