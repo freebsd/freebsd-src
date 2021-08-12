@@ -1074,7 +1074,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 
 static int
 vp_zerofill(struct vnode *vp, struct vattr *vap, off_t *offsetp, off_t *lenp,
-    struct ucred *cred)
+    int ioflag, struct ucred *cred)
 {
 	int iosize;
 	int error = 0;
@@ -1110,7 +1110,7 @@ vp_zerofill(struct vnode *vp, struct vattr *vap, off_t *offsetp, off_t *lenp,
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_td = td;
 
-		error = VOP_WRITE(vp, &auio, 0, cred);
+		error = VOP_WRITE(vp, &auio, ioflag, cred);
 		if (error != 0) {
 			len -= xfersize - auio.uio_resid;
 			offset += xfersize - auio.uio_resid;
@@ -1175,7 +1175,7 @@ vop_stddeallocate(struct vop_deallocate_args *ap)
 
 		/* Fill zeroes */
 		xfersize = rem = omin(noff - offset, len);
-		error = vp_zerofill(vp, &va, &offset, &rem, cred);
+		error = vp_zerofill(vp, &va, &offset, &rem, ap->a_ioflag, cred);
 		if (error) {
 			len -= xfersize - rem;
 			goto out;

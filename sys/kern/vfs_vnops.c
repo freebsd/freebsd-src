@@ -3509,7 +3509,7 @@ vn_deallocate_impl(struct vnode *vp, off_t *offset, off_t *length, int flags,
 			    vp);
 #endif
 		if (error == 0)
-			error = VOP_DEALLOCATE(vp, &off, &len, flags,
+			error = VOP_DEALLOCATE(vp, &off, &len, flags, ioflag,
 			    active_cred);
 
 		if ((ioflag & IO_NODELOCKED) == 0) {
@@ -3548,6 +3548,7 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 {
 	int error;
 	struct vnode *vp;
+	int ioflag;
 
 	vp = fp->f_vnode;
 
@@ -3557,9 +3558,11 @@ vn_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	if (vp->v_type != VREG)
 		return (ENODEV);
 
+	ioflag = get_write_ioflag(fp);
+
 	switch (cmd) {
 	case SPACECTL_DEALLOC:
-		error = vn_deallocate_impl(vp, offset, length, flags, 0,
+		error = vn_deallocate_impl(vp, offset, length, flags, ioflag,
 		    active_cred, fp->f_cred);
 		break;
 	default:
