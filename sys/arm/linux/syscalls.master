@@ -508,11 +508,11 @@
 	}
 120	AUE_RFORK	STD	{
 		int linux_clone(
-		    l_int flags,
-		    void *stack,
-		    void *parent_tidptr,
-		    void *tls,
-		    void * child_tidptr
+		    l_ulong flags,
+		    l_ulong stack,
+		    l_int *parent_tidptr,
+		    l_ulong tls,
+		    l_int *child_tidptr
 		);
 	}
 121	AUE_SYSCTL	STD	{
