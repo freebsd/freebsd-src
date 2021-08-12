@@ -1874,6 +1874,7 @@ ena_unmask_all_io_irqs(struct ena_adapter *adapter)
 {
 	struct ena_com_io_cq* io_cq;
 	struct ena_eth_io_intr_reg intr_reg;
+	struct ena_ring *tx_ring;
 	uint16_t ena_qid;
 	int i;
 
@@ -1882,6 +1883,8 @@ ena_unmask_all_io_irqs(struct ena_adapter *adapter)
 		ena_qid = ENA_IO_TXQ_IDX(i);
 		io_cq = &adapter->ena_dev->io_cq_queues[ena_qid];
 		ena_com_update_intr_reg(&intr_reg, 0, 0, true);
+		tx_ring = &adapter->tx_ring[i];
+		counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 		ena_com_unmask_intr(io_cq, &intr_reg);
 	}
 }

@@ -103,6 +103,7 @@ ena_cleanup(void *arg, int pending)
 	    RX_IRQ_INTERVAL,
 	    TX_IRQ_INTERVAL,
 	    true);
+	counter_u64_add(tx_ring->tx_stats.unmask_interrupt_num, 1);
 	ena_com_unmask_intr(io_cq, &intr_reg);
 }
 
@@ -516,7 +517,7 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 	    ena_rx_ctx->l3_csum_err)) {
 		/* ipv4 checksum error */
 		mbuf->m_pkthdr.csum_flags = 0;
-		counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
+		counter_u64_add(rx_ring->rx_stats.csum_bad, 1);
 		ena_log_io(pdev, DBG, "RX IPv4 header checksum error\n");
 		return;
 	}
@@ -527,11 +528,12 @@ ena_rx_checksum(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 		if (ena_rx_ctx->l4_csum_err) {
 			/* TCP/UDP checksum error */
 			mbuf->m_pkthdr.csum_flags = 0;
-			counter_u64_add(rx_ring->rx_stats.bad_csum, 1);
+			counter_u64_add(rx_ring->rx_stats.csum_bad, 1);
 			ena_log_io(pdev, DBG, "RX L4 checksum error\n");
 		} else {
 			mbuf->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
 			mbuf->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			counter_u64_add(rx_ring->rx_stats.csum_good, 1);
 		}
 	}
 }
