@@ -1557,7 +1557,8 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
 	case PT_GNU_RELRO:
 	    obj->relro_page = obj->relocbase + trunc_page(ph->p_vaddr);
-	    obj->relro_size = round_page(ph->p_memsz);
+	    obj->relro_size = trunc_page(ph->p_vaddr + ph->p_memsz) -
+	      trunc_page(ph->p_vaddr);
 	    break;
 
 	case PT_NOTE:

@@ -325,7 +325,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     }
     obj->stack_flags = stack_flags;
     obj->relro_page = obj->relocbase + trunc_page(relro_page);
-    obj->relro_size = round_page(relro_size);
+    obj->relro_size = trunc_page(relro_page + relro_size) -
+      trunc_page(relro_page);
     if (note_start < note_end)
 	digest_notes(obj, note_start, note_end);
     if (note_map != NULL)
