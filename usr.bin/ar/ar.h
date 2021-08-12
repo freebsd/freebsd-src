@@ -54,7 +54,7 @@
  */
 #define	AC(CALL) do {							\
 	if ((CALL))							\
-		bsdar_errc(bsdar, EXIT_FAILURE, archive_errno(a), "%s",	\
+		bsdar_errc(bsdar, archive_errno(a), "%s",		\
 		    archive_error_string(a));				\
 } while (0)
 
@@ -114,8 +114,7 @@ struct bsdar {
 	TAILQ_HEAD(, ar_obj) v_obj;	/* object(member) list */
 };
 
-void	bsdar_errc(struct bsdar *, int _eval, int _code,
-	    const char *fmt, ...) __dead2;
+void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...) __dead2;
 void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
 int	ar_mode_d(struct bsdar *bsdar);
 int	ar_mode_m(struct bsdar *bsdar);
