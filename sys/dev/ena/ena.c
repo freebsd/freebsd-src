@@ -2092,6 +2092,8 @@ ena_up(struct ena_adapter *adapter)
 {
 	int rc = 0;
 
+	ENA_LOCK_ASSERT(adapter);
+
 	if (unlikely(device_is_attached(adapter->pdev) == 0)) {
 		ena_log(adapter->pdev, ERR, "device is not attached!\n");
 		return (ENXIO);
@@ -2464,6 +2466,8 @@ void
 ena_down(struct ena_adapter *adapter)
 {
 	int rc;
+
+	ENA_LOCK_ASSERT(adapter);
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
 		return;

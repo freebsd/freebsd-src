@@ -1075,6 +1075,8 @@ ena_start_xmit(struct ena_ring *tx_ring)
 	int ena_qid;
 	int ret = 0;
 
+	ENA_RING_MTX_ASSERT(tx_ring);
+
 	if (unlikely((if_getdrvflags(adapter->ifp) & IFF_DRV_RUNNING) == 0))
 		return;
 
