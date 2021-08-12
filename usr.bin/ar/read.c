@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
-#include <assert.h>
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -43,11 +42,34 @@ __FBSDID("$FreeBSD$");
 
 #include "ar.h"
 
+static int read_archive(struct bsdar *bsdar, char mode);
+
+int
+ar_mode_p(struct bsdar *bsdar)
+{
+
+	return (read_archive(bsdar, 'p'));
+}
+
+int
+ar_mode_t(struct bsdar *bsdar)
+{
+
+	return (read_archive(bsdar, 't'));
+}
+
+int
+ar_mode_x(struct bsdar *bsdar)
+{
+
+	return (read_archive(bsdar, 'x'));
+}
+
 /*
  * Handle read modes: 'x', 't' and 'p'.
  */
-int
-ar_read_archive(struct bsdar *bsdar, int mode)
+static int
+read_archive(struct bsdar *bsdar, char mode)
 {
 	struct archive		 *a;
 	struct archive_entry	 *entry;
@@ -65,10 +87,8 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 	char			  find;
 	int			  exitcode, flags, r, i;
 
-	assert(mode == 'p' || mode == 't' || mode == 'x');
-
 	if ((a = archive_read_new()) == NULL)
-		bsdar_errc(bsdar, 0, "archive_read_new failed");
+		bsdar_errc(bsdar, EXIT_FAILURE, 0, "archive_read_new failed");
 	archive_read_support_format_ar(a);
 	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
 
@@ -102,7 +122,7 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 				if (*av == NULL)
 					continue;
 				if ((bname = basename(*av)) == NULL)
-					bsdar_errc(bsdar, errno,
+					bsdar_errc(bsdar, EXIT_FAILURE, errno,
 					    "basename failed");
 				if (strcmp(bname, name) != 0)
 					continue;
