@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 static int	linux_common_open(struct thread *, int, const char *, int, int,
 		    enum uio_seg);
+static int	linux_do_accessat(struct thread *t, int, const char *, int, int);
 static int	linux_getdents_error(struct thread *, int, int);
 
 static struct bsd_to_linux_bitmap seal_bitmap[] = {
@@ -675,27 +676,57 @@ linux_access(struct thread *td, struct linux_access_args *args)
 }
 #endif
 
-int
-linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
+static int
+linux_do_accessat(struct thread *td, int ldfd, const char *filename,
+    int amode, int flags)
 {
 	char *path;
 	int error, dfd;
 
 	/* Linux convention. */
-	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
+	if (amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
-	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	dfd = (ldfd == LINUX_AT_FDCWD) ? AT_FDCWD : ldfd;
 	if (!LUSECONVPATH(td)) {
-		error = kern_accessat(td, dfd, args->filename, UIO_USERSPACE, 0, args->amode);
+		error = kern_accessat(td, dfd, filename, UIO_USERSPACE, flags, amode);
 	} else {
-		LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
-		error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
+		LCONVPATHEXIST_AT(td, filename, &path, dfd);
+		error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flags, amode);
 		LFREEPATH(path);
 	}
 
 	return (error);
 }
+
+int
+linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
+{
+
+	return (linux_do_accessat(td, args->dfd, args->filename, args->amode,
+	    0));
+}
+
+int
+linux_faccessat2(struct thread *td, struct linux_faccessat2_args *args)
+{
+	int flags, unsupported;
+
+	/* XXX. AT_SYMLINK_NOFOLLOW is not supported by kern_accessat */
+	unsupported = args->flags & ~(LINUX_AT_EACCESS | LINUX_AT_EMPTY_PATH);
+	if (unsupported != 0) {
+		linux_msg(td, "faccessat2 unsupported flag 0x%x", unsupported);
+		return (EINVAL);
+	}
+
+	flags = (args->flags & LINUX_AT_EACCESS) == 0 ? 0 :
+	    AT_EACCESS;
+	flags |= (args->flags & LINUX_AT_EMPTY_PATH) == 0 ? 0 :
+	    AT_EMPTY_PATH;
+	return (linux_do_accessat(td, args->dfd, args->filename, args->amode,
+	    flags));
+}
+
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
