@@ -235,7 +235,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 	switch (error) {
 	case 0:
 		frame->tf_rax = td->td_retval[0];
- 		frame->tf_r10 = frame->tf_rcx;
+		frame->tf_r10 = frame->tf_rcx;
 		break;
 
 	case ERESTART:
@@ -248,7 +248,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 		frame->tf_rip -= frame->tf_err;
 		frame->tf_r10 = frame->tf_rcx;
 		break;
- 
+
 	case EJUSTRETURN:
 		break;
 
