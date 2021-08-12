@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210811:
+	Commit 3ad1e1c1ce20 changed the internal KAPI between the NFS
+	modules. Therefore, all need to be rebuilt from sources.
+
 20210730:
 	Commit b69019c14cd8 removes pf's DIOCGETSTATESNV ioctl.
 	As of be70c7a50d32 it is no longer used by userspace, but it does mean
