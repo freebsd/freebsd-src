@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_fork.h>
 #include <compat/linux/linux_futex.h>
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
@@ -410,6 +411,20 @@ linux_clone3_args_valid(struct l_user_clone_args *uca)
 		return (EINVAL);
 	if (uca->stack != 0 && uca->stack_size == 0)
 		return (EINVAL);
+
+	/* Verify that no unsupported flags are passed along. */
+	if ((uca->flags & LINUX_CLONE_NEWTIME) != 0) {
+		LINUX_RATELIMIT_MSG("unsupported clone3 option CLONE_NEWTIME");
+		return (ENOSYS);
+	}
+	if ((uca->flags & LINUX_CLONE_INTO_CGROUP) != 0) {
+		LINUX_RATELIMIT_MSG("unsupported clone3 option CLONE_INTO_CGROUP");
+		return (ENOSYS);
+	}
+	if (uca->set_tid != 0 || uca->set_tid_size != 0) {
+		LINUX_RATELIMIT_MSG("unsupported clone3 set_tid");
+		return (ENOSYS);
+	}
 
 	return (0);
 }
