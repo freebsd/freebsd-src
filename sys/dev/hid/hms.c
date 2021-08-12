@@ -271,7 +271,7 @@ hms_attach(device_t dev)
 		SYSCTL_ADD_U32(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 		    "drift_thresh", CTLFLAG_RW, &sc->drift_thresh, 0,
-		    "drift detection threshhold");
+		    "drift detection threshold");
 	}
 #endif
 
