@@ -34,7 +34,6 @@
 #ifndef ENA_H
 #define ENA_H
 
-#include <sys/types.h>
 
 #include "ena-com/ena_com.h"
 #include "ena-com/ena_eth_com.h"

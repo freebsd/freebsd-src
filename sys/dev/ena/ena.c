@@ -63,9 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#ifdef RSS
-#include <net/rss_config.h>
-#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -84,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include "ena_datapath.h"
 #include "ena.h"
 #include "ena_sysctl.h"
+#include "ena_rss.h"
 
 #ifdef DEV_NETMAP
 #include "ena_netmap.h"
@@ -143,7 +141,6 @@ static void	ena_free_io_irq(struct ena_adapter *);
 static void	ena_free_irqs(struct ena_adapter*);
 static void	ena_disable_msix(struct ena_adapter *);
 static void	ena_unmask_all_io_irqs(struct ena_adapter *);
-static int	ena_rss_configure(struct ena_adapter *);
 static int	ena_up_complete(struct ena_adapter *);
 static uint64_t	ena_get_counter(if_t, ift_counter);
 static int	ena_media_change(if_t);
@@ -161,8 +158,6 @@ static int	ena_set_queues_placement_policy(device_t, struct ena_com_dev *,
 static uint32_t	ena_calc_max_io_queue_num(device_t, struct ena_com_dev *,
     struct ena_com_dev_get_features_ctx *);
 static int	ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *);
-static int	ena_rss_init_default(struct ena_adapter *);
-static void	ena_rss_init_default_deferred(void *);
 static void	ena_config_host_info(struct ena_com_dev *, device_t);
 static int	ena_attach(device_t);
 static int	ena_detach(device_t);
@@ -263,27 +258,6 @@ fail_tag:
 	dma->paddr = 0;
 
 	return (error);
-}
-
-/*
- * This function should generate unique key for the whole driver.
- * If the key was already genereated in the previous call (for example
- * for another adapter), then it should be returned instead.
- */
-void
-ena_rss_key_fill(void *key, size_t size)
-{
-	static bool key_generated;
-	static uint8_t default_key[ENA_HASH_KEY_SIZE];
-
-	KASSERT(size <= ENA_HASH_KEY_SIZE, ("Requested more bytes than ENA RSS key can hold"));
-
-	if (!key_generated) {
-		arc4random_buf(default_key, ENA_HASH_KEY_SIZE);
-		key_generated = true;
-	}
-
-	memcpy(key, default_key, size);
 }
 
 static void
@@ -1922,43 +1896,6 @@ ena_unmask_all_io_irqs(struct ena_adapter *adapter)
 	}
 }
 
-/* Configure the Rx forwarding */
-static int
-ena_rss_configure(struct ena_adapter *adapter)
-{
-	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	int rc;
-
-	/* In case the RSS table was destroyed */
-	if (!ena_dev->rss.tbl_log_size) {
-		rc = ena_rss_init_default(adapter);
-		if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
-			ena_log(adapter->pdev, ERR,
-			    "WARNING: RSS was not properly re-initialized,"
-			    " it will affect bandwidth\n");
-			ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
-			return (rc);
-		}
-	}
-
-	/* Set indirect table */
-	rc = ena_com_indirect_table_set(ena_dev);
-	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
-		return (rc);
-
-	/* Configure hash function (if supported) */
-	rc = ena_com_set_hash_function(ena_dev);
-	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
-		return (rc);
-
-	/* Configure hash inputs (if supported) */
-	rc = ena_com_set_hash_ctrl(ena_dev);
-	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
-		return (rc);
-
-	return (0);
-}
-
 static int
 ena_up_complete(struct ena_adapter *adapter)
 {
@@ -2729,90 +2666,6 @@ ena_calc_io_queue_size(struct ena_calc_queue_size_ctx *ctx)
 
 	return (0);
 }
-
-static int
-ena_rss_init_default(struct ena_adapter *adapter)
-{
-	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	device_t dev = adapter->pdev;
-	int qid, rc, i;
-
-	rc = ena_com_rss_init(ena_dev, ENA_RX_RSS_TABLE_LOG_SIZE);
-	if (unlikely(rc != 0)) {
-		ena_log(dev, ERR, "Cannot init indirect table\n");
-		return (rc);
-	}
-
-	for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
-		qid = i % adapter->num_io_queues;
-		rc = ena_com_indirect_table_fill_entry(ena_dev, i,
-		    ENA_IO_RXQ_IDX(qid));
-		if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
-			ena_log(dev, ERR, "Cannot fill indirect table\n");
-			goto err_rss_destroy;
-		}
-	}
-
-#ifdef RSS
-	uint8_t rss_algo = rss_gethashalgo();
-	if (rss_algo == RSS_HASH_TOEPLITZ) {
-		uint8_t hash_key[RSS_KEYSIZE];
-
-		rss_getkey(hash_key);
-		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
-		    hash_key, RSS_KEYSIZE, 0xFFFFFFFF);
-	} else
-#endif
-	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
-	    ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
-	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
-		ena_log(dev, ERR, "Cannot fill hash function\n");
-		goto err_rss_destroy;
-	}
-
-	rc = ena_com_set_default_hash_ctrl(ena_dev);
-	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
-		ena_log(dev, ERR, "Cannot fill hash control\n");
-		goto err_rss_destroy;
-	}
-
-	return (0);
-
-err_rss_destroy:
-	ena_com_rss_destroy(ena_dev);
-	return (rc);
-}
-
-static void
-ena_rss_init_default_deferred(void *arg)
-{
-	struct ena_adapter *adapter;
-	devclass_t dc;
-	int max;
-	int rc;
-
-	dc = devclass_find("ena");
-	if (unlikely(dc == NULL)) {
-		ena_log_raw(ERR, "SYSINIT: %s: No devclass ena\n", __func__);
-		return;
-	}
-
-	max = devclass_get_maxunit(dc);
-	while (max-- >= 0) {
-		adapter = devclass_get_softc(dc, max);
-		if (adapter != NULL) {
-			rc = ena_rss_init_default(adapter);
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
-			if (unlikely(rc != 0)) {
-				ena_log(adapter->pdev, WARN,
-				    "WARNING: RSS was not properly initialized,"
-				    " it will affect bandwidth\n");
-				ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
-			}
-		}
-	}
-}
-SYSINIT(ena_rss_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_SECOND, ena_rss_init_default_deferred, NULL);
 
 static void
 ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
