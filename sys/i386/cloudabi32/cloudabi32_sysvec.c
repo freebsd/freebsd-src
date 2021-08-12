@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/vmparam.h>
 
@@ -195,6 +196,7 @@ static struct sysentvec cloudabi32_elf_sysvec = {
 	.sv_fetch_syscall_args	= cloudabi32_fetch_syscall_args,
 	.sv_syscallnames	= cloudabi32_syscallnames,
 	.sv_schedtail		= cloudabi32_schedtail,
+	.sv_set_fork_retval	= x86_set_fork_retval,
 };
 
 INIT_SYSENTVEC(elf_sysvec, &cloudabi32_elf_sysvec);

@@ -156,6 +156,8 @@ struct sysentvec {
 	void		(*sv_ontdexit)(struct thread *td);
 	int		(*sv_setid_allowed)(struct thread *td,
 			    struct image_params *imgp);
+	void		(*sv_set_fork_retval)(struct thread *);
+					/* Only used on x86 */
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */

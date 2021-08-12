@@ -258,9 +258,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	    VM86_STACK_SPACE) - 1;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 
-	td2->td_frame->tf_eax = 0;		/* Child returns zero */
-	td2->td_frame->tf_eflags &= ~PSL_C;	/* success */
-	td2->td_frame->tf_edx = 1;
+	/* Set child return values. */
+	p2->p_sysent->sv_set_fork_retval(td2);
 
 	/*
 	 * If the parent process has the trap bit set (i.e. a debugger
@@ -300,6 +299,16 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * will set up a stack to call fork_return(p, frame); to complete
 	 * the return to user-mode.
 	 */
+}
+
+void
+x86_set_fork_retval(struct thread *td)
+{
+	struct trapframe * frame = td->td_frame;
+
+	frame->tf_eax = 0;		/* Child returns zero */
+	frame->tf_eflags &= ~PSL_C;	/* success */
+	frame->tf_edx = 1;		/* System V emulation */
 }
 
 /*
