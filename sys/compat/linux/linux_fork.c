@@ -205,10 +205,10 @@ linux_clone_proc(struct thread *td, struct linux_clone_args *args)
 	 * stack. This is what normal fork() does, so we just keep tf_rsp arg
 	 * intact.
 	 */
-	linux_set_upcall(td2, PTROUT(args->stack));
+	linux_set_upcall(td2, args->stack);
 
 	if (args->flags & LINUX_CLONE_SETTLS)
-		linux_set_cloned_tls(td2, args->tls);
+		linux_set_cloned_tls(td2, PTRIN(args->tls));
 
 	/*
 	 * If CLONE_PARENT is set, then the parent of the new process will be
@@ -253,7 +253,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 			return (EINVAL);
 
 	/* Threads should be created with own stack */
-	if (args->stack == NULL)
+	if (PTRIN(args->stack) == NULL)
 		return (EINVAL);
 
 	p = td->td_proc;
@@ -290,7 +290,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	KASSERT(em != NULL, ("clone_thread: emuldata not found.\n"));
 
 	if (args->flags & LINUX_CLONE_SETTLS)
-		linux_set_cloned_tls(newtd, args->tls);
+		linux_set_cloned_tls(newtd, PTRIN(args->tls));
 
 	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
@@ -304,7 +304,7 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	cpu_thread_clean(newtd);
 
-	linux_set_upcall(newtd, PTROUT(args->stack));
+	linux_set_upcall(newtd, args->stack);
 
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
