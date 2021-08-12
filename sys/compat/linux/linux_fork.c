@@ -377,6 +377,86 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		return (linux_clone_proc(td, &ca));
 }
 
+
+static int
+linux_clone3_args_valid(struct l_user_clone_args *uca)
+{
+
+	/* Verify that no unknown flags are passed along. */
+	if ((uca->flags & ~(LINUX_CLONE_LEGACY_FLAGS |
+	    LINUX_CLONE_CLEAR_SIGHAND | LINUX_CLONE_INTO_CGROUP)) != 0)
+		return (EINVAL);
+	if ((uca->flags & (LINUX_CLONE_DETACHED | LINUX_CSIGNAL)) != 0)
+		return (EINVAL);
+
+	if ((uca->flags & (LINUX_CLONE_SIGHAND | LINUX_CLONE_CLEAR_SIGHAND)) ==
+	    (LINUX_CLONE_SIGHAND | LINUX_CLONE_CLEAR_SIGHAND))
+		return (EINVAL);
+	if ((uca->flags & (LINUX_CLONE_THREAD | LINUX_CLONE_PARENT)) != 0 &&
+	    uca->exit_signal != 0)
+		return (EINVAL);
+
+	/* We don't support set_tid, only validate input. */
+	if (uca->set_tid_size > LINUX_MAX_PID_NS_LEVEL)
+		return (EINVAL);
+	if (uca->set_tid == 0 && uca->set_tid_size > 0)
+		return (EINVAL);
+	if (uca->set_tid != 0 && uca->set_tid_size == 0)
+		return (EINVAL);
+
+	if (uca->stack == 0 && uca->stack_size > 0)
+		return (EINVAL);
+	if (uca->stack != 0 && uca->stack_size == 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+int
+linux_clone3(struct thread *td, struct linux_clone3_args *args)
+{
+	struct l_user_clone_args *uca;
+	struct l_clone_args *ca;
+	size_t size;
+	int error;
+
+	if (args->usize > PAGE_SIZE)
+		return (E2BIG);
+	if (args->usize < LINUX_CLONE_ARGS_SIZE_VER0)
+		return (EINVAL);
+
+	/*
+	 * usize can be less than size of struct clone_args, to avoid using
+	 * of uninitialized data of struct clone_args, allocate at least
+	 * sizeof(struct clone_args) storage and zero it.
+	 */
+	size = max(args->usize, sizeof(*uca));
+	uca = malloc(size, M_LINUX, M_WAITOK | M_ZERO);
+	error = copyin(args->uargs, uca, args->usize);
+	if (error != 0)
+		goto out;
+	error = linux_clone3_args_valid(uca);
+	if (error != 0)
+		goto out;
+	ca = malloc(sizeof(*ca), M_LINUX, M_WAITOK | M_ZERO);
+	ca->flags = uca->flags;
+	ca->child_tid = PTRIN(uca->child_tid);
+	ca->parent_tid = PTRIN(uca->parent_tid);
+	ca->exit_signal = uca->exit_signal;
+	ca->stack = uca->stack + uca->stack_size;
+	ca->stack_size = uca->stack_size;
+	ca->tls = uca->tls;
+
+	if ((ca->flags & LINUX_CLONE_THREAD) != 0)
+		error = linux_clone_thread(td, ca);
+	else
+		error = linux_clone_proc(td, ca);
+	free(ca, M_LINUX);
+out:
+	free(uca, M_LINUX);
+	return (error);
+}
+
 int
 linux_exit(struct thread *td, struct linux_exit_args *args)
 {
