@@ -23,7 +23,7 @@ POWERMAC		opt_platform.h
 PS3			opt_platform.h
 MAMBO
 POWERNV			opt_platform.h
-PSERIES
+PSERIES			opt_platform.h
 PSIM
 QEMU			opt_platform.h
 

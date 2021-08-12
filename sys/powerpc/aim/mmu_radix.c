@@ -25,6 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -84,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/mmuvar.h>
 
+/* For pseries bit. */
+#include <powerpc/pseries/phyp-hvcall.h>
+
 #ifdef INVARIANTS
 #include <vm/uma_dbg.h>
 #endif
@@ -93,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #define PPC_BITLSHIFT_VAL(val, bit) ((val) << PPC_BITLSHIFT(bit))
 
 #include "opt_ddb.h"
+
 #ifdef DDB
 static void pmap_pte_walk(pml1_entry_t *l1, vm_offset_t va);
 #endif
@@ -779,8 +785,10 @@ mmu_radix_tlbiel_flush(int scope)
 static void
 mmu_radix_tlbie_all(void)
 {
-	/* TODO: LPID invalidate */
-	mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	if (powernv_enabled)
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	else
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_LPID);
 }
 
 static void
@@ -2021,11 +2029,14 @@ mmu_radix_early_bootstrap(vm_offset_t start, vm_offset_t end)
 	 */
 	if (isa3_pid_bits == 0)
 		isa3_pid_bits = 20;
-	parttab_phys = moea64_bootstrap_alloc(PARTTAB_SIZE, PARTTAB_SIZE);
-	validate_addr(parttab_phys, PARTTAB_SIZE);
-	for (int i = 0; i < PARTTAB_SIZE/PAGE_SIZE; i++)
-		pagezero(PHYS_TO_DMAP(parttab_phys + i * PAGE_SIZE));
+	if (powernv_enabled) {
+		parttab_phys =
+		    moea64_bootstrap_alloc(PARTTAB_SIZE, PARTTAB_SIZE);
+		validate_addr(parttab_phys, PARTTAB_SIZE);
+		for (int i = 0; i < PARTTAB_SIZE/PAGE_SIZE; i++)
+			pagezero(PHYS_TO_DMAP(parttab_phys + i * PAGE_SIZE));
 
+	}
 	proctab_size = 1UL << PROCTAB_SIZE_SHIFT;
 	proctab0pa = moea64_bootstrap_alloc(proctab_size, proctab_size);
 	validate_addr(proctab0pa, proctab_size);
@@ -2172,12 +2183,20 @@ mmu_radix_proctab_init(void)
 	    htobe64(RTS_SIZE | DMAP_TO_PHYS((vm_offset_t)kernel_pmap->pm_pml1) |
 		RADIX_PGD_INDEX_SHIFT);
 
-	mmu_radix_proctab_register(proctab0pa, PROCTAB_SIZE_SHIFT - 12);
+	if (powernv_enabled) {
+		mmu_radix_proctab_register(proctab0pa, PROCTAB_SIZE_SHIFT - 12);
+		__asm __volatile("ptesync" : : : "memory");
+		__asm __volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
+			     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
+		__asm __volatile("eieio; tlbsync; ptesync" : : : "memory");
+#ifdef PSERIES
+	} else {
+		phyp_hcall(H_REGISTER_PROC_TBL,
+		    PROC_TABLE_NEW | PROC_TABLE_RADIX | PROC_TABLE_GTSE,
+		    proctab0pa, 0, PROCTAB_SIZE_SHIFT - 12);
+#endif
+	}
 
-	__asm __volatile("ptesync" : : : "memory");
-	__asm __volatile(PPC_TLBIE_5(%0,%1,2,1,1) : :
-		     "r" (TLBIEL_INVAL_SET_LPID), "r" (0));
-	__asm __volatile("eieio; tlbsync; ptesync" : : : "memory");
 	if (bootverbose)
 		printf("process table %p and kernel radix PDE: %p\n",
 			   isa3_proctab, kernel_pmap->pm_pml1);
@@ -2309,6 +2328,7 @@ mmu_radix_bootstrap(vm_offset_t start, vm_offset_t end)
 	if (bootverbose)
 		printf("%s\n", __func__);
 	hw_direct_map = 1;
+	powernv_enabled = (mfmsr() & PSL_HV) ? 1 : 0;
 	mmu_radix_early_bootstrap(start, end);
 	if (bootverbose)
 		printf("early bootstrap complete\n");
@@ -2323,8 +2343,10 @@ mmu_radix_bootstrap(vm_offset_t start, vm_offset_t end)
 	mmu_radix_init_iamr();
 	mmu_radix_proctab_init();
 	mmu_radix_pid_set(kernel_pmap);
-	/* XXX assume CPU_FTR_HVMODE */
-	mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	if (powernv_enabled)
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	else
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_LPID);
 
 	mmu_radix_late_bootstrap(start, end);
 	numa_mem_regions(&numa_pregions, &numa_pregions_sz);
@@ -2351,7 +2373,10 @@ mmu_radix_cpu_bootstrap(int ap)
 	}
 	mmu_radix_init_iamr();
 	mmu_radix_pid_set(kernel_pmap);
-	mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	if (powernv_enabled)
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
+	else
+		mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_LPID);
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l3e, CTLFLAG_RD, 0,
