@@ -1093,7 +1093,7 @@ ipsec_in_reject(struct secpolicy *sp, struct inpcb *inp, const struct mbuf *m)
  * Compute the byte size to be occupied by IPsec header.
  * In case it is tunnelled, it includes the size of outer IP header.
  */
-static size_t
+size_t
 ipsec_hdrsiz_internal(struct secpolicy *sp)
 {
 	size_t size;

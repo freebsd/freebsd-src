@@ -332,6 +332,7 @@ int ipsec_chkreplay(uint32_t, uint32_t *, struct secasvar *);
 int ipsec_updatereplay(uint32_t, struct secasvar *);
 int ipsec_updateid(struct secasvar *, crypto_session_t *, crypto_session_t *);
 int ipsec_initialized(void);
+size_t ipsec_hdrsiz_internal(struct secpolicy *);
 
 void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
 
@@ -345,6 +346,7 @@ int ipsec4_output(struct mbuf *, struct inpcb *);
 int ipsec4_capability(struct mbuf *, u_int);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
 int ipsec4_ctlinput(int, struct sockaddr *, void *);
+int ipsec4_check_pmtu(struct mbuf *, struct secpolicy *, int);
 int ipsec4_process_packet(struct mbuf *, struct secpolicy *, struct inpcb *);
 int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
     u_int);
