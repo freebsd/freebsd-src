@@ -306,7 +306,7 @@ linux_futex(struct thread *td, struct linux_futex_args *args)
 	 *
 	 * And since commit
 	 * https://sourceware.org/git/gitweb.cgi?p=glibc.git;h=ed19993b5b0d05d62cc883571519a67dae481a14
-	 * glibc does not uses it.
+	 * glibc does not use them.
 	 */
 	case LINUX_FUTEX_WAIT_REQUEUE_PI:
 		/* not yet implemented */
