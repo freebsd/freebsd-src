@@ -154,6 +154,7 @@ static ng_rcvdata_t	ng_bridge_rcvdata;
 static ng_disconnect_t	ng_bridge_disconnect;
 
 /* Other internal functions */
+static void	ng_bridge_free_link(link_p link);
 static struct	ng_bridge_host *ng_bridge_get(priv_cp priv, const u_char *addr);
 static int	ng_bridge_put(priv_p priv, const u_char *addr, link_p link);
 static void	ng_bridge_rehash(priv_p priv);
@@ -395,28 +396,36 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	if(NG_PEER_NODE(hook) == node)
 	        return (ELOOP);
 
-	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
+	link = malloc(sizeof(*link), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
+	if (link == NULL)
+		return (ENOMEM);
 
-	link->stats.recvOctets = counter_u64_alloc(M_WAITOK);
-	link->stats.recvPackets = counter_u64_alloc(M_WAITOK);
-	link->stats.recvMulticasts = counter_u64_alloc(M_WAITOK);
-	link->stats.recvBroadcasts = counter_u64_alloc(M_WAITOK);
-	link->stats.recvUnknown = counter_u64_alloc(M_WAITOK);
-	link->stats.recvRunts = counter_u64_alloc(M_WAITOK);
-	link->stats.recvInvalid = counter_u64_alloc(M_WAITOK);
-	link->stats.xmitOctets = counter_u64_alloc(M_WAITOK);
-	link->stats.xmitPackets = counter_u64_alloc(M_WAITOK);
-	link->stats.xmitMulticasts = counter_u64_alloc(M_WAITOK);
-	link->stats.xmitBroadcasts = counter_u64_alloc(M_WAITOK);
-	link->stats.loopDrops = counter_u64_alloc(M_WAITOK);
-	link->stats.memoryFailures = counter_u64_alloc(M_WAITOK);
+#define	NG_BRIDGE_COUNTER_ALLOC(f) do {			\
+	link->stats.f = counter_u64_alloc(M_NOWAIT);	\
+	if (link->stats.f == NULL)			\
+		goto nomem;				\
+} while (0)
+	NG_BRIDGE_COUNTER_ALLOC(recvOctets);
+	NG_BRIDGE_COUNTER_ALLOC(recvPackets);
+	NG_BRIDGE_COUNTER_ALLOC(recvMulticasts);
+	NG_BRIDGE_COUNTER_ALLOC(recvBroadcasts);
+	NG_BRIDGE_COUNTER_ALLOC(recvUnknown);
+	NG_BRIDGE_COUNTER_ALLOC(recvRunts);
+	NG_BRIDGE_COUNTER_ALLOC(recvInvalid);
+	NG_BRIDGE_COUNTER_ALLOC(xmitOctets);
+	NG_BRIDGE_COUNTER_ALLOC(xmitPackets);
+	NG_BRIDGE_COUNTER_ALLOC(xmitMulticasts);
+	NG_BRIDGE_COUNTER_ALLOC(xmitBroadcasts);
+	NG_BRIDGE_COUNTER_ALLOC(loopDrops);
+	NG_BRIDGE_COUNTER_ALLOC(memoryFailures);
+#undef NG_BRIDGE_COUNTER_ALLOC
 
 	link->hook = hook;
 	if (isUplink) {
 		link->learnMac = 0;
 		link->sendUnknown = 1;
 		if (priv->numLinks == 0)	/* if the first link is an uplink */
-		    priv->sendUnknown = 0;	/* switch to restrictive mode */
+			priv->sendUnknown = 0;	/* switch to restrictive mode */
 	} else {
 		link->learnMac = 1;
 		link->sendUnknown = priv->sendUnknown;
@@ -425,12 +434,17 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	NG_HOOK_SET_PRIVATE(hook, link);
 	priv->numLinks++;
 	return (0);
+
+nomem:
+	ng_bridge_free_link(link);
+	return (ENOMEM);
 }
 
 /*
  * Receive a control message
  */
-static void ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats * p)
+static void
+ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats *p)
 {
 	counter_u64_zero(p->recvOctets);
 	counter_u64_zero(p->recvPackets);
@@ -446,7 +460,26 @@ static void ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats * p)
 	counter_u64_zero(p->loopDrops);
 	p->loopDetects = 0;
 	counter_u64_zero(p->memoryFailures);
-};
+}
+
+static void
+ng_bridge_free_link(link_p link)
+{
+	counter_u64_free(link->stats.recvOctets);
+	counter_u64_free(link->stats.recvPackets);
+	counter_u64_free(link->stats.recvMulticasts);
+	counter_u64_free(link->stats.recvBroadcasts);
+	counter_u64_free(link->stats.recvUnknown);
+	counter_u64_free(link->stats.recvRunts);
+	counter_u64_free(link->stats.recvInvalid);
+	counter_u64_free(link->stats.xmitOctets);
+	counter_u64_free(link->stats.xmitPackets);
+	counter_u64_free(link->stats.xmitMulticasts);
+	counter_u64_free(link->stats.xmitBroadcasts);
+	counter_u64_free(link->stats.loopDrops);
+	counter_u64_free(link->stats.memoryFailures);
+	free(link, M_NETGRAPH_BRIDGE);
+}
 
 static int
 ng_bridge_reset_link(hook_p hook, void *arg __unused)
@@ -915,20 +948,7 @@ ng_bridge_disconnect(hook_p hook)
 	ng_bridge_remove_hosts(priv, link);
 
 	/* Free associated link information */
-	counter_u64_free(link->stats.recvOctets);
-	counter_u64_free(link->stats.recvPackets);
-	counter_u64_free(link->stats.recvMulticasts);
-	counter_u64_free(link->stats.recvBroadcasts);
-	counter_u64_free(link->stats.recvUnknown);
-	counter_u64_free(link->stats.recvRunts);
-	counter_u64_free(link->stats.recvInvalid);
-	counter_u64_free(link->stats.xmitOctets);
-	counter_u64_free(link->stats.xmitPackets);
-	counter_u64_free(link->stats.xmitMulticasts);
-	counter_u64_free(link->stats.xmitBroadcasts);
-	counter_u64_free(link->stats.loopDrops);
-	counter_u64_free(link->stats.memoryFailures);
-	free(link, M_NETGRAPH_BRIDGE);
+	ng_bridge_free_link(link);
 	priv->numLinks--;
 
 	/* If no more hooks, go away */
