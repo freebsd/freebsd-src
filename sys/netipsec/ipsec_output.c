@@ -61,6 +61,8 @@
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
 #endif
+#include <netinet/ip_icmp.h>
+#include <netinet/tcp_var.h>
 
 #include <netinet/ip6.h>
 #ifdef INET6
@@ -292,6 +294,83 @@ ipsec4_process_packet(struct mbuf *m, struct secpolicy *sp,
 	return (ipsec4_perform_request(m, sp, inp, 0));
 }
 
+int
+ipsec4_check_pmtu(struct mbuf *m, struct secpolicy *sp, int forwarding)
+{
+	union sockaddr_union *dst;
+	struct in_conninfo inc;
+	struct secasvar *sav;
+	struct ip *ip;
+	size_t hlen, pmtu;
+	uint32_t idx;
+	int error;
+
+
+	/* Don't check PMTU if the frame won't have DF bit set. */
+	if (!V_ip4_ipsec_dfbit)
+		return (0);
+	if (V_ip4_ipsec_dfbit == 1)
+		goto setdf;
+
+	/* V_ip4_ipsec_dfbit > 1 - we will copy it from inner header. */
+	ip = mtod(m, struct ip *);
+	if (!(ip->ip_off & htons(IP_DF)))
+		return (0);
+
+setdf:
+	idx = sp->tcount - 1;
+	sav = ipsec4_allocsa(m, sp, &idx, &error);
+	if (sav == NULL) {
+		key_freesp(&sp);
+		if (error != EJUSTRETURN)
+			m_freem(m);
+
+		return (error);
+	}
+
+	dst = &sav->sah->saidx.dst;
+
+	/* Final header is not ipv4. */
+	if (dst->sa.sa_family != AF_INET) {
+		key_freesav(&sav);
+		return (0);
+	}
+
+	memset(&inc, 0, sizeof(inc));
+	inc.inc_faddr = satosin(&dst->sa)->sin_addr;
+	key_freesav(&sav);
+	pmtu = tcp_hc_getmtu(&inc);
+	/* No entry in hostcache. */
+	if (pmtu == 0)
+		return (0);
+
+	hlen = ipsec_hdrsiz_internal(sp);
+	if (m_length(m, NULL) + hlen > pmtu) {
+		/*
+		 * If we're forwarding generate ICMP message here,
+		 * so that it contains pmtu and not link mtu.
+		 * Set error to EINPROGRESS, in order for the frame
+		 * to be dropped silently.
+		 */
+		if (forwarding) {
+			if (pmtu > hlen)
+				icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
+				    0, pmtu - hlen);
+			else
+				m_freem(m);
+
+			key_freesp(&sp);
+			return (EINPROGRESS); /* Pretend that we consumed it. */
+		} else {
+			m_freem(m);
+			key_freesp(&sp);
+			return (EMSGSIZE);
+		}
+	}
+
+	return (0);
+}
+
 static int
 ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 {
@@ -349,6 +428,14 @@ ipsec4_common_output(struct mbuf *m, struct inpcb *inp, int forwarding)
 #endif
 	}
 	/* NB: callee frees mbuf and releases reference to SP */
+	error = ipsec4_check_pmtu(m, sp, forwarding);
+	if (error != 0) {
+		if (error == EJUSTRETURN)
+			return (0);
+
+		return (error);
+	}
+
 	error = ipsec4_process_packet(m, sp, inp);
 	if (error == EJUSTRETURN) {
 		/*
