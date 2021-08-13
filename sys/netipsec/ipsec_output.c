@@ -322,6 +322,12 @@ setdf:
 	sav = ipsec4_allocsa(m, sp, &idx, &error);
 	if (sav == NULL) {
 		key_freesp(&sp);
+		/*
+		 * No matching SA was found and SADB_ACQUIRE message was generated.
+		 * Since we have matched a SP to this packet drop it silently.
+		 */
+		if (error == 0)
+			error = EINPROGRESS;
 		if (error != EJUSTRETURN)
 			m_freem(m);
 
