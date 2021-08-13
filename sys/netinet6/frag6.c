@@ -116,7 +116,7 @@ VNET_DEFINE_STATIC(bool,		frag6_on);
 
 /* System wide (global) maximum and count of packets in reassembly queues. */
 static int ip6_maxfrags;
-static volatile u_int frag6_nfrags = 0;
+static u_int __exclusive_cache_line frag6_nfrags;
 
 /* Maximum and current packets in per-VNET reassembly queue. */
 VNET_DEFINE_STATIC(int,			ip6_maxfragpackets);
@@ -164,7 +164,7 @@ VNET_DEFINE_STATIC(uint32_t,		ip6qb_hashseed);
 SYSCTL_DECL(_net_inet6_ip6);
 
 SYSCTL_UINT(_net_inet6_ip6, OID_AUTO, frag6_nfrags,
-	CTLFLAG_RD, __DEVOLATILE(u_int *, &frag6_nfrags), 0,
+	CTLFLAG_RD, &frag6_nfrags, 0,
 	"Global number of IPv6 fragments across all reassembly queues.");
 
 static void
