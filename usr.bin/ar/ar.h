@@ -114,7 +114,6 @@ struct bsdar {
 	TAILQ_HEAD(, ar_obj) v_obj;	/* object(member) list */
 };
 
-void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...) __dead2;
 void	ar_mode_script(struct bsdar *ar);
 int	ar_read_archive(struct bsdar *ar, int mode);
 int	ar_write_archive(struct bsdar *ar, int mode);
