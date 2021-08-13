@@ -1812,6 +1812,10 @@ pfctl_init_options(struct pfctl *pf)
 	pf->limit[PF_LIMIT_TABLE_ENTRIES] = PFR_KENTRY_HIWAT;
 
 	pf->debug = PF_DEBUG_URGENT;
+
+	pf->syncookies = false;
+	pf->syncookieswat[0] = PF_SYNCOOKIES_LOWATPCT;
+	pf->syncookieswat[1] = PF_SYNCOOKIES_HIWATPCT;
 }
 
 int
@@ -2069,12 +2073,57 @@ pfctl_load_syncookies(struct pfctl *pf, u_int8_t val)
 
 	bzero(&cookies, sizeof(cookies));
 
-	cookies.mode = val ? PFCTL_SYNCOOKIES_ALWAYS : PFCTL_SYNCOOKIES_NEVER;
+	cookies.mode = val;
+	cookies.lowwater = pf->syncookieswat[0];
+	cookies.highwater = pf->syncookieswat[1];
 
 	if (pfctl_set_syncookies(dev, &cookies)) {
 		warnx("DIOCSETSYNCOOKIES");
 		return (1);
 	}
+	return (0);
+}
+
+int
+pfctl_cfg_syncookies(struct pfctl *pf, uint8_t val, struct pfctl_watermarks *w)
+{
+	if (val != PF_SYNCOOKIES_ADAPTIVE && w != NULL) {
+		warnx("syncookies start/end only apply to adaptive");
+		return (1);
+	}
+	if (val == PF_SYNCOOKIES_ADAPTIVE && w != NULL) {
+		if (!w->hi)
+			w->hi = PF_SYNCOOKIES_HIWATPCT;
+		if (!w->lo)
+			w->lo = w->hi / 2;
+		if (w->lo >= w->hi) {
+			warnx("start must be higher than end");
+			return (1);
+		}
+		pf->syncookieswat[0] = w->lo;
+		pf->syncookieswat[1] = w->hi;
+		pf->syncookieswat_set = 1;
+	}
+
+	if (pf->opts & PF_OPT_VERBOSE) {
+		if (val == PF_SYNCOOKIES_NEVER)
+			printf("set syncookies never\n");
+		else if (val == PF_SYNCOOKIES_ALWAYS)
+			printf("set syncookies always\n");
+		else if (val == PF_SYNCOOKIES_ADAPTIVE) {
+			if (pf->syncookieswat_set)
+				printf("set syncookies adaptive (start %u%%, "
+				    "end %u%%)\n", pf->syncookieswat[1],
+				    pf->syncookieswat[0]);
+			else
+				printf("set syncookies adaptive\n");
+		} else {        /* cannot happen */
+			warnx("king bula ate all syncookies");
+			return (1);
+		}
+	}
+
+	pf->syncookies = val;
 	return (0);
 }
 
