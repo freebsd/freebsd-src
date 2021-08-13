@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <archive.h>
 #include <archive_entry.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
@@ -66,53 +67,10 @@ static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 static void	prefault_buffer(const char *buf, size_t s);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
 		    int checkargv);
-static int	write_archive(struct bsdar *bsdar, char mode);
 static void	write_cleanup(struct bsdar *bsdar);
 static void	write_data(struct bsdar *bsdar, struct archive *a,
 		    const void *buf, size_t s);
 static void	write_objs(struct bsdar *bsdar);
-
-int
-ar_mode_d(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'd'));
-}
-
-int
-ar_mode_m(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'm'));
-}
-
-int
-ar_mode_q(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'q'));
-}
-
-int
-ar_mode_r(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'r'));
-}
-
-int
-ar_mode_s(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 's'));
-}
-
-int
-ar_mode_A(struct bsdar *bsdar)
-{
-
-	return (write_archive(bsdar, 'A'));
-}
 
 /*
  * Create object from file, return created obj upon success, or NULL
@@ -376,8 +334,8 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 /*
  * Determine the constitution of resulting archive.
  */
-static int
-write_archive(struct bsdar *bsdar, char mode)
+int
+ar_write_archive(struct bsdar *bsdar, int mode)
 {
 	struct ar_obj		 *nobj, *obj, *obj_temp, *pos;
 	struct stat		  sb;
@@ -390,6 +348,9 @@ write_archive(struct bsdar *bsdar, char mode)
 	nobj = NULL;
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
+
+	assert(mode == 'A' || mode == 'd' || mode == 'm' || mode == 'q' ||
+	    mode == 'r' || mode == 's');
 
 	/*
 	 * Test if the specified archive exists, to figure out

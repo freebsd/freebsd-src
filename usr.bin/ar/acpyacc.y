@@ -367,7 +367,7 @@ arscp_addlib(char *archive, struct list *list)
 		return;
 	arscp_mlist2argv(list);
 	bsdar->addlib = archive;
-	ar_mode_A(bsdar);
+	ar_write_archive(bsdar, 'A');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -380,7 +380,7 @@ arscp_addmod(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_q(bsdar);
+	ar_write_archive(bsdar, 'q');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -393,7 +393,7 @@ arscp_delete(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_d(bsdar);
+	ar_write_archive(bsdar, 'd');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -406,7 +406,7 @@ arscp_extract(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_x(bsdar);
+	ar_read_archive(bsdar, 'x');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }
@@ -422,7 +422,7 @@ arscp_list(void)
 	bsdar->argv = NULL;
 	/* Always verbose. */
 	bsdar->options |= AR_V;
-	ar_mode_t(bsdar);
+	ar_read_archive(bsdar, 't');
 	bsdar->options &= ~AR_V;
 }
 
@@ -449,7 +449,7 @@ arscp_dir(char *archive, struct list *list, char *rlt)
 	}
 	if (verbose)
 		bsdar->options |= AR_V;
-	ar_mode_t(bsdar);
+	ar_read_archive(bsdar, 't');
 	bsdar->options &= ~AR_V;
 
 	if (rlt) {
@@ -473,7 +473,7 @@ arscp_replace(struct list *list)
 	if (!arscp_target_exist())
 		return;
 	arscp_mlist2argv(list);
-	ar_mode_r(bsdar);
+	ar_write_archive(bsdar, 'r');
 	arscp_free_argv();
 	arscp_free_mlist(list);
 }

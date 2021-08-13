@@ -151,7 +151,7 @@ main(int argc, char **argv)
 			bsdar->options |= AR_D;
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
-			if (ar_mode_s(bsdar))
+			if (ar_write_archive(bsdar, 's'))
 				exitcode = EXIT_FAILURE;
 
 		exit(exitcode);
@@ -317,32 +317,17 @@ main(int argc, char **argv)
 
 	if ((!bsdar->mode || strchr("ptx", bsdar->mode)) &&
 	    bsdar->options & AR_S) {
-		exitcode = ar_mode_s(bsdar);
+		exitcode = ar_write_archive(bsdar, 's');
 		if (!bsdar->mode)
 			exit(exitcode);
 	}
 
 	switch(bsdar->mode) {
-	case 'd':
-		exitcode = ar_mode_d(bsdar);
+	case 'd': case 'm': case 'q': case 'r':
+		exitcode = ar_write_archive(bsdar, bsdar->mode);
 		break;
-	case 'm':
-		exitcode = ar_mode_m(bsdar);
-		break;
-	case 'p':
-		exitcode = ar_mode_p(bsdar);
-		break;
-	case 'q':
-		exitcode = ar_mode_q(bsdar);
-		break;
-	case 'r':
-		exitcode = ar_mode_r(bsdar);
-		break;
-	case 't':
-		exitcode = ar_mode_t(bsdar);
-		break;
-	case 'x':
-		exitcode = ar_mode_x(bsdar);
+	case 'p': case 't': case 'x':
+		exitcode = ar_read_archive(bsdar, bsdar->mode);
 		break;
 	default:
 		bsdar_usage();
