@@ -593,11 +593,16 @@ ipreass_slowtimo(void)
 {
 	struct ipq *fp, *tmp;
 
+	if (atomic_load_int(&nfrags) == 0)
+		return;
+
 	for (int i = 0; i < IPREASS_NHASH; i++) {
+		if (TAILQ_EMPTY(&V_ipq[i].head))
+			continue;
 		IPQ_LOCK(i);
 		TAILQ_FOREACH_SAFE(fp, &V_ipq[i].head, ipq_list, tmp)
 		if (--fp->ipq_ttl == 0)
-				ipq_timeout(&V_ipq[i], fp);
+			ipq_timeout(&V_ipq[i], fp);
 		IPQ_UNLOCK(i);
 	}
 }
