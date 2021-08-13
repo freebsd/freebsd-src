@@ -616,6 +616,7 @@ static struct callout key_timer;
 #endif
 
 static void key_unlink(struct secpolicy *);
+static void key_detach(struct secpolicy *);
 static struct secpolicy *key_do_allocsp(struct secpolicyindex *spidx, u_int dir);
 static struct secpolicy *key_getsp(struct secpolicyindex *);
 static struct secpolicy *key_getspbyid(u_int32_t);
@@ -1200,18 +1201,26 @@ key_freesp(struct secpolicy **spp)
 static void
 key_unlink(struct secpolicy *sp)
 {
+	SPTREE_WLOCK();
+	key_detach(sp);
+	SPTREE_WUNLOCK();
+	if (SPDCACHE_ENABLED())
+		spdcache_clear();
+	key_freesp(&sp);
+}
 
+static void
+key_detach(struct secpolicy *sp)
+{
 	IPSEC_ASSERT(sp->spidx.dir == IPSEC_DIR_INBOUND ||
 	    sp->spidx.dir == IPSEC_DIR_OUTBOUND,
 	    ("invalid direction %u", sp->spidx.dir));
-	SPTREE_UNLOCK_ASSERT();
+	SPTREE_WLOCK_ASSERT();
 
 	KEYDBG(KEY_STAMP,
 	    printf("%s: SP(%p)\n", __func__, sp));
-	SPTREE_WLOCK();
 	if (sp->state != IPSEC_SPSTATE_ALIVE) {
 		/* SP is already unlinked */
-		SPTREE_WUNLOCK();
 		return;
 	}
 	sp->state = IPSEC_SPSTATE_DEAD;
@@ -1219,10 +1228,6 @@ key_unlink(struct secpolicy *sp)
 	V_spd_size--;
 	LIST_REMOVE(sp, idhash);
 	V_sp_genid++;
-	SPTREE_WUNLOCK();
-	if (SPDCACHE_ENABLED())
-		spdcache_clear();
-	key_freesp(&sp);
 }
 
 /*
@@ -1941,7 +1946,7 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	struct sadb_address *src0, *dst0;
 	struct sadb_x_policy *xpl0, *xpl;
 	struct sadb_lifetime *lft = NULL;
-	struct secpolicy *newsp;
+	struct secpolicy *newsp, *oldsp;
 	int error;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
@@ -2019,15 +2024,13 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	                src0->sadb_address_proto,
 	                &spidx);
 	/* Checking there is SP already or not. */
-	newsp = key_getsp(&spidx);
-	if (newsp != NULL) {
+	oldsp = key_getsp(&spidx);
+	if (oldsp != NULL) {
 		if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
 			KEYDBG(KEY_STAMP,
 			    printf("%s: unlink SP(%p) for SPDUPDATE\n",
-				__func__, newsp));
-			KEYDBG(KEY_DATA, kdebug_secpolicy(newsp));
-			key_unlink(newsp);
-			key_freesp(&newsp);
+				__func__, oldsp));
+			KEYDBG(KEY_DATA, kdebug_secpolicy(oldsp));
 		} else {
 			key_freesp(&newsp);
 			ipseclog((LOG_DEBUG,
@@ -2038,6 +2041,10 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 
 	/* allocate new SP entry */
 	if ((newsp = key_msg2sp(xpl0, PFKEY_EXTLEN(xpl0), &error)) == NULL) {
+		if (oldsp != NULL) {
+			key_unlink(oldsp);
+			key_freesp(&oldsp); /* second for our reference */
+		}
 		return key_senderror(so, m, error);
 	}
 
@@ -2046,18 +2053,32 @@ key_spdadd(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 	newsp->validtime = lft ? lft->sadb_lifetime_usetime : 0;
 	bcopy(&spidx, &newsp->spidx, sizeof(spidx));
 
-	/* XXXAE: there is race between key_getsp() and key_insertsp() */
 	SPTREE_WLOCK();
 	if ((newsp->id = key_getnewspid()) == 0) {
+		if (oldsp != NULL)
+			key_detach(oldsp);
 		SPTREE_WUNLOCK();
+		if (oldsp != NULL) {
+			key_freesp(&oldsp); /* first for key_detach */
+			IPSEC_ASSERT(oldsp != NULL, ("null oldsp: refcount bug"));
+			key_freesp(&oldsp); /* second for our reference */
+			if (SPDCACHE_ENABLED()) /* refresh cache because of key_detach */
+				spdcache_clear();
+		}
 		key_freesp(&newsp);
 		return key_senderror(so, m, ENOBUFS);
 	}
+	if (oldsp != NULL)
+		key_detach(oldsp);
 	key_insertsp(newsp);
 	SPTREE_WUNLOCK();
+	if (oldsp != NULL) {
+		key_freesp(&oldsp); /* first for key_detach */
+		IPSEC_ASSERT(oldsp != NULL, ("null oldsp: refcount bug"));
+		key_freesp(&oldsp); /* second for our reference */
+	}
 	if (SPDCACHE_ENABLED())
 		spdcache_clear();
-
 	KEYDBG(KEY_STAMP,
 	    printf("%s: SP(%p)\n", __func__, newsp));
 	KEYDBG(KEY_DATA, kdebug_secpolicy(newsp));
