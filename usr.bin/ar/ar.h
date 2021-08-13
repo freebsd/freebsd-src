@@ -115,14 +115,8 @@ struct bsdar {
 };
 
 void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...) __dead2;
-void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
-int	ar_mode_d(struct bsdar *bsdar);
-int	ar_mode_m(struct bsdar *bsdar);
-int	ar_mode_p(struct bsdar *bsdar);
-int	ar_mode_q(struct bsdar *bsdar);
-int	ar_mode_r(struct bsdar *bsdar);
-int	ar_mode_s(struct bsdar *bsdar);
-int	ar_mode_t(struct bsdar *bsdar);
-int	ar_mode_x(struct bsdar *bsdar);
-int	ar_mode_A(struct bsdar *bsdar);
 void	ar_mode_script(struct bsdar *ar);
+int	ar_read_archive(struct bsdar *ar, int mode);
+int	ar_write_archive(struct bsdar *ar, int mode);
+void	bsdar_errc(struct bsdar *, int _code, const char *fmt, ...) __dead2;
+void	bsdar_warnc(struct bsdar *, int _code, const char *fmt, ...);
