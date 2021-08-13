@@ -891,10 +891,15 @@ frag6_slowtimo(void)
 	struct ip6q *q6, *q6tmp;
 	uint32_t bucket;
 
+	if (atomic_load_int(&frag6_nfrags) == 0)
+		return;
+
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		for (bucket = 0; bucket < IP6REASS_NHASH; bucket++) {
+			if (V_ip6qb[bucket].count == 0)
+				continue;
 			IP6QB_LOCK(bucket);
 			head = IP6QB_HEAD(bucket);
 			TAILQ_FOREACH_SAFE(q6, head, ip6q_tq, q6tmp)
