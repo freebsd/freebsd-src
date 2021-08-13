@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
  * Microchip LAN7430/LAN7431 PCIe to Gigabit Ethernet Controller driver.
  *
  * Product information:
- * LAN7430 https://www.microchip.com/wwwproducts/en/LAN7430
+ * LAN7430 https://www.microchip.com/en-us/product/LAN7430
  *   - Integrated IEEE 802.3 compliant PHY
- * LAN7431 https://www.microchip.com/wwwproducts/en/LAN7431
+ * LAN7431 https://www.microchip.com/en-us/product/LAN7431
  *   - RGMII Interface
  *
  * This driver uses the iflib interface and the default 'ukphy' PHY driver.
