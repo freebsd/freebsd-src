@@ -489,6 +489,7 @@ namei_emptypath(struct nameidata *ndp)
 	MPASS((cnp->cn_flags & EMPTYPATH) != 0);
 	MPASS((cnp->cn_flags & (LOCKPARENT | WANTPARENT)) == 0);
 
+	ndp->ni_resflags |= NIRES_EMPTYPATH;
 	error = namei_setup(ndp, &dp, &pwd);
 	if (error != 0) {
 		namei_cleanup_cnp(cnp);
@@ -501,7 +502,6 @@ namei_emptypath(struct nameidata *ndp)
 	ndp->ni_vp = dp;
 	namei_cleanup_cnp(cnp);
 	pwd_drop(pwd);
-	ndp->ni_resflags |= NIRES_EMPTYPATH;
 	NDVALIDATE(ndp);
 	if ((cnp->cn_flags & LOCKLEAF) != 0) {
 		VOP_LOCK(dp, (cnp->cn_flags & LOCKSHARED) != 0 ?
