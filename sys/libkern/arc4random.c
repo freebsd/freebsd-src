@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/smp.h>
@@ -105,6 +106,14 @@ chacha20_randomstir(struct chacha20_s *chacha20)
 				    "knob 'bypass_before_seeding' was "
 				    "enabled.\n");
 		}
+
+		/*
+		 * "key" is intentionally left uninitialized here, so with KMSAN
+		 * enabled the arc4random() return value may be marked
+		 * uninitialized, leading to spurious reports.  Lie to KMSAN to
+		 * avoid this situation.
+		 */
+		kmsan_mark(key, sizeof(key), KMSAN_STATE_INITED);
 
 		/* Last ditch effort to inject something in a bad condition. */
 		cc = get_cyclecount();
