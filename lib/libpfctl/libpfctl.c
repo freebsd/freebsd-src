@@ -50,6 +50,12 @@
 
 #include "libpfctl.h"
 
+const char* PFCTL_SYNCOOKIES_MODE_NAMES[] = {
+	"never",
+	"always",
+	"adaptive"
+};
+
 static int	_pfctl_clear_states(int , const struct pfctl_kill *,
 		    unsigned int *, uint64_t);
 
@@ -938,17 +944,40 @@ pfctl_kill_states(int dev, const struct pfctl_kill *kill, unsigned int *killed)
 	return (_pfctl_clear_states(dev, kill, killed, DIOCKILLSTATESNV));
 }
 
+static int
+pfctl_get_limit(int dev, const int index, u_int *limit)
+{
+	struct pfioc_limit pl;
+
+	bzero(&pl, sizeof(pl));
+	pl.index = index;
+
+	if (ioctl(dev, DIOCGETLIMIT, &pl) == -1)
+		return (errno);
+
+	*limit = pl.limit;
+
+	return (0);
+}
+
 int
 pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 {
 	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
 	int		 ret;
+	u_int		 state_limit;
+
+	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
+	if (ret != 0)
+		return (ret);
 
 	nvl = nvlist_create(0);
 
 	nvlist_add_bool(nvl, "enabled", s->mode != PFCTL_SYNCOOKIES_NEVER);
-	nvlist_add_bool(nvl, "adaptive", false); /* XXX TODO */
+	nvlist_add_bool(nvl, "adaptive", s->mode == PFCTL_SYNCOOKIES_ADAPTIVE);
+	nvlist_add_number(nvl, "highwater", state_limit * s->highwater / 100);
+	nvlist_add_number(nvl, "lowwater", state_limit * s->lowwater / 100);
 
 	nv.data = nvlist_pack(nvl, &nv.len);
 	nv.size = nv.len;
@@ -966,12 +995,18 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 {
 	struct pfioc_nv	 nv;
 	nvlist_t	*nvl;
-	bool		enabled, adaptive;
+	int		 ret;
+	u_int		 state_limit;
+	bool		 enabled, adaptive;
+
+	ret = pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
+	if (ret != 0)
+		return (ret);
 
 	bzero(s, sizeof(*s));
 
-	nv.data = malloc(128);
-	nv.len = nv.size = 128;
+	nv.data = malloc(256);
+	nv.len = nv.size = 256;
 
 	if (ioctl(dev, DIOCGETSYNCOOKIES, &nv)) {
 		free(nv.data);
@@ -987,7 +1022,17 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	enabled = nvlist_get_bool(nvl, "enabled");
 	adaptive = nvlist_get_bool(nvl, "adaptive");
 
-	s->mode = enabled ? PFCTL_SYNCOOKIES_ALWAYS : PFCTL_SYNCOOKIES_NEVER;
+	if (enabled) {
+		if (adaptive)
+			s->mode = PFCTL_SYNCOOKIES_ADAPTIVE;
+		else
+			s->mode = PFCTL_SYNCOOKIES_ALWAYS;
+	} else {
+		s->mode = PFCTL_SYNCOOKIES_NEVER;
+	}
+
+	s->highwater = nvlist_get_number(nvl, "highwater") * 100 / state_limit;
+	s->lowwater = nvlist_get_number(nvl, "lowwater") * 100 / state_limit;
 
 	nvlist_destroy(nvl);
 

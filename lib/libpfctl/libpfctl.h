@@ -276,11 +276,15 @@ struct pfctl_states {
 
 enum pfctl_syncookies_mode {
 	PFCTL_SYNCOOKIES_NEVER,
-	PFCTL_SYNCOOKIES_ALWAYS
+	PFCTL_SYNCOOKIES_ALWAYS,
+	PFCTL_SYNCOOKIES_ADAPTIVE
 };
+extern const char* PFCTL_SYNCOOKIES_MODE_NAMES[];
 
 struct pfctl_syncookies {
 	enum pfctl_syncookies_mode	mode;
+	uint8_t				highwater;	/* Percent */
+	uint8_t				lowwater;	/* Percent */
 };
 
 struct pfctl_status* pfctl_get_status(int dev);

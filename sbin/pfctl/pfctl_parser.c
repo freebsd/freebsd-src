@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 
+#include <assert.h>
 #include <search.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -618,9 +619,9 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		}
 
 		printf("Syncookies\n");
+		assert(cookies->mode <= PFCTL_SYNCOOKIES_ADAPTIVE);
 		printf("  %-25s %s\n", "mode",
-		    cookies->mode == PFCTL_SYNCOOKIES_NEVER ?
-		    "never" : "always");
+		    PFCTL_SYNCOOKIES_MODE_NAMES[cookies->mode]);
 	}
 }
 
