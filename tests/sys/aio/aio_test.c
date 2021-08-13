@@ -924,13 +924,6 @@ aio_zvol_setup(void)
 		ZVOL_SIZE " %s", zvol_name);
 	ATF_REQUIRE_EQ_MSG(0, system(cmd),
 	    "zfs create failed: %s", strerror(errno));
-	/*
-	 * XXX Due to bug 251828, we need an extra "zfs set" here
-	 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=251828
-	 */
-	snprintf(cmd, sizeof(cmd), "zfs set volmode=dev %s", zvol_name);
-	ATF_REQUIRE_EQ_MSG(0, system(cmd),
-	    "zfs set failed: %s", strerror(errno));
 
 	snprintf(devname, sizeof(devname), "/dev/zvol/%s", zvol_name);
 	do {
