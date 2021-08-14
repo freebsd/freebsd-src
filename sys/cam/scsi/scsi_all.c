@@ -9150,7 +9150,7 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 	rhs_end = rhs + rhs_len;
 
 	/*
-	 * rhs_last and lhs_last are the last posible position of a valid
+	 * rhs_last and lhs_last are the last possible position of a valid
 	 * descriptor assuming it had a zero length identifier.  We use
 	 * these variables to insure we can safely dereference the length
 	 * field in our loop termination tests.
