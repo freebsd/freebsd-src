@@ -4939,8 +4939,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
-#if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__) || defined(__riscv)
+#ifdef TLS_VARIANT_I
 
 /*
  * Return pointer to allocated TLS block
@@ -5071,9 +5070,9 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
     free_aligned(get_tls_block_ptr(tcb, tcbsize));
 }
 
-#endif
+#endif	/* TLS_VARIANT_I */
 
-#if defined(__i386__) || defined(__amd64__)
+#ifdef TLS_VARIANT_II
 
 /*
  * Allocate Static TLS using the Variant II method.
@@ -5179,7 +5178,7 @@ free_tls(void *tls, size_t tcbsize  __unused, size_t tcbalign)
     free((void*) dtv);
 }
 
-#endif
+#endif	/* TLS_VARIANT_II */
 
 /*
  * Allocate TLS block for module with given index.
@@ -5227,6 +5226,11 @@ allocate_tls_offset(Obj_Entry *obj)
 	off = calculate_tls_offset(tls_last_offset, tls_last_size,
 	  obj->tlssize, obj->tlsalign, obj->tlspoffset);
 
+    obj->tlsoffset = off;
+#ifdef TLS_VARIANT_I
+    off += obj->tlssize;
+#endif
+
     /*
      * If we have already fixed the size of the static TLS block, we
      * must stay within that size. When allocating the static TLS, we
@@ -5234,13 +5238,13 @@ allocate_tls_offset(Obj_Entry *obj)
      * loading modules which use static TLS.
      */
     if (tls_static_space != 0) {
-	if (calculate_tls_end(off, obj->tlssize) > tls_static_space)
+	if (off > tls_static_space)
 	    return false;
     } else if (obj->tlsalign > tls_static_max_align) {
 	    tls_static_max_align = obj->tlsalign;
     }
 
-    tls_last_offset = obj->tlsoffset = off;
+    tls_last_offset = off;
     tls_last_size = obj->tlssize;
     obj->tls_done = true;
 
@@ -5257,8 +5261,11 @@ free_tls_offset(Obj_Entry *obj)
      * simplistic workaround to allow libGL.so.1 to be loaded and
      * unloaded multiple times.
      */
-    if (calculate_tls_end(obj->tlsoffset, obj->tlssize)
-	== calculate_tls_end(tls_last_offset, tls_last_size)) {
+    size_t off = obj->tlsoffset;
+#ifdef TLS_VARIANT_I
+    off += obj->tlssize;
+#endif
+    if (off == tls_last_offset) {
 	tls_last_offset -= obj->tlssize;
 	tls_last_size = 0;
     }
