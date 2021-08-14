@@ -2496,7 +2496,7 @@ tdsaSharedMemCalculate(
 #endif
 
 #ifdef TD_DISCOVER
-  /* adding expander data strutures */
+  /* adding expander data structures */
   tdSharedMem->tdSharedCachedMem1.singleElementLength +=
     sizeof(tdsaExpander_t) * MaxTargets;
 #endif
