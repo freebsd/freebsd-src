@@ -1660,7 +1660,7 @@ typedef struct agsaContext_s
   void  *sdkData; /**< Pointer-sized value used internally by the LL Layer */
 } agsaContext_t;
 
-/** \brief hold points to global data strutures used by the LL and OS Layers
+/** \brief hold points to global data structures used by the LL and OS Layers
  *
  * The agsaRoot_t data structure is used to hold pointer-sized values for
  * internal use by the LL and OS Layers. It is intended that the

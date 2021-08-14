@@ -216,7 +216,7 @@ associate one object to another.  An SCI object can be made to have an
 association to another SCI object.  Additionally, an SCI object can be
 made to have an association to a non-SCI based object.  For example, an SCI
 Framework library can have it's association set to an operating system
-specific adapter/device driver structre.
+specific adapter/device driver structure.
 
 Simply put, the association that an object has is a handle (i.e. a void pointer)
 to a user structure.  This enables the user of the SCI object to

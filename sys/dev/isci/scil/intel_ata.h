@@ -244,7 +244,7 @@
  *
  * The following constants define bit masks utilized to determine if a
  * feature is supported/enabled or if a bit is simply set inside of the
- * IDENTIFY DEVICE data structre.
+ * IDENTIFY DEVICE data structure.
  */
 /*@{*/
 #define ATA_IDENTIFY_REMOVABLE_MEDIA_ENABLE              0x0080

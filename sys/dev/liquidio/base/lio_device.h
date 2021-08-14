@@ -799,7 +799,7 @@ void	*lio_get_config_info(struct octeon_device *oct, uint16_t card_type);
 
 /*
  *  Gets the octeon device configuration
- *  @return - pointer to the octeon configuration struture
+ *  @return - pointer to the octeon configuration structure
  */
 struct lio_config	*lio_get_conf(struct octeon_device *oct);
 

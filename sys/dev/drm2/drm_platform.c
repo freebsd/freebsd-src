@@ -107,7 +107,7 @@ static struct drm_bus drm_platform_bus = {
 /**
  * Register.
  *
- * \param platdev - Platform device struture
+ * \param platdev - Platform device structure
  * \return zero on success or a negative number on failure.
  *
  * Attempt to gets inter module "drm" information. If we are first

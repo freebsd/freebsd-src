@@ -40,7 +40,7 @@
 /** \brief Structure of Link Data
  *
  *  link data, need to be included at the start (offset 0)
- *  of any strutures that are to be stored in the link list
+ *  of any structures that are to be stored in the link list
  *
  */
 typedef struct _SALINK
