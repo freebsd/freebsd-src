@@ -539,7 +539,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 			 * the PQ_UNSWAPPABLE holding queue.  This is an
 			 * optimization that prevents the page daemon from
 			 * wasting CPU cycles on pages that cannot be reclaimed
-			 * becase no swap device is configured.
+			 * because no swap device is configured.
 			 *
 			 * Otherwise, reactivate the page so that it doesn't
 			 * clog the laundry and inactive queues.  (We will try
