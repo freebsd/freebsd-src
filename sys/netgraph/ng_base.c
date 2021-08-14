@@ -3448,7 +3448,7 @@ ngthread(void *arg)
 
 /*
  * XXX
- * It's posible that a debugging NG_NODE_REF may need
+ * It's possible that a debugging NG_NODE_REF may need
  * to be outside the mutex zone
  */
 static void
