@@ -409,7 +409,7 @@ emac_rxeof(struct emac_softc *sc, int count)
 		m->m_len = m->m_pkthdr.len = len - ETHER_CRC_LEN;
 
 		/*
-		 * Emac controller needs strict aligment, so to avoid
+		 * Emac controller needs strict alignment, so to avoid
 		 * copying over an entire frame to align, we allocate
 		 * a new mbuf and copy ethernet header + IP header to
 		 * the new mbuf. The new mbuf is prepended into the
