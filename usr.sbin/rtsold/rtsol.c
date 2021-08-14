@@ -79,8 +79,8 @@ static int ra_opt_rdnss_dispatch(struct ifinfo *, struct rainfo *,
     struct script_msg_head_t *, struct script_msg_head_t *);
 static char *make_rsid(const char *, const char *, struct rainfo *);
 
-#define	_ARGS_MANAGED	managedconf_script, ifi->ifname
-#define	_ARGS_OTHER	otherconf_script, ifi->ifname
+#define	_ARGS_MANAGED	managedconf_script, ifi->ifname, rasender
+#define	_ARGS_OTHER	otherconf_script, ifi->ifname, rasender
 #define	_ARGS_RESADD	resolvconf_script, "-a", rsid
 #define	_ARGS_RESDEL	resolvconf_script, "-d", rsid
 
@@ -301,6 +301,8 @@ rtsol_input(int sock)
 	 */
 	if (((nd_ra->nd_ra_flags_reserved) & ND_RA_FLAG_MANAGED) &&
 	    !ifi->managedconfig) {
+		const char *rasender = inet_ntop(AF_INET6, &from.sin6_addr,
+		    ntopbuf, sizeof(ntopbuf));
 		warnmsg(LOG_DEBUG, __func__,
 		    "ManagedConfigFlag on %s is turned on", ifi->ifname);
 		ifi->managedconfig = 1;
@@ -317,6 +319,8 @@ rtsol_input(int sock)
 	 */
 	if (((nd_ra->nd_ra_flags_reserved) & ND_RA_FLAG_OTHER) &&
 	    !ifi->otherconfig) {
+		const char *rasender = inet_ntop(AF_INET6, &from.sin6_addr,
+		    ntopbuf, sizeof(ntopbuf));
 		warnmsg(LOG_DEBUG, __func__,
 		    "OtherConfigFlag on %s is turned on", ifi->ifname);
 		ifi->otherconfig = 1;
