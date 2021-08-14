@@ -81,14 +81,6 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #error TLS_TCB_ALIGN undefined for target architecture
 #endif
 
-#if defined(__aarch64__) || defined(__arm__) || defined(__mips__) || \
-    defined(__powerpc__) || defined(__riscv)
-#define TLS_VARIANT_I
-#endif
-#if defined(__i386__) || defined(__amd64__)
-#define TLS_VARIANT_II
-#endif
-
 #if defined(__mips__) || defined(__powerpc__) || defined(__riscv)
 #define DTV_OFFSET 0x8000
 #else

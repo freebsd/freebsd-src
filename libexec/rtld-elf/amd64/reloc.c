@@ -567,9 +567,3 @@ calculate_first_tls_offset(size_t size, size_t align, size_t offset)
 {
 	return (calculate_tls_offset(0, 0, size, align, offset));
 }
-
-size_t
-calculate_tls_end(size_t off, size_t size __unused)
-{
-	return (off);
-}
