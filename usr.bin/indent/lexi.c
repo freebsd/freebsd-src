@@ -354,7 +354,7 @@ lexi(struct parser_state *state)
 					 * then following sign is unary */
 	    state->last_u_d = true;	/* will make "int a -1" work */
 	return (ident);		/* the ident is not in the list */
-    }				/* end of procesing for alpanum character */
+    }				/* end of processing for alpanum character */
 
     /* Scan a non-alphanumeric token */
 
