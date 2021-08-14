@@ -17179,7 +17179,7 @@ bxe_init_hw_common(struct bxe_softc *sc)
  *          stay set)
  *      f.  If this is VNIC 3 of a port then also init
  *          first_timers_ilt_entry to zero and last_timers_ilt_entry
- *          to the last enrty in the ILT.
+ *          to the last enrtry in the ILT.
  *
  *      Notes:
  *      Currently the PF error in the PGLC is non recoverable.
