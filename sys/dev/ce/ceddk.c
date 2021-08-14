@@ -245,7 +245,7 @@ static void TAU32_CALLBACK_TYPE ce_on_receive
 			c->error (c, CE_OVERRUN);
 	} else {
 		CE_DDK_DEBUG (b, c, ("Another receive error: %x\n", error));
-		/* Do some procesing */
+		/* Do some processing */
 	}
 
 	CE_ASSERT (!req->pInternal);
@@ -297,7 +297,7 @@ static void TAU32_CALLBACK_TYPE ce_on_transmit
 	} else {
 		CE_DDK_DEBUG (c->board, c, ("Another transmit error: %x\n",
 				error));
-		/* Do some procesing */
+		/* Do some processing */
 	}
 
 	CE_ENQUEUE (c->tx_queue, req);
