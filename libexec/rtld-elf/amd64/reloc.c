@@ -548,29 +548,26 @@ __tls_get_addr(tls_index *ti)
 }
 
 size_t
-calculate_first_tls_offset(size_t size, size_t align, size_t offset)
+calculate_tls_offset(size_t prev_offset, size_t prev_size __unused,
+    size_t size, size_t align, size_t offset)
 {
 	size_t res;
 
-	res = roundup(size, align);
-	offset &= align - 1;
-	if (offset != 0)
-		res += align - offset;
-	return (res);
+        /*
+	 * res is the smallest integer satisfying res - prev_offset >= size
+         * and (-res) % p_align = p_vaddr % p_align (= p_offset % p_align).
+	 */
+        res = prev_offset + size + align - 1;
+        res -= (res + offset) & (align - 1);
+        return (res);
 }
 
 size_t
-calculate_tls_offset(size_t prev_offset, size_t prev_size __unused, size_t size,
-    size_t align, size_t offset)
+calculate_first_tls_offset(size_t size, size_t align, size_t offset)
 {
-	size_t res;
-
-	res = roundup(prev_offset + size, align);
-	offset &= align - 1;
-	if (offset != 0)
-		res += align - offset;
-	return (res);
+	return (calculate_tls_offset(0, 0, size, align, offset));
 }
+
 size_t
 calculate_tls_end(size_t off, size_t size __unused)
 {
