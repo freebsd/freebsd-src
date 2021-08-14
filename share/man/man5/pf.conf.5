@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 10, 2021
+.Dd September 25, 2021
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -539,6 +539,34 @@ For example:
 .Bd -literal -offset indent
 set state-policy if-bound
 .Ed
+.It Ar set syncookies never | always | adaptive
+When
+.Cm syncookies
+are active, pf will answer each incoming TCP SYN with a syncookie SYNACK,
+without allocating any resources.
+Upon reception of the client's ACK in response to the syncookie
+SYNACK, pf will evaluate the ruleset and create state if the ruleset
+permits it, complete the three way handshake with the target host and
+continue the connection with synproxy in place.
+This allows pf to be resilient against large synflood attacks which would
+run the state table against its limits otherwise.
+Due to the blind answers to every incoming SYN syncookies share the caveats of
+synproxy, namely seemingly accepting connections that will be dropped later on.
+.Pp
+.Bl -tag -width adaptive -compact
+.It Cm never
+pf will never send syncookie SYNACKs (the default).
+.It Cm always
+pf will always send syncookie SYNACKs.
+.It Cm adaptive
+pf will enable syncookie mode when a given percentage of the state table
+is used up by half-open TCP connections, as in, those that saw the initial
+SYN but didn't finish the three way handshake.
+The thresholds for entering and leaving syncookie mode can be specified using
+.Bd -literal -offset indent
+set syncookies adaptive (start 25%, end 12%)
+.Ed
+.El
 .It Ar set state-defaults
 The
 .Ar state-defaults
