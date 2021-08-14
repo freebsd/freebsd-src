@@ -63,6 +63,25 @@
 #define	CHECKED_CLOSE(fd)	\
 	ATF_REQUIRE_MSG(close(fd) == 0, FMT_ERR("close"))
 
+/*
+ * Verify fstatat(AT_EMPTY_PATH) on non-regular dirfd.
+ * Verify that fstatat(AT_EMPTY_PATH) on NULL path returns EFAULT.
+ */
+ATF_TC_WITHOUT_HEAD(path_pipe_fstatat);
+ATF_TC_BODY(path_pipe_fstatat, tc)
+{
+	struct stat sb;
+  	int fd[2];
+
+	ATF_REQUIRE_MSG(pipe(fd) == 0, FMT_ERR("pipe"));
+	ATF_REQUIRE_MSG(fstatat(fd[0], "", &sb, AT_EMPTY_PATH) == 0,
+	    FMT_ERR("fstatat pipe"));
+	ATF_REQUIRE_ERRNO(EFAULT, fstatat(fd[0], NULL, &sb,
+	    AT_EMPTY_PATH) == -1);
+	CHECKED_CLOSE(fd[0]);
+	CHECKED_CLOSE(fd[1]);
+}
+
 /* Create a temporary regular file containing some data. */
 static void
 mktfile(char path[PATH_MAX], const char *template)
@@ -873,6 +892,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, path_lock);
 	ATF_TP_ADD_TC(tp, path_rights);
 	ATF_TP_ADD_TC(tp, path_unix);
+	ATF_TP_ADD_TC(tp, path_pipe_fstatat);
 
 	return (atf_no_error());
 }
