@@ -4486,7 +4486,7 @@ dazonedone(struct cam_periph *periph, union ccb *ccb)
 			/*
 			 * NOTE: we're mapping the values here directly
 			 * from the SCSI/ATA bit definitions to the bio.h
-			 * definitons.  There is also a warning in
+			 * definitions. There is also a warning in
 			 * disk_zone.h, but the impact is that if
 			 * additional values are added in the SCSI/ATA
 			 * specs these will be visible to consumers of
