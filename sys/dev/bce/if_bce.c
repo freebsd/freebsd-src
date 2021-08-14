@@ -3163,7 +3163,7 @@ bce_init_media(struct bce_softc *sc)
 /****************************************************************************/
 /* Free any DMA memory owned by the driver.                                 */
 /*                                                                          */
-/* Scans through each data structre that requires DMA memory and frees      */
+/* Scans through each data structure that requires DMA memory and frees     */
 /* the memory if allocated.                                                 */
 /*                                                                          */
 /* Returns:                                                                 */
@@ -5553,7 +5553,7 @@ bce_init_tx_chain(struct bce_softc *sc)
 	DBRUN(sc->tx_full_count = 0);
 
 	/*
-	 * The NetXtreme II supports a linked-list structre called
+	 * The NetXtreme II supports a linked-list structure called
 	 * a Buffer Descriptor Chain (or BD chain).  A BD chain
 	 * consists of a series of 1 or more chain pages, each of which
 	 * consists of a fixed number of BD entries.
