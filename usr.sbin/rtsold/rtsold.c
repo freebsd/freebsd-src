@@ -846,8 +846,6 @@ autoifprobe(void)
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if ((ifa->ifa_flags & IFF_UP) == 0)
 			continue;
-		if ((ifa->ifa_flags & IFF_POINTOPOINT) != 0)
-			continue;
 		if ((ifa->ifa_flags & IFF_LOOPBACK) != 0)
 			continue;
 		if ((ifa->ifa_flags & IFF_MULTICAST) == 0)
