@@ -163,7 +163,7 @@ test_ip_options(int sock, const char *socktypename)
 		    "returned %d bytes of data", socktypename, len);
 
 	/*
-	 * One posible failure mode is that the call succeeds but neglects to
+	 * One possible failure mode is that the call succeeds but neglects to
 	 * copy out the data.
  	 */
 	if (test_options[0] == TEST_MAGIC)
