@@ -378,9 +378,7 @@ struct mntoptnames {
 #define	MNT_EXTLSCERTUSER 0x0000010000000000ULL /* require TLS with user cert */
 
 /*
- * Flags set by internal operations,
- * but visible to the user.
- * XXX some of these are not quite right.. (I've never seen the root flag set)
+ * Flags set by internal operations, but visible to the user.
  */
 #define	MNT_LOCAL	0x0000000000001000ULL /* filesystem is stored locally */
 #define	MNT_QUOTA	0x0000000000002000ULL /* quotas are enabled on fs */
