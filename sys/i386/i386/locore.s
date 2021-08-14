@@ -340,7 +340,7 @@ ENTRY(identify_cpu)
 	testl	%eax,%eax
 	jnz	try486
 
-	/* NexGen CPU does not have aligment check flag. */
+	/* NexGen CPU does not have alignment check flag. */
 	pushfl
 	movl	$0x5555, %eax
 	xorl	%edx, %edx

@@ -249,9 +249,9 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
  *
  * where:
  *  extra_size is tcbsize - TLS_TCB_SIZE
- *  post_size is used to adjust TCB to TLS aligment for first version of TLS
+ *  post_size is used to adjust TCB to TLS alignment for first version of TLS
  *            layout and is always 0 for second version.
- *  pre_size  is used to adjust TCB aligment for first version and to adjust
+ *  pre_size  is used to adjust TCB alignment for first version and to adjust
  *            TLS alignment for second version.
  *
  */
