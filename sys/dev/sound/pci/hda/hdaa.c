@@ -2191,7 +2191,7 @@ hdaa_channel_getptr(kobj_t obj, void *data)
 	hdaa_unlock(devinfo);
 
 	/*
-	 * Round to available space and force 128 bytes aligment.
+	 * Round to available space and force 128 bytes alignment.
 	 */
 	ptr %= ch->blksz * ch->blkcnt;
 	ptr &= HDA_BLK_ALIGN;
