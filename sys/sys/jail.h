@@ -149,7 +149,7 @@ struct prison_racct;
 /*
  * This structure describes a prison.  It is pointed to by all struct
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
- * delete the struture when the last inmate is dead.
+ * delete the structure when the last inmate is dead.
  *
  * Lock key:
  *   (a) allprison_lock
