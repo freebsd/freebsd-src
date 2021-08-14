@@ -219,7 +219,8 @@ When the flag changes from FALSE to TRUE,
 .Nm
 will invoke
 .Ar script-name
-with a single argument of the receiving interface name,
+with a first argument of the receiving interface name
+and a second argument of the sending router address,
 expecting the script will then start a protocol for the managed
 configuration.
 .Ar script-name
@@ -233,7 +234,8 @@ When the flag changes from FALSE to TRUE,
 .Nm
 will invoke
 .Ar script-name
-with a single argument of the receiving interface name,
+with a first argument of the receiving interface name
+and a second argument of the sending router address,
 expecting the script will then start a protocol for the other
 configuration.
 The script will not be run if the Managed Configuration flag in the
