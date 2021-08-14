@@ -69,10 +69,6 @@ __FBSDID("$FreeBSD$");
 #define	_PATH_DEVPCI	"/dev/pci"
 #endif
 
-#ifndef	_PATH_DEVIO
-#define	_PATH_DEVIO	"/dev/io"
-#endif
-
 #ifndef _PATH_MEM
 #define	_PATH_MEM	"/dev/mem"
 #endif
@@ -83,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #define MSIX_CAPLEN 12
 
 static int pcifd = -1;
-static int iofd = -1;
 static int memfd = -1;
 
 struct passthru_softc {
@@ -649,8 +644,8 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	const char *value;
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
-	cap_ioctl_t pci_ioctls[] = { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR };
-	cap_ioctl_t io_ioctls[] = { IODEV_PIO };
+	cap_ioctl_t pci_ioctls[] =
+	    { PCIOCREAD, PCIOCWRITE, PCIOCGETBAR, PCIOCBARIO };
 #endif
 
 	sc = NULL;
@@ -678,21 +673,6 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, nvlist_t *nvl)
 	if (caph_rights_limit(pcifd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	if (caph_ioctls_limit(pcifd, pci_ioctls, nitems(pci_ioctls)) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
-
-	if (iofd < 0) {
-		iofd = open(_PATH_DEVIO, O_RDWR, 0);
-		if (iofd < 0) {
-			warn("failed to open %s", _PATH_DEVIO);
-			return (error);
-		}
-	}
-
-#ifndef WITHOUT_CAPSICUM
-	if (caph_rights_limit(iofd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (caph_ioctls_limit(iofd, io_ioctls, nitems(io_ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
@@ -910,7 +890,7 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	       uint64_t offset, int size, uint64_t value)
 {
 	struct passthru_softc *sc;
-	struct iodev_pio_req pio;
+	struct pci_bar_ioreq pio;
 
 	sc = pi->pi_arg;
 
@@ -918,13 +898,18 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		msix_table_write(ctx, vcpu, sc, offset, size, value);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
-		bzero(&pio, sizeof(struct iodev_pio_req));
-		pio.access = IODEV_PIO_WRITE;
-		pio.port = sc->psc_bar[baridx].addr + offset;
-		pio.width = size;
-		pio.val = value;
-		
-		(void)ioctl(iofd, IODEV_PIO, &pio);
+		assert(size == 1 || size == 2 || size == 4);
+		assert(offset <= UINT32_MAX && offset + size <= UINT32_MAX);
+
+		bzero(&pio, sizeof(pio));
+		pio.pbi_sel = sc->psc_sel;
+		pio.pbi_op = PCIBARIO_WRITE;
+		pio.pbi_bar = baridx;
+		pio.pbi_offset = (uint32_t)offset;
+		pio.pbi_width = size;
+		pio.pbi_value = (uint32_t)value;
+
+		(void)ioctl(pcifd, PCIOCBARIO, &pio);
 	}
 }
 
@@ -933,7 +918,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 	      uint64_t offset, int size)
 {
 	struct passthru_softc *sc;
-	struct iodev_pio_req pio;
+	struct pci_bar_ioreq pio;
 	uint64_t val;
 
 	sc = pi->pi_arg;
@@ -942,15 +927,19 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		val = msix_table_read(sc, offset, size);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
-		bzero(&pio, sizeof(struct iodev_pio_req));
-		pio.access = IODEV_PIO_READ;
-		pio.port = sc->psc_bar[baridx].addr + offset;
-		pio.width = size;
-		pio.val = 0;
+		assert(size == 1 || size == 2 || size == 4);
+		assert(offset <= UINT32_MAX && offset + size <= UINT32_MAX);
 
-		(void)ioctl(iofd, IODEV_PIO, &pio);
+		bzero(&pio, sizeof(pio));
+		pio.pbi_sel = sc->psc_sel;
+		pio.pbi_op = PCIBARIO_READ;
+		pio.pbi_bar = baridx;
+		pio.pbi_offset = (uint32_t)offset;
+		pio.pbi_width = size;
 
-		val = pio.val;
+		(void)ioctl(pcifd, PCIOCBARIO, &pio);
+
+		val = pio.pbi_value;
 	}
 
 	return (val);
