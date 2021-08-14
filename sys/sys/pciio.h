@@ -151,6 +151,17 @@ struct pci_bar_mmap {
 	int		pbm_memattr;
 };
 
+struct pci_bar_ioreq {
+	struct pcisel	pbi_sel;	/* device to operate on */
+#define	PCIBARIO_READ		0x1
+#define	PCIBARIO_WRITE		0x2
+	int		pbi_op;
+	uint32_t	pbi_bar;
+	uint32_t	pbi_offset;
+	uint32_t	pbi_width;
+	uint32_t	pbi_value;
+};
+
 #define	PCIIO_BAR_MMAP_FIXED	0x01
 #define	PCIIO_BAR_MMAP_EXCL	0x02
 #define	PCIIO_BAR_MMAP_RW	0x04
@@ -163,5 +174,6 @@ struct pci_bar_mmap {
 #define	PCIOCGETBAR	_IOWR('p', 6, struct pci_bar_io)
 #define	PCIOCLISTVPD	_IOWR('p', 7, struct pci_list_vpd_io)
 #define	PCIOCBARMMAP	_IOWR('p', 8, struct pci_bar_mmap)
+#define	PCIOCBARIO	_IOWR('p', 9, struct pci_bar_ioreq)
 
 #endif /* !_SYS_PCIIO_H_ */

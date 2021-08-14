@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2021
+.Dd August 13, 2021
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -429,6 +429,40 @@ even on reads.
 (Unimplemented) If the BAR is not activated, activate it in the course
 of mapping.
 Currently attempt to mmap an inactive BAR results in error.
+.El
+.It PCIOCBARIO
+This
+.Xr ioctl 2
+command allows users to read from and write to BARs.
+The I/O request parameters are passed in a
+.Va struct pci_bar_ioreq
+structure, which has the following fields:
+.Bl -tag
+.It Vt struct pcisel pbi_sel
+Describes the device to operate on.
+.It Vt int pbi_op
+The operation to perform.
+Currently supported values are
+.Dv PCIBARIO_READ
+and
+.Dv PCIBARIO_WRITE .
+.It Vt uint32_t pbi_bar
+The index of the BAR on which to operate.
+.It Vt uint32_t pbi_offset
+The offset into the BAR at which to operate.
+.It Vt uint32_t pbi_width
+The size, in bytes, of the I/O operation.
+1-byte, 2-byte, 4-byte and 8-byte perations are supported.
+.It Vt uint32_t pbi_value
+For reads, the value is returned in this field.
+For writes, the caller specifies the value to be written in this field.
+.Pp
+Note that this operation maps and unmaps the corresponding resource and
+so is relatively expensive for memory BARs.
+The
+.Va PCIOCBARMMAP
+.Xr ioctl 2
+can be used to create a persistent userspace mapping for such BARs instead.
 .El
 .El
 .Sh LOADER TUNABLES

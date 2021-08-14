@@ -924,6 +924,92 @@ out:
 }
 
 static int
+pci_bar_io(device_t pcidev, struct pci_bar_ioreq *pbi)
+{
+	struct pci_map *pm;
+	struct resource *res;
+	uint32_t offset, width;
+	int bar, error, type;
+
+	if (pbi->pbi_op != PCIBARIO_READ &&
+	    pbi->pbi_op != PCIBARIO_WRITE)
+		return (EINVAL);
+
+	bar = PCIR_BAR(pbi->pbi_bar);
+	pm = pci_find_bar(pcidev, bar);
+	if (pm == NULL)
+		return (EINVAL);
+
+	offset = pbi->pbi_offset;
+	width = pbi->pbi_width;
+
+	if (offset + width < offset ||
+	    ((pci_addr_t)1 << pm->pm_size) < offset + width)
+		return (EINVAL);
+
+	type = PCI_BAR_MEM(pm->pm_value) ? SYS_RES_MEMORY : SYS_RES_IOPORT;
+
+	/*
+	 * This will fail if a driver has allocated the resource.  This could be
+	 * worked around by detecting that case and using bus_map_resource() to
+	 * populate the handle, but so far this is not needed.
+	 */
+	res = bus_alloc_resource_any(pcidev, type, &bar, RF_ACTIVE);
+	if (res == NULL)
+		return (ENOENT);
+
+	error = 0;
+	switch (pbi->pbi_op) {
+	case PCIBARIO_READ:
+		switch (pbi->pbi_width) {
+		case 1:
+			pbi->pbi_value = bus_read_1(res, offset);
+			break;
+		case 2:
+			pbi->pbi_value = bus_read_2(res, offset);
+			break;
+		case 4:
+			pbi->pbi_value = bus_read_4(res, offset);
+			break;
+#ifndef __i386__
+		case 8:
+			pbi->pbi_value = bus_read_8(res, offset);
+			break;
+#endif
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	case PCIBARIO_WRITE:
+		switch (pbi->pbi_width) {
+		case 1:
+			bus_write_1(res, offset, pbi->pbi_value);
+			break;
+		case 2:
+			bus_write_2(res, offset, pbi->pbi_value);
+			break;
+		case 4:
+			bus_write_4(res, offset, pbi->pbi_value);
+			break;
+#ifndef __i386__
+		case 8:
+			bus_write_8(res, offset, pbi->pbi_value);
+			break;
+#endif
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	}
+
+	bus_release_resource(pcidev, type, bar, res);
+
+	return (error);
+}
+
+static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	device_t pcidev;
@@ -932,6 +1018,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_conf_io *cio = NULL;
 	struct pci_devinfo *dinfo;
 	struct pci_io *io;
+	struct pci_bar_ioreq *pbi;
 	struct pci_bar_io *bio;
 	struct pci_list_vpd_io *lvio;
 	struct pci_match_conf *pattern_buf;
@@ -1305,6 +1392,19 @@ getconfexit:
 		    pbm->pbm_sel.pc_bus, pbm->pbm_sel.pc_dev,
 		    pbm->pbm_sel.pc_func);
 		error = pcidev == NULL ? ENODEV : pci_bar_mmap(pcidev, pbm);
+		break;
+
+	case PCIOCBARIO:
+		pbi = (struct pci_bar_ioreq *)data;
+
+		pcidev = pci_find_dbsf(pbi->pbi_sel.pc_domain,
+		    pbi->pbi_sel.pc_bus, pbi->pbi_sel.pc_dev,
+		    pbi->pbi_sel.pc_func);
+		if (pcidev == NULL) {
+			error = ENODEV;
+			break;
+		}
+		error = pci_bar_io(pcidev, pbi);
 		break;
 
 	default:
