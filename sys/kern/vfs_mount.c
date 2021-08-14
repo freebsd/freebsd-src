@@ -966,6 +966,12 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	}
 
 	error = vfs_domount(td, fstype, fspath, fsflags, &optlist);
+	if (error == ENOENT) {
+		error = EINVAL;
+		if (errmsg != NULL)
+			strncpy(errmsg, "Invalid fstype", errmsg_len);
+		goto bail;
+	}
 
 	/*
 	 * See if we can mount in the read-only mode if the error code suggests
@@ -1525,12 +1531,13 @@ vfs_domount(
 	vfsp = NULL;
 	if ((fsflags & MNT_UPDATE) == 0) {
 		/* Don't try to load KLDs if we're mounting the root. */
-		if (fsflags & MNT_ROOTFS)
-			vfsp = vfs_byname(fstype);
-		else
-			vfsp = vfs_byname_kld(fstype, td, &error);
-		if (vfsp == NULL)
-			return (ENODEV);
+		if (fsflags & MNT_ROOTFS) {
+			if ((vfsp = vfs_byname(fstype)) == NULL)
+				return (ENODEV);
+		} else {
+			if ((vfsp = vfs_byname_kld(fstype, td, &error)) == NULL)
+				return (error);
+		}
 	}
 
 	/*
