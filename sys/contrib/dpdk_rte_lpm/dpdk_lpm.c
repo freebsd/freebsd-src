@@ -134,26 +134,27 @@ handle_default_change(struct dpdk_lpm_data *dd, struct rib_cmd_info *rc)
 }
 
 static void
-get_parent_rule(struct dpdk_lpm_data *dd, struct in_addr addr, uint8_t *plen, uint32_t *nhop_idx)
+get_parent_rule(struct dpdk_lpm_data *dd, struct in_addr addr, int plen,
+    uint8_t *pplen, uint32_t *nhop_idx)
 {
-	struct route_nhop_data rnd;
 	struct rtentry *rt;
 
-	rt = fib4_lookup_rt(dd->fibnum, addr, 0, NHR_UNLOCKED, &rnd);
+	rt = rt_get_inet_parent(dd->fibnum, addr, plen);
 	if (rt != NULL) {
 		struct in_addr addr4;
 		uint32_t scopeid;
-		int inet_plen;
-		rt_get_inet_prefix_plen(rt, &addr4, &inet_plen, &scopeid);
-		if (inet_plen > 0) {
-			*plen = inet_plen;
-			*nhop_idx = fib_get_nhop_idx(dd->fd, rnd.rnd_nhop);
+		int parent_plen;
+
+		rt_get_inet_prefix_plen(rt, &addr4, &parent_plen, &scopeid);
+		if (parent_plen > 0) {
+			*pplen = parent_plen;
+			*nhop_idx = fib_get_nhop_idx(dd->fd, rt_get_raw_nhop(rt));
 			return;
 		}
 	}
 
 	*nhop_idx = 0;
-	*plen = 0;
+	*pplen = 0;
 }
 
 static enum flm_op_result
@@ -181,20 +182,23 @@ handle_gu_change(struct dpdk_lpm_data *dd, const struct rib_cmd_info *rc,
 		}
 
 		ret = rte_lpm_add(dd->lpm, ip, plen, nhidx);
-		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d nhop %u = %d",
+		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d nhop %u -> %u ret: %d",
 		    (rc->rc_cmd == RTM_ADD) ? "ADD" : "UPDATE",
-		    abuf, plen, nhidx, ret);
+		    abuf, plen,
+		    rc->rc_nh_old != NULL ? fib_get_nhop_idx(dd->fd, rc->rc_nh_old) : 0,
+		    nhidx, ret);
 	} else {
 		/*
 		 * Need to lookup parent. Assume deletion happened already
 		 */
 		uint8_t parent_plen;
 		uint32_t parent_nhop_idx;
-		get_parent_rule(dd, addr, &parent_plen, &parent_nhop_idx);
+		get_parent_rule(dd, addr, plen, &parent_plen, &parent_nhop_idx);
 
 		ret = rte_lpm_delete(dd->lpm, ip, plen, parent_plen, parent_nhop_idx);
-		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK: %s %s/%d nhop %u = %d",
-		    "DEL", abuf, plen, nhidx, ret);
+		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK: %s %s/%d -> /%d nhop %u -> %u ret: %d",
+		    "DEL", abuf, plen, parent_plen, fib_get_nhop_idx(dd->fd, rc->rc_nh_old),
+		    parent_nhop_idx, ret);
 	}
 
 	if (ret != 0) {
