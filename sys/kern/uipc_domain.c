@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rmlock.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 
@@ -75,6 +76,14 @@ static struct callout pfslow_callout;
 
 static void	pffasttimo(void *);
 static void	pfslowtimo(void *);
+
+static struct rmlock pftimo_lock;
+RM_SYSINIT(pftimo_lock, &pftimo_lock, "pftimo");
+
+static LIST_HEAD(, protosw) pffast_list =
+    LIST_HEAD_INITIALIZER(pffast_list);
+static LIST_HEAD(, protosw) pfslow_list =
+    LIST_HEAD_INITIALIZER(pfslow_list);
 
 struct domain *domains;		/* registered protocol domains */
 int domain_init_status = 0;
@@ -183,8 +192,16 @@ domain_init(void *arg)
 	    ("Premature initialization of domain in non-default vnet"));
 	if (dp->dom_init)
 		(*dp->dom_init)();
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++) {
 		protosw_init(pr);
+		rm_wlock(&pftimo_lock);
+		if (pr->pr_fasttimo != NULL)
+			LIST_INSERT_HEAD(&pffast_list, pr, pr_fasttimos);
+		if (pr->pr_slowtimo != NULL)
+			LIST_INSERT_HEAD(&pfslow_list, pr, pr_slowtimos);
+		rm_wunlock(&pftimo_lock);
+	}
+
 	/*
 	 * update global information about maximums
 	 */
@@ -387,6 +404,13 @@ pf_proto_register(int family, struct protosw *npr)
 	/* Copy the new struct protosw over the spacer. */
 	bcopy(npr, fpr, sizeof(*fpr));
 
+	rm_wlock(&pftimo_lock);
+	if (fpr->pr_fasttimo != NULL)
+		LIST_INSERT_HEAD(&pffast_list, fpr, pr_fasttimos);
+	if (fpr->pr_slowtimo != NULL)
+		LIST_INSERT_HEAD(&pfslow_list, fpr, pr_slowtimos);
+	rm_wunlock(&pftimo_lock);
+
 	/* Job is done, no more protection required. */
 	mtx_unlock(&dom_mtx);
 
@@ -447,6 +471,13 @@ pf_proto_unregister(int family, int protocol, int type)
 		return (EPROTONOSUPPORT);
 	}
 
+	rm_wlock(&pftimo_lock);
+	if (dpr->pr_fasttimo != NULL)
+		LIST_REMOVE(dpr, pr_fasttimos);
+	if (dpr->pr_slowtimo != NULL)
+		LIST_REMOVE(dpr, pr_slowtimos);
+	rm_wunlock(&pftimo_lock);
+
 	/* De-orbit the protocol and make the slot available again. */
 	dpr->pr_type = 0;
 	dpr->pr_domain = dp;
@@ -483,39 +514,33 @@ pfctlinput(int cmd, struct sockaddr *sa)
 static void
 pfslowtimo(void *arg)
 {
+	struct rm_priotracker tracker;
 	struct epoch_tracker et;
-	struct domain *dp;
 	struct protosw *pr;
 
+	rm_rlock(&pftimo_lock, &tracker);
 	NET_EPOCH_ENTER(et);
-	for (dp = domains; dp; dp = dp->dom_next) {
-		if ((atomic_load_int(&dp->dom_flags) & DOMF_INITED) == 0)
-			continue;
-		atomic_thread_fence_acq();
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_slowtimo)
-				(*pr->pr_slowtimo)();
+	LIST_FOREACH(pr, &pfslow_list, pr_slowtimos) {
+		(*pr->pr_slowtimo)();
 	}
 	NET_EPOCH_EXIT(et);
+	rm_runlock(&pftimo_lock, &tracker);
 	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
 }
 
 static void
 pffasttimo(void *arg)
 {
+	struct rm_priotracker tracker;
 	struct epoch_tracker et;
-	struct domain *dp;
 	struct protosw *pr;
 
+	rm_rlock(&pftimo_lock, &tracker);
 	NET_EPOCH_ENTER(et);
-	for (dp = domains; dp; dp = dp->dom_next) {
-		if ((atomic_load_int(&dp->dom_flags) & DOMF_INITED) == 0)
-			continue;
-		atomic_thread_fence_acq();
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_fasttimo)
-				(*pr->pr_fasttimo)();
+	LIST_FOREACH(pr, &pffast_list, pr_fasttimos) {
+		(*pr->pr_fasttimo)();
 	}
 	NET_EPOCH_EXIT(et);
+	rm_runlock(&pftimo_lock, &tracker);
 	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
 }
