@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2021
+.Dd August 15, 2021
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -143,6 +143,24 @@ If set,
 .Nm
 will print a table containing all relocations before symbol
 binding and relocation.
+.It Ev LD_DYNAMIC_WEAK
+If set, use the ELF standard-compliant symbol lookup behavior:
+resolve to the first found symbol definition.
+.Pp
+By default,
+.Fx
+provides the non-standard symbol lookup behavior:
+when a weak symbol definition is found, remember the definition and
+keep searching in the remaining shared objects for a non-weak definition.
+If found, the non-weak definition is preferred, otherwise the remembered
+weak definition is returned.
+.Pp
+Symbols exported by dynamic linker itself (see
+.Xr dlfcn 3 )
+are always resolved using
+.Fx
+rules regardless of the presence of the variable.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_LIBMAP
 A library replacement list in the same format as
 .Xr libmap.conf 5 .
