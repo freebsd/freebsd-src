@@ -6,7 +6,7 @@
 # PROVIDE: jail
 # REQUIRE: LOGIN FILESYSTEMS
 # BEFORE: securelevel
-# KEYWORD: nojail shutdown
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
