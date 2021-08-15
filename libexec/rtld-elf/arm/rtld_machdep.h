@@ -80,7 +80,6 @@ extern void arm_abi_variant_hook(Elf_Auxinfo **);
 
 #ifdef __ARM_FP
 #define md_abi_variant_hook(x)		arm_abi_variant_hook(x)
-#define RTLD_VARIANT_ENV_NAMES
 #else
 #define md_abi_variant_hook(x)
 #endif
