@@ -159,7 +159,7 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, add_inet6_addr,
     add_inet6_addr_sysctl_handler, "A", "Set");
 
 static uint64_t
-run_test_inet_one_pass()
+run_test_inet_one_pass(uint32_t fibnum)
 {
 	/* Assume epoch */
 	int sz = V_inet_list_size;
@@ -169,7 +169,7 @@ run_test_inet_one_pass()
 
 	for (int pass = 0; pass < tries; pass++) {
 		for (int i = 0; i < sz; i++) {
-			fib4_lookup(RT_DEFAULT_FIB, a[i], 0, NHR_NONE, 0);
+			fib4_lookup(fibnum, a[i], 0, NHR_NONE, 0);
 			count++;
 		}
 	}
@@ -199,11 +199,12 @@ run_test_inet(SYSCTL_HANDLER_ARGS)
 	struct timespec ts_pre, ts_post;
 	int64_t pass_diff, total_diff = 0;
 	uint64_t pass_packets, total_packets = 0;
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
 
 	for (int pass = 0; pass < count / CHUNK_SIZE; pass++) {
 		NET_EPOCH_ENTER(et);
 		nanouptime(&ts_pre);
-		pass_packets = run_test_inet_one_pass();
+		pass_packets = run_test_inet_one_pass(fibnum);
 		nanouptime(&ts_post);
 		NET_EPOCH_EXIT(et);
 
@@ -223,7 +224,7 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet,
     0, 0, run_test_inet, "I", "Execute fib4_lookup test");
 
 static uint64_t
-run_test_inet6_one_pass()
+run_test_inet6_one_pass(uint32_t fibnum)
 {
 	/* Assume epoch */
 	int sz = V_inet6_list_size;
@@ -233,7 +234,7 @@ run_test_inet6_one_pass()
 
 	for (int pass = 0; pass < tries; pass++) {
 		for (int i = 0; i < sz; i++) {
-			fib6_lookup(RT_DEFAULT_FIB, &a[i], 0, NHR_NONE, 0);
+			fib6_lookup(fibnum, &a[i], 0, NHR_NONE, 0);
 			count++;
 		}
 	}
@@ -263,11 +264,12 @@ run_test_inet6(SYSCTL_HANDLER_ARGS)
 	struct timespec ts_pre, ts_post;
 	int64_t pass_diff, total_diff = 0;
 	uint64_t pass_packets, total_packets = 0;
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
 
 	for (int pass = 0; pass < count / CHUNK_SIZE; pass++) {
 		NET_EPOCH_ENTER(et);
 		nanouptime(&ts_pre);
-		pass_packets = run_test_inet6_one_pass();
+		pass_packets = run_test_inet6_one_pass(fibnum);
 		nanouptime(&ts_post);
 		NET_EPOCH_EXIT(et);
 
@@ -325,7 +327,7 @@ cmp_dst(uint32_t fibnum, struct in_addr a)
 
 /* Random lookups: correctness verification */
 static uint64_t
-run_test_inet_one_pass_random()
+run_test_inet_one_pass_random(uint32_t fibnum)
 {
 	/* Assume epoch */
 	struct in_addr a[64];
@@ -335,7 +337,7 @@ run_test_inet_one_pass_random()
 	for (int pass = 0; pass < CHUNK_SIZE / sz; pass++) {
 		arc4random_buf(a, sizeof(a));
 		for (int i = 0; i < sz; i++) {
-			if (!cmp_dst(RT_DEFAULT_FIB, a[i]))
+			if (!cmp_dst(fibnum, a[i]))
 				return (0);
 			count++;
 		}
@@ -362,11 +364,12 @@ run_test_inet_random(SYSCTL_HANDLER_ARGS)
 	struct timespec ts_pre, ts_post;
 	int64_t pass_diff, total_diff = 1;
 	uint64_t pass_packets, total_packets = 0;
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
 
 	for (int pass = 0; pass < count / CHUNK_SIZE; pass++) {
 		NET_EPOCH_ENTER(et);
 		nanouptime(&ts_pre);
-		pass_packets = run_test_inet_one_pass_random();
+		pass_packets = run_test_inet_one_pass_random(fibnum);
 		nanouptime(&ts_post);
 		NET_EPOCH_EXIT(et);
 
@@ -396,8 +399,9 @@ SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_random,
 struct inet_array {
 	uint32_t alloc_items;
 	uint32_t num_items;
-	struct in_addr *arr;
+	uint32_t rnh_prefixes;
 	int error;
+	struct in_addr *arr;
 };
 
 /*
@@ -412,9 +416,11 @@ add_prefix(struct rtentry *rt, void *_data)
 	int plen;
 	uint32_t scopeid, haddr;
 
+	pa->rnh_prefixes++;
+
 	if (pa->num_items + 5 >= pa->alloc_items) {
 		if (pa->error == 0)
-			pa->error = EINVAL;
+			pa->error = ENOSPC;
 		return (0);
 	}
 
@@ -442,13 +448,18 @@ prepare_list(uint32_t fibnum, struct inet_array *pa)
 
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
 
-	uint32_t num_prefixes = (rh->rnh_prefixes + 10) * 5;
+	uint32_t num_prefixes = rh->rnh_prefixes;
 	bzero(pa, sizeof(struct inet_array));
-	pa->alloc_items = num_prefixes;
-	pa->arr = mallocarray(num_prefixes, sizeof(struct in_addr),
+	pa->alloc_items = (num_prefixes + 10) * 5;
+	pa->arr = mallocarray(pa->alloc_items, sizeof(struct in_addr),
 	    M_TEMP, M_ZERO | M_WAITOK);
 
-	rib_walk(RT_DEFAULT_FIB, AF_INET, false, add_prefix, pa);
+	rib_walk(fibnum, AF_INET, false, add_prefix, pa);
+
+	if (pa->error != 0) {
+		printf("prefixes: old: %u, current: %u, walked: %u, allocated: %u\n",
+		    num_prefixes, rh->rnh_prefixes, pa->rnh_prefixes, pa->alloc_items);
+	}
 
 	return (pa->error == 0);
 }
@@ -467,20 +478,21 @@ run_test_inet_scan(SYSCTL_HANDLER_ARGS)
 		return (0);
 
 	struct inet_array pa = {};
+	uint32_t fibnum = curthread->td_proc->p_fibnum;
 
-	if (!prepare_list(RT_DEFAULT_FIB, &pa))
+	if (!prepare_list(fibnum, &pa))
 		return (pa.error);
 
 	struct timespec ts_pre, ts_post;
 	int64_t total_diff = 1;
 	uint64_t total_packets = 0;
+	int failure_count = 0;
 
 	NET_EPOCH_ENTER(et);
 	nanouptime(&ts_pre);
 	for (int i = 0; i < pa.num_items; i++) {
-		if (!cmp_dst(RT_DEFAULT_FIB, pa.arr[i])) {
-			error = EINVAL;
-			break;
+		if (!cmp_dst(fibnum, pa.arr[i])) {
+			failure_count++;
 		}
 		total_packets++;
 	}
@@ -491,8 +503,10 @@ run_test_inet_scan(SYSCTL_HANDLER_ARGS)
 		free(pa.arr, M_TEMP);
 
 	/* Signal error to userland */
-	if (error != 0)
-		return (error);
+	if (failure_count > 0) {
+		printf("[RT ERROR] total failures: %d\n", failure_count);
+		return (EINVAL);
+	}
 
 	total_diff = (ts_post.tv_sec - ts_pre.tv_sec) * 1000000000 +
 	    (ts_post.tv_nsec - ts_pre.tv_nsec);
@@ -540,7 +554,7 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	struct timespec ts_pre, ts_post;
 	struct nhop_object *nh_fib;
 	uint64_t total_diff, lps;
-	uint32_t *keys;
+	uint32_t *keys, fibnum;
 	uint32_t t, p;
 	uintptr_t acc = 0;
 	int i, pos, count = 0;
@@ -552,6 +566,7 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (count <= 0)
 		return (0);
+	fibnum = curthread->td_proc->p_fibnum;
 
 	keys = malloc(sizeof(*keys) * count, M_TEMP, M_NOWAIT);
 	if (keys == NULL)
@@ -564,7 +579,7 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 		wa.lim = count;
 		printf("Reducing keys to announced address space...\n");
 		do {
-			rib_walk(RT_DEFAULT_FIB, AF_INET, false, reduce_keys,
+			rib_walk(fibnum, AF_INET, false, reduce_keys,
 			    &wa);
 		} while (wa.pos < wa.lim);
 		printf("Reshuffling keys...\n");
@@ -593,7 +608,7 @@ rnd_lps(SYSCTL_HANDLER_ARGS)
 	nanouptime(&ts_pre);
 	for (i = 0, pos = 0; i < count; i++) {
 		key.s_addr = keys[pos++] ^ ((acc >> 10) & 0xff);
-		nh_fib = fib4_lookup(RT_DEFAULT_FIB, key, 0, NHR_NONE, 0);
+		nh_fib = fib4_lookup(fibnum, key, 0, NHR_NONE, 0);
 		if (seq) {
 			if (nh_fib != NULL) {
 				acc += (uintptr_t) nh_fib + 123;
