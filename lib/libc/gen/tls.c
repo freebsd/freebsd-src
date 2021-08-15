@@ -81,12 +81,6 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #error TLS_TCB_ALIGN undefined for target architecture
 #endif
 
-#if defined(__mips__) || defined(__powerpc__) || defined(__riscv)
-#define DTV_OFFSET 0x8000
-#else
-#define DTV_OFFSET 0
-#endif
-
 #ifndef PIC
 
 static size_t libc_tls_static_space;
@@ -289,7 +283,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 		/* Adjust the DTV. */
 		dtv = tcb[0];
-		dtv[2] = (Elf_Addr)(tls + DTV_OFFSET);
+		dtv[2] = (Elf_Addr)(tls + TLS_DTV_OFFSET);
 	} else {
 		dtv = __je_bootstrap_malloc(3 * sizeof(Elf_Addr));
 		if (dtv == NULL) {
@@ -300,7 +294,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 		tcb[0] = dtv;
 		dtv[0] = 1;		/* Generation. */
 		dtv[1] = 1;		/* Segments count. */
-		dtv[2] = (Elf_Addr)(tls + DTV_OFFSET);
+		dtv[2] = (Elf_Addr)(tls + TLS_DTV_OFFSET);
 
 		if (libc_tls_init_size > 0)
 			memcpy(tls, libc_tls_init, libc_tls_init_size);
