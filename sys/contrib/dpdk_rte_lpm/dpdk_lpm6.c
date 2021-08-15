@@ -165,30 +165,26 @@ handle_ll_change(struct dpdk_lpm6_data *dd, struct rib_cmd_info *rc,
 }
 
 static struct rte_lpm6_rule *
-pack_parent_rule(struct dpdk_lpm6_data *dd, const struct in6_addr *addr6,
-    char *buffer)
+pack_parent_rule(struct dpdk_lpm6_data *dd, const struct in6_addr *addr6, int plen,
+    int *pplen, uint32_t *pnhop_idx, char *buffer)
 {
 	struct rte_lpm6_rule *lsp_rule = NULL;
-	struct route_nhop_data rnd;
 	struct rtentry *rt;
-	int plen;
 
-	rt = fib6_lookup_rt(dd->fibnum, addr6, 0, NHR_UNLOCKED, &rnd);
+	*pnhop_idx = 0;
+	*pplen = 0;
+
+	rt = rt_get_inet6_parent(dd->fibnum, addr6, plen);
 	/* plen = 0 means default route and it's out of scope */
 	if (rt != NULL) {
-		uint32_t scopeid;
+		uint32_t nhop_idx, scopeid;
 		struct in6_addr new_addr6;
 		rt_get_inet6_prefix_plen(rt, &new_addr6, &plen, &scopeid);
 		if (plen > 0) {
-			uint32_t nhidx = fib_get_nhop_idx(dd->fd, rnd.rnd_nhop);
-			if (nhidx == 0) {
-				/*
-				 * shouldn't happen as we already have parent route.
-				 * It will trigger rebuild automatically.
-				 */
-				return (NULL);
-			}
-			lsp_rule = fill_rule6(buffer, (uint8_t *)&new_addr6, plen, nhidx);
+			nhop_idx = fib_get_nhop_idx(dd->fd, rt_get_raw_nhop(rt));
+			lsp_rule = fill_rule6(buffer, (uint8_t *)&new_addr6, plen, nhop_idx);
+			*pnhop_idx = nhop_idx;
+			*pplen = plen;
 		}
 	}
 
@@ -217,20 +213,26 @@ handle_gu_change(struct dpdk_lpm6_data *dd, const struct rib_cmd_info *rc,
 
 		ret = rte_lpm6_add(dd->lpm6, (const uint8_t *)addr6,
 				   plen, nhidx, (rc->rc_cmd == RTM_ADD) ? 1 : 0);
-		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d nhop %u = %d",
+		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d nhop %u -> %u ret: %d",
 		    (rc->rc_cmd == RTM_ADD) ? "ADD" : "UPDATE",
-		    abuf, plen, nhidx, ret);
+		    abuf, plen,
+		    rc->rc_nh_old != NULL ? fib_get_nhop_idx(dd->fd, rc->rc_nh_old) : 0,
+		    nhidx, ret);
 	} else {
 		/*
 		 * Need to lookup parent. Assume deletion happened already
 		 */
 		char buffer[RTE_LPM6_RULE_SIZE];
 		struct rte_lpm6_rule *lsp_rule = NULL;
-		lsp_rule = pack_parent_rule(dd, addr6, buffer);
+		int parent_plen;
+		uint32_t parent_nhop_idx;
+		lsp_rule = pack_parent_rule(dd, addr6, plen, &parent_plen,
+		    &parent_nhop_idx, buffer);
 
 		ret = rte_lpm6_delete(dd->lpm6, (const uint8_t *)addr6, plen, lsp_rule);
-		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d nhop ? = %d",
-		    "DEL", abuf, plen, ret);
+		FIB_PRINTF(LOG_DEBUG, dd->fd, "DPDK GU: %s %s/%d -> /%d nhop %u -> %u ret: %d",
+		    "DEL", abuf, plen, parent_plen, fib_get_nhop_idx(dd->fd, rc->rc_nh_old),
+		    parent_nhop_idx, ret);
 	}
 
 	if (ret != 0) {

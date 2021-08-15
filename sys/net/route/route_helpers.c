@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef INET6
 #include <netinet6/in6_fib.h>
+#include <netinet6/in6_var.h>
 #endif
 #include <net/vnet.h>
 
@@ -413,5 +414,154 @@ rib_decompose_notification(struct rib_cmd_info *rc, route_notification_t *cb,
 		decompose_change_notification(rc, cb, cbdata);
 		break;
 	}
+}
+#endif
+
+#ifdef INET
+/*
+ * Checks if the found key in the trie contains (<=) a prefix covering
+ *  @paddr/@plen.
+ * Returns the most specific rtentry matching the condition or NULL.
+ */
+static struct rtentry *
+get_inet_parent_prefix(uint32_t fibnum, struct in_addr addr, int plen)
+{
+	struct route_nhop_data rnd;
+	struct rtentry *rt;
+	struct in_addr addr4;
+	uint32_t scopeid;
+	int parent_plen;
+	struct radix_node *rn;
+
+	rt = fib4_lookup_rt(fibnum, addr, 0, NHR_UNLOCKED, &rnd);
+	rt_get_inet_prefix_plen(rt, &addr4, &parent_plen, &scopeid);
+	if (parent_plen <= plen)
+		return (rt);
+
+	/*
+	 * There can be multiple prefixes associated with the found key:
+	 * 10.0.0.0 -> 10.0.0.0/24, 10.0.0.0/23, 10.0.0.0/22, etc.
+	 * All such prefixes are linked via rn_dupedkey, from most specific
+	 *  to least specific. Iterate over them to check if any of these
+	 *  prefixes are wider than desired plen.
+	 */
+	rn = (struct radix_node *)rt;
+	while ((rn = rn_nextprefix(rn)) != NULL) {
+		rt = RNTORT(rn);
+		rt_get_inet_prefix_plen(rt, &addr4, &parent_plen, &scopeid);
+		if (parent_plen <= plen)
+			return (rt);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Returns the most specific prefix containing (>) @paddr/plen.
+ */
+struct rtentry *
+rt_get_inet_parent(uint32_t fibnum, struct in_addr addr, int plen)
+{
+	struct in_addr lookup_addr = { .s_addr = INADDR_BROADCAST };
+	struct in_addr addr4 = addr;
+	struct in_addr mask4;
+	struct rtentry *rt;
+
+	while (plen-- > 0) {
+		/* Calculate wider mask & new key to lookup */
+		mask4.s_addr = htonl(plen ? ~((1 << (32 - plen)) - 1) : 0);
+		addr4.s_addr = htonl(ntohl(addr4.s_addr) & ntohl(mask4.s_addr));
+		if (addr4.s_addr == lookup_addr.s_addr) {
+			/* Skip lookup if the key is the same */
+			continue;
+		}
+		lookup_addr = addr4;
+
+		rt = get_inet_parent_prefix(fibnum, lookup_addr, plen);
+		if (rt != NULL)
+			return (rt);
+	}
+
+	return (NULL);
+}
+#endif
+
+#ifdef INET6
+/*
+ * Checks if the found key in the trie contains (<=) a prefix covering
+ *  @paddr/@plen.
+ * Returns the most specific rtentry matching the condition or NULL.
+ */
+static struct rtentry *
+get_inet6_parent_prefix(uint32_t fibnum, const struct in6_addr *paddr, int plen)
+{
+	struct route_nhop_data rnd;
+	struct rtentry *rt;
+	struct in6_addr addr6;
+	uint32_t scopeid;
+	int parent_plen;
+	struct radix_node *rn;
+
+	rt = fib6_lookup_rt(fibnum, paddr, 0, NHR_UNLOCKED, &rnd);
+	rt_get_inet6_prefix_plen(rt, &addr6, &parent_plen, &scopeid);
+	if (parent_plen <= plen)
+		return (rt);
+
+	/*
+	 * There can be multiple prefixes associated with the found key:
+	 * 2001:db8:1::/64 -> 2001:db8:1::/56, 2001:db8:1::/48, etc.
+	 * All such prefixes are linked via rn_dupedkey, from most specific
+	 *  to least specific. Iterate over them to check if any of these
+	 *  prefixes are wider than desired plen.
+	 */
+	rn = (struct radix_node *)rt;
+	while ((rn = rn_nextprefix(rn)) != NULL) {
+		rt = RNTORT(rn);
+		rt_get_inet6_prefix_plen(rt, &addr6, &parent_plen, &scopeid);
+		if (parent_plen <= plen)
+			return (rt);
+	}
+
+	return (NULL);
+}
+
+static void
+ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
+{
+	uint32_t *cp;
+
+	for (cp = (uint32_t *)addr6; mask >= 32; mask -= 32)
+		*cp++ = 0xFFFFFFFF;
+	if (mask > 0)
+		*cp = htonl(mask ? ~((1 << (32 - mask)) - 1) : 0);
+}
+
+/*
+ * Returns the most specific prefix containing (>) @paddr/plen.
+ */
+struct rtentry *
+rt_get_inet6_parent(uint32_t fibnum, const struct in6_addr *paddr, int plen)
+{
+	struct in6_addr lookup_addr = in6mask128;
+	struct in6_addr addr6 = *paddr;
+	struct in6_addr mask6;
+	struct rtentry *rt;
+
+	while (plen-- > 0) {
+		/* Calculate wider mask & new key to lookup */
+		ipv6_writemask(&mask6, plen);
+		IN6_MASK_ADDR(&addr6, &mask6);
+		if (IN6_ARE_ADDR_EQUAL(&addr6, &lookup_addr)) {
+			/* Skip lookup if the key is the same */
+			continue;
+		}
+		lookup_addr = addr6;
+
+		rt = get_inet6_parent_prefix(fibnum, &lookup_addr, plen);
+		if (rt != NULL)
+			return (rt);
+	}
+
+	return (NULL);
 }
 #endif

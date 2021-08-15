@@ -371,6 +371,20 @@ on1:
 	return (0);
 }
 
+/*
+ * Returns the next (wider) prefix for the key defined by @rn
+ *  if exists.
+ */
+struct radix_node *
+rn_nextprefix(struct radix_node *rn)
+{
+	for (rn = rn->rn_dupedkey; rn != NULL; rn = rn->rn_dupedkey) {
+		if (!(rn->rn_flags & RNF_ROOT))
+			return (rn);
+	}
+	return (NULL);
+}
+
 #ifdef RN_DEBUG
 int	rn_nodenum;
 struct	radix_node *rn_clist;
