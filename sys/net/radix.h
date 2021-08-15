@@ -119,6 +119,7 @@ typedef int rn_walktree_t(struct radix_head *head, walktree_f_t *f,
 typedef int rn_walktree_from_t(struct radix_head *head,
     void *a, void *m, walktree_f_t *f, void *w);
 typedef void rn_close_t(struct radix_node *rn, struct radix_head *head);
+struct radix_node *rn_nextprefix(struct radix_node *rn);
 
 struct radix_mask_head;
 
