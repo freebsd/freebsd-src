@@ -157,7 +157,7 @@ static int	pf_reassemble(struct mbuf **, struct ip *, int, u_short *);
 #ifdef INET6
 static int	pf_reassemble6(struct mbuf **, struct ip6_hdr *,
 		    struct ip6_frag *, uint16_t, uint16_t, u_short *);
-static void	pf_scrub_ip6(struct mbuf **, uint8_t);
+static void	pf_scrub_ip6(struct mbuf **, uint32_t, uint8_t, uint8_t);
 #endif	/* INET6 */
 
 #define	DPFPRINTF(x) do {				\
@@ -1283,7 +1283,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kkif *kif,
 	if (sizeof(struct ip6_hdr) + plen > m->m_pkthdr.len)
 		goto shortpkt;
 
-	pf_scrub_ip6(&m, r->min_ttl);
+	pf_scrub_ip6(&m, r->rule_flag, r->min_ttl, r->set_tos);
 
 	return (PF_PASS);
 
@@ -2032,7 +2032,7 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 
 #ifdef INET6
 static void
-pf_scrub_ip6(struct mbuf **m0, u_int8_t min_ttl)
+pf_scrub_ip6(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 {
 	struct mbuf		*m = *m0;
 	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
@@ -2040,5 +2040,11 @@ pf_scrub_ip6(struct mbuf **m0, u_int8_t min_ttl)
 	/* Enforce a minimum ttl, may cause endless packet loops */
 	if (min_ttl && h->ip6_hlim < min_ttl)
 		h->ip6_hlim = min_ttl;
+
+	/* Enforce tos. Set traffic class bits */
+	if (flags & PFRULE_SET_TOS) {
+		h->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
+		h->ip6_flow |= htonl((tos | IPV6_ECN(h)) << 20);
+	}
 }
 #endif
