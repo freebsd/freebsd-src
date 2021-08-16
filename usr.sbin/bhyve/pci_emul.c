@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "pci_irq.h"
 #include "pci_lpc.h"
 #include "pci_passthru.h"
+#include "qemu_fwcfg.h"
 
 #define CONF1_ADDR_PORT	   0x0cf8
 #define CONF1_DATA_PORT	   0x0cfc
@@ -120,6 +121,14 @@ struct pci_bar_allocation {
 
 static TAILQ_HEAD(pci_bar_list, pci_bar_allocation) pci_bars =
     TAILQ_HEAD_INITIALIZER(pci_bars);
+
+struct boot_device {
+	TAILQ_ENTRY(boot_device) boot_device_chain;
+	struct pci_devinst *pdi;
+	int bootindex;
+};
+static TAILQ_HEAD(boot_list, boot_device) boot_devices = TAILQ_HEAD_INITIALIZER(
+    boot_devices);
 
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
@@ -955,6 +964,45 @@ pci_emul_alloc_rom(struct pci_devinst *const pdi, const uint64_t size,
 	return (0);
 }
 
+int
+pci_emul_add_boot_device(struct pci_devinst *pi, int bootindex)
+{
+	struct boot_device *new_device, *device;
+
+	/* don't permit a negative bootindex */
+	if (bootindex < 0) {
+		errx(4, "Invalid bootindex %d for %s", bootindex, pi->pi_name);
+	}
+
+	/* alloc new boot device */
+	new_device = calloc(1, sizeof(struct boot_device));
+	if (new_device == NULL) {
+		return (ENOMEM);
+	}
+	new_device->pdi = pi;
+	new_device->bootindex = bootindex;
+
+	/* search for boot device with higher boot index */
+	TAILQ_FOREACH(device, &boot_devices, boot_device_chain) {
+		if (device->bootindex == bootindex) {
+			errx(4,
+			    "Could not set bootindex %d for %s. Bootindex already occupied by %s",
+			    bootindex, pi->pi_name, device->pdi->pi_name);
+		} else if (device->bootindex > bootindex) {
+			break;
+		}
+	}
+
+	/* add boot device to queue */
+	if (device == NULL) {
+		TAILQ_INSERT_TAIL(&boot_devices, new_device, boot_device_chain);
+	} else {
+		TAILQ_INSERT_BEFORE(device, new_device, boot_device_chain);
+	}
+
+	return (0);
+}
+
 #define	CAP_START_OFFSET	0x40
 static int
 pci_emul_add_capability(struct pci_devinst *pi, u_char *capdata, int caplen)
@@ -1362,6 +1410,27 @@ pci_ecfg_base(void)
 	return (PCI_EMUL_ECFG_BASE);
 }
 
+static int
+init_bootorder(void)
+{
+	struct boot_device *device;
+	FILE *fp;
+	char *bootorder;
+	size_t bootorder_len;
+
+	if (TAILQ_EMPTY(&boot_devices))
+		return (0);
+
+	fp = open_memstream(&bootorder, &bootorder_len);
+	TAILQ_FOREACH(device, &boot_devices, boot_device_chain) {
+		fprintf(fp, "/pci@i0cf8/pci@%d,%d\n",
+		    device->pdi->pi_slot, device->pdi->pi_func);
+	}
+	fclose(fp);
+
+	return (qemu_fwcfg_add_file("bootorder", bootorder_len, bootorder));
+}
+
 #define	BUSIO_ROUNDUP		32
 #define	BUSMEM32_ROUNDUP	(1024 * 1024)
 #define	BUSMEM64_ROUNDUP	(512 * 1024 * 1024)
@@ -1390,6 +1459,8 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase64 = 4*GB + vm_get_highmem_size(ctx);
 	pci_emul_membase64 = roundup2(pci_emul_membase64, PCI_EMUL_MEMSIZE64);
 	pci_emul_memlim64 = pci_emul_membase64 + PCI_EMUL_MEMSIZE64;
+
+	TAILQ_INIT(&boot_devices);
 
 	for (bus = 0; bus < MAXBUSES; bus++) {
 		snprintf(node_name, sizeof(node_name), "pci.%d", bus);
@@ -1497,6 +1568,11 @@ init_pci(struct vmctx *ctx)
 		}
 	}
 	lpc_pirq_routed();
+
+	if ((error = init_bootorder()) != 0) {
+		warnx("%s: Unable to init bootorder", __func__);
+		return (error);
+	}
 
 	/*
 	 * The guest physical memory map looks like the following:
