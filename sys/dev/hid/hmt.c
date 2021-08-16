@@ -185,6 +185,7 @@ struct hmt_softc {
 	device_t		dev;
 	enum hmt_type		type;
 
+	int32_t			cont_count_max;
 	struct hid_absinfo	ai[HMT_N_USAGES];
 	struct hid_location	locs[MAX_MT_SLOTS][HMT_N_USAGES];
 	struct hid_location	cont_count_loc;
@@ -332,7 +333,7 @@ hmt_attach(device_t dev)
 			 * 'Contact Count Maximum'
 			 */
 			if (cont_count_max > 0)
-				sc->ai[HMT_SLOT].max = cont_count_max - 1;
+				sc->cont_count_max = cont_count_max;
 		} else
 			DPRINTF("hid_get_report error=%d\n", err);
 	} else
@@ -368,11 +369,18 @@ hmt_attach(device_t dev)
 	}
 
 	/* Cap contact count maximum to MAX_MT_SLOTS */
-	if (sc->ai[HMT_SLOT].max >= MAX_MT_SLOTS) {
+	if (sc->cont_count_max > MAX_MT_SLOTS) {
 		DPRINTF("Hardware reported %d contacts while only %d is "
-		    "supported\n", (int)sc->ai[HMT_SLOT].max+1, MAX_MT_SLOTS);
-		sc->ai[HMT_SLOT].max = MAX_MT_SLOTS - 1;
+		    "supported\n", sc->cont_count_max, MAX_MT_SLOTS);
+		sc->cont_count_max = MAX_MT_SLOTS;
 	}
+
+	/* Set number of MT protocol type B slots */
+	sc->ai[HMT_SLOT] = (struct hid_absinfo) {
+		.min = 0,
+		.max = sc->cont_count_max - 1,
+		.res = 0,
+	};
 
 	if (hid_test_quirk(hw, HQ_MT_TIMESTAMP) || hmt_timestamps)
 		sc->do_timestamps = true;
@@ -445,7 +453,7 @@ hmt_attach(device_t dev)
 	    sc->is_clickpad ? ", click-pad" : "");
 	device_printf(sc->dev,
 	    "%d contacts with [%s%s%s%s%s] properties. Report range [%d:%d] - [%d:%d]\n",
-	    (int)sc->ai[HMT_SLOT].max + 1,
+	    (int)sc->cont_count_max,
 	    isset(sc->caps, HMT_IN_RANGE) ? "R" : "",
 	    isset(sc->caps, HMT_CONFIDENCE) ? "C" : "",
 	    isset(sc->caps, HMT_WIDTH) ? "W" : "",
@@ -834,13 +842,6 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 	if (cont_count_max < 1)
 		cont_count_max = cont;
 
-	/* Set number of MT protocol type B slots */
-	sc->ai[HMT_SLOT] = (struct hid_absinfo) {
-		.min = 0,
-		.max = cont_count_max - 1,
-		.res = 0,
-	};
-
 	/* Report touch orientation if both width and height are supported */
 	if (isset(sc->caps, HMT_WIDTH) && isset(sc->caps, HMT_HEIGHT)) {
 		setbit(sc->caps, HMT_ORIENTATION);
@@ -857,6 +858,7 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 		    hid_feature, sc->thqa_cert_rid);
 
 	sc->report_id = report_id;
+	sc->cont_count_max = cont_count_max;
 	sc->nconts_per_report = cont;
 	sc->has_int_button = has_int_button;
 
