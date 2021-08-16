@@ -709,6 +709,15 @@ pci_vtscsi_init(struct pci_devinst *pi, nvlist_t *nvl)
 	if (value != NULL)
 		sc->vss_iid = strtoul(value, NULL, 10);
 
+	value = get_config_value_node(nvl, "bootindex");
+	if (value != NULL) {
+		if (pci_emul_add_boot_device(pi, atoi(value))) {
+			EPRINTLN("Invalid bootindex %d", atoi(value));
+			free(sc);
+			return (-1);
+		}
+	}
+
 	devname = get_config_value_node(nvl, "dev");
 	if (devname == NULL)
 		devname = "/dev/cam/ctl";

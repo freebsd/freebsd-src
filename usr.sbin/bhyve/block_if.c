@@ -122,6 +122,7 @@ struct blockif_ctxt {
 	TAILQ_HEAD(, blockif_elem) bc_pendq;
 	TAILQ_HEAD(, blockif_elem) bc_busyq;
 	struct blockif_elem	bc_reqs[BLOCKIF_MAXREQ];
+	int			bc_bootindex;
 };
 
 static pthread_once_t blockif_once = PTHREAD_ONCE_INIT;
@@ -466,12 +467,22 @@ blockif_legacy_config(nvlist_t *nvl, const char *opts)
 	return (pci_parse_legacy_config(nvl, cp + 1));
 }
 
+int
+blockif_add_boot_device(struct pci_devinst *const pi,
+    struct blockif_ctxt *const bc)
+{
+	if (bc->bc_bootindex < 0)
+		return (0);
+
+	return (pci_emul_add_boot_device(pi, bc->bc_bootindex));
+}
+
 struct blockif_ctxt *
 blockif_open(nvlist_t *nvl, const char *ident)
 {
 	char tname[MAXCOMLEN + 1];
 	char name[MAXPATHLEN];
-	const char *path, *pssval, *ssval;
+	const char *path, *pssval, *ssval, *bootindex_val;
 	char *cp;
 	struct blockif_ctxt *bc;
 	struct stat sbuf;
@@ -480,6 +491,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	int extra, fd, i, sectsz;
 	int ro, candelete, geom, ssopt, pssopt;
 	int nodelete;
+	int bootindex;
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
@@ -493,6 +505,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	ssopt = 0;
 	ro = 0;
 	nodelete = 0;
+	bootindex = -1;
 
 	if (get_config_bool_node_default(nvl, "nocache", false))
 		extra |= O_DIRECT;
@@ -523,6 +536,11 @@ blockif_open(nvlist_t *nvl, const char *ident)
 			EPRINTLN("Invalid sector size \"%s\"", ssval);
 			goto err;
 		}
+	}
+
+	bootindex_val = get_config_value_node(nvl, "bootindex");
+	if (bootindex_val != NULL) {
+		bootindex = atoi(bootindex_val);
 	}
 
 	path = get_config_value_node(nvl, "path");
@@ -644,6 +662,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	TAILQ_INIT(&bc->bc_freeq);
 	TAILQ_INIT(&bc->bc_pendq);
 	TAILQ_INIT(&bc->bc_busyq);
+	bc->bc_bootindex = bootindex;
 	for (i = 0; i < BLOCKIF_MAXREQ; i++) {
 		bc->bc_reqs[i].be_status = BST_FREE;
 		TAILQ_INSERT_HEAD(&bc->bc_freeq, &bc->bc_reqs[i], be_link);
