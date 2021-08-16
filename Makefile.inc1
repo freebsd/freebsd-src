@@ -2361,6 +2361,8 @@ ${_bt}-usr.bin/localedef: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
 .if ${MK_ICONV} != "no"
 _mkesdb=	usr.bin/mkesdb
 _mkcsmapper=	usr.bin/mkcsmapper
+${_bt}-usr.bin/mkesdb: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
+${_bt}-usr.bin/mkcsmapper: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
 .endif
 
 .if ${MK_KERBEROS} != "no"
