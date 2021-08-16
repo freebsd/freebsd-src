@@ -247,6 +247,16 @@ struct evdev_client
     (((client)->ec_buffer_ready + (client)->ec_buffer_size - \
       (client)->ec_buffer_head) % (client)->ec_buffer_size)
 
+/* bitstring(3) helper */
+static inline void
+bit_change(bitstr_t *bitstr, int bit, int value)
+{
+	if (value)
+		bit_set(bitstr, bit);
+	else
+		bit_clear(bitstr, bit);
+}
+
 /* Input device interface: */
 void evdev_send_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 int evdev_inject_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
