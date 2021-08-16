@@ -1181,7 +1181,7 @@ ipf_frag_nat_next(softc, token, itp)
 	ipftoken_t *token;
 	ipfgeniter_t *itp;
 {
-	ipf_frag_softc_t *softf = softc->ipf_frag_soft;;
+	ipf_frag_softc_t *softf = softc->ipf_frag_soft;
 
 #ifdef USE_MUTEXES
 	return ipf_frag_next(softc, token, itp, &softf->ipfr_natlist, 
