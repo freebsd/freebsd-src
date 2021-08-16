@@ -62,11 +62,13 @@ struct blockif_req {
 	struct iovec	br_iov[BLOCKIF_IOV_MAX];
 };
 
+struct pci_devinst;
 struct blockif_ctxt;
 
 typedef void blockif_resize_cb(struct blockif_ctxt *, void *, size_t);
 
 int	blockif_legacy_config(nvlist_t *nvl, const char *opts);
+int 	blockif_add_boot_device(struct pci_devinst *const pi, struct blockif_ctxt *const bc);
 struct blockif_ctxt *blockif_open(nvlist_t *nvl, const char *ident);
 int	blockif_register_resize_callback(struct blockif_ctxt *bc,
     blockif_resize_cb *cb, void *cb_arg);

@@ -494,6 +494,12 @@ if not explicitly specified.
 Disable emulation of guest trim requests via
 .Dv DIOCGDELETE
 requests.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 SCSI device backends:
@@ -511,6 +517,12 @@ are:
 .It Cm iid= Ns Ar IID
 Initiator ID to use when sending requests to specified CTL port.
 The default value is 0.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 9P device backends:
@@ -608,6 +620,12 @@ Add
 .Ar romfile
 as option ROM to the PCI device.
 The ROM will be loaded by firmware and should be capable of initializing the device.
+.It Li bootindex= Ns Ar index
+Add the device to the bootorder at
+.Ar index .
+A fwcfg file is used to specify the bootorder.
+The guest firmware may ignore or doesn't support this fwcfg file.
+In that case, this feature doesn't work as expected.
 .El
 .Pp
 Guest memory must be wired using the
