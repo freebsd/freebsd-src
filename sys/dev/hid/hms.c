@@ -109,6 +109,7 @@ static const struct hidmap_item hms_map_wheel_rev[] = {
 
 /* A match on these entries will load hms */
 static const struct hid_device_id hms_devs[] = {
+	{ HID_TLC(HUP_GENERIC_DESKTOP, HUG_POINTER) },
 	{ HID_TLC(HUP_GENERIC_DESKTOP, HUG_MOUSE) },
 };
 
