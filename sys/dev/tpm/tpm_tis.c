@@ -82,8 +82,7 @@ static int tpmtis_detach(device_t dev);
 
 static void tpmtis_intr_handler(void *arg);
 
-static ACPI_STATUS tpmtis_get_SIRQ_channel(ACPI_RESOURCE *res, void *arg);
-static bool tpmtis_setup_intr(struct tpm_sc *sc);
+static void tpmtis_setup_intr(struct tpm_sc *sc);
 
 static bool tpmtis_read_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf);
 static bool tpmtis_write_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf);
@@ -126,30 +125,35 @@ tpmtis_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->transmit = tpmtis_transmit;
+	sc->intr_type = -1;
+
+	sx_init(&sc->dev_lock, "TPM driver lock");
+	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
 		    RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->mem_res == NULL) {
+		tpmtis_detach(dev);
 		return (ENXIO);
+	}
 
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 		    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->irq_res != NULL) {
-		if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-		    NULL, tpmtis_intr_handler, sc, &sc->intr_cookie))
-			sc->interrupts = false;
-		else
-			sc->interrupts = tpmtis_setup_intr(sc);
-	} else {
-		sc->interrupts = false;
+	if (sc->irq_res == NULL)
+		goto skip_irq;
+
+	result = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+		    NULL, tpmtis_intr_handler, sc, &sc->intr_cookie);
+	if (result != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
+		goto skip_irq;
 	}
+	tpmtis_setup_intr(sc);
 
-	sc->intr_type = -1;
-
-	sc->transmit = tpmtis_transmit;
-
+skip_irq:
 	result = tpm20_init(sc);
 	if (result != 0)
 		tpmtis_detach(dev);
@@ -179,55 +183,63 @@ tpmtis_detach(device_t dev)
 	return (0);
 }
 
-static ACPI_STATUS
-tpmtis_get_SIRQ_channel(ACPI_RESOURCE *res, void *arg)
+/*
+ * Test if the advertisted interrupt actually works.
+ * This sends a simple command. (GetRandom)
+ * Interrupts are then enabled in the handler.
+ */
+static void
+tpmtis_test_intr(struct tpm_sc *sc)
 {
-	struct tpm_sc *sc;
-	uint8_t channel;
+	uint8_t cmd[] = {
+		0x80, 0x01,		/* TPM_ST_NO_SESSIONS tag*/
+		0x00, 0x00, 0x00, 0x0c,	/* cmd length */
+		0x00, 0x00, 0x01, 0x7b,	/* cmd TPM_CC_GetRandom */
+		0x00, 0x01 		/* number of bytes requested */
+	};
 
-	sc = (struct tpm_sc *)arg;
-
-	switch (res->Type) {
-	case ACPI_RESOURCE_TYPE_IRQ:
-		channel = res->Data.Irq.Interrupts[0];
-		break;
-	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		channel = res->Data.ExtendedIrq.Interrupts[0];
-		break;
-	default:
-		return (AE_OK);
-	}
-
-	WR1(sc, TPM_INT_VECTOR, channel);
-	return (AE_OK);
+	sx_xlock(&sc->dev_lock);
+	memcpy(sc->buf, cmd, sizeof(cmd));
+	tpmtis_transmit(sc, sizeof(cmd));
+	sc->pending_data_length = 0;
+	sx_xunlock(&sc->dev_lock);
 }
 
-static bool
+static void
 tpmtis_setup_intr(struct tpm_sc *sc)
 {
-	ACPI_STATUS status;
-	ACPI_HANDLE handle;
-	uint32_t irq_mask;
+	uint32_t reg;
+	uint8_t irq;
 
-	handle = acpi_get_handle(sc->dev);
+	irq = bus_get_resource_start(sc->dev, SYS_RES_IRQ, sc->irq_rid);
+
+	/*
+	 * SIRQ has to be between 1 - 15.
+	 * I found a system with ACPI table that reported a value of 0x2d.
+	 * An attempt to use such value resulted in an interrupt storm.
+	 */
+	if (irq == 0 || irq > 0xF)
+		return;
 
 	if(!tpmtis_request_locality(sc, 0))
-		return (false);
+		sc->interrupts = false;
 
-	irq_mask = RD4(sc, TPM_INT_ENABLE);
-	irq_mask |= TPM_INT_ENABLE_GLOBAL_ENABLE |
+	WR1(sc, TPM_INT_VECTOR, irq);
+
+	/* Clear all pending interrupts. */
+	reg = RD4(sc, TPM_INT_STS);
+	WR4(sc, TPM_INT_STS, reg);
+
+	reg = RD4(sc, TPM_INT_ENABLE);
+	reg |= TPM_INT_ENABLE_GLOBAL_ENABLE |
 	    TPM_INT_ENABLE_DATA_AVAIL |
 	    TPM_INT_ENABLE_LOC_CHANGE |
 	    TPM_INT_ENABLE_CMD_RDY |
 	    TPM_INT_ENABLE_STS_VALID;
-	WR4(sc, TPM_INT_ENABLE, irq_mask);
-
-	status = AcpiWalkResources(handle, "_CRS",
-	    tpmtis_get_SIRQ_channel, (void *)sc);
+	WR4(sc, TPM_INT_ENABLE, reg);
 
 	tpmtis_relinquish_locality(sc);
-
-	return (ACPI_SUCCESS(status));
+	tpmtis_test_intr(sc);
 }
 
 static void
@@ -240,8 +252,13 @@ tpmtis_intr_handler(void *arg)
 	status = RD4(sc, TPM_INT_STS);
 
 	WR4(sc, TPM_INT_STS, status);
-	if (sc->intr_type != -1 && sc->intr_type & status)
-		wakeup(sc);
+
+	/* Check for stray interrupts. */
+	if (sc->intr_type == -1 || (sc->intr_type & status) == 0)
+		return;
+
+	sc->interrupts = true;
+	wakeup(sc);
 }
 
 static bool

@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  */
 #define TPM_HARVEST_INTERVAL 10000000
 
-MALLOC_DECLARE(M_TPM20);
 MALLOC_DEFINE(M_TPM20, "tpm_buffer", "buffer for tpm 2.0 driver");
 
 static void tpm20_discard_buffer(void *arg);
@@ -191,8 +190,6 @@ tpm20_init(struct tpm_sc *sc)
 	struct make_dev_args args;
 	int result;
 
-	sc->buf = malloc(TPM_BUFSIZE, M_TPM20, M_WAITOK);
-	sx_init(&sc->dev_lock, "TPM driver lock");
 	cv_init(&sc->buf_cv, "TPM buffer cv");
 	callout_init(&sc->discard_buffer_callout, 1);
 #ifdef TPM_HARVEST
