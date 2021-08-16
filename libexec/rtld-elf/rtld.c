@@ -367,80 +367,103 @@ enum {
 };
 
 struct ld_env_var_desc {
-	char n[64];
-	bool unsecure;
+	const char *n;
+	char *val;
+	const bool unsecure;
 };
+#define LD_ENV_DESC(var, unsec) \
+    [LD_##var] = { .n = #var, .unsecure = unsec }
 
 static struct ld_env_var_desc ld_env_vars[] = {
-	[LD_BIND_NOW] =
-	    { .n = "BIND_NOW", .unsecure = false },
-	[LD_PRELOAD] =
-	    { .n = "PRELOAD", .unsecure = true },
-	[LD_LIBMAP] =
-	    { .n = "LIBMAP", .unsecure = true },
-	[LD_LIBRARY_PATH] =
-	    { .n = "LIBRARY_PATH", .unsecure = true },
-	[LD_LIBRARY_PATH_FDS] =
-	    { .n = "LIBRARY_PATH_FDS", .unsecure = true },
-	[LD_LIBMAP_DISABLE] =
-	    { .n = "LIBMAP_DISABLE", .unsecure = true },
-	[LD_BIND_NOT] =
-	    { .n = "BIND_NOT", .unsecure = true },
-	[LD_DEBUG] =
-	    { .n = "DEBUG", .unsecure = true },
-	[LD_ELF_HINTS_PATH] =
-	    { .n = "ELF_HINTS_PATH", .unsecure = true },
-	[LD_LOADFLTR] =
-	    { .n = "LOADFLTR", .unsecure = true },
-	[LD_LIBRARY_PATH_RPATH] =
-	    { .n = "LIBRARY_PATH_RPATH", .unsecure = true },
-	[LD_PRELOAD_FDS] =
-	    { .n = "PRELOAD_FDS", .unsecure = true },
-	[LD_DYNAMIC_WEAK] =
-	    { .n = "DYNAMIC_WEAK", .unsecure = true },
-	[LD_TRACE_LOADED_OBJECTS] =
-	    { .n = "TRACE_LOADED_OBJECTS", .unsecure = false },
-	[LD_UTRACE] =
-	    { .n = "UTRACE", .unsecure = false },
-	[LD_DUMP_REL_PRE] =
-	    { .n = "DUMP_REL_PRE", .unsecure = false },
-	[LD_DUMP_REL_POST] =
-	    { .n = "DUMP_REL_POST", .unsecure = false },
-	[LD_TRACE_LOADED_OBJECTS_PROGNAME] =
-	    { .n = "TRACE_LOADED_OBJECTS_PROGNAME", .unsecure = false},
-	[LD_TRACE_LOADED_OBJECTS_FMT1] =
-	    { .n = "TRACE_LOADED_OBJECTS_FMT1", .unsecure = false},
-	[LD_TRACE_LOADED_OBJECTS_FMT2] =
-	    { .n = "TRACE_LOADED_OBJECTS_FMT2", .unsecure = false},
-	[LD_TRACE_LOADED_OBJECTS_ALL] =
-	    { .n = "TRACE_LOADED_OBJECTS_ALL", .unsecure = false},
+	LD_ENV_DESC(BIND_NOW, false),
+	LD_ENV_DESC(PRELOAD, true),
+	LD_ENV_DESC(LIBMAP, true),
+	LD_ENV_DESC(LIBRARY_PATH, true),
+	LD_ENV_DESC(LIBRARY_PATH_FDS, true),
+	LD_ENV_DESC(LIBMAP_DISABLE, true),
+	LD_ENV_DESC(BIND_NOT, true),
+	LD_ENV_DESC(DEBUG, true),
+	LD_ENV_DESC(ELF_HINTS_PATH, true),
+	LD_ENV_DESC(LOADFLTR, true),
+	LD_ENV_DESC(LIBRARY_PATH_RPATH, true),
+	LD_ENV_DESC(PRELOAD_FDS, true),
+	LD_ENV_DESC(DYNAMIC_WEAK, true),
+	LD_ENV_DESC(TRACE_LOADED_OBJECTS, false),
+	LD_ENV_DESC(UTRACE, false),
+	LD_ENV_DESC(DUMP_REL_PRE, false),
+	LD_ENV_DESC(DUMP_REL_POST, false),
+	LD_ENV_DESC(TRACE_LOADED_OBJECTS_PROGNAME, false),
+	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT1, false),
+	LD_ENV_DESC(TRACE_LOADED_OBJECTS_FMT2, false),
+	LD_ENV_DESC(TRACE_LOADED_OBJECTS_ALL, false),
 };
-
-static const char *
-ld_var(int idx)
-{
-	return (ld_env_vars[idx].n);
-}
 
 static char *
 ld_get_env_var(int idx)
 {
-	return (getenv(ld_var(idx)));
+	return (ld_env_vars[idx].val);
+}
+
+static char *
+rtld_get_env_val(char **env, const char *name, size_t name_len)
+{
+	char **m, *n, *v;
+
+	for (m = env; *m != NULL; m++) {
+		n = *m;
+		v = strchr(n, '=');
+		if (v == NULL) {
+			/* corrupt environment? */
+			continue;
+		}
+		if (v - n == (ptrdiff_t)name_len &&
+		    strncmp(name, n, name_len) == 0)
+			return (v + 1);
+	}
+	return (NULL);
 }
 
 static void
-rtld_init_env_vars(void)
+rtld_init_env_vars_for_prefix(char **env, const char *env_prefix)
 {
 	struct ld_env_var_desc *lvd;
-	size_t sz;
+	size_t prefix_len, nlen;
+	char **m, *n, *v;
 	int i;
 
-	sz = strlen(ld_env_prefix);
-	for (i = 0; i < (int)nitems(ld_env_vars); i++) {
-		lvd = &ld_env_vars[i];
-		memmove(lvd->n + sz, lvd->n, strlen(lvd->n) + 1);
-		memcpy(lvd->n, ld_env_prefix, sz);
+	prefix_len = strlen(env_prefix);
+	for (m = env; *m != NULL; m++) {
+		n = *m;
+		if (strncmp(env_prefix, n, prefix_len) != 0) {
+			/* Not a rtld environment variable. */
+			continue;
+		}
+		n += prefix_len;
+		v = strchr(n, '=');
+		if (v == NULL) {
+			/* corrupt environment? */
+			continue;
+		}
+		for (i = 0; i < (int)nitems(ld_env_vars); i++) {
+			lvd = &ld_env_vars[i];
+			if (lvd->val != NULL) {
+				/* Saw higher-priority variable name already. */
+				continue;
+			}
+			nlen = strlen(lvd->n);
+			if (v - n == (ptrdiff_t)nlen &&
+			    strncmp(lvd->n, n, nlen) == 0) {
+				lvd->val = v + 1;
+				break;
+			}
+		}
 	}
+}
+
+static void
+rtld_init_env_vars(char **env)
+{
+	rtld_init_env_vars_for_prefix(env, ld_env_prefix);
 }
 
 /*
@@ -548,7 +571,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     direct_exec = false;
 
     md_abi_variant_hook(aux_info);
-    rtld_init_env_vars();
+    rtld_init_env_vars(env);
 
     fd = -1;
     if (aux_info[AT_EXECFD] != NULL) {
@@ -667,12 +690,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (!trust) {
 	    for (i = 0; i < (int)nitems(ld_env_vars); i++) {
 		    lvd = &ld_env_vars[i];
-		    if (lvd->unsecure && unsetenv(lvd->n)) {
-			    _rtld_error("environment corrupt; aborting");
-			    rtld_die();
-		    }
+		    if (lvd->unsecure)
+			    lvd->val = NULL;
 	    }
     }
+
     ld_debug = ld_get_env_var(LD_DEBUG);
     if (ld_bind_now == NULL)
 	    ld_bind_not = ld_get_env_var(LD_BIND_NOT) != NULL;
