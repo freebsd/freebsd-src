@@ -676,8 +676,8 @@ hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
 	bool scan_time_found = false;
 	bool has_int_button = false;
 
-#define HMT_HI_ABSOLUTE(hi)	\
-	(((hi).flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
+#define HMT_HI_ABSOLUTE(hi)	((hi).nusages != 0 &&	\
+	((hi).flags & (HIO_VARIABLE | HIO_RELATIVE)) == HIO_VARIABLE)
 #define	HUMS_THQA_CERT	0xC5
 
 	/*
