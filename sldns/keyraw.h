@@ -57,6 +57,7 @@ int sldns_key_EVP_load_gost_id(void);
 /** Release the engine reference held for the GOST engine. */
 void sldns_key_EVP_unload_gost(void);
 
+#ifndef HAVE_OSSL_PARAM_BLD_NEW
 /**
  * Like sldns_key_buf2dsa, but uses raw buffer.
  * \param[in] key the uncompressed wireformat of the key.
@@ -64,6 +65,15 @@ void sldns_key_EVP_unload_gost(void);
  * \return a DSA * structure with the key material
  */
 DSA *sldns_key_buf2dsa_raw(unsigned char* key, size_t len);
+#endif
+
+/**
+ * Converts a holding buffer with DSA key material to EVP PKEY in openssl.
+ * \param[in] key the uncompressed wireformat of the key.
+ * \param[in] len length of key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY *sldns_key_dsa2pkey_raw(unsigned char* key, size_t len);
 
 /**
  * Converts a holding buffer with key material to EVP PKEY in openssl.
@@ -84,6 +94,7 @@ EVP_PKEY* sldns_gost2pkey_raw(unsigned char* key, size_t keylen);
  */
 EVP_PKEY* sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo);
 
+#ifndef HAVE_OSSL_PARAM_BLD_NEW
 /**
  * Like sldns_key_buf2rsa, but uses raw buffer.
  * \param[in] key the uncompressed wireformat of the key.
@@ -91,6 +102,15 @@ EVP_PKEY* sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo);
  * \return a RSA * structure with the key material
  */
 RSA *sldns_key_buf2rsa_raw(unsigned char* key, size_t len);
+#endif
+
+/**
+ * Converts a holding buffer with RSA key material to EVP PKEY in openssl.
+ * \param[in] key the uncompressed wireformat of the key.
+ * \param[in] len length of key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY* sldns_key_rsa2pkey_raw(unsigned char* key, size_t len);
 
 /**
  * Converts a holding buffer with key material to EVP PKEY in openssl.

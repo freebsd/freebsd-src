@@ -47,7 +47,7 @@
 #include "sldns/parseutil.h"
 
 /** verbose this unit test */
-static int vbmp = 0; 
+static int vbmp = 0;
 
 /** print buffer to hex into string */
 static void

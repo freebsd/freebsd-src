@@ -585,6 +585,60 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	return 1;
 }
 
+/** add response specific error information for log servfail */
+static void
+errinf_reply(struct module_qstate* qstate, struct iter_qstate* iq)
+{
+	if(qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail)
+		return;
+	if((qstate->reply && qstate->reply->addrlen != 0) ||
+		(iq->fail_reply && iq->fail_reply->addrlen != 0)) {
+		char from[256], frm[512];
+		if(qstate->reply && qstate->reply->addrlen != 0)
+			addr_to_str(&qstate->reply->addr, qstate->reply->addrlen,
+				from, sizeof(from));
+		else
+			addr_to_str(&iq->fail_reply->addr, iq->fail_reply->addrlen,
+				from, sizeof(from));
+		snprintf(frm, sizeof(frm), "from %s", from);
+		errinf(qstate, frm);
+	}
+	if(iq->scrub_failures || iq->parse_failures) {
+		if(iq->scrub_failures)
+			errinf(qstate, "upstream response failed scrub");
+		if(iq->parse_failures)
+			errinf(qstate, "could not parse upstream response");
+	} else if(iq->response == NULL && iq->timeout_count != 0) {
+		errinf(qstate, "upstream server timeout");
+	} else if(iq->response == NULL) {
+		errinf(qstate, "no server to query");
+		if(iq->dp) {
+			if(iq->dp->target_list == NULL)
+				errinf(qstate, "no addresses for nameservers");
+			else	errinf(qstate, "nameserver addresses not usable");
+			if(iq->dp->nslist == NULL)
+				errinf(qstate, "have no nameserver names");
+			if(iq->dp->bogus)
+				errinf(qstate, "NS record was dnssec bogus");
+		}
+	}
+	if(iq->response && iq->response->rep) {
+		if(FLAGS_GET_RCODE(iq->response->rep->flags) != 0) {
+			char rcode[256], rc[32];
+			(void)sldns_wire2str_rcode_buf(
+				FLAGS_GET_RCODE(iq->response->rep->flags),
+				rc, sizeof(rc));
+			snprintf(rcode, sizeof(rcode), "got %s", rc);
+			errinf(qstate, rcode);
+		} else {
+			/* rcode NOERROR */
+			if(iq->response->rep->an_numrrsets == 0) {
+				errinf(qstate, "nodata answer");
+			}
+		}
+	}
+}
+
 /** see if last resort is possible - does config allow queries to parent */
 static int
 can_have_last_resort(struct module_env* env, uint8_t* nm, size_t nmlen,
@@ -1228,8 +1282,8 @@ static int
 processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	struct iter_env* ie, int id)
 {
-	uint8_t* delname;
-	size_t delnamelen;
+	uint8_t* delname, *dpname=NULL;
+	size_t delnamelen, dpnamelen=0;
 	struct dns_msg* msg = NULL;
 
 	log_query_info(VERB_DETAIL, "resolving", &qstate->qinfo);
@@ -1283,7 +1337,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	/* This either results in a query restart (CNAME cache response), a
 	 * terminating response (ANSWER), or a cache miss (null). */
 	
-	if (iter_stub_fwd_no_cache(qstate, &iq->qchase)) {
+	if (iter_stub_fwd_no_cache(qstate, &iq->qchase, &dpname, &dpnamelen)) {
 		/* Asked to not query cache. */
 		verbose(VERB_ALGO, "no-cache set, going to the network");
 		qstate->no_cache_lookup = 1;
@@ -1298,7 +1352,8 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 		msg = dns_cache_lookup(qstate->env, iq->qchase.qname, 
 			iq->qchase.qname_len, iq->qchase.qtype, 
 			iq->qchase.qclass, qstate->query_flags,
-			qstate->region, qstate->env->scratch, 0);
+			qstate->region, qstate->env->scratch, 0, dpname,
+			dpnamelen);
 		if(!msg && qstate->env->neg_cache &&
 			iter_qname_indicates_dnssec(qstate->env, &iq->qchase)) {
 			/* lookup in negative cache; may result in
@@ -1921,6 +1976,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 		 * of a response. */
 		errinf(qstate, "all the configured stub or forward servers failed,");
 		errinf_dname(qstate, "at zone", iq->dp->name);
+		errinf_reply(qstate, iq);
 		verbose(VERB_QUERY, "configured stub or forward servers failed -- returning SERVFAIL");
 		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
@@ -2067,6 +2123,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	errinf(qstate, "all servers for this domain failed,");
 	errinf_dname(qstate, "at zone", iq->dp->name);
+	errinf_reply(qstate, iq);
 	verbose(VERB_QUERY, "out of query targets -- returning SERVFAIL");
 	/* fail -- no more targets, no more hope of targets, no hope 
 	 * of a response. */
@@ -2288,7 +2345,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 				iq->qinfo_out.qname, iq->qinfo_out.qname_len, 
 				iq->qinfo_out.qtype, iq->qinfo_out.qclass, 
 				qstate->query_flags, qstate->region, 
-				qstate->env->scratch, 0);
+				qstate->env->scratch, 0, iq->dp->name,
+				iq->dp->namelen);
 			if(msg && FLAGS_GET_RCODE(msg->rep->flags) ==
 				LDNS_RCODE_NOERROR)
 				/* no need to send query if it is already 
@@ -2611,7 +2669,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		(iq->dp->ssl_upstream || qstate->env->cfg->ssl_upstream),
 		target->tls_auth_name, qstate);
 	if(!outq) {
-		log_addr(VERB_DETAIL, "error sending query to auth server", 
+		log_addr(VERB_QUERY, "error sending query to auth server",
 			&target->addr, target->addrlen);
 		if(!(iq->chase_flags & BIT_RD) && !iq->ratelimit_ok)
 		    infra_ratelimit_dec(qstate->env->infra_cache, iq->dp->name,
@@ -2957,6 +3015,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 			qstate->env->detach_subs));
 		(*qstate->env->detach_subs)(qstate);
 		iq->num_target_queries = 0;
+		iq->response = NULL;
+		iq->fail_reply = NULL;
 		verbose(VERB_ALGO, "cleared outbound list for next round");
 		return next_state(iq, QUERYTARGETS_STATE);
 	} else if(type == RESPONSE_TYPE_CNAME) {
@@ -3720,6 +3780,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 
 	/* parse message */
+	iq->fail_reply = qstate->reply;
 	prs = (struct msg_parse*)regional_alloc(qstate->env->scratch, 
 		sizeof(struct msg_parse));
 	if(!prs) {
@@ -3733,12 +3794,15 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	sldns_buffer_set_position(pkt, 0);
 	if(parse_packet(pkt, prs, qstate->env->scratch) != LDNS_RCODE_NOERROR) {
 		verbose(VERB_ALGO, "parse error on reply packet");
+		iq->parse_failures++;
 		goto handle_it;
 	}
 	/* edns is not examined, but removed from message to help cache */
 	if(parse_extract_edns(prs, &edns, qstate->env->scratch) !=
-		LDNS_RCODE_NOERROR)
+		LDNS_RCODE_NOERROR) {
+		iq->parse_failures++;
 		goto handle_it;
+	}
 
 	/* Copy the edns options we may got from the back end */
 	if(edns.opt_list) {
@@ -3772,6 +3836,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->num_current_queries--;
 			verbose(VERB_DETAIL, "Capsforid: scrub failed, starting fallback with no response");
 		}
+		iq->scrub_failures++;
 		goto handle_it;
 	}
 

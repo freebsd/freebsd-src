@@ -7,6 +7,7 @@ server:
 	qname-minimisation: "no"
 	trust-anchor-signaling: no
 	aggressive-nsec: yes
+	zonemd-permissive-mode: yes
 
 auth-zone:
 	name: "example.com."

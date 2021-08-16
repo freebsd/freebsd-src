@@ -745,9 +745,15 @@ static int
 lz_enter_zones(struct local_zones* zones, struct config_file* cfg)
 {
 	struct config_str2list* p;
+#ifndef THREADS_DISABLED
 	struct local_zone* z;
+#endif
 	for(p = cfg->local_zones; p; p = p->next) {
-		if(!(z=lz_enter_zone(zones, p->str, p->str2, 
+		if(!(
+#ifndef THREADS_DISABLED
+			z=
+#endif
+			lz_enter_zone(zones, p->str, p->str2,
 			LDNS_RR_CLASS_IN)))
 			return 0;
 		lock_rw_unlock(&z->lock);
@@ -1027,7 +1033,9 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 	}
 	if(have_name) {
 		uint8_t* n2;
+#ifndef THREADS_DISABLED
 		struct local_zone* z;
+#endif
 		/* allocate zone of smallest shared topdomain to contain em */
 		n2 = nm;
 		dname_remove_labels(&n2, &nmlen, nmlabs - match);
@@ -1039,7 +1047,11 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 		}
 		log_nametypeclass(VERB_ALGO, "implicit transparent local-zone", 
 			n2, 0, dclass);
-		if(!(z=lz_enter_zone_dname(zones, n2, nmlen, match, 
+		if(!(
+#ifndef THREADS_DISABLED
+			z=
+#endif
+			lz_enter_zone_dname(zones, n2, nmlen, match,
 			local_zone_transparent, dclass))) {
 			return 0;
 		}

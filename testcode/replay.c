@@ -124,8 +124,7 @@ replay_range_delete(struct replay_range* rng)
 	free(rng);
 }
 
-/** strip whitespace from end of string */
-static void
+void
 strip_end_white(char* p)
 {
 	size_t i;
@@ -227,7 +226,7 @@ read_file_content(FILE* in, int* lineno, struct replay_moment* mom)
 		if(strncmp(line, "FILE_END", 8) == 0) {
 			return;
 		}
-		if(line[0]) line[strlen(line)-1] = 0; /* remove newline */
+		strip_end_white(line);
 		if(!cfg_strlist_insert(last, strdup(line)))
 			fatal_exit("malloc failure");
 		last = &( (*last)->next );
@@ -249,7 +248,7 @@ read_assign_step(char* remain, struct replay_moment* mom)
 	if(eq != '=')
 		fatal_exit("no '=' in assign: %s", remain);
 	remain += skip;
-	if(remain[0]) remain[strlen(remain)-1]=0; /* remove newline */
+	strip_end_white(remain);
 	mom->string = strdup(remain);
 	if(!mom->variable || !mom->string)
 		fatal_exit("out of memory");
@@ -318,8 +317,7 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		mom->evt_type = repevt_autotrust_check;
 		while(isspace((unsigned char)*remain))
 			remain++;
-		if(strlen(remain)>0 && remain[strlen(remain)-1]=='\n')
-			remain[strlen(remain)-1] = 0;
+		strip_end_white(remain);
 		mom->autotrust_id = strdup(remain);
 		if(!mom->autotrust_id) fatal_exit("out of memory");
 		read_file_content(in, &pstate->lineno, mom);
@@ -327,8 +325,7 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 		mom->evt_type = repevt_tempfile_check;
 		while(isspace((unsigned char)*remain))
 			remain++;
-		if(strlen(remain)>0 && remain[strlen(remain)-1]=='\n')
-			remain[strlen(remain)-1] = 0;
+		strip_end_white(remain);
 		mom->autotrust_id = strdup(remain);
 		if(!mom->autotrust_id) fatal_exit("out of memory");
 		read_file_content(in, &pstate->lineno, mom);
@@ -359,8 +356,7 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 			m++;
 		if(!extstrtoaddr(s, &mom->addr, &mom->addrlen))
 			fatal_exit("bad infra_rtt address %s", s);
-		if(strlen(m)>0 && m[strlen(m)-1]=='\n')
-			m[strlen(m)-1] = 0;
+		strip_end_white(m);
 		mom->variable = strdup(remain);
 		mom->string = strdup(m);
 		if(!mom->string) fatal_exit("out of memory");
@@ -375,8 +371,7 @@ replay_moment_read(char* remain, FILE* in, const char* name,
 	if(parse_keyword(&remain, "ADDRESS")) {
 		while(isspace((unsigned char)*remain))
 			remain++;
-		if(strlen(remain) > 0) /* remove \n */
-			remain[strlen(remain)-1] = 0;
+		strip_end_white(remain);
 		if(!extstrtoaddr(remain, &mom->addr, &mom->addrlen)) {
 			log_err("line %d: could not parse ADDRESS: %s", 
 				pstate->lineno, remain);
@@ -693,7 +688,11 @@ do_macro_ctime(char* arg)
 		return NULL;
 	}
 	ctime_r(&tt, buf);
-	if(buf[0]) buf[strlen(buf)-1]=0; /* remove trailing newline */
+#ifdef USE_WINSOCK
+	if(strlen(buf) > 10 && buf[7]==' ' && buf[8]=='0')
+		buf[8]=' '; /* fix error in windows ctime */
+#endif
+	strip_end_white(buf);
 	return strdup(buf);
 }
 

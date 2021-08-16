@@ -238,6 +238,9 @@ setup_ctx(char* key, char* cert)
 	(void)SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
 #endif
 	(void)SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);
+#ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
+	SSL_CTX_set_security_level(ctx, 0); /* for keys in tests */
+#endif
 	if(!SSL_CTX_use_certificate_chain_file(ctx, cert))
 		print_exit("cannot read cert");
 	if(!SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM))

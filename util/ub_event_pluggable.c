@@ -666,7 +666,8 @@ ub_winsock_tcp_wouldblock(struct ub_event* ev, int eventbits)
 		fptr_ok(ev->vmt != &default_event_vmt ||
 			ev->vmt->winsock_tcp_wouldblock ==
 			my_winsock_tcp_wouldblock);
-		(*ev->vmt->winsock_tcp_wouldblock)(ev, eventbits);
+		if (ev->vmt->winsock_tcp_wouldblock)
+			(*ev->vmt->winsock_tcp_wouldblock)(ev, eventbits);
 	}
 }
 

@@ -425,6 +425,9 @@ int replay_var_compare(const void* a, const void* b);
 /** get oldest enabled fake timer */
 struct fake_timer* replay_get_oldest_timer(struct replay_runtime* runtime);
 
+/** strip whitespace from end of string */
+void strip_end_white(char* p);
+
 /**
  * Create variable storage
  * @return new or NULL on failure.

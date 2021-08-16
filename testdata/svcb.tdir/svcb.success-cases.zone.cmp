@@ -1,0 +1,10 @@
+success-cases.	3600	IN	SOA	primary.success-cases. admin.success-cases. 0 0 0 0 0
+s01.success-cases.	3600	IN	SVCB	0 . key123
+s02.success-cases.	3600	IN	SVCB	0 . ech
+s03.success-cases.	3600	IN	HTTPS	0 . alpn="h2,h3" no-default-alpn
+s04.success-cases.	3600	IN	HTTPS	0 . no-default-alpn
+s05.success-cases.	3600	IN	HTTPS	0 . mandatory=port alpn="dot" no-default-alpn port=853
+s06.success-cases.	3600	IN	HTTPS	0 . ech="aGVsbG93b3JsZCE="
+s07.success-cases.	3600	IN	HTTPS	0 . ech="aGVsbG93b3JsZCE="
+s08.success-cases.	3600	IN	HTTPS	0 . key11="a" key12="a" key13="a" key14="a" key15="a" key16="a" key17="a" key18="a" key19="a" key110="a" key111="a" key112="a" key113="a" key114="a" key115="a" key116="a" key117="a" key118="a" key119="a" key120="a" key121="a" key122="a" key123="a" key124="a" key125="a" key126="a" key127="a" key128="a" key129="a" key130="a" key131="a" key132="a" key133="a" key134="a" key135="a" key136="a" key137="a" key138="a" key139="a" key140="a" key141="a" key142="a" key143="a" key144="a" key145="a" key146="a" key147="a" key148="a" key149="a" key150="a" key151="a" key152="a" key153="a" key154="a" key155="a" key156="a" key157="a" key158="a" key159="a" key160="a" key161="a" key162="a" key163="a"
+s09.success-cases.	3600	IN	HTTPS	0 . alpn="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

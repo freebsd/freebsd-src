@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 . testdata/common.sh
+quiet=0
+if test "$1" = "-q"; then
+	quiet=1
+	tdirarg="-q"
+	shift
+fi
 
 NEED_SPLINT='00-lint.tdir'
 NEED_DOXYGEN='01-doc.tdir'
@@ -33,7 +39,7 @@ fi
 export -n NOTIFY_SOCKET
 
 cd testdata;
-sh ../testcode/mini_tdir.sh clean
+sh ../testcode/mini_tdir.sh $tdirarg clean
 rm -f .perfstats.txt
 for test in `ls -d *.tdir`; do
 	SKIP=0
@@ -57,10 +63,10 @@ for test in `ls -d *.tdir`; do
 	fi
 	if test $SKIP -eq 0; then
 		echo $test
-		sh ../testcode/mini_tdir.sh -a ../.. exe $test
+		sh ../testcode/mini_tdir.sh -a ../.. $tdirarg exe $test
 	else
 		echo "skip $test"
 	fi
 done
-sh ../testcode/mini_tdir.sh report
+sh ../testcode/mini_tdir.sh $tdirarg report
 cat .perfstats.txt

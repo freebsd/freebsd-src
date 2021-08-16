@@ -245,6 +245,11 @@ cleanup:
 	/* clear the exception, by not restoring it */
 	/* Restore the exception state */
 	/* PyErr_Restore(exc_typ, exc_val, exc_tb); */
+	/* when using PyErr_Restore there is no need to Py_XDECREF for
+	 * these 3 pointers. */
+	Py_XDECREF(exc_typ);
+	Py_XDECREF(exc_val);
+	Py_XDECREF(exc_tb);
 }
 
 int pythonmod_init(struct module_env* env, int id)
@@ -299,7 +304,10 @@ int pythonmod_init(struct module_env* env, int id)
       PyImport_AppendInittab(SWIG_name, (void*)SWIG_init);
 #endif
       Py_Initialize();
+#if PY_MAJOR_VERSION <= 2 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION <= 6)
+      /* initthreads only for python 3.6 and older */
       PyEval_InitThreads();
+#endif
       SWIG_init();
       mainthr = PyEval_SaveThread();
    }
@@ -335,7 +343,7 @@ int pythonmod_init(struct module_env* env, int id)
    PyFileObject = PyFile_FromString((char*)pe->fname, "r");
    script_py = PyFile_AsFile(PyFileObject);
 #else
-   script_py = _Py_fopen(pe->fname, "r");
+   script_py = fopen(pe->fname, "r");
 #endif
    if (script_py == NULL)
    {
@@ -354,6 +362,8 @@ int pythonmod_init(struct module_env* env, int id)
    /* TODO: deallocation of pe->... if an error occurs */
 
    if (PyRun_SimpleFile(script_py, pe->fname) < 0) {
+#if PY_MAJOR_VERSION <= 2 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 9)
+      /* for python before 3.9 */
       log_err("pythonmod: can't parse Python script %s", pe->fname);
       /* print the error to logs too, run it again */
       fseek(script_py, 0, SEEK_SET);
@@ -369,9 +379,45 @@ int pythonmod_init(struct module_env* env, int id)
       /* ignore the NULL return of _node, it is NULL due to the parse failure
        * that we are expecting */
       (void)PyParser_SimpleParseFile(script_py, pe->fname, Py_file_input);
+#else
+      /* for python 3.9 and newer */
+      char* fstr = NULL;
+      size_t flen = 0;
+      log_err("pythonmod: can't parse Python script %s", pe->fname);
+      /* print the error to logs too, run it again */
+      fseek(script_py, 0, SEEK_END);
+      flen = (size_t)ftell(script_py);
+      fstr = malloc(flen+1);
+      if(!fstr) {
+	      log_err("malloc failure to print parse error");
+	      PyGILState_Release(gil);
+	      fclose(script_py);
+	      return 0;
+      }
+      fseek(script_py, 0, SEEK_SET);
+      if(fread(fstr, flen, 1, script_py) < 1) {
+	      log_err("file read failed to print parse error: %s: %s",
+		pe->fname, strerror(errno));
+	      PyGILState_Release(gil);
+	      fclose(script_py);
+	      free(fstr);
+	      return 0;
+      }
+      fstr[flen] = 0;
+      /* we compile the string, but do not run it, to stop side-effects */
+      /* ignore the NULL return of _node, it is NULL due to the parse failure
+       * that we are expecting */
+      (void)Py_CompileString(fstr, pe->fname, Py_file_input);
+#endif
       log_py_err();
       PyGILState_Release(gil);
       fclose(script_py);
+#if PY_MAJOR_VERSION <= 2 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 9)
+      /* no cleanup needed for python before 3.9 */
+#else
+      /* cleanup for python 3.9 and newer */
+      free(fstr);
+#endif
       return 0;
    }
 #if PY_MAJOR_VERSION < 3
@@ -520,9 +566,19 @@ void pythonmod_operate(struct module_qstate* qstate, enum module_ev event,
    {
       /* create qstate */
       pq = qstate->minfo[id] = malloc(sizeof(struct pythonmod_qstate));
+      if(!pq) {
+		log_err("pythonmod_operate: malloc failure for qstate");
+		PyGILState_Release(gil);
+		return;
+      }
 
       /* Initialize per query data */
       pq->data = PyDict_New();
+      if(!pq->data) {
+		log_err("pythonmod_operate: malloc failure for query data dict");
+		PyGILState_Release(gil);
+		return;
+      }
    }
 
    /* Call operate */

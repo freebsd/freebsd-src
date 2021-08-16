@@ -347,7 +347,11 @@ static volatile int do_quit = 0;
 /** signal handler for user quit */
 static RETSIGTYPE delayer_sigh(int sig)
 {
-	printf("exit on signal %d\n", sig);
+	char str[] = "exit on signal   \n";
+	str[15] = '0' + (sig/10)%10;
+	str[16] = '0' + sig%10;
+	/* simple cast to void will not silence Wunused-result */
+	(void)!write(STDOUT_FILENO, str, strlen(str));
 	do_quit = 1;
 }
 

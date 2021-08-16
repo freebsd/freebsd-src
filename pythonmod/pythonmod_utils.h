@@ -1,22 +1,22 @@
 /*
  * pythonmod_utils.h: utils header file
- * 
+ *
  * Copyright (c) 2009, Zdenek Vasicek (vasicek AT fit.vutbr.cz)
  *                     Marek Vavrusa  (xvavru00 AT stud.fit.vutbr.cz)
  *
  * This software is open source.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  *    * Redistributions of source code must retain the above copyright notice,
  *      this list of conditions and the following disclaimer.
- * 
+ *
  *    * Redistributions in binary form must reproduce the above copyright notice,
  *      this list of conditions and the following disclaimer in the documentation
  *      and/or other materials provided with the distribution.
- * 
+ *
  *    * Neither the name of the organization nor the names of its
  *      contributors may be used to endorse or promote products derived from this
  *      software without specific prior written permission.
@@ -46,34 +46,38 @@ struct delegpt_addr;
 struct sldns_buffer;
 
 /**
- *  Store the reply_info and query_info pair in message cache (qstate->msg_cache)
+ * Store the reply_info and query_info pair in message cache
+ * (qstate->msg_cache).
  *
  * @param qstate: module environment
  * @param qinfo: query info, the query for which answer is stored.
  * @param msgrep: reply in dns_msg
  * @param is_referral: If true, then the given message to be stored is a
- *      referral. The cache implementation may use this as a hint.
- *      It will store only the RRsets, not the message.
+ *	referral. The cache implementation may use this as a hint.
+ *	It will store only the RRsets, not the message.
  * @return 0 on alloc error (out of memory).
  */
-int storeQueryInCache(struct module_qstate* qstate, struct query_info* qinfo, struct reply_info* msgrep, int is_referral);
+int storeQueryInCache(struct module_qstate* qstate, struct query_info* qinfo,
+	struct reply_info* msgrep, int is_referral);
 
 
 /**
- *  Invalidate the message associated with query_info stored in message cache.
+ * Invalidate the message associated with query_info stored in message cache.
  *
- *  This function invalidates the record in message cache associated with the given query only if such a record exists.
+ * This function invalidates the record in message cache associated with the
+ * given query only if such a record exists.
  *
  * @param qstate: module environment
  * @param qinfo: query info, the query for which answer is stored.
  */
-void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qinfo);
+void invalidateQueryInCache(struct module_qstate* qstate,
+	struct query_info* qinfo);
 
 /**
- *  Create response according to the ldns packet content
+ * Create response according to the ldns packet content.
  *
- *  This function fills qstate.return_msg up with data of a given packet
- * 
+ * This function fills qstate.return_msg up with data of a given packet
+ *
  * @param qstate: module environment
  * @param pkt: a sldns_buffer which contains sldns_packet data
  * @return 0 on failure, out of memory or parse error.
@@ -81,14 +85,20 @@ void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qin
 int createResponse(struct module_qstate* qstate, struct sldns_buffer* pkt);
 
 /**
- *  Convert reply->addr to string
- *  @param reply: comm reply with address in it.
- *  @param dest: destination string.
- *  @param maxlen: length of string buffer.
+ * Convert reply->addr to string.
+ * @param reply: comm reply with address in it.
+ * @param dest: destination string.
+ * @param maxlen: length of string buffer.
  */
 void reply_addr2str(struct comm_reply* reply, char* dest, int maxlen);
 
-/* Convert target->addr to string */
-void delegpt_addr_addr2str(struct delegpt_addr* target, char *dest, int maxlen);
+/**
+ * Convert target->addr to string.
+ * @param target: delegpt_addr with address in it.
+ * @param dest: destination string.
+ * @param maxlen: length of string buffer.
+ */
+void delegpt_addr_addr2str(struct delegpt_addr* target, char *dest,
+	int maxlen);
 
 #endif /* PYTHONMOD_UTILS_H */

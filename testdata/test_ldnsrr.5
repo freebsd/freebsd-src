@@ -151,3 +151,24 @@ blabla.		0	ANY	TSIG	hmac-md5.sig-alg.reg.int. 1480585012 300 16 k9mSMs2t5vq5FV2D
 blabla.	0	ANY	TSIG	hmac-md5.sig-alg.reg.int. 1480523776  300 16 sBfx00GRs+tfRTm4uRCjyQ== 25791 0 0
 blabla.		0	ANY	TSIG	hmac-md5.sig-alg.reg.int. 1480585449 300 0  59692 BADSIG 0
 blabla.		0	ANY	TSIG	hmac-md5.sig-alg.reg.int. 1480585462 300 16 6wvlG82sEVHyqsTtBLvRQw== 26044 NOERROR 0
+
+; Test for ZONEMD
+example.org. 86400 IN ZONEMD 5 1 2 c1b8eddf4ef128db88125ede9008d6ff0b33a047b8a8a4d77b00271f7d8e7ae5ccd6c86d8398f64f0de0615bf3121ffba6946a3cd5f32acbc4e8d0649b4a78e6
+; from draft-ietf-dnsop-dns-zone-digest-12#section-2.4
+example.com. 86400 IN ZONEMD 2018031500 1 1 ( FEBE3D4CE2EC2FFA4BA99D46CD69D6D29711E55217057BEE 7EB1A7B641A47BA7FED2DD5B97AE499FAFA4F22C6BD647DE )
+; from draft-ietf-dnsop-dns-zone-digest-12#section-A.1
+example. 86400   IN  ZONEMD  2018031900 1 1 ( c68090d90a7aed71 6bc459f9340e3d7c 1370d4d24b7e2fc3 a1ddc0b9a87153b9 a9713b3c9ae5cc27 777f98b8e730044c )
+; from draft-ietf-dnsop-dns-zone-digest-12#section-A.2
+example. 86400   IN  ZONEMD  2018031900 1 1 ( 31cefb03814f5062 ad12fa951ba0ef5f 8da6ae354a415767 246f7dc932ceb1e7 42a2108f529db6a3 3a11c01493de358d )
+non-apex.example.      900     IN  ZONEMD  2018031900 1 1 ( 616c6c6f77656420 6275742069676e6f 7265642e20616c6c 6f77656420627574 2069676e6f726564 2e20616c6c6f7765 )
+; from draft-ietf-dnsop-dns-zone-digest-12#section-A.3
+example.      86400   IN  ZONEMD  2018031900 1 1 ( 62e6cf51b02e54b9 b5f967d547ce4313 6792901f9f88e637 493daaf401c92c27 9dd10f0edb1c56f8 080211f8480ee306 )
+example.      86400   IN  ZONEMD  2018031900 1 2 ( 08cfa1115c7b948c 4163a901270395ea 226a930cd2cbcf2f a9a5e6eb85f37c8a 4e114d884e66f176 eab121cb02db7d65 2e0cc4827e7a3204 f166b47e5613fd27 )
+example.      86400   IN  ZONEMD  2018031900 1 240 ( e2d523f654b9422a 96c5a8f44607bbee )
+example.      86400   IN  ZONEMD  2018031900 241 1 ( e1846540e33a9e41 89792d18d5d131f6 05fc283e )
+; from draft-ietf-dnsop-dns-zone-digest-12#section-A.4
+uri.arpa.       3600    IN      ZONEMD  2018100702 1 1 ( 1291b78ddf7669b1a39d014d87626b709b55774c5d7d58fa dc556439889a10eaf6f11d615900a4f996bd46279514e473 )
+; from draft-ietf-dnsop-dns-zone-digest-12#section-A.5
+root-servers.net.     3600000 IN  ZONEMD  2018091100 1 1 ( f1ca0ccd91bd5573d9f431c00ee0101b2545c97602be0a97 8a3b11dbfc1c776d5b3e86ae3d973d6b5349ba7f04340f79 )
+; from ldns issue #121, 0.10m was parsed as 0.01m.
+foo.	12345	IN	LOC	12 45 52.333 N 105 40 33.452 W -24m 0.1m 0.1m 0.1m

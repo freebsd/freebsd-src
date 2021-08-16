@@ -397,11 +397,17 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int onarrival,
 /** SIGPIPE handler */
 static RETSIGTYPE sigh(int sig)
 {
+	char str[] = "Got unhandled signal   \n";
 	if(sig == SIGPIPE) {
-		printf("got SIGPIPE, remote connection gone\n");
+		char* strpipe = "got SIGPIPE, remote connection gone\n";
+		/* simple cast to void will not silence Wunused-result */
+		(void)!write(STDOUT_FILENO, strpipe, strlen(strpipe));
 		exit(1);
 	}
-	printf("Got unhandled signal %d\n", sig);
+	str[21] = '0' + (sig/10)%10;
+	str[22] = '0' + sig%10;
+	/* simple cast to void will not silence Wunused-result */
+	(void)!write(STDOUT_FILENO, str, strlen(str));
 	exit(1);
 }
 #endif /* SIGPIPE */

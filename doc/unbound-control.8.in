@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Feb  9, 2021" "NLnet Labs" "unbound 1.13.1"
+.TH "unbound-control" "8" "Aug 12, 2021" "NLnet Labs" "unbound 1.13.2"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -89,8 +89,7 @@ it.  If the zone does not exist, the command succeeds.
 Add new local data, the given resource record. Like \fBlocal\-data\fR
 config statement, except for when no covering zone exists.  In that case
 this remote control command creates a transparent zone with the same 
-name as this record.  This command is not good at returning detailed syntax 
-errors.
+name as this record.
 .TP
 .B local_data_remove \fIname
 Remove all RR data from local name.  If the name already has no items,
@@ -308,7 +307,7 @@ serial check).  And then the zone is transferred for a newer zone version.
 .B rpz_enable \fIzone\fR
 Enable the RPZ zone if it had previously been disabled.
 .TP
-.B rpz_enable \fIzone\fR
+.B rpz_disable \fIzone\fR
 Disable the RPZ zone.
 .TP
 .B view_list_local_zones \fIview\fR

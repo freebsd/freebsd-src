@@ -5,14 +5,23 @@ if test "$1" = "-a"; then
 	shift
 	shift
 fi
-	
+quiet=0
+if test "$1" = "-q"; then
+	quiet=1
+	shift
+fi
+
 if test "$1" = "clean"; then
-	echo "rm -f result.* .done* .tdir.var.master .tdir.var.test"
+	if test $quiet = 0; then
+		echo "rm -f result.* .done* .tdir.var.master .tdir.var.test"
+	fi
 	rm -f result.* .done* .tdir.var.master .tdir.var.test
 	exit 0
 fi
 if test "$1" = "fake"; then
-	echo "minitdir fake $2"
+	if test $quiet = 0; then
+		echo "minitdir fake $2"
+	fi
 	echo "fake" > .done-`basename $2 .tdir`
 	exit 0
 fi
@@ -37,7 +46,7 @@ if test "$1" = "-f" && test "$2" = "report"; then
 			desc=`grep ^Description: "result.$name" | sed -e 's/Description: //'`
 		fi
 		if test -f ".done-$name"; then
-			if test "$1" != "-q"; then
+			if test $quiet = 0; then
 				echo "** PASSED ** $timelen $name: $desc"
 				pass=`expr $pass + 1`
 			fi
@@ -65,7 +74,7 @@ if test "$1" = "report" || test "$2" = "report"; then
 	for result in *.tdir; do
 		name=`basename $result .tdir`
 		if test -f ".done-$name"; then
-			if test "$1" != "-q"; then
+			if test $quiet = 0; then
 				echo "** PASSED ** : $name"
 			fi
 		else
@@ -82,9 +91,9 @@ fi
 if test "$1" != 'exe'; then
 	# usage
 	echo "mini tdir. Reduced functionality for old shells."
-	echo "	tdir exe <file>"
-	echo "	tdir fake <file>"
-	echo "	tdir clean"
+	echo "	tdir [-q] exe <file>"
+	echo "	tdir [-q] fake <file>"
+	echo "	tdir [-q] clean"
 	echo "	tdir [-q|-f] report"
 	exit 1
 fi
@@ -117,7 +126,9 @@ if test -f .done-$name; then
 fi
 
 # Copy
-echo "minitdir copy $1 to $dir"
+if test $quiet = 0; then
+	echo "minitdir copy $1 to $dir"
+fi
 mkdir $dir
 if cp --help 2>&1 | grep -- "-a" >/dev/null; then
 cp -a $name.tdir/* $dir/
@@ -131,7 +142,9 @@ echo "minitdir exe $name" > $result
 grep "Description:" $name.dsc >> $result 2>&1
 echo "DateRunStart: "`date "+%s" 2>/dev/null` >> $result
 if test -f $name.pre; then
-	echo "minitdir exe $name.pre"
+	if test $quiet = 0; then
+		echo "minitdir exe $name.pre"
+	fi
 	echo "minitdir exe $name.pre" >> $result
 	$shell $name.pre $args >> $result
 	if test $? -ne 0; then
@@ -139,7 +152,9 @@ if test -f $name.pre; then
 	fi
 fi
 if test -f $name.test; then
-	echo "minitdir exe $name.test"
+	if test $quiet = 0; then
+		echo "minitdir exe $name.test"
+	fi
 	echo "minitdir exe $name.test" >> $result
 	$shell $name.test $args >>$result 2>&1
 	if test $? -ne 0; then
@@ -149,12 +164,16 @@ if test -f $name.test; then
 	else
 		echo "$name: PASSED" >> $result
 		echo "$name: PASSED" > ../.done-$name
-		echo "$name: PASSED"
+		if test $quiet = 0; then
+			echo "$name: PASSED"
+		fi
 		success="yes"
 	fi
 fi
 if test -f $name.post; then
-	echo "minitdir exe $name.post"
+	if test $quiet = 0; then
+		echo "minitdir exe $name.post"
+	fi
 	echo "minitdir exe $name.post" >> $result
 	$shell $name.post $args >> $result
 	if test $? -ne 0; then

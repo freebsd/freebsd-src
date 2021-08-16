@@ -1,0 +1,162 @@
+; config options
+server:
+	module-config: "respip validator iterator"
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+
+rpz:
+	name: "rpz.example.com."
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN example.com.
+rpz	3600	IN	SOA	ns1.rpz.example.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz.example.com.
+a	CNAME 	.
+a	CNAME 	*. ; duplicate CNAME here on purpose
+*.a	TXT	"wildcard local data"
+*	CNAME	.
+b.a	CNAME 	*.
+c.a	CNAME	rpz-passthru.
+TEMPFILE_END
+
+rpz:
+	name: "rpz2.example.com."
+	zonefile:
+TEMPFILE_NAME rpz2.example.com
+TEMPFILE_CONTENTS rpz2.example.com
+$ORIGIN example.com.
+rpz2	3600	IN	SOA	ns1.rpz.example.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz2.example.com.
+a	TXT	"local data 2nd zone"
+d	TXT	"local data 2nd zone"
+e	CNAME	*.a.example.
+*.e	CNAME	*.b.example.
+drop	CNAME	rpz-drop.
+TEMPFILE_END
+
+stub-zone:
+	name: "a."
+	stub-addr: 10.20.30.40
+stub-zone:
+	name: "example."
+	stub-addr: 10.20.30.50
+CONFIG_END
+
+SCENARIO_BEGIN Test RPZ QNAME trigger for root wildcard.
+
+; a.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.40
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a. IN NS
+SECTION ANSWER
+a. IN NS ns.a.
+SECTION ADDITIONAL
+ns.a IN A 10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+c.a. IN TXT
+SECTION ANSWER
+c.a. IN TXT "answer from upstream ns"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x.b.a. IN TXT
+SECTION ANSWER
+x.b.a. IN TXT "answer from upstream ns"
+ENTRY_END
+
+RANGE_END
+
+; example.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.50
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+example. IN NS ns.example.
+SECTION ADDITIONAL
+ns.example IN A 10.20.30.50
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+e.a.example. IN TXT
+SECTION ANSWER
+e.a.example. IN TXT "e.a.example. answer from upstream ns"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+something.e.b.example. IN TXT
+SECTION ANSWER
+something.e.b.example. IN TXT "*.b.example. answer from upstream ns"
+ENTRY_END
+
+RANGE_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+x.	IN	TXT
+ENTRY_END
+
+; wildcard deny all
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+x.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+y.tld.	IN	TXT
+ENTRY_END
+
+; wildcard deny all
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+y.tld.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+SCENARIO_END

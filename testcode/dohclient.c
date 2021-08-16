@@ -423,6 +423,7 @@ http2_session_create()
 
 	if(nghttp2_session_callbacks_new(&callbacks) == NGHTTP2_ERR_NOMEM) {
 		log_err("failed to initialize nghttp2 callback");
+		free(h2_session);
 		return NULL;
 	}
 	nghttp2_session_callbacks_set_recv_callback(callbacks, http2_recv_cb);
@@ -501,7 +502,9 @@ run(struct http2_session* h2_session, int port, int no_tls, int count, char** q)
 	if(!no_tls) {
 		ctx = connect_sslctx_create(NULL, NULL, NULL, 0);
 		if(!ctx) fatal_exit("cannot create ssl ctx");
+#ifdef HAVE_SSL_CTX_SET_ALPN_PROTOS
 		SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)"\x02h2", 3);
+#endif
 		ssl = outgoing_ssl_fd(ctx, fd);
 		if(!ssl) {
 			printf("cannot create ssl\n");
@@ -620,7 +623,25 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-
+	if(!no_tls) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+		ERR_load_SSL_strings();
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+#  ifndef S_SPLINT_S
+		OpenSSL_add_all_algorithms();
+#  endif
+#else
+		OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
+			| OPENSSL_INIT_ADD_ALL_DIGESTS
+			| OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+#endif
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+		(void)SSL_library_init();
+#else
+		(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#endif
+	}
 	run(h2_session, port, no_tls, argc, argv);
 
 	checklock_stop();

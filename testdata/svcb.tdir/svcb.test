@@ -1,0 +1,97 @@
+# #-- svcb.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+
+# check and write the test vectors in their respective formats
+PRE=../..
+if ! $PRE/readzone svcb.test-vectors-pf.zone > svcb.test-vectors-pf.zone.out
+then
+	echo "Could not parse presentation format zone"
+	exit 1
+
+elif ! $PRE/readzone svcb.test-vectors-pf.zone.out > svcb.test-vectors-pf.zone.out.out
+then
+	echo "Could not parse output from presentation format zone"
+	exit 1
+
+elif ! $PRE/readzone svcb.test-vectors-wf.zone > svcb.test-vectors-wf.zone.out
+then
+	echo "Could not parse RFC3597 formatted zone"
+	exit 1
+
+elif ! $PRE/readzone svcb.test-vectors-wf.zone.out > svcb.test-vectors-wf.zone.out.out
+then
+	echo "Could not parse output from RFC3597 formatted zone"
+	exit 1
+else
+	echo "All test zones parsed successfully"
+fi
+
+
+# check the formatting of the written files
+if ! diff svcb.test-vectors-pf.zone.out svcb.test-vectors-pf.zone.out.out
+then
+	echo "Parsing inconsistency 1"
+	exit 1
+
+elif ! diff svcb.test-vectors-pf.zone.out svcb.test-vectors-wf.zone.out
+then
+	echo "Parsing inconsistency 2"
+	exit 1
+
+elif ! diff svcb.test-vectors-pf.zone.out svcb.test-vectors-wf.zone.out.out
+then
+	echo "Parsing inconsistency 3"
+	exit 1
+else
+	echo "Parsing of SVCB and HTTPS was consistent"
+fi
+
+
+# check all the failure cases
+if $PRE/readzone svcb.failure-cases-01
+then
+	echo "Failure case 01: ech value is not base64 encoded"
+	echo "Incorrectly succeeded"
+	exit 1
+
+elif $PRE/readzone svcb.failure-cases-02
+then
+	echo "Failure case 02: port value needs to be a positive integer < 65536"
+	echo "Incorrectly succeeded"
+	exit 1
+
+elif $PRE/readzone svcb.failure-cases-03
+then
+	echo "Failure case 02: 65 SvcParams is too many SvcParams; the limit is 64"
+	echo "Incorrectly succeeded"
+	exit 1
+
+elif $PRE/readzone svcb.failure-cases-04
+then
+	echo "Failure case 04: 256 is too many characters for an alpn; maximum is 255"
+	echo "Incorrectly succeeded"
+	exit 1
+else
+	echo "All failure cases test successfully"
+fi
+
+
+# check all the succes and write them
+if ! $PRE/readzone svcb.success-cases.zone > svcb.success-cases.zone.out
+then
+ 	echo "Some particular success cases did not succeed to parse"
+ 	exit 1
+
+elif ! diff svcb.success-cases.zone.out svcb.success-cases.zone.cmp
+then
+	echo "Some success cases could not be printed"
+ 	exit 1
+else
+ 	echo "All particular success cases parsed and printed successfully"
+fi
+
+

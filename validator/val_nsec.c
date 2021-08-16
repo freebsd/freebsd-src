@@ -180,6 +180,7 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		nsec->entry.data;
+	if(!d) return 0;
 	if(d->security == sec_status_secure)
 		return 1;
 	rrset_check_sec_status(env->rrset_cache, nsec, *env->now);

@@ -168,7 +168,7 @@ spool_temp_file_name(int* lineno, FILE* cfg, char* id)
 		id++;
 	if(*id == '\0') 
 		fatal_exit("TEMPFILE_NAME must have id, line %d", *lineno);
-	id[strlen(id)-1]=0; /* remove newline */
+	strip_end_white(id);
 	fake_temp_file("_temp_", id, line, sizeof(line));
 	fprintf(cfg, "\"%s\"\n", line);
 }
@@ -185,7 +185,7 @@ spool_temp_file(FILE* in, int* lineno, char* id)
 		id++;
 	if(*id == '\0') 
 		fatal_exit("TEMPFILE_CONTENTS must have id, line %d", *lineno);
-	id[strlen(id)-1]=0; /* remove newline */
+	strip_end_white(id);
 	fake_temp_file("_temp_", id, line, sizeof(line));
 	/* open file and spool to it */
 	spool = fopen(line, "w");
@@ -205,7 +205,7 @@ spool_temp_file(FILE* in, int* lineno, char* id)
 			char* tid = parse+17;
 			while(isspace((unsigned char)*tid))
 				tid++;
-			tid[strlen(tid)-1]=0; /* remove newline */
+			strip_end_white(tid);
 			fake_temp_file("_temp_", tid, l2, sizeof(l2));
 			snprintf(line, sizeof(line), "$INCLUDE %s\n", l2);
 		}
@@ -230,7 +230,7 @@ spool_auto_file(FILE* in, int* lineno, FILE* cfg, char* id)
 		id++;
 	if(*id == '\0') 
 		fatal_exit("AUTROTRUST_FILE must have id, line %d", *lineno);
-	id[strlen(id)-1]=0; /* remove newline */
+	strip_end_white(id);
 	fake_temp_file("_auto_", id, line, sizeof(line));
 	/* add option for the file */
 	fprintf(cfg, "server:	auto-trust-anchor-file: \"%s\"\n", line);
@@ -279,6 +279,7 @@ setup_config(FILE* in, int* lineno, int* pass_argc, char* pass_argv[])
 	fprintf(cfg, "		username: \"\"\n");
 	fprintf(cfg, "		pidfile: \"\"\n");
 	fprintf(cfg, "		val-log-level: 2\n");
+	fprintf(cfg, "		log-servfail: yes\n");
 	fprintf(cfg, "remote-control:	control-enable: no\n");
 	while(fgets(line, MAX_LINE_LEN-1, in)) {
 		parse = line;

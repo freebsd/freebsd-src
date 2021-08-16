@@ -839,52 +839,6 @@ static void respip_test(void)
 	respip_conf_actions_test();
 }
 
-#include "services/outside_network.h"
-/** add number of new IDs to the reuse tree, randomly chosen */
-static void tcpid_addmore(struct reuse_tcp* reuse,
-	struct outside_network* outnet, unsigned int addnum)
-{
-	unsigned int i;
-	struct waiting_tcp* w;
-	for(i=0; i<addnum; i++) {
-		uint16_t id = reuse_tcp_select_id(reuse, outnet);
-		unit_assert(!reuse_tcp_by_id_find(reuse, id));
-		w = calloc(1, sizeof(*w));
-		unit_assert(w);
-		w->id = id;
-		w->outnet = outnet;
-		w->next_waiting = (void*)reuse->pending;
-		reuse_tree_by_id_insert(reuse, w);
-	}
-}
-
-/** fill up the reuse ID tree and test assertions */
-static void tcpid_fillup(struct reuse_tcp* reuse,
-	struct outside_network* outnet)
-{
-	int t, numtest=3;
-	for(t=0; t<numtest; t++) {
-		rbtree_init(&reuse->tree_by_id, reuse_id_cmp);
-		tcpid_addmore(reuse, outnet, 65535);
-		reuse_del_readwait(&reuse->tree_by_id);
-	}
-}
-
-/** test TCP ID selection */
-static void tcpid_test(void)
-{
-	struct pending_tcp pend;
-	struct outside_network outnet;
-	unit_show_func("services/outside_network.c", "reuse_tcp_select_id");
-	memset(&pend, 0, sizeof(pend));
-	pend.reuse.pending = &pend;
-	memset(&outnet, 0, sizeof(outnet));
-	outnet.rnd = ub_initstate(NULL);
-	rbtree_init(&pend.reuse.tree_by_id, reuse_id_cmp);
-	tcpid_fillup(&pend.reuse, &outnet);
-	ub_randfree(outnet.rnd);
-}
-
 void unit_show_func(const char* file, const char* func)
 {
 	printf("test %s:%s\n", file, func);
@@ -952,8 +906,9 @@ main(int argc, char* argv[])
 	slabhash_test();
 	infra_test();
 	ldns_test();
+	zonemd_test();
+	tcpreuse_test();
 	msgparse_test();
-	tcpid_test();
 #ifdef CLIENT_SUBNET
 	ecs_test();
 #endif /* CLIENT_SUBNET */
