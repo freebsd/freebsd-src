@@ -856,6 +856,7 @@ hid_item_resolution(struct hid_item *hi)
 		divisor = 10;
 		break;
 	case HUM_INCH:
+	case HUM_INCH_EGALAX:
 		multiplier = 10;
 		divisor = 254;
 		break;
