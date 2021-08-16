@@ -316,8 +316,7 @@ evdev_register_common(struct evdev_dev *evdev)
 	}
 
 	/* Initialize multitouch protocol type B states */
-	if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT) &&
-	    evdev->ev_absinfo != NULL && MAXIMAL_MT_SLOT(evdev) > 0)
+	if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
 		evdev_mt_init(evdev);
 
 	/* Estimate maximum report size */
