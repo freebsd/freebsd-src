@@ -174,7 +174,7 @@ struct xunpgen {
 	u_int	xug_count;
 	unp_gen_t xug_gen;
 	so_gen_t xug_sogen;
-} __aligned(8);;
+} __aligned(8);
 #endif /* _SYS_SOCKETVAR_H_ */
 
 #if defined(_KERNEL)

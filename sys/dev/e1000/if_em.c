@@ -901,7 +901,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		 * that it shall give MSI at least a try with other devices.
 		 */
 		if (hw->mac.type == e1000_82574) {
-			scctx->isc_msix_bar = pci_msix_table_bar(dev);;
+			scctx->isc_msix_bar = pci_msix_table_bar(dev);
 		} else {
 			scctx->isc_msix_bar = -1;
 			scctx->isc_disable_msix = 1;

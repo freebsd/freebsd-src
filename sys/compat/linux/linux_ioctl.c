@@ -285,7 +285,7 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		fdrop(fp, td);
 		if (error)
 			return (error);
-		blksize64 = mediasize;;
+		blksize64 = mediasize;
 		return (copyout(&blksize64, (void *)args->arg,
 		    sizeof(blksize64)));
 	case LINUX_BLKSSZGET:

@@ -588,7 +588,7 @@ xgbe_init_all_fptrs(struct xgbe_prv_data *pdata)
 static void
 axgbe_set_counts(if_ctx_t ctx)
 {
-	struct axgbe_if_softc *sc = iflib_get_softc(ctx);;
+	struct axgbe_if_softc *sc = iflib_get_softc(ctx);
 	struct xgbe_prv_data *pdata = &sc->pdata;
 	cpuset_t lcpus;
 	int cpu_count, err;
