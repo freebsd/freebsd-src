@@ -123,7 +123,7 @@ static void linkmap_delete(Obj_Entry *);
 static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
 static void unload_filtees(Obj_Entry *, RtldLockState *);
 static int load_needed_objects(Obj_Entry *, int);
-static int load_preload_objects(char *, bool);
+static int load_preload_objects(const char *, bool);
 static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
 static int obj_disable_relro(Obj_Entry *);
@@ -202,24 +202,24 @@ int __sys_openat(int, const char *, int, ...);
 struct r_debug r_debug __exported;	/* for GDB; */
 static bool libmap_disable;	/* Disable libmap */
 static bool ld_loadfltr;	/* Immediate filters processing */
-static char *libmap_override;	/* Maps to use in addition to libmap.conf */
+static const char *libmap_override;/* Maps to use in addition to libmap.conf */
 static bool trust;		/* False for setuid and setgid programs */
 static bool dangerous_ld_env;	/* True if environment variables have been
 				   used to affect the libraries loaded */
 bool ld_bind_not;		/* Disable PLT update */
-static char *ld_bind_now;	/* Environment variable for immediate binding */
-static char *ld_debug;		/* Environment variable for debugging */
+static const char *ld_bind_now;	/* Environment variable for immediate binding */
+static const char *ld_debug;	/* Environment variable for debugging */
 static bool ld_dynamic_weak = true; /* True if non-weak definition overrides
 				       weak definition */
-static char *ld_library_path;	/* Environment variable for search path */
-static char *ld_library_dirs;	/* Environment variable for library descriptors */
-static char *ld_preload;	/* Environment variable for libraries to
+static const char *ld_library_path;/* Environment variable for search path */
+static const char *ld_library_dirs;/* Environment variable for library descriptors */
+static const char *ld_preload;	/* Environment variable for libraries to
 				   load first */
-static char *ld_preload_fds;	/* Environment variable for libraries represented by
+static const char *ld_preload_fds;/* Environment variable for libraries represented by
 				   descriptors */
 static const char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static const char *ld_tracing;	/* Called from ldd to print libs */
-static char *ld_utrace;		/* Use utrace() to log events. */
+static const char *ld_utrace;	/* Use utrace() to log events. */
 static struct obj_entry_q obj_list;	/* Queue of all loaded objects */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
@@ -367,8 +367,8 @@ enum {
 };
 
 struct ld_env_var_desc {
-	const char *n;
-	char *val;
+	const char * const n;
+	const char *val;
 	const bool unsecure;
 };
 #define LD_ENV_DESC(var, unsec) \
@@ -398,13 +398,13 @@ static struct ld_env_var_desc ld_env_vars[] = {
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS_ALL, false),
 };
 
-static char *
+static const char *
 ld_get_env_var(int idx)
 {
 	return (ld_env_vars[idx].val);
 }
 
-static char *
+static const char *
 rtld_get_env_val(char **env, const char *name, size_t name_len)
 {
 	char **m, *n, *v;
@@ -493,8 +493,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     RtldLockState lockstate;
     struct stat st;
     Elf_Addr *argcp;
-    char **argv, **env, **envp, *kexecpath, *library_path_rpath;
-    const char *argv0, *binpath;
+    char **argv, **env, **envp, *kexecpath;
+    const char *argv0, *binpath, *library_path_rpath;
     struct ld_env_var_desc *lvd;
     caddr_t imgentry;
     char buf[MAXPATHLEN];
@@ -2600,36 +2600,42 @@ load_needed_objects(Obj_Entry *first, int flags)
 }
 
 static int
-load_preload_objects(char *p, bool isfd)
+load_preload_objects(const char *penv, bool isfd)
 {
 	Obj_Entry *obj;
+	const char *name;
+	size_t len;
+	char savech, *p, *psave;
+	int fd;
 	static const char delim[] = " \t:;";
 
-	if (p == NULL)
+	if (penv == NULL)
 		return (0);
 
+	p = psave = xstrdup(penv);
 	p += strspn(p, delim);
 	while (*p != '\0') {
-		const char *name;
-		size_t len = strcspn(p, delim);
-		char savech;
-		int fd;
+		len = strcspn(p, delim);
 
 		savech = p[len];
 		p[len] = '\0';
 		if (isfd) {
 			name = NULL;
 			fd = parse_integer(p);
-			if (fd == -1)
+			if (fd == -1) {
+				free(psave);
 				return (-1);
+			}
 		} else {
 			name = p;
 			fd = -1;
 		}
 
 		obj = load_object(name, fd, NULL, 0);
-		if (obj == NULL)
+		if (obj == NULL) {
+			free(psave);
 			return (-1);	/* XXX - cleanup */
+		}
 		obj->z_interpose = true;
 		p[len] = savech;
 		p += len;
@@ -2637,6 +2643,7 @@ load_preload_objects(char *p, bool isfd)
 	}
 	LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
 
+	free(psave);
 	return (0);
 }
 
@@ -6030,7 +6037,8 @@ rtld_strerror(int errnum)
 char *
 getenv(const char *name)
 {
-	return (rtld_get_env_val(environ, name, strlen(name)));
+	return (__DECONST(char *, rtld_get_env_val(environ, name,
+	    strlen(name))));
 }
 
 /* malloc */

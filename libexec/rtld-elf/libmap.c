@@ -64,22 +64,22 @@ static const char *quickbasename(const char *);
 #define	rtld_isspace(c)	((c) == ' ' || (c) == '\t')
 
 int
-lm_init(char *libmap_override)
+lm_init(const char *libmap_override)
 {
-	char *p;
+	char *l, *p;
 
 	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
 	lmc_parse_file(ld_path_libmap_conf);
 
-	if (libmap_override) {
+	if (libmap_override != NULL) {
 		/*
 		 * Do some character replacement to make $LDLIBMAP look
 		 * like a text file, then parse it.
 		 */
-		libmap_override = xstrdup(libmap_override);
-		for (p = libmap_override; *p; p++) {
+		l = xstrdup(libmap_override);
+		for (p = l; *p != 0; p++) {
 			switch (*p) {
 			case '=':
 				*p = ' ';
@@ -89,8 +89,8 @@ lm_init(char *libmap_override)
 				break;
 			}
 		}
-		lmc_parse(libmap_override, p - libmap_override);
-		free(libmap_override);
+		lmc_parse(l, p - l);
+		free(l);
 	}
 
 	return (lm_count == 0);
