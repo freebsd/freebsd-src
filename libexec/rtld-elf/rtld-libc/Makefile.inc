@@ -27,7 +27,7 @@ SRCS+=	rtld_libc.c
 
 # Now build the remaining files from libc:
 .PATH: ${LIBC_SRCTOP}/stdlib
-SRCS+=	reallocf.c realpath.c getenv.c merge.c reallocarray.c
+SRCS+=	reallocf.c realpath.c merge.c reallocarray.c
 # TODO: fix merge.c to build with WARNS=6
 .if ${COMPILER_TYPE} == "clang"
 CFLAGS.merge.c+=-Wno-error=null-pointer-arithmetic
