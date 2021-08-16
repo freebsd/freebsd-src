@@ -2828,7 +2828,7 @@ igb_initialize_rss_mapping(struct adapter *adapter)
 	 * MRQC: Multiple Receive Queues Command
 	 * Set queuing to RSS control, number depends on the device.
 	 */
-	mrqc = E1000_MRQC_ENABLE_RSS_8Q;
+	mrqc = E1000_MRQC_ENABLE_RSS_MQ;
 
 #ifdef RSS
 	/* XXX ew typecasting */
@@ -3241,37 +3241,33 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_RFCTL, rfctl);
 	}
 
+	/* Set up L3 and L4 csum Rx descriptor offloads */
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
-	if (if_getcapenable(ifp) & IFCAP_RXCSUM &&
-	    hw->mac.type >= e1000_82543) {
-		if (adapter->tx_num_queues > 1) {
-			if (hw->mac.type >= igb_mac_min) {
-				rxcsum |= E1000_RXCSUM_PCSD;
-				if (hw->mac.type != e1000_82575)
-					rxcsum |= E1000_RXCSUM_CRCOFL;
-			} else
-				rxcsum |= E1000_RXCSUM_TUOFL |
-					E1000_RXCSUM_IPOFL |
-					E1000_RXCSUM_PCSD;
-		} else {
-			if (hw->mac.type >= igb_mac_min)
-				rxcsum |= E1000_RXCSUM_IPPCSE;
-			else
-				rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
-			if (hw->mac.type > e1000_82575)
-				rxcsum |= E1000_RXCSUM_CRCOFL;
-		}
-	} else
-		rxcsum &= ~E1000_RXCSUM_TUOFL;
-
-	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
+	if (scctx->isc_capenable & IFCAP_RXCSUM) {
+		rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
+		if (hw->mac.type > e1000_82575)
+			rxcsum |= E1000_RXCSUM_CRCOFL;
+		else if (hw->mac.type < em_mac_min &&
+		    scctx->isc_capenable & IFCAP_HWCSUM_IPV6)
+			rxcsum |= E1000_RXCSUM_IPV6OFL;
+	} else {
+		rxcsum &= ~(E1000_RXCSUM_IPOFL | E1000_RXCSUM_TUOFL);
+		if (hw->mac.type > e1000_82575)
+			rxcsum &= ~E1000_RXCSUM_CRCOFL;
+		else if (hw->mac.type < em_mac_min)
+			rxcsum &= ~E1000_RXCSUM_IPV6OFL;
+	}
 
 	if (adapter->rx_num_queues > 1) {
+		/* RSS hash needed in the Rx descriptor */
+		rxcsum |= E1000_RXCSUM_PCSD;
+
 		if (hw->mac.type >= igb_mac_min)
 			igb_initialize_rss_mapping(adapter);
 		else
 			em_initialize_rss_mapping(adapter);
 	}
+	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 	/*
 	 * XXX TEMPORARY WORKAROUND: on some systems with 82573
