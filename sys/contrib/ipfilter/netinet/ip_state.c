@@ -2855,8 +2855,8 @@ ipf_checkicmpmatchingstate(fin)
 
 	tcp = (tcphdr_t *)((char *)oip + (IP_HL(oip) << 2));
 
-	hv += tcp->th_dport;;
-	hv += tcp->th_sport;;
+	hv += tcp->th_dport;
+	hv += tcp->th_sport;
 	hv = DOUBLE_HASH(hv);
 
 	READ_ENTER(&softc->ipf_state);
