@@ -391,6 +391,7 @@ fail:
 #ifdef MAC
 	mac_pipe_destroy(pp);
 #endif
+	uma_zfree(pipe_zone, pp);
 	return (error);
 }
 
