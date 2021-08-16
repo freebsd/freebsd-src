@@ -367,7 +367,7 @@ mv_ap806_sei_attach(device_t dev)
 		if (rv != 0)
 			goto fail; /* XXX deregister ISRCs */
 	}
-	xref = OF_xref_from_node(node);;
+	xref = OF_xref_from_node(node);
 	if (intr_pic_register(dev, xref) == NULL) {
 		device_printf(dev, "Cannot register SEI\n");
 		rv = ENXIO;

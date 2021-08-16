@@ -197,7 +197,7 @@ felix_parse_port_fdt(felix_softc_t sc, phandle_t child, int *pport)
 		return (0);
 	}
 
-	sc->ports[port].fixed_port = true;;
+	sc->ports[port].fixed_port = true;
 
 	if (OF_getencprop(node, "speed", &status, sizeof(status)) <= 0) {
 		device_printf(sc->dev,
