@@ -6027,6 +6027,12 @@ rtld_strerror(int errnum)
 	return (sys_errlist[errnum]);
 }
 
+char *
+getenv(const char *name)
+{
+	return (rtld_get_env_val(environ, name, strlen(name)));
+}
+
 /* malloc */
 void *
 malloc(size_t nbytes)
