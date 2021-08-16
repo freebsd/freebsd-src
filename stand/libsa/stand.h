@@ -369,7 +369,7 @@ extern ev_sethook_t	env_noset;		/* refuse set operation */
 extern ev_unsethook_t	env_nounset;		/* refuse unset operation */
 
 /* stdlib.h routines */
-extern int		abs(int a);
+extern int		abs(int a) __pure2;
 extern void		abort(void) __dead2;
 extern long		strtol(const char * __restrict, char ** __restrict, int);
 extern long long	strtoll(const char * __restrict, char ** __restrict, int);

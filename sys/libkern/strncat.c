@@ -43,19 +43,19 @@ __FBSDID("$FreeBSD$");
  * are written at dst (at most n+1 bytes being appended).  Return dst.
  */
 char *
-strncat(char *dst, const char *src, size_t n)
+strncat(char * __restrict dst, const char * __restrict src, size_t n)
 {
 
 	if (n != 0) {
 		char *d = dst;
-		const char *s = src;
 
-		while (*d != 0)
+		while (*d != '\0')
 			d++;
 		do {
-			if ((*d = *s++) == '\0')
-				break;
+			if ((*d = *src) == '\0')
+				return (dst);
 			d++;
+			src++;
 		} while (--n != 0);
 		*d = '\0';
 	}
