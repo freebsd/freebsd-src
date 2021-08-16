@@ -428,11 +428,12 @@
 #define E1000_SCTL_ENABLE_SERDES_LOOPBACK	0x0410
 
 /* Receive Checksum Control */
-#define E1000_RXCSUM_IPOFL	0x00000100 /* IPv4 checksum offload */
-#define E1000_RXCSUM_TUOFL	0x00000200 /* TCP / UDP checksum offload */
-#define E1000_RXCSUM_CRCOFL	0x00000800 /* CRC32 offload enable */
-#define E1000_RXCSUM_IPPCSE	0x00001000 /* IP payload checksum enable */
-#define E1000_RXCSUM_PCSD	0x00002000 /* packet checksum disabled */
+#define E1000_RXCSUM_IPOFL		0x00000100 /* IPv4 checksum offload */
+#define E1000_RXCSUM_TUOFL		0x00000200 /* TCP / UDP checksum offload */
+#define E1000_RXCSUM_IPV6OFL	0x00000400  /* lem(4) IPv6 checksum offload */
+#define E1000_RXCSUM_CRCOFL		0x00000800 /* CRC32 offload enable */
+#define E1000_RXCSUM_IPPCSE		0x00001000 /* IP payload checksum enable */
+#define E1000_RXCSUM_PCSD		0x00002000 /* packet checksum disabled */
 
 /* Header split receive */
 #define E1000_RFCTL_NFSW_DIS		0x00000040
