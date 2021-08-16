@@ -1317,7 +1317,8 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			break;
 		}
 
-		error = msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", timo);
+		error = msleep(&p->p_sigacts, &p->p_mtx, PPAUSE | PCATCH,
+		    "sigwait", timo);
 
 		if (timeout != NULL) {
 			if (error == ERESTART) {
