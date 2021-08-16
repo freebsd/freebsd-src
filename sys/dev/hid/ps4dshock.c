@@ -215,7 +215,7 @@ static const uint8_t	ps4dshock_rdesc[] = {
 	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
 	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
 	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
 	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
 	0x75, 0x0C,		/*     Report Size (12)			*/
 	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
@@ -244,76 +244,7 @@ static const uint8_t	ps4dshock_rdesc[] = {
 	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
 	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
 	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
-	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
-	0x75, 0x0C,		/*     Report Size (12)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x09, 0x31,		/*     Usage (Y)			*/
-	0x46, 0xC0, 0x00,	/*     Physical Maximum (192)		*/
-	0x26, 0xAE, 0x03,	/*     Logical Maximum (942)		*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x65, 0x00,		/*     Unit (None)			*/
-	0x45, 0x00,		/*     Physical Maximum (0)		*/
-	0xC0,			/*   End Collection			*/
-	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
-	0x09, 0x56,		/*   Usage (0x56)			*/
-	0x55, 0x0C,		/*   Unit Exponent (-4)			*/
-	0x66, 0x01, 0x10,	/*   Unit (System: SI Linear, Time: Seconds) */
-	0x46, 0xCC, 0x06,	/*   Physical Maximum (1740)		*/
-	0x26, 0xFF, 0x00,	/*   Logical Maximum (255)		*/
-	0x75, 0x08,		/*   Report Size (8)			*/
-	0x95, 0x01,		/*   Report Count (1)			*/
-	0x81, 0x02,		/*   Input (Data,Var,Abs)		*/
-	0x65, 0x00,		/*   Unit (None)			*/
-	0x45, 0x00,		/*   Physical Maximum (0)		*/
-	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
-	0x09, 0x22,		/*   Usage (Finger)			*/
-	0xA1, 0x02,		/*   Collection (Logical)		*/
-	0x09, 0x51,		/*     Usage (0x51)			*/
-	0x25, 0x7F,		/*     Logical Maximum (127)		*/
-	0x75, 0x07,		/*     Report Size (7)			*/
-	0x95, 0x01,		/*     Report Count (1)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x09, 0x42,		/*     Usage (Tip Switch)		*/
-	0x25, 0x01,		/*     Logical Maximum (1)		*/
-	0x75, 0x01,		/*     Report Size (1)			*/
-	0x95, 0x01,		/*     Report Count (1)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x05, 0x01,		/*     Usage Page (Generic Desktop Ctrls) */
-	0x09, 0x30,		/*     Usage (X)			*/
-	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
-	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
-	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
-	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
-	0x75, 0x0C,		/*     Report Size (12)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x09, 0x31,		/*     Usage (Y)			*/
-	0x46, 0xC0, 0x00,	/*     Physical Maximum (192)		*/
-	0x26, 0xAE, 0x03,	/*     Logical Maximum (942)		*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x65, 0x00,		/*     Unit (None)			*/
-	0x45, 0x00,		/*     Physical Maximum (0)		*/
-	0xC0,			/*   End Collection			*/
-	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
-	0x09, 0x22,		/*   Usage (Finger)			*/
-	0xA1, 0x02,		/*   Collection (Logical)		*/
-	0x09, 0x51,		/*     Usage (0x51)			*/
-	0x25, 0x7F,		/*     Logical Maximum (127)		*/
-	0x75, 0x07,		/*     Report Size (7)			*/
-	0x95, 0x01,		/*     Report Count (1)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x09, 0x42,		/*     Usage (Tip Switch)		*/
-	0x25, 0x01,		/*     Logical Maximum (1)		*/
-	0x75, 0x01,		/*     Report Size (1)			*/
-	0x95, 0x01,		/*     Report Count (1)			*/
-	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
-	0x05, 0x01,		/*     Usage Page (Generic Desktop Ctrls) */
-	0x09, 0x30,		/*     Usage (X)			*/
-	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
-	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
-	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
 	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
 	0x75, 0x0C,		/*     Report Size (12)			*/
 	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
@@ -353,7 +284,7 @@ static const uint8_t	ps4dshock_rdesc[] = {
 	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
 	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
 	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
 	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
 	0x75, 0x0C,		/*     Report Size (12)			*/
 	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
@@ -382,7 +313,76 @@ static const uint8_t	ps4dshock_rdesc[] = {
 	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
 	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
 	0x35, 0x00,		/*     Physical Minimum (0)		*/
-	0x46, 0x80, 0x02,	/*     Physical Maximum (640)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
+	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
+	0x75, 0x0C,		/*     Report Size (12)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x09, 0x31,		/*     Usage (Y)			*/
+	0x46, 0xC0, 0x00,	/*     Physical Maximum (192)		*/
+	0x26, 0xAE, 0x03,	/*     Logical Maximum (942)		*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x65, 0x00,		/*     Unit (None)			*/
+	0x45, 0x00,		/*     Physical Maximum (0)		*/
+	0xC0,			/*   End Collection			*/
+	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
+	0x09, 0x56,		/*   Usage (0x56)			*/
+	0x55, 0x0C,		/*   Unit Exponent (-4)			*/
+	0x66, 0x01, 0x10,	/*   Unit (System: SI Linear, Time: Seconds) */
+	0x46, 0xCC, 0x06,	/*   Physical Maximum (1740)		*/
+	0x26, 0xFF, 0x00,	/*   Logical Maximum (255)		*/
+	0x75, 0x08,		/*   Report Size (8)			*/
+	0x95, 0x01,		/*   Report Count (1)			*/
+	0x81, 0x02,		/*   Input (Data,Var,Abs)		*/
+	0x65, 0x00,		/*   Unit (None)			*/
+	0x45, 0x00,		/*   Physical Maximum (0)		*/
+	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
+	0x09, 0x22,		/*   Usage (Finger)			*/
+	0xA1, 0x02,		/*   Collection (Logical)		*/
+	0x09, 0x51,		/*     Usage (0x51)			*/
+	0x25, 0x7F,		/*     Logical Maximum (127)		*/
+	0x75, 0x07,		/*     Report Size (7)			*/
+	0x95, 0x01,		/*     Report Count (1)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x09, 0x42,		/*     Usage (Tip Switch)		*/
+	0x25, 0x01,		/*     Logical Maximum (1)		*/
+	0x75, 0x01,		/*     Report Size (1)			*/
+	0x95, 0x01,		/*     Report Count (1)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x05, 0x01,		/*     Usage Page (Generic Desktop Ctrls) */
+	0x09, 0x30,		/*     Usage (X)			*/
+	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
+	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
+	0x35, 0x00,		/*     Physical Minimum (0)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
+	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
+	0x75, 0x0C,		/*     Report Size (12)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x09, 0x31,		/*     Usage (Y)			*/
+	0x46, 0xC0, 0x00,	/*     Physical Maximum (192)		*/
+	0x26, 0xAE, 0x03,	/*     Logical Maximum (942)		*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x65, 0x00,		/*     Unit (None)			*/
+	0x45, 0x00,		/*     Physical Maximum (0)		*/
+	0xC0,			/*   End Collection			*/
+	0x05, 0x0D,		/*   Usage Page (Digitizer)		*/
+	0x09, 0x22,		/*   Usage (Finger)			*/
+	0xA1, 0x02,		/*   Collection (Logical)		*/
+	0x09, 0x51,		/*     Usage (0x51)			*/
+	0x25, 0x7F,		/*     Logical Maximum (127)		*/
+	0x75, 0x07,		/*     Report Size (7)			*/
+	0x95, 0x01,		/*     Report Count (1)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x09, 0x42,		/*     Usage (Tip Switch)		*/
+	0x25, 0x01,		/*     Logical Maximum (1)		*/
+	0x75, 0x01,		/*     Report Size (1)			*/
+	0x95, 0x01,		/*     Report Count (1)			*/
+	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
+	0x05, 0x01,		/*     Usage Page (Generic Desktop Ctrls) */
+	0x09, 0x30,		/*     Usage (X)			*/
+	0x55, 0x0E,		/*     Unit Exponent (-2)		*/
+	0x65, 0x11,		/*     Unit (System: SI Linear, Length: Centimeter) */
+	0x35, 0x00,		/*     Physical Minimum (0)		*/
+	0x46, 0xB8, 0x01,	/*     Physical Maximum (440)		*/
 	0x26, 0x80, 0x07,	/*     Logical Maximum (1920)		*/
 	0x75, 0x0C,		/*     Report Size (12)			*/
 	0x81, 0x02,		/*     Input (Data,Var,Abs)		*/
